@@ -282,44 +282,6 @@ void parse_reloc_table(struct kexec_segment *segment, struct kimage* image)
         }
 }
 
-void kimage_load_pe(struct kimage *image, unsigned long nr_segments)
-{
-        unsigned long raw_image_relative_start;
-        size_t        image_size = 0;
-        int           i;
-
-        /* Calculate total image size and allocate it: */
-        for (i = 0; i < nr_segments; i++) {
-                image_size += image->segment[i].memsz;
-        }
-        image->raw_image          = vmalloc_exec( image_size );
-
-        /* ImageBase in objdump of efi image */
-        image->raw_image_mem_base = image->segment[0].mem;
-
-        raw_image_relative_start  = image->start - image->raw_image_mem_base;
-        image->raw_image_start    = (void*)( image->raw_image + raw_image_relative_start );
-        DebugMSG(  "image->raw_image = %px; "
-                   "image->raw_image_mem_base = 0x%lx; "
-                   "image_size = 0x%lx; "
-                   "image->raw_image_start = %px\n",
-                   image->raw_image,
-                   image->raw_image_mem_base,
-                   image_size,
-                   image->raw_image_start );
-
-        for (i = 0; i < nr_segments; i++) {
-                kimage_load_pe_segment(image, &image->segment[i]);
-        }
-
-       /* We now need to parse the relocation table of the PE and then patch the
-        * efi binary. We assume that the last segment is the relocatiuon
-        * segment. */
-       /* TODO: Patch the relocations in user space. I.e., the segments being
-        * sent to kexec_load should already be patched */
-        parse_reloc_table( &image->segment[nr_segments-1], image );
-}
-
 /*
  * EFI types definitions: */
 
@@ -1142,6 +1104,44 @@ EFI_LOADED_IMAGE_PROTOCOL windows_loaded_image = {
         .ImageDataType    = EfiLoaderData,
         .Unload           = NULL,
 };
+
+void kimage_load_pe(struct kimage *image, unsigned long nr_segments)
+{
+        unsigned long raw_image_relative_start;
+        size_t        image_size = 0;
+        int           i;
+
+        /* Calculate total image size and allocate it: */
+        for (i = 0; i < nr_segments; i++) {
+                image_size += image->segment[i].memsz;
+        }
+        image->raw_image          = vmalloc_exec( image_size );
+
+        /* ImageBase in objdump of efi image */
+        image->raw_image_mem_base = image->segment[0].mem;
+
+        raw_image_relative_start  = image->start - image->raw_image_mem_base;
+        image->raw_image_start    = (void*)( image->raw_image + raw_image_relative_start );
+        DebugMSG(  "image->raw_image = %px; "
+                   "image->raw_image_mem_base = 0x%lx; "
+                   "image_size = 0x%lx; "
+                   "image->raw_image_start = %px\n",
+                   image->raw_image,
+                   image->raw_image_mem_base,
+                   image_size,
+                   image->raw_image_start );
+
+        for (i = 0; i < nr_segments; i++) {
+                kimage_load_pe_segment(image, &image->segment[i]);
+        }
+
+       /* We now need to parse the relocation table of the PE and then patch the
+        * efi binary. We assume that the last segment is the relocatiuon
+        * segment. */
+       /* TODO: Patch the relocations in user space. I.e., the segments being
+        * sent to kexec_load should already be patched */
+        parse_reloc_table( &image->segment[nr_segments-1], image );
+}
 
 efi_status_t efi_handle_protocol_LoadedImage( void* handle, void** interface )
 {
