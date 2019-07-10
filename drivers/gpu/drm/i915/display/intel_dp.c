@@ -1854,8 +1854,10 @@ intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 	int mode_rate, link_clock, link_avail;
 
 	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
+		int output_bpp = intel_dp_output_bpp(pipe_config, bpp);
+
 		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
-						   bpp);
+						   output_bpp);
 
 		for (clock = limits->min_clock; clock <= limits->max_clock; clock++) {
 			for (lane_count = limits->min_lane_count;
