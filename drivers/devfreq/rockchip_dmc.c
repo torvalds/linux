@@ -1353,7 +1353,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	 * Go to specified cpufreq and block other cpufreq changes since
 	 * set_rate needs to complete during vblank.
 	 */
-	cpu_cur = get_cpu();
+	cpu_cur = smp_processor_id();
 	policy = cpufreq_cpu_get(cpu_cur);
 	if (!policy) {
 		dev_err(dev, "cpu%d policy NULL\n", cpu_cur);
@@ -1443,7 +1443,6 @@ out:
 	up_write(&policy->rwsem);
 	cpufreq_cpu_put(policy);
 cpufreq:
-	put_cpu();
 	put_online_cpus();
 	return err;
 }
