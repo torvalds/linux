@@ -57,6 +57,11 @@ struct db_export {
 	int (*export_call_path)(struct db_export *dbe, struct call_path *cp);
 	int (*export_call_return)(struct db_export *dbe,
 				  struct call_return *cr);
+	int (*export_context_switch)(struct db_export *dbe, u64 db_id,
+				     struct machine *machine,
+				     struct perf_sample *sample,
+				     u64 th_out_id, u64 comm_out_id,
+				     u64 th_in_id, u64 comm_in_id, int flags);
 	struct call_return_processor *crp;
 	struct call_path_root *cpr;
 	u64 evsel_last_db_id;
@@ -69,6 +74,7 @@ struct db_export {
 	u64 sample_last_db_id;
 	u64 call_path_last_db_id;
 	u64 call_return_last_db_id;
+	u64 context_switch_last_db_id;
 };
 
 int db_export__init(struct db_export *dbe);
@@ -98,5 +104,7 @@ int db_export__branch_types(struct db_export *dbe);
 int db_export__call_path(struct db_export *dbe, struct call_path *cp);
 int db_export__call_return(struct db_export *dbe, struct call_return *cr,
 			   u64 *parent_db_id);
+int db_export__switch(struct db_export *dbe, union perf_event *event,
+		      struct perf_sample *sample, struct machine *machine);
 
 #endif
