@@ -88,6 +88,20 @@ struct rapl_domain {
 	struct rapl_package *rp;
 };
 
+/**
+ * struct rapl_if_priv: private data for different RAPL interfaces
+ * @control_type:		Each RAPL interface must have its own powercap
+ *				control type.
+ * @platform_rapl_domain:	Optional. Some RAPL interface may have platform
+ *				level RAPL control.
+ * @pcap_rapl_online:		CPU hotplug state for each RAPL interface.
+ */
+struct rapl_if_priv {
+	struct powercap_control_type *control_type;
+	struct rapl_domain *platform_rapl_domain;
+	enum cpuhp_state pcap_rapl_online;
+};
+
 /* maximum rapl package domain name: package-%d-die-%d */
 #define PACKAGE_DOMAIN_NAME_LENGTH 30
 
@@ -108,6 +122,7 @@ struct rapl_package {
 	/* Track active cpus */
 	struct cpumask cpumask;
 	char name[PACKAGE_DOMAIN_NAME_LENGTH];
+	struct rapl_if_priv *priv;
 };
 
 #endif /* __INTEL_RAPL_H__ */

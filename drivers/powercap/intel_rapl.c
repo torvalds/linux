@@ -75,6 +75,9 @@ enum unit_type {
 	TIME_UNIT,
 };
 
+/* private data for RAPL MSR Interface */
+static struct rapl_if_priv rapl_msr_priv;
+
 /* per domain data, some are optional */
 #define NR_RAW_PRIMITIVES (NR_RAPL_PRIMITIVES - 2)
 
@@ -155,17 +158,14 @@ static const char * const rapl_domain_names[] = {
 	"psys",
 };
 
-static struct powercap_control_type *control_type; /* PowerCap Controller */
-static struct rapl_domain *platform_rapl_domain; /* Platform (PSys) domain */
-
 /* caller to ensure CPU hotplug lock is held */
-static struct rapl_package *rapl_find_package_domain(int cpu)
+static struct rapl_package *rapl_find_package_domain(int cpu, struct rapl_if_priv *priv)
 {
 	int id = topology_logical_die_id(cpu);
 	struct rapl_package *rp;
 
 	list_for_each_entry(rp, &rapl_packages, plist) {
-		if (rp->id == id)
+		if (rp->id == id && rp->priv->control_type == priv->control_type)
 			return rp;
 	}
 
@@ -1090,12 +1090,12 @@ static void rapl_update_domain_data(struct rapl_package *rp)
 
 static void rapl_unregister_powercap(void)
 {
-	if (platform_rapl_domain) {
-		powercap_unregister_zone(control_type,
-					 &platform_rapl_domain->power_zone);
-		kfree(platform_rapl_domain);
+	if (&rapl_msr_priv.platform_rapl_domain) {
+		powercap_unregister_zone(rapl_msr_priv.control_type,
+					 &rapl_msr_priv.platform_rapl_domain->power_zone);
+		kfree(rapl_msr_priv.platform_rapl_domain);
 	}
-	powercap_unregister_control_type(control_type);
+	powercap_unregister_control_type(rapl_msr_priv.control_type);
 }
 
 static int rapl_package_register_powercap(struct rapl_package *rp)
@@ -1113,7 +1113,7 @@ static int rapl_package_register_powercap(struct rapl_package *rp)
 			nr_pl = find_nr_power_limit(rd);
 			pr_debug("register package domain %s\n", rp->name);
 			power_zone = powercap_register_zone(&rd->power_zone,
-							control_type,
+							rp->priv->control_type,
 							rp->name, NULL,
 							&zone_ops[rd->id],
 							nr_pl,
@@ -1140,7 +1140,7 @@ static int rapl_package_register_powercap(struct rapl_package *rp)
 		/* number of power limits per domain varies */
 		nr_pl = find_nr_power_limit(rd);
 		power_zone = powercap_register_zone(&rd->power_zone,
-						control_type, rd->name,
+						rp->priv->control_type, rd->name,
 						rp->power_zone,
 						&zone_ops[rd->id], nr_pl,
 						&constraint_ops);
@@ -1161,7 +1161,7 @@ err_cleanup:
 	 */
 	while (--rd >= rp->domains) {
 		pr_debug("unregister %s domain %s\n", rp->name, rd->name);
-		powercap_unregister_zone(control_type, &rd->power_zone);
+		powercap_unregister_zone(rp->priv->control_type, &rd->power_zone);
 	}
 
 	return ret;
@@ -1191,9 +1191,9 @@ static int __init rapl_register_psys(void)
 	rd->rpl[0].name = pl1_name;
 	rd->rpl[1].prim_id = PL2_ENABLE;
 	rd->rpl[1].name = pl2_name;
-	rd->rp = rapl_find_package_domain(0);
+	rd->rp = rapl_find_package_domain(0, &rapl_msr_priv);
 
-	power_zone = powercap_register_zone(&rd->power_zone, control_type,
+	power_zone = powercap_register_zone(&rd->power_zone, rapl_msr_priv.control_type,
 					    "psys", NULL,
 					    &zone_ops[RAPL_DOMAIN_PLATFORM],
 					    2, &constraint_ops);
@@ -1203,17 +1203,17 @@ static int __init rapl_register_psys(void)
 		return PTR_ERR(power_zone);
 	}
 
-	platform_rapl_domain = rd;
+	rapl_msr_priv.platform_rapl_domain = rd;
 
 	return 0;
 }
 
 static int __init rapl_register_powercap(void)
 {
-	control_type = powercap_register_control_type(NULL, "intel-rapl", NULL);
-	if (IS_ERR(control_type)) {
+	rapl_msr_priv.control_type = powercap_register_control_type(NULL, "intel-rapl", NULL);
+	if (IS_ERR(rapl_msr_priv.control_type)) {
 		pr_debug("failed to register powercap control_type.\n");
-		return PTR_ERR(control_type);
+		return PTR_ERR(rapl_msr_priv.control_type);
 	}
 	return 0;
 }
@@ -1338,16 +1338,16 @@ static void rapl_remove_package(struct rapl_package *rp)
 		}
 		pr_debug("remove package, undo power limit on %s: %s\n",
 			 rp->name, rd->name);
-		powercap_unregister_zone(control_type, &rd->power_zone);
+		powercap_unregister_zone(rp->priv->control_type, &rd->power_zone);
 	}
 	/* do parent zone last */
-	powercap_unregister_zone(control_type, &rd_package->power_zone);
+	powercap_unregister_zone(rp->priv->control_type, &rd_package->power_zone);
 	list_del(&rp->plist);
 	kfree(rp);
 }
 
 /* called from CPU hotplug notifier, hotplug lock held */
-static struct rapl_package *rapl_add_package(int cpu)
+static struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
 {
 	int id = topology_logical_die_id(cpu);
 	struct rapl_package *rp;
@@ -1361,6 +1361,7 @@ static struct rapl_package *rapl_add_package(int cpu)
 	/* add the new package to the list */
 	rp->id = id;
 	rp->lead_cpu = cpu;
+	rp->priv = priv;
 
 	if (topology_max_die_per_package() > 1)
 		snprintf(rp->name, PACKAGE_DOMAIN_NAME_LENGTH,
@@ -1399,9 +1400,9 @@ static int rapl_cpu_online(unsigned int cpu)
 {
 	struct rapl_package *rp;
 
-	rp = rapl_find_package_domain(cpu);
+	rp = rapl_find_package_domain(cpu, &rapl_msr_priv);
 	if (!rp) {
-		rp = rapl_add_package(cpu);
+		rp = rapl_add_package(cpu, &rapl_msr_priv);
 		if (IS_ERR(rp))
 			return PTR_ERR(rp);
 	}
@@ -1414,7 +1415,7 @@ static int rapl_cpu_down_prep(unsigned int cpu)
 	struct rapl_package *rp;
 	int lead_cpu;
 
-	rp = rapl_find_package_domain(cpu);
+	rp = rapl_find_package_domain(cpu, &rapl_msr_priv);
 	if (!rp)
 		return 0;
 
@@ -1426,8 +1427,6 @@ static int rapl_cpu_down_prep(unsigned int cpu)
 		rp->lead_cpu = lead_cpu;
 	return 0;
 }
-
-static enum cpuhp_state pcap_rapl_online;
 
 static void power_limit_state_save(void)
 {
@@ -1538,7 +1537,7 @@ static int __init rapl_init(void)
 				rapl_cpu_online, rapl_cpu_down_prep);
 	if (ret < 0)
 		goto err_unreg;
-	pcap_rapl_online = ret;
+	rapl_msr_priv.pcap_rapl_online = ret;
 
 	/* Don't bail out if PSys is not supported */
 	rapl_register_psys();
@@ -1550,7 +1549,7 @@ static int __init rapl_init(void)
 	return 0;
 
 err_unreg_all:
-	cpuhp_remove_state(pcap_rapl_online);
+	cpuhp_remove_state(rapl_msr_priv.pcap_rapl_online);
 
 err_unreg:
 	rapl_unregister_powercap();
@@ -1560,7 +1559,7 @@ err_unreg:
 static void __exit rapl_exit(void)
 {
 	unregister_pm_notifier(&rapl_pm_notifier);
-	cpuhp_remove_state(pcap_rapl_online);
+	cpuhp_remove_state(rapl_msr_priv.pcap_rapl_online);
 	rapl_unregister_powercap();
 }
 
