@@ -6415,52 +6415,8 @@ static void btrfs_end_bio(struct bio *bio)
 	}
 }
 
-/*
- * see run_scheduled_bios for a description of why bios are collected for
- * async submit.
- *
- * This will add one bio to the pending list for a device and make sure
- * the work struct is scheduled.
- */
-static noinline void btrfs_schedule_bio(struct btrfs_device *device,
-					struct bio *bio)
-{
-	struct btrfs_fs_info *fs_info = device->fs_info;
-	int should_queue = 1;
-	struct btrfs_pending_bios *pending_bios;
-
-	/* don't bother with additional async steps for reads, right now */
-	if (bio_op(bio) == REQ_OP_READ) {
-		btrfsic_submit_bio(bio);
-		return;
-	}
-
-	WARN_ON(bio->bi_next);
-	bio->bi_next = NULL;
-
-	spin_lock(&device->io_lock);
-	if (op_is_sync(bio->bi_opf))
-		pending_bios = &device->pending_sync_bios;
-	else
-		pending_bios = &device->pending_bios;
-
-	if (pending_bios->tail)
-		pending_bios->tail->bi_next = bio;
-
-	pending_bios->tail = bio;
-	if (!pending_bios->head)
-		pending_bios->head = bio;
-	if (device->running_pending)
-		should_queue = 0;
-
-	spin_unlock(&device->io_lock);
-
-	if (should_queue)
-		btrfs_queue_work(fs_info->submit_workers, &device->work);
-}
-
 static void submit_stripe_bio(struct btrfs_bio *bbio, struct bio *bio,
-			      u64 physical, int dev_nr, int async)
+			      u64 physical, int dev_nr)
 {
 	struct btrfs_device *dev = bbio->stripes[dev_nr].dev;
 	struct btrfs_fs_info *fs_info = bbio->fs_info;
@@ -6478,10 +6434,7 @@ static void submit_stripe_bio(struct btrfs_bio *bbio, struct bio *bio,
 
 	btrfs_bio_counter_inc_noblocked(fs_info);
 
-	if (async)
-		btrfs_schedule_bio(dev, bio);
-	else
-		btrfsic_submit_bio(bio);
+	btrfsic_submit_bio(bio);
 }
 
 static void bbio_error(struct btrfs_bio *bbio, struct bio *bio, u64 logical)
@@ -6502,7 +6455,7 @@ static void bbio_error(struct btrfs_bio *bbio, struct bio *bio, u64 logical)
 }
 
 blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
-			   int mirror_num, int async_submit)
+			   int mirror_num)
 {
 	struct btrfs_device *dev;
 	struct bio *first_bio = bio;
@@ -6571,7 +6524,7 @@ blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 			bio = first_bio;
 
 		submit_stripe_bio(bbio, bio, bbio->stripes[dev_nr].physical,
-				  dev_nr, async_submit);
+				  dev_nr);
 	}
 	btrfs_bio_counter_dec(fs_info);
 	return BLK_STS_OK;
