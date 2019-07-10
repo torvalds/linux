@@ -626,7 +626,8 @@ void bch2_stripes_heap_update(struct bch_fs *c,
 		bch2_stripes_heap_insert(c, m, idx);
 	}
 
-	if (stripe_idx_to_delete(c) >= 0)
+	if (stripe_idx_to_delete(c) >= 0 &&
+	    !percpu_ref_is_dying(&c->writes))
 		schedule_work(&c->ec_stripe_delete_work);
 }
 
@@ -684,7 +685,8 @@ static void ec_stripe_delete_work(struct work_struct *work)
 		if (idx < 0)
 			break;
 
-		ec_stripe_delete(c, idx);
+		if (ec_stripe_delete(c, idx))
+			break;
 	}
 
 	mutex_unlock(&c->ec_stripe_create_lock);

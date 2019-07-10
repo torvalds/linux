@@ -366,6 +366,8 @@ static int bch2_fs_read_write_late(struct bch_fs *c)
 
 	schedule_delayed_work(&c->pd_controllers_update, 5 * HZ);
 
+	schedule_work(&c->ec_stripe_delete_work);
+
 	return 0;
 }
 
