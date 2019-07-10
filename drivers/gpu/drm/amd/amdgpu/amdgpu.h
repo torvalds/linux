@@ -674,7 +674,7 @@ struct amdgpu_nbio_funcs {
 	void (*sdma_doorbell_range)(struct amdgpu_device *adev, int instance,
 			bool use_doorbell, int doorbell_index, int doorbell_size);
 	void (*vcn_doorbell_range)(struct amdgpu_device *adev, bool use_doorbell,
-			int doorbell_index);
+				   int doorbell_index, int instance);
 	void (*enable_doorbell_aperture)(struct amdgpu_device *adev,
 					 bool enable);
 	void (*enable_doorbell_selfring_aperture)(struct amdgpu_device *adev,

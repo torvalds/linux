@@ -42,6 +42,14 @@
 #define GPU_HDP_FLUSH_DONE__RSVD_ENG4_MASK	0x00010000L
 #define GPU_HDP_FLUSH_DONE__RSVD_ENG5_MASK	0x00020000L
 
+#define mmBIF_MMSCH1_DOORBELL_RANGE                     0x01dc
+#define mmBIF_MMSCH1_DOORBELL_RANGE_BASE_IDX            2
+//BIF_MMSCH1_DOORBELL_RANGE
+#define BIF_MMSCH1_DOORBELL_RANGE__OFFSET__SHIFT        0x2
+#define BIF_MMSCH1_DOORBELL_RANGE__SIZE__SHIFT          0x10
+#define BIF_MMSCH1_DOORBELL_RANGE__OFFSET_MASK          0x00000FFCL
+#define BIF_MMSCH1_DOORBELL_RANGE__SIZE_MASK            0x001F0000L
+
 static void nbio_v7_4_remap_hdp_registers(struct amdgpu_device *adev)
 {
 	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_MEM_FLUSH_CNTL,
@@ -115,11 +123,17 @@ static void nbio_v7_4_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 }
 
 static void nbio_v7_4_vcn_doorbell_range(struct amdgpu_device *adev, bool use_doorbell,
-					 int doorbell_index)
+					 int doorbell_index, int instance)
 {
-	u32 reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH0_DOORBELL_RANGE);
+	u32 reg;
+	u32 doorbell_range;
 
-	u32 doorbell_range = RREG32(reg);
+	if (instance)
+		reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH1_DOORBELL_RANGE);
+	else
+		reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH0_DOORBELL_RANGE);
+
+	doorbell_range = RREG32(reg);
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range,
