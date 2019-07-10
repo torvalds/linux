@@ -323,10 +323,10 @@ struct iwl_fw_ini_fifo_hdr {
 /**
  * struct iwl_fw_ini_error_dump_range - range of memory
  * @range_data_size: the size of this range, in bytes
- * @internal_base_addr - base address of internal memory range
- * @dram_base_addr - base address of dram monitor range
- * @page_num - page number of memory range
- * @fifo_hdr - fifo header of memory range
+ * @internal_base_addr: base address of internal memory range
+ * @dram_base_addr: base address of dram monitor range
+ * @page_num: page number of memory range
+ * @fifo_hdr: fifo header of memory range
  * @data: the actual memory
  */
 struct iwl_fw_ini_error_dump_range {
@@ -454,10 +454,10 @@ struct iwl_fw_error_dump_rb {
 
 /**
  * struct iwl_fw_ini_monitor_dump - ini monitor dump
- * @header - header of the region
- * @write_ptr - write pointer position in the buffer
- * @cycle_cnt - cycles count
- * @ranges - the memory ranges of this this region
+ * @header: header of the region
+ * @write_ptr: write pointer position in the buffer
+ * @cycle_cnt: cycles count
+ * @ranges: the memory ranges of this this region
  */
 struct iwl_fw_ini_monitor_dump {
 	struct iwl_fw_ini_error_dump_header header;
