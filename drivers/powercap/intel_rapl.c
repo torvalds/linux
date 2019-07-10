@@ -93,13 +93,6 @@ static struct rapl_if_priv rapl_msr_priv = {
 /* per domain data, some are optional */
 #define NR_RAW_PRIMITIVES (NR_RAPL_PRIMITIVES - 2)
 
-struct msrl_action {
-	u32 msr_no;
-	u64 clear_mask;
-	u64 set_mask;
-	int err;
-};
-
 #define	DOMAIN_STATE_INACTIVE           BIT(0)
 #define	DOMAIN_STATE_POWER_LIMIT_SET    BIT(1)
 #define DOMAIN_STATE_BIOS_LOCKED        BIT(2)
@@ -692,16 +685,16 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 			enum rapl_primitives prim,
 			bool xlate, u64 *data)
 {
-	u64 value, final;
-	u32 msr;
+	u64 value;
 	struct rapl_primitive_info *rp = &rpi[prim];
+	struct reg_action ra;
 	int cpu;
 
 	if (!rp->name || rp->flag & RAPL_PRIMITIVE_DUMMY)
 		return -EINVAL;
 
-	msr = rd->regs[rp->id];
-	if (!msr)
+	ra.reg = rd->regs[rp->id];
+	if (!ra.reg)
 		return -EINVAL;
 
 	cpu = rd->rp->lead_cpu;
@@ -717,45 +710,21 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 		return 0;
 	}
 
-	if (rdmsrl_safe_on_cpu(cpu, msr, &value)) {
-		pr_debug("failed to read msr 0x%x on cpu %d\n", msr, cpu);
+	ra.mask = rp->mask;
+
+	if (rd->rp->priv->read_raw(cpu, &ra)) {
+		pr_debug("failed to read reg 0x%x on cpu %d\n", ra.reg, cpu);
 		return -EIO;
 	}
 
-	final = value & rp->mask;
-	final = final >> rp->shift;
+	value = ra.value >> rp->shift;
+
 	if (xlate)
-		*data = rapl_unit_xlate(rd, rp->unit, final, 0);
+		*data = rapl_unit_xlate(rd, rp->unit, value, 0);
 	else
-		*data = final;
+		*data = value;
 
 	return 0;
-}
-
-
-static int msrl_update_safe(u32 msr_no, u64 clear_mask, u64 set_mask)
-{
-	int err;
-	u64 val;
-
-	err = rdmsrl_safe(msr_no, &val);
-	if (err)
-		goto out;
-
-	val &= ~clear_mask;
-	val |= set_mask;
-
-	err = wrmsrl_safe(msr_no, val);
-
-out:
-	return err;
-}
-
-static void msrl_update_func(void *info)
-{
-	struct msrl_action *ma = info;
-
-	ma->err = msrl_update_safe(ma->msr_no, ma->clear_mask, ma->set_mask);
 }
 
 /* Similar use of primitive info in the read counterpart */
@@ -766,7 +735,7 @@ static int rapl_write_data_raw(struct rapl_domain *rd,
 	struct rapl_primitive_info *rp = &rpi[prim];
 	int cpu;
 	u64 bits;
-	struct msrl_action ma;
+	struct reg_action ra;
 	int ret;
 
 	cpu = rd->rp->lead_cpu;
@@ -774,17 +743,13 @@ static int rapl_write_data_raw(struct rapl_domain *rd,
 	bits <<= rp->shift;
 	bits &= rp->mask;
 
-	memset(&ma, 0, sizeof(ma));
+	memset(&ra, 0, sizeof(ra));
 
-	ma.msr_no = rd->regs[rp->id];
-	ma.clear_mask = rp->mask;
-	ma.set_mask = bits;
+	ra.reg = rd->regs[rp->id];
+	ra.mask = rp->mask;
+	ra.value = bits;
 
-	ret = smp_call_function_single(cpu, msrl_update_func, &ma, 1);
-	if (ret)
-		WARN_ON_ONCE(ret);
-	else
-		ret = ma.err;
+	ret = rd->rp->priv->write_raw(cpu, &ra);
 
 	return ret;
 }
@@ -1507,6 +1472,43 @@ static struct notifier_block rapl_pm_notifier = {
 	.notifier_call = rapl_pm_callback,
 };
 
+static int rapl_msr_read_raw(int cpu, struct reg_action *ra)
+{
+	if (rdmsrl_safe_on_cpu(cpu, ra->reg, &ra->value)) {
+		pr_debug("failed to read msr 0x%x on cpu %d\n", ra->reg, cpu);
+		return -EIO;
+	}
+	ra->value &= ra->mask;
+	return 0;
+}
+
+static void rapl_msr_update_func(void *info)
+{
+	struct reg_action *ra = info;
+	u64 val;
+
+	ra->err = rdmsrl_safe(ra->reg, &val);
+	if (ra->err)
+		return;
+
+	val &= ~ra->mask;
+	val |= ra->value;
+
+	ra->err = wrmsrl_safe(ra->reg, val);
+}
+
+
+static int rapl_msr_write_raw(int cpu, struct reg_action *ra)
+{
+	int ret;
+
+	ret = smp_call_function_single(cpu, rapl_msr_update_func, ra, 1);
+	if (WARN_ON_ONCE(ret))
+		return ret;
+
+	return ra->err;
+}
+
 static int __init rapl_init(void)
 {
 	const struct x86_cpu_id *id;
@@ -1522,6 +1524,8 @@ static int __init rapl_init(void)
 
 	rapl_defaults = (struct rapl_defaults *)id->driver_data;
 
+	rapl_msr_priv.read_raw = rapl_msr_read_raw;
+	rapl_msr_priv.write_raw = rapl_msr_write_raw;
 	ret = rapl_register_powercap();
 	if (ret)
 		return ret;

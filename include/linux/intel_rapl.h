@@ -88,6 +88,13 @@ struct rapl_domain {
 	struct rapl_package *rp;
 };
 
+struct reg_action {
+	u32 reg;
+	u64 mask;
+	u64 value;
+	int err;
+};
+
 /**
  * struct rapl_if_priv: private data for different RAPL interfaces
  * @control_type:		Each RAPL interface must have its own powercap
@@ -97,6 +104,10 @@ struct rapl_domain {
  * @pcap_rapl_online:		CPU hotplug state for each RAPL interface.
  * @reg_unit:			Register for getting energy/power/time unit.
  * @regs:			Register sets for different RAPL Domains.
+ * @read_raw:			Callback for reading RAPL interface specific
+ *				registers.
+ * @write_raw:			Callback for writing RAPL interface specific
+ *				registers.
  */
 struct rapl_if_priv {
 	struct powercap_control_type *control_type;
@@ -104,6 +115,8 @@ struct rapl_if_priv {
 	enum cpuhp_state pcap_rapl_online;
 	u32 reg_unit;
 	u32 regs[RAPL_DOMAIN_MAX][RAPL_DOMAIN_REG_MAX];
+	int (*read_raw)(int cpu, struct reg_action *ra);
+	int (*write_raw)(int cpu, struct reg_action *ra);
 };
 
 /* maximum rapl package domain name: package-%d-die-%d */
