@@ -2010,11 +2010,6 @@ static int i915_guc_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "\nGuC execbuf client @ %p:\n", guc->execbuf_client);
 	i915_guc_client_info(m, dev_priv, guc->execbuf_client);
-	if (guc->preempt_client) {
-		seq_printf(m, "\nGuC preempt client @ %p:\n",
-			   guc->preempt_client);
-		i915_guc_client_info(m, dev_priv, guc->preempt_client);
-	}
 
 	/* Add more as required ... */
 

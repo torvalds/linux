@@ -644,18 +644,12 @@ static void init_contexts(struct drm_i915_private *i915)
 	init_llist_head(&i915->contexts.free_list);
 }
 
-static bool needs_preempt_context(struct drm_i915_private *i915)
-{
-	return USES_GUC_SUBMISSION(i915);
-}
-
 int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
 
 	/* Reassure ourselves we are only called once */
 	GEM_BUG_ON(dev_priv->kernel_context);
-	GEM_BUG_ON(dev_priv->preempt_context);
 
 	init_contexts(dev_priv);
 
@@ -676,15 +670,6 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(!atomic_read(&ctx->hw_id_pin_count));
 	dev_priv->kernel_context = ctx;
 
-	/* highest priority; preempting task */
-	if (needs_preempt_context(dev_priv)) {
-		ctx = i915_gem_context_create_kernel(dev_priv, INT_MAX);
-		if (!IS_ERR(ctx))
-			dev_priv->preempt_context = ctx;
-		else
-			DRM_ERROR("Failed to create preempt context; disabling preemption\n");
-	}
-
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
 			 DRIVER_CAPS(dev_priv)->has_logical_contexts ?
 			 "logical" : "fake");
@@ -695,8 +680,6 @@ void i915_gem_contexts_fini(struct drm_i915_private *i915)
 {
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	if (i915->preempt_context)
-		destroy_kernel_context(&i915->preempt_context);
 	destroy_kernel_context(&i915->kernel_context);
 
 	/* Must free all deferred contexts (via flush_workqueue) first */

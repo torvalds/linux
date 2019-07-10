@@ -145,10 +145,6 @@ int intel_gt_resume(struct intel_gt *gt)
 		if (ce)
 			ce->ops->reset(ce);
 
-		ce = engine->preempt_context;
-		if (ce)
-			ce->ops->reset(ce);
-
 		engine->serial++; /* kernel context lost */
 		err = engine->resume(engine);
 

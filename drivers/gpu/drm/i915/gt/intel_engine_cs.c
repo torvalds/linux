@@ -841,15 +841,6 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	/*
-	 * Similarly the preempt context must always be available so that
-	 * we can interrupt the engine at any time. However, as preemption
-	 * is optional, we allow it to fail.
-	 */
-	if (i915->preempt_context)
-		pin_context(i915->preempt_context, engine,
-			    &engine->preempt_context);
-
 	ret = measure_breadcrumb_dw(engine);
 	if (ret < 0)
 		goto err_unpin;
@@ -861,8 +852,6 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	return 0;
 
 err_unpin:
-	if (engine->preempt_context)
-		intel_context_unpin(engine->preempt_context);
 	intel_context_unpin(engine->kernel_context);
 	return ret;
 }
@@ -887,8 +876,6 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	if (engine->default_state)
 		i915_gem_object_put(engine->default_state);
 
-	if (engine->preempt_context)
-		intel_context_unpin(engine->preempt_context);
 	intel_context_unpin(engine->kernel_context);
 	GEM_BUG_ON(!llist_empty(&engine->barrier_tasks));
 

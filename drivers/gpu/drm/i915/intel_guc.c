@@ -101,8 +101,6 @@ void intel_guc_init_early(struct intel_guc *guc)
 
 static int guc_init_wq(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-
 	/*
 	 * GuC log buffer flush work item has to do register access to
 	 * send the ack to GuC and this work item, if not synced before
@@ -122,41 +120,12 @@ static int guc_init_wq(struct intel_guc *guc)
 		return -ENOMEM;
 	}
 
-	/*
-	 * Even though both sending GuC action, and adding a new workitem to
-	 * GuC workqueue are serialized (each with its own locking), since
-	 * we're using mutliple engines, it's possible that we're going to
-	 * issue a preempt request with two (or more - each for different
-	 * engine) workitems in GuC queue. In this situation, GuC may submit
-	 * all of them, which will make us very confused.
-	 * Our preemption contexts may even already be complete - before we
-	 * even had the chance to sent the preempt action to GuC!. Rather
-	 * than introducing yet another lock, we can just use ordered workqueue
-	 * to make sure we're always sending a single preemption request with a
-	 * single workitem.
-	 */
-	if (HAS_LOGICAL_RING_PREEMPTION(dev_priv) &&
-	    USES_GUC_SUBMISSION(dev_priv)) {
-		guc->preempt_wq = alloc_ordered_workqueue("i915-guc_preempt",
-							  WQ_HIGHPRI);
-		if (!guc->preempt_wq) {
-			destroy_workqueue(guc->log.relay.flush_wq);
-			DRM_ERROR("Couldn't allocate workqueue for GuC "
-				  "preemption\n");
-			return -ENOMEM;
-		}
-	}
-
 	return 0;
 }
 
 static void guc_fini_wq(struct intel_guc *guc)
 {
 	struct workqueue_struct *wq;
-
-	wq = fetch_and_zero(&guc->preempt_wq);
-	if (wq)
-		destroy_workqueue(wq);
 
 	wq = fetch_and_zero(&guc->log.relay.flush_wq);
 	if (wq)

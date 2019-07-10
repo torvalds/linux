@@ -103,13 +103,10 @@ static int ring_doorbell_nop(struct intel_guc_client *client)
 /*
  * Basic client sanity check, handy to validate create_clients.
  */
-static int validate_client(struct intel_guc_client *client,
-			   int client_priority,
-			   bool is_preempt_client)
+static int validate_client(struct intel_guc_client *client, int client_priority)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(client->guc);
-	struct i915_gem_context *ctx_owner = is_preempt_client ?
-			dev_priv->preempt_context : dev_priv->kernel_context;
+	struct i915_gem_context *ctx_owner = dev_priv->kernel_context;
 
 	if (client->owner != ctx_owner ||
 	    client->engines != INTEL_INFO(dev_priv)->engine_mask ||
@@ -163,7 +160,7 @@ static int igt_guc_clients(void *args)
 	 */
 	guc_clients_disable(guc);
 	guc_clients_destroy(guc);
-	if (guc->execbuf_client || guc->preempt_client) {
+	if (guc->execbuf_client) {
 		pr_err("guc_clients_destroy lied!\n");
 		err = -EINVAL;
 		goto unlock;
@@ -177,24 +174,14 @@ static int igt_guc_clients(void *args)
 	GEM_BUG_ON(!guc->execbuf_client);
 
 	err = validate_client(guc->execbuf_client,
-			      GUC_CLIENT_PRIORITY_KMD_NORMAL, false);
+			      GUC_CLIENT_PRIORITY_KMD_NORMAL);
 	if (err) {
 		pr_err("execbug client validation failed\n");
 		goto out;
 	}
 
-	if (guc->preempt_client) {
-		err = validate_client(guc->preempt_client,
-				      GUC_CLIENT_PRIORITY_KMD_HIGH, true);
-		if (err) {
-			pr_err("preempt client validation failed\n");
-			goto out;
-		}
-	}
-
-	/* each client should now have reserved a doorbell */
-	if (!has_doorbell(guc->execbuf_client) ||
-	    (guc->preempt_client && !has_doorbell(guc->preempt_client))) {
+	/* the client should now have reserved a doorbell */
+	if (!has_doorbell(guc->execbuf_client)) {
 		pr_err("guc_clients_create didn't reserve doorbells\n");
 		err = -EINVAL;
 		goto out;
@@ -204,8 +191,7 @@ static int igt_guc_clients(void *args)
 	guc_clients_enable(guc);
 
 	/* each client should now have received a doorbell */
-	if (!client_doorbell_in_sync(guc->execbuf_client) ||
-	    !client_doorbell_in_sync(guc->preempt_client)) {
+	if (!client_doorbell_in_sync(guc->execbuf_client)) {
 		pr_err("failed to initialize the doorbells\n");
 		err = -EINVAL;
 		goto out;
@@ -300,8 +286,7 @@ static int igt_guc_doorbells(void *arg)
 			goto out;
 		}
 
-		err = validate_client(clients[i],
-				      i % GUC_CLIENT_PRIORITY_NUM, false);
+		err = validate_client(clients[i], i % GUC_CLIENT_PRIORITY_NUM);
 		if (err) {
 			pr_err("[%d] client_alloc sanity check failed!\n", i);
 			err = -EINVAL;

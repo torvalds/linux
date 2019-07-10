@@ -46,11 +46,10 @@ enum {
  *
  * GuC client:
  * A intel_guc_client refers to a submission path through GuC. Currently, there
- * are two clients. One of them (the execbuf_client) is charged with all
- * submissions to the GuC, the other one (preempt_client) is responsible for
- * preempting the execbuf_client. This struct is the owner of a doorbell, a
- * process descriptor and a workqueue (all of them inside a single gem object
- * that contains all required pages for these elements).
+ * is only one client, which is charged with all submissions to the GuC. This
+ * struct is the owner of a doorbell, a process descriptor and a workqueue (all
+ * of them inside a single gem object that contains all required pages for these
+ * elements).
  *
  * GuC stage descriptor:
  * During initialization, the driver allocates a static pool of 1024 such
@@ -87,12 +86,6 @@ enum {
  * See guc_add_request()
  *
  */
-
-static inline u32 intel_hws_preempt_done_address(struct intel_engine_cs *engine)
-{
-	return (i915_ggtt_offset(engine->status_page.vma) +
-		I915_GEM_HWS_PREEMPT_ADDR);
-}
 
 static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 {
@@ -563,126 +556,6 @@ static void flush_ggtt_writes(struct i915_vma *vma)
 		intel_uncore_posting_read_fw(&i915->uncore, GUC_STATUS);
 }
 
-static void inject_preempt_context(struct work_struct *work)
-{
-	struct guc_preempt_work *preempt_work =
-		container_of(work, typeof(*preempt_work), work);
-	struct intel_engine_cs *engine = preempt_work->engine;
-	struct intel_guc *guc = container_of(preempt_work, typeof(*guc),
-					     preempt_work[engine->id]);
-	struct intel_guc_client *client = guc->preempt_client;
-	struct guc_stage_desc *stage_desc = __get_stage_desc(client);
-	struct intel_context *ce = engine->preempt_context;
-	u32 data[7];
-
-	if (!ce->ring->emit) { /* recreate upon load/resume */
-		u32 addr = intel_hws_preempt_done_address(engine);
-		u32 *cs;
-
-		cs = ce->ring->vaddr;
-		if (engine->class == RENDER_CLASS) {
-			cs = gen8_emit_ggtt_write_rcs(cs,
-						      GUC_PREEMPT_FINISHED,
-						      addr,
-						      PIPE_CONTROL_CS_STALL);
-		} else {
-			cs = gen8_emit_ggtt_write(cs,
-						  GUC_PREEMPT_FINISHED,
-						  addr,
-						  0);
-			*cs++ = MI_NOOP;
-			*cs++ = MI_NOOP;
-		}
-		*cs++ = MI_USER_INTERRUPT;
-		*cs++ = MI_NOOP;
-
-		ce->ring->emit = GUC_PREEMPT_BREADCRUMB_BYTES;
-		GEM_BUG_ON((void *)cs - ce->ring->vaddr != ce->ring->emit);
-
-		flush_ggtt_writes(ce->ring->vma);
-	}
-
-	spin_lock_irq(&client->wq_lock);
-	guc_wq_item_append(client, engine->guc_id, lower_32_bits(ce->lrc_desc),
-			   GUC_PREEMPT_BREADCRUMB_BYTES / sizeof(u64), 0);
-	spin_unlock_irq(&client->wq_lock);
-
-	/*
-	 * If GuC firmware performs an engine reset while that engine had
-	 * a preemption pending, it will set the terminated attribute bit
-	 * on our preemption stage descriptor. GuC firmware retains all
-	 * pending work items for a high-priority GuC client, unlike the
-	 * normal-priority GuC client where work items are dropped. It
-	 * wants to make sure the preempt-to-idle work doesn't run when
-	 * scheduling resumes, and uses this bit to inform its scheduler
-	 * and presumably us as well. Our job is to clear it for the next
-	 * preemption after reset, otherwise that and future preemptions
-	 * will never complete. We'll just clear it every time.
-	 */
-	stage_desc->attribute &= ~GUC_STAGE_DESC_ATTR_TERMINATED;
-
-	data[0] = INTEL_GUC_ACTION_REQUEST_PREEMPTION;
-	data[1] = client->stage_id;
-	data[2] = INTEL_GUC_PREEMPT_OPTION_DROP_WORK_Q |
-		  INTEL_GUC_PREEMPT_OPTION_DROP_SUBMIT_Q;
-	data[3] = engine->guc_id;
-	data[4] = guc->execbuf_client->priority;
-	data[5] = guc->execbuf_client->stage_id;
-	data[6] = intel_guc_ggtt_offset(guc, guc->shared_data);
-
-	if (WARN_ON(intel_guc_send(guc, data, ARRAY_SIZE(data)))) {
-		intel_write_status_page(engine,
-					I915_GEM_HWS_PREEMPT,
-					GUC_PREEMPT_NONE);
-		tasklet_schedule(&engine->execlists.tasklet);
-	}
-
-	(void)I915_SELFTEST_ONLY(engine->execlists.preempt_hang.count++);
-}
-
-/*
- * We're using user interrupt and HWSP value to mark that preemption has
- * finished and GPU is idle. Normally, we could unwind and continue similar to
- * execlists submission path. Unfortunately, with GuC we also need to wait for
- * it to finish its own postprocessing, before attempting to submit. Otherwise
- * GuC may silently ignore our submissions, and thus we risk losing request at
- * best, executing out-of-order and causing kernel panic at worst.
- */
-#define GUC_PREEMPT_POSTPROCESS_DELAY_MS 10
-static void wait_for_guc_preempt_report(struct intel_engine_cs *engine)
-{
-	struct intel_guc *guc = &engine->i915->guc;
-	struct guc_shared_ctx_data *data = guc->shared_data_vaddr;
-	struct guc_ctx_report *report =
-		&data->preempt_ctx_report[engine->guc_id];
-
-	if (wait_for_atomic(report->report_return_status ==
-			    INTEL_GUC_REPORT_STATUS_COMPLETE,
-			    GUC_PREEMPT_POSTPROCESS_DELAY_MS))
-		DRM_ERROR("Timed out waiting for GuC preemption report\n");
-	/*
-	 * GuC is expecting that we're also going to clear the affected context
-	 * counter, let's also reset the return status to not depend on GuC
-	 * resetting it after recieving another preempt action
-	 */
-	report->affected_count = 0;
-	report->report_return_status = INTEL_GUC_REPORT_STATUS_UNKNOWN;
-}
-
-static void complete_preempt_context(struct intel_engine_cs *engine)
-{
-	struct intel_engine_execlists *execlists = &engine->execlists;
-
-	if (inject_preempt_hang(execlists))
-		return;
-
-	execlists_cancel_port_requests(execlists);
-	execlists_unwind_incomplete_requests(execlists);
-
-	wait_for_guc_preempt_report(engine);
-	intel_write_status_page(engine, I915_GEM_HWS_PREEMPT, GUC_PREEMPT_NONE);
-}
-
 static void guc_submit(struct intel_engine_cs *engine,
 		       struct i915_request **out,
 		       struct i915_request **end)
@@ -705,16 +578,6 @@ static void guc_submit(struct intel_engine_cs *engine,
 static inline int rq_prio(const struct i915_request *rq)
 {
 	return rq->sched.attr.priority | __NO_PREEMPTION;
-}
-
-static inline int effective_prio(const struct i915_request *rq)
-{
-	int prio = rq_prio(rq);
-
-	if (i915_request_has_nopreempt(rq))
-		prio = I915_PRIORITY_UNPREEMPTABLE;
-
-	return prio;
 }
 
 static struct i915_request *schedule_in(struct i915_request *rq, int idx)
@@ -752,22 +615,6 @@ static void __guc_dequeue(struct intel_engine_cs *engine)
 	lockdep_assert_held(&engine->active.lock);
 
 	if (last) {
-		if (intel_engine_has_preemption(engine)) {
-			struct guc_preempt_work *preempt_work =
-				&engine->i915->guc.preempt_work[engine->id];
-			int prio = execlists->queue_priority_hint;
-
-			if (i915_scheduler_need_preempt(prio,
-							effective_prio(last))) {
-				intel_write_status_page(engine,
-							I915_GEM_HWS_PREEMPT,
-							GUC_PREEMPT_INPROGRESS);
-				queue_work(engine->i915->guc.preempt_wq,
-					   &preempt_work->work);
-				return;
-			}
-		}
-
 		if (*++first)
 			return;
 
@@ -831,12 +678,7 @@ static void guc_submission_tasklet(unsigned long data)
 		memmove(execlists->inflight, port, rem * sizeof(*port));
 	}
 
-	if (intel_read_status_page(engine, I915_GEM_HWS_PREEMPT) ==
-	    GUC_PREEMPT_FINISHED)
-		complete_preempt_context(engine);
-
-	if (!intel_read_status_page(engine, I915_GEM_HWS_PREEMPT))
-		__guc_dequeue(engine);
+	__guc_dequeue(engine);
 
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
@@ -857,16 +699,6 @@ static void guc_reset_prepare(struct intel_engine_cs *engine)
 	 * prevents the race.
 	 */
 	__tasklet_disable_sync_once(&execlists->tasklet);
-
-	/*
-	 * We're using worker to queue preemption requests from the tasklet in
-	 * GuC submission mode.
-	 * Even though tasklet was disabled, we may still have a worker queued.
-	 * Let's make sure that all workers scheduled before disabling the
-	 * tasklet are completed before continuing with the reset.
-	 */
-	if (engine->i915->guc.preempt_wq)
-		flush_workqueue(engine->i915->guc.preempt_wq);
 }
 
 static void guc_reset(struct intel_engine_cs *engine, bool stalled)
@@ -1123,7 +955,6 @@ static int guc_clients_create(struct intel_guc *guc)
 	struct intel_guc_client *client;
 
 	GEM_BUG_ON(guc->execbuf_client);
-	GEM_BUG_ON(guc->preempt_client);
 
 	client = guc_client_alloc(dev_priv,
 				  INTEL_INFO(dev_priv)->engine_mask,
@@ -1135,30 +966,12 @@ static int guc_clients_create(struct intel_guc *guc)
 	}
 	guc->execbuf_client = client;
 
-	if (dev_priv->preempt_context) {
-		client = guc_client_alloc(dev_priv,
-					  INTEL_INFO(dev_priv)->engine_mask,
-					  GUC_CLIENT_PRIORITY_KMD_HIGH,
-					  dev_priv->preempt_context);
-		if (IS_ERR(client)) {
-			DRM_ERROR("Failed to create GuC client for preemption!\n");
-			guc_client_free(guc->execbuf_client);
-			guc->execbuf_client = NULL;
-			return PTR_ERR(client);
-		}
-		guc->preempt_client = client;
-	}
-
 	return 0;
 }
 
 static void guc_clients_destroy(struct intel_guc *guc)
 {
 	struct intel_guc_client *client;
-
-	client = fetch_and_zero(&guc->preempt_client);
-	if (client)
-		guc_client_free(client);
 
 	client = fetch_and_zero(&guc->execbuf_client);
 	if (client)
@@ -1202,28 +1015,11 @@ static void __guc_client_disable(struct intel_guc_client *client)
 
 static int guc_clients_enable(struct intel_guc *guc)
 {
-	int ret;
-
-	ret = __guc_client_enable(guc->execbuf_client);
-	if (ret)
-		return ret;
-
-	if (guc->preempt_client) {
-		ret = __guc_client_enable(guc->preempt_client);
-		if (ret) {
-			__guc_client_disable(guc->execbuf_client);
-			return ret;
-		}
-	}
-
-	return 0;
+	return __guc_client_enable(guc->execbuf_client);
 }
 
 static void guc_clients_disable(struct intel_guc *guc)
 {
-	if (guc->preempt_client)
-		__guc_client_disable(guc->preempt_client);
-
 	if (guc->execbuf_client)
 		__guc_client_disable(guc->execbuf_client);
 }
@@ -1234,9 +1030,6 @@ static void guc_clients_disable(struct intel_guc *guc)
  */
 int intel_guc_submission_init(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	int ret;
 
 	if (guc->stage_desc_pool)
@@ -1256,11 +1049,6 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	if (ret)
 		goto err_pool;
 
-	for_each_engine(engine, dev_priv, id) {
-		guc->preempt_work[id].engine = engine;
-		INIT_WORK(&guc->preempt_work[id].work, inject_preempt_context);
-	}
-
 	return 0;
 
 err_pool:
@@ -1270,13 +1058,6 @@ err_pool:
 
 void intel_guc_submission_fini(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, dev_priv, id)
-		cancel_work_sync(&guc->preempt_work[id].work);
-
 	guc_clients_destroy(guc);
 	WARN_ON(!guc_verify_doorbells(guc));
 
