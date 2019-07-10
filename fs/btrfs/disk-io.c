@@ -791,6 +791,12 @@ static void run_one_async_done(struct btrfs_work *work)
 		return;
 	}
 
+	/*
+	 * All of the bios that pass through here are from async helpers.
+	 * Use REQ_CGROUP_PUNT to issue them from the owning cgroup's context.
+	 * This changes nothing when cgroups aren't in use.
+	 */
+	async->bio->bi_opf |= REQ_CGROUP_PUNT;
 	ret = btrfs_map_bio(btrfs_sb(inode->i_sb), async->bio, async->mirror_num);
 	if (ret) {
 		async->bio->bi_status = ret;
