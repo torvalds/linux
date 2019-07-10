@@ -2416,8 +2416,8 @@ static bool nvme_validate_cntlid(struct nvme_subsystem *subsys,
 	lockdep_assert_held(&nvme_subsystems_lock);
 
 	list_for_each_entry(tmp, &subsys->ctrls, subsys_entry) {
-		if (ctrl->state == NVME_CTRL_DELETING ||
-		    ctrl->state == NVME_CTRL_DEAD)
+		if (tmp->state == NVME_CTRL_DELETING ||
+		    tmp->state == NVME_CTRL_DEAD)
 			continue;
 
 		if (tmp->cntlid == ctrl->cntlid) {
