@@ -170,7 +170,7 @@ static int mlx5e_tls_resync(struct net_device *netdev, struct sock *sk,
 	u64 rcd_sn = *(u64 *)rcd_sn_data;
 
 	if (WARN_ON_ONCE(direction != TLS_OFFLOAD_CTX_DIR_RX))
-		return;
+		return -EINVAL;
 	rx_ctx = mlx5e_get_tls_rx_context(tls_ctx);
 
 	netdev_info(netdev, "resyncing seq %d rcd %lld\n", seq,
