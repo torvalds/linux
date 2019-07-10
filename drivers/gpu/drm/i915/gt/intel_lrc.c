@@ -921,6 +921,11 @@ enable_timeslice(struct intel_engine_cs *engine)
 	return last && need_timeslice(engine, last);
 }
 
+static void record_preemption(struct intel_engine_execlists *execlists)
+{
+	(void)I915_SELFTEST_ONLY(execlists->preempt_hang.count++);
+}
+
 static void execlists_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -989,6 +994,8 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				  last->fence.seqno,
 				  last->sched.attr.priority,
 				  execlists->queue_priority_hint);
+			record_preemption(execlists);
+
 			/*
 			 * Don't let the RING_HEAD advance past the breadcrumb
 			 * as we unwind (and until we resubmit) so that we do
