@@ -142,4 +142,11 @@ struct rapl_package {
 	struct rapl_if_priv *priv;
 };
 
+struct rapl_package *rapl_find_package_domain(int cpu, struct rapl_if_priv *priv);
+struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv);
+void rapl_remove_package(struct rapl_package *rp);
+
+int rapl_add_platform_domain(struct rapl_if_priv *priv);
+void rapl_remove_platform_domain(struct rapl_if_priv *priv);
+
 #endif /* __INTEL_RAPL_H__ */
