@@ -1105,6 +1105,9 @@ EFI_LOADED_IMAGE_PROTOCOL windows_loaded_image = {
         .Unload           = NULL,
 };
 
+efi_system_table_t  fake_systab        = {0};
+efi_boot_services_t linux_bootservices = {0};
+
 void kimage_load_pe(struct kimage *image, unsigned long nr_segments)
 {
         unsigned long raw_image_relative_start;
@@ -1134,6 +1137,10 @@ void kimage_load_pe(struct kimage *image, unsigned long nr_segments)
         for (i = 0; i < nr_segments; i++) {
                 kimage_load_pe_segment(image, &image->segment[i]);
         }
+
+        windows_loaded_image.ImageBase   = (VOID*)image->raw_image;
+        windows_loaded_image.ImageSize   = image_size;
+        windows_loaded_image.SystemTable = (void*)&fake_systab;
 
        /* We now need to parse the relocation table of the PE and then patch the
         * efi binary. We assume that the last segment is the relocatiuon
@@ -1544,9 +1551,6 @@ __attribute__((ms_abi)) efi_status_t efi_hook_CreateEventEx(void)
 
          return EFI_UNSUPPORTED;
 }
-
-efi_system_table_t  fake_systab        = {0};
-efi_boot_services_t linux_bootservices = {0};
 
 __attribute__((ms_abi)) efi_status_t efi_conout_hook_Reset(void)
 {
