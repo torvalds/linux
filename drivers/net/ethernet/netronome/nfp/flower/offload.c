@@ -386,16 +386,13 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			key_layer |= NFP_FLOWER_LAYER_TP;
 			key_size += sizeof(struct nfp_flower_tp_ports);
 			break;
-		default:
-			/* Other ip proto - we need check the masks for the
-			 * remainder of the key to ensure we can offload.
-			 */
-			if (nfp_flower_check_higher_than_l3(flow)) {
-				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: unknown IP protocol with L4 matches not supported");
-				return -EOPNOTSUPP;
-			}
-			break;
 		}
+	}
+
+	if (!(key_layer & NFP_FLOWER_LAYER_TP) &&
+	    nfp_flower_check_higher_than_l3(flow)) {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot match on L4 information without specified IP protocol type");
+		return -EOPNOTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_TCP)) {
