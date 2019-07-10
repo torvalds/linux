@@ -286,6 +286,60 @@ int db_export__branch_type(struct db_export *dbe, u32 branch_type,
 	return 0;
 }
 
+static int db_export__threads(struct db_export *dbe, struct thread *thread,
+			      struct thread *main_thread,
+			      struct machine *machine, struct comm **comm_ptr)
+{
+	struct comm *comm = NULL;
+	struct comm *curr_comm;
+	int err;
+
+	if (main_thread) {
+		/*
+		 * A thread has a reference to the main thread, so export the
+		 * main thread first.
+		 */
+		err = db_export__thread(dbe, main_thread, machine, main_thread);
+		if (err)
+			return err;
+		/*
+		 * Export comm before exporting the non-main thread because
+		 * db_export__comm_thread() can be called further below.
+		 */
+		comm = machine__thread_exec_comm(machine, main_thread);
+		if (comm) {
+			err = db_export__exec_comm(dbe, comm, main_thread);
+			if (err)
+				return err;
+			*comm_ptr = comm;
+		}
+	}
+
+	if (thread != main_thread) {
+		/*
+		 * For a non-main thread, db_export__comm_thread() must be
+		 * called only if thread has not previously been exported.
+		 */
+		bool export_comm_thread = comm && !thread->db_id;
+
+		err = db_export__thread(dbe, thread, machine, main_thread);
+		if (err)
+			return err;
+
+		if (export_comm_thread) {
+			err = db_export__comm_thread(dbe, comm, thread);
+			if (err)
+				return err;
+		}
+	}
+
+	curr_comm = thread__comm(thread);
+	if (curr_comm)
+		return db_export__comm(dbe, curr_comm, thread);
+
+	return 0;
+}
+
 int db_export__sample(struct db_export *dbe, union perf_event *event,
 		      struct perf_sample *sample, struct perf_evsel *evsel,
 		      struct addr_location *al)
@@ -299,7 +353,6 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 	};
 	struct thread *main_thread;
 	struct comm *comm = NULL;
-	struct comm *curr_comm;
 	int err;
 
 	err = db_export__evsel(dbe, evsel);
@@ -311,52 +364,13 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		return err;
 
 	main_thread = thread__main_thread(al->machine, thread);
-	if (main_thread) {
-		/*
-		 * A thread has a reference to the main thread, so export the
-		 * main thread first.
-		 */
-		err = db_export__thread(dbe, main_thread, al->machine,
-					main_thread);
-		if (err)
-			goto out_put;
-		/*
-		 * Export comm before exporting the non-main thread because
-		 * db_export__comm_thread() can be called further below.
-		 */
-		comm = machine__thread_exec_comm(al->machine, main_thread);
-		if (comm) {
-			err = db_export__exec_comm(dbe, comm, main_thread);
-			if (err)
-				goto out_put;
-			es.comm_db_id = comm->db_id;
-		}
-	}
 
-	if (thread != main_thread) {
-		/*
-		 * For a non-main thread, db_export__comm_thread() must be
-		 * called only if thread has not previously been exported.
-		 */
-		bool export_comm_thread = comm && !thread->db_id;
+	err = db_export__threads(dbe, thread, main_thread, al->machine, &comm);
+	if (err)
+		goto out_put;
 
-		err = db_export__thread(dbe, thread, al->machine, main_thread);
-		if (err)
-			goto out_put;
-
-		if (export_comm_thread) {
-			err = db_export__comm_thread(dbe, comm, thread);
-			if (err)
-				goto out_put;
-		}
-	}
-
-	curr_comm = thread__comm(thread);
-	if (curr_comm) {
-		err = db_export__comm(dbe, curr_comm, thread);
-		if (err)
-			goto out_put;
-	}
+	if (comm)
+		es.comm_db_id = comm->db_id;
 
 	es.db_id = ++dbe->sample_last_db_id;
 
