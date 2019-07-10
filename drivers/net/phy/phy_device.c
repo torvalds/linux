@@ -56,19 +56,19 @@ EXPORT_SYMBOL_GPL(phy_10gbit_features);
 __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_fec_features) __ro_after_init;
 EXPORT_SYMBOL_GPL(phy_10gbit_fec_features);
 
-static const int phy_basic_ports_array[] = {
+const int phy_basic_ports_array[3] = {
 	ETHTOOL_LINK_MODE_Autoneg_BIT,
 	ETHTOOL_LINK_MODE_TP_BIT,
 	ETHTOOL_LINK_MODE_MII_BIT,
 };
 EXPORT_SYMBOL_GPL(phy_basic_ports_array);
 
-static const int phy_fibre_port_array[] = {
+const int phy_fibre_port_array[1] = {
 	ETHTOOL_LINK_MODE_FIBRE_BIT,
 };
 EXPORT_SYMBOL_GPL(phy_fibre_port_array);
 
-static const int phy_all_ports_features_array[] = {
+const int phy_all_ports_features_array[7] = {
 	ETHTOOL_LINK_MODE_Autoneg_BIT,
 	ETHTOOL_LINK_MODE_TP_BIT,
 	ETHTOOL_LINK_MODE_MII_BIT,
