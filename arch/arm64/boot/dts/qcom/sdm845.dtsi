@@ -1275,6 +1275,13 @@
 			};
 		};
 
+		cache-controller@1100000 {
+			compatible = "qcom,sdm845-llcc";
+			reg = <0 0x01100000 0 0x200000>, <0 0x01300000 0 0x50000>;
+			reg-names = "llcc_base", "llcc_broadcast_base";
+			interrupts = <GIC_SPI 582 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		ufs_mem_hc: ufshc@1d84000 {
 			compatible = "qcom,sdm845-ufshc", "qcom,ufshc",
 				     "jedec,ufs-2.0";
