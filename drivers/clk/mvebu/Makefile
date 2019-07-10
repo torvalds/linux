@@ -13,6 +13,7 @@ obj-$(CONFIG_ARMADA_37XX_CLK)	+= armada-37xx-tbg.o
 obj-$(CONFIG_ARMADA_37XX_CLK)	+= armada-37xx-periph.o
 obj-$(CONFIG_ARMADA_XP_CLK)	+= armada-xp.o mv98dx3236.o
 obj-$(CONFIG_ARMADA_AP806_SYSCON) += ap806-system-controller.o
+obj-$(CONFIG_ARMADA_AP_CPU_CLK) += ap-cpu-clk.o
 obj-$(CONFIG_ARMADA_CP110_SYSCON) += cp110-system-controller.o
 obj-$(CONFIG_DOVE_CLK)		+= dove.o dove-divider.o
 obj-$(CONFIG_KIRKWOOD_CLK)	+= kirkwood.o

@@ -40,6 +40,9 @@ config ARMADA_AP806_SYSCON
 	bool
 	select ARMADA_AP_CP_HELPER
 
+config ARMADA_AP_CPU_CLK
+	bool
+
 config ARMADA_CP110_SYSCON
 	bool
 	select ARMADA_AP_CP_HELPER
