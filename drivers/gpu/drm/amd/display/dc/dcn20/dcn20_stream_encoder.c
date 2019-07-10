@@ -588,6 +588,7 @@ static const struct stream_encoder_funcs dcn20_str_enc_funcs = {
 	.dp_set_dsc_config = enc2_dp_set_dsc_config,
 #endif
 	.set_dynamic_metadata = enc2_set_dynamic_metadata,
+	.hdmi_reset_stream_attribute = enc1_reset_hdmi_stream_attribute,
 };
 
 void dcn20_stream_encoder_construct(

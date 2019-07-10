@@ -615,4 +615,7 @@ void get_audio_clock_info(
 	uint32_t actual_pixel_clock_100Hz,
 	struct audio_clock_info *audio_clock_info);
 
+void enc1_reset_hdmi_stream_attribute(
+	struct stream_encoder *enc);
+
 #endif /* __DC_STREAM_ENCODER_DCN10_H__ */

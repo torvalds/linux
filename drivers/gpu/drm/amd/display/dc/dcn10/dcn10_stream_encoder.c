@@ -1004,6 +1004,19 @@ void enc1_stream_encoder_set_avmute(
 	REG_UPDATE(HDMI_GC, HDMI_GC_AVMUTE, value);
 }
 
+void enc1_reset_hdmi_stream_attribute(
+	struct stream_encoder *enc)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	REG_UPDATE_5(HDMI_CONTROL,
+		HDMI_PACKET_GEN_VERSION, 1,
+		HDMI_KEEPOUT_MODE, 1,
+		HDMI_DEEP_COLOR_ENABLE, 0,
+		HDMI_DATA_SCRAMBLE_EN, 0,
+		HDMI_CLOCK_CHANNEL_RATE, 0);
+}
+
 
 #define DP_SEC_AUD_N__DP_SEC_AUD_N__DEFAULT 0x8000
 #define DP_SEC_TIMESTAMP__DP_SEC_TIMESTAMP_MODE__AUTO_CALC 1
@@ -1563,6 +1576,7 @@ static const struct stream_encoder_funcs dcn10_str_enc_funcs = {
 	.setup_stereo_sync  = enc1_setup_stereo_sync,
 	.set_avmute = enc1_stream_encoder_set_avmute,
 	.dig_connect_to_otg  = enc1_dig_connect_to_otg,
+	.hdmi_reset_stream_attribute = enc1_reset_hdmi_stream_attribute,
 };
 
 void dcn10_stream_encoder_construct(
