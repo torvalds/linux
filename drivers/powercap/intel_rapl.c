@@ -767,22 +767,24 @@ static int rapl_write_data_raw(struct rapl_domain *rd,
  */
 static int rapl_check_unit_core(struct rapl_package *rp, int cpu)
 {
-	u64 msr_val;
+	struct reg_action ra;
 	u32 value;
 
-	if (rdmsrl_safe_on_cpu(cpu, rp->priv->reg_unit, &msr_val)) {
-		pr_err("Failed to read power unit MSR 0x%x on CPU %d, exit.\n",
+	ra.reg = rp->priv->reg_unit;
+	ra.mask = ~0;
+	if (rp->priv->read_raw(cpu, &ra)) {
+		pr_err("Failed to read power unit REG 0x%x on CPU %d, exit.\n",
 			rp->priv->reg_unit, cpu);
 		return -ENODEV;
 	}
 
-	value = (msr_val & ENERGY_UNIT_MASK) >> ENERGY_UNIT_OFFSET;
+	value = (ra.value & ENERGY_UNIT_MASK) >> ENERGY_UNIT_OFFSET;
 	rp->energy_unit = ENERGY_UNIT_SCALE * 1000000 / (1 << value);
 
-	value = (msr_val & POWER_UNIT_MASK) >> POWER_UNIT_OFFSET;
+	value = (ra.value & POWER_UNIT_MASK) >> POWER_UNIT_OFFSET;
 	rp->power_unit = 1000000 / (1 << value);
 
-	value = (msr_val & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
+	value = (ra.value & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
 	rp->time_unit = 1000000 / (1 << value);
 
 	pr_debug("Core CPU %s energy=%dpJ, time=%dus, power=%duW\n",
@@ -793,21 +795,24 @@ static int rapl_check_unit_core(struct rapl_package *rp, int cpu)
 
 static int rapl_check_unit_atom(struct rapl_package *rp, int cpu)
 {
-	u64 msr_val;
+	struct reg_action ra;
 	u32 value;
 
-	if (rdmsrl_safe_on_cpu(cpu, rp->priv->reg_unit, &msr_val)) {
-		pr_err("Failed to read power unit MSR 0x%x on CPU %d, exit.\n",
+	ra.reg = rp->priv->reg_unit;
+	ra.mask = ~0;
+	if (rp->priv->read_raw(cpu, &ra)) {
+		pr_err("Failed to read power unit REG 0x%x on CPU %d, exit.\n",
 			rp->priv->reg_unit, cpu);
 		return -ENODEV;
 	}
-	value = (msr_val & ENERGY_UNIT_MASK) >> ENERGY_UNIT_OFFSET;
+
+	value = (ra.value & ENERGY_UNIT_MASK) >> ENERGY_UNIT_OFFSET;
 	rp->energy_unit = ENERGY_UNIT_SCALE * 1 << value;
 
-	value = (msr_val & POWER_UNIT_MASK) >> POWER_UNIT_OFFSET;
+	value = (ra.value & POWER_UNIT_MASK) >> POWER_UNIT_OFFSET;
 	rp->power_unit = (1 << value) * 1000;
 
-	value = (msr_val & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
+	value = (ra.value & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
 	rp->time_unit = 1000000 / (1 << value);
 
 	pr_debug("Atom %s energy=%dpJ, time=%dus, power=%duW\n",
@@ -1180,15 +1185,14 @@ static void rapl_remove_platform_domain(struct rapl_if_priv *priv)
 
 static int rapl_check_domain(int cpu, int domain, struct rapl_package *rp)
 {
-	u32 reg;
-	u64 val = 0;
+	struct reg_action ra;
 
 	switch (domain) {
 	case RAPL_DOMAIN_PACKAGE:
 	case RAPL_DOMAIN_PP0:
 	case RAPL_DOMAIN_PP1:
 	case RAPL_DOMAIN_DRAM:
-		reg = rp->priv->regs[domain][RAPL_DOMAIN_REG_STATUS];
+		ra.reg = rp->priv->regs[domain][RAPL_DOMAIN_REG_STATUS];
 		break;
 	case RAPL_DOMAIN_PLATFORM:
 		/* PSYS(PLATFORM) is not a CPU domain, so avoid printng error */
@@ -1200,7 +1204,9 @@ static int rapl_check_domain(int cpu, int domain, struct rapl_package *rp)
 	/* make sure domain counters are available and contains non-zero
 	 * values, otherwise skip it.
 	 */
-	if (rdmsrl_safe_on_cpu(cpu, reg, &val) || !val)
+
+	ra.mask = ~0;
+	if (rp->priv->read_raw(cpu, &ra) || !ra.value)
 		return -ENODEV;
 
 	return 0;
