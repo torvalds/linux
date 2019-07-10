@@ -23,14 +23,6 @@
 #define ARCH_ZONE_DMA_BITS 24
 #endif
 
-/*
- * For AMD SEV all DMA must be to unencrypted addresses.
- */
-static inline bool force_dma_unencrypted(void)
-{
-	return sev_active();
-}
-
 static void report_addr(struct device *dev, dma_addr_t dma_addr, size_t size)
 {
 	if (!dev->dma_mask) {
@@ -46,7 +38,7 @@ static void report_addr(struct device *dev, dma_addr_t dma_addr, size_t size)
 static inline dma_addr_t phys_to_dma_direct(struct device *dev,
 		phys_addr_t phys)
 {
-	if (force_dma_unencrypted())
+	if (force_dma_unencrypted(dev))
 		return __phys_to_dma(dev, phys);
 	return phys_to_dma(dev, phys);
 }
@@ -67,7 +59,7 @@ static gfp_t __dma_direct_optimal_gfp_mask(struct device *dev, u64 dma_mask,
 	if (dev->bus_dma_mask && dev->bus_dma_mask < dma_mask)
 		dma_mask = dev->bus_dma_mask;
 
-	if (force_dma_unencrypted())
+	if (force_dma_unencrypted(dev))
 		*phys_mask = __dma_to_phys(dev, dma_mask);
 	else
 		*phys_mask = dma_to_phys(dev, dma_mask);
@@ -159,7 +151,7 @@ void *dma_direct_alloc_pages(struct device *dev, size_t size,
 	}
 
 	ret = page_address(page);
-	if (force_dma_unencrypted()) {
+	if (force_dma_unencrypted(dev)) {
 		set_memory_decrypted((unsigned long)ret, 1 << get_order(size));
 		*dma_handle = __phys_to_dma(dev, page_to_phys(page));
 	} else {
@@ -192,7 +184,7 @@ void dma_direct_free_pages(struct device *dev, size_t size, void *cpu_addr,
 		return;
 	}
 
-	if (force_dma_unencrypted())
+	if (force_dma_unencrypted(dev))
 		set_memory_encrypted((unsigned long)cpu_addr, 1 << page_order);
 
 	if (IS_ENABLED(CONFIG_ARCH_HAS_UNCACHED_SEGMENT) &&
