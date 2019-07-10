@@ -262,6 +262,12 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
 				  le32_to_cpu(psp_hdr_v1_1->toc_offset_bytes));
 			DRM_DEBUG("toc_size_bytes: %u\n",
 				  le32_to_cpu(psp_hdr_v1_1->toc_size_bytes));
+			DRM_DEBUG("kdb_header_version: %u\n",
+				  le32_to_cpu(psp_hdr_v1_1->kdb_header_version));
+			DRM_DEBUG("kdb_offset_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_1->kdb_offset_bytes));
+			DRM_DEBUG("kdb_size_bytes: %u\n",
+				  le32_to_cpu(psp_hdr_v1_1->kdb_size_bytes));
 		}
 	} else {
 		DRM_ERROR("Unknown PSP ucode version: %u.%u\n",

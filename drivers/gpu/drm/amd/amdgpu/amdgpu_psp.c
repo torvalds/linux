@@ -769,6 +769,15 @@ static int psp_hw_start(struct psp_context *psp)
 	int ret;
 
 	if (!amdgpu_sriov_vf(adev) || !adev->in_gpu_reset) {
+		if (psp->kdb_start_addr &&
+		    (psp->funcs->bootloader_load_kdb != NULL)) {
+			ret = psp_bootloader_load_kdb(psp);
+			if (ret) {
+				DRM_ERROR("PSP load kdb failed!\n");
+				return ret;
+			}
+		}
+
 		ret = psp_bootloader_load_sysdrv(psp);
 		if (ret) {
 			DRM_ERROR("PSP load sysdrv failed!\n");

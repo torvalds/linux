@@ -79,6 +79,7 @@ enum psp_reg_prog_id {
 struct psp_funcs
 {
 	int (*init_microcode)(struct psp_context *psp);
+	int (*bootloader_load_kdb)(struct psp_context *psp);
 	int (*bootloader_load_sysdrv)(struct psp_context *psp);
 	int (*bootloader_load_sos)(struct psp_context *psp);
 	int (*ring_init)(struct psp_context *psp, enum psp_ring_type ring_type);
@@ -162,9 +163,11 @@ struct psp_context
 	uint32_t			sys_bin_size;
 	uint32_t			sos_bin_size;
 	uint32_t			toc_bin_size;
+	uint32_t			kdb_bin_size;
 	uint8_t				*sys_start_addr;
 	uint8_t				*sos_start_addr;
 	uint8_t				*toc_start_addr;
+	uint8_t				*kdb_start_addr;
 
 	/* tmr buffer */
 	struct amdgpu_bo		*tmr_bo;
@@ -226,6 +229,8 @@ struct amdgpu_psp_funcs {
 		(psp)->funcs->compare_sram_data((psp), (ucode), (type))
 #define psp_init_microcode(psp) \
 		((psp)->funcs->init_microcode ? (psp)->funcs->init_microcode((psp)) : 0)
+#define psp_bootloader_load_kdb(psp) \
+		((psp)->funcs->bootloader_load_kdb ? (psp)->funcs->bootloader_load_kdb((psp)) : 0)
 #define psp_bootloader_load_sysdrv(psp) \
 		((psp)->funcs->bootloader_load_sysdrv ? (psp)->funcs->bootloader_load_sysdrv((psp)) : 0)
 #define psp_bootloader_load_sos(psp) \
