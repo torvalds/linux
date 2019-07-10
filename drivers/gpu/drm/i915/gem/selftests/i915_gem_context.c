@@ -1539,7 +1539,7 @@ static int igt_vm_isolation(void *arg)
 
 			div64_u64_rem(i915_prandom_u64_state(&prng),
 				      vm_total, &offset);
-			offset &= -sizeof(u32);
+			offset = round_down(offset, alignof_dword);
 			offset += I915_GTT_PAGE_SIZE;
 
 			err = write_to_scratch(ctx_a, engine,
