@@ -843,11 +843,6 @@ elevator_latter_req_fn		These return the request before or after the
 
 elevator_completed_req_fn	called when a request is completed.
 
-elevator_may_queue_fn		returns true if the scheduler wants to allow the
-				current context to queue a new request even if
-				it is over the queue limit. This must be used
-				very carefully!!
-
 elevator_set_req_fn
 elevator_put_req_fn		Must be used to allocate and free any elevator
 				specific storage for a request.
