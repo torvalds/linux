@@ -17,6 +17,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/efi.h>
+#include <linux/mman.h>
 
 #include "kexec_internal.h"
 
@@ -1208,7 +1209,86 @@ efi_status_t efi_handle_protocol_DevicePath( void* handle, void** interface )
 
 /*********** End of protocols *****************/
 
+/* This function receives a virtual addr and created a 1:1 mapping between
+ * virtual memory to the actual physical address that belongs to addr */
+void efi_setup_11_mapping( void* addr, size_t size )
+{
+        unsigned long start     = ALIGN_DOWN( virt_to_phys(addr), PAGE_SIZE);
+        unsigned long end       = ALIGN(virt_to_phys(addr) + size, PAGE_SIZE);
+        unsigned long mmap_ret  = 0;
+        unsigned long populate  = 0;
+        int           remap_err = 0;
 
+        struct mm_struct      *mm  = current->mm;
+        struct vm_area_struct *vma = NULL;
+
+        vma = find_vma(mm, start) ;
+        DebugMSG( "start = 0x%lx, end = 0x%lx, vma->vm_start = 0x%lx; "
+                  "vma->vm_end = 0x%lx",
+                  start, end, vma->vm_start, vma->vm_end );
+
+        if ( vma->vm_start <= start ) {
+                /* vma already exists. We expect the flags to contain VM_PFNMAP
+                 * which means we already created 1:1 mapping for this address
+                 * Otherwise - something is wrong. Specifically, the user-space
+                 * memory was probably already in use. */
+
+                /* The following flags are set by remap_pfn_range */
+                u32  pfn_remapping_flags    =
+                                VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
+
+                bool memory_is_pfn_remapped =
+                                vma->vm_flags & pfn_remapping_flags;
+                BUG_ON( ! memory_is_pfn_remapped );
+
+                /* end must be smaller than the vma end: */
+                BUG_ON( vma->vm_end < end );
+
+                /* We already mapped these addresses as 1:1 */
+                DebugMSG( "These addresses should already be 1:1 mapped. Skipping." );
+                return;
+        }
+
+        /* TODO: should we make sure size of a multiple of PAGE_SIZE? */
+        /* BUG_ON( size % PAGE_SIZE != 0 ); */
+
+        /* The mm semaphore is required for both do_mmap AND remap_pfn_range */
+        down_write(&mm->mmap_sem);
+
+        /* First, we need to add a vma structure corresponding to the
+         * user-space address matching the physical address */
+        mmap_ret = do_mmap( NULL,
+                            start,
+                            end - start,
+                            PROT_READ | PROT_WRITE,
+                            MAP_FIXED | MAP_PRIVATE,
+                            VM_READ | VM_WRITE,
+                            0,
+                            &populate,
+                            NULL /* struct list_head *u */
+        );
+        DebugMSG( "mmap_ret = 0x%lx; populate = 0x%lx", mmap_ret, populate );
+
+        /* Fetch the vma struct for our newly allocated user-space memory */
+        vma = find_vma(mm, start) ;
+        DebugMSG( "vma->vm_start = 0x%lx; vma->vm_end = 0x%lx",
+                  vma->vm_start, vma->vm_end );
+
+        /* Adjust end to fit the entire vma */
+        if (vma->vm_end > end)
+                end = vma->vm_end;
+
+        /* Next,remap the physical memory, allocated to the kernel,
+         * to the user-space */
+        remap_err = remap_pfn_range( vma, start, start >> PAGE_SHIFT,
+                                     end - start, PAGE_KERNEL );
+        DebugMSG( "remap_pfn_range -> %d", remap_err );
+
+        up_write(&mm->mmap_sem);
+}
+
+
+/*********** EFI hooks ************************/
 __attribute__((ms_abi)) efi_status_t efi_hook_RaiseTPL(void)
 {
          DebugMSG( "BOOT SERVICE #0 called" );
@@ -1261,12 +1341,11 @@ __attribute__((ms_abi)) efi_status_t efi_hook_AllocatePool(
         DebugMSG( "Allocated at 0x%px (physical addr: 0x%llx)",
                   allocation, virt_to_phys( allocation ) );
 
-        /* TODO: Create 1:1 virt-to-phys mapping */
+        efi_setup_11_mapping( allocation, size );
+        *buffer = ( void* )virt_to_phys( allocation );
+
         /* TODO: Register memory allocation in some "database". We will need
          * this to create MemoryMap later on */
-
-        /* TODO: later on this will need to be physical addr of allocation */
-        *buffer = allocation;
 
         return EFI_SUCCESS;
 }
@@ -1276,7 +1355,9 @@ __attribute__((ms_abi)) efi_status_t efi_hook_FreePool(void* buff)
          DebugMSG( "BOOT SERVICE #6 called" );
 
          /* TODO: We need to do some book keeping for the sake of MemoryMap */
-         kfree(buff);
+
+         /* Since we performed 11 mapping, we can't just kfree memory. We
+          * therefore just ignore the call for now */
 
          return EFI_SUCCESS;
 }
