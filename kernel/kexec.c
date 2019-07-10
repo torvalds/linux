@@ -1338,25 +1338,36 @@ typedef struct {
     u64 pad2;
 } EFI_MEMORY_DESCRIPTOR;
 
-EFI_MEMORY_DESCRIPTOR efi_memory_mappings[EFI_MAX_MEMORY_MAPPINGS];
-uint16_t efi_next_available_mem_mapping                         = 0;
-uint64_t efi_mem_map_epoch                                      = 0;
+typedef struct {
+        EFI_MEMORY_DESCRIPTOR mem_descriptor;
+        struct list_head      list;
+} MemoryAllocation;
+
+LIST_HEAD( efi_memory_mappings );
+uint64_t efi_mem_map_epoch = 0;
 
 void efi_register_mem_allocation(  EFI_MEMORY_TYPE       MemoryType,
                                    UINTN                 NumberOfPages,
                                    void*                 allocation )
 {
-        EFI_MEMORY_DESCRIPTOR *mem_map  = NULL;
+        EFI_MEMORY_DESCRIPTOR *mem_map   = NULL;
+        MemoryAllocation      *mem_alloc = kmalloc( sizeof(MemoryAllocation),
+                                                    GFP_KERNEL );
+        if(!mem_alloc) {
+                DebugMSG( "ERROR: OUT OF MEMORY!" );
+                return;
+        }
 
         DebugMSG( "Registering %lld pages of type %s @ %px",
                    NumberOfPages, get_efi_mem_type_str( MemoryType ),
                    allocation );
 
-        BUG_ON( efi_next_available_mem_mapping >= EFI_MAX_MEMORY_MAPPINGS );
-
         /* TODO: Search if the memory address already exists in
          * &efi_memory_mappings. If so, use that mapping. */
-        mem_map = &efi_memory_mappings[ efi_next_available_mem_mapping++ ];
+
+        mem_map = &mem_alloc->mem_descriptor;
+        INIT_LIST_HEAD( &mem_alloc->list );
+
         memset( mem_map, 0, sizeof( *mem_map ) );
         mem_map->type      = MemoryType;
         mem_map->pad       = 0;
@@ -1365,19 +1376,19 @@ void efi_register_mem_allocation(  EFI_MEMORY_TYPE       MemoryType,
         mem_map->num_pages = NumberOfPages;
         mem_map->attribute = EFI_DEFAULT_MEM_ATTRIBUTES;
 
-        efi_mem_map_epoch++;
+        list_add_tail( &mem_alloc->list, &efi_memory_mappings);
 }
 
 efi_status_t efi_unregister_allocation( efi_physical_addr_t PhysicalAddress,
                                         UINTN               NumberOfPages )
 {
-        uint16_t              i                 = 0;
         EFI_MEMORY_DESCRIPTOR *mem_map          = NULL;
         u64                   offset_in_mapping = 0;
         efi_physical_addr_t   end_of_region     = 0;
 
-        for( ; i < efi_next_available_mem_mapping; i++ ) {
-                mem_map  = &efi_memory_mappings[i];
+        MemoryAllocation *mem_alloc = NULL;
+        list_for_each_entry( mem_alloc, &efi_memory_mappings, list ) {
+                mem_map = &mem_alloc->mem_descriptor;
 
                 end_of_region = mem_map->phys_addr +
                                 mem_map->num_pages * PAGE_SIZE;
@@ -1400,17 +1411,13 @@ efi_status_t efi_unregister_allocation( efi_physical_addr_t PhysicalAddress,
                        return EFI_INVALID_PARAMETER;
                 }
 
-                break;
+                mem_map->type = EfiConventionalMemory; /* Memory is free now */
+
+                return EFI_SUCCESS;
         }
 
-        if (i == efi_next_available_mem_mapping) {
-                DebugMSG( "Couldn't find mapping." );
-                return EFI_INVALID_PARAMETER;
-        }
-
-        mem_map->type = EfiConventionalMemory; /* Memory is free now */
-
-        return EFI_SUCCESS;
+        DebugMSG( "Couldn't find mapping." );
+        return EFI_INVALID_PARAMETER;
 }
 
 /*********** EFI hooks ************************/
@@ -1438,6 +1445,21 @@ __attribute__((ms_abi)) efi_status_t efi_hook_FreePages(
         return efi_unregister_allocation( PhysicalAddress, NumberOfPages );
 }
 
+size_t efi_get_mem_map_size(void)
+{
+        u32              num_mem_allocations = 0;
+        struct list_head *position           = NULL;
+
+        list_for_each ( position , &efi_memory_mappings )
+        {
+                num_mem_allocations++;
+        }
+
+        DebugMSG( "Number of entries in MemMap: %d", num_mem_allocations );
+
+        return num_mem_allocations * sizeof( EFI_MEMORY_DESCRIPTOR );
+}
+
 __attribute__((ms_abi)) efi_status_t efi_hook_GetMemoryMap(
                                      unsigned long         *MemoryMapSize,
                                      EFI_MEMORY_DESCRIPTOR *MemoryMap,
@@ -1446,12 +1468,12 @@ __attribute__((ms_abi)) efi_status_t efi_hook_GetMemoryMap(
                                      u32                   *DescriptorVersion)
 
 {
-        unsigned long current_mapping_size  =
-               efi_next_available_mem_mapping * sizeof( EFI_MEMORY_DESCRIPTOR );
-        int entryIdx                        = 0;
-        EFI_MEMORY_DESCRIPTOR *entry        = NULL;
-        efi_status_t status                 = EFI_SUCCESS;
-        uint8_t* current_offset             = ( uint8_t* )MemoryMap;
+        size_t                current_mapping_size = efi_get_mem_map_size();
+        int                   entryIdx             = 0;
+        EFI_MEMORY_DESCRIPTOR *mem_map             = NULL;
+        efi_status_t          status               = EFI_SUCCESS;
+        uint8_t*              current_offset       = ( uint8_t* )MemoryMap;
+        MemoryAllocation      *mem_alloc           = NULL;
 
         *DescriptorVersion        = 1;
         *DescriptorSize           = sizeof( EFI_MEMORY_DESCRIPTOR );
@@ -1474,26 +1496,24 @@ __attribute__((ms_abi)) efi_status_t efi_hook_GetMemoryMap(
                 return status;
         }
 
-        memcpy( current_offset, efi_memory_mappings, current_mapping_size );
-        current_offset += current_mapping_size;
+
+        list_for_each_entry( mem_alloc, &efi_memory_mappings, list ) {
+                mem_map = &mem_alloc->mem_descriptor;
+                memcpy( current_offset, mem_map, sizeof( *mem_map ) );
+                current_offset += sizeof( *mem_map );
+
+
+                DebugMSG( "%3d: %-25s, 0x%16llx -> 0x%16llx, %5lld, 0x%016llx",
+                    entryIdx++, get_efi_mem_type_str(mem_map->type),
+                    mem_map->phys_addr, mem_map->virt_addr,
+                    mem_map->num_pages, mem_map->attribute );
+        }
 
         *MemoryMapSize  = current_offset - ( uint8_t* )MemoryMap;
         *MapKey         = efi_mem_map_epoch;
 
-        DebugMSG( "MemoryMapSize = %ld MapKey = 0x%lx",
+        DebugMSG( "MemoryMapSize = %ld MapKey = 0x%lx", 
                   *MemoryMapSize, *MapKey );
-
-        entry = MemoryMap;
-        while( entry < ( EFI_MEMORY_DESCRIPTOR* )current_offset ) {
-                DebugMSG( "%3d: %-25s, 0x%16llx -> 0x%16llx, %5lld, 0x%016llx",
-                    entryIdx++, get_efi_mem_type_str(entry->type),
-                    entry->phys_addr, entry->virt_addr,
-                    entry->num_pages, entry->attribute );
-
-                /* Pointer arithmatics will add sizeof( EFI_MEMORY_DESCRIPTOR )
-                 * */
-                entry += 1;
-        }
 
         return EFI_SUCCESS;
 }
