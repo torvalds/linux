@@ -1052,16 +1052,6 @@ static void rapl_update_domain_data(struct rapl_package *rp)
 
 }
 
-static void rapl_unregister_powercap(void)
-{
-	if (&rapl_msr_priv.platform_rapl_domain) {
-		powercap_unregister_zone(rapl_msr_priv.control_type,
-					 &rapl_msr_priv.platform_rapl_domain->power_zone);
-		kfree(rapl_msr_priv.platform_rapl_domain);
-	}
-	powercap_unregister_control_type(rapl_msr_priv.control_type);
-}
-
 static int rapl_package_register_powercap(struct rapl_package *rp)
 {
 	struct rapl_domain *rd;
@@ -1131,16 +1121,23 @@ err_cleanup:
 	return ret;
 }
 
-static int __init rapl_register_psys(void)
+static int __init rapl_add_platform_domain(struct rapl_if_priv *priv)
 {
 	struct rapl_domain *rd;
 	struct powercap_zone *power_zone;
-	u64 val;
+	struct reg_action ra;
+	int ret;
 
-	if (rdmsrl_safe_on_cpu(0, rapl_msr_priv.regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_STATUS], &val) || !val)
+	ra.reg = priv->regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_STATUS];
+	ra.mask = ~0;
+	ret = priv->read_raw(0, &ra);
+	if (ret || !ra.value)
 		return -ENODEV;
 
-	if (rdmsrl_safe_on_cpu(0, rapl_msr_priv.regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_LIMIT], &val) || !val)
+	ra.reg = priv->regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_LIMIT];
+	ra.mask = ~0;
+	ret = priv->read_raw(0, &ra);
+	if (ret || !ra.value)
 		return -ENODEV;
 
 	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
@@ -1149,15 +1146,15 @@ static int __init rapl_register_psys(void)
 
 	rd->name = rapl_domain_names[RAPL_DOMAIN_PLATFORM];
 	rd->id = RAPL_DOMAIN_PLATFORM;
-	rd->regs[RAPL_DOMAIN_REG_LIMIT] = rapl_msr_priv.regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_LIMIT];
-	rd->regs[RAPL_DOMAIN_REG_STATUS] = rapl_msr_priv.regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_STATUS];
+	rd->regs[RAPL_DOMAIN_REG_LIMIT] = priv->regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_LIMIT];
+	rd->regs[RAPL_DOMAIN_REG_STATUS] = priv->regs[RAPL_DOMAIN_PLATFORM][RAPL_DOMAIN_REG_STATUS];
 	rd->rpl[0].prim_id = PL1_ENABLE;
 	rd->rpl[0].name = pl1_name;
 	rd->rpl[1].prim_id = PL2_ENABLE;
 	rd->rpl[1].name = pl2_name;
-	rd->rp = rapl_find_package_domain(0, &rapl_msr_priv);
+	rd->rp = rapl_find_package_domain(0, priv);
 
-	power_zone = powercap_register_zone(&rd->power_zone, rapl_msr_priv.control_type,
+	power_zone = powercap_register_zone(&rd->power_zone, priv->control_type,
 					    "psys", NULL,
 					    &zone_ops[RAPL_DOMAIN_PLATFORM],
 					    2, &constraint_ops);
@@ -1167,19 +1164,18 @@ static int __init rapl_register_psys(void)
 		return PTR_ERR(power_zone);
 	}
 
-	rapl_msr_priv.platform_rapl_domain = rd;
+	priv->platform_rapl_domain = rd;
 
 	return 0;
 }
 
-static int __init rapl_register_powercap(void)
+static void rapl_remove_platform_domain(struct rapl_if_priv *priv)
 {
-	rapl_msr_priv.control_type = powercap_register_control_type(NULL, "intel-rapl", NULL);
-	if (IS_ERR(rapl_msr_priv.control_type)) {
-		pr_debug("failed to register powercap control_type.\n");
-		return PTR_ERR(rapl_msr_priv.control_type);
+	if (priv->platform_rapl_domain) {
+		powercap_unregister_zone(priv->control_type,
+			&priv->platform_rapl_domain->power_zone);
+		kfree(priv->platform_rapl_domain);
 	}
-	return 0;
 }
 
 static int rapl_check_domain(int cpu, int domain, struct rapl_package *rp)
@@ -1526,9 +1522,12 @@ static int __init rapl_init(void)
 
 	rapl_msr_priv.read_raw = rapl_msr_read_raw;
 	rapl_msr_priv.write_raw = rapl_msr_write_raw;
-	ret = rapl_register_powercap();
-	if (ret)
-		return ret;
+
+	rapl_msr_priv.control_type = powercap_register_control_type(NULL, "intel-rapl", NULL);
+	if (IS_ERR(rapl_msr_priv.control_type)) {
+		pr_debug("failed to register powercap control_type.\n");
+		return PTR_ERR(rapl_msr_priv.control_type);
+	}
 
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "powercap/rapl:online",
 				rapl_cpu_online, rapl_cpu_down_prep);
@@ -1537,7 +1536,7 @@ static int __init rapl_init(void)
 	rapl_msr_priv.pcap_rapl_online = ret;
 
 	/* Don't bail out if PSys is not supported */
-	rapl_register_psys();
+	rapl_add_platform_domain(&rapl_msr_priv);
 
 	ret = register_pm_notifier(&rapl_pm_notifier);
 	if (ret)
@@ -1549,7 +1548,7 @@ err_unreg_all:
 	cpuhp_remove_state(rapl_msr_priv.pcap_rapl_online);
 
 err_unreg:
-	rapl_unregister_powercap();
+	powercap_unregister_control_type(rapl_msr_priv.control_type);
 	return ret;
 }
 
@@ -1557,7 +1556,8 @@ static void __exit rapl_exit(void)
 {
 	unregister_pm_notifier(&rapl_pm_notifier);
 	cpuhp_remove_state(rapl_msr_priv.pcap_rapl_online);
-	rapl_unregister_powercap();
+	rapl_remove_platform_domain(&rapl_msr_priv);
+	powercap_unregister_control_type(rapl_msr_priv.control_type);
 }
 
 module_init(rapl_init);
