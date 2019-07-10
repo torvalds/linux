@@ -576,13 +576,13 @@
 				};
 			};
 
-			vcc5v0_host: SWITCH_REG1 {
+			vcc5v0_host: SWITCH_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-name = "vcc5v0_host";
 			};
 
-			vcc3v3_lcd: SWITCH_REG2 {
+			vcc3v3_lcd: SWITCH_REG1 {
 				regulator-boot-on;
 				regulator-name = "vcc3v3_lcd";
 			};
