@@ -105,8 +105,14 @@ out_put:
 	return err;
 }
 
-int db_export__comm(struct db_export *dbe, struct comm *comm,
-		    struct thread *main_thread)
+/*
+ * Export the "exec" comm. The "exec" comm is the program / application command
+ * name at the time it first executes. It is used to group threads for the same
+ * program. Note that the main thread pid (or thread group id tgid) cannot be
+ * used because it does not change when a new program is exec'ed.
+ */
+int db_export__exec_comm(struct db_export *dbe, struct comm *comm,
+			 struct thread *main_thread)
 {
 	int err;
 
@@ -121,6 +127,16 @@ int db_export__comm(struct db_export *dbe, struct comm *comm,
 			return err;
 	}
 
+	/*
+	 * Record the main thread for this comm. Note that the main thread can
+	 * have many "exec" comms because there will be a new one every time it
+	 * exec's. An "exec" comm however will only ever have 1 main thread.
+	 * That is different to any other threads for that same program because
+	 * exec() will effectively kill them, so the relationship between the
+	 * "exec" comm and non-main threads is 1-to-1. That is why
+	 * db_export__comm_thread() is called here for the main thread, but it
+	 * is called for non-main threads when they are exported.
+	 */
 	return db_export__comm_thread(dbe, comm, main_thread);
 }
 
@@ -313,7 +329,7 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		goto out_put;
 
 	if (comm) {
-		err = db_export__comm(dbe, comm, main_thread);
+		err = db_export__exec_comm(dbe, comm, main_thread);
 		if (err)
 			goto out_put;
 		es.comm_db_id = comm->db_id;
