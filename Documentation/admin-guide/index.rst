@@ -78,6 +78,7 @@ configure specific aspects of kernel behavior to your liking.
    ext4
    binderfs
    xfs
+   jfs
    pm/index
    thunderbolt
    LSM/index
