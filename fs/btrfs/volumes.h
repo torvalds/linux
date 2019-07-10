@@ -18,10 +18,6 @@ extern struct mutex uuid_mutex;
 #define BTRFS_STRIPE_LEN	SZ_64K
 
 struct buffer_head;
-struct btrfs_pending_bios {
-	struct bio *head;
-	struct bio *tail;
-};
 
 struct btrfs_io_geometry {
 	/* remaining bytes before crossing a stripe */
@@ -67,13 +63,6 @@ struct btrfs_device {
 	struct rcu_string *name;
 
 	u64 generation;
-
-	spinlock_t io_lock ____cacheline_aligned;
-	int running_pending;
-	/* regular prio bios */
-	struct btrfs_pending_bios pending_bios;
-	/* sync bios */
-	struct btrfs_pending_bios pending_sync_bios;
 
 	struct block_device *bdev;
 
