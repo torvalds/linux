@@ -79,6 +79,7 @@ configure specific aspects of kernel behavior to your liking.
    binderfs
    xfs
    jfs
+   ufs
    pm/index
    thunderbolt
    LSM/index
