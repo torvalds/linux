@@ -4148,6 +4148,19 @@ S:	Maintained
 F:	mm/memcontrol.c
 F:	mm/swap_cgroup.c
 
+CONTROL GROUP - BLOCK IO CONTROLLER (BLKIO)
+M:	Tejun Heo <tj@kernel.org>
+M:	Jens Axboe <axboe@kernel.dk>
+L:	cgroups@vger.kernel.org
+L:	linux-block@vger.kernel.org
+T:	git git://git.kernel.dk/linux-block
+F:	Documentation/cgroup-v1/blkio-controller.rst
+F:	block/blk-cgroup.c
+F:	include/linux/blk-cgroup.h
+F:	block/blk-throttle.c
+F:	block/blk-iolatency.c
+F:	block/bfq-cgroup.c
+
 CORETEMP HARDWARE MONITORING DRIVER
 M:	Fenghua Yu <fenghua.yu@intel.com>
 L:	linux-hwmon@vger.kernel.org
