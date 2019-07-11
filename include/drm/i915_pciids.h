@@ -583,4 +583,14 @@
 	INTEL_VGA_DEVICE(0x4551, info), \
 	INTEL_VGA_DEVICE(0x4541, info)
 
+/* TGL */
+#define INTEL_TGL_12_IDS(info) \
+	INTEL_VGA_DEVICE(0x9A49, info), \
+	INTEL_VGA_DEVICE(0x9A40, info), \
+	INTEL_VGA_DEVICE(0x9A59, info), \
+	INTEL_VGA_DEVICE(0x9A60, info), \
+	INTEL_VGA_DEVICE(0x9A68, info), \
+	INTEL_VGA_DEVICE(0x9A70, info), \
+	INTEL_VGA_DEVICE(0x9A78, info)
+
 #endif /* _I915_PCIIDS_H */
