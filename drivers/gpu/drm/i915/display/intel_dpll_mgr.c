@@ -2597,8 +2597,12 @@ static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
 	cfgcr1 = DPLL_CFGCR1_QDIV_RATIO(pll_params.qdiv_ratio) |
 		 DPLL_CFGCR1_QDIV_MODE(pll_params.qdiv_mode) |
 		 DPLL_CFGCR1_KDIV(pll_params.kdiv) |
-		 DPLL_CFGCR1_PDIV(pll_params.pdiv) |
-		 DPLL_CFGCR1_CENTRAL_FREQ_8400;
+		 DPLL_CFGCR1_PDIV(pll_params.pdiv);
+
+	if (INTEL_GEN(dev_priv) >= 12)
+		cfgcr1 |= TGL_DPLL_CFGCR1_CFSELOVRD_NORMAL_XTAL;
+	else
+		cfgcr1 |= DPLL_CFGCR1_CENTRAL_FREQ_8400;
 
 	memset(pll_state, 0, sizeof(*pll_state));
 
