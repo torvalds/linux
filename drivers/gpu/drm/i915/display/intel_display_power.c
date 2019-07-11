@@ -453,6 +453,7 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	int pw_idx = power_well->desc->hsw.idx;
 	enum phy phy = ICL_AUX_PW_TO_PHY(pw_idx);
 	u32 val;
+	int wa_idx_max;
 
 	val = I915_READ(regs->driver);
 	I915_WRITE(regs->driver, val | HSW_PWR_WELL_CTL_REQ(pw_idx));
@@ -462,9 +463,14 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 
 	hsw_wait_for_power_well_enable(dev_priv, power_well);
 
-	/* Display WA #1178: icl */
-	if (IS_ICELAKE(dev_priv) &&
-	    pw_idx >= ICL_PW_CTL_IDX_AUX_A && pw_idx <= ICL_PW_CTL_IDX_AUX_B &&
+	/* Display WA #1178: icl, tgl */
+	if (IS_TIGERLAKE(dev_priv))
+		wa_idx_max = ICL_PW_CTL_IDX_AUX_C;
+	else
+		wa_idx_max = ICL_PW_CTL_IDX_AUX_B;
+
+	if (!IS_ELKHARTLAKE(dev_priv) &&
+	    pw_idx >= ICL_PW_CTL_IDX_AUX_A && pw_idx <= wa_idx_max &&
 	    !intel_bios_is_port_edp(dev_priv, (enum port)phy)) {
 		val = I915_READ(ICL_AUX_ANAOVRD1(pw_idx));
 		val |= ICL_AUX_ANAOVRD1_ENABLE | ICL_AUX_ANAOVRD1_LDO_BYPASS;

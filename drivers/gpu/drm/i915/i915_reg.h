@@ -9244,9 +9244,11 @@ enum skl_power_gate {
 #define _ICL_AUX_REG_IDX(pw_idx)	((pw_idx) - ICL_PW_CTL_IDX_AUX_A)
 #define _ICL_AUX_ANAOVRD1_A		0x162398
 #define _ICL_AUX_ANAOVRD1_B		0x6C398
+#define _TGL_AUX_ANAOVRD1_C		0x160398
 #define ICL_AUX_ANAOVRD1(pw_idx)	_MMIO(_PICK(_ICL_AUX_REG_IDX(pw_idx), \
 						    _ICL_AUX_ANAOVRD1_A, \
-						    _ICL_AUX_ANAOVRD1_B))
+						    _ICL_AUX_ANAOVRD1_B, \
+						    _TGL_AUX_ANAOVRD1_C))
 #define   ICL_AUX_ANAOVRD1_LDO_BYPASS	(1 << 7)
 #define   ICL_AUX_ANAOVRD1_ENABLE	(1 << 0)
 
