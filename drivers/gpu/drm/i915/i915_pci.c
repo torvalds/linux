@@ -765,6 +765,35 @@ static const struct intel_device_info intel_elkhartlake_info = {
 	.ppgtt_size = 36,
 };
 
+#define GEN12_FEATURES \
+	GEN11_FEATURES, \
+	GEN(12), \
+	.pipe_offsets = { \
+		[TRANSCODER_A] = PIPE_A_OFFSET, \
+		[TRANSCODER_B] = PIPE_B_OFFSET, \
+		[TRANSCODER_C] = PIPE_C_OFFSET, \
+		[TRANSCODER_D] = PIPE_D_OFFSET, \
+		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET, \
+		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET, \
+	}, \
+	.trans_offsets = { \
+		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
+		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
+		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
+		[TRANSCODER_D] = TRANSCODER_D_OFFSET, \
+		[TRANSCODER_DSI_0] = TRANSCODER_DSI0_OFFSET, \
+		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET, \
+	}
+
+static const struct intel_device_info intel_tigerlake_12_info = {
+	GEN12_FEATURES,
+	PLATFORM(INTEL_TIGERLAKE),
+	.num_pipes = 4,
+	.require_force_probe = 1,
+	.engine_mask =
+		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
+};
+
 #undef GEN
 #undef PLATFORM
 
