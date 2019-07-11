@@ -503,6 +503,9 @@ void mt7615_mac_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
 			     IEEE80211_TX_RC_160_MHZ_WIDTH))
 				continue;
 
+			if (!rates[i].idx)
+				continue;
+
 			rates[i].idx--;
 		}
 
