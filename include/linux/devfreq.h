@@ -49,6 +49,7 @@ struct devfreq_governor;
  * @busy_time:		The time that the device was working among the
  *			total_time.
  * @current_frequency:	The operating frequency.
+ * @update:		Whether need to update total_time and busy_time.
  * @private_data:	An entry not specified by the devfreq framework.
  *			A device and a specific governor may have their
  *			own protocol with private_data. However, because
@@ -60,6 +61,7 @@ struct devfreq_dev_status {
 	unsigned long total_time;
 	unsigned long busy_time;
 	unsigned long current_frequency;
+	bool update;
 	void *private_data;
 };
 

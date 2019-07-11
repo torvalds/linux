@@ -122,9 +122,11 @@ static int devfreq_userspace_handler(struct devfreq *devfreq,
 	switch (event) {
 	case DEVFREQ_GOV_START:
 		ret = userspace_init(devfreq);
+		devfreq->last_status.update = true;
 		break;
 	case DEVFREQ_GOV_STOP:
 		userspace_exit(devfreq);
+		devfreq->last_status.update = false;
 		break;
 	default:
 		break;

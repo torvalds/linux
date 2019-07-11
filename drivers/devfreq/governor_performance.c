@@ -33,6 +33,9 @@ static int devfreq_performance_handler(struct devfreq *devfreq,
 		mutex_lock(&devfreq->lock);
 		ret = update_devfreq(devfreq);
 		mutex_unlock(&devfreq->lock);
+		devfreq->last_status.update = true;
+	} else if (event == DEVFREQ_GOV_STOP) {
+		devfreq->last_status.update = false;
 	}
 
 	return ret;

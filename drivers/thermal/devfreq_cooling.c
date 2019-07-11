@@ -284,6 +284,14 @@ static int devfreq_cooling_get_requested_power(struct thermal_cooling_device *cd
 	u32 static_power = 0;
 	int res;
 
+	if (status->update) {
+		if (df->profile->get_dev_status(df->dev.parent,
+						&df->last_status)) {
+			status->busy_time = 1;
+			status->total_time = 1;
+		}
+	}
+
 	state = freq_get_state(dfc, freq);
 	if (state == THERMAL_CSTATE_INVALID) {
 		res = -EAGAIN;
