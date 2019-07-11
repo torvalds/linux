@@ -1212,6 +1212,8 @@ static int siw_rdmap_complete(struct siw_qp *qp, int error)
 	case RDMAP_SEND_SE:
 	case RDMAP_SEND_SE_INVAL:
 		wqe->rqe.flags |= SIW_WQE_SOLICITED;
+		/* Fall through */
+
 	case RDMAP_SEND:
 	case RDMAP_SEND_INVAL:
 		if (wqe->wr_status == SIW_WR_IDLE)

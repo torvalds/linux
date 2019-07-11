@@ -1042,6 +1042,8 @@ next_wqe:
 		case SIW_OP_SEND_REMOTE_INV:
 		case SIW_OP_WRITE:
 			siw_wqe_put_mem(wqe, tx_type);
+			/* Fall through */
+
 		case SIW_OP_INVAL_STAG:
 		case SIW_OP_REG_MR:
 			if (tx_flags(wqe) & SIW_WQE_SIGNALLED)
@@ -1126,6 +1128,8 @@ next_wqe:
 		case SIW_OP_READ:
 		case SIW_OP_READ_LOCAL_INV:
 			siw_wqe_put_mem(wqe, tx_type);
+			/* Fall through */
+
 		case SIW_OP_INVAL_STAG:
 		case SIW_OP_REG_MR:
 			siw_sqe_complete(qp, &wqe->sqe, wqe->bytes,
