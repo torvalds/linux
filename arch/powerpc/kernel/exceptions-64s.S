@@ -2208,11 +2208,20 @@ __end_interrupts:
 DEFINE_FIXED_SYMBOL(__end_interrupts)
 
 #ifdef CONFIG_PPC_970_NAP
+	/*
+	 * Called by exception entry code if _TLF_NAPPING was set, this clears
+	 * the NAPPING flag, and redirects the exception exit to
+	 * power4_fixup_nap_return.
+	 */
+	.globl power4_fixup_nap
 EXC_COMMON_BEGIN(power4_fixup_nap)
 	andc	r9,r9,r10
 	std	r9,TI_LOCAL_FLAGS(r11)
-	ld	r10,_LINK(r1)		/* make idle task do the */
-	std	r10,_NIP(r1)		/* equivalent of a blr */
+	LOAD_REG_ADDR(r10, power4_idle_nap_return)
+	std	r10,_NIP(r1)
+	blr
+
+power4_idle_nap_return:
 	blr
 #endif
 

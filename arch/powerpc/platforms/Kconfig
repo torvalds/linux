@@ -177,6 +177,10 @@ config PPC_970_NAP
 config PPC_P7_NAP
 	bool
 
+config PPC_BOOK3S_IDLE
+	def_bool y
+	depends on (PPC_970_NAP || PPC_P7_NAP)
+
 config PPC_INDIRECT_PIO
 	bool
 	select GENERIC_IOMAP
