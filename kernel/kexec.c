@@ -305,6 +305,15 @@ typedef struct {
         void* Mode;
 } EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL ;
 
+typedef struct {
+        void* Reset;
+        void* ReadKeyStrokeEx;
+        void* WaitForKeyEx;
+        void* SetState;
+        void* RegisterKeyNotify;
+        void* UnregisterKeyNotify;
+} EFI_SIMPLE_TEXT_EX_INPUT_PROTOCOL;
+
 typedef void*               EFI_HANDLE;
 typedef void*               EFI_IMAGE_UNLOAD;
 typedef void                VOID;
@@ -1245,6 +1254,71 @@ efi_status_t efi_handle_protocol_DevicePath( void* handle, void** interface )
         return EFI_SUCCESS;
 }
 
+__attribute__((ms_abi)) efi_status_t efi_conin_hook_Reset(void)
+{
+         DebugMSG( "ConIn was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_conin_hook_ReadKeyStrokeEx(void)
+{
+         DebugMSG( "ConIn was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_conin_hook_SetState(
+                                                        void* this_protocol,
+                                                        void* KeyToggleState )
+{
+         DebugMSG( "Ignoring call!" );
+
+         return EFI_SUCCESS;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_conin_hook_RegisterKeyNotify(void)
+{
+         DebugMSG( "ConIn was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_conin_hook_UnregisterKeyNotify(void)
+{
+         DebugMSG( "ConIn was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+#define CON_IN_HANDLE         0xdeadbeefcafebab1
+#define WAIT_FOR_KEY_EVENT_ID 0xABCDEFABCDEF2345
+
+EFI_SIMPLE_TEXT_EX_INPUT_PROTOCOL con_in = {
+        .Reset               = efi_conin_hook_Reset,
+        .ReadKeyStrokeEx     = efi_conin_hook_ReadKeyStrokeEx,
+        .WaitForKeyEx        = (void*)WAIT_FOR_KEY_EVENT_ID,
+        .SetState            = efi_conin_hook_SetState,
+        .RegisterKeyNotify   = efi_conin_hook_RegisterKeyNotify,
+        .UnregisterKeyNotify = efi_conin_hook_UnregisterKeyNotify
+};
+
+
+efi_status_t efi_handle_protocol_SimpleTextInputExProtocol( void*  handle,
+                                                            void** interface )
+{
+        DebugMSG( "handle = %px", handle );
+
+        if (handle != (void*)CON_IN_HANDLE) {
+                DebugMSG( "unknown handle %px", handle );
+
+                return EFI_UNSUPPORTED;
+        }
+
+        *interface = &con_in;
+
+        return EFI_SUCCESS;
+}
 /*********** End of protocols *****************/
 
 /* This function receives a virtual addr and created a 1:1 mapping between
@@ -1777,16 +1851,23 @@ __attribute__((ms_abi)) efi_status_t efi_hook_GetNextMonotonicCount(void)
 
 __attribute__((ms_abi)) efi_status_t efi_hook_Stall(void)
 {
-         DebugMSG( "BOOT SERVICE #28 called" );
+         DebugMSG( "Ignoring call" );
 
-         return EFI_UNSUPPORTED;
+         return EFI_SUCCESS;
 }
 
-__attribute__((ms_abi)) efi_status_t efi_hook_SetWatchdogTimer(void)
+__attribute__((ms_abi)) efi_status_t efi_hook_SetWatchdogTimer( UINTN    Timeout,
+                                                                UINT64   WatchdogCode,
+                                                                UINTN    DataSize,
+                                                                CHAR16   *WatchdogData )
 {
-         DebugMSG( "BOOT SERVICE #29 called" );
+        DebugMSG( "Timeout = %lld, WatchdogCode = 0x%llx, DataSize = %lld",
+                  Timeout, WatchdogCode, DataSize );
 
-         return EFI_UNSUPPORTED;
+        /* It's Ok to ignore this call. See
+         * https://uefi.org/sites/default/files/resources/UEFI%20Spec%202_6.pdf
+         */
+        return EFI_SUCCESS;
 }
 
 __attribute__((ms_abi)) efi_status_t efi_hook_ConnectController(void)
@@ -1803,11 +1884,24 @@ __attribute__((ms_abi)) efi_status_t efi_hook_DisconnectController(void)
          return EFI_UNSUPPORTED;
 }
 
-__attribute__((ms_abi)) efi_status_t efi_hook_OpenProtocol(void)
-{
-         DebugMSG( "BOOT SERVICE #32 called" );
+__attribute__((ms_abi)) efi_status_t efi_hook_OpenProtocol( EFI_HANDLE  UserHandle,
+                                                            EFI_GUID    *Protocol,
+                                                            VOID        **Interface,
+                                                            EFI_HANDLE  ImageHandle,
+                                                            EFI_HANDLE  ControllerHandle,
+                                                            UINT32      Attributes )
 
-         return EFI_UNSUPPORTED;
+{
+        const char* protocolName = GetGuidName( Protocol );
+        DebugMSG( "handle = 0x%px guid = %s: %s",
+                   UserHandle, protocolName, get_GUID_str( Protocol ) );
+
+        if (strcmp (protocolName, "gEfiSimpleTextInputExProtocolGuid") == 0) {
+                return efi_handle_protocol_SimpleTextInputExProtocol(
+                                                        UserHandle, Interface );
+        }
+
+        return EFI_UNSUPPORTED;
 }
 
 __attribute__((ms_abi)) efi_status_t efi_hook_CloseProtocol(void)
@@ -2049,7 +2143,7 @@ static void hook_boot_services( efi_system_table_t *systab )
                 systab_blob += 1;
         }
 
-        systab->con_in_handle                    = 0xdeadbeefcafebab1;
+        systab->con_in_handle                    = CON_IN_HANDLE;
         systab->con_in                           = 0xdeadbeefcafe0001;
         systab->con_out_handle                   = 0xdeadbeefcafebabe;
         systab->con_out                          = (unsigned long) &con_out;
