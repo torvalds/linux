@@ -1157,14 +1157,14 @@ static int navi10_get_profiling_clk_mask(struct smu_context *smu,
 			ret = smu_get_dpm_level_count(smu, SMU_MCLK, &level_count);
 			if (ret)
 				return ret;
-			*sclk_mask = level_count - 1;
+			*mclk_mask = level_count - 1;
 		}
 
 		if(soc_mask) {
 			ret = smu_get_dpm_level_count(smu, SMU_SOCCLK, &level_count);
 			if (ret)
 				return ret;
-			*sclk_mask = level_count - 1;
+			*soc_mask = level_count - 1;
 		}
 	}
 
