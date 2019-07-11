@@ -1975,6 +1975,7 @@ int siw_create_listen(struct iw_cm_id *id, int backlog)
 			id, &s_laddr.sin_addr, ntohs(s_laddr.sin_port),
 			&s_raddr->sin_addr, ntohs(s_raddr->sin_port));
 
+		rtnl_lock();
 		for_ifa(in_dev)
 		{
 			if (ipv4_is_zeronet(s_laddr.sin_addr.s_addr) ||
@@ -1989,6 +1990,7 @@ int siw_create_listen(struct iw_cm_id *id, int backlog)
 			}
 		}
 		endfor_ifa(in_dev);
+		rtnl_unlock();
 		in_dev_put(in_dev);
 	} else if (id->local_addr.ss_family == AF_INET6) {
 		struct inet6_dev *in6_dev = in6_dev_get(dev);
