@@ -1454,6 +1454,9 @@ static int rockchip_dmcfreq_get_dev_status(struct device *dev,
 	struct devfreq_event_data edata;
 	int i, j, ret = 0;
 
+	if (!dmcfreq->auto_freq_en)
+		return -EINVAL;
+
 	if (dmcfreq->dfi_id >= 0) {
 		ret = devfreq_event_get_event(dmcfreq->edev[dmcfreq->dfi_id],
 					      &edata);
@@ -3001,6 +3004,8 @@ static int devfreq_dmc_ondemand_func(struct devfreq *df,
 			target_freq = dmcfreq->normal_rate;
 		if (target_freq)
 			*freq = target_freq;
+		if (dmcfreq->auto_freq_en && !devfreq_update_stats(df))
+			return 0;
 		goto reset_last_status;
 	}
 
