@@ -401,6 +401,18 @@ static void restore_retire_worker(struct drm_i915_private *i915)
 	i915_gem_shrinker_register(i915);
 }
 
+static void mmap_offset_lock(struct drm_i915_private *i915)
+	__acquires(&i915->drm.vma_offset_manager->vm_lock)
+{
+	write_lock(&i915->drm.vma_offset_manager->vm_lock);
+}
+
+static void mmap_offset_unlock(struct drm_i915_private *i915)
+	__releases(&i915->drm.vma_offset_manager->vm_lock)
+{
+	write_unlock(&i915->drm.vma_offset_manager->vm_lock);
+}
+
 static int igt_mmap_offset_exhaustion(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -419,9 +431,9 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
 		resv.start = hole_start;
 		resv.size = hole_end - hole_start - 1; /* PAGE_SIZE units */
-		mutex_lock(&i915->drm.struct_mutex);
+		mmap_offset_lock(i915);
 		err = drm_mm_reserve_node(mm, &resv);
-		mutex_unlock(&i915->drm.struct_mutex);
+		mmap_offset_unlock(i915);
 		if (err) {
 			pr_err("Failed to trim VMA manager, err=%d\n", err);
 			goto out_park;
@@ -485,9 +497,9 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	}
 
 out:
-	mutex_lock(&i915->drm.struct_mutex);
+	mmap_offset_lock(i915);
 	drm_mm_remove_node(&resv);
-	mutex_unlock(&i915->drm.struct_mutex);
+	mmap_offset_unlock(i915);
 out_park:
 	restore_retire_worker(i915);
 	return err;
