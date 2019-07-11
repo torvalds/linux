@@ -331,7 +331,7 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int
 	int ret = 0;
 	int table_id = smu_table_get_index(smu, table_index);
 
-	if (!table_data || table_id >= smu_table->table_count)
+	if (!table_data || table_id >= smu_table->table_count || table_id < 0)
 		return -EINVAL;
 
 	table = &smu_table->tables[table_index];
@@ -462,10 +462,12 @@ int smu_feature_init_dpm(struct smu_context *smu)
 int smu_feature_is_enabled(struct smu_context *smu, enum smu_feature_mask mask)
 {
 	struct smu_feature *feature = &smu->smu_feature;
-	uint32_t feature_id;
+	int feature_id;
 	int ret = 0;
 
 	feature_id = smu_feature_get_index(smu, mask);
+	if (feature_id < 0)
+		return 0;
 
 	WARN_ON(feature_id > feature->feature_num);
 
@@ -480,10 +482,12 @@ int smu_feature_set_enabled(struct smu_context *smu, enum smu_feature_mask mask,
 			    bool enable)
 {
 	struct smu_feature *feature = &smu->smu_feature;
-	uint32_t feature_id;
+	int feature_id;
 	int ret = 0;
 
 	feature_id = smu_feature_get_index(smu, mask);
+	if (feature_id < 0)
+		return -EINVAL;
 
 	WARN_ON(feature_id > feature->feature_num);
 
@@ -506,10 +510,12 @@ failed:
 int smu_feature_is_supported(struct smu_context *smu, enum smu_feature_mask mask)
 {
 	struct smu_feature *feature = &smu->smu_feature;
-	uint32_t feature_id;
+	int feature_id;
 	int ret = 0;
 
 	feature_id = smu_feature_get_index(smu, mask);
+	if (feature_id < 0)
+		return 0;
 
 	WARN_ON(feature_id > feature->feature_num);
 
@@ -525,10 +531,12 @@ int smu_feature_set_supported(struct smu_context *smu,
 			      bool enable)
 {
 	struct smu_feature *feature = &smu->smu_feature;
-	uint32_t feature_id;
+	int feature_id;
 	int ret = 0;
 
 	feature_id = smu_feature_get_index(smu, mask);
+	if (feature_id < 0)
+		return -EINVAL;
 
 	WARN_ON(feature_id > feature->feature_num);
 

@@ -937,11 +937,17 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 				    enum smu_clk_type clock_select)
 {
 	int ret = 0;
+	int clk_id;
 
 	if (!smu->pm_enabled)
 		return ret;
+
+	clk_id = smu_clk_get_index(smu, clock_select);
+	if (clk_id < 0)
+		return -EINVAL;
+
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetDcModeMaxDpmFreq,
-					  smu_clk_get_index(smu, clock_select) << 16);
+					  clk_id << 16);
 	if (ret) {
 		pr_err("[GetMaxSustainableClock] Failed to get max DC clock from SMC!");
 		return ret;
@@ -956,7 +962,7 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 
 	/* if DC limit is zero, return AC limit */
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq,
-					  smu_clk_get_index(smu, clock_select) << 16);
+					  clk_id << 16);
 	if (ret) {
 		pr_err("[GetMaxSustainableClock] failed to get max AC clock from SMC!");
 		return ret;
@@ -1052,6 +1058,11 @@ static int smu_v11_0_get_power_limit(struct smu_context *smu,
 				     bool get_default)
 {
 	int ret = 0;
+	int power_src;
+
+	power_src = smu_power_get_index(smu, SMU_POWER_SOURCE_AC);
+	if (power_src < 0)
+		return -EINVAL;
 
 	if (get_default) {
 		mutex_lock(&smu->mutex);
@@ -1063,7 +1074,7 @@ static int smu_v11_0_get_power_limit(struct smu_context *smu,
 		mutex_unlock(&smu->mutex);
 	} else {
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetPptLimit,
-			smu_power_get_index(smu, SMU_POWER_SOURCE_AC) << 16);
+			power_src << 16);
 		if (ret) {
 			pr_err("[%s] get PPT limit failed!", __func__);
 			return ret;
@@ -1106,16 +1117,21 @@ static int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
 {
 	int ret = 0;
 	uint32_t freq = 0;
+	int asic_clk_id;
 
 	if (clk_id >= SMU_CLK_COUNT || !value)
 		return -EINVAL;
 
+	asic_clk_id = smu_clk_get_index(smu, clk_id);
+	if (asic_clk_id < 0)
+		return -EINVAL;
+
 	/* if don't has GetDpmClockFreq Message, try get current clock by SmuMetrics_t */
-	if (smu_msg_get_index(smu, SMU_MSG_GetDpmClockFreq) == 0)
+	if (smu_msg_get_index(smu, SMU_MSG_GetDpmClockFreq) < 0)
 		ret =  smu_get_current_clk_freq_by_table(smu, clk_id, &freq);
 	else {
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetDpmClockFreq,
-						  (smu_clk_get_index(smu, clk_id) << 16));
+						  (asic_clk_id << 16));
 		if (ret)
 			return ret;
 
@@ -1295,6 +1311,7 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 	int ret = 0;
 	enum smu_clk_type clk_select = 0;
 	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
+	int clk_id;
 
 	if (!smu->pm_enabled)
 		return -EINVAL;
@@ -1326,9 +1343,15 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 		if (ret)
 			goto failed;
 
+		clk_id = smu_clk_get_index(smu, clk_select);
+		if (clk_id < 0) {
+			ret = -EINVAL;
+			goto failed;
+		}
+
 		mutex_lock(&smu->mutex);
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinByFreq,
-			(smu_clk_get_index(smu, clk_select) << 16) | clk_freq);
+			(clk_id << 16) | clk_freq);
 		mutex_unlock(&smu->mutex);
 	}
 
