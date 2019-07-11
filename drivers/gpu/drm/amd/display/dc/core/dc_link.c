@@ -684,6 +684,56 @@ static bool is_same_edid(struct dc_edid *old_edid, struct dc_edid *new_edid)
 	return (memcmp(old_edid->raw_edid, new_edid->raw_edid, new_edid->length) == 0);
 }
 
+bool wait_for_alt_mode(struct dc_link *link)
+{
+
+	/**
+	 * something is terribly wrong if time out is > 200ms. (5Hz)
+	 * 500 microseconds * 400 tries us 200 ms
+	 **/
+	unsigned int sleep_time_in_microseconds = 500;
+	unsigned int tries_allowed = 400;
+	bool is_in_alt_mode;
+	unsigned long long enter_timestamp;
+	unsigned long long finish_timestamp;
+	unsigned long long time_taken_in_ns;
+	int tries_taken;
+
+	DC_LOGGER_INIT(link->ctx->logger);
+
+	if (link->link_enc->funcs->is_in_alt_mode == NULL)
+		return true;
+
+	is_in_alt_mode = link->link_enc->funcs->is_in_alt_mode(link->link_enc);
+	DC_LOG_WARNING("DP Alt mode state on HPD: %d\n", is_in_alt_mode);
+
+	if (is_in_alt_mode)
+		return true;
+
+	enter_timestamp = dm_get_timestamp(link->ctx);
+
+	for (tries_taken = 0; tries_taken < tries_allowed; tries_taken++) {
+		udelay(sleep_time_in_microseconds);
+		/* ask the link if alt mode is enabled, if so return ok */
+		if (link->link_enc->funcs->is_in_alt_mode(link->link_enc)) {
+
+			finish_timestamp = dm_get_timestamp(link->ctx);
+			time_taken_in_ns = dm_get_elapse_time_in_ns(
+				link->ctx, finish_timestamp, enter_timestamp);
+			DC_LOG_WARNING("Alt mode entered finished after %llu ms\n",
+				       time_taken_in_ns / 1000000);
+			return true;
+		}
+
+	}
+	finish_timestamp = dm_get_timestamp(link->ctx);
+	time_taken_in_ns = dm_get_elapse_time_in_ns(link->ctx, finish_timestamp,
+						    enter_timestamp);
+	DC_LOG_WARNING("Alt mode has timed out after %llu ms\n",
+			time_taken_in_ns / 1000000);
+	return false;
+}
+
 /**
  * dc_link_detect() - Detect if a sink is attached to a given link
  *
@@ -772,6 +822,15 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		}
 
 		case SIGNAL_TYPE_DISPLAY_PORT: {
+			/* wa HPD high coming too early*/
+			if (link->link_enc->features.flags.bits.DP_IS_USB_C == 1) {
+
+				/* if alt mode times out, return false */
+				if (wait_for_alt_mode(link) == false) {
+					return false;
+				}
+			}
+
 			if (!detect_dp(
 				link,
 				&sink_caps,
