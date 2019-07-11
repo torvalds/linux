@@ -5243,6 +5243,8 @@
 	xen_nopv	[X86]
 			Disables the PV optimizations forcing the HVM guest to
 			run as generic HVM guest with no PV drivers.
+			This option is obsoleted by the "nopv" option, which
+			has equivalent effect for XEN platform.
 
 	xen_scrub_pages=	[XEN]
 			Boolean option to control scrubbing pages before giving them back
