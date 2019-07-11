@@ -6733,6 +6733,11 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 		}
 	}
 
+	if (wiphy->bands[NL80211_BAND_5GHZ] &&
+	    brcmf_feat_is_enabled(ifp, BRCMF_FEAT_DOT11H))
+		wiphy_ext_feature_set(wiphy,
+				      NL80211_EXT_FEATURE_DFS_OFFLOAD);
+
 	wiphy_read_of_freq_limits(wiphy);
 
 	return 0;
