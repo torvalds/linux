@@ -49,9 +49,9 @@
 	FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT))
 
 #define MSG_MAP(msg, index) \
-	[SMU_MSG_##msg] = index
+	[SMU_MSG_##msg] = {1, (index)}
 
-static int navi10_message_map[SMU_MSG_MAX_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			PPSMC_MSG_TestMessage),
 	MSG_MAP(GetSmuVersion,			PPSMC_MSG_GetSmuVersion),
 	MSG_MAP(GetDriverIfVersion,		PPSMC_MSG_GetDriverIfVersion),
@@ -118,7 +118,7 @@ static int navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(ArmD3,			PPSMC_MSG_ArmD3),
 };
 
-static int navi10_clk_map[SMU_CLK_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping navi10_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(GFXCLK, PPCLK_GFXCLK),
 	CLK_MAP(SCLK,	PPCLK_GFXCLK),
 	CLK_MAP(SOCCLK, PPCLK_SOCCLK),
@@ -133,7 +133,7 @@ static int navi10_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(PHYCLK, PPCLK_PHYCLK),
 };
 
-static int navi10_feature_mask_map[SMU_FEATURE_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping navi10_feature_mask_map[SMU_FEATURE_COUNT] = {
 	FEA_MAP(DPM_PREFETCHER),
 	FEA_MAP(DPM_GFXCLK),
 	FEA_MAP(DPM_GFX_PACE),
@@ -178,7 +178,7 @@ static int navi10_feature_mask_map[SMU_FEATURE_COUNT] = {
 	FEA_MAP(ATHUB_PG),
 };
 
-static int navi10_table_map[SMU_TABLE_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping navi10_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(PPTABLE),
 	TAB_MAP(WATERMARKS),
 	TAB_MAP(AVFS),
@@ -193,12 +193,12 @@ static int navi10_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(PACE),
 };
 
-static int navi10_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping navi10_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
 	PWR_MAP(AC),
 	PWR_MAP(DC),
 };
 
-static int navi10_workload_map[] = {
+static struct smu_11_0_cmn2aisc_mapping navi10_workload_map[PP_SMC_POWER_PROFILE_COUNT] = {
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT,	WORKLOAD_PPLIB_DEFAULT_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_FULLSCREEN3D,		WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_POWERSAVING,		WORKLOAD_PPLIB_POWER_SAVING_BIT),
@@ -210,79 +210,87 @@ static int navi10_workload_map[] = {
 
 static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index > SMU_MSG_MAX_COUNT)
 		return -EINVAL;
 
-	val = navi10_message_map[index];
-	if (val > PPSMC_Message_Count)
+	mapping = navi10_message_map[index];
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 static int navi10_get_smu_clk_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index >= SMU_CLK_COUNT)
 		return -EINVAL;
 
-	val = navi10_clk_map[index];
-	if (val >= PPCLK_COUNT)
+	mapping = navi10_clk_map[index];
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 static int navi10_get_smu_feature_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index >= SMU_FEATURE_COUNT)
 		return -EINVAL;
 
-	val = navi10_feature_mask_map[index];
-	if (val > 64)
+	mapping = navi10_feature_mask_map[index];
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 static int navi10_get_smu_table_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index >= SMU_TABLE_COUNT)
 		return -EINVAL;
 
-	val = navi10_table_map[index];
-	if (val >= TABLE_COUNT)
+	mapping = navi10_table_map[index];
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 static int navi10_get_pwr_src_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index >= SMU_POWER_SOURCE_COUNT)
 		return -EINVAL;
 
-	val = navi10_pwr_src_map[index];
-	if (val >= POWER_SOURCE_COUNT)
+	mapping = navi10_pwr_src_map[index];
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 
 static int navi10_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (profile > PP_SMC_POWER_PROFILE_CUSTOM)
 		return -EINVAL;
 
-	val = navi10_workload_map[profile];
+	mapping = navi10_workload_map[profile];
+	if (!(mapping.valid_mapping))
+		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 static bool is_asic_secure(struct smu_context *smu)

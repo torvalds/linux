@@ -47,7 +47,7 @@
 #define CTF_OFFSET_HBM			5
 
 #define MSG_MAP(msg) \
-	[SMU_MSG_##msg] = PPSMC_MSG_##msg
+	[SMU_MSG_##msg] = {1, PPSMC_MSG_##msg}
 
 #define SMC_DPM_FEATURE (FEATURE_DPM_PREFETCHER_MASK | \
 			 FEATURE_DPM_GFXCLK_MASK | \
@@ -59,7 +59,7 @@
 			 FEATURE_DPM_LINK_MASK | \
 			 FEATURE_DPM_DCEFCLK_MASK)
 
-static int vega20_message_map[SMU_MSG_MAX_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping vega20_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage),
 	MSG_MAP(GetSmuVersion),
 	MSG_MAP(GetDriverIfVersion),
@@ -145,7 +145,7 @@ static int vega20_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(GetAVFSVoltageByDpm),
 };
 
-static int vega20_clk_map[SMU_CLK_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping vega20_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(GFXCLK, PPCLK_GFXCLK),
 	CLK_MAP(VCLK, PPCLK_VCLK),
 	CLK_MAP(DCLK, PPCLK_DCLK),
@@ -159,7 +159,7 @@ static int vega20_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(FCLK, PPCLK_FCLK),
 };
 
-static int vega20_feature_mask_map[SMU_FEATURE_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping vega20_feature_mask_map[SMU_FEATURE_COUNT] = {
 	FEA_MAP(DPM_PREFETCHER),
 	FEA_MAP(DPM_GFXCLK),
 	FEA_MAP(DPM_UCLK),
@@ -195,7 +195,7 @@ static int vega20_feature_mask_map[SMU_FEATURE_COUNT] = {
 	FEA_MAP(XGMI),
 };
 
-static int vega20_table_map[SMU_TABLE_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping vega20_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(PPTABLE),
 	TAB_MAP(WATERMARKS),
 	TAB_MAP(AVFS),
@@ -208,12 +208,12 @@ static int vega20_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(OVERDRIVE),
 };
 
-static int vega20_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping vega20_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
 	PWR_MAP(AC),
 	PWR_MAP(DC),
 };
 
-static int vega20_workload_map[] = {
+static struct smu_11_0_cmn2aisc_mapping vega20_workload_map[PP_SMC_POWER_PROFILE_COUNT] = {
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT,	WORKLOAD_DEFAULT_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_FULLSCREEN3D,		WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_POWERSAVING,		WORKLOAD_PPLIB_POWER_SAVING_BIT),
@@ -225,79 +225,86 @@ static int vega20_workload_map[] = {
 
 static int vega20_get_smu_table_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index >= SMU_TABLE_COUNT)
 		return -EINVAL;
 
-	val = vega20_table_map[index];
-	if (val >= TABLE_COUNT)
+	mapping = vega20_table_map[index];
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 static int vega20_get_pwr_src_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index >= SMU_POWER_SOURCE_COUNT)
 		return -EINVAL;
 
-	val = vega20_pwr_src_map[index];
-	if (val >= POWER_SOURCE_COUNT)
+	mapping = vega20_pwr_src_map[index];
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 static int vega20_get_smu_feature_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index >= SMU_FEATURE_COUNT)
 		return -EINVAL;
 
-	val = vega20_feature_mask_map[index];
-	if (val > 64)
+	mapping = vega20_feature_mask_map[index];
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 static int vega20_get_smu_clk_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (index >= SMU_CLK_COUNT)
 		return -EINVAL;
 
-	val = vega20_clk_map[index];
-	if (val >= PPCLK_COUNT)
+	mapping = vega20_clk_map[index];
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 static int vega20_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
 
 	if (index >= SMU_MSG_MAX_COUNT)
 		return -EINVAL;
 
-	val = vega20_message_map[index];
-	if (val > PPSMC_Message_Count)
+	mapping = vega20_message_map[index];
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 static int vega20_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
+
 	if (profile > PP_SMC_POWER_PROFILE_CUSTOM)
 		return -EINVAL;
 
-	val = vega20_workload_map[profile];
+	mapping = vega20_workload_map[profile];
+	if (!(mapping.valid_mapping))
+		return -EINVAL;
 
-	return val;
+	return mapping.map_to;
 }
 
 static int vega20_tables_init(struct smu_context *smu, struct smu_table *tables)

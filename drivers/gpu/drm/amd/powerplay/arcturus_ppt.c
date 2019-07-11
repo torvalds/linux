@@ -37,9 +37,9 @@
 #include "nbio/nbio_7_4_sh_mask.h"
 
 #define MSG_MAP(msg, index) \
-	[SMU_MSG_##msg] = index
+	[SMU_MSG_##msg] = {1, (index)}
 
-static int arcturus_message_map[SMU_MSG_MAX_COUNT] = {
+static struct smu_11_0_cmn2aisc_mapping arcturus_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage),
 	MSG_MAP(GetSmuVersion,			     PPSMC_MSG_GetSmuVersion),
 	MSG_MAP(GetDriverIfVersion,		     PPSMC_MSG_GetDriverIfVersion),
@@ -101,16 +101,18 @@ static int arcturus_message_map[SMU_MSG_MAX_COUNT] = {
 
 static int arcturus_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
-	int val;
+	struct smu_11_0_cmn2aisc_mapping mapping;
 
 	if (index >= SMU_MSG_MAX_COUNT)
 		return -EINVAL;
 
-	val = arcturus_message_map[index];
-	if (val > PPSMC_Message_Count)
+	mapping = arcturus_message_map[index];
+	if (!(mapping.valid_mapping)) {
+		pr_warn("Unsupported SMU message: %d\n", index);
 		return -EINVAL;
+	}
 
-	return val;
+	return mapping.map_to;
 }
 
 static const struct pptable_funcs arcturus_ppt_funcs = {
