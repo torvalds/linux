@@ -1,8 +1,9 @@
-		Coresight CPU Debug Module
-		==========================
+==========================
+Coresight CPU Debug Module
+==========================
 
-   Author:   Leo Yan <leo.yan@linaro.org>
-   Date:     April 5th, 2017
+   :Author:   Leo Yan <leo.yan@linaro.org>
+   :Date:     April 5th, 2017
 
 Introduction
 ------------
@@ -69,6 +70,7 @@ Before accessing debug registers, we should ensure the clock and power domain
 have been enabled properly. In ARMv8-a ARM (ARM DDI 0487A.k) chapter 'H9.1
 Debug registers', the debug registers are spread into two domains: the debug
 domain and the CPU domain.
+::
 
                                 +---------------+
                                 |               |
@@ -125,18 +127,21 @@ If you want to enable debugging functionality at boot time, you can add
 "coresight_cpu_debug.enable=1" to the kernel command line parameter.
 
 The driver also can work as module, so can enable the debugging when insmod
-module:
-# insmod coresight_cpu_debug.ko debug=1
+module::
+
+  # insmod coresight_cpu_debug.ko debug=1
 
 When boot time or insmod module you have not enabled the debugging, the driver
 uses the debugfs file system to provide a knob to dynamically enable or disable
 debugging:
 
-To enable it, write a '1' into /sys/kernel/debug/coresight_cpu_debug/enable:
-# echo 1 > /sys/kernel/debug/coresight_cpu_debug/enable
+To enable it, write a '1' into /sys/kernel/debug/coresight_cpu_debug/enable::
 
-To disable it, write a '0' into /sys/kernel/debug/coresight_cpu_debug/enable:
-# echo 0 > /sys/kernel/debug/coresight_cpu_debug/enable
+  # echo 1 > /sys/kernel/debug/coresight_cpu_debug/enable
+
+To disable it, write a '0' into /sys/kernel/debug/coresight_cpu_debug/enable::
+
+  # echo 0 > /sys/kernel/debug/coresight_cpu_debug/enable
 
 As explained in chapter "Clock and power domain", if you are working on one
 platform which has idle states to power off debug logic and the power
@@ -154,34 +159,34 @@ subsystem, more specifically by using the "/dev/cpu_dma_latency"
 interface (see Documentation/power/pm_qos_interface.rst for more
 details).  As specified in the PM QoS documentation the requested
 parameter will stay in effect until the file descriptor is released.
-For example:
+For example::
 
-# exec 3<> /dev/cpu_dma_latency; echo 0 >&3
-...
-Do some work...
-...
-# exec 3<>-
+  # exec 3<> /dev/cpu_dma_latency; echo 0 >&3
+  ...
+  Do some work...
+  ...
+  # exec 3<>-
 
 The same can also be done from an application program.
 
 Disable specific CPU's specific idle state from cpuidle sysfs (see
-Documentation/admin-guide/pm/cpuidle.rst):
-# echo 1 > /sys/devices/system/cpu/cpu$cpu/cpuidle/state$state/disable
+Documentation/admin-guide/pm/cpuidle.rst)::
 
+  # echo 1 > /sys/devices/system/cpu/cpu$cpu/cpuidle/state$state/disable
 
 Output format
 -------------
 
-Here is an example of the debugging output format:
+Here is an example of the debugging output format::
 
-ARM external debug module:
-coresight-cpu-debug 850000.debug: CPU[0]:
-coresight-cpu-debug 850000.debug:  EDPRSR:  00000001 (Power:On DLK:Unlock)
-coresight-cpu-debug 850000.debug:  EDPCSR:  handle_IPI+0x174/0x1d8
-coresight-cpu-debug 850000.debug:  EDCIDSR: 00000000
-coresight-cpu-debug 850000.debug:  EDVIDSR: 90000000 (State:Non-secure Mode:EL1/0 Width:64bits VMID:0)
-coresight-cpu-debug 852000.debug: CPU[1]:
-coresight-cpu-debug 852000.debug:  EDPRSR:  00000001 (Power:On DLK:Unlock)
-coresight-cpu-debug 852000.debug:  EDPCSR:  debug_notifier_call+0x23c/0x358
-coresight-cpu-debug 852000.debug:  EDCIDSR: 00000000
-coresight-cpu-debug 852000.debug:  EDVIDSR: 90000000 (State:Non-secure Mode:EL1/0 Width:64bits VMID:0)
+  ARM external debug module:
+  coresight-cpu-debug 850000.debug: CPU[0]:
+  coresight-cpu-debug 850000.debug:  EDPRSR:  00000001 (Power:On DLK:Unlock)
+  coresight-cpu-debug 850000.debug:  EDPCSR:  handle_IPI+0x174/0x1d8
+  coresight-cpu-debug 850000.debug:  EDCIDSR: 00000000
+  coresight-cpu-debug 850000.debug:  EDVIDSR: 90000000 (State:Non-secure Mode:EL1/0 Width:64bits VMID:0)
+  coresight-cpu-debug 852000.debug: CPU[1]:
+  coresight-cpu-debug 852000.debug:  EDPRSR:  00000001 (Power:On DLK:Unlock)
+  coresight-cpu-debug 852000.debug:  EDPCSR:  debug_notifier_call+0x23c/0x358
+  coresight-cpu-debug 852000.debug:  EDCIDSR: 00000000
+  coresight-cpu-debug 852000.debug:  EDVIDSR: 90000000 (State:Non-secure Mode:EL1/0 Width:64bits VMID:0)
