@@ -177,6 +177,12 @@ static inline const char *port_identifier(enum port port)
 		return "Port E";
 	case PORT_F:
 		return "Port F";
+	case PORT_G:
+		return "Port G";
+	case PORT_H:
+		return "Port H";
+	case PORT_I:
+		return "Port I";
 	default:
 		return "<invalid>";
 	}
@@ -189,6 +195,8 @@ enum tc_port {
 	PORT_TC2,
 	PORT_TC3,
 	PORT_TC4,
+	PORT_TC5,
+	PORT_TC6,
 
 	I915_MAX_TC_PORTS
 };

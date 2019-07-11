@@ -109,6 +109,9 @@ enum port {
 	PORT_D,
 	PORT_E,
 	PORT_F,
+	PORT_G,
+	PORT_H,
+	PORT_I,
 
 	I915_MAX_PORTS
 };

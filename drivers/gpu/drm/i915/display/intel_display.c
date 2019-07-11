@@ -6706,6 +6706,9 @@ enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv, enum port port)
 	if (!intel_phy_is_tc(dev_priv, intel_port_to_phy(dev_priv, port)))
 		return PORT_TC_NONE;
 
+	if (INTEL_GEN(dev_priv) >= 12)
+		return port - PORT_D;
+
 	return port - PORT_C;
 }
 
