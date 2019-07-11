@@ -28,6 +28,8 @@
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/mount.h>
+#include <linux/balloon_compaction.h>
 #include <linux/vmw_vmci_defs.h>
 #include <linux/vmw_vmci_api.h>
 #include <asm/hypervisor.h>
@@ -38,24 +40,19 @@ MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
 
-/*
- * Use __GFP_HIGHMEM to allow pages from HIGHMEM zone. We don't allow wait
- * (__GFP_RECLAIM) for huge page allocations. Use __GFP_NOWARN, to suppress page
- * allocation failure warnings. Disallow access to emergency low-memory pools.
- */
-#define VMW_HUGE_PAGE_ALLOC_FLAGS	(__GFP_HIGHMEM|__GFP_NOWARN|	\
-					 __GFP_NOMEMALLOC)
+static bool __read_mostly vmwballoon_shrinker_enable;
+module_param(vmwballoon_shrinker_enable, bool, 0444);
+MODULE_PARM_DESC(vmwballoon_shrinker_enable,
+	"Enable non-cooperative out-of-memory protection. Disabled by default as it may degrade performance.");
 
-/*
- * Use __GFP_HIGHMEM to allow pages from HIGHMEM zone. We allow lightweight
- * reclamation (__GFP_NORETRY). Use __GFP_NOWARN, to suppress page allocation
- * failure warnings. Disallow access to emergency low-memory pools.
- */
-#define VMW_PAGE_ALLOC_FLAGS		(__GFP_HIGHMEM|__GFP_NOWARN|	\
-					 __GFP_NOMEMALLOC|__GFP_NORETRY)
+/* Delay in seconds after shrink before inflation. */
+#define VMBALLOON_SHRINK_DELAY		(5)
 
 /* Maximum number of refused pages we accumulate during inflation cycle */
 #define VMW_BALLOON_MAX_REFUSED		16
+
+/* Magic number for the balloon mount-point */
+#define BALLOON_VMW_MAGIC		0x0ba11007
 
 /*
  * Hypervisor communication port definitions.
@@ -229,11 +226,12 @@ enum vmballoon_stat_general {
 	VMW_BALLOON_STAT_TIMER,
 	VMW_BALLOON_STAT_DOORBELL,
 	VMW_BALLOON_STAT_RESET,
-	VMW_BALLOON_STAT_LAST = VMW_BALLOON_STAT_RESET
+	VMW_BALLOON_STAT_SHRINK,
+	VMW_BALLOON_STAT_SHRINK_FREE,
+	VMW_BALLOON_STAT_LAST = VMW_BALLOON_STAT_SHRINK_FREE
 };
 
 #define VMW_BALLOON_STAT_NUM		(VMW_BALLOON_STAT_LAST + 1)
-
 
 static DEFINE_STATIC_KEY_TRUE(vmw_balloon_batching);
 static DEFINE_STATIC_KEY_FALSE(balloon_stat_enabled);
@@ -241,15 +239,11 @@ static DEFINE_STATIC_KEY_FALSE(balloon_stat_enabled);
 struct vmballoon_ctl {
 	struct list_head pages;
 	struct list_head refused_pages;
+	struct list_head prealloc_pages;
 	unsigned int n_refused_pages;
 	unsigned int n_pages;
 	enum vmballoon_page_size_type page_size;
 	enum vmballoon_op op;
-};
-
-struct vmballoon_page_size {
-	/* list of reserved physical pages */
-	struct list_head pages;
 };
 
 /**
@@ -266,8 +260,6 @@ struct vmballoon_batch_entry {
 } __packed;
 
 struct vmballoon {
-	struct vmballoon_page_size page_sizes[VMW_BALLOON_NUM_PAGE_SIZES];
-
 	/**
 	 * @max_page_size: maximum supported page size for ballooning.
 	 *
@@ -340,6 +332,15 @@ struct vmballoon {
 	 */
 	struct page *page;
 
+	/**
+	 * @shrink_timeout: timeout until the next inflation.
+	 *
+	 * After an shrink event, indicates the time in jiffies after which
+	 * inflation is allowed again. Can be written concurrently with reads,
+	 * so must use READ_ONCE/WRITE_ONCE when accessing.
+	 */
+	unsigned long shrink_timeout;
+
 	/* statistics */
 	struct vmballoon_stats *stats;
 
@@ -348,7 +349,19 @@ struct vmballoon {
 	struct dentry *dbg_entry;
 #endif
 
+	/**
+	 * @b_dev_info: balloon device information descriptor.
+	 */
+	struct balloon_dev_info b_dev_info;
+
 	struct delayed_work dwork;
+
+	/**
+	 * @huge_pages - list of the inflated 2MB pages.
+	 *
+	 * Protected by @b_dev_info.pages_lock .
+	 */
+	struct list_head huge_pages;
 
 	/**
 	 * @vmci_doorbell.
@@ -368,6 +381,20 @@ struct vmballoon {
 	 * Lock ordering: @conf_sem -> @comm_lock .
 	 */
 	spinlock_t comm_lock;
+
+	/**
+	 * @shrinker: shrinker interface that is used to avoid over-inflation.
+	 */
+	struct shrinker shrinker;
+
+	/**
+	 * @shrinker_registered: whether the shrinker was registered.
+	 *
+	 * The shrinker interface does not handle gracefully the removal of
+	 * shrinker that was not registered before. This indication allows to
+	 * simplify the unregistration process.
+	 */
+	bool shrinker_registered;
 };
 
 static struct vmballoon balloon;
@@ -642,15 +669,25 @@ static int vmballoon_alloc_page_list(struct vmballoon *b,
 	unsigned int i;
 
 	for (i = 0; i < req_n_pages; i++) {
-		if (ctl->page_size == VMW_BALLOON_2M_PAGE)
-			page = alloc_pages(VMW_HUGE_PAGE_ALLOC_FLAGS,
-					   VMW_BALLOON_2M_ORDER);
-		else
-			page = alloc_page(VMW_PAGE_ALLOC_FLAGS);
+		/*
+		 * First check if we happen to have pages that were allocated
+		 * before. This happens when 2MB page rejected during inflation
+		 * by the hypervisor, and then split into 4KB pages.
+		 */
+		if (!list_empty(&ctl->prealloc_pages)) {
+			page = list_first_entry(&ctl->prealloc_pages,
+						struct page, lru);
+			list_del(&page->lru);
+		} else {
+			if (ctl->page_size == VMW_BALLOON_2M_PAGE)
+				page = alloc_pages(__GFP_HIGHMEM|__GFP_NOWARN|
+					__GFP_NOMEMALLOC, VMW_BALLOON_2M_ORDER);
+			else
+				page = balloon_page_alloc();
 
-		/* Update statistics */
-		vmballoon_stats_page_inc(b, VMW_BALLOON_PAGE_STAT_ALLOC,
-					 ctl->page_size);
+			vmballoon_stats_page_inc(b, VMW_BALLOON_PAGE_STAT_ALLOC,
+						 ctl->page_size);
+		}
 
 		if (page) {
 			vmballoon_mark_page_offline(page, ctl->page_size);
@@ -896,7 +933,8 @@ static void vmballoon_release_page_list(struct list_head *page_list,
 		__free_pages(page, vmballoon_page_order(page_size));
 	}
 
-	*n_pages = 0;
+	if (n_pages)
+		*n_pages = 0;
 }
 
 
@@ -942,6 +980,10 @@ static int64_t vmballoon_change(struct vmballoon *b)
 	    size - target < vmballoon_page_in_frames(VMW_BALLOON_2M_PAGE))
 		return 0;
 
+	/* If an out-of-memory recently occurred, inflation is disallowed. */
+	if (target > size && time_before(jiffies, READ_ONCE(b->shrink_timeout)))
+		return 0;
+
 	return target - size;
 }
 
@@ -961,9 +1003,22 @@ static void vmballoon_enqueue_page_list(struct vmballoon *b,
 					unsigned int *n_pages,
 					enum vmballoon_page_size_type page_size)
 {
-	struct vmballoon_page_size *page_size_info = &b->page_sizes[page_size];
+	unsigned long flags;
 
-	list_splice_init(pages, &page_size_info->pages);
+	if (page_size == VMW_BALLOON_4K_PAGE) {
+		balloon_page_list_enqueue(&b->b_dev_info, pages);
+	} else {
+		/*
+		 * Keep the huge pages in a local list which is not available
+		 * for the balloon compaction mechanism.
+		 */
+		spin_lock_irqsave(&b->b_dev_info.pages_lock, flags);
+		list_splice_init(pages, &b->huge_pages);
+		__count_vm_events(BALLOON_INFLATE, *n_pages *
+				  vmballoon_page_in_frames(VMW_BALLOON_2M_PAGE));
+		spin_unlock_irqrestore(&b->b_dev_info.pages_lock, flags);
+	}
+
 	*n_pages = 0;
 }
 
@@ -986,16 +1041,55 @@ static void vmballoon_dequeue_page_list(struct vmballoon *b,
 					enum vmballoon_page_size_type page_size,
 					unsigned int n_req_pages)
 {
-	struct vmballoon_page_size *page_size_info = &b->page_sizes[page_size];
 	struct page *page, *tmp;
 	unsigned int i = 0;
+	unsigned long flags;
 
-	list_for_each_entry_safe(page, tmp, &page_size_info->pages, lru) {
+	/* In the case of 4k pages, use the compaction infrastructure */
+	if (page_size == VMW_BALLOON_4K_PAGE) {
+		*n_pages = balloon_page_list_dequeue(&b->b_dev_info, pages,
+						     n_req_pages);
+		return;
+	}
+
+	/* 2MB pages */
+	spin_lock_irqsave(&b->b_dev_info.pages_lock, flags);
+	list_for_each_entry_safe(page, tmp, &b->huge_pages, lru) {
 		list_move(&page->lru, pages);
 		if (++i == n_req_pages)
 			break;
 	}
+
+	__count_vm_events(BALLOON_DEFLATE,
+			  i * vmballoon_page_in_frames(VMW_BALLOON_2M_PAGE));
+	spin_unlock_irqrestore(&b->b_dev_info.pages_lock, flags);
 	*n_pages = i;
+}
+
+/**
+ * vmballoon_split_refused_pages() - Split the 2MB refused pages to 4k.
+ *
+ * If inflation of 2MB pages was denied by the hypervisor, it is likely to be
+ * due to one or few 4KB pages. These 2MB pages may keep being allocated and
+ * then being refused. To prevent this case, this function splits the refused
+ * pages into 4KB pages and adds them into @prealloc_pages list.
+ *
+ * @ctl: pointer for the %struct vmballoon_ctl, which defines the operation.
+ */
+static void vmballoon_split_refused_pages(struct vmballoon_ctl *ctl)
+{
+	struct page *page, *tmp;
+	unsigned int i, order;
+
+	order = vmballoon_page_order(ctl->page_size);
+
+	list_for_each_entry_safe(page, tmp, &ctl->refused_pages, lru) {
+		list_del(&page->lru);
+		split_page(page, order);
+		for (i = 0; i < (1 << order); i++)
+			list_add(&page[i].lru, &ctl->prealloc_pages);
+	}
+	ctl->n_refused_pages = 0;
 }
 
 /**
@@ -1009,6 +1103,7 @@ static void vmballoon_inflate(struct vmballoon *b)
 	struct vmballoon_ctl ctl = {
 		.pages = LIST_HEAD_INIT(ctl.pages),
 		.refused_pages = LIST_HEAD_INIT(ctl.refused_pages),
+		.prealloc_pages = LIST_HEAD_INIT(ctl.prealloc_pages),
 		.page_size = b->max_page_size,
 		.op = VMW_BALLOON_INFLATE
 	};
@@ -1056,10 +1151,10 @@ static void vmballoon_inflate(struct vmballoon *b)
 				break;
 
 			/*
-			 * Ignore errors from locking as we now switch to 4k
-			 * pages and we might get different errors.
+			 * Split the refused pages to 4k. This will also empty
+			 * the refused pages list.
 			 */
-			vmballoon_release_refused_pages(b, &ctl);
+			vmballoon_split_refused_pages(&ctl);
 			ctl.page_size--;
 		}
 
@@ -1073,6 +1168,8 @@ static void vmballoon_inflate(struct vmballoon *b)
 	 */
 	if (ctl.n_refused_pages != 0)
 		vmballoon_release_refused_pages(b, &ctl);
+
+	vmballoon_release_page_list(&ctl.prealloc_pages, NULL, ctl.page_size);
 }
 
 /**
@@ -1411,6 +1508,90 @@ static void vmballoon_work(struct work_struct *work)
 
 }
 
+/**
+ * vmballoon_shrinker_scan() - deflate the balloon due to memory pressure.
+ * @shrinker: pointer to the balloon shrinker.
+ * @sc: page reclaim information.
+ *
+ * Returns: number of pages that were freed during deflation.
+ */
+static unsigned long vmballoon_shrinker_scan(struct shrinker *shrinker,
+					     struct shrink_control *sc)
+{
+	struct vmballoon *b = &balloon;
+	unsigned long deflated_frames;
+
+	pr_debug("%s - size: %llu", __func__, atomic64_read(&b->size));
+
+	vmballoon_stats_gen_inc(b, VMW_BALLOON_STAT_SHRINK);
+
+	/*
+	 * If the lock is also contended for read, we cannot easily reclaim and
+	 * we bail out.
+	 */
+	if (!down_read_trylock(&b->conf_sem))
+		return 0;
+
+	deflated_frames = vmballoon_deflate(b, sc->nr_to_scan, true);
+
+	vmballoon_stats_gen_add(b, VMW_BALLOON_STAT_SHRINK_FREE,
+				deflated_frames);
+
+	/*
+	 * Delay future inflation for some time to mitigate the situations in
+	 * which balloon continuously grows and shrinks. Use WRITE_ONCE() since
+	 * the access is asynchronous.
+	 */
+	WRITE_ONCE(b->shrink_timeout, jiffies + HZ * VMBALLOON_SHRINK_DELAY);
+
+	up_read(&b->conf_sem);
+
+	return deflated_frames;
+}
+
+/**
+ * vmballoon_shrinker_count() - return the number of ballooned pages.
+ * @shrinker: pointer to the balloon shrinker.
+ * @sc: page reclaim information.
+ *
+ * Returns: number of 4k pages that are allocated for the balloon and can
+ *	    therefore be reclaimed under pressure.
+ */
+static unsigned long vmballoon_shrinker_count(struct shrinker *shrinker,
+					      struct shrink_control *sc)
+{
+	struct vmballoon *b = &balloon;
+
+	return atomic64_read(&b->size);
+}
+
+static void vmballoon_unregister_shrinker(struct vmballoon *b)
+{
+	if (b->shrinker_registered)
+		unregister_shrinker(&b->shrinker);
+	b->shrinker_registered = false;
+}
+
+static int vmballoon_register_shrinker(struct vmballoon *b)
+{
+	int r;
+
+	/* Do nothing if the shrinker is not enabled */
+	if (!vmwballoon_shrinker_enable)
+		return 0;
+
+	b->shrinker.scan_objects = vmballoon_shrinker_scan;
+	b->shrinker.count_objects = vmballoon_shrinker_count;
+	b->shrinker.seeks = DEFAULT_SEEKS;
+
+	r = register_shrinker(&b->shrinker);
+
+	if (r == 0)
+		b->shrinker_registered = true;
+
+	return r;
+}
+
 /*
  * DEBUGFS Interface
  */
@@ -1428,6 +1609,8 @@ static const char * const vmballoon_stat_names[] = {
 	[VMW_BALLOON_STAT_TIMER]		= "timer",
 	[VMW_BALLOON_STAT_DOORBELL]		= "doorbell",
 	[VMW_BALLOON_STAT_RESET]		= "reset",
+	[VMW_BALLOON_STAT_SHRINK]		= "shrink",
+	[VMW_BALLOON_STAT_SHRINK_FREE]		= "shrinkFree"
 };
 
 static int vmballoon_enable_stats(struct vmballoon *b)
@@ -1552,9 +1735,204 @@ static inline void vmballoon_debugfs_exit(struct vmballoon *b)
 
 #endif	/* CONFIG_DEBUG_FS */
 
+
+#ifdef CONFIG_BALLOON_COMPACTION
+
+static struct dentry *vmballoon_mount(struct file_system_type *fs_type,
+				      int flags, const char *dev_name,
+				      void *data)
+{
+	static const struct dentry_operations ops = {
+		.d_dname = simple_dname,
+	};
+
+	return mount_pseudo(fs_type, "balloon-vmware:", NULL, &ops,
+			    BALLOON_VMW_MAGIC);
+}
+
+static struct file_system_type vmballoon_fs = {
+	.name           = "balloon-vmware",
+	.mount          = vmballoon_mount,
+	.kill_sb        = kill_anon_super,
+};
+
+static struct vfsmount *vmballoon_mnt;
+
+/**
+ * vmballoon_migratepage() - migrates a balloon page.
+ * @b_dev_info: balloon device information descriptor.
+ * @newpage: the page to which @page should be migrated.
+ * @page: a ballooned page that should be migrated.
+ * @mode: migration mode, ignored.
+ *
+ * This function is really open-coded, but that is according to the interface
+ * that balloon_compaction provides.
+ *
+ * Return: zero on success, -EAGAIN when migration cannot be performed
+ *	   momentarily, and -EBUSY if migration failed and should be retried
+ *	   with that specific page.
+ */
+static int vmballoon_migratepage(struct balloon_dev_info *b_dev_info,
+				 struct page *newpage, struct page *page,
+				 enum migrate_mode mode)
+{
+	unsigned long status, flags;
+	struct vmballoon *b;
+	int ret;
+
+	b = container_of(b_dev_info, struct vmballoon, b_dev_info);
+
+	/*
+	 * If the semaphore is taken, there is ongoing configuration change
+	 * (i.e., balloon reset), so try again.
+	 */
+	if (!down_read_trylock(&b->conf_sem))
+		return -EAGAIN;
+
+	spin_lock(&b->comm_lock);
+	/*
+	 * We must start by deflating and not inflating, as otherwise the
+	 * hypervisor may tell us that it has enough memory and the new page is
+	 * not needed. Since the old page is isolated, we cannot use the list
+	 * interface to unlock it, as the LRU field is used for isolation.
+	 * Instead, we use the native interface directly.
+	 */
+	vmballoon_add_page(b, 0, page);
+	status = vmballoon_lock_op(b, 1, VMW_BALLOON_4K_PAGE,
+				   VMW_BALLOON_DEFLATE);
+
+	if (status == VMW_BALLOON_SUCCESS)
+		status = vmballoon_status_page(b, 0, &page);
+
+	/*
+	 * If a failure happened, let the migration mechanism know that it
+	 * should not retry.
+	 */
+	if (status != VMW_BALLOON_SUCCESS) {
+		spin_unlock(&b->comm_lock);
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
+	/*
+	 * The page is isolated, so it is safe to delete it without holding
+	 * @pages_lock . We keep holding @comm_lock since we will need it in a
+	 * second.
+	 */
+	balloon_page_delete(page);
+
+	put_page(page);
+
+	/* Inflate */
+	vmballoon_add_page(b, 0, newpage);
+	status = vmballoon_lock_op(b, 1, VMW_BALLOON_4K_PAGE,
+				   VMW_BALLOON_INFLATE);
+
+	if (status == VMW_BALLOON_SUCCESS)
+		status = vmballoon_status_page(b, 0, &newpage);
+
+	spin_unlock(&b->comm_lock);
+
+	if (status != VMW_BALLOON_SUCCESS) {
+		/*
+		 * A failure happened. While we can deflate the page we just
+		 * inflated, this deflation can also encounter an error. Instead
+		 * we will decrease the size of the balloon to reflect the
+		 * change and report failure.
+		 */
+		atomic64_dec(&b->size);
+		ret = -EBUSY;
+	} else {
+		/*
+		 * Success. Take a reference for the page, and we will add it to
+		 * the list after acquiring the lock.
+		 */
+		get_page(newpage);
+		ret = MIGRATEPAGE_SUCCESS;
+	}
+
+	/* Update the balloon list under the @pages_lock */
+	spin_lock_irqsave(&b->b_dev_info.pages_lock, flags);
+
+	/*
+	 * On inflation success, we already took a reference for the @newpage.
+	 * If we succeed just insert it to the list and update the statistics
+	 * under the lock.
+	 */
+	if (ret == MIGRATEPAGE_SUCCESS) {
+		balloon_page_insert(&b->b_dev_info, newpage);
+		__count_vm_event(BALLOON_MIGRATE);
+	}
+
+	/*
+	 * We deflated successfully, so regardless to the inflation success, we
+	 * need to reduce the number of isolated_pages.
+	 */
+	b->b_dev_info.isolated_pages--;
+	spin_unlock_irqrestore(&b->b_dev_info.pages_lock, flags);
+
+out_unlock:
+	up_read(&b->conf_sem);
+	return ret;
+}
+
+/**
+ * vmballoon_compaction_deinit() - removes compaction related data.
+ *
+ * @b: pointer to the balloon.
+ */
+static void vmballoon_compaction_deinit(struct vmballoon *b)
+{
+	if (!IS_ERR(b->b_dev_info.inode))
+		iput(b->b_dev_info.inode);
+
+	b->b_dev_info.inode = NULL;
+	kern_unmount(vmballoon_mnt);
+	vmballoon_mnt = NULL;
+}
+
+/**
+ * vmballoon_compaction_init() - initialized compaction for the balloon.
+ *
+ * @b: pointer to the balloon.
+ *
+ * If during the initialization a failure occurred, this function does not
+ * perform cleanup. The caller must call vmballoon_compaction_deinit() in this
+ * case.
+ *
+ * Return: zero on success or error code on failure.
+ */
+static __init int vmballoon_compaction_init(struct vmballoon *b)
+{
+	vmballoon_mnt = kern_mount(&vmballoon_fs);
+	if (IS_ERR(vmballoon_mnt))
+		return PTR_ERR(vmballoon_mnt);
+
+	b->b_dev_info.migratepage = vmballoon_migratepage;
+	b->b_dev_info.inode = alloc_anon_inode(vmballoon_mnt->mnt_sb);
+
+	if (IS_ERR(b->b_dev_info.inode))
+		return PTR_ERR(b->b_dev_info.inode);
+
+	b->b_dev_info.inode->i_mapping->a_ops = &balloon_aops;
+	return 0;
+}
+
+#else /* CONFIG_BALLOON_COMPACTION */
+
+static void vmballoon_compaction_deinit(struct vmballoon *b)
+{
+}
+
+static int vmballoon_compaction_init(struct vmballoon *b)
+{
+	return 0;
+}
+
+#endif /* CONFIG_BALLOON_COMPACTION */
+
 static int __init vmballoon_init(void)
 {
-	enum vmballoon_page_size_type page_size;
 	int error;
 
 	/*
@@ -1564,17 +1942,26 @@ static int __init vmballoon_init(void)
 	if (x86_hyper_type != X86_HYPER_VMWARE)
 		return -ENODEV;
 
-	for (page_size = VMW_BALLOON_4K_PAGE;
-	     page_size <= VMW_BALLOON_LAST_SIZE; page_size++)
-		INIT_LIST_HEAD(&balloon.page_sizes[page_size].pages);
-
-
 	INIT_DELAYED_WORK(&balloon.dwork, vmballoon_work);
+
+	error = vmballoon_register_shrinker(&balloon);
+	if (error)
+		goto fail;
 
 	error = vmballoon_debugfs_init(&balloon);
 	if (error)
-		return error;
+		goto fail;
 
+	/*
+	 * Initialization of compaction must be done after the call to
+	 * balloon_devinfo_init() .
+	 */
+	balloon_devinfo_init(&balloon.b_dev_info);
+	error = vmballoon_compaction_init(&balloon);
+	if (error)
+		goto fail;
+
+	INIT_LIST_HEAD(&balloon.huge_pages);
 	spin_lock_init(&balloon.comm_lock);
 	init_rwsem(&balloon.conf_sem);
 	balloon.vmci_doorbell = VMCI_INVALID_HANDLE;
@@ -1585,6 +1972,10 @@ static int __init vmballoon_init(void)
 	queue_delayed_work(system_freezable_wq, &balloon.dwork, 0);
 
 	return 0;
+fail:
+	vmballoon_unregister_shrinker(&balloon);
+	vmballoon_compaction_deinit(&balloon);
+	return error;
 }
 
 /*
@@ -1597,6 +1988,7 @@ late_initcall(vmballoon_init);
 
 static void __exit vmballoon_exit(void)
 {
+	vmballoon_unregister_shrinker(&balloon);
 	vmballoon_vmci_cleanup(&balloon);
 	cancel_delayed_work_sync(&balloon.dwork);
 
@@ -1609,5 +2001,8 @@ static void __exit vmballoon_exit(void)
 	 */
 	vmballoon_send_start(&balloon, 0);
 	vmballoon_pop(&balloon);
+
+	/* Only once we popped the balloon, compaction can be deinit */
+	vmballoon_compaction_deinit(&balloon);
 }
 module_exit(vmballoon_exit);
