@@ -368,9 +368,13 @@ static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry, int index)
 		F(SPEC_CTRL_SSBD) | F(ARCH_CAPABILITIES) | F(INTEL_STIBP) |
 		F(MD_CLEAR);
 
+	/* cpuid 7.1.eax */
+	const u32 kvm_cpuid_7_1_eax_x86_features =
+		F(AVX512_BF16);
+
 	switch (index) {
 	case 0:
-		entry->eax = 0;
+		entry->eax = min(entry->eax, 1u);
 		entry->ebx &= kvm_cpuid_7_0_ebx_x86_features;
 		cpuid_mask(&entry->ebx, CPUID_7_0_EBX);
 		/* TSC_ADJUST is emulated */
@@ -393,6 +397,12 @@ static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry, int index)
 		 * if the host doesn't support it.
 		 */
 		entry->edx |= F(ARCH_CAPABILITIES);
+		break;
+	case 1:
+		entry->eax &= kvm_cpuid_7_1_eax_x86_features;
+		entry->ebx = 0;
+		entry->ecx = 0;
+		entry->edx = 0;
 		break;
 	default:
 		WARN_ON_ONCE(1);
