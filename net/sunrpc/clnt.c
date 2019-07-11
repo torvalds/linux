@@ -978,11 +978,10 @@ out:
 }
 EXPORT_SYMBOL_GPL(rpc_bind_new_program);
 
-static struct rpc_xprt *
-rpc_task_get_xprt(struct rpc_clnt *clnt)
+struct rpc_xprt *
+rpc_task_get_xprt(struct rpc_clnt *clnt, struct rpc_xprt *xprt)
 {
 	struct rpc_xprt_switch *xps;
-	struct rpc_xprt *xprt= xprt_iter_get_next(&clnt->cl_xpi);
 
 	if (!xprt)
 		return NULL;
@@ -991,24 +990,6 @@ rpc_task_get_xprt(struct rpc_clnt *clnt)
 	atomic_long_inc(&xps->xps_queuelen);
 	rcu_read_unlock();
 	atomic_long_inc(&xprt->queuelen);
-
-	return xprt;
-}
-
-static struct rpc_xprt *
-rpc_task_get_first_xprt(struct rpc_clnt *clnt)
-{
-	struct rpc_xprt_switch *xps;
-	struct rpc_xprt *xprt;
-
-	rcu_read_lock();
-	xprt = xprt_get(rcu_dereference(clnt->cl_xprt));
-	if (xprt) {
-		atomic_long_inc(&xprt->queuelen);
-		xps = rcu_dereference(clnt->cl_xpi.xpi_xpswitch);
-		atomic_long_inc(&xps->xps_queuelen);
-	}
-	rcu_read_unlock();
 
 	return xprt;
 }
@@ -1057,6 +1038,23 @@ void rpc_task_release_client(struct rpc_task *task)
 	}
 }
 
+static struct rpc_xprt *
+rpc_task_get_first_xprt(struct rpc_clnt *clnt)
+{
+	struct rpc_xprt *xprt;
+
+	rcu_read_lock();
+	xprt = xprt_get(rcu_dereference(clnt->cl_xprt));
+	rcu_read_unlock();
+	return rpc_task_get_xprt(clnt, xprt);
+}
+
+static struct rpc_xprt *
+rpc_task_get_next_xprt(struct rpc_clnt *clnt)
+{
+	return rpc_task_get_xprt(clnt, xprt_iter_get_next(&clnt->cl_xpi));
+}
+
 static
 void rpc_task_set_transport(struct rpc_task *task, struct rpc_clnt *clnt)
 {
@@ -1065,7 +1063,7 @@ void rpc_task_set_transport(struct rpc_task *task, struct rpc_clnt *clnt)
 	if (task->tk_flags & RPC_TASK_NO_ROUND_ROBIN)
 		task->tk_xprt = rpc_task_get_first_xprt(clnt);
 	else
-		task->tk_xprt = rpc_task_get_xprt(clnt);
+		task->tk_xprt = rpc_task_get_next_xprt(clnt);
 }
 
 static
