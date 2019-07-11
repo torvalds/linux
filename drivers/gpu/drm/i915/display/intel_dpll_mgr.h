@@ -111,11 +111,11 @@ enum intel_dpll_id {
 
 
 	/**
-	 * @DPLL_ID_ICL_DPLL0: ICL combo PHY DPLL0
+	 * @DPLL_ID_ICL_DPLL0: ICL/TGL combo PHY DPLL0
 	 */
 	DPLL_ID_ICL_DPLL0 = 0,
 	/**
-	 * @DPLL_ID_ICL_DPLL1: ICL combo PHY DPLL1
+	 * @DPLL_ID_ICL_DPLL1: ICL/TGL combo PHY DPLL1
 	 */
 	DPLL_ID_ICL_DPLL1 = 1,
 	/**
@@ -123,27 +123,40 @@ enum intel_dpll_id {
 	 */
 	DPLL_ID_EHL_DPLL4 = 2,
 	/**
-	 * @DPLL_ID_ICL_TBTPLL: ICL TBT PLL
+	 * @DPLL_ID_ICL_TBTPLL: ICL/TGL TBT PLL
 	 */
 	DPLL_ID_ICL_TBTPLL = 2,
 	/**
-	 * @DPLL_ID_ICL_MGPLL1: ICL MG PLL 1 port 1 (C)
+	 * @DPLL_ID_ICL_MGPLL1: ICL MG PLL 1 port 1 (C),
+	 *                      TGL TC PLL 1 port 1 (TC1)
 	 */
 	DPLL_ID_ICL_MGPLL1 = 3,
 	/**
 	 * @DPLL_ID_ICL_MGPLL2: ICL MG PLL 1 port 2 (D)
+	 *                      TGL TC PLL 1 port 2 (TC2)
 	 */
 	DPLL_ID_ICL_MGPLL2 = 4,
 	/**
 	 * @DPLL_ID_ICL_MGPLL3: ICL MG PLL 1 port 3 (E)
+	 *                      TGL TC PLL 1 port 3 (TC3)
 	 */
 	DPLL_ID_ICL_MGPLL3 = 5,
 	/**
 	 * @DPLL_ID_ICL_MGPLL4: ICL MG PLL 1 port 4 (F)
+	 *                      TGL TC PLL 1 port 4 (TC4)
 	 */
 	DPLL_ID_ICL_MGPLL4 = 6,
+	/**
+	 * @DPLL_ID_TGL_TCPLL5: TGL TC PLL port 5 (TC5)
+	 */
+	DPLL_ID_TGL_MGPLL5 = 7,
+	/**
+	 * @DPLL_ID_TGL_TCPLL6: TGL TC PLL port 6 (TC6)
+	 */
+	DPLL_ID_TGL_MGPLL6 = 8,
 };
-#define I915_NUM_PLLS 7
+
+#define I915_NUM_PLLS 9
 
 enum icl_port_dpll_id {
 	ICL_PORT_DPLL_DEFAULT,
