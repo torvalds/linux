@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/v4l2-controls.h>
 #include <media/mpeg2-ctrls.h>
+#include <media/vp8-ctrls.h>
 #include <media/videobuf2-core.h>
 
 struct hantro_dev;
@@ -45,6 +46,16 @@ struct hantro_jpeg_enc_hw_ctx {
  */
 struct hantro_mpeg2_dec_hw_ctx {
 	struct hantro_aux_buf qtable;
+};
+
+/**
+ * struct hantro_vp8d_hw_ctx
+ * @segment_map:	Segment map buffer.
+ * @prob_tbl:		Probability table buffer.
+ */
+struct hantro_vp8_dec_hw_ctx {
+	struct hantro_aux_buf segment_map;
+	struct hantro_aux_buf prob_tbl;
 };
 
 /**
@@ -98,5 +109,11 @@ void hantro_mpeg2_dec_copy_qtable(u8 *qtable,
 	const struct v4l2_ctrl_mpeg2_quantization *ctrl);
 int hantro_mpeg2_dec_init(struct hantro_ctx *ctx);
 void hantro_mpeg2_dec_exit(struct hantro_ctx *ctx);
+
+void hantro_g1_vp8_dec_run(struct hantro_ctx *ctx);
+int hantro_vp8_dec_init(struct hantro_ctx *ctx);
+void hantro_vp8_dec_exit(struct hantro_ctx *ctx);
+void hantro_vp8_prob_update(struct hantro_ctx *ctx,
+			    const struct v4l2_ctrl_vp8_frame_header *hdr);
 
 #endif /* HANTRO_HW_H_ */

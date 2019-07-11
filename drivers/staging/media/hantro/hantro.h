@@ -25,6 +25,10 @@
 
 #include "hantro_hw.h"
 
+#define VP8_MB_DIM			16
+#define VP8_MB_WIDTH(w)			DIV_ROUND_UP(w, VP8_MB_DIM)
+#define VP8_MB_HEIGHT(h)		DIV_ROUND_UP(h, VP8_MB_DIM)
+
 #define MPEG2_MB_DIM			16
 #define MPEG2_MB_WIDTH(w)		DIV_ROUND_UP(w, MPEG2_MB_DIM)
 #define MPEG2_MB_HEIGHT(h)		DIV_ROUND_UP(h, MPEG2_MB_DIM)
@@ -40,6 +44,7 @@ struct hantro_codec_ops;
 #define HANTRO_ENCODERS		0x0000ffff
 
 #define HANTRO_MPEG2_DECODER	BIT(16)
+#define HANTRO_VP8_DECODER	BIT(17)
 #define HANTRO_DECODERS		0xffff0000
 
 /**
@@ -97,11 +102,13 @@ struct hantro_variant {
  * @HANTRO_MODE_NONE:  No operating mode. Used for RAW video formats.
  * @HANTRO_MODE_JPEG_ENC: JPEG encoder.
  * @HANTRO_MODE_MPEG2_DEC: MPEG-2 decoder.
+ * @HANTRO_MODE_VP8_DEC: VP8 decoder.
  */
 enum hantro_codec_mode {
 	HANTRO_MODE_NONE = -1,
 	HANTRO_MODE_JPEG_ENC,
 	HANTRO_MODE_MPEG2_DEC,
+	HANTRO_MODE_VP8_DEC,
 };
 
 /*
@@ -215,6 +222,7 @@ struct hantro_dev {
  * @codec_ops:		Set of operations related to codec mode.
  * @jpeg_enc:		JPEG-encoding context.
  * @mpeg2_dec:		MPEG-2-decoding context.
+ * @vp8_dec:		VP8-decoding context.
  */
 struct hantro_ctx {
 	struct hantro_dev *dev;
@@ -241,6 +249,7 @@ struct hantro_ctx {
 	union {
 		struct hantro_jpeg_enc_hw_ctx jpeg_enc;
 		struct hantro_mpeg2_dec_hw_ctx mpeg2_dec;
+		struct hantro_vp8_dec_hw_ctx vp8_dec;
 	};
 };
 
@@ -263,6 +272,12 @@ struct hantro_fmt {
 	int max_depth;
 	enum hantro_enc_fmt enc_fmt;
 	struct v4l2_frmsize_stepwise frmsize;
+};
+
+struct hantro_reg {
+	u32 base;
+	u32 shift;
+	u32 mask;
 };
 
 /* Logging helpers */
@@ -341,6 +356,18 @@ static inline u32 vdpu_read(struct hantro_dev *vpu, u32 reg)
 
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	return val;
+}
+
+static inline void hantro_reg_write(struct hantro_dev *vpu,
+				    const struct hantro_reg *reg,
+				    u32 val)
+{
+	u32 v;
+
+	v = vdpu_read(vpu, reg->base);
+	v &= ~(reg->mask << reg->shift);
+	v |= ((val & reg->mask) << reg->shift);
+	vdpu_write_relaxed(vpu, v, reg->base);
 }
 
 bool hantro_is_encoder_ctx(const struct hantro_ctx *ctx);
