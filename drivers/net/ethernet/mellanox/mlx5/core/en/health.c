@@ -96,6 +96,23 @@ int mlx5e_reporter_cq_common_diagnose(struct mlx5e_cq *cq, struct devlink_fmsg *
 	return 0;
 }
 
+int mlx5e_health_create_reporters(struct mlx5e_priv *priv)
+{
+	return  mlx5e_reporter_tx_create(priv);
+}
+
+void mlx5e_health_destroy_reporters(struct mlx5e_priv *priv)
+{
+	mlx5e_reporter_tx_destroy(priv);
+}
+
+void mlx5e_health_channels_update(struct mlx5e_priv *priv)
+{
+	if (priv->tx_reporter)
+		devlink_health_reporter_state_update(priv->tx_reporter,
+						     DEVLINK_HEALTH_REPORTER_STATE_HEALTHY);
+}
+
 int mlx5e_health_sq_to_ready(struct mlx5e_channel *channel, u32 sqn)
 {
 	struct mlx5_core_dev *mdev = channel->mdev;

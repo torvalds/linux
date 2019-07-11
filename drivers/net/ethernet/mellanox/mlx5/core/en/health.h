@@ -29,5 +29,9 @@ int mlx5e_health_recover_channels(struct mlx5e_priv *priv);
 int mlx5e_health_report(struct mlx5e_priv *priv,
 			struct devlink_health_reporter *reporter, char *err_str,
 			struct mlx5e_err_ctx *err_ctx);
+int mlx5e_health_create_reporters(struct mlx5e_priv *priv);
+void mlx5e_health_destroy_reporters(struct mlx5e_priv *priv);
+void mlx5e_health_channels_update(struct mlx5e_priv *priv);
+
 
 #endif
