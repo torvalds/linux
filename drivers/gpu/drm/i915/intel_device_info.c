@@ -938,6 +938,9 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 			enabled_mask &= ~BIT(PIPE_B);
 		if (dfsm & SKL_DFSM_PIPE_C_DISABLE)
 			enabled_mask &= ~BIT(PIPE_C);
+		if (INTEL_GEN(dev_priv) >= 12 &&
+		    (dfsm & TGL_DFSM_PIPE_D_DISABLE))
+			enabled_mask &= ~BIT(PIPE_D);
 
 		/*
 		 * At least one pipe should be enabled and if there are

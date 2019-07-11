@@ -7633,6 +7633,7 @@ enum {
 #define SKL_DFSM_PIPE_A_DISABLE		(1 << 30)
 #define SKL_DFSM_PIPE_B_DISABLE		(1 << 21)
 #define SKL_DFSM_PIPE_C_DISABLE		(1 << 28)
+#define TGL_DFSM_PIPE_D_DISABLE		(1 << 22)
 
 #define SKL_DSSM				_MMIO(0x51004)
 #define CNL_DSSM_CDCLK_PLL_REFCLK_24MHz		(1 << 31)
