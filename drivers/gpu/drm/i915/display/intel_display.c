@@ -6423,8 +6423,14 @@ static void icl_pipe_mbus_enable(struct intel_crtc *crtc)
 	u32 val;
 
 	val = MBUS_DBOX_A_CREDIT(2);
-	val |= MBUS_DBOX_BW_CREDIT(1);
-	val |= MBUS_DBOX_B_CREDIT(8);
+
+	if (INTEL_GEN(dev_priv) >= 12) {
+		val |= MBUS_DBOX_BW_CREDIT(2);
+		val |= MBUS_DBOX_B_CREDIT(12);
+	} else {
+		val |= MBUS_DBOX_BW_CREDIT(1);
+		val |= MBUS_DBOX_B_CREDIT(8);
+	}
 
 	I915_WRITE(PIPE_MBUS_DBOX_CTL(pipe), val);
 }
