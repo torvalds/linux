@@ -4308,6 +4308,7 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if ((rspiocb->iocb.ulpStatus == 0)
 		    && (ndlp->nlp_flag & NLP_ACC_REGLOGIN)) {
 			if (!lpfc_unreg_rpi(vport, ndlp) &&
+			    (!(vport->fc_flag & FC_PT2PT)) &&
 			    (ndlp->nlp_state ==  NLP_STE_PLOGI_ISSUE ||
 			     ndlp->nlp_state == NLP_STE_REG_LOGIN_ISSUE)) {
 				lpfc_printf_vlog(vport, KERN_INFO,

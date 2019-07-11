@@ -1665,8 +1665,12 @@ static u8 get_iscsi_dcb_priority(struct net_device *ndev)
 		return 0;
 
 	if (caps & DCB_CAP_DCBX_VER_IEEE) {
-		iscsi_dcb_app.selector = IEEE_8021QAZ_APP_SEL_ANY;
+		iscsi_dcb_app.selector = IEEE_8021QAZ_APP_SEL_STREAM;
 		rv = dcb_ieee_getapp_mask(ndev, &iscsi_dcb_app);
+		if (!rv) {
+			iscsi_dcb_app.selector = IEEE_8021QAZ_APP_SEL_ANY;
+			rv = dcb_ieee_getapp_mask(ndev, &iscsi_dcb_app);
+		}
 	} else if (caps & DCB_CAP_DCBX_VER_CEE) {
 		iscsi_dcb_app.selector = DCB_APP_IDTYPE_PORTNUM;
 		rv = dcb_getapp(ndev, &iscsi_dcb_app);
@@ -2260,7 +2264,8 @@ cxgb4_dcb_change_notify(struct notifier_block *self, unsigned long val,
 	u8 priority;
 
 	if (iscsi_app->dcbx & DCB_CAP_DCBX_VER_IEEE) {
-		if (iscsi_app->app.selector != IEEE_8021QAZ_APP_SEL_ANY)
+		if ((iscsi_app->app.selector != IEEE_8021QAZ_APP_SEL_STREAM) &&
+		    (iscsi_app->app.selector != IEEE_8021QAZ_APP_SEL_ANY))
 			return NOTIFY_DONE;
 
 		priority = iscsi_app->app.priority;

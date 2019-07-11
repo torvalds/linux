@@ -11779,16 +11779,6 @@ S:	Maintained
 F:	drivers/mtd/nand/onenand/
 F:	include/linux/mtd/onenand*.h
 
-ONSTREAM SCSI TAPE DRIVER
-M:	Willem Riede <osst@riede.org>
-L:	osst-users@lists.sourceforge.net
-L:	linux-scsi@vger.kernel.org
-S:	Maintained
-F:	Documentation/scsi/osst.txt
-F:	drivers/scsi/osst.*
-F:	drivers/scsi/osst_*.h
-F:	drivers/scsi/st.h
-
 OP-TEE DRIVER
 M:	Jens Wiklander <jens.wiklander@linaro.org>
 S:	Maintained
@@ -12680,8 +12670,7 @@ S:	Orphan
 F:	drivers/scsi/pmcraid.*
 
 PMC SIERRA PM8001 DRIVER
-M:	Jack Wang <jinpu.wang@profitbricks.com>
-M:	lindar_liu@usish.com
+M:	Jack Wang <jinpu.wang@cloud.ionos.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/pm8001/

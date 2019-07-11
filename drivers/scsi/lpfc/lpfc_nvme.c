@@ -2143,7 +2143,9 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 			   struct completion *lport_unreg_cmp)
 {
 	u32 wait_tmo;
-	int ret;
+	int ret, i, pending = 0;
+	struct lpfc_sli_ring  *pring;
+	struct lpfc_hba  *phba = vport->phba;
 
 	/* Host transport has to clean up and confirm requiring an indefinite
 	 * wait. Print a message if a 10 second wait expires and renew the
@@ -2153,10 +2155,18 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 	while (true) {
 		ret = wait_for_completion_timeout(lport_unreg_cmp, wait_tmo);
 		if (unlikely(!ret)) {
+			pending = 0;
+			for (i = 0; i < phba->cfg_hdw_queue; i++) {
+				pring = phba->sli4_hba.hdwq[i].nvme_wq->pring;
+				if (!pring)
+					continue;
+				if (pring->txcmplq_cnt)
+					pending += pring->txcmplq_cnt;
+			}
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
 					 "6176 Lport %p Localport %p wait "
-					 "timed out. Renewing.\n",
-					 lport, vport->localport);
+					 "timed out. Pending %d. Renewing.\n",
+					 lport, vport->localport, pending);
 			continue;
 		}
 		break;
