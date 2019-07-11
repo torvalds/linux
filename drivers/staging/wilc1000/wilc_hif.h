@@ -115,7 +115,6 @@ struct wilc_rcvd_net_info {
 	struct ieee80211_mgmt *mgmt;
 };
 
-
 struct wilc_user_scan_req {
 	void (*scan_result)(enum scan_event evt,
 			    struct wilc_rcvd_net_info *info, void *priv);
@@ -167,7 +166,6 @@ struct host_if_drv {
 	struct wilc_vif *remain_on_ch_timer_vif;
 
 	bool ifc_up;
-	int driver_handler_id;
 	u8 assoc_resp[WILC_MAX_ASSOC_RESP_FRAME_SIZE];
 };
 
