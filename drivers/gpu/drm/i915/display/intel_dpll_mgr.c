@@ -3119,8 +3119,13 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	if (!(val & PLL_ENABLE))
 		goto out;
 
-	hw_state->cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(id));
-	hw_state->cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(id));
+	if (INTEL_GEN(dev_priv) >= 12) {
+		hw_state->cfgcr0 = I915_READ(TGL_DPLL_CFGCR0(id));
+		hw_state->cfgcr1 = I915_READ(TGL_DPLL_CFGCR1(id));
+	} else {
+		hw_state->cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(id));
+		hw_state->cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(id));
+	}
 
 	ret = true;
 out:
@@ -3154,10 +3159,19 @@ static void icl_dpll_write(struct drm_i915_private *dev_priv,
 {
 	struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
 	const enum intel_dpll_id id = pll->info->id;
+	i915_reg_t cfgcr0_reg, cfgcr1_reg;
 
-	I915_WRITE(ICL_DPLL_CFGCR0(id), hw_state->cfgcr0);
-	I915_WRITE(ICL_DPLL_CFGCR1(id), hw_state->cfgcr1);
-	POSTING_READ(ICL_DPLL_CFGCR1(id));
+	if (INTEL_GEN(dev_priv) >= 12) {
+		cfgcr0_reg = TGL_DPLL_CFGCR0(id);
+		cfgcr1_reg = TGL_DPLL_CFGCR1(id);
+	} else {
+		cfgcr0_reg = ICL_DPLL_CFGCR0(id);
+		cfgcr1_reg = ICL_DPLL_CFGCR1(id);
+	}
+
+	I915_WRITE(cfgcr0_reg, hw_state->cfgcr0);
+	I915_WRITE(cfgcr1_reg, hw_state->cfgcr1);
+	POSTING_READ(cfgcr1_reg);
 }
 
 static void icl_mg_pll_write(struct drm_i915_private *dev_priv,
