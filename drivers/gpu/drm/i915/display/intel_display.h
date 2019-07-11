@@ -45,6 +45,8 @@ enum i915_gpio {
 	GPIOK,
 	GPIOL,
 	GPIOM,
+	GPION,
+	GPIOO,
 };
 
 /*
