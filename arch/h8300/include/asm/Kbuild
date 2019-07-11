@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 generic-y += asm-offsets.h
 generic-y += barrier.h
 generic-y += bugs.h

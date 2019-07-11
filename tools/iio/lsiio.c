@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Industrial I/O utilities - lsiio.c
  *
  * Copyright (c) 2010 Manuel Stahl <manuel.stahl@iis.fraunhofer.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <string.h>

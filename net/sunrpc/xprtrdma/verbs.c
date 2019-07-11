@@ -810,8 +810,7 @@ static struct rpcrdma_sendctx *rpcrdma_sendctx_create(struct rpcrdma_ia *ia)
 {
 	struct rpcrdma_sendctx *sc;
 
-	sc = kzalloc(sizeof(*sc) +
-		     ia->ri_max_send_sges * sizeof(struct ib_sge),
+	sc = kzalloc(struct_size(sc, sc_sges, ia->ri_max_send_sges),
 		     GFP_KERNEL);
 	if (!sc)
 		return NULL;

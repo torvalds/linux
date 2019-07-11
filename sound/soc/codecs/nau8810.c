@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * nau8810.c  --  NAU8810 ALSA Soc Audio driver
  *
@@ -6,10 +7,6 @@
  * Author: David Lin <ctlin0@nuvoton.com>
  *
  * Based on WM8974.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

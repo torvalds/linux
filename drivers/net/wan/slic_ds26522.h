@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/tdm/line_ctrl/slic_ds26522.h
  *
  * Copyright 2016 Freescale Semiconductor, Inc.
  *
  * Author: Zhao Qiang <B45475@freescale.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #define DS26522_RF_ADDR_START	0x00

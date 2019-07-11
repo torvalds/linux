@@ -423,7 +423,7 @@ will be enumerated to depends on the device ID returned by _HID.
 
 For example, the following ACPI sample might be used to enumerate an lm75-type
 I2C temperature sensor and match it to the driver using the Device Tree
-namespace link:
+namespace link::
 
 	Device (TMP0)
 	{

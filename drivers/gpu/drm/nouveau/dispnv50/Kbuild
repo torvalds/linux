@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 nouveau-y += dispnv50/disp.o
 nouveau-y += dispnv50/lut.o
 

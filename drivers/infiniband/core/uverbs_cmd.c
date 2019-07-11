@@ -174,6 +174,17 @@ static int uverbs_request_finish(struct uverbs_req_iter *iter)
 	return 0;
 }
 
+/*
+ * When calling a destroy function during an error unwind we need to pass in
+ * the udata that is sanitized of all user arguments. Ie from the driver
+ * perspective it looks like no udata was passed.
+ */
+struct ib_udata *uverbs_get_cleared_udata(struct uverbs_attr_bundle *attrs)
+{
+	attrs->driver_udata = (struct ib_udata){};
+	return &attrs->driver_udata;
+}
+
 static struct ib_uverbs_completion_event_file *
 _ib_uverbs_lookup_comp_file(s32 fd, struct uverbs_attr_bundle *attrs)
 {
@@ -441,7 +452,7 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	return uobj_alloc_commit(uobj, attrs);
 
 err_copy:
-	ib_dealloc_pd_user(pd, &attrs->driver_udata);
+	ib_dealloc_pd_user(pd, uverbs_get_cleared_udata(attrs));
 	pd = NULL;
 err_alloc:
 	kfree(pd);
@@ -644,7 +655,7 @@ err_copy:
 	}
 
 err_dealloc_xrcd:
-	ib_dealloc_xrcd(xrcd, &attrs->driver_udata);
+	ib_dealloc_xrcd(xrcd, uverbs_get_cleared_udata(attrs));
 
 err:
 	uobj_alloc_abort(&obj->uobject, attrs);
@@ -767,7 +778,7 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs)
 	return uobj_alloc_commit(uobj, attrs);
 
 err_copy:
-	ib_dereg_mr_user(mr, &attrs->driver_udata);
+	ib_dereg_mr_user(mr, uverbs_get_cleared_udata(attrs));
 
 err_put:
 	uobj_put_obj_read(pd);
@@ -1042,7 +1053,7 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	return obj;
 
 err_cb:
-	ib_destroy_cq(cq);
+	ib_destroy_cq_user(cq, uverbs_get_cleared_udata(attrs));
 
 err_file:
 	if (ev_file)
@@ -1478,7 +1489,7 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 
 	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
 err_cb:
-	ib_destroy_qp(qp);
+	ib_destroy_qp_user(qp, uverbs_get_cleared_udata(attrs));
 
 err_put:
 	if (!IS_ERR(xrcd_uobj))
@@ -1611,7 +1622,7 @@ static int ib_uverbs_open_qp(struct uverbs_attr_bundle *attrs)
 	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
 
 err_destroy:
-	ib_destroy_qp(qp);
+	ib_destroy_qp_user(qp, uverbs_get_cleared_udata(attrs));
 err_xrcd:
 	uobj_put_read(xrcd_uobj);
 err_put:
@@ -2453,7 +2464,8 @@ static int ib_uverbs_create_ah(struct uverbs_attr_bundle *attrs)
 	return uobj_alloc_commit(uobj, attrs);
 
 err_copy:
-	rdma_destroy_ah(ah, RDMA_DESTROY_AH_SLEEPABLE);
+	rdma_destroy_ah_user(ah, RDMA_DESTROY_AH_SLEEPABLE,
+			     uverbs_get_cleared_udata(attrs));
 
 err_put:
 	uobj_put_obj_read(pd);
@@ -2964,7 +2976,7 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
 
 err_copy:
-	ib_destroy_wq(wq, &attrs->driver_udata);
+	ib_destroy_wq(wq, uverbs_get_cleared_udata(attrs));
 err_put_cq:
 	uobj_put_obj_read(cq);
 err_put_pd:
@@ -3464,7 +3476,7 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
 
 err_copy:
-	ib_destroy_srq_user(srq, &attrs->driver_udata);
+	ib_destroy_srq_user(srq, uverbs_get_cleared_udata(attrs));
 
 err_free:
 	kfree(srq);

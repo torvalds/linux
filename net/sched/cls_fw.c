@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/cls_fw.c	Classifier mapping ipchains' fwmark to traffic class.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *
@@ -15,7 +11,6 @@
  *
  * JHS: We should remove the CONFIG_NET_CLS_IND from here
  * eventually when the meta match extension is made available
- *
  */
 
 #include <linux/module.h>

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 nvkm-y += nvkm/subdev/ltc/base.o
 nvkm-y += nvkm/subdev/ltc/gf100.o
 nvkm-y += nvkm/subdev/ltc/gk104.o

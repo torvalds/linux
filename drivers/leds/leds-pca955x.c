@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2007-2008 Extreme Engineering Solutions, Inc.
  *
  * Author: Nate Case <ncase@xes-inc.com>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * LED driver for various PCA955x I2C LED drivers
  *

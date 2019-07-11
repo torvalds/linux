@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for HTC Magician PDA phones:
  * i-mate JAM, O2 Xda mini, Orange SPV M500, Qtek s100, Qtek s110
@@ -6,11 +7,6 @@
  * Copyright (c) 2006-2007 Philipp Zabel
  *
  * Based on hx4700.c, spitz.c and others.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>

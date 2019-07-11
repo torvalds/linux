@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-pxa/icontrol.c
  *
@@ -7,10 +8,6 @@
  * Copyright (C) 2009 TMT Services & Supplies (Pty) Ltd.
  *
  * 2010-01-21 Hennie van der Merve <hvdmerwe@tmtservies.co.za>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/irq.h>

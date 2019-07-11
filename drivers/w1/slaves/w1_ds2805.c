@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * w1_ds2805 - w1 family 0d (DS28E05) driver
  *
  * Copyright (c) 2016 Andrew Worsley amworsley@gmail.com
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2. See the file COPYING for more details.
  */
 
 #include <linux/kernel.h>

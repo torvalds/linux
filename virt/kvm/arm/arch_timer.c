@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 ARM Ltd.
  * Author: Marc Zyngier <marc.zyngier@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/cpu.h>
@@ -249,10 +237,10 @@ static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 
 		switch (index) {
 		case TIMER_VTIMER:
-			cnt_ctl = read_sysreg_el0(cntv_ctl);
+			cnt_ctl = read_sysreg_el0(SYS_CNTV_CTL);
 			break;
 		case TIMER_PTIMER:
-			cnt_ctl = read_sysreg_el0(cntp_ctl);
+			cnt_ctl = read_sysreg_el0(SYS_CNTP_CTL);
 			break;
 		case NR_KVM_TIMERS:
 			/* GCC is braindead */
@@ -321,14 +309,15 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 	}
 }
 
+/* Only called for a fully emulated timer */
 static void timer_emulate(struct arch_timer_context *ctx)
 {
 	bool should_fire = kvm_timer_should_fire(ctx);
 
 	trace_kvm_timer_emulate(ctx, should_fire);
 
-	if (should_fire) {
-		kvm_timer_update_irq(ctx->vcpu, true, ctx);
+	if (should_fire != ctx->irq.level) {
+		kvm_timer_update_irq(ctx->vcpu, should_fire, ctx);
 		return;
 	}
 
@@ -361,20 +350,20 @@ static void timer_save_state(struct arch_timer_context *ctx)
 
 	switch (index) {
 	case TIMER_VTIMER:
-		ctx->cnt_ctl = read_sysreg_el0(cntv_ctl);
-		ctx->cnt_cval = read_sysreg_el0(cntv_cval);
+		ctx->cnt_ctl = read_sysreg_el0(SYS_CNTV_CTL);
+		ctx->cnt_cval = read_sysreg_el0(SYS_CNTV_CVAL);
 
 		/* Disable the timer */
-		write_sysreg_el0(0, cntv_ctl);
+		write_sysreg_el0(0, SYS_CNTV_CTL);
 		isb();
 
 		break;
 	case TIMER_PTIMER:
-		ctx->cnt_ctl = read_sysreg_el0(cntp_ctl);
-		ctx->cnt_cval = read_sysreg_el0(cntp_cval);
+		ctx->cnt_ctl = read_sysreg_el0(SYS_CNTP_CTL);
+		ctx->cnt_cval = read_sysreg_el0(SYS_CNTP_CVAL);
 
 		/* Disable the timer */
-		write_sysreg_el0(0, cntp_ctl);
+		write_sysreg_el0(0, SYS_CNTP_CTL);
 		isb();
 
 		break;
@@ -440,14 +429,14 @@ static void timer_restore_state(struct arch_timer_context *ctx)
 
 	switch (index) {
 	case TIMER_VTIMER:
-		write_sysreg_el0(ctx->cnt_cval, cntv_cval);
+		write_sysreg_el0(ctx->cnt_cval, SYS_CNTV_CVAL);
 		isb();
-		write_sysreg_el0(ctx->cnt_ctl, cntv_ctl);
+		write_sysreg_el0(ctx->cnt_ctl, SYS_CNTV_CTL);
 		break;
 	case TIMER_PTIMER:
-		write_sysreg_el0(ctx->cnt_cval, cntp_cval);
+		write_sysreg_el0(ctx->cnt_cval, SYS_CNTP_CVAL);
 		isb();
-		write_sysreg_el0(ctx->cnt_ctl, cntp_ctl);
+		write_sysreg_el0(ctx->cnt_ctl, SYS_CNTP_CTL);
 		break;
 	case NR_KVM_TIMERS:
 		BUG();

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/lib/cmdline.c
  * Helper functions generally used for parsing kernel command line
@@ -5,11 +6,7 @@
  *
  * Code and copyrights come from init/main.c and arch/i386/kernel/setup.c.
  *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
- *
  * GNU Indent formatting options for this file: -kr -i8 -npsl -pcs
- *
  */
 
 #include <linux/export.h>

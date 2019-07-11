@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Suspend support specific for i386/x86-64.
- *
- * Distribute under GPLv2
  *
  * Copyright (c) 2007 Rafael J. Wysocki <rjw@sisk.pl>
  * Copyright (c) 2002 Pavel Machek <pavel@ucw.cz>
@@ -299,7 +298,17 @@ int hibernate_resume_nonboot_cpu_disable(void)
 	 * address in its instruction pointer may not be possible to resolve
 	 * any more at that point (the page tables used by it previously may
 	 * have been overwritten by hibernate image data).
+	 *
+	 * First, make sure that we wake up all the potentially disabled SMT
+	 * threads which have been initially brought up and then put into
+	 * mwait/cpuidle sleep.
+	 * Those will be put to proper (not interfering with hibernation
+	 * resume) sleep afterwards, and the resumed kernel will decide itself
+	 * what to do with them.
 	 */
+	ret = cpuhp_smt_enable();
+	if (ret)
+		return ret;
 	smp_ops.play_dead = resume_play_dead;
 	ret = disable_nonboot_cpus();
 	smp_ops.play_dead = play_dead;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * STMicroelectronics st_lsm6dsx sensor driver
  *
@@ -5,8 +6,6 @@
  *
  * Lorenzo Bianconi <lorenzo.bianconi@st.com>
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef ST_LSM6DSX_H
@@ -271,6 +270,7 @@ struct st_lsm6dsx_sensor {
  * @conf_lock: Mutex to prevent concurrent FIFO configuration update.
  * @page_lock: Mutex to prevent concurrent memory page configuration.
  * @fifo_mode: FIFO operating mode supported by the device.
+ * @suspend_mask: Suspended sensor bitmask.
  * @enable_mask: Enabled sensor bitmask.
  * @ts_sip: Total number of timestamp samples in a given pattern.
  * @sip: Total number of samples (acc/gyro/ts) in a given pattern.
@@ -288,6 +288,7 @@ struct st_lsm6dsx_hw {
 	struct mutex page_lock;
 
 	enum st_lsm6dsx_fifo_mode fifo_mode;
+	u8 suspend_mask;
 	u8 enable_mask;
 	u8 ts_sip;
 	u8 sip;
