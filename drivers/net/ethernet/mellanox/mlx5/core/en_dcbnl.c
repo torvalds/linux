@@ -680,7 +680,7 @@ static void mlx5e_dcbnl_getpermhwaddr(struct net_device *netdev,
 
 	memset(perm_addr, 0xff, MAX_ADDR_LEN);
 
-	mlx5_query_nic_vport_mac_address(priv->mdev, 0, perm_addr);
+	mlx5_query_mac_address(priv->mdev, perm_addr);
 }
 
 static void mlx5e_dcbnl_setpgtccfgtx(struct net_device *netdev,

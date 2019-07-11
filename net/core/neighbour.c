@@ -583,6 +583,8 @@ static struct neighbour *___neigh_create(struct neigh_table *tbl,
 	int error;
 	struct neigh_hash_table *nht;
 
+	trace_neigh_create(tbl, dev, pkey, n, exempt_from_gc);
+
 	if (!n) {
 		rc = ERR_PTR(-ENOBUFS);
 		goto out;

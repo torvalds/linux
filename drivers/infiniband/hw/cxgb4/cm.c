@@ -3230,17 +3230,22 @@ static int pick_local_ipaddrs(struct c4iw_dev *dev, struct iw_cm_id *cm_id)
 	int found = 0;
 	struct sockaddr_in *laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
 	struct sockaddr_in *raddr = (struct sockaddr_in *)&cm_id->m_remote_addr;
+	const struct in_ifaddr *ifa;
 
 	ind = in_dev_get(dev->rdev.lldi.ports[0]);
 	if (!ind)
 		return -EADDRNOTAVAIL;
-	for_primary_ifa(ind) {
+	rcu_read_lock();
+	in_dev_for_each_ifa_rcu(ifa, ind) {
+		if (ifa->ifa_flags & IFA_F_SECONDARY)
+			continue;
 		laddr->sin_addr.s_addr = ifa->ifa_address;
 		raddr->sin_addr.s_addr = ifa->ifa_address;
 		found = 1;
 		break;
 	}
-	endfor_ifa(ind);
+	rcu_read_unlock();
+
 	in_dev_put(ind);
 	return found ? 0 : -EADDRNOTAVAIL;
 }

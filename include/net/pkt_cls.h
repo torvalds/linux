@@ -7,9 +7,10 @@
 #include <net/sch_generic.h>
 #include <net/act_api.h>
 #include <net/flow_offload.h>
+#include <net/net_namespace.h>
 
 /* TC action not accessible from user space */
-#define TC_ACT_REINSERT		(TC_ACT_VALUE_MAX + 1)
+#define TC_ACT_CONSUMED		(TC_ACT_VALUE_MAX + 1)
 
 /* Basic packet classifier frontend definitions. */
 
@@ -25,14 +26,8 @@ struct tcf_walker {
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
-enum tcf_block_binder_type {
-	TCF_BLOCK_BINDER_TYPE_UNSPEC,
-	TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
-	TCF_BLOCK_BINDER_TYPE_CLSACT_EGRESS,
-};
-
 struct tcf_block_ext_info {
-	enum tcf_block_binder_type binder_type;
+	enum flow_block_binder_type binder_type;
 	tcf_chain_head_change_t *chain_head_change;
 	void *chain_head_change_priv;
 	u32 block_index;
@@ -71,22 +66,6 @@ static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 	return block->q;
 }
 
-void *tcf_block_cb_priv(struct tcf_block_cb *block_cb);
-struct tcf_block_cb *tcf_block_cb_lookup(struct tcf_block *block,
-					 tc_setup_cb_t *cb, void *cb_ident);
-void tcf_block_cb_incref(struct tcf_block_cb *block_cb);
-unsigned int tcf_block_cb_decref(struct tcf_block_cb *block_cb);
-struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
-					     tc_setup_cb_t *cb, void *cb_ident,
-					     void *cb_priv,
-					     struct netlink_ext_ack *extack);
-int tcf_block_cb_register(struct tcf_block *block,
-			  tc_setup_cb_t *cb, void *cb_ident,
-			  void *cb_priv, struct netlink_ext_ack *extack);
-void __tcf_block_cb_unregister(struct tcf_block *block,
-			       struct tcf_block_cb *block_cb);
-void tcf_block_cb_unregister(struct tcf_block *block,
-			     tc_setup_cb_t *cb, void *cb_ident);
 int __tc_indr_block_cb_register(struct net_device *dev, void *cb_priv,
 				tc_indr_block_bind_cb_t *cb, void *cb_ident);
 int tc_indr_block_cb_register(struct net_device *dev, void *cb_priv,
@@ -146,59 +125,6 @@ int tc_setup_cb_block_register(struct tcf_block *block, tc_setup_cb_t *cb,
 static inline
 void tc_setup_cb_block_unregister(struct tcf_block *block, tc_setup_cb_t *cb,
 				  void *cb_priv)
-{
-}
-
-static inline
-void *tcf_block_cb_priv(struct tcf_block_cb *block_cb)
-{
-	return NULL;
-}
-
-static inline
-struct tcf_block_cb *tcf_block_cb_lookup(struct tcf_block *block,
-					 tc_setup_cb_t *cb, void *cb_ident)
-{
-	return NULL;
-}
-
-static inline
-void tcf_block_cb_incref(struct tcf_block_cb *block_cb)
-{
-}
-
-static inline
-unsigned int tcf_block_cb_decref(struct tcf_block_cb *block_cb)
-{
-	return 0;
-}
-
-static inline
-struct tcf_block_cb *__tcf_block_cb_register(struct tcf_block *block,
-					     tc_setup_cb_t *cb, void *cb_ident,
-					     void *cb_priv,
-					     struct netlink_ext_ack *extack)
-{
-	return NULL;
-}
-
-static inline
-int tcf_block_cb_register(struct tcf_block *block,
-			  tc_setup_cb_t *cb, void *cb_ident,
-			  void *cb_priv, struct netlink_ext_ack *extack)
-{
-	return 0;
-}
-
-static inline
-void __tcf_block_cb_unregister(struct tcf_block *block,
-			       struct tcf_block_cb *block_cb)
-{
-}
-
-static inline
-void tcf_block_cb_unregister(struct tcf_block *block,
-			     tc_setup_cb_t *cb, void *cb_ident)
 {
 }
 
@@ -576,9 +502,6 @@ static inline int tcf_valid_offset(const struct sk_buff *skb,
 		      (ptr <= (ptr + len)));
 }
 
-#ifdef CONFIG_NET_CLS_IND
-#include <net/net_namespace.h>
-
 static inline int
 tcf_change_indev(struct net *net, struct nlattr *indev_tlv,
 		 struct netlink_ext_ack *extack)
@@ -605,32 +528,12 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 		return false;
 	return ifindex == skb->skb_iif;
 }
-#endif /* CONFIG_NET_CLS_IND */
 
 int tc_setup_flow_action(struct flow_action *flow_action,
 			 const struct tcf_exts *exts);
 int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
 		     void *type_data, bool err_stop);
 unsigned int tcf_exts_num_actions(struct tcf_exts *exts);
-
-enum tc_block_command {
-	TC_BLOCK_BIND,
-	TC_BLOCK_UNBIND,
-};
-
-struct tc_block_offload {
-	enum tc_block_command command;
-	enum tcf_block_binder_type binder_type;
-	struct tcf_block *block;
-	struct netlink_ext_ack *extack;
-};
-
-struct tc_cls_common_offload {
-	u32 chain_index;
-	__be16 protocol;
-	u32 prio;
-	struct netlink_ext_ack *extack;
-};
 
 struct tc_cls_u32_knode {
 	struct tcf_exts *exts;
@@ -659,7 +562,7 @@ enum tc_clsu32_command {
 };
 
 struct tc_cls_u32_offload {
-	struct tc_cls_common_offload common;
+	struct flow_cls_common_offload common;
 	/* knode values */
 	enum tc_clsu32_command command;
 	union {
@@ -686,7 +589,7 @@ static inline bool tc_can_offload_extack(const struct net_device *dev,
 
 static inline bool
 tc_cls_can_offload_and_chain0(const struct net_device *dev,
-			      struct tc_cls_common_offload *common)
+			      struct flow_cls_common_offload *common)
 {
 	if (!tc_can_offload_extack(dev, common->extack))
 		return false;
@@ -728,7 +631,7 @@ static inline bool tc_in_hw(u32 flags)
 }
 
 static inline void
-tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
+tc_cls_common_offload_init(struct flow_cls_common_offload *cls_common,
 			   const struct tcf_proto *tp, u32 flags,
 			   struct netlink_ext_ack *extack)
 {
@@ -739,29 +642,6 @@ tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
 		cls_common->extack = extack;
 }
 
-enum tc_fl_command {
-	TC_CLSFLOWER_REPLACE,
-	TC_CLSFLOWER_DESTROY,
-	TC_CLSFLOWER_STATS,
-	TC_CLSFLOWER_TMPLT_CREATE,
-	TC_CLSFLOWER_TMPLT_DESTROY,
-};
-
-struct tc_cls_flower_offload {
-	struct tc_cls_common_offload common;
-	enum tc_fl_command command;
-	unsigned long cookie;
-	struct flow_rule *rule;
-	struct flow_stats stats;
-	u32 classid;
-};
-
-static inline struct flow_rule *
-tc_cls_flower_offload_flow_rule(struct tc_cls_flower_offload *tc_flow_cmd)
-{
-	return tc_flow_cmd->rule;
-}
-
 enum tc_matchall_command {
 	TC_CLSMATCHALL_REPLACE,
 	TC_CLSMATCHALL_DESTROY,
@@ -769,7 +649,7 @@ enum tc_matchall_command {
 };
 
 struct tc_cls_matchall_offload {
-	struct tc_cls_common_offload common;
+	struct flow_cls_common_offload common;
 	enum tc_matchall_command command;
 	struct flow_rule *rule;
 	struct flow_stats stats;
@@ -782,7 +662,7 @@ enum tc_clsbpf_command {
 };
 
 struct tc_cls_bpf_offload {
-	struct tc_cls_common_offload common;
+	struct flow_cls_common_offload common;
 	enum tc_clsbpf_command command;
 	struct tcf_exts *exts;
 	struct bpf_prog *prog;

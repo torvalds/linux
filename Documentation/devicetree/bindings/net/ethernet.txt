@@ -43,6 +43,7 @@ Documentation/devicetree/bindings/phy/phy-bindings.txt.
   * "rxaui"
   * "xaui"
   * "10gbase-kr" (10GBASE-KR, XFI, SFI)
+  * "usxgmii"
 - phy-connection-type: the same as "phy-mode" property but described in the
   Devicetree Specification;
 - phy-handle: phandle, specifies a reference to a node representing a PHY

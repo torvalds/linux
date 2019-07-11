@@ -16,7 +16,7 @@
 #include "ipac.h"
 #include "iohelper.h"
 #include "netjet.h"
-#include <linux/isdn/hdlc.h>
+#include "isdnhdlc.h"
 
 #define NETJET_REV	"2.0"
 

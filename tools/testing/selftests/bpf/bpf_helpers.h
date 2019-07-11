@@ -8,6 +8,17 @@
  */
 #define SEC(NAME) __attribute__((section(NAME), used))
 
+#define __uint(name, val) int (*name)[val]
+#define __type(name, val) val *name
+
+/* helper macro to print out debug messages */
+#define bpf_printk(fmt, ...)				\
+({							\
+	char ____fmt[] = fmt;				\
+	bpf_trace_printk(____fmt, sizeof(____fmt),	\
+			 ##__VA_ARGS__);		\
+})
+
 /* helper functions called from eBPF programs written in C */
 static void *(*bpf_map_lookup_elem)(void *map, const void *key) =
 	(void *) BPF_FUNC_map_lookup_elem;
@@ -23,7 +34,7 @@ static int (*bpf_map_pop_elem)(void *map, void *value) =
 	(void *) BPF_FUNC_map_pop_elem;
 static int (*bpf_map_peek_elem)(void *map, void *value) =
 	(void *) BPF_FUNC_map_peek_elem;
-static int (*bpf_probe_read)(void *dst, int size, void *unsafe_ptr) =
+static int (*bpf_probe_read)(void *dst, int size, const void *unsafe_ptr) =
 	(void *) BPF_FUNC_probe_read;
 static unsigned long long (*bpf_ktime_get_ns)(void) =
 	(void *) BPF_FUNC_ktime_get_ns;
@@ -54,7 +65,7 @@ static int (*bpf_perf_event_output)(void *ctx, void *map,
 	(void *) BPF_FUNC_perf_event_output;
 static int (*bpf_get_stackid)(void *ctx, void *map, int flags) =
 	(void *) BPF_FUNC_get_stackid;
-static int (*bpf_probe_write_user)(void *dst, void *src, int size) =
+static int (*bpf_probe_write_user)(void *dst, const void *src, int size) =
 	(void *) BPF_FUNC_probe_write_user;
 static int (*bpf_current_task_under_cgroup)(void *map, int index) =
 	(void *) BPF_FUNC_current_task_under_cgroup;
@@ -216,6 +227,7 @@ static void *(*bpf_sk_storage_get)(void *map, struct bpf_sock *sk,
 	(void *) BPF_FUNC_sk_storage_get;
 static int (*bpf_sk_storage_delete)(void *map, struct bpf_sock *sk) =
 	(void *)BPF_FUNC_sk_storage_delete;
+static int (*bpf_send_signal)(unsigned sig) = (void *)BPF_FUNC_send_signal;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions

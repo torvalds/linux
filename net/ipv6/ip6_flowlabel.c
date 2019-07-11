@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/pid_namespace.h>
+#include <linux/jump_label_ratelimit.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -52,6 +53,9 @@ static DEFINE_SPINLOCK(ip6_fl_lock);
 /* Big socket sock */
 
 static DEFINE_SPINLOCK(ip6_sk_fl_lock);
+
+DEFINE_STATIC_KEY_DEFERRED_FALSE(ipv6_flowlabel_exclusive, HZ);
+EXPORT_SYMBOL(ipv6_flowlabel_exclusive);
 
 #define for_each_fl_rcu(hash, fl)				\
 	for (fl = rcu_dereference_bh(fl_ht[(hash)]);		\
@@ -90,6 +94,13 @@ static struct ip6_flowlabel *fl_lookup(struct net *net, __be32 label)
 	return fl;
 }
 
+static bool fl_shared_exclusive(struct ip6_flowlabel *fl)
+{
+	return fl->share == IPV6_FL_S_EXCL ||
+	       fl->share == IPV6_FL_S_PROCESS ||
+	       fl->share == IPV6_FL_S_USER;
+}
+
 static void fl_free_rcu(struct rcu_head *head)
 {
 	struct ip6_flowlabel *fl = container_of(head, struct ip6_flowlabel, rcu);
@@ -103,8 +114,13 @@ static void fl_free_rcu(struct rcu_head *head)
 
 static void fl_free(struct ip6_flowlabel *fl)
 {
-	if (fl)
-		call_rcu(&fl->rcu, fl_free_rcu);
+	if (!fl)
+		return;
+
+	if (fl_shared_exclusive(fl) || fl->opt)
+		static_branch_slow_dec_deferred(&ipv6_flowlabel_exclusive);
+
+	call_rcu(&fl->rcu, fl_free_rcu);
 }
 
 static void fl_release(struct ip6_flowlabel *fl)
@@ -240,7 +256,7 @@ static struct ip6_flowlabel *fl_intern(struct net *net,
 
 /* Socket flowlabel lists */
 
-struct ip6_flowlabel *fl6_sock_lookup(struct sock *sk, __be32 label)
+struct ip6_flowlabel *__fl6_sock_lookup(struct sock *sk, __be32 label)
 {
 	struct ipv6_fl_socklist *sfl;
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -260,7 +276,7 @@ struct ip6_flowlabel *fl6_sock_lookup(struct sock *sk, __be32 label)
 	rcu_read_unlock_bh();
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(fl6_sock_lookup);
+EXPORT_SYMBOL_GPL(__fl6_sock_lookup);
 
 void fl6_free_socklist(struct sock *sk)
 {
@@ -419,6 +435,8 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 	}
 	fl->dst = freq->flr_dst;
 	atomic_set(&fl->users, 1);
+	if (fl_shared_exclusive(fl) || fl->opt)
+		static_branch_deferred_inc(&ipv6_flowlabel_exclusive);
 	switch (fl->share) {
 	case IPV6_FL_S_EXCL:
 	case IPV6_FL_S_ANY:
@@ -854,6 +872,7 @@ int ip6_flowlabel_init(void)
 
 void ip6_flowlabel_cleanup(void)
 {
+	static_key_deferred_flush(&ipv6_flowlabel_exclusive);
 	del_timer(&ip6_fl_gc_timer);
 	unregister_pernet_subsys(&ip6_flowlabel_net_ops);
 }

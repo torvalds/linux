@@ -431,6 +431,12 @@
 				compatible = "fsl,enetc";
 				reg = <0x000100 0 0 0 0>;
 			};
+			ethernet@0,4 {
+				compatible = "fsl,enetc-ptp";
+				reg = <0x000400 0 0 0 0>;
+				clocks = <&clockgen 4 0>;
+				little-endian;
+			};
 		};
 	};
 };

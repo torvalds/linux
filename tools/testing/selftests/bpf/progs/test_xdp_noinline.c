@@ -15,13 +15,6 @@
 #include <linux/udp.h>
 #include "bpf_helpers.h"
 
-#define bpf_printk(fmt, ...)				\
-({							\
-	char ____fmt[] = fmt;				\
-	bpf_trace_printk(____fmt, sizeof(____fmt),	\
-			##__VA_ARGS__);			\
-})
-
 static __u32 rol32(__u32 word, unsigned int shift)
 {
 	return (word << shift) | (word >> ((-shift) & 31));
@@ -170,53 +163,48 @@ struct lb_stats {
 	__u64 v1;
 };
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) vip_map = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct vip_definition),
-	.value_size = sizeof(struct vip_meta),
-	.max_entries = 512,
-	.map_flags = 0,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 512);
+	__type(key, struct vip_definition);
+	__type(value, struct vip_meta);
+} vip_map SEC(".maps");
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) lru_cache = {
-	.type = BPF_MAP_TYPE_LRU_HASH,
-	.key_size = sizeof(struct flow_key),
-	.value_size = sizeof(struct real_pos_lru),
-	.max_entries = 300,
-	.map_flags = 1U << 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_LRU_HASH);
+	__uint(max_entries, 300);
+	__uint(map_flags, 1U << 1);
+	__type(key, struct flow_key);
+	__type(value, struct real_pos_lru);
+} lru_cache SEC(".maps");
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) ch_rings = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u32),
-	.max_entries = 12 * 655,
-	.map_flags = 0,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 12 * 655);
+	__type(key, __u32);
+	__type(value, __u32);
+} ch_rings SEC(".maps");
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) reals = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct real_definition),
-	.max_entries = 40,
-	.map_flags = 0,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 40);
+	__type(key, __u32);
+	__type(value, struct real_definition);
+} reals SEC(".maps");
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) stats = {
-	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct lb_stats),
-	.max_entries = 515,
-	.map_flags = 0,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 515);
+	__type(key, __u32);
+	__type(value, struct lb_stats);
+} stats SEC(".maps");
 
-struct bpf_map_def __attribute__ ((section("maps"), used)) ctl_array = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct ctl_value),
-	.max_entries = 16,
-	.map_flags = 0,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 16);
+	__type(key, __u32);
+	__type(value, struct ctl_value);
+} ctl_array SEC(".maps");
 
 struct eth_hdr {
 	unsigned char eth_dest[6];

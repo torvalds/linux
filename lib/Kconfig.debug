@@ -1929,6 +1929,15 @@ config TEST_BPF
 
 	  If unsure, say N.
 
+config TEST_BLACKHOLE_DEV
+	tristate "Test blackhole netdev functionality"
+	depends on m && NET
+	help
+	  This builds the "test_blackhole_dev" module that validates the
+	  data path through this blackhole netdev.
+
+	  If unsure, say N.
+
 config FIND_BIT_BENCHMARK
 	tristate "Test find_bit functions"
 	help

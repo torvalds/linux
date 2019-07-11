@@ -4016,64 +4016,10 @@ struct btf_file_test {
 };
 
 static struct btf_file_test file_tests[] = {
-{
-	.file = "test_btf_haskv.o",
-},
-{
-	.file = "test_btf_nokv.o",
-	.btf_kv_notfound = true,
-},
+	{ .file = "test_btf_haskv.o", },
+	{ .file = "test_btf_newkv.o", },
+	{ .file = "test_btf_nokv.o", .btf_kv_notfound = true, },
 };
-
-static int file_has_btf_elf(const char *fn, bool *has_btf_ext)
-{
-	Elf_Scn *scn = NULL;
-	GElf_Ehdr ehdr;
-	int ret = 0;
-	int elf_fd;
-	Elf *elf;
-
-	if (CHECK(elf_version(EV_CURRENT) == EV_NONE,
-		  "elf_version(EV_CURRENT) == EV_NONE"))
-		return -1;
-
-	elf_fd = open(fn, O_RDONLY);
-	if (CHECK(elf_fd == -1, "open(%s): errno:%d", fn, errno))
-		return -1;
-
-	elf = elf_begin(elf_fd, ELF_C_READ, NULL);
-	if (CHECK(!elf, "elf_begin(%s): %s", fn, elf_errmsg(elf_errno()))) {
-		ret = -1;
-		goto done;
-	}
-
-	if (CHECK(!gelf_getehdr(elf, &ehdr), "!gelf_getehdr(%s)", fn)) {
-		ret = -1;
-		goto done;
-	}
-
-	while ((scn = elf_nextscn(elf, scn))) {
-		const char *sh_name;
-		GElf_Shdr sh;
-
-		if (CHECK(gelf_getshdr(scn, &sh) != &sh,
-			  "file:%s gelf_getshdr != &sh", fn)) {
-			ret = -1;
-			goto done;
-		}
-
-		sh_name = elf_strptr(elf, ehdr.e_shstrndx, sh.sh_name);
-		if (!strcmp(sh_name, BTF_ELF_SEC))
-			ret = 1;
-		if (!strcmp(sh_name, BTF_EXT_ELF_SEC))
-			*has_btf_ext = true;
-	}
-
-done:
-	close(elf_fd);
-	elf_end(elf);
-	return ret;
-}
 
 static int do_test_file(unsigned int test_num)
 {
@@ -4081,6 +4027,7 @@ static int do_test_file(unsigned int test_num)
 	const char *expected_fnames[] = {"_dummy_tracepoint",
 					 "test_long_fname_1",
 					 "test_long_fname_2"};
+	struct btf_ext *btf_ext = NULL;
 	struct bpf_prog_info info = {};
 	struct bpf_object *obj = NULL;
 	struct bpf_func_info *finfo;
@@ -4095,15 +4042,19 @@ static int do_test_file(unsigned int test_num)
 	fprintf(stderr, "BTF libbpf test[%u] (%s): ", test_num,
 		test->file);
 
-	err = file_has_btf_elf(test->file, &has_btf_ext);
-	if (err == -1)
-		return err;
-
-	if (err == 0) {
-		fprintf(stderr, "SKIP. No ELF %s found", BTF_ELF_SEC);
-		skip_cnt++;
-		return 0;
+	btf = btf__parse_elf(test->file, &btf_ext);
+	if (IS_ERR(btf)) {
+		if (PTR_ERR(btf) == -ENOENT) {
+			fprintf(stderr, "SKIP. No ELF %s found", BTF_ELF_SEC);
+			skip_cnt++;
+			return 0;
+		}
+		return PTR_ERR(btf);
 	}
+	btf__free(btf);
+
+	has_btf_ext = btf_ext != NULL;
+	btf_ext__free(btf_ext);
 
 	obj = bpf_object__open(test->file);
 	if (CHECK(IS_ERR(obj), "obj: %ld", PTR_ERR(obj)))

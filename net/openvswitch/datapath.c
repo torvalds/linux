@@ -1334,7 +1334,7 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	reply = ovs_flow_cmd_alloc_info((const struct sw_flow_actions __force *) flow->sf_acts,
 					&flow->id, info, false, ufid_flags);
 	if (likely(reply)) {
-		if (likely(!IS_ERR(reply))) {
+		if (!IS_ERR(reply)) {
 			rcu_read_lock();	/*To keep RCU checker happy. */
 			err = ovs_flow_cmd_fill_info(flow, ovs_header->dp_ifindex,
 						     reply, info->snd_portid,

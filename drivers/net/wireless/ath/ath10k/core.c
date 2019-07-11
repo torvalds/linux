@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -26,10 +26,13 @@
 #include "coredump.h"
 
 unsigned int ath10k_debug_mask;
+EXPORT_SYMBOL(ath10k_debug_mask);
+
 static unsigned int ath10k_cryptmode_param;
 static bool uart_print;
 static bool skip_otp;
 static bool rawmode;
+static bool fw_diag_log;
 
 unsigned long ath10k_coredump_mask = BIT(ATH10K_FW_CRASH_DUMP_REGISTERS) |
 				     BIT(ATH10K_FW_CRASH_DUMP_CE_DATA);
@@ -40,6 +43,7 @@ module_param_named(cryptmode, ath10k_cryptmode_param, uint, 0644);
 module_param(uart_print, bool, 0644);
 module_param(skip_otp, bool, 0644);
 module_param(rawmode, bool, 0644);
+module_param(fw_diag_log, bool, 0644);
 module_param_named(coredump_mask, ath10k_coredump_mask, ulong, 0444);
 
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
@@ -48,6 +52,7 @@ MODULE_PARM_DESC(skip_otp, "Skip otp failure for calibration in testmode");
 MODULE_PARM_DESC(cryptmode, "Crypto mode: 0-hardware, 1-software");
 MODULE_PARM_DESC(rawmode, "Use raw 802.11 frame datapath");
 MODULE_PARM_DESC(coredump_mask, "Bitfield of what to include in firmware crash file");
+MODULE_PARM_DESC(fw_diag_log, "Diag based fw log debugging");
 
 static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 	{
@@ -83,6 +88,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
+		.tx_stats_over_pktlog = true,
 	},
 	{
 		.id = QCA988X_HW_2_0_VERSION,
@@ -117,6 +123,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
+		.tx_stats_over_pktlog = true,
 	},
 	{
 		.id = QCA9887_HW_1_0_VERSION,
@@ -152,6 +159,35 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
+		.tx_stats_over_pktlog = false,
+	},
+	{
+		.id = QCA6174_HW_3_2_VERSION,
+		.dev_id = QCA6174_3_2_DEVICE_ID,
+		.bus = ATH10K_BUS_SDIO,
+		.name = "qca6174 hw3.2 sdio",
+		.patch_load_addr = QCA6174_HW_3_0_PATCH_LOAD_ADDR,
+		.uart_pin = 19,
+		.otp_exe_param = 0,
+		.channel_counters_freq_hz = 88000,
+		.max_probe_resp_desc_thres = 0,
+		.cal_data_len = 0,
+		.fw = {
+			.dir = QCA6174_HW_3_0_FW_DIR,
+			.board = QCA6174_HW_3_0_BOARD_DATA_FILE,
+			.board_size = QCA6174_BOARD_DATA_SZ,
+			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
+		},
+		.hw_ops = &qca6174_sdio_ops,
+		.hw_clk = qca6174_clk,
+		.target_cpu_freq = 176000000,
+		.decap_align_bytes = 4,
+		.n_cipher_suites = 8,
+		.num_peers = 10,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
+		.uart_pin_workaround = true,
+		.tx_stats_over_pktlog = false,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -186,6 +222,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
+		.tx_stats_over_pktlog = false,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -220,6 +257,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
+		.tx_stats_over_pktlog = false,
 	},
 	{
 		.id = QCA6174_HW_3_0_VERSION,
@@ -254,6 +292,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
+		.tx_stats_over_pktlog = false,
 	},
 	{
 		.id = QCA6174_HW_3_2_VERSION,
@@ -291,6 +330,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = true,
+		.tx_stats_over_pktlog = false,
 	},
 	{
 		.id = QCA99X0_HW_2_0_DEV_VERSION,
@@ -331,6 +371,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
+		.tx_stats_over_pktlog = false,
 	},
 	{
 		.id = QCA9984_HW_1_0_DEV_VERSION,
@@ -378,6 +419,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
+		.tx_stats_over_pktlog = false,
 	},
 	{
 		.id = QCA9888_HW_2_0_DEV_VERSION,
@@ -422,6 +464,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
+		.tx_stats_over_pktlog = false,
 	},
 	{
 		.id = QCA9377_HW_1_0_DEV_VERSION,
@@ -456,6 +499,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
+		.tx_stats_over_pktlog = false,
 	},
 	{
 		.id = QCA9377_HW_1_1_DEV_VERSION,
@@ -492,6 +536,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = true,
+		.tx_stats_over_pktlog = false,
 	},
 	{
 		.id = QCA4019_HW_1_0_DEV_VERSION,
@@ -533,6 +578,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = false,
 		.hw_filter_reset_required = true,
 		.fw_diag_ce_download = false,
+		.tx_stats_over_pktlog = false,
 	},
 	{
 		.id = WCN3990_HW_1_0_DEV_VERSION,
@@ -560,6 +606,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = true,
 		.hw_filter_reset_required = false,
 		.fw_diag_ce_download = false,
+		.tx_stats_over_pktlog = false,
 	},
 };
 
@@ -585,6 +632,7 @@ static const char *const ath10k_core_fw_feature_str[] = {
 	[ATH10K_FW_FEATURE_MGMT_TX_BY_REF] = "mgmt-tx-by-reference",
 	[ATH10K_FW_FEATURE_NON_BMI] = "non-bmi",
 	[ATH10K_FW_FEATURE_SINGLE_CHAN_INFO_PER_CHANNEL] = "single-chan-info-per-channel",
+	[ATH10K_FW_FEATURE_PEER_FIXED_RATE] = "peer-fixed-rate",
 };
 
 static unsigned int ath10k_core_get_fw_feature_str(char *buf,
@@ -629,7 +677,7 @@ static void ath10k_send_suspend_complete(struct ath10k *ar)
 	complete(&ar->target_suspend);
 }
 
-static void ath10k_init_sdio(struct ath10k *ar)
+static void ath10k_init_sdio(struct ath10k *ar, enum ath10k_firmware_mode mode)
 {
 	u32 param = 0;
 
@@ -646,7 +694,12 @@ static void ath10k_init_sdio(struct ath10k *ar)
 	 * not big enough for mac80211 / native wifi frames. disable it
 	 */
 	param &= ~HI_ACS_FLAGS_ALT_DATA_CREDIT_SIZE;
-	param |= HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET;
+
+	if (mode == ATH10K_FIRMWARE_MODE_UTF)
+		param &= ~HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET;
+	else
+		param |= HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET;
+
 	ath10k_bmi_write32(ar, hi_acs_flags, param);
 
 	/* Explicitly set fwlog prints to zero as target may turn it on
@@ -2065,8 +2118,16 @@ static int ath10k_init_uart(struct ath10k *ar)
 		return ret;
 	}
 
-	if (!uart_print)
+	if (!uart_print && ar->hw_params.uart_pin_workaround) {
+		ret = ath10k_bmi_write32(ar, hi_dbg_uart_txpin,
+					 ar->hw_params.uart_pin);
+		if (ret) {
+			ath10k_warn(ar, "failed to set UART TX pin: %d", ret);
+			return ret;
+		}
+
 		return 0;
+	}
 
 	ret = ath10k_bmi_write32(ar, hi_dbg_uart_txpin, ar->hw_params.uart_pin);
 	if (ret) {
@@ -2139,6 +2200,7 @@ static void ath10k_core_restart(struct work_struct *work)
 	complete(&ar->offchan_tx_completed);
 	complete(&ar->install_key_done);
 	complete(&ar->vdev_setup_done);
+	complete(&ar->vdev_delete_done);
 	complete(&ar->thermal.wmi_sync);
 	complete(&ar->bss_survey_done);
 	wake_up(&ar->htt.empty_tx_wq);
@@ -2501,7 +2563,7 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 			goto err;
 
 		if (ar->hif.bus == ATH10K_BUS_SDIO)
-			ath10k_init_sdio(ar);
+			ath10k_init_sdio(ar, mode);
 	}
 
 	ar->htc.htc_ops.target_send_suspend_complete =
@@ -2719,6 +2781,12 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 	status = ath10k_debug_start(ar);
 	if (status)
 		goto err_hif_stop;
+
+	status = ath10k_hif_set_target_log_mode(ar, fw_diag_log);
+	if (status && status != -EOPNOTSUPP) {
+		ath10k_warn(ar, "set traget log mode faileds: %d\n", status);
+		goto err_hif_stop;
+	}
 
 	return 0;
 
@@ -3105,8 +3173,10 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 
 	init_completion(&ar->install_key_done);
 	init_completion(&ar->vdev_setup_done);
+	init_completion(&ar->vdev_delete_done);
 	init_completion(&ar->thermal.wmi_sync);
 	init_completion(&ar->bss_survey_done);
+	init_completion(&ar->peer_delete_done);
 
 	INIT_DELAYED_WORK(&ar->scan.timeout, ath10k_scan_timeout_work);
 

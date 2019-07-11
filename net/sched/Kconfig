@@ -842,6 +842,17 @@ config NET_ACT_CSUM
 	  To compile this code as a module, choose M here: the
 	  module will be called act_csum.
 
+config NET_ACT_MPLS
+	tristate "MPLS manipulation"
+	depends on NET_CLS_ACT
+	help
+	  Say Y here to push or pop MPLS headers.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_mpls.
+
 config NET_ACT_VLAN
         tristate "Vlan manipulation"
         depends on NET_CLS_ACT
@@ -876,6 +887,23 @@ config NET_ACT_CONNMARK
 
 	  To compile this code as a module, choose M here: the
 	  module will be called act_connmark.
+
+config NET_ACT_CTINFO
+        tristate "Netfilter Connection Mark Actions"
+        depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+        depends on NF_CONNTRACK && NF_CONNTRACK_MARK
+        help
+	  Say Y here to allow transfer of a connmark stored information.
+	  Current actions transfer connmark stored DSCP into
+	  ipv4/v6 diffserv and/or to transfer connmark to packet
+	  mark.  Both are useful for restoring egress based marks
+	  back onto ingress connections for qdisc priority mapping
+	  purposes.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_ctinfo.
 
 config NET_ACT_SKBMOD
         tristate "skb data modification action"
@@ -912,6 +940,17 @@ config NET_ACT_TUNNEL_KEY
 	  To compile this code as a module, choose M here: the
 	  module will be called act_tunnel_key.
 
+config NET_ACT_CT
+        tristate "connection tracking tc action"
+        depends on NET_CLS_ACT && NF_CONNTRACK
+        help
+	  Say Y here to allow sending the packets to conntrack module.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_ct.
+
 config NET_IFE_SKBMARK
         tristate "Support to encoding decoding skb mark on IFE action"
         depends on NET_ACT_IFE
@@ -923,14 +962,6 @@ config NET_IFE_SKBPRIO
 config NET_IFE_SKBTCINDEX
         tristate "Support to encoding decoding skb tcindex on IFE action"
         depends on NET_ACT_IFE
-
-config NET_CLS_IND
-	bool "Incoming device classification"
-	depends on NET_CLS_U32 || NET_CLS_FW
-	---help---
-	  Say Y here to extend the u32 and fw classifier to support
-	  classification based on the incoming device. This option is
-	  likely to disappear in favour of the metadata ematch.
 
 endif # NET_SCHED
 
