@@ -31,6 +31,7 @@
 #include "amdgpu_vce.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_psp.h"
+#include "amdgpu_smu.h"
 #include "atom.h"
 #include "amd_pcie.h"
 
@@ -255,6 +256,39 @@ static void nv_gpu_pci_config_reset(struct amdgpu_device *adev)
 }
 #endif
 
+static int nv_asic_mode1_reset(struct amdgpu_device *adev)
+{
+	u32 i;
+	int ret = 0;
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
+
+	dev_info(adev->dev, "GPU mode1 reset\n");
+
+	/* disable BM */
+	pci_clear_master(adev->pdev);
+
+	pci_save_state(adev->pdev);
+
+	ret = psp_gpu_reset(adev);
+	if (ret)
+		dev_err(adev->dev, "GPU mode1 reset failed\n");
+
+	pci_restore_state(adev->pdev);
+
+	/* wait for asic to come out of reset */
+	for (i = 0; i < adev->usec_timeout; i++) {
+		u32 memsize = adev->nbio_funcs->get_memsize(adev);
+
+		if (memsize != 0xffffffff)
+			break;
+		udelay(1);
+	}
+
+	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
+
+	return ret;
+}
 static int nv_asic_reset(struct amdgpu_device *adev)
 {
 
@@ -266,8 +300,15 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 
 	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 #endif
+	int ret = 0;
+	struct smu_context *smu = &adev->smu;
 
-	return 0;
+	if (smu_baco_is_support(smu))
+		ret = smu_baco_reset(smu);
+	else
+		ret = nv_asic_mode1_reset(adev);
+
+	return ret;
 }
 
 static int nv_set_uvd_clocks(struct amdgpu_device *adev, u32 vclk, u32 dclk)
@@ -348,8 +389,12 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
+#if defined(CONFIG_DRM_AMD_DC)
 		else if (amdgpu_device_has_dc_support(adev))
 			amdgpu_device_ip_block_add(adev, &dm_ip_block);
+#else
+#	warning "Enable CONFIG_DRM_AMD_DC for display support on navi."
+#endif
 		amdgpu_device_ip_block_add(adev, &gfx_v10_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &sdma_v5_0_ip_block);
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT &&

@@ -115,6 +115,7 @@ static int navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(PowerUpJpeg,		PPSMC_MSG_PowerUpJpeg),
 	MSG_MAP(PowerDownJpeg,		PPSMC_MSG_PowerDownJpeg),
 	MSG_MAP(BacoAudioD3PME,		PPSMC_MSG_BacoAudioD3PME),
+	MSG_MAP(ArmD3,			PPSMC_MSG_ArmD3),
 };
 
 static int navi10_clk_map[SMU_CLK_COUNT] = {
@@ -478,6 +479,7 @@ static int navi10_store_powerplay_table(struct smu_context *smu)
 {
 	struct smu_11_0_powerplay_table *powerplay_table = NULL;
 	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
 
 	if (!table_context->power_play_table)
 		return -EINVAL;
@@ -488,6 +490,12 @@ static int navi10_store_powerplay_table(struct smu_context *smu)
 	       sizeof(PPTable_t));
 
 	table_context->thermal_controller_type = powerplay_table->thermal_controller_type;
+
+	mutex_lock(&smu_baco->mutex);
+	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_BACO ||
+	    powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_MACO)
+		smu_baco->platform_support = true;
+	mutex_unlock(&smu_baco->mutex);
 
 	return 0;
 }
@@ -598,11 +606,13 @@ static int navi10_get_current_clk_freq_by_table(struct smu_context *smu,
 				       enum smu_clk_type clk_type,
 				       uint32_t *value)
 {
-	static SmuMetrics_t metrics = {0};
+	static SmuMetrics_t metrics;
 	int ret = 0, clk_id = 0;
 
 	if (!value)
 		return -EINVAL;
+
+	memset(&metrics, 0, sizeof(metrics));
 
 	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, (void *)&metrics, false);
 	if (ret)
@@ -863,12 +873,13 @@ static int navi10_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	if (ret)
 		return ret;
 
-	*value = metrics.CurrSocketPower << 8;
+	*value = metrics.AverageSocketPower << 8;
 
 	return 0;
 }
 
 static int navi10_get_current_activity_percent(struct smu_context *smu,
+					       enum amd_pp_sensors sensor,
 					       uint32_t *value)
 {
 	int ret = 0;
@@ -884,7 +895,17 @@ static int navi10_get_current_activity_percent(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	*value = metrics.AverageGfxActivity;
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		*value = metrics.AverageGfxActivity;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		*value = metrics.AverageUclkActivity;
+		break;
+	default:
+		pr_err("Invalid sensor for retrieving clock activity\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -902,11 +923,13 @@ static bool navi10_is_dpm_running(struct smu_context *smu)
 
 static int navi10_get_fan_speed(struct smu_context *smu, uint16_t *value)
 {
-	SmuMetrics_t metrics = {0};
+	SmuMetrics_t metrics;
 	int ret = 0;
 
 	if (!value)
 		return -EINVAL;
+
+	memset(&metrics, 0, sizeof(metrics));
 
 	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS,
 			       (void *)&metrics, false);
@@ -1247,6 +1270,41 @@ static int navi10_set_watermarks_table(struct smu_context *smu,
 	return 0;
 }
 
+static int navi10_thermal_get_temperature(struct smu_context *smu,
+					     enum amd_pp_sensors sensor,
+					     uint32_t *value)
+{
+	SmuMetrics_t metrics;
+	int ret = 0;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, (void *)&metrics, false);
+	if (ret)
+		return ret;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+		*value = metrics.TemperatureHotspot *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+		*value = metrics.TemperatureEdge *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		*value = metrics.TemperatureMem *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	default:
+		pr_err("Invalid sensor for retrieving temp\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int navi10_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size)
@@ -1260,12 +1318,19 @@ static int navi10_read_sensor(struct smu_context *smu,
 		*(uint32_t *)data = pptable->FanMaximumRpm;
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = navi10_get_current_activity_percent(smu, (uint32_t *)data);
+		ret = navi10_get_current_activity_percent(smu, sensor, (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
 		ret = navi10_get_gpu_power(smu, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		ret = navi10_thermal_get_temperature(smu, sensor, (uint32_t *)data);
 		*size = 4;
 		break;
 	default:

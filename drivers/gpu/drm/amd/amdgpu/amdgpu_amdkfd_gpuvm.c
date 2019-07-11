@@ -504,7 +504,7 @@ static int init_user_pages(struct kgd_mem *mem, struct mm_struct *mm,
 		goto out;
 	}
 
-	ret = amdgpu_ttm_tt_get_user_pages(bo->tbo.ttm, bo->tbo.ttm->pages);
+	ret = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages);
 	if (ret) {
 		pr_err("%s: Failed to get user pages: %d\n", __func__, ret);
 		goto unregister_out;
@@ -813,7 +813,7 @@ static int process_sync_pds_resv(struct amdkfd_process_info *process_info,
 
 		ret = amdgpu_sync_resv(NULL,
 					sync, pd->tbo.resv,
-					AMDGPU_FENCE_OWNER_UNDEFINED, false);
+					AMDGPU_FENCE_OWNER_KFD, false);
 		if (ret)
 			return ret;
 	}
@@ -1729,8 +1729,7 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 		bo = mem->bo;
 
 		/* Get updated user pages */
-		ret = amdgpu_ttm_tt_get_user_pages(bo->tbo.ttm,
-						   bo->tbo.ttm->pages);
+		ret = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages);
 		if (ret) {
 			pr_debug("%s: Failed to get user pages: %d\n",
 				__func__, ret);
@@ -1740,6 +1739,12 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 		}
 
 		amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
+
+		/* Mark the BO as valid unless it was invalidated
+		 * again concurrently.
+		 */
+		if (atomic_cmpxchg(&mem->invalid, invalid, 0) != invalid)
+			return -EAGAIN;
 	}
 
 	return 0;

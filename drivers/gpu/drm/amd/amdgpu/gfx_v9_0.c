@@ -1960,25 +1960,6 @@ static void gfx_v9_0_constants_init(struct amdgpu_device *adev)
 	mutex_unlock(&adev->srbm_mutex);
 
 	gfx_v9_0_init_compute_vmid(adev);
-
-	mutex_lock(&adev->grbm_idx_mutex);
-	/*
-	 * making sure that the following register writes will be broadcasted
-	 * to all the shaders
-	 */
-	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
-
-	WREG32_SOC15_RLC(GC, 0, mmPA_SC_FIFO_SIZE,
-		   (adev->gfx.config.sc_prim_fifo_size_frontend <<
-			PA_SC_FIFO_SIZE__SC_FRONTEND_PRIM_FIFO_SIZE__SHIFT) |
-		   (adev->gfx.config.sc_prim_fifo_size_backend <<
-			PA_SC_FIFO_SIZE__SC_BACKEND_PRIM_FIFO_SIZE__SHIFT) |
-		   (adev->gfx.config.sc_hiz_tile_fifo_size <<
-			PA_SC_FIFO_SIZE__SC_HIZ_TILE_FIFO_SIZE__SHIFT) |
-		   (adev->gfx.config.sc_earlyz_tile_fifo_size <<
-			PA_SC_FIFO_SIZE__SC_EARLYZ_TILE_FIFO_SIZE__SHIFT));
-	mutex_unlock(&adev->grbm_idx_mutex);
-
 }
 
 static void gfx_v9_0_wait_for_rlc_serdes(struct amdgpu_device *adev)
@@ -2093,11 +2074,10 @@ static int gfx_v9_1_init_rlc_save_restore_list(struct amdgpu_device *adev)
 	u32 tmp = 0;
 
 	u32 *register_list_format =
-		kmalloc(adev->gfx.rlc.reg_list_format_size_bytes, GFP_KERNEL);
+		kmemdup(adev->gfx.rlc.register_list_format,
+			adev->gfx.rlc.reg_list_format_size_bytes, GFP_KERNEL);
 	if (!register_list_format)
 		return -ENOMEM;
-	memcpy(register_list_format, adev->gfx.rlc.register_list_format,
-		adev->gfx.rlc.reg_list_format_size_bytes);
 
 	/* setup unique_indirect_regs array and indirect_start_offsets array */
 	unique_indirect_reg_count = ARRAY_SIZE(unique_indirect_regs);

@@ -775,6 +775,7 @@ struct amdgpu_device {
 	struct mutex                    grbm_idx_mutex;
 	struct dev_pm_domain		vga_pm_domain;
 	bool				have_disp_power_ref;
+	bool                            have_atomics_support;
 
 	/* BIOS */
 	bool				is_atom_fw;
@@ -1215,6 +1216,10 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev );
 #else
 static inline int amdgpu_dm_display_resume(struct amdgpu_device *adev) { return 0; }
 #endif
+
+
+void amdgpu_register_gpu_instance(struct amdgpu_device *adev);
+void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev);
 
 #include "amdgpu_object.h"
 
