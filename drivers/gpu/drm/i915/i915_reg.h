@@ -9148,6 +9148,7 @@ enum {
 #define   SKL_PW_CTL_IDX_MISC_IO		0
 
 /* ICL/TGL - power wells */
+#define   TGL_PW_CTL_IDX_PW_5			4
 #define   ICL_PW_CTL_IDX_PW_4			3
 #define   ICL_PW_CTL_IDX_PW_3			2
 #define   ICL_PW_CTL_IDX_PW_2			1

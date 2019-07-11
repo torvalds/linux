@@ -37,18 +37,24 @@ intel_display_power_domain_str(struct drm_i915_private *i915,
 		return "PIPE_B";
 	case POWER_DOMAIN_PIPE_C:
 		return "PIPE_C";
+	case POWER_DOMAIN_PIPE_D:
+		return "PIPE_D";
 	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
 		return "PIPE_A_PANEL_FITTER";
 	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
 		return "PIPE_B_PANEL_FITTER";
 	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
 		return "PIPE_C_PANEL_FITTER";
+	case POWER_DOMAIN_PIPE_D_PANEL_FITTER:
+		return "PIPE_D_PANEL_FITTER";
 	case POWER_DOMAIN_TRANSCODER_A:
 		return "TRANSCODER_A";
 	case POWER_DOMAIN_TRANSCODER_B:
 		return "TRANSCODER_B";
 	case POWER_DOMAIN_TRANSCODER_C:
 		return "TRANSCODER_C";
+	case POWER_DOMAIN_TRANSCODER_D:
+		return "TRANSCODER_D";
 	case POWER_DOMAIN_TRANSCODER_EDP:
 		return "TRANSCODER_EDP";
 	case POWER_DOMAIN_TRANSCODER_VDSC_PW2:
@@ -2540,8 +2546,13 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 #define ICL_AUX_TBT4_IO_POWER_DOMAINS (			\
 	BIT_ULL(POWER_DOMAIN_AUX_TBT4))
 
-/* TODO: TGL_PW_5_POWER_DOMAINS: PIPE_D */
+#define TGL_PW_5_POWER_DOMAINS (			\
+	BIT_ULL(POWER_DOMAIN_PIPE_D) |			\
+	BIT_ULL(POWER_DOMAIN_PIPE_D_PANEL_FITTER) |     \
+	BIT_ULL(POWER_DOMAIN_INIT))
+
 #define TGL_PW_4_POWER_DOMAINS (			\
+	TGL_PW_5_POWER_DOMAINS |			\
 	BIT_ULL(POWER_DOMAIN_PIPE_C) |			\
 	BIT_ULL(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |	\
 	BIT_ULL(POWER_DOMAIN_INIT))
@@ -2551,7 +2562,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_PIPE_B) |			\
 	BIT_ULL(POWER_DOMAIN_TRANSCODER_B) |		\
 	BIT_ULL(POWER_DOMAIN_TRANSCODER_C) |		\
-	/* TODO: TRANSCODER_D */			\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_D) |		\
 	BIT_ULL(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |	\
 	BIT_ULL(POWER_DOMAIN_PORT_DDI_TC1_LANES) |	\
 	BIT_ULL(POWER_DOMAIN_PORT_DDI_TC1_IO) |		\
@@ -3894,7 +3905,18 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 			.hsw.irq_pipe_mask = BIT(PIPE_C),
 		}
 	},
-	/* TODO: power well 5 for pipe D */
+	{
+		.name = "power well 5",
+		.domains = TGL_PW_5_POWER_DOMAINS,
+		.ops = &hsw_power_well_ops,
+		.id = DISP_PW_ID_NONE,
+		{
+			.hsw.regs = &hsw_power_well_regs,
+			.hsw.idx = TGL_PW_CTL_IDX_PW_5,
+			.hsw.has_fuses = true,
+			.hsw.irq_pipe_mask = BIT(PIPE_D),
+		},
+	},
 };
 
 static int
