@@ -255,7 +255,9 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv)
 	 * make an educated guess as to which PCH is really there.
 	 */
 
-	if (IS_ELKHARTLAKE(dev_priv))
+	if (IS_TIGERLAKE(dev_priv))
+		id = INTEL_PCH_TGP_DEVICE_ID_TYPE;
+	else if (IS_ELKHARTLAKE(dev_priv))
 		id = INTEL_PCH_MCC_DEVICE_ID_TYPE;
 	else if (IS_ICELAKE(dev_priv))
 		id = INTEL_PCH_ICP_DEVICE_ID_TYPE;
