@@ -92,7 +92,7 @@ find_and_lock_process_key(const char *prefix,
 	if (!description)
 		return ERR_PTR(-ENOMEM);
 
-	key = request_key(&key_type_logon, description, NULL, NULL);
+	key = request_key(&key_type_logon, description, NULL);
 	kfree(description);
 	if (IS_ERR(key))
 		return key;

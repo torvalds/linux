@@ -356,7 +356,7 @@ int evm_init_key(void)
 	struct encrypted_key_payload *ekp;
 	int rc;
 
-	evm_key = request_key(&key_type_encrypted, EVMKEY, NULL, NULL);
+	evm_key = request_key(&key_type_encrypted, EVMKEY, NULL);
 	if (IS_ERR(evm_key))
 		return -ENOENT;
 

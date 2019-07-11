@@ -46,15 +46,6 @@ const struct cred *dns_resolver_cache;
 
 #define	DNS_ERRORNO_OPTION	"dnserror"
 
-static struct key_acl dns_keyring_acl = {
-	.usage	= REFCOUNT_INIT(1),
-	.nr_ace	= 2,
-	.aces = {
-		KEY_POSSESSOR_ACE(KEY_ACE_SEARCH | KEY_ACE_WRITE),
-		KEY_OWNER_ACE(KEY_ACE_VIEW | KEY_ACE_READ | KEY_ACE_CLEAR),
-	}
-};
-
 /*
  * Preparse instantiation data for a dns_resolver key.
  *
@@ -352,7 +343,8 @@ static int __init init_dns_resolver(void)
 
 	keyring = keyring_alloc(".dns_resolver",
 				GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, cred,
-				&dns_keyring_acl,
+				(KEY_POS_ALL & ~KEY_POS_SETATTR) |
+				KEY_USR_VIEW | KEY_USR_READ,
 				KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);

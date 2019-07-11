@@ -317,7 +317,7 @@ static void fscache_objlist_config(struct fscache_objlist_data *data)
 	const char *buf;
 	int len;
 
-	key = request_key(&key_type_user, "fscache:objlist", NULL, NULL);
+	key = request_key(&key_type_user, "fscache:objlist", NULL);
 	if (IS_ERR(key))
 		goto no_config;
 

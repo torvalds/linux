@@ -37,8 +37,7 @@ static const unsigned char keyrings_capabilities[2] = {
 	       KEYCTL_CAPS0_MOVE
 	       ),
 	[1] = (KEYCTL_CAPS1_NS_KEYRING_NAME |
-	       KEYCTL_CAPS1_NS_KEY_TAG |
-	       KEYCTL_CAPS1_ACL_ALTERABLE),
+	       KEYCTL_CAPS1_NS_KEY_TAG),
 };
 
 static int key_get_type_from_user(char *type,
@@ -131,7 +130,8 @@ SYSCALL_DEFINE5(add_key, const char __user *, _type,
 	/* create or update the requested key and add it to the target
 	 * keyring */
 	key_ref = key_create_or_update(keyring_ref, type, description,
-				       payload, plen, NULL, KEY_ALLOC_IN_QUOTA);
+				       payload, plen, KEY_PERM_UNDEF,
+				       KEY_ALLOC_IN_QUOTA);
 	if (!IS_ERR(key_ref)) {
 		ret = key_ref_to_ptr(key_ref)->serial;
 		key_ref_put(key_ref);
@@ -221,8 +221,7 @@ SYSCALL_DEFINE4(request_key, const char __user *, _type,
 
 	/* do the search */
 	key = request_key_and_link(ktype, description, NULL, callout_info,
-				   callout_len, NULL, NULL,
-				   key_ref_to_ptr(dest_ref),
+				   callout_len, NULL, key_ref_to_ptr(dest_ref),
 				   KEY_ALLOC_IN_QUOTA);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
@@ -384,10 +383,16 @@ long keyctl_revoke_key(key_serial_t id)
 	struct key *key;
 	long ret;
 
-	key_ref = lookup_user_key(id, 0, KEY_NEED_REVOKE);
+	key_ref = lookup_user_key(id, 0, KEY_NEED_WRITE);
 	if (IS_ERR(key_ref)) {
 		ret = PTR_ERR(key_ref);
-		goto error;
+		if (ret != -EACCES)
+			goto error;
+		key_ref = lookup_user_key(id, 0, KEY_NEED_SETATTR);
+		if (IS_ERR(key_ref)) {
+			ret = PTR_ERR(key_ref);
+			goto error;
+		}
 	}
 
 	key = key_ref_to_ptr(key_ref);
@@ -421,7 +426,7 @@ long keyctl_invalidate_key(key_serial_t id)
 
 	kenter("%d", id);
 
-	key_ref = lookup_user_key(id, 0, KEY_NEED_INVAL);
+	key_ref = lookup_user_key(id, 0, KEY_NEED_SEARCH);
 	if (IS_ERR(key_ref)) {
 		ret = PTR_ERR(key_ref);
 
@@ -466,7 +471,7 @@ long keyctl_keyring_clear(key_serial_t ringid)
 	struct key *keyring;
 	long ret;
 
-	keyring_ref = lookup_user_key(ringid, KEY_LOOKUP_CREATE, KEY_NEED_CLEAR);
+	keyring_ref = lookup_user_key(ringid, KEY_LOOKUP_CREATE, KEY_NEED_WRITE);
 	if (IS_ERR(keyring_ref)) {
 		ret = PTR_ERR(keyring_ref);
 
@@ -641,7 +646,6 @@ long keyctl_describe_key(key_serial_t keyid,
 			 size_t buflen)
 {
 	struct key *key, *instkey;
-	unsigned int perm;
 	key_ref_t key_ref;
 	char *infobuf;
 	long ret;
@@ -671,10 +675,6 @@ okay:
 	key = key_ref_to_ptr(key_ref);
 	desclen = strlen(key->description);
 
-	rcu_read_lock();
-	perm = key_acl_to_perm(rcu_dereference(key->acl));
-	rcu_read_unlock();
-
 	/* calculate how much information we're going to return */
 	ret = -ENOMEM;
 	infobuf = kasprintf(GFP_KERNEL,
@@ -682,7 +682,7 @@ okay:
 			    key->type->name,
 			    from_kuid_munged(current_user_ns(), key->uid),
 			    from_kgid_munged(current_user_ns(), key->gid),
-			    perm);
+			    key->perm);
 	if (!infobuf)
 		goto error2;
 	infolen = strlen(infobuf);
@@ -899,7 +899,7 @@ long keyctl_chown_key(key_serial_t id, uid_t user, gid_t group)
 		goto error;
 
 	key_ref = lookup_user_key(id, KEY_LOOKUP_CREATE | KEY_LOOKUP_PARTIAL,
-				  KEY_NEED_SETSEC);
+				  KEY_NEED_SETATTR);
 	if (IS_ERR(key_ref)) {
 		ret = PTR_ERR(key_ref);
 		goto error;
@@ -994,25 +994,18 @@ quota_overrun:
  * the key need not be fully instantiated yet.  If the caller does not have
  * sysadmin capability, it may only change the permission on keys that it owns.
  */
-long keyctl_setperm_key(key_serial_t id, unsigned int perm)
+long keyctl_setperm_key(key_serial_t id, key_perm_t perm)
 {
-	struct key_acl *acl;
 	struct key *key;
 	key_ref_t key_ref;
 	long ret;
-	int nr, i, j;
 
+	ret = -EINVAL;
 	if (perm & ~(KEY_POS_ALL | KEY_USR_ALL | KEY_GRP_ALL | KEY_OTH_ALL))
-		return -EINVAL;
-
-	nr = 0;
-	if (perm & KEY_POS_ALL) nr++;
-	if (perm & KEY_USR_ALL) nr++;
-	if (perm & KEY_GRP_ALL) nr++;
-	if (perm & KEY_OTH_ALL) nr++;
+		goto error;
 
 	key_ref = lookup_user_key(id, KEY_LOOKUP_CREATE | KEY_LOOKUP_PARTIAL,
-				  KEY_NEED_SETSEC);
+				  KEY_NEED_SETATTR);
 	if (IS_ERR(key_ref)) {
 		ret = PTR_ERR(key_ref);
 		goto error;
@@ -1020,45 +1013,17 @@ long keyctl_setperm_key(key_serial_t id, unsigned int perm)
 
 	key = key_ref_to_ptr(key_ref);
 
-	ret = -EOPNOTSUPP;
-	if (test_bit(KEY_FLAG_HAS_ACL, &key->flags))
-		goto error_key;
+	/* make the changes with the locks held to prevent chown/chmod races */
+	ret = -EACCES;
+	down_write(&key->sem);
 
-	ret = -ENOMEM;
-	acl = kzalloc(struct_size(acl, aces, nr), GFP_KERNEL);
-	if (!acl)
-		goto error_key;
-
-	refcount_set(&acl->usage, 1);
-	acl->nr_ace = nr;
-	j = 0;
-	for (i = 0; i < 4; i++) {
-		struct key_ace *ace = &acl->aces[j];
-		unsigned int subset = (perm >> (i * 8)) & KEY_OTH_ALL;
-
-		if (!subset)
-			continue;
-		ace->type = KEY_ACE_SUBJ_STANDARD;
-		ace->subject_id = KEY_ACE_EVERYONE + i;
-		ace->perm = subset;
-		if (subset & (KEY_OTH_WRITE | KEY_OTH_SETATTR))
-			ace->perm |= KEY_ACE_REVOKE;
-		if (subset & KEY_OTH_SEARCH)
-			ace->perm |= KEY_ACE_INVAL;
-		if (key->type == &key_type_keyring) {
-			if (subset & KEY_OTH_SEARCH)
-				ace->perm |= KEY_ACE_JOIN;
-			if (subset & KEY_OTH_WRITE)
-				ace->perm |= KEY_ACE_CLEAR;
-		}
-		j++;
+	/* if we're not the sysadmin, we can only change a key that we own */
+	if (capable(CAP_SYS_ADMIN) || uid_eq(key->uid, current_fsuid())) {
+		key->perm = perm;
+		ret = 0;
 	}
 
-	/* make the changes with the locks held to prevent chown/chmod races */
-	down_write(&key->sem);
-	ret = key_set_acl(key, acl);
 	up_write(&key->sem);
-error_key:
 	key_put(key);
 error:
 	return ret;
@@ -1423,7 +1388,7 @@ long keyctl_set_timeout(key_serial_t id, unsigned timeout)
 	long ret;
 
 	key_ref = lookup_user_key(id, KEY_LOOKUP_CREATE | KEY_LOOKUP_PARTIAL,
-				  KEY_NEED_SETSEC);
+				  KEY_NEED_SETATTR);
 	if (IS_ERR(key_ref)) {
 		/* setting the timeout on a key under construction is permitted
 		 * if we have the authorisation token handy */
@@ -1574,7 +1539,7 @@ long keyctl_get_security(key_serial_t keyid,
  * Attempt to install the calling process's session keyring on the process's
  * parent process.
  *
- * The keyring must exist and must grant the caller JOIN permission, and the
+ * The keyring must exist and must grant the caller LINK permission, and the
  * parent process must be single-threaded and must have the same effective
  * ownership as this process and mustn't be SUID/SGID.
  *
@@ -1591,7 +1556,7 @@ long keyctl_session_to_parent(void)
 	struct cred *cred;
 	int ret;
 
-	keyring_r = lookup_user_key(KEY_SPEC_SESSION_KEYRING, 0, KEY_NEED_JOIN);
+	keyring_r = lookup_user_key(KEY_SPEC_SESSION_KEYRING, 0, KEY_NEED_LINK);
 	if (IS_ERR(keyring_r))
 		return PTR_ERR(keyring_r);
 
@@ -1693,7 +1658,7 @@ long keyctl_restrict_keyring(key_serial_t id, const char __user *_type,
 	char *restriction = NULL;
 	long ret;
 
-	key_ref = lookup_user_key(id, 0, KEY_NEED_SETSEC);
+	key_ref = lookup_user_key(id, 0, KEY_NEED_SETATTR);
 	if (IS_ERR(key_ref))
 		return PTR_ERR(key_ref);
 
@@ -1799,7 +1764,7 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 
 	case KEYCTL_SETPERM:
 		return keyctl_setperm_key((key_serial_t) arg2,
-					  (unsigned int)arg3);
+					  (key_perm_t) arg3);
 
 	case KEYCTL_INSTANTIATE:
 		return keyctl_instantiate_key((key_serial_t) arg2,
@@ -1888,11 +1853,6 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 					   (key_serial_t)arg3,
 					   (key_serial_t)arg4,
 					   (unsigned int)arg5);
-	case KEYCTL_GRANT_PERMISSION:
-		return keyctl_grant_permission((key_serial_t)arg2,
-					       (enum key_ace_subject_type)arg3,
-					       (unsigned int)arg4,
-					       (unsigned int)arg5);
 
 	case KEYCTL_CAPABILITIES:
 		return keyctl_capabilities((unsigned char __user *)arg2, (size_t)arg3);

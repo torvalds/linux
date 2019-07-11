@@ -1610,7 +1610,7 @@ int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,
 {
 	int rc = 0;
 
-	(*auth_tok_key) = request_key(&key_type_user, sig, NULL, NULL);
+	(*auth_tok_key) = request_key(&key_type_user, sig, NULL);
 	if (!(*auth_tok_key) || IS_ERR(*auth_tok_key)) {
 		(*auth_tok_key) = ecryptfs_get_encrypted_key(sig);
 		if (!(*auth_tok_key) || IS_ERR(*auth_tok_key)) {

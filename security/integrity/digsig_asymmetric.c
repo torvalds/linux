@@ -53,7 +53,7 @@ static struct key *request_asymmetric_key(struct key *keyring, uint32_t keyid)
 		else
 			key = key_ref_to_ptr(kref);
 	} else {
-		key = request_key(&key_type_asymmetric, name, NULL, NULL);
+		key = request_key(&key_type_asymmetric, name, NULL);
 	}
 
 	if (IS_ERR(key)) {

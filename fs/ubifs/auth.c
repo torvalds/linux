@@ -227,7 +227,7 @@ int ubifs_init_authentication(struct ubifs_info *c)
 	snprintf(hmac_name, CRYPTO_MAX_ALG_NAME, "hmac(%s)",
 		 c->auth_hash_name);
 
-	keyring_key = request_key(&key_type_logon, c->auth_key_name, NULL, NULL);
+	keyring_key = request_key(&key_type_logon, c->auth_key_name, NULL);
 
 	if (IS_ERR(keyring_key)) {
 		ubifs_err(c, "Failed to request key: %ld",

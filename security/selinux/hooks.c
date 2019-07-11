@@ -6502,7 +6502,6 @@ static int selinux_key_permission(key_ref_t key_ref,
 {
 	struct key *key;
 	struct key_security_struct *ksec;
-	unsigned oldstyle_perm;
 	u32 sid;
 
 	/* if no specific permissions are requested, we skip the
@@ -6511,26 +6510,13 @@ static int selinux_key_permission(key_ref_t key_ref,
 	if (perm == 0)
 		return 0;
 
-	oldstyle_perm = perm & (KEY_NEED_VIEW | KEY_NEED_READ | KEY_NEED_WRITE |
-				KEY_NEED_SEARCH | KEY_NEED_LINK);
-	if (perm & KEY_NEED_SETSEC)
-		oldstyle_perm |= OLD_KEY_NEED_SETATTR;
-	if (perm & KEY_NEED_INVAL)
-		oldstyle_perm |= KEY_NEED_SEARCH;
-	if (perm & KEY_NEED_REVOKE && !(perm & OLD_KEY_NEED_SETATTR))
-		oldstyle_perm |= KEY_NEED_WRITE;
-	if (perm & KEY_NEED_JOIN)
-		oldstyle_perm |= KEY_NEED_SEARCH;
-	if (perm & KEY_NEED_CLEAR)
-		oldstyle_perm |= KEY_NEED_WRITE;
-
 	sid = cred_sid(cred);
 
 	key = key_ref_to_ptr(key_ref);
 	ksec = key->security;
 
 	return avc_has_perm(&selinux_state,
-			    sid, ksec->sid, SECCLASS_KEY, oldstyle_perm, NULL);
+			    sid, ksec->sid, SECCLASS_KEY, perm, NULL);
 }
 
 static int selinux_key_getsecurity(struct key *key, char **_buffer)

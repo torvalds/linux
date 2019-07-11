@@ -28,7 +28,7 @@ struct key *afs_request_key(struct afs_cell *cell)
 
 	_debug("key %s", cell->anonymous_key->description);
 	key = request_key(&key_type_rxrpc, cell->anonymous_key->description,
-			  NULL, NULL);
+			  NULL);
 	if (IS_ERR(key)) {
 		if (PTR_ERR(key) != -ENOKEY) {
 			_leave(" = %ld", PTR_ERR(key));
