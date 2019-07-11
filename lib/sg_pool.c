@@ -70,18 +70,27 @@ static struct scatterlist *sg_pool_alloc(unsigned int nents, gfp_t gfp_mask)
 /**
  * sg_free_table_chained - Free a previously mapped sg table
  * @table:	The sg table header to use
- * @first_chunk: was first_chunk not NULL in sg_alloc_table_chained?
+ * @nents_first_chunk: size of the first_chunk SGL passed to
+ *		sg_alloc_table_chained
  *
  *  Description:
  *    Free an sg table previously allocated and setup with
  *    sg_alloc_table_chained().
  *
+ *    @nents_first_chunk has to be same with that same parameter passed
+ *    to sg_alloc_table_chained().
+ *
  **/
-void sg_free_table_chained(struct sg_table *table, bool first_chunk)
+void sg_free_table_chained(struct sg_table *table,
+		unsigned nents_first_chunk)
 {
-	if (first_chunk && table->orig_nents <= SG_CHUNK_SIZE)
+	if (table->orig_nents <= nents_first_chunk)
 		return;
-	__sg_free_table(table, SG_CHUNK_SIZE, first_chunk, sg_pool_free);
+
+	if (nents_first_chunk == 1)
+		nents_first_chunk = 0;
+
+	__sg_free_table(table, SG_CHUNK_SIZE, nents_first_chunk, sg_pool_free);
 }
 EXPORT_SYMBOL_GPL(sg_free_table_chained);
 
@@ -90,31 +99,41 @@ EXPORT_SYMBOL_GPL(sg_free_table_chained);
  * @table:	The sg table header to use
  * @nents:	Number of entries in sg list
  * @first_chunk: first SGL
+ * @nents_first_chunk: number of the SGL of @first_chunk
  *
  *  Description:
  *    Allocate and chain SGLs in an sg table. If @nents@ is larger than
- *    SG_CHUNK_SIZE a chained sg table will be setup.
+ *    @nents_first_chunk a chained sg table will be setup. @first_chunk is
+ *    ignored if nents_first_chunk <= 1 because user expects the SGL points
+ *    non-chain SGL.
  *
  **/
 int sg_alloc_table_chained(struct sg_table *table, int nents,
-		struct scatterlist *first_chunk)
+		struct scatterlist *first_chunk, unsigned nents_first_chunk)
 {
 	int ret;
 
 	BUG_ON(!nents);
 
-	if (first_chunk) {
-		if (nents <= SG_CHUNK_SIZE) {
+	if (first_chunk && nents_first_chunk) {
+		if (nents <= nents_first_chunk) {
 			table->nents = table->orig_nents = nents;
 			sg_init_table(table->sgl, nents);
 			return 0;
 		}
 	}
 
+	/* User supposes that the 1st SGL includes real entry */
+	if (nents_first_chunk <= 1) {
+		first_chunk = NULL;
+		nents_first_chunk = 0;
+	}
+
 	ret = __sg_alloc_table(table, nents, SG_CHUNK_SIZE,
-			       first_chunk, GFP_ATOMIC, sg_pool_alloc);
+			       first_chunk, nents_first_chunk,
+			       GFP_ATOMIC, sg_pool_alloc);
 	if (unlikely(ret))
-		sg_free_table_chained(table, (bool)first_chunk);
+		sg_free_table_chained(table, nents_first_chunk);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sg_alloc_table_chained);
