@@ -514,6 +514,7 @@ struct afs_server {
 	atomic_t		usage;
 	u32			addr_version;	/* Address list version */
 	u32			cm_epoch;	/* Server RxRPC epoch */
+	unsigned int		debug_id;	/* Debugging ID for traces */
 
 	/* file service access */
 	rwlock_t		fs_lock;	/* access lock */
@@ -844,9 +845,9 @@ extern struct fscache_cookie_def afs_vnode_cache_index_def;
  * callback.c
  */
 extern void afs_init_callback_state(struct afs_server *);
-extern void __afs_break_callback(struct afs_vnode *);
-extern void afs_break_callback(struct afs_vnode *);
-extern void afs_break_callbacks(struct afs_server *, size_t, struct afs_callback_break*);
+extern void __afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
+extern void afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
+extern void afs_break_callbacks(struct afs_server *, size_t, struct afs_callback_break *);
 
 extern int afs_register_server_cb_interest(struct afs_vnode *,
 					   struct afs_server_list *, unsigned int);
@@ -1240,17 +1241,12 @@ extern void __exit afs_clean_up_permit_cache(void);
  */
 extern spinlock_t afs_server_peer_lock;
 
-static inline struct afs_server *afs_get_server(struct afs_server *server)
-{
-	atomic_inc(&server->usage);
-	return server;
-}
-
 extern struct afs_server *afs_find_server(struct afs_net *,
 					  const struct sockaddr_rxrpc *);
 extern struct afs_server *afs_find_server_by_uuid(struct afs_net *, const uuid_t *);
 extern struct afs_server *afs_lookup_server(struct afs_cell *, struct key *, const uuid_t *);
-extern void afs_put_server(struct afs_net *, struct afs_server *);
+extern struct afs_server *afs_get_server(struct afs_server *, enum afs_server_trace);
+extern void afs_put_server(struct afs_net *, struct afs_server *, enum afs_server_trace);
 extern void afs_manage_servers(struct work_struct *);
 extern void afs_servers_timer(struct timer_list *);
 extern void __net_exit afs_purge_servers(struct afs_net *);
@@ -1434,7 +1430,7 @@ static inline void afs_check_for_remote_deletion(struct afs_fs_cursor *fc,
 {
 	if (fc->ac.error == -ENOENT) {
 		set_bit(AFS_VNODE_DELETED, &vnode->flags);
-		afs_break_callback(vnode);
+		afs_break_callback(vnode, afs_cb_break_for_deleted);
 	}
 }
 

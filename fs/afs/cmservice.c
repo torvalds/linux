@@ -256,8 +256,11 @@ static void SRXAFSCB_CallBack(struct work_struct *work)
 	 * server holds up change visibility till it receives our reply so as
 	 * to maintain cache coherency.
 	 */
-	if (call->server)
+	if (call->server) {
+		trace_afs_server(call->server, atomic_read(&call->server->usage),
+				 afs_server_trace_callback);
 		afs_break_callbacks(call->server, call->count, call->request);
+	}
 
 	afs_send_empty_reply(call);
 	afs_put_call(call);
