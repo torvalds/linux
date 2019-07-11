@@ -739,6 +739,22 @@ static int udf_check_vsd(struct super_block *sb)
 		vsd = (struct volStructDesc *)(bh->b_data +
 					      (sector & (sb->s_blocksize - 1)));
 		nsr = identify_vsd(vsd);
+		/* Found NSR or end? */
+		if (nsr) {
+			brelse(bh);
+			break;
+		}
+		/*
+		 * Special handling for improperly formatted VRS (e.g., Win10)
+		 * where components are separated by 2048 bytes even though
+		 * sectors are 4K
+		 */
+		if (sb->s_blocksize == 4096) {
+			nsr = identify_vsd(vsd + 1);
+			/* Ignore unknown IDs... */
+			if (nsr < 0)
+				nsr = 0;
+		}
 		brelse(bh);
 	}
 
