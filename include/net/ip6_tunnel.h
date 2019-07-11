@@ -69,6 +69,8 @@ struct ip6_tnl_encap_ops {
 	size_t (*encap_hlen)(struct ip_tunnel_encap *e);
 	int (*build_header)(struct sk_buff *skb, struct ip_tunnel_encap *e,
 			    u8 *protocol, struct flowi6 *fl6);
+	int (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
+			   u8 type, u8 code, int offset, __be32 info);
 };
 
 #ifdef CONFIG_INET

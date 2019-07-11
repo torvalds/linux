@@ -61,6 +61,9 @@ bootimage bootpfile bootpzfile: vmlinux
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
+archheaders:
+	$(Q)$(MAKE) $(build)=arch/alpha/kernel/syscalls all
+
 define archhelp
   echo '* boot		- Compressed kernel image (arch/alpha/boot/vmlinux.gz)'
   echo '  bootimage	- SRM bootable image (arch/alpha/boot/bootimage)'

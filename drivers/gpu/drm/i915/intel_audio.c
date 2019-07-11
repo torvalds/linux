@@ -27,7 +27,6 @@
 #include <drm/intel_lpe_audio.h>
 #include "intel_drv.h"
 
-#include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include "i915_drv.h"
 
@@ -153,32 +152,32 @@ static const struct {
 	int n;
 	int cts;
 } hdmi_aud_ncts[] = {
-	{ 44100, TMDS_296M, 4459, 234375 },
-	{ 44100, TMDS_297M, 4704, 247500 },
-	{ 48000, TMDS_296M, 5824, 281250 },
-	{ 48000, TMDS_297M, 5120, 247500 },
 	{ 32000, TMDS_296M, 5824, 421875 },
 	{ 32000, TMDS_297M, 3072, 222750 },
-	{ 88200, TMDS_296M, 8918, 234375 },
-	{ 88200, TMDS_297M, 9408, 247500 },
-	{ 96000, TMDS_296M, 11648, 281250 },
-	{ 96000, TMDS_297M, 10240, 247500 },
-	{ 176400, TMDS_296M, 17836, 234375 },
-	{ 176400, TMDS_297M, 18816, 247500 },
-	{ 192000, TMDS_296M, 23296, 281250 },
-	{ 192000, TMDS_297M, 20480, 247500 },
-	{ 44100, TMDS_593M, 8918, 937500 },
-	{ 44100, TMDS_594M, 9408, 990000 },
-	{ 48000, TMDS_593M, 5824, 562500 },
-	{ 48000, TMDS_594M, 6144, 594000 },
 	{ 32000, TMDS_593M, 5824, 843750 },
 	{ 32000, TMDS_594M, 3072, 445500 },
+	{ 44100, TMDS_296M, 4459, 234375 },
+	{ 44100, TMDS_297M, 4704, 247500 },
+	{ 44100, TMDS_593M, 8918, 937500 },
+	{ 44100, TMDS_594M, 9408, 990000 },
+	{ 88200, TMDS_296M, 8918, 234375 },
+	{ 88200, TMDS_297M, 9408, 247500 },
 	{ 88200, TMDS_593M, 17836, 937500 },
 	{ 88200, TMDS_594M, 18816, 990000 },
-	{ 96000, TMDS_593M, 11648, 562500 },
-	{ 96000, TMDS_594M, 12288, 594000 },
+	{ 176400, TMDS_296M, 17836, 234375 },
+	{ 176400, TMDS_297M, 18816, 247500 },
 	{ 176400, TMDS_593M, 35672, 937500 },
 	{ 176400, TMDS_594M, 37632, 990000 },
+	{ 48000, TMDS_296M, 5824, 281250 },
+	{ 48000, TMDS_297M, 5120, 247500 },
+	{ 48000, TMDS_593M, 5824, 562500 },
+	{ 48000, TMDS_594M, 6144, 594000 },
+	{ 96000, TMDS_296M, 11648, 281250 },
+	{ 96000, TMDS_297M, 10240, 247500 },
+	{ 96000, TMDS_593M, 11648, 562500 },
+	{ 96000, TMDS_594M, 12288, 594000 },
+	{ 192000, TMDS_296M, 23296, 281250 },
+	{ 192000, TMDS_297M, 20480, 247500 },
 	{ 192000, TMDS_593M, 23296, 562500 },
 	{ 192000, TMDS_594M, 24576, 594000 },
 };
@@ -749,7 +748,8 @@ static void i915_audio_component_get_power(struct device *kdev)
 
 static void i915_audio_component_put_power(struct device *kdev)
 {
-	intel_display_power_put(kdev_to_i915(kdev), POWER_DOMAIN_AUDIO);
+	intel_display_power_put_unchecked(kdev_to_i915(kdev),
+					  POWER_DOMAIN_AUDIO);
 }
 
 static void i915_audio_component_codec_wake_override(struct device *kdev,
@@ -758,7 +758,7 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	u32 tmp;
 
-	if (!IS_GEN9(dev_priv))
+	if (!IS_GEN(dev_priv, 9))
 		return;
 
 	i915_audio_component_get_power(kdev);
@@ -929,6 +929,9 @@ static int i915_audio_component_bind(struct device *i915_kdev,
 	if (WARN_ON(acomp->base.ops || acomp->base.dev))
 		return -EEXIST;
 
+	if (WARN_ON(!device_link_add(hda_kdev, i915_kdev, DL_FLAG_STATELESS)))
+		return -ENOMEM;
+
 	drm_modeset_lock_all(&dev_priv->drm);
 	acomp->base.ops = &i915_audio_component_ops;
 	acomp->base.dev = i915_kdev;
@@ -952,6 +955,8 @@ static void i915_audio_component_unbind(struct device *i915_kdev,
 	acomp->base.dev = NULL;
 	dev_priv->audio_component = NULL;
 	drm_modeset_unlock_all(&dev_priv->drm);
+
+	device_link_remove(hda_kdev, i915_kdev);
 }
 
 static const struct component_ops i915_audio_component_bind_ops = {
@@ -979,7 +984,9 @@ void i915_audio_component_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	ret = component_add(dev_priv->drm.dev, &i915_audio_component_bind_ops);
+	ret = component_add_typed(dev_priv->drm.dev,
+				  &i915_audio_component_bind_ops,
+				  I915_COMPONENT_AUDIO);
 	if (ret < 0) {
 		DRM_ERROR("failed to add audio component (%d)\n", ret);
 		/* continue with reduced functionality */

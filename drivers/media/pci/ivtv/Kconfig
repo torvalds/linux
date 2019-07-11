@@ -70,8 +70,25 @@ config VIDEO_FB_IVTV
 	  This is used in the Hauppauge PVR-350 card. There is a driver
 	  homepage at <http://www.ivtvdriver.org>.
 
-	  In order to use this module, you will need to boot with PAT disabled
-	  on x86 systems, using the nopat kernel parameter.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called ivtvfb.
+
+config VIDEO_FB_IVTV_FORCE_PAT
+	bool "force cx23415 framebuffer init with x86 PAT enabled"
+	depends on VIDEO_FB_IVTV && X86_PAT
+	default n
+	---help---
+	  With PAT enabled, the cx23415 framebuffer driver does not
+	  utilize write-combined caching on the framebuffer memory.
+	  For this reason, the driver will by default disable itself
+	  when initializied on a kernel with PAT enabled (i.e. not
+	  using the nopat kernel parameter).
+
+	  The driver is not easily upgradable to the PAT-aware
+	  ioremap_wc() API since the firmware hides the address
+	  ranges that should be marked write-combined from the driver.
+
+	  With this setting enabled, the framebuffer will initialize on
+	  PAT-enabled systems but the framebuffer memory will be uncached.
+
+	  If unsure, say N.

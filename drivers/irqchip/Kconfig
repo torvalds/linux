@@ -129,6 +129,16 @@ config BRCMSTB_L2_IRQ
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
+config DAVINCI_AINTC
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
+config DAVINCI_CP_INTC
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
 config DW_APB_ICTL
 	bool
 	select GENERIC_IRQ_CHIP
@@ -149,6 +159,9 @@ config IMGPDC_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
+
+config MADERA_IRQ
+	tristate
 
 config IRQ_MIPS_CPU
 	bool
@@ -194,6 +207,10 @@ config JCORE_AIC
 	select IRQ_DOMAIN
 	help
 	  Support for the J-Core integrated AIC.
+
+config RDA_INTC
+	bool
+	select IRQ_DOMAIN
 
 config RENESAS_INTC_IRQPIN
 	bool
@@ -390,6 +407,23 @@ config CSKY_APB_INTC
 	  Say yes here to enable C-SKY APB interrupt controller driver used
 	  by C-SKY single core SOC system. It use mmio map apb-bus to visit
 	  the controller's register.
+
+config IMX_IRQSTEER
+	bool "i.MX IRQSTEER support"
+	depends on ARCH_MXC || COMPILE_TEST
+	default ARCH_MXC
+	select IRQ_DOMAIN
+	help
+	  Support for the i.MX IRQSTEER interrupt multiplexer/remapper.
+
+config LS1X_IRQ
+	bool "Loongson-1 Interrupt Controller"
+	depends on MACH_LOONGSON32
+	default y
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+	help
+	  Support for the Loongson-1 platform Interrupt Controller.
 
 endmenu
 

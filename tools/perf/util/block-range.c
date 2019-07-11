@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "block-range.h"
 #include "annotate.h"
+#include <assert.h>
+#include <stdlib.h>
 
 struct {
 	struct rb_root root;

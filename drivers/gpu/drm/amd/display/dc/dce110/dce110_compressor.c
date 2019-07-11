@@ -62,67 +62,37 @@ static const struct dce110_compressor_reg_offsets reg_offsets[] = {
 }
 };
 
-static const uint32_t dce11_one_lpt_channel_max_resolution = 2560 * 1600;
-
-enum fbc_idle_force {
-	/* Bit 0 - Display registers updated */
-	FBC_IDLE_FORCE_DISPLAY_REGISTER_UPDATE = 0x00000001,
-
-	/* Bit 2 - FBC_GRPH_COMP_EN register updated */
-	FBC_IDLE_FORCE_GRPH_COMP_EN = 0x00000002,
-	/* Bit 3 - FBC_SRC_SEL register updated */
-	FBC_IDLE_FORCE_SRC_SEL_CHANGE = 0x00000004,
-	/* Bit 4 - FBC_MIN_COMPRESSION register updated */
-	FBC_IDLE_FORCE_MIN_COMPRESSION_CHANGE = 0x00000008,
-	/* Bit 5 - FBC_ALPHA_COMP_EN register updated */
-	FBC_IDLE_FORCE_ALPHA_COMP_EN = 0x00000010,
-	/* Bit 6 - FBC_ZERO_ALPHA_CHUNK_SKIP_EN register updated */
-	FBC_IDLE_FORCE_ZERO_ALPHA_CHUNK_SKIP_EN = 0x00000020,
-	/* Bit 7 - FBC_FORCE_COPY_TO_COMP_BUF register updated */
-	FBC_IDLE_FORCE_FORCE_COPY_TO_COMP_BUF = 0x00000040,
-
-	/* Bit 24 - Memory write to region 0 defined by MC registers. */
-	FBC_IDLE_FORCE_MEMORY_WRITE_TO_REGION0 = 0x01000000,
-	/* Bit 25 - Memory write to region 1 defined by MC registers */
-	FBC_IDLE_FORCE_MEMORY_WRITE_TO_REGION1 = 0x02000000,
-	/* Bit 26 - Memory write to region 2 defined by MC registers */
-	FBC_IDLE_FORCE_MEMORY_WRITE_TO_REGION2 = 0x04000000,
-	/* Bit 27 - Memory write to region 3 defined by MC registers. */
-	FBC_IDLE_FORCE_MEMORY_WRITE_TO_REGION3 = 0x08000000,
-
-	/* Bit 28 - Memory write from any client other than MCIF */
-	FBC_IDLE_FORCE_MEMORY_WRITE_OTHER_THAN_MCIF = 0x10000000,
-	/* Bit 29 - CG statics screen signal is inactive */
-	FBC_IDLE_FORCE_CG_STATIC_SCREEN_IS_INACTIVE = 0x20000000,
-};
-
-
 static uint32_t align_to_chunks_number_per_line(uint32_t pixels)
 {
 	return 256 * ((pixels + 255) / 256);
 }
 
-static void reset_lb_on_vblank(struct dc_context *ctx)
+static void reset_lb_on_vblank(struct compressor *compressor, uint32_t crtc_inst)
 {
-	uint32_t value, frame_count;
+	uint32_t value;
+	uint32_t frame_count;
+	uint32_t status_pos;
 	uint32_t retry = 0;
-	uint32_t status_pos =
-			dm_read_reg(ctx, mmCRTC_STATUS_POSITION);
+	struct dce110_compressor *cp110 = TO_DCE110_COMPRESSOR(compressor);
+
+	cp110->offsets = reg_offsets[crtc_inst];
+
+	status_pos = dm_read_reg(compressor->ctx, DCP_REG(mmCRTC_STATUS_POSITION));
 
 
 	/* Only if CRTC is enabled and counter is moving we wait for one frame. */
-	if (status_pos != dm_read_reg(ctx, mmCRTC_STATUS_POSITION)) {
+	if (status_pos != dm_read_reg(compressor->ctx, DCP_REG(mmCRTC_STATUS_POSITION))) {
 		/* Resetting LB on VBlank */
-		value = dm_read_reg(ctx, mmLB_SYNC_RESET_SEL);
+		value = dm_read_reg(compressor->ctx, DCP_REG(mmLB_SYNC_RESET_SEL));
 		set_reg_field_value(value, 3, LB_SYNC_RESET_SEL, LB_SYNC_RESET_SEL);
 		set_reg_field_value(value, 1, LB_SYNC_RESET_SEL, LB_SYNC_RESET_SEL2);
-		dm_write_reg(ctx, mmLB_SYNC_RESET_SEL, value);
+		dm_write_reg(compressor->ctx, DCP_REG(mmLB_SYNC_RESET_SEL), value);
 
-		frame_count = dm_read_reg(ctx, mmCRTC_STATUS_FRAME_COUNT);
+		frame_count = dm_read_reg(compressor->ctx, DCP_REG(mmCRTC_STATUS_FRAME_COUNT));
 
 
 		for (retry = 10000; retry > 0; retry--) {
-			if (frame_count != dm_read_reg(ctx, mmCRTC_STATUS_FRAME_COUNT))
+			if (frame_count != dm_read_reg(compressor->ctx, DCP_REG(mmCRTC_STATUS_FRAME_COUNT)))
 				break;
 			udelay(10);
 		}
@@ -130,13 +100,11 @@ static void reset_lb_on_vblank(struct dc_context *ctx)
 			dm_error("Frame count did not increase for 100ms.\n");
 
 		/* Resetting LB on VBlank */
-		value = dm_read_reg(ctx, mmLB_SYNC_RESET_SEL);
+		value = dm_read_reg(compressor->ctx, DCP_REG(mmLB_SYNC_RESET_SEL));
 		set_reg_field_value(value, 2, LB_SYNC_RESET_SEL, LB_SYNC_RESET_SEL);
 		set_reg_field_value(value, 0, LB_SYNC_RESET_SEL, LB_SYNC_RESET_SEL2);
-		dm_write_reg(ctx, mmLB_SYNC_RESET_SEL, value);
-
+		dm_write_reg(compressor->ctx, DCP_REG(mmLB_SYNC_RESET_SEL), value);
 	}
-
 }
 
 static void wait_for_fbc_state_changed(
@@ -226,10 +194,10 @@ void dce110_compressor_enable_fbc(
 		uint32_t addr;
 		uint32_t value, misc_value;
 
-
 		addr = mmFBC_CNTL;
 		value = dm_read_reg(compressor->ctx, addr);
 		set_reg_field_value(value, 1, FBC_CNTL, FBC_GRPH_COMP_EN);
+		/* params->inst is valid HW CRTC instance start from 0 */
 		set_reg_field_value(
 			value,
 			params->inst,
@@ -238,8 +206,10 @@ void dce110_compressor_enable_fbc(
 
 		/* Keep track of enum controller_id FBC is attached to */
 		compressor->is_enabled = true;
-		compressor->attached_inst = params->inst;
-		cp110->offsets = reg_offsets[params->inst];
+		/* attached_inst is SW CRTC instance start from 1
+		 * 0 = CONTROLLER_ID_UNDEFINED means not attached crtc
+		 */
+		compressor->attached_inst = params->inst + CONTROLLER_ID_D0;
 
 		/* Toggle it as there is bug in HW */
 		set_reg_field_value(value, 0, FBC_CNTL, FBC_GRPH_COMP_EN);
@@ -268,9 +238,10 @@ void dce110_compressor_enable_fbc(
 void dce110_compressor_disable_fbc(struct compressor *compressor)
 {
 	struct dce110_compressor *cp110 = TO_DCE110_COMPRESSOR(compressor);
+	uint32_t crtc_inst = 0;
 
 	if (compressor->options.bits.FBC_SUPPORT) {
-		if (dce110_compressor_is_fbc_enabled_in_hw(compressor, NULL)) {
+		if (dce110_compressor_is_fbc_enabled_in_hw(compressor, &crtc_inst)) {
 			uint32_t reg_data;
 			/* Turn off compression */
 			reg_data = dm_read_reg(compressor->ctx, mmFBC_CNTL);
@@ -284,8 +255,10 @@ void dce110_compressor_disable_fbc(struct compressor *compressor)
 			wait_for_fbc_state_changed(cp110, false);
 		}
 
-		/* Sync line buffer  - dce100/110 only*/
-		reset_lb_on_vblank(compressor->ctx);
+		/* Sync line buffer which fbc was attached to dce100/110 only */
+		if (crtc_inst > CONTROLLER_ID_UNDEFINED && crtc_inst < CONTROLLER_ID_D3)
+			reset_lb_on_vblank(compressor,
+					crtc_inst - CONTROLLER_ID_D0);
 	}
 }
 
@@ -327,6 +300,8 @@ void dce110_compressor_program_compressed_surface_address_and_pitch(
 	uint32_t fbc_pitch = 0;
 	uint32_t compressed_surf_address_low_part =
 		compressor->compr_surface_address.addr.low_part;
+
+	cp110->offsets = reg_offsets[params->inst];
 
 	/* Clear content first. */
 	dm_write_reg(
@@ -410,13 +385,7 @@ void dce110_compressor_set_fbc_invalidation_triggers(
 	value = dm_read_reg(compressor->ctx, addr);
 	set_reg_field_value(
 		value,
-		fbc_trigger |
-		FBC_IDLE_FORCE_GRPH_COMP_EN |
-		FBC_IDLE_FORCE_SRC_SEL_CHANGE |
-		FBC_IDLE_FORCE_MIN_COMPRESSION_CHANGE |
-		FBC_IDLE_FORCE_ALPHA_COMP_EN |
-		FBC_IDLE_FORCE_ZERO_ALPHA_CHUNK_SKIP_EN |
-		FBC_IDLE_FORCE_FORCE_COPY_TO_COMP_BUF,
+		fbc_trigger,
 		FBC_IDLE_FORCE_CLEAR_MASK,
 		FBC_IDLE_FORCE_CLEAR_MASK);
 	dm_write_reg(compressor->ctx, addr, value);
@@ -549,7 +518,7 @@ void dce110_compressor_construct(struct dce110_compressor *compressor,
 	compressor->base.channel_interleave_size = 0;
 	compressor->base.dram_channels_num = 0;
 	compressor->base.lpt_channels_num = 0;
-	compressor->base.attached_inst = 0;
+	compressor->base.attached_inst = CONTROLLER_ID_UNDEFINED;
 	compressor->base.is_enabled = false;
 	compressor->base.funcs = &dce110_compressor_funcs;
 

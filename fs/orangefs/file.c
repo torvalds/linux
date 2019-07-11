@@ -398,8 +398,6 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter
 	loff_t pos = iocb->ki_pos;
 	ssize_t rc = 0;
 
-	BUG_ON(iocb->private);
-
 	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_read_iter\n");
 
 	orangefs_stats.reads++;
@@ -415,8 +413,6 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 	struct file *file = iocb->ki_filp;
 	loff_t pos;
 	ssize_t rc;
-
-	BUG_ON(iocb->private);
 
 	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_write_iter\n");
 

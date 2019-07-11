@@ -79,6 +79,7 @@ Code  Seq#(hex)	Include File		Comments
 0x1b	all	InfiniBand Subsystem	<http://infiniband.sourceforge.net/>
 0x20	all	drivers/cdrom/cm206.h
 0x22	all	scsi/sg.h
+'!'	00-1F	uapi/linux/seccomp.h
 '#'	00-3F	IEEE 1394 Subsystem	Block for the entire subsystem
 '$'	00-0F	linux/perf_counter.h, linux/perf_event.h
 '%'	00-0F	include/uapi/linux/stm.h

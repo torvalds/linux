@@ -779,7 +779,7 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 	chip->legacy.read_byte = fsl_elbc_read_byte;
 	chip->legacy.write_buf = fsl_elbc_write_buf;
 	chip->legacy.read_buf = fsl_elbc_read_buf;
-	chip->select_chip = fsl_elbc_select_chip;
+	chip->legacy.select_chip = fsl_elbc_select_chip;
 	chip->legacy.cmdfunc = fsl_elbc_cmdfunc;
 	chip->legacy.waitfunc = fsl_elbc_wait;
 	chip->legacy.set_features = nand_get_set_features_notsupp;

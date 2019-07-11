@@ -35,6 +35,7 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #include <limits.h>
 #include <stddef.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 #include <sys/types.h>
 
 /* Not standard, but glibc defines it */
@@ -52,7 +53,9 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 
 #define __init
 #define __exit
-#define __attribute_const__ __attribute__((const))
+#ifndef __attribute_const__
+# define __attribute_const__ __attribute__((const))
+#endif
 #define noinline __attribute__((noinline))
 
 #define preempt_enable()
@@ -67,6 +70,9 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #define MODULE_DESCRIPTION(desc)
 #define subsys_initcall(x)
 #define module_exit(x)
+
+#define IS_ENABLED(x) (x)
+#define CONFIG_RAID6_PQ_BENCHMARK 1
 #endif /* __KERNEL__ */
 
 /* Routine choices */

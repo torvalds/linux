@@ -1,0 +1,23 @@
+Freescale i.MX7ULP Power Management Components
+----------------------------------------------
+
+The Multi-System Mode Controller (MSMC) is responsible for sequencing
+the MCU into and out of all stop and run power modes. Specifically, it
+monitors events to trigger transitions between power modes while
+controlling the power, clocks, and memories of the MCU to achieve the
+power consumption and functionality of that mode.
+
+The WFI or WFE instruction is used to invoke a Sleep, Deep Sleep or
+Standby modes for either Cortex family. Run, Wait, and Stop are the
+common terms used for the primary operating modes of Kinetis
+microcontrollers.
+
+Required properties:
+- compatible:	Should be "fsl,imx7ulp-smc1".
+- reg:		Specifies base physical address and size of the register sets.
+
+Example:
+smc1: smc1@40410000 {
+	compatible = "fsl,imx7ulp-smc1";
+	reg = <0x40410000 0x1000>;
+};

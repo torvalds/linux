@@ -53,14 +53,10 @@ struct sock_reuseport;
 #define BPF_REG_D	BPF_REG_8	/* data, callee-saved */
 #define BPF_REG_H	BPF_REG_9	/* hlen, callee-saved */
 
-/* Kernel hidden auxiliary/helper register for hardening step.
- * Only used by eBPF JITs. It's nothing more than a temporary
- * register that JITs use internally, only that here it's part
- * of eBPF instructions that have been rewritten for blinding
- * constants. See JIT pre-step in bpf_jit_blind_constants().
- */
+/* Kernel hidden auxiliary/helper register. */
 #define BPF_REG_AX		MAX_BPF_REG
-#define MAX_BPF_JIT_REG		(MAX_BPF_REG + 1)
+#define MAX_BPF_EXT_REG		(MAX_BPF_REG + 1)
+#define MAX_BPF_JIT_REG		MAX_BPF_EXT_REG
 
 /* unused opcode to mark special call to bpf_tail_call() helper */
 #define BPF_TAIL_CALL	0xf0
@@ -276,6 +272,26 @@ struct sock_reuseport;
 #define BPF_JMP_IMM(OP, DST, IMM, OFF)				\
 	((struct bpf_insn) {					\
 		.code  = BPF_JMP | BPF_OP(OP) | BPF_K,		\
+		.dst_reg = DST,					\
+		.src_reg = 0,					\
+		.off   = OFF,					\
+		.imm   = IMM })
+
+/* Like BPF_JMP_REG, but with 32-bit wide operands for comparison. */
+
+#define BPF_JMP32_REG(OP, DST, SRC, OFF)			\
+	((struct bpf_insn) {					\
+		.code  = BPF_JMP32 | BPF_OP(OP) | BPF_X,	\
+		.dst_reg = DST,					\
+		.src_reg = SRC,					\
+		.off   = OFF,					\
+		.imm   = 0 })
+
+/* Like BPF_JMP_IMM, but with 32-bit wide operands for comparison. */
+
+#define BPF_JMP32_IMM(OP, DST, IMM, OFF)			\
+	((struct bpf_insn) {					\
+		.code  = BPF_JMP32 | BPF_OP(OP) | BPF_K,	\
 		.dst_reg = DST,					\
 		.src_reg = 0,					\
 		.off   = OFF,					\
@@ -517,7 +533,24 @@ struct sk_filter {
 	struct bpf_prog	*prog;
 };
 
-#define BPF_PROG_RUN(filter, ctx)  (*(filter)->bpf_func)(ctx, (filter)->insnsi)
+DECLARE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
+
+#define BPF_PROG_RUN(prog, ctx)	({				\
+	u32 ret;						\
+	cant_sleep();						\
+	if (static_branch_unlikely(&bpf_stats_enabled_key)) {	\
+		struct bpf_prog_stats *stats;			\
+		u64 start = sched_clock();			\
+		ret = (*(prog)->bpf_func)(ctx, (prog)->insnsi);	\
+		stats = this_cpu_ptr(prog->aux->stats);		\
+		u64_stats_update_begin(&stats->syncp);		\
+		stats->cnt++;					\
+		stats->nsecs += sched_clock() - start;		\
+		u64_stats_update_end(&stats->syncp);		\
+	} else {						\
+		ret = (*(prog)->bpf_func)(ctx, (prog)->insnsi);	\
+	}							\
+	ret; })
 
 #define BPF_SKB_CB_LEN QDISC_CB_PRIV_LEN
 
@@ -595,8 +628,8 @@ static inline u8 *bpf_skb_cb(struct sk_buff *skb)
 	return qdisc_skb_cb(skb)->data;
 }
 
-static inline u32 bpf_prog_run_save_cb(const struct bpf_prog *prog,
-				       struct sk_buff *skb)
+static inline u32 __bpf_prog_run_save_cb(const struct bpf_prog *prog,
+					 struct sk_buff *skb)
 {
 	u8 *cb_data = bpf_skb_cb(skb);
 	u8 cb_saved[BPF_SKB_CB_LEN];
@@ -615,15 +648,30 @@ static inline u32 bpf_prog_run_save_cb(const struct bpf_prog *prog,
 	return res;
 }
 
+static inline u32 bpf_prog_run_save_cb(const struct bpf_prog *prog,
+				       struct sk_buff *skb)
+{
+	u32 res;
+
+	preempt_disable();
+	res = __bpf_prog_run_save_cb(prog, skb);
+	preempt_enable();
+	return res;
+}
+
 static inline u32 bpf_prog_run_clear_cb(const struct bpf_prog *prog,
 					struct sk_buff *skb)
 {
 	u8 *cb_data = bpf_skb_cb(skb);
+	u32 res;
 
 	if (unlikely(prog->cb_access))
 		memset(cb_data, 0, BPF_SKB_CB_LEN);
 
-	return BPF_PROG_RUN(prog, skb);
+	preempt_disable();
+	res = BPF_PROG_RUN(prog, skb);
+	preempt_enable();
+	return res;
 }
 
 static __always_inline u32 bpf_prog_run_xdp(const struct bpf_prog *prog,
@@ -675,24 +723,10 @@ static inline u32 bpf_ctx_off_adjust_machine(u32 size)
 	return size;
 }
 
-static inline bool bpf_ctx_narrow_align_ok(u32 off, u32 size_access,
-					   u32 size_default)
-{
-	size_default = bpf_ctx_off_adjust_machine(size_default);
-	size_access  = bpf_ctx_off_adjust_machine(size_access);
-
-#ifdef __LITTLE_ENDIAN
-	return (off & (size_default - 1)) == 0;
-#else
-	return (off & (size_default - 1)) + size_access == size_default;
-#endif
-}
-
 static inline bool
 bpf_ctx_narrow_access_ok(u32 off, u32 size, u32 size_default)
 {
-	return bpf_ctx_narrow_align_ok(off, size, size_default) &&
-	       size <= size_default && (size & (size - 1)) == 0;
+	return size <= size_default && (size & (size - 1)) == 0;
 }
 
 #define bpf_classic_proglen(fprog) (fprog->len * sizeof(fprog->filter[0]))
@@ -739,7 +773,15 @@ void bpf_prog_free(struct bpf_prog *fp);
 
 bool bpf_opcode_in_insntable(u8 code);
 
+void bpf_prog_free_linfo(struct bpf_prog *prog);
+void bpf_prog_fill_jited_linfo(struct bpf_prog *prog,
+			       const u32 *insn_to_jit_off);
+int bpf_prog_alloc_jited_linfo(struct bpf_prog *prog);
+void bpf_prog_free_jited_linfo(struct bpf_prog *prog);
+void bpf_prog_free_unused_jited_linfo(struct bpf_prog *prog);
+
 struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags);
+struct bpf_prog *bpf_prog_alloc_no_stats(unsigned int size, gfp_t gfp_extra_flags);
 struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 				  gfp_t gfp_extra_flags);
 void __bpf_prog_free(struct bpf_prog *fp);
@@ -789,6 +831,7 @@ static inline bool bpf_dump_raw_ok(void)
 
 struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 				       const struct bpf_insn *patch, u32 len);
+int bpf_remove_insns(struct bpf_prog *prog, u32 off, u32 cnt);
 
 void bpf_clear_redirect_map(struct bpf_map *map);
 
@@ -870,7 +913,9 @@ bpf_jit_binary_alloc(unsigned int proglen, u8 **image_ptr,
 		     unsigned int alignment,
 		     bpf_jit_fill_hole_t bpf_fill_ill_insns);
 void bpf_jit_binary_free(struct bpf_binary_header *hdr);
-
+u64 bpf_jit_alloc_exec_limit(void);
+void *bpf_jit_alloc_exec(unsigned long size);
+void bpf_jit_free_exec(void *addr);
 void bpf_jit_free(struct bpf_prog *fp);
 
 int bpf_jit_get_func_addr(const struct bpf_prog *prog,
@@ -962,6 +1007,7 @@ bpf_address_lookup(unsigned long addr, unsigned long *size,
 
 void bpf_prog_kallsyms_add(struct bpf_prog *fp);
 void bpf_prog_kallsyms_del(struct bpf_prog *fp);
+void bpf_get_prog_name(const struct bpf_prog *prog, char *sym);
 
 #else /* CONFIG_BPF_JIT */
 
@@ -1017,6 +1063,12 @@ static inline void bpf_prog_kallsyms_add(struct bpf_prog *fp)
 static inline void bpf_prog_kallsyms_del(struct bpf_prog *fp)
 {
 }
+
+static inline void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
+{
+	sym[0] = '\0';
+}
+
 #endif /* CONFIG_BPF_JIT */
 
 void bpf_prog_kallsyms_del_subprogs(struct bpf_prog *fp);

@@ -56,9 +56,6 @@
 extern struct list_head g_tiqn_list;
 extern spinlock_t tiqn_lock;
 
-/*
- *	Called with cmd->r2t_lock held.
- */
 int iscsit_add_r2t_to_list(
 	struct iscsi_cmd *cmd,
 	u32 offset,
@@ -67,6 +64,8 @@ int iscsit_add_r2t_to_list(
 	u32 r2t_sn)
 {
 	struct iscsi_r2t *r2t;
+
+	lockdep_assert_held(&cmd->r2t_lock);
 
 	r2t = kmem_cache_zalloc(lio_r2t_cache, GFP_ATOMIC);
 	if (!r2t) {
@@ -128,11 +127,10 @@ struct iscsi_r2t *iscsit_get_r2t_from_list(struct iscsi_cmd *cmd)
 	return NULL;
 }
 
-/*
- *	Called with cmd->r2t_lock held.
- */
 void iscsit_free_r2t(struct iscsi_r2t *r2t, struct iscsi_cmd *cmd)
 {
+	lockdep_assert_held(&cmd->r2t_lock);
+
 	list_del(&r2t->r2t_list);
 	kmem_cache_free(lio_r2t_cache, r2t);
 }
@@ -150,24 +148,26 @@ void iscsit_free_r2ts_from_list(struct iscsi_cmd *cmd)
 static int iscsit_wait_for_tag(struct se_session *se_sess, int state, int *cpup)
 {
 	int tag = -1;
-	DEFINE_WAIT(wait);
+	DEFINE_SBQ_WAIT(wait);
 	struct sbq_wait_state *ws;
+	struct sbitmap_queue *sbq;
 
 	if (state == TASK_RUNNING)
 		return tag;
 
-	ws = &se_sess->sess_tag_pool.ws[0];
+	sbq = &se_sess->sess_tag_pool;
+	ws = &sbq->ws[0];
 	for (;;) {
-		prepare_to_wait_exclusive(&ws->wait, &wait, state);
+		sbitmap_prepare_to_wait(sbq, ws, &wait, state);
 		if (signal_pending_state(state, current))
 			break;
-		tag = sbitmap_queue_get(&se_sess->sess_tag_pool, cpup);
+		tag = sbitmap_queue_get(sbq, cpup);
 		if (tag >= 0)
 			break;
 		schedule();
 	}
 
-	finish_wait(&ws->wait, &wait);
+	sbitmap_finish_wait(sbq, ws, &wait);
 	return tag;
 }
 
@@ -760,8 +760,8 @@ void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool check_queues)
 		iscsit_remove_cmd_from_response_queue(cmd, conn);
 	}
 
-	if (conn && conn->conn_transport->iscsit_release_cmd)
-		conn->conn_transport->iscsit_release_cmd(conn, cmd);
+	if (conn && conn->conn_transport->iscsit_unmap_cmd)
+		conn->conn_transport->iscsit_unmap_cmd(conn, cmd);
 }
 
 void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
@@ -954,9 +954,6 @@ void iscsit_mod_nopin_response_timer(struct iscsi_conn *conn)
 	spin_unlock_bh(&conn->nopin_timer_lock);
 }
 
-/*
- *	Called with conn->nopin_timer_lock held.
- */
 void iscsit_start_nopin_response_timer(struct iscsi_conn *conn)
 {
 	struct iscsi_session *sess = conn->sess;
@@ -1014,13 +1011,13 @@ void iscsit_handle_nopin_timeout(struct timer_list *t)
 	iscsit_dec_conn_usage_count(conn);
 }
 
-/*
- * Called with conn->nopin_timer_lock held.
- */
 void __iscsit_start_nopin_timer(struct iscsi_conn *conn)
 {
 	struct iscsi_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
+
+	lockdep_assert_held(&conn->nopin_timer_lock);
+
 	/*
 	* NOPIN timeout is disabled.
 	 */

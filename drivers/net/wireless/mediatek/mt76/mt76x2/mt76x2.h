@@ -31,14 +31,8 @@
 #define MT7662_ROM_PATCH	"mt7662_rom_patch.bin"
 #define MT7662_EEPROM_SIZE	512
 
-#define MT7662U_FIRMWARE	"mediatek/mt7662u.bin"
-#define MT7662U_ROM_PATCH	"mediatek/mt7662u_rom_patch.bin"
-
-#define MT_CALIBRATE_INTERVAL	HZ
-
 #include "../mt76x02.h"
 #include "mac.h"
-#include "dfs.h"
 
 static inline bool is_mt7612(struct mt76x02_dev *dev)
 {
@@ -55,17 +49,12 @@ static inline bool mt76x2_channel_silent(struct mt76x02_dev *dev)
 
 extern const struct ieee80211_ops mt76x2_ops;
 
-struct mt76x02_dev *mt76x2_alloc_device(struct device *pdev);
 int mt76x2_register_device(struct mt76x02_dev *dev);
-void mt76x2_init_debugfs(struct mt76x02_dev *dev);
-void mt76x2_init_device(struct mt76x02_dev *dev);
 
 void mt76x2_phy_power_on(struct mt76x02_dev *dev);
-int mt76x2_init_hardware(struct mt76x02_dev *dev);
 void mt76x2_stop_hardware(struct mt76x02_dev *dev);
 int mt76x2_eeprom_init(struct mt76x02_dev *dev);
 int mt76x2_apply_calibration_data(struct mt76x02_dev *dev, int channel);
-void mt76x2_set_tx_ackto(struct mt76x02_dev *dev);
 
 void mt76x2_phy_set_antenna(struct mt76x02_dev *dev);
 int mt76x2_phy_start(struct mt76x02_dev *dev);
@@ -82,24 +71,18 @@ int mt76x2_mcu_load_cr(struct mt76x02_dev *dev, u8 type, u8 temp_level,
 
 void mt76x2_cleanup(struct mt76x02_dev *dev);
 
-void mt76x2_mac_set_tx_protection(struct mt76x02_dev *dev, u32 val);
-
-void mt76x2_pre_tbtt_tasklet(unsigned long arg);
-
-void mt76x2_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
-
-void mt76x2_update_channel(struct mt76_dev *mdev);
-
+int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard);
 void mt76x2_reset_wlan(struct mt76x02_dev *dev, bool enable);
 void mt76x2_init_txpower(struct mt76x02_dev *dev,
 			 struct ieee80211_supported_band *sband);
 void mt76_write_mac_initvals(struct mt76x02_dev *dev);
 
-void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev, bool wait);
+void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev);
 void mt76x2_phy_set_txpower_regs(struct mt76x02_dev *dev,
 				 enum nl80211_band band);
 void mt76x2_configure_tx_delay(struct mt76x02_dev *dev,
 			       enum nl80211_band band, u8 bw);
 void mt76x2_apply_gain_adj(struct mt76x02_dev *dev);
+void mt76x2_phy_update_channel_gain(struct mt76x02_dev *dev);
 
 #endif

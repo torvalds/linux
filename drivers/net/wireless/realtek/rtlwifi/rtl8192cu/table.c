@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #include "table.h"
 
@@ -1269,7 +1247,7 @@ u32 RTL8192CUAGCTAB_1TARRAY[RTL8192CUAGCTAB_1TARRAYLENGTH] = {
 	0xc78, 0x621f001e,
 };
 
-u32 RTL8192CUPHY_REG_1T_HPArray[RTL8192CUPHY_REG_1T_HPArrayLength] = {
+u32 RTL8192CUPHY_REG_1T_HPARRAY[RTL8192CUPHY_REG_1T_HPARRAYLENGTH] = {
 	0x024, 0x0011800f,
 	0x028, 0x00ffdb83,
 	0x040, 0x000c0004,
@@ -1461,7 +1439,7 @@ u32 RTL8192CUPHY_REG_1T_HPArray[RTL8192CUPHY_REG_1T_HPArrayLength] = {
 	0xf00, 0x00000300,
 };
 
-u32 RTL8192CUPHY_REG_Array_PG_HP[RTL8192CUPHY_REG_Array_PG_HPLength] = {
+u32 RTL8192CUPHY_REG_ARRAY_PG_HP[RTL8192CUPHY_REG_ARRAY_PG_HPLENGTH] = {
 	0xe00, 0xffffffff, 0x06080808,
 	0xe04, 0xffffffff, 0x00040406,
 	0xe08, 0x0000ff00, 0x00000000,
@@ -1576,7 +1554,7 @@ u32 RTL8192CUPHY_REG_Array_PG_HP[RTL8192CUPHY_REG_Array_PG_HPLength] = {
 	0x868, 0xffffffff, 0x00000000,
 };
 
-u32 RTL8192CURadioA_1T_HPArray[RTL8192CURadioA_1T_HPArrayLength] = {
+u32 RTL8192CURADIOA_1T_HPARRAY[RTL8192CURADIOA_1T_HPARRAYLENGTH] = {
 	0x000, 0x00030159,
 	0x001, 0x00031284,
 	0x002, 0x00098000,
@@ -1720,7 +1698,7 @@ u32 RTL8192CURadioA_1T_HPArray[RTL8192CURadioA_1T_HPArrayLength] = {
 	0x000, 0x00030159,
 };
 
-u32 Rtl8192CUAGCTAB_1T_HPArray[RTL8192CUAGCTAB_1T_HPArrayLength] = {
+u32 RTL8192CUAGCTAB_1T_HPARRAY[RTL8192CUAGCTAB_1T_HPARRAYLENGTH] = {
 	0xc78, 0x7b000001,
 	0xc78, 0x7b010001,
 	0xc78, 0x7b020001,

@@ -53,7 +53,8 @@ the global max polling interval then the polling interval can be increased in
 the hope that next time during the longer polling interval the wake up source
 will be received while the host is polling and the latency benefits will be
 received. The polling interval is grown in the function grow_halt_poll_ns() and
-is multiplied by the module parameter halt_poll_ns_grow.
+is multiplied by the module parameters halt_poll_ns_grow and
+halt_poll_ns_grow_start.
 
 In the event that the total block time was greater than the global max polling
 interval then the host will never poll for long enough (limited by the global
@@ -80,22 +81,30 @@ shrunk. These variables are defined in include/linux/kvm_host.h and as module
 parameters in virt/kvm/kvm_main.c, or arch/powerpc/kvm/book3s_hv.c in the
 powerpc kvm-hv case.
 
-Module Parameter    |	     Description	      |	     Default Value
+Module Parameter	|   Description		    |	     Default Value
 --------------------------------------------------------------------------------
-halt_poll_ns	    | The global max polling interval | KVM_HALT_POLL_NS_DEFAULT
-		    | which defines the ceiling value |
-		    | of the polling interval for     | (per arch value)
-		    | each vcpu. 		      |
+halt_poll_ns		| The global max polling    | KVM_HALT_POLL_NS_DEFAULT
+			| interval which defines    |
+			| the ceiling value of the  |
+			| polling interval for      | (per arch value)
+			| each vcpu.		    |
 --------------------------------------------------------------------------------
-halt_poll_ns_grow   | The value by which the halt     |	2
-		    | polling interval is multiplied  |
-		    | in the grow_halt_poll_ns()      |
-		    | function.			      |
+halt_poll_ns_grow	| The value by which the    | 2
+			| halt polling interval is  |
+			| multiplied in the	    |
+			| grow_halt_poll_ns()	    |
+			| function.		    |
 --------------------------------------------------------------------------------
-halt_poll_ns_shrink | The value by which the halt     |	0
-		    | polling interval is divided in  |
-		    | the shrink_halt_poll_ns()	      |
-		    | function.			      |
+halt_poll_ns_grow_start | The initial value to grow | 10000
+			| to from zero in the	    |
+			| grow_halt_poll_ns()	    |
+			| function.		    |
+--------------------------------------------------------------------------------
+halt_poll_ns_shrink	| The value by which the    | 0
+			| halt polling interval is  |
+			| divided in the	    |
+			| shrink_halt_poll_ns()	    |
+			| function.		    |
 --------------------------------------------------------------------------------
 
 These module parameters can be set from the debugfs files in:

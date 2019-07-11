@@ -17,7 +17,7 @@
 			<0x0 0x2c000000 0x0 0x2000>,
 			<0x0 0x2c010000 0x0 0x2000>,
 			<0x0 0x2c02f000 0x0 0x2000>;
-		interrupts = <1 9 4>;
+		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 
 		its: its@2f020000 {
 			compatible = "arm,gic-v3-its";

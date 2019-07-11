@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Hardkernel Odroid XU3/XU4/HC1 boards core device tree source
+ * Hardkernel Odroid XU3/XU3-Lite/XU4/HC1 boards core device tree source
  *
  * Copyright (c) 2017 Marek Szyprowski
  * Copyright (c) 2013-2017 Samsung Electronics Co., Ltd.
@@ -34,6 +34,11 @@
 			clock-frequency = <24000000>;
 		};
 	};
+};
+
+&adc {
+	vdd-supply = <&ldo4_reg>;
+	status = "okay";
 };
 
 &bus_wcore {
@@ -141,6 +146,7 @@
 		pinctrl-0 = <&s2mps11_irq>;
 
 		s2mps11_osc: clocks {
+			compatible = "samsung,s2mps11-clk";
 			#clock-cells = <1>;
 			clock-output-names = "s2mps11_ap",
 					"s2mps11_cp", "s2mps11_bt";
@@ -231,7 +237,7 @@
 
 			ldo13_reg: LDO13 {
 				regulator-name = "vddq_mmc2";
-				regulator-min-microvolt = <2800000>;
+				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <2800000>;
 			};
 
@@ -467,7 +473,7 @@
 			buck8_reg: BUCK8 {
 				regulator-name = "vdd_1.8v_ldo";
 				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1500000>;
+				regulator-max-microvolt = <2000000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
@@ -498,11 +504,15 @@
 	samsung,dw-mshc-sdr-timing = <0 4>;
 	samsung,dw-mshc-ddr-timing = <0 2>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus1 &sd2_bus4>;
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_wp &sd2_bus1 &sd2_bus4>;
 	bus-width = <4>;
 	cap-sd-highspeed;
+	max-frequency = <200000000>;
 	vmmc-supply = <&ldo19_reg>;
 	vqmmc-supply = <&ldo13_reg>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	sd-uhs-ddr50;
 };
 
 &nocp_mem0_0 {

@@ -11,6 +11,8 @@ tm-signal-context-chk-fpu
 tm-signal-context-chk-gpr
 tm-signal-context-chk-vmx
 tm-signal-context-chk-vsx
+tm-signal-context-force-tm
+tm-signal-sigreturn-nt
 tm-vmx-unavail
 tm-unavailable
 tm-trap

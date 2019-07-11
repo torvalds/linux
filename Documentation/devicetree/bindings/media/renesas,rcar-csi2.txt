@@ -2,16 +2,19 @@ Renesas R-Car MIPI CSI-2
 ------------------------
 
 The R-Car CSI-2 receiver device provides MIPI CSI-2 capabilities for the
-Renesas R-Car family of devices. It is used in conjunction with the
+Renesas R-Car and RZ/G2 family of devices. It is used in conjunction with the
 R-Car VIN module, which provides the video capture capabilities.
 
 Mandatory properties
 --------------------
  - compatible: Must be one or more of the following
+   - "renesas,r8a774c0-csi2" for the R8A774C0 device.
    - "renesas,r8a7795-csi2" for the R8A7795 device.
    - "renesas,r8a7796-csi2" for the R8A7796 device.
    - "renesas,r8a77965-csi2" for the R8A77965 device.
    - "renesas,r8a77970-csi2" for the R8A77970 device.
+   - "renesas,r8a77980-csi2" for the R8A77980 device.
+   - "renesas,r8a77990-csi2" for the R8A77990 device.
 
  - reg: the register base and size for the device registers
  - interrupts: the interrupt for the device

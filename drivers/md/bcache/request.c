@@ -311,11 +311,11 @@ err:
  * data is written it calls bch_journal, and after the keys have been added to
  * the next journal write they're inserted into the btree.
  *
- * It inserts the data in s->cache_bio; bi_sector is used for the key offset,
+ * It inserts the data in op->bio; bi_sector is used for the key offset,
  * and op->inode is used for the key inode.
  *
- * If s->bypass is true, instead of inserting the data it invalidates the
- * region of the cache represented by s->cache_bio and op->inode.
+ * If op->bypass is true, instead of inserting the data it invalidates the
+ * region of the cache represented by op->bio and op->inode.
  */
 void bch_data_insert(struct closure *cl)
 {
@@ -392,10 +392,11 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 
 	/*
 	 * Flag for bypass if the IO is for read-ahead or background,
-	 * unless the read-ahead request is for metadata (eg, for gfs2).
+	 * unless the read-ahead request is for metadata
+	 * (eg, for gfs2 or xfs).
 	 */
 	if (bio->bi_opf & (REQ_RAHEAD|REQ_BACKGROUND) &&
-	    !(bio->bi_opf & REQ_PRIO))
+	    !(bio->bi_opf & (REQ_META|REQ_PRIO)))
 		goto skip;
 
 	if (bio->bi_iter.bi_sector & (c->sb.block_size - 1) ||
@@ -877,7 +878,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	}
 
 	if (!(bio->bi_opf & REQ_RAHEAD) &&
-	    !(bio->bi_opf & REQ_PRIO) &&
+	    !(bio->bi_opf & (REQ_META|REQ_PRIO)) &&
 	    s->iop.c->gc_stats.in_use < CUTOFF_CACHE_READA)
 		reada = min_t(sector_t, dc->readahead >> 9,
 			      get_capacity(bio->bi_disk) - bio_end_sector(bio));

@@ -18,6 +18,7 @@
 
 / {
 	model = "Moxa UC-8410A";
+	compatible = "fsl,ls1021a-moxa-uc-8410a", "fsl,ls1021a";
 
 	aliases {
 		enet0_rgmii_phy = &rgmii_phy0;
@@ -203,9 +204,6 @@
 };
 
 &qspi {
-	bus-num = <0>;
-	fsl,spi-num-chipselects = <2>;
-	fsl,spi-flash-chipselects = <0>;
 	fsl,qspi-has-second-chip;
 	status = "okay";
 
@@ -214,6 +212,8 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <20000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
 		reg = <0>;
 
 		partitions@0 {

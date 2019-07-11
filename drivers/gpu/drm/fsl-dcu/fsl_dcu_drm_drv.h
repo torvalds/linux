@@ -191,7 +191,6 @@ struct fsl_dcu_drm_device {
 	/*protects hardware register*/
 	spinlock_t irq_lock;
 	struct drm_device *drm;
-	struct drm_fbdev_cma *fbdev;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
 	struct fsl_dcu_drm_connector connector;

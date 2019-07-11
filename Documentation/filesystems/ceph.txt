@@ -22,9 +22,7 @@ In contrast to cluster filesystems like GFS, OCFS2, and GPFS that rely
 on symmetric access by all clients to shared block devices, Ceph
 separates data and metadata management into independent server
 clusters, similar to Lustre.  Unlike Lustre, however, metadata and
-storage nodes run entirely as user space daemons.  Storage nodes
-utilize btrfs to store data objects, leveraging its advanced features
-(checksumming, metadata replication, etc.).  File data is striped
+storage nodes run entirely as user space daemons.  File data is striped
 across storage nodes in large chunks to distribute workload and
 facilitate high throughputs.  When storage nodes fail, data is
 re-replicated in a distributed fashion by the storage nodes themselves
@@ -118,6 +116,10 @@ Mount Options
 	of a non-responsive Ceph file system.  The default is 30
 	seconds.
 
+  caps_max=X
+	Specify the maximum number of caps to hold. Unused caps are released
+	when number of caps exceeds the limit. The default is 0 (no limit)
+
   rbytes
 	When stat() is called on a directory, set st_size to 'rbytes',
 	the summation of file sizes over all files nested beneath that
@@ -160,11 +162,11 @@ More Information
 ================
 
 For more information on Ceph, see the home page at
-	http://ceph.newdream.net/
+	https://ceph.com/
 
 The Linux kernel client source tree is available at
-	git://ceph.newdream.net/git/ceph-client.git
+	https://github.com/ceph/ceph-client.git
 	git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 
 and the source for the full system is at
-	git://ceph.newdream.net/git/ceph.git
+	https://github.com/ceph/ceph.git

@@ -9,6 +9,7 @@
 #include <linux/mm_types.h>
 #include <linux/reservation.h>
 #include <drm/drmP.h>
+#include <drm/drm_util.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_atomic.h>
@@ -338,6 +339,7 @@ struct vc4_plane_state {
 	u32 pos0_offset;
 	u32 pos2_offset;
 	u32 ptr0_offset;
+	u32 lbm_offset;
 
 	/* Offset where the plane's dlist was last stored in the
 	 * hardware at vc4_crtc_atomic_flush() time.
@@ -369,6 +371,11 @@ struct vc4_plane_state {
 	 * to enable background color fill.
 	 */
 	bool needs_bg_fill;
+
+	/* Mark the dlist as initialized. Useful to avoid initializing it twice
+	 * when async update is not possible.
+	 */
+	bool dlist_initialized;
 };
 
 static inline struct vc4_plane_state *
@@ -701,6 +708,9 @@ bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			     const struct drm_display_mode *mode);
 void vc4_crtc_handle_vblank(struct vc4_crtc *crtc);
 void vc4_crtc_txp_armed(struct drm_crtc_state *state);
+void vc4_crtc_get_margins(struct drm_crtc_state *state,
+			  unsigned int *right, unsigned int *left,
+			  unsigned int *top, unsigned int *bottom);
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);

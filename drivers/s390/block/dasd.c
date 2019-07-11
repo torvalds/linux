@@ -1192,20 +1192,7 @@ static int dasd_hosts_show(struct seq_file *m, void *v)
 	return rc;
 }
 
-static int dasd_hosts_open(struct inode *inode, struct file *file)
-{
-	struct dasd_device *device = inode->i_private;
-
-	return single_open(file, dasd_hosts_show, device);
-}
-
-static const struct file_operations dasd_hosts_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dasd_hosts_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dasd_hosts);
 
 static void dasd_hosts_exit(struct dasd_device *device)
 {
@@ -3978,13 +3965,11 @@ int dasd_generic_restore_device(struct ccw_device *cdev)
 EXPORT_SYMBOL_GPL(dasd_generic_restore_device);
 
 static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
-						   void *rdc_buffer,
 						   int rdc_buffer_size,
 						   int magic)
 {
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
-	unsigned long *idaw;
 
 	cqr = dasd_smalloc_request(magic, 1 /* RDC */, rdc_buffer_size, device,
 				   NULL);
@@ -3999,16 +3984,8 @@ static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 
 	ccw = cqr->cpaddr;
 	ccw->cmd_code = CCW_CMD_RDC;
-	if (idal_is_needed(rdc_buffer, rdc_buffer_size)) {
-		idaw = (unsigned long *) (cqr->data);
-		ccw->cda = (__u32)(addr_t) idaw;
-		ccw->flags = CCW_FLAG_IDA;
-		idaw = idal_create_words(idaw, rdc_buffer, rdc_buffer_size);
-	} else {
-		ccw->cda = (__u32)(addr_t) rdc_buffer;
-		ccw->flags = 0;
-	}
-
+	ccw->cda = (__u32)(addr_t) cqr->data;
+	ccw->flags = 0;
 	ccw->count = rdc_buffer_size;
 	cqr->startdev = device;
 	cqr->memdev = device;
@@ -4026,12 +4003,13 @@ int dasd_generic_read_dev_chars(struct dasd_device *device, int magic,
 	int ret;
 	struct dasd_ccw_req *cqr;
 
-	cqr = dasd_generic_build_rdc(device, rdc_buffer, rdc_buffer_size,
-				     magic);
+	cqr = dasd_generic_build_rdc(device, rdc_buffer_size, magic);
 	if (IS_ERR(cqr))
 		return PTR_ERR(cqr);
 
 	ret = dasd_sleep_on(cqr);
+	if (ret == 0)
+		memcpy(rdc_buffer, cqr->data, rdc_buffer_size);
 	dasd_sfree_request(cqr, cqr->memdev);
 	return ret;
 }

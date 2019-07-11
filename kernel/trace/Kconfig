@@ -370,6 +370,7 @@ config PROFILE_ANNOTATED_BRANCHES
 config PROFILE_ALL_BRANCHES
 	bool "Profile all if conditionals" if !FORTIFY_SOURCE
 	select TRACE_BRANCH_PROFILING
+	imply CC_DISABLE_WARN_MAYBE_UNINITIALIZED  # avoid false positives
 	help
 	  This tracer profiles all branch conditions. Every if ()
 	  taken in the kernel is recorded whether it hit or miss.
@@ -461,6 +462,7 @@ config KPROBE_EVENTS
 	bool "Enable kprobes-based dynamic events"
 	select TRACING
 	select PROBE_EVENTS
+	select DYNAMIC_EVENTS
 	default y
 	help
 	  This allows the user to add tracing events (similar to tracepoints)
@@ -500,6 +502,7 @@ config UPROBE_EVENTS
 	depends on PERF_EVENTS
 	select UPROBES
 	select PROBE_EVENTS
+	select DYNAMIC_EVENTS
 	select TRACING
 	default y
 	help
@@ -517,6 +520,9 @@ config BPF_EVENTS
 	default y
 	help
 	  This allows the user to attach BPF programs to kprobe events.
+
+config DYNAMIC_EVENTS
+	def_bool n
 
 config PROBE_EVENTS
 	def_bool n
@@ -630,6 +636,7 @@ config HIST_TRIGGERS
 	depends on ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select TRACING_MAP
 	select TRACING
+	select DYNAMIC_EVENTS
 	default n
 	help
 	  Hist triggers allow one or more arbitrary trace event fields

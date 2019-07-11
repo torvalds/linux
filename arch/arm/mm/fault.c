@@ -173,6 +173,12 @@ __do_user_fault(struct task_struct *tsk, unsigned long addr,
 		show_regs(regs);
 	}
 #endif
+#ifndef CONFIG_KUSER_HELPERS
+	if ((sig == SIGSEGV) && ((addr & PAGE_MASK) == 0xffff0000))
+		printk_ratelimited(KERN_DEBUG
+				   "%s: CONFIG_KUSER_HELPERS disabled at 0x%08lx\n",
+				   tsk->comm, addr);
+#endif
 
 	tsk->thread.address = addr;
 	tsk->thread.error_code = fsr;

@@ -723,8 +723,15 @@ static int rtsx_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	return 0;
 }
 
+static int rtsx_usb_resume_child(struct device *dev, void *data)
+{
+	pm_request_resume(dev);
+	return 0;
+}
+
 static int rtsx_usb_resume(struct usb_interface *intf)
 {
+	device_for_each_child(&intf->dev, NULL, rtsx_usb_resume_child);
 	return 0;
 }
 
@@ -734,6 +741,7 @@ static int rtsx_usb_reset_resume(struct usb_interface *intf)
 		(struct rtsx_ucr *)usb_get_intfdata(intf);
 
 	rtsx_usb_reset_chip(ucr);
+	device_for_each_child(&intf->dev, NULL, rtsx_usb_resume_child);
 	return 0;
 }
 

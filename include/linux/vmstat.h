@@ -239,11 +239,6 @@ extern unsigned long node_page_state(struct pglist_data *pgdat,
 #define node_page_state(node, item) global_node_page_state(item)
 #endif /* CONFIG_NUMA */
 
-#define add_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, __d)
-#define sub_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, -(__d))
-#define add_node_page_state(__p, __i, __d) mod_node_page_state(__p, __i, __d)
-#define sub_node_page_state(__p, __i, __d) mod_node_page_state(__p, __i, -(__d))
-
 #ifdef CONFIG_SMP
 void __mod_zone_page_state(struct zone *, enum zone_stat_item item, long);
 void __inc_zone_page_state(struct page *, enum zone_stat_item);

@@ -70,8 +70,6 @@ struct skcipher_walk {
 	unsigned int alignmask;
 };
 
-extern const struct crypto_type crypto_givcipher_type;
-
 static inline struct crypto_instance *skcipher_crypto_instance(
 	struct skcipher_instance *inst)
 {
@@ -206,6 +204,21 @@ static inline unsigned int crypto_skcipher_alg_max_keysize(
 
 	return alg->max_keysize;
 }
+
+/* Helpers for simple block cipher modes of operation */
+struct skcipher_ctx_simple {
+	struct crypto_cipher *cipher;	/* underlying block cipher */
+};
+static inline struct crypto_cipher *
+skcipher_cipher_simple(struct crypto_skcipher *tfm)
+{
+	struct skcipher_ctx_simple *ctx = crypto_skcipher_ctx(tfm);
+
+	return ctx->cipher;
+}
+struct skcipher_instance *
+skcipher_alloc_instance_simple(struct crypto_template *tmpl, struct rtattr **tb,
+			       struct crypto_alg **cipher_alg_ret);
 
 #endif	/* _CRYPTO_INTERNAL_SKCIPHER_H */
 

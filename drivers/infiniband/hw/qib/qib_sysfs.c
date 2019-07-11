@@ -555,7 +555,7 @@ static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
 {
 	struct qib_ibdev *dev =
-		container_of(device, struct qib_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 
 	return sprintf(buf, "%x\n", dd_from_dev(dev)->minrev);
 }
@@ -565,7 +565,7 @@ static ssize_t hca_type_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
 	struct qib_ibdev *dev =
-		container_of(device, struct qib_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
 	int ret;
 
@@ -590,7 +590,7 @@ static ssize_t boardversion_show(struct device *device,
 				 struct device_attribute *attr, char *buf)
 {
 	struct qib_ibdev *dev =
-		container_of(device, struct qib_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
 
 	/* The string printed here is already newline-terminated. */
@@ -602,7 +602,7 @@ static ssize_t localbus_info_show(struct device *device,
 				  struct device_attribute *attr, char *buf)
 {
 	struct qib_ibdev *dev =
-		container_of(device, struct qib_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
 
 	/* The string printed here is already newline-terminated. */
@@ -614,7 +614,7 @@ static ssize_t nctxts_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
 	struct qib_ibdev *dev =
-		container_of(device, struct qib_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
 
 	/* Return the number of user ports (contexts) available. */
@@ -630,7 +630,7 @@ static ssize_t nfreectxts_show(struct device *device,
 			       struct device_attribute *attr, char *buf)
 {
 	struct qib_ibdev *dev =
-		container_of(device, struct qib_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
 
 	/* Return the number of free user ports (contexts) available. */
@@ -642,7 +642,7 @@ static ssize_t serial_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
 	struct qib_ibdev *dev =
-		container_of(device, struct qib_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
 
 	buf[sizeof(dd->serial)] = '\0';
@@ -657,7 +657,7 @@ static ssize_t chip_reset_store(struct device *device,
 				size_t count)
 {
 	struct qib_ibdev *dev =
-		container_of(device, struct qib_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
 	int ret;
 
@@ -679,7 +679,7 @@ static ssize_t tempsense_show(struct device *device,
 			      struct device_attribute *attr, char *buf)
 {
 	struct qib_ibdev *dev =
-		container_of(device, struct qib_ibdev, rdi.ibdev.dev);
+		rdma_device_to_drv_device(device, struct qib_ibdev, rdi.ibdev);
 	struct qib_devdata *dd = dd_from_dev(dev);
 	int ret;
 	int idx;

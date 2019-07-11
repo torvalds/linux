@@ -701,7 +701,7 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 
 	if (status & FE_HAS_LOCK) {
 		state->fec_inner = m88rs2000_get_fec(state);
-		/* Uknown suspect SNR level */
+		/* Unknown suspect SNR level */
 		reg = m88rs2000_readreg(state, 0x65);
 	}
 

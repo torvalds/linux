@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <asm/irqdomain.h>
 #include <asm/hw_irq.h>
+#include <asm/traps.h>
 #include <asm/apic.h>
 #include <asm/i8259.h>
 #include <asm/desc.h>

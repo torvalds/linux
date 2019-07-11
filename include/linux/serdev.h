@@ -210,7 +210,7 @@ void serdev_device_wait_until_sent(struct serdev_device *, long);
 int serdev_device_get_tiocm(struct serdev_device *);
 int serdev_device_set_tiocm(struct serdev_device *, int, int);
 void serdev_device_write_wakeup(struct serdev_device *);
-int serdev_device_write(struct serdev_device *, const unsigned char *, size_t, unsigned long);
+int serdev_device_write(struct serdev_device *, const unsigned char *, size_t, long);
 void serdev_device_write_flush(struct serdev_device *);
 int serdev_device_write_room(struct serdev_device *);
 

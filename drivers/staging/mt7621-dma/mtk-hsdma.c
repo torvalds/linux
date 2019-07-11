@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Copyright (C) 2015, Michael Lee <igvtee@gmail.com>
  *  MTK HSDMA support
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General	 Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/dmaengine.h>
@@ -191,7 +186,7 @@ static inline u32 mtk_hsdma_read(struct mtk_hsdam_engine *hsdma, u32 reg)
 }
 
 static inline void mtk_hsdma_write(struct mtk_hsdam_engine *hsdma,
-				   unsigned reg, u32 val)
+				   unsigned int reg, u32 val)
 {
 	writel(val, hsdma->base + reg);
 }
@@ -242,7 +237,7 @@ static void hsdma_dump_desc(struct mtk_hsdam_engine *hsdma,
 	int i;
 
 	dev_dbg(hsdma->ddev.dev, "tx idx: %d, rx idx: %d\n",
-			chan->tx_idx, chan->rx_idx);
+		chan->tx_idx, chan->rx_idx);
 
 	for (i = 0; i < HSDMA_DESCS_NUM; i++) {
 		tx_desc = &chan->tx_ring[i];
@@ -419,8 +414,9 @@ static void mtk_hsdma_chan_done(struct mtk_hsdam_engine *hsdma,
 			vchan_cookie_complete(&desc->vdesc);
 			chan_issued = gdma_next_desc(chan);
 		}
-	} else
+	} else {
 		dev_dbg(hsdma->ddev.dev, "no desc to complete\n");
+	}
 
 	if (chan_issued)
 		set_bit(chan->id, &hsdma->chan_issued);
@@ -457,8 +453,9 @@ static void mtk_hsdma_issue_pending(struct dma_chan *c)
 		if (gdma_next_desc(chan)) {
 			set_bit(chan->id, &hsdma->chan_issued);
 			tasklet_schedule(&hsdma->task);
-		} else
+		} else {
 			dev_dbg(hsdma->ddev.dev, "no desc to issue\n");
+		}
 	}
 	spin_unlock_bh(&chan->vchan.lock);
 }

@@ -54,7 +54,7 @@
 			label = "K1";
 			gpios = <&gpio0 0x32 0x1>;
 			linux,code = <0x66>;
-			gpio-key,wakeup;
+			wakeup-source;
 			autorepeat;
 		};
 	};

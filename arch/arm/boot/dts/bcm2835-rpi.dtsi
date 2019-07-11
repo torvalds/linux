@@ -1,7 +1,7 @@
 #include <dt-bindings/power/raspberrypi-power.h>
 
 / {
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0 0x10000000>;
 	};
@@ -19,8 +19,6 @@
 	soc {
 		firmware: firmware {
 			compatible = "raspberrypi,bcm2835-firmware", "simple-bus";
-			#address-cells = <0>;
-			#size-cells = <0>;
 			mboxes = <&mailbox>;
 		};
 
@@ -30,9 +28,9 @@
 			#power-domain-cells = <1>;
 		};
 
-		mailbox@7e00b840 {
+		vchiq: mailbox@7e00b840 {
 			compatible = "brcm,bcm2835-vchiq";
-			reg = <0x7e00b840 0xf>;
+			reg = <0x7e00b840 0x3c>;
 			interrupts = <0 2>;
 		};
 	};
@@ -85,10 +83,6 @@
 
 &usb {
 	power-domains = <&power RPI_POWER_DOMAIN_USB>;
-};
-
-&v3d {
-	power-domains = <&power RPI_POWER_DOMAIN_V3D>;
 };
 
 &hdmi {

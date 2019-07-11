@@ -1548,17 +1548,9 @@ static void atc_connect_resources(struct ct_atc *atc)
 #ifdef CONFIG_PM_SLEEP
 static int atc_suspend(struct ct_atc *atc)
 {
-	int i;
 	struct hw *hw = atc->hw;
 
 	snd_power_change_state(atc->card, SNDRV_CTL_POWER_D3hot);
-
-	for (i = FRONT; i < NUM_PCMS; i++) {
-		if (!atc->pcms[i])
-			continue;
-
-		snd_pcm_suspend_all(atc->pcms[i]);
-	}
 
 	atc_release_resources(atc);
 

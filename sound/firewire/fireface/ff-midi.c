@@ -19,7 +19,7 @@ static int midi_playback_open(struct snd_rawmidi_substream *substream)
 	struct snd_ff *ff = substream->rmidi->private_data;
 
 	/* Initialize internal status. */
-	ff->running_status[substream->number] = 0;
+	ff->on_sysex[substream->number] = 0;
 	ff->rx_midi_error[substream->number] = false;
 
 	WRITE_ONCE(ff->rx_midi_substreams[substream->number], substream);

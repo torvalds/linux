@@ -96,23 +96,8 @@ config EXT4_FS_SECURITY
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
 
-config EXT4_ENCRYPTION
-	bool "Ext4 Encryption"
-	depends on EXT4_FS
-	select FS_ENCRYPTION
-	help
-	  Enable encryption of ext4 files and directories.  This
-	  feature is similar to ecryptfs, but it is more memory
-	  efficient since it avoids caching the encrypted and
-	  decrypted pages in the page cache.
-
-config EXT4_FS_ENCRYPTION
-	bool
-	default y
-	depends on EXT4_ENCRYPTION
-
 config EXT4_DEBUG
-	bool "EXT4 debugging support"
+	bool "Ext4 debugging support"
 	depends on EXT4_FS
 	help
 	  Enables run-time debugging support for the ext4 filesystem.

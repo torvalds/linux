@@ -593,10 +593,10 @@ static int alloc_eq_pages(struct hinic_eq *eq)
 	}
 
 	for (pg = 0; pg < eq->num_pages; pg++) {
-		eq->virt_addr[pg] = dma_zalloc_coherent(&pdev->dev,
-							eq->page_size,
-							&eq->dma_addr[pg],
-							GFP_KERNEL);
+		eq->virt_addr[pg] = dma_alloc_coherent(&pdev->dev,
+						       eq->page_size,
+						       &eq->dma_addr[pg],
+						       GFP_KERNEL);
 		if (!eq->virt_addr[pg]) {
 			err = -ENOMEM;
 			goto err_dma_alloc;

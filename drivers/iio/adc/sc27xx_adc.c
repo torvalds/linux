@@ -52,6 +52,9 @@
 /* Timeout (ms) for the trylock of hardware spinlocks */
 #define SC27XX_ADC_HWLOCK_TIMEOUT	5000
 
+/* Timeout (ms) for ADC data conversion according to ADC datasheet */
+#define SC27XX_ADC_RDY_TIMEOUT		100
+
 /* Maximum ADC channel number */
 #define SC27XX_ADC_CHANNEL_MAX		32
 
@@ -223,7 +226,14 @@ static int sc27xx_adc_read(struct sc27xx_adc_data *data, int channel,
 	if (ret)
 		goto disable_adc;
 
-	wait_for_completion(&data->completion);
+	ret = wait_for_completion_timeout(&data->completion,
+				msecs_to_jiffies(SC27XX_ADC_RDY_TIMEOUT));
+	if (!ret) {
+		dev_err(data->dev, "read ADC data timeout\n");
+		ret = -ETIMEDOUT;
+	} else {
+		ret = 0;
+	}
 
 disable_adc:
 	regmap_update_bits(data->regmap, data->base + SC27XX_ADC_CTL,

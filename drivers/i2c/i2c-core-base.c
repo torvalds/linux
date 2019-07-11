@@ -185,7 +185,7 @@ static int i2c_generic_bus_free(struct i2c_adapter *adap)
 int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 {
 	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
-	int i = 0, scl = 1, ret;
+	int i = 0, scl = 1, ret = 0;
 
 	if (bri->prepare_recovery)
 		bri->prepare_recovery(adap);
@@ -327,6 +327,8 @@ static int i2c_device_probe(struct device *dev)
 
 		if (client->flags & I2C_CLIENT_HOST_NOTIFY) {
 			dev_dbg(dev, "Using Host Notify IRQ\n");
+			/* Keep adapter active when Host Notify is required */
+			pm_runtime_get_sync(&client->adapter->dev);
 			irq = i2c_smbus_host_notify_to_irq(client);
 		} else if (dev->of_node) {
 			irq = of_irq_get_byname(dev->of_node, "irq");
@@ -430,7 +432,9 @@ static int i2c_device_remove(struct device *dev)
 	dev_pm_clear_wake_irq(&client->dev);
 	device_init_wakeup(&client->dev, false);
 
-	client->irq = 0;
+	client->irq = client->init_irq;
+	if (client->flags & I2C_CLIENT_HOST_NOTIFY)
+		pm_runtime_put(&client->adapter->dev);
 
 	return status;
 }
@@ -741,10 +745,11 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->flags = info->flags;
 	client->addr = info->addr;
 
-	client->irq = info->irq;
-	if (!client->irq)
-		client->irq = i2c_dev_irq_from_resources(info->resources,
+	client->init_irq = info->irq;
+	if (!client->init_irq)
+		client->init_irq = i2c_dev_irq_from_resources(info->resources,
 							 info->num_resources);
+	client->irq = client->init_irq;
 
 	strlcpy(client->name, info->type, sizeof(client->name));
 
@@ -1232,6 +1237,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	if (!adap->lock_ops)
 		adap->lock_ops = &i2c_adapter_lock_ops;
 
+	adap->locked_flags = 0;
 	rt_mutex_init(&adap->bus_lock);
 	rt_mutex_init(&adap->mux_lock);
 	mutex_init(&adap->userspace_clients_lock);
@@ -1865,6 +1871,8 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 
 	if (WARN_ON(!msgs || num < 1))
 		return -EINVAL;
+	if (WARN_ON(test_bit(I2C_ALF_IS_SUSPENDED, &adap->locked_flags)))
+		return -ESHUTDOWN;
 
 	if (adap->quirks && i2c_check_for_quirks(adap, msgs, num))
 		return -EOPNOTSUPP;
@@ -2254,7 +2262,8 @@ EXPORT_SYMBOL(i2c_put_adapter);
 /**
  * i2c_get_dma_safe_msg_buf() - get a DMA safe buffer for the given i2c_msg
  * @msg: the message to be checked
- * @threshold: the minimum number of bytes for which using DMA makes sense
+ * @threshold: the minimum number of bytes for which using DMA makes sense.
+ *	       Should at least be 1.
  *
  * Return: NULL if a DMA safe buffer was not obtained. Use msg->buf with PIO.
  *	   Or a valid pointer to be used with DMA. After use, release it by
@@ -2264,7 +2273,11 @@ EXPORT_SYMBOL(i2c_put_adapter);
  */
 u8 *i2c_get_dma_safe_msg_buf(struct i2c_msg *msg, unsigned int threshold)
 {
-	if (msg->len < threshold)
+	/* also skip 0-length msgs for bogus thresholds of 0 */
+	if (!threshold)
+		pr_debug("DMA buffer for addr=0x%02x with length 0 is bogus\n",
+			 msg->addr);
+	if (msg->len < threshold || msg->len == 0)
 		return NULL;
 
 	if (msg->flags & I2C_M_DMA_SAFE)

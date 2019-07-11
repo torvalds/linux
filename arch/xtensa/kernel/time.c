@@ -52,14 +52,11 @@ static struct clocksource ccount_clocksource = {
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static int ccount_timer_set_next_event(unsigned long delta,
-		struct clock_event_device *dev);
 struct ccount_timer {
 	struct clock_event_device evt;
 	int irq_enabled;
 	char name[24];
 };
-static DEFINE_PER_CPU(struct ccount_timer, ccount_timer);
 
 static int ccount_timer_set_next_event(unsigned long delta,
 		struct clock_event_device *dev)
@@ -89,7 +86,7 @@ static int ccount_timer_shutdown(struct clock_event_device *evt)
 		container_of(evt, struct ccount_timer, evt);
 
 	if (timer->irq_enabled) {
-		disable_irq(evt->irq);
+		disable_irq_nosync(evt->irq);
 		timer->irq_enabled = 0;
 	}
 	return 0;
@@ -107,7 +104,30 @@ static int ccount_timer_set_oneshot(struct clock_event_device *evt)
 	return 0;
 }
 
-static irqreturn_t timer_interrupt(int irq, void *dev_id);
+static DEFINE_PER_CPU(struct ccount_timer, ccount_timer) = {
+	.evt = {
+		.features = CLOCK_EVT_FEAT_ONESHOT,
+		.rating = 300,
+		.set_next_event = ccount_timer_set_next_event,
+		.set_state_shutdown = ccount_timer_shutdown,
+		.set_state_oneshot = ccount_timer_set_oneshot,
+		.tick_resume = ccount_timer_set_oneshot,
+	},
+};
+
+static irqreturn_t timer_interrupt(int irq, void *dev_id)
+{
+	struct clock_event_device *evt = &this_cpu_ptr(&ccount_timer)->evt;
+
+	set_linux_timer(get_linux_timer());
+	evt->event_handler(evt);
+
+	/* Allow platform to do something useful (Wdog). */
+	platform_heartbeat();
+
+	return IRQ_HANDLED;
+}
+
 static struct irqaction timer_irqaction = {
 	.handler =	timer_interrupt,
 	.flags =	IRQF_TIMER,
@@ -120,14 +140,8 @@ void local_timer_setup(unsigned cpu)
 	struct clock_event_device *clockevent = &timer->evt;
 
 	timer->irq_enabled = 1;
-	clockevent->name = timer->name;
 	snprintf(timer->name, sizeof(timer->name), "ccount_clockevent_%u", cpu);
-	clockevent->features = CLOCK_EVT_FEAT_ONESHOT;
-	clockevent->rating = 300;
-	clockevent->set_next_event = ccount_timer_set_next_event;
-	clockevent->set_state_shutdown = ccount_timer_shutdown;
-	clockevent->set_state_oneshot = ccount_timer_set_oneshot;
-	clockevent->tick_resume = ccount_timer_set_oneshot;
+	clockevent->name = timer->name;
 	clockevent->cpumask = cpumask_of(cpu);
 	clockevent->irq = irq_create_mapping(NULL, LINUX_TIMER_INT);
 	if (WARN(!clockevent->irq, "error: can't map timer irq"))
@@ -188,23 +202,6 @@ void __init time_init(void)
 	setup_irq(this_cpu_ptr(&ccount_timer)->evt.irq, &timer_irqaction);
 	sched_clock_register(ccount_sched_clock_read, 32, ccount_freq);
 	timer_probe();
-}
-
-/*
- * The timer interrupt is called HZ times per second.
- */
-
-irqreturn_t timer_interrupt(int irq, void *dev_id)
-{
-	struct clock_event_device *evt = &this_cpu_ptr(&ccount_timer)->evt;
-
-	set_linux_timer(get_linux_timer());
-	evt->event_handler(evt);
-
-	/* Allow platform to do something useful (Wdog). */
-	platform_heartbeat();
-
-	return IRQ_HANDLED;
 }
 
 #ifndef CONFIG_GENERIC_CALIBRATE_DELAY

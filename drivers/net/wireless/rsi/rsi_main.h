@@ -164,6 +164,24 @@ struct transmit_q_stats {
 	u32 total_tx_pkt_freed[NUM_EDCA_QUEUES + 2];
 };
 
+#define MAX_BGSCAN_CHANNELS_DUAL_BAND	38
+#define MAX_BGSCAN_PROBE_REQ_LEN	0x64
+#define RSI_DEF_BGSCAN_THRLD		0x0
+#define RSI_DEF_ROAM_THRLD		0xa
+#define RSI_BGSCAN_PERIODICITY		0x1e
+#define RSI_ACTIVE_SCAN_TIME		0x14
+#define RSI_PASSIVE_SCAN_TIME		0x46
+#define RSI_CHANNEL_SCAN_TIME		20
+struct rsi_bgscan_params {
+	u16 bgscan_threshold;
+	u16 roam_threshold;
+	u16 bgscan_periodicity;
+	u8 num_bgscan_channels;
+	u8 two_probe;
+	u16 active_scan_duration;
+	u16 passive_scan_duration;
+};
+
 struct vif_priv {
 	bool is_ht;
 	bool sgi;
@@ -289,6 +307,11 @@ struct rsi_common {
 
 	bool eapol4_confirm;
 	void *bt_adapter;
+
+	struct cfg80211_scan_request *hwscan;
+	struct rsi_bgscan_params bgscan;
+	u8 bgscan_en;
+	u8 mac_ops_resumed;
 };
 
 struct eepromrw_info {

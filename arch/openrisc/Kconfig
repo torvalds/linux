@@ -6,8 +6,8 @@
 
 config OPENRISC
 	def_bool y
+	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
-	select DMA_DIRECT_OPS
 	select OF
 	select OF_EARLY_FLATTREE
 	select IRQ_DOMAIN
@@ -139,7 +139,7 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config OPENRISC_NO_SPR_SR_DSX
 	bool "use SPR_SR_DSX software emulation" if OR1K_1200

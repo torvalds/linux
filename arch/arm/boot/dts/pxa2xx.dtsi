@@ -6,7 +6,6 @@
  * Licensed under GPLv2 or later.
  */
 
-#include "skeleton.dtsi"
 #include "dt-bindings/clock/pxa-clock.h"
 
 #define PMGROUP(pin) #pin
@@ -29,6 +28,8 @@
 	}
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Marvell PXA2xx family SoC";
 	compatible = "marvell,pxa2xx";
 	interrupt-parent = <&pxairq>;
@@ -43,8 +44,6 @@
 	};
 
 	cpus {
-		#address-cells = <0>;
-		#size-cells = <0>;
 		cpu {
 			compatible = "marvell,xscale";
 			device_type = "cpu";
@@ -119,9 +118,9 @@
 			status = "disabled";
 		};
 
-		hwuart: serial@41100000 {
+		hwuart: serial@41600000 {
 			compatible = "mrvl,pxa-uart";
-			reg = <0x41100000 0x30>;
+			reg = <0x41600000 0x30>;
 			interrupts = <7>;
 			status = "disabled";
 		};
@@ -133,13 +132,6 @@
 			clocks = <&clks CLK_I2C>;
 			#address-cells = <0x1>;
 			#size-cells = <0>;
-			status = "disabled";
-		};
-
-		usb0: ohci@4c000000 {
-			compatible = "marvell,pxa-ohci";
-			reg = <0x4c000000 0x10000>;
-			interrupts = <3>;
 			status = "disabled";
 		};
 

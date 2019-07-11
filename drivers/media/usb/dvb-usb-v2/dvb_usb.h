@@ -146,7 +146,7 @@ struct dvb_usb_rc {
 };
 
 /**
- * usb streaming configration for adapter
+ * usb streaming configuration for adapter
  * @type: urb type
  * @count: count of used urbs
  * @endpoint: stream usb endpoint number

@@ -572,7 +572,7 @@ static struct aa_label *x_to_label(struct aa_profile *profile,
 			stack = NULL;
 			break;
 		}
-		/* fall through to X_NAME */
+		/* fall through - to X_NAME */
 	case AA_X_NAME:
 		if (xindex & AA_X_CHILD)
 			/* released by caller */
@@ -975,7 +975,7 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	}
 	aa_put_label(cred_label(bprm->cred));
 	/* transfer reference, released when cred is freed */
-	cred_label(bprm->cred) = new;
+	set_cred_label(bprm->cred, new);
 
 done:
 	aa_put_label(label);
@@ -1444,7 +1444,10 @@ check:
 			new = aa_label_merge(label, target, GFP_KERNEL);
 		if (IS_ERR_OR_NULL(new)) {
 			info = "failed to build target label";
-			error = PTR_ERR(new);
+			if (!new)
+				error = -ENOMEM;
+			else
+				error = PTR_ERR(new);
 			new = NULL;
 			perms.allow = 0;
 			goto audit;

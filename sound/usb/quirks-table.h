@@ -3326,6 +3326,9 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 					}
 				}
 			},
+			{
+				.ifnum = -1
+			},
 		}
 	}
 },
@@ -3369,6 +3372,9 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 					}
 				}
 			},
+			{
+				.ifnum = -1
+			},
 		}
 	}
 },
@@ -3390,6 +3396,71 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 		.product_name = "WD19 Dock",
 		.profile_name = "Dell-WD15-Dock",
 		.ifnum = QUIRK_NO_INTERFACE
+	}
+},
+/* MOTU Microbook II */
+{
+	USB_DEVICE(0x07fd, 0x0004),
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "MOTU",
+		.product_name = "MicroBookII",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_STANDARD_MIXER,
+			},
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3BE,
+					.channels = 6,
+					.iface = 0,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = 0,
+					.endpoint = 0x84,
+					.rates = SNDRV_PCM_RATE_96000,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC |
+						   USB_ENDPOINT_SYNC_ASYNC,
+					.rate_min = 96000,
+					.rate_max = 96000,
+					.nr_rates = 1,
+					.maxpacksize = 0x00d8,
+					.rate_table = (unsigned int[]) {
+						96000
+					}
+				}
+			},
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3BE,
+					.channels = 8,
+					.iface = 0,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = 0,
+					.endpoint = 0x03,
+					.rates = SNDRV_PCM_RATE_96000,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC |
+						   USB_ENDPOINT_SYNC_ASYNC,
+					.rate_min = 96000,
+					.rate_max = 96000,
+					.nr_rates = 1,
+					.maxpacksize = 0x0120,
+					.rate_table = (unsigned int[]) {
+						96000
+					}
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
 	}
 },
 

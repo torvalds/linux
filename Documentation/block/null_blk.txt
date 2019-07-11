@@ -88,7 +88,8 @@ shared_tags=[0/1]: Default: 0
 
 zoned=[0/1]: Default: 0
   0: Block device is exposed as a random-access block device.
-  1: Block device is exposed as a host-managed zoned block device.
+  1: Block device is exposed as a host-managed zoned block device. Requires
+     CONFIG_BLK_DEV_ZONED.
 
 zone_size=[MB]: Default: 256
   Per zone size when exposed as a zoned block device. Must be a power of two.

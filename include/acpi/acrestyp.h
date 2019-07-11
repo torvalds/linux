@@ -3,7 +3,7 @@
  *
  * Name: acrestyp.h - Defines, types, and structures for resource descriptors
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -139,7 +139,7 @@ struct acpi_resource_irq {
 	u8 descriptor_length;
 	u8 triggering;
 	u8 polarity;
-	u8 sharable;
+	u8 shareable;
 	u8 wake_capable;
 	u8 interrupt_count;
 	u8 interrupts[1];
@@ -328,7 +328,7 @@ struct acpi_resource_extended_irq {
 	u8 producer_consumer;
 	u8 triggering;
 	u8 polarity;
-	u8 sharable;
+	u8 shareable;
 	u8 wake_capable;
 	u8 interrupt_count;
 	struct acpi_resource_source resource_source;
@@ -348,7 +348,7 @@ struct acpi_resource_gpio {
 	u8 connection_type;
 	u8 producer_consumer;	/* For values, see Producer/Consumer above */
 	u8 pin_config;
-	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 shareable;		/* For values, see Interrupt Attributes above */
 	u8 wake_capable;	/* For values, see Interrupt Attributes above */
 	u8 io_restriction;
 	u8 triggering;		/* For values, see Interrupt Attributes above */
@@ -508,7 +508,7 @@ struct acpi_resource_uart_serialbus {
 struct acpi_resource_pin_function {
 	u8 revision_id;
 	u8 pin_config;
-	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 shareable;		/* For values, see Interrupt Attributes above */
 	u16 function_number;
 	u16 pin_table_length;
 	u16 vendor_length;
@@ -520,7 +520,7 @@ struct acpi_resource_pin_function {
 struct acpi_resource_pin_config {
 	u8 revision_id;
 	u8 producer_consumer;	/* For values, see Producer/Consumer above */
-	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 shareable;		/* For values, see Interrupt Attributes above */
 	u8 pin_config_type;
 	u32 pin_config_value;
 	u16 pin_table_length;
@@ -560,7 +560,7 @@ struct acpi_resource_pin_group {
 struct acpi_resource_pin_group_function {
 	u8 revision_id;
 	u8 producer_consumer;	/* For values, see Producer/Consumer above */
-	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 shareable;		/* For values, see Interrupt Attributes above */
 	u16 function_number;
 	u16 vendor_length;
 	struct acpi_resource_source resource_source;
@@ -571,7 +571,7 @@ struct acpi_resource_pin_group_function {
 struct acpi_resource_pin_group_config {
 	u8 revision_id;
 	u8 producer_consumer;	/* For values, see Producer/Consumer above */
-	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 shareable;		/* For values, see Interrupt Attributes above */
 	u8 pin_config_type;	/* For values, see pin_config_type above */
 	u32 pin_config_value;
 	u16 vendor_length;

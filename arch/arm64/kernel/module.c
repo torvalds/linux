@@ -198,13 +198,12 @@ static int reloc_insn_imm(enum aarch64_reloc_op op, __le32 *place, u64 val,
 	return 0;
 }
 
-static int reloc_insn_adrp(struct module *mod, __le32 *place, u64 val)
+static int reloc_insn_adrp(struct module *mod, Elf64_Shdr *sechdrs,
+			   __le32 *place, u64 val)
 {
 	u32 insn;
 
-	if (!IS_ENABLED(CONFIG_ARM64_ERRATUM_843419) ||
-	    !cpus_have_const_cap(ARM64_WORKAROUND_843419) ||
-	    ((u64)place & 0xfff) < 0xff8)
+	if (!is_forbidden_offset_for_adrp(place))
 		return reloc_insn_imm(RELOC_OP_PAGE, place, val, 12, 21,
 				      AARCH64_INSN_IMM_ADR);
 
@@ -215,7 +214,7 @@ static int reloc_insn_adrp(struct module *mod, __le32 *place, u64 val)
 		insn &= ~BIT(31);
 	} else {
 		/* out of range for ADR -> emit a veneer */
-		val = module_emit_veneer_for_adrp(mod, place, val & ~0xfff);
+		val = module_emit_veneer_for_adrp(mod, sechdrs, place, val & ~0xfff);
 		if (!val)
 			return -ENOEXEC;
 		insn = aarch64_insn_gen_branch_imm((u64)place, val,
@@ -368,7 +367,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		case R_AARCH64_ADR_PREL_PG_HI21_NC:
 			overflow_check = false;
 		case R_AARCH64_ADR_PREL_PG_HI21:
-			ovf = reloc_insn_adrp(me, loc, val);
+			ovf = reloc_insn_adrp(me, sechdrs, loc, val);
 			if (ovf && ovf != -ERANGE)
 				return ovf;
 			break;
@@ -413,7 +412,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 
 			if (IS_ENABLED(CONFIG_ARM64_MODULE_PLTS) &&
 			    ovf == -ERANGE) {
-				val = module_emit_plt_entry(me, loc, &rel[i], sym);
+				val = module_emit_plt_entry(me, sechdrs, loc, &rel[i], sym);
 				if (!val)
 					return -ENOEXEC;
 				ovf = reloc_insn_imm(RELOC_OP_PREL, loc, val, 2,

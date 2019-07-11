@@ -688,11 +688,9 @@ request_detach(struct drbd_device *device)
 			CS_VERBOSE | CS_ORDERED | CS_INHIBIT_MD_IO);
 }
 
-enum drbd_state_rv
-drbd_request_detach_interruptible(struct drbd_device *device)
+int drbd_request_detach_interruptible(struct drbd_device *device)
 {
-	enum drbd_state_rv rv;
-	int ret;
+	int ret, rv;
 
 	drbd_suspend_io(device); /* so no-one is stuck in drbd_al_begin_io */
 	wait_event_interruptible(device->state_wait,
@@ -1124,7 +1122,7 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
 			ns.pdsk = D_UP_TO_DATE;
 	}
 
-	/* Implications of the connection stat on the disk states */
+	/* Implications of the connection state on the disk states */
 	disk_min = D_DISKLESS;
 	disk_max = D_UP_TO_DATE;
 	pdsk_min = D_INCONSISTENT;
@@ -2109,9 +2107,8 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 			spin_unlock_irq(&connection->resource->req_lock);
 		}
 	}
-	kref_put(&connection->kref, drbd_destroy_connection);
-
 	conn_md_sync(connection);
+	kref_put(&connection->kref, drbd_destroy_connection);
 
 	return 0;
 }

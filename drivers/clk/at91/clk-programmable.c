@@ -20,8 +20,7 @@
 #define PROG_ID_MAX		7
 
 #define PROG_STATUS_MASK(id)	(1 << ((id) + 8))
-#define PROG_PRES_MASK		0x7
-#define PROG_PRES(layout, pckr)	((pckr >> layout->pres_shift) & PROG_PRES_MASK)
+#define PROG_PRES(layout, pckr)	((pckr >> layout->pres_shift) & layout->pres_mask)
 #define PROG_MAX_RM9200_CSS	3
 
 struct clk_programmable {
@@ -37,20 +36,29 @@ static unsigned long clk_programmable_recalc_rate(struct clk_hw *hw,
 						  unsigned long parent_rate)
 {
 	struct clk_programmable *prog = to_clk_programmable(hw);
+	const struct clk_programmable_layout *layout = prog->layout;
 	unsigned int pckr;
+	unsigned long rate;
 
 	regmap_read(prog->regmap, AT91_PMC_PCKR(prog->id), &pckr);
 
-	return parent_rate >> PROG_PRES(prog->layout, pckr);
+	if (layout->is_pres_direct)
+		rate = parent_rate / (PROG_PRES(layout, pckr) + 1);
+	else
+		rate = parent_rate >> PROG_PRES(layout, pckr);
+
+	return rate;
 }
 
 static int clk_programmable_determine_rate(struct clk_hw *hw,
 					   struct clk_rate_request *req)
 {
+	struct clk_programmable *prog = to_clk_programmable(hw);
+	const struct clk_programmable_layout *layout = prog->layout;
 	struct clk_hw *parent;
 	long best_rate = -EINVAL;
 	unsigned long parent_rate;
-	unsigned long tmp_rate;
+	unsigned long tmp_rate = 0;
 	int shift;
 	int i;
 
@@ -60,10 +68,18 @@ static int clk_programmable_determine_rate(struct clk_hw *hw,
 			continue;
 
 		parent_rate = clk_hw_get_rate(parent);
-		for (shift = 0; shift < PROG_PRES_MASK; shift++) {
-			tmp_rate = parent_rate >> shift;
-			if (tmp_rate <= req->rate)
-				break;
+		if (layout->is_pres_direct) {
+			for (shift = 0; shift <= layout->pres_mask; shift++) {
+				tmp_rate = parent_rate / (shift + 1);
+				if (tmp_rate <= req->rate)
+					break;
+			}
+		} else {
+			for (shift = 0; shift < layout->pres_mask; shift++) {
+				tmp_rate = parent_rate >> shift;
+				if (tmp_rate <= req->rate)
+					break;
+			}
 		}
 
 		if (tmp_rate > req->rate)
@@ -132,24 +148,28 @@ static int clk_programmable_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_programmable *prog = to_clk_programmable(hw);
 	const struct clk_programmable_layout *layout = prog->layout;
 	unsigned long div = parent_rate / rate;
-	unsigned int pckr;
 	int shift = 0;
-
-	regmap_read(prog->regmap, AT91_PMC_PCKR(prog->id), &pckr);
 
 	if (!div)
 		return -EINVAL;
 
-	shift = fls(div) - 1;
+	if (layout->is_pres_direct) {
+		shift = div - 1;
 
-	if (div != (1 << shift))
-		return -EINVAL;
+		if (shift > layout->pres_mask)
+			return -EINVAL;
+	} else {
+		shift = fls(div) - 1;
 
-	if (shift >= PROG_PRES_MASK)
-		return -EINVAL;
+		if (div != (1 << shift))
+			return -EINVAL;
+
+		if (shift >= layout->pres_mask)
+			return -EINVAL;
+	}
 
 	regmap_update_bits(prog->regmap, AT91_PMC_PCKR(prog->id),
-			   PROG_PRES_MASK << layout->pres_shift,
+			   layout->pres_mask << layout->pres_shift,
 			   shift << layout->pres_shift);
 
 	return 0;
@@ -205,19 +225,25 @@ at91_clk_register_programmable(struct regmap *regmap,
 }
 
 const struct clk_programmable_layout at91rm9200_programmable_layout = {
+	.pres_mask = 0x7,
 	.pres_shift = 2,
 	.css_mask = 0x3,
 	.have_slck_mck = 0,
+	.is_pres_direct = 0,
 };
 
 const struct clk_programmable_layout at91sam9g45_programmable_layout = {
+	.pres_mask = 0x7,
 	.pres_shift = 2,
 	.css_mask = 0x3,
 	.have_slck_mck = 1,
+	.is_pres_direct = 0,
 };
 
 const struct clk_programmable_layout at91sam9x5_programmable_layout = {
+	.pres_mask = 0x7,
 	.pres_shift = 4,
 	.css_mask = 0x7,
 	.have_slck_mck = 0,
+	.is_pres_direct = 0,
 };

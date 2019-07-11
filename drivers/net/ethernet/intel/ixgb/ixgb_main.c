@@ -680,8 +680,8 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 	txdr->size = txdr->count * sizeof(struct ixgb_tx_desc);
 	txdr->size = ALIGN(txdr->size, 4096);
 
-	txdr->desc = dma_zalloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
-					 GFP_KERNEL);
+	txdr->desc = dma_alloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
+					GFP_KERNEL);
 	if (!txdr->desc) {
 		vfree(txdr->buffer_info);
 		return -ENOMEM;
@@ -763,8 +763,8 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 	rxdr->size = rxdr->count * sizeof(struct ixgb_rx_desc);
 	rxdr->size = ALIGN(rxdr->size, 4096);
 
-	rxdr->desc = dma_zalloc_coherent(&pdev->dev, rxdr->size, &rxdr->dma,
-					 GFP_KERNEL);
+	rxdr->desc = dma_alloc_coherent(&pdev->dev, rxdr->size, &rxdr->dma,
+					GFP_KERNEL);
 
 	if (!rxdr->desc) {
 		vfree(rxdr->buffer_info);

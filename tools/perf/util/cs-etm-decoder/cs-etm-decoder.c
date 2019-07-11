@@ -36,7 +36,6 @@
 struct cs_etm_decoder {
 	void *data;
 	void (*packet_printer)(const char *msg);
-	bool trace_on;
 	dcd_tree_handle_t dcd_tree;
 	cs_etm_mem_cb_type mem_access;
 	ocsd_datapath_resp_t prev_return;
@@ -114,6 +113,19 @@ int cs_etm_decoder__get_packet(struct cs_etm_decoder *decoder,
 	decoder->packet_count--;
 
 	return 1;
+}
+
+static int cs_etm_decoder__gen_etmv3_config(struct cs_etm_trace_params *params,
+					    ocsd_etmv3_cfg *config)
+{
+	config->reg_idr = params->etmv3.reg_idr;
+	config->reg_ctrl = params->etmv3.reg_ctrl;
+	config->reg_ccer = params->etmv3.reg_ccer;
+	config->reg_trc_id = params->etmv3.reg_trc_id;
+	config->arch_ver = ARCH_V7;
+	config->core_prof = profile_CortexA;
+
+	return 0;
 }
 
 static void cs_etm_decoder__gen_etmv4_config(struct cs_etm_trace_params *params,
@@ -237,10 +249,19 @@ cs_etm_decoder__create_etm_packet_printer(struct cs_etm_trace_params *t_params,
 					  struct cs_etm_decoder *decoder)
 {
 	const char *decoder_name;
+	ocsd_etmv3_cfg config_etmv3;
 	ocsd_etmv4_cfg trace_config_etmv4;
 	void *trace_config;
 
 	switch (t_params->protocol) {
+	case CS_ETM_PROTO_ETMV3:
+	case CS_ETM_PROTO_PTM:
+		cs_etm_decoder__gen_etmv3_config(t_params, &config_etmv3);
+		decoder_name = (t_params->protocol == CS_ETM_PROTO_ETMV3) ?
+							OCSD_BUILTIN_DCD_ETMV3 :
+							OCSD_BUILTIN_DCD_PTM;
+		trace_config = &config_etmv3;
+		break;
 	case CS_ETM_PROTO_ETMV4i:
 		cs_etm_decoder__gen_etmv4_config(t_params, &trace_config_etmv4);
 		decoder_name = OCSD_BUILTIN_DCD_ETMV4I;
@@ -263,11 +284,18 @@ static void cs_etm_decoder__clear_buffer(struct cs_etm_decoder *decoder)
 	decoder->tail = 0;
 	decoder->packet_count = 0;
 	for (i = 0; i < MAX_BUFFER; i++) {
+		decoder->packet_buffer[i].isa = CS_ETM_ISA_UNKNOWN;
 		decoder->packet_buffer[i].start_addr = CS_ETM_INVAL_ADDR;
 		decoder->packet_buffer[i].end_addr = CS_ETM_INVAL_ADDR;
+		decoder->packet_buffer[i].instr_count = 0;
 		decoder->packet_buffer[i].last_instr_taken_branch = false;
-		decoder->packet_buffer[i].exc = false;
-		decoder->packet_buffer[i].exc_ret = false;
+		decoder->packet_buffer[i].last_instr_size = 0;
+		decoder->packet_buffer[i].last_instr_type = 0;
+		decoder->packet_buffer[i].last_instr_subtype = 0;
+		decoder->packet_buffer[i].last_instr_cond = 0;
+		decoder->packet_buffer[i].flags = 0;
+		decoder->packet_buffer[i].exception_number = UINT32_MAX;
+		decoder->packet_buffer[i].trace_chan_id = UINT8_MAX;
 		decoder->packet_buffer[i].cpu = INT_MIN;
 	}
 }
@@ -278,14 +306,12 @@ cs_etm_decoder__buffer_packet(struct cs_etm_decoder *decoder,
 			      enum cs_etm_sample_type sample_type)
 {
 	u32 et = 0;
-	struct int_node *inode = NULL;
+	int cpu;
 
 	if (decoder->packet_count >= MAX_BUFFER - 1)
 		return OCSD_RESP_FATAL_SYS_ERR;
 
-	/* Search the RB tree for the cpu associated with this traceID */
-	inode = intlist__find(traceid_list, trace_chan_id);
-	if (!inode)
+	if (cs_etm__get_cpu(trace_chan_id, &cpu) < 0)
 		return OCSD_RESP_FATAL_SYS_ERR;
 
 	et = decoder->tail;
@@ -294,11 +320,19 @@ cs_etm_decoder__buffer_packet(struct cs_etm_decoder *decoder,
 	decoder->packet_count++;
 
 	decoder->packet_buffer[et].sample_type = sample_type;
-	decoder->packet_buffer[et].exc = false;
-	decoder->packet_buffer[et].exc_ret = false;
-	decoder->packet_buffer[et].cpu = *((int *)inode->priv);
+	decoder->packet_buffer[et].isa = CS_ETM_ISA_UNKNOWN;
+	decoder->packet_buffer[et].cpu = cpu;
 	decoder->packet_buffer[et].start_addr = CS_ETM_INVAL_ADDR;
 	decoder->packet_buffer[et].end_addr = CS_ETM_INVAL_ADDR;
+	decoder->packet_buffer[et].instr_count = 0;
+	decoder->packet_buffer[et].last_instr_taken_branch = false;
+	decoder->packet_buffer[et].last_instr_size = 0;
+	decoder->packet_buffer[et].last_instr_type = 0;
+	decoder->packet_buffer[et].last_instr_subtype = 0;
+	decoder->packet_buffer[et].last_instr_cond = 0;
+	decoder->packet_buffer[et].flags = 0;
+	decoder->packet_buffer[et].exception_number = UINT32_MAX;
+	decoder->packet_buffer[et].trace_chan_id = trace_chan_id;
 
 	if (decoder->packet_count == MAX_BUFFER - 1)
 		return OCSD_RESP_WAIT;
@@ -321,8 +355,31 @@ cs_etm_decoder__buffer_range(struct cs_etm_decoder *decoder,
 
 	packet = &decoder->packet_buffer[decoder->tail];
 
+	switch (elem->isa) {
+	case ocsd_isa_aarch64:
+		packet->isa = CS_ETM_ISA_A64;
+		break;
+	case ocsd_isa_arm:
+		packet->isa = CS_ETM_ISA_A32;
+		break;
+	case ocsd_isa_thumb2:
+		packet->isa = CS_ETM_ISA_T32;
+		break;
+	case ocsd_isa_tee:
+	case ocsd_isa_jazelle:
+	case ocsd_isa_custom:
+	case ocsd_isa_unknown:
+	default:
+		packet->isa = CS_ETM_ISA_UNKNOWN;
+	}
+
 	packet->start_addr = elem->st_addr;
 	packet->end_addr = elem->en_addr;
+	packet->instr_count = elem->num_instr_range;
+	packet->last_instr_type = elem->last_i_type;
+	packet->last_instr_subtype = elem->last_i_subtype;
+	packet->last_instr_cond = elem->last_instr_cond;
+
 	switch (elem->last_i_type) {
 	case OCSD_INSTR_BR:
 	case OCSD_INSTR_BR_INDIRECT:
@@ -330,21 +387,50 @@ cs_etm_decoder__buffer_range(struct cs_etm_decoder *decoder,
 		break;
 	case OCSD_INSTR_ISB:
 	case OCSD_INSTR_DSB_DMB:
+	case OCSD_INSTR_WFI_WFE:
 	case OCSD_INSTR_OTHER:
 	default:
 		packet->last_instr_taken_branch = false;
 		break;
 	}
 
+	packet->last_instr_size = elem->last_instr_sz;
+
 	return ret;
 }
 
 static ocsd_datapath_resp_t
-cs_etm_decoder__buffer_trace_on(struct cs_etm_decoder *decoder,
-				const uint8_t trace_chan_id)
+cs_etm_decoder__buffer_discontinuity(struct cs_etm_decoder *decoder,
+					   const uint8_t trace_chan_id)
 {
 	return cs_etm_decoder__buffer_packet(decoder, trace_chan_id,
-					     CS_ETM_TRACE_ON);
+					     CS_ETM_DISCONTINUITY);
+}
+
+static ocsd_datapath_resp_t
+cs_etm_decoder__buffer_exception(struct cs_etm_decoder *decoder,
+				 const ocsd_generic_trace_elem *elem,
+				 const uint8_t trace_chan_id)
+{	int ret = 0;
+	struct cs_etm_packet *packet;
+
+	ret = cs_etm_decoder__buffer_packet(decoder, trace_chan_id,
+					    CS_ETM_EXCEPTION);
+	if (ret != OCSD_RESP_CONT && ret != OCSD_RESP_WAIT)
+		return ret;
+
+	packet = &decoder->packet_buffer[decoder->tail];
+	packet->exception_number = elem->exception_number;
+
+	return ret;
+}
+
+static ocsd_datapath_resp_t
+cs_etm_decoder__buffer_exception_ret(struct cs_etm_decoder *decoder,
+				     const uint8_t trace_chan_id)
+{
+	return cs_etm_decoder__buffer_packet(decoder, trace_chan_id,
+					     CS_ETM_EXCEPTION_RET);
 }
 
 static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
@@ -359,26 +445,25 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 	switch (elem->elem_type) {
 	case OCSD_GEN_TRC_ELEM_UNKNOWN:
 		break;
+	case OCSD_GEN_TRC_ELEM_EO_TRACE:
 	case OCSD_GEN_TRC_ELEM_NO_SYNC:
-		decoder->trace_on = false;
-		break;
 	case OCSD_GEN_TRC_ELEM_TRACE_ON:
-		resp = cs_etm_decoder__buffer_trace_on(decoder,
-						       trace_chan_id);
-		decoder->trace_on = true;
+		resp = cs_etm_decoder__buffer_discontinuity(decoder,
+							    trace_chan_id);
 		break;
 	case OCSD_GEN_TRC_ELEM_INSTR_RANGE:
 		resp = cs_etm_decoder__buffer_range(decoder, elem,
 						    trace_chan_id);
 		break;
 	case OCSD_GEN_TRC_ELEM_EXCEPTION:
-		decoder->packet_buffer[decoder->tail].exc = true;
+		resp = cs_etm_decoder__buffer_exception(decoder, elem,
+							trace_chan_id);
 		break;
 	case OCSD_GEN_TRC_ELEM_EXCEPTION_RET:
-		decoder->packet_buffer[decoder->tail].exc_ret = true;
+		resp = cs_etm_decoder__buffer_exception_ret(decoder,
+							    trace_chan_id);
 		break;
 	case OCSD_GEN_TRC_ELEM_PE_CONTEXT:
-	case OCSD_GEN_TRC_ELEM_EO_TRACE:
 	case OCSD_GEN_TRC_ELEM_ADDR_NACC:
 	case OCSD_GEN_TRC_ELEM_TIMESTAMP:
 	case OCSD_GEN_TRC_ELEM_CYCLE_COUNT:
@@ -398,11 +483,20 @@ static int cs_etm_decoder__create_etm_packet_decoder(
 					struct cs_etm_decoder *decoder)
 {
 	const char *decoder_name;
+	ocsd_etmv3_cfg config_etmv3;
 	ocsd_etmv4_cfg trace_config_etmv4;
 	void *trace_config;
 	u8 csid;
 
 	switch (t_params->protocol) {
+	case CS_ETM_PROTO_ETMV3:
+	case CS_ETM_PROTO_PTM:
+		cs_etm_decoder__gen_etmv3_config(t_params, &config_etmv3);
+		decoder_name = (t_params->protocol == CS_ETM_PROTO_ETMV3) ?
+							OCSD_BUILTIN_DCD_ETMV3 :
+							OCSD_BUILTIN_DCD_PTM;
+		trace_config = &config_etmv3;
+		break;
 	case CS_ETM_PROTO_ETMV4i:
 		cs_etm_decoder__gen_etmv4_config(t_params, &trace_config_etmv4);
 		decoder_name = OCSD_BUILTIN_DCD_ETMV4I;

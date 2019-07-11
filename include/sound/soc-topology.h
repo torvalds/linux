@@ -38,12 +38,14 @@ struct snd_soc_dapm_route;
 enum snd_soc_dobj_type {
 	SND_SOC_DOBJ_NONE		= 0,	/* object is not dynamic */
 	SND_SOC_DOBJ_MIXER,
-	SND_SOC_DOBJ_ENUM,
 	SND_SOC_DOBJ_BYTES,
-	SND_SOC_DOBJ_PCM,
-	SND_SOC_DOBJ_DAI_LINK,
-	SND_SOC_DOBJ_CODEC_LINK,
+	SND_SOC_DOBJ_ENUM,
+	SND_SOC_DOBJ_GRAPH,
 	SND_SOC_DOBJ_WIDGET,
+	SND_SOC_DOBJ_DAI_LINK,
+	SND_SOC_DOBJ_PCM,
+	SND_SOC_DOBJ_CODEC_LINK,
+	SND_SOC_DOBJ_BACKEND_LINK,
 };
 
 /* dynamic control object */

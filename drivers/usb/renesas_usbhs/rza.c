@@ -35,7 +35,7 @@ static int usbhs_rza1_hardware_init(struct platform_device *pdev)
 
 	/* Enable USB PLL (NOTE: ch0 controls both ch0 and ch1) */
 	usbhs_bset(priv, SYSCFG, UPLLE, UPLLE);
-	udelay(1000);
+	usleep_range(1000, 2000);
 	usbhs_bset(priv, SUSPMODE, SUSPM, SUSPM);
 
 	return 0;

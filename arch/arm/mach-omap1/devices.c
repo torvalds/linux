@@ -244,6 +244,9 @@ struct platform_device omap_spi2 = {
 
 static void omap_init_spi100k(void)
 {
+	if (!cpu_is_omap7xx())
+		return;
+
 	omap_spi1.dev.platform_data = ioremap(OMAP7XX_SPI1_BASE, 0x7ff);
 	if (omap_spi1.dev.platform_data)
 		platform_device_register(&omap_spi1);

@@ -38,7 +38,7 @@ static int des_setkey(struct crypto_tfm *tfm, const u8 *key,
 
 	/* check for weak keys */
 	if (!des_ekey(tmp, key) &&
-	    (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+	    (tfm->crt_flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
 		return -EINVAL;
 	}
@@ -228,7 +228,7 @@ static int des3_setkey(struct crypto_tfm *tfm, const u8 *key,
 	if (!(crypto_memneq(key, &key[DES_KEY_SIZE], DES_KEY_SIZE) &&
 	    crypto_memneq(&key[DES_KEY_SIZE], &key[DES_KEY_SIZE * 2],
 			  DES_KEY_SIZE)) &&
-	    (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+	    (tfm->crt_flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
 		return -EINVAL;
 	}

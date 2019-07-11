@@ -47,6 +47,7 @@
 #include <linux/inet.h>
 #include <linux/ip.h>
 #include <linux/netdevice.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/errno.h>
@@ -165,15 +166,17 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	eth = (struct ethhdr *)skb->data;
 	skb_pull_inline(skb, ETH_HLEN);
 
-	if (unlikely(is_multicast_ether_addr_64bits(eth->h_dest))) {
-		if (ether_addr_equal_64bits(eth->h_dest, dev->broadcast))
-			skb->pkt_type = PACKET_BROADCAST;
-		else
-			skb->pkt_type = PACKET_MULTICAST;
+	if (unlikely(!ether_addr_equal_64bits(eth->h_dest,
+					      dev->dev_addr))) {
+		if (unlikely(is_multicast_ether_addr_64bits(eth->h_dest))) {
+			if (ether_addr_equal_64bits(eth->h_dest, dev->broadcast))
+				skb->pkt_type = PACKET_BROADCAST;
+			else
+				skb->pkt_type = PACKET_MULTICAST;
+		} else {
+			skb->pkt_type = PACKET_OTHERHOST;
+		}
 	}
-	else if (unlikely(!ether_addr_equal_64bits(eth->h_dest,
-						   dev->dev_addr)))
-		skb->pkt_type = PACKET_OTHERHOST;
 
 	/*
 	 * Some variants of DSA tagging don't have an ethertype field
@@ -262,6 +265,18 @@ void eth_header_cache_update(struct hh_cache *hh,
 EXPORT_SYMBOL(eth_header_cache_update);
 
 /**
+ * eth_header_parser_protocol - extract protocol from L2 header
+ * @skb: packet to extract protocol from
+ */
+__be16 eth_header_parse_protocol(const struct sk_buff *skb)
+{
+	const struct ethhdr *eth = eth_hdr(skb);
+
+	return eth->h_proto;
+}
+EXPORT_SYMBOL(eth_header_parse_protocol);
+
+/**
  * eth_prepare_mac_addr_change - prepare for mac change
  * @dev: network device
  * @p: socket address
@@ -343,6 +358,7 @@ const struct header_ops eth_header_ops ____cacheline_aligned = {
 	.parse		= eth_header_parse,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,
+	.parse_protocol	= eth_header_parse_protocol,
 };
 
 /**
@@ -548,3 +564,40 @@ int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr)
 	return 0;
 }
 EXPORT_SYMBOL(eth_platform_get_mac_address);
+
+/**
+ * Obtain the MAC address from an nvmem cell named 'mac-address' associated
+ * with given device.
+ *
+ * @dev:	Device with which the mac-address cell is associated.
+ * @addrbuf:	Buffer to which the MAC address will be copied on success.
+ *
+ * Returns 0 on success or a negative error number on failure.
+ */
+int nvmem_get_mac_address(struct device *dev, void *addrbuf)
+{
+	struct nvmem_cell *cell;
+	const void *mac;
+	size_t len;
+
+	cell = nvmem_cell_get(dev, "mac-address");
+	if (IS_ERR(cell))
+		return PTR_ERR(cell);
+
+	mac = nvmem_cell_read(cell, &len);
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(mac))
+		return PTR_ERR(mac);
+
+	if (len != ETH_ALEN || !is_valid_ether_addr(mac)) {
+		kfree(mac);
+		return -EINVAL;
+	}
+
+	ether_addr_copy(addrbuf, mac);
+	kfree(mac);
+
+	return 0;
+}
+EXPORT_SYMBOL(nvmem_get_mac_address);

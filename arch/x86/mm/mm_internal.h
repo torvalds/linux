@@ -19,4 +19,6 @@ extern int after_bootmem;
 
 void update_cache_mode_entry(unsigned entry, enum page_cache_mode cache);
 
+extern unsigned long tlb_single_page_flush_ceiling;
+
 #endif	/* __X86_MM_INTERNAL_H */

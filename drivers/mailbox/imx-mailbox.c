@@ -187,8 +187,8 @@ static int imx_mu_startup(struct mbox_chan *chan)
 		return 0;
 	}
 
-	ret = request_irq(priv->irq, imx_mu_isr, IRQF_SHARED, cp->irq_desc,
-			  chan);
+	ret = request_irq(priv->irq, imx_mu_isr, IRQF_SHARED |
+			  IRQF_NO_SUSPEND, cp->irq_desc, chan);
 	if (ret) {
 		dev_err(priv->dev,
 			"Unable to acquire IRQ %d\n", priv->irq);
@@ -324,14 +324,13 @@ static int imx_mu_probe(struct platform_device *pdev)
 
 	imx_mu_init_generic(priv);
 
-	return mbox_controller_register(&priv->mbox);
+	return devm_mbox_controller_register(dev, &priv->mbox);
 }
 
 static int imx_mu_remove(struct platform_device *pdev)
 {
 	struct imx_mu_priv *priv = platform_get_drvdata(pdev);
 
-	mbox_controller_unregister(&priv->mbox);
 	clk_disable_unprepare(priv->clk);
 
 	return 0;

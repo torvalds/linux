@@ -1625,7 +1625,6 @@ static void snd_wss_suspend(struct snd_wss *chip)
 	int reg;
 	unsigned long flags;
 
-	snd_pcm_suspend_all(chip->pcm);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	for (reg = 0; reg < 32; reg++)
 		chip->image[reg] = snd_wss_in(chip, reg);
@@ -1943,7 +1942,7 @@ int snd_wss_pcm(struct snd_wss *chip, int device)
 	strcpy(pcm->name, snd_wss_chip_id(chip));
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
+					      chip->card->dev,
 					      64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 
 	chip->pcm = pcm;

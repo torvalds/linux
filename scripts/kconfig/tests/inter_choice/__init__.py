@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 """
 Do not affect user-assigned choice value by another choice.
 

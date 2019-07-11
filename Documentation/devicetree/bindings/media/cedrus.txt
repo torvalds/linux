@@ -11,6 +11,8 @@ Required properties:
 			- "allwinner,sun7i-a20-video-engine"
 			- "allwinner,sun8i-a33-video-engine"
 			- "allwinner,sun8i-h3-video-engine"
+			- "allwinner,sun50i-a64-video-engine"
+			- "allwinner,sun50i-h5-video-engine"
 - reg			: register base and length of VE;
 - clocks		: list of clock specifiers, corresponding to entries in
 			  the clock-names property;
@@ -31,7 +33,7 @@ reserved-memory {
 	ranges;
 
 	/* Address must be kept in the lower 256 MiBs of DRAM for VE. */
-	cma_pool: cma@4a000000 {
+	cma_pool: default-pool {
 		compatible = "shared-dma-pool";
 		size = <0x6000000>;
 		alloc-ranges = <0x4a000000 0x6000000>;

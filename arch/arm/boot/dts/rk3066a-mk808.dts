@@ -101,7 +101,6 @@
 
 &mmc1 {
 	bus-width = <4>;
-	disable-wp;
 	non-removable;
 	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus4>;
 	pinctrl-names = "default";

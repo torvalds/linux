@@ -1531,7 +1531,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 			/* Free the original skb. */
 			pci_unmap_single(np->pci_dev, np->cur_tx->buffer,
 				np->cur_tx->skbuff->len, PCI_DMA_TODEVICE);
-			dev_kfree_skb_irq(np->cur_tx->skbuff);
+			dev_consume_skb_irq(np->cur_tx->skbuff);
 			np->cur_tx->skbuff = NULL;
 			--np->really_tx_count;
 			if (np->cur_tx->control & TXLD) {

@@ -50,6 +50,7 @@ enum lm75_type {		/* keep sorted in alphabetical order */
 	max31725,
 	mcp980x,
 	stds75,
+	stlm75,
 	tcn75,
 	tmp100,
 	tmp101,
@@ -175,16 +176,16 @@ static umode_t lm75_is_visible(const void *data, enum hwmon_sensor_types type,
 	case hwmon_chip:
 		switch (attr) {
 		case hwmon_chip_update_interval:
-			return S_IRUGO;
+			return 0444;
 		}
 		break;
 	case hwmon_temp:
 		switch (attr) {
 		case hwmon_temp_input:
-			return S_IRUGO;
+			return 0444;
 		case hwmon_temp_max:
 		case hwmon_temp_max_hyst:
-			return S_IRUGO | S_IWUSR;
+			return 0644;
 		}
 		break;
 	default:
@@ -316,6 +317,10 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		data->resolution = 11;
 		data->sample_time = MSEC_PER_SEC;
 		break;
+	case stlm75:
+		data->resolution = 9;
+		data->sample_time = MSEC_PER_SEC / 5;
+		break;
 	case ds7505:
 		set_mask |= 3 << 5;		/* 12-bit mode */
 		data->resolution = 12;
@@ -424,6 +429,7 @@ static const struct i2c_device_id lm75_ids[] = {
 	{ "max31726", max31725, },
 	{ "mcp980x", mcp980x, },
 	{ "stds75", stds75, },
+	{ "stlm75", stlm75, },
 	{ "tcn75", tcn75, },
 	{ "tmp100", tmp100, },
 	{ "tmp101", tmp101, },
@@ -493,6 +499,10 @@ static const struct of_device_id lm75_of_match[] = {
 	{
 		.compatible = "st,stds75",
 		.data = (void *)stds75
+	},
+	{
+		.compatible = "st,stlm75",
+		.data = (void *)stlm75
 	},
 	{
 		.compatible = "microchip,tcn75",

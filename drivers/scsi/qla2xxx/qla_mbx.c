@@ -1109,7 +1109,12 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 		 * FW supports nvme and driver load parameter requested nvme.
 		 * BIT 26 of fw_attributes indicates NVMe support.
 		 */
-		if ((ha->fw_attributes_h & 0x400) && ql2xnvmeenable) {
+		if ((ha->fw_attributes_h &
+		    (FW_ATTR_H_NVME | FW_ATTR_H_NVME_UPDATED)) &&
+			ql2xnvmeenable) {
+			if (ha->fw_attributes_h & FW_ATTR_H_NVME_FBURST)
+				vha->flags.nvme_first_burst = 1;
+
 			vha->flags.nvme_enabled = 1;
 			ql_log(ql_log_info, vha, 0xd302,
 			    "%s: FC-NVMe is Enabled (0x%x)\n",
@@ -1508,16 +1513,12 @@ qla2x00_abort_target(struct fc_port *fcport, uint64_t l, int tag)
 	mbx_cmd_t  mc;
 	mbx_cmd_t  *mcp = &mc;
 	scsi_qla_host_t *vha;
-	struct req_que *req;
-	struct rsp_que *rsp;
 
 	vha = fcport->vha;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x103e,
 	    "Entered %s.\n", __func__);
 
-	req = vha->hw->req_q_map[0];
-	rsp = req->rsp;
 	mcp->mb[0] = MBC_ABORT_TARGET;
 	mcp->out_mb = MBX_9|MBX_2|MBX_1|MBX_0;
 	if (HAS_EXTENDED_IDS(vha->hw)) {
@@ -1540,7 +1541,7 @@ qla2x00_abort_target(struct fc_port *fcport, uint64_t l, int tag)
 	}
 
 	/* Issue marker IOCB. */
-	rval2 = qla2x00_marker(vha, req, rsp, fcport->loop_id, 0,
+	rval2 = qla2x00_marker(vha, vha->hw->base_qpair, fcport->loop_id, 0,
 							MK_SYNC_ID);
 	if (rval2 != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1040,
@@ -1560,16 +1561,12 @@ qla2x00_lun_reset(struct fc_port *fcport, uint64_t l, int tag)
 	mbx_cmd_t  mc;
 	mbx_cmd_t  *mcp = &mc;
 	scsi_qla_host_t *vha;
-	struct req_que *req;
-	struct rsp_que *rsp;
 
 	vha = fcport->vha;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1042,
 	    "Entered %s.\n", __func__);
 
-	req = vha->hw->req_q_map[0];
-	rsp = req->rsp;
 	mcp->mb[0] = MBC_LUN_RESET;
 	mcp->out_mb = MBX_9|MBX_3|MBX_2|MBX_1|MBX_0;
 	if (HAS_EXTENDED_IDS(vha->hw))
@@ -1589,7 +1586,7 @@ qla2x00_lun_reset(struct fc_port *fcport, uint64_t l, int tag)
 	}
 
 	/* Issue marker IOCB. */
-	rval2 = qla2x00_marker(vha, req, rsp, fcport->loop_id, l,
+	rval2 = qla2x00_marker(vha, vha->hw->base_qpair, fcport->loop_id, l,
 								MK_SYNC_ID_LUN);
 	if (rval2 != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1044,
@@ -2244,10 +2241,7 @@ qla2x00_lip_reset(scsi_qla_host_t *vha)
 		mcp->out_mb = MBX_2|MBX_1|MBX_0;
 	} else if (IS_FWI2_CAPABLE(vha->hw)) {
 		mcp->mb[0] = MBC_LIP_FULL_LOGIN;
-		if (N2N_TOPO(vha->hw))
-			mcp->mb[1] = BIT_4; /* re-init */
-		else
-			mcp->mb[1] = BIT_6; /* LIP */
+		mcp->mb[1] = BIT_4;
 		mcp->mb[2] = 0;
 		mcp->mb[3] = vha->hw->loop_reset_delay;
 		mcp->out_mb = MBX_3|MBX_2|MBX_1|MBX_0;
@@ -2757,7 +2751,7 @@ qla2x00_full_login_lip(scsi_qla_host_t *vha)
 	    "Entered %s.\n", __func__);
 
 	mcp->mb[0] = MBC_LIP_FULL_LOGIN;
-	mcp->mb[1] = IS_FWI2_CAPABLE(vha->hw) ? BIT_3 : 0;
+	mcp->mb[1] = IS_FWI2_CAPABLE(vha->hw) ? BIT_4 : 0;
 	mcp->mb[2] = 0;
 	mcp->mb[3] = 0;
 	mcp->out_mb = MBX_3|MBX_2|MBX_1|MBX_0;
@@ -3184,7 +3178,6 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	scsi_qla_host_t *vha;
 	struct qla_hw_data *ha;
 	struct req_que *req;
-	struct rsp_que *rsp;
 	struct qla_qpair *qpair;
 
 	vha = fcport->vha;
@@ -3197,10 +3190,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	if (vha->vp_idx && vha->qpair) {
 		/* NPIV port */
 		qpair = vha->qpair;
-		rsp = qpair->rsp;
 		req = qpair->req;
-	} else {
-		rsp = req->rsp;
 	}
 
 	tsk = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &tsk_dma);
@@ -3257,7 +3247,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	}
 
 	/* Issue marker IOCB. */
-	rval2 = qla2x00_marker(vha, req, rsp, fcport->loop_id, l,
+	rval2 = qla2x00_marker(vha, ha->base_qpair, fcport->loop_id, l,
 	    type == TCF_LUN_RESET ? MK_SYNC_ID_LUN: MK_SYNC_ID);
 	if (rval2 != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1099,
@@ -5248,6 +5238,66 @@ qla81xx_write_mpi_register(scsi_qla_host_t *vha, uint16_t *mb)
 	return rval;
 }
 
+/* Set the specified data rate */
+int
+qla2x00_set_data_rate(scsi_qla_host_t *vha, uint16_t mode)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t val;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1106,
+	    "Entered %s speed:0x%x mode:0x%x.\n", __func__, ha->set_data_rate,
+	    mode);
+
+	if (!IS_FWI2_CAPABLE(ha))
+		return QLA_FUNCTION_FAILED;
+
+	memset(mcp, 0, sizeof(*mcp));
+	switch (ha->set_data_rate) {
+	case PORT_SPEED_AUTO:
+	case PORT_SPEED_4GB:
+	case PORT_SPEED_8GB:
+	case PORT_SPEED_16GB:
+	case PORT_SPEED_32GB:
+		val = ha->set_data_rate;
+		break;
+	default:
+		ql_log(ql_log_warn, vha, 0x1199,
+		    "Unrecognized speed setting:%d. Setting Autoneg\n",
+		    ha->set_data_rate);
+		val = ha->set_data_rate = PORT_SPEED_AUTO;
+		break;
+	}
+
+	mcp->mb[0] = MBC_DATA_RATE;
+	mcp->mb[1] = mode;
+	mcp->mb[2] = val;
+
+	mcp->out_mb = MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_2|MBX_1|MBX_0;
+	if (IS_QLA83XX(ha) || IS_QLA27XX(ha))
+		mcp->in_mb |= MBX_4|MBX_3;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1107,
+		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
+	} else {
+		if (mcp->mb[1] != 0x7)
+			ql_dbg(ql_dbg_mbx, vha, 0x1179,
+				"Speed set:0x%x\n", mcp->mb[1]);
+
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1108,
+		    "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
+
 int
 qla2x00_get_data_rate(scsi_qla_host_t *vha)
 {
@@ -5263,7 +5313,7 @@ qla2x00_get_data_rate(scsi_qla_host_t *vha)
 		return QLA_FUNCTION_FAILED;
 
 	mcp->mb[0] = MBC_DATA_RATE;
-	mcp->mb[1] = 0;
+	mcp->mb[1] = QLA_GET_DATA_RATE;
 	mcp->out_mb = MBX_1|MBX_0;
 	mcp->in_mb = MBX_2|MBX_1|MBX_0;
 	if (IS_QLA83XX(ha) || IS_QLA27XX(ha))
@@ -6268,8 +6318,6 @@ int __qla24xx_parse_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport,
 	fcport->d_id.b.rsvd_1 = 0;
 
 	if (fcport->fc4f_nvme) {
-		fcport->nvme_prli_service_param =
-		    pd->prli_nvme_svc_param_word_3;
 		fcport->port_type = FCT_NVME;
 	} else {
 		/* If not target must be initiator or unknown type. */

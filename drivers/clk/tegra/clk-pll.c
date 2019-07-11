@@ -590,12 +590,13 @@ static int _calc_rate(struct clk_hw *hw, struct tegra_clk_pll_freq_table *cfg,
 	cfg->n = cfg->output_rate / cfreq;
 	cfg->cpcon = OUT_OF_TABLE_CPCON;
 
-	if (cfg->m > divm_max(pll) || cfg->n > divn_max(pll) ||
-	    (1 << p_div) > divp_max(pll)
-	    || cfg->output_rate > pll->params->vco_max) {
+	if (cfg->m == 0 || cfg->m > divm_max(pll) ||
+	    cfg->n > divn_max(pll) || (1 << p_div) > divp_max(pll) ||
+	    cfg->output_rate > pll->params->vco_max) {
 		return -EINVAL;
 	}
 
+	cfg->output_rate = cfg->n * DIV_ROUND_UP(parent_rate, cfg->m);
 	cfg->output_rate >>= p_div;
 
 	if (pll->params->pdiv_tohw) {

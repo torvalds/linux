@@ -29,9 +29,9 @@
 		client->cl_device->ishtp_dev, __VA_ARGS__)
 
 /* ISH Transport protocol (ISHTP in short) GUID */
-static const uuid_le hid_ishtp_guid = UUID_LE(0x33AECD58, 0xB679, 0x4E54,
-					      0x9B, 0xD9, 0xA0, 0x4D, 0x34,
-					      0xF0, 0xC2, 0x26);
+static const guid_t hid_ishtp_guid =
+	GUID_INIT(0x33AECD58, 0xB679, 0x4E54,
+		  0x9B, 0xD9, 0xA0, 0x4D, 0x34, 0xF0, 0xC2, 0x26);
 
 /* ISH HID message structure */
 struct hostif_msg_hdr {

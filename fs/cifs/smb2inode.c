@@ -37,6 +37,16 @@
 #include "smb2pdu.h"
 #include "smb2proto.h"
 
+static void
+free_set_inf_compound(struct smb_rqst *rqst)
+{
+	if (rqst[1].rq_iov)
+		SMB2_set_info_free(&rqst[1]);
+	if (rqst[2].rq_iov)
+		SMB2_close_free(&rqst[2]);
+}
+
+
 static int
 smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		 struct cifs_sb_info *cifs_sb, const char *full_path,
@@ -49,7 +59,6 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 	struct cifs_ses *ses = tcon->ses;
-	struct TCP_Server_Info *server = ses->server;
 	int num_rqst = 0;
 	struct smb_rqst rqst[3];
 	int resp_buftype[3];
@@ -97,7 +106,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc)
 		goto finished;
 
-	smb2_set_next_command(server, &rqst[num_rqst++], 0);
+	smb2_set_next_command(tcon, &rqst[num_rqst++]);
 
 	/* Operation */
 	switch (command) {
@@ -111,16 +120,20 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 				SMB2_O_INFO_FILE, 0,
 				sizeof(struct smb2_file_all_info) +
 					  PATH_MAX * 2, 0, NULL);
-		smb2_set_next_command(server, &rqst[num_rqst], 0);
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
+		trace_smb3_query_info_compound_enter(xid, ses->Suid, tcon->tid,
+						     full_path);
 		break;
 	case SMB2_OP_DELETE:
+		trace_smb3_delete_enter(xid, ses->Suid, tcon->tid, full_path);
 		break;
 	case SMB2_OP_MKDIR:
 		/*
 		 * Directories are created through parameters in the
 		 * SMB2_open() call.
 		 */
+		trace_smb3_mkdir_enter(xid, ses->Suid, tcon->tid, full_path);
 		break;
 	case SMB2_OP_RMDIR:
 		memset(&si_iov, 0, sizeof(si_iov));
@@ -134,8 +147,9 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 					COMPOUND_FID, current->tgid,
 					FILE_DISPOSITION_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
-		smb2_set_next_command(server, &rqst[num_rqst], 1);
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
+		trace_smb3_rmdir_enter(xid, ses->Suid, tcon->tid, full_path);
 		break;
 	case SMB2_OP_SET_EOF:
 		memset(&si_iov, 0, sizeof(si_iov));
@@ -149,8 +163,9 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 					COMPOUND_FID, current->tgid,
 					FILE_END_OF_FILE_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
-		smb2_set_next_command(server, &rqst[num_rqst], 0);
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
+		trace_smb3_set_eof_enter(xid, ses->Suid, tcon->tid, full_path);
 		break;
 	case SMB2_OP_SET_INFO:
 		memset(&si_iov, 0, sizeof(si_iov));
@@ -165,8 +180,10 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 					COMPOUND_FID, current->tgid,
 					FILE_BASIC_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
-		smb2_set_next_command(server, &rqst[num_rqst], 0);
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
+		trace_smb3_set_info_compound_enter(xid, ses->Suid, tcon->tid,
+						   full_path);
 		break;
 	case SMB2_OP_RENAME:
 		memset(&si_iov, 0, sizeof(si_iov));
@@ -189,8 +206,9 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 					COMPOUND_FID, current->tgid,
 					FILE_RENAME_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
-		smb2_set_next_command(server, &rqst[num_rqst], 0);
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
+		trace_smb3_rename_enter(xid, ses->Suid, tcon->tid, full_path);
 		break;
 	case SMB2_OP_HARDLINK:
 		memset(&si_iov, 0, sizeof(si_iov));
@@ -213,8 +231,9 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 					COMPOUND_FID, current->tgid,
 					FILE_LINK_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
-		smb2_set_next_command(server, &rqst[num_rqst], 0);
+		smb2_set_next_command(tcon, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
+		trace_smb3_hardlink_enter(xid, ses->Suid, tcon->tid, full_path);
 		break;
 	default:
 		cifs_dbg(VFS, "Invalid command\n");
@@ -253,21 +272,65 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 			SMB2_query_info_free(&rqst[1]);
 		if (rqst[2].rq_iov)
 			SMB2_close_free(&rqst[2]);
+		if (rc)
+			trace_smb3_query_info_compound_err(xid,  ses->Suid,
+						tcon->tid, rc);
+		else
+			trace_smb3_query_info_compound_done(xid, ses->Suid,
+						tcon->tid);
 		break;
 	case SMB2_OP_DELETE:
+		if (rc)
+			trace_smb3_delete_err(xid,  ses->Suid, tcon->tid, rc);
+		else
+			trace_smb3_delete_done(xid, ses->Suid, tcon->tid);
+		if (rqst[1].rq_iov)
+			SMB2_close_free(&rqst[1]);
+		break;
 	case SMB2_OP_MKDIR:
+		if (rc)
+			trace_smb3_mkdir_err(xid,  ses->Suid, tcon->tid, rc);
+		else
+			trace_smb3_mkdir_done(xid, ses->Suid, tcon->tid);
 		if (rqst[1].rq_iov)
 			SMB2_close_free(&rqst[1]);
 		break;
 	case SMB2_OP_HARDLINK:
+		if (rc)
+			trace_smb3_hardlink_err(xid,  ses->Suid, tcon->tid, rc);
+		else
+			trace_smb3_hardlink_done(xid, ses->Suid, tcon->tid);
+		free_set_inf_compound(rqst);
+		break;
 	case SMB2_OP_RENAME:
+		if (rc)
+			trace_smb3_rename_err(xid,  ses->Suid, tcon->tid, rc);
+		else
+			trace_smb3_rename_done(xid, ses->Suid, tcon->tid);
+		free_set_inf_compound(rqst);
+		break;
 	case SMB2_OP_RMDIR:
+		if (rc)
+			trace_smb3_rmdir_err(xid,  ses->Suid, tcon->tid, rc);
+		else
+			trace_smb3_rmdir_done(xid, ses->Suid, tcon->tid);
+		free_set_inf_compound(rqst);
+		break;
 	case SMB2_OP_SET_EOF:
+		if (rc)
+			trace_smb3_set_eof_err(xid,  ses->Suid, tcon->tid, rc);
+		else
+			trace_smb3_set_eof_done(xid, ses->Suid, tcon->tid);
+		free_set_inf_compound(rqst);
+		break;
 	case SMB2_OP_SET_INFO:
-		if (rqst[1].rq_iov)
-			SMB2_set_info_free(&rqst[1]);
-		if (rqst[2].rq_iov)
-			SMB2_close_free(&rqst[2]);
+		if (rc)
+			trace_smb3_set_info_compound_err(xid,  ses->Suid,
+						tcon->tid, rc);
+		else
+			trace_smb3_set_info_compound_done(xid, ses->Suid,
+						tcon->tid);
+		free_set_inf_compound(rqst);
 		break;
 	}
 	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
@@ -294,6 +357,8 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	struct smb2_file_all_info *smb2_data;
 	__u32 create_options = 0;
+	struct cifs_fid fid;
+	bool no_cached_open = tcon->nohandlecache;
 
 	*adjust_tz = false;
 	*symlink = false;
@@ -302,6 +367,26 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 			    GFP_KERNEL);
 	if (smb2_data == NULL)
 		return -ENOMEM;
+
+	/* If it is a root and its handle is cached then use it */
+	if (!strlen(full_path) && !no_cached_open) {
+		rc = open_shroot(xid, tcon, &fid);
+		if (rc)
+			goto out;
+
+		if (tcon->crfid.file_all_info_is_valid) {
+			move_smb2_info_to_cifs(data,
+					       &tcon->crfid.file_all_info);
+		} else {
+			rc = SMB2_query_info(xid, tcon, fid.persistent_fid,
+					     fid.volatile_fid, smb2_data);
+			if (!rc)
+				move_smb2_info_to_cifs(data, smb2_data);
+		}
+		close_shroot(&tcon->crfid);
+		goto out;
+	}
+
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
@@ -388,7 +473,6 @@ smb2_set_path_attr(const unsigned int xid, struct cifs_tcon *tcon,
 		rc = -ENOMEM;
 		goto smb2_rename_path;
 	}
-
 	rc = smb2_compound_op(xid, tcon, cifs_sb, from_name, access,
 			      FILE_OPEN, 0, smb2_to_name, command);
 smb2_rename_path:

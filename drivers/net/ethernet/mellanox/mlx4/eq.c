@@ -100,7 +100,7 @@ static void eq_set_ci(struct mlx4_eq *eq, int req_not)
 					       req_not << 31),
 		     eq->doorbell);
 	/* We still want ordering, just not swabbing, so add a barrier */
-	mb();
+	wmb();
 }
 
 static struct mlx4_eqe *get_eqe(struct mlx4_eq *eq, u32 entry, u8 eqe_factor,
@@ -558,6 +558,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			mlx4_dbg(dev, "%s: MLX4_EVENT_TYPE_SRQ_LIMIT. srq_no=0x%x, eq 0x%x\n",
 				 __func__, be32_to_cpu(eqe->event.srq.srqn),
 				 eq->eqn);
+			/* fall through */
 		case MLX4_EVENT_TYPE_SRQ_CATAS_ERROR:
 			if (mlx4_is_master(dev)) {
 				/* forward only to slave owning the SRQ */
@@ -820,7 +821,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 				  !!(eqe->owner & 0x80) ^
 				  !!(eq->cons_index & eq->nent) ? "HW" : "SW");
 			break;
-		};
+		}
 
 		++eq->cons_index;
 		eqes_found = 1;

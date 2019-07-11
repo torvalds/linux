@@ -52,6 +52,9 @@
 #include "cifs_spnego.h"
 #include "fscache.h"
 #include "smb2pdu.h"
+#ifdef CONFIG_CIFS_DFS_UPCALL
+#include "dfs_cache.h"
+#endif
 
 int cifsFYI = 0;
 bool traceSMB;
@@ -378,7 +381,7 @@ cifs_show_security(struct seq_file *s, struct cifs_ses *ses)
 		seq_puts(s, "ntlm");
 		break;
 	case Kerberos:
-		seq_puts(s, "krb5");
+		seq_printf(s, "krb5,cruid=%u", from_kuid_munged(&init_user_ns,ses->cred_uid));
 		break;
 	case RawNTLMSSP:
 		seq_puts(s, "ntlmssp");
@@ -551,10 +554,13 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 
 	seq_printf(s, ",rsize=%u", cifs_sb->rsize);
 	seq_printf(s, ",wsize=%u", cifs_sb->wsize);
+	seq_printf(s, ",bsize=%u", cifs_sb->bsize);
 	seq_printf(s, ",echo_interval=%lu",
 			tcon->ses->server->echo_interval / HZ);
 	if (tcon->snapshot_time)
 		seq_printf(s, ",snapshot=%llu", tcon->snapshot_time);
+	if (tcon->handle_timeout)
+		seq_printf(s, ",handletimeout=%u", tcon->handle_timeout);
 	/* convert actimeo and display it in seconds */
 	seq_printf(s, ",actimeo=%lu", cifs_sb->actimeo / HZ);
 
@@ -1004,7 +1010,7 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 	unsigned int xid;
 	int rc;
 
-	if (remap_flags & ~REMAP_FILE_ADVISORY)
+	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
 		return -EINVAL;
 
 	cifs_dbg(FYI, "clone range\n");
@@ -1494,10 +1500,15 @@ init_cifs(void)
 	if (rc)
 		goto out_destroy_mids;
 
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	rc = dfs_cache_init();
+	if (rc)
+		goto out_destroy_request_bufs;
+#endif /* CONFIG_CIFS_DFS_UPCALL */
 #ifdef CONFIG_CIFS_UPCALL
 	rc = init_cifs_spnego();
 	if (rc)
-		goto out_destroy_request_bufs;
+		goto out_destroy_dfs_cache;
 #endif /* CONFIG_CIFS_UPCALL */
 
 #ifdef CONFIG_CIFS_ACL
@@ -1525,6 +1536,10 @@ out_register_key_type:
 #endif
 #ifdef CONFIG_CIFS_UPCALL
 	exit_cifs_spnego();
+out_destroy_dfs_cache:
+#endif
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	dfs_cache_destroy();
 out_destroy_request_bufs:
 #endif
 	cifs_destroy_request_bufs();
@@ -1555,6 +1570,9 @@ exit_cifs(void)
 #endif
 #ifdef CONFIG_CIFS_UPCALL
 	exit_cifs_spnego();
+#endif
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	dfs_cache_destroy();
 #endif
 	cifs_destroy_request_bufs();
 	cifs_destroy_mids();

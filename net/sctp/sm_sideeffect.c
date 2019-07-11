@@ -52,7 +52,7 @@
 #include <net/sctp/sm.h>
 #include <net/sctp/stream_sched.h>
 
-static int sctp_cmd_interpreter(enum sctp_event event_type,
+static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 				union sctp_subtype subtype,
 				enum sctp_state state,
 				struct sctp_endpoint *ep,
@@ -61,7 +61,7 @@ static int sctp_cmd_interpreter(enum sctp_event event_type,
 				enum sctp_disposition status,
 				struct sctp_cmd_seq *commands,
 				gfp_t gfp);
-static int sctp_side_effects(enum sctp_event event_type,
+static int sctp_side_effects(enum sctp_event_type event_type,
 			     union sctp_subtype subtype,
 			     enum sctp_state state,
 			     struct sctp_endpoint *ep,
@@ -623,7 +623,7 @@ static void sctp_cmd_init_failed(struct sctp_cmd_seq *commands,
 /* Worker routine to handle SCTP_CMD_ASSOC_FAILED.  */
 static void sctp_cmd_assoc_failed(struct sctp_cmd_seq *commands,
 				  struct sctp_association *asoc,
-				  enum sctp_event event_type,
+				  enum sctp_event_type event_type,
 				  union sctp_subtype subtype,
 				  struct sctp_chunk *chunk,
 				  unsigned int error)
@@ -1112,32 +1112,6 @@ static void sctp_cmd_send_msg(struct sctp_association *asoc,
 }
 
 
-/* Sent the next ASCONF packet currently stored in the association.
- * This happens after the ASCONF_ACK was succeffully processed.
- */
-static void sctp_cmd_send_asconf(struct sctp_association *asoc)
-{
-	struct net *net = sock_net(asoc->base.sk);
-
-	/* Send the next asconf chunk from the addip chunk
-	 * queue.
-	 */
-	if (!list_empty(&asoc->addip_chunk_list)) {
-		struct list_head *entry = asoc->addip_chunk_list.next;
-		struct sctp_chunk *asconf = list_entry(entry,
-						struct sctp_chunk, list);
-		list_del_init(entry);
-
-		/* Hold the chunk until an ASCONF_ACK is received. */
-		sctp_chunk_hold(asconf);
-		if (sctp_primitive_ASCONF(net, asoc, asconf))
-			sctp_chunk_free(asconf);
-		else
-			asoc->addip_last_asconf = asconf;
-	}
-}
-
-
 /* These three macros allow us to pull the debugging code out of the
  * main flow of sctp_do_sm() to keep attention focused on the real
  * functionality there.
@@ -1162,7 +1136,7 @@ static void sctp_cmd_send_asconf(struct sctp_association *asoc)
  * If you want to understand all of lksctp, this is a
  * good place to start.
  */
-int sctp_do_sm(struct net *net, enum sctp_event event_type,
+int sctp_do_sm(struct net *net, enum sctp_event_type event_type,
 	       union sctp_subtype subtype, enum sctp_state state,
 	       struct sctp_endpoint *ep, struct sctp_association *asoc,
 	       void *event_arg, gfp_t gfp)
@@ -1199,7 +1173,7 @@ int sctp_do_sm(struct net *net, enum sctp_event event_type,
 /*****************************************************************
  * This the master state function side effect processing function.
  *****************************************************************/
-static int sctp_side_effects(enum sctp_event event_type,
+static int sctp_side_effects(enum sctp_event_type event_type,
 			     union sctp_subtype subtype,
 			     enum sctp_state state,
 			     struct sctp_endpoint *ep,
@@ -1285,7 +1259,7 @@ bail:
  ********************************************************************/
 
 /* This is the side-effect interpreter.  */
-static int sctp_cmd_interpreter(enum sctp_event event_type,
+static int sctp_cmd_interpreter(enum sctp_event_type event_type,
 				union sctp_subtype subtype,
 				enum sctp_state state,
 				struct sctp_endpoint *ep,
@@ -1782,9 +1756,6 @@ static int sctp_cmd_interpreter(enum sctp_event event_type,
 				local_cork = 1;
 			}
 			sctp_cmd_send_msg(asoc, cmd->obj.msg, gfp);
-			break;
-		case SCTP_CMD_SEND_NEXT_ASCONF:
-			sctp_cmd_send_asconf(asoc);
 			break;
 		case SCTP_CMD_PURGE_ASCONF_QUEUE:
 			sctp_asconf_queue_teardown(asoc);

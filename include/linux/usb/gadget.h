@@ -61,6 +61,8 @@ struct usb_ep;
  *	invalidated by the error may first be dequeued.
  * @context: For use by the completion callback
  * @list: For use by the gadget driver.
+ * @frame_number: Reports the interval number in (micro)frame in which the
+ *	isochronous transfer was transmitted or received.
  * @status: Reports completion code, zero or a negative errno.
  *	Normally, faults block the transfer queue from advancing until
  *	the completion callback returns.
@@ -111,6 +113,8 @@ struct usb_request {
 					struct usb_request *req);
 	void			*context;
 	struct list_head	list;
+
+	unsigned		frame_number;		/* ISO ONLY */
 
 	int			status;
 	unsigned		actual;

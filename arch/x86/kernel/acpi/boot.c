@@ -848,7 +848,7 @@ EXPORT_SYMBOL(acpi_unregister_ioapic);
 /**
  * acpi_ioapic_registered - Check whether IOAPIC assoicatied with @gsi_base
  *			    has been registered
- * @handle:	ACPI handle of the IOAPIC deivce
+ * @handle:	ACPI handle of the IOAPIC device
  * @gsi_base:	GSI base associated with the IOAPIC
  *
  * Assume caller holds some type of lock to serialize acpi_ioapic_registered()
@@ -935,6 +935,9 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 #define HPET_RESOURCE_NAME_SIZE 9
 	hpet_res = memblock_alloc(sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE,
 				  SMP_CACHE_BYTES);
+	if (!hpet_res)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE);
 
 	hpet_res->name = (void *)&hpet_res[1];
 	hpet_res->flags = IORESOURCE_MEM;

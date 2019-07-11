@@ -1603,11 +1603,9 @@ static void raid1_error(struct mddev *mddev, struct md_rdev *rdev)
 		return;
 	}
 	set_bit(Blocked, &rdev->flags);
-	if (test_and_clear_bit(In_sync, &rdev->flags)) {
+	if (test_and_clear_bit(In_sync, &rdev->flags))
 		mddev->degraded++;
-		set_bit(Faulty, &rdev->flags);
-	} else
-		set_bit(Faulty, &rdev->flags);
+	set_bit(Faulty, &rdev->flags);
 	spin_unlock_irqrestore(&conf->device_lock, flags);
 	/*
 	 * if recovery is running, make sure it aborts.
@@ -1863,6 +1861,20 @@ static void end_sync_read(struct bio *bio)
 		reschedule_retry(r1_bio);
 }
 
+static void abort_sync_write(struct mddev *mddev, struct r1bio *r1_bio)
+{
+	sector_t sync_blocks = 0;
+	sector_t s = r1_bio->sector;
+	long sectors_to_go = r1_bio->sectors;
+
+	/* make sure these bits don't get cleared. */
+	do {
+		md_bitmap_end_sync(mddev->bitmap, s, &sync_blocks, 1);
+		s += sync_blocks;
+		sectors_to_go -= sync_blocks;
+	} while (sectors_to_go > 0);
+}
+
 static void end_sync_write(struct bio *bio)
 {
 	int uptodate = !bio->bi_status;
@@ -1874,15 +1886,7 @@ static void end_sync_write(struct bio *bio)
 	struct md_rdev *rdev = conf->mirrors[find_bio_disk(r1_bio, bio)].rdev;
 
 	if (!uptodate) {
-		sector_t sync_blocks = 0;
-		sector_t s = r1_bio->sector;
-		long sectors_to_go = r1_bio->sectors;
-		/* make sure these bits doesn't get cleared. */
-		do {
-			md_bitmap_end_sync(mddev->bitmap, s, &sync_blocks, 1);
-			s += sync_blocks;
-			sectors_to_go -= sync_blocks;
-		} while (sectors_to_go > 0);
+		abort_sync_write(mddev, r1_bio);
 		set_bit(WriteErrorSeen, &rdev->flags);
 		if (!test_and_set_bit(WantReplacement, &rdev->flags))
 			set_bit(MD_RECOVERY_NEEDED, &
@@ -2114,13 +2118,14 @@ static void process_checks(struct r1bio *r1_bio)
 		struct page **spages = get_resync_pages(sbio)->pages;
 		struct bio_vec *bi;
 		int page_len[RESYNC_PAGES] = { 0 };
+		struct bvec_iter_all iter_all;
 
 		if (sbio->bi_end_io != end_sync_read)
 			continue;
 		/* Now we can 'fixup' the error value */
 		sbio->bi_status = 0;
 
-		bio_for_each_segment_all(bi, sbio, j)
+		bio_for_each_segment_all(bi, sbio, j, iter_all)
 			page_len[j] = bi->bv_len;
 
 		if (!status) {
@@ -2172,8 +2177,10 @@ static void sync_request_write(struct mddev *mddev, struct r1bio *r1_bio)
 		     (i == r1_bio->read_disk ||
 		      !test_bit(MD_RECOVERY_SYNC, &mddev->recovery))))
 			continue;
-		if (test_bit(Faulty, &conf->mirrors[i].rdev->flags))
+		if (test_bit(Faulty, &conf->mirrors[i].rdev->flags)) {
+			abort_sync_write(mddev, r1_bio);
 			continue;
+		}
 
 		bio_set_op_attrs(wbio, REQ_OP_WRITE, 0);
 		if (test_bit(FailFast, &conf->mirrors[i].rdev->flags))

@@ -15,7 +15,7 @@ void ice_update_eth_stats(struct ice_vsi *vsi);
 
 int ice_vsi_cfg_rxqs(struct ice_vsi *vsi);
 
-int ice_vsi_cfg_txqs(struct ice_vsi *vsi);
+int ice_vsi_cfg_lan_txqs(struct ice_vsi *vsi);
 
 void ice_vsi_cfg_msix(struct ice_vsi *vsi);
 
@@ -31,7 +31,8 @@ int ice_vsi_start_rx_rings(struct ice_vsi *vsi);
 
 int ice_vsi_stop_rx_rings(struct ice_vsi *vsi);
 
-int ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
+int
+ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 			  u16 rel_vmvf_num);
 
 int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena);

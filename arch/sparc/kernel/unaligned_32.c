@@ -278,7 +278,6 @@ static inline int ok_for_user(struct pt_regs *regs, unsigned int insn,
 			      enum direction dir)
 {
 	unsigned int reg;
-	int check = (dir == load) ? VERIFY_READ : VERIFY_WRITE;
 	int size = ((insn >> 19) & 3) == 3 ? 8 : 4;
 
 	if ((regs->pc | regs->npc) & 3)
@@ -290,18 +289,18 @@ static inline int ok_for_user(struct pt_regs *regs, unsigned int insn,
 
 	reg = (insn >> 25) & 0x1f;
 	if (reg >= 16) {
-		if (!access_ok(check, WINREG_ADDR(reg - 16), size))
+		if (!access_ok(WINREG_ADDR(reg - 16), size))
 			return -EFAULT;
 	}
 	reg = (insn >> 14) & 0x1f;
 	if (reg >= 16) {
-		if (!access_ok(check, WINREG_ADDR(reg - 16), size))
+		if (!access_ok(WINREG_ADDR(reg - 16), size))
 			return -EFAULT;
 	}
 	if (!(insn & 0x2000)) {
 		reg = (insn & 0x1f);
 		if (reg >= 16) {
-			if (!access_ok(check, WINREG_ADDR(reg - 16), size))
+			if (!access_ok(WINREG_ADDR(reg - 16), size))
 				return -EFAULT;
 		}
 	}

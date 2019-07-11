@@ -37,6 +37,7 @@
 
 #include "mlx4_ib.h"
 #include <rdma/mlx4-abi.h>
+#include <rdma/uverbs_ioctl.h>
 
 static void *get_wqe(struct mlx4_ib_srq *srq, int n)
 {
@@ -73,6 +74,8 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 				  struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(pd->device);
+	struct mlx4_ib_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct mlx4_ib_ucontext, ibucontext);
 	struct mlx4_ib_srq *srq;
 	struct mlx4_wqe_srq_next_seg *next;
 	struct mlx4_wqe_data_seg *scatter;
@@ -105,7 +108,7 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 
 	buf_size = srq->msrq.max * desc_size;
 
-	if (pd->uobject) {
+	if (udata) {
 		struct mlx4_ib_create_srq ucmd;
 
 		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
@@ -113,8 +116,7 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 			goto err_srq;
 		}
 
-		srq->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr,
-					buf_size, 0, 0);
+		srq->umem = ib_umem_get(udata, ucmd.buf_addr, buf_size, 0, 0);
 		if (IS_ERR(srq->umem)) {
 			err = PTR_ERR(srq->umem);
 			goto err_srq;
@@ -129,8 +131,8 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 		if (err)
 			goto err_mtt;
 
-		err = mlx4_ib_db_map_user(to_mucontext(pd->uobject->context),
-					  ucmd.db_addr, &srq->db);
+		err = mlx4_ib_db_map_user(ucontext, udata, ucmd.db_addr,
+					  &srq->db);
 		if (err)
 			goto err_mtt;
 	} else {
@@ -191,7 +193,7 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 	srq->msrq.event = mlx4_ib_srq_event;
 	srq->ibsrq.ext.xrc.srq_num = srq->msrq.srqn;
 
-	if (pd->uobject)
+	if (udata)
 		if (ib_copy_to_udata(udata, &srq->msrq.srqn, sizeof (__u32))) {
 			err = -EFAULT;
 			goto err_wrid;
@@ -202,8 +204,8 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 	return &srq->ibsrq;
 
 err_wrid:
-	if (pd->uobject)
-		mlx4_ib_db_unmap_user(to_mucontext(pd->uobject->context), &srq->db);
+	if (udata)
+		mlx4_ib_db_unmap_user(ucontext, &srq->db);
 	else
 		kvfree(srq->wrid);
 
@@ -211,13 +213,13 @@ err_mtt:
 	mlx4_mtt_cleanup(dev->dev, &srq->mtt);
 
 err_buf:
-	if (pd->uobject)
+	if (srq->umem)
 		ib_umem_release(srq->umem);
 	else
 		mlx4_buf_free(dev->dev, buf_size, &srq->buf);
 
 err_db:
-	if (!pd->uobject)
+	if (!udata)
 		mlx4_db_free(dev->dev, &srq->db);
 
 err_srq:

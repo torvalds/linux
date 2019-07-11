@@ -764,7 +764,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	    dev->stats.tx_bytes += mp->tx_bufs[i]->len;
 	    ++dev->stats.tx_packets;
 	}
-	dev_kfree_skb_irq(mp->tx_bufs[i]);
+	dev_consume_skb_irq(mp->tx_bufs[i]);
 	--mp->tx_active;
 	if (++i >= N_TX_RING)
 	    i = 0;

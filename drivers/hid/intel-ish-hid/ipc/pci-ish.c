@@ -117,6 +117,7 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret;
 	struct ish_hw *hw;
+	unsigned long irq_flag = 0;
 	struct ishtp_device *ishtp;
 	struct device *dev = &pdev->dev;
 
@@ -156,8 +157,12 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
 
 	/* request and enable interrupt */
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (!pdev->msi_enabled && !pdev->msix_enabled)
+		irq_flag = IRQF_SHARED;
+
 	ret = devm_request_irq(dev, pdev->irq, ish_irq_handler,
-			       IRQF_SHARED, KBUILD_MODNAME, ishtp);
+			       irq_flag, KBUILD_MODNAME, ishtp);
 	if (ret) {
 		dev_err(dev, "ISH: request IRQ %d failed\n", pdev->irq);
 		return ret;

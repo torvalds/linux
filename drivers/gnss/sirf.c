@@ -25,18 +25,65 @@
 #define SIRF_ON_OFF_PULSE_TIME		100
 #define SIRF_ACTIVATE_TIMEOUT		200
 #define SIRF_HIBERNATE_TIMEOUT		200
+/*
+ * If no data arrives for this time, we assume that the chip is off.
+ * REVISIT: The report cycle is configurable and can be several minutes long,
+ * so this will only work reliably if the report cycle is set to a reasonable
+ * low value. Also power saving settings (like send data only on movement)
+ * might things work even worse.
+ * Workaround might be to parse shutdown or bootup messages.
+ */
+#define SIRF_REPORT_CYCLE	2000
 
 struct sirf_data {
 	struct gnss_device *gdev;
 	struct serdev_device *serdev;
 	speed_t	speed;
 	struct regulator *vcc;
+	struct regulator *lna;
 	struct gpio_desc *on_off;
 	struct gpio_desc *wakeup;
 	int irq;
 	bool active;
+
+	struct mutex gdev_mutex;
+	bool open;
+
+	struct mutex serdev_mutex;
+	int serdev_count;
+
 	wait_queue_head_t power_wait;
 };
+
+static int sirf_serdev_open(struct sirf_data *data)
+{
+	int ret = 0;
+
+	mutex_lock(&data->serdev_mutex);
+	if (++data->serdev_count == 1) {
+		ret = serdev_device_open(data->serdev);
+		if (ret) {
+			data->serdev_count--;
+			goto out_unlock;
+		}
+
+		serdev_device_set_baudrate(data->serdev, data->speed);
+		serdev_device_set_flow_control(data->serdev, false);
+	}
+
+out_unlock:
+	mutex_unlock(&data->serdev_mutex);
+
+	return ret;
+}
+
+static void sirf_serdev_close(struct sirf_data *data)
+{
+	mutex_lock(&data->serdev_mutex);
+	if (--data->serdev_count == 0)
+		serdev_device_close(data->serdev);
+	mutex_unlock(&data->serdev_mutex);
+}
 
 static int sirf_open(struct gnss_device *gdev)
 {
@@ -44,12 +91,17 @@ static int sirf_open(struct gnss_device *gdev)
 	struct serdev_device *serdev = data->serdev;
 	int ret;
 
-	ret = serdev_device_open(serdev);
-	if (ret)
-		return ret;
+	mutex_lock(&data->gdev_mutex);
+	data->open = true;
+	mutex_unlock(&data->gdev_mutex);
 
-	serdev_device_set_baudrate(serdev, data->speed);
-	serdev_device_set_flow_control(serdev, false);
+	ret = sirf_serdev_open(data);
+	if (ret) {
+		mutex_lock(&data->gdev_mutex);
+		data->open = false;
+		mutex_unlock(&data->gdev_mutex);
+		return ret;
+	}
 
 	ret = pm_runtime_get_sync(&serdev->dev);
 	if (ret < 0) {
@@ -61,7 +113,11 @@ static int sirf_open(struct gnss_device *gdev)
 	return 0;
 
 err_close:
-	serdev_device_close(serdev);
+	sirf_serdev_close(data);
+
+	mutex_lock(&data->gdev_mutex);
+	data->open = false;
+	mutex_unlock(&data->gdev_mutex);
 
 	return ret;
 }
@@ -71,9 +127,13 @@ static void sirf_close(struct gnss_device *gdev)
 	struct sirf_data *data = gnss_get_drvdata(gdev);
 	struct serdev_device *serdev = data->serdev;
 
-	serdev_device_close(serdev);
+	sirf_serdev_close(data);
 
 	pm_runtime_put(&serdev->dev);
+
+	mutex_lock(&data->gdev_mutex);
+	data->open = false;
+	mutex_unlock(&data->gdev_mutex);
 }
 
 static int sirf_write_raw(struct gnss_device *gdev, const unsigned char *buf,
@@ -85,7 +145,7 @@ static int sirf_write_raw(struct gnss_device *gdev, const unsigned char *buf,
 
 	/* write is only buffered synchronously */
 	ret = serdev_device_write(serdev, buf, count, MAX_SCHEDULE_TIMEOUT);
-	if (ret < 0)
+	if (ret < 0 || ret < count)
 		return ret;
 
 	/* FIXME: determine if interrupted? */
@@ -105,8 +165,19 @@ static int sirf_receive_buf(struct serdev_device *serdev,
 {
 	struct sirf_data *data = serdev_device_get_drvdata(serdev);
 	struct gnss_device *gdev = data->gdev;
+	int ret = 0;
 
-	return gnss_insert_raw(gdev, buf, count);
+	if (!data->wakeup && !data->active) {
+		data->active = true;
+		wake_up_interruptible(&data->power_wait);
+	}
+
+	mutex_lock(&data->gdev_mutex);
+	if (data->open)
+		ret = gnss_insert_raw(gdev, buf, count);
+	mutex_unlock(&data->gdev_mutex);
+
+	return ret;
 }
 
 static const struct serdev_device_ops sirf_serdev_ops = {
@@ -125,16 +196,44 @@ static irqreturn_t sirf_wakeup_handler(int irq, void *dev_id)
 	if (ret < 0)
 		goto out;
 
-	data->active = !!ret;
+	data->active = ret;
 	wake_up_interruptible(&data->power_wait);
 out:
 	return IRQ_HANDLED;
+}
+
+static int sirf_wait_for_power_state_nowakeup(struct sirf_data *data,
+						bool active,
+						unsigned long timeout)
+{
+	int ret;
+
+	/* Wait for state change (including any shutdown messages). */
+	msleep(timeout);
+
+	/* Wait for data reception or timeout. */
+	data->active = false;
+	ret = wait_event_interruptible_timeout(data->power_wait,
+			data->active, msecs_to_jiffies(SIRF_REPORT_CYCLE));
+	if (ret < 0)
+		return ret;
+
+	if (ret > 0 && !active)
+		return -ETIMEDOUT;
+
+	if (ret == 0 && active)
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 static int sirf_wait_for_power_state(struct sirf_data *data, bool active,
 					unsigned long timeout)
 {
 	int ret;
+
+	if (!data->wakeup)
+		return sirf_wait_for_power_state_nowakeup(data, active, timeout);
 
 	ret = wait_event_interruptible_timeout(data->power_wait,
 			data->active == active, msecs_to_jiffies(timeout));
@@ -168,21 +267,22 @@ static int sirf_set_active(struct sirf_data *data, bool active)
 	else
 		timeout = SIRF_HIBERNATE_TIMEOUT;
 
+	if (!data->wakeup) {
+		ret = sirf_serdev_open(data);
+		if (ret)
+			return ret;
+	}
+
 	do {
 		sirf_pulse_on_off(data);
 		ret = sirf_wait_for_power_state(data, active, timeout);
-		if (ret < 0) {
-			if (ret == -ETIMEDOUT)
-				continue;
+	} while (ret == -ETIMEDOUT && retries--);
 
-			return ret;
-		}
+	if (!data->wakeup)
+		sirf_serdev_close(data);
 
-		break;
-	} while (retries--);
-
-	if (retries < 0)
-		return -ETIMEDOUT;
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -190,21 +290,60 @@ static int sirf_set_active(struct sirf_data *data, bool active)
 static int sirf_runtime_suspend(struct device *dev)
 {
 	struct sirf_data *data = dev_get_drvdata(dev);
+	int ret2;
+	int ret;
 
-	if (!data->on_off)
-		return regulator_disable(data->vcc);
+	if (data->on_off)
+		ret = sirf_set_active(data, false);
+	else
+		ret = regulator_disable(data->vcc);
 
-	return sirf_set_active(data, false);
+	if (ret)
+		return ret;
+
+	ret = regulator_disable(data->lna);
+	if (ret)
+		goto err_reenable;
+
+	return 0;
+
+err_reenable:
+	if (data->on_off)
+		ret2 = sirf_set_active(data, true);
+	else
+		ret2 = regulator_enable(data->vcc);
+
+	if (ret2)
+		dev_err(dev,
+			"failed to reenable power on failed suspend: %d\n",
+			ret2);
+
+	return ret;
 }
 
 static int sirf_runtime_resume(struct device *dev)
 {
 	struct sirf_data *data = dev_get_drvdata(dev);
+	int ret;
 
-	if (!data->on_off)
-		return regulator_enable(data->vcc);
+	ret = regulator_enable(data->lna);
+	if (ret)
+		return ret;
 
-	return sirf_set_active(data, true);
+	if (data->on_off)
+		ret = sirf_set_active(data, true);
+	else
+		ret = regulator_enable(data->vcc);
+
+	if (ret)
+		goto err_disable_lna;
+
+	return 0;
+
+err_disable_lna:
+	regulator_disable(data->lna);
+
+	return ret;
 }
 
 static int __maybe_unused sirf_suspend(struct device *dev)
@@ -275,6 +414,8 @@ static int sirf_probe(struct serdev_device *serdev)
 	data->serdev = serdev;
 	data->gdev = gdev;
 
+	mutex_init(&data->gdev_mutex);
+	mutex_init(&data->serdev_mutex);
 	init_waitqueue_head(&data->power_wait);
 
 	serdev_device_set_drvdata(serdev, data);
@@ -290,6 +431,12 @@ static int sirf_probe(struct serdev_device *serdev)
 		goto err_put_device;
 	}
 
+	data->lna = devm_regulator_get(dev, "lna");
+	if (IS_ERR(data->lna)) {
+		ret = PTR_ERR(data->lna);
+		goto err_put_device;
+	}
+
 	data->on_off = devm_gpiod_get_optional(dev, "sirf,onoff",
 			GPIOD_OUT_LOW);
 	if (IS_ERR(data->on_off))
@@ -301,39 +448,53 @@ static int sirf_probe(struct serdev_device *serdev)
 		if (IS_ERR(data->wakeup))
 			goto err_put_device;
 
-		/*
-		 * Configurations where WAKEUP has been left not connected,
-		 * are currently not supported.
-		 */
-		if (!data->wakeup) {
-			dev_err(dev, "no wakeup gpio specified\n");
-			ret = -ENODEV;
-			goto err_put_device;
-		}
-	}
-
-	if (data->wakeup) {
-		ret = gpiod_to_irq(data->wakeup);
-		if (ret < 0)
-			goto err_put_device;
-
-		data->irq = ret;
-
-		ret = devm_request_threaded_irq(dev, data->irq, NULL,
-				sirf_wakeup_handler,
-				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				"wakeup", data);
-		if (ret)
-			goto err_put_device;
-	}
-
-	if (data->on_off) {
 		ret = regulator_enable(data->vcc);
 		if (ret)
 			goto err_put_device;
 
-		/* Wait for chip to boot into hibernate mode */
+		/* Wait for chip to boot into hibernate mode. */
 		msleep(SIRF_BOOT_DELAY);
+	}
+
+	if (data->wakeup) {
+		ret = gpiod_get_value_cansleep(data->wakeup);
+		if (ret < 0)
+			goto err_disable_vcc;
+		data->active = ret;
+
+		ret = gpiod_to_irq(data->wakeup);
+		if (ret < 0)
+			goto err_disable_vcc;
+		data->irq = ret;
+
+		ret = request_threaded_irq(data->irq, NULL, sirf_wakeup_handler,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				"wakeup", data);
+		if (ret)
+			goto err_disable_vcc;
+	}
+
+	if (data->on_off) {
+		if (!data->wakeup) {
+			data->active = false;
+
+			ret = sirf_serdev_open(data);
+			if (ret)
+				goto err_disable_vcc;
+
+			msleep(SIRF_REPORT_CYCLE);
+			sirf_serdev_close(data);
+		}
+
+		/* Force hibernate mode if already active. */
+		if (data->active) {
+			ret = sirf_set_active(data, false);
+			if (ret) {
+				dev_err(dev, "failed to set hibernate mode: %d\n",
+						ret);
+				goto err_free_irq;
+			}
+		}
 	}
 
 	if (IS_ENABLED(CONFIG_PM)) {
@@ -342,7 +503,7 @@ static int sirf_probe(struct serdev_device *serdev)
 	} else {
 		ret = sirf_runtime_resume(dev);
 		if (ret < 0)
-			goto err_disable_vcc;
+			goto err_free_irq;
 	}
 
 	ret = gnss_register_device(gdev);
@@ -356,6 +517,9 @@ err_disable_rpm:
 		pm_runtime_disable(dev);
 	else
 		sirf_runtime_suspend(dev);
+err_free_irq:
+	if (data->wakeup)
+		free_irq(data->irq, data);
 err_disable_vcc:
 	if (data->on_off)
 		regulator_disable(data->vcc);
@@ -376,6 +540,9 @@ static void sirf_remove(struct serdev_device *serdev)
 	else
 		sirf_runtime_suspend(&serdev->dev);
 
+	if (data->wakeup)
+		free_irq(data->irq, data);
+
 	if (data->on_off)
 		regulator_disable(data->vcc);
 
@@ -386,6 +553,7 @@ static void sirf_remove(struct serdev_device *serdev)
 static const struct of_device_id sirf_of_match[] = {
 	{ .compatible = "fastrax,uc430" },
 	{ .compatible = "linx,r4" },
+	{ .compatible = "wi2wi,w2sg0004" },
 	{ .compatible = "wi2wi,w2sg0008i" },
 	{ .compatible = "wi2wi,w2sg0084i" },
 	{},

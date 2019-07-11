@@ -109,6 +109,10 @@
 				status = "okay";
 			};
 
+			qspi1: spi@f0024000 {
+				status = "okay";
+			};
+
 			spi0: spi@f8000000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi0_default>;
@@ -165,7 +169,7 @@
 					dma-names = "tx", "rx";
 					#address-cells = <1>;
 					#size-cells = <0>;
-					clocks = <&flx1_clk>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 20>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_mikrobus_i2c>;
 					atmel,fifo-size = <16>;
@@ -211,7 +215,7 @@
 					compatible = "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <22 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&flx3_clk>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 22>;
 					clock-names = "usart";
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx3_default>;
@@ -223,7 +227,7 @@
 					compatible = "atmel,at91rm9200-spi";
 					reg = <0x400 0x200>;
 					interrupts = <22 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&flx3_clk>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 22>;
 					clock-names = "spi_clk";
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx3_default>;
@@ -240,7 +244,7 @@
 					compatible = "atmel,at91sam9260-usart";
 					reg = <0x200 0x200>;
 					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&flx4_clk>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 23>;
 					clock-names = "usart";
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx4_default>;
@@ -252,7 +256,7 @@
 					compatible = "atmel,at91rm9200-spi";
 					reg = <0x400 0x200>;
 					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&flx4_clk>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 23>;
 					clock-names = "spi_clk";
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_mikrobus_spi &pinctrl_mikrobus1_spi_cs &pinctrl_mikrobus2_spi_cs>;
@@ -268,7 +272,7 @@
 					dma-names = "tx", "rx";
 					#address-cells = <1>;
 					#size-cells = <0>;
-					clocks = <&flx4_clk>;
+					clocks = <&pmc PMC_TYPE_PERIPHERAL 23>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx4_default>;
 					atmel,fifo-size = <16>;

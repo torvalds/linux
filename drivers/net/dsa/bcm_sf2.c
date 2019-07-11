@@ -221,8 +221,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	return b53_enable_port(ds, port, phy);
 }
 
-static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
-				 struct phy_device *phy)
+static void bcm_sf2_port_disable(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	u32 reg;
@@ -241,7 +240,7 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 	if (priv->int_phy_mask & 1 << port && priv->hw_params.num_gphy == 1)
 		bcm_sf2_gphy_enable_set(ds, false);
 
-	b53_disable_port(ds, port, phy);
+	b53_disable_port(ds, port);
 
 	/* Power down the port memory */
 	reg = core_readl(priv, CORE_MEM_PSM_VDD_CTRL);
@@ -303,11 +302,10 @@ static int bcm_sf2_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
 	 * send them to our master MDIO bus controller
 	 */
 	if (addr == BRCM_PSEUDO_PHY_ADDR && priv->indir_phy_mask & BIT(addr))
-		bcm_sf2_sw_indir_rw(priv, 0, addr, regnum, val);
+		return bcm_sf2_sw_indir_rw(priv, 0, addr, regnum, val);
 	else
-		mdiobus_write_nested(priv->master_mii_bus, addr, regnum, val);
-
-	return 0;
+		return mdiobus_write_nested(priv->master_mii_bus, addr,
+				regnum, val);
 }
 
 static irqreturn_t bcm_sf2_switch_0_isr(int irq, void *dev_id)
@@ -691,9 +689,9 @@ static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
 	 * port, the other ones have already been disabled during
 	 * bcm_sf2_sw_setup
 	 */
-	for (port = 0; port < DSA_MAX_PORTS; port++) {
+	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_is_user_port(ds, port) || dsa_is_cpu_port(ds, port))
-			bcm_sf2_port_disable(ds, port, NULL);
+			bcm_sf2_port_disable(ds, port);
 	}
 
 	return 0;
@@ -710,6 +708,10 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 		return ret;
 	}
 
+	ret = bcm_sf2_cfp_resume(ds);
+	if (ret)
+		return ret;
+
 	if (priv->hw_params.num_gphy == 1)
 		bcm_sf2_gphy_enable_set(ds, true);
 
@@ -723,10 +725,11 @@ static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 {
 	struct net_device *p = ds->ports[port].cpu_dp->master;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct ethtool_wolinfo pwol;
+	struct ethtool_wolinfo pwol = { };
 
 	/* Get the parent device WoL settings */
-	p->ethtool_ops->get_wol(p, &pwol);
+	if (p->ethtool_ops->get_wol)
+		p->ethtool_ops->get_wol(p, &pwol);
 
 	/* Advertise the parent device supported settings */
 	wol->supported = pwol.supported;
@@ -747,9 +750,10 @@ static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 	struct net_device *p = ds->ports[port].cpu_dp->master;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	s8 cpu_port = ds->ports[port].cpu_dp->index;
-	struct ethtool_wolinfo pwol;
+	struct ethtool_wolinfo pwol =  { };
 
-	p->ethtool_ops->get_wol(p, &pwol);
+	if (p->ethtool_ops->get_wol)
+		p->ethtool_ops->get_wol(p, &pwol);
 	if (wol->wolopts & ~pwol.supported)
 		return -EINVAL;
 
@@ -783,7 +787,7 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 		else if (dsa_is_cpu_port(ds, port))
 			bcm_sf2_imp_setup(ds, port);
 		else
-			bcm_sf2_port_disable(ds, port, NULL);
+			bcm_sf2_port_disable(ds, port);
 	}
 
 	b53_configure_vlan(ds);
@@ -891,12 +895,44 @@ static const struct b53_io_ops bcm_sf2_io_ops = {
 	.write64 = bcm_sf2_core_write64,
 };
 
+static void bcm_sf2_sw_get_strings(struct dsa_switch *ds, int port,
+				   u32 stringset, uint8_t *data)
+{
+	int cnt = b53_get_sset_count(ds, port, stringset);
+
+	b53_get_strings(ds, port, stringset, data);
+	bcm_sf2_cfp_get_strings(ds, port, stringset,
+				data + cnt * ETH_GSTRING_LEN);
+}
+
+static void bcm_sf2_sw_get_ethtool_stats(struct dsa_switch *ds, int port,
+					 uint64_t *data)
+{
+	int cnt = b53_get_sset_count(ds, port, ETH_SS_STATS);
+
+	b53_get_ethtool_stats(ds, port, data);
+	bcm_sf2_cfp_get_ethtool_stats(ds, port, data + cnt);
+}
+
+static int bcm_sf2_sw_get_sset_count(struct dsa_switch *ds, int port,
+				     int sset)
+{
+	int cnt = b53_get_sset_count(ds, port, sset);
+
+	if (cnt < 0)
+		return cnt;
+
+	cnt += bcm_sf2_cfp_get_sset_count(ds, port, sset);
+
+	return cnt;
+}
+
 static const struct dsa_switch_ops bcm_sf2_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= bcm_sf2_sw_setup,
-	.get_strings		= b53_get_strings,
-	.get_ethtool_stats	= b53_get_ethtool_stats,
-	.get_sset_count		= b53_get_sset_count,
+	.get_strings		= bcm_sf2_sw_get_strings,
+	.get_ethtool_stats	= bcm_sf2_sw_get_ethtool_stats,
+	.get_sset_count		= bcm_sf2_sw_get_sset_count,
 	.get_ethtool_phy_stats	= b53_get_ethtool_phy_stats,
 	.get_phy_flags		= bcm_sf2_sw_get_phy_flags,
 	.phylink_validate	= bcm_sf2_sw_validate,
@@ -1059,8 +1095,8 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, priv);
 
 	spin_lock_init(&priv->indir_lock);
-	mutex_init(&priv->stats_mutex);
 	mutex_init(&priv->cfp.lock);
+	INIT_LIST_HEAD(&priv->cfp.rules_list);
 
 	/* CFP rule #0 cannot be used for specific classifications, flag it as
 	 * permanently used
@@ -1090,11 +1126,15 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	bcm_sf2_gphy_enable_set(priv->dev->ds, true);
+
 	ret = bcm_sf2_mdio_register(ds);
 	if (ret) {
 		pr_err("failed to register MDIO bus\n");
 		return ret;
 	}
+
+	bcm_sf2_gphy_enable_set(priv->dev->ds, false);
 
 	ret = bcm_sf2_cfp_rst(priv);
 	if (ret) {
@@ -1166,6 +1206,7 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 
 	priv->wol_ports_mask = 0;
 	dsa_unregister_switch(priv->dev->ds);
+	bcm_sf2_cfp_exit(priv->dev->ds);
 	/* Disable all ports and interrupts */
 	bcm_sf2_sw_suspend(priv->dev->ds);
 	bcm_sf2_mdio_unregister(priv);

@@ -328,7 +328,7 @@ static void isif_config_bclamp(struct isif_black_clamp *bc)
 	if (bc->en) {
 		val = bc->bc_mode_color << ISIF_BC_MODE_COLOR_SHIFT;
 
-		/* Enable BC and horizontal clamp caculation paramaters */
+		/* Enable BC and horizontal clamp calculation parameters */
 		val = val | 1 | (bc->horz.mode << ISIF_HORZ_BC_MODE_SHIFT);
 
 		regw(val, CLAMPCFG);
@@ -358,7 +358,7 @@ static void isif_config_bclamp(struct isif_black_clamp *bc)
 			regw(bc->horz.win_start_v_calc, CLHWIN2);
 		}
 
-		/* vertical clamp caculation paramaters */
+		/* vertical clamp calculation parameters */
 
 		/* Reset clamp value sel for previous line */
 		val |=

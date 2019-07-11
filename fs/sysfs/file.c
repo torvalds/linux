@@ -17,7 +17,6 @@
 #include <linux/seq_file.h>
 
 #include "sysfs.h"
-#include "../kernfs/kernfs-internal.h"
 
 /*
  * Determine ktype->sysfs_ops for the given kernfs_node.  This function
@@ -325,7 +324,8 @@ int sysfs_create_file_ns(struct kobject *kobj, const struct attribute *attr,
 	kuid_t uid;
 	kgid_t gid;
 
-	BUG_ON(!kobj || !kobj->sd || !attr);
+	if (WARN_ON(!kobj || !kobj->sd || !attr))
+		return -EINVAL;
 
 	kobject_get_ownership(kobj, &uid, &gid);
 	return sysfs_add_file_mode_ns(kobj->sd, attr, false, attr->mode,
@@ -334,7 +334,7 @@ int sysfs_create_file_ns(struct kobject *kobj, const struct attribute *attr,
 }
 EXPORT_SYMBOL_GPL(sysfs_create_file_ns);
 
-int sysfs_create_files(struct kobject *kobj, const struct attribute **ptr)
+int sysfs_create_files(struct kobject *kobj, const struct attribute * const *ptr)
 {
 	int err = 0;
 	int i;
@@ -493,9 +493,10 @@ bool sysfs_remove_file_self(struct kobject *kobj, const struct attribute *attr)
 	return ret;
 }
 
-void sysfs_remove_files(struct kobject *kobj, const struct attribute **ptr)
+void sysfs_remove_files(struct kobject *kobj, const struct attribute * const *ptr)
 {
 	int i;
+
 	for (i = 0; ptr[i]; i++)
 		sysfs_remove_file(kobj, ptr[i]);
 }
@@ -537,7 +538,8 @@ int sysfs_create_bin_file(struct kobject *kobj,
 	kuid_t uid;
 	kgid_t gid;
 
-	BUG_ON(!kobj || !kobj->sd || !attr);
+	if (WARN_ON(!kobj || !kobj->sd || !attr))
+		return -EINVAL;
 
 	kobject_get_ownership(kobj, &uid, &gid);
 	return sysfs_add_file_mode_ns(kobj->sd, &attr->attr, true,

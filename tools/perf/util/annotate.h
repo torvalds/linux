@@ -4,16 +4,24 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <linux/types.h>
-#include "symbol.h"
-#include "hist.h"
-#include "sort.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <pthread.h>
 #include <asm/bug.h>
+#include "symbol_conf.h"
 
+struct hist_browser_timer;
+struct hist_entry;
 struct ins_ops;
+struct map;
+struct map_symbol;
+struct addr_map_symbol;
+struct option;
+struct perf_sample;
+struct perf_evsel;
+struct symbol;
 
 struct ins {
 	const char     *name;
@@ -51,19 +59,20 @@ struct ins_ops {
 	void (*free)(struct ins_operands *ops);
 	int (*parse)(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms);
 	int (*scnprintf)(struct ins *ins, char *bf, size_t size,
-			 struct ins_operands *ops);
+			 struct ins_operands *ops, int max_ins_name);
 };
 
 bool ins__is_jump(const struct ins *ins);
 bool ins__is_call(const struct ins *ins);
 bool ins__is_ret(const struct ins *ins);
 bool ins__is_lock(const struct ins *ins);
-int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops);
+int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops, int max_ins_name);
 bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
 
 #define ANNOTATION__IPC_WIDTH 6
 #define ANNOTATION__CYCLES_WIDTH 6
 #define ANNOTATION__MINMAX_CYCLES_WIDTH 19
+#define ANNOTATION__AVG_IPC_WIDTH 36
 
 struct annotation_options {
 	bool hide_src_code,
@@ -210,7 +219,7 @@ int __annotation__scnprintf_samples_period(struct annotation *notes,
 					   struct perf_evsel *evsel,
 					   bool show_freq);
 
-int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw);
+int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw, int max_ins_name);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
 void symbol__calc_percent(struct symbol *sym, struct perf_evsel *evsel);
 
@@ -262,6 +271,10 @@ struct annotation {
 	pthread_mutex_t		lock;
 	u64			max_coverage;
 	u64			start;
+	u64			hit_cycles;
+	u64			hit_insn;
+	unsigned int		total_insn;
+	unsigned int		cover_insn;
 	struct annotation_options *options;
 	struct annotation_line	**offsets;
 	int			nr_events;
@@ -276,6 +289,7 @@ struct annotation {
 		u8		target;
 		u8		min_addr;
 		u8		max_addr;
+		u8		max_ins_name;
 	} widths;
 	bool			have_cycles;
 	struct annotated_source *src;
@@ -355,6 +369,7 @@ enum symbol_disassemble_errno {
 	__SYMBOL_ANNOTATE_ERRNO__START		= -10000,
 
 	SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX	= __SYMBOL_ANNOTATE_ERRNO__START,
+	SYMBOL_ANNOTATE_ERRNO__NO_LIBOPCODES_FOR_BPF,
 
 	__SYMBOL_ANNOTATE_ERRNO__END,
 };

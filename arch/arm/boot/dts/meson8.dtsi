@@ -64,6 +64,8 @@
 			reg = <0x200>;
 			enable-method = "amlogic,meson8-smp";
 			resets = <&clkc CLKC_RESET_CPU0_SOFT_RESET>;
+			operating-points-v2 = <&cpu_opp_table>;
+			clocks = <&clkc CLKID_CPUCLK>;
 		};
 
 		cpu1: cpu@201 {
@@ -73,6 +75,8 @@
 			reg = <0x201>;
 			enable-method = "amlogic,meson8-smp";
 			resets = <&clkc CLKC_RESET_CPU1_SOFT_RESET>;
+			operating-points-v2 = <&cpu_opp_table>;
+			clocks = <&clkc CLKID_CPUCLK>;
 		};
 
 		cpu2: cpu@202 {
@@ -82,6 +86,8 @@
 			reg = <0x202>;
 			enable-method = "amlogic,meson8-smp";
 			resets = <&clkc CLKC_RESET_CPU2_SOFT_RESET>;
+			operating-points-v2 = <&cpu_opp_table>;
+			clocks = <&clkc CLKID_CPUCLK>;
 		};
 
 		cpu3: cpu@203 {
@@ -91,6 +97,98 @@
 			reg = <0x203>;
 			enable-method = "amlogic,meson8-smp";
 			resets = <&clkc CLKC_RESET_CPU3_SOFT_RESET>;
+			operating-points-v2 = <&cpu_opp_table>;
+			clocks = <&clkc CLKID_CPUCLK>;
+		};
+	};
+
+	cpu_opp_table: opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-96000000 {
+			opp-hz = /bits/ 64 <96000000>;
+			opp-microvolt = <825000>;
+		};
+		opp-192000000 {
+			opp-hz = /bits/ 64 <192000000>;
+			opp-microvolt = <825000>;
+		};
+		opp-312000000 {
+			opp-hz = /bits/ 64 <312000000>;
+			opp-microvolt = <825000>;
+		};
+		opp-408000000 {
+			opp-hz = /bits/ 64 <408000000>;
+			opp-microvolt = <825000>;
+		};
+		opp-504000000 {
+			opp-hz = /bits/ 64 <504000000>;
+			opp-microvolt = <825000>;
+		};
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <850000>;
+		};
+		opp-720000000 {
+			opp-hz = /bits/ 64 <720000000>;
+			opp-microvolt = <850000>;
+		};
+		opp-816000000 {
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <875000>;
+		};
+		opp-1008000000 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <925000>;
+		};
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <975000>;
+		};
+		opp-1416000000 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <1025000>;
+		};
+		opp-1608000000 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <1100000>;
+		};
+		opp-1800000000 {
+			status = "disabled";
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <1125000>;
+		};
+		opp-1992000000 {
+			status = "disabled";
+			opp-hz = /bits/ 64 <1992000000>;
+			opp-microvolt = <1150000>;
+		};
+	};
+
+	gpu_opp_table: gpu-opp-table {
+		compatible = "operating-points-v2";
+
+		opp-182150000 {
+			opp-hz = /bits/ 64 <182150000>;
+			opp-microvolt = <1150000>;
+		};
+		opp-318750000 {
+			opp-hz = /bits/ 64 <318750000>;
+			opp-microvolt = <1150000>;
+		};
+		opp-425000000 {
+			opp-hz = /bits/ 64 <425000000>;
+			opp-microvolt = <1150000>;
+		};
+		opp-510000000 {
+			opp-hz = /bits/ 64 <510000000>;
+			opp-microvolt = <1150000>;
+		};
+		opp-637500000 {
+			opp-hz = /bits/ 64 <637500000>;
+			opp-microvolt = <1150000>;
+			turbo-mode;
 		};
 	};
 
@@ -130,9 +228,44 @@
 		};
 	};
 
-	scu@c4300000 {
-		compatible = "arm,cortex-a9-scu";
-		reg = <0xc4300000 0x100>;
+	apb: bus@d0000000 {
+		compatible = "simple-bus";
+		reg = <0xd0000000 0x200000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0xd0000000 0x200000>;
+
+		mali: gpu@c0000 {
+			compatible = "amlogic,meson8-mali", "arm,mali-450";
+			reg = <0xc0000 0x40000>;
+			interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "gp", "gpmmu", "pp", "pmu",
+					  "pp0", "ppmmu0", "pp1", "ppmmu1",
+					  "pp2", "ppmmu2", "pp4", "ppmmu4",
+					  "pp5", "ppmmu5", "pp6", "ppmmu6";
+			resets = <&reset RESET_MALI>;
+			clocks = <&clkc CLKID_CLK81>, <&clkc CLKID_MALI>;
+			clock-names = "bus", "core";
+			operating-points-v2 = <&gpu_opp_table>;
+			switch-delay = <0xffff>;
+		};
 	};
 }; /* end of / */
 
@@ -163,6 +296,7 @@
 			mux {
 				groups = "uart_tx_ao_a", "uart_rx_ao_a";
 				function = "uart_ao";
+				bias-disable;
 			};
 		};
 
@@ -170,6 +304,7 @@
 			mux {
 				groups = "i2c_mst_sck_ao", "i2c_mst_sda_ao";
 				function = "i2c_mst_ao";
+				bias-disable;
 			};
 		};
 
@@ -177,6 +312,7 @@
 			mux {
 				groups = "remote_input";
 				function = "remote";
+				bias-disable;
 			};
 		};
 
@@ -184,19 +320,13 @@
 			mux {
 				groups = "pwm_f_ao";
 				function = "pwm_f_ao";
+				bias-disable;
 			};
 		};
 	};
 };
 
 &cbus {
-	clkc: clock-controller@4000 {
-		#clock-cells = <1>;
-		#reset-cells = <1>;
-		compatible = "amlogic,meson8-clkc";
-		reg = <0x8000 0x4>, <0x4000 0x400>;
-	};
-
 	reset: reset-controller@4404 {
 		compatible = "amlogic,meson8b-reset";
 		reg = <0x4404 0x9c>;
@@ -238,6 +368,7 @@
 				groups = "sd_d0_a", "sd_d1_a", "sd_d2_a",
 					"sd_d3_a", "sd_clk_a", "sd_cmd_a";
 				function = "sd_a";
+				bias-disable;
 			};
 		};
 
@@ -246,6 +377,7 @@
 				groups = "sd_d0_b", "sd_d1_b", "sd_d2_b",
 					"sd_d3_b", "sd_clk_b", "sd_cmd_b";
 				function = "sd_b";
+				bias-disable;
 			};
 		};
 
@@ -254,6 +386,7 @@
 				groups = "sd_d0_c", "sd_d1_c", "sd_d2_c",
 					"sd_d3_c", "sd_clk_c", "sd_cmd_c";
 				function = "sd_c";
+				bias-disable;
 			};
 		};
 
@@ -261,6 +394,7 @@
 			mux {
 				groups = "nor_d", "nor_q", "nor_c", "nor_cs";
 				function = "nor";
+				bias-disable;
 			};
 		};
 
@@ -272,6 +406,7 @@
 					 "eth_rxd1", "eth_rxd0", "eth_mdio",
 					 "eth_mdc";
 				function = "ethernet";
+				bias-disable;
 			};
 		};
 
@@ -279,6 +414,7 @@
 			mux {
 				groups = "pwm_e";
 				function = "pwm_e";
+				bias-disable;
 			};
 		};
 
@@ -287,6 +423,7 @@
 				groups = "uart_tx_a1",
 				       "uart_rx_a1";
 				function = "uart_a";
+				bias-disable;
 			};
 		};
 
@@ -295,6 +432,7 @@
 				groups = "uart_cts_a1",
 				       "uart_rts_a1";
 				function = "uart_a";
+				bias-disable;
 			};
 		};
 	};
@@ -311,6 +449,11 @@
 	compatible = "amlogic,meson8-efuse";
 	clocks = <&clkc CLKID_EFUSE>;
 	clock-names = "core";
+
+	temperature_calib: calib@1f4 {
+		/* only the upper two bytes are relevant */
+		reg = <0x1f4 0x4>;
+	};
 };
 
 &ethmac {
@@ -321,6 +464,14 @@
 &gpio_intc {
 	compatible = "amlogic,meson8-gpio-intc", "amlogic,meson-gpio-intc";
 	status = "okay";
+};
+
+&hhi {
+	clkc: clock-controller {
+		compatible = "amlogic,meson8-clkc";
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+	};
 };
 
 &hwrng {
@@ -350,6 +501,33 @@
 	arm,shared-override;
 };
 
+&periph {
+	scu@0 {
+		compatible = "arm,cortex-a9-scu";
+		reg = <0x0 0x100>;
+	};
+
+	timer@200 {
+		compatible = "arm,cortex-a9-global-timer";
+		reg = <0x200 0x20>;
+		interrupts = <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_EDGE_RISING)>;
+		clocks = <&clkc CLKID_PERIPH>;
+
+		/*
+		 * the arm_global_timer driver currently does not handle clock
+		 * rate changes. Keep it disabled for now.
+		 */
+		status = "disabled";
+	};
+
+	timer@600 {
+		compatible = "arm,cortex-a9-twd-timer";
+		reg = <0x600 0x20>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_EDGE_RISING)>;
+		clocks = <&clkc CLKID_PERIPH>;
+	};
+};
+
 &pwm_ab {
 	compatible = "amlogic,meson8-pwm", "amlogic,meson8b-pwm";
 };
@@ -363,6 +541,9 @@
 	clocks = <&clkc CLKID_XTAL>,
 		<&clkc CLKID_SAR_ADC>;
 	clock-names = "clkin", "core";
+	amlogic,hhi-sysctrl = <&hhi>;
+	nvmem-cells = <&temperature_calib>;
+	nvmem-cell-names = "temperature_calib";
 };
 
 &sdio {
@@ -373,6 +554,11 @@
 
 &spifc {
 	clocks = <&clkc CLKID_CLK81>;
+};
+
+&timer_abcde {
+	clocks = <&clkc CLKID_XTAL>, <&clkc CLKID_CLK81>;
+	clock-names = "xtal", "pclk";
 };
 
 &uart_AO {

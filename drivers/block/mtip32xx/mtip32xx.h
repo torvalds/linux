@@ -126,8 +126,6 @@
 
 #define MTIP_DFS_MAX_BUF_SIZE 1024
 
-#define __force_bit2int (unsigned int __force)
-
 enum {
 	/* below are bit numbers in 'flags' defined in mtip_port */
 	MTIP_PF_IC_ACTIVE_BIT       = 0, /* pio/ioctl */
@@ -174,10 +172,10 @@ enum {
 
 struct smart_attr {
 	u8 attr_id;
-	u16 flags;
+	__le16 flags;
 	u8 cur;
 	u8 worst;
-	u32 data;
+	__le32 data;
 	u8 res[3];
 } __packed;
 
@@ -200,9 +198,9 @@ struct mtip_work {
 #define MTIP_MAX_TRIM_ENTRY_LEN		0xfff8
 
 struct mtip_trim_entry {
-	u32 lba;   /* starting lba of region */
-	u16 rsvd;  /* unused */
-	u16 range; /* # of 512b blocks to trim */
+	__le32 lba;   /* starting lba of region */
+	__le16 rsvd;  /* unused */
+	__le16 range; /* # of 512b blocks to trim */
 } __packed;
 
 struct mtip_trim {
@@ -278,24 +276,24 @@ struct mtip_cmd_hdr {
 	 * - Bit 5 Unused in this implementation.
 	 * - Bits 4:0 Length of the command FIS in DWords (DWord = 4 bytes).
 	 */
-	unsigned int opts;
+	__le32 opts;
 	/* This field is unsed when using NCQ. */
 	union {
-		unsigned int byte_count;
-		unsigned int status;
+		__le32 byte_count;
+		__le32 status;
 	};
 	/*
 	 * Lower 32 bits of the command table address associated with this
 	 * header. The command table addresses must be 128 byte aligned.
 	 */
-	unsigned int ctba;
+	__le32 ctba;
 	/*
 	 * If 64 bit addressing is used this field is the upper 32 bits
 	 * of the command table address associated with this command.
 	 */
-	unsigned int ctbau;
+	__le32 ctbau;
 	/* Reserved and unused. */
-	unsigned int res[4];
+	u32 res[4];
 };
 
 /* Command scatter gather structure (PRD). */
@@ -305,31 +303,28 @@ struct mtip_cmd_sg {
 	 * address must be 8 byte aligned signified by bits 2:0 being
 	 * set to 0.
 	 */
-	unsigned int dba;
+	__le32 dba;
 	/*
 	 * When 64 bit addressing is used this field is the upper
 	 * 32 bits of the data buffer address.
 	 */
-	unsigned int dba_upper;
+	__le32 dba_upper;
 	/* Unused. */
-	unsigned int reserved;
+	__le32 reserved;
 	/*
 	 * Bit 31: interrupt when this data block has been transferred.
 	 * Bits 30..22: reserved
 	 * Bits 21..0: byte count (minus 1).  For P320 the byte count must be
 	 * 8 byte aligned signified by bits 2:0 being set to 1.
 	 */
-	unsigned int info;
+	__le32 info;
 };
 struct mtip_port;
 
+struct mtip_int_cmd;
+
 /* Structure used to describe a command. */
 struct mtip_cmd {
-
-	struct mtip_cmd_hdr *command_header; /* ptr to command header entry */
-
-	dma_addr_t command_header_dma; /* corresponding physical address */
-
 	void *command; /* ptr to command table entry */
 
 	dma_addr_t command_dma; /* corresponding physical address */
@@ -338,7 +333,10 @@ struct mtip_cmd {
 
 	int unaligned; /* command is unaligned on 4k boundary */
 
-	struct scatterlist sg[MTIP_MAX_SG]; /* Scatter list entries */
+	union {
+		struct scatterlist sg[MTIP_MAX_SG]; /* Scatter list entries */
+		struct mtip_int_cmd *icmd;
+	};
 
 	int retries; /* The number of retries left for this command. */
 
@@ -435,8 +433,8 @@ struct mtip_port {
 	 */
 	unsigned long ic_pause_timer;
 
-	/* Semaphore to control queue depth of unaligned IOs */
-	struct semaphore cmd_slot_unal;
+	/* Counter to control queue depth of unaligned IOs */
+	atomic_t cmd_slot_unal;
 
 	/* Spinlock for working around command-issue bug. */
 	spinlock_t cmd_issue_lock[MTIP_MAX_SLOT_GROUPS];

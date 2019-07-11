@@ -571,7 +571,7 @@ struct device_node *of_graph_get_port_by_id(struct device_node *parent, u32 id)
 	for_each_child_of_node(parent, port) {
 		u32 port_id = 0;
 
-		if (of_node_cmp(port->name, "port") != 0)
+		if (!of_node_name_eq(port, "port"))
 			continue;
 		of_property_read_u32(port, "reg", &port_id);
 		if (id == port_id)
@@ -646,7 +646,7 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 			port = of_get_next_child(parent, port);
 			if (!port)
 				return NULL;
-		} while (of_node_cmp(port->name, "port"));
+		} while (!of_node_name_eq(port, "port"));
 	}
 }
 EXPORT_SYMBOL(of_graph_get_next_endpoint);
@@ -715,7 +715,7 @@ struct device_node *of_graph_get_port_parent(struct device_node *node)
 	/* Walk 3 levels up only if there is 'ports' node. */
 	for (depth = 3; depth && node; depth--) {
 		node = of_get_next_parent(node);
-		if (depth == 2 && of_node_cmp(node->name, "ports"))
+		if (depth == 2 && !of_node_name_eq(node, "ports"))
 			break;
 	}
 	return node;
@@ -806,6 +806,7 @@ struct device_node *of_graph_get_remote_node(const struct device_node *node,
 
 	if (!of_device_is_available(remote)) {
 		pr_debug("not available for remote node\n");
+		of_node_put(remote);
 		return NULL;
 	}
 
@@ -893,7 +894,7 @@ of_fwnode_get_named_child_node(const struct fwnode_handle *fwnode,
 	struct device_node *child;
 
 	for_each_available_child_of_node(node, child)
-		if (!of_node_cmp(child->name, childname))
+		if (of_node_name_eq(child, childname))
 			return of_fwnode_handle(child);
 
 	return NULL;
@@ -955,7 +956,7 @@ of_fwnode_graph_get_port_parent(struct fwnode_handle *fwnode)
 		return NULL;
 
 	/* Is this the "ports" node? If not, it's the port parent. */
-	if (of_node_cmp(np->name, "ports"))
+	if (!of_node_name_eq(np, "ports"))
 		return of_fwnode_handle(np);
 
 	return of_fwnode_handle(of_get_next_parent(np));

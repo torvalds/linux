@@ -70,7 +70,7 @@ config MTD_NAND_GPIO
 
 config MTD_NAND_AMS_DELTA
 	tristate "NAND Flash device on Amstrad E3"
-	depends on MACH_AMS_DELTA
+	depends on MACH_AMS_DELTA || COMPILE_TEST
 	default y
 	help
 	  Support for NAND flash on Amstrad E3 (Delta).
@@ -540,5 +540,22 @@ config MTD_NAND_TEGRA
 	  support, raw read/write page as well as HW ECC read/write page
 	  is supported. Extra OOB bytes when using HW ECC are currently
 	  not supported.
+
+config MTD_NAND_STM32_FMC2
+	tristate "Support for NAND controller on STM32MP SoCs"
+	depends on MACH_STM32MP157 || COMPILE_TEST
+	help
+	  Enables support for NAND Flash chips on SoCs containing the FMC2
+	  NAND controller. This controller is found on STM32MP SoCs.
+	  The controller supports a maximum 8k page size and supports
+	  a maximum 8-bit correction error per sector of 512 bytes.
+
+config MTD_NAND_MESON
+	tristate "Support for NAND controller on Amlogic's Meson SoCs"
+	depends on ARCH_MESON || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  Enables support for NAND controller on Amlogic's Meson SoCs.
+	  This controller is found on Meson SoCs.
 
 endif # MTD_NAND

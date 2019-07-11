@@ -10,6 +10,10 @@
 #include "rk3288.dtsi"
 
 / {
+	chosen {
+		stdout-path = "serial2:115200n8";
+	};
+
 	/*
 	 * The default coreboot on veyron devices ignores memory@0 nodes
 	 * and would instead create another memory node.
@@ -21,8 +25,6 @@
 
 	gpio_keys: gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwr_key_l>;

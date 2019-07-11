@@ -1646,7 +1646,7 @@ static irqreturn_t fs_irq (int irq, void *dev_id)
 	}
 
 	if (status & ISR_TBRQ_W) {
-		fs_dprintk (FS_DEBUG_IRQ, "Data tramsitted!\n");
+		fs_dprintk (FS_DEBUG_IRQ, "Data transmitted!\n");
 		process_txdone_queue (dev, &dev->tx_relq);
 	}
 

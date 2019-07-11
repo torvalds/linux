@@ -670,7 +670,7 @@ static int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, bool en)
 		dsaf_set_field(origin, 1ull << 10, 10, en);
 		dsaf_write_syscon(mac_cb->serdes_ctrl, reg_offset, origin);
 	} else {
-		u8 *base_addr = (u8 *)mac_cb->serdes_vaddr +
+		u8 __iomem *base_addr = mac_cb->serdes_vaddr +
 				(mac_cb->mac_id <= 3 ? 0x00280000 : 0x00200000);
 		dsaf_set_reg_field(base_addr, reg_offset, 1ull << 10, 10, en);
 	}

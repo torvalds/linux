@@ -205,6 +205,20 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	because the file may be huge. A time out is needed in such cases.
 	This option sets the time out limit. The default value is 500 ms.
 
+--sort-events::
+	Do sorting on batches of events, use when noticing out of order events that
+	may happen, for instance, when a thread gets migrated to a different CPU
+	while processing a syscall.
+
+--map-dump::
+	Dump BPF maps setup by events passed via -e, for instance the augmented_raw_syscalls
+	living in tools/perf/examples/bpf/augmented_raw_syscalls.c. For now this
+	dumps just boolean map values and integer keys, in time this will print in hex
+	by default and use BTF when available, as well as use functions to do pretty
+	printing using the existing 'perf trace' syscall arg beautifiers to map integer
+	arguments to strings (pid to comm, syscall id to syscall name, etc).
+
+
 PAGEFAULTS
 ----------
 

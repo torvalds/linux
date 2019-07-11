@@ -289,13 +289,13 @@ static inline int do_16(unsigned long inst, struct pt_regs *regs)
 		unaligned_addr += shift;
 
 	if (load) {
-		if (!access_ok(VERIFY_READ, (void *)unaligned_addr, len))
+		if (!access_ok((void *)unaligned_addr, len))
 			return -EACCES;
 
 		get_data(unaligned_addr, &target_val, len);
 		*idx_to_addr(regs, target_idx) = target_val;
 	} else {
-		if (!access_ok(VERIFY_WRITE, (void *)unaligned_addr, len))
+		if (!access_ok((void *)unaligned_addr, len))
 			return -EACCES;
 		target_val = *idx_to_addr(regs, target_idx);
 		set_data((void *)unaligned_addr, target_val, len);
@@ -479,7 +479,7 @@ static inline int do_32(unsigned long inst, struct pt_regs *regs)
 
 	if (load) {
 
-		if (!access_ok(VERIFY_READ, (void *)unaligned_addr, len))
+		if (!access_ok((void *)unaligned_addr, len))
 			return -EACCES;
 
 		get_data(unaligned_addr, &target_val, len);
@@ -491,7 +491,7 @@ static inline int do_32(unsigned long inst, struct pt_regs *regs)
 			*idx_to_addr(regs, RT(inst)) = target_val;
 	} else {
 
-		if (!access_ok(VERIFY_WRITE, (void *)unaligned_addr, len))
+		if (!access_ok((void *)unaligned_addr, len))
 			return -EACCES;
 
 		target_val = *idx_to_addr(regs, RT(inst));

@@ -11,7 +11,7 @@
  *
  *  FM-Mono
  *      should work. The stereo modes are backward compatible to FM-mono,
- *      therefore FM-Mono should be allways available.
+ *      therefore FM-Mono should be always available.
  *
  *  FM-Stereo (B/G, used in germany)
  *      should work, with autodetect

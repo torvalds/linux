@@ -669,8 +669,8 @@ static int zynqmp_clk_setup(struct device_node *np)
 	if (ret)
 		return ret;
 
-	zynqmp_data = kzalloc(sizeof(*zynqmp_data) + sizeof(*zynqmp_data) *
-						clock_max_idx, GFP_KERNEL);
+	zynqmp_data = kzalloc(struct_size(zynqmp_data, hws, clock_max_idx),
+			      GFP_KERNEL);
 	if (!zynqmp_data)
 		return -ENOMEM;
 

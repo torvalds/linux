@@ -1902,10 +1902,8 @@ static void snd_ensoniq_proc_read(struct snd_info_entry *entry,
 
 static void snd_ensoniq_proc_init(struct ensoniq *ensoniq)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(ensoniq->card, "audiopci", &entry))
-		snd_info_set_text_ops(entry, ensoniq, snd_ensoniq_proc_read);
+	snd_card_ro_proc_new(ensoniq->card, "audiopci", ensoniq,
+			     snd_ensoniq_proc_read);
 }
 
 /*
@@ -2037,9 +2035,6 @@ static int snd_ensoniq_suspend(struct device *dev)
 	
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 
-	snd_pcm_suspend_all(ensoniq->pcm1);
-	snd_pcm_suspend_all(ensoniq->pcm2);
-	
 #ifdef CHIP1371	
 	snd_ac97_suspend(ensoniq->u.es1371.ac97);
 #else

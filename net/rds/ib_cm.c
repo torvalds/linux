@@ -133,22 +133,23 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 		rds_ib_set_flow_control(conn, be32_to_cpu(credit));
 	}
 
-	if (conn->c_version < RDS_PROTOCOL(3, 1)) {
-		pr_notice("RDS/IB: Connection <%pI6c,%pI6c> version %u.%u no longer supported\n",
-			  &conn->c_laddr, &conn->c_faddr,
-			  RDS_PROTOCOL_MAJOR(conn->c_version),
-			  RDS_PROTOCOL_MINOR(conn->c_version));
-		set_bit(RDS_DESTROY_PENDING, &conn->c_path[0].cp_flags);
-		rds_conn_destroy(conn);
-		return;
-	} else {
-		pr_notice("RDS/IB: %s conn connected <%pI6c,%pI6c> version %u.%u%s\n",
-			  ic->i_active_side ? "Active" : "Passive",
-			  &conn->c_laddr, &conn->c_faddr,
-			  RDS_PROTOCOL_MAJOR(conn->c_version),
-			  RDS_PROTOCOL_MINOR(conn->c_version),
-			  ic->i_flowctl ? ", flow control" : "");
+	if (conn->c_version < RDS_PROTOCOL_VERSION) {
+		if (conn->c_version != RDS_PROTOCOL_COMPAT_VERSION) {
+			pr_notice("RDS/IB: Connection <%pI6c,%pI6c> version %u.%u no longer supported\n",
+				  &conn->c_laddr, &conn->c_faddr,
+				  RDS_PROTOCOL_MAJOR(conn->c_version),
+				  RDS_PROTOCOL_MINOR(conn->c_version));
+			rds_conn_destroy(conn);
+			return;
+		}
 	}
+
+	pr_notice("RDS/IB: %s conn connected <%pI6c,%pI6c,%d> version %u.%u%s\n",
+		  ic->i_active_side ? "Active" : "Passive",
+		  &conn->c_laddr, &conn->c_faddr, conn->c_tos,
+		  RDS_PROTOCOL_MAJOR(conn->c_version),
+		  RDS_PROTOCOL_MINOR(conn->c_version),
+		  ic->i_flowctl ? ", flow control" : "");
 
 	atomic_set(&ic->i_cq_quiesce, 0);
 
@@ -184,6 +185,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 					    NULL);
 	}
 
+	conn->c_proposed_version = conn->c_version;
 	rds_connect_complete(conn);
 }
 
@@ -220,6 +222,7 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 			    cpu_to_be16(RDS_IB_SUPPORTED_PROTOCOLS);
 			dp->ricp_v6.dp_ack_seq =
 			    cpu_to_be64(rds_ib_piggyb_ack(ic));
+			dp->ricp_v6.dp_cmn.ricpc_dp_toss = conn->c_tos;
 
 			conn_param->private_data = &dp->ricp_v6;
 			conn_param->private_data_len = sizeof(dp->ricp_v6);
@@ -234,6 +237,7 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 			    cpu_to_be16(RDS_IB_SUPPORTED_PROTOCOLS);
 			dp->ricp_v4.dp_ack_seq =
 			    cpu_to_be64(rds_ib_piggyb_ack(ic));
+			dp->ricp_v4.dp_cmn.ricpc_dp_toss = conn->c_tos;
 
 			conn_param->private_data = &dp->ricp_v4;
 			conn_param->private_data_len = sizeof(dp->ricp_v4);
@@ -389,10 +393,9 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 		rdma_notify(ic->i_cm_id, IB_EVENT_COMM_EST);
 		break;
 	default:
-		rdsdebug("Fatal QP Event %u (%s) "
-			"- connection %pI6c->%pI6c, reconnecting\n",
-			event->event, ib_event_msg(event->event),
-			&conn->c_laddr, &conn->c_faddr);
+		rdsdebug("Fatal QP Event %u (%s) - connection %pI6c->%pI6c, reconnecting\n",
+			 event->event, ib_event_msg(event->event),
+			 &conn->c_laddr, &conn->c_faddr);
 		rds_conn_drop(conn);
 		break;
 	}
@@ -660,13 +663,16 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event, bool isv6)
 
 	/* Even if len is crap *now* I still want to check it. -ASG */
 	if (event->param.conn.private_data_len < data_len || major == 0)
-		return RDS_PROTOCOL_3_0;
+		return RDS_PROTOCOL_4_0;
 
 	common = be16_to_cpu(mask) & RDS_IB_SUPPORTED_PROTOCOLS;
-	if (major == 3 && common) {
-		version = RDS_PROTOCOL_3_0;
+	if (major == 4 && common) {
+		version = RDS_PROTOCOL_4_0;
 		while ((common >>= 1) != 0)
 			version++;
+	} else if (RDS_PROTOCOL_COMPAT_VERSION ==
+		   RDS_PROTOCOL(major, minor)) {
+		version = RDS_PROTOCOL_COMPAT_VERSION;
 	} else {
 		if (isv6)
 			printk_ratelimited(KERN_NOTICE "RDS: Connection from %pI6c using incompatible protocol version %u.%u\n",
@@ -729,8 +735,10 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 
 	/* Check whether the remote protocol version matches ours. */
 	version = rds_ib_protocol_compatible(event, isv6);
-	if (!version)
+	if (!version) {
+		err = RDS_RDMA_REJ_INCOMPAT;
 		goto out;
+	}
 
 	dp = event->param.conn.private_data;
 	if (isv6) {
@@ -771,15 +779,16 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 		daddr6 = &d_mapped_addr;
 	}
 
-	rdsdebug("saddr %pI6c daddr %pI6c RDSv%u.%u lguid 0x%llx fguid "
-		 "0x%llx\n", saddr6, daddr6,
-		 RDS_PROTOCOL_MAJOR(version), RDS_PROTOCOL_MINOR(version),
+	rdsdebug("saddr %pI6c daddr %pI6c RDSv%u.%u lguid 0x%llx fguid 0x%llx, tos:%d\n",
+		 saddr6, daddr6, RDS_PROTOCOL_MAJOR(version),
+		 RDS_PROTOCOL_MINOR(version),
 		 (unsigned long long)be64_to_cpu(lguid),
-		 (unsigned long long)be64_to_cpu(fguid));
+		 (unsigned long long)be64_to_cpu(fguid), dp_cmn->ricpc_dp_toss);
 
 	/* RDS/IB is not currently netns aware, thus init_net */
 	conn = rds_conn_create(&init_net, daddr6, saddr6,
-			       &rds_ib_transport, GFP_KERNEL, ifindex);
+			       &rds_ib_transport, dp_cmn->ricpc_dp_toss,
+			       GFP_KERNEL, ifindex);
 	if (IS_ERR(conn)) {
 		rdsdebug("rds_conn_create failed (%ld)\n", PTR_ERR(conn));
 		conn = NULL;
@@ -846,7 +855,7 @@ out:
 	if (conn)
 		mutex_unlock(&conn->c_cm_lock);
 	if (err)
-		rdma_reject(cm_id, NULL, 0);
+		rdma_reject(cm_id, &err, sizeof(int));
 	return destroy;
 }
 
@@ -861,7 +870,7 @@ int rds_ib_cm_initiate_connect(struct rdma_cm_id *cm_id, bool isv6)
 
 	/* If the peer doesn't do protocol negotiation, we must
 	 * default to RDSv3.0 */
-	rds_ib_set_protocol(conn, RDS_PROTOCOL_3_0);
+	rds_ib_set_protocol(conn, RDS_PROTOCOL_4_1);
 	ic->i_flowctl = rds_ib_sysctl_flow_control;	/* advertise flow control */
 
 	ret = rds_ib_setup_qp(conn);
@@ -870,7 +879,8 @@ int rds_ib_cm_initiate_connect(struct rdma_cm_id *cm_id, bool isv6)
 		goto out;
 	}
 
-	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp, RDS_PROTOCOL_VERSION,
+	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp,
+				  conn->c_proposed_version,
 				  UINT_MAX, UINT_MAX, isv6);
 	ret = rdma_connect(cm_id, &conn_param);
 	if (ret)

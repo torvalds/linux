@@ -116,7 +116,7 @@ int xchk_ag_read_headers(struct xfs_scrub *sc, xfs_agnumber_t agno,
 void xchk_ag_btcur_free(struct xchk_ag *sa);
 int xchk_ag_btcur_init(struct xfs_scrub *sc, struct xchk_ag *sa);
 int xchk_count_rmap_ownedby_ag(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
-		struct xfs_owner_info *oinfo, xfs_filblks_t *blocks);
+		const struct xfs_owner_info *oinfo, xfs_filblks_t *blocks);
 
 int xchk_setup_ag_btree(struct xfs_scrub *sc, struct xfs_inode *ip,
 		bool force_log);

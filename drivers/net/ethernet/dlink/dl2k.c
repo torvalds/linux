@@ -843,9 +843,9 @@ rio_free_tx (struct net_device *dev, int irq)
 				  desc_to_dma(&np->tx_ring[entry]),
 				  skb->len, PCI_DMA_TODEVICE);
 		if (irq)
-			dev_kfree_skb_irq (skb);
+			dev_consume_skb_irq(skb);
 		else
-			dev_kfree_skb (skb);
+			dev_kfree_skb(skb);
 
 		np->tx_skbuff[entry] = NULL;
 		entry = (entry + 1) % TX_RING_SIZE;
@@ -1881,7 +1881,7 @@ Compile command:
 
 gcc -D__KERNEL__ -DMODULE -I/usr/src/linux/include -Wall -Wstrict-prototypes -O2 -c dl2k.c
 
-Read Documentation/networking/dl2k.txt for details.
+Read Documentation/networking/device_drivers/dlink/dl2k.txt for details.
 
 */
 

@@ -23,144 +23,18 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reset.h"
 
-static bool
-ipehr_is_semaphore_wait(struct intel_engine_cs *engine, u32 ipehr)
-{
-	ipehr &= ~MI_SEMAPHORE_SYNC_MASK;
-	return ipehr == (MI_SEMAPHORE_MBOX | MI_SEMAPHORE_COMPARE |
-			 MI_SEMAPHORE_REGISTER);
-}
-
-static struct intel_engine_cs *
-semaphore_wait_to_signaller_ring(struct intel_engine_cs *engine, u32 ipehr,
-				 u64 offset)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	u32 sync_bits = ipehr & MI_SEMAPHORE_SYNC_MASK;
-	struct intel_engine_cs *signaller;
-	enum intel_engine_id id;
-
-	for_each_engine(signaller, dev_priv, id) {
-		if (engine == signaller)
-			continue;
-
-		if (sync_bits == signaller->semaphore.mbox.wait[engine->hw_id])
-			return signaller;
-	}
-
-	DRM_DEBUG_DRIVER("No signaller ring found for %s, ipehr 0x%08x\n",
-			 engine->name, ipehr);
-
-	return ERR_PTR(-ENODEV);
-}
-
-static struct intel_engine_cs *
-semaphore_waits_for(struct intel_engine_cs *engine, u32 *seqno)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	void __iomem *vaddr;
-	u32 cmd, ipehr, head;
-	u64 offset = 0;
-	int i, backwards;
-
-	/*
-	 * This function does not support execlist mode - any attempt to
-	 * proceed further into this function will result in a kernel panic
-	 * when dereferencing ring->buffer, which is not set up in execlist
-	 * mode.
-	 *
-	 * The correct way of doing it would be to derive the currently
-	 * executing ring buffer from the current context, which is derived
-	 * from the currently running request. Unfortunately, to get the
-	 * current request we would have to grab the struct_mutex before doing
-	 * anything else, which would be ill-advised since some other thread
-	 * might have grabbed it already and managed to hang itself, causing
-	 * the hang checker to deadlock.
-	 *
-	 * Therefore, this function does not support execlist mode in its
-	 * current form. Just return NULL and move on.
-	 */
-	if (engine->buffer == NULL)
-		return NULL;
-
-	ipehr = I915_READ(RING_IPEHR(engine->mmio_base));
-	if (!ipehr_is_semaphore_wait(engine, ipehr))
-		return NULL;
-
-	/*
-	 * HEAD is likely pointing to the dword after the actual command,
-	 * so scan backwards until we find the MBOX. But limit it to just 3
-	 * or 4 dwords depending on the semaphore wait command size.
-	 * Note that we don't care about ACTHD here since that might
-	 * point at at batch, and semaphores are always emitted into the
-	 * ringbuffer itself.
-	 */
-	head = I915_READ_HEAD(engine) & HEAD_ADDR;
-	backwards = (INTEL_GEN(dev_priv) >= 8) ? 5 : 4;
-	vaddr = (void __iomem *)engine->buffer->vaddr;
-
-	for (i = backwards; i; --i) {
-		/*
-		 * Be paranoid and presume the hw has gone off into the wild -
-		 * our ring is smaller than what the hardware (and hence
-		 * HEAD_ADDR) allows. Also handles wrap-around.
-		 */
-		head &= engine->buffer->size - 1;
-
-		/* This here seems to blow up */
-		cmd = ioread32(vaddr + head);
-		if (cmd == ipehr)
-			break;
-
-		head -= 4;
-	}
-
-	if (!i)
-		return NULL;
-
-	*seqno = ioread32(vaddr + head + 4) + 1;
-	return semaphore_wait_to_signaller_ring(engine, ipehr, offset);
-}
-
-static int semaphore_passed(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	struct intel_engine_cs *signaller;
+struct hangcheck {
+	u64 acthd;
 	u32 seqno;
-
-	engine->hangcheck.deadlock++;
-
-	signaller = semaphore_waits_for(engine, &seqno);
-	if (signaller == NULL)
-		return -1;
-
-	if (IS_ERR(signaller))
-		return 0;
-
-	/* Prevent pathological recursion due to driver bugs */
-	if (signaller->hangcheck.deadlock >= I915_NUM_ENGINES)
-		return -1;
-
-	if (intel_engine_signaled(signaller, seqno))
-		return 1;
-
-	/* cursory check for an unkickable deadlock */
-	if (I915_READ_CTL(signaller) & RING_WAIT_SEMAPHORE &&
-	    semaphore_passed(signaller) < 0)
-		return -1;
-
-	return 0;
-}
-
-static void semaphore_clear_deadlocks(struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, dev_priv, id)
-		engine->hangcheck.deadlock = 0;
-}
+	enum intel_engine_hangcheck_action action;
+	unsigned long action_timestamp;
+	int deadlock;
+	struct intel_instdone instdone;
+	bool wedged:1;
+	bool stalled:1;
+};
 
 static bool instdone_unchanged(u32 current_instdone, u32 *old_instdone)
 {
@@ -236,7 +110,7 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 	if (ha != ENGINE_DEAD)
 		return ha;
 
-	if (IS_GEN2(dev_priv))
+	if (IS_GEN(dev_priv, 2))
 		return ENGINE_DEAD;
 
 	/* Is the chip hanging on a WAIT_FOR_EVENT?
@@ -252,54 +126,26 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 		return ENGINE_WAIT_KICK;
 	}
 
-	if (IS_GEN(dev_priv, 6, 7) && tmp & RING_WAIT_SEMAPHORE) {
-		switch (semaphore_passed(engine)) {
-		default:
-			return ENGINE_DEAD;
-		case 1:
-			i915_handle_error(dev_priv, ALL_ENGINES, 0,
-					  "stuck semaphore on %s",
-					  engine->name);
-			I915_WRITE_CTL(engine, tmp);
-			return ENGINE_WAIT_KICK;
-		case 0:
-			return ENGINE_WAIT;
-		}
-	}
-
 	return ENGINE_DEAD;
 }
 
 static void hangcheck_load_sample(struct intel_engine_cs *engine,
-				  struct intel_engine_hangcheck *hc)
+				  struct hangcheck *hc)
 {
-	/* We don't strictly need an irq-barrier here, as we are not
-	 * serving an interrupt request, be paranoid in case the
-	 * barrier has side-effects (such as preventing a broken
-	 * cacheline snoop) and so be sure that we can see the seqno
-	 * advance. If the seqno should stick, due to a stale
-	 * cacheline, we would erroneously declare the GPU hung.
-	 */
-	if (engine->irq_seqno_barrier)
-		engine->irq_seqno_barrier(engine);
-
 	hc->acthd = intel_engine_get_active_head(engine);
 	hc->seqno = intel_engine_get_seqno(engine);
 }
 
 static void hangcheck_store_sample(struct intel_engine_cs *engine,
-				   const struct intel_engine_hangcheck *hc)
+				   const struct hangcheck *hc)
 {
 	engine->hangcheck.acthd = hc->acthd;
 	engine->hangcheck.seqno = hc->seqno;
-	engine->hangcheck.action = hc->action;
-	engine->hangcheck.stalled = hc->stalled;
-	engine->hangcheck.wedged = hc->wedged;
 }
 
 static enum intel_engine_hangcheck_action
 hangcheck_get_action(struct intel_engine_cs *engine,
-		     const struct intel_engine_hangcheck *hc)
+		     const struct hangcheck *hc)
 {
 	if (engine->hangcheck.seqno != hc->seqno)
 		return ENGINE_ACTIVE_SEQNO;
@@ -311,7 +157,7 @@ hangcheck_get_action(struct intel_engine_cs *engine,
 }
 
 static void hangcheck_accumulate_sample(struct intel_engine_cs *engine,
-					struct intel_engine_hangcheck *hc)
+					struct hangcheck *hc)
 {
 	unsigned long timeout = I915_ENGINE_DEAD_TIMEOUT;
 
@@ -357,10 +203,6 @@ static void hangcheck_accumulate_sample(struct intel_engine_cs *engine,
 		break;
 
 	case ENGINE_DEAD:
-		if (GEM_SHOW_DEBUG()) {
-			struct drm_printer p = drm_debug_printer("hangcheck");
-			intel_engine_dump(engine, &p, "%s\n", engine->name);
-		}
 		break;
 
 	default:
@@ -431,22 +273,33 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
 	for_each_engine(engine, dev_priv, id) {
-		struct intel_engine_hangcheck hc;
+		struct hangcheck hc;
 
-		semaphore_clear_deadlocks(dev_priv);
+		intel_engine_signal_breadcrumbs(engine);
 
 		hangcheck_load_sample(engine, &hc);
 		hangcheck_accumulate_sample(engine, &hc);
 		hangcheck_store_sample(engine, &hc);
 
-		if (engine->hangcheck.stalled) {
+		if (hc.stalled) {
 			hung |= intel_engine_flag(engine);
 			if (hc.action != ENGINE_DEAD)
 				stuck |= intel_engine_flag(engine);
 		}
 
-		if (engine->hangcheck.wedged)
+		if (hc.wedged)
 			wedged |= intel_engine_flag(engine);
+	}
+
+	if (GEM_SHOW_DEBUG() && (hung | stuck)) {
+		struct drm_printer p = drm_debug_printer("hangcheck");
+
+		for_each_engine(engine, dev_priv, id) {
+			if (intel_engine_is_idle(engine))
+				continue;
+
+			intel_engine_dump(engine, &p, "%s\n", engine->name);
+		}
 	}
 
 	if (wedged) {

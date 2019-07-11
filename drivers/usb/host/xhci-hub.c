@@ -714,13 +714,6 @@ void xhci_test_and_clear_bit(struct xhci_hcd *xhci, struct xhci_port *port,
 	}
 }
 
-/* Updates Link Status for USB 2.1 port */
-static void xhci_hub_report_usb2_link_state(u32 *status, u32 status_reg)
-{
-	if ((status_reg & PORT_PLS_MASK) == XDEV_U2)
-		*status |= USB_PORT_STAT_L1;
-}
-
 /* Updates Link Status for super Speed port */
 static void xhci_hub_report_usb3_link_state(struct xhci_hcd *xhci,
 		u32 *status, u32 status_reg)
@@ -802,6 +795,100 @@ static void xhci_del_comp_mod_timer(struct xhci_hcd *xhci, u32 status,
 	}
 }
 
+static int xhci_handle_usb2_port_link_resume(struct xhci_port *port,
+					     u32 *status, u32 portsc,
+					     unsigned long flags)
+{
+	struct xhci_bus_state *bus_state;
+	struct xhci_hcd	*xhci;
+	struct usb_hcd *hcd;
+	int slot_id;
+	u32 wIndex;
+
+	hcd = port->rhub->hcd;
+	bus_state = &port->rhub->bus_state;
+	xhci = hcd_to_xhci(hcd);
+	wIndex = port->hcd_portnum;
+
+	if ((portsc & PORT_RESET) || !(portsc & PORT_PE)) {
+		*status = 0xffffffff;
+		return -EINVAL;
+	}
+	/* did port event handler already start resume timing? */
+	if (!bus_state->resume_done[wIndex]) {
+		/* If not, maybe we are in a host initated resume? */
+		if (test_bit(wIndex, &bus_state->resuming_ports)) {
+			/* Host initated resume doesn't time the resume
+			 * signalling using resume_done[].
+			 * It manually sets RESUME state, sleeps 20ms
+			 * and sets U0 state. This should probably be
+			 * changed, but not right now.
+			 */
+		} else {
+			/* port resume was discovered now and here,
+			 * start resume timing
+			 */
+			unsigned long timeout = jiffies +
+				msecs_to_jiffies(USB_RESUME_TIMEOUT);
+
+			set_bit(wIndex, &bus_state->resuming_ports);
+			bus_state->resume_done[wIndex] = timeout;
+			mod_timer(&hcd->rh_timer, timeout);
+			usb_hcd_start_port_resume(&hcd->self, wIndex);
+		}
+	/* Has resume been signalled for USB_RESUME_TIME yet? */
+	} else if (time_after_eq(jiffies, bus_state->resume_done[wIndex])) {
+		int time_left;
+
+		xhci_dbg(xhci, "Resume USB2 port %d\n", wIndex + 1);
+		bus_state->resume_done[wIndex] = 0;
+		clear_bit(wIndex, &bus_state->resuming_ports);
+
+		set_bit(wIndex, &bus_state->rexit_ports);
+
+		xhci_test_and_clear_bit(xhci, port, PORT_PLC);
+		xhci_set_link_state(xhci, port, XDEV_U0);
+
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		time_left = wait_for_completion_timeout(
+			&bus_state->rexit_done[wIndex],
+			msecs_to_jiffies(XHCI_MAX_REXIT_TIMEOUT_MS));
+		spin_lock_irqsave(&xhci->lock, flags);
+
+		if (time_left) {
+			slot_id = xhci_find_slot_id_by_port(hcd, xhci,
+							    wIndex + 1);
+			if (!slot_id) {
+				xhci_dbg(xhci, "slot_id is zero\n");
+				*status = 0xffffffff;
+				return -ENODEV;
+			}
+			xhci_ring_device(xhci, slot_id);
+		} else {
+			int port_status = readl(port->addr);
+
+			xhci_warn(xhci, "Port resume %i msec timed out, portsc = 0x%x\n",
+				  XHCI_MAX_REXIT_TIMEOUT_MS,
+				  port_status);
+			*status |= USB_PORT_STAT_SUSPEND;
+			clear_bit(wIndex, &bus_state->rexit_ports);
+		}
+
+		usb_hcd_end_port_resume(&hcd->self, wIndex);
+		bus_state->port_c_suspend |= 1 << wIndex;
+		bus_state->suspended_ports &= ~(1 << wIndex);
+	} else {
+		/*
+		 * The resume has been signaling for less than
+		 * USB_RESUME_TIME. Report the port status as SUSPEND,
+		 * let the usbcore check port status again and clear
+		 * resume signaling later.
+		 */
+		*status |= USB_PORT_STAT_SUSPEND;
+	}
+	return 0;
+}
+
 static u32 xhci_get_ext_port_status(u32 raw_port_status, u32 port_li)
 {
 	u32 ext_stat = 0;
@@ -816,6 +903,85 @@ static u32 xhci_get_ext_port_status(u32 raw_port_status, u32 port_li)
 	ext_stat |= PORT_TX_LANES(port_li) << 12; /* bits 15:12 Tx lane count */
 
 	return ext_stat;
+}
+
+static void xhci_get_usb3_port_status(struct xhci_port *port, u32 *status,
+				      u32 portsc)
+{
+	struct xhci_bus_state *bus_state;
+	struct xhci_hcd	*xhci;
+	u32 link_state;
+	u32 portnum;
+
+	bus_state = &port->rhub->bus_state;
+	xhci = hcd_to_xhci(port->rhub->hcd);
+	link_state = portsc & PORT_PLS_MASK;
+	portnum = port->hcd_portnum;
+
+	/* USB3 specific wPortChange bits
+	 *
+	 * Port link change with port in resume state should not be
+	 * reported to usbcore, as this is an internal state to be
+	 * handled by xhci driver. Reporting PLC to usbcore may
+	 * cause usbcore clearing PLC first and port change event
+	 * irq won't be generated.
+	 */
+
+	if (portsc & PORT_PLC && (link_state != XDEV_RESUME))
+		*status |= USB_PORT_STAT_C_LINK_STATE << 16;
+	if (portsc & PORT_WRC)
+		*status |= USB_PORT_STAT_C_BH_RESET << 16;
+	if (portsc & PORT_CEC)
+		*status |= USB_PORT_STAT_C_CONFIG_ERROR << 16;
+
+	/* USB3 specific wPortStatus bits */
+	if (portsc & PORT_POWER) {
+		*status |= USB_SS_PORT_STAT_POWER;
+		/* link state handling */
+		if (link_state == XDEV_U0)
+			bus_state->suspended_ports &= ~(1 << portnum);
+	}
+
+	xhci_hub_report_usb3_link_state(xhci, status, portsc);
+	xhci_del_comp_mod_timer(xhci, portsc, portnum);
+}
+
+static void xhci_get_usb2_port_status(struct xhci_port *port, u32 *status,
+				      u32 portsc, unsigned long flags)
+{
+	struct xhci_bus_state *bus_state;
+	u32 link_state;
+	u32 portnum;
+	int ret;
+
+	bus_state = &port->rhub->bus_state;
+	link_state = portsc & PORT_PLS_MASK;
+	portnum = port->hcd_portnum;
+
+	/* USB2 wPortStatus bits */
+	if (portsc & PORT_POWER) {
+		*status |= USB_PORT_STAT_POWER;
+
+		/* link state is only valid if port is powered */
+		if (link_state == XDEV_U3)
+			*status |= USB_PORT_STAT_SUSPEND;
+		if (link_state == XDEV_U2)
+			*status |= USB_PORT_STAT_L1;
+		if (link_state == XDEV_U0) {
+			bus_state->resume_done[portnum] = 0;
+			clear_bit(portnum, &bus_state->resuming_ports);
+			if (bus_state->suspended_ports & (1 << portnum)) {
+				bus_state->suspended_ports &= ~(1 << portnum);
+				bus_state->port_c_suspend |= 1 << portnum;
+			}
+		}
+		if (link_state == XDEV_RESUME) {
+			ret = xhci_handle_usb2_port_link_resume(port, status,
+								portsc, flags);
+			if (ret)
+				return;
+		}
+	}
 }
 
 /*
@@ -835,16 +1001,14 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 	__releases(&xhci->lock)
 	__acquires(&xhci->lock)
 {
-	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	u32 status = 0;
-	int slot_id;
 	struct xhci_hub *rhub;
 	struct xhci_port *port;
 
 	rhub = xhci_get_rhub(hcd);
 	port = rhub->ports[wIndex];
 
-	/* wPortChange bits */
+	/* common wPortChange bits */
 	if (raw_port_status & PORT_CSC)
 		status |= USB_PORT_STAT_C_CONNECTION << 16;
 	if (raw_port_status & PORT_PEC)
@@ -853,107 +1017,25 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 		status |= USB_PORT_STAT_C_OVERCURRENT << 16;
 	if ((raw_port_status & PORT_RC))
 		status |= USB_PORT_STAT_C_RESET << 16;
-	/* USB3.0 only */
-	if (hcd->speed >= HCD_USB3) {
-		/* Port link change with port in resume state should not be
-		 * reported to usbcore, as this is an internal state to be
-		 * handled by xhci driver. Reporting PLC to usbcore may
-		 * cause usbcore clearing PLC first and port change event
-		 * irq won't be generated.
-		 */
-		if ((raw_port_status & PORT_PLC) &&
-			(raw_port_status & PORT_PLS_MASK) != XDEV_RESUME)
-			status |= USB_PORT_STAT_C_LINK_STATE << 16;
-		if ((raw_port_status & PORT_WRC))
-			status |= USB_PORT_STAT_C_BH_RESET << 16;
-		if ((raw_port_status & PORT_CEC))
-			status |= USB_PORT_STAT_C_CONFIG_ERROR << 16;
+
+	/* common wPortStatus bits */
+	if (raw_port_status & PORT_CONNECT) {
+		status |= USB_PORT_STAT_CONNECTION;
+		status |= xhci_port_speed(raw_port_status);
 	}
+	if (raw_port_status & PORT_PE)
+		status |= USB_PORT_STAT_ENABLE;
+	if (raw_port_status & PORT_OC)
+		status |= USB_PORT_STAT_OVERCURRENT;
+	if (raw_port_status & PORT_RESET)
+		status |= USB_PORT_STAT_RESET;
 
-	if (hcd->speed < HCD_USB3) {
-		if ((raw_port_status & PORT_PLS_MASK) == XDEV_U3
-				&& (raw_port_status & PORT_POWER))
-			status |= USB_PORT_STAT_SUSPEND;
-	}
-	if ((raw_port_status & PORT_PLS_MASK) == XDEV_RESUME &&
-		!DEV_SUPERSPEED_ANY(raw_port_status) && hcd->speed < HCD_USB3) {
-		if ((raw_port_status & PORT_RESET) ||
-				!(raw_port_status & PORT_PE))
-			return 0xffffffff;
-		/* did port event handler already start resume timing? */
-		if (!bus_state->resume_done[wIndex]) {
-			/* If not, maybe we are in a host initated resume? */
-			if (test_bit(wIndex, &bus_state->resuming_ports)) {
-				/* Host initated resume doesn't time the resume
-				 * signalling using resume_done[].
-				 * It manually sets RESUME state, sleeps 20ms
-				 * and sets U0 state. This should probably be
-				 * changed, but not right now.
-				 */
-			} else {
-				/* port resume was discovered now and here,
-				 * start resume timing
-				 */
-				unsigned long timeout = jiffies +
-					msecs_to_jiffies(USB_RESUME_TIMEOUT);
-
-				set_bit(wIndex, &bus_state->resuming_ports);
-				bus_state->resume_done[wIndex] = timeout;
-				mod_timer(&hcd->rh_timer, timeout);
-				usb_hcd_start_port_resume(&hcd->self, wIndex);
-			}
-		/* Has resume been signalled for USB_RESUME_TIME yet? */
-		} else if (time_after_eq(jiffies,
-					 bus_state->resume_done[wIndex])) {
-			int time_left;
-
-			xhci_dbg(xhci, "Resume USB2 port %d\n",
-					wIndex + 1);
-			bus_state->resume_done[wIndex] = 0;
-			clear_bit(wIndex, &bus_state->resuming_ports);
-
-			set_bit(wIndex, &bus_state->rexit_ports);
-
-			xhci_test_and_clear_bit(xhci, port, PORT_PLC);
-			xhci_set_link_state(xhci, port, XDEV_U0);
-
-			spin_unlock_irqrestore(&xhci->lock, flags);
-			time_left = wait_for_completion_timeout(
-					&bus_state->rexit_done[wIndex],
-					msecs_to_jiffies(
-						XHCI_MAX_REXIT_TIMEOUT_MS));
-			spin_lock_irqsave(&xhci->lock, flags);
-
-			if (time_left) {
-				slot_id = xhci_find_slot_id_by_port(hcd,
-						xhci, wIndex + 1);
-				if (!slot_id) {
-					xhci_dbg(xhci, "slot_id is zero\n");
-					return 0xffffffff;
-				}
-				xhci_ring_device(xhci, slot_id);
-			} else {
-				int port_status = readl(port->addr);
-				xhci_warn(xhci, "Port resume took longer than %i msec, port status = 0x%x\n",
-						XHCI_MAX_REXIT_TIMEOUT_MS,
-						port_status);
-				status |= USB_PORT_STAT_SUSPEND;
-				clear_bit(wIndex, &bus_state->rexit_ports);
-			}
-
-			usb_hcd_end_port_resume(&hcd->self, wIndex);
-			bus_state->port_c_suspend |= 1 << wIndex;
-			bus_state->suspended_ports &= ~(1 << wIndex);
-		} else {
-			/*
-			 * The resume has been signaling for less than
-			 * USB_RESUME_TIME. Report the port status as SUSPEND,
-			 * let the usbcore check port status again and clear
-			 * resume signaling later.
-			 */
-			status |= USB_PORT_STAT_SUSPEND;
-		}
-	}
+	/* USB2 and USB3 specific bits, including Port Link State */
+	if (hcd->speed >= HCD_USB3)
+		xhci_get_usb3_port_status(port, &status, raw_port_status);
+	else
+		xhci_get_usb2_port_status(port, &status, raw_port_status,
+					  flags);
 	/*
 	 * Clear stale usb2 resume signalling variables in case port changed
 	 * state during resume signalling. For example on error
@@ -967,44 +1049,6 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 		usb_hcd_end_port_resume(&hcd->self, wIndex);
 	}
 
-
-	if ((raw_port_status & PORT_PLS_MASK) == XDEV_U0 &&
-	    (raw_port_status & PORT_POWER)) {
-		if (bus_state->suspended_ports & (1 << wIndex)) {
-			bus_state->suspended_ports &= ~(1 << wIndex);
-			if (hcd->speed < HCD_USB3)
-				bus_state->port_c_suspend |= 1 << wIndex;
-		}
-		bus_state->resume_done[wIndex] = 0;
-		clear_bit(wIndex, &bus_state->resuming_ports);
-	}
-	if (raw_port_status & PORT_CONNECT) {
-		status |= USB_PORT_STAT_CONNECTION;
-		status |= xhci_port_speed(raw_port_status);
-	}
-	if (raw_port_status & PORT_PE)
-		status |= USB_PORT_STAT_ENABLE;
-	if (raw_port_status & PORT_OC)
-		status |= USB_PORT_STAT_OVERCURRENT;
-	if (raw_port_status & PORT_RESET)
-		status |= USB_PORT_STAT_RESET;
-	if (raw_port_status & PORT_POWER) {
-		if (hcd->speed >= HCD_USB3)
-			status |= USB_SS_PORT_STAT_POWER;
-		else
-			status |= USB_PORT_STAT_POWER;
-	}
-	/* Update Port Link State */
-	if (hcd->speed >= HCD_USB3) {
-		xhci_hub_report_usb3_link_state(xhci, &status, raw_port_status);
-		/*
-		 * Verify if all USB3 Ports Have entered U0 already.
-		 * Delete Compliance Mode Timer if so.
-		 */
-		xhci_del_comp_mod_timer(xhci, raw_port_status, wIndex);
-	} else {
-		xhci_hub_report_usb2_link_state(&status, raw_port_status);
-	}
 	if (bus_state->port_c_suspend & (1 << wIndex))
 		status |= USB_PORT_STAT_C_SUSPEND << 16;
 
@@ -1031,7 +1075,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	rhub = xhci_get_rhub(hcd);
 	ports = rhub->ports;
 	max_ports = rhub->num_ports;
-	bus_state = &xhci->bus_state[hcd_index(hcd)];
+	bus_state = &rhub->bus_state;
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	switch (typeReq) {
@@ -1421,7 +1465,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	rhub = xhci_get_rhub(hcd);
 	ports = rhub->ports;
 	max_ports = rhub->num_ports;
-	bus_state = &xhci->bus_state[hcd_index(hcd)];
+	bus_state = &rhub->bus_state;
 
 	/* Initial status is no changes */
 	retval = (max_ports + 8) / 8;
@@ -1480,7 +1524,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 	rhub = xhci_get_rhub(hcd);
 	ports = rhub->ports;
 	max_ports = rhub->num_ports;
-	bus_state = &xhci->bus_state[hcd_index(hcd)];
+	bus_state = &rhub->bus_state;
 	wake_enabled = hcd->self.root_hub->do_remote_wakeup;
 
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -1501,20 +1545,25 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 	port_index = max_ports;
 	while (port_index--) {
 		u32 t1, t2;
-
+		int retries = 10;
+retry:
 		t1 = readl(ports[port_index]->addr);
 		t2 = xhci_port_state_to_neutral(t1);
 		portsc_buf[port_index] = 0;
 
-		/* Bail out if a USB3 port has a new device in link training */
-		if ((hcd->speed >= HCD_USB3) &&
+		/*
+		 * Give a USB3 port in link training time to finish, but don't
+		 * prevent suspend as port might be stuck
+		 */
+		if ((hcd->speed >= HCD_USB3) && retries-- &&
 		    (t1 & PORT_PLS_MASK) == XDEV_POLLING) {
-			bus_state->bus_suspended = 0;
 			spin_unlock_irqrestore(&xhci->lock, flags);
-			xhci_dbg(xhci, "Bus suspend bailout, port in polling\n");
-			return -EBUSY;
+			msleep(XHCI_PORT_POLLING_LFPS_TIME);
+			spin_lock_irqsave(&xhci->lock, flags);
+			xhci_dbg(xhci, "port %d polling in bus suspend, waiting\n",
+				 port_index);
+			goto retry;
 		}
-
 		/* suspend ports in U0, or bail out for new connect changes */
 		if ((t1 & PORT_PE) && (t1 & PORT_PLS_MASK) == XDEV_U0) {
 			if ((t1 & PORT_CSC) && wake_enabled) {
@@ -1623,7 +1672,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 	rhub = xhci_get_rhub(hcd);
 	ports = rhub->ports;
 	max_ports = rhub->num_ports;
-	bus_state = &xhci->bus_state[hcd_index(hcd)];
+	bus_state = &rhub->bus_state;
 
 	if (time_before(jiffies, bus_state->next_statechange))
 		msleep(5);
@@ -1724,13 +1773,10 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 
 unsigned long xhci_get_resuming_ports(struct usb_hcd *hcd)
 {
-	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	struct xhci_bus_state *bus_state;
-
-	bus_state = &xhci->bus_state[hcd_index(hcd)];
+	struct xhci_hub *rhub = xhci_get_rhub(hcd);
 
 	/* USB3 port wakeups are reported via usb_wakeup_notification() */
-	return bus_state->resuming_ports;	/* USB2 ports only */
+	return rhub->bus_state.resuming_ports;	/* USB2 ports only */
 }
 
 #endif	/* CONFIG_PM */

@@ -235,6 +235,7 @@ isl38xx_in_queue(isl38xx_control_block *cb, int queue)
 		/* send queues */
 	case ISL38XX_CB_TX_MGMTQ:
 		BUG_ON(delta > ISL38XX_CB_MGMT_QSIZE);
+		/* fall through */
 
 	case ISL38XX_CB_TX_DATA_LQ:
 	case ISL38XX_CB_TX_DATA_HQ:

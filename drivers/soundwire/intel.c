@@ -654,14 +654,14 @@ static int intel_pdm_set_sdw_stream(struct snd_soc_dai *dai,
 	return cdns_set_sdw_stream(dai, stream, false, direction);
 }
 
-static struct snd_soc_dai_ops intel_pcm_dai_ops = {
+static const struct snd_soc_dai_ops intel_pcm_dai_ops = {
 	.hw_params = intel_hw_params,
 	.hw_free = intel_hw_free,
 	.shutdown = sdw_cdns_shutdown,
 	.set_sdw_stream = intel_pcm_set_sdw_stream,
 };
 
-static struct snd_soc_dai_ops intel_pdm_dai_ops = {
+static const struct snd_soc_dai_ops intel_pdm_dai_ops = {
 	.hw_params = intel_hw_params,
 	.hw_free = intel_hw_free,
 	.shutdown = sdw_cdns_shutdown,

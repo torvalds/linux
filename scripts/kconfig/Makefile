@@ -142,75 +142,69 @@ help:
 	@echo  '  testconfig	  - Run Kconfig unit tests (requires python3 and pytest)'
 
 # ===========================================================================
-# Shared Makefile for the various kconfig executables:
-# conf:	  Used for defconfig, oldconfig and related targets
 # object files used by all kconfig flavours
+common-objs	:= confdata.o expr.o lexer.lex.o parser.tab.o preprocess.o \
+		   symbol.o
 
-conf-objs	:= conf.o  zconf.tab.o
+$(obj)/lexer.lex.o: $(obj)/parser.tab.h
+HOSTCFLAGS_lexer.lex.o	:= -I$(src)
+HOSTCFLAGS_parser.tab.o	:= -I$(src)
 
-hostprogs-y := conf
-
-targets		+= zconf.lex.c
-
-# generated files seem to need this to find local include files
-HOSTCFLAGS_zconf.lex.o	:= -I$(src)
-HOSTCFLAGS_zconf.tab.o	:= -I$(src)
+# conf: Used for defconfig, oldconfig and related targets
+hostprogs-y	+= conf
+conf-objs	:= conf.o $(common-objs)
 
 # nconf: Used for the nconfig target based on ncurses
 hostprogs-y	+= nconf
-nconf-objs	:= nconf.o zconf.tab.o nconf.gui.o
+nconf-objs	:= nconf.o nconf.gui.o $(common-objs)
 
-HOSTLDLIBS_nconf	= $(shell . $(obj)/.nconf-cfg && echo $$libs)
-HOSTCFLAGS_nconf.o	= $(shell . $(obj)/.nconf-cfg && echo $$cflags)
-HOSTCFLAGS_nconf.gui.o	= $(shell . $(obj)/.nconf-cfg && echo $$cflags)
+HOSTLDLIBS_nconf	= $(shell . $(obj)/nconf-cfg && echo $$libs)
+HOSTCFLAGS_nconf.o	= $(shell . $(obj)/nconf-cfg && echo $$cflags)
+HOSTCFLAGS_nconf.gui.o	= $(shell . $(obj)/nconf-cfg && echo $$cflags)
 
-$(obj)/nconf.o $(obj)/nconf.gui.o: $(obj)/.nconf-cfg
+$(obj)/nconf.o $(obj)/nconf.gui.o: $(obj)/nconf-cfg
 
 # mconf: Used for the menuconfig target based on lxdialog
 hostprogs-y	+= mconf
 lxdialog	:= checklist.o inputbox.o menubox.o textbox.o util.o yesno.o
-mconf-objs	:= mconf.o zconf.tab.o $(addprefix lxdialog/, $(lxdialog))
+mconf-objs	:= mconf.o $(addprefix lxdialog/, $(lxdialog)) $(common-objs)
 
-HOSTLDLIBS_mconf = $(shell . $(obj)/.mconf-cfg && echo $$libs)
+HOSTLDLIBS_mconf = $(shell . $(obj)/mconf-cfg && echo $$libs)
 $(foreach f, mconf.o $(lxdialog), \
-  $(eval HOSTCFLAGS_$f = $$(shell . $(obj)/.mconf-cfg && echo $$$$cflags)))
+  $(eval HOSTCFLAGS_$f = $$(shell . $(obj)/mconf-cfg && echo $$$$cflags)))
 
-$(obj)/mconf.o: $(obj)/.mconf-cfg
-$(addprefix $(obj)/lxdialog/, $(lxdialog)): $(obj)/.mconf-cfg
+$(obj)/mconf.o: $(obj)/mconf-cfg
+$(addprefix $(obj)/lxdialog/, $(lxdialog)): $(obj)/mconf-cfg
 
 # qconf: Used for the xconfig target based on Qt
 hostprogs-y	+= qconf
 qconf-cxxobjs	:= qconf.o
-qconf-objs	:= zconf.tab.o
+qconf-objs	:= images.o $(common-objs)
 
-HOSTLDLIBS_qconf	= $(shell . $(obj)/.qconf-cfg && echo $$libs)
-HOSTCXXFLAGS_qconf.o	= $(shell . $(obj)/.qconf-cfg && echo $$cflags)
+HOSTLDLIBS_qconf	= $(shell . $(obj)/qconf-cfg && echo $$libs)
+HOSTCXXFLAGS_qconf.o	= $(shell . $(obj)/qconf-cfg && echo $$cflags)
 
-$(obj)/qconf.o: $(obj)/.qconf-cfg $(obj)/qconf.moc
+$(obj)/qconf.o: $(obj)/qconf-cfg $(obj)/qconf.moc
 
 quiet_cmd_moc = MOC     $@
-      cmd_moc = $(shell . $(obj)/.qconf-cfg && echo $$moc) -i $< -o $@
+      cmd_moc = $(shell . $(obj)/qconf-cfg && echo $$moc) -i $< -o $@
 
-$(obj)/%.moc: $(src)/%.h $(obj)/.qconf-cfg
+$(obj)/%.moc: $(src)/%.h $(obj)/qconf-cfg
 	$(call cmd,moc)
 
 # gconf: Used for the gconfig target based on GTK+
 hostprogs-y	+= gconf
-gconf-objs	:= gconf.o zconf.tab.o
+gconf-objs	:= gconf.o images.o $(common-objs)
 
-HOSTLDLIBS_gconf    = $(shell . $(obj)/.gconf-cfg && echo $$libs)
-HOSTCFLAGS_gconf.o  = $(shell . $(obj)/.gconf-cfg && echo $$cflags)
+HOSTLDLIBS_gconf    = $(shell . $(obj)/gconf-cfg && echo $$libs)
+HOSTCFLAGS_gconf.o  = $(shell . $(obj)/gconf-cfg && echo $$cflags)
 
-$(obj)/gconf.o: $(obj)/.gconf-cfg
-
-$(obj)/zconf.tab.o: $(obj)/zconf.lex.c
+$(obj)/gconf.o: $(obj)/gconf-cfg
 
 # check if necessary packages are available, and configure build flags
-define filechk_conf_cfg
-	$(CONFIG_SHELL) $<
-endef
+filechk_conf_cfg = $(CONFIG_SHELL) $<
 
-$(obj)/.%conf-cfg: $(src)/%conf-cfg.sh FORCE
+$(obj)/%conf-cfg: $(src)/%conf-cfg.sh FORCE
 	$(call filechk,conf_cfg)
 
-clean-files += .*conf-cfg
+clean-files += *conf-cfg

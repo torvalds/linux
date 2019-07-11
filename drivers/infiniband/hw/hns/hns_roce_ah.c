@@ -41,6 +41,7 @@
 
 struct ib_ah *hns_roce_create_ah(struct ib_pd *ibpd,
 				 struct rdma_ah_attr *ah_attr,
+				 u32 flags,
 				 struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibpd->device);
@@ -110,7 +111,7 @@ int hns_roce_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 	return 0;
 }
 
-int hns_roce_destroy_ah(struct ib_ah *ah)
+int hns_roce_destroy_ah(struct ib_ah *ah, u32 flags)
 {
 	kfree(to_hr_ah(ah));
 

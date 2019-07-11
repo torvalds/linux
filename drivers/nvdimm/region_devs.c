@@ -79,6 +79,11 @@ int nd_region_activate(struct nd_region *nd_region)
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 		struct nvdimm *nvdimm = nd_mapping->nvdimm;
 
+		if (test_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags)) {
+			nvdimm_bus_unlock(&nd_region->dev);
+			return -EBUSY;
+		}
+
 		/* at least one null hint slot per-dimm for the "no-hint" case */
 		flush_data_size += sizeof(void *);
 		num_flush = min_not_zero(num_flush, nvdimm->num_flush);
@@ -998,6 +1003,13 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 
 		if (test_bit(NDD_UNARMED, &nvdimm->flags))
 			ro = 1;
+
+		if (test_bit(NDD_NOBLK, &nvdimm->flags)
+				&& dev_type == &nd_blk_device_type) {
+			dev_err(&nvdimm_bus->dev, "%s: %s mapping%d is not BLK capable\n",
+					caller, dev_name(&nvdimm->dev), i);
+			return NULL;
+		}
 	}
 
 	if (dev_type == &nd_blk_device_type) {
@@ -1060,6 +1072,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	nd_region->flags = ndr_desc->flags;
 	nd_region->ro = ro;
 	nd_region->numa_node = ndr_desc->numa_node;
+	nd_region->target_node = ndr_desc->target_node;
 	ida_init(&nd_region->ns_ida);
 	ida_init(&nd_region->btt_ida);
 	ida_init(&nd_region->pfn_ida);

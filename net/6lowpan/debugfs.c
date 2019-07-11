@@ -41,9 +41,9 @@ static int lowpan_ctx_flag_active_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(lowpan_ctx_flag_active_fops,
-			lowpan_ctx_flag_active_get,
-			lowpan_ctx_flag_active_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(lowpan_ctx_flag_active_fops,
+			 lowpan_ctx_flag_active_get,
+			 lowpan_ctx_flag_active_set, "%llu\n");
 
 static int lowpan_ctx_flag_c_set(void *data, u64 val)
 {
@@ -66,8 +66,8 @@ static int lowpan_ctx_flag_c_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(lowpan_ctx_flag_c_fops, lowpan_ctx_flag_c_get,
-			lowpan_ctx_flag_c_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(lowpan_ctx_flag_c_fops, lowpan_ctx_flag_c_get,
+			 lowpan_ctx_flag_c_set, "%llu\n");
 
 static int lowpan_ctx_plen_set(void *data, u64 val)
 {
@@ -97,8 +97,8 @@ static int lowpan_ctx_plen_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(lowpan_ctx_plen_fops, lowpan_ctx_plen_get,
-			lowpan_ctx_plen_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(lowpan_ctx_plen_fops, lowpan_ctx_plen_get,
+			 lowpan_ctx_plen_set, "%llu\n");
 
 static int lowpan_ctx_pfx_show(struct seq_file *file, void *offset)
 {
@@ -184,15 +184,15 @@ static int lowpan_dev_debugfs_ctx_init(struct net_device *dev,
 	if (!root)
 		return -EINVAL;
 
-	dentry = debugfs_create_file("active", 0644, root,
-				     &ldev->ctx.table[id],
-				     &lowpan_ctx_flag_active_fops);
+	dentry = debugfs_create_file_unsafe("active", 0644, root,
+					    &ldev->ctx.table[id],
+					    &lowpan_ctx_flag_active_fops);
 	if (!dentry)
 		return -EINVAL;
 
-	dentry = debugfs_create_file("compression", 0644, root,
-				     &ldev->ctx.table[id],
-				     &lowpan_ctx_flag_c_fops);
+	dentry = debugfs_create_file_unsafe("compression", 0644, root,
+					    &ldev->ctx.table[id],
+					    &lowpan_ctx_flag_c_fops);
 	if (!dentry)
 		return -EINVAL;
 
@@ -202,9 +202,9 @@ static int lowpan_dev_debugfs_ctx_init(struct net_device *dev,
 	if (!dentry)
 		return -EINVAL;
 
-	dentry = debugfs_create_file("prefix_len", 0644, root,
-				     &ldev->ctx.table[id],
-				     &lowpan_ctx_plen_fops);
+	dentry = debugfs_create_file_unsafe("prefix_len", 0644, root,
+					    &ldev->ctx.table[id],
+					    &lowpan_ctx_plen_fops);
 	if (!dentry)
 		return -EINVAL;
 
@@ -232,18 +232,7 @@ static int lowpan_context_show(struct seq_file *file, void *offset)
 
 	return 0;
 }
-
-static int lowpan_context_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, lowpan_context_show, inode->i_private);
-}
-
-static const struct file_operations lowpan_context_fops = {
-	.open		= lowpan_context_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(lowpan_context);
 
 static int lowpan_short_addr_get(void *data, u64 *val)
 {
@@ -256,8 +245,8 @@ static int lowpan_short_addr_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(lowpan_short_addr_fops, lowpan_short_addr_get,
-			NULL, "0x%04llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(lowpan_short_addr_fops, lowpan_short_addr_get, NULL,
+			 "0x%04llx\n");
 
 static int lowpan_dev_debugfs_802154_init(const struct net_device *dev,
 					  struct lowpan_dev *ldev)
@@ -271,9 +260,9 @@ static int lowpan_dev_debugfs_802154_init(const struct net_device *dev,
 	if (!root)
 		return -EINVAL;
 
-	dentry = debugfs_create_file("short_addr", 0444, root,
-				     lowpan_802154_dev(dev)->wdev->ieee802154_ptr,
-				     &lowpan_short_addr_fops);
+	dentry = debugfs_create_file_unsafe("short_addr", 0444, root,
+					    lowpan_802154_dev(dev)->wdev->ieee802154_ptr,
+					    &lowpan_short_addr_fops);
 	if (!dentry)
 		return -EINVAL;
 

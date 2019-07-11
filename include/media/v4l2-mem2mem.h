@@ -425,7 +425,7 @@ unsigned int v4l2_m2m_num_dst_bufs_ready(struct v4l2_m2m_ctx *m2m_ctx)
  *
  * @q_ctx: pointer to struct @v4l2_m2m_queue_ctx
  */
-void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx);
+struct vb2_v4l2_buffer *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx);
 
 /**
  * v4l2_m2m_next_src_buf() - return next source buffer from the list of ready
@@ -433,7 +433,8 @@ void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx);
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  */
-static inline void *v4l2_m2m_next_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
+static inline struct vb2_v4l2_buffer *
+v4l2_m2m_next_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_next_buf(&m2m_ctx->out_q_ctx);
 }
@@ -444,7 +445,8 @@ static inline void *v4l2_m2m_next_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  */
-static inline void *v4l2_m2m_next_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
+static inline struct vb2_v4l2_buffer *
+v4l2_m2m_next_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_next_buf(&m2m_ctx->cap_q_ctx);
 }
@@ -454,7 +456,7 @@ static inline void *v4l2_m2m_next_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
  *
  * @q_ctx: pointer to struct @v4l2_m2m_queue_ctx
  */
-void *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx);
+struct vb2_v4l2_buffer *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx);
 
 /**
  * v4l2_m2m_last_src_buf() - return last destination buffer from the list of
@@ -462,7 +464,8 @@ void *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx);
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  */
-static inline void *v4l2_m2m_last_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
+static inline struct vb2_v4l2_buffer *
+v4l2_m2m_last_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_last_buf(&m2m_ctx->out_q_ctx);
 }
@@ -473,7 +476,8 @@ static inline void *v4l2_m2m_last_src_buf(struct v4l2_m2m_ctx *m2m_ctx)
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  */
-static inline void *v4l2_m2m_last_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
+static inline struct vb2_v4l2_buffer *
+v4l2_m2m_last_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_last_buf(&m2m_ctx->cap_q_ctx);
 }
@@ -547,7 +551,7 @@ struct vb2_queue *v4l2_m2m_get_dst_vq(struct v4l2_m2m_ctx *m2m_ctx)
  *
  * @q_ctx: pointer to struct @v4l2_m2m_queue_ctx
  */
-void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx);
+struct vb2_v4l2_buffer *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx);
 
 /**
  * v4l2_m2m_src_buf_remove() - take off a source buffer from the list of ready
@@ -555,7 +559,8 @@ void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx);
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  */
-static inline void *v4l2_m2m_src_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
+static inline struct vb2_v4l2_buffer *
+v4l2_m2m_src_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_buf_remove(&m2m_ctx->out_q_ctx);
 }
@@ -566,7 +571,8 @@ static inline void *v4l2_m2m_src_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  */
-static inline void *v4l2_m2m_dst_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
+static inline struct vb2_v4l2_buffer *
+v4l2_m2m_dst_buf_remove(struct v4l2_m2m_ctx *m2m_ctx)
 {
 	return v4l2_m2m_buf_remove(&m2m_ctx->cap_q_ctx);
 }
@@ -621,6 +627,26 @@ v4l2_m2m_dst_buf_remove_by_idx(struct v4l2_m2m_ctx *m2m_ctx, unsigned int idx)
 {
 	return v4l2_m2m_buf_remove_by_idx(&m2m_ctx->cap_q_ctx, idx);
 }
+
+/**
+ * v4l2_m2m_buf_copy_metadata() - copy buffer metadata from
+ * the output buffer to the capture buffer
+ *
+ * @out_vb: the output buffer that is the source of the metadata.
+ * @cap_vb: the capture buffer that will receive the metadata.
+ * @copy_frame_flags: copy the KEY/B/PFRAME flags as well.
+ *
+ * This helper function copies the timestamp, timecode (if the TIMECODE
+ * buffer flag was set), field and the TIMECODE, KEYFRAME, BFRAME, PFRAME
+ * and TSTAMP_SRC_MASK flags from @out_vb to @cap_vb.
+ *
+ * If @copy_frame_flags is false, then the KEYFRAME, BFRAME and PFRAME
+ * flags are not copied. This is typically needed for encoders that
+ * set this bits explicitly.
+ */
+void v4l2_m2m_buf_copy_metadata(const struct vb2_v4l2_buffer *out_vb,
+				struct vb2_v4l2_buffer *cap_vb,
+				bool copy_frame_flags);
 
 /* v4l2 request helper */
 

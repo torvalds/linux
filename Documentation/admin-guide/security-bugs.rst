@@ -44,7 +44,7 @@ only valid reason for deferring the publication of a fix is to accommodate
 the logistics of QA and large scale rollouts which require release
 coordination.
 
-Whilst embargoed information may be shared with trusted individuals in
+While embargoed information may be shared with trusted individuals in
 order to develop a fix, such information will not be published alongside
 the fix or on any other disclosure channel without the permission of the
 reporter.  This includes but is not limited to the original bug report

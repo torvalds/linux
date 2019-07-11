@@ -22,7 +22,6 @@
 #define FLOW_CONTROL_UPPER_THRESHOLD		256
 
 #define WILC_MAX_NUM_PMKIDS			16
-#define PMKID_LEN				16
 #define PMKID_FOUND				1
 #define NUM_STA_ASSOCIATED			8
 
@@ -58,7 +57,7 @@ struct wilc_wfi_wep_key {
 };
 
 struct sta_info {
-	u8 sta_associated_bss[MAX_NUM_STA][ETH_ALEN];
+	u8 sta_associated_bss[WILC_MAX_NUM_STA][ETH_ALEN];
 };
 
 /*Parameters needed for host interface for  remaining on channel*/
@@ -66,13 +65,67 @@ struct wilc_wfi_p2p_listen_params {
 	struct ieee80211_channel *listen_ch;
 	u32 listen_duration;
 	u64 listen_cookie;
-	u32 listen_session_id;
 };
 
 struct wilc_p2p_var {
 	u8 local_random;
 	u8 recv_random;
 	bool is_wilc_ie;
+};
+
+static const u32 wilc_cipher_suites[] = {
+	WLAN_CIPHER_SUITE_WEP40,
+	WLAN_CIPHER_SUITE_WEP104,
+	WLAN_CIPHER_SUITE_TKIP,
+	WLAN_CIPHER_SUITE_CCMP,
+	WLAN_CIPHER_SUITE_AES_CMAC
+};
+
+#define CHAN2G(_channel, _freq, _flags) {	 \
+	.band             = NL80211_BAND_2GHZ, \
+	.center_freq      = (_freq),		 \
+	.hw_value         = (_channel),		 \
+	.flags            = (_flags),		 \
+	.max_antenna_gain = 0,			 \
+	.max_power        = 30,			 \
+}
+
+static const struct ieee80211_channel wilc_2ghz_channels[] = {
+	CHAN2G(1,  2412, 0),
+	CHAN2G(2,  2417, 0),
+	CHAN2G(3,  2422, 0),
+	CHAN2G(4,  2427, 0),
+	CHAN2G(5,  2432, 0),
+	CHAN2G(6,  2437, 0),
+	CHAN2G(7,  2442, 0),
+	CHAN2G(8,  2447, 0),
+	CHAN2G(9,  2452, 0),
+	CHAN2G(10, 2457, 0),
+	CHAN2G(11, 2462, 0),
+	CHAN2G(12, 2467, 0),
+	CHAN2G(13, 2472, 0),
+	CHAN2G(14, 2484, 0)
+};
+
+#define RATETAB_ENT(_rate, _hw_value, _flags) {	\
+	.bitrate  = (_rate),			\
+	.hw_value = (_hw_value),		\
+	.flags    = (_flags),			\
+}
+
+static struct ieee80211_rate wilc_bitrates[] = {
+	RATETAB_ENT(10,  0,  0),
+	RATETAB_ENT(20,  1,  0),
+	RATETAB_ENT(55,  2,  0),
+	RATETAB_ENT(110, 3,  0),
+	RATETAB_ENT(60,  9,  0),
+	RATETAB_ENT(90,  6,  0),
+	RATETAB_ENT(120, 7,  0),
+	RATETAB_ENT(180, 8,  0),
+	RATETAB_ENT(240, 9,  0),
+	RATETAB_ENT(360, 10, 0),
+	RATETAB_ENT(480, 11, 0),
+	RATETAB_ENT(540, 12, 0)
 };
 
 struct wilc_priv {
@@ -83,28 +136,31 @@ struct wilc_priv {
 	u64 tx_cookie;
 
 	bool cfg_scanning;
-	u32 rcvd_ch_cnt;
 
 	u8 associated_bss[ETH_ALEN];
 	struct sta_info assoc_stainfo;
 	struct sk_buff *skb;
 	struct net_device *dev;
 	struct host_if_drv *hif_drv;
-	struct host_if_pmkid_attr pmkid_list;
+	struct wilc_pmkid_attr pmkid_list;
 	u8 wep_key[4][WLAN_KEY_LEN_WEP104];
 	u8 wep_key_len[4];
 	/* The real interface that the monitor is on */
 	struct net_device *real_ndev;
-	struct wilc_wfi_key *wilc_gtk[MAX_NUM_STA];
-	struct wilc_wfi_key *wilc_ptk[MAX_NUM_STA];
+	struct wilc_wfi_key *wilc_gtk[WILC_MAX_NUM_STA];
+	struct wilc_wfi_key *wilc_ptk[WILC_MAX_NUM_STA];
 	u8 wilc_groupkey;
 	/* mutexes */
 	struct mutex scan_req_lock;
 	bool p2p_listen_state;
-	struct timer_list aging_timer;
-	struct network_info scanned_shadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
 	int scanned_cnt;
 	struct wilc_p2p_var p2p;
+
+	struct ieee80211_channel channels[ARRAY_SIZE(wilc_2ghz_channels)];
+	struct ieee80211_rate bitrates[ARRAY_SIZE(wilc_bitrates)];
+	struct ieee80211_supported_band band;
+	u32 cipher_suites[ARRAY_SIZE(wilc_cipher_suites)];
+	u64 inc_roc_cookie;
 };
 
 struct frame_reg {
@@ -169,7 +225,7 @@ struct wilc {
 	int dev_irq_num;
 	int close;
 	u8 vif_num;
-	struct wilc_vif *vif[NUM_CONCURRENT_IFC];
+	struct wilc_vif *vif[WILC_NUM_CONCURRENT_IFC];
 	u8 open_ifcs;
 	/*protect head of transmit queue*/
 	struct mutex txq_add_to_head_cs;
@@ -188,10 +244,11 @@ struct wilc {
 	struct task_struct *txq_thread;
 
 	int quit;
-	int cfg_frame_in_use;
+	/* lock to protect issue of wid command to firmware */
+	struct mutex cfg_cmd_lock;
 	struct wilc_cfg_frame cfg_frame;
 	u32 cfg_frame_offset;
-	int cfg_seq_no;
+	u8 cfg_seq_no;
 
 	u8 *rx_buffer;
 	u32 rx_buffer_offset;
@@ -213,13 +270,18 @@ struct wilc {
 	enum chip_ps_states chip_ps_state;
 	struct wilc_cfg cfg;
 	void *bus_data;
+	struct net_device *monitor_dev;
+	/* deinit lock */
+	struct mutex deinit_lock;
+	u8 sta_ch;
+	u8 op_ch;
 };
 
 struct wilc_wfi_mon_priv {
 	struct net_device *real_ndev;
 };
 
-void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
+void wilc_frmw_to_host(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
 void wilc_mac_indicate(struct wilc *wilc);
 void wilc_netdev_cleanup(struct wilc *wilc);
 int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,

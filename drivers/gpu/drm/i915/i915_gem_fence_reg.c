@@ -21,7 +21,6 @@
  * IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
@@ -193,9 +192,9 @@ static void fence_write(struct drm_i915_fence_reg *fence,
 	 * and explicitly managed for internal users.
 	 */
 
-	if (IS_GEN2(fence->i915))
+	if (IS_GEN(fence->i915, 2))
 		i830_write_fence_reg(fence, vma);
-	else if (IS_GEN3(fence->i915))
+	else if (IS_GEN(fence->i915, 3))
 		i915_write_fence_reg(fence, vma);
 	else
 		i965_write_fence_reg(fence, vma);
@@ -210,6 +209,7 @@ static void fence_write(struct drm_i915_fence_reg *fence,
 static int fence_update(struct drm_i915_fence_reg *fence,
 			struct i915_vma *vma)
 {
+	intel_wakeref_t wakeref;
 	int ret;
 
 	if (vma) {
@@ -223,7 +223,7 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 			 i915_gem_object_get_tiling(vma->obj)))
 			return -EINVAL;
 
-		ret = i915_gem_active_retire(&vma->last_fence,
+		ret = i915_active_request_retire(&vma->last_fence,
 					     &vma->obj->base.dev->struct_mutex);
 		if (ret)
 			return ret;
@@ -232,7 +232,7 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 	if (fence->vma) {
 		struct i915_vma *old = fence->vma;
 
-		ret = i915_gem_active_retire(&old->last_fence,
+		ret = i915_active_request_retire(&old->last_fence,
 					     &old->obj->base.dev->struct_mutex);
 		if (ret)
 			return ret;
@@ -257,9 +257,10 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 	 * If the device is currently powered down, we will defer the write
 	 * to the runtime resume, see i915_gem_restore_fences().
 	 */
-	if (intel_runtime_pm_get_if_in_use(fence->i915)) {
+	wakeref = intel_runtime_pm_get_if_in_use(fence->i915);
+	if (wakeref) {
 		fence_write(fence, vma);
-		intel_runtime_pm_put(fence->i915);
+		intel_runtime_pm_put(fence->i915, wakeref);
 	}
 
 	if (vma) {
@@ -554,8 +555,8 @@ void i915_gem_restore_fences(struct drm_i915_private *dev_priv)
 void
 i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 {
-	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
-	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
+	u32 swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
+	u32 swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
 	if (INTEL_GEN(dev_priv) >= 8 || IS_VALLEYVIEW(dev_priv)) {
 		/*
@@ -578,7 +579,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 				swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 			}
 		} else {
-			uint32_t dimm_c0, dimm_c1;
+			u32 dimm_c0, dimm_c1;
 			dimm_c0 = I915_READ(MAD_DIMM_C0);
 			dimm_c1 = I915_READ(MAD_DIMM_C1);
 			dimm_c0 &= MAD_DIMM_A_SIZE_MASK | MAD_DIMM_B_SIZE_MASK;
@@ -596,13 +597,13 @@ i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 				swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 			}
 		}
-	} else if (IS_GEN5(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 5)) {
 		/* On Ironlake whatever DRAM config, GPU always do
 		 * same swizzling setup.
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 		swizzle_y = I915_BIT_6_SWIZZLE_9;
-	} else if (IS_GEN2(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 2)) {
 		/* As far as we know, the 865 doesn't have these bit 6
 		 * swizzling issues.
 		 */
@@ -610,7 +611,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 	} else if (IS_MOBILE(dev_priv) ||
 		   IS_I915G(dev_priv) || IS_I945G(dev_priv)) {
-		uint32_t dcc;
+		u32 dcc;
 
 		/* On 9xx chipsets, channel interleave by the CPU is
 		 * determined by DCC.  For single-channel, neither the CPU
@@ -647,7 +648,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 		}
 
 		/* check for L-shaped memory aka modified enhanced addressing */
-		if (IS_GEN4(dev_priv) &&
+		if (IS_GEN(dev_priv, 4) &&
 		    !(I915_READ(DCC2) & DCC2_MODIFIED_ENHANCED_DISABLE)) {
 			swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 			swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;

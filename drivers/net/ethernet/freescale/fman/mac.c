@@ -393,7 +393,7 @@ void fman_get_pause_cfg(struct mac_device *mac_dev, bool *rx_pause,
 	 */
 
 	/* get local capabilities */
-	lcl_adv = ethtool_adv_to_lcl_adv_t(phy_dev->advertising);
+	lcl_adv = linkmode_adv_to_lcl_adv_t(phy_dev->advertising);
 
 	/* get link partner capabilities */
 	rmt_adv = 0;
@@ -855,9 +855,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	if (err < 0)
 		dev_err(dev, "fman_set_mac_active_pause() = %d\n", err);
 
-	dev_info(dev, "FMan MAC address: %02hx:%02hx:%02hx:%02hx:%02hx:%02hx\n",
-		 mac_dev->addr[0], mac_dev->addr[1], mac_dev->addr[2],
-		 mac_dev->addr[3], mac_dev->addr[4], mac_dev->addr[5]);
+	dev_info(dev, "FMan MAC address: %pM\n", mac_dev->addr);
 
 	priv->eth_dev = dpaa_eth_add_device(fman_id, mac_dev);
 	if (IS_ERR(priv->eth_dev)) {

@@ -43,6 +43,10 @@
 #include "hdp/hdp_4_0_sh_mask.h"
 #include "smuio/smuio_9_0_offset.h"
 #include "smuio/smuio_9_0_sh_mask.h"
+#include "nbio/nbio_7_0_default.h"
+#include "nbio/nbio_7_0_sh_mask.h"
+#include "nbio/nbio_7_0_smn.h"
+#include "mp/mp_9_0_offset.h"
 
 #include "soc15.h"
 #include "soc15_common.h"
@@ -385,14 +389,13 @@ void soc15_program_register_sequence(struct amdgpu_device *adev,
 
 }
 
-
-static int soc15_asic_reset(struct amdgpu_device *adev)
+static int soc15_asic_mode1_reset(struct amdgpu_device *adev)
 {
 	u32 i;
 
 	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
 
-	dev_info(adev->dev, "GPU reset\n");
+	dev_info(adev->dev, "GPU mode1 reset\n");
 
 	/* disable BM */
 	pci_clear_master(adev->pdev);
@@ -415,6 +418,62 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 
 	return 0;
+}
+
+static int soc15_asic_get_baco_capability(struct amdgpu_device *adev, bool *cap)
+{
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs || !pp_funcs->get_asic_baco_capability) {
+		*cap = false;
+		return -ENOENT;
+	}
+
+	return pp_funcs->get_asic_baco_capability(pp_handle, cap);
+}
+
+static int soc15_asic_baco_reset(struct amdgpu_device *adev)
+{
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	if (!pp_funcs ||!pp_funcs->get_asic_baco_state ||!pp_funcs->set_asic_baco_state)
+		return -ENOENT;
+
+	/* enter BACO state */
+	if (pp_funcs->set_asic_baco_state(pp_handle, 1))
+		return -EIO;
+
+	/* exit BACO state */
+	if (pp_funcs->set_asic_baco_state(pp_handle, 0))
+		return -EIO;
+
+	dev_info(adev->dev, "GPU BACO reset\n");
+
+	return 0;
+}
+
+static int soc15_asic_reset(struct amdgpu_device *adev)
+{
+	int ret;
+	bool baco_reset;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+		soc15_asic_get_baco_capability(adev, &baco_reset);
+		break;
+	default:
+		baco_reset = false;
+		break;
+	}
+
+	if (baco_reset)
+		ret = soc15_asic_baco_reset(adev);
+	else
+		ret = soc15_asic_mode1_reset(adev);
+
+	return ret;
 }
 
 /*static int soc15_set_uvd_clock(struct amdgpu_device *adev, u32 clock,
@@ -507,6 +566,9 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	if (adev->asic_type == CHIP_VEGA20)
+		adev->gmc.xgmi.supported = true;
+
 	if (adev->flags & AMD_IS_APU)
 		adev->nbio_funcs = &nbio_v7_0_funcs;
 	else if (adev->asic_type == CHIP_VEGA20)
@@ -532,10 +594,12 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
-		if (adev->asic_type == CHIP_VEGA20)
-			amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
-		else
-			amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
+		if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
+			if (adev->asic_type == CHIP_VEGA20)
+				amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
+			else
+				amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
+		}
 		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
 		if (!amdgpu_sriov_vf(adev))
@@ -557,7 +621,8 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &psp_v10_0_ip_block);
+		if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP))
+			amdgpu_device_ip_block_add(adev, &psp_v10_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
@@ -598,6 +663,68 @@ static bool soc15_need_full_reset(struct amdgpu_device *adev)
 	/* change this when we implement soft reset */
 	return true;
 }
+static void soc15_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
+				 uint64_t *count1)
+{
+	uint32_t perfctr = 0;
+	uint64_t cnt0_of, cnt1_of;
+	int tmp;
+
+	/* This reports 0 on APUs, so return to avoid writing/reading registers
+	 * that may or may not be different from their GPU counterparts
+	 */
+	 if (adev->flags & AMD_IS_APU)
+		 return;
+
+	/* Set the 2 events that we wish to watch, defined above */
+	/* Reg 40 is # received msgs, Reg 104 is # of posted requests sent */
+	perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK, EVENT0_SEL, 40);
+	perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK, EVENT1_SEL, 104);
+
+	/* Write to enable desired perf counters */
+	WREG32_PCIE(smnPCIE_PERF_CNTL_TXCLK, perfctr);
+	/* Zero out and enable the perf counters
+	 * Write 0x5:
+	 * Bit 0 = Start all counters(1)
+	 * Bit 2 = Global counter reset enable(1)
+	 */
+	WREG32_PCIE(smnPCIE_PERF_COUNT_CNTL, 0x00000005);
+
+	msleep(1000);
+
+	/* Load the shadow and disable the perf counters
+	 * Write 0x2:
+	 * Bit 0 = Stop counters(0)
+	 * Bit 1 = Load the shadow counters(1)
+	 */
+	WREG32_PCIE(smnPCIE_PERF_COUNT_CNTL, 0x00000002);
+
+	/* Read register values to get any >32bit overflow */
+	tmp = RREG32_PCIE(smnPCIE_PERF_CNTL_TXCLK);
+	cnt0_of = REG_GET_FIELD(tmp, PCIE_PERF_CNTL_TXCLK, COUNTER0_UPPER);
+	cnt1_of = REG_GET_FIELD(tmp, PCIE_PERF_CNTL_TXCLK, COUNTER1_UPPER);
+
+	/* Get the values and add the overflow */
+	*count0 = RREG32_PCIE(smnPCIE_PERF_COUNT0_TXCLK) | (cnt0_of << 32);
+	*count1 = RREG32_PCIE(smnPCIE_PERF_COUNT1_TXCLK) | (cnt1_of << 32);
+}
+
+static bool soc15_need_reset_on_init(struct amdgpu_device *adev)
+{
+	u32 sol_reg;
+
+	if (adev->flags & AMD_IS_APU)
+		return false;
+
+	/* Check sOS sign of life register to confirm sys driver and sOS
+	 * are already been loaded.
+	 */
+	sol_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_81);
+	if (sol_reg)
+		return true;
+
+	return false;
+}
 
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
 {
@@ -613,6 +740,28 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.flush_hdp = &soc15_flush_hdp,
 	.invalidate_hdp = &soc15_invalidate_hdp,
 	.need_full_reset = &soc15_need_full_reset,
+	.init_doorbell_index = &vega10_doorbell_index_init,
+	.get_pcie_usage = &soc15_get_pcie_usage,
+	.need_reset_on_init = &soc15_need_reset_on_init,
+};
+
+static const struct amdgpu_asic_funcs vega20_asic_funcs =
+{
+	.read_disabled_bios = &soc15_read_disabled_bios,
+	.read_bios_from_rom = &soc15_read_bios_from_rom,
+	.read_register = &soc15_read_register,
+	.reset = &soc15_asic_reset,
+	.set_vga_state = &soc15_vga_set_state,
+	.get_xclk = &soc15_get_xclk,
+	.set_uvd_clocks = &soc15_set_uvd_clocks,
+	.set_vce_clocks = &soc15_set_vce_clocks,
+	.get_config_memsize = &soc15_get_config_memsize,
+	.flush_hdp = &soc15_flush_hdp,
+	.invalidate_hdp = &soc15_invalidate_hdp,
+	.need_full_reset = &soc15_need_full_reset,
+	.init_doorbell_index = &vega20_doorbell_index_init,
+	.get_pcie_usage = &soc15_get_pcie_usage,
+	.need_reset_on_init = &soc15_need_reset_on_init,
 };
 
 static int soc15_common_early_init(void *handle)
@@ -632,11 +781,11 @@ static int soc15_common_early_init(void *handle)
 	adev->se_cac_rreg = &soc15_se_cac_rreg;
 	adev->se_cac_wreg = &soc15_se_cac_wreg;
 
-	adev->asic_funcs = &soc15_asic_funcs;
 
 	adev->external_rev_id = 0xFF;
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+		adev->asic_funcs = &soc15_asic_funcs;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
 			AMD_CG_SUPPORT_GFX_RLC_LS |
@@ -660,6 +809,7 @@ static int soc15_common_early_init(void *handle)
 		adev->external_rev_id = 0x1;
 		break;
 	case CHIP_VEGA12:
+		adev->asic_funcs = &soc15_asic_funcs;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
 			AMD_CG_SUPPORT_GFX_CGCG |
@@ -682,6 +832,7 @@ static int soc15_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x14;
 		break;
 	case CHIP_VEGA20:
+		adev->asic_funcs = &vega20_asic_funcs;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 			AMD_CG_SUPPORT_GFX_MGLS |
 			AMD_CG_SUPPORT_GFX_CGCG |
@@ -704,12 +855,15 @@ static int soc15_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x28;
 		break;
 	case CHIP_RAVEN:
+		adev->asic_funcs = &soc15_asic_funcs;
 		if (adev->rev_id >= 0x8)
-			adev->external_rev_id = adev->rev_id + 0x81;
+			adev->external_rev_id = adev->rev_id + 0x79;
 		else if (adev->pdev->device == 0x15d8)
 			adev->external_rev_id = adev->rev_id + 0x41;
+		else if (adev->rev_id == 1)
+			adev->external_rev_id = adev->rev_id + 0x20;
 		else
-			adev->external_rev_id = 0x1;
+			adev->external_rev_id = adev->rev_id + 0x01;
 
 		if (adev->rev_id >= 0x8) {
 			adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
@@ -816,6 +970,22 @@ static int soc15_common_sw_fini(void *handle)
 	return 0;
 }
 
+static void soc15_doorbell_range_init(struct amdgpu_device *adev)
+{
+	int i;
+	struct amdgpu_ring *ring;
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		ring = &adev->sdma.instance[i].ring;
+		adev->nbio_funcs->sdma_doorbell_range(adev, i,
+			ring->use_doorbell, ring->doorbell_index,
+			adev->doorbell_index.sdma_doorbell_range);
+	}
+
+	adev->nbio_funcs->ih_doorbell_range(adev, adev->irq.ih.use_doorbell,
+						adev->irq.ih.doorbell_index);
+}
+
 static int soc15_common_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -828,6 +998,12 @@ static int soc15_common_hw_init(void *handle)
 	adev->nbio_funcs->init_registers(adev);
 	/* enable the doorbell aperture */
 	soc15_enable_doorbell_aperture(adev, true);
+	/* HW doorbell routing policy: doorbell writing not
+	 * in SDMA/IH/MM/ACV range will be routed to CP. So
+	 * we need to init SDMA/IH/MM/ACV doorbell range prior
+	 * to CP ip block init and ring test.
+	 */
+	soc15_doorbell_range_init(adev);
 
 	return 0;
 }

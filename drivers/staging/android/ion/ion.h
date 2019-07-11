@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * drivers/staging/android/ion/ion.h
+ * ION Memory Allocator kernel interface header
  *
  * Copyright (C) 2011 Google, Inc.
  */
@@ -22,32 +22,9 @@
 #include "../uapi/ion.h"
 
 /**
- * struct ion_platform_heap - defines a heap in the given platform
- * @type:	type of the heap from ion_heap_type enum
- * @id:		unique identifier for heap.  When allocating higher numb ers
- *		will be allocated from first.  At allocation these are passed
- *		as a bit mask and therefore can not exceed ION_NUM_HEAP_IDS.
- * @name:	used for debug purposes
- * @base:	base address of heap in physical memory if applicable
- * @size:	size of the heap in bytes if applicable
- * @priv:	private info passed from the board file
- *
- * Provided by the board file.
- */
-struct ion_platform_heap {
-	enum ion_heap_type type;
-	unsigned int id;
-	const char *name;
-	phys_addr_t base;
-	size_t size;
-	phys_addr_t align;
-	void *priv;
-};
-
-/**
  * struct ion_buffer - metadata for a particular buffer
- * @ref:		reference count
  * @node:		node in the ion_device buffers tree
+ * @list:		element in list of deferred freeable buffers
  * @dev:		back pointer to the ion_device
  * @heap:		back pointer to the heap the buffer came from
  * @flags:		buffer specific flags
@@ -58,7 +35,8 @@ struct ion_platform_heap {
  * @lock:		protects the buffers cnt fields
  * @kmap_cnt:		number of times the buffer is mapped to the kernel
  * @vaddr:		the kernel mapping if kmap_cnt is not zero
- * @sg_table:		the sg table for the buffer if dmap_cnt is not zero
+ * @sg_table:		the sg table for the buffer
+ * @attachments:	list of devices attached to this buffer
  */
 struct ion_buffer {
 	union {
@@ -157,6 +135,9 @@ struct ion_heap_ops {
  * @lock:		protects the free list
  * @waitqueue:		queue to wait on from deferred free thread
  * @task:		task struct of deferred free thread
+ * @num_of_buffers	the number of currently allocated buffers
+ * @num_of_alloc_bytes	the number of allocated bytes
+ * @alloc_bytes_wm	the number of allocated bytes watermark
  *
  * Represents a pool of memory from which buffers can be made.  In some
  * systems the only heap is regular system memory allocated via vmalloc.
@@ -171,12 +152,22 @@ struct ion_heap {
 	unsigned long flags;
 	unsigned int id;
 	const char *name;
+
+	/* deferred free support */
 	struct shrinker shrinker;
 	struct list_head free_list;
 	size_t free_list_size;
 	spinlock_t free_lock;
 	wait_queue_head_t waitqueue;
 	struct task_struct *task;
+
+	/* heap statistics */
+	u64 num_of_buffers;
+	u64 num_of_alloc_bytes;
+	u64 alloc_bytes_wm;
+
+	/* protect heap statistics */
+	spinlock_t stat_lock;
 };
 
 /**
@@ -195,10 +186,6 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 		      struct vm_area_struct *vma);
 int ion_heap_buffer_zero(struct ion_buffer *buffer);
 int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot);
-
-int ion_alloc(size_t len,
-	      unsigned int heap_id_mask,
-	      unsigned int flags);
 
 /**
  * ion_heap_init_shrinker
@@ -320,9 +307,5 @@ void ion_page_pool_free(struct ion_page_pool *pool, struct page *page);
  */
 int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 			 int nr_to_scan);
-
-long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
-
-int ion_query_heaps(struct ion_heap_query *query);
 
 #endif /* _ION_H */

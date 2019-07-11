@@ -46,5 +46,9 @@ extern const struct nv50_outp_func sor907d;
 int core917d_new(struct nouveau_drm *, s32, struct nv50_core **);
 
 int corec37d_new(struct nouveau_drm *, s32, struct nv50_core **);
+int corec37d_ntfy_wait_done(struct nouveau_bo *, u32, struct nvif_device *);
+void corec37d_update(struct nv50_core *, u32 *, bool);
 extern const struct nv50_outp_func sorc37d;
+
+int corec57d_new(struct nouveau_drm *, s32, struct nv50_core **);
 #endif

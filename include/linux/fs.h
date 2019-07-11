@@ -37,6 +37,9 @@
 #include <linux/uuid.h>
 #include <linux/errseq.h>
 #include <linux/ioprio.h>
+#include <linux/fs_types.h>
+#include <linux/build_bug.h>
+#include <linux/stddef.h>
 
 #include <asm/byteorder.h>
 #include <uapi/linux/fs.h>
@@ -61,6 +64,8 @@ struct workqueue_struct;
 struct iov_iter;
 struct fscrypt_info;
 struct fscrypt_operations;
+struct fs_context;
+struct fs_parameter_description;
 
 extern void __init inode_init(void);
 extern void __init inode_init_early(void);
@@ -152,6 +157,9 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 
 #define FMODE_OPENED		((__force fmode_t)0x80000)
 #define FMODE_CREATED		((__force fmode_t)0x100000)
+
+/* File is stream-like */
+#define FMODE_STREAM		((__force fmode_t)0x200000)
 
 /* File was opened by fanotify and shouldn't generate fanotify events */
 #define FMODE_NONOTIFY		((__force fmode_t)0x4000000)
@@ -304,13 +312,20 @@ enum rw_hint {
 
 struct kiocb {
 	struct file		*ki_filp;
+
+	/* The 'ki_filp' pointer is shared in a union for aio */
+	randomized_struct_fields_start
+
 	loff_t			ki_pos;
 	void (*ki_complete)(struct kiocb *iocb, long ret, long ret2);
 	void			*private;
 	int			ki_flags;
 	u16			ki_hint;
 	u16			ki_ioprio; /* See linux/ioprio.h */
-} __randomize_layout;
+	unsigned int		ki_cookie; /* for ->iopoll */
+
+	randomized_struct_fields_end
+};
 
 static inline bool is_sync_kiocb(struct kiocb *kiocb)
 {
@@ -698,7 +713,7 @@ struct inode {
 	struct fsnotify_mark_connector __rcu	*i_fsnotify_marks;
 #endif
 
-#if IS_ENABLED(CONFIG_FS_ENCRYPTION)
+#ifdef CONFIG_FS_ENCRYPTION
 	struct fscrypt_info	*i_crypt_info;
 #endif
 
@@ -951,7 +966,9 @@ static inline struct file *get_file(struct file *f)
 	atomic_long_inc(&f->f_count);
 	return f;
 }
-#define get_file_rcu(x) atomic_long_inc_not_zero(&(x)->f_count)
+#define get_file_rcu_many(x, cnt)	\
+	atomic_long_add_unless(&(x)->f_count, (cnt), 0)
+#define get_file_rcu(x) get_file_rcu_many((x), 1)
 #define fput_atomic(x)	atomic_long_add_unless(&(x)->f_count, -1, 1)
 #define file_count(x)	atomic_long_read(&(x)->f_count)
 
@@ -1044,10 +1061,15 @@ bool opens_in_grace(struct net *);
  * Obviously, the last two criteria only matter for POSIX locks.
  */
 struct file_lock {
-	struct file_lock *fl_next;	/* singly linked list for this inode  */
+	struct file_lock *fl_blocker;	/* The lock, that is blocking us */
 	struct list_head fl_list;	/* link into file_lock_context */
 	struct hlist_node fl_link;	/* node in global lists */
-	struct list_head fl_block;	/* circular list of blocked processes */
+	struct list_head fl_blocked_requests;	/* list of requests with
+						 * ->fl_blocker pointing here
+						 */
+	struct list_head fl_blocked_member;	/* node in
+						 * ->fl_blocker->fl_blocked_requests
+						 */
 	fl_owner_t fl_owner;
 	unsigned int fl_flags;
 	unsigned char fl_type;
@@ -1119,7 +1141,7 @@ extern void locks_remove_file(struct file *);
 extern void locks_release_private(struct file_lock *);
 extern void posix_test_lock(struct file *, struct file_lock *);
 extern int posix_lock_file(struct file *, struct file_lock *, struct file_lock *);
-extern int posix_unblock_lock(struct file_lock *);
+extern int locks_delete_block(struct file_lock *);
 extern int vfs_test_lock(struct file *, struct file_lock *);
 extern int vfs_lock_file(struct file *, unsigned int, struct file_lock *, struct file_lock *);
 extern int vfs_cancel_lock(struct file *filp, struct file_lock *fl);
@@ -1209,7 +1231,7 @@ static inline int posix_lock_file(struct file *filp, struct file_lock *fl,
 	return -ENOLCK;
 }
 
-static inline int posix_unblock_lock(struct file_lock *waiter)
+static inline int locks_delete_block(struct file_lock *waiter)
 {
 	return -ENOENT;
 }
@@ -1332,6 +1354,7 @@ extern int send_sigurg(struct fown_struct *fown);
 
 /* These sb flags are internal to the kernel */
 #define SB_SUBMOUNT     (1<<26)
+#define SB_FORCE    	(1<<27)
 #define SB_NOSEC	(1<<28)
 #define SB_BORN		(1<<29)
 #define SB_ACTIVE	(1<<30)
@@ -1398,7 +1421,7 @@ struct super_block {
 	void                    *s_security;
 #endif
 	const struct xattr_handler **s_xattr;
-#if IS_ENABLED(CONFIG_FS_ENCRYPTION)
+#ifdef CONFIG_FS_ENCRYPTION
 	const struct fscrypt_operations	*s_cop;
 #endif
 	struct hlist_bl_head	s_roots;	/* alternate root dentries for NFS */
@@ -1442,7 +1465,7 @@ struct super_block {
 	 * Filesystem subtype.  If non-empty the filesystem type field
 	 * in /proc/mounts will be "type.subtype"
 	 */
-	char *s_subtype;
+	const char *s_subtype;
 
 	const struct dentry_operations *s_d_op; /* default d_op for dentries */
 
@@ -1474,11 +1497,12 @@ struct super_block {
 	struct user_namespace *s_user_ns;
 
 	/*
-	 * Keep the lru lists last in the structure so they always sit on their
-	 * own individual cachelines.
+	 * The list_lru structure is essentially just a pointer to a table
+	 * of per-node lru lists, each of which has its own spinlock.
+	 * There is no need to put them into separate cachelines.
 	 */
-	struct list_lru		s_dentry_lru ____cacheline_aligned_in_smp;
-	struct list_lru		s_inode_lru ____cacheline_aligned_in_smp;
+	struct list_lru		s_dentry_lru;
+	struct list_lru		s_inode_lru;
 	struct rcu_head		rcu;
 	struct work_struct	destroy_work;
 
@@ -1695,22 +1719,6 @@ int fiemap_fill_next_extent(struct fiemap_extent_info *info, u64 logical,
 int fiemap_check_flags(struct fiemap_extent_info *fieinfo, u32 fs_flags);
 
 /*
- * File types
- *
- * NOTE! These match bits 12..15 of stat.st_mode
- * (ie "(i_mode >> 12) & 15").
- */
-#define DT_UNKNOWN	0
-#define DT_FIFO		1
-#define DT_CHR		2
-#define DT_DIR		4
-#define DT_BLK		6
-#define DT_REG		8
-#define DT_LNK		10
-#define DT_SOCK		12
-#define DT_WHT		14
-
-/*
  * This is the "filldir" function type, used by readdir() to let
  * the kernel specify what kind of dirent layout it wants to have.
  * This allows the kernel to read directories into kernel space or
@@ -1781,6 +1789,7 @@ struct file_operations {
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
 	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
 	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
+	int (*iopoll)(struct kiocb *kiocb, bool spin);
 	int (*iterate) (struct file *, struct dir_context *);
 	int (*iterate_shared) (struct file *, struct dir_context *);
 	__poll_t (*poll) (struct file *, struct poll_table_struct *);
@@ -2021,7 +2030,7 @@ static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
 		.ki_filp = filp,
 		.ki_flags = iocb_flags(filp),
 		.ki_hint = ki_hint_validate(file_write_hint(filp)),
-		.ki_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_NONE, 0),
+		.ki_ioprio = get_current_ioprio(),
 	};
 }
 
@@ -2079,7 +2088,7 @@ static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
  * I_WB_SWITCH		Cgroup bdi_writeback switching in progress.  Used to
  *			synchronize competing switching instances and to tell
  *			wb stat updates to grab the i_pages lock.  See
- *			inode_switch_wb_work_fn() for details.
+ *			inode_switch_wbs_work_fn() for details.
  *
  * I_OVL_INUSE		Used by overlayfs to get exclusive ownership on upper
  *			and work dirs among overlayfs mounts.
@@ -2167,6 +2176,8 @@ struct file_system_type {
 #define FS_HAS_SUBTYPE		4
 #define FS_USERNS_MOUNT		8	/* Can be mounted by userns root */
 #define FS_RENAME_DOES_D_MOVE	32768	/* FS will handle d_move() during rename() internally. */
+	int (*init_fs_context)(struct fs_context *);
+	const struct fs_parameter_description *parameters;
 	struct dentry *(*mount) (struct file_system_type *, int,
 		       const char *, void *);
 	void (*kill_sb) (struct super_block *);
@@ -2222,8 +2233,12 @@ void kill_litter_super(struct super_block *sb);
 void deactivate_super(struct super_block *sb);
 void deactivate_locked_super(struct super_block *sb);
 int set_anon_super(struct super_block *s, void *data);
+int set_anon_super_fc(struct super_block *s, struct fs_context *fc);
 int get_anon_bdev(dev_t *);
 void free_anon_bdev(dev_t);
+struct super_block *sget_fc(struct fs_context *fc,
+			    int (*test)(struct super_block *, struct fs_context *),
+			    int (*set)(struct super_block *, struct fs_context *));
 struct super_block *sget_userns(struct file_system_type *type,
 			int (*test)(struct super_block *,void *),
 			int (*set)(struct super_block *,void *),
@@ -2266,8 +2281,7 @@ mount_pseudo(struct file_system_type *fs_type, char *name,
 
 extern int register_filesystem(struct file_system_type *);
 extern int unregister_filesystem(struct file_system_type *);
-extern struct vfsmount *kern_mount_data(struct file_system_type *, void *data);
-#define kern_mount(type) kern_mount_data(type, NULL)
+extern struct vfsmount *kern_mount(struct file_system_type *);
 extern void kern_unmount(struct vfsmount *mnt);
 extern int may_umount_tree(struct vfsmount *);
 extern int may_umount(struct vfsmount *);
@@ -2481,6 +2495,7 @@ struct filename {
 	struct audit_names	*aname;
 	const char		iname[];
 };
+static_assert(offsetof(struct filename, iname) % sizeof(long) == 0);
 
 extern long vfs_truncate(const struct path *, loff_t);
 extern int do_truncate(struct dentry *, loff_t start, unsigned int time_attrs,
@@ -3062,6 +3077,7 @@ extern loff_t no_seek_end_llseek_size(struct file *, loff_t, int, loff_t);
 extern loff_t no_seek_end_llseek(struct file *, loff_t, int);
 extern int generic_file_open(struct inode * inode, struct file * filp);
 extern int nonseekable_open(struct inode * inode, struct file * filp);
+extern int stream_open(struct inode * inode, struct file * filp);
 
 #ifdef CONFIG_BLOCK
 typedef void (dio_submit_t)(struct bio *bio, struct inode *inode,
@@ -3264,8 +3280,12 @@ extern int generic_check_addressable(unsigned, u64);
 extern int buffer_migrate_page(struct address_space *,
 				struct page *, struct page *,
 				enum migrate_mode);
+extern int buffer_migrate_page_norefs(struct address_space *,
+				struct page *, struct page *,
+				enum migrate_mode);
 #else
 #define buffer_migrate_page NULL
+#define buffer_migrate_page_norefs NULL
 #endif
 
 extern int setattr_prepare(struct dentry *, struct iattr *);
@@ -3504,5 +3524,14 @@ extern void inode_nohighmem(struct inode *inode);
 /* mm/fadvise.c */
 extern int vfs_fadvise(struct file *file, loff_t offset, loff_t len,
 		       int advice);
+
+#if defined(CONFIG_IO_URING)
+extern struct sock *io_uring_get_socket(struct file *file);
+#else
+static inline struct sock *io_uring_get_socket(struct file *file)
+{
+	return NULL;
+}
+#endif
 
 #endif /* _LINUX_FS_H */

@@ -559,7 +559,7 @@ wildfire_dump_qsd_regs(int qbbno)
 	printk(KERN_ERR " QSD_REV:           0x%16lx\n", qsd->qsd_rev.csr);
 	printk(KERN_ERR " QSD_PORT_PRESENT:  0x%16lx\n",
 	       qsd->qsd_port_present.csr);
-	printk(KERN_ERR " QSD_PORT_ACTUVE:   0x%16lx\n",
+	printk(KERN_ERR " QSD_PORT_ACTIVE:   0x%16lx\n",
 	       qsd->qsd_port_active.csr);
 	printk(KERN_ERR " QSD_FAULT_ENA:     0x%16lx\n",
 	       qsd->qsd_fault_ena.csr);

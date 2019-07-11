@@ -745,6 +745,7 @@ static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 		 * OPCODE1() of the "short" jmp which checks the same condition.
 		 */
 		opc1 = OPCODE2(insn) - 0x10;
+		/* fall through */
 	default:
 		if (!is_cond_jmp_opcode(opc1))
 			return -ENOSYS;

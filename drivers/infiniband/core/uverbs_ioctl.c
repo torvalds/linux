@@ -144,6 +144,21 @@ static bool uverbs_is_attr_cleared(const struct ib_uverbs_attr *uattr,
 			   0, uattr->len - len);
 }
 
+static int uverbs_set_output(const struct uverbs_attr_bundle *bundle,
+			     const struct uverbs_attr *attr)
+{
+	struct bundle_priv *pbundle =
+		container_of(bundle, struct bundle_priv, bundle);
+	u16 flags;
+
+	flags = pbundle->uattrs[attr->ptr_attr.uattr_idx].flags |
+		UVERBS_ATTR_F_VALID_OUTPUT;
+	if (put_user(flags,
+		     &pbundle->user_attrs[attr->ptr_attr.uattr_idx].flags))
+		return -EFAULT;
+	return 0;
+}
+
 static int uverbs_process_idrs_array(struct bundle_priv *pbundle,
 				     const struct uverbs_api_attr *attr_uapi,
 				     struct uverbs_objs_arr_attr *attr,
@@ -198,6 +213,7 @@ static int uverbs_process_idrs_array(struct bundle_priv *pbundle,
 			ret = PTR_ERR(attr->uobjects[i]);
 			break;
 		}
+		pbundle->bundle.context = attr->uobjects[i]->context;
 	}
 
 	attr->len = i;
@@ -315,6 +331,7 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 					uattr->data_s64);
 		if (IS_ERR(o_attr->uobject))
 			return PTR_ERR(o_attr->uobject);
+		pbundle->bundle.context = o_attr->uobject->context;
 		__set_bit(attr_bkey, pbundle->uobj_finalize);
 
 		if (spec->u.obj.access == UVERBS_ACCESS_NEW) {
@@ -404,8 +421,7 @@ static int uverbs_set_attr(struct bundle_priv *pbundle,
 static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 				unsigned int num_attrs)
 {
-	int (*handler)(struct ib_uverbs_file *ufile,
-		       struct uverbs_attr_bundle *ctx);
+	int (*handler)(struct uverbs_attr_bundle *attrs);
 	size_t uattrs_size = array_size(sizeof(*pbundle->uattrs), num_attrs);
 	unsigned int destroy_bkey = pbundle->method_elm->destroy_bkey;
 	unsigned int i;
@@ -436,6 +452,11 @@ static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 				    pbundle->method_elm->key_bitmap_len)))
 		return -EINVAL;
 
+	if (pbundle->method_elm->has_udata)
+		uverbs_fill_udata(&pbundle->bundle,
+				  &pbundle->bundle.driver_udata,
+				  UVERBS_ATTR_UHW_IN, UVERBS_ATTR_UHW_OUT);
+
 	if (destroy_bkey != UVERBS_API_ATTR_BKEY_LEN) {
 		struct uverbs_obj_attr *destroy_attr =
 			&pbundle->bundle.attrs[destroy_bkey].obj_attr;
@@ -445,10 +466,23 @@ static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 			return ret;
 		__clear_bit(destroy_bkey, pbundle->uobj_finalize);
 
-		ret = handler(pbundle->bundle.ufile, &pbundle->bundle);
+		ret = handler(&pbundle->bundle);
 		uobj_put_destroy(destroy_attr->uobject);
 	} else {
-		ret = handler(pbundle->bundle.ufile, &pbundle->bundle);
+		ret = handler(&pbundle->bundle);
+	}
+
+	/*
+	 * Until the drivers are revised to use the bundle directly we have to
+	 * assume that the driver wrote to its UHW_OUT and flag userspace
+	 * appropriately.
+	 */
+	if (!ret && pbundle->method_elm->has_udata) {
+		const struct uverbs_attr *attr =
+			uverbs_attr_get(&pbundle->bundle, UVERBS_ATTR_UHW_OUT);
+
+		if (!IS_ERR(attr))
+			ret = uverbs_set_output(&pbundle->bundle, attr);
 	}
 
 	/*
@@ -560,6 +594,7 @@ static int ib_uverbs_cmd_verbs(struct ib_uverbs_file *ufile,
 	pbundle->method_elm = method_elm;
 	pbundle->method_key = attrs_iter.index;
 	pbundle->bundle.ufile = ufile;
+	pbundle->bundle.context = NULL; /* only valid if bundle has uobject */
 	pbundle->radix = &uapi->radix;
 	pbundle->radix_slots = slot;
 	pbundle->radix_slots_len = radix_tree_chunk_size(&attrs_iter);
@@ -662,35 +697,37 @@ int uverbs_get_flags32(u32 *to, const struct uverbs_attr_bundle *attrs_bundle,
 EXPORT_SYMBOL(uverbs_get_flags32);
 
 /*
- * This is for ease of conversion. The purpose is to convert all drivers to
- * use uverbs_attr_bundle instead of ib_udata.  Assume attr == 0 is input and
- * attr == 1 is output.
+ * Fill a ib_udata struct (core or uhw) using the given attribute IDs.
+ * This is primarily used to convert the UVERBS_ATTR_UHW() into the
+ * ib_udata format used by the drivers.
  */
-void create_udata(struct uverbs_attr_bundle *bundle, struct ib_udata *udata)
+void uverbs_fill_udata(struct uverbs_attr_bundle *bundle,
+		       struct ib_udata *udata, unsigned int attr_in,
+		       unsigned int attr_out)
 {
 	struct bundle_priv *pbundle =
 		container_of(bundle, struct bundle_priv, bundle);
-	const struct uverbs_attr *uhw_in =
-		uverbs_attr_get(bundle, UVERBS_ATTR_UHW_IN);
-	const struct uverbs_attr *uhw_out =
-		uverbs_attr_get(bundle, UVERBS_ATTR_UHW_OUT);
+	const struct uverbs_attr *in =
+		uverbs_attr_get(&pbundle->bundle, attr_in);
+	const struct uverbs_attr *out =
+		uverbs_attr_get(&pbundle->bundle, attr_out);
 
-	if (!IS_ERR(uhw_in)) {
-		udata->inlen = uhw_in->ptr_attr.len;
-		if (uverbs_attr_ptr_is_inline(uhw_in))
+	if (!IS_ERR(in)) {
+		udata->inlen = in->ptr_attr.len;
+		if (uverbs_attr_ptr_is_inline(in))
 			udata->inbuf =
-				&pbundle->user_attrs[uhw_in->ptr_attr.uattr_idx]
+				&pbundle->user_attrs[in->ptr_attr.uattr_idx]
 					 .data;
 		else
-			udata->inbuf = u64_to_user_ptr(uhw_in->ptr_attr.data);
+			udata->inbuf = u64_to_user_ptr(in->ptr_attr.data);
 	} else {
 		udata->inbuf = NULL;
 		udata->inlen = 0;
 	}
 
-	if (!IS_ERR(uhw_out)) {
-		udata->outbuf = u64_to_user_ptr(uhw_out->ptr_attr.data);
-		udata->outlen = uhw_out->ptr_attr.len;
+	if (!IS_ERR(out)) {
+		udata->outbuf = u64_to_user_ptr(out->ptr_attr.data);
+		udata->outlen = out->ptr_attr.len;
 	} else {
 		udata->outbuf = NULL;
 		udata->outlen = 0;
@@ -700,10 +737,7 @@ void create_udata(struct uverbs_attr_bundle *bundle, struct ib_udata *udata)
 int uverbs_copy_to(const struct uverbs_attr_bundle *bundle, size_t idx,
 		   const void *from, size_t size)
 {
-	struct bundle_priv *pbundle =
-		container_of(bundle, struct bundle_priv, bundle);
 	const struct uverbs_attr *attr = uverbs_attr_get(bundle, idx);
-	u16 flags;
 	size_t min_size;
 
 	if (IS_ERR(attr))
@@ -713,15 +747,24 @@ int uverbs_copy_to(const struct uverbs_attr_bundle *bundle, size_t idx,
 	if (copy_to_user(u64_to_user_ptr(attr->ptr_attr.data), from, min_size))
 		return -EFAULT;
 
-	flags = pbundle->uattrs[attr->ptr_attr.uattr_idx].flags |
-		UVERBS_ATTR_F_VALID_OUTPUT;
-	if (put_user(flags,
-		     &pbundle->user_attrs[attr->ptr_attr.uattr_idx].flags))
-		return -EFAULT;
-
-	return 0;
+	return uverbs_set_output(bundle, attr);
 }
 EXPORT_SYMBOL(uverbs_copy_to);
+
+
+/*
+ * This is only used if the caller has directly used copy_to_use to write the
+ * data.  It signals to user space that the buffer is filled in.
+ */
+int uverbs_output_written(const struct uverbs_attr_bundle *bundle, size_t idx)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(bundle, idx);
+
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
+	return uverbs_set_output(bundle, attr);
+}
 
 int _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
 		      size_t idx, s64 lower_bound, u64 upper_bound,
@@ -745,3 +788,16 @@ int _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
 	return 0;
 }
 EXPORT_SYMBOL(_uverbs_get_const);
+
+int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
+				  size_t idx, const void *from, size_t size)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(bundle, idx);
+
+	if (size < attr->ptr_attr.len) {
+		if (clear_user(u64_to_user_ptr(attr->ptr_attr.data) + size,
+			       attr->ptr_attr.len - size))
+			return -EFAULT;
+	}
+	return uverbs_copy_to(bundle, idx, from, size);
+}

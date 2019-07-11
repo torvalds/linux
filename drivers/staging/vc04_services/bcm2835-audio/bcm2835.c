@@ -6,13 +6,13 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/of.h>
 
 #include "bcm2835.h"
 
 static bool enable_hdmi;
 static bool enable_headphones;
 static bool enable_compat_alsa = true;
+static int num_channels = MAX_SUBSTREAMS;
 
 module_param(enable_hdmi, bool, 0444);
 MODULE_PARM_DESC(enable_hdmi, "Enables HDMI virtual audio device");
@@ -21,6 +21,8 @@ MODULE_PARM_DESC(enable_headphones, "Enables Headphones virtual audio device");
 module_param(enable_compat_alsa, bool, 0444);
 MODULE_PARM_DESC(enable_compat_alsa,
 		 "Enables ALSA compatibility virtual audio device");
+module_param(num_channels, int, 0644);
+MODULE_PARM_DESC(num_channels, "Number of audio channels (default: 8)");
 
 static void bcm2835_devm_free_vchi_ctx(struct device *dev, void *res)
 {
@@ -38,8 +40,6 @@ static int bcm2835_devm_add_vchi_ctx(struct device *dev)
 				GFP_KERNEL);
 	if (!vchi_ctx)
 		return -ENOMEM;
-
-	memset(vchi_ctx, 0, sizeof(*vchi_ctx));
 
 	ret = bcm2835_new_vchi_ctx(dev, vchi_ctx);
 	if (ret) {
@@ -163,8 +163,8 @@ static int snd_add_child_device(struct device *dev,
 				struct bcm2835_audio_driver *audio_driver,
 				u32 numchans)
 {
-	struct snd_card *card;
 	struct bcm2835_chip *chip;
+	struct snd_card *card;
 	int err;
 
 	err = snd_card_new(dev, -1, NULL, THIS_MODULE, sizeof(*chip), &card);
@@ -227,12 +227,12 @@ static int snd_add_child_device(struct device *dev,
 
 static int snd_add_child_devices(struct device *device, u32 numchans)
 {
-	int i;
-	int count_devices = 0;
-	int minchannels = 0;
-	int extrachannels = 0;
 	int extrachannels_per_driver = 0;
 	int extrachannels_remainder = 0;
+	int count_devices = 0;
+	int extrachannels = 0;
+	int minchannels = 0;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(children_devices); i++)
 		if (*children_devices[i].is_enabled)
@@ -260,9 +260,9 @@ static int snd_add_child_devices(struct device *device, u32 numchans)
 		extrachannels_remainder);
 
 	for (i = 0; i < ARRAY_SIZE(children_devices); i++) {
-		int err;
-		int numchannels_this_device;
 		struct bcm2835_audio_driver *audio_driver;
+		int numchannels_this_device;
+		int err;
 
 		if (!*children_devices[i].is_enabled)
 			continue;
@@ -293,31 +293,22 @@ static int snd_add_child_devices(struct device *device, u32 numchans)
 	return 0;
 }
 
-static int snd_bcm2835_alsa_probe_dt(struct platform_device *pdev)
+static int snd_bcm2835_alsa_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	u32 numchans;
 	int err;
 
-	err = of_property_read_u32(dev->of_node, "brcm,pwm-channels",
-				   &numchans);
-	if (err) {
-		dev_err(dev, "Failed to get DT property 'brcm,pwm-channels'");
-		return err;
-	}
-
-	if (numchans == 0 || numchans > MAX_SUBSTREAMS) {
-		numchans = MAX_SUBSTREAMS;
-		dev_warn(dev,
-			 "Illegal 'brcm,pwm-channels' value, will use %u\n",
-			 numchans);
+	if (num_channels <= 0 || num_channels > MAX_SUBSTREAMS) {
+		num_channels = MAX_SUBSTREAMS;
+		dev_warn(dev, "Illegal num_channels value, will use %u\n",
+			 num_channels);
 	}
 
 	err = bcm2835_devm_add_vchi_ctx(dev);
 	if (err)
 		return err;
 
-	err = snd_add_child_devices(dev, numchans);
+	err = snd_add_child_devices(dev, num_channels);
 	if (err)
 		return err;
 
@@ -339,43 +330,19 @@ static int snd_bcm2835_alsa_resume(struct platform_device *pdev)
 
 #endif
 
-static const struct of_device_id snd_bcm2835_of_match_table[] = {
-	{ .compatible = "brcm,bcm2835-audio",},
-	{},
-};
-MODULE_DEVICE_TABLE(of, snd_bcm2835_of_match_table);
-
-static struct platform_driver bcm2835_alsa0_driver = {
-	.probe = snd_bcm2835_alsa_probe_dt,
+static struct platform_driver bcm2835_alsa_driver = {
+	.probe = snd_bcm2835_alsa_probe,
 #ifdef CONFIG_PM
 	.suspend = snd_bcm2835_alsa_suspend,
 	.resume = snd_bcm2835_alsa_resume,
 #endif
 	.driver = {
 		.name = "bcm2835_audio",
-		.of_match_table = snd_bcm2835_of_match_table,
 	},
 };
-
-static int bcm2835_alsa_device_init(void)
-{
-	int retval;
-
-	retval = platform_driver_register(&bcm2835_alsa0_driver);
-	if (retval)
-		pr_err("Error registering bcm2835_audio driver %d .\n", retval);
-
-	return retval;
-}
-
-static void bcm2835_alsa_device_exit(void)
-{
-	platform_driver_unregister(&bcm2835_alsa0_driver);
-}
-
-late_initcall(bcm2835_alsa_device_init);
-module_exit(bcm2835_alsa_device_exit);
+module_platform_driver(bcm2835_alsa_driver);
 
 MODULE_AUTHOR("Dom Cobley");
 MODULE_DESCRIPTION("Alsa driver for BCM2835 chip");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:bcm2835_audio");

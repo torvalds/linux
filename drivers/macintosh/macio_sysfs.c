@@ -3,17 +3,6 @@
 #include <linux/stat.h>
 #include <asm/macio.h>
 
-
-#define macio_config_of_attr(field, format_string)			\
-static ssize_t								\
-field##_show (struct device *dev, struct device_attribute *attr,	\
-              char *buf)						\
-{									\
-	struct macio_dev *mdev = to_macio_device (dev);			\
-	return sprintf (buf, format_string, mdev->ofdev.dev.of_node->field); \
-}									\
-static DEVICE_ATTR_RO(field);
-
 static ssize_t
 compatible_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -65,7 +54,12 @@ static ssize_t name_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(name);
 
-macio_config_of_attr (type, "%s\n");
+static ssize_t type_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", of_node_get_device_type(dev->of_node));
+}
+static DEVICE_ATTR_RO(type);
 
 static struct attribute *macio_dev_attrs[] = {
 	&dev_attr_name.attr,

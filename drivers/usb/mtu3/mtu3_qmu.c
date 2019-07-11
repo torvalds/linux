@@ -154,27 +154,6 @@ void mtu3_gpd_ring_free(struct mtu3_ep *mep)
 	memset(ring, 0, sizeof(*ring));
 }
 
-/*
- * calculate check sum of a gpd or bd
- * add "noinline" and "mb" to prevent wrong calculation
- */
-static noinline u8 qmu_calc_checksum(u8 *data)
-{
-	u8 chksum = 0;
-	int i;
-
-	data[1] = 0x0;  /* set checksum to 0 */
-
-	mb();	/* ensure the gpd/bd is really up-to-date */
-	for (i = 0; i < QMU_CHECKSUM_LEN; i++)
-		chksum += data[i];
-
-	/* Default: HWO=1, @flag[bit0] */
-	chksum += 1;
-
-	return 0xFF - chksum;
-}
-
 void mtu3_qmu_resume(struct mtu3_ep *mep)
 {
 	struct mtu3 *mtu = mep->mtu;
@@ -260,7 +239,6 @@ static int mtu3_prepare_tx_gpd(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	if (req->zero)
 		gpd->ext_flag |= GPD_EXT_FLAG_ZLP;
 
-	gpd->chksum = qmu_calc_checksum((u8 *)gpd);
 	gpd->flag |= GPD_FLAGS_HWO;
 
 	mreq->gpd = gpd;
@@ -295,7 +273,6 @@ static int mtu3_prepare_rx_gpd(struct mtu3_ep *mep, struct mtu3_request *mreq)
 	gpd->next_gpd = cpu_to_le32(lower_32_bits(enq_dma));
 	ext_addr |= GPD_EXT_NGP(upper_32_bits(enq_dma));
 	gpd->rx_ext_addr = cpu_to_le16(ext_addr);
-	gpd->chksum = qmu_calc_checksum((u8 *)gpd);
 	gpd->flag |= GPD_FLAGS_HWO;
 
 	mreq->gpd = gpd;
@@ -323,7 +300,6 @@ int mtu3_qmu_start(struct mtu3_ep *mep)
 		/* set QMU start address */
 		write_txq_start_addr(mbase, epnum, ring->dma);
 		mtu3_setbits(mbase, MU3D_EP_TXCR0(epnum), TX_DMAREQEN);
-		mtu3_setbits(mbase, U3D_QCR0, QMU_TX_CS_EN(epnum));
 		/* send zero length packet according to ZLP flag in GPD */
 		mtu3_setbits(mbase, U3D_QCR1, QMU_TX_ZLP(epnum));
 		mtu3_writel(mbase, U3D_TQERRIESR0,
@@ -338,7 +314,6 @@ int mtu3_qmu_start(struct mtu3_ep *mep)
 	} else {
 		write_rxq_start_addr(mbase, epnum, ring->dma);
 		mtu3_setbits(mbase, MU3D_EP_RXCR0(epnum), RX_DMAREQEN);
-		mtu3_setbits(mbase, U3D_QCR0, QMU_RX_CS_EN(epnum));
 		/* don't expect ZLP */
 		mtu3_clrbits(mbase, U3D_QCR3, QMU_RX_ZLP(epnum));
 		/* move to next GPD when receive ZLP */
@@ -427,7 +402,7 @@ static void qmu_tx_zlp_error_handler(struct mtu3 *mtu, u8 epnum)
 		return;
 	}
 
-	dev_dbg(mtu->dev, "%s send ZLP for req=%p\n", __func__, mreq);
+	dev_dbg(mtu->dev, "%s send ZLP for req=%p\n", __func__, req);
 
 	mtu3_clrbits(mbase, MU3D_EP_TXCR0(mep->epnum), TX_DMAREQEN);
 
@@ -441,7 +416,6 @@ static void qmu_tx_zlp_error_handler(struct mtu3 *mtu, u8 epnum)
 
 	/* by pass the current GDP */
 	gpd_current->flag |= GPD_FLAGS_BPS;
-	gpd_current->chksum = qmu_calc_checksum((u8 *)gpd_current);
 	gpd_current->flag |= GPD_FLAGS_HWO;
 
 	/*enable DMAREQEN, switch back to QMU mode */

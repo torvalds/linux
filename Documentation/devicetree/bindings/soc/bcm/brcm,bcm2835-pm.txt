@@ -1,0 +1,46 @@
+BCM2835 PM (Power domains, watchdog)
+
+The PM block controls power domains and some reset lines, and includes
+a watchdog timer.  This binding supersedes the brcm,bcm2835-pm-wdt
+binding which covered some of PM's register range and functionality.
+
+Required properties:
+
+- compatible:		Should be "brcm,bcm2835-pm"
+- reg:			Specifies base physical address and size of the two
+			  register ranges ("PM" and "ASYNC_BRIDGE" in that
+			  order)
+- clocks:		a) v3d: The V3D clock from CPRMAN
+			b) peri_image: The PERI_IMAGE clock from CPRMAN
+			c) h264: The H264 clock from CPRMAN
+			d) isp: The ISP clock from CPRMAN
+- #reset-cells: 	Should be 1.  This property follows the reset controller
+			  bindings[1].
+- #power-domain-cells:	Should be 1.  This property follows the power domain
+			  bindings[2].
+
+Optional properties:
+
+- timeout-sec:		Contains the watchdog timeout in seconds
+- system-power-controller: Whether the watchdog is controlling the
+    system power.  This node follows the power controller bindings[3].
+
+[1] Documentation/devicetree/bindings/reset/reset.txt
+[2] Documentation/devicetree/bindings/power/power_domain.txt
+[3] Documentation/devicetree/bindings/power/power-controller.txt
+
+Example:
+
+pm {
+	compatible = "brcm,bcm2835-pm", "brcm,bcm2835-pm-wdt";
+	#power-domain-cells = <1>;
+	#reset-cells = <1>;
+	reg = <0x7e100000 0x114>,
+	      <0x7e00a000 0x24>;
+	clocks = <&clocks BCM2835_CLOCK_V3D>,
+		 <&clocks BCM2835_CLOCK_PERI_IMAGE>,
+		 <&clocks BCM2835_CLOCK_H264>,
+		 <&clocks BCM2835_CLOCK_ISP>;
+	clock-names = "v3d", "peri_image", "h264", "isp";
+	system-power-controller;
+};

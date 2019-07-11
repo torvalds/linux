@@ -18,6 +18,10 @@ menuconfig IPMI_HANDLER
 	 If unsure, say N.
 
 config IPMI_DMI_DECODE
+       select IPMI_PLAT_DATA
+       bool
+
+config IPMI_PLAT_DATA
        bool
 
 if IPMI_HANDLER
@@ -56,6 +60,7 @@ config IPMI_DEVICE_INTERFACE
 
 config IPMI_SI
        tristate 'IPMI System Interface handler'
+       select IPMI_PLAT_DATA
        help
          Provides a driver for System Interfaces (KCS, SMIC, BT).
 	 Currently, only KCS and SMIC are supported.  If

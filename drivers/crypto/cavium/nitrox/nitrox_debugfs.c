@@ -13,18 +13,7 @@ static int firmware_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static int firmware_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, firmware_show, inode->i_private);
-}
-
-static const struct file_operations firmware_fops = {
-	.owner = THIS_MODULE,
-	.open = firmware_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(firmware);
 
 static int device_show(struct seq_file *s, void *v)
 {
@@ -41,18 +30,7 @@ static int device_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static int nitrox_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, device_show, inode->i_private);
-}
-
-static const struct file_operations nitrox_fops = {
-	.owner = THIS_MODULE,
-	.open = nitrox_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(device);
 
 static int stats_show(struct seq_file *s, void *v)
 {
@@ -69,18 +47,7 @@ static int stats_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static int nitrox_stats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, stats_show, inode->i_private);
-}
-
-static const struct file_operations nitrox_stats_fops = {
-	.owner = THIS_MODULE,
-	.open = nitrox_stats_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(stats);
 
 void nitrox_debugfs_exit(struct nitrox_device *ndev)
 {
@@ -88,28 +55,14 @@ void nitrox_debugfs_exit(struct nitrox_device *ndev)
 	ndev->debugfs_dir = NULL;
 }
 
-int nitrox_debugfs_init(struct nitrox_device *ndev)
+void nitrox_debugfs_init(struct nitrox_device *ndev)
 {
-	struct dentry *dir, *f;
+	struct dentry *dir;
 
 	dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!dir)
-		return -ENOMEM;
 
 	ndev->debugfs_dir = dir;
-	f = debugfs_create_file("firmware", 0400, dir, ndev, &firmware_fops);
-	if (!f)
-		goto err;
-	f = debugfs_create_file("device", 0400, dir, ndev, &nitrox_fops);
-	if (!f)
-		goto err;
-	f = debugfs_create_file("stats", 0400, dir, ndev, &nitrox_stats_fops);
-	if (!f)
-		goto err;
-
-	return 0;
-
-err:
-	nitrox_debugfs_exit(ndev);
-	return -ENODEV;
+	debugfs_create_file("firmware", 0400, dir, ndev, &firmware_fops);
+	debugfs_create_file("device", 0400, dir, ndev, &device_fops);
+	debugfs_create_file("stats", 0400, dir, ndev, &stats_fops);
 }

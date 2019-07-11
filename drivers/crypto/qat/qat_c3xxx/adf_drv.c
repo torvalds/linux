@@ -193,11 +193,6 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 PCI_FUNC(pdev->devfn));
 
 	accel_dev->debugfs_dir = debugfs_create_dir(name, NULL);
-	if (!accel_dev->debugfs_dir) {
-		dev_err(&pdev->dev, "Could not create debugfs dir %s\n", name);
-		ret = -EINVAL;
-		goto out_err;
-	}
 
 	/* Create device configuration table */
 	ret = adf_cfg_dev_add(accel_dev);

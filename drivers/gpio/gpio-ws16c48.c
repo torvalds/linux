@@ -169,7 +169,7 @@ static int ws16c48_gpio_get_multiple(struct gpio_chip *chip,
 		port_state = inb(ws16c48gpio->base + i);
 
 		/* store acquired bits at respective bits array offset */
-		bits[word_index] |= port_state << word_offset;
+		bits[word_index] |= (port_state << word_offset) & word_mask;
 	}
 
 	return 0;

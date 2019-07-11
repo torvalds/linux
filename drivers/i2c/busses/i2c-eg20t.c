@@ -177,7 +177,6 @@ static wait_queue_head_t pch_event;
 static DEFINE_MUTEX(pch_mutex);
 
 /* Definition for ML7213 by LAPIS Semiconductor */
-#define PCI_VENDOR_ID_ROHM		0x10DB
 #define PCI_DEVICE_ID_ML7213_I2C	0x802D
 #define PCI_DEVICE_ID_ML7223_I2C	0x8010
 #define PCI_DEVICE_ID_ML7831_I2C	0x8817

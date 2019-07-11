@@ -2124,21 +2124,29 @@ static int __init intel_opregion_present(void)
 	return opregion;
 }
 
+/* Check if the chassis-type indicates there is no builtin LCD panel */
 static bool dmi_is_desktop(void)
 {
 	const char *chassis_type;
+	unsigned long type;
 
 	chassis_type = dmi_get_system_info(DMI_CHASSIS_TYPE);
 	if (!chassis_type)
 		return false;
 
-	if (!strcmp(chassis_type, "3") || /*  3: Desktop */
-	    !strcmp(chassis_type, "4") || /*  4: Low Profile Desktop */
-	    !strcmp(chassis_type, "5") || /*  5: Pizza Box */
-	    !strcmp(chassis_type, "6") || /*  6: Mini Tower */
-	    !strcmp(chassis_type, "7") || /*  7: Tower */
-	    !strcmp(chassis_type, "11"))  /* 11: Main Server Chassis */
+	if (kstrtoul(chassis_type, 10, &type) != 0)
+		return false;
+
+	switch (type) {
+	case 0x03: /* Desktop */
+	case 0x04: /* Low Profile Desktop */
+	case 0x05: /* Pizza Box */
+	case 0x06: /* Mini Tower */
+	case 0x07: /* Tower */
+	case 0x10: /* Lunch Box */
+	case 0x11: /* Main Server Chassis */
 		return true;
+	}
 
 	return false;
 }

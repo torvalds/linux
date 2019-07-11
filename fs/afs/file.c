@@ -17,6 +17,7 @@
 #include <linux/writeback.h>
 #include <linux/gfp.h>
 #include <linux/task_io_accounting_ops.h>
+#include <linux/mm.h>
 #include "internal.h"
 
 static int afs_file_mmap(struct file *file, struct vm_area_struct *vma);
@@ -441,7 +442,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 	/* Count the number of contiguous pages at the front of the list.  Note
 	 * that the list goes prev-wards rather than next-wards.
 	 */
-	first = list_entry(pages->prev, struct page, lru);
+	first = lru_to_page(pages);
 	index = first->index + 1;
 	n = 1;
 	for (p = first->lru.prev; p != pages; p = p->prev) {
@@ -473,7 +474,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 	 * page at the end of the file.
 	 */
 	do {
-		page = list_entry(pages->prev, struct page, lru);
+		page = lru_to_page(pages);
 		list_del(&page->lru);
 		index = page->index;
 		if (add_to_page_cache_lru(page, mapping, index,

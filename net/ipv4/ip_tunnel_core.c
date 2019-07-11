@@ -120,7 +120,7 @@ int __iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
 	}
 
 	skb_clear_hash_if_not_l4(skb);
-	skb->vlan_tci = 0;
+	__vlan_hwaccel_clear_tag(skb);
 	skb_set_queue_mapping(skb, 0);
 	skb_scrub_packet(skb, xnet);
 
@@ -151,6 +151,7 @@ struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
 		       sizeof(struct in6_addr));
 	else
 		dst->key.u.ipv4.dst = src->key.u.ipv4.src;
+	dst->key.tun_flags = src->key.tun_flags;
 	dst->mode = src->mode | IP_TUNNEL_INFO_TX;
 
 	return res;
@@ -251,6 +252,14 @@ static int ip_tun_build_state(struct nlattr *attr,
 
 	tun_info = lwt_tun_info(new_state);
 
+#ifdef CONFIG_DST_CACHE
+	err = dst_cache_init(&tun_info->dst_cache, GFP_KERNEL);
+	if (err) {
+		lwtstate_free(new_state);
+		return err;
+	}
+#endif
+
 	if (tb[LWTUNNEL_IP_ID])
 		tun_info->key.tun_id = nla_get_be64(tb[LWTUNNEL_IP_ID]);
 
@@ -275,6 +284,15 @@ static int ip_tun_build_state(struct nlattr *attr,
 	*ts = new_state;
 
 	return 0;
+}
+
+static void ip_tun_destroy_state(struct lwtunnel_state *lwtstate)
+{
+#ifdef CONFIG_DST_CACHE
+	struct ip_tunnel_info *tun_info = lwt_tun_info(lwtstate);
+
+	dst_cache_destroy(&tun_info->dst_cache);
+#endif
 }
 
 static int ip_tun_fill_encap_info(struct sk_buff *skb,
@@ -312,6 +330,7 @@ static int ip_tun_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b)
 
 static const struct lwtunnel_encap_ops ip_tun_lwt_ops = {
 	.build_state = ip_tun_build_state,
+	.destroy_state = ip_tun_destroy_state,
 	.fill_encap = ip_tun_fill_encap_info,
 	.get_encap_size = ip_tun_encap_nlsize,
 	.cmp_encap = ip_tun_cmp_encap,

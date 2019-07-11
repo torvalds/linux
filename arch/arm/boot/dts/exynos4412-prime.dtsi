@@ -30,9 +30,11 @@
 };
 
 &cooling_map0 {
-	cooling-device = <&cpu0 9 9>;
+	cooling-device = <&cpu0 9 9>, <&cpu1 9 9>,
+			 <&cpu2 9 9>, <&cpu3 9 9>;
 };
 
 &cooling_map1 {
-	cooling-device = <&cpu0 15 15>;
+	cooling-device = <&cpu0 15 15>, <&cpu1 15 15>,
+			 <&cpu2 15 15>, <&cpu3 15 15>;
 };

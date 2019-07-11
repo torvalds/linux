@@ -18,6 +18,7 @@ typedef enum usb_role (*usb_role_switch_get_t)(struct device *dev);
 
 /**
  * struct usb_role_switch_desc - USB Role Switch Descriptor
+ * @fwnode: The device node to be associated with the role switch
  * @usb2_port: Optional reference to the host controller port device (USB2)
  * @usb3_port: Optional reference to the host controller port device (USB3)
  * @udc: Optional reference to the peripheral controller device
@@ -32,6 +33,7 @@ typedef enum usb_role (*usb_role_switch_get_t)(struct device *dev);
  * usb_role_switch_register() before registering the switch.
  */
 struct usb_role_switch_desc {
+	struct fwnode_handle *fwnode;
 	struct device *usb2_port;
 	struct device *usb3_port;
 	struct device *udc;

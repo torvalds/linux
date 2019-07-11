@@ -131,6 +131,7 @@ EXPORT_SYMBOL_GPL(nf_reject_ip6_tcphdr_put);
 
 void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 {
+	struct net_device *br_indev __maybe_unused;
 	struct sk_buff *nskb;
 	struct tcphdr _otcph;
 	const struct tcphdr *otcph;
@@ -197,15 +198,18 @@ void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 	 * build the eth header using the original destination's MAC as the
 	 * source, and send the RST packet directly.
 	 */
-	if (oldskb->nf_bridge) {
+	br_indev = nf_bridge_get_physindev(oldskb);
+	if (br_indev) {
 		struct ethhdr *oeth = eth_hdr(oldskb);
 
-		nskb->dev = nf_bridge_get_physindev(oldskb);
+		nskb->dev = br_indev;
 		nskb->protocol = htons(ETH_P_IPV6);
 		ip6h->payload_len = htons(sizeof(struct tcphdr));
 		if (dev_hard_header(nskb, nskb->dev, ntohs(nskb->protocol),
-				    oeth->h_source, oeth->h_dest, nskb->len) < 0)
+				    oeth->h_source, oeth->h_dest, nskb->len) < 0) {
+			kfree_skb(nskb);
 			return;
+		}
 		dev_queue_xmit(nskb);
 	} else
 #endif
@@ -228,6 +232,9 @@ static bool reject6_csum_ok(struct sk_buff *skb, int hook)
 
 	if (thoff < 0 || thoff >= skb->len || (fo & htons(~0x7)) != 0)
 		return false;
+
+	if (!nf_reject_verify_csum(proto))
+		return true;
 
 	return nf_ip6_checksum(skb, hook, thoff, proto) == 0;
 }

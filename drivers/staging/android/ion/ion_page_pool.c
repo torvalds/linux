@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/staging/android/ion/ion_mem_pool.c
+ * ION Memory Allocator page pool helpers
  *
  * Copyright (C) 2011 Google, Inc.
  */

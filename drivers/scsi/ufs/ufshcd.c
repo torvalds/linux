@@ -51,8 +51,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/ufs.h>
 
-#define UFSHCD_REQ_SENSE_SIZE	18
-
 #define UFSHCD_ENABLE_INTRS	(UTP_TRANSFER_REQ_COMPL |\
 				 UTP_TASK_REQ_COMPL |\
 				 UFSHCD_ERROR_MASK)
@@ -110,13 +108,19 @@
 int ufshcd_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
 		     const char *prefix)
 {
-	u8 *regs;
+	u32 *regs;
+	size_t pos;
+
+	if (offset % 4 != 0 || len % 4 != 0) /* keep readl happy */
+		return -EINVAL;
 
 	regs = kzalloc(len, GFP_KERNEL);
 	if (!regs)
 		return -ENOMEM;
 
-	memcpy_fromio(regs, hba->mmio_base + offset, len);
+	for (pos = 0; pos < len; pos += 4)
+		regs[pos / 4] = ufshcd_readl(hba, offset + pos);
+
 	ufshcd_hex_dump(prefix, regs, len);
 	kfree(regs);
 
@@ -215,11 +219,8 @@ static struct ufs_dev_fix ufs_fixups[] = {
 	/* UFS cards deviations table */
 	UFS_FIX(UFS_VENDOR_SAMSUNG, UFS_ANY_MODEL,
 		UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM),
-	UFS_FIX(UFS_VENDOR_SAMSUNG, UFS_ANY_MODEL, UFS_DEVICE_NO_VCCQ),
 	UFS_FIX(UFS_VENDOR_SAMSUNG, UFS_ANY_MODEL,
 		UFS_DEVICE_QUIRK_RECOVERY_FROM_DL_NAC_ERRORS),
-	UFS_FIX(UFS_VENDOR_SAMSUNG, UFS_ANY_MODEL,
-		UFS_DEVICE_NO_FASTAUTO),
 	UFS_FIX(UFS_VENDOR_SAMSUNG, UFS_ANY_MODEL,
 		UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE),
 	UFS_FIX(UFS_VENDOR_TOSHIBA, UFS_ANY_MODEL,
@@ -228,7 +229,6 @@ static struct ufs_dev_fix ufs_fixups[] = {
 		UFS_DEVICE_QUIRK_PA_TACTIVATE),
 	UFS_FIX(UFS_VENDOR_TOSHIBA, "THGLF2G9D8KBADG",
 		UFS_DEVICE_QUIRK_PA_TACTIVATE),
-	UFS_FIX(UFS_VENDOR_SKHYNIX, UFS_ANY_MODEL, UFS_DEVICE_NO_VCCQ),
 	UFS_FIX(UFS_VENDOR_SKHYNIX, UFS_ANY_MODEL,
 		UFS_DEVICE_QUIRK_HOST_PA_SAVECONFIGTIME),
 	UFS_FIX(UFS_VENDOR_SKHYNIX, "hB8aL1" /*H28U62301AMR*/,
@@ -247,7 +247,6 @@ static int ufshcd_probe_hba(struct ufs_hba *hba);
 static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
 				 bool skip_ref_clk);
 static int ufshcd_setup_clocks(struct ufs_hba *hba, bool on);
-static int ufshcd_set_vccq_rail_unused(struct ufs_hba *hba, bool unused);
 static int ufshcd_uic_hibern8_exit(struct ufs_hba *hba);
 static int ufshcd_uic_hibern8_enter(struct ufs_hba *hba);
 static inline void ufshcd_add_delay_before_dme_cmd(struct ufs_hba *hba);
@@ -395,15 +394,20 @@ static void ufshcd_print_uic_err_hist(struct ufs_hba *hba,
 		struct ufs_uic_err_reg_hist *err_hist, char *err_name)
 {
 	int i;
+	bool found = false;
 
 	for (i = 0; i < UIC_ERR_REG_HIST_LENGTH; i++) {
-		int p = (i + err_hist->pos - 1) % UIC_ERR_REG_HIST_LENGTH;
+		int p = (i + err_hist->pos) % UIC_ERR_REG_HIST_LENGTH;
 
 		if (err_hist->reg[p] == 0)
 			continue;
 		dev_err(hba->dev, "%s[%d] = 0x%x at %lld us\n", err_name, i,
 			err_hist->reg[p], ktime_to_us(err_hist->tstamp[p]));
+		found = true;
 	}
+
+	if (!found)
+		dev_err(hba->dev, "No record of %s uic errors\n", err_name);
 }
 
 static void ufshcd_print_host_regs(struct ufs_hba *hba)
@@ -1551,6 +1555,7 @@ start:
 		 * currently running. Hence, fall through to cancel gating
 		 * work and to enable clocks.
 		 */
+		/* fallthrough */
 	case CLKS_OFF:
 		ufshcd_scsi_block_requests(hba);
 		hba->clk_gating.state = REQ_CLKS_ON;
@@ -1562,6 +1567,7 @@ start:
 		 * fall through to check if we should wait for this
 		 * work to be done or not.
 		 */
+		/* fallthrough */
 	case REQ_CLKS_ON:
 		if (async) {
 			rc = -EAGAIN;
@@ -1890,11 +1896,10 @@ static inline void ufshcd_copy_sense_data(struct ufshcd_lrb *lrbp)
 		int len_to_copy;
 
 		len = be16_to_cpu(lrbp->ucd_rsp_ptr->sr.sense_data_len);
-		len_to_copy = min_t(int, RESPONSE_UPIU_SENSE_DATA_LENGTH, len);
+		len_to_copy = min_t(int, UFS_SENSE_SIZE, len);
 
-		memcpy(lrbp->sense_buffer,
-			lrbp->ucd_rsp_ptr->sr.sense_data,
-			min_t(int, len_to_copy, UFSHCD_REQ_SENSE_SIZE));
+		memcpy(lrbp->sense_buffer, lrbp->ucd_rsp_ptr->sr.sense_data,
+		       len_to_copy);
 	}
 }
 
@@ -2456,7 +2461,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	WARN_ON(lrbp->cmd);
 	lrbp->cmd = cmd;
-	lrbp->sense_bufflen = UFSHCD_REQ_SENSE_SIZE;
+	lrbp->sense_bufflen = UFS_SENSE_SIZE;
 	lrbp->sense_buffer = cmd->sense_buffer;
 	lrbp->task_tag = tag;
 	lrbp->lun = ufshcd_scsi_to_upiu_lun(cmd->device->lun);
@@ -4620,6 +4625,7 @@ ufshcd_scsi_cmd_status(struct ufshcd_lrb *lrbp, int scsi_status)
 	switch (scsi_status) {
 	case SAM_STAT_CHECK_CONDITION:
 		ufshcd_copy_sense_data(lrbp);
+		/* fallthrough */
 	case SAM_STAT_GOOD:
 		result |= DID_OK << 16 |
 			  COMMAND_COMPLETE << 8 |
@@ -5769,6 +5775,20 @@ static int ufshcd_issue_devman_upiu_cmd(struct ufs_hba *hba,
 
 	/* just copy the upiu response as it is */
 	memcpy(rsp_upiu, lrbp->ucd_rsp_ptr, sizeof(*rsp_upiu));
+	if (desc_buff && desc_op == UPIU_QUERY_OPCODE_READ_DESC) {
+		u8 *descp = (u8 *)lrbp->ucd_rsp_ptr + sizeof(*rsp_upiu);
+		u16 resp_len = be32_to_cpu(lrbp->ucd_rsp_ptr->header.dword_2) &
+			       MASK_QUERY_DATA_SEG_LEN;
+
+		if (*buff_len >= resp_len) {
+			memcpy(desc_buff, descp, resp_len);
+			*buff_len = resp_len;
+		} else {
+			dev_warn(hba->dev, "rsp size is bigger than buffer");
+			*buff_len = 0;
+			err = -EINVAL;
+		}
+	}
 
 	ufshcd_put_dev_cmd_tag(hba, tag);
 	wake_up(&hba->dev_cmd.tag_wq);
@@ -5803,11 +5823,6 @@ int ufshcd_exec_raw_upiu_cmd(struct ufs_hba *hba,
 	struct utp_task_req_desc treq = { { 0 }, };
 	int ocs_value;
 	u8 tm_f = be32_to_cpu(req_upiu->header.dword_1) >> 16 & MASK_TM_FUNC;
-
-	if (desc_buff && desc_op != UPIU_QUERY_OPCODE_WRITE_DESC) {
-		err = -ENOTSUPP;
-		goto out;
-	}
 
 	switch (msgcode) {
 	case UPIU_TRANSACTION_NOP_OUT:
@@ -5849,7 +5864,6 @@ int ufshcd_exec_raw_upiu_cmd(struct ufs_hba *hba,
 		break;
 	}
 
-out:
 	return err;
 }
 
@@ -6701,6 +6715,74 @@ static void ufshcd_def_desc_sizes(struct ufs_hba *hba)
 	hba->desc_size.hlth_desc = QUERY_DESC_HEALTH_DEF_SIZE;
 }
 
+static struct ufs_ref_clk ufs_ref_clk_freqs[] = {
+	{19200000, REF_CLK_FREQ_19_2_MHZ},
+	{26000000, REF_CLK_FREQ_26_MHZ},
+	{38400000, REF_CLK_FREQ_38_4_MHZ},
+	{52000000, REF_CLK_FREQ_52_MHZ},
+	{0, REF_CLK_FREQ_INVAL},
+};
+
+static enum ufs_ref_clk_freq
+ufs_get_bref_clk_from_hz(unsigned long freq)
+{
+	int i;
+
+	for (i = 0; ufs_ref_clk_freqs[i].freq_hz; i++)
+		if (ufs_ref_clk_freqs[i].freq_hz == freq)
+			return ufs_ref_clk_freqs[i].val;
+
+	return REF_CLK_FREQ_INVAL;
+}
+
+void ufshcd_parse_dev_ref_clk_freq(struct ufs_hba *hba, struct clk *refclk)
+{
+	unsigned long freq;
+
+	freq = clk_get_rate(refclk);
+
+	hba->dev_ref_clk_freq =
+		ufs_get_bref_clk_from_hz(freq);
+
+	if (hba->dev_ref_clk_freq == REF_CLK_FREQ_INVAL)
+		dev_err(hba->dev,
+		"invalid ref_clk setting = %ld\n", freq);
+}
+
+static int ufshcd_set_dev_ref_clk(struct ufs_hba *hba)
+{
+	int err;
+	u32 ref_clk;
+	u32 freq = hba->dev_ref_clk_freq;
+
+	err = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,
+			QUERY_ATTR_IDN_REF_CLK_FREQ, 0, 0, &ref_clk);
+
+	if (err) {
+		dev_err(hba->dev, "failed reading bRefClkFreq. err = %d\n",
+			err);
+		goto out;
+	}
+
+	if (ref_clk == freq)
+		goto out; /* nothing to update */
+
+	err = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
+			QUERY_ATTR_IDN_REF_CLK_FREQ, 0, 0, &freq);
+
+	if (err) {
+		dev_err(hba->dev, "bRefClkFreq setting to %lu Hz failed\n",
+			ufs_ref_clk_freqs[freq].freq_hz);
+		goto out;
+	}
+
+	dev_dbg(hba->dev, "bRefClkFreq setting to %lu Hz succeeded\n",
+			ufs_ref_clk_freqs[freq].freq_hz);
+
+out:
+	return err;
+}
+
 /**
  * ufshcd_probe_hba - probe hba to detect device and initialize
  * @hba: per-adapter instance
@@ -6751,11 +6833,6 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 	ufs_fixup_device_setup(hba, &card);
 	ufshcd_tune_unipro_params(hba);
 
-	ret = ufshcd_set_vccq_rail_unused(hba,
-		(hba->dev_quirks & UFS_DEVICE_NO_VCCQ) ? true : false);
-	if (ret)
-		goto out;
-
 	/* UFS device is also active now */
 	ufshcd_set_ufs_dev_active(hba);
 	ufshcd_force_reset_auto_bkops(hba);
@@ -6766,6 +6843,12 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 			"%s: Failed getting max supported power mode\n",
 			__func__);
 	} else {
+		/*
+		 * Set the right value to bRefClkFreq before attempting to
+		 * switch to HS gears.
+		 */
+		if (hba->dev_ref_clk_freq != REF_CLK_FREQ_INVAL)
+			ufshcd_set_dev_ref_clk(hba);
 		ret = ufshcd_config_pwr_mode(hba, &hba->max_pwr_info.info);
 		if (ret) {
 			dev_err(hba->dev, "%s: Failed setting power mode, err = %d\n",
@@ -6910,6 +6993,7 @@ static struct scsi_host_template ufshcd_driver_template = {
 	.max_host_blocked	= 1,
 	.track_queue_depth	= 1,
 	.sdev_groups		= ufshcd_driver_groups,
+	.dma_boundary		= PAGE_SIZE - 1,
 };
 
 static int ufshcd_config_vreg_load(struct device *dev, struct ufs_vreg *vreg,
@@ -6932,24 +7016,13 @@ static int ufshcd_config_vreg_load(struct device *dev, struct ufs_vreg *vreg,
 static inline int ufshcd_config_vreg_lpm(struct ufs_hba *hba,
 					 struct ufs_vreg *vreg)
 {
-	if (!vreg)
-		return 0;
-	else if (vreg->unused)
-		return 0;
-	else
-		return ufshcd_config_vreg_load(hba->dev, vreg,
-					       UFS_VREG_LPM_LOAD_UA);
+	return ufshcd_config_vreg_load(hba->dev, vreg, UFS_VREG_LPM_LOAD_UA);
 }
 
 static inline int ufshcd_config_vreg_hpm(struct ufs_hba *hba,
 					 struct ufs_vreg *vreg)
 {
-	if (!vreg)
-		return 0;
-	else if (vreg->unused)
-		return 0;
-	else
-		return ufshcd_config_vreg_load(hba->dev, vreg, vreg->max_uA);
+	return ufshcd_config_vreg_load(hba->dev, vreg, vreg->max_uA);
 }
 
 static int ufshcd_config_vreg(struct device *dev,
@@ -6987,9 +7060,7 @@ static int ufshcd_enable_vreg(struct device *dev, struct ufs_vreg *vreg)
 {
 	int ret = 0;
 
-	if (!vreg)
-		goto out;
-	else if (vreg->enabled || vreg->unused)
+	if (!vreg || vreg->enabled)
 		goto out;
 
 	ret = ufshcd_config_vreg(dev, vreg, true);
@@ -7009,9 +7080,7 @@ static int ufshcd_disable_vreg(struct device *dev, struct ufs_vreg *vreg)
 {
 	int ret = 0;
 
-	if (!vreg)
-		goto out;
-	else if (!vreg->enabled || vreg->unused)
+	if (!vreg || !vreg->enabled)
 		goto out;
 
 	ret = regulator_disable(vreg->reg);
@@ -7115,36 +7184,6 @@ static int ufshcd_init_hba_vreg(struct ufs_hba *hba)
 		return ufshcd_get_vreg(hba->dev, info->vdd_hba);
 
 	return 0;
-}
-
-static int ufshcd_set_vccq_rail_unused(struct ufs_hba *hba, bool unused)
-{
-	int ret = 0;
-	struct ufs_vreg_info *info = &hba->vreg_info;
-
-	if (!info)
-		goto out;
-	else if (!info->vccq)
-		goto out;
-
-	if (unused) {
-		/* shut off the rail here */
-		ret = ufshcd_toggle_vreg(hba->dev, info->vccq, false);
-		/*
-		 * Mark this rail as no longer used, so it doesn't get enabled
-		 * later by mistake
-		 */
-		if (!ret)
-			info->vccq->unused = true;
-	} else {
-		/*
-		 * rail should have been already enabled hence just make sure
-		 * that unused flag is cleared.
-		 */
-		info->vccq->unused = false;
-	}
-out:
-	return ret;
 }
 
 static int __ufshcd_setup_clocks(struct ufs_hba *hba, bool on,
@@ -7251,6 +7290,14 @@ static int ufshcd_init_clocks(struct ufs_hba *hba)
 					__func__, clki->name, ret);
 			goto out;
 		}
+
+		/*
+		 * Parse device ref clk freq as per device tree "ref_clk".
+		 * Default dev_ref_clk_freq is set to REF_CLK_FREQ_INVAL
+		 * in ufshcd_alloc_host().
+		 */
+		if (!strcmp(clki->name, "ref_clk"))
+			ufshcd_parse_dev_ref_clk_freq(hba, clki->clk);
 
 		if (clki->max_freq) {
 			ret = clk_set_rate(clki->clk, clki->max_freq);
@@ -7379,19 +7426,19 @@ ufshcd_send_request_sense(struct ufs_hba *hba, struct scsi_device *sdp)
 				0,
 				0,
 				0,
-				UFSHCD_REQ_SENSE_SIZE,
+				UFS_SENSE_SIZE,
 				0};
 	char *buffer;
 	int ret;
 
-	buffer = kzalloc(UFSHCD_REQ_SENSE_SIZE, GFP_KERNEL);
+	buffer = kzalloc(UFS_SENSE_SIZE, GFP_KERNEL);
 	if (!buffer) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	ret = scsi_execute(sdp, cmd, DMA_FROM_DEVICE, buffer,
-			UFSHCD_REQ_SENSE_SIZE, NULL, NULL,
+			UFS_SENSE_SIZE, NULL, NULL,
 			msecs_to_jiffies(1000), 3, 0, RQF_PM, NULL);
 	if (ret)
 		pr_err("%s: failed with err %d\n", __func__, ret);
@@ -7918,6 +7965,8 @@ out:
 	trace_ufshcd_system_resume(dev_name(hba->dev), ret,
 		ktime_to_us(ktime_sub(ktime_get(), start)),
 		hba->curr_dev_pwr_mode, hba->uic_link_state);
+	if (!ret)
+		hba->is_sys_suspended = false;
 	return ret;
 }
 EXPORT_SYMBOL(ufshcd_system_resume);
@@ -8105,6 +8154,7 @@ int ufshcd_alloc_host(struct device *dev, struct ufs_hba **hba_handle)
 	hba->host = host;
 	hba->dev = dev;
 	*hba_handle = hba;
+	hba->dev_ref_clk_freq = REF_CLK_FREQ_INVAL;
 
 	INIT_LIST_HEAD(&hba->clk_list_head);
 

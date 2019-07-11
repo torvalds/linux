@@ -9,12 +9,12 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mm_types.h>
+#include <linux/mman.h>
 #include <linux/syscalls.h>
 #include <linux/sched/sysctl.h>
 
 #include <asm/insn.h>
 #include <asm/insn-eval.h>
-#include <asm/mman.h>
 #include <asm/mmu_context.h>
 #include <asm/mpx.h>
 #include <asm/processor.h>
@@ -495,7 +495,7 @@ static int get_bt_addr(struct mm_struct *mm,
 	unsigned long bd_entry;
 	unsigned long bt_addr;
 
-	if (!access_ok(VERIFY_READ, (bd_entry_ptr), sizeof(*bd_entry_ptr)))
+	if (!access_ok((bd_entry_ptr), sizeof(*bd_entry_ptr)))
 		return -EFAULT;
 
 	while (1) {

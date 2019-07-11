@@ -61,7 +61,7 @@ SYSCALL_DEFINE3(arc_usr_cmpxchg, int *, uaddr, int, expected, int, new)
 	/* Z indicates to userspace if operation succeded */
 	regs->status32 &= ~STATUS_Z_MASK;
 
-	ret = access_ok(VERIFY_WRITE, uaddr, sizeof(*uaddr));
+	ret = access_ok(uaddr, sizeof(*uaddr));
 	if (!ret)
 		 goto fail;
 

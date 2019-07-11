@@ -241,61 +241,10 @@ static struct regulator_desc ltc3676_regulators[LTC3676_NUM_REGULATORS] = {
 	LTC3676_FIXED_REG(LDO4, ldo4, LDOB, 2),
 };
 
-static bool ltc3676_writeable_reg(struct device *dev, unsigned int reg)
+static bool ltc3676_readable_writeable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case LTC3676_IRQSTAT:
-	case LTC3676_BUCK1:
-	case LTC3676_BUCK2:
-	case LTC3676_BUCK3:
-	case LTC3676_BUCK4:
-	case LTC3676_LDOA:
-	case LTC3676_LDOB:
-	case LTC3676_SQD1:
-	case LTC3676_SQD2:
-	case LTC3676_CNTRL:
-	case LTC3676_DVB1A:
-	case LTC3676_DVB1B:
-	case LTC3676_DVB2A:
-	case LTC3676_DVB2B:
-	case LTC3676_DVB3A:
-	case LTC3676_DVB3B:
-	case LTC3676_DVB4A:
-	case LTC3676_DVB4B:
-	case LTC3676_MSKIRQ:
-	case LTC3676_MSKPG:
-	case LTC3676_USER:
-	case LTC3676_HRST:
-	case LTC3676_CLIRQ:
-		return true;
-	}
-	return false;
-}
-
-static bool ltc3676_readable_reg(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case LTC3676_IRQSTAT:
-	case LTC3676_BUCK1:
-	case LTC3676_BUCK2:
-	case LTC3676_BUCK3:
-	case LTC3676_BUCK4:
-	case LTC3676_LDOA:
-	case LTC3676_LDOB:
-	case LTC3676_SQD1:
-	case LTC3676_SQD2:
-	case LTC3676_CNTRL:
-	case LTC3676_DVB1A:
-	case LTC3676_DVB1B:
-	case LTC3676_DVB2A:
-	case LTC3676_DVB2B:
-	case LTC3676_DVB3A:
-	case LTC3676_DVB3B:
-	case LTC3676_DVB4A:
-	case LTC3676_DVB4B:
-	case LTC3676_MSKIRQ:
-	case LTC3676_MSKPG:
-	case LTC3676_USER:
+	case LTC3676_BUCK1 ... LTC3676_IRQSTAT:
 	case LTC3676_HRST:
 	case LTC3676_CLIRQ:
 		return true;
@@ -306,9 +255,7 @@ static bool ltc3676_readable_reg(struct device *dev, unsigned int reg)
 static bool ltc3676_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case LTC3676_IRQSTAT:
-	case LTC3676_PGSTATL:
-	case LTC3676_PGSTATRT:
+	case LTC3676_IRQSTAT ... LTC3676_PGSTATRT:
 		return true;
 	}
 	return false;
@@ -317,8 +264,8 @@ static bool ltc3676_volatile_reg(struct device *dev, unsigned int reg)
 static const struct regmap_config ltc3676_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.writeable_reg = ltc3676_writeable_reg,
-	.readable_reg = ltc3676_readable_reg,
+	.writeable_reg = ltc3676_readable_writeable_reg,
+	.readable_reg = ltc3676_readable_writeable_reg,
 	.volatile_reg = ltc3676_volatile_reg,
 	.max_register = LTC3676_CLIRQ,
 	.use_single_read = true,
@@ -442,5 +389,5 @@ static struct i2c_driver ltc3676_driver = {
 module_i2c_driver(ltc3676_driver);
 
 MODULE_AUTHOR("Tim Harvey <tharvey@gateworks.com>");
-MODULE_DESCRIPTION("Regulator driver for Linear Technology LTC1376");
+MODULE_DESCRIPTION("Regulator driver for Linear Technology LTC3676");
 MODULE_LICENSE("GPL v2");

@@ -242,61 +242,61 @@ static const unsigned int mc13892_pwgtdrv[] = {
 	5000000,
 };
 
-static struct regulator_ops mc13892_gpo_regulator_ops;
-static struct regulator_ops mc13892_sw_regulator_ops;
+static const struct regulator_ops mc13892_gpo_regulator_ops;
+static const struct regulator_ops mc13892_sw_regulator_ops;
 
 
-#define MC13892_FIXED_DEFINE(name, reg, voltages)		\
-	MC13xxx_FIXED_DEFINE(MC13892_, name, reg, voltages,	\
+#define MC13892_FIXED_DEFINE(name, node, reg, voltages)			\
+	MC13xxx_FIXED_DEFINE(MC13892_, name, node, reg, voltages,	\
 			mc13xxx_fixed_regulator_ops)
 
-#define MC13892_GPO_DEFINE(name, reg, voltages)			\
-	MC13xxx_GPO_DEFINE(MC13892_, name, reg, voltages,	\
+#define MC13892_GPO_DEFINE(name, node, reg, voltages)			\
+	MC13xxx_GPO_DEFINE(MC13892_, name, node, reg, voltages,		\
 			mc13892_gpo_regulator_ops)
 
-#define MC13892_SW_DEFINE(name, reg, vsel_reg, voltages)	\
-	MC13xxx_DEFINE(MC13892_, name, reg, vsel_reg, voltages, \
+#define MC13892_SW_DEFINE(name, node, reg, vsel_reg, voltages)		\
+	MC13xxx_DEFINE(MC13892_, name, node, reg, vsel_reg, voltages,	\
 			mc13892_sw_regulator_ops)
 
-#define MC13892_DEFINE_REGU(name, reg, vsel_reg, voltages)	\
-	MC13xxx_DEFINE(MC13892_, name, reg, vsel_reg, voltages, \
+#define MC13892_DEFINE_REGU(name, node, reg, vsel_reg, voltages)	\
+	MC13xxx_DEFINE(MC13892_, name, node, reg, vsel_reg, voltages, \
 			mc13xxx_regulator_ops)
 
 static struct mc13xxx_regulator mc13892_regulators[] = {
-	MC13892_DEFINE_REGU(VCOINCELL, POWERCTL0, POWERCTL0, mc13892_vcoincell),
-	MC13892_SW_DEFINE(SW1, SWITCHERS0, SWITCHERS0, mc13892_sw1),
-	MC13892_SW_DEFINE(SW2, SWITCHERS1, SWITCHERS1, mc13892_sw),
-	MC13892_SW_DEFINE(SW3, SWITCHERS2, SWITCHERS2, mc13892_sw),
-	MC13892_SW_DEFINE(SW4, SWITCHERS3, SWITCHERS3, mc13892_sw),
-	MC13892_FIXED_DEFINE(SWBST, SWITCHERS5, mc13892_swbst),
-	MC13892_FIXED_DEFINE(VIOHI, REGULATORMODE0, mc13892_viohi),
-	MC13892_DEFINE_REGU(VPLL, REGULATORMODE0, REGULATORSETTING0,
+	MC13892_DEFINE_REGU(VCOINCELL, vcoincell, POWERCTL0, POWERCTL0, mc13892_vcoincell),
+	MC13892_SW_DEFINE(SW1, sw1, SWITCHERS0, SWITCHERS0, mc13892_sw1),
+	MC13892_SW_DEFINE(SW2, sw2, SWITCHERS1, SWITCHERS1, mc13892_sw),
+	MC13892_SW_DEFINE(SW3, sw3, SWITCHERS2, SWITCHERS2, mc13892_sw),
+	MC13892_SW_DEFINE(SW4, sw4, SWITCHERS3, SWITCHERS3, mc13892_sw),
+	MC13892_FIXED_DEFINE(SWBST, swbst, SWITCHERS5, mc13892_swbst),
+	MC13892_FIXED_DEFINE(VIOHI, viohi, REGULATORMODE0, mc13892_viohi),
+	MC13892_DEFINE_REGU(VPLL, vpll, REGULATORMODE0, REGULATORSETTING0,
 		mc13892_vpll),
-	MC13892_DEFINE_REGU(VDIG, REGULATORMODE0, REGULATORSETTING0,
+	MC13892_DEFINE_REGU(VDIG, vdig, REGULATORMODE0, REGULATORSETTING0,
 		mc13892_vdig),
-	MC13892_DEFINE_REGU(VSD, REGULATORMODE1, REGULATORSETTING1,
+	MC13892_DEFINE_REGU(VSD, vsd, REGULATORMODE1, REGULATORSETTING1,
 		mc13892_vsd),
-	MC13892_DEFINE_REGU(VUSB2, REGULATORMODE0, REGULATORSETTING0,
+	MC13892_DEFINE_REGU(VUSB2, vusb2, REGULATORMODE0, REGULATORSETTING0,
 		mc13892_vusb2),
-	MC13892_DEFINE_REGU(VVIDEO, REGULATORMODE1, REGULATORSETTING1,
+	MC13892_DEFINE_REGU(VVIDEO, vvideo, REGULATORMODE1, REGULATORSETTING1,
 		mc13892_vvideo),
-	MC13892_DEFINE_REGU(VAUDIO, REGULATORMODE1, REGULATORSETTING1,
+	MC13892_DEFINE_REGU(VAUDIO, vaudio, REGULATORMODE1, REGULATORSETTING1,
 		mc13892_vaudio),
-	MC13892_DEFINE_REGU(VCAM, REGULATORMODE1, REGULATORSETTING0,
+	MC13892_DEFINE_REGU(VCAM, vcam, REGULATORMODE1, REGULATORSETTING0,
 		mc13892_vcam),
-	MC13892_DEFINE_REGU(VGEN1, REGULATORMODE0, REGULATORSETTING0,
+	MC13892_DEFINE_REGU(VGEN1, vgen1, REGULATORMODE0, REGULATORSETTING0,
 		mc13892_vgen1),
-	MC13892_DEFINE_REGU(VGEN2, REGULATORMODE0, REGULATORSETTING0,
+	MC13892_DEFINE_REGU(VGEN2, vgen2, REGULATORMODE0, REGULATORSETTING0,
 		mc13892_vgen2),
-	MC13892_DEFINE_REGU(VGEN3, REGULATORMODE1, REGULATORSETTING0,
+	MC13892_DEFINE_REGU(VGEN3, vgen3, REGULATORMODE1, REGULATORSETTING0,
 		mc13892_vgen3),
-	MC13892_FIXED_DEFINE(VUSB, USB1, mc13892_vusb),
-	MC13892_GPO_DEFINE(GPO1, POWERMISC, mc13892_gpo),
-	MC13892_GPO_DEFINE(GPO2, POWERMISC, mc13892_gpo),
-	MC13892_GPO_DEFINE(GPO3, POWERMISC, mc13892_gpo),
-	MC13892_GPO_DEFINE(GPO4, POWERMISC, mc13892_gpo),
-	MC13892_GPO_DEFINE(PWGT1SPI, POWERMISC, mc13892_pwgtdrv),
-	MC13892_GPO_DEFINE(PWGT2SPI, POWERMISC, mc13892_pwgtdrv),
+	MC13892_FIXED_DEFINE(VUSB, vusb, USB1, mc13892_vusb),
+	MC13892_GPO_DEFINE(GPO1, gpo1, POWERMISC, mc13892_gpo),
+	MC13892_GPO_DEFINE(GPO2, gpo2, POWERMISC, mc13892_gpo),
+	MC13892_GPO_DEFINE(GPO3, gpo3, POWERMISC, mc13892_gpo),
+	MC13892_GPO_DEFINE(GPO4, gpo4, POWERMISC, mc13892_gpo),
+	MC13892_GPO_DEFINE(PWGT1SPI, pwgt1spi, POWERMISC, mc13892_pwgtdrv),
+	MC13892_GPO_DEFINE(PWGT2SPI, pwgt2spi, POWERMISC, mc13892_pwgtdrv),
 };
 
 static int mc13892_powermisc_rmw(struct mc13xxx_regulator_priv *priv, u32 mask,
@@ -387,7 +387,7 @@ static int mc13892_gpo_regulator_is_enabled(struct regulator_dev *rdev)
 }
 
 
-static struct regulator_ops mc13892_gpo_regulator_ops = {
+static const struct regulator_ops mc13892_gpo_regulator_ops = {
 	.enable = mc13892_gpo_regulator_enable,
 	.disable = mc13892_gpo_regulator_disable,
 	.is_enabled = mc13892_gpo_regulator_is_enabled,
@@ -479,7 +479,7 @@ static int mc13892_sw_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	return ret;
 }
 
-static struct regulator_ops mc13892_sw_regulator_ops = {
+static const struct regulator_ops mc13892_sw_regulator_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = mc13892_sw_regulator_set_voltage_sel,

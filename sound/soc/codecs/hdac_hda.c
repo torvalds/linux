@@ -38,6 +38,9 @@ static void hdac_hda_dai_close(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai);
 static int hdac_hda_dai_prepare(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai);
+static int hdac_hda_dai_hw_params(struct snd_pcm_substream *substream,
+				  struct snd_pcm_hw_params *params,
+				  struct snd_soc_dai *dai);
 static int hdac_hda_dai_hw_free(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai);
 static int hdac_hda_dai_set_tdm_slot(struct snd_soc_dai *dai,
@@ -46,10 +49,11 @@ static int hdac_hda_dai_set_tdm_slot(struct snd_soc_dai *dai,
 static struct hda_pcm *snd_soc_find_pcm_from_dai(struct hdac_hda_priv *hda_pvt,
 						 struct snd_soc_dai *dai);
 
-static struct snd_soc_dai_ops hdac_hda_dai_ops = {
+static const struct snd_soc_dai_ops hdac_hda_dai_ops = {
 	.startup = hdac_hda_dai_open,
 	.shutdown = hdac_hda_dai_close,
 	.prepare = hdac_hda_dai_prepare,
+	.hw_params = hdac_hda_dai_hw_params,
 	.hw_free = hdac_hda_dai_hw_free,
 	.set_tdm_slot = hdac_hda_dai_set_tdm_slot,
 };
@@ -139,6 +143,39 @@ static int hdac_hda_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static int hdac_hda_dai_hw_params(struct snd_pcm_substream *substream,
+				  struct snd_pcm_hw_params *params,
+				  struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct hdac_hda_priv *hda_pvt;
+	unsigned int format_val;
+	unsigned int maxbps;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		maxbps = dai->driver->playback.sig_bits;
+	else
+		maxbps = dai->driver->capture.sig_bits;
+
+	hda_pvt = snd_soc_component_get_drvdata(component);
+	format_val = snd_hdac_calc_stream_format(params_rate(params),
+						 params_channels(params),
+						 params_format(params),
+						 maxbps,
+						 0);
+	if (!format_val) {
+		dev_err(dai->dev,
+			"invalid format_val, rate=%d, ch=%d, format=%d, maxbps=%d\n",
+			params_rate(params), params_channels(params),
+			params_format(params), maxbps);
+
+		return -EINVAL;
+	}
+
+	hda_pvt->pcm[dai->id].format_val[substream->stream] = format_val;
+	return 0;
+}
+
 static int hdac_hda_dai_hw_free(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
@@ -162,10 +199,9 @@ static int hdac_hda_dai_prepare(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
-	struct hdac_hda_priv *hda_pvt;
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct hdac_device *hdev;
 	struct hda_pcm_stream *hda_stream;
+	struct hdac_hda_priv *hda_pvt;
+	struct hdac_device *hdev;
 	unsigned int format_val;
 	struct hda_pcm *pcm;
 	unsigned int stream;
@@ -179,19 +215,8 @@ static int hdac_hda_dai_prepare(struct snd_pcm_substream *substream,
 
 	hda_stream = &pcm->stream[substream->stream];
 
-	format_val = snd_hdac_calc_stream_format(runtime->rate,
-						 runtime->channels,
-						 runtime->format,
-						 hda_stream->maxbps,
-						 0);
-	if (!format_val) {
-		dev_err(&hdev->dev,
-			"invalid format_val, rate=%d, ch=%d, format=%d\n",
-			runtime->rate, runtime->channels, runtime->format);
-		return -EINVAL;
-	}
-
 	stream = hda_pvt->pcm[dai->id].stream_tag[substream->stream];
+	format_val = hda_pvt->pcm[dai->id].format_val[substream->stream];
 
 	ret = snd_hda_codec_prepare(&hda_pvt->codec, hda_stream,
 				    stream, format_val, substream);

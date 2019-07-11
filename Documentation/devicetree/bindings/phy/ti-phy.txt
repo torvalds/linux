@@ -35,6 +35,7 @@ Required properties:
 	       DRA7x
 	       Should be "ti,dra7x-usb2-phy2" for the 2nd instance of USB2 PHY
 	       in DRA7x
+	       Should be "ti,am654-usb2" for the USB2 PHYs on AM654.
  - reg : Address and length of the register set for the device.
  - #phy-cells: determine the number of cells that should be given in the
    phandle while referencing this phy.

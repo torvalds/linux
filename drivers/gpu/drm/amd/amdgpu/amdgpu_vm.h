@@ -229,9 +229,6 @@ struct amdgpu_vm {
 	/* Up to 128 pending retry page faults */
 	DECLARE_KFIFO(faults, u64, 128);
 
-	/* Limit non-retry fault storms */
-	unsigned int		fault_credit;
-
 	/* Points to the KFD process VM info */
 	struct amdkfd_process_info *process_info;
 
@@ -299,8 +296,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm, unsigned int pasid);
 void amdgpu_vm_release_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm);
-bool amdgpu_vm_pasid_fault_credit(struct amdgpu_device *adev,
-				  unsigned int pasid);
 void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 			 struct list_head *validated,
 			 struct amdgpu_bo_list_entry *entry);
@@ -367,5 +362,7 @@ void amdgpu_vm_move_to_lru_tail(struct amdgpu_device *adev,
 int amdgpu_vm_add_fault(struct amdgpu_retryfault_hashtable *fault_hash, u64 key);
 
 void amdgpu_vm_clear_fault(struct amdgpu_retryfault_hashtable *fault_hash, u64 key);
+
+void amdgpu_vm_del_from_lru_notify(struct ttm_buffer_object *bo);
 
 #endif

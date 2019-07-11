@@ -107,7 +107,7 @@ void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 EXPORT_SYMBOL_GPL(kvmppc_add_revmap_chain);
 
 /* Update the dirty bitmap of a memslot */
-void kvmppc_update_dirty_map(struct kvm_memory_slot *memslot,
+void kvmppc_update_dirty_map(const struct kvm_memory_slot *memslot,
 			     unsigned long gfn, unsigned long psize)
 {
 	unsigned long npages;

@@ -410,7 +410,7 @@ static int rpmh_regulator_init_vreg(struct rpmh_vreg *vreg, struct device *dev,
 	vreg->dev = dev;
 
 	for (rpmh_data = pmic_rpmh_data; rpmh_data->name; rpmh_data++)
-		if (!strcmp(rpmh_data->name, node->name))
+		if (of_node_name_eq(node, rpmh_data->name))
 			break;
 
 	if (!rpmh_data->name) {

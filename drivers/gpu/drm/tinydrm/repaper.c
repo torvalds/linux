@@ -26,7 +26,13 @@
 #include <linux/spi/spi.h>
 #include <linux/thermal.h>
 
+#include <drm/drm_damage_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_rect.h>
+#include <drm/drm_vblank.h>
 #include <drm/tinydrm/tinydrm.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 
@@ -106,12 +112,11 @@ static int repaper_spi_transfer(struct spi_device *spi, u8 header,
 
 	/* Stack allocated tx? */
 	if (tx && len <= 32) {
-		txbuf = kmalloc(len, GFP_KERNEL);
+		txbuf = kmemdup(tx, len, GFP_KERNEL);
 		if (!txbuf) {
 			ret = -ENOMEM;
 			goto out_free;
 		}
-		memcpy(txbuf, tx, len);
 	}
 
 	if (rx) {
@@ -520,17 +525,13 @@ static void repaper_gray8_to_mono_reversed(u8 *buf, u32 width, u32 height)
 		}
 }
 
-static int repaper_fb_dirty(struct drm_framebuffer *fb,
-			    struct drm_file *file_priv,
-			    unsigned int flags, unsigned int color,
-			    struct drm_clip_rect *clips,
-			    unsigned int num_clips)
+static int repaper_fb_dirty(struct drm_framebuffer *fb)
 {
 	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	struct dma_buf_attachment *import_attach = cma_obj->base.import_attach;
 	struct tinydrm_device *tdev = fb->dev->dev_private;
 	struct repaper_epd *epd = epd_from_tinydrm(tdev);
-	struct drm_clip_rect clip;
+	struct drm_rect clip;
 	u8 *buf = NULL;
 	int ret = 0;
 
@@ -622,12 +623,6 @@ out_free:
 
 	return ret;
 }
-
-static const struct drm_framebuffer_funcs repaper_fb_funcs = {
-	.destroy	= drm_gem_fb_destroy,
-	.create_handle	= drm_gem_fb_create_handle,
-	.dirty		= tinydrm_fb_dirty,
-};
 
 static void power_off(struct repaper_epd *epd)
 {
@@ -792,9 +787,7 @@ static void repaper_pipe_disable(struct drm_simple_display_pipe *pipe)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	mutex_lock(&tdev->dirty_lock);
 	epd->enabled = false;
-	mutex_unlock(&tdev->dirty_lock);
 
 	/* Nothing frame */
 	for (line = 0; line < epd->height; line++)
@@ -837,10 +830,28 @@ static void repaper_pipe_disable(struct drm_simple_display_pipe *pipe)
 	power_off(epd);
 }
 
+static void repaper_pipe_update(struct drm_simple_display_pipe *pipe,
+				struct drm_plane_state *old_state)
+{
+	struct drm_plane_state *state = pipe->plane.state;
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_rect rect;
+
+	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
+		repaper_fb_dirty(state->fb);
+
+	if (crtc->state->event) {
+		spin_lock_irq(&crtc->dev->event_lock);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+		crtc->state->event = NULL;
+	}
+}
+
 static const struct drm_simple_display_pipe_funcs repaper_pipe_funcs = {
 	.enable = repaper_pipe_enable,
 	.disable = repaper_pipe_disable,
-	.update = tinydrm_display_pipe_update,
+	.update = repaper_pipe_update,
 	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
@@ -882,7 +893,7 @@ static struct drm_driver repaper_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 				  DRIVER_ATOMIC,
 	.fops			= &repaper_fops,
-	TINYDRM_GEM_DRIVER_OPS,
+	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.name			= "repaper",
 	.desc			= "Pervasive Displays RePaper e-ink panels",
 	.date			= "20170405",
@@ -1054,11 +1065,9 @@ static int repaper_probe(struct spi_device *spi)
 
 	tdev = &epd->tinydrm;
 
-	ret = devm_tinydrm_init(dev, tdev, &repaper_fb_funcs, &repaper_driver);
+	ret = devm_tinydrm_init(dev, tdev, &repaper_driver);
 	if (ret)
 		return ret;
-
-	tdev->fb_dirty = repaper_fb_dirty;
 
 	ret = tinydrm_display_pipe_init(tdev, &repaper_pipe_funcs,
 					DRM_MODE_CONNECTOR_VIRTUAL,

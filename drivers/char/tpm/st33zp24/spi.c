@@ -63,7 +63,7 @@
  * some latency byte before the answer is available (max 15).
  * We have 2048 + 1024 + 15.
  */
-#define ST33ZP24_SPI_BUFFER_SIZE (TPM_BUFSIZE + (TPM_BUFSIZE / 2) +\
+#define ST33ZP24_SPI_BUFFER_SIZE (ST33ZP24_BUFSIZE + (ST33ZP24_BUFSIZE / 2) +\
 				  MAX_SPI_LATENCY)
 
 

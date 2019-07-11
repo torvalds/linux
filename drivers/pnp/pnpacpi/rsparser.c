@@ -215,7 +215,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		if (i >= 0) {
 			flags = acpi_dev_irq_flags(gpio->triggering,
 						   gpio->polarity,
-						   gpio->sharable);
+						   gpio->shareable);
 		} else {
 			flags = IORESOURCE_DISABLED;
 		}
@@ -324,7 +324,7 @@ static __init void pnpacpi_parse_irq_option(struct pnp_dev *dev,
 		if (p->interrupts[i])
 			__set_bit(p->interrupts[i], map.bits);
 
-	flags = acpi_dev_irq_flags(p->triggering, p->polarity, p->sharable);
+	flags = acpi_dev_irq_flags(p->triggering, p->polarity, p->shareable);
 	pnp_register_irq_resource(dev, option_flags, &map, flags);
 }
 
@@ -348,7 +348,7 @@ static __init void pnpacpi_parse_ext_irq_option(struct pnp_dev *dev,
 		}
 	}
 
-	flags = acpi_dev_irq_flags(p->triggering, p->polarity, p->sharable);
+	flags = acpi_dev_irq_flags(p->triggering, p->polarity, p->shareable);
 	pnp_register_irq_resource(dev, option_flags, &map, flags);
 }
 
@@ -681,7 +681,7 @@ static void pnpacpi_encode_irq(struct pnp_dev *dev,
 	decode_irq_flags(dev, p->flags, &triggering, &polarity, &shareable);
 	irq->triggering = triggering;
 	irq->polarity = polarity;
-	irq->sharable = shareable;
+	irq->shareable = shareable;
 	irq->interrupt_count = 1;
 	irq->interrupts[0] = p->start;
 
@@ -689,7 +689,7 @@ static void pnpacpi_encode_irq(struct pnp_dev *dev,
 		(int) p->start,
 		triggering == ACPI_LEVEL_SENSITIVE ? "level" : "edge",
 		polarity == ACPI_ACTIVE_LOW ? "low" : "high",
-		irq->sharable == ACPI_SHARED ? "shared" : "exclusive",
+		irq->shareable == ACPI_SHARED ? "shared" : "exclusive",
 		irq->descriptor_length);
 }
 
@@ -711,14 +711,14 @@ static void pnpacpi_encode_ext_irq(struct pnp_dev *dev,
 	extended_irq->producer_consumer = ACPI_CONSUMER;
 	extended_irq->triggering = triggering;
 	extended_irq->polarity = polarity;
-	extended_irq->sharable = shareable;
+	extended_irq->shareable = shareable;
 	extended_irq->interrupt_count = 1;
 	extended_irq->interrupts[0] = p->start;
 
 	pnp_dbg(&dev->dev, "  encode irq %d %s %s %s\n", (int) p->start,
 		triggering == ACPI_LEVEL_SENSITIVE ? "level" : "edge",
 		polarity == ACPI_ACTIVE_LOW ? "low" : "high",
-		extended_irq->sharable == ACPI_SHARED ? "shared" : "exclusive");
+		extended_irq->shareable == ACPI_SHARED ? "shared" : "exclusive");
 }
 
 static void pnpacpi_encode_dma(struct pnp_dev *dev,

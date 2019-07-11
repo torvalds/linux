@@ -10,6 +10,7 @@ Required properties:
 		"rockchip,rk3126-vop";
 		"rockchip,px30-vop-lit";
 		"rockchip,px30-vop-big";
+		"rockchip,rk3066-vop";
 		"rockchip,rk3188-vop";
 		"rockchip,rk3288-vop";
 		"rockchip,rk3368-vop";

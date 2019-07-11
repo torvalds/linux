@@ -52,6 +52,8 @@ static bool	cfg_segment;
 static bool	cfg_sendmmsg;
 static bool	cfg_tcp;
 static bool	cfg_zerocopy;
+static int	cfg_msg_nr;
+static uint16_t	cfg_gso_size;
 
 static socklen_t cfg_alen;
 static struct sockaddr_storage cfg_dst_addr;
@@ -205,14 +207,14 @@ static void send_udp_segment_cmsg(struct cmsghdr *cm)
 
 	cm->cmsg_level = SOL_UDP;
 	cm->cmsg_type = UDP_SEGMENT;
-	cm->cmsg_len = CMSG_LEN(sizeof(cfg_mss));
+	cm->cmsg_len = CMSG_LEN(sizeof(cfg_gso_size));
 	valp = (void *)CMSG_DATA(cm);
-	*valp = cfg_mss;
+	*valp = cfg_gso_size;
 }
 
 static int send_udp_segment(int fd, char *data)
 {
-	char control[CMSG_SPACE(sizeof(cfg_mss))] = {0};
+	char control[CMSG_SPACE(sizeof(cfg_gso_size))] = {0};
 	struct msghdr msg = {0};
 	struct iovec iov = {0};
 	int ret;
@@ -241,7 +243,7 @@ static int send_udp_segment(int fd, char *data)
 
 static void usage(const char *filepath)
 {
-	error(1, 0, "Usage: %s [-46cmStuz] [-C cpu] [-D dst ip] [-l secs] [-p port] [-s sendsize]",
+	error(1, 0, "Usage: %s [-46cmtuz] [-C cpu] [-D dst ip] [-l secs] [-m messagenr] [-p port] [-s sendsize] [-S gsosize]",
 		    filepath);
 }
 
@@ -250,7 +252,7 @@ static void parse_opts(int argc, char **argv)
 	int max_len, hdrlen;
 	int c;
 
-	while ((c = getopt(argc, argv, "46cC:D:l:mp:s:Stuz")) != -1) {
+	while ((c = getopt(argc, argv, "46cC:D:l:mM:p:s:S:tuz")) != -1) {
 		switch (c) {
 		case '4':
 			if (cfg_family != PF_UNSPEC)
@@ -279,6 +281,9 @@ static void parse_opts(int argc, char **argv)
 		case 'm':
 			cfg_sendmmsg = true;
 			break;
+		case 'M':
+			cfg_msg_nr = strtoul(optarg, NULL, 10);
+			break;
 		case 'p':
 			cfg_port = strtoul(optarg, NULL, 0);
 			break;
@@ -286,6 +291,7 @@ static void parse_opts(int argc, char **argv)
 			cfg_payload_len = strtoul(optarg, NULL, 0);
 			break;
 		case 'S':
+			cfg_gso_size = strtoul(optarg, NULL, 0);
 			cfg_segment = true;
 			break;
 		case 't':
@@ -317,6 +323,8 @@ static void parse_opts(int argc, char **argv)
 
 	cfg_mss = ETH_DATA_LEN - hdrlen;
 	max_len = ETH_MAX_MTU - hdrlen;
+	if (!cfg_gso_size)
+		cfg_gso_size = cfg_mss;
 
 	if (cfg_payload_len > max_len)
 		error(1, 0, "payload length %u exceeds max %u",
@@ -392,9 +400,11 @@ int main(int argc, char **argv)
 		else
 			num_sends += send_udp(fd, buf[i]);
 		num_msgs++;
-
 		if (cfg_zerocopy && ((num_msgs & 0xF) == 0))
 			flush_zerocopy(fd);
+
+		if (cfg_msg_nr && num_msgs >= cfg_msg_nr)
+			break;
 
 		tnow = gettimeofday_ms();
 		if (tnow > treport) {

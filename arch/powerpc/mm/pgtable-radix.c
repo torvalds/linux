@@ -51,26 +51,22 @@ static int native_register_process_table(unsigned long base, unsigned long pg_sz
 static __ref void *early_alloc_pgtable(unsigned long size, int nid,
 			unsigned long region_start, unsigned long region_end)
 {
-	unsigned long pa = 0;
-	void *pt;
+	phys_addr_t min_addr = MEMBLOCK_LOW_LIMIT;
+	phys_addr_t max_addr = MEMBLOCK_ALLOC_ANYWHERE;
+	void *ptr;
 
-	if (region_start || region_end) /* has region hint */
-		pa = memblock_alloc_range(size, size, region_start, region_end,
-						MEMBLOCK_NONE);
-	else if (nid != -1) /* has node hint */
-		pa = memblock_alloc_base_nid(size, size,
-						MEMBLOCK_ALLOC_ANYWHERE,
-						nid, MEMBLOCK_NONE);
+	if (region_start)
+		min_addr = region_start;
+	if (region_end)
+		max_addr = region_end;
 
-	if (!pa)
-		pa = memblock_alloc_base(size, size, MEMBLOCK_ALLOC_ANYWHERE);
+	ptr = memblock_alloc_try_nid(size, size, min_addr, max_addr, nid);
 
-	BUG_ON(!pa);
+	if (!ptr)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%pa max_addr=%pa\n",
+		      __func__, size, size, nid, &min_addr, &max_addr);
 
-	pt = __va(pa);
-	memset(pt, 0, size);
-
-	return pt;
+	return ptr;
 }
 
 static int early_map_kernel_page(unsigned long ea, unsigned long pa,
@@ -1062,4 +1058,22 @@ void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
 		 */
 	}
 	/* See ptesync comment in radix__set_pte_at */
+}
+
+void radix__ptep_modify_prot_commit(struct vm_area_struct *vma,
+				    unsigned long addr, pte_t *ptep,
+				    pte_t old_pte, pte_t pte)
+{
+	struct mm_struct *mm = vma->vm_mm;
+
+	/*
+	 * To avoid NMMU hang while relaxing access we need to flush the tlb before
+	 * we set the new value. We need to do this only for radix, because hash
+	 * translation does flush when updating the linux pte.
+	 */
+	if (is_pte_rw_upgrade(pte_val(old_pte), pte_val(pte)) &&
+	    (atomic_read(&mm->context.copros) > 0))
+		radix__flush_tlb_page(vma, addr);
+
+	set_pte_at(mm, addr, ptep, pte);
 }

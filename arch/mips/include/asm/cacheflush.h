@@ -25,7 +25,6 @@
  *
  * MIPS specific flush operations:
  *
- *  - flush_cache_sigtramp() flush signal trampoline
  *  - flush_icache_all() flush the entire instruction cache
  *  - flush_data_cache_page() flushes a page from the data cache
  *  - __flush_icache_user_range(start, end) flushes range of user instructions
@@ -110,7 +109,6 @@ extern void copy_from_user_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vaddr, void *dst, const void *src,
 	unsigned long len);
 
-extern void (*flush_cache_sigtramp)(unsigned long addr);
 extern void (*flush_icache_all)(void);
 extern void (*local_flush_data_cache_page)(void * addr);
 extern void (*flush_data_cache_page)(unsigned long addr);

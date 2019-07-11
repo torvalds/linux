@@ -195,7 +195,9 @@ struct read_info_sccb {
 	u16	hcpua;			/* 120-121 */
 	u8	_pad_122[124 - 122];	/* 122-123 */
 	u32	hmfai;			/* 124-127 */
-	u8	_pad_128[4096 - 128];	/* 128-4095 */
+	u8	_pad_128[134 - 128];	/* 128-133 */
+	u8	byte_134;			/* 134 */
+	u8	_pad_135[4096 - 135];	/* 135-4095 */
 } __packed __aligned(PAGE_SIZE);
 
 struct read_storage_sccb {

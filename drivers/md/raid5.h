@@ -638,10 +638,11 @@ struct r5conf {
 	/* per cpu variables */
 	struct raid5_percpu {
 		struct page	*spare_page; /* Used when checking P/Q in raid6 */
-		struct flex_array *scribble;   /* space for constructing buffer
-					      * lists and performing address
-					      * conversions
-					      */
+		void		*scribble;  /* space for constructing buffer
+					     * lists and performing address
+					     * conversions
+					     */
+		int scribble_obj_size;
 	} __percpu *percpu;
 	int scribble_disks;
 	int scribble_sectors;

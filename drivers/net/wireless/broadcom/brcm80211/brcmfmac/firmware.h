@@ -70,6 +70,7 @@ struct brcmf_fw_request {
 	u16 domain_nr;
 	u16 bus_nr;
 	u32 n_items;
+	const char *board_type;
 	struct brcmf_fw_item items[0];
 };
 

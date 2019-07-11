@@ -46,6 +46,11 @@
 
 #define SSC_CLOCK_STABLE_WAIT	130
 
+#define RTS524A_OCP_THD_800	0x04
+#define RTS525A_OCP_THD_800	0x05
+#define RTS522A_OCP_THD_800	0x06
+
+
 int __rtsx_pci_write_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 val);
 int __rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val);
 

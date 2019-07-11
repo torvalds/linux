@@ -248,9 +248,9 @@ static int max77802_set_ramp_delay_2bit(struct regulator_dev *rdev,
 	unsigned int ramp_value;
 
 	if (id > MAX77802_BUCK4) {
-			dev_warn(&rdev->dev,
-				 "%s: regulator: ramp delay not supported\n",
-				 rdev->desc->name);
+		dev_warn(&rdev->dev,
+			 "%s: regulator: ramp delay not supported\n",
+			 rdev->desc->name);
 		return -EINVAL;
 	}
 	ramp_value = max77802_find_ramp_value(rdev, ramp_table_77802_2bit,

@@ -294,6 +294,15 @@ minstrel_get_ratestats(struct minstrel_ht_sta *mi, int index)
 	return &mi->groups[index / MCS_GROUP_RATES].rates[index % MCS_GROUP_RATES];
 }
 
+static unsigned int
+minstrel_ht_avg_ampdu_len(struct minstrel_ht_sta *mi)
+{
+	if (!mi->avg_ampdu_len)
+		return AVG_AMPDU_SIZE;
+
+	return MINSTREL_TRUNC(mi->avg_ampdu_len);
+}
+
 /*
  * Return current throughput based on the average A-MPDU length, taking into
  * account the expected number of retransmissions and their expected length
@@ -309,7 +318,7 @@ minstrel_ht_get_tp_avg(struct minstrel_ht_sta *mi, int group, int rate,
 		return 0;
 
 	if (group != MINSTREL_CCK_GROUP)
-		nsecs = 1000 * mi->overhead / MINSTREL_TRUNC(mi->avg_ampdu_len);
+		nsecs = 1000 * mi->overhead / minstrel_ht_avg_ampdu_len(mi);
 
 	nsecs += minstrel_mcs_groups[group].duration[rate] <<
 		 minstrel_mcs_groups[group].shift;
@@ -503,8 +512,12 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	u16 tmp_cck_tp_rate[MAX_THR_RATES], index;
 
 	if (mi->ampdu_packets > 0) {
-		mi->avg_ampdu_len = minstrel_ewma(mi->avg_ampdu_len,
-			MINSTREL_FRAC(mi->ampdu_len, mi->ampdu_packets), EWMA_LEVEL);
+		if (!ieee80211_hw_check(mp->hw, TX_STATUS_NO_AMPDU_LEN))
+			mi->avg_ampdu_len = minstrel_ewma(mi->avg_ampdu_len,
+				MINSTREL_FRAC(mi->ampdu_len, mi->ampdu_packets),
+					      EWMA_LEVEL);
+		else
+			mi->avg_ampdu_len = 0;
 		mi->ampdu_len = 0;
 		mi->ampdu_packets = 0;
 	}
@@ -709,7 +722,9 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	mi->ampdu_len += info->status.ampdu_len;
 
 	if (!mi->sample_wait && !mi->sample_tries && mi->sample_count > 0) {
-		mi->sample_wait = 16 + 2 * MINSTREL_TRUNC(mi->avg_ampdu_len);
+		int avg_ampdu_len = minstrel_ht_avg_ampdu_len(mi);
+
+		mi->sample_wait = 16 + 2 * avg_ampdu_len;
 		mi->sample_tries = 1;
 		mi->sample_count--;
 	}
@@ -777,7 +792,7 @@ minstrel_calc_retransmit(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	unsigned int cw = mp->cw_min;
 	unsigned int ctime = 0;
 	unsigned int t_slot = 9; /* FIXME */
-	unsigned int ampdu_len = MINSTREL_TRUNC(mi->avg_ampdu_len);
+	unsigned int ampdu_len = minstrel_ht_avg_ampdu_len(mi);
 	unsigned int overhead = 0, overhead_rtscts = 0;
 
 	mrs = minstrel_get_ratestats(mi, index);

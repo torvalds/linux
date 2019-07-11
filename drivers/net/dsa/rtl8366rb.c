@@ -1073,8 +1073,7 @@ rtl8366rb_port_enable(struct dsa_switch *ds, int port,
 }
 
 static void
-rtl8366rb_port_disable(struct dsa_switch *ds, int port,
-		       struct phy_device *phy)
+rtl8366rb_port_disable(struct dsa_switch *ds, int port)
 {
 	struct realtek_smi *smi = ds->priv;
 	int ret;

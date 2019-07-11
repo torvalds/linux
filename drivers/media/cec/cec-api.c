@@ -38,6 +38,7 @@ static __poll_t cec_poll(struct file *filp,
 	struct cec_adapter *adap = fh->adap;
 	__poll_t res = 0;
 
+	poll_wait(filp, &fh->wait, poll);
 	if (!cec_is_registered(adap))
 		return EPOLLERR | EPOLLHUP;
 	mutex_lock(&adap->lock);
@@ -48,7 +49,6 @@ static __poll_t cec_poll(struct file *filp,
 		res |= EPOLLIN | EPOLLRDNORM;
 	if (fh->total_queued_events)
 		res |= EPOLLPRI;
-	poll_wait(filp, &fh->wait, poll);
 	mutex_unlock(&adap->lock);
 	return res;
 }

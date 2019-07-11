@@ -132,10 +132,7 @@ static DEFINE_PER_CPU(struct brnf_frag_data, brnf_frag_data_storage);
 
 static void nf_bridge_info_free(struct sk_buff *skb)
 {
-	if (skb->nf_bridge) {
-		nf_bridge_put(skb->nf_bridge);
-		skb->nf_bridge = NULL;
-	}
+	skb_ext_del(skb, SKB_EXT_BRIDGE_NF);
 }
 
 static inline struct net_device *bridge_parent(const struct net_device *dev)
@@ -148,19 +145,7 @@ static inline struct net_device *bridge_parent(const struct net_device *dev)
 
 static inline struct nf_bridge_info *nf_bridge_unshare(struct sk_buff *skb)
 {
-	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
-
-	if (refcount_read(&nf_bridge->use) > 1) {
-		struct nf_bridge_info *tmp = nf_bridge_alloc(skb);
-
-		if (tmp) {
-			memcpy(tmp, nf_bridge, sizeof(struct nf_bridge_info));
-			refcount_set(&tmp->use, 1);
-		}
-		nf_bridge_put(nf_bridge);
-		nf_bridge = tmp;
-	}
-	return nf_bridge;
+	return skb_ext_add(skb, SKB_EXT_BRIDGE_NF);
 }
 
 unsigned int nf_bridge_encap_header_len(const struct sk_buff *skb)
@@ -247,7 +232,9 @@ drop:
 
 void nf_bridge_update_protocol(struct sk_buff *skb)
 {
-	switch (skb->nf_bridge->orig_proto) {
+	const struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
+
+	switch (nf_bridge->orig_proto) {
 	case BRNF_PROTO_8021Q:
 		skb->protocol = htons(ETH_P_8021Q);
 		break;
@@ -278,7 +265,7 @@ int br_nf_pre_routing_finish_bridge(struct net *net, struct sock *sk, struct sk_
 		struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
 		int ret;
 
-		if (neigh->hh.hh_len) {
+		if ((neigh->nud_state & NUD_CONNECTED) && neigh->hh.hh_len) {
 			neigh_hh_bridge(&neigh->hh, skb);
 			skb->dev = nf_bridge->physindev;
 			ret = br_handle_frame_finish(net, sk, skb);
@@ -506,7 +493,6 @@ static unsigned int br_nf_pre_routing(void *priv,
 	if (br_validate_ipv4(state->net, skb))
 		return NF_DROP;
 
-	nf_bridge_put(skb->nf_bridge);
 	if (!nf_bridge_alloc(skb))
 		return NF_DROP;
 	if (!setup_pre_routing(skb))
@@ -516,6 +502,7 @@ static unsigned int br_nf_pre_routing(void *priv,
 	nf_bridge->ipv4_daddr = ip_hdr(skb)->daddr;
 
 	skb->protocol = htons(ETH_P_IP);
+	skb->transport_header = skb->network_header + ip_hdr(skb)->ihl * 4;
 
 	NF_HOOK(NFPROTO_IPV4, NF_INET_PRE_ROUTING, state->net, state->sk, skb,
 		skb->dev, NULL,
@@ -569,7 +556,8 @@ static unsigned int br_nf_forward_ip(void *priv,
 	struct net_device *parent;
 	u_int8_t pf;
 
-	if (!skb->nf_bridge)
+	nf_bridge = nf_bridge_info_get(skb);
+	if (!nf_bridge)
 		return NF_ACCEPT;
 
 	/* Need exclusive nf_bridge_info since we might have multiple
@@ -671,10 +659,8 @@ static int br_nf_push_frag_xmit(struct net *net, struct sock *sk, struct sk_buff
 		return 0;
 	}
 
-	if (data->vlan_tci) {
-		skb->vlan_tci = data->vlan_tci;
-		skb->vlan_proto = data->vlan_proto;
-	}
+	if (data->vlan_proto)
+		__vlan_hwaccel_put_tag(skb, data->vlan_proto, data->vlan_tci);
 
 	skb_copy_to_linear_data_offset(skb, -data->size, data->mac, data->size);
 	__skb_push(skb, data->encap_size);
@@ -703,7 +689,9 @@ br_nf_ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 
 static unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
 {
-	if (skb->nf_bridge->orig_proto == BRNF_PROTO_PPPOE)
+	const struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
+
+	if (nf_bridge->orig_proto == BRNF_PROTO_PPPOE)
 		return PPPOE_SES_HLEN;
 	return 0;
 }
@@ -740,8 +728,13 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
 
 		data = this_cpu_ptr(&brnf_frag_data_storage);
 
-		data->vlan_tci = skb->vlan_tci;
-		data->vlan_proto = skb->vlan_proto;
+		if (skb_vlan_tag_present(skb)) {
+			data->vlan_tci = skb->vlan_tci;
+			data->vlan_proto = skb->vlan_proto;
+		} else {
+			data->vlan_proto = 0;
+		}
+
 		data->encap_size = nf_bridge_encap_header_len(skb);
 		data->size = ETH_HLEN + data->encap_size;
 
@@ -836,8 +829,11 @@ static unsigned int ip_sabotage_in(void *priv,
 				   struct sk_buff *skb,
 				   const struct nf_hook_state *state)
 {
-	if (skb->nf_bridge && !skb->nf_bridge->in_prerouting &&
-	    !netif_is_l3_master(skb->dev)) {
+	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
+
+	if (nf_bridge && !nf_bridge->in_prerouting &&
+	    !netif_is_l3_master(skb->dev) &&
+	    !netif_is_l3_slave(skb->dev)) {
 		state->okfn(state->net, state->sk, skb);
 		return NF_STOLEN;
 	}
@@ -874,7 +870,9 @@ static void br_nf_pre_routing_finish_bridge_slow(struct sk_buff *skb)
 
 static int br_nf_dev_xmit(struct sk_buff *skb)
 {
-	if (skb->nf_bridge && skb->nf_bridge->bridged_dnat) {
+	const struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
+
+	if (nf_bridge && nf_bridge->bridged_dnat) {
 		br_nf_pre_routing_finish_bridge_slow(skb);
 		return 1;
 	}
@@ -884,11 +882,6 @@ static int br_nf_dev_xmit(struct sk_buff *skb)
 static const struct nf_br_ops br_ops = {
 	.br_dev_xmit_hook =	br_nf_dev_xmit,
 };
-
-void br_netfilter_enable(void)
-{
-}
-EXPORT_SYMBOL_GPL(br_netfilter_enable);
 
 /* For br_nf_post_routing, we need (prio = NF_BR_PRI_LAST), because
  * br_dev_queue_push_xmit is called afterwards */

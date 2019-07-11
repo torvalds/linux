@@ -96,6 +96,11 @@ void cnstr_shdsc_rfc4543_decap(u32 * const desc, struct alginfo *cdata,
 			       unsigned int ivsize, unsigned int icvsize,
 			       const bool is_qi);
 
+void cnstr_shdsc_chachapoly(u32 * const desc, struct alginfo *cdata,
+			    struct alginfo *adata, unsigned int ivsize,
+			    unsigned int icvsize, const bool encap,
+			    const bool is_qi);
+
 void cnstr_shdsc_skcipher_encap(u32 * const desc, struct alginfo *cdata,
 				unsigned int ivsize, const bool is_rfc3686,
 				const u32 ctx1_iv_off);

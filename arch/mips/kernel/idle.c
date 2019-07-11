@@ -101,7 +101,8 @@ static void __cpuidle au1k_wait(void)
 	unsigned long c0status = read_c0_status() | 1;	/* irqs on */
 
 	__asm__(
-	"	.set	arch=r4000			\n"
+	"	.set	push			\n"
+	"	.set	arch=r4000		\n"
 	"	cache	0x14, 0(%0)		\n"
 	"	cache	0x14, 32(%0)		\n"
 	"	sync				\n"
@@ -111,7 +112,7 @@ static void __cpuidle au1k_wait(void)
 	"	nop				\n"
 	"	nop				\n"
 	"	nop				\n"
-	"	.set	mips0			\n"
+	"	.set	pop			\n"
 	: : "r" (au1k_wait), "r" (c0status));
 }
 
@@ -183,7 +184,7 @@ void __init check_wait(void)
 		cpu_wait = r4k_wait;
 		break;
 	case CPU_LOONGSON3:
-		if ((c->processor_id & PRID_REV_MASK) >= PRID_REV_LOONGSON3A_R2)
+		if ((c->processor_id & PRID_REV_MASK) >= PRID_REV_LOONGSON3A_R2_0)
 			cpu_wait = r4k_wait;
 		break;
 

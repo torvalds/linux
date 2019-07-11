@@ -559,7 +559,7 @@ il4965_translate_rx_status(struct il_priv *il, u32 decrypt_in)
 			decrypt_out |= RX_RES_STATUS_BAD_KEY_TTAK;
 			break;
 		}
-		/* fall through if TTAK OK */
+		/* fall through - if TTAK OK */
 	default:
 		if (!(decrypt_in & RX_MPDU_RES_STATUS_ICV_OK))
 			decrypt_out |= RX_RES_STATUS_BAD_ICV_MIC;
@@ -4988,10 +4988,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	if (err)
 		goto out_unbind;
 
-	err = il_dbgfs_register(il, DRV_NAME);
-	if (err)
-		IL_ERR("failed to create debugfs files. Ignoring error: %d\n",
-		       err);
+	il_dbgfs_register(il, DRV_NAME);
 
 	err = sysfs_create_group(&il->pci_dev->dev.kobj, &il_attribute_group);
 	if (err) {

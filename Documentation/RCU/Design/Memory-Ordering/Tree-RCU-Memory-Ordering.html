@@ -77,7 +77,7 @@ The key point is that the lock-acquisition functions, including
 <tt>smp_mb__after_unlock_lock()</tt> immediately after successful
 acquisition of the lock.
 
-<p>Therefore, for any given <tt>rcu_node</tt> struction, any access
+<p>Therefore, for any given <tt>rcu_node</tt> structure, any access
 happening before one of the above lock-release functions will be seen
 by all CPUs as happening before any access happening after a later
 one of the above lock-acquisition functions.
@@ -485,13 +485,13 @@ section that the grace period must wait on.
 noted by <tt>rcu_node_context_switch()</tt> on the left.
 On the other hand, if the CPU takes a scheduler-clock interrupt
 while executing in usermode, a quiescent state will be noted by
-<tt>rcu_check_callbacks()</tt> on the right.
+<tt>rcu_sched_clock_irq()</tt> on the right.
 Either way, the passage through a quiescent state will be noted
 in a per-CPU variable.
 
 <p>The next time an <tt>RCU_SOFTIRQ</tt> handler executes on
 this CPU (for example, after the next scheduler-clock
-interrupt), <tt>__rcu_process_callbacks()</tt> will invoke
+interrupt), <tt>rcu_core()</tt> will invoke
 <tt>rcu_check_quiescent_state()</tt>, which will notice the
 recorded quiescent state, and invoke
 <tt>rcu_report_qs_rdp()</tt>.
@@ -651,7 +651,7 @@ to end.
 These callbacks are identified by <tt>rcu_advance_cbs()</tt>,
 which is usually invoked by <tt>__note_gp_changes()</tt>.
 As shown in the diagram below, this invocation can be triggered by
-the scheduling-clock interrupt (<tt>rcu_check_callbacks()</tt> on
+the scheduling-clock interrupt (<tt>rcu_sched_clock_irq()</tt> on
 the left) or by idle entry (<tt>rcu_cleanup_after_idle()</tt> on
 the right, but only for kernels build with
 <tt>CONFIG_RCU_FAST_NO_HZ=y</tt>).

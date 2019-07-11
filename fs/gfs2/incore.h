@@ -165,7 +165,6 @@ struct gfs2_bufdata {
 	u64 bd_blkno;
 
 	struct list_head bd_list;
-	const struct gfs2_log_operations *bd_ops;
 
 	struct gfs2_trans *bd_tr;
 	struct list_head bd_ail_st_list;
@@ -244,7 +243,7 @@ struct gfs2_glock_operations {
 	int (*go_demote_ok) (const struct gfs2_glock *gl);
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
-	void (*go_dump)(struct seq_file *seq, const struct gfs2_glock *gl);
+	void (*go_dump)(struct seq_file *seq, struct gfs2_glock *gl);
 	void (*go_callback)(struct gfs2_glock *gl, bool remote);
 	const int go_type;
 	const unsigned long go_flags;
@@ -854,9 +853,6 @@ struct gfs2_sbd {
 
 	unsigned long sd_last_warning;
 	struct dentry *debugfs_dir;    /* debugfs directory */
-	struct dentry *debugfs_dentry_glocks;
-	struct dentry *debugfs_dentry_glstats;
-	struct dentry *debugfs_dentry_sbstats;
 };
 
 static inline void gfs2_glstats_inc(struct gfs2_glock *gl, int which)

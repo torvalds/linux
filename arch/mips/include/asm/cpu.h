@@ -248,8 +248,9 @@
 #define PRID_REV_LOONGSON3A_R1		0x0005
 #define PRID_REV_LOONGSON3B_R1		0x0006
 #define PRID_REV_LOONGSON3B_R2		0x0007
-#define PRID_REV_LOONGSON3A_R2		0x0008
+#define PRID_REV_LOONGSON3A_R2_0	0x0008
 #define PRID_REV_LOONGSON3A_R3_0	0x0009
+#define PRID_REV_LOONGSON3A_R2_1	0x000c
 #define PRID_REV_LOONGSON3A_R3_1	0x000d
 
 /*
@@ -421,6 +422,7 @@ enum cpu_type_enum {
 				MBIT_ULL(55)	/* CPU shares FTLB entries with another */
 #define MIPS_CPU_MT_PER_TC_PERF_COUNTERS \
 				MBIT_ULL(56)	/* CPU has perf counters implemented per TC (MIPSMT ASE) */
+#define MIPS_CPU_MMID		MBIT_ULL(57)	/* CPU supports MemoryMapIDs */
 
 /*
  * CPU ASE encodings

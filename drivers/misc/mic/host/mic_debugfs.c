@@ -54,23 +54,7 @@ static int mic_smpt_show(struct seq_file *s, void *pos)
 	return 0;
 }
 
-static int mic_smpt_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mic_smpt_show, inode->i_private);
-}
-
-static int mic_smpt_debug_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations smpt_file_ops = {
-	.owner   = THIS_MODULE,
-	.open    = mic_smpt_debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = mic_smpt_debug_release
-};
+DEFINE_SHOW_ATTRIBUTE(mic_smpt);
 
 static int mic_post_code_show(struct seq_file *s, void *pos)
 {
@@ -81,23 +65,7 @@ static int mic_post_code_show(struct seq_file *s, void *pos)
 	return 0;
 }
 
-static int mic_post_code_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mic_post_code_show, inode->i_private);
-}
-
-static int mic_post_code_debug_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations post_code_ops = {
-	.owner   = THIS_MODULE,
-	.open    = mic_post_code_debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = mic_post_code_debug_release
-};
+DEFINE_SHOW_ATTRIBUTE(mic_post_code);
 
 static int mic_msi_irq_info_show(struct seq_file *s, void *pos)
 {
@@ -143,24 +111,7 @@ static int mic_msi_irq_info_show(struct seq_file *s, void *pos)
 	return 0;
 }
 
-static int mic_msi_irq_info_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mic_msi_irq_info_show, inode->i_private);
-}
-
-static int
-mic_msi_irq_info_debug_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations msi_irq_info_ops = {
-	.owner   = THIS_MODULE,
-	.open    = mic_msi_irq_info_debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = mic_msi_irq_info_debug_release
-};
+DEFINE_SHOW_ATTRIBUTE(mic_msi_irq_info);
 
 /**
  * mic_create_debug_dir - Initialize MIC debugfs entries.
@@ -177,13 +128,14 @@ void mic_create_debug_dir(struct mic_device *mdev)
 	if (!mdev->dbg_dir)
 		return;
 
-	debugfs_create_file("smpt", 0444, mdev->dbg_dir, mdev, &smpt_file_ops);
+	debugfs_create_file("smpt", 0444, mdev->dbg_dir, mdev,
+			    &mic_smpt_fops);
 
 	debugfs_create_file("post_code", 0444, mdev->dbg_dir, mdev,
-			    &post_code_ops);
+			    &mic_post_code_fops);
 
 	debugfs_create_file("msi_irq_info", 0444, mdev->dbg_dir, mdev,
-			    &msi_irq_info_ops);
+			    &mic_msi_irq_info_fops);
 }
 
 /**

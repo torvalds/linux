@@ -15,10 +15,11 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_of.h>
+#include <drm/drm_probe_helper.h>
 #include <linux/component.h>
 #include <linux/iommu.h>
 #include <linux/of_address.h>
@@ -341,6 +342,8 @@ static struct drm_driver mtk_drm_driver = {
 	.gem_prime_get_sg_table = mtk_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table = mtk_gem_prime_import_sg_table,
 	.gem_prime_mmap = mtk_drm_gem_mmap_buf,
+	.gem_prime_vmap = mtk_drm_gem_prime_vmap,
+	.gem_prime_vunmap = mtk_drm_gem_prime_vunmap,
 	.fops = &mtk_drm_fops,
 
 	.name = DRIVER_NAME,
@@ -375,6 +378,10 @@ static int mtk_drm_bind(struct device *dev)
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
 		goto err_deinit;
+
+	ret = drm_fbdev_generic_setup(drm, 32);
+	if (ret)
+		DRM_ERROR("Failed to initialize fbdev: %d\n", ret);
 
 	return 0;
 

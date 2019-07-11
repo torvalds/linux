@@ -53,7 +53,7 @@ static int des_set_key(struct crypto_tfm *tfm, const u8 *key,
 	 * weak key detection code.
 	 */
 	ret = des_ekey(tmp, key);
-	if (unlikely(ret == 0) && (*flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+	if (unlikely(ret == 0) && (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
 		return -EINVAL;
 	}
@@ -209,7 +209,7 @@ static int des3_ede_set_key(struct crypto_tfm *tfm, const u8 *key,
 
 	if (unlikely(!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
 		     !((K[2] ^ K[4]) | (K[3] ^ K[5]))) &&
-		     (*flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+		     (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
 		return -EINVAL;
 	}
@@ -510,11 +510,6 @@ static bool __init sparc64_has_des_opcode(void)
 
 static int __init des_sparc64_mod_init(void)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(algs); i++)
-		INIT_LIST_HEAD(&algs[i].cra_list);
-
 	if (sparc64_has_des_opcode()) {
 		pr_info("Using sparc64 des opcodes optimized DES implementation\n");
 		return crypto_register_algs(algs, ARRAY_SIZE(algs));

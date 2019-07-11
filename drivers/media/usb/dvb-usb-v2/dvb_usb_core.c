@@ -957,9 +957,7 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 	if (d->props->identify_state) {
 		const char *name = NULL;
 		ret = d->props->identify_state(d, &name);
-		if (ret == 0) {
-			;
-		} else if (ret == COLD) {
+		if (ret == COLD) {
 			dev_info(&d->udev->dev,
 					"%s: found a '%s' in cold state\n",
 					KBUILD_MODNAME, d->name);
@@ -984,7 +982,7 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 			} else {
 				goto err_free_all;
 			}
-		} else {
+		} else if (ret != WARM) {
 			goto err_free_all;
 		}
 	}

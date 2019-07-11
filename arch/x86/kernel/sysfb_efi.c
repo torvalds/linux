@@ -19,12 +19,15 @@
 
 #include <linux/dmi.h>
 #include <linux/err.h>
+#include <linux/efi.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/screen_info.h>
 #include <video/vga.h>
+
+#include <asm/efi.h>
 #include <asm/sysfb.h>
 
 enum {

@@ -5,6 +5,7 @@ GPU Driver Documentation
 .. toctree::
 
    amdgpu
+   amdgpu-dc
    i915
    meson
    pl111
@@ -16,6 +17,8 @@ GPU Driver Documentation
    vkms
    bridge/dw-hdmi
    xen-front
+   afbc
+   komeda-kms
 
 .. only::  subproject and html
 

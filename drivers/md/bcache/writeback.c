@@ -17,6 +17,15 @@
 #include <linux/sched/clock.h>
 #include <trace/events/bcache.h>
 
+static void update_gc_after_writeback(struct cache_set *c)
+{
+	if (c->gc_after_writeback != (BCH_ENABLE_AUTO_GC) ||
+	    c->gc_stats.in_use < BCH_AUTO_GC_DIRTY_THRESHOLD)
+		return;
+
+	c->gc_after_writeback |= BCH_DO_AUTO_GC;
+}
+
 /* Rate limiting */
 static uint64_t __calc_target_rate(struct cached_dev *dc)
 {
@@ -191,6 +200,7 @@ static void update_writeback_rate(struct work_struct *work)
 		if (!set_at_max_writeback_rate(c, dc)) {
 			down_read(&dc->writeback_lock);
 			__update_writeback_rate(dc);
+			update_gc_after_writeback(c);
 			up_read(&dc->writeback_lock);
 		}
 	}
@@ -689,6 +699,23 @@ static int bch_writeback_thread(void *arg)
 				up_write(&dc->writeback_lock);
 				break;
 			}
+
+			/*
+			 * When dirty data rate is high (e.g. 50%+), there might
+			 * be heavy buckets fragmentation after writeback
+			 * finished, which hurts following write performance.
+			 * If users really care about write performance they
+			 * may set BCH_ENABLE_AUTO_GC via sysfs, then when
+			 * BCH_DO_AUTO_GC is set, garbage collection thread
+			 * will be wake up here. After moving gc, the shrunk
+			 * btree and discarded free buckets SSD space may be
+			 * helpful for following write requests.
+			 */
+			if (c->gc_after_writeback ==
+			    (BCH_ENABLE_AUTO_GC|BCH_DO_AUTO_GC)) {
+				c->gc_after_writeback &= ~BCH_DO_AUTO_GC;
+				force_wake_up_gc(c);
+			}
 		}
 
 		up_write(&dc->writeback_lock);
@@ -777,7 +804,7 @@ void bch_cached_dev_writeback_init(struct cached_dev *dc)
 	bch_keybuf_init(&dc->writeback_keys);
 
 	dc->writeback_metadata		= true;
-	dc->writeback_running		= true;
+	dc->writeback_running		= false;
 	dc->writeback_percent		= 10;
 	dc->writeback_delay		= 30;
 	atomic_long_set(&dc->writeback_rate.rate, 1024);
@@ -805,6 +832,7 @@ int bch_cached_dev_writeback_start(struct cached_dev *dc)
 		cached_dev_put(dc);
 		return PTR_ERR(dc->writeback_thread);
 	}
+	dc->writeback_running = true;
 
 	WARN_ON(test_and_set_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags));
 	schedule_delayed_work(&dc->writeback_rate_update,

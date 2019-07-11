@@ -35,6 +35,7 @@
 #define CEPH_OPT_NOMSGAUTH	  (1<<4) /* don't require msg signing feat */
 #define CEPH_OPT_TCP_NODELAY	  (1<<5) /* TCP_NODELAY on TCP sockets */
 #define CEPH_OPT_NOMSGSIGN	  (1<<6) /* don't sign msgs */
+#define CEPH_OPT_ABORT_ON_FULL	  (1<<7) /* abort w/ ENOSPC when full */
 
 #define CEPH_OPT_DEFAULT   (CEPH_OPT_TCP_NODELAY)
 
@@ -53,7 +54,7 @@ struct ceph_options {
 	unsigned long osd_request_timeout;	/* jiffies */
 
 	/*
-	 * any type that can't be simply compared or doesn't need need
+	 * any type that can't be simply compared or doesn't need
 	 * to be compared should go beyond this point,
 	 * ceph_compare_options() should be updated accordingly
 	 */
@@ -281,7 +282,8 @@ extern struct ceph_options *ceph_parse_options(char *options,
 			      const char *dev_name, const char *dev_name_end,
 			      int (*parse_extra_token)(char *c, void *private),
 			      void *private);
-int ceph_print_client_options(struct seq_file *m, struct ceph_client *client);
+int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
+			      bool show_all);
 extern void ceph_destroy_options(struct ceph_options *opt);
 extern int ceph_compare_options(struct ceph_options *new_opt,
 				struct ceph_client *client);
@@ -292,6 +294,8 @@ extern void ceph_destroy_client(struct ceph_client *client);
 extern int __ceph_open_session(struct ceph_client *client,
 			       unsigned long started);
 extern int ceph_open_session(struct ceph_client *client);
+int ceph_wait_for_latest_osdmap(struct ceph_client *client,
+				unsigned long timeout);
 
 /* pagevec.c */
 extern void ceph_release_page_vector(struct page **pages, int num_pages);

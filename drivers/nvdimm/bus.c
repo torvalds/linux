@@ -23,6 +23,7 @@
 #include <linux/ndctl.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/cpu.h>
 #include <linux/fs.h>
 #include <linux/io.h>
 #include <linux/mm.h>
@@ -331,6 +332,12 @@ struct nvdimm_bus *to_nvdimm_bus(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(to_nvdimm_bus);
 
+struct nvdimm_bus *nvdimm_to_bus(struct nvdimm *nvdimm)
+{
+	return to_nvdimm_bus(nvdimm->dev.parent);
+}
+EXPORT_SYMBOL_GPL(nvdimm_to_bus);
+
 struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 		struct nvdimm_bus_descriptor *nd_desc)
 {
@@ -344,12 +351,12 @@ struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 	INIT_LIST_HEAD(&nvdimm_bus->mapping_list);
 	init_waitqueue_head(&nvdimm_bus->probe_wait);
 	nvdimm_bus->id = ida_simple_get(&nd_ida, 0, 0, GFP_KERNEL);
-	mutex_init(&nvdimm_bus->reconfig_mutex);
-	badrange_init(&nvdimm_bus->badrange);
 	if (nvdimm_bus->id < 0) {
 		kfree(nvdimm_bus);
 		return NULL;
 	}
+	mutex_init(&nvdimm_bus->reconfig_mutex);
+	badrange_init(&nvdimm_bus->badrange);
 	nvdimm_bus->nd_desc = nd_desc;
 	nvdimm_bus->dev.parent = parent;
 	nvdimm_bus->dev.release = nvdimm_bus_release;
@@ -387,9 +394,24 @@ static int child_unregister(struct device *dev, void *data)
 	 * i.e. remove classless children
 	 */
 	if (dev->class)
-		/* pass */;
-	else
-		nd_device_unregister(dev, ND_SYNC);
+		return 0;
+
+	if (is_nvdimm(dev)) {
+		struct nvdimm *nvdimm = to_nvdimm(dev);
+		bool dev_put = false;
+
+		/* We are shutting down. Make state frozen artificially. */
+		nvdimm_bus_lock(dev);
+		nvdimm->sec.state = NVDIMM_SECURITY_FROZEN;
+		if (test_and_clear_bit(NDD_WORK_PENDING, &nvdimm->flags))
+			dev_put = true;
+		nvdimm_bus_unlock(dev);
+		cancel_delayed_work_sync(&nvdimm->dwork);
+		if (dev_put)
+			put_device(dev);
+	}
+	nd_device_unregister(dev, ND_SYNC);
+
 	return 0;
 }
 
@@ -513,11 +535,15 @@ void __nd_device_register(struct device *dev)
 		set_dev_node(dev, to_nd_region(dev)->numa_node);
 
 	dev->bus = &nvdimm_bus_type;
-	if (dev->parent)
+	if (dev->parent) {
 		get_device(dev->parent);
+		if (dev_to_node(dev) == NUMA_NO_NODE)
+			set_dev_node(dev, dev_to_node(dev->parent));
+	}
 	get_device(dev);
-	async_schedule_domain(nd_async_device_register, dev,
-			&nd_async_domain);
+
+	async_schedule_dev_domain(nd_async_device_register, dev,
+				  &nd_async_domain);
 }
 
 void nd_device_register(struct device *dev)
@@ -902,7 +928,7 @@ static int nd_cmd_clear_to_send(struct nvdimm_bus *nvdimm_bus,
 
 	/* ask the bus provider if it would like to block this request */
 	if (nd_desc->clear_to_send) {
-		int rc = nd_desc->clear_to_send(nd_desc, nvdimm, cmd);
+		int rc = nd_desc->clear_to_send(nd_desc, nvdimm, cmd, data);
 
 		if (rc)
 			return rc;

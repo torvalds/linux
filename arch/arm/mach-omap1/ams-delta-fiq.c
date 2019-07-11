@@ -22,11 +22,10 @@
 #include <linux/platform_data/ams-delta-fiq.h>
 #include <linux/platform_device.h>
 
-#include <mach/board-ams-delta.h>
-
 #include <asm/fiq.h>
 
 #include "ams-delta-fiq.h"
+#include "board-ams-delta.h"
 
 static struct fiq_handler fh = {
 	.name	= "ams-delta-fiq"
@@ -103,7 +102,7 @@ void __init ams_delta_init_fiq(struct gpio_chip *chip,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(irq_data); i++) {
-		gpiod = gpiochip_request_own_desc(chip, i, pin_name[i]);
+		gpiod = gpiochip_request_own_desc(chip, i, pin_name[i], 0);
 		if (IS_ERR(gpiod)) {
 			pr_err("%s: failed to get GPIO pin %d (%ld)\n",
 			       __func__, i, PTR_ERR(gpiod));

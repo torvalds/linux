@@ -105,16 +105,6 @@ struct dpu_hw_pingpong {
 };
 
 /**
- * dpu_hw_pingpong - convert base object dpu_hw_base to container
- * @hw: Pointer to base hardware block
- * return: Pointer to hardware block container
- */
-static inline struct dpu_hw_pingpong *to_dpu_hw_pingpong(struct dpu_hw_blk *hw)
-{
-	return container_of(hw, struct dpu_hw_pingpong, base);
-}
-
-/**
  * dpu_hw_pingpong_init - initializes the pingpong driver for the passed
  *	pingpong idx.
  * @idx:  Pingpong index for which driver object is required

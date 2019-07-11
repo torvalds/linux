@@ -262,8 +262,6 @@ int pasemi_dma_alloc_ring(struct pasemi_dmachan *chan, int ring_size)
 	if (!chan->ring_virt)
 		return -ENOMEM;
 
-	memset(chan->ring_virt, 0, ring_size * sizeof(u64));
-
 	return 0;
 }
 EXPORT_SYMBOL(pasemi_dma_alloc_ring);

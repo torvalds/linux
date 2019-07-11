@@ -1123,7 +1123,7 @@ int cw1200_setup_mac(struct cw1200_common *priv)
 	 *
 	 * NOTE2: RSSI based reports have been switched to RCPI, since
 	 * FW has a bug and RSSI reported values are not stable,
-	 * what can leads to signal level oscilations in user-end applications
+	 * what can lead to signal level oscilations in user-end applications
 	 */
 	struct wsm_rcpi_rssi_threshold threshold = {
 		.rssiRcpiMode = WSM_RCPI_RSSI_THRESHOLD_ENABLE |

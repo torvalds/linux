@@ -93,19 +93,19 @@ static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinf
 static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr);
 static int nfs4_proc_getattr(struct nfs_server *, struct nfs_fh *, struct nfs_fattr *, struct nfs4_label *label, struct inode *inode);
 static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fattr *fattr, struct nfs4_label *label, struct inode *inode);
-static int nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
+static int nfs4_do_setattr(struct inode *inode, const struct cred *cred,
 			    struct nfs_fattr *fattr, struct iattr *sattr,
 			    struct nfs_open_context *ctx, struct nfs4_label *ilabel,
 			    struct nfs4_label *olabel);
 #ifdef CONFIG_NFS_V4_1
 static struct rpc_task *_nfs41_proc_sequence(struct nfs_client *clp,
-		struct rpc_cred *cred,
+		const struct cred *cred,
 		struct nfs4_slot *slot,
 		bool is_privileged);
 static int nfs41_test_stateid(struct nfs_server *, nfs4_stateid *,
-		struct rpc_cred *);
+		const struct cred *);
 static int nfs41_free_stateid(struct nfs_server *, const nfs4_stateid *,
-		struct rpc_cred *, bool);
+		const struct cred *, bool);
 #endif
 
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
@@ -361,7 +361,7 @@ static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dent
 
 static void nfs4_test_and_free_stateid(struct nfs_server *server,
 		nfs4_stateid *stateid,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	const struct nfs4_minor_version_ops *ops = server->nfs_client->cl_mvops;
 
@@ -370,7 +370,7 @@ static void nfs4_test_and_free_stateid(struct nfs_server *server,
 
 static void __nfs4_free_revoked_stateid(struct nfs_server *server,
 		nfs4_stateid *stateid,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	stateid->type = NFS4_REVOKED_STATEID_TYPE;
 	nfs4_test_and_free_stateid(server, stateid, cred);
@@ -378,7 +378,7 @@ static void __nfs4_free_revoked_stateid(struct nfs_server *server,
 
 static void nfs4_free_revoked_stateid(struct nfs_server *server,
 		const nfs4_stateid *stateid,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	nfs4_stateid tmp;
 
@@ -730,33 +730,41 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 	res->sr_slot = NULL;
 }
 
+static void nfs4_slot_sequence_record_sent(struct nfs4_slot *slot,
+		u32 seqnr)
+{
+	if ((s32)(seqnr - slot->seq_nr_highest_sent) > 0)
+		slot->seq_nr_highest_sent = seqnr;
+}
+static void nfs4_slot_sequence_acked(struct nfs4_slot *slot,
+		u32 seqnr)
+{
+	slot->seq_nr_highest_sent = seqnr;
+	slot->seq_nr_last_acked = seqnr;
+}
+
 static int nfs41_sequence_process(struct rpc_task *task,
 		struct nfs4_sequence_res *res)
 {
 	struct nfs4_session *session;
 	struct nfs4_slot *slot = res->sr_slot;
 	struct nfs_client *clp;
-	bool interrupted = false;
 	int ret = 1;
 
 	if (slot == NULL)
 		goto out_noaction;
 	/* don't increment the sequence number if the task wasn't sent */
-	if (!RPC_WAS_SENT(task))
+	if (!RPC_WAS_SENT(task) || slot->seq_done)
 		goto out;
 
 	session = slot->table->session;
-
-	if (slot->interrupted) {
-		if (res->sr_status != -NFS4ERR_DELAY)
-			slot->interrupted = 0;
-		interrupted = true;
-	}
 
 	trace_nfs4_sequence_done(session, res);
 	/* Check the SEQUENCE operation status */
 	switch (res->sr_status) {
 	case 0:
+		/* Mark this sequence number as having been acked */
+		nfs4_slot_sequence_acked(slot, slot->seq_nr);
 		/* Update the slot's sequence and clientid lease timer */
 		slot->seq_done = 1;
 		clp = session->clp;
@@ -771,9 +779,9 @@ static int nfs41_sequence_process(struct rpc_task *task,
 		 * sr_status remains 1 if an RPC level error occurred.
 		 * The server may or may not have processed the sequence
 		 * operation..
-		 * Mark the slot as having hosted an interrupted RPC call.
 		 */
-		slot->interrupted = 1;
+		nfs4_slot_sequence_record_sent(slot, slot->seq_nr);
+		slot->seq_done = 1;
 		goto out;
 	case -NFS4ERR_DELAY:
 		/* The server detected a resend of the RPC call and
@@ -784,6 +792,7 @@ static int nfs41_sequence_process(struct rpc_task *task,
 			__func__,
 			slot->slot_nr,
 			slot->seq_nr);
+		nfs4_slot_sequence_acked(slot, slot->seq_nr);
 		goto out_retry;
 	case -NFS4ERR_RETRY_UNCACHED_REP:
 	case -NFS4ERR_SEQ_FALSE_RETRY:
@@ -791,6 +800,7 @@ static int nfs41_sequence_process(struct rpc_task *task,
 		 * The server thinks we tried to replay a request.
 		 * Retry the call after bumping the sequence ID.
 		 */
+		nfs4_slot_sequence_acked(slot, slot->seq_nr);
 		goto retry_new_seq;
 	case -NFS4ERR_BADSLOT:
 		/*
@@ -801,21 +811,28 @@ static int nfs41_sequence_process(struct rpc_task *task,
 			goto session_recover;
 		goto retry_nowait;
 	case -NFS4ERR_SEQ_MISORDERED:
+		nfs4_slot_sequence_record_sent(slot, slot->seq_nr);
 		/*
-		 * Was the last operation on this sequence interrupted?
-		 * If so, retry after bumping the sequence number.
+		 * Were one or more calls using this slot interrupted?
+		 * If the server never received the request, then our
+		 * transmitted slot sequence number may be too high.
 		 */
-		if (interrupted)
-			goto retry_new_seq;
-		/*
-		 * Could this slot have been previously retired?
-		 * If so, then the server may be expecting seq_nr = 1!
-		 */
-		if (slot->seq_nr != 1) {
-			slot->seq_nr = 1;
+		if ((s32)(slot->seq_nr - slot->seq_nr_last_acked) > 1) {
+			slot->seq_nr--;
 			goto retry_nowait;
 		}
-		goto session_recover;
+		/*
+		 * RFC5661:
+		 * A retry might be sent while the original request is
+		 * still in progress on the replier. The replier SHOULD
+		 * deal with the issue by returning NFS4ERR_DELAY as the
+		 * reply to SEQUENCE or CB_SEQUENCE operation, but
+		 * implementations MAY return NFS4ERR_SEQ_MISORDERED.
+		 *
+		 * Restart the search after a delay.
+		 */
+		slot->seq_nr = slot->seq_nr_highest_sent;
+		goto out_retry;
 	default:
 		/* Just update the slot sequence no. */
 		slot->seq_done = 1;
@@ -906,17 +923,6 @@ static const struct rpc_call_ops nfs41_call_sync_ops = {
 	.rpc_call_done = nfs41_call_sync_done,
 };
 
-static void
-nfs4_sequence_process_interrupted(struct nfs_client *client,
-		struct nfs4_slot *slot, struct rpc_cred *cred)
-{
-	struct rpc_task *task;
-
-	task = _nfs41_proc_sequence(client, cred, slot, true);
-	if (!IS_ERR(task))
-		rpc_put_task_async(task);
-}
-
 #else	/* !CONFIG_NFS_V4_1 */
 
 static int nfs4_sequence_process(struct rpc_task *task, struct nfs4_sequence_res *res)
@@ -937,15 +943,14 @@ int nfs4_sequence_done(struct rpc_task *task,
 }
 EXPORT_SYMBOL_GPL(nfs4_sequence_done);
 
-static void
-nfs4_sequence_process_interrupted(struct nfs_client *client,
-		struct nfs4_slot *slot, struct rpc_cred *cred)
-{
-	WARN_ON_ONCE(1);
-	slot->interrupted = 0;
-}
-
 #endif	/* !CONFIG_NFS_V4_1 */
+
+static void nfs41_sequence_res_init(struct nfs4_sequence_res *res)
+{
+	res->sr_timestamp = jiffies;
+	res->sr_status_flags = 0;
+	res->sr_status = 1;
+}
 
 static
 void nfs4_sequence_attach_slot(struct nfs4_sequence_args *args,
@@ -958,10 +963,6 @@ void nfs4_sequence_attach_slot(struct nfs4_sequence_args *args,
 	args->sa_slot = slot;
 
 	res->sr_slot = slot;
-	res->sr_timestamp = jiffies;
-	res->sr_status_flags = 0;
-	res->sr_status = 1;
-
 }
 
 int nfs4_setup_sequence(struct nfs_client *client,
@@ -982,31 +983,25 @@ int nfs4_setup_sequence(struct nfs_client *client,
 		task->tk_timeout = 0;
 	}
 
-	for (;;) {
-		spin_lock(&tbl->slot_tbl_lock);
-		/* The state manager will wait until the slot table is empty */
-		if (nfs4_slot_tbl_draining(tbl) && !args->sa_privileged)
-			goto out_sleep;
+	spin_lock(&tbl->slot_tbl_lock);
+	/* The state manager will wait until the slot table is empty */
+	if (nfs4_slot_tbl_draining(tbl) && !args->sa_privileged)
+		goto out_sleep;
 
-		slot = nfs4_alloc_slot(tbl);
-		if (IS_ERR(slot)) {
-			/* Try again in 1/4 second */
-			if (slot == ERR_PTR(-ENOMEM))
-				task->tk_timeout = HZ >> 2;
-			goto out_sleep;
-		}
-		spin_unlock(&tbl->slot_tbl_lock);
-
-		if (likely(!slot->interrupted))
-			break;
-		nfs4_sequence_process_interrupted(client,
-				slot, task->tk_msg.rpc_cred);
+	slot = nfs4_alloc_slot(tbl);
+	if (IS_ERR(slot)) {
+		/* Try again in 1/4 second */
+		if (slot == ERR_PTR(-ENOMEM))
+			task->tk_timeout = HZ >> 2;
+		goto out_sleep;
 	}
+	spin_unlock(&tbl->slot_tbl_lock);
 
 	nfs4_sequence_attach_slot(args, res, slot);
 
 	trace_nfs4_setup_sequence(session, args);
 out_start:
+	nfs41_sequence_res_init(res);
 	rpc_call_start(task);
 	return 0;
 
@@ -1555,6 +1550,10 @@ static void nfs_clear_open_stateid(struct nfs4_state *state,
 
 static void nfs_set_open_stateid_locked(struct nfs4_state *state,
 		const nfs4_stateid *stateid, nfs4_stateid *freeme)
+	__must_hold(&state->owner->so_lock)
+	__must_hold(&state->seqlock)
+	__must_hold(RCU)
+
 {
 	DEFINE_WAIT(wait);
 	int status = 0;
@@ -2484,7 +2483,7 @@ static int _nfs4_recover_proc_open(struct nfs4_opendata *data)
  * Note that in the non-execute case, we want to turn off permission
  * checking if we just created a new file (POSIX open() semantics).
  */
-static int nfs4_opendata_access(struct rpc_cred *cred,
+static int nfs4_opendata_access(const struct cred *cred,
 				struct nfs4_opendata *opendata,
 				struct nfs4_state *state, fmode_t fmode,
 				int openflags)
@@ -2651,7 +2650,7 @@ static int nfs40_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *st
 
 static int nfs40_test_and_free_expired_stateid(struct nfs_server *server,
 		nfs4_stateid *stateid,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	return -NFS4ERR_BAD_STATEID;
 }
@@ -2659,7 +2658,7 @@ static int nfs40_test_and_free_expired_stateid(struct nfs_server *server,
 #if defined(CONFIG_NFS_V4_1)
 static int nfs41_test_and_free_expired_stateid(struct nfs_server *server,
 		nfs4_stateid *stateid,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	int status;
 
@@ -2693,7 +2692,7 @@ static void nfs41_check_delegation_stateid(struct nfs4_state *state)
 	struct nfs_server *server = NFS_SERVER(state->inode);
 	nfs4_stateid stateid;
 	struct nfs_delegation *delegation;
-	struct rpc_cred *cred;
+	const struct cred *cred = NULL;
 	int status;
 
 	/* Get the delegation credential for use by test/free_stateid */
@@ -2718,14 +2717,16 @@ static void nfs41_check_delegation_stateid(struct nfs4_state *state)
 		return;
 	}
 
-	cred = get_rpccred(delegation->cred);
+	if (delegation->cred)
+		cred = get_cred(delegation->cred);
 	rcu_read_unlock();
 	status = nfs41_test_and_free_expired_stateid(server, &stateid, cred);
 	trace_nfs4_test_delegation_stateid(state, NULL, status);
 	if (status == -NFS4ERR_EXPIRED || status == -NFS4ERR_BAD_STATEID)
 		nfs_finish_clear_delegation_stateid(state, &stateid);
 
-	put_rpccred(cred);
+	if (delegation->cred)
+		put_cred(cred);
 }
 
 /**
@@ -2748,7 +2749,7 @@ static int nfs41_check_expired_locks(struct nfs4_state *state)
 	spin_lock(&state->state_lock);
 	list_for_each_entry(lsp, &state->lock_states, ls_locks) {
 		if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags)) {
-			struct rpc_cred *cred = lsp->ls_state->owner->so_cred;
+			const struct cred *cred = lsp->ls_state->owner->so_cred;
 
 			refcount_inc(&lsp->ls_count);
 			spin_unlock(&state->state_lock);
@@ -2792,7 +2793,7 @@ static int nfs41_check_open_stateid(struct nfs4_state *state)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
 	nfs4_stateid *stateid = &state->open_stateid;
-	struct rpc_cred *cred = state->owner->so_cred;
+	const struct cred *cred = state->owner->so_cred;
 	int status;
 
 	if (test_bit(NFS_OPEN_STATE, &state->flags) == 0) {
@@ -2932,7 +2933,8 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 	}
 
 out:
-	nfs4_sequence_free_slot(&opendata->o_res.seq_res);
+	if (!opendata->cancelled)
+		nfs4_sequence_free_slot(&opendata->o_res.seq_res);
 	return ret;
 }
 
@@ -2950,7 +2952,7 @@ static int _nfs4_do_open(struct inode *dir,
 	struct nfs_server       *server = NFS_SERVER(dir);
 	struct nfs4_opendata *opendata;
 	struct dentry *dentry = ctx->dentry;
-	struct rpc_cred *cred = ctx->cred;
+	const struct cred *cred = ctx->cred;
 	struct nfs4_threshold **ctx_th = &ctx->mdsthreshold;
 	fmode_t fmode = ctx->mode & (FMODE_READ|FMODE_WRITE|FMODE_EXEC);
 	enum open_claim_type4 claim = NFS4_OPEN_CLAIM_NULL;
@@ -3120,7 +3122,7 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir,
 static int _nfs4_do_setattr(struct inode *inode,
 			    struct nfs_setattrargs *arg,
 			    struct nfs_setattrres *res,
-			    struct rpc_cred *cred,
+			    const struct cred *cred,
 			    struct nfs_open_context *ctx)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
@@ -3130,7 +3132,7 @@ static int _nfs4_do_setattr(struct inode *inode,
 		.rpc_resp	= res,
 		.rpc_cred	= cred,
 	};
-	struct rpc_cred *delegation_cred = NULL;
+	const struct cred *delegation_cred = NULL;
 	unsigned long timestamp = jiffies;
 	bool truncate;
 	int status;
@@ -3165,14 +3167,14 @@ zero_stateid:
 
 	status = nfs4_call_sync(server->client, server, &msg, &arg->seq_args, &res->seq_res, 1);
 
-	put_rpccred(delegation_cred);
+	put_cred(delegation_cred);
 	if (status == 0 && ctx != NULL)
 		renew_lease(server, timestamp);
 	trace_nfs4_setattr(inode, &arg->stateid, status);
 	return status;
 }
 
-static int nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
+static int nfs4_do_setattr(struct inode *inode, const struct cred *cred,
 			   struct nfs_fattr *fattr, struct iattr *sattr,
 			   struct nfs_open_context *ctx, struct nfs4_label *ilabel,
 			   struct nfs4_label *olabel)
@@ -3973,7 +3975,7 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 		  struct iattr *sattr)
 {
 	struct inode *inode = d_inode(dentry);
-	struct rpc_cred *cred = NULL;
+	const struct cred *cred = NULL;
 	struct nfs_open_context *ctx = NULL;
 	struct nfs4_label *label = NULL;
 	int status;
@@ -4202,7 +4204,6 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 			return -ENOMEM;
 		args.bitmask = server->cache_consistency_bitmask;
 	}
-
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
 	if (!status) {
 		nfs_access_set_mask(entry, res.access);
@@ -4691,7 +4692,7 @@ static int nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
 	return err;
 }
 
-static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
+static int _nfs4_proc_readdir(struct dentry *dentry, const struct cred *cred,
 		u64 cookie, struct page **pages, unsigned int count, bool plus)
 {
 	struct inode		*dir = d_inode(dentry);
@@ -4729,7 +4730,7 @@ static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	return status;
 }
 
-static int nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
+static int nfs4_proc_readdir(struct dentry *dentry, const struct cred *cred,
 		u64 cookie, struct page **pages, unsigned int count, bool plus)
 {
 	struct nfs4_exception exception = { };
@@ -5257,7 +5258,7 @@ static const struct rpc_call_ops nfs4_renew_ops = {
 	.rpc_release = nfs4_renew_release,
 };
 
-static int nfs4_proc_async_renew(struct nfs_client *clp, struct rpc_cred *cred, unsigned renew_flags)
+static int nfs4_proc_async_renew(struct nfs_client *clp, const struct cred *cred, unsigned renew_flags)
 {
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_RENEW],
@@ -5281,7 +5282,7 @@ static int nfs4_proc_async_renew(struct nfs_client *clp, struct rpc_cred *cred, 
 			&nfs4_renew_ops, data);
 }
 
-static int nfs4_proc_renew(struct nfs_client *clp, struct rpc_cred *cred)
+static int nfs4_proc_renew(struct nfs_client *clp, const struct cred *cred)
 {
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_RENEW],
@@ -5696,7 +5697,6 @@ nfs4_set_security_label(struct inode *inode, const void *buf, size_t buflen)
 {
 	struct nfs4_label ilabel, *olabel = NULL;
 	struct nfs_fattr fattr;
-	struct rpc_cred *cred;
 	int status;
 
 	if (!nfs_server_capable(inode, NFS_CAP_SECURITY_LABEL))
@@ -5708,10 +5708,6 @@ nfs4_set_security_label(struct inode *inode, const void *buf, size_t buflen)
 	ilabel.lfs = 0;
 	ilabel.label = (char *)buf;
 	ilabel.len = buflen;
-
-	cred = rpc_lookup_cred();
-	if (IS_ERR(cred))
-		return PTR_ERR(cred);
 
 	olabel = nfs4_label_alloc(NFS_SERVER(inode), GFP_KERNEL);
 	if (IS_ERR(olabel)) {
@@ -5725,7 +5721,6 @@ nfs4_set_security_label(struct inode *inode, const void *buf, size_t buflen)
 
 	nfs4_label_free(olabel);
 out:
-	put_rpccred(cred);
 	return status;
 }
 #endif	/* CONFIG_NFS_V4_SECURITY_LABEL */
@@ -5894,13 +5889,13 @@ static const struct rpc_call_ops nfs4_setclientid_ops = {
  * @clp: state data structure
  * @program: RPC program for NFSv4 callback service
  * @port: IP port number for NFS4 callback service
- * @cred: RPC credential to use for this call
+ * @cred: credential to use for this call
  * @res: where to place the result
  *
  * Returns zero, a negative errno, or a negative NFS4ERR status code.
  */
 int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
-		unsigned short port, struct rpc_cred *cred,
+		unsigned short port, const struct cred *cred,
 		struct nfs4_setclientid_res *res)
 {
 	nfs4_verifier sc_verifier;
@@ -5968,14 +5963,14 @@ out:
 /**
  * nfs4_proc_setclientid_confirm - Confirm client ID
  * @clp: state data structure
- * @res: result of a previous SETCLIENTID
- * @cred: RPC credential to use for this call
+ * @arg: result of a previous SETCLIENTID
+ * @cred: credential to use for this call
  *
  * Returns zero, a negative errno, or a negative NFS4ERR status code.
  */
 int nfs4_proc_setclientid_confirm(struct nfs_client *clp,
 		struct nfs4_setclientid_res *arg,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SETCLIENTID_CONFIRM],
@@ -6138,7 +6133,7 @@ static const struct rpc_call_ops nfs4_delegreturn_ops = {
 	.rpc_release = nfs4_delegreturn_release,
 };
 
-static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4_stateid *stateid, int issync)
+static int _nfs4_proc_delegreturn(struct inode *inode, const struct cred *cred, const nfs4_stateid *stateid, int issync)
 {
 	struct nfs4_delegreturndata *data;
 	struct nfs_server *server = NFS_SERVER(inode);
@@ -6205,7 +6200,7 @@ out:
 	return status;
 }
 
-int nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4_stateid *stateid, int issync)
+int nfs4_proc_delegreturn(struct inode *inode, const struct cred *cred, const nfs4_stateid *stateid, int issync)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs4_exception exception = { };
@@ -6307,11 +6302,11 @@ static struct nfs4_unlockdata *nfs4_alloc_unlockdata(struct file_lock *fl,
 	p->arg.seqid = seqid;
 	p->res.seqid = seqid;
 	p->lsp = lsp;
-	refcount_inc(&lsp->ls_count);
 	/* Ensure we don't close file until we're done freeing locks! */
 	p->ctx = get_nfs_open_context(ctx);
 	p->l_ctx = nfs_get_lock_context(ctx);
-	memcpy(&p->fl, fl, sizeof(p->fl));
+	locks_init_lock(&p->fl);
+	locks_copy_lock(&p->fl, fl);
 	p->server = NFS_SERVER(inode);
 	return p;
 }
@@ -6531,9 +6526,9 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 	p->res.lock_seqid = p->arg.lock_seqid;
 	p->lsp = lsp;
 	p->server = server;
-	refcount_inc(&lsp->ls_count);
 	p->ctx = get_nfs_open_context(ctx);
-	memcpy(&p->fl, fl, sizeof(p->fl));
+	locks_init_lock(&p->fl);
+	locks_copy_lock(&p->fl, fl);
 	return p;
 out_free_seqid:
 	nfs_free_seqid(p->arg.open_seqid);
@@ -7266,7 +7261,7 @@ int nfs4_proc_fs_locations(struct rpc_clnt *client, struct inode *dir,
  */
 static int _nfs40_proc_get_locations(struct inode *inode,
 				     struct nfs4_fs_locations *locations,
-				     struct page *page, struct rpc_cred *cred)
+				     struct page *page, const struct cred *cred)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct rpc_clnt *clnt = server->client;
@@ -7323,7 +7318,7 @@ static int _nfs40_proc_get_locations(struct inode *inode,
  */
 static int _nfs41_proc_get_locations(struct inode *inode,
 				     struct nfs4_fs_locations *locations,
-				     struct page *page, struct rpc_cred *cred)
+				     struct page *page, const struct cred *cred)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct rpc_clnt *clnt = server->client;
@@ -7382,7 +7377,7 @@ static int _nfs41_proc_get_locations(struct inode *inode,
  */
 int nfs4_proc_get_locations(struct inode *inode,
 			    struct nfs4_fs_locations *locations,
-			    struct page *page, struct rpc_cred *cred)
+			    struct page *page, const struct cred *cred)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_client *clp = server->nfs_client;
@@ -7413,7 +7408,7 @@ int nfs4_proc_get_locations(struct inode *inode,
  * is appended to this compound to identify the client ID which is
  * performing recovery.
  */
-static int _nfs40_proc_fsid_present(struct inode *inode, struct rpc_cred *cred)
+static int _nfs40_proc_fsid_present(struct inode *inode, const struct cred *cred)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
@@ -7459,7 +7454,7 @@ static int _nfs40_proc_fsid_present(struct inode *inode, struct rpc_cred *cred)
  * this operation is identified in the SEQUENCE operation in this
  * compound.
  */
-static int _nfs41_proc_fsid_present(struct inode *inode, struct rpc_cred *cred)
+static int _nfs41_proc_fsid_present(struct inode *inode, const struct cred *cred)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct rpc_clnt *clnt = server->client;
@@ -7506,7 +7501,7 @@ static int _nfs41_proc_fsid_present(struct inode *inode, struct rpc_cred *cred)
  *  NFS4ERR code if some error occurred on the server, or a
  *  negative errno if a local failure occurred.
  */
-int nfs4_proc_fsid_present(struct inode *inode, struct rpc_cred *cred)
+int nfs4_proc_fsid_present(struct inode *inode, const struct cred *cred)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_client *clp = server->nfs_client;
@@ -7530,7 +7525,7 @@ int nfs4_proc_fsid_present(struct inode *inode, struct rpc_cred *cred)
 	return status;
 }
 
-/**
+/*
  * If 'use_integrity' is true and the state managment nfs_client
  * cl_rpcclient is using krb5i/p, use the integrity protected cl_rpcclient
  * and the machine credential as per RFC3530bis and RFC5661 Security
@@ -7553,7 +7548,7 @@ static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct
 		.rpc_resp = &res,
 	};
 	struct rpc_clnt *clnt = NFS_SERVER(dir)->client;
-	struct rpc_cred *cred = NULL;
+	const struct cred *cred = NULL;
 
 	if (use_integrity) {
 		clnt = NFS_SERVER(dir)->nfs_client->cl_rpcclient;
@@ -7570,8 +7565,7 @@ static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct
 				&res.seq_res, 0);
 	dprintk("NFS reply  secinfo: %d\n", status);
 
-	if (cred)
-		put_rpccred(cred);
+	put_cred(cred);
 
 	return status;
 }
@@ -7652,7 +7646,7 @@ static
 int nfs4_proc_bind_one_conn_to_session(struct rpc_clnt *clnt,
 		struct rpc_xprt *xprt,
 		struct nfs_client *clp,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	int status;
 	struct nfs41_bind_conn_to_session_args args = {
@@ -7714,7 +7708,7 @@ int nfs4_proc_bind_one_conn_to_session(struct rpc_clnt *clnt,
 
 struct rpc_bind_conn_calldata {
 	struct nfs_client *clp;
-	struct rpc_cred *cred;
+	const struct cred *cred;
 };
 
 static int
@@ -7727,7 +7721,7 @@ nfs4_proc_bind_conn_to_session_callback(struct rpc_clnt *clnt,
 	return nfs4_proc_bind_one_conn_to_session(clnt, xprt, p->clp, p->cred);
 }
 
-int nfs4_proc_bind_conn_to_session(struct nfs_client *clp, struct rpc_cred *cred)
+int nfs4_proc_bind_conn_to_session(struct nfs_client *clp, const struct cred *cred)
 {
 	struct rpc_bind_conn_calldata data = {
 		.clp = clp,
@@ -7893,7 +7887,7 @@ static const struct rpc_call_ops nfs4_exchange_id_call_ops = {
  * Wrapper for EXCHANGE_ID operation.
  */
 static struct rpc_task *
-nfs4_run_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
+nfs4_run_exchange_id(struct nfs_client *clp, const struct cred *cred,
 			u32 sp4_how, struct rpc_xprt *xprt)
 {
 	struct rpc_message msg = {
@@ -7989,7 +7983,7 @@ out:
  *
  * Wrapper for EXCHANGE_ID operation.
  */
-static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
+static int _nfs4_proc_exchange_id(struct nfs_client *clp, const struct cred *cred,
 			u32 sp4_how)
 {
 	struct rpc_task *task;
@@ -8056,7 +8050,7 @@ out:
  *
  * Will attempt to negotiate SP4_MACH_CRED if krb5i / krb5p auth is used.
  */
-int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
+int nfs4_proc_exchange_id(struct nfs_client *clp, const struct cred *cred)
 {
 	rpc_authflavor_t authflavor = clp->cl_rpcclient->cl_auth->au_flavor;
 	int status;
@@ -8088,7 +8082,7 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
  * @xprt: the rpc_xprt to test
  * @data: call data for _nfs4_proc_exchange_id.
  */
-int nfs4_test_session_trunk(struct rpc_clnt *clnt, struct rpc_xprt *xprt,
+void nfs4_test_session_trunk(struct rpc_clnt *clnt, struct rpc_xprt *xprt,
 			    void *data)
 {
 	struct nfs4_add_xprt_data *adata = (struct nfs4_add_xprt_data *)data;
@@ -8105,20 +8099,22 @@ int nfs4_test_session_trunk(struct rpc_clnt *clnt, struct rpc_xprt *xprt,
 	/* Test connection for session trunking. Async exchange_id call */
 	task = nfs4_run_exchange_id(adata->clp, adata->cred, sp4_how, xprt);
 	if (IS_ERR(task))
-		return PTR_ERR(task);
+		return;
 
 	status = task->tk_status;
 	if (status == 0)
 		status = nfs4_detect_session_trunking(adata->clp,
 				task->tk_msg.rpc_resp, xprt);
 
+	if (status == 0)
+		rpc_clnt_xprt_switch_add_xprt(clnt, xprt);
+
 	rpc_put_task(task);
-	return status;
 }
 EXPORT_SYMBOL_GPL(nfs4_test_session_trunk);
 
 static int _nfs4_proc_destroy_clientid(struct nfs_client *clp,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_DESTROY_CLIENTID],
@@ -8136,7 +8132,7 @@ static int _nfs4_proc_destroy_clientid(struct nfs_client *clp,
 }
 
 static int nfs4_proc_destroy_clientid(struct nfs_client *clp,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	unsigned int loop;
 	int ret;
@@ -8157,7 +8153,7 @@ static int nfs4_proc_destroy_clientid(struct nfs_client *clp,
 
 int nfs4_destroy_clientid(struct nfs_client *clp)
 {
-	struct rpc_cred *cred;
+	const struct cred *cred;
 	int ret = 0;
 
 	if (clp->cl_mvops->minor_version < 1)
@@ -8168,8 +8164,7 @@ int nfs4_destroy_clientid(struct nfs_client *clp)
 		goto out;
 	cred = nfs4_get_clid_cred(clp);
 	ret = nfs4_proc_destroy_clientid(clp, cred);
-	if (cred)
-		put_rpccred(cred);
+	put_cred(cred);
 	switch (ret) {
 	case 0:
 	case -NFS4ERR_STALE_CLIENTID:
@@ -8385,7 +8380,7 @@ static void nfs4_update_session(struct nfs4_session *session,
 }
 
 static int _nfs4_proc_create_session(struct nfs_client *clp,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	struct nfs4_session *session = clp->cl_session;
 	struct nfs41_create_session_args args = {
@@ -8437,7 +8432,7 @@ out:
  * It is the responsibility of the caller to verify the session is
  * expired before calling this routine.
  */
-int nfs4_proc_create_session(struct nfs_client *clp, struct rpc_cred *cred)
+int nfs4_proc_create_session(struct nfs_client *clp, const struct cred *cred)
 {
 	int status;
 	unsigned *ptr;
@@ -8468,7 +8463,7 @@ out:
  * The caller must serialize access to this routine.
  */
 int nfs4_proc_destroy_session(struct nfs4_session *session,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_DESTROY_SESSION],
@@ -8570,7 +8565,7 @@ static const struct rpc_call_ops nfs41_sequence_ops = {
 };
 
 static struct rpc_task *_nfs41_proc_sequence(struct nfs_client *clp,
-		struct rpc_cred *cred,
+		const struct cred *cred,
 		struct nfs4_slot *slot,
 		bool is_privileged)
 {
@@ -8613,7 +8608,7 @@ out_err:
 	return ret;
 }
 
-static int nfs41_proc_async_sequence(struct nfs_client *clp, struct rpc_cred *cred, unsigned renew_flags)
+static int nfs41_proc_async_sequence(struct nfs_client *clp, const struct cred *cred, unsigned renew_flags)
 {
 	struct rpc_task *task;
 	int ret = 0;
@@ -8629,7 +8624,7 @@ static int nfs41_proc_async_sequence(struct nfs_client *clp, struct rpc_cred *cr
 	return ret;
 }
 
-static int nfs4_proc_sequence(struct nfs_client *clp, struct rpc_cred *cred)
+static int nfs4_proc_sequence(struct nfs_client *clp, const struct cred *cred)
 {
 	struct rpc_task *task;
 	int ret;
@@ -8725,7 +8720,7 @@ static const struct rpc_call_ops nfs4_reclaim_complete_call_ops = {
  * Issue a global reclaim complete.
  */
 static int nfs41_proc_reclaim_complete(struct nfs_client *clp,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	struct nfs4_reclaim_complete_data *calldata;
 	struct rpc_task *task;
@@ -8940,10 +8935,12 @@ nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout)
 	if (status != 0)
 		goto out;
 
-	/* if layoutp->len is 0, nfs4_layoutget_prepare called rpc_exit */
-	if (task->tk_status < 0 || lgp->res.layoutp->len == 0) {
+	if (task->tk_status < 0) {
 		status = nfs4_layoutget_handle_exception(task, lgp, &exception);
 		*timeout = exception.timeout;
+	} else if (lgp->res.layoutp->len == 0) {
+		status = -EAGAIN;
+		*timeout = nfs4_update_delay(&exception.timeout);
 	} else
 		lseg = pnfs_layout_process(lgp);
 out:
@@ -9078,7 +9075,7 @@ int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync)
 static int
 _nfs4_proc_getdeviceinfo(struct nfs_server *server,
 		struct pnfs_device *pdev,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	struct nfs4_getdeviceinfo_args args = {
 		.pdev = pdev,
@@ -9110,7 +9107,7 @@ _nfs4_proc_getdeviceinfo(struct nfs_server *server,
 
 int nfs4_proc_getdeviceinfo(struct nfs_server *server,
 		struct pnfs_device *pdev,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	struct nfs4_exception exception = { };
 	int err;
@@ -9167,7 +9164,7 @@ static void nfs4_layoutcommit_release(void *calldata)
 	pnfs_cleanup_layoutcommit(data);
 	nfs_post_op_update_inode_force_wcc(data->args.inode,
 					   data->res.fattr);
-	put_rpccred(data->cred);
+	put_cred(data->cred);
 	nfs_iput_and_deactive(data->inode);
 	kfree(data);
 }
@@ -9222,7 +9219,7 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, bool sync)
 	return status;
 }
 
-/**
+/*
  * Use the state managment nfs_client cl_rpcclient, which uses krb5i (if
  * possible) as per RFC3530bis and RFC5661 Security Considerations sections
  */
@@ -9243,7 +9240,7 @@ _nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 		.rpc_resp = &res,
 	};
 	struct rpc_clnt *clnt = server->client;
-	struct rpc_cred *cred = NULL;
+	const struct cred *cred = NULL;
 	int status;
 
 	if (use_integrity) {
@@ -9257,8 +9254,7 @@ _nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 				&res.seq_res, 0);
 	dprintk("<-- %s status=%d\n", __func__, status);
 
-	if (cred)
-		put_rpccred(cred);
+	put_cred(cred);
 
 	return status;
 }
@@ -9371,7 +9367,7 @@ out:
 
 static int _nfs41_test_stateid(struct nfs_server *server,
 		nfs4_stateid *stateid,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	int status;
 	struct nfs41_test_stateid_args args = {
@@ -9432,7 +9428,7 @@ static void nfs4_handle_delay_or_session_error(struct nfs_server *server,
  */
 static int nfs41_test_stateid(struct nfs_server *server,
 		nfs4_stateid *stateid,
-		struct rpc_cred *cred)
+		const struct cred *cred)
 {
 	struct nfs4_exception exception = { };
 	int err;
@@ -9488,13 +9484,13 @@ static const struct rpc_call_ops nfs41_free_stateid_ops = {
  * @server: server / transport on which to perform the operation
  * @stateid: state ID to release
  * @cred: credential
- * @is_recovery: set to true if this call needs to be privileged
+ * @privileged: set to true if this call needs to be privileged
  *
  * Note: this function is always asynchronous.
  */
 static int nfs41_free_stateid(struct nfs_server *server,
 		const nfs4_stateid *stateid,
-		struct rpc_cred *cred,
+		const struct cred *cred,
 		bool privileged)
 {
 	struct rpc_message msg = {
@@ -9535,7 +9531,7 @@ static int nfs41_free_stateid(struct nfs_server *server,
 static void
 nfs41_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp)
 {
-	struct rpc_cred *cred = lsp->ls_state->owner->so_cred;
+	const struct cred *cred = lsp->ls_state->owner->so_cred;
 
 	nfs41_free_stateid(server, &lsp->ls_stateid, cred, false);
 	nfs4_free_lock_state(server, lsp);
@@ -9606,14 +9602,14 @@ static const struct nfs4_state_recovery_ops nfs41_nograce_recovery_ops = {
 
 static const struct nfs4_state_maintenance_ops nfs40_state_renewal_ops = {
 	.sched_state_renewal = nfs4_proc_async_renew,
-	.get_state_renewal_cred_locked = nfs4_get_renew_cred_locked,
+	.get_state_renewal_cred = nfs4_get_renew_cred,
 	.renew_lease = nfs4_proc_renew,
 };
 
 #if defined(CONFIG_NFS_V4_1)
 static const struct nfs4_state_maintenance_ops nfs41_state_renewal_ops = {
 	.sched_state_renewal = nfs41_proc_async_sequence,
-	.get_state_renewal_cred_locked = nfs4_get_machine_cred_locked,
+	.get_state_renewal_cred = nfs4_get_machine_cred,
 	.renew_lease = nfs4_proc_sequence,
 };
 #endif
@@ -9695,7 +9691,8 @@ static const struct nfs4_minor_version_ops nfs_v4_2_minor_ops = {
 		| NFS_CAP_DEALLOCATE
 		| NFS_CAP_SEEK
 		| NFS_CAP_LAYOUTSTATS
-		| NFS_CAP_CLONE,
+		| NFS_CAP_CLONE
+		| NFS_CAP_LAYOUTERROR,
 	.init_client = nfs41_init_client,
 	.shutdown_client = nfs41_shutdown_client,
 	.match_stateid = nfs41_match_stateid,

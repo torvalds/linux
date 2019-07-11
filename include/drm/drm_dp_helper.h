@@ -231,6 +231,8 @@
 #define DP_DSC_MAX_BITS_PER_PIXEL_LOW       0x067   /* eDP 1.4 */
 
 #define DP_DSC_MAX_BITS_PER_PIXEL_HI        0x068   /* eDP 1.4 */
+# define DP_DSC_MAX_BITS_PER_PIXEL_HI_MASK  (0x3 << 0)
+# define DP_DSC_MAX_BITS_PER_PIXEL_HI_SHIFT 8
 
 #define DP_DSC_DEC_COLOR_FORMAT_CAP         0x069
 # define DP_DSC_RGB                         (1 << 0)
@@ -279,6 +281,8 @@
 # define DP_DSC_THROUGHPUT_MODE_1_1000      (14 << 4)
 
 #define DP_DSC_MAX_SLICE_WIDTH              0x06C
+#define DP_DSC_MIN_SLICE_WIDTH_VALUE        2560
+#define DP_DSC_SLICE_WIDTH_MULTIPLIER       320
 
 #define DP_DSC_SLICE_CAP_2                  0x06D
 # define DP_DSC_16_PER_DP_DSC_SINK          (1 << 0)
@@ -310,6 +314,10 @@
 # define DP_PSR_SETUP_TIME_SHIFT            1
 # define DP_PSR2_SU_Y_COORDINATE_REQUIRED   (1 << 4)  /* eDP 1.4a */
 # define DP_PSR2_SU_GRANULARITY_REQUIRED    (1 << 5)  /* eDP 1.4b */
+
+#define DP_PSR2_SU_X_GRANULARITY	    0x072 /* eDP 1.4b */
+#define DP_PSR2_SU_Y_GRANULARITY	    0x074 /* eDP 1.4b */
+
 /*
  * 0x80-0x8f describe downstream port capabilities, but there are two layouts
  * based on whether DP_DETAILED_CAP_INFO_AVAILABLE was set.  If it was not,
@@ -477,6 +485,7 @@
 # define DP_AUX_FRAME_SYNC_VALID	    (1 << 0)
 
 #define DP_DSC_ENABLE                       0x160   /* DP 1.4 */
+# define DP_DECOMPRESSION_EN                (1 << 0)
 
 #define DP_PSR_EN_CFG			    0x170   /* XXX 1.2? */
 # define DP_PSR_ENABLE			    (1 << 0)
@@ -551,6 +560,8 @@
 # define DP_TEST_LINK_EDID_READ		    (1 << 2)
 # define DP_TEST_LINK_PHY_TEST_PATTERN	    (1 << 3) /* DPCD >= 1.1 */
 # define DP_TEST_LINK_FAUX_PATTERN	    (1 << 4) /* DPCD >= 1.2 */
+# define DP_TEST_LINK_AUDIO_PATTERN         (1 << 5) /* DPCD >= 1.2 */
+# define DP_TEST_LINK_AUDIO_DISABLED_VIDEO  (1 << 6) /* DPCD >= 1.2 */
 
 #define DP_TEST_LINK_RATE		    0x219
 # define DP_LINK_RATE_162		    (0x6)
@@ -599,6 +610,7 @@
 # define DP_COLOR_FORMAT_RGB                (0 << 1)
 # define DP_COLOR_FORMAT_YCbCr422           (1 << 1)
 # define DP_COLOR_FORMAT_YCbCr444           (2 << 1)
+# define DP_TEST_DYNAMIC_RANGE_VESA         (0 << 3)
 # define DP_TEST_DYNAMIC_RANGE_CEA          (1 << 3)
 # define DP_TEST_YCBCR_COEFFICIENTS         (1 << 4)
 # define DP_YCBCR_COEFFICIENTS_ITU601       (0 << 4)
@@ -648,6 +660,16 @@
 
 #define DP_TEST_SINK			    0x270
 # define DP_TEST_SINK_START		    (1 << 0)
+#define DP_TEST_AUDIO_MODE		    0x271
+#define DP_TEST_AUDIO_PATTERN_TYPE	    0x272
+#define DP_TEST_AUDIO_PERIOD_CH1	    0x273
+#define DP_TEST_AUDIO_PERIOD_CH2	    0x274
+#define DP_TEST_AUDIO_PERIOD_CH3	    0x275
+#define DP_TEST_AUDIO_PERIOD_CH4	    0x276
+#define DP_TEST_AUDIO_PERIOD_CH5	    0x277
+#define DP_TEST_AUDIO_PERIOD_CH6	    0x278
+#define DP_TEST_AUDIO_PERIOD_CH7	    0x279
+#define DP_TEST_AUDIO_PERIOD_CH8	    0x27A
 
 #define DP_FEC_STATUS			    0x280    /* 1.4 */
 # define DP_FEC_DECODE_EN_DETECTED	    (1 << 0)
@@ -685,6 +707,8 @@
 # define DP_EDP_12			    0x01
 # define DP_EDP_13			    0x02
 # define DP_EDP_14			    0x03
+# define DP_EDP_14a                         0x04    /* eDP 1.4a */
+# define DP_EDP_14b                         0x05    /* eDP 1.4b */
 
 #define DP_EDP_GENERAL_CAP_1		    0x701
 # define DP_EDP_TCON_BACKLIGHT_ADJUSTMENT_CAP		(1 << 0)
@@ -905,6 +929,57 @@
 #define DP_AUX_HDCP_KSV_FIFO		0x6802C
 #define DP_AUX_HDCP_AINFO		0x6803B
 
+/* DP HDCP2.2 parameter offsets in DPCD address space */
+#define DP_HDCP_2_2_REG_RTX_OFFSET		0x69000
+#define DP_HDCP_2_2_REG_TXCAPS_OFFSET		0x69008
+#define DP_HDCP_2_2_REG_CERT_RX_OFFSET		0x6900B
+#define DP_HDCP_2_2_REG_RRX_OFFSET		0x69215
+#define DP_HDCP_2_2_REG_RX_CAPS_OFFSET		0x6921D
+#define DP_HDCP_2_2_REG_EKPUB_KM_OFFSET		0x69220
+#define DP_HDCP_2_2_REG_EKH_KM_WR_OFFSET	0x692A0
+#define DP_HDCP_2_2_REG_M_OFFSET		0x692B0
+#define DP_HDCP_2_2_REG_HPRIME_OFFSET		0x692C0
+#define DP_HDCP_2_2_REG_EKH_KM_RD_OFFSET	0x692E0
+#define DP_HDCP_2_2_REG_RN_OFFSET		0x692F0
+#define DP_HDCP_2_2_REG_LPRIME_OFFSET		0x692F8
+#define DP_HDCP_2_2_REG_EDKEY_KS_OFFSET		0x69318
+#define	DP_HDCP_2_2_REG_RIV_OFFSET		0x69328
+#define DP_HDCP_2_2_REG_RXINFO_OFFSET		0x69330
+#define DP_HDCP_2_2_REG_SEQ_NUM_V_OFFSET	0x69332
+#define DP_HDCP_2_2_REG_VPRIME_OFFSET		0x69335
+#define DP_HDCP_2_2_REG_RECV_ID_LIST_OFFSET	0x69345
+#define DP_HDCP_2_2_REG_V_OFFSET		0x693E0
+#define DP_HDCP_2_2_REG_SEQ_NUM_M_OFFSET	0x693F0
+#define DP_HDCP_2_2_REG_K_OFFSET		0x693F3
+#define DP_HDCP_2_2_REG_STREAM_ID_TYPE_OFFSET	0x693F5
+#define DP_HDCP_2_2_REG_MPRIME_OFFSET		0x69473
+#define DP_HDCP_2_2_REG_RXSTATUS_OFFSET		0x69493
+#define DP_HDCP_2_2_REG_STREAM_TYPE_OFFSET	0x69494
+#define DP_HDCP_2_2_REG_DBG_OFFSET		0x69518
+
+/* DP HDCP message start offsets in DPCD address space */
+#define DP_HDCP_2_2_AKE_INIT_OFFSET		DP_HDCP_2_2_REG_RTX_OFFSET
+#define DP_HDCP_2_2_AKE_SEND_CERT_OFFSET	DP_HDCP_2_2_REG_CERT_RX_OFFSET
+#define DP_HDCP_2_2_AKE_NO_STORED_KM_OFFSET	DP_HDCP_2_2_REG_EKPUB_KM_OFFSET
+#define DP_HDCP_2_2_AKE_STORED_KM_OFFSET	DP_HDCP_2_2_REG_EKH_KM_WR_OFFSET
+#define DP_HDCP_2_2_AKE_SEND_HPRIME_OFFSET	DP_HDCP_2_2_REG_HPRIME_OFFSET
+#define DP_HDCP_2_2_AKE_SEND_PAIRING_INFO_OFFSET \
+						DP_HDCP_2_2_REG_EKH_KM_RD_OFFSET
+#define DP_HDCP_2_2_LC_INIT_OFFSET		DP_HDCP_2_2_REG_RN_OFFSET
+#define DP_HDCP_2_2_LC_SEND_LPRIME_OFFSET	DP_HDCP_2_2_REG_LPRIME_OFFSET
+#define DP_HDCP_2_2_SKE_SEND_EKS_OFFSET		DP_HDCP_2_2_REG_EDKEY_KS_OFFSET
+#define DP_HDCP_2_2_REP_SEND_RECVID_LIST_OFFSET	DP_HDCP_2_2_REG_RXINFO_OFFSET
+#define DP_HDCP_2_2_REP_SEND_ACK_OFFSET		DP_HDCP_2_2_REG_V_OFFSET
+#define DP_HDCP_2_2_REP_STREAM_MANAGE_OFFSET	DP_HDCP_2_2_REG_SEQ_NUM_M_OFFSET
+#define DP_HDCP_2_2_REP_STREAM_READY_OFFSET	DP_HDCP_2_2_REG_MPRIME_OFFSET
+
+#define HDCP_2_2_DP_RXSTATUS_LEN		1
+#define HDCP_2_2_DP_RXSTATUS_READY(x)		((x) & BIT(0))
+#define HDCP_2_2_DP_RXSTATUS_H_PRIME(x)		((x) & BIT(1))
+#define HDCP_2_2_DP_RXSTATUS_PAIRING(x)		((x) & BIT(2))
+#define HDCP_2_2_DP_RXSTATUS_REAUTH_REQ(x)	((x) & BIT(3))
+#define HDCP_2_2_DP_RXSTATUS_LINK_FAILED(x)	((x) & BIT(4))
+
 /* DP 1.2 Sideband message defines */
 /* peer device type - DP 1.2a Table 2-92 */
 #define DP_PEER_DEVICE_NONE		0x0
@@ -914,6 +989,7 @@
 #define DP_PEER_DEVICE_DP_LEGACY_CONV	0x4
 
 /* DP 1.2 MST sideband request names DP 1.2a Table 2-80 */
+#define DP_GET_MSG_TRANSACTION_VERSION	0x00 /* DP 1.3 */
 #define DP_LINK_ADDRESS			0x01
 #define DP_CONNECTION_STATUS_NOTIFY	0x02
 #define DP_ENUM_PATH_RESOURCES		0x10
@@ -929,6 +1005,10 @@
 #define DP_POWER_DOWN_PHY		0x25
 #define DP_SINK_EVENT_NOTIFY		0x30
 #define DP_QUERY_STREAM_ENC_STATUS	0x38
+
+/* DP 1.2 MST sideband reply types */
+#define DP_SIDEBAND_REPLY_ACK		0x00
+#define DP_SIDEBAND_REPLY_NAK		0x01
 
 /* DP 1.2 MST sideband nak reasons - table 2.84 */
 #define DP_NAK_WRITE_FAILURE		0x01
@@ -963,6 +1043,7 @@ u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SI
 
 #define DP_BRANCH_OUI_HEADER_SIZE	0xc
 #define DP_RECEIVER_CAP_SIZE		0xf
+#define DP_DSC_RECEIVER_CAP_SIZE        0xf
 #define EDP_PSR_RECEIVER_CAP_SIZE	2
 #define EDP_DISPLAY_CTL_CAP_SIZE	3
 
@@ -984,15 +1065,23 @@ int drm_dp_bw_code_to_link_rate(u8 link_bw);
 #define DP_SDP_VSC_EXT_CEA		0x21 /* DP 1.4 */
 /* 0x80+ CEA-861 infoframe types */
 
+/**
+ * struct dp_sdp_header - DP secondary data packet header
+ * @HB0: Secondary Data Packet ID
+ * @HB1: Secondary Data Packet Type
+ * @HB2: Secondary Data Packet Specific header, Byte 0
+ * @HB3: Secondary Data packet Specific header, Byte 1
+ */
 struct dp_sdp_header {
-	u8 HB0; /* Secondary Data Packet ID */
-	u8 HB1; /* Secondary Data Packet Type */
-	u8 HB2; /* Secondary Data Packet Specific header, Byte 0 */
-	u8 HB3; /* Secondary Data packet Specific header, Byte 1 */
+	u8 HB0;
+	u8 HB1;
+	u8 HB2;
+	u8 HB3;
 } __packed;
 
 #define EDP_SDP_HEADER_REVISION_MASK		0x1F
 #define EDP_SDP_HEADER_VALID_PAYLOAD_BYTES	0x1F
+#define DP_SDP_PPS_HEADER_PAYLOAD_BYTES_MINUS_1 0x7F
 
 struct edp_vsc_psr {
 	struct dp_sdp_header sdp_header;
@@ -1057,6 +1146,44 @@ static inline bool
 drm_dp_is_branch(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT;
+}
+
+/* DP/eDP DSC support */
+u8 drm_dp_dsc_sink_max_slice_count(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE],
+				   bool is_edp);
+u8 drm_dp_dsc_sink_line_buf_depth(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE]);
+int drm_dp_dsc_sink_supported_input_bpcs(const u8 dsc_dpc[DP_DSC_RECEIVER_CAP_SIZE],
+					 u8 dsc_bpc[3]);
+
+static inline bool
+drm_dp_sink_supports_dsc(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
+{
+	return dsc_dpcd[DP_DSC_SUPPORT - DP_DSC_SUPPORT] &
+		DP_DSC_DECOMPRESSION_IS_SUPPORTED;
+}
+
+static inline u16
+drm_edp_dsc_sink_output_bpp(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
+{
+	return dsc_dpcd[DP_DSC_MAX_BITS_PER_PIXEL_LOW - DP_DSC_SUPPORT] |
+		(dsc_dpcd[DP_DSC_MAX_BITS_PER_PIXEL_HI - DP_DSC_SUPPORT] &
+		 DP_DSC_MAX_BITS_PER_PIXEL_HI_MASK <<
+		 DP_DSC_MAX_BITS_PER_PIXEL_HI_SHIFT);
+}
+
+static inline u32
+drm_dp_dsc_sink_max_slice_width(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
+{
+	/* Max Slicewidth = Number of Pixels * 320 */
+	return dsc_dpcd[DP_DSC_MAX_SLICE_WIDTH - DP_DSC_SUPPORT] *
+		DP_DSC_SLICE_WIDTH_MULTIPLIER;
+}
+
+/* Forward Error Correction Support on DP 1.4 */
+static inline bool
+drm_dp_sink_supports_fec(const u8 fec_capable)
+{
+	return fec_capable & DP_FEC_CAPABLE;
 }
 
 /*
@@ -1267,6 +1394,13 @@ enum drm_dp_quirk {
 	 * to 16 bits. So will give a constant value (0x8000) for compatability.
 	 */
 	DP_DPCD_QUIRK_CONSTANT_N,
+	/**
+	 * @DP_DPCD_QUIRK_NO_PSR:
+	 *
+	 * The device does not support PSR even if reports that it supports or
+	 * driver still need to implement proper handling for such device.
+	 */
+	DP_DPCD_QUIRK_NO_PSR,
 };
 
 /**

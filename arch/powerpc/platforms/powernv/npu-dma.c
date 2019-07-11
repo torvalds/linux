@@ -9,31 +9,18 @@
  * License as published by the Free Software Foundation.
  */
 
-#include <linux/slab.h>
 #include <linux/mmu_notifier.h>
 #include <linux/mmu_context.h>
 #include <linux/of.h>
-#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/memblock.h>
-#include <linux/iommu.h>
 #include <linux/sizes.h>
 
 #include <asm/debugfs.h>
-#include <asm/tlb.h>
 #include <asm/powernv.h>
-#include <asm/reg.h>
-#include <asm/opal.h>
-#include <asm/io.h>
-#include <asm/iommu.h>
-#include <asm/pnv-pci.h>
-#include <asm/msi_bitmap.h>
 #include <asm/opal.h>
 
-#include "powernv.h"
 #include "pci.h"
-
-#define npu_to_phb(x) container_of(x, struct pnv_phb, npu)
 
 /*
  * spinlock to protect initialisation of an npu_context for a particular
@@ -41,10 +28,6 @@
  */
 static DEFINE_SPINLOCK(npu_context_lock);
 
-/*
- * Other types of TCE cache invalidation are not functional in the
- * hardware.
- */
 static struct pci_dev *get_pci_dev(struct device_node *dn)
 {
 	struct pci_dn *pdn = PCI_DN(dn);
@@ -133,15 +116,25 @@ static struct pnv_ioda_pe *get_gpu_pci_dev_and_pe(struct pnv_ioda_pe *npe,
 	return pe;
 }
 
-long pnv_npu_set_window(struct pnv_ioda_pe *npe, int num,
+static long pnv_npu_unset_window(struct iommu_table_group *table_group,
+		int num);
+
+static long pnv_npu_set_window(struct iommu_table_group *table_group, int num,
 		struct iommu_table *tbl)
 {
+	struct pnv_ioda_pe *npe = container_of(table_group, struct pnv_ioda_pe,
+			table_group);
 	struct pnv_phb *phb = npe->phb;
 	int64_t rc;
 	const unsigned long size = tbl->it_indirect_levels ?
 		tbl->it_level_size : tbl->it_size;
 	const __u64 start_addr = tbl->it_offset << tbl->it_page_shift;
 	const __u64 win_size = tbl->it_size << tbl->it_page_shift;
+	int num2 = (num == 0) ? 1 : 0;
+
+	/* NPU has just one TVE so if there is another table, remove it first */
+	if (npe->table_group.tables[num2])
+		pnv_npu_unset_window(&npe->table_group, num2);
 
 	pe_info(npe, "Setting up window %llx..%llx pg=%lx\n",
 			start_addr, start_addr + win_size - 1,
@@ -167,10 +160,15 @@ long pnv_npu_set_window(struct pnv_ioda_pe *npe, int num,
 	return 0;
 }
 
-long pnv_npu_unset_window(struct pnv_ioda_pe *npe, int num)
+static long pnv_npu_unset_window(struct iommu_table_group *table_group, int num)
 {
+	struct pnv_ioda_pe *npe = container_of(table_group, struct pnv_ioda_pe,
+			table_group);
 	struct pnv_phb *phb = npe->phb;
 	int64_t rc;
+
+	if (!npe->table_group.tables[num])
+		return 0;
 
 	pe_info(npe, "Removing DMA window\n");
 
@@ -210,14 +208,15 @@ static void pnv_npu_dma_set_32(struct pnv_ioda_pe *npe)
 	if (!gpe)
 		return;
 
-	rc = pnv_npu_set_window(npe, 0, gpe->table_group.tables[0]);
+	rc = pnv_npu_set_window(&npe->table_group, 0,
+			gpe->table_group.tables[0]);
 
 	/*
 	 * NVLink devices use the same TCE table configuration as
 	 * their parent device so drivers shouldn't be doing DMA
 	 * operations directly on these devices.
 	 */
-	set_dma_ops(&npe->pdev->dev, NULL);
+	set_dma_ops(&npe->pdev->dev, &dma_dummy_ops);
 }
 
 /*
@@ -235,7 +234,7 @@ static int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe)
 	if (phb->type != PNV_PHB_NPU_NVLINK || !npe->pdev)
 		return -EINVAL;
 
-	rc = pnv_npu_unset_window(npe, 0);
+	rc = pnv_npu_unset_window(&npe->table_group, 0);
 	if (rc != OPAL_SUCCESS)
 		return rc;
 
@@ -288,11 +287,15 @@ void pnv_npu_try_dma_set_bypass(struct pci_dev *gpdev, bool bypass)
 	}
 }
 
+#ifdef CONFIG_IOMMU_API
 /* Switch ownership from platform code to external user (e.g. VFIO) */
-void pnv_npu_take_ownership(struct pnv_ioda_pe *npe)
+static void pnv_npu_take_ownership(struct iommu_table_group *table_group)
 {
+	struct pnv_ioda_pe *npe = container_of(table_group, struct pnv_ioda_pe,
+			table_group);
 	struct pnv_phb *phb = npe->phb;
 	int64_t rc;
+	struct pci_dev *gpdev = NULL;
 
 	/*
 	 * Note: NPU has just a single TVE in the hardware which means that
@@ -301,7 +304,7 @@ void pnv_npu_take_ownership(struct pnv_ioda_pe *npe)
 	 * if it was enabled at the moment of ownership change.
 	 */
 	if (npe->table_group.tables[0]) {
-		pnv_npu_unset_window(npe, 0);
+		pnv_npu_unset_window(&npe->table_group, 0);
 		return;
 	}
 
@@ -314,30 +317,315 @@ void pnv_npu_take_ownership(struct pnv_ioda_pe *npe)
 		return;
 	}
 	pnv_pci_ioda2_tce_invalidate_entire(npe->phb, false);
+
+	get_gpu_pci_dev_and_pe(npe, &gpdev);
+	if (gpdev)
+		pnv_npu2_unmap_lpar_dev(gpdev);
 }
 
-struct pnv_ioda_pe *pnv_pci_npu_setup_iommu(struct pnv_ioda_pe *npe)
+static void pnv_npu_release_ownership(struct iommu_table_group *table_group)
 {
-	struct pnv_phb *phb = npe->phb;
-	struct pci_bus *pbus = phb->hose->bus;
-	struct pci_dev *npdev, *gpdev = NULL, *gptmp;
-	struct pnv_ioda_pe *gpe = get_gpu_pci_dev_and_pe(npe, &gpdev);
+	struct pnv_ioda_pe *npe = container_of(table_group, struct pnv_ioda_pe,
+			table_group);
+	struct pci_dev *gpdev = NULL;
 
-	if (!gpe || !gpdev)
-		return NULL;
+	get_gpu_pci_dev_and_pe(npe, &gpdev);
+	if (gpdev)
+		pnv_npu2_map_lpar_dev(gpdev, 0, MSR_DR | MSR_PR | MSR_HV);
+}
 
-	list_for_each_entry(npdev, &pbus->devices, bus_list) {
-		gptmp = pnv_pci_get_gpu_dev(npdev);
+static struct iommu_table_group_ops pnv_pci_npu_ops = {
+	.set_window = pnv_npu_set_window,
+	.unset_window = pnv_npu_unset_window,
+	.take_ownership = pnv_npu_take_ownership,
+	.release_ownership = pnv_npu_release_ownership,
+};
+#endif /* !CONFIG_IOMMU_API */
 
-		if (gptmp != gpdev)
+/*
+ * NPU2 ATS
+ */
+/* Maximum possible number of ATSD MMIO registers per NPU */
+#define NV_NMMU_ATSD_REGS 8
+#define NV_NPU_MAX_PE_NUM	16
+
+/*
+ * A compound NPU IOMMU group which might consist of 1 GPU + 2xNPUs (POWER8) or
+ * up to 3 x (GPU + 2xNPUs) (POWER9).
+ */
+struct npu_comp {
+	struct iommu_table_group table_group;
+	int pe_num;
+	struct pnv_ioda_pe *pe[NV_NPU_MAX_PE_NUM];
+};
+
+/* An NPU descriptor, valid for POWER9 only */
+struct npu {
+	int index;
+	__be64 *mmio_atsd_regs[NV_NMMU_ATSD_REGS];
+	unsigned int mmio_atsd_count;
+
+	/* Bitmask for MMIO register usage */
+	unsigned long mmio_atsd_usage;
+
+	/* Do we need to explicitly flush the nest mmu? */
+	bool nmmu_flush;
+
+	struct npu_comp npucomp;
+};
+
+#ifdef CONFIG_IOMMU_API
+static long pnv_npu_peers_create_table_userspace(
+		struct iommu_table_group *table_group,
+		int num, __u32 page_shift, __u64 window_size, __u32 levels,
+		struct iommu_table **ptbl)
+{
+	struct npu_comp *npucomp = container_of(table_group, struct npu_comp,
+			table_group);
+
+	if (!npucomp->pe_num || !npucomp->pe[0] ||
+			!npucomp->pe[0]->table_group.ops ||
+			!npucomp->pe[0]->table_group.ops->create_table)
+		return -EFAULT;
+
+	return npucomp->pe[0]->table_group.ops->create_table(
+			&npucomp->pe[0]->table_group, num, page_shift,
+			window_size, levels, ptbl);
+}
+
+static long pnv_npu_peers_set_window(struct iommu_table_group *table_group,
+		int num, struct iommu_table *tbl)
+{
+	int i, j;
+	long ret = 0;
+	struct npu_comp *npucomp = container_of(table_group, struct npu_comp,
+			table_group);
+
+	for (i = 0; i < npucomp->pe_num; ++i) {
+		struct pnv_ioda_pe *pe = npucomp->pe[i];
+
+		if (!pe->table_group.ops->set_window)
 			continue;
 
-		pe_info(gpe, "Attached NPU %s\n", dev_name(&npdev->dev));
-		iommu_group_add_device(gpe->table_group.group, &npdev->dev);
+		ret = pe->table_group.ops->set_window(&pe->table_group,
+				num, tbl);
+		if (ret)
+			break;
 	}
 
-	return gpe;
+	if (ret) {
+		for (j = 0; j < i; ++j) {
+			struct pnv_ioda_pe *pe = npucomp->pe[j];
+
+			if (!pe->table_group.ops->unset_window)
+				continue;
+
+			ret = pe->table_group.ops->unset_window(
+					&pe->table_group, num);
+			if (ret)
+				break;
+		}
+	} else {
+		table_group->tables[num] = iommu_tce_table_get(tbl);
+	}
+
+	return ret;
 }
+
+static long pnv_npu_peers_unset_window(struct iommu_table_group *table_group,
+		int num)
+{
+	int i, j;
+	long ret = 0;
+	struct npu_comp *npucomp = container_of(table_group, struct npu_comp,
+			table_group);
+
+	for (i = 0; i < npucomp->pe_num; ++i) {
+		struct pnv_ioda_pe *pe = npucomp->pe[i];
+
+		WARN_ON(npucomp->table_group.tables[num] !=
+				table_group->tables[num]);
+		if (!npucomp->table_group.tables[num])
+			continue;
+
+		if (!pe->table_group.ops->unset_window)
+			continue;
+
+		ret = pe->table_group.ops->unset_window(&pe->table_group, num);
+		if (ret)
+			break;
+	}
+
+	if (ret) {
+		for (j = 0; j < i; ++j) {
+			struct pnv_ioda_pe *pe = npucomp->pe[j];
+
+			if (!npucomp->table_group.tables[num])
+				continue;
+
+			if (!pe->table_group.ops->set_window)
+				continue;
+
+			ret = pe->table_group.ops->set_window(&pe->table_group,
+					num, table_group->tables[num]);
+			if (ret)
+				break;
+		}
+	} else if (table_group->tables[num]) {
+		iommu_tce_table_put(table_group->tables[num]);
+		table_group->tables[num] = NULL;
+	}
+
+	return ret;
+}
+
+static void pnv_npu_peers_take_ownership(struct iommu_table_group *table_group)
+{
+	int i;
+	struct npu_comp *npucomp = container_of(table_group, struct npu_comp,
+			table_group);
+
+	for (i = 0; i < npucomp->pe_num; ++i) {
+		struct pnv_ioda_pe *pe = npucomp->pe[i];
+
+		if (!pe->table_group.ops->take_ownership)
+			continue;
+		pe->table_group.ops->take_ownership(&pe->table_group);
+	}
+}
+
+static void pnv_npu_peers_release_ownership(
+		struct iommu_table_group *table_group)
+{
+	int i;
+	struct npu_comp *npucomp = container_of(table_group, struct npu_comp,
+			table_group);
+
+	for (i = 0; i < npucomp->pe_num; ++i) {
+		struct pnv_ioda_pe *pe = npucomp->pe[i];
+
+		if (!pe->table_group.ops->release_ownership)
+			continue;
+		pe->table_group.ops->release_ownership(&pe->table_group);
+	}
+}
+
+static struct iommu_table_group_ops pnv_npu_peers_ops = {
+	.get_table_size = pnv_pci_ioda2_get_table_size,
+	.create_table = pnv_npu_peers_create_table_userspace,
+	.set_window = pnv_npu_peers_set_window,
+	.unset_window = pnv_npu_peers_unset_window,
+	.take_ownership = pnv_npu_peers_take_ownership,
+	.release_ownership = pnv_npu_peers_release_ownership,
+};
+
+static void pnv_comp_attach_table_group(struct npu_comp *npucomp,
+		struct pnv_ioda_pe *pe)
+{
+	if (WARN_ON(npucomp->pe_num == NV_NPU_MAX_PE_NUM))
+		return;
+
+	npucomp->pe[npucomp->pe_num] = pe;
+	++npucomp->pe_num;
+}
+
+struct iommu_table_group *pnv_try_setup_npu_table_group(struct pnv_ioda_pe *pe)
+{
+	struct iommu_table_group *table_group;
+	struct npu_comp *npucomp;
+	struct pci_dev *gpdev = NULL;
+	struct pci_controller *hose;
+	struct pci_dev *npdev = NULL;
+
+	list_for_each_entry(gpdev, &pe->pbus->devices, bus_list) {
+		npdev = pnv_pci_get_npu_dev(gpdev, 0);
+		if (npdev)
+			break;
+	}
+
+	if (!npdev)
+		/* It is not an NPU attached device, skip */
+		return NULL;
+
+	hose = pci_bus_to_host(npdev->bus);
+
+	if (hose->npu) {
+		table_group = &hose->npu->npucomp.table_group;
+
+		if (!table_group->group) {
+			table_group->ops = &pnv_npu_peers_ops;
+			iommu_register_group(table_group,
+					hose->global_number,
+					pe->pe_number);
+		}
+	} else {
+		/* Create a group for 1 GPU and attached NPUs for POWER8 */
+		pe->npucomp = kzalloc(sizeof(*pe->npucomp), GFP_KERNEL);
+		table_group = &pe->npucomp->table_group;
+		table_group->ops = &pnv_npu_peers_ops;
+		iommu_register_group(table_group, hose->global_number,
+				pe->pe_number);
+	}
+
+	/* Steal capabilities from a GPU PE */
+	table_group->max_dynamic_windows_supported =
+		pe->table_group.max_dynamic_windows_supported;
+	table_group->tce32_start = pe->table_group.tce32_start;
+	table_group->tce32_size = pe->table_group.tce32_size;
+	table_group->max_levels = pe->table_group.max_levels;
+	if (!table_group->pgsizes)
+		table_group->pgsizes = pe->table_group.pgsizes;
+
+	npucomp = container_of(table_group, struct npu_comp, table_group);
+	pnv_comp_attach_table_group(npucomp, pe);
+
+	return table_group;
+}
+
+struct iommu_table_group *pnv_npu_compound_attach(struct pnv_ioda_pe *pe)
+{
+	struct iommu_table_group *table_group;
+	struct npu_comp *npucomp;
+	struct pci_dev *gpdev = NULL;
+	struct pci_dev *npdev;
+	struct pnv_ioda_pe *gpe = get_gpu_pci_dev_and_pe(pe, &gpdev);
+
+	WARN_ON(!(pe->flags & PNV_IODA_PE_DEV));
+	if (!gpe)
+		return NULL;
+
+	/*
+	 * IODA2 bridges get this set up from pci_controller_ops::setup_bridge
+	 * but NPU bridges do not have this hook defined so we do it here.
+	 * We do not setup other table group parameters as they won't be used
+	 * anyway - NVLink bridges are subordinate PEs.
+	 */
+	pe->table_group.ops = &pnv_pci_npu_ops;
+
+	table_group = iommu_group_get_iommudata(
+			iommu_group_get(&gpdev->dev));
+
+	/*
+	 * On P9 NPU PHB and PCI PHB support different page sizes,
+	 * keep only matching. We expect here that NVLink bridge PE pgsizes is
+	 * initialized by the caller.
+	 */
+	table_group->pgsizes &= pe->table_group.pgsizes;
+	npucomp = container_of(table_group, struct npu_comp, table_group);
+	pnv_comp_attach_table_group(npucomp, pe);
+
+	list_for_each_entry(npdev, &pe->phb->hose->bus->devices, bus_list) {
+		struct pci_dev *gpdevtmp = pnv_pci_get_gpu_dev(npdev);
+
+		if (gpdevtmp != gpdev)
+			continue;
+
+		iommu_add_device(table_group, &npdev->dev);
+	}
+
+	return table_group;
+}
+#endif /* CONFIG_IOMMU_API */
 
 /* Maximum number of nvlinks per npu */
 #define NV_MAX_LINKS 6
@@ -490,7 +778,6 @@ static void acquire_atsd_reg(struct npu_context *npu_context,
 	int i, j;
 	struct npu *npu;
 	struct pci_dev *npdev;
-	struct pnv_phb *nphb;
 
 	for (i = 0; i <= max_npu2_index; i++) {
 		mmio_atsd_reg[i].reg = -1;
@@ -505,8 +792,10 @@ static void acquire_atsd_reg(struct npu_context *npu_context,
 			if (!npdev)
 				continue;
 
-			nphb = pci_bus_to_host(npdev->bus)->private_data;
-			npu = &nphb->npu;
+			npu = pci_bus_to_host(npdev->bus)->npu;
+			if (!npu)
+				continue;
+
 			mmio_atsd_reg[i].npu = npu;
 			mmio_atsd_reg[i].reg = get_mmio_atsd_reg(npu);
 			while (mmio_atsd_reg[i].reg < 0) {
@@ -624,15 +913,6 @@ static void pnv_npu2_mn_release(struct mmu_notifier *mn,
 	mmio_invalidate(npu_context, 0, ~0UL);
 }
 
-static void pnv_npu2_mn_change_pte(struct mmu_notifier *mn,
-				struct mm_struct *mm,
-				unsigned long address,
-				pte_t pte)
-{
-	struct npu_context *npu_context = mn_to_npu_context(mn);
-	mmio_invalidate(npu_context, address, PAGE_SIZE);
-}
-
 static void pnv_npu2_mn_invalidate_range(struct mmu_notifier *mn,
 					struct mm_struct *mm,
 					unsigned long start, unsigned long end)
@@ -643,7 +923,6 @@ static void pnv_npu2_mn_invalidate_range(struct mmu_notifier *mn,
 
 static const struct mmu_notifier_ops nv_nmmu_notifier_ops = {
 	.release = pnv_npu2_mn_release,
-	.change_pte = pnv_npu2_mn_change_pte,
 	.invalidate_range = pnv_npu2_mn_invalidate_range,
 };
 
@@ -671,9 +950,9 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 	u32 nvlink_index;
 	struct device_node *nvlink_dn;
 	struct mm_struct *mm = current->mm;
-	struct pnv_phb *nphb;
 	struct npu *npu;
 	struct npu_context *npu_context;
+	struct pci_controller *hose;
 
 	/*
 	 * At present we don't support GPUs connected to multiple NPUs and I'm
@@ -681,12 +960,13 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 	 */
 	struct pci_dev *npdev = pnv_pci_get_npu_dev(gpdev, 0);
 
-	if (!firmware_has_feature(FW_FEATURE_OPAL))
-		return ERR_PTR(-ENODEV);
-
 	if (!npdev)
 		/* No nvlink associated with this GPU device */
 		return ERR_PTR(-ENODEV);
+
+	/* We only support DR/PR/HV in pnv_npu2_map_lpar_dev() */
+	if (flags & ~(MSR_DR | MSR_PR | MSR_HV))
+		return ERR_PTR(-EINVAL);
 
 	nvlink_dn = of_parse_phandle(npdev->dev.of_node, "ibm,nvlink", 0);
 	if (WARN_ON(of_property_read_u32(nvlink_dn, "ibm,npu-link-index",
@@ -701,20 +981,10 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	nphb = pci_bus_to_host(npdev->bus)->private_data;
-	npu = &nphb->npu;
-
-	/*
-	 * Setup the NPU context table for a particular GPU. These need to be
-	 * per-GPU as we need the tables to filter ATSDs when there are no
-	 * active contexts on a particular GPU. It is safe for these to be
-	 * called concurrently with destroy as the OPAL call takes appropriate
-	 * locks and refcounts on init/destroy.
-	 */
-	rc = opal_npu_init_context(nphb->opal_id, mm->context.id, flags,
-				PCI_DEVID(gpdev->bus->number, gpdev->devfn));
-	if (rc < 0)
-		return ERR_PTR(-ENOSPC);
+	hose = pci_bus_to_host(npdev->bus);
+	npu = hose->npu;
+	if (!npu)
+		return ERR_PTR(-ENODEV);
 
 	/*
 	 * We store the npu pci device so we can more easily get at the
@@ -726,9 +996,6 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 		if (npu_context->release_cb != cb ||
 			npu_context->priv != priv) {
 			spin_unlock(&npu_context_lock);
-			opal_npu_destroy_context(nphb->opal_id, mm->context.id,
-						PCI_DEVID(gpdev->bus->number,
-							gpdev->devfn));
 			return ERR_PTR(-EINVAL);
 		}
 
@@ -754,9 +1021,6 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 
 		if (rc) {
 			kfree(npu_context);
-			opal_npu_destroy_context(nphb->opal_id, mm->context.id,
-					PCI_DEVID(gpdev->bus->number,
-						gpdev->devfn));
 			return ERR_PTR(rc);
 		}
 
@@ -776,7 +1040,7 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 	 */
 	WRITE_ONCE(npu_context->npdev[npu->index][nvlink_index], npdev);
 
-	if (!nphb->npu.nmmu_flush) {
+	if (!npu->nmmu_flush) {
 		/*
 		 * If we're not explicitly flushing ourselves we need to mark
 		 * the thread for global flushes
@@ -809,27 +1073,24 @@ void pnv_npu2_destroy_context(struct npu_context *npu_context,
 			struct pci_dev *gpdev)
 {
 	int removed;
-	struct pnv_phb *nphb;
 	struct npu *npu;
 	struct pci_dev *npdev = pnv_pci_get_npu_dev(gpdev, 0);
 	struct device_node *nvlink_dn;
 	u32 nvlink_index;
+	struct pci_controller *hose;
 
 	if (WARN_ON(!npdev))
 		return;
 
-	if (!firmware_has_feature(FW_FEATURE_OPAL))
+	hose = pci_bus_to_host(npdev->bus);
+	npu = hose->npu;
+	if (!npu)
 		return;
-
-	nphb = pci_bus_to_host(npdev->bus)->private_data;
-	npu = &nphb->npu;
 	nvlink_dn = of_parse_phandle(npdev->dev.of_node, "ibm,nvlink", 0);
 	if (WARN_ON(of_property_read_u32(nvlink_dn, "ibm,npu-link-index",
 							&nvlink_index)))
 		return;
 	WRITE_ONCE(npu_context->npdev[npu->index][nvlink_index], NULL);
-	opal_npu_destroy_context(nphb->opal_id, npu_context->mm->context.id,
-				PCI_DEVID(gpdev->bus->number, gpdev->devfn));
 	spin_lock(&npu_context_lock);
 	removed = kref_put(&npu_context->kref, pnv_npu2_release_context);
 	spin_unlock(&npu_context_lock);
@@ -857,12 +1118,11 @@ int pnv_npu2_handle_fault(struct npu_context *context, uintptr_t *ea,
 	u64 rc = 0, result = 0;
 	int i, is_write;
 	struct page *page[1];
+	const char __user *u;
+	char c;
 
 	/* mmap_sem should be held so the struct_mm must be present */
 	struct mm_struct *mm = context->mm;
-
-	if (!firmware_has_feature(FW_FEATURE_OPAL))
-		return -ENODEV;
 
 	WARN_ON(!rwsem_is_locked(&mm->mmap_sem));
 
@@ -872,17 +1132,16 @@ int pnv_npu2_handle_fault(struct npu_context *context, uintptr_t *ea,
 					is_write ? FOLL_WRITE : 0,
 					page, NULL, NULL);
 
-		/*
-		 * To support virtualised environments we will have to do an
-		 * access to the page to ensure it gets faulted into the
-		 * hypervisor. For the moment virtualisation is not supported in
-		 * other areas so leave the access out.
-		 */
 		if (rc != 1) {
 			status[i] = rc;
 			result = -EFAULT;
 			continue;
 		}
+
+		/* Make sure partition scoped tree gets a pte */
+		u = page_address(page[0]);
+		if (__get_user(c, u))
+			result = -EFAULT;
 
 		status[i] = 0;
 		put_page(page[0]);
@@ -892,42 +1151,127 @@ int pnv_npu2_handle_fault(struct npu_context *context, uintptr_t *ea,
 }
 EXPORT_SYMBOL(pnv_npu2_handle_fault);
 
-int pnv_npu2_init(struct pnv_phb *phb)
+int pnv_npu2_init(struct pci_controller *hose)
 {
 	unsigned int i;
 	u64 mmio_atsd;
-	struct device_node *dn;
-	struct pci_dev *gpdev;
 	static int npu_index;
-	uint64_t rc = 0;
+	struct npu *npu;
+	int ret;
 
-	phb->npu.nmmu_flush =
-		of_property_read_bool(phb->hose->dn, "ibm,nmmu-flush");
-	for_each_child_of_node(phb->hose->dn, dn) {
-		gpdev = pnv_pci_get_gpu_dev(get_pci_dev(dn));
-		if (gpdev) {
-			rc = opal_npu_map_lpar(phb->opal_id,
-				PCI_DEVID(gpdev->bus->number, gpdev->devfn),
-				0, 0);
-			if (rc)
-				dev_err(&gpdev->dev,
-					"Error %lld mapping device to LPAR\n",
-					rc);
-		}
+	npu = kzalloc(sizeof(*npu), GFP_KERNEL);
+	if (!npu)
+		return -ENOMEM;
+
+	npu->nmmu_flush = of_property_read_bool(hose->dn, "ibm,nmmu-flush");
+
+	for (i = 0; i < ARRAY_SIZE(npu->mmio_atsd_regs) &&
+			!of_property_read_u64_index(hose->dn, "ibm,mmio-atsd",
+				i, &mmio_atsd); i++)
+		npu->mmio_atsd_regs[i] = ioremap(mmio_atsd, 32);
+
+	pr_info("NPU%d: Found %d MMIO ATSD registers", hose->global_number, i);
+	npu->mmio_atsd_count = i;
+	npu->mmio_atsd_usage = 0;
+	npu_index++;
+	if (WARN_ON(npu_index >= NV_MAX_NPUS)) {
+		ret = -ENOSPC;
+		goto fail_exit;
+	}
+	max_npu2_index = npu_index;
+	npu->index = npu_index;
+	hose->npu = npu;
+
+	return 0;
+
+fail_exit:
+	for (i = 0; i < npu->mmio_atsd_count; ++i)
+		iounmap(npu->mmio_atsd_regs[i]);
+
+	kfree(npu);
+
+	return ret;
+}
+
+int pnv_npu2_map_lpar_dev(struct pci_dev *gpdev, unsigned int lparid,
+		unsigned long msr)
+{
+	int ret;
+	struct pci_dev *npdev = pnv_pci_get_npu_dev(gpdev, 0);
+	struct pci_controller *hose;
+	struct pnv_phb *nphb;
+
+	if (!npdev)
+		return -ENODEV;
+
+	hose = pci_bus_to_host(npdev->bus);
+	nphb = hose->private_data;
+
+	dev_dbg(&gpdev->dev, "Map LPAR opalid=%llu lparid=%u\n",
+			nphb->opal_id, lparid);
+	/*
+	 * Currently we only support radix and non-zero LPCR only makes sense
+	 * for hash tables so skiboot expects the LPCR parameter to be a zero.
+	 */
+	ret = opal_npu_map_lpar(nphb->opal_id,
+			PCI_DEVID(gpdev->bus->number, gpdev->devfn), lparid,
+			0 /* LPCR bits */);
+	if (ret) {
+		dev_err(&gpdev->dev, "Error %d mapping device to LPAR\n", ret);
+		return ret;
 	}
 
-	for (i = 0; !of_property_read_u64_index(phb->hose->dn, "ibm,mmio-atsd",
-							i, &mmio_atsd); i++)
-		phb->npu.mmio_atsd_regs[i] = ioremap(mmio_atsd, 32);
-
-	pr_info("NPU%lld: Found %d MMIO ATSD registers", phb->opal_id, i);
-	phb->npu.mmio_atsd_count = i;
-	phb->npu.mmio_atsd_usage = 0;
-	npu_index++;
-	if (WARN_ON(npu_index >= NV_MAX_NPUS))
-		return -ENOSPC;
-	max_npu2_index = npu_index;
-	phb->npu.index = npu_index;
+	dev_dbg(&gpdev->dev, "init context opalid=%llu msr=%lx\n",
+			nphb->opal_id, msr);
+	ret = opal_npu_init_context(nphb->opal_id, 0/*__unused*/, msr,
+			PCI_DEVID(gpdev->bus->number, gpdev->devfn));
+	if (ret < 0)
+		dev_err(&gpdev->dev, "Failed to init context: %d\n", ret);
+	else
+		ret = 0;
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pnv_npu2_map_lpar_dev);
+
+void pnv_npu2_map_lpar(struct pnv_ioda_pe *gpe, unsigned long msr)
+{
+	struct pci_dev *gpdev;
+
+	list_for_each_entry(gpdev, &gpe->pbus->devices, bus_list)
+		pnv_npu2_map_lpar_dev(gpdev, 0, msr);
+}
+
+int pnv_npu2_unmap_lpar_dev(struct pci_dev *gpdev)
+{
+	int ret;
+	struct pci_dev *npdev = pnv_pci_get_npu_dev(gpdev, 0);
+	struct pci_controller *hose;
+	struct pnv_phb *nphb;
+
+	if (!npdev)
+		return -ENODEV;
+
+	hose = pci_bus_to_host(npdev->bus);
+	nphb = hose->private_data;
+
+	dev_dbg(&gpdev->dev, "destroy context opalid=%llu\n",
+			nphb->opal_id);
+	ret = opal_npu_destroy_context(nphb->opal_id, 0/*__unused*/,
+			PCI_DEVID(gpdev->bus->number, gpdev->devfn));
+	if (ret < 0) {
+		dev_err(&gpdev->dev, "Failed to destroy context: %d\n", ret);
+		return ret;
+	}
+
+	/* Set LPID to 0 anyway, just to be safe */
+	dev_dbg(&gpdev->dev, "Map LPAR opalid=%llu lparid=0\n", nphb->opal_id);
+	ret = opal_npu_map_lpar(nphb->opal_id,
+			PCI_DEVID(gpdev->bus->number, gpdev->devfn), 0 /*LPID*/,
+			0 /* LPCR bits */);
+	if (ret)
+		dev_err(&gpdev->dev, "Error %d mapping device to LPAR\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pnv_npu2_unmap_lpar_dev);

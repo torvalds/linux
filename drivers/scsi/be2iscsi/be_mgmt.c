@@ -293,8 +293,8 @@ static int beiscsi_prep_nemb_cmd(struct beiscsi_hba *phba,
 				 struct be_dma_mem *cmd,
 				 u8 subsystem, u8 opcode, u32 size)
 {
-	cmd->va = dma_zalloc_coherent(&phba->ctrl.pdev->dev, size, &cmd->dma,
-			GFP_KERNEL);
+	cmd->va = dma_alloc_coherent(&phba->ctrl.pdev->dev, size, &cmd->dma,
+				     GFP_KERNEL);
 	if (!cmd->va) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BG_%d : Failed to allocate memory for if info\n");
@@ -1510,10 +1510,9 @@ int beiscsi_mgmt_invalidate_icds(struct beiscsi_hba *phba,
 		return -EINVAL;
 
 	nonemb_cmd.size = sizeof(union be_invldt_cmds_params);
-	nonemb_cmd.va = dma_zalloc_coherent(&phba->ctrl.pdev->dev,
-					      nonemb_cmd.size,
-					      &nonemb_cmd.dma,
-					      GFP_KERNEL);
+	nonemb_cmd.va = dma_alloc_coherent(&phba->ctrl.pdev->dev,
+					   nonemb_cmd.size, &nonemb_cmd.dma,
+					   GFP_KERNEL);
 	if (!nonemb_cmd.va) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_EH,
 			    "BM_%d : invldt_cmds_params alloc failed\n");

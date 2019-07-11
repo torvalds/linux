@@ -11,6 +11,8 @@
 #define _LINUX_NETDEV_FEATURES_H
 
 #include <linux/types.h>
+#include <linux/bitops.h>
+#include <asm/byteorder.h>
 
 typedef u64 netdev_features_t;
 
@@ -154,8 +156,26 @@ enum {
 #define NETIF_F_HW_TLS_TX	__NETIF_F(HW_TLS_TX)
 #define NETIF_F_HW_TLS_RX	__NETIF_F(HW_TLS_RX)
 
-#define for_each_netdev_feature(mask_addr, bit)	\
-	for_each_set_bit(bit, (unsigned long *)mask_addr, NETDEV_FEATURE_COUNT)
+/* Finds the next feature with the highest number of the range of start till 0.
+ */
+static inline int find_next_netdev_feature(u64 feature, unsigned long start)
+{
+	/* like BITMAP_LAST_WORD_MASK() for u64
+	 * this sets the most significant 64 - start to 0.
+	 */
+	feature &= ~0ULL >> (-start & ((sizeof(feature) * 8) - 1));
+
+	return fls64(feature) - 1;
+}
+
+/* This goes for the MSB to the LSB through the set feature bits,
+ * mask_addr should be a u64 and bit an int
+ */
+#define for_each_netdev_feature(mask_addr, bit)				\
+	for ((bit) = find_next_netdev_feature((mask_addr),		\
+					      NETDEV_FEATURE_COUNT);	\
+	     (bit) >= 0;						\
+	     (bit) = find_next_netdev_feature((mask_addr), (bit) - 1))
 
 /* Features valid for ethtool to change */
 /* = all defined minus driver/device-class-related */

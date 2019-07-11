@@ -941,9 +941,9 @@ static void tegra_xusb_powerdomain_remove(struct device *dev,
 		device_link_del(tegra->genpd_dl_ss);
 	if (tegra->genpd_dl_host)
 		device_link_del(tegra->genpd_dl_host);
-	if (tegra->genpd_dev_ss)
+	if (!IS_ERR_OR_NULL(tegra->genpd_dev_ss))
 		dev_pm_domain_detach(tegra->genpd_dev_ss, true);
-	if (tegra->genpd_dev_host)
+	if (!IS_ERR_OR_NULL(tegra->genpd_dev_host))
 		dev_pm_domain_detach(tegra->genpd_dev_host, true);
 }
 

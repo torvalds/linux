@@ -89,8 +89,8 @@ static int register_sba(struct ism_dev *ism)
 	dma_addr_t dma_handle;
 	struct ism_sba *sba;
 
-	sba = dma_zalloc_coherent(&ism->pdev->dev, PAGE_SIZE,
-				  &dma_handle, GFP_KERNEL);
+	sba = dma_alloc_coherent(&ism->pdev->dev, PAGE_SIZE, &dma_handle,
+				 GFP_KERNEL);
 	if (!sba)
 		return -ENOMEM;
 
@@ -116,8 +116,8 @@ static int register_ieq(struct ism_dev *ism)
 	dma_addr_t dma_handle;
 	struct ism_eq *ieq;
 
-	ieq = dma_zalloc_coherent(&ism->pdev->dev, PAGE_SIZE,
-				  &dma_handle, GFP_KERNEL);
+	ieq = dma_alloc_coherent(&ism->pdev->dev, PAGE_SIZE, &dma_handle,
+				 GFP_KERNEL);
 	if (!ieq)
 		return -ENOMEM;
 
@@ -141,10 +141,13 @@ static int register_ieq(struct ism_dev *ism)
 
 static int unregister_sba(struct ism_dev *ism)
 {
+	int ret;
+
 	if (!ism->sba)
 		return 0;
 
-	if (ism_cmd_simple(ism, ISM_UNREG_SBA))
+	ret = ism_cmd_simple(ism, ISM_UNREG_SBA);
+	if (ret && ret != ISM_ERROR)
 		return -EIO;
 
 	dma_free_coherent(&ism->pdev->dev, PAGE_SIZE,
@@ -158,10 +161,13 @@ static int unregister_sba(struct ism_dev *ism)
 
 static int unregister_ieq(struct ism_dev *ism)
 {
+	int ret;
+
 	if (!ism->ieq)
 		return 0;
 
-	if (ism_cmd_simple(ism, ISM_UNREG_IEQ))
+	ret = ism_cmd_simple(ism, ISM_UNREG_IEQ);
+	if (ret && ret != ISM_ERROR)
 		return -EIO;
 
 	dma_free_coherent(&ism->pdev->dev, PAGE_SIZE,
@@ -234,10 +240,9 @@ static int ism_alloc_dmb(struct ism_dev *ism, struct smcd_dmb *dmb)
 	    test_and_set_bit(dmb->sba_idx, ism->sba_bitmap))
 		return -EINVAL;
 
-	dmb->cpu_addr = dma_zalloc_coherent(&ism->pdev->dev, dmb->dmb_len,
-					    &dmb->dma_addr, GFP_KERNEL |
-					    __GFP_NOWARN | __GFP_NOMEMALLOC |
-					    __GFP_COMP | __GFP_NORETRY);
+	dmb->cpu_addr = dma_alloc_coherent(&ism->pdev->dev, dmb->dmb_len,
+					   &dmb->dma_addr,
+					   GFP_KERNEL | __GFP_NOWARN | __GFP_NOMEMALLOC | __GFP_COMP | __GFP_NORETRY);
 	if (!dmb->cpu_addr)
 		clear_bit(dmb->sba_idx, ism->sba_bitmap);
 
@@ -288,7 +293,7 @@ static int ism_unregister_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb)
 	cmd.request.dmb_tok = dmb->dmb_tok;
 
 	ret = ism_cmd(ism, &cmd);
-	if (ret)
+	if (ret && ret != ISM_ERROR)
 		goto out;
 
 	ism_free_dmb(ism, dmb);

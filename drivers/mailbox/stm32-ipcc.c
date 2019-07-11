@@ -270,14 +270,12 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 			goto err_clk;
 		}
 
-		device_init_wakeup(dev, true);
+		device_set_wakeup_capable(dev, true);
 		ret = dev_pm_set_dedicated_wake_irq(dev, ipcc->wkp);
 		if (ret) {
 			dev_err(dev, "Failed to set wake up irq\n");
 			goto err_init_wkp;
 		}
-	} else {
-		device_init_wakeup(dev, false);
 	}
 
 	/* mailbox controller */
@@ -299,7 +297,7 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 	for (i = 0; i < ipcc->controller.num_chans; i++)
 		ipcc->controller.chans[i].con_priv = (void *)i;
 
-	ret = mbox_controller_register(&ipcc->controller);
+	ret = devm_mbox_controller_register(dev, &ipcc->controller);
 	if (ret)
 		goto err_irq_wkp;
 
@@ -328,8 +326,6 @@ err_clk:
 static int stm32_ipcc_remove(struct platform_device *pdev)
 {
 	struct stm32_ipcc *ipcc = platform_get_drvdata(pdev);
-
-	mbox_controller_unregister(&ipcc->controller);
 
 	if (ipcc->wkp)
 		dev_pm_clear_wake_irq(&pdev->dev);

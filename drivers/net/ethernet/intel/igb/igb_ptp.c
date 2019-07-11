@@ -277,17 +277,25 @@ static int igb_ptp_adjtime_i210(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int igb_ptp_gettime_82576(struct ptp_clock_info *ptp,
-				 struct timespec64 *ts)
+static int igb_ptp_gettimex_82576(struct ptp_clock_info *ptp,
+				  struct timespec64 *ts,
+				  struct ptp_system_timestamp *sts)
 {
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
+	struct e1000_hw *hw = &igb->hw;
 	unsigned long flags;
+	u32 lo, hi;
 	u64 ns;
 
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
-	ns = timecounter_read(&igb->tc);
+	ptp_read_system_prets(sts);
+	lo = rd32(E1000_SYSTIML);
+	ptp_read_system_postts(sts);
+	hi = rd32(E1000_SYSTIMH);
+
+	ns = timecounter_cyc2time(&igb->tc, ((u64)hi << 32) | lo);
 
 	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 
@@ -296,16 +304,50 @@ static int igb_ptp_gettime_82576(struct ptp_clock_info *ptp,
 	return 0;
 }
 
-static int igb_ptp_gettime_i210(struct ptp_clock_info *ptp,
-				struct timespec64 *ts)
+static int igb_ptp_gettimex_82580(struct ptp_clock_info *ptp,
+				  struct timespec64 *ts,
+				  struct ptp_system_timestamp *sts)
 {
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
+	struct e1000_hw *hw = &igb->hw;
+	unsigned long flags;
+	u32 lo, hi;
+	u64 ns;
+
+	spin_lock_irqsave(&igb->tmreg_lock, flags);
+
+	ptp_read_system_prets(sts);
+	rd32(E1000_SYSTIMR);
+	ptp_read_system_postts(sts);
+	lo = rd32(E1000_SYSTIML);
+	hi = rd32(E1000_SYSTIMH);
+
+	ns = timecounter_cyc2time(&igb->tc, ((u64)hi << 32) | lo);
+
+	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
+
+	*ts = ns_to_timespec64(ns);
+
+	return 0;
+}
+
+static int igb_ptp_gettimex_i210(struct ptp_clock_info *ptp,
+				 struct timespec64 *ts,
+				 struct ptp_system_timestamp *sts)
+{
+	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
+					       ptp_caps);
+	struct e1000_hw *hw = &igb->hw;
 	unsigned long flags;
 
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
-	igb_ptp_read_i210(igb, ts);
+	ptp_read_system_prets(sts);
+	rd32(E1000_SYSTIMR);
+	ptp_read_system_postts(sts);
+	ts->tv_nsec = rd32(E1000_SYSTIML);
+	ts->tv_sec = rd32(E1000_SYSTIMH);
 
 	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 
@@ -658,9 +700,12 @@ static void igb_ptp_overflow_check(struct work_struct *work)
 	struct igb_adapter *igb =
 		container_of(work, struct igb_adapter, ptp_overflow_work.work);
 	struct timespec64 ts;
+	u64 ns;
 
-	igb->ptp_caps.gettime64(&igb->ptp_caps, &ts);
+	/* Update the timecounter */
+	ns = timecounter_read(&igb->tc);
 
+	ts = ns_to_timespec64(ns);
 	pr_debug("igb overflow check at %lld.%09lu\n",
 		 (long long) ts.tv_sec, ts.tv_nsec);
 
@@ -1126,7 +1171,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.pps = 0;
 		adapter->ptp_caps.adjfreq = igb_ptp_adjfreq_82576;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_82576;
-		adapter->ptp_caps.gettime64 = igb_ptp_gettime_82576;
+		adapter->ptp_caps.gettimex64 = igb_ptp_gettimex_82576;
 		adapter->ptp_caps.settime64 = igb_ptp_settime_82576;
 		adapter->ptp_caps.enable = igb_ptp_feature_enable;
 		adapter->cc.read = igb_ptp_read_82576;
@@ -1145,7 +1190,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.pps = 0;
 		adapter->ptp_caps.adjfine = igb_ptp_adjfine_82580;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_82576;
-		adapter->ptp_caps.gettime64 = igb_ptp_gettime_82576;
+		adapter->ptp_caps.gettimex64 = igb_ptp_gettimex_82580;
 		adapter->ptp_caps.settime64 = igb_ptp_settime_82576;
 		adapter->ptp_caps.enable = igb_ptp_feature_enable;
 		adapter->cc.read = igb_ptp_read_82580;
@@ -1173,7 +1218,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		adapter->ptp_caps.pin_config = adapter->sdp_config;
 		adapter->ptp_caps.adjfine = igb_ptp_adjfine_82580;
 		adapter->ptp_caps.adjtime = igb_ptp_adjtime_i210;
-		adapter->ptp_caps.gettime64 = igb_ptp_gettime_i210;
+		adapter->ptp_caps.gettimex64 = igb_ptp_gettimex_i210;
 		adapter->ptp_caps.settime64 = igb_ptp_settime_i210;
 		adapter->ptp_caps.enable = igb_ptp_feature_enable_i210;
 		adapter->ptp_caps.verify = igb_ptp_verify_pin;

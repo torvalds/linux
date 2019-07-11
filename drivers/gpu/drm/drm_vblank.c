@@ -48,7 +48,7 @@
  * Drivers must initialize the vertical blanking handling core with a call to
  * drm_vblank_init(). Minimally, a driver needs to implement
  * &drm_crtc_funcs.enable_vblank and &drm_crtc_funcs.disable_vblank plus call
- * drm_crtc_handle_vblank() in it's vblank interrupt handler for working vblank
+ * drm_crtc_handle_vblank() in its vblank interrupt handler for working vblank
  * support.
  *
  * Vertical blanking interrupts can be enabled by the DRM core or by drivers
@@ -105,13 +105,20 @@ static void store_vblank(struct drm_device *dev, unsigned int pipe,
 	write_sequnlock(&vblank->seqlock);
 }
 
+static u32 drm_max_vblank_count(struct drm_device *dev, unsigned int pipe)
+{
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+
+	return vblank->max_vblank_count ?: dev->max_vblank_count;
+}
+
 /*
  * "No hw counter" fallback implementation of .get_vblank_counter() hook,
  * if there is no useable hardware frame counter available.
  */
 static u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe)
 {
-	WARN_ON_ONCE(dev->max_vblank_count != 0);
+	WARN_ON_ONCE(drm_max_vblank_count(dev, pipe) != 0);
 	return 0;
 }
 
@@ -198,6 +205,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	ktime_t t_vblank;
 	int count = DRM_TIMESTAMP_MAXRETRIES;
 	int framedur_ns = vblank->framedur_ns;
+	u32 max_vblank_count = drm_max_vblank_count(dev, pipe);
 
 	/*
 	 * Interrupts were disabled prior to this call, so deal with counter
@@ -216,9 +224,9 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 		rc = drm_get_last_vbltimestamp(dev, pipe, &t_vblank, in_vblank_irq);
 	} while (cur_vblank != __get_vblank_counter(dev, pipe) && --count > 0);
 
-	if (dev->max_vblank_count != 0) {
+	if (max_vblank_count) {
 		/* trust the hw counter when it's around */
-		diff = (cur_vblank - vblank->last) & dev->max_vblank_count;
+		diff = (cur_vblank - vblank->last) & max_vblank_count;
 	} else if (rc && framedur_ns) {
 		u64 diff_ns = ktime_to_ns(ktime_sub(t_vblank, vblank->time));
 
@@ -1203,6 +1211,37 @@ void drm_crtc_vblank_reset(struct drm_crtc *crtc)
 	WARN_ON(!list_empty(&dev->vblank_event_list));
 }
 EXPORT_SYMBOL(drm_crtc_vblank_reset);
+
+/**
+ * drm_crtc_set_max_vblank_count - configure the hw max vblank counter value
+ * @crtc: CRTC in question
+ * @max_vblank_count: max hardware vblank counter value
+ *
+ * Update the maximum hardware vblank counter value for @crtc
+ * at runtime. Useful for hardware where the operation of the
+ * hardware vblank counter depends on the currently active
+ * display configuration.
+ *
+ * For example, if the hardware vblank counter does not work
+ * when a specific connector is active the maximum can be set
+ * to zero. And when that specific connector isn't active the
+ * maximum can again be set to the appropriate non-zero value.
+ *
+ * If used, must be called before drm_vblank_on().
+ */
+void drm_crtc_set_max_vblank_count(struct drm_crtc *crtc,
+				   u32 max_vblank_count)
+{
+	struct drm_device *dev = crtc->dev;
+	unsigned int pipe = drm_crtc_index(crtc);
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+
+	WARN_ON(dev->max_vblank_count);
+	WARN_ON(!READ_ONCE(vblank->inmodeset));
+
+	vblank->max_vblank_count = max_vblank_count;
+}
+EXPORT_SYMBOL(drm_crtc_set_max_vblank_count);
 
 /**
  * drm_crtc_vblank_on - enable vblank events on a CRTC

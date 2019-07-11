@@ -94,6 +94,7 @@
 /* The native mos7840/7820 component */
 #define USB_VENDOR_ID_MOSCHIP           0x9710
 #define MOSCHIP_DEVICE_ID_7840          0x7840
+#define MOSCHIP_DEVICE_ID_7843          0x7843
 #define MOSCHIP_DEVICE_ID_7820          0x7820
 #define MOSCHIP_DEVICE_ID_7810          0x7810
 /* The native component can have its vendor/device id's overridden
@@ -176,6 +177,7 @@ enum mos7840_flag {
 
 static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7840)},
+	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7843)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7820)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7810)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_2)},
@@ -298,15 +300,10 @@ static int mos7840_set_uart_reg(struct usb_serial_port *port, __u16 reg,
 	val = val & 0x00ff;
 	/* For the UART control registers, the application number need
 	   to be Or'ed */
-	if (port->serial->num_ports == 4) {
+	if (port->serial->num_ports == 2 && port->port_number != 0)
+		val |= ((__u16)port->port_number + 2) << 8;
+	else
 		val |= ((__u16)port->port_number + 1) << 8;
-	} else {
-		if (port->port_number == 0) {
-			val |= ((__u16)port->port_number + 1) << 8;
-		} else {
-			val |= ((__u16)port->port_number + 2) << 8;
-		}
-	}
 	dev_dbg(&port->dev, "%s application number is %x\n", __func__, val);
 	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0), MCS_WRREQ,
 			       MCS_WR_RTYPE, val, reg, NULL, 0,
@@ -332,15 +329,10 @@ static int mos7840_get_uart_reg(struct usb_serial_port *port, __u16 reg,
 		return -ENOMEM;
 
 	/* Wval  is same as application number */
-	if (port->serial->num_ports == 4) {
+	if (port->serial->num_ports == 2 && port->port_number != 0)
+		Wval = ((__u16)port->port_number + 2) << 8;
+	else
 		Wval = ((__u16)port->port_number + 1) << 8;
-	} else {
-		if (port->port_number == 0) {
-			Wval = ((__u16)port->port_number + 1) << 8;
-		} else {
-			Wval = ((__u16)port->port_number + 2) << 8;
-		}
-	}
 	dev_dbg(&port->dev, "%s application number is %x\n", __func__, Wval);
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), MCS_RDREQ,
 			      MCS_RD_RTYPE, Wval, reg, buf, VENDOR_READ_LENGTH,
@@ -601,7 +593,7 @@ static void mos7840_interrupt_callback(struct urb *urb)
 	struct usb_serial *serial;
 	__u16 Data;
 	unsigned char *data;
-	__u8 sp[5], st;
+	__u8 sp[5];
 	int i, rv = 0;
 	__u16 wval, wreg = 0;
 	int status = urb->status;
@@ -644,7 +636,6 @@ static void mos7840_interrupt_callback(struct urb *urb)
 	sp[1] = (__u8) data[1];
 	sp[2] = (__u8) data[2];
 	sp[3] = (__u8) data[3];
-	st = (__u8) data[4];
 
 	for (i = 0; i < serial->num_ports; i++) {
 		mos7840_port = mos7840_get_port_private(serial->port[i]);
@@ -1300,7 +1291,6 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 	struct urb *urb;
 	/* __u16 Data; */
 	const unsigned char *current_position = data;
-	unsigned char *data1;
 
 	if (mos7840_port_paranoia_check(port, __func__))
 		return -1;
@@ -1361,7 +1351,6 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 			mos7840_bulk_out_data_callback, mos7840_port);
 	}
 
-	data1 = urb->transfer_buffer;
 	dev_dbg(&port->dev, "bulkout endpoint is %d\n", port->bulk_out_endpointAddress);
 
 	if (mos7840_port->has_led)
@@ -1592,7 +1581,6 @@ static int mos7840_send_cmd_write_baud_rate(struct moschip_port *mos7840_port,
 	int divisor = 0;
 	int status;
 	__u16 Data;
-	unsigned char number;
 	__u16 clk_sel_val;
 	struct usb_serial_port *port;
 
@@ -1605,8 +1593,6 @@ static int mos7840_send_cmd_write_baud_rate(struct moschip_port *mos7840_port,
 
 	if (mos7840_serial_paranoia_check(port->serial, __func__))
 		return -1;
-
-	number = mos7840_port->port->port_number;
 
 	dev_dbg(&port->dev, "%s - baud = %d\n", __func__, baudRate);
 	/* reset clk_uart_sel in spregOffset */
@@ -1697,14 +1683,12 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 {
 	int baud;
 	unsigned cflag;
-	unsigned iflag;
 	__u8 lData;
 	__u8 lParity;
 	__u8 lStop;
 	int status;
 	__u16 Data;
 	struct usb_serial_port *port;
-	struct usb_serial *serial;
 
 	if (mos7840_port == NULL)
 		return;
@@ -1717,8 +1701,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	if (mos7840_serial_paranoia_check(port->serial, __func__))
 		return;
 
-	serial = port->serial;
-
 	if (!mos7840_port->open) {
 		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
 		return;
@@ -1729,7 +1711,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	lParity = LCR_PAR_NONE;
 
 	cflag = tty->termios.c_cflag;
-	iflag = tty->termios.c_iflag;
 
 	/* Change the number of bits */
 	switch (cflag & CSIZE) {
@@ -2043,7 +2024,8 @@ static int mos7840_probe(struct usb_serial *serial,
 	int device_type;
 
 	if (product == MOSCHIP_DEVICE_ID_7810 ||
-		product == MOSCHIP_DEVICE_ID_7820) {
+		product == MOSCHIP_DEVICE_ID_7820 ||
+		product == MOSCHIP_DEVICE_ID_7843) {
 		device_type = product;
 		goto out;
 	}
@@ -2077,7 +2059,10 @@ static int mos7840_calc_num_ports(struct usb_serial *serial,
 	int device_type = (unsigned long)usb_get_serial_data(serial);
 	int num_ports;
 
-	num_ports = (device_type >> 4) & 0x000F;
+	if (device_type == MOSCHIP_DEVICE_ID_7843)
+		num_ports = 3;
+	else
+		num_ports = (device_type >> 4) & 0x000F;
 
 	/*
 	 * num_ports is currently never zero as device_type is one of
@@ -2132,22 +2117,16 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 		mos7840_port->SpRegOffset = 0x0;
 		mos7840_port->ControlRegOffset = 0x1;
 		mos7840_port->DcrRegOffset = 0x4;
-	} else if ((mos7840_port->port_num == 2) && (serial->num_ports == 4)) {
-		mos7840_port->SpRegOffset = 0x8;
-		mos7840_port->ControlRegOffset = 0x9;
-		mos7840_port->DcrRegOffset = 0x16;
-	} else if ((mos7840_port->port_num == 2) && (serial->num_ports == 2)) {
-		mos7840_port->SpRegOffset = 0xa;
-		mos7840_port->ControlRegOffset = 0xb;
-		mos7840_port->DcrRegOffset = 0x19;
-	} else if ((mos7840_port->port_num == 3) && (serial->num_ports == 4)) {
-		mos7840_port->SpRegOffset = 0xa;
-		mos7840_port->ControlRegOffset = 0xb;
-		mos7840_port->DcrRegOffset = 0x19;
-	} else if ((mos7840_port->port_num == 4) && (serial->num_ports == 4)) {
-		mos7840_port->SpRegOffset = 0xc;
-		mos7840_port->ControlRegOffset = 0xd;
-		mos7840_port->DcrRegOffset = 0x1c;
+	} else {
+		u8 phy_num = mos7840_port->port_num;
+
+		/* Port 2 in the 2-port case uses registers of port 3 */
+		if (serial->num_ports == 2)
+			phy_num = 3;
+
+		mos7840_port->SpRegOffset = 0x8 + 2 * (phy_num - 2);
+		mos7840_port->ControlRegOffset = 0x9 + 2 * (phy_num - 2);
+		mos7840_port->DcrRegOffset = 0x16 + 3 * (phy_num - 2);
 	}
 	mos7840_dump_serial_port(port, mos7840_port);
 	mos7840_set_port_private(port, mos7840_port);

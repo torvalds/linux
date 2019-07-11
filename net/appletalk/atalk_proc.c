@@ -210,56 +210,34 @@ static const struct seq_operations atalk_seq_socket_ops = {
 	.show   = atalk_seq_socket_show,
 };
 
-static struct proc_dir_entry *atalk_proc_dir;
-
 int __init atalk_proc_init(void)
 {
-	struct proc_dir_entry *p;
-	int rc = -ENOMEM;
+	if (!proc_mkdir("atalk", init_net.proc_net))
+		return -ENOMEM;
 
-	atalk_proc_dir = proc_mkdir("atalk", init_net.proc_net);
-	if (!atalk_proc_dir)
+	if (!proc_create_seq("atalk/interface", 0444, init_net.proc_net,
+			    &atalk_seq_interface_ops))
 		goto out;
 
-	p = proc_create_seq("interface", 0444, atalk_proc_dir,
-			&atalk_seq_interface_ops);
-	if (!p)
-		goto out_interface;
+	if (!proc_create_seq("atalk/route", 0444, init_net.proc_net,
+			    &atalk_seq_route_ops))
+		goto out;
 
-	p = proc_create_seq("route", 0444, atalk_proc_dir,
-			&atalk_seq_route_ops);
-	if (!p)
-		goto out_route;
+	if (!proc_create_seq("atalk/socket", 0444, init_net.proc_net,
+			    &atalk_seq_socket_ops))
+		goto out;
 
-	p = proc_create_seq("socket", 0444, atalk_proc_dir,
-			&atalk_seq_socket_ops);
-	if (!p)
-		goto out_socket;
+	if (!proc_create_seq_private("atalk/arp", 0444, init_net.proc_net,
+				     &aarp_seq_ops,
+				     sizeof(struct aarp_iter_state), NULL))
+		goto out;
 
-	p = proc_create_seq_private("arp", 0444, atalk_proc_dir, &aarp_seq_ops,
-			sizeof(struct aarp_iter_state), NULL);
-	if (!p)
-		goto out_arp;
-
-	rc = 0;
 out:
-	return rc;
-out_arp:
-	remove_proc_entry("socket", atalk_proc_dir);
-out_socket:
-	remove_proc_entry("route", atalk_proc_dir);
-out_route:
-	remove_proc_entry("interface", atalk_proc_dir);
-out_interface:
-	remove_proc_entry("atalk", init_net.proc_net);
-	goto out;
+	remove_proc_subtree("atalk", init_net.proc_net);
+	return -ENOMEM;
 }
 
-void __exit atalk_proc_exit(void)
+void atalk_proc_exit(void)
 {
-	remove_proc_entry("interface", atalk_proc_dir);
-	remove_proc_entry("route", atalk_proc_dir);
-	remove_proc_entry("socket", atalk_proc_dir);
-	remove_proc_entry("arp", atalk_proc_dir);
-	remove_proc_entry("atalk", init_net.proc_net);
+	remove_proc_subtree("atalk", init_net.proc_net);
 }

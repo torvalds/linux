@@ -3,7 +3,7 @@
  *
  * Copyright 2011 NW Digital Radio
  *
- * Author: Jeremy McDermond <nh6z@nh6z.net>
+ * Author: Annaliese McDermond <nh6z@nh6z.net>
  *
  * Based on sound/soc/codecs/wm8974 and TI driver for kernel 2.6.27.
  *
@@ -72,5 +72,5 @@ static struct i2c_driver aic32x4_i2c_driver = {
 module_i2c_driver(aic32x4_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC TLV320AIC32x4 codec driver I2C");
-MODULE_AUTHOR("Jeremy McDermond <nh6z@nh6z.net>");
+MODULE_AUTHOR("Annaliese McDermond <nh6z@nh6z.net>");
 MODULE_LICENSE("GPL");

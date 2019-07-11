@@ -32,8 +32,8 @@
 	"3:\n"						\
 	"	.section .fixup,\"ax\"\n"		\
 	"	.align 4\n"				\
-	"4:	.long	3b\n"				\
-	"5:	l32r	%0, 4b\n"			\
+	"	.literal_position\n"			\
+	"5:	movi	%0, 3b\n"			\
 	"	movi	%1, %3\n"			\
 	"	jx	%0\n"				\
 	"	.previous\n"				\
@@ -93,7 +93,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 {
 	int ret = 0;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
+	if (!access_ok(uaddr, sizeof(u32)))
 		return -EFAULT;
 
 #if !XCHAL_HAVE_S32C1I
@@ -108,8 +108,8 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	"2:\n"
 	"	.section .fixup,\"ax\"\n"
 	"	.align 4\n"
-	"3:	.long	2b\n"
-	"4:	l32r	%1, 3b\n"
+	"	.literal_position\n"
+	"4:	movi	%1, 2b\n"
 	"	movi	%0, %7\n"
 	"	jx	%1\n"
 	"	.previous\n"

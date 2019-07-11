@@ -278,7 +278,6 @@ static int sst_byt_process_notification(struct sst_byt *byt,
 	struct sst_byt_stream *stream;
 	u64 header;
 	u8 msg_id, stream_id;
-	int handled = 1;
 
 	header = sst_dsp_shim_read64_unlocked(sst, SST_IPCD);
 	msg_id = sst_byt_header_msg_id(header);
@@ -298,7 +297,7 @@ static int sst_byt_process_notification(struct sst_byt *byt,
 		break;
 	}
 
-	return handled;
+	return 1;
 }
 
 static irqreturn_t sst_byt_irq_thread(int irq, void *context)

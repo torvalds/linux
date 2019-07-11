@@ -122,18 +122,18 @@ int lwtunnel_build_state(u16 encap_type,
 	ret = -EOPNOTSUPP;
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[encap_type]);
-	if (likely(ops && ops->build_state && try_module_get(ops->owner))) {
+	if (likely(ops && ops->build_state && try_module_get(ops->owner)))
 		found = true;
+	rcu_read_unlock();
+
+	if (found) {
 		ret = ops->build_state(encap, family, cfg, lws, extack);
 		if (ret)
 			module_put(ops->owner);
-	}
-	rcu_read_unlock();
-
-	/* don't rely on -EOPNOTSUPP to detect match as build_state
-	 * handlers could return it
-	 */
-	if (!found) {
+	} else {
+		/* don't rely on -EOPNOTSUPP to detect match as build_state
+		 * handlers could return it
+		 */
 		NL_SET_ERR_MSG_ATTR(extack, encap,
 				    "LWT encapsulation type not supported");
 	}

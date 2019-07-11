@@ -380,10 +380,10 @@ DEFINES
 */
 
 /*****************************************************************************/
-/* Audio block 0x103 is write only. To avoid shadowing in driver accessing    */
-/* RAM adresses directly. This must be READ ONLY to avoid problems.           */
-/* Writing to the interface adresses is more than only writing the RAM        */
-/* locations                                                                  */
+/* Audio block 0x103 is write only. To avoid shadowing in driver accessing   */
+/* RAM addresses directly. This must be READ ONLY to avoid problems.         */
+/* Writing to the interface addresses are more than only writing the RAM     */
+/* locations                                                                 */
 /*****************************************************************************/
 /*
 * \brief RAM location of MODUS registers
@@ -656,8 +656,8 @@ static struct drxj_data drxj_data_g = {
 	false,			/* flag: true=bypass             */
 	ATV_TOP_VID_PEAK__PRE,	/* shadow of ATV_TOP_VID_PEAK__A */
 	ATV_TOP_NOISE_TH__PRE,	/* shadow of ATV_TOP_NOISE_TH__A */
-	true,			/* flag CVBS ouput enable        */
-	false,			/* flag SIF ouput enable         */
+	true,			/* flag CVBS output enable       */
+	false,			/* flag SIF output enable        */
 	DRXJ_SIF_ATTENUATION_0DB,	/* current SIF att setting       */
 	{			/* qam_rf_agc_cfg */
 	 DRX_STANDARD_ITU_B,	/* standard            */
@@ -832,7 +832,7 @@ static struct drx_common_attr drxj_default_comm_attr_g = {
 	false,			/* If true mirror frequency spectrum            */
 	{
 	 /* MPEG output configuration */
-	 true,			/* If true, enable MPEG ouput    */
+	 true,			/* If true, enable MPEG output   */
 	 false,			/* If true, insert RS byte       */
 	 false,			/* If true, parallel out otherwise serial */
 	 false,			/* If true, invert DATA signals  */
@@ -848,7 +848,7 @@ static struct drx_common_attr drxj_default_comm_attr_g = {
 	 DRX_MPEG_STR_WIDTH_1	/* MPEG Start width in clock cycles */
 	 },
 	/* Initilisations below can be omitted, they require no user input and
-	   are initialy 0, NULL or false. The compiler will initialize them to these
+	   are initially 0, NULL or false. The compiler will initialize them to these
 	   values when omitted.  */
 	false,			/* is_opened */
 
@@ -869,7 +869,7 @@ static struct drx_common_attr drxj_default_comm_attr_g = {
 	DRX_POWER_UP,
 
 	/* Tuner */
-	1,			/* nr of I2C port to wich tuner is     */
+	1,			/* nr of I2C port to which tuner is    */
 	0L,			/* minimum RF input frequency, in kHz  */
 	0L,			/* maximum RF input frequency, in kHz  */
 	false,			/* Rf Agc Polarity                     */
@@ -1656,7 +1656,7 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 		   sequense will be visible: (1) write address {i2c addr,
 		   4 bytes chip address} (2) write data {i2c addr, 4 bytes data }
 		   (3) write address (4) write data etc...
-		   Address must be rewriten because HI is reset after data transport and
+		   Address must be rewritten because HI is reset after data transport and
 		   expects an address.
 		 */
 		todo = (block_size < datasize ? block_size : datasize);
@@ -1820,7 +1820,7 @@ static int drxdap_fasi_write_reg32(struct i2c_device_addr *dev_addr,
 * \param wdata    Data to write
 * \param rdata    Buffer for data to read
 * \return int
-* \retval 0 Succes
+* \retval 0 Success
 * \retval -EIO Timeout, I2C error, illegal bank
 *
 * 16 bits register read modify write access using short addressing format only.
@@ -1897,7 +1897,7 @@ static int drxj_dap_read_modify_write_reg16(struct i2c_device_addr *dev_addr,
 * \param addr
 * \param data
 * \return int
-* \retval 0 Succes
+* \retval 0 Success
 * \retval -EIO Timeout, I2C error, illegal bank
 *
 * 16 bits register read access via audio token ring interface.
@@ -2004,7 +2004,7 @@ static int drxj_dap_read_reg16(struct i2c_device_addr *dev_addr,
 * \param addr
 * \param data
 * \return int
-* \retval 0 Succes
+* \retval 0 Success
 * \retval -EIO Timeout, I2C error, illegal bank
 *
 * 16 bits register write access via audio token ring interface.
@@ -2094,7 +2094,7 @@ static int drxj_dap_write_reg16(struct i2c_device_addr *dev_addr,
 * \param datasize size of data buffer in bytes
 * \param data     pointer to data buffer
 * \return int
-* \retval 0 Succes
+* \retval 0 Success
 * \retval -EIO Timeout, I2C error, illegal bank
 *
 */
@@ -2338,7 +2338,7 @@ hi_command(struct i2c_device_addr *dev_addr, const struct drxj_hi_cmd *cmd, u16 
 	if ((cmd->cmd) == SIO_HI_RA_RAM_CMD_RESET)
 		msleep(1);
 
-	/* Detect power down to ommit reading result */
+	/* Detect power down to omit reading result */
 	powerdown_cmd = (bool) ((cmd->cmd == SIO_HI_RA_RAM_CMD_CONFIG) &&
 				  (((cmd->
 				     param5) & SIO_HI_RA_RAM_PAR_5_CFG_SLEEP__M)
@@ -2754,7 +2754,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 	common_attr = (struct drx_common_attr *) demod->my_common_attr;
 
 	if (cfg_data->enable_mpeg_output == true) {
-		/* quick and dirty patch to set MPEG incase current std is not
+		/* quick and dirty patch to set MPEG in case current std is not
 		   producing MPEG */
 		switch (ext_attr->standard) {
 		case DRX_STANDARD_8VSB:
@@ -2894,7 +2894,7 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 			break;
 		default:
 			break;
-		}		/* swtich (standard) */
+		}		/* switch (standard) */
 
 		/* Check insertion of the Reed-Solomon parity bytes */
 		rc = drxj_dap_read_reg16(dev_addr, FEC_OC_MODE__A, &fec_oc_reg_mode, 0);
@@ -4127,7 +4127,7 @@ rw_error:
 * \param datasize size of data buffer in bytes
 * \param data     pointer to data buffer
 * \return int
-* \retval 0 Succes
+* \retval 0 Success
 * \retval -EIO Timeout, I2C error, illegal bank
 *
 */
@@ -8989,7 +8989,7 @@ qam64auto(struct drx_demod_instance *demod,
 	     ((jiffies_to_msecs(jiffies) - start_time) <
 	      (DRXJ_QAM_MAX_WAITTIME + timeout_ofs))
 	    );
-	/* Returning control to apllication ... */
+	/* Returning control to application ... */
 
 	return 0;
 rw_error:
@@ -9309,7 +9309,7 @@ get_qamrs_err_count(struct i2c_device_addr *dev_addr,
 		return -EINVAL;
 
 	/* all reported errors are received in the  */
-	/* most recently finished measurment period */
+	/* most recently finished measurement period */
 	/*   no of pre RS bit errors */
 	rc = drxj_dap_read_reg16(dev_addr, FEC_RS_NR_BIT_ERRORS__A, &nr_bit_errors, 0);
 	if (rc != 0) {
@@ -9689,7 +9689,7 @@ rw_error:
       (3) SIF AGC (used to amplify the output signal in case input to low)
 
       The SIF AGC is now coupled to the RF/IF AGCs.
-      The SIF AGC is needed for both SIF ouput and the internal SIF signal to
+      The SIF AGC is needed for both SIF output and the internal SIF signal to
       the AUD block.
 
       RF and IF AGCs DACs are part of AFE, Video and SIF AGC DACs are part of
@@ -9702,11 +9702,11 @@ rw_error:
        later on because of the schedule)
 
       Several HW/SCU "settings" can be used for ATV. The standard selection
-      will reset most of these settings. To avoid that the end user apllication
+      will reset most of these settings. To avoid that the end user application
       has to perform these settings each time the ATV or FM standards is
       selected the driver will shadow these settings. This enables the end user
       to perform the settings only once after a drx_open(). The driver must
-      write the shadow settings to HW/SCU incase:
+      write the shadow settings to HW/SCU in case:
 	 ( setstandard FM/ATV) ||
 	 ( settings have changed && FM/ATV standard is active)
       The shadow settings will be stored in the device specific data container.
@@ -9908,7 +9908,7 @@ rw_error:
 #define IMPULSE_COSINE_ALPHA_0_5    { 2, 0, -2, -2, 2, 5, 2, -10, -20, -14, 20, 74, 125, 145}	/*sqrt raised-cosine filter with alpha=0.5 */
 #define IMPULSE_COSINE_ALPHA_RO_0_5 { 0, 0, 1, 2, 3, 0, -7, -15, -16,  0, 34, 77, 114, 128}	/*full raised-cosine filter with alpha=0.5 (receiver only) */
 
-/* Coefficients for the nyquist fitler (total: 27 taps) */
+/* Coefficients for the nyquist filter (total: 27 taps) */
 #define NYQFILTERLEN 27
 
 static int ctrl_set_oob(struct drx_demod_instance *demod, struct drxoob *oob_param)

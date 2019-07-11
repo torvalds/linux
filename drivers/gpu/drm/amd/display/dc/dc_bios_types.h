@@ -121,10 +121,6 @@ struct dc_vbios_funcs {
 	enum bp_result (*program_crtc_timing)(
 		struct dc_bios *bios,
 		struct bp_hw_crtc_timing_parameters *bp_params);
-
-	enum bp_result (*crtc_source_select)(
-		struct dc_bios *bios,
-		struct bp_crtc_source_select *bp_params);
 	enum bp_result (*program_display_engine_pll)(
 		struct dc_bios *bios,
 		struct bp_pixel_clock_parameters *bp_params);

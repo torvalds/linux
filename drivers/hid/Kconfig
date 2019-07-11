@@ -150,6 +150,7 @@ config HID_ASUS
 	tristate "Asus"
 	depends on LEDS_CLASS
 	depends on ASUS_WMI || ASUS_WMI=n
+	select POWER_SUPPLY
 	---help---
 	Support for Asus notebook built-in keyboard and touchpad via i2c, and
 	the Asus Republic of Gamers laptop keyboard special keys.
@@ -412,6 +413,12 @@ config HID_WALTOP
 	---help---
 	Support for Waltop tablets.
 
+config HID_VIEWSONIC
+	tristate "ViewSonic/Signotec"
+	depends on HID
+	help
+	  Support for ViewSonic/Signotec PD1011 signature pad.
+
 config HID_GYRATION
 	tristate "Gyration remote control"
 	depends on HID
@@ -589,6 +596,13 @@ config HID_MAGICMOUSE
 
 	Say Y here if you want support for the multi-touch features of the
 	Apple Wireless "Magic" Mouse and the Apple Wireless "Magic" Trackpad.
+
+config HID_MALTRON
+	tristate "Maltron L90 keyboard"
+	depends on HID
+	---help---
+	Adds support for the volume up, volume down, mute, and play/pause buttons
+	of the Maltron L90 keyboard.
 
 config HID_MAYFLASH
 	tristate "Mayflash game controller adapter force feedback"

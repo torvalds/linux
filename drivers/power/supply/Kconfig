@@ -499,6 +499,13 @@ config CHARGER_DETECTOR_MAX14656
 	  Revision 1.2 and can be found e.g. in Kindle 4/5th generation
 	  readers and certain LG devices.
 
+config CHARGER_MAX77650
+	tristate "Maxim MAX77650 battery charger driver"
+	depends on MFD_MAX77650
+	help
+	  Say Y to enable support for the battery charger control of MAX77650
+	  PMICs.
+
 config CHARGER_MAX77693
 	tristate "Maxim MAX77693 battery charger driver"
 	depends on MFD_MAX77693
@@ -650,6 +657,14 @@ config CHARGER_SC2731
 	depends on MFD_SC27XX_PMIC || COMPILE_TEST
 	help
 	 Say Y here to enable support for battery charging with SC2731
+	 PMIC chips.
+
+config FUEL_GAUGE_SC27XX
+	tristate "Spreadtrum SC27XX fuel gauge driver"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	depends on IIO
+	help
+	 Say Y here to enable support for fuel gauge with SC27XX
 	 PMIC chips.
 
 endif # POWER_SUPPLY

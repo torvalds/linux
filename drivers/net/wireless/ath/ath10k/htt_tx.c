@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/etherdevice.h>
@@ -495,7 +484,7 @@ int ath10k_htt_tx_start(struct ath10k_htt *htt)
 	if (htt->tx_mem_allocated)
 		return 0;
 
-	if (ar->dev_type == ATH10K_DEV_TYPE_HL)
+	if (ar->bus_param.dev_type == ATH10K_DEV_TYPE_HL)
 		return 0;
 
 	ret = ath10k_htt_tx_alloc_buf(htt);
@@ -1035,6 +1024,53 @@ int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 	return 0;
 }
 
+static int ath10k_htt_h2t_aggr_cfg_msg_v2(struct ath10k_htt *htt,
+					  u8 max_subfrms_ampdu,
+					  u8 max_subfrms_amsdu)
+{
+	struct ath10k *ar = htt->ar;
+	struct htt_aggr_conf_v2 *aggr_conf;
+	struct sk_buff *skb;
+	struct htt_cmd *cmd;
+	int len;
+	int ret;
+
+	/* Firmware defaults are: amsdu = 3 and ampdu = 64 */
+
+	if (max_subfrms_ampdu == 0 || max_subfrms_ampdu > 64)
+		return -EINVAL;
+
+	if (max_subfrms_amsdu == 0 || max_subfrms_amsdu > 31)
+		return -EINVAL;
+
+	len = sizeof(cmd->hdr);
+	len += sizeof(cmd->aggr_conf_v2);
+
+	skb = ath10k_htc_alloc_skb(ar, len);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put(skb, len);
+	cmd = (struct htt_cmd *)skb->data;
+	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_AGGR_CFG;
+
+	aggr_conf = &cmd->aggr_conf_v2;
+	aggr_conf->max_num_ampdu_subframes = max_subfrms_ampdu;
+	aggr_conf->max_num_amsdu_subframes = max_subfrms_amsdu;
+
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt h2t aggr cfg msg amsdu %d ampdu %d",
+		   aggr_conf->max_num_amsdu_subframes,
+		   aggr_conf->max_num_ampdu_subframes);
+
+	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
+	if (ret) {
+		dev_kfree_skb_any(skb);
+		return ret;
+	}
+
+	return 0;
+}
+
 int ath10k_htt_tx_fetch_resp(struct ath10k *ar,
 			     __le32 token,
 			     __le16 fetch_seq_num,
@@ -1177,7 +1213,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	return 0;
 
 err_unmap_msdu:
-	if (ar->dev_type != ATH10K_DEV_TYPE_HL)
+	if (ar->bus_param.dev_type != ATH10K_DEV_TYPE_HL)
 		dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 err_free_txdesc:
 	dev_kfree_skb_any(txdesc);
@@ -1498,7 +1534,7 @@ static int ath10k_htt_tx_64(struct ath10k_htt *htt,
 	u16 msdu_id, flags1 = 0;
 	u16 freq = 0;
 	dma_addr_t frags_paddr = 0;
-	u32 txbuf_paddr;
+	dma_addr_t txbuf_paddr;
 	struct htt_msdu_ext_desc_64 *ext_desc = NULL;
 	struct htt_msdu_ext_desc_64 *ext_desc_t = NULL;
 
@@ -1692,6 +1728,7 @@ static const struct ath10k_htt_tx_ops htt_tx_ops_32 = {
 	.htt_tx = ath10k_htt_tx_32,
 	.htt_alloc_txbuff = ath10k_htt_tx_alloc_cont_txbuf_32,
 	.htt_free_txbuff = ath10k_htt_tx_free_cont_txbuf_32,
+	.htt_h2t_aggr_cfg_msg = ath10k_htt_h2t_aggr_cfg_msg,
 };
 
 static const struct ath10k_htt_tx_ops htt_tx_ops_64 = {
@@ -1702,6 +1739,7 @@ static const struct ath10k_htt_tx_ops htt_tx_ops_64 = {
 	.htt_tx = ath10k_htt_tx_64,
 	.htt_alloc_txbuff = ath10k_htt_tx_alloc_cont_txbuf_64,
 	.htt_free_txbuff = ath10k_htt_tx_free_cont_txbuf_64,
+	.htt_h2t_aggr_cfg_msg = ath10k_htt_h2t_aggr_cfg_msg_v2,
 };
 
 static const struct ath10k_htt_tx_ops htt_tx_ops_hl = {
@@ -1714,7 +1752,7 @@ void ath10k_htt_set_tx_ops(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
 
-	if (ar->dev_type == ATH10K_DEV_TYPE_HL)
+	if (ar->bus_param.dev_type == ATH10K_DEV_TYPE_HL)
 		htt->tx_ops = &htt_tx_ops_hl;
 	else if (ar->hw_params.target_64bit)
 		htt->tx_ops = &htt_tx_ops_64;

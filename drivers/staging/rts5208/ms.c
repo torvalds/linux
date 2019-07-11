@@ -1,19 +1,8 @@
-/* Driver for Realtek PCI-Express card reader
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Driver for Realtek PCI-Express card reader
  *
  * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author:
  *   Wei WANG (wei_wang@realsil.com.cn)
@@ -1676,7 +1665,10 @@ static int ms_copy_page(struct rtsx_chip *chip, u16 old_blk, u16 new_blk,
 			return STATUS_FAIL;
 		}
 
-		ms_read_extra_data(chip, old_blk, i, extra, MS_EXTRA_SIZE);
+		retval = ms_read_extra_data(chip, old_blk, i, extra,
+					    MS_EXTRA_SIZE);
+		if (retval != STATUS_SUCCESS)
+			return STATUS_FAIL;
 
 		retval = ms_set_rw_reg_addr(chip, OverwriteFlag,
 					    MS_EXTRA_SIZE, SystemParm, 6);

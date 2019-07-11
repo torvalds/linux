@@ -106,6 +106,9 @@ extern void fpstate_sanitize_xstate(struct fpu *fpu);
 #define user_insn(insn, output, input...)				\
 ({									\
 	int err;							\
+									\
+	might_fault();							\
+									\
 	asm volatile(ASM_STAC "\n"					\
 		     "1:" #insn "\n\t"					\
 		     "2: " ASM_CLAC "\n"				\
@@ -134,37 +137,25 @@ static inline int copy_fxregs_to_user(struct fxregs_state __user *fx)
 {
 	if (IS_ENABLED(CONFIG_X86_32))
 		return user_insn(fxsave %[fx], [fx] "=m" (*fx), "m" (*fx));
-	else if (IS_ENABLED(CONFIG_AS_FXSAVEQ))
+	else
 		return user_insn(fxsaveq %[fx], [fx] "=m" (*fx), "m" (*fx));
 
-	/* See comment in copy_fxregs_to_kernel() below. */
-	return user_insn(rex64/fxsave (%[fx]), "=m" (*fx), [fx] "R" (fx));
 }
 
 static inline void copy_kernel_to_fxregs(struct fxregs_state *fx)
 {
-	if (IS_ENABLED(CONFIG_X86_32)) {
+	if (IS_ENABLED(CONFIG_X86_32))
 		kernel_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
-	} else {
-		if (IS_ENABLED(CONFIG_AS_FXSAVEQ)) {
-			kernel_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
-		} else {
-			/* See comment in copy_fxregs_to_kernel() below. */
-			kernel_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx), "m" (*fx));
-		}
-	}
+	else
+		kernel_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
 }
 
 static inline int copy_user_to_fxregs(struct fxregs_state __user *fx)
 {
 	if (IS_ENABLED(CONFIG_X86_32))
 		return user_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
-	else if (IS_ENABLED(CONFIG_AS_FXSAVEQ))
+	else
 		return user_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
-
-	/* See comment in copy_fxregs_to_kernel() below. */
-	return user_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx),
-			  "m" (*fx));
 }
 
 static inline void copy_kernel_to_fregs(struct fregs_state *fx)
@@ -181,34 +172,8 @@ static inline void copy_fxregs_to_kernel(struct fpu *fpu)
 {
 	if (IS_ENABLED(CONFIG_X86_32))
 		asm volatile( "fxsave %[fx]" : [fx] "=m" (fpu->state.fxsave));
-	else if (IS_ENABLED(CONFIG_AS_FXSAVEQ))
+	else
 		asm volatile("fxsaveq %[fx]" : [fx] "=m" (fpu->state.fxsave));
-	else {
-		/* Using "rex64; fxsave %0" is broken because, if the memory
-		 * operand uses any extended registers for addressing, a second
-		 * REX prefix will be generated (to the assembler, rex64
-		 * followed by semicolon is a separate instruction), and hence
-		 * the 64-bitness is lost.
-		 *
-		 * Using "fxsaveq %0" would be the ideal choice, but is only
-		 * supported starting with gas 2.16.
-		 *
-		 * Using, as a workaround, the properly prefixed form below
-		 * isn't accepted by any binutils version so far released,
-		 * complaining that the same type of prefix is used twice if
-		 * an extended register is needed for addressing (fix submitted
-		 * to mainline 2005-11-21).
-		 *
-		 *  asm volatile("rex64/fxsave %0" : "=m" (fpu->state.fxsave));
-		 *
-		 * This, however, we can work around by forcing the compiler to
-		 * select an addressing mode that doesn't require extended
-		 * registers.
-		 */
-		asm volatile( "rex64/fxsave (%[fx])"
-			     : "=m" (fpu->state.fxsave)
-			     : [fx] "R" (&fpu->state.fxsave));
-	}
 }
 
 /* These macros all use (%edi)/(%rdi) as the single memory argument. */
@@ -411,6 +376,13 @@ static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 {
 	if (likely(use_xsave())) {
 		copy_xregs_to_kernel(&fpu->state.xsave);
+
+		/*
+		 * AVX512 state is tracked here because its use is
+		 * known to slow the max clock speed of the core.
+		 */
+		if (fpu->state.xsave.header.xfeatures & XFEATURE_MASK_AVX512)
+			fpu->avx512_timestamp = jiffies;
 		return 1;
 	}
 

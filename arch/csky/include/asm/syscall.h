@@ -6,6 +6,7 @@
 #include <linux/sched.h>
 #include <linux/err.h>
 #include <abi/regdef.h>
+#include <uapi/linux/audit.h>
 
 static inline int
 syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
@@ -42,30 +43,26 @@ syscall_set_return_value(struct task_struct *task, struct pt_regs *regs,
 
 static inline void
 syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
-		      unsigned int i, unsigned int n, unsigned long *args)
+		      unsigned long *args)
 {
-	BUG_ON(i + n > 6);
-	if (i == 0) {
-		args[0] = regs->orig_a0;
-		args++;
-		i++;
-		n--;
-	}
-	memcpy(args, &regs->a1 + i * sizeof(regs->a1), n * sizeof(args[0]));
+	args[0] = regs->orig_a0;
+	args++;
+	memcpy(args, &regs->a1, 5 * sizeof(args[0]));
 }
 
 static inline void
 syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
-		      unsigned int i, unsigned int n, const unsigned long *args)
+		      const unsigned long *args)
 {
-	BUG_ON(i + n > 6);
-	if (i == 0) {
-		regs->orig_a0 = args[0];
-		args++;
-		i++;
-		n--;
-	}
-	memcpy(&regs->a1 + i * sizeof(regs->a1), args, n * sizeof(regs->a0));
+	regs->orig_a0 = args[0];
+	args++;
+	memcpy(&regs->a1, args, 5 * sizeof(regs->a1));
+}
+
+static inline int
+syscall_get_arch(void)
+{
+	return AUDIT_ARCH_CSKY;
 }
 
 #endif	/* __ASM_SYSCALL_H */

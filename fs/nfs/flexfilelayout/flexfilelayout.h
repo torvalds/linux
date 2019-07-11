@@ -81,8 +81,8 @@ struct nfs4_ff_layout_mirror {
 	u32				fh_versions_cnt;
 	struct nfs_fh			*fh_versions;
 	nfs4_stateid			stateid;
-	struct rpc_cred	__rcu		*ro_cred;
-	struct rpc_cred	__rcu		*rw_cred;
+	const struct cred __rcu		*ro_cred;
+	const struct cred __rcu		*rw_cred;
 	refcount_t			ref;
 	spinlock_t			lock;
 	unsigned long			flags;
@@ -132,16 +132,6 @@ FF_LAYOUT_LSEG(struct pnfs_layout_segment *lseg)
 			    generic_hdr);
 }
 
-static inline struct nfs4_deviceid_node *
-FF_LAYOUT_DEVID_NODE(struct pnfs_layout_segment *lseg, u32 idx)
-{
-	if (idx >= FF_LAYOUT_LSEG(lseg)->mirror_array_cnt ||
-	    FF_LAYOUT_LSEG(lseg)->mirror_array[idx] == NULL ||
-	    FF_LAYOUT_LSEG(lseg)->mirror_array[idx]->mirror_ds == NULL)
-		return NULL;
-	return &FF_LAYOUT_LSEG(lseg)->mirror_array[idx]->mirror_ds->id_node;
-}
-
 static inline struct nfs4_ff_layout_ds *
 FF_LAYOUT_MIRROR_DS(struct nfs4_deviceid_node *node)
 {
@@ -151,9 +141,25 @@ FF_LAYOUT_MIRROR_DS(struct nfs4_deviceid_node *node)
 static inline struct nfs4_ff_layout_mirror *
 FF_LAYOUT_COMP(struct pnfs_layout_segment *lseg, u32 idx)
 {
-	if (idx >= FF_LAYOUT_LSEG(lseg)->mirror_array_cnt)
-		return NULL;
-	return FF_LAYOUT_LSEG(lseg)->mirror_array[idx];
+	struct nfs4_ff_layout_segment *fls = FF_LAYOUT_LSEG(lseg);
+
+	if (idx < fls->mirror_array_cnt)
+		return fls->mirror_array[idx];
+	return NULL;
+}
+
+static inline struct nfs4_deviceid_node *
+FF_LAYOUT_DEVID_NODE(struct pnfs_layout_segment *lseg, u32 idx)
+{
+	struct nfs4_ff_layout_mirror *mirror = FF_LAYOUT_COMP(lseg, idx);
+
+	if (mirror != NULL) {
+		struct nfs4_ff_layout_ds *mirror_ds = mirror->mirror_ds;
+
+		if (!IS_ERR_OR_NULL(mirror_ds))
+			return &mirror_ds->id_node;
+	}
+	return NULL;
 }
 
 static inline u32
@@ -174,28 +180,10 @@ ff_layout_no_read_on_rw(struct pnfs_layout_segment *lseg)
 	return FF_LAYOUT_LSEG(lseg)->flags & FF_FLAGS_NO_READ_IO;
 }
 
-static inline bool
-ff_layout_test_devid_unavailable(struct nfs4_deviceid_node *node)
-{
-	/*
-	 * Flexfiles should never mark a DS unavailable, but if it does
-	 * print a (ratelimited) warning as this can affect performance.
-	 */
-	if (nfs4_test_deviceid_unavailable(node)) {
-		u32 *p = (u32 *)node->deviceid.data;
-
-		pr_warn_ratelimited("NFS: flexfiles layout referencing an "
-				"unavailable device [%x%x%x%x]\n",
-				p[0], p[1], p[2], p[3]);
-		return true;
-	}
-	return false;
-}
-
 static inline int
-nfs4_ff_layout_ds_version(struct pnfs_layout_segment *lseg, u32 ds_idx)
+nfs4_ff_layout_ds_version(const struct nfs4_ff_layout_mirror *mirror)
 {
-	return FF_LAYOUT_COMP(lseg, ds_idx)->mirror_ds->ds_versions[0].version;
+	return mirror->mirror_ds->ds_versions[0].version;
 }
 
 struct nfs4_ff_layout_ds *
@@ -207,6 +195,7 @@ int ff_layout_track_ds_error(struct nfs4_flexfile_layout *flo,
 			     struct nfs4_ff_layout_mirror *mirror, u64 offset,
 			     u64 length, int status, enum nfs_opnum4 opnum,
 			     gfp_t gfp_flags);
+void ff_layout_send_layouterror(struct pnfs_layout_segment *lseg);
 int ff_layout_encode_ds_ioerr(struct xdr_stream *xdr, const struct list_head *head);
 void ff_layout_free_ds_ioerr(struct list_head *head);
 unsigned int ff_layout_fetch_ds_ioerr(struct pnfs_layout_hdr *lo,
@@ -214,23 +203,23 @@ unsigned int ff_layout_fetch_ds_ioerr(struct pnfs_layout_hdr *lo,
 		struct list_head *head,
 		unsigned int maxnum);
 struct nfs_fh *
-nfs4_ff_layout_select_ds_fh(struct pnfs_layout_segment *lseg, u32 mirror_idx);
-int
-nfs4_ff_layout_select_ds_stateid(struct pnfs_layout_segment *lseg,
-				u32 mirror_idx,
-				nfs4_stateid *stateid);
+nfs4_ff_layout_select_ds_fh(struct nfs4_ff_layout_mirror *mirror);
+void
+nfs4_ff_layout_select_ds_stateid(const struct nfs4_ff_layout_mirror *mirror,
+		nfs4_stateid *stateid);
 
 struct nfs4_pnfs_ds *
-nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
+nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg,
+			  struct nfs4_ff_layout_mirror *mirror,
 			  bool fail_return);
 
 struct rpc_clnt *
-nfs4_ff_find_or_create_ds_client(struct pnfs_layout_segment *lseg,
-				 u32 ds_idx,
+nfs4_ff_find_or_create_ds_client(struct nfs4_ff_layout_mirror *mirror,
 				 struct nfs_client *ds_clp,
 				 struct inode *inode);
-struct rpc_cred *ff_layout_get_ds_cred(struct pnfs_layout_segment *lseg,
-				       u32 ds_idx, struct rpc_cred *mdscred);
+const struct cred *ff_layout_get_ds_cred(struct nfs4_ff_layout_mirror *mirror,
+					 const struct pnfs_layout_range *range,
+					 const struct cred *mdscred);
 bool ff_layout_avoid_mds_available_ds(struct pnfs_layout_segment *lseg);
 bool ff_layout_avoid_read_on_rw(struct pnfs_layout_segment *lseg);
 

@@ -35,10 +35,13 @@ struct call_path;
  *
  * CALL_RETURN_NO_CALL: 'return' but no matching 'call'
  * CALL_RETURN_NO_RETURN: 'call' but no matching 'return'
+ * CALL_RETURN_NON_CALL: a branch but not a 'call' to the start of a different
+ *                       symbol
  */
 enum {
 	CALL_RETURN_NO_CALL	= 1 << 0,
 	CALL_RETURN_NO_RETURN	= 1 << 1,
+	CALL_RETURN_NON_CALL	= 1 << 2,
 };
 
 /**
@@ -52,6 +55,7 @@ enum {
  * @call_ref: external reference to 'call' sample (e.g. db_id)
  * @return_ref:  external reference to 'return' sample (e.g. db_id)
  * @db_id: id used for db-export
+ * @parent_db_id: id of parent call used for db-export
  * @flags: Call/Return flags
  */
 struct call_return {
@@ -64,6 +68,7 @@ struct call_return {
 	u64 call_ref;
 	u64 return_ref;
 	u64 db_id;
+	u64 parent_db_id;
 	u32 flags;
 };
 
@@ -76,21 +81,21 @@ struct call_return {
  */
 struct call_return_processor {
 	struct call_path_root *cpr;
-	int (*process)(struct call_return *cr, void *data);
+	int (*process)(struct call_return *cr, u64 *parent_db_id, void *data);
 	void *data;
 };
 
-int thread_stack__event(struct thread *thread, u32 flags, u64 from_ip,
+int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
 			u64 to_ip, u16 insn_len, u64 trace_nr);
-void thread_stack__set_trace_nr(struct thread *thread, u64 trace_nr);
-void thread_stack__sample(struct thread *thread, struct ip_callchain *chain,
+void thread_stack__set_trace_nr(struct thread *thread, int cpu, u64 trace_nr);
+void thread_stack__sample(struct thread *thread, int cpu, struct ip_callchain *chain,
 			  size_t sz, u64 ip, u64 kernel_start);
 int thread_stack__flush(struct thread *thread);
 void thread_stack__free(struct thread *thread);
-size_t thread_stack__depth(struct thread *thread);
+size_t thread_stack__depth(struct thread *thread, int cpu);
 
 struct call_return_processor *
-call_return_processor__new(int (*process)(struct call_return *cr, void *data),
+call_return_processor__new(int (*process)(struct call_return *cr, u64 *parent_db_id, void *data),
 			   void *data);
 void call_return_processor__free(struct call_return_processor *crp);
 int thread_stack__process(struct thread *thread, struct comm *comm,

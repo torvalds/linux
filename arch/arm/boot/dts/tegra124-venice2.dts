@@ -879,7 +879,7 @@
 		status = "okay";
 		spi-max-frequency = <25000000>;
 		spi-flash@0 {
-			compatible = "winbond,w25q32dw";
+			compatible = "winbond,w25q32dw", "jedec,spi-nor";
 			reg = <0>;
 			spi-max-frequency = <20000000>;
 		};

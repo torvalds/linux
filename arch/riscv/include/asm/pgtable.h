@@ -44,7 +44,7 @@
 /* Page protection bits */
 #define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_USER)
 
-#define PAGE_NONE		__pgprot(0)
+#define PAGE_NONE		__pgprot(_PAGE_PROT_NONE)
 #define PAGE_READ		__pgprot(_PAGE_BASE | _PAGE_READ)
 #define PAGE_WRITE		__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_WRITE)
 #define PAGE_EXEC		__pgprot(_PAGE_BASE | _PAGE_EXEC)
@@ -98,7 +98,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 static inline int pmd_present(pmd_t pmd)
 {
-	return (pmd_val(pmd) & _PAGE_PRESENT);
+	return (pmd_val(pmd) & (_PAGE_PRESENT | _PAGE_PROT_NONE));
 }
 
 static inline int pmd_none(pmd_t pmd)
@@ -178,7 +178,7 @@ static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long addr)
 
 static inline int pte_present(pte_t pte)
 {
-	return (pte_val(pte) & _PAGE_PRESENT);
+	return (pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROT_NONE));
 }
 
 static inline int pte_none(pte_t pte)
@@ -380,7 +380,7 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
  *
  * Format of swap PTE:
  *	bit            0:	_PAGE_PRESENT (zero)
- *	bit            1:	reserved for future use (zero)
+ *	bit            1:	_PAGE_PROT_NONE (zero)
  *	bits      2 to 6:	swap type
  *	bits 7 to XLEN-1:	swap offset
  */
@@ -404,6 +404,7 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 #define kern_addr_valid(addr)   (1) /* FIXME */
 #endif
 
+extern void setup_bootmem(void);
 extern void paging_init(void);
 
 static inline void pgtable_cache_init(void)

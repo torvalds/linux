@@ -2420,6 +2420,8 @@ static const struct qcom_cc_desc gcc_sdm660_desc = {
 	.num_resets = ARRAY_SIZE(gcc_sdm660_resets),
 	.gdscs = gcc_sdm660_gdscs,
 	.num_gdscs = ARRAY_SIZE(gcc_sdm660_gdscs),
+	.clk_hws = gcc_sdm660_hws,
+	.num_clk_hws = ARRAY_SIZE(gcc_sdm660_hws),
 };
 
 static const struct of_device_id gcc_sdm660_match_table[] = {
@@ -2431,7 +2433,7 @@ MODULE_DEVICE_TABLE(of, gcc_sdm660_match_table);
 
 static int gcc_sdm660_probe(struct platform_device *pdev)
 {
-	int i, ret;
+	int ret;
 	struct regmap *regmap;
 
 	regmap = qcom_cc_map(pdev, &gcc_sdm660_desc);
@@ -2445,13 +2447,6 @@ static int gcc_sdm660_probe(struct platform_device *pdev)
 	ret = regmap_update_bits(regmap, 0x52008, BIT(21), BIT(21));
 	if (ret)
 		return ret;
-
-	/* Register the hws */
-	for (i = 0; i < ARRAY_SIZE(gcc_sdm660_hws); i++) {
-		ret = devm_clk_hw_register(&pdev->dev, gcc_sdm660_hws[i]);
-		if (ret)
-			return ret;
-	}
 
 	return qcom_cc_really_probe(pdev, &gcc_sdm660_desc, regmap);
 }

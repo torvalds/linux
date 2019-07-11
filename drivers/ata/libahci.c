@@ -2599,7 +2599,8 @@ int ahci_host_activate(struct ata_host *host, struct scsi_host_template *sht)
 	int rc;
 
 	if (hpriv->flags & AHCI_HFLAG_MULTI_MSI) {
-		if (hpriv->irq_handler)
+		if (hpriv->irq_handler &&
+		    hpriv->irq_handler != ahci_single_level_irq_intr)
 			dev_warn(host->dev,
 			         "both AHCI_HFLAG_MULTI_MSI flag set and custom irq handler implemented\n");
 		if (!hpriv->get_irq_vector) {

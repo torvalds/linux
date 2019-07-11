@@ -1978,6 +1978,23 @@ static irqreturn_t tegra_dc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static bool tegra_dc_has_window_groups(struct tegra_dc *dc)
+{
+	unsigned int i;
+
+	if (!dc->soc->wgrps)
+		return true;
+
+	for (i = 0; i < dc->soc->num_wgrps; i++) {
+		const struct tegra_windowgroup_soc *wgrp = &dc->soc->wgrps[i];
+
+		if (wgrp->dc == dc->pipe && wgrp->num_windows > 0)
+			return true;
+	}
+
+	return false;
+}
+
 static int tegra_dc_init(struct host1x_client *client)
 {
 	struct drm_device *drm = dev_get_drvdata(client->parent);
@@ -1993,22 +2010,8 @@ static int tegra_dc_init(struct host1x_client *client)
 	 * assign a primary plane to them, which in turn will cause KMS to
 	 * crash.
 	 */
-	if (dc->soc->wgrps) {
-		bool has_wgrps = false;
-		unsigned int i;
-
-		for (i = 0; i < dc->soc->num_wgrps; i++) {
-			const struct tegra_windowgroup_soc *wgrp = &dc->soc->wgrps[i];
-
-			if (wgrp->dc == dc->pipe && wgrp->num_windows > 0) {
-				has_wgrps = true;
-				break;
-			}
-		}
-
-		if (!has_wgrps)
-			return 0;
-	}
+	if (!tegra_dc_has_window_groups(dc))
+		return 0;
 
 	dc->syncpt = host1x_syncpt_request(client, flags);
 	if (!dc->syncpt)
@@ -2093,6 +2096,9 @@ static int tegra_dc_exit(struct host1x_client *client)
 {
 	struct tegra_dc *dc = host1x_client_to_dc(client);
 	int err;
+
+	if (!tegra_dc_has_window_groups(dc))
+		return 0;
 
 	devm_free_irq(dc->dev, dc->irq, dc);
 

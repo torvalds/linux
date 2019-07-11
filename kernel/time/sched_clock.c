@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * sched_clock.c: Generic sched_clock() support, to extend low level
- *                hardware time counters to full 64-bit ns values.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Generic sched_clock() support, to extend low level hardware time
+ * counters to full 64-bit ns values.
  */
 #include <linux/clocksource.h>
 #include <linux/init.h>
@@ -275,7 +272,7 @@ static u64 notrace suspended_sched_clock_read(void)
 	return cd.read_data[seq & 1].epoch_cyc;
 }
 
-static int sched_clock_suspend(void)
+int sched_clock_suspend(void)
 {
 	struct clock_read_data *rd = &cd.read_data[0];
 
@@ -286,7 +283,7 @@ static int sched_clock_suspend(void)
 	return 0;
 }
 
-static void sched_clock_resume(void)
+void sched_clock_resume(void)
 {
 	struct clock_read_data *rd = &cd.read_data[0];
 

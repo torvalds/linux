@@ -160,7 +160,6 @@ exit:
 }
 EXPORT_SYMBOL_GPL(pnv_pci_set_power_state);
 
-#ifdef CONFIG_PCI_MSI
 int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
@@ -229,7 +228,6 @@ void pnv_teardown_msi_irqs(struct pci_dev *pdev)
 		msi_bitmap_free_hwirqs(&phb->msi_bmp, hwirq - phb->msi_base, 1);
 	}
 }
-#endif /* CONFIG_PCI_MSI */
 
 /* Nicely print the contents of the PE State Tables (PEST). */
 static void pnv_pci_dump_pest(__be64 pestA[], __be64 pestB[], int pest_size)
@@ -602,8 +600,8 @@ static void pnv_pci_handle_eeh_config(struct pnv_phb *phb, u32 pe_no)
 static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 {
 	struct pnv_phb *phb = pdn->phb->private_data;
-	u8	fstate;
-	__be16	pcierr;
+	u8	fstate = 0;
+	__be16	pcierr = 0;
 	unsigned int pe_no;
 	s64	rc;
 
@@ -1127,4 +1125,47 @@ void __init pnv_pci_init(void)
 	set_pci_dma_ops(&dma_iommu_ops);
 }
 
-machine_subsys_initcall_sync(powernv, tce_iommu_bus_notifier_init);
+static int pnv_tce_iommu_bus_notifier(struct notifier_block *nb,
+		unsigned long action, void *data)
+{
+	struct device *dev = data;
+	struct pci_dev *pdev;
+	struct pci_dn *pdn;
+	struct pnv_ioda_pe *pe;
+	struct pci_controller *hose;
+	struct pnv_phb *phb;
+
+	switch (action) {
+	case BUS_NOTIFY_ADD_DEVICE:
+		pdev = to_pci_dev(dev);
+		pdn = pci_get_pdn(pdev);
+		hose = pci_bus_to_host(pdev->bus);
+		phb = hose->private_data;
+
+		WARN_ON_ONCE(!phb);
+		if (!pdn || pdn->pe_number == IODA_INVALID_PE || !phb)
+			return 0;
+
+		pe = &phb->ioda.pe_array[pdn->pe_number];
+		if (!pe->table_group.group)
+			return 0;
+		iommu_add_device(&pe->table_group, dev);
+		return 0;
+	case BUS_NOTIFY_DEL_DEVICE:
+		iommu_del_device(dev);
+		return 0;
+	default:
+		return 0;
+	}
+}
+
+static struct notifier_block pnv_tce_iommu_bus_nb = {
+	.notifier_call = pnv_tce_iommu_bus_notifier,
+};
+
+static int __init pnv_tce_iommu_bus_notifier_init(void)
+{
+	bus_register_notifier(&pci_bus_type, &pnv_tce_iommu_bus_nb);
+	return 0;
+}
+machine_subsys_initcall_sync(powernv, pnv_tce_iommu_bus_notifier_init);

@@ -57,6 +57,15 @@ static inline void linkmode_clear_bit(int nr, volatile unsigned long *addr)
 	__clear_bit(nr, addr);
 }
 
+static inline void linkmode_mod_bit(int nr, volatile unsigned long *addr,
+				    int set)
+{
+	if (set)
+		linkmode_set_bit(nr, addr);
+	else
+		linkmode_clear_bit(nr, addr);
+}
+
 static inline void linkmode_change_bit(int nr, volatile unsigned long *addr)
 {
 	__change_bit(nr, addr);

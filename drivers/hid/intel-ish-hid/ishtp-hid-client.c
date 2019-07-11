@@ -788,8 +788,8 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 	if (!cl_device)
 		return	-ENODEV;
 
-	if (uuid_le_cmp(hid_ishtp_guid,
-			cl_device->fw_client->props.protocol_name) != 0)
+	if (!guid_equal(&hid_ishtp_guid,
+			&cl_device->fw_client->props.protocol_name))
 		return	-ENODEV;
 
 	client_data = devm_kzalloc(&cl_device->dev, sizeof(*client_data),

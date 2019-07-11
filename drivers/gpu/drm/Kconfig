@@ -170,10 +170,6 @@ config DRM_KMS_CMA_HELPER
 	bool
 	depends on DRM
 	select DRM_GEM_CMA_HELPER
-	select DRM_KMS_FB_HELPER
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
 	help
 	  Choose this if you need the KMS CMA helper functions
 

@@ -216,18 +216,17 @@ static int usnic_ib_netdevice_event(struct notifier_block *notifier,
 					unsigned long event, void *ptr)
 {
 	struct usnic_ib_dev *us_ibdev;
+	struct ib_device *ibdev;
 
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 
-	mutex_lock(&usnic_ib_ibdev_list_lock);
-	list_for_each_entry(us_ibdev, &usnic_ib_ibdev_list, ib_dev_link) {
-		if (us_ibdev->netdev == netdev) {
-			usnic_ib_handle_usdev_event(us_ibdev, event);
-			break;
-		}
-	}
-	mutex_unlock(&usnic_ib_ibdev_list_lock);
+	ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_USNIC);
+	if (!ibdev)
+		return NOTIFY_DONE;
 
+	us_ibdev = container_of(ibdev, struct usnic_ib_dev, ib_dev);
+	usnic_ib_handle_usdev_event(us_ibdev, event);
+	ib_device_put(ibdev);
 	return NOTIFY_DONE;
 }
 
@@ -282,16 +281,15 @@ static int usnic_ib_inetaddr_event(struct notifier_block *notifier,
 	struct usnic_ib_dev *us_ibdev;
 	struct in_ifaddr *ifa = ptr;
 	struct net_device *netdev = ifa->ifa_dev->dev;
+	struct ib_device *ibdev;
 
-	mutex_lock(&usnic_ib_ibdev_list_lock);
-	list_for_each_entry(us_ibdev, &usnic_ib_ibdev_list, ib_dev_link) {
-		if (us_ibdev->netdev == netdev) {
-			usnic_ib_handle_inet_event(us_ibdev, event, ptr);
-			break;
-		}
-	}
-	mutex_unlock(&usnic_ib_ibdev_list_lock);
+	ibdev = ib_device_get_by_netdev(netdev, RDMA_DRIVER_USNIC);
+	if (!ibdev)
+		return NOTIFY_DONE;
 
+	us_ibdev = container_of(ibdev, struct usnic_ib_dev, ib_dev);
+	usnic_ib_handle_inet_event(us_ibdev, event, ptr);
+	ib_device_put(ibdev);
 	return NOTIFY_DONE;
 }
 static struct notifier_block usnic_ib_inetaddr_notifier = {
@@ -330,6 +328,31 @@ static void usnic_get_dev_fw_str(struct ib_device *device, char *str)
 	snprintf(str, IB_FW_VERSION_NAME_MAX, "%s", info.fw_version);
 }
 
+static const struct ib_device_ops usnic_dev_ops = {
+	.alloc_pd = usnic_ib_alloc_pd,
+	.alloc_ucontext = usnic_ib_alloc_ucontext,
+	.create_cq = usnic_ib_create_cq,
+	.create_qp = usnic_ib_create_qp,
+	.dealloc_pd = usnic_ib_dealloc_pd,
+	.dealloc_ucontext = usnic_ib_dealloc_ucontext,
+	.dereg_mr = usnic_ib_dereg_mr,
+	.destroy_cq = usnic_ib_destroy_cq,
+	.destroy_qp = usnic_ib_destroy_qp,
+	.get_dev_fw_str = usnic_get_dev_fw_str,
+	.get_link_layer = usnic_ib_port_link_layer,
+	.get_port_immutable = usnic_port_immutable,
+	.mmap = usnic_ib_mmap,
+	.modify_qp = usnic_ib_modify_qp,
+	.query_device = usnic_ib_query_device,
+	.query_gid = usnic_ib_query_gid,
+	.query_pkey = usnic_ib_query_pkey,
+	.query_port = usnic_ib_query_port,
+	.query_qp = usnic_ib_query_qp,
+	.reg_user_mr = usnic_ib_reg_mr,
+	INIT_RDMA_OBJ_SIZE(ib_pd, usnic_ib_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, usnic_ib_ucontext, ibucontext),
+};
+
 /* Start of PF discovery section */
 static void *usnic_ib_device_add(struct pci_dev *dev)
 {
@@ -337,11 +360,12 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	union ib_gid gid;
 	struct in_device *ind;
 	struct net_device *netdev;
+	int ret;
 
 	usnic_dbg("\n");
 	netdev = pci_get_drvdata(dev);
 
-	us_ibdev = (struct usnic_ib_dev *)ib_alloc_device(sizeof(*us_ibdev));
+	us_ibdev = ib_alloc_device(usnic_ib_dev, ib_dev);
 	if (!us_ibdev) {
 		usnic_err("Device %s context alloc failed\n",
 				netdev_name(pci_get_drvdata(dev)));
@@ -386,40 +410,16 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST) |
 		(1ull << IB_USER_VERBS_CMD_OPEN_QP);
 
-	us_ibdev->ib_dev.query_device = usnic_ib_query_device;
-	us_ibdev->ib_dev.query_port = usnic_ib_query_port;
-	us_ibdev->ib_dev.query_pkey = usnic_ib_query_pkey;
-	us_ibdev->ib_dev.query_gid = usnic_ib_query_gid;
-	us_ibdev->ib_dev.get_netdev = usnic_get_netdev;
-	us_ibdev->ib_dev.get_link_layer = usnic_ib_port_link_layer;
-	us_ibdev->ib_dev.alloc_pd = usnic_ib_alloc_pd;
-	us_ibdev->ib_dev.dealloc_pd = usnic_ib_dealloc_pd;
-	us_ibdev->ib_dev.create_qp = usnic_ib_create_qp;
-	us_ibdev->ib_dev.modify_qp = usnic_ib_modify_qp;
-	us_ibdev->ib_dev.query_qp = usnic_ib_query_qp;
-	us_ibdev->ib_dev.destroy_qp = usnic_ib_destroy_qp;
-	us_ibdev->ib_dev.create_cq = usnic_ib_create_cq;
-	us_ibdev->ib_dev.destroy_cq = usnic_ib_destroy_cq;
-	us_ibdev->ib_dev.reg_user_mr = usnic_ib_reg_mr;
-	us_ibdev->ib_dev.dereg_mr = usnic_ib_dereg_mr;
-	us_ibdev->ib_dev.alloc_ucontext = usnic_ib_alloc_ucontext;
-	us_ibdev->ib_dev.dealloc_ucontext = usnic_ib_dealloc_ucontext;
-	us_ibdev->ib_dev.mmap = usnic_ib_mmap;
-	us_ibdev->ib_dev.create_ah = usnic_ib_create_ah;
-	us_ibdev->ib_dev.destroy_ah = usnic_ib_destroy_ah;
-	us_ibdev->ib_dev.post_send = usnic_ib_post_send;
-	us_ibdev->ib_dev.post_recv = usnic_ib_post_recv;
-	us_ibdev->ib_dev.poll_cq = usnic_ib_poll_cq;
-	us_ibdev->ib_dev.req_notify_cq = usnic_ib_req_notify_cq;
-	us_ibdev->ib_dev.get_dma_mr = usnic_ib_get_dma_mr;
-	us_ibdev->ib_dev.get_port_immutable = usnic_port_immutable;
-	us_ibdev->ib_dev.get_dev_fw_str     = usnic_get_dev_fw_str;
-
+	ib_set_device_ops(&us_ibdev->ib_dev, &usnic_dev_ops);
 
 	us_ibdev->ib_dev.driver_id = RDMA_DRIVER_USNIC;
 	rdma_set_device_sysfs_group(&us_ibdev->ib_dev, &usnic_attr_group);
 
-	if (ib_register_device(&us_ibdev->ib_dev, "usnic_%d", NULL))
+	ret = ib_device_set_netdev(&us_ibdev->ib_dev, us_ibdev->netdev, 1);
+	if (ret)
+		goto err_fwd_dealloc;
+
+	if (ib_register_device(&us_ibdev->ib_dev, "usnic_%d"))
 		goto err_fwd_dealloc;
 
 	usnic_fwd_set_mtu(us_ibdev->ufdev, us_ibdev->netdev->mtu);
@@ -474,15 +474,17 @@ static void usnic_ib_undiscover_pf(struct kref *kref)
 				&usnic_ib_ibdev_list, ib_dev_link) {
 		if (us_ibdev->pdev == dev) {
 			list_del(&us_ibdev->ib_dev_link);
-			usnic_ib_device_remove(us_ibdev);
 			found = true;
 			break;
 		}
 	}
 
-	WARN(!found, "Failed to remove PF %s\n", pci_name(dev));
 
 	mutex_unlock(&usnic_ib_ibdev_list_lock);
+	if (found)
+		usnic_ib_device_remove(us_ibdev);
+	else
+		WARN(1, "Failed to remove PF %s\n", pci_name(dev));
 }
 
 static struct usnic_ib_dev *usnic_ib_discover_pf(struct usnic_vnic *vnic)
@@ -649,7 +651,7 @@ static int __init usnic_ib_init(void)
 
 	err = usnic_uiom_init(DRV_NAME);
 	if (err) {
-		usnic_err("Unable to initalize umem with err %d\n", err);
+		usnic_err("Unable to initialize umem with err %d\n", err);
 		return err;
 	}
 
@@ -688,7 +690,6 @@ out_unreg_netdev_notifier:
 out_pci_unreg:
 	pci_unregister_driver(&usnic_ib_pci_driver);
 out_umem_fini:
-	usnic_uiom_fini();
 
 	return err;
 }
@@ -701,7 +702,6 @@ static void __exit usnic_ib_destroy(void)
 	unregister_inetaddr_notifier(&usnic_ib_inetaddr_notifier);
 	unregister_netdevice_notifier(&usnic_ib_netdevice_notifier);
 	pci_unregister_driver(&usnic_ib_pci_driver);
-	usnic_uiom_fini();
 }
 
 MODULE_DESCRIPTION("Cisco VIC (usNIC) Verbs Driver");

@@ -116,8 +116,8 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 	u64 align_offset = 0;
 	if (align)
 		align_offset = (dma_addr_t)align - 1;
-	mem_virt_alloc = dma_zalloc_coherent(&pdev->dev, mem_size + align,
-			&mem_dma_handle, GFP_KERNEL);
+	mem_virt_alloc = dma_alloc_coherent(&pdev->dev, mem_size + align,
+					    &mem_dma_handle, GFP_KERNEL);
 	if (!mem_virt_alloc) {
 		pm8001_printk("memory allocation error\n");
 		return -1;
@@ -657,7 +657,7 @@ static int pm8001_dev_found_notify(struct domain_device *dev)
 		if (dev->dev_type == SAS_SATA_DEV) {
 			pm8001_device->attached_phy =
 				dev->rphy->identify.phy_identifier;
-				flag = 1; /* directly sata*/
+			flag = 1; /* directly sata */
 		}
 	} /*register this device to HBA*/
 	PM8001_DISC_DBG(pm8001_ha, pm8001_printk("Found device\n"));

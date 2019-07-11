@@ -476,7 +476,7 @@ static int ip6addrlbl_valid_dump_req(const struct nlmsghdr *nlh,
 	}
 
 	if (nlmsg_attrlen(nlh, sizeof(*ifal))) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid data after header for address label dump requewst");
+		NL_SET_ERR_MSG_MOD(extack, "Invalid data after header for address label dump request");
 		return -EINVAL;
 	}
 
@@ -523,6 +523,50 @@ static inline int ip6addrlbl_msgsize(void)
 		+ nla_total_size(4);	/* IFAL_LABEL */
 }
 
+static int ip6addrlbl_valid_get_req(struct sk_buff *skb,
+				    const struct nlmsghdr *nlh,
+				    struct nlattr **tb,
+				    struct netlink_ext_ack *extack)
+{
+	struct ifaddrlblmsg *ifal;
+	int i, err;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifal))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid header for addrlabel get request");
+		return -EINVAL;
+	}
+
+	if (!netlink_strict_get_check(skb))
+		return nlmsg_parse(nlh, sizeof(*ifal), tb, IFAL_MAX,
+				   ifal_policy, extack);
+
+	ifal = nlmsg_data(nlh);
+	if (ifal->__ifal_reserved || ifal->ifal_flags || ifal->ifal_seq) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid values in header for addrlabel get request");
+		return -EINVAL;
+	}
+
+	err = nlmsg_parse_strict(nlh, sizeof(*ifal), tb, IFAL_MAX,
+				 ifal_policy, extack);
+	if (err)
+		return err;
+
+	for (i = 0; i <= IFAL_MAX; i++) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case IFAL_ADDRESS:
+			break;
+		default:
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported attribute in addrlabel get request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 			  struct netlink_ext_ack *extack)
 {
@@ -535,8 +579,7 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	struct ip6addrlbl_entry *p;
 	struct sk_buff *skb;
 
-	err = nlmsg_parse(nlh, sizeof(*ifal), tb, IFAL_MAX, ifal_policy,
-			  extack);
+	err = ip6addrlbl_valid_get_req(in_skb, nlh, tb, extack);
 	if (err < 0)
 		return err;
 

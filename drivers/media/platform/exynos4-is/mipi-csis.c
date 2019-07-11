@@ -183,7 +183,7 @@ struct csis_drvdata {
  * @index: the hardware instance index
  * @pdev: CSIS platform device
  * @phy: pointer to the CSIS generic PHY
- * @regs: mmaped I/O registers memory
+ * @regs: mmapped I/O registers memory
  * @supplies: CSIS regulator supplies
  * @clock: CSIS clocks
  * @irq: requested s5p-mipi-csis irq number
@@ -745,7 +745,7 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 		goto err;
 	}
 
-	/* Get MIPI CSI-2 bus configration from the endpoint node. */
+	/* Get MIPI CSI-2 bus configuration from the endpoint node. */
 	of_property_read_u32(node, "samsung,csis-hs-settle",
 					&state->hs_settle);
 	state->wclk_ext = of_property_read_bool(node,

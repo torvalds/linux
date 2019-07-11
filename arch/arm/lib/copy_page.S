@@ -39,9 +39,9 @@ ENTRY(copy_page)
 	.endr
 		subs	r2, r2, #1			@	1
 		stmia	r0!, {r3, r4, ip, lr}		@	4
-		ldmgtia	r1!, {r3, r4, ip, lr}		@	4
+		ldmiagt	r1!, {r3, r4, ip, lr}		@	4
 		bgt	1b				@	1
-	PLD(	ldmeqia r1!, {r3, r4, ip, lr}	)
+	PLD(	ldmiaeq r1!, {r3, r4, ip, lr}	)
 	PLD(	beq	2b			)
 		ldmfd	sp!, {r4, pc}			@	3
 ENDPROC(copy_page)

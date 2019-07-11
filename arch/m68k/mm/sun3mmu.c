@@ -46,6 +46,9 @@ void __init paging_init(void)
 	unsigned long size;
 
 	empty_zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+	if (!empty_zero_page)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, PAGE_SIZE, PAGE_SIZE);
 
 	address = PAGE_OFFSET;
 	pg_dir = swapper_pg_dir;
@@ -56,6 +59,9 @@ void __init paging_init(void)
 	size = (size + PAGE_SIZE) & ~(PAGE_SIZE-1);
 
 	next_pgtable = (unsigned long)memblock_alloc(size, PAGE_SIZE);
+	if (!next_pgtable)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, size, PAGE_SIZE);
 	bootmem_end = (next_pgtable + size + PAGE_SIZE) & PAGE_MASK;
 
 	/* Map whole memory from PAGE_OFFSET (0x0E000000) */

@@ -16,6 +16,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
 #include "../skylake/skl.h"
 #include "../../codecs/rt5682.h"
 #include "../../codecs/hdac_hdmi.h"
@@ -55,39 +56,6 @@ enum {
 	GLK_DPCM_AUDIO_HDMI3_PB,
 };
 
-static int platform_clock_control(struct snd_soc_dapm_widget *w,
-					struct snd_kcontrol *k, int  event)
-{
-	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct snd_soc_card *card = dapm->card;
-	struct snd_soc_dai *codec_dai;
-	int ret = 0;
-
-	codec_dai = snd_soc_card_get_codec_dai(card, GLK_REALTEK_CODEC_DAI);
-	if (!codec_dai) {
-		dev_err(card->dev, "Codec dai not found; Unable to set/unset codec pll\n");
-		return -EIO;
-	}
-
-	if (SND_SOC_DAPM_EVENT_OFF(event)) {
-		ret = snd_soc_dai_set_sysclk(codec_dai, 0, 0, 0);
-		if (ret)
-			dev_err(card->dev, "failed to stop sysclk: %d\n", ret);
-	} else if (SND_SOC_DAPM_EVENT_ON(event)) {
-		ret = snd_soc_dai_set_pll(codec_dai, 0, RT5682_PLL1_S_MCLK,
-					GLK_PLAT_CLK_FREQ, RT5682_PLL_FREQ);
-		if (ret < 0) {
-			dev_err(card->dev, "can't set codec pll: %d\n", ret);
-			return ret;
-		}
-	}
-
-	if (ret)
-		dev_err(card->dev, "failed to start internal clk: %d\n", ret);
-
-	return ret;
-}
-
 static const struct snd_kcontrol_new geminilake_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
@@ -102,14 +70,10 @@ static const struct snd_soc_dapm_widget geminilake_widgets[] = {
 	SND_SOC_DAPM_SPK("HDMI1", NULL),
 	SND_SOC_DAPM_SPK("HDMI2", NULL),
 	SND_SOC_DAPM_SPK("HDMI3", NULL),
-	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
-			platform_clock_control, SND_SOC_DAPM_PRE_PMU |
-			SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route geminilake_map[] = {
 	/* HP jack connectors - unknown if we have jack detection */
-	{ "Headphone Jack", NULL, "Platform Clock" },
 	{ "Headphone Jack", NULL, "HPOL" },
 	{ "Headphone Jack", NULL, "HPOR" },
 
@@ -117,7 +81,6 @@ static const struct snd_soc_dapm_route geminilake_map[] = {
 	{ "Spk", NULL, "Speaker" },
 
 	/* other jacks */
-	{ "Headset Mic", NULL, "Platform Clock" },
 	{ "IN1P", NULL, "Headset Mic" },
 
 	/* digital mics */
@@ -164,7 +127,7 @@ static int geminilake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	/* set SSP to 24 bit */
 	snd_mask_none(fmt);
-	snd_mask_set(fmt, SNDRV_PCM_FORMAT_S24_LE);
+	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
 
 	return 0;
 }
@@ -176,6 +139,13 @@ static int geminilake_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_jack *jack;
 	int ret;
+
+	ret = snd_soc_dai_set_pll(codec_dai, 0, RT5682_PLL1_S_MCLK,
+					GLK_PLAT_CLK_FREQ, RT5682_PLL_FREQ);
+	if (ret < 0) {
+		dev_err(rtd->dev, "can't set codec pll: %d\n", ret);
+		return ret;
+	}
 
 	/* Configure sysclk for codec */
 	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682_SCLK_S_PLL1,
@@ -602,18 +572,30 @@ static struct snd_soc_card glk_audio_card_rt5682_m98357a = {
 static int geminilake_audio_probe(struct platform_device *pdev)
 {
 	struct glk_card_private *ctx;
+	struct snd_soc_acpi_mach *mach;
+	const char *platform_name;
+	struct snd_soc_card *card;
+	int ret;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
-	glk_audio_card_rt5682_m98357a.dev = &pdev->dev;
-	snd_soc_card_set_drvdata(&glk_audio_card_rt5682_m98357a, ctx);
+	card = &glk_audio_card_rt5682_m98357a;
+	card->dev = &pdev->dev;
+	snd_soc_card_set_drvdata(card, ctx);
 
-	return devm_snd_soc_register_card(&pdev->dev,
-					&glk_audio_card_rt5682_m98357a);
+	/* override plaform name, if required */
+	mach = (&pdev->dev)->platform_data;
+	platform_name = mach->mach_params.platform;
+
+	ret = snd_soc_fixup_dai_links_platform_name(card, platform_name);
+	if (ret)
+		return ret;
+
+	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 
 static const struct platform_device_id glk_board_ids[] = {

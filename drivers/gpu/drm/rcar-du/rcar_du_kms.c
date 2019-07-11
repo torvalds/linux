@@ -7,14 +7,15 @@
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include <linux/of_graph.h>
 #include <linux/wait.h>
@@ -255,13 +256,6 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	return drm_gem_fb_create(dev, file_priv, mode_cmd);
 }
 
-static void rcar_du_output_poll_changed(struct drm_device *dev)
-{
-	struct rcar_du_device *rcdu = dev->dev_private;
-
-	drm_fbdev_cma_hotplug_event(rcdu->fbdev);
-}
-
 /* -----------------------------------------------------------------------------
  * Atomic Check and Update
  */
@@ -285,6 +279,28 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 static void rcar_du_atomic_commit_tail(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
+	struct rcar_du_device *rcdu = dev->dev_private;
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	unsigned int i;
+
+	/*
+	 * Store RGB routing to DPAD0 and DPAD1, the hardware will be configured
+	 * when starting the CRTCs.
+	 */
+	rcdu->dpad1_source = -1;
+
+	for_each_new_crtc_in_state(old_state, crtc, crtc_state, i) {
+		struct rcar_du_crtc_state *rcrtc_state =
+			to_rcar_crtc_state(crtc_state);
+		struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+
+		if (rcrtc_state->outputs & BIT(RCAR_DU_OUTPUT_DPAD0))
+			rcdu->dpad0_source = rcrtc->index;
+
+		if (rcrtc_state->outputs & BIT(RCAR_DU_OUTPUT_DPAD1))
+			rcdu->dpad1_source = rcrtc->index;
+	}
 
 	/* Apply the atomic update. */
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
@@ -308,7 +324,6 @@ static const struct drm_mode_config_helper_funcs rcar_du_mode_config_helper = {
 
 static const struct drm_mode_config_funcs rcar_du_mode_config_funcs = {
 	.fb_create = rcar_du_fb_create,
-	.output_poll_changed = rcar_du_output_poll_changed,
 	.atomic_check = rcar_du_atomic_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -317,17 +332,10 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 				     enum rcar_du_output output,
 				     struct of_endpoint *ep)
 {
-	struct device_node *connector = NULL;
-	struct device_node *encoder = NULL;
-	struct device_node *ep_node = NULL;
-	struct device_node *entity_ep_node;
 	struct device_node *entity;
 	int ret;
 
-	/*
-	 * Locate the connected entity and infer its type from the number of
-	 * endpoints.
-	 */
+	/* Locate the connected entity and initialize the encoder. */
 	entity = of_graph_get_remote_port_parent(ep->local_node);
 	if (!entity) {
 		dev_dbg(rcdu->dev, "unconnected endpoint %pOF, skipping\n",
@@ -339,52 +347,17 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 		dev_dbg(rcdu->dev,
 			"connected entity %pOF is disabled, skipping\n",
 			entity);
+		of_node_put(entity);
 		return -ENODEV;
 	}
 
-	entity_ep_node = of_graph_get_remote_endpoint(ep->local_node);
-
-	for_each_endpoint_of_node(entity, ep_node) {
-		if (ep_node == entity_ep_node)
-			continue;
-
-		/*
-		 * We've found one endpoint other than the input, this must
-		 * be an encoder. Locate the connector.
-		 */
-		encoder = entity;
-		connector = of_graph_get_remote_port_parent(ep_node);
-		of_node_put(ep_node);
-
-		if (!connector) {
-			dev_warn(rcdu->dev,
-				 "no connector for encoder %pOF, skipping\n",
-				 encoder);
-			of_node_put(entity_ep_node);
-			of_node_put(encoder);
-			return -ENODEV;
-		}
-
-		break;
-	}
-
-	of_node_put(entity_ep_node);
-
-	if (!encoder) {
-		dev_warn(rcdu->dev,
-			 "no encoder found for endpoint %pOF, skipping\n",
-			 ep->local_node);
-		return -ENODEV;
-	}
-
-	ret = rcar_du_encoder_init(rcdu, output, encoder, connector);
+	ret = rcar_du_encoder_init(rcdu, output, entity);
 	if (ret && ret != -EPROBE_DEFER)
 		dev_warn(rcdu->dev,
 			 "failed to initialize encoder %pOF on output %u (%d), skipping\n",
-			 encoder, output, ret);
+			 entity, output, ret);
 
-	of_node_put(encoder);
-	of_node_put(connector);
+	of_node_put(entity);
 
 	return ret;
 }
@@ -543,7 +516,6 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 	struct drm_device *dev = rcdu->ddev;
 	struct drm_encoder *encoder;
-	struct drm_fbdev_cma *fbdev;
 	unsigned int dpad0_sources;
 	unsigned int num_encoders;
 	unsigned int num_groups;
@@ -582,7 +554,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	 * Initialize vertical blanking interrupts handling. Start with vblank
 	 * disabled for all CRTCs.
 	 */
-	ret = drm_vblank_init(dev, (1 << rcdu->num_crtcs) - 1);
+	ret = drm_vblank_init(dev, rcdu->num_crtcs);
 	if (ret < 0)
 		return ret;
 
@@ -681,18 +653,6 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	drm_mode_config_reset(dev);
 
 	drm_kms_helper_poll_init(dev);
-
-	if (dev->mode_config.num_connector) {
-		fbdev = drm_fbdev_cma_init(dev, 32,
-					   dev->mode_config.num_connector);
-		if (IS_ERR(fbdev))
-			return PTR_ERR(fbdev);
-
-		rcdu->fbdev = fbdev;
-	} else {
-		dev_info(rcdu->dev,
-			 "no connector found, disabling fbdev emulation\n");
-	}
 
 	return 0;
 }

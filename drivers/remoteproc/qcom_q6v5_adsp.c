@@ -48,7 +48,7 @@
 
 /* list of clocks required by ADSP PIL */
 static const char * const adsp_clk_id[] = {
-	"sway_cbcr", "lpass_aon", "lpass_ahbs_aon_cbcr", "lpass_ahbm_aon_cbcr",
+	"sway_cbcr", "lpass_ahbs_aon_cbcr", "lpass_ahbm_aon_cbcr",
 	"qdsp6ss_xo", "qdsp6ss_sleep", "qdsp6ss_core",
 };
 
@@ -439,6 +439,10 @@ static int adsp_probe(struct platform_device *pdev)
 	adsp->sysmon = qcom_add_sysmon_subdev(rproc,
 					      desc->sysmon_name,
 					      desc->ssctl_id);
+	if (IS_ERR(adsp->sysmon)) {
+		ret = PTR_ERR(adsp->sysmon);
+		goto disable_pm;
+	}
 
 	ret = rproc_add(rproc);
 	if (ret)

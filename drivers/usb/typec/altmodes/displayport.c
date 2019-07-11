@@ -24,10 +24,6 @@ enum {
 	DP_CONF_DUAL_D,
 };
 
-/* Helper for setting/getting the pin assignement value to the configuration */
-#define DP_CONF_SET_PIN_ASSIGN(_a_)	((_a_) << 8)
-#define DP_CONF_GET_PIN_ASSIGN(_conf_)	(((_conf_) & GENMASK(15, 8)) >> 8)
-
 /* Pin assignments that use USB3.1 Gen2 signaling to carry DP protocol */
 #define DP_PIN_ASSIGN_GEN2_BR_MASK	(BIT(DP_PIN_ASSIGN_A) | \
 					 BIT(DP_PIN_ASSIGN_B))

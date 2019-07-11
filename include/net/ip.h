@@ -155,6 +155,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
 void ip_list_rcv(struct list_head *head, struct packet_type *pt,
 		 struct net_device *orig_dev);
 int ip_local_deliver(struct sk_buff *skb);
+void ip_protocol_deliver_rcu(struct net *net, struct sk_buff *skb, int proto);
 int ip_mr_input(struct sk_buff *skb);
 int ip_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int ip_mc_output(struct net *net, struct sock *sk, struct sk_buff *skb);
@@ -421,7 +422,8 @@ static inline unsigned int ip_skb_dst_mtu(struct sock *sk,
 }
 
 struct dst_metrics *ip_fib_metrics_init(struct net *net, struct nlattr *fc_mx,
-					int fc_mx_len);
+					int fc_mx_len,
+					struct netlink_ext_ack *extack);
 static inline void ip_fib_metrics_put(struct dst_metrics *fib_metrics)
 {
 	if (fib_metrics != &dst_default_metrics &&
@@ -665,6 +667,8 @@ static inline int ip_options_echo(struct net *net, struct ip_options *dopt,
 }
 
 void ip_options_fragment(struct sk_buff *skb);
+int __ip_options_compile(struct net *net, struct ip_options *opt,
+			 struct sk_buff *skb, __be32 *info);
 int ip_options_compile(struct net *net, struct ip_options *opt,
 		       struct sk_buff *skb);
 int ip_options_get(struct net *net, struct ip_options_rcu **optp,
@@ -673,7 +677,7 @@ int ip_options_get_from_user(struct net *net, struct ip_options_rcu **optp,
 			     unsigned char __user *data, int optlen);
 void ip_options_undo(struct ip_options *opt);
 void ip_forward_options(struct sk_buff *skb);
-int ip_options_rcv_srr(struct sk_buff *skb);
+int ip_options_rcv_srr(struct sk_buff *skb, struct net_device *dev);
 
 /*
  *	Functions provided by ip_sockglue.c
@@ -714,7 +718,7 @@ extern int sysctl_icmp_msgs_burst;
 int ip_misc_proc_init(void);
 #endif
 
-int rtm_getroute_parse_ip_proto(struct nlattr *attr, u8 *ip_proto,
+int rtm_getroute_parse_ip_proto(struct nlattr *attr, u8 *ip_proto, u8 family,
 				struct netlink_ext_ack *extack);
 
 #endif	/* _IP_H */

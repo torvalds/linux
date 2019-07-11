@@ -66,6 +66,7 @@ struct record_opts {
 	bool	     ignore_missing_thread;
 	bool	     strict_freq;
 	bool	     sample_id;
+	bool	     no_bpf_event;
 	unsigned int freq;
 	unsigned int mmap_pages;
 	unsigned int auxtrace_mmap_pages;
@@ -82,7 +83,15 @@ struct record_opts {
 	bool         use_clockid;
 	clockid_t    clockid;
 	u64          clockid_res_ns;
-	unsigned int proc_map_timeout;
+	int	     nr_cblocks;
+	int	     affinity;
+};
+
+enum perf_affinity {
+	PERF_AFFINITY_SYS = 0,
+	PERF_AFFINITY_NODE,
+	PERF_AFFINITY_CPU,
+	PERF_AFFINITY_MAX
 };
 
 struct option;

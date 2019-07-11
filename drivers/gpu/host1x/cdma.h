@@ -20,7 +20,7 @@
 #define __HOST1X_CDMA_H
 
 #include <linux/sched.h>
-#include <linux/semaphore.h>
+#include <linux/completion.h>
 #include <linux/list.h>
 
 struct host1x_syncpt;
@@ -69,8 +69,8 @@ enum cdma_event {
 
 struct host1x_cdma {
 	struct mutex lock;		/* controls access to shared state */
-	struct semaphore sem;		/* signalled when event occurs */
-	enum cdma_event event;		/* event that sem is waiting for */
+	struct completion complete;	/* signalled when event occurs */
+	enum cdma_event event;		/* event that complete is waiting for */
 	unsigned int slots_used;	/* pb slots used in current submit */
 	unsigned int slots_free;	/* pb slots free in current submit */
 	unsigned int first_get;		/* DMAGET value, where submit begins */
@@ -90,6 +90,8 @@ int host1x_cdma_init(struct host1x_cdma *cdma);
 int host1x_cdma_deinit(struct host1x_cdma *cdma);
 int host1x_cdma_begin(struct host1x_cdma *cdma, struct host1x_job *job);
 void host1x_cdma_push(struct host1x_cdma *cdma, u32 op1, u32 op2);
+void host1x_cdma_push_wide(struct host1x_cdma *cdma, u32 op1, u32 op2,
+			   u32 op3, u32 op4);
 void host1x_cdma_end(struct host1x_cdma *cdma, struct host1x_job *job);
 void host1x_cdma_update(struct host1x_cdma *cdma);
 void host1x_cdma_peek(struct host1x_cdma *cdma, u32 dmaget, int slot,

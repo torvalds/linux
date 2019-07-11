@@ -13,7 +13,7 @@ static void *dma_virt_alloc(struct device *dev, size_t size,
 {
 	void *ret;
 
-	ret = (void *)__get_free_pages(gfp, get_order(size));
+	ret = (void *)__get_free_pages(gfp | __GFP_ZERO, get_order(size));
 	if (ret)
 		*dma_handle = (uintptr_t)ret;
 	return ret;

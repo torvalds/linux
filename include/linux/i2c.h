@@ -333,6 +333,7 @@ struct i2c_client {
 	char name[I2C_NAME_SIZE];
 	struct i2c_adapter *adapter;	/* the adapter we sit on	*/
 	struct device dev;		/* the device structure		*/
+	int init_irq;			/* irq set at initialization	*/
 	int irq;			/* irq issued by device		*/
 	struct list_head detected;
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
@@ -680,6 +681,8 @@ struct i2c_adapter {
 	int timeout;			/* in jiffies */
 	int retries;
 	struct device dev;		/* the adapter device */
+	unsigned long locked_flags;	/* owned by the I2C core */
+#define I2C_ALF_IS_SUSPENDED	0
 
 	int nr;
 	char name[48];
@@ -760,6 +763,38 @@ static inline void
 i2c_unlock_bus(struct i2c_adapter *adapter, unsigned int flags)
 {
 	adapter->lock_ops->unlock_bus(adapter, flags);
+}
+
+/**
+ * i2c_mark_adapter_suspended - Report suspended state of the adapter to the core
+ * @adap: Adapter to mark as suspended
+ *
+ * When using this helper to mark an adapter as suspended, the core will reject
+ * further transfers to this adapter. The usage of this helper is optional but
+ * recommended for devices having distinct handlers for system suspend and
+ * runtime suspend. More complex devices are free to implement custom solutions
+ * to reject transfers when suspended.
+ */
+static inline void i2c_mark_adapter_suspended(struct i2c_adapter *adap)
+{
+	i2c_lock_bus(adap, I2C_LOCK_ROOT_ADAPTER);
+	set_bit(I2C_ALF_IS_SUSPENDED, &adap->locked_flags);
+	i2c_unlock_bus(adap, I2C_LOCK_ROOT_ADAPTER);
+}
+
+/**
+ * i2c_mark_adapter_resumed - Report resumed state of the adapter to the core
+ * @adap: Adapter to mark as resumed
+ *
+ * When using this helper to mark an adapter as resumed, the core will allow
+ * further transfers to this adapter. See also further notes to
+ * @i2c_mark_adapter_suspended().
+ */
+static inline void i2c_mark_adapter_resumed(struct i2c_adapter *adap)
+{
+	i2c_lock_bus(adap, I2C_LOCK_ROOT_ADAPTER);
+	clear_bit(I2C_ALF_IS_SUSPENDED, &adap->locked_flags);
+	i2c_unlock_bus(adap, I2C_LOCK_ROOT_ADAPTER);
 }
 
 /*flags for the client struct: */
@@ -933,11 +968,21 @@ static inline int of_i2c_get_board_info(struct device *dev,
 
 #endif /* CONFIG_OF */
 
+struct acpi_resource;
+struct acpi_resource_i2c_serialbus;
+
 #if IS_ENABLED(CONFIG_ACPI)
+bool i2c_acpi_get_i2c_resource(struct acpi_resource *ares,
+			       struct acpi_resource_i2c_serialbus **i2c);
 u32 i2c_acpi_find_bus_speed(struct device *dev);
 struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
 				       struct i2c_board_info *info);
 #else
+static inline bool i2c_acpi_get_i2c_resource(struct acpi_resource *ares,
+					     struct acpi_resource_i2c_serialbus **i2c)
+{
+	return false;
+}
 static inline u32 i2c_acpi_find_bus_speed(struct device *dev)
 {
 	return 0;

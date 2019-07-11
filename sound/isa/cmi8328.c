@@ -434,7 +434,6 @@ static int snd_cmi8328_suspend(struct device *pdev, unsigned int n,
 	cmi = card->private_data;
 	snd_cmi8328_cfg_save(cmi->port, cmi->cfg);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(cmi->wss->pcm);
 	cmi->wss->suspend(cmi->wss);
 
 	return 0;

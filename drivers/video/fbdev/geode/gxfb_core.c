@@ -33,6 +33,8 @@
 #include <linux/pci.h>
 #include <linux/cs5535.h>
 
+#include <asm/olpc.h>
+
 #include "gxfb.h"
 
 static char *mode_option;
@@ -107,9 +109,6 @@ static struct fb_videomode gx_modedb[] = {
 	  FB_VMODE_NONINTERLACED, FB_MODE_IS_VESA },
 };
 
-#ifdef CONFIG_OLPC
-#include <asm/olpc.h>
-
 static struct fb_videomode gx_dcon_modedb[] = {
 	/* The only mode the DCON has is 1200x900 */
 	{ NULL, 50, 1200, 900, 17460, 24, 8, 4, 5, 8, 3,
@@ -127,14 +126,6 @@ static void get_modedb(struct fb_videomode **modedb, unsigned int *size)
 		*size = ARRAY_SIZE(gx_modedb);
 	}
 }
-
-#else
-static void get_modedb(struct fb_videomode **modedb, unsigned int *size)
-{
-	*modedb = (struct fb_videomode *) gx_modedb;
-	*size = ARRAY_SIZE(gx_modedb);
-}
-#endif
 
 static int gxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {

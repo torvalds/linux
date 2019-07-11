@@ -18,8 +18,8 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_platform.h>
+#include <linux/acpi.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 
@@ -184,27 +184,6 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 
 	dws->num_cs = num_cs;
 
-	if (pdev->dev.of_node) {
-		int i;
-
-		for (i = 0; i < dws->num_cs; i++) {
-			int cs_gpio = of_get_named_gpio(pdev->dev.of_node,
-					"cs-gpios", i);
-
-			if (cs_gpio == -EPROBE_DEFER) {
-				ret = cs_gpio;
-				goto out;
-			}
-
-			if (gpio_is_valid(cs_gpio)) {
-				ret = devm_gpio_request(&pdev->dev, cs_gpio,
-						dev_name(&pdev->dev));
-				if (ret)
-					goto out;
-			}
-		}
-	}
-
 	init_func = device_get_match_data(&pdev->dev);
 	if (init_func) {
 		ret = init_func(pdev, dwsmmio);
@@ -243,12 +222,19 @@ static const struct of_device_id dw_spi_mmio_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dw_spi_mmio_of_match);
 
+static const struct acpi_device_id dw_spi_mmio_acpi_match[] = {
+	{"HISI0173", 0},
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, dw_spi_mmio_acpi_match);
+
 static struct platform_driver dw_spi_mmio_driver = {
 	.probe		= dw_spi_mmio_probe,
 	.remove		= dw_spi_mmio_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = dw_spi_mmio_of_match,
+		.acpi_match_table = ACPI_PTR(dw_spi_mmio_acpi_match),
 	},
 };
 module_platform_driver(dw_spi_mmio_driver);

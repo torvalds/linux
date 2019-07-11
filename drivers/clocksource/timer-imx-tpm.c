@@ -12,6 +12,8 @@
 #include <linux/of_irq.h>
 #include <linux/sched_clock.h>
 
+#include "timer-of.h"
+
 #define TPM_PARAM			0x4
 #define TPM_PARAM_WIDTH_SHIFT		16
 #define TPM_PARAM_WIDTH_MASK		(0xff << 16)
@@ -33,9 +35,7 @@
 #define TPM_C0V				0x24
 
 static int counter_width;
-static int rating;
 static void __iomem *timer_base;
-static struct clock_event_device clockevent_tpm;
 
 static inline void tpm_timer_disable(void)
 {
@@ -78,19 +78,6 @@ static unsigned long tpm_read_current_timer(void)
 static u64 notrace tpm_read_sched_clock(void)
 {
 	return tpm_read_counter();
-}
-
-static int __init tpm_clocksource_init(unsigned long rate)
-{
-	tpm_delay_timer.read_current_timer = &tpm_read_current_timer;
-	tpm_delay_timer.freq = rate;
-	register_current_timer_delay(&tpm_delay_timer);
-
-	sched_clock_register(tpm_read_sched_clock, counter_width, rate);
-
-	return clocksource_mmio_init(timer_base + TPM_CNT, "imx-tpm",
-				     rate, rating, counter_width,
-				     clocksource_mmio_readl_up);
 }
 
 static int tpm_set_next_event(unsigned long delta,
@@ -137,74 +124,80 @@ static irqreturn_t tpm_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct clock_event_device clockevent_tpm = {
-	.name			= "i.MX7ULP TPM Timer",
-	.features		= CLOCK_EVT_FEAT_ONESHOT,
-	.set_state_oneshot	= tpm_set_state_oneshot,
-	.set_next_event		= tpm_set_next_event,
-	.set_state_shutdown	= tpm_set_state_shutdown,
+static struct timer_of to_tpm = {
+	.flags = TIMER_OF_IRQ | TIMER_OF_BASE | TIMER_OF_CLOCK,
+	.clkevt = {
+		.name			= "i.MX7ULP TPM Timer",
+		.rating			= 200,
+		.features		= CLOCK_EVT_FEAT_ONESHOT,
+		.set_state_shutdown	= tpm_set_state_shutdown,
+		.set_state_oneshot	= tpm_set_state_oneshot,
+		.set_next_event		= tpm_set_next_event,
+		.cpumask		= cpu_possible_mask,
+	},
+	.of_irq = {
+		.handler		= tpm_timer_interrupt,
+		.flags			= IRQF_TIMER | IRQF_IRQPOLL,
+	},
+	.of_clk = {
+		.name = "per",
+	},
 };
 
-static int __init tpm_clockevent_init(unsigned long rate, int irq)
+static int __init tpm_clocksource_init(void)
 {
-	int ret;
+	tpm_delay_timer.read_current_timer = &tpm_read_current_timer;
+	tpm_delay_timer.freq = timer_of_rate(&to_tpm) >> 3;
+	register_current_timer_delay(&tpm_delay_timer);
 
-	ret = request_irq(irq, tpm_timer_interrupt, IRQF_TIMER | IRQF_IRQPOLL,
-			  "i.MX7ULP TPM Timer", &clockevent_tpm);
+	sched_clock_register(tpm_read_sched_clock, counter_width,
+			     timer_of_rate(&to_tpm) >> 3);
 
-	clockevent_tpm.rating = rating;
-	clockevent_tpm.cpumask = cpumask_of(0);
-	clockevent_tpm.irq = irq;
-	clockevents_config_and_register(&clockevent_tpm, rate, 300,
-					GENMASK(counter_width - 1, 1));
+	return clocksource_mmio_init(timer_base + TPM_CNT,
+				     "imx-tpm",
+				     timer_of_rate(&to_tpm) >> 3,
+				     to_tpm.clkevt.rating,
+				     counter_width,
+				     clocksource_mmio_readl_up);
+}
 
-	return ret;
+static void __init tpm_clockevent_init(void)
+{
+	clockevents_config_and_register(&to_tpm.clkevt,
+					timer_of_rate(&to_tpm) >> 3,
+					300,
+					GENMASK(counter_width - 1,
+					1));
 }
 
 static int __init tpm_timer_init(struct device_node *np)
 {
-	struct clk *ipg, *per;
-	int irq, ret;
-	u32 rate;
-
-	timer_base = of_iomap(np, 0);
-	if (!timer_base) {
-		pr_err("tpm: failed to get base address\n");
-		return -ENXIO;
-	}
-
-	irq = irq_of_parse_and_map(np, 0);
-	if (!irq) {
-		pr_err("tpm: failed to get irq\n");
-		ret = -ENOENT;
-		goto err_iomap;
-	}
+	struct clk *ipg;
+	int ret;
 
 	ipg = of_clk_get_by_name(np, "ipg");
-	per = of_clk_get_by_name(np, "per");
-	if (IS_ERR(ipg) || IS_ERR(per)) {
-		pr_err("tpm: failed to get ipg or per clk\n");
-		ret = -ENODEV;
-		goto err_clk_get;
+	if (IS_ERR(ipg)) {
+		pr_err("tpm: failed to get ipg clk\n");
+		return -ENODEV;
 	}
-
 	/* enable clk before accessing registers */
 	ret = clk_prepare_enable(ipg);
 	if (ret) {
 		pr_err("tpm: ipg clock enable failed (%d)\n", ret);
-		goto err_clk_get;
+		clk_put(ipg);
+		return ret;
 	}
 
-	ret = clk_prepare_enable(per);
-	if (ret) {
-		pr_err("tpm: per clock enable failed (%d)\n", ret);
-		goto err_per_clk_enable;
-	}
+	ret = timer_of_init(np, &to_tpm);
+	if (ret)
+		return ret;
 
-	counter_width = (readl(timer_base + TPM_PARAM) & TPM_PARAM_WIDTH_MASK)
-		>> TPM_PARAM_WIDTH_SHIFT;
+	timer_base = timer_of_base(&to_tpm);
+
+	counter_width = (readl(timer_base + TPM_PARAM)
+		& TPM_PARAM_WIDTH_MASK) >> TPM_PARAM_WIDTH_SHIFT;
 	/* use rating 200 for 32-bit counter and 150 for 16-bit counter */
-	rating = counter_width == 0x20 ? 200 : 150;
+	to_tpm.clkevt.rating = counter_width == 0x20 ? 200 : 150;
 
 	/*
 	 * Initialize tpm module to a known state
@@ -229,29 +222,13 @@ static int __init tpm_timer_init(struct device_node *np)
 	writel(TPM_SC_CMOD_INC_PER_CNT |
 		(counter_width == 0x20 ?
 		TPM_SC_CMOD_DIV_DEFAULT : TPM_SC_CMOD_DIV_MAX),
-		     timer_base + TPM_SC);
+		timer_base + TPM_SC);
 
 	/* set MOD register to maximum for free running mode */
 	writel(GENMASK(counter_width - 1, 0), timer_base + TPM_MOD);
 
-	rate = clk_get_rate(per) >> 3;
-	ret = tpm_clocksource_init(rate);
-	if (ret)
-		goto err_per_clk_enable;
+	tpm_clockevent_init();
 
-	ret = tpm_clockevent_init(rate, irq);
-	if (ret)
-		goto err_per_clk_enable;
-
-	return 0;
-
-err_per_clk_enable:
-	clk_disable_unprepare(ipg);
-err_clk_get:
-	clk_put(per);
-	clk_put(ipg);
-err_iomap:
-	iounmap(timer_base);
-	return ret;
+	return tpm_clocksource_init();
 }
 TIMER_OF_DECLARE(imx7ulp, "fsl,imx7ulp-tpm", tpm_timer_init);

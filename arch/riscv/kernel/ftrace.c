@@ -32,7 +32,7 @@ static int ftrace_check_current_call(unsigned long hook_pos,
 	 * return must be -EINVAL on failed comparison
 	 */
 	if (memcmp(expected, replaced, sizeof(replaced))) {
-		pr_err("%p: expected (%08x %08x) but get (%08x %08x)",
+		pr_err("%p: expected (%08x %08x) but got (%08x %08x)\n",
 		       (void *)hook_pos, expected[0], expected[1], replaced[0],
 		       replaced[1]);
 		return -EINVAL;
@@ -132,7 +132,6 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 {
 	unsigned long return_hooker = (unsigned long)&return_to_handler;
 	unsigned long old;
-	int err;
 
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;

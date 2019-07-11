@@ -1,14 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/kernel/time.c
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
- *  This file contains the interface functions for the various
- *  time related system calls: time, stime, gettimeofday, settimeofday,
- *			       adjtime
- */
-/*
- * Modification history kernel/time.c
+ *  This file contains the interface functions for the various time related
+ *  system calls: time, stime, gettimeofday, settimeofday, adjtime
+ *
+ * Modification history:
  *
  * 1993-09-02    Philip Gladstone
  *      Created file with time related functions from sched/core.c and adjtimex()
@@ -101,11 +98,11 @@ SYSCALL_DEFINE1(stime, time_t __user *, tptr)
 
 #endif /* __ARCH_WANT_SYS_TIME */
 
-#ifdef CONFIG_COMPAT
-#ifdef __ARCH_WANT_COMPAT_SYS_TIME
+#ifdef CONFIG_COMPAT_32BIT_TIME
+#ifdef __ARCH_WANT_SYS_TIME32
 
 /* old_time32_t is a 32 bit "long" and needs to get converted. */
-COMPAT_SYSCALL_DEFINE1(time, old_time32_t __user *, tloc)
+SYSCALL_DEFINE1(time32, old_time32_t __user *, tloc)
 {
 	old_time32_t i;
 
@@ -119,7 +116,7 @@ COMPAT_SYSCALL_DEFINE1(time, old_time32_t __user *, tloc)
 	return i;
 }
 
-COMPAT_SYSCALL_DEFINE1(stime, old_time32_t __user *, tptr)
+SYSCALL_DEFINE1(stime32, old_time32_t __user *, tptr)
 {
 	struct timespec64 tv;
 	int err;
@@ -137,7 +134,7 @@ COMPAT_SYSCALL_DEFINE1(stime, old_time32_t __user *, tptr)
 	return 0;
 }
 
-#endif /* __ARCH_WANT_COMPAT_SYS_TIME */
+#endif /* __ARCH_WANT_SYS_TIME32 */
 #endif
 
 SYSCALL_DEFINE2(gettimeofday, struct timeval __user *, tv,
@@ -266,35 +263,99 @@ COMPAT_SYSCALL_DEFINE2(settimeofday, struct old_timeval32 __user *, tv,
 }
 #endif
 
-SYSCALL_DEFINE1(adjtimex, struct timex __user *, txc_p)
+#if !defined(CONFIG_64BIT_TIME) || defined(CONFIG_64BIT)
+SYSCALL_DEFINE1(adjtimex, struct __kernel_timex __user *, txc_p)
 {
-	struct timex txc;		/* Local copy of parameter */
+	struct __kernel_timex txc;		/* Local copy of parameter */
 	int ret;
 
 	/* Copy the user data space into the kernel copy
 	 * structure. But bear in mind that the structures
 	 * may change
 	 */
-	if (copy_from_user(&txc, txc_p, sizeof(struct timex)))
+	if (copy_from_user(&txc, txc_p, sizeof(struct __kernel_timex)))
 		return -EFAULT;
 	ret = do_adjtimex(&txc);
-	return copy_to_user(txc_p, &txc, sizeof(struct timex)) ? -EFAULT : ret;
+	return copy_to_user(txc_p, &txc, sizeof(struct __kernel_timex)) ? -EFAULT : ret;
+}
+#endif
+
+#ifdef CONFIG_COMPAT_32BIT_TIME
+int get_old_timex32(struct __kernel_timex *txc, const struct old_timex32 __user *utp)
+{
+	struct old_timex32 tx32;
+
+	memset(txc, 0, sizeof(struct __kernel_timex));
+	if (copy_from_user(&tx32, utp, sizeof(struct old_timex32)))
+		return -EFAULT;
+
+	txc->modes = tx32.modes;
+	txc->offset = tx32.offset;
+	txc->freq = tx32.freq;
+	txc->maxerror = tx32.maxerror;
+	txc->esterror = tx32.esterror;
+	txc->status = tx32.status;
+	txc->constant = tx32.constant;
+	txc->precision = tx32.precision;
+	txc->tolerance = tx32.tolerance;
+	txc->time.tv_sec = tx32.time.tv_sec;
+	txc->time.tv_usec = tx32.time.tv_usec;
+	txc->tick = tx32.tick;
+	txc->ppsfreq = tx32.ppsfreq;
+	txc->jitter = tx32.jitter;
+	txc->shift = tx32.shift;
+	txc->stabil = tx32.stabil;
+	txc->jitcnt = tx32.jitcnt;
+	txc->calcnt = tx32.calcnt;
+	txc->errcnt = tx32.errcnt;
+	txc->stbcnt = tx32.stbcnt;
+
+	return 0;
 }
 
-#ifdef CONFIG_COMPAT
-
-COMPAT_SYSCALL_DEFINE1(adjtimex, struct compat_timex __user *, utp)
+int put_old_timex32(struct old_timex32 __user *utp, const struct __kernel_timex *txc)
 {
-	struct timex txc;
+	struct old_timex32 tx32;
+
+	memset(&tx32, 0, sizeof(struct old_timex32));
+	tx32.modes = txc->modes;
+	tx32.offset = txc->offset;
+	tx32.freq = txc->freq;
+	tx32.maxerror = txc->maxerror;
+	tx32.esterror = txc->esterror;
+	tx32.status = txc->status;
+	tx32.constant = txc->constant;
+	tx32.precision = txc->precision;
+	tx32.tolerance = txc->tolerance;
+	tx32.time.tv_sec = txc->time.tv_sec;
+	tx32.time.tv_usec = txc->time.tv_usec;
+	tx32.tick = txc->tick;
+	tx32.ppsfreq = txc->ppsfreq;
+	tx32.jitter = txc->jitter;
+	tx32.shift = txc->shift;
+	tx32.stabil = txc->stabil;
+	tx32.jitcnt = txc->jitcnt;
+	tx32.calcnt = txc->calcnt;
+	tx32.errcnt = txc->errcnt;
+	tx32.stbcnt = txc->stbcnt;
+	tx32.tai = txc->tai;
+	if (copy_to_user(utp, &tx32, sizeof(struct old_timex32)))
+		return -EFAULT;
+	return 0;
+}
+
+SYSCALL_DEFINE1(adjtimex_time32, struct old_timex32 __user *, utp)
+{
+	struct __kernel_timex txc;
 	int err, ret;
 
-	err = compat_get_timex(&txc, utp);
+	err = get_old_timex32(&txc, utp);
 	if (err)
 		return err;
 
 	ret = do_adjtimex(&txc);
 
-	err = compat_put_timex(utp, &txc);
+	err = put_old_timex32(utp, &txc);
 	if (err)
 		return err;
 
@@ -385,42 +446,6 @@ time64_t mktime64(const unsigned int year0, const unsigned int mon0,
 	)*60 + sec; /* finally seconds */
 }
 EXPORT_SYMBOL(mktime64);
-
-/**
- * set_normalized_timespec - set timespec sec and nsec parts and normalize
- *
- * @ts:		pointer to timespec variable to be set
- * @sec:	seconds to set
- * @nsec:	nanoseconds to set
- *
- * Set seconds and nanoseconds field of a timespec variable and
- * normalize to the timespec storage format
- *
- * Note: The tv_nsec part is always in the range of
- *	0 <= tv_nsec < NSEC_PER_SEC
- * For negative values only the tv_sec field is negative !
- */
-void set_normalized_timespec(struct timespec *ts, time_t sec, s64 nsec)
-{
-	while (nsec >= NSEC_PER_SEC) {
-		/*
-		 * The following asm() prevents the compiler from
-		 * optimising this loop into a modulo operation. See
-		 * also __iter_div_u64_rem() in include/linux/time.h
-		 */
-		asm("" : "+rm"(nsec));
-		nsec -= NSEC_PER_SEC;
-		++sec;
-	}
-	while (nsec < 0) {
-		asm("" : "+rm"(nsec));
-		nsec += NSEC_PER_SEC;
-		--sec;
-	}
-	ts->tv_sec = sec;
-	ts->tv_nsec = nsec;
-}
-EXPORT_SYMBOL(set_normalized_timespec);
 
 /**
  * ns_to_timespec - Convert nanoseconds to timespec

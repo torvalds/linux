@@ -1593,7 +1593,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	}
 
 	hcd = port->rhub->hcd;
-	bus_state = &xhci->bus_state[hcd_index(hcd)];
+	bus_state = &port->rhub->bus_state;
 	hcd_portnum = port->hcd_portnum;
 	portsc = readl(port->addr);
 
@@ -1647,10 +1647,13 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		}
 	}
 
-	if ((portsc & PORT_PLC) && (portsc & PORT_PLS_MASK) == XDEV_U0 &&
-			DEV_SUPERSPEED_ANY(portsc)) {
+	if ((portsc & PORT_PLC) &&
+	    DEV_SUPERSPEED_ANY(portsc) &&
+	    ((portsc & PORT_PLS_MASK) == XDEV_U0 ||
+	     (portsc & PORT_PLS_MASK) == XDEV_U1 ||
+	     (portsc & PORT_PLS_MASK) == XDEV_U2)) {
 		xhci_dbg(xhci, "resume SS port %d finished\n", port_id);
-		/* We've just brought the device into U0 through either the
+		/* We've just brought the device into U0/1/2 through either the
 		 * Resume state after a device remote wakeup, or through the
 		 * U3Exit state after a host-initiated resume.  If it's a device
 		 * initiated remote wake, don't pass up the link state change,

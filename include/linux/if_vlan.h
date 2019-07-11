@@ -65,8 +65,7 @@ static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 
 #define VLAN_PRIO_MASK		0xe000 /* Priority Code Point */
 #define VLAN_PRIO_SHIFT		13
-#define VLAN_CFI_MASK		0x1000 /* Canonical Format Indicator */
-#define VLAN_TAG_PRESENT	VLAN_CFI_MASK
+#define VLAN_CFI_MASK		0x1000 /* Canonical Format Indicator / Drop Eligible Indicator */
 #define VLAN_VID_MASK		0x0fff /* VLAN Identifier */
 #define VLAN_N_VID		4096
 
@@ -78,10 +77,11 @@ static inline bool is_vlan_dev(const struct net_device *dev)
         return dev->priv_flags & IFF_802_1Q_VLAN;
 }
 
-#define skb_vlan_tag_present(__skb)	((__skb)->vlan_tci & VLAN_TAG_PRESENT)
-#define skb_vlan_tag_get(__skb)		((__skb)->vlan_tci & ~VLAN_TAG_PRESENT)
+#define skb_vlan_tag_present(__skb)	((__skb)->vlan_present)
+#define skb_vlan_tag_get(__skb)		((__skb)->vlan_tci)
 #define skb_vlan_tag_get_id(__skb)	((__skb)->vlan_tci & VLAN_VID_MASK)
-#define skb_vlan_tag_get_prio(__skb)	((__skb)->vlan_tci & VLAN_PRIO_MASK)
+#define skb_vlan_tag_get_cfi(__skb)	(!!((__skb)->vlan_tci & VLAN_CFI_MASK))
+#define skb_vlan_tag_get_prio(__skb)	(((__skb)->vlan_tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT)
 
 static inline int vlan_get_rx_ctag_filter_info(struct net_device *dev)
 {
@@ -133,6 +133,9 @@ struct vlan_pcpu_stats {
 
 extern struct net_device *__vlan_find_dev_deep_rcu(struct net_device *real_dev,
 					       __be16 vlan_proto, u16 vlan_id);
+extern int vlan_for_each(struct net_device *dev,
+			 int (*action)(struct net_device *dev, int vid,
+				       void *arg), void *arg);
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 extern __be16 vlan_dev_vlan_proto(const struct net_device *dev);
@@ -234,6 +237,14 @@ __vlan_find_dev_deep_rcu(struct net_device *real_dev,
 		     __be16 vlan_proto, u16 vlan_id)
 {
 	return NULL;
+}
+
+static inline int
+vlan_for_each(struct net_device *dev,
+	      int (*action)(struct net_device *dev, int vid, void *arg),
+	      void *arg)
+{
+	return 0;
 }
 
 static inline struct net_device *vlan_dev_real_dev(const struct net_device *dev)
@@ -461,6 +472,31 @@ static inline struct sk_buff *vlan_insert_tag_set_proto(struct sk_buff *skb,
 	return skb;
 }
 
+/**
+ * __vlan_hwaccel_clear_tag - clear hardware accelerated VLAN info
+ * @skb: skbuff to clear
+ *
+ * Clears the VLAN information from @skb
+ */
+static inline void __vlan_hwaccel_clear_tag(struct sk_buff *skb)
+{
+	skb->vlan_present = 0;
+}
+
+/**
+ * __vlan_hwaccel_copy_tag - copy hardware accelerated VLAN info from another skb
+ * @dst: skbuff to copy to
+ * @src: skbuff to copy from
+ *
+ * Copies VLAN information from @src to @dst (for branchless code)
+ */
+static inline void __vlan_hwaccel_copy_tag(struct sk_buff *dst, const struct sk_buff *src)
+{
+	dst->vlan_present = src->vlan_present;
+	dst->vlan_proto = src->vlan_proto;
+	dst->vlan_tci = src->vlan_tci;
+}
+
 /*
  * __vlan_hwaccel_push_inside - pushes vlan tag to the payload
  * @skb: skbuff to tag
@@ -475,7 +511,7 @@ static inline struct sk_buff *__vlan_hwaccel_push_inside(struct sk_buff *skb)
 	skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
 					skb_vlan_tag_get(skb));
 	if (likely(skb))
-		skb->vlan_tci = 0;
+		__vlan_hwaccel_clear_tag(skb);
 	return skb;
 }
 
@@ -491,7 +527,8 @@ static inline void __vlan_hwaccel_put_tag(struct sk_buff *skb,
 					  __be16 vlan_proto, u16 vlan_tci)
 {
 	skb->vlan_proto = vlan_proto;
-	skb->vlan_tci = VLAN_TAG_PRESENT | vlan_tci;
+	skb->vlan_tci = vlan_tci;
+	skb->vlan_present = 1;
 }
 
 /**
@@ -530,8 +567,6 @@ static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
 		return -EINVAL;
 	}
 }
-
-#define HAVE_VLAN_GET_TAG
 
 /**
  * vlan_get_tag - get the VLAN ID from the skb

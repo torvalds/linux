@@ -279,7 +279,7 @@ static void set_clock_divider(struct pxa168fb_info *fbi,
 
 	/* check whether divisor is too small. */
 	if (divider_int < 2) {
-		dev_warn(fbi->dev, "Warning: clock source is too slow."
+		dev_warn(fbi->dev, "Warning: clock source is too slow. "
 				"Try smaller resolution\n");
 		divider_int = 2;
 	}

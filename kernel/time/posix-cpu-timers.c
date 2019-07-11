@@ -67,13 +67,13 @@ static void bump_cpu_timer(struct k_itimer *timer, u64 now)
 	int i;
 	u64 delta, incr;
 
-	if (timer->it.cpu.incr == 0)
+	if (!timer->it_interval)
 		return;
 
 	if (now < timer->it.cpu.expires)
 		return;
 
-	incr = timer->it.cpu.incr;
+	incr = timer->it_interval;
 	delta = now + incr - timer->it.cpu.expires;
 
 	/* Don't use (incr*2 < delta), incr*2 might overflow. */
@@ -520,7 +520,7 @@ static void cpu_timer_fire(struct k_itimer *timer)
 		 */
 		wake_up_process(timer->it_process);
 		timer->it.cpu.expires = 0;
-	} else if (timer->it.cpu.incr == 0) {
+	} else if (!timer->it_interval) {
 		/*
 		 * One-shot timer.  Clear it as soon as it's fired.
 		 */
@@ -606,7 +606,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	 */
 
 	ret = 0;
-	old_incr = timer->it.cpu.incr;
+	old_incr = timer->it_interval;
 	old_expires = timer->it.cpu.expires;
 	if (unlikely(timer->it.cpu.firing)) {
 		timer->it.cpu.firing = -1;
@@ -684,7 +684,7 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	 * Install the new reload setting, and
 	 * set up the signal and overrun bookkeeping.
 	 */
-	timer->it.cpu.incr = timespec64_to_ns(&new->it_interval);
+	timer->it_interval = timespec64_to_ktime(new->it_interval);
 
 	/*
 	 * This acts as a modification timestamp for the timer,
@@ -723,7 +723,7 @@ static void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp
 	/*
 	 * Easy part: convert the reload time.
 	 */
-	itp->it_interval = ns_to_timespec64(timer->it.cpu.incr);
+	itp->it_interval = ktime_to_timespec64(timer->it_interval);
 
 	if (!timer->it.cpu.expires)
 		return;

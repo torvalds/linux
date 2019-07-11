@@ -409,10 +409,10 @@ static  int skfp_driver_init(struct net_device *dev)
 	if (bp->SharedMemSize > 0) {
 		bp->SharedMemSize += 16;	// for descriptor alignment
 
-		bp->SharedMemAddr = dma_zalloc_coherent(&bp->pdev.dev,
-							bp->SharedMemSize,
-							&bp->SharedMemDMA,
-							GFP_ATOMIC);
+		bp->SharedMemAddr = dma_alloc_coherent(&bp->pdev.dev,
+						       bp->SharedMemSize,
+						       &bp->SharedMemDMA,
+						       GFP_ATOMIC);
 		if (!bp->SharedMemAddr) {
 			printk("could not allocate mem for ");
 			printk("hardware module: %ld byte\n",

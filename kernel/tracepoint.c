@@ -92,7 +92,7 @@ static __init int release_early_probes(void)
 	while (early_probes) {
 		tmp = early_probes;
 		early_probes = tmp->next;
-		call_rcu_sched(tmp, rcu_free_old_probes);
+		call_rcu(tmp, rcu_free_old_probes);
 	}
 
 	return 0;
@@ -123,7 +123,7 @@ static inline void release_probes(struct tracepoint_func *old)
 		 * cover both cases. So let us chain the SRCU and sched RCU
 		 * callbacks to wait for both grace periods.
 		 */
-		call_rcu_sched(&tp_probes->rcu, rcu_free_old_probes);
+		call_rcu(&tp_probes->rcu, rcu_free_old_probes);
 	}
 }
 

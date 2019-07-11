@@ -1698,7 +1698,7 @@ static int pvr2_hdw_untrip_unlocked(struct pvr2_hdw *hdw)
 	if (!hdw->flag_tripped) return 0;
 	hdw->flag_tripped = 0;
 	pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-		   "Clearing driver error statuss");
+		   "Clearing driver error status");
 	return !0;
 }
 

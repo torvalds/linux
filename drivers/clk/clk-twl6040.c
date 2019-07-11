@@ -41,6 +41,43 @@ static int twl6040_pdmclk_is_prepared(struct clk_hw *hw)
 	return pdmclk->enabled;
 }
 
+static int twl6040_pdmclk_reset_one_clock(struct twl6040_pdmclk *pdmclk,
+					  unsigned int reg)
+{
+	const u8 reset_mask = TWL6040_HPLLRST;	/* Same for HPPLL and LPPLL */
+	int ret;
+
+	ret = twl6040_set_bits(pdmclk->twl6040, reg, reset_mask);
+	if (ret < 0)
+		return ret;
+
+	ret = twl6040_clear_bits(pdmclk->twl6040, reg, reset_mask);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+/*
+ * TWL6040A2 Phoenix Audio IC erratum #6: "PDM Clock Generation Issue At
+ * Cold Temperature". This affects cold boot and deeper idle states it
+ * seems. The workaround consists of resetting HPPLL and LPPLL.
+ */
+static int twl6040_pdmclk_quirk_reset_clocks(struct twl6040_pdmclk *pdmclk)
+{
+	int ret;
+
+	ret = twl6040_pdmclk_reset_one_clock(pdmclk, TWL6040_REG_HPPLLCTL);
+	if (ret)
+		return ret;
+
+	ret = twl6040_pdmclk_reset_one_clock(pdmclk, TWL6040_REG_LPPLLCTL);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int twl6040_pdmclk_prepare(struct clk_hw *hw)
 {
 	struct twl6040_pdmclk *pdmclk = container_of(hw, struct twl6040_pdmclk,
@@ -48,8 +85,20 @@ static int twl6040_pdmclk_prepare(struct clk_hw *hw)
 	int ret;
 
 	ret = twl6040_power(pdmclk->twl6040, 1);
-	if (!ret)
-		pdmclk->enabled = 1;
+	if (ret)
+		return ret;
+
+	ret = twl6040_pdmclk_quirk_reset_clocks(pdmclk);
+	if (ret)
+		goto out_err;
+
+	pdmclk->enabled = 1;
+
+	return 0;
+
+out_err:
+	dev_err(pdmclk->dev, "%s: error %i\n", __func__, ret);
+	twl6040_power(pdmclk->twl6040, 0);
 
 	return ret;
 }
@@ -108,9 +157,8 @@ static int twl6040_pdmclk_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, clkdata);
 
-	return of_clk_add_hw_provider(pdev->dev.parent->of_node,
-				      of_clk_hw_simple_get,
-				      &clkdata->pdmclk_hw);
+	return devm_of_clk_add_hw_provider(&pdev->dev, of_clk_hw_simple_get,
+					   &clkdata->pdmclk_hw);
 }
 
 static struct platform_driver twl6040_pdmclk_driver = {

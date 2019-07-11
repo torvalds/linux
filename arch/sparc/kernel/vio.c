@@ -193,7 +193,7 @@ show_pciobppath_attr(struct device *dev, struct device_attribute *attr,
 	vdev = to_vio_dev(dev);
 	dp = vdev->dp;
 
-	return snprintf (buf, PAGE_SIZE, "%s\n", dp->full_name);
+	return snprintf (buf, PAGE_SIZE, "%pOF\n", dp);
 }
 
 static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH,
@@ -366,12 +366,9 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	if (parent == NULL) {
 		dp = cdev_node;
 	} else if (to_vio_dev(parent) == root_vdev) {
-		dp = of_get_next_child(cdev_node, NULL);
-		while (dp) {
-			if (!strcmp(dp->type, type))
+		for_each_child_of_node(cdev_node, dp) {
+			if (of_node_is_type(dp, type))
 				break;
-
-			dp = of_get_next_child(cdev_node, dp);
 		}
 	} else {
 		dp = to_vio_dev(parent)->dp;

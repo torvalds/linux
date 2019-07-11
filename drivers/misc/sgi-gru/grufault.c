@@ -616,8 +616,8 @@ irqreturn_t gru_intr_mblade(int irq, void *dev_id)
 	for_each_possible_blade(blade) {
 		if (uv_blade_nr_possible_cpus(blade))
 			continue;
-		 gru_intr(0, blade);
-		 gru_intr(1, blade);
+		gru_intr(0, blade);
+		gru_intr(1, blade);
 	}
 	return IRQ_HANDLED;
 }

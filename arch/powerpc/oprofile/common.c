@@ -212,7 +212,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 			model = &op_model_pa6t;
 			break;
 #endif
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 		case PPC_OPROFILE_G4:
 			model = &op_model_7450;
 			break;

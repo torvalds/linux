@@ -1,25 +1,15 @@
-/*
- * cros_ec_lpc - LPC access to the Chrome OS Embedded Controller
- *
- * Copyright (C) 2012-2015 Google, Inc
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * This driver uses the Chrome OS EC byte-level message-based protocol for
- * communicating the keyboard state (which keys are pressed) from a keyboard EC
- * to the AP over some bus (such as i2c, lpc, spi).  The EC does debouncing,
- * but everything else (including deghosting) is done here.  The main
- * motivation for this is to keep the EC firmware as simple as possible, since
- * it cannot be easily upgraded and EC flash/IRAM space is relatively
- * expensive.
- */
+// SPDX-License-Identifier: GPL-2.0
+// LPC interface for ChromeOS Embedded Controller
+//
+// Copyright (C) 2012-2015 Google, Inc
+//
+// This driver uses the ChromeOS EC byte-level message-based protocol for
+// communicating the keyboard state (which keys are pressed) from a keyboard EC
+// to the AP over some bus (such as i2c, lpc, spi).  The EC does debouncing,
+// but everything else (including deghosting) is done here.  The main
+// motivation for this is to keep the EC firmware as simple as possible, since
+// it cannot be easily upgraded and EC flash/IRAM space is relatively
+// expensive.
 
 #include <linux/acpi.h>
 #include <linux/dmi.h>
@@ -327,16 +317,12 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 
 static int cros_ec_lpc_remove(struct platform_device *pdev)
 {
-	struct cros_ec_device *ec_dev;
 	struct acpi_device *adev;
 
 	adev = ACPI_COMPANION(&pdev->dev);
 	if (adev)
 		acpi_remove_notify_handler(adev->handle, ACPI_ALL_NOTIFY,
 					   cros_ec_lpc_acpi_notify);
-
-	ec_dev = platform_get_drvdata(pdev);
-	cros_ec_remove(ec_dev);
 
 	return 0;
 }

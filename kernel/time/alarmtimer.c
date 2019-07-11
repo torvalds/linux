@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Alarmtimer interface
  *
@@ -10,10 +11,6 @@
  * Copyright (C) 2010 IBM Corperation
  *
  * Author: John Stultz <john.stultz@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/time.h>
 #include <linux/hrtimer.h>
@@ -597,7 +594,7 @@ static ktime_t alarm_timer_remaining(struct k_itimer *timr, ktime_t now)
 {
 	struct alarm *alarm = &timr->it.alarm.alarmtimer;
 
-	return ktime_sub(now, alarm->node.expires);
+	return ktime_sub(alarm->node.expires, now);
 }
 
 /**

@@ -31,6 +31,7 @@
 #include "resource.h"
 #include "dce110/dce110_resource.h"
 
+#include "dce/dce_clk_mgr.h"
 #include "include/irq_service_interface.h"
 #include "dce/dce_audio.h"
 #include "dce110/dce110_timing_generator.h"
@@ -45,7 +46,6 @@
 #include "dce110/dce110_transform_v.h"
 #include "dce/dce_opp.h"
 #include "dce110/dce110_opp_v.h"
-#include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_hwseq.h"
 #include "dce110/dce110_hw_sequencer.h"
@@ -84,6 +84,7 @@
 
 #ifndef mmBIOS_SCRATCH_2
 	#define mmBIOS_SCRATCH_2 0x05CB
+	#define mmBIOS_SCRATCH_3 0x05CC
 	#define mmBIOS_SCRATCH_6 0x05CF
 #endif
 
@@ -148,15 +149,15 @@ static const struct dce110_timing_generator_offsets dce110_tg_offsets[] = {
 #define SRI(reg_name, block, id)\
 	.reg_name = mm ## block ## id ## _ ## reg_name
 
-static const struct dccg_registers disp_clk_regs = {
+static const struct clk_mgr_registers disp_clk_regs = {
 		CLK_COMMON_REG_LIST_DCE_BASE()
 };
 
-static const struct dccg_shift disp_clk_shift = {
+static const struct clk_mgr_shift disp_clk_shift = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
 };
 
-static const struct dccg_mask disp_clk_mask = {
+static const struct clk_mgr_mask disp_clk_mask = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
 };
 
@@ -369,6 +370,7 @@ static const struct dce110_clk_src_mask cs_mask = {
 };
 
 static const struct bios_registers bios_regs = {
+	.BIOS_SCRATCH_3 = mmBIOS_SCRATCH_3,
 	.BIOS_SCRATCH_6 = mmBIOS_SCRATCH_6
 };
 
@@ -606,7 +608,7 @@ static struct output_pixel_processor *dce110_opp_create(
 	return &opp->base;
 }
 
-struct aux_engine *dce110_aux_engine_create(
+struct dce_aux *dce110_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -760,8 +762,8 @@ static void destruct(struct dce110_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.dccg != NULL)
-		dce_dccg_destroy(&pool->base.dccg);
+	if (pool->base.clk_mgr != NULL)
+		dce_clk_mgr_destroy(&pool->base.clk_mgr);
 
 	if (pool->base.irqs != NULL) {
 		dal_irq_service_destroy(&pool->base.irqs);
@@ -779,8 +781,8 @@ static void get_pixel_clock_parameters(
 	 * the pixel clock normalization for hdmi up to here instead of doing it
 	 * in pll_adjust_pix_clk
 	 */
-	pixel_clk_params->requested_pix_clk = stream->timing.pix_clk_khz;
-	pixel_clk_params->encoder_object_id = stream->sink->link->link_enc->id;
+	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
+	pixel_clk_params->encoder_object_id = stream->link->link_enc->id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->stream_res.tg->inst + 1;
 	/* TODO: un-hardcode*/
@@ -797,10 +799,10 @@ static void get_pixel_clock_parameters(
 		pixel_clk_params->color_depth = COLOR_DEPTH_888;
 	}
 	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
-		pixel_clk_params->requested_pix_clk  = pixel_clk_params->requested_pix_clk / 2;
+		pixel_clk_params->requested_pix_clk_100hz  = pixel_clk_params->requested_pix_clk_100hz / 2;
 	}
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
-		pixel_clk_params->requested_pix_clk *= 2;
+		pixel_clk_params->requested_pix_clk_100hz *= 2;
 
 }
 
@@ -874,7 +876,7 @@ static bool dce110_validate_bandwidth(
 			__func__,
 			context->streams[0]->timing.h_addressable,
 			context->streams[0]->timing.v_addressable,
-			context->streams[0]->timing.pix_clk_khz);
+			context->streams[0]->timing.pix_clk_100hz / 10);
 
 	if (memcmp(&dc->current_state->bw.dce,
 			&context->bw.dce, sizeof(context->bw.dce))) {
@@ -1055,7 +1057,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 		pipe_ctx->plane_res.mi->funcs->allocate_mem_input(pipe_ctx->plane_res.mi,
 				stream->timing.h_total,
 				stream->timing.v_total,
-				stream->timing.pix_clk_khz,
+				stream->timing.pix_clk_100hz / 10,
 				context->stream_count);
 
 		color_space_to_black_color(dc,
@@ -1173,12 +1175,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			&clks);
 
 	dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-		clks.clocks_in_khz[0] * MEMORY_TYPE_MULTIPLIER, 1000);
+		clks.clocks_in_khz[0] * MEMORY_TYPE_MULTIPLIER_CZ, 1000);
 	dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-		clks.clocks_in_khz[clks.num_levels>>1] * MEMORY_TYPE_MULTIPLIER,
+		clks.clocks_in_khz[clks.num_levels>>1] * MEMORY_TYPE_MULTIPLIER_CZ,
 		1000);
 	dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-		clks.clocks_in_khz[clks.num_levels-1] * MEMORY_TYPE_MULTIPLIER,
+		clks.clocks_in_khz[clks.num_levels-1] * MEMORY_TYPE_MULTIPLIER_CZ,
 		1000);
 }
 
@@ -1201,7 +1203,6 @@ static bool construct(
 	struct dc_context *ctx = dc->ctx;
 	struct dc_firmware_info info;
 	struct dc_bios *bp;
-	struct dm_pp_static_clock_info static_clk_info = {0};
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -1257,11 +1258,11 @@ static bool construct(
 		}
 	}
 
-	pool->base.dccg = dce110_dccg_create(ctx,
+	pool->base.clk_mgr = dce110_clk_mgr_create(ctx,
 			&disp_clk_regs,
 			&disp_clk_shift,
 			&disp_clk_mask);
-	if (pool->base.dccg == NULL) {
+	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
@@ -1286,13 +1287,6 @@ static bool construct(
 		BREAK_TO_DEBUGGER();
 		goto res_create_fail;
 	}
-
-	/* get static clock information for PPLIB or firmware, save
-	 * max_clock_state
-	 */
-	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
-		pool->base.dccg->max_clks_state =
-				static_clk_info.max_clocks_state;
 
 	{
 		struct irq_service_init_data init_data;

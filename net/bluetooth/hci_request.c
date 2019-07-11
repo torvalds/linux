@@ -1556,7 +1556,7 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 	connectable = (flags & MGMT_ADV_FLAG_CONNECTABLE) ||
 		      mgmt_get_connectable(hdev);
 
-	 if (!is_advertising_allowed(hdev, connectable))
+	if (!is_advertising_allowed(hdev, connectable))
 		return -EPERM;
 
 	/* Set require_privacy to true only when non-connectable

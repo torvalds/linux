@@ -877,6 +877,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 	int i;
 	unsigned long nsyms;
 	const char *strtab = NULL;
+	const Elf_Shdr *s;
+	char *secstrings;
 	Elf_Sym *newptr, *oldptr;
 	Elf_Shdr *symhdr = NULL;
 #ifdef DEBUG
@@ -948,6 +950,18 @@ int module_finalize(const Elf_Ehdr *hdr,
 	nsyms = newptr - (Elf_Sym *)symhdr->sh_addr;
 	DEBUGP("NEW num_symtab %lu\n", nsyms);
 	symhdr->sh_size = nsyms * sizeof(Elf_Sym);
+
+	/* find .altinstructions section */
+	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {
+		void *aseg = (void *) s->sh_addr;
+		char *secname = secstrings + s->sh_name;
+
+		if (!strcmp(".altinstructions", secname))
+			/* patch .altinstructions */
+			apply_alternatives(aseg, aseg + s->sh_size, me->name);
+	}
+
 	return 0;
 }
 

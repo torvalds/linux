@@ -86,16 +86,4 @@ futex_cmp_requeue(u_int32_t *uaddr, u_int32_t val, u_int32_t *uaddr2, int nr_wak
 	return futex(uaddr, FUTEX_CMP_REQUEUE, nr_wake, nr_requeue, uaddr2,
 		 val, opflags);
 }
-
-#ifndef HAVE_PTHREAD_ATTR_SETAFFINITY_NP
-#include <pthread.h>
-#include <linux/compiler.h>
-static inline int pthread_attr_setaffinity_np(pthread_attr_t *attr __maybe_unused,
-					      size_t cpusetsize __maybe_unused,
-					      cpu_set_t *cpuset __maybe_unused)
-{
-	return 0;
-}
-#endif
-
 #endif /* _FUTEX_H */

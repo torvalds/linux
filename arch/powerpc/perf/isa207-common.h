@@ -134,6 +134,11 @@
 #define CNST_SAMPLE_VAL(v)	(((v) & EVENT_SAMPLE_MASK) << 16)
 #define CNST_SAMPLE_MASK	CNST_SAMPLE_VAL(EVENT_SAMPLE_MASK)
 
+#define CNST_CACHE_GROUP_VAL(v)	(((v) & 0xffull) << 55)
+#define CNST_CACHE_GROUP_MASK	CNST_CACHE_GROUP_VAL(0xff)
+#define CNST_CACHE_PMC4_VAL	(1ull << 54)
+#define CNST_CACHE_PMC4_MASK	CNST_CACHE_PMC4_VAL
+
 /*
  * For NC we are counting up to 4 events. This requires three bits, and we need
  * the fifth event to overflow and set the 4th bit. To achieve that we bias the
@@ -163,8 +168,8 @@
 #define MMCR1_COMBINE_SHIFT(pmc)	(35 - ((pmc) - 1))
 #define MMCR1_PMCSEL_SHIFT(pmc)		(24 - (((pmc) - 1)) * 8)
 #define MMCR1_FAB_SHIFT			36
-#define MMCR1_DC_QUAL_SHIFT		47
-#define MMCR1_IC_QUAL_SHIFT		46
+#define MMCR1_DC_IC_QUAL_MASK		0x3
+#define MMCR1_DC_IC_QUAL_SHIFT		46
 
 /* MMCR1 Combine bits macro for power9 */
 #define p9_MMCR1_COMBINE_SHIFT(pmc)	(38 - ((pmc - 1) * 2))

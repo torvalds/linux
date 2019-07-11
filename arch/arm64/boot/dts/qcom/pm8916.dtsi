@@ -32,6 +32,12 @@
 				bias-pull-up;
 				linux,code = <KEY_POWER>;
 			};
+
+			watchdog {
+				compatible = "qcom,pm8916-wdt";
+				interrupts = <0x0 0x8 6 IRQ_TYPE_EDGE_RISING>;
+				timeout-sec = <60>;
+			};
 		};
 
 		pm8916_gpios: gpios@c000 {

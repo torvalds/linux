@@ -1019,8 +1019,8 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 		sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
 		8 * 4;
 
-	ring_header->desc = dma_zalloc_coherent(&pdev->dev, ring_header->size,
-						&ring_header->dma, GFP_KERNEL);
+	ring_header->desc = dma_alloc_coherent(&pdev->dev, ring_header->size,
+					       &ring_header->dma, GFP_KERNEL);
 	if (unlikely(!ring_header->desc)) {
 		dev_err(&pdev->dev, "could not get memory for DMA buffer\n");
 		goto err_nomem;
@@ -1833,10 +1833,10 @@ rrs_checked:
 		atl1c_clean_rrd(rrd_ring, rrs, rfd_num);
 		if (rrs->word3 & (RRS_RX_ERR_SUM | RRS_802_3_LEN_ERR)) {
 			atl1c_clean_rfd(rfd_ring, rrs, rfd_num);
-				if (netif_msg_rx_err(adapter))
-					dev_warn(&pdev->dev,
-						"wrong packet! rrs word3 is %x\n",
-						rrs->word3);
+			if (netif_msg_rx_err(adapter))
+				dev_warn(&pdev->dev,
+					 "wrong packet! rrs word3 is %x\n",
+					 rrs->word3);
 			continue;
 		}
 

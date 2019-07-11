@@ -3,7 +3,7 @@
  *
  * Name: acglobal.h - Declarations for global variables
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -164,6 +164,7 @@ ACPI_GLOBAL(struct acpi_memory_list *, acpi_gbl_global_list);
 ACPI_GLOBAL(struct acpi_memory_list *, acpi_gbl_ns_node_list);
 ACPI_GLOBAL(u8, acpi_gbl_display_final_mem_stats);
 ACPI_GLOBAL(u8, acpi_gbl_disable_mem_tracking);
+ACPI_GLOBAL(u8, acpi_gbl_verbose_leak_dump);
 #endif
 
 /*****************************************************************************
@@ -172,11 +173,7 @@ ACPI_GLOBAL(u8, acpi_gbl_disable_mem_tracking);
  *
  ****************************************************************************/
 
-#if !defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
 #define NUM_PREDEFINED_NAMES            10
-#else
-#define NUM_PREDEFINED_NAMES            9
-#endif
 
 ACPI_GLOBAL(struct acpi_namespace_node, acpi_gbl_root_node_struct);
 ACPI_GLOBAL(struct acpi_namespace_node *, acpi_gbl_root_node);

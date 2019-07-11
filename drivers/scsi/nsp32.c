@@ -274,7 +274,7 @@ static struct scsi_host_template nsp32_template = {
 	.sg_tablesize			= NSP32_SG_SIZE,
 	.max_sectors			= 128,
 	.this_id			= NSP32_HOST_SCSIID,
-	.use_clustering			= DISABLE_CLUSTERING,
+	.dma_boundary			= PAGE_SIZE - 1,
 	.eh_abort_handler		= nsp32_eh_abort,
 	.eh_host_reset_handler		= nsp32_eh_host_reset,
 /*	.highmem_io			= 1, */
@@ -2441,7 +2441,6 @@ static void nsp32_set_sync_entry(nsp32_hw_data *data,
 
 	period      = data->synct[entry].period_num;
 	ackwidth    = data->synct[entry].ackwidth;
-	offset      = offset;
 	sample_rate = data->synct[entry].sample_rate;
 
 	target->syncreg    = TO_SYNCREG(period, offset);

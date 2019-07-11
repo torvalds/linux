@@ -627,7 +627,11 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 			return -ENOENT;
 		}
 
-		res = fib6_dump_table(tb, skb, cb);
+		if (!cb->args[0]) {
+			res = fib6_dump_table(tb, skb, cb);
+			if (!res)
+				cb->args[0] = 1;
+		}
 		goto out;
 	}
 
@@ -917,9 +921,7 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 		if (pcpu_rt) {
 			struct fib6_info *from;
 
-			from = rcu_dereference_protected(pcpu_rt->from,
-					     lockdep_is_held(&table->tb6_lock));
-			rcu_assign_pointer(pcpu_rt->from, NULL);
+			from = xchg((__force struct fib6_info **)&pcpu_rt->from, NULL);
 			fib6_info_release(from);
 		}
 	}

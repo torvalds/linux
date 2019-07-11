@@ -173,6 +173,7 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			if (!print_oneline)
 				printed += fprintf(fp, "\n");
 
+			/* Add srccode here too? */
 			if (symbol_conf.bt_stop_list &&
 			    node->sym &&
 			    strlist__has_entry(symbol_conf.bt_stop_list,

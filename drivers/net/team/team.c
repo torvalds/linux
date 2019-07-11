@@ -28,7 +28,6 @@
 #include <net/genetlink.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
-#include <net/switchdev.h>
 #include <generated/utsrelease.h>
 #include <linux/if_team.h>
 
@@ -59,7 +58,7 @@ static int __set_port_dev_addr(struct net_device *port_dev,
 
 	memcpy(addr.__data, dev_addr, port_dev->addr_len);
 	addr.ss_family = port_dev->type;
-	return dev_set_mac_address(port_dev, (struct sockaddr *)&addr);
+	return dev_set_mac_address(port_dev, (struct sockaddr *)&addr, NULL);
 }
 
 static int team_port_set_orig_dev_addr(struct team_port *port)
@@ -254,17 +253,6 @@ static void __team_option_inst_mark_removed_port(struct team *team,
 			opt_inst->removed = true;
 		}
 	}
-}
-
-static bool __team_option_inst_tmp_find(const struct list_head *opts,
-					const struct team_option_inst *needle)
-{
-	struct team_option_inst *opt_inst;
-
-	list_for_each_entry(opt_inst, opts, tmp_list)
-		if (opt_inst == needle)
-			return true;
-	return false;
 }
 
 static int __team_options_register(struct team *team,
@@ -1168,6 +1156,13 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 		return -EINVAL;
 	}
 
+	if (netdev_has_upper_dev(dev, port_dev)) {
+		NL_SET_ERR_MSG(extack, "Device is already an upper device of the team interface");
+		netdev_err(dev, "Device %s is already an upper device of the team interface\n",
+			   portname);
+		return -EBUSY;
+	}
+
 	if (port_dev->features & NETIF_F_VLAN_CHALLENGED &&
 	    vlan_uses_dev(dev)) {
 		NL_SET_ERR_MSG(extack, "Device is VLAN challenged and team device has VLAN set up");
@@ -1212,7 +1207,7 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 		goto err_port_enter;
 	}
 
-	err = dev_open(port_dev);
+	err = dev_open(port_dev, extack);
 	if (err) {
 		netdev_dbg(dev, "Device %s opening failed\n",
 			   portname);
@@ -1258,6 +1253,23 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 		goto err_option_port_add;
 	}
 
+	/* set promiscuity level to new slave */
+	if (dev->flags & IFF_PROMISC) {
+		err = dev_set_promiscuity(port_dev, 1);
+		if (err)
+			goto err_set_slave_promisc;
+	}
+
+	/* set allmulti level to new slave */
+	if (dev->flags & IFF_ALLMULTI) {
+		err = dev_set_allmulti(port_dev, 1);
+		if (err) {
+			if (dev->flags & IFF_PROMISC)
+				dev_set_promiscuity(port_dev, -1);
+			goto err_set_slave_promisc;
+		}
+	}
+
 	netif_addr_lock_bh(dev);
 	dev_uc_sync_multiple(port_dev, dev);
 	dev_mc_sync_multiple(port_dev, dev);
@@ -1267,12 +1279,15 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 	list_add_tail_rcu(&port->list, &team->port_list);
 	team_port_enable(team, port);
 	__team_compute_features(team);
-	__team_port_change_port_added(port, !!netif_carrier_ok(port_dev));
+	__team_port_change_port_added(port, !!netif_oper_up(port_dev));
 	__team_options_change_check(team);
 
 	netdev_info(dev, "Port device %s added\n", portname);
 
 	return 0;
+
+err_set_slave_promisc:
+	__team_option_inst_del_port(team, port);
 
 err_option_port_add:
 	team_upper_dev_unlink(team, port);
@@ -1319,6 +1334,12 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 
 	team_port_disable(team, port);
 	list_del_rcu(&port->list);
+
+	if (dev->flags & IFF_PROMISC)
+		dev_set_promiscuity(port_dev, -1);
+	if (dev->flags & IFF_ALLMULTI)
+		dev_set_allmulti(port_dev, -1);
+
 	team_upper_dev_unlink(team, port);
 	netdev_rx_handler_unregister(port_dev);
 	team_port_disable_netpoll(port);
@@ -2460,7 +2481,6 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 	int err = 0;
 	int i;
 	struct nlattr *nl_option;
-	LIST_HEAD(opt_inst_list);
 
 	rtnl_lock();
 
@@ -2480,6 +2500,7 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 		struct nlattr *opt_attrs[TEAM_ATTR_OPTION_MAX + 1];
 		struct nlattr *attr;
 		struct nlattr *attr_data;
+		LIST_HEAD(opt_inst_list);
 		enum team_option_type opt_type;
 		int opt_port_ifindex = 0; /* != 0 for per-port options */
 		u32 opt_array_index = 0;
@@ -2584,23 +2605,17 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 			if (err)
 				goto team_put;
 			opt_inst->changed = true;
-
-			/* dumb/evil user-space can send us duplicate opt,
-			 * keep only the last one
-			 */
-			if (__team_option_inst_tmp_find(&opt_inst_list,
-							opt_inst))
-				continue;
-
 			list_add(&opt_inst->tmp_list, &opt_inst_list);
 		}
 		if (!opt_found) {
 			err = -ENOENT;
 			goto team_put;
 		}
-	}
 
-	err = team_nl_send_event_options_get(team, &opt_inst_list);
+		err = team_nl_send_event_options_get(team, &opt_inst_list);
+		if (err)
+			break;
+	}
 
 team_put:
 	team_nl_team_put(team);
@@ -2932,7 +2947,7 @@ static int team_device_event(struct notifier_block *unused,
 
 	switch (event) {
 	case NETDEV_UP:
-		if (netif_carrier_ok(dev))
+		if (netif_oper_up(dev))
 			team_port_change_check(port, true);
 		break;
 	case NETDEV_DOWN:

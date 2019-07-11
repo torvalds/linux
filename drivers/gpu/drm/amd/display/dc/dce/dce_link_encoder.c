@@ -599,12 +599,12 @@ bool dce110_link_encoder_validate_dvi_output(
 	if ((connector_signal == SIGNAL_TYPE_DVI_SINGLE_LINK ||
 		connector_signal == SIGNAL_TYPE_HDMI_TYPE_A) &&
 		signal != SIGNAL_TYPE_HDMI_TYPE_A &&
-		crtc_timing->pix_clk_khz > TMDS_MAX_PIXEL_CLOCK)
+		crtc_timing->pix_clk_100hz > (TMDS_MAX_PIXEL_CLOCK * 10))
 		return false;
-	if (crtc_timing->pix_clk_khz < TMDS_MIN_PIXEL_CLOCK)
+	if (crtc_timing->pix_clk_100hz < (TMDS_MIN_PIXEL_CLOCK * 10))
 		return false;
 
-	if (crtc_timing->pix_clk_khz > max_pixel_clock)
+	if (crtc_timing->pix_clk_100hz > (max_pixel_clock * 10))
 		return false;
 
 	/* DVI supports 6/8bpp single-link and 10/16bpp dual-link */
@@ -645,7 +645,7 @@ static bool dce110_link_encoder_validate_hdmi_output(
 		return false;
 
 	/* DCE11 HW does not support 420 */
-	if (!enc110->base.features.ycbcr420_supported &&
+	if (!enc110->base.features.hdmi_ycbcr420_supported &&
 			crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		return false;
 
@@ -788,7 +788,7 @@ bool dce110_link_encoder_validate_output_with_stream(
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
 		is_valid = dce110_link_encoder_validate_dvi_output(
 			enc110,
-			stream->sink->link->connector_signal,
+			stream->link->connector_signal,
 			stream->signal,
 			&stream->timing);
 	break;

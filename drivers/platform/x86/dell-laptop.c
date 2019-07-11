@@ -29,7 +29,6 @@
 #include <linux/mm.h>
 #include <linux/i8042.h>
 #include <linux/debugfs.h>
-#include <linux/dell-led.h>
 #include <linux/seq_file.h>
 #include <acpi/video.h>
 #include "dell-rbtn.h"
@@ -1565,8 +1564,10 @@ static ssize_t kbd_led_timeout_store(struct device *dev,
 		switch (unit) {
 		case KBD_TIMEOUT_DAYS:
 			value *= 24;
+			/* fall through */
 		case KBD_TIMEOUT_HOURS:
 			value *= 60;
+			/* fall through */
 		case KBD_TIMEOUT_MINUTES:
 			value *= 60;
 			unit = KBD_TIMEOUT_SECONDS;
@@ -2109,17 +2110,17 @@ static struct notifier_block dell_laptop_notifier = {
 	.notifier_call = dell_laptop_notifier_call,
 };
 
-int dell_micmute_led_set(int state)
+static int micmute_led_set(struct led_classdev *led_cdev,
+			   enum led_brightness brightness)
 {
 	struct calling_interface_buffer buffer;
 	struct calling_interface_token *token;
+	int state = brightness != LED_OFF;
 
 	if (state == 0)
 		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_DISABLE);
-	else if (state == 1)
-		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE);
 	else
-		return -EINVAL;
+		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE);
 
 	if (!token)
 		return -ENODEV;
@@ -2127,9 +2128,15 @@ int dell_micmute_led_set(int state)
 	dell_fill_request(&buffer, token->location, token->value, 0, 0);
 	dell_send_request(&buffer, CLASS_TOKEN_WRITE, SELECT_TOKEN_STD);
 
-	return state;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(dell_micmute_led_set);
+
+static struct led_classdev micmute_led_cdev = {
+	.name = "platform::micmute",
+	.max_brightness = 1,
+	.brightness_set_blocking = micmute_led_set,
+	.default_trigger = "audio-micmute",
+};
 
 static int __init dell_init(void)
 {
@@ -2174,6 +2181,11 @@ static int __init dell_init(void)
 				    &dell_debugfs_fops);
 
 	dell_laptop_register_notifier(&dell_laptop_notifier);
+
+	micmute_led_cdev.brightness = ledtrig_audio_get(LED_AUDIO_MICMUTE);
+	ret = led_classdev_register(&platform_device->dev, &micmute_led_cdev);
+	if (ret < 0)
+		goto fail_led;
 
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
 		return 0;
@@ -2220,6 +2232,8 @@ static int __init dell_init(void)
 fail_get_brightness:
 	backlight_device_unregister(dell_backlight_device);
 fail_backlight:
+	led_classdev_unregister(&micmute_led_cdev);
+fail_led:
 	dell_cleanup_rfkill();
 fail_rfkill:
 	platform_device_del(platform_device);
@@ -2239,6 +2253,7 @@ static void __exit dell_exit(void)
 		touchpad_led_exit();
 	kbd_led_exit();
 	backlight_device_unregister(dell_backlight_device);
+	led_classdev_unregister(&micmute_led_cdev);
 	dell_cleanup_rfkill();
 	if (platform_device) {
 		platform_device_unregister(platform_device);

@@ -568,7 +568,7 @@ static int mlxsw_emad_init(struct mlxsw_core *mlxsw_core)
 	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_TXRX))
 		return 0;
 
-	emad_wq = alloc_workqueue("mlxsw_core_emad", WQ_MEM_RECLAIM, 0);
+	emad_wq = alloc_workqueue("mlxsw_core_emad", 0, 0);
 	if (!emad_wq)
 		return -ENOMEM;
 	mlxsw_core->emad_wq = emad_wq;
@@ -970,10 +970,11 @@ static const struct devlink_ops mlxsw_devlink_ops = {
 	.sb_occ_tc_port_bind_get	= mlxsw_devlink_sb_occ_tc_port_bind_get,
 };
 
-int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
-				   const struct mlxsw_bus *mlxsw_bus,
-				   void *bus_priv, bool reload,
-				   struct devlink *devlink)
+static int
+__mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
+				 const struct mlxsw_bus *mlxsw_bus,
+				 void *bus_priv, bool reload,
+				 struct devlink *devlink)
 {
 	const char *device_kind = mlxsw_bus_info->device_kind;
 	struct mlxsw_core *mlxsw_core;
@@ -1040,6 +1041,12 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 			goto err_devlink_register;
 	}
 
+	if (mlxsw_driver->params_register && !reload) {
+		err = mlxsw_driver->params_register(mlxsw_core);
+		if (err)
+			goto err_register_params;
+	}
+
 	err = mlxsw_hwmon_init(mlxsw_core, mlxsw_bus_info, &mlxsw_core->hwmon);
 	if (err)
 		goto err_hwmon_init;
@@ -1055,6 +1062,9 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 			goto err_driver_init;
 	}
 
+	if (mlxsw_driver->params_register && !reload)
+		devlink_params_publish(devlink);
+
 	return 0;
 
 err_driver_init:
@@ -1062,6 +1072,9 @@ err_driver_init:
 err_thermal_init:
 	mlxsw_hwmon_fini(mlxsw_core->hwmon);
 err_hwmon_init:
+	if (mlxsw_driver->params_unregister && !reload)
+		mlxsw_driver->params_unregister(mlxsw_core);
+err_register_params:
 	if (!reload)
 		devlink_unregister(devlink);
 err_devlink_register:
@@ -1081,6 +1094,29 @@ err_bus_init:
 err_devlink_alloc:
 	return err;
 }
+
+int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
+				   const struct mlxsw_bus *mlxsw_bus,
+				   void *bus_priv, bool reload,
+				   struct devlink *devlink)
+{
+	bool called_again = false;
+	int err;
+
+again:
+	err = __mlxsw_core_bus_device_register(mlxsw_bus_info, mlxsw_bus,
+					       bus_priv, reload, devlink);
+	/* -EAGAIN is returned in case the FW was updated. FW needs
+	 * a reset, so lets try to call __mlxsw_core_bus_device_register()
+	 * again.
+	 */
+	if (err == -EAGAIN && !called_again) {
+		called_again = true;
+		goto again;
+	}
+
+	return err;
+}
 EXPORT_SYMBOL(mlxsw_core_bus_device_register);
 
 void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
@@ -1098,10 +1134,14 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 			return;
 	}
 
+	if (mlxsw_core->driver->params_unregister && !reload)
+		devlink_params_unpublish(devlink);
 	if (mlxsw_core->driver->fini)
 		mlxsw_core->driver->fini(mlxsw_core);
 	mlxsw_thermal_fini(mlxsw_core->thermal);
 	mlxsw_hwmon_fini(mlxsw_core->hwmon);
+	if (mlxsw_core->driver->params_unregister && !reload)
+		mlxsw_core->driver->params_unregister(mlxsw_core);
 	if (!reload)
 		devlink_unregister(devlink);
 	mlxsw_emad_fini(mlxsw_core);
@@ -1114,6 +1154,8 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 	return;
 
 reload_fail_deinit:
+	if (mlxsw_core->driver->params_unregister)
+		mlxsw_core->driver->params_unregister(mlxsw_core);
 	devlink_unregister(devlink);
 	devlink_resources_unregister(devlink, NULL);
 	devlink_free(devlink);
@@ -1423,13 +1465,17 @@ static int mlxsw_reg_trans_wait(struct mlxsw_reg_trans *trans)
 	if (trans->retries)
 		dev_warn(mlxsw_core->bus_info->dev, "EMAD retries (%d/%d) (tid=%llx)\n",
 			 trans->retries, MLXSW_EMAD_MAX_RETRY, trans->tid);
-	if (err)
+	if (err) {
 		dev_err(mlxsw_core->bus_info->dev, "EMAD reg access failed (tid=%llx,reg_id=%x(%s),type=%s,status=%x(%s))\n",
 			trans->tid, trans->reg->id,
 			mlxsw_reg_id_str(trans->reg->id),
 			mlxsw_core_reg_access_type_str(trans->type),
 			trans->emad_status,
 			mlxsw_emad_op_tlv_status_str(trans->emad_status));
+		trace_devlink_hwerr(priv_to_devlink(mlxsw_core),
+				    trans->emad_status,
+				    mlxsw_emad_op_tlv_status_str(trans->emad_status));
+	}
 
 	list_del(&trans->bulk_list);
 	kfree_rcu(trans, rcu);
@@ -1871,14 +1917,51 @@ void mlxsw_core_fw_flash_end(struct mlxsw_core *mlxsw_core)
 }
 EXPORT_SYMBOL(mlxsw_core_fw_flash_end);
 
+int mlxsw_core_resources_query(struct mlxsw_core *mlxsw_core, char *mbox,
+			       struct mlxsw_res *res)
+{
+	int index, i;
+	u64 data;
+	u16 id;
+	int err;
+
+	if (!res)
+		return 0;
+
+	mlxsw_cmd_mbox_zero(mbox);
+
+	for (index = 0; index < MLXSW_CMD_QUERY_RESOURCES_MAX_QUERIES;
+	     index++) {
+		err = mlxsw_cmd_query_resources(mlxsw_core, mbox, index);
+		if (err)
+			return err;
+
+		for (i = 0; i < MLXSW_CMD_QUERY_RESOURCES_PER_QUERY; i++) {
+			id = mlxsw_cmd_mbox_query_resource_id_get(mbox, i);
+			data = mlxsw_cmd_mbox_query_resource_data_get(mbox, i);
+
+			if (id == MLXSW_CMD_QUERY_RESOURCES_TABLE_END_ID)
+				return 0;
+
+			mlxsw_res_parse(res, id, data);
+		}
+	}
+
+	/* If after MLXSW_RESOURCES_QUERY_MAX_QUERIES we still didn't get
+	 * MLXSW_RESOURCES_TABLE_END_ID, something went bad in the FW.
+	 */
+	return -EIO;
+}
+EXPORT_SYMBOL(mlxsw_core_resources_query);
+
 static int __init mlxsw_core_module_init(void)
 {
 	int err;
 
-	mlxsw_wq = alloc_workqueue(mlxsw_core_driver_name, WQ_MEM_RECLAIM, 0);
+	mlxsw_wq = alloc_workqueue(mlxsw_core_driver_name, 0, 0);
 	if (!mlxsw_wq)
 		return -ENOMEM;
-	mlxsw_owq = alloc_ordered_workqueue("%s_ordered", WQ_MEM_RECLAIM,
+	mlxsw_owq = alloc_ordered_workqueue("%s_ordered", 0,
 					    mlxsw_core_driver_name);
 	if (!mlxsw_owq) {
 		err = -ENOMEM;

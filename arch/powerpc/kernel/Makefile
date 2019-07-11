@@ -36,7 +36,7 @@ obj-y				:= cputable.o ptrace.o syscalls.o \
 				   process.o systbl.o idle.o \
 				   signal.o sysfs.o cacheinfo.o time.o \
 				   prom.o traps.o setup-common.o \
-				   udbg.o misc.o io.o dma.o misc_$(BITS).o \
+				   udbg.o misc.o io.o misc_$(BITS).o \
 				   of_platform.o prom_parse.o
 obj-$(CONFIG_PPC64)		+= setup_64.o sys_ppc32.o \
 				   signal_64.o ptrace32.o \
@@ -69,7 +69,7 @@ obj-$(CONFIG_FA_DUMP)		+= fadump.o
 ifdef CONFIG_PPC32
 obj-$(CONFIG_E500)		+= idle_e500.o
 endif
-obj-$(CONFIG_6xx)		+= idle_6xx.o l2cr_6xx.o cpu_setup_6xx.o
+obj-$(CONFIG_PPC_BOOK3S_32)	+= idle_6xx.o l2cr_6xx.o cpu_setup_6xx.o
 obj-$(CONFIG_TAU)		+= tau_6xx.o
 obj-$(CONFIG_HIBERNATION)	+= swsusp.o suspend.o
 ifdef CONFIG_FSL_BOOKE
@@ -105,6 +105,7 @@ obj-$(CONFIG_UPROBES)		+= uprobes.o
 obj-$(CONFIG_PPC_UDBG_16550)	+= legacy_serial.o udbg_16550.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 obj-$(CONFIG_SWIOTLB)		+= dma-swiotlb.o
+obj-$(CONFIG_ARCH_HAS_DMA_SET_MASK) += dma-mask.o
 
 pci64-$(CONFIG_PPC64)		+= pci_dn.o pci-hotplug.o isa-bridge.o
 obj-$(CONFIG_PCI)		+= pci_$(BITS).o $(pci64-y) \
@@ -142,33 +143,33 @@ endif
 obj-$(CONFIG_EPAPR_PARAVIRT)	+= epapr_paravirt.o epapr_hcalls.o
 obj-$(CONFIG_KVM_GUEST)		+= kvm.o kvm_emul.o
 
-# Disable GCOV & sanitizers in odd or sensitive code
+# Disable GCOV, KCOV & sanitizers in odd or sensitive code
 GCOV_PROFILE_prom_init.o := n
+KCOV_INSTRUMENT_prom_init.o := n
 UBSAN_SANITIZE_prom_init.o := n
 GCOV_PROFILE_machine_kexec_64.o := n
+KCOV_INSTRUMENT_machine_kexec_64.o := n
 UBSAN_SANITIZE_machine_kexec_64.o := n
 GCOV_PROFILE_machine_kexec_32.o := n
+KCOV_INSTRUMENT_machine_kexec_32.o := n
 UBSAN_SANITIZE_machine_kexec_32.o := n
 GCOV_PROFILE_kprobes.o := n
+KCOV_INSTRUMENT_kprobes.o := n
 UBSAN_SANITIZE_kprobes.o := n
 GCOV_PROFILE_kprobes-ftrace.o := n
+KCOV_INSTRUMENT_kprobes-ftrace.o := n
 UBSAN_SANITIZE_kprobes-ftrace.o := n
 UBSAN_SANITIZE_vdso.o := n
+
+# Necessary for booting with kcov enabled on book3e machines
+KCOV_INSTRUMENT_cputable.o := n
+KCOV_INSTRUMENT_setup_64.o := n
+KCOV_INSTRUMENT_paca.o := n
 
 extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-$(CONFIG_ALTIVEC)		+= vector.o
 extra-$(CONFIG_PPC64)		+= entry_64.o
 extra-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)	+= prom_init.o
-
-extra-y				+= systbl_chk.i
-$(obj)/systbl.o:		systbl_chk
-
-quiet_cmd_systbl_chk = CALL    $<
-      cmd_systbl_chk = $(CONFIG_SHELL) $< $(obj)/systbl_chk.i
-
-PHONY += systbl_chk
-systbl_chk: $(src)/systbl_chk.sh $(obj)/systbl_chk.i
-	$(call cmd,systbl_chk)
 
 ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
 $(obj)/built-in.a:		prom_init_check

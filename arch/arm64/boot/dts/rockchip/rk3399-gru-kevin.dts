@@ -43,7 +43,7 @@
 		backlight = <&backlight>;
 		power-supply = <&pp3300_disp>;
 
-		ports {
+		port {
 			panel_in_edp: endpoint {
 				remote-endpoint = <&edp_out_panel>;
 			};
@@ -118,13 +118,17 @@
 			map0 {
 				trip = <&ppvar_bigcpu_alert>;
 				cooling-device =
-					<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					<&cpu_l0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu_l1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu_l2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu_l3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				contribution = <4096>;
 			};
 			map1 {
 				trip = <&ppvar_bigcpu_alert>;
 				cooling-device =
-					<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					<&cpu_b0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu_b1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				contribution = <1024>;
 			};
 		};

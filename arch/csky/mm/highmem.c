@@ -141,6 +141,11 @@ static void __init fixrange_init(unsigned long start, unsigned long end,
 			for (; (k < PTRS_PER_PMD) && (vaddr != end); pmd++, k++) {
 				if (pmd_none(*pmd)) {
 					pte = (pte_t *) memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
+					if (!pte)
+						panic("%s: Failed to allocate %lu bytes align=%lx\n",
+						      __func__, PAGE_SIZE,
+						      PAGE_SIZE);
+
 					set_pmd(pmd, __pmd(__pa(pte)));
 					BUG_ON(pte != pte_offset_kernel(pmd, 0));
 				}

@@ -6,6 +6,7 @@
 #ifndef _FSL_EDMA_COMMON_H_
 #define _FSL_EDMA_COMMON_H_
 
+#include <linux/dma-direction.h>
 #include "virt-dma.h"
 
 #define EDMA_CR_EDBG		BIT(1)
@@ -120,6 +121,9 @@ struct fsl_edma_chan {
 	struct dma_slave_config		cfg;
 	u32				attr;
 	struct dma_pool			*tcd_pool;
+	dma_addr_t			dma_dev_addr;
+	u32				dma_dev_size;
+	enum dma_data_direction		dma_dir;
 };
 
 struct fsl_edma_desc {

@@ -34,7 +34,10 @@ run_udp() {
 	run_in_netns ${args}
 
 	echo "udp gso"
-	run_in_netns ${args} -S
+	run_in_netns ${args} -S 0
+
+	echo "udp gso zerocopy"
+	run_in_netns ${args} -S 0 -z
 }
 
 run_tcp() {

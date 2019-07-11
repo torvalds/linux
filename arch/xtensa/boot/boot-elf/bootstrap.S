@@ -29,17 +29,7 @@ _ResetVector:
 	.begin  no-absolute-literals
 	.literal_position
 
-#if defined(CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX) && \
-	XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
-	.literal RomInitAddr, CONFIG_KERNEL_LOAD_ADDRESS
-#else
-	.literal RomInitAddr, KERNELOFFSET
-#endif
-#ifndef CONFIG_PARSE_BOOTPARAM
-	.literal RomBootParam, 0
-#else
-	.literal RomBootParam, _bootparam
-
+#ifdef CONFIG_PARSE_BOOTPARAM
 	.align 4
 _bootparam:
 	.short	BP_TAG_FIRST
@@ -66,13 +56,22 @@ _SetupMMU:
 	initialize_mmu
 #endif
 
-	.end    no-absolute-literals
-
 	rsil    a0, XCHAL_DEBUGLEVEL-1
 	rsync
 reset:
-	l32r    a0, RomInitAddr
-	l32r	a2, RomBootParam
+#if defined(CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX) && \
+	XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+	movi	a0, CONFIG_KERNEL_LOAD_ADDRESS
+#else
+	movi	a0, KERNELOFFSET
+#endif
+#ifdef CONFIG_PARSE_BOOTPARAM
+	movi	a2, _bootparam
+#else
+	movi	a2, 0
+#endif
 	movi	a3, 0
 	movi	a4, 0
 	jx      a0
+
+	.end    no-absolute-literals

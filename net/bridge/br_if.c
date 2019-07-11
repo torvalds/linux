@@ -650,7 +650,16 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	if (br_fdb_insert(br, p, dev->dev_addr, 0))
 		netdev_err(dev, "failed insert local address bridge forwarding table\n");
 
-	err = nbp_vlan_init(p);
+	if (br->dev->addr_assign_type != NET_ADDR_SET) {
+		/* Ask for permission to use this MAC address now, even if we
+		 * don't end up choosing it below.
+		 */
+		err = dev_pre_changeaddr_notify(br->dev, dev->dev_addr, extack);
+		if (err)
+			goto err7;
+	}
+
+	err = nbp_vlan_init(p, extack);
 	if (err) {
 		netdev_err(dev, "failed to initialize vlan filtering on this port\n");
 		goto err7;
@@ -741,3 +750,15 @@ void br_port_flags_change(struct net_bridge_port *p, unsigned long mask)
 	if (mask & BR_NEIGH_SUPPRESS)
 		br_recalculate_neigh_suppress_enabled(br);
 }
+
+bool br_port_flag_is_set(const struct net_device *dev, unsigned long flag)
+{
+	struct net_bridge_port *p;
+
+	p = br_port_get_rtnl_rcu(dev);
+	if (!p)
+		return false;
+
+	return p->flags & flag;
+}
+EXPORT_SYMBOL_GPL(br_port_flag_is_set);

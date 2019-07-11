@@ -1159,10 +1159,10 @@ static void ql_update_lbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 
 			map = lbq_desc->p.pg_chunk.map +
 				lbq_desc->p.pg_chunk.offset;
-				dma_unmap_addr_set(lbq_desc, mapaddr, map);
+			dma_unmap_addr_set(lbq_desc, mapaddr, map);
 			dma_unmap_len_set(lbq_desc, maplen,
 					rx_ring->lbq_buf_size);
-				*lbq_desc->addr = cpu_to_le64(map);
+			*lbq_desc->addr = cpu_to_le64(map);
 
 			pci_dma_sync_single_for_device(qdev->pdev, map,
 						rx_ring->lbq_buf_size,
@@ -4681,6 +4681,11 @@ static int ql_init_device(struct pci_dev *pdev, struct net_device *ndev,
 	 */
 	qdev->workqueue = alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM,
 						  ndev->name);
+	if (!qdev->workqueue) {
+		err = -ENOMEM;
+		goto err_out2;
+	}
+
 	INIT_DELAYED_WORK(&qdev->asic_reset_work, ql_asic_reset_work);
 	INIT_DELAYED_WORK(&qdev->mpi_reset_work, ql_mpi_reset_work);
 	INIT_DELAYED_WORK(&qdev->mpi_work, ql_mpi_work);

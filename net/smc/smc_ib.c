@@ -257,12 +257,20 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 	smcibdev = container_of(handler, struct smc_ib_device, event_handler);
 
 	switch (ibevent->event) {
-	case IB_EVENT_PORT_ERR:
 	case IB_EVENT_DEVICE_FATAL:
-	case IB_EVENT_PORT_ACTIVE:
-		port_idx = ibevent->element.port_num - 1;
-		set_bit(port_idx, &smcibdev->port_event_mask);
+		/* terminate all ports on device */
+		for (port_idx = 0; port_idx < SMC_MAX_PORTS; port_idx++)
+			set_bit(port_idx, &smcibdev->port_event_mask);
 		schedule_work(&smcibdev->port_event_work);
+		break;
+	case IB_EVENT_PORT_ERR:
+	case IB_EVENT_PORT_ACTIVE:
+	case IB_EVENT_GID_CHANGE:
+		port_idx = ibevent->element.port_num - 1;
+		if (port_idx < SMC_MAX_PORTS) {
+			set_bit(port_idx, &smcibdev->port_event_mask);
+			schedule_work(&smcibdev->port_event_work);
+		}
 		break;
 	default:
 		break;
@@ -289,18 +297,18 @@ int smc_ib_create_protection_domain(struct smc_link *lnk)
 
 static void smc_ib_qp_event_handler(struct ib_event *ibevent, void *priv)
 {
-	struct smc_ib_device *smcibdev =
-		(struct smc_ib_device *)ibevent->device;
+	struct smc_link *lnk = (struct smc_link *)priv;
+	struct smc_ib_device *smcibdev = lnk->smcibdev;
 	u8 port_idx;
 
 	switch (ibevent->event) {
-	case IB_EVENT_DEVICE_FATAL:
-	case IB_EVENT_GID_CHANGE:
-	case IB_EVENT_PORT_ERR:
+	case IB_EVENT_QP_FATAL:
 	case IB_EVENT_QP_ACCESS_ERR:
-		port_idx = ibevent->element.port_num - 1;
-		set_bit(port_idx, &smcibdev->port_event_mask);
-		schedule_work(&smcibdev->port_event_work);
+		port_idx = ibevent->element.qp->port - 1;
+		if (port_idx < SMC_MAX_PORTS) {
+			set_bit(port_idx, &smcibdev->port_event_mask);
+			schedule_work(&smcibdev->port_event_work);
+		}
 		break;
 	default:
 		break;
@@ -556,7 +564,6 @@ static void smc_ib_remove_dev(struct ib_device *ibdev, void *client_data)
 	spin_lock(&smc_ib_devices.lock);
 	list_del_init(&smcibdev->list); /* remove from smc_ib_devices */
 	spin_unlock(&smc_ib_devices.lock);
-	smc_pnet_remove_by_ibdev(smcibdev);
 	smc_ib_cleanup_per_ibdev(smcibdev);
 	ib_unregister_event_handler(&smcibdev->event_handler);
 	kfree(smcibdev);

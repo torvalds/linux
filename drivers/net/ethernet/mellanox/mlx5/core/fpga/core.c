@@ -36,6 +36,7 @@
 
 #include "mlx5_core.h"
 #include "lib/mlx5.h"
+#include "lib/eq.h"
 #include "fpga/core.h"
 #include "fpga/conn.h"
 
@@ -145,6 +146,22 @@ static int mlx5_fpga_device_brb(struct mlx5_fpga_device *fdev)
 	return 0;
 }
 
+static int mlx5_fpga_event(struct mlx5_fpga_device *, unsigned long, void *);
+
+static int fpga_err_event(struct notifier_block *nb, unsigned long event, void *eqe)
+{
+	struct mlx5_fpga_device *fdev = mlx5_nb_cof(nb, struct mlx5_fpga_device, fpga_err_nb);
+
+	return mlx5_fpga_event(fdev, event, eqe);
+}
+
+static int fpga_qp_err_event(struct notifier_block *nb, unsigned long event, void *eqe)
+{
+	struct mlx5_fpga_device *fdev = mlx5_nb_cof(nb, struct mlx5_fpga_device, fpga_qp_err_nb);
+
+	return mlx5_fpga_event(fdev, event, eqe);
+}
+
 int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_fpga_device *fdev = mdev->fpga;
@@ -185,6 +202,11 @@ int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 	if (err)
 		goto out;
 
+	MLX5_NB_INIT(&fdev->fpga_err_nb, fpga_err_event, FPGA_ERROR);
+	MLX5_NB_INIT(&fdev->fpga_qp_err_nb, fpga_qp_err_event, FPGA_QP_ERROR);
+	mlx5_eq_notifier_register(fdev->mdev, &fdev->fpga_err_nb);
+	mlx5_eq_notifier_register(fdev->mdev, &fdev->fpga_qp_err_nb);
+
 	err = mlx5_fpga_conn_device_init(fdev);
 	if (err)
 		goto err_rsvd_gid;
@@ -201,6 +223,8 @@ err_conn_init:
 	mlx5_fpga_conn_device_cleanup(fdev);
 
 err_rsvd_gid:
+	mlx5_eq_notifier_unregister(fdev->mdev, &fdev->fpga_err_nb);
+	mlx5_eq_notifier_unregister(fdev->mdev, &fdev->fpga_qp_err_nb);
 	mlx5_core_unreserve_gids(mdev, max_num_qps);
 out:
 	spin_lock_irqsave(&fdev->state_lock, flags);
@@ -256,6 +280,9 @@ void mlx5_fpga_device_stop(struct mlx5_core_dev *mdev)
 	}
 
 	mlx5_fpga_conn_device_cleanup(fdev);
+	mlx5_eq_notifier_unregister(fdev->mdev, &fdev->fpga_err_nb);
+	mlx5_eq_notifier_unregister(fdev->mdev, &fdev->fpga_qp_err_nb);
+
 	max_num_qps = MLX5_CAP_FPGA(mdev, shell_caps.max_num_qps);
 	mlx5_core_unreserve_gids(mdev, max_num_qps);
 }
@@ -283,13 +310,13 @@ static const char *mlx5_fpga_qp_syndrome_to_string(u8 syndrome)
 	return "Unknown";
 }
 
-void mlx5_fpga_event(struct mlx5_core_dev *mdev, u8 event, void *data)
+static int mlx5_fpga_event(struct mlx5_fpga_device *fdev,
+			   unsigned long event, void *eqe)
 {
-	struct mlx5_fpga_device *fdev = mdev->fpga;
+	void *data = ((struct mlx5_eqe *)eqe)->data.raw;
 	const char *event_name;
 	bool teardown = false;
 	unsigned long flags;
-	u32 fpga_qpn;
 	u8 syndrome;
 
 	switch (event) {
@@ -300,12 +327,9 @@ void mlx5_fpga_event(struct mlx5_core_dev *mdev, u8 event, void *data)
 	case MLX5_EVENT_TYPE_FPGA_QP_ERROR:
 		syndrome = MLX5_GET(fpga_qp_error_event, data, syndrome);
 		event_name = mlx5_fpga_qp_syndrome_to_string(syndrome);
-		fpga_qpn = MLX5_GET(fpga_qp_error_event, data, fpga_qpn);
 		break;
 	default:
-		mlx5_fpga_warn_ratelimited(fdev, "Unexpected event %u\n",
-					   event);
-		return;
+		return NOTIFY_DONE;
 	}
 
 	spin_lock_irqsave(&fdev->state_lock, flags);
@@ -326,4 +350,6 @@ void mlx5_fpga_event(struct mlx5_core_dev *mdev, u8 event, void *data)
 	 */
 	if (teardown)
 		mlx5_trigger_health_work(fdev->mdev);
+
+	return NOTIFY_OK;
 }

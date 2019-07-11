@@ -31,7 +31,7 @@ gv100_mmu = {
 	.dma_bits = 47,
 	.mmu = {{ -1, -1, NVIF_CLASS_MMU_GF100}},
 	.mem = {{ -1,  0, NVIF_CLASS_MEM_GF100}, gf100_mem_new, gf100_mem_map },
-	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GP100}, gv100_vmm_new },
+	.vmm = {{ -1,  0, NVIF_CLASS_VMM_GP100}, gv100_vmm_new },
 	.kind = gm200_mmu_kind,
 	.kind_sys = true,
 };

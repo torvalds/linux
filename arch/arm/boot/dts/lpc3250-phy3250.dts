@@ -1,6 +1,7 @@
 /*
  * PHYTEC phyCORE-LPC3250 board
  *
+ * Copyright (C) 2015-2019 Vladimir Zapolskiy <vz@mleia.com>
  * Copyright 2012 Roland Stigge <stigge@antcom.de>
  *
  * The code contained herein is licensed under the GNU General Public
@@ -17,43 +18,10 @@
 / {
 	model = "PHYTEC phyCORE-LPC3250 board based on NXP LPC3250";
 	compatible = "phytec,phy3250", "nxp,lpc3250";
-	#address-cells = <1>;
-	#size-cells = <1>;
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x4000000>;
-	};
-
-	regulators {
-		backlight_reg: regulator@0 {
-			compatible = "regulator-fixed";
-			regulator-name = "backlight_reg";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio 5 4 0>;
-			enable-active-high;
-			regulator-boot-on;
-		};
-
-		lcd_reg: regulator@1 {
-			compatible = "regulator-fixed";
-			regulator-name = "lcd_reg";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio 5 0 0>;
-			enable-active-high;
-			regulator-boot-on;
-		};
-
-		sd_reg: regulator@2 {
-			compatible = "regulator-fixed";
-			regulator-name = "sd_reg";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			gpio = <&gpio 5 5 0>;
-			enable-active-high;
-		};
 	};
 
 	leds {
@@ -69,10 +37,59 @@
 			linux,default-trigger = "heartbeat";
 		};
 	};
+
+	panel: panel {
+		compatible = "sharp,lq035q7db03";
+		power-supply = <&reg_lcd>;
+
+		port {
+			panel_input: endpoint {
+				remote-endpoint = <&cldc_output>;
+			};
+		};
+	};
+
+	reg_backlight: regulator-backlight {
+		compatible = "regulator-fixed";
+		regulator-name = "backlight";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio 5 4 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	reg_lcd: regulator-lcd {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio 5 0 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	reg_sd: regulator-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio 5 5 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
 };
 
 &clcd {
+	max-memory-bandwidth = <18710000>;
 	status = "okay";
+
+	port {
+		cldc_output: endpoint {
+			remote-endpoint = <&panel_input>;
+			arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+		};
+	};
 };
 
 &i2c1 {
@@ -130,7 +147,7 @@
 	cd-gpios = <&gpio 3 1 0>;
 	cd-inverted;
 	bus-width = <4>;
-	vmmc-supply = <&sd_reg>;
+	vmmc-supply = <&reg_sd>;
 	status = "okay";
 };
 

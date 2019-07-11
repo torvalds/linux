@@ -94,6 +94,7 @@ static inline struct verbs_txreq *get_txreq(struct hfi1_ibdev *dev,
 	tx->txreq.num_desc = 0;
 	/* Set the header type */
 	tx->phdr.hdr.hdr_type = priv->hdr_type;
+	tx->txreq.flags = 0;
 	return tx;
 }
 

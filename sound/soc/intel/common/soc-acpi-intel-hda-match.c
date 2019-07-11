@@ -23,7 +23,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_hda_machines[] = {
 
 		/* .sof_fw_filename is dynamically set in sof/intel driver */
 
-		.sof_tplg_filename = "intel/sof-hda-generic.tplg",
+		.sof_tplg_filename = "sof-hda-generic.tplg",
 
 		/*
 		 * .machine_quirk and .quirk_data are not used here but

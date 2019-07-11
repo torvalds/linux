@@ -354,6 +354,21 @@ struct vfio_region_gfx_edid {
 };
 
 /*
+ * 10de vendor sub-type
+ *
+ * NVIDIA GPU NVlink2 RAM is coherent RAM mapped onto the host address space.
+ */
+#define VFIO_REGION_SUBTYPE_NVIDIA_NVLINK2_RAM	(1)
+
+/*
+ * 1014 vendor sub-type
+ *
+ * IBM NPU NVlink2 ATSD (Address Translation Shootdown) register of NPU
+ * to do TLB invalidation on a GPU.
+ */
+#define VFIO_REGION_SUBTYPE_IBM_NVLINK2_ATSD	(1)
+
+/*
  * The MSIX mappable capability informs that MSIX data of a BAR can be mmapped
  * which allows direct access to non-MSIX registers which happened to be within
  * the same system page.
@@ -362,6 +377,33 @@ struct vfio_region_gfx_edid {
  * VFIO_DEVICE_SET_IRQS interface must still be used for MSIX configuration.
  */
 #define VFIO_REGION_INFO_CAP_MSIX_MAPPABLE	3
+
+/*
+ * Capability with compressed real address (aka SSA - small system address)
+ * where GPU RAM is mapped on a system bus. Used by a GPU for DMA routing
+ * and by the userspace to associate a NVLink bridge with a GPU.
+ */
+#define VFIO_REGION_INFO_CAP_NVLINK2_SSATGT	4
+
+struct vfio_region_info_cap_nvlink2_ssatgt {
+	struct vfio_info_cap_header header;
+	__u64 tgt;
+};
+
+/*
+ * Capability with an NVLink link speed. The value is read by
+ * the NVlink2 bridge driver from the bridge's "ibm,nvlink-speed"
+ * property in the device tree. The value is fixed in the hardware
+ * and failing to provide the correct value results in the link
+ * not working with no indication from the driver why.
+ */
+#define VFIO_REGION_INFO_CAP_NVLINK2_LNKSPD	5
+
+struct vfio_region_info_cap_nvlink2_lnkspd {
+	struct vfio_info_cap_header header;
+	__u32 link_speed;
+	__u32 __pad;
+};
 
 /**
  * VFIO_DEVICE_GET_IRQ_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 9,

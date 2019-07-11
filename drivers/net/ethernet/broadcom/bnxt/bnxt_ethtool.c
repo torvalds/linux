@@ -207,6 +207,34 @@ reset_coalesce:
 	BNXT_TX_STATS_EXT_COS_ENTRY(6),				\
 	BNXT_TX_STATS_EXT_COS_ENTRY(7)				\
 
+#define BNXT_RX_STATS_PRI_ENTRY(counter, n)		\
+	{ BNXT_RX_STATS_EXT_OFFSET(counter##_cos0),	\
+	  __stringify(counter##_pri##n) }
+
+#define BNXT_TX_STATS_PRI_ENTRY(counter, n)		\
+	{ BNXT_TX_STATS_EXT_OFFSET(counter##_cos0),	\
+	  __stringify(counter##_pri##n) }
+
+#define BNXT_RX_STATS_PRI_ENTRIES(counter)		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 0),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 1),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 2),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 3),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 4),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 5),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 6),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 7)
+
+#define BNXT_TX_STATS_PRI_ENTRIES(counter)		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 0),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 1),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 2),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 3),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 4),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 5),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 6),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 7)
+
 enum {
 	RX_TOTAL_DISCARDS,
 	TX_TOTAL_DISCARDS,
@@ -327,8 +355,41 @@ static const struct {
 	BNXT_TX_STATS_EXT_PFC_ENTRIES,
 };
 
+static const struct {
+	long base_off;
+	char string[ETH_GSTRING_LEN];
+} bnxt_rx_bytes_pri_arr[] = {
+	BNXT_RX_STATS_PRI_ENTRIES(rx_bytes),
+};
+
+static const struct {
+	long base_off;
+	char string[ETH_GSTRING_LEN];
+} bnxt_rx_pkts_pri_arr[] = {
+	BNXT_RX_STATS_PRI_ENTRIES(rx_packets),
+};
+
+static const struct {
+	long base_off;
+	char string[ETH_GSTRING_LEN];
+} bnxt_tx_bytes_pri_arr[] = {
+	BNXT_TX_STATS_PRI_ENTRIES(tx_bytes),
+};
+
+static const struct {
+	long base_off;
+	char string[ETH_GSTRING_LEN];
+} bnxt_tx_pkts_pri_arr[] = {
+	BNXT_TX_STATS_PRI_ENTRIES(tx_packets),
+};
+
 #define BNXT_NUM_SW_FUNC_STATS	ARRAY_SIZE(bnxt_sw_func_stats)
 #define BNXT_NUM_PORT_STATS ARRAY_SIZE(bnxt_port_stats_arr)
+#define BNXT_NUM_STATS_PRI			\
+	(ARRAY_SIZE(bnxt_rx_bytes_pri_arr) +	\
+	 ARRAY_SIZE(bnxt_rx_pkts_pri_arr) +	\
+	 ARRAY_SIZE(bnxt_tx_bytes_pri_arr) +	\
+	 ARRAY_SIZE(bnxt_tx_pkts_pri_arr))
 
 static int bnxt_get_num_stats(struct bnxt *bp)
 {
@@ -339,9 +400,12 @@ static int bnxt_get_num_stats(struct bnxt *bp)
 	if (bp->flags & BNXT_FLAG_PORT_STATS)
 		num_stats += BNXT_NUM_PORT_STATS;
 
-	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT)
+	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
 		num_stats += bp->fw_rx_stats_ext_size +
 			     bp->fw_tx_stats_ext_size;
+		if (bp->pri2cos_valid)
+			num_stats += BNXT_NUM_STATS_PRI;
+	}
 
 	return num_stats;
 }
@@ -369,8 +433,10 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	u32 stat_fields = sizeof(struct ctx_hw_stats) / 8;
 
-	if (!bp->bnapi)
-		return;
+	if (!bp->bnapi) {
+		j += BNXT_NUM_STATS * bp->cp_nr_rings + BNXT_NUM_SW_FUNC_STATS;
+		goto skip_ring_stats;
+	}
 
 	for (i = 0; i < BNXT_NUM_SW_FUNC_STATS; i++)
 		bnxt_sw_func_stats[i].counter = 0;
@@ -395,6 +461,7 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 	for (i = 0; i < BNXT_NUM_SW_FUNC_STATS; i++, j++)
 		buf[j] = bnxt_sw_func_stats[i].counter;
 
+skip_ring_stats:
 	if (bp->flags & BNXT_FLAG_PORT_STATS) {
 		__le64 *port_stats = (__le64 *)bp->hw_rx_port_stats;
 
@@ -414,6 +481,32 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		for (i = 0; i < bp->fw_tx_stats_ext_size; i++, j++) {
 			buf[j] = le64_to_cpu(*(tx_port_stats_ext +
 					bnxt_tx_port_stats_ext_arr[i].offset));
+		}
+		if (bp->pri2cos_valid) {
+			for (i = 0; i < 8; i++, j++) {
+				long n = bnxt_rx_bytes_pri_arr[i].base_off +
+					 bp->pri2cos[i];
+
+				buf[j] = le64_to_cpu(*(rx_port_stats_ext + n));
+			}
+			for (i = 0; i < 8; i++, j++) {
+				long n = bnxt_rx_pkts_pri_arr[i].base_off +
+					 bp->pri2cos[i];
+
+				buf[j] = le64_to_cpu(*(rx_port_stats_ext + n));
+			}
+			for (i = 0; i < 8; i++, j++) {
+				long n = bnxt_tx_bytes_pri_arr[i].base_off +
+					 bp->pri2cos[i];
+
+				buf[j] = le64_to_cpu(*(tx_port_stats_ext + n));
+			}
+			for (i = 0; i < 8; i++, j++) {
+				long n = bnxt_tx_pkts_pri_arr[i].base_off +
+					 bp->pri2cos[i];
+
+				buf[j] = le64_to_cpu(*(tx_port_stats_ext + n));
+			}
 		}
 	}
 }
@@ -492,6 +585,28 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 				strcpy(buf,
 				       bnxt_tx_port_stats_ext_arr[i].string);
 				buf += ETH_GSTRING_LEN;
+			}
+			if (bp->pri2cos_valid) {
+				for (i = 0; i < 8; i++) {
+					strcpy(buf,
+					       bnxt_rx_bytes_pri_arr[i].string);
+					buf += ETH_GSTRING_LEN;
+				}
+				for (i = 0; i < 8; i++) {
+					strcpy(buf,
+					       bnxt_rx_pkts_pri_arr[i].string);
+					buf += ETH_GSTRING_LEN;
+				}
+				for (i = 0; i < 8; i++) {
+					strcpy(buf,
+					       bnxt_tx_bytes_pri_arr[i].string);
+					buf += ETH_GSTRING_LEN;
+				}
+				for (i = 0; i < 8; i++) {
+					strcpy(buf,
+					       bnxt_tx_pkts_pri_arr[i].string);
+					buf += ETH_GSTRING_LEN;
+				}
 			}
 		}
 		break;
@@ -662,8 +777,6 @@ static int bnxt_set_channels(struct net_device *dev,
 
 	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
 			       bp->tx_nr_rings + bp->rx_nr_rings;
-
-	bp->num_stat_ctxs = bp->cp_nr_rings;
 
 	/* After changing number of rx channels, update NTUPLE feature. */
 	netdev_update_features(dev);
@@ -1526,14 +1639,22 @@ static int bnxt_flash_nvram(struct net_device *dev,
 	rc = hwrm_send_message(bp, &req, sizeof(req), FLASH_NVRAM_TIMEOUT);
 	dma_free_coherent(&bp->pdev->dev, data_len, kmem, dma_handle);
 
+	if (rc == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
+		netdev_info(dev,
+			    "PF does not have admin privileges to flash the device\n");
+		rc = -EACCES;
+	} else if (rc) {
+		rc = -EIO;
+	}
 	return rc;
 }
 
 static int bnxt_firmware_reset(struct net_device *dev,
 			       u16 dir_type)
 {
-	struct bnxt *bp = netdev_priv(dev);
 	struct hwrm_fw_reset_input req = {0};
+	struct bnxt *bp = netdev_priv(dev);
+	int rc;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FW_RESET, -1, -1);
 
@@ -1573,7 +1694,15 @@ static int bnxt_firmware_reset(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
+		netdev_info(dev,
+			    "PF does not have admin privileges to reset the device\n");
+		rc = -EACCES;
+	} else if (rc) {
+		rc = -EIO;
+	}
+	return rc;
 }
 
 static int bnxt_flash_firmware(struct net_device *dev,
@@ -1780,9 +1909,9 @@ static int bnxt_flash_package_from_file(struct net_device *dev,
 	struct hwrm_nvm_install_update_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_nvm_install_update_input install = {0};
 	const struct firmware *fw;
+	int rc, hwrm_err = 0;
 	u32 item_len;
 	u16 index;
-	int rc;
 
 	bnxt_hwrm_fw_set_time(bp);
 
@@ -1825,15 +1954,16 @@ static int bnxt_flash_package_from_file(struct net_device *dev,
 			memcpy(kmem, fw->data, fw->size);
 			modify.host_src_addr = cpu_to_le64(dma_handle);
 
-			rc = hwrm_send_message(bp, &modify, sizeof(modify),
-					       FLASH_PACKAGE_TIMEOUT);
+			hwrm_err = hwrm_send_message(bp, &modify,
+						     sizeof(modify),
+						     FLASH_PACKAGE_TIMEOUT);
 			dma_free_coherent(&bp->pdev->dev, fw->size, kmem,
 					  dma_handle);
 		}
 	}
 	release_firmware(fw);
-	if (rc)
-		return rc;
+	if (rc || hwrm_err)
+		goto err_exit;
 
 	if ((install_type & 0xffff) == 0)
 		install_type >>= 16;
@@ -1841,12 +1971,10 @@ static int bnxt_flash_package_from_file(struct net_device *dev,
 	install.install_type = cpu_to_le32(install_type);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &install, sizeof(install),
-				INSTALL_PACKAGE_TIMEOUT);
-	if (rc) {
-		rc = -EOPNOTSUPP;
+	hwrm_err = _hwrm_send_message(bp, &install, sizeof(install),
+				      INSTALL_PACKAGE_TIMEOUT);
+	if (hwrm_err)
 		goto flash_pkg_exit;
-	}
 
 	if (resp->error_code) {
 		u8 error_code = ((struct hwrm_err_output *)resp)->cmd_err;
@@ -1854,12 +1982,11 @@ static int bnxt_flash_package_from_file(struct net_device *dev,
 		if (error_code == NVM_INSTALL_UPDATE_CMD_ERR_CODE_FRAG_ERR) {
 			install.flags |= cpu_to_le16(
 			       NVM_INSTALL_UPDATE_REQ_FLAGS_ALLOWED_TO_DEFRAG);
-			rc = _hwrm_send_message(bp, &install, sizeof(install),
-						INSTALL_PACKAGE_TIMEOUT);
-			if (rc) {
-				rc = -EOPNOTSUPP;
+			hwrm_err = _hwrm_send_message(bp, &install,
+						      sizeof(install),
+						      INSTALL_PACKAGE_TIMEOUT);
+			if (hwrm_err)
 				goto flash_pkg_exit;
-			}
 		}
 	}
 
@@ -1870,6 +1997,14 @@ static int bnxt_flash_package_from_file(struct net_device *dev,
 	}
 flash_pkg_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
+err_exit:
+	if (hwrm_err == HWRM_ERR_CODE_RESOURCE_ACCESS_DENIED) {
+		netdev_info(dev,
+			    "PF does not have admin privileges to flash the device\n");
+		rc = -EACCES;
+	} else if (hwrm_err) {
+		rc = -EOPNOTSUPP;
+	}
 	return rc;
 }
 
@@ -2450,16 +2585,36 @@ static int bnxt_hwrm_mac_loopback(struct bnxt *bp, bool enable)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
+static int bnxt_query_force_speeds(struct bnxt *bp, u16 *force_speeds)
+{
+	struct hwrm_port_phy_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_port_phy_qcaps_input req = {0};
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_QCAPS, -1, -1);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc)
+		*force_speeds = le16_to_cpu(resp->supported_speeds_force_mode);
+
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
 static int bnxt_disable_an_for_lpbk(struct bnxt *bp,
 				    struct hwrm_port_phy_cfg_input *req)
 {
 	struct bnxt_link_info *link_info = &bp->link_info;
-	u16 fw_advertising = link_info->advertising;
+	u16 fw_advertising;
 	u16 fw_speed;
 	int rc;
 
 	if (!link_info->autoneg)
 		return 0;
+
+	rc = bnxt_query_force_speeds(bp, &fw_advertising);
+	if (rc)
+		return rc;
 
 	fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_1GB;
 	if (netif_carrier_ok(bp->dev))

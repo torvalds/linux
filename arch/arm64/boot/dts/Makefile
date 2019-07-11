@@ -7,6 +7,7 @@ subdir-y += amd
 subdir-y += amlogic
 subdir-y += apm
 subdir-y += arm
+subdir-y += bitmain
 subdir-y += broadcom
 subdir-y += cavium
 subdir-y += exynos

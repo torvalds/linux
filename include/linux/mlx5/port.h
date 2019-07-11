@@ -92,6 +92,22 @@ enum mlx5e_link_mode {
 	MLX5E_LINK_MODES_NUMBER,
 };
 
+enum mlx5e_ext_link_mode {
+	MLX5E_SGMII_100M			= 0,
+	MLX5E_1000BASE_X_SGMII			= 1,
+	MLX5E_5GBASE_R				= 3,
+	MLX5E_10GBASE_XFI_XAUI_1		= 4,
+	MLX5E_40GBASE_XLAUI_4_XLPPI_4		= 5,
+	MLX5E_25GAUI_1_25GBASE_CR_KR		= 6,
+	MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2	= 7,
+	MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR	= 8,
+	MLX5E_CAUI_4_100GBASE_CR4_KR4		= 9,
+	MLX5E_100GAUI_2_100GBASE_CR2_KR2	= 10,
+	MLX5E_200GAUI_4_200GBASE_CR4_KR4	= 12,
+	MLX5E_400GAUI_8				= 15,
+	MLX5E_EXT_LINK_MODES_NUMBER,
+};
+
 enum mlx5e_connector_type {
 	MLX5E_PORT_UNKNOWN	= 0,
 	MLX5E_PORT_NONE			= 1,
@@ -106,34 +122,23 @@ enum mlx5e_connector_type {
 };
 
 #define MLX5E_PROT_MASK(link_mode) (1 << link_mode)
-
-#define PORT_MODULE_EVENT_MODULE_STATUS_MASK 0xF
-#define PORT_MODULE_EVENT_ERROR_TYPE_MASK         0xF
+#define MLX5_GET_ETH_PROTO(reg, out, ext, field)	\
+	(ext ? MLX5_GET(reg, out, ext_##field) :	\
+	MLX5_GET(reg, out, field))
 
 int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps);
 int mlx5_query_port_ptys(struct mlx5_core_dev *dev, u32 *ptys,
 			 int ptys_size, int proto_mask, u8 local_port);
-int mlx5_query_port_proto_cap(struct mlx5_core_dev *dev,
-			      u32 *proto_cap, int proto_mask);
-int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
-				u32 *proto_admin, int proto_mask);
 int mlx5_query_port_link_width_oper(struct mlx5_core_dev *dev,
 				    u8 *link_width_oper, u8 local_port);
 int mlx5_query_port_ib_proto_oper(struct mlx5_core_dev *dev,
 				  u8 *proto_oper, u8 local_port);
-int mlx5_query_port_eth_proto_oper(struct mlx5_core_dev *dev,
-				   u32 *proto_oper, u8 local_port);
-int mlx5_set_port_ptys(struct mlx5_core_dev *dev, bool an_disable,
-		       u32 proto_admin, int proto_mask);
 void mlx5_toggle_port_link(struct mlx5_core_dev *dev);
 int mlx5_set_port_admin_status(struct mlx5_core_dev *dev,
 			       enum mlx5_port_status status);
 int mlx5_query_port_admin_status(struct mlx5_core_dev *dev,
 				 enum mlx5_port_status *status);
 int mlx5_set_port_beacon(struct mlx5_core_dev *dev, u16 beacon_duration);
-void mlx5_query_port_autoneg(struct mlx5_core_dev *dev, int proto_mask,
-			     u8 *an_status,
-			     u8 *an_disable_cap, u8 *an_disable_admin);
 
 int mlx5_set_port_mtu(struct mlx5_core_dev *dev, u16 mtu, u8 port);
 void mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, u16 *max_mtu, u8 port);
@@ -177,6 +182,8 @@ int mlx5_query_port_ets_rate_limit(struct mlx5_core_dev *mdev,
 int mlx5_set_port_wol(struct mlx5_core_dev *mdev, u8 wol_mode);
 int mlx5_query_port_wol(struct mlx5_core_dev *mdev, u8 *wol_mode);
 
+int mlx5_query_ports_check(struct mlx5_core_dev *mdev, u32 *out, int outlen);
+int mlx5_set_ports_check(struct mlx5_core_dev *mdev, u32 *in, int inlen);
 int mlx5_set_port_fcs(struct mlx5_core_dev *mdev, u8 enable);
 void mlx5_query_port_fcs(struct mlx5_core_dev *mdev, bool *supported,
 			 bool *enabled);

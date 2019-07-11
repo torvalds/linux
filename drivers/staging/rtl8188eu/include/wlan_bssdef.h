@@ -17,8 +17,8 @@
 #define NDIS_802_11_RSSI long           /*  in dBm */
 
 struct ndis_802_11_ssid {
-	u32  SsidLength;
-	u8  Ssid[32];
+	u32  ssid_length;
+	u8  ssid[32];
 };
 
 enum NDIS_802_11_NETWORK_TYPE {
@@ -180,7 +180,7 @@ struct wlan_bssid_ex {
 	u32  Length;
 	unsigned char MacAddress[ETH_ALEN];
 	u8  Reserved[2];/* 0]: IS beacon frame */
-	struct ndis_802_11_ssid  Ssid;
+	struct ndis_802_11_ssid  ssid;
 	u32  Privacy;
 	NDIS_802_11_RSSI  Rssi;/* in dBM,raw data ,get from PHY) */
 	enum  NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;

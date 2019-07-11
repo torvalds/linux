@@ -424,7 +424,7 @@ r9a06g032_register_gate(struct r9a06g032_priv *clocks,
 
 	init.name = desc->name;
 	init.ops = &r9a06g032_clk_gate_ops;
-	init.flags = CLK_IS_BASIC | CLK_SET_RATE_PARENT;
+	init.flags = CLK_SET_RATE_PARENT;
 	init.parent_names = parent_name ? &parent_name : NULL;
 	init.num_parents = parent_name ? 1 : 0;
 
@@ -595,7 +595,7 @@ r9a06g032_register_div(struct r9a06g032_priv *clocks,
 
 	init.name = desc->name;
 	init.ops = &r9a06g032_clk_div_ops;
-	init.flags = CLK_IS_BASIC | CLK_SET_RATE_PARENT;
+	init.flags = CLK_SET_RATE_PARENT;
 	init.parent_names = parent_name ? &parent_name : NULL;
 	init.num_parents = parent_name ? 1 : 0;
 
@@ -683,7 +683,7 @@ r9a06g032_register_bitsel(struct r9a06g032_priv *clocks,
 
 	init.name = desc->name;
 	init.ops = &clk_bitselect_ops;
-	init.flags = CLK_IS_BASIC | CLK_SET_RATE_PARENT;
+	init.flags = CLK_SET_RATE_PARENT;
 	init.parent_names = names;
 	init.num_parents = 2;
 
@@ -777,7 +777,7 @@ r9a06g032_register_dualgate(struct r9a06g032_priv *clocks,
 
 	init.name = desc->name;
 	init.ops = &r9a06g032_clk_dualgate_ops;
-	init.flags = CLK_IS_BASIC | CLK_SET_RATE_PARENT;
+	init.flags = CLK_SET_RATE_PARENT;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 	g->hw.init = &init;

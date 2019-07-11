@@ -1171,10 +1171,8 @@ static void snd_sonicvibes_proc_read(struct snd_info_entry *entry,
 
 static void snd_sonicvibes_proc_init(struct sonicvibes *sonic)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(sonic->card, "sonicvibes", &entry))
-		snd_info_set_text_ops(entry, sonic, snd_sonicvibes_proc_read);
+	snd_card_ro_proc_new(sonic->card, "sonicvibes", sonic,
+			     snd_sonicvibes_proc_read);
 }
 
 /*

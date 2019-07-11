@@ -54,11 +54,6 @@ static const struct file_operations name## _ops = {			\
 #define DEBUGFS_ADD(name, parent)					\
 	wl->debugfs.name = debugfs_create_file(#name, 0400, parent,	\
 					       wl, &name## _ops);	\
-	if (IS_ERR(wl->debugfs.name)) {					\
-		ret = PTR_ERR(wl->debugfs.name);			\
-		wl->debugfs.name = NULL;				\
-		goto out;						\
-	}
 
 #define DEBUGFS_DEL(name)						\
 	do {								\
@@ -354,10 +349,8 @@ static void wl1251_debugfs_delete_files(struct wl1251 *wl)
 	DEBUGFS_DEL(excessive_retries);
 }
 
-static int wl1251_debugfs_add_files(struct wl1251 *wl)
+static void wl1251_debugfs_add_files(struct wl1251 *wl)
 {
-	int ret = 0;
-
 	DEBUGFS_FWSTATS_ADD(tx, internal_desc_overflow);
 
 	DEBUGFS_FWSTATS_ADD(rx, out_of_mem);
@@ -453,12 +446,6 @@ static int wl1251_debugfs_add_files(struct wl1251 *wl)
 	DEBUGFS_ADD(tx_queue_status, wl->debugfs.rootdir);
 	DEBUGFS_ADD(retry_count, wl->debugfs.rootdir);
 	DEBUGFS_ADD(excessive_retries, wl->debugfs.rootdir);
-
-out:
-	if (ret < 0)
-		wl1251_debugfs_delete_files(wl);
-
-	return ret;
 }
 
 void wl1251_debugfs_reset(struct wl1251 *wl)
@@ -471,56 +458,20 @@ void wl1251_debugfs_reset(struct wl1251 *wl)
 
 int wl1251_debugfs_init(struct wl1251 *wl)
 {
-	int ret;
+	wl->stats.fw_stats = kzalloc(sizeof(*wl->stats.fw_stats), GFP_KERNEL);
+	if (!wl->stats.fw_stats)
+		return -ENOMEM;
 
 	wl->debugfs.rootdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
-
-	if (IS_ERR(wl->debugfs.rootdir)) {
-		ret = PTR_ERR(wl->debugfs.rootdir);
-		wl->debugfs.rootdir = NULL;
-		goto err;
-	}
 
 	wl->debugfs.fw_statistics = debugfs_create_dir("fw-statistics",
 						       wl->debugfs.rootdir);
 
-	if (IS_ERR(wl->debugfs.fw_statistics)) {
-		ret = PTR_ERR(wl->debugfs.fw_statistics);
-		wl->debugfs.fw_statistics = NULL;
-		goto err_root;
-	}
-
-	wl->stats.fw_stats = kzalloc(sizeof(*wl->stats.fw_stats),
-				      GFP_KERNEL);
-
-	if (!wl->stats.fw_stats) {
-		ret = -ENOMEM;
-		goto err_fw;
-	}
-
 	wl->stats.fw_stats_update = jiffies;
 
-	ret = wl1251_debugfs_add_files(wl);
-
-	if (ret < 0)
-		goto err_file;
+	wl1251_debugfs_add_files(wl);
 
 	return 0;
-
-err_file:
-	kfree(wl->stats.fw_stats);
-	wl->stats.fw_stats = NULL;
-
-err_fw:
-	debugfs_remove(wl->debugfs.fw_statistics);
-	wl->debugfs.fw_statistics = NULL;
-
-err_root:
-	debugfs_remove(wl->debugfs.rootdir);
-	wl->debugfs.rootdir = NULL;
-
-err:
-	return ret;
 }
 
 void wl1251_debugfs_exit(struct wl1251 *wl)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_PGTABLE_64_H
 #define __ASM_SH_PGTABLE_64_H
 
@@ -10,10 +11,6 @@
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003, 2004  Paul Mundt
  * Copyright (C) 2003, 2004  Richard Curnow
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/threads.h>
 #include <asm/processor.h>

@@ -12,13 +12,13 @@
 #include "ctree.h"
 
 enum btrfs_trans_state {
-	TRANS_STATE_RUNNING		= 0,
-	TRANS_STATE_BLOCKED		= 1,
-	TRANS_STATE_COMMIT_START	= 2,
-	TRANS_STATE_COMMIT_DOING	= 3,
-	TRANS_STATE_UNBLOCKED		= 4,
-	TRANS_STATE_COMPLETED		= 5,
-	TRANS_STATE_MAX			= 6,
+	TRANS_STATE_RUNNING,
+	TRANS_STATE_BLOCKED,
+	TRANS_STATE_COMMIT_START,
+	TRANS_STATE_COMMIT_DOING,
+	TRANS_STATE_UNBLOCKED,
+	TRANS_STATE_COMPLETED,
+	TRANS_STATE_MAX,
 };
 
 #define BTRFS_TRANS_HAVE_FREE_BGS	0
@@ -39,7 +39,6 @@ struct btrfs_transaction {
 	 */
 	atomic_t num_writers;
 	refcount_t use_count;
-	atomic_t pending_ordered;
 
 	unsigned long flags;
 
@@ -51,7 +50,6 @@ struct btrfs_transaction {
 	time64_t start_time;
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
-	wait_queue_head_t pending_wait;
 	struct list_head pending_snapshots;
 	struct list_head pending_chunks;
 	struct list_head switch_commits;

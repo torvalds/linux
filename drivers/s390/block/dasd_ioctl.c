@@ -412,6 +412,7 @@ static int dasd_ioctl_information(struct dasd_block *block,
 	struct ccw_dev_id dev_id;
 	struct dasd_device *base;
 	struct ccw_device *cdev;
+	struct list_head *l;
 	unsigned long flags;
 	int rc;
 
@@ -462,23 +463,10 @@ static int dasd_ioctl_information(struct dasd_block *block,
 
 	memcpy(dasd_info->type, base->discipline->name, 4);
 
-	if (block->request_queue->request_fn) {
-		struct list_head *l;
-#ifdef DASD_EXTENDED_PROFILING
-		{
-			struct list_head *l;
-			spin_lock_irqsave(&block->lock, flags);
-			list_for_each(l, &block->request_queue->queue_head)
-				dasd_info->req_queue_len++;
-			spin_unlock_irqrestore(&block->lock, flags);
-		}
-#endif				/* DASD_EXTENDED_PROFILING */
-		spin_lock_irqsave(get_ccwdev_lock(base->cdev), flags);
-		list_for_each(l, &base->ccw_queue)
-			dasd_info->chanq_len++;
-		spin_unlock_irqrestore(get_ccwdev_lock(base->cdev),
-				       flags);
-	}
+	spin_lock_irqsave(&block->queue_lock, flags);
+	list_for_each(l, &base->ccw_queue)
+		dasd_info->chanq_len++;
+	spin_unlock_irqrestore(&block->queue_lock, flags);
 
 	rc = 0;
 	if (copy_to_user(argp, dasd_info,

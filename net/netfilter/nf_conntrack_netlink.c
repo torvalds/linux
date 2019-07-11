@@ -29,6 +29,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/siphash.h>
 
 #include <linux/netfilter.h>
 #include <net/netlink.h>
@@ -46,8 +47,7 @@
 #include <net/netfilter/nf_conntrack_labels.h>
 #include <net/netfilter/nf_conntrack_synproxy.h>
 #ifdef CONFIG_NF_NAT_NEEDED
-#include <net/netfilter/nf_nat_core.h>
-#include <net/netfilter/nf_nat_l4proto.h>
+#include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_helper.h>
 #endif
 
@@ -135,7 +135,7 @@ static int ctnetlink_dump_tuples(struct sk_buff *skb,
 	ret = ctnetlink_dump_tuples_ip(skb, tuple);
 
 	if (ret >= 0) {
-		l4proto = __nf_ct_l4proto_find(tuple->dst.protonum);
+		l4proto = nf_ct_l4proto_find(tuple->dst.protonum);
 		ret = ctnetlink_dump_tuples_proto(skb, tuple, l4proto);
 	}
 	rcu_read_unlock();
@@ -183,7 +183,7 @@ static int ctnetlink_dump_protoinfo(struct sk_buff *skb, struct nf_conn *ct)
 	struct nlattr *nest_proto;
 	int ret;
 
-	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
+	l4proto = nf_ct_l4proto_find(nf_ct_protonum(ct));
 	if (!l4proto->to_nlattr)
 		return 0;
 
@@ -486,7 +486,9 @@ nla_put_failure:
 
 static int ctnetlink_dump_id(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	if (nla_put_be32(skb, CTA_ID, htonl((unsigned long)ct)))
+	__be32 id = (__force __be32)nf_ct_get_id(ct);
+
+	if (nla_put_be32(skb, CTA_ID, id))
 		goto nla_put_failure;
 	return 0;
 
@@ -591,7 +593,7 @@ static size_t ctnetlink_proto_size(const struct nf_conn *ct)
 	len = nla_policy_len(cta_ip_nla_policy, CTA_IP_MAX + 1);
 	len *= 3u; /* ORIG, REPLY, MASTER */
 
-	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
+	l4proto = nf_ct_l4proto_find(nf_ct_protonum(ct));
 	len += l4proto->nlattr_size;
 	if (l4proto->nlattr_tuple_size) {
 		len4 = l4proto->nlattr_tuple_size();
@@ -1060,7 +1062,7 @@ static int ctnetlink_parse_tuple_proto(struct nlattr *attr,
 	tuple->dst.protonum = nla_get_u8(tb[CTA_PROTO_NUM]);
 
 	rcu_read_lock();
-	l4proto = __nf_ct_l4proto_find(tuple->dst.protonum);
+	l4proto = nf_ct_l4proto_find(tuple->dst.protonum);
 
 	if (likely(l4proto->nlattr_to_tuple)) {
 		ret = nla_validate_nested(attr, CTA_PROTO_MAX,
@@ -1287,8 +1289,9 @@ static int ctnetlink_del_conntrack(struct net *net, struct sock *ctnl,
 	}
 
 	if (cda[CTA_ID]) {
-		u_int32_t id = ntohl(nla_get_be32(cda[CTA_ID]));
-		if (id != (u32)(unsigned long)ct) {
+		__be32 id = nla_get_be32(cda[CTA_ID]);
+
+		if (id != (__force __be32)nf_ct_get_id(ct)) {
 			nf_ct_put(ct);
 			return -ENOENT;
 		}
@@ -1688,6 +1691,22 @@ static int ctnetlink_change_timeout(struct nf_conn *ct,
 	return 0;
 }
 
+#if defined(CONFIG_NF_CONNTRACK_MARK)
+static void ctnetlink_change_mark(struct nf_conn *ct,
+				    const struct nlattr * const cda[])
+{
+	u32 mark, newmark, mask = 0;
+
+	if (cda[CTA_MARK_MASK])
+		mask = ~ntohl(nla_get_be32(cda[CTA_MARK_MASK]));
+
+	mark = ntohl(nla_get_be32(cda[CTA_MARK]));
+	newmark = (ct->mark & mask) ^ mark;
+	if (newmark != ct->mark)
+		ct->mark = newmark;
+}
+#endif
+
 static const struct nla_policy protoinfo_policy[CTA_PROTOINFO_MAX+1] = {
 	[CTA_PROTOINFO_TCP]	= { .type = NLA_NESTED },
 	[CTA_PROTOINFO_DCCP]	= { .type = NLA_NESTED },
@@ -1707,11 +1726,9 @@ static int ctnetlink_change_protoinfo(struct nf_conn *ct,
 	if (err < 0)
 		return err;
 
-	rcu_read_lock();
-	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
+	l4proto = nf_ct_l4proto_find(nf_ct_protonum(ct));
 	if (l4proto->from_nlattr)
 		err = l4proto->from_nlattr(tb, ct);
-	rcu_read_unlock();
 
 	return err;
 }
@@ -1883,7 +1900,7 @@ ctnetlink_change_conntrack(struct nf_conn *ct,
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK])
-		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
+		ctnetlink_change_mark(ct, cda);
 #endif
 
 	if (cda[CTA_SEQ_ADJ_ORIG] || cda[CTA_SEQ_ADJ_REPLY]) {
@@ -2027,7 +2044,7 @@ ctnetlink_create_conntrack(struct net *net,
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK])
-		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
+		ctnetlink_change_mark(ct, cda);
 #endif
 
 	/* setup master conntrack: this is a confirmed expectation */
@@ -2524,14 +2541,7 @@ ctnetlink_glue_parse_ct(const struct nlattr *cda[], struct nf_conn *ct)
 	}
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK]) {
-		u32 mask = 0, mark, newmark;
-		if (cda[CTA_MARK_MASK])
-			mask = ~ntohl(nla_get_be32(cda[CTA_MARK_MASK]));
-
-		mark = ntohl(nla_get_be32(cda[CTA_MARK]));
-		newmark = (ct->mark & mask) ^ mark;
-		if (newmark != ct->mark)
-			ct->mark = newmark;
+		ctnetlink_change_mark(ct, cda);
 	}
 #endif
 	return 0;
@@ -2668,8 +2678,8 @@ static int ctnetlink_exp_dump_mask(struct sk_buff *skb,
 	rcu_read_lock();
 	ret = ctnetlink_dump_tuples_ip(skb, &m);
 	if (ret >= 0) {
-		l4proto = __nf_ct_l4proto_find(tuple->dst.protonum);
-	ret = ctnetlink_dump_tuples_proto(skb, &m, l4proto);
+		l4proto = nf_ct_l4proto_find(tuple->dst.protonum);
+		ret = ctnetlink_dump_tuples_proto(skb, &m, l4proto);
 	}
 	rcu_read_unlock();
 
@@ -2685,6 +2695,25 @@ nla_put_failure:
 }
 
 static const union nf_inet_addr any_addr;
+
+static __be32 nf_expect_get_id(const struct nf_conntrack_expect *exp)
+{
+	static __read_mostly siphash_key_t exp_id_seed;
+	unsigned long a, b, c, d;
+
+	net_get_random_once(&exp_id_seed, sizeof(exp_id_seed));
+
+	a = (unsigned long)exp;
+	b = (unsigned long)exp->helper;
+	c = (unsigned long)exp->master;
+	d = (unsigned long)siphash(&exp->tuple, sizeof(exp->tuple), &exp_id_seed);
+
+#ifdef CONFIG_64BIT
+	return (__force __be32)siphash_4u64((u64)a, (u64)b, (u64)c, (u64)d, &exp_id_seed);
+#else
+	return (__force __be32)siphash_4u32((u32)a, (u32)b, (u32)c, (u32)d, &exp_id_seed);
+#endif
+}
 
 static int
 ctnetlink_exp_dump_expect(struct sk_buff *skb,
@@ -2733,7 +2762,7 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 	}
 #endif
 	if (nla_put_be32(skb, CTA_EXPECT_TIMEOUT, htonl(timeout)) ||
-	    nla_put_be32(skb, CTA_EXPECT_ID, htonl((unsigned long)exp)) ||
+	    nla_put_be32(skb, CTA_EXPECT_ID, nf_expect_get_id(exp)) ||
 	    nla_put_be32(skb, CTA_EXPECT_FLAGS, htonl(exp->flags)) ||
 	    nla_put_be32(skb, CTA_EXPECT_CLASS, htonl(exp->class)))
 		goto nla_put_failure;
@@ -3038,7 +3067,8 @@ static int ctnetlink_get_expect(struct net *net, struct sock *ctnl,
 
 	if (cda[CTA_EXPECT_ID]) {
 		__be32 id = nla_get_be32(cda[CTA_EXPECT_ID]);
-		if (ntohl(id) != (u32)(unsigned long)exp) {
+
+		if (id != nf_expect_get_id(exp)) {
 			nf_ct_expect_put(exp);
 			return -ENOENT;
 		}

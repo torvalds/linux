@@ -75,11 +75,14 @@
 #include "amdgpu_sdma.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_virt.h"
+#include "amdgpu_csa.h"
 #include "amdgpu_gart.h"
 #include "amdgpu_debugfs.h"
 #include "amdgpu_job.h"
 #include "amdgpu_bo_list.h"
 #include "amdgpu_gem.h"
+#include "amdgpu_doorbell.h"
+#include "amdgpu_amdkfd.h"
 
 #define MAX_GPU_INSTANCE		16
 
@@ -161,6 +164,7 @@ extern int amdgpu_si_support;
 extern int amdgpu_cik_support;
 #endif
 
+#define AMDGPU_VM_MAX_NUM_CTX			4096
 #define AMDGPU_SG_THRESHOLD			(256*1024*1024)
 #define AMDGPU_DEFAULT_GTT_SIZE_MB		3072ULL /* 3GB by default */
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
@@ -360,123 +364,6 @@ int amdgpu_fence_slab_init(void);
 void amdgpu_fence_slab_fini(void);
 
 /*
- * GPU doorbell structures, functions & helpers
- */
-typedef enum _AMDGPU_DOORBELL_ASSIGNMENT
-{
-	AMDGPU_DOORBELL_KIQ                     = 0x000,
-	AMDGPU_DOORBELL_HIQ                     = 0x001,
-	AMDGPU_DOORBELL_DIQ                     = 0x002,
-	AMDGPU_DOORBELL_MEC_RING0               = 0x010,
-	AMDGPU_DOORBELL_MEC_RING1               = 0x011,
-	AMDGPU_DOORBELL_MEC_RING2               = 0x012,
-	AMDGPU_DOORBELL_MEC_RING3               = 0x013,
-	AMDGPU_DOORBELL_MEC_RING4               = 0x014,
-	AMDGPU_DOORBELL_MEC_RING5               = 0x015,
-	AMDGPU_DOORBELL_MEC_RING6               = 0x016,
-	AMDGPU_DOORBELL_MEC_RING7               = 0x017,
-	AMDGPU_DOORBELL_GFX_RING0               = 0x020,
-	AMDGPU_DOORBELL_sDMA_ENGINE0            = 0x1E0,
-	AMDGPU_DOORBELL_sDMA_ENGINE1            = 0x1E1,
-	AMDGPU_DOORBELL_IH                      = 0x1E8,
-	AMDGPU_DOORBELL_MAX_ASSIGNMENT          = 0x3FF,
-	AMDGPU_DOORBELL_INVALID                 = 0xFFFF
-} AMDGPU_DOORBELL_ASSIGNMENT;
-
-struct amdgpu_doorbell {
-	/* doorbell mmio */
-	resource_size_t		base;
-	resource_size_t		size;
-	u32 __iomem		*ptr;
-	u32			num_doorbells;	/* Number of doorbells actually reserved for amdgpu. */
-};
-
-/*
- * 64bit doorbell, offset are in QWORD, occupy 2KB doorbell space
- */
-typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
-{
-	/*
-	 * All compute related doorbells: kiq, hiq, diq, traditional compute queue, user queue, should locate in
-	 * a continues range so that programming CP_MEC_DOORBELL_RANGE_LOWER/UPPER can cover this range.
-	 *  Compute related doorbells are allocated from 0x00 to 0x8a
-	 */
-
-
-	/* kernel scheduling */
-	AMDGPU_DOORBELL64_KIQ                     = 0x00,
-
-	/* HSA interface queue and debug queue */
-	AMDGPU_DOORBELL64_HIQ                     = 0x01,
-	AMDGPU_DOORBELL64_DIQ                     = 0x02,
-
-	/* Compute engines */
-	AMDGPU_DOORBELL64_MEC_RING0               = 0x03,
-	AMDGPU_DOORBELL64_MEC_RING1               = 0x04,
-	AMDGPU_DOORBELL64_MEC_RING2               = 0x05,
-	AMDGPU_DOORBELL64_MEC_RING3               = 0x06,
-	AMDGPU_DOORBELL64_MEC_RING4               = 0x07,
-	AMDGPU_DOORBELL64_MEC_RING5               = 0x08,
-	AMDGPU_DOORBELL64_MEC_RING6               = 0x09,
-	AMDGPU_DOORBELL64_MEC_RING7               = 0x0a,
-
-	/* User queue doorbell range (128 doorbells) */
-	AMDGPU_DOORBELL64_USERQUEUE_START         = 0x0b,
-	AMDGPU_DOORBELL64_USERQUEUE_END           = 0x8a,
-
-	/* Graphics engine */
-	AMDGPU_DOORBELL64_GFX_RING0               = 0x8b,
-
-	/*
-	 * Other graphics doorbells can be allocated here: from 0x8c to 0xdf
-	 * Graphics voltage island aperture 1
-	 * default non-graphics QWORD index is 0xe0 - 0xFF inclusive
-	 */
-
-	/* sDMA engines  reserved from 0xe0 -oxef  */
-	AMDGPU_DOORBELL64_sDMA_ENGINE0            = 0xE0,
-	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xE1,
-	AMDGPU_DOORBELL64_sDMA_ENGINE1            = 0xE8,
-	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE1     = 0xE9,
-
-	/* For vega10 sriov, the sdma doorbell must be fixed as follow
-	 * to keep the same setting with host driver, or it will
-	 * happen conflicts
-	 */
-	AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE0            = 0xF0,
-	AMDGPU_VEGA10_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xF1,
-	AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE1            = 0xF2,
-	AMDGPU_VEGA10_DOORBELL64_sDMA_HI_PRI_ENGINE1     = 0xF3,
-
-	/* Interrupt handler */
-	AMDGPU_DOORBELL64_IH                      = 0xF4,  /* For legacy interrupt ring buffer */
-	AMDGPU_DOORBELL64_IH_RING1                = 0xF5,  /* For page migration request log */
-	AMDGPU_DOORBELL64_IH_RING2                = 0xF6,  /* For page migration translation/invalidation log */
-
-	/* VCN engine use 32 bits doorbell  */
-	AMDGPU_DOORBELL64_VCN0_1                  = 0xF8, /* lower 32 bits for VNC0 and upper 32 bits for VNC1 */
-	AMDGPU_DOORBELL64_VCN2_3                  = 0xF9,
-	AMDGPU_DOORBELL64_VCN4_5                  = 0xFA,
-	AMDGPU_DOORBELL64_VCN6_7                  = 0xFB,
-
-	/* overlap the doorbell assignment with VCN as they are  mutually exclusive
-	 * VCE engine's doorbell is 32 bit and two VCE ring share one QWORD
-	 */
-	AMDGPU_DOORBELL64_UVD_RING0_1             = 0xF8,
-	AMDGPU_DOORBELL64_UVD_RING2_3             = 0xF9,
-	AMDGPU_DOORBELL64_UVD_RING4_5             = 0xFA,
-	AMDGPU_DOORBELL64_UVD_RING6_7             = 0xFB,
-
-	AMDGPU_DOORBELL64_VCE_RING0_1             = 0xFC,
-	AMDGPU_DOORBELL64_VCE_RING2_3             = 0xFD,
-	AMDGPU_DOORBELL64_VCE_RING4_5             = 0xFE,
-	AMDGPU_DOORBELL64_VCE_RING6_7             = 0xFF,
-
-	AMDGPU_DOORBELL64_MAX_ASSIGNMENT          = 0xFF,
-	AMDGPU_DOORBELL64_INVALID                 = 0xFFFF
-} AMDGPU_DOORBELL64_ASSIGNMENT;
-
-/*
  * IRQS.
  */
 
@@ -523,6 +410,8 @@ struct amdgpu_fpriv {
 	struct idr		bo_list_handles;
 	struct amdgpu_ctx_mgr	ctx_mgr;
 };
+
+int amdgpu_file_to_fpriv(struct file *filp, struct amdgpu_fpriv **fpriv);
 
 int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		  unsigned size, struct amdgpu_ib *ib);
@@ -653,6 +542,13 @@ struct amdgpu_asic_funcs {
 			       struct amdgpu_ring *ring);
 	/* check if the asic needs a full reset of if soft reset will work */
 	bool (*need_full_reset)(struct amdgpu_device *adev);
+	/* initialize doorbell layout for specific asic*/
+	void (*init_doorbell_index)(struct amdgpu_device *adev);
+	/* PCIe bandwidth usage */
+	void (*get_pcie_usage)(struct amdgpu_device *adev, uint64_t *count0,
+			       uint64_t *count1);
+	/* do we need to reset the asic at init time (e.g., kexec) */
+	bool (*need_reset_on_init)(struct amdgpu_device *adev);
 };
 
 /*
@@ -745,7 +641,7 @@ struct amdgpu_nbio_funcs {
 	void (*hdp_flush)(struct amdgpu_device *adev, struct amdgpu_ring *ring);
 	u32 (*get_memsize)(struct amdgpu_device *adev);
 	void (*sdma_doorbell_range)(struct amdgpu_device *adev, int instance,
-				    bool use_doorbell, int doorbell_index);
+			bool use_doorbell, int doorbell_index, int doorbell_size);
 	void (*enable_doorbell_aperture)(struct amdgpu_device *adev,
 					 bool enable);
 	void (*enable_doorbell_selfring_aperture)(struct amdgpu_device *adev,
@@ -831,7 +727,6 @@ struct amdgpu_device {
 	bool				need_dma32;
 	bool				need_swiotlb;
 	bool				accel_working;
-	struct work_struct		reset_work;
 	struct notifier_block		acpi_nb;
 	struct amdgpu_i2c_chan		*i2c_bus[AMDGPU_MAX_I2C_BUS];
 	struct amdgpu_debugfs		debugfs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
@@ -976,6 +871,9 @@ struct amdgpu_device {
 	/* GDS */
 	struct amdgpu_gds		gds;
 
+	/* KFD */
+	struct amdgpu_kfd_dev		kfd;
+
 	/* display related functionality */
 	struct amdgpu_display_manager dm;
 
@@ -988,9 +886,6 @@ struct amdgpu_device {
 	atomic64_t vram_pin_size;
 	atomic64_t visible_pin_size;
 	atomic64_t gart_pin_size;
-
-	/* amdkfd interface */
-	struct kfd_dev          *kfd;
 
 	/* soc15 register offset based on ip, instance and  segment */
 	uint32_t 		*reg_offset[MAX_HWIP][HWIP_MAX_INSTANCE];
@@ -1023,6 +918,10 @@ struct amdgpu_device {
 	unsigned long last_mm_index;
 	bool                            in_gpu_reset;
 	struct mutex  lock_reset;
+	struct amdgpu_doorbell_index doorbell_index;
+
+	int asic_reset_res;
+	struct work_struct		xgmi_reset_work;
 };
 
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)
@@ -1046,11 +945,6 @@ uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset);
 
 u32 amdgpu_io_rreg(struct amdgpu_device *adev, u32 reg);
 void amdgpu_io_wreg(struct amdgpu_device *adev, u32 reg, u32 v);
-
-u32 amdgpu_mm_rdoorbell(struct amdgpu_device *adev, u32 index);
-void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v);
-u64 amdgpu_mm_rdoorbell64(struct amdgpu_device *adev, u32 index);
-void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v);
 
 bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type);
 bool amdgpu_device_has_dc_support(struct amdgpu_device *adev);
@@ -1113,11 +1007,6 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define RREG32_IO(reg) amdgpu_io_rreg(adev, (reg))
 #define WREG32_IO(reg, v) amdgpu_io_wreg(adev, (reg), (v))
 
-#define RDOORBELL32(index) amdgpu_mm_rdoorbell(adev, (index))
-#define WDOORBELL32(index, v) amdgpu_mm_wdoorbell(adev, (index), (v))
-#define RDOORBELL64(index) amdgpu_mm_rdoorbell64(adev, (index))
-#define WDOORBELL64(index, v) amdgpu_mm_wdoorbell64(adev, (index), (v))
-
 #define REG_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 #define REG_FIELD_MASK(reg, field) reg##__##field##_MASK
 
@@ -1159,6 +1048,9 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define amdgpu_asic_flush_hdp(adev, r) (adev)->asic_funcs->flush_hdp((adev), (r))
 #define amdgpu_asic_invalidate_hdp(adev, r) (adev)->asic_funcs->invalidate_hdp((adev), (r))
 #define amdgpu_asic_need_full_reset(adev) (adev)->asic_funcs->need_full_reset((adev))
+#define amdgpu_asic_init_doorbell_index(adev) (adev)->asic_funcs->init_doorbell_index((adev))
+#define amdgpu_asic_get_pcie_usage(adev, cnt0, cnt1) ((adev)->asic_funcs->get_pcie_usage((adev), (cnt0), (cnt1)))
+#define amdgpu_asic_need_reset_on_init(adev) (adev)->asic_funcs->need_reset_on_init((adev))
 
 /* Common functions */
 bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev);
@@ -1219,12 +1111,6 @@ void amdgpu_disable_vblank_kms(struct drm_device *dev, unsigned int pipe);
 long amdgpu_kms_compat_ioctl(struct file *filp, unsigned int cmd,
 			     unsigned long arg);
 
-
-/*
- * functions used by amdgpu_xgmi.c
- */
-int amdgpu_xgmi_add_device(struct amdgpu_device *adev);
-
 /*
  * functions used by amdgpu_encoder.c
  */
@@ -1252,6 +1138,9 @@ bool amdgpu_acpi_is_pcie_performance_request_supported(struct amdgpu_device *ade
 int amdgpu_acpi_pcie_performance_request(struct amdgpu_device *adev,
 						u8 perf_req, bool advertise);
 int amdgpu_acpi_pcie_notify_device_ready(struct amdgpu_device *adev);
+
+void amdgpu_acpi_get_backlight_caps(struct amdgpu_device *adev,
+		struct amdgpu_dm_backlight_caps *caps);
 #else
 static inline int amdgpu_acpi_init(struct amdgpu_device *adev) { return 0; }
 static inline void amdgpu_acpi_fini(struct amdgpu_device *adev) { }

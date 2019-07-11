@@ -67,7 +67,7 @@ mlxsw_sp1_acl_ctcam_region_catchall_add(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_ctcam_chunk_init(&region->cregion,
 				      &region->catchall.cchunk,
 				      MLXSW_SP_ACL_TCAM_CATCHALL_PRIO);
-	rulei = mlxsw_sp_acl_rulei_create(mlxsw_sp->acl);
+	rulei = mlxsw_sp_acl_rulei_create(mlxsw_sp->acl, NULL);
 	if (IS_ERR(rulei)) {
 		err = PTR_ERR(rulei);
 		goto err_rulei_create;
@@ -112,7 +112,8 @@ mlxsw_sp1_acl_ctcam_region_catchall_del(struct mlxsw_sp *mlxsw_sp,
 static int
 mlxsw_sp1_acl_tcam_region_init(struct mlxsw_sp *mlxsw_sp, void *region_priv,
 			       void *tcam_priv,
-			       struct mlxsw_sp_acl_tcam_region *_region)
+			       struct mlxsw_sp_acl_tcam_region *_region,
+			       void *hints_priv)
 {
 	struct mlxsw_sp1_acl_tcam_region *region = region_priv;
 	int err;
@@ -193,6 +194,14 @@ static void mlxsw_sp1_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
+mlxsw_sp1_acl_tcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
+					void *region_priv, void *entry_priv,
+					struct mlxsw_sp_acl_rule_info *rulei)
+{
+	return -EOPNOTSUPP;
+}
+
+static int
 mlxsw_sp1_acl_tcam_region_entry_activity_get(struct mlxsw_sp *mlxsw_sp,
 					     struct mlxsw_sp_acl_tcam_region *_region,
 					     unsigned int offset,
@@ -240,5 +249,6 @@ const struct mlxsw_sp_acl_tcam_ops mlxsw_sp1_acl_tcam_ops = {
 	.entry_priv_size	= sizeof(struct mlxsw_sp1_acl_tcam_entry),
 	.entry_add		= mlxsw_sp1_acl_tcam_entry_add,
 	.entry_del		= mlxsw_sp1_acl_tcam_entry_del,
+	.entry_action_replace	= mlxsw_sp1_acl_tcam_entry_action_replace,
 	.entry_activity_get	= mlxsw_sp1_acl_tcam_entry_activity_get,
 };

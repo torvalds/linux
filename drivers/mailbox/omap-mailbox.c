@@ -486,7 +486,7 @@ static int omap_mbox_register(struct omap_mbox_device *mdev)
 	list_add(&mdev->elem, &omap_mbox_devices);
 	mutex_unlock(&omap_mbox_devices_lock);
 
-	ret = mbox_controller_register(&mdev->controller);
+	ret = devm_mbox_controller_register(mdev->dev, &mdev->controller);
 
 err_out:
 	if (ret) {
@@ -507,8 +507,6 @@ static int omap_mbox_unregister(struct omap_mbox_device *mdev)
 	mutex_lock(&omap_mbox_devices_lock);
 	list_del(&mdev->elem);
 	mutex_unlock(&omap_mbox_devices_lock);
-
-	mbox_controller_unregister(&mdev->controller);
 
 	mboxes = mdev->mboxes;
 	for (i = 0; mboxes[i]; i++)

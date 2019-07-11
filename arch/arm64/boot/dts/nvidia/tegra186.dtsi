@@ -136,7 +136,7 @@
 	};
 
 	gen1_i2c: i2c@3160000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x03160000 0x0 0x10000>;
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -149,7 +149,7 @@
 	};
 
 	cam_i2c: i2c@3180000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x03180000 0x0 0x10000>;
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -163,7 +163,7 @@
 
 	/* shares pads with dpaux1 */
 	dp_aux_ch1_i2c: i2c@3190000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x03190000 0x0 0x10000>;
 		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -177,7 +177,7 @@
 
 	/* controlled by BPMP, should not be enabled */
 	pwr_i2c: i2c@31a0000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x031a0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -191,7 +191,7 @@
 
 	/* shares pads with dpaux0 */
 	dp_aux_ch0_i2c: i2c@31b0000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x031b0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -204,7 +204,7 @@
 	};
 
 	gen7_i2c: i2c@31c0000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x031c0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -217,7 +217,7 @@
 	};
 
 	gen9_i2c: i2c@31e0000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x031e0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -237,6 +237,7 @@
 		clock-names = "sdhci";
 		resets = <&bpmp TEGRA186_RESET_SDMMC1>;
 		reset-names = "sdhci";
+		iommus = <&smmu TEGRA186_SID_SDMMC1>;
 		pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
 		pinctrl-0 = <&sdmmc1_3v3>;
 		pinctrl-1 = <&sdmmc1_1v8>;
@@ -262,6 +263,7 @@
 		clock-names = "sdhci";
 		resets = <&bpmp TEGRA186_RESET_SDMMC2>;
 		reset-names = "sdhci";
+		iommus = <&smmu TEGRA186_SID_SDMMC2>;
 		pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
 		pinctrl-0 = <&sdmmc2_3v3>;
 		pinctrl-1 = <&sdmmc2_1v8>;
@@ -282,6 +284,7 @@
 		clock-names = "sdhci";
 		resets = <&bpmp TEGRA186_RESET_SDMMC3>;
 		reset-names = "sdhci";
+		iommus = <&smmu TEGRA186_SID_SDMMC3>;
 		pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
 		pinctrl-0 = <&sdmmc3_3v3>;
 		pinctrl-1 = <&sdmmc3_1v8>;
@@ -307,14 +310,33 @@
 		assigned-clock-parents = <&bpmp TEGRA186_CLK_PLLC4_VCO>;
 		resets = <&bpmp TEGRA186_RESET_SDMMC4>;
 		reset-names = "sdhci";
+		iommus = <&smmu TEGRA186_SID_SDMMC4>;
 		nvidia,pad-autocal-pull-up-offset-hs400 = <0x05>;
 		nvidia,pad-autocal-pull-down-offset-hs400 = <0x05>;
 		nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x0a>;
 		nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x0a>;
+		nvidia,pad-autocal-pull-up-offset-3v3-timeout = <0x0a>;
+		nvidia,pad-autocal-pull-down-offset-3v3-timeout = <0x0a>;
 		nvidia,default-tap = <0x5>;
 		nvidia,default-trim = <0x9>;
 		nvidia,dqs-trim = <63>;
 		mmc-hs400-1_8v;
+		status = "disabled";
+	};
+
+	hda@3510000 {
+		compatible = "nvidia,tegra186-hda", "nvidia,tegra30-hda";
+		reg = <0x0 0x03510000 0x0 0x10000>;
+		interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp TEGRA186_CLK_HDA>,
+			 <&bpmp TEGRA186_CLK_HDA2HDMICODEC>,
+			 <&bpmp TEGRA186_CLK_HDA2CODEC_2X>;
+		clock-names = "hda", "hda2hdmi", "hda2codec_2x";
+		resets = <&bpmp TEGRA186_RESET_HDA>,
+			 <&bpmp TEGRA186_RESET_HDA2HDMICODEC>,
+			 <&bpmp TEGRA186_RESET_HDA2CODEC_2X>;
+		reset-names = "hda", "hda2hdmi", "hda2codec_2x";
+		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_DISP>;
 		status = "disabled";
 	};
 
@@ -336,6 +358,15 @@
 		interrupt-parent = <&gic>;
 	};
 
+	cec@3960000 {
+		compatible = "nvidia,tegra186-cec";
+		reg = <0x0 0x03960000 0x0 0x10000>;
+		interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp TEGRA186_CLK_CEC>;
+		clock-names = "cec";
+		status = "disabled";
+	};
+
 	hsp_top0: hsp@3c00000 {
 		compatible = "nvidia,tegra186-hsp";
 		reg = <0x0 0x03c00000 0x0 0xa0000>;
@@ -346,7 +377,7 @@
 	};
 
 	gen2_i2c: i2c@c240000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x0c240000 0x0 0x10000>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -359,7 +390,7 @@
 	};
 
 	gen8_i2c: i2c@c250000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x0c250000 0x0 0x10000>;
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -395,6 +426,16 @@
 		status = "disabled";
 	};
 
+	rtc: rtc@c2a0000 {
+		compatible = "nvidia,tegra186-rtc", "nvidia,tegra20-rtc";
+		reg = <0 0x0c2a0000 0 0x10000>;
+		interrupt-parent = <&pmc>;
+		interrupts = <73 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp TEGRA186_CLK_CLK_32K>;
+		clock-names = "rtc";
+		status = "disabled";
+	};
+
 	gpio_aon: gpio@c2f0000 {
 		compatible = "nvidia,tegra186-gpio-aon";
 		reg-names = "security", "gpio";
@@ -407,13 +448,16 @@
 		#interrupt-cells = <2>;
 	};
 
-	pmc@c360000 {
+	pmc: pmc@c360000 {
 		compatible = "nvidia,tegra186-pmc";
 		reg = <0 0x0c360000 0 0x10000>,
 		      <0 0x0c370000 0 0x10000>,
 		      <0 0x0c380000 0 0x10000>,
 		      <0 0x0c390000 0 0x10000>;
 		reg-names = "pmc", "wake", "aotag", "scratch";
+
+		#interrupt-cells = <2>;
+		interrupt-controller;
 
 		sdmmc1_3v3: sdmmc1-3v3 {
 			pins = "sdmmc1-hv";
@@ -660,6 +704,7 @@
 
 		display-hub@15200000 {
 			compatible = "nvidia,tegra186-display", "simple-bus";
+			reg = <0x15200000 0x00040000>;
 			resets = <&bpmp TEGRA186_RESET_NVDISPLAY0_MISC>,
 				 <&bpmp TEGRA186_RESET_NVDISPLAY0_WGRP0>,
 				 <&bpmp TEGRA186_RESET_NVDISPLAY0_WGRP1>,
@@ -939,37 +984,37 @@
 		#size-cells = <0>;
 
 		cpu@0 {
-			compatible = "nvidia,tegra186-denver", "arm,armv8";
+			compatible = "nvidia,tegra186-denver";
 			device_type = "cpu";
 			reg = <0x000>;
 		};
 
 		cpu@1 {
-			compatible = "nvidia,tegra186-denver", "arm,armv8";
+			compatible = "nvidia,tegra186-denver";
 			device_type = "cpu";
 			reg = <0x001>;
 		};
 
 		cpu@2 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			reg = <0x100>;
 		};
 
 		cpu@3 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			reg = <0x101>;
 		};
 
 		cpu@4 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			reg = <0x102>;
 		};
 
 		cpu@5 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			reg = <0x103>;
 		};

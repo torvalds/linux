@@ -43,7 +43,7 @@ static void pblk_read_ppalist_rq(struct pblk *pblk, struct nvm_rq *rqd,
 				 struct bio *bio, sector_t blba,
 				 unsigned long *read_bitmap)
 {
-	struct pblk_sec_meta *meta_list = rqd->meta_list;
+	void *meta_list = rqd->meta_list;
 	struct ppa_addr ppas[NVM_MAX_VLBA];
 	int nr_secs = rqd->nr_ppas;
 	bool advanced_bio = false;
@@ -53,12 +53,15 @@ static void pblk_read_ppalist_rq(struct pblk *pblk, struct nvm_rq *rqd,
 
 	for (i = 0; i < nr_secs; i++) {
 		struct ppa_addr p = ppas[i];
+		struct pblk_sec_meta *meta = pblk_get_meta(pblk, meta_list, i);
 		sector_t lba = blba + i;
 
 retry:
 		if (pblk_ppa_empty(p)) {
+			__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
+
 			WARN_ON(test_and_set_bit(i, read_bitmap));
-			meta_list[i].lba = cpu_to_le64(ADDR_EMPTY);
+			meta->lba = addr_empty;
 
 			if (unlikely(!advanced_bio)) {
 				bio_advance(bio, (i) * PBLK_EXPOSED_PAGE_SIZE);
@@ -78,7 +81,7 @@ retry:
 				goto retry;
 			}
 			WARN_ON(test_and_set_bit(i, read_bitmap));
-			meta_list[i].lba = cpu_to_le64(lba);
+			meta->lba = cpu_to_le64(lba);
 			advanced_bio = true;
 #ifdef CONFIG_NVM_PBLK_DEBUG
 			atomic_long_inc(&pblk->cache_reads);
@@ -105,12 +108,16 @@ next:
 static void pblk_read_check_seq(struct pblk *pblk, struct nvm_rq *rqd,
 				sector_t blba)
 {
-	struct pblk_sec_meta *meta_lba_list = rqd->meta_list;
+	void *meta_list = rqd->meta_list;
 	int nr_lbas = rqd->nr_ppas;
 	int i;
 
+	if (!pblk_is_oob_meta_supported(pblk))
+		return;
+
 	for (i = 0; i < nr_lbas; i++) {
-		u64 lba = le64_to_cpu(meta_lba_list[i].lba);
+		struct pblk_sec_meta *meta = pblk_get_meta(pblk, meta_list, i);
+		u64 lba = le64_to_cpu(meta->lba);
 
 		if (lba == ADDR_EMPTY)
 			continue;
@@ -134,17 +141,22 @@ static void pblk_read_check_seq(struct pblk *pblk, struct nvm_rq *rqd,
 static void pblk_read_check_rand(struct pblk *pblk, struct nvm_rq *rqd,
 				 u64 *lba_list, int nr_lbas)
 {
-	struct pblk_sec_meta *meta_lba_list = rqd->meta_list;
+	void *meta_lba_list = rqd->meta_list;
 	int i, j;
 
+	if (!pblk_is_oob_meta_supported(pblk))
+		return;
+
 	for (i = 0, j = 0; i < nr_lbas; i++) {
+		struct pblk_sec_meta *meta = pblk_get_meta(pblk,
+							   meta_lba_list, j);
 		u64 lba = lba_list[i];
 		u64 meta_lba;
 
 		if (lba == ADDR_EMPTY)
 			continue;
 
-		meta_lba = le64_to_cpu(meta_lba_list[j].lba);
+		meta_lba = le64_to_cpu(meta->lba);
 
 		if (lba != meta_lba) {
 #ifdef CONFIG_NVM_PBLK_DEBUG
@@ -216,17 +228,17 @@ static void pblk_end_partial_read(struct nvm_rq *rqd)
 	struct pblk *pblk = rqd->private;
 	struct pblk_g_ctx *r_ctx = nvm_rq_to_pdu(rqd);
 	struct pblk_pr_ctx *pr_ctx = r_ctx->private;
+	struct pblk_sec_meta *meta;
 	struct bio *new_bio = rqd->bio;
 	struct bio *bio = pr_ctx->orig_bio;
-	struct bio_vec src_bv, dst_bv;
-	struct pblk_sec_meta *meta_list = rqd->meta_list;
-	int bio_init_idx = pr_ctx->bio_init_idx;
+	void *meta_list = rqd->meta_list;
 	unsigned long *read_bitmap = pr_ctx->bitmap;
+	struct bvec_iter orig_iter = BVEC_ITER_ALL_INIT;
+	struct bvec_iter new_iter = BVEC_ITER_ALL_INIT;
 	int nr_secs = pr_ctx->orig_nr_secs;
 	int nr_holes = nr_secs - bitmap_weight(read_bitmap, nr_secs);
-	__le64 *lba_list_mem, *lba_list_media;
 	void *src_p, *dst_p;
-	int hole, i;
+	int bit, i;
 
 	if (unlikely(nr_holes == 1)) {
 		struct ppa_addr ppa;
@@ -237,43 +249,47 @@ static void pblk_end_partial_read(struct nvm_rq *rqd)
 		rqd->ppa_list[0] = ppa;
 	}
 
-	/* Re-use allocated memory for intermediate lbas */
-	lba_list_mem = (((void *)rqd->ppa_list) + pblk_dma_ppa_size);
-	lba_list_media = (((void *)rqd->ppa_list) + 2 * pblk_dma_ppa_size);
-
 	for (i = 0; i < nr_secs; i++) {
-		lba_list_media[i] = meta_list[i].lba;
-		meta_list[i].lba = lba_list_mem[i];
+		meta = pblk_get_meta(pblk, meta_list, i);
+		pr_ctx->lba_list_media[i] = le64_to_cpu(meta->lba);
+		meta->lba = cpu_to_le64(pr_ctx->lba_list_mem[i]);
 	}
 
 	/* Fill the holes in the original bio */
 	i = 0;
-	hole = find_first_zero_bit(read_bitmap, nr_secs);
-	do {
-		struct pblk_line *line;
+	for (bit = 0; bit < nr_secs; bit++) {
+		if (!test_bit(bit, read_bitmap)) {
+			struct bio_vec dst_bv, src_bv;
+			struct pblk_line *line;
 
-		line = pblk_ppa_to_line(pblk, rqd->ppa_list[i]);
-		kref_put(&line->ref, pblk_line_put);
+			line = pblk_ppa_to_line(pblk, rqd->ppa_list[i]);
+			kref_put(&line->ref, pblk_line_put);
 
-		meta_list[hole].lba = lba_list_media[i];
+			meta = pblk_get_meta(pblk, meta_list, bit);
+			meta->lba = cpu_to_le64(pr_ctx->lba_list_media[i]);
 
-		src_bv = new_bio->bi_io_vec[i++];
-		dst_bv = bio->bi_io_vec[bio_init_idx + hole];
+			dst_bv = bio_iter_iovec(bio, orig_iter);
+			src_bv = bio_iter_iovec(new_bio, new_iter);
 
-		src_p = kmap_atomic(src_bv.bv_page);
-		dst_p = kmap_atomic(dst_bv.bv_page);
+			src_p = kmap_atomic(src_bv.bv_page);
+			dst_p = kmap_atomic(dst_bv.bv_page);
 
-		memcpy(dst_p + dst_bv.bv_offset,
-			src_p + src_bv.bv_offset,
-			PBLK_EXPOSED_PAGE_SIZE);
+			memcpy(dst_p + dst_bv.bv_offset,
+				src_p + src_bv.bv_offset,
+				PBLK_EXPOSED_PAGE_SIZE);
 
-		kunmap_atomic(src_p);
-		kunmap_atomic(dst_p);
+			kunmap_atomic(src_p);
+			kunmap_atomic(dst_p);
 
-		mempool_free(src_bv.bv_page, &pblk->page_bio_pool);
+			flush_dcache_page(dst_bv.bv_page);
+			mempool_free(src_bv.bv_page, &pblk->page_bio_pool);
 
-		hole = find_next_zero_bit(read_bitmap, nr_secs, hole + 1);
-	} while (hole < nr_secs);
+			bio_advance_iter(new_bio, &new_iter,
+					PBLK_EXPOSED_PAGE_SIZE);
+			i++;
+		}
+		bio_advance_iter(bio, &orig_iter, PBLK_EXPOSED_PAGE_SIZE);
+	}
 
 	bio_put(new_bio);
 	kfree(pr_ctx);
@@ -291,16 +307,12 @@ static int pblk_setup_partial_read(struct pblk *pblk, struct nvm_rq *rqd,
 			    unsigned long *read_bitmap,
 			    int nr_holes)
 {
-	struct pblk_sec_meta *meta_list = rqd->meta_list;
+	void *meta_list = rqd->meta_list;
 	struct pblk_g_ctx *r_ctx = nvm_rq_to_pdu(rqd);
 	struct pblk_pr_ctx *pr_ctx;
 	struct bio *new_bio, *bio = r_ctx->private;
-	__le64 *lba_list_mem;
 	int nr_secs = rqd->nr_ppas;
 	int i;
-
-	/* Re-use allocated memory for intermediate lbas */
-	lba_list_mem = (((void *)rqd->ppa_list) + pblk_dma_ppa_size);
 
 	new_bio = bio_alloc(GFP_KERNEL, nr_holes);
 
@@ -312,12 +324,15 @@ static int pblk_setup_partial_read(struct pblk *pblk, struct nvm_rq *rqd,
 		goto fail_free_pages;
 	}
 
-	pr_ctx = kmalloc(sizeof(struct pblk_pr_ctx), GFP_KERNEL);
+	pr_ctx = kzalloc(sizeof(struct pblk_pr_ctx), GFP_KERNEL);
 	if (!pr_ctx)
 		goto fail_free_pages;
 
-	for (i = 0; i < nr_secs; i++)
-		lba_list_mem[i] = meta_list[i].lba;
+	for (i = 0; i < nr_secs; i++) {
+		struct pblk_sec_meta *meta = pblk_get_meta(pblk, meta_list, i);
+
+		pr_ctx->lba_list_mem[i] = le64_to_cpu(meta->lba);
+	}
 
 	new_bio->bi_iter.bi_sector = 0; /* internal bio */
 	bio_set_op_attrs(new_bio, REQ_OP_READ, 0);
@@ -325,7 +340,6 @@ static int pblk_setup_partial_read(struct pblk *pblk, struct nvm_rq *rqd,
 	rqd->bio = new_bio;
 	rqd->nr_ppas = nr_holes;
 
-	pr_ctx->ppa_ptr = NULL;
 	pr_ctx->orig_bio = bio;
 	bitmap_copy(pr_ctx->bitmap, read_bitmap, NVM_MAX_VLBA);
 	pr_ctx->bio_init_idx = bio_init_idx;
@@ -383,7 +397,7 @@ err:
 static void pblk_read_rq(struct pblk *pblk, struct nvm_rq *rqd, struct bio *bio,
 			 sector_t lba, unsigned long *read_bitmap)
 {
-	struct pblk_sec_meta *meta_list = rqd->meta_list;
+	struct pblk_sec_meta *meta = pblk_get_meta(pblk, rqd->meta_list, 0);
 	struct ppa_addr ppa;
 
 	pblk_lookup_l2p_seq(pblk, &ppa, lba, 1);
@@ -394,8 +408,10 @@ static void pblk_read_rq(struct pblk *pblk, struct nvm_rq *rqd, struct bio *bio,
 
 retry:
 	if (pblk_ppa_empty(ppa)) {
+		__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
+
 		WARN_ON(test_and_set_bit(0, read_bitmap));
-		meta_list[0].lba = cpu_to_le64(ADDR_EMPTY);
+		meta->lba = addr_empty;
 		return;
 	}
 
@@ -409,7 +425,7 @@ retry:
 		}
 
 		WARN_ON(test_and_set_bit(0, read_bitmap));
-		meta_list[0].lba = cpu_to_le64(lba);
+		meta->lba = cpu_to_le64(lba);
 
 #ifdef CONFIG_NVM_PBLK_DEBUG
 		atomic_long_inc(&pblk->cache_reads);

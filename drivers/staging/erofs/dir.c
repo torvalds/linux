@@ -23,9 +23,24 @@ static const unsigned char erofs_filetype_table[EROFS_FT_MAX] = {
 	[EROFS_FT_SYMLINK]	= DT_LNK,
 };
 
+static void debug_one_dentry(unsigned char d_type, const char *de_name,
+			     unsigned int de_namelen)
+{
+#ifdef CONFIG_EROFS_FS_DEBUG
+	/* since the on-disk name could not have the trailing '\0' */
+	unsigned char dbg_namebuf[EROFS_NAME_LEN + 1];
+
+	memcpy(dbg_namebuf, de_name, de_namelen);
+	dbg_namebuf[de_namelen] = '\0';
+
+	debugln("found dirent %s de_len %u d_type %d", dbg_namebuf,
+		de_namelen, d_type);
+#endif
+}
+
 static int erofs_fill_dentries(struct dir_context *ctx,
-	void *dentry_blk, unsigned int *ofs,
-	unsigned int nameoff, unsigned int maxsize)
+			       void *dentry_blk, unsigned int *ofs,
+			       unsigned int nameoff, unsigned int maxsize)
 {
 	struct erofs_dirent *de = dentry_blk;
 	const struct erofs_dirent *end = dentry_blk + nameoff;
@@ -33,14 +48,10 @@ static int erofs_fill_dentries(struct dir_context *ctx,
 	de = dentry_blk + *ofs;
 	while (de < end) {
 		const char *de_name;
-		int de_namelen;
+		unsigned int de_namelen;
 		unsigned char d_type;
-#ifdef CONFIG_EROFS_FS_DEBUG
-		unsigned int dbg_namelen;
-		unsigned char dbg_namebuf[EROFS_NAME_LEN];
-#endif
 
-		if (unlikely(de->file_type < EROFS_FT_MAX))
+		if (de->file_type < EROFS_FT_MAX)
 			d_type = erofs_filetype_table[de->file_type];
 		else
 			d_type = DT_UNKNOWN;
@@ -48,26 +59,23 @@ static int erofs_fill_dentries(struct dir_context *ctx,
 		nameoff = le16_to_cpu(de->nameoff);
 		de_name = (char *)dentry_blk + nameoff;
 
-		de_namelen = unlikely(de + 1 >= end) ?
-			/* last directory entry */
-			strnlen(de_name, maxsize - nameoff) :
-			le16_to_cpu(de[1].nameoff) - nameoff;
+		/* the last dirent in the block? */
+		if (de + 1 >= end)
+			de_namelen = strnlen(de_name, maxsize - nameoff);
+		else
+			de_namelen = le16_to_cpu(de[1].nameoff) - nameoff;
 
-		/* the corrupted directory found */
-		BUG_ON(de_namelen < 0);
+		/* a corrupted entry is found */
+		if (unlikely(nameoff + de_namelen > maxsize ||
+			     de_namelen > EROFS_NAME_LEN)) {
+			DBG_BUGON(1);
+			return -EIO;
+		}
 
-#ifdef CONFIG_EROFS_FS_DEBUG
-		dbg_namelen = min(EROFS_NAME_LEN - 1, de_namelen);
-		memcpy(dbg_namebuf, de_name, dbg_namelen);
-		dbg_namebuf[dbg_namelen] = '\0';
-
-		debugln("%s, found de_name %s de_len %d d_type %d", __func__,
-			dbg_namebuf, de_namelen, d_type);
-#endif
-
+		debug_one_dentry(d_type, de_name, de_namelen);
 		if (!dir_emit(ctx, de_name, de_namelen,
-					le64_to_cpu(de->nid), d_type))
-			/* stoped by some reason */
+			      le64_to_cpu(de->nid), d_type))
+			/* stopped by some reason */
 			return 1;
 		++de;
 		*ofs += sizeof(struct erofs_dirent);
@@ -95,15 +103,14 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 		if (IS_ERR(dentry_page))
 			continue;
 
-		lock_page(dentry_page);
 		de = (struct erofs_dirent *)kmap(dentry_page);
 
 		nameoff = le16_to_cpu(de->nameoff);
 
 		if (unlikely(nameoff < sizeof(struct erofs_dirent) ||
-			nameoff >= PAGE_SIZE)) {
+			     nameoff >= PAGE_SIZE)) {
 			errln("%s, invalid de[0].nameoff %u",
-				__func__, nameoff);
+			      __func__, nameoff);
 
 			err = -EIO;
 			goto skip_this;
@@ -125,7 +132,6 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 skip_this:
 		kunmap(dentry_page);
 
-		unlock_page(dentry_page);
 		put_page(dentry_page);
 
 		ctx->pos = blknr_to_addr(i) + ofs;
@@ -141,6 +147,6 @@ skip_this:
 const struct file_operations erofs_dir_fops = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= erofs_readdir,
+	.iterate_shared	= erofs_readdir,
 };
 

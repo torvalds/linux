@@ -1,17 +1,7 @@
-/*
- * ChromeOS EC multi-function device (I2C)
- *
- * Copyright (C) 2012 Google, Inc
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+// I2C interface for ChromeOS Embedded Controller
+//
+// Copyright (C) 2012 Google, Inc
 
 #include <linux/acpi.h>
 #include <linux/delay.h>
@@ -317,15 +307,6 @@ static int cros_ec_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int cros_ec_i2c_remove(struct i2c_client *client)
-{
-	struct cros_ec_device *ec_dev = i2c_get_clientdata(client);
-
-	cros_ec_remove(ec_dev);
-
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int cros_ec_i2c_suspend(struct device *dev)
 {
@@ -376,11 +357,10 @@ static struct i2c_driver cros_ec_driver = {
 		.pm	= &cros_ec_i2c_pm_ops,
 	},
 	.probe		= cros_ec_i2c_probe,
-	.remove		= cros_ec_i2c_remove,
 	.id_table	= cros_ec_i2c_id,
 };
 
 module_i2c_driver(cros_ec_driver);
 
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("ChromeOS EC multi function device");
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("I2C interface for ChromeOS Embedded Controller");

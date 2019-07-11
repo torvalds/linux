@@ -889,8 +889,10 @@ static int ray_hw_xmit(unsigned char *data, int len, struct net_device *dev,
 	switch (ccsindex = get_free_tx_ccs(local)) {
 	case ECCSBUSY:
 		pr_debug("ray_hw_xmit tx_ccs table busy\n");
+		/* fall through */
 	case ECCSFULL:
 		pr_debug("ray_hw_xmit No free tx ccs\n");
+		/* fall through */
 	case ECARDGONE:
 		netif_stop_queue(dev);
 		return XMIT_NO_CCS;
@@ -957,7 +959,7 @@ static int translate_frame(ray_dev_t *local, struct tx_msg __iomem *ptx,
 		if (proto == htons(ETH_P_AARP) || proto == htons(ETH_P_IPX)) {
 			/* This is the selective translation table, only 2 entries */
 			writeb(0xf8,
-			       &((struct snaphdr_t __iomem *)ptx->var)->org[3]);
+			       &((struct snaphdr_t __iomem *)ptx->var)->org[2]);
 		}
 		/* Copy body of ethernet packet without ethernet header */
 		memcpy_toio((void __iomem *)&ptx->var +
@@ -2209,7 +2211,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 			untranslate(local, skb, total_len);
 		}
 	} else { /* sniffer mode, so just pass whole packet */
-	};
+	}
 
 /************************/
 	/* Now pick up the rest of the fragments if any */

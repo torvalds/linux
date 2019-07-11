@@ -1020,7 +1020,7 @@ static int dib9000_risc_apb_access_read(struct dib9000_state *state, u32 address
 	if (address >= 1024 || !state->platform.risc.fw_is_running)
 		return -EINVAL;
 
-	/* dprintk( "APB access thru rd fw %d %x\n", address, attribute); */
+	/* dprintk( "APB access through rd fw %d %x\n", address, attribute); */
 
 	mb[0] = (u16) address;
 	mb[1] = len / 2;
@@ -1050,7 +1050,7 @@ static int dib9000_risc_apb_access_write(struct dib9000_state *state, u32 addres
 	if (len > 18)
 		return -EINVAL;
 
-	/* dprintk( "APB access thru wr fw %d %x\n", address, attribute); */
+	/* dprintk( "APB access through wr fw %d %x\n", address, attribute); */
 
 	mb[0] = (u16)address;
 	for (i = 0; i + 1 < len; i += 2)

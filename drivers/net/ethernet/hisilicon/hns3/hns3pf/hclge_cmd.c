@@ -39,9 +39,8 @@ static int hclge_alloc_cmd_desc(struct hclge_cmq_ring *ring)
 {
 	int size  = ring->desc_num * sizeof(struct hclge_desc);
 
-	ring->desc = dma_zalloc_coherent(cmq_ring_to_dev(ring),
-					 size, &ring->desc_dma_addr,
-					 GFP_KERNEL);
+	ring->desc = dma_alloc_coherent(cmq_ring_to_dev(ring), size,
+					&ring->desc_dma_addr, GFP_KERNEL);
 	if (!ring->desc)
 		return -ENOMEM;
 
@@ -171,8 +170,12 @@ static bool hclge_is_special_opcode(u16 opcode)
 	/* these commands have several descriptors,
 	 * and use the first one to save opcode and return value
 	 */
-	u16 spec_opcode[3] = {HCLGE_OPC_STATS_64_BIT,
-		HCLGE_OPC_STATS_32_BIT, HCLGE_OPC_STATS_MAC};
+	u16 spec_opcode[] = {HCLGE_OPC_STATS_64_BIT,
+			     HCLGE_OPC_STATS_32_BIT,
+			     HCLGE_OPC_STATS_MAC,
+			     HCLGE_OPC_STATS_MAC_ALL,
+			     HCLGE_OPC_QUERY_32_BIT_REG,
+			     HCLGE_OPC_QUERY_64_BIT_REG};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spec_opcode); i++) {
@@ -181,6 +184,38 @@ static bool hclge_is_special_opcode(u16 opcode)
 	}
 
 	return false;
+}
+
+static int hclge_cmd_check_retval(struct hclge_hw *hw, struct hclge_desc *desc,
+				  int num, int ntc)
+{
+	u16 opcode, desc_ret;
+	int handle;
+	int retval;
+
+	opcode = le16_to_cpu(desc[0].opcode);
+	for (handle = 0; handle < num; handle++) {
+		desc[handle] = hw->cmq.csq.desc[ntc];
+		ntc++;
+		if (ntc >= hw->cmq.csq.desc_num)
+			ntc = 0;
+	}
+	if (likely(!hclge_is_special_opcode(opcode)))
+		desc_ret = le16_to_cpu(desc[num - 1].retval);
+	else
+		desc_ret = le16_to_cpu(desc[0].retval);
+
+	if (desc_ret == HCLGE_CMD_EXEC_SUCCESS)
+		retval = 0;
+	else if (desc_ret == HCLGE_CMD_NO_AUTH)
+		retval = -EPERM;
+	else if (desc_ret == HCLGE_CMD_NOT_SUPPORTED)
+		retval = -EOPNOTSUPP;
+	else
+		retval = -EIO;
+	hw->cmq.last_status = desc_ret;
+
+	return retval;
 }
 
 /**
@@ -200,7 +235,6 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	u32 timeout = 0;
 	int handle = 0;
 	int retval = 0;
-	u16 opcode, desc_ret;
 	int ntc;
 
 	spin_lock_bh(&hw->cmq.csq.lock);
@@ -216,12 +250,11 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	 * which will be use for hardware to write back
 	 */
 	ntc = hw->cmq.csq.next_to_use;
-	opcode = le16_to_cpu(desc[0].opcode);
 	while (handle < num) {
 		desc_to_use = &hw->cmq.csq.desc[hw->cmq.csq.next_to_use];
 		*desc_to_use = desc[handle];
 		(hw->cmq.csq.next_to_use)++;
-		if (hw->cmq.csq.next_to_use == hw->cmq.csq.desc_num)
+		if (hw->cmq.csq.next_to_use >= hw->cmq.csq.desc_num)
 			hw->cmq.csq.next_to_use = 0;
 		handle++;
 	}
@@ -247,27 +280,7 @@ int hclge_cmd_send(struct hclge_hw *hw, struct hclge_desc *desc, int num)
 	if (!complete) {
 		retval = -EAGAIN;
 	} else {
-		handle = 0;
-		while (handle < num) {
-			/* Get the result of hardware write back */
-			desc_to_use = &hw->cmq.csq.desc[ntc];
-			desc[handle] = *desc_to_use;
-
-			if (likely(!hclge_is_special_opcode(opcode)))
-				desc_ret = le16_to_cpu(desc[handle].retval);
-			else
-				desc_ret = le16_to_cpu(desc[0].retval);
-
-			if (desc_ret == HCLGE_CMD_EXEC_SUCCESS)
-				retval = 0;
-			else
-				retval = -EIO;
-			hw->cmq.last_status = desc_ret;
-			ntc++;
-			handle++;
-			if (ntc == hw->cmq.csq.desc_num)
-				ntc = 0;
-		}
+		retval = hclge_cmd_check_retval(hw, desc, num, ntc);
 	}
 
 	/* Clean the command send queue */
@@ -350,10 +363,19 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 	hdev->hw.cmq.crq.next_to_use = 0;
 
 	hclge_cmd_init_regs(&hdev->hw);
-	clear_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
 
 	spin_unlock_bh(&hdev->hw.cmq.crq.lock);
 	spin_unlock_bh(&hdev->hw.cmq.csq.lock);
+
+	clear_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
+
+	/* Check if there is new reset pending, because the higher level
+	 * reset may happen when lower level reset is being processed.
+	 */
+	if ((hclge_is_reset_pending(hdev))) {
+		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
+		return -EBUSY;
+	}
 
 	ret = hclge_cmd_query_firmware_version(&hdev->hw, &version);
 	if (ret) {
@@ -368,6 +390,20 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 	return 0;
 }
 
+static void hclge_cmd_uninit_regs(struct hclge_hw *hw)
+{
+	hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_L_REG, 0);
+	hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_H_REG, 0);
+	hclge_write_dev(hw, HCLGE_NIC_CSQ_DEPTH_REG, 0);
+	hclge_write_dev(hw, HCLGE_NIC_CSQ_HEAD_REG, 0);
+	hclge_write_dev(hw, HCLGE_NIC_CSQ_TAIL_REG, 0);
+	hclge_write_dev(hw, HCLGE_NIC_CRQ_BASEADDR_L_REG, 0);
+	hclge_write_dev(hw, HCLGE_NIC_CRQ_BASEADDR_H_REG, 0);
+	hclge_write_dev(hw, HCLGE_NIC_CRQ_DEPTH_REG, 0);
+	hclge_write_dev(hw, HCLGE_NIC_CRQ_HEAD_REG, 0);
+	hclge_write_dev(hw, HCLGE_NIC_CRQ_TAIL_REG, 0);
+}
+
 static void hclge_destroy_queue(struct hclge_cmq_ring *ring)
 {
 	spin_lock(&ring->lock);
@@ -379,4 +415,16 @@ void hclge_destroy_cmd_queue(struct hclge_hw *hw)
 {
 	hclge_destroy_queue(&hw->cmq.csq);
 	hclge_destroy_queue(&hw->cmq.crq);
+}
+
+void hclge_cmd_uninit(struct hclge_dev *hdev)
+{
+	spin_lock_bh(&hdev->hw.cmq.csq.lock);
+	spin_lock(&hdev->hw.cmq.crq.lock);
+	set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
+	hclge_cmd_uninit_regs(&hdev->hw);
+	spin_unlock(&hdev->hw.cmq.crq.lock);
+	spin_unlock_bh(&hdev->hw.cmq.csq.lock);
+
+	hclge_destroy_cmd_queue(&hdev->hw);
 }

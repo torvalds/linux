@@ -12,6 +12,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drmP.h>
 
 #include "sun4i_backend.h"
@@ -92,14 +93,16 @@ static void sun4i_backend_layer_atomic_update(struct drm_plane *plane,
 	struct sun4i_backend *backend = layer->backend;
 	struct sun4i_frontend *frontend = backend->frontend;
 
+	sun4i_backend_cleanup_layer(backend, layer->id);
+
 	if (layer_state->uses_frontend) {
 		sun4i_frontend_init(frontend);
 		sun4i_frontend_update_coord(frontend, plane);
 		sun4i_frontend_update_buffer(frontend, plane);
 		sun4i_frontend_update_formats(frontend, plane,
-					      DRM_FORMAT_ARGB8888);
+					      DRM_FORMAT_XRGB8888);
 		sun4i_backend_update_layer_frontend(backend, layer->id,
-						    DRM_FORMAT_ARGB8888);
+						    DRM_FORMAT_XRGB8888);
 		sun4i_frontend_enable(frontend);
 	} else {
 		sun4i_backend_update_layer_formats(backend, layer->id, plane);
@@ -111,7 +114,20 @@ static void sun4i_backend_layer_atomic_update(struct drm_plane *plane,
 	sun4i_backend_layer_enable(backend, layer->id, true);
 }
 
+static bool sun4i_layer_format_mod_supported(struct drm_plane *plane,
+					     uint32_t format, uint64_t modifier)
+{
+	struct sun4i_layer *layer = plane_to_sun4i_layer(plane);
+
+	if (IS_ERR_OR_NULL(layer->backend->frontend))
+		sun4i_backend_format_is_supported(format, modifier);
+
+	return sun4i_backend_format_is_supported(format, modifier) ||
+	       sun4i_frontend_format_is_supported(format, modifier);
+}
+
 static const struct drm_plane_helper_funcs sun4i_backend_layer_helper_funcs = {
+	.prepare_fb	= drm_gem_fb_prepare_fb,
 	.atomic_disable	= sun4i_backend_layer_atomic_disable,
 	.atomic_update	= sun4i_backend_layer_atomic_update,
 };
@@ -123,6 +139,35 @@ static const struct drm_plane_funcs sun4i_backend_layer_funcs = {
 	.disable_plane		= drm_atomic_helper_disable_plane,
 	.reset			= sun4i_backend_layer_reset,
 	.update_plane		= drm_atomic_helper_update_plane,
+	.format_mod_supported	= sun4i_layer_format_mod_supported,
+};
+
+static const uint32_t sun4i_layer_formats[] = {
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_RGBA4444,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV16,
+	DRM_FORMAT_NV21,
+	DRM_FORMAT_NV61,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_YUV411,
+	DRM_FORMAT_YUV420,
+	DRM_FORMAT_YUV422,
+	DRM_FORMAT_YUV444,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVU411,
+	DRM_FORMAT_YVU420,
+	DRM_FORMAT_YVU422,
+	DRM_FORMAT_YVU444,
+	DRM_FORMAT_YVYU,
 };
 
 static const uint32_t sun4i_backend_layer_formats[] = {
@@ -140,10 +185,19 @@ static const uint32_t sun4i_backend_layer_formats[] = {
 	DRM_FORMAT_YVYU,
 };
 
+static const uint64_t sun4i_layer_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_ALLWINNER_TILED,
+	DRM_FORMAT_MOD_INVALID
+};
+
 static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 						struct sun4i_backend *backend,
 						enum drm_plane_type type)
 {
+	const uint64_t *modifiers = sun4i_layer_modifiers;
+	const uint32_t *formats = sun4i_layer_formats;
+	unsigned int formats_len = ARRAY_SIZE(sun4i_layer_formats);
 	struct sun4i_layer *layer;
 	int ret;
 
@@ -151,12 +205,19 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 	if (!layer)
 		return ERR_PTR(-ENOMEM);
 
+	layer->backend = backend;
+
+	if (IS_ERR_OR_NULL(backend->frontend)) {
+		formats = sun4i_backend_layer_formats;
+		formats_len = ARRAY_SIZE(sun4i_backend_layer_formats);
+		modifiers = NULL;
+	}
+
 	/* possible crtcs are set later */
 	ret = drm_universal_plane_init(drm, &layer->plane, 0,
 				       &sun4i_backend_layer_funcs,
-				       sun4i_backend_layer_formats,
-				       ARRAY_SIZE(sun4i_backend_layer_formats),
-				       NULL, type, NULL);
+				       formats, formats_len,
+				       modifiers, type, NULL);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't initialize layer\n");
 		return ERR_PTR(ret);
@@ -164,7 +225,6 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 
 	drm_plane_helper_add(&layer->plane,
 			     &sun4i_backend_layer_helper_funcs);
-	layer->backend = backend;
 
 	drm_plane_create_alpha_property(&layer->plane);
 	drm_plane_create_zpos_property(&layer->plane, 0, 0,

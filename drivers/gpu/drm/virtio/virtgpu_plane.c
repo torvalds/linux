@@ -130,11 +130,49 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 				   plane->state->src_h >> 16,
 				   plane->state->src_x >> 16,
 				   plane->state->src_y >> 16);
-	virtio_gpu_cmd_resource_flush(vgdev, handle,
-				      plane->state->src_x >> 16,
-				      plane->state->src_y >> 16,
-				      plane->state->src_w >> 16,
-				      plane->state->src_h >> 16);
+	if (handle)
+		virtio_gpu_cmd_resource_flush(vgdev, handle,
+					      plane->state->src_x >> 16,
+					      plane->state->src_y >> 16,
+					      plane->state->src_w >> 16,
+					      plane->state->src_h >> 16);
+}
+
+static int virtio_gpu_cursor_prepare_fb(struct drm_plane *plane,
+					struct drm_plane_state *new_state)
+{
+	struct drm_device *dev = plane->dev;
+	struct virtio_gpu_device *vgdev = dev->dev_private;
+	struct virtio_gpu_framebuffer *vgfb;
+	struct virtio_gpu_object *bo;
+
+	if (!new_state->fb)
+		return 0;
+
+	vgfb = to_virtio_gpu_framebuffer(new_state->fb);
+	bo = gem_to_virtio_gpu_obj(vgfb->base.obj[0]);
+	if (bo && bo->dumb && (plane->state->fb != new_state->fb)) {
+		vgfb->fence = virtio_gpu_fence_alloc(vgdev);
+		if (!vgfb->fence)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void virtio_gpu_cursor_cleanup_fb(struct drm_plane *plane,
+					 struct drm_plane_state *old_state)
+{
+	struct virtio_gpu_framebuffer *vgfb;
+
+	if (!plane->state->fb)
+		return;
+
+	vgfb = to_virtio_gpu_framebuffer(plane->state->fb);
+	if (vgfb->fence) {
+		dma_fence_put(&vgfb->fence->f);
+		vgfb->fence = NULL;
+	}
 }
 
 static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
@@ -144,7 +182,6 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_output *output = NULL;
 	struct virtio_gpu_framebuffer *vgfb;
-	struct virtio_gpu_fence *fence = NULL;
 	struct virtio_gpu_object *bo = NULL;
 	uint32_t handle;
 	int ret = 0;
@@ -170,13 +207,13 @@ static void virtio_gpu_cursor_plane_update(struct drm_plane *plane,
 			(vgdev, bo, 0,
 			 cpu_to_le32(plane->state->crtc_w),
 			 cpu_to_le32(plane->state->crtc_h),
-			 0, 0, &fence);
+			 0, 0, vgfb->fence);
 		ret = virtio_gpu_object_reserve(bo, false);
 		if (!ret) {
 			reservation_object_add_excl_fence(bo->tbo.resv,
-							  &fence->f);
-			dma_fence_put(&fence->f);
-			fence = NULL;
+							  &vgfb->fence->f);
+			dma_fence_put(&vgfb->fence->f);
+			vgfb->fence = NULL;
 			virtio_gpu_object_unreserve(bo);
 			virtio_gpu_object_wait(bo, false);
 		}
@@ -218,6 +255,8 @@ static const struct drm_plane_helper_funcs virtio_gpu_primary_helper_funcs = {
 };
 
 static const struct drm_plane_helper_funcs virtio_gpu_cursor_helper_funcs = {
+	.prepare_fb		= virtio_gpu_cursor_prepare_fb,
+	.cleanup_fb		= virtio_gpu_cursor_cleanup_fb,
 	.atomic_check		= virtio_gpu_plane_atomic_check,
 	.atomic_update		= virtio_gpu_cursor_plane_update,
 };

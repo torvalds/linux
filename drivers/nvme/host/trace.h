@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * NVM Express device driver tracepoints
  * Copyright (c) 2018 Johannes Thumshirn, SUSE Linux GmbH
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #undef TRACE_SYSTEM
@@ -115,8 +107,8 @@ TRACE_EVENT(nvme_setup_cmd,
 		__entry->nsid = le32_to_cpu(cmd->common.nsid);
 		__entry->metadata = le64_to_cpu(cmd->common.metadata);
 		__assign_disk_name(__entry->disk, req->rq_disk);
-		memcpy(__entry->cdw10, cmd->common.cdw10,
-		       sizeof(__entry->cdw10));
+		memcpy(__entry->cdw10, &cmd->common.cdw10,
+			sizeof(__entry->cdw10));
 	    ),
 	    TP_printk("nvme%d: %sqid=%d, cmdid=%u, nsid=%u, flags=0x%x, meta=0x%llx, cmd=(%s %s)",
 		      __entry->ctrl_id, __print_disk_name(__entry->disk),
@@ -183,6 +175,29 @@ TRACE_EVENT(nvme_async_event,
 );
 
 #undef aer_name
+
+TRACE_EVENT(nvme_sq,
+	TP_PROTO(struct request *req, __le16 sq_head, int sq_tail),
+	TP_ARGS(req, sq_head, sq_tail),
+	TP_STRUCT__entry(
+		__field(int, ctrl_id)
+		__array(char, disk, DISK_NAME_LEN)
+		__field(int, qid)
+		__field(u16, sq_head)
+		__field(u16, sq_tail)
+	),
+	TP_fast_assign(
+		__entry->ctrl_id = nvme_req(req)->ctrl->instance;
+		__assign_disk_name(__entry->disk, req->rq_disk);
+		__entry->qid = nvme_req_qid(req);
+		__entry->sq_head = le16_to_cpu(sq_head);
+		__entry->sq_tail = sq_tail;
+	),
+	TP_printk("nvme%d: %sqid=%d, head=%u, tail=%u",
+		__entry->ctrl_id, __print_disk_name(__entry->disk),
+		__entry->qid, __entry->sq_head, __entry->sq_tail
+	)
+);
 
 #endif /* _TRACE_NVME_H */
 

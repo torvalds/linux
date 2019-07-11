@@ -316,7 +316,7 @@ ssize_t wusb_prf(void *out, size_t out_size,
 		goto error_setkey_cbc;
 	}
 
-	tfm_aes = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
+	tfm_aes = crypto_alloc_cipher("aes", 0, 0);
 	if (IS_ERR(tfm_aes)) {
 		result = PTR_ERR(tfm_aes);
 		printk(KERN_ERR "E: can't load AES: %d\n", (int)result);

@@ -30,6 +30,9 @@ static const struct nla_policy ncsi_genl_policy[NCSI_ATTR_MAX + 1] = {
 	[NCSI_ATTR_PACKAGE_ID] =	{ .type = NLA_U32 },
 	[NCSI_ATTR_CHANNEL_ID] =	{ .type = NLA_U32 },
 	[NCSI_ATTR_DATA] =		{ .type = NLA_BINARY, .len = 2048 },
+	[NCSI_ATTR_MULTI_FLAG] =	{ .type = NLA_FLAG },
+	[NCSI_ATTR_PACKAGE_MASK] =	{ .type = NLA_U32 },
+	[NCSI_ATTR_CHANNEL_MASK] =	{ .type = NLA_U32 },
 };
 
 static struct ncsi_dev_priv *ndp_from_ifindex(struct net *net, u32 ifindex)
@@ -69,7 +72,7 @@ static int ncsi_write_channel_info(struct sk_buff *skb,
 	nla_put_u32(skb, NCSI_CHANNEL_ATTR_LINK_STATE, m->data[2]);
 	if (nc->state == NCSI_CHANNEL_ACTIVE)
 		nla_put_flag(skb, NCSI_CHANNEL_ATTR_ACTIVE);
-	if (ndp->force_channel == nc)
+	if (nc == nc->package->preferred_channel)
 		nla_put_flag(skb, NCSI_CHANNEL_ATTR_FORCED);
 
 	nla_put_u32(skb, NCSI_CHANNEL_ATTR_VERSION_MAJOR, nc->version.version);
@@ -114,7 +117,7 @@ static int ncsi_write_package_info(struct sk_buff *skb,
 		if (!pnest)
 			return -ENOMEM;
 		nla_put_u32(skb, NCSI_PKG_ATTR_ID, np->id);
-		if (ndp->force_package == np)
+		if ((0x1 << np->id) == ndp->package_whitelist)
 			nla_put_flag(skb, NCSI_PKG_ATTR_FORCED);
 		cnest = nla_nest_start(skb, NCSI_PKG_ATTR_CHANNEL_LIST);
 		if (!cnest) {
@@ -248,6 +251,10 @@ static int ncsi_pkg_info_all_nl(struct sk_buff *skb,
 	}
 
 	attr = nla_nest_start(skb, NCSI_ATTR_PACKAGE_LIST);
+	if (!attr) {
+		rc = -EMSGSIZE;
+		goto err;
+	}
 	rc = ncsi_write_package_info(skb, ndp, package->id);
 	if (rc) {
 		nla_nest_cancel(skb, attr);
@@ -290,49 +297,58 @@ static int ncsi_set_interface_nl(struct sk_buff *msg, struct genl_info *info)
 	package_id = nla_get_u32(info->attrs[NCSI_ATTR_PACKAGE_ID]);
 	package = NULL;
 
-	spin_lock_irqsave(&ndp->lock, flags);
-
 	NCSI_FOR_EACH_PACKAGE(ndp, np)
 		if (np->id == package_id)
 			package = np;
 	if (!package) {
 		/* The user has set a package that does not exist */
-		spin_unlock_irqrestore(&ndp->lock, flags);
 		return -ERANGE;
 	}
 
 	channel = NULL;
-	if (!info->attrs[NCSI_ATTR_CHANNEL_ID]) {
-		/* Allow any channel */
-		channel_id = NCSI_RESERVED_CHANNEL;
-	} else {
+	if (info->attrs[NCSI_ATTR_CHANNEL_ID]) {
 		channel_id = nla_get_u32(info->attrs[NCSI_ATTR_CHANNEL_ID]);
 		NCSI_FOR_EACH_CHANNEL(package, nc)
-			if (nc->id == channel_id)
+			if (nc->id == channel_id) {
 				channel = nc;
+				break;
+			}
+		if (!channel) {
+			netdev_info(ndp->ndev.dev,
+				    "NCSI: Channel %u does not exist!\n",
+				    channel_id);
+			return -ERANGE;
+		}
 	}
 
-	if (channel_id != NCSI_RESERVED_CHANNEL && !channel) {
-		/* The user has set a channel that does not exist on this
-		 * package
-		 */
-		spin_unlock_irqrestore(&ndp->lock, flags);
-		netdev_info(ndp->ndev.dev, "NCSI: Channel %u does not exist!\n",
-			    channel_id);
-		return -ERANGE;
-	}
-
-	ndp->force_package = package;
-	ndp->force_channel = channel;
+	spin_lock_irqsave(&ndp->lock, flags);
+	ndp->package_whitelist = 0x1 << package->id;
+	ndp->multi_package = false;
 	spin_unlock_irqrestore(&ndp->lock, flags);
 
-	netdev_info(ndp->ndev.dev, "Set package 0x%x, channel 0x%x%s as preferred\n",
-		    package_id, channel_id,
-		    channel_id == NCSI_RESERVED_CHANNEL ? " (any)" : "");
+	spin_lock_irqsave(&package->lock, flags);
+	package->multi_channel = false;
+	if (channel) {
+		package->channel_whitelist = 0x1 << channel->id;
+		package->preferred_channel = channel;
+	} else {
+		/* Allow any channel */
+		package->channel_whitelist = UINT_MAX;
+		package->preferred_channel = NULL;
+	}
+	spin_unlock_irqrestore(&package->lock, flags);
 
-	/* Bounce the NCSI channel to set changes */
-	ncsi_stop_dev(&ndp->ndev);
-	ncsi_start_dev(&ndp->ndev);
+	if (channel)
+		netdev_info(ndp->ndev.dev,
+			    "Set package 0x%x, channel 0x%x as preferred\n",
+			    package_id, channel_id);
+	else
+		netdev_info(ndp->ndev.dev, "Set package 0x%x as preferred\n",
+			    package_id);
+
+	/* Update channel configuration */
+	if (!(ndp->flags & NCSI_DEV_RESET))
+		ncsi_reset_dev(&ndp->ndev);
 
 	return 0;
 }
@@ -340,6 +356,7 @@ static int ncsi_set_interface_nl(struct sk_buff *msg, struct genl_info *info)
 static int ncsi_clear_interface_nl(struct sk_buff *msg, struct genl_info *info)
 {
 	struct ncsi_dev_priv *ndp;
+	struct ncsi_package *np;
 	unsigned long flags;
 
 	if (!info || !info->attrs)
@@ -353,16 +370,24 @@ static int ncsi_clear_interface_nl(struct sk_buff *msg, struct genl_info *info)
 	if (!ndp)
 		return -ENODEV;
 
-	/* Clear any override */
+	/* Reset any whitelists and disable multi mode */
 	spin_lock_irqsave(&ndp->lock, flags);
-	ndp->force_package = NULL;
-	ndp->force_channel = NULL;
+	ndp->package_whitelist = UINT_MAX;
+	ndp->multi_package = false;
 	spin_unlock_irqrestore(&ndp->lock, flags);
+
+	NCSI_FOR_EACH_PACKAGE(ndp, np) {
+		spin_lock_irqsave(&np->lock, flags);
+		np->multi_channel = false;
+		np->channel_whitelist = UINT_MAX;
+		np->preferred_channel = NULL;
+		spin_unlock_irqrestore(&np->lock, flags);
+	}
 	netdev_info(ndp->ndev.dev, "NCSI: Cleared preferred package/channel\n");
 
-	/* Bounce the NCSI channel to set changes */
-	ncsi_stop_dev(&ndp->ndev);
-	ncsi_start_dev(&ndp->ndev);
+	/* Update channel configuration */
+	if (!(ndp->flags & NCSI_DEV_RESET))
+		ncsi_reset_dev(&ndp->ndev);
 
 	return 0;
 }
@@ -563,6 +588,138 @@ int ncsi_send_netlink_err(struct net_device *dev,
 	return nlmsg_unicast(net->genl_sock, skb, snd_portid);
 }
 
+static int ncsi_set_package_mask_nl(struct sk_buff *msg,
+				    struct genl_info *info)
+{
+	struct ncsi_dev_priv *ndp;
+	unsigned long flags;
+	int rc;
+
+	if (!info || !info->attrs)
+		return -EINVAL;
+
+	if (!info->attrs[NCSI_ATTR_IFINDEX])
+		return -EINVAL;
+
+	if (!info->attrs[NCSI_ATTR_PACKAGE_MASK])
+		return -EINVAL;
+
+	ndp = ndp_from_ifindex(get_net(sock_net(msg->sk)),
+			       nla_get_u32(info->attrs[NCSI_ATTR_IFINDEX]));
+	if (!ndp)
+		return -ENODEV;
+
+	spin_lock_irqsave(&ndp->lock, flags);
+	if (nla_get_flag(info->attrs[NCSI_ATTR_MULTI_FLAG])) {
+		if (ndp->flags & NCSI_DEV_HWA) {
+			ndp->multi_package = true;
+			rc = 0;
+		} else {
+			netdev_err(ndp->ndev.dev,
+				   "NCSI: Can't use multiple packages without HWA\n");
+			rc = -EPERM;
+		}
+	} else {
+		ndp->multi_package = false;
+		rc = 0;
+	}
+
+	if (!rc)
+		ndp->package_whitelist =
+			nla_get_u32(info->attrs[NCSI_ATTR_PACKAGE_MASK]);
+	spin_unlock_irqrestore(&ndp->lock, flags);
+
+	if (!rc) {
+		/* Update channel configuration */
+		if (!(ndp->flags & NCSI_DEV_RESET))
+			ncsi_reset_dev(&ndp->ndev);
+	}
+
+	return rc;
+}
+
+static int ncsi_set_channel_mask_nl(struct sk_buff *msg,
+				    struct genl_info *info)
+{
+	struct ncsi_package *np, *package;
+	struct ncsi_channel *nc, *channel;
+	u32 package_id, channel_id;
+	struct ncsi_dev_priv *ndp;
+	unsigned long flags;
+
+	if (!info || !info->attrs)
+		return -EINVAL;
+
+	if (!info->attrs[NCSI_ATTR_IFINDEX])
+		return -EINVAL;
+
+	if (!info->attrs[NCSI_ATTR_PACKAGE_ID])
+		return -EINVAL;
+
+	if (!info->attrs[NCSI_ATTR_CHANNEL_MASK])
+		return -EINVAL;
+
+	ndp = ndp_from_ifindex(get_net(sock_net(msg->sk)),
+			       nla_get_u32(info->attrs[NCSI_ATTR_IFINDEX]));
+	if (!ndp)
+		return -ENODEV;
+
+	package_id = nla_get_u32(info->attrs[NCSI_ATTR_PACKAGE_ID]);
+	package = NULL;
+	NCSI_FOR_EACH_PACKAGE(ndp, np)
+		if (np->id == package_id) {
+			package = np;
+			break;
+		}
+	if (!package)
+		return -ERANGE;
+
+	spin_lock_irqsave(&package->lock, flags);
+
+	channel = NULL;
+	if (info->attrs[NCSI_ATTR_CHANNEL_ID]) {
+		channel_id = nla_get_u32(info->attrs[NCSI_ATTR_CHANNEL_ID]);
+		NCSI_FOR_EACH_CHANNEL(np, nc)
+			if (nc->id == channel_id) {
+				channel = nc;
+				break;
+			}
+		if (!channel) {
+			spin_unlock_irqrestore(&package->lock, flags);
+			return -ERANGE;
+		}
+		netdev_dbg(ndp->ndev.dev,
+			   "NCSI: Channel %u set as preferred channel\n",
+			   channel->id);
+	}
+
+	package->channel_whitelist =
+		nla_get_u32(info->attrs[NCSI_ATTR_CHANNEL_MASK]);
+	if (package->channel_whitelist == 0)
+		netdev_dbg(ndp->ndev.dev,
+			   "NCSI: Package %u set to all channels disabled\n",
+			   package->id);
+
+	package->preferred_channel = channel;
+
+	if (nla_get_flag(info->attrs[NCSI_ATTR_MULTI_FLAG])) {
+		package->multi_channel = true;
+		netdev_info(ndp->ndev.dev,
+			    "NCSI: Multi-channel enabled on package %u\n",
+			    package_id);
+	} else {
+		package->multi_channel = false;
+	}
+
+	spin_unlock_irqrestore(&package->lock, flags);
+
+	/* Update channel configuration */
+	if (!(ndp->flags & NCSI_DEV_RESET))
+		ncsi_reset_dev(&ndp->ndev);
+
+	return 0;
+}
+
 static const struct genl_ops ncsi_ops[] = {
 	{
 		.cmd = NCSI_CMD_PKG_INFO,
@@ -587,6 +744,18 @@ static const struct genl_ops ncsi_ops[] = {
 		.cmd = NCSI_CMD_SEND_CMD,
 		.policy = ncsi_genl_policy,
 		.doit = ncsi_send_cmd_nl,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NCSI_CMD_SET_PACKAGE_MASK,
+		.policy = ncsi_genl_policy,
+		.doit = ncsi_set_package_mask_nl,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NCSI_CMD_SET_CHANNEL_MASK,
+		.policy = ncsi_genl_policy,
+		.doit = ncsi_set_channel_mask_nl,
 		.flags = GENL_ADMIN_PERM,
 	},
 };

@@ -3,7 +3,7 @@
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -802,7 +802,7 @@ struct acpi_comment_addr_node {
 
 /*
  * File node - used for "Include" operator file stack and
- * depdendency tree for the -ca option
+ * dependency tree for the -ca option
  */
 struct acpi_file_node {
 	void *file;

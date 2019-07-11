@@ -27,75 +27,67 @@ bool rq_wait_inc_below(struct rq_wait *rq_wait, unsigned int limit)
 	return atomic_inc_below(&rq_wait->inflight, limit);
 }
 
-void rq_qos_cleanup(struct request_queue *q, struct bio *bio)
+void __rq_qos_cleanup(struct rq_qos *rqos, struct bio *bio)
 {
-	struct rq_qos *rqos;
-
-	for (rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->cleanup)
 			rqos->ops->cleanup(rqos, bio);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
-void rq_qos_done(struct request_queue *q, struct request *rq)
+void __rq_qos_done(struct rq_qos *rqos, struct request *rq)
 {
-	struct rq_qos *rqos;
-
-	for (rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->done)
 			rqos->ops->done(rqos, rq);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
-void rq_qos_issue(struct request_queue *q, struct request *rq)
+void __rq_qos_issue(struct rq_qos *rqos, struct request *rq)
 {
-	struct rq_qos *rqos;
-
-	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->issue)
 			rqos->ops->issue(rqos, rq);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
-void rq_qos_requeue(struct request_queue *q, struct request *rq)
+void __rq_qos_requeue(struct rq_qos *rqos, struct request *rq)
 {
-	struct rq_qos *rqos;
-
-	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->requeue)
 			rqos->ops->requeue(rqos, rq);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
-void rq_qos_throttle(struct request_queue *q, struct bio *bio,
-		     spinlock_t *lock)
+void __rq_qos_throttle(struct rq_qos *rqos, struct bio *bio)
 {
-	struct rq_qos *rqos;
-
-	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->throttle)
-			rqos->ops->throttle(rqos, bio, lock);
-	}
+			rqos->ops->throttle(rqos, bio);
+		rqos = rqos->next;
+	} while (rqos);
 }
 
-void rq_qos_track(struct request_queue *q, struct request *rq, struct bio *bio)
+void __rq_qos_track(struct rq_qos *rqos, struct request *rq, struct bio *bio)
 {
-	struct rq_qos *rqos;
-
-	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->track)
 			rqos->ops->track(rqos, rq, bio);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
-void rq_qos_done_bio(struct request_queue *q, struct bio *bio)
+void __rq_qos_done_bio(struct rq_qos *rqos, struct bio *bio)
 {
-	struct rq_qos *rqos;
-
-	for(rqos = q->rq_qos; rqos; rqos = rqos->next) {
+	do {
 		if (rqos->ops->done_bio)
 			rqos->ops->done_bio(rqos, bio);
-	}
+		rqos = rqos->next;
+	} while (rqos);
 }
 
 /*
@@ -184,8 +176,96 @@ void rq_depth_scale_down(struct rq_depth *rqd, bool hard_throttle)
 	rq_depth_calc_max_depth(rqd);
 }
 
+struct rq_qos_wait_data {
+	struct wait_queue_entry wq;
+	struct task_struct *task;
+	struct rq_wait *rqw;
+	acquire_inflight_cb_t *cb;
+	void *private_data;
+	bool got_token;
+};
+
+static int rq_qos_wake_function(struct wait_queue_entry *curr,
+				unsigned int mode, int wake_flags, void *key)
+{
+	struct rq_qos_wait_data *data = container_of(curr,
+						     struct rq_qos_wait_data,
+						     wq);
+
+	/*
+	 * If we fail to get a budget, return -1 to interrupt the wake up loop
+	 * in __wake_up_common.
+	 */
+	if (!data->cb(data->rqw, data->private_data))
+		return -1;
+
+	data->got_token = true;
+	list_del_init(&curr->entry);
+	wake_up_process(data->task);
+	return 1;
+}
+
+/**
+ * rq_qos_wait - throttle on a rqw if we need to
+ * @private_data - caller provided specific data
+ * @acquire_inflight_cb - inc the rqw->inflight counter if we can
+ * @cleanup_cb - the callback to cleanup in case we race with a waker
+ *
+ * This provides a uniform place for the rq_qos users to do their throttling.
+ * Since you can end up with a lot of things sleeping at once, this manages the
+ * waking up based on the resources available.  The acquire_inflight_cb should
+ * inc the rqw->inflight if we have the ability to do so, or return false if not
+ * and then we will sleep until the room becomes available.
+ *
+ * cleanup_cb is in case that we race with a waker and need to cleanup the
+ * inflight count accordingly.
+ */
+void rq_qos_wait(struct rq_wait *rqw, void *private_data,
+		 acquire_inflight_cb_t *acquire_inflight_cb,
+		 cleanup_cb_t *cleanup_cb)
+{
+	struct rq_qos_wait_data data = {
+		.wq = {
+			.func	= rq_qos_wake_function,
+			.entry	= LIST_HEAD_INIT(data.wq.entry),
+		},
+		.task = current,
+		.rqw = rqw,
+		.cb = acquire_inflight_cb,
+		.private_data = private_data,
+	};
+	bool has_sleeper;
+
+	has_sleeper = wq_has_sleeper(&rqw->wait);
+	if (!has_sleeper && acquire_inflight_cb(rqw, private_data))
+		return;
+
+	prepare_to_wait_exclusive(&rqw->wait, &data.wq, TASK_UNINTERRUPTIBLE);
+	do {
+		if (data.got_token)
+			break;
+		if (!has_sleeper && acquire_inflight_cb(rqw, private_data)) {
+			finish_wait(&rqw->wait, &data.wq);
+
+			/*
+			 * We raced with wbt_wake_function() getting a token,
+			 * which means we now have two. Put our local token
+			 * and wake anyone else potentially waiting for one.
+			 */
+			if (data.got_token)
+				cleanup_cb(rqw, private_data);
+			break;
+		}
+		io_schedule();
+		has_sleeper = false;
+	} while (1);
+	finish_wait(&rqw->wait, &data.wq);
+}
+
 void rq_qos_exit(struct request_queue *q)
 {
+	blk_mq_debugfs_unregister_queue_rqos(q);
+
 	while (q->rq_qos) {
 		struct rq_qos *rqos = q->rq_qos;
 		q->rq_qos = rqos->next;

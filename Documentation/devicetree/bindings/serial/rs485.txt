@@ -16,7 +16,7 @@ Optional properties:
 - linux,rs485-enabled-at-boot-time: empty property telling to enable the rs485
   feature at boot time. It can be disabled later with proper ioctl.
 - rs485-rx-during-tx: empty property that enables the receiving of data even
-  whilst sending data.
+  while sending data.
 
 RS485 example for Atmel USART:
 	usart0: serial@fff8c000 {

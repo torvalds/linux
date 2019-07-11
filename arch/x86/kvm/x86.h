@@ -181,6 +181,11 @@ static inline bool emul_is_noncanonical_address(u64 la,
 static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
 					gva_t gva, gfn_t gfn, unsigned access)
 {
+	u64 gen = kvm_memslots(vcpu->kvm)->generation;
+
+	if (unlikely(gen & KVM_MEMSLOT_GEN_UPDATE_IN_PROGRESS))
+		return;
+
 	/*
 	 * If this is a shadow nested page table, the "GVA" is
 	 * actually a nGPA.
@@ -188,7 +193,7 @@ static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
 	vcpu->arch.mmio_gva = mmu_is_nested(vcpu) ? 0 : gva & PAGE_MASK;
 	vcpu->arch.access = access;
 	vcpu->arch.mmio_gfn = gfn;
-	vcpu->arch.mmio_gen = kvm_memslots(vcpu->kvm)->generation;
+	vcpu->arch.mmio_gen = gen;
 }
 
 static inline bool vcpu_match_mmio_gen(struct kvm_vcpu *vcpu)
@@ -289,8 +294,6 @@ extern u64 kvm_supported_xcr0(void);
 
 extern unsigned int min_timer_period_us;
 
-extern unsigned int lapic_timer_advance_ns;
-
 extern bool enable_vmware_backdoor;
 
 extern struct static_key kvm_no_apic_vcpu;
@@ -342,4 +345,6 @@ static inline void kvm_after_interrupt(struct kvm_vcpu *vcpu)
 	__this_cpu_write(current_vcpu, NULL);
 }
 
+void kvm_load_guest_xcr0(struct kvm_vcpu *vcpu);
+void kvm_put_guest_xcr0(struct kvm_vcpu *vcpu);
 #endif

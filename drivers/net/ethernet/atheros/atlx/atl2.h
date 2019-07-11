@@ -260,7 +260,7 @@ struct tx_pkt_status {
 	unsigned multi_col:1;
 	unsigned late_col:1;
 	unsigned abort_col:1;
-	unsigned underun:1;	/* current packet is aborted
+	unsigned underrun:1;	/* current packet is aborted
 				 * due to txram underrun */
 	unsigned:3;		/* reserved */
 	unsigned update:1;	/* always 1'b1 in tx_status_buf */

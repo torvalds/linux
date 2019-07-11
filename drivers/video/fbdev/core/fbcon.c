@@ -510,6 +510,13 @@ static int __init fb_console_setup(char *this_opt)
 			continue;
 		}
 #endif
+
+		if (!strncmp(options, "logo-pos:", 9)) {
+			options += 9;
+			if (!strcmp(options, "center"))
+				fb_center_logo = true;
+			continue;
+		}
 	}
 	return 1;
 }
@@ -649,11 +656,14 @@ static void fbcon_prepare_logo(struct vc_data *vc, struct fb_info *info,
 		kfree(save);
 	}
 
+	if (logo_shown == FBCON_LOGO_DONTSHOW)
+		return;
+
 	if (logo_lines > vc->vc_bottom) {
 		logo_shown = FBCON_LOGO_CANSHOW;
 		printk(KERN_INFO
 		       "fbcon_init: disable boot-logo (boot-logo bigger than screen).\n");
-	} else if (logo_shown != FBCON_LOGO_DONTSHOW) {
+	} else {
 		logo_shown = FBCON_LOGO_DRAW;
 		vc->vc_top = logo_lines;
 	}
@@ -992,7 +1002,7 @@ static const char *fbcon_startup(void)
 			if (!softback_buf) {
 				softback_buf =
 				    (unsigned long)
-				    kmalloc(fbcon_softback_size,
+				    kvmalloc(fbcon_softback_size,
 					    GFP_KERNEL);
 				if (!softback_buf) {
 					fbcon_softback_size = 0;
@@ -1001,7 +1011,7 @@ static const char *fbcon_startup(void)
 			}
 		} else {
 			if (softback_buf) {
-				kfree((void *) softback_buf);
+				kvfree((void *) softback_buf);
 				softback_buf = 0;
 				softback_top = 0;
 			}
@@ -1058,6 +1068,9 @@ static void fbcon_init(struct vc_data *vc, int init)
 	    return;
 
 	cap = info->flags;
+
+	if (console_loglevel <= CONSOLE_LOGLEVEL_QUIET)
+		logo_shown = FBCON_LOGO_DONTSHOW;
 
 	if (vc != svc || logo_shown == FBCON_LOGO_DONTSHOW ||
 	    (info->fix.type == FB_TYPE_TEXT))
@@ -3064,7 +3077,7 @@ static int fbcon_fb_unbind(int idx)
 	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		if (con2fb_map[i] != idx &&
 		    con2fb_map[i] != -1) {
-			new_idx = i;
+			new_idx = con2fb_map[i];
 			break;
 		}
 	}
@@ -3665,7 +3678,7 @@ static void fbcon_exit(void)
 	}
 #endif
 
-	kfree((void *)softback_buf);
+	kvfree((void *)softback_buf);
 	softback_buf = 0UL;
 
 	for_each_registered_fb(i) {

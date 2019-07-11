@@ -131,9 +131,13 @@ static int rvin_group_link_notify(struct media_link *link, u32 flags,
 	    !is_media_entity_v4l2_video_device(link->sink->entity))
 		return 0;
 
-	/* If any entity is in use don't allow link changes. */
+	/*
+	 * Don't allow link changes if any entity in the graph is
+	 * streaming, modifying the CHSEL register fields can disrupt
+	 * running streams.
+	 */
 	media_device_for_each_entity(entity, &group->mdev)
-		if (entity->use_count)
+		if (entity->stream_count)
 			return -EBUSY;
 
 	mutex_lock(&group->lock);
@@ -542,9 +546,7 @@ static void rvin_parallel_notify_unbind(struct v4l2_async_notifier *notifier,
 
 	vin_dbg(vin, "unbind parallel subdev %s\n", subdev->name);
 
-	mutex_lock(&vin->lock);
 	rvin_parallel_subdevice_detach(vin);
-	mutex_unlock(&vin->lock);
 }
 
 static int rvin_parallel_notify_bound(struct v4l2_async_notifier *notifier,
@@ -554,9 +556,7 @@ static int rvin_parallel_notify_bound(struct v4l2_async_notifier *notifier,
 	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	int ret;
 
-	mutex_lock(&vin->lock);
 	ret = rvin_parallel_subdevice_attach(vin, subdev);
-	mutex_unlock(&vin->lock);
 	if (ret)
 		return ret;
 
@@ -664,7 +664,6 @@ static int rvin_group_notify_complete(struct v4l2_async_notifier *notifier)
 	}
 
 	/* Create all media device links between VINs and CSI-2's. */
-	mutex_lock(&vin->group->lock);
 	for (route = vin->info->routes; route->mask; route++) {
 		struct media_pad *source_pad, *sink_pad;
 		struct media_entity *source, *sink;
@@ -700,7 +699,6 @@ static int rvin_group_notify_complete(struct v4l2_async_notifier *notifier)
 			break;
 		}
 	}
-	mutex_unlock(&vin->group->lock);
 
 	return ret;
 }
@@ -716,8 +714,6 @@ static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 		if (vin->group->vin[i])
 			rvin_v4l2_unregister(vin->group->vin[i]);
 
-	mutex_lock(&vin->group->lock);
-
 	for (i = 0; i < RVIN_CSI_MAX; i++) {
 		if (vin->group->csi[i].fwnode != asd->match.fwnode)
 			continue;
@@ -725,8 +721,6 @@ static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 		vin_dbg(vin, "Unbind CSI-2 %s from slot %u\n", subdev->name, i);
 		break;
 	}
-
-	mutex_unlock(&vin->group->lock);
 }
 
 static int rvin_group_notify_bound(struct v4l2_async_notifier *notifier,
@@ -736,8 +730,6 @@ static int rvin_group_notify_bound(struct v4l2_async_notifier *notifier,
 	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	unsigned int i;
 
-	mutex_lock(&vin->group->lock);
-
 	for (i = 0; i < RVIN_CSI_MAX; i++) {
 		if (vin->group->csi[i].fwnode != asd->match.fwnode)
 			continue;
@@ -745,8 +737,6 @@ static int rvin_group_notify_bound(struct v4l2_async_notifier *notifier,
 		vin_dbg(vin, "Bound CSI-2 %s to slot %u\n", subdev->name, i);
 		break;
 	}
-
-	mutex_unlock(&vin->group->lock);
 
 	return 0;
 }
@@ -1088,6 +1078,50 @@ static const struct rvin_info rcar_info_r8a77970 = {
 	.routes = rcar_info_r8a77970_routes,
 };
 
+static const struct rvin_group_route rcar_info_r8a77980_routes[] = {
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 0, .mask = BIT(0) | BIT(3) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 0, .mask = BIT(2) },
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 1, .mask = BIT(2) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 1, .mask = BIT(1) | BIT(3) },
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 2, .mask = BIT(1) },
+	{ .csi = RVIN_CSI40, .channel = 2, .vin = 2, .mask = BIT(3) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 3, .mask = BIT(0) },
+	{ .csi = RVIN_CSI40, .channel = 3, .vin = 3, .mask = BIT(3) },
+	{ .csi = RVIN_CSI41, .channel = 0, .vin = 4, .mask = BIT(0) | BIT(3) },
+	{ .csi = RVIN_CSI41, .channel = 1, .vin = 4, .mask = BIT(2) },
+	{ .csi = RVIN_CSI41, .channel = 0, .vin = 5, .mask = BIT(2) },
+	{ .csi = RVIN_CSI41, .channel = 1, .vin = 5, .mask = BIT(1) | BIT(3) },
+	{ .csi = RVIN_CSI41, .channel = 0, .vin = 6, .mask = BIT(1) },
+	{ .csi = RVIN_CSI41, .channel = 2, .vin = 6, .mask = BIT(3) },
+	{ .csi = RVIN_CSI41, .channel = 1, .vin = 7, .mask = BIT(0) },
+	{ .csi = RVIN_CSI41, .channel = 3, .vin = 7, .mask = BIT(3) },
+	{ /* Sentinel */ }
+};
+
+static const struct rvin_info rcar_info_r8a77980 = {
+	.model = RCAR_GEN3,
+	.use_mc = true,
+	.max_width = 4096,
+	.max_height = 4096,
+	.routes = rcar_info_r8a77980_routes,
+};
+
+static const struct rvin_group_route rcar_info_r8a77990_routes[] = {
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 4, .mask = BIT(0) | BIT(3) },
+	{ .csi = RVIN_CSI40, .channel = 0, .vin = 5, .mask = BIT(2) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 4, .mask = BIT(2) },
+	{ .csi = RVIN_CSI40, .channel = 1, .vin = 5, .mask = BIT(1) | BIT(3) },
+	{ /* Sentinel */ }
+};
+
+static const struct rvin_info rcar_info_r8a77990 = {
+	.model = RCAR_GEN3,
+	.use_mc = true,
+	.max_width = 4096,
+	.max_height = 4096,
+	.routes = rcar_info_r8a77990_routes,
+};
+
 static const struct rvin_group_route rcar_info_r8a77995_routes[] = {
 	{ /* Sentinel */ }
 };
@@ -1101,6 +1135,10 @@ static const struct rvin_info rcar_info_r8a77995 = {
 };
 
 static const struct of_device_id rvin_of_id_table[] = {
+	{
+		.compatible = "renesas,vin-r8a774c0",
+		.data = &rcar_info_r8a77990,
+	},
 	{
 		.compatible = "renesas,vin-r8a7778",
 		.data = &rcar_info_m1,
@@ -1144,6 +1182,14 @@ static const struct of_device_id rvin_of_id_table[] = {
 	{
 		.compatible = "renesas,vin-r8a77970",
 		.data = &rcar_info_r8a77970,
+	},
+	{
+		.compatible = "renesas,vin-r8a77980",
+		.data = &rcar_info_r8a77980,
+	},
+	{
+		.compatible = "renesas,vin-r8a77990",
+		.data = &rcar_info_r8a77990,
 	},
 	{
 		.compatible = "renesas,vin-r8a77995",

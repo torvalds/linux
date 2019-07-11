@@ -37,7 +37,7 @@ static int msm_hdmi_phy_resource_init(struct hdmi_phy *phy)
 		reg = devm_regulator_get(dev, cfg->reg_names[i]);
 		if (IS_ERR(reg)) {
 			ret = PTR_ERR(reg);
-			dev_err(dev, "failed to get phy regulator: %s (%d)\n",
+			DRM_DEV_ERROR(dev, "failed to get phy regulator: %s (%d)\n",
 				cfg->reg_names[i], ret);
 			return ret;
 		}
@@ -51,7 +51,7 @@ static int msm_hdmi_phy_resource_init(struct hdmi_phy *phy)
 		clk = msm_clk_get(phy->pdev, cfg->clk_names[i]);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
-			dev_err(dev, "failed to get phy clock: %s (%d)\n",
+			DRM_DEV_ERROR(dev, "failed to get phy clock: %s (%d)\n",
 				cfg->clk_names[i], ret);
 			return ret;
 		}
@@ -73,14 +73,14 @@ int msm_hdmi_phy_resource_enable(struct hdmi_phy *phy)
 	for (i = 0; i < cfg->num_regs; i++) {
 		ret = regulator_enable(phy->regs[i]);
 		if (ret)
-			dev_err(dev, "failed to enable regulator: %s (%d)\n",
+			DRM_DEV_ERROR(dev, "failed to enable regulator: %s (%d)\n",
 				cfg->reg_names[i], ret);
 	}
 
 	for (i = 0; i < cfg->num_clks; i++) {
 		ret = clk_prepare_enable(phy->clks[i]);
 		if (ret)
-			dev_err(dev, "failed to enable clock: %s (%d)\n",
+			DRM_DEV_ERROR(dev, "failed to enable clock: %s (%d)\n",
 				cfg->clk_names[i], ret);
 	}
 
@@ -159,7 +159,7 @@ static int msm_hdmi_phy_probe(struct platform_device *pdev)
 
 	phy->mmio = msm_ioremap(pdev, "hdmi_phy", "HDMI_PHY");
 	if (IS_ERR(phy->mmio)) {
-		dev_err(dev, "%s: failed to map phy base\n", __func__);
+		DRM_DEV_ERROR(dev, "%s: failed to map phy base\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -177,7 +177,7 @@ static int msm_hdmi_phy_probe(struct platform_device *pdev)
 
 	ret = msm_hdmi_phy_pll_init(pdev, phy->cfg->type);
 	if (ret) {
-		dev_err(dev, "couldn't init PLL\n");
+		DRM_DEV_ERROR(dev, "couldn't init PLL\n");
 		msm_hdmi_phy_resource_disable(phy);
 		return ret;
 	}

@@ -160,7 +160,9 @@ static inline void smcd_curs_copy(union smcd_cdc_cursor *tgt,
 #endif
 }
 
-/* calculate cursor difference between old and new, where old <= new */
+/* calculate cursor difference between old and new, where old <= new and
+ * difference cannot exceed size
+ */
 static inline int smc_curs_diff(unsigned int size,
 				union smc_host_cursor *old,
 				union smc_host_cursor *new)
@@ -185,28 +187,51 @@ static inline int smc_curs_comp(unsigned int size,
 	return smc_curs_diff(size, old, new);
 }
 
+/* calculate cursor difference between old and new, where old <= new and
+ * difference may exceed size
+ */
+static inline int smc_curs_diff_large(unsigned int size,
+				      union smc_host_cursor *old,
+				      union smc_host_cursor *new)
+{
+	if (old->wrap < new->wrap)
+		return min_t(int,
+			     (size - old->count) + new->count +
+			     (new->wrap - old->wrap - 1) * size,
+			     size);
+
+	if (old->wrap > new->wrap) /* wrap has switched from 0xffff to 0x0000 */
+		return min_t(int,
+			     (size - old->count) + new->count +
+			     (new->wrap + 0xffff - old->wrap) * size,
+			     size);
+
+	return max_t(int, 0, (new->count - old->count));
+}
+
 static inline void smc_host_cursor_to_cdc(union smc_cdc_cursor *peer,
 					  union smc_host_cursor *local,
+					  union smc_host_cursor *save,
 					  struct smc_connection *conn)
 {
-	union smc_host_cursor temp;
-
-	smc_curs_copy(&temp, local, conn);
-	peer->count = htonl(temp.count);
-	peer->wrap = htons(temp.wrap);
+	smc_curs_copy(save, local, conn);
+	peer->count = htonl(save->count);
+	peer->wrap = htons(save->wrap);
 	/* peer->reserved = htons(0); must be ensured by caller */
 }
 
 static inline void smc_host_msg_to_cdc(struct smc_cdc_msg *peer,
-				       struct smc_host_cdc_msg *local,
-				       struct smc_connection *conn)
+				       struct smc_connection *conn,
+				       union smc_host_cursor *save)
 {
+	struct smc_host_cdc_msg *local = &conn->local_tx_ctrl;
+
 	peer->common.type = local->common.type;
 	peer->len = local->len;
 	peer->seqno = htons(local->seqno);
 	peer->token = htonl(local->token);
-	smc_host_cursor_to_cdc(&peer->prod, &local->prod, conn);
-	smc_host_cursor_to_cdc(&peer->cons, &local->cons, conn);
+	smc_host_cursor_to_cdc(&peer->prod, &local->prod, save, conn);
+	smc_host_cursor_to_cdc(&peer->cons, &local->cons, save, conn);
 	peer->prod_flags = local->prod_flags;
 	peer->conn_state_flags = local->conn_state_flags;
 }
@@ -245,17 +270,18 @@ static inline void smcr_cdc_msg_to_host(struct smc_host_cdc_msg *local,
 }
 
 static inline void smcd_cdc_msg_to_host(struct smc_host_cdc_msg *local,
-					struct smcd_cdc_msg *peer)
+					struct smcd_cdc_msg *peer,
+					struct smc_connection *conn)
 {
 	union smc_host_cursor temp;
 
 	temp.wrap = peer->prod.wrap;
 	temp.count = peer->prod.count;
-	atomic64_set(&local->prod.acurs, atomic64_read(&temp.acurs));
+	smc_curs_copy(&local->prod, &temp, conn);
 
 	temp.wrap = peer->cons.wrap;
 	temp.count = peer->cons.count;
-	atomic64_set(&local->cons.acurs, atomic64_read(&temp.acurs));
+	smc_curs_copy(&local->cons, &temp, conn);
 	local->prod_flags = peer->cons.prod_flags;
 	local->conn_state_flags = peer->cons.conn_state_flags;
 }
@@ -265,15 +291,21 @@ static inline void smc_cdc_msg_to_host(struct smc_host_cdc_msg *local,
 				       struct smc_connection *conn)
 {
 	if (conn->lgr->is_smcd)
-		smcd_cdc_msg_to_host(local, (struct smcd_cdc_msg *)peer);
+		smcd_cdc_msg_to_host(local, (struct smcd_cdc_msg *)peer, conn);
 	else
 		smcr_cdc_msg_to_host(local, peer, conn);
 }
 
-struct smc_cdc_tx_pend;
+struct smc_cdc_tx_pend {
+	struct smc_connection	*conn;		/* socket connection */
+	union smc_host_cursor	cursor;		/* tx sndbuf cursor sent */
+	union smc_host_cursor	p_cursor;	/* rx RMBE cursor produced */
+	u16			ctrl_seq;	/* conn. tx sequence # */
+};
 
 int smc_cdc_get_free_slot(struct smc_connection *conn,
 			  struct smc_wr_buf **wr_buf,
+			  struct smc_rdma_wr **wr_rdma_buf,
 			  struct smc_cdc_tx_pend **pend);
 void smc_cdc_tx_dismiss_slots(struct smc_connection *conn);
 int smc_cdc_msg_send(struct smc_connection *conn, struct smc_wr_buf *wr_buf,

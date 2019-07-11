@@ -199,7 +199,6 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	bp->tx_nr_rings_xdp = tx_xdp;
 	bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tc + tx_xdp;
 	bp->cp_nr_rings = max_t(int, bp->tx_nr_rings, bp->rx_nr_rings);
-	bp->num_stat_ctxs = bp->cp_nr_rings;
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
 

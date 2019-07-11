@@ -137,11 +137,11 @@ static struct hypfs_dbfs_file hypfs_sprp_file = {
 	.unlocked_ioctl = hypfs_sprp_ioctl,
 };
 
-int hypfs_sprp_init(void)
+void hypfs_sprp_init(void)
 {
 	if (!sclp.has_sprp)
-		return 0;
-	return hypfs_dbfs_create_file(&hypfs_sprp_file);
+		return;
+	hypfs_dbfs_create_file(&hypfs_sprp_file);
 }
 
 void hypfs_sprp_exit(void)

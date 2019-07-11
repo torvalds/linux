@@ -179,7 +179,6 @@ int __init bcma_host_soc_register(struct bcma_soc *soc)
 	/* Host specific */
 	bus->hosttype = BCMA_HOSTTYPE_SOC;
 	bus->ops = &bcma_host_soc_ops;
-	bus->host_pdev = NULL;
 
 	/* Initialize struct, detect chip */
 	bcma_init_bus(bus);
@@ -213,6 +212,8 @@ static int bcma_host_soc_probe(struct platform_device *pdev)
 	if (!bus)
 		return -ENOMEM;
 
+	bus->dev = dev;
+
 	/* Map MMIO */
 	bus->mmio = of_iomap(np, 0);
 	if (!bus->mmio)
@@ -221,7 +222,6 @@ static int bcma_host_soc_probe(struct platform_device *pdev)
 	/* Host specific */
 	bus->hosttype = BCMA_HOSTTYPE_SOC;
 	bus->ops = &bcma_host_soc_ops;
-	bus->host_pdev = pdev;
 
 	/* Initialize struct, detect chip */
 	bcma_init_bus(bus);

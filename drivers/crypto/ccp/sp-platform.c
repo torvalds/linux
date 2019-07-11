@@ -1,7 +1,7 @@
 /*
  * AMD Secure Processor device driver
  *
- * Copyright (C) 2014,2016 Advanced Micro Devices, Inc.
+ * Copyright (C) 2014,2018 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  *

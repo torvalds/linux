@@ -357,7 +357,7 @@ struct hnae_buf_ops {
 };
 
 struct hnae_queue {
-	void __iomem *io_base;
+	u8 __iomem *io_base;
 	phys_addr_t phy_base;
 	struct hnae_ae_dev *dev;	/* the device who use this queue */
 	struct hnae_ring rx_ring ____cacheline_internodealigned_in_smp;

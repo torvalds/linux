@@ -28,6 +28,7 @@ struct nvmem_device {
 	size_t			size;
 	bool			read_only;
 	int			flags;
+	enum nvmem_type		type;
 	struct bin_attribute	eeprom;
 	struct device		*base_dev;
 	struct list_head	cells;
@@ -60,6 +61,13 @@ static LIST_HEAD(nvmem_lookup_list);
 
 static BLOCKING_NOTIFIER_HEAD(nvmem_notifier);
 
+static const char * const nvmem_type_str[] = {
+	[NVMEM_TYPE_UNKNOWN] = "Unknown",
+	[NVMEM_TYPE_EEPROM] = "EEPROM",
+	[NVMEM_TYPE_OTP] = "OTP",
+	[NVMEM_TYPE_BATTERY_BACKED] = "Battery backed",
+};
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key eeprom_lock_key;
 #endif
@@ -82,6 +90,21 @@ static int nvmem_reg_write(struct nvmem_device *nvmem, unsigned int offset,
 
 	return -EINVAL;
 }
+
+static ssize_t type_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	struct nvmem_device *nvmem = to_nvmem_device(dev);
+
+	return sprintf(buf, "%s\n", nvmem_type_str[nvmem->type]);
+}
+
+static DEVICE_ATTR_RO(type);
+
+static struct attribute *nvmem_attrs[] = {
+	&dev_attr_type.attr,
+	NULL,
+};
 
 static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 				    struct bin_attribute *attr,
@@ -168,6 +191,7 @@ static struct bin_attribute *nvmem_bin_rw_attributes[] = {
 
 static const struct attribute_group nvmem_bin_rw_group = {
 	.bin_attrs	= nvmem_bin_rw_attributes,
+	.attrs		= nvmem_attrs,
 };
 
 static const struct attribute_group *nvmem_rw_dev_groups[] = {
@@ -191,6 +215,7 @@ static struct bin_attribute *nvmem_bin_ro_attributes[] = {
 
 static const struct attribute_group nvmem_bin_ro_group = {
 	.bin_attrs	= nvmem_bin_ro_attributes,
+	.attrs		= nvmem_attrs,
 };
 
 static const struct attribute_group *nvmem_ro_dev_groups[] = {
@@ -215,6 +240,7 @@ static struct bin_attribute *nvmem_bin_rw_root_attributes[] = {
 
 static const struct attribute_group nvmem_bin_rw_root_group = {
 	.bin_attrs	= nvmem_bin_rw_root_attributes,
+	.attrs		= nvmem_attrs,
 };
 
 static const struct attribute_group *nvmem_rw_root_dev_groups[] = {
@@ -238,6 +264,7 @@ static struct bin_attribute *nvmem_bin_ro_root_attributes[] = {
 
 static const struct attribute_group nvmem_bin_ro_root_group = {
 	.bin_attrs	= nvmem_bin_ro_root_attributes,
+	.attrs		= nvmem_attrs,
 };
 
 static const struct attribute_group *nvmem_ro_root_dev_groups[] = {
@@ -498,12 +525,14 @@ out:
 static struct nvmem_cell *
 nvmem_find_cell_by_name(struct nvmem_device *nvmem, const char *cell_id)
 {
-	struct nvmem_cell *cell = NULL;
+	struct nvmem_cell *iter, *cell = NULL;
 
 	mutex_lock(&nvmem_mutex);
-	list_for_each_entry(cell, &nvmem->cells, node) {
-		if (strcmp(cell_id, cell->name) == 0)
+	list_for_each_entry(iter, &nvmem->cells, node) {
+		if (strcmp(cell_id, iter->name) == 0) {
+			cell = iter;
 			break;
+		}
 	}
 	mutex_unlock(&nvmem_mutex);
 
@@ -605,9 +634,11 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->dev.bus = &nvmem_bus_type;
 	nvmem->dev.parent = config->dev;
 	nvmem->priv = config->priv;
+	nvmem->type = config->type;
 	nvmem->reg_read = config->reg_read;
 	nvmem->reg_write = config->reg_write;
-	nvmem->dev.of_node = config->dev->of_node;
+	if (!config->no_of_node)
+		nvmem->dev.of_node = config->dev->of_node;
 
 	if (config->id == -1 && config->name) {
 		dev_set_name(&nvmem->dev, "%s", config->name);
@@ -617,8 +648,8 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 			     config->name ? config->id : nvmem->id);
 	}
 
-	nvmem->read_only = device_property_present(config->dev, "read-only") |
-			   config->read_only;
+	nvmem->read_only = device_property_present(config->dev, "read-only") ||
+			   config->read_only || !nvmem->reg_write;
 
 	if (config->root_only)
 		nvmem->dev.groups = nvmem->read_only ?
@@ -657,9 +688,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	if (rval)
 		goto err_remove_cells;
 
-	rval = blocking_notifier_call_chain(&nvmem_notifier, NVMEM_ADD, nvmem);
-	if (rval)
-		goto err_remove_cells;
+	blocking_notifier_call_chain(&nvmem_notifier, NVMEM_ADD, nvmem);
 
 	return nvmem;
 
@@ -780,6 +809,7 @@ static struct nvmem_device *__nvmem_device_get(struct device_node *np,
 			"could not increase module refcount for cell %s\n",
 			nvmem_dev_name(nvmem));
 
+		put_device(&nvmem->dev);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -790,6 +820,7 @@ static struct nvmem_device *__nvmem_device_get(struct device_node *np,
 
 static void __nvmem_device_put(struct nvmem_device *nvmem)
 {
+	put_device(&nvmem->dev);
 	module_put(nvmem->owner);
 	kref_put(&nvmem->refcnt, nvmem_device_release);
 }
@@ -808,13 +839,14 @@ struct nvmem_device *of_nvmem_device_get(struct device_node *np, const char *id)
 {
 
 	struct device_node *nvmem_np;
-	int index;
+	int index = 0;
 
-	index = of_property_match_string(np, "nvmem-names", id);
+	if (id)
+		index = of_property_match_string(np, "nvmem-names", id);
 
 	nvmem_np = of_parse_phandle(np, "nvmem", index);
 	if (!nvmem_np)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-ENOENT);
 
 	return __nvmem_device_get(nvmem_np, NULL);
 }
@@ -842,7 +874,7 @@ struct nvmem_device *nvmem_device_get(struct device *dev, const char *dev_name)
 
 	}
 
-	return nvmem_find(dev_name);
+	return __nvmem_device_get(NULL, dev_name);
 }
 EXPORT_SYMBOL_GPL(nvmem_device_get);
 
@@ -943,7 +975,7 @@ nvmem_cell_get_from_lookup(struct device *dev, const char *con_id)
 			if (IS_ERR(nvmem)) {
 				/* Provider may not be registered yet. */
 				cell = ERR_CAST(nvmem);
-				goto out;
+				break;
 			}
 
 			cell = nvmem_find_cell_by_name(nvmem,
@@ -951,12 +983,11 @@ nvmem_cell_get_from_lookup(struct device *dev, const char *con_id)
 			if (!cell) {
 				__nvmem_device_put(nvmem);
 				cell = ERR_PTR(-ENOENT);
-				goto out;
 			}
+			break;
 		}
 	}
 
-out:
 	mutex_unlock(&nvmem_lookup_mutex);
 	return cell;
 }
@@ -965,12 +996,14 @@ out:
 static struct nvmem_cell *
 nvmem_find_cell_by_node(struct nvmem_device *nvmem, struct device_node *np)
 {
-	struct nvmem_cell *cell = NULL;
+	struct nvmem_cell *iter, *cell = NULL;
 
 	mutex_lock(&nvmem_mutex);
-	list_for_each_entry(cell, &nvmem->cells, node) {
-		if (np == cell->np)
+	list_for_each_entry(iter, &nvmem->cells, node) {
+		if (np == iter->np) {
+			cell = iter;
 			break;
+		}
 	}
 	mutex_unlock(&nvmem_mutex);
 
@@ -1002,7 +1035,7 @@ struct nvmem_cell *of_nvmem_cell_get(struct device_node *np, const char *id)
 
 	cell_np = of_parse_phandle(np, "nvmem-cells", index);
 	if (!cell_np)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-ENOENT);
 
 	nvmem_np = of_get_next_parent(cell_np);
 	if (!nvmem_np)

@@ -383,7 +383,8 @@ int sm750_hw_imageblit(struct lynx_accel *accel,
 			write_dpPort(accel, *(unsigned int *)(pSrcbuf + (j * 4)));
 
 		if (ulBytesRemain) {
-			memcpy(ajRemain, pSrcbuf+ul4BytesPerScan, ulBytesRemain);
+			memcpy(ajRemain, pSrcbuf + ul4BytesPerScan,
+			       ulBytesRemain);
 			write_dpPort(accel, *(unsigned int *)ajRemain);
 		}
 

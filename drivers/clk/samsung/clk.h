@@ -26,7 +26,7 @@ struct samsung_clk_provider {
 	void __iomem *reg_base;
 	struct device *dev;
 	spinlock_t lock;
-	/* clk_data must be the last entry due to variable lenght 'hws' array */
+	/* clk_data must be the last entry due to variable length 'hws' array */
 	struct clk_hw_onecell_data clk_data;
 };
 

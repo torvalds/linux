@@ -7,12 +7,12 @@
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
 
@@ -783,13 +783,14 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 		drm_plane_helper_add(&plane->plane,
 				     &rcar_du_plane_helper_funcs);
 
+		drm_plane_create_alpha_property(&plane->plane);
+
 		if (type == DRM_PLANE_TYPE_PRIMARY)
 			continue;
 
 		drm_object_attach_property(&plane->plane.base,
 					   rcdu->props.colorkey,
 					   RCAR_DU_COLORKEY_NONE);
-		drm_plane_create_alpha_property(&plane->plane);
 		drm_plane_create_zpos_property(&plane->plane, 1, 1, 7);
 	}
 

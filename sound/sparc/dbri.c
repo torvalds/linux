@@ -2243,12 +2243,9 @@ static int snd_dbri_pcm(struct snd_card *card)
 	pcm->info_flags = 0;
 	strcpy(pcm->name, card->shortname);
 
-	if ((err = snd_pcm_lib_preallocate_pages_for_all(pcm,
-			SNDRV_DMA_TYPE_CONTINUOUS,
-			snd_dma_continuous_data(GFP_KERNEL),
-			64 * 1024, 64 * 1024)) < 0)
-		return err;
-
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
+					      snd_dma_continuous_data(GFP_KERNEL),
+					      64 * 1024, 64 * 1024);
 	return 0;
 }
 
@@ -2510,16 +2507,10 @@ static void dbri_debug_read(struct snd_info_entry *entry,
 static void snd_dbri_proc(struct snd_card *card)
 {
 	struct snd_dbri *dbri = card->private_data;
-	struct snd_info_entry *entry;
 
-	if (!snd_card_proc_new(card, "regs", &entry))
-		snd_info_set_text_ops(entry, dbri, dbri_regs_read);
-
+	snd_card_ro_proc_new(card, "regs", dbri, dbri_regs_read);
 #ifdef DBRI_DEBUG
-	if (!snd_card_proc_new(card, "debug", &entry)) {
-		snd_info_set_text_ops(entry, dbri, dbri_debug_read);
-		entry->mode = S_IFREG | 0444;	/* Readable only. */
-	}
+	snd_card_ro_proc_new(card, "debug", dbri, dbri_debug_read);
 #endif
 }
 
@@ -2541,8 +2532,8 @@ static int snd_dbri_create(struct snd_card *card,
 	dbri->op = op;
 	dbri->irq = irq;
 
-	dbri->dma = dma_zalloc_coherent(&op->dev, sizeof(struct dbri_dma),
-					&dbri->dma_dvma, GFP_KERNEL);
+	dbri->dma = dma_alloc_coherent(&op->dev, sizeof(struct dbri_dma),
+				       &dbri->dma_dvma, GFP_KERNEL);
 	if (!dbri->dma)
 		return -ENOMEM;
 

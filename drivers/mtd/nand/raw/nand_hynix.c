@@ -80,11 +80,11 @@ static bool hynix_nand_has_valid_jedecid(struct nand_chip *chip)
 
 static int hynix_nand_cmd_op(struct nand_chip *chip, u8 cmd)
 {
-	if (chip->exec_op) {
+	if (nand_has_exec_op(chip)) {
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(cmd, 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		return nand_exec_op(chip, &op);
 	}
@@ -98,12 +98,12 @@ static int hynix_nand_reg_write_op(struct nand_chip *chip, u8 addr, u8 val)
 {
 	u16 column = ((u16)addr << 8) | addr;
 
-	if (chip->exec_op) {
+	if (nand_has_exec_op(chip)) {
 		struct nand_op_instr instrs[] = {
 			NAND_OP_ADDR(1, &addr, 0),
 			NAND_OP_8BIT_DATA_OUT(1, &val, 0),
 		};
-		struct nand_operation op = NAND_OPERATION(instrs);
+		struct nand_operation op = NAND_OPERATION(chip->cur_cs, instrs);
 
 		return nand_exec_op(chip, &op);
 	}

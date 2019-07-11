@@ -96,8 +96,8 @@ static int ads7871_write_reg8(struct spi_device *spi, int reg, u8 val)
 	return spi_write(spi, tmp, sizeof(tmp));
 }
 
-static ssize_t show_voltage(struct device *dev,
-		struct device_attribute *da, char *buf)
+static ssize_t voltage_show(struct device *dev, struct device_attribute *da,
+			    char *buf)
 {
 	struct ads7871_data *pdata = dev_get_drvdata(dev);
 	struct spi_device *spi = pdata->spi;
@@ -138,14 +138,14 @@ static ssize_t show_voltage(struct device *dev,
 	}
 }
 
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, show_voltage, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, show_voltage, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, show_voltage, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, show_voltage, NULL, 3);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, show_voltage, NULL, 4);
-static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, show_voltage, NULL, 5);
-static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, show_voltage, NULL, 6);
-static SENSOR_DEVICE_ATTR(in7_input, S_IRUGO, show_voltage, NULL, 7);
+static SENSOR_DEVICE_ATTR_RO(in0_input, voltage, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_input, voltage, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_input, voltage, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_input, voltage, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_input, voltage, 4);
+static SENSOR_DEVICE_ATTR_RO(in5_input, voltage, 5);
+static SENSOR_DEVICE_ATTR_RO(in6_input, voltage, 6);
+static SENSOR_DEVICE_ATTR_RO(in7_input, voltage, 7);
 
 static struct attribute *ads7871_attrs[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,

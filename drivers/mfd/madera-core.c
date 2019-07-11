@@ -15,6 +15,7 @@
 #include <linux/gpio.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
@@ -155,7 +156,7 @@ static int madera_wait_for_boot(struct madera *madera)
 		usleep_range(MADERA_BOOT_POLL_INTERVAL_USEC / 2,
 			     MADERA_BOOT_POLL_INTERVAL_USEC);
 		regmap_read(madera->regmap, MADERA_IRQ1_RAW_STATUS_1, &val);
-	};
+	}
 
 	if (!(val & MADERA_BOOT_DONE_STS1)) {
 		dev_err(madera->dev, "Polling BOOT_DONE_STS timed out\n");
@@ -357,6 +358,8 @@ int madera_dev_init(struct madera *madera)
 
 	dev_set_drvdata(madera->dev, madera);
 	BLOCKING_INIT_NOTIFIER_HEAD(&madera->notifier);
+	mutex_init(&madera->dapm_ptr_lock);
+
 	madera_set_micbias_info(madera);
 
 	/*

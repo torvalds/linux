@@ -773,11 +773,8 @@ static void release_napi(struct ibmvnic_adapter *adapter)
 		return;
 
 	for (i = 0; i < adapter->num_active_rx_napi; i++) {
-		if (&adapter->napi[i]) {
-			netdev_dbg(adapter->netdev,
-				   "Releasing napi[%d]\n", i);
-			netif_napi_del(&adapter->napi[i]);
-		}
+		netdev_dbg(adapter->netdev, "Releasing napi[%d]\n", i);
+		netif_napi_del(&adapter->napi[i]);
 	}
 
 	kfree(adapter->napi);
@@ -1888,6 +1885,7 @@ static int do_hard_reset(struct ibmvnic_adapter *adapter,
 	 */
 	adapter->state = VNIC_PROBED;
 
+	reinit_completion(&adapter->init_done);
 	rc = init_crq_queue(adapter);
 	if (rc) {
 		netdev_err(adapter->netdev,
@@ -3764,6 +3762,7 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
 	struct ibmvnic_query_ip_offload_buffer *buf = &adapter->ip_offload_buf;
+	netdev_features_t old_hw_features = 0;
 	union ibmvnic_crq crq;
 	int i;
 
@@ -3839,24 +3838,41 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 	adapter->ip_offload_ctrl.large_rx_ipv4 = 0;
 	adapter->ip_offload_ctrl.large_rx_ipv6 = 0;
 
-	adapter->netdev->features = NETIF_F_SG | NETIF_F_GSO;
+	if (adapter->state != VNIC_PROBING) {
+		old_hw_features = adapter->netdev->hw_features;
+		adapter->netdev->hw_features = 0;
+	}
+
+	adapter->netdev->hw_features = NETIF_F_SG | NETIF_F_GSO | NETIF_F_GRO;
 
 	if (buf->tcp_ipv4_chksum || buf->udp_ipv4_chksum)
-		adapter->netdev->features |= NETIF_F_IP_CSUM;
+		adapter->netdev->hw_features |= NETIF_F_IP_CSUM;
 
 	if (buf->tcp_ipv6_chksum || buf->udp_ipv6_chksum)
-		adapter->netdev->features |= NETIF_F_IPV6_CSUM;
+		adapter->netdev->hw_features |= NETIF_F_IPV6_CSUM;
 
 	if ((adapter->netdev->features &
 	    (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)))
-		adapter->netdev->features |= NETIF_F_RXCSUM;
+		adapter->netdev->hw_features |= NETIF_F_RXCSUM;
 
 	if (buf->large_tx_ipv4)
-		adapter->netdev->features |= NETIF_F_TSO;
+		adapter->netdev->hw_features |= NETIF_F_TSO;
 	if (buf->large_tx_ipv6)
-		adapter->netdev->features |= NETIF_F_TSO6;
+		adapter->netdev->hw_features |= NETIF_F_TSO6;
 
-	adapter->netdev->hw_features |= adapter->netdev->features;
+	if (adapter->state == VNIC_PROBING) {
+		adapter->netdev->features |= adapter->netdev->hw_features;
+	} else if (old_hw_features != adapter->netdev->hw_features) {
+		netdev_features_t tmp = 0;
+
+		/* disable features no longer supported */
+		adapter->netdev->features &= adapter->netdev->hw_features;
+		/* turn on features now supported if previously enabled */
+		tmp = (old_hw_features ^ adapter->netdev->hw_features) &
+			adapter->netdev->hw_features;
+		adapter->netdev->features |=
+				tmp & adapter->netdev->wanted_features;
+	}
 
 	memset(&crq, 0, sizeof(crq));
 	crq.control_ip_offload.first = IBMVNIC_CRQ_CMD;
@@ -4628,7 +4644,7 @@ static int ibmvnic_reset_init(struct ibmvnic_adapter *adapter)
 	old_num_rx_queues = adapter->req_rx_queues;
 	old_num_tx_queues = adapter->req_tx_queues;
 
-	init_completion(&adapter->init_done);
+	reinit_completion(&adapter->init_done);
 	adapter->init_done_rc = 0;
 	ibmvnic_send_crq_init(adapter);
 	if (!wait_for_completion_timeout(&adapter->init_done, timeout)) {
@@ -4683,7 +4699,6 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 
 	adapter->from_passive_init = false;
 
-	init_completion(&adapter->init_done);
 	adapter->init_done_rc = 0;
 	ibmvnic_send_crq_init(adapter);
 	if (!wait_for_completion_timeout(&adapter->init_done, timeout)) {
@@ -4762,6 +4777,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	INIT_WORK(&adapter->ibmvnic_reset, __ibmvnic_reset);
 	INIT_LIST_HEAD(&adapter->rwi_list);
 	spin_lock_init(&adapter->rwi_lock);
+	init_completion(&adapter->init_done);
 	adapter->resetting = false;
 
 	adapter->mac_change_pending = false;

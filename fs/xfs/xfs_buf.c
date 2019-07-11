@@ -776,13 +776,24 @@ _xfs_buf_read(
 }
 
 /*
- * If the caller passed in an ops structure and the buffer doesn't have ops
- * assigned, set the ops and use them to verify the contents.  If the contents
- * cannot be verified, we'll clear XBF_DONE.  We assume the buffer has no
- * recorded errors and is already in XBF_DONE state.
+ * Reverify a buffer found in cache without an attached ->b_ops.
+ *
+ * If the caller passed an ops structure and the buffer doesn't have ops
+ * assigned, set the ops and use it to verify the contents. If verification
+ * fails, clear XBF_DONE. We assume the buffer has no recorded errors and is
+ * already in XBF_DONE state on entry.
+ *
+ * Under normal operations, every in-core buffer is verified on read I/O
+ * completion. There are two scenarios that can lead to in-core buffers without
+ * an assigned ->b_ops. The first is during log recovery of buffers on a V4
+ * filesystem, though these buffers are purged at the end of recovery. The
+ * other is online repair, which intentionally reads with a NULL buffer ops to
+ * run several verifiers across an in-core buffer in order to establish buffer
+ * type.  If repair can't establish that, the buffer will be left in memory
+ * with NULL buffer ops.
  */
 int
-xfs_buf_ensure_ops(
+xfs_buf_reverify(
 	struct xfs_buf		*bp,
 	const struct xfs_buf_ops *ops)
 {
@@ -824,7 +835,7 @@ xfs_buf_read_map(
 		return bp;
 	}
 
-	xfs_buf_ensure_ops(bp, ops);
+	xfs_buf_reverify(bp, ops);
 
 	if (flags & XBF_ASYNC) {
 		/*
@@ -1536,8 +1547,7 @@ __xfs_buf_submit(
 		xfs_buf_ioerror(bp, -EIO);
 		bp->b_flags &= ~XBF_DONE;
 		xfs_buf_stale(bp);
-		if (bp->b_flags & XBF_ASYNC)
-			xfs_buf_ioend(bp);
+		xfs_buf_ioend(bp);
 		return -EIO;
 	}
 
@@ -1992,7 +2002,6 @@ xfs_buf_delwri_submit_buffers(
 	struct list_head	*wait_list)
 {
 	struct xfs_buf		*bp, *n;
-	LIST_HEAD		(submit_list);
 	int			pinned = 0;
 	struct blk_plug		plug;
 
@@ -2194,4 +2203,41 @@ void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
 		lru_ref = 0;
 
 	atomic_set(&bp->b_lru_ref, lru_ref);
+}
+
+/*
+ * Verify an on-disk magic value against the magic value specified in the
+ * verifier structure. The verifier magic is in disk byte order so the caller is
+ * expected to pass the value directly from disk.
+ */
+bool
+xfs_verify_magic(
+	struct xfs_buf		*bp,
+	__be32			dmagic)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	int			idx;
+
+	idx = xfs_sb_version_hascrc(&mp->m_sb);
+	if (unlikely(WARN_ON(!bp->b_ops || !bp->b_ops->magic[idx])))
+		return false;
+	return dmagic == bp->b_ops->magic[idx];
+}
+/*
+ * Verify an on-disk magic value against the magic value specified in the
+ * verifier structure. The verifier magic is in disk byte order so the caller is
+ * expected to pass the value directly from disk.
+ */
+bool
+xfs_verify_magic16(
+	struct xfs_buf		*bp,
+	__be16			dmagic)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	int			idx;
+
+	idx = xfs_sb_version_hascrc(&mp->m_sb);
+	if (unlikely(WARN_ON(!bp->b_ops || !bp->b_ops->magic16[idx])))
+		return false;
+	return dmagic == bp->b_ops->magic16[idx];
 }

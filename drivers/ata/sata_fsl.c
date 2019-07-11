@@ -729,8 +729,8 @@ static int sata_fsl_port_start(struct ata_port *ap)
 	if (!pp)
 		return -ENOMEM;
 
-	mem = dma_zalloc_coherent(dev, SATA_FSL_PORT_PRIV_DMA_SZ, &mem_dma,
-				  GFP_KERNEL);
+	mem = dma_alloc_coherent(dev, SATA_FSL_PORT_PRIV_DMA_SZ, &mem_dma,
+				 GFP_KERNEL);
 	if (!mem) {
 		kfree(pp);
 		return -ENOMEM;

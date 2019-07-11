@@ -1,18 +1,5 @@
-/*
- * Copyright (c) 2012-2012 Quantenna Communications, Inc.
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+/* Copyright (c) 2015-2016 Quantenna Communications. All rights reserved. */
 
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
@@ -66,9 +53,11 @@ static const u32 qtnf_cipher_suites[] = {
 static const struct ieee80211_txrx_stypes
 qtnf_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	[NL80211_IFTYPE_STATION] = {
-		.tx = BIT(IEEE80211_STYPE_ACTION >> 4),
+		.tx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4),
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
-		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4),
+		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4),
 	},
 	[NL80211_IFTYPE_AP] = {
 		.tx = BIT(IEEE80211_STYPE_ACTION >> 4),
@@ -122,7 +111,8 @@ qtnf_change_virtual_intf(struct wiphy *wiphy,
 			 struct vif_params *params)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
-	u8 *mac_addr;
+	u8 *mac_addr = NULL;
+	int use4addr = 0;
 	int ret;
 
 	ret = qtnf_validate_iface_combinations(wiphy, vif, type);
@@ -132,14 +122,14 @@ qtnf_change_virtual_intf(struct wiphy *wiphy,
 		return ret;
 	}
 
-	if (params)
+	if (params) {
 		mac_addr = params->macaddr;
-	else
-		mac_addr = NULL;
+		use4addr = params->use_4addr;
+	}
 
 	qtnf_scan_done(vif->mac, true);
 
-	ret = qtnf_cmd_send_change_intf_type(vif, type, mac_addr);
+	ret = qtnf_cmd_send_change_intf_type(vif, type, use4addr, mac_addr);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to change type to %d\n",
 		       vif->mac->macid, vif->vifid, type);
@@ -190,6 +180,7 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 	struct qtnf_wmac *mac;
 	struct qtnf_vif *vif;
 	u8 *mac_addr = NULL;
+	int use4addr = 0;
 	int ret;
 
 	mac = wiphy_priv(wiphy);
@@ -225,10 +216,12 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 		return ERR_PTR(-ENOTSUPP);
 	}
 
-	if (params)
+	if (params) {
 		mac_addr = params->macaddr;
+		use4addr = params->use_4addr;
+	}
 
-	ret = qtnf_cmd_send_add_intf(vif, type, mac_addr);
+	ret = qtnf_cmd_send_add_intf(vif, type, use4addr, mac_addr);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to add VIF %pM\n",
 		       mac->macid, vif->vifid, mac_addr);
@@ -357,11 +350,6 @@ static int qtnf_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	if (!vif) {
 		pr_err("MAC%u: primary VIF is not configured\n", mac->macid);
 		return -EFAULT;
-	}
-
-	if (changed & (WIPHY_PARAM_RETRY_LONG | WIPHY_PARAM_RETRY_SHORT)) {
-		pr_err("MAC%u: can't modify retry params\n", mac->macid);
-		return -EOPNOTSUPP;
 	}
 
 	ret = qtnf_cmd_send_update_phy_params(mac, changed);
@@ -650,6 +638,12 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
+	if (sme->auth_type == NL80211_AUTHTYPE_SAE &&
+	    !(sme->flags & CONNECT_REQ_EXTERNAL_AUTH_SUPPORT)) {
+		pr_err("can not offload authentication to userspace\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (sme->bssid)
 		ether_addr_copy(vif->bssid, sme->bssid);
 	else
@@ -658,6 +652,30 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 	ret = qtnf_cmd_send_connect(vif, sme);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to connect\n",
+		       vif->mac->macid, vif->vifid);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
+static int
+qtnf_external_auth(struct wiphy *wiphy, struct net_device *dev,
+		   struct cfg80211_external_auth_params *auth)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	int ret;
+
+	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
+
+	if (!ether_addr_equal(vif->bssid, auth->bssid))
+		pr_warn("unexpected bssid: %pM", auth->bssid);
+
+	ret = qtnf_cmd_send_external_auth(vif, auth);
+	if (ret) {
+		pr_err("VIF%u.%u: failed to report external auth\n",
 		       vif->mac->macid, vif->vifid);
 		goto out;
 	}
@@ -960,6 +978,7 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.set_default_mgmt_key	= qtnf_set_default_mgmt_key,
 	.scan			= qtnf_scan,
 	.connect		= qtnf_connect,
+	.external_auth		= qtnf_external_auth,
 	.disconnect		= qtnf_disconnect,
 	.dump_survey		= qtnf_dump_survey,
 	.get_channel		= qtnf_get_channel,
@@ -1107,7 +1126,8 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
-			WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+			WIPHY_FLAG_HAS_CHANNEL_SWITCH |
+			WIPHY_FLAG_4ADDR_STATION;
 	wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
@@ -1137,6 +1157,9 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 
 	if (!(hw_info->hw_capab & QLINK_HW_CAPAB_OBSS_SCAN))
 		wiphy->features |= NL80211_FEATURE_NEED_OBSS_SCAN;
+
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_SAE)
+		wiphy->features |= NL80211_FEATURE_SAE;
 
 #ifdef CONFIG_PM
 	if (macinfo->wowlan)

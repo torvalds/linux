@@ -386,7 +386,7 @@ get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 	struct tep_format_field *field;
 
 	if (!evsel->tp_format) {
-		struct tep_event_format *tp_format;
+		struct tep_event *tp_format;
 
 		tp_format = trace_event__tp_format_id(evsel->attr.config);
 		if (!tp_format)
@@ -939,7 +939,8 @@ static PyObject *pyrf_evlist__get_pollfd(struct pyrf_evlist *pevlist,
 
 		file = PyFile_FromFile(fp, "perf", "r", NULL);
 #else
-		file = PyFile_FromFd(evlist->pollfd.entries[i].fd, "perf", "r", -1, NULL, NULL, NULL, 1);
+		file = PyFile_FromFd(evlist->pollfd.entries[i].fd, "perf", "r", -1,
+				     NULL, NULL, NULL, 0);
 #endif
 		if (file == NULL)
 			goto free_list;
@@ -1240,7 +1241,7 @@ static struct {
 static PyObject *pyrf__tracepoint(struct pyrf_evsel *pevsel,
 				  PyObject *args, PyObject *kwargs)
 {
-	struct tep_event_format *tp_format;
+	struct tep_event *tp_format;
 	static char *kwlist[] = { "sys", "name", NULL };
 	char *sys  = NULL;
 	char *name = NULL;

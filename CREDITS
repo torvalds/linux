@@ -842,10 +842,9 @@ D: ax25-utils maintainer.
 
 N: Helge Deller
 E: deller@gmx.de
-E: hdeller@redhat.de
-D: PA-RISC Linux hacker, LASI-, ASP-, WAX-, LCD/LED-driver
-S: Schimmelsrain 1
-S: D-69231 Rauenberg
+W: http://www.parisc-linux.org/
+D: PA-RISC Linux architecture maintainer
+D: LASI-, ASP-, WAX-, LCD/LED-driver
 S: Germany
 
 N: Jean Delvare
@@ -1222,7 +1221,7 @@ S: Brazil
 
 N: Oded Gabbay
 E: oded.gabbay@gmail.com
-D: AMD KFD maintainer
+D: HabanaLabs and AMD KFD maintainer
 S: 12 Shraga Raphaeli
 S: Petah-Tikva, 4906418
 S: Israel
@@ -1361,7 +1360,7 @@ S: Stellenbosch, Western Cape
 S: South Africa
 
 N: Grant Grundler
-E: grundler@parisc-linux.org
+E: grantgrundler@gmail.com
 W: http://obmouse.sourceforge.net/
 W: http://www.parisc-linux.org/
 D: obmouse - rewrote Olivier Florent's Omnibook 600 "pop-up" mouse driver
@@ -2208,6 +2207,12 @@ N: Christopher Li
 E: sparse@chrisli.org
 D: Sparse maintainer 2009 - 2018
 
+N: Shaohua Li
+D: Worked on many parts of the kernel, from core x86, ACPI, PCI, KVM, MM,
+D: and much more. He was the maintainer of MD from 2016 to 2018. Shaohua
+D: passed away late 2018, he will be greatly missed.
+W: https://www.spinics.net/lists/raid/msg61993.html
+
 N: Stephan Linz
 E: linz@mazet.de
 E: Stephan.Linz@gmx.de
@@ -2486,7 +2491,7 @@ S: Syracuse, New York 13206
 S: USA
 
 N: Kyle McMartin
-E: kyle@parisc-linux.org
+E: kyle@mcmartin.ca
 D: Linux/PARISC hacker
 D: AD1889 sound driver
 S: Ottawa, Canada
@@ -3774,14 +3779,13 @@ S: 21513 Conradia Ct
 S: Cupertino, CA 95014
 S: USA
 
-N: Thibaut Varene
-E: T-Bone@parisc-linux.org
-W: http://www.parisc-linux.org/~varenet/
-P: 1024D/B7D2F063 E67C 0D43 A75E 12A5 BB1C  FA2F 1E32 C3DA B7D2 F063
+N: Thibaut Varène
+E: hacks+kernel@slashdirt.org
+W: http://hacks.slashdirt.org/
 D: PA-RISC port minion, PDC and GSCPS2 drivers, debuglocks and other bits
 D: Some ARM at91rm9200 bits, S1D13XXX FB driver, random patches here and there
 D: AD1889 sound driver
-S: Paris, France
+S: France
 
 N: Heikki Vatiainen
 E: hessu@cs.tut.fi

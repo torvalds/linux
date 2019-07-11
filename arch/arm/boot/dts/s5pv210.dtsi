@@ -25,6 +25,8 @@
 
 	aliases {
 		csis0 = &csis0;
+		dmc0 = &dmc0;
+		dmc1 = &dmc1;
 		fimc0 = &fimc0;
 		fimc1 = &fimc1;
 		fimc2 = &fimc2;
@@ -78,7 +80,7 @@
 			};
 		};
 
-		onenand: onenand@b0000000 {
+		onenand: onenand@b0600000 {
 			compatible = "samsung,s5pv210-onenand";
 			reg = <0xb0600000 0x2000>,
 				<0xb0000000 0x20000>,
@@ -511,7 +513,7 @@
 		};
 
 		fimd: fimd@f8000000 {
-			compatible = "samsung,exynos4210-fimd";
+			compatible = "samsung,s5pv210-fimd";
 			interrupt-parent = <&vic2>;
 			reg = <0xf8000000 0x20000>;
 			interrupt-names = "fifo", "vsync", "lcd_sys";
@@ -519,6 +521,16 @@
 			clocks = <&clocks SCLK_FIMD>, <&clocks CLK_FIMD>;
 			clock-names = "sclk_fimd", "fimd";
 			status = "disabled";
+		};
+
+		dmc0: dmc@f0000000 {
+			compatible = "samsung,s5pv210-dmc";
+			reg = <0xf0000000 0x1000>;
+		};
+
+		dmc1: dmc@f1400000 {
+			compatible = "samsung,s5pv210-dmc";
+			reg = <0xf1400000 0x1000>;
 		};
 
 		g2d: g2d@fa000000 {
@@ -540,6 +552,15 @@
 			#dma-cells = <1>;
 			#dma-channels = <8>;
 			#dma-requests = <1>;
+		};
+
+		rotator: rotator@fa300000 {
+			compatible = "samsung,s5pv210-rotator";
+			reg = <0xfa300000 0x1000>;
+			interrupt-parent = <&vic2>;
+			interrupts = <4>;
+			clocks = <&clocks CLK_ROTATOR>;
+			clock-names = "rotator";
 		};
 
 		i2c1: i2c@fab00000 {
@@ -626,6 +647,15 @@
 				samsung,mainscaler-ext;
 				samsung,lcd-wb;
 			};
+		};
+
+		jpeg_codec: jpeg-codec@fb600000 {
+			compatible = "samsung,s5pv210-jpeg";
+			reg = <0xfb600000 0x1000>;
+			interrupt-parent = <&vic2>;
+			interrupts = <8>;
+			clocks = <&clocks CLK_JPEG>;
+			clock-names = "jpeg";
 		};
 	};
 };

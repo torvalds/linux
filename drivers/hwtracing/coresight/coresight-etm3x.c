@@ -363,15 +363,16 @@ static int etm_enable_hw(struct etm_drvdata *drvdata)
 
 	CS_UNLOCK(drvdata->base);
 
+	rc = coresight_claim_device_unlocked(drvdata->base);
+	if (rc)
+		goto done;
+
 	/* Turn engine on */
 	etm_clr_pwrdwn(drvdata);
 	/* Apply power to trace registers */
 	etm_set_pwrup(drvdata);
 	/* Make sure all registers are accessible */
 	etm_os_unlock(drvdata);
-	rc = coresight_claim_device_unlocked(drvdata->base);
-	if (rc)
-		goto done;
 
 	etm_set_prog(drvdata);
 
@@ -422,8 +423,6 @@ static int etm_enable_hw(struct etm_drvdata *drvdata)
 	etm_clr_prog(drvdata);
 
 done:
-	if (rc)
-		etm_set_pwrdwn(drvdata);
 	CS_LOCK(drvdata->base);
 
 	dev_dbg(drvdata->dev, "cpu: %d enable smp call done: %d\n",
@@ -577,9 +576,9 @@ static void etm_disable_hw(void *info)
 	for (i = 0; i < drvdata->nr_cntr; i++)
 		config->cntr_val[i] = etm_readl(drvdata, ETMCNTVRn(i));
 
+	etm_set_pwrdwn(drvdata);
 	coresight_disclaim_device_unlocked(drvdata->base);
 
-	etm_set_pwrdwn(drvdata);
 	CS_LOCK(drvdata->base);
 
 	dev_dbg(drvdata->dev, "cpu: %d disable smp call done\n", drvdata->cpu);
@@ -602,6 +601,7 @@ static void etm_disable_perf(struct coresight_device *csdev)
 	 * power down the tracer.
 	 */
 	etm_set_pwrdwn(drvdata);
+	coresight_disclaim_device_unlocked(drvdata->base);
 
 	CS_LOCK(drvdata->base);
 }
@@ -871,7 +871,7 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	pm_runtime_put(&adev->dev);
-	dev_info(dev, "%s initialized\n", (char *)id->data);
+	dev_info(dev, "%s initialized\n", (char *)coresight_get_uci_data(id));
 	if (boot_enable) {
 		coresight_enable(drvdata->csdev);
 		drvdata->boot_enable = true;
@@ -915,36 +915,18 @@ static const struct dev_pm_ops etm_dev_pm_ops = {
 };
 
 static const struct amba_id etm_ids[] = {
-	{	/* ETM 3.3 */
-		.id	= 0x000bb921,
-		.mask	= 0x000fffff,
-		.data	= "ETM 3.3",
-	},
-	{	/* ETM 3.5 - Cortex-A5 */
-		.id	= 0x000bb955,
-		.mask	= 0x000fffff,
-		.data	= "ETM 3.5",
-	},
-	{	/* ETM 3.5 */
-		.id	= 0x000bb956,
-		.mask	= 0x000fffff,
-		.data	= "ETM 3.5",
-	},
-	{	/* PTM 1.0 */
-		.id	= 0x000bb950,
-		.mask	= 0x000fffff,
-		.data	= "PTM 1.0",
-	},
-	{	/* PTM 1.1 */
-		.id	= 0x000bb95f,
-		.mask	= 0x000fffff,
-		.data	= "PTM 1.1",
-	},
-	{	/* PTM 1.1 Qualcomm */
-		.id	= 0x000b006f,
-		.mask	= 0x000fffff,
-		.data	= "PTM 1.1",
-	},
+	/* ETM 3.3 */
+	CS_AMBA_ID_DATA(0x000bb921, "ETM 3.3"),
+	/* ETM 3.5 - Cortex-A5 */
+	CS_AMBA_ID_DATA(0x000bb955, "ETM 3.5"),
+	/* ETM 3.5 */
+	CS_AMBA_ID_DATA(0x000bb956, "ETM 3.5"),
+	/* PTM 1.0 */
+	CS_AMBA_ID_DATA(0x000bb950, "PTM 1.0"),
+	/* PTM 1.1 */
+	CS_AMBA_ID_DATA(0x000bb95f, "PTM 1.1"),
+	/* PTM 1.1 Qualcomm */
+	CS_AMBA_ID_DATA(0x000b006f, "PTM 1.1"),
 	{ 0, 0},
 };
 

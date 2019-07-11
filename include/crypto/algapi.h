@@ -143,7 +143,9 @@ extern const struct crypto_type crypto_blkcipher_type;
 void crypto_mod_put(struct crypto_alg *alg);
 
 int crypto_register_template(struct crypto_template *tmpl);
+int crypto_register_templates(struct crypto_template *tmpls, int count);
 void crypto_unregister_template(struct crypto_template *tmpl);
+void crypto_unregister_templates(struct crypto_template *tmpls, int count);
 struct crypto_template *crypto_lookup_template(const char *name);
 
 int crypto_register_instance(struct crypto_template *tmpl,
@@ -185,10 +187,8 @@ static inline struct crypto_alg *crypto_attr_alg(struct rtattr *rta,
 int crypto_attr_u32(struct rtattr *rta, u32 *num);
 int crypto_inst_setname(struct crypto_instance *inst, const char *name,
 			struct crypto_alg *alg);
-void *crypto_alloc_instance2(const char *name, struct crypto_alg *alg,
-			     unsigned int head);
-struct crypto_instance *crypto_alloc_instance(const char *name,
-					      struct crypto_alg *alg);
+void *crypto_alloc_instance(const char *name, struct crypto_alg *alg,
+			    unsigned int head);
 
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
 int crypto_enqueue_request(struct crypto_queue *queue,

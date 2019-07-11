@@ -42,7 +42,7 @@
  *   r12:     caller save
  *   rest:    callee save
  */
-ENTRY(kvm_call_hyp)
+ENTRY(__kvm_call_hyp)
 	hvc	#0
 	bx	lr
-ENDPROC(kvm_call_hyp)
+ENDPROC(__kvm_call_hyp)

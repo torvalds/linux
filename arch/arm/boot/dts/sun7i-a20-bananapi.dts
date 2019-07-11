@@ -76,8 +76,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_bananapi>;
 
 		green {
 			label = "bananapi:green:usr";
@@ -87,8 +85,6 @@
 
 	reg_gmac_3v3: gmac-3v3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac_power_pin_bananapi>;
 		regulator-name = "gmac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -134,7 +130,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_rgmii_a>;
+	pinctrl-0 = <&gmac_rgmii_pins>;
 	phy = <&phy1>;
 	phy-mode = "rgmii";
 	phy-supply = <&reg_gmac_3v3>;
@@ -156,8 +152,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -168,20 +162,16 @@
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 };
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
+	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_bananapi>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 10 GPIO_ACTIVE_LOW>; /* PH10 */
@@ -201,6 +191,11 @@
 };
 
 &pio {
+	vcc-pa-supply = <&reg_vcc3v3>;
+	vcc-pc-supply = <&reg_vcc3v3>;
+	vcc-pe-supply = <&reg_vcc3v3>;
+	vcc-pf-supply = <&reg_vcc3v3>;
+	vcc-pg-supply = <&reg_vcc3v3>;
 	gpio-line-names =
 		/* PA */
 		"ERXD3", "ERXD2", "ERXD1", "ERXD0", "ETXD3",
@@ -252,26 +247,10 @@
 		"IO-6", "IO-3", "IO-2", "IO-0", "", "", "", "",
 		"", "", "", "", "", "", "", "";
 
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
+	usb0_id_detect_pin: usb0-id-detect-pin {
 		pins = "PH4";
 		function = "gpio_in";
 		bias-pull-up;
-	};
-
-	mmc0_cd_pin_bananapi: mmc0_cd_pin@0 {
-		pins = "PH10";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	gmac_power_pin_bananapi: gmac_power_pin@0 {
-		pins = "PH23";
-		function = "gpio_out";
-	};
-
-	led_pins_bananapi: led_pins@0 {
-		pins = "PH24";
-		function = "gpio_out";
 	};
 };
 
@@ -316,27 +295,27 @@
 
 &spi0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi0_pins_a>,
-		    <&spi0_cs0_pins_a>,
-		    <&spi0_cs1_pins_a>;
+	pinctrl-0 = <&spi0_pi_pins>,
+		    <&spi0_cs0_pi_pin>,
+		    <&spi0_cs1_pi_pin>;
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart3_pins_b>;
+	pinctrl-0 = <&uart3_ph_pins>;
 	status = "okay";
 };
 
 &uart7 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart7_pins_a>;
+	pinctrl-0 = <&uart7_pi_pins>;
 	status = "okay";
 };
 

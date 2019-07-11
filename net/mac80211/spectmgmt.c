@@ -177,6 +177,12 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		csa_ie->chandef = new_vht_chandef;
 	}
 
+	if (elems->max_channel_switch_time)
+		csa_ie->max_switch_time =
+			(elems->max_channel_switch_time[0] << 0) |
+			(elems->max_channel_switch_time[1] <<  8) |
+			(elems->max_channel_switch_time[2] << 16);
+
 	return 0;
 }
 

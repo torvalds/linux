@@ -32,7 +32,7 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.712.30-0"
+#define DRV_MODULE_VERSION      "1.713.36-0"
 #define DRV_MODULE_RELDATE      "2014/02/10"
 #define BNX2X_BC_VER            0x040200
 
@@ -2081,7 +2081,7 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 			    bool is_pf);
 
 #define BNX2X_ILT_ZALLOC(x, y, size)					\
-	x = dma_zalloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL)
+	x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL)
 
 #define BNX2X_ILT_FREE(x, y, size) \
 	do { \

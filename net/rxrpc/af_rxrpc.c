@@ -135,7 +135,7 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *)saddr;
 	struct rxrpc_local *local;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
-	u16 service_id = srx->srx_service;
+	u16 service_id;
 	int ret;
 
 	_enter("%p,%p,%d", rx, saddr, len);
@@ -143,6 +143,7 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	ret = rxrpc_validate_address(rx, srx, len);
 	if (ret < 0)
 		goto error;
+	service_id = srx->srx_service;
 
 	lock_sock(&rx->sk);
 
@@ -370,18 +371,22 @@ EXPORT_SYMBOL(rxrpc_kernel_end_call);
  * rxrpc_kernel_check_life - Check to see whether a call is still alive
  * @sock: The socket the call is on
  * @call: The call to check
+ * @_life: Where to store the life value
  *
  * Allow a kernel service to find out whether a call is still alive - ie. we're
- * getting ACKs from the server.  Returns a number representing the life state
- * which can be compared to that returned by a previous call.
+ * getting ACKs from the server.  Passes back in *_life a number representing
+ * the life state which can be compared to that returned by a previous call and
+ * return true if the call is still alive.
  *
  * If the life state stalls, rxrpc_kernel_probe_life() should be called and
  * then 2RTT waited.
  */
-u32 rxrpc_kernel_check_life(const struct socket *sock,
-			    const struct rxrpc_call *call)
+bool rxrpc_kernel_check_life(const struct socket *sock,
+			     const struct rxrpc_call *call,
+			     u32 *_life)
 {
-	return call->acks_latest;
+	*_life = call->acks_latest;
+	return call->state != RXRPC_CALL_COMPLETE;
 }
 EXPORT_SYMBOL(rxrpc_kernel_check_life);
 
@@ -417,76 +422,6 @@ u32 rxrpc_kernel_get_epoch(struct socket *sock, struct rxrpc_call *call)
 	return call->conn->proto.epoch;
 }
 EXPORT_SYMBOL(rxrpc_kernel_get_epoch);
-
-/**
- * rxrpc_kernel_check_call - Check a call's state
- * @sock: The socket the call is on
- * @call: The call to check
- * @_compl: Where to store the completion state
- * @_abort_code: Where to store any abort code
- *
- * Allow a kernel service to query the state of a call and find out the manner
- * of its termination if it has completed.  Returns -EINPROGRESS if the call is
- * still going, 0 if the call finished successfully, -ECONNABORTED if the call
- * was aborted and an appropriate error if the call failed in some other way.
- */
-int rxrpc_kernel_check_call(struct socket *sock, struct rxrpc_call *call,
-			    enum rxrpc_call_completion *_compl, u32 *_abort_code)
-{
-	if (call->state != RXRPC_CALL_COMPLETE)
-		return -EINPROGRESS;
-	smp_rmb();
-	*_compl = call->completion;
-	*_abort_code = call->abort_code;
-	return call->error;
-}
-EXPORT_SYMBOL(rxrpc_kernel_check_call);
-
-/**
- * rxrpc_kernel_retry_call - Allow a kernel service to retry a call
- * @sock: The socket the call is on
- * @call: The call to retry
- * @srx: The address of the peer to contact
- * @key: The security context to use (defaults to socket setting)
- *
- * Allow a kernel service to try resending a client call that failed due to a
- * network error to a new address.  The Tx queue is maintained intact, thereby
- * relieving the need to re-encrypt any request data that has already been
- * buffered.
- */
-int rxrpc_kernel_retry_call(struct socket *sock, struct rxrpc_call *call,
-			    struct sockaddr_rxrpc *srx, struct key *key)
-{
-	struct rxrpc_conn_parameters cp;
-	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
-	int ret;
-
-	_enter("%d{%d}", call->debug_id, atomic_read(&call->usage));
-
-	if (!key)
-		key = rx->key;
-	if (key && !key->payload.data[0])
-		key = NULL; /* a no-security key */
-
-	memset(&cp, 0, sizeof(cp));
-	cp.local		= rx->local;
-	cp.key			= key;
-	cp.security_level	= 0;
-	cp.exclusive		= false;
-	cp.service_id		= srx->srx_service;
-
-	mutex_lock(&call->user_mutex);
-
-	ret = rxrpc_prepare_call_for_retry(rx, call);
-	if (ret == 0)
-		ret = rxrpc_retry_client_call(rx, call, &cp, srx, GFP_KERNEL);
-
-	mutex_unlock(&call->user_mutex);
-	rxrpc_put_peer(cp.peer);
-	_leave(" = %d", ret);
-	return ret;
-}
-EXPORT_SYMBOL(rxrpc_kernel_retry_call);
 
 /**
  * rxrpc_kernel_new_call_notification - Get notifications of new calls

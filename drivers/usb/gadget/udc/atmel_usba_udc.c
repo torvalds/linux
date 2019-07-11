@@ -88,7 +88,7 @@ static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 	size_t len, remaining, actual = 0;
 	char tmpbuf[38];
 
-	if (!access_ok(VERIFY_WRITE, buf, nbytes))
+	if (!access_ok(buf, nbytes))
 		return -EFAULT;
 
 	inode_lock(file_inode(file));

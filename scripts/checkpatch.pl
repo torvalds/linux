@@ -61,7 +61,7 @@ my $codespellfile = "/usr/share/codespell/dictionary.txt";
 my $conststructsfile = "$D/const_structs.checkpatch";
 my $typedefsfile = "";
 my $color = "auto";
-my $allow_c99_comments = 1;
+my $allow_c99_comments = 1; # Can be overridden by --ignore C99_COMMENT_TOLERANCE
 
 sub help {
 	my ($exitcode) = @_;
@@ -466,8 +466,19 @@ our $logFunctions = qr{(?x:
 	seq_vprintf|seq_printf|seq_puts
 )};
 
+our $allocFunctions = qr{(?x:
+	(?:(?:devm_)?
+		(?:kv|k|v)[czm]alloc(?:_node|_array)? |
+		kstrdup(?:_const)? |
+		kmemdup(?:_nul)?) |
+	(?:\w+)?alloc_skb(?:ip_align)? |
+				# dev_alloc_skb/netdev_alloc_skb, et al
+	dma_alloc_coherent
+)};
+
 our $signature_tags = qr{(?xi:
 	Signed-off-by:|
+	Co-developed-by:|
 	Acked-by:|
 	Tested-by:|
 	Reviewed-by:|
@@ -572,6 +583,27 @@ foreach my $entry (@mode_permission_funcs) {
 	$mode_perms_search .= $entry->[0];
 }
 $mode_perms_search = "(?:${mode_perms_search})";
+
+our %deprecated_apis = (
+	"synchronize_rcu_bh"			=> "synchronize_rcu",
+	"synchronize_rcu_bh_expedited"		=> "synchronize_rcu_expedited",
+	"call_rcu_bh"				=> "call_rcu",
+	"rcu_barrier_bh"			=> "rcu_barrier",
+	"synchronize_sched"			=> "synchronize_rcu",
+	"synchronize_sched_expedited"		=> "synchronize_rcu_expedited",
+	"call_rcu_sched"			=> "call_rcu",
+	"rcu_barrier_sched"			=> "rcu_barrier",
+	"get_state_synchronize_sched"		=> "get_state_synchronize_rcu",
+	"cond_synchronize_sched"		=> "cond_synchronize_rcu",
+);
+
+#Create a search pattern for all these strings to speed up a loop below
+our $deprecated_apis_search = "";
+foreach my $entry (keys %deprecated_apis) {
+	$deprecated_apis_search .= '|' if ($deprecated_apis_search ne "");
+	$deprecated_apis_search .= $entry;
+}
+$deprecated_apis_search = "(?:${deprecated_apis_search})";
 
 our $mode_perms_world_writable = qr{
 	S_IWUGO		|
@@ -989,6 +1021,7 @@ if ($git) {
 }
 
 my $vname;
+$allow_c99_comments = !defined $ignore_type{"C99_COMMENT_TOLERANCE"};
 for my $filename (@ARGV) {
 	my $FILE;
 	if ($git) {
@@ -3015,6 +3048,14 @@ sub process {
 					$comment = '..';
 				}
 
+# check SPDX comment style for .[chsS] files
+				if ($realfile =~ /\.[chsS]$/ &&
+				    $rawline =~ /SPDX-License-Identifier:/ &&
+				    $rawline !~ /^\+\s*\Q$comment\E\s*/) {
+					WARN("SPDX_LICENSE_TAG",
+					     "Improper SPDX comment style for '$realfile', please use '$comment' instead\n" . $herecurr);
+				}
+
 				if ($comment !~ /^$/ &&
 				    $rawline !~ /^\+\Q$comment\E SPDX-License-Identifier: /) {
 					 WARN("SPDX_LICENSE_TAG",
@@ -3031,6 +3072,14 @@ sub process {
 
 # check we are in a valid source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c|s|S|sh|dtsi|dts)$/);
+
+# check for using SPDX-License-Identifier on the wrong line number
+		if ($realline != $checklicenseline &&
+		    $rawline =~ /\bSPDX-License-Identifier:/ &&
+		    substr($line, @-, @+ - @-) eq "$;" x (@+ - @-)) {
+			WARN("SPDX_LICENSE_TAG",
+			     "Misplaced SPDX-License-Identifier tag - use line $checklicenseline instead\n" . $herecurr);
+		}
 
 # line length limit (with some exclusions)
 #
@@ -3869,14 +3918,23 @@ sub process {
 			WARN("STATIC_CONST_CHAR_ARRAY",
 			     "static const char * array should probably be static const char * const\n" .
 				$herecurr);
-               }
+		}
+
+# check for initialized const char arrays that should be static const
+		if ($line =~ /^\+\s*const\s+(char|unsigned\s+char|_*u8|(?:[us]_)?int8_t)\s+\w+\s*\[\s*(?:\w+\s*)?\]\s*=\s*"/) {
+			if (WARN("STATIC_CONST_CHAR_ARRAY",
+				 "const array should probably be static const\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$fixlinenr] =~ s/(^.\s*)const\b/${1}static const/;
+			}
+		}
 
 # check for static char foo[] = "bar" declarations.
 		if ($line =~ /\bstatic\s+char\s+(\w+)\s*\[\s*\]\s*=\s*"/) {
 			WARN("STATIC_CONST_CHAR_ARRAY",
 			     "static char array declaration should probably be static const char\n" .
 				$herecurr);
-               }
+		}
 
 # check for const <foo> const where <foo> is not a pointer or array type
 		if ($sline =~ /\bconst\s+($BasicType)\s+const\b/) {
@@ -5514,7 +5572,8 @@ sub process {
 			my ($s, $c) = ctx_statement_block($linenr - 3, $realcnt, 0);
 #			print("line: <$line>\nprevline: <$prevline>\ns: <$s>\nc: <$c>\n\n\n");
 
-			if ($s =~ /(?:^|\n)[ \+]\s*(?:$Type\s*)?\Q$testval\E\s*=\s*(?:\([^\)]*\)\s*)?\s*(?:devm_)?(?:[kv][czm]alloc(?:_node|_array)?\b|kstrdup|kmemdup|(?:dev_)?alloc_skb)/) {
+			if ($s =~ /(?:^|\n)[ \+]\s*(?:$Type\s*)?\Q$testval\E\s*=\s*(?:\([^\)]*\)\s*)?\s*$allocFunctions\s*\(/ &&
+			    $s !~ /\b__GFP_NOWARN\b/ ) {
 				WARN("OOM_MESSAGE",
 				     "Possible unnecessary 'out of memory' message\n" . $hereprev);
 			}
@@ -5918,7 +5977,7 @@ sub process {
 				while ($fmt =~ /(\%[\*\d\.]*p(\w))/g) {
 					$specifier = $1;
 					$extension = $2;
-					if ($extension !~ /[SsBKRraEhMmIiUDdgVCbGNOx]/) {
+					if ($extension !~ /[SsBKRraEhMmIiUDdgVCbGNOxt]/) {
 						$bad_specifier = $specifier;
 						last;
 					}
@@ -6165,8 +6224,8 @@ sub process {
 			}
 		}
 
-# check for pointless casting of kmalloc return
-		if ($line =~ /\*\s*\)\s*[kv][czm]alloc(_node){0,1}\b/) {
+# check for pointless casting of alloc functions
+		if ($line =~ /\*\s*\)\s*$allocFunctions\b/) {
 			WARN("UNNECESSARY_CASTS",
 			     "unnecessary cast may hide bugs, see http://c-faq.com/malloc/mallocnocast.html\n" . $herecurr);
 		}
@@ -6174,7 +6233,7 @@ sub process {
 # alloc style
 # p = alloc(sizeof(struct foo), ...) should be p = alloc(sizeof(*p), ...)
 		if ($perl_version_ok &&
-		    $line =~ /\b($Lval)\s*\=\s*(?:$balanced_parens)?\s*([kv][mz]alloc(?:_node)?)\s*\(\s*(sizeof\s*\(\s*struct\s+$Lval\s*\))/) {
+		    $line =~ /\b($Lval)\s*\=\s*(?:$balanced_parens)?\s*((?:kv|k|v)[mz]alloc(?:_node)?)\s*\(\s*(sizeof\s*\(\s*struct\s+$Lval\s*\))/) {
 			CHK("ALLOC_SIZEOF_STRUCT",
 			    "Prefer $3(sizeof(*$1)...) over $3($4...)\n" . $herecurr);
 		}
@@ -6337,19 +6396,6 @@ sub process {
 			}
 		}
 
-# check for bool bitfields
-		if ($sline =~ /^.\s+bool\s*$Ident\s*:\s*\d+\s*;/) {
-			WARN("BOOL_BITFIELD",
-			     "Avoid using bool as bitfield.  Prefer bool bitfields as unsigned int or u<8|16|32>\n" . $herecurr);
-		}
-
-# check for bool use in .h files
-		if ($realfile =~ /\.h$/ &&
-		    $sline =~ /^.\s+bool\s*$Ident\s*(?::\s*d+\s*)?;/) {
-			CHK("BOOL_MEMBER",
-			    "Avoid using bool structure members because of possible alignment issues - see: https://lkml.org/lkml/2017/11/21/384\n" . $herecurr);
-		}
-
 # check for semaphores initialized locked
 		if ($line =~ /^.\s*sema_init.+,\W?0\W?\)/) {
 			WARN("CONSIDER_COMPLETION",
@@ -6366,6 +6412,20 @@ sub process {
 		if ($line =~ /^.\s*__initcall\s*\(/) {
 			WARN("USE_DEVICE_INITCALL",
 			     "please use device_initcall() or more appropriate function instead of __initcall() (see include/linux/init.h)\n" . $herecurr);
+		}
+
+# check for spin_is_locked(), suggest lockdep instead
+		if ($line =~ /\bspin_is_locked\(/) {
+			WARN("USE_LOCKDEP",
+			     "Where possible, use lockdep_assert_held instead of assertions based on spin_is_locked\n" . $herecurr);
+		}
+
+# check for deprecated apis
+		if ($line =~ /\b($deprecated_apis_search)\b\s*\(/) {
+			my $deprecated_api = $1;
+			my $new_api = $deprecated_apis{$deprecated_api};
+			WARN("DEPRECATED_API",
+			     "Deprecated use of '$deprecated_api', prefer '$new_api' instead\n" . $herecurr);
 		}
 
 # check for various structs that are normally const (ops, kgdb, device_tree)

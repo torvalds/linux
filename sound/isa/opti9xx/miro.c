@@ -997,10 +997,7 @@ static void snd_miro_proc_read(struct snd_info_entry * entry,
 static void snd_miro_proc_init(struct snd_card *card,
 			       struct snd_miro *miro)
 {
-	struct snd_info_entry *entry;
-
-	if (!snd_card_proc_new(card, "miro", &entry))
-		snd_info_set_text_ops(entry, miro, snd_miro_proc_read);
+	snd_card_ro_proc_new(card, "miro", miro, snd_miro_proc_read);
 }
 
 /*

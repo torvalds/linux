@@ -1094,7 +1094,7 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 		return -EINVAL;
 
 	p = (struct fw_cdev_iso_packet __user *)u64_to_uptr(a->packets);
-	if (!access_ok(VERIFY_READ, p, a->size))
+	if (!access_ok(p, a->size))
 		return -EFAULT;
 
 	end = (void __user *)p + a->size;

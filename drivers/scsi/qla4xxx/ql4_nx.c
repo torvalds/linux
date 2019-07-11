@@ -4052,8 +4052,8 @@ int qla4_8xxx_get_sys_info(struct scsi_qla_host *ha)
 	dma_addr_t sys_info_dma;
 	int status = QLA_ERROR;
 
-	sys_info = dma_zalloc_coherent(&ha->pdev->dev, sizeof(*sys_info),
-				       &sys_info_dma, GFP_KERNEL);
+	sys_info = dma_alloc_coherent(&ha->pdev->dev, sizeof(*sys_info),
+				      &sys_info_dma, GFP_KERNEL);
 	if (sys_info == NULL) {
 		DEBUG2(printk("scsi%ld: %s: Unable to allocate dma buffer.\n",
 		    ha->host_no, __func__));

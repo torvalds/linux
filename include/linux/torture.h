@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Common functions for in-kernel torture tests.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  * Copyright IBM Corporation, 2014
  *
- * Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+ * Author: Paul E. McKenney <paulmck@linux.ibm.com>
  */
 
 #ifndef __LINUX_TORTURE_H
@@ -50,11 +37,12 @@
 	do { if (verbose) pr_alert("%s" TORTURE_FLAG "!!! %s\n", torture_type, s); } while (0)
 
 /* Definitions for online/offline exerciser. */
+typedef void torture_ofl_func(void);
 bool torture_offline(int cpu, long *n_onl_attempts, long *n_onl_successes,
 		     unsigned long *sum_offl, int *min_onl, int *max_onl);
 bool torture_online(int cpu, long *n_onl_attempts, long *n_onl_successes,
 		    unsigned long *sum_onl, int *min_onl, int *max_onl);
-int torture_onoff_init(long ooholdoff, long oointerval);
+int torture_onoff_init(long ooholdoff, long oointerval, torture_ofl_func *f);
 void torture_onoff_stats(void);
 bool torture_onoff_failures(void);
 

@@ -18,15 +18,15 @@
 
 struct nfp_insn_meta *
 nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-		  unsigned int insn_idx, unsigned int n_insns)
+		  unsigned int insn_idx)
 {
 	unsigned int forward, backward, i;
 
 	backward = meta->n - insn_idx;
 	forward = insn_idx - meta->n;
 
-	if (min(forward, backward) > n_insns - insn_idx - 1) {
-		backward = n_insns - insn_idx - 1;
+	if (min(forward, backward) > nfp_prog->n_insns - insn_idx - 1) {
+		backward = nfp_prog->n_insns - insn_idx - 1;
 		meta = nfp_prog_last_meta(nfp_prog);
 	}
 	if (min(forward, backward) > insn_idx && backward > insn_idx) {
@@ -623,13 +623,13 @@ nfp_bpf_check_alu(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	return 0;
 }
 
-static int
-nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
+int nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx,
+		    int prev_insn_idx)
 {
 	struct nfp_prog *nfp_prog = env->prog->aux->offload->dev_priv;
 	struct nfp_insn_meta *meta = nfp_prog->verifier_meta;
 
-	meta = nfp_bpf_goto_meta(nfp_prog, meta, insn_idx, env->prog->len);
+	meta = nfp_bpf_goto_meta(nfp_prog, meta, insn_idx);
 	nfp_prog->verifier_meta = meta;
 
 	if (!nfp_bpf_supported_opcode(meta->insn.code)) {
@@ -690,8 +690,7 @@ nfp_assign_subprog_idx_and_regs(struct bpf_verifier_env *env,
 	return 0;
 }
 
-static unsigned int
-nfp_bpf_get_stack_usage(struct nfp_prog *nfp_prog, unsigned int cnt)
+static unsigned int nfp_bpf_get_stack_usage(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta = nfp_prog_first_meta(nfp_prog);
 	unsigned int max_depth = 0, depth = 0, frame = 0;
@@ -726,7 +725,7 @@ continue_subprog:
 
 		/* Find the callee and start processing it. */
 		meta = nfp_bpf_goto_meta(nfp_prog, meta,
-					 meta->n + 1 + meta->insn.imm, cnt);
+					 meta->n + 1 + meta->insn.imm);
 		idx = meta->subprog_idx;
 		frame++;
 		goto process_subprog;
@@ -745,7 +744,7 @@ continue_subprog:
 	goto continue_subprog;
 }
 
-static int nfp_bpf_finalize(struct bpf_verifier_env *env)
+int nfp_bpf_finalize(struct bpf_verifier_env *env)
 {
 	struct bpf_subprog_info *info;
 	struct nfp_prog *nfp_prog;
@@ -778,8 +777,7 @@ static int nfp_bpf_finalize(struct bpf_verifier_env *env)
 
 	nn = netdev_priv(env->prog->aux->offload->netdev);
 	max_stack = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
-	nfp_prog->stack_size = nfp_bpf_get_stack_usage(nfp_prog,
-						       env->prog->len);
+	nfp_prog->stack_size = nfp_bpf_get_stack_usage(nfp_prog);
 	if (nfp_prog->stack_size > max_stack) {
 		pr_vlog(env, "stack too large: program %dB > FW stack %dB\n",
 			nfp_prog->stack_size, max_stack);
@@ -789,7 +787,60 @@ static int nfp_bpf_finalize(struct bpf_verifier_env *env)
 	return 0;
 }
 
-const struct bpf_prog_offload_ops nfp_bpf_analyzer_ops = {
-	.insn_hook	= nfp_verify_insn,
-	.finalize	= nfp_bpf_finalize,
-};
+int nfp_bpf_opt_replace_insn(struct bpf_verifier_env *env, u32 off,
+			     struct bpf_insn *insn)
+{
+	struct nfp_prog *nfp_prog = env->prog->aux->offload->dev_priv;
+	struct bpf_insn_aux_data *aux_data = env->insn_aux_data;
+	struct nfp_insn_meta *meta = nfp_prog->verifier_meta;
+
+	meta = nfp_bpf_goto_meta(nfp_prog, meta, aux_data[off].orig_idx);
+	nfp_prog->verifier_meta = meta;
+
+	/* conditional jump to jump conversion */
+	if (is_mbpf_cond_jump(meta) &&
+	    insn->code == (BPF_JMP | BPF_JA | BPF_K)) {
+		unsigned int tgt_off;
+
+		tgt_off = off + insn->off + 1;
+
+		if (!insn->off) {
+			meta->jmp_dst = list_next_entry(meta, l);
+			meta->jump_neg_op = false;
+		} else if (meta->jmp_dst->n != aux_data[tgt_off].orig_idx) {
+			pr_vlog(env, "branch hard wire at %d changes target %d -> %d\n",
+				off, meta->jmp_dst->n,
+				aux_data[tgt_off].orig_idx);
+			return -EINVAL;
+		}
+		return 0;
+	}
+
+	pr_vlog(env, "unsupported instruction replacement %hhx -> %hhx\n",
+		meta->insn.code, insn->code);
+	return -EINVAL;
+}
+
+int nfp_bpf_opt_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt)
+{
+	struct nfp_prog *nfp_prog = env->prog->aux->offload->dev_priv;
+	struct bpf_insn_aux_data *aux_data = env->insn_aux_data;
+	struct nfp_insn_meta *meta = nfp_prog->verifier_meta;
+	unsigned int i;
+
+	meta = nfp_bpf_goto_meta(nfp_prog, meta, aux_data[off].orig_idx);
+
+	for (i = 0; i < cnt; i++) {
+		if (WARN_ON_ONCE(&meta->l == &nfp_prog->insns))
+			return -EINVAL;
+
+		/* doesn't count if it already has the flag */
+		if (meta->flags & FLAG_INSN_SKIP_VERIFIER_OPT)
+			i--;
+
+		meta->flags |= FLAG_INSN_SKIP_VERIFIER_OPT;
+		meta = list_next_entry(meta, l);
+	}
+
+	return 0;
+}

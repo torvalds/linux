@@ -8,7 +8,7 @@
 #ifdef CONFIG_NETFILTER_INGRESS
 static inline bool nf_hook_ingress_active(const struct sk_buff *skb)
 {
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 	if (!static_key_false(&nf_hooks_needed[NFPROTO_NETDEV][NF_NETDEV_INGRESS]))
 		return false;
 #endif

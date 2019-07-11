@@ -89,7 +89,7 @@ ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, s
 	if ( (unsigned long)n >= 4096 )
 	{
 		unsigned long __user *buffer = (unsigned long __user *)n;
-		if (!access_ok(VERIFY_READ, buffer, 5*sizeof(unsigned long))
+		if (!access_ok(buffer, 5*sizeof(unsigned long))
 		    || __get_user(n, buffer)
 		    || __get_user(inp, ((fd_set __user * __user *)(buffer+1)))
 		    || __get_user(outp, ((fd_set  __user * __user *)(buffer+2)))
@@ -123,7 +123,7 @@ long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
 				 (u64)len_high << 32 | len_low, advice);
 }
 
-long sys_switch_endian(void)
+SYSCALL_DEFINE0(switch_endian)
 {
 	struct thread_info *ti;
 

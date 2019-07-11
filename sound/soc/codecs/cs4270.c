@@ -29,8 +29,8 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 
 /*
  * The codec isn't really big-endian or little-endian, since the I2S
@@ -642,6 +642,7 @@ static const struct regmap_config cs4270_regmap = {
 	.reg_defaults =		cs4270_reg_defaults,
 	.num_reg_defaults =	ARRAY_SIZE(cs4270_reg_defaults),
 	.cache_type =		REGCACHE_RBTREE,
+	.write_flag_mask =	CS4270_I2C_INCR,
 
 	.readable_reg =		cs4270_reg_is_readable,
 	.volatile_reg =		cs4270_reg_is_volatile,
@@ -658,8 +659,8 @@ static const struct regmap_config cs4270_regmap = {
 static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 	const struct i2c_device_id *id)
 {
-	struct device_node *np = i2c_client->dev.of_node;
 	struct cs4270_private *cs4270;
+	struct gpio_desc *reset_gpiod;
 	unsigned int val;
 	int ret, i;
 
@@ -678,20 +679,11 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 	if (ret < 0)
 		return ret;
 
-	/* See if we have a way to bring the codec out of reset */
-	if (np) {
-		enum of_gpio_flags flags;
-		int gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
-
-		if (gpio_is_valid(gpio)) {
-			ret = devm_gpio_request_one(&i2c_client->dev, gpio,
-				     flags & OF_GPIO_ACTIVE_LOW ?
-					GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
-				     "cs4270 reset");
-			if (ret < 0)
-				return ret;
-		}
-	}
+	reset_gpiod = devm_gpiod_get_optional(&i2c_client->dev, "reset",
+					      GPIOD_OUT_HIGH);
+	if (IS_ERR(reset_gpiod) &&
+	    PTR_ERR(reset_gpiod) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	cs4270->regmap = devm_regmap_init_i2c(i2c_client, &cs4270_regmap);
 	if (IS_ERR(cs4270->regmap))

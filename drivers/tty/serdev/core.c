@@ -15,6 +15,7 @@
 #include <linux/of_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
+#include <linux/sched.h>
 #include <linux/serdev.h>
 #include <linux/slab.h>
 
@@ -216,6 +217,21 @@ void serdev_device_write_wakeup(struct serdev_device *serdev)
 }
 EXPORT_SYMBOL_GPL(serdev_device_write_wakeup);
 
+/**
+ * serdev_device_write_buf() - write data asynchronously
+ * @serdev:	serdev device
+ * @buf:	data to be written
+ * @count:	number of bytes to write
+ *
+ * Write data to the device asynchronously.
+ *
+ * Note that any accepted data has only been buffered by the controller; use
+ * serdev_device_wait_until_sent() to make sure the controller write buffer
+ * has actually been emptied.
+ *
+ * Return: The number of bytes written (less than count if not enough room in
+ * the write buffer), or a negative errno on errors.
+ */
 int serdev_device_write_buf(struct serdev_device *serdev,
 			    const unsigned char *buf, size_t count)
 {
@@ -228,16 +244,41 @@ int serdev_device_write_buf(struct serdev_device *serdev,
 }
 EXPORT_SYMBOL_GPL(serdev_device_write_buf);
 
+/**
+ * serdev_device_write() - write data synchronously
+ * @serdev:	serdev device
+ * @buf:	data to be written
+ * @count:	number of bytes to write
+ * @timeout:	timeout in jiffies, or 0 to wait indefinitely
+ *
+ * Write data to the device synchronously by repeatedly calling
+ * serdev_device_write() until the controller has accepted all data (unless
+ * interrupted by a timeout or a signal).
+ *
+ * Note that any accepted data has only been buffered by the controller; use
+ * serdev_device_wait_until_sent() to make sure the controller write buffer
+ * has actually been emptied.
+ *
+ * Note that this function depends on serdev_device_write_wakeup() being
+ * called in the serdev driver write_wakeup() callback.
+ *
+ * Return: The number of bytes written (less than count if interrupted),
+ * -ETIMEDOUT or -ERESTARTSYS if interrupted before any bytes were written, or
+ * a negative errno on errors.
+ */
 int serdev_device_write(struct serdev_device *serdev,
 			const unsigned char *buf, size_t count,
-			unsigned long timeout)
+			long timeout)
 {
 	struct serdev_controller *ctrl = serdev->ctrl;
+	int written = 0;
 	int ret;
 
-	if (!ctrl || !ctrl->ops->write_buf ||
-	    (timeout && !serdev->ops->write_wakeup))
+	if (!ctrl || !ctrl->ops->write_buf || !serdev->ops->write_wakeup)
 		return -EINVAL;
+
+	if (timeout == 0)
+		timeout = MAX_SCHEDULE_TIMEOUT;
 
 	mutex_lock(&serdev->write_lock);
 	do {
@@ -247,14 +288,29 @@ int serdev_device_write(struct serdev_device *serdev,
 		if (ret < 0)
 			break;
 
+		written += ret;
 		buf += ret;
 		count -= ret;
 
-	} while (count &&
-		 (timeout = wait_for_completion_timeout(&serdev->write_comp,
-							timeout)));
+		if (count == 0)
+			break;
+
+		timeout = wait_for_completion_interruptible_timeout(&serdev->write_comp,
+								    timeout);
+	} while (timeout > 0);
 	mutex_unlock(&serdev->write_lock);
-	return ret < 0 ? ret : (count ? -ETIMEDOUT : 0);
+
+	if (ret < 0)
+		return ret;
+
+	if (timeout <= 0 && written == 0) {
+		if (timeout == -ERESTARTSYS)
+			return -ERESTARTSYS;
+		else
+			return -ETIMEDOUT;
+	}
+
+	return written;
 }
 EXPORT_SYMBOL_GPL(serdev_device_write);
 

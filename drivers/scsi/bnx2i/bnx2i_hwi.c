@@ -1070,8 +1070,8 @@ int bnx2i_alloc_qp_resc(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
 
 	/* Allocate memory area for actual SQ element */
 	ep->qp.sq_virt =
-		dma_zalloc_coherent(&hba->pcidev->dev, ep->qp.sq_mem_size,
-					&ep->qp.sq_phys, GFP_KERNEL);
+		dma_alloc_coherent(&hba->pcidev->dev, ep->qp.sq_mem_size,
+				   &ep->qp.sq_phys, GFP_KERNEL);
 	if (!ep->qp.sq_virt) {
 		printk(KERN_ALERT "bnx2i: unable to alloc SQ BD memory %d\n",
 				  ep->qp.sq_mem_size);
@@ -1106,8 +1106,8 @@ int bnx2i_alloc_qp_resc(struct bnx2i_hba *hba, struct bnx2i_endpoint *ep)
 
 	/* Allocate memory area for actual CQ element */
 	ep->qp.cq_virt =
-		dma_zalloc_coherent(&hba->pcidev->dev, ep->qp.cq_mem_size,
-					&ep->qp.cq_phys, GFP_KERNEL);
+		dma_alloc_coherent(&hba->pcidev->dev, ep->qp.cq_mem_size,
+				   &ep->qp.cq_phys, GFP_KERNEL);
 	if (!ep->qp.cq_virt) {
 		printk(KERN_ALERT "bnx2i: unable to alloc CQ BD memory %d\n",
 				  ep->qp.cq_mem_size);
@@ -1906,7 +1906,6 @@ static int bnx2i_queue_scsi_cmd_resp(struct iscsi_session *session,
 	struct iscsi_task *task;
 	struct scsi_cmnd *sc;
 	int rc = 0;
-	int cpu;
 
 	spin_lock(&session->back_lock);
 	task = iscsi_itt_to_task(bnx2i_conn->cls_conn->dd_data,
@@ -1917,14 +1916,9 @@ static int bnx2i_queue_scsi_cmd_resp(struct iscsi_session *session,
 	}
 	sc = task->sc;
 
-	if (!blk_rq_cpu_valid(sc->request))
-		cpu = smp_processor_id();
-	else
-		cpu = sc->request->cpu;
-
 	spin_unlock(&session->back_lock);
 
-	p = &per_cpu(bnx2i_percpu, cpu);
+	p = &per_cpu(bnx2i_percpu, blk_mq_rq_cpu(sc->request));
 	spin_lock(&p->p_work_lock);
 	if (unlikely(!p->iothread)) {
 		rc = -EINVAL;
@@ -2433,7 +2427,6 @@ static void bnx2i_process_ofld_cmpl(struct bnx2i_hba *hba,
 {
 	u32 cid_addr;
 	struct bnx2i_endpoint *ep;
-	u32 cid_num;
 
 	ep = bnx2i_find_ep_in_ofld_list(hba, ofld_kcqe->iscsi_conn_id);
 	if (!ep) {
@@ -2468,7 +2461,6 @@ static void bnx2i_process_ofld_cmpl(struct bnx2i_hba *hba,
 	} else {
 		ep->state = EP_STATE_OFLD_COMPL;
 		cid_addr = ofld_kcqe->iscsi_conn_context_id;
-		cid_num = bnx2i_get_cid_num(ep);
 		ep->ep_cid = cid_addr;
 		ep->qp.ctx_base = NULL;
 	}

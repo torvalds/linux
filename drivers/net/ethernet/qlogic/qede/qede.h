@@ -56,7 +56,7 @@
 #include <net/tc_act/tc_gact.h>
 
 #define QEDE_MAJOR_VERSION		8
-#define QEDE_MINOR_VERSION		33
+#define QEDE_MINOR_VERSION		37
 #define QEDE_REVISION_VERSION		0
 #define QEDE_ENGINEERING_VERSION	20
 #define DRV_MODULE_VERSION __stringify(QEDE_MAJOR_VERSION) "."	\
@@ -162,11 +162,19 @@ struct qede_rdma_dev {
 	struct list_head entry;
 	struct list_head rdma_event_list;
 	struct workqueue_struct *rdma_wq;
+	bool exp_recovery;
 };
 
 struct qede_ptp;
 
 #define QEDE_RFS_MAX_FLTR	256
+
+enum qede_flags_bit {
+	QEDE_FLAGS_IS_VF = 0,
+	QEDE_FLAGS_LINK_REQUESTED,
+	QEDE_FLAGS_PTP_TX_IN_PRORGESS,
+	QEDE_FLAGS_TX_TIMESTAMPING_EN
+};
 
 struct qede_dev {
 	struct qed_dev			*cdev;
@@ -177,10 +185,7 @@ struct qede_dev {
 	u8				dp_level;
 
 	unsigned long flags;
-#define QEDE_FLAG_IS_VF			BIT(0)
-#define IS_VF(edev)	(!!((edev)->flags & QEDE_FLAG_IS_VF))
-#define QEDE_TX_TIMESTAMPING_EN		BIT(1)
-#define QEDE_FLAGS_PTP_TX_IN_PRORGESS	BIT(2)
+#define IS_VF(edev)	(test_bit(QEDE_FLAGS_IS_VF, &(edev)->flags))
 
 	const struct qed_eth_ops	*ops;
 	struct qede_ptp			*ptp;
@@ -260,6 +265,7 @@ struct qede_dev {
 enum QEDE_STATE {
 	QEDE_STATE_CLOSED,
 	QEDE_STATE_OPEN,
+	QEDE_STATE_RECOVERY,
 };
 
 #define HILO_U64(hi, lo)		((((u64)(hi)) << 32) + (lo))
@@ -377,6 +383,7 @@ struct qede_tx_queue {
 
 	u64 xmit_pkts;
 	u64 stopped_cnt;
+	u64 tx_mem_alloc_err;
 
 	__le16 *hw_cons_ptr;
 
@@ -457,6 +464,7 @@ struct qede_fastpath {
 #define QEDE_CSUM_UNNECESSARY		BIT(1)
 #define QEDE_TUNN_CSUM_UNNECESSARY	BIT(2)
 
+#define QEDE_SP_RECOVERY		0
 #define QEDE_SP_RX_MODE			1
 
 #ifdef CONFIG_RFS_ACCEL
@@ -489,6 +497,9 @@ struct qede_reload_args {
 
 /* Datapath functions definition */
 netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev);
+u16 qede_select_queue(struct net_device *dev, struct sk_buff *skb,
+		      struct net_device *sb_dev,
+		      select_queue_fallback_t fallback);
 netdev_features_t qede_features_check(struct sk_buff *skb,
 				      struct net_device *dev,
 				      netdev_features_t features);

@@ -121,7 +121,4 @@
 #define SLOT2IRQ(x)	  (x + 47)
 #define IRQ2SLOT(x)	  (x - 47)
 
-#define INT_CLK   24576	    /* CLK while int_clk =2.456MHz and divide = 100 */
-#define INT_TICKS 246	    /* to make sched_time = 99.902... HZ */
-
 #endif /* asm/macints.h */

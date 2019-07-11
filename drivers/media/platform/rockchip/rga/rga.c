@@ -43,7 +43,7 @@ static void device_run(void *prv)
 {
 	struct rga_ctx *ctx = prv;
 	struct rockchip_rga *rga = ctx->rga;
-	struct vb2_buffer *src, *dst;
+	struct vb2_v4l2_buffer *src, *dst;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rga->ctrl_lock, flags);
@@ -53,8 +53,8 @@ static void device_run(void *prv)
 	src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	dst = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 
-	rga_buf_map(src);
-	rga_buf_map(dst);
+	rga_buf_map(&src->vb2_buf);
+	rga_buf_map(&dst->vb2_buf);
 
 	rga_hw_start(rga);
 
@@ -97,7 +97,7 @@ static irqreturn_t rga_isr(int irq, void *prv)
 	return IRQ_HANDLED;
 }
 
-static struct v4l2_m2m_ops rga_m2m_ops = {
+static const struct v4l2_m2m_ops rga_m2m_ops = {
 	.device_run = device_run,
 };
 
@@ -700,7 +700,7 @@ static const struct v4l2_ioctl_ops rga_ioctl_ops = {
 	.vidioc_s_selection = vidioc_s_selection,
 };
 
-static struct video_device rga_videodev = {
+static const struct video_device rga_videodev = {
 	.name = "rockchip-rga",
 	.fops = &rga_fops,
 	.ioctl_ops = &rga_ioctl_ops,

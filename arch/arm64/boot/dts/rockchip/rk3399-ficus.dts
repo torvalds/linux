@@ -23,6 +23,52 @@
 		clock-output-names = "clkin_gmac";
 		#clock-cells = <0>;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&user_led1>, <&user_led2>, <&user_led3>,
+			    <&user_led4>, <&wlan_led>, <&bt_led>;
+
+		user_led1 {
+			label = "red:user1";
+			gpios = <&gpio4 25 0>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		user_led2 {
+			label = "red:user2";
+			gpios = <&gpio4 26 0>;
+			linux,default-trigger = "mmc0";
+		};
+
+		user_led3 {
+			label = "red:user3";
+			gpios = <&gpio4 30 0>;
+			linux,default-trigger = "mmc1";
+		};
+
+		user_led4 {
+			label = "red:user4";
+			gpios = <&gpio1 0 0>;
+			panic-indicator;
+			linux,default-trigger = "none";
+		};
+
+		wlan_active_led {
+			label = "red:wlan";
+			gpios = <&gpio1 1 0>;
+			linux,default-trigger = "phy0tx";
+			default-state = "off";
+		};
+
+		bt_active_led {
+			label = "red:bt";
+			gpios = <&gpio1 4 0>;
+			linux,default-trigger = "hci0-power";
+			default-state = "off";
+		};
+	};
 };
 
 &gmac {
@@ -64,6 +110,38 @@
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
 				<4 27 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	leds {
+		user_led1: user_led1 {
+			rockchip,pins =
+				<4 25 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		user_led2: user_led2 {
+			rockchip,pins =
+				<4 26 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		user_led3: user_led3 {
+			rockchip,pins =
+				<4 30 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		user_led4: user_led4 {
+			rockchip,pins =
+				<1 0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		wlan_led: wlan_led {
+			rockchip,pins =
+				<1 1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_led: bt_led {
+			rockchip,pins =
+				<1 4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

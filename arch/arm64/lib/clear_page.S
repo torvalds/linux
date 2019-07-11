@@ -37,3 +37,4 @@ ENTRY(clear_page)
 	b.ne	1b
 	ret
 ENDPROC(clear_page)
+EXPORT_SYMBOL(clear_page)

@@ -517,7 +517,7 @@ static int dm1105_i2c_xfer(struct i2c_adapter *i2c_adap,
 				msgs[i].buf[byte] = rc;
 			}
 		} else if ((msgs[i].buf[0] == 0xf7) && (msgs[i].addr == 0x55)) {
-			/* prepaired for cx24116 firmware */
+			/* prepared for cx24116 firmware */
 			/* Write in small blocks */
 			len = msgs[i].len - 1;
 			k = 1;

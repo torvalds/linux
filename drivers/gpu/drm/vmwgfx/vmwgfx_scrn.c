@@ -29,6 +29,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_damage_helper.h>
 
 
 #define vmw_crtc_to_sou(x) \
@@ -74,6 +75,11 @@ struct vmw_kms_sou_bo_blit {
 struct vmw_kms_sou_dirty_cmd {
 	SVGA3dCmdHeader header;
 	SVGA3dCmdBlitSurfaceToScreen body;
+};
+
+struct vmw_kms_sou_define_gmrfb {
+	uint32_t header;
+	SVGAFifoCmdDefineGMRFB body;
 };
 
 /**
@@ -241,28 +247,20 @@ static void vmw_sou_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		sou->buffer = vps->bo;
 		sou->buffer_size = vps->bo_size;
 
-		if (sou->base.is_implicit) {
-			x = crtc->x;
-			y = crtc->y;
-		} else {
-			conn_state = sou->base.connector.state;
-			vmw_conn_state = vmw_connector_state_to_vcs(conn_state);
+		conn_state = sou->base.connector.state;
+		vmw_conn_state = vmw_connector_state_to_vcs(conn_state);
 
-			x = vmw_conn_state->gui_x;
-			y = vmw_conn_state->gui_y;
-		}
+		x = vmw_conn_state->gui_x;
+		y = vmw_conn_state->gui_y;
 
 		ret = vmw_sou_fifo_create(dev_priv, sou, x, y, &crtc->mode);
 		if (ret)
 			DRM_ERROR("Failed to define Screen Object %dx%d\n",
 				  crtc->x, crtc->y);
 
-		vmw_kms_add_active(dev_priv, &sou->base, vfb);
 	} else {
 		sou->buffer = NULL;
 		sou->buffer_size = 0;
-
-		vmw_kms_del_active(dev_priv, &sou->base);
 	}
 }
 
@@ -317,38 +315,14 @@ static void vmw_sou_crtc_atomic_disable(struct drm_crtc *crtc,
 	}
 }
 
-static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
-				  struct drm_framebuffer *new_fb,
-				  struct drm_pending_vblank_event *event,
-				  uint32_t flags,
-				  struct drm_modeset_acquire_ctx *ctx)
-{
-	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
-	int ret;
-
-	if (!vmw_kms_crtc_flippable(dev_priv, crtc))
-		return -EINVAL;
-
-	ret = drm_atomic_helper_page_flip(crtc, new_fb, event, flags, ctx);
-	if (ret) {
-		DRM_ERROR("Page flip error %d.\n", ret);
-		return ret;
-	}
-
-	if (vmw_crtc_to_du(crtc)->is_implicit)
-		vmw_kms_update_implicit_fb(dev_priv, crtc);
-
-	return ret;
-}
-
 static const struct drm_crtc_funcs vmw_screen_object_crtc_funcs = {
 	.gamma_set = vmw_du_crtc_gamma_set,
 	.destroy = vmw_sou_crtc_destroy,
 	.reset = vmw_du_crtc_reset,
 	.atomic_duplicate_state = vmw_du_crtc_duplicate_state,
 	.atomic_destroy_state = vmw_du_crtc_destroy_state,
-	.set_config = vmw_kms_set_config,
-	.page_flip = vmw_sou_crtc_page_flip,
+	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
 };
 
 /*
@@ -377,19 +351,15 @@ static const struct drm_connector_funcs vmw_sou_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
 	.detect = vmw_du_connector_detect,
 	.fill_modes = vmw_du_connector_fill_modes,
-	.set_property = vmw_du_connector_set_property,
 	.destroy = vmw_sou_connector_destroy,
 	.reset = vmw_du_connector_reset,
 	.atomic_duplicate_state = vmw_du_connector_duplicate_state,
 	.atomic_destroy_state = vmw_du_connector_destroy_state,
-	.atomic_set_property = vmw_du_connector_atomic_set_property,
-	.atomic_get_property = vmw_du_connector_atomic_get_property,
 };
 
 
 static const struct
 drm_connector_helper_funcs vmw_sou_connector_helper_funcs = {
-	.best_encoder = drm_atomic_helper_best_encoder,
 };
 
 
@@ -499,6 +469,263 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	return vmw_bo_pin_in_vram(dev_priv, vps->bo, true);
 }
 
+static uint32_t vmw_sou_bo_fifo_size(struct vmw_du_update_plane *update,
+				     uint32_t num_hits)
+{
+	return sizeof(struct vmw_kms_sou_define_gmrfb) +
+		sizeof(struct vmw_kms_sou_bo_blit) * num_hits;
+}
+
+static uint32_t vmw_sou_bo_define_gmrfb(struct vmw_du_update_plane *update,
+					void *cmd)
+{
+	struct vmw_framebuffer_bo *vfbbo =
+		container_of(update->vfb, typeof(*vfbbo), base);
+	struct vmw_kms_sou_define_gmrfb *gmr = cmd;
+	int depth = update->vfb->base.format->depth;
+
+	/* Emulate RGBA support, contrary to svga_reg.h this is not
+	 * supported by hosts. This is only a problem if we are reading
+	 * this value later and expecting what we uploaded back.
+	 */
+	if (depth == 32)
+		depth = 24;
+
+	gmr->header = SVGA_CMD_DEFINE_GMRFB;
+
+	gmr->body.format.bitsPerPixel = update->vfb->base.format->cpp[0] * 8;
+	gmr->body.format.colorDepth = depth;
+	gmr->body.format.reserved = 0;
+	gmr->body.bytesPerLine = update->vfb->base.pitches[0];
+	vmw_bo_get_guest_ptr(&vfbbo->buffer->base, &gmr->body.ptr);
+
+	return sizeof(*gmr);
+}
+
+static uint32_t vmw_sou_bo_populate_clip(struct vmw_du_update_plane  *update,
+					 void *cmd, struct drm_rect *clip,
+					 uint32_t fb_x, uint32_t fb_y)
+{
+	struct vmw_kms_sou_bo_blit *blit = cmd;
+
+	blit->header = SVGA_CMD_BLIT_GMRFB_TO_SCREEN;
+	blit->body.destScreenId = update->du->unit;
+	blit->body.srcOrigin.x = fb_x;
+	blit->body.srcOrigin.y = fb_y;
+	blit->body.destRect.left = clip->x1;
+	blit->body.destRect.top = clip->y1;
+	blit->body.destRect.right = clip->x2;
+	blit->body.destRect.bottom = clip->y2;
+
+	return sizeof(*blit);
+}
+
+static uint32_t vmw_stud_bo_post_clip(struct vmw_du_update_plane  *update,
+				      void *cmd, struct drm_rect *bb)
+{
+	return 0;
+}
+
+/**
+ * vmw_sou_plane_update_bo - Update display unit for bo backed fb.
+ * @dev_priv: Device private.
+ * @plane: Plane state.
+ * @old_state: Old plane state.
+ * @vfb: Framebuffer which is blitted to display unit.
+ * @out_fence: If non-NULL, will return a ref-counted pointer to vmw_fence_obj.
+ *             The returned fence pointer may be NULL in which case the device
+ *             has already synchronized.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+static int vmw_sou_plane_update_bo(struct vmw_private *dev_priv,
+				   struct drm_plane *plane,
+				   struct drm_plane_state *old_state,
+				   struct vmw_framebuffer *vfb,
+				   struct vmw_fence_obj **out_fence)
+{
+	struct vmw_du_update_plane_buffer bo_update;
+
+	memset(&bo_update, 0, sizeof(struct vmw_du_update_plane_buffer));
+	bo_update.base.plane = plane;
+	bo_update.base.old_state = old_state;
+	bo_update.base.dev_priv = dev_priv;
+	bo_update.base.du = vmw_crtc_to_du(plane->state->crtc);
+	bo_update.base.vfb = vfb;
+	bo_update.base.out_fence = out_fence;
+	bo_update.base.mutex = NULL;
+	bo_update.base.cpu_blit = false;
+	bo_update.base.intr = true;
+
+	bo_update.base.calc_fifo_size = vmw_sou_bo_fifo_size;
+	bo_update.base.post_prepare = vmw_sou_bo_define_gmrfb;
+	bo_update.base.clip = vmw_sou_bo_populate_clip;
+	bo_update.base.post_clip = vmw_stud_bo_post_clip;
+
+	return vmw_du_helper_plane_update(&bo_update.base);
+}
+
+static uint32_t vmw_sou_surface_fifo_size(struct vmw_du_update_plane *update,
+					  uint32_t num_hits)
+{
+	return sizeof(struct vmw_kms_sou_dirty_cmd) + sizeof(SVGASignedRect) *
+		num_hits;
+}
+
+static uint32_t vmw_sou_surface_post_prepare(struct vmw_du_update_plane *update,
+					     void *cmd)
+{
+	struct vmw_du_update_plane_surface *srf_update;
+
+	srf_update = container_of(update, typeof(*srf_update), base);
+
+	/*
+	 * SOU SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN is special in the sense that
+	 * its bounding box is filled before iterating over all the clips. So
+	 * store the FIFO start address and revisit to fill the details.
+	 */
+	srf_update->cmd_start = cmd;
+
+	return 0;
+}
+
+static uint32_t vmw_sou_surface_pre_clip(struct vmw_du_update_plane *update,
+					 void *cmd, uint32_t num_hits)
+{
+	struct vmw_kms_sou_dirty_cmd *blit = cmd;
+	struct vmw_framebuffer_surface *vfbs;
+
+	vfbs = container_of(update->vfb, typeof(*vfbs), base);
+
+	blit->header.id = SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN;
+	blit->header.size = sizeof(blit->body) + sizeof(SVGASignedRect) *
+		num_hits;
+
+	blit->body.srcImage.sid = vfbs->surface->res.id;
+	blit->body.destScreenId = update->du->unit;
+
+	/* Update the source and destination bounding box later in post_clip */
+	blit->body.srcRect.left = 0;
+	blit->body.srcRect.top = 0;
+	blit->body.srcRect.right = 0;
+	blit->body.srcRect.bottom = 0;
+
+	blit->body.destRect.left = 0;
+	blit->body.destRect.top = 0;
+	blit->body.destRect.right = 0;
+	blit->body.destRect.bottom = 0;
+
+	return sizeof(*blit);
+}
+
+static uint32_t vmw_sou_surface_clip_rect(struct vmw_du_update_plane *update,
+					  void *cmd, struct drm_rect *clip,
+					  uint32_t src_x, uint32_t src_y)
+{
+	SVGASignedRect *rect = cmd;
+
+	/*
+	 * rects are relative to dest bounding box rect on screen object, so
+	 * translate to it later in post_clip
+	 */
+	rect->left = clip->x1;
+	rect->top = clip->y1;
+	rect->right = clip->x2;
+	rect->bottom = clip->y2;
+
+	return sizeof(*rect);
+}
+
+static uint32_t vmw_sou_surface_post_clip(struct vmw_du_update_plane *update,
+					  void *cmd, struct drm_rect *bb)
+{
+	struct vmw_du_update_plane_surface *srf_update;
+	struct drm_plane_state *state = update->plane->state;
+	struct drm_rect src_bb;
+	struct vmw_kms_sou_dirty_cmd *blit;
+	SVGASignedRect *rect;
+	uint32_t num_hits;
+	int translate_src_x;
+	int translate_src_y;
+	int i;
+
+	srf_update = container_of(update, typeof(*srf_update), base);
+
+	blit = srf_update->cmd_start;
+	rect = (SVGASignedRect *)&blit[1];
+
+	num_hits = (blit->header.size - sizeof(blit->body))/
+		sizeof(SVGASignedRect);
+
+	src_bb = *bb;
+
+	/* To translate bb back to fb src coord */
+	translate_src_x = (state->src_x >> 16) - state->crtc_x;
+	translate_src_y = (state->src_y >> 16) - state->crtc_y;
+
+	drm_rect_translate(&src_bb, translate_src_x, translate_src_y);
+
+	blit->body.srcRect.left = src_bb.x1;
+	blit->body.srcRect.top = src_bb.y1;
+	blit->body.srcRect.right = src_bb.x2;
+	blit->body.srcRect.bottom = src_bb.y2;
+
+	blit->body.destRect.left = bb->x1;
+	blit->body.destRect.top = bb->y1;
+	blit->body.destRect.right = bb->x2;
+	blit->body.destRect.bottom = bb->y2;
+
+	/* rects are relative to dest bb rect */
+	for (i = 0; i < num_hits; i++) {
+		rect->left -= bb->x1;
+		rect->top -= bb->y1;
+		rect->right -= bb->x1;
+		rect->bottom -= bb->y1;
+		rect++;
+	}
+
+	return 0;
+}
+
+/**
+ * vmw_sou_plane_update_surface - Update display unit for surface backed fb.
+ * @dev_priv: Device private.
+ * @plane: Plane state.
+ * @old_state: Old plane state.
+ * @vfb: Framebuffer which is blitted to display unit
+ * @out_fence: If non-NULL, will return a ref-counted pointer to vmw_fence_obj.
+ *             The returned fence pointer may be NULL in which case the device
+ *             has already synchronized.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+static int vmw_sou_plane_update_surface(struct vmw_private *dev_priv,
+					struct drm_plane *plane,
+					struct drm_plane_state *old_state,
+					struct vmw_framebuffer *vfb,
+					struct vmw_fence_obj **out_fence)
+{
+	struct vmw_du_update_plane_surface srf_update;
+
+	memset(&srf_update, 0, sizeof(struct vmw_du_update_plane_surface));
+	srf_update.base.plane = plane;
+	srf_update.base.old_state = old_state;
+	srf_update.base.dev_priv = dev_priv;
+	srf_update.base.du = vmw_crtc_to_du(plane->state->crtc);
+	srf_update.base.vfb = vfb;
+	srf_update.base.out_fence = out_fence;
+	srf_update.base.mutex = &dev_priv->cmdbuf_mutex;
+	srf_update.base.cpu_blit = false;
+	srf_update.base.intr = true;
+
+	srf_update.base.calc_fifo_size = vmw_sou_surface_fifo_size;
+	srf_update.base.post_prepare = vmw_sou_surface_post_prepare;
+	srf_update.base.pre_clip = vmw_sou_surface_pre_clip;
+	srf_update.base.clip = vmw_sou_surface_clip_rect;
+	srf_update.base.post_clip = vmw_sou_surface_post_clip;
+
+	return vmw_du_helper_plane_update(&srf_update.base);
+}
 
 static void
 vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
@@ -509,47 +736,28 @@ vmw_sou_primary_plane_atomic_update(struct drm_plane *plane,
 	struct vmw_fence_obj *fence = NULL;
 	int ret;
 
+	/* In case of device error, maintain consistent atomic state */
 	if (crtc && plane->state->fb) {
 		struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 		struct vmw_framebuffer *vfb =
 			vmw_framebuffer_to_vfb(plane->state->fb);
-		struct drm_vmw_rect vclips;
-
-		vclips.x = crtc->x;
-		vclips.y = crtc->y;
-		vclips.w = crtc->mode.hdisplay;
-		vclips.h = crtc->mode.vdisplay;
 
 		if (vfb->bo)
-			ret = vmw_kms_sou_do_bo_dirty(dev_priv, vfb, NULL,
-						      &vclips, 1, 1, true,
-						      &fence, crtc);
+			ret = vmw_sou_plane_update_bo(dev_priv, plane,
+						      old_state, vfb, &fence);
 		else
-			ret = vmw_kms_sou_do_surface_dirty(dev_priv, vfb, NULL,
-							   &vclips, NULL, 0, 0,
-							   1, 1, &fence, crtc);
-
-		/*
-		 * We cannot really fail this function, so if we do, then output
-		 * an error and maintain consistent atomic state.
-		 */
+			ret = vmw_sou_plane_update_surface(dev_priv, plane,
+							   old_state, vfb,
+							   &fence);
 		if (ret != 0)
 			DRM_ERROR("Failed to update screen.\n");
 	} else {
-		/*
-		 * When disabling a plane, CRTC and FB should always be NULL
-		 * together, otherwise it's an error.
-		 * Here primary plane is being disable so should really blank
-		 * the screen object display unit, if not already done.
-		 */
+		/* Do nothing when fb and crtc is NULL (blank crtc) */
 		return;
 	}
 
+	/* For error case vblank event is send from vmw_du_crtc_atomic_flush */
 	event = crtc->state->event;
-	/*
-	 * In case of failure and other cases, vblank event will be sent in
-	 * vmw_du_crtc_atomic_flush.
-	 */
 	if (event && fence) {
 		struct drm_file *file_priv = event->base.file_priv;
 
@@ -640,7 +848,6 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	primary = &sou->base.primary;
 	cursor = &sou->base.cursor;
 
-	sou->base.active_implicit = false;
 	sou->base.pref_active = (unit == 0);
 	sou->base.pref_width = dev_priv->initial_width;
 	sou->base.pref_height = dev_priv->initial_height;
@@ -666,6 +873,7 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	}
 
 	drm_plane_helper_add(primary, &vmw_sou_primary_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(primary);
 
 	/* Initialize cursor plane */
 	vmw_du_plane_reset(cursor);
@@ -693,8 +901,6 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 
 	drm_connector_helper_add(connector, &vmw_sou_connector_helper_funcs);
 	connector->status = vmw_du_connector_detect(connector, true);
-	vmw_connector_state_to_vcs(connector->state)->is_implicit = false;
-
 
 	ret = drm_encoder_init(dev, encoder, &vmw_screen_object_encoder_funcs,
 			       DRM_MODE_ENCODER_VIRTUAL, NULL);
@@ -733,12 +939,6 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 				   dev->mode_config.suggested_x_property, 0);
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.suggested_y_property, 0);
-	if (dev_priv->implicit_placement_property)
-		drm_object_attach_property
-			(&connector->base,
-			 dev_priv->implicit_placement_property,
-			 sou->base.is_implicit);
-
 	return 0;
 
 err_free_unregister:
@@ -764,14 +964,10 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 	}
 
 	ret = -ENOMEM;
-	dev_priv->num_implicit = 0;
-	dev_priv->implicit_fb = NULL;
 
 	ret = drm_vblank_init(dev, VMWGFX_NUM_DISPLAY_UNITS);
 	if (unlikely(ret != 0))
 		return ret;
-
-	vmw_kms_create_implicit_placement_property(dev_priv, false);
 
 	for (i = 0; i < VMWGFX_NUM_DISPLAY_UNITS; ++i)
 		vmw_sou_init(dev_priv, i);

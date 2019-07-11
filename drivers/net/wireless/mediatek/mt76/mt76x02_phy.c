@@ -132,53 +132,6 @@ void mt76x02_phy_set_txpower(struct mt76x02_dev *dev, int txp_0, int txp_1)
 }
 EXPORT_SYMBOL_GPL(mt76x02_phy_set_txpower);
 
-int mt76x02_phy_get_min_avg_rssi(struct mt76x02_dev *dev)
-{
-	struct mt76x02_sta *sta;
-	struct mt76_wcid *wcid;
-	int i, j, min_rssi = 0;
-	s8 cur_rssi;
-
-	local_bh_disable();
-	rcu_read_lock();
-
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.wcid_mask); i++) {
-		unsigned long mask = dev->mt76.wcid_mask[i];
-
-		if (!mask)
-			continue;
-
-		for (j = i * BITS_PER_LONG; mask; j++, mask >>= 1) {
-			if (!(mask & 1))
-				continue;
-
-			wcid = rcu_dereference(dev->mt76.wcid[j]);
-			if (!wcid)
-				continue;
-
-			sta = container_of(wcid, struct mt76x02_sta, wcid);
-			spin_lock(&dev->mt76.rx_lock);
-			if (sta->inactive_count++ < 5)
-				cur_rssi = ewma_signal_read(&sta->rssi);
-			else
-				cur_rssi = 0;
-			spin_unlock(&dev->mt76.rx_lock);
-
-			if (cur_rssi < min_rssi)
-				min_rssi = cur_rssi;
-		}
-	}
-
-	rcu_read_unlock();
-	local_bh_enable();
-
-	if (!min_rssi)
-		return -75;
-
-	return min_rssi;
-}
-EXPORT_SYMBOL_GPL(mt76x02_phy_get_min_avg_rssi);
-
 void mt76x02_phy_set_bw(struct mt76x02_dev *dev, int width, u8 ctrl)
 {
 	int core_val, agc_val;
@@ -241,6 +194,8 @@ bool mt76x02_phy_adjust_vga_gain(struct mt76x02_dev *dev)
 		ret = true;
 	}
 
+	dev->cal.agc_lowest_gain = dev->cal.agc_gain_adjust >= limit;
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mt76x02_phy_adjust_vga_gain);
@@ -254,5 +209,6 @@ void mt76x02_init_agc_gain(struct mt76x02_dev *dev)
 	memcpy(dev->cal.agc_gain_cur, dev->cal.agc_gain_init,
 	       sizeof(dev->cal.agc_gain_cur));
 	dev->cal.low_gain = -1;
+	dev->cal.gain_init_done = true;
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_agc_gain);

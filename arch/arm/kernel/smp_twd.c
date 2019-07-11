@@ -100,8 +100,6 @@ static void twd_timer_stop(void)
 	disable_percpu_irq(clk->irq);
 }
 
-#ifdef CONFIG_COMMON_CLK
-
 /*
  * Updates clockevent frequency when the cpu frequency changes.
  * Called on the cpu that is changing frequency with interrupts disabled.
@@ -142,54 +140,6 @@ static int twd_clk_init(void)
 	return 0;
 }
 core_initcall(twd_clk_init);
-
-#elif defined (CONFIG_CPU_FREQ)
-
-#include <linux/cpufreq.h>
-
-/*
- * Updates clockevent frequency when the cpu frequency changes.
- * Called on the cpu that is changing frequency with interrupts disabled.
- */
-static void twd_update_frequency(void *data)
-{
-	twd_timer_rate = clk_get_rate(twd_clk);
-
-	clockevents_update_freq(raw_cpu_ptr(twd_evt), twd_timer_rate);
-}
-
-static int twd_cpufreq_transition(struct notifier_block *nb,
-	unsigned long state, void *data)
-{
-	struct cpufreq_freqs *freqs = data;
-
-	/*
-	 * The twd clock events must be reprogrammed to account for the new
-	 * frequency.  The timer is local to a cpu, so cross-call to the
-	 * changing cpu.
-	 */
-	if (state == CPUFREQ_POSTCHANGE)
-		smp_call_function_single(freqs->cpu, twd_update_frequency,
-			NULL, 1);
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block twd_cpufreq_nb = {
-	.notifier_call = twd_cpufreq_transition,
-};
-
-static int twd_cpufreq_init(void)
-{
-	if (twd_evt && raw_cpu_ptr(twd_evt) && !IS_ERR(twd_clk))
-		return cpufreq_register_notifier(&twd_cpufreq_nb,
-			CPUFREQ_TRANSITION_NOTIFIER);
-
-	return 0;
-}
-core_initcall(twd_cpufreq_init);
-
-#endif
 
 static void twd_calibrate_rate(void)
 {
@@ -366,21 +316,6 @@ out_free:
 	return err;
 }
 
-int __init twd_local_timer_register(struct twd_local_timer *tlt)
-{
-	if (twd_base || twd_evt)
-		return -EBUSY;
-
-	twd_ppi	= tlt->res[1].start;
-
-	twd_base = ioremap(tlt->res[0].start, resource_size(&tlt->res[0]));
-	if (!twd_base)
-		return -ENOMEM;
-
-	return twd_local_timer_common_register(NULL);
-}
-
-#ifdef CONFIG_OF
 static int __init twd_local_timer_of_register(struct device_node *np)
 {
 	int err;
@@ -406,4 +341,3 @@ out:
 TIMER_OF_DECLARE(arm_twd_a9, "arm,cortex-a9-twd-timer", twd_local_timer_of_register);
 TIMER_OF_DECLARE(arm_twd_a5, "arm,cortex-a5-twd-timer", twd_local_timer_of_register);
 TIMER_OF_DECLARE(arm_twd_11mp, "arm,arm11mp-twd-timer", twd_local_timer_of_register);
-#endif

@@ -117,7 +117,7 @@ bool pci_aer_available(void)
 
 static int ecrc_policy = ECRC_POLICY_DEFAULT;
 
-static const char *ecrc_policy_str[] = {
+static const char * const ecrc_policy_str[] = {
 	[ECRC_POLICY_DEFAULT] = "bios",
 	[ECRC_POLICY_OFF] = "off",
 	[ECRC_POLICY_ON] = "on"
@@ -203,11 +203,8 @@ void pcie_ecrc_get_policy(char *str)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(ecrc_policy_str); i++)
-		if (!strncmp(str, ecrc_policy_str[i],
-			     strlen(ecrc_policy_str[i])))
-			break;
-	if (i >= ARRAY_SIZE(ecrc_policy_str))
+	i = match_string(ecrc_policy_str, ARRAY_SIZE(ecrc_policy_str), str);
+	if (i < 0)
 		return;
 
 	ecrc_policy = i;

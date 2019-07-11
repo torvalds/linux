@@ -560,11 +560,12 @@ static int r128_do_init_cce(struct drm_device *dev, drm_r128_init_t *init)
 		dev_priv->gart_info.addr = NULL;
 		dev_priv->gart_info.bus_addr = 0;
 		dev_priv->gart_info.gart_reg_if = DRM_ATI_GART_PCI;
-		if (!drm_ati_pcigart_init(dev, &dev_priv->gart_info)) {
+		rc = drm_ati_pcigart_init(dev, &dev_priv->gart_info);
+		if (rc) {
 			DRM_ERROR("failed to init PCI GART!\n");
 			dev->dev_private = (void *)dev_priv;
 			r128_do_cleanup_cce(dev);
-			return -ENOMEM;
+			return rc;
 		}
 		R128_WRITE(R128_PCI_GART_PAGE, dev_priv->gart_info.bus_addr);
 #if IS_ENABLED(CONFIG_AGP)

@@ -19,6 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
+#include <linux/sched/mm.h>
 
 #include <linux/sunrpc/clnt.h>
 
@@ -784,8 +785,7 @@ void rpc_exit(struct rpc_task *task, int status)
 {
 	task->tk_status = status;
 	task->tk_action = rpc_exit_task;
-	if (RPC_IS_QUEUED(task))
-		rpc_wake_up_queued_task(task->tk_waitqueue, task);
+	rpc_wake_up_queued_task(task->tk_waitqueue, task);
 }
 EXPORT_SYMBOL_GPL(rpc_exit);
 
@@ -902,7 +902,10 @@ void rpc_execute(struct rpc_task *task)
 
 static void rpc_async_schedule(struct work_struct *work)
 {
+	unsigned int pflags = memalloc_nofs_save();
+
 	__rpc_execute(container_of(work, struct rpc_task, u.tk_work));
+	memalloc_nofs_restore(pflags);
 }
 
 /**
@@ -921,16 +924,13 @@ static void rpc_async_schedule(struct work_struct *work)
  * Most requests are 'small' (under 2KiB) and can be serviced from a
  * mempool, ensuring that NFS reads and writes can always proceed,
  * and that there is good locality of reference for these buffers.
- *
- * In order to avoid memory starvation triggering more writebacks of
- * NFS requests, we avoid using GFP_KERNEL.
  */
 int rpc_malloc(struct rpc_task *task)
 {
 	struct rpc_rqst *rqst = task->tk_rqstp;
 	size_t size = rqst->rq_callsize + rqst->rq_rcvsize;
 	struct rpc_buffer *buf;
-	gfp_t gfp = GFP_NOIO | __GFP_NOWARN;
+	gfp_t gfp = GFP_NOFS;
 
 	if (RPC_IS_SWAPPER(task))
 		gfp = __GFP_MEMALLOC | GFP_NOWAIT | __GFP_NOWARN;
@@ -997,6 +997,8 @@ static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *ta
 
 	task->tk_xprt = xprt_get(task_setup_data->rpc_xprt);
 
+	task->tk_op_cred = get_rpccred(task_setup_data->rpc_op_cred);
+
 	if (task->tk_ops->rpc_call_prepare != NULL)
 		task->tk_action = rpc_prepare_task;
 
@@ -1009,7 +1011,7 @@ static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *ta
 static struct rpc_task *
 rpc_alloc_task(void)
 {
-	return (struct rpc_task *)mempool_alloc(rpc_task_mempool, GFP_NOIO);
+	return (struct rpc_task *)mempool_alloc(rpc_task_mempool, GFP_NOFS);
 }
 
 /*
@@ -1054,6 +1056,7 @@ static void rpc_free_task(struct rpc_task *task)
 {
 	unsigned short tk_flags = task->tk_flags;
 
+	put_rpccred(task->tk_op_cred);
 	rpc_release_calldata(task->tk_ops, task->tk_calldata);
 
 	if (tk_flags & RPC_TASK_DYNAMIC) {
@@ -1064,14 +1067,17 @@ static void rpc_free_task(struct rpc_task *task)
 
 static void rpc_async_release(struct work_struct *work)
 {
+	unsigned int pflags = memalloc_nofs_save();
+
 	rpc_free_task(container_of(work, struct rpc_task, u.tk_work));
+	memalloc_nofs_restore(pflags);
 }
 
 static void rpc_release_resources_task(struct rpc_task *task)
 {
 	xprt_release(task);
 	if (task->tk_msg.rpc_cred) {
-		put_rpccred(task->tk_msg.rpc_cred);
+		put_cred(task->tk_msg.rpc_cred);
 		task->tk_msg.rpc_cred = NULL;
 	}
 	rpc_task_release_client(task);

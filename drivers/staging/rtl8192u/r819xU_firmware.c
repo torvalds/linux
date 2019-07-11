@@ -24,7 +24,7 @@ static void firmware_init_param(struct net_device *dev)
 	struct r8192_priv	*priv = ieee80211_priv(dev);
 	rt_firmware		*pfirmware = priv->pFirmware;
 
-	pfirmware->cmdpacket_frag_thresold = GET_COMMAND_PACKET_FRAG_THRESHOLD(MAX_TRANSMIT_BUFFER_SIZE);
+	pfirmware->cmdpacket_frag_threshold = GET_COMMAND_PACKET_FRAG_THRESHOLD(MAX_TRANSMIT_BUFFER_SIZE);
 }
 
 /*
@@ -49,7 +49,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 
 	firmware_init_param(dev);
 	/* Fragmentation might be required */
-	frag_threshold = pfirmware->cmdpacket_frag_thresold;
+	frag_threshold = pfirmware->cmdpacket_frag_threshold;
 	do {
 		if ((buffer_len - frag_offset) > frag_threshold) {
 			frag_length = frag_threshold;

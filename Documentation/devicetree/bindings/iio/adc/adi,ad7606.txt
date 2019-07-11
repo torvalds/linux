@@ -1,0 +1,65 @@
+Analog Devices AD7606 Simultaneous Sampling ADC
+
+Required properties for the AD7606:
+
+- compatible: Must be one of
+	* "adi,ad7605-4"
+	* "adi,ad7606-8"
+	* "adi,ad7606-6"
+	* "adi,ad7606-4"
+- reg: SPI chip select number for the device
+- spi-max-frequency: Max SPI frequency to use
+	see: Documentation/devicetree/bindings/spi/spi-bus.txt
+- spi-cpha: See Documentation/devicetree/bindings/spi/spi-bus.txt
+- avcc-supply: phandle to the Avcc power supply
+- interrupts: IRQ line for the ADC
+	see: Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+- adi,conversion-start-gpios: must be the device tree identifier of the CONVST pin.
+		  This logic input is used to initiate conversions on the analog
+		  input channels. As the line is active high, it should be marked
+		  GPIO_ACTIVE_HIGH.
+
+Optional properties:
+
+- reset-gpios: must be the device tree identifier of the RESET pin. If specified,
+	       it will be asserted during driver probe. As the line is active high,
+	       it should be marked GPIO_ACTIVE_HIGH.
+- standby-gpios: must be the device tree identifier of the STBY pin. This pin is used
+		to place the AD7606 into one of two power-down modes, Standby mode or
+		Shutdown mode. As the line is active low, it should be marked
+		GPIO_ACTIVE_LOW.
+- adi,first-data-gpios: must be the device tree identifier of the FRSTDATA pin.
+		    The FRSTDATA output indicates when the first channel, V1, is
+		    being read back on either the parallel, byte or serial interface.
+		    As the line is active high, it should be marked GPIO_ACTIVE_HIGH.
+- adi,range-gpios: must be the device tree identifier of the RANGE pin. The polarity on
+	      this pin determines the input range of the analog input channels. If
+	      this pin is tied to a logic high, the analog input range is ±10V for
+	      all channels. If this pin is tied to a logic low, the analog input range
+	      is ±5V for all channels. As the line is active high, it should be marked
+	      GPIO_ACTIVE_HIGH.
+- adi,oversampling-ratio-gpios: must be the device tree identifier of the over-sampling
+				mode pins. As the line is active high, it should be marked
+				GPIO_ACTIVE_HIGH.
+
+Example:
+
+	adc@0 {
+		compatible = "adi,ad7606-8";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		spi-cpol;
+
+		avcc-supply = <&adc_vref>;
+
+		interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-parent = <&gpio>;
+
+		adi,conversion-start-gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio 27 GPIO_ACTIVE_HIGH>;
+		adi,first-data-gpios = <&gpio 22 GPIO_ACTIVE_HIGH>;
+		adi,oversampling-ratio-gpios = <&gpio 18 GPIO_ACTIVE_HIGH
+						&gpio 23 GPIO_ACTIVE_HIGH
+						&gpio 26 GPIO_ACTIVE_HIGH>;
+		standby-gpios = <&gpio 24 GPIO_ACTIVE_LOW>;
+	};

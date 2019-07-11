@@ -94,7 +94,7 @@ lpfc_dump_static_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
 	memset(mp->virt, 0, LPFC_BPL_SIZE);
 	INIT_LIST_HEAD(&mp->list);
 	/* save address for completion */
-	pmb->context1 = (uint8_t *)mp;
+	pmb->ctx_buf = (uint8_t *)mp;
 	mb->un.varWords[3] = putPaddrLow(mp->phys);
 	mb->un.varWords[4] = putPaddrHigh(mp->phys);
 	mb->un.varDmp.sli4_length = sizeof(struct static_vport_info);
@@ -139,7 +139,7 @@ lpfc_dump_mem(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, uint16_t offset,
 	void *ctx;
 
 	mb = &pmb->u.mb;
-	ctx = pmb->context2;
+	ctx = pmb->ctx_buf;
 
 	/* Setup to dump VPD region */
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
@@ -151,7 +151,7 @@ lpfc_dump_mem(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, uint16_t offset,
 	mb->un.varDmp.word_cnt = (DMP_RSP_SIZE / sizeof (uint32_t));
 	mb->un.varDmp.co = 0;
 	mb->un.varDmp.resp_offset = 0;
-	pmb->context2 = ctx;
+	pmb->ctx_buf = ctx;
 	mb->mbxOwner = OWN_HOST;
 	return;
 }
@@ -172,7 +172,7 @@ lpfc_dump_wakeup_param(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	mb = &pmb->u.mb;
 	/* Save context so that we can restore after memset */
-	ctx = pmb->context2;
+	ctx = pmb->ctx_buf;
 
 	/* Setup to dump VPD region */
 	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
@@ -186,7 +186,7 @@ lpfc_dump_wakeup_param(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mb->un.varDmp.word_cnt = WAKE_UP_PARMS_WORD_SIZE;
 	mb->un.varDmp.co = 0;
 	mb->un.varDmp.resp_offset = 0;
-	pmb->context2 = ctx;
+	pmb->ctx_buf = ctx;
 	return;
 }
 
@@ -304,7 +304,7 @@ lpfc_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
 	/* Save address for later completion and set the owner to host so that
 	 * the FW knows this mailbox is available for processing.
 	 */
-	pmb->context1 = (uint8_t *)mp;
+	pmb->ctx_buf = (uint8_t *)mp;
 	mb->mbxOwner = OWN_HOST;
 	return (0);
 }
@@ -513,9 +513,9 @@ lpfc_init_link(struct lpfc_hba * phba,
 		break;
 	}
 
-	if (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC &&
-		mb->un.varInitLnk.link_flags & FLAGS_TOPOLOGY_MODE_LOOP) {
-		/* Failover is not tried for Lancer G6 */
+	if ((phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC ||
+	     phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC) &&
+	    mb->un.varInitLnk.link_flags & FLAGS_TOPOLOGY_MODE_LOOP) {
 		mb->un.varInitLnk.link_flags = FLAGS_TOPOLOGY_MODE_PT_PT;
 		phba->cfg_topology = FLAGS_TOPOLOGY_MODE_PT_PT;
 	}
@@ -631,7 +631,7 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 		mb->un.varRdSparm.vpi = phba->vpi_ids[vpi];
 
 	/* save address for completion */
-	pmb->context1 = mp;
+	pmb->ctx_buf = mp;
 
 	return (0);
 }
@@ -783,7 +783,7 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 	memcpy(sparam, param, sizeof (struct serv_parm));
 
 	/* save address for completion */
-	pmb->context1 = (uint8_t *) mp;
+	pmb->ctx_buf = (uint8_t *)mp;
 
 	mb->mbxCommand = MBX_REG_LOGIN64;
 	mb->un.varRegLogin.un.sp64.tus.f.bdeSize = sizeof (struct serv_parm);
@@ -858,7 +858,7 @@ lpfc_sli4_unreg_all_rpis(struct lpfc_vport *vport)
 		mbox->u.mb.un.varUnregLogin.rsvd1 = 0x4000;
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		mbox->context1 = NULL;
+		mbox->ctx_ndlp = NULL;
 		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 		if (rc == MBX_NOT_FINISHED)
 			mempool_free(mbox, phba->mbox_mem_pool);
@@ -1827,9 +1827,9 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 		 * page, this is used as a priori size of SLI4_PAGE_SIZE for
 		 * the later DMA memory free.
 		 */
-		viraddr = dma_zalloc_coherent(&phba->pcidev->dev,
-					      SLI4_PAGE_SIZE, &phyaddr,
-					      GFP_KERNEL);
+		viraddr = dma_alloc_coherent(&phba->pcidev->dev,
+					     SLI4_PAGE_SIZE, &phyaddr,
+					     GFP_KERNEL);
 		/* In case of malloc fails, proceed with whatever we have */
 		if (!viraddr)
 			break;
@@ -2095,8 +2095,8 @@ lpfc_request_features(struct lpfc_hba *phba, struct lpfcMboxq *mboxq)
 	if (phba->nvmet_support) {
 		bf_set(lpfc_mbx_rq_ftr_rq_mrqp, &mboxq->u.mqe.un.req_ftrs, 1);
 		/* iaab/iaar NOT set for now */
-		 bf_set(lpfc_mbx_rq_ftr_rq_iaab, &mboxq->u.mqe.un.req_ftrs, 0);
-		 bf_set(lpfc_mbx_rq_ftr_rq_iaar, &mboxq->u.mqe.un.req_ftrs, 0);
+		bf_set(lpfc_mbx_rq_ftr_rq_iaab, &mboxq->u.mqe.un.req_ftrs, 0);
+		bf_set(lpfc_mbx_rq_ftr_rq_iaar, &mboxq->u.mqe.un.req_ftrs, 0);
 	}
 	return;
 }
@@ -2288,7 +2288,7 @@ lpfc_sli4_dump_cfg_rg23(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 	INIT_LIST_HEAD(&mp->list);
 
 	/* save address for completion */
-	mbox->context1 = (uint8_t *) mp;
+	mbox->ctx_buf = (uint8_t *)mp;
 
 	mb->mbxCommand = MBX_DUMP_MEMORY;
 	mb->un.varDmp.type = DMP_NV_PARAMS;
@@ -2305,7 +2305,7 @@ lpfc_mbx_cmpl_rdp_link_stat(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	MAILBOX_t *mb;
 	int rc = FAILURE;
 	struct lpfc_rdp_context *rdp_context =
-			(struct lpfc_rdp_context *)(mboxq->context2);
+			(struct lpfc_rdp_context *)(mboxq->ctx_ndlp);
 
 	mb = &mboxq->u.mb;
 	if (mb->mbxStatus)
@@ -2323,9 +2323,9 @@ mbx_failed:
 static void
 lpfc_mbx_cmpl_rdp_page_a2(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 {
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) mbox->context1;
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
 	struct lpfc_rdp_context *rdp_context =
-			(struct lpfc_rdp_context *)(mbox->context2);
+			(struct lpfc_rdp_context *)(mbox->ctx_ndlp);
 
 	if (bf_get(lpfc_mqe_status, &mbox->u.mqe))
 		goto error_mbuf_free;
@@ -2341,7 +2341,7 @@ lpfc_mbx_cmpl_rdp_page_a2(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 	lpfc_read_lnk_stat(phba, mbox);
 	mbox->vport = rdp_context->ndlp->vport;
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_link_stat;
-	mbox->context2 = (struct lpfc_rdp_context *) rdp_context;
+	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
 	if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT) == MBX_NOT_FINISHED)
 		goto error_cmd_free;
 
@@ -2359,9 +2359,9 @@ void
 lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 {
 	int rc;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (mbox->context1);
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
 	struct lpfc_rdp_context *rdp_context =
-			(struct lpfc_rdp_context *)(mbox->context2);
+			(struct lpfc_rdp_context *)(mbox->ctx_ndlp);
 
 	if (bf_get(lpfc_mqe_status, &mbox->u.mqe))
 		goto error;
@@ -2375,7 +2375,7 @@ lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 	INIT_LIST_HEAD(&mp->list);
 
 	/* save address for completion */
-	mbox->context1 = mp;
+	mbox->ctx_buf = mp;
 	mbox->vport = rdp_context->ndlp->vport;
 
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_DUMP_MEMORY);
@@ -2391,7 +2391,7 @@ lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 	mbox->u.mqe.un.mem_dump_type3.addr_hi = putPaddrHigh(mp->phys);
 
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_page_a2;
-	mbox->context2 = (struct lpfc_rdp_context *) rdp_context;
+	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED)
 		goto error;
@@ -2436,7 +2436,7 @@ lpfc_sli4_dump_page_a0(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_DUMP_MEMORY);
 	/* save address for completion */
-	mbox->context1 = mp;
+	mbox->ctx_buf = mp;
 
 	bf_set(lpfc_mbx_memory_dump_type3_type,
 		&mbox->u.mqe.un.mem_dump_type3, DMP_LMSD);

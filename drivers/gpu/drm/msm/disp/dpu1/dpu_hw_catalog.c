@@ -151,7 +151,9 @@ static const struct dpu_sspp_blks_common sdm845_sspp_common = {
 		.id = DPU_SSPP_CSC_10BIT, \
 		.base = 0x1a00, .len = 0x100,}, \
 	.format_list = plane_formats_yuv, \
+	.num_formats = ARRAY_SIZE(plane_formats_yuv), \
 	.virt_format_list = plane_formats, \
+	.virt_num_formats = ARRAY_SIZE(plane_formats), \
 	}
 
 #define _DMA_SBLK(num, sdma_pri) \
@@ -163,7 +165,9 @@ static const struct dpu_sspp_blks_common sdm845_sspp_common = {
 	.src_blk = {.name = STRCAT("sspp_src_", num), \
 		.id = DPU_SSPP_SRC, .base = 0x00, .len = 0x150,}, \
 	.format_list = plane_formats, \
+	.num_formats = ARRAY_SIZE(plane_formats), \
 	.virt_format_list = plane_formats, \
+	.virt_num_formats = ARRAY_SIZE(plane_formats), \
 	}
 
 static const struct dpu_sspp_sub_blks sdm845_vig_sblk_0 = _VIG_SBLK("0", 5);

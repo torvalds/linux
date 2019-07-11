@@ -314,6 +314,9 @@ static int search_roland_implicit_fb(struct usb_device *dev, int ifnum,
 	return 0;
 }
 
+/* Setup an implicit feedback endpoint from a quirk. Returns 0 if no quirk
+ * applies. Returns 1 if a quirk was found.
+ */
 static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 					 struct usb_device *dev,
 					 struct usb_interface_descriptor *altsd,
@@ -351,6 +354,10 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 		ep = 0x81;
 		ifnum = 1;
 		goto add_sync_ep_from_ifnum;
+	case USB_ID(0x07fd, 0x0004): /* MOTU MicroBook II */
+		ep = 0x84;
+		ifnum = 0;
+		goto add_sync_ep_from_ifnum;
 	}
 
 	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
@@ -384,7 +391,7 @@ add_sync_ep:
 
 	subs->data_endpoint->sync_master = subs->sync_endpoint;
 
-	return 0;
+	return 1;
 }
 
 static int set_sync_endpoint(struct snd_usb_substream *subs,
@@ -422,6 +429,10 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 	err = set_sync_ep_implicit_fb_quirk(subs, dev, altsd, attr);
 	if (err < 0)
 		return err;
+
+	/* endpoint set by quirk */
+	if (err > 0)
+		return 0;
 
 	if (altsd->bNumEndpoints < 2)
 		return 0;

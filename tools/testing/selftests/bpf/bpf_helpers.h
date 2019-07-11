@@ -113,6 +113,8 @@ static int (*bpf_msg_pull_data)(void *ctx, int start, int end, int flags) =
 	(void *) BPF_FUNC_msg_pull_data;
 static int (*bpf_msg_push_data)(void *ctx, int start, int end, int flags) =
 	(void *) BPF_FUNC_msg_push_data;
+static int (*bpf_msg_pop_data)(void *ctx, int start, int cut, int flags) =
+	(void *) BPF_FUNC_msg_pop_data;
 static int (*bpf_bind)(void *ctx, void *addr, int addr_len) =
 	(void *) BPF_FUNC_bind;
 static int (*bpf_xdp_adjust_tail)(void *ctx, int offset) =
@@ -168,6 +170,20 @@ static int (*bpf_skb_vlan_push)(void *ctx, __be16 vlan_proto, __u16 vlan_tci) =
 	(void *) BPF_FUNC_skb_vlan_push;
 static int (*bpf_skb_vlan_pop)(void *ctx) =
 	(void *) BPF_FUNC_skb_vlan_pop;
+static int (*bpf_rc_pointer_rel)(void *ctx, int rel_x, int rel_y) =
+	(void *) BPF_FUNC_rc_pointer_rel;
+static void (*bpf_spin_lock)(struct bpf_spin_lock *lock) =
+	(void *) BPF_FUNC_spin_lock;
+static void (*bpf_spin_unlock)(struct bpf_spin_lock *lock) =
+	(void *) BPF_FUNC_spin_unlock;
+static struct bpf_sock *(*bpf_sk_fullsock)(struct bpf_sock *sk) =
+	(void *) BPF_FUNC_sk_fullsock;
+static struct bpf_tcp_sock *(*bpf_tcp_sock)(struct bpf_sock *sk) =
+	(void *) BPF_FUNC_tcp_sock;
+static struct bpf_sock *(*bpf_get_listener_sock)(struct bpf_sock *sk) =
+	(void *) BPF_FUNC_get_listener_sock;
+static int (*bpf_skb_ecn_set_ce)(void *ctx) =
+	(void *) BPF_FUNC_skb_ecn_set_ce;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions
@@ -220,6 +236,36 @@ static int (*bpf_skb_change_head)(void *, int len, int flags) =
 	(void *) BPF_FUNC_skb_change_head;
 static int (*bpf_skb_pull_data)(void *, int len) =
 	(void *) BPF_FUNC_skb_pull_data;
+static unsigned int (*bpf_get_cgroup_classid)(void *ctx) =
+	(void *) BPF_FUNC_get_cgroup_classid;
+static unsigned int (*bpf_get_route_realm)(void *ctx) =
+	(void *) BPF_FUNC_get_route_realm;
+static int (*bpf_skb_change_proto)(void *ctx, __be16 proto, __u64 flags) =
+	(void *) BPF_FUNC_skb_change_proto;
+static int (*bpf_skb_change_type)(void *ctx, __u32 type) =
+	(void *) BPF_FUNC_skb_change_type;
+static unsigned int (*bpf_get_hash_recalc)(void *ctx) =
+	(void *) BPF_FUNC_get_hash_recalc;
+static unsigned long long (*bpf_get_current_task)(void *ctx) =
+	(void *) BPF_FUNC_get_current_task;
+static int (*bpf_skb_change_tail)(void *ctx, __u32 len, __u64 flags) =
+	(void *) BPF_FUNC_skb_change_tail;
+static long long (*bpf_csum_update)(void *ctx, __u32 csum) =
+	(void *) BPF_FUNC_csum_update;
+static void (*bpf_set_hash_invalid)(void *ctx) =
+	(void *) BPF_FUNC_set_hash_invalid;
+static int (*bpf_get_numa_node_id)(void) =
+	(void *) BPF_FUNC_get_numa_node_id;
+static int (*bpf_probe_read_str)(void *ctx, __u32 size,
+				 const void *unsafe_ptr) =
+	(void *) BPF_FUNC_probe_read_str;
+static unsigned int (*bpf_get_socket_uid)(void *ctx) =
+	(void *) BPF_FUNC_get_socket_uid;
+static unsigned int (*bpf_set_hash)(void *ctx, __u32 hash) =
+	(void *) BPF_FUNC_set_hash;
+static int (*bpf_skb_adjust_room)(void *ctx, __s32 len_diff, __u32 mode,
+				  unsigned long long flags) =
+	(void *) BPF_FUNC_skb_adjust_room;
 
 /* Scan the ARCH passed in from ARCH env variable (see Makefile) */
 #if defined(__TARGET_ARCH_x86)

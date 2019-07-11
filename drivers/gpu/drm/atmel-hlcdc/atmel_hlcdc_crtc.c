@@ -24,7 +24,7 @@
 #include <linux/pinctrl/consumer.h>
 
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drmP.h>
 
 #include <video/videomode.h>
@@ -364,9 +364,7 @@ static void atmel_hlcdc_crtc_atomic_flush(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs lcdc_crtc_helper_funcs = {
 	.mode_valid = atmel_hlcdc_crtc_mode_valid,
-	.mode_set = drm_helper_crtc_mode_set,
 	.mode_set_nofb = atmel_hlcdc_crtc_mode_set_nofb,
-	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.atomic_check = atmel_hlcdc_crtc_atomic_check,
 	.atomic_begin = atmel_hlcdc_crtc_atomic_begin,
 	.atomic_flush = atmel_hlcdc_crtc_atomic_flush,

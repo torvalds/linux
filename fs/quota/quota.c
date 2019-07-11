@@ -791,7 +791,8 @@ static int quotactl_cmd_write(int cmd)
 /* Return true if quotactl command is manipulating quota on/off state */
 static bool quotactl_cmd_onoff(int cmd)
 {
-	return (cmd == Q_QUOTAON) || (cmd == Q_QUOTAOFF);
+	return (cmd == Q_QUOTAON) || (cmd == Q_QUOTAOFF) ||
+		 (cmd == Q_XQUOTAON) || (cmd == Q_XQUOTAOFF);
 }
 
 /*

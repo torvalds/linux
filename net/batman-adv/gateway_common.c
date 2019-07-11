@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2009-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -28,6 +28,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <uapi/linux/batadv_packet.h>
+#include <uapi/linux/batman_adv.h>
 
 #include "gateway_client.h"
 #include "log.h"

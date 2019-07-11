@@ -33,6 +33,7 @@
 #include <linux/sizes.h>
 #include <linux/mmu_notifier.h>
 #include <linux/iomap.h>
+#include <asm/pgalloc.h>
 #include "internal.h"
 
 #define CREATE_TRACE_POINTS
@@ -246,18 +247,16 @@ static void wait_entry_unlocked(struct xa_state *xas, void *entry)
 	ewait.wait.func = wake_exceptional_entry_func;
 
 	wq = dax_entry_waitqueue(xas, entry, &ewait.key);
-	prepare_to_wait_exclusive(wq, &ewait.wait, TASK_UNINTERRUPTIBLE);
+	/*
+	 * Unlike get_unlocked_entry() there is no guarantee that this
+	 * path ever successfully retrieves an unlocked entry before an
+	 * inode dies. Perform a non-exclusive wait in case this path
+	 * never successfully performs its own wake up.
+	 */
+	prepare_to_wait(wq, &ewait.wait, TASK_UNINTERRUPTIBLE);
 	xas_unlock_irq(xas);
 	schedule();
 	finish_wait(wq, &ewait.wait);
-
-	/*
-	 * Entry lock waits are exclusive. Wake up the next waiter since
-	 * we aren't sure we will acquire the entry lock and thus wake
-	 * the next waiter up on unlock.
-	 */
-	if (waitqueue_active(wq))
-		__wake_up(wq, TASK_NORMAL, 1, &ewait.key);
 }
 
 static void put_unlocked_entry(struct xa_state *xas, void *entry)
@@ -779,7 +778,8 @@ static void dax_entry_mkclean(struct address_space *mapping, pgoff_t index,
 
 	i_mmap_lock_read(mapping);
 	vma_interval_tree_foreach(vma, &mapping->i_mmap, index, index) {
-		unsigned long address, start, end;
+		struct mmu_notifier_range range;
+		unsigned long address;
 
 		cond_resched();
 
@@ -789,11 +789,12 @@ static void dax_entry_mkclean(struct address_space *mapping, pgoff_t index,
 		address = pgoff_address(index, vma);
 
 		/*
-		 * Note because we provide start/end to follow_pte_pmd it will
+		 * Note because we provide range to follow_pte_pmd it will
 		 * call mmu_notifier_invalidate_range_start() on our behalf
 		 * before taking any lock.
 		 */
-		if (follow_pte_pmd(vma->vm_mm, address, &start, &end, &ptep, &pmdp, &ptl))
+		if (follow_pte_pmd(vma->vm_mm, address, &range,
+				   &ptep, &pmdp, &ptl))
 			continue;
 
 		/*
@@ -835,7 +836,7 @@ unlock_pte:
 			pte_unmap_unlock(ptep, ptl);
 		}
 
-		mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
+		mmu_notifier_invalidate_range_end(&range);
 	}
 	i_mmap_unlock_read(mapping);
 }
@@ -843,9 +844,8 @@ unlock_pte:
 static int dax_writeback_one(struct xa_state *xas, struct dax_device *dax_dev,
 		struct address_space *mapping, void *entry)
 {
-	unsigned long pfn;
+	unsigned long pfn, index, count;
 	long ret = 0;
-	size_t size;
 
 	/*
 	 * A page got tagged dirty in DAX mapping? Something is seriously
@@ -894,17 +894,18 @@ static int dax_writeback_one(struct xa_state *xas, struct dax_device *dax_dev,
 	xas_unlock_irq(xas);
 
 	/*
-	 * Even if dax_writeback_mapping_range() was given a wbc->range_start
-	 * in the middle of a PMD, the 'index' we are given will be aligned to
-	 * the start index of the PMD, as will the pfn we pull from 'entry'.
+	 * If dax_writeback_mapping_range() was given a wbc->range_start
+	 * in the middle of a PMD, the 'index' we use needs to be
+	 * aligned to the start of the PMD.
 	 * This allows us to flush for PMD_SIZE and not have to worry about
 	 * partial PMD writebacks.
 	 */
 	pfn = dax_to_pfn(entry);
-	size = PAGE_SIZE << dax_entry_order(entry);
+	count = 1UL << dax_entry_order(entry);
+	index = xas->xa_index & ~(count - 1);
 
-	dax_entry_mkclean(mapping, xas->xa_index, pfn);
-	dax_flush(dax_dev, page_address(pfn_to_page(pfn)), size);
+	dax_entry_mkclean(mapping, index, pfn);
+	dax_flush(dax_dev, page_address(pfn_to_page(pfn)), count * PAGE_SIZE);
 	/*
 	 * After we have flushed the cache, we can clear the dirty tag. There
 	 * cannot be new dirty data in the pfn after the flush has completed as
@@ -917,8 +918,7 @@ static int dax_writeback_one(struct xa_state *xas, struct dax_device *dax_dev,
 	xas_clear_mark(xas, PAGECACHE_TAG_DIRTY);
 	dax_wake_entry(xas, entry, false);
 
-	trace_dax_writeback_one(mapping->host, xas->xa_index,
-			size >> PAGE_SHIFT);
+	trace_dax_writeback_one(mapping->host, index, count);
 	return ret;
 
  put_unlocked:
@@ -1220,9 +1220,7 @@ static vm_fault_t dax_fault_return(int error)
 {
 	if (error == 0)
 		return VM_FAULT_NOPAGE;
-	if (error == -ENOMEM)
-		return VM_FAULT_OOM;
-	return VM_FAULT_SIGBUS;
+	return vmf_error(error);
 }
 
 /*
@@ -1410,7 +1408,9 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
 {
 	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
 	unsigned long pmd_addr = vmf->address & PMD_MASK;
+	struct vm_area_struct *vma = vmf->vma;
 	struct inode *inode = mapping->host;
+	pgtable_t pgtable = NULL;
 	struct page *zero_page;
 	spinlock_t *ptl;
 	pmd_t pmd_entry;
@@ -1425,12 +1425,22 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
 	*entry = dax_insert_entry(xas, mapping, vmf, *entry, pfn,
 			DAX_PMD | DAX_ZERO_PAGE, false);
 
+	if (arch_needs_pgtable_deposit()) {
+		pgtable = pte_alloc_one(vma->vm_mm);
+		if (!pgtable)
+			return VM_FAULT_OOM;
+	}
+
 	ptl = pmd_lock(vmf->vma->vm_mm, vmf->pmd);
 	if (!pmd_none(*(vmf->pmd))) {
 		spin_unlock(ptl);
 		goto fallback;
 	}
 
+	if (pgtable) {
+		pgtable_trans_huge_deposit(vma->vm_mm, vmf->pmd, pgtable);
+		mm_inc_nr_ptes(vma->vm_mm);
+	}
 	pmd_entry = mk_pmd(zero_page, vmf->vma->vm_page_prot);
 	pmd_entry = pmd_mkhuge(pmd_entry);
 	set_pmd_at(vmf->vma->vm_mm, pmd_addr, vmf->pmd, pmd_entry);
@@ -1439,6 +1449,8 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
 	return VM_FAULT_NOPAGE;
 
 fallback:
+	if (pgtable)
+		pte_free(vma->vm_mm, pgtable);
 	trace_dax_pmd_load_hole_fallback(inode, vmf, zero_page, *entry);
 	return VM_FAULT_FALLBACK;
 }

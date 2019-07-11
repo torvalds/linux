@@ -52,7 +52,7 @@
 
 #define AU0828_INTERLACED_DEFAULT       1
 
-/* Defination for AU0828 USB transfer */
+/* Definition for AU0828 USB transfer */
 #define AU0828_MAX_ISO_BUFS    12  /* maybe resize this value in the future */
 #define AU0828_ISO_PACKETS_PER_URB      128
 

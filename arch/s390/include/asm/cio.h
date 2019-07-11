@@ -331,5 +331,6 @@ extern void css_schedule_reprobe(void);
 /* Function from drivers/s390/cio/chsc.c */
 int chsc_sstpc(void *page, unsigned int op, u16 ctrl, u64 *clock_delta);
 int chsc_sstpi(void *page, void *result, size_t size);
+int chsc_sgib(u32 origin);
 
 #endif

@@ -6696,7 +6696,8 @@ err_nodev:
  * Return value:
  * 	0 on success / other on failure
  **/
-static int ipr_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
+static int ipr_ioctl(struct scsi_device *sdev, unsigned int cmd,
+		     void __user *arg)
 {
 	struct ipr_resource_entry *res;
 
@@ -6754,7 +6755,6 @@ static struct scsi_host_template driver_template = {
 	.sg_tablesize = IPR_MAX_SGLIST,
 	.max_sectors = IPR_IOA_MAX_SECTORS,
 	.cmd_per_lun = IPR_MAX_CMD_PER_LUN,
-	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = ipr_ioa_attrs,
 	.sdev_attrs = ipr_dev_attrs,
 	.proc_name = IPR_NAME,

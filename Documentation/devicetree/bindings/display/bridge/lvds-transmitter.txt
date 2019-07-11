@@ -22,13 +22,11 @@ among others.
 
 Required properties:
 
-- compatible: Must be one or more of the following
-  - "ti,ds90c185" for the TI DS90C185 FPD-Link Serializer
-  - "lvds-encoder" for a generic LVDS encoder device
+- compatible: Must be "lvds-encoder"
 
-  When compatible with the generic version, nodes must list the
-  device-specific version corresponding to the device first
-  followed by the generic version.
+  Any encoder compatible with this generic binding, but with additional
+  properties not listed here, must list a device specific compatible first
+  followed by this generic compatible.
 
 Required nodes:
 
@@ -44,8 +42,6 @@ Example
 
 lvds-encoder {
 	compatible = "lvds-encoder";
-	#address-cells = <1>;
-	#size-cells = <0>;
 
 	ports {
 		#address-cells = <1>;

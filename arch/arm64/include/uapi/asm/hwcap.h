@@ -49,5 +49,8 @@
 #define HWCAP_ILRCPC		(1 << 26)
 #define HWCAP_FLAGM		(1 << 27)
 #define HWCAP_SSBS		(1 << 28)
+#define HWCAP_SB		(1 << 29)
+#define HWCAP_PACA		(1 << 30)
+#define HWCAP_PACG		(1UL << 31)
 
 #endif /* _UAPI__ASM_HWCAP_H */

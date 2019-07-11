@@ -68,7 +68,7 @@ ENTRY(__raw_readsw)
 		bpl	.Linsw_8_lp
 
 		tst	r2, #7
-		ldmeqfd	sp!, {r4, r5, r6, pc}
+		ldmfdeq	sp!, {r4, r5, r6, pc}
 
 .Lno_insw_8:	tst	r2, #4
 		beq	.Lno_insw_4
@@ -97,9 +97,9 @@ ENTRY(__raw_readsw)
 
 .Lno_insw_2:	tst	r2, #1
 		ldrne	r3, [r0]
-		strneb	r3, [r1], #1
+		strbne	r3, [r1], #1
 		movne	r3, r3, lsr #8
-		strneb	r3, [r1]
+		strbne	r3, [r1]
 
 		ldmfd	sp!, {r4, r5, r6, pc}
 

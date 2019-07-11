@@ -1,6 +1,5 @@
 #include <linux/aer.h>
 #include <linux/delay.h>
-#include <linux/debugfs.h>
 #include <linux/firmware.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -13,9 +12,9 @@
 #include "nitrox_csr.h"
 #include "nitrox_hal.h"
 #include "nitrox_isr.h"
+#include "nitrox_debugfs.h"
 
 #define CNN55XX_DEV_ID	0x12
-#define MAX_PF_QUEUES	64
 #define UCODE_HLEN 48
 #define SE_GROUP 0
 
@@ -405,9 +404,7 @@ static int nitrox_probe(struct pci_dev *pdev,
 	if (err)
 		goto pf_hw_fail;
 
-	err = nitrox_debugfs_init(ndev);
-	if (err)
-		goto pf_hw_fail;
+	nitrox_debugfs_init(ndev);
 
 	/* clear the statistics */
 	atomic64_set(&ndev->stats.posted, 0);

@@ -44,6 +44,8 @@
 #include "../thread-stack.h"
 #include "../trace-event.h"
 #include "../call-path.h"
+#include "map.h"
+#include "symbol.h"
 #include "thread_map.h"
 #include "cpumap.h"
 #include "print_binary.h"
@@ -264,7 +266,7 @@ static void define_field(enum tep_print_arg_type field_type,
 	Py_DECREF(t);
 }
 
-static void define_event_symbols(struct tep_event_format *event,
+static void define_event_symbols(struct tep_event *event,
 				 const char *ev_name,
 				 struct tep_print_arg *args)
 {
@@ -332,7 +334,7 @@ static void define_event_symbols(struct tep_event_format *event,
 		define_event_symbols(event, ev_name, args->next);
 }
 
-static PyObject *get_field_numeric_entry(struct tep_event_format *event,
+static PyObject *get_field_numeric_entry(struct tep_event *event,
 		struct tep_format_field *field, void *data)
 {
 	bool is_array = field->flags & TEP_FIELD_IS_ARRAY;
@@ -494,14 +496,14 @@ static PyObject *python_process_brstack(struct perf_sample *sample,
 		pydict_set_item_string_decref(pyelem, "cycles",
 		    PyLong_FromUnsignedLongLong(br->entries[i].flags.cycles));
 
-		thread__find_map(thread, sample->cpumode,
-				 br->entries[i].from, &al);
+		thread__find_map_fb(thread, sample->cpumode,
+				    br->entries[i].from, &al);
 		dsoname = get_dsoname(al.map);
 		pydict_set_item_string_decref(pyelem, "from_dsoname",
 					      _PyUnicode_FromString(dsoname));
 
-		thread__find_map(thread, sample->cpumode,
-				 br->entries[i].to, &al);
+		thread__find_map_fb(thread, sample->cpumode,
+				    br->entries[i].to, &al);
 		dsoname = get_dsoname(al.map);
 		pydict_set_item_string_decref(pyelem, "to_dsoname",
 					      _PyUnicode_FromString(dsoname));
@@ -576,14 +578,14 @@ static PyObject *python_process_brstacksym(struct perf_sample *sample,
 		if (!pyelem)
 			Py_FatalError("couldn't create Python dictionary");
 
-		thread__find_symbol(thread, sample->cpumode,
-				    br->entries[i].from, &al);
+		thread__find_symbol_fb(thread, sample->cpumode,
+				       br->entries[i].from, &al);
 		get_symoff(al.sym, &al, true, bf, sizeof(bf));
 		pydict_set_item_string_decref(pyelem, "from",
 					      _PyUnicode_FromString(bf));
 
-		thread__find_symbol(thread, sample->cpumode,
-				    br->entries[i].to, &al);
+		thread__find_symbol_fb(thread, sample->cpumode,
+				       br->entries[i].to, &al);
 		get_symoff(al.sym, &al, true, bf, sizeof(bf));
 		pydict_set_item_string_decref(pyelem, "to",
 					      _PyUnicode_FromString(bf));
@@ -733,8 +735,7 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 		Py_FatalError("couldn't create Python dictionary");
 
 	pydict_set_item_string_decref(dict, "ev_name", _PyUnicode_FromString(perf_evsel__name(evsel)));
-	pydict_set_item_string_decref(dict, "attr", _PyUnicode_FromStringAndSize(
-			(const char *)&evsel->attr, sizeof(evsel->attr)));
+	pydict_set_item_string_decref(dict, "attr", _PyBytes_FromStringAndSize((const char *)&evsel->attr, sizeof(evsel->attr)));
 
 	pydict_set_item_string_decref(dict_sample, "pid",
 			_PyLong_FromLong(sample->pid));
@@ -790,7 +791,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 				      struct perf_evsel *evsel,
 				      struct addr_location *al)
 {
-	struct tep_event_format *event = evsel->tp_format;
+	struct tep_event *event = evsel->tp_format;
 	PyObject *handler, *context, *t, *obj = NULL, *callchain;
 	PyObject *dict = NULL, *all_entries_dict = NULL;
 	static char handler_name[256];
@@ -1172,7 +1173,7 @@ static int python_export_call_return(struct db_export *dbe,
 	u64 comm_db_id = cr->comm ? cr->comm->db_id : 0;
 	PyObject *t;
 
-	t = tuple_new(11);
+	t = tuple_new(12);
 
 	tuple_set_u64(t, 0, cr->db_id);
 	tuple_set_u64(t, 1, cr->thread->db_id);
@@ -1185,6 +1186,7 @@ static int python_export_call_return(struct db_export *dbe,
 	tuple_set_u64(t, 8, cr->return_ref);
 	tuple_set_u64(t, 9, cr->cp->parent->db_id);
 	tuple_set_s32(t, 10, cr->flags);
+	tuple_set_u64(t, 11, cr->parent_db_id);
 
 	call_object(tables->call_return_handler, t, "call_return_table");
 
@@ -1193,11 +1195,12 @@ static int python_export_call_return(struct db_export *dbe,
 	return 0;
 }
 
-static int python_process_call_return(struct call_return *cr, void *data)
+static int python_process_call_return(struct call_return *cr, u64 *parent_db_id,
+				      void *data)
 {
 	struct db_export *dbe = data;
 
-	return db_export__call_return(dbe, cr);
+	return db_export__call_return(dbe, cr, parent_db_id);
 }
 
 static void python_process_general_event(struct perf_sample *sample,
@@ -1494,34 +1497,40 @@ static void _free_command_line(wchar_t **command_line, int num)
 static int python_start_script(const char *script, int argc, const char **argv)
 {
 	struct tables *tables = &tables_global;
+	PyMODINIT_FUNC (*initfunc)(void);
 #if PY_MAJOR_VERSION < 3
 	const char **command_line;
 #else
 	wchar_t **command_line;
 #endif
-	char buf[PATH_MAX];
+	/*
+	 * Use a non-const name variable to cope with python 2.6's
+	 * PyImport_AppendInittab prototype
+	 */
+	char buf[PATH_MAX], name[19] = "perf_trace_context";
 	int i, err = 0;
 	FILE *fp;
 
 #if PY_MAJOR_VERSION < 3
+	initfunc = initperf_trace_context;
 	command_line = malloc((argc + 1) * sizeof(const char *));
 	command_line[0] = script;
 	for (i = 1; i < argc + 1; i++)
 		command_line[i] = argv[i - 1];
 #else
+	initfunc = PyInit_perf_trace_context;
 	command_line = malloc((argc + 1) * sizeof(wchar_t *));
 	command_line[0] = Py_DecodeLocale(script, NULL);
 	for (i = 1; i < argc + 1; i++)
 		command_line[i] = Py_DecodeLocale(argv[i - 1], NULL);
 #endif
 
+	PyImport_AppendInittab(name, initfunc);
 	Py_Initialize();
 
 #if PY_MAJOR_VERSION < 3
-	initperf_trace_context();
 	PySys_SetArgv(argc + 1, (char **)command_line);
 #else
-	PyInit_perf_trace_context();
 	PySys_SetArgv(argc + 1, command_line);
 #endif
 
@@ -1590,7 +1599,7 @@ static int python_stop_script(void)
 
 static int python_generate_script(struct tep_handle *pevent, const char *outfile)
 {
-	struct tep_event_format *event = NULL;
+	struct tep_event *event = NULL;
 	struct tep_format_field *f;
 	char fname[PATH_MAX];
 	int not_first, count;

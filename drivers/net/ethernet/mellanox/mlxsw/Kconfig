@@ -4,7 +4,6 @@
 
 config MLXSW_CORE
 	tristate "Mellanox Technologies Switch ASICs support"
-	depends on MAY_USE_DEVLINK
 	---help---
 	  This driver supports Mellanox Technologies Switch ASICs family.
 
@@ -78,8 +77,10 @@ config MLXSW_SPECTRUM
 	depends on IPV6 || IPV6=n
 	depends on NET_IPGRE || NET_IPGRE=n
 	depends on IPV6_GRE || IPV6_GRE=n
+	depends on VXLAN || VXLAN=n
 	select GENERIC_ALLOCATOR
 	select PARMAN
+	select OBJAGG
 	select MLXFW
 	default m
 	---help---

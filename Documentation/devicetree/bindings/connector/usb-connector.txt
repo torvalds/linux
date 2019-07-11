@@ -14,6 +14,8 @@ Optional properties:
 - label: symbolic name for the connector,
 - type: size of the connector, should be specified in case of USB-A, USB-B
   non-fullsize connectors: "mini", "micro".
+- self-powered: Set this property if the usb device that has its own power
+  source.
 
 Optional properties for usb-c-connector:
 - power-role: should be one of "source", "sink" or "dual"(DRP) if typec

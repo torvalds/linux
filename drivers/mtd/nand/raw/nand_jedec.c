@@ -107,6 +107,8 @@ int nand_jedec_detect(struct nand_chip *chip)
 		pr_warn("Invalid codeword size\n");
 	}
 
+	ret = 1;
+
 free_jedec_param_page:
 	kfree(p);
 	return ret;

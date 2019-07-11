@@ -172,7 +172,7 @@ config SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH
 
 endif ## SND_SST_ATOM_HIFI2_PLATFORM
 
-if SND_SOC_INTEL_SKYLAKE
+if SND_SOC_INTEL_SKL
 
 config SND_SOC_INTEL_SKL_RT286_MACH
 	tristate "SKL with RT286 I2S mode"
@@ -212,6 +212,10 @@ config SND_SOC_INTEL_SKL_NAU88L25_MAX98357A_MACH
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
+endif ## SND_SOC_INTEL_SKL
+
+if SND_SOC_INTEL_APL
+
 config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
 	tristate "Broxton with DA7219 and MAX98357A in I2S Mode"
 	depends on MFD_INTEL_LPSS && I2C && ACPI
@@ -238,6 +242,10 @@ config SND_SOC_INTEL_BXT_RT298_MACH
 	   with RT286 I2S audio codec.
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
+
+endif ## SND_SOC_INTEL_APL
+
+if SND_SOC_INTEL_KBL
 
 config SND_SOC_INTEL_KBL_RT5663_MAX98927_MACH
 	tristate "KBL with RT5663 and MAX98927 in I2S Mode"
@@ -285,6 +293,7 @@ config SND_SOC_INTEL_KBL_DA7219_MAX98927_MACH
 	depends on MFD_INTEL_LPSS && I2C && ACPI
 	select SND_SOC_DA7219
 	select SND_SOC_MAX98927
+	select SND_SOC_MAX98373
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
 	help
@@ -292,6 +301,20 @@ config SND_SOC_INTEL_KBL_DA7219_MAX98927_MACH
 	  create an alsa sound card for DA7219 + MAX98927 I2S audio codec.
 	  Say Y if you have such a device.
 	  If unsure select "N".
+
+config SND_SOC_INTEL_KBL_RT5660_MACH
+	tristate "KBL with RT5660 in I2S Mode"
+	depends on MFD_INTEL_LPSS && I2C && ACPI
+	select SND_SOC_RT5660
+	select SND_SOC_HDAC_HDMI
+	help
+	  This adds support for ASoC Onboard Codec I2S machine driver. This will
+	  create an alsa sound card for RT5660 I2S audio codec.
+	  Say Y if you have such a device.
+
+endif ## SND_SOC_INTEL_KBL
+
+if SND_SOC_INTEL_GLK
 
 config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 	tristate "GLK with RT5682 and MAX98357A in I2S Mode"
@@ -307,7 +330,7 @@ config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 	   Say Y if you have such a device.
 	   If unsure select "N".
 
-endif ## SND_SOC_INTEL_SKYLAKE
+endif ## SND_SOC_INTEL_GLK
 
 if SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC
 

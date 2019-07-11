@@ -19,6 +19,13 @@ typedef int (*nvmem_reg_read_t)(void *priv, unsigned int offset,
 typedef int (*nvmem_reg_write_t)(void *priv, unsigned int offset,
 				 void *val, size_t bytes);
 
+enum nvmem_type {
+	NVMEM_TYPE_UNKNOWN = 0,
+	NVMEM_TYPE_EEPROM,
+	NVMEM_TYPE_OTP,
+	NVMEM_TYPE_BATTERY_BACKED,
+};
+
 /**
  * struct nvmem_config - NVMEM device configuration
  *
@@ -28,8 +35,10 @@ typedef int (*nvmem_reg_write_t)(void *priv, unsigned int offset,
  * @owner:	Pointer to exporter module. Used for refcounting.
  * @cells:	Optional array of pre-defined NVMEM cells.
  * @ncells:	Number of elements in cells.
+ * @type:	Type of the nvmem storage
  * @read_only:	Device is read-only.
  * @root_only:	Device is accessibly to root only.
+ * @no_of_node:	Device should not use the parent's of_node even if it's !NULL.
  * @reg_read:	Callback to read data.
  * @reg_write:	Callback to write data.
  * @size:	Device size.
@@ -51,8 +60,10 @@ struct nvmem_config {
 	struct module		*owner;
 	const struct nvmem_cell_info	*cells;
 	int			ncells;
+	enum nvmem_type		type;
 	bool			read_only;
 	bool			root_only;
+	bool			no_of_node;
 	nvmem_reg_read_t	reg_read;
 	nvmem_reg_write_t	reg_write;
 	int	size;

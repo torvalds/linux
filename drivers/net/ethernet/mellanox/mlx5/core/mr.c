@@ -51,9 +51,10 @@ void mlx5_cleanup_mkey_table(struct mlx5_core_dev *dev)
 
 int mlx5_core_create_mkey_cb(struct mlx5_core_dev *dev,
 			     struct mlx5_core_mkey *mkey,
-			     u32 *in, int inlen,
-			     u32 *out, int outlen,
-			     mlx5_cmd_cbk_t callback, void *context)
+			     struct mlx5_async_ctx *async_ctx, u32 *in,
+			     int inlen, u32 *out, int outlen,
+			     mlx5_async_cbk_t callback,
+			     struct mlx5_async_work *context)
 {
 	struct mlx5_mkey_table *table = &dev->priv.mkey_table;
 	u32 lout[MLX5_ST_SZ_DW(create_mkey_out)] = {0};
@@ -71,7 +72,7 @@ int mlx5_core_create_mkey_cb(struct mlx5_core_dev *dev,
 	MLX5_SET(mkc, mkc, mkey_7_0, key);
 
 	if (callback)
-		return mlx5_cmd_exec_cb(dev, in, inlen, out, outlen,
+		return mlx5_cmd_exec_cb(async_ctx, in, inlen, out, outlen,
 					callback, context);
 
 	err = mlx5_cmd_exec(dev, in, inlen, lout, sizeof(lout));
@@ -105,7 +106,7 @@ int mlx5_core_create_mkey(struct mlx5_core_dev *dev,
 			  struct mlx5_core_mkey *mkey,
 			  u32 *in, int inlen)
 {
-	return mlx5_core_create_mkey_cb(dev, mkey, in, inlen,
+	return mlx5_core_create_mkey_cb(dev, mkey, NULL, in, inlen,
 					NULL, 0, NULL, NULL);
 }
 EXPORT_SYMBOL(mlx5_core_create_mkey);

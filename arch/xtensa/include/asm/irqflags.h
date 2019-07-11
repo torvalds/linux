@@ -12,6 +12,7 @@
 #ifndef _XTENSA_IRQFLAGS_H
 #define _XTENSA_IRQFLAGS_H
 
+#include <linux/stringify.h>
 #include <linux/types.h>
 #include <asm/processor.h>
 

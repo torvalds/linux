@@ -23,7 +23,7 @@ kernel.
 
    The resultant userspace tool binary is then located at:
 
-     tools/acpi/power/acpi/acpidbg/acpidbg
+     tools/power/acpi/acpidbg
 
    It can be installed to system directories by running "make install" (as a
    sufficiently privileged user).
@@ -35,7 +35,7 @@ kernel.
 
    # mount -t debugfs none /sys/kernel/debug
    # modprobe acpi_dbg
-   # tools/acpi/power/acpi/acpidbg/acpidbg
+   # tools/power/acpi/acpidbg
 
    That spawns the interactive AML debugger environment where you can execute
    debugger commands.

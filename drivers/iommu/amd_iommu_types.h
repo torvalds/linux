@@ -269,6 +269,7 @@
 #define PAGE_MODE_4_LEVEL 0x04
 #define PAGE_MODE_5_LEVEL 0x05
 #define PAGE_MODE_6_LEVEL 0x06
+#define PAGE_MODE_7_LEVEL 0x07
 
 #define PM_LEVEL_SHIFT(x)	(12 + ((x) * 9))
 #define PM_LEVEL_SIZE(x)	(((x) < 6) ? \
@@ -372,6 +373,8 @@
 #define IOMMU_PROT_MASK 0x03
 #define IOMMU_PROT_IR 0x01
 #define IOMMU_PROT_IW 0x02
+
+#define IOMMU_UNITY_MAP_FLAG_EXCL_RANGE	(1 << 2)
 
 /* IOMMU capabilities */
 #define IOMMU_CAP_IOTLB   24

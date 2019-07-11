@@ -18,8 +18,6 @@
 #ifndef __MT76X02_MAC_H
 #define __MT76X02_MAC_H
 
-#include <linux/average.h>
-
 struct mt76x02_dev;
 
 struct mt76x02_tx_status {
@@ -37,21 +35,9 @@ struct mt76x02_tx_status {
 #define MT_MAX_VIFS		8
 
 struct mt76x02_vif {
+	struct mt76_wcid group_wcid; /* must be first */
 	u8 idx;
-
-	struct mt76_wcid group_wcid;
 };
-
-struct mt76x02_tx_info {
-	unsigned long jiffies;
-	u8 tries;
-
-	u8 wcid;
-	u8 pktid;
-	u8 retry;
-};
-
-DECLARE_EWMA(signal, 10, 8);
 
 struct mt76x02_sta {
 	struct mt76_wcid wcid; /* must be first */
@@ -60,8 +46,6 @@ struct mt76x02_sta {
 	struct mt76x02_tx_status status;
 	int n_frames;
 
-	struct ewma_signal rssi;
-	int inactive_count;
 };
 
 #define MT_RXINFO_BA			BIT(0)
@@ -153,8 +137,6 @@ enum mt76x2_phy_bandwidth {
 #define MT_TXWI_ACK_CTL_NSEQ		BIT(1)
 #define MT_TXWI_ACK_CTL_BA_WINDOW	GENMASK(7, 2)
 
-#define MT_TXWI_PKTID_PROBE		BIT(7)
-
 struct mt76x02_txwi {
 	__le16 flags;
 	__le16 rate;
@@ -190,22 +172,13 @@ static inline bool mt76x02_wait_for_mac(struct mt76_dev *dev)
 	return false;
 }
 
-static inline struct mt76x02_tx_info *
-mt76x02_skb_tx_info(struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
-	return (void *)info->status.status_driver_data;
-}
-
-void mt76x02_txq_init(struct mt76x02_dev *dev, struct ieee80211_txq *txq);
-enum mt76x02_cipher_type
-mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data);
-
+void mt76x02_mac_set_short_preamble(struct mt76x02_dev *dev, bool enable);
 int mt76x02_mac_shared_key_setup(struct mt76x02_dev *dev, u8 vif_idx,
 				 u8 key_idx, struct ieee80211_key_conf *key);
 int mt76x02_mac_wcid_set_key(struct mt76x02_dev *dev, u8 idx,
 			     struct ieee80211_key_conf *key);
+void mt76x02_mac_wcid_sync_pn(struct mt76x02_dev *dev, u8 idx,
+			      struct ieee80211_key_conf *key);
 void mt76x02_mac_wcid_setup(struct mt76x02_dev *dev, u8 idx, u8 vif_idx,
 			    u8 *mac);
 void mt76x02_mac_wcid_set_drop(struct mt76x02_dev *dev, u8 idx, bool drop);
@@ -217,13 +190,24 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 			    struct mt76x02_tx_status *stat, u8 *update);
 int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 			   void *rxi);
-int
-mt76x02_mac_process_rate(struct mt76_rx_status *status, u16 rate);
-void mt76x02_mac_setaddr(struct mt76x02_dev *dev, u8 *addr);
+void mt76x02_mac_set_tx_protection(struct mt76x02_dev *dev, bool legacy_prot,
+				   int ht_mode);
+void mt76x02_mac_set_rts_thresh(struct mt76x02_dev *dev, u32 val);
+void mt76x02_mac_setaddr(struct mt76x02_dev *dev, const u8 *addr);
 void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 			    struct sk_buff *skb, struct mt76_wcid *wcid,
 			    struct ieee80211_sta *sta, int len);
 void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq);
 void mt76x02_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			     struct mt76_queue_entry *e, bool flush);
+void mt76x02_update_channel(struct mt76_dev *mdev);
+void mt76x02_mac_work(struct work_struct *work);
+
+void mt76x02_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr);
+int mt76x02_mac_set_beacon(struct mt76x02_dev *dev, u8 vif_idx,
+			   struct sk_buff *skb);
+void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
+				   struct ieee80211_vif *vif, bool val);
+
+void mt76x02_edcca_init(struct mt76x02_dev *dev, bool enable);
 #endif

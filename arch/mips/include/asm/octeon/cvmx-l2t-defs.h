@@ -104,7 +104,6 @@ union cvmx_l2t_err {
 		__BITFIELD_FIELD(uint64_t ecc_ena:1,
 		;)))))))))))))
 	} cn38xx;
-	struct cvmx_l2t_err_cn38xx cn38xxp2;
 	struct cvmx_l2t_err_cn50xx {
 		__BITFIELD_FIELD(uint64_t reserved_28_63:36,
 		__BITFIELD_FIELD(uint64_t lck_intena2:1,
@@ -139,11 +138,6 @@ union cvmx_l2t_err {
 		__BITFIELD_FIELD(uint64_t ecc_ena:1,
 		;))))))))))))))
 	} cn52xx;
-	struct cvmx_l2t_err_cn52xx cn52xxp1;
-	struct cvmx_l2t_err_s cn56xx;
-	struct cvmx_l2t_err_s cn56xxp1;
-	struct cvmx_l2t_err_s cn58xx;
-	struct cvmx_l2t_err_s cn58xxp1;
 };
 
 #endif

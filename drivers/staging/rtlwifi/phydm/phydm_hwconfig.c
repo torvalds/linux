@@ -45,8 +45,8 @@ static u32 phydm_process_rssi_pwdb(struct phy_dm_struct *dm,
 	u32 weighting = 0, undecorated_smoothed_pwdb;
 	/* 2011.07.28 LukeLee: modified to prevent unstable CCK RSSI */
 
-	if (entry->rssi_stat.ofdm_pkt ==
-	    64) { /* speed up when all packets are OFDM*/
+	if (entry->rssi_stat.ofdm_pkt == 64) {
+		/* speed up when all packets are OFDM */
 		undecorated_smoothed_pwdb = undecorated_smoothed_ofdm;
 		ODM_RT_TRACE(dm, ODM_COMP_RSSI_MONITOR,
 			     "PWDB_0[%d] = (( %d ))\n", pktinfo->station_id,
@@ -477,26 +477,6 @@ static u8 odm_query_rx_pwr_percentage(s8 ant_power)
 		return 100 + ant_power;
 }
 
-/*
- * 2012/01/12 MH MOve some signal strength smooth method to MP HAL layer.
- * IF other SW team do not support the feature, remove this section.??
- */
-
-s32 odm_signal_scale_mapping(struct phy_dm_struct *dm, s32 curr_sig)
-{
-	{
-		return curr_sig;
-	}
-}
-
-static u8 odm_sq_process_patch_rt_cid_819x_lenovo(struct phy_dm_struct *dm,
-						  u8 is_cck_rate, u8 pwdb_all,
-						  u8 path, u8 RSSI)
-{
-	u8 sq = 0;
-	return sq;
-}
-
 static u8 odm_evm_db_to_percentage(s8 value)
 {
 	/* -33dB~0dB to 0%~99% */
@@ -748,16 +728,10 @@ static void odm_rx_phy_status92c_series_parsing(
 	 * from 0~100.
 	 */
 	/* It is assigned to the BSS List in GetValueFromBeaconOrProbeRsp(). */
-	if (is_cck_rate) {
-		phy_info->signal_strength = (u8)(
-			odm_signal_scale_mapping(dm, pwdb_all)); /*pwdb_all;*/
-	} else {
-		if (rf_rx_num != 0) {
-			phy_info->signal_strength =
-				(u8)(odm_signal_scale_mapping(dm, total_rssi /=
-								  rf_rx_num));
-		}
-	}
+	if (is_cck_rate)
+		phy_info->signal_strength = pwdb_all;
+	else if (rf_rx_num != 0)
+		phy_info->signal_strength = (total_rssi /= rf_rx_num);
 
 	/* For 92C/92D HW (Hybrid) Antenna Diversity */
 }
@@ -901,13 +875,10 @@ static void odm_rx_phy_status_jaguar_series_parsing(
 		phy_info->recv_signal_power = rx_pwr_all;
 		/*(3) Get Signal Quality (EVM)*/
 		{
-			u8 sq;
+			u8 sq = 0;
 
-			if ((dm->support_platform == ODM_WIN) &&
-			    (dm->patch_id == RT_CID_819X_LENOVO))
-				sq = odm_sq_process_patch_rt_cid_819x_lenovo(
-					dm, is_cck_rate, pwdb_all, 0, 0);
-			else
+			if (!(dm->support_platform == ODM_WIN &&
+			      dm->patch_id == RT_CID_819X_LENOVO))
 				sq = phydm_get_signal_quality_8812(phy_info, dm,
 								   phy_sta_rpt);
 
@@ -1051,21 +1022,19 @@ static void odm_rx_phy_status_jaguar_series_parsing(
 	 */
 	/*It is assigned to the BSS List in GetValueFromBeaconOrProbeRsp().*/
 	if (is_cck_rate) {
-		phy_info->signal_strength = (u8)(
-			odm_signal_scale_mapping(dm, pwdb_all)); /*pwdb_all;*/
-	} else {
-		if (rf_rx_num != 0) {
-			/* 2015/01 Sean, use the best two RSSI only,
-			 * suggested by Ynlin and ChenYu.
-			 */
-			if (rf_rx_num == 1)
-				avg_rssi = best_rssi;
-			else
-				avg_rssi = (best_rssi + second_rssi) / 2;
-			phy_info->signal_strength =
-				(u8)(odm_signal_scale_mapping(dm, avg_rssi));
-		}
+		phy_info->signal_strength = pwdb_all;
+	} else if (rf_rx_num != 0) {
+		/* 2015/01 Sean, use the best two RSSI only,
+		 * suggested by Ynlin and ChenYu.
+		 */
+		if (rf_rx_num == 1)
+			avg_rssi = best_rssi;
+		else
+			avg_rssi = (best_rssi + second_rssi) / 2;
+
+		phy_info->signal_strength = avg_rssi;
 	}
+
 	dm->rx_pwdb_ave = dm->rx_pwdb_ave + phy_info->rx_pwdb_all;
 
 	dm->dm_fat_table.antsel_rx_keep_0 = phy_sta_rpt->antidx_anta;
@@ -1750,8 +1719,6 @@ static void phydm_get_rx_phy_status_type2(struct phy_dm_struct *dm,
 					  ODM_RTL8710B)) { /* JJ ADD 20161014 */
 		if (rxsc == 3)
 			bw = ODM_BW40M;
-		else if ((rxsc == 1) || (rxsc == 2))
-			bw = ODM_BW20M;
 		else
 			bw = ODM_BW20M;
 	}
@@ -1874,44 +1841,8 @@ void phydm_rx_phy_status_new_type(struct phy_dm_struct *phydm, u8 *phy_status,
 	/* Update signal strength to UI, and phy_info->rx_pwdb_all is the
 	 * maximum RSSI of all path
 	 */
-	phy_info->signal_strength =
-		(u8)(odm_signal_scale_mapping(phydm, phy_info->rx_pwdb_all));
+	phy_info->signal_strength = phy_info->rx_pwdb_all;
 
 	/* Calculate average RSSI and smoothed RSSI */
 	phydm_process_rssi_for_dm_new_type(phydm, phy_info, pktinfo);
-}
-
-u32 query_phydm_trx_capability(struct phy_dm_struct *dm)
-{
-	u32 value32 = 0xFFFFFFFF;
-
-	return value32;
-}
-
-u32 query_phydm_stbc_capability(struct phy_dm_struct *dm)
-{
-	u32 value32 = 0xFFFFFFFF;
-
-	return value32;
-}
-
-u32 query_phydm_ldpc_capability(struct phy_dm_struct *dm)
-{
-	u32 value32 = 0xFFFFFFFF;
-
-	return value32;
-}
-
-u32 query_phydm_txbf_parameters(struct phy_dm_struct *dm)
-{
-	u32 value32 = 0xFFFFFFFF;
-
-	return value32;
-}
-
-u32 query_phydm_txbf_capability(struct phy_dm_struct *dm)
-{
-	u32 value32 = 0xFFFFFFFF;
-
-	return value32;
 }

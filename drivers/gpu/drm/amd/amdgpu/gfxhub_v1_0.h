@@ -30,5 +30,7 @@ void gfxhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev,
 					  bool value);
 void gfxhub_v1_0_init(struct amdgpu_device *adev);
 u64 gfxhub_v1_0_get_mc_fb_offset(struct amdgpu_device *adev);
+void gfxhub_v1_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
+				uint64_t page_table_base);
 
 #endif

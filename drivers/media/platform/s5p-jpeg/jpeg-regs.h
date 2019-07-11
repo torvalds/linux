@@ -5,7 +5,7 @@
  * Copyright (c) 2011-2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Author: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
+ * Author: Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
  * Author: Jacek Anaszewski <j.anaszewski@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify

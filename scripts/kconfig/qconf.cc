@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>
  * Copyright (C) 2015 Boris Barbulovski <bbarbulovski@gmail.com>
- * Released under the terms of the GNU GPL v2.0.
  */
 
 #include <qglobal.h>
@@ -32,7 +32,7 @@
 #include "qconf.h"
 
 #include "qconf.moc"
-#include "images.c"
+#include "images.h"
 
 
 static QApplication *configApp;
@@ -1392,6 +1392,8 @@ ConfigMainWindow::ConfigMainWindow(void)
 	conf_set_changed_callback(conf_changed);
 	// Set saveAction's initial state
 	conf_changed();
+	configname = xstrdup(conf_get_configname());
+
 	QAction *saveAsAction = new QAction("Save &As...", this);
 	  connect(saveAsAction, SIGNAL(triggered(bool)), SLOT(saveConfigAs()));
 	QAction *searchAction = new QAction("&Find", this);
@@ -1520,17 +1522,29 @@ ConfigMainWindow::ConfigMainWindow(void)
 
 void ConfigMainWindow::loadConfig(void)
 {
-	QString s = QFileDialog::getOpenFileName(this, "", conf_get_configname());
-	if (s.isNull())
+	QString str;
+	QByteArray ba;
+	const char *name;
+
+	str = QFileDialog::getOpenFileName(this, "", configname);
+	if (str.isNull())
 		return;
-	if (conf_read(QFile::encodeName(s)))
+
+	ba = str.toLocal8Bit();
+	name = ba.data();
+
+	if (conf_read(name))
 		QMessageBox::information(this, "qconf", "Unable to load configuration!");
+
+	free(configname);
+	configname = xstrdup(name);
+
 	ConfigView::updateListAll();
 }
 
 bool ConfigMainWindow::saveConfig(void)
 {
-	if (conf_write(NULL)) {
+	if (conf_write(configname)) {
 		QMessageBox::information(this, "qconf", "Unable to save configuration!");
 		return false;
 	}
@@ -1541,10 +1555,24 @@ bool ConfigMainWindow::saveConfig(void)
 
 void ConfigMainWindow::saveConfigAs(void)
 {
-	QString s = QFileDialog::getSaveFileName(this, "", conf_get_configname());
-	if (s.isNull())
+	QString str;
+	QByteArray ba;
+	const char *name;
+
+	str = QFileDialog::getSaveFileName(this, "", configname);
+	if (str.isNull())
 		return;
-	saveConfig();
+
+	ba = str.toLocal8Bit();
+	name = ba.data();
+
+	if (conf_write(name)) {
+		QMessageBox::information(this, "qconf", "Unable to save configuration!");
+	}
+	conf_write_autoconf(0);
+
+	free(configname);
+	configname = xstrdup(name);
 }
 
 void ConfigMainWindow::searchConfig(void)

@@ -33,6 +33,8 @@ enum mlxsw_afk_element {
 	MLXSW_AFK_ELEMENT_IP_TTL_,
 	MLXSW_AFK_ELEMENT_IP_ECN,
 	MLXSW_AFK_ELEMENT_IP_DSCP,
+	MLXSW_AFK_ELEMENT_VIRT_ROUTER_8_10,
+	MLXSW_AFK_ELEMENT_VIRT_ROUTER_0_7,
 	MLXSW_AFK_ELEMENT_MAX,
 };
 
@@ -87,6 +89,8 @@ static const struct mlxsw_afk_element_info mlxsw_afk_element_infos[] = {
 	MLXSW_AFK_ELEMENT_INFO_U32(IP_TTL_, 0x18, 0, 8),
 	MLXSW_AFK_ELEMENT_INFO_U32(IP_ECN, 0x18, 9, 2),
 	MLXSW_AFK_ELEMENT_INFO_U32(IP_DSCP, 0x18, 11, 6),
+	MLXSW_AFK_ELEMENT_INFO_U32(VIRT_ROUTER_8_10, 0x18, 17, 3),
+	MLXSW_AFK_ELEMENT_INFO_U32(VIRT_ROUTER_0_7, 0x18, 20, 8),
 	MLXSW_AFK_ELEMENT_INFO_BUF(SRC_IP_96_127, 0x20, 4),
 	MLXSW_AFK_ELEMENT_INFO_BUF(SRC_IP_64_95, 0x24, 4),
 	MLXSW_AFK_ELEMENT_INFO_BUF(SRC_IP_32_63, 0x28, 4),
@@ -188,7 +192,8 @@ struct mlxsw_afk;
 struct mlxsw_afk_ops {
 	const struct mlxsw_afk_block *blocks;
 	unsigned int blocks_count;
-	void (*encode_block)(char *block, int block_index, char *output);
+	void (*encode_block)(char *output, int block_index, char *block);
+	void (*clear_block)(char *output, int block_index);
 };
 
 struct mlxsw_afk *mlxsw_afk_create(unsigned int max_blocks,
@@ -228,6 +233,8 @@ void mlxsw_afk_values_add_buf(struct mlxsw_afk_element_values *values,
 void mlxsw_afk_encode(struct mlxsw_afk *mlxsw_afk,
 		      struct mlxsw_afk_key_info *key_info,
 		      struct mlxsw_afk_element_values *values,
-		      char *key, char *mask, int block_start, int block_end);
+		      char *key, char *mask);
+void mlxsw_afk_clear(struct mlxsw_afk *mlxsw_afk, char *key,
+		     int block_start, int block_end);
 
 #endif

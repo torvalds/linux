@@ -156,7 +156,7 @@ struct cx25821_i2c {
 	struct i2c_client i2c_client;
 	u32 i2c_rc;
 
-	/* cx25821 registers used for raw addess */
+	/* cx25821 registers used for raw address */
 	u32 i2c_period;
 	u32 reg_ctrl;
 	u32 reg_stat;

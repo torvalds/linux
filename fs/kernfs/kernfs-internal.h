@@ -17,6 +17,7 @@
 #include <linux/xattr.h>
 
 #include <linux/kernfs.h>
+#include <linux/fs_context.h>
 
 struct kernfs_iattrs {
 	struct iattr		ia_iattr;
@@ -78,7 +79,7 @@ static inline struct kernfs_node *kernfs_dentry_node(struct dentry *dentry)
 }
 
 extern const struct super_operations kernfs_sops;
-extern struct kmem_cache *kernfs_node_cache;
+extern struct kmem_cache *kernfs_node_cache, *kernfs_iattrs_cache;
 
 /*
  * inode.c

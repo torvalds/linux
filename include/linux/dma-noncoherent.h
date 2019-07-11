@@ -38,7 +38,10 @@ pgprot_t arch_dma_mmap_pgprot(struct device *dev, pgprot_t prot,
 void arch_dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		enum dma_data_direction direction);
 #else
-#define arch_dma_cache_sync NULL
+static inline void arch_dma_cache_sync(struct device *dev, void *vaddr,
+		size_t size, enum dma_data_direction direction)
+{
+}
 #endif /* CONFIG_DMA_NONCOHERENT_CACHE_SYNC */
 
 #ifdef CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE
@@ -68,5 +71,7 @@ static inline void arch_sync_dma_for_cpu_all(struct device *dev)
 {
 }
 #endif /* CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL */
+
+void arch_dma_prep_coherent(struct page *page, size_t size);
 
 #endif /* _LINUX_DMA_NONCOHERENT_H */

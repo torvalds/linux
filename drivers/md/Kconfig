@@ -436,6 +436,18 @@ config DM_DELAY
 
 	If unsure, say N.
 
+config DM_INIT
+	bool "DM \"dm-mod.create=\" parameter support"
+	depends on BLK_DEV_DM=y
+	---help---
+	Enable "dm-mod.create=" parameter to create mapped devices at init time.
+	This option is useful to allow mounting rootfs without requiring an
+	initramfs.
+	See Documentation/device-mapper/dm-init.txt for dm-mod.create="..."
+	format.
+
+	If unsure, say N.
+
 config DM_UEVENT
 	bool "DM uevents"
 	depends on BLK_DEV_DM

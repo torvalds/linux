@@ -68,6 +68,14 @@ OPEN_FIXED_SECTION(real_vectors,        0x0100, 0x1900)
 OPEN_FIXED_SECTION(real_trampolines,    0x1900, 0x4000)
 OPEN_FIXED_SECTION(virt_vectors,        0x4000, 0x5900)
 OPEN_FIXED_SECTION(virt_trampolines,    0x5900, 0x7000)
+
+#ifdef CONFIG_PPC_POWERNV
+	.globl start_real_trampolines
+	.globl end_real_trampolines
+	.globl start_virt_trampolines
+	.globl end_virt_trampolines
+#endif
+
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 /*
  * Data area reserved for FWNMI option.
@@ -566,8 +574,36 @@ EXC_COMMON_BEGIN(mce_return)
 	RFI_TO_KERNEL
 	b	.
 
-EXC_REAL(data_access, 0x300, 0x80)
-EXC_VIRT(data_access, 0x4300, 0x80, 0x300)
+EXC_REAL_BEGIN(data_access, 0x300, 0x80)
+SET_SCRATCH0(r13)		/* save r13 */
+EXCEPTION_PROLOG_0(PACA_EXGEN)
+	b	tramp_real_data_access
+EXC_REAL_END(data_access, 0x300, 0x80)
+
+TRAMP_REAL_BEGIN(tramp_real_data_access)
+EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, 0x300)
+	/*
+	 * DAR/DSISR must be read before setting MSR[RI], because
+	 * a d-side MCE will clobber those registers so is not
+	 * recoverable if they are live.
+	 */
+	mfspr	r10,SPRN_DAR
+	mfspr	r11,SPRN_DSISR
+	std	r10,PACA_EXGEN+EX_DAR(r13)
+	stw	r11,PACA_EXGEN+EX_DSISR(r13)
+EXCEPTION_PROLOG_2(data_access_common, EXC_STD)
+
+EXC_VIRT_BEGIN(data_access, 0x4300, 0x80)
+SET_SCRATCH0(r13)		/* save r13 */
+EXCEPTION_PROLOG_0(PACA_EXGEN)
+EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, 0x300)
+	mfspr	r10,SPRN_DAR
+	mfspr	r11,SPRN_DSISR
+	std	r10,PACA_EXGEN+EX_DAR(r13)
+	stw	r11,PACA_EXGEN+EX_DSISR(r13)
+EXCEPTION_PROLOG_2_RELON(data_access_common, EXC_STD)
+EXC_VIRT_END(data_access, 0x4300, 0x80)
+
 TRAMP_KVM_SKIP(PACA_EXGEN, 0x300)
 
 EXC_COMMON_BEGIN(data_access_common)
@@ -575,11 +611,8 @@ EXC_COMMON_BEGIN(data_access_common)
 	 * Here r13 points to the paca, r9 contains the saved CR,
 	 * SRR0 and SRR1 are saved in r11 and r12,
 	 * r9 - r13 are saved in paca->exgen.
+	 * EX_DAR and EX_DSISR have saved DAR/DSISR
 	 */
-	mfspr	r10,SPRN_DAR
-	std	r10,PACA_EXGEN+EX_DAR(r13)
-	mfspr	r10,SPRN_DSISR
-	stw	r10,PACA_EXGEN+EX_DSISR(r13)
 	EXCEPTION_PROLOG_COMMON(0x300, PACA_EXGEN)
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r12,_MSR(r1)
@@ -596,27 +629,44 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 
 EXC_REAL_BEGIN(data_access_slb, 0x380, 0x80)
-EXCEPTION_PROLOG(PACA_EXSLB, data_access_slb_common, EXC_STD, KVMTEST_PR, 0x380);
+SET_SCRATCH0(r13)		/* save r13 */
+EXCEPTION_PROLOG_0(PACA_EXSLB)
+	b	tramp_real_data_access_slb
 EXC_REAL_END(data_access_slb, 0x380, 0x80)
 
+TRAMP_REAL_BEGIN(tramp_real_data_access_slb)
+EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST_PR, 0x380)
+	mfspr	r10,SPRN_DAR
+	std	r10,PACA_EXSLB+EX_DAR(r13)
+EXCEPTION_PROLOG_2(data_access_slb_common, EXC_STD)
+
 EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
-EXCEPTION_RELON_PROLOG(PACA_EXSLB, data_access_slb_common, EXC_STD, NOTEST, 0x380);
+SET_SCRATCH0(r13)		/* save r13 */
+EXCEPTION_PROLOG_0(PACA_EXSLB)
+EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x380)
+	mfspr	r10,SPRN_DAR
+	std	r10,PACA_EXSLB+EX_DAR(r13)
+EXCEPTION_PROLOG_2_RELON(data_access_slb_common, EXC_STD)
 EXC_VIRT_END(data_access_slb, 0x4380, 0x80)
 
 TRAMP_KVM_SKIP(PACA_EXSLB, 0x380)
 
 EXC_COMMON_BEGIN(data_access_slb_common)
-	mfspr	r10,SPRN_DAR
-	std	r10,PACA_EXSLB+EX_DAR(r13)
 	EXCEPTION_PROLOG_COMMON(0x380, PACA_EXSLB)
 	ld	r4,PACA_EXSLB+EX_DAR(r13)
 	std	r4,_DAR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
+BEGIN_MMU_FTR_SECTION
+	/* HPT case, do SLB fault */
 	bl	do_slb_fault
 	cmpdi	r3,0
 	bne-	1f
 	b	fast_exception_return
 1:	/* Error case */
+MMU_FTR_SECTION_ELSE
+	/* Radix case, access is outside page table range */
+	li	r3,-EFAULT
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 	std	r3,RESULT(r1)
 	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
@@ -661,11 +711,17 @@ EXC_COMMON_BEGIN(instruction_access_slb_common)
 	EXCEPTION_PROLOG_COMMON(0x480, PACA_EXSLB)
 	ld	r4,_NIP(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
+BEGIN_MMU_FTR_SECTION
+	/* HPT case, do SLB fault */
 	bl	do_slb_fault
 	cmpdi	r3,0
 	bne-	1f
 	b	fast_exception_return
 1:	/* Error case */
+MMU_FTR_SECTION_ELSE
+	/* Radix case, access is outside page table range */
+	li	r3,-EFAULT
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 	std	r3,RESULT(r1)
 	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
@@ -703,14 +759,30 @@ TRAMP_KVM_HV(PACA_EXGEN, 0x500)
 EXC_COMMON_ASYNC(hardware_interrupt_common, 0x500, do_IRQ)
 
 
-EXC_REAL(alignment, 0x600, 0x100)
-EXC_VIRT(alignment, 0x4600, 0x100, 0x600)
+EXC_REAL_BEGIN(alignment, 0x600, 0x100)
+SET_SCRATCH0(r13)		/* save r13 */
+EXCEPTION_PROLOG_0(PACA_EXGEN)
+EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, 0x600)
+	mfspr	r10,SPRN_DAR
+	mfspr	r11,SPRN_DSISR
+	std	r10,PACA_EXGEN+EX_DAR(r13)
+	stw	r11,PACA_EXGEN+EX_DSISR(r13)
+EXCEPTION_PROLOG_2(alignment_common, EXC_STD)
+EXC_REAL_END(alignment, 0x600, 0x100)
+
+EXC_VIRT_BEGIN(alignment, 0x4600, 0x100)
+SET_SCRATCH0(r13)		/* save r13 */
+EXCEPTION_PROLOG_0(PACA_EXGEN)
+EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, 0x600)
+	mfspr	r10,SPRN_DAR
+	mfspr	r11,SPRN_DSISR
+	std	r10,PACA_EXGEN+EX_DAR(r13)
+	stw	r11,PACA_EXGEN+EX_DSISR(r13)
+EXCEPTION_PROLOG_2_RELON(alignment_common, EXC_STD)
+EXC_VIRT_END(alignment, 0x4600, 0x100)
+
 TRAMP_KVM(PACA_EXGEN, 0x600)
 EXC_COMMON_BEGIN(alignment_common)
-	mfspr	r10,SPRN_DAR
-	std	r10,PACA_EXGEN+EX_DAR(r13)
-	mfspr	r10,SPRN_DSISR
-	stw	r10,PACA_EXGEN+EX_DSISR(r13)
 	EXCEPTION_PROLOG_COMMON(0x600, PACA_EXGEN)
 	ld	r3,PACA_EXGEN+EX_DAR(r13)
 	lwz	r4,PACA_EXGEN+EX_DSISR(r13)
@@ -995,7 +1067,16 @@ EXC_COMMON_BEGIN(h_data_storage_common)
 	bl      save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	addi    r3,r1,STACK_FRAME_OVERHEAD
+BEGIN_MMU_FTR_SECTION
+	ld	r4,PACA_EXGEN+EX_DAR(r13)
+	lwz	r5,PACA_EXGEN+EX_DSISR(r13)
+	std	r4,_DAR(r1)
+	std	r5,_DSISR(r1)
+	li	r5,SIGSEGV
+	bl      bad_page_fault
+MMU_FTR_SECTION_ELSE
 	bl      unknown_exception
+ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_TYPE_RADIX)
 	b       ret_from_except
 
 
@@ -1031,7 +1112,7 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	EXCEPTION_PROLOG_COMMON_2(PACA_EXGEN)
 	EXCEPTION_PROLOG_COMMON_3(0xe60)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	BRANCH_LINK_TO_FAR(hmi_exception_realmode) /* Function call ABI */
+	BRANCH_LINK_TO_FAR(DOTSYM(hmi_exception_realmode)) /* Function call ABI */
 	cmpdi	cr0,r3,0
 
 	/* Windup the stack. */
@@ -1620,7 +1701,7 @@ do_hash_page:
 	ori	r0,r0,DSISR_BAD_FAULT_64S@l
 	and.	r0,r4,r0		/* weird error? */
 	bne-	handle_page_fault	/* if not, try to insert a HPTE */
-	CURRENT_THREAD_INFO(r11, r1)
+	ld	r11, PACA_THREAD_INFO(r13)
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
 	andis.	r0,r0,NMI_MASK@h	/* (i.e. an irq when soft-disabled) */
 	bne	77f			/* then don't call hash_page now */

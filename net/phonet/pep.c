@@ -132,7 +132,7 @@ static int pep_indicate(struct sock *sk, u8 id, u8 code,
 	ph->utid = 0;
 	ph->message_id = id;
 	ph->pipe_handle = pn->pipe_handle;
-	ph->data[0] = code;
+	ph->error_code = code;
 	return pn_skb_send(sk, skb, NULL);
 }
 
@@ -153,7 +153,7 @@ static int pipe_handler_request(struct sock *sk, u8 id, u8 code,
 	ph->utid = id; /* whatever */
 	ph->message_id = id;
 	ph->pipe_handle = pn->pipe_handle;
-	ph->data[0] = code;
+	ph->error_code = code;
 	return pn_skb_send(sk, skb, NULL);
 }
 
@@ -208,7 +208,7 @@ static int pep_ctrlreq_error(struct sock *sk, struct sk_buff *oskb, u8 code,
 	struct pnpipehdr *ph;
 	struct sockaddr_pn dst;
 	u8 data[4] = {
-		oph->data[0], /* PEP type */
+		oph->pep_type, /* PEP type */
 		code, /* error code, at an unusual offset */
 		PAD, PAD,
 	};
@@ -221,7 +221,7 @@ static int pep_ctrlreq_error(struct sock *sk, struct sk_buff *oskb, u8 code,
 	ph->utid = oph->utid;
 	ph->message_id = PNS_PEP_CTRL_RESP;
 	ph->pipe_handle = oph->pipe_handle;
-	ph->data[0] = oph->data[1]; /* CTRL id */
+	ph->data0 = oph->data[0]; /* CTRL id */
 
 	pn_skb_get_src_sockaddr(oskb, &dst);
 	return pn_skb_send(sk, skb, &dst);
@@ -272,17 +272,17 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 		return -EINVAL;
 
 	hdr = pnp_hdr(skb);
-	if (hdr->data[0] != PN_PEP_TYPE_COMMON) {
+	if (hdr->pep_type != PN_PEP_TYPE_COMMON) {
 		net_dbg_ratelimited("Phonet unknown PEP type: %u\n",
-				    (unsigned int)hdr->data[0]);
+				    (unsigned int)hdr->pep_type);
 		return -EOPNOTSUPP;
 	}
 
-	switch (hdr->data[1]) {
+	switch (hdr->data[0]) {
 	case PN_PEP_IND_FLOW_CONTROL:
 		switch (pn->tx_fc) {
 		case PN_LEGACY_FLOW_CONTROL:
-			switch (hdr->data[4]) {
+			switch (hdr->data[3]) {
 			case PEP_IND_BUSY:
 				atomic_set(&pn->tx_credits, 0);
 				break;
@@ -292,7 +292,7 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 			}
 			break;
 		case PN_ONE_CREDIT_FLOW_CONTROL:
-			if (hdr->data[4] == PEP_IND_READY)
+			if (hdr->data[3] == PEP_IND_READY)
 				atomic_set(&pn->tx_credits, wake = 1);
 			break;
 		}
@@ -301,12 +301,12 @@ static int pipe_rcv_status(struct sock *sk, struct sk_buff *skb)
 	case PN_PEP_IND_ID_MCFC_GRANT_CREDITS:
 		if (pn->tx_fc != PN_MULTI_CREDIT_FLOW_CONTROL)
 			break;
-		atomic_add(wake = hdr->data[4], &pn->tx_credits);
+		atomic_add(wake = hdr->data[3], &pn->tx_credits);
 		break;
 
 	default:
 		net_dbg_ratelimited("Phonet unknown PEP indication: %u\n",
-				    (unsigned int)hdr->data[1]);
+				    (unsigned int)hdr->data[0]);
 		return -EOPNOTSUPP;
 	}
 	if (wake)
@@ -318,7 +318,7 @@ static int pipe_rcv_created(struct sock *sk, struct sk_buff *skb)
 {
 	struct pep_sock *pn = pep_sk(sk);
 	struct pnpipehdr *hdr = pnp_hdr(skb);
-	u8 n_sb = hdr->data[0];
+	u8 n_sb = hdr->data0;
 
 	pn->rx_fc = pn->tx_fc = PN_LEGACY_FLOW_CONTROL;
 	__skb_pull(skb, sizeof(*hdr));
@@ -506,7 +506,7 @@ static int pep_connresp_rcv(struct sock *sk, struct sk_buff *skb)
 		return -ECONNREFUSED;
 
 	/* Parse sub-blocks */
-	n_sb = hdr->data[4];
+	n_sb = hdr->data[3];
 	while (n_sb > 0) {
 		u8 type, buf[6], len = sizeof(buf);
 		const u8 *data = pep_get_sb(skb, &type, &len, buf);
@@ -739,7 +739,7 @@ static int pipe_do_remove(struct sock *sk)
 	ph->utid = 0;
 	ph->message_id = PNS_PIPE_REMOVE_REQ;
 	ph->pipe_handle = pn->pipe_handle;
-	ph->data[0] = PAD;
+	ph->data0 = PAD;
 	return pn_skb_send(sk, skb, NULL);
 }
 
@@ -817,7 +817,7 @@ static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp,
 	peer_type = hdr->other_pep_type << 8;
 
 	/* Parse sub-blocks (options) */
-	n_sb = hdr->data[4];
+	n_sb = hdr->data[3];
 	while (n_sb > 0) {
 		u8 type, buf[1], len = sizeof(buf);
 		const u8 *data = pep_get_sb(skb, &type, &len, buf);
@@ -1109,7 +1109,7 @@ static int pipe_skb_send(struct sock *sk, struct sk_buff *skb)
 	ph->utid = 0;
 	if (pn->aligned) {
 		ph->message_id = PNS_PIPE_ALIGNED_DATA;
-		ph->data[0] = 0; /* padding */
+		ph->data0 = 0; /* padding */
 	} else
 		ph->message_id = PNS_PIPE_DATA;
 	ph->pipe_handle = pn->pipe_handle;

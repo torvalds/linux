@@ -17,6 +17,7 @@
 #include <linux/percpu-refcount.h>
 #include <linux/uuid.h>
 #include <linux/blk_types.h>
+#include <asm/local.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -89,6 +90,7 @@ struct disk_stats {
 	unsigned long merges[NR_STAT_GROUPS];
 	unsigned long io_ticks;
 	unsigned long time_in_queue;
+	local_t in_flight[2];
 };
 
 #define PARTITION_META_INFO_VOLNAMELTH	64
@@ -122,14 +124,13 @@ struct hd_struct {
 	int make_it_fail;
 #endif
 	unsigned long stamp;
-	atomic_t in_flight[2];
 #ifdef	CONFIG_SMP
 	struct disk_stats __percpu *dkstats;
 #else
 	struct disk_stats dkstats;
 #endif
 	struct percpu_ref ref;
-	struct rcu_head rcu_head;
+	struct rcu_work rcu_work;
 };
 
 #define GENHD_FL_REMOVABLE			1
@@ -295,8 +296,11 @@ extern struct hd_struct *disk_map_sector_rcu(struct gendisk *disk,
 #define part_stat_lock()	({ rcu_read_lock(); get_cpu(); })
 #define part_stat_unlock()	do { put_cpu(); rcu_read_unlock(); } while (0)
 
-#define __part_stat_add(cpu, part, field, addnd)			\
-	(per_cpu_ptr((part)->dkstats, (cpu))->field += (addnd))
+#define part_stat_get_cpu(part, field, cpu)					\
+	(per_cpu_ptr((part)->dkstats, (cpu))->field)
+
+#define part_stat_get(part, field)					\
+	part_stat_get_cpu(part, field, smp_processor_id())
 
 #define part_stat_read(part, field)					\
 ({									\
@@ -333,10 +337,9 @@ static inline void free_part_stats(struct hd_struct *part)
 #define part_stat_lock()	({ rcu_read_lock(); 0; })
 #define part_stat_unlock()	rcu_read_unlock()
 
-#define __part_stat_add(cpu, part, field, addnd)				\
-	((part)->dkstats.field += addnd)
-
-#define part_stat_read(part, field)	((part)->dkstats.field)
+#define part_stat_get(part, field)		((part)->dkstats.field)
+#define part_stat_get_cpu(part, field, cpu)	part_stat_get(part, field)
+#define part_stat_read(part, field)		part_stat_get(part, field)
 
 static inline void part_stat_set_all(struct hd_struct *part, int value)
 {
@@ -362,22 +365,33 @@ static inline void free_part_stats(struct hd_struct *part)
 	 part_stat_read(part, field[STAT_WRITE]) +			\
 	 part_stat_read(part, field[STAT_DISCARD]))
 
-#define part_stat_add(cpu, part, field, addnd)	do {			\
-	__part_stat_add((cpu), (part), field, addnd);			\
+#define __part_stat_add(part, field, addnd)				\
+	(part_stat_get(part, field) += (addnd))
+
+#define part_stat_add(part, field, addnd)	do {			\
+	__part_stat_add((part), field, addnd);				\
 	if ((part)->partno)						\
-		__part_stat_add((cpu), &part_to_disk((part))->part0,	\
+		__part_stat_add(&part_to_disk((part))->part0,		\
 				field, addnd);				\
 } while (0)
 
-#define part_stat_dec(cpu, gendiskp, field)				\
-	part_stat_add(cpu, gendiskp, field, -1)
-#define part_stat_inc(cpu, gendiskp, field)				\
-	part_stat_add(cpu, gendiskp, field, 1)
-#define part_stat_sub(cpu, gendiskp, field, subnd)			\
-	part_stat_add(cpu, gendiskp, field, -subnd)
+#define part_stat_dec(gendiskp, field)					\
+	part_stat_add(gendiskp, field, -1)
+#define part_stat_inc(gendiskp, field)					\
+	part_stat_add(gendiskp, field, 1)
+#define part_stat_sub(gendiskp, field, subnd)				\
+	part_stat_add(gendiskp, field, -subnd)
 
-void part_in_flight(struct request_queue *q, struct hd_struct *part,
-		    unsigned int inflight[2]);
+#define part_stat_local_dec(gendiskp, field)				\
+	local_dec(&(part_stat_get(gendiskp, field)))
+#define part_stat_local_inc(gendiskp, field)				\
+	local_inc(&(part_stat_get(gendiskp, field)))
+#define part_stat_local_read(gendiskp, field)				\
+	local_read(&(part_stat_get(gendiskp, field)))
+#define part_stat_local_read_cpu(gendiskp, field, cpu)			\
+	local_read(&(part_stat_get_cpu(gendiskp, field, cpu)))
+
+unsigned int part_in_flight(struct request_queue *q, struct hd_struct *part);
 void part_in_flight_rw(struct request_queue *q, struct hd_struct *part,
 		       unsigned int inflight[2]);
 void part_dec_in_flight(struct request_queue *q, struct hd_struct *part,
@@ -398,8 +412,7 @@ static inline void free_part_info(struct hd_struct *part)
 	kfree(part->info);
 }
 
-/* block/blk-core.c */
-extern void part_round_stats(struct request_queue *q, int cpu, struct hd_struct *part);
+void update_io_ticks(struct hd_struct *part, unsigned long now);
 
 /* block/genhd.c */
 extern void device_add_disk(struct device *parent, struct gendisk *disk,

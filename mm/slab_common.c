@@ -53,7 +53,7 @@ static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
 		SLAB_FAILSLAB | SLAB_KASAN)
 
 #define SLAB_MERGE_SAME (SLAB_RECLAIM_ACCOUNT | SLAB_CACHE_DMA | \
-			 SLAB_ACCOUNT)
+			 SLAB_CACHE_DMA32 | SLAB_ACCOUNT)
 
 /*
  * Merge control. If this is set then no merging of slab caches will occur.
@@ -406,8 +406,9 @@ out_free_cache:
 	goto out;
 }
 
-/*
- * kmem_cache_create_usercopy - Create a cache.
+/**
+ * kmem_cache_create_usercopy - Create a cache with a region suitable
+ * for copying to userspace
  * @name: A string which is used in /proc/slabinfo to identify this cache.
  * @size: The size of objects to be created in this cache.
  * @align: The required alignment for the objects.
@@ -416,7 +417,6 @@ out_free_cache:
  * @usersize: Usercopy region size
  * @ctor: A constructor for the objects.
  *
- * Returns a ptr to the cache on success, NULL on failure.
  * Cannot be called within a interrupt, but can be interrupted.
  * The @ctor is run when new pages are allocated by the cache.
  *
@@ -425,12 +425,14 @@ out_free_cache:
  * %SLAB_POISON - Poison the slab with a known test pattern (a5a5a5a5)
  * to catch references to uninitialised memory.
  *
- * %SLAB_RED_ZONE - Insert `Red' zones around the allocated memory to check
+ * %SLAB_RED_ZONE - Insert `Red` zones around the allocated memory to check
  * for buffer overruns.
  *
  * %SLAB_HWCACHE_ALIGN - Align the objects in this cache to a hardware
  * cacheline.  This can be beneficial if you're counting cycles as closely
  * as davem.
+ *
+ * Return: a pointer to the cache on success, NULL on failure.
  */
 struct kmem_cache *
 kmem_cache_create_usercopy(const char *name,
@@ -514,6 +516,31 @@ out_unlock:
 }
 EXPORT_SYMBOL(kmem_cache_create_usercopy);
 
+/**
+ * kmem_cache_create - Create a cache.
+ * @name: A string which is used in /proc/slabinfo to identify this cache.
+ * @size: The size of objects to be created in this cache.
+ * @align: The required alignment for the objects.
+ * @flags: SLAB flags
+ * @ctor: A constructor for the objects.
+ *
+ * Cannot be called within a interrupt, but can be interrupted.
+ * The @ctor is run when new pages are allocated by the cache.
+ *
+ * The flags are
+ *
+ * %SLAB_POISON - Poison the slab with a known test pattern (a5a5a5a5)
+ * to catch references to uninitialised memory.
+ *
+ * %SLAB_RED_ZONE - Insert `Red` zones around the allocated memory to check
+ * for buffer overruns.
+ *
+ * %SLAB_HWCACHE_ALIGN - Align the objects in this cache to a hardware
+ * cacheline.  This can be beneficial if you're counting cycles as closely
+ * as davem.
+ *
+ * Return: a pointer to the cache on success, NULL on failure.
+ */
 struct kmem_cache *
 kmem_cache_create(const char *name, unsigned int size, unsigned int align,
 		slab_flags_t flags, void (*ctor)(void *))
@@ -724,7 +751,7 @@ void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
 	css_get(&s->memcg_params.memcg->css);
 
 	s->memcg_params.deact_fn = deact_fn;
-	call_rcu_sched(&s->memcg_params.deact_rcu_head, kmemcg_deactivate_rcufn);
+	call_rcu(&s->memcg_params.deact_rcu_head, kmemcg_deactivate_rcufn);
 }
 
 void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
@@ -839,11 +866,11 @@ static void flush_memcg_workqueue(struct kmem_cache *s)
 	mutex_unlock(&slab_mutex);
 
 	/*
-	 * SLUB deactivates the kmem_caches through call_rcu_sched. Make
+	 * SLUB deactivates the kmem_caches through call_rcu. Make
 	 * sure all registered rcu callbacks have been invoked.
 	 */
 	if (IS_ENABLED(CONFIG_SLUB))
-		rcu_barrier_sched();
+		rcu_barrier();
 
 	/*
 	 * SLAB and SLUB create memcg kmem_caches through workqueue and SLUB
@@ -912,6 +939,8 @@ EXPORT_SYMBOL(kmem_cache_destroy);
  *
  * Releases as many slabs as possible for a cache.
  * To help debugging, a zero exit status indicates all slabs were released.
+ *
+ * Return: %0 if all slabs were released, non-zero otherwise
  */
 int kmem_cache_shrink(struct kmem_cache *cachep)
 {
@@ -1029,10 +1058,8 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
 
 		index = size_index[size_index_elem(size)];
 	} else {
-		if (unlikely(size > KMALLOC_MAX_CACHE_SIZE)) {
-			WARN_ON(1);
+		if (WARN_ON_ONCE(size > KMALLOC_MAX_CACHE_SIZE))
 			return NULL;
-		}
 		index = fls(size - 1);
 	}
 
@@ -1203,8 +1230,9 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
 	flags |= __GFP_COMP;
 	page = alloc_pages(flags, order);
 	ret = page ? page_address(page) : NULL;
+	ret = kasan_kmalloc_large(ret, size, flags);
+	/* As ret might get tagged, call kmemleak hook after KASAN. */
 	kmemleak_alloc(ret, size, 1, flags);
-	kasan_kmalloc_large(ret, size, flags);
 	return ret;
 }
 EXPORT_SYMBOL(kmalloc_order);
@@ -1399,7 +1427,7 @@ void dump_unreclaimable_slab(void)
 #if defined(CONFIG_MEMCG)
 void *memcg_slab_start(struct seq_file *m, loff_t *pos)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
 
 	mutex_lock(&slab_mutex);
 	return seq_list_start(&memcg->kmem_caches, *pos);
@@ -1407,7 +1435,7 @@ void *memcg_slab_start(struct seq_file *m, loff_t *pos)
 
 void *memcg_slab_next(struct seq_file *m, void *p, loff_t *pos)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
 
 	return seq_list_next(p, &memcg->kmem_caches, pos);
 }
@@ -1421,7 +1449,7 @@ int memcg_slab_show(struct seq_file *m, void *p)
 {
 	struct kmem_cache *s = list_entry(p, struct kmem_cache,
 					  memcg_params.kmem_caches_node);
-	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
 
 	if (p == memcg->kmem_caches.next)
 		print_slabinfo_header(m);
@@ -1482,7 +1510,7 @@ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
 		ks = ksize(p);
 
 	if (ks >= new_size) {
-		kasan_krealloc((void *)p, new_size, flags);
+		p = kasan_krealloc((void *)p, new_size, flags);
 		return (void *)p;
 	}
 
@@ -1502,6 +1530,8 @@ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
  * This function is like krealloc() except it never frees the originally
  * allocated buffer. Use this if you don't want to free the buffer immediately
  * like, for example, with RCU.
+ *
+ * Return: pointer to the allocated memory or %NULL in case of error
  */
 void *__krealloc(const void *p, size_t new_size, gfp_t flags)
 {
@@ -1523,6 +1553,8 @@ EXPORT_SYMBOL(__krealloc);
  * lesser of the new and old sizes.  If @p is %NULL, krealloc()
  * behaves exactly like kmalloc().  If @new_size is 0 and @p is not a
  * %NULL pointer, the object pointed to is freed.
+ *
+ * Return: pointer to the allocated memory or %NULL in case of error
  */
 void *krealloc(const void *p, size_t new_size, gfp_t flags)
 {
@@ -1534,7 +1566,7 @@ void *krealloc(const void *p, size_t new_size, gfp_t flags)
 	}
 
 	ret = __do_krealloc(p, new_size, flags);
-	if (ret && p != ret)
+	if (ret && kasan_reset_tag(p) != kasan_reset_tag(ret))
 		kfree(p);
 
 	return ret;

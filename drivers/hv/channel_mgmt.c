@@ -141,7 +141,7 @@ static const struct vmbus_device vmbus_devs[] = {
 };
 
 static const struct {
-	uuid_le guid;
+	guid_t guid;
 } vmbus_unsupported_devs[] = {
 	{ HV_AVMA1_GUID },
 	{ HV_AVMA2_GUID },
@@ -171,26 +171,26 @@ static void vmbus_rescind_cleanup(struct vmbus_channel *channel)
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 }
 
-static bool is_unsupported_vmbus_devs(const uuid_le *guid)
+static bool is_unsupported_vmbus_devs(const guid_t *guid)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vmbus_unsupported_devs); i++)
-		if (!uuid_le_cmp(*guid, vmbus_unsupported_devs[i].guid))
+		if (guid_equal(guid, &vmbus_unsupported_devs[i].guid))
 			return true;
 	return false;
 }
 
 static u16 hv_get_dev_type(const struct vmbus_channel *channel)
 {
-	const uuid_le *guid = &channel->offermsg.offer.if_type;
+	const guid_t *guid = &channel->offermsg.offer.if_type;
 	u16 i;
 
 	if (is_hvsock_channel(channel) || is_unsupported_vmbus_devs(guid))
 		return HV_UNKNOWN;
 
 	for (i = HV_IDE; i < HV_UNKNOWN; i++) {
-		if (!uuid_le_cmp(*guid, vmbus_devs[i].guid))
+		if (guid_equal(guid, &vmbus_devs[i].guid))
 			return i;
 	}
 	pr_info("Unknown GUID: %pUl\n", guid);
@@ -405,7 +405,6 @@ void hv_process_channel_removal(struct vmbus_channel *channel)
 		primary_channel = channel->primary_channel;
 		spin_lock_irqsave(&primary_channel->lock, flags);
 		list_del(&channel->sc_list);
-		primary_channel->num_sc--;
 		spin_unlock_irqrestore(&primary_channel->lock, flags);
 	}
 
@@ -562,10 +561,10 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	atomic_dec(&vmbus_connection.offer_in_progress);
 
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
-		if (!uuid_le_cmp(channel->offermsg.offer.if_type,
-				 newchannel->offermsg.offer.if_type) &&
-		    !uuid_le_cmp(channel->offermsg.offer.if_instance,
-				 newchannel->offermsg.offer.if_instance)) {
+		if (guid_equal(&channel->offermsg.offer.if_type,
+			       &newchannel->offermsg.offer.if_type) &&
+		    guid_equal(&channel->offermsg.offer.if_instance,
+			       &newchannel->offermsg.offer.if_instance)) {
 			fnew = false;
 			break;
 		}
@@ -1301,49 +1300,6 @@ cleanup:
 
 	return ret;
 }
-
-/*
- * Retrieve the (sub) channel on which to send an outgoing request.
- * When a primary channel has multiple sub-channels, we try to
- * distribute the load equally amongst all available channels.
- */
-struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary)
-{
-	struct list_head *cur, *tmp;
-	int cur_cpu;
-	struct vmbus_channel *cur_channel;
-	struct vmbus_channel *outgoing_channel = primary;
-	int next_channel;
-	int i = 1;
-
-	if (list_empty(&primary->sc_list))
-		return outgoing_channel;
-
-	next_channel = primary->next_oc++;
-
-	if (next_channel > (primary->num_sc)) {
-		primary->next_oc = 0;
-		return outgoing_channel;
-	}
-
-	cur_cpu = hv_cpu_number_to_vp_number(smp_processor_id());
-	list_for_each_safe(cur, tmp, &primary->sc_list) {
-		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
-		if (cur_channel->state != CHANNEL_OPENED_STATE)
-			continue;
-
-		if (cur_channel->target_vp == cur_cpu)
-			return cur_channel;
-
-		if (i == next_channel)
-			return cur_channel;
-
-		i++;
-	}
-
-	return outgoing_channel;
-}
-EXPORT_SYMBOL_GPL(vmbus_get_outgoing_channel);
 
 static void invoke_sc_cb(struct vmbus_channel *primary_channel)
 {

@@ -334,7 +334,8 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t c, res_hndl_t r, u8 mode);
 void cxlflash_list_init(void);
 void cxlflash_term_global_luns(void);
 void cxlflash_free_errpage(void);
-int cxlflash_ioctl(struct scsi_device *sdev, int cmd, void __user *arg);
+int cxlflash_ioctl(struct scsi_device *sdev, unsigned int cmd,
+		   void __user *arg);
 void cxlflash_stop_term_user_contexts(struct cxlflash_cfg *cfg);
 int cxlflash_mark_contexts_error(struct cxlflash_cfg *cfg);
 void cxlflash_term_local_luns(struct cxlflash_cfg *cfg);

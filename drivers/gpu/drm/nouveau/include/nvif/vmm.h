@@ -30,8 +30,8 @@ struct nvif_vmm {
 	int page_nr;
 };
 
-int nvif_vmm_init(struct nvif_mmu *, s32 oclass, u64 addr, u64 size,
-		  void *argv, u32 argc, struct nvif_vmm *);
+int nvif_vmm_init(struct nvif_mmu *, s32 oclass, bool managed, u64 addr,
+		  u64 size, void *argv, u32 argc, struct nvif_vmm *);
 void nvif_vmm_fini(struct nvif_vmm *);
 int nvif_vmm_get(struct nvif_vmm *, enum nvif_vmm_get, bool sparse,
 		 u8 page, u8 align, u64 size, struct nvif_vma *);

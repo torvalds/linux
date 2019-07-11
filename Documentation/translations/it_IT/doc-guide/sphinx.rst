@@ -3,6 +3,8 @@
 .. note:: Per leggere la documentazione originale in inglese:
 	  :ref:`Documentation/doc-guide/index.rst <doc_guide>`
 
+.. _it_sphinxdoc:
+
 Introduzione
 ============
 

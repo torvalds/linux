@@ -1,14 +1,5 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2016, The Linux Foundation. All rights reserved.
 
 #include <linux/module.h>
 #include <linux/err.h>
@@ -220,8 +211,6 @@ static const char *const dec_mux_text[] = {
 };
 
 static const char *const cic_mux_text[] = { "AMIC", "DMIC" };
-static const char *const rx_mix2_text[] = { "ZERO", "IIR1", "IIR2" };
-static const char *const adc2_mux_text[] = { "ZERO", "INP2", "INP3" };
 
 /* RX1 MIX1 */
 static const struct soc_enum rx_mix1_inp_enum[] = {
@@ -230,20 +219,12 @@ static const struct soc_enum rx_mix1_inp_enum[] = {
 	SOC_ENUM_SINGLE(LPASS_CDC_CONN_RX1_B2_CTL, 0, 6, rx_mix1_text),
 };
 
-/* RX1 MIX2 */
-static const struct soc_enum rx_mix2_inp1_chain_enum = SOC_ENUM_SINGLE(
-				LPASS_CDC_CONN_RX1_B3_CTL, 0, 3, rx_mix2_text);
-
 /* RX2 MIX1 */
 static const struct soc_enum rx2_mix1_inp_enum[] = {
 	SOC_ENUM_SINGLE(LPASS_CDC_CONN_RX2_B1_CTL, 0, 6, rx_mix1_text),
 	SOC_ENUM_SINGLE(LPASS_CDC_CONN_RX2_B1_CTL, 3, 6, rx_mix1_text),
 	SOC_ENUM_SINGLE(LPASS_CDC_CONN_RX2_B2_CTL, 0, 6, rx_mix1_text),
 };
-
-/* RX2 MIX2 */
-static const struct soc_enum rx2_mix2_inp1_chain_enum = SOC_ENUM_SINGLE(
-				LPASS_CDC_CONN_RX2_B3_CTL, 0, 3, rx_mix2_text);
 
 /* RX3 MIX1 */
 static const struct soc_enum rx3_mix1_inp_enum[] = {

@@ -6,6 +6,7 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/writeback.h>
+#include <linux/sched/mm.h>
 #include "ctree.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
@@ -442,7 +443,7 @@ void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 			cur = entry->list.next;
 			sum = list_entry(cur, struct btrfs_ordered_sum, list);
 			list_del(&sum->list);
-			kfree(sum);
+			kvfree(sum);
 		}
 		kmem_cache_free(btrfs_ordered_extent_cache, entry);
 	}
@@ -460,7 +461,6 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 	struct btrfs_inode *btrfs_inode = BTRFS_I(inode);
 	struct btrfs_root *root = btrfs_inode->root;
 	struct rb_node *node;
-	bool dec_pending_ordered = false;
 
 	/* This is paired with btrfs_add_ordered_extent. */
 	spin_lock(&btrfs_inode->lock);
@@ -477,36 +477,7 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 	if (tree->last == node)
 		tree->last = NULL;
 	set_bit(BTRFS_ORDERED_COMPLETE, &entry->flags);
-	if (test_and_clear_bit(BTRFS_ORDERED_PENDING, &entry->flags))
-		dec_pending_ordered = true;
 	spin_unlock_irq(&tree->lock);
-
-	/*
-	 * The current running transaction is waiting on us, we need to let it
-	 * know that we're complete and wake it up.
-	 */
-	if (dec_pending_ordered) {
-		struct btrfs_transaction *trans;
-
-		/*
-		 * The checks for trans are just a formality, it should be set,
-		 * but if it isn't we don't want to deref/assert under the spin
-		 * lock, so be nice and check if trans is set, but ASSERT() so
-		 * if it isn't set a developer will notice.
-		 */
-		spin_lock(&fs_info->trans_lock);
-		trans = fs_info->running_transaction;
-		if (trans)
-			refcount_inc(&trans->use_count);
-		spin_unlock(&fs_info->trans_lock);
-
-		ASSERT(trans);
-		if (trans) {
-			if (atomic_dec_and_test(&trans->pending_ordered))
-				wake_up(&trans->pending_wait);
-			btrfs_put_transaction(trans);
-		}
-	}
 
 	spin_lock(&root->ordered_extent_lock);
 	list_del_init(&entry->root_extent_list);

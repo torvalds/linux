@@ -173,7 +173,12 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 
 		rcu_read_lock();
 		in = __in_dev_get_rcu(upper_dev);
-		local_ipaddr = ntohl(in->ifa_list->ifa_address);
+
+		if (!in->ifa_list)
+			local_ipaddr = 0;
+		else
+			local_ipaddr = ntohl(in->ifa_list->ifa_address);
+
 		rcu_read_unlock();
 	} else {
 		local_ipaddr = ntohl(ifa->ifa_address);
@@ -185,6 +190,11 @@ int i40iw_inetaddr_event(struct notifier_block *notifier,
 	case NETDEV_UP:
 		/* Fall through */
 	case NETDEV_CHANGEADDR:
+
+		/* Just skip if no need to handle ARP cache */
+		if (!local_ipaddr)
+			break;
+
 		i40iw_manage_arp_cache(iwdev,
 				       netdev->dev_addr,
 				       &local_ipaddr,
@@ -601,7 +611,6 @@ void i40iw_rem_pdusecount(struct i40iw_pd *iwpd, struct i40iw_device *iwdev)
 	if (!atomic_dec_and_test(&iwpd->usecount))
 		return;
 	i40iw_free_resource(iwdev, iwdev->allocated_pds, iwpd->sc_pd.pd_id);
-	kfree(iwpd);
 }
 
 /**
@@ -745,8 +754,8 @@ enum i40iw_status_code i40iw_allocate_dma_mem(struct i40iw_hw *hw,
 	if (!mem)
 		return I40IW_ERR_PARAM;
 	mem->size = ALIGN(size, alignment);
-	mem->va = dma_zalloc_coherent(&pcidev->dev, mem->size,
-				      (dma_addr_t *)&mem->pa, GFP_KERNEL);
+	mem->va = dma_alloc_coherent(&pcidev->dev, mem->size,
+				     (dma_addr_t *)&mem->pa, GFP_KERNEL);
 	if (!mem->va)
 		return I40IW_ERR_NO_MEMORY;
 	return 0;

@@ -560,5 +560,30 @@
         "teardown": [
             "$TC actions flush action gact"
         ]
+    },
+    {
+        "id": "ca89",
+        "name": "Replace gact action with invalid goto chain control",
+        "category": [
+            "actions",
+            "gact"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action gact",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action pass random determ drop 2 index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action goto chain 42 random determ drop 5 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order [0-9]*: gact action pass.*random type determ drop val 2.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action gact"
+        ]
     }
 ]

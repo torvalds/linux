@@ -221,7 +221,7 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 
 	switch (cmd) {
 	case SCSI_IOCTL_GET_IDLUN:
-		if (!access_ok(VERIFY_WRITE, arg, sizeof(struct scsi_idlun)))
+		if (!access_ok(arg, sizeof(struct scsi_idlun)))
 			return -EFAULT;
 
 		__put_user((sdev->id & 0xff)

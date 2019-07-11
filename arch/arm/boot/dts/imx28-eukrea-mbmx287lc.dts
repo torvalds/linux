@@ -23,6 +23,7 @@
 	compatible = "eukrea,mbmx287lc", "eukrea,mbmx283lc", "eukrea,mbmx28lc", "fsl,imx28";
 
 	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x08000000>;
 	};
 };

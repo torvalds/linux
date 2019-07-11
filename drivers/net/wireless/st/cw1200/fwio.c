@@ -465,8 +465,8 @@ int cw1200_load_firmware(struct cw1200_common *priv)
 
 	if (!(val32 & ST90TDS_CONFIG_ACCESS_MODE_BIT)) {
 		pr_err("Device is already in QUEUE mode!\n");
-			ret = -EINVAL;
-			goto out;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	switch (priv->hw_type)  {

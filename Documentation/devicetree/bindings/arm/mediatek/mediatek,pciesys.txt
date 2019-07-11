@@ -7,6 +7,7 @@ Required Properties:
 
 - compatible: Should be:
 	- "mediatek,mt7622-pciesys", "syscon"
+	- "mediatek,mt7629-pciesys", "syscon"
 - #clock-cells: Must be 1
 - #reset-cells: Must be 1
 

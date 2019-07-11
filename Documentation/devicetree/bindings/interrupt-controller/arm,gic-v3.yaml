@@ -1,0 +1,279 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/arm,gic-v3.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM Generic Interrupt Controller, version 3
+
+maintainers:
+  - Marc Zyngier <marc.zyngier@arm.com>
+
+description: |
+  AArch64 SMP cores are often associated with a GICv3, providing Private
+  Peripheral Interrupts (PPI), Shared Peripheral Interrupts (SPI),
+  Software Generated Interrupts (SGI), and Locality-specific Peripheral
+  Interrupts (LPI).
+
+allOf:
+  - $ref: /schemas/interrupt-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - qcom,msm8996-gic-v3
+          - const: arm,gic-v3
+      - const: arm,gic-v3
+
+  interrupt-controller: true
+
+  "#address-cells":
+    enum: [ 0, 1, 2 ]
+  "#size-cells":
+    enum: [ 1, 2 ]
+
+  ranges: true
+
+  "#interrupt-cells":
+    description: |
+      Specifies the number of cells needed to encode an interrupt source.
+      Must be a single cell with a value of at least 3.
+      If the system requires describing PPI affinity, then the value must
+      be at least 4.
+
+      The 1st cell is the interrupt type; 0 for SPI interrupts, 1 for PPI
+      interrupts. Other values are reserved for future use.
+
+      The 2nd cell contains the interrupt number for the interrupt type.
+      SPI interrupts are in the range [0-987]. PPI interrupts are in the
+      range [0-15].
+
+      The 3rd cell is the flags, encoded as follows:
+      bits[3:0] trigger type and level flags.
+        1 = edge triggered
+        4 = level triggered
+
+      The 4th cell is a phandle to a node describing a set of CPUs this
+      interrupt is affine to. The interrupt must be a PPI, and the node
+      pointed must be a subnode of the "ppi-partitions" subnode. For
+      interrupt types other than PPI or PPIs that are not partitionned,
+      this cell must be zero. See the "ppi-partitions" node description
+      below.
+
+      Cells 5 and beyond are reserved for future use and must have a value
+      of 0 if present.
+    enum: [ 3, 4 ]
+
+  reg:
+    description: |
+      Specifies base physical address(s) and size of the GIC
+      registers, in the following order:
+      - GIC Distributor interface (GICD)
+      - GIC Redistributors (GICR), one range per redistributor region
+      - GIC CPU interface (GICC)
+      - GIC Hypervisor interface (GICH)
+      - GIC Virtual CPU interface (GICV)
+
+      GICC, GICH and GICV are optional.
+    minItems: 2
+    maxItems: 4096   # Should be enough?
+
+  interrupts:
+    description:
+      Interrupt source of the VGIC maintenance interrupt.
+    maxItems: 1
+
+  redistributor-stride:
+    description:
+      If using padding pages, specifies the stride of consecutive
+      redistributors. Must be a multiple of 64kB.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint64
+      - multipleOf: 0x10000
+        exclusiveMinimum: 0
+
+  "#redistributor-regions":
+    description:
+      The number of independent contiguous regions occupied by the
+      redistributors. Required if more than one such region is present.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32
+      - maximum: 4096   # Should be enough?
+
+  msi-controller:
+    description:
+      Only present if the Message Based Interrupt functionnality is
+      being exposed by the HW, and the mbi-ranges property present.
+
+  mbi-ranges:
+    description:
+      A list of pairs <intid span>, where "intid" is the first SPI of a range
+      that can be used an MBI, and "span" the size of that range. Multiple
+      ranges can be provided.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32-matrix
+      - items:
+          minItems: 2
+          maxItems: 2
+
+  mbi-alias:
+    description:
+      Address property. Base address of an alias of the GICD region containing
+      only the {SET,CLR}SPI registers to be used if isolation is required,
+      and if supported by the HW.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32-array
+      - items:
+          minItems: 1
+          maxItems: 2
+
+  ppi-partitions:
+    type: object
+    description:
+      PPI affinity can be expressed as a single "ppi-partitions" node,
+      containing a set of sub-nodes.
+    patternProperties:
+      "^interrupt-partition-[0-9]+$":
+        properties:
+          affinity:
+            $ref: /schemas/types.yaml#/definitions/phandle-array
+            description:
+              Should be a list of phandles to CPU nodes (as described in
+              Documentation/devicetree/bindings/arm/cpus.yaml).
+
+        required:
+          - affinity
+
+dependencies:
+  mbi-ranges: [ msi-controller ]
+  msi-controller: [ mbi-ranges ]
+
+required:
+  - compatible
+  - interrupts
+  - reg
+
+patternProperties:
+  "^gic-its@": false
+  "^interrupt-controller@[0-9a-f]+$": false
+  # msi-controller is preferred, but allow other names
+  "^(msi-controller|gic-its|interrupt-controller)@[0-9a-f]+$":
+    type: object
+    description:
+      GICv3 has one or more Interrupt Translation Services (ITS) that are
+      used to route Message Signalled Interrupts (MSI) to the CPUs.
+    properties:
+      compatible:
+        const: arm,gic-v3-its
+
+      msi-controller: true
+
+      "#msi-cells":
+        description:
+          The single msi-cell is the DeviceID of the device which will generate
+          the MSI.
+        const: 1
+
+      reg:
+        description:
+          Specifies the base physical address and size of the ITS registers.
+        maxItems: 1
+
+      socionext,synquacer-pre-its:
+        description:
+          (u32, u32) tuple describing the untranslated
+          address and size of the pre-ITS window.
+        allOf:
+          - $ref: /schemas/types.yaml#/definitions/uint32-array
+          - items:
+              minItems: 2
+              maxItems: 2
+
+    required:
+      - compatible
+      - msi-controller
+      - "#msi-cells"
+      - reg
+
+    additionalProperties: false
+
+additionalProperties: false
+
+examples:
+  - |
+    gic: interrupt-controller@2cf00000 {
+      compatible = "arm,gic-v3";
+      #interrupt-cells = <3>;
+      #address-cells = <1>;
+      #size-cells = <1>;
+      ranges;
+      interrupt-controller;
+      reg = <0x2f000000 0x10000>,  // GICD
+            <0x2f100000 0x200000>,  // GICR
+            <0x2c000000 0x2000>,  // GICC
+            <0x2c010000 0x2000>,  // GICH
+            <0x2c020000 0x2000>;  // GICV
+      interrupts = <1 9 4>;
+
+      msi-controller;
+      mbi-ranges = <256 128>;
+
+      msi-controller@2c200000 {
+        compatible = "arm,gic-v3-its";
+        msi-controller;
+        #msi-cells = <1>;
+        reg = <0x2c200000 0x20000>;
+      };
+    };
+
+    interrupt-controller@2c010000 {
+      compatible = "arm,gic-v3";
+      #interrupt-cells = <4>;
+      #address-cells = <1>;
+      #size-cells = <1>;
+      ranges;
+      interrupt-controller;
+      redistributor-stride = <0x0 0x40000>;  // 256kB stride
+      #redistributor-regions = <2>;
+      reg = <0x2c010000 0x10000>,  // GICD
+            <0x2d000000 0x800000>,  // GICR 1: CPUs 0-31
+            <0x2e000000 0x800000>,  // GICR 2: CPUs 32-63
+            <0x2c040000 0x2000>,  // GICC
+            <0x2c060000 0x2000>,  // GICH
+            <0x2c080000 0x2000>;  // GICV
+      interrupts = <1 9 4>;
+
+      msi-controller@2c200000 {
+        compatible = "arm,gic-v3-its";
+        msi-controller;
+        #msi-cells = <1>;
+        reg = <0x2c200000 0x20000>;
+      };
+
+      msi-controller@2c400000 {
+        compatible = "arm,gic-v3-its";
+        msi-controller;
+        #msi-cells = <1>;
+        reg = <0x2c400000 0x20000>;
+      };
+
+      ppi-partitions {
+        part0: interrupt-partition-0 {
+          affinity = <&cpu0 &cpu2>;
+        };
+
+        part1: interrupt-partition-1 {
+          affinity = <&cpu1 &cpu3>;
+        };
+      };
+    };
+
+
+    device@0 {
+      reg = <0 4>;
+      interrupts = <1 1 4 &part0>;
+    };
+
+...

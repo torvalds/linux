@@ -42,7 +42,7 @@
 
 	v_5v0_usb3_hst_vbus: regulator-usb3-vbus0 {
 		compatible = "regulator-fixed";
-		gpio = <&cp0_gpio2 15 GPIO_ACTIVE_HIGH>;
+		gpio = <&cp0_gpio2 15 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp0_xhci_vbus_pins>;
 		regulator-name = "v_5v0_usb3_hst_vbus";
@@ -246,6 +246,18 @@
 		gpios = <1 GPIO_ACTIVE_HIGH>;
 		output-high;
 	};
+
+	lte_reset {
+		gpio-hog;
+		gpios = <2 GPIO_ACTIVE_LOW>;
+		output-low;
+	};
+
+	lte_disable {
+		gpio-hog;
+		gpios = <21 GPIO_ACTIVE_LOW>;
+		output-low;
+	};
 };
 
 &cp0_ethernet {
@@ -268,6 +280,10 @@
 	pinctrl-0 = <&cp0_sdhci_pins>;
 	status = "okay";
 	vqmmc-supply = <&v_3_3>;
+};
+
+&cp0_usb3_1 {
+	status = "okay";
 };
 
 &cp1_pinctrl {
@@ -333,6 +349,10 @@
 		 */
 		marvell,reg-init = <3 16 0 0x1017>;
 		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp0_copper_eth_phy_reset>;
+		reset-gpios = <&cp0_gpio2 11 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10000>;
 	};
 
 	switch0: switch0@4 {

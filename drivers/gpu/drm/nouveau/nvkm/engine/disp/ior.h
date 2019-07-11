@@ -144,6 +144,11 @@ void gm200_sor_route_set(struct nvkm_outp *, struct nvkm_ior *);
 int gm200_sor_route_get(struct nvkm_outp *, int *);
 void gm200_sor_dp_drive(struct nvkm_ior *, int, int, int, int, int);
 
+void gv100_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
+void gv100_sor_dp_audio(struct nvkm_ior *, int, bool);
+void gv100_sor_dp_audio_sym(struct nvkm_ior *, int, u16, u32);
+void gv100_sor_dp_watermark(struct nvkm_ior *, int, u8);
+
 void g84_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gt215_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gf119_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
@@ -195,4 +200,6 @@ int gm200_sor_new(struct nvkm_disp *, int);
 
 int gv100_sor_cnt(struct nvkm_disp *, unsigned long *);
 int gv100_sor_new(struct nvkm_disp *, int);
+
+int tu102_sor_new(struct nvkm_disp *, int);
 #endif

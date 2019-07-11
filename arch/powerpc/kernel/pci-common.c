@@ -32,6 +32,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/vgaarb.h>
+#include <linux/numa.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -62,18 +63,12 @@ resource_size_t isa_mem_base;
 EXPORT_SYMBOL(isa_mem_base);
 
 
-static const struct dma_map_ops *pci_dma_ops = &dma_nommu_ops;
+static const struct dma_map_ops *pci_dma_ops;
 
 void set_pci_dma_ops(const struct dma_map_ops *dma_ops)
 {
 	pci_dma_ops = dma_ops;
 }
-
-const struct dma_map_ops *get_pci_dma_ops(void)
-{
-	return pci_dma_ops;
-}
-EXPORT_SYMBOL(get_pci_dma_ops);
 
 /*
  * This function should run under locking protection, specifically
@@ -132,7 +127,7 @@ struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 		int nid = of_node_to_nid(dev);
 
 		if (nid < 0 || !node_online(nid))
-			nid = -1;
+			nid = NUMA_NO_NODE;
 
 		PHB_SET_NODE(phb, nid);
 	}
@@ -354,6 +349,17 @@ struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
 				return hose;
 		node = node->parent;
 	}
+	return NULL;
+}
+
+struct pci_controller *pci_find_controller_for_domain(int domain_nr)
+{
+	struct pci_controller *hose;
+
+	list_for_each_entry(hose, &hose_list, list_node)
+		if (hose->global_number == domain_nr)
+			return hose;
+
 	return NULL;
 }
 
@@ -972,7 +978,7 @@ static void pcibios_setup_device(struct pci_dev *dev)
 
 	/* Hook up default DMA ops */
 	set_dma_ops(&dev->dev, pci_dma_ops);
-	set_dma_offset(&dev->dev, PCI_DRAM_OFFSET);
+	dev->dev.archdata.dma_offset = PCI_DRAM_OFFSET;
 
 	/* Additional platform DMA/iommu setup */
 	phb = pci_bus_to_host(dev->bus);

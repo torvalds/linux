@@ -52,7 +52,7 @@ static ssize_t proc_bus_pci_read(struct file *file, char __user *buf,
 		nbytes = size - pos;
 	cnt = nbytes;
 
-	if (!access_ok(VERIFY_WRITE, buf, cnt))
+	if (!access_ok(buf, cnt))
 		return -EINVAL;
 
 	pci_config_pm_runtime_get(dev);
@@ -125,7 +125,7 @@ static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
 		nbytes = size - pos;
 	cnt = nbytes;
 
-	if (!access_ok(VERIFY_READ, buf, cnt))
+	if (!access_ok(buf, cnt))
 		return -EINVAL;
 
 	pci_config_pm_runtime_get(dev);

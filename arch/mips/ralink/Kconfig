@@ -27,18 +27,19 @@ choice
 	config SOC_RT288X
 		bool "RT288x"
 		select MIPS_L1_CACHE_SHIFT_4
-		select HW_HAS_PCI
+		select HAVE_PCI
 
 	config SOC_RT305X
 		bool "RT305x"
 
 	config SOC_RT3883
 		bool "RT3883"
-		select HW_HAS_PCI
+		select HAVE_PCI
 
 	config SOC_MT7620
 		bool "MT7620/8"
-		select HW_HAS_PCI
+		select CPU_MIPSR2_IRQ_VI
+		select HAVE_PCI
 
 	config SOC_MT7621
 		bool "MT7621"
@@ -50,7 +51,7 @@ choice
 		select MIPS_GIC
 		select COMMON_CLK
 		select CLKSRC_MIPS_GIC
-		select HW_HAS_PCI
+		select HAVE_PCI
 endchoice
 
 choice

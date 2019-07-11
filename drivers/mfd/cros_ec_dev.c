@@ -21,6 +21,7 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
@@ -34,17 +35,9 @@
 #define CROS_MAX_DEV 128
 static int ec_major;
 
-static const struct attribute_group *cros_ec_groups[] = {
-	&cros_ec_attr_group,
-	&cros_ec_lightbar_attr_group,
-	&cros_ec_vbc_attr_group,
-	NULL,
-};
-
 static struct class cros_class = {
 	.owner          = THIS_MODULE,
 	.name           = "chromeos",
-	.dev_groups     = cros_ec_groups,
 };
 
 /* Basic communication */
@@ -231,7 +224,7 @@ static long ec_device_ioctl_readmem(struct cros_ec_dev *ec, void __user *arg)
 	if (copy_to_user((void __user *)arg, &s_mem, sizeof(s_mem)))
 		return -EFAULT;
 
-	return 0;
+	return num;
 }
 
 static long ec_device_ioctl(struct file *filp, unsigned int cmd,
@@ -395,9 +388,20 @@ static const struct mfd_cell cros_usbpd_charger_cells[] = {
 	{ .name = "cros-usbpd-charger" }
 };
 
+static const struct mfd_cell cros_ec_platform_cells[] = {
+	{ .name = "cros-ec-debugfs" },
+	{ .name = "cros-ec-lightbar" },
+	{ .name = "cros-ec-sysfs" },
+};
+
+static const struct mfd_cell cros_ec_vbc_cells[] = {
+	{ .name = "cros-ec-vbc" }
+};
+
 static int ec_device_probe(struct platform_device *pdev)
 {
 	int retval = -ENOMEM;
+	struct device_node *node;
 	struct device *dev = &pdev->dev;
 	struct cros_ec_platform *ec_platform = dev_get_platdata(dev);
 	struct cros_ec_dev *ec = kzalloc(sizeof(*ec), GFP_KERNEL);
@@ -470,9 +474,6 @@ static int ec_device_probe(struct platform_device *pdev)
 				retval);
 	}
 
-	/* Take control of the lightbar from the EC. */
-	lb_manual_suspend_ctrl(ec, 1);
-
 	/* We can now add the sysfs class, we know which parameter to show */
 	retval = cdev_device_add(&ec->cdev, &ec->class_dev);
 	if (retval) {
@@ -480,8 +481,26 @@ static int ec_device_probe(struct platform_device *pdev)
 		goto failed;
 	}
 
-	if (cros_ec_debugfs_init(ec))
-		dev_warn(dev, "failed to create debugfs directory\n");
+	retval = mfd_add_devices(ec->dev, PLATFORM_DEVID_AUTO,
+				 cros_ec_platform_cells,
+				 ARRAY_SIZE(cros_ec_platform_cells),
+				 NULL, 0, NULL);
+	if (retval)
+		dev_warn(ec->dev,
+			 "failed to add cros-ec platform devices: %d\n",
+			 retval);
+
+	/* Check whether this EC instance has a VBC NVRAM */
+	node = ec->ec_dev->dev->of_node;
+	if (of_property_read_bool(node, "google,has-vbc-nvram")) {
+		retval = mfd_add_devices(ec->dev, PLATFORM_DEVID_AUTO,
+					 cros_ec_vbc_cells,
+					 ARRAY_SIZE(cros_ec_vbc_cells),
+					 NULL, 0, NULL);
+		if (retval)
+			dev_warn(ec->dev, "failed to add VBC devices: %d\n",
+				 retval);
+	}
 
 	return 0;
 
@@ -494,22 +513,10 @@ static int ec_device_remove(struct platform_device *pdev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(&pdev->dev);
 
-	/* Let the EC take over the lightbar again. */
-	lb_manual_suspend_ctrl(ec, 0);
-
-	cros_ec_debugfs_remove(ec);
-
+	mfd_remove_devices(ec->dev);
 	cdev_del(&ec->cdev);
 	device_unregister(&ec->class_dev);
 	return 0;
-}
-
-static void ec_device_shutdown(struct platform_device *pdev)
-{
-	struct cros_ec_dev *ec = dev_get_drvdata(&pdev->dev);
-
-	/* Be sure to clear up debugfs delayed works */
-	cros_ec_debugfs_remove(ec);
 }
 
 static const struct platform_device_id cros_ec_id[] = {
@@ -518,44 +525,13 @@ static const struct platform_device_id cros_ec_id[] = {
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_id);
 
-static __maybe_unused int ec_device_suspend(struct device *dev)
-{
-	struct cros_ec_dev *ec = dev_get_drvdata(dev);
-
-	cros_ec_debugfs_suspend(ec);
-
-	lb_suspend(ec);
-
-	return 0;
-}
-
-static __maybe_unused int ec_device_resume(struct device *dev)
-{
-	struct cros_ec_dev *ec = dev_get_drvdata(dev);
-
-	cros_ec_debugfs_resume(ec);
-
-	lb_resume(ec);
-
-	return 0;
-}
-
-static const struct dev_pm_ops cros_ec_dev_pm_ops = {
-#ifdef CONFIG_PM_SLEEP
-	.suspend = ec_device_suspend,
-	.resume = ec_device_resume,
-#endif
-};
-
 static struct platform_driver cros_ec_dev_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.pm = &cros_ec_dev_pm_ops,
 	},
 	.id_table = cros_ec_id,
 	.probe = ec_device_probe,
 	.remove = ec_device_remove,
-	.shutdown = ec_device_shutdown,
 };
 
 static int __init cros_ec_dev_init(void)

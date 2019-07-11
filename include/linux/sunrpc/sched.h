@@ -26,7 +26,7 @@ struct rpc_message {
 	const struct rpc_procinfo *rpc_proc;	/* Procedure information */
 	void *			rpc_argp;	/* Arguments */
 	void *			rpc_resp;	/* Result */
-	struct rpc_cred *	rpc_cred;	/* Credentials */
+	const struct cred *	rpc_cred;	/* Credentials */
 };
 
 struct rpc_call_ops;
@@ -71,6 +71,7 @@ struct rpc_task {
 
 	struct rpc_clnt *	tk_client;	/* RPC client */
 	struct rpc_xprt *	tk_xprt;	/* Transport */
+	struct rpc_cred *	tk_op_cred;	/* cred being operated on */
 
 	struct rpc_rqst *	tk_rqstp;	/* RPC request */
 
@@ -96,6 +97,7 @@ typedef void			(*rpc_action)(struct rpc_task *);
 
 struct rpc_call_ops {
 	void (*rpc_call_prepare)(struct rpc_task *, void *);
+	void (*rpc_call_prepare_transmit)(struct rpc_task *, void *);
 	void (*rpc_call_done)(struct rpc_task *, void *);
 	void (*rpc_count_stats)(struct rpc_task *, void *);
 	void (*rpc_release)(void *);
@@ -105,6 +107,7 @@ struct rpc_task_setup {
 	struct rpc_task *task;
 	struct rpc_clnt *rpc_client;
 	struct rpc_xprt *rpc_xprt;
+	struct rpc_cred *rpc_op_cred;	/* credential being operated on */
 	const struct rpc_message *rpc_message;
 	const struct rpc_call_ops *callback_ops;
 	void *callback_data;
@@ -118,6 +121,7 @@ struct rpc_task_setup {
  */
 #define RPC_TASK_ASYNC		0x0001		/* is an async task */
 #define RPC_TASK_SWAPPER	0x0002		/* is swapping in/out */
+#define RPC_TASK_NULLCREDS	0x0010		/* Use AUTH_NULL credential */
 #define RPC_CALL_MAJORSEEN	0x0020		/* major timeout seen */
 #define RPC_TASK_ROOTCREDS	0x0040		/* force root creds */
 #define RPC_TASK_DYNAMIC	0x0080		/* task was kmalloc'ed */
@@ -131,7 +135,6 @@ struct rpc_task_setup {
 
 #define RPC_IS_ASYNC(t)		((t)->tk_flags & RPC_TASK_ASYNC)
 #define RPC_IS_SWAPPER(t)	((t)->tk_flags & RPC_TASK_SWAPPER)
-#define RPC_DO_ROOTOVERRIDE(t)	((t)->tk_flags & RPC_TASK_ROOTCREDS)
 #define RPC_ASSASSINATED(t)	((t)->tk_flags & RPC_TASK_KILLED)
 #define RPC_IS_SOFT(t)		((t)->tk_flags & (RPC_TASK_SOFT|RPC_TASK_TIMEOUT))
 #define RPC_IS_SOFTCONN(t)	((t)->tk_flags & RPC_TASK_SOFTCONN)

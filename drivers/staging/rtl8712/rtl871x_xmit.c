@@ -193,8 +193,8 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 
 	pattrib->ether_type = ntohs(etherhdr.h_proto);
 
-{
-	/*If driver xmit ARP packet, driver can set ps mode to initial
+	/*
+	 * If driver xmit ARP packet, driver can set ps mode to initial
 	 * setting. It stands for getting DHCP or fix IP.
 	 */
 	if (pattrib->ether_type == 0x0806) {
@@ -206,7 +206,7 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 					  padapter->registrypriv.smart_ps);
 		}
 	}
-}
+
 	memcpy(pattrib->dst, &etherhdr.h_dest, ETH_ALEN);
 	memcpy(pattrib->src, &etherhdr.h_source, ETH_ALEN);
 	pattrib->pctrl = 0;
@@ -949,7 +949,7 @@ static void alloc_hwxmits(struct _adapter *padapter)
 		pxmitpriv->vo_txqueue.head = 0;
 		hwxmits[1] .phwtxqueue = &pxmitpriv->vo_txqueue;
 		hwxmits[1] .sta_queue = &pxmitpriv->vo_pending;
-	pxmitpriv->vi_txqueue.head = 0;
+		pxmitpriv->vi_txqueue.head = 0;
 		hwxmits[2] .phwtxqueue = &pxmitpriv->vi_txqueue;
 		hwxmits[2] .sta_queue = &pxmitpriv->vi_pending;
 		pxmitpriv->bk_txqueue.head = 0;

@@ -152,7 +152,7 @@ struct ccdc_params_raw {
 	 * order in memory(bottom to top)
 	 */
 	unsigned char image_invert_enable;
-	/* configurable paramaters */
+	/* configurable parameters */
 	struct ccdc_config_params_raw config_params;
 };
 

@@ -6,8 +6,6 @@ Required properties :
 - reg : shall contain base register location and length
 - #clock-cells : from common clock binding, shall contain 1.
 - #power-domain-cells : from generic power domain binding, shall contain 1.
-
-Optional properties :
 - #reset-cells : from common reset binding, shall contain 1.
 
 Example:
@@ -16,4 +14,5 @@ Example:
 		reg = <0xab00000 0x10000>;
 		#clock-cells = <1>;
 		#power-domain-cells = <1>;
+		#reset-cells = <1>;
 	};

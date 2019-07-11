@@ -177,9 +177,14 @@ static inline u32 mlx5_cqwq_get_ci(struct mlx5_cqwq *wq)
 	return mlx5_cqwq_ctr2ix(wq, wq->cc);
 }
 
-static inline void *mlx5_cqwq_get_wqe(struct mlx5_cqwq *wq, u32 ix)
+static inline struct mlx5_cqe64 *mlx5_cqwq_get_wqe(struct mlx5_cqwq *wq, u32 ix)
 {
-	return mlx5_frag_buf_get_wqe(&wq->fbc, ix);
+	struct mlx5_cqe64 *cqe = mlx5_frag_buf_get_wqe(&wq->fbc, ix);
+
+	/* For 128B CQEs the data is in the last 64B */
+	cqe += wq->fbc.log_stride == 7;
+
+	return cqe;
 }
 
 static inline u32 mlx5_cqwq_get_ctr_wrap_cnt(struct mlx5_cqwq *wq, u32 ctr)

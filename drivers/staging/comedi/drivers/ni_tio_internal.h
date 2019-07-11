@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Header file for NI general purpose counter support code (ni_tio.c and
  * ni_tiocmd.c)

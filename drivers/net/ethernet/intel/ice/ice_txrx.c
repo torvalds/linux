@@ -48,7 +48,6 @@ static struct netdev_queue *txring_txq(const struct ice_ring *ring)
  */
 void ice_clean_tx_ring(struct ice_ring *tx_ring)
 {
-	unsigned long size;
 	u16 i;
 
 	/* ring already cleared, nothing to do */
@@ -59,8 +58,7 @@ void ice_clean_tx_ring(struct ice_ring *tx_ring)
 	for (i = 0; i < tx_ring->count; i++)
 		ice_unmap_and_free_tx_buf(tx_ring, &tx_ring->tx_buf[i]);
 
-	size = sizeof(struct ice_tx_buf) * tx_ring->count;
-	memset(tx_ring->tx_buf, 0, size);
+	memset(tx_ring->tx_buf, 0, sizeof(*tx_ring->tx_buf) * tx_ring->count);
 
 	/* Zero out the descriptor ring */
 	memset(tx_ring->desc, 0, tx_ring->size);
@@ -219,28 +217,28 @@ static bool ice_clean_tx_irq(struct ice_vsi *vsi, struct ice_ring *tx_ring,
 
 /**
  * ice_setup_tx_ring - Allocate the Tx descriptors
- * @tx_ring: the tx ring to set up
+ * @tx_ring: the Tx ring to set up
  *
  * Return 0 on success, negative on error
  */
 int ice_setup_tx_ring(struct ice_ring *tx_ring)
 {
 	struct device *dev = tx_ring->dev;
-	int bi_size;
 
 	if (!dev)
 		return -ENOMEM;
 
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(tx_ring->tx_buf);
-	bi_size = sizeof(struct ice_tx_buf) * tx_ring->count;
-	tx_ring->tx_buf = devm_kzalloc(dev, bi_size, GFP_KERNEL);
+	tx_ring->tx_buf =
+		devm_kzalloc(dev, sizeof(*tx_ring->tx_buf) * tx_ring->count,
+			     GFP_KERNEL);
 	if (!tx_ring->tx_buf)
 		return -ENOMEM;
 
 	/* round up to nearest 4K */
-	tx_ring->size = tx_ring->count * sizeof(struct ice_tx_desc);
-	tx_ring->size = ALIGN(tx_ring->size, 4096);
+	tx_ring->size = ALIGN(tx_ring->count * sizeof(struct ice_tx_desc),
+			      4096);
 	tx_ring->desc = dmam_alloc_coherent(dev, tx_ring->size, &tx_ring->dma,
 					    GFP_KERNEL);
 	if (!tx_ring->desc) {
@@ -267,7 +265,6 @@ err:
 void ice_clean_rx_ring(struct ice_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
-	unsigned long size;
 	u16 i;
 
 	/* ring already cleared, nothing to do */
@@ -292,8 +289,7 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 		rx_buf->page_offset = 0;
 	}
 
-	size = sizeof(struct ice_rx_buf) * rx_ring->count;
-	memset(rx_ring->rx_buf, 0, size);
+	memset(rx_ring->rx_buf, 0, sizeof(*rx_ring->rx_buf) * rx_ring->count);
 
 	/* Zero out the descriptor ring */
 	memset(rx_ring->desc, 0, rx_ring->size);
@@ -324,22 +320,22 @@ void ice_free_rx_ring(struct ice_ring *rx_ring)
 
 /**
  * ice_setup_rx_ring - Allocate the Rx descriptors
- * @rx_ring: the rx ring to set up
+ * @rx_ring: the Rx ring to set up
  *
  * Return 0 on success, negative on error
  */
 int ice_setup_rx_ring(struct ice_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
-	int bi_size;
 
 	if (!dev)
 		return -ENOMEM;
 
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(rx_ring->rx_buf);
-	bi_size = sizeof(struct ice_rx_buf) * rx_ring->count;
-	rx_ring->rx_buf = devm_kzalloc(dev, bi_size, GFP_KERNEL);
+	rx_ring->rx_buf =
+		devm_kzalloc(dev, sizeof(*rx_ring->rx_buf) * rx_ring->count,
+			     GFP_KERNEL);
 	if (!rx_ring->rx_buf)
 		return -ENOMEM;
 
@@ -377,7 +373,7 @@ static void ice_release_rx_desc(struct ice_ring *rx_ring, u32 val)
 	rx_ring->next_to_alloc = val;
 
 	/* Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.  (Only
+	 * know there are new descriptors to fetch. (Only
 	 * applicable for weak-ordered memory model archs,
 	 * such as IA-64).
 	 */
@@ -586,7 +582,7 @@ static bool ice_add_rx_frag(struct ice_rx_buf *rx_buf,
 
 /**
  * ice_reuse_rx_page - page flip buffer and store it back on the ring
- * @rx_ring: rx descriptor ring to store buffers on
+ * @rx_ring: Rx descriptor ring to store buffers on
  * @old_buf: donor buffer to have page reused
  *
  * Synchronizes page for reuse by the adapter
@@ -609,7 +605,7 @@ static void ice_reuse_rx_page(struct ice_ring *rx_ring,
 
 /**
  * ice_fetch_rx_buf - Allocate skb and populate it
- * @rx_ring: rx descriptor ring to transact packets on
+ * @rx_ring: Rx descriptor ring to transact packets on
  * @rx_desc: descriptor containing info written by hardware
  *
  * This function allocates an skb on the fly, and populates it with the page
@@ -686,7 +682,7 @@ static struct sk_buff *ice_fetch_rx_buf(struct ice_ring *rx_ring,
  * ice_pull_tail - ice specific version of skb_pull_tail
  * @skb: pointer to current skb being adjusted
  *
- * This function is an ice specific version of __pskb_pull_tail.  The
+ * This function is an ice specific version of __pskb_pull_tail. The
  * main difference between this version and the original function is that
  * this function can make several assumptions about the state of things
  * that allow for significant optimizations versus the standard function.
@@ -768,7 +764,7 @@ static bool ice_test_staterr(union ice_32b_rx_flex_desc *rx_desc,
  * @rx_desc: Rx descriptor for current buffer
  * @skb: Current socket buffer containing buffer in progress
  *
- * This function updates next to clean.  If the buffer is an EOP buffer
+ * This function updates next to clean. If the buffer is an EOP buffer
  * this function exits returning false, otherwise it will place the
  * sk_buff in the next buffer to be chained and return true indicating
  * that this is in fact a non-EOP buffer.
@@ -904,7 +900,7 @@ checksum_fail:
 
 /**
  * ice_process_skb_fields - Populate skb header fields from Rx descriptor
- * @rx_ring: rx descriptor ring packet is being transacted on
+ * @rx_ring: Rx descriptor ring packet is being transacted on
  * @rx_desc: pointer to the EOP Rx descriptor
  * @skb: pointer to current skb being populated
  * @ptype: the packet type decoded by hardware
@@ -927,7 +923,7 @@ static void ice_process_skb_fields(struct ice_ring *rx_ring,
 
 /**
  * ice_receive_skb - Send a completed packet up the stack
- * @rx_ring: rx ring in play
+ * @rx_ring: Rx ring in play
  * @skb: packet to send up
  * @vlan_tag: vlan tag for packet
  *
@@ -946,11 +942,11 @@ static void ice_receive_skb(struct ice_ring *rx_ring, struct sk_buff *skb,
 
 /**
  * ice_clean_rx_irq - Clean completed descriptors from Rx ring - bounce buf
- * @rx_ring: rx descriptor ring to transact packets on
+ * @rx_ring: Rx descriptor ring to transact packets on
  * @budget: Total limit on number of packets to process
  *
  * This function provides a "bounce buffer" approach to Rx interrupt
- * processing.  The advantage to this is that on systems that have
+ * processing. The advantage to this is that on systems that have
  * expensive overhead for IOMMU access this provides a means of avoiding
  * it by maintaining the mapping of the page to the system.
  *
@@ -1053,6 +1049,69 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 }
 
 /**
+ * ice_buildreg_itr - build value for writing to the GLINT_DYN_CTL register
+ * @itr_idx: interrupt throttling index
+ * @reg_itr: interrupt throttling value adjusted based on ITR granularity
+ */
+static u32 ice_buildreg_itr(int itr_idx, u16 reg_itr)
+{
+	return GLINT_DYN_CTL_INTENA_M | GLINT_DYN_CTL_CLEARPBA_M |
+		(itr_idx << GLINT_DYN_CTL_ITR_INDX_S) |
+		(reg_itr << GLINT_DYN_CTL_INTERVAL_S);
+}
+
+/**
+ * ice_update_ena_itr - Update ITR and re-enable MSIX interrupt
+ * @vsi: the VSI associated with the q_vector
+ * @q_vector: q_vector for which ITR is being updated and interrupt enabled
+ */
+static void
+ice_update_ena_itr(struct ice_vsi *vsi, struct ice_q_vector *q_vector)
+{
+	struct ice_hw *hw = &vsi->back->hw;
+	struct ice_ring_container *rc;
+	u32 itr_val;
+
+	/* This block of logic allows us to get away with only updating
+	 * one ITR value with each interrupt. The idea is to perform a
+	 * pseudo-lazy update with the following criteria.
+	 *
+	 * 1. Rx is given higher priority than Tx if both are in same state
+	 * 2. If we must reduce an ITR that is given highest priority.
+	 * 3. We then give priority to increasing ITR based on amount.
+	 */
+	if (q_vector->rx.target_itr < q_vector->rx.current_itr) {
+		rc = &q_vector->rx;
+		/* Rx ITR needs to be reduced, this is highest priority */
+		itr_val = ice_buildreg_itr(rc->itr_idx, rc->target_itr);
+		rc->current_itr = rc->target_itr;
+	} else if ((q_vector->tx.target_itr < q_vector->tx.current_itr) ||
+		   ((q_vector->rx.target_itr - q_vector->rx.current_itr) <
+		    (q_vector->tx.target_itr - q_vector->tx.current_itr))) {
+		rc = &q_vector->tx;
+		/* Tx ITR needs to be reduced, this is second priority
+		 * Tx ITR needs to be increased more than Rx, fourth priority
+		 */
+		itr_val = ice_buildreg_itr(rc->itr_idx, rc->target_itr);
+		rc->current_itr = rc->target_itr;
+	} else if (q_vector->rx.current_itr != q_vector->rx.target_itr) {
+		rc = &q_vector->rx;
+		/* Rx ITR needs to be increased, third priority */
+		itr_val = ice_buildreg_itr(rc->itr_idx, rc->target_itr);
+		rc->current_itr = rc->target_itr;
+	} else {
+		/* Still have to re-enable the interrupts */
+		itr_val = ice_buildreg_itr(ICE_ITR_NONE, 0);
+	}
+
+	if (!test_bit(__ICE_DOWN, vsi->state)) {
+		int vector = vsi->hw_base_vector + q_vector->v_idx;
+
+		wr32(hw, GLINT_DYN_CTL(vector), itr_val);
+	}
+}
+
+/**
  * ice_napi_poll - NAPI polling Rx/Tx cleanup routine
  * @napi: napi struct with our devices info in it
  * @budget: amount of work driver is allowed to do this pass, in packets
@@ -1103,11 +1162,14 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	if (!clean_complete)
 		return budget;
 
-	/* Work is done so exit the polling mode and re-enable the interrupt */
-	napi_complete_done(napi, work_done);
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-		ice_irq_dynamic_ena(&vsi->back->hw, vsi, q_vector);
-	return 0;
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
+			ice_update_ena_itr(vsi, q_vector);
+
+	return min_t(int, work_done, budget - 1);
 }
 
 /* helper function for building cmd/type/offset */
@@ -1122,7 +1184,7 @@ build_ctob(u64 td_cmd, u64 td_offset, unsigned int size, u64 td_tag)
 }
 
 /**
- * __ice_maybe_stop_tx - 2nd level check for tx stop conditions
+ * __ice_maybe_stop_tx - 2nd level check for Tx stop conditions
  * @tx_ring: the ring to be checked
  * @size: the size buffer we want to assure is available
  *
@@ -1145,7 +1207,7 @@ static int __ice_maybe_stop_tx(struct ice_ring *tx_ring, unsigned int size)
 }
 
 /**
- * ice_maybe_stop_tx - 1st level check for tx stop conditions
+ * ice_maybe_stop_tx - 1st level check for Tx stop conditions
  * @tx_ring: the ring to be checked
  * @size:    the size buffer we want to assure is available
  *
@@ -1155,6 +1217,7 @@ static int ice_maybe_stop_tx(struct ice_ring *tx_ring, unsigned int size)
 {
 	if (likely(ICE_DESC_UNUSED(tx_ring) >= size))
 		return 0;
+
 	return __ice_maybe_stop_tx(tx_ring, size);
 }
 
@@ -1398,6 +1461,12 @@ int ice_tx_csum(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 		offset |= l4_len << ICE_TX_DESC_LEN_L4_LEN_S;
 		break;
 	case IPPROTO_SCTP:
+		/* enable SCTP checksum offload */
+		cmd |= ICE_TX_DESC_CMD_L4T_EOFT_SCTP;
+		l4_len = sizeof(struct sctphdr) >> 2;
+		offset |= l4_len << ICE_TX_DESC_LEN_L4_LEN_S;
+		break;
+
 	default:
 		if (first->tx_flags & ICE_TX_FLAGS_TSO)
 			return -1;
@@ -1552,7 +1621,7 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
  * Finally, we add one to round up. Because 256 isn't an exact multiple of
  * 3, we'll underestimate near each multiple of 12K. This is actually more
  * accurate as we have 4K - 1 of wiggle room that we can fit into the last
- * segment.  For our purposes this is accurate out to 1M which is orders of
+ * segment. For our purposes this is accurate out to 1M which is orders of
  * magnitude greater than our largest possible GSO size.
  *
  * This would then be implemented as:
@@ -1568,7 +1637,7 @@ static unsigned int ice_txd_use_count(unsigned int size)
 }
 
 /**
- * ice_xmit_desc_count - calculate number of tx descriptors needed
+ * ice_xmit_desc_count - calculate number of Tx descriptors needed
  * @skb: send buffer
  *
  * Returns number of data descriptors needed for this skb.
@@ -1620,7 +1689,7 @@ static bool __ice_chk_linearize(struct sk_buff *skb)
 	nr_frags -= ICE_MAX_BUF_TXD - 2;
 	frag = &skb_shinfo(skb)->frags[0];
 
-	/* Initialize size to the negative value of gso_size minus 1.  We
+	/* Initialize size to the negative value of gso_size minus 1. We
 	 * use this as the worst case scenerio in which the frag ahead
 	 * of us only provides one byte which is why we are limited to 6
 	 * descriptors for a single transmit as the header and previous

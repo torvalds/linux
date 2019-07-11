@@ -43,8 +43,8 @@ struct thermal_data {
 	const struct attribute_group *groups[4];
 };
 
-static ssize_t show_temp(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t temp_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
 	struct thermal_data *data = dev_get_drvdata(dev);
@@ -57,8 +57,8 @@ static ssize_t show_temp(struct device *dev,
 	return sprintf(buf, "%d000\n", val);
 }
 
-static ssize_t show_bit(struct device *dev,
-			struct device_attribute *attr, char *buf)
+static ssize_t bit_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	struct sensor_device_attribute_2 *sda = to_sensor_dev_attr_2(attr);
 	struct thermal_data *data = dev_get_drvdata(dev);
@@ -71,8 +71,8 @@ static ssize_t show_bit(struct device *dev,
 	return sprintf(buf, "%d\n", !!(val & sda->index));
 }
 
-static ssize_t store_temp(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t temp_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
 {
 	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
 	struct thermal_data *data = dev_get_drvdata(dev);
@@ -88,8 +88,8 @@ static ssize_t store_temp(struct device *dev,
 	return count;
 }
 
-static ssize_t store_bit(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t bit_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct sensor_device_attribute_2 *sda = to_sensor_dev_attr_2(attr);
 	struct thermal_data *data = dev_get_drvdata(dev);
@@ -128,20 +128,20 @@ static ssize_t show_hyst_common(struct device *dev,
 	return sprintf(buf, "%d000\n", is_min ? limit + hyst : limit - hyst);
 }
 
-static ssize_t show_hyst(struct device *dev,
-			 struct device_attribute *attr, char *buf)
+static ssize_t hyst_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	return show_hyst_common(dev, attr, buf, false);
 }
 
-static ssize_t show_min_hyst(struct device *dev,
+static ssize_t min_hyst_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	return show_hyst_common(dev, attr, buf, true);
 }
 
-static ssize_t store_hyst(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t hyst_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
 {
 	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
 	struct thermal_data *data = dev_get_drvdata(dev);
@@ -173,80 +173,54 @@ fail:
  *	Sensors. We pass the actual i2c register to the methods.
  */
 
-static SENSOR_DEVICE_ATTR(temp1_min, S_IRUGO | S_IWUSR,
-	show_temp, store_temp, 0x06);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO | S_IWUSR,
-	show_temp, store_temp, 0x05);
-static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO | S_IWUSR,
-	show_temp, store_temp, 0x20);
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0x00);
-static SENSOR_DEVICE_ATTR_2(temp1_min_alarm, S_IRUGO,
-	show_bit, NULL, 0x36, 0x01);
-static SENSOR_DEVICE_ATTR_2(temp1_max_alarm, S_IRUGO,
-	show_bit, NULL, 0x35, 0x01);
-static SENSOR_DEVICE_ATTR_2(temp1_crit_alarm, S_IRUGO,
-	show_bit, NULL, 0x37, 0x01);
-static SENSOR_DEVICE_ATTR(temp1_min_hyst, S_IRUGO, show_min_hyst, NULL, 0x06);
-static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IRUGO, show_hyst, NULL, 0x05);
-static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO | S_IWUSR,
-	show_hyst, store_hyst, 0x20);
+static SENSOR_DEVICE_ATTR_RW(temp1_min, temp, 0x06);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, temp, 0x05);
+static SENSOR_DEVICE_ATTR_RW(temp1_crit, temp, 0x20);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, 0x00);
+static SENSOR_DEVICE_ATTR_2_RO(temp1_min_alarm, bit, 0x36, 0x01);
+static SENSOR_DEVICE_ATTR_2_RO(temp1_max_alarm, bit, 0x35, 0x01);
+static SENSOR_DEVICE_ATTR_2_RO(temp1_crit_alarm, bit, 0x37, 0x01);
+static SENSOR_DEVICE_ATTR_RO(temp1_min_hyst, min_hyst, 0x06);
+static SENSOR_DEVICE_ATTR_RO(temp1_max_hyst, hyst, 0x05);
+static SENSOR_DEVICE_ATTR_RW(temp1_crit_hyst, hyst, 0x20);
 
-static SENSOR_DEVICE_ATTR(temp2_min, S_IRUGO | S_IWUSR,
-	show_temp, store_temp, 0x08);
-static SENSOR_DEVICE_ATTR(temp2_max, S_IRUGO | S_IWUSR,
-	show_temp, store_temp, 0x07);
-static SENSOR_DEVICE_ATTR(temp2_crit, S_IRUGO | S_IWUSR,
-	show_temp, store_temp, 0x19);
-static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 0x01);
-static SENSOR_DEVICE_ATTR_2(temp2_fault, S_IRUGO, show_bit, NULL, 0x1b, 0x02);
-static SENSOR_DEVICE_ATTR_2(temp2_min_alarm, S_IRUGO,
-	show_bit, NULL, 0x36, 0x02);
-static SENSOR_DEVICE_ATTR_2(temp2_max_alarm, S_IRUGO,
-	show_bit, NULL, 0x35, 0x02);
-static SENSOR_DEVICE_ATTR_2(temp2_crit_alarm, S_IRUGO,
-	show_bit, NULL, 0x37, 0x02);
-static SENSOR_DEVICE_ATTR(temp2_min_hyst, S_IRUGO, show_min_hyst, NULL, 0x08);
-static SENSOR_DEVICE_ATTR(temp2_max_hyst, S_IRUGO, show_hyst, NULL, 0x07);
-static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IRUGO, show_hyst, NULL, 0x19);
+static SENSOR_DEVICE_ATTR_RW(temp2_min, temp, 0x08);
+static SENSOR_DEVICE_ATTR_RW(temp2_max, temp, 0x07);
+static SENSOR_DEVICE_ATTR_RW(temp2_crit, temp, 0x19);
+static SENSOR_DEVICE_ATTR_RO(temp2_input, temp, 0x01);
+static SENSOR_DEVICE_ATTR_2_RO(temp2_fault, bit, 0x1b, 0x02);
+static SENSOR_DEVICE_ATTR_2_RO(temp2_min_alarm, bit, 0x36, 0x02);
+static SENSOR_DEVICE_ATTR_2_RO(temp2_max_alarm, bit, 0x35, 0x02);
+static SENSOR_DEVICE_ATTR_2_RO(temp2_crit_alarm, bit, 0x37, 0x02);
+static SENSOR_DEVICE_ATTR_RO(temp2_min_hyst, min_hyst, 0x08);
+static SENSOR_DEVICE_ATTR_RO(temp2_max_hyst, hyst, 0x07);
+static SENSOR_DEVICE_ATTR_RO(temp2_crit_hyst, hyst, 0x19);
 
-static SENSOR_DEVICE_ATTR(temp3_min, S_IRUGO | S_IWUSR,
-	show_temp, store_temp, 0x16);
-static SENSOR_DEVICE_ATTR(temp3_max, S_IRUGO | S_IWUSR,
-	show_temp, store_temp, 0x15);
-static SENSOR_DEVICE_ATTR(temp3_crit, S_IRUGO | S_IWUSR,
-	show_temp, store_temp, 0x1A);
-static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 0x23);
-static SENSOR_DEVICE_ATTR_2(temp3_fault, S_IRUGO, show_bit, NULL, 0x1b, 0x04);
-static SENSOR_DEVICE_ATTR_2(temp3_min_alarm, S_IRUGO,
-	show_bit, NULL, 0x36, 0x04);
-static SENSOR_DEVICE_ATTR_2(temp3_max_alarm, S_IRUGO,
-	show_bit, NULL, 0x35, 0x04);
-static SENSOR_DEVICE_ATTR_2(temp3_crit_alarm, S_IRUGO,
-	show_bit, NULL, 0x37, 0x04);
-static SENSOR_DEVICE_ATTR(temp3_min_hyst, S_IRUGO, show_min_hyst, NULL, 0x16);
-static SENSOR_DEVICE_ATTR(temp3_max_hyst, S_IRUGO, show_hyst, NULL, 0x15);
-static SENSOR_DEVICE_ATTR(temp3_crit_hyst, S_IRUGO, show_hyst, NULL, 0x1A);
+static SENSOR_DEVICE_ATTR_RW(temp3_min, temp, 0x16);
+static SENSOR_DEVICE_ATTR_RW(temp3_max, temp, 0x15);
+static SENSOR_DEVICE_ATTR_RW(temp3_crit, temp, 0x1A);
+static SENSOR_DEVICE_ATTR_RO(temp3_input, temp, 0x23);
+static SENSOR_DEVICE_ATTR_2_RO(temp3_fault, bit, 0x1b, 0x04);
+static SENSOR_DEVICE_ATTR_2_RO(temp3_min_alarm, bit, 0x36, 0x04);
+static SENSOR_DEVICE_ATTR_2_RO(temp3_max_alarm, bit, 0x35, 0x04);
+static SENSOR_DEVICE_ATTR_2_RO(temp3_crit_alarm, bit, 0x37, 0x04);
+static SENSOR_DEVICE_ATTR_RO(temp3_min_hyst, min_hyst, 0x16);
+static SENSOR_DEVICE_ATTR_RO(temp3_max_hyst, hyst, 0x15);
+static SENSOR_DEVICE_ATTR_RO(temp3_crit_hyst, hyst, 0x1A);
 
-static SENSOR_DEVICE_ATTR(temp4_min, S_IRUGO | S_IWUSR,
-	show_temp, store_temp, 0x2D);
-static SENSOR_DEVICE_ATTR(temp4_max, S_IRUGO | S_IWUSR,
-	show_temp, store_temp, 0x2C);
-static SENSOR_DEVICE_ATTR(temp4_crit, S_IRUGO | S_IWUSR,
-	show_temp, store_temp, 0x30);
-static SENSOR_DEVICE_ATTR(temp4_input, S_IRUGO, show_temp, NULL, 0x2A);
-static SENSOR_DEVICE_ATTR_2(temp4_fault, S_IRUGO, show_bit, NULL, 0x1b, 0x08);
-static SENSOR_DEVICE_ATTR_2(temp4_min_alarm, S_IRUGO,
-	show_bit, NULL, 0x36, 0x08);
-static SENSOR_DEVICE_ATTR_2(temp4_max_alarm, S_IRUGO,
-	show_bit, NULL, 0x35, 0x08);
-static SENSOR_DEVICE_ATTR_2(temp4_crit_alarm, S_IRUGO,
-	show_bit, NULL, 0x37, 0x08);
-static SENSOR_DEVICE_ATTR(temp4_min_hyst, S_IRUGO, show_min_hyst, NULL, 0x2D);
-static SENSOR_DEVICE_ATTR(temp4_max_hyst, S_IRUGO, show_hyst, NULL, 0x2C);
-static SENSOR_DEVICE_ATTR(temp4_crit_hyst, S_IRUGO, show_hyst, NULL, 0x30);
+static SENSOR_DEVICE_ATTR_RW(temp4_min, temp, 0x2D);
+static SENSOR_DEVICE_ATTR_RW(temp4_max, temp, 0x2C);
+static SENSOR_DEVICE_ATTR_RW(temp4_crit, temp, 0x30);
+static SENSOR_DEVICE_ATTR_RO(temp4_input, temp, 0x2A);
+static SENSOR_DEVICE_ATTR_2_RO(temp4_fault, bit, 0x1b, 0x08);
+static SENSOR_DEVICE_ATTR_2_RO(temp4_min_alarm, bit, 0x36, 0x08);
+static SENSOR_DEVICE_ATTR_2_RO(temp4_max_alarm, bit, 0x35, 0x08);
+static SENSOR_DEVICE_ATTR_2_RO(temp4_crit_alarm, bit, 0x37, 0x08);
+static SENSOR_DEVICE_ATTR_RO(temp4_min_hyst, min_hyst, 0x2D);
+static SENSOR_DEVICE_ATTR_RO(temp4_max_hyst, hyst, 0x2C);
+static SENSOR_DEVICE_ATTR_RO(temp4_crit_hyst, hyst, 0x30);
 
-static SENSOR_DEVICE_ATTR_2(power_state, S_IRUGO | S_IWUSR,
-	show_bit, store_bit, 0x03, 0x40);
+static SENSOR_DEVICE_ATTR_2_RW(power_state, bit, 0x03, 0x40);
 
 static struct attribute *emc1402_attrs[] = {
 	&sensor_dev_attr_temp1_min.dev_attr.attr,
@@ -328,14 +302,14 @@ static const struct attribute_group emc1404_group = {
  * array.
  */
 static struct sensor_device_attribute_2 emc1402_alarms[] = {
-	SENSOR_ATTR_2(temp1_min_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x20),
-	SENSOR_ATTR_2(temp1_max_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x40),
-	SENSOR_ATTR_2(temp1_crit_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x01),
+	SENSOR_ATTR_2_RO(temp1_min_alarm, bit, 0x02, 0x20),
+	SENSOR_ATTR_2_RO(temp1_max_alarm, bit, 0x02, 0x40),
+	SENSOR_ATTR_2_RO(temp1_crit_alarm, bit, 0x02, 0x01),
 
-	SENSOR_ATTR_2(temp2_fault, S_IRUGO, show_bit, NULL, 0x02, 0x04),
-	SENSOR_ATTR_2(temp2_min_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x08),
-	SENSOR_ATTR_2(temp2_max_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x10),
-	SENSOR_ATTR_2(temp2_crit_alarm, S_IRUGO, show_bit, NULL, 0x02, 0x02),
+	SENSOR_ATTR_2_RO(temp2_fault, bit, 0x02, 0x04),
+	SENSOR_ATTR_2_RO(temp2_min_alarm, bit, 0x02, 0x08),
+	SENSOR_ATTR_2_RO(temp2_max_alarm, bit, 0x02, 0x10),
+	SENSOR_ATTR_2_RO(temp2_crit_alarm, bit, 0x02, 0x02),
 };
 
 static struct attribute *emc1402_alarm_attrs[] = {

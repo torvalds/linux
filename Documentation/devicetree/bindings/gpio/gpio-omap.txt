@@ -5,6 +5,8 @@ Required properties:
   - "ti,omap2-gpio" for OMAP2 controllers
   - "ti,omap3-gpio" for OMAP3 controllers
   - "ti,omap4-gpio" for OMAP4 controllers
+- reg : Physical base address of the controller and length of memory mapped
+  region.
 - gpio-controller : Marks the device node as a GPIO controller.
 - #gpio-cells : Should be two.
   - first cell is the pin number
@@ -18,6 +20,8 @@ Required properties:
       2 = high-to-low edge triggered.
       4 = active high level-sensitive.
       8 = active low level-sensitive.
+- interrupts : The interrupt the controller is rising as output when an
+  interrupt occures
 
 OMAP specific properties:
 - ti,hwmods:		Name of the hwmod associated to the GPIO:
@@ -29,11 +33,13 @@ OMAP specific properties:
 
 Example:
 
-gpio4: gpio4 {
+gpio0: gpio@44e07000 {
     compatible = "ti,omap4-gpio";
-    ti,hwmods = "gpio4";
+    reg = <0x44e07000 0x1000>;
+    ti,hwmods = "gpio1";
     gpio-controller;
     #gpio-cells = <2>;
     interrupt-controller;
     #interrupt-cells = <2>;
+    interrupts = <96>;
 };

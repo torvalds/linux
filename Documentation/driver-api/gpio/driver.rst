@@ -135,7 +135,7 @@ This configuration is normally used as a way to achieve one of two things:
 - inverse wire-OR on an I/O line, for example a GPIO line, making it possible
   for any driving stage on the line to drive it low even if any other output
   to the same line is simultaneously driving it high. A special case of this
-  is driving the SCL and SCA lines of an I2C bus, which is by definition a
+  is driving the SCL and SDA lines of an I2C bus, which is by definition a
   wire-OR bus.
 
 Both usecases require that the line be equipped with a pull-up resistor. This
@@ -434,7 +434,9 @@ try_module_get()). A GPIO driver can use the following functions instead
 to request and free descriptors without being pinned to the kernel forever::
 
 	struct gpio_desc *gpiochip_request_own_desc(struct gpio_desc *desc,
-						    const char *label)
+						    u16 hwnum,
+						    const char *label,
+						    enum gpiod_flags flags)
 
 	void gpiochip_free_own_desc(struct gpio_desc *desc)
 

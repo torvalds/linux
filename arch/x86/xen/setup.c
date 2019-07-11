@@ -12,6 +12,7 @@
 #include <linux/memblock.h>
 #include <linux/cpuidle.h>
 #include <linux/cpufreq.h>
+#include <linux/memory_hotplug.h>
 
 #include <asm/elf.h>
 #include <asm/vdso.h>
@@ -493,7 +494,7 @@ static unsigned long __init xen_foreach_remap_area(unsigned long nr_pages,
  * The remap information (which mfn remap to which pfn) is contained in the
  * to be remapped memory itself in a linked list anchored at xen_remap_mfn.
  * This scheme allows to remap the different chunks in arbitrary order while
- * the resulting mapping will be independant from the order.
+ * the resulting mapping will be independent from the order.
  */
 void __init xen_remap_memory(void)
 {
@@ -589,6 +590,14 @@ static void __init xen_align_and_add_e820_region(phys_addr_t start,
 	if (type == E820_TYPE_RAM) {
 		start = PAGE_ALIGN(start);
 		end &= ~((phys_addr_t)PAGE_SIZE - 1);
+#ifdef CONFIG_MEMORY_HOTPLUG
+		/*
+		 * Don't allow adding memory not in E820 map while booting the
+		 * system. Once the balloon driver is up it will remove that
+		 * restriction again.
+		 */
+		max_mem_size = end;
+#endif
 	}
 
 	e820__range_add(start, end - start, type);
@@ -747,6 +756,10 @@ char * __init xen_memory_setup(void)
 
 	memmap.nr_entries = ARRAY_SIZE(xen_e820_table.entries);
 	set_xen_guest_handle(memmap.buffer, xen_e820_table.entries);
+
+#if defined(CONFIG_MEMORY_HOTPLUG) && defined(CONFIG_XEN_BALLOON)
+	xen_saved_max_mem_size = max_mem_size;
+#endif
 
 	op = xen_initial_domain() ?
 		XENMEM_machine_memory_map :

@@ -218,8 +218,8 @@ static int cio2_fbpt_init(struct cio2_device *cio2, struct cio2_queue *q)
 {
 	struct device *dev = &cio2->pci_dev->dev;
 
-	q->fbpt = dma_zalloc_coherent(dev, CIO2_FBPT_SIZE, &q->fbpt_bus_addr,
-				      GFP_KERNEL);
+	q->fbpt = dma_alloc_coherent(dev, CIO2_FBPT_SIZE, &q->fbpt_bus_addr,
+				     GFP_KERNEL);
 	if (!q->fbpt)
 		return -ENOMEM;
 
@@ -264,7 +264,7 @@ static void cio2_fbpt_exit(struct cio2_queue *q, struct device *dev)
  */
 
 /*
- * shift for keeping value range suitable for 32-bit integer arithmetics
+ * shift for keeping value range suitable for 32-bit integer arithmetic
  */
 #define LIMIT_SHIFT	8
 
@@ -846,7 +846,7 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 	unsigned int pages = DIV_ROUND_UP(vb->planes[0].length, CIO2_PAGE_SIZE);
 	unsigned int lops = DIV_ROUND_UP(pages + 1, entries_per_page);
 	struct sg_table *sg;
-	struct sg_page_iter sg_iter;
+	struct sg_dma_page_iter sg_iter;
 	int i, j;
 
 	if (lops <= 0 || lops > CIO2_MAX_LOPS) {
@@ -873,7 +873,7 @@ static int cio2_vb2_buf_init(struct vb2_buffer *vb)
 		b->offset = sg->sgl->offset;
 
 	i = j = 0;
-	for_each_sg_page(sg->sgl, &sg_iter, sg->nents, 0) {
+	for_each_sg_dma_page (sg->sgl, &sg_iter, sg->nents, 0) {
 		if (!pages--)
 			break;
 		b->lop[i][j] = sg_page_iter_dma_address(&sg_iter) >> PAGE_SHIFT;
@@ -1810,7 +1810,8 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 
 	/* Register notifier for subdevices we care */
 	r = cio2_notifier_init(cio2);
-	if (r)
+	/* Proceed without sensors connected to allow the device to suspend. */
+	if (r && r != -ENODEV)
 		goto fail_cio2_queue_exit;
 
 	r = devm_request_irq(&pci_dev->dev, pci_dev->irq, cio2_irq,
@@ -2047,7 +2048,7 @@ module_pci_driver(cio2_pci_driver);
 
 MODULE_AUTHOR("Tuukka Toivonen <tuukka.toivonen@intel.com>");
 MODULE_AUTHOR("Tianshu Qiu <tian.shu.qiu@intel.com>");
-MODULE_AUTHOR("Jian Xu Zheng <jian.xu.zheng@intel.com>");
+MODULE_AUTHOR("Jian Xu Zheng");
 MODULE_AUTHOR("Yuning Pu <yuning.pu@intel.com>");
 MODULE_AUTHOR("Yong Zhi <yong.zhi@intel.com>");
 MODULE_LICENSE("GPL v2");

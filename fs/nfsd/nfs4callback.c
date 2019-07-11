@@ -60,16 +60,6 @@ struct nfs4_cb_compound_hdr {
 	int		status;
 };
 
-/*
- * Handle decode buffer overflows out-of-line.
- */
-static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
-{
-	dprintk("NFS: %s prematurely hit the end of our receive buffer. "
-		"Remaining buffer length is %tu words.\n",
-		func, xdr->end - xdr->p);
-}
-
 static __be32 *xdr_encode_empty_array(__be32 *p)
 {
 	*p++ = xdr_zero;
@@ -240,7 +230,6 @@ static int decode_cb_op_status(struct xdr_stream *xdr,
 	*status = nfs_cb_stat_to_errno(be32_to_cpup(p));
 	return 0;
 out_overflow:
-	print_overflow_msg(__func__, xdr);
 	return -EIO;
 out_unexpected:
 	dprintk("NFSD: Callback server returned operation %d but "
@@ -309,7 +298,6 @@ static int decode_cb_compound4res(struct xdr_stream *xdr,
 	hdr->nops = be32_to_cpup(p);
 	return 0;
 out_overflow:
-	print_overflow_msg(__func__, xdr);
 	return -EIO;
 }
 
@@ -437,7 +425,6 @@ out:
 	cb->cb_seq_status = status;
 	return status;
 out_overflow:
-	print_overflow_msg(__func__, xdr);
 	status = -EIO;
 	goto out;
 }
@@ -844,24 +831,23 @@ static int max_cb_time(struct net *net)
 	return max(nn->nfsd4_lease/10, (time_t)1) * HZ;
 }
 
-static struct rpc_cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc_clnt *client, struct nfsd4_session *ses)
+static const struct cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc_clnt *client, struct nfsd4_session *ses)
 {
 	if (clp->cl_minorversion == 0) {
-		char *principal = clp->cl_cred.cr_targ_princ ?
-					clp->cl_cred.cr_targ_princ : "nfs";
-		struct rpc_cred *cred;
+		client->cl_principal = clp->cl_cred.cr_targ_princ ?
+			clp->cl_cred.cr_targ_princ : "nfs";
 
-		cred = rpc_lookup_machine_cred(principal);
-		if (!IS_ERR(cred))
-			get_rpccred(cred);
-		return cred;
+		return get_cred(rpc_machine_cred());
 	} else {
-		struct rpc_auth *auth = client->cl_auth;
-		struct auth_cred acred = {};
+		struct cred *kcred;
 
-		acred.uid = ses->se_cb_sec.uid;
-		acred.gid = ses->se_cb_sec.gid;
-		return auth->au_ops->lookup_cred(client->cl_auth, &acred, 0);
+		kcred = prepare_kernel_cred(NULL);
+		if (!kcred)
+			return NULL;
+
+		kcred->uid = ses->se_cb_sec.uid;
+		kcred->gid = ses->se_cb_sec.gid;
+		return kcred;
 	}
 }
 
@@ -884,7 +870,7 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
 	};
 	struct rpc_clnt *client;
-	struct rpc_cred *cred;
+	const struct cred *cred;
 
 	if (clp->cl_minorversion == 0) {
 		if (!clp->cl_cred.cr_principal &&
@@ -914,9 +900,9 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		return PTR_ERR(client);
 	}
 	cred = get_backchannel_cred(clp, client, ses);
-	if (IS_ERR(cred)) {
+	if (!cred) {
 		rpc_shutdown_client(client);
-		return PTR_ERR(cred);
+		return -ENOMEM;
 	}
 	clp->cl_cb_client = client;
 	clp->cl_cb_cred = cred;
@@ -1024,8 +1010,9 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 	cb->cb_seq_status = 1;
 	cb->cb_status = 0;
 	if (minorversion) {
-		if (!nfsd41_cb_get_slot(clp, task))
+		if (!cb->cb_holds_slot && !nfsd41_cb_get_slot(clp, task))
 			return;
+		cb->cb_holds_slot = true;
 	}
 	rpc_call_start(task);
 }
@@ -1051,6 +1038,9 @@ static bool nfsd4_cb_sequence_done(struct rpc_task *task, struct nfsd4_callback 
 
 		return true;
 	}
+
+	if (!cb->cb_holds_slot)
+		goto need_restart;
 
 	switch (cb->cb_seq_status) {
 	case 0:
@@ -1090,6 +1080,7 @@ static bool nfsd4_cb_sequence_done(struct rpc_task *task, struct nfsd4_callback 
 			cb->cb_seq_status);
 	}
 
+	cb->cb_holds_slot = false;
 	clear_bit(0, &clp->cl_cb_slot_busy);
 	rpc_wake_up_next(&clp->cl_cb_waitq);
 	dprintk("%s: freed slot, new seqid=%d\n", __func__,
@@ -1214,7 +1205,7 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	if (clp->cl_cb_client) {
 		rpc_shutdown_client(clp->cl_cb_client);
 		clp->cl_cb_client = NULL;
-		put_rpccred(clp->cl_cb_cred);
+		put_cred(clp->cl_cb_cred);
 		clp->cl_cb_cred = NULL;
 	}
 	if (clp->cl_cb_conn.cb_xprt) {
@@ -1297,6 +1288,7 @@ void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 	cb->cb_seq_status = 1;
 	cb->cb_status = 0;
 	cb->cb_need_restart = false;
+	cb->cb_holds_slot = false;
 }
 
 void nfsd4_run_cb(struct nfsd4_callback *cb)

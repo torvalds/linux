@@ -29,7 +29,7 @@ static int dsi_get_phy(struct msm_dsi *msm_dsi)
 
 	phy_node = of_parse_phandle(pdev->dev.of_node, "phys", 0);
 	if (!phy_node) {
-		dev_err(&pdev->dev, "cannot find phy device\n");
+		DRM_DEV_ERROR(&pdev->dev, "cannot find phy device\n");
 		return -ENXIO;
 	}
 
@@ -40,7 +40,7 @@ static int dsi_get_phy(struct msm_dsi *msm_dsi)
 	of_node_put(phy_node);
 
 	if (!phy_pdev || !msm_dsi->phy) {
-		dev_err(&pdev->dev, "%s: phy driver is not ready\n", __func__);
+		DRM_DEV_ERROR(&pdev->dev, "%s: phy driver is not ready\n", __func__);
 		return -EPROBE_DEFER;
 	}
 
@@ -210,7 +210,7 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 
 	ret = msm_dsi_host_modeset_init(msm_dsi->host, dev);
 	if (ret) {
-		dev_err(dev->dev, "failed to modeset init host: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to modeset init host: %d\n", ret);
 		goto fail;
 	}
 
@@ -222,7 +222,7 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 	msm_dsi->bridge = msm_dsi_manager_bridge_init(msm_dsi->id);
 	if (IS_ERR(msm_dsi->bridge)) {
 		ret = PTR_ERR(msm_dsi->bridge);
-		dev_err(dev->dev, "failed to create dsi bridge: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to create dsi bridge: %d\n", ret);
 		msm_dsi->bridge = NULL;
 		goto fail;
 	}
@@ -244,7 +244,7 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 
 	if (IS_ERR(msm_dsi->connector)) {
 		ret = PTR_ERR(msm_dsi->connector);
-		dev_err(dev->dev,
+		DRM_DEV_ERROR(dev->dev,
 			"failed to create dsi connector: %d\n", ret);
 		msm_dsi->connector = NULL;
 		goto fail;

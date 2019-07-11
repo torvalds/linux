@@ -385,8 +385,9 @@
 			status = "okay";
 		};
 
-		usb@6a00000 {
+		usb@6af8800 {
 			status = "okay";
+			extcon = <&usb3_id>;
 
 			dwc3@6a00000 {
 				extcon = <&usb3_id>;
@@ -401,8 +402,9 @@
 			pinctrl-0 = <&usb3_vbus_det_gpio>;
 		};
 
-		usb@7600000 {
+		usb@76f8800 {
 			status = "okay";
+			extcon = <&usb2_id>;
 
 			dwc3@7600000 {
 				extcon = <&usb2_id>;

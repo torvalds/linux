@@ -246,8 +246,8 @@ already_disabled:
 }
 
 static void mic_mode_set(struct drm_bridge *bridge,
-			struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode)
+			 const struct drm_display_mode *mode,
+			 const struct drm_display_mode *adjusted_mode)
 {
 	struct exynos_mic *mic = bridge->driver_private;
 

@@ -546,7 +546,8 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 	}
 
 	err = 0;
-	if (!ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4, type, data_len))
+	if (__in6_dev_get(skb->dev) &&
+	    !ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4, type, data_len))
 		goto out;
 
 	if (t->parms.iph.daddr == 0)
@@ -668,6 +669,10 @@ static int ipip6_rcv(struct sk_buff *skb)
 		    !net_eq(tunnel->net, dev_net(tunnel->dev))))
 			goto out;
 
+		/* skb can be uncloned in iptunnel_pull_header, so
+		 * old iph is no longer valid
+		 */
+		iph = (const struct iphdr *)skb_mac_header(skb);
 		err = IP_ECN_decapsulate(iph, skb);
 		if (unlikely(err)) {
 			if (log_ecn_error)
@@ -777,8 +782,9 @@ static bool check_6rd(struct ip_tunnel *tunnel, const struct in6_addr *v6dst,
 		pbw0 = tunnel->ip6rd.prefixlen >> 5;
 		pbi0 = tunnel->ip6rd.prefixlen & 0x1f;
 
-		d = (ntohl(v6dst->s6_addr32[pbw0]) << pbi0) >>
-		    tunnel->ip6rd.relay_prefixlen;
+		d = tunnel->ip6rd.relay_prefixlen < 32 ?
+			(ntohl(v6dst->s6_addr32[pbw0]) << pbi0) >>
+		    tunnel->ip6rd.relay_prefixlen : 0;
 
 		pbi1 = pbi0 - tunnel->ip6rd.relay_prefixlen;
 		if (pbi1 > 0)
@@ -1021,6 +1027,9 @@ tx_error:
 static netdev_tx_t sit_tunnel_xmit(struct sk_buff *skb,
 				   struct net_device *dev)
 {
+	if (!pskb_inet_may_pull(skb))
+		goto tx_err;
+
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		sit_tunnel_xmit__(skb, dev, IPPROTO_IPIP);
@@ -1869,6 +1878,7 @@ static int __net_init sit_init_net(struct net *net)
 
 err_reg_dev:
 	ipip6_dev_free(sitn->fb_tunnel_dev);
+	free_netdev(sitn->fb_tunnel_dev);
 err_alloc_dev:
 	return err;
 }

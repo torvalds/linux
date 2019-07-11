@@ -80,24 +80,6 @@ int ip_route_me_harder(struct net *net, struct sk_buff *skb, unsigned int addr_t
 }
 EXPORT_SYMBOL(ip_route_me_harder);
 
-int nf_ip_reroute(struct sk_buff *skb, const struct nf_queue_entry *entry)
-{
-	const struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
-
-	if (entry->state.hook == NF_INET_LOCAL_OUT) {
-		const struct iphdr *iph = ip_hdr(skb);
-
-		if (!(iph->tos == rt_info->tos &&
-		      skb->mark == rt_info->mark &&
-		      iph->daddr == rt_info->daddr &&
-		      iph->saddr == rt_info->saddr))
-			return ip_route_me_harder(entry->state.net, skb,
-						  RTN_UNSPEC);
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(nf_ip_reroute);
-
 int nf_ip_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
 		bool strict __always_unused)
 {

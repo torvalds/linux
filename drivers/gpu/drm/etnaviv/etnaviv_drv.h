@@ -21,7 +21,6 @@
 #include <linux/mm_types.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/etnaviv_drm.h>
@@ -105,17 +104,6 @@ static inline size_t size_vstruct(size_t nelem, size_t elem_size, size_t base)
 	if (elem_size && nelem > (SIZE_MAX - base) / elem_size)
 		return 0;
 	return base + nelem * elem_size;
-}
-
-/* returns true if fence a comes after fence b */
-static inline bool fence_after(u32 a, u32 b)
-{
-	return (s32)(a - b) > 0;
-}
-
-static inline bool fence_after_eq(u32 a, u32 b)
-{
-	return (s32)(a - b) >= 0;
 }
 
 /*

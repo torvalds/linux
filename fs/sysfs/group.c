@@ -112,7 +112,8 @@ static int internal_create_group(struct kobject *kobj, int update,
 	kgid_t gid;
 	int error;
 
-	BUG_ON(!kobj || (!update && !kobj->sd));
+	if (WARN_ON(!kobj || (!update && !kobj->sd)))
+		return -EINVAL;
 
 	/* Updates may happen before the object has been instantiated */
 	if (unlikely(update && !kobj->sd))

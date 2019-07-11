@@ -1713,8 +1713,11 @@ csio_scsi_err_handler(struct csio_hw *hw, struct csio_ioreq *req)
 	}
 
 out:
-	if (req->nsge > 0)
+	if (req->nsge > 0) {
 		scsi_dma_unmap(cmnd);
+		if (req->dcopy && (host_status == DID_OK))
+			host_status = csio_scsi_copy_to_sgl(hw, req);
+	}
 
 	cmnd->result = (((host_status) << 16) | scsi_status);
 	cmnd->scsi_done(cmnd);
@@ -1780,16 +1783,10 @@ csio_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmnd)
 	int nsge = 0;
 	int rv = SCSI_MLQUEUE_HOST_BUSY, nr;
 	int retval;
-	int cpu;
 	struct csio_scsi_qset *sqset;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmnd->device));
 
-	if (!blk_rq_cpu_valid(cmnd->request))
-		cpu = smp_processor_id();
-	else
-		cpu = cmnd->request->cpu;
-
-	sqset = &hw->sqset[ln->portid][cpu];
+	sqset = &hw->sqset[ln->portid][blk_mq_rq_cpu(cmnd->request)];
 
 	nr = fc_remote_port_chkready(rport);
 	if (nr) {
@@ -1990,15 +1987,15 @@ inval_scmnd:
 	/* FW successfully aborted the request */
 	if (host_byte(cmnd->result) == DID_REQUEUE) {
 		csio_info(hw,
-			"Aborted SCSI command to (%d:%llu) serial#:0x%lx\n",
+			"Aborted SCSI command to (%d:%llu) tag %u\n",
 			cmnd->device->id, cmnd->device->lun,
-			cmnd->serial_number);
+			cmnd->request->tag);
 		return SUCCESS;
 	} else {
 		csio_info(hw,
-			"Failed to abort SCSI command, (%d:%llu) serial#:0x%lx\n",
+			"Failed to abort SCSI command, (%d:%llu) tag %u\n",
 			cmnd->device->id, cmnd->device->lun,
-			cmnd->serial_number);
+			cmnd->request->tag);
 		return FAILED;
 	}
 }
@@ -2280,7 +2277,6 @@ struct scsi_host_template csio_fcoe_shost_template = {
 	.this_id		= -1,
 	.sg_tablesize		= CSIO_SCSI_MAX_SGE,
 	.cmd_per_lun		= CSIO_MAX_CMD_PER_LUN,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= csio_fcoe_lport_attrs,
 	.max_sectors		= CSIO_MAX_SECTOR_SIZE,
 };
@@ -2300,7 +2296,6 @@ struct scsi_host_template csio_fcoe_shost_vport_template = {
 	.this_id		= -1,
 	.sg_tablesize		= CSIO_SCSI_MAX_SGE,
 	.cmd_per_lun		= CSIO_MAX_CMD_PER_LUN,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= csio_fcoe_vport_attrs,
 	.max_sectors		= CSIO_MAX_SECTOR_SIZE,
 };

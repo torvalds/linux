@@ -1631,7 +1631,7 @@ static int pxa_camera_set_bus_param(struct pxa_camera_dev *pcdev)
 
 	pcdev->channels = 1;
 
-	/* Make choises, based on platform preferences */
+	/* Make choices, based on platform preferences */
 	if ((common_flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH) &&
 	    (common_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)) {
 		if (pcdev->platform_flags & PXA_CAMERA_HSP)
@@ -2394,15 +2394,17 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	pcdev->res = res;
 
 	pcdev->pdata = pdev->dev.platform_data;
-	if (pdev->dev.of_node && !pcdev->pdata) {
-		err = pxa_camera_pdata_from_dt(&pdev->dev, pcdev, &pcdev->asd);
-	} else {
+	if (pcdev->pdata) {
 		pcdev->platform_flags = pcdev->pdata->flags;
 		pcdev->mclk = pcdev->pdata->mclk_10khz * 10000;
 		pcdev->asd.match_type = V4L2_ASYNC_MATCH_I2C;
 		pcdev->asd.match.i2c.adapter_id =
 			pcdev->pdata->sensor_i2c_adapter_id;
 		pcdev->asd.match.i2c.address = pcdev->pdata->sensor_i2c_address;
+	} else if (pdev->dev.of_node) {
+		err = pxa_camera_pdata_from_dt(&pdev->dev, pcdev, &pcdev->asd);
+	} else {
+		return -ENODEV;
 	}
 	if (err < 0)
 		return err;

@@ -85,7 +85,7 @@ gk104_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 	case NVKM_ENGINE_MSVLD : return 0x0270;
 	case NVKM_ENGINE_VIC   : return 0x0280;
 	case NVKM_ENGINE_MSENC : return 0x0290;
-	case NVKM_ENGINE_NVDEC : return 0x02100270;
+	case NVKM_ENGINE_NVDEC0: return 0x02100270;
 	case NVKM_ENGINE_NVENC0: return 0x02100290;
 	case NVKM_ENGINE_NVENC1: return 0x0210;
 	default:
@@ -192,7 +192,7 @@ gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
 		gk104_fifo_runlist_remove(fifo, chan);
 		nvkm_mask(device, 0x800004 + coff, 0x00000800, 0x00000800);
 		gk104_fifo_gpfifo_kick(chan);
-		gk104_fifo_runlist_commit(fifo, chan->runl);
+		gk104_fifo_runlist_update(fifo, chan->runl);
 	}
 
 	nvkm_wr32(device, 0x800000 + coff, 0x00000000);
@@ -213,7 +213,7 @@ gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
 	if (list_empty(&chan->head) && !chan->killed) {
 		gk104_fifo_runlist_insert(fifo, chan);
 		nvkm_mask(device, 0x800004 + coff, 0x00000400, 0x00000400);
-		gk104_fifo_runlist_commit(fifo, chan->runl);
+		gk104_fifo_runlist_update(fifo, chan->runl);
 		nvkm_mask(device, 0x800004 + coff, 0x00000400, 0x00000400);
 	}
 }
@@ -222,6 +222,7 @@ void *
 gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
+	nvkm_memory_unref(&chan->mthd);
 	kfree(chan->cgrp);
 	return chan;
 }
@@ -240,7 +241,7 @@ gk104_fifo_gpfifo_func = {
 
 static int
 gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
-		       u64 vmm, u64 ioffset, u64 ilength,
+		       u64 vmm, u64 ioffset, u64 ilength, u64 *inst, bool priv,
 		       const struct nvkm_oclass *oclass,
 		       struct nvkm_object **pobject)
 {
@@ -279,6 +280,7 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 		return ret;
 
 	*chid = chan->base.chid;
+	*inst = chan->base.inst->addr;
 
 	/* Hack to support GPUs where even individual channels should be
 	 * part of a channel group.
@@ -315,6 +317,7 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 	nvkm_wo32(chan->base.inst, 0x94, 0x30000001);
 	nvkm_wo32(chan->base.inst, 0x9c, 0x00000100);
 	nvkm_wo32(chan->base.inst, 0xac, 0x0000001f);
+	nvkm_wo32(chan->base.inst, 0xe4, priv ? 0x00000020 : 0x00000000);
 	nvkm_wo32(chan->base.inst, 0xe8, chan->base.chid);
 	nvkm_wo32(chan->base.inst, 0xb8, 0xf8000000);
 	nvkm_wo32(chan->base.inst, 0xf8, 0x10003080); /* 0x002310 */
@@ -337,15 +340,19 @@ gk104_fifo_gpfifo_new(struct gk104_fifo *fifo, const struct nvkm_oclass *oclass,
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create channel gpfifo vers %d vmm %llx "
 				   "ioffset %016llx ilength %08x "
-				   "runlist %016llx\n",
+				   "runlist %016llx priv %d\n",
 			   args->v0.version, args->v0.vmm, args->v0.ioffset,
-			   args->v0.ilength, args->v0.runlist);
+			   args->v0.ilength, args->v0.runlist, args->v0.priv);
+		if (args->v0.priv && !oclass->client->super)
+			return -EINVAL;
 		return gk104_fifo_gpfifo_new_(fifo,
 					      &args->v0.runlist,
 					      &args->v0.chid,
 					       args->v0.vmm,
 					       args->v0.ioffset,
 					       args->v0.ilength,
+					      &args->v0.inst,
+					       args->v0.priv,
 					      oclass, pobject);
 	}
 

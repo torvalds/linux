@@ -241,14 +241,14 @@ static int npa_lf_hwctx_disable(struct rvu *rvu, struct hwctx_disable_req *req)
 	return err;
 }
 
-int rvu_mbox_handler_NPA_AQ_ENQ(struct rvu *rvu,
+int rvu_mbox_handler_npa_aq_enq(struct rvu *rvu,
 				struct npa_aq_enq_req *req,
 				struct npa_aq_enq_rsp *rsp)
 {
 	return rvu_npa_aq_enq_inst(rvu, req, rsp);
 }
 
-int rvu_mbox_handler_NPA_HWCTX_DISABLE(struct rvu *rvu,
+int rvu_mbox_handler_npa_hwctx_disable(struct rvu *rvu,
 				       struct hwctx_disable_req *req,
 				       struct msg_rsp *rsp)
 {
@@ -273,7 +273,7 @@ static void npa_ctx_free(struct rvu *rvu, struct rvu_pfvf *pfvf)
 	pfvf->npa_qints_ctx = NULL;
 }
 
-int rvu_mbox_handler_NPA_LF_ALLOC(struct rvu *rvu,
+int rvu_mbox_handler_npa_lf_alloc(struct rvu *rvu,
 				  struct npa_lf_alloc_req *req,
 				  struct npa_lf_alloc_rsp *rsp)
 {
@@ -372,7 +372,7 @@ exit:
 	return rc;
 }
 
-int rvu_mbox_handler_NPA_LF_FREE(struct rvu *rvu, struct msg_req *req,
+int rvu_mbox_handler_npa_lf_free(struct rvu *rvu, struct msg_req *req,
 				 struct msg_rsp *rsp)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -469,4 +469,21 @@ void rvu_npa_freemem(struct rvu *rvu)
 
 	block = &hw->block[blkaddr];
 	rvu_aq_free(rvu, block->aq);
+}
+
+void rvu_npa_lf_teardown(struct rvu *rvu, u16 pcifunc, int npalf)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	struct hwctx_disable_req ctx_req;
+
+	/* Disable all pools */
+	ctx_req.hdr.pcifunc = pcifunc;
+	ctx_req.ctype = NPA_AQ_CTYPE_POOL;
+	npa_lf_hwctx_disable(rvu, &ctx_req);
+
+	/* Disable all auras */
+	ctx_req.ctype = NPA_AQ_CTYPE_AURA;
+	npa_lf_hwctx_disable(rvu, &ctx_req);
+
+	npa_ctx_free(rvu, pfvf);
 }

@@ -391,7 +391,7 @@ static struct platform_device zeus_sram_device = {
 };
 
 /* SPI interface on SSP3 */
-static struct pxa2xx_spi_master pxa2xx_spi_ssp3_master_info = {
+static struct pxa2xx_spi_controller pxa2xx_spi_ssp3_master_info = {
 	.num_chipselect = 1,
 	.enable_dma     = 1,
 };
@@ -426,7 +426,7 @@ static struct gpiod_lookup_table can_regulator_gpiod_table = {
 	.dev_id = "reg-fixed-voltage.0",
 	.table = {
 		GPIO_LOOKUP("gpio-pxa", ZEUS_CAN_SHDN_GPIO,
-			    NULL, GPIO_ACTIVE_HIGH),
+			    NULL, GPIO_ACTIVE_LOW),
 		{ },
 	},
 };
@@ -547,7 +547,6 @@ static struct regulator_init_data zeus_ohci_regulator_data = {
 static struct fixed_voltage_config zeus_ohci_regulator_config = {
 	.supply_name		= "vbus2",
 	.microvolts		= 5000000, /* 5.0V */
-	.enable_high		= 1,
 	.startup_delay		= 0,
 	.init_data		= &zeus_ohci_regulator_data,
 };
@@ -576,7 +575,7 @@ static struct pxaohci_platform_data zeus_ohci_platform_data = {
 	.flags		= ENABLE_PORT_ALL | POWER_SENSE_LOW,
 };
 
-static void zeus_register_ohci(void)
+static void __init zeus_register_ohci(void)
 {
 	/* Port 2 is shared between host and client interface. */
 	UP2OCR = UP2OCR_HXOE | UP2OCR_HXS | UP2OCR_DMPDE | UP2OCR_DPPDE;
@@ -663,10 +662,18 @@ static struct pxafb_mach_info zeus_fb_info = {
 static struct pxamci_platform_data zeus_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.detect_delay_ms	= 250,
-	.gpio_card_detect       = ZEUS_MMC_CD_GPIO,
-	.gpio_card_ro           = ZEUS_MMC_WP_GPIO,
 	.gpio_card_ro_invert	= 1,
-	.gpio_power             = -1
+};
+
+static struct gpiod_lookup_table zeus_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", ZEUS_MMC_CD_GPIO,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", ZEUS_MMC_WP_GPIO,
+			    "wp", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 /*
@@ -883,6 +890,7 @@ static void __init zeus_init(void)
 	else
 		pxa_set_fb_info(NULL, &zeus_fb_info);
 
+	gpiod_add_lookup_table(&zeus_mci_gpio_table);
 	pxa_set_mci_info(&zeus_mci_platform_data);
 	pxa_set_udc_info(&zeus_udc_info);
 	pxa_set_ac97_info(&zeus_ac97_info);

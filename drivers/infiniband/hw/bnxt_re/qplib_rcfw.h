@@ -63,32 +63,60 @@
 
 #define RCFW_CMD_WAIT_TIME_MS		20000 /* 20 Seconds timeout */
 
-/* CMDQ elements */
-#define BNXT_QPLIB_CMDQE_MAX_CNT	256
-#define BNXT_QPLIB_CMDQE_UNITS		sizeof(struct bnxt_qplib_cmdqe)
-#define BNXT_QPLIB_CMDQE_CNT_PER_PG	(PAGE_SIZE / BNXT_QPLIB_CMDQE_UNITS)
-
-#define MAX_CMDQ_IDX			(BNXT_QPLIB_CMDQE_MAX_CNT - 1)
-#define MAX_CMDQ_IDX_PER_PG		(BNXT_QPLIB_CMDQE_CNT_PER_PG - 1)
-
-#define RCFW_MAX_OUTSTANDING_CMD	BNXT_QPLIB_CMDQE_MAX_CNT
-#define RCFW_MAX_COOKIE_VALUE		0x7FFF
-#define RCFW_CMD_IS_BLOCKING		0x8000
-#define RCFW_BLOCKED_CMD_WAIT_COUNT	0x4E20
-
 /* Cmdq contains a fix number of a 16-Byte slots */
 struct bnxt_qplib_cmdqe {
 	u8		data[16];
 };
 
-static inline u32 get_cmdq_pg(u32 val)
+/* CMDQ elements */
+#define BNXT_QPLIB_CMDQE_MAX_CNT_256	256
+#define BNXT_QPLIB_CMDQE_MAX_CNT_8192	8192
+#define BNXT_QPLIB_CMDQE_UNITS		sizeof(struct bnxt_qplib_cmdqe)
+#define BNXT_QPLIB_CMDQE_BYTES(depth)	((depth) * BNXT_QPLIB_CMDQE_UNITS)
+
+static inline u32 bnxt_qplib_cmdqe_npages(u32 depth)
 {
-	return (val & ~MAX_CMDQ_IDX_PER_PG) / BNXT_QPLIB_CMDQE_CNT_PER_PG;
+	u32 npages;
+
+	npages = BNXT_QPLIB_CMDQE_BYTES(depth) / PAGE_SIZE;
+	if (BNXT_QPLIB_CMDQE_BYTES(depth) % PAGE_SIZE)
+		npages++;
+	return npages;
 }
 
-static inline u32 get_cmdq_idx(u32 val)
+static inline u32 bnxt_qplib_cmdqe_page_size(u32 depth)
 {
-	return val & MAX_CMDQ_IDX_PER_PG;
+	return (bnxt_qplib_cmdqe_npages(depth) * PAGE_SIZE);
+}
+
+static inline u32 bnxt_qplib_cmdqe_cnt_per_pg(u32 depth)
+{
+	return (bnxt_qplib_cmdqe_page_size(depth) /
+		 BNXT_QPLIB_CMDQE_UNITS);
+}
+
+#define MAX_CMDQ_IDX(depth)		((depth) - 1)
+
+static inline u32 bnxt_qplib_max_cmdq_idx_per_pg(u32 depth)
+{
+	return (bnxt_qplib_cmdqe_cnt_per_pg(depth) - 1);
+}
+
+#define RCFW_MAX_COOKIE_VALUE		0x7FFF
+#define RCFW_CMD_IS_BLOCKING		0x8000
+#define RCFW_BLOCKED_CMD_WAIT_COUNT	0x4E20
+
+#define HWRM_VERSION_RCFW_CMDQ_DEPTH_CHECK 0x1000900020011ULL
+
+static inline u32 get_cmdq_pg(u32 val, u32 depth)
+{
+	return (val & ~(bnxt_qplib_max_cmdq_idx_per_pg(depth))) /
+		(bnxt_qplib_cmdqe_cnt_per_pg(depth));
+}
+
+static inline u32 get_cmdq_idx(u32 val, u32 depth)
+{
+	return val & (bnxt_qplib_max_cmdq_idx_per_pg(depth));
 }
 
 /* Crsq buf is 1024-Byte */
@@ -129,10 +157,46 @@ static inline u32 get_creq_idx(u32 val)
 #define CREQ_DB_CP_FLAGS		(CREQ_DB_KEY_CP |	\
 					 CREQ_DB_IDX_VALID |	\
 					 CREQ_DB_IRQ_DIS)
-#define CREQ_DB_REARM(db, raw_cons, cp_bit)			\
-	writel(CREQ_DB_CP_FLAGS_REARM | ((raw_cons) & ((cp_bit) - 1)), db)
-#define CREQ_DB(db, raw_cons, cp_bit)				\
-	writel(CREQ_DB_CP_FLAGS | ((raw_cons) & ((cp_bit) - 1)), db)
+
+static inline void bnxt_qplib_ring_creq_db64(void __iomem *db, u32 index,
+					     u32 xid, bool arm)
+{
+	u64 val = 0;
+
+	val = xid & DBC_DBC_XID_MASK;
+	val |= DBC_DBC_PATH_ROCE;
+	val |= arm ? DBC_DBC_TYPE_NQ_ARM : DBC_DBC_TYPE_NQ;
+	val <<= 32;
+	val |= index & DBC_DBC_INDEX_MASK;
+
+	writeq(val, db);
+}
+
+static inline void bnxt_qplib_ring_creq_db_rearm(void __iomem *db, u32 raw_cons,
+						 u32 max_elements, u32 xid,
+						 bool gen_p5)
+{
+	u32 index = raw_cons & (max_elements - 1);
+
+	if (gen_p5)
+		bnxt_qplib_ring_creq_db64(db, index, xid, true);
+	else
+		writel(CREQ_DB_CP_FLAGS_REARM | (index & DBC_DBC32_XID_MASK),
+		       db);
+}
+
+static inline void bnxt_qplib_ring_creq_db(void __iomem *db, u32 raw_cons,
+					   u32 max_elements, u32 xid,
+					   bool gen_p5)
+{
+	u32 index = raw_cons & (max_elements - 1);
+
+	if (gen_p5)
+		bnxt_qplib_ring_creq_db64(db, index, xid, true);
+	else
+		writel(CREQ_DB_CP_FLAGS | (index & DBC_DBC32_XID_MASK),
+		       db);
+}
 
 #define CREQ_ENTRY_POLL_BUDGET		0x100
 
@@ -159,6 +223,7 @@ struct bnxt_qplib_qp_node {
 /* RCFW Communication Channels */
 struct bnxt_qplib_rcfw {
 	struct pci_dev		*pdev;
+	struct bnxt_qplib_res	*res;
 	int			vector;
 	struct tasklet_struct	worker;
 	bool			requested;
@@ -194,11 +259,14 @@ struct bnxt_qplib_rcfw {
 	struct bnxt_qplib_qp_node *qp_tbl;
 	u64 oos_prev;
 	u32 init_oos_stats;
+	u32 cmdq_depth;
 };
 
 void bnxt_qplib_free_rcfw_channel(struct bnxt_qplib_rcfw *rcfw);
 int bnxt_qplib_alloc_rcfw_channel(struct pci_dev *pdev,
-				  struct bnxt_qplib_rcfw *rcfw, int qp_tbl_sz);
+				  struct bnxt_qplib_rcfw *rcfw,
+				  struct bnxt_qplib_ctx *ctx,
+				  int qp_tbl_sz);
 void bnxt_qplib_rcfw_stop_irq(struct bnxt_qplib_rcfw *rcfw, bool kill);
 void bnxt_qplib_disable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw);
 int bnxt_qplib_rcfw_start_irq(struct bnxt_qplib_rcfw *rcfw, int msix_vector,

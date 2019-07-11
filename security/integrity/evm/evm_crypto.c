@@ -15,7 +15,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/crypto.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>
@@ -97,8 +97,7 @@ static struct shash_desc *init_desc(char type, uint8_t hash_algo)
 		mutex_lock(&mutex);
 		if (*tfm)
 			goto out;
-		*tfm = crypto_alloc_shash(algo, 0,
-					  CRYPTO_ALG_ASYNC | CRYPTO_NOLOAD);
+		*tfm = crypto_alloc_shash(algo, 0, CRYPTO_NOLOAD);
 		if (IS_ERR(*tfm)) {
 			rc = PTR_ERR(*tfm);
 			pr_err("Can not allocate %s (reason: %ld)\n", algo, rc);
@@ -174,8 +173,7 @@ static void hmac_add_misc(struct shash_desc *desc, struct inode *inode,
 	crypto_shash_update(desc, (const u8 *)&hmac_misc, sizeof(hmac_misc));
 	if ((evm_hmac_attrs & EVM_ATTR_FSUUID) &&
 	    type != EVM_XATTR_PORTABLE_DIGSIG)
-		crypto_shash_update(desc, &inode->i_sb->s_uuid.b[0],
-				    sizeof(inode->i_sb->s_uuid));
+		crypto_shash_update(desc, (u8 *)&inode->i_sb->s_uuid, UUID_SIZE);
 	crypto_shash_final(desc, digest);
 }
 

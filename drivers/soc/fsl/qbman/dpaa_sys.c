@@ -62,7 +62,7 @@ int qbman_init_private_mem(struct device *dev, int idx, dma_addr_t *addr,
 		return -ENODEV;
 	}
 
-	if (!dma_zalloc_coherent(dev, *size, addr, 0)) {
+	if (!dma_alloc_coherent(dev, *size, addr, 0)) {
 		dev_err(dev, "DMA Alloc memory failed\n");
 		return -ENODEV;
 	}

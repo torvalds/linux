@@ -313,10 +313,8 @@ EXPORT_SYMBOL(rdmacg_try_charge);
  * If IB stack wish a device to participate in rdma cgroup resource
  * tracking, it must invoke this API to register with rdma cgroup before
  * any user space application can start using the RDMA resources.
- * Returns 0 on success or EINVAL when table length given is beyond
- * supported size.
  */
-int rdmacg_register_device(struct rdmacg_device *device)
+void rdmacg_register_device(struct rdmacg_device *device)
 {
 	INIT_LIST_HEAD(&device->dev_node);
 	INIT_LIST_HEAD(&device->rpools);
@@ -324,7 +322,6 @@ int rdmacg_register_device(struct rdmacg_device *device)
 	mutex_lock(&rdmacg_mutex);
 	list_add_tail(&device->dev_node, &rdmacg_devices);
 	mutex_unlock(&rdmacg_mutex);
-	return 0;
 }
 EXPORT_SYMBOL(rdmacg_register_device);
 

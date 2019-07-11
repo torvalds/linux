@@ -25,7 +25,6 @@
 #include <linux/memblock.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
-#include <linux/mtd/onenand.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_data/lv5207lp.h>
 #include <linux/platform_device.h>
@@ -478,7 +477,7 @@ extern char kfr2r09_sdram_leave_end;
 
 static int __init kfr2r09_devices_setup(void)
 {
-	static struct clk *camera_clk;
+	struct clk *camera_clk;
 
 	/* register board specific self-refresh code */
 	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF |
@@ -604,9 +603,8 @@ static int __init kfr2r09_devices_setup(void)
 	device_initialize(&kfr2r09_ceu_device.dev);
 	arch_setup_pdev_archdata(&kfr2r09_ceu_device);
 	dma_declare_coherent_memory(&kfr2r09_ceu_device.dev,
-				    ceu_dma_membase, ceu_dma_membase,
-				    ceu_dma_membase + CEU_BUFFER_MEMORY_SIZE - 1,
-				    DMA_MEMORY_EXCLUSIVE);
+			ceu_dma_membase, ceu_dma_membase,
+			ceu_dma_membase + CEU_BUFFER_MEMORY_SIZE - 1);
 
 	platform_device_add(&kfr2r09_ceu_device);
 
@@ -632,7 +630,10 @@ static void __init kfr2r09_mv_mem_reserve(void)
 	phys_addr_t phys;
 	phys_addr_t size = CEU_BUFFER_MEMORY_SIZE;
 
-	phys = memblock_alloc_base(size, PAGE_SIZE, MEMBLOCK_ALLOC_ANYWHERE);
+	phys = memblock_phys_alloc(size, PAGE_SIZE);
+	if (!phys)
+		panic("Failed to allocate CEU memory\n");
+
 	memblock_free(phys, size);
 	memblock_remove(phys, size);
 

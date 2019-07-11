@@ -176,6 +176,8 @@
 
 #define BRCMF_VHT_CAP_MCS_MAP_NSS_MAX	8
 
+#define BRCMF_HE_CAP_MCS_MAP_NSS_MAX	8
+
 /* MAX_CHUNK_LEN is the maximum length for data passing to firmware in each
  * ioctl. It is relatively small because firmware has small maximum size input
  * playload restriction for ioctls.
@@ -601,13 +603,37 @@ struct brcmf_sta_info_le {
 	__le32 rx_pkts_retried;        /* # rx with retry bit set */
 	__le32 tx_rate_fallback;       /* lowest fallback TX rate */
 
-	/* Fields valid for ver >= 5 */
-	struct {
-		__le32 count;					/* # rates in this set */
-		u8 rates[BRCMF_MAXRATES_IN_SET];		/* rates in 500kbps units w/hi bit set if basic */
-		u8 mcs[BRCMF_MCSSET_LEN];			/* supported mcs index bit map */
-		__le16 vht_mcs[BRCMF_VHT_CAP_MCS_MAP_NSS_MAX];	/* supported mcs index bit map per nss */
-	} rateset_adv;
+	union {
+		struct {
+			struct {
+				__le32 count;					/* # rates in this set */
+				u8 rates[BRCMF_MAXRATES_IN_SET];		/* rates in 500kbps units w/hi bit set if basic */
+				u8 mcs[BRCMF_MCSSET_LEN];			/* supported mcs index bit map */
+				__le16 vht_mcs[BRCMF_VHT_CAP_MCS_MAP_NSS_MAX];	/* supported mcs index bit map per nss */
+			} rateset_adv;
+		} v5;
+
+		struct {
+			__le32 rx_dur_total;	/* total user RX duration (estimated) */
+			__le16 chanspec;	/** chanspec this sta is on */
+			__le16 pad_1;
+			struct {
+				__le16 version;					/* version */
+				__le16 len;					/* length */
+				__le32 count;					/* # rates in this set */
+				u8 rates[BRCMF_MAXRATES_IN_SET];		/* rates in 500kbps units w/hi bit set if basic */
+				u8 mcs[BRCMF_MCSSET_LEN];			/* supported mcs index bit map */
+				__le16 vht_mcs[BRCMF_VHT_CAP_MCS_MAP_NSS_MAX];	/* supported mcs index bit map per nss */
+				__le16 he_mcs[BRCMF_HE_CAP_MCS_MAP_NSS_MAX];	/* supported he mcs index bit map per nss */
+			} rateset_adv;		/* rateset along with mcs index bitmap */
+			__le16 wpauth;		/* authentication type */
+			u8 algo;		/* crypto algorithm */
+			u8 pad_2;
+			__le32 tx_rspec;	/* Rate of last successful tx frame */
+			__le32 rx_rspec;	/* Rate of last successful rx frame */
+			__le32 wnm_cap;		/* wnm capabilities */
+		} v7;
+	};
 };
 
 struct brcmf_chanspec_list {

@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #include "wifi.h"
 #include "base.h"
@@ -740,6 +718,7 @@ static void rtl_p2p_noa_ie(struct ieee80211_hw *hw, void *data,
 	static u8 p2p_oui_ie_type[4] = {0x50, 0x6f, 0x9a, 0x09};
 	u8 noa_num, index , i, noa_index = 0;
 	bool find_p2p_ie = false , find_p2p_ps_ie = false;
+
 	pos = (u8 *)mgmt->u.beacon.variable;
 	end = data + len;
 	ie = NULL;

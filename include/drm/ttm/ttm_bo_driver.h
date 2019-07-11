@@ -31,7 +31,6 @@
 #define _TTM_BO_DRIVER_H_
 
 #include <drm/drm_mm.h>
-#include <drm/drm_global.h>
 #include <drm/drm_vma_manager.h>
 #include <linux/workqueue.h>
 #include <linux/fs.h>
@@ -382,15 +381,15 @@ struct ttm_bo_driver {
 	 */
 	int (*access_memory)(struct ttm_buffer_object *bo, unsigned long offset,
 			     void *buf, int len, int write);
-};
 
-/**
- * struct ttm_bo_global_ref - Argument to initialize a struct ttm_bo_global.
- */
-
-struct ttm_bo_global_ref {
-	struct drm_global_reference ref;
-	struct ttm_mem_global *mem_glob;
+	/**
+	 * struct ttm_bo_driver member del_from_lru_notify
+	 *
+	 * @bo: the buffer object deleted from lru
+	 *
+	 * notify driver that a BO was deleted from LRU.
+	 */
+	void (*del_from_lru_notify)(struct ttm_buffer_object *bo);
 };
 
 /**
@@ -407,7 +406,7 @@ struct ttm_bo_global_ref {
  * @swap_lru: Lru list of buffer objects used for swapping.
  */
 
-struct ttm_bo_global {
+extern struct ttm_bo_global {
 
 	/**
 	 * Constant after init.
@@ -416,11 +415,10 @@ struct ttm_bo_global {
 	struct kobject kobj;
 	struct ttm_mem_global *mem_glob;
 	struct page *dummy_read_page;
-	struct mutex device_list_mutex;
 	spinlock_t lru_lock;
 
 	/**
-	 * Protected by device_list_mutex.
+	 * Protected by ttm_global_mutex.
 	 */
 	struct list_head device_list;
 
@@ -433,7 +431,7 @@ struct ttm_bo_global {
 	 * Internal protection.
 	 */
 	atomic_t bo_count;
-};
+} ttm_bo_glob;
 
 
 #define TTM_NUM_MEM_TYPES 8
@@ -578,9 +576,6 @@ void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem);
 void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
 			   struct ttm_mem_reg *mem);
 
-void ttm_bo_global_release(struct drm_global_reference *ref);
-int ttm_bo_global_init(struct drm_global_reference *ref);
-
 int ttm_bo_device_release(struct ttm_bo_device *bdev);
 
 /**
@@ -598,7 +593,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev);
  * Returns:
  * !0: Failure.
  */
-int ttm_bo_device_init(struct ttm_bo_device *bdev, struct ttm_bo_global *glob,
+int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		       struct ttm_bo_driver *driver,
 		       struct address_space *mapping,
 		       uint64_t file_page_offset, bool need_dma32);
@@ -880,7 +875,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  *
- * Pipelined gutting a BO of it's backing store.
+ * Pipelined gutting a BO of its backing store.
  */
 int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo);
 

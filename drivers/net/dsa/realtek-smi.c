@@ -347,16 +347,17 @@ int realtek_smi_setup_mdio(struct realtek_smi *smi)
 	struct device_node *mdio_np;
 	int ret;
 
-	mdio_np = of_find_compatible_node(smi->dev->of_node, NULL,
-					  "realtek,smi-mdio");
+	mdio_np = of_get_compatible_child(smi->dev->of_node, "realtek,smi-mdio");
 	if (!mdio_np) {
 		dev_err(smi->dev, "no MDIO bus node\n");
 		return -ENODEV;
 	}
 
 	smi->slave_mii_bus = devm_mdiobus_alloc(smi->dev);
-	if (!smi->slave_mii_bus)
-		return -ENOMEM;
+	if (!smi->slave_mii_bus) {
+		ret = -ENOMEM;
+		goto err_put_node;
+	}
 	smi->slave_mii_bus->priv = smi;
 	smi->slave_mii_bus->name = "SMI slave MII";
 	smi->slave_mii_bus->read = realtek_smi_mdio_read;
@@ -371,10 +372,15 @@ int realtek_smi_setup_mdio(struct realtek_smi *smi)
 	if (ret) {
 		dev_err(smi->dev, "unable to register MDIO bus %s\n",
 			smi->slave_mii_bus->id);
-		of_node_put(mdio_np);
+		goto err_put_node;
 	}
 
 	return 0;
+
+err_put_node:
+	of_node_put(mdio_np);
+
+	return ret;
 }
 
 static int realtek_smi_probe(struct platform_device *pdev)
@@ -457,6 +463,8 @@ static int realtek_smi_remove(struct platform_device *pdev)
 	struct realtek_smi *smi = dev_get_drvdata(&pdev->dev);
 
 	dsa_unregister_switch(smi->ds);
+	if (smi->slave_mii_bus)
+		of_node_put(smi->slave_mii_bus->dev.of_node);
 	gpiod_set_value(smi->reset, 1);
 
 	return 0;

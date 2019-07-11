@@ -1007,7 +1007,6 @@ static struct scsi_host_template pvscsi_template = {
 	.sg_tablesize			= PVSCSI_MAX_NUM_SG_ENTRIES_PER_SEGMENT,
 	.dma_boundary			= UINT_MAX,
 	.max_sectors			= 0xffff,
-	.use_clustering			= ENABLE_CLUSTERING,
 	.change_queue_depth		= pvscsi_change_queue_depth,
 	.eh_abort_handler		= pvscsi_abort,
 	.eh_device_reset_handler	= pvscsi_device_reset,

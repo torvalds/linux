@@ -202,7 +202,7 @@ extern int gfs2_glock_nq_num(struct gfs2_sbd *sdp, u64 number,
 			     struct gfs2_holder *gh);
 extern int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 extern void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs);
-extern void gfs2_dump_glock(struct seq_file *seq, const struct gfs2_glock *gl);
+extern void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl);
 #define GLOCK_BUG_ON(gl,x) do { if (unlikely(x)) { gfs2_dump_glock(NULL, gl); BUG(); } } while(0)
 extern __printf(2, 3)
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
@@ -243,9 +243,9 @@ extern void gfs2_glock_free(struct gfs2_glock *gl);
 extern int __init gfs2_glock_init(void);
 extern void gfs2_glock_exit(void);
 
-extern int gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
+extern void gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
 extern void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp);
-extern int gfs2_register_debugfs(void);
+extern void gfs2_register_debugfs(void);
 extern void gfs2_unregister_debugfs(void);
 
 extern const struct lm_lockops gfs2_dlm_ops;

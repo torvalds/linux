@@ -704,7 +704,7 @@ FS-Cache provides some utilities that a cache backend may make use of:
 	void fscache_get_retrieval(struct fscache_retrieval *op);
 	void fscache_put_retrieval(struct fscache_retrieval *op);
 
-     These two functions are used to retain a retrieval record whilst doing
+     These two functions are used to retain a retrieval record while doing
      asynchronous data retrieval and block allocation.
 
 

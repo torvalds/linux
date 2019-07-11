@@ -160,6 +160,14 @@ config GPIO_BRCMSTB
 	help
 	  Say yes here to enable GPIO support for Broadcom STB (BCM7XXX) SoCs.
 
+config GPIO_CADENCE
+	tristate "Cadence GPIO support"
+	depends on OF_GPIO
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to enable support for Cadence GPIO controller.
+
 config GPIO_CLPS711X
 	tristate "CLPS711X GPIO support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
@@ -250,6 +258,7 @@ config GPIO_HLWD
 	tristate "Nintendo Wii (Hollywood) GPIO"
 	depends on OF_GPIO
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 	help
 	  Select this to support the GPIO controller of the Nintendo Wii.
 
@@ -288,6 +297,7 @@ config GPIO_LPC18XX
 	tristate "NXP LPC18XX/43XX GPIO support"
 	default y if ARCH_LPC18XX
 	depends on OF_GPIO && (ARCH_LPC18XX || COMPILE_TEST)
+	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Select this option to enable GPIO driver for
 	  NXP LPC18XX/43XX devices.
@@ -428,6 +438,18 @@ config GPIO_REG
 	help
 	  A 32-bit single register GPIO fixed in/out implementation.  This
 	  can be used to represent any register as a set of GPIO signals.
+
+config GPIO_SAMA5D2_PIOBU
+	tristate "SAMA5D2 PIOBU GPIO support"
+	depends on MFD_SYSCON
+	depends on OF_GPIO
+	select GPIO_SYSCON
+	help
+	  Say yes here to use the PIOBU pins as GPIOs.
+
+	  PIOBU pins on the SAMA5D2 can be used as GPIOs.
+	  The difference from regular GPIOs is that they
+	  maintain their value during backup/self-refresh.
 
 config GPIO_SIOX
 	tristate "SIOX GPIO support"
@@ -633,6 +655,15 @@ config GPIO_LOONGSON1
 	help
 	  Say Y or M here to support GPIO on Loongson1 SoCs.
 
+config GPIO_AMD_FCH
+	tristate "GPIO support for AMD Fusion Controller Hub (G-series SOCs)"
+	help
+	  This option enables driver for GPIO on AMDs Fusion Controller Hub,
+	  as found on G-series SOCs (eg. GX-412TC)
+
+	  Note: This driver doesn't registers itself automatically, as it
+	  needs to be provided with platform specific configuration.
+	  (See eg. CONFIG_PCENGINES_APU2.)
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"
@@ -809,6 +840,13 @@ config GPIO_ADNP
 	  enough to represent all pins, but the driver will assume a
 	  register layout for 64 pins (8 registers).
 
+config GPIO_GW_PLD
+	tristate "Gateworks PLD GPIO Expander"
+	depends on OF_GPIO
+	help
+	  Say yes here to provide access to the Gateworks I2C PLD GPIO
+	  Expander. This is used at least on the Cambria GW2358-4.
+
 config GPIO_MAX7300
 	tristate "Maxim MAX7300 GPIO expander"
 	select GPIO_MAX730X
@@ -849,6 +887,7 @@ config GPIO_MC9S08DZ60
 
 config GPIO_PCA953X
 	tristate "PCA95[357]x, PCA9698, TCA64xx, and MAX7310 I/O ports"
+	select REGMAP_I2C
 	help
 	  Say yes here to provide access to several register-oriented
 	  SMBus I/O expanders, made mostly by NXP or TI.  Compatible
@@ -1073,6 +1112,13 @@ config GPIO_MAX77620
 	  driver also provides interrupt support for each of the gpios.
 	  Say yes here to enable the max77620 to be used as gpio controller.
 
+config GPIO_MAX77650
+	tristate "Maxim MAX77650/77651 GPIO support"
+	depends on MFD_MAX77650
+	help
+	  GPIO driver for MAX77650/77651 PMIC from Maxim Semiconductor.
+	  These chips have a single pin that can be configured as GPIO.
+
 config GPIO_MSIC
 	bool "Intel MSIC mixed signal gpio support"
 	depends on (X86 || COMPILE_TEST) && MFD_INTEL_MSIC
@@ -1167,6 +1213,13 @@ config GPIO_TPS68470
 	  This driver config is bool, as the GPIO functionality
 	  of the TPS68470 must be available before dependent
 	  drivers are loaded.
+
+config GPIO_TQMX86
+	tristate "TQ-Systems QTMX86 GPIO"
+	depends on MFD_TQMX86 || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	help
+	  This driver supports GPIO on the TQMX86 IO controller.
 
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"

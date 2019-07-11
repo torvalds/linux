@@ -82,7 +82,7 @@ static void update_BCNTIM(struct adapter *padapter)
 
 		/* calculate head_len */
 		offset = _FIXED_IE_LENGTH_;
-		offset += pnetwork_mlmeext->Ssid.SsidLength + 2;
+		offset += pnetwork_mlmeext->ssid.ssid_length + 2;
 
 		/*  get supported rates len */
 		p = rtw_get_ie(pie + _BEACON_IE_OFFSET_, _SUPPORTEDRATES_IE_,
@@ -629,7 +629,7 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 	}
 
 	/* setting only at  first time */
-	if (pmlmepriv->cur_network.join_res != true) {
+	if (!pmlmepriv->cur_network.join_res) {
 		/* WEP Key will be set before this function, do not
 		 * clear CAM.
 		 */
@@ -756,7 +756,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 
 	DBG_88E("%s, len =%d\n", __func__, len);
 
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) != true)
+	if (!check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		return _FAIL;
 
 	if (len < 0 || len > MAX_IE_SZ)
@@ -785,9 +785,9 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	/* SSID */
 	p = rtw_get_ie(ie + _BEACON_IE_OFFSET_, _SSID_IE_, &ie_len, (pbss_network->ie_length - _BEACON_IE_OFFSET_));
 	if (p && ie_len > 0) {
-		memset(&pbss_network->Ssid, 0, sizeof(struct ndis_802_11_ssid));
-		memcpy(pbss_network->Ssid.Ssid, (p + 2), ie_len);
-		pbss_network->Ssid.SsidLength = ie_len;
+		memset(&pbss_network->ssid, 0, sizeof(struct ndis_802_11_ssid));
+		memcpy(pbss_network->ssid.ssid, (p + 2), ie_len);
+		pbss_network->ssid.ssid_length = ie_len;
 	}
 
 	/* channel */

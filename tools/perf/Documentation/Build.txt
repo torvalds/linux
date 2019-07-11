@@ -47,3 +47,27 @@ Those objects are then used in final linking:
 
 NOTE this description is omitting other libraries involved, only
      focusing on build framework outcomes
+
+3) Build with ASan or UBSan
+==========================
+  $ cd tools/perf
+  $ make DESTDIR=/usr
+  $ make DESTDIR=/usr install
+
+AddressSanitizer (or ASan) is a GCC feature that detects memory corruption bugs
+such as buffer overflows and memory leaks.
+
+  $ cd tools/perf
+  $ make DEBUG=1 EXTRA_CFLAGS='-fno-omit-frame-pointer -fsanitize=address'
+  $ ASAN_OPTIONS=log_path=asan.log ./perf record -a
+
+ASan outputs all detected issues into a log file named 'asan.log.<pid>'.
+
+UndefinedBehaviorSanitizer (or UBSan) is a fast undefined behavior detector
+supported by GCC. UBSan detects undefined behaviors of programs at runtime.
+
+  $ cd tools/perf
+  $ make DEBUG=1 EXTRA_CFLAGS='-fno-omit-frame-pointer -fsanitize=undefined'
+  $ UBSAN_OPTIONS=print_stacktrace=1 ./perf record -a
+
+If UBSan detects any problem at runtime, it outputs a “runtime error:” message.

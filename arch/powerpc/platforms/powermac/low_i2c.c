@@ -617,7 +617,7 @@ static void __init kw_i2c_probe(void)
 		 * but not for now
 		 */
 		child = of_get_next_child(np, NULL);
-		multibus = !child || strcmp(child->name, "i2c-bus");
+		multibus = !of_node_name_eq(child, "i2c-bus");
 		of_node_put(child);
 
 		/* For a multibus setup, we get the bus count based on the
@@ -917,10 +917,9 @@ static void __init smu_i2c_probe(void)
 	 * type as older device trees mix i2c busses and other things
 	 * at the same level
 	 */
-	for (busnode = NULL;
-	     (busnode = of_get_next_child(controller, busnode)) != NULL;) {
-		if (strcmp(busnode->type, "i2c") &&
-		    strcmp(busnode->type, "i2c-bus"))
+	for_each_child_of_node(controller, busnode) {
+		if (!of_node_is_type(busnode, "i2c") &&
+		    !of_node_is_type(busnode, "i2c-bus"))
 			continue;
 		reg = of_get_property(busnode, "reg", NULL);
 		if (reg == NULL)
@@ -1206,7 +1205,7 @@ static void pmac_i2c_devscan(void (*callback)(struct device_node *dev,
 				if (bus != pmac_i2c_find_bus(np))
 					continue;
 			for (p = whitelist; p->name != NULL; p++) {
-				if (strcmp(np->name, p->name))
+				if (!of_node_name_eq(np, p->name))
 					continue;
 				if (p->compatible &&
 				    !of_device_is_compatible(np, p->compatible))

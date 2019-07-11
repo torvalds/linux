@@ -913,7 +913,7 @@ static void copy_from_journal(struct dm_integrity_c *ic, unsigned section, unsig
 static bool ranges_overlap(struct dm_integrity_range *range1, struct dm_integrity_range *range2)
 {
 	return range1->logical_sector < range2->logical_sector + range2->n_sectors &&
-	       range2->logical_sector + range2->n_sectors > range2->logical_sector;
+	       range1->logical_sector + range1->n_sectors > range2->logical_sector;
 }
 
 static bool add_new_range(struct dm_integrity_c *ic, struct dm_integrity_range *new_range, bool check_waiting)
@@ -959,8 +959,6 @@ static void remove_range_unlocked(struct dm_integrity_c *ic, struct dm_integrity
 		struct dm_integrity_range *last_range =
 			list_first_entry(&ic->wait_list, struct dm_integrity_range, wait_entry);
 		struct task_struct *last_range_task;
-		if (!ranges_overlap(range, last_range))
-			break;
 		last_range_task = last_range->task;
 		list_del(&last_range->wait_entry);
 		if (!add_new_range(ic, last_range, false)) {
@@ -1122,7 +1120,7 @@ static int dm_integrity_rw_tag(struct dm_integrity_c *ic, unsigned char *tag, se
 			return r;
 
 		data = dm_bufio_read(ic->bufio, *metadata_block, &b);
-		if (unlikely(IS_ERR(data)))
+		if (IS_ERR(data))
 			return PTR_ERR(data);
 
 		to_copy = min((1U << SECTOR_SHIFT << ic->log2_buffer_sectors) - *metadata_offset, total_size);
@@ -1368,8 +1366,8 @@ again:
 						checksums_ptr - checksums, !dio->write ? TAG_CMP : TAG_WRITE);
 			if (unlikely(r)) {
 				if (r > 0) {
-					DMERR("Checksum failed at sector 0x%llx",
-					      (unsigned long long)(sector - ((r + ic->tag_size - 1) / ic->tag_size)));
+					DMERR_LIMIT("Checksum failed at sector 0x%llx",
+						    (unsigned long long)(sector - ((r + ic->tag_size - 1) / ic->tag_size)));
 					r = -EILSEQ;
 					atomic64_inc(&ic->number_of_mismatches);
 				}
@@ -1561,8 +1559,8 @@ retry_kmap:
 
 					integrity_sector_checksum(ic, logical_sector, mem + bv.bv_offset, checksums_onstack);
 					if (unlikely(memcmp(checksums_onstack, journal_entry_tag(ic, je), ic->tag_size))) {
-						DMERR("Checksum failed when reading from journal, at sector 0x%llx",
-						      (unsigned long long)logical_sector);
+						DMERR_LIMIT("Checksum failed when reading from journal, at sector 0x%llx",
+							    (unsigned long long)logical_sector);
 					}
 				}
 #endif
@@ -2804,7 +2802,7 @@ static int get_mac(struct crypto_shash **hash, struct alg_spec *a, char **error,
 	int r;
 
 	if (a->alg_string) {
-		*hash = crypto_alloc_shash(a->alg_string, 0, CRYPTO_ALG_ASYNC);
+		*hash = crypto_alloc_shash(a->alg_string, 0, 0);
 		if (IS_ERR(*hash)) {
 			*error = error_alg;
 			r = PTR_ERR(*hash);
@@ -2843,7 +2841,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 	journal_pages = roundup((__u64)ic->journal_sections * ic->journal_section_sectors,
 				PAGE_SIZE >> SECTOR_SHIFT) >> (PAGE_SHIFT - SECTOR_SHIFT);
 	journal_desc_size = journal_pages * sizeof(struct page_list);
-	if (journal_pages >= totalram_pages - totalhigh_pages || journal_desc_size > ULONG_MAX) {
+	if (journal_pages >= totalram_pages() - totalhigh_pages() || journal_desc_size > ULONG_MAX) {
 		*error = "Journal doesn't fit into memory";
 		r = -ENOMEM;
 		goto bad;
@@ -3185,7 +3183,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 			journal_watermark = val;
 		else if (sscanf(opt_string, "commit_time:%u%c", &val, &dummy) == 1)
 			sync_msec = val;
-		else if (!memcmp(opt_string, "meta_device:", strlen("meta_device:"))) {
+		else if (!strncmp(opt_string, "meta_device:", strlen("meta_device:"))) {
 			if (ic->meta_dev) {
 				dm_put_device(ti, ic->meta_dev);
 				ic->meta_dev = NULL;
@@ -3204,17 +3202,17 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 				goto bad;
 			}
 			ic->sectors_per_block = val >> SECTOR_SHIFT;
-		} else if (!memcmp(opt_string, "internal_hash:", strlen("internal_hash:"))) {
+		} else if (!strncmp(opt_string, "internal_hash:", strlen("internal_hash:"))) {
 			r = get_alg_and_key(opt_string, &ic->internal_hash_alg, &ti->error,
 					    "Invalid internal_hash argument");
 			if (r)
 				goto bad;
-		} else if (!memcmp(opt_string, "journal_crypt:", strlen("journal_crypt:"))) {
+		} else if (!strncmp(opt_string, "journal_crypt:", strlen("journal_crypt:"))) {
 			r = get_alg_and_key(opt_string, &ic->journal_crypt_alg, &ti->error,
 					    "Invalid journal_crypt argument");
 			if (r)
 				goto bad;
-		} else if (!memcmp(opt_string, "journal_mac:", strlen("journal_mac:"))) {
+		} else if (!strncmp(opt_string, "journal_mac:", strlen("journal_mac:"))) {
 			r = get_alg_and_key(opt_string, &ic->journal_mac_alg,  &ti->error,
 					    "Invalid journal_mac argument");
 			if (r)
@@ -3460,7 +3458,7 @@ try_smaller_buffer:
 			ti->error = "Recalculate is only valid with internal hash";
 			goto bad;
 		}
-		ic->recalc_wq = alloc_workqueue("dm-intergrity-recalc", WQ_MEM_RECLAIM, 1);
+		ic->recalc_wq = alloc_workqueue("dm-integrity-recalc", WQ_MEM_RECLAIM, 1);
 		if (!ic->recalc_wq ) {
 			ti->error = "Cannot allocate workqueue";
 			r = -ENOMEM;
@@ -3616,7 +3614,7 @@ static struct target_type integrity_target = {
 	.io_hints		= dm_integrity_io_hints,
 };
 
-int __init dm_integrity_init(void)
+static int __init dm_integrity_init(void)
 {
 	int r;
 
@@ -3635,7 +3633,7 @@ int __init dm_integrity_init(void)
 	return r;
 }
 
-void dm_integrity_exit(void)
+static void __exit dm_integrity_exit(void)
 {
 	dm_unregister_target(&integrity_target);
 	kmem_cache_destroy(journal_io_cache);

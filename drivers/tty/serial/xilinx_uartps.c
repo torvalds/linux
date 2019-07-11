@@ -123,7 +123,7 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
 #define CDNS_UART_IXR_RXTRIG	0x00000001 /* RX FIFO trigger interrupt */
 #define CDNS_UART_IXR_RXFULL	0x00000004 /* RX FIFO full interrupt. */
 #define CDNS_UART_IXR_RXEMPTY	0x00000002 /* RX FIFO empty interrupt. */
-#define CDNS_UART_IXR_MASK	0x00001FFF /* Valid bit mask */
+#define CDNS_UART_IXR_RXMASK	0x000021e7 /* Valid RX bit mask */
 
 	/*
 	 * Do not enable parity error interrupt for the following
@@ -364,7 +364,13 @@ static irqreturn_t cdns_uart_isr(int irq, void *dev_id)
 		cdns_uart_handle_tx(dev_id);
 		isrstatus &= ~CDNS_UART_IXR_TXEMPTY;
 	}
-	if (isrstatus & CDNS_UART_IXR_MASK)
+
+	/*
+	 * Skip RX processing if RX is disabled as RXEMPTY will never be set
+	 * as read bytes will not be removed from the FIFO.
+	 */
+	if (isrstatus & CDNS_UART_IXR_RXMASK &&
+	    !(readl(port->membase + CDNS_UART_CR) & CDNS_UART_CR_RX_DIS))
 		cdns_uart_handle_rx(dev_id, isrstatus);
 
 	spin_unlock(&port->lock);
@@ -1255,7 +1261,7 @@ static int cdns_uart_suspend(struct device *device)
 
 	may_wake = device_may_wakeup(device);
 
-	if (console_suspend_enabled && may_wake) {
+	if (console_suspend_enabled && uart_console(port) && may_wake) {
 		unsigned long flags = 0;
 
 		spin_lock_irqsave(&port->lock, flags);
@@ -1293,7 +1299,7 @@ static int cdns_uart_resume(struct device *device)
 
 	may_wake = device_may_wakeup(device);
 
-	if (console_suspend_enabled && !may_wake) {
+	if (console_suspend_enabled && uart_console(port) && !may_wake) {
 		clk_enable(cdns_uart->pclk);
 		clk_enable(cdns_uart->uartclk);
 
@@ -1508,8 +1514,10 @@ static int cdns_uart_probe(struct platform_device *pdev)
 #ifdef CONFIG_SERIAL_XILINX_PS_UART_CONSOLE
 	cdns_uart_console = devm_kzalloc(&pdev->dev, sizeof(*cdns_uart_console),
 					 GFP_KERNEL);
-	if (!cdns_uart_console)
-		return -ENOMEM;
+	if (!cdns_uart_console) {
+		rc = -ENOMEM;
+		goto err_out_id;
+	}
 
 	strncpy(cdns_uart_console->name, CDNS_UART_TTY_NAME,
 		sizeof(cdns_uart_console->name));
@@ -1545,27 +1553,33 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	}
 
 	cdns_uart_data->pclk = devm_clk_get(&pdev->dev, "pclk");
-	if (IS_ERR(cdns_uart_data->pclk)) {
-		cdns_uart_data->pclk = devm_clk_get(&pdev->dev, "aper_clk");
-		if (!IS_ERR(cdns_uart_data->pclk))
-			dev_err(&pdev->dev, "clock name 'aper_clk' is deprecated.\n");
-	}
-	if (IS_ERR(cdns_uart_data->pclk)) {
-		dev_err(&pdev->dev, "pclk clock not found.\n");
+	if (PTR_ERR(cdns_uart_data->pclk) == -EPROBE_DEFER) {
 		rc = PTR_ERR(cdns_uart_data->pclk);
 		goto err_out_unregister_driver;
 	}
 
-	cdns_uart_data->uartclk = devm_clk_get(&pdev->dev, "uart_clk");
-	if (IS_ERR(cdns_uart_data->uartclk)) {
-		cdns_uart_data->uartclk = devm_clk_get(&pdev->dev, "ref_clk");
-		if (!IS_ERR(cdns_uart_data->uartclk))
-			dev_err(&pdev->dev, "clock name 'ref_clk' is deprecated.\n");
+	if (IS_ERR(cdns_uart_data->pclk)) {
+		cdns_uart_data->pclk = devm_clk_get(&pdev->dev, "aper_clk");
+		if (IS_ERR(cdns_uart_data->pclk)) {
+			rc = PTR_ERR(cdns_uart_data->pclk);
+			goto err_out_unregister_driver;
+		}
+		dev_err(&pdev->dev, "clock name 'aper_clk' is deprecated.\n");
 	}
-	if (IS_ERR(cdns_uart_data->uartclk)) {
-		dev_err(&pdev->dev, "uart_clk clock not found.\n");
+
+	cdns_uart_data->uartclk = devm_clk_get(&pdev->dev, "uart_clk");
+	if (PTR_ERR(cdns_uart_data->uartclk) == -EPROBE_DEFER) {
 		rc = PTR_ERR(cdns_uart_data->uartclk);
 		goto err_out_unregister_driver;
+	}
+
+	if (IS_ERR(cdns_uart_data->uartclk)) {
+		cdns_uart_data->uartclk = devm_clk_get(&pdev->dev, "ref_clk");
+		if (IS_ERR(cdns_uart_data->uartclk)) {
+			rc = PTR_ERR(cdns_uart_data->uartclk);
+			goto err_out_unregister_driver;
+		}
+		dev_err(&pdev->dev, "clock name 'ref_clk' is deprecated.\n");
 	}
 
 	rc = clk_prepare_enable(cdns_uart_data->pclk);
@@ -1624,6 +1638,7 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(&pdev->dev, UART_AUTOSUSPEND_TIMEOUT);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
+	device_init_wakeup(port->dev, true);
 
 #ifdef CONFIG_SERIAL_XILINX_PS_UART_CONSOLE
 	/*
@@ -1702,6 +1717,7 @@ static int cdns_uart_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
+	device_init_wakeup(&pdev->dev, false);
 
 #ifdef CONFIG_SERIAL_XILINX_PS_UART_CONSOLE
 	if (console_port == port)
@@ -1719,6 +1735,7 @@ static struct platform_driver cdns_uart_platform_driver = {
 		.name = CDNS_UART_NAME,
 		.of_match_table = cdns_uart_of_match,
 		.pm = &cdns_uart_dev_pm_ops,
+		.suppress_bind_attrs = IS_BUILTIN(CONFIG_SERIAL_XILINX_PS_UART),
 		},
 };
 

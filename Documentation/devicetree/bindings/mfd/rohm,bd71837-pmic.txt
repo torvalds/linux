@@ -23,6 +23,20 @@ Required properties:
 
 Optional properties:
 - clock-output-names	: Should contain name for output clock.
+- rohm,reset-snvs-powered : Transfer BD718x7 to SNVS state at reset.
+
+The BD718x7 supports two different HW states as reset target states. States
+are called as SNVS and READY. At READY state all the PMIC power outputs go
+down and OTP is reload. At the SNVS state all other logic and external
+devices apart from the SNVS power domain are shut off. Please refer to NXP
+i.MX8 documentation for further information regarding SNVS state. When a
+reset is done via SNVS state the PMIC OTP data is not reload. This causes
+power outputs that have been under SW control to stay down when reset has
+switched power state to SNVS. If reset is done via READY state the power
+outputs will be returned to HW control by OTP loading. Thus the reset
+target state is set to READY by default. If SNVS state is used the boot
+crucial regulators must have the regulator-always-on and regulator-boot-on
+properties set in regulator node.
 
 Example:
 
@@ -43,6 +57,7 @@ Example:
 		#clock-cells = <0>;
 		clocks = <&osc 0>;
 		clock-output-names = "bd71837-32k-out";
+		rohm,reset-snvs-powered;
 
 		regulators {
 			buck1: BUCK1 {
@@ -50,8 +65,10 @@ Example:
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-boot-on;
+				regulator-always-on;
 				regulator-ramp-delay = <1250>;
 			};
+			// [...]
 		};
 	};
 

@@ -3,6 +3,7 @@
 
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/iopoll.h>
 #include <linux/sched.h>
 
 #include "ixgbe.h"
@@ -656,6 +657,306 @@ s32 ixgbe_write_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 	}
 
 	return status;
+}
+
+#define IXGBE_HW_READ_REG(addr) IXGBE_READ_REG(hw, addr)
+
+/**
+ *  ixgbe_msca_cmd - Write the command register and poll for completion/timeout
+ *  @hw: pointer to hardware structure
+ *  @cmd: command register value to write
+ **/
+static s32 ixgbe_msca_cmd(struct ixgbe_hw *hw, u32 cmd)
+{
+	IXGBE_WRITE_REG(hw, IXGBE_MSCA, cmd);
+
+	return readx_poll_timeout(IXGBE_HW_READ_REG, IXGBE_MSCA, cmd,
+				  !(cmd & IXGBE_MSCA_MDI_COMMAND), 10,
+				  10 * IXGBE_MDIO_COMMAND_TIMEOUT);
+}
+
+/**
+ *  ixgbe_mii_bus_read_generic - Read a clause 22/45 register with gssr flags
+ *  @hw: pointer to hardware structure
+ *  @addr: address
+ *  @regnum: register number
+ *  @gssr: semaphore flags to acquire
+ **/
+static s32 ixgbe_mii_bus_read_generic(struct ixgbe_hw *hw, int addr,
+				      int regnum, u32 gssr)
+{
+	u32 hwaddr, cmd;
+	s32 data;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, gssr))
+		return -EBUSY;
+
+	hwaddr = addr << IXGBE_MSCA_PHY_ADDR_SHIFT;
+	if (regnum & MII_ADDR_C45) {
+		hwaddr |= regnum & GENMASK(21, 0);
+		cmd = hwaddr | IXGBE_MSCA_ADDR_CYCLE | IXGBE_MSCA_MDI_COMMAND;
+	} else {
+		hwaddr |= (regnum & GENMASK(5, 0)) << IXGBE_MSCA_DEV_TYPE_SHIFT;
+		cmd = hwaddr | IXGBE_MSCA_OLD_PROTOCOL |
+			IXGBE_MSCA_READ_AUTOINC | IXGBE_MSCA_MDI_COMMAND;
+	}
+
+	data = ixgbe_msca_cmd(hw, cmd);
+	if (data < 0)
+		goto mii_bus_read_done;
+
+	/* For a clause 45 access the address cycle just completed, we still
+	 * need to do the read command, otherwise just get the data
+	 */
+	if (!(regnum & MII_ADDR_C45))
+		goto do_mii_bus_read;
+
+	cmd = hwaddr | IXGBE_MSCA_READ | IXGBE_MSCA_MDI_COMMAND;
+	data = ixgbe_msca_cmd(hw, cmd);
+	if (data < 0)
+		goto mii_bus_read_done;
+
+do_mii_bus_read:
+	data = IXGBE_READ_REG(hw, IXGBE_MSRWD);
+	data = (data >> IXGBE_MSRWD_READ_DATA_SHIFT) & GENMASK(16, 0);
+
+mii_bus_read_done:
+	hw->mac.ops.release_swfw_sync(hw, gssr);
+	return data;
+}
+
+/**
+ *  ixgbe_mii_bus_write_generic - Write a clause 22/45 register with gssr flags
+ *  @hw: pointer to hardware structure
+ *  @addr: address
+ *  @regnum: register number
+ *  @val: value to write
+ *  @gssr: semaphore flags to acquire
+ **/
+static s32 ixgbe_mii_bus_write_generic(struct ixgbe_hw *hw, int addr,
+				       int regnum, u16 val, u32 gssr)
+{
+	u32 hwaddr, cmd;
+	s32 err;
+
+	if (hw->mac.ops.acquire_swfw_sync(hw, gssr))
+		return -EBUSY;
+
+	IXGBE_WRITE_REG(hw, IXGBE_MSRWD, (u32)val);
+
+	hwaddr = addr << IXGBE_MSCA_PHY_ADDR_SHIFT;
+	if (regnum & MII_ADDR_C45) {
+		hwaddr |= regnum & GENMASK(21, 0);
+		cmd = hwaddr | IXGBE_MSCA_ADDR_CYCLE | IXGBE_MSCA_MDI_COMMAND;
+	} else {
+		hwaddr |= (regnum & GENMASK(5, 0)) << IXGBE_MSCA_DEV_TYPE_SHIFT;
+		cmd = hwaddr | IXGBE_MSCA_OLD_PROTOCOL | IXGBE_MSCA_WRITE |
+			IXGBE_MSCA_MDI_COMMAND;
+	}
+
+	/* For clause 45 this is an address cycle, for clause 22 this is the
+	 * entire transaction
+	 */
+	err = ixgbe_msca_cmd(hw, cmd);
+	if (err < 0 || !(regnum & MII_ADDR_C45))
+		goto mii_bus_write_done;
+
+	cmd = hwaddr | IXGBE_MSCA_WRITE | IXGBE_MSCA_MDI_COMMAND;
+	err = ixgbe_msca_cmd(hw, cmd);
+
+mii_bus_write_done:
+	hw->mac.ops.release_swfw_sync(hw, gssr);
+	return err;
+}
+
+/**
+ *  ixgbe_mii_bus_read - Read a clause 22/45 register
+ *  @hw: pointer to hardware structure
+ *  @addr: address
+ *  @regnum: register number
+ **/
+static s32 ixgbe_mii_bus_read(struct mii_bus *bus, int addr, int regnum)
+{
+	struct ixgbe_adapter *adapter = bus->priv;
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 gssr = hw->phy.phy_semaphore_mask;
+
+	return ixgbe_mii_bus_read_generic(hw, addr, regnum, gssr);
+}
+
+/**
+ *  ixgbe_mii_bus_write - Write a clause 22/45 register
+ *  @hw: pointer to hardware structure
+ *  @addr: address
+ *  @regnum: register number
+ *  @val: value to write
+ **/
+static s32 ixgbe_mii_bus_write(struct mii_bus *bus, int addr, int regnum,
+			       u16 val)
+{
+	struct ixgbe_adapter *adapter = bus->priv;
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 gssr = hw->phy.phy_semaphore_mask;
+
+	return ixgbe_mii_bus_write_generic(hw, addr, regnum, val, gssr);
+}
+
+/**
+ *  ixgbe_x550em_a_mii_bus_read - Read a clause 22/45 register on x550em_a
+ *  @hw: pointer to hardware structure
+ *  @addr: address
+ *  @regnum: register number
+ **/
+static s32 ixgbe_x550em_a_mii_bus_read(struct mii_bus *bus, int addr,
+				       int regnum)
+{
+	struct ixgbe_adapter *adapter = bus->priv;
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 gssr = hw->phy.phy_semaphore_mask;
+
+	gssr |= IXGBE_GSSR_TOKEN_SM | IXGBE_GSSR_PHY0_SM;
+	return ixgbe_mii_bus_read_generic(hw, addr, regnum, gssr);
+}
+
+/**
+ *  ixgbe_x550em_a_mii_bus_write - Write a clause 22/45 register on x550em_a
+ *  @hw: pointer to hardware structure
+ *  @addr: address
+ *  @regnum: register number
+ *  @val: value to write
+ **/
+static s32 ixgbe_x550em_a_mii_bus_write(struct mii_bus *bus, int addr,
+					int regnum, u16 val)
+{
+	struct ixgbe_adapter *adapter = bus->priv;
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 gssr = hw->phy.phy_semaphore_mask;
+
+	gssr |= IXGBE_GSSR_TOKEN_SM | IXGBE_GSSR_PHY0_SM;
+	return ixgbe_mii_bus_write_generic(hw, addr, regnum, val, gssr);
+}
+
+/**
+ * ixgbe_get_first_secondary_devfn - get first device downstream of root port
+ * @devfn: PCI_DEVFN of root port on domain 0, bus 0
+ *
+ * Returns pci_dev pointer to PCI_DEVFN(0, 0) on subordinate side of root
+ * on domain 0, bus 0, devfn = 'devfn'
+ **/
+static struct pci_dev *ixgbe_get_first_secondary_devfn(unsigned int devfn)
+{
+	struct pci_dev *rp_pdev;
+	int bus;
+
+	rp_pdev = pci_get_domain_bus_and_slot(0, 0, devfn);
+	if (rp_pdev && rp_pdev->subordinate) {
+		bus = rp_pdev->subordinate->number;
+		return pci_get_domain_bus_and_slot(0, bus, 0);
+	}
+
+	return NULL;
+}
+
+/**
+ * ixgbe_x550em_a_has_mii - is this the first ixgbe x550em_a PCI function?
+ * @hw: pointer to hardware structure
+ *
+ * Returns true if hw points to lowest numbered PCI B:D.F x550_em_a device in
+ * the SoC.  There are up to 4 MACs sharing a single MDIO bus on the x550em_a,
+ * but we only want to register one MDIO bus.
+ **/
+static bool ixgbe_x550em_a_has_mii(struct ixgbe_hw *hw)
+{
+	struct ixgbe_adapter *adapter = hw->back;
+	struct pci_dev *pdev = adapter->pdev;
+	struct pci_dev *func0_pdev;
+
+	/* For the C3000 family of SoCs (x550em_a) the internal ixgbe devices
+	 * are always downstream of root ports @ 0000:00:16.0 & 0000:00:17.0
+	 * It's not valid for function 0 to be disabled and function 1 is up,
+	 * so the lowest numbered ixgbe dev will be device 0 function 0 on one
+	 * of those two root ports
+	 */
+	func0_pdev = ixgbe_get_first_secondary_devfn(PCI_DEVFN(0x16, 0));
+	if (func0_pdev) {
+		if (func0_pdev == pdev)
+			return true;
+		else
+			return false;
+	}
+	func0_pdev = ixgbe_get_first_secondary_devfn(PCI_DEVFN(0x17, 0));
+	if (func0_pdev == pdev)
+		return true;
+
+	return false;
+}
+
+/**
+ * ixgbe_mii_bus_init - mii_bus structure setup
+ * @hw: pointer to hardware structure
+ *
+ * Returns 0 on success, negative on failure
+ *
+ * ixgbe_mii_bus_init initializes a mii_bus structure in adapter
+ **/
+s32 ixgbe_mii_bus_init(struct ixgbe_hw *hw)
+{
+	struct ixgbe_adapter *adapter = hw->back;
+	struct pci_dev *pdev = adapter->pdev;
+	struct device *dev = &adapter->netdev->dev;
+	struct mii_bus *bus;
+	int err = -ENODEV;
+
+	bus = devm_mdiobus_alloc(dev);
+	if (!bus)
+		return -ENOMEM;
+
+	switch (hw->device_id) {
+	/* C3000 SoCs */
+	case IXGBE_DEV_ID_X550EM_A_KR:
+	case IXGBE_DEV_ID_X550EM_A_KR_L:
+	case IXGBE_DEV_ID_X550EM_A_SFP_N:
+	case IXGBE_DEV_ID_X550EM_A_SGMII:
+	case IXGBE_DEV_ID_X550EM_A_SGMII_L:
+	case IXGBE_DEV_ID_X550EM_A_10G_T:
+	case IXGBE_DEV_ID_X550EM_A_SFP:
+	case IXGBE_DEV_ID_X550EM_A_1G_T:
+	case IXGBE_DEV_ID_X550EM_A_1G_T_L:
+		if (!ixgbe_x550em_a_has_mii(hw))
+			goto ixgbe_no_mii_bus;
+		bus->read = &ixgbe_x550em_a_mii_bus_read;
+		bus->write = &ixgbe_x550em_a_mii_bus_write;
+		break;
+	default:
+		bus->read = &ixgbe_mii_bus_read;
+		bus->write = &ixgbe_mii_bus_write;
+		break;
+	}
+
+	/* Use the position of the device in the PCI hierarchy as the id */
+	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mdio-%s", ixgbe_driver_name,
+		 pci_name(pdev));
+
+	bus->name = "ixgbe-mdio";
+	bus->priv = adapter;
+	bus->parent = dev;
+	bus->phy_mask = GENMASK(31, 0);
+
+	/* Support clause 22/45 natively.  ixgbe_probe() sets MDIO_EMULATE_C22
+	 * unfortunately that causes some clause 22 frames to be sent with
+	 * clause 45 addressing.  We don't want that.
+	 */
+	hw->phy.mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_SUPPORTS_C22;
+
+	err = mdiobus_register(bus);
+	if (!err) {
+		adapter->mii_bus = bus;
+		return 0;
+	}
+
+ixgbe_no_mii_bus:
+	devm_mdiobus_free(dev, bus);
+	return err;
 }
 
 /**

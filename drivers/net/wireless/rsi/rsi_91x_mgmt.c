@@ -15,6 +15,7 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/timer.h>
 #include "rsi_mgmt.h"
 #include "rsi_common.h"
 #include "rsi_ps.h"
@@ -236,6 +237,18 @@ static void rsi_set_default_parameters(struct rsi_common *common)
 	common->dtim_cnt = RSI_DTIM_COUNT;
 }
 
+void init_bgscan_params(struct rsi_common *common)
+{
+	memset((u8 *)&common->bgscan, 0, sizeof(struct rsi_bgscan_params));
+	common->bgscan.bgscan_threshold = RSI_DEF_BGSCAN_THRLD;
+	common->bgscan.roam_threshold = RSI_DEF_ROAM_THRLD;
+	common->bgscan.bgscan_periodicity = RSI_BGSCAN_PERIODICITY;
+	common->bgscan.num_bgscan_channels = 0;
+	common->bgscan.two_probe = 1;
+	common->bgscan.active_scan_duration = RSI_ACTIVE_SCAN_TIME;
+	common->bgscan.passive_scan_duration = RSI_PASSIVE_SCAN_TIME;
+}
+
 /**
  * rsi_set_contention_vals() - This function sets the contention values for the
  *			       backoff procedure.
@@ -396,8 +409,8 @@ static int rsi_load_radio_caps(struct rsi_common *common)
  * rsi_mgmt_pkt_to_core() - This function is the entry point for Mgmt module.
  * @common: Pointer to the driver private structure.
  * @msg: Pointer to received packet.
- * @msg_len: Length of the recieved packet.
- * @type: Type of recieved packet.
+ * @msg_len: Length of the received packet.
+ * @type: Type of received packet.
  *
  * Return: 0 on success, -1 on failure.
  */
@@ -1534,7 +1547,7 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 }
 
 /**
- * rsi_set_antenna() - This fuction send antenna configuration request
+ * rsi_set_antenna() - This function send antenna configuration request
  *		       to device
  *
  * @common: Pointer to the driver private structure.
@@ -1627,6 +1640,111 @@ int rsi_send_wowlan_request(struct rsi_common *common, u16 flags,
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
 #endif
+
+int rsi_send_bgscan_params(struct rsi_common *common, int enable)
+{
+	struct rsi_bgscan_params *params = &common->bgscan;
+	struct cfg80211_scan_request *scan_req = common->hwscan;
+	struct rsi_bgscan_config *bgscan;
+	struct sk_buff *skb;
+	u16 frame_len = sizeof(*bgscan);
+	u8 i;
+
+	rsi_dbg(MGMT_TX_ZONE, "%s: Sending bgscan params frame\n", __func__);
+
+	skb = dev_alloc_skb(frame_len);
+	if (!skb)
+		return -ENOMEM;
+	memset(skb->data, 0, frame_len);
+
+	bgscan = (struct rsi_bgscan_config *)skb->data;
+	rsi_set_len_qno(&bgscan->desc_dword0.len_qno,
+			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
+	bgscan->desc_dword0.frame_type = BG_SCAN_PARAMS;
+	bgscan->bgscan_threshold = cpu_to_le16(params->bgscan_threshold);
+	bgscan->roam_threshold = cpu_to_le16(params->roam_threshold);
+	if (enable)
+		bgscan->bgscan_periodicity =
+			cpu_to_le16(params->bgscan_periodicity);
+	bgscan->active_scan_duration =
+			cpu_to_le16(params->active_scan_duration);
+	bgscan->passive_scan_duration =
+			cpu_to_le16(params->passive_scan_duration);
+	bgscan->two_probe = params->two_probe;
+
+	bgscan->num_bgscan_channels = scan_req->n_channels;
+	for (i = 0; i < bgscan->num_bgscan_channels; i++)
+		bgscan->channels2scan[i] =
+			cpu_to_le16(scan_req->channels[i]->hw_value);
+
+	skb_put(skb, frame_len);
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
+/* This function sends the probe request to be used by firmware in
+ * background scan
+ */
+int rsi_send_bgscan_probe_req(struct rsi_common *common,
+			      struct ieee80211_vif *vif)
+{
+	struct cfg80211_scan_request *scan_req = common->hwscan;
+	struct rsi_bgscan_probe *bgscan;
+	struct sk_buff *skb;
+	struct sk_buff *probereq_skb;
+	u16 frame_len = sizeof(*bgscan);
+	size_t ssid_len = 0;
+	u8 *ssid = NULL;
+
+	rsi_dbg(MGMT_TX_ZONE,
+		"%s: Sending bgscan probe req frame\n", __func__);
+
+	if (common->priv->sc_nvifs <= 0)
+		return -ENODEV;
+
+	if (scan_req->n_ssids) {
+		ssid = scan_req->ssids[0].ssid;
+		ssid_len = scan_req->ssids[0].ssid_len;
+	}
+
+	skb = dev_alloc_skb(frame_len + MAX_BGSCAN_PROBE_REQ_LEN);
+	if (!skb)
+		return -ENOMEM;
+	memset(skb->data, 0, frame_len + MAX_BGSCAN_PROBE_REQ_LEN);
+
+	bgscan = (struct rsi_bgscan_probe *)skb->data;
+	bgscan->desc_dword0.frame_type = BG_SCAN_PROBE_REQ;
+	bgscan->flags = cpu_to_le16(HOST_BG_SCAN_TRIG);
+	if (common->band == NL80211_BAND_5GHZ) {
+		bgscan->mgmt_rate = cpu_to_le16(RSI_RATE_6);
+		bgscan->def_chan = cpu_to_le16(40);
+	} else {
+		bgscan->mgmt_rate = cpu_to_le16(RSI_RATE_1);
+		bgscan->def_chan = cpu_to_le16(11);
+	}
+	bgscan->channel_scan_time = cpu_to_le16(RSI_CHANNEL_SCAN_TIME);
+
+	probereq_skb = ieee80211_probereq_get(common->priv->hw, vif->addr, ssid,
+					      ssid_len, scan_req->ie_len);
+	if (!probereq_skb) {
+		dev_kfree_skb(skb);
+		return -ENOMEM;
+	}
+
+	memcpy(&skb->data[frame_len], probereq_skb->data, probereq_skb->len);
+
+	bgscan->probe_req_length = cpu_to_le16(probereq_skb->len);
+
+	rsi_set_len_qno(&bgscan->desc_dword0.len_qno,
+			(frame_len - FRAME_DESC_SZ + probereq_skb->len),
+			RSI_WIFI_MGMT_Q);
+
+	skb_put(skb, frame_len + probereq_skb->len);
+
+	dev_kfree_skb(probereq_skb);
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
 
 /**
  * rsi_handle_ta_confirm_type() - This function handles the confirm frames.
@@ -1771,9 +1889,28 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 			return 0;
 		}
 		break;
+
+	case SCAN_REQUEST:
+		rsi_dbg(INFO_ZONE, "Set channel confirm\n");
+		break;
+
 	case WAKEUP_SLEEP_REQUEST:
 		rsi_dbg(INFO_ZONE, "Wakeup/Sleep confirmation.\n");
 		return rsi_handle_ps_confirm(adapter, msg);
+
+	case BG_SCAN_PROBE_REQ:
+		rsi_dbg(INFO_ZONE, "BG scan complete event\n");
+		if (common->bgscan_en) {
+			struct cfg80211_scan_info info;
+
+			if (!rsi_send_bgscan_params(common, RSI_STOP_BGSCAN))
+				common->bgscan_en = 0;
+			info.aborted = false;
+			ieee80211_scan_completed(adapter->hw, &info);
+		}
+		rsi_dbg(INFO_ZONE, "Background scan completed\n");
+		break;
+
 	default:
 		rsi_dbg(INFO_ZONE, "%s: Invalid TA confirm pkt received\n",
 			__func__);
@@ -1822,7 +1959,7 @@ int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 
 /**
  * rsi_mgmt_pkt_recv() - This function processes the management packets
- *			 recieved from the hardware.
+ *			 received from the hardware.
  * @common: Pointer to the driver private structure.
  * @msg: Pointer to the received packet.
  *
@@ -1870,6 +2007,35 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 			return -1;
 		rsi_send_beacon(common);
 		break;
+	case WOWLAN_WAKEUP_REASON:
+		rsi_dbg(ERR_ZONE, "\n\nWakeup Type: %x\n", msg[15]);
+		switch (msg[15]) {
+		case RSI_UNICAST_MAGIC_PKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for Unicast magic packet ***\n");
+			break;
+		case RSI_BROADCAST_MAGICPKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for Broadcast magic packet ***\n");
+			break;
+		case RSI_EAPOL_PKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for GTK renewal ***\n");
+			break;
+		case RSI_DISCONNECT_PKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for Disconnect ***\n");
+			break;
+		case RSI_HW_BMISS_PKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for HW Beacon miss ***\n");
+			break;
+		default:
+			rsi_dbg(ERR_ZONE,
+				"##### Un-intentional Wakeup #####\n");
+			break;
+	}
+	break;
 	case RX_DOT11_MGMT:
 		return rsi_mgmt_pkt_to_core(common, msg, msg_len);
 	default:

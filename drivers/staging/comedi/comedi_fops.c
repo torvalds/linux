@@ -1209,6 +1209,7 @@ static int check_insn_config_length(struct comedi_insn *insn,
 		break;
 	case INSN_CONFIG_PWM_OUTPUT:
 	case INSN_CONFIG_ANALOG_TRIG:
+	case INSN_CONFIG_TIMER_1:
 		if (insn->n == 5)
 			return 0;
 		break;
@@ -1500,24 +1501,20 @@ out:
  *	data (for reads) to insns[].data pointers
  */
 /* arbitrary limits */
-#define MAX_SAMPLES 256
+#define MIN_SAMPLES 16
+#define MAX_SAMPLES 65536
 static int do_insnlist_ioctl(struct comedi_device *dev,
 			     struct comedi_insnlist __user *arg, void *file)
 {
 	struct comedi_insnlist insnlist;
 	struct comedi_insn *insns = NULL;
 	unsigned int *data = NULL;
+	unsigned int max_n_data_required = MIN_SAMPLES;
 	int i = 0;
 	int ret = 0;
 
 	if (copy_from_user(&insnlist, arg, sizeof(insnlist)))
 		return -EFAULT;
-
-	data = kmalloc_array(MAX_SAMPLES, sizeof(unsigned int), GFP_KERNEL);
-	if (!data) {
-		ret = -ENOMEM;
-		goto error;
-	}
 
 	insns = kcalloc(insnlist.n_insns, sizeof(*insns), GFP_KERNEL);
 	if (!insns) {
@@ -1532,13 +1529,26 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 		goto error;
 	}
 
-	for (i = 0; i < insnlist.n_insns; i++) {
+	/* Determine maximum memory needed for all instructions. */
+	for (i = 0; i < insnlist.n_insns; ++i) {
 		if (insns[i].n > MAX_SAMPLES) {
 			dev_dbg(dev->class_dev,
 				"number of samples too large\n");
 			ret = -EINVAL;
 			goto error;
 		}
+		max_n_data_required = max(max_n_data_required, insns[i].n);
+	}
+
+	/* Allocate scratch space for all instruction data. */
+	data = kmalloc_array(max_n_data_required, sizeof(unsigned int),
+			     GFP_KERNEL);
+	if (!data) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	for (i = 0; i < insnlist.n_insns; ++i) {
 		if (insns[i].insn & INSN_MASK_WRITE) {
 			if (copy_from_user(data, insns[i].data,
 					   insns[i].n * sizeof(unsigned int))) {
@@ -1592,22 +1602,26 @@ static int do_insn_ioctl(struct comedi_device *dev,
 {
 	struct comedi_insn insn;
 	unsigned int *data = NULL;
+	unsigned int n_data = MIN_SAMPLES;
 	int ret = 0;
 
-	data = kmalloc_array(MAX_SAMPLES, sizeof(unsigned int), GFP_KERNEL);
+	if (copy_from_user(&insn, arg, sizeof(insn)))
+		return -EFAULT;
+
+	n_data = max(n_data, insn.n);
+
+	/* This is where the behavior of insn and insnlist deviate. */
+	if (insn.n > MAX_SAMPLES) {
+		insn.n = MAX_SAMPLES;
+		n_data = MAX_SAMPLES;
+	}
+
+	data = kmalloc_array(n_data, sizeof(unsigned int), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto error;
 	}
 
-	if (copy_from_user(&insn, arg, sizeof(insn))) {
-		ret = -EFAULT;
-		goto error;
-	}
-
-	/* This is where the behavior of insn and insnlist deviate. */
-	if (insn.n > MAX_SAMPLES)
-		insn.n = MAX_SAMPLES;
 	if (insn.insn & INSN_MASK_WRITE) {
 		if (copy_from_user(data,
 				   insn.data,

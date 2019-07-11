@@ -101,7 +101,7 @@ static void sctp_chunk_assign_mid(struct sctp_chunk *chunk)
 
 static bool sctp_validate_data(struct sctp_chunk *chunk)
 {
-	const struct sctp_stream *stream;
+	struct sctp_stream *stream;
 	__u16 sid, ssn;
 
 	if (chunk->chunk_hdr->type != SCTP_CID_DATA)
@@ -140,7 +140,7 @@ static void sctp_intl_store_reasm(struct sctp_ulpq *ulpq,
 				  struct sctp_ulpevent *event)
 {
 	struct sctp_ulpevent *cevent;
-	struct sk_buff *pos;
+	struct sk_buff *pos, *loc;
 
 	pos = skb_peek_tail(&ulpq->reasm);
 	if (!pos) {
@@ -166,23 +166,30 @@ static void sctp_intl_store_reasm(struct sctp_ulpq *ulpq,
 		return;
 	}
 
+	loc = NULL;
 	skb_queue_walk(&ulpq->reasm, pos) {
 		cevent = sctp_skb2event(pos);
 
 		if (event->stream < cevent->stream ||
 		    (event->stream == cevent->stream &&
-		     MID_lt(event->mid, cevent->mid)))
+		     MID_lt(event->mid, cevent->mid))) {
+			loc = pos;
 			break;
-
+		}
 		if (event->stream == cevent->stream &&
 		    event->mid == cevent->mid &&
 		    !(cevent->msg_flags & SCTP_DATA_FIRST_FRAG) &&
 		    (event->msg_flags & SCTP_DATA_FIRST_FRAG ||
-		     event->fsn < cevent->fsn))
+		     event->fsn < cevent->fsn)) {
+			loc = pos;
 			break;
+		}
 	}
 
-	__skb_queue_before(&ulpq->reasm, pos, sctp_event2skb(event));
+	if (!loc)
+		__skb_queue_tail(&ulpq->reasm, sctp_event2skb(event));
+	else
+		__skb_queue_before(&ulpq->reasm, loc, sctp_event2skb(event));
 }
 
 static struct sctp_ulpevent *sctp_intl_retrieve_partial(
@@ -383,7 +390,7 @@ static void sctp_intl_store_ordered(struct sctp_ulpq *ulpq,
 				    struct sctp_ulpevent *event)
 {
 	struct sctp_ulpevent *cevent;
-	struct sk_buff *pos;
+	struct sk_buff *pos, *loc;
 
 	pos = skb_peek_tail(&ulpq->lobby);
 	if (!pos) {
@@ -403,18 +410,25 @@ static void sctp_intl_store_ordered(struct sctp_ulpq *ulpq,
 		return;
 	}
 
+	loc = NULL;
 	skb_queue_walk(&ulpq->lobby, pos) {
 		cevent = (struct sctp_ulpevent *)pos->cb;
 
-		if (cevent->stream > event->stream)
+		if (cevent->stream > event->stream) {
+			loc = pos;
 			break;
-
+		}
 		if (cevent->stream == event->stream &&
-		    MID_lt(event->mid, cevent->mid))
+		    MID_lt(event->mid, cevent->mid)) {
+			loc = pos;
 			break;
+		}
 	}
 
-	__skb_queue_before(&ulpq->lobby, pos, sctp_event2skb(event));
+	if (!loc)
+		__skb_queue_tail(&ulpq->lobby, sctp_event2skb(event));
+	else
+		__skb_queue_before(&ulpq->lobby, loc, sctp_event2skb(event));
 }
 
 static void sctp_intl_retrieve_ordered(struct sctp_ulpq *ulpq,
@@ -489,7 +503,7 @@ static int sctp_enqueue_event(struct sctp_ulpq *ulpq,
 		sk_incoming_cpu_update(sk);
 	}
 
-	if (!sctp_ulpevent_is_enabled(event, &sp->subscribe))
+	if (!sctp_ulpevent_is_enabled(event, ulpq->asoc->subscribe))
 		goto out_free;
 
 	if (skb_list)
@@ -980,17 +994,19 @@ static void sctp_intl_stream_abort_pd(struct sctp_ulpq *ulpq, __u16 sid,
 	struct sock *sk = ulpq->asoc->base.sk;
 	struct sctp_ulpevent *ev = NULL;
 
-	if (!sctp_ulpevent_type_enabled(SCTP_PARTIAL_DELIVERY_EVENT,
-					&sctp_sk(sk)->subscribe))
+	if (!sctp_ulpevent_type_enabled(ulpq->asoc->subscribe,
+					SCTP_PARTIAL_DELIVERY_EVENT))
 		return;
 
 	ev = sctp_ulpevent_make_pdapi(ulpq->asoc, SCTP_PARTIAL_DELIVERY_ABORTED,
 				      sid, mid, flags, gfp);
 	if (ev) {
+		struct sctp_sock *sp = sctp_sk(sk);
+
 		__skb_queue_tail(&sk->sk_receive_queue, sctp_event2skb(ev));
 
-		if (!sctp_sk(sk)->data_ready_signalled) {
-			sctp_sk(sk)->data_ready_signalled = 1;
+		if (!sp->data_ready_signalled) {
+			sp->data_ready_signalled = 1;
 			sk->sk_data_ready(sk);
 		}
 	}

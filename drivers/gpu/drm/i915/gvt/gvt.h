@@ -52,12 +52,8 @@
 
 #define GVT_MAX_VGPU 8
 
-enum {
-	INTEL_GVT_HYPERVISOR_XEN = 0,
-	INTEL_GVT_HYPERVISOR_KVM,
-};
-
 struct intel_gvt_host {
+	struct device *dev;
 	bool initialized;
 	int hypervisor_type;
 	struct intel_gvt_mpt *mpt;
@@ -159,6 +155,10 @@ struct intel_vgpu_submission {
 	struct kmem_cache *workloads;
 	atomic_t running_workload_num;
 	struct i915_gem_context *shadow_ctx;
+	union {
+		u64 i915_context_pml4;
+		u64 i915_context_pdps[GEN8_3LVL_PDPES];
+	};
 	DECLARE_BITMAP(shadow_ctx_desc_updated, I915_NUM_ENGINES);
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	void *ring_scan_buffer[I915_NUM_ENGINES];
@@ -536,6 +536,8 @@ int intel_vgpu_emulate_cfg_read(struct intel_vgpu *vgpu, unsigned int offset,
 int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes);
 
+void intel_vgpu_emulate_hotplug(struct intel_vgpu *vgpu, bool connected);
+
 static inline u64 intel_vgpu_get_bar_gpa(struct intel_vgpu *vgpu, int bar)
 {
 	/* We are 64bit bar. */
@@ -577,6 +579,7 @@ struct intel_gvt_ops {
 	int (*vgpu_get_dmabuf)(struct intel_vgpu *vgpu, unsigned int);
 	int (*write_protect_handler)(struct intel_vgpu *, u64, void *,
 				     unsigned int);
+	void (*emulate_hotplug)(struct intel_vgpu *vgpu, bool connected);
 };
 
 
@@ -593,7 +596,7 @@ static inline void mmio_hw_access_pre(struct drm_i915_private *dev_priv)
 
 static inline void mmio_hw_access_post(struct drm_i915_private *dev_priv)
 {
-	intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put_unchecked(dev_priv);
 }
 
 /**

@@ -268,12 +268,19 @@ void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot)
 
 	switch (vm->mode) {
 	case VM_MODE_P52V48_4K:
-		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
-		tcr_el1 |= 6ul << 32; /* IPS = 52 bits */
-		break;
+		TEST_ASSERT(false, "AArch64 does not support 4K sized pages "
+				   "with 52-bit physical address ranges");
 	case VM_MODE_P52V48_64K:
 		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
 		tcr_el1 |= 6ul << 32; /* IPS = 52 bits */
+		break;
+	case VM_MODE_P48V48_4K:
+		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
+		tcr_el1 |= 5ul << 32; /* IPS = 48 bits */
+		break;
+	case VM_MODE_P48V48_64K:
+		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
+		tcr_el1 |= 5ul << 32; /* IPS = 48 bits */
 		break;
 	case VM_MODE_P40V48_4K:
 		tcr_el1 |= 0ul << 14; /* TG0 = 4KB */
@@ -305,7 +312,6 @@ void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
 	get_reg(vm, vcpuid, ARM64_CORE_REG(regs.pstate), &pstate);
 	get_reg(vm, vcpuid, ARM64_CORE_REG(regs.pc), &pc);
 
-        fprintf(stream, "%*spstate: 0x%.16llx pc: 0x%.16llx\n",
-                indent, "", pstate, pc);
-
+	fprintf(stream, "%*spstate: 0x%.16llx pc: 0x%.16llx\n",
+		indent, "", pstate, pc);
 }

@@ -7,7 +7,7 @@
 #include <asm/alternative.h> /* Provides LOCK_PREFIX */
 
 /*
- * Non-existant functions to indicate usage errors at link time
+ * Non-existent functions to indicate usage errors at link time
  * (or compile-time if the compiler implements __compiletime_error().
  */
 extern void __xchg_wrong_size(void)

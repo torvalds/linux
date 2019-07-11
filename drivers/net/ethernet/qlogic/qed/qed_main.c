@@ -281,6 +281,8 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 		if (hw_info->b_wol_support == QED_WOL_SUPPORT_PME)
 			dev_info->wol_support = true;
 
+		dev_info->smart_an = qed_mcp_is_smart_an_supported(p_hwfn);
+
 		dev_info->abs_pf_id = QED_LEADING_HWFN(cdev)->abs_pf_id;
 	} else {
 		qed_vf_get_fw_version(&cdev->hwfns[0], &dev_info->fw_major,
@@ -358,6 +360,8 @@ static struct qed_dev *qed_probe(struct pci_dev *pdev,
 		cdev->b_is_vf = true;
 
 	qed_init_dp(cdev, params->dp_module, params->dp_level);
+
+	cdev->recov_in_prog = params->recov_in_prog;
 
 	rc = qed_init_pci(cdev, pdev);
 	if (rc) {
@@ -966,9 +970,47 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 	}
 }
 
+#define QED_PERIODIC_DB_REC_COUNT		10
+#define QED_PERIODIC_DB_REC_INTERVAL_MS		100
+#define QED_PERIODIC_DB_REC_INTERVAL \
+	msecs_to_jiffies(QED_PERIODIC_DB_REC_INTERVAL_MS)
+#define QED_PERIODIC_DB_REC_WAIT_COUNT		10
+#define QED_PERIODIC_DB_REC_WAIT_INTERVAL \
+	(QED_PERIODIC_DB_REC_INTERVAL_MS / QED_PERIODIC_DB_REC_WAIT_COUNT)
+
+static int qed_slowpath_delayed_work(struct qed_hwfn *hwfn,
+				     enum qed_slowpath_wq_flag wq_flag,
+				     unsigned long delay)
+{
+	if (!hwfn->slowpath_wq_active)
+		return -EINVAL;
+
+	/* Memory barrier for setting atomic bit */
+	smp_mb__before_atomic();
+	set_bit(wq_flag, &hwfn->slowpath_task_flags);
+	smp_mb__after_atomic();
+	queue_delayed_work(hwfn->slowpath_wq, &hwfn->slowpath_task, delay);
+
+	return 0;
+}
+
+void qed_periodic_db_rec_start(struct qed_hwfn *p_hwfn)
+{
+	/* Reset periodic Doorbell Recovery counter */
+	p_hwfn->periodic_db_rec_count = QED_PERIODIC_DB_REC_COUNT;
+
+	/* Don't schedule periodic Doorbell Recovery if already scheduled */
+	if (test_bit(QED_SLOWPATH_PERIODIC_DB_REC,
+		     &p_hwfn->slowpath_task_flags))
+		return;
+
+	qed_slowpath_delayed_work(p_hwfn, QED_SLOWPATH_PERIODIC_DB_REC,
+				  QED_PERIODIC_DB_REC_INTERVAL);
+}
+
 static void qed_slowpath_wq_stop(struct qed_dev *cdev)
 {
-	int i;
+	int i, sleep_count = QED_PERIODIC_DB_REC_WAIT_COUNT;
 
 	if (IS_VF(cdev))
 		return;
@@ -976,6 +1018,15 @@ static void qed_slowpath_wq_stop(struct qed_dev *cdev)
 	for_each_hwfn(cdev, i) {
 		if (!cdev->hwfns[i].slowpath_wq)
 			continue;
+
+		/* Stop queuing new delayed works */
+		cdev->hwfns[i].slowpath_wq_active = false;
+
+		/* Wait until the last periodic doorbell recovery is executed */
+		while (test_bit(QED_SLOWPATH_PERIODIC_DB_REC,
+				&cdev->hwfns[i].slowpath_task_flags) &&
+		       sleep_count--)
+			msleep(QED_PERIODIC_DB_REC_WAIT_INTERVAL);
 
 		flush_workqueue(cdev->hwfns[i].slowpath_wq);
 		destroy_workqueue(cdev->hwfns[i].slowpath_wq);
@@ -989,13 +1040,25 @@ static void qed_slowpath_task(struct work_struct *work)
 	struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
 
 	if (!ptt) {
-		queue_delayed_work(hwfn->slowpath_wq, &hwfn->slowpath_task, 0);
+		if (hwfn->slowpath_wq_active)
+			queue_delayed_work(hwfn->slowpath_wq,
+					   &hwfn->slowpath_task, 0);
+
 		return;
 	}
 
 	if (test_and_clear_bit(QED_SLOWPATH_MFW_TLV_REQ,
 			       &hwfn->slowpath_task_flags))
 		qed_mfw_process_tlv_req(hwfn, ptt);
+
+	if (test_and_clear_bit(QED_SLOWPATH_PERIODIC_DB_REC,
+			       &hwfn->slowpath_task_flags)) {
+		qed_db_rec_handler(hwfn, ptt);
+		if (hwfn->periodic_db_rec_count--)
+			qed_slowpath_delayed_work(hwfn,
+						  QED_SLOWPATH_PERIODIC_DB_REC,
+						  QED_PERIODIC_DB_REC_INTERVAL);
+	}
 
 	qed_ptt_release(hwfn, ptt);
 }
@@ -1023,6 +1086,7 @@ static int qed_slowpath_wq_start(struct qed_dev *cdev)
 		}
 
 		INIT_DELAYED_WORK(&hwfn->slowpath_task, qed_slowpath_task);
+		hwfn->slowpath_wq_active = true;
 	}
 
 	return 0;
@@ -1939,21 +2003,30 @@ exit:
  * 0B  |                       0x3 [command index]                            |
  * 4B  | b'0: check_response?   | b'1-31  reserved                            |
  * 8B  | File-type |                   reserved                               |
+ * 12B |                    Image length in bytes                             |
  *     \----------------------------------------------------------------------/
  *     Start a new file of the provided type
  */
 static int qed_nvm_flash_image_file_start(struct qed_dev *cdev,
 					  const u8 **data, bool *check_resp)
 {
+	u32 file_type, file_size = 0;
 	int rc;
 
 	*data += 4;
 	*check_resp = !!(**data & BIT(0));
 	*data += 4;
+	file_type = **data;
 
 	DP_VERBOSE(cdev, NETIF_MSG_DRV,
-		   "About to start a new file of type %02x\n", **data);
-	rc = qed_mcp_nvm_put_file_begin(cdev, **data);
+		   "About to start a new file of type %02x\n", file_type);
+	if (file_type == DRV_MB_PARAM_NVM_PUT_FILE_BEGIN_MBI) {
+		*data += 4;
+		file_size = *((u32 *)(*data));
+	}
+
+	rc = qed_mcp_nvm_write(cdev, QED_PUT_FILE_BEGIN, file_type,
+			       (u8 *)(&file_size), 4);
 	*data += 4;
 
 	return rc;
@@ -2134,6 +2207,15 @@ static int qed_nvm_get_image(struct qed_dev *cdev, enum qed_nvm_images type,
 	return qed_mcp_get_nvm_image(hwfn, type, buf, len);
 }
 
+void qed_schedule_recovery_handler(struct qed_hwfn *p_hwfn)
+{
+	struct qed_common_cb_ops *ops = p_hwfn->cdev->protocol_ops.common;
+	void *cookie = p_hwfn->cdev->ops_cookie;
+
+	if (ops && ops->schedule_recovery_handler)
+		ops->schedule_recovery_handler(cookie);
+}
+
 static int qed_set_coalesce(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
 			    void *handle)
 {
@@ -2155,6 +2237,23 @@ static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
 	qed_ptt_release(hwfn, ptt);
 
 	return status;
+}
+
+static int qed_recovery_process(struct qed_dev *cdev)
+{
+	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *p_ptt;
+	int rc = 0;
+
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EAGAIN;
+
+	rc = qed_start_recovery_process(p_hwfn, p_ptt);
+
+	qed_ptt_release(p_hwfn, p_ptt);
+
+	return rc;
 }
 
 static int qed_update_wol(struct qed_dev *cdev, bool enabled)
@@ -2311,10 +2410,14 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.nvm_get_image = &qed_nvm_get_image,
 	.set_coalesce = &qed_set_coalesce,
 	.set_led = &qed_set_led,
+	.recovery_process = &qed_recovery_process,
+	.recovery_prolog = &qed_recovery_prolog,
 	.update_drv_state = &qed_update_drv_state,
 	.update_mac = &qed_update_mac,
 	.update_mtu = &qed_update_mtu,
 	.update_wol = &qed_update_wol,
+	.db_recovery_add = &qed_db_recovery_add,
+	.db_recovery_del = &qed_db_recovery_del,
 	.read_module_eeprom = &qed_read_module_eeprom,
 };
 

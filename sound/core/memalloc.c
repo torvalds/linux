@@ -182,6 +182,8 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		return -ENXIO;
 	if (WARN_ON(!dmab))
 		return -ENXIO;
+	if (WARN_ON(!device))
+		return -EINVAL;
 
 	dmab->dev.type = type;
 	dmab->dev.dev = device;

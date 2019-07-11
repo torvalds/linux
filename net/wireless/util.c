@@ -5,7 +5,7 @@
  * Copyright 2007-2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  */
 #include <linux/export.h>
 #include <linux/bitops.h>
@@ -19,6 +19,7 @@
 #include <linux/mpls.h>
 #include <linux/gcd.h>
 #include <linux/bitfield.h>
+#include <linux/nospec.h>
 #include "core.h"
 #include "rdev-ops.h"
 
@@ -715,20 +716,25 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 {
 	unsigned int dscp;
 	unsigned char vlan_priority;
+	unsigned int ret;
 
 	/* skb->priority values from 256->263 are magic values to
 	 * directly indicate a specific 802.1d priority.  This is used
 	 * to allow 802.1d priority to be passed directly in from VLAN
 	 * tags, etc.
 	 */
-	if (skb->priority >= 256 && skb->priority <= 263)
-		return skb->priority - 256;
+	if (skb->priority >= 256 && skb->priority <= 263) {
+		ret = skb->priority - 256;
+		goto out;
+	}
 
 	if (skb_vlan_tag_present(skb)) {
 		vlan_priority = (skb_vlan_tag_get(skb) & VLAN_PRIO_MASK)
 			>> VLAN_PRIO_SHIFT;
-		if (vlan_priority > 0)
-			return vlan_priority;
+		if (vlan_priority > 0) {
+			ret = vlan_priority;
+			goto out;
+		}
 	}
 
 	switch (skb->protocol) {
@@ -747,8 +753,9 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 		if (!mpls)
 			return 0;
 
-		return (ntohl(mpls->entry) & MPLS_LS_TC_MASK)
+		ret = (ntohl(mpls->entry) & MPLS_LS_TC_MASK)
 			>> MPLS_LS_TC_SHIFT;
+		goto out;
 	}
 	case htons(ETH_P_80221):
 		/* 802.21 is always network control traffic */
@@ -761,22 +768,28 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 		unsigned int i, tmp_dscp = dscp >> 2;
 
 		for (i = 0; i < qos_map->num_des; i++) {
-			if (tmp_dscp == qos_map->dscp_exception[i].dscp)
-				return qos_map->dscp_exception[i].up;
+			if (tmp_dscp == qos_map->dscp_exception[i].dscp) {
+				ret = qos_map->dscp_exception[i].up;
+				goto out;
+			}
 		}
 
 		for (i = 0; i < 8; i++) {
 			if (tmp_dscp >= qos_map->up[i].low &&
-			    tmp_dscp <= qos_map->up[i].high)
-				return i;
+			    tmp_dscp <= qos_map->up[i].high) {
+				ret = i;
+				goto out;
+			}
 		}
 	}
 
-	return dscp >> 5;
+	ret = dscp >> 5;
+out:
+	return array_index_nospec(ret, IEEE80211_NUM_TIDS);
 }
 EXPORT_SYMBOL(cfg80211_classify8021d);
 
-const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie)
+const struct element *ieee80211_bss_get_elem(struct cfg80211_bss *bss, u8 id)
 {
 	const struct cfg80211_bss_ies *ies;
 
@@ -784,9 +797,9 @@ const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie)
 	if (!ies)
 		return NULL;
 
-	return cfg80211_find_ie(ie, ies->data, ies->len);
+	return cfg80211_find_elem(id, ies->data, ies->len);
 }
-EXPORT_SYMBOL(ieee80211_bss_get_ie);
+EXPORT_SYMBOL(ieee80211_bss_get_elem);
 
 void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 {
@@ -1207,9 +1220,11 @@ static u32 cfg80211_calculate_bitrate_he(struct rate_info *rate)
 	else if (rate->bw == RATE_INFO_BW_HE_RU &&
 		 rate->he_ru_alloc == NL80211_RATE_INFO_HE_RU_ALLOC_26)
 		result = rates_26[rate->he_gi];
-	else if (WARN(1, "invalid HE MCS: bw:%d, ru:%d\n",
-		      rate->bw, rate->he_ru_alloc))
+	else {
+		WARN(1, "invalid HE MCS: bw:%d, ru:%d\n",
+		     rate->bw, rate->he_ru_alloc);
 		return 0;
+	}
 
 	/* now scale to the appropriate MCS */
 	tmp = result;
@@ -2015,33 +2030,32 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 	case IEEE80211_VHT_CHANWIDTH_160MHZ:
 		if (supp_width == 0 &&
 		    (ext_nss_bw == 1 || ext_nss_bw == 2))
-			return DIV_ROUND_UP(max_vht_nss, 2);
+			return max_vht_nss / 2;
 		if (supp_width == 0 &&
 		    ext_nss_bw == 3)
-			return DIV_ROUND_UP(3 * max_vht_nss, 4);
+			return (3 * max_vht_nss) / 4;
 		if (supp_width == 1 &&
 		    ext_nss_bw == 3)
 			return 2 * max_vht_nss;
 		break;
 	case IEEE80211_VHT_CHANWIDTH_80P80MHZ:
-		if (supp_width == 0 &&
-		    (ext_nss_bw == 1 || ext_nss_bw == 2))
+		if (supp_width == 0 && ext_nss_bw == 1)
 			return 0; /* not possible */
 		if (supp_width == 0 &&
 		    ext_nss_bw == 2)
-			return DIV_ROUND_UP(max_vht_nss, 2);
+			return max_vht_nss / 2;
 		if (supp_width == 0 &&
 		    ext_nss_bw == 3)
-			return DIV_ROUND_UP(3 * max_vht_nss, 4);
+			return (3 * max_vht_nss) / 4;
 		if (supp_width == 1 &&
 		    ext_nss_bw == 0)
 			return 0; /* not possible */
 		if (supp_width == 1 &&
 		    ext_nss_bw == 1)
-			return DIV_ROUND_UP(max_vht_nss, 2);
+			return max_vht_nss / 2;
 		if (supp_width == 1 &&
 		    ext_nss_bw == 2)
-			return DIV_ROUND_UP(3 * max_vht_nss, 4);
+			return (3 * max_vht_nss) / 4;
 		break;
 	}
 

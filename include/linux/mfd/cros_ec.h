@@ -282,16 +282,6 @@ int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
 			    struct cros_ec_command *msg);
 
 /**
- * cros_ec_remove() - Remove a ChromeOS EC.
- * @ec_dev: Device to register.
- *
- * Call this to deregister a ChromeOS EC, then clean up any private data.
- *
- * Return: 0 on success or negative error code.
- */
-int cros_ec_remove(struct cros_ec_device *ec_dev);
-
-/**
  * cros_ec_register() - Register a new ChromeOS EC, using the provided info.
  * @ec_dev: Device to register.
  *
@@ -317,7 +307,9 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev);
  * @wake_event: Pointer to a bool set to true upon return if the event might be
  *              treated as a wake event. Ignored if null.
  *
- * Return: 0 on success or negative error code.
+ * Return: negative error code on errors; 0 for no data; or else number of
+ * bytes received (i.e., an event was retrieved successfully). Event types are
+ * written out to @ec_dev->event_data.event_type on success.
  */
 int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event);
 
@@ -329,19 +321,8 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event);
  * events raised and call the functions in the ec notifier. This function
  * is a helper to know which events are raised.
  *
- * Return: 0 on success or negative error code.
+ * Return: 0 on error or non-zero bitmask of one or more EC_HOST_EVENT_*.
  */
 u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev);
-
-/* sysfs stuff */
-extern struct attribute_group cros_ec_attr_group;
-extern struct attribute_group cros_ec_lightbar_attr_group;
-extern struct attribute_group cros_ec_vbc_attr_group;
-
-/* debugfs stuff */
-int cros_ec_debugfs_init(struct cros_ec_dev *ec);
-void cros_ec_debugfs_remove(struct cros_ec_dev *ec);
-void cros_ec_debugfs_suspend(struct cros_ec_dev *ec);
-void cros_ec_debugfs_resume(struct cros_ec_dev *ec);
 
 #endif /* __LINUX_MFD_CROS_EC_H */

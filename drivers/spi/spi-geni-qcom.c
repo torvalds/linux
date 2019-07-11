@@ -64,14 +64,12 @@
 #define TIMESTAMP_AFTER		BIT(3)
 #define POST_CMD_DELAY		BIT(4)
 
-/* SPI M_COMMAND OPCODE */
-enum spi_mcmd_code {
+enum spi_m_cmd_opcode {
 	CMD_NONE,
 	CMD_XFER,
 	CMD_CS,
 	CMD_CANCEL,
 };
-
 
 struct spi_geni_master {
 	struct geni_se se;
@@ -87,12 +85,9 @@ struct spi_geni_master {
 	struct completion xfer_done;
 	unsigned int oversampling;
 	spinlock_t lock;
-	unsigned int cur_mcmd;
+	enum spi_m_cmd_opcode cur_mcmd;
 	int irq;
 };
-
-static void handle_fifo_timeout(struct spi_master *spi,
-				struct spi_message *msg);
 
 static int get_spi_clk_cfg(unsigned int speed_hz,
 			struct spi_geni_master *mas,
@@ -124,12 +119,38 @@ static int get_spi_clk_cfg(unsigned int speed_hz,
 	return ret;
 }
 
+static void handle_fifo_timeout(struct spi_master *spi,
+				struct spi_message *msg)
+{
+	struct spi_geni_master *mas = spi_master_get_devdata(spi);
+	unsigned long time_left, flags;
+	struct geni_se *se = &mas->se;
+
+	spin_lock_irqsave(&mas->lock, flags);
+	reinit_completion(&mas->xfer_done);
+	mas->cur_mcmd = CMD_CANCEL;
+	geni_se_cancel_m_cmd(se);
+	writel(0, se->base + SE_GENI_TX_WATERMARK_REG);
+	spin_unlock_irqrestore(&mas->lock, flags);
+	time_left = wait_for_completion_timeout(&mas->xfer_done, HZ);
+	if (time_left)
+		return;
+
+	spin_lock_irqsave(&mas->lock, flags);
+	reinit_completion(&mas->xfer_done);
+	geni_se_abort_m_cmd(se);
+	spin_unlock_irqrestore(&mas->lock, flags);
+	time_left = wait_for_completion_timeout(&mas->xfer_done, HZ);
+	if (!time_left)
+		dev_err(mas->dev, "Failed to cancel/abort m_cmd\n");
+}
+
 static void spi_geni_set_cs(struct spi_device *slv, bool set_flag)
 {
 	struct spi_geni_master *mas = spi_master_get_devdata(slv->master);
 	struct spi_master *spi = dev_get_drvdata(mas->dev);
 	struct geni_se *se = &mas->se;
-	unsigned long timeout;
+	unsigned long time_left;
 
 	reinit_completion(&mas->xfer_done);
 	pm_runtime_get_sync(mas->dev);
@@ -142,8 +163,8 @@ static void spi_geni_set_cs(struct spi_device *slv, bool set_flag)
 	else
 		geni_se_setup_m_cmd(se, SPI_CS_DEASSERT, 0);
 
-	timeout = wait_for_completion_timeout(&mas->xfer_done, HZ);
-	if (!timeout)
+	time_left = wait_for_completion_timeout(&mas->xfer_done, HZ);
+	if (!time_left)
 		handle_fifo_timeout(spi, NULL);
 
 	pm_runtime_put(mas->dev);
@@ -235,7 +256,6 @@ static int spi_geni_prepare_message(struct spi_master *spi,
 	struct geni_se *se = &mas->se;
 
 	geni_se_select_mode(se, GENI_SE_FIFO);
-	reinit_completion(&mas->xfer_done);
 	ret = setup_fifo_params(spi_msg->spi, spi);
 	if (ret)
 		dev_err(mas->dev, "Couldn't select mode %d\n", ret);
@@ -359,32 +379,6 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 		writel(mas->tx_wm, se->base + SE_GENI_TX_WATERMARK_REG);
 }
 
-static void handle_fifo_timeout(struct spi_master *spi,
-				struct spi_message *msg)
-{
-	struct spi_geni_master *mas = spi_master_get_devdata(spi);
-	unsigned long time_left, flags;
-	struct geni_se *se = &mas->se;
-
-	spin_lock_irqsave(&mas->lock, flags);
-	reinit_completion(&mas->xfer_done);
-	mas->cur_mcmd = CMD_CANCEL;
-	geni_se_cancel_m_cmd(se);
-	writel(0, se->base + SE_GENI_TX_WATERMARK_REG);
-	spin_unlock_irqrestore(&mas->lock, flags);
-	time_left = wait_for_completion_timeout(&mas->xfer_done, HZ);
-	if (time_left)
-		return;
-
-	spin_lock_irqsave(&mas->lock, flags);
-	reinit_completion(&mas->xfer_done);
-	geni_se_abort_m_cmd(se);
-	spin_unlock_irqrestore(&mas->lock, flags);
-	time_left = wait_for_completion_timeout(&mas->xfer_done, HZ);
-	if (!time_left)
-		dev_err(mas->dev, "Failed to cancel/abort m_cmd\n");
-}
-
 static int spi_geni_transfer_one(struct spi_master *spi,
 				struct spi_device *slv,
 				struct spi_transfer *xfer)
@@ -485,7 +479,6 @@ static irqreturn_t geni_spi_isr(int irq, void *data)
 	struct geni_se *se = &mas->se;
 	u32 m_irq;
 	unsigned long flags;
-	irqreturn_t ret = IRQ_HANDLED;
 
 	if (mas->cur_mcmd == CMD_NONE)
 		return IRQ_NONE;
@@ -533,16 +526,35 @@ static irqreturn_t geni_spi_isr(int irq, void *data)
 
 	writel(m_irq, se->base + SE_GENI_M_IRQ_CLEAR);
 	spin_unlock_irqrestore(&mas->lock, flags);
-	return ret;
+	return IRQ_HANDLED;
 }
 
 static int spi_geni_probe(struct platform_device *pdev)
 {
-	int ret;
+	int ret, irq;
 	struct spi_master *spi;
 	struct spi_geni_master *mas;
 	struct resource *res;
-	struct geni_se *se;
+	void __iomem *base;
+	struct clk *clk;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "Err getting IRQ %d\n", irq);
+		return irq;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
+	clk = devm_clk_get(&pdev->dev, "se");
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "Err getting SE Core clk %ld\n",
+						PTR_ERR(clk));
+		return PTR_ERR(clk);
+	}
 
 	spi = spi_alloc_master(&pdev->dev, sizeof(*mas));
 	if (!spi)
@@ -550,27 +562,15 @@ static int spi_geni_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, spi);
 	mas = spi_master_get_devdata(spi);
+	mas->irq = irq;
 	mas->dev = &pdev->dev;
 	mas->se.dev = &pdev->dev;
 	mas->se.wrapper = dev_get_drvdata(pdev->dev.parent);
-	se = &mas->se;
+	mas->se.base = base;
+	mas->se.clk = clk;
 
 	spi->bus_num = -1;
 	spi->dev.of_node = pdev->dev.of_node;
-	mas->se.clk = devm_clk_get(&pdev->dev, "se");
-	if (IS_ERR(mas->se.clk)) {
-		ret = PTR_ERR(mas->se.clk);
-		dev_err(&pdev->dev, "Err getting SE Core clk %d\n", ret);
-		goto spi_geni_probe_err;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	se->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(se->base)) {
-		ret = PTR_ERR(se->base);
-		goto spi_geni_probe_err;
-	}
-
 	spi->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP | SPI_CS_HIGH;
 	spi->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	spi->num_chipselect = 4;
@@ -589,13 +589,6 @@ static int spi_geni_probe(struct platform_device *pdev)
 	if (ret)
 		goto spi_geni_probe_runtime_disable;
 
-	mas->irq = platform_get_irq(pdev, 0);
-	if (mas->irq < 0) {
-		ret = mas->irq;
-		dev_err(&pdev->dev, "Err getting IRQ %d\n", ret);
-		goto spi_geni_probe_runtime_disable;
-	}
-
 	ret = request_irq(mas->irq, geni_spi_isr,
 			IRQF_TRIGGER_HIGH, "spi_geni", spi);
 	if (ret)
@@ -610,7 +603,6 @@ spi_geni_probe_free_irq:
 	free_irq(mas->irq, spi);
 spi_geni_probe_runtime_disable:
 	pm_runtime_disable(&pdev->dev);
-spi_geni_probe_err:
 	spi_master_put(spi);
 	return ret;
 }

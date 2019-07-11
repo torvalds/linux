@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -136,18 +136,21 @@
 				  HFI1_CAP_ALLOW_PERM_JKEY |		\
 				  HFI1_CAP_STATIC_RATE_CTRL |		\
 				  HFI1_CAP_PRINT_UNIMPL |		\
-				  HFI1_CAP_TID_UNMAP)
+				  HFI1_CAP_TID_UNMAP |			\
+				  HFI1_CAP_OPFN)
 /*
  * A set of capability bits that are "global" and are not allowed to be
  * set in the user bitmask.
  */
 #define HFI1_CAP_RESERVED_MASK   ((HFI1_CAP_SDMA |			\
-				  HFI1_CAP_USE_SDMA_HEAD |		\
-				  HFI1_CAP_EXTENDED_PSN |		\
-				  HFI1_CAP_PRINT_UNIMPL |		\
-				  HFI1_CAP_NO_INTEGRITY |		\
-				  HFI1_CAP_PKEY_CHECK) <<		\
-				 HFI1_CAP_USER_SHIFT)
+				   HFI1_CAP_USE_SDMA_HEAD |		\
+				   HFI1_CAP_EXTENDED_PSN |		\
+				   HFI1_CAP_PRINT_UNIMPL |		\
+				   HFI1_CAP_NO_INTEGRITY |		\
+				   HFI1_CAP_PKEY_CHECK |		\
+				   HFI1_CAP_TID_RDMA |			\
+				   HFI1_CAP_OPFN) <<			\
+				  HFI1_CAP_USER_SHIFT)
 /*
  * Set of capabilities that need to be enabled for kernel context in
  * order to be allowed for user contexts, as well.
@@ -336,6 +339,10 @@ struct diag_pkt {
 #define DEFAULT_P_KEY LIM_MGMT_P_KEY
 
 #define HFI1_PSM_IOC_BASE_SEQ 0x0
+
+/* Number of BTH.PSN bits used for sequence number in expected rcvs */
+#define HFI1_KDETH_BTH_SEQ_SHIFT 11
+#define HFI1_KDETH_BTH_SEQ_MASK (BIT(HFI1_KDETH_BTH_SEQ_SHIFT) - 1)
 
 static inline __u64 rhf_to_cpu(const __le32 *rbuf)
 {

@@ -27,6 +27,7 @@ config ARCH_BCM2835
 	bool "Broadcom BCM2835 family"
 	select TIMER_OF
 	select GPIOLIB
+	select MFD_CORE
 	select PINCTRL
 	select PINCTRL_BCM2835
 	select ARM_AMBA
@@ -51,6 +52,11 @@ config ARCH_BERLIN
 	select PINCTRL
 	help
 	  This enables support for Marvell Berlin SoC Family
+
+config ARCH_BITMAIN
+	bool "Bitmain SoC Platforms"
+	help
+	  This enables support for the Bitmain SoC Family.
 
 config ARCH_BRCMSTB
 	bool "Broadcom Set-Top-Box SoCs"
@@ -112,12 +118,13 @@ config ARCH_MESON
 	bool "Amlogic Platforms"
 	select PINCTRL
 	select PINCTRL_MESON
-	select COMMON_CLK_AMLOGIC
 	select COMMON_CLK_GXBB
 	select COMMON_CLK_AXG
+	select COMMON_CLK_G12A
 	select MESON_IRQ_GPIO
 	help
-	  This enables support for the Amlogic S905 SoCs.
+	  This enables support for the arm64 based Amlogic SoCs
+	  such as the s905, S905X/D, S912, A113X/D or S905X/D2
 
 config ARCH_MVEBU
 	bool "Marvell EBU SoC Family"
@@ -142,6 +149,18 @@ config ARCH_MVEBU
 	   - Armada 7K SoC Family
 	   - Armada 8K SoC Family
 
+config ARCH_MXC
+	bool "ARMv8 based NXP i.MX SoC family"
+	select ARM64_ERRATUM_843419
+	select ARM64_ERRATUM_845719 if COMPAT
+	select IMX_GPCV2
+	select IMX_GPCV2_PM_DOMAINS
+	select PM
+	select PM_GENERIC_DOMAINS
+	help
+	  This enables support for the ARMv8 based SoCs in the
+	  NXP i.MX family.
+
 config ARCH_QCOM
 	bool "Qualcomm Platforms"
 	select GPIOLIB
@@ -157,69 +176,11 @@ config ARCH_REALTEK
 
 config ARCH_RENESAS
 	bool "Renesas SoC Platforms"
+	select GPIOLIB
 	select PINCTRL
-	select PM
-	select PM_GENERIC_DOMAINS
-	select RENESAS_IRQC
 	select SOC_BUS
-	select SYS_SUPPORTS_SH_CMT
-	select SYS_SUPPORTS_SH_TMU
 	help
 	  This enables support for the ARMv8 based Renesas SoCs.
-
-config ARCH_R8A774A1
-	bool "Renesas RZ/G2M SoC Platform"
-	depends on ARCH_RENESAS
-	help
-	  This enables support for the Renesas RZ/G2M SoC.
-
-config ARCH_R8A774C0
-	bool "Renesas RZ/G2E SoC Platform"
-	depends on ARCH_RENESAS
-	help
-	  This enables support for the Renesas RZ/G2E SoC.
-
-config ARCH_R8A7795
-	bool "Renesas R-Car H3 SoC Platform"
-	depends on ARCH_RENESAS
-	help
-	  This enables support for the Renesas R-Car H3 SoC.
-
-config ARCH_R8A7796
-	bool "Renesas R-Car M3-W SoC Platform"
-	depends on ARCH_RENESAS
-	help
-	  This enables support for the Renesas R-Car M3-W SoC.
-
-config ARCH_R8A77965
-	bool "Renesas R-Car M3-N SoC Platform"
-	depends on ARCH_RENESAS
-	help
-	  This enables support for the Renesas R-Car M3-N SoC.
-
-config ARCH_R8A77970
-	bool "Renesas R-Car V3M SoC Platform"
-	depends on ARCH_RENESAS
-	help
-	  This enables support for the Renesas R-Car V3M SoC.
-
-config ARCH_R8A77980
-	bool "Renesas R-Car V3H SoC Platform"
-	depends on ARCH_RENESAS
-	help
-	  This enables support for the Renesas R-Car V3H SoC.
-
-config ARCH_R8A77990
-	bool "Renesas R-Car E3 SoC Platform"
-	depends on ARCH_RENESAS
-	help
-	  This enables support for the Renesas R-Car E3 SoC.
-
-config ARCH_R8A77995
-	bool "Renesas R-Car D3 SoC Platform"
-	depends on ARCH_RENESAS
-	help
-	  This enables support for the Renesas R-Car D3 SoC.
 
 config ARCH_ROCKCHIP
 	bool "Rockchip Platforms"

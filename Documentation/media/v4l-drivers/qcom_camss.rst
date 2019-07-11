@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 .. include:: <isonum.txt>
 
 Qualcomm Camera Subsystem driver
@@ -121,7 +123,7 @@ The considerations to split the driver in this particular way are as follows:
 - representing CSIPHY and CSID modules by a separate sub-device for each module
   allows to model the hardware links between these modules;
 - representing VFE by a separate sub-devices for each input interface allows
-  to use the input interfaces concurently and independently as this is
+  to use the input interfaces concurrently and independently as this is
   supported by the hardware;
 - representing ISPIF by a number of sub-devices equal to the number of CSID
   sub-devices allows to create linear media controller pipelines when using two

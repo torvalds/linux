@@ -27,7 +27,7 @@
 		#size-cells = <0>;
 
 		cpu0: cpu@0 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x0>;
 			enable-method = "psci";
@@ -36,7 +36,7 @@
 		};
 
 		cpu1: cpu@1 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x1>;
 			enable-method = "psci";
@@ -45,7 +45,7 @@
 		};
 
 		cpu2: cpu@2 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x2>;
 			enable-method = "psci";
@@ -54,7 +54,7 @@
 		};
 
 		cpu3: cpu@3 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x3>;
 			enable-method = "psci";

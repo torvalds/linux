@@ -40,9 +40,6 @@
  * arch/arm64/kernel/hyp_stub.S.
  */
 ENTRY(__kvm_call_hyp)
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
 	hvc	#0
 	ret
-alternative_else_nop_endif
-	b	__vhe_hyp_call
 ENDPROC(__kvm_call_hyp)

@@ -119,6 +119,7 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
 	desc->depth = 1;
 	desc->irq_count = 0;
 	desc->irqs_unhandled = 0;
+	desc->tot_count = 0;
 	desc->name = NULL;
 	desc->owner = owner;
 	for_each_possible_cpu(cpu)
@@ -449,30 +450,34 @@ static void free_desc(unsigned int irq)
 }
 
 static int alloc_descs(unsigned int start, unsigned int cnt, int node,
-		       const struct cpumask *affinity, struct module *owner)
+		       const struct irq_affinity_desc *affinity,
+		       struct module *owner)
 {
-	const struct cpumask *mask = NULL;
 	struct irq_desc *desc;
-	unsigned int flags;
 	int i;
 
 	/* Validate affinity mask(s) */
 	if (affinity) {
-		for (i = 0, mask = affinity; i < cnt; i++, mask++) {
-			if (cpumask_empty(mask))
+		for (i = 0; i < cnt; i++) {
+			if (cpumask_empty(&affinity[i].mask))
 				return -EINVAL;
 		}
 	}
 
-	flags = affinity ? IRQD_AFFINITY_MANAGED | IRQD_MANAGED_SHUTDOWN : 0;
-	mask = NULL;
-
 	for (i = 0; i < cnt; i++) {
+		const struct cpumask *mask = NULL;
+		unsigned int flags = 0;
+
 		if (affinity) {
-			node = cpu_to_node(cpumask_first(affinity));
-			mask = affinity;
+			if (affinity->is_managed) {
+				flags = IRQD_AFFINITY_MANAGED |
+					IRQD_MANAGED_SHUTDOWN;
+			}
+			mask = &affinity->mask;
+			node = cpu_to_node(cpumask_first(mask));
 			affinity++;
 		}
+
 		desc = alloc_desc(start + i, node, flags, mask, owner);
 		if (!desc)
 			goto err;
@@ -553,6 +558,7 @@ int __init early_irq_init(void)
 		alloc_masks(&desc[i], node);
 		raw_spin_lock_init(&desc[i].lock);
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
+		mutex_init(&desc[i].request_mutex);
 		desc_set_defaults(i, &desc[i], node, NULL, NULL);
 	}
 	return arch_early_irq_init();
@@ -575,7 +581,7 @@ static void free_desc(unsigned int irq)
 }
 
 static inline int alloc_descs(unsigned int start, unsigned int cnt, int node,
-			      const struct cpumask *affinity,
+			      const struct irq_affinity_desc *affinity,
 			      struct module *owner)
 {
 	u32 i;
@@ -665,6 +671,41 @@ int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
 	set_irq_regs(old_regs);
 	return ret;
 }
+
+#ifdef CONFIG_IRQ_DOMAIN
+/**
+ * handle_domain_nmi - Invoke the handler for a HW irq belonging to a domain
+ * @domain:	The domain where to perform the lookup
+ * @hwirq:	The HW irq number to convert to a logical one
+ * @regs:	Register file coming from the low-level handling code
+ *
+ * Returns:	0 on success, or -EINVAL if conversion has failed
+ */
+int handle_domain_nmi(struct irq_domain *domain, unsigned int hwirq,
+		      struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+	unsigned int irq;
+	int ret = 0;
+
+	nmi_enter();
+
+	irq = irq_find_mapping(domain, hwirq);
+
+	/*
+	 * ack_bad_irq is not NMI-safe, just report
+	 * an invalid interrupt.
+	 */
+	if (likely(irq))
+		generic_handle_irq(irq);
+	else
+		ret = -EINVAL;
+
+	nmi_exit();
+	set_irq_regs(old_regs);
+	return ret;
+}
+#endif
 #endif
 
 /* Dynamic interrupt handling */
@@ -705,7 +746,7 @@ EXPORT_SYMBOL_GPL(irq_free_descs);
  */
 int __ref
 __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
-		  struct module *owner, const struct cpumask *affinity)
+		  struct module *owner, const struct irq_affinity_desc *affinity)
 {
 	int start, ret;
 
@@ -915,11 +956,15 @@ unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 unsigned int kstat_irqs(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	int cpu;
 	unsigned int sum = 0;
+	int cpu;
 
 	if (!desc || !desc->kstat_irqs)
 		return 0;
+	if (!irq_settings_is_per_cpu_devid(desc) &&
+	    !irq_settings_is_per_cpu(desc))
+	    return desc->tot_count;
+
 	for_each_possible_cpu(cpu)
 		sum += *per_cpu_ptr(desc->kstat_irqs, cpu);
 	return sum;

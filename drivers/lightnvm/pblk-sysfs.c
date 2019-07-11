@@ -479,6 +479,13 @@ static ssize_t pblk_sysfs_set_sec_per_write(struct pblk *pblk,
 	if (kstrtouint(page, 0, &sec_per_write))
 		return -EINVAL;
 
+	if (!pblk_is_oob_meta_supported(pblk)) {
+		/* For packed metadata case it is
+		 * not allowed to change sec_per_write.
+		 */
+		return -EINVAL;
+	}
+
 	if (sec_per_write < pblk->min_write_pgs
 				|| sec_per_write > pblk->max_write_pgs
 				|| sec_per_write % pblk->min_write_pgs != 0)

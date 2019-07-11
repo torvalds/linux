@@ -119,8 +119,6 @@ static struct macvlan_port *macvlan_port_get_rtnl(const struct net_device *dev)
 	return rtnl_dereference(dev->rx_handler_data);
 }
 
-#define macvlan_port_exists(dev) (dev->priv_flags & IFF_MACVLAN_PORT)
-
 static struct macvlan_dev *macvlan_hash_lookup(const struct macvlan_port *port,
 					       const unsigned char *addr)
 {
@@ -337,7 +335,7 @@ static void macvlan_process_broadcast(struct work_struct *w)
 
 		if (src)
 			dev_put(src->dev);
-		kfree_skb(skb);
+		consume_skb(skb);
 	}
 }
 
@@ -744,7 +742,7 @@ static int macvlan_set_mac_address(struct net_device *dev, void *p)
 
 	if (vlan->mode == MACVLAN_MODE_PASSTHRU) {
 		macvlan_set_addr_change(vlan->port);
-		return dev_set_mac_address(vlan->lowerdev, addr);
+		return dev_set_mac_address(vlan->lowerdev, addr, NULL);
 	}
 
 	if (macvlan_addr_busy(vlan->port, addr->sa_data))
@@ -963,7 +961,8 @@ static int macvlan_vlan_rx_kill_vid(struct net_device *dev,
 static int macvlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev,
 			   const unsigned char *addr, u16 vid,
-			   u16 flags)
+			   u16 flags,
+			   struct netlink_ext_ack *extack)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	int err = -EINVAL;
@@ -1123,6 +1122,7 @@ static const struct net_device_ops macvlan_netdev_ops = {
 #endif
 	.ndo_get_iflink		= macvlan_dev_get_iflink,
 	.ndo_features_check	= passthru_features_check,
+	.ndo_change_proto_down  = dev_change_proto_down_generic,
 };
 
 void macvlan_common_setup(struct net_device *dev)
@@ -1213,7 +1213,7 @@ static void macvlan_port_destroy(struct net_device *dev)
 
 		sa.sa_family = port->dev->type;
 		memcpy(&sa.sa_data, port->perm_addr, port->dev->addr_len);
-		dev_set_mac_address(port->dev, &sa);
+		dev_set_mac_address(port->dev, &sa, NULL);
 	}
 
 	kfree(port);
@@ -1377,7 +1377,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	if (!tb[IFLA_ADDRESS])
 		eth_hw_addr_random(dev);
 
-	if (!macvlan_port_exists(lowerdev)) {
+	if (!netif_is_macvlan_port(lowerdev)) {
 		err = macvlan_port_create(lowerdev);
 		if (err < 0)
 			return err;
@@ -1637,7 +1637,7 @@ static int macvlan_device_event(struct notifier_block *unused,
 	struct macvlan_port *port;
 	LIST_HEAD(list_kill);
 
-	if (!macvlan_port_exists(dev))
+	if (!netif_is_macvlan_port(dev))
 		return NOTIFY_DONE;
 
 	port = macvlan_port_get_rtnl(dev);

@@ -55,7 +55,7 @@ static ssize_t create_store(struct kobject *kobj, struct device *dev,
 			    const char *buf, size_t count)
 {
 	char *str;
-	uuid_le uuid;
+	guid_t uuid;
 	int ret;
 
 	if ((count < UUID_STRING_LEN) || (count > UUID_STRING_LEN + 1))
@@ -65,12 +65,12 @@ static ssize_t create_store(struct kobject *kobj, struct device *dev,
 	if (!str)
 		return -ENOMEM;
 
-	ret = uuid_le_to_bin(str, &uuid);
+	ret = guid_parse(str, &uuid);
 	kfree(str);
 	if (ret)
 		return ret;
 
-	ret = mdev_device_create(kobj, dev, uuid);
+	ret = mdev_device_create(kobj, dev, &uuid);
 	if (ret)
 		return ret;
 
@@ -92,8 +92,8 @@ static struct kobj_type mdev_type_ktype = {
 	.release = mdev_type_release,
 };
 
-struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
-					  struct attribute_group *group)
+static struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
+						 struct attribute_group *group)
 {
 	struct mdev_type *type;
 	int ret;

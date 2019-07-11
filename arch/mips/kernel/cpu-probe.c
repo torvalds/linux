@@ -36,6 +36,8 @@
 unsigned int elf_hwcap __read_mostly;
 EXPORT_SYMBOL_GPL(elf_hwcap);
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
+
 /*
  * Get the FPU Implementation/Revision.
  */
@@ -56,19 +58,6 @@ static inline unsigned long cpu_get_fpu_id(void)
 static inline int __cpu_has_fpu(void)
 {
 	return (cpu_get_fpu_id() & FPIR_IMP_MASK) != FPIR_IMP_NONE;
-}
-
-static inline unsigned long cpu_get_msa_id(void)
-{
-	unsigned long status, msa_id;
-
-	status = read_c0_status();
-	__enable_fpu(FPU_64BIT);
-	enable_msa();
-	msa_id = read_msa_ir();
-	disable_msa();
-	write_c0_status(status);
-	return msa_id;
 }
 
 /*
@@ -326,6 +315,45 @@ static int __init fpu_disable(char *s)
 
 __setup("nofpu", fpu_disable);
 
+#else /* !CONFIG_MIPS_FP_SUPPORT */
+
+#define mips_fpu_disabled 1
+
+static inline unsigned long cpu_get_fpu_id(void)
+{
+	return FPIR_IMP_NONE;
+}
+
+static inline int __cpu_has_fpu(void)
+{
+	return 0;
+}
+
+static void cpu_set_fpu_opts(struct cpuinfo_mips *c)
+{
+	/* no-op */
+}
+
+static void cpu_set_nofpu_opts(struct cpuinfo_mips *c)
+{
+	/* no-op */
+}
+
+#endif /* CONFIG_MIPS_FP_SUPPORT */
+
+static inline unsigned long cpu_get_msa_id(void)
+{
+	unsigned long status, msa_id;
+
+	status = read_c0_status();
+	__enable_fpu(FPU_64BIT);
+	enable_msa();
+	msa_id = read_msa_ir();
+	disable_msa();
+	write_c0_status(status);
+	return msa_id;
+}
+
 static int mips_dsp_disabled;
 
 static int __init dsp_disable(char *s)
@@ -489,12 +517,16 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	switch (isa) {
 	case MIPS_CPU_ISA_M64R2:
 		c->isa_level |= MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2;
+		/* fall through */
 	case MIPS_CPU_ISA_M64R1:
 		c->isa_level |= MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1;
+		/* fall through */
 	case MIPS_CPU_ISA_V:
 		c->isa_level |= MIPS_CPU_ISA_V;
+		/* fall through */
 	case MIPS_CPU_ISA_IV:
 		c->isa_level |= MIPS_CPU_ISA_IV;
+		/* fall through */
 	case MIPS_CPU_ISA_III:
 		c->isa_level |= MIPS_CPU_ISA_II | MIPS_CPU_ISA_III;
 		break;
@@ -502,14 +534,17 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	/* R6 incompatible with everything else */
 	case MIPS_CPU_ISA_M64R6:
 		c->isa_level |= MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6;
+		/* fall through */
 	case MIPS_CPU_ISA_M32R6:
 		c->isa_level |= MIPS_CPU_ISA_M32R6;
 		/* Break here so we don't add incompatible ISAs */
 		break;
 	case MIPS_CPU_ISA_M32R2:
 		c->isa_level |= MIPS_CPU_ISA_M32R2;
+		/* fall through */
 	case MIPS_CPU_ISA_M32R1:
 		c->isa_level |= MIPS_CPU_ISA_M32R1;
+		/* fall through */
 	case MIPS_CPU_ISA_II:
 		c->isa_level |= MIPS_CPU_ISA_II;
 		break;
@@ -837,10 +872,19 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 
 static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 {
-	unsigned int config5;
+	unsigned int config5, max_mmid_width;
+	unsigned long asid_mask;
 
 	config5 = read_c0_config5();
 	config5 &= ~(MIPS_CONF5_UFR | MIPS_CONF5_UFE);
+
+	if (cpu_has_mips_r6) {
+		if (!__builtin_constant_p(cpu_has_mmid) || cpu_has_mmid)
+			config5 |= MIPS_CONF5_MI;
+		else
+			config5 &= ~MIPS_CONF5_MI;
+	}
+
 	write_c0_config5(config5);
 
 	if (config5 & MIPS_CONF5_EVA)
@@ -858,6 +902,50 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 
 	if (config5 & MIPS_CONF5_CRCP)
 		elf_hwcap |= HWCAP_MIPS_CRC32;
+
+	if (cpu_has_mips_r6) {
+		/* Ensure the write to config5 above takes effect */
+		back_to_back_c0_hazard();
+
+		/* Check whether we successfully enabled MMID support */
+		config5 = read_c0_config5();
+		if (config5 & MIPS_CONF5_MI)
+			c->options |= MIPS_CPU_MMID;
+
+		/*
+		 * Warn if we've hardcoded cpu_has_mmid to a value unsuitable
+		 * for the CPU we're running on, or if CPUs in an SMP system
+		 * have inconsistent MMID support.
+		 */
+		WARN_ON(!!cpu_has_mmid != !!(config5 & MIPS_CONF5_MI));
+
+		if (cpu_has_mmid) {
+			write_c0_memorymapid(~0ul);
+			back_to_back_c0_hazard();
+			asid_mask = read_c0_memorymapid();
+
+			/*
+			 * We maintain a bitmap to track MMID allocation, and
+			 * need a sensible upper bound on the size of that
+			 * bitmap. The initial CPU with MMID support (I6500)
+			 * supports 16 bit MMIDs, which gives us an 8KiB
+			 * bitmap. The architecture recommends that hardware
+			 * support 32 bit MMIDs, which would give us a 512MiB
+			 * bitmap - that's too big in most cases.
+			 *
+			 * Cap MMID width at 16 bits for now & we can revisit
+			 * this if & when hardware supports anything wider.
+			 */
+			max_mmid_width = 16;
+			if (asid_mask > GENMASK(max_mmid_width - 1, 0)) {
+				pr_info("Capping MMID width at %d bits",
+					max_mmid_width);
+				asid_mask = GENMASK(max_mmid_width - 1, 0);
+			}
+
+			set_cpu_asid_mask(c, asid_mask);
+		}
+	}
 
 	return config5 & MIPS_CONF_M;
 }
@@ -1843,7 +1931,8 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_LOONGSON_64:  /* Loongson-2/3 */
 		switch (c->processor_id & PRID_REV_MASK) {
-		case PRID_REV_LOONGSON3A_R2:
+		case PRID_REV_LOONGSON3A_R2_0:
+		case PRID_REV_LOONGSON3A_R2_1:
 			c->cputype = CPU_LOONGSON3;
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3a");

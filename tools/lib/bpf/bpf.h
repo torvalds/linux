@@ -27,6 +27,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef LIBBPF_API
 #define LIBBPF_API __attribute__((visibility("default")))
 #endif
@@ -74,6 +78,14 @@ struct bpf_load_program_attr {
 	const char *license;
 	__u32 kern_version;
 	__u32 prog_ifindex;
+	__u32 prog_btf_fd;
+	__u32 func_info_rec_size;
+	const void *func_info;
+	__u32 func_info_cnt;
+	__u32 line_info_rec_size;
+	const void *line_info;
+	__u32 line_info_cnt;
+	__u32 log_level;
 };
 
 /* Flags to direct loading requirements */
@@ -90,7 +102,7 @@ LIBBPF_API int bpf_load_program(enum bpf_prog_type type,
 				char *log_buf, size_t log_buf_sz);
 LIBBPF_API int bpf_verify_program(enum bpf_prog_type type,
 				  const struct bpf_insn *insns,
-				  size_t insns_cnt, int strict_alignment,
+				  size_t insns_cnt, __u32 prog_flags,
 				  const char *license, __u32 kern_version,
 				  char *log_buf, size_t log_buf_sz,
 				  int log_level);
@@ -99,6 +111,8 @@ LIBBPF_API int bpf_map_update_elem(int fd, const void *key, const void *value,
 				   __u64 flags);
 
 LIBBPF_API int bpf_map_lookup_elem(int fd, const void *key, void *value);
+LIBBPF_API int bpf_map_lookup_elem_flags(int fd, const void *key, void *value,
+					 __u64 flags);
 LIBBPF_API int bpf_map_lookup_and_delete_elem(int fd, const void *key,
 					      void *value);
 LIBBPF_API int bpf_map_delete_elem(int fd, const void *key);
@@ -110,6 +124,25 @@ LIBBPF_API int bpf_prog_attach(int prog_fd, int attachable_fd,
 LIBBPF_API int bpf_prog_detach(int attachable_fd, enum bpf_attach_type type);
 LIBBPF_API int bpf_prog_detach2(int prog_fd, int attachable_fd,
 				enum bpf_attach_type type);
+
+struct bpf_prog_test_run_attr {
+	int prog_fd;
+	int repeat;
+	const void *data_in;
+	__u32 data_size_in;
+	void *data_out;      /* optional */
+	__u32 data_size_out; /* in: max length of data_out
+			      * out: length of data_out */
+	__u32 retval;        /* out: return code of the BPF program */
+	__u32 duration;      /* out: average per repetition in ns */
+};
+
+LIBBPF_API int bpf_prog_test_run_xattr(struct bpf_prog_test_run_attr *test_attr);
+
+/*
+ * bpf_prog_test_run does not check that data_out is large enough. Consider
+ * using bpf_prog_test_run_xattr instead.
+ */
 LIBBPF_API int bpf_prog_test_run(int prog_fd, int repeat, void *data,
 				 __u32 size, void *data_out, __u32 *size_out,
 				 __u32 *retval, __u32 *duration);
@@ -128,4 +161,9 @@ LIBBPF_API int bpf_load_btf(void *btf, __u32 btf_size, char *log_buf,
 LIBBPF_API int bpf_task_fd_query(int pid, int fd, __u32 flags, char *buf,
 				 __u32 *buf_len, __u32 *prog_id, __u32 *fd_type,
 				 __u64 *probe_offset, __u64 *probe_addr);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
 #endif /* __LIBBPF_BPF_H */

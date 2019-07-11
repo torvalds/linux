@@ -870,7 +870,7 @@ static int nft_ct_timeout_obj_init(const struct nft_ctx *ctx,
 	l4num = nla_get_u8(tb[NFTA_CT_TIMEOUT_L4PROTO]);
 	priv->l4proto = l4num;
 
-	l4proto = nf_ct_l4proto_find_get(l4num);
+	l4proto = nf_ct_l4proto_find(l4num);
 
 	if (l4proto->l4proto != l4num) {
 		ret = -EOPNOTSUPP;
@@ -902,7 +902,6 @@ static int nft_ct_timeout_obj_init(const struct nft_ctx *ctx,
 err_free_timeout:
 	kfree(timeout);
 err_proto_put:
-	nf_ct_l4proto_put(l4proto);
 	return ret;
 }
 
@@ -913,7 +912,6 @@ static void nft_ct_timeout_obj_destroy(const struct nft_ctx *ctx,
 	struct nf_ct_timeout *timeout = priv->timeout;
 
 	nf_ct_untimeout(ctx->net, timeout);
-	nf_ct_l4proto_put(timeout->l4proto);
 	nf_ct_netns_put(ctx->net, ctx->family);
 	kfree(priv->timeout);
 }

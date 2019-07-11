@@ -39,7 +39,7 @@
 #include "igb.h"
 
 #define MAJ 5
-#define MIN 4
+#define MIN 6
 #define BUILD 0
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 __stringify(BUILD) "-k"
@@ -1189,15 +1189,15 @@ static int igb_alloc_q_vector(struct igb_adapter *adapter,
 {
 	struct igb_q_vector *q_vector;
 	struct igb_ring *ring;
-	int ring_count, size;
+	int ring_count;
+	size_t size;
 
 	/* igb only supports 1 Tx and/or 1 Rx queue per vector */
 	if (txr_count > 1 || rxr_count > 1)
 		return -ENOMEM;
 
 	ring_count = txr_count + rxr_count;
-	size = sizeof(struct igb_q_vector) +
-	       (sizeof(struct igb_ring) * ring_count);
+	size = struct_size(q_vector, ring, ring_count);
 
 	/* allocate q_vector and rings */
 	q_vector = adapter->q_vector[v_idx];
@@ -1850,13 +1850,12 @@ static void igb_config_tx_modes(struct igb_adapter *adapter, int queue)
 	 * configuration' in respect to these parameters.
 	 */
 
-	netdev_dbg(netdev, "Qav Tx mode: cbs %s, launchtime %s, queue %d \
-			    idleslope %d sendslope %d hiCredit %d \
-			    locredit %d\n",
-		   (ring->cbs_enable) ? "enabled" : "disabled",
-		   (ring->launchtime_enable) ? "enabled" : "disabled", queue,
-		   ring->idleslope, ring->sendslope, ring->hicredit,
-		   ring->locredit);
+	netdev_dbg(netdev, "Qav Tx mode: cbs %s, launchtime %s, queue %d idleslope %d sendslope %d hiCredit %d locredit %d\n",
+		   ring->cbs_enable ? "enabled" : "disabled",
+		   ring->launchtime_enable ? "enabled" : "disabled",
+		   queue,
+		   ring->idleslope, ring->sendslope,
+		   ring->hicredit, ring->locredit);
 }
 
 static int igb_save_txtime_params(struct igb_adapter *adapter, int queue,
@@ -1935,7 +1934,7 @@ static void igb_setup_tx_mode(struct igb_adapter *adapter)
 
 		val = rd32(E1000_RXPBS);
 		val &= ~I210_RXPBSIZE_MASK;
-		val |= I210_RXPBSIZE_PB_32KB;
+		val |= I210_RXPBSIZE_PB_30KB;
 		wr32(E1000_RXPBS, val);
 
 		/* Section 8.12.9 states that MAX_TPKT_SIZE from DTXMXPKTSZ
@@ -2487,7 +2486,8 @@ static int igb_set_features(struct net_device *netdev,
 static int igb_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev,
 			   const unsigned char *addr, u16 vid,
-			   u16 flags)
+			   u16 flags,
+			   struct netlink_ext_ack *extack)
 {
 	/* guarantee we can provide a unique filter for the unicast address */
 	if (is_unicast_ether_addr(addr) || is_link_local_ether_addr(addr)) {
@@ -2581,9 +2581,11 @@ static int igb_parse_cls_flower(struct igb_adapter *adapter,
 				int traffic_class,
 				struct igb_nfc_filter *input)
 {
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_dissector *dissector = rule->match.dissector;
 	struct netlink_ext_ack *extack = f->common.extack;
 
-	if (f->dissector->used_keys &
+	if (dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
@@ -2593,78 +2595,60 @@ static int igb_parse_cls_flower(struct igb_adapter *adapter,
 		return -EOPNOTSUPP;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
-		struct flow_dissector_key_eth_addrs *key, *mask;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_match_eth_addrs match;
 
-		key = skb_flow_dissector_target(f->dissector,
-						FLOW_DISSECTOR_KEY_ETH_ADDRS,
-						f->key);
-		mask = skb_flow_dissector_target(f->dissector,
-						 FLOW_DISSECTOR_KEY_ETH_ADDRS,
-						 f->mask);
-
-		if (!is_zero_ether_addr(mask->dst)) {
-			if (!is_broadcast_ether_addr(mask->dst)) {
+		flow_rule_match_eth_addrs(rule, &match);
+		if (!is_zero_ether_addr(match.mask->dst)) {
+			if (!is_broadcast_ether_addr(match.mask->dst)) {
 				NL_SET_ERR_MSG_MOD(extack, "Only full masks are supported for destination MAC address");
 				return -EINVAL;
 			}
 
 			input->filter.match_flags |=
 				IGB_FILTER_FLAG_DST_MAC_ADDR;
-			ether_addr_copy(input->filter.dst_addr, key->dst);
+			ether_addr_copy(input->filter.dst_addr, match.key->dst);
 		}
 
-		if (!is_zero_ether_addr(mask->src)) {
-			if (!is_broadcast_ether_addr(mask->src)) {
+		if (!is_zero_ether_addr(match.mask->src)) {
+			if (!is_broadcast_ether_addr(match.mask->src)) {
 				NL_SET_ERR_MSG_MOD(extack, "Only full masks are supported for source MAC address");
 				return -EINVAL;
 			}
 
 			input->filter.match_flags |=
 				IGB_FILTER_FLAG_SRC_MAC_ADDR;
-			ether_addr_copy(input->filter.src_addr, key->src);
+			ether_addr_copy(input->filter.src_addr, match.key->src);
 		}
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_dissector_key_basic *key, *mask;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
 
-		key = skb_flow_dissector_target(f->dissector,
-						FLOW_DISSECTOR_KEY_BASIC,
-						f->key);
-		mask = skb_flow_dissector_target(f->dissector,
-						 FLOW_DISSECTOR_KEY_BASIC,
-						 f->mask);
-
-		if (mask->n_proto) {
-			if (mask->n_proto != ETHER_TYPE_FULL_MASK) {
+		flow_rule_match_basic(rule, &match);
+		if (match.mask->n_proto) {
+			if (match.mask->n_proto != ETHER_TYPE_FULL_MASK) {
 				NL_SET_ERR_MSG_MOD(extack, "Only full mask is supported for EtherType filter");
 				return -EINVAL;
 			}
 
 			input->filter.match_flags |= IGB_FILTER_FLAG_ETHER_TYPE;
-			input->filter.etype = key->n_proto;
+			input->filter.etype = match.key->n_proto;
 		}
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
-		struct flow_dissector_key_vlan *key, *mask;
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match;
 
-		key = skb_flow_dissector_target(f->dissector,
-						FLOW_DISSECTOR_KEY_VLAN,
-						f->key);
-		mask = skb_flow_dissector_target(f->dissector,
-						 FLOW_DISSECTOR_KEY_VLAN,
-						 f->mask);
-
-		if (mask->vlan_priority) {
-			if (mask->vlan_priority != VLAN_PRIO_FULL_MASK) {
+		flow_rule_match_vlan(rule, &match);
+		if (match.mask->vlan_priority) {
+			if (match.mask->vlan_priority != VLAN_PRIO_FULL_MASK) {
 				NL_SET_ERR_MSG_MOD(extack, "Only full mask is supported for VLAN priority");
 				return -EINVAL;
 			}
 
 			input->filter.match_flags |= IGB_FILTER_FLAG_VLAN_TCI;
-			input->filter.vlan_tci = key->vlan_priority;
+			input->filter.vlan_tci = match.key->vlan_priority;
 		}
 	}
 
@@ -6019,6 +6003,8 @@ static int igb_tx_map(struct igb_ring *tx_ring,
 	/* set the timestamp */
 	first->time_stamp = jiffies;
 
+	skb_tx_timestamp(skb);
+
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.  (Only applicable for weak-ordered
 	 * memory model archs, such as IA-64).
@@ -6146,8 +6132,6 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 		goto out_drop;
 	else if (!tso)
 		igb_tx_csum(tx_ring, first);
-
-	skb_tx_timestamp(skb);
 
 	if (igb_tx_map(tx_ring, first, hdr_len))
 		goto cleanup_tx_tstamp;
@@ -7753,11 +7737,13 @@ static int igb_poll(struct napi_struct *napi, int budget)
 	if (!clean_complete)
 		return budget;
 
-	/* If not enough Rx work done, exit the polling mode */
-	napi_complete_done(napi, work_done);
-	igb_ring_irq_enable(q_vector);
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		igb_ring_irq_enable(q_vector);
 
-	return 0;
+	return min(work_done, budget - 1);
 }
 
 /**
@@ -8754,9 +8740,7 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl, rctl, status;
 	u32 wufc = runtime ? E1000_WUFC_LNKC : adapter->wol;
-#ifdef CONFIG_PM
-	int retval = 0;
-#endif
+	bool wake;
 
 	rtnl_lock();
 	netif_device_detach(netdev);
@@ -8768,12 +8752,6 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 
 	igb_clear_interrupt_scheme(adapter);
 	rtnl_unlock();
-
-#ifdef CONFIG_PM
-	retval = pci_save_state(pdev);
-	if (retval)
-		return retval;
-#endif
 
 	status = rd32(E1000_STATUS);
 	if (status & E1000_STATUS_LU)
@@ -8791,10 +8769,6 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 		}
 
 		ctrl = rd32(E1000_CTRL);
-		/* advertise wake from D3Cold */
-		#define E1000_CTRL_ADVD3WUC 0x00100000
-		/* phy power management enable */
-		#define E1000_CTRL_EN_PHY_PWR_MGMT 0x00200000
 		ctrl |= E1000_CTRL_ADVD3WUC;
 		wr32(E1000_CTRL, ctrl);
 
@@ -8808,11 +8782,14 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 		wr32(E1000_WUFC, 0);
 	}
 
-	*enable_wake = wufc || adapter->en_mng_pt;
-	if (!*enable_wake)
+	wake = wufc || adapter->en_mng_pt;
+	if (!wake)
 		igb_power_down_link(adapter);
 	else
 		igb_power_up_link(adapter);
+
+	if (enable_wake)
+		*enable_wake = wake;
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
 	 * would have already happened in close and is redundant.
@@ -8856,22 +8833,7 @@ static void igb_deliver_wake_packet(struct net_device *netdev)
 
 static int __maybe_unused igb_suspend(struct device *dev)
 {
-	int retval;
-	bool wake;
-	struct pci_dev *pdev = to_pci_dev(dev);
-
-	retval = __igb_shutdown(pdev, &wake, 0);
-	if (retval)
-		return retval;
-
-	if (wake) {
-		pci_prepare_to_sleep(pdev);
-	} else {
-		pci_wake_from_d3(pdev, false);
-		pci_set_power_state(pdev, PCI_D3hot);
-	}
-
-	return 0;
+	return __igb_shutdown(to_pci_dev(dev), NULL, 0);
 }
 
 static int __maybe_unused igb_resume(struct device *dev)
@@ -8942,22 +8904,7 @@ static int __maybe_unused igb_runtime_idle(struct device *dev)
 
 static int __maybe_unused igb_runtime_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	int retval;
-	bool wake;
-
-	retval = __igb_shutdown(pdev, &wake, 1);
-	if (retval)
-		return retval;
-
-	if (wake) {
-		pci_prepare_to_sleep(pdev);
-	} else {
-		pci_wake_from_d3(pdev, false);
-		pci_set_power_state(pdev, PCI_D3hot);
-	}
-
-	return 0;
+	return __igb_shutdown(to_pci_dev(dev), NULL, 1);
 }
 
 static int __maybe_unused igb_runtime_resume(struct device *dev)

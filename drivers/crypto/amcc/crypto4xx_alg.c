@@ -520,8 +520,7 @@ static int crypto4xx_compute_gcm_hash_key_sw(__le32 *hash_start, const u8 *key,
 	uint8_t src[16] = { 0 };
 	int rc = 0;
 
-	aes_tfm = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC |
-				      CRYPTO_ALG_NEED_FALLBACK);
+	aes_tfm = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(aes_tfm)) {
 		rc = PTR_ERR(aes_tfm);
 		pr_warn("could not load aes cipher driver: %d\n", rc);

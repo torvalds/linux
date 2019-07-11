@@ -145,7 +145,7 @@ static int __init vt8500_timer_init(struct device_node *np)
 
 	ret = clocksource_register_hz(&clocksource, VT8500_TIMER_HZ);
 	if (ret) {
-		pr_err("%s: vt8500_timer_init: clocksource_register failed for %s\n",
+		pr_err("%s: clocksource_register failed for %s\n",
 		       __func__, clocksource.name);
 		return ret;
 	}

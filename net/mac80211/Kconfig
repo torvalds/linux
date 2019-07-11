@@ -57,14 +57,13 @@ comment "Some wireless drivers require a rate control algorithm"
 	depends on MAC80211 && MAC80211_HAS_RC=n
 
 config MAC80211_MESH
-	bool "Enable mac80211 mesh networking (pre-802.11s) support"
+	bool "Enable mac80211 mesh networking support"
 	depends on MAC80211
 	---help---
-	 This options enables support of Draft 802.11s mesh networking.
-	 The implementation is based on Draft 2.08 of the Mesh Networking
-	 amendment.  However, no compliance with that draft is claimed or even
-	 possible, as drafts leave a number of identifiers to be defined after
-	 ratification.  For more information visit http://o11s.org/.
+	  Select this option to enable 802.11 mesh operation in mac80211
+	  drivers that support it.  802.11 mesh connects multiple stations
+	  over (possibly multi-hop) wireless links to form a single logical
+	  LAN.
 
 config MAC80211_LEDS
 	bool "Enable LED triggers"

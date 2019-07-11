@@ -38,6 +38,8 @@ Required properties:
 Optional properties:
 - clock-names: the following clocks are optional:
   * "lut_clk"
+- qcom,lcdc-align-lsb: Boolean value indicating that LSB alignment should be
+  used for LCDC. This is only valid for 18bpp panels.
 
 Example:
 

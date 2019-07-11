@@ -213,9 +213,9 @@ retry:
 		}
 
 		fi = get_fuse_inode(inode);
-		spin_lock(&fc->lock);
+		spin_lock(&fi->lock);
 		fi->nlookup++;
-		spin_unlock(&fc->lock);
+		spin_unlock(&fi->lock);
 
 		forget_all_cached_acls(inode);
 		fuse_change_attributes(inode, &o->attr,

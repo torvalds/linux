@@ -832,32 +832,40 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
  * to see if it supports poll (Neither 'poll' nor 'select' return
  * an appropriate error code).  When in doubt, set a suitable timeout value.
  */
+__poll_t kernfs_generic_poll(struct kernfs_open_file *of, poll_table *wait)
+{
+	struct kernfs_node *kn = kernfs_dentry_node(of->file->f_path.dentry);
+	struct kernfs_open_node *on = kn->attr.open;
+
+	poll_wait(of->file, &on->poll, wait);
+
+	if (of->event != atomic_read(&on->event))
+		return DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
+
+	return DEFAULT_POLLMASK;
+}
+
 static __poll_t kernfs_fop_poll(struct file *filp, poll_table *wait)
 {
 	struct kernfs_open_file *of = kernfs_of(filp);
 	struct kernfs_node *kn = kernfs_dentry_node(filp->f_path.dentry);
-	struct kernfs_open_node *on = kn->attr.open;
+	__poll_t ret;
 
 	if (!kernfs_get_active(kn))
-		goto trigger;
+		return DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
 
-	poll_wait(filp, &on->poll, wait);
+	if (kn->attr.ops->poll)
+		ret = kn->attr.ops->poll(of, wait);
+	else
+		ret = kernfs_generic_poll(of, wait);
 
 	kernfs_put_active(kn);
-
-	if (of->event != atomic_read(&on->event))
-		goto trigger;
-
-	return DEFAULT_POLLMASK;
-
- trigger:
-	return DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
+	return ret;
 }
 
 static void kernfs_notify_workfn(struct work_struct *work)
 {
 	struct kernfs_node *kn;
-	struct kernfs_open_node *on;
 	struct kernfs_super_info *info;
 repeat:
 	/* pop one off the notify_list */
@@ -870,17 +878,6 @@ repeat:
 	kernfs_notify_list = kn->attr.notify_next;
 	kn->attr.notify_next = NULL;
 	spin_unlock_irq(&kernfs_notify_lock);
-
-	/* kick poll */
-	spin_lock_irq(&kernfs_open_node_lock);
-
-	on = kn->attr.open;
-	if (on) {
-		atomic_inc(&on->event);
-		wake_up_interruptible(&on->poll);
-	}
-
-	spin_unlock_irq(&kernfs_open_node_lock);
 
 	/* kick fsnotify */
 	mutex_lock(&kernfs_mutex);
@@ -934,10 +931,21 @@ void kernfs_notify(struct kernfs_node *kn)
 {
 	static DECLARE_WORK(kernfs_notify_work, kernfs_notify_workfn);
 	unsigned long flags;
+	struct kernfs_open_node *on;
 
 	if (WARN_ON(kernfs_type(kn) != KERNFS_FILE))
 		return;
 
+	/* kick poll immediately */
+	spin_lock_irqsave(&kernfs_open_node_lock, flags);
+	on = kn->attr.open;
+	if (on) {
+		atomic_inc(&on->event);
+		wake_up_interruptible(&on->poll);
+	}
+	spin_unlock_irqrestore(&kernfs_open_node_lock, flags);
+
+	/* schedule work to kick fsnotify */
 	spin_lock_irqsave(&kernfs_notify_lock, flags);
 	if (!kn->attr.notify_next) {
 		kernfs_get(kn);

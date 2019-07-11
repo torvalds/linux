@@ -1,10 +1,9 @@
 /*
  *	fs/bfs/inode.c
  *	BFS superblock and inode operations.
- *	Copyright (C) 1999-2006 Tigran Aivazian <aivazian.tigran@gmail.com>
+ *	Copyright (C) 1999-2018 Tigran Aivazian <aivazian.tigran@gmail.com>
  *	From fs/minix, Copyright (C) 1991, 1992 Linus Torvalds.
- *
- *      Made endianness-clean by Andrew Stribblehill <ads@wompom.org>, 2005.
+ *	Made endianness-clean by Andrew Stribblehill <ads@wompom.org>, 2005.
  */
 
 #include <linux/module.h>
@@ -118,12 +117,12 @@ static int bfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
 	unsigned int ino = (u16)inode->i_ino;
-        unsigned long i_sblock;
+	unsigned long i_sblock;
 	struct bfs_inode *di;
 	struct buffer_head *bh;
 	int err = 0;
 
-        dprintf("ino=%08x\n", ino);
+	dprintf("ino=%08x\n", ino);
 
 	di = find_inode(inode->i_sb, ino, &bh);
 	if (IS_ERR(di))
@@ -144,7 +143,7 @@ static int bfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	di->i_atime = cpu_to_le32(inode->i_atime.tv_sec);
 	di->i_mtime = cpu_to_le32(inode->i_mtime.tv_sec);
 	di->i_ctime = cpu_to_le32(inode->i_ctime.tv_sec);
-        i_sblock = BFS_I(inode)->i_sblock;
+	i_sblock = BFS_I(inode)->i_sblock;
 	di->i_sblock = cpu_to_le32(i_sblock);
 	di->i_eblock = cpu_to_le32(BFS_I(inode)->i_eblock);
 	di->i_eoffset = cpu_to_le32(i_sblock * BFS_BSIZE + inode->i_size - 1);
@@ -188,13 +187,13 @@ static void bfs_evict_inode(struct inode *inode)
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
-        if (bi->i_dsk_ino) {
+	if (bi->i_dsk_ino) {
 		if (bi->i_sblock)
 			info->si_freeb += bi->i_eblock + 1 - bi->i_sblock;
 		info->si_freei++;
 		clear_bit(ino, info->si_imap);
-		bfs_dump_imap("delete_inode", s);
-        }
+		bfs_dump_imap("evict_inode", s);
+	}
 
 	/*
 	 * If this was the last file, make the previous block
@@ -214,7 +213,6 @@ static void bfs_put_super(struct super_block *s)
 		return;
 
 	mutex_destroy(&info->bfs_lock);
-	kfree(info->si_imap);
 	kfree(info);
 	s->s_fs_info = NULL;
 }
@@ -311,8 +309,7 @@ void bfs_dump_imap(const char *prefix, struct super_block *s)
 		else
 			strcat(tmpbuf, "0");
 	}
-	printf("BFS-fs: %s: lasti=%08lx <%s>\n",
-				prefix, BFS_SB(s)->si_lasti, tmpbuf);
+	printf("%s: lasti=%08lx <%s>\n", prefix, BFS_SB(s)->si_lasti, tmpbuf);
 	free_page((unsigned long)tmpbuf);
 #endif
 }
@@ -322,7 +319,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	struct buffer_head *bh, *sbh;
 	struct bfs_super_block *bfs_sb;
 	struct inode *inode;
-	unsigned i, imap_len;
+	unsigned i;
 	struct bfs_sb_info *info;
 	int ret = -EINVAL;
 	unsigned long i_sblock, i_eblock, i_eoff, s_size;
@@ -341,8 +338,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	bfs_sb = (struct bfs_super_block *)sbh->b_data;
 	if (le32_to_cpu(bfs_sb->s_magic) != BFS_MAGIC) {
 		if (!silent)
-			printf("No BFS filesystem on %s (magic=%08x)\n", 
-				s->s_id,  le32_to_cpu(bfs_sb->s_magic));
+			printf("No BFS filesystem on %s (magic=%08x)\n", s->s_id,  le32_to_cpu(bfs_sb->s_magic));
 		goto out1;
 	}
 	if (BFS_UNCLEAN(bfs_sb, s) && !silent)
@@ -351,18 +347,16 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	s->s_magic = BFS_MAGIC;
 
 	if (le32_to_cpu(bfs_sb->s_start) > le32_to_cpu(bfs_sb->s_end) ||
-	    le32_to_cpu(bfs_sb->s_start) < BFS_BSIZE) {
-		printf("Superblock is corrupted\n");
+	    le32_to_cpu(bfs_sb->s_start) < sizeof(struct bfs_super_block) + sizeof(struct bfs_dirent)) {
+		printf("Superblock is corrupted on %s\n", s->s_id);
 		goto out1;
 	}
 
-	info->si_lasti = (le32_to_cpu(bfs_sb->s_start) - BFS_BSIZE) /
-					sizeof(struct bfs_inode)
-					+ BFS_ROOT_INO - 1;
-	imap_len = (info->si_lasti / 8) + 1;
-	info->si_imap = kzalloc(imap_len, GFP_KERNEL | __GFP_NOWARN);
-	if (!info->si_imap) {
-		printf("Cannot allocate %u bytes\n", imap_len);
+	info->si_lasti = (le32_to_cpu(bfs_sb->s_start) - BFS_BSIZE) / sizeof(struct bfs_inode) + BFS_ROOT_INO - 1;
+	if (info->si_lasti == BFS_MAX_LASTI)
+		printf("WARNING: filesystem %s was created with 512 inodes, the real maximum is 511, mounting anyway\n", s->s_id);
+	else if (info->si_lasti > BFS_MAX_LASTI) {
+		printf("Impossible last inode number %lu > %d on %s\n", info->si_lasti, BFS_MAX_LASTI, s->s_id);
 		goto out1;
 	}
 	for (i = 0; i < BFS_ROOT_INO; i++)
@@ -372,26 +366,25 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	inode = bfs_iget(s, BFS_ROOT_INO);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
-		goto out2;
+		goto out1;
 	}
 	s->s_root = d_make_root(inode);
 	if (!s->s_root) {
 		ret = -ENOMEM;
-		goto out2;
+		goto out1;
 	}
 
 	info->si_blocks = (le32_to_cpu(bfs_sb->s_end) + 1) >> BFS_BSIZE_BITS;
-	info->si_freeb = (le32_to_cpu(bfs_sb->s_end) + 1
-			- le32_to_cpu(bfs_sb->s_start)) >> BFS_BSIZE_BITS;
+	info->si_freeb = (le32_to_cpu(bfs_sb->s_end) + 1 - le32_to_cpu(bfs_sb->s_start)) >> BFS_BSIZE_BITS;
 	info->si_freei = 0;
 	info->si_lf_eblk = 0;
 
 	/* can we read the last block? */
 	bh = sb_bread(s, info->si_blocks - 1);
 	if (!bh) {
-		printf("Last block not available: %lu\n", info->si_blocks - 1);
+		printf("Last block not available on %s: %lu\n", s->s_id, info->si_blocks - 1);
 		ret = -EIO;
-		goto out3;
+		goto out2;
 	}
 	brelse(bh);
 
@@ -425,11 +418,11 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 			(i_eoff != le32_to_cpu(-1) && i_eoff > s_size) ||
 			i_sblock * BFS_BSIZE > i_eoff) {
 
-			printf("Inode 0x%08x corrupted\n", i);
+			printf("Inode 0x%08x corrupted on %s\n", i, s->s_id);
 
 			brelse(bh);
 			ret = -EIO;
-			goto out3;
+			goto out2;
 		}
 
 		if (!di->i_ino) {
@@ -445,14 +438,12 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	}
 	brelse(bh);
 	brelse(sbh);
-	bfs_dump_imap("read_super", s);
+	bfs_dump_imap("fill_super", s);
 	return 0;
 
-out3:
+out2:
 	dput(s->s_root);
 	s->s_root = NULL;
-out2:
-	kfree(info->si_imap);
 out1:
 	brelse(sbh);
 out:
@@ -482,7 +473,7 @@ static int __init init_bfs_fs(void)
 	int err = init_inodecache();
 	if (err)
 		goto out1;
-        err = register_filesystem(&bfs_fs_type);
+	err = register_filesystem(&bfs_fs_type);
 	if (err)
 		goto out;
 	return 0;

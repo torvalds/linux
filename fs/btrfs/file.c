@@ -399,7 +399,7 @@ static noinline int btrfs_copy_from_user(loff_t pos, size_t write_bytes,
 	size_t copied = 0;
 	size_t total_copied = 0;
 	int pg = 0;
-	int offset = pos & (PAGE_SIZE - 1);
+	int offset = offset_in_page(pos);
 
 	while (write_bytes > 0) {
 		size_t count = min_t(size_t,
@@ -1611,7 +1611,7 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 		return -ENOMEM;
 
 	while (iov_iter_count(i) > 0) {
-		size_t offset = pos & (PAGE_SIZE - 1);
+		size_t offset = offset_in_page(pos);
 		size_t sector_offset;
 		size_t write_bytes = min(iov_iter_count(i),
 					 nrptrs * (size_t)PAGE_SIZE -
@@ -2005,7 +2005,7 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
 	filp->private_data = NULL;
 
 	/*
-	 * ordered_data_close is set by settattr when we are about to truncate
+	 * ordered_data_close is set by setattr when we are about to truncate
 	 * a file from a non-zero size to a zero size.  This tries to
 	 * flush down new bytes that may have been written if the
 	 * application were using truncate to replace a file in place.
@@ -2114,7 +2114,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	/*
 	 * We have to do this here to avoid the priority inversion of waiting on
-	 * IO of a lower priority task while holding a transaciton open.
+	 * IO of a lower priority task while holding a transaction open.
 	 */
 	ret = btrfs_wait_ordered_range(inode, start, len);
 	if (ret) {
@@ -2154,7 +2154,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * here we could get into a situation where we're waiting on IO to
 	 * happen that is blocked on a transaction trying to commit.  With start
 	 * we inc the extwriter counter, so we wait for all extwriters to exit
-	 * before we start blocking join'ers.  This comment is to keep somebody
+	 * before we start blocking joiners.  This comment is to keep somebody
 	 * from thinking they are super smart and changing this to
 	 * btrfs_join_transaction *cough*Josef*cough*.
 	 */
@@ -2185,25 +2185,6 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 */
 	up_write(&BTRFS_I(inode)->dio_sem);
 	inode_unlock(inode);
-
-	/*
-	 * If any of the ordered extents had an error, just return it to user
-	 * space, so that the application knows some writes didn't succeed and
-	 * can take proper action (retry for e.g.). Blindly committing the
-	 * transaction in this case, would fool userspace that everything was
-	 * successful. And we also want to make sure our log doesn't contain
-	 * file extent items pointing to extents that weren't fully written to -
-	 * just like in the non fast fsync path, where we check for the ordered
-	 * operation's error flag before writing to the log tree and return -EIO
-	 * if any of them had this flag set (btrfs_wait_ordered_range) -
-	 * therefore we need to check for errors in the ordered operations,
-	 * which are indicated by ctx.io_err.
-	 */
-	if (ctx.io_err) {
-		btrfs_end_transaction(trans);
-		ret = ctx.io_err;
-		goto out;
-	}
 
 	if (ret != BTRFS_NO_LOG_SYNC) {
 		if (!ret) {
@@ -3237,8 +3218,7 @@ static int find_desired_extent(struct inode *inode, loff_t *offset, int whence)
 			 &cached_state);
 
 	while (start < inode->i_size) {
-		em = btrfs_get_extent_fiemap(BTRFS_I(inode), NULL, 0,
-				start, len, 0);
+		em = btrfs_get_extent_fiemap(BTRFS_I(inode), start, len);
 		if (IS_ERR(em)) {
 			ret = PTR_ERR(em);
 			em = NULL;

@@ -799,7 +799,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 	 * Scan to find existence of the device and get the type of NAND device:
 	 * SMALL block or LARGE block.
 	 */
-	nand_chip->dummy_controller.ops = &lpc32xx_nand_controller_ops;
+	nand_chip->legacy.dummy_controller.ops = &lpc32xx_nand_controller_ops;
 	res = nand_scan(nand_chip, 1);
 	if (res)
 		goto free_irq;
