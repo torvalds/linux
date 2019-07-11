@@ -646,16 +646,67 @@ out_unlock:
 	return error;
 }
 
-/* Check Volume Structure Descriptors (ECMA 167 2/9.1) */
-/* We also check any "CD-ROM Volume Descriptor Set" (ECMA 167 2/8.3.1) */
-static loff_t udf_check_vsd(struct super_block *sb)
+/*
+ * Check VSD descriptor. Returns -1 in case we are at the end of volume
+ * recognition area, 0 if the descriptor is valid but non-interesting, 1 if
+ * we found one of NSR descriptors we are looking for.
+ */
+static int identify_vsd(const struct volStructDesc *vsd)
+{
+	int ret = 0;
+
+	if (!memcmp(vsd->stdIdent, VSD_STD_ID_CD001, VSD_STD_ID_LEN)) {
+		switch (vsd->structType) {
+		case 0:
+			udf_debug("ISO9660 Boot Record found\n");
+			break;
+		case 1:
+			udf_debug("ISO9660 Primary Volume Descriptor found\n");
+			break;
+		case 2:
+			udf_debug("ISO9660 Supplementary Volume Descriptor found\n");
+			break;
+		case 3:
+			udf_debug("ISO9660 Volume Partition Descriptor found\n");
+			break;
+		case 255:
+			udf_debug("ISO9660 Volume Descriptor Set Terminator found\n");
+			break;
+		default:
+			udf_debug("ISO9660 VRS (%u) found\n", vsd->structType);
+			break;
+		}
+	} else if (!memcmp(vsd->stdIdent, VSD_STD_ID_BEA01, VSD_STD_ID_LEN))
+		; /* ret = 0 */
+	else if (!memcmp(vsd->stdIdent, VSD_STD_ID_NSR02, VSD_STD_ID_LEN))
+		ret = 1;
+	else if (!memcmp(vsd->stdIdent, VSD_STD_ID_NSR03, VSD_STD_ID_LEN))
+		ret = 1;
+	else if (!memcmp(vsd->stdIdent, VSD_STD_ID_BOOT2, VSD_STD_ID_LEN))
+		; /* ret = 0 */
+	else if (!memcmp(vsd->stdIdent, VSD_STD_ID_CDW02, VSD_STD_ID_LEN))
+		; /* ret = 0 */
+	else {
+		/* TEA01 or invalid id : end of volume recognition area */
+		ret = -1;
+	}
+
+	return ret;
+}
+
+/*
+ * Check Volume Structure Descriptors (ECMA 167 2/9.1)
+ * We also check any "CD-ROM Volume Descriptor Set" (ECMA 167 2/8.3.1)
+ * @return   1 if NSR02 or NSR03 found,
+ *	    -1 if first sector read error, 0 otherwise
+ */
+static int udf_check_vsd(struct super_block *sb)
 {
 	struct volStructDesc *vsd = NULL;
 	loff_t sector = VSD_FIRST_SECTOR_OFFSET;
 	int sectorsize;
 	struct buffer_head *bh = NULL;
-	int nsr02 = 0;
-	int nsr03 = 0;
+	int nsr = 0;
 	struct udf_sb_info *sbi;
 
 	sbi = UDF_SB(sb);
@@ -679,71 +730,20 @@ static loff_t udf_check_vsd(struct super_block *sb)
 	 * activity. This actually happened with uninitialised SSD partitions
 	 * (all 0xFF) before the check for the limit and all valid IDs were
 	 * added */
-	for (; !nsr02 && !nsr03 && sector < VSD_MAX_SECTOR_OFFSET;
-	     sector += sectorsize) {
+	for (; !nsr && sector < VSD_MAX_SECTOR_OFFSET; sector += sectorsize) {
 		/* Read a block */
 		bh = udf_tread(sb, sector >> sb->s_blocksize_bits);
 		if (!bh)
 			break;
 
-		/* Look for ISO  descriptors */
 		vsd = (struct volStructDesc *)(bh->b_data +
 					      (sector & (sb->s_blocksize - 1)));
-
-		if (!strncmp(vsd->stdIdent, VSD_STD_ID_CD001,
-				    VSD_STD_ID_LEN)) {
-			switch (vsd->structType) {
-			case 0:
-				udf_debug("ISO9660 Boot Record found\n");
-				break;
-			case 1:
-				udf_debug("ISO9660 Primary Volume Descriptor found\n");
-				break;
-			case 2:
-				udf_debug("ISO9660 Supplementary Volume Descriptor found\n");
-				break;
-			case 3:
-				udf_debug("ISO9660 Volume Partition Descriptor found\n");
-				break;
-			case 255:
-				udf_debug("ISO9660 Volume Descriptor Set Terminator found\n");
-				break;
-			default:
-				udf_debug("ISO9660 VRS (%u) found\n",
-					  vsd->structType);
-				break;
-			}
-		} else if (!strncmp(vsd->stdIdent, VSD_STD_ID_BEA01,
-				    VSD_STD_ID_LEN))
-			; /* nothing */
-		else if (!strncmp(vsd->stdIdent, VSD_STD_ID_TEA01,
-				    VSD_STD_ID_LEN)) {
-			brelse(bh);
-			break;
-		} else if (!strncmp(vsd->stdIdent, VSD_STD_ID_NSR02,
-				    VSD_STD_ID_LEN))
-			nsr02 = sector;
-		else if (!strncmp(vsd->stdIdent, VSD_STD_ID_NSR03,
-				    VSD_STD_ID_LEN))
-			nsr03 = sector;
-		else if (!strncmp(vsd->stdIdent, VSD_STD_ID_BOOT2,
-				    VSD_STD_ID_LEN))
-			; /* nothing */
-		else if (!strncmp(vsd->stdIdent, VSD_STD_ID_CDW02,
-				    VSD_STD_ID_LEN))
-			; /* nothing */
-		else {
-			/* invalid id : end of volume recognition area */
-			brelse(bh);
-			break;
-		}
+		nsr = identify_vsd(vsd);
 		brelse(bh);
 	}
 
-	if (nsr03)
-		return nsr03;
-	else if (nsr02)
-		return nsr02;
+	if (nsr > 0)
+		return 1;
 	else if (!bh && sector - (sbi->s_session << sb->s_blocksize_bits) ==
 			VSD_FIRST_SECTOR_OFFSET)
 		return -1;
@@ -1915,7 +1915,7 @@ static int udf_load_vrs(struct super_block *sb, struct udf_options *uopt,
 			int silent, struct kernel_lb_addr *fileset)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
-	loff_t nsr_off;
+	int nsr = 0;
 	int ret;
 
 	if (!sb_set_blocksize(sb, uopt->blocksize)) {
@@ -1926,13 +1926,13 @@ static int udf_load_vrs(struct super_block *sb, struct udf_options *uopt,
 	sbi->s_last_block = uopt->lastblock;
 	if (!uopt->novrs) {
 		/* Check that it is NSR02 compliant */
-		nsr_off = udf_check_vsd(sb);
-		if (!nsr_off) {
+		nsr = udf_check_vsd(sb);
+		if (!nsr) {
 			if (!silent)
 				udf_warn(sb, "No VRS found\n");
 			return -EINVAL;
 		}
-		if (nsr_off == -1)
+		if (nsr == -1)
 			udf_debug("Failed to read sector at offset %d. "
 				  "Assuming open disc. Skipping validity "
 				  "check\n", VSD_FIRST_SECTOR_OFFSET);
