@@ -48,8 +48,8 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "TRANSCODER_C";
 	case POWER_DOMAIN_TRANSCODER_EDP:
 		return "TRANSCODER_EDP";
-	case POWER_DOMAIN_TRANSCODER_EDP_VDSC:
-		return "TRANSCODER_EDP_VDSC";
+	case POWER_DOMAIN_TRANSCODER_VDSC_PW2:
+		return "TRANSCODER_VDSC_PW2";
 	case POWER_DOMAIN_TRANSCODER_DSI_A:
 		return "TRANSCODER_DSI_A";
 	case POWER_DOMAIN_TRANSCODER_DSI_C:
@@ -2450,7 +2450,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	 */
 #define ICL_PW_2_POWER_DOMAINS (			\
 	ICL_PW_3_POWER_DOMAINS |			\
-	BIT_ULL(POWER_DOMAIN_TRANSCODER_EDP_VDSC) |		\
+	BIT_ULL(POWER_DOMAIN_TRANSCODER_VDSC_PW2) |		\
 	BIT_ULL(POWER_DOMAIN_INIT))
 	/*
 	 * - KVMR (HW control)
