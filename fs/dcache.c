@@ -2372,7 +2372,6 @@ EXPORT_SYMBOL(d_hash_and_lookup);
 void d_delete(struct dentry * dentry)
 {
 	struct inode *inode = dentry->d_inode;
-	int isdir = d_is_dir(dentry);
 
 	spin_lock(&inode->i_lock);
 	spin_lock(&dentry->d_lock);
@@ -2387,7 +2386,6 @@ void d_delete(struct dentry * dentry)
 		spin_unlock(&dentry->d_lock);
 		spin_unlock(&inode->i_lock);
 	}
-	fsnotify_nameremove(dentry, isdir);
 }
 EXPORT_SYMBOL(d_delete);
 
