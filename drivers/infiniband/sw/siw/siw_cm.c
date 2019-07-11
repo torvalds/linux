@@ -1275,7 +1275,6 @@ static void siw_cm_llp_error_report(struct sock *sk)
 static void siw_cm_llp_state_change(struct sock *sk)
 {
 	struct siw_cep *cep;
-	struct socket *s;
 	void (*orig_state_change)(struct sock *s);
 
 	read_lock(&sk->sk_callback_lock);
@@ -1287,8 +1286,6 @@ static void siw_cm_llp_state_change(struct sock *sk)
 		return;
 	}
 	orig_state_change = cep->sk_state_change;
-
-	s = sk->sk_socket;
 
 	siw_dbg_cep(cep, "state: %d\n", cep->state);
 
