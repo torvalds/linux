@@ -613,7 +613,7 @@ static int navi10_get_current_clk_freq_by_table(struct smu_context *smu,
 
 	memset(&metrics, 0, sizeof(metrics));
 
-	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, (void *)&metrics, false);
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0, (void *)&metrics, false);
 	if (ret)
 		return ret;
 
@@ -866,7 +866,7 @@ static int navi10_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	if (!value)
 		return -EINVAL;
 
-	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, (void *)&metrics,
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0, (void *)&metrics,
 			       false);
 	if (ret)
 		return ret;
@@ -888,7 +888,7 @@ static int navi10_get_current_activity_percent(struct smu_context *smu,
 
 	msleep(1);
 
-	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS,
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
 			       (void *)&metrics, false);
 	if (ret)
 		return ret;
@@ -929,7 +929,7 @@ static int navi10_get_fan_speed(struct smu_context *smu, uint16_t *value)
 
 	memset(&metrics, 0, sizeof(metrics));
 
-	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS,
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
 			       (void *)&metrics, false);
 	if (ret)
 		return ret;
@@ -995,7 +995,7 @@ static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 		workload_type = smu_workload_get_type(smu, i);
 		result = smu_update_table(smu,
-					  SMU_TABLE_ACTIVITY_MONITOR_COEFF | workload_type << 16,
+					  SMU_TABLE_ACTIVITY_MONITOR_COEFF, workload_type,
 					  (void *)(&activity_monitor), false);
 		if (result) {
 			pr_err("[%s] Failed to get activity monitor!", __func__);
@@ -1068,7 +1068,7 @@ static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, u
 			return -EINVAL;
 
 		ret = smu_update_table(smu,
-				       SMU_TABLE_ACTIVITY_MONITOR_COEFF | WORKLOAD_PPLIB_CUSTOM_BIT << 16,
+				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
 				       (void *)(&activity_monitor), false);
 		if (ret) {
 			pr_err("[%s] Failed to get activity monitor!", __func__);
@@ -1112,7 +1112,7 @@ static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, u
 		}
 
 		ret = smu_update_table(smu,
-				       SMU_TABLE_ACTIVITY_MONITOR_COEFF | WORKLOAD_PPLIB_CUSTOM_BIT << 16,
+				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
 				       (void *)(&activity_monitor), true);
 		if (ret) {
 			pr_err("[%s] Failed to set activity monitor!", __func__);
@@ -1278,7 +1278,7 @@ static int navi10_thermal_get_temperature(struct smu_context *smu,
 	if (!value)
 		return -EINVAL;
 
-	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, (void *)&metrics, false);
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0, (void *)&metrics, false);
 	if (ret)
 		return ret;
 

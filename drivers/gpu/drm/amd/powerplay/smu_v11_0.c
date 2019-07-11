@@ -703,7 +703,7 @@ static int smu_v11_0_write_pptable(struct smu_context *smu)
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret = 0;
 
-	ret = smu_update_table(smu, SMU_TABLE_PPTABLE,
+	ret = smu_update_table(smu, SMU_TABLE_PPTABLE, 0,
 			       table_context->driver_pptable, true);
 
 	return ret;
@@ -722,7 +722,7 @@ static int smu_v11_0_write_watermarks_table(struct smu_context *smu)
 	if (!table->cpu_addr)
 		return -EINVAL;
 
-	ret = smu_update_table(smu, SMU_TABLE_WATERMARKS, table->cpu_addr,
+	ret = smu_update_table(smu, SMU_TABLE_WATERMARKS, 0, table->cpu_addr,
 				true);
 
 	return ret;
