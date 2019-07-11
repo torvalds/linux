@@ -25,7 +25,7 @@
 #include "amdgpu.h"
 #include "amdgpu_xgmi.h"
 #include "amdgpu_smu.h"
-
+#include "df/df_3_6_offset.h"
 
 static DEFINE_MUTEX(xgmi_mutex);
 
@@ -131,9 +131,37 @@ static ssize_t amdgpu_xgmi_show_device_id(struct device *dev,
 
 }
 
+#define AMDGPU_XGMI_SET_FICAA(o)	((o) | 0x456801)
+static ssize_t amdgpu_xgmi_show_error(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	uint32_t ficaa_pie_ctl_in, ficaa_pie_status_in;
+	uint64_t fica_out;
+	unsigned int error_count = 0;
+
+	ficaa_pie_ctl_in = AMDGPU_XGMI_SET_FICAA(0x200);
+	ficaa_pie_status_in = AMDGPU_XGMI_SET_FICAA(0x208);
+
+	fica_out = adev->df_funcs->get_fica(adev, ficaa_pie_ctl_in);
+	if (fica_out != 0x1f)
+		pr_err("xGMI error counters not enabled!\n");
+
+	fica_out = adev->df_funcs->get_fica(adev, ficaa_pie_status_in);
+
+	if ((fica_out & 0xffff) == 2)
+		error_count = ((fica_out >> 62) & 0x1) + (fica_out >> 63);
+
+	adev->df_funcs->set_fica(adev, ficaa_pie_status_in, 0, 0);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", error_count);
+}
+
 
 static DEVICE_ATTR(xgmi_device_id, S_IRUGO, amdgpu_xgmi_show_device_id, NULL);
-
+static DEVICE_ATTR(xgmi_error, S_IRUGO, amdgpu_xgmi_show_error, NULL);
 
 static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
 					 struct amdgpu_hive_info *hive)
@@ -147,6 +175,12 @@ static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
 		dev_err(adev->dev, "XGMI: Failed to create device file xgmi_device_id\n");
 		return ret;
 	}
+
+	/* Create xgmi error file */
+	ret = device_create_file(adev->dev, &dev_attr_xgmi_error);
+	if (ret)
+		pr_err("failed to create xgmi_error\n");
+
 
 	/* Create sysfs link to hive info folder on the first device */
 	if (adev != hive->adev) {
