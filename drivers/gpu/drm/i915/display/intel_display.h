@@ -58,6 +58,7 @@ enum pipe {
 	PIPE_A = 0,
 	PIPE_B,
 	PIPE_C,
+	PIPE_D,
 	_PIPE_EDP,
 
 	I915_MAX_PIPES = _PIPE_EDP
@@ -75,6 +76,7 @@ enum transcoder {
 	TRANSCODER_A = PIPE_A,
 	TRANSCODER_B = PIPE_B,
 	TRANSCODER_C = PIPE_C,
+	TRANSCODER_D = PIPE_D,
 
 	/*
 	 * The following transcoders can map to any pipe, their enum value
@@ -98,6 +100,8 @@ static inline const char *transcoder_name(enum transcoder transcoder)
 		return "B";
 	case TRANSCODER_C:
 		return "C";
+	case TRANSCODER_D:
+		return "D";
 	case TRANSCODER_EDP:
 		return "EDP";
 	case TRANSCODER_DSI_A:

@@ -17191,7 +17191,7 @@ struct intel_display_error_state {
 		u32 vtotal;
 		u32 vblank;
 		u32 vsync;
-	} transcoder[4];
+	} transcoder[5];
 };
 
 struct intel_display_error_state *
@@ -17202,6 +17202,7 @@ intel_display_capture_error_state(struct drm_i915_private *dev_priv)
 		TRANSCODER_A,
 		TRANSCODER_B,
 		TRANSCODER_C,
+		TRANSCODER_D,
 		TRANSCODER_EDP,
 	};
 	int i;
