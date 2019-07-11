@@ -99,6 +99,7 @@ static int model_static_coeff(struct kbase_ipa_model *model, u32 *coeffp)
 	struct kbase_ipa_model_simple_data *model_data =
 		(struct kbase_ipa_model_simple_data *) model->model_data;
 	struct thermal_zone_device *gpu_tz = model_data->gpu_tz;
+	u64 coeffp_big;
 
 	if (gpu_tz) {
 		int ret;
@@ -115,9 +116,8 @@ static int model_static_coeff(struct kbase_ipa_model *model, u32 *coeffp)
 
 	temp_scaling_factor = calculate_temp_scaling_factor(model_data->ts,
 							    temp);
-
-	*coeffp = model_data->static_coefficient * temp_scaling_factor;
-	*coeffp /= 1000000;
+	coeffp_big = (u64)model_data->static_coefficient * temp_scaling_factor;
+	*coeffp = div_u64(coeffp_big, 1000000);
 
 	return 0;
 }
