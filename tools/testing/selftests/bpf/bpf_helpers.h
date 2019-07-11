@@ -315,8 +315,8 @@ static int (*bpf_skb_adjust_room)(void *ctx, __s32 len_diff, __u32 mode,
 #if defined(__TARGET_ARCH_x86)
 	#define bpf_target_x86
 	#define bpf_target_defined
-#elif defined(__TARGET_ARCH_s930x)
-	#define bpf_target_s930x
+#elif defined(__TARGET_ARCH_s390)
+	#define bpf_target_s390
 	#define bpf_target_defined
 #elif defined(__TARGET_ARCH_arm)
 	#define bpf_target_arm
@@ -341,8 +341,8 @@ static int (*bpf_skb_adjust_room)(void *ctx, __s32 len_diff, __u32 mode,
 #ifndef bpf_target_defined
 #if defined(__x86_64__)
 	#define bpf_target_x86
-#elif defined(__s390x__)
-	#define bpf_target_s930x
+#elif defined(__s390__)
+	#define bpf_target_s390
 #elif defined(__arm__)
 	#define bpf_target_arm
 #elif defined(__aarch64__)
@@ -369,7 +369,7 @@ static int (*bpf_skb_adjust_room)(void *ctx, __s32 len_diff, __u32 mode,
 #define PT_REGS_SP(x) ((x)->sp)
 #define PT_REGS_IP(x) ((x)->ip)
 
-#elif defined(bpf_target_s390x)
+#elif defined(bpf_target_s390)
 
 #define PT_REGS_PARM1(x) ((x)->gprs[2])
 #define PT_REGS_PARM2(x) ((x)->gprs[3])
