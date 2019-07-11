@@ -1534,11 +1534,21 @@ static void time_out_leases(struct inode *inode, struct list_head *dispose)
 
 static bool leases_conflict(struct file_lock *lease, struct file_lock *breaker)
 {
-	if ((breaker->fl_flags & FL_LAYOUT) != (lease->fl_flags & FL_LAYOUT))
-		return false;
-	if ((breaker->fl_flags & FL_DELEG) && (lease->fl_flags & FL_LEASE))
-		return false;
-	return locks_conflict(breaker, lease);
+	bool rc;
+
+	if ((breaker->fl_flags & FL_LAYOUT) != (lease->fl_flags & FL_LAYOUT)) {
+		rc = false;
+		goto trace;
+	}
+	if ((breaker->fl_flags & FL_DELEG) && (lease->fl_flags & FL_LEASE)) {
+		rc = false;
+		goto trace;
+	}
+
+	rc = locks_conflict(breaker, lease);
+trace:
+	trace_leases_conflict(rc, lease, breaker);
+	return rc;
 }
 
 static bool
@@ -1753,10 +1763,10 @@ int fcntl_getlease(struct file *filp)
 }
 
 /**
- * check_conflicting_open - see if the given dentry points to a file that has
+ * check_conflicting_open - see if the given file points to an inode that has
  *			    an existing open that would conflict with the
  *			    desired lease.
- * @dentry:	dentry to check
+ * @filp:	file to check
  * @arg:	type of lease that we're trying to acquire
  * @flags:	current lock flags
  *
@@ -1764,30 +1774,42 @@ int fcntl_getlease(struct file *filp)
  * conflict with the lease we're trying to set.
  */
 static int
-check_conflicting_open(const struct dentry *dentry, const long arg, int flags)
+check_conflicting_open(struct file *filp, const long arg, int flags)
 {
-	int ret = 0;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = locks_inode(filp);
+	int self_wcount = 0, self_rcount = 0;
 
 	if (flags & FL_LAYOUT)
 		return 0;
 
-	if ((arg == F_RDLCK) && inode_is_open_for_write(inode))
+	if (arg == F_RDLCK)
+		return inode_is_open_for_write(inode) ? -EAGAIN : 0;
+	else if (arg != F_WRLCK)
+		return 0;
+
+	/*
+	 * Make sure that only read/write count is from lease requestor.
+	 * Note that this will result in denying write leases when i_writecount
+	 * is negative, which is what we want.  (We shouldn't grant write leases
+	 * on files open for execution.)
+	 */
+	if (filp->f_mode & FMODE_WRITE)
+		self_wcount = 1;
+	else if (filp->f_mode & FMODE_READ)
+		self_rcount = 1;
+
+	if (atomic_read(&inode->i_writecount) != self_wcount ||
+	    atomic_read(&inode->i_readcount) != self_rcount)
 		return -EAGAIN;
 
-	if ((arg == F_WRLCK) && ((d_count(dentry) > 1) ||
-	    (atomic_read(&inode->i_count) > 1)))
-		ret = -EAGAIN;
-
-	return ret;
+	return 0;
 }
 
 static int
 generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **priv)
 {
 	struct file_lock *fl, *my_fl = NULL, *lease;
-	struct dentry *dentry = filp->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = locks_inode(filp);
 	struct file_lock_context *ctx;
 	bool is_deleg = (*flp)->fl_flags & FL_DELEG;
 	int error;
@@ -1822,7 +1844,7 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 	percpu_down_read(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	time_out_leases(inode, &dispose);
-	error = check_conflicting_open(dentry, arg, lease->fl_flags);
+	error = check_conflicting_open(filp, arg, lease->fl_flags);
 	if (error)
 		goto out;
 
@@ -1879,7 +1901,7 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 	 * precedes these checks.
 	 */
 	smp_mb();
-	error = check_conflicting_open(dentry, arg, lease->fl_flags);
+	error = check_conflicting_open(filp, arg, lease->fl_flags);
 	if (error) {
 		locks_unlink_lock_ctx(lease);
 		goto out;
