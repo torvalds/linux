@@ -254,7 +254,7 @@ mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
 		       bool stbc, u8 *bw)
 {
 	u8 phy, nss, rate_idx;
-	u16 rateval;
+	u16 rateval = 0;
 
 	*bw = 0;
 
@@ -292,12 +292,14 @@ mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
 		rate_idx = val & 0xff;
 	}
 
-	rateval = (FIELD_PREP(MT_TX_RATE_IDX, rate_idx) |
-		   FIELD_PREP(MT_TX_RATE_MODE, phy) |
-		   FIELD_PREP(MT_TX_RATE_NSS, nss - 1));
-
-	if (stbc && nss == 1)
+	if (stbc && nss == 1) {
+		nss++;
 		rateval |= MT_TX_RATE_STBC;
+	}
+
+	rateval |= (FIELD_PREP(MT_TX_RATE_IDX, rate_idx) |
+		    FIELD_PREP(MT_TX_RATE_MODE, phy) |
+		    FIELD_PREP(MT_TX_RATE_NSS, nss - 1));
 
 	return rateval;
 }
@@ -771,6 +773,10 @@ out:
 		break;
 	case MT_PHY_TYPE_VHT:
 		final_nss = FIELD_GET(MT_TX_RATE_NSS, final_rate);
+
+		if ((final_rate & MT_TX_RATE_STBC) && final_nss)
+			final_nss--;
+
 		final_rate_flags |= IEEE80211_TX_RC_VHT_MCS;
 		final_rate = (final_rate & MT_TX_RATE_IDX) | (final_nss << 4);
 		break;
