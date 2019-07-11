@@ -84,6 +84,8 @@ struct drm_panfrost_wait_bo {
 	__s64 timeout_ns;	/* absolute */
 };
 
+#define PANFROST_BO_NOEXEC	1
+
 /**
  * struct drm_panfrost_create_bo - ioctl argument for creating Panfrost BOs.
  *

@@ -78,18 +78,19 @@ static int panfrost_ioctl_get_param(struct drm_device *ddev, void *data, struct 
 static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
-	struct drm_gem_shmem_object *shmem;
+	struct panfrost_gem_object *bo;
 	struct drm_panfrost_create_bo *args = data;
 
-	if (!args->size || args->flags || args->pad)
+	if (!args->size || args->pad ||
+	    (args->flags & ~PANFROST_BO_NOEXEC))
 		return -EINVAL;
 
-	shmem = drm_gem_shmem_create_with_handle(file, dev, args->size,
-						 &args->handle);
-	if (IS_ERR(shmem))
-		return PTR_ERR(shmem);
+	bo = panfrost_gem_create_with_handle(file, dev, args->size, args->flags,
+					     &args->handle);
+	if (IS_ERR(bo))
+		return PTR_ERR(bo);
 
-	args->offset = to_panfrost_bo(&shmem->base)->node.start << PAGE_SHIFT;
+	args->offset = bo->node.start << PAGE_SHIFT;
 
 	return 0;
 }
@@ -364,6 +365,32 @@ int panfrost_unstable_ioctl_check(void)
 	return 0;
 }
 
+#define PFN_4G		(SZ_4G >> PAGE_SHIFT)
+#define PFN_4G_MASK	(PFN_4G - 1)
+#define PFN_16M		(SZ_16M >> PAGE_SHIFT)
+
+static void panfrost_drm_mm_color_adjust(const struct drm_mm_node *node,
+					 unsigned long color,
+					 u64 *start, u64 *end)
+{
+	/* Executable buffers can't start or end on a 4GB boundary */
+	if (!(color & PANFROST_BO_NOEXEC)) {
+		u64 next_seg;
+
+		if ((*start & PFN_4G_MASK) == 0)
+			(*start)++;
+
+		if ((*end & PFN_4G_MASK) == 0)
+			(*end)--;
+
+		next_seg = ALIGN(*start, PFN_4G);
+		if (next_seg - *start <= PFN_16M)
+			*start = next_seg + 1;
+
+		*end = min(*end, ALIGN(*start, PFN_4G) - 1);
+	}
+}
+
 static int
 panfrost_open(struct drm_device *dev, struct drm_file *file)
 {
@@ -461,6 +488,7 @@ static int panfrost_probe(struct platform_device *pdev)
 
 	/* 4G enough for now. can be 48-bit */
 	drm_mm_init(&pfdev->mm, SZ_32M >> PAGE_SHIFT, (SZ_4G - SZ_32M) >> PAGE_SHIFT);
+	pfdev->mm.color_adjust = panfrost_drm_mm_color_adjust;
 
 	pm_runtime_use_autosuspend(pfdev->dev);
 	pm_runtime_set_autosuspend_delay(pfdev->dev, 50); /* ~3 frames */

@@ -31,13 +31,25 @@ static int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_p
 {
 	int ret;
 	size_t size = obj->size;
-	u64 align = size >= SZ_2M ? SZ_2M >> PAGE_SHIFT : 0;
+	u64 align;
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
 	struct panfrost_device *pfdev = obj->dev->dev_private;
+	unsigned long color = bo->noexec ? PANFROST_BO_NOEXEC : 0;
+
+	/*
+	 * Executable buffers cannot cross a 16MB boundary as the program
+	 * counter is 24-bits. We assume executable buffers will be less than
+	 * 16MB and aligning executable buffers to their size will avoid
+	 * crossing a 16MB boundary.
+	 */
+	if (!bo->noexec)
+		align = size >> PAGE_SHIFT;
+	else
+		align = size >= SZ_2M ? SZ_2M >> PAGE_SHIFT : 0;
 
 	spin_lock(&pfdev->mm_lock);
 	ret = drm_mm_insert_node_generic(&pfdev->mm, &bo->node,
-					 size >> PAGE_SHIFT, align, 0, 0);
+					 size >> PAGE_SHIFT, align, color, 0);
 	if (ret)
 		goto out;
 
@@ -98,16 +110,50 @@ struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t
 	return &obj->base.base;
 }
 
+struct panfrost_gem_object *
+panfrost_gem_create_with_handle(struct drm_file *file_priv,
+				struct drm_device *dev, size_t size,
+				u32 flags,
+				uint32_t *handle)
+{
+	int ret;
+	struct drm_gem_shmem_object *shmem;
+	struct panfrost_gem_object *bo;
+
+	shmem = drm_gem_shmem_create(dev, size);
+	if (IS_ERR(shmem))
+		return ERR_CAST(shmem);
+
+	bo = to_panfrost_bo(&shmem->base);
+	bo->noexec = !!(flags & PANFROST_BO_NOEXEC);
+
+	/*
+	 * Allocate an id of idr table where the obj is registered
+	 * and handle has the id what user can see.
+	 */
+	ret = drm_gem_handle_create(file_priv, &shmem->base, handle);
+	/* drop reference from allocate - handle holds it now. */
+	drm_gem_object_put_unlocked(&shmem->base);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return bo;
+}
+
 struct drm_gem_object *
 panfrost_gem_prime_import_sg_table(struct drm_device *dev,
 				   struct dma_buf_attachment *attach,
 				   struct sg_table *sgt)
 {
 	struct drm_gem_object *obj;
+	struct panfrost_gem_object *bo;
 
 	obj = drm_gem_shmem_prime_import_sg_table(dev, attach, sgt);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
+
+	bo = to_panfrost_bo(obj);
+	bo->noexec = true;
 
 	return obj;
 }

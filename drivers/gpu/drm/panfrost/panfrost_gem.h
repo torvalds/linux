@@ -11,7 +11,8 @@ struct panfrost_gem_object {
 	struct drm_gem_shmem_object base;
 
 	struct drm_mm_node node;
-	bool is_mapped;
+	bool is_mapped		:1;
+	bool noexec		:1;
 };
 
 static inline
@@ -26,6 +27,12 @@ struct drm_gem_object *
 panfrost_gem_prime_import_sg_table(struct drm_device *dev,
 				   struct dma_buf_attachment *attach,
 				   struct sg_table *sgt);
+
+struct panfrost_gem_object *
+panfrost_gem_create_with_handle(struct drm_file *file_priv,
+				struct drm_device *dev, size_t size,
+				u32 flags,
+				uint32_t *handle);
 
 void panfrost_gem_shrinker_init(struct drm_device *dev);
 void panfrost_gem_shrinker_cleanup(struct drm_device *dev);

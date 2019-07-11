@@ -190,6 +190,9 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 	if (WARN_ON(bo->is_mapped))
 		return 0;
 
+	if (bo->noexec)
+		prot |= IOMMU_NOEXEC;
+
 	sgt = drm_gem_shmem_get_pages_sgt(obj);
 	if (WARN_ON(IS_ERR(sgt)))
 		return PTR_ERR(sgt);
