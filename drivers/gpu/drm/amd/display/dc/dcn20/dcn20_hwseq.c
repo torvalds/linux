@@ -1364,6 +1364,18 @@ static void dcn20_apply_ctx_for_surface(
 	if (!top_pipe_to_program)
 		return;
 
+	/* Carry over GSL groups in case the context is changing. */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe_ctx =
+			&dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream == stream &&
+		    pipe_ctx->stream == old_pipe_ctx->stream)
+			pipe_ctx->stream_res.gsl_group =
+				old_pipe_ctx->stream_res.gsl_group;
+	}
+
 	tg = top_pipe_to_program->stream_res.tg;
 
 	interdependent_update = top_pipe_to_program->plane_state &&
