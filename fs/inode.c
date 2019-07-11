@@ -1899,6 +1899,26 @@ int file_update_time(struct file *file)
 }
 EXPORT_SYMBOL(file_update_time);
 
+/* Caller must hold the file's inode lock */
+int file_modified(struct file *file)
+{
+	int err;
+
+	/*
+	 * Clear the security bits if the process is not being run by root.
+	 * This keeps people from modifying setuid and setgid binaries.
+	 */
+	err = file_remove_privs(file);
+	if (err)
+		return err;
+
+	if (unlikely(file->f_mode & FMODE_NOCMTIME))
+		return 0;
+
+	return file_update_time(file);
+}
+EXPORT_SYMBOL(file_modified);
+
 int inode_needs_sync(struct inode *inode)
 {
 	if (IS_SYNC(inode))
