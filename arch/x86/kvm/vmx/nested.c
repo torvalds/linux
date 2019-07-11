@@ -23,7 +23,7 @@ module_param(nested_early_check, bool, S_IRUGO);
 ({									\
 	bool failed = (consistency_check);				\
 	if (failed)							\
-		trace_kvm_nested_vmenter_failed(#consistency_check);	\
+		trace_kvm_nested_vmenter_failed(#consistency_check, 0);	\
 	failed;								\
 })
 
@@ -2845,9 +2845,13 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 		vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, vmx->msr_autoload.guest.nr);
 
 	if (vm_fail) {
+		u32 error = vmcs_read32(VM_INSTRUCTION_ERROR);
+
 		preempt_enable();
-		WARN_ON_ONCE(vmcs_read32(VM_INSTRUCTION_ERROR) !=
-			     VMXERR_ENTRY_INVALID_CONTROL_FIELD);
+
+		trace_kvm_nested_vmenter_failed(
+			"early hardware check VM-instruction error: ", error);
+		WARN_ON_ONCE(error != VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 		return 1;
 	}
 
@@ -5259,8 +5263,9 @@ bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 		return false;
 
 	if (unlikely(vmx->fail)) {
-		pr_info_ratelimited("%s failed vm entry %x\n", __func__,
-				    vmcs_read32(VM_INSTRUCTION_ERROR));
+		trace_kvm_nested_vmenter_failed(
+			"hardware VM-instruction error: ",
+			vmcs_read32(VM_INSTRUCTION_ERROR));
 		return true;
 	}
 
