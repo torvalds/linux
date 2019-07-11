@@ -789,8 +789,6 @@ static bool guc_verify_doorbells(struct intel_guc *guc)
  *		The kernel client to replace ExecList submission is created with
  *		NORMAL priority. Priority of a client for scheduler can be HIGH,
  *		while a preemption context can use CRITICAL.
- * @ctx:	the context that owns the client (we use the default render
- *		context)
  *
  * Return:	An intel_guc_client object if success, else NULL.
  */
