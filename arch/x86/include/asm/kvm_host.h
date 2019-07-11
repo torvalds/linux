@@ -933,6 +933,8 @@ struct kvm_arch {
 
 	bool guest_can_read_msr_platform_info;
 	bool exception_payload_enabled;
+
+	struct kvm_pmu_event_filter *pmu_event_filter;
 };
 
 struct kvm_vm_stat {

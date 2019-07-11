@@ -422,4 +422,14 @@ struct kvm_nested_state {
 	__u8 data[0];
 };
 
+/* for KVM_CAP_PMU_EVENT_FILTER */
+struct kvm_pmu_event_filter {
+       __u32 action;
+       __u32 nevents;
+       __u64 events[0];
+};
+
+#define KVM_PMU_EVENT_ALLOW 0
+#define KVM_PMU_EVENT_DENY 1
+
 #endif /* _ASM_X86_KVM_H */

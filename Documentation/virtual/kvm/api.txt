@@ -4065,6 +4065,32 @@ KVM_ARM_VCPU_FINALIZE call.
 See KVM_ARM_VCPU_INIT for details of vcpu features that require finalization
 using this ioctl.
 
+4.120 KVM_SET_PMU_EVENT_FILTER
+
+Capability: KVM_CAP_PMU_EVENT_FILTER
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_pmu_event_filter (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_pmu_event_filter {
+       __u32 action;
+       __u32 nevents;
+       __u64 events[0];
+};
+
+This ioctl restricts the set of PMU events that the guest can program.
+The argument holds a list of events which will be allowed or denied.
+The eventsel+umask of each event the guest attempts to program is compared
+against the events field to determine whether the guest should have access.
+This only affects general purpose counters; fixed purpose counters can
+be disabled by changing the perfmon CPUID leaf.
+
+Valid values for 'action':
+#define KVM_PMU_EVENT_ALLOW 0
+#define KVM_PMU_EVENT_DENY 1
+
+
 5. The kvm_run structure
 ------------------------
 
