@@ -6676,7 +6676,7 @@ bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy)
 	if (phy == PHY_NONE)
 		return false;
 
-	if (IS_ELKHARTLAKE(dev_priv))
+	if (IS_ELKHARTLAKE(dev_priv) || INTEL_GEN(dev_priv) >= 12)
 		return phy <= PHY_C;
 
 	if (INTEL_GEN(dev_priv) >= 11)
@@ -6687,6 +6687,9 @@ bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy)
 
 bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy)
 {
+	if (INTEL_GEN(dev_priv) >= 12)
+		return phy >= PHY_D && phy <= PHY_I;
+
 	if (INTEL_GEN(dev_priv) >= 11 && !IS_ELKHARTLAKE(dev_priv))
 		return phy >= PHY_C && phy <= PHY_F;
 

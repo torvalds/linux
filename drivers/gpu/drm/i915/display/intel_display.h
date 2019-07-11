@@ -249,6 +249,9 @@ enum phy {
 	PHY_D,
 	PHY_E,
 	PHY_F,
+	PHY_G,
+	PHY_H,
+	PHY_I,
 
 	I915_MAX_PHYS
 };
