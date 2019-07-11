@@ -177,7 +177,7 @@ int load_other_segments(struct kimage *image,
 	if (initrd) {
 		kbuf.buffer = initrd;
 		kbuf.bufsz = initrd_len;
-		kbuf.mem = 0;
+		kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
 		kbuf.memsz = initrd_len;
 		kbuf.buf_align = 0;
 		/* within 1GB-aligned window of up to 32GB in size */
@@ -204,7 +204,7 @@ int load_other_segments(struct kimage *image,
 	dtb_len = fdt_totalsize(dtb);
 	kbuf.buffer = dtb;
 	kbuf.bufsz = dtb_len;
-	kbuf.mem = 0;
+	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
 	kbuf.memsz = dtb_len;
 	/* not across 2MB boundary */
 	kbuf.buf_align = SZ_2M;
