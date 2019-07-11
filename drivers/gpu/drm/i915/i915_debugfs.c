@@ -2466,7 +2466,8 @@ static int i915_power_domain_info(struct seq_file *m, void *unused)
 
 		for_each_power_domain(power_domain, power_well->desc->domains)
 			seq_printf(m, "  %-23s %d\n",
-				 intel_display_power_domain_str(power_domain),
+				 intel_display_power_domain_str(dev_priv,
+								power_domain),
 				 power_domains->domain_use_count[power_domain]);
 	}
 

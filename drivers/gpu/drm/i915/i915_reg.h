@@ -9147,7 +9147,7 @@ enum {
 #define   GLK_PW_CTL_IDX_DDI_A			1
 #define   SKL_PW_CTL_IDX_MISC_IO		0
 
-/* ICL - power wells */
+/* ICL/TGL - power wells */
 #define   ICL_PW_CTL_IDX_PW_4			3
 #define   ICL_PW_CTL_IDX_PW_3			2
 #define   ICL_PW_CTL_IDX_PW_2			1
@@ -9156,13 +9156,25 @@ enum {
 #define ICL_PWR_WELL_CTL_AUX1			_MMIO(0x45440)
 #define ICL_PWR_WELL_CTL_AUX2			_MMIO(0x45444)
 #define ICL_PWR_WELL_CTL_AUX4			_MMIO(0x4544C)
+#define   TGL_PW_CTL_IDX_AUX_TBT6		14
+#define   TGL_PW_CTL_IDX_AUX_TBT5		13
+#define   TGL_PW_CTL_IDX_AUX_TBT4		12
 #define   ICL_PW_CTL_IDX_AUX_TBT4		11
+#define   TGL_PW_CTL_IDX_AUX_TBT3		11
 #define   ICL_PW_CTL_IDX_AUX_TBT3		10
+#define   TGL_PW_CTL_IDX_AUX_TBT2		10
 #define   ICL_PW_CTL_IDX_AUX_TBT2		9
+#define   TGL_PW_CTL_IDX_AUX_TBT1		9
 #define   ICL_PW_CTL_IDX_AUX_TBT1		8
+#define   TGL_PW_CTL_IDX_AUX_TC6		8
+#define   TGL_PW_CTL_IDX_AUX_TC5		7
+#define   TGL_PW_CTL_IDX_AUX_TC4		6
 #define   ICL_PW_CTL_IDX_AUX_F			5
+#define   TGL_PW_CTL_IDX_AUX_TC3		5
 #define   ICL_PW_CTL_IDX_AUX_E			4
+#define   TGL_PW_CTL_IDX_AUX_TC2		4
 #define   ICL_PW_CTL_IDX_AUX_D			3
+#define   TGL_PW_CTL_IDX_AUX_TC1		3
 #define   ICL_PW_CTL_IDX_AUX_C			2
 #define   ICL_PW_CTL_IDX_AUX_B			1
 #define   ICL_PW_CTL_IDX_AUX_A			0
@@ -9170,9 +9182,15 @@ enum {
 #define ICL_PWR_WELL_CTL_DDI1			_MMIO(0x45450)
 #define ICL_PWR_WELL_CTL_DDI2			_MMIO(0x45454)
 #define ICL_PWR_WELL_CTL_DDI4			_MMIO(0x4545C)
+#define   TGL_PW_CTL_IDX_DDI_TC6		8
+#define   TGL_PW_CTL_IDX_DDI_TC5		7
+#define   TGL_PW_CTL_IDX_DDI_TC4		6
 #define   ICL_PW_CTL_IDX_DDI_F			5
+#define   TGL_PW_CTL_IDX_DDI_TC3		5
 #define   ICL_PW_CTL_IDX_DDI_E			4
+#define   TGL_PW_CTL_IDX_DDI_TC2		4
 #define   ICL_PW_CTL_IDX_DDI_D			3
+#define   TGL_PW_CTL_IDX_DDI_TC1		3
 #define   ICL_PW_CTL_IDX_DDI_C			2
 #define   ICL_PW_CTL_IDX_DDI_B			1
 #define   ICL_PW_CTL_IDX_DDI_A			0
