@@ -91,8 +91,10 @@ static int max77650_led_probe(struct platform_device *pdev)
 
 	for_each_child_of_node(of_node, child) {
 		rv = of_property_read_u32(child, "reg", &reg);
-		if (rv || reg >= MAX77650_LED_NUM_LEDS)
-			return -EINVAL;
+		if (rv || reg >= MAX77650_LED_NUM_LEDS) {
+			rv = -EINVAL;
+			goto err_node_put;
+		}
 
 		led = &leds[reg];
 		led->map = map;
@@ -107,8 +109,10 @@ static int max77650_led_probe(struct platform_device *pdev)
 		} else {
 			led->cdev.name = devm_kasprintf(dev, GFP_KERNEL,
 							"max77650:%s", label);
-			if (!led->cdev.name)
-				return -ENOMEM;
+			if (!led->cdev.name) {
+				rv = -ENOMEM;
+				goto err_node_put;
+			}
 		}
 
 		of_property_read_string(child, "linux,default-trigger",
@@ -116,20 +120,23 @@ static int max77650_led_probe(struct platform_device *pdev)
 
 		rv = devm_of_led_classdev_register(dev, child, &led->cdev);
 		if (rv)
-			return rv;
+			goto err_node_put;
 
 		rv = regmap_write(map, led->regA, MAX77650_LED_A_DEFAULT);
 		if (rv)
-			return rv;
+			goto err_node_put;
 
 		rv = regmap_write(map, led->regB, MAX77650_LED_B_DEFAULT);
 		if (rv)
-			return rv;
+			goto err_node_put;
 	}
 
 	return regmap_write(map,
 			    MAX77650_REG_CNFG_LED_TOP,
 			    MAX77650_LED_TOP_DEFAULT);
+err_node_put:
+	of_node_put(child);
+	return rv;
 }
 
 static struct platform_driver max77650_led_driver = {
