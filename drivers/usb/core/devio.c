@@ -48,9 +48,6 @@
 #define USB_DEVICE_MAX			(USB_MAXBUS * 128)
 #define USB_SG_SIZE			16384 /* split-size for large txs */
 
-/* Mutual exclusion for removal, open, and release */
-DEFINE_MUTEX(usbfs_mutex);
-
 struct usb_dev_state {
 	struct list_head list;      /* state list */
 	struct usb_device *dev;
@@ -977,15 +974,9 @@ static int usbdev_open(struct inode *inode, struct file *file)
 
 	ret = -ENODEV;
 
-	/* Protect against simultaneous removal or release */
-	mutex_lock(&usbfs_mutex);
-
 	/* usbdev device-node */
 	if (imajor(inode) == USB_DEVICE_MAJOR)
 		dev = usbdev_lookup_by_devt(inode->i_rdev);
-
-	mutex_unlock(&usbfs_mutex);
-
 	if (!dev)
 		goto out_free_ps;
 
@@ -1306,6 +1297,39 @@ static int proc_connectinfo(struct usb_dev_state *ps, void __user *arg)
 	return 0;
 }
 
+static int proc_conninfo_ex(struct usb_dev_state *ps,
+			    void __user *arg, size_t size)
+{
+	struct usbdevfs_conninfo_ex ci;
+	struct usb_device *udev = ps->dev;
+
+	if (size < sizeof(ci.size))
+		return -EINVAL;
+
+	memset(&ci, 0, sizeof(ci));
+	ci.size = sizeof(ci);
+	ci.busnum = udev->bus->busnum;
+	ci.devnum = udev->devnum;
+	ci.speed = udev->speed;
+
+	while (udev && udev->portnum != 0) {
+		if (++ci.num_ports <= ARRAY_SIZE(ci.ports))
+			ci.ports[ARRAY_SIZE(ci.ports) - ci.num_ports] =
+					udev->portnum;
+		udev = udev->parent;
+	}
+
+	if (ci.num_ports < ARRAY_SIZE(ci.ports))
+		memmove(&ci.ports[0],
+			&ci.ports[ARRAY_SIZE(ci.ports) - ci.num_ports],
+			ci.num_ports);
+
+	if (copy_to_user(arg, &ci, min(sizeof(ci), size)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int proc_resetdevice(struct usb_dev_state *ps)
 {
 	struct usb_host_config *actconfig = ps->dev->actconfig;
@@ -1484,15 +1508,15 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 			ret = -EFAULT;
 			goto error;
 		}
-		if (uurb->buffer_length < (le16_to_cpup(&dr->wLength) + 8)) {
+		if (uurb->buffer_length < (le16_to_cpu(dr->wLength) + 8)) {
 			ret = -EINVAL;
 			goto error;
 		}
 		ret = check_ctrlrecip(ps, dr->bRequestType, dr->bRequest,
-				      le16_to_cpup(&dr->wIndex));
+				      le16_to_cpu(dr->wIndex));
 		if (ret)
 			goto error;
-		uurb->buffer_length = le16_to_cpup(&dr->wLength);
+		uurb->buffer_length = le16_to_cpu(dr->wLength);
 		uurb->buffer += 8;
 		if ((dr->bRequestType & USB_DIR_IN) && uurb->buffer_length) {
 			is_in = 1;
@@ -1507,9 +1531,9 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 			"bRequest=%02x wValue=%04x "
 			"wIndex=%04x wLength=%04x\n",
 			dr->bRequestType, dr->bRequest,
-			__le16_to_cpup(&dr->wValue),
-			__le16_to_cpup(&dr->wIndex),
-			__le16_to_cpup(&dr->wLength));
+			__le16_to_cpu(dr->wValue),
+			__le16_to_cpu(dr->wIndex),
+			__le16_to_cpu(dr->wLength));
 		u = sizeof(struct usb_ctrlrequest);
 		break;
 
@@ -2137,6 +2161,9 @@ static int proc_ioctl(struct usb_dev_state *ps, struct usbdevfs_ioctl *ctl)
 	if (ps->privileges_dropped)
 		return -EACCES;
 
+	if (!connected(ps))
+		return -ENODEV;
+
 	/* alloc buffer */
 	size = _IOC_SIZE(ctl->ioctl_code);
 	if (size > 0) {
@@ -2151,11 +2178,6 @@ static int proc_ioctl(struct usb_dev_state *ps, struct usbdevfs_ioctl *ctl)
 		} else {
 			memset(buf, 0, size);
 		}
-	}
-
-	if (!connected(ps)) {
-		kfree(buf);
-		return -ENODEV;
 	}
 
 	if (ps->dev->state != USB_STATE_CONFIGURED)
@@ -2259,7 +2281,7 @@ static int proc_get_capabilities(struct usb_dev_state *ps, void __user *arg)
 
 	caps = USBDEVFS_CAP_ZERO_PACKET | USBDEVFS_CAP_NO_PACKET_SIZE_LIM |
 			USBDEVFS_CAP_REAP_AFTER_DISCONNECT | USBDEVFS_CAP_MMAP |
-			USBDEVFS_CAP_DROP_PRIVILEGES;
+			USBDEVFS_CAP_DROP_PRIVILEGES | USBDEVFS_CAP_CONNINFO_EX;
 	if (!ps->dev->bus->no_stop_on_short)
 		caps |= USBDEVFS_CAP_BULK_CONTINUATION;
 	if (ps->dev->bus->sg_tablesize)
@@ -2555,6 +2577,13 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case USBDEVFS_GET_SPEED:
 		ret = ps->dev->speed;
+		break;
+	}
+
+	/* Handle variable-length commands */
+	switch (cmd & ~IOCSIZE_MASK) {
+	case USBDEVFS_CONNINFO_EX(0):
+		ret = proc_conninfo_ex(ps, p, _IOC_SIZE(cmd));
 		break;
 	}
 

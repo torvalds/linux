@@ -11,7 +11,7 @@ menuconfig USB_SERIAL
 	  ports, or acts like a serial device, and you want to connect it to
 	  your USB bus.
 
-	  Please read <file:Documentation/usb/usb-serial.txt> for more
+	  Please read <file:Documentation/usb/usb-serial.rst> for more
 	  information on the specifics of the different devices that are
 	  supported, and on how to use them.
 
@@ -47,7 +47,7 @@ config USB_SERIAL_GENERIC
 	bool "USB Generic Serial Driver"
 	help
 	  Say Y here if you want to use the generic USB serial driver.  Please
-	  read <file:Documentation/usb/usb-serial.txt> for more information on
+	  read <file:Documentation/usb/usb-serial.rst> for more information on
 	  using this driver.  It is recommended that the "USB Serial converter
 	  support" be compiled as a module for this driver to be used
 	  properly.
@@ -163,7 +163,7 @@ config USB_SERIAL_EMPEG
 	help
 	  Say Y here if you want to connect to your Empeg empeg-car Mark I/II
 	  mp3 player via USB.  The driver uses a single ttyUSB{0,1,2,...}
-	  device node.  See <file:Documentation/usb/usb-serial.txt> for more
+	  device node.  See <file:Documentation/usb/usb-serial.rst> for more
 	  tidbits of information.
 
 	  To compile this driver as a module, choose M here: the
@@ -199,7 +199,7 @@ config USB_SERIAL_IPAQ
 	  Say Y here if you want to connect to your Compaq iPAQ, HP Jornada
 	  or any other PDA running Windows CE 3.0 or PocketPC 2002
 	  using a USB cradle/cable. For information on using the driver,
-	  read <file:Documentation/usb/usb-serial.txt>.
+	  read <file:Documentation/usb/usb-serial.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ipaq.
@@ -334,7 +334,7 @@ config USB_SERIAL_KLSI
 	  adapter sold by Palm Inc. for use with their Palm III and Palm V
 	  series PDAs.
 
-	  Please read <file:Documentation/usb/usb-serial.txt> for more
+	  Please read <file:Documentation/usb/usb-serial.rst> for more
 	  information.
 
 	  To compile this driver as a module, choose M here: the

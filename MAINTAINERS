@@ -3792,7 +3792,7 @@ F:	scripts/extract-cert.c
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 L:	linux-usb@vger.kernel.org
 S:	Orphan
-F:	Documentation/usb/WUSB-Design-overview.txt
+F:	Documentation/usb/wusb-design-overview.rst
 F:	Documentation/usb/wusb-cbaf
 F:	drivers/usb/host/hwa-hc.c
 F:	drivers/usb/host/whci/
@@ -16422,7 +16422,7 @@ USB ACM DRIVER
 M:	Oliver Neukum <oneukum@suse.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
-F:	Documentation/usb/acm.txt
+F:	Documentation/usb/acm.rst
 F:	drivers/usb/class/cdc-acm.*
 
 USB AR5523 WIRELESS DRIVER
@@ -16475,7 +16475,7 @@ USB EHCI DRIVER
 M:	Alan Stern <stern@rowland.harvard.edu>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
-F:	Documentation/usb/ehci.txt
+F:	Documentation/usb/ehci.rst
 F:	drivers/usb/host/ehci*
 
 USB GADGET/PERIPHERAL SUBSYSTEM
@@ -16549,7 +16549,7 @@ USB OHCI DRIVER
 M:	Alan Stern <stern@rowland.harvard.edu>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
-F:	Documentation/usb/ohci.txt
+F:	Documentation/usb/ohci.rst
 F:	drivers/usb/host/ohci*
 
 USB OTG FSM (Finite State Machine)
@@ -16565,7 +16565,7 @@ M:	Shuah Khan <shuah@kernel.org>
 M:	Shuah Khan <skhan@linuxfoundation.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
-F:	Documentation/usb/usbip_protocol.txt
+F:	Documentation/usb/usbip_protocol.rst
 F:	drivers/usb/usbip/
 F:	tools/usb/usbip/
 F:	tools/testing/selftests/drivers/usb/usbip/
@@ -16613,7 +16613,7 @@ M:	Johan Hovold <johan@kernel.org>
 L:	linux-usb@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/johan/usb-serial.git
 S:	Maintained
-F:	Documentation/usb/usb-serial.txt
+F:	Documentation/usb/usb-serial.rst
 F:	drivers/usb/serial/
 F:	include/linux/usb/serial.h
 
