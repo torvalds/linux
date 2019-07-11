@@ -575,7 +575,8 @@ static ssize_t stripe_idx_to_delete(struct bch_fs *c)
 {
 	ec_stripes_heap *h = &c->ec_stripes_heap;
 
-	return h->data[0].blocks_nonempty == 0 ? h->data[0].idx : -1;
+	return h->used && h->data[0].blocks_nonempty == 0
+		? h->data[0].idx : -1;
 }
 
 static inline int ec_stripes_heap_cmp(ec_stripes_heap *h,

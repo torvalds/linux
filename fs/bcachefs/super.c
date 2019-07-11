@@ -277,6 +277,7 @@ void bch2_fs_read_only(struct bch_fs *c)
 	 */
 	percpu_ref_kill(&c->writes);
 
+	cancel_work_sync(&c->ec_stripe_delete_work);
 	cancel_delayed_work(&c->pd_controllers_update);
 
 	/*
