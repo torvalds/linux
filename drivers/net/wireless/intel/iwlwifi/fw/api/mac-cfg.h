@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,6 +77,16 @@ enum iwl_mac_conf_subcmd_ids {
 	 * @CHANNEL_SWITCH_TIME_EVENT_CMD: &struct iwl_chan_switch_te_cmd
 	 */
 	CHANNEL_SWITCH_TIME_EVENT_CMD = 0x4,
+	/**
+	 * @SESSION_PROTECTION_CMD: &struct iwl_mvm_session_prot_cmd
+	 */
+	SESSION_PROTECTION_CMD = 0x5,
+
+	/**
+	 * @SESSION_PROTECTION_NOTIF: &struct iwl_mvm_session_prot_notif
+	 */
+	SESSION_PROTECTION_NOTIF = 0xFB,
+
 	/**
 	 * @PROBE_RESPONSE_DATA_NOTIF: &struct iwl_probe_resp_data_notif
 	 */
