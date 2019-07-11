@@ -3461,6 +3461,21 @@ static const struct intel_dpll_mgr ehl_pll_mgr = {
 	.dump_hw_state = icl_dump_hw_state,
 };
 
+static const struct dpll_info tgl_plls[] = {
+	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0,  0 },
+	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1,  0 },
+	{ "TBT PLL",  &tbt_pll_funcs, DPLL_ID_ICL_TBTPLL, 0 },
+	/* TODO: Add typeC plls */
+	{ },
+};
+
+static const struct intel_dpll_mgr tgl_pll_mgr = {
+	.dpll_info = tgl_plls,
+	.get_dplls = icl_get_dplls,
+	.put_dplls = icl_put_dplls,
+	.dump_hw_state = icl_dump_hw_state,
+};
+
 /**
  * intel_shared_dpll_init - Initialize shared DPLLs
  * @dev: drm device
@@ -3474,7 +3489,9 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	const struct dpll_info *dpll_info;
 	int i;
 
-	if (IS_ELKHARTLAKE(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 12)
+		dpll_mgr = &tgl_pll_mgr;
+	else if (IS_ELKHARTLAKE(dev_priv))
 		dpll_mgr = &ehl_pll_mgr;
 	else if (INTEL_GEN(dev_priv) >= 11)
 		dpll_mgr = &icl_pll_mgr;
