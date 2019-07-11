@@ -2930,33 +2930,15 @@ static u8 cnp_port_to_ddc_pin(struct drm_i915_private *dev_priv,
 
 static u8 icl_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
 {
-	u8 ddc_pin;
+	enum phy phy = intel_port_to_phy(dev_priv, port);
 
-	switch (port) {
-	case PORT_A:
-		ddc_pin = GMBUS_PIN_1_BXT;
-		break;
-	case PORT_B:
-		ddc_pin = GMBUS_PIN_2_BXT;
-		break;
-	case PORT_C:
-		ddc_pin = GMBUS_PIN_9_TC1_ICP;
-		break;
-	case PORT_D:
-		ddc_pin = GMBUS_PIN_10_TC2_ICP;
-		break;
-	case PORT_E:
-		ddc_pin = GMBUS_PIN_11_TC3_ICP;
-		break;
-	case PORT_F:
-		ddc_pin = GMBUS_PIN_12_TC4_ICP;
-		break;
-	default:
-		MISSING_CASE(port);
-		ddc_pin = GMBUS_PIN_2_BXT;
-		break;
-	}
-	return ddc_pin;
+	if (intel_phy_is_combo(dev_priv, phy))
+		return GMBUS_PIN_1_BXT + port;
+	else if (intel_phy_is_tc(dev_priv, phy))
+		return GMBUS_PIN_9_TC1_ICP + intel_port_to_tc(dev_priv, port);
+
+	WARN(1, "Unknown port:%c\n", port_name(port));
+	return GMBUS_PIN_2_BXT;
 }
 
 static u8 mcc_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
@@ -3019,7 +3001,7 @@ static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
 
 	if (HAS_PCH_MCC(dev_priv))
 		ddc_pin = mcc_port_to_ddc_pin(dev_priv, port);
-	else if (HAS_PCH_ICP(dev_priv))
+	else if (HAS_PCH_TGP(dev_priv) || HAS_PCH_ICP(dev_priv))
 		ddc_pin = icl_port_to_ddc_pin(dev_priv, port);
 	else if (HAS_PCH_CNP(dev_priv))
 		ddc_pin = cnp_port_to_ddc_pin(dev_priv, port);
