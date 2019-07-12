@@ -149,6 +149,11 @@ int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			pr_warn("gfxclk dpm is not enabled\n");
 			return 0;
 		}
+	case SMU_SOCCLK:
+		if (!smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
+			pr_warn("sockclk dpm is not enabled\n");
+			return 0;
+		}
 		break;
 	default:
 		break;
@@ -1388,6 +1393,7 @@ int smu_adjust_power_state_dynamic(struct smu_context *smu,
 				return ret;
 			smu_force_clk_levels(smu, SMU_SCLK, 1 << sclk_mask);
 			smu_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask);
+			smu_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask);
 			break;
 
 		case AMD_DPM_FORCED_LEVEL_MANUAL:
