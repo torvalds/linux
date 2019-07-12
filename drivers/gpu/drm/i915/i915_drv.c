@@ -81,14 +81,14 @@
 static struct drm_driver driver;
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
-static unsigned int i915_load_fail_count;
+static unsigned int i915_probe_fail_count;
 
-bool __i915_inject_load_failure(const char *func, int line)
+bool __i915_inject_probe_failure(const char *func, int line)
 {
-	if (i915_load_fail_count >= i915_modparams.inject_load_failure)
+	if (i915_probe_fail_count >= i915_modparams.inject_load_failure)
 		return false;
 
-	if (++i915_load_fail_count == i915_modparams.inject_load_failure) {
+	if (++i915_probe_fail_count == i915_modparams.inject_load_failure) {
 		DRM_INFO("Injecting failure at checkpoint %u [%s:%d]\n",
 			 i915_modparams.inject_load_failure, func, line);
 		i915_modparams.inject_load_failure = 0;
@@ -100,7 +100,7 @@ bool __i915_inject_load_failure(const char *func, int line)
 
 bool i915_error_injected(void)
 {
-	return i915_load_fail_count && !i915_modparams.inject_load_failure;
+	return i915_probe_fail_count && !i915_modparams.inject_load_failure;
 }
 
 #endif
@@ -687,7 +687,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int ret;
 
-	if (i915_inject_load_failure())
+	if (i915_inject_probe_failure())
 		return -ENODEV;
 
 	if (HAS_DISPLAY(dev_priv)) {
@@ -903,7 +903,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 {
 	int ret = 0;
 
-	if (i915_inject_load_failure())
+	if (i915_inject_probe_failure())
 		return -ENODEV;
 
 	intel_device_info_subplatform_init(dev_priv);
@@ -997,7 +997,7 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	if (i915_inject_load_failure())
+	if (i915_inject_probe_failure())
 		return -ENODEV;
 
 	if (i915_get_bridge_dev(dev_priv))
@@ -1541,7 +1541,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int ret;
 
-	if (i915_inject_load_failure())
+	if (i915_inject_probe_failure())
 		return -ENODEV;
 
 	intel_device_info_runtime_init(dev_priv);
@@ -1947,7 +1947,7 @@ out_runtime_pm_put:
 out_pci_disable:
 	pci_disable_device(pdev);
 out_fini:
-	i915_load_error(dev_priv, "Device initialization failed (%d)\n", ret);
+	i915_probe_error(dev_priv, "Device initialization failed (%d)\n", ret);
 	i915_driver_destroy(dev_priv);
 	return ret;
 }

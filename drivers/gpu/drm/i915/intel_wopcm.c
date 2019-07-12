@@ -177,7 +177,7 @@ int intel_wopcm_init(struct intel_wopcm *wopcm)
 
 	GEM_BUG_ON(!wopcm->size);
 
-	if (i915_inject_load_failure())
+	if (i915_inject_probe_failure())
 		return -E2BIG;
 
 	if (guc_fw_size >= wopcm->size) {

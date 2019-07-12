@@ -1331,7 +1331,7 @@ static int __fw_domain_init(struct intel_uncore *uncore,
 	GEM_BUG_ON(domain_id >= FW_DOMAIN_ID_COUNT);
 	GEM_BUG_ON(uncore->fw_domain[domain_id]);
 
-	if (i915_inject_load_failure())
+	if (i915_inject_probe_failure())
 		return -ENOMEM;
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);

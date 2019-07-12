@@ -122,20 +122,20 @@
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 
-bool __i915_inject_load_failure(const char *func, int line);
-#define i915_inject_load_failure() \
-	__i915_inject_load_failure(__func__, __LINE__)
+bool __i915_inject_probe_failure(const char *func, int line);
+#define i915_inject_probe_failure() \
+	__i915_inject_probe_failure(__func__, __LINE__)
 
 bool i915_error_injected(void);
 
 #else
 
-#define i915_inject_load_failure() false
+#define i915_inject_probe_failure() false
 #define i915_error_injected() false
 
 #endif
 
-#define i915_load_error(i915, fmt, ...)					 \
+#define i915_probe_error(i915, fmt, ...)				   \
 	__i915_printk(i915, i915_error_injected() ? KERN_DEBUG : KERN_ERR, \
 		      fmt, ##__VA_ARGS__)
 

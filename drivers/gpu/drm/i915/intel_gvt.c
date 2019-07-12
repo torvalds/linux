@@ -95,7 +95,7 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	if (i915_inject_load_failure())
+	if (i915_inject_probe_failure())
 		return -ENODEV;
 
 	if (!i915_modparams.enable_gvt) {

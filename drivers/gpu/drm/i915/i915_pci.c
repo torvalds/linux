@@ -957,7 +957,7 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	if (i915_inject_load_failure()) {
+	if (i915_inject_probe_failure()) {
 		i915_pci_remove(pdev);
 		return -ENODEV;
 	}

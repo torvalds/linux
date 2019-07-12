@@ -1515,12 +1515,12 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_gt;
 
-	if (i915_inject_load_failure()) {
+	if (i915_inject_probe_failure()) {
 		ret = -ENODEV;
 		goto err_gt;
 	}
 
-	if (i915_inject_load_failure()) {
+	if (i915_inject_probe_failure()) {
 		ret = -EIO;
 		goto err_gt;
 	}
@@ -1582,8 +1582,8 @@ err_uc_misc:
 		 * for all other failure, such as an allocation failure, bail.
 		 */
 		if (!i915_reset_failed(dev_priv)) {
-			i915_load_error(dev_priv,
-					"Failed to initialize GPU, declaring it wedged!\n");
+			i915_probe_error(dev_priv,
+					 "Failed to initialize GPU, declaring it wedged!\n");
 			i915_gem_set_wedged(dev_priv);
 		}
 
