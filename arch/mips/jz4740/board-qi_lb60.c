@@ -40,8 +40,6 @@
 
 #include <asm/mach-jz4740/platform.h>
 
-#include "clock.h"
-
 /* GPIOs */
 #define QI_LB60_GPIO_KEYOUT(x)		(JZ_GPIO_PORTC(10) + (x))
 #define QI_LB60_GPIO_KEYIN(x)		(JZ_GPIO_PORTD(18) + (x))
