@@ -156,6 +156,10 @@
 #define FLEXCAN_FDCTRL_MBDSR_12		0x1
 #define FLEXCAN_FDCTRL_MBDSR_32		0x2
 #define FLEXCAN_FDCTRL_MBDSR_64		0x3
+#define FLEXCAN_FDCTRL_TDCEN		BIT(15)
+#define FLEXCAN_FDCTRL_TDCFAIL		BIT(14)
+#define FLEXCAN_FDCTRL_TDCOFF		GENMASK(12, 8)
+#define FLEXCAN_FDCTRL_TDCVAL		GENMASK(5, 0)
 
 /* FLEXCAN FD Bit Timing register (FDCBT) bits */
 #define FLEXCAN_FDCBT_FPRESDIV_MASK	GENMASK(29, 20)
@@ -1220,10 +1224,23 @@ static void flexcan_set_bittiming_cbt(const struct net_device *dev)
 
 	/* FDCTRL */
 	reg_fdctrl = priv->read(&regs->fdctrl);
-	reg_fdctrl &= ~FLEXCAN_FDCTRL_FDRATE;
+	reg_fdctrl &= ~(FLEXCAN_FDCTRL_FDRATE |
+			FIELD_PREP(FLEXCAN_FDCTRL_TDCOFF, 0x1f));
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_FD)
+	if (priv->can.ctrlmode & CAN_CTRLMODE_FD) {
 		reg_fdctrl |= FLEXCAN_FDCTRL_FDRATE;
+
+		if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK) {
+			/* TDC must be disabled for Loop Back mode */
+			reg_fdctrl &= ~FLEXCAN_FDCTRL_TDCEN;
+		} else {
+			reg_fdctrl |= FLEXCAN_FDCTRL_TDCEN |
+				FIELD_PREP(FLEXCAN_FDCTRL_TDCOFF,
+					   ((dbt->phase_seg1 - 1) +
+					    dbt->prop_seg + 2) *
+					   ((dbt->brp - 1 ) + 1));
+		}
+	}
 
 	netdev_dbg(dev, "writing fdctrl=0x%08x\n", reg_fdctrl);
 	priv->write(reg_fdctrl, &regs->fdctrl);
