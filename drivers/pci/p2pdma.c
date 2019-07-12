@@ -223,7 +223,7 @@ EXPORT_SYMBOL_GPL(pci_p2pdma_add_resource);
 
 /*
  * Note this function returns the parent PCI device with a
- * reference taken. It is the caller's responsibily to drop
+ * reference taken. It is the caller's responsibility to drop
  * the reference.
  */
 static struct pci_dev *find_parent_pci_dev(struct device *dev)
@@ -380,7 +380,7 @@ static int upstream_bridge_distance(struct pci_dev *provider,
 
 	/*
 	 * Allow the connection if both devices are on a whitelisted root
-	 * complex, but add an arbitary large value to the distance.
+	 * complex, but add an arbitrary large value to the distance.
 	 */
 	if (root_complex_whitelist(provider) &&
 	    root_complex_whitelist(client))
@@ -439,7 +439,7 @@ static int upstream_bridge_distance_warn(struct pci_dev *provider,
 }
 
 /**
- * pci_p2pdma_distance_many - Determive the cumulative distance between
+ * pci_p2pdma_distance_many - Determine the cumulative distance between
  *	a p2pdma provider and the clients in use.
  * @provider: p2pdma provider to check against the client list
  * @clients: array of devices to check (NULL-terminated)

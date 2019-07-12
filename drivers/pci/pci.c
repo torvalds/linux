@@ -4501,7 +4501,7 @@ static int pci_af_flr(struct pci_dev *dev, int probe)
 
 	/*
 	 * Wait for Transaction Pending bit to clear.  A word-aligned test
-	 * is used, so we use the conrol offset rather than status and shift
+	 * is used, so we use the control offset rather than status and shift
 	 * the test bit to match.
 	 */
 	if (!pci_wait_for_pending(dev, pos + PCI_AF_CTRL,
