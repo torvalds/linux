@@ -2701,11 +2701,18 @@ static inline void kernel_poison_pages(struct page *page, int numpages,
 					int enable) { }
 #endif
 
-extern bool _debug_pagealloc_enabled;
+#ifdef CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT
+DECLARE_STATIC_KEY_TRUE(_debug_pagealloc_enabled);
+#else
+DECLARE_STATIC_KEY_FALSE(_debug_pagealloc_enabled);
+#endif
 
 static inline bool debug_pagealloc_enabled(void)
 {
-	return IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) && _debug_pagealloc_enabled;
+	if (!IS_ENABLED(CONFIG_DEBUG_PAGEALLOC))
+		return false;
+
+	return static_branch_unlikely(&_debug_pagealloc_enabled);
 }
 
 #if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_ARCH_HAS_SET_DIRECT_MAP)
@@ -2859,7 +2866,7 @@ extern struct page_ext_operations debug_guardpage_ops;
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 extern unsigned int _debug_guardpage_minorder;
-extern bool _debug_guardpage_enabled;
+DECLARE_STATIC_KEY_FALSE(_debug_guardpage_enabled);
 
 static inline unsigned int debug_guardpage_minorder(void)
 {
@@ -2868,7 +2875,7 @@ static inline unsigned int debug_guardpage_minorder(void)
 
 static inline bool debug_guardpage_enabled(void)
 {
-	return _debug_guardpage_enabled;
+	return static_branch_unlikely(&_debug_guardpage_enabled);
 }
 
 static inline bool page_is_guard(struct page *page)
