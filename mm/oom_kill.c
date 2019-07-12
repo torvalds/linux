@@ -375,8 +375,6 @@ static void select_bad_process(struct oom_control *oc)
 				break;
 		rcu_read_unlock();
 	}
-
-	oc->chosen_points = oc->chosen_points * 1000 / oc->totalpages;
 }
 
 static int dump_task(struct task_struct *p, void *arg)
