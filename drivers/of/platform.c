@@ -92,8 +92,7 @@ static void of_device_make_bus_id(struct device *dev)
 		reg = of_get_property(node, "reg", NULL);
 		if (reg && (addr = of_translate_address(node, reg)) != OF_BAD_ADDR) {
 			dev_set_name(dev, dev_name(dev) ? "%llx.%pOFn:%s" : "%llx.%pOFn",
-				     (unsigned long long)addr, node,
-				     dev_name(dev));
+				     addr, node, dev_name(dev));
 			return;
 		}
 
