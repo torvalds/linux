@@ -102,7 +102,7 @@ static inline int null_zone_init(struct nullb_device *dev)
 static inline void null_zone_exit(struct nullb_device *dev) {}
 static inline int null_zone_report(struct gendisk *disk, sector_t sector,
 				   struct blk_zone *zones,
-				   unsigned int *nr_zones, gfp_t gfp_mask)
+				   unsigned int *nr_zones)
 {
 	return -EOPNOTSUPP;
 }
