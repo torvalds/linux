@@ -1,6 +1,6 @@
 config RDMA_SIW
 	tristate "Software RDMA over TCP/IP (iWARP) driver"
-	depends on INET && INFINIBAND && LIBCRC32C
+	depends on INET && INFINIBAND && LIBCRC32C && 64BIT
 	select DMA_VIRT_OPS
 	help
 	This driver implements the iWARP RDMA transport over
