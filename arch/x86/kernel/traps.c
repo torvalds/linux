@@ -938,8 +938,11 @@ void __init trap_init(void)
 	 * "sidt" instruction will not leak the location of the kernel, and
 	 * to defend the IDT against arbitrary memory write vulnerabilities.
 	 * It will be reloaded in cpu_init() */
+        /* TODO: the permissions were originally PAGE_KERNEL_RO. We changed it
+         * to PAGE_KERNEL so Windows loader will be able to modify it. This
+         * change should happen dynamically when needed */
 	cea_set_pte(CPU_ENTRY_AREA_RO_IDT_VADDR, __pa_symbol(idt_table),
-		    PAGE_KERNEL_RO);
+		    PAGE_KERNEL);
 	idt_descr.address = CPU_ENTRY_AREA_RO_IDT;
 
 	/*
