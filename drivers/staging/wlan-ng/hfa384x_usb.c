@@ -843,17 +843,6 @@ hfa384x_dormem_wait(struct hfa384x *hw,
 }
 
 static inline int
-hfa384x_dormem_async(struct hfa384x *hw,
-		     u16 page, u16 offset, void *data, unsigned int len,
-		     ctlx_cmdcb_t cmdcb,
-		     ctlx_usercb_t usercb, void *usercb_data)
-{
-	return hfa384x_dormem(hw, DOASYNC,
-			      page, offset, data, len,
-			      cmdcb, usercb, usercb_data);
-}
-
-static inline int
 hfa384x_dowmem_wait(struct hfa384x *hw,
 		    u16 page, u16 offset, void *data, unsigned int len)
 {
