@@ -1009,6 +1009,8 @@ programers||programmers
 programm||program
 programms||programs
 progresss||progress
+prohibitted||prohibited
+prohibitting||prohibiting
 promiscous||promiscuous
 promps||prompts
 pronnounced||pronounced
