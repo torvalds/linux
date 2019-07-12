@@ -3333,6 +3333,16 @@ static int icl_max_plane_width(const struct drm_framebuffer *fb,
 	return 5120;
 }
 
+static int skl_max_plane_height(void)
+{
+	return 4096;
+}
+
+static int icl_max_plane_height(void)
+{
+	return 4320;
+}
+
 static bool skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state,
 					   int main_x, int main_y, u32 main_offset)
 {
@@ -3381,7 +3391,7 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	int w = drm_rect_width(&plane_state->base.src) >> 16;
 	int h = drm_rect_height(&plane_state->base.src) >> 16;
 	int max_width;
-	int max_height = 4096;
+	int max_height;
 	u32 alignment, offset, aux_offset = plane_state->color_plane[1].offset;
 
 	if (INTEL_GEN(dev_priv) >= 11)
@@ -3390,6 +3400,11 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 		max_width = glk_max_plane_width(fb, 0, rotation);
 	else
 		max_width = skl_max_plane_width(fb, 0, rotation);
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		max_height = icl_max_plane_height();
+	else
+		max_height = skl_max_plane_height();
 
 	if (w > max_width || h > max_height) {
 		DRM_DEBUG_KMS("requested Y/RGB source size %dx%d too big (limit %dx%d)\n",
@@ -9873,8 +9888,8 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	offset = I915_READ(PLANE_OFFSET(pipe, plane_id));
 
 	val = I915_READ(PLANE_SIZE(pipe, plane_id));
-	fb->height = ((val >> 16) & 0xfff) + 1;
-	fb->width = ((val >> 0) & 0x1fff) + 1;
+	fb->height = ((val >> 16) & 0xffff) + 1;
+	fb->width = ((val >> 0) & 0xffff) + 1;
 
 	val = I915_READ(PLANE_STRIDE(pipe, plane_id));
 	stride_mult = skl_plane_stride_mult(fb, 0, DRM_MODE_ROTATE_0);
