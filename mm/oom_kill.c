@@ -346,9 +346,6 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
 	if (!points || points < oc->chosen_points)
 		goto next;
 
-	/* Prefer thread group leaders for display purposes */
-	if (points == oc->chosen_points && thread_group_leader(oc->chosen))
-		goto next;
 select:
 	if (oc->chosen)
 		put_task_struct(oc->chosen);
