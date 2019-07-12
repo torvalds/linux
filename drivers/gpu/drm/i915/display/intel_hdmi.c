@@ -2943,20 +2943,21 @@ static u8 icl_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
 
 static u8 mcc_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
 {
+	enum phy phy = intel_port_to_phy(dev_priv, port);
 	u8 ddc_pin;
 
-	switch (port) {
-	case PORT_A:
+	switch (phy) {
+	case PHY_A:
 		ddc_pin = GMBUS_PIN_1_BXT;
 		break;
-	case PORT_B:
+	case PHY_B:
 		ddc_pin = GMBUS_PIN_2_BXT;
 		break;
-	case PORT_C:
+	case PHY_C:
 		ddc_pin = GMBUS_PIN_9_TC1_ICP;
 		break;
 	default:
-		MISSING_CASE(port);
+		MISSING_CASE(phy);
 		ddc_pin = GMBUS_PIN_1_BXT;
 		break;
 	}
