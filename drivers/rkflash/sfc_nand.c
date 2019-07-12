@@ -68,6 +68,14 @@ static struct nand_info spi_nand_tbl[] = {
 	{0x0BF1, 4, 64, 1, 1024, 0x13, 0x10, 0x03, 0x02, 0x6B, 0x32, 0xD8, 0x4C, 18, 1, 0xB0, 0x0, 8, 12, &sfc_nand_ecc_status_sp4},
 	/* HYF4GQ4UAACBE */
 	{0xC9D4, 8, 64, 1, 2048, 0x13, 0x10, 0x03, 0x02, 0x6B, 0x32, 0xD8, 0x4C, 20, 4, 0xB0, 0, 32, 64, NULL},
+	/* FM25S01 */
+	{0xA1A1, 4, 64, 1, 1024, 0x13, 0x10, 0x03, 0x02, 0x6B, 0x32, 0xD8, 0x4C, 18, 1, 0xB0, 0, 0, 4, &sfc_nand_ecc_status_sp1},
+	/* HYF1GQ4UPACAE */
+	{0xC9A1, 4, 64, 1, 1024, 0x13, 0x10, 0x03, 0x02, 0x6B, 0x32, 0xD8, 0x4C, 18, 4, 0xB0, 0, 4, 20, &sfc_nand_ecc_status_sp1},
+	/* EM73E044SNA-G */
+	{0xD503, 8, 64, 1, 2048, 0x13, 0x10, 0x03, 0x02, 0x6B, 0x32, 0xD8, 0x4C, 20, 8, 0xB0, 0, 4, 40, NULL},
+	/* GD5F2GQ5UEYIG */
+	{0xC852, 4, 64, 1, 2048, 0x13, 0x10, 0x03, 0x02, 0x6B, 0x32, 0xD8, 0x4C, 19, 4, 0xB0, 0, 4, 20, &sfc_nand_ecc_status_sp2},
 };
 
 static u8 id_byte[8];
@@ -237,6 +245,47 @@ u32 sfc_nand_ecc_status_sp1(void)
 	if (ecc == 0)
 		ret = SFC_NAND_ECC_OK;
 	else if (ecc == 1)
+		ret = SFC_NAND_ECC_REFRESH;
+	else
+		ret = SFC_NAND_ECC_ERROR;
+
+	return ret;
+}
+
+/*
+ * ecc spectial type2:
+ * [0x0000, 0x0011], No bit errors were detected;
+ * [0x0100, 0x0111], Bit errors were detected and corrected. Not
+ *	reach Flipping Bits;
+ * [0x1000, 0x1011], Multiple bit errors were detected and
+ *	not corrected.
+ * [0x1100, 0x1111], reserved.
+ */
+u32 sfc_nand_ecc_status_sp2(void)
+{
+	int ret;
+	u32 i;
+	u8 ecc;
+	u8 status, status1;
+	u32 timeout = 1000 * 1000;
+
+	for (i = 0; i < timeout; i++) {
+		ret = sfc_nand_read_feature(0xC0, &status);
+		if (ret != SFC_OK)
+			return SFC_NAND_ECC_ERROR;
+		ret = sfc_nand_read_feature(0xF0, &status1);
+		if (ret != SFC_OK)
+			return SFC_NAND_ECC_ERROR;
+		if (!(status & (1 << 0)))
+			break;
+		sfc_delay(1);
+	}
+
+	ecc = (status >> 4) & 0x03;
+	ecc = (ecc << 2) | ((status1 >> 4) & 0x03);
+	if (ecc < 7)
+		ret = SFC_NAND_ECC_OK;
+	else if (ecc == 7)
 		ret = SFC_NAND_ECC_REFRESH;
 	else
 		ret = SFC_NAND_ECC_ERROR;
