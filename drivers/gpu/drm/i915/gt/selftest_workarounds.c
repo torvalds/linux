@@ -25,11 +25,9 @@ static const struct wo_register {
 	{ INTEL_GEMINILAKE, 0x731c }
 };
 
-#define REF_NAME_MAX (INTEL_ENGINE_CS_MAX_NAME + 8)
 struct wa_lists {
 	struct i915_wa_list gt_wa_list;
 	struct {
-		char name[REF_NAME_MAX];
 		struct i915_wa_list wa_list;
 		struct i915_wa_list ctx_wa_list;
 	} engine[I915_NUM_ENGINES];
@@ -43,25 +41,20 @@ reference_lists_init(struct drm_i915_private *i915, struct wa_lists *lists)
 
 	memset(lists, 0, sizeof(*lists));
 
-	wa_init_start(&lists->gt_wa_list, "GT_REF");
+	wa_init_start(&lists->gt_wa_list, "GT_REF", "global");
 	gt_init_workarounds(i915, &lists->gt_wa_list);
 	wa_init_finish(&lists->gt_wa_list);
 
 	for_each_engine(engine, i915, id) {
 		struct i915_wa_list *wal = &lists->engine[id].wa_list;
-		char *name = lists->engine[id].name;
 
-		snprintf(name, REF_NAME_MAX, "%s_REF", engine->name);
-
-		wa_init_start(wal, name);
+		wa_init_start(wal, "REF", engine->name);
 		engine_init_workarounds(engine, wal);
 		wa_init_finish(wal);
 
-		snprintf(name, REF_NAME_MAX, "%s_CTX_REF", engine->name);
-
 		__intel_engine_init_ctx_wa(engine,
 					   &lists->engine[id].ctx_wa_list,
-					   name);
+					   "CTX_REF");
 	}
 }
 
@@ -292,8 +285,8 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 	intel_wakeref_t wakeref;
 	int err;
 
-	pr_info("Checking %d whitelisted registers (RING_NONPRIV) [%s]\n",
-		engine->whitelist.count, name);
+	pr_info("Checking %d whitelisted registers on %s (RING_NONPRIV) [%s]\n",
+		engine->whitelist.count, engine->name, name);
 
 	ctx = kernel_context(i915);
 	if (IS_ERR(ctx))
