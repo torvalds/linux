@@ -2504,10 +2504,8 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
  *
  * vma->vm_mm->mmap_sem must be held on entry.
  *
- * If our return value has VM_FAULT_RETRY set, it's because
- * lock_page_or_retry() returned 0.
- * The mmap_sem has usually been released in this case.
- * See __lock_page_or_retry() for the exception.
+ * If our return value has VM_FAULT_RETRY set, it's because the mmap_sem
+ * may be dropped before doing I/O or by lock_page_maybe_drop_mmap().
  *
  * If our return value does not have VM_FAULT_RETRY set, the mmap_sem
  * has not been released.
