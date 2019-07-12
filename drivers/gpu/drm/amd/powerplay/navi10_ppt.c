@@ -709,13 +709,19 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 static int navi10_populate_umd_state_clk(struct smu_context *smu)
 {
 	int ret = 0;
-	uint32_t min_sclk_freq = 0;
+	uint32_t min_sclk_freq = 0, min_mclk_freq = 0;
 
 	ret = smu_get_dpm_freq_range(smu, SMU_SCLK, &min_sclk_freq, NULL);
 	if (ret)
 		return ret;
 
 	smu->pstate_sclk = min_sclk_freq * 100;
+
+	ret = smu_get_dpm_freq_range(smu, SMU_MCLK, &min_mclk_freq, NULL);
+	if (ret)
+		return ret;
+
+	smu->pstate_mclk = min_mclk_freq * 100;
 
 	return ret;
 }

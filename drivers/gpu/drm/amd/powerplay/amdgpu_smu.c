@@ -136,6 +136,7 @@ int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 		return -EINVAL;
 
 	switch (clk_type) {
+	case SMU_MCLK:
 	case SMU_UCLK:
 		if (!smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 			pr_warn("uclk dpm is not enabled\n");
