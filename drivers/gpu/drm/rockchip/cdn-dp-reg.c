@@ -181,7 +181,7 @@ static int cdn_dp_mailbox_send(struct cdn_dp_device *dp, u8 module_id,
 	return 0;
 }
 
-static int cdn_dp_reg_write(struct cdn_dp_device *dp, u16 addr, u32 val)
+int cdn_dp_reg_write(struct cdn_dp_device *dp, u16 addr, u32 val)
 {
 	u8 msg[6];
 
@@ -601,6 +601,31 @@ int cdn_dp_train_link(struct cdn_dp_device *dp)
 {
 	int ret;
 
+	/*
+	 * DP firmware uses fixed phy config values to do training, but some
+	 * boards need to adjust these values to fit for their unique hardware
+	 * design. So if the phy is using custom config values, do software
+	 * link training instead of relying on firmware, if software training
+	 * fail, keep firmware training as a fallback if sw training fails.
+	 */
+	ret = cdn_dp_software_train_link(dp);
+	if (ret) {
+		DRM_DEV_ERROR(dp->dev,
+			"Failed to do software training %d\n", ret);
+		goto do_fw_training;
+	}
+	ret = cdn_dp_reg_write(dp, SOURCE_HDTX_CAR, 0xf);
+	if (ret) {
+		DRM_DEV_ERROR(dp->dev,
+			"Failed to write SOURCE_HDTX_CAR register %d\n", ret);
+		goto do_fw_training;
+	}
+	dp->use_fw_training = false;
+	return 0;
+
+do_fw_training:
+	dp->use_fw_training = true;
+	DRM_DEV_DEBUG_KMS(dp->dev, "use fw training\n");
 	ret = cdn_dp_training_start(dp);
 	if (ret) {
 		DRM_DEV_ERROR(dp->dev, "Failed to start training %d\n", ret);
