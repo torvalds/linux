@@ -14130,18 +14130,6 @@ static void intel_atomic_track_fbs(struct intel_atomic_state *state)
 				  plane->frontbuffer_bit);
 }
 
-/**
- * intel_atomic_commit - commit validated state object
- * @dev: DRM device
- * @state: the top-level driver state object
- * @nonblock: nonblocking commit
- *
- * This function commits a top-level state object that has been validated
- * with drm_atomic_helper_check().
- *
- * RETURNS
- * Zero for success or -errno.
- */
 static int intel_atomic_commit(struct drm_device *dev,
 			       struct drm_atomic_state *_state,
 			       bool nonblock)
