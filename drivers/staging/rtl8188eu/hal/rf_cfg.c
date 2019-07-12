@@ -218,7 +218,7 @@ static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 	return true;
 }
 
-static bool rf6052_conf_para(struct adapter *adapt)
+static bool rtl88e_phy_rf6052_config(struct adapter *adapt)
 {
 	struct hal_data_8188e *hal_data = adapt->HalData;
 	u32 u4val = 0;
@@ -245,11 +245,6 @@ static bool rf6052_conf_para(struct adapter *adapt)
 	phy_set_bb_reg(adapt, pphyreg->rfintfs, BRFSI_RFENV, u4val);
 
 	return rtstatus;
-}
-
-static bool rtl88e_phy_rf6052_config(struct adapter *adapt)
-{
-	return rf6052_conf_para(adapt);
 }
 
 bool rtl88eu_phy_rf_config(struct adapter *adapt)
