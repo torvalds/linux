@@ -878,7 +878,7 @@ static void i915_pci_remove(struct pci_dev *pdev)
 	if (!dev) /* driver load aborted, nothing to cleanup */
 		return;
 
-	i915_driver_unload(dev);
+	i915_driver_remove(dev);
 	drm_dev_put(dev);
 
 	pci_set_drvdata(pdev, NULL);
@@ -953,7 +953,7 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (vga_switcheroo_client_probe_defer(pdev))
 		return -EPROBE_DEFER;
 
-	err = i915_driver_load(pdev, ent);
+	err = i915_driver_probe(pdev, ent);
 	if (err)
 		return err;
 

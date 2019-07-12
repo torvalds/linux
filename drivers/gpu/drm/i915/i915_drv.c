@@ -1876,17 +1876,17 @@ static void i915_driver_destroy(struct drm_i915_private *i915)
 }
 
 /**
- * i915_driver_load - setup chip and create an initial config
+ * i915_driver_probe - setup chip and create an initial config
  * @pdev: PCI device
  * @ent: matching PCI ID entry
  *
- * The driver load routine has to do several things:
+ * The driver probe routine has to do several things:
  *   - drive output discovery via intel_modeset_init()
  *   - initialize the memory manager
  *   - allocate initial config memory
  *   - setup the DRM framebuffer with the allocated memory
  */
-int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
+int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct intel_device_info *match_info =
 		(struct intel_device_info *)ent->driver_data;
@@ -1952,7 +1952,7 @@ out_fini:
 	return ret;
 }
 
-void i915_driver_unload(struct drm_device *dev)
+void i915_driver_remove(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
