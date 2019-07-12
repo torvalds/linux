@@ -55,20 +55,6 @@ uint32_t kgd_gfx_v9_address_watch_get_offset(struct kgd_dev *kgd,
 					unsigned int watch_point_id,
 					unsigned int reg_offset);
 
-uint32_t kgd_gfx_v9_enable_debug_trap(struct kgd_dev *kgd,
-				uint32_t trap_debug_wave_launch_mode,
-				uint32_t vmid);
-uint32_t kgd_gfx_v9_disable_debug_trap(struct kgd_dev *kgd);
-uint32_t kgd_gfx_v9_set_debug_trap_data(struct kgd_dev *kgd,
-					int trap_data0,
-					int trap_data1);
-uint32_t kgd_gfx_v9_set_wave_launch_trap_override(struct kgd_dev *kgd,
-						uint32_t trap_override,
-						uint32_t trap_mask);
-uint32_t kgd_gfx_v9_set_wave_launch_mode(struct kgd_dev *kgd,
-					uint8_t wave_launch_mode,
-					uint32_t vmid);
-
 bool kgd_gfx_v9_get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
 		uint8_t vmid);
 uint16_t kgd_gfx_v9_get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
