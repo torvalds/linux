@@ -110,7 +110,7 @@ static void fatal(const char *x, ...)
 static void usage(void)
 {
 	printf("slabinfo 4/15/2011. (c) 2007 sgi/(c) 2011 Linux Foundation.\n\n"
-		"slabinfo [-aADefhilnosrStTvz1LXBU] [N=K] [-dafzput] [slab-regexp]\n"
+		"slabinfo [-aABDefhilLnorsStTUvXz1] [N=K] [-dafzput] [slab-regexp]\n"
 		"-a|--aliases           Show aliases\n"
 		"-A|--activity          Most active slabs first\n"
 		"-B|--Bytes             Show size in bytes\n"
@@ -131,9 +131,9 @@ static void usage(void)
 		"-T|--Totals            Show summary information\n"
 		"-U|--Unreclaim         Show unreclaimable slabs only\n"
 		"-v|--validate          Validate slabs\n"
+		"-X|--Xtotals           Show extended summary information\n"
 		"-z|--zero              Include empty slabs\n"
 		"-1|--1ref              Single reference\n"
-		"-X|--Xtotals           Show extended summary information\n"
 
 		"\n"
 		"-d  | --debug          Switch off all debug options\n"
@@ -1334,6 +1334,7 @@ static void xtotals(void)
 struct option opts[] = {
 	{ "aliases", no_argument, NULL, 'a' },
 	{ "activity", no_argument, NULL, 'A' },
+	{ "Bytes", no_argument, NULL, 'B'},
 	{ "debug", optional_argument, NULL, 'd' },
 	{ "display-activity", no_argument, NULL, 'D' },
 	{ "empty", no_argument, NULL, 'e' },
@@ -1341,21 +1342,20 @@ struct option opts[] = {
 	{ "help", no_argument, NULL, 'h' },
 	{ "inverted", no_argument, NULL, 'i'},
 	{ "slabs", no_argument, NULL, 'l' },
+	{ "Loss", no_argument, NULL, 'L'},
 	{ "numa", no_argument, NULL, 'n' },
+	{ "lines", required_argument, NULL, 'N'},
 	{ "ops", no_argument, NULL, 'o' },
-	{ "shrink", no_argument, NULL, 's' },
 	{ "report", no_argument, NULL, 'r' },
+	{ "shrink", no_argument, NULL, 's' },
 	{ "Size", no_argument, NULL, 'S'},
 	{ "tracking", no_argument, NULL, 't'},
 	{ "Totals", no_argument, NULL, 'T'},
+	{ "Unreclaim", no_argument, NULL, 'U'},
 	{ "validate", no_argument, NULL, 'v' },
+	{ "Xtotals", no_argument, NULL, 'X'},
 	{ "zero", no_argument, NULL, 'z' },
 	{ "1ref", no_argument, NULL, '1'},
-	{ "lines", required_argument, NULL, 'N'},
-	{ "Loss", no_argument, NULL, 'L'},
-	{ "Xtotals", no_argument, NULL, 'X'},
-	{ "Bytes", no_argument, NULL, 'B'},
-	{ "Unreclaim", no_argument, NULL, 'U'},
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -1367,17 +1367,17 @@ int main(int argc, char *argv[])
 
 	page_size = getpagesize();
 
-	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXBU",
+	while ((c = getopt_long(argc, argv, "aABd::DefhilLnN:orsStTUvXz1",
 						opts, NULL)) != -1)
 		switch (c) {
-		case '1':
-			show_single_ref = 1;
-			break;
 		case 'a':
 			show_alias = 1;
 			break;
 		case 'A':
 			sort_active = 1;
+			break;
+		case 'B':
+			show_bytes = 1;
 			break;
 		case 'd':
 			set_debug = 1;
@@ -1399,8 +1399,21 @@ int main(int argc, char *argv[])
 		case 'i':
 			show_inverted = 1;
 			break;
+		case 'l':
+			show_slab = 1;
+			break;
+		case 'L':
+			sort_loss = 1;
+			break;
 		case 'n':
 			show_numa = 1;
+			break;
+		case 'N':
+			if (optarg) {
+				output_lines = atoi(optarg);
+				if (output_lines < 1)
+					output_lines = 1;
+			}
 			break;
 		case 'o':
 			show_ops = 1;
@@ -1411,33 +1424,20 @@ int main(int argc, char *argv[])
 		case 's':
 			shrink = 1;
 			break;
-		case 'l':
-			show_slab = 1;
+		case 'S':
+			sort_size = 1;
 			break;
 		case 't':
 			show_track = 1;
 			break;
-		case 'v':
-			validate = 1;
-			break;
-		case 'z':
-			skip_zero = 0;
-			break;
 		case 'T':
 			show_totals = 1;
 			break;
-		case 'S':
-			sort_size = 1;
+		case 'U':
+			unreclaim_only = 1;
 			break;
-		case 'N':
-			if (optarg) {
-				output_lines = atoi(optarg);
-				if (output_lines < 1)
-					output_lines = 1;
-			}
-			break;
-		case 'L':
-			sort_loss = 1;
+		case 'v':
+			validate = 1;
 			break;
 		case 'X':
 			if (output_lines == -1)
@@ -1445,11 +1445,11 @@ int main(int argc, char *argv[])
 			extended_totals = 1;
 			show_bytes = 1;
 			break;
-		case 'B':
-			show_bytes = 1;
+		case 'z':
+			skip_zero = 0;
 			break;
-		case 'U':
-			unreclaim_only = 1;
+		case '1':
+			show_single_ref = 1;
 			break;
 		default:
 			fatal("%s: Invalid option '%c'\n", argv[0], optopt);
