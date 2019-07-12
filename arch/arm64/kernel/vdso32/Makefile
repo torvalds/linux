@@ -144,8 +144,7 @@ $(obj)/vdso.so.dbg: $(obj)/vdso.so.raw $(obj)/$(munge) FORCE
 
 # Link rule for the .so file, .lds has to be first
 $(obj)/vdso.so.raw: $(src)/vdso.lds $(obj-vdso) FORCE
-	$(call if_changed,vdsold)
-	$(call if_changed,vdso_check)
+	$(call if_changed,vdsold_and_vdso_check)
 
 # Compilation rules for the vDSO sources
 $(c-obj-vdso): %.o: %.c FORCE
@@ -156,6 +155,9 @@ $(asm-obj-vdso): %.o: %.S FORCE
 	$(call if_changed_dep,vdsoas)
 
 # Actual build commands
+quiet_cmd_vdsold_and_vdso_check = LD      $@
+      cmd_vdsold_and_vdso_check = $(cmd_vdsold); $(cmd_vdso_check)
+
 quiet_cmd_vdsold = VDSOL   $@
       cmd_vdsold = $(COMPATCC) -Wp,-MD,$(depfile) $(VDSO_LDFLAGS) \
                    -Wl,-T $(filter %.lds,$^) $(filter %.o,$^) -o $@
