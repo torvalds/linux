@@ -2996,13 +2996,10 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 	}
 
 	if (is_support_sw_smu(adev)) {
-		struct smu_context *smu = &adev->smu;
 		struct smu_dpm_context *smu_dpm = &adev->smu.smu_dpm;
-		mutex_lock(&(smu->mutex));
 		smu_handle_task(&adev->smu,
 				smu_dpm->dpm_level,
 				AMD_PP_TASK_DISPLAY_CONFIG_CHANGE);
-		mutex_unlock(&(smu->mutex));
 	} else {
 		if (adev->powerplay.pp_funcs->dispatch_tasks) {
 			if (!amdgpu_device_has_dc_support(adev)) {
