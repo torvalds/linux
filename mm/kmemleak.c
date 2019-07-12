@@ -1866,7 +1866,7 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
 	}
 
 	if (!kmemleak_enabled) {
-		ret = -EBUSY;
+		ret = -EPERM;
 		goto out;
 	}
 
