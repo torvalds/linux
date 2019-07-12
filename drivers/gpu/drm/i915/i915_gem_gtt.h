@@ -609,7 +609,7 @@ i915_page_dir_dma_addr(const struct i915_ppgtt *ppgtt, const unsigned int n)
 {
 	struct i915_page_dma *pt = ppgtt->pd->entry[n];
 
-	return px_dma(pt);
+	return px_dma(pt ?: px_base(&ppgtt->vm.scratch[ppgtt->vm.top]));
 }
 
 static inline struct i915_ggtt *
