@@ -426,6 +426,7 @@ static void ocfs2_remove_lockres_tracking(struct ocfs2_lock_res *res)
 static void ocfs2_init_lock_stats(struct ocfs2_lock_res *res)
 {
 	res->l_lock_refresh = 0;
+	res->l_lock_wait = 0;
 	memset(&res->l_lock_prmode, 0, sizeof(struct ocfs2_lock_stats));
 	memset(&res->l_lock_exmode, 0, sizeof(struct ocfs2_lock_stats));
 }
@@ -469,6 +470,21 @@ static inline void ocfs2_track_lock_refresh(struct ocfs2_lock_res *lockres)
 	lockres->l_lock_refresh++;
 }
 
+static inline void ocfs2_track_lock_wait(struct ocfs2_lock_res *lockres)
+{
+	struct ocfs2_mask_waiter *mw;
+
+	if (list_empty(&lockres->l_mask_waiters)) {
+		lockres->l_lock_wait = 0;
+		return;
+	}
+
+	mw = list_first_entry(&lockres->l_mask_waiters,
+				struct ocfs2_mask_waiter, mw_item);
+	lockres->l_lock_wait =
+			ktime_to_us(ktime_mono_to_real(mw->mw_lock_start));
+}
+
 static inline void ocfs2_init_start_time(struct ocfs2_mask_waiter *mw)
 {
 	mw->mw_lock_start = ktime_get();
@@ -482,6 +498,9 @@ static inline void ocfs2_update_lock_stats(struct ocfs2_lock_res *res,
 {
 }
 static inline void ocfs2_track_lock_refresh(struct ocfs2_lock_res *lockres)
+{
+}
+static inline void ocfs2_track_lock_wait(struct ocfs2_lock_res *lockres)
 {
 }
 static inline void ocfs2_init_start_time(struct ocfs2_mask_waiter *mw)
@@ -877,6 +896,7 @@ static void lockres_set_flags(struct ocfs2_lock_res *lockres,
 		list_del_init(&mw->mw_item);
 		mw->mw_status = 0;
 		complete(&mw->mw_complete);
+		ocfs2_track_lock_wait(lockres);
 	}
 }
 static void lockres_or_flags(struct ocfs2_lock_res *lockres, unsigned long or)
@@ -1388,6 +1408,7 @@ static void lockres_add_mask_waiter(struct ocfs2_lock_res *lockres,
 	list_add_tail(&mw->mw_item, &lockres->l_mask_waiters);
 	mw->mw_mask = mask;
 	mw->mw_goal = goal;
+	ocfs2_track_lock_wait(lockres);
 }
 
 /* returns 0 if the mw that was removed was already satisfied, -EBUSY
@@ -1404,6 +1425,7 @@ static int __lockres_remove_mask_waiter(struct ocfs2_lock_res *lockres,
 
 		list_del_init(&mw->mw_item);
 		init_completion(&mw->mw_complete);
+		ocfs2_track_lock_wait(lockres);
 	}
 
 	return ret;
@@ -3084,7 +3106,7 @@ static void *ocfs2_dlm_seq_next(struct seq_file *m, void *v, loff_t *pos)
  * New in version 3
  *	- Max time in lock stats is in usecs (instead of nsecs)
  * New in version 4
- *	- Add last pr/ex unlock times in usecs
+ *	- Add last pr/ex unlock times and first lock wait time in usecs
  */
 #define OCFS2_DLM_DEBUG_STR_VERSION 4
 static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
@@ -3102,7 +3124,7 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 		return -EINVAL;
 
 #ifdef CONFIG_OCFS2_FS_STATS
-	if (dlm_debug->d_filter_secs) {
+	if (!lockres->l_lock_wait && dlm_debug->d_filter_secs) {
 		now = ktime_to_us(ktime_get_real());
 		if (lockres->l_lock_prmode.ls_last >
 		    lockres->l_lock_exmode.ls_last)
@@ -3163,6 +3185,7 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 # define lock_refresh(_l)		((_l)->l_lock_refresh)
 # define lock_last_prmode(_l)		((_l)->l_lock_prmode.ls_last)
 # define lock_last_exmode(_l)		((_l)->l_lock_exmode.ls_last)
+# define lock_wait(_l)			((_l)->l_lock_wait)
 #else
 # define lock_num_prmode(_l)		(0)
 # define lock_num_exmode(_l)		(0)
@@ -3175,6 +3198,7 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 # define lock_refresh(_l)		(0)
 # define lock_last_prmode(_l)		(0ULL)
 # define lock_last_exmode(_l)		(0ULL)
+# define lock_wait(_l)			(0ULL)
 #endif
 	/* The following seq_print was added in version 2 of this output */
 	seq_printf(m, "%u\t"
@@ -3187,6 +3211,7 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 		   "%u\t"
 		   "%u\t"
 		   "%llu\t"
+		   "%llu\t"
 		   "%llu\t",
 		   lock_num_prmode(lockres),
 		   lock_num_exmode(lockres),
@@ -3198,7 +3223,8 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 		   lock_max_exmode(lockres),
 		   lock_refresh(lockres),
 		   lock_last_prmode(lockres),
-		   lock_last_exmode(lockres));
+		   lock_last_exmode(lockres),
+		   lock_wait(lockres));
 
 	/* End the line */
 	seq_printf(m, "\n");

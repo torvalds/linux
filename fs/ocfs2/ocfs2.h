@@ -192,6 +192,7 @@ struct ocfs2_lock_res {
 #ifdef CONFIG_OCFS2_FS_STATS
 	struct ocfs2_lock_stats  l_lock_prmode;		/* PR mode stats */
 	u32                      l_lock_refresh;	/* Disk refreshes */
+	u64                      l_lock_wait;	/* First lock wait time */
 	struct ocfs2_lock_stats  l_lock_exmode;		/* EX mode stats */
 #endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
