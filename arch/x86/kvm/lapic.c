@@ -69,6 +69,7 @@
 #define X2APIC_BROADCAST		0xFFFFFFFFul
 
 #define LAPIC_TIMER_ADVANCE_ADJUST_DONE 100
+#define LAPIC_TIMER_ADVANCE_ADJUST_INIT 1000
 /* step-by-step approximation to mitigate fluctuation */
 #define LAPIC_TIMER_ADVANCE_ADJUST_STEP 8
 
@@ -83,11 +84,6 @@ bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector)
 
 	return apic_test_vector(vector, apic->regs + APIC_ISR) ||
 		apic_test_vector(vector, apic->regs + APIC_IRR);
-}
-
-static inline void apic_clear_vector(int vec, void *bitmap)
-{
-	clear_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
 }
 
 static inline int __apic_test_and_set_vector(int vec, void *bitmap)
@@ -443,12 +439,12 @@ static inline void apic_clear_irr(int vec, struct kvm_lapic *apic)
 
 	if (unlikely(vcpu->arch.apicv_active)) {
 		/* need to update RVI */
-		apic_clear_vector(vec, apic->regs + APIC_IRR);
+		kvm_lapic_clear_vector(vec, apic->regs + APIC_IRR);
 		kvm_x86_ops->hwapic_irr_update(vcpu,
 				apic_find_highest_irr(apic));
 	} else {
 		apic->irr_pending = false;
-		apic_clear_vector(vec, apic->regs + APIC_IRR);
+		kvm_lapic_clear_vector(vec, apic->regs + APIC_IRR);
 		if (apic_search_irr(apic) != -1)
 			apic->irr_pending = true;
 	}
@@ -1053,9 +1049,11 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 
 		if (apic_test_vector(vector, apic->regs + APIC_TMR) != !!trig_mode) {
 			if (trig_mode)
-				kvm_lapic_set_vector(vector, apic->regs + APIC_TMR);
+				kvm_lapic_set_vector(vector,
+						     apic->regs + APIC_TMR);
 			else
-				apic_clear_vector(vector, apic->regs + APIC_TMR);
+				kvm_lapic_clear_vector(vector,
+						       apic->regs + APIC_TMR);
 		}
 
 		if (vcpu->arch.apicv_active)
@@ -1313,21 +1311,45 @@ static inline struct kvm_lapic *to_lapic(struct kvm_io_device *dev)
 	return container_of(dev, struct kvm_lapic, dev);
 }
 
+#define APIC_REG_MASK(reg)	(1ull << ((reg) >> 4))
+#define APIC_REGS_MASK(first, count) \
+	(APIC_REG_MASK(first) * ((1ull << (count)) - 1))
+
 int kvm_lapic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
 		void *data)
 {
 	unsigned char alignment = offset & 0xf;
 	u32 result;
 	/* this bitmask has a bit cleared for each reserved register */
-	static const u64 rmask = 0x43ff01ffffffe70cULL;
+	u64 valid_reg_mask =
+		APIC_REG_MASK(APIC_ID) |
+		APIC_REG_MASK(APIC_LVR) |
+		APIC_REG_MASK(APIC_TASKPRI) |
+		APIC_REG_MASK(APIC_PROCPRI) |
+		APIC_REG_MASK(APIC_LDR) |
+		APIC_REG_MASK(APIC_DFR) |
+		APIC_REG_MASK(APIC_SPIV) |
+		APIC_REGS_MASK(APIC_ISR, APIC_ISR_NR) |
+		APIC_REGS_MASK(APIC_TMR, APIC_ISR_NR) |
+		APIC_REGS_MASK(APIC_IRR, APIC_ISR_NR) |
+		APIC_REG_MASK(APIC_ESR) |
+		APIC_REG_MASK(APIC_ICR) |
+		APIC_REG_MASK(APIC_ICR2) |
+		APIC_REG_MASK(APIC_LVTT) |
+		APIC_REG_MASK(APIC_LVTTHMR) |
+		APIC_REG_MASK(APIC_LVTPC) |
+		APIC_REG_MASK(APIC_LVT0) |
+		APIC_REG_MASK(APIC_LVT1) |
+		APIC_REG_MASK(APIC_LVTERR) |
+		APIC_REG_MASK(APIC_TMICT) |
+		APIC_REG_MASK(APIC_TMCCT) |
+		APIC_REG_MASK(APIC_TDCR);
 
-	if ((alignment + len) > 4) {
-		apic_debug("KVM_APIC_READ: alignment error %x %d\n",
-			   offset, len);
-		return 1;
-	}
+	/* ARBPRI is not valid on x2APIC */
+	if (!apic_x2apic_mode(apic))
+		valid_reg_mask |= APIC_REG_MASK(APIC_ARBPRI);
 
-	if (offset > 0x3f0 || !(rmask & (1ULL << (offset >> 4)))) {
+	if (offset > 0x3f0 || !(valid_reg_mask & APIC_REG_MASK(offset))) {
 		apic_debug("KVM_APIC_READ: read reserved register %x\n",
 			   offset);
 		return 1;
@@ -1499,11 +1521,40 @@ static inline void __wait_lapic_expire(struct kvm_vcpu *vcpu, u64 guest_cycles)
 	}
 }
 
-void wait_lapic_expire(struct kvm_vcpu *vcpu)
+static inline void adjust_lapic_timer_advance(struct kvm_vcpu *vcpu,
+					      s64 advance_expire_delta)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 	u32 timer_advance_ns = apic->lapic_timer.timer_advance_ns;
-	u64 guest_tsc, tsc_deadline, ns;
+	u64 ns;
+
+	/* too early */
+	if (advance_expire_delta < 0) {
+		ns = -advance_expire_delta * 1000000ULL;
+		do_div(ns, vcpu->arch.virtual_tsc_khz);
+		timer_advance_ns -= min((u32)ns,
+			timer_advance_ns / LAPIC_TIMER_ADVANCE_ADJUST_STEP);
+	} else {
+	/* too late */
+		ns = advance_expire_delta * 1000000ULL;
+		do_div(ns, vcpu->arch.virtual_tsc_khz);
+		timer_advance_ns += min((u32)ns,
+			timer_advance_ns / LAPIC_TIMER_ADVANCE_ADJUST_STEP);
+	}
+
+	if (abs(advance_expire_delta) < LAPIC_TIMER_ADVANCE_ADJUST_DONE)
+		apic->lapic_timer.timer_advance_adjust_done = true;
+	if (unlikely(timer_advance_ns > 5000)) {
+		timer_advance_ns = LAPIC_TIMER_ADVANCE_ADJUST_INIT;
+		apic->lapic_timer.timer_advance_adjust_done = false;
+	}
+	apic->lapic_timer.timer_advance_ns = timer_advance_ns;
+}
+
+void kvm_wait_lapic_expire(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	u64 guest_tsc, tsc_deadline;
 
 	if (apic->lapic_timer.expired_tscdeadline == 0)
 		return;
@@ -1514,34 +1565,15 @@ void wait_lapic_expire(struct kvm_vcpu *vcpu)
 	tsc_deadline = apic->lapic_timer.expired_tscdeadline;
 	apic->lapic_timer.expired_tscdeadline = 0;
 	guest_tsc = kvm_read_l1_tsc(vcpu, rdtsc());
-	trace_kvm_wait_lapic_expire(vcpu->vcpu_id, guest_tsc - tsc_deadline);
+	apic->lapic_timer.advance_expire_delta = guest_tsc - tsc_deadline;
 
 	if (guest_tsc < tsc_deadline)
 		__wait_lapic_expire(vcpu, tsc_deadline - guest_tsc);
 
-	if (!apic->lapic_timer.timer_advance_adjust_done) {
-		/* too early */
-		if (guest_tsc < tsc_deadline) {
-			ns = (tsc_deadline - guest_tsc) * 1000000ULL;
-			do_div(ns, vcpu->arch.virtual_tsc_khz);
-			timer_advance_ns -= min((u32)ns,
-				timer_advance_ns / LAPIC_TIMER_ADVANCE_ADJUST_STEP);
-		} else {
-		/* too late */
-			ns = (guest_tsc - tsc_deadline) * 1000000ULL;
-			do_div(ns, vcpu->arch.virtual_tsc_khz);
-			timer_advance_ns += min((u32)ns,
-				timer_advance_ns / LAPIC_TIMER_ADVANCE_ADJUST_STEP);
-		}
-		if (abs(guest_tsc - tsc_deadline) < LAPIC_TIMER_ADVANCE_ADJUST_DONE)
-			apic->lapic_timer.timer_advance_adjust_done = true;
-		if (unlikely(timer_advance_ns > 5000)) {
-			timer_advance_ns = 0;
-			apic->lapic_timer.timer_advance_adjust_done = true;
-		}
-		apic->lapic_timer.timer_advance_ns = timer_advance_ns;
-	}
+	if (unlikely(!apic->lapic_timer.timer_advance_adjust_done))
+		adjust_lapic_timer_advance(vcpu, apic->lapic_timer.advance_expire_delta);
 }
+EXPORT_SYMBOL_GPL(kvm_wait_lapic_expire);
 
 static void start_sw_tscdeadline(struct kvm_lapic *apic)
 {
@@ -2014,7 +2046,7 @@ static int apic_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
 		apic_debug("%s: offset 0x%x with length 0x%x, and value is "
 			   "0x%x\n", __func__, offset, len, val);
 
-	kvm_lapic_reg_write(apic, offset & 0xff0, val);
+	kvm_lapic_reg_write(apic, offset, val);
 
 	return 0;
 }
@@ -2311,7 +2343,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns)
 		     HRTIMER_MODE_ABS_PINNED);
 	apic->lapic_timer.timer.function = apic_timer_fn;
 	if (timer_advance_ns == -1) {
-		apic->lapic_timer.timer_advance_ns = 1000;
+		apic->lapic_timer.timer_advance_ns = LAPIC_TIMER_ADVANCE_ADJUST_INIT;
 		apic->lapic_timer.timer_advance_adjust_done = false;
 	} else {
 		apic->lapic_timer.timer_advance_ns = timer_advance_ns;
@@ -2321,7 +2353,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns)
 
 	/*
 	 * APIC is created enabled. This will prevent kvm_lapic_set_base from
-	 * thinking that APIC satet has changed.
+	 * thinking that APIC state has changed.
 	 */
 	vcpu->arch.apic_base = MSR_IA32_APICBASE_ENABLE;
 	static_key_slow_inc(&apic_sw_disabled.key); /* sw disabled at reset */
@@ -2330,6 +2362,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns)
 	return 0;
 nomem_free_apic:
 	kfree(apic);
+	vcpu->arch.apic = NULL;
 nomem:
 	return -ENOMEM;
 }
