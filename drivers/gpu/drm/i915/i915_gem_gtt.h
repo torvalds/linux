@@ -634,7 +634,7 @@ int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv);
 void i915_ggtt_enable_guc(struct drm_i915_private *i915);
 void i915_ggtt_disable_guc(struct drm_i915_private *i915);
 int i915_init_ggtt(struct drm_i915_private *dev_priv);
-void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv);
+void i915_ggtt_driver_release(struct drm_i915_private *dev_priv);
 
 int i915_ppgtt_init_hw(struct intel_gt *gt);
 

@@ -1620,7 +1620,7 @@ void i915_gem_fini_hw(struct drm_i915_private *dev_priv)
 	i915_gem_drain_freed_objects(dev_priv);
 }
 
-void i915_gem_fini(struct drm_i915_private *dev_priv)
+void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_engines_cleanup(dev_priv);

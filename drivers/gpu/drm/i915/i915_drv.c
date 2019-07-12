@@ -758,7 +758,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 cleanup_gem:
 	i915_gem_suspend(dev_priv);
 	i915_gem_fini_hw(dev_priv);
-	i915_gem_fini(dev_priv);
+	i915_gem_driver_release(dev_priv);
 cleanup_modeset:
 	intel_modeset_cleanup(dev);
 cleanup_irq:
@@ -968,10 +968,11 @@ err_engines:
 }
 
 /**
- * i915_driver_cleanup_early - cleanup the setup done in i915_driver_init_early()
+ * i915_driver_late_release - cleanup the setup done in
+ *			       i915_driver_init_early()
  * @dev_priv: device private
  */
-static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
+static void i915_driver_late_release(struct drm_i915_private *dev_priv)
 {
 	intel_irq_fini(dev_priv);
 	intel_power_domains_cleanup(dev_priv);
@@ -1034,10 +1035,10 @@ err_bridge:
 }
 
 /**
- * i915_driver_cleanup_mmio - cleanup the setup done in i915_driver_init_mmio()
+ * i915_driver_mmio_release - cleanup the setup done in i915_driver_init_mmio()
  * @dev_priv: device private
  */
-static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
+static void i915_driver_mmio_release(struct drm_i915_private *dev_priv)
 {
 	intel_teardown_mchbar(dev_priv);
 	intel_uncore_fini_mmio(&dev_priv->uncore);
@@ -1690,7 +1691,7 @@ err_msi:
 		pci_disable_msi(pdev);
 	pm_qos_remove_request(&dev_priv->pm_qos);
 err_ggtt:
-	i915_ggtt_cleanup_hw(dev_priv);
+	i915_ggtt_driver_release(dev_priv);
 err_perf:
 	i915_perf_fini(dev_priv);
 	return ret;
@@ -1935,15 +1936,15 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 out_cleanup_hw:
 	i915_driver_cleanup_hw(dev_priv);
-	i915_ggtt_cleanup_hw(dev_priv);
+	i915_ggtt_driver_release(dev_priv);
 
 	/* Paranoia: make sure we have disabled everything before we exit. */
 	intel_sanitize_gt_powersave(dev_priv);
 out_cleanup_mmio:
-	i915_driver_cleanup_mmio(dev_priv);
+	i915_driver_mmio_release(dev_priv);
 out_runtime_pm_put:
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
-	i915_driver_cleanup_early(dev_priv);
+	i915_driver_late_release(dev_priv);
 out_pci_disable:
 	pci_disable_device(pdev);
 out_fini:
@@ -2006,19 +2007,19 @@ static void i915_driver_release(struct drm_device *dev)
 
 	disable_rpm_wakeref_asserts(rpm);
 
-	i915_gem_fini(dev_priv);
+	i915_gem_driver_release(dev_priv);
 
-	i915_ggtt_cleanup_hw(dev_priv);
+	i915_ggtt_driver_release(dev_priv);
 
 	/* Paranoia: make sure we have disabled everything before we exit. */
 	intel_sanitize_gt_powersave(dev_priv);
 
-	i915_driver_cleanup_mmio(dev_priv);
+	i915_driver_mmio_release(dev_priv);
 
 	enable_rpm_wakeref_asserts(rpm);
-	intel_runtime_pm_cleanup(rpm);
+	intel_runtime_pm_driver_release(rpm);
 
-	i915_driver_cleanup_early(dev_priv);
+	i915_driver_late_release(dev_priv);
 	i915_driver_destroy(dev_priv);
 }
 
@@ -2211,7 +2212,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 out:
 	enable_rpm_wakeref_asserts(rpm);
 	if (!dev_priv->uncore.user_forcewake.count)
-		intel_runtime_pm_cleanup(rpm);
+		intel_runtime_pm_driver_release(rpm);
 
 	return ret;
 }
@@ -2975,7 +2976,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	}
 
 	enable_rpm_wakeref_asserts(rpm);
-	intel_runtime_pm_cleanup(rpm);
+	intel_runtime_pm_driver_release(rpm);
 
 	if (intel_uncore_arm_unclaimed_mmio_detection(&dev_priv->uncore))
 		DRM_ERROR("Unclaimed access detected prior to suspending\n");

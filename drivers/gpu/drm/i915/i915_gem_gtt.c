@@ -2851,10 +2851,10 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 }
 
 /**
- * i915_ggtt_cleanup_hw - Clean up GGTT hardware initialization
+ * i915_ggtt_driver_release - Clean up GGTT hardware initialization
  * @i915: i915 device
  */
-void i915_ggtt_cleanup_hw(struct drm_i915_private *i915)
+void i915_ggtt_driver_release(struct drm_i915_private *i915)
 {
 	struct pagevec *pvec;
 
