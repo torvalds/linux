@@ -397,6 +397,10 @@ static bool wo_register(struct intel_engine_cs *engine, u32 reg)
 	enum intel_platform platform = INTEL_INFO(engine->i915)->platform;
 	int i;
 
+	if ((reg & RING_FORCE_TO_NONPRIV_ACCESS_MASK) ==
+	     RING_FORCE_TO_NONPRIV_ACCESS_WR)
+		return true;
+
 	for (i = 0; i < ARRAY_SIZE(wo_registers); i++) {
 		if (wo_registers[i].platform == platform &&
 		    wo_registers[i].reg == reg)
@@ -408,7 +412,8 @@ static bool wo_register(struct intel_engine_cs *engine, u32 reg)
 
 static bool ro_register(u32 reg)
 {
-	if (reg & RING_FORCE_TO_NONPRIV_RD)
+	if ((reg & RING_FORCE_TO_NONPRIV_ACCESS_MASK) ==
+	     RING_FORCE_TO_NONPRIV_ACCESS_RD)
 		return true;
 
 	return false;
@@ -760,8 +765,8 @@ static int read_whitelisted_registers(struct i915_gem_context *ctx,
 		u64 offset = results->node.start + sizeof(u32) * i;
 		u32 reg = i915_mmio_reg_offset(engine->whitelist.list[i].reg);
 
-		/* Clear RD only and WR only flags */
-		reg &= ~(RING_FORCE_TO_NONPRIV_RD | RING_FORCE_TO_NONPRIV_WR);
+		/* Clear access permission field */
+		reg &= ~RING_FORCE_TO_NONPRIV_ACCESS_MASK;
 
 		*cs++ = srm;
 		*cs++ = reg;
@@ -931,7 +936,8 @@ check_whitelisted_registers(struct intel_engine_cs *engine,
 	for (i = 0; i < engine->whitelist.count; i++) {
 		const struct i915_wa *wa = &engine->whitelist.list[i];
 
-		if (i915_mmio_reg_offset(wa->reg) & RING_FORCE_TO_NONPRIV_RD)
+		if (i915_mmio_reg_offset(wa->reg) &
+		    RING_FORCE_TO_NONPRIV_ACCESS_RD)
 			continue;
 
 		if (!fn(engine, a[i], b[i], wa->reg))
