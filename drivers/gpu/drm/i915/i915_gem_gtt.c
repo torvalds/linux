@@ -46,6 +46,12 @@
 
 #define I915_GFP_ALLOW_FAIL (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN)
 
+#if IS_ENABLED(CONFIG_DRM_I915_TRACE_GTT)
+#define DBG(...) trace_printk(__VA_ARGS__)
+#else
+#define DBG(...)
+#endif
+
 /**
  * DOC: Global GTT views
  *
@@ -796,6 +802,9 @@ release_pd_entry(struct i915_page_directory * const pd,
 {
 	bool free = false;
 
+	if (atomic_add_unless(&pt->used, -1, 1))
+		return false;
+
 	spin_lock(&pd->lock);
 	if (atomic_dec_and_test(&pt->used)) {
 		clear_pd_entry(pd, idx, scratch);
@@ -927,86 +936,101 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 	free_scratch(vm);
 }
 
-/* Removes entries from a single page table, releasing it if it's empty.
- * Caller can use the return value to update higher-level entries.
- */
-static void gen8_ppgtt_clear_pt(const struct i915_address_space *vm,
-				struct i915_page_table *pt,
-				u64 start, u64 length)
+static u64 __gen8_ppgtt_clear(struct i915_address_space * const vm,
+			      struct i915_page_directory * const pd,
+			      u64 start, const u64 end, int lvl)
 {
-	const unsigned int num_entries = gen8_pte_count(start, length);
-	gen8_pte_t *vaddr;
+	const struct i915_page_scratch * const scratch = &vm->scratch[lvl];
+	unsigned int idx, len;
 
-	vaddr = kmap_atomic_px(pt);
-	memset64(vaddr + gen8_pte_index(start),
-		 vm->scratch[0].encode,
-		 num_entries);
-	kunmap_atomic(vaddr);
+	len = gen8_pd_range(start, end, lvl--, &idx);
+	DBG("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d}\n",
+	    __func__, vm, lvl + 1, start, end,
+	    idx, len, atomic_read(px_used(pd)));
+	GEM_BUG_ON(!len || len >= atomic_read(px_used(pd)));
 
-	GEM_BUG_ON(num_entries > atomic_read(&pt->used));
+	do {
+		struct i915_page_table *pt = pd->entry[idx];
 
-	atomic_sub(num_entries, &pt->used);
+		if (atomic_fetch_inc(&pt->used) >> gen8_pd_shift(1) &&
+		    gen8_pd_contains(start, end, lvl)) {
+			DBG("%s(%p):{ lvl:%d, idx:%d, start:%llx, end:%llx } removing pd\n",
+			    __func__, vm, lvl + 1, idx, start, end);
+			clear_pd_entry(pd, idx, scratch);
+			__gen8_ppgtt_cleanup(vm, as_pd(pt), I915_PDES, lvl);
+			start += (u64)I915_PDES << gen8_pd_shift(lvl);
+			continue;
+		}
+
+		if (lvl) {
+			start = __gen8_ppgtt_clear(vm, as_pd(pt),
+						   start, end, lvl);
+		} else {
+			unsigned int count;
+			u64 *vaddr;
+
+			count = gen8_pt_count(start, end);
+			DBG("%s(%p):{ lvl:%d, start:%llx, end:%llx, idx:%d, len:%d, used:%d} removing pte\n",
+			    __func__, vm, lvl, start, end,
+			    gen8_pd_index(start, 0), count,
+			    atomic_read(&pt->used));
+			GEM_BUG_ON(!count || count >= atomic_read(&pt->used));
+
+			vaddr = kmap_atomic_px(pt);
+			memset64(vaddr + gen8_pd_index(start, 0),
+				 vm->scratch[0].encode,
+				 count);
+			kunmap_atomic(vaddr);
+
+			atomic_sub(count, &pt->used);
+			start += count;
+		}
+
+		if (release_pd_entry(pd, idx, pt, scratch))
+			free_px(vm, pt);
+	} while (idx++, --len);
+
+	return start;
+}
+
+static void gen8_ppgtt_clear(struct i915_address_space *vm,
+			     u64 start, u64 length)
+{
+	GEM_BUG_ON(!IS_ALIGNED(start, BIT_ULL(GEN8_PTE_SHIFT)));
+	GEM_BUG_ON(!IS_ALIGNED(length, BIT_ULL(GEN8_PTE_SHIFT)));
+
+	start >>= GEN8_PTE_SHIFT;
+	length >>= GEN8_PTE_SHIFT;
+	GEM_BUG_ON(length == 0);
+
+	__gen8_ppgtt_clear(vm, i915_vm_to_ppgtt(vm)->pd,
+			   start, start + length, vm->top);
 }
 
 static void gen8_ppgtt_clear_pd(struct i915_address_space *vm,
 				struct i915_page_directory *pd,
 				u64 start, u64 length)
 {
-	struct i915_page_table *pt;
-	u32 pde;
+	GEM_BUG_ON(!IS_ALIGNED(start, BIT_ULL(GEN8_PTE_SHIFT)));
+	GEM_BUG_ON(!IS_ALIGNED(length, BIT_ULL(GEN8_PTE_SHIFT)));
 
-	gen8_for_each_pde(pt, pd, start, length, pde) {
-		atomic_inc(&pt->used);
-		gen8_ppgtt_clear_pt(vm, pt, start, length);
-		if (release_pd_entry(pd, pde, pt, &vm->scratch[1]))
-			free_px(vm, pt);
-	}
+	start >>= GEN8_PTE_SHIFT;
+	length >>= GEN8_PTE_SHIFT;
+
+	__gen8_ppgtt_clear(vm, pd, start, start + length, 1);
 }
 
-/* Removes entries from a single page dir pointer, releasing it if it's empty.
- * Caller can use the return value to update higher-level entries
- */
 static void gen8_ppgtt_clear_pdp(struct i915_address_space *vm,
 				 struct i915_page_directory * const pdp,
 				 u64 start, u64 length)
 {
-	struct i915_page_directory *pd;
-	unsigned int pdpe;
+	GEM_BUG_ON(!IS_ALIGNED(start, BIT_ULL(GEN8_PTE_SHIFT)));
+	GEM_BUG_ON(!IS_ALIGNED(length, BIT_ULL(GEN8_PTE_SHIFT)));
 
-	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
-		atomic_inc(px_used(pd));
-		gen8_ppgtt_clear_pd(vm, pd, start, length);
-		if (release_pd_entry(pdp, pdpe, &pd->pt, &vm->scratch[2]))
-			free_px(vm, pd);
-	}
-}
+	start >>= GEN8_PTE_SHIFT;
+	length >>= GEN8_PTE_SHIFT;
 
-static void gen8_ppgtt_clear_3lvl(struct i915_address_space *vm,
-				  u64 start, u64 length)
-{
-	gen8_ppgtt_clear_pdp(vm, i915_vm_to_ppgtt(vm)->pd, start, length);
-}
-
-/* Removes entries from a single pml4.
- * This is the top-level structure in 4-level page tables used on gen8+.
- * Empty entries are always scratch pml4e.
- */
-static void gen8_ppgtt_clear_4lvl(struct i915_address_space *vm,
-				  u64 start, u64 length)
-{
-	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-	struct i915_page_directory * const pml4 = ppgtt->pd;
-	struct i915_page_directory *pdp;
-	unsigned int pml4e;
-
-	GEM_BUG_ON(!i915_vm_is_4lvl(vm));
-
-	gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
-		atomic_inc(px_used(pdp));
-		gen8_ppgtt_clear_pdp(vm, pdp, start, length);
-		if (release_pd_entry(pml4, pml4e, &pdp->pt, &vm->scratch[3]))
-			free_px(vm, pdp);
-	}
+	__gen8_ppgtt_clear(vm, pdp, start, start + length, 2);
 }
 
 static int gen8_ppgtt_alloc_pd(struct i915_address_space *vm,
@@ -1171,7 +1195,7 @@ unwind_pdp:
 	if (release_pd_entry(pml4, pml4e, &pdp->pt, &vm->scratch[3]))
 		free_px(vm, pdp);
 unwind:
-	gen8_ppgtt_clear_4lvl(vm, from, start - from);
+	gen8_ppgtt_clear(vm, from, start - from);
 out:
 	if (alloc)
 		free_px(vm, alloc);
@@ -1484,6 +1508,7 @@ static int gen8_preallocate_top_level_pdp(struct i915_ppgtt *ppgtt)
 
 		fill_px(pd, vm->scratch[1].encode);
 		set_pd_entry(pdp, pdpe, pd);
+		atomic_inc(px_used(pd)); /* keep pinned */
 	}
 
 	return 0;
@@ -1524,6 +1549,7 @@ gen8_alloc_top_pd(struct i915_address_space *vm)
 	}
 
 	fill_page_dma(px_base(pd), vm->scratch[vm->top].encode, count);
+	atomic_inc(px_used(pd)); /* mark as pinned */
 	return pd;
 }
 
@@ -1573,7 +1599,6 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	if (i915_vm_is_4lvl(&ppgtt->vm)) {
 		ppgtt->vm.allocate_va_range = gen8_ppgtt_alloc_4lvl;
 		ppgtt->vm.insert_entries = gen8_ppgtt_insert_4lvl;
-		ppgtt->vm.clear_range = gen8_ppgtt_clear_4lvl;
 	} else {
 		if (intel_vgpu_active(i915)) {
 			err = gen8_preallocate_top_level_pdp(ppgtt);
@@ -1583,8 +1608,9 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 
 		ppgtt->vm.allocate_va_range = gen8_ppgtt_alloc_3lvl;
 		ppgtt->vm.insert_entries = gen8_ppgtt_insert_3lvl;
-		ppgtt->vm.clear_range = gen8_ppgtt_clear_3lvl;
 	}
+
+	ppgtt->vm.clear_range = gen8_ppgtt_clear;
 
 	if (intel_vgpu_active(i915))
 		gen8_ppgtt_notify_vgt(ppgtt, true);
