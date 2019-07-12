@@ -7,7 +7,6 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/phy/phy.h>
-#include <soc/rockchip/rockchip_phy_typec.h>
 
 #include "cdn-dp-core.h"
 #include "cdn-dp-reg.h"
@@ -15,15 +14,13 @@
 static void cdn_dp_set_signal_levels(struct cdn_dp_device *dp)
 {
 	struct cdn_dp_port *port = dp->port[dp->active_port];
-	struct rockchip_typec_phy *tcphy = phy_get_drvdata(port->phy);
-
 	int rate = drm_dp_bw_code_to_link_rate(dp->link.rate);
 	u8 swing = (dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) >>
 		   DP_TRAIN_VOLTAGE_SWING_SHIFT;
 	u8 pre_emphasis = (dp->train_set[0] & DP_TRAIN_PRE_EMPHASIS_MASK)
 			  >> DP_TRAIN_PRE_EMPHASIS_SHIFT;
 
-	tcphy->typec_phy_config(port->phy, rate, dp->link.num_lanes,
+	tcphy_dp_set_phy_config(port->phy, rate, dp->link.num_lanes,
 				swing, pre_emphasis);
 }
 
@@ -354,9 +351,11 @@ static int cdn_dp_get_lower_link_rate(struct cdn_dp_device *dp)
 
 int cdn_dp_software_train_link(struct cdn_dp_device *dp)
 {
+	struct cdn_dp_port *port = dp->port[dp->active_port];
 	int ret, stop_err;
 	u8 link_config[2];
 	u32 rate, sink_max, source_max;
+	bool ssc_on;
 
 	ret = drm_dp_dpcd_read(&dp->aux, DP_DPCD_REV, dp->dpcd,
 			       sizeof(dp->dpcd));
@@ -374,13 +373,27 @@ int cdn_dp_software_train_link(struct cdn_dp_device *dp)
 	rate = min(source_max, sink_max);
 	dp->link.rate = drm_dp_link_rate_to_bw_code(rate);
 
-	link_config[0] = 0;
+	ssc_on = !!(dp->dpcd[DP_MAX_DOWNSPREAD] & DP_MAX_DOWNSPREAD_0_5);
+	link_config[0] = ssc_on ? DP_SPREAD_AMP_0_5 : 0;
 	link_config[1] = 0;
 	if (dp->dpcd[DP_MAIN_LINK_CHANNEL_CODING] & 0x01)
 		link_config[1] = DP_SET_ANSI_8B10B;
 	drm_dp_dpcd_write(&dp->aux, DP_DOWNSPREAD_CTRL, link_config, 2);
 
 	while (true) {
+		ret = tcphy_dp_set_link_rate(port->phy,
+				drm_dp_bw_code_to_link_rate(dp->link.rate),
+				ssc_on);
+		if (ret) {
+			DRM_ERROR("failed to set link rate: %d\n", ret);
+			return ret;
+		}
+
+		ret = tcphy_dp_set_lane_count(port->phy, dp->link.num_lanes);
+		if (ret) {
+			DRM_ERROR("failed to set lane count: %d\n", ret);
+			return ret;
+		}
 
 		/* Write the link configuration data */
 		link_config[0] = dp->link.rate;
