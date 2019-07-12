@@ -139,71 +139,35 @@ static int can_rx_offload_compare(struct sk_buff *a, struct sk_buff *b)
 static struct sk_buff *
 can_rx_offload_offload_one(struct can_rx_offload *offload, unsigned int n)
 {
-	struct sk_buff *skb = NULL, *skb_error = NULL;
+	struct sk_buff *skb;
 	struct can_rx_offload_cb *cb;
-	struct can_frame *cf;
-	int ret;
+	bool drop = false;
+	u32 timestamp;
 
-	if (likely(skb_queue_len(&offload->skb_queue) <
-		   offload->skb_queue_len_max)) {
-		skb = alloc_can_skb(offload->dev, &cf);
-		if (unlikely(!skb))
-			skb_error = ERR_PTR(-ENOMEM);	/* skb alloc failed */
-	} else {
-		skb_error = ERR_PTR(-ENOBUFS);		/* skb_queue is full */
-	}
+	/* If queue is full drop frame */
+	if (unlikely(skb_queue_len(&offload->skb_queue) >
+		     offload->skb_queue_len_max))
+		drop = true;
 
-	/* If queue is full or skb not available, drop by reading into
-	 * overflow buffer.
-	 */
-	if (unlikely(skb_error)) {
-		struct can_frame cf_overflow;
-		u32 timestamp;
-
-		ret = offload->mailbox_read(offload, &cf_overflow,
-					    &timestamp, n);
-
-		/* Mailbox was empty. */
-		if (unlikely(!ret))
-			return NULL;
-
-		/* Mailbox has been read and we're dropping it or
-		 * there was a problem reading the mailbox.
-		 *
-		 * Increment error counters in any case.
-		 */
-		offload->dev->stats.rx_dropped++;
-		offload->dev->stats.rx_fifo_errors++;
-
-		/* There was a problem reading the mailbox, propagate
-		 * error value.
-		 */
-		if (unlikely(ret < 0))
-			return ERR_PTR(ret);
-
-		return skb_error;
-	}
-
-	cb = can_rx_offload_get_cb(skb);
-	ret = offload->mailbox_read(offload, cf, &cb->timestamp, n);
-
+	skb = offload->mailbox_read(offload, n, &timestamp, drop);
 	/* Mailbox was empty. */
-	if (unlikely(!ret)) {
-		kfree_skb(skb);
+	if (unlikely(!skb))
 		return NULL;
-	}
 
-	/* There was a problem reading the mailbox, propagate error value. */
-	if (unlikely(ret < 0)) {
-		kfree_skb(skb);
-
+	/* There was a problem reading the mailbox, propagate
+	 * error value.
+	 */
+	if (unlikely(IS_ERR(skb))) {
 		offload->dev->stats.rx_dropped++;
 		offload->dev->stats.rx_fifo_errors++;
 
-		return ERR_PTR(ret);
+		return skb;
 	}
 
 	/* Mailbox was read. */
+	cb = can_rx_offload_get_cb(skb);
+	cb->timestamp = timestamp;
+
 	return skb;
 }
 
