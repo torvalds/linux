@@ -17,6 +17,7 @@
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
+#include <linux/debugfs.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/page.h>
@@ -770,6 +771,7 @@ static void kmemcg_cache_deactivate(struct kmem_cache *s)
 		return;
 
 	__kmemcg_cache_deactivate(s);
+	s->flags |= SLAB_DEACTIVATED;
 
 	/*
 	 * memcg_kmem_wq_lock is used to synchronize memcg_params.dying
@@ -1521,6 +1523,64 @@ static int __init slab_proc_init(void)
 	return 0;
 }
 module_init(slab_proc_init);
+
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_MEMCG_KMEM)
+/*
+ * Display information about kmem caches that have child memcg caches.
+ */
+static int memcg_slabinfo_show(struct seq_file *m, void *unused)
+{
+	struct kmem_cache *s, *c;
+	struct slabinfo sinfo;
+
+	mutex_lock(&slab_mutex);
+	seq_puts(m, "# <name> <css_id[:dead|deact]> <active_objs> <num_objs>");
+	seq_puts(m, " <active_slabs> <num_slabs>\n");
+	list_for_each_entry(s, &slab_root_caches, root_caches_node) {
+		/*
+		 * Skip kmem caches that don't have any memcg children.
+		 */
+		if (list_empty(&s->memcg_params.children))
+			continue;
+
+		memset(&sinfo, 0, sizeof(sinfo));
+		get_slabinfo(s, &sinfo);
+		seq_printf(m, "%-17s root       %6lu %6lu %6lu %6lu\n",
+			   cache_name(s), sinfo.active_objs, sinfo.num_objs,
+			   sinfo.active_slabs, sinfo.num_slabs);
+
+		for_each_memcg_cache(c, s) {
+			struct cgroup_subsys_state *css;
+			char *status = "";
+
+			css = &c->memcg_params.memcg->css;
+			if (!(css->flags & CSS_ONLINE))
+				status = ":dead";
+			else if (c->flags & SLAB_DEACTIVATED)
+				status = ":deact";
+
+			memset(&sinfo, 0, sizeof(sinfo));
+			get_slabinfo(c, &sinfo);
+			seq_printf(m, "%-17s %4d%-6s %6lu %6lu %6lu %6lu\n",
+				   cache_name(c), css->id, status,
+				   sinfo.active_objs, sinfo.num_objs,
+				   sinfo.active_slabs, sinfo.num_slabs);
+		}
+	}
+	mutex_unlock(&slab_mutex);
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(memcg_slabinfo);
+
+static int __init memcg_slabinfo_init(void)
+{
+	debugfs_create_file("memcg_slabinfo", S_IFREG | S_IRUGO,
+			    NULL, NULL, &memcg_slabinfo_fops);
+	return 0;
+}
+
+late_initcall(memcg_slabinfo_init);
+#endif /* CONFIG_DEBUG_FS && CONFIG_MEMCG_KMEM */
 #endif /* CONFIG_SLAB || CONFIG_SLUB_DEBUG */
 
 static __always_inline void *__do_krealloc(const void *p, size_t new_size,
