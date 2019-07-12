@@ -1378,10 +1378,10 @@ int smu_adjust_power_state_dynamic(struct smu_context *smu,
 			break;
 
 		case AMD_DPM_FORCED_LEVEL_AUTO:
+		case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 			ret = smu_unforce_dpm_levels(smu);
 			break;
 
-		case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 		case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 		case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 		case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
