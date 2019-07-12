@@ -166,29 +166,29 @@ struct ti_sci_dev_ops {
  * managed by driver for that purpose.
  */
 struct ti_sci_clk_ops {
-	int (*get_clock)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+	int (*get_clock)(const struct ti_sci_handle *handle, u32 did, u32 cid,
 			 bool needs_ssc, bool can_change_freq,
 			 bool enable_input_term);
-	int (*idle_clock)(const struct ti_sci_handle *handle, u32 did, u8 cid);
-	int (*put_clock)(const struct ti_sci_handle *handle, u32 did, u8 cid);
-	int (*is_auto)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+	int (*idle_clock)(const struct ti_sci_handle *handle, u32 did, u32 cid);
+	int (*put_clock)(const struct ti_sci_handle *handle, u32 did, u32 cid);
+	int (*is_auto)(const struct ti_sci_handle *handle, u32 did, u32 cid,
 		       bool *req_state);
-	int (*is_on)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+	int (*is_on)(const struct ti_sci_handle *handle, u32 did, u32 cid,
 		     bool *req_state, bool *current_state);
-	int (*is_off)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+	int (*is_off)(const struct ti_sci_handle *handle, u32 did, u32 cid,
 		      bool *req_state, bool *current_state);
-	int (*set_parent)(const struct ti_sci_handle *handle, u32 did, u8 cid,
-			  u8 parent_id);
-	int (*get_parent)(const struct ti_sci_handle *handle, u32 did, u8 cid,
-			  u8 *parent_id);
+	int (*set_parent)(const struct ti_sci_handle *handle, u32 did, u32 cid,
+			  u32 parent_id);
+	int (*get_parent)(const struct ti_sci_handle *handle, u32 did, u32 cid,
+			  u32 *parent_id);
 	int (*get_num_parents)(const struct ti_sci_handle *handle, u32 did,
-			       u8 cid, u8 *num_parents);
+			       u32 cid, u32 *num_parents);
 	int (*get_best_match_freq)(const struct ti_sci_handle *handle, u32 did,
-				   u8 cid, u64 min_freq, u64 target_freq,
+				   u32 cid, u64 min_freq, u64 target_freq,
 				   u64 max_freq, u64 *match_freq);
-	int (*set_freq)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+	int (*set_freq)(const struct ti_sci_handle *handle, u32 did, u32 cid,
 			u64 min_freq, u64 target_freq, u64 max_freq);
-	int (*get_freq)(const struct ti_sci_handle *handle, u32 did, u8 cid,
+	int (*get_freq)(const struct ti_sci_handle *handle, u32 did, u32 cid,
 			u64 *current_freq);
 };
 
