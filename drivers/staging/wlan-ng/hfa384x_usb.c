@@ -850,20 +850,6 @@ hfa384x_dowmem_wait(struct hfa384x *hw,
 			      page, offset, data, len, NULL, NULL, NULL);
 }
 
-static inline int
-hfa384x_dowmem_async(struct hfa384x *hw,
-		     u16 page,
-		     u16 offset,
-		     void *data,
-		     unsigned int len,
-		     ctlx_cmdcb_t cmdcb,
-		     ctlx_usercb_t usercb, void *usercb_data)
-{
-	return hfa384x_dowmem(hw, DOASYNC,
-			      page, offset, data, len,
-			      cmdcb, usercb, usercb_data);
-}
-
 /*----------------------------------------------------------------
  * hfa384x_cmd_initialize
  *
