@@ -83,13 +83,16 @@ all: $(TEST_CUSTOM_PROGS)
 $(OUTPUT)/urandom_read: $(OUTPUT)/%: %.c
 	$(CC) -o $@ $< -Wl,--build-id
 
+$(OUTPUT)/test_stub.o: test_stub.c
+	$(CC) $(TEST_PROGS_CFLAGS) $(CFLAGS) -c -o $@ $<
+
 $(OUTPUT)/test_maps: map_tests/*.c
 
 BPFOBJ := $(OUTPUT)/libbpf.a
 
-$(TEST_GEN_PROGS): test_stub.o $(BPFOBJ)
+$(TEST_GEN_PROGS): $(OUTPUT)/test_stub.o $(BPFOBJ)
 
-$(TEST_GEN_PROGS_EXTENDED): test_stub.o $(OUTPUT)/libbpf.a
+$(TEST_GEN_PROGS_EXTENDED): $(OUTPUT)/test_stub.o $(OUTPUT)/libbpf.a
 
 $(OUTPUT)/test_dev_cgroup: cgroup_helpers.c
 $(OUTPUT)/test_skb_cgroup_id_user: cgroup_helpers.c
