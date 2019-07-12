@@ -28,7 +28,7 @@ parse_symbol() {
 		local objfile=${modcache[$module]}
 	else
 		[[ $modpath == "" ]] && return
-		local objfile=$(find "$modpath" -name "$module.ko*" -print -quit)
+		local objfile=$(find "$modpath" -name "${module//_/[-_]}.ko*" -print -quit)
 		[[ $objfile == "" ]] && return
 		modcache[$module]=$objfile
 	fi
