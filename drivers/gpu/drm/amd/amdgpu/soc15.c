@@ -649,8 +649,6 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 #if defined(CONFIG_DRM_AMD_DC)
 		else if (amdgpu_device_has_dc_support(adev))
 			amdgpu_device_ip_block_add(adev, &dm_ip_block);
-#else
-#	warning "Enable CONFIG_DRM_AMD_DC for display support on SOC15."
 #endif
 		if (!(adev->asic_type == CHIP_VEGA20 && amdgpu_sriov_vf(adev))) {
 			amdgpu_device_ip_block_add(adev, &uvd_v7_0_ip_block);
@@ -671,8 +669,6 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 #if defined(CONFIG_DRM_AMD_DC)
 		else if (amdgpu_device_has_dc_support(adev))
 			amdgpu_device_ip_block_add(adev, &dm_ip_block);
-#else
-#	warning "Enable CONFIG_DRM_AMD_DC for display support on SOC15."
 #endif
 		amdgpu_device_ip_block_add(adev, &vcn_v1_0_ip_block);
 		break;
