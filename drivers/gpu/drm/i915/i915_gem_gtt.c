@@ -1598,6 +1598,7 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 		return ERR_PTR(-ENOMEM);
 
 	ppgtt_init(ppgtt, &i915->gt);
+	ppgtt->vm.top = i915_vm_is_4lvl(&ppgtt->vm) ? 3 : 2;
 
 	/*
 	 * From bdw, there is hw support for read-only pages in the PPGTT.
@@ -2084,6 +2085,7 @@ static struct i915_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 		return ERR_PTR(-ENOMEM);
 
 	ppgtt_init(&ppgtt->base, &i915->gt);
+	ppgtt->base.vm.top = 1;
 
 	ppgtt->base.vm.allocate_va_range = gen6_alloc_va_range;
 	ppgtt->base.vm.clear_range = gen6_ppgtt_clear_range;

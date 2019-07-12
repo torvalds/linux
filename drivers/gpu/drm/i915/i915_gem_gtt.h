@@ -323,6 +323,7 @@ struct i915_address_space {
 	struct i915_page_dma scratch_pt;
 	struct i915_page_dma scratch_pd;
 	struct i915_page_dma scratch_pdp; /* GEN8+ & 48b PPGTT */
+	unsigned int top;
 
 	/**
 	 * List of vma currently bound.
