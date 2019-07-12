@@ -1934,7 +1934,7 @@ void UpdateHalRAMask8188EUsb(struct adapter *adapt, u32 mac_id, u8 rssi_level)
 	psta->init_rate = init_rate;
 }
 
-void rtw_hal_bcn_related_reg_setting(struct adapter *adapt)
+void beacon_timing_control(struct adapter *adapt)
 {
 	u32 value32;
 	struct mlme_ext_priv	*pmlmeext = &adapt->mlmeextpriv;

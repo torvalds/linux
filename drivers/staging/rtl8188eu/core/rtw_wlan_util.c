@@ -1466,8 +1466,3 @@ void correct_TSF(struct adapter *padapter, struct mlme_ext_priv *pmlmeext)
 {
 	rtw_hal_set_hwreg(padapter, HW_VAR_CORRECT_TSF, NULL);
 }
-
-void beacon_timing_control(struct adapter *padapter)
-{
-	rtw_hal_bcn_related_reg_setting(padapter);
-}

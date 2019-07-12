@@ -535,7 +535,6 @@ void report_del_sta_event(struct adapter *padapter,
 void report_add_sta_event(struct adapter *padapter, unsigned char *addr,
 			  int cam_idx);
 
-void beacon_timing_control(struct adapter *padapter);
 u8 set_tx_beacon_cmd(struct adapter *padapter);
 unsigned int setup_beacon_frame(struct adapter *padapter,
 				unsigned char *beacon_frame);
