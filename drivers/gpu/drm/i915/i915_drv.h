@@ -2390,19 +2390,17 @@ __i915_printk(struct drm_i915_private *dev_priv, const char *level,
 	__i915_printk(dev_priv, KERN_ERR, fmt, ##__VA_ARGS__)
 
 #ifdef CONFIG_COMPAT
-extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
-			      unsigned long arg);
+long i915_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 #else
 #define i915_compat_ioctl NULL
 #endif
 extern const struct dev_pm_ops i915_pm_ops;
 
-extern int i915_driver_load(struct pci_dev *pdev,
-			    const struct pci_device_id *ent);
-extern void i915_driver_unload(struct drm_device *dev);
+int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent);
+void i915_driver_unload(struct drm_device *dev);
 
-extern void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
-extern void intel_hangcheck_init(struct drm_i915_private *dev_priv);
+void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
+void intel_hangcheck_init(struct drm_i915_private *dev_priv);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
 
 u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv);
@@ -2672,14 +2670,14 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 			    bool is_master);
 
 /* i915_perf.c */
-extern void i915_perf_init(struct drm_i915_private *dev_priv);
-extern void i915_perf_fini(struct drm_i915_private *dev_priv);
-extern void i915_perf_register(struct drm_i915_private *dev_priv);
-extern void i915_perf_unregister(struct drm_i915_private *dev_priv);
+void i915_perf_init(struct drm_i915_private *dev_priv);
+void i915_perf_fini(struct drm_i915_private *dev_priv);
+void i915_perf_register(struct drm_i915_private *dev_priv);
+void i915_perf_unregister(struct drm_i915_private *dev_priv);
 
 /* i915_suspend.c */
-extern int i915_save_state(struct drm_i915_private *dev_priv);
-extern int i915_restore_state(struct drm_i915_private *dev_priv);
+int i915_save_state(struct drm_i915_private *dev_priv);
+int i915_restore_state(struct drm_i915_private *dev_priv);
 
 /* i915_sysfs.c */
 void i915_setup_sysfs(struct drm_i915_private *dev_priv);
@@ -2693,23 +2691,22 @@ mkwrite_device_info(struct drm_i915_private *dev_priv)
 }
 
 /* modesetting */
-extern void intel_modeset_init_hw(struct drm_device *dev);
-extern int intel_modeset_init(struct drm_device *dev);
-extern void intel_modeset_cleanup(struct drm_device *dev);
-extern int intel_modeset_vga_set_state(struct drm_i915_private *dev_priv,
-				       bool state);
-extern void intel_display_resume(struct drm_device *dev);
-extern void i915_redisable_vga(struct drm_i915_private *dev_priv);
-extern void i915_redisable_vga_power_on(struct drm_i915_private *dev_priv);
-extern void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
+void intel_modeset_init_hw(struct drm_device *dev);
+int intel_modeset_init(struct drm_device *dev);
+void intel_modeset_cleanup(struct drm_device *dev);
+int intel_modeset_vga_set_state(struct drm_i915_private *dev_priv, bool state);
+void intel_display_resume(struct drm_device *dev);
+void i915_redisable_vga(struct drm_i915_private *dev_priv);
+void i915_redisable_vga_power_on(struct drm_i915_private *dev_priv);
+void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
 
 int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 
-extern struct intel_display_error_state *
+struct intel_display_error_state *
 intel_display_capture_error_state(struct drm_i915_private *dev_priv);
-extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
-					    struct intel_display_error_state *error);
+void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
+				     struct intel_display_error_state *error);
 
 #define __I915_REG_OP(op__, dev_priv__, ...) \
 	intel_uncore_##op__(&(dev_priv__)->uncore, __VA_ARGS__)

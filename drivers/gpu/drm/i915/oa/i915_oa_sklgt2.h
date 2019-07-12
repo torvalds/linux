@@ -10,6 +10,6 @@
 #ifndef __I915_OA_SKLGT2_H__
 #define __I915_OA_SKLGT2_H__
 
-extern void i915_perf_load_test_config_sklgt2(struct drm_i915_private *dev_priv);
+void i915_perf_load_test_config_sklgt2(struct drm_i915_private *dev_priv);
 
 #endif

@@ -81,7 +81,7 @@ i915_gem_object_lookup(struct drm_file *file, u32 handle)
 }
 
 __deprecated
-extern struct drm_gem_object *
+struct drm_gem_object *
 drm_gem_object_lookup(struct drm_file *file, u32 handle);
 
 __attribute__((nonnull))
