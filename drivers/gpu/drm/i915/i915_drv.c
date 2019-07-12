@@ -681,7 +681,7 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 	.can_switch = i915_switcheroo_can_switch,
 };
 
-static int i915_load_modeset_init(struct drm_device *dev)
+static int i915_driver_modeset_probe(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
@@ -890,7 +890,7 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 }
 
 /**
- * i915_driver_init_early - setup state not requiring device access
+ * i915_driver_early_probe - setup state not requiring device access
  * @dev_priv: device private
  *
  * Initialize everything that is a "SW-only" state, that is state not
@@ -899,7 +899,7 @@ static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
  * system memory allocation, setting up device specific attributes and
  * function hooks not requiring accessing the device.
  */
-static int i915_driver_init_early(struct drm_i915_private *dev_priv)
+static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 {
 	int ret = 0;
 
@@ -969,7 +969,7 @@ err_engines:
 
 /**
  * i915_driver_late_release - cleanup the setup done in
- *			       i915_driver_init_early()
+ *			       i915_driver_early_probe()
  * @dev_priv: device private
  */
 static void i915_driver_late_release(struct drm_i915_private *dev_priv)
@@ -986,7 +986,7 @@ static void i915_driver_late_release(struct drm_i915_private *dev_priv)
 }
 
 /**
- * i915_driver_init_mmio - setup device MMIO
+ * i915_driver_mmio_probe - setup device MMIO
  * @dev_priv: device private
  *
  * Setup minimal device state necessary for MMIO accesses later in the
@@ -994,7 +994,7 @@ static void i915_driver_late_release(struct drm_i915_private *dev_priv)
  * side effects or exposing the driver via kernel internal or user space
  * interfaces.
  */
-static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
+static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
@@ -1035,7 +1035,7 @@ err_bridge:
 }
 
 /**
- * i915_driver_mmio_release - cleanup the setup done in i915_driver_init_mmio()
+ * i915_driver_mmio_release - cleanup the setup done in i915_driver_mmio_probe()
  * @dev_priv: device private
  */
 static void i915_driver_mmio_release(struct drm_i915_private *dev_priv)
@@ -1531,13 +1531,13 @@ static void edram_detect(struct drm_i915_private *dev_priv)
 }
 
 /**
- * i915_driver_init_hw - setup state requiring device access
+ * i915_driver_hw_probe - setup state requiring device access
  * @dev_priv: device private
  *
  * Setup state that requires accessing the device, but doesn't require
  * exposing the driver via kernel internal or userspace interfaces.
  */
-static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
+static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int ret;
@@ -1906,7 +1906,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto out_fini;
 
-	ret = i915_driver_init_early(dev_priv);
+	ret = i915_driver_early_probe(dev_priv);
 	if (ret < 0)
 		goto out_pci_disable;
 
@@ -1914,15 +1914,15 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i915_detect_vgpu(dev_priv);
 
-	ret = i915_driver_init_mmio(dev_priv);
+	ret = i915_driver_mmio_probe(dev_priv);
 	if (ret < 0)
 		goto out_runtime_pm_put;
 
-	ret = i915_driver_init_hw(dev_priv);
+	ret = i915_driver_hw_probe(dev_priv);
 	if (ret < 0)
 		goto out_cleanup_mmio;
 
-	ret = i915_load_modeset_init(&dev_priv->drm);
+	ret = i915_driver_modeset_probe(&dev_priv->drm);
 	if (ret < 0)
 		goto out_cleanup_hw;
 
