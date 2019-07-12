@@ -38,6 +38,22 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
 
+/**
+ * @modes: Pointer to array of fixed modes appropriate for this panel.  If
+ *         only one mode then this can just be the address of this the mode.
+ *         NOTE: cannot be used with "timings" and also if this is specified
+ *         then you cannot override the mode in the device tree.
+ * @num_modes: Number of elements in modes array.
+ * @timings: Pointer to array of display timings.  NOTE: cannot be used with
+ *           "modes" and also these will be used to validate a device tree
+ *           override if one is present.
+ * @num_timings: Number of elements in timings array.
+ * @bpc: Bits per color.
+ * @size: Structure containing the physical size of this panel.
+ * @delay: Structure containing various delay values for this panel.
+ * @bus_format: See MEDIA_BUS_FMT_... defines.
+ * @bus_flags: See DRM_BUS_FLAG_... defines.
+ */
 struct panel_desc {
 	const struct drm_display_mode *modes;
 	unsigned int num_modes;
@@ -135,7 +151,7 @@ static unsigned int panel_simple_get_timings_modes(struct panel_simple *panel)
 	return num;
 }
 
-static unsigned int panel_simple_get_fixed_modes(struct panel_simple *panel)
+static unsigned int panel_simple_get_display_modes(struct panel_simple *panel)
 {
 	struct drm_connector *connector = panel->base.connector;
 	struct drm_device *drm = panel->base.drm;
@@ -199,7 +215,7 @@ static int panel_simple_get_non_edid_modes(struct panel_simple *panel)
 	 */
 	WARN_ON(panel->desc->num_timings && panel->desc->num_modes);
 	if (num == 0)
-		num = panel_simple_get_fixed_modes(panel);
+		num = panel_simple_get_display_modes(panel);
 
 	connector->display_info.bpc = panel->desc->bpc;
 	connector->display_info.width_mm = panel->desc->size.width;
@@ -351,9 +367,9 @@ static const struct drm_panel_funcs panel_simple_funcs = {
 #define PANEL_SIMPLE_BOUNDS_CHECK(to_check, bounds, field) \
 	(to_check->field.typ >= bounds->field.min && \
 	 to_check->field.typ <= bounds->field.max)
-static void panel_simple_parse_override_mode(struct device *dev,
-					     struct panel_simple *panel,
-					     const struct display_timing *ot)
+static void panel_simple_parse_panel_timing_node(struct device *dev,
+						 struct panel_simple *panel,
+						 const struct display_timing *ot)
 {
 	const struct panel_desc *desc = panel->desc;
 	struct videomode vm;
@@ -446,7 +462,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	}
 
 	if (!of_get_display_timing(dev->of_node, "panel-timing", &dt))
-		panel_simple_parse_override_mode(dev, panel, &dt);
+		panel_simple_parse_panel_timing_node(dev, panel, &dt);
 
 	drm_panel_init(&panel->base);
 	panel->base.dev = dev;
