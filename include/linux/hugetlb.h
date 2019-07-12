@@ -608,22 +608,92 @@ static inline void huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
 
 #else	/* CONFIG_HUGETLB_PAGE */
 struct hstate {};
-#define alloc_huge_page(v, a, r) NULL
-#define alloc_huge_page_node(h, nid) NULL
-#define alloc_huge_page_nodemask(h, preferred_nid, nmask) NULL
-#define alloc_huge_page_vma(h, vma, address) NULL
-#define alloc_bootmem_huge_page(h) NULL
-#define hstate_file(f) NULL
-#define hstate_sizelog(s) NULL
-#define hstate_vma(v) NULL
-#define hstate_inode(i) NULL
-#define page_hstate(page) NULL
-#define huge_page_size(h) PAGE_SIZE
-#define huge_page_mask(h) PAGE_MASK
-#define vma_kernel_pagesize(v) PAGE_SIZE
-#define vma_mmu_pagesize(v) PAGE_SIZE
-#define huge_page_order(h) 0
-#define huge_page_shift(h) PAGE_SHIFT
+
+static inline struct page *alloc_huge_page(struct vm_area_struct *vma,
+					   unsigned long addr,
+					   int avoid_reserve)
+{
+	return NULL;
+}
+
+static inline struct page *alloc_huge_page_node(struct hstate *h, int nid)
+{
+	return NULL;
+}
+
+static inline struct page *
+alloc_huge_page_nodemask(struct hstate *h, int preferred_nid, nodemask_t *nmask)
+{
+	return NULL;
+}
+
+static inline struct page *alloc_huge_page_vma(struct hstate *h,
+					       struct vm_area_struct *vma,
+					       unsigned long address)
+{
+	return NULL;
+}
+
+static inline int __alloc_bootmem_huge_page(struct hstate *h)
+{
+	return 0;
+}
+
+static inline struct hstate *hstate_file(struct file *f)
+{
+	return NULL;
+}
+
+static inline struct hstate *hstate_sizelog(int page_size_log)
+{
+	return NULL;
+}
+
+static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
+{
+	return NULL;
+}
+
+static inline struct hstate *hstate_inode(struct inode *i)
+{
+	return NULL;
+}
+
+static inline struct hstate *page_hstate(struct page *page)
+{
+	return NULL;
+}
+
+static inline unsigned long huge_page_size(struct hstate *h)
+{
+	return PAGE_SIZE;
+}
+
+static inline unsigned long huge_page_mask(struct hstate *h)
+{
+	return PAGE_MASK;
+}
+
+static inline unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
+{
+	return PAGE_SIZE;
+}
+
+static inline unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
+{
+	return PAGE_SIZE;
+}
+
+static inline unsigned int huge_page_order(struct hstate *h)
+{
+	return 0;
+}
+
+static inline unsigned int huge_page_shift(struct hstate *h)
+{
+	return PAGE_SHIFT;
+}
+
 static inline bool hstate_is_gigantic(struct hstate *h)
 {
 	return false;
