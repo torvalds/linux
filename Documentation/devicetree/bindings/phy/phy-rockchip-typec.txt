@@ -17,6 +17,11 @@ Required properties:
 
 Optional properties:
  - extcon : extcon specifier for the Power Delivery
+ - rockchip,phy-config : A list of voltage swing(mV) and pre-emphasis
+			(dB) pairs. They are 3 blocks of 4 entries and
+			correspond to s0p0 ~ s0p3, s1p0 ~ s1p3,
+			s2p0 ~ s2p3, s3p0 ~ s2p3 swing and pre-emphasis
+			values.
 
 Required nodes : a sub-node is required for each port the phy provides.
 		 The sub-node name is used to identify dp or usb3 port,
@@ -50,6 +55,21 @@ Example:
 			 <&cru SRST_P_UPHY0_TCPHY>;
 		reset-names = "uphy", "uphy-pipe", "uphy-tcphy";
 
+		rockchip,phy-config = <0x2a 0x00>,
+			<0x1f 0x15>,
+			<0x14 0x22>,
+			<0x02 0x2b>,
+
+			<0x21 0x00>,
+			<0x12 0x15>,
+			<0x02 0x22>,
+			<0 0>,
+
+			<0x15 0x00>,
+			<0x00 0x15>,
+			<0 0>,
+			<0 0>;
+
 		tcphy0_dp: dp-port {
 			#phy-cells = <0>;
 		};
@@ -73,6 +93,21 @@ Example:
 			 <&cru SRST_UPHY1_PIPE_L00>,
 			 <&cru SRST_P_UPHY1_TCPHY>;
 		reset-names = "uphy", "uphy-pipe", "uphy-tcphy";
+
+		rockchip,phy-config = <0x2a 0x00>,
+			<0x1f 0x15>,
+			<0x14 0x22>,
+			<0x02 0x2b>,
+
+			<0x21 0x00>,
+			<0x12 0x15>,
+			<0x02 0x22>,
+			<0 0>,
+
+			<0x15 0x00>,
+			<0x00 0x15>,
+			<0 0>,
+			<0 0>;
 
 		tcphy1_dp: dp-port {
 			#phy-cells = <0>;
