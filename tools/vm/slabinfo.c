@@ -79,6 +79,7 @@ int sort_size;
 int sort_active;
 int set_debug;
 int show_ops;
+int sort_partial;
 int show_activity;
 int output_lines = -1;
 int sort_loss;
@@ -1047,6 +1048,8 @@ static void sort_slabs(void)
 				result = slab_activity(s1) < slab_activity(s2);
 			else if (sort_loss)
 				result = slab_waste(s1) < slab_waste(s2);
+			else if (sort_partial)
+				result = s1->partial < s2->partial;
 			else
 				result = strcasecmp(s1->name, s2->name);
 
@@ -1307,27 +1310,39 @@ static void output_slabs(void)
 	}
 }
 
+static void _xtotals(char *heading, char *underline,
+		     int loss, int size, int partial)
+{
+	printf("%s%s", heading, underline);
+	line = 0;
+	sort_loss = loss;
+	sort_size = size;
+	sort_partial = partial;
+	sort_slabs();
+	output_slabs();
+}
+
 static void xtotals(void)
 {
+	char *heading, *underline;
+
 	totals();
 
 	link_slabs();
 	rename_slabs();
 
-	printf("\nSlabs sorted by size\n");
-	printf("--------------------\n");
-	sort_loss = 0;
-	sort_size = 1;
-	sort_slabs();
-	output_slabs();
+	heading = "\nSlabs sorted by size\n";
+	underline = "--------------------\n";
+	_xtotals(heading, underline, 0, 1, 0);
 
-	printf("\nSlabs sorted by loss\n");
-	printf("--------------------\n");
-	line = 0;
-	sort_loss = 1;
-	sort_size = 0;
-	sort_slabs();
-	output_slabs();
+	heading = "\nSlabs sorted by loss\n";
+	underline = "--------------------\n";
+	_xtotals(heading, underline, 1, 0, 0);
+
+	heading = "\nSlabs sorted by number of partial slabs\n";
+	underline = "---------------------------------------\n";
+	_xtotals(heading, underline, 0, 0, 1);
+
 	printf("\n");
 }
 
