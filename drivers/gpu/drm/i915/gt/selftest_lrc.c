@@ -854,6 +854,9 @@ static int live_suppress_self_preempt(void *arg)
 	if (USES_GUC_SUBMISSION(i915))
 		return 0; /* presume black blox */
 
+	if (intel_vgpu_active(i915))
+		return 0; /* GVT forces single port & request submission */
+
 	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
