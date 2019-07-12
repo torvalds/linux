@@ -633,6 +633,11 @@ static inline bool is_vmalloc_addr(const void *x)
 	return false;
 #endif
 }
+
+#ifndef is_ioremap_addr
+#define is_ioremap_addr(x) is_vmalloc_addr(x)
+#endif
+
 #ifdef CONFIG_MMU
 extern int is_vmalloc_or_module_addr(const void *x);
 #else
@@ -2681,8 +2686,7 @@ static inline int vm_fault_to_errno(vm_fault_t vm_fault, int foll_flags)
 	return 0;
 }
 
-typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
-			void *data);
+typedef int (*pte_fn_t)(pte_t *pte, unsigned long addr, void *data);
 extern int apply_to_page_range(struct mm_struct *mm, unsigned long address,
 			       unsigned long size, pte_fn_t fn, void *data);
 
@@ -2696,11 +2700,42 @@ static inline void kernel_poison_pages(struct page *page, int numpages,
 					int enable) { }
 #endif
 
-extern bool _debug_pagealloc_enabled;
+#ifdef CONFIG_INIT_ON_ALLOC_DEFAULT_ON
+DECLARE_STATIC_KEY_TRUE(init_on_alloc);
+#else
+DECLARE_STATIC_KEY_FALSE(init_on_alloc);
+#endif
+static inline bool want_init_on_alloc(gfp_t flags)
+{
+	if (static_branch_unlikely(&init_on_alloc) &&
+	    !page_poisoning_enabled())
+		return true;
+	return flags & __GFP_ZERO;
+}
+
+#ifdef CONFIG_INIT_ON_FREE_DEFAULT_ON
+DECLARE_STATIC_KEY_TRUE(init_on_free);
+#else
+DECLARE_STATIC_KEY_FALSE(init_on_free);
+#endif
+static inline bool want_init_on_free(void)
+{
+	return static_branch_unlikely(&init_on_free) &&
+	       !page_poisoning_enabled();
+}
+
+#ifdef CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT
+DECLARE_STATIC_KEY_TRUE(_debug_pagealloc_enabled);
+#else
+DECLARE_STATIC_KEY_FALSE(_debug_pagealloc_enabled);
+#endif
 
 static inline bool debug_pagealloc_enabled(void)
 {
-	return IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) && _debug_pagealloc_enabled;
+	if (!IS_ENABLED(CONFIG_DEBUG_PAGEALLOC))
+		return false;
+
+	return static_branch_unlikely(&_debug_pagealloc_enabled);
 }
 
 #if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_ARCH_HAS_SET_DIRECT_MAP)
@@ -2850,11 +2885,9 @@ extern long copy_huge_page_from_user(struct page *dst_page,
 				bool allow_pagefault);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
 
-extern struct page_ext_operations debug_guardpage_ops;
-
 #ifdef CONFIG_DEBUG_PAGEALLOC
 extern unsigned int _debug_guardpage_minorder;
-extern bool _debug_guardpage_enabled;
+DECLARE_STATIC_KEY_FALSE(_debug_guardpage_enabled);
 
 static inline unsigned int debug_guardpage_minorder(void)
 {
@@ -2863,21 +2896,15 @@ static inline unsigned int debug_guardpage_minorder(void)
 
 static inline bool debug_guardpage_enabled(void)
 {
-	return _debug_guardpage_enabled;
+	return static_branch_unlikely(&_debug_guardpage_enabled);
 }
 
 static inline bool page_is_guard(struct page *page)
 {
-	struct page_ext *page_ext;
-
 	if (!debug_guardpage_enabled())
 		return false;
 
-	page_ext = lookup_page_ext(page);
-	if (unlikely(!page_ext))
-		return false;
-
-	return test_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
+	return PageGuard(page);
 }
 #else
 static inline unsigned int debug_guardpage_minorder(void) { return 0; }

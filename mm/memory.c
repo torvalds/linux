@@ -1475,8 +1475,6 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
 
 	retval = 0;
-	pte_unmap_unlock(pte, ptl);
-	return retval;
 out_unlock:
 	pte_unmap_unlock(pte, ptl);
 out:
@@ -1547,7 +1545,7 @@ static int __vm_map_pages(struct vm_area_struct *vma, struct page **pages,
 	int ret, i;
 
 	/* Fail if the user requested offset is beyond the end of the object */
-	if (offset > num)
+	if (offset >= num)
 		return -ENXIO;
 
 	/* Fail if the user requested size exceeds available object size */
@@ -2038,7 +2036,6 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
 {
 	pte_t *pte;
 	int err;
-	pgtable_t token;
 	spinlock_t *uninitialized_var(ptl);
 
 	pte = (mm == &init_mm) ?
@@ -2051,10 +2048,8 @@ static int apply_to_pte_range(struct mm_struct *mm, pmd_t *pmd,
 
 	arch_enter_lazy_mmu_mode();
 
-	token = pmd_pgtable(*pmd);
-
 	do {
-		err = fn(pte++, token, addr, data);
+		err = fn(pte++, addr, data);
 		if (err)
 			break;
 	} while (addr += PAGE_SIZE, addr != end);
@@ -2807,7 +2802,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 		struct swap_info_struct *si = swp_swap_info(entry);
 
 		if (si->flags & SWP_SYNCHRONOUS_IO &&
-				__swap_count(si, entry) == 1) {
+				__swap_count(entry) == 1) {
 			/* skip swapcache */
 			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma,
 							vmf->address);
@@ -4349,7 +4344,9 @@ int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
 	void *old_buf = buf;
 	int write = gup_flags & FOLL_WRITE;
 
-	down_read(&mm->mmap_sem);
+	if (down_read_killable(&mm->mmap_sem))
+		return 0;
+
 	/* ignore errors, just check how much was successfully transferred */
 	while (len) {
 		int bytes, ret, offset;

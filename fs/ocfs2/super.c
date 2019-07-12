@@ -1079,33 +1079,15 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	osb->osb_debug_root = debugfs_create_dir(osb->uuid_str,
 						 ocfs2_debugfs_root);
-	if (!osb->osb_debug_root) {
-		status = -EINVAL;
-		mlog(ML_ERROR, "Unable to create per-mount debugfs root.\n");
-		goto read_super_error;
-	}
 
 	osb->osb_ctxt = debugfs_create_file("fs_state", S_IFREG|S_IRUSR,
 					    osb->osb_debug_root,
 					    osb,
 					    &ocfs2_osb_debug_fops);
-	if (!osb->osb_ctxt) {
-		status = -EINVAL;
-		mlog_errno(status);
-		goto read_super_error;
-	}
 
-	if (ocfs2_meta_ecc(osb)) {
-		status = ocfs2_blockcheck_stats_debugfs_install(
-						&osb->osb_ecc_stats,
-						osb->osb_debug_root);
-		if (status) {
-			mlog(ML_ERROR,
-			     "Unable to create blockcheck statistics "
-			     "files\n");
-			goto read_super_error;
-		}
-	}
+	if (ocfs2_meta_ecc(osb))
+		ocfs2_blockcheck_stats_debugfs_install( &osb->osb_ecc_stats,
+							osb->osb_debug_root);
 
 	status = ocfs2_mount_volume(sb);
 	if (status < 0)
@@ -1592,11 +1574,6 @@ static int __init ocfs2_init(void)
 		goto out2;
 
 	ocfs2_debugfs_root = debugfs_create_dir("ocfs2", NULL);
-	if (!ocfs2_debugfs_root) {
-		status = -ENOMEM;
-		mlog(ML_ERROR, "Unable to create ocfs2 debugfs root.\n");
-		goto out3;
-	}
 
 	ocfs2_set_locking_protocol();
 

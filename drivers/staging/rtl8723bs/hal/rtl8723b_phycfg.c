@@ -45,7 +45,7 @@ static	u32 phy_CalculateBitShift(u32 BitMask)
 /**
 * Function:	PHY_QueryBBReg
 *
-* OverView:	Read "sepcific bits" from BB register
+* OverView:	Read "specific bits" from BB register
 *
 * Input:
 *		struct adapter *	Adapter,
