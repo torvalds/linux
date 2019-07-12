@@ -2,7 +2,7 @@
 # Copyright © 2019 Intel Corporation
 
 # Test the headers are compilable as standalone units
-header_test := \
+header-test-$(CONFIG_DRM_I915_WERROR) := \
 	i915_active_types.h \
 	i915_gem_context_types.h \
 	i915_priolist_types.h \
@@ -35,13 +35,3 @@ header_test := \
 	intel_sprite.h \
 	intel_tv.h \
 	intel_workarounds_types.h
-
-quiet_cmd_header_test = HDRTEST $@
-      cmd_header_test = echo "\#include \"$(<F)\"" > $@
-
-header_test_%.c: %.h
-	$(call cmd,header_test)
-
-i915-$(CONFIG_DRM_I915_WERROR) += $(foreach h,$(header_test),$(patsubst %.h,header_test_%.o,$(h)))
-
-clean-files += $(foreach h,$(header_test),$(patsubst %.h,header_test_%.c,$(h)))

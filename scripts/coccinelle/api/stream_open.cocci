@@ -35,11 +35,11 @@ type loff_t;
 // a function that blocks
 @ blocks @
 identifier block_f;
-identifier wait_event =~ "^wait_event_.*";
+identifier wait =~ "^wait_.*";
 @@
   block_f(...) {
     ... when exists
-    wait_event(...)
+    wait(...)
     ... when exists
   }
 
@@ -49,12 +49,12 @@ identifier wait_event =~ "^wait_event_.*";
 // XXX currently reader_blocks supports only direct and 1-level indirect cases.
 @ reader_blocks_direct @
 identifier stream_reader.readstream;
-identifier wait_event =~ "^wait_event_.*";
+identifier wait =~ "^wait_.*";
 @@
   readstream(...)
   {
     ... when exists
-    wait_event(...)
+    wait(...)
     ... when exists
   }
 

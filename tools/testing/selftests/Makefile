@@ -74,7 +74,7 @@ endif
 # Append kselftest to KBUILD_OUTPUT to avoid cluttering
 # KBUILD_OUTPUT with selftest objects and headers installed
 # by selftests Makefile or lib.mk.
-ifneq ($(KBUILD_SRC),)
+ifdef building_out_of_srctree
 override LDFLAGS =
 endif
 
