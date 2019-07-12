@@ -639,6 +639,9 @@ void mt7603_wtbl_set_rates(struct mt7603_dev *dev, struct mt7603_sta *sta,
 			    IEEE80211_TX_RC_40_MHZ_WIDTH)
 				continue;
 
+			if (!rates[i].idx)
+				continue;
+
 			rates[i].idx--;
 		}
 
