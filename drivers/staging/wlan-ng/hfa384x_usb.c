@@ -835,14 +835,6 @@ hfa384x_docmd_async(struct hfa384x *hw,
 }
 
 static inline int
-hfa384x_dorrid_wait(struct hfa384x *hw, u16 rid, void *riddata,
-		    unsigned int riddatalen)
-{
-	return hfa384x_dorrid(hw, DOWAIT,
-			      rid, riddata, riddatalen, NULL, NULL, NULL);
-}
-
-static inline int
 hfa384x_dorrid_async(struct hfa384x *hw,
 		     u16 rid, void *riddata, unsigned int riddatalen,
 		     ctlx_cmdcb_t cmdcb,
@@ -2061,7 +2053,7 @@ exit_proc:
  */
 int hfa384x_drvr_getconfig(struct hfa384x *hw, u16 rid, void *buf, u16 len)
 {
-	return hfa384x_dorrid_wait(hw, rid, buf, len);
+	return hfa384x_dorrid(hw, DOWAIT, rid, buf, len, NULL, NULL, NULL);
 }
 
 /*----------------------------------------------------------------
