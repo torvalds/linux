@@ -1174,15 +1174,10 @@ void Update_RA_Entry(struct adapter *padapter, u32 mac_id)
 	rtw_hal_update_ra_mask(padapter, mac_id, 0);
 }
 
-static void enable_rate_adaptive(struct adapter *padapter, u32 mac_id)
-{
-	Update_RA_Entry(padapter, mac_id);
-}
-
 void set_sta_rate(struct adapter *padapter, struct sta_info *psta)
 {
 	/* rate adaptive */
-	enable_rate_adaptive(padapter, psta->mac_id);
+	Update_RA_Entry(padapter, psta->mac_id);
 }
 
 /*  Update RRSR and Rate for USERATE */
