@@ -239,6 +239,11 @@ struct i915_page_dma {
 	};
 };
 
+struct i915_page_scratch {
+	struct i915_page_dma base;
+	u64 encode;
+};
+
 struct i915_page_table {
 	struct i915_page_dma base;
 	atomic_t used;
@@ -259,9 +264,10 @@ struct i915_page_directory {
 
 #define px_base(px) \
 	__px_choose_expr(px, struct i915_page_dma *, __x, \
+	__px_choose_expr(px, struct i915_page_scratch *, &__x->base, \
 	__px_choose_expr(px, struct i915_page_table *, &__x->base, \
 	__px_choose_expr(px, struct i915_page_directory *, &__x->pt.base, \
-	(void)0)))
+	(void)0))))
 #define px_dma(px) (px_base(px)->daddr)
 
 #define px_pt(px) \
@@ -316,12 +322,8 @@ struct i915_address_space {
 #define VM_CLASS_GGTT 0
 #define VM_CLASS_PPGTT 1
 
-	u64 scratch_pte;
-	int scratch_order;
-	struct i915_page_dma scratch_page;
-	struct i915_page_dma scratch_pt;
-	struct i915_page_dma scratch_pd;
-	struct i915_page_dma scratch_pdp; /* GEN8+ & 48b PPGTT */
+	struct i915_page_scratch scratch[4];
+	unsigned int scratch_order;
 	unsigned int top;
 
 	/**
