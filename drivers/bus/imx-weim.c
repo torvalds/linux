@@ -19,6 +19,8 @@ struct imx_weim_devtype {
 	unsigned int	cs_count;
 	unsigned int	cs_regs_count;
 	unsigned int	cs_stride;
+	unsigned int	wcr_offset;
+	unsigned int	wcr_bcm;
 };
 
 static const struct imx_weim_devtype imx1_weim_devtype = {
@@ -37,6 +39,8 @@ static const struct imx_weim_devtype imx50_weim_devtype = {
 	.cs_count	= 4,
 	.cs_regs_count	= 6,
 	.cs_stride	= 0x18,
+	.wcr_offset	= 0x90,
+	.wcr_bcm	= BIT(0),
 };
 
 static const struct imx_weim_devtype imx51_weim_devtype = {
@@ -192,11 +196,23 @@ static int __init weim_parse_dt(struct platform_device *pdev,
 	struct device_node *child;
 	int ret, have_child = 0;
 	struct cs_timing_state ts = {};
+	u32 reg;
 
 	if (devtype == &imx50_weim_devtype) {
 		ret = imx_weim_gpr_setup(pdev);
 		if (ret)
 			return ret;
+	}
+
+	if (of_property_read_bool(pdev->dev.of_node, "fsl,burst-clk-enable")) {
+		if (devtype->wcr_bcm) {
+			reg = readl(base + devtype->wcr_offset);
+			writel(reg | devtype->wcr_bcm,
+				base + devtype->wcr_offset);
+		} else {
+			dev_err(&pdev->dev, "burst clk mode not supported.\n");
+			return -EINVAL;
+		}
 	}
 
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
