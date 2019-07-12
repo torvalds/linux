@@ -3278,9 +3278,8 @@ static const struct file_operations ocfs2_dlm_debug_fops = {
 	.llseek =	seq_lseek,
 };
 
-static int ocfs2_dlm_init_debug(struct ocfs2_super *osb)
+static void ocfs2_dlm_init_debug(struct ocfs2_super *osb)
 {
-	int ret = 0;
 	struct ocfs2_dlm_debug *dlm_debug = osb->osb_dlm_debug;
 
 	dlm_debug->d_locking_state = debugfs_create_file("locking_state",
@@ -3288,27 +3287,11 @@ static int ocfs2_dlm_init_debug(struct ocfs2_super *osb)
 							 osb->osb_debug_root,
 							 osb,
 							 &ocfs2_dlm_debug_fops);
-	if (!dlm_debug->d_locking_state) {
-		ret = -EINVAL;
-		mlog(ML_ERROR,
-		     "Unable to create locking state debugfs file.\n");
-		goto out;
-	}
 
 	dlm_debug->d_locking_filter = debugfs_create_u32("locking_filter",
 						0600,
 						osb->osb_debug_root,
 						&dlm_debug->d_filter_secs);
-	if (!dlm_debug->d_locking_filter) {
-		ret = -EINVAL;
-		mlog(ML_ERROR,
-		     "Unable to create locking filter debugfs file.\n");
-		goto out;
-	}
-
-	ocfs2_get_dlm_debug(dlm_debug);
-out:
-	return ret;
 }
 
 static void ocfs2_dlm_shutdown_debug(struct ocfs2_super *osb)
@@ -3332,11 +3315,7 @@ int ocfs2_dlm_init(struct ocfs2_super *osb)
 		goto local;
 	}
 
-	status = ocfs2_dlm_init_debug(osb);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
+	ocfs2_dlm_init_debug(osb);
 
 	/* launch downconvert thread */
 	osb->dc_task = kthread_run(ocfs2_downconvert_thread, osb, "ocfs2dc-%s",
