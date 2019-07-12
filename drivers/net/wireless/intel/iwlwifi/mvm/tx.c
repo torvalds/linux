@@ -546,7 +546,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 							    hdr->frame_control);
 		}
 
-		if (mvm->trans->cfg->trans.device_family >=
+		if (mvm->trans->trans_cfg->device_family >=
 		    IWL_DEVICE_FAMILY_22560) {
 			struct iwl_tx_cmd_gen3 *cmd = (void *)dev_cmd->payload;
 
@@ -1272,7 +1272,7 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
 	normalized_ssn = tid_data->ssn;
-	if (mvm->trans->cfg->trans.gen2)
+	if (mvm->trans->trans_cfg->gen2)
 		normalized_ssn &= 0xff;
 
 	if (normalized_ssn != tid_data->next_reclaimed)

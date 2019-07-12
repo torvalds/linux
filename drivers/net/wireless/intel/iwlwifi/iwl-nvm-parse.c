@@ -793,10 +793,10 @@ static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
 {
 	__le32 mac_addr0 =
 		cpu_to_le32(iwl_read32(trans,
-				       trans->cfg->trans.csr->mac_addr0_strap));
+				       trans->trans_cfg->csr->mac_addr0_strap));
 	__le32 mac_addr1 =
 		cpu_to_le32(iwl_read32(trans,
-				       trans->cfg->trans.csr->mac_addr1_strap));
+				       trans->trans_cfg->csr->mac_addr1_strap));
 
 	iwl_flip_hw_address(mac_addr0, mac_addr1, data->hw_addr);
 	/*
@@ -807,9 +807,9 @@ static void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
 		return;
 
 	mac_addr0 = cpu_to_le32(iwl_read32(trans,
-					trans->cfg->trans.csr->mac_addr0_otp));
+					trans->trans_cfg->csr->mac_addr0_otp));
 	mac_addr1 = cpu_to_le32(iwl_read32(trans,
-					trans->cfg->trans.csr->mac_addr1_otp));
+					trans->trans_cfg->csr->mac_addr1_otp));
 
 	iwl_flip_hw_address(mac_addr0, mac_addr1, data->hw_addr);
 }
@@ -1301,7 +1301,7 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 			 le32_to_cpu(dword_buff[3]));
 
 		/* nvm file validation, dword_buff[2] holds the file version */
-		if (trans->cfg->trans.device_family == IWL_DEVICE_FAMILY_8000 &&
+		if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
 		    CSR_HW_REV_STEP(trans->hw_rev) == SILICON_C_STEP &&
 		    le32_to_cpu(dword_buff[2]) < 0xE4A) {
 			ret = -EFAULT;

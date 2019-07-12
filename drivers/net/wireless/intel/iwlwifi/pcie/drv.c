@@ -1004,6 +1004,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (IS_ERR(iwl_trans))
 		return PTR_ERR(iwl_trans);
 
+	/* the trans_cfg should never change, so set it now */
+	iwl_trans->trans_cfg = &cfg->trans;
+
 #if IS_ENABLED(CONFIG_IWLMVM)
 	/*
 	 * special-case 7265D, it has the same PCI IDs.
@@ -1023,18 +1026,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		cfg = cfg_7265d;
 
 	iwl_trans->hw_rf_id = iwl_read32(iwl_trans, CSR_HW_RF_ID);
-
-	/*
-	 * We can already set the cfg to iwl_trans here, because the
-	 * only part we use at this point is the cfg_trans
-	 * information.  Once we decide the real cfg, we set it again
-	 * (happens later in this function).  TODO: this is only
-	 * temporary, while we're sorting out this whole thing, but in
-	 * the future it won't be necessary, because we will separate
-	 * the trans configuration entirely from the rest of the
-	 * config struct.
-	 */
-	iwl_trans->cfg = cfg;
 
 	if (cfg == &iwlax210_2ax_cfg_so_hr_a0) {
 		if (iwl_trans->hw_rev == CSR_HW_REV_TYPE_TY) {

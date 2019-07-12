@@ -1604,7 +1604,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	mvm_sta->mac_id_n_color = FW_CMD_ID_AND_COLOR(mvmvif->id,
 						      mvmvif->color);
 	mvm_sta->vif = vif;
-	if (!mvm->trans->cfg->trans.gen2)
+	if (!mvm->trans->trans_cfg->gen2)
 		mvm_sta->max_agg_bufsize = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 	else
 		mvm_sta->max_agg_bufsize = LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF;
@@ -2813,7 +2813,7 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
 	normalized_ssn = tid_data->ssn;
-	if (mvm->trans->cfg->trans.gen2)
+	if (mvm->trans->trans_cfg->gen2)
 		normalized_ssn &= 0xff;
 
 	if (normalized_ssn == tid_data->next_reclaimed) {
@@ -3853,7 +3853,7 @@ u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data)
 	 * In 22000 HW, the next_reclaimed index is only 8 bit, so we'll need
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
-	if (mvm->trans->cfg->trans.gen2)
+	if (mvm->trans->trans_cfg->gen2)
 		sn &= 0xff;
 
 	return ieee80211_sn_sub(sn, tid_data->next_reclaimed);

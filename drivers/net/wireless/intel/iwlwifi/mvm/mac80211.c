@@ -3330,7 +3330,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
-		if (!mvm->trans->cfg->trans.gen2) {
+		if (!mvm->trans->trans_cfg->gen2) {
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
 			key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
 		} else if (vif->type == NL80211_IFTYPE_STATION) {

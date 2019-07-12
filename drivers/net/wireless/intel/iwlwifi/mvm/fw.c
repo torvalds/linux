@@ -357,13 +357,13 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 			iwl_fw_dbg_error_collect(&mvm->fwrt,
 						 FW_DBG_TRIGGER_ALIVE_TIMEOUT);
 
-		if (trans->cfg->trans.device_family >= IWL_DEVICE_FAMILY_22000)
+		if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000)
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
 				iwl_read_umac_prph(trans, UMAG_SB_CPU_1_STATUS),
 				iwl_read_umac_prph(trans,
 						   UMAG_SB_CPU_2_STATUS));
-		else if (trans->cfg->trans.device_family >=
+		else if (trans->trans_cfg->device_family >=
 			 IWL_DEVICE_FAMILY_8000)
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
@@ -1334,7 +1334,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 
 	/* Init RSS configuration */
-	if (mvm->trans->cfg->trans.device_family >= IWL_DEVICE_FAMILY_22000) {
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
 		ret = iwl_configure_rxq(mvm);
 		if (ret) {
 			IWL_ERR(mvm, "Failed to configure RX queues: %d\n",
