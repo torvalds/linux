@@ -248,12 +248,10 @@ hfa384x_dowrid(struct hfa384x *hw,
 
 static int
 hfa384x_dormem(struct hfa384x *hw,
-	       enum cmd_mode mode,
 	       u16 page,
 	       u16 offset,
 	       void *data,
-	       unsigned int len,
-	       ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data);
+	       unsigned int len);
 
 static int
 hfa384x_dowmem(struct hfa384x *hw,
@@ -816,14 +814,6 @@ static void hfa384x_cb_status(struct hfa384x *hw,
 
 		ctlx->usercb(hw, &cmdresult, ctlx->usercb_data);
 	}
-}
-
-static inline int
-hfa384x_dormem_wait(struct hfa384x *hw,
-		    u16 page, u16 offset, void *data, unsigned int len)
-{
-	return hfa384x_dormem(hw, DOWAIT,
-			      page, offset, data, len, NULL, NULL, NULL);
 }
 
 static inline int
@@ -1454,14 +1444,10 @@ done:
  *
  * Arguments:
  *	hw		device structure
- *	mode		DOWAIT or DOASYNC
  *	page		MAC address space page (CMD format)
  *	offset		MAC address space offset
  *	data		Ptr to data buffer to receive read
  *	len		Length of the data to read (max == 2048)
- *	cmdcb		command callback for async calls, NULL for DOWAIT calls
- *	usercb		user callback for async calls, NULL for DOWAIT calls
- *	usercb_data	user supplied data pointer for async calls
  *
  * Returns:
  *	0		success
@@ -1473,18 +1459,15 @@ done:
  * Side effects:
  *
  * Call context:
- *	interrupt (DOASYNC)
- *	process (DOWAIT or DOASYNC)
+ *	process (DOWAIT)
  *----------------------------------------------------------------
  */
 static int
 hfa384x_dormem(struct hfa384x *hw,
-	       enum cmd_mode mode,
 	       u16 page,
 	       u16 offset,
 	       void *data,
-	       unsigned int len,
-	       ctlx_cmdcb_t cmdcb, ctlx_usercb_t usercb, void *usercb_data)
+	       unsigned int len)
 {
 	int result;
 	struct hfa384x_usbctlx *ctlx;
@@ -1512,15 +1495,15 @@ hfa384x_dormem(struct hfa384x *hw,
 
 	pr_debug("pktsize=%zd\n", ROUNDUP64(sizeof(ctlx->outbuf.rmemreq)));
 
-	ctlx->reapable = mode;
-	ctlx->cmdcb = cmdcb;
-	ctlx->usercb = usercb;
-	ctlx->usercb_data = usercb_data;
+	ctlx->reapable = DOWAIT;
+	ctlx->cmdcb = NULL;
+	ctlx->usercb = NULL;
+	ctlx->usercb_data = NULL;
 
 	result = hfa384x_usbctlx_submit(hw, ctlx);
 	if (result != 0) {
 		kfree(ctlx);
-	} else if (mode == DOWAIT) {
+	} else {
 		struct usbctlx_rmem_completor completor;
 
 		result =
@@ -2252,8 +2235,8 @@ int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len)
 		curroffset = HFA384x_ADDR_CMD_MKOFF(pdaloc[i].cardaddr);
 
 		/* units of bytes */
-		result = hfa384x_dormem_wait(hw, currpage, curroffset, buf,
-					     len);
+		result = hfa384x_dormem(hw, currpage, curroffset, buf,
+					len);
 
 		if (result) {
 			netdev_warn(hw->wlandev->netdev,
