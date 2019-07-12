@@ -159,6 +159,7 @@ config X86
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_EISA
 	select HAVE_EXIT_THREAD
+	select HAVE_FAST_GUP
 	select HAVE_FENTRY			if X86_64 || DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -2906,9 +2907,6 @@ config HAVE_ATOMIC_IOMAP
 
 config X86_DEV_DMA_OPS
 	bool
-
-config HAVE_GENERIC_GUP
-	def_bool y
 
 source "drivers/firmware/Kconfig"
 
