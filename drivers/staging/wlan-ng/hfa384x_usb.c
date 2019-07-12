@@ -835,17 +835,6 @@ hfa384x_docmd_async(struct hfa384x *hw,
 }
 
 static inline int
-hfa384x_dorrid_async(struct hfa384x *hw,
-		     u16 rid, void *riddata, unsigned int riddatalen,
-		     ctlx_cmdcb_t cmdcb,
-		     ctlx_usercb_t usercb, void *usercb_data)
-{
-	return hfa384x_dorrid(hw, DOASYNC,
-			      rid, riddata, riddatalen,
-			      cmdcb, usercb, usercb_data);
-}
-
-static inline int
 hfa384x_dormem_wait(struct hfa384x *hw,
 		    u16 page, u16 offset, void *data, unsigned int len)
 {
