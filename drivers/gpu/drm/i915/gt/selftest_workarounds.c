@@ -485,12 +485,12 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 		u32 srm, lrm, rsvd;
 		u32 expect;
 		int idx;
+		bool ro_reg;
 
 		if (wo_register(engine, reg))
 			continue;
 
-		if (ro_register(reg))
-			continue;
+		ro_reg = ro_register(reg);
 
 		srm = MI_STORE_REGISTER_MEM;
 		lrm = MI_LOAD_REGISTER_MEM;
@@ -591,24 +591,35 @@ err_request:
 		}
 
 		GEM_BUG_ON(values[ARRAY_SIZE(values) - 1] != 0xffffffff);
-		rsvd = results[ARRAY_SIZE(values)]; /* detect write masking */
-		if (!rsvd) {
-			pr_err("%s: Unable to write to whitelisted register %x\n",
-			       engine->name, reg);
-			err = -EINVAL;
-			goto out_unpin;
+		if (!ro_reg) {
+			/* detect write masking */
+			rsvd = results[ARRAY_SIZE(values)];
+			if (!rsvd) {
+				pr_err("%s: Unable to write to whitelisted register %x\n",
+				       engine->name, reg);
+				err = -EINVAL;
+				goto out_unpin;
+			}
 		}
 
 		expect = results[0];
 		idx = 1;
 		for (v = 0; v < ARRAY_SIZE(values); v++) {
-			expect = reg_write(expect, values[v], rsvd);
+			if (ro_reg)
+				expect = results[0];
+			else
+				expect = reg_write(expect, values[v], rsvd);
+
 			if (results[idx] != expect)
 				err++;
 			idx++;
 		}
 		for (v = 0; v < ARRAY_SIZE(values); v++) {
-			expect = reg_write(expect, ~values[v], rsvd);
+			if (ro_reg)
+				expect = results[0];
+			else
+				expect = reg_write(expect, ~values[v], rsvd);
+
 			if (results[idx] != expect)
 				err++;
 			idx++;
@@ -617,15 +628,22 @@ err_request:
 			pr_err("%s: %d mismatch between values written to whitelisted register [%x], and values read back!\n",
 			       engine->name, err, reg);
 
-			pr_info("%s: Whitelisted register: %x, original value %08x, rsvd %08x\n",
-				engine->name, reg, results[0], rsvd);
+			if (ro_reg)
+				pr_info("%s: Whitelisted read-only register: %x, original value %08x\n",
+					engine->name, reg, results[0]);
+			else
+				pr_info("%s: Whitelisted register: %x, original value %08x, rsvd %08x\n",
+					engine->name, reg, results[0], rsvd);
 
 			expect = results[0];
 			idx = 1;
 			for (v = 0; v < ARRAY_SIZE(values); v++) {
 				u32 w = values[v];
 
-				expect = reg_write(expect, w, rsvd);
+				if (ro_reg)
+					expect = results[0];
+				else
+					expect = reg_write(expect, w, rsvd);
 				pr_info("Wrote %08x, read %08x, expect %08x\n",
 					w, results[idx], expect);
 				idx++;
@@ -633,7 +651,10 @@ err_request:
 			for (v = 0; v < ARRAY_SIZE(values); v++) {
 				u32 w = ~values[v];
 
-				expect = reg_write(expect, w, rsvd);
+				if (ro_reg)
+					expect = results[0];
+				else
+					expect = reg_write(expect, w, rsvd);
 				pr_info("Wrote %08x, read %08x, expect %08x\n",
 					w, results[idx], expect);
 				idx++;
