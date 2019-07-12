@@ -94,6 +94,7 @@
 #define FLEXCAN_CTRL2_MRP		BIT(18)
 #define FLEXCAN_CTRL2_RRS		BIT(17)
 #define FLEXCAN_CTRL2_EACEN		BIT(16)
+#define FLEXCAN_CTRL2_ISOCANFDEN	BIT(12)
 
 /* FLEXCAN memory error control register (MECR) bits */
 #define FLEXCAN_MECR_ECRWRDIS		BIT(31)
@@ -1165,7 +1166,7 @@ static void flexcan_set_bittiming_cbt(const struct net_device *dev)
 	priv->write(reg_cbt, &regs->cbt);
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_FD) {
-		u32 reg_fdcbt;
+		u32 reg_fdcbt, reg_ctrl2;
 
 		if (bt->brp != dbt->brp)
 			netdev_warn(dev, "Data brp=%d and brp=%d don't match, this may result in a phase error. Consider using different bitrate and/or data bitrate.\n",
@@ -1184,7 +1185,14 @@ static void flexcan_set_bittiming_cbt(const struct net_device *dev)
 			dbt->phase_seg1 = 0x8;
 		}
 
-		reg_fdcbt = FIELD_PREP(FLEXCAN_FDCBT_FPRESDIV_MASK, dbt->brp - 1) |
+		reg_fdcbt = priv->read(&regs->fdcbt);
+		reg_fdcbt &= ~(FIELD_PREP(FLEXCAN_FDCBT_FPRESDIV_MASK, 0x3ff) |
+			       FIELD_PREP(FLEXCAN_FDCBT_FRJW_MASK, 0x7) |
+			       FIELD_PREP(FLEXCAN_FDCBT_FPROPSEG_MASK, 0x1f) |
+			       FIELD_PREP(FLEXCAN_FDCBT_FPSEG1_MASK, 0x7) |
+			       FIELD_PREP(FLEXCAN_FDCBT_FPSEG2_MASK, 0x7));
+
+		reg_fdcbt |= FIELD_PREP(FLEXCAN_FDCBT_FPRESDIV_MASK, dbt->brp - 1) |
 			FIELD_PREP(FLEXCAN_FDCBT_FRJW_MASK, dbt->sjw - 1) |
 			FIELD_PREP(FLEXCAN_FDCBT_FPROPSEG_MASK, dbt->prop_seg) |
 			FIELD_PREP(FLEXCAN_FDCBT_FPSEG1_MASK, dbt->phase_seg1 - 1) |
@@ -1192,6 +1200,15 @@ static void flexcan_set_bittiming_cbt(const struct net_device *dev)
 
 		netdev_dbg(dev, "writing fdcbt=0x%08x\n", reg_fdcbt);
 		priv->write(reg_fdcbt, &regs->fdcbt);
+
+		/* CTRL2 */
+		reg_ctrl2 = priv->read(&regs->ctrl2);
+		reg_ctrl2 &= ~FLEXCAN_CTRL2_ISOCANFDEN;
+		if (!(priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO))
+			reg_ctrl2 |= FLEXCAN_CTRL2_ISOCANFDEN;
+
+		netdev_dbg(dev, "writing ctrl2=0x%08x\n", reg_ctrl2);
+		priv->write(reg_ctrl2, &regs->ctrl2);
 	}
 
 	/* FDCTRL */
@@ -1204,11 +1221,11 @@ static void flexcan_set_bittiming_cbt(const struct net_device *dev)
 	netdev_dbg(dev, "writing fdctrl=0x%08x\n", reg_fdctrl);
 	priv->write(reg_fdctrl, &regs->fdctrl);
 
-	netdev_dbg(dev, "%s: mcr=0x%08x ctrl=0x%08x fdctrl=0x%08x cbt=0x%08x fdcbt=0x%08x\n",
+	netdev_dbg(dev, "%s: mcr=0x%08x ctrl=0x%08x ctrl2=0x%08x fdctrl=0x%08x cbt=0x%08x fdcbt=0x%08x\n",
 		   __func__,
 		   priv->read(&regs->mcr), priv->read(&regs->ctrl),
-		   priv->read(&regs->fdctrl), priv->read(&regs->cbt),
-		   priv->read(&regs->fdcbt));
+		   priv->read(&regs->ctrl2), priv->read(&regs->fdctrl),
+		   priv->read(&regs->cbt), priv->read(&regs->fdcbt));
 }
 
 static void flexcan_set_bittiming(struct net_device *dev)
@@ -1911,7 +1928,8 @@ static int flexcan_probe(struct platform_device *pdev)
 	priv->reg_xceiver = reg_xceiver;
 
 	if (priv->devtype_data->quirks & FLEXCAN_QUIRK_SUPPORT_FD) {
-		priv->can.ctrlmode_supported |= CAN_CTRLMODE_FD;
+		priv->can.ctrlmode_supported |= CAN_CTRLMODE_FD |
+			CAN_CTRLMODE_FD_NON_ISO;
 		priv->can.bittiming_const = &flexcan_fd_bittiming_const;
 		priv->can.data_bittiming_const =
 			&flexcan_fd_data_bittiming_const;
