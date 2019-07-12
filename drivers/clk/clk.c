@@ -4084,6 +4084,7 @@ struct of_clk_provider {
 	void *data;
 };
 
+extern struct of_device_id __clk_of_table;
 static const struct of_device_id __clk_of_table_sentinel
 	__used __section(__clk_of_table_end);
 
