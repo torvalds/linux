@@ -435,14 +435,14 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 
 	switch (iwlwifi_mod_params.amsdu_size) {
 	case IWL_AMSDU_DEF:
-		if (cfg->trans.mq_rx_supported)
+		if (trans->trans_cfg->mq_rx_supported)
 			vht_cap->cap |=
 				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
 		else
 			vht_cap->cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
 		break;
 	case IWL_AMSDU_2K:
-		if (cfg->trans.mq_rx_supported)
+		if (trans->trans_cfg->mq_rx_supported)
 			vht_cap->cap |=
 				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
 		else
@@ -689,7 +689,7 @@ static void iwl_init_sbands(struct iwl_trans *trans,
 	sband->n_bitrates = N_RATES_24;
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
 					  NL80211_BAND_2GHZ);
-	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, NL80211_BAND_2GHZ,
+	iwl_init_ht_hw_capab(trans, data, &sband->ht_cap, NL80211_BAND_2GHZ,
 			     tx_chains, rx_chains);
 
 	if (data->sku_cap_11ax_enable && !iwlwifi_mod_params.disable_11ax)
@@ -701,7 +701,7 @@ static void iwl_init_sbands(struct iwl_trans *trans,
 	sband->n_bitrates = N_RATES_52;
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
 					  NL80211_BAND_5GHZ);
-	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, NL80211_BAND_5GHZ,
+	iwl_init_ht_hw_capab(trans, data, &sband->ht_cap, NL80211_BAND_5GHZ,
 			     tx_chains, rx_chains);
 	if (data->sku_cap_11ac_enable && !iwlwifi_mod_params.disable_11ac)
 		iwl_init_vht_hw_capab(trans, data, &sband->vht_cap,
@@ -899,7 +899,7 @@ static int iwl_set_hw_address(struct iwl_trans *trans,
 }
 
 static bool
-iwl_nvm_no_wide_in_5ghz(struct device *dev, const struct iwl_cfg *cfg,
+iwl_nvm_no_wide_in_5ghz(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 			const __be16 *nvm_hw)
 {
 	/*
@@ -911,7 +911,7 @@ iwl_nvm_no_wide_in_5ghz(struct device *dev, const struct iwl_cfg *cfg,
 	 * in 5GHz otherwise the FW will throw a sysassert when we try
 	 * to use them.
 	 */
-	if (cfg->trans.device_family == IWL_DEVICE_FAMILY_7000) {
+	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		/*
 		 * Unlike the other sections in the NVM, the hw
 		 * section uses big-endian.
@@ -920,7 +920,7 @@ iwl_nvm_no_wide_in_5ghz(struct device *dev, const struct iwl_cfg *cfg,
 		u8 sku = (subsystem_id & 0x1e) >> 1;
 
 		if (sku == 5 || sku == 9) {
-			IWL_DEBUG_EEPROM(dev,
+			IWL_DEBUG_EEPROM(trans->dev,
 					 "disabling wide channels in 5GHz (0x%0x %d)\n",
 					 subsystem_id, sku);
 			return true;
@@ -937,7 +937,6 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		   const __le16 *mac_override, const __le16 *phy_sku,
 		   u8 tx_chains, u8 rx_chains, bool lar_fw_supported)
 {
-	struct device *dev = trans->dev;
 	struct iwl_nvm_data *data;
 	bool lar_enabled;
 	u32 sku, radio_cfg;
@@ -1019,7 +1018,7 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (lar_fw_supported && lar_enabled)
 		sbands_flags |= IWL_NVM_SBANDS_FLAGS_LAR;
 
-	if (iwl_nvm_no_wide_in_5ghz(dev, cfg, nvm_hw))
+	if (iwl_nvm_no_wide_in_5ghz(trans, cfg, nvm_hw))
 		sbands_flags |= IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ;
 
 	iwl_init_sbands(trans, data, ch_section, tx_chains, rx_chains,

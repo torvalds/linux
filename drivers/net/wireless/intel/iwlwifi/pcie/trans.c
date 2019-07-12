@@ -368,7 +368,7 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	if (trans->trans_cfg->base_params->pll_cfg)
 		iwl_set_bit(trans, CSR_ANA_PLL_CFG, CSR50_ANA_PLL_CFG_VAL);
 
-	ret = iwl_finish_nic_init(trans, &trans->cfg->trans);
+	ret = iwl_finish_nic_init(trans, trans->trans_cfg);
 	if (ret)
 		return ret;
 
@@ -440,7 +440,7 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 
 	iwl_trans_pcie_sw_reset(trans);
 
-	ret = iwl_finish_nic_init(trans, &trans->cfg->trans);
+	ret = iwl_finish_nic_init(trans, trans->trans_cfg);
 	if (WARN_ON(ret)) {
 		/* Release XTAL ON request */
 		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
@@ -1534,7 +1534,7 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	iwl_set_bit(trans, CSR_GP_CNTRL,
 		    BIT(trans->trans_cfg->csr->flag_mac_access_req));
 
-	ret = iwl_finish_nic_init(trans, &trans->cfg->trans);
+	ret = iwl_finish_nic_init(trans, trans->trans_cfg);
 	if (ret)
 		return ret;
 

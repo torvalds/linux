@@ -531,7 +531,7 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u8 lmac_num)
 		/* reset the device */
 		iwl_trans_sw_reset(trans);
 
-		err = iwl_finish_nic_init(trans, &trans->cfg->trans);
+		err = iwl_finish_nic_init(trans, trans->trans_cfg);
 		if (err)
 			return;
 	}
@@ -941,7 +941,7 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 	struct iwl_fw_dbg_trigger_txq_timer *txq_timer;
 	unsigned int default_timeout = cmd_q ?
 		IWL_DEF_WD_TIMEOUT :
-		mvm->cfg->trans.base_params->wd_timeout;
+		mvm->trans->trans_cfg->base_params->wd_timeout;
 
 	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS)) {
 		/*
@@ -985,7 +985,7 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 		return default_timeout;
 	default:
 		WARN_ON(1);
-		return mvm->cfg->trans.base_params->wd_timeout;
+		return mvm->trans->trans_cfg->base_params->wd_timeout;
 	}
 }
 

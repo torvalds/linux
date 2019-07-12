@@ -997,15 +997,18 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned long flags;
 	int ret;
 
-	if (WARN_ONCE(!cfg->trans.csr, "CSR addresses aren't configured\n"))
-		return -EINVAL;
-
 	iwl_trans = iwl_trans_pcie_alloc(pdev, ent, &cfg->trans);
 	if (IS_ERR(iwl_trans))
 		return PTR_ERR(iwl_trans);
 
 	/* the trans_cfg should never change, so set it now */
 	iwl_trans->trans_cfg = &cfg->trans;
+
+	if (WARN_ONCE(!iwl_trans->trans_cfg->csr,
+		      "CSR addresses aren't configured\n")) {
+		ret = -EINVAL;
+		goto out_free_trans;
+	}
 
 #if IS_ENABLED(CONFIG_IWLMVM)
 	/*
@@ -1129,7 +1132,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* now set the real cfg we decided to use */
 	iwl_trans->cfg = cfg;
 
-	if (cfg->trans.device_family >= IWL_DEVICE_FAMILY_8000 &&
+	if (iwl_trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_8000 &&
 	    iwl_trans_grab_nic_access(iwl_trans, &flags)) {
 		u32 hw_step;
 

@@ -558,7 +558,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		goto remove_notif;
 	}
 
-	if (mvm->cfg->trans.device_family < IWL_DEVICE_FAMILY_8000) {
+	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_8000) {
 		ret = iwl_mvm_send_bt_init_conf(mvm);
 		if (ret)
 			goto remove_notif;
