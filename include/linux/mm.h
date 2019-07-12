@@ -2862,8 +2862,6 @@ extern long copy_huge_page_from_user(struct page *dst_page,
 				bool allow_pagefault);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
 
-extern struct page_ext_operations debug_guardpage_ops;
-
 #ifdef CONFIG_DEBUG_PAGEALLOC
 extern unsigned int _debug_guardpage_minorder;
 DECLARE_STATIC_KEY_FALSE(_debug_guardpage_enabled);
@@ -2880,16 +2878,10 @@ static inline bool debug_guardpage_enabled(void)
 
 static inline bool page_is_guard(struct page *page)
 {
-	struct page_ext *page_ext;
-
 	if (!debug_guardpage_enabled())
 		return false;
 
-	page_ext = lookup_page_ext(page);
-	if (unlikely(!page_ext))
-		return false;
-
-	return test_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
+	return PageGuard(page);
 }
 #else
 static inline unsigned int debug_guardpage_minorder(void) { return 0; }

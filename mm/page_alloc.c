@@ -50,7 +50,6 @@
 #include <linux/backing-dev.h>
 #include <linux/fault-inject.h>
 #include <linux/page-isolation.h>
-#include <linux/page_ext.h>
 #include <linux/debugobjects.h>
 #include <linux/kmemleak.h>
 #include <linux/compaction.h>
@@ -668,18 +667,6 @@ static int __init early_debug_pagealloc(char *buf)
 }
 early_param("debug_pagealloc", early_debug_pagealloc);
 
-static bool need_debug_guardpage(void)
-{
-	/* If we don't use debug_pagealloc, we don't need guard page */
-	if (!debug_pagealloc_enabled())
-		return false;
-
-	if (!debug_guardpage_minorder())
-		return false;
-
-	return true;
-}
-
 static void init_debug_guardpage(void)
 {
 	if (!debug_pagealloc_enabled())
@@ -690,11 +677,6 @@ static void init_debug_guardpage(void)
 
 	static_branch_enable(&_debug_guardpage_enabled);
 }
-
-struct page_ext_operations debug_guardpage_ops = {
-	.need = need_debug_guardpage,
-	.init = init_debug_guardpage,
-};
 
 static int __init debug_guardpage_minorder_setup(char *buf)
 {
@@ -713,20 +695,13 @@ early_param("debug_guardpage_minorder", debug_guardpage_minorder_setup);
 static inline bool set_page_guard(struct zone *zone, struct page *page,
 				unsigned int order, int migratetype)
 {
-	struct page_ext *page_ext;
-
 	if (!debug_guardpage_enabled())
 		return false;
 
 	if (order >= debug_guardpage_minorder())
 		return false;
 
-	page_ext = lookup_page_ext(page);
-	if (unlikely(!page_ext))
-		return false;
-
-	__set_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
-
+	__SetPageGuard(page);
 	INIT_LIST_HEAD(&page->lru);
 	set_page_private(page, order);
 	/* Guard pages are not available for any usage */
@@ -738,23 +713,16 @@ static inline bool set_page_guard(struct zone *zone, struct page *page,
 static inline void clear_page_guard(struct zone *zone, struct page *page,
 				unsigned int order, int migratetype)
 {
-	struct page_ext *page_ext;
-
 	if (!debug_guardpage_enabled())
 		return;
 
-	page_ext = lookup_page_ext(page);
-	if (unlikely(!page_ext))
-		return;
-
-	__clear_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
+	__ClearPageGuard(page);
 
 	set_page_private(page, 0);
 	if (!is_migrate_isolate(migratetype))
 		__mod_zone_freepage_state(zone, (1 << order), migratetype);
 }
 #else
-struct page_ext_operations debug_guardpage_ops;
 static inline bool set_page_guard(struct zone *zone, struct page *page,
 			unsigned int order, int migratetype) { return false; }
 static inline void clear_page_guard(struct zone *zone, struct page *page,
@@ -1930,6 +1898,10 @@ void __init page_alloc_init_late(void)
 
 	for_each_populated_zone(zone)
 		set_zone_contiguous(zone);
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	init_debug_guardpage();
+#endif
 }
 
 #ifdef CONFIG_CMA

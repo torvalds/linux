@@ -805,12 +805,10 @@
 			tracking down these problems.
 
 	debug_pagealloc=
-			[KNL] When CONFIG_DEBUG_PAGEALLOC is set, this
-			parameter enables the feature at boot time. In
-			default, it is disabled. We can avoid allocating huge
-			chunk of memory for debug pagealloc if we don't enable
-			it at boot time and the system will work mostly same
-			with the kernel built without CONFIG_DEBUG_PAGEALLOC.
+			[KNL] When CONFIG_DEBUG_PAGEALLOC is set, this parameter
+			enables the feature at boot time. By default, it is
+			disabled and the system will work mostly the same as a
+			kernel built without CONFIG_DEBUG_PAGEALLOC.
 			on: enable the feature
 
 	debugpat	[X86] Enable PAT debugging
