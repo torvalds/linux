@@ -13,7 +13,7 @@
 			For ARM64, ONLY "acpi=off", "acpi=on" or "acpi=force"
 			are available
 
-			See also Documentation/power/runtime_pm.txt, pci=noacpi
+			See also Documentation/power/runtime_pm.rst, pci=noacpi
 
 	acpi_apic_instance=	[ACPI, IOAPIC]
 			Format: <int>
@@ -223,7 +223,7 @@
 	acpi_sleep=	[HW,ACPI] Sleep options
 			Format: { s3_bios, s3_mode, s3_beep, s4_nohwsig,
 				  old_ordering, nonvs, sci_force_enable, nobl }
-			See Documentation/power/video.txt for information on
+			See Documentation/power/video.rst for information on
 			s3_bios and s3_mode.
 			s3_beep is for debugging; it makes the PC's speaker beep
 			as soon as the kernel's real-mode entry point is called.
@@ -4108,7 +4108,7 @@
 			Specify the offset from the beginning of the partition
 			given by "resume=" at which the swap header is located,
 			in <PAGE_SIZE> units (needed only for swap files).
-			See  Documentation/power/swsusp-and-swap-files.txt
+			See  Documentation/power/swsusp-and-swap-files.rst
 
 	resumedelay=	[HIBERNATION] Delay (in seconds) to pause before attempting to
 			read the resume files
