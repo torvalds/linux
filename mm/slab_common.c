@@ -130,6 +130,7 @@ int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t nr,
 #ifdef CONFIG_MEMCG_KMEM
 
 LIST_HEAD(slab_root_caches);
+static DEFINE_SPINLOCK(memcg_kmem_wq_lock);
 
 void slab_init_memcg_params(struct kmem_cache *s)
 {
@@ -717,14 +718,22 @@ void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
 	    WARN_ON_ONCE(s->memcg_params.deact_fn))
 		return;
 
+	/*
+	 * memcg_kmem_wq_lock is used to synchronize memcg_params.dying
+	 * flag and make sure that no new kmem_cache deactivation tasks
+	 * are queued (see flush_memcg_workqueue() ).
+	 */
+	spin_lock_irq(&memcg_kmem_wq_lock);
 	if (s->memcg_params.root_cache->memcg_params.dying)
-		return;
+		goto unlock;
 
 	/* pin memcg so that @s doesn't get destroyed in the middle */
 	css_get(&s->memcg_params.memcg->css);
 
 	s->memcg_params.deact_fn = deact_fn;
 	call_rcu_sched(&s->memcg_params.deact_rcu_head, kmemcg_deactivate_rcufn);
+unlock:
+	spin_unlock_irq(&memcg_kmem_wq_lock);
 }
 
 void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
@@ -834,9 +843,9 @@ static int shutdown_memcg_caches(struct kmem_cache *s)
 
 static void flush_memcg_workqueue(struct kmem_cache *s)
 {
-	mutex_lock(&slab_mutex);
+	spin_lock_irq(&memcg_kmem_wq_lock);
 	s->memcg_params.dying = true;
-	mutex_unlock(&slab_mutex);
+	spin_unlock_irq(&memcg_kmem_wq_lock);
 
 	/*
 	 * SLUB deactivates the kmem_caches through call_rcu_sched. Make
