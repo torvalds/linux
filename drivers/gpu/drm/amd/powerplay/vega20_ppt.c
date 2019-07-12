@@ -441,7 +441,6 @@ static int vega20_store_powerplay_table(struct smu_context *smu)
 {
 	ATOM_Vega20_POWERPLAYTABLE *powerplay_table = NULL;
 	struct smu_table_context *table_context = &smu->smu_table;
-	int ret;
 
 	if (!table_context->power_play_table)
 		return -EINVAL;
@@ -455,9 +454,7 @@ static int vega20_store_powerplay_table(struct smu_context *smu)
 	table_context->thermal_controller_type = powerplay_table->ucThermalControllerType;
 	table_context->TDPODLimit = le32_to_cpu(powerplay_table->OverDrive8Table.ODSettingsMax[ATOM_VEGA20_ODSETTING_POWERPERCENTAGE]);
 
-	ret = vega20_setup_od8_information(smu);
-
-	return ret;
+	return 0;
 }
 
 static int vega20_append_powerplay_table(struct smu_context *smu)
@@ -1506,6 +1503,12 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 		return -ENOMEM;
 
 	smu->od_settings = (void *)od8_settings;
+
+	ret = vega20_setup_od8_information(smu);
+	if (ret) {
+		pr_err("Retrieve board OD limits failed!\n");
+		return ret;
+	}
 
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_GFXCLK_LIMITS] &&
