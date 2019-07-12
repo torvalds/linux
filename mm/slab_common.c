@@ -132,6 +132,8 @@ int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t nr,
 LIST_HEAD(slab_root_caches);
 static DEFINE_SPINLOCK(memcg_kmem_wq_lock);
 
+static void kmemcg_cache_shutdown(struct percpu_ref *percpu_ref);
+
 void slab_init_memcg_params(struct kmem_cache *s)
 {
 	s->memcg_params.root_cache = NULL;
@@ -146,6 +148,12 @@ static int init_memcg_params(struct kmem_cache *s,
 	struct memcg_cache_array *arr;
 
 	if (root_cache) {
+		int ret = percpu_ref_init(&s->memcg_params.refcnt,
+					  kmemcg_cache_shutdown,
+					  0, GFP_KERNEL);
+		if (ret)
+			return ret;
+
 		s->memcg_params.root_cache = root_cache;
 		INIT_LIST_HEAD(&s->memcg_params.children_node);
 		INIT_LIST_HEAD(&s->memcg_params.kmem_caches_node);
@@ -171,6 +179,8 @@ static void destroy_memcg_params(struct kmem_cache *s)
 {
 	if (is_root_cache(s))
 		kvfree(rcu_access_pointer(s->memcg_params.memcg_caches));
+	else
+		percpu_ref_exit(&s->memcg_params.refcnt);
 }
 
 static void free_memcg_params(struct rcu_head *rcu)
@@ -226,6 +236,7 @@ void memcg_link_cache(struct kmem_cache *s, struct mem_cgroup *memcg)
 	if (is_root_cache(s)) {
 		list_add(&s->root_caches_node, &slab_root_caches);
 	} else {
+		css_get(&memcg->css);
 		s->memcg_params.memcg = memcg;
 		list_add(&s->memcg_params.children_node,
 			 &s->memcg_params.root_cache->memcg_params.children);
@@ -241,6 +252,7 @@ static void memcg_unlink_cache(struct kmem_cache *s)
 	} else {
 		list_del(&s->memcg_params.children_node);
 		list_del(&s->memcg_params.kmem_caches_node);
+		css_put(&s->memcg_params.memcg->css);
 	}
 }
 #else
@@ -678,7 +690,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
 	}
 
 	/*
-	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
+	 * Since readers won't lock (see memcg_kmem_get_cache()), we need a
 	 * barrier here to ensure nobody will see the kmem_cache partially
 	 * initialized.
 	 */
@@ -701,16 +713,11 @@ static void kmemcg_workfn(struct work_struct *work)
 	get_online_mems();
 
 	mutex_lock(&slab_mutex);
-
 	s->memcg_params.work_fn(s);
-
 	mutex_unlock(&slab_mutex);
 
 	put_online_mems();
 	put_online_cpus();
-
-	/* done, put the ref from kmemcg_cache_deactivate() */
-	css_put(&s->memcg_params.memcg->css);
 }
 
 static void kmemcg_rcufn(struct rcu_head *head)
@@ -727,10 +734,38 @@ static void kmemcg_rcufn(struct rcu_head *head)
 	queue_work(memcg_kmem_cache_wq, &s->memcg_params.work);
 }
 
+static void kmemcg_cache_shutdown_fn(struct kmem_cache *s)
+{
+	WARN_ON(shutdown_cache(s));
+}
+
+static void kmemcg_cache_shutdown(struct percpu_ref *percpu_ref)
+{
+	struct kmem_cache *s = container_of(percpu_ref, struct kmem_cache,
+					    memcg_params.refcnt);
+	unsigned long flags;
+
+	spin_lock_irqsave(&memcg_kmem_wq_lock, flags);
+	if (s->memcg_params.root_cache->memcg_params.dying)
+		goto unlock;
+
+	s->memcg_params.work_fn = kmemcg_cache_shutdown_fn;
+	INIT_WORK(&s->memcg_params.work, kmemcg_workfn);
+	queue_work(memcg_kmem_cache_wq, &s->memcg_params.work);
+
+unlock:
+	spin_unlock_irqrestore(&memcg_kmem_wq_lock, flags);
+}
+
+static void kmemcg_cache_deactivate_after_rcu(struct kmem_cache *s)
+{
+	__kmemcg_cache_deactivate_after_rcu(s);
+	percpu_ref_kill(&s->memcg_params.refcnt);
+}
+
 static void kmemcg_cache_deactivate(struct kmem_cache *s)
 {
-	if (WARN_ON_ONCE(is_root_cache(s)) ||
-	    WARN_ON_ONCE(s->memcg_params.work_fn))
+	if (WARN_ON_ONCE(is_root_cache(s)))
 		return;
 
 	__kmemcg_cache_deactivate(s);
@@ -744,10 +779,7 @@ static void kmemcg_cache_deactivate(struct kmem_cache *s)
 	if (s->memcg_params.root_cache->memcg_params.dying)
 		goto unlock;
 
-	/* pin memcg so that @s doesn't get destroyed in the middle */
-	css_get(&s->memcg_params.memcg->css);
-
-	s->memcg_params.work_fn = __kmemcg_cache_deactivate_after_rcu;
+	s->memcg_params.work_fn = kmemcg_cache_deactivate_after_rcu;
 	call_rcu(&s->memcg_params.rcu_head, kmemcg_rcufn);
 unlock:
 	spin_unlock_irq(&memcg_kmem_wq_lock);
@@ -774,28 +806,6 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
 
 		kmemcg_cache_deactivate(c);
 		arr->entries[idx] = NULL;
-	}
-	mutex_unlock(&slab_mutex);
-
-	put_online_mems();
-	put_online_cpus();
-}
-
-void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
-{
-	struct kmem_cache *s, *s2;
-
-	get_online_cpus();
-	get_online_mems();
-
-	mutex_lock(&slab_mutex);
-	list_for_each_entry_safe(s, s2, &memcg->kmem_caches,
-				 memcg_params.kmem_caches_node) {
-		/*
-		 * The cgroup is about to be freed and therefore has no charges
-		 * left. Hence, all its caches must be empty by now.
-		 */
-		BUG_ON(shutdown_cache(s));
 	}
 	mutex_unlock(&slab_mutex);
 

@@ -248,31 +248,6 @@ static inline const char *cache_name(struct kmem_cache *s)
 	return s->name;
 }
 
-/*
- * Note, we protect with RCU only the memcg_caches array, not per-memcg caches.
- * That said the caller must assure the memcg's cache won't go away by either
- * taking a css reference to the owner cgroup, or holding the slab_mutex.
- */
-static inline struct kmem_cache *
-cache_from_memcg_idx(struct kmem_cache *s, int idx)
-{
-	struct kmem_cache *cachep;
-	struct memcg_cache_array *arr;
-
-	rcu_read_lock();
-	arr = rcu_dereference(s->memcg_params.memcg_caches);
-
-	/*
-	 * Make sure we will access the up-to-date value. The code updating
-	 * memcg_caches issues a write barrier to match this (see
-	 * memcg_create_kmem_cache()).
-	 */
-	cachep = READ_ONCE(arr->entries[idx]);
-	rcu_read_unlock();
-
-	return cachep;
-}
-
 static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
 {
 	if (is_root_cache(s))
@@ -284,14 +259,25 @@ static __always_inline int memcg_charge_slab(struct page *page,
 					     gfp_t gfp, int order,
 					     struct kmem_cache *s)
 {
+	int ret;
+
 	if (is_root_cache(s))
 		return 0;
-	return memcg_kmem_charge_memcg(page, gfp, order, s->memcg_params.memcg);
+
+	ret = memcg_kmem_charge_memcg(page, gfp, order, s->memcg_params.memcg);
+	if (ret)
+		return ret;
+
+	percpu_ref_get_many(&s->memcg_params.refcnt, 1 << order);
+
+	return 0;
 }
 
 static __always_inline void memcg_uncharge_slab(struct page *page, int order,
 						struct kmem_cache *s)
 {
+	if (!is_root_cache(s))
+		percpu_ref_put_many(&s->memcg_params.refcnt, 1 << order);
 	memcg_kmem_uncharge(page, order);
 }
 
@@ -321,12 +307,6 @@ static inline bool slab_equal_or_root(struct kmem_cache *s,
 static inline const char *cache_name(struct kmem_cache *s)
 {
 	return s->name;
-}
-
-static inline struct kmem_cache *
-cache_from_memcg_idx(struct kmem_cache *s, int idx)
-{
-	return NULL;
 }
 
 static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
