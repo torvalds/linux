@@ -319,7 +319,7 @@ static int vega20_tables_init(struct smu_context *smu, struct smu_table *tables)
 	               AMDGPU_GEM_DOMAIN_VRAM);
 
 	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
-	if (smu_table->metrics_table)
+	if (!smu_table->metrics_table)
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
 
@@ -1502,7 +1502,7 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 
 	od8_settings = kzalloc(sizeof(struct vega20_od8_settings), GFP_KERNEL);
 
-	if (od8_settings)
+	if (!od8_settings)
 		return -ENOMEM;
 
 	smu->od_settings = (void *)od8_settings;
