@@ -646,10 +646,10 @@ static int flexcan_get_berr_counter(const struct net_device *dev,
 static netdev_tx_t flexcan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	const struct flexcan_priv *priv = netdev_priv(dev);
-	struct can_frame *cf = (struct can_frame *)skb->data;
+	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
 	u32 can_id;
 	u32 data;
-	u32 ctrl = FLEXCAN_MB_CODE_TX_DATA | (cf->can_dlc << 16);
+	u32 ctrl = FLEXCAN_MB_CODE_TX_DATA | (cfd->len << 16);
 	int i;
 
 	if (can_dropped_invalid_skb(dev, skb))
@@ -657,18 +657,18 @@ static netdev_tx_t flexcan_start_xmit(struct sk_buff *skb, struct net_device *de
 
 	netif_stop_queue(dev);
 
-	if (cf->can_id & CAN_EFF_FLAG) {
-		can_id = cf->can_id & CAN_EFF_MASK;
+	if (cfd->can_id & CAN_EFF_FLAG) {
+		can_id = cfd->can_id & CAN_EFF_MASK;
 		ctrl |= FLEXCAN_MB_CNT_IDE | FLEXCAN_MB_CNT_SRR;
 	} else {
-		can_id = (cf->can_id & CAN_SFF_MASK) << 18;
+		can_id = (cfd->can_id & CAN_SFF_MASK) << 18;
 	}
 
-	if (cf->can_id & CAN_RTR_FLAG)
+	if (cfd->can_id & CAN_RTR_FLAG)
 		ctrl |= FLEXCAN_MB_CNT_RTR;
 
-	for (i = 0; i < cf->can_dlc; i += sizeof(u32)) {
-		data = be32_to_cpup((__be32 *)&cf->data[i]);
+	for (i = 0; i < cfd->len; i += sizeof(u32)) {
+		data = be32_to_cpup((__be32 *)&cfd->data[i]);
 		priv->write(data, &priv->tx_mb->data[i / sizeof(u32)]);
 	}
 
@@ -840,7 +840,7 @@ static struct sk_buff *flexcan_mailbox_read(struct can_rx_offload *offload,
 	struct flexcan_regs __iomem *regs = priv->regs;
 	struct flexcan_mb __iomem *mb;
 	struct sk_buff *skb;
-	struct can_frame *cf;
+	struct canfd_frame *cfd;
 	u32 reg_ctrl, reg_id, reg_iflag1;
 	int i;
 
@@ -877,8 +877,8 @@ static struct sk_buff *flexcan_mailbox_read(struct can_rx_offload *offload,
 		reg_ctrl = priv->read(&mb->can_ctrl);
 	}
 
-	skb = alloc_can_skb(offload->dev, &cf);
-	if (!skb) {
+	skb = alloc_can_skb(offload->dev, (struct can_frame **)&cfd);
+	if (unlikely(!skb)) {
 		skb = ERR_PTR(-ENOMEM);
 		goto mark_as_read;
 	}
@@ -888,17 +888,17 @@ static struct sk_buff *flexcan_mailbox_read(struct can_rx_offload *offload,
 
 	reg_id = priv->read(&mb->can_id);
 	if (reg_ctrl & FLEXCAN_MB_CNT_IDE)
-		cf->can_id = ((reg_id >> 0) & CAN_EFF_MASK) | CAN_EFF_FLAG;
+		cfd->can_id = ((reg_id >> 0) & CAN_EFF_MASK) | CAN_EFF_FLAG;
 	else
-		cf->can_id = (reg_id >> 18) & CAN_SFF_MASK;
+		cfd->can_id = (reg_id >> 18) & CAN_SFF_MASK;
 
 	if (reg_ctrl & FLEXCAN_MB_CNT_RTR)
-		cf->can_id |= CAN_RTR_FLAG;
-	cf->can_dlc = get_can_dlc((reg_ctrl >> 16) & 0xf);
+		cfd->can_id |= CAN_RTR_FLAG;
+	cfd->len = get_can_dlc((reg_ctrl >> 16) & 0xf);
 
-	for (i = 0; i < cf->can_dlc; i += sizeof(u32)) {
+	for (i = 0; i < cfd->len; i += sizeof(u32)) {
 		__be32 data = cpu_to_be32(priv->read(&mb->data[i / sizeof(u32)]));
-		*(__be32 *)(cf->data + i) = data;
+		*(__be32 *)(cfd->data + i) = data;
 	}
 
  mark_as_read:
