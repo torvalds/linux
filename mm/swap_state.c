@@ -73,23 +73,24 @@ unsigned long total_swapcache_pages(void)
 	unsigned int i, j, nr;
 	unsigned long ret = 0;
 	struct address_space *spaces;
+	struct swap_info_struct *si;
 
-	rcu_read_lock();
 	for (i = 0; i < MAX_SWAPFILES; i++) {
-		/*
-		 * The corresponding entries in nr_swapper_spaces and
-		 * swapper_spaces will be reused only after at least
-		 * one grace period.  So it is impossible for them
-		 * belongs to different usage.
-		 */
-		nr = nr_swapper_spaces[i];
-		spaces = rcu_dereference(swapper_spaces[i]);
-		if (!nr || !spaces)
+		swp_entry_t entry = swp_entry(i, 1);
+
+		/* Avoid get_swap_device() to warn for bad swap entry */
+		if (!swp_swap_info(entry))
 			continue;
+		/* Prevent swapoff to free swapper_spaces */
+		si = get_swap_device(entry);
+		if (!si)
+			continue;
+		nr = nr_swapper_spaces[i];
+		spaces = swapper_spaces[i];
 		for (j = 0; j < nr; j++)
 			ret += spaces[j].nrpages;
+		put_swap_device(si);
 	}
-	rcu_read_unlock();
 	return ret;
 }
 
@@ -611,20 +612,16 @@ int init_swap_address_space(unsigned int type, unsigned long nr_pages)
 		mapping_set_no_writeback_tags(space);
 	}
 	nr_swapper_spaces[type] = nr;
-	rcu_assign_pointer(swapper_spaces[type], spaces);
+	swapper_spaces[type] = spaces;
 
 	return 0;
 }
 
 void exit_swap_address_space(unsigned int type)
 {
-	struct address_space *spaces;
-
-	spaces = swapper_spaces[type];
+	kvfree(swapper_spaces[type]);
 	nr_swapper_spaces[type] = 0;
-	rcu_assign_pointer(swapper_spaces[type], NULL);
-	synchronize_rcu();
-	kvfree(spaces);
+	swapper_spaces[type] = NULL;
 }
 
 static inline void swap_ra_clamp_pfn(struct vm_area_struct *vma,
