@@ -18,6 +18,17 @@ struct journal_keys {
 #define for_each_journal_key(keys, i)				\
 	for (i = (keys).d; i < (keys).d + (keys).nr; (i)++)
 
+struct journal_iter {
+	struct journal_keys	*keys;
+	struct journal_key	*k;
+	enum btree_id		btree_id;
+};
+
+struct journal_iter bch2_journal_iter_init(struct journal_keys *,
+					   enum btree_id);
+struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *);
+struct bkey_s_c bch2_journal_iter_next(struct journal_iter *);
+
 int bch2_fs_recovery(struct bch_fs *);
 int bch2_fs_initialize(struct bch_fs *);
 

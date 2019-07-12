@@ -1267,10 +1267,10 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags, bool *wrote)
 
 int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 {
-	struct journal_key *i;
 	struct btree_trans trans;
-	struct btree_iter *iter;
-	struct bkey_s_c k;
+	struct btree_iter *btree_iter;
+	struct journal_iter journal_iter;
+	struct bkey_s_c btree_k, journal_k, k;
 	int ret;
 
 	ret = bch2_fs_ec_start(c);
@@ -1279,23 +1279,47 @@ int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_EC, POS_MIN, 0, k, ret)
+	btree_iter	= bch2_trans_get_iter(&trans, BTREE_ID_EC, POS_MIN, 0);
+	journal_iter	= bch2_journal_iter_init(journal_keys, BTREE_ID_EC);
+
+	btree_k		= bch2_btree_iter_peek(btree_iter);
+	journal_k	= bch2_journal_iter_peek(&journal_iter);
+
+	while (1) {
+		if (btree_k.k && journal_k.k) {
+			int cmp = bkey_cmp(btree_k.k->p, journal_k.k->p);
+
+			if (cmp < 0) {
+				k = btree_k;
+				btree_k = bch2_btree_iter_next(btree_iter);
+			} else if (cmp == 0) {
+				btree_k = bch2_btree_iter_next(btree_iter);
+				k = journal_k;
+				journal_k = bch2_journal_iter_next(&journal_iter);
+			} else {
+				k = journal_k;
+				journal_k = bch2_journal_iter_next(&journal_iter);
+			}
+		} else if (btree_k.k) {
+			k = btree_k;
+			btree_k = bch2_btree_iter_next(btree_iter);
+		} else if (journal_k.k) {
+			k = journal_k;
+			journal_k = bch2_journal_iter_next(&journal_iter);
+		} else {
+			break;
+		}
+
 		bch2_mark_key(c, k, 0, NULL, 0,
 			      BCH_BUCKET_MARK_ALLOC_READ|
 			      BCH_BUCKET_MARK_NOATOMIC);
+	}
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	if (ret) {
 		bch_err(c, "error reading stripes: %i", ret);
 		return ret;
 	}
-
-	for_each_journal_key(*journal_keys, i)
-		if (i->btree_id == BTREE_ID_EC)
-			bch2_mark_key(c, bkey_i_to_s_c(i->k),
-				      0, NULL, 0,
-				      BCH_BUCKET_MARK_ALLOC_READ|
-				      BCH_BUCKET_MARK_NOATOMIC);
 
 	return 0;
 }

@@ -24,6 +24,42 @@
 
 #define QSTR(n) { { { .len = strlen(n) } }, .name = n }
 
+/* iterate over keys read from the journal: */
+
+struct journal_iter bch2_journal_iter_init(struct journal_keys *keys,
+					   enum btree_id id)
+{
+	return (struct journal_iter) {
+		.keys		= keys,
+		.k		= keys->d,
+		.btree_id	= id,
+	};
+}
+
+struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
+{
+	while (1) {
+		if (iter->k == iter->keys->d + iter->keys->nr)
+			return bkey_s_c_null;
+
+		if (iter->k->btree_id == iter->btree_id)
+			return bkey_i_to_s_c(iter->k->k);
+
+		iter->k++;
+	}
+
+	return bkey_s_c_null;
+}
+
+struct bkey_s_c bch2_journal_iter_next(struct journal_iter *iter)
+{
+	if (iter->k == iter->keys->d + iter->keys->nr)
+		return bkey_s_c_null;
+
+	iter->k++;
+	return bch2_journal_iter_peek(iter);
+}
+
 /* sort and dedup all keys in the journal: */
 
 static void journal_entries_free(struct list_head *list)
