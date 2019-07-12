@@ -1160,19 +1160,36 @@ static __always_inline bool free_pages_prepare(struct page *page,
 }
 
 #ifdef CONFIG_DEBUG_VM
-static inline bool free_pcp_prepare(struct page *page)
+/*
+ * With DEBUG_VM enabled, order-0 pages are checked immediately when being freed
+ * to pcp lists. With debug_pagealloc also enabled, they are also rechecked when
+ * moved from pcp lists to free lists.
+ */
+static bool free_pcp_prepare(struct page *page)
 {
 	return free_pages_prepare(page, 0, true);
 }
 
-static inline bool bulkfree_pcp_prepare(struct page *page)
+static bool bulkfree_pcp_prepare(struct page *page)
 {
-	return false;
+	if (debug_pagealloc_enabled())
+		return free_pages_check(page);
+	else
+		return false;
 }
 #else
+/*
+ * With DEBUG_VM disabled, order-0 pages being freed are checked only when
+ * moving from pcp lists to free list in order to reduce overhead. With
+ * debug_pagealloc enabled, they are checked also immediately when being freed
+ * to the pcp lists.
+ */
 static bool free_pcp_prepare(struct page *page)
 {
-	return free_pages_prepare(page, 0, false);
+	if (debug_pagealloc_enabled())
+		return free_pages_prepare(page, 0, true);
+	else
+		return free_pages_prepare(page, 0, false);
 }
 
 static bool bulkfree_pcp_prepare(struct page *page)
@@ -2035,23 +2052,39 @@ static inline bool free_pages_prezeroed(void)
 }
 
 #ifdef CONFIG_DEBUG_VM
-static bool check_pcp_refill(struct page *page)
+/*
+ * With DEBUG_VM enabled, order-0 pages are checked for expected state when
+ * being allocated from pcp lists. With debug_pagealloc also enabled, they are
+ * also checked when pcp lists are refilled from the free lists.
+ */
+static inline bool check_pcp_refill(struct page *page)
 {
-	return false;
+	if (debug_pagealloc_enabled())
+		return check_new_page(page);
+	else
+		return false;
 }
 
-static bool check_new_pcp(struct page *page)
+static inline bool check_new_pcp(struct page *page)
 {
 	return check_new_page(page);
 }
 #else
-static bool check_pcp_refill(struct page *page)
+/*
+ * With DEBUG_VM disabled, free order-0 pages are checked for expected state
+ * when pcp lists are being refilled from the free lists. With debug_pagealloc
+ * enabled, they are also checked when being allocated from the pcp lists.
+ */
+static inline bool check_pcp_refill(struct page *page)
 {
 	return check_new_page(page);
 }
-static bool check_new_pcp(struct page *page)
+static inline bool check_new_pcp(struct page *page)
 {
-	return false;
+	if (debug_pagealloc_enabled())
+		return check_new_page(page);
+	else
+		return false;
 }
 #endif /* CONFIG_DEBUG_VM */
 
