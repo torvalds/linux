@@ -973,5 +973,6 @@ int smu_set_hard_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu);
 int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level);
 int smu_set_display_count(struct smu_context *smu, uint32_t count);
+bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type);
 
 #endif

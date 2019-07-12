@@ -69,6 +69,9 @@ int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 	if (min <= 0 && max <= 0)
 		return -EINVAL;
 
+	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+		return 0;
+
 	clk_id = smu_clk_get_index(smu, clk_type);
 	if (clk_id < 0)
 		return clk_id;
@@ -101,6 +104,9 @@ int smu_set_hard_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 
 	if (min <= 0 && max <= 0)
 		return -EINVAL;
+
+	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+		return 0;
 
 	clk_id = smu_clk_get_index(smu, clk_type);
 	if (clk_id < 0)
@@ -135,29 +141,8 @@ int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 	if (!min && !max)
 		return -EINVAL;
 
-	switch (clk_type) {
-	case SMU_MCLK:
-	case SMU_UCLK:
-		if (!smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
-			pr_warn("uclk dpm is not enabled\n");
-			return 0;
-		}
-		break;
-	case SMU_GFXCLK:
-	case SMU_SCLK:
-		if (!smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
-			pr_warn("gfxclk dpm is not enabled\n");
-			return 0;
-		}
-	case SMU_SOCCLK:
-		if (!smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
-			pr_warn("sockclk dpm is not enabled\n");
-			return 0;
-		}
-		break;
-	default:
-		break;
-	}
+	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+		return 0;
 
 	mutex_lock(&smu->mutex);
 	clk_id = smu_clk_get_index(smu, clk_type);
@@ -200,6 +185,9 @@ int smu_get_dpm_freq_by_index(struct smu_context *smu, enum smu_clk_type clk_typ
 	if (!value)
 		return -EINVAL;
 
+	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+		return 0;
+
 	clk_id = smu_clk_get_index(smu, clk_type);
 	if (clk_id < 0)
 		return clk_id;
@@ -227,6 +215,35 @@ int smu_get_dpm_level_count(struct smu_context *smu, enum smu_clk_type clk_type,
 {
 	return smu_get_dpm_freq_by_index(smu, clk_type, 0xff, value);
 }
+
+bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type)
+{
+	enum smu_feature_mask feature_id = 0;
+
+	switch (clk_type) {
+	case SMU_MCLK:
+	case SMU_UCLK:
+		feature_id = SMU_FEATURE_DPM_UCLK_BIT;
+		break;
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		feature_id = SMU_FEATURE_DPM_GFXCLK_BIT;
+		break;
+	case SMU_SOCCLK:
+		feature_id = SMU_FEATURE_DPM_SOCCLK_BIT;
+		break;
+	default:
+		return true;
+	}
+
+	if(!smu_feature_is_enabled(smu, feature_id)) {
+		pr_warn("smu %d clk dpm feature %d is not enabled\n", clk_type, feature_id);
+		return false;
+	}
+
+	return true;
+}
+
 
 int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
 			   bool gate)
