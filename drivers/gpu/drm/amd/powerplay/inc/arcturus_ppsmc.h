@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Advanced Micro Devices, Inc.
+ * Copyright 2019 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -83,7 +83,7 @@
 
 //Power Gating
 #define PPSMC_MSG_PowerUpVcn0                    0x28
-#define PPSMC_MSG_PowerDownVcn01                 0x29
+#define PPSMC_MSG_PowerDownVcn0                  0x29
 #define PPSMC_MSG_PowerUpVcn1                    0x2A
 #define PPSMC_MSG_PowerDownVcn1                  0x2B
 
