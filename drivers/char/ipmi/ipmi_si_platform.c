@@ -426,7 +426,7 @@ static int ipmi_remove(struct platform_device *pdev)
 	return ipmi_si_remove_by_dev(&pdev->dev);
 }
 
-static int pdev_match_name(struct device *dev, void *data)
+static int pdev_match_name(struct device *dev, const void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	const char *name = data;

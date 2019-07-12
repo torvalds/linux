@@ -1,3 +1,4 @@
+================================
 Devres - Managed Device Resource
 ================================
 
@@ -5,17 +6,18 @@ Tejun Heo	<teheo@suse.de>
 
 First draft	10 January 2007
 
+.. contents
 
-1. Intro			: Huh? Devres?
-2. Devres			: Devres in a nutshell
-3. Devres Group			: Group devres'es and release them together
-4. Details			: Life time rules, calling context, ...
-5. Overhead			: How much do we have to pay for this?
-6. List of managed interfaces	: Currently implemented managed interfaces
+   1. Intro			: Huh? Devres?
+   2. Devres			: Devres in a nutshell
+   3. Devres Group		: Group devres'es and release them together
+   4. Details			: Life time rules, calling context, ...
+   5. Overhead			: How much do we have to pay for this?
+   6. List of managed interfaces: Currently implemented managed interfaces
 
 
-  1. Intro
-  --------
+1. Intro
+--------
 
 devres came up while trying to convert libata to use iomap.  Each
 iomapped address should be kept and unmapped on driver detach.  For
@@ -42,8 +44,8 @@ would leak resources or even cause oops when failure occurs.  iomap
 adds more to this mix.  So do msi and msix.
 
 
-  2. Devres
-  ---------
+2. Devres
+---------
 
 devres is basically linked list of arbitrarily sized memory areas
 associated with a struct device.  Each devres entry is associated with
@@ -58,7 +60,7 @@ using dma_alloc_coherent().  The managed version is called
 dmam_alloc_coherent().  It is identical to dma_alloc_coherent() except
 for the DMA memory allocated using it is managed and will be
 automatically released on driver detach.  Implementation looks like
-the following.
+the following::
 
   struct dma_devres {
 	size_t		size;
@@ -98,7 +100,7 @@ If a driver uses dmam_alloc_coherent(), the area is guaranteed to be
 freed whether initialization fails half-way or the device gets
 detached.  If most resources are acquired using managed interface, a
 driver can have much simpler init and exit code.  Init path basically
-looks like the following.
+looks like the following::
 
   my_init_one()
   {
@@ -119,7 +121,7 @@ looks like the following.
 	return register_to_upper_layer(d);
   }
 
-And exit path,
+And exit path::
 
   my_remove_one()
   {
@@ -140,13 +142,13 @@ on you. In some cases this may mean introducing checks that were not
 necessary before moving to the managed devm_* calls.
 
 
-  3. Devres group
-  ---------------
+3. Devres group
+---------------
 
 Devres entries can be grouped using devres group.  When a group is
 released, all contained normal devres entries and properly nested
 groups are released.  One usage is to rollback series of acquired
-resources on failure.  For example,
+resources on failure.  For example::
 
   if (!devres_open_group(dev, NULL, GFP_KERNEL))
 	return -ENOMEM;
@@ -172,7 +174,7 @@ like above are usually useful in midlayer driver (e.g. libata core
 layer) where interface function shouldn't have side effect on failure.
 For LLDs, just returning error code suffices in most cases.
 
-Each group is identified by void *id.  It can either be explicitly
+Each group is identified by `void *id`.  It can either be explicitly
 specified by @id argument to devres_open_group() or automatically
 created by passing NULL as @id as in the above example.  In both
 cases, devres_open_group() returns the group's id.  The returned id
@@ -180,7 +182,7 @@ can be passed to other devres functions to select the target group.
 If NULL is given to those functions, the latest open group is
 selected.
 
-For example, you can do something like the following.
+For example, you can do something like the following::
 
   int my_midlayer_create_something()
   {
@@ -199,8 +201,8 @@ For example, you can do something like the following.
   }
 
 
-  4. Details
-  ----------
+4. Details
+----------
 
 Lifetime of a devres entry begins on devres allocation and finishes
 when it is released or destroyed (removed and freed) - no reference
@@ -220,8 +222,8 @@ All devres interface functions can be called without context if the
 right gfp mask is given.
 
 
-  5. Overhead
-  -----------
+5. Overhead
+-----------
 
 Each devres bookkeeping info is allocated together with requested data
 area.  With debug option turned off, bookkeeping info occupies 16
@@ -237,8 +239,8 @@ and 400 bytes on 32bit machine after naive conversion (we can
 certainly invest a bit more effort into libata core layer).
 
 
-  6. List of managed interfaces
-  -----------------------------
+6. List of managed interfaces
+-----------------------------
 
 CLOCK
   devm_clk_get()

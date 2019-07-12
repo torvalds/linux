@@ -103,7 +103,7 @@ id_table	an array of NULL terminated EISA id strings,
 		(driver_data).
 
 driver		a generic driver, such as described in
-		Documentation/driver-model/driver.txt. Only .name,
+		Documentation/driver-model/driver.rst. Only .name,
 		.probe and .remove members are mandatory.
 =============== ====================================================
 
@@ -152,7 +152,7 @@ state    set of flags indicating the state of the device. Current
 	 flags are EISA_CONFIG_ENABLED and EISA_CONFIG_FORCED.
 res	 set of four 256 bytes I/O regions allocated to this device
 dma_mask DMA mask set from the parent device.
-dev	 generic device (see Documentation/driver-model/device.txt)
+dev	 generic device (see Documentation/driver-model/device.rst)
 ======== ============================================================
 
 You can get the 'struct eisa_device' from 'struct device' using the

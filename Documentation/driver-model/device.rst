@@ -1,6 +1,6 @@
-
+==========================
 The Basic Device Structure
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+==========================
 
 See the kerneldoc for the struct device.
 
@@ -8,9 +8,9 @@ See the kerneldoc for the struct device.
 Programming Interface
 ~~~~~~~~~~~~~~~~~~~~~
 The bus driver that discovers the device uses this to register the
-device with the core:
+device with the core::
 
-int device_register(struct device * dev);
+  int device_register(struct device * dev);
 
 The bus should initialize the following fields:
 
@@ -20,30 +20,33 @@ The bus should initialize the following fields:
     - bus
 
 A device is removed from the core when its reference count goes to
-0. The reference count can be adjusted using:
+0. The reference count can be adjusted using::
 
-struct device * get_device(struct device * dev);
-void put_device(struct device * dev);
+  struct device * get_device(struct device * dev);
+  void put_device(struct device * dev);
 
 get_device() will return a pointer to the struct device passed to it
 if the reference is not already 0 (if it's in the process of being
 removed already).
 
-A driver can access the lock in the device structure using: 
+A driver can access the lock in the device structure using::
 
-void lock_device(struct device * dev);
-void unlock_device(struct device * dev);
+  void lock_device(struct device * dev);
+  void unlock_device(struct device * dev);
 
 
 Attributes
 ~~~~~~~~~~
-struct device_attribute {
+
+::
+
+  struct device_attribute {
 	struct attribute	attr;
 	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
 			char *buf);
 	ssize_t (*store)(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count);
-};
+  };
 
 Attributes of devices can be exported by a device driver through sysfs.
 
@@ -54,39 +57,39 @@ As explained in Documentation/kobject.txt, device attributes must be
 created before the KOBJ_ADD uevent is generated. The only way to realize
 that is by defining an attribute group.
 
-Attributes are declared using a macro called DEVICE_ATTR:
+Attributes are declared using a macro called DEVICE_ATTR::
 
-#define DEVICE_ATTR(name,mode,show,store)
+  #define DEVICE_ATTR(name,mode,show,store)
 
-Example:
+Example:::
 
-static DEVICE_ATTR(type, 0444, show_type, NULL);
-static DEVICE_ATTR(power, 0644, show_power, store_power);
+  static DEVICE_ATTR(type, 0444, show_type, NULL);
+  static DEVICE_ATTR(power, 0644, show_power, store_power);
 
 This declares two structures of type struct device_attribute with respective
 names 'dev_attr_type' and 'dev_attr_power'. These two attributes can be
-organized as follows into a group:
+organized as follows into a group::
 
-static struct attribute *dev_attrs[] = {
+  static struct attribute *dev_attrs[] = {
 	&dev_attr_type.attr,
 	&dev_attr_power.attr,
 	NULL,
-};
+  };
 
-static struct attribute_group dev_attr_group = {
+  static struct attribute_group dev_attr_group = {
 	.attrs = dev_attrs,
-};
+  };
 
-static const struct attribute_group *dev_attr_groups[] = {
+  static const struct attribute_group *dev_attr_groups[] = {
 	&dev_attr_group,
 	NULL,
-};
+  };
 
 This array of groups can then be associated with a device by setting the
-group pointer in struct device before device_register() is invoked:
+group pointer in struct device before device_register() is invoked::
 
-      dev->groups = dev_attr_groups;
-      device_register(dev);
+        dev->groups = dev_attr_groups;
+        device_register(dev);
 
 The device_register() function will use the 'groups' pointer to create the
 device attributes and the device_unregister() function will use this pointer

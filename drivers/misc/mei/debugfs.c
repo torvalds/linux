@@ -154,46 +154,21 @@ void mei_dbgfs_deregister(struct mei_device *dev)
  *
  * @dev: the mei device structure
  * @name: the mei device name
- *
- * Return: 0 on success, <0 on failure.
  */
-int mei_dbgfs_register(struct mei_device *dev, const char *name)
+void mei_dbgfs_register(struct mei_device *dev, const char *name)
 {
-	struct dentry *dir, *f;
+	struct dentry *dir;
 
 	dir = debugfs_create_dir(name, NULL);
-	if (!dir)
-		return -ENOMEM;
-
 	dev->dbgfs_dir = dir;
 
-	f = debugfs_create_file("meclients", S_IRUSR, dir,
-				dev, &mei_dbgfs_meclients_fops);
-	if (!f) {
-		dev_err(dev->dev, "meclients: registration failed\n");
-		goto err;
-	}
-	f = debugfs_create_file("active", S_IRUSR, dir,
-				dev, &mei_dbgfs_active_fops);
-	if (!f) {
-		dev_err(dev->dev, "active: registration failed\n");
-		goto err;
-	}
-	f = debugfs_create_file("devstate", S_IRUSR, dir,
-				dev, &mei_dbgfs_devstate_fops);
-	if (!f) {
-		dev_err(dev->dev, "devstate: registration failed\n");
-		goto err;
-	}
-	f = debugfs_create_file("allow_fixed_address", S_IRUSR | S_IWUSR, dir,
-				&dev->allow_fixed_address,
-				&mei_dbgfs_allow_fa_fops);
-	if (!f) {
-		dev_err(dev->dev, "allow_fixed_address: registration failed\n");
-		goto err;
-	}
-	return 0;
-err:
-	mei_dbgfs_deregister(dev);
-	return -ENODEV;
+	debugfs_create_file("meclients", S_IRUSR, dir, dev,
+			    &mei_dbgfs_meclients_fops);
+	debugfs_create_file("active", S_IRUSR, dir, dev,
+			    &mei_dbgfs_active_fops);
+	debugfs_create_file("devstate", S_IRUSR, dir, dev,
+			    &mei_dbgfs_devstate_fops);
+	debugfs_create_file("allow_fixed_address", S_IRUSR | S_IWUSR, dir,
+			    &dev->allow_fixed_address,
+			    &mei_dbgfs_allow_fa_fops);
 }

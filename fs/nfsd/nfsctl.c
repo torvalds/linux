@@ -1514,9 +1514,7 @@ static int __init init_nfsd(void)
 	retval = nfsd4_init_pnfs();
 	if (retval)
 		goto out_free_slabs;
-	retval = nfsd_fault_inject_init(); /* nfsd fault injection controls */
-	if (retval)
-		goto out_exit_pnfs;
+	nfsd_fault_inject_init(); /* nfsd fault injection controls */
 	nfsd_stat_init();	/* Statistics */
 	nfsd_lockd_init();	/* lockd->nfsd callbacks */
 	retval = create_proc_exports_entry();
@@ -1533,7 +1531,6 @@ out_free_lockd:
 	nfsd_lockd_shutdown();
 	nfsd_stat_shutdown();
 	nfsd_fault_inject_cleanup();
-out_exit_pnfs:
 	nfsd4_exit_pnfs();
 out_free_slabs:
 	nfsd4_free_slabs();

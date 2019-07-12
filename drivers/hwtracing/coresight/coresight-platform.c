@@ -37,7 +37,7 @@ static int coresight_alloc_conns(struct device *dev,
 	return 0;
 }
 
-int coresight_device_fwnode_match(struct device *dev, void *fwnode)
+int coresight_device_fwnode_match(struct device *dev, const void *fwnode)
 {
 	return dev_fwnode(dev) == fwnode;
 }

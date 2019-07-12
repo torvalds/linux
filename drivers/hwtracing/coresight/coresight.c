@@ -498,9 +498,9 @@ struct coresight_device *coresight_get_sink(struct list_head *path)
 	return csdev;
 }
 
-static int coresight_enabled_sink(struct device *dev, void *data)
+static int coresight_enabled_sink(struct device *dev, const void *data)
 {
-	bool *reset = data;
+	const bool *reset = data;
 	struct coresight_device *csdev = to_coresight_device(dev);
 
 	if ((csdev->type == CORESIGHT_DEV_TYPE_SINK ||
@@ -544,7 +544,7 @@ struct coresight_device *coresight_get_enabled_sink(bool deactivate)
 	return dev ? to_coresight_device(dev) : NULL;
 }
 
-static int coresight_sink_by_id(struct device *dev, void *data)
+static int coresight_sink_by_id(struct device *dev, const void *data)
 {
 	struct coresight_device *csdev = to_coresight_device(dev);
 	unsigned long hash;

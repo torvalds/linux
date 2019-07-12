@@ -11,7 +11,6 @@
 #include "netns.h"
 
 static struct dentry *topdir;
-static struct dentry *rpc_fault_dir;
 static struct dentry *rpc_clnt_dir;
 static struct dentry *rpc_xprt_dir;
 
@@ -125,23 +124,16 @@ rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
 	char name[24]; /* enough for "../../rpc_xprt/ + 8 hex digits + NULL */
 	struct rpc_xprt *xprt;
 
-	/* Already registered? */
-	if (clnt->cl_debugfs || !rpc_clnt_dir)
-		return;
-
 	len = snprintf(name, sizeof(name), "%x", clnt->cl_clid);
 	if (len >= sizeof(name))
 		return;
 
 	/* make the per-client dir */
 	clnt->cl_debugfs = debugfs_create_dir(name, rpc_clnt_dir);
-	if (!clnt->cl_debugfs)
-		return;
 
 	/* make tasks file */
-	if (!debugfs_create_file("tasks", S_IFREG | 0400, clnt->cl_debugfs,
-				 clnt, &tasks_fops))
-		goto out_err;
+	debugfs_create_file("tasks", S_IFREG | 0400, clnt->cl_debugfs, clnt,
+			    &tasks_fops);
 
 	rcu_read_lock();
 	xprt = rcu_dereference(clnt->cl_xprt);
@@ -157,8 +149,7 @@ rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
 	if (len >= sizeof(name))
 		goto out_err;
 
-	if (!debugfs_create_symlink("xprt", clnt->cl_debugfs, name))
-		goto out_err;
+	debugfs_create_symlink("xprt", clnt->cl_debugfs, name);
 
 	return;
 out_err:
@@ -226,9 +217,6 @@ rpc_xprt_debugfs_register(struct rpc_xprt *xprt)
 	static atomic_t	cur_id;
 	char		name[9]; /* 8 hex digits + NULL term */
 
-	if (!rpc_xprt_dir)
-		return;
-
 	id = (unsigned int)atomic_inc_return(&cur_id);
 
 	len = snprintf(name, sizeof(name), "%x", id);
@@ -237,15 +225,10 @@ rpc_xprt_debugfs_register(struct rpc_xprt *xprt)
 
 	/* make the per-client dir */
 	xprt->debugfs = debugfs_create_dir(name, rpc_xprt_dir);
-	if (!xprt->debugfs)
-		return;
 
 	/* make tasks file */
-	if (!debugfs_create_file("info", S_IFREG | 0400, xprt->debugfs,
-				 xprt, &xprt_info_fops)) {
-		debugfs_remove_recursive(xprt->debugfs);
-		xprt->debugfs = NULL;
-	}
+	debugfs_create_file("info", S_IFREG | 0400, xprt->debugfs, xprt,
+			    &xprt_info_fops);
 
 	atomic_set(&xprt->inject_disconnect, rpc_inject_disconnect);
 }
@@ -308,28 +291,11 @@ static const struct file_operations fault_disconnect_fops = {
 	.release	= fault_release,
 };
 
-static struct dentry *
-inject_fault_dir(struct dentry *topdir)
-{
-	struct dentry *faultdir;
-
-	faultdir = debugfs_create_dir("inject_fault", topdir);
-	if (!faultdir)
-		return NULL;
-
-	if (!debugfs_create_file("disconnect", S_IFREG | 0400, faultdir,
-				 NULL, &fault_disconnect_fops))
-		return NULL;
-
-	return faultdir;
-}
-
 void __exit
 sunrpc_debugfs_exit(void)
 {
 	debugfs_remove_recursive(topdir);
 	topdir = NULL;
-	rpc_fault_dir = NULL;
 	rpc_clnt_dir = NULL;
 	rpc_xprt_dir = NULL;
 }
@@ -337,26 +303,16 @@ sunrpc_debugfs_exit(void)
 void __init
 sunrpc_debugfs_init(void)
 {
-	topdir = debugfs_create_dir("sunrpc", NULL);
-	if (!topdir)
-		return;
+	struct dentry *rpc_fault_dir;
 
-	rpc_fault_dir = inject_fault_dir(topdir);
-	if (!rpc_fault_dir)
-		goto out_remove;
+	topdir = debugfs_create_dir("sunrpc", NULL);
 
 	rpc_clnt_dir = debugfs_create_dir("rpc_clnt", topdir);
-	if (!rpc_clnt_dir)
-		goto out_remove;
 
 	rpc_xprt_dir = debugfs_create_dir("rpc_xprt", topdir);
-	if (!rpc_xprt_dir)
-		goto out_remove;
 
-	return;
-out_remove:
-	debugfs_remove_recursive(topdir);
-	topdir = NULL;
-	rpc_fault_dir = NULL;
-	rpc_clnt_dir = NULL;
+	rpc_fault_dir = debugfs_create_dir("inject_fault", topdir);
+
+	debugfs_create_file("disconnect", S_IFREG | 0400, rpc_fault_dir, NULL,
+			    &fault_disconnect_fops);
 }
