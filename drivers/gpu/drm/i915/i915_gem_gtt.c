@@ -867,6 +867,48 @@ static int gen8_ppgtt_notify_vgt(struct i915_ppgtt *ppgtt, bool create)
 	return 0;
 }
 
+/* Index shifts into the pagetable are offset by GEN8_PTE_SHIFT [12] */
+#define GEN8_PAGE_SIZE (SZ_4K) /* page and page-directory sizes are the same */
+#define GEN8_PTE_SHIFT (ilog2(GEN8_PAGE_SIZE))
+#define GEN8_PDES (GEN8_PAGE_SIZE / sizeof(u64))
+#define gen8_pd_shift(lvl) ((lvl) * ilog2(GEN8_PDES))
+#define gen8_pd_index(i, lvl) i915_pde_index((i), gen8_pd_shift(lvl))
+#define __gen8_pte_shift(lvl) (GEN8_PTE_SHIFT + gen8_pd_shift(lvl))
+#define __gen8_pte_index(a, lvl) i915_pde_index((a), __gen8_pte_shift(lvl))
+
+static inline unsigned int
+gen8_pd_range(u64 start, u64 end, int lvl, unsigned int *idx)
+{
+	const int shift = gen8_pd_shift(lvl);
+	const u64 mask = ~0ull << gen8_pd_shift(lvl + 1);
+
+	GEM_BUG_ON(start >= end);
+	end += ~mask >> gen8_pd_shift(1);
+
+	*idx = i915_pde_index(start, shift);
+	if ((start ^ end) & mask)
+		return GEN8_PDES - *idx;
+	else
+		return i915_pde_index(end, shift) - *idx;
+}
+
+static inline bool gen8_pd_contains(u64 start, u64 end, int lvl)
+{
+	const u64 mask = ~0ull << gen8_pd_shift(lvl + 1);
+
+	GEM_BUG_ON(start >= end);
+	return (start ^ end) & mask && (start & ~mask) == 0;
+}
+
+static inline unsigned int gen8_pt_count(u64 start, u64 end)
+{
+	GEM_BUG_ON(start >= end);
+	if ((start ^ end) >> gen8_pd_shift(1))
+		return GEN8_PDES - (start & (GEN8_PDES - 1));
+	else
+		return end - start;
+}
+
 static void gen8_free_page_tables(struct i915_address_space *vm,
 				  struct i915_page_directory *pd)
 {

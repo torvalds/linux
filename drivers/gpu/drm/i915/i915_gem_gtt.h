@@ -124,7 +124,6 @@ typedef u64 gen8_pte_t;
 #define GEN8_3LVL_PDPES			4
 #define GEN8_PDE_SHIFT			21
 #define GEN8_PDE_MASK			0x1ff
-#define GEN8_PTE_SHIFT			12
 #define GEN8_PTE_MASK			0x1ff
 #define GEN8_PTES			I915_PTES(sizeof(gen8_pte_t))
 
