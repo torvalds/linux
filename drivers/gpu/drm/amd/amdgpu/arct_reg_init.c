@@ -38,6 +38,7 @@ int arct_reg_base_init(struct amdgpu_device *adev)
 		adev->reg_offset[ATHUB_HWIP][i] = (uint32_t *)(&(ATHUB_BASE.instance[i]));
 		adev->reg_offset[NBIO_HWIP][i] = (uint32_t *)(&(NBIF0_BASE.instance[i]));
 		adev->reg_offset[MP0_HWIP][i] = (uint32_t *)(&(MP0_BASE.instance[i]));
+		adev->reg_offset[MP1_HWIP][i] = (uint32_t *)(&(MP1_BASE.instance[i]));
 		adev->reg_offset[UVD_HWIP][i] = (uint32_t *)(&(UVD_BASE.instance[i]));
 		adev->reg_offset[DF_HWIP][i] = (uint32_t *)(&(DF_BASE.instance[i]));
 		adev->reg_offset[OSSSYS_HWIP][i] = (uint32_t *)(&(OSSSYS_BASE.instance[i]));
@@ -50,6 +51,7 @@ int arct_reg_base_init(struct amdgpu_device *adev)
 		adev->reg_offset[SDMA6_HWIP][i] = (uint32_t *)(&(SDMA6_BASE.instance[i]));
 		adev->reg_offset[SDMA7_HWIP][i] = (uint32_t *)(&(SDMA7_BASE.instance[i]));
 		adev->reg_offset[SMUIO_HWIP][i] = (uint32_t *)(&(SMUIO_BASE.instance[i]));
+		adev->reg_offset[THM_HWIP][i] = (uint32_t *)(&(THM_BASE.instance[i]));
 	}
 	return 0;
 }
