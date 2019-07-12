@@ -246,7 +246,6 @@ void rv1_clk_mgr_construct(struct dc_context *ctx, struct clk_mgr_internal *clk_
 {
 	struct dc_debug_options *debug = &ctx->dc->debug;
 	struct dc_bios *bp = ctx->dc_bios;
-	struct dc_firmware_info fw_info = { { 0 } };
 
 	clk_mgr->base.ctx = ctx;
 	clk_mgr->pp_smu = pp_smu;
@@ -262,9 +261,8 @@ void rv1_clk_mgr_construct(struct dc_context *ctx, struct clk_mgr_internal *clk_
 
 	if (bp->integrated_info)
 		clk_mgr->dentist_vco_freq_khz = bp->integrated_info->dentist_vco_freq;
-	if (clk_mgr->dentist_vco_freq_khz == 0) {
-		bp->funcs->get_firmware_info(bp, &fw_info);
-		clk_mgr->dentist_vco_freq_khz = fw_info.smu_gpu_pll_output_freq;
+	if (bp->fw_info_valid && clk_mgr->dentist_vco_freq_khz == 0) {
+		clk_mgr->dentist_vco_freq_khz = bp->fw_info.smu_gpu_pll_output_freq;
 		if (clk_mgr->dentist_vco_freq_khz == 0)
 			clk_mgr->dentist_vco_freq_khz = 3600000;
 	}

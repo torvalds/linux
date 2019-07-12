@@ -99,17 +99,6 @@ static uint32_t get_hw_buffer_available_size(
 			dce_i2c_hw->buffer_used_bytes;
 }
 
-uint32_t get_reference_clock(
-		struct dc_bios *bios)
-{
-	struct dc_firmware_info info = { { 0 } };
-
-	if (bios->funcs->get_firmware_info(bios, &info) != BP_RESULT_OK)
-		return 0;
-
-	return info.pll_info.crystal_frequency;
-}
-
 static uint32_t get_speed(
 	const struct dce_i2c_hw *dce_i2c_hw)
 {
@@ -632,7 +621,7 @@ void dce_i2c_hw_construct(
 {
 	dce_i2c_hw->ctx = ctx;
 	dce_i2c_hw->engine_id = engine_id;
-	dce_i2c_hw->reference_frequency = get_reference_clock(ctx->dc_bios) >> 1;
+	dce_i2c_hw->reference_frequency = (ctx->dc_bios->fw_info.pll_info.crystal_frequency) >> 1;
 	dce_i2c_hw->regs = regs;
 	dce_i2c_hw->shifts = shifts;
 	dce_i2c_hw->masks = masks;

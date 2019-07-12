@@ -173,12 +173,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	}
 	if (res_pool != NULL) {
-		struct dc_firmware_info fw_info = { { 0 } };
-
-		if (dc->ctx->dc_bios->funcs->get_firmware_info(dc->ctx->dc_bios,
-				&fw_info) == BP_RESULT_OK) {
+		if (dc->ctx->dc_bios->fw_info_valid) {
 			res_pool->ref_clocks.xtalin_clock_inKhz =
-				fw_info.pll_info.crystal_frequency;
+				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
 			/* initialize with firmware data first, no all
 			 * ASIC have DCCG SW component. FPGA or
 			 * simulation need initialization of

@@ -568,7 +568,6 @@ static void dcn20_init_hw(struct dc *dc)
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
 	struct dc_state  *context = dc->current_state;
-	struct dc_firmware_info fw_info = { { 0 } };
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
@@ -592,15 +591,15 @@ static void dcn20_init_hw(struct dc *dc)
 	} else {
 		if (!dcb->funcs->is_accelerated_mode(dcb)) {
 			bios_golden_init(dc);
-			if (dc->ctx->dc_bios->funcs->get_firmware_info(
-					dc->ctx->dc_bios, &fw_info) == BP_RESULT_OK) {
-				res_pool->ref_clocks.xtalin_clock_inKhz = fw_info.pll_info.crystal_frequency;
+			if (dc->ctx->dc_bios->fw_info_valid) {
+				res_pool->ref_clocks.xtalin_clock_inKhz =
+						dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
 
 				if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 					if (res_pool->dccg && res_pool->hubbub) {
 
 						(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
-								fw_info.pll_info.crystal_frequency,
+								dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
 								&res_pool->ref_clocks.dccg_ref_clock_inKhz);
 
 						(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,

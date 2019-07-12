@@ -1234,37 +1234,35 @@ static bool calc_pll_max_vco_construct(
 			struct calc_pll_clock_source_init_data *init_data)
 {
 	uint32_t i;
-	struct dc_firmware_info fw_info = { { 0 } };
+	struct dc_firmware_info *fw_info = &init_data->bp->fw_info;
 	if (calc_pll_cs == NULL ||
 			init_data == NULL ||
 			init_data->bp == NULL)
 		return false;
 
-	if (init_data->bp->funcs->get_firmware_info(
-				init_data->bp,
-				&fw_info) != BP_RESULT_OK)
+	if (init_data->bp->fw_info_valid)
 		return false;
 
 	calc_pll_cs->ctx = init_data->ctx;
-	calc_pll_cs->ref_freq_khz = fw_info.pll_info.crystal_frequency;
+	calc_pll_cs->ref_freq_khz = fw_info->pll_info.crystal_frequency;
 	calc_pll_cs->min_vco_khz =
-			fw_info.pll_info.min_output_pxl_clk_pll_frequency;
+			fw_info->pll_info.min_output_pxl_clk_pll_frequency;
 	calc_pll_cs->max_vco_khz =
-			fw_info.pll_info.max_output_pxl_clk_pll_frequency;
+			fw_info->pll_info.max_output_pxl_clk_pll_frequency;
 
 	if (init_data->max_override_input_pxl_clk_pll_freq_khz != 0)
 		calc_pll_cs->max_pll_input_freq_khz =
 			init_data->max_override_input_pxl_clk_pll_freq_khz;
 	else
 		calc_pll_cs->max_pll_input_freq_khz =
-			fw_info.pll_info.max_input_pxl_clk_pll_frequency;
+			fw_info->pll_info.max_input_pxl_clk_pll_frequency;
 
 	if (init_data->min_override_input_pxl_clk_pll_freq_khz != 0)
 		calc_pll_cs->min_pll_input_freq_khz =
 			init_data->min_override_input_pxl_clk_pll_freq_khz;
 	else
 		calc_pll_cs->min_pll_input_freq_khz =
-			fw_info.pll_info.min_input_pxl_clk_pll_frequency;
+			fw_info->pll_info.min_input_pxl_clk_pll_frequency;
 
 	calc_pll_cs->min_pix_clock_pll_post_divider =
 			init_data->min_pix_clk_pll_post_divider;
@@ -1316,7 +1314,6 @@ bool dce110_clk_src_construct(
 	const struct dce110_clk_src_shift *cs_shift,
 	const struct dce110_clk_src_mask *cs_mask)
 {
-	struct dc_firmware_info fw_info = { { 0 } };
 	struct calc_pll_clock_source_init_data calc_pll_cs_init_data_hdmi;
 	struct calc_pll_clock_source_init_data calc_pll_cs_init_data;
 
@@ -1329,14 +1326,12 @@ bool dce110_clk_src_construct(
 	clk_src->cs_shift = cs_shift;
 	clk_src->cs_mask = cs_mask;
 
-	if (clk_src->bios->funcs->get_firmware_info(
-			clk_src->bios, &fw_info) != BP_RESULT_OK) {
+	if (!clk_src->bios->fw_info_valid) {
 		ASSERT_CRITICAL(false);
 		goto unexpected_failure;
 	}
 
-	clk_src->ext_clk_khz =
-			fw_info.external_clock_source_frequency_for_dp;
+	clk_src->ext_clk_khz = clk_src->bios->fw_info.external_clock_source_frequency_for_dp;
 
 	/* structure normally used with PLL ranges from ATOMBIOS; DS on by default */
 	calc_pll_cs_init_data.bp = bios;
@@ -1376,7 +1371,7 @@ bool dce110_clk_src_construct(
 			FRACT_FB_DIVIDER_DEC_POINTS_MAX_NUM;
 	calc_pll_cs_init_data_hdmi.ctx = ctx;
 
-	clk_src->ref_freq_khz = fw_info.pll_info.crystal_frequency;
+	clk_src->ref_freq_khz = clk_src->bios->fw_info.pll_info.crystal_frequency;
 
 	if (clk_src->base.id == CLOCK_SOURCE_ID_EXTERNAL)
 		return true;
@@ -1419,8 +1414,6 @@ bool dce112_clk_src_construct(
 	const struct dce110_clk_src_shift *cs_shift,
 	const struct dce110_clk_src_mask *cs_mask)
 {
-	struct dc_firmware_info fw_info = { { 0 } };
-
 	clk_src->base.ctx = ctx;
 	clk_src->bios = bios;
 	clk_src->base.id = id;
@@ -1430,13 +1423,12 @@ bool dce112_clk_src_construct(
 	clk_src->cs_shift = cs_shift;
 	clk_src->cs_mask = cs_mask;
 
-	if (clk_src->bios->funcs->get_firmware_info(
-			clk_src->bios, &fw_info) != BP_RESULT_OK) {
+	if (!clk_src->bios->fw_info_valid) {
 		ASSERT_CRITICAL(false);
 		return false;
 	}
 
-	clk_src->ext_clk_khz = fw_info.external_clock_source_frequency_for_dp;
+	clk_src->ext_clk_khz = clk_src->bios->fw_info.external_clock_source_frequency_for_dp;
 
 	return true;
 }
