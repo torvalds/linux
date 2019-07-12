@@ -21,16 +21,15 @@
  *
  */
 
-
 #ifndef SMU11_DRIVER_IF_ARCTURUS_H
 #define SMU11_DRIVER_IF_ARCTURUS_H
 
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x06
+#define SMU11_DRIVER_IF_VERSION 0x08
 
-#define PPTABLE_ARCTURUS_SMU_VERSION 3
+#define PPTABLE_ARCTURUS_SMU_VERSION 4
 
 #define NUM_GFXCLK_DPM_LEVELS  16
 #define NUM_VCLK_DPM_LEVELS    8
@@ -40,6 +39,7 @@
 #define NUM_UCLK_DPM_LEVELS    4
 #define NUM_FCLK_DPM_LEVELS    8
 #define NUM_XGMI_LEVELS        2
+#define NUM_XGMI_PSTATE_LEVELS 4
 
 #define MAX_GFXCLK_DPM_LEVEL  (NUM_GFXCLK_DPM_LEVELS  - 1)
 #define MAX_VCLK_DPM_LEVEL    (NUM_VCLK_DPM_LEVELS    - 1)
@@ -49,6 +49,7 @@
 #define MAX_UCLK_DPM_LEVEL    (NUM_UCLK_DPM_LEVELS    - 1)
 #define MAX_FCLK_DPM_LEVEL    (NUM_FCLK_DPM_LEVELS    - 1)
 #define MAX_XGMI_LEVEL        (NUM_XGMI_LEVELS        - 1)
+#define MAX_XGMI_PSTATE_LEVEL (NUM_XGMI_PSTATE_LEVELS - 1)
 
 // Feature Control Defines
 // DPM
@@ -213,8 +214,8 @@
 #define WORKLOAD_PPLIB_COUNT              5
 
 //XGMI performance states
-#define XGMI_STATE_D0                      1
-#define XGMI_STATE_D3                      0
+#define XGMI_STATE_D0 1
+#define XGMI_STATE_D3 0
 
 #define NUM_I2C_CONTROLLERS                8
 
@@ -314,7 +315,6 @@ typedef struct {
 } SwI2cRequest_t; // SW I2C Request Table
 
 //D3HOT sequences
-//sequence codes from spec: atlvp4p01.amd.com:1677@//gpu/doc/soc_arch/spec/feature/BACO/Navi/Navi2x/
 typedef enum {
   BACO_SEQUENCE,
   MSR_SEQUENCE,
@@ -367,6 +367,12 @@ typedef enum {
   PPCLK_FCLK,
   PPCLK_COUNT,
 } PPCLK_e;
+
+typedef enum {
+  POWER_SOURCE_AC,
+  POWER_SOURCE_DC,
+  POWER_SOURCE_COUNT,
+} POWER_SOURCE_e;
 
 typedef enum {
   TEMP_EDGE,
@@ -568,14 +574,9 @@ typedef struct {
 
   uint16_t          DcBtcGb[AVFS_VOLTAGE_COUNT];        // mV Q2
 
-  uint16_t          SsFmin[10]; // PPtable value to function similar to VFTFmin for SS Curve; Size is PPCLK_COUNT rounded to nearest multiple of 2
-
   // SECTION: XGMI
-  uint8_t           XgmiLinkSpeed   [NUM_XGMI_LEVELS];
-  uint8_t           XgmiLinkWidth   [NUM_XGMI_LEVELS];
-
-  uint16_t          XgmiFclkFreq    [NUM_XGMI_LEVELS];
-  uint16_t          XgmiSocVoltage  [NUM_XGMI_LEVELS];
+  uint8_t           XgmiDpmPstates[NUM_XGMI_LEVELS]; // 2 DPM states, high and low.  0-P0, 1-P1, 2-P2, 3-P3.
+  uint8_t           XgmiDpmSpare[2];
 
   // Temperature Dependent Vmin
   uint16_t     VDDGFX_TVmin;       //Celcius
@@ -683,6 +684,13 @@ typedef struct {
   uint16_t     TotalBoardPower;     //Only needed for TCP Estimated case, where TCP = TGP+Total Board Power
   uint16_t     BoardPadding;
 
+  // SECTION: XGMI Training
+  uint8_t           XgmiLinkSpeed   [NUM_XGMI_PSTATE_LEVELS];
+  uint8_t           XgmiLinkWidth   [NUM_XGMI_PSTATE_LEVELS];
+
+  uint16_t          XgmiFclkFreq    [NUM_XGMI_PSTATE_LEVELS];
+  uint16_t          XgmiSocVoltage  [NUM_XGMI_PSTATE_LEVELS];
+
   uint32_t     BoardReserved[10];
 
   // Padding for MMHUB - do not modify this
@@ -698,7 +706,7 @@ typedef struct {
   uint16_t     GfxActivityLpfTau;
   uint16_t     UclkActivityLpfTau;
 
-  uint16_t     Padding;
+  uint16_t     SocketPowerLpfTau;
 
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use
@@ -715,7 +723,7 @@ typedef struct {
   uint8_t  CurrGfxVoltageOffset  ;
   uint8_t  CurrMemVidOffset      ;
   uint8_t  Padding8              ;
-  uint16_t CurrSocketPower       ;
+  uint16_t AverageSocketPower    ;
   uint16_t TemperatureEdge       ;
   uint16_t TemperatureHotspot    ;
   uint16_t TemperatureHBM        ;
@@ -724,23 +732,23 @@ typedef struct {
   uint16_t TemperatureVrMem      ;
   uint32_t ThrottlerStatus       ;
 
+  uint16_t CurrFanSpeed          ;
+  uint16_t Padding16;
+
+  uint32_t Padding[4];
+
   // Padding - ignore
   uint32_t     MmHubPadding[7]; // SMU internal use
 } SmuMetrics_t;
 
 
 typedef struct {
-  uint16_t avgPsmCount[45];
-  uint16_t minPsmCount[45];
-  float    avgPsmVoltage[45];
-  float    minPsmVoltage[45];
+  uint16_t avgPsmCount[75];
+  uint16_t minPsmCount[75];
+  float    avgPsmVoltage[75];
+  float    minPsmVoltage[75];
 
-  uint16_t avgScsPsmCount;
-  uint16_t minScsPsmCount;
-  float    avgScsPsmVoltage;
-  float    minScsPsmVoltage;
-
-  uint32_t MmHubPadding[6]; // SMU internal use
+  uint32_t MmHubPadding[3]; // SMU internal use
 } AvfsDebugTable_t;
 
 typedef struct {
