@@ -723,8 +723,12 @@ static netdev_tx_t flexcan_start_xmit(struct sk_buff *skb, struct net_device *de
 	if (cfd->can_id & CAN_RTR_FLAG)
 		ctrl |= FLEXCAN_MB_CNT_RTR;
 
-	if (can_is_canfd_skb(skb))
+	if (can_is_canfd_skb(skb)) {
 		ctrl |= FLEXCAN_MB_CNT_EDL;
+
+		if (cfd->flags & CANFD_BRS)
+			ctrl |= FLEXCAN_MB_CNT_BRS;
+	}
 
 	for (i = 0; i < cfd->len; i += sizeof(u32)) {
 		data = be32_to_cpup((__be32 *)&cfd->data[i]);
@@ -956,6 +960,9 @@ static struct sk_buff *flexcan_mailbox_read(struct can_rx_offload *offload,
 
 	if (reg_ctrl & FLEXCAN_MB_CNT_EDL) {
 		cfd->len = can_dlc2len(get_canfd_dlc((reg_ctrl >> 16) & 0xf));
+
+		if (reg_ctrl & FLEXCAN_MB_CNT_BRS)
+			cfd->flags |= CANFD_BRS;
 	} else {
 		cfd->len = get_can_dlc((reg_ctrl >> 16) & 0xf);
 
