@@ -222,7 +222,6 @@ static unsigned long get_total_mem(void)
 static const struct of_device_id altr_sdram_ctrl_of_match[] = {
 	{ .compatible = "altr,sdram-edac", .data = &c5_data},
 	{ .compatible = "altr,sdram-edac-a10", .data = &a10_data},
-	{ .compatible = "altr,sdram-edac-s10", .data = &a10_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, altr_sdram_ctrl_of_match);
@@ -1170,6 +1169,24 @@ static int __init __maybe_unused altr_init_a10_ecc_device_type(char *compat)
 	return 0;
 }
 
+/*********************** SDRAM EDAC Device Functions *********************/
+
+#ifdef CONFIG_EDAC_ALTERA_SDRAM
+
+static const struct edac_device_prv_data s10_sdramecc_data = {
+	.setup = altr_check_ecc_deps,
+	.ce_clear_mask = ALTR_S10_ECC_SERRPENA,
+	.ue_clear_mask = ALTR_S10_ECC_DERRPENA,
+	.ecc_enable_mask = ALTR_S10_ECC_EN,
+	.ecc_en_ofst = ALTR_S10_ECC_CTRL_SDRAM_OFST,
+	.ce_set_mask = ALTR_S10_ECC_TSERRA,
+	.ue_set_mask = ALTR_S10_ECC_TDERRA,
+	.set_err_ofst = ALTR_S10_ECC_INTTEST_OFST,
+	.ecc_irq_handler = altr_edac_a10_ecc_irq,
+	.inject_fops = &altr_edac_a10_device_inject_fops,
+};
+#endif /* CONFIG_EDAC_ALTERA_SDRAM */
+
 /*********************** OCRAM EDAC Device Functions *********************/
 
 #ifdef CONFIG_EDAC_ALTERA_OCRAM
@@ -1759,6 +1776,9 @@ static const struct of_device_id altr_edac_a10_device_of_match[] = {
 #ifdef CONFIG_EDAC_ALTERA_SDMMC
 	{ .compatible = "altr,socfpga-sdmmc-ecc", .data = &a10_sdmmcecca_data },
 #endif
+#ifdef CONFIG_EDAC_ALTERA_SDRAM
+	{ .compatible = "altr,sdram-edac-s10", .data = &s10_sdramecc_data },
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(of, altr_edac_a10_device_of_match);
@@ -1889,12 +1909,32 @@ static int validate_parent_available(struct device_node *np)
 	struct device_node *parent;
 	int ret = 0;
 
+	/* SDRAM must be present for Linux (implied parent) */
+	if (of_device_is_compatible(np, "altr,sdram-edac-s10"))
+		return 0;
+
 	/* Ensure parent device is enabled if parent node exists */
 	parent = of_parse_phandle(np, "altr,ecc-parent", 0);
 	if (parent && !of_device_is_available(parent))
 		ret = -ENODEV;
 
 	of_node_put(parent);
+	return ret;
+}
+
+static int get_s10_sdram_edac_resource(struct device_node *np,
+				       struct resource *res)
+{
+	struct device_node *parent;
+	int ret;
+
+	parent = of_parse_phandle(np, "altr,sdr-syscon", 0);
+	if (!parent)
+		return -ENODEV;
+
+	ret = of_address_to_resource(parent, 0, res);
+	of_node_put(parent);
+
 	return ret;
 }
 
@@ -1925,7 +1965,11 @@ static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 	if (!devres_open_group(edac->dev, altr_edac_a10_device_add, GFP_KERNEL))
 		return -ENOMEM;
 
-	rc = of_address_to_resource(np, 0, &res);
+	if (of_device_is_compatible(np, "altr,sdram-edac-s10"))
+		rc = get_s10_sdram_edac_resource(np, &res);
+	else
+		rc = of_address_to_resource(np, 0, &res);
+
 	if (rc < 0) {
 		edac_printk(KERN_ERR, EDAC_DEVICE,
 			    "%s: no resource address\n", ecc_name);
@@ -2231,13 +2275,15 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 		    of_device_is_compatible(child, "altr,socfpga-dma-ecc") ||
 		    of_device_is_compatible(child, "altr,socfpga-usb-ecc") ||
 		    of_device_is_compatible(child, "altr,socfpga-qspi-ecc") ||
+#ifdef CONFIG_EDAC_ALTERA_SDRAM
+		    of_device_is_compatible(child, "altr,sdram-edac-s10") ||
+#endif
 		    of_device_is_compatible(child, "altr,socfpga-sdmmc-ecc"))
 
 			altr_edac_a10_device_add(edac, child);
 
 #ifdef CONFIG_EDAC_ALTERA_SDRAM
-		else if ((of_device_is_compatible(child, "altr,sdram-edac-a10")) ||
-			 (of_device_is_compatible(child, "altr,sdram-edac-s10")))
+		else if (of_device_is_compatible(child, "altr,sdram-edac-a10"))
 			of_platform_populate(pdev->dev.of_node,
 					     altr_sdram_ctrl_of_match,
 					     NULL, &pdev->dev);
