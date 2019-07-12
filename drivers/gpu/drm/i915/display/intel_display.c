@@ -15839,8 +15839,13 @@ intel_mode_valid(struct drm_device *dev,
 			   DRM_MODE_FLAG_CLKDIV2))
 		return MODE_BAD;
 
-	if (INTEL_GEN(dev_priv) >= 9 ||
-	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 11) {
+		hdisplay_max = 16384;
+		vdisplay_max = 8192;
+		htotal_max = 16384;
+		vtotal_max = 8192;
+	} else if (INTEL_GEN(dev_priv) >= 9 ||
+		   IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv)) {
 		hdisplay_max = 8192; /* FDI max 4096 handled elsewhere */
 		vdisplay_max = 4096;
 		htotal_max = 8192;
