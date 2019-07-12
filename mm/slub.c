@@ -3650,10 +3650,6 @@ static int kmem_cache_open(struct kmem_cache *s, slab_flags_t flags)
 
 	free_kmem_cache_nodes(s);
 error:
-	if (flags & SLAB_PANIC)
-		panic("Cannot create slab %s size=%u realsize=%u order=%u offset=%u flags=%lx\n",
-		      s->name, s->size, s->size,
-		      oo_order(s->oo), s->offset, (unsigned long)flags);
 	return -EINVAL;
 }
 
