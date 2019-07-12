@@ -148,6 +148,8 @@ static void usage(void)
 		"    p | P              Poisoning\n"
 		"    u | U              Tracking\n"
 		"    t | T              Tracing\n"
+
+		"\nSorting options (--Loss, --Size, --Partial) are mutually exclusive\n"
 	);
 }
 
