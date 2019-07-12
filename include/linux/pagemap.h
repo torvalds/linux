@@ -452,6 +452,9 @@ extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
 				unsigned int flags);
 extern void unlock_page(struct page *page);
 
+/*
+ * Return true if the page was successfully locked
+ */
 static inline int trylock_page(struct page *page)
 {
 	page = compound_head(page);
