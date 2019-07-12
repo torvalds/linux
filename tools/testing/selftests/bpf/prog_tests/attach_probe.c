@@ -23,6 +23,8 @@ ssize_t get_base_addr() {
 
 #ifdef __x86_64__
 #define SYS_KPROBE_NAME "__x64_sys_nanosleep"
+#elif defined(__s390x__)
+#define SYS_KPROBE_NAME "__s390x_sys_nanosleep"
 #else
 #define SYS_KPROBE_NAME "sys_nanosleep"
 #endif
