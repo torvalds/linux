@@ -11215,7 +11215,7 @@ F:	include/uapi/linux/nfs*
 F:	include/uapi/linux/sunrpc/
 
 NILFS2 FILESYSTEM
-M:	Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
+M:	Ryusuke Konishi <konishi.ryusuke@gmail.com>
 L:	linux-nilfs@vger.kernel.org
 W:	https://nilfs.sourceforge.io/
 W:	https://nilfs.osdn.jp/
