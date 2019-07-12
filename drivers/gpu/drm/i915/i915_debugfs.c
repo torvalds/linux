@@ -4071,7 +4071,7 @@ static int i915_hpd_storm_ctl_show(struct seq_file *m, void *data)
 	 */
 	intel_synchronize_irq(dev_priv);
 	flush_work(&dev_priv->hotplug.dig_port_work);
-	flush_work(&dev_priv->hotplug.hotplug_work);
+	flush_delayed_work(&dev_priv->hotplug.hotplug_work);
 
 	seq_printf(m, "Threshold: %d\n", hotplug->hpd_storm_threshold);
 	seq_printf(m, "Detected: %s\n",

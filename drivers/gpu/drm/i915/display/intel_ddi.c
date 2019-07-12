@@ -4070,14 +4070,16 @@ static int intel_hdmi_reset_link(struct intel_encoder *encoder,
 	return modeset_pipe(&crtc->base, ctx);
 }
 
-static bool intel_ddi_hotplug(struct intel_encoder *encoder,
-			      struct intel_connector *connector)
+static enum intel_hotplug_state
+intel_ddi_hotplug(struct intel_encoder *encoder,
+		  struct intel_connector *connector,
+		  bool irq_received)
 {
 	struct drm_modeset_acquire_ctx ctx;
-	bool changed;
+	enum intel_hotplug_state state;
 	int ret;
 
-	changed = intel_encoder_hotplug(encoder, connector);
+	state = intel_encoder_hotplug(encoder, connector, irq_received);
 
 	drm_modeset_acquire_init(&ctx, 0);
 
@@ -4099,7 +4101,7 @@ static bool intel_ddi_hotplug(struct intel_encoder *encoder,
 	drm_modeset_acquire_fini(&ctx);
 	WARN(ret, "Acquiring modeset locks failed with %i\n", ret);
 
-	return changed;
+	return state;
 }
 
 static struct intel_connector *

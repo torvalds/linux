@@ -101,14 +101,21 @@ struct intel_fbdev {
 	struct mutex hpd_lock;
 };
 
+enum intel_hotplug_state {
+	INTEL_HOTPLUG_UNCHANGED,
+	INTEL_HOTPLUG_CHANGED,
+	INTEL_HOTPLUG_RETRY,
+};
+
 struct intel_encoder {
 	struct drm_encoder base;
 
 	enum intel_output_type type;
 	enum port port;
 	unsigned int cloneable;
-	bool (*hotplug)(struct intel_encoder *encoder,
-			struct intel_connector *connector);
+	enum intel_hotplug_state (*hotplug)(struct intel_encoder *encoder,
+					    struct intel_connector *connector,
+					    bool irq_received);
 	enum intel_output_type (*compute_output_type)(struct intel_encoder *,
 						      struct intel_crtc_state *,
 						      struct drm_connector_state *);
