@@ -1786,11 +1786,19 @@ __attribute__((ms_abi)) efi_status_t efi_hook_RegisterProtocolNotify(void)
          return EFI_UNSUPPORTED;
 }
 
-__attribute__((ms_abi)) efi_status_t efi_hook_LocateHandle(void)
-{
-         DebugMSG( "BOOT SERVICE #19 called" );
+__attribute__((ms_abi)) efi_status_t efi_hook_LocateHandle(
+                                        int        SearchType,
+                                        EFI_GUID   *Protocol,
+                                        VOID       *SearchKey,
+                                        UINTN      *BufferSize,
+                                        EFI_HANDLE *Buffer)
 
-         return EFI_UNSUPPORTED;
+{
+         DebugMSG( "SearchType = %d, protocol = %s (%s), BufferSize = %lld",
+                   SearchType, GetGuidName( Protocol ),
+                   get_GUID_str( Protocol ), *BufferSize );
+
+         return EFI_NOT_FOUND;
 }
 
 __attribute__((ms_abi)) efi_status_t efi_hook_LocateDevicePath(void)
@@ -2141,9 +2149,6 @@ __attribute__((ms_abi)) efi_status_t efi_runtime_get_time(efi_time_t *tm,
                                                           efi_time_cap_t *tc )
 {
          DebugMSG( "tm @ %px, tc @ %px", tm, tc );
-         DebugMSG( "idt_table @ %px", idt_table );
-         DebugMSG( "idt_descr @ %px", &idt_descr );
-         DebugMSG( "idt_descr.address @ %lx", idt_descr.address );
          memcpy( tm, &fake_time, sizeof( current_time ) );
 
          return EFI_SUCCESS;
