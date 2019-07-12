@@ -894,13 +894,13 @@ void i915_gem_runtime_suspend(struct drm_i915_private *i915)
 	}
 }
 
-static int wait_for_engines(struct drm_i915_private *i915)
+static int wait_for_engines(struct intel_gt *gt)
 {
-	if (wait_for(intel_engines_are_idle(i915), I915_IDLE_ENGINES_TIMEOUT)) {
-		dev_err(i915->drm.dev,
+	if (wait_for(intel_engines_are_idle(gt), I915_IDLE_ENGINES_TIMEOUT)) {
+		dev_err(gt->i915->drm.dev,
 			"Failed to idle engines, declaring wedged!\n");
 		GEM_TRACE_DUMP();
-		i915_gem_set_wedged(i915);
+		intel_gt_set_wedged(gt);
 		return -EIO;
 	}
 
@@ -971,7 +971,7 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 
 		lockdep_assert_held(&i915->drm.struct_mutex);
 
-		err = wait_for_engines(i915);
+		err = wait_for_engines(&i915->gt);
 		if (err)
 			return err;
 
@@ -1149,8 +1149,8 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 * back to defaults, recovering from whatever wedged state we left it
 	 * in and so worth trying to use the device once more.
 	 */
-	if (i915_terminally_wedged(i915))
-		i915_gem_unset_wedged(i915);
+	if (intel_gt_is_wedged(&i915->gt))
+		intel_gt_unset_wedged(&i915->gt);
 
 	/*
 	 * If we inherit context state from the BIOS or earlier occupants
@@ -1202,7 +1202,7 @@ int i915_gem_init_hw(struct drm_i915_private *i915)
 	int ret;
 
 	BUG_ON(!i915->kernel_context);
-	ret = i915_terminally_wedged(i915);
+	ret = intel_gt_terminally_wedged(gt);
 	if (ret)
 		return ret;
 
@@ -1384,7 +1384,7 @@ err_active:
 	 * and ready to be torn-down. The quickest way we can accomplish
 	 * this is by declaring ourselves wedged.
 	 */
-	i915_gem_set_wedged(i915);
+	intel_gt_set_wedged(&i915->gt);
 	goto out_ctx;
 }
 
@@ -1539,7 +1539,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 err_gt:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-	i915_gem_set_wedged(dev_priv);
+	intel_gt_set_wedged(&dev_priv->gt);
 	i915_gem_suspend(dev_priv);
 	i915_gem_suspend_late(dev_priv);
 
@@ -1581,10 +1581,10 @@ err_uc_misc:
 		 * wedged. But we only want to do this where the GPU is angry,
 		 * for all other failure, such as an allocation failure, bail.
 		 */
-		if (!i915_reset_failed(dev_priv)) {
+		if (!intel_gt_is_wedged(&dev_priv->gt)) {
 			i915_probe_error(dev_priv,
 					 "Failed to initialize GPU, declaring it wedged!\n");
-			i915_gem_set_wedged(dev_priv);
+			intel_gt_set_wedged(&dev_priv->gt);
 		}
 
 		/* Minimal basic recovery for KMS */
@@ -1666,11 +1666,6 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 	i915_gem_init__mm(dev_priv);
 	i915_gem_init__pm(dev_priv);
 
-	init_waitqueue_head(&dev_priv->gpu_error.wait_queue);
-	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
-	mutex_init(&dev_priv->gpu_error.wedge_mutex);
-	init_srcu_struct(&dev_priv->gpu_error.reset_backoff_srcu);
-
 	atomic_set(&dev_priv->mm.bsd_engine_dispatch_index, 0);
 
 	spin_lock_init(&dev_priv->fb_tracking.lock);
@@ -1689,7 +1684,7 @@ void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(atomic_read(&dev_priv->mm.free_count));
 	WARN_ON(dev_priv->mm.shrink_count);
 
-	cleanup_srcu_struct(&dev_priv->gpu_error.reset_backoff_srcu);
+	intel_gt_cleanup_early(&dev_priv->gt);
 
 	i915_gemfs_fini(dev_priv);
 }

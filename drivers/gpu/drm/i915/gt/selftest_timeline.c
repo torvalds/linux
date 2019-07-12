@@ -7,6 +7,7 @@
 #include <linux/prime_numbers.h>
 
 #include "gem/i915_gem_pm.h"
+#include "intel_gt.h"
 
 #include "../selftests/i915_random.h"
 #include "../i915_selftest.h"
@@ -836,7 +837,7 @@ int intel_timeline_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_hwsp_wrap),
 	};
 
-	if (i915_terminally_wedged(i915))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
 	return i915_live_subtests(tests, i915);

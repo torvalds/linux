@@ -5,7 +5,9 @@
  */
 
 #include "i915_drv.h"
+#include "i915_params.h"
 #include "intel_engine_pm.h"
+#include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_pm.h"
 #include "intel_wakeref.h"
@@ -17,8 +19,8 @@ static void pm_notify(struct drm_i915_private *i915, int state)
 
 static int intel_gt_unpark(struct intel_wakeref *wf)
 {
-	struct drm_i915_private *i915 =
-		container_of(wf, typeof(*i915), gt.wakeref);
+	struct intel_gt *gt = container_of(wf, typeof(*gt), wakeref);
+	struct drm_i915_private *i915 = gt->i915;
 
 	GEM_TRACE("\n");
 
@@ -33,8 +35,8 @@ static int intel_gt_unpark(struct intel_wakeref *wf)
 	 * Work around it by grabbing a GT IRQ power domain whilst there is any
 	 * GT activity, preventing any DC state transitions.
 	 */
-	i915->gt.awake = intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
-	GEM_BUG_ON(!i915->gt.awake);
+	gt->awake = intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
+	GEM_BUG_ON(!gt->awake);
 
 	intel_enable_gt_powersave(i915);
 
@@ -44,7 +46,7 @@ static int intel_gt_unpark(struct intel_wakeref *wf)
 
 	i915_pmu_gt_unparked(i915);
 
-	i915_queue_hangcheck(i915);
+	intel_gt_queue_hangcheck(gt);
 
 	pm_notify(i915, INTEL_GT_UNPARK);
 
@@ -91,12 +93,12 @@ void intel_gt_pm_init_early(struct intel_gt *gt)
 	BLOCKING_INIT_NOTIFIER_HEAD(&gt->pm_notifications);
 }
 
-static bool reset_engines(struct drm_i915_private *i915)
+static bool reset_engines(struct intel_gt *gt)
 {
-	if (INTEL_INFO(i915)->gpu_reset_clobbers_display)
+	if (INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
 		return false;
 
-	return intel_gpu_reset(i915, ALL_ENGINES) == 0;
+	return __intel_gt_reset(gt, ALL_ENGINES) == 0;
 }
 
 /**
@@ -116,11 +118,11 @@ void intel_gt_sanitize(struct intel_gt *gt, bool force)
 
 	GEM_TRACE("\n");
 
-	if (!reset_engines(gt->i915) && !force)
+	if (!reset_engines(gt) && !force)
 		return;
 
 	for_each_engine(engine, gt->i915, id)
-		intel_engine_reset(engine, false);
+		__intel_engine_reset(engine, false);
 }
 
 int intel_gt_resume(struct intel_gt *gt)

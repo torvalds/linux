@@ -1753,7 +1753,7 @@ out_unlock:
 	return err;
 }
 
-int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
+int i915_gem_huge_page_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_shrink_thp),
@@ -1768,22 +1768,22 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
 	intel_wakeref_t wakeref;
 	int err;
 
-	if (!HAS_PPGTT(dev_priv)) {
+	if (!HAS_PPGTT(i915)) {
 		pr_info("PPGTT not supported, skipping live-selftests\n");
 		return 0;
 	}
 
-	if (i915_terminally_wedged(dev_priv))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
-	file = mock_file(dev_priv);
+	file = mock_file(i915);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
+	mutex_lock(&i915->drm.struct_mutex);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	ctx = live_context(dev_priv, file);
+	ctx = live_context(i915, file);
 	if (IS_ERR(ctx)) {
 		err = PTR_ERR(ctx);
 		goto out_unlock;
@@ -1795,10 +1795,10 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
 	err = i915_subtests(tests, ctx);
 
 out_unlock:
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	mutex_unlock(&i915->drm.struct_mutex);
 
-	mock_file_free(dev_priv, file);
+	mock_file_free(i915, file);
 
 	return err;
 }

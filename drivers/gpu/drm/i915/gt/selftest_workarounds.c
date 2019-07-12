@@ -12,7 +12,6 @@
 #include "selftests/igt_flush_test.h"
 #include "selftests/igt_reset.h"
 #include "selftests/igt_spinner.h"
-#include "selftests/igt_wedge_me.h"
 #include "selftests/mock_drm.h"
 
 #include "gem/selftests/igt_gem_utils.h"
@@ -178,7 +177,7 @@ static int check_whitelist(struct i915_gem_context *ctx,
 			   struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *results;
-	struct igt_wedge_me wedge;
+	struct intel_wedge_me wedge;
 	u32 *vaddr;
 	int err;
 	int i;
@@ -189,10 +188,10 @@ static int check_whitelist(struct i915_gem_context *ctx,
 
 	err = 0;
 	i915_gem_object_lock(results);
-	igt_wedge_on_timeout(&wedge, ctx->i915, HZ / 5) /* a safety net! */
+	intel_wedge_on_timeout(&wedge, &ctx->i915->gt, HZ / 5) /* safety net! */
 		err = i915_gem_object_set_to_cpu_domain(results, false);
 	i915_gem_object_unlock(results);
-	if (i915_terminally_wedged(ctx->i915))
+	if (intel_gt_is_wedged(&ctx->i915->gt))
 		err = -EIO;
 	if (err)
 		goto out_put;
@@ -225,13 +224,13 @@ out_put:
 
 static int do_device_reset(struct intel_engine_cs *engine)
 {
-	i915_reset(engine->i915, engine->mask, "live_workarounds");
+	intel_gt_reset(engine->gt, engine->mask, "live_workarounds");
 	return 0;
 }
 
 static int do_engine_reset(struct intel_engine_cs *engine)
 {
-	return i915_reset_engine(engine, "live_workarounds");
+	return intel_engine_reset(engine, "live_workarounds");
 }
 
 static int
@@ -572,7 +571,7 @@ err_request:
 		if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 			pr_err("%s: Futzing %x timedout; cancelling test\n",
 			       engine->name, reg);
-			i915_gem_set_wedged(ctx->i915);
+			intel_gt_set_wedged(&ctx->i915->gt);
 			err = -EIO;
 			goto out_batch;
 		}
@@ -730,7 +729,7 @@ static int live_reset_whitelist(void *arg)
 	if (!engine || engine->whitelist.count == 0)
 		return 0;
 
-	igt_global_reset_lock(i915);
+	igt_global_reset_lock(&i915->gt);
 
 	if (intel_has_reset_engine(i915)) {
 		err = check_whitelist_across_reset(engine,
@@ -749,7 +748,7 @@ static int live_reset_whitelist(void *arg)
 	}
 
 out:
-	igt_global_reset_unlock(i915);
+	igt_global_reset_unlock(&i915->gt);
 	return err;
 }
 
@@ -1118,7 +1117,7 @@ live_gpu_reset_workarounds(void *arg)
 
 	pr_info("Verifying after GPU reset...\n");
 
-	igt_global_reset_lock(i915);
+	igt_global_reset_lock(&i915->gt);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	reference_lists_init(i915, &lists);
@@ -1127,7 +1126,7 @@ live_gpu_reset_workarounds(void *arg)
 	if (!ok)
 		goto out;
 
-	i915_reset(i915, ALL_ENGINES, "live_workarounds");
+	intel_gt_reset(&i915->gt, ALL_ENGINES, "live_workarounds");
 
 	ok = verify_wa_lists(ctx, &lists, "after reset");
 
@@ -1135,7 +1134,7 @@ out:
 	kernel_context_close(ctx);
 	reference_lists_fini(i915, &lists);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	igt_global_reset_unlock(i915);
+	igt_global_reset_unlock(&i915->gt);
 
 	return ok ? 0 : -ESRCH;
 }
@@ -1160,7 +1159,7 @@ live_engine_reset_workarounds(void *arg)
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	igt_global_reset_lock(i915);
+	igt_global_reset_lock(&i915->gt);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	reference_lists_init(i915, &lists);
@@ -1176,7 +1175,7 @@ live_engine_reset_workarounds(void *arg)
 			goto err;
 		}
 
-		i915_reset_engine(engine, "live_workarounds");
+		intel_engine_reset(engine, "live_workarounds");
 
 		ok = verify_wa_lists(ctx, &lists, "after idle reset");
 		if (!ok) {
@@ -1204,7 +1203,7 @@ live_engine_reset_workarounds(void *arg)
 			goto err;
 		}
 
-		i915_reset_engine(engine, "live_workarounds");
+		intel_engine_reset(engine, "live_workarounds");
 
 		igt_spinner_end(&spin);
 		igt_spinner_fini(&spin);
@@ -1219,7 +1218,7 @@ live_engine_reset_workarounds(void *arg)
 err:
 	reference_lists_fini(i915, &lists);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	igt_global_reset_unlock(i915);
+	igt_global_reset_unlock(&i915->gt);
 	kernel_context_close(ctx);
 
 	igt_flush_test(i915, I915_WAIT_LOCKED);
@@ -1238,7 +1237,7 @@ int intel_workarounds_live_selftests(struct drm_i915_private *i915)
 	};
 	int err;
 
-	if (i915_terminally_wedged(i915))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);

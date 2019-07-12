@@ -947,7 +947,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	if (ret < 0)
 		goto err_uc;
 	intel_irq_init(dev_priv);
-	intel_hangcheck_init(dev_priv);
 	intel_init_display_hooks(dev_priv);
 	intel_init_clock_gating_hooks(dev_priv);
 	intel_init_audio_hooks(dev_priv);
@@ -1967,7 +1966,7 @@ void i915_driver_remove(struct drm_device *dev)
 	 * all in-flight requests so that we can quickly unbind the active
 	 * resources.
 	 */
-	i915_gem_set_wedged(dev_priv);
+	intel_gt_set_wedged(&dev_priv->gt);
 
 	/* Flush any external code that still may be under the RCU lock */
 	synchronize_rcu();
@@ -1988,7 +1987,7 @@ void i915_driver_remove(struct drm_device *dev)
 	intel_csr_ucode_fini(dev_priv);
 
 	/* Free error state after interrupts are fully disabled. */
-	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
+	cancel_delayed_work_sync(&dev_priv->gt.hangcheck.work);
 	i915_reset_error_state(dev_priv);
 
 	i915_gem_driver_remove(dev_priv);

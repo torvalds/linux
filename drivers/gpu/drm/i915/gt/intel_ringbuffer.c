@@ -795,7 +795,7 @@ static void reset_ring(struct intel_engine_cs *engine, bool stalled)
 		 * If the request was innocent, we try to replay the request
 		 * with the restored context.
 		 */
-		i915_reset_request(rq, stalled);
+		__i915_request_reset(rq, stalled);
 
 		GEM_BUG_ON(rq->ring != engine->buffer);
 		head = rq->head;

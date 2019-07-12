@@ -2127,7 +2127,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & I915_CONTEXT_CREATE_FLAGS_UNKNOWN)
 		return -EINVAL;
 
-	ret = i915_terminally_wedged(i915);
+	ret = intel_gt_terminally_wedged(&i915->gt);
 	if (ret)
 		return ret;
 

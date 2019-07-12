@@ -5,6 +5,7 @@
  */
 
 #include "gem/i915_gem_pm.h"
+#include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 
 #include "i915_drv.h"
@@ -106,18 +107,18 @@ static int pm_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static bool switch_to_kernel_context_sync(struct drm_i915_private *i915)
+static bool switch_to_kernel_context_sync(struct intel_gt *gt)
 {
-	bool result = !i915_terminally_wedged(i915);
+	bool result = !intel_gt_is_wedged(gt);
 
 	do {
-		if (i915_gem_wait_for_idle(i915,
+		if (i915_gem_wait_for_idle(gt->i915,
 					   I915_WAIT_LOCKED |
 					   I915_WAIT_FOR_IDLE_BOOST,
 					   I915_GEM_IDLE_TIMEOUT) == -ETIME) {
 			/* XXX hide warning from gem_eio */
 			if (i915_modparams.reset) {
-				dev_err(i915->drm.dev,
+				dev_err(gt->i915->drm.dev,
 					"Failed to idle engines, declaring wedged!\n");
 				GEM_TRACE_DUMP();
 			}
@@ -126,18 +127,18 @@ static bool switch_to_kernel_context_sync(struct drm_i915_private *i915)
 			 * Forcibly cancel outstanding work and leave
 			 * the gpu quiet.
 			 */
-			i915_gem_set_wedged(i915);
+			intel_gt_set_wedged(gt);
 			result = false;
 		}
-	} while (i915_retire_requests(i915) && result);
+	} while (i915_retire_requests(gt->i915) && result);
 
-	GEM_BUG_ON(i915->gt.awake);
+	GEM_BUG_ON(gt->awake);
 	return result;
 }
 
 bool i915_gem_load_power_context(struct drm_i915_private *i915)
 {
-	return switch_to_kernel_context_sync(i915);
+	return switch_to_kernel_context_sync(&i915->gt);
 }
 
 void i915_gem_suspend(struct drm_i915_private *i915)
@@ -158,7 +159,7 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	 * state. Fortunately, the kernel_context is disposable and we do
 	 * not rely on its state.
 	 */
-	switch_to_kernel_context_sync(i915);
+	switch_to_kernel_context_sync(&i915->gt);
 
 	mutex_unlock(&i915->drm.struct_mutex);
 
@@ -169,7 +170,7 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	GEM_BUG_ON(i915->gt.awake);
 	flush_work(&i915->gem.idle_work);
 
-	cancel_delayed_work_sync(&i915->gpu_error.hangcheck_work);
+	cancel_delayed_work_sync(&i915->gt.hangcheck.work);
 
 	i915_gem_drain_freed_objects(i915);
 
@@ -277,10 +278,10 @@ out_unlock:
 	return;
 
 err_wedged:
-	if (!i915_reset_failed(i915)) {
+	if (!intel_gt_is_wedged(&i915->gt)) {
 		dev_err(i915->drm.dev,
 			"Failed to re-initialize GPU, declaring it wedged!\n");
-		i915_gem_set_wedged(i915);
+		intel_gt_set_wedged(&i915->gt);
 	}
 	goto out_unlock;
 }

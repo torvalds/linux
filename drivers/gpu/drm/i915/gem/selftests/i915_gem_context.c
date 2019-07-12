@@ -7,6 +7,7 @@
 #include <linux/prime_numbers.h>
 
 #include "gem/i915_gem_pm.h"
+#include "gt/intel_gt.h"
 #include "gt/intel_reset.h"
 #include "i915_selftest.h"
 
@@ -83,7 +84,7 @@ static int live_nop_switch(void *arg)
 		}
 		if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 			pr_err("Failed to populated %d contexts\n", nctx);
-			i915_gem_set_wedged(i915);
+			intel_gt_set_wedged(&i915->gt);
 			err = -EIO;
 			goto out_unlock;
 		}
@@ -127,7 +128,7 @@ static int live_nop_switch(void *arg)
 			if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 				pr_err("Switching between %ld contexts timed out\n",
 				       prime);
-				i915_gem_set_wedged(i915);
+				intel_gt_set_wedged(&i915->gt);
 				break;
 			}
 
@@ -956,7 +957,7 @@ __sseu_finish(struct drm_i915_private *i915,
 	int ret = 0;
 
 	if (flags & TEST_RESET) {
-		ret = i915_reset_engine(ce->engine, "sseu");
+		ret = intel_engine_reset(ce->engine, "sseu");
 		if (ret)
 			goto out;
 	}
@@ -1059,7 +1060,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 		return PTR_ERR(file);
 
 	if (flags & TEST_RESET)
-		igt_global_reset_lock(i915);
+		igt_global_reset_lock(&i915->gt);
 
 	mutex_lock(&i915->drm.struct_mutex);
 
@@ -1120,7 +1121,7 @@ out_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	if (flags & TEST_RESET)
-		igt_global_reset_unlock(i915);
+		igt_global_reset_unlock(&i915->gt);
 
 	mock_file_free(i915, file);
 
@@ -1722,7 +1723,7 @@ int i915_gem_context_mock_selftests(void)
 	return err;
 }
 
-int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
+int i915_gem_context_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_nop_switch),
@@ -1733,8 +1734,8 @@ int i915_gem_context_live_selftests(struct drm_i915_private *dev_priv)
 		SUBTEST(igt_vm_isolation),
 	};
 
-	if (i915_terminally_wedged(dev_priv))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
-	return i915_live_subtests(tests, dev_priv);
+	return i915_live_subtests(tests, i915);
 }

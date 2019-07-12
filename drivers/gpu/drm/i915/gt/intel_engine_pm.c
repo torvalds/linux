@@ -8,6 +8,7 @@
 
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
+#include "intel_gt.h"
 #include "intel_gt_pm.h"
 
 static int __engine_unpark(struct intel_wakeref *wf)
@@ -66,7 +67,7 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 		return true;
 
 	/* GPU is pointing to the void, as good as in the kernel context. */
-	if (i915_reset_failed(engine->i915))
+	if (intel_gt_is_wedged(engine->gt))
 		return true;
 
 	/*

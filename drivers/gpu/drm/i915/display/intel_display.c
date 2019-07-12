@@ -4271,12 +4271,13 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv)
 		return;
 
 	/* We have a modeset vs reset deadlock, defensively unbreak it. */
-	set_bit(I915_RESET_MODESET, &dev_priv->gpu_error.flags);
-	wake_up_all(&dev_priv->gpu_error.wait_queue);
+	set_bit(I915_RESET_MODESET, &dev_priv->gt.reset.flags);
+	smp_mb__after_atomic();
+	wake_up_bit(&dev_priv->gt.reset.flags, I915_RESET_MODESET);
 
 	if (atomic_read(&dev_priv->gpu_error.pending_fb_pin)) {
 		DRM_DEBUG_KMS("Modeset potentially stuck, unbreaking through wedging\n");
-		i915_gem_set_wedged(dev_priv);
+		intel_gt_set_wedged(&dev_priv->gt);
 	}
 
 	/*
@@ -4322,7 +4323,7 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 	int ret;
 
 	/* reset doesn't touch the display */
-	if (!test_bit(I915_RESET_MODESET, &dev_priv->gpu_error.flags))
+	if (!test_bit(I915_RESET_MODESET, &dev_priv->gt.reset.flags))
 		return;
 
 	state = fetch_and_zero(&dev_priv->modeset_restore_state);
@@ -4362,7 +4363,7 @@ unlock:
 	drm_modeset_acquire_fini(ctx);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	clear_bit(I915_RESET_MODESET, &dev_priv->gpu_error.flags);
+	clear_bit_unlock(I915_RESET_MODESET, &dev_priv->gt.reset.flags);
 }
 
 static void icl_set_pipe_chicken(struct intel_crtc *crtc)
@@ -13873,18 +13874,21 @@ static void intel_atomic_commit_fence_wait(struct intel_atomic_state *intel_stat
 	for (;;) {
 		prepare_to_wait(&intel_state->commit_ready.wait,
 				&wait_fence, TASK_UNINTERRUPTIBLE);
-		prepare_to_wait(&dev_priv->gpu_error.wait_queue,
+		prepare_to_wait(bit_waitqueue(&dev_priv->gt.reset.flags,
+					      I915_RESET_MODESET),
 				&wait_reset, TASK_UNINTERRUPTIBLE);
 
 
-		if (i915_sw_fence_done(&intel_state->commit_ready)
-		    || test_bit(I915_RESET_MODESET, &dev_priv->gpu_error.flags))
+		if (i915_sw_fence_done(&intel_state->commit_ready) ||
+		    test_bit(I915_RESET_MODESET, &dev_priv->gt.reset.flags))
 			break;
 
 		schedule();
 	}
 	finish_wait(&intel_state->commit_ready.wait, &wait_fence);
-	finish_wait(&dev_priv->gpu_error.wait_queue, &wait_reset);
+	finish_wait(bit_waitqueue(&dev_priv->gt.reset.flags,
+				  I915_RESET_MODESET),
+		    &wait_reset);
 }
 
 static void intel_atomic_cleanup_work(struct work_struct *work)

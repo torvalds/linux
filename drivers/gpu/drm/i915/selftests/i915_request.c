@@ -380,7 +380,7 @@ static int __igt_breadcrumbs_smoketest(void *arg)
 			       t->engine->name);
 			GEM_TRACE_DUMP();
 
-			i915_gem_set_wedged(t->engine->i915);
+			intel_gt_set_wedged(t->engine->gt);
 			GEM_BUG_ON(!i915_request_completed(rq));
 			i915_sw_fence_wait(wait);
 			err = -EIO;
@@ -1234,7 +1234,7 @@ int i915_request_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_breadcrumbs_smoketest),
 	};
 
-	if (i915_terminally_wedged(i915))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
 	return i915_subtests(tests, i915);

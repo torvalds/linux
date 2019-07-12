@@ -2130,7 +2130,7 @@ static int eb_pin_context(struct i915_execbuffer *eb, struct intel_context *ce)
 	 * ABI: Before userspace accesses the GPU (e.g. execbuffer), report
 	 * EIO if the GPU is already wedged.
 	 */
-	err = i915_terminally_wedged(eb->i915);
+	err = intel_gt_terminally_wedged(ce->engine->gt);
 	if (err)
 		return err;
 

@@ -183,11 +183,6 @@ struct drm_i915_private *mock_gem_device(void)
 	intel_gt_init_early(&i915->gt, i915);
 	atomic_inc(&i915->gt.wakeref.count); /* disable; no hw support */
 
-	init_waitqueue_head(&i915->gpu_error.wait_queue);
-	init_waitqueue_head(&i915->gpu_error.reset_queue);
-	init_srcu_struct(&i915->gpu_error.reset_backoff_srcu);
-	mutex_init(&i915->gpu_error.wedge_mutex);
-
 	i915->wq = alloc_ordered_workqueue("mock", 0);
 	if (!i915->wq)
 		goto err_drv;

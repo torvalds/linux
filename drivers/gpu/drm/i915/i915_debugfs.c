@@ -1074,15 +1074,16 @@ static void i915_instdone_info(struct drm_i915_private *dev_priv,
 
 static int i915_hangcheck_info(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct intel_gt *gt = &i915->gt;
 	struct intel_engine_cs *engine;
 	intel_wakeref_t wakeref;
 	enum intel_engine_id id;
 
-	seq_printf(m, "Reset flags: %lx\n", dev_priv->gpu_error.flags);
-	if (test_bit(I915_WEDGED, &dev_priv->gpu_error.flags))
+	seq_printf(m, "Reset flags: %lx\n", gt->reset.flags);
+	if (test_bit(I915_WEDGED, &gt->reset.flags))
 		seq_puts(m, "\tWedged\n");
-	if (test_bit(I915_RESET_BACKOFF, &dev_priv->gpu_error.flags))
+	if (test_bit(I915_RESET_BACKOFF, &gt->reset.flags))
 		seq_puts(m, "\tDevice (global) reset in progress\n");
 
 	if (!i915_modparams.enable_hangcheck) {
@@ -1090,19 +1091,19 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		return 0;
 	}
 
-	if (timer_pending(&dev_priv->gpu_error.hangcheck_work.timer))
+	if (timer_pending(&gt->hangcheck.work.timer))
 		seq_printf(m, "Hangcheck active, timer fires in %dms\n",
-			   jiffies_to_msecs(dev_priv->gpu_error.hangcheck_work.timer.expires -
+			   jiffies_to_msecs(gt->hangcheck.work.timer.expires -
 					    jiffies));
-	else if (delayed_work_pending(&dev_priv->gpu_error.hangcheck_work))
+	else if (delayed_work_pending(&gt->hangcheck.work))
 		seq_puts(m, "Hangcheck active, work pending\n");
 	else
 		seq_puts(m, "Hangcheck inactive\n");
 
-	seq_printf(m, "GT active? %s\n", yesno(dev_priv->gt.awake));
+	seq_printf(m, "GT active? %s\n", yesno(gt->awake));
 
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
-		for_each_engine(engine, dev_priv, id) {
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
+		for_each_engine(engine, i915, id) {
 			struct intel_instdone instdone;
 
 			seq_printf(m, "%s: %d ms ago\n",
@@ -1117,29 +1118,12 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 			intel_engine_get_instdone(engine, &instdone);
 
 			seq_puts(m, "\tinstdone read =\n");
-			i915_instdone_info(dev_priv, m, &instdone);
+			i915_instdone_info(i915, m, &instdone);
 
 			seq_puts(m, "\tinstdone accu =\n");
-			i915_instdone_info(dev_priv, m,
+			i915_instdone_info(i915, m,
 					   &engine->hangcheck.instdone);
 		}
-	}
-
-	return 0;
-}
-
-static int i915_reset_info(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct i915_gpu_error *error = &dev_priv->gpu_error;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	seq_printf(m, "full gpu reset = %u\n", i915_reset_count(error));
-
-	for_each_engine(engine, dev_priv, id) {
-		seq_printf(m, "%s = %u\n", engine->name,
-			   i915_reset_engine_count(error, engine));
 	}
 
 	return 0;
@@ -3616,7 +3600,8 @@ static const struct file_operations i915_cur_wm_latency_fops = {
 static int
 i915_wedged_get(void *data, u64 *val)
 {
-	int ret = i915_terminally_wedged(data);
+	struct drm_i915_private *i915 = data;
+	int ret = intel_gt_terminally_wedged(&i915->gt);
 
 	switch (ret) {
 	case -EIO:
@@ -3636,11 +3621,11 @@ i915_wedged_set(void *data, u64 val)
 	struct drm_i915_private *i915 = data;
 
 	/* Flush any previous reset before applying for a new one */
-	wait_event(i915->gpu_error.reset_queue,
-		   !test_bit(I915_RESET_BACKOFF, &i915->gpu_error.flags));
+	wait_event(i915->gt.reset.queue,
+		   !test_bit(I915_RESET_BACKOFF, &i915->gt.reset.flags));
 
-	i915_handle_error(i915, val, I915_ERROR_CAPTURE,
-			  "Manually set wedged engine mask = %llx", val);
+	intel_gt_handle_error(&i915->gt, val, I915_ERROR_CAPTURE,
+			      "Manually set wedged engine mask = %llx", val);
 	return 0;
 }
 
@@ -3683,8 +3668,9 @@ i915_drop_caches_set(void *data, u64 val)
 		  val, val & DROP_ALL);
 
 	if (val & DROP_RESET_ACTIVE &&
-	    wait_for(intel_engines_are_idle(i915), I915_IDLE_ENGINES_TIMEOUT))
-		i915_gem_set_wedged(i915);
+	    wait_for(intel_engines_are_idle(&i915->gt),
+		     I915_IDLE_ENGINES_TIMEOUT))
+		intel_gt_set_wedged(&i915->gt);
 
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
 	 * on ioctls on -EAGAIN. */
@@ -3719,8 +3705,8 @@ i915_drop_caches_set(void *data, u64 val)
 		mutex_unlock(&i915->drm.struct_mutex);
 	}
 
-	if (val & DROP_RESET_ACTIVE && i915_terminally_wedged(i915))
-		i915_handle_error(i915, ALL_ENGINES, 0, NULL);
+	if (val & DROP_RESET_ACTIVE && intel_gt_terminally_wedged(&i915->gt))
+		intel_gt_handle_error(&i915->gt, ALL_ENGINES, 0, NULL);
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	if (val & DROP_BOUND)
@@ -4375,7 +4361,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_huc_load_status", i915_huc_load_status_info, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
 	{"i915_hangcheck_info", i915_hangcheck_info, 0},
-	{"i915_reset_info", i915_reset_info, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},
 	{"i915_emon_status", i915_emon_status, 0},
 	{"i915_ring_freq_table", i915_ring_freq_table, 0},

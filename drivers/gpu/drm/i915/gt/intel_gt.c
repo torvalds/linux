@@ -19,6 +19,8 @@ void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 
 	spin_lock_init(&gt->closed_lock);
 
+	intel_gt_init_hangcheck(gt);
+	intel_gt_init_reset(gt);
 	intel_gt_pm_init_early(gt);
 }
 
@@ -240,4 +242,9 @@ err_unref:
 void intel_gt_fini_scratch(struct intel_gt *gt)
 {
 	i915_vma_unpin_and_release(&gt->scratch, 0);
+}
+
+void intel_gt_cleanup_early(struct intel_gt *gt)
+{
+	intel_gt_fini_reset(gt);
 }

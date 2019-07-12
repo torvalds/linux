@@ -1138,7 +1138,7 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 bool intel_engine_is_idle(struct intel_engine_cs *engine)
 {
 	/* More white lies, if wedged, hw state is inconsistent */
-	if (i915_reset_failed(engine->i915))
+	if (intel_gt_is_wedged(engine->gt))
 		return true;
 
 	if (!intel_engine_pm_is_awake(engine))
@@ -1174,7 +1174,7 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	return ring_is_idle(engine);
 }
 
-bool intel_engines_are_idle(struct drm_i915_private *i915)
+bool intel_engines_are_idle(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -1183,14 +1183,14 @@ bool intel_engines_are_idle(struct drm_i915_private *i915)
 	 * If the driver is wedged, HW state may be very inconsistent and
 	 * report that it is still busy, even though we have stopped using it.
 	 */
-	if (i915_reset_failed(i915))
+	if (intel_gt_is_wedged(gt))
 		return true;
 
 	/* Already parked (and passed an idleness test); must still be idle */
-	if (!READ_ONCE(i915->gt.awake))
+	if (!READ_ONCE(gt->awake))
 		return true;
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt->i915, id) {
 		if (!intel_engine_is_idle(engine))
 			return false;
 	}
@@ -1198,12 +1198,12 @@ bool intel_engines_are_idle(struct drm_i915_private *i915)
 	return true;
 }
 
-void intel_engines_reset_default_submission(struct drm_i915_private *i915)
+void intel_engines_reset_default_submission(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, i915, id)
+	for_each_engine(engine, gt->i915, id)
 		engine->set_default_submission(engine);
 }
 
@@ -1480,7 +1480,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		va_end(ap);
 	}
 
-	if (i915_reset_failed(engine->i915))
+	if (intel_gt_is_wedged(engine->gt))
 		drm_printf(m, "*** WEDGED ***\n");
 
 	drm_printf(m, "\tAwake? %d\n", atomic_read(&engine->wakeref.count));

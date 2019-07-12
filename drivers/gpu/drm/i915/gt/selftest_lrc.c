@@ -55,7 +55,7 @@ static int live_sanitycheck(void *arg)
 		if (!igt_wait_for_spinner(&spin, rq)) {
 			GEM_TRACE("spinner failed to start\n");
 			GEM_TRACE_DUMP();
-			i915_gem_set_wedged(i915);
+			intel_gt_set_wedged(&i915->gt);
 			err = -EIO;
 			goto err_ctx;
 		}
@@ -211,7 +211,7 @@ slice_semaphore_queue(struct intel_engine_cs *outer,
 		pr_err("Failed to slice along semaphore chain of length (%d, %d)!\n",
 		       count, n);
 		GEM_TRACE_DUMP();
-		i915_gem_set_wedged(outer->i915);
+		intel_gt_set_wedged(outer->gt);
 		err = -EIO;
 	}
 
@@ -445,7 +445,7 @@ static int live_busywait_preempt(void *arg)
 			intel_engine_dump(engine, &p, "%s\n", engine->name);
 			GEM_TRACE_DUMP();
 
-			i915_gem_set_wedged(i915);
+			intel_gt_set_wedged(&i915->gt);
 			err = -EIO;
 			goto err_vma;
 		}
@@ -534,7 +534,7 @@ static int live_preempt(void *arg)
 		if (!igt_wait_for_spinner(&spin_lo, rq)) {
 			GEM_TRACE("lo spinner failed to start\n");
 			GEM_TRACE_DUMP();
-			i915_gem_set_wedged(i915);
+			intel_gt_set_wedged(&i915->gt);
 			err = -EIO;
 			goto err_ctx_lo;
 		}
@@ -551,7 +551,7 @@ static int live_preempt(void *arg)
 		if (!igt_wait_for_spinner(&spin_hi, rq)) {
 			GEM_TRACE("hi spinner failed to start\n");
 			GEM_TRACE_DUMP();
-			i915_gem_set_wedged(i915);
+			intel_gt_set_wedged(&i915->gt);
 			err = -EIO;
 			goto err_ctx_lo;
 		}
@@ -688,7 +688,7 @@ err_unlock:
 err_wedged:
 	igt_spinner_end(&spin_hi);
 	igt_spinner_end(&spin_lo);
-	i915_gem_set_wedged(i915);
+	intel_gt_set_wedged(&i915->gt);
 	err = -EIO;
 	goto err_ctx_lo;
 }
@@ -824,7 +824,7 @@ err_unlock:
 err_wedged:
 	igt_spinner_end(&b.spin);
 	igt_spinner_end(&a.spin);
-	i915_gem_set_wedged(i915);
+	intel_gt_set_wedged(&i915->gt);
 	err = -EIO;
 	goto err_client_b;
 }
@@ -934,7 +934,7 @@ err_unlock:
 err_wedged:
 	igt_spinner_end(&b.spin);
 	igt_spinner_end(&a.spin);
-	i915_gem_set_wedged(i915);
+	intel_gt_set_wedged(&i915->gt);
 	err = -EIO;
 	goto err_client_b;
 }
@@ -1105,7 +1105,7 @@ err_unlock:
 err_wedged:
 	for (i = 0; i < ARRAY_SIZE(client); i++)
 		igt_spinner_end(&client[i].spin);
-	i915_gem_set_wedged(i915);
+	intel_gt_set_wedged(&i915->gt);
 	err = -EIO;
 	goto err_client_3;
 }
@@ -1251,7 +1251,7 @@ err_unlock:
 err_wedged:
 	igt_spinner_end(&hi.spin);
 	igt_spinner_end(&lo.spin);
-	i915_gem_set_wedged(i915);
+	intel_gt_set_wedged(&i915->gt);
 	err = -EIO;
 	goto err_client_lo;
 }
@@ -1310,7 +1310,7 @@ static int live_preempt_hang(void *arg)
 		if (!igt_wait_for_spinner(&spin_lo, rq)) {
 			GEM_TRACE("lo spinner failed to start\n");
 			GEM_TRACE_DUMP();
-			i915_gem_set_wedged(i915);
+			intel_gt_set_wedged(&i915->gt);
 			err = -EIO;
 			goto err_ctx_lo;
 		}
@@ -1332,21 +1332,21 @@ static int live_preempt_hang(void *arg)
 						 HZ / 10)) {
 			pr_err("Preemption did not occur within timeout!");
 			GEM_TRACE_DUMP();
-			i915_gem_set_wedged(i915);
+			intel_gt_set_wedged(&i915->gt);
 			err = -EIO;
 			goto err_ctx_lo;
 		}
 
-		set_bit(I915_RESET_ENGINE + id, &i915->gpu_error.flags);
-		i915_reset_engine(engine, NULL);
-		clear_bit(I915_RESET_ENGINE + id, &i915->gpu_error.flags);
+		set_bit(I915_RESET_ENGINE + id, &i915->gt.reset.flags);
+		intel_engine_reset(engine, NULL);
+		clear_bit(I915_RESET_ENGINE + id, &i915->gt.reset.flags);
 
 		engine->execlists.preempt_hang.inject_hang = false;
 
 		if (!igt_wait_for_spinner(&spin_hi, rq)) {
 			GEM_TRACE("hi spinner failed to start\n");
 			GEM_TRACE_DUMP();
-			i915_gem_set_wedged(i915);
+			intel_gt_set_wedged(&i915->gt);
 			err = -EIO;
 			goto err_ctx_lo;
 		}
@@ -1726,7 +1726,7 @@ static int nop_virtual_engine(struct drm_i915_private *i915,
 					  request[nc]->fence.context,
 					  request[nc]->fence.seqno);
 				GEM_TRACE_DUMP();
-				i915_gem_set_wedged(i915);
+				intel_gt_set_wedged(&i915->gt);
 				break;
 			}
 		}
@@ -1873,7 +1873,7 @@ static int mask_virtual_engine(struct drm_i915_private *i915,
 				  request[n]->fence.context,
 				  request[n]->fence.seqno);
 			GEM_TRACE_DUMP();
-			i915_gem_set_wedged(i915);
+			intel_gt_set_wedged(&i915->gt);
 			err = -EIO;
 			goto out;
 		}
@@ -2150,7 +2150,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 	if (!HAS_EXECLISTS(i915))
 		return 0;
 
-	if (i915_terminally_wedged(i915))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
 	return i915_live_subtests(tests, i915);

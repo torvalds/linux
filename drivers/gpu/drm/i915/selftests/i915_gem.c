@@ -8,6 +8,7 @@
 
 #include "gem/selftests/igt_gem_utils.h"
 #include "gem/selftests/mock_context.h"
+#include "gt/intel_gt.h"
 
 #include "i915_selftest.h"
 
@@ -206,7 +207,7 @@ int i915_gem_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_gem_hibernate),
 	};
 
-	if (i915_terminally_wedged(i915))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
 	return i915_live_subtests(tests, i915);

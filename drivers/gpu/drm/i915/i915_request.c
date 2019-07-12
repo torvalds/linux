@@ -1401,8 +1401,7 @@ long i915_request_wait(struct i915_request *rq,
 	 * serialise wait/reset with an explicit lock, we do want
 	 * lockdep to detect potential dependency cycles.
 	 */
-	mutex_acquire(&rq->i915->gpu_error.wedge_mutex.dep_map,
-		      0, 0, _THIS_IP_);
+	mutex_acquire(&rq->engine->gt->reset.mutex.dep_map, 0, 0, _THIS_IP_);
 
 	/*
 	 * Optimistic spin before touching IRQs.
@@ -1480,7 +1479,7 @@ long i915_request_wait(struct i915_request *rq,
 	dma_fence_remove_callback(&rq->fence, &wait.cb);
 
 out:
-	mutex_release(&rq->i915->gpu_error.wedge_mutex.dep_map, 0, _THIS_IP_);
+	mutex_release(&rq->engine->gt->reset.mutex.dep_map, 0, _THIS_IP_);
 	trace_i915_request_wait_end(rq);
 	return timeout;
 }

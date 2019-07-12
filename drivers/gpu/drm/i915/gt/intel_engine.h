@@ -411,8 +411,8 @@ gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
 	return cs;
 }
 
-static inline void intel_engine_reset(struct intel_engine_cs *engine,
-				      bool stalled)
+static inline void __intel_engine_reset(struct intel_engine_cs *engine,
+					bool stalled)
 {
 	if (engine->reset.reset)
 		engine->reset.reset(engine, stalled);
@@ -420,9 +420,9 @@ static inline void intel_engine_reset(struct intel_engine_cs *engine,
 }
 
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
-bool intel_engines_are_idle(struct drm_i915_private *dev_priv);
+bool intel_engines_are_idle(struct intel_gt *gt);
 
-void intel_engines_reset_default_submission(struct drm_i915_private *i915);
+void intel_engines_reset_default_submission(struct intel_gt *gt);
 unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915);
 
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine);

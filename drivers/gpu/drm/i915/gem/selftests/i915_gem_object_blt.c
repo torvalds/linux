@@ -3,6 +3,8 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include "gt/intel_gt.h"
+
 #include "i915_selftest.h"
 
 #include "selftests/igt_flush_test.h"
@@ -95,7 +97,7 @@ int i915_gem_object_blt_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_fill_blt),
 	};
 
-	if (i915_terminally_wedged(i915))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
 	if (!HAS_ENGINE(i915, BCS0))

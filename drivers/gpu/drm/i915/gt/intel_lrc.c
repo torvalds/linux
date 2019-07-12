@@ -2293,7 +2293,7 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 * and have to at least restore the RING register in the context
 	 * image back to the expected values to skip over the guilty request.
 	 */
-	i915_reset_request(rq, stalled);
+	__i915_request_reset(rq, stalled);
 	if (!stalled)
 		goto out_replay;
 

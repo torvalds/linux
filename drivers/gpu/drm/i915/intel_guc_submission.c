@@ -667,7 +667,7 @@ static void guc_reset(struct intel_engine_cs *engine, bool stalled)
 	if (!i915_request_started(rq))
 		stalled = false;
 
-	i915_reset_request(rq, stalled);
+	__i915_request_reset(rq, stalled);
 	intel_lr_context_reset(engine, rq->hw_context, rq->head, stalled);
 
 out_unlock:

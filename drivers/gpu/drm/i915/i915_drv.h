@@ -2400,27 +2400,9 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 void i915_driver_remove(struct drm_device *dev);
 
 void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
-void intel_hangcheck_init(struct drm_i915_private *dev_priv);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
 
 u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv);
-
-static inline void i915_queue_hangcheck(struct drm_i915_private *dev_priv)
-{
-	unsigned long delay;
-
-	if (unlikely(!i915_modparams.enable_hangcheck))
-		return;
-
-	/* Don't continually defer the hangcheck so that it is always run at
-	 * least once after work has been scheduled on any ring. Otherwise,
-	 * we will ignore a hung ring if a second ring is kept busy.
-	 */
-
-	delay = round_jiffies_up_relative(DRM_I915_HANGCHECK_JIFFIES);
-	queue_delayed_work(system_long_wq,
-			   &dev_priv->gpu_error.hangcheck_work, delay);
-}
 
 static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
 {
@@ -2510,29 +2492,16 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 
 int __must_check i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno);
 
-static inline bool __i915_wedged(struct i915_gpu_error *error)
-{
-	return unlikely(test_bit(I915_WEDGED, &error->flags));
-}
-
-static inline bool i915_reset_failed(struct drm_i915_private *i915)
-{
-	return __i915_wedged(&i915->gpu_error);
-}
-
 static inline u32 i915_reset_count(struct i915_gpu_error *error)
 {
-	return READ_ONCE(error->reset_count);
+	return atomic_read(&error->reset_count);
 }
 
 static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
 					  struct intel_engine_cs *engine)
 {
-	return READ_ONCE(error->reset_engine_count[engine->id]);
+	return atomic_read(&error->reset_engine_count[engine->uabi_class]);
 }
-
-void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
-bool i915_gem_unset_wedged(struct drm_i915_private *dev_priv);
 
 void i915_gem_init_mmio(struct drm_i915_private *i915);
 int __must_check i915_gem_init(struct drm_i915_private *dev_priv);

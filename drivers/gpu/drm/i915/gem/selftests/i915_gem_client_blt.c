@@ -5,6 +5,8 @@
 
 #include "i915_selftest.h"
 
+#include "gt/intel_gt.h"
+
 #include "selftests/igt_flush_test.h"
 #include "selftests/mock_drm.h"
 #include "mock_context.h"
@@ -101,7 +103,7 @@ int i915_gem_client_blt_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_client_fill),
 	};
 
-	if (i915_terminally_wedged(i915))
+	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
 	if (!HAS_ENGINE(i915, BCS0))
