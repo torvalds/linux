@@ -21,16 +21,12 @@
 /**
  * struct ion_device - the metadata of the ion device node
  * @dev:		the actual misc device
- * @buffers:		an rb tree of all the existing buffers
- * @buffer_lock:	lock protecting the tree of buffers
  * @lock:		rwsem protecting the tree of heaps, heap_bitmap and
  *			clients
  * @heap_ids:		bitmap of register heap ids
  */
 struct ion_device {
 	struct miscdevice dev;
-	struct rb_root buffers;
-	struct mutex buffer_lock;
 	struct rw_semaphore lock;
 	DECLARE_BITMAP(heap_ids, ION_NUM_MAX_HEAPS);
 	struct plist_head heaps;
