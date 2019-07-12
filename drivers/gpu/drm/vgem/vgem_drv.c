@@ -214,7 +214,7 @@ static int vgem_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 	args->size = gem_object->size;
 	args->pitch = pitch;
 
-	DRM_DEBUG_DRIVER("Created object of size %lld\n", size);
+	DRM_DEBUG("Created object of size %lld\n", size);
 
 	return 0;
 }
