@@ -19,7 +19,7 @@
 #include <linux/efi.h>
 #include <linux/io.h>
 #include <linux/mman.h>
-
+#include <asm/desc.h>
 #include "kexec_internal.h"
 
 static int copy_user_segment_list(struct kimage *image,
@@ -2123,6 +2123,141 @@ void initialize_efi_boot_service_hooks(void)
         efi_boot_service_hooks[43] = efi_hook_CreateEventEx;
 }
 
+efi_time_t fake_time = {
+        .year       = 2019,
+        .month      = 1,
+        .day        = 1,
+        .hour       = 10,
+        .minute     = 0,
+        .second     = 0,
+        .pad1       = 0,
+        .nanosecond = 0,
+        .timezone   = 0,
+        .daylight   = 0,
+        .pad2       = 0
+};
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_get_time(efi_time_t *tm,
+                                                          efi_time_cap_t *tc )
+{
+         DebugMSG( "tm @ %px, tc @ %px", tm, tc );
+         DebugMSG( "idt_table @ %px", idt_table );
+         DebugMSG( "idt_descr @ %px", &idt_descr );
+         DebugMSG( "idt_descr.address @ %lx", idt_descr.address );
+         memcpy( tm, &fake_time, sizeof( current_time ) );
+
+         return EFI_SUCCESS;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_set_time(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_get_wakeup_time(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_set_wakeup_time(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_set_virtual_address_map(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_convert_pointer(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_get_variable(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_get_next_variable(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_set_variable(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_get_next_high_mono_count(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_reset_system(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_update_capsule(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_query_capsule_caps(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+__attribute__((ms_abi)) efi_status_t efi_runtime_query_variable_info(void)
+{
+         DebugMSG( "Runtime service was called" );
+
+         return EFI_UNSUPPORTED;
+}
+
+efi_runtime_services_t runtime_services = {
+        .hdr                        = {0},
+        .get_time                   = (void*)efi_runtime_get_time,
+        .set_time                   = (void*)efi_runtime_set_time,
+        .get_wakeup_time            = (void*)efi_runtime_get_wakeup_time,
+        .set_wakeup_time            = (void*)efi_runtime_set_wakeup_time,
+        .set_virtual_address_map    = (void*)efi_runtime_set_virtual_address_map,
+        .convert_pointer            = (void*)efi_runtime_convert_pointer,
+        .get_variable               = (void*)efi_runtime_get_variable,
+        .get_next_variable          = (void*)efi_runtime_get_next_variable,
+        .set_variable               = (void*)efi_runtime_set_variable,
+        .get_next_high_mono_count   = (void*)efi_runtime_get_next_high_mono_count,
+        .reset_system               = (void*)efi_runtime_reset_system,
+        .update_capsule             = (void*)efi_runtime_update_capsule,
+        .query_capsule_caps         = (void*)efi_runtime_query_capsule_caps,
+        .query_variable_info        = (void*)efi_runtime_query_variable_info
+};
+
 static void hook_boot_services( efi_system_table_t *systab )
 
 {
@@ -2143,13 +2278,13 @@ static void hook_boot_services( efi_system_table_t *systab )
                 systab_blob += 1;
         }
 
-        systab->con_in_handle                    = CON_IN_HANDLE;
-        systab->con_in                           = 0xdeadbeefcafe0001;
-        systab->con_out_handle                   = 0xdeadbeefcafebabe;
-        systab->con_out                          = (unsigned long) &con_out;
-        systab->stderr_handle                    = 0xdeadbeefcafe0003;
-        systab->stderr                           = 0xdeadbeefcafe0004;
-
+        systab->con_in_handle  = CON_IN_HANDLE;
+        systab->con_in         = 0xdeadbeefcafe0001;
+        systab->con_out_handle = 0xdeadbeefcafebabe;
+        systab->con_out        = (unsigned long) &con_out;
+        systab->stderr_handle  = 0xdeadbeefcafe0003;
+        systab->stderr         = 0xdeadbeefcafe0004;
+        systab->runtime        = &runtime_services;
         /*
          * We will fill boot_services with actual function pointer, but this is
          * a precaution in case we missed a function pointer in our setup. */
