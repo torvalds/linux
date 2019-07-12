@@ -153,7 +153,9 @@ int reservation_object_reserve_shared(struct reservation_object *obj,
 			RCU_INIT_POINTER(new->shared[j++], fence);
 	}
 	new->shared_count = j;
-	new->shared_max = max;
+	new->shared_max =
+		(ksize(new) - offsetof(typeof(*new), shared)) /
+		sizeof(*new->shared);
 
 	preempt_disable();
 	write_seqcount_begin(&obj->seq);
@@ -169,7 +171,7 @@ int reservation_object_reserve_shared(struct reservation_object *obj,
 		return 0;
 
 	/* Drop the references to the signaled fences */
-	for (i = k; i < new->shared_max; ++i) {
+	for (i = k; i < max; ++i) {
 		struct dma_fence *fence;
 
 		fence = rcu_dereference_protected(new->shared[i],
