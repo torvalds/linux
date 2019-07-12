@@ -7981,6 +7981,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 	unsigned long log2qty, size;
 	void *table = NULL;
 	gfp_t gfp_flags;
+	bool virt;
 
 	/* allow the kernel cmdline to have a say */
 	if (!numentries) {
@@ -8037,6 +8038,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 
 	gfp_flags = (flags & HASH_ZERO) ? GFP_ATOMIC | __GFP_ZERO : GFP_ATOMIC;
 	do {
+		virt = false;
 		size = bucketsize << log2qty;
 		if (flags & HASH_EARLY) {
 			if (flags & HASH_ZERO)
@@ -8044,26 +8046,26 @@ void *__init alloc_large_system_hash(const char *tablename,
 			else
 				table = memblock_alloc_raw(size,
 							   SMP_CACHE_BYTES);
-		} else if (hashdist) {
+		} else if (get_order(size) >= MAX_ORDER || hashdist) {
 			table = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+			virt = true;
 		} else {
 			/*
 			 * If bucketsize is not a power-of-two, we may free
 			 * some pages at the end of hash table which
 			 * alloc_pages_exact() automatically does
 			 */
-			if (get_order(size) < MAX_ORDER) {
-				table = alloc_pages_exact(size, gfp_flags);
-				kmemleak_alloc(table, size, 1, gfp_flags);
-			}
+			table = alloc_pages_exact(size, gfp_flags);
+			kmemleak_alloc(table, size, 1, gfp_flags);
 		}
 	} while (!table && size > PAGE_SIZE && --log2qty);
 
 	if (!table)
 		panic("Failed to allocate %s hash table\n", tablename);
 
-	pr_info("%s hash table entries: %ld (order: %d, %lu bytes)\n",
-		tablename, 1UL << log2qty, ilog2(size) - PAGE_SHIFT, size);
+	pr_info("%s hash table entries: %ld (order: %d, %lu bytes, %s)\n",
+		tablename, 1UL << log2qty, ilog2(size) - PAGE_SHIFT, size,
+		virt ? "vmalloc" : "linear");
 
 	if (_hash_shift)
 		*_hash_shift = log2qty;
