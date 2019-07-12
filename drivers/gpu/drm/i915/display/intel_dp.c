@@ -4891,6 +4891,13 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 	drm_modeset_acquire_fini(&ctx);
 	WARN(ret, "Acquiring modeset locks failed with %i\n", ret);
 
+	/*
+	 * Keeping it consistent with intel_ddi_hotplug() and
+	 * intel_hdmi_hotplug().
+	 */
+	if (state == INTEL_HOTPLUG_UNCHANGED && irq_received)
+		state = INTEL_HOTPLUG_RETRY;
+
 	return state;
 }
 

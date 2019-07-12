@@ -4075,6 +4075,7 @@ intel_ddi_hotplug(struct intel_encoder *encoder,
 		  struct intel_connector *connector,
 		  bool irq_received)
 {
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 	struct drm_modeset_acquire_ctx ctx;
 	enum intel_hotplug_state state;
 	int ret;
@@ -4100,6 +4101,26 @@ intel_ddi_hotplug(struct intel_encoder *encoder,
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 	WARN(ret, "Acquiring modeset locks failed with %i\n", ret);
+
+	/*
+	 * Unpowered type-c dongles can take some time to boot and be
+	 * responsible, so here giving some time to those dongles to power up
+	 * and then retrying the probe.
+	 *
+	 * On many platforms the HDMI live state signal is known to be
+	 * unreliable, so we can't use it to detect if a sink is connected or
+	 * not. Instead we detect if it's connected based on whether we can
+	 * read the EDID or not. That in turn has a problem during disconnect,
+	 * since the HPD interrupt may be raised before the DDC lines get
+	 * disconnected (due to how the required length of DDC vs. HPD
+	 * connector pins are specified) and so we'll still be able to get a
+	 * valid EDID. To solve this schedule another detection cycle if this
+	 * time around we didn't detect any change in the sink's connection
+	 * status.
+	 */
+	if (state == INTEL_HOTPLUG_UNCHANGED && irq_received &&
+	    !dig_port->dp.is_mst)
+		state = INTEL_HOTPLUG_RETRY;
 
 	return state;
 }
