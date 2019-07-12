@@ -183,12 +183,12 @@ TEST_CUSTOM_PROGS += $(ALU32_BUILD_DIR)/test_progs_32
 $(ALU32_BUILD_DIR):
 	mkdir -p $@
 
-$(ALU32_BUILD_DIR)/urandom_read: $(OUTPUT)/urandom_read
+$(ALU32_BUILD_DIR)/urandom_read: $(OUTPUT)/urandom_read | $(ALU32_BUILD_DIR)
 	cp $< $@
 
 $(ALU32_BUILD_DIR)/test_progs_32: test_progs.c $(OUTPUT)/libbpf.a\
-						$(ALU32_BUILD_DIR) \
-						$(ALU32_BUILD_DIR)/urandom_read
+						$(ALU32_BUILD_DIR)/urandom_read \
+						| $(ALU32_BUILD_DIR)
 	$(CC) $(TEST_PROGS_CFLAGS) $(CFLAGS) \
 		-o $(ALU32_BUILD_DIR)/test_progs_32 \
 		test_progs.c test_stub.c trace_helpers.c prog_tests/*.c \
@@ -197,8 +197,8 @@ $(ALU32_BUILD_DIR)/test_progs_32: test_progs.c $(OUTPUT)/libbpf.a\
 $(ALU32_BUILD_DIR)/test_progs_32: $(PROG_TESTS_H)
 $(ALU32_BUILD_DIR)/test_progs_32: prog_tests/*.c
 
-$(ALU32_BUILD_DIR)/%.o: progs/%.c $(ALU32_BUILD_DIR) \
-					$(ALU32_BUILD_DIR)/test_progs_32
+$(ALU32_BUILD_DIR)/%.o: progs/%.c $(ALU32_BUILD_DIR)/test_progs_32 \
+					| $(ALU32_BUILD_DIR)
 	($(CLANG) $(CLANG_FLAGS) -O2 -target bpf -emit-llvm -c $< -o - || \
 		echo "clang failed") | \
 	$(LLC) -march=bpf -mattr=+alu32 -mcpu=$(CPU) $(LLC_FLAGS) \
@@ -236,7 +236,7 @@ $(PROG_TESTS_DIR):
 	mkdir -p $@
 
 PROG_TESTS_FILES := $(wildcard prog_tests/*.c)
-$(PROG_TESTS_H): $(PROG_TESTS_DIR) $(PROG_TESTS_FILES)
+$(PROG_TESTS_H): $(PROG_TESTS_FILES) | $(PROG_TESTS_DIR)
 	$(shell ( cd prog_tests/; \
 		  echo '/* Generated header, do not edit */'; \
 		  echo '#ifdef DECLARE'; \
@@ -257,7 +257,7 @@ MAP_TESTS_H := $(MAP_TESTS_DIR)/tests.h
 test_maps.c: $(MAP_TESTS_H)
 $(OUTPUT)/test_maps: CFLAGS += $(TEST_MAPS_CFLAGS)
 MAP_TESTS_FILES := $(wildcard map_tests/*.c)
-$(MAP_TESTS_H): $(MAP_TESTS_DIR) $(MAP_TESTS_FILES)
+$(MAP_TESTS_H): $(MAP_TESTS_FILES) | $(MAP_TESTS_DIR)
 	$(shell ( cd map_tests/; \
 		  echo '/* Generated header, do not edit */'; \
 		  echo '#ifdef DECLARE'; \
@@ -279,7 +279,7 @@ $(VERIFIER_TESTS_DIR):
 	mkdir -p $@
 
 VERIFIER_TEST_FILES := $(wildcard verifier/*.c)
-$(OUTPUT)/verifier/tests.h: $(VERIFIER_TESTS_DIR) $(VERIFIER_TEST_FILES)
+$(OUTPUT)/verifier/tests.h: $(VERIFIER_TEST_FILES) | $(VERIFIER_TESTS_DIR)
 	$(shell ( cd verifier/; \
 		  echo '/* Generated header, do not edit */'; \
 		  echo '#ifdef FILL_ARRAY'; \
