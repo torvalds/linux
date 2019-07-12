@@ -58,11 +58,15 @@ static int __get_platform_enable_guc(struct drm_i915_private *i915)
 	struct intel_uc_fw *huc_fw = &i915->huc.fw;
 	int enable_guc = 0;
 
-	/* Default is to use HuC if we know GuC and HuC firmwares */
+	if (!HAS_GUC(i915))
+		return 0;
+
+	/* We don't want to enable GuC/HuC on pre-Gen11 by default */
+	if (INTEL_GEN(i915) < 11)
+		return 0;
+
 	if (intel_uc_fw_is_selected(guc_fw) && intel_uc_fw_is_selected(huc_fw))
 		enable_guc |= ENABLE_GUC_LOAD_HUC;
-
-	/* Any platform specific fine-tuning can be done here */
 
 	return enable_guc;
 }
