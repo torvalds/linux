@@ -1140,7 +1140,7 @@ uint8_t windows_boot_device_path[72] = {
 
 EFI_LOADED_IMAGE_PROTOCOL windows_loaded_image = {
         .Revision         = 0x1000,
-        .ParentHandle     = 0,
+        .ParentHandle     = (void*)0x420000,
         .SystemTable      = NULL,
         .DeviceHandle     = BOOT_DEVICE_HANDLE,
         .FilePath         = NULL,
@@ -1150,7 +1150,7 @@ EFI_LOADED_IMAGE_PROTOCOL windows_loaded_image = {
         .ImageSize        = 0,
         .ImageCodeType    = EfiLoaderCode,
         .ImageDataType    = EfiLoaderData,
-        .Unload           = NULL,
+        .Unload           = (void*)0x430000,
 };
 
 efi_system_table_t  fake_systab        = {0};
