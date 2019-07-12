@@ -240,9 +240,6 @@ struct i915_page_dma {
 	};
 };
 
-#define px_base(px) (&(px)->base)
-#define px_dma(px) (px_base(px)->daddr)
-
 struct i915_page_table {
 	struct i915_page_dma base;
 	atomic_t used;
@@ -254,6 +251,20 @@ struct i915_page_directory {
 	spinlock_t lock;
 	void *entry[512];
 };
+
+#define __px_choose_expr(x, type, expr, other) \
+	__builtin_choose_expr( \
+	__builtin_types_compatible_p(typeof(x), type) || \
+	__builtin_types_compatible_p(typeof(x), const type), \
+	({ type __x = (type)(x); expr; }), \
+	other)
+
+#define px_base(px) \
+	__px_choose_expr(px, struct i915_page_dma *, __x, \
+	__px_choose_expr(px, struct i915_page_table *, &__x->base, \
+	__px_choose_expr(px, struct i915_page_directory *, &__x->base, \
+	(void)0)))
+#define px_dma(px) (px_base(px)->daddr)
 
 struct i915_vma_ops {
 	/* Map an object into an address space with the given cache flags. */
@@ -304,9 +315,9 @@ struct i915_address_space {
 	u64 scratch_pte;
 	int scratch_order;
 	struct i915_page_dma scratch_page;
-	struct i915_page_table *scratch_pt;
-	struct i915_page_directory *scratch_pd;
-	struct i915_page_directory *scratch_pdp; /* GEN8+ & 48b PPGTT */
+	struct i915_page_dma scratch_pt;
+	struct i915_page_dma scratch_pd;
+	struct i915_page_dma scratch_pdp; /* GEN8+ & 48b PPGTT */
 
 	/**
 	 * List of vma currently bound.
