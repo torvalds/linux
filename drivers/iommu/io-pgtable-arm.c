@@ -1012,7 +1012,9 @@ arm_mali_lpae_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
 	iop = arm_64_lpae_alloc_pgtable_s1(cfg, cookie);
 	if (iop) {
 		u64 mair, ttbr;
+		struct arm_lpae_io_pgtable *data = io_pgtable_ops_to_data(&iop->ops);
 
+		data->levels = 4;
 		/* Copy values as union fields overlap */
 		mair = cfg->arm_lpae_s1_cfg.mair[0];
 		ttbr = cfg->arm_lpae_s1_cfg.ttbr[0];
