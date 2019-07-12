@@ -846,14 +846,6 @@ hfa384x_dorrid_async(struct hfa384x *hw,
 }
 
 static inline int
-hfa384x_dowrid_wait(struct hfa384x *hw, u16 rid, void *riddata,
-		    unsigned int riddatalen)
-{
-	return hfa384x_dowrid(hw, DOWAIT,
-			      rid, riddata, riddatalen, NULL, NULL, NULL);
-}
-
-static inline int
 hfa384x_dowrid_async(struct hfa384x *hw,
 		     u16 rid, void *riddata, unsigned int riddatalen,
 		     ctlx_cmdcb_t cmdcb,
@@ -2414,7 +2406,7 @@ int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len)
  */
 int hfa384x_drvr_setconfig(struct hfa384x *hw, u16 rid, void *buf, u16 len)
 {
-	return hfa384x_dowrid_wait(hw, rid, buf, len);
+	return hfa384x_dowrid(hw, DOWAIT, rid, buf, len, NULL, NULL, NULL);
 }
 
 /*----------------------------------------------------------------
