@@ -4407,7 +4407,6 @@ static int ocfs2_downconvert_thread_should_wake(struct ocfs2_super *osb)
 
 static int ocfs2_downconvert_thread(void *arg)
 {
-	int status = 0;
 	struct ocfs2_super *osb = arg;
 
 	/* only quit once we've been asked to stop and there is no more
@@ -4425,7 +4424,7 @@ static int ocfs2_downconvert_thread(void *arg)
 	}
 
 	osb->dc_task = NULL;
-	return status;
+	return 0;
 }
 
 void ocfs2_wake_downconvert_thread(struct ocfs2_super *osb)
