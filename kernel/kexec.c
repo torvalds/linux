@@ -1996,22 +1996,28 @@ __attribute__((ms_abi)) efi_status_t efi_conout_hook_Reset(void)
          return EFI_UNSUPPORTED;
 }
 
-__attribute__((ms_abi)) efi_status_t efi_conout_hook_OutputString(void* this, char* str)
+void wchar_to_ascii( char *dst_ascii, size_t len, char* src_wchar)
 {
-        /* str is CHAR16. We convert it to char* by skipping every 2nd char */
-
-        char str_as_ascii[1024] = {0};
+        /* src_wcharis CHAR16. We convert it to char* by skipping every
+         * 2nd char */
         unsigned int currIdx = 0;
         char c;
 
-        while (currIdx < sizeof( str_as_ascii ))
+        while (currIdx < len)
         {
-                c = str[currIdx*2];
+                c = src_wchar[currIdx*2];
                 if (c == 0)
                         break;
 
-                str_as_ascii[currIdx++] = c;
+                dst_ascii[currIdx++] = c;
         }
+}
+
+__attribute__((ms_abi)) efi_status_t efi_conout_hook_OutputString(void* this,
+                                                                  char* str )
+{
+        char str_as_ascii[1024] = {0};
+        wchar_to_ascii( str_as_ascii, sizeof( str_as_ascii ), str );
 
         DebugMSG( "output: %s", str_as_ascii );
 
@@ -2203,11 +2209,22 @@ __attribute__((ms_abi)) efi_status_t efi_runtime_get_next_variable(void)
          return EFI_UNSUPPORTED;
 }
 
-__attribute__((ms_abi)) efi_status_t efi_runtime_set_variable(void)
-{
-         DebugMSG( "Runtime service was called" );
+ __attribute__((ms_abi)) efi_status_t efi_runtime_set_variable(
+                                                CHAR16        *name,
+                                                EFI_GUID      *vendor,
+					        u32           attr,
+                                                unsigned long data_size,
+					        void          *data )
 
-         return EFI_UNSUPPORTED;
+{
+        char str_as_ascii[1024] = {0};
+        wchar_to_ascii( str_as_ascii, sizeof( str_as_ascii ), (char*)name );
+
+        DebugMSG( "name: %s, vendor = %s (%s), data_size = %ld",
+                  str_as_ascii, GetGuidName( vendor ),
+                  get_GUID_str( vendor ), data_size );
+
+        return EFI_SUCCESS;
 }
 
 __attribute__((ms_abi)) efi_status_t efi_runtime_get_next_high_mono_count(void)
