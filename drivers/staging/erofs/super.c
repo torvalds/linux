@@ -554,16 +554,11 @@ static struct dentry *erofs_mount(
 		&priv, erofs_fill_super);
 }
 
-static void erofs_kill_sb(struct super_block *sb)
-{
-	kill_block_super(sb);
-}
-
 static struct file_system_type erofs_fs_type = {
 	.owner          = THIS_MODULE,
 	.name           = "erofs",
 	.mount          = erofs_mount,
-	.kill_sb        = erofs_kill_sb,
+	.kill_sb        = kill_block_super,
 	.fs_flags       = FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("erofs");
