@@ -115,29 +115,18 @@ typedef u64 gen8_pte_t;
 #define HSW_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0x7f0))
 #define HSW_PTE_ADDR_ENCODE(addr)	HSW_GTT_ADDR_ENCODE(addr)
 
-/* GEN8 32b style address is defined as a 3 level page table:
+/*
+ * GEN8 32b style address is defined as a 3 level page table:
  * 31:30 | 29:21 | 20:12 |  11:0
  * PDPE  |  PDE  |  PTE  | offset
  * The difference as compared to normal x86 3 level page table is the PDPEs are
  * programmed via register.
- */
-#define GEN8_3LVL_PDPES			4
-#define GEN8_PDE_SHIFT			21
-#define GEN8_PDE_MASK			0x1ff
-#define GEN8_PTE_MASK			0x1ff
-#define GEN8_PTES			I915_PTES(sizeof(gen8_pte_t))
-
-/* GEN8 48b style address is defined as a 4 level page table:
+ *
+ * GEN8 48b style address is defined as a 4 level page table:
  * 47:39 | 38:30 | 29:21 | 20:12 |  11:0
  * PML4E | PDPE  |  PDE  |  PTE  | offset
  */
-#define GEN8_PML4ES_PER_PML4		512
-#define GEN8_PML4E_SHIFT		39
-#define GEN8_PML4E_MASK			(GEN8_PML4ES_PER_PML4 - 1)
-#define GEN8_PDPE_SHIFT			30
-/* NB: GEN8_PDPE_MASK is untrue for 32b platforms, but it has no impact on 32b page
- * tables */
-#define GEN8_PDPE_MASK			0x1ff
+#define GEN8_3LVL_PDPES			4
 
 #define PPAT_UNCACHED			(_PAGE_PWT | _PAGE_PCD)
 #define PPAT_CACHED_PDE			0 /* WB LLC */
@@ -521,15 +510,6 @@ static inline u32 gen6_pde_index(u32 addr)
 	return i915_pde_index(addr, GEN6_PDE_SHIFT);
 }
 
-static inline unsigned int
-i915_pdpes_per_pdp(const struct i915_address_space *vm)
-{
-	if (i915_vm_is_4lvl(vm))
-		return GEN8_PML4ES_PER_PML4;
-
-	return GEN8_3LVL_PDPES;
-}
-
 static inline struct i915_page_table *
 i915_pt_entry(const struct i915_page_directory * const pd,
 	      const unsigned short n)
@@ -542,66 +522,6 @@ i915_pd_entry(const struct i915_page_directory * const pdp,
 	      const unsigned short n)
 {
 	return pdp->entry[n];
-}
-
-static inline struct i915_page_directory *
-i915_pdp_entry(const struct i915_page_directory * const pml4,
-	       const unsigned short n)
-{
-	return pml4->entry[n];
-}
-
-/* Equivalent to the gen6 version, For each pde iterates over every pde
- * between from start until start + length. On gen8+ it simply iterates
- * over every page directory entry in a page directory.
- */
-#define gen8_for_each_pde(pt, pd, start, length, iter)			\
-	for (iter = gen8_pde_index(start);				\
-	     length > 0 && iter < I915_PDES &&				\
-		     (pt = i915_pt_entry(pd, iter), true);		\
-	     ({ u64 temp = ALIGN(start+1, 1 << GEN8_PDE_SHIFT);		\
-		    temp = min(temp - start, length);			\
-		    start += temp, length -= temp; }), ++iter)
-
-#define gen8_for_each_pdpe(pd, pdp, start, length, iter)		\
-	for (iter = gen8_pdpe_index(start);				\
-	     length > 0 && iter < i915_pdpes_per_pdp(vm) &&		\
-		     (pd = i915_pd_entry(pdp, iter), true);		\
-	     ({ u64 temp = ALIGN(start+1, 1 << GEN8_PDPE_SHIFT);	\
-		    temp = min(temp - start, length);			\
-		    start += temp, length -= temp; }), ++iter)
-
-#define gen8_for_each_pml4e(pdp, pml4, start, length, iter)		\
-	for (iter = gen8_pml4e_index(start);				\
-	     length > 0 && iter < GEN8_PML4ES_PER_PML4 &&		\
-		     (pdp = i915_pdp_entry(pml4, iter), true);		\
-	     ({ u64 temp = ALIGN(start+1, 1ULL << GEN8_PML4E_SHIFT);	\
-		    temp = min(temp - start, length);			\
-		    start += temp, length -= temp; }), ++iter)
-
-static inline u32 gen8_pte_index(u64 address)
-{
-	return i915_pte_index(address, GEN8_PDE_SHIFT);
-}
-
-static inline u32 gen8_pde_index(u64 address)
-{
-	return i915_pde_index(address, GEN8_PDE_SHIFT);
-}
-
-static inline u32 gen8_pdpe_index(u64 address)
-{
-	return (address >> GEN8_PDPE_SHIFT) & GEN8_PDPE_MASK;
-}
-
-static inline u32 gen8_pml4e_index(u64 address)
-{
-	return (address >> GEN8_PML4E_SHIFT) & GEN8_PML4E_MASK;
-}
-
-static inline u64 gen8_pte_count(u64 address, u64 length)
-{
-	return i915_pte_count(address, length, GEN8_PDE_SHIFT);
 }
 
 static inline dma_addr_t
