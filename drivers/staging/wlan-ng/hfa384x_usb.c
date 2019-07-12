@@ -846,17 +846,6 @@ hfa384x_dorrid_async(struct hfa384x *hw,
 }
 
 static inline int
-hfa384x_dowrid_async(struct hfa384x *hw,
-		     u16 rid, void *riddata, unsigned int riddatalen,
-		     ctlx_cmdcb_t cmdcb,
-		     ctlx_usercb_t usercb, void *usercb_data)
-{
-	return hfa384x_dowrid(hw, DOASYNC,
-			      rid, riddata, riddatalen,
-			      cmdcb, usercb, usercb_data);
-}
-
-static inline int
 hfa384x_dormem_wait(struct hfa384x *hw,
 		    u16 page, u16 offset, void *data, unsigned int len)
 {
@@ -2078,8 +2067,8 @@ hfa384x_drvr_setconfig_async(struct hfa384x *hw,
 			     void *buf,
 			     u16 len, ctlx_usercb_t usercb, void *usercb_data)
 {
-	return hfa384x_dowrid_async(hw, rid, buf, len,
-				    hfa384x_cb_status, usercb, usercb_data);
+	return hfa384x_dowrid(hw, DOASYNC, rid, buf, len, hfa384x_cb_status,
+			      usercb, usercb_data);
 }
 
 /*----------------------------------------------------------------
