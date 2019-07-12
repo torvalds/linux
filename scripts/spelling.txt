@@ -1145,7 +1145,6 @@ senarios||scenarios
 sentivite||sensitive
 separatly||separately
 sepcify||specify
-sepc||spec
 seperated||separated
 seperately||separately
 seperate||separate

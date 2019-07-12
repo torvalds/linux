@@ -2963,7 +2963,7 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 		del_timer_sync(&phba->fcp_poll_timer);
 		break;
 	case LPFC_PCI_DEV_OC:
-		/* Stop any OneConnect device sepcific driver timers */
+		/* Stop any OneConnect device specific driver timers */
 		lpfc_sli4_stop_fcf_redisc_wait_timer(phba);
 		break;
 	default:
