@@ -1600,7 +1600,7 @@ err_uc_misc:
 	return ret;
 }
 
-void i915_gem_fini_hw(struct drm_i915_private *dev_priv)
+void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 {
 	GEM_BUG_ON(dev_priv->gt.awake);
 

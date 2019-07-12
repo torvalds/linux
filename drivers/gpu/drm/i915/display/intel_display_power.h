@@ -241,7 +241,7 @@ void gen9_enable_dc5(struct drm_i915_private *dev_priv);
 int intel_power_domains_init(struct drm_i915_private *dev_priv);
 void intel_power_domains_cleanup(struct drm_i915_private *dev_priv);
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume);
-void intel_power_domains_fini_hw(struct drm_i915_private *dev_priv);
+void intel_power_domains_driver_remove(struct drm_i915_private *dev_priv);
 void icl_display_core_init(struct drm_i915_private *dev_priv, bool resume);
 void icl_display_core_uninit(struct drm_i915_private *dev_priv);
 void intel_power_domains_enable(struct drm_i915_private *dev_priv);

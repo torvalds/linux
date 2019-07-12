@@ -757,16 +757,16 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 cleanup_gem:
 	i915_gem_suspend(dev_priv);
-	i915_gem_fini_hw(dev_priv);
+	i915_gem_driver_remove(dev_priv);
 	i915_gem_driver_release(dev_priv);
 cleanup_modeset:
-	intel_modeset_cleanup(dev);
+	intel_modeset_driver_remove(dev);
 cleanup_irq:
 	intel_irq_uninstall(dev_priv);
 	intel_gmbus_teardown(dev_priv);
 cleanup_csr:
 	intel_csr_ucode_fini(dev_priv);
-	intel_power_domains_fini_hw(dev_priv);
+	intel_power_domains_driver_remove(dev_priv);
 	vga_switcheroo_unregister_client(pdev);
 cleanup_vga_client:
 	vga_client_register(pdev, NULL, NULL, NULL);
@@ -1698,10 +1698,10 @@ err_perf:
 }
 
 /**
- * i915_driver_cleanup_hw - cleanup the setup done in i915_driver_init_hw()
+ * i915_driver_hw_remove - cleanup the setup done in i915_driver_hw_probe()
  * @dev_priv: device private
  */
-static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
+static void i915_driver_hw_remove(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
@@ -1935,7 +1935,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 out_cleanup_hw:
-	i915_driver_cleanup_hw(dev_priv);
+	i915_driver_hw_remove(dev_priv);
 	i915_ggtt_driver_release(dev_priv);
 
 	/* Paranoia: make sure we have disabled everything before we exit. */
@@ -1976,11 +1976,11 @@ void i915_driver_remove(struct drm_device *dev)
 
 	drm_atomic_helper_shutdown(dev);
 
-	intel_gvt_cleanup(dev_priv);
+	intel_gvt_driver_remove(dev_priv);
 
-	intel_modeset_cleanup(dev);
+	intel_modeset_driver_remove(dev);
 
-	intel_bios_cleanup(dev_priv);
+	intel_bios_driver_remove(dev_priv);
 
 	vga_switcheroo_unregister_client(pdev);
 	vga_client_register(pdev, NULL, NULL, NULL);
@@ -1991,11 +1991,11 @@ void i915_driver_remove(struct drm_device *dev)
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	i915_reset_error_state(dev_priv);
 
-	i915_gem_fini_hw(dev_priv);
+	i915_gem_driver_remove(dev_priv);
 
-	intel_power_domains_fini_hw(dev_priv);
+	intel_power_domains_driver_remove(dev_priv);
 
-	i915_driver_cleanup_hw(dev_priv);
+	i915_driver_hw_remove(dev_priv);
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 }

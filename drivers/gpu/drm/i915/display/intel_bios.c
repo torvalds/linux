@@ -1908,10 +1908,10 @@ out:
 }
 
 /**
- * intel_bios_cleanup - Free any resources allocated by intel_bios_init()
+ * intel_bios_driver_remove - Free any resources allocated by intel_bios_init()
  * @dev_priv: i915 device instance
  */
-void intel_bios_cleanup(struct drm_i915_private *dev_priv)
+void intel_bios_driver_remove(struct drm_i915_private *dev_priv)
 {
 	kfree(dev_priv->vbt.child_dev);
 	dev_priv->vbt.child_dev = NULL;

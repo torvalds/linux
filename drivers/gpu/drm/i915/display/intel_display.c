@@ -17092,7 +17092,7 @@ static void intel_hpd_poll_fini(struct drm_device *dev)
 	drm_connector_list_iter_end(&conn_iter);
 }
 
-void intel_modeset_cleanup(struct drm_device *dev)
+void intel_modeset_driver_remove(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 

@@ -122,13 +122,14 @@ bail:
 }
 
 /**
- * intel_gvt_cleanup - cleanup GVT components when i915 driver is unloading
+ * intel_gvt_driver_remove - cleanup GVT components when i915 driver is
+ *			     unbinding
  * @dev_priv: drm i915 private *
  *
  * This function is called at the i915 driver unloading stage, to shutdown
  * GVT components and release the related resources.
  */
-void intel_gvt_cleanup(struct drm_i915_private *dev_priv)
+void intel_gvt_driver_remove(struct drm_i915_private *dev_priv)
 {
 	if (!intel_gvt_active(dev_priv))
 		return;

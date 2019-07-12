@@ -4902,7 +4902,7 @@ static void intel_power_domains_verify_state(struct drm_i915_private *dev_priv);
  *
  * It will return with power domains disabled (to be enabled later by
  * intel_power_domains_enable()) and must be paired with
- * intel_power_domains_fini_hw().
+ * intel_power_domains_driver_remove().
  */
 void intel_power_domains_init_hw(struct drm_i915_private *i915, bool resume)
 {
@@ -4954,7 +4954,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *i915, bool resume)
 }
 
 /**
- * intel_power_domains_fini_hw - deinitialize hw power domain state
+ * intel_power_domains_driver_remove - deinitialize hw power domain state
  * @i915: i915 device instance
  *
  * De-initializes the display power domain HW state. It also ensures that the
@@ -4964,7 +4964,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *i915, bool resume)
  * intel_power_domains_disable()) and must be paired with
  * intel_power_domains_init_hw().
  */
-void intel_power_domains_fini_hw(struct drm_i915_private *i915)
+void intel_power_domains_driver_remove(struct drm_i915_private *i915)
 {
 	intel_wakeref_t wakeref __maybe_unused =
 		fetch_and_zero(&i915->power_domains.wakeref);
