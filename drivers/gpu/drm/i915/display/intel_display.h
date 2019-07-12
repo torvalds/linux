@@ -260,6 +260,12 @@ enum phy {
 
 #define phy_name(a) ((a) + 'A')
 
+enum phy_fia {
+	FIA1,
+	FIA2,
+	FIA3,
+};
+
 #define for_each_pipe(__dev_priv, __p) \
 	for ((__p) = 0; (__p) < INTEL_INFO(__dev_priv)->num_pipes; (__p)++)
 

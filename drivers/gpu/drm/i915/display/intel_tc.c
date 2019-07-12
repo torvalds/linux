@@ -22,6 +22,28 @@ static const char *tc_port_mode_name(enum tc_port_mode mode)
 	return names[mode];
 }
 
+static bool has_modular_fia(struct drm_i915_private *i915)
+{
+	if (!INTEL_INFO(i915)->display.has_modular_fia)
+		return false;
+
+	return intel_uncore_read(&i915->uncore,
+				 PORT_TX_DFLEXDPSP(FIA1)) & MODULAR_FIA_MASK;
+}
+
+static enum phy_fia tc_port_to_fia(struct drm_i915_private *i915,
+				   enum tc_port tc_port)
+{
+	if (!has_modular_fia(i915))
+		return FIA1;
+
+	/*
+	 * Each Modular FIA instance houses 2 TC ports. In SOC that has more
+	 * than two TC ports, there are multiple instances of Modular FIA.
+	 */
+	return tc_port / 2;
+}
+
 u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
@@ -29,7 +51,8 @@ u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 lane_mask;
 
-	lane_mask = intel_uncore_read(uncore, PORT_TX_DFLEXDPSP);
+	lane_mask = intel_uncore_read(uncore,
+				      PORT_TX_DFLEXDPSP(dig_port->tc_phy_fia));
 
 	WARN_ON(lane_mask == 0xffffffff);
 
@@ -78,7 +101,8 @@ void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
 
 	WARN_ON(lane_reversal && dig_port->tc_mode != TC_PORT_LEGACY);
 
-	val = intel_uncore_read(uncore, PORT_TX_DFLEXDPMLE1);
+	val = intel_uncore_read(uncore,
+				PORT_TX_DFLEXDPMLE1(dig_port->tc_phy_fia));
 	val &= ~DFLEXDPMLE1_DPMLETC_MASK(tc_port);
 
 	switch (required_lanes) {
@@ -97,7 +121,8 @@ void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
 		MISSING_CASE(required_lanes);
 	}
 
-	intel_uncore_write(uncore, PORT_TX_DFLEXDPMLE1, val);
+	intel_uncore_write(uncore,
+			   PORT_TX_DFLEXDPMLE1(dig_port->tc_phy_fia), val);
 }
 
 static void tc_port_fixup_legacy_flag(struct intel_digital_port *dig_port,
@@ -129,7 +154,8 @@ static u32 tc_port_live_status_mask(struct intel_digital_port *dig_port)
 	u32 mask = 0;
 	u32 val;
 
-	val = intel_uncore_read(uncore, PORT_TX_DFLEXDPSP);
+	val = intel_uncore_read(uncore,
+				PORT_TX_DFLEXDPSP(dig_port->tc_phy_fia));
 
 	if (val == 0xffffffff) {
 		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, nothing connected\n",
@@ -159,7 +185,8 @@ static bool icl_tc_phy_status_complete(struct intel_digital_port *dig_port)
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 val;
 
-	val = intel_uncore_read(uncore, PORT_TX_DFLEXDPPMS);
+	val = intel_uncore_read(uncore,
+				PORT_TX_DFLEXDPPMS(dig_port->tc_phy_fia));
 	if (val == 0xffffffff) {
 		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, assuming not complete\n",
 			      dig_port->tc_port_name);
@@ -177,7 +204,8 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 val;
 
-	val = intel_uncore_read(uncore, PORT_TX_DFLEXDPCSSS);
+	val = intel_uncore_read(uncore,
+				PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia));
 	if (val == 0xffffffff) {
 		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, can't set safe-mode to %s\n",
 			      dig_port->tc_port_name,
@@ -190,7 +218,8 @@ static bool icl_tc_phy_set_safe_mode(struct intel_digital_port *dig_port,
 	if (!enable)
 		val |= DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
 
-	intel_uncore_write(uncore, PORT_TX_DFLEXDPCSSS, val);
+	intel_uncore_write(uncore,
+			   PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia), val);
 
 	if (enable && wait_for(!icl_tc_phy_status_complete(dig_port), 10))
 		DRM_DEBUG_KMS("Port %s: PHY complete clear timed out\n",
@@ -206,7 +235,8 @@ static bool icl_tc_phy_is_in_safe_mode(struct intel_digital_port *dig_port)
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 val;
 
-	val = intel_uncore_read(uncore, PORT_TX_DFLEXDPCSSS);
+	val = intel_uncore_read(uncore,
+				PORT_TX_DFLEXDPCSSS(dig_port->tc_phy_fia));
 	if (val == 0xffffffff) {
 		DRM_DEBUG_KMS("Port %s: PHY in TCCOLD, assume safe mode\n",
 			      dig_port->tc_port_name);
@@ -503,4 +533,5 @@ void intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 	mutex_init(&dig_port->tc_lock);
 	dig_port->tc_legacy_port = is_legacy;
 	dig_port->tc_link_refcount = 0;
+	dig_port->tc_phy_fia = tc_port_to_fia(i915, tc_port);
 }

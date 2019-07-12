@@ -2204,9 +2204,13 @@ enum i915_power_well_id {
 #define   DW6_OLDO_DYN_PWR_DOWN_EN	(1 << 28)
 
 #define FIA1_BASE			0x163000
+#define FIA2_BASE			0x16E000
+#define FIA3_BASE			0x16F000
+#define _FIA(fia)			_PICK((fia), FIA1_BASE, FIA2_BASE, FIA3_BASE)
+#define _MMIO_FIA(fia, off)		_MMIO(_FIA(fia) + (off))
 
 /* ICL PHY DFLEX registers */
-#define PORT_TX_DFLEXDPMLE1		_MMIO(FIA1_BASE + 0x008C0)
+#define PORT_TX_DFLEXDPMLE1(fia)	_MMIO_FIA((fia),  0x008C0)
 #define   DFLEXDPMLE1_DPMLETC_MASK(tc_port)	(0xf << (4 * (tc_port)))
 #define   DFLEXDPMLE1_DPMLETC_ML0(tc_port)	(1 << (4 * (tc_port)))
 #define   DFLEXDPMLE1_DPMLETC_ML1_0(tc_port)	(3 << (4 * (tc_port)))
@@ -11535,17 +11539,18 @@ enum skl_power_gate {
 						_ICL_DSC1_RC_BUF_THRESH_1_UDW_PB, \
 						_ICL_DSC1_RC_BUF_THRESH_1_UDW_PC)
 
-#define PORT_TX_DFLEXDPSP			_MMIO(FIA1_BASE + 0x008A0)
+#define PORT_TX_DFLEXDPSP(fia)			_MMIO_FIA((fia), 0x008A0)
+#define   MODULAR_FIA_MASK			(1 << 4)
 #define   TC_LIVE_STATE_TBT(tc_port)		(1 << ((tc_port) * 8 + 6))
 #define   TC_LIVE_STATE_TC(tc_port)		(1 << ((tc_port) * 8 + 5))
 #define   DP_LANE_ASSIGNMENT_SHIFT(tc_port)	((tc_port) * 8)
 #define   DP_LANE_ASSIGNMENT_MASK(tc_port)	(0xf << ((tc_port) * 8))
 #define   DP_LANE_ASSIGNMENT(tc_port, x)	((x) << ((tc_port) * 8))
 
-#define PORT_TX_DFLEXDPPMS				_MMIO(FIA1_BASE + 0x00890)
+#define PORT_TX_DFLEXDPPMS(fia)			_MMIO_FIA((fia), 0x00890)
 #define   DP_PHY_MODE_STATUS_COMPLETED(tc_port)		(1 << (tc_port))
 
-#define PORT_TX_DFLEXDPCSSS			_MMIO(FIA1_BASE + 0x00894)
+#define PORT_TX_DFLEXDPCSSS(fia)		_MMIO_FIA((fia), 0x00894)
 #define   DP_PHY_MODE_STATUS_NOT_SAFE(tc_port)		(1 << (tc_port))
 
 #endif /* _I915_REG_H_ */
