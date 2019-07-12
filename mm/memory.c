@@ -1475,8 +1475,6 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
 
 	retval = 0;
-	pte_unmap_unlock(pte, ptl);
-	return retval;
 out_unlock:
 	pte_unmap_unlock(pte, ptl);
 out:
