@@ -133,6 +133,7 @@ config HAVE_MEMBLOCK_PHYS_MAP
 	bool
 
 config HAVE_FAST_GUP
+	depends on MMU
 	bool
 
 config ARCH_KEEP_MEMBLOCK

@@ -134,6 +134,7 @@ void put_user_pages(struct page **pages, unsigned long npages)
 }
 EXPORT_SYMBOL(put_user_pages);
 
+#ifdef CONFIG_MMU
 static struct page *no_page_table(struct vm_area_struct *vma,
 		unsigned int flags)
 {
@@ -1322,6 +1323,51 @@ struct page *get_dump_page(unsigned long addr)
 	return page;
 }
 #endif /* CONFIG_ELF_CORE */
+#else /* CONFIG_MMU */
+static long __get_user_pages_locked(struct task_struct *tsk,
+		struct mm_struct *mm, unsigned long start,
+		unsigned long nr_pages, struct page **pages,
+		struct vm_area_struct **vmas, int *locked,
+		unsigned int foll_flags)
+{
+	struct vm_area_struct *vma;
+	unsigned long vm_flags;
+	int i;
+
+	/* calculate required read or write permissions.
+	 * If FOLL_FORCE is set, we only require the "MAY" flags.
+	 */
+	vm_flags  = (foll_flags & FOLL_WRITE) ?
+			(VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
+	vm_flags &= (foll_flags & FOLL_FORCE) ?
+			(VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
+
+	for (i = 0; i < nr_pages; i++) {
+		vma = find_vma(mm, start);
+		if (!vma)
+			goto finish_or_fault;
+
+		/* protect what we can, including chardevs */
+		if ((vma->vm_flags & (VM_IO | VM_PFNMAP)) ||
+		    !(vm_flags & vma->vm_flags))
+			goto finish_or_fault;
+
+		if (pages) {
+			pages[i] = virt_to_page(start);
+			if (pages[i])
+				get_page(pages[i]);
+		}
+		if (vmas)
+			vmas[i] = vma;
+		start = (start + PAGE_SIZE) & PAGE_MASK;
+	}
+
+	return i;
+
+finish_or_fault:
+	return i ? : -EFAULT;
+}
+#endif /* !CONFIG_MMU */
 
 #if defined(CONFIG_FS_DAX) || defined (CONFIG_CMA)
 static bool check_dax_vmas(struct vm_area_struct **vmas, long nr_pages)
@@ -1484,7 +1530,7 @@ static long check_and_migrate_cma_pages(struct task_struct *tsk,
 {
 	return nr_pages;
 }
-#endif
+#endif /* CONFIG_CMA */
 
 /*
  * __gup_longterm_locked() is a wrapper for __get_user_pages_locked which
@@ -2160,6 +2206,12 @@ static void gup_pgd_range(unsigned long addr, unsigned long end,
 			return;
 	} while (pgdp++, addr = next, addr != end);
 }
+#else
+static inline void gup_pgd_range(unsigned long addr, unsigned long end,
+		unsigned int flags, struct page **pages, int *nr)
+{
+}
+#endif /* CONFIG_HAVE_FAST_GUP */
 
 #ifndef gup_fast_permitted
 /*
@@ -2177,6 +2229,9 @@ static bool gup_fast_permitted(unsigned long start, unsigned long end)
  * the regular GUP.
  * Note a difference with get_user_pages_fast: this always returns the
  * number of pages pinned, 0 if no pages were pinned.
+ *
+ * If the architecture does not support this function, simply return with no
+ * pages pinned.
  */
 int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			  struct page **pages)
@@ -2206,7 +2261,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	 * block IPIs that come from THPs splitting.
 	 */
 
-	if (gup_fast_permitted(start, end)) {
+	if (IS_ENABLED(CONFIG_HAVE_FAST_GUP) &&
+	    gup_fast_permitted(start, end)) {
 		local_irq_save(flags);
 		gup_pgd_range(start, end, write ? FOLL_WRITE : 0, pages, &nr);
 		local_irq_restore(flags);
@@ -2214,6 +2270,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 
 	return nr;
 }
+EXPORT_SYMBOL_GPL(__get_user_pages_fast);
 
 static int __gup_longterm_unlocked(unsigned long start, int nr_pages,
 				   unsigned int gup_flags, struct page **pages)
@@ -2270,7 +2327,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
 	if (unlikely(!access_ok((void __user *)start, len)))
 		return -EFAULT;
 
-	if (gup_fast_permitted(start, end)) {
+	if (IS_ENABLED(CONFIG_HAVE_FAST_GUP) &&
+	    gup_fast_permitted(start, end)) {
 		local_irq_disable();
 		gup_pgd_range(addr, end, gup_flags, pages, &nr);
 		local_irq_enable();
@@ -2296,5 +2354,4 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
 
 	return ret;
 }
-
-#endif /* CONFIG_HAVE_GENERIC_GUP */
+EXPORT_SYMBOL_GPL(get_user_pages_fast);
