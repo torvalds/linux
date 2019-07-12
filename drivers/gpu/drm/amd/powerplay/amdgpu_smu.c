@@ -1448,17 +1448,16 @@ int smu_handle_task(struct smu_context *smu,
 enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+	enum amd_dpm_forced_level level;
 
 	if (!smu_dpm_ctx->dpm_context)
 		return -EINVAL;
 
 	mutex_lock(&(smu->mutex));
-	if (smu_dpm_ctx->dpm_level != smu_dpm_ctx->saved_dpm_level) {
-		smu_dpm_ctx->saved_dpm_level = smu_dpm_ctx->dpm_level;
-	}
+	level = smu_dpm_ctx->dpm_level;
 	mutex_unlock(&(smu->mutex));
 
-	return smu_dpm_ctx->dpm_level;
+	return level;
 }
 
 int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
