@@ -449,13 +449,18 @@ void mt7615_txp_skb_unmap(struct mt76_dev *dev,
 				 le16_to_cpu(txp->len[i]), DMA_TO_DEVICE);
 }
 
+static u32 mt7615_mac_wtbl_addr(int wcid)
+{
+	return MT_WTBL_BASE + wcid * MT_WTBL_ENTRY_SIZE;
+}
+
 void mt7615_mac_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *probe_rate,
 			  struct ieee80211_tx_rate *rates)
 {
 	struct ieee80211_tx_rate *ref;
 	int wcid = sta->wcid.idx;
-	u32 addr = MT_WTBL_BASE + wcid * MT_WTBL_ENTRY_SIZE;
+	u32 addr = mt7615_mac_wtbl_addr(wcid);
 	bool stbc = false;
 	int n_rates = sta->n_rates;
 	u8 bw, bw_prev, bw_idx = 0;
