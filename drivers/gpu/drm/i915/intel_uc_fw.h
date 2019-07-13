@@ -26,6 +26,7 @@
 #define _INTEL_UC_FW_H_
 
 #include <linux/types.h>
+#include "i915_gem.h"
 
 struct drm_printer;
 struct drm_i915_private;
@@ -34,8 +35,10 @@ struct drm_i915_private;
 #define INTEL_UC_FIRMWARE_URL "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/tree/i915"
 
 enum intel_uc_fw_status {
+	INTEL_UC_FIRMWARE_NOT_SUPPORTED = -2, /* no uc HW */
 	INTEL_UC_FIRMWARE_FAIL = -1,
-	INTEL_UC_FIRMWARE_NONE = 0,
+	INTEL_UC_FIRMWARE_UNINITIALIZED = 0, /* used to catch checks done too early */
+	INTEL_UC_FIRMWARE_NOT_STARTED = 1,
 	INTEL_UC_FIRMWARE_PENDING,
 	INTEL_UC_FIRMWARE_SUCCESS
 };
@@ -79,10 +82,14 @@ static inline
 const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
 {
 	switch (status) {
+	case INTEL_UC_FIRMWARE_NOT_SUPPORTED:
+		return "N/A - uc HW not available";
 	case INTEL_UC_FIRMWARE_FAIL:
 		return "FAIL";
-	case INTEL_UC_FIRMWARE_NONE:
-		return "NONE";
+	case INTEL_UC_FIRMWARE_UNINITIALIZED:
+		return "UNINITIALIZED";
+	case INTEL_UC_FIRMWARE_NOT_STARTED:
+		return "NOT_STARTED";
 	case INTEL_UC_FIRMWARE_PENDING:
 		return "PENDING";
 	case INTEL_UC_FIRMWARE_SUCCESS:
@@ -106,9 +113,15 @@ static inline
 void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 			    enum intel_uc_fw_type type)
 {
+	/*
+	 * we use FIRMWARE_UNINITIALIZED to detect checks against fetch_status
+	 * before we're looked at the HW caps to see if we have uc support
+	 */
+	BUILD_BUG_ON(INTEL_UC_FIRMWARE_UNINITIALIZED);
+
 	uc_fw->path = NULL;
-	uc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
-	uc_fw->load_status = INTEL_UC_FIRMWARE_NONE;
+	uc_fw->fetch_status = INTEL_UC_FIRMWARE_UNINITIALIZED;
+	uc_fw->load_status = INTEL_UC_FIRMWARE_NOT_STARTED;
 	uc_fw->type = type;
 }
 
@@ -120,6 +133,13 @@ static inline bool intel_uc_fw_is_selected(struct intel_uc_fw *uc_fw)
 static inline bool intel_uc_fw_is_loaded(struct intel_uc_fw *uc_fw)
 {
 	return uc_fw->load_status == INTEL_UC_FIRMWARE_SUCCESS;
+}
+
+static inline bool intel_uc_fw_supported(struct intel_uc_fw *uc_fw)
+{
+	/* shouldn't call this before checking hw/blob availability */
+	GEM_BUG_ON(uc_fw->fetch_status == INTEL_UC_FIRMWARE_UNINITIALIZED);
+	return uc_fw->fetch_status != INTEL_UC_FIRMWARE_NOT_SUPPORTED;
 }
 
 static inline void intel_uc_fw_sanitize(struct intel_uc_fw *uc_fw)

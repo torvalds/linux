@@ -73,8 +73,12 @@ static void huc_fw_select(struct intel_uc_fw *huc_fw)
 
 	GEM_BUG_ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
 
-	if (!HAS_HUC(dev_priv))
+	if (!HAS_HUC(dev_priv)) {
+		huc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_SUPPORTED;
 		return;
+	}
+
+	huc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_STARTED;
 
 	if (i915_modparams.huc_firmware_path) {
 		huc_fw->path = i915_modparams.huc_firmware_path;

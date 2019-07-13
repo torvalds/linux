@@ -47,6 +47,8 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 	size_t size;
 	int err;
 
+	GEM_BUG_ON(!intel_uc_fw_supported(uc_fw));
+
 	if (!uc_fw->path) {
 		dev_info(dev_priv->drm.dev,
 			 "%s: No firmware was defined for %s!\n",
@@ -328,7 +330,7 @@ void intel_uc_fw_cleanup_fetch(struct intel_uc_fw *uc_fw)
 	if (obj)
 		i915_gem_object_put(obj);
 
-	uc_fw->fetch_status = INTEL_UC_FIRMWARE_NONE;
+	uc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_STARTED;
 }
 
 /**

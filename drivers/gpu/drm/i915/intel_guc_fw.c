@@ -79,8 +79,12 @@ static void guc_fw_select(struct intel_uc_fw *guc_fw)
 
 	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
 
-	if (!HAS_GUC(i915))
+	if (!HAS_GUC(i915)) {
+		guc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_SUPPORTED;
 		return;
+	}
+
+	guc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_STARTED;
 
 	if (i915_modparams.guc_firmware_path) {
 		guc_fw->path = i915_modparams.guc_firmware_path;
