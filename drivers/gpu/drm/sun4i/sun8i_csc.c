@@ -69,7 +69,7 @@ static void sun8i_csc_set_coefficients(struct regmap *map, u32 base,
 				       enum sun8i_csc_mode mode)
 {
 	const u32 *table;
-	int i, data;
+	u32 base_reg;
 
 	switch (mode) {
 	case SUN8I_CSC_MODE_YUV2RGB:
@@ -83,13 +83,8 @@ static void sun8i_csc_set_coefficients(struct regmap *map, u32 base,
 		return;
 	}
 
-	for (i = 0; i < 12; i++) {
-		data = table[i];
-		/* For some reason, 0x200 must be added to constant parts */
-		if (((i + 1) & 3) == 0)
-			data += 0x200;
-		regmap_write(map, SUN8I_CSC_COEFF(base, i), data);
-	}
+	base_reg = SUN8I_CSC_COEFF(base, 0);
+	regmap_bulk_write(map, base_reg, table, 12);
 }
 
 static void sun8i_de3_ccsc_set_coefficients(struct regmap *map, int layer,
