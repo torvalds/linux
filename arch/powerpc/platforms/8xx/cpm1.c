@@ -88,7 +88,8 @@ int cpm_get_irq(void)
 {
 	int cpm_vec;
 
-	/* Get the vector by setting the ACK bit and then reading
+	/*
+	 * Get the vector by setting the ACK bit and then reading
 	 * the register.
 	 */
 	out_be16(&cpic_reg->cpic_civr, 1);
@@ -108,7 +109,8 @@ static int cpm_pic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-/* The CPM can generate the error interrupt when there is a race condition
+/*
+ * The CPM can generate the error interrupt when there is a race condition
  * between generating and masking interrupts.  All we have to do is ACK it
  * and return.  This is a no-op function so we don't need any special
  * tests in the interrupt handler.
@@ -208,12 +210,10 @@ void __init cpm_reset(void)
 	cpmp = &mpc8xx_immr->im_cpm;
 
 #ifndef CONFIG_PPC_EARLY_DEBUG_CPM
-	/* Perform a reset.
-	*/
+	/* Perform a reset. */
 	out_be16(&cpmp->cp_cpcr, CPM_CR_RST | CPM_CR_FLG);
 
-	/* Wait for it.
-	*/
+	/* Wait for it. */
 	while (in_be16(&cpmp->cp_cpcr) & CPM_CR_FLG);
 #endif
 
@@ -221,7 +221,8 @@ void __init cpm_reset(void)
 	cpm_load_patch(cpmp);
 #endif
 
-	/* Set SDMA Bus Request priority 5.
+	/*
+	 * Set SDMA Bus Request priority 5.
 	 * On 860T, this also enables FEC priority 6.  I am not sure
 	 * this is what we really want for some applications, but the
 	 * manual recommends it.
@@ -263,7 +264,8 @@ out:
 }
 EXPORT_SYMBOL(cpm_command);
 
-/* Set a baud rate generator.  This needs lots of work.  There are
+/*
+ * Set a baud rate generator.  This needs lots of work.  There are
  * four BRGs, any of which can be wired to any channel.
  * The internal baud rate clock is the system clock divided by 16.
  * This assumes the baudrate is 16x oversampled by the uart.
@@ -277,11 +279,11 @@ cpm_setbrg(uint brg, uint rate)
 {
 	u32 __iomem *bp;
 
-	/* This is good enough to get SMCs running.....
-	*/
+	/* This is good enough to get SMCs running..... */
 	bp = &cpmp->cp_brgc1;
 	bp += brg;
-	/* The BRG has a 12-bit counter.  For really slow baud rates (or
+	/*
+	 * The BRG has a 12-bit counter.  For really slow baud rates (or
 	 * really fast processors), we may have to further divide by 16.
 	 */
 	if (((BRG_UART_CLK / rate) - 1) < 4096)
