@@ -252,7 +252,7 @@ static void guc_get_mmio_msg(struct intel_guc *guc)
 
 static void guc_handle_mmio_msg(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_i915(guc);
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 
 	/* we need communication to be enabled to reply to GuC */
 	GEM_BUG_ON(guc->handler == intel_guc_to_host_event_handler_nop);
@@ -284,7 +284,7 @@ static void guc_disable_interrupts(struct intel_guc *guc)
 
 static int guc_enable_communication(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_i915(guc);
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 	int ret;
 
 	ret = intel_guc_ct_enable(&guc->ct);

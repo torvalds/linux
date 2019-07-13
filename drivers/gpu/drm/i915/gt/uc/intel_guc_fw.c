@@ -76,7 +76,7 @@ MODULE_FIRMWARE(ICL_GUC_FIRMWARE_PATH);
 static void guc_fw_select(struct intel_uc_fw *guc_fw)
 {
 	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
-	struct drm_i915_private *i915 = guc_to_i915(guc);
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 
 	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
 

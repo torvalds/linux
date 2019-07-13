@@ -77,7 +77,7 @@ void intel_guc_init_send_regs(struct intel_guc *guc)
 
 void intel_guc_init_early(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_i915(guc);
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 
 	intel_guc_fw_init_early(guc);
 	intel_guc_ct_init_early(&guc->ct);
@@ -204,7 +204,7 @@ static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
-	if (!USES_GUC_SUBMISSION(guc_to_i915(guc)))
+	if (!intel_uc_is_using_guc_submission(&guc_to_gt(guc)->uc))
 		flags |= GUC_CTL_DISABLE_SCHEDULER;
 
 	return flags;
@@ -214,7 +214,7 @@ static u32 guc_ctl_ctxinfo_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
-	if (USES_GUC_SUBMISSION(guc_to_i915(guc))) {
+	if (intel_uc_is_using_guc_submission(&guc_to_gt(guc)->uc)) {
 		u32 ctxnum, base;
 
 		base = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
@@ -414,7 +414,7 @@ int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
 
 int intel_guc_sample_forcewake(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct drm_i915_private *dev_priv = guc_to_gt(guc)->i915;
 	u32 action[2];
 
 	action[0] = INTEL_GUC_ACTION_SAMPLE_FORCEWAKE;

@@ -30,7 +30,7 @@
 
 void intel_huc_init_early(struct intel_huc *huc)
 {
-	struct drm_i915_private *i915 = huc_to_i915(huc);
+	struct drm_i915_private *i915 = huc_to_gt(huc)->i915;
 
 	intel_huc_fw_init_early(huc);
 

@@ -22,6 +22,7 @@
  *
  */
 
+#include "gt/intel_gt.h"
 #include "intel_guc_ads.h"
 #include "intel_uc.h"
 #include "i915_drv.h"
@@ -85,7 +86,7 @@ struct __guc_ads_blob {
 
 static void __guc_ads_init(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct drm_i915_private *dev_priv = guc_to_gt(guc)->i915;
 	struct __guc_ads_blob *blob = guc->ads_blob;
 	const u32 skipped_size = LRC_PPHWSP_SZ * PAGE_SIZE + LR_HW_CONTEXT_SIZE;
 	u32 base;

@@ -24,6 +24,7 @@
 
 #include <linux/debugfs.h>
 
+#include "gt/intel_gt.h"
 #include "intel_guc_log.h"
 #include "i915_drv.h"
 
@@ -209,7 +210,7 @@ static bool guc_check_log_buf_overflow(struct intel_guc_log *log,
 			log->stats[type].sampled_overflow += 16;
 		}
 
-		dev_notice_ratelimited(guc_to_i915(log_to_guc(log))->drm.dev,
+		dev_notice_ratelimited(guc_to_gt(log_to_guc(log))->i915->drm.dev,
 				       "GuC log buffer overflow\n");
 	}
 
@@ -383,7 +384,7 @@ void intel_guc_log_init_early(struct intel_guc_log *log)
 static int guc_log_relay_create(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct drm_i915_private *dev_priv = guc_to_gt(guc)->i915;
 	struct rchan *guc_log_relay_chan;
 	size_t n_subbufs, subbuf_size;
 	int ret;
@@ -429,7 +430,7 @@ static void guc_log_relay_destroy(struct intel_guc_log *log)
 static void guc_log_capture_logs(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct drm_i915_private *dev_priv = guc_to_gt(guc)->i915;
 	intel_wakeref_t wakeref;
 
 	guc_read_update_log_buffer(log);
@@ -498,7 +499,7 @@ void intel_guc_log_destroy(struct intel_guc_log *log)
 int intel_guc_log_set_level(struct intel_guc_log *log, u32 level)
 {
 	struct intel_guc *guc = log_to_guc(log);
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct drm_i915_private *dev_priv = guc_to_gt(guc)->i915;
 	intel_wakeref_t wakeref;
 	int ret = 0;
 
@@ -593,7 +594,7 @@ out_unlock:
 void intel_guc_log_relay_flush(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
-	struct drm_i915_private *i915 = guc_to_i915(guc);
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 	intel_wakeref_t wakeref;
 
 	/*
@@ -612,7 +613,7 @@ void intel_guc_log_relay_flush(struct intel_guc_log *log)
 void intel_guc_log_relay_close(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
-	struct drm_i915_private *i915 = guc_to_i915(guc);
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 
 	guc_log_disable_flush_events(log);
 	intel_synchronize_irq(i915);

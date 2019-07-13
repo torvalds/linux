@@ -1902,16 +1902,6 @@ static inline struct drm_i915_private *wopcm_to_i915(struct intel_wopcm *wopcm)
 	return container_of(wopcm, struct drm_i915_private, wopcm);
 }
 
-static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
-{
-	return container_of(guc, struct drm_i915_private, gt.uc.guc);
-}
-
-static inline struct drm_i915_private *huc_to_i915(struct intel_huc *huc)
-{
-	return container_of(huc, struct drm_i915_private, gt.uc.huc);
-}
-
 /* Simple iterator over all initialised engines */
 #define for_each_engine(engine__, dev_priv__, id__) \
 	for ((id__) = 0; \

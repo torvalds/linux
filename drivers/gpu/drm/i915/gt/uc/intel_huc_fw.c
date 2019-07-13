@@ -70,7 +70,7 @@ MODULE_FIRMWARE(I915_ICL_HUC_UCODE);
 static void huc_fw_select(struct intel_uc_fw *huc_fw)
 {
 	struct intel_huc *huc = container_of(huc_fw, struct intel_huc, fw);
-	struct drm_i915_private *dev_priv = huc_to_i915(huc);
+	struct drm_i915_private *dev_priv = huc_to_gt(huc)->i915;
 
 	GEM_BUG_ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
 
