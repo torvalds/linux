@@ -56,9 +56,9 @@ struct intel_guc {
 
 	struct {
 		bool enabled;
-		void (*reset)(struct drm_i915_private *i915);
-		void (*enable)(struct drm_i915_private *i915);
-		void (*disable)(struct drm_i915_private *i915);
+		void (*reset)(struct intel_guc *guc);
+		void (*enable)(struct intel_guc *guc);
+		void (*disable)(struct intel_guc *guc);
 	} interrupts;
 
 	struct i915_vma *ads_vma;

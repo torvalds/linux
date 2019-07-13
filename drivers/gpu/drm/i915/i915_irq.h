@@ -12,6 +12,7 @@
 
 struct drm_i915_private;
 struct intel_crtc;
+struct intel_guc;
 
 void intel_irq_init(struct drm_i915_private *dev_priv);
 void intel_irq_fini(struct drm_i915_private *dev_priv);
@@ -112,12 +113,12 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask);
 void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 				     u8 pipe_mask);
-void gen9_reset_guc_interrupts(struct drm_i915_private *dev_priv);
-void gen9_enable_guc_interrupts(struct drm_i915_private *dev_priv);
-void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv);
-void gen11_reset_guc_interrupts(struct drm_i915_private *i915);
-void gen11_enable_guc_interrupts(struct drm_i915_private *i915);
-void gen11_disable_guc_interrupts(struct drm_i915_private *i915);
+void gen9_reset_guc_interrupts(struct intel_guc *guc);
+void gen9_enable_guc_interrupts(struct intel_guc *guc);
+void gen9_disable_guc_interrupts(struct intel_guc *guc);
+void gen11_reset_guc_interrupts(struct intel_guc *guc);
+void gen11_enable_guc_interrupts(struct intel_guc *guc);
+void gen11_disable_guc_interrupts(struct intel_guc *guc);
 
 bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 			      bool in_vblank_irq, int *vpos, int *hpos,

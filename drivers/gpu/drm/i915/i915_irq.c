@@ -599,8 +599,10 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 		gen6_reset_rps_interrupts(dev_priv);
 }
 
-void gen9_reset_guc_interrupts(struct drm_i915_private *dev_priv)
+void gen9_reset_guc_interrupts(struct intel_guc *guc)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
 	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
 	spin_lock_irq(&dev_priv->irq_lock);
@@ -608,61 +610,71 @@ void gen9_reset_guc_interrupts(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
-void gen9_enable_guc_interrupts(struct drm_i915_private *dev_priv)
+void gen9_enable_guc_interrupts(struct intel_guc *guc)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
 	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	if (!dev_priv->guc.interrupts.enabled) {
+	if (!guc->interrupts.enabled) {
 		WARN_ON_ONCE(I915_READ(gen6_pm_iir(dev_priv)) &
 				       dev_priv->pm_guc_events);
-		dev_priv->guc.interrupts.enabled = true;
+		guc->interrupts.enabled = true;
 		gen6_enable_pm_irq(&dev_priv->gt, dev_priv->pm_guc_events);
 	}
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
-void gen9_disable_guc_interrupts(struct drm_i915_private *dev_priv)
+void gen9_disable_guc_interrupts(struct intel_guc *guc)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
 	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	dev_priv->guc.interrupts.enabled = false;
+	guc->interrupts.enabled = false;
 
 	gen6_disable_pm_irq(&dev_priv->gt, dev_priv->pm_guc_events);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
 	intel_synchronize_irq(dev_priv);
 
-	gen9_reset_guc_interrupts(dev_priv);
+	gen9_reset_guc_interrupts(guc);
 }
 
-void gen11_reset_guc_interrupts(struct drm_i915_private *i915)
+void gen11_reset_guc_interrupts(struct intel_guc *guc)
 {
+	struct drm_i915_private *i915 = guc_to_i915(guc);
+
 	spin_lock_irq(&i915->irq_lock);
 	gen11_reset_one_iir(&i915->gt, 0, GEN11_GUC);
 	spin_unlock_irq(&i915->irq_lock);
 }
 
-void gen11_enable_guc_interrupts(struct drm_i915_private *dev_priv)
+void gen11_enable_guc_interrupts(struct intel_guc *guc)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
 	spin_lock_irq(&dev_priv->irq_lock);
-	if (!dev_priv->guc.interrupts.enabled) {
+	if (!guc->interrupts.enabled) {
 		u32 events = REG_FIELD_PREP(ENGINE1_MASK,
 					    GEN11_GUC_INTR_GUC2HOST);
 
 		WARN_ON_ONCE(gen11_reset_one_iir(&dev_priv->gt, 0, GEN11_GUC));
 		I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, events);
 		I915_WRITE(GEN11_GUC_SG_INTR_MASK, ~events);
-		dev_priv->guc.interrupts.enabled = true;
+		guc->interrupts.enabled = true;
 	}
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
-void gen11_disable_guc_interrupts(struct drm_i915_private *dev_priv)
+void gen11_disable_guc_interrupts(struct intel_guc *guc)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
 	spin_lock_irq(&dev_priv->irq_lock);
-	dev_priv->guc.interrupts.enabled = false;
+	guc->interrupts.enabled = false;
 
 	I915_WRITE(GEN11_GUC_SG_INTR_MASK, ~0);
 	I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, 0);
@@ -670,7 +682,7 @@ void gen11_disable_guc_interrupts(struct drm_i915_private *dev_priv)
 	spin_unlock_irq(&dev_priv->irq_lock);
 	intel_synchronize_irq(dev_priv);
 
-	gen11_reset_guc_interrupts(dev_priv);
+	gen11_reset_guc_interrupts(guc);
 }
 
 /**

@@ -272,17 +272,17 @@ static void guc_handle_mmio_msg(struct intel_guc *guc)
 
 static void guc_reset_interrupts(struct intel_guc *guc)
 {
-	guc->interrupts.reset(guc_to_i915(guc));
+	guc->interrupts.reset(guc);
 }
 
 static void guc_enable_interrupts(struct intel_guc *guc)
 {
-	guc->interrupts.enable(guc_to_i915(guc));
+	guc->interrupts.enable(guc);
 }
 
 static void guc_disable_interrupts(struct intel_guc *guc)
 {
-	guc->interrupts.disable(guc_to_i915(guc));
+	guc->interrupts.disable(guc);
 }
 
 static int guc_enable_communication(struct intel_guc *guc)
