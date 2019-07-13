@@ -12,6 +12,11 @@
 
 struct drm_i915_private;
 
+static inline struct intel_gt *uc_to_gt(struct intel_uc *uc)
+{
+	return container_of(uc, struct intel_gt, uc);
+}
+
 void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915);
 void intel_gt_init_hw(struct drm_i915_private *i915);
 

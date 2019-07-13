@@ -1248,7 +1248,7 @@ int i915_gem_init_hw(struct drm_i915_private *i915)
 	}
 
 	/* We can't enable contexts until all firmware is loaded */
-	ret = intel_uc_init_hw(i915);
+	ret = intel_uc_init_hw(&i915->gt.uc);
 	if (ret) {
 		DRM_ERROR("Enabling uc failed (%d)\n", ret);
 		goto out;
@@ -1433,7 +1433,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
-	intel_uc_fetch_firmwares(dev_priv);
+	intel_uc_fetch_firmwares(&dev_priv->gt.uc);
 
 	ret = intel_wopcm_init(&dev_priv->wopcm);
 	if (ret)
@@ -1481,7 +1481,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	intel_init_gt_powersave(dev_priv);
 
-	ret = intel_uc_init(dev_priv);
+	ret = intel_uc_init(&dev_priv->gt.uc);
 	if (ret)
 		goto err_pm;
 
@@ -1545,9 +1545,9 @@ err_gt:
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 err_init_hw:
-	intel_uc_fini_hw(dev_priv);
+	intel_uc_fini_hw(&dev_priv->gt.uc);
 err_uc_init:
-	intel_uc_fini(dev_priv);
+	intel_uc_fini(&dev_priv->gt.uc);
 err_pm:
 	if (ret != -EIO) {
 		intel_cleanup_gt_powersave(dev_priv);
@@ -1564,7 +1564,7 @@ err_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 err_uc_fw:
-	intel_uc_cleanup_firmwares(dev_priv);
+	intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
 
 	if (ret != -EIO) {
 		i915_gem_cleanup_userptr(dev_priv);
@@ -1611,8 +1611,8 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 	i915_gem_drain_workqueue(dev_priv);
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	intel_uc_fini_hw(dev_priv);
-	intel_uc_fini(dev_priv);
+	intel_uc_fini_hw(&dev_priv->gt.uc);
+	intel_uc_fini(&dev_priv->gt.uc);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	i915_gem_drain_freed_objects(dev_priv);
@@ -1630,7 +1630,7 @@ void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 
 	intel_cleanup_gt_powersave(dev_priv);
 
-	intel_uc_cleanup_firmwares(dev_priv);
+	intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
 	i915_gem_cleanup_userptr(dev_priv);
 	intel_timelines_fini(dev_priv);
 

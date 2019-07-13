@@ -717,7 +717,7 @@ static intel_engine_mask_t reset_prepare(struct intel_gt *gt)
 		reset_prepare_engine(engine);
 	}
 
-	intel_uc_reset_prepare(gt->i915);
+	intel_uc_reset_prepare(&gt->uc);
 
 	return awake;
 }

@@ -174,7 +174,7 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 
 	i915_gem_drain_freed_objects(i915);
 
-	intel_uc_suspend(i915);
+	intel_uc_suspend(&i915->gt.uc);
 }
 
 static struct drm_i915_gem_object *first_mm_object(struct list_head *list)
@@ -239,7 +239,7 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 	}
 	spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
-	intel_uc_sanitize(i915);
+	intel_uc_sanitize(&i915->gt.uc);
 	i915_gem_sanitize(i915);
 }
 
@@ -266,7 +266,7 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	if (intel_gt_resume(&i915->gt))
 		goto err_wedged;
 
-	intel_uc_resume(i915);
+	intel_uc_resume(&i915->gt.uc);
 
 	/* Always reload a context for powersaving. */
 	if (!i915_gem_load_power_context(i915))

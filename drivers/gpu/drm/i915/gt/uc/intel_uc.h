@@ -33,34 +33,34 @@ struct intel_uc {
 	struct intel_huc huc;
 };
 
-void intel_uc_init_early(struct drm_i915_private *dev_priv);
-void intel_uc_cleanup_early(struct drm_i915_private *dev_priv);
-void intel_uc_init_mmio(struct drm_i915_private *dev_priv);
-void intel_uc_fetch_firmwares(struct drm_i915_private *dev_priv);
-void intel_uc_cleanup_firmwares(struct drm_i915_private *dev_priv);
-void intel_uc_sanitize(struct drm_i915_private *dev_priv);
-int intel_uc_init_hw(struct drm_i915_private *dev_priv);
-void intel_uc_fini_hw(struct drm_i915_private *dev_priv);
-int intel_uc_init(struct drm_i915_private *dev_priv);
-void intel_uc_fini(struct drm_i915_private *dev_priv);
-void intel_uc_reset_prepare(struct drm_i915_private *i915);
-void intel_uc_suspend(struct drm_i915_private *i915);
-void intel_uc_runtime_suspend(struct drm_i915_private *i915);
-int intel_uc_resume(struct drm_i915_private *dev_priv);
+void intel_uc_init_early(struct intel_uc *uc);
+void intel_uc_cleanup_early(struct intel_uc *uc);
+void intel_uc_init_mmio(struct intel_uc *uc);
+void intel_uc_fetch_firmwares(struct intel_uc *uc);
+void intel_uc_cleanup_firmwares(struct intel_uc *uc);
+void intel_uc_sanitize(struct intel_uc *uc);
+int intel_uc_init_hw(struct intel_uc *uc);
+void intel_uc_fini_hw(struct intel_uc *uc);
+int intel_uc_init(struct intel_uc *uc);
+void intel_uc_fini(struct intel_uc *uc);
+void intel_uc_reset_prepare(struct intel_uc *uc);
+void intel_uc_suspend(struct intel_uc *uc);
+void intel_uc_runtime_suspend(struct intel_uc *uc);
+int intel_uc_resume(struct intel_uc *uc);
 
-static inline bool intel_uc_is_using_guc(struct drm_i915_private *i915)
+static inline bool intel_uc_is_using_guc(struct intel_uc *uc)
 {
 	GEM_BUG_ON(i915_modparams.enable_guc < 0);
 	return i915_modparams.enable_guc > 0;
 }
 
-static inline bool intel_uc_is_using_guc_submission(struct drm_i915_private *i915)
+static inline bool intel_uc_is_using_guc_submission(struct intel_uc *uc)
 {
 	GEM_BUG_ON(i915_modparams.enable_guc < 0);
 	return i915_modparams.enable_guc & ENABLE_GUC_SUBMISSION;
 }
 
-static inline bool intel_uc_is_using_huc(struct drm_i915_private *i915)
+static inline bool intel_uc_is_using_huc(struct intel_uc *uc)
 {
 	GEM_BUG_ON(i915_modparams.enable_guc < 0);
 	return i915_modparams.enable_guc & ENABLE_GUC_LOAD_HUC;

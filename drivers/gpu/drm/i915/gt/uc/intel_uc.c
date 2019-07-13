@@ -22,19 +22,22 @@
  *
  */
 
+#include "gt/intel_gt.h"
 #include "gt/intel_reset.h"
-#include "intel_uc.h"
 #include "intel_guc.h"
 #include "intel_guc_ads.h"
 #include "intel_guc_submission.h"
+#include "intel_uc.h"
+
 #include "i915_drv.h"
 
 static void guc_free_load_err_log(struct intel_guc *guc);
 
 /* Reset GuC providing us with fresh state for both GuC and HuC.
  */
-static int __intel_uc_reset_hw(struct drm_i915_private *dev_priv)
+static int __intel_uc_reset_hw(struct intel_uc *uc)
 {
+	struct drm_i915_private *dev_priv = uc_to_gt(uc)->i915;
 	int ret;
 	u32 guc_status;
 
@@ -52,17 +55,17 @@ static int __intel_uc_reset_hw(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-static int __get_platform_enable_guc(struct drm_i915_private *i915)
+static int __get_platform_enable_guc(struct intel_uc *uc)
 {
-	struct intel_uc_fw *guc_fw = &i915->gt.uc.guc.fw;
-	struct intel_uc_fw *huc_fw = &i915->gt.uc.huc.fw;
+	struct intel_uc_fw *guc_fw = &uc->guc.fw;
+	struct intel_uc_fw *huc_fw = &uc->huc.fw;
 	int enable_guc = 0;
 
-	if (!HAS_GUC(i915))
+	if (!HAS_GUC(uc_to_gt(uc)->i915))
 		return 0;
 
 	/* We don't want to enable GuC/HuC on pre-Gen11 by default */
-	if (INTEL_GEN(i915) < 11)
+	if (INTEL_GEN(uc_to_gt(uc)->i915) < 11)
 		return 0;
 
 	if (intel_uc_fw_is_selected(guc_fw) && intel_uc_fw_is_selected(huc_fw))
@@ -71,12 +74,11 @@ static int __get_platform_enable_guc(struct drm_i915_private *i915)
 	return enable_guc;
 }
 
-static int __get_default_guc_log_level(struct drm_i915_private *i915)
+static int __get_default_guc_log_level(struct intel_uc *uc)
 {
 	int guc_log_level;
 
-	if (!intel_uc_fw_supported(&i915->gt.uc.guc.fw) ||
-	    !intel_uc_is_using_guc(i915))
+	if (!intel_uc_fw_supported(&uc->guc.fw) || !intel_uc_is_using_guc(uc))
 		guc_log_level = GUC_LOG_LEVEL_DISABLED;
 	else if (IS_ENABLED(CONFIG_DRM_I915_DEBUG) ||
 		 IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
@@ -91,7 +93,7 @@ static int __get_default_guc_log_level(struct drm_i915_private *i915)
 
 /**
  * sanitize_options_early - sanitize uC related modparam options
- * @i915: device private
+ * @uc: the intel_uc structure
  *
  * In case of "enable_guc" option this function will attempt to modify
  * it only if it was initially set to "auto(-1)". Default value for this
@@ -106,22 +108,22 @@ static int __get_default_guc_log_level(struct drm_i915_private *i915)
  * unless GuC is enabled on given platform and the driver is compiled with
  * debug config when this modparam will default to "enable(1..4)".
  */
-static void sanitize_options_early(struct drm_i915_private *i915)
+static void sanitize_options_early(struct intel_uc *uc)
 {
-	struct intel_uc_fw *guc_fw = &i915->gt.uc.guc.fw;
-	struct intel_uc_fw *huc_fw = &i915->gt.uc.huc.fw;
+	struct intel_uc_fw *guc_fw = &uc->guc.fw;
+	struct intel_uc_fw *huc_fw = &uc->huc.fw;
 
 	/* A negative value means "use platform default" */
 	if (i915_modparams.enable_guc < 0)
-		i915_modparams.enable_guc = __get_platform_enable_guc(i915);
+		i915_modparams.enable_guc = __get_platform_enable_guc(uc);
 
 	DRM_DEBUG_DRIVER("enable_guc=%d (submission:%s huc:%s)\n",
 			 i915_modparams.enable_guc,
-			 yesno(intel_uc_is_using_guc_submission(i915)),
-			 yesno(intel_uc_is_using_huc(i915)));
+			 yesno(intel_uc_is_using_guc_submission(uc)),
+			 yesno(intel_uc_is_using_huc(uc)));
 
 	/* Verify GuC firmware availability */
-	if (intel_uc_is_using_guc(i915) && !intel_uc_fw_is_selected(guc_fw)) {
+	if (intel_uc_is_using_guc(uc) && !intel_uc_fw_is_selected(guc_fw)) {
 		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
 			 "enable_guc", i915_modparams.enable_guc,
 			 !intel_uc_fw_supported(guc_fw) ?
@@ -129,7 +131,7 @@ static void sanitize_options_early(struct drm_i915_private *i915)
 	}
 
 	/* Verify HuC firmware availability */
-	if (intel_uc_is_using_huc(i915) && !intel_uc_fw_is_selected(huc_fw)) {
+	if (intel_uc_is_using_huc(uc) && !intel_uc_fw_is_selected(huc_fw)) {
 		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
 			 "enable_guc", i915_modparams.enable_guc,
 			 !intel_uc_fw_supported(huc_fw) ?
@@ -137,7 +139,7 @@ static void sanitize_options_early(struct drm_i915_private *i915)
 	}
 
 	/* XXX: GuC submission is unavailable for now */
-	if (intel_uc_is_using_guc_submission(i915)) {
+	if (intel_uc_is_using_guc_submission(uc)) {
 		DRM_INFO("Incompatible option detected: %s=%d, %s!\n",
 			 "enable_guc", i915_modparams.enable_guc,
 			 "GuC submission not supported");
@@ -148,9 +150,9 @@ static void sanitize_options_early(struct drm_i915_private *i915)
 	/* A negative value means "use platform/config default" */
 	if (i915_modparams.guc_log_level < 0)
 		i915_modparams.guc_log_level =
-			__get_default_guc_log_level(i915);
+			__get_default_guc_log_level(uc);
 
-	if (i915_modparams.guc_log_level > 0 && !intel_uc_is_using_guc(i915)) {
+	if (i915_modparams.guc_log_level > 0 && !intel_uc_is_using_guc(uc)) {
 		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
 			 "guc_log_level", i915_modparams.guc_log_level,
 			 !intel_uc_fw_supported(guc_fw) ?
@@ -176,34 +178,29 @@ static void sanitize_options_early(struct drm_i915_private *i915)
 	GEM_BUG_ON(i915_modparams.guc_log_level < 0);
 }
 
-void intel_uc_init_early(struct drm_i915_private *i915)
+void intel_uc_init_early(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &i915->gt.uc.guc;
-	struct intel_huc *huc = &i915->gt.uc.huc;
+	intel_guc_init_early(&uc->guc);
+	intel_huc_init_early(&uc->huc);
 
-	intel_guc_init_early(guc);
-	intel_huc_init_early(huc);
-
-	sanitize_options_early(i915);
+	sanitize_options_early(uc);
 }
 
-void intel_uc_cleanup_early(struct drm_i915_private *i915)
+void intel_uc_cleanup_early(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &i915->gt.uc.guc;
-
-	guc_free_load_err_log(guc);
+	guc_free_load_err_log(&uc->guc);
 }
 
 /**
  * intel_uc_init_mmio - setup uC MMIO access
- * @i915: device private
+ * @uc: the intel_uc structure
  *
  * Setup minimal state necessary for MMIO accesses later in the
  * initialization sequence.
  */
-void intel_uc_init_mmio(struct drm_i915_private *i915)
+void intel_uc_init_mmio(struct intel_uc *uc)
 {
-	intel_guc_init_send_regs(&i915->gt.uc.guc);
+	intel_guc_init_send_regs(&uc->guc);
 }
 
 static void guc_capture_load_err_log(struct intel_guc *guc)
@@ -350,54 +347,56 @@ static void guc_disable_communication(struct intel_guc *guc)
 	DRM_INFO("GuC communication disabled\n");
 }
 
-void intel_uc_fetch_firmwares(struct drm_i915_private *i915)
+void intel_uc_fetch_firmwares(struct intel_uc *uc)
 {
-	if (!USES_GUC(i915))
+	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
+
+	if (!intel_uc_is_using_guc(uc))
 		return;
 
-	intel_uc_fw_fetch(i915, &i915->gt.uc.guc.fw);
+	intel_uc_fw_fetch(i915, &uc->guc.fw);
 
-	if (USES_HUC(i915))
-		intel_uc_fw_fetch(i915, &i915->gt.uc.huc.fw);
+	if (intel_uc_is_using_huc(uc))
+		intel_uc_fw_fetch(i915, &uc->huc.fw);
 }
 
-void intel_uc_cleanup_firmwares(struct drm_i915_private *i915)
+void intel_uc_cleanup_firmwares(struct intel_uc *uc)
 {
-	if (!USES_GUC(i915))
+	if (!intel_uc_is_using_guc(uc))
 		return;
 
-	if (USES_HUC(i915))
-		intel_uc_fw_cleanup_fetch(&i915->gt.uc.huc.fw);
+	if (intel_uc_is_using_huc(uc))
+		intel_uc_fw_cleanup_fetch(&uc->huc.fw);
 
-	intel_uc_fw_cleanup_fetch(&i915->gt.uc.guc.fw);
+	intel_uc_fw_cleanup_fetch(&uc->guc.fw);
 }
 
-int intel_uc_init(struct drm_i915_private *i915)
+int intel_uc_init(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &i915->gt.uc.guc;
-	struct intel_huc *huc = &i915->gt.uc.huc;
+	struct intel_guc *guc = &uc->guc;
+	struct intel_huc *huc = &uc->huc;
 	int ret;
 
-	if (!USES_GUC(i915))
+	if (!intel_uc_is_using_guc(uc))
 		return 0;
 
 	if (!intel_uc_fw_supported(&guc->fw))
 		return -ENODEV;
 
 	/* XXX: GuC submission is unavailable for now */
-	GEM_BUG_ON(USES_GUC_SUBMISSION(i915));
+	GEM_BUG_ON(intel_uc_is_using_guc_submission(uc));
 
 	ret = intel_guc_init(guc);
 	if (ret)
 		return ret;
 
-	if (USES_HUC(i915)) {
+	if (intel_uc_is_using_huc(uc)) {
 		ret = intel_huc_init(huc);
 		if (ret)
 			goto err_guc;
 	}
 
-	if (USES_GUC_SUBMISSION(i915)) {
+	if (intel_uc_is_using_guc_submission(uc)) {
 		/*
 		 * This is stuff we need to have available at fw load time
 		 * if we are planning to enable submission later
@@ -410,59 +409,60 @@ int intel_uc_init(struct drm_i915_private *i915)
 	return 0;
 
 err_huc:
-	if (USES_HUC(i915))
+	if (intel_uc_is_using_huc(uc))
 		intel_huc_fini(huc);
 err_guc:
 	intel_guc_fini(guc);
 	return ret;
 }
 
-void intel_uc_fini(struct drm_i915_private *i915)
+void intel_uc_fini(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_guc *guc = &uc->guc;
 
-	if (!USES_GUC(i915))
+	if (!intel_uc_is_using_guc(uc))
 		return;
 
 	GEM_BUG_ON(!intel_uc_fw_supported(&guc->fw));
 
-	if (USES_GUC_SUBMISSION(i915))
+	if (intel_uc_is_using_guc_submission(uc))
 		intel_guc_submission_fini(guc);
 
-	if (USES_HUC(i915))
-		intel_huc_fini(&i915->gt.uc.huc);
+	if (intel_uc_is_using_huc(uc))
+		intel_huc_fini(&uc->huc);
 
 	intel_guc_fini(guc);
 }
 
-static void __uc_sanitize(struct drm_i915_private *i915)
+static void __uc_sanitize(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &i915->gt.uc.guc;
-	struct intel_huc *huc = &i915->gt.uc.huc;
+	struct intel_guc *guc = &uc->guc;
+	struct intel_huc *huc = &uc->huc;
 
 	GEM_BUG_ON(!intel_uc_fw_supported(&guc->fw));
 
 	intel_huc_sanitize(huc);
 	intel_guc_sanitize(guc);
 
-	__intel_uc_reset_hw(i915);
+	__intel_uc_reset_hw(uc);
 }
 
-void intel_uc_sanitize(struct drm_i915_private *i915)
+void intel_uc_sanitize(struct intel_uc *uc)
 {
-	if (!USES_GUC(i915))
+	if (!intel_uc_is_using_guc(uc))
 		return;
 
-	__uc_sanitize(i915);
+	__uc_sanitize(uc);
 }
 
-int intel_uc_init_hw(struct drm_i915_private *i915)
+int intel_uc_init_hw(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &i915->gt.uc.guc;
-	struct intel_huc *huc = &i915->gt.uc.huc;
+	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
+	struct intel_guc *guc = &uc->guc;
+	struct intel_huc *huc = &uc->huc;
 	int ret, attempts;
 
-	if (!USES_GUC(i915))
+	if (!intel_uc_is_using_guc(uc))
 		return 0;
 
 	GEM_BUG_ON(!intel_uc_fw_supported(&guc->fw));
@@ -481,11 +481,11 @@ int intel_uc_init_hw(struct drm_i915_private *i915)
 		 * Always reset the GuC just before (re)loading, so
 		 * that the state and timing are fairly predictable
 		 */
-		ret = __intel_uc_reset_hw(i915);
+		ret = __intel_uc_reset_hw(uc);
 		if (ret)
 			goto err_out;
 
-		if (USES_HUC(i915)) {
+		if (intel_uc_is_using_huc(uc)) {
 			ret = intel_huc_fw_upload(huc);
 			if (ret)
 				goto err_out;
@@ -509,7 +509,7 @@ int intel_uc_init_hw(struct drm_i915_private *i915)
 	if (ret)
 		goto err_log_capture;
 
-	if (USES_HUC(i915)) {
+	if (intel_uc_is_using_huc(uc)) {
 		ret = intel_huc_auth(huc);
 		if (ret)
 			goto err_communication;
@@ -519,7 +519,7 @@ int intel_uc_init_hw(struct drm_i915_private *i915)
 	if (ret)
 		goto err_communication;
 
-	if (USES_GUC_SUBMISSION(i915)) {
+	if (intel_uc_is_using_guc_submission(uc)) {
 		ret = intel_guc_submission_enable(guc);
 		if (ret)
 			goto err_communication;
@@ -528,9 +528,9 @@ int intel_uc_init_hw(struct drm_i915_private *i915)
 	dev_info(i915->drm.dev, "GuC firmware version %u.%u\n",
 		 guc->fw.major_ver_found, guc->fw.minor_ver_found);
 	dev_info(i915->drm.dev, "GuC submission %s\n",
-		 enableddisabled(USES_GUC_SUBMISSION(i915)));
+		 enableddisabled(intel_uc_is_using_guc_submission(uc)));
 	dev_info(i915->drm.dev, "HuC %s\n",
-		 enableddisabled(USES_HUC(i915)));
+		 enableddisabled(intel_uc_is_using_huc(uc)));
 
 	return 0;
 
@@ -542,7 +542,7 @@ err_communication:
 err_log_capture:
 	guc_capture_load_err_log(guc);
 err_out:
-	__uc_sanitize(i915);
+	__uc_sanitize(uc);
 
 	/*
 	 * Note that there is no fallback as either user explicitly asked for
@@ -555,42 +555,42 @@ err_out:
 	return ret;
 }
 
-void intel_uc_fini_hw(struct drm_i915_private *i915)
+void intel_uc_fini_hw(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_guc *guc = &uc->guc;
 
 	if (!intel_guc_is_loaded(guc))
 		return;
 
 	GEM_BUG_ON(!intel_uc_fw_supported(&guc->fw));
 
-	if (USES_GUC_SUBMISSION(i915))
+	if (intel_uc_is_using_guc_submission(uc))
 		intel_guc_submission_disable(guc);
 
 	guc_disable_communication(guc);
-	__uc_sanitize(i915);
+	__uc_sanitize(uc);
 }
 
 /**
  * intel_uc_reset_prepare - Prepare for reset
- * @i915: device private
+ * @uc: the intel_uc structure
  *
  * Preparing for full gpu reset.
  */
-void intel_uc_reset_prepare(struct drm_i915_private *i915)
+void intel_uc_reset_prepare(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_guc *guc = &uc->guc;
 
 	if (!intel_guc_is_loaded(guc))
 		return;
 
 	guc_stop_communication(guc);
-	__uc_sanitize(i915);
+	__uc_sanitize(uc);
 }
 
-void intel_uc_runtime_suspend(struct drm_i915_private *i915)
+void intel_uc_runtime_suspend(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_guc *guc = &uc->guc;
 	int err;
 
 	if (!intel_guc_is_loaded(guc))
@@ -603,21 +603,21 @@ void intel_uc_runtime_suspend(struct drm_i915_private *i915)
 	guc_disable_communication(guc);
 }
 
-void intel_uc_suspend(struct drm_i915_private *i915)
+void intel_uc_suspend(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_guc *guc = &uc->guc;
 	intel_wakeref_t wakeref;
 
 	if (!intel_guc_is_loaded(guc))
 		return;
 
-	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		intel_uc_runtime_suspend(i915);
+	with_intel_runtime_pm(&uc_to_gt(uc)->i915->runtime_pm, wakeref)
+		intel_uc_runtime_suspend(uc);
 }
 
-int intel_uc_resume(struct drm_i915_private *i915)
+int intel_uc_resume(struct intel_uc *uc)
 {
-	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_guc *guc = &uc->guc;
 	int err;
 
 	if (!intel_guc_is_loaded(guc))
