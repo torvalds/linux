@@ -10,8 +10,8 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
+#include <linux/zalloc.h>
 #include "namespaces.h"
-#include "util.h"
 #include "event.h"
 #include "strlist.h"
 #include "strfilter.h"

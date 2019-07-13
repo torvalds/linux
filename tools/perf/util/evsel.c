@@ -17,6 +17,7 @@
 #include <linux/perf_event.h>
 #include <linux/compiler.h>
 #include <linux/err.h>
+#include <linux/zalloc.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -27,7 +28,6 @@
 #include "event.h"
 #include "evsel.h"
 #include "evlist.h"
-#include "util.h"
 #include "cpumap.h"
 #include "thread_map.h"
 #include "target.h"
@@ -1298,7 +1298,7 @@ static void perf_evsel__free_config_terms(struct perf_evsel *evsel)
 	struct perf_evsel_config_term *term, *h;
 
 	list_for_each_entry_safe(term, h, &evsel->config_terms, list) {
-		list_del(&term->list);
+		list_del_init(&term->list);
 		free(term);
 	}
 }
