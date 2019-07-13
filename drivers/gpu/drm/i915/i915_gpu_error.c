@@ -1552,21 +1552,22 @@ static void capture_uc_state(struct i915_gpu_state *error)
 {
 	struct drm_i915_private *i915 = error->i915;
 	struct i915_error_uc *error_uc = &error->uc;
+	struct intel_uc *uc = &i915->gt.uc;
 
 	/* Capturing uC state won't be useful if there is no GuC */
 	if (!error->device_info.has_guc)
 		return;
 
-	error_uc->guc_fw = i915->guc.fw;
-	error_uc->huc_fw = i915->huc.fw;
+	error_uc->guc_fw = uc->guc.fw;
+	error_uc->huc_fw = uc->huc.fw;
 
 	/* Non-default firmware paths will be specified by the modparam.
 	 * As modparams are generally accesible from the userspace make
 	 * explicit copies of the firmware paths.
 	 */
-	error_uc->guc_fw.path = kstrdup(i915->guc.fw.path, GFP_ATOMIC);
-	error_uc->huc_fw.path = kstrdup(i915->huc.fw.path, GFP_ATOMIC);
-	error_uc->guc_log = i915_error_object_create(i915, i915->guc.log.vma);
+	error_uc->guc_fw.path = kstrdup(uc->guc.fw.path, GFP_ATOMIC);
+	error_uc->huc_fw.path = kstrdup(uc->huc.fw.path, GFP_ATOMIC);
+	error_uc->guc_log = i915_error_object_create(i915, uc->guc.log.vma);
 }
 
 /* Capture all registers which don't fit into another category. */

@@ -1349,9 +1349,6 @@ struct drm_i915_private {
 
 	struct intel_wopcm wopcm;
 
-	struct intel_huc huc;
-	struct intel_guc guc;
-
 	struct intel_csr csr;
 
 	struct intel_gmbus gmbus[GMBUS_NUM_PINS];
@@ -1908,12 +1905,12 @@ static inline struct drm_i915_private *wopcm_to_i915(struct intel_wopcm *wopcm)
 
 static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 {
-	return container_of(guc, struct drm_i915_private, guc);
+	return container_of(guc, struct drm_i915_private, gt.uc.guc);
 }
 
 static inline struct drm_i915_private *huc_to_i915(struct intel_huc *huc)
 {
-	return container_of(huc, struct drm_i915_private, huc);
+	return container_of(huc, struct drm_i915_private, gt.uc.huc);
 }
 
 /* Simple iterator over all initialised engines */

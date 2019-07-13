@@ -28,6 +28,11 @@
 #include "intel_huc.h"
 #include "i915_params.h"
 
+struct intel_uc {
+	struct intel_guc guc;
+	struct intel_huc huc;
+};
+
 void intel_uc_init_early(struct drm_i915_private *dev_priv);
 void intel_uc_cleanup_early(struct drm_i915_private *dev_priv);
 void intel_uc_init_mmio(struct drm_i915_private *dev_priv);

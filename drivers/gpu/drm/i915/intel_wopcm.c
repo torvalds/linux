@@ -164,8 +164,8 @@ static inline int check_hw_restriction(struct drm_i915_private *i915,
 int intel_wopcm_init(struct intel_wopcm *wopcm)
 {
 	struct drm_i915_private *i915 = wopcm_to_i915(wopcm);
-	u32 guc_fw_size = intel_uc_fw_get_upload_size(&i915->guc.fw);
-	u32 huc_fw_size = intel_uc_fw_get_upload_size(&i915->huc.fw);
+	u32 guc_fw_size = intel_uc_fw_get_upload_size(&i915->gt.uc.guc.fw);
+	u32 huc_fw_size = intel_uc_fw_get_upload_size(&i915->gt.uc.huc.fw);
 	u32 ctx_rsvd = context_reserved_size(i915);
 	u32 guc_wopcm_base;
 	u32 guc_wopcm_size;

@@ -13,6 +13,8 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
+#include "uc/intel_uc.h"
+
 #include "i915_vma.h"
 #include "intel_reset_types.h"
 #include "intel_wakeref.h"
@@ -33,6 +35,8 @@ struct intel_gt {
 	struct drm_i915_private *i915;
 	struct intel_uncore *uncore;
 	struct i915_ggtt *ggtt;
+
+	struct intel_uc uc;
 
 	struct intel_gt_timelines {
 		struct mutex mutex; /* protects list */

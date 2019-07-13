@@ -138,7 +138,7 @@ static int igt_guc_clients(void *args)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
-	guc = &dev_priv->guc;
+	guc = &dev_priv->gt.uc.guc;
 	if (!guc) {
 		pr_err("No guc object!\n");
 		err = -EINVAL;
@@ -230,7 +230,7 @@ static int igt_guc_doorbells(void *arg)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
-	guc = &dev_priv->guc;
+	guc = &dev_priv->gt.uc.guc;
 	if (!guc) {
 		pr_err("No guc object!\n");
 		err = -EINVAL;

@@ -54,8 +54,8 @@ static int __intel_uc_reset_hw(struct drm_i915_private *dev_priv)
 
 static int __get_platform_enable_guc(struct drm_i915_private *i915)
 {
-	struct intel_uc_fw *guc_fw = &i915->guc.fw;
-	struct intel_uc_fw *huc_fw = &i915->huc.fw;
+	struct intel_uc_fw *guc_fw = &i915->gt.uc.guc.fw;
+	struct intel_uc_fw *huc_fw = &i915->gt.uc.huc.fw;
 	int enable_guc = 0;
 
 	if (!HAS_GUC(i915))
@@ -75,7 +75,7 @@ static int __get_default_guc_log_level(struct drm_i915_private *i915)
 {
 	int guc_log_level;
 
-	if (!intel_uc_fw_supported(&i915->guc.fw) ||
+	if (!intel_uc_fw_supported(&i915->gt.uc.guc.fw) ||
 	    !intel_uc_is_using_guc(i915))
 		guc_log_level = GUC_LOG_LEVEL_DISABLED;
 	else if (IS_ENABLED(CONFIG_DRM_I915_DEBUG) ||
@@ -108,8 +108,8 @@ static int __get_default_guc_log_level(struct drm_i915_private *i915)
  */
 static void sanitize_options_early(struct drm_i915_private *i915)
 {
-	struct intel_uc_fw *guc_fw = &i915->guc.fw;
-	struct intel_uc_fw *huc_fw = &i915->huc.fw;
+	struct intel_uc_fw *guc_fw = &i915->gt.uc.guc.fw;
+	struct intel_uc_fw *huc_fw = &i915->gt.uc.huc.fw;
 
 	/* A negative value means "use platform default" */
 	if (i915_modparams.enable_guc < 0)
@@ -178,8 +178,8 @@ static void sanitize_options_early(struct drm_i915_private *i915)
 
 void intel_uc_init_early(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
-	struct intel_huc *huc = &i915->huc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_huc *huc = &i915->gt.uc.huc;
 
 	intel_guc_init_early(guc);
 	intel_huc_init_early(huc);
@@ -189,7 +189,7 @@ void intel_uc_init_early(struct drm_i915_private *i915)
 
 void intel_uc_cleanup_early(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
 
 	guc_free_load_err_log(guc);
 }
@@ -203,7 +203,7 @@ void intel_uc_cleanup_early(struct drm_i915_private *i915)
  */
 void intel_uc_init_mmio(struct drm_i915_private *i915)
 {
-	intel_guc_init_send_regs(&i915->guc);
+	intel_guc_init_send_regs(&i915->gt.uc.guc);
 }
 
 static void guc_capture_load_err_log(struct intel_guc *guc)
@@ -355,10 +355,10 @@ void intel_uc_fetch_firmwares(struct drm_i915_private *i915)
 	if (!USES_GUC(i915))
 		return;
 
-	intel_uc_fw_fetch(i915, &i915->guc.fw);
+	intel_uc_fw_fetch(i915, &i915->gt.uc.guc.fw);
 
 	if (USES_HUC(i915))
-		intel_uc_fw_fetch(i915, &i915->huc.fw);
+		intel_uc_fw_fetch(i915, &i915->gt.uc.huc.fw);
 }
 
 void intel_uc_cleanup_firmwares(struct drm_i915_private *i915)
@@ -367,15 +367,15 @@ void intel_uc_cleanup_firmwares(struct drm_i915_private *i915)
 		return;
 
 	if (USES_HUC(i915))
-		intel_uc_fw_cleanup_fetch(&i915->huc.fw);
+		intel_uc_fw_cleanup_fetch(&i915->gt.uc.huc.fw);
 
-	intel_uc_fw_cleanup_fetch(&i915->guc.fw);
+	intel_uc_fw_cleanup_fetch(&i915->gt.uc.guc.fw);
 }
 
 int intel_uc_init(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
-	struct intel_huc *huc = &i915->huc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_huc *huc = &i915->gt.uc.huc;
 	int ret;
 
 	if (!USES_GUC(i915))
@@ -419,7 +419,7 @@ err_guc:
 
 void intel_uc_fini(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
 
 	if (!USES_GUC(i915))
 		return;
@@ -430,15 +430,15 @@ void intel_uc_fini(struct drm_i915_private *i915)
 		intel_guc_submission_fini(guc);
 
 	if (USES_HUC(i915))
-		intel_huc_fini(&i915->huc);
+		intel_huc_fini(&i915->gt.uc.huc);
 
 	intel_guc_fini(guc);
 }
 
 static void __uc_sanitize(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
-	struct intel_huc *huc = &i915->huc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_huc *huc = &i915->gt.uc.huc;
 
 	GEM_BUG_ON(!intel_uc_fw_supported(&guc->fw));
 
@@ -458,8 +458,8 @@ void intel_uc_sanitize(struct drm_i915_private *i915)
 
 int intel_uc_init_hw(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
-	struct intel_huc *huc = &i915->huc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_huc *huc = &i915->gt.uc.huc;
 	int ret, attempts;
 
 	if (!USES_GUC(i915))
@@ -557,7 +557,7 @@ err_out:
 
 void intel_uc_fini_hw(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
 
 	if (!intel_guc_is_loaded(guc))
 		return;
@@ -579,7 +579,7 @@ void intel_uc_fini_hw(struct drm_i915_private *i915)
  */
 void intel_uc_reset_prepare(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
 
 	if (!intel_guc_is_loaded(guc))
 		return;
@@ -590,7 +590,7 @@ void intel_uc_reset_prepare(struct drm_i915_private *i915)
 
 void intel_uc_runtime_suspend(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
 	int err;
 
 	if (!intel_guc_is_loaded(guc))
@@ -605,7 +605,7 @@ void intel_uc_runtime_suspend(struct drm_i915_private *i915)
 
 void intel_uc_suspend(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
 	intel_wakeref_t wakeref;
 
 	if (!intel_guc_is_loaded(guc))
@@ -617,7 +617,7 @@ void intel_uc_suspend(struct drm_i915_private *i915)
 
 int intel_uc_resume(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
 	int err;
 
 	if (!intel_guc_is_loaded(guc))

@@ -1099,14 +1099,14 @@ int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 			   "Resetting %s for %s\n", engine->name, msg);
 	atomic_inc(&engine->i915->gpu_error.reset_engine_count[engine->uabi_class]);
 
-	if (!engine->i915->guc.execbuf_client)
+	if (!engine->gt->uc.guc.execbuf_client)
 		ret = intel_gt_reset_engine(engine);
 	else
-		ret = intel_guc_reset_engine(&engine->i915->guc, engine);
+		ret = intel_guc_reset_engine(&engine->gt->uc.guc, engine);
 	if (ret) {
 		/* If we fail here, we expect to fallback to a global reset */
 		DRM_DEBUG_DRIVER("%sFailed to reset %s, ret=%d\n",
-				 engine->i915->guc.execbuf_client ? "GuC " : "",
+				 engine->gt->uc.guc.execbuf_client ? "GuC " : "",
 				 engine->name, ret);
 		goto out;
 	}

@@ -47,7 +47,7 @@ void intel_huc_init_early(struct intel_huc *huc)
 static int intel_huc_rsa_data_create(struct intel_huc *huc)
 {
 	struct drm_i915_private *i915 = huc_to_i915(huc);
-	struct intel_guc *guc = &i915->guc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
 	struct i915_vma *vma;
 	void *vaddr;
 
@@ -113,7 +113,7 @@ void intel_huc_fini(struct intel_huc *huc)
 int intel_huc_auth(struct intel_huc *huc)
 {
 	struct drm_i915_private *i915 = huc_to_i915(huc);
-	struct intel_guc *guc = &i915->guc;
+	struct intel_guc *guc = &i915->gt.uc.guc;
 	int ret;
 
 	if (huc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)

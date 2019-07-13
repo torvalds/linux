@@ -1869,7 +1869,7 @@ static int i915_huc_load_status_info(struct seq_file *m, void *data)
 		return -ENODEV;
 
 	p = drm_seq_file_printer(m);
-	intel_uc_fw_dump(&dev_priv->huc.fw, &p);
+	intel_uc_fw_dump(&dev_priv->gt.uc.huc.fw, &p);
 
 	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
 		seq_printf(m, "\nHuC status 0x%08x:\n", I915_READ(HUC_STATUS2));
@@ -1887,7 +1887,7 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 		return -ENODEV;
 
 	p = drm_seq_file_printer(m);
-	intel_uc_fw_dump(&dev_priv->guc.fw, &p);
+	intel_uc_fw_dump(&dev_priv->gt.uc.guc.fw, &p);
 
 	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		u32 tmp = I915_READ(GUC_STATUS);
@@ -1930,7 +1930,7 @@ stringify_guc_log_type(enum guc_log_buffer_type type)
 static void i915_guc_log_info(struct seq_file *m,
 			      struct drm_i915_private *dev_priv)
 {
-	struct intel_guc_log *log = &dev_priv->guc.log;
+	struct intel_guc_log *log = &dev_priv->gt.uc.guc.log;
 	enum guc_log_buffer_type type;
 
 	if (!intel_guc_log_relay_enabled(log)) {
@@ -1976,7 +1976,7 @@ static void i915_guc_client_info(struct seq_file *m,
 static int i915_guc_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	const struct intel_guc *guc = &dev_priv->guc;
+	const struct intel_guc *guc = &dev_priv->gt.uc.guc;
 
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
@@ -2003,7 +2003,7 @@ static int i915_guc_info(struct seq_file *m, void *data)
 static int i915_guc_stage_pool(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	const struct intel_guc *guc = &dev_priv->guc;
+	const struct intel_guc *guc = &dev_priv->gt.uc.guc;
 	struct guc_stage_desc *desc = guc->stage_desc_pool_vaddr;
 	intel_engine_mask_t tmp;
 	int index;
@@ -2066,9 +2066,9 @@ static int i915_guc_log_dump(struct seq_file *m, void *data)
 		return -ENODEV;
 
 	if (dump_load_err)
-		obj = dev_priv->guc.load_err_log;
-	else if (dev_priv->guc.log.vma)
-		obj = dev_priv->guc.log.vma->obj;
+		obj = dev_priv->gt.uc.guc.load_err_log;
+	else if (dev_priv->gt.uc.guc.log.vma)
+		obj = dev_priv->gt.uc.guc.log.vma->obj;
 
 	if (!obj)
 		return 0;
@@ -2099,7 +2099,7 @@ static int i915_guc_log_level_get(void *data, u64 *val)
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
-	*val = intel_guc_log_get_level(&dev_priv->guc.log);
+	*val = intel_guc_log_get_level(&dev_priv->gt.uc.guc.log);
 
 	return 0;
 }
@@ -2111,7 +2111,7 @@ static int i915_guc_log_level_set(void *data, u64 val)
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
-	return intel_guc_log_set_level(&dev_priv->guc.log, val);
+	return intel_guc_log_set_level(&dev_priv->gt.uc.guc.log, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_level_fops,
@@ -2125,9 +2125,9 @@ static int i915_guc_log_relay_open(struct inode *inode, struct file *file)
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
-	file->private_data = &dev_priv->guc.log;
+	file->private_data = &dev_priv->gt.uc.guc.log;
 
-	return intel_guc_log_relay_open(&dev_priv->guc.log);
+	return intel_guc_log_relay_open(&dev_priv->gt.uc.guc.log);
 }
 
 static ssize_t
@@ -2147,7 +2147,7 @@ static int i915_guc_log_relay_release(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *dev_priv = inode->i_private;
 
-	intel_guc_log_relay_close(&dev_priv->guc.log);
+	intel_guc_log_relay_close(&dev_priv->gt.uc.guc.log);
 
 	return 0;
 }

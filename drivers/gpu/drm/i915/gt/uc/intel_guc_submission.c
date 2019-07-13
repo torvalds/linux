@@ -509,7 +509,7 @@ static void guc_submit(struct intel_engine_cs *engine,
 		       struct i915_request **out,
 		       struct i915_request **end)
 {
-	struct intel_guc *guc = &engine->i915->guc;
+	struct intel_guc *guc = &engine->gt->uc.guc;
 	struct intel_guc_client *client = guc->execbuf_client;
 
 	spin_lock(&client->wq_lock);

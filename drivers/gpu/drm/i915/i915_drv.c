@@ -426,7 +426,7 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = sseu->min_eu_in_pool;
 		break;
 	case I915_PARAM_HUC_STATUS:
-		value = intel_huc_check_status(&dev_priv->huc);
+		value = intel_huc_check_status(&dev_priv->gt.uc.huc);
 		if (value < 0)
 			return value;
 		break;
