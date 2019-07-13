@@ -1773,7 +1773,10 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 
 	/* Enable TRANS_DDI_FUNC_CTL for the pipe to work in HDMI mode */
 	temp = TRANS_DDI_FUNC_ENABLE;
-	temp |= TRANS_DDI_SELECT_PORT(port);
+	if (INTEL_GEN(dev_priv) >= 12)
+		temp |= TGL_TRANS_DDI_SELECT_PORT(port);
+	else
+		temp |= TRANS_DDI_SELECT_PORT(port);
 
 	switch (crtc_state->pipe_bpp) {
 	case 18:
@@ -1853,8 +1856,13 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 	i915_reg_t reg = TRANS_DDI_FUNC_CTL(cpu_transcoder);
 	u32 val = I915_READ(reg);
 
-	val &= ~(TRANS_DDI_FUNC_ENABLE | TRANS_DDI_PORT_MASK | TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
-	val |= TRANS_DDI_PORT_NONE;
+	if (INTEL_GEN(dev_priv) >= 12) {
+		val &= ~(TRANS_DDI_FUNC_ENABLE | TGL_TRANS_DDI_PORT_MASK |
+			 TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
+	} else {
+		val &= ~(TRANS_DDI_FUNC_ENABLE | TRANS_DDI_PORT_MASK |
+			 TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
+	}
 	I915_WRITE(reg, val);
 
 	if (dev_priv->quirks & QUIRK_INCREASE_DDI_DISABLED_TIME &&
@@ -2006,10 +2014,19 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 	mst_pipe_mask = 0;
 	for_each_pipe(dev_priv, p) {
 		enum transcoder cpu_transcoder = (enum transcoder)p;
+		unsigned int port_mask, ddi_select;
+
+		if (INTEL_GEN(dev_priv) >= 12) {
+			port_mask = TGL_TRANS_DDI_PORT_MASK;
+			ddi_select = TGL_TRANS_DDI_SELECT_PORT(port);
+		} else {
+			port_mask = TRANS_DDI_PORT_MASK;
+			ddi_select = TRANS_DDI_SELECT_PORT(port);
+		}
 
 		tmp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 
-		if ((tmp & TRANS_DDI_PORT_MASK) != TRANS_DDI_SELECT_PORT(port))
+		if ((tmp & port_mask) != ddi_select)
 			continue;
 
 		if ((tmp & TRANS_DDI_MODE_SELECT_MASK) ==
@@ -2126,9 +2143,14 @@ void intel_ddi_enable_pipe_clock(const struct intel_crtc_state *crtc_state)
 	enum port port = encoder->port;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
-	if (cpu_transcoder != TRANSCODER_EDP)
-		I915_WRITE(TRANS_CLK_SEL(cpu_transcoder),
-			   TRANS_CLK_SEL_PORT(port));
+	if (cpu_transcoder != TRANSCODER_EDP) {
+		if (INTEL_GEN(dev_priv) >= 12)
+			I915_WRITE(TRANS_CLK_SEL(cpu_transcoder),
+				   TGL_TRANS_CLK_SEL_PORT(port));
+		else
+			I915_WRITE(TRANS_CLK_SEL(cpu_transcoder),
+				   TRANS_CLK_SEL_PORT(port));
+	}
 }
 
 void intel_ddi_disable_pipe_clock(const struct intel_crtc_state *crtc_state)
@@ -2136,9 +2158,14 @@ void intel_ddi_disable_pipe_clock(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
-	if (cpu_transcoder != TRANSCODER_EDP)
-		I915_WRITE(TRANS_CLK_SEL(cpu_transcoder),
-			   TRANS_CLK_SEL_DISABLED);
+	if (cpu_transcoder != TRANSCODER_EDP) {
+		if (INTEL_GEN(dev_priv) >= 12)
+			I915_WRITE(TRANS_CLK_SEL(cpu_transcoder),
+				   TGL_TRANS_CLK_SEL_DISABLED);
+		else
+			I915_WRITE(TRANS_CLK_SEL(cpu_transcoder),
+				   TRANS_CLK_SEL_DISABLED);
+	}
 }
 
 static void _skl_ddi_set_iboost(struct drm_i915_private *dev_priv,

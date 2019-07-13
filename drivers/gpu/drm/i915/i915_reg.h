@@ -9384,10 +9384,12 @@ enum skl_power_gate {
 
 #define  TRANS_DDI_FUNC_ENABLE		(1 << 31)
 /* Those bits are ignored by pipe EDP since it can only connect to DDI A */
-#define  TRANS_DDI_PORT_MASK		(7 << 28)
 #define  TRANS_DDI_PORT_SHIFT		28
-#define  TRANS_DDI_SELECT_PORT(x)	((x) << 28)
-#define  TRANS_DDI_PORT_NONE		(0 << 28)
+#define  TGL_TRANS_DDI_PORT_SHIFT	27
+#define  TRANS_DDI_PORT_MASK		(7 << TRANS_DDI_PORT_SHIFT)
+#define  TGL_TRANS_DDI_PORT_MASK	(0xf << TGL_TRANS_DDI_PORT_SHIFT)
+#define  TRANS_DDI_SELECT_PORT(x)	((x) << TRANS_DDI_PORT_SHIFT)
+#define  TGL_TRANS_DDI_SELECT_PORT(x)	(((x) + 1) << TGL_TRANS_DDI_PORT_SHIFT)
 #define  TRANS_DDI_MODE_SELECT_MASK	(7 << 24)
 #define  TRANS_DDI_MODE_SELECT_HDMI	(0 << 24)
 #define  TRANS_DDI_MODE_SELECT_DVI	(1 << 24)
@@ -9597,6 +9599,9 @@ enum skl_power_gate {
 /* For each transcoder, we need to select the corresponding port clock */
 #define  TRANS_CLK_SEL_DISABLED		(0x0 << 29)
 #define  TRANS_CLK_SEL_PORT(x)		(((x) + 1) << 29)
+#define  TGL_TRANS_CLK_SEL_DISABLED	(0x0 << 28)
+#define  TGL_TRANS_CLK_SEL_PORT(x)	(((x) + 1) << 28)
+
 
 #define CDCLK_FREQ			_MMIO(0x46200)
 
