@@ -212,7 +212,7 @@ static int proc_root_link(struct dentry *dentry, struct path *path)
 static ssize_t get_mm_cmdline(struct mm_struct *mm, char __user *buf,
 			      size_t count, loff_t *ppos)
 {
-	unsigned long arg_start, arg_end, env_start, env_end;
+	unsigned long arg_start, arg_end;
 	unsigned long pos, len;
 	char *page;
 
@@ -223,36 +223,18 @@ static ssize_t get_mm_cmdline(struct mm_struct *mm, char __user *buf,
 	spin_lock(&mm->arg_lock);
 	arg_start = mm->arg_start;
 	arg_end = mm->arg_end;
-	env_start = mm->env_start;
-	env_end = mm->env_end;
 	spin_unlock(&mm->arg_lock);
 
 	if (arg_start >= arg_end)
 		return 0;
 
-	/*
-	 * We have traditionally allowed the user to re-write
-	 * the argument strings and overflow the end result
-	 * into the environment section. But only do that if
-	 * the environment area is contiguous to the arguments.
-	 */
-	if (env_start != arg_end || env_start >= env_end)
-		env_start = env_end = arg_end;
-
-	/* .. and limit it to a maximum of one page of slop */
-	if (env_end >= arg_end + PAGE_SIZE)
-		env_end = arg_end + PAGE_SIZE - 1;
-
 	/* We're not going to care if "*ppos" has high bits set */
-	pos = arg_start + *ppos;
-
 	/* .. but we do check the result is in the proper range */
-	if (pos < arg_start || pos >= env_end)
+	pos = arg_start + *ppos;
+	if (pos < arg_start || pos >= arg_end)
 		return 0;
-
-	/* .. and we never go past env_end */
-	if (env_end - pos < count)
-		count = env_end - pos;
+	if (count > arg_end - pos)
+		count = arg_end - pos;
 
 	page = (char *)__get_free_page(GFP_KERNEL);
 	if (!page)
@@ -262,48 +244,11 @@ static ssize_t get_mm_cmdline(struct mm_struct *mm, char __user *buf,
 	while (count) {
 		int got;
 		size_t size = min_t(size_t, PAGE_SIZE, count);
-		long offset;
 
-		/*
-		 * Are we already starting past the official end?
-		 * We always include the last byte that is *supposed*
-		 * to be NUL
-		 */
-		offset = (pos >= arg_end) ? pos - arg_end + 1 : 0;
-
-		got = access_remote_vm(mm, pos - offset, page, size + offset, FOLL_ANON);
-		if (got <= offset)
+		got = access_remote_vm(mm, pos, page, size, FOLL_ANON);
+		if (got <= 0)
 			break;
-		got -= offset;
-
-		/* Don't walk past a NUL character once you hit arg_end */
-		if (pos + got >= arg_end) {
-			int n = 0;
-
-			/*
-			 * If we started before 'arg_end' but ended up
-			 * at or after it, we start the NUL character
-			 * check at arg_end-1 (where we expect the normal
-			 * EOF to be).
-			 *
-			 * NOTE! This is smaller than 'got', because
-			 * pos + got >= arg_end
-			 */
-			if (pos < arg_end)
-				n = arg_end - pos - 1;
-
-			/* Cut off at first NUL after 'n' */
-			got = n + strnlen(page+n, offset+got-n);
-			if (got < offset)
-				break;
-			got -= offset;
-
-			/* Include the NUL if it existed */
-			if (got < size)
-				got++;
-		}
-
-		got -= copy_to_user(buf, page+offset, got);
+		got -= copy_to_user(buf, page, got);
 		if (unlikely(!got)) {
 			if (!len)
 				len = -EFAULT;
