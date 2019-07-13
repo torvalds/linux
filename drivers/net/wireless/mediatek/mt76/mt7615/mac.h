@@ -302,4 +302,23 @@ struct mt7615_tx_free {
 #define MT_TXS6_F1_RCPI_1		GENMASK(15, 8)
 #define MT_TXS6_F1_RCPI_0		GENMASK(7, 0)
 
+enum mt7615_cipher_type {
+	MT_CIPHER_NONE,
+	MT_CIPHER_WEP40,
+	MT_CIPHER_TKIP,
+	MT_CIPHER_TKIP_NO_MIC,
+	MT_CIPHER_AES_CCMP,
+	MT_CIPHER_WEP104,
+	MT_CIPHER_BIP_CMAC_128,
+	MT_CIPHER_WEP128,
+	MT_CIPHER_WAPI,
+	MT_CIPHER_CCMP_256 = 10,
+	MT_CIPHER_GCMP,
+	MT_CIPHER_GCMP_256,
+};
+
+enum mt7615_cipher_type
+mt7615_mac_get_key_info(struct ieee80211_key_conf *key,
+			u8 *key_data);
+
 #endif
