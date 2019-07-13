@@ -435,8 +435,6 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 	}
 	fl->dst = freq->flr_dst;
 	atomic_set(&fl->users, 1);
-	if (fl_shared_exclusive(fl) || fl->opt)
-		static_branch_deferred_inc(&ipv6_flowlabel_exclusive);
 	switch (fl->share) {
 	case IPV6_FL_S_EXCL:
 	case IPV6_FL_S_ANY:
@@ -451,10 +449,15 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 		err = -EINVAL;
 		goto done;
 	}
+	if (fl_shared_exclusive(fl) || fl->opt)
+		static_branch_deferred_inc(&ipv6_flowlabel_exclusive);
 	return fl;
 
 done:
-	fl_free(fl);
+	if (fl) {
+		kfree(fl->opt);
+		kfree(fl);
+	}
 	*err_p = err;
 	return NULL;
 }

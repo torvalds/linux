@@ -1785,8 +1785,8 @@ static int esw_vport_add_ingress_acl_modify_metadata(struct mlx5_eswitch *esw,
 						     struct mlx5_vport *vport)
 {
 	u8 action[MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto)] = {};
+	static const struct mlx5_flow_spec spec = {};
 	struct mlx5_flow_act flow_act = {};
-	struct mlx5_flow_spec spec = {};
 	int err = 0;
 
 	MLX5_SET(set_action_in, action, action_type, MLX5_ACTION_TYPE_SET);
@@ -2131,6 +2131,12 @@ int esw_offloads_init(struct mlx5_eswitch *esw)
 {
 	int err;
 
+	if (MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, reformat) &&
+	    MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, decap))
+		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_BASIC;
+	else
+		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
+
 	err = esw_offloads_steering_init(esw);
 	if (err)
 		return err;
@@ -2187,6 +2193,7 @@ void esw_offloads_cleanup(struct mlx5_eswitch *esw)
 	if (mlx5_eswitch_vport_match_metadata_enabled(esw))
 		mlx5_eswitch_disable_passing_vport_metadata(esw);
 	esw_offloads_steering_cleanup(esw);
+	esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
 }
 
 static int esw_mode_from_devlink(u16 mode, u16 *mlx5_mode)

@@ -60,6 +60,11 @@ static inline bool tcf_block_shared(struct tcf_block *block)
 	return block->index;
 }
 
+static inline bool tcf_block_non_null_shared(struct tcf_block *block)
+{
+	return block && block->index;
+}
+
 static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 {
 	WARN_ON(tcf_block_shared(block));
@@ -80,6 +85,11 @@ int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 
 #else
 static inline bool tcf_block_shared(struct tcf_block *block)
+{
+	return false;
+}
+
+static inline bool tcf_block_non_null_shared(struct tcf_block *block)
 {
 	return false;
 }

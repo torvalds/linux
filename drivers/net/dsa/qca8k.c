@@ -14,7 +14,7 @@
 #include <linux/of_platform.h>
 #include <linux/if_bridge.h>
 #include <linux/mdio.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/etherdevice.h>
 
 #include "qca8k.h"
