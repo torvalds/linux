@@ -196,15 +196,13 @@ static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (cmd == SET_KEY) {
 		key->hw_key_idx = wcid->idx;
 		wcid->hw_key_idx = idx;
-	} else {
-		if (idx == wcid->hw_key_idx)
-			wcid->hw_key_idx = -1;
-
-		key = NULL;
+	} else if (idx == wcid->hw_key_idx) {
+		wcid->hw_key_idx = -1;
 	}
-	mt76_wcid_key_setup(&dev->mt76, wcid, key);
+	mt76_wcid_key_setup(&dev->mt76, wcid,
+			    cmd == SET_KEY ? key : NULL);
 
-	return mt7615_mac_wtbl_set_key(dev, wcid->idx, key);
+	return mt7615_mac_wtbl_set_key(dev, wcid, key, cmd);
 }
 
 static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
