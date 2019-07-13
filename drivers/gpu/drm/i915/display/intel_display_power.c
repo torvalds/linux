@@ -458,8 +458,10 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	val = I915_READ(regs->driver);
 	I915_WRITE(regs->driver, val | HSW_PWR_WELL_CTL_REQ(pw_idx));
 
-	val = I915_READ(ICL_PORT_CL_DW12(phy));
-	I915_WRITE(ICL_PORT_CL_DW12(phy), val | ICL_LANE_ENABLE_AUX);
+	if (INTEL_GEN(dev_priv) < 12) {
+		val = I915_READ(ICL_PORT_CL_DW12(phy));
+		I915_WRITE(ICL_PORT_CL_DW12(phy), val | ICL_LANE_ENABLE_AUX);
+	}
 
 	hsw_wait_for_power_well_enable(dev_priv, power_well);
 
@@ -487,8 +489,10 @@ icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 	enum phy phy = ICL_AUX_PW_TO_PHY(pw_idx);
 	u32 val;
 
-	val = I915_READ(ICL_PORT_CL_DW12(phy));
-	I915_WRITE(ICL_PORT_CL_DW12(phy), val & ~ICL_LANE_ENABLE_AUX);
+	if (INTEL_GEN(dev_priv) < 12) {
+		val = I915_READ(ICL_PORT_CL_DW12(phy));
+		I915_WRITE(ICL_PORT_CL_DW12(phy), val & ~ICL_LANE_ENABLE_AUX);
+	}
 
 	val = I915_READ(regs->driver);
 	I915_WRITE(regs->driver, val & ~HSW_PWR_WELL_CTL_REQ(pw_idx));
