@@ -345,6 +345,9 @@ sub give_debian_hints()
 	if ($pdf) {
 		check_missing_file("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
 				   "fonts-dejavu", 2);
+
+		check_missing_file("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+				   "fonts-noto-cjk", 2);
 	}
 
 	check_program("dvipng", 2) if ($pdf);
@@ -374,6 +377,7 @@ sub give_redhat_hints()
 	my @fedora_tex_pkgs = (
 		"texlive-collection-fontsrecommended",
 		"texlive-collection-latex",
+		"texlive-xecjk",
 		"dejavu-sans-fonts",
 		"dejavu-serif-fonts",
 		"dejavu-sans-mono-fonts",
@@ -406,6 +410,11 @@ sub give_redhat_hints()
 		printf("Couldn't identify release number\n");
 		$old = 1;
 		$pdf = 0;
+	}
+
+	if ($pdf) {
+		check_missing_file("/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+				   "google-noto-sans-cjk-ttc-fonts", 2);
 	}
 
 	check_rpm_missing(\@fedora26_opt_pkgs, 2) if ($pdf && !$old);
@@ -456,6 +465,11 @@ sub give_opensuse_hints()
 
 	$map{"latexmk"} = "texlive-latexmk-bin";
 
+	# FIXME: add support for installing CJK fonts
+	#
+	# I tried hard, but was unable to find a way to install
+	# "Noto Sans CJK SC" on openSUSE
+
 	check_rpm_missing(\@suse_tex_pkgs, 2) if ($pdf);
 	check_missing_tex(2) if ($pdf);
 	check_missing(\%map);
@@ -483,6 +497,11 @@ sub give_mageia_hints()
 
 	$map{"latexmk"} = "texlive-collection-basic";
 
+	if ($pdf) {
+		check_missing_file("/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+				   "google-noto-sans-cjk-ttc-fonts", 2);
+	}
+
 	check_rpm_missing(\@tex_pkgs, 2) if ($pdf);
 	check_missing(\%map);
 
@@ -508,6 +527,11 @@ sub give_arch_linux_hints()
 	);
 	check_pacman_missing(\@archlinux_tex_pkgs, 2) if ($pdf);
 
+	if ($pdf) {
+		check_missing_file("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+				   "noto-fonts-cjk", 2);
+	}
+
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
@@ -527,6 +551,11 @@ sub give_gentoo_hints()
 
 	check_missing_file("/usr/share/fonts/dejavu/DejaVuSans.ttf",
 			   "media-fonts/dejavu", 2) if ($pdf);
+
+	if ($pdf) {
+		check_missing_file("/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
+				   "media-fonts/noto-cjk", 2);
+	}
 
 	check_missing(\%map);
 
