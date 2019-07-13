@@ -231,7 +231,9 @@ static int sun8i_vi_layer_update_formats(struct sun8i_mixer *mixer, int channel,
 			   SUN8I_MIXER_CHAN_VI_LAYER_ATTR_FBFMT_MASK, val);
 
 	if (fmt_info->csc != SUN8I_CSC_MODE_OFF) {
-		sun8i_csc_set_ccsc_coefficients(mixer, channel, fmt_info->csc);
+		sun8i_csc_set_ccsc_coefficients(mixer, channel, fmt_info->csc,
+						state->color_encoding,
+						state->color_range);
 		sun8i_csc_enable_ccsc(mixer, channel, true);
 	} else {
 		sun8i_csc_enable_ccsc(mixer, channel, false);
