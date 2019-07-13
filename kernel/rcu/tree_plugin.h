@@ -1515,6 +1515,7 @@ static void rcu_nocb_bypass_lock(struct rcu_data *rdp)
 	if (raw_spin_trylock(&rdp->nocb_bypass_lock))
 		return;
 	atomic_inc(&rdp->nocb_lock_contended);
+	WARN_ON_ONCE(smp_processor_id() != rdp->cpu);
 	smp_mb__after_atomic(); /* atomic_inc() before lock. */
 	raw_spin_lock(&rdp->nocb_bypass_lock);
 	smp_mb__before_atomic(); /* atomic_dec() after lock. */
@@ -1533,7 +1534,8 @@ static void rcu_nocb_bypass_lock(struct rcu_data *rdp)
  */
 static void rcu_nocb_wait_contended(struct rcu_data *rdp)
 {
-	while (atomic_read(&rdp->nocb_lock_contended))
+	WARN_ON_ONCE(smp_processor_id() != rdp->cpu);
+	while (WARN_ON_ONCE(atomic_read(&rdp->nocb_lock_contended)))
 		cpu_relax();
 }
 
