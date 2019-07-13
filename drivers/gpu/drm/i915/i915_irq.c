@@ -42,6 +42,8 @@
 #include "display/intel_lpe_audio.h"
 #include "display/intel_psr.h"
 
+#include "gt/intel_gt.h"
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_trace.h"
@@ -601,85 +603,90 @@ void gen6_disable_rps_interrupts(struct drm_i915_private *dev_priv)
 
 void gen9_reset_guc_interrupts(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct drm_i915_private *i915 = gt->i915;
 
-	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
+	assert_rpm_wakelock_held(&i915->runtime_pm);
 
-	spin_lock_irq(&dev_priv->irq_lock);
-	gen6_reset_pm_iir(dev_priv, dev_priv->pm_guc_events);
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&i915->irq_lock);
+	gen6_reset_pm_iir(i915, gt->pm_guc_events);
+	spin_unlock_irq(&i915->irq_lock);
 }
 
 void gen9_enable_guc_interrupts(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct drm_i915_private *i915 = gt->i915;
 
-	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
+	assert_rpm_wakelock_held(&i915->runtime_pm);
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&i915->irq_lock);
 	if (!guc->interrupts.enabled) {
-		WARN_ON_ONCE(I915_READ(gen6_pm_iir(dev_priv)) &
-				       dev_priv->pm_guc_events);
+		WARN_ON_ONCE(intel_uncore_read(gt->uncore, gen6_pm_iir(i915)) &
+			     gt->pm_guc_events);
 		guc->interrupts.enabled = true;
-		gen6_enable_pm_irq(&dev_priv->gt, dev_priv->pm_guc_events);
+		gen6_enable_pm_irq(gt, gt->pm_guc_events);
 	}
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_unlock_irq(&i915->irq_lock);
 }
 
 void gen9_disable_guc_interrupts(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct drm_i915_private *i915 = gt->i915;
 
-	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
+	assert_rpm_wakelock_held(&i915->runtime_pm);
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&i915->irq_lock);
 	guc->interrupts.enabled = false;
 
-	gen6_disable_pm_irq(&dev_priv->gt, dev_priv->pm_guc_events);
+	gen6_disable_pm_irq(gt, gt->pm_guc_events);
 
-	spin_unlock_irq(&dev_priv->irq_lock);
-	intel_synchronize_irq(dev_priv);
+	spin_unlock_irq(&i915->irq_lock);
+	intel_synchronize_irq(i915);
 
 	gen9_reset_guc_interrupts(guc);
 }
 
 void gen11_reset_guc_interrupts(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct drm_i915_private *i915 = gt->i915;
 
 	spin_lock_irq(&i915->irq_lock);
-	gen11_reset_one_iir(&i915->gt, 0, GEN11_GUC);
+	gen11_reset_one_iir(gt, 0, GEN11_GUC);
 	spin_unlock_irq(&i915->irq_lock);
 }
 
 void gen11_enable_guc_interrupts(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&gt->i915->irq_lock);
 	if (!guc->interrupts.enabled) {
 		u32 events = REG_FIELD_PREP(ENGINE1_MASK, GUC_INTR_GUC2HOST);
 
-		WARN_ON_ONCE(gen11_reset_one_iir(&dev_priv->gt, 0, GEN11_GUC));
-		I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, events);
-		I915_WRITE(GEN11_GUC_SG_INTR_MASK, ~events);
+		WARN_ON_ONCE(gen11_reset_one_iir(gt, 0, GEN11_GUC));
+		intel_uncore_write(gt->uncore, GEN11_GUC_SG_INTR_ENABLE, events);
+		intel_uncore_write(gt->uncore, GEN11_GUC_SG_INTR_MASK, ~events);
 		guc->interrupts.enabled = true;
 	}
-	spin_unlock_irq(&dev_priv->irq_lock);
+	spin_unlock_irq(&gt->i915->irq_lock);
 }
 
 void gen11_disable_guc_interrupts(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct drm_i915_private *i915 = gt->i915;
 
-	spin_lock_irq(&dev_priv->irq_lock);
+	spin_lock_irq(&i915->irq_lock);
 	guc->interrupts.enabled = false;
 
-	I915_WRITE(GEN11_GUC_SG_INTR_MASK, ~0);
-	I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, 0);
+	intel_uncore_write(gt->uncore, GEN11_GUC_SG_INTR_MASK, ~0);
+	intel_uncore_write(gt->uncore, GEN11_GUC_SG_INTR_ENABLE, 0);
 
-	spin_unlock_irq(&dev_priv->irq_lock);
-	intel_synchronize_irq(dev_priv);
+	spin_unlock_irq(&i915->irq_lock);
+	intel_synchronize_irq(i915);
 
 	gen11_reset_guc_interrupts(guc);
 }
@@ -4757,7 +4764,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 
 	/* pre-gen11 the guc irqs bits are in the upper 16 bits of the pm reg */
 	if (HAS_GUC_SCHED(dev_priv) && INTEL_GEN(dev_priv) < 11)
-		dev_priv->pm_guc_events = GUC_INTR_GUC2HOST << 16;
+		dev_priv->gt.pm_guc_events = GUC_INTR_GUC2HOST << 16;
 
 	/* Let's track the enabled rps events */
 	if (IS_VALLEYVIEW(dev_priv))

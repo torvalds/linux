@@ -74,6 +74,8 @@ struct intel_gt {
 
 	u32 pm_imr;
 	u32 pm_ier;
+
+	u32 pm_guc_events;
 };
 
 enum intel_gt_scratch_field {
