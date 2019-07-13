@@ -1506,6 +1506,7 @@ struct ieee802_11_elems {
 	u8 max_bssid_indicator;
 	u8 dtim_count;
 	u8 dtim_period;
+	const struct ieee80211_addba_ext_ie *addba_ext_ie;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
