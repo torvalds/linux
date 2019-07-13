@@ -22,6 +22,7 @@
  *
  */
 
+#include "gt/intel_gt.h"
 #include "intel_guc.h"
 #include "intel_guc_ads.h"
 #include "intel_guc_submission.h"
@@ -29,16 +30,16 @@
 
 static void gen8_guc_raise_irq(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
 
-	I915_WRITE(GUC_SEND_INTERRUPT, GUC_SEND_TRIGGER);
+	intel_uncore_write(gt->uncore, GUC_SEND_INTERRUPT, GUC_SEND_TRIGGER);
 }
 
 static void gen11_guc_raise_irq(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
 
-	I915_WRITE(GEN11_GUC_HOST_INTERRUPT, 0);
+	intel_uncore_write(gt->uncore, GEN11_GUC_HOST_INTERRUPT, 0);
 }
 
 static inline i915_reg_t guc_send_reg(struct intel_guc *guc, u32 i)
@@ -52,11 +53,11 @@ static inline i915_reg_t guc_send_reg(struct intel_guc *guc, u32 i)
 
 void intel_guc_init_send_regs(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
 	enum forcewake_domains fw_domains = 0;
 	unsigned int i;
 
-	if (INTEL_GEN(dev_priv) >= 11) {
+	if (INTEL_GEN(gt->i915) >= 11) {
 		guc->send_regs.base =
 				i915_mmio_reg_offset(GEN11_SOFT_SCRATCH(0));
 		guc->send_regs.count = GEN11_SOFT_SCRATCH_COUNT;
@@ -67,7 +68,7 @@ void intel_guc_init_send_regs(struct intel_guc *guc)
 	}
 
 	for (i = 0; i < guc->send_regs.count; i++) {
-		fw_domains |= intel_uncore_forcewake_for_reg(&dev_priv->uncore,
+		fw_domains |= intel_uncore_forcewake_for_reg(gt->uncore,
 					guc_send_reg(guc, i),
 					FW_REG_READ | FW_REG_WRITE);
 	}
@@ -127,7 +128,7 @@ static void guc_shared_data_destroy(struct intel_guc *guc)
 
 int intel_guc_init(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
 	int ret;
 
 	ret = intel_uc_fw_init(&guc->fw);
@@ -153,7 +154,7 @@ int intel_guc_init(struct intel_guc *guc)
 		goto err_ads;
 
 	/* We need to notify the guc whenever we change the GGTT */
-	i915_ggtt_enable_guc(dev_priv);
+	i915_ggtt_enable_guc(gt->ggtt);
 
 	return 0;
 
@@ -172,9 +173,9 @@ err_fetch:
 
 void intel_guc_fini(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
 
-	i915_ggtt_disable_guc(dev_priv);
+	i915_ggtt_disable_guc(gt->ggtt);
 
 	intel_guc_ct_fini(&guc->ct);
 
@@ -282,7 +283,7 @@ static u32 guc_ctl_ads_flags(struct intel_guc *guc)
  */
 void intel_guc_init_params(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_uncore *uncore = guc_to_gt(guc)->uncore;
 	u32 params[GUC_CTL_MAX_DWORDS];
 	int i;
 
@@ -302,14 +303,14 @@ void intel_guc_init_params(struct intel_guc *guc)
 	 * they are power context saved so it's ok to release forcewake
 	 * when we are done here and take it again at xfer time.
 	 */
-	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_get(uncore, FORCEWAKE_BLITTER);
 
-	I915_WRITE(SOFT_SCRATCH(0), 0);
+	intel_uncore_write(uncore, SOFT_SCRATCH(0), 0);
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
-		I915_WRITE(SOFT_SCRATCH(1 + i), params[i]);
+		intel_uncore_write(uncore, SOFT_SCRATCH(1 + i), params[i]);
 
-	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_put(uncore, FORCEWAKE_BLITTER);
 }
 
 int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,
@@ -330,8 +331,7 @@ void intel_guc_to_host_event_handler_nop(struct intel_guc *guc)
 int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 			u32 *response_buf, u32 response_buf_size)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct intel_uncore *uncore = guc_to_gt(guc)->uncore;
 	u32 status;
 	int i;
 	int ret;
@@ -380,7 +380,8 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 		int count = min(response_buf_size, guc->send_regs.count - 1);
 
 		for (i = 0; i < count; i++)
-			response_buf[i] = I915_READ(guc_send_reg(guc, i + 1));
+			response_buf[i] = intel_uncore_read(uncore,
+							    guc_send_reg(guc, i + 1));
 	}
 
 	/* Use data from the GuC response as our return value */
@@ -454,7 +455,7 @@ int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset)
  */
 int intel_guc_suspend(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_uncore *uncore = guc_to_gt(guc)->uncore;
 	int ret;
 	u32 status;
 	u32 action[] = {
@@ -472,13 +473,14 @@ int intel_guc_suspend(struct intel_guc *guc)
 	 * in progress so we need to take care of that ourselves as well.
 	 */
 
-	I915_WRITE(SOFT_SCRATCH(14), INTEL_GUC_SLEEP_STATE_INVALID_MASK);
+	intel_uncore_write(uncore, SOFT_SCRATCH(14),
+			   INTEL_GUC_SLEEP_STATE_INVALID_MASK);
 
 	ret = intel_guc_send(guc, action, ARRAY_SIZE(action));
 	if (ret)
 		return ret;
 
-	ret = __intel_wait_for_register(&dev_priv->uncore, SOFT_SCRATCH(14),
+	ret = __intel_wait_for_register(uncore, SOFT_SCRATCH(14),
 					INTEL_GUC_SLEEP_STATE_INVALID_MASK,
 					0, 0, 10, &status);
 	if (ret)
@@ -574,17 +576,17 @@ int intel_guc_resume(struct intel_guc *guc)
  */
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	u64 flags;
 	int ret;
 
-	obj = i915_gem_object_create_shmem(dev_priv, size);
+	obj = i915_gem_object_create_shmem(gt->i915, size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	vma = i915_vma_instance(obj, &dev_priv->ggtt.vm, NULL);
+	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
 	if (IS_ERR(vma))
 		goto err;
 

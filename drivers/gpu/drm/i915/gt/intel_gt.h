@@ -17,6 +17,16 @@ static inline struct intel_gt *uc_to_gt(struct intel_uc *uc)
 	return container_of(uc, struct intel_gt, uc);
 }
 
+static inline struct intel_gt *guc_to_gt(struct intel_guc *guc)
+{
+	return container_of(guc, struct intel_gt, uc.guc);
+}
+
+static inline struct intel_gt *huc_to_gt(struct intel_huc *huc)
+{
+	return container_of(huc, struct intel_gt, uc.huc);
+}
+
 void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915);
 void intel_gt_init_hw(struct drm_i915_private *i915);
 

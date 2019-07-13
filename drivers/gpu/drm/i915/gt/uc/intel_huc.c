@@ -24,6 +24,7 @@
 
 #include <linux/types.h>
 
+#include "gt/intel_gt.h"
 #include "intel_huc.h"
 #include "i915_drv.h"
 
@@ -46,8 +47,8 @@ void intel_huc_init_early(struct intel_huc *huc)
 
 static int intel_huc_rsa_data_create(struct intel_huc *huc)
 {
-	struct drm_i915_private *i915 = huc_to_i915(huc);
-	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_gt *gt = huc_to_gt(huc);
+	struct intel_guc *guc = &gt->uc.guc;
 	struct i915_vma *vma;
 	void *vaddr;
 
@@ -112,8 +113,8 @@ void intel_huc_fini(struct intel_huc *huc)
  */
 int intel_huc_auth(struct intel_huc *huc)
 {
-	struct drm_i915_private *i915 = huc_to_i915(huc);
-	struct intel_guc *guc = &i915->gt.uc.guc;
+	struct intel_gt *gt = huc_to_gt(huc);
+	struct intel_guc *guc = &gt->uc.guc;
 	int ret;
 
 	if (huc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
@@ -127,7 +128,7 @@ int intel_huc_auth(struct intel_huc *huc)
 	}
 
 	/* Check authentication status, it should be done by now */
-	ret = __intel_wait_for_register(&i915->uncore,
+	ret = __intel_wait_for_register(gt->uncore,
 					huc->status.reg,
 					huc->status.mask,
 					huc->status.value,
@@ -159,16 +160,15 @@ fail:
  */
 int intel_huc_check_status(struct intel_huc *huc)
 {
-	struct drm_i915_private *dev_priv = huc_to_i915(huc);
+	struct intel_gt *gt = huc_to_gt(huc);
 	intel_wakeref_t wakeref;
 	bool status = false;
 
-	if (!HAS_HUC(dev_priv))
+	if (!intel_uc_is_using_huc(&gt->uc))
 		return -ENODEV;
 
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
-		status = (I915_READ(huc->status.reg) & huc->status.mask) ==
-			  huc->status.value;
+	with_intel_runtime_pm(&gt->i915->runtime_pm, wakeref)
+		status = intel_uncore_read(gt->uncore, huc->status.reg);
 
-	return status;
+	return (status & huc->status.mask) == huc->status.value;
 }

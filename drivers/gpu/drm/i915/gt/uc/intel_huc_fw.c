@@ -4,6 +4,7 @@
  * Copyright © 2014-2018 Intel Corporation
  */
 
+#include "gt/intel_gt.h"
 #include "intel_huc_fw.h"
 #include "i915_drv.h"
 
@@ -139,8 +140,7 @@ static void huc_xfer_rsa(struct intel_huc *huc)
 static int huc_xfer_ucode(struct intel_huc *huc)
 {
 	struct intel_uc_fw *huc_fw = &huc->fw;
-	struct drm_i915_private *dev_priv = huc_to_i915(huc);
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct intel_uncore *uncore = huc_to_gt(huc)->uncore;
 	unsigned long offset = 0;
 	u32 size;
 	int ret;

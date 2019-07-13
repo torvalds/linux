@@ -228,7 +228,7 @@ static void guc_free_load_err_log(struct intel_guc *guc)
  */
 static void guc_clear_mmio_msg(struct intel_guc *guc)
 {
-	intel_uncore_write(&guc_to_i915(guc)->uncore, SOFT_SCRATCH(15), 0);
+	intel_uncore_write(guc_to_gt(guc)->uncore, SOFT_SCRATCH(15), 0);
 }
 
 static void guc_get_mmio_msg(struct intel_guc *guc)
@@ -237,7 +237,7 @@ static void guc_get_mmio_msg(struct intel_guc *guc)
 
 	spin_lock_irq(&guc->irq_lock);
 
-	val = intel_uncore_read(&guc_to_i915(guc)->uncore, SOFT_SCRATCH(15));
+	val = intel_uncore_read(guc_to_gt(guc)->uncore, SOFT_SCRATCH(15));
 	guc->mmio_msg |= val & guc->msg_enabled_mask;
 
 	/*

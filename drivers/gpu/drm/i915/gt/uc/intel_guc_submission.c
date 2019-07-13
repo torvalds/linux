@@ -28,6 +28,7 @@
 
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_gt.h"
 #include "gt/intel_lrc_reg.h"
 #include "intel_guc_submission.h"
 
@@ -201,10 +202,10 @@ static struct guc_doorbell_info *__get_doorbell(struct intel_guc_client *client)
 
 static bool __doorbell_valid(struct intel_guc *guc, u16 db_id)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_uncore *uncore = guc_to_gt(guc)->uncore;
 
 	GEM_BUG_ON(db_id >= GUC_NUM_DOORBELLS);
-	return I915_READ(GEN8_DRBREGL(db_id)) & GEN8_DRB_VALID;
+	return intel_uncore_read(uncore, GEN8_DRBREGL(db_id)) & GEN8_DRB_VALID;
 }
 
 static void __init_doorbell(struct intel_guc_client *client)
@@ -1001,9 +1002,10 @@ void intel_guc_submission_fini(struct intel_guc *guc)
 		guc_stage_desc_pool_destroy(guc);
 }
 
-static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
+static void guc_interrupts_capture(struct intel_gt *gt)
 {
-	struct intel_rps *rps = &dev_priv->gt_pm.rps;
+	struct intel_rps *rps = &gt->i915->gt_pm.rps;
+	struct intel_uncore *uncore = gt->uncore;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int irqs;
@@ -1012,16 +1014,16 @@ static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 	 * to GuC
 	 */
 	irqs = _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
-	for_each_engine(engine, dev_priv, id)
+	for_each_engine(engine, gt->i915, id)
 		ENGINE_WRITE(engine, RING_MODE_GEN7, irqs);
 
 	/* route USER_INTERRUPT to Host, all others are sent to GuC. */
 	irqs = GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
 	       GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT;
 	/* These three registers have the same bit definitions */
-	I915_WRITE(GUC_BCS_RCS_IER, ~irqs);
-	I915_WRITE(GUC_VCS2_VCS1_IER, ~irqs);
-	I915_WRITE(GUC_WD_VECS_IER, ~irqs);
+	intel_uncore_write(uncore, GUC_BCS_RCS_IER, ~irqs);
+	intel_uncore_write(uncore, GUC_VCS2_VCS1_IER, ~irqs);
+	intel_uncore_write(uncore, GUC_WD_VECS_IER, ~irqs);
 
 	/*
 	 * The REDIRECT_TO_GUC bit of the PMINTRMSK register directs all
@@ -1046,9 +1048,10 @@ static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 	rps->pm_intrmsk_mbz &= ~GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 }
 
-static void guc_interrupts_release(struct drm_i915_private *dev_priv)
+static void guc_interrupts_release(struct intel_gt *gt)
 {
-	struct intel_rps *rps = &dev_priv->gt_pm.rps;
+	struct intel_rps *rps = &gt->i915->gt_pm.rps;
+	struct intel_uncore *uncore = gt->uncore;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int irqs;
@@ -1059,13 +1062,13 @@ static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 	 */
 	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
 	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
-	for_each_engine(engine, dev_priv, id)
+	for_each_engine(engine, gt->i915, id)
 		ENGINE_WRITE(engine, RING_MODE_GEN7, irqs);
 
 	/* route all GT interrupts to the host */
-	I915_WRITE(GUC_BCS_RCS_IER, 0);
-	I915_WRITE(GUC_VCS2_VCS1_IER, 0);
-	I915_WRITE(GUC_WD_VECS_IER, 0);
+	intel_uncore_write(uncore, GUC_BCS_RCS_IER, 0);
+	intel_uncore_write(uncore, GUC_VCS2_VCS1_IER, 0);
+	intel_uncore_write(uncore, GUC_WD_VECS_IER, 0);
 
 	rps->pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 	rps->pm_intrmsk_mbz &= ~ARAT_EXPIRED_INTRMSK;
@@ -1115,7 +1118,7 @@ static void guc_set_default_submission(struct intel_engine_cs *engine)
 
 int intel_guc_submission_enable(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int err;
@@ -1140,9 +1143,9 @@ int intel_guc_submission_enable(struct intel_guc *guc)
 		return err;
 
 	/* Take over from manual control of ELSP (execlists) */
-	guc_interrupts_capture(dev_priv);
+	guc_interrupts_capture(gt);
 
-	for_each_engine(engine, dev_priv, id) {
+	for_each_engine(engine, gt->i915, id) {
 		engine->set_default_submission = guc_set_default_submission;
 		engine->set_default_submission(engine);
 	}
@@ -1152,11 +1155,11 @@ int intel_guc_submission_enable(struct intel_guc *guc)
 
 void intel_guc_submission_disable(struct intel_guc *guc)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_gt *gt = guc_to_gt(guc);
 
-	GEM_BUG_ON(dev_priv->gt.awake); /* GT should be parked first */
+	GEM_BUG_ON(gt->awake); /* GT should be parked first */
 
-	guc_interrupts_release(dev_priv);
+	guc_interrupts_release(gt);
 	guc_clients_disable(guc);
 }
 
