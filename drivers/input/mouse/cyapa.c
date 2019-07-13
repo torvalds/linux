@@ -840,10 +840,9 @@ static int cyapa_prepare_wakeup_controls(struct cyapa *cyapa)
 			return error;
 		}
 
-		error = devm_add_action(dev,
+		error = devm_add_action_or_reset(dev,
 				cyapa_remove_power_wakeup_group, cyapa);
 		if (error) {
-			cyapa_remove_power_wakeup_group(cyapa);
 			dev_err(dev, "failed to add power cleanup action: %d\n",
 				error);
 			return error;
@@ -957,9 +956,9 @@ static int cyapa_start_runtime(struct cyapa *cyapa)
 		return error;
 	}
 
-	error = devm_add_action(dev, cyapa_remove_power_runtime_group, cyapa);
+	error = devm_add_action_or_reset(dev, cyapa_remove_power_runtime_group,
+					 cyapa);
 	if (error) {
-		cyapa_remove_power_runtime_group(cyapa);
 		dev_err(dev,
 			"failed to add power runtime cleanup action: %d\n",
 			error);
@@ -1291,9 +1290,8 @@ static int cyapa_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = devm_add_action(dev, cyapa_disable_regulator, cyapa);
+	error = devm_add_action_or_reset(dev, cyapa_disable_regulator, cyapa);
 	if (error) {
-		cyapa_disable_regulator(cyapa);
 		dev_err(dev, "failed to add disable regulator action: %d\n",
 			error);
 		return error;
