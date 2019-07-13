@@ -847,8 +847,6 @@ static void bucket_set_stripe(struct bch_fs *c,
 		struct bucket *g = PTR_BUCKET(ca, ptr, gc);
 		struct bucket_mark new, old;
 
-		BUG_ON(ptr_stale(ca, ptr));
-
 		old = bucket_data_cmpxchg(c, ca, fs_usage, g, new, ({
 			new.dirty			= true;
 			new.stripe			= enabled;
@@ -857,6 +855,26 @@ static void bucket_set_stripe(struct bch_fs *c,
 				new.journal_seq		= journal_seq;
 			}
 		}));
+
+		/*
+		 * XXX write repair code for these, flag stripe as possibly bad
+		 */
+		if (old.gen != ptr->gen)
+			bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+				      "stripe with stale pointer");
+#if 0
+		/*
+		 * We'd like to check for these, but these checks don't work
+		 * yet:
+		 */
+		if (old.stripe && enabled)
+			bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+				      "multiple stripes using same bucket");
+
+		if (!old.stripe && !enabled)
+			bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+				      "deleting stripe but bucket not marked as stripe bucket");
+#endif
 	}
 }
 
@@ -885,9 +903,11 @@ static bool bch2_mark_pointer(struct bch_fs *c,
 		 * checked the gen
 		 */
 		if (gen_after(new.gen, p.ptr.gen)) {
-			BUG_ON(!test_bit(BCH_FS_ALLOC_READ_DONE, &c->flags));
-			EBUG_ON(!p.ptr.cached &&
-				test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags));
+			/* XXX write repair code for this */
+			if (!p.ptr.cached &&
+			    test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags))
+				bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+					      "stale dirty pointer");
 			return true;
 		}
 
