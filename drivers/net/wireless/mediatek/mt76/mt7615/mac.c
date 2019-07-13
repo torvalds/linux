@@ -592,7 +592,7 @@ void mt7615_mac_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
 	sta->wcid.tx_info |= MT_WCID_TX_INFO_SET;
 }
 
-enum mt7615_cipher_type
+static enum mt7615_cipher_type
 mt7615_mac_get_key_info(struct ieee80211_key_conf *key,
 			u8 *key_data)
 {
@@ -624,6 +624,55 @@ mt7615_mac_get_key_info(struct ieee80211_key_conf *key,
 	default:
 		return MT_CIPHER_NONE;
 	}
+}
+
+int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev, int wcid,
+			    struct ieee80211_key_conf *key)
+{
+	enum mt7615_cipher_type cipher;
+	u8 key_data[32] = {};
+	u32 addr, w0, w1;
+	int err = 0;
+
+	spin_lock_bh(&dev->mt76.lock);
+	if (!mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY, 0, 5000)) {
+		err = -ETIMEDOUT;
+		goto out;
+	}
+
+	cipher = mt7615_mac_get_key_info(key, key_data);
+	if (cipher == MT_CIPHER_NONE && key) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	addr = mt7615_mac_wtbl_addr(wcid);
+
+	mt76_wr_copy(dev, addr + 30 * 4, key_data, sizeof(key_data));
+
+	mt76_rmw(dev, addr + 2 * 4, MT_WTBL_W2_KEY_TYPE,
+		 FIELD_PREP(MT_WTBL_W2_KEY_TYPE, cipher));
+
+	w0 = mt76_rr(dev, addr);
+	w1 = mt76_rr(dev, addr + 4);
+	w0 &= ~(MT_WTBL_W0_KEY_IDX | MT_WTBL_W0_RX_KEY_VALID);
+	if (key)
+		w0 |= FIELD_PREP(MT_WTBL_W0_KEY_IDX, key->keyidx) |
+		      MT_WTBL_W0_RX_KEY_VALID;
+	mt76_wr(dev, MT_WTBL_RICR0, w0);
+	mt76_wr(dev, MT_WTBL_RICR1, w1);
+
+	mt76_wr(dev, MT_WTBL_UPDATE,
+		FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, wcid) |
+		MT_WTBL_UPDATE_RXINFO_UPDATE);
+
+	if (!mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY, 0, 5000))
+		err = -ETIMEDOUT;
+
+out:
+	spin_unlock_bh(&dev->mt76.lock);
+
+	return err;
 }
 
 int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,

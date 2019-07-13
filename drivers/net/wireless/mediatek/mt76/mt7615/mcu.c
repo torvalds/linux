@@ -877,45 +877,6 @@ int mt7615_mcu_set_bss_info(struct mt7615_dev *dev,
 	return ret;
 }
 
-int mt7615_mcu_set_wtbl_key(struct mt7615_dev *dev, int wcid,
-			    struct ieee80211_key_conf *key,
-			    enum set_key_cmd cmd)
-{
-	struct {
-		struct wtbl_req_hdr hdr;
-		struct wtbl_sec_key key;
-	} req = {
-		.hdr = {
-			.wlan_idx = wcid,
-			.operation = WTBL_SET,
-			.tlv_num = cpu_to_le16(1),
-		},
-		.key = {
-			.tag = cpu_to_le16(WTBL_SEC_KEY),
-			.len = cpu_to_le16(sizeof(struct wtbl_sec_key)),
-			.add = cmd,
-		},
-	};
-
-	if (cmd == SET_KEY) {
-		u8 cipher;
-
-		cipher = mt7615_mac_get_key_info(key, req.key.key_material);
-		if (cipher == MT_CIPHER_NONE)
-			return -EOPNOTSUPP;
-
-		req.key.rkv = 1;
-		req.key.cipher_id = cipher;
-		req.key.key_id = key->keyidx;
-		req.key.key_len = key->keylen;
-	} else {
-		req.key.key_len = sizeof(req.key.key_material);
-	}
-
-	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_WTBL_UPDATE,
-				   &req, sizeof(req), true);
-}
-
 static int
 mt7615_mcu_add_wtbl_bmc(struct mt7615_dev *dev,
 			struct mt7615_vif *mvif)

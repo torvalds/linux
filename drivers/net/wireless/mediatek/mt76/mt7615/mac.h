@@ -317,8 +317,4 @@ enum mt7615_cipher_type {
 	MT_CIPHER_GCMP_256,
 };
 
-enum mt7615_cipher_type
-mt7615_mac_get_key_info(struct ieee80211_key_conf *key,
-			u8 *key_data);
-
 #endif
