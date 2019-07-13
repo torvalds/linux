@@ -391,6 +391,7 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 			src_node_start = amdgpu_mm_node_addr(src->bo, ++src_mm,
 							     src->mem);
 			src_node_size = (src_mm->size << PAGE_SHIFT);
+			src_page_offset = 0;
 		} else {
 			src_node_start += cur_size;
 			src_page_offset = src_node_start & (PAGE_SIZE - 1);
@@ -400,6 +401,7 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 			dst_node_start = amdgpu_mm_node_addr(dst->bo, ++dst_mm,
 							     dst->mem);
 			dst_node_size = (dst_mm->size << PAGE_SHIFT);
+			dst_page_offset = 0;
 		} else {
 			dst_node_start += cur_size;
 			dst_page_offset = dst_node_start & (PAGE_SIZE - 1);
