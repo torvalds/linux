@@ -34,6 +34,7 @@ available subsections can be seen below.
    pci/index
    spi
    i2c
+   ipmb
    i3c/index
    hsi
    edac
