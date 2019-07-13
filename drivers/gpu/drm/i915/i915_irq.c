@@ -264,7 +264,7 @@ static void gen2_irq_init(struct intel_uncore *uncore,
 	gen2_irq_init((uncore), imr_val, ier_val)
 
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
-static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
+static void guc_irq_handler(struct intel_guc *guc, u16 guc_iir);
 
 /* For display hotplug interrupt */
 static inline void
@@ -658,8 +658,7 @@ void gen11_enable_guc_interrupts(struct intel_guc *guc)
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (!guc->interrupts.enabled) {
-		u32 events = REG_FIELD_PREP(ENGINE1_MASK,
-					    GEN11_GUC_INTR_GUC2HOST);
+		u32 events = REG_FIELD_PREP(ENGINE1_MASK, GUC_INTR_GUC2HOST);
 
 		WARN_ON_ONCE(gen11_reset_one_iir(&dev_priv->gt, 0, GEN11_GUC));
 		I915_WRITE(GEN11_GUC_SG_INTR_ENABLE, events);
@@ -1656,7 +1655,7 @@ static void gen8_gt_irq_handler(struct drm_i915_private *i915,
 
 	if (master_ctl & (GEN8_GT_PM_IRQ | GEN8_GT_GUC_IRQ)) {
 		gen6_rps_irq_handler(i915, gt_iir[2]);
-		gen9_guc_irq_handler(i915, gt_iir[2]);
+		guc_irq_handler(&i915->guc, gt_iir[2] >> 16);
 	}
 }
 
@@ -1955,16 +1954,10 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 		DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
 }
 
-static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 gt_iir)
+static void guc_irq_handler(struct intel_guc *guc, u16 iir)
 {
-	if (gt_iir & GEN9_GUC_TO_HOST_INT_EVENT)
-		intel_guc_to_host_event_handler(&dev_priv->guc);
-}
-
-static void gen11_guc_irq_handler(struct drm_i915_private *i915, u16 iir)
-{
-	if (iir & GEN11_GUC_INTR_GUC2HOST)
-		intel_guc_to_host_event_handler(&i915->guc);
+	if (iir & GUC_INTR_GUC2HOST)
+		intel_guc_to_host_event_handler(guc);
 }
 
 static void i9xx_pipestat_irq_reset(struct drm_i915_private *dev_priv)
@@ -3092,7 +3085,7 @@ gen11_other_irq_handler(struct intel_gt *gt, const u8 instance,
 	struct drm_i915_private *i915 = gt->i915;
 
 	if (instance == OTHER_GUC_INSTANCE)
-		return gen11_guc_irq_handler(i915, iir);
+		return guc_irq_handler(&i915->guc, iir);
 
 	if (instance == OTHER_GTPM_INSTANCE)
 		return gen11_rps_irq_handler(gt, iir);
@@ -4764,8 +4757,9 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	for (i = 0; i < MAX_L3_SLICES; ++i)
 		dev_priv->l3_parity.remap_info[i] = NULL;
 
+	/* pre-gen11 the guc irqs bits are in the upper 16 bits of the pm reg */
 	if (HAS_GUC_SCHED(dev_priv) && INTEL_GEN(dev_priv) < 11)
-		dev_priv->pm_guc_events = GEN9_GUC_TO_HOST_INT_EVENT;
+		dev_priv->pm_guc_events = GUC_INTR_GUC2HOST << 16;
 
 	/* Let's track the enabled rps events */
 	if (IS_VALLEYVIEW(dev_priv))
