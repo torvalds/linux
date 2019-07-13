@@ -1187,9 +1187,8 @@ static int elan_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = devm_add_action(dev, elan_disable_regulator, data);
+	error = devm_add_action_or_reset(dev, elan_disable_regulator, data);
 	if (error) {
-		regulator_disable(data->vcc);
 		dev_err(dev, "Failed to add disable regulator action: %d\n",
 			error);
 		return error;
