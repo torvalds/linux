@@ -447,6 +447,8 @@ sub give_opensuse_hints()
 		"texlive-zapfding",
 	);
 
+	$map{"latexmk"} = "texlive-latexmk-bin";
+
 	check_rpm_missing(\@suse_tex_pkgs, 2) if ($pdf);
 	check_missing_tex(2) if ($pdf);
 	check_missing(\%map);
@@ -471,6 +473,8 @@ sub give_mageia_hints()
 	my @tex_pkgs = (
 		"texlive-fontsextra",
 	);
+
+	$map{"latexmk"} = "texlive-collection-basic";
 
 	check_rpm_missing(\@tex_pkgs, 2) if ($pdf);
 	check_missing(\%map);
