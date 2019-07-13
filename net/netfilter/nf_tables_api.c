@@ -1900,6 +1900,8 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 
 	if (nla[NFTA_CHAIN_FLAGS])
 		flags = ntohl(nla_get_be32(nla[NFTA_CHAIN_FLAGS]));
+	else if (chain)
+		flags = chain->flags;
 
 	nft_ctx_init(&ctx, net, skb, nlh, family, table, chain, nla);
 
