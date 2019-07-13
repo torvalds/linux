@@ -288,19 +288,6 @@ struct wtbl_hdr_trans {
 	u8 rsv;
 } __packed;
 
-struct wtbl_sec_key {
-	__le16 tag;
-	__le16 len;
-	u8 add; /* 0: add, 1: remove */
-	u8 rkv;
-	u8 ikv;
-	u8 cipher_id;
-	u8 key_id;
-	u8 key_len;
-	u8 rsv[2];
-	u8 key_material[32];
-} __packed;
-
 enum {
 	MT_BA_TYPE_INVALID,
 	MT_BA_TYPE_ORIGINATOR,
@@ -384,7 +371,6 @@ struct wtbl_raw {
 				     sizeof(struct wtbl_vht) + \
 				     sizeof(struct wtbl_tx_ps) + \
 				     sizeof(struct wtbl_hdr_trans) + \
-				     sizeof(struct wtbl_sec_key) + \
 				     sizeof(struct wtbl_ba) + \
 				     sizeof(struct wtbl_bf) + \
 				     sizeof(struct wtbl_smps) + \
