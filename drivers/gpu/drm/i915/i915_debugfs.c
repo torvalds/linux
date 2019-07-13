@@ -40,12 +40,12 @@
 
 #include "gem/i915_gem_context.h"
 #include "gt/intel_reset.h"
+#include "gt/uc/intel_guc_submission.h"
 
 #include "i915_debugfs.h"
 #include "i915_irq.h"
 #include "intel_csr.h"
 #include "intel_drv.h"
-#include "intel_guc_submission.h"
 #include "intel_pm.h"
 #include "intel_sideband.h"
 

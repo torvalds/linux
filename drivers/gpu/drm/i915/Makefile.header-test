@@ -19,14 +19,10 @@ header_test := \
 	i915_vgpu.h \
 	intel_csr.h \
 	intel_drv.h \
-	intel_guc_ct.h \
-	intel_guc_fwif.h \
-	intel_guc_reg.h \
 	intel_gvt.h \
 	intel_pm.h \
 	intel_runtime_pm.h \
 	intel_sideband.h \
-	intel_uc_fw.h \
 	intel_uncore.h \
 	intel_wakeref.h
 

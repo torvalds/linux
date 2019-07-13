@@ -24,12 +24,13 @@
 
 #include <linux/circ_buf.h>
 
-#include "gt/intel_engine_pm.h"
-#include "gt/intel_lrc_reg.h"
-#include "gt/intel_context.h"
 #include "gem/i915_gem_context.h"
 
+#include "gt/intel_context.h"
+#include "gt/intel_engine_pm.h"
+#include "gt/intel_lrc_reg.h"
 #include "intel_guc_submission.h"
+
 #include "i915_drv.h"
 
 enum {
@@ -1160,5 +1161,5 @@ void intel_guc_submission_disable(struct intel_guc *guc)
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-#include "selftests/intel_guc.c"
+#include "selftest_guc.c"
 #endif

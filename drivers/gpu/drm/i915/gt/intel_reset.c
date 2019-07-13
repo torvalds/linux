@@ -19,7 +19,7 @@
 #include "intel_gt_pm.h"
 #include "intel_reset.h"
 
-#include "intel_guc.h"
+#include "uc/intel_guc.h"
 
 #define RESET_MAX_RETRIES 3
 

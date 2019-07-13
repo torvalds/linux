@@ -74,10 +74,10 @@
 #include "gt/intel_engine.h"
 #include "gt/intel_gt_types.h"
 #include "gt/intel_workarounds.h"
+#include "gt/uc/intel_uc.h"
 
 #include "intel_device_info.h"
 #include "intel_runtime_pm.h"
-#include "intel_uc.h"
 #include "intel_uncore.h"
 #include "intel_wakeref.h"
 #include "intel_wopcm.h"

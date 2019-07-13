@@ -139,16 +139,17 @@ i915-y += \
 	  intel_wopcm.o
 
 # general-purpose microcontroller (GuC) support
-i915-y += intel_uc.o \
-	  intel_uc_fw.o \
-	  intel_guc.o \
-	  intel_guc_ads.o \
-	  intel_guc_ct.o \
-	  intel_guc_fw.o \
-	  intel_guc_log.o \
-	  intel_guc_submission.o \
-	  intel_huc.o \
-	  intel_huc_fw.o
+obj-y += gt/uc/
+i915-y += gt/uc/intel_uc.o \
+	  gt/uc/intel_uc_fw.o \
+	  gt/uc/intel_guc.o \
+	  gt/uc/intel_guc_ads.o \
+	  gt/uc/intel_guc_ct.o \
+	  gt/uc/intel_guc_fw.o \
+	  gt/uc/intel_guc_log.o \
+	  gt/uc/intel_guc_submission.o \
+	  gt/uc/intel_huc.o \
+	  gt/uc/intel_huc_fw.o
 
 # modesetting core code
 obj-y += display/

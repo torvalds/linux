@@ -65,6 +65,7 @@
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_reset.h"
 #include "gt/intel_workarounds.h"
+#include "gt/uc/intel_uc.h"
 
 #include "i915_debugfs.h"
 #include "i915_drv.h"
@@ -76,7 +77,6 @@
 #include "intel_csr.h"
 #include "intel_drv.h"
 #include "intel_pm.h"
-#include "intel_uc.h"
 
 static struct drm_driver driver;
 
