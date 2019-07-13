@@ -1433,13 +1433,11 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
-	ret = intel_uc_init_misc(dev_priv);
-	if (ret)
-		return ret;
+	intel_uc_fetch_firmwares(dev_priv);
 
 	ret = intel_wopcm_init(&dev_priv->wopcm);
 	if (ret)
-		goto err_uc_misc;
+		goto err_uc_fw;
 
 	/* This is just a security blanket to placate dragons.
 	 * On some systems, we very sporadically observe that the first TLBs
@@ -1565,8 +1563,8 @@ err_unlock:
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-err_uc_misc:
-	intel_uc_fini_misc(dev_priv);
+err_uc_fw:
+	intel_uc_cleanup_firmwares(dev_priv);
 
 	if (ret != -EIO) {
 		i915_gem_cleanup_userptr(dev_priv);
@@ -1632,7 +1630,7 @@ void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 
 	intel_cleanup_gt_powersave(dev_priv);
 
-	intel_uc_fini_misc(dev_priv);
+	intel_uc_cleanup_firmwares(dev_priv);
 	i915_gem_cleanup_userptr(dev_priv);
 	intel_timelines_fini(dev_priv);
 

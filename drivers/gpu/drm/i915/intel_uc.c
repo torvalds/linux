@@ -349,44 +349,26 @@ static void guc_disable_communication(struct intel_guc *guc)
 	DRM_INFO("GuC communication disabled\n");
 }
 
-int intel_uc_init_misc(struct drm_i915_private *i915)
+void intel_uc_fetch_firmwares(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
-	struct intel_huc *huc = &i915->huc;
-	int ret;
-
 	if (!USES_GUC(i915))
-		return 0;
+		return;
 
-	ret = intel_guc_init_misc(guc);
-	if (ret)
-		return ret;
+	intel_uc_fw_fetch(i915, &i915->guc.fw);
 
-	if (USES_HUC(i915)) {
-		ret = intel_huc_init_misc(huc);
-		if (ret)
-			goto err_guc;
-	}
-
-	return 0;
-
-err_guc:
-	intel_guc_fini_misc(guc);
-	return ret;
+	if (USES_HUC(i915))
+		intel_uc_fw_fetch(i915, &i915->huc.fw);
 }
 
-void intel_uc_fini_misc(struct drm_i915_private *i915)
+void intel_uc_cleanup_firmwares(struct drm_i915_private *i915)
 {
-	struct intel_guc *guc = &i915->guc;
-	struct intel_huc *huc = &i915->huc;
-
 	if (!USES_GUC(i915))
 		return;
 
 	if (USES_HUC(i915))
-		intel_huc_fini_misc(huc);
+		intel_uc_fw_cleanup_fetch(&i915->huc.fw);
 
-	intel_guc_fini_misc(guc);
+	intel_uc_fw_cleanup_fetch(&i915->guc.fw);
 }
 
 int intel_uc_init(struct drm_i915_private *i915)

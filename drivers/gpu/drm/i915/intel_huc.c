@@ -44,14 +44,6 @@ void intel_huc_init_early(struct intel_huc *huc)
 	}
 }
 
-int intel_huc_init_misc(struct intel_huc *huc)
-{
-	struct drm_i915_private *i915 = huc_to_i915(huc);
-
-	intel_uc_fw_fetch(i915, &huc->fw);
-	return 0;
-}
-
 static int intel_huc_rsa_data_create(struct intel_huc *huc)
 {
 	struct drm_i915_private *i915 = huc_to_i915(huc);

@@ -99,20 +99,6 @@ void intel_guc_init_early(struct intel_guc *guc)
 	}
 }
 
-int intel_guc_init_misc(struct intel_guc *guc)
-{
-	struct drm_i915_private *i915 = guc_to_i915(guc);
-
-	intel_uc_fw_fetch(i915, &guc->fw);
-
-	return 0;
-}
-
-void intel_guc_fini_misc(struct intel_guc *guc)
-{
-	intel_uc_fw_cleanup_fetch(&guc->fw);
-}
-
 static int guc_shared_data_create(struct intel_guc *guc)
 {
 	struct i915_vma *vma;
