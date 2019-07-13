@@ -66,7 +66,6 @@ struct intel_guc_log {
 	struct i915_vma *vma;
 	struct {
 		void *buf_addr;
-		struct workqueue_struct *flush_wq;
 		struct work_struct flush_work;
 		struct rchan *channel;
 		struct mutex lock;

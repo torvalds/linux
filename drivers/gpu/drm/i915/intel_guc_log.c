@@ -578,7 +578,7 @@ int intel_guc_log_relay_open(struct intel_guc_log *log)
 	 * the flush notification. This means that we need to unconditionally
 	 * flush on relay enabling, since GuC only notifies us once.
 	 */
-	queue_work(log->relay.flush_wq, &log->relay.flush_work);
+	queue_work(system_highpri_wq, &log->relay.flush_work);
 
 	return 0;
 
@@ -628,5 +628,5 @@ void intel_guc_log_relay_close(struct intel_guc_log *log)
 
 void intel_guc_log_handle_flush_event(struct intel_guc_log *log)
 {
-	queue_work(log->relay.flush_wq, &log->relay.flush_work);
+	queue_work(system_highpri_wq, &log->relay.flush_work);
 }

@@ -99,47 +99,9 @@ void intel_guc_init_early(struct intel_guc *guc)
 	}
 }
 
-static int guc_init_wq(struct intel_guc *guc)
-{
-	/*
-	 * GuC log buffer flush work item has to do register access to
-	 * send the ack to GuC and this work item, if not synced before
-	 * suspend, can potentially get executed after the GFX device is
-	 * suspended.
-	 * By marking the WQ as freezable, we don't have to bother about
-	 * flushing of this work item from the suspend hooks, the pending
-	 * work item if any will be either executed before the suspend
-	 * or scheduled later on resume. This way the handling of work
-	 * item can be kept same between system suspend & rpm suspend.
-	 */
-	guc->log.relay.flush_wq =
-		alloc_ordered_workqueue("i915-guc_log",
-					WQ_HIGHPRI | WQ_FREEZABLE);
-	if (!guc->log.relay.flush_wq) {
-		DRM_ERROR("Couldn't allocate workqueue for GuC log\n");
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-static void guc_fini_wq(struct intel_guc *guc)
-{
-	struct workqueue_struct *wq;
-
-	wq = fetch_and_zero(&guc->log.relay.flush_wq);
-	if (wq)
-		destroy_workqueue(wq);
-}
-
 int intel_guc_init_misc(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_i915(guc);
-	int ret;
-
-	ret = guc_init_wq(guc);
-	if (ret)
-		return ret;
 
 	intel_uc_fw_fetch(i915, &guc->fw);
 
@@ -149,7 +111,6 @@ int intel_guc_init_misc(struct intel_guc *guc)
 void intel_guc_fini_misc(struct intel_guc *guc)
 {
 	intel_uc_fw_cleanup_fetch(&guc->fw);
-	guc_fini_wq(guc);
 }
 
 static int guc_shared_data_create(struct intel_guc *guc)
