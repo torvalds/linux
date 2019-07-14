@@ -645,7 +645,8 @@ static int ieee80211_tx_get_rates(struct ieee80211_hw *hw,
 
 void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
 			  struct ieee80211_supported_band *sband,
-			  int retry_count, int shift, bool send_to_cooked)
+			  int retry_count, int shift, bool send_to_cooked,
+			  struct ieee80211_tx_status *status)
 {
 	struct sk_buff *skb2;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -901,7 +902,8 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	}
 
 	/* send to monitor interfaces */
-	ieee80211_tx_monitor(local, skb, sband, retry_count, shift, send_to_cooked);
+	ieee80211_tx_monitor(local, skb, sband, retry_count, shift,
+			     send_to_cooked, status);
 }
 
 void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
