@@ -159,7 +159,7 @@ do {                                                            \
 enum mlx5e_rq_group {
 	MLX5E_RQ_GROUP_REGULAR,
 	MLX5E_RQ_GROUP_XSK,
-	MLX5E_NUM_RQ_GROUPS /* Keep last. */
+#define MLX5E_NUM_RQ_GROUPS(g) (1 + MLX5E_RQ_GROUP_##g)
 };
 
 static inline u16 mlx5_min_rx_wqes(int wq_type, u32 wq_size)
@@ -180,14 +180,6 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 	return is_kdump_kernel() ?
 		MLX5E_MIN_NUM_CHANNELS :
 		min_t(int, mlx5_comp_vectors_count(mdev), MLX5E_MAX_NUM_CHANNELS);
-}
-
-/* Use this function to get max num channels after netdev was created */
-static inline int mlx5e_get_netdev_max_channels(struct net_device *netdev)
-{
-	return min_t(unsigned int,
-		     netdev->num_rx_queues / MLX5E_NUM_RQ_GROUPS,
-		     netdev->num_tx_queues);
 }
 
 struct mlx5e_tx_wqe {
@@ -830,6 +822,7 @@ struct mlx5e_priv {
 	struct net_device         *netdev;
 	struct mlx5e_stats         stats;
 	struct mlx5e_channel_stats channel_stats[MLX5E_MAX_NUM_CHANNELS];
+	u16                        max_nch;
 	u8                         max_opened_tc;
 	struct hwtstamp_config     tstamp;
 	u16                        q_counter;
@@ -871,6 +864,7 @@ struct mlx5e_profile {
 		mlx5e_fp_handle_rx_cqe handle_rx_cqe_mpwqe;
 	} rx_handlers;
 	int	max_tc;
+	u8	rq_groups;
 };
 
 void mlx5e_build_ptys2ethtool_map(void);

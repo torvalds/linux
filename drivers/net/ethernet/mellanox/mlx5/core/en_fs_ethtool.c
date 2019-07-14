@@ -611,7 +611,8 @@ static int validate_flow(struct mlx5e_priv *priv,
 		return -ENOSPC;
 
 	if (fs->ring_cookie != RX_CLS_FLOW_DISC)
-		if (!mlx5e_qid_validate(&priv->channels.params, fs->ring_cookie))
+		if (!mlx5e_qid_validate(priv->profile, &priv->channels.params,
+					fs->ring_cookie))
 			return -EINVAL;
 
 	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {

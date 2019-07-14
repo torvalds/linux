@@ -391,7 +391,7 @@ void mlx5e_ethtool_get_channels(struct mlx5e_priv *priv,
 {
 	mutex_lock(&priv->state_lock);
 
-	ch->max_combined   = mlx5e_get_netdev_max_channels(priv->netdev);
+	ch->max_combined   = priv->max_nch;
 	ch->combined_count = priv->channels.params.num_channels;
 	if (priv->xsk.refcnt) {
 		/* The upper half are XSK queues. */
