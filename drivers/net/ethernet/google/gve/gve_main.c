@@ -1192,7 +1192,6 @@ abort_with_enabled:
 	pci_disable_device(pdev);
 	return -ENXIO;
 }
-EXPORT_SYMBOL(gve_probe);
 
 static void gve_remove(struct pci_dev *pdev)
 {
