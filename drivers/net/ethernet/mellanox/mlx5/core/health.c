@@ -590,7 +590,8 @@ mlx5_fw_fatal_reporter_dump(struct devlink_health_reporter *reporter,
 			data_size = crdump_size - offset;
 		else
 			data_size = MLX5_CR_DUMP_CHUNK_SIZE;
-		err = devlink_fmsg_binary_put(fmsg, cr_data, data_size);
+		err = devlink_fmsg_binary_put(fmsg, (char *)cr_data + offset,
+					      data_size);
 		if (err)
 			goto free_data;
 	}
