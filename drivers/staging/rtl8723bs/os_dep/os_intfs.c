@@ -239,9 +239,6 @@ static void loadparam(struct adapter *padapter, _nic_hdl pnetdev)
 	registry_par->channel = (u8)rtw_channel;
 	registry_par->wireless_mode = (u8)rtw_wireless_mode;
 
-	if (registry_par->channel > 14)
-		registry_par->channel = 1;
-
 	registry_par->vrtl_carrier_sense = (u8)rtw_vrtl_carrier_sense ;
 	registry_par->vcs_type = (u8)rtw_vcs_type;
 	registry_par->rts_thresh = (u16)rtw_rts_thresh;
