@@ -27,6 +27,7 @@ Required properties:
     - "ingenic,jz4780-pinctrl"
     - "ingenic,x1000-pinctrl"
     - "ingenic,x1000e-pinctrl"
+    - "ingenic,x1500-pinctrl"
  - reg: Address range of the pinctrl registers.
 
 
