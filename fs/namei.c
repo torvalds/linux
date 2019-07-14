@@ -2391,7 +2391,7 @@ static struct filename *filename_parentat(int dfd, struct filename *name,
 	if (likely(!retval)) {
 		*last = nd.last;
 		*type = nd.last_type;
-		audit_inode(name, parent->dentry, LOOKUP_PARENT);
+		audit_inode(name, parent->dentry, AUDIT_INODE_PARENT);
 	} else {
 		putname(name);
 		name = ERR_PTR(retval);
@@ -2718,7 +2718,7 @@ filename_mountpoint(int dfd, struct filename *name, struct path *path,
 	if (unlikely(error == -ESTALE))
 		error = path_mountpoint(&nd, flags | LOOKUP_REVAL, path);
 	if (likely(!error))
-		audit_inode(name, path->dentry, LOOKUP_NO_EVAL);
+		audit_inode(name, path->dentry, AUDIT_INODE_NOEVAL);
 	restore_nameidata();
 	putname(name);
 	return error;
@@ -3299,7 +3299,7 @@ static int do_last(struct nameidata *nd,
 		if (error)
 			return error;
 
-		audit_inode(nd->name, dir, LOOKUP_PARENT);
+		audit_inode(nd->name, dir, AUDIT_INODE_PARENT);
 		/* trailing slashes? */
 		if (unlikely(nd->last.name[nd->last.len]))
 			return -EISDIR;
