@@ -1058,11 +1058,13 @@ struct ieee80211_tx_info {
  * @sta: Station that the packet was transmitted for
  * @info: Basic tx status information
  * @skb: Packet skb (can be NULL if not provided by the driver)
+ * @rate: The TX rate that was used when sending the packet
  */
 struct ieee80211_tx_status {
 	struct ieee80211_sta *sta;
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
+	struct rate_info *rate;
 };
 
 /**
