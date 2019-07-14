@@ -1779,9 +1779,9 @@ static void gfx_v10_0_rlc_smu_handshake_cntl(struct amdgpu_device *adev,
 		 * hence no handshake between SMU & RLC
 		 * GFXOFF will be disabled
 		 */
-		rlc_pg_cntl |= 0x80000;
+		rlc_pg_cntl |= 0x800000;
 	} else
-		rlc_pg_cntl &= ~0x80000;
+		rlc_pg_cntl &= ~0x800000;
 	WREG32_SOC15(GC, 0, mmRLC_PG_CNTL, rlc_pg_cntl);
 }
 
