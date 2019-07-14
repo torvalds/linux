@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "callchain.h"
-#include "util.h"
 #include "build-id.h"
 #include "hist.h"
 #include "map.h"
@@ -20,6 +19,7 @@
 #include <inttypes.h>
 #include <sys/param.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 
 static bool hists__filter_entry_by_dso(struct hists *hists,
 				       struct hist_entry *he);
@@ -472,16 +472,16 @@ static int hist_entry__init(struct hist_entry *he,
 	return 0;
 
 err_srcline:
-	free(he->srcline);
+	zfree(&he->srcline);
 
 err_rawdata:
-	free(he->raw_data);
+	zfree(&he->raw_data);
 
 err_infos:
 	if (he->branch_info) {
 		map__put(he->branch_info->from.map);
 		map__put(he->branch_info->to.map);
-		free(he->branch_info);
+		zfree(&he->branch_info);
 	}
 	if (he->mem_info) {
 		map__put(he->mem_info->iaddr.map);
@@ -489,7 +489,7 @@ err_infos:
 	}
 err:
 	map__zput(he->ms.map);
-	free(he->stat_acc);
+	zfree(&he->stat_acc);
 	return -ENOMEM;
 }
 
@@ -1254,10 +1254,10 @@ void hist_entry__delete(struct hist_entry *he)
 	zfree(&he->stat_acc);
 	free_srcline(he->srcline);
 	if (he->srcfile && he->srcfile[0])
-		free(he->srcfile);
+		zfree(&he->srcfile);
 	free_callchain(he->callchain);
-	free(he->trace_output);
-	free(he->raw_data);
+	zfree(&he->trace_output);
+	zfree(&he->raw_data);
 	ops->free(he);
 }
 
@@ -2741,10 +2741,10 @@ static void hists_evsel__exit(struct perf_evsel *evsel)
 
 	list_for_each_entry_safe(node, tmp, &hists->hpp_formats, list) {
 		perf_hpp_list__for_each_format_safe(&node->hpp, fmt, pos) {
-			list_del(&fmt->list);
+			list_del_init(&fmt->list);
 			free(fmt);
 		}
-		list_del(&node->list);
+		list_del_init(&node->list);
 		free(node);
 	}
 }

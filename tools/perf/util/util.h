@@ -9,21 +9,12 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdlib.h>
-#include <stdarg.h>
 #include <linux/compiler.h>
 #include <sys/types.h>
 
 /* General helper functions */
 void usage(const char *err) __noreturn;
 void die(const char *err, ...) __noreturn __printf(1, 2);
-
-static inline void *zalloc(size_t size)
-{
-	return calloc(1, size);
-}
-
-#define zfree(ptr) ({ free(*ptr); *ptr = NULL; })
 
 struct dirent;
 struct nsinfo;
@@ -59,16 +50,8 @@ int fetch_kernel_version(unsigned int *puint,
 
 const char *perf_tip(const char *dirpath);
 
-#ifndef HAVE_GET_CURRENT_DIR_NAME
-char *get_current_dir_name(void);
-#endif
-
 #ifndef HAVE_SCHED_GETCPU_SUPPORT
 int sched_getcpu(void);
-#endif
-
-#ifndef HAVE_SETNS_SUPPORT
-int setns(int fd, int nstype);
 #endif
 
 extern bool perf_singlethreaded;

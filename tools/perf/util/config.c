@@ -11,7 +11,6 @@
  */
 #include <errno.h>
 #include <sys/param.h>
-#include "util.h"
 #include "cache.h"
 #include "callchain.h"
 #include <subcmd/exec-cmd.h>
@@ -23,7 +22,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <linux/string.h>
-
+#include <linux/zalloc.h>
 #include <linux/ctype.h>
 
 #define MAXNAME (256)

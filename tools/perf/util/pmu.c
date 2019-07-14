@@ -2,6 +2,7 @@
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -14,7 +15,6 @@
 #include <api/fs/fs.h>
 #include <locale.h>
 #include <regex.h>
-#include "util.h"
 #include "pmu.h"
 #include "parse-events.h"
 #include "cpumap.h"
@@ -1245,7 +1245,7 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 		info->metric_expr = alias->metric_expr;
 		info->metric_name = alias->metric_name;
 
-		list_del(&term->list);
+		list_del_init(&term->list);
 		free(term);
 	}
 

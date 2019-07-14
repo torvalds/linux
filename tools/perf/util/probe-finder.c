@@ -19,11 +19,11 @@
 #include <dwarf-regs.h>
 
 #include <linux/bitops.h>
+#include <linux/zalloc.h>
 #include "event.h"
 #include "dso.h"
 #include "debug.h"
 #include "intlist.h"
-#include "util.h"
 #include "strlist.h"
 #include "symbol.h"
 #include "probe-finder.h"
