@@ -295,11 +295,7 @@ static void init_mlme_ext_priv_value(struct adapter *padapter)
 
 	init_mlme_default_rate_set(padapter);
 
-	if (pmlmeext->cur_channel > 14)
-		pmlmeext->tx_rate = IEEE80211_OFDM_RATE_6MB;
-	else
-		pmlmeext->tx_rate = IEEE80211_CCK_RATE_1MB;
-
+	pmlmeext->tx_rate = IEEE80211_CCK_RATE_1MB;
 	pmlmeext->sitesurvey_res.state = SCAN_DISABLE;
 	pmlmeext->sitesurvey_res.channel_idx = 0;
 	pmlmeext->sitesurvey_res.bss_cnt = 0;
