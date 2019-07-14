@@ -11,7 +11,6 @@
 
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/namei.h>  /* LOOKUP_* */
 #include <uapi/linux/audit.h>
 
 #define AUDIT_INO_UNSET ((unsigned long)-1)
