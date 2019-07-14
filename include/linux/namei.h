@@ -48,22 +48,6 @@ static inline int user_path_at(int dfd, const char __user *name, unsigned flags,
 	return user_path_at_empty(dfd, name, flags, path, NULL);
 }
 
-static inline int user_path(const char __user *name, struct path *path)
-{
-	return user_path_at_empty(AT_FDCWD, name, LOOKUP_FOLLOW, path, NULL);
-}
-
-static inline int user_lpath(const char __user *name, struct path *path)
-{
-	return user_path_at_empty(AT_FDCWD, name, 0, path, NULL);
-}
-
-static inline int user_path_dir(const char __user *name, struct path *path)
-{
-	return user_path_at_empty(AT_FDCWD, name,
-				  LOOKUP_FOLLOW | LOOKUP_DIRECTORY, path, NULL);
-}
-
 extern int kern_path(const char *, unsigned, struct path *);
 
 extern struct dentry *kern_path_create(int, const char *, struct path *, unsigned int);
