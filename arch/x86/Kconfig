@@ -2733,6 +2733,7 @@ config OLPC
 	select OF
 	select OF_PROMTREE
 	select IRQ_DOMAIN
+	select OLPC_EC
 	---help---
 	  Add support for detecting the unique features of the OLPC
 	  XO hardware.

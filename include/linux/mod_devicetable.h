@@ -798,6 +798,7 @@ struct tee_client_device_id {
  */
 struct wmi_device_id {
 	const char guid_string[UUID_STRING_LEN+1];
+	const void *context;
 };
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

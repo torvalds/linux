@@ -778,6 +778,16 @@ config INTEL_WMI_THUNDERBOLT
 	  To compile this driver as a module, choose M here: the module will
 	  be called intel-wmi-thunderbolt.
 
+config XIAOMI_WMI
+	  tristate "Xiaomi WMI key driver"
+	  depends on ACPI_WMI
+	  depends on INPUT
+	  help
+	  Say Y here if you want to support WMI-based keys on Xiaomi notebooks.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called xiaomi-wmi.
+
 config MSI_WMI
 	tristate "MSI WMI extras"
 	depends on ACPI_WMI
@@ -903,7 +913,6 @@ config TOSHIBA_WMI
 config ACPI_CMPC
 	tristate "CMPC Laptop Extras"
 	depends on ACPI && INPUT
-	depends on BACKLIGHT_LCD_SUPPORT
 	depends on RFKILL || RFKILL=n
 	select BACKLIGHT_CLASS_DEVICE
 	help
@@ -1127,7 +1136,6 @@ config INTEL_OAKTRAIL
 config SAMSUNG_Q10
 	tristate "Samsung Q10 Extras"
 	depends on ACPI
-	depends on BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver provides support for backlight control on Samsung Q10
@@ -1314,7 +1322,7 @@ config HUAWEI_WMI
 
 config PCENGINES_APU2
 	tristate "PC Engines APUv2/3 front button and LEDs driver"
-	depends on INPUT && INPUT_KEYBOARD
+	depends on INPUT && INPUT_KEYBOARD && GPIOLIB
 	depends on LEDS_CLASS
 	select GPIO_AMD_FCH
 	select KEYBOARD_GPIO_POLLED
@@ -1325,6 +1333,8 @@ config PCENGINES_APU2
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pcengines-apuv2.
+
+source "drivers/platform/x86/intel_speed_select_if/Kconfig"
 
 endif # X86_PLATFORM_DEVICES
 
