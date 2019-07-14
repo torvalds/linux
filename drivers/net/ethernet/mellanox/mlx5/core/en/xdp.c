@@ -187,13 +187,11 @@ static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
 	if (unlikely(contig_wqebbs < MLX5_SEND_WQE_MAX_WQEBBS))
 		mlx5e_fill_xdpsq_frag_edge(sq, wq, pi, contig_wqebbs);
 
-	mlx5e_xdpsq_fetch_wqe(sq, &session->wqe);
+	session->wqe = mlx5e_xdpsq_fetch_wqe(sq, &pi);
 
 	prefetchw(session->wqe->data);
 	session->ds_count  = MLX5E_XDP_TX_EMPTY_DS_COUNT;
 	session->pkt_count = 0;
-
-	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 
 	mlx5e_xdp_update_inline_state(sq);
 
