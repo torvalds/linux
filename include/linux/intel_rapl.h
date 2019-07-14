@@ -12,6 +12,7 @@
 
 #include <linux/types.h>
 #include <linux/powercap.h>
+#include <linux/cpuhotplug.h>
 
 enum rapl_domain_type {
 	RAPL_DOMAIN_PACKAGE,	/* entire package/socket */
