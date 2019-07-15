@@ -182,6 +182,9 @@ static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
 static int set_segment_reg(struct task_struct *task,
 			   unsigned long offset, u16 value)
 {
+	if (WARN_ON_ONCE(task == current))
+		return -EIO;
+
 	/*
 	 * The value argument was already truncated to 16 bits.
 	 */
@@ -209,10 +212,7 @@ static int set_segment_reg(struct task_struct *task,
 		break;
 
 	case offsetof(struct user_regs_struct, gs):
-		if (task == current)
-			set_user_gs(task_pt_regs(task), value);
-		else
-			task_user_gs(task) = value;
+		task_user_gs(task) = value;
 	}
 
 	return 0;
@@ -272,6 +272,9 @@ static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
 static int set_segment_reg(struct task_struct *task,
 			   unsigned long offset, u16 value)
 {
+	if (WARN_ON_ONCE(task == current))
+		return -EIO;
+
 	/*
 	 * The value argument was already truncated to 16 bits.
 	 */
@@ -281,23 +284,15 @@ static int set_segment_reg(struct task_struct *task,
 	switch (offset) {
 	case offsetof(struct user_regs_struct,fs):
 		task->thread.fsindex = value;
-		if (task == current)
-			loadsegment(fs, task->thread.fsindex);
 		break;
 	case offsetof(struct user_regs_struct,gs):
 		task->thread.gsindex = value;
-		if (task == current)
-			load_gs_index(task->thread.gsindex);
 		break;
 	case offsetof(struct user_regs_struct,ds):
 		task->thread.ds = value;
-		if (task == current)
-			loadsegment(ds, task->thread.ds);
 		break;
 	case offsetof(struct user_regs_struct,es):
 		task->thread.es = value;
-		if (task == current)
-			loadsegment(es, task->thread.es);
 		break;
 
 		/*
