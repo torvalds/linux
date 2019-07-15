@@ -322,7 +322,6 @@ struct rpc_xprt *xprt_iter_next_entry_roundrobin(struct rpc_xprt_iter *xpi)
 	struct rpc_xprt *xprt;
 	unsigned long xprt_queuelen;
 	unsigned long xps_queuelen;
-	unsigned long xps_avglen;
 
 	do {
 		xprt = xprt_iter_next_entry_multiple(xpi,
@@ -333,8 +332,8 @@ struct rpc_xprt *xprt_iter_next_entry_roundrobin(struct rpc_xprt_iter *xpi)
 		if (xprt_queuelen <= 2)
 			break;
 		xps_queuelen = atomic_long_read(&xps->xps_queuelen);
-		xps_avglen = DIV_ROUND_UP(xps_queuelen, xps->xps_nactive);
-	} while (xprt_queuelen > xps_avglen);
+		/* Exit loop if xprt_queuelen <= average queue length */
+	} while (xprt_queuelen * READ_ONCE(xps->xps_nactive) > xps_queuelen);
 	return xprt;
 }
 
