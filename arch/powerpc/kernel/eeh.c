@@ -1191,7 +1191,6 @@ void eeh_add_device_late(struct pci_dev *dev)
 		eeh_rmv_from_parent_pe(edev);
 		eeh_addr_cache_rmv_dev(edev->pdev);
 		eeh_sysfs_remove_device(edev->pdev);
-		edev->mode &= ~EEH_DEV_SYSFS;
 
 		/*
 		 * We definitely should have the PCI device removed
@@ -1296,6 +1295,23 @@ void eeh_remove_device(struct pci_dev *dev)
 	edev->pdev = NULL;
 
 	/*
+	 * eeh_sysfs_remove_device() uses pci_dev_to_eeh_dev() so we need to
+	 * remove the sysfs files before clearing dev.archdata.edev
+	 */
+	if (edev->mode & EEH_DEV_SYSFS)
+		eeh_sysfs_remove_device(dev);
+
+	/*
+	 * We're removing from the PCI subsystem, that means
+	 * the PCI device driver can't support EEH or not
+	 * well. So we rely on hotplug completely to do recovery
+	 * for the specific PCI device.
+	 */
+	edev->mode |= EEH_DEV_NO_HANDLER;
+
+	eeh_addr_cache_rmv_dev(dev);
+
+	/*
 	 * The flag "in_error" is used to trace EEH devices for VFs
 	 * in error state or not. It's set in eeh_report_error(). If
 	 * it's not set, eeh_report_{reset,resume}() won't be called
@@ -1307,18 +1323,6 @@ void eeh_remove_device(struct pci_dev *dev)
 		eeh_rmv_from_parent_pe(edev);
 	else
 		edev->mode |= EEH_DEV_DISCONNECTED;
-
-	/*
-	 * We're removing from the PCI subsystem, that means
-	 * the PCI device driver can't support EEH or not
-	 * well. So we rely on hotplug completely to do recovery
-	 * for the specific PCI device.
-	 */
-	edev->mode |= EEH_DEV_NO_HANDLER;
-
-	eeh_addr_cache_rmv_dev(dev);
-	eeh_sysfs_remove_device(dev);
-	edev->mode &= ~EEH_DEV_SYSFS;
 }
 
 int eeh_unfreeze_pe(struct eeh_pe *pe)

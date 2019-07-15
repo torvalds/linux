@@ -159,22 +159,23 @@ void eeh_sysfs_remove_device(struct pci_dev *pdev)
 {
 	struct eeh_dev *edev = pci_dev_to_eeh_dev(pdev);
 
+	if (!edev) {
+		WARN_ON(eeh_enabled());
+		return;
+	}
+
+	edev->mode &= ~EEH_DEV_SYSFS;
+
 	/*
 	 * The parent directory might have been removed. We needn't
 	 * continue for that case.
 	 */
-	if (!pdev->dev.kobj.sd) {
-		if (edev)
-			edev->mode &= ~EEH_DEV_SYSFS;
+	if (!pdev->dev.kobj.sd)
 		return;
-	}
 
 	device_remove_file(&pdev->dev, &dev_attr_eeh_mode);
 	device_remove_file(&pdev->dev, &dev_attr_eeh_pe_config_addr);
 	device_remove_file(&pdev->dev, &dev_attr_eeh_pe_state);
 
 	eeh_notify_resume_remove(pdev);
-
-	if (edev)
-		edev->mode &= ~EEH_DEV_SYSFS;
 }
