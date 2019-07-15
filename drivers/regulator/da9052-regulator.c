@@ -1,16 +1,10 @@
-/*
-* da9052-regulator.c: Regulator driver for DA9052
-*
-* Copyright(c) 2011 Dialog Semiconductor Ltd.
-*
-* Author: David Dajun Chen <dchen@diasemi.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation; either version 2 of the License, or
-* (at your option) any later version.
-*
-*/
+// SPDX-License-Identifier: GPL-2.0+
+//
+// da9052-regulator.c: Regulator driver for DA9052
+//
+// Copyright(c) 2011 Dialog Semiconductor Ltd.
+//
+// Author: David Dajun Chen <dchen@diasemi.com>
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -19,10 +13,8 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
-#ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/regulator/of_regulator.h>
-#endif
 
 #include <linux/mfd/da9052/da9052.h>
 #include <linux/mfd/da9052/reg.h>
@@ -294,6 +286,8 @@ static const struct regulator_ops da9052_ldo_ops = {
 {\
 	.reg_desc = {\
 		.name = #_name,\
+		.of_match = of_match_ptr(#_name),\
+		.regulators_node = of_match_ptr("regulators"),\
 		.ops = &da9052_ldo_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = DA9052_ID_##_id,\
@@ -314,6 +308,8 @@ static const struct regulator_ops da9052_ldo_ops = {
 {\
 	.reg_desc = {\
 		.name = #_name,\
+		.of_match = of_match_ptr(#_name),\
+		.regulators_node = of_match_ptr("regulators"),\
 		.ops = &da9052_dcdc_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = DA9052_ID_##_id,\
@@ -417,36 +413,11 @@ static int da9052_regulator_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	config.dev = &pdev->dev;
+	config.dev = da9052->dev;
 	config.driver_data = regulator;
 	config.regmap = da9052->regmap;
-	if (pdata) {
+	if (pdata)
 		config.init_data = pdata->regulators[cell->id];
-	} else {
-#ifdef CONFIG_OF
-		struct device_node *nproot = da9052->dev->of_node;
-		struct device_node *np;
-
-		if (!nproot)
-			return -ENODEV;
-
-		nproot = of_get_child_by_name(nproot, "regulators");
-		if (!nproot)
-			return -ENODEV;
-
-		for_each_child_of_node(nproot, np) {
-			if (of_node_name_eq(np,
-					 regulator->info->reg_desc.name)) {
-				config.init_data = of_get_regulator_init_data(
-					&pdev->dev, np,
-					&regulator->info->reg_desc);
-				config.of_node = np;
-				break;
-			}
-		}
-		of_node_put(nproot);
-#endif
-	}
 
 	regulator->rdev = devm_regulator_register(&pdev->dev,
 						  &regulator->info->reg_desc,

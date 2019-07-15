@@ -1534,7 +1534,6 @@ static int s5p_hash_shash_digest(struct crypto_shash *tfm, u32 flags,
 	SHASH_DESC_ON_STACK(shash, tfm);
 
 	shash->tfm = tfm;
-	shash->flags = flags & ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	return crypto_shash_digest(shash, data, len, out);
 }

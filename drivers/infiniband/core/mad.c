@@ -3,7 +3,7 @@
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies Ltd.  All rights reserved.
  * Copyright (c) 2009 HNR Consulting. All rights reserved.
- * Copyright (c) 2014 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2014,2018 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -38,10 +38,10 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/dma-mapping.h>
-#include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/security.h>
+#include <linux/xarray.h>
 #include <rdma/ib_cache.h>
 
 #include "mad_priv.h"
@@ -51,6 +51,32 @@
 #include "opa_smi.h"
 #include "agent.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/ib_mad.h>
+
+#ifdef CONFIG_TRACEPOINTS
+static void create_mad_addr_info(struct ib_mad_send_wr_private *mad_send_wr,
+			  struct ib_mad_qp_info *qp_info,
+			  struct trace_event_raw_ib_mad_send_template *entry)
+{
+	u16 pkey;
+	struct ib_device *dev = qp_info->port_priv->device;
+	u8 pnum = qp_info->port_priv->port_num;
+	struct ib_ud_wr *wr = &mad_send_wr->send_wr;
+	struct rdma_ah_attr attr = {};
+
+	rdma_query_ah(wr->ah, &attr);
+
+	/* These are common */
+	entry->sl = attr.sl;
+	ib_query_pkey(dev, pnum, wr->pkey_index, &pkey);
+	entry->pkey = pkey;
+	entry->rqpn = wr->remote_qpn;
+	entry->rqkey = wr->remote_qkey;
+	entry->dlid = rdma_ah_get_dlid(&attr);
+}
+#endif
+
 static int mad_sendq_size = IB_MAD_QP_SEND_SIZE;
 static int mad_recvq_size = IB_MAD_QP_RECV_SIZE;
 
@@ -59,12 +85,9 @@ MODULE_PARM_DESC(send_queue_size, "Size of send queue in number of work requests
 module_param_named(recv_queue_size, mad_recvq_size, int, 0444);
 MODULE_PARM_DESC(recv_queue_size, "Size of receive queue in number of work requests");
 
-/*
- * The mlx4 driver uses the top byte to distinguish which virtual function
- * generated the MAD, so we must avoid using it.
- */
-#define AGENT_ID_LIMIT		(1 << 24)
-static DEFINE_IDR(ib_mad_clients);
+/* Client ID 0 is used for snoop-only clients */
+static DEFINE_XARRAY_ALLOC1(ib_mad_clients);
+static u32 ib_mad_client_next;
 static struct list_head ib_mad_port_list;
 
 /* Port list lock */
@@ -389,18 +412,17 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 		goto error4;
 	}
 
-	idr_preload(GFP_KERNEL);
-	idr_lock(&ib_mad_clients);
-	ret2 = idr_alloc_cyclic(&ib_mad_clients, mad_agent_priv, 0,
-			AGENT_ID_LIMIT, GFP_ATOMIC);
-	idr_unlock(&ib_mad_clients);
-	idr_preload_end();
-
+	/*
+	 * The mlx4 driver uses the top byte to distinguish which virtual
+	 * function generated the MAD, so we must avoid using it.
+	 */
+	ret2 = xa_alloc_cyclic(&ib_mad_clients, &mad_agent_priv->agent.hi_tid,
+			mad_agent_priv, XA_LIMIT(0, (1 << 24) - 1),
+			&ib_mad_client_next, GFP_KERNEL);
 	if (ret2 < 0) {
 		ret = ERR_PTR(ret2);
 		goto error5;
 	}
-	mad_agent_priv->agent.hi_tid = ret2;
 
 	/*
 	 * Make sure MAD registration (if supplied)
@@ -445,12 +467,11 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	}
 	spin_unlock_irq(&port_priv->reg_lock);
 
+	trace_ib_mad_create_agent(mad_agent_priv);
 	return &mad_agent_priv->agent;
 error6:
 	spin_unlock_irq(&port_priv->reg_lock);
-	idr_lock(&ib_mad_clients);
-	idr_remove(&ib_mad_clients, mad_agent_priv->agent.hi_tid);
-	idr_unlock(&ib_mad_clients);
+	xa_erase(&ib_mad_clients, mad_agent_priv->agent.hi_tid);
 error5:
 	ib_mad_agent_security_cleanup(&mad_agent_priv->agent);
 error4:
@@ -602,6 +623,7 @@ static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 	struct ib_mad_port_private *port_priv;
 
 	/* Note that we could still be handling received MADs */
+	trace_ib_mad_unregister_agent(mad_agent_priv);
 
 	/*
 	 * Canceling all sends results in dropping received response
@@ -614,9 +636,7 @@ static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 	spin_lock_irq(&port_priv->reg_lock);
 	remove_mad_reg_req(mad_agent_priv);
 	spin_unlock_irq(&port_priv->reg_lock);
-	idr_lock(&ib_mad_clients);
-	idr_remove(&ib_mad_clients, mad_agent_priv->agent.hi_tid);
-	idr_unlock(&ib_mad_clients);
+	xa_erase(&ib_mad_clients, mad_agent_priv->agent.hi_tid);
 
 	flush_workqueue(port_priv->wq);
 	ib_cancel_rmpp_recvs(mad_agent_priv);
@@ -821,6 +841,8 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	if (opa && smp->class_version == OPA_SM_CLASS_VERSION) {
 		u32 opa_drslid;
 
+		trace_ib_mad_handle_out_opa_smi(opa_smp);
+
 		if ((opa_get_smp_direction(opa_smp)
 		     ? opa_smp->route.dr.dr_dlid : opa_smp->route.dr.dr_slid) ==
 		     OPA_LID_PERMISSIVE &&
@@ -846,6 +868,8 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 		    opa_smi_check_local_returning_smp(opa_smp, device) == IB_SMI_DISCARD)
 			goto out;
 	} else {
+		trace_ib_mad_handle_out_ib_smi(smp);
+
 		if ((ib_get_smp_direction(smp) ? smp->dr_dlid : smp->dr_slid) ==
 		     IB_LID_PERMISSIVE &&
 		     smi_handle_dr_smp_send(smp, rdma_cap_ib_switch(device), port_num) ==
@@ -1223,6 +1247,7 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 
 	spin_lock_irqsave(&qp_info->send_queue.lock, flags);
 	if (qp_info->send_queue.count < qp_info->send_queue.max_active) {
+		trace_ib_mad_ib_send_mad(mad_send_wr, qp_info);
 		ret = ib_post_send(mad_agent->qp, &mad_send_wr->send_wr.wr,
 				   NULL);
 		list = &qp_info->send_queue.list;
@@ -1756,7 +1781,7 @@ find_mad_agent(struct ib_mad_port_private *port_priv,
 		 */
 		hi_tid = be64_to_cpu(mad_hdr->tid) >> 32;
 		rcu_read_lock();
-		mad_agent = idr_find(&ib_mad_clients, hi_tid);
+		mad_agent = xa_load(&ib_mad_clients, hi_tid);
 		if (mad_agent && !atomic_inc_not_zero(&mad_agent->refcount))
 			mad_agent = NULL;
 		rcu_read_unlock();
@@ -2077,6 +2102,8 @@ static enum smi_action handle_ib_smi(const struct ib_mad_port_private *port_priv
 	enum smi_forward_action retsmi;
 	struct ib_smp *smp = (struct ib_smp *)recv->mad;
 
+	trace_ib_mad_handle_ib_smi(smp);
+
 	if (smi_handle_dr_smp_recv(smp,
 				   rdma_cap_ib_switch(port_priv->device),
 				   port_num,
@@ -2161,6 +2188,8 @@ handle_opa_smi(struct ib_mad_port_private *port_priv,
 {
 	enum smi_forward_action retsmi;
 	struct opa_smp *smp = (struct opa_smp *)recv->mad;
+
+	trace_ib_mad_handle_opa_smi(smp);
 
 	if (opa_smi_handle_dr_smp_recv(smp,
 				   rdma_cap_ib_switch(port_priv->device),
@@ -2286,6 +2315,9 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (!validate_mad((const struct ib_mad_hdr *)recv->mad, qp_info, opa))
 		goto out;
 
+	trace_ib_mad_recv_done_handler(qp_info, wc,
+				       (struct ib_mad_hdr *)recv->mad);
+
 	mad_size = recv->mad_size;
 	response = alloc_mad_private(mad_size, GFP_KERNEL);
 	if (!response)
@@ -2332,6 +2364,7 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	mad_agent = find_mad_agent(port_priv, (const struct ib_mad_hdr *)recv->mad);
 	if (mad_agent) {
+		trace_ib_mad_recv_done_agent(mad_agent);
 		ib_mad_complete_recv(mad_agent, &recv->header.recv_wc);
 		/*
 		 * recv is freed up in error cases in ib_mad_complete_recv
@@ -2496,6 +2529,9 @@ static void ib_mad_send_done(struct ib_cq *cq, struct ib_wc *wc)
 	send_queue = mad_list->mad_queue;
 	qp_info = send_queue->qp_info;
 
+	trace_ib_mad_send_done_agent(mad_send_wr->mad_agent_priv);
+	trace_ib_mad_send_done_handler(mad_send_wr, wc);
+
 retry:
 	ib_dma_unmap_single(mad_send_wr->send_buf.mad_agent->device,
 			    mad_send_wr->header_mapping,
@@ -2527,6 +2563,7 @@ retry:
 	ib_mad_complete_send_wr(mad_send_wr, &mad_send_wc);
 
 	if (queued_send_wr) {
+		trace_ib_mad_send_done_resend(queued_send_wr, qp_info);
 		ret = ib_post_send(qp_info->qp, &queued_send_wr->send_wr.wr,
 				   NULL);
 		if (ret) {
@@ -2574,6 +2611,7 @@ static bool ib_mad_send_error(struct ib_mad_port_private *port_priv,
 		if (mad_send_wr->retry) {
 			/* Repost send */
 			mad_send_wr->retry = 0;
+			trace_ib_mad_error_handler(mad_send_wr, qp_info);
 			ret = ib_post_send(qp_info->qp, &mad_send_wr->send_wr.wr,
 					   NULL);
 			if (!ret)
@@ -3355,9 +3393,6 @@ int ib_mad_init(void)
 	mad_sendq_size = max(mad_sendq_size, IB_MAD_QP_MIN_SIZE);
 
 	INIT_LIST_HEAD(&ib_mad_port_list);
-
-	/* Client ID 0 is used for snoop-only clients */
-	idr_alloc(&ib_mad_clients, NULL, 0, 0, GFP_KERNEL);
 
 	if (ib_register_client(&mad_client)) {
 		pr_err("Couldn't register ib_mad client\n");

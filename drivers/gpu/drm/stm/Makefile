@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 stm-drm-y := \
 	drv.o \
 	ltdc.o

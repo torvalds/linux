@@ -324,7 +324,7 @@ to details explained in the following section.
               strcpy(card->driver, "My Chip");
               strcpy(card->shortname, "My Own Chip 123");
               sprintf(card->longname, "%s at 0x%lx irq %i",
-                      card->shortname, chip->ioport, chip->irq);
+                      card->shortname, chip->port, chip->irq);
 
               /* (5) */
               .... /* implemented later */
@@ -437,7 +437,7 @@ Since each component can be properly freed, the single
   strcpy(card->driver, "My Chip");
   strcpy(card->shortname, "My Own Chip 123");
   sprintf(card->longname, "%s at 0x%lx irq %i",
-          card->shortname, chip->ioport, chip->irq);
+          card->shortname, chip->port, chip->irq);
 
 The driver field holds the minimal ID string of the chip. This is used
 by alsa-lib's configurator, so keep it simple but unique. Even the

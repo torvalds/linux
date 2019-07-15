@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm64/crypto/aes-glue.c - wrapper code for ARMv8 AES
  *
  * Copyright (C) 2013 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <asm/neon.h>
@@ -405,7 +402,7 @@ static int ctr_encrypt_sync(struct skcipher_request *req)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return aes_ctr_encrypt_fallback(ctx, req);
 
 	return ctr_encrypt(req);
@@ -642,7 +639,7 @@ static void mac_do_update(struct crypto_aes_ctx *ctx, u8 const in[], int blocks,
 {
 	int rounds = 6 + ctx->key_length / 4;
 
-	if (may_use_simd()) {
+	if (crypto_simd_usable()) {
 		kernel_neon_begin();
 		aes_mac_update(in, ctx->key_enc, rounds, blocks, dg, enc_before,
 			       enc_after);
@@ -707,7 +704,7 @@ static int cbcmac_final(struct shash_desc *desc, u8 *out)
 	struct mac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct mac_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	mac_do_update(&tctx->key, NULL, 0, ctx->dg, 1, 0);
+	mac_do_update(&tctx->key, NULL, 0, ctx->dg, (ctx->len != 0), 0);
 
 	memcpy(out, ctx->dg, AES_BLOCK_SIZE);
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -13,11 +14,6 @@
  * Fixes:
  *		Alan Cox	: Turned on udp checksums. I don't want to
  *				  chase 'memory corruption' bugs that aren't!
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _UDP_H
 #define _UDP_H
@@ -269,13 +265,13 @@ void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len);
 int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb);
 void udp_skb_destructor(struct sock *sk, struct sk_buff *skb);
 struct sk_buff *__skb_recv_udp(struct sock *sk, unsigned int flags,
-			       int noblock, int *peeked, int *off, int *err);
+			       int noblock, int *off, int *err);
 static inline struct sk_buff *skb_recv_udp(struct sock *sk, unsigned int flags,
 					   int noblock, int *err)
 {
-	int peeked, off = 0;
+	int off = 0;
 
-	return __skb_recv_udp(sk, flags, noblock, &peeked, &off, err);
+	return __skb_recv_udp(sk, flags, noblock, &off, err);
 }
 
 int udp_v4_early_demux(struct sk_buff *skb);
@@ -471,12 +467,19 @@ void udpv6_encap_enable(void);
 static inline struct sk_buff *udp_rcv_segment(struct sock *sk,
 					      struct sk_buff *skb, bool ipv4)
 {
+	netdev_features_t features = NETIF_F_SG;
 	struct sk_buff *segs;
+
+	/* Avoid csum recalculation by skb_segment unless userspace explicitly
+	 * asks for the final checksum values
+	 */
+	if (!inet_get_convert_csum(sk))
+		features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 
 	/* the GSO CB lays after the UDP one, no need to save and restore any
 	 * CB fragment
 	 */
-	segs = __skb_gso_segment(skb, NETIF_F_SG, false);
+	segs = __skb_gso_segment(skb, features, false);
 	if (unlikely(IS_ERR_OR_NULL(segs))) {
 		int segs_nr = skb_shinfo(skb)->gso_segs;
 

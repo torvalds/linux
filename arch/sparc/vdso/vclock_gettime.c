@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2006 Andi Kleen, SUSE Labs.
- * Subject to the GNU Public License, v.2
  *
  * Fast user context implementation of clock_gettime, gettimeofday, and time.
  *

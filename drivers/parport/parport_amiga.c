@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Low-level parallel port routines for the Amiga built-in port
  *
  * Author: Joerg Dorchain <joerg@dorchain.net>

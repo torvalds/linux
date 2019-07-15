@@ -7,6 +7,7 @@
 #include <linux/bitops.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/jz4770-cgu.h>

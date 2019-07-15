@@ -466,6 +466,13 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	int i = 0;
 	int retval = 0;
 
+	/*
+	 * Mark "remove" event done regardless of result, for some subsystems
+	 * do not want to re-trigger "remove" event via automatic cleanup.
+	 */
+	if (action == KOBJ_REMOVE)
+		kobj->state_remove_uevent_sent = 1;
+
 	pr_debug("kobject: '%s' (%p): %s\n",
 		 kobject_name(kobj), kobj, __func__);
 
@@ -565,10 +572,6 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 		 * by the caller.
 		 */
 		kobj->state_add_uevent_sent = 1;
-		break;
-
-	case KOBJ_REMOVE:
-		kobj->state_remove_uevent_sent = 1;
 		break;
 
 	case KOBJ_UNBIND:

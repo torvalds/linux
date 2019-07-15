@@ -26,8 +26,8 @@
 #define MLB_TMR_TMCSR_CSL_DIV2	0
 #define MLB_TMR_DIV_CNT		2
 
-#define MLB_TMR_SRC_CH  (1)
-#define MLB_TMR_EVT_CH  (0)
+#define MLB_TMR_SRC_CH		1
+#define MLB_TMR_EVT_CH		0
 
 #define MLB_TMR_SRC_CH_OFS	(MLB_TMR_REGSZPCH * MLB_TMR_SRC_CH)
 #define MLB_TMR_EVT_CH_OFS	(MLB_TMR_REGSZPCH * MLB_TMR_EVT_CH)
@@ -43,6 +43,8 @@
 #define MLB_TMR_EVT_TMRLR2_OFS	(MLB_TMR_EVT_CH_OFS + MLB_TMR_TMRLR2_OFS)
 
 #define MLB_TIMER_RATING	500
+#define MLB_TIMER_ONESHOT	0
+#define MLB_TIMER_PERIODIC	1
 
 static irqreturn_t mlb_timer_interrupt(int irq, void *dev_id)
 {
@@ -59,27 +61,53 @@ static irqreturn_t mlb_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void mlb_evt_timer_start(struct timer_of *to, bool periodic)
+{
+	u32 val = MLB_TMR_TMCSR_CSL_DIV2;
+
+	val |= MLB_TMR_TMCSR_CNTE | MLB_TMR_TMCSR_TRG | MLB_TMR_TMCSR_INTE;
+	if (periodic)
+		val |= MLB_TMR_TMCSR_RELD;
+	writel_relaxed(val, timer_of_base(to) + MLB_TMR_EVT_TMCSR_OFS);
+}
+
+static void mlb_evt_timer_stop(struct timer_of *to)
+{
+	u32 val = readl_relaxed(timer_of_base(to) + MLB_TMR_EVT_TMCSR_OFS);
+
+	val &= ~MLB_TMR_TMCSR_CNTE;
+	writel_relaxed(val, timer_of_base(to) + MLB_TMR_EVT_TMCSR_OFS);
+}
+
+static void mlb_evt_timer_register_count(struct timer_of *to, unsigned long cnt)
+{
+	writel_relaxed(cnt, timer_of_base(to) + MLB_TMR_EVT_TMRLR1_OFS);
+}
+
 static int mlb_set_state_periodic(struct clock_event_device *clk)
 {
 	struct timer_of *to = to_timer_of(clk);
-	u32 val = MLB_TMR_TMCSR_CSL_DIV2;
 
-	writel_relaxed(val, timer_of_base(to) + MLB_TMR_EVT_TMCSR_OFS);
-
-	writel_relaxed(to->of_clk.period, timer_of_base(to) +
-				MLB_TMR_EVT_TMRLR1_OFS);
-	val |= MLB_TMR_TMCSR_RELD | MLB_TMR_TMCSR_CNTE |
-		MLB_TMR_TMCSR_TRG | MLB_TMR_TMCSR_INTE;
-	writel_relaxed(val, timer_of_base(to) + MLB_TMR_EVT_TMCSR_OFS);
+	mlb_evt_timer_stop(to);
+	mlb_evt_timer_register_count(to, to->of_clk.period);
+	mlb_evt_timer_start(to, MLB_TIMER_PERIODIC);
 	return 0;
 }
 
 static int mlb_set_state_oneshot(struct clock_event_device *clk)
 {
 	struct timer_of *to = to_timer_of(clk);
-	u32 val = MLB_TMR_TMCSR_CSL_DIV2;
 
-	writel_relaxed(val, timer_of_base(to) + MLB_TMR_EVT_TMCSR_OFS);
+	mlb_evt_timer_stop(to);
+	mlb_evt_timer_start(to, MLB_TIMER_ONESHOT);
+	return 0;
+}
+
+static int mlb_set_state_shutdown(struct clock_event_device *clk)
+{
+	struct timer_of *to = to_timer_of(clk);
+
+	mlb_evt_timer_stop(to);
 	return 0;
 }
 
@@ -88,22 +116,21 @@ static int mlb_clkevt_next_event(unsigned long event,
 {
 	struct timer_of *to = to_timer_of(clk);
 
-	writel_relaxed(event, timer_of_base(to) + MLB_TMR_EVT_TMRLR1_OFS);
-	writel_relaxed(MLB_TMR_TMCSR_CSL_DIV2 |
-			MLB_TMR_TMCSR_CNTE | MLB_TMR_TMCSR_INTE |
-			MLB_TMR_TMCSR_TRG, timer_of_base(to) +
-			MLB_TMR_EVT_TMCSR_OFS);
+	mlb_evt_timer_stop(to);
+	mlb_evt_timer_register_count(to, event);
+	mlb_evt_timer_start(to, MLB_TIMER_ONESHOT);
 	return 0;
 }
 
 static int mlb_config_clock_source(struct timer_of *to)
 {
-	writel_relaxed(0, timer_of_base(to) + MLB_TMR_SRC_TMCSR_OFS);
-	writel_relaxed(~0, timer_of_base(to) + MLB_TMR_SRC_TMR_OFS);
+	u32 val = MLB_TMR_TMCSR_CSL_DIV2;
+
+	writel_relaxed(val, timer_of_base(to) + MLB_TMR_SRC_TMCSR_OFS);
 	writel_relaxed(~0, timer_of_base(to) + MLB_TMR_SRC_TMRLR1_OFS);
 	writel_relaxed(~0, timer_of_base(to) + MLB_TMR_SRC_TMRLR2_OFS);
-	writel_relaxed(BIT(4) | BIT(1) | BIT(0), timer_of_base(to) +
-		MLB_TMR_SRC_TMCSR_OFS);
+	val |= MLB_TMR_TMCSR_RELD | MLB_TMR_TMCSR_CNTE | MLB_TMR_TMCSR_TRG;
+	writel_relaxed(val, timer_of_base(to) + MLB_TMR_SRC_TMCSR_OFS);
 	return 0;
 }
 
@@ -123,6 +150,7 @@ static struct timer_of to = {
 		.features = CLOCK_EVT_FEAT_DYNIRQ | CLOCK_EVT_FEAT_ONESHOT,
 		.set_state_oneshot = mlb_set_state_oneshot,
 		.set_state_periodic = mlb_set_state_periodic,
+		.set_state_shutdown = mlb_set_state_shutdown,
 		.set_next_event = mlb_clkevt_next_event,
 	},
 

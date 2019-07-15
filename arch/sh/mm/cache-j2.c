@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/sh/mm/cache-j2.c
  *
  * Copyright (C) 2015-2016 Smart Energy Instruments, Inc.
- *
- * Released under the terms of the GNU GPL v2.0.
  */
 
 #include <linux/init.h>

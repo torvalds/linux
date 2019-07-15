@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale i.MX7D ADC driver
  *
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -388,8 +384,9 @@ static irqreturn_t imx7d_adc_isr(int irq, void *dev_id)
 	 * timeout flags.
 	 */
 	if (status & IMX7D_REG_ADC_INT_STATUS_CHANNEL_CONV_TIME_OUT) {
-		pr_err("%s: ADC got conversion time out interrupt: 0x%08x\n",
-			dev_name(info->dev), status);
+		dev_err(info->dev,
+			"ADC got conversion time out interrupt: 0x%08x\n",
+			status);
 		status &= ~IMX7D_REG_ADC_INT_STATUS_CHANNEL_CONV_TIME_OUT;
 		writel(status, info->regs + IMX7D_REG_ADC_INT_STATUS);
 	}
@@ -433,136 +430,7 @@ static void imx7d_adc_power_down(struct imx7d_adc *info)
 	writel(adc_cfg, info->regs + IMX7D_REG_ADC_ADC_CFG);
 }
 
-static int imx7d_adc_probe(struct platform_device *pdev)
-{
-	struct imx7d_adc *info;
-	struct iio_dev *indio_dev;
-	struct resource *mem;
-	int irq;
-	int ret;
-
-	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*info));
-	if (!indio_dev) {
-		dev_err(&pdev->dev, "Failed allocating iio device\n");
-		return -ENOMEM;
-	}
-
-	info = iio_priv(indio_dev);
-	info->dev = &pdev->dev;
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->regs = devm_ioremap_resource(&pdev->dev, mem);
-	if (IS_ERR(info->regs)) {
-		ret = PTR_ERR(info->regs);
-		dev_err(&pdev->dev,
-			"Failed to remap adc memory, err = %d\n", ret);
-		return ret;
-	}
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "No irq resource?\n");
-		return irq;
-	}
-
-	info->clk = devm_clk_get(&pdev->dev, "adc");
-	if (IS_ERR(info->clk)) {
-		ret = PTR_ERR(info->clk);
-		dev_err(&pdev->dev, "Failed getting clock, err = %d\n", ret);
-		return ret;
-	}
-
-	info->vref = devm_regulator_get(&pdev->dev, "vref");
-	if (IS_ERR(info->vref)) {
-		ret = PTR_ERR(info->vref);
-		dev_err(&pdev->dev,
-			"Failed getting reference voltage, err = %d\n", ret);
-		return ret;
-	}
-
-	ret = regulator_enable(info->vref);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Can't enable adc reference top voltage, err = %d\n",
-			ret);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, indio_dev);
-
-	init_completion(&info->completion);
-
-	indio_dev->name = dev_name(&pdev->dev);
-	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->info = &imx7d_adc_iio_info;
-	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = imx7d_adc_iio_channels;
-	indio_dev->num_channels = ARRAY_SIZE(imx7d_adc_iio_channels);
-
-	ret = clk_prepare_enable(info->clk);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Could not prepare or enable the clock.\n");
-		goto error_adc_clk_enable;
-	}
-
-	ret = devm_request_irq(info->dev, irq,
-				imx7d_adc_isr, 0,
-				dev_name(&pdev->dev), info);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed requesting irq, irq = %d\n", irq);
-		goto error_iio_device_register;
-	}
-
-	imx7d_adc_feature_config(info);
-	imx7d_adc_hw_init(info);
-
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		imx7d_adc_power_down(info);
-		dev_err(&pdev->dev, "Couldn't register the device.\n");
-		goto error_iio_device_register;
-	}
-
-	return 0;
-
-error_iio_device_register:
-	clk_disable_unprepare(info->clk);
-error_adc_clk_enable:
-	regulator_disable(info->vref);
-
-	return ret;
-}
-
-static int imx7d_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct imx7d_adc *info = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	imx7d_adc_power_down(info);
-
-	clk_disable_unprepare(info->clk);
-	regulator_disable(info->vref);
-
-	return 0;
-}
-
-static int __maybe_unused imx7d_adc_suspend(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct imx7d_adc *info = iio_priv(indio_dev);
-
-	imx7d_adc_power_down(info);
-
-	clk_disable_unprepare(info->clk);
-	regulator_disable(info->vref);
-
-	return 0;
-}
-
-static int __maybe_unused imx7d_adc_resume(struct device *dev)
+static int imx7d_adc_enable(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct imx7d_adc *info = iio_priv(indio_dev);
@@ -589,11 +457,112 @@ static int __maybe_unused imx7d_adc_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(imx7d_adc_pm_ops, imx7d_adc_suspend, imx7d_adc_resume);
+static int imx7d_adc_disable(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct imx7d_adc *info = iio_priv(indio_dev);
+
+	imx7d_adc_power_down(info);
+
+	clk_disable_unprepare(info->clk);
+	regulator_disable(info->vref);
+
+	return 0;
+}
+
+static void __imx7d_adc_disable(void *data)
+{
+	imx7d_adc_disable(data);
+}
+
+static int imx7d_adc_probe(struct platform_device *pdev)
+{
+	struct imx7d_adc *info;
+	struct iio_dev *indio_dev;
+	struct device *dev = &pdev->dev;
+	int irq;
+	int ret;
+
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*info));
+	if (!indio_dev) {
+		dev_err(&pdev->dev, "Failed allocating iio device\n");
+		return -ENOMEM;
+	}
+
+	info = iio_priv(indio_dev);
+	info->dev = dev;
+
+	info->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(info->regs)) {
+		ret = PTR_ERR(info->regs);
+		dev_err(dev, "Failed to remap adc memory, err = %d\n", ret);
+		return ret;
+	}
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(dev, "No irq resource?\n");
+		return irq;
+	}
+
+	info->clk = devm_clk_get(dev, "adc");
+	if (IS_ERR(info->clk)) {
+		ret = PTR_ERR(info->clk);
+		dev_err(dev, "Failed getting clock, err = %d\n", ret);
+		return ret;
+	}
+
+	info->vref = devm_regulator_get(dev, "vref");
+	if (IS_ERR(info->vref)) {
+		ret = PTR_ERR(info->vref);
+		dev_err(dev,
+			"Failed getting reference voltage, err = %d\n", ret);
+		return ret;
+	}
+
+	platform_set_drvdata(pdev, indio_dev);
+
+	init_completion(&info->completion);
+
+	indio_dev->name = dev_name(dev);
+	indio_dev->dev.parent = dev;
+	indio_dev->info = &imx7d_adc_iio_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->channels = imx7d_adc_iio_channels;
+	indio_dev->num_channels = ARRAY_SIZE(imx7d_adc_iio_channels);
+
+	ret = devm_request_irq(dev, irq,
+			       imx7d_adc_isr, 0,
+			       dev_name(dev), info);
+	if (ret < 0) {
+		dev_err(dev, "Failed requesting irq, irq = %d\n", irq);
+		return ret;
+	}
+
+	imx7d_adc_feature_config(info);
+
+	ret = imx7d_adc_enable(&indio_dev->dev);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, __imx7d_adc_disable,
+				       &indio_dev->dev);
+	if (ret)
+		return ret;
+
+	ret = devm_iio_device_register(dev, indio_dev);
+	if (ret) {
+		dev_err(&pdev->dev, "Couldn't register the device.\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(imx7d_adc_pm_ops, imx7d_adc_disable, imx7d_adc_enable);
 
 static struct platform_driver imx7d_adc_driver = {
 	.probe		= imx7d_adc_probe,
-	.remove		= imx7d_adc_remove,
 	.driver		= {
 		.name	= "imx7d_adc",
 		.of_match_table = imx7d_adc_match,

@@ -63,7 +63,7 @@ __cacheline_aligned_in_smp DEFINE_SEQLOCK(jiffies_lock);
 #if (BITS_PER_LONG < 64)
 u64 get_jiffies_64(void)
 {
-	unsigned long seq;
+	unsigned int seq;
 	u64 ret;
 
 	do {

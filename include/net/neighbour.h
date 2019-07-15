@@ -205,6 +205,8 @@ struct neigh_table {
 	int			(*pconstructor)(struct pneigh_entry *);
 	void			(*pdestructor)(struct pneigh_entry *);
 	void			(*proxy_redo)(struct sk_buff *skb);
+	bool			(*allow_add)(const struct net_device *dev,
+					     struct netlink_ext_ack *extack);
 	char			*id;
 	struct neigh_parms	parms;
 	struct list_head	parms_list;
@@ -498,11 +500,12 @@ static inline int neigh_hh_output(const struct hh_cache *hh, struct sk_buff *skb
 	return dev_queue_xmit(skb);
 }
 
-static inline int neigh_output(struct neighbour *n, struct sk_buff *skb)
+static inline int neigh_output(struct neighbour *n, struct sk_buff *skb,
+			       bool skip_cache)
 {
 	const struct hh_cache *hh = &n->hh;
 
-	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len)
+	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len && !skip_cache)
 		return neigh_hh_output(hh, skb);
 	else
 		return n->output(n, skb);

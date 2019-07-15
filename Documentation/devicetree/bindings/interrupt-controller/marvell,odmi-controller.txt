@@ -23,7 +23,7 @@ Required properties:
 - marvell,spi-base     : List of GIC base SPI interrupts, one for each
                          ODMI frame. Those SPI interrupts are 0-based,
                          i.e marvell,spi-base = <128> will use SPI #96.
-                         See Documentation/devicetree/bindings/interrupt-controller/arm,gic.txt
+                         See Documentation/devicetree/bindings/interrupt-controller/arm,gic.yaml
                          for details about the GIC Device Tree binding.
 
 Example:

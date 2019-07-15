@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2010
  *
  * Author: Naveen Kumar G <naveen.gaddipati@stericsson.com> for ST-Ericsson
  * Author: Sundar Iyer <sundar.iyer@stericsson.com> for ST-Ericsson
- *
- * License terms:GNU General Public License (GPL) version 2
  *
  * Keypad controller driver for the SKE (Scroll Key Encoder) module used in
  * the Nomadik 8815 and Ux500 platforms.

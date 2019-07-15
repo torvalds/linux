@@ -194,7 +194,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 		break;
 	}
 
-	if (!IS_ICELAKE(dev_priv))
+	if (INTEL_GEN(dev_priv) < 11)
 		vlv_dsi_wait_for_fifo_empty(intel_dsi, port);
 
 out:
@@ -365,7 +365,7 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	/* pull up/down */
 	value = *data++ & 1;
 
-	if (IS_ICELAKE(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 11)
 		icl_exec_gpio(dev_priv, gpio_source, gpio_index, value);
 	else if (IS_VALLEYVIEW(dev_priv))
 		vlv_exec_gpio(dev_priv, gpio_source, gpio_number, value);
@@ -530,24 +530,6 @@ void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
 		return;
 
 	msleep(msec);
-}
-
-int intel_dsi_vbt_get_modes(struct intel_dsi *intel_dsi)
-{
-	struct intel_connector *connector = intel_dsi->attached_connector;
-	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_display_mode *mode;
-
-	mode = drm_mode_duplicate(dev, dev_priv->vbt.lfp_lvds_vbt_mode);
-	if (!mode)
-		return 0;
-
-	mode->type |= DRM_MODE_TYPE_PREFERRED;
-
-	drm_mode_probed_add(&connector->base, mode);
-
-	return 1;
 }
 
 #define ICL_PREPARE_CNT_MAX	0x7
@@ -871,6 +853,17 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 		if (mipi_config->target_burst_mode_freq) {
 			u32 bitrate = intel_dsi_bitrate(intel_dsi);
 
+			/*
+			 * Sometimes the VBT contains a slightly lower clock,
+			 * then the bitrate we have calculated, in this case
+			 * just replace it with the calculated bitrate.
+			 */
+			if (mipi_config->target_burst_mode_freq < bitrate &&
+			    intel_fuzzy_clock_check(
+					mipi_config->target_burst_mode_freq,
+					bitrate))
+				mipi_config->target_burst_mode_freq = bitrate;
+
 			if (mipi_config->target_burst_mode_freq < bitrate) {
 				DRM_ERROR("Burst mode freq is less than computed\n");
 				return false;
@@ -890,7 +883,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 
 	intel_dsi->burst_mode_ratio = burst_mode_ratio;
 
-	if (IS_ICELAKE(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 11)
 		icl_dphy_param_init(intel_dsi);
 	else
 		vlv_dphy_param_init(intel_dsi);

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2009 - Maxim Levitsky
  * driver for Ricoh xD readers
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define DRV_NAME "r852"
@@ -45,7 +42,6 @@ static inline void r852_write_reg(struct r852_device *dev,
 						int address, uint8_t value)
 {
 	writeb(value, dev->mmio + address);
-	mmiowb();
 }
 
 
@@ -61,7 +57,6 @@ static inline void r852_write_reg_dword(struct r852_device *dev,
 							int address, uint32_t value)
 {
 	writel(cpu_to_le32(value), dev->mmio + address);
-	mmiowb();
 }
 
 /* returns pointer to our private structure */

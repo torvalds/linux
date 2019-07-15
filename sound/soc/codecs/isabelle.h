@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * isabelle.h - Low power high fidelity audio codec driver header file
  *
  * Copyright (c) 2012 Texas Instruments, Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
  */
 
 #ifndef _ISABELLE_H

@@ -120,8 +120,8 @@ struct rx_raw_rssi
 	u8 pwdball;
 	s8 pwr_all;
 
-	u8 mimo_singal_strength[4];/*  in 0~100 index */
-	u8 mimo_singal_quality[4];
+	u8 mimo_signal_strength[4];/*  in 0~100 index */
+	u8 mimo_signal_quality[4];
 
 	s8 ofdm_pwr[4];
 	u8 ofdm_snr[4];
@@ -302,7 +302,7 @@ struct recv_buf
 
 	u32 ref_cnt;
 
-	struct adapter * adapter;
+	struct adapter *adapter;
 
 	u8 *pbuf;
 	u8 *pallocated_buf;

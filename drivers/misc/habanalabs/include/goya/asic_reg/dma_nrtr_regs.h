@@ -224,4 +224,3 @@
 #define mmDMA_NRTR_NON_LIN_SCRAMB                                    0x1C0604
 
 #endif /* ASIC_REG_DMA_NRTR_REGS_H_ */
-

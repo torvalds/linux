@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005-2006, Devicescape Software, Inc.
@@ -5,10 +6,6 @@
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2017     Intel Deutschland GmbH
  * Copyright (C) 2018 - 2019 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <net/mac80211.h>
@@ -1050,6 +1047,22 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			goto fail_wiphy_register;
 		}
 	}
+
+	/* Enable Extended Key IDs when driver allowed it, or when it
+	 * supports neither HW crypto nor A-MPDUs
+	 */
+	if ((!local->ops->set_key &&
+	     !ieee80211_hw_check(hw, AMPDU_AGGREGATION)) ||
+	    ieee80211_hw_check(&local->hw, EXT_KEY_ID_NATIVE))
+		wiphy_ext_feature_set(local->hw.wiphy,
+				      NL80211_EXT_FEATURE_EXT_KEY_ID);
+
+	/* Mac80211 and therefore all cards only using SW crypto are able to
+	 * handle PTK rekeys correctly
+	 */
+	if (!local->ops->set_key)
+		wiphy_ext_feature_set(local->hw.wiphy,
+				      NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
 
 	/*
 	 * Calculate scan IE length -- we need this to alloc

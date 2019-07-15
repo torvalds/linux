@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config COMMON_CLK_BOSTON
 	bool "Clock driver for MIPS Boston boards"
 	depends on MIPS || COMPILE_TEST

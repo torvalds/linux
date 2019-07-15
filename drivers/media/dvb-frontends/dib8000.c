@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linux-DVB Driver for DiBcom's DiB8000 chip (ISDB-T).
  *
  * Copyright (C) 2009 DiBcom (http://www.dibcom.fr/)
- *
- * This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License as
- *  published by the Free Software Foundation, version 2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -4458,8 +4455,8 @@ static struct dvb_frontend *dib8000_init(struct i2c_adapter *i2c_adap, u8 i2c_ad
 	dibx000_init_i2c_master(&state->i2c_master, DIB8000, state->i2c.adap, state->i2c.addr);
 
 	/* init 8096p tuner adapter */
-	strncpy(state->dib8096p_tuner_adap.name, "DiB8096P tuner interface",
-			sizeof(state->dib8096p_tuner_adap.name));
+	strscpy(state->dib8096p_tuner_adap.name, "DiB8096P tuner interface",
+		sizeof(state->dib8096p_tuner_adap.name));
 	state->dib8096p_tuner_adap.algo = &dib8096p_tuner_xfer_algo;
 	state->dib8096p_tuner_adap.algo_data = NULL;
 	state->dib8096p_tuner_adap.dev.parent = state->i2c.adap->dev.parent;

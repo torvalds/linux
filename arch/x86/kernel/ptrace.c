@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* By Ross Biro 1/23/92 */
 /*
  * Pentium III FXSR, SSE support

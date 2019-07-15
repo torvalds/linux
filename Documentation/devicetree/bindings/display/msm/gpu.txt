@@ -22,9 +22,14 @@ Required properties:
    - qcom,adreno-630.2
 - iommus: optional phandle to an adreno iommu instance
 - operating-points-v2: optional phandle to the OPP operating points
+- interconnects: optional phandle to an interconnect provider.  See
+  ../interconnect/interconnect.txt for details.
 - qcom,gmu: For GMU attached devices a phandle to the GMU device that will
   control the power for the GPU. Applicable targets:
     - qcom,adreno-630.2
+- zap-shader: For a5xx and a6xx devices this node contains a memory-region that
+  points to reserved memory to store the zap shader that can be used to help
+  bring the GPU out of secure mode.
 
 Example 3xx/4xx/a5xx:
 
@@ -70,6 +75,12 @@ Example a6xx (with GMU):
 
 		operating-points-v2 = <&gpu_opp_table>;
 
+		interconnects = <&rsc_hlos MASTER_GFX3D &rsc_hlos SLAVE_EBI1>;
+
 		qcom,gmu = <&gmu>;
+
+		zap-shader {
+			memory-region = <&zap_shader_region>;
+		};
 	};
 };

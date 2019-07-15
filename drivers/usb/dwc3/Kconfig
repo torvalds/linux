@@ -54,7 +54,8 @@ comment "Platform Glue Driver Support"
 
 config USB_DWC3_OMAP
 	tristate "Texas Instruments OMAP5 and similar Platforms"
-	depends on EXTCON && (ARCH_OMAP2PLUS || COMPILE_TEST)
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	depends on EXTCON || !EXTCON
 	depends on OF
 	default USB_DWC3
 	help
@@ -95,6 +96,16 @@ config USB_DWC3_KEYSTONE
 	  Support of USB2/3 functionality in TI Keystone2 and AM654 platforms.
 	  Say 'Y' or 'M' here if you have one such device
 
+config USB_DWC3_MESON_G12A
+       tristate "Amlogic Meson G12A Platforms"
+       depends on OF && COMMON_CLK
+       depends on ARCH_MESON || COMPILE_TEST
+       default USB_DWC3
+       select USB_ROLE_SWITCH
+       help
+         Support USB2/3 functionality in Amlogic G12A platforms.
+	 Say 'Y' or 'M' if you have one such device.
+
 config USB_DWC3_OF_SIMPLE
        tristate "Generic OF Simple Glue Layer"
        depends on OF && COMMON_CLK
@@ -115,7 +126,8 @@ config USB_DWC3_ST
 
 config USB_DWC3_QCOM
 	tristate "Qualcomm Platform"
-	depends on EXTCON && (ARCH_QCOM || COMPILE_TEST)
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on EXTCON || !EXTCON
 	depends on OF
 	default USB_DWC3
 	help

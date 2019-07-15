@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-pxa/zylonite.c
  *
@@ -7,10 +8,6 @@
  *
  * 2007-09-04: eric miao <eric.miao@marvell.com>
  *             rewrite to align with latest kernel
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

@@ -1,30 +1,154 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
  * Copyright (c) 2014 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/ascii85.h>
 #include <linux/interconnect.h>
+#include <linux/qcom_scm.h>
 #include <linux/kernel.h>
+#include <linux/of_address.h>
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
+#include <linux/soc/qcom/mdt_loader.h>
 #include "adreno_gpu.h"
 #include "msm_gem.h"
 #include "msm_mmu.h"
+
+static bool zap_available = true;
+
+static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname,
+		u32 pasid)
+{
+	struct device *dev = &gpu->pdev->dev;
+	const struct firmware *fw;
+	struct device_node *np, *mem_np;
+	struct resource r;
+	phys_addr_t mem_phys;
+	ssize_t mem_size;
+	void *mem_region = NULL;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_ARCH_QCOM)) {
+		zap_available = false;
+		return -EINVAL;
+	}
+
+	np = of_get_child_by_name(dev->of_node, "zap-shader");
+	if (!np) {
+		zap_available = false;
+		return -ENODEV;
+	}
+
+	mem_np = of_parse_phandle(np, "memory-region", 0);
+	of_node_put(np);
+	if (!mem_np) {
+		zap_available = false;
+		return -EINVAL;
+	}
+
+	ret = of_address_to_resource(mem_np, 0, &r);
+	of_node_put(mem_np);
+	if (ret)
+		return ret;
+
+	mem_phys = r.start;
+	mem_size = resource_size(&r);
+
+	/* Request the MDT file for the firmware */
+	fw = adreno_request_fw(to_adreno_gpu(gpu), fwname);
+	if (IS_ERR(fw)) {
+		DRM_DEV_ERROR(dev, "Unable to load %s\n", fwname);
+		return PTR_ERR(fw);
+	}
+
+	/* Figure out how much memory we need */
+	mem_size = qcom_mdt_get_size(fw);
+	if (mem_size < 0) {
+		ret = mem_size;
+		goto out;
+	}
+
+	/* Allocate memory for the firmware image */
+	mem_region = memremap(mem_phys, mem_size,  MEMREMAP_WC);
+	if (!mem_region) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * Load the rest of the MDT
+	 *
+	 * Note that we could be dealing with two different paths, since
+	 * with upstream linux-firmware it would be in a qcom/ subdir..
+	 * adreno_request_fw() handles this, but qcom_mdt_load() does
+	 * not.  But since we've already gotten through adreno_request_fw()
+	 * we know which of the two cases it is:
+	 */
+	if (to_adreno_gpu(gpu)->fwloc == FW_LOCATION_LEGACY) {
+		ret = qcom_mdt_load(dev, fw, fwname, pasid,
+				mem_region, mem_phys, mem_size, NULL);
+	} else {
+		char *newname;
+
+		newname = kasprintf(GFP_KERNEL, "qcom/%s", fwname);
+
+		ret = qcom_mdt_load(dev, fw, newname, pasid,
+				mem_region, mem_phys, mem_size, NULL);
+		kfree(newname);
+	}
+	if (ret)
+		goto out;
+
+	/* Send the image to the secure world */
+	ret = qcom_scm_pas_auth_and_reset(pasid);
+
+	/*
+	 * If the scm call returns -EOPNOTSUPP we assume that this target
+	 * doesn't need/support the zap shader so quietly fail
+	 */
+	if (ret == -EOPNOTSUPP)
+		zap_available = false;
+	else if (ret)
+		DRM_DEV_ERROR(dev, "Unable to authorize the image\n");
+
+out:
+	if (mem_region)
+		memunmap(mem_region);
+
+	release_firmware(fw);
+
+	return ret;
+}
+
+int adreno_zap_shader_load(struct msm_gpu *gpu, u32 pasid)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct platform_device *pdev = gpu->pdev;
+
+	/* Short cut if we determine the zap shader isn't available/needed */
+	if (!zap_available)
+		return -ENODEV;
+
+	/* We need SCM to be able to load the firmware */
+	if (!qcom_scm_is_available()) {
+		DRM_DEV_ERROR(&pdev->dev, "SCM is not available\n");
+		return -EPROBE_DEFER;
+	}
+
+	/* Each GPU has a target specific zap shader firmware name to use */
+	if (!adreno_gpu->info->zapfw) {
+		zap_available = false;
+		DRM_DEV_ERROR(&pdev->dev,
+			"Zap shader firmware file not specified for this target\n");
+		return -ENODEV;
+	}
+
+	return zap_shader_load_mdt(gpu, adreno_gpu->info->zapfw, pasid);
+}
 
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 {
@@ -62,6 +186,12 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 		return -EINVAL;
 	case MSM_PARAM_NR_RINGS:
 		*value = gpu->nr_rings;
+		return 0;
+	case MSM_PARAM_PP_PGTABLE:
+		*value = 0;
+		return 0;
+	case MSM_PARAM_FAULTS:
+		*value = gpu->global_faults;
 		return 0;
 	default:
 		DBG("%s: invalid param: %u", gpu->name, param);

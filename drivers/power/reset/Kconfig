@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig POWER_RESET
 	bool "Board level reset or power off"
 	help

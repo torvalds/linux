@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91sam926x_time.c - Periodic Interval Timer (PIT) for at91sam926x
  *
  * Copyright (C) 2005-2006 M. Amine SAYA, ATMEL Rousset, France
  * Revision	 2005 M. Nicolas Diremdjian, ATMEL Rousset, France
  * Converted to ClockSource/ClockEvents by David Brownell.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	"AT91: PIT: " fmt

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012, Intel Corporation
  * Copyright (c) 2015, Red Hat, Inc.
  * Copyright (c) 2015, 2016 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #define pr_fmt(fmt) "ACPI: SPCR: " fmt
@@ -28,7 +24,7 @@ EXPORT_SYMBOL(qdf2400_e44_present);
 
 /*
  * Some Qualcomm Datacenter Technologies SoCs have a defective UART BUSY bit.
- * Detect them by examining the OEM fields in the SPCR header, similiar to PCI
+ * Detect them by examining the OEM fields in the SPCR header, similar to PCI
  * quirk detection in pci_mcfg.c.
  */
 static bool qdf2400_erratum_44_present(struct acpi_table_header *h)

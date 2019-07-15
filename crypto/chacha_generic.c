@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ChaCha and XChaCha stream ciphers, including ChaCha20 (RFC7539)
  *
  * Copyright (C) 2015 Martin Willi
  * Copyright (C) 2018 Google LLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <asm/unaligned.h>
@@ -22,18 +18,16 @@ static void chacha_docrypt(u32 *state, u8 *dst, const u8 *src,
 	/* aligned to potentially speed up crypto_xor() */
 	u8 stream[CHACHA_BLOCK_SIZE] __aligned(sizeof(long));
 
-	if (dst != src)
-		memcpy(dst, src, bytes);
-
 	while (bytes >= CHACHA_BLOCK_SIZE) {
 		chacha_block(state, stream, nrounds);
-		crypto_xor(dst, stream, CHACHA_BLOCK_SIZE);
+		crypto_xor_cpy(dst, src, stream, CHACHA_BLOCK_SIZE);
 		bytes -= CHACHA_BLOCK_SIZE;
 		dst += CHACHA_BLOCK_SIZE;
+		src += CHACHA_BLOCK_SIZE;
 	}
 	if (bytes) {
 		chacha_block(state, stream, nrounds);
-		crypto_xor(dst, stream, bytes);
+		crypto_xor_cpy(dst, src, stream, bytes);
 	}
 }
 
@@ -52,7 +46,7 @@ static int chacha_stream_xor(struct skcipher_request *req,
 		unsigned int nbytes = walk.nbytes;
 
 		if (nbytes < walk.total)
-			nbytes = round_down(nbytes, walk.stride);
+			nbytes = round_down(nbytes, CHACHA_BLOCK_SIZE);
 
 		chacha_docrypt(state, walk.dst.virt.addr, walk.src.virt.addr,
 			       nbytes, ctx->nrounds);
@@ -203,7 +197,7 @@ static void __exit chacha_generic_mod_fini(void)
 	crypto_unregister_skciphers(algs, ARRAY_SIZE(algs));
 }
 
-module_init(chacha_generic_mod_init);
+subsys_initcall(chacha_generic_mod_init);
 module_exit(chacha_generic_mod_fini);
 
 MODULE_LICENSE("GPL");

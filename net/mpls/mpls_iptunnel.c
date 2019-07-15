@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * mpls tunnels	An implementation mpls tunnels using the light weight tunnel
  *		infrastructure
  *
  * Authors:	Roopa Prabhu, <roopa@cumulusnetworks.com>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
- *
  */
 #include <linux/types.h>
 #include <linux/skbuff.h>
@@ -28,7 +23,7 @@
 #include "internal.h"
 
 static const struct nla_policy mpls_iptunnel_policy[MPLS_IPTUNNEL_MAX + 1] = {
-	[MPLS_IPTUNNEL_DST]	= { .type = NLA_U32 },
+	[MPLS_IPTUNNEL_DST]	= { .len = sizeof(u32) },
 	[MPLS_IPTUNNEL_TTL]	= { .type = NLA_U8 },
 };
 
@@ -137,10 +132,14 @@ static int mpls_xmit(struct sk_buff *skb)
 
 	mpls_stats_inc_outucastpkts(out_dev, skb);
 
-	if (rt)
-		err = neigh_xmit(NEIGH_ARP_TABLE, out_dev, &rt->rt_gateway,
-				 skb);
-	else if (rt6) {
+	if (rt) {
+		if (rt->rt_gw_family == AF_INET)
+			err = neigh_xmit(NEIGH_ARP_TABLE, out_dev, &rt->rt_gw4,
+					 skb);
+		else if (rt->rt_gw_family == AF_INET6)
+			err = neigh_xmit(NEIGH_ND_TABLE, out_dev, &rt->rt_gw6,
+					 skb);
+	} else if (rt6) {
 		if (ipv6_addr_v4mapped(&rt6->rt6i_gateway)) {
 			/* 6PE (RFC 4798) */
 			err = neigh_xmit(NEIGH_ARP_TABLE, out_dev, &rt6->rt6i_gateway.s6_addr32[3],
@@ -174,8 +173,8 @@ static int mpls_build_state(struct nlattr *nla,
 	u8 n_labels;
 	int ret;
 
-	ret = nla_parse_nested(tb, MPLS_IPTUNNEL_MAX, nla,
-			       mpls_iptunnel_policy, extack);
+	ret = nla_parse_nested_deprecated(tb, MPLS_IPTUNNEL_MAX, nla,
+					  mpls_iptunnel_policy, extack);
 	if (ret < 0)
 		return ret;
 

@@ -448,6 +448,27 @@ static int ov7740_get_gain(struct ov7740 *ov7740, struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
+static int ov7740_get_exp(struct ov7740 *ov7740, struct v4l2_ctrl *ctrl)
+{
+	struct regmap *regmap = ov7740->regmap;
+	unsigned int value0, value1;
+	int ret;
+
+	if (ctrl->val == V4L2_EXPOSURE_MANUAL)
+		return 0;
+
+	ret = regmap_read(regmap, REG_AEC, &value0);
+	if (ret)
+		return ret;
+	ret = regmap_read(regmap, REG_HAEC, &value1);
+	if (ret)
+		return ret;
+
+	ov7740->exposure->val = (value1 << 8) | (value0 & 0xff);
+
+	return 0;
+}
+
 static int ov7740_set_exp(struct regmap *regmap, int value)
 {
 	int ret;
@@ -493,6 +514,9 @@ static int ov7740_get_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_AUTOGAIN:
 		ret = ov7740_get_gain(ov7740, ctrl);
+		break;
+	case V4L2_CID_EXPOSURE_AUTO:
+		ret = ov7740_get_exp(ov7740, ctrl);
 		break;
 	default:
 		ret = -EINVAL;
@@ -991,8 +1015,6 @@ static int ov7740_init_controls(struct ov7740 *ov7740)
 
 	ov7740->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &ov7740_ctrl_ops,
 					   V4L2_CID_EXPOSURE, 0, 65535, 1, 500);
-	if (ov7740->exposure)
-		ov7740->exposure->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	ov7740->auto_exposure = v4l2_ctrl_new_std_menu(ctrl_hdlr,
 					&ov7740_ctrl_ops,
@@ -1003,7 +1025,7 @@ static int ov7740_init_controls(struct ov7740 *ov7740)
 	v4l2_ctrl_auto_cluster(3, &ov7740->auto_wb, 0, false);
 	v4l2_ctrl_auto_cluster(2, &ov7740->auto_gain, 0, true);
 	v4l2_ctrl_auto_cluster(2, &ov7740->auto_exposure,
-			       V4L2_EXPOSURE_MANUAL, false);
+			       V4L2_EXPOSURE_MANUAL, true);
 	v4l2_ctrl_cluster(2, &ov7740->hflip);
 
 	if (ctrl_hdlr->error) {

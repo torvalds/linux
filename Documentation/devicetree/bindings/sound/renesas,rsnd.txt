@@ -266,6 +266,7 @@ Required properties:
 				    - "renesas,rcar_sound-r8a7743" (RZ/G1M)
 				    - "renesas,rcar_sound-r8a7744" (RZ/G1N)
 				    - "renesas,rcar_sound-r8a7745" (RZ/G1E)
+				    - "renesas,rcar_sound-r8a77470" (RZ/G1C)
 				    - "renesas,rcar_sound-r8a774a1" (RZ/G2M)
 				    - "renesas,rcar_sound-r8a774c0" (RZ/G2E)
 				    - "renesas,rcar_sound-r8a7778" (R-Car M1A)
@@ -282,7 +283,12 @@ Required properties:
 - reg				: Should contain the register physical address.
 				  required register is
 				   SRU/ADG/SSI      if generation1
-				   SRU/ADG/SSIU/SSI if generation2
+				   SRU/ADG/SSIU/SSI/AUDIO-DMAC-periperi if generation2/generation3
+				   Select extended AUDIO-DMAC-periperi address if SoC has it,
+				   otherwise select normal AUDIO-DMAC-periperi address.
+- reg-names			: Should contain the register names.
+				   scu/adg/ssi	if generation1
+				   scu/adg/ssiu/ssi/audmapp if generation2/generation3
 - rcar_sound,ssi		: Should contain SSI feature.
 				  The number of SSI subnode should be same as HW.
 				  see below for detail.

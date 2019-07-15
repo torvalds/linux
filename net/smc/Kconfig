@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SMC
 	tristate "SMC socket protocol family"
 	depends on INET && INFINIBAND

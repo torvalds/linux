@@ -23,7 +23,6 @@
  */
 
 #include <linux/circ_buf.h>
-#include <trace/events/dma_fence.h>
 
 #include "intel_guc_submission.h"
 #include "intel_lrc_reg.h"
@@ -382,7 +381,7 @@ static void guc_stage_desc_init(struct intel_guc_client *client)
 	desc->db_id = client->doorbell_id;
 
 	for_each_engine_masked(engine, dev_priv, client->engines, tmp) {
-		struct intel_context *ce = to_intel_context(ctx, engine);
+		struct intel_context *ce = intel_context_lookup(ctx, engine);
 		u32 guc_engine_id = engine->guc_id;
 		struct guc_execlist_context *lrc = &desc->lrc[guc_engine_id];
 
@@ -393,7 +392,7 @@ static void guc_stage_desc_init(struct intel_guc_client *client)
 		 * for now who owns a GuC client. But for future owner of GuC
 		 * client, need to make sure lrc is pinned prior to enter here.
 		 */
-		if (!ce->state)
+		if (!ce || !ce->state)
 			break;	/* XXX: continue? */
 
 		/*
@@ -535,7 +534,7 @@ static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 	spin_lock(&client->wq_lock);
 
 	guc_wq_item_append(client, engine->guc_id, ctx_desc,
-			   ring_tail, rq->global_seqno);
+			   ring_tail, rq->fence.seqno);
 	guc_ring_doorbell(client);
 
 	client->submissions[engine->id] += 1;
@@ -567,7 +566,7 @@ static void inject_preempt_context(struct work_struct *work)
 					     preempt_work[engine->id]);
 	struct intel_guc_client *client = guc->preempt_client;
 	struct guc_stage_desc *stage_desc = __get_stage_desc(client);
-	struct intel_context *ce = to_intel_context(client->owner, engine);
+	struct intel_context *ce = engine->preempt_context;
 	u32 data[7];
 
 	if (!ce->ring->emit) { /* recreate upon load/resume */
@@ -575,7 +574,7 @@ static void inject_preempt_context(struct work_struct *work)
 		u32 *cs;
 
 		cs = ce->ring->vaddr;
-		if (engine->id == RCS) {
+		if (engine->class == RENDER_CLASS) {
 			cs = gen8_emit_ggtt_write_rcs(cs,
 						      GUC_PREEMPT_FINISHED,
 						      addr,
@@ -583,7 +582,8 @@ static void inject_preempt_context(struct work_struct *work)
 		} else {
 			cs = gen8_emit_ggtt_write(cs,
 						  GUC_PREEMPT_FINISHED,
-						  addr);
+						  addr,
+						  0);
 			*cs++ = MI_NOOP;
 			*cs++ = MI_NOOP;
 		}
@@ -649,9 +649,10 @@ static void wait_for_guc_preempt_report(struct intel_engine_cs *engine)
 	struct guc_ctx_report *report =
 		&data->preempt_ctx_report[engine->guc_id];
 
-	WARN_ON(wait_for_atomic(report->report_return_status ==
-				INTEL_GUC_REPORT_STATUS_COMPLETE,
-				GUC_PREEMPT_POSTPROCESS_DELAY_MS));
+	if (wait_for_atomic(report->report_return_status ==
+			    INTEL_GUC_REPORT_STATUS_COMPLETE,
+			    GUC_PREEMPT_POSTPROCESS_DELAY_MS))
+		DRM_ERROR("Timed out waiting for GuC preemption report\n");
 	/*
 	 * GuC is expecting that we're also going to clear the affected context
 	 * counter, let's also reset the return status to not depend on GuC
@@ -720,7 +721,7 @@ static inline int rq_prio(const struct i915_request *rq)
 
 static inline int port_prio(const struct execlist_port *port)
 {
-	return rq_prio(port_request(port));
+	return rq_prio(port_request(port)) | __NO_PREEMPTION;
 }
 
 static bool __guc_dequeue(struct intel_engine_cs *engine)
@@ -781,8 +782,7 @@ static bool __guc_dequeue(struct intel_engine_cs *engine)
 		}
 
 		rb_erase_cached(&p->node, &execlists->queue);
-		if (p->priority != I915_PRIORITY_NORMAL)
-			kmem_cache_free(engine->i915->priorities, p);
+		i915_priolist_free(p);
 	}
 done:
 	execlists->queue_priority_hint =
@@ -869,6 +869,104 @@ static void guc_reset_prepare(struct intel_engine_cs *engine)
 	 */
 	if (engine->i915->guc.preempt_wq)
 		flush_workqueue(engine->i915->guc.preempt_wq);
+}
+
+static void guc_reset(struct intel_engine_cs *engine, bool stalled)
+{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct i915_request *rq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+
+	execlists_cancel_port_requests(execlists);
+
+	/* Push back any incomplete requests for replay after the reset. */
+	rq = execlists_unwind_incomplete_requests(execlists);
+	if (!rq)
+		goto out_unlock;
+
+	if (!i915_request_started(rq))
+		stalled = false;
+
+	i915_reset_request(rq, stalled);
+	intel_lr_context_reset(engine, rq->hw_context, rq->head, stalled);
+
+out_unlock:
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+}
+
+static void guc_cancel_requests(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct i915_request *rq, *rn;
+	struct rb_node *rb;
+	unsigned long flags;
+
+	GEM_TRACE("%s\n", engine->name);
+
+	/*
+	 * Before we call engine->cancel_requests(), we should have exclusive
+	 * access to the submission state. This is arranged for us by the
+	 * caller disabling the interrupt generation, the tasklet and other
+	 * threads that may then access the same state, giving us a free hand
+	 * to reset state. However, we still need to let lockdep be aware that
+	 * we know this state may be accessed in hardirq context, so we
+	 * disable the irq around this manipulation and we want to keep
+	 * the spinlock focused on its duties and not accidentally conflate
+	 * coverage to the submission's irq state. (Similarly, although we
+	 * shouldn't need to disable irq around the manipulation of the
+	 * submission's irq state, we also wish to remind ourselves that
+	 * it is irq state.)
+	 */
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+
+	/* Cancel the requests on the HW and clear the ELSP tracker. */
+	execlists_cancel_port_requests(execlists);
+
+	/* Mark all executing requests as skipped. */
+	list_for_each_entry(rq, &engine->timeline.requests, link) {
+		if (!i915_request_signaled(rq))
+			dma_fence_set_error(&rq->fence, -EIO);
+
+		i915_request_mark_complete(rq);
+	}
+
+	/* Flush the queued requests to the timeline list (for retiring). */
+	while ((rb = rb_first_cached(&execlists->queue))) {
+		struct i915_priolist *p = to_priolist(rb);
+		int i;
+
+		priolist_for_each_request_consume(rq, rn, p, i) {
+			list_del_init(&rq->sched.link);
+			__i915_request_submit(rq);
+			dma_fence_set_error(&rq->fence, -EIO);
+			i915_request_mark_complete(rq);
+		}
+
+		rb_erase_cached(&p->node, &execlists->queue);
+		i915_priolist_free(p);
+	}
+
+	/* Remaining _unready_ requests will be nop'ed when submitted */
+
+	execlists->queue_priority_hint = INT_MIN;
+	execlists->queue = RB_ROOT_CACHED;
+	GEM_BUG_ON(port_isset(execlists->port));
+
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+}
+
+static void guc_reset_finish(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists * const execlists = &engine->execlists;
+
+	if (__tasklet_enable(&execlists->tasklet))
+		/* And kick in case we missed a new request submission. */
+		tasklet_hi_schedule(&execlists->tasklet);
+
+	GEM_TRACE("%s: depth->%d\n", engine->name,
+		  atomic_read(&execlists->tasklet.count));
 }
 
 /*
@@ -1031,7 +1129,7 @@ static int guc_clients_create(struct intel_guc *guc)
 	GEM_BUG_ON(guc->preempt_client);
 
 	client = guc_client_alloc(dev_priv,
-				  INTEL_INFO(dev_priv)->ring_mask,
+				  INTEL_INFO(dev_priv)->engine_mask,
 				  GUC_CLIENT_PRIORITY_KMD_NORMAL,
 				  dev_priv->kernel_context);
 	if (IS_ERR(client)) {
@@ -1042,7 +1140,7 @@ static int guc_clients_create(struct intel_guc *guc)
 
 	if (dev_priv->preempt_context) {
 		client = guc_client_alloc(dev_priv,
-					  INTEL_INFO(dev_priv)->ring_mask,
+					  INTEL_INFO(dev_priv)->engine_mask,
 					  GUC_CLIENT_PRIORITY_KMD_HIGH,
 					  dev_priv->preempt_context);
 		if (IS_ERR(client)) {
@@ -1262,10 +1360,12 @@ static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 static void guc_submission_park(struct intel_engine_cs *engine)
 {
 	intel_engine_unpin_breadcrumbs_irq(engine);
+	engine->flags &= ~I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
 }
 
 static void guc_submission_unpark(struct intel_engine_cs *engine)
 {
+	engine->flags |= I915_ENGINE_NEEDS_BREADCRUMB_TASKLET;
 	intel_engine_pin_breadcrumbs_irq(engine);
 }
 
@@ -1290,6 +1390,10 @@ static void guc_set_default_submission(struct intel_engine_cs *engine)
 	engine->unpark = guc_submission_unpark;
 
 	engine->reset.prepare = guc_reset_prepare;
+	engine->reset.reset = guc_reset;
+	engine->reset.finish = guc_reset_finish;
+
+	engine->cancel_requests = guc_cancel_requests;
 
 	engine->flags &= ~I915_ENGINE_SUPPORTS_STATS;
 }

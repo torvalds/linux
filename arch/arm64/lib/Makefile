@@ -24,7 +24,7 @@ CFLAGS_atomic_ll_sc.o	:= -ffixed-x1 -ffixed-x2        		\
 		   -fcall-saved-x10 -fcall-saved-x11 -fcall-saved-x12	\
 		   -fcall-saved-x13 -fcall-saved-x14 -fcall-saved-x15	\
 		   -fcall-saved-x18 -fomit-frame-pointer
-CFLAGS_REMOVE_atomic_ll_sc.o := -pg
+CFLAGS_REMOVE_atomic_ll_sc.o := $(CC_FLAGS_FTRACE)
 GCOV_PROFILE_atomic_ll_sc.o	:= n
 KASAN_SANITIZE_atomic_ll_sc.o	:= n
 KCOV_INSTRUMENT_atomic_ll_sc.o	:= n

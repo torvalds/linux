@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  SR-IPv6 implementation
  *
  *  Author:
  *  David Lebrun <david.lebrun@uclouvain.be>
- *
- *
- *  This program is free software; you can redistribute it and/or
- *        modify it under the terms of the GNU General Public License
- *        as published by the Free Software Foundation; either version
- *        2 of the License, or (at your option) any later version.
  */
 
 #include <linux/types.h>
@@ -396,8 +391,8 @@ static int seg6_build_state(struct nlattr *nla,
 	if (family != AF_INET && family != AF_INET6)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, SEG6_IPTUNNEL_MAX, nla,
-			       seg6_iptunnel_policy, extack);
+	err = nla_parse_nested_deprecated(tb, SEG6_IPTUNNEL_MAX, nla,
+					  seg6_iptunnel_policy, extack);
 
 	if (err < 0)
 		return err;

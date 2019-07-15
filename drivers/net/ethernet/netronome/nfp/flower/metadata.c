@@ -24,6 +24,18 @@ struct nfp_fl_flow_table_cmp_arg {
 	unsigned long cookie;
 };
 
+struct nfp_fl_stats_ctx_to_flow {
+	struct rhash_head ht_node;
+	u32 stats_cxt;
+	struct nfp_fl_payload *flow;
+};
+
+static const struct rhashtable_params stats_ctx_table_params = {
+	.key_offset	= offsetof(struct nfp_fl_stats_ctx_to_flow, stats_cxt),
+	.head_offset	= offsetof(struct nfp_fl_stats_ctx_to_flow, ht_node),
+	.key_len	= sizeof(u32),
+};
+
 static int nfp_release_stats_entry(struct nfp_app *app, u32 stats_context_id)
 {
 	struct nfp_flower_priv *priv = app->priv;
@@ -264,9 +276,6 @@ nfp_check_mask_remove(struct nfp_app *app, char *mask_data, u32 mask_len,
 	if (!mask_entry)
 		return false;
 
-	if (meta_flags)
-		*meta_flags &= ~NFP_FL_META_FLAG_MANAGE_MASK;
-
 	*mask_id = mask_entry->mask_id;
 	mask_entry->ref_cnt--;
 	if (!mask_entry->ref_cnt) {
@@ -285,25 +294,42 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 			      struct nfp_fl_payload *nfp_flow,
 			      struct net_device *netdev)
 {
+	struct nfp_fl_stats_ctx_to_flow *ctx_entry;
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *check_entry;
 	u8 new_mask_id;
 	u32 stats_cxt;
+	int err;
 
-	if (nfp_get_stats_entry(app, &stats_cxt))
-		return -ENOENT;
+	err = nfp_get_stats_entry(app, &stats_cxt);
+	if (err)
+		return err;
 
 	nfp_flow->meta.host_ctx_id = cpu_to_be32(stats_cxt);
 	nfp_flow->meta.host_cookie = cpu_to_be64(flow->cookie);
 	nfp_flow->ingress_dev = netdev;
 
+	ctx_entry = kzalloc(sizeof(*ctx_entry), GFP_KERNEL);
+	if (!ctx_entry) {
+		err = -ENOMEM;
+		goto err_release_stats;
+	}
+
+	ctx_entry->stats_cxt = stats_cxt;
+	ctx_entry->flow = nfp_flow;
+
+	if (rhashtable_insert_fast(&priv->stats_ctx_table, &ctx_entry->ht_node,
+				   stats_ctx_table_params)) {
+		err = -ENOMEM;
+		goto err_free_ctx_entry;
+	}
+
 	new_mask_id = 0;
 	if (!nfp_check_mask_add(app, nfp_flow->mask_data,
 				nfp_flow->meta.mask_len,
 				&nfp_flow->meta.flags, &new_mask_id)) {
-		if (nfp_release_stats_entry(app, stats_cxt))
-			return -EINVAL;
-		return -ENOENT;
+		err = -ENOENT;
+		goto err_remove_rhash;
 	}
 
 	nfp_flow->meta.flow_version = cpu_to_be64(priv->flower_version);
@@ -317,41 +343,80 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 
 	check_entry = nfp_flower_search_fl_table(app, flow->cookie, netdev);
 	if (check_entry) {
-		if (nfp_release_stats_entry(app, stats_cxt))
-			return -EINVAL;
-
-		if (!nfp_check_mask_remove(app, nfp_flow->mask_data,
-					   nfp_flow->meta.mask_len,
-					   NULL, &new_mask_id))
-			return -EINVAL;
-
-		return -EEXIST;
+		err = -EEXIST;
+		goto err_remove_mask;
 	}
 
 	return 0;
+
+err_remove_mask:
+	nfp_check_mask_remove(app, nfp_flow->mask_data, nfp_flow->meta.mask_len,
+			      NULL, &new_mask_id);
+err_remove_rhash:
+	WARN_ON_ONCE(rhashtable_remove_fast(&priv->stats_ctx_table,
+					    &ctx_entry->ht_node,
+					    stats_ctx_table_params));
+err_free_ctx_entry:
+	kfree(ctx_entry);
+err_release_stats:
+	nfp_release_stats_entry(app, stats_cxt);
+
+	return err;
+}
+
+void __nfp_modify_flow_metadata(struct nfp_flower_priv *priv,
+				struct nfp_fl_payload *nfp_flow)
+{
+	nfp_flow->meta.flags &= ~NFP_FL_META_FLAG_MANAGE_MASK;
+	nfp_flow->meta.flow_version = cpu_to_be64(priv->flower_version);
+	priv->flower_version++;
 }
 
 int nfp_modify_flow_metadata(struct nfp_app *app,
 			     struct nfp_fl_payload *nfp_flow)
 {
+	struct nfp_fl_stats_ctx_to_flow *ctx_entry;
 	struct nfp_flower_priv *priv = app->priv;
 	u8 new_mask_id = 0;
 	u32 temp_ctx_id;
+
+	__nfp_modify_flow_metadata(priv, nfp_flow);
 
 	nfp_check_mask_remove(app, nfp_flow->mask_data,
 			      nfp_flow->meta.mask_len, &nfp_flow->meta.flags,
 			      &new_mask_id);
 
-	nfp_flow->meta.flow_version = cpu_to_be64(priv->flower_version);
-	priv->flower_version++;
-
 	/* Update flow payload with mask ids. */
 	nfp_flow->unmasked_data[NFP_FL_MASK_ID_LOCATION] = new_mask_id;
 
-	/* Release the stats ctx id. */
+	/* Release the stats ctx id and ctx to flow table entry. */
 	temp_ctx_id = be32_to_cpu(nfp_flow->meta.host_ctx_id);
 
+	ctx_entry = rhashtable_lookup_fast(&priv->stats_ctx_table, &temp_ctx_id,
+					   stats_ctx_table_params);
+	if (!ctx_entry)
+		return -ENOENT;
+
+	WARN_ON_ONCE(rhashtable_remove_fast(&priv->stats_ctx_table,
+					    &ctx_entry->ht_node,
+					    stats_ctx_table_params));
+	kfree(ctx_entry);
+
 	return nfp_release_stats_entry(app, temp_ctx_id);
+}
+
+struct nfp_fl_payload *
+nfp_flower_get_fl_payload_from_ctx(struct nfp_app *app, u32 ctx_id)
+{
+	struct nfp_fl_stats_ctx_to_flow *ctx_entry;
+	struct nfp_flower_priv *priv = app->priv;
+
+	ctx_entry = rhashtable_lookup_fast(&priv->stats_ctx_table, &ctx_id,
+					   stats_ctx_table_params);
+	if (!ctx_entry)
+		return NULL;
+
+	return ctx_entry->flow;
 }
 
 static int nfp_fl_obj_cmpfn(struct rhashtable_compare_arg *arg,
@@ -403,6 +468,10 @@ int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
 	if (err)
 		return err;
 
+	err = rhashtable_init(&priv->stats_ctx_table, &stats_ctx_table_params);
+	if (err)
+		goto err_free_flow_table;
+
 	get_random_bytes(&priv->mask_id_seed, sizeof(priv->mask_id_seed));
 
 	/* Init ring buffer and unallocated mask_ids. */
@@ -410,7 +479,7 @@ int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
 		kmalloc_array(NFP_FLOWER_MASK_ENTRY_RS,
 			      NFP_FLOWER_MASK_ELEMENT_RS, GFP_KERNEL);
 	if (!priv->mask_ids.mask_id_free_list.buf)
-		goto err_free_flow_table;
+		goto err_free_stats_ctx_table;
 
 	priv->mask_ids.init_unallocated = NFP_FLOWER_MASK_ENTRY_RS - 1;
 
@@ -447,6 +516,8 @@ err_free_last_used:
 	kfree(priv->mask_ids.last_used);
 err_free_mask_id:
 	kfree(priv->mask_ids.mask_id_free_list.buf);
+err_free_stats_ctx_table:
+	rhashtable_destroy(&priv->stats_ctx_table);
 err_free_flow_table:
 	rhashtable_destroy(&priv->flow_table);
 	return -ENOMEM;
@@ -460,6 +531,8 @@ void nfp_flower_metadata_cleanup(struct nfp_app *app)
 		return;
 
 	rhashtable_free_and_destroy(&priv->flow_table,
+				    nfp_check_rhashtable_empty, NULL);
+	rhashtable_free_and_destroy(&priv->stats_ctx_table,
 				    nfp_check_rhashtable_empty, NULL);
 	kvfree(priv->stats);
 	kfree(priv->mask_ids.mask_id_free_list.buf);

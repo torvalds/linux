@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef RQ_QOS_H
 #define RQ_QOS_H
 

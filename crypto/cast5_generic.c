@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Kernel cryptographic api.
 * cast5.c - Cast5 cipher algorithm (rfc2144).
 *
@@ -9,14 +10,6 @@
 *
 * Copyright (C) 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 * Copyright (C) 2003 Kartikey Mahendra Bhatt <kartik_me@hotmail.com>.
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of GNU General Public License as published by the Free
-* Software Foundation; either version 2 of the License, or (at your option)
-* any later version.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -543,7 +536,7 @@ static void __exit cast5_mod_fini(void)
 	crypto_unregister_alg(&alg);
 }
 
-module_init(cast5_mod_init);
+subsys_initcall(cast5_mod_init);
 module_exit(cast5_mod_fini);
 
 MODULE_LICENSE("GPL");

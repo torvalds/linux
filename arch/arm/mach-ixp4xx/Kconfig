@@ -1,8 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if ARCH_IXP4XX
 
 menu "Intel IXP4xx Implementation Options"
 
 comment "IXP4xx Platforms"
+
+config MACH_IXP4XX_OF
+	bool
+	prompt "Devce Tree IXP4xx boards"
+	default y
+	select ARM_APPENDED_DTB # Old Redboot bootloaders deployed
+	select I2C
+	select I2C_IOP3XX
+	select PCI
+	select TIMER_OF
+	select USE_OF
+	help
+	  Say 'Y' here to support Device Tree-based IXP4xx platforms.
 
 config MACH_NSLU2
 	bool
@@ -221,19 +235,6 @@ config IXP4XX_INDIRECT_PCI
 	  By default, the direct method is used. Choose this option if you
 	  need to use the indirect method instead. If you don't know
 	  what you need, leave this option unselected.
-
-config IXP4XX_QMGR
-	tristate "IXP4xx Queue Manager support"
-	help
-	  This driver supports IXP4xx built-in hardware queue manager
-	  and is automatically selected by Ethernet and HSS drivers.
-
-config IXP4XX_NPE
-	tristate "IXP4xx Network Processor Engine support"
-	select FW_LOADER
-	help
-	  This driver supports IXP4xx built-in network coprocessors
-	  and is automatically selected by Ethernet and HSS drivers.
 
 endmenu
 

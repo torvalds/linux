@@ -274,7 +274,8 @@ static int pin_user_pages(unsigned long first_page,
 		*iter_last_page_size = last_page_size;
 	}
 
-	ret = get_user_pages_fast(first_page, requested_pages, !is_write,
+	ret = get_user_pages_fast(first_page, requested_pages,
+				  !is_write ? FOLL_WRITE : 0,
 				  pages);
 	if (ret <= 0)
 		return -EFAULT;

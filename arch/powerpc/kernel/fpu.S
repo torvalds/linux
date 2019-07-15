@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  FPU support code, moved here from head.S so that it can be used
  *  by chips which use other head-whatever.S files.
@@ -6,12 +7,6 @@
  *    Copyright (C) 1996 Cort Dougan <cort@cs.nmt.edu>
  *    Copyright (C) 1996 Paul Mackerras.
  *    Copyright (C) 1997 Dan Malek (dmalek@jlc.net).
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 
 #include <asm/reg.h>
@@ -63,6 +58,7 @@ _GLOBAL(load_fp_state)
 	REST_32FPVSRS(0, R4, R3)
 	blr
 EXPORT_SYMBOL(load_fp_state)
+_ASM_NOKPROBE_SYMBOL(load_fp_state); /* used by restore_math */
 
 /*
  * Store FP state into memory, including FPSCR

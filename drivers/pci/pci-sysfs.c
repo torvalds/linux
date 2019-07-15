@@ -1111,8 +1111,7 @@ legacy_io_err:
 	kfree(b->legacy_io);
 	b->legacy_io = NULL;
 kzalloc_err:
-	printk(KERN_WARNING "pci: warning: could not create legacy I/O port and ISA memory resources to sysfs\n");
-	return;
+	dev_warn(&b->dev, "could not create legacy I/O port and ISA memory resources in sysfs\n");
 }
 
 void pci_remove_legacy_files(struct pci_bus *b)

@@ -11,65 +11,52 @@
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
 #include <linux/export.h>
-
-static int __save_address(void *data, unsigned long address, int nosched)
-{
-	struct stack_trace *trace = data;
-
-	if (nosched && in_sched_functions(address))
-		return 0;
-	if (trace->skip > 0) {
-		trace->skip--;
-		return 0;
-	}
-	if (trace->nr_entries < trace->max_entries) {
-		trace->entries[trace->nr_entries++] = address;
-		return 0;
-	}
-	return 1;
-}
-
-static int save_address(void *data, unsigned long address, int reliable)
-{
-	return __save_address(data, address, 0);
-}
-
-static int save_address_nosched(void *data, unsigned long address, int reliable)
-{
-	return __save_address(data, address, 1);
-}
+#include <asm/stacktrace.h>
+#include <asm/unwind.h>
 
 void save_stack_trace(struct stack_trace *trace)
 {
-	unsigned long sp;
+	struct unwind_state state;
 
-	sp = current_stack_pointer();
-	dump_trace(save_address, trace, NULL, sp);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
+	unwind_for_each_frame(&state, current, NULL, 0) {
+		if (trace->nr_entries >= trace->max_entries)
+			break;
+		if (trace->skip > 0)
+			trace->skip--;
+		else
+			trace->entries[trace->nr_entries++] = state.ip;
+	}
 }
 EXPORT_SYMBOL_GPL(save_stack_trace);
 
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
-	unsigned long sp;
+	struct unwind_state state;
 
-	sp = tsk->thread.ksp;
-	if (tsk == current)
-		sp = current_stack_pointer();
-	dump_trace(save_address_nosched, trace, tsk, sp);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
+	unwind_for_each_frame(&state, tsk, NULL, 0) {
+		if (trace->nr_entries >= trace->max_entries)
+			break;
+		if (in_sched_functions(state.ip))
+			continue;
+		if (trace->skip > 0)
+			trace->skip--;
+		else
+			trace->entries[trace->nr_entries++] = state.ip;
+	}
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
 
 void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 {
-	unsigned long sp;
+	struct unwind_state state;
 
-	sp = kernel_stack_pointer(regs);
-	dump_trace(save_address, trace, NULL, sp);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
+	unwind_for_each_frame(&state, current, regs, 0) {
+		if (trace->nr_entries >= trace->max_entries)
+			break;
+		if (trace->skip > 0)
+			trace->skip--;
+		else
+			trace->entries[trace->nr_entries++] = state.ip;
+	}
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_regs);

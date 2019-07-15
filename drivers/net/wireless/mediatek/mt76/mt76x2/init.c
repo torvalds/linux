@@ -165,27 +165,21 @@ void mt76x2_init_txpower(struct mt76x02_dev *dev,
 	struct ieee80211_channel *chan;
 	struct mt76x2_tx_power_info txp;
 	struct mt76_rate_power t = {};
-	int target_power;
 	int i;
 
 	for (i = 0; i < sband->n_channels; i++) {
 		chan = &sband->channels[i];
 
 		mt76x2_get_power_info(dev, &txp, chan);
-
-		target_power = max_t(int, (txp.chain[0].target_power +
-					   txp.chain[0].delta),
-					  (txp.chain[1].target_power +
-					   txp.chain[1].delta));
-
 		mt76x2_get_rate_power(dev, &t, chan);
 
 		chan->max_power = mt76x02_get_max_rate_power(&t) +
-				  target_power;
-		chan->max_power /= 2;
+				  txp.target_power;
+		chan->max_power = DIV_ROUND_UP(chan->max_power, 2);
 
 		/* convert to combined output power on 2x2 devices */
 		chan->max_power += 3;
+		chan->orig_mpwr = chan->max_power;
 	}
 }
 EXPORT_SYMBOL_GPL(mt76x2_init_txpower);

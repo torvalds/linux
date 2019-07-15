@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 LDFLAGS_vmlinux	:= --no-undefined -X
 OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment -S
 

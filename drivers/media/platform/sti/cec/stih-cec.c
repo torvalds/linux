@@ -301,26 +301,19 @@ static int stih_cec_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct stih_cec *cec;
-	struct device_node *np;
-	struct platform_device *hdmi_dev;
+	struct device *hdmi_dev;
 	int ret;
+
+	hdmi_dev = cec_notifier_parse_hdmi_phandle(dev);
+
+	if (IS_ERR(hdmi_dev))
+		return PTR_ERR(hdmi_dev);
 
 	cec = devm_kzalloc(dev, sizeof(*cec), GFP_KERNEL);
 	if (!cec)
 		return -ENOMEM;
 
-	np = of_parse_phandle(pdev->dev.of_node, "hdmi-phandle", 0);
-
-	if (!np) {
-		dev_err(&pdev->dev, "Failed to find hdmi node in device tree\n");
-		return -ENODEV;
-	}
-
-	hdmi_dev = of_find_device_by_node(np);
-	if (!hdmi_dev)
-		return -EPROBE_DEFER;
-
-	cec->notifier = cec_notifier_get(&hdmi_dev->dev);
+	cec->notifier = cec_notifier_get(hdmi_dev);
 	if (!cec->notifier)
 		return -ENOMEM;
 

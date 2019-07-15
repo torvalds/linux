@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sysctl.c: General linux system control interface
  *
@@ -66,6 +67,7 @@
 #include <linux/kexec.h>
 #include <linux/bpf.h>
 #include <linux/mount.h>
+#include <linux/userfaultfd_k.h>
 
 #include "../lib/kstrtox.h"
 
@@ -228,11 +230,6 @@ static int proc_dostring_coredump(struct ctl_table *table, int write,
 #endif
 static int proc_dopipe_max_size(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos);
-#ifdef CONFIG_BPF_SYSCALL
-static int proc_dointvec_minmax_bpf_stats(struct ctl_table *table, int write,
-					  void __user *buffer, size_t *lenp,
-					  loff_t *ppos);
-#endif
 
 #ifdef CONFIG_MAGIC_SYSRQ
 /* Note: sysrq code uses its own private copy */
@@ -1251,12 +1248,10 @@ static struct ctl_table kern_table[] = {
 	},
 	{
 		.procname	= "bpf_stats_enabled",
-		.data		= &sysctl_bpf_stats_enabled,
-		.maxlen		= sizeof(sysctl_bpf_stats_enabled),
+		.data		= &bpf_stats_enabled_key.key,
+		.maxlen		= sizeof(bpf_stats_enabled_key),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax_bpf_stats,
-		.extra1		= &zero,
-		.extra2		= &one,
+		.proc_handler	= proc_do_static_key,
 	},
 #endif
 #if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU)
@@ -1718,6 +1713,17 @@ static struct ctl_table vm_table[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= (void *)&mmap_rnd_compat_bits_min,
 		.extra2		= (void *)&mmap_rnd_compat_bits_max,
+	},
+#endif
+#ifdef CONFIG_USERFAULTFD
+	{
+		.procname	= "unprivileged_userfaultfd",
+		.data		= &sysctl_unprivileged_userfaultfd,
+		.maxlen		= sizeof(sysctl_unprivileged_userfaultfd),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
 	},
 #endif
 	{ }
@@ -2874,8 +2880,10 @@ static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table, int 
 			if (neg)
 				continue;
 			val = convmul * val / convdiv;
-			if ((min && val < *min) || (max && val > *max))
-				continue;
+			if ((min && val < *min) || (max && val > *max)) {
+				err = -EINVAL;
+				break;
+			}
 			*i = val;
 		} else {
 			val = convdiv * (*i) / convmul;
@@ -3158,17 +3166,19 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 
 	if (write) {
 		char *kbuf, *p;
+		size_t skipped = 0;
 
-		if (left > PAGE_SIZE - 1)
+		if (left > PAGE_SIZE - 1) {
 			left = PAGE_SIZE - 1;
+			/* How much of the buffer we'll skip this pass */
+			skipped = *lenp - left;
+		}
 
 		p = kbuf = memdup_user_nul(buffer, left);
 		if (IS_ERR(kbuf))
 			return PTR_ERR(kbuf);
 
-		tmp_bitmap = kcalloc(BITS_TO_LONGS(bitmap_len),
-				     sizeof(unsigned long),
-				     GFP_KERNEL);
+		tmp_bitmap = bitmap_zalloc(bitmap_len, GFP_KERNEL);
 		if (!tmp_bitmap) {
 			kfree(kbuf);
 			return -ENOMEM;
@@ -3177,9 +3187,22 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 		while (!err && left) {
 			unsigned long val_a, val_b;
 			bool neg;
+			size_t saved_left;
 
+			/* In case we stop parsing mid-number, we can reset */
+			saved_left = left;
 			err = proc_get_long(&p, &left, &val_a, &neg, tr_a,
 					     sizeof(tr_a), &c);
+			/*
+			 * If we consumed the entirety of a truncated buffer or
+			 * only one char is left (may be a "-"), then stop here,
+			 * reset, & come back for more.
+			 */
+			if ((left <= 1) && skipped) {
+				left = saved_left;
+				break;
+			}
+
 			if (err)
 				break;
 			if (val_a >= bitmap_len || neg) {
@@ -3197,6 +3220,15 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 				err = proc_get_long(&p, &left, &val_b,
 						     &neg, tr_b, sizeof(tr_b),
 						     &c);
+				/*
+				 * If we consumed all of a truncated buffer or
+				 * then stop here, reset, & come back for more.
+				 */
+				if (!left && skipped) {
+					left = saved_left;
+					break;
+				}
+
 				if (err)
 					break;
 				if (val_b >= bitmap_len || neg ||
@@ -3215,6 +3247,7 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 			proc_skip_char(&p, &left, '\n');
 		}
 		kfree(kbuf);
+		left += skipped;
 	} else {
 		unsigned long bit_a, bit_b = 0;
 
@@ -3259,7 +3292,7 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 		*ppos += *lenp;
 	}
 
-	kfree(tmp_bitmap);
+	bitmap_free(tmp_bitmap);
 	return err;
 }
 
@@ -3326,29 +3359,43 @@ int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
     return -ENOSYS;
 }
 
+int proc_do_large_bitmap(struct ctl_table *table, int write,
+			 void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
 
 #endif /* CONFIG_PROC_SYSCTL */
 
-#if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_SYSCTL)
-static int proc_dointvec_minmax_bpf_stats(struct ctl_table *table, int write,
-					  void __user *buffer, size_t *lenp,
-					  loff_t *ppos)
+#if defined(CONFIG_SYSCTL)
+int proc_do_static_key(struct ctl_table *table, int write,
+		       void __user *buffer, size_t *lenp,
+		       loff_t *ppos)
 {
-	int ret, bpf_stats = *(int *)table->data;
-	struct ctl_table tmp = *table;
+	struct static_key *key = (struct static_key *)table->data;
+	static DEFINE_MUTEX(static_key_mutex);
+	int val, ret;
+	struct ctl_table tmp = {
+		.data   = &val,
+		.maxlen = sizeof(val),
+		.mode   = table->mode,
+		.extra1 = &zero,
+		.extra2 = &one,
+	};
 
 	if (write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	tmp.data = &bpf_stats;
+	mutex_lock(&static_key_mutex);
+	val = static_key_enabled(key);
 	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 	if (write && !ret) {
-		*(int *)table->data = bpf_stats;
-		if (bpf_stats)
-			static_branch_enable(&bpf_stats_enabled_key);
+		if (val)
+			static_key_enable(key);
 		else
-			static_branch_disable(&bpf_stats_enabled_key);
+			static_key_disable(key);
 	}
+	mutex_unlock(&static_key_mutex);
 	return ret;
 }
 #endif
@@ -3366,3 +3413,4 @@ EXPORT_SYMBOL(proc_dointvec_ms_jiffies);
 EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(proc_doulongvec_minmax);
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
+EXPORT_SYMBOL(proc_do_large_bitmap);

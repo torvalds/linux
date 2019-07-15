@@ -77,6 +77,5 @@ void qxl_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 int qxl_gem_prime_mmap(struct drm_gem_object *obj,
 		       struct vm_area_struct *area)
 {
-	WARN_ONCE(1, "not implemented");
 	return -ENOSYS;
 }

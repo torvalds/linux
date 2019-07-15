@@ -39,7 +39,7 @@ static int get_stack_print_output(void *data, int size)
 		} else {
 			for (i = 0; i < num_stack; i++) {
 				ks = ksym_search(raw_data[i]);
-				if (strcmp(ks->name, nonjit_func) == 0) {
+				if (ks && (strcmp(ks->name, nonjit_func) == 0)) {
 					found = true;
 					break;
 				}
@@ -56,7 +56,7 @@ static int get_stack_print_output(void *data, int size)
 		} else {
 			for (i = 0; i < num_stack; i++) {
 				ks = ksym_search(e->kern_stack[i]);
-				if (strcmp(ks->name, nonjit_func) == 0) {
+				if (ks && (strcmp(ks->name, nonjit_func) == 0)) {
 					good_kern_stack = true;
 					break;
 				}

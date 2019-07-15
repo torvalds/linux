@@ -84,7 +84,7 @@ SHDWC SAMA5D2-Compatible Shutdown Controller
 1) shdwc node
 
 required properties:
-- compatible: should be "atmel,sama5d2-shdwc".
+- compatible: should be "atmel,sama5d2-shdwc" or "microchip,sam9x60-shdwc".
 - reg: should contain registers location and length
 - clocks: phandle to input clock.
 - #address-cells: should be one. The cell is the wake-up input index.
@@ -95,6 +95,9 @@ optional properties:
 - debounce-delay-us: minimum wake-up inputs debouncer period in
   microseconds. It's usually a board-related property.
 - atmel,wakeup-rtc-timer: boolean to enable Real-Time Clock wake-up.
+
+optional microchip,sam9x60-shdwc properties:
+- atmel,wakeup-rtt-timer: boolean to enable Real-time Timer Wake-up.
 
 The node contains child nodes for each wake-up input that the platform uses.
 

@@ -72,6 +72,7 @@ void synth_buffer_add(u16 ch);
 void synth_buffer_clear(void);
 void speakup_clear_selection(void);
 int speakup_set_selection(struct tty_struct *tty);
+void speakup_cancel_selection(void);
 int speakup_paste_selection(struct tty_struct *tty);
 void speakup_cancel_paste(void);
 void speakup_register_devsynth(void);

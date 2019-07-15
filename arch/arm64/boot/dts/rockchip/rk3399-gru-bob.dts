@@ -73,7 +73,7 @@
 &pinctrl {
 	tpm {
 		h1_int_od_l: h1-int-od-l {
-			rockchip,pins = <0 5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

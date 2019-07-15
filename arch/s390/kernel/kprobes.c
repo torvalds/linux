@@ -27,29 +27,30 @@ DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = { };
 
-DEFINE_INSN_CACHE_OPS(dmainsn);
+DEFINE_INSN_CACHE_OPS(s390_insn);
 
-static void *alloc_dmainsn_page(void)
+static int insn_page_in_use;
+static char insn_page[PAGE_SIZE] __aligned(PAGE_SIZE);
+
+static void *alloc_s390_insn_page(void)
 {
-	void *page;
-
-	page = (void *) __get_free_page(GFP_KERNEL | GFP_DMA);
-	if (page)
-		set_memory_x((unsigned long) page, 1);
-	return page;
+	if (xchg(&insn_page_in_use, 1) == 1)
+		return NULL;
+	set_memory_x((unsigned long) &insn_page, 1);
+	return &insn_page;
 }
 
-static void free_dmainsn_page(void *page)
+static void free_s390_insn_page(void *page)
 {
 	set_memory_nx((unsigned long) page, 1);
-	free_page((unsigned long)page);
+	xchg(&insn_page_in_use, 0);
 }
 
-struct kprobe_insn_cache kprobe_dmainsn_slots = {
-	.mutex = __MUTEX_INITIALIZER(kprobe_dmainsn_slots.mutex),
-	.alloc = alloc_dmainsn_page,
-	.free = free_dmainsn_page,
-	.pages = LIST_HEAD_INIT(kprobe_dmainsn_slots.pages),
+struct kprobe_insn_cache kprobe_s390_insn_slots = {
+	.mutex = __MUTEX_INITIALIZER(kprobe_s390_insn_slots.mutex),
+	.alloc = alloc_s390_insn_page,
+	.free = free_s390_insn_page,
+	.pages = LIST_HEAD_INIT(kprobe_s390_insn_slots.pages),
 	.insn_size = MAX_INSN_SIZE,
 };
 
@@ -102,7 +103,7 @@ static int s390_get_insn_slot(struct kprobe *p)
 	 */
 	p->ainsn.insn = NULL;
 	if (is_kernel_addr(p->addr))
-		p->ainsn.insn = get_dmainsn_slot();
+		p->ainsn.insn = get_s390_insn_slot();
 	else if (is_module_addr(p->addr))
 		p->ainsn.insn = get_insn_slot();
 	return p->ainsn.insn ? 0 : -ENOMEM;
@@ -114,7 +115,7 @@ static void s390_free_insn_slot(struct kprobe *p)
 	if (!p->ainsn.insn)
 		return;
 	if (is_kernel_addr(p->addr))
-		free_dmainsn_slot(p->ainsn.insn, 0);
+		free_s390_insn_slot(p->ainsn.insn, 0);
 	else
 		free_insn_slot(p->ainsn.insn, 0);
 	p->ainsn.insn = NULL;
@@ -572,7 +573,7 @@ static int kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 * In case the user-specified fault handler returned
 		 * zero, try to fix up.
 		 */
-		entry = search_exception_tables(regs->psw.addr);
+		entry = s390_search_extables(regs->psw.addr);
 		if (entry) {
 			regs->psw.addr = extable_fixup(entry);
 			return 1;

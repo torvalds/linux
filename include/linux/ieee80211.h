@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * IEEE 802.11 defines
  *
@@ -9,10 +10,6 @@
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
  * Copyright (c) 2018 - 2019 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef LINUX_IEEE80211_H
@@ -1557,7 +1554,7 @@ struct ieee80211_vht_operation {
  * struct ieee80211_he_cap_elem - HE capabilities element
  *
  * This structure is the "HE capabilities element" fixed fields as
- * described in P802.11ax_D3.0 section 9.4.2.237.2 and 9.4.2.237.3
+ * described in P802.11ax_D4.0 section 9.4.2.242.2 and 9.4.2.242.3
  */
 struct ieee80211_he_cap_elem {
 	u8 mac_cap_info[6];
@@ -1619,12 +1616,12 @@ struct ieee80211_he_mcs_nss_supp {
  * struct ieee80211_he_operation - HE capabilities element
  *
  * This structure is the "HE operation element" fields as
- * described in P802.11ax_D3.0 section 9.4.2.238
+ * described in P802.11ax_D4.0 section 9.4.2.243
  */
 struct ieee80211_he_operation {
 	__le32 he_oper_params;
 	__le16 he_mcs_nss_set;
-	/* Optional 0,1,3 or 4 bytes: depends on @he_oper_params */
+	/* Optional 0,1,3,4,5,7 or 8 bytes: depends on @he_oper_params */
 	u8 optional[0];
 } __packed;
 
@@ -1632,7 +1629,7 @@ struct ieee80211_he_operation {
  * struct ieee80211_he_mu_edca_param_ac_rec - MU AC Parameter Record field
  *
  * This structure is the "MU AC Parameter Record" fields as
- * described in P802.11ax_D2.0 section 9.4.2.240
+ * described in P802.11ax_D4.0 section 9.4.2.245
  */
 struct ieee80211_he_mu_edca_param_ac_rec {
 	u8 aifsn;
@@ -1644,7 +1641,7 @@ struct ieee80211_he_mu_edca_param_ac_rec {
  * struct ieee80211_mu_edca_param_set - MU EDCA Parameter Set element
  *
  * This structure is the "MU EDCA Parameter Set element" fields as
- * described in P802.11ax_D2.0 section 9.4.2.240
+ * described in P802.11ax_D4.0 section 9.4.2.245
  */
 struct ieee80211_mu_edca_param_set {
 	u8 mu_qos_info;
@@ -2026,6 +2023,7 @@ ieee80211_he_ppe_size(u8 ppe_thres_hdr, const u8 *phy_cap_info)
 #define IEEE80211_HE_OPERATION_VHT_OPER_INFO			0x00004000
 #define IEEE80211_HE_OPERATION_CO_HOSTED_BSS			0x00008000
 #define IEEE80211_HE_OPERATION_ER_SU_DISABLE			0x00010000
+#define IEEE80211_HE_OPERATION_6GHZ_OP_INFO			0x00020000
 #define IEEE80211_HE_OPERATION_BSS_COLOR_MASK			0x3f000000
 #define IEEE80211_HE_OPERATION_BSS_COLOR_OFFSET		24
 #define IEEE80211_HE_OPERATION_PARTIAL_BSS_COLOR		0x40000000
@@ -2056,6 +2054,8 @@ ieee80211_he_oper_size(const u8 *he_oper_ie)
 		oper_len += 3;
 	if (he_oper_params & IEEE80211_HE_OPERATION_CO_HOSTED_BSS)
 		oper_len++;
+	if (he_oper_params & IEEE80211_HE_OPERATION_6GHZ_OP_INFO)
+		oper_len += 4;
 
 	/* Add the first byte (extension ID) to the total length */
 	oper_len++;
@@ -2487,6 +2487,7 @@ enum ieee80211_eid_ext {
 	WLAN_EID_EXT_HE_MU_EDCA = 38,
 	WLAN_EID_EXT_MAX_CHANNEL_SWITCH_TIME = 52,
 	WLAN_EID_EXT_MULTIPLE_BSSID_CONFIGURATION = 55,
+	WLAN_EID_EXT_NON_INHERITANCE = 56,
 };
 
 /* Action category code */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/soc/tegra/pmc.c
  *
@@ -6,16 +7,6 @@
  *
  * Author:
  *	Colin Cross <ccross@google.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #define pr_fmt(fmt) "tegra-pmc: " fmt
@@ -268,6 +259,14 @@ static const char * const tegra186_reset_levels[] = {
 };
 
 static const char * const tegra30_reset_sources[] = {
+	"POWER_ON_RESET",
+	"WATCHDOG",
+	"SENSOR",
+	"SW_MAIN",
+	"LP0"
+};
+
+static const char * const tegra210_reset_sources[] = {
 	"POWER_ON_RESET",
 	"WATCHDOG",
 	"SENSOR",
@@ -656,10 +655,15 @@ static int tegra_genpd_power_on(struct generic_pm_domain *domain)
 	int err;
 
 	err = tegra_powergate_power_up(pg, true);
-	if (err)
+	if (err) {
 		dev_err(dev, "failed to turn on PM domain %s: %d\n",
 			pg->genpd.name, err);
+		goto out;
+	}
 
+	reset_control_release(pg->reset);
+
+out:
 	return err;
 }
 
@@ -669,10 +673,18 @@ static int tegra_genpd_power_off(struct generic_pm_domain *domain)
 	struct device *dev = pg->pmc->dev;
 	int err;
 
+	err = reset_control_acquire(pg->reset);
+	if (err < 0) {
+		pr_err("failed to acquire resets: %d\n", err);
+		return err;
+	}
+
 	err = tegra_powergate_power_down(pg);
-	if (err)
+	if (err) {
 		dev_err(dev, "failed to turn off PM domain %s: %d\n",
 			pg->genpd.name, err);
+		reset_control_release(pg->reset);
+	}
 
 	return err;
 }
@@ -937,38 +949,53 @@ static int tegra_powergate_of_get_resets(struct tegra_powergate *pg,
 	struct device *dev = pg->pmc->dev;
 	int err;
 
-	pg->reset = of_reset_control_array_get_exclusive(np);
+	pg->reset = of_reset_control_array_get_exclusive_released(np);
 	if (IS_ERR(pg->reset)) {
 		err = PTR_ERR(pg->reset);
 		dev_err(dev, "failed to get device resets: %d\n", err);
 		return err;
 	}
 
-	if (off)
-		err = reset_control_assert(pg->reset);
-	else
-		err = reset_control_deassert(pg->reset);
+	err = reset_control_acquire(pg->reset);
+	if (err < 0) {
+		pr_err("failed to acquire resets: %d\n", err);
+		goto out;
+	}
 
-	if (err)
+	if (off) {
+		err = reset_control_assert(pg->reset);
+	} else {
+		err = reset_control_deassert(pg->reset);
+		if (err < 0)
+			goto out;
+
+		reset_control_release(pg->reset);
+	}
+
+out:
+	if (err) {
+		reset_control_release(pg->reset);
 		reset_control_put(pg->reset);
+	}
 
 	return err;
 }
 
-static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
+static int tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 {
 	struct device *dev = pmc->dev;
 	struct tegra_powergate *pg;
-	int id, err;
+	int id, err = 0;
 	bool off;
 
 	pg = kzalloc(sizeof(*pg), GFP_KERNEL);
 	if (!pg)
-		return;
+		return -ENOMEM;
 
 	id = tegra_powergate_lookup(pmc, np->name);
 	if (id < 0) {
 		dev_err(dev, "powergate lookup failed for %pOFn: %d\n", np, id);
+		err = -ENODEV;
 		goto free_mem;
 	}
 
@@ -1021,7 +1048,7 @@ static void tegra_powergate_add(struct tegra_pmc *pmc, struct device_node *np)
 
 	dev_dbg(dev, "added PM domain %s\n", pg->genpd.name);
 
-	return;
+	return 0;
 
 remove_genpd:
 	pm_genpd_remove(&pg->genpd);
@@ -1040,25 +1067,67 @@ set_available:
 
 free_mem:
 	kfree(pg);
+
+	return err;
 }
 
-static void tegra_powergate_init(struct tegra_pmc *pmc,
-				 struct device_node *parent)
+static int tegra_powergate_init(struct tegra_pmc *pmc,
+				struct device_node *parent)
 {
 	struct device_node *np, *child;
-	unsigned int i;
+	int err = 0;
 
-	/* Create a bitmap of the available and valid partitions */
-	for (i = 0; i < pmc->soc->num_powergates; i++)
-		if (pmc->soc->powergates[i])
-			set_bit(i, pmc->powergates_available);
+	np = of_get_child_by_name(parent, "powergates");
+	if (!np)
+		return 0;
+
+	for_each_child_of_node(np, child) {
+		err = tegra_powergate_add(pmc, child);
+		if (err < 0) {
+			of_node_put(child);
+			break;
+		}
+	}
+
+	of_node_put(np);
+
+	return err;
+}
+
+static void tegra_powergate_remove(struct generic_pm_domain *genpd)
+{
+	struct tegra_powergate *pg = to_powergate(genpd);
+
+	reset_control_put(pg->reset);
+
+	while (pg->num_clks--)
+		clk_put(pg->clks[pg->num_clks]);
+
+	kfree(pg->clks);
+
+	set_bit(pg->id, pmc->powergates_available);
+
+	kfree(pg);
+}
+
+static void tegra_powergate_remove_all(struct device_node *parent)
+{
+	struct generic_pm_domain *genpd;
+	struct device_node *np, *child;
 
 	np = of_get_child_by_name(parent, "powergates");
 	if (!np)
 		return;
 
-	for_each_child_of_node(np, child)
-		tegra_powergate_add(pmc, child);
+	for_each_child_of_node(np, child) {
+		of_genpd_del_provider(child);
+
+		genpd = of_genpd_remove_last(child);
+		if (IS_ERR(genpd))
+			continue;
+
+		tegra_powergate_remove(genpd);
+	}
 
 	of_node_put(np);
 }
@@ -1709,13 +1778,16 @@ static int tegra_pmc_pinctrl_init(struct tegra_pmc *pmc)
 static ssize_t reset_reason_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
-	u32 value, rst_src;
+	u32 value;
 
 	value = tegra_pmc_readl(pmc, pmc->soc->regs->rst_status);
-	rst_src = (value & pmc->soc->regs->rst_source_mask) >>
-			pmc->soc->regs->rst_source_shift;
+	value &= pmc->soc->regs->rst_source_mask;
+	value >>= pmc->soc->regs->rst_source_shift;
 
-	return sprintf(buf, "%s\n", pmc->soc->reset_sources[rst_src]);
+	if (WARN_ON(value >= pmc->soc->num_reset_sources))
+		return sprintf(buf, "%s\n", "UNKNOWN");
+
+	return sprintf(buf, "%s\n", pmc->soc->reset_sources[value]);
 }
 
 static DEVICE_ATTR_RO(reset_reason);
@@ -1723,13 +1795,16 @@ static DEVICE_ATTR_RO(reset_reason);
 static ssize_t reset_level_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	u32 value, rst_lvl;
+	u32 value;
 
 	value = tegra_pmc_readl(pmc, pmc->soc->regs->rst_status);
-	rst_lvl = (value & pmc->soc->regs->rst_level_mask) >>
-			pmc->soc->regs->rst_level_shift;
+	value &= pmc->soc->regs->rst_level_mask;
+	value >>= pmc->soc->regs->rst_level_shift;
 
-	return sprintf(buf, "%s\n", pmc->soc->reset_levels[rst_lvl]);
+	if (WARN_ON(value >= pmc->soc->num_reset_levels))
+		return sprintf(buf, "%s\n", "UNKNOWN");
+
+	return sprintf(buf, "%s\n", pmc->soc->reset_levels[value]);
 }
 
 static DEVICE_ATTR_RO(reset_level);
@@ -1999,7 +2074,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
 		err = tegra_powergate_debugfs_init();
 		if (err < 0)
-			return err;
+			goto cleanup_sysfs;
 	}
 
 	err = register_restart_handler(&tegra_pmc_restart_handler);
@@ -2013,9 +2088,13 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	if (err)
 		goto cleanup_restart_handler;
 
+	err = tegra_powergate_init(pmc, pdev->dev.of_node);
+	if (err < 0)
+		goto cleanup_powergates;
+
 	err = tegra_pmc_irq_init(pmc);
 	if (err < 0)
-		goto cleanup_restart_handler;
+		goto cleanup_powergates;
 
 	mutex_lock(&pmc->powergates_lock);
 	iounmap(pmc->base);
@@ -2026,10 +2105,15 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 	return 0;
 
+cleanup_powergates:
+	tegra_powergate_remove_all(pdev->dev.of_node);
 cleanup_restart_handler:
 	unregister_restart_handler(&tegra_pmc_restart_handler);
 cleanup_debugfs:
 	debugfs_remove(pmc->debugfs);
+cleanup_sysfs:
+	device_remove_file(&pdev->dev, &dev_attr_reset_reason);
+	device_remove_file(&pdev->dev, &dev_attr_reset_level);
 	return err;
 }
 
@@ -2185,7 +2269,7 @@ static const struct tegra_pmc_soc tegra30_pmc_soc = {
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
 	.reset_sources = tegra30_reset_sources,
-	.num_reset_sources = 5,
+	.num_reset_sources = ARRAY_SIZE(tegra30_reset_sources),
 	.reset_levels = NULL,
 	.num_reset_levels = 0,
 };
@@ -2236,7 +2320,7 @@ static const struct tegra_pmc_soc tegra114_pmc_soc = {
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
 	.reset_sources = tegra30_reset_sources,
-	.num_reset_sources = 5,
+	.num_reset_sources = ARRAY_SIZE(tegra30_reset_sources),
 	.reset_levels = NULL,
 	.num_reset_levels = 0,
 };
@@ -2347,7 +2431,7 @@ static const struct tegra_pmc_soc tegra124_pmc_soc = {
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
 	.reset_sources = tegra30_reset_sources,
-	.num_reset_sources = 5,
+	.num_reset_sources = ARRAY_SIZE(tegra30_reset_sources),
 	.reset_levels = NULL,
 	.num_reset_levels = 0,
 };
@@ -2452,8 +2536,8 @@ static const struct tegra_pmc_soc tegra210_pmc_soc = {
 	.regs = &tegra20_pmc_regs,
 	.init = tegra20_pmc_init,
 	.setup_irq_polarity = tegra20_pmc_setup_irq_polarity,
-	.reset_sources = tegra30_reset_sources,
-	.num_reset_sources = 5,
+	.reset_sources = tegra210_reset_sources,
+	.num_reset_sources = ARRAY_SIZE(tegra210_reset_sources),
 	.reset_levels = NULL,
 	.num_reset_levels = 0,
 };
@@ -2578,9 +2662,9 @@ static const struct tegra_pmc_soc tegra186_pmc_soc = {
 	.init = NULL,
 	.setup_irq_polarity = tegra186_pmc_setup_irq_polarity,
 	.reset_sources = tegra186_reset_sources,
-	.num_reset_sources = 14,
+	.num_reset_sources = ARRAY_SIZE(tegra186_reset_sources),
 	.reset_levels = tegra186_reset_levels,
-	.num_reset_levels = 3,
+	.num_reset_levels = ARRAY_SIZE(tegra186_reset_levels),
 	.num_wake_events = ARRAY_SIZE(tegra186_wake_events),
 	.wake_events = tegra186_wake_events,
 };
@@ -2719,6 +2803,7 @@ static int __init tegra_pmc_early_init(void)
 	const struct of_device_id *match;
 	struct device_node *np;
 	struct resource regs;
+	unsigned int i;
 	bool invert;
 
 	mutex_init(&pmc->powergates_lock);
@@ -2775,7 +2860,10 @@ static int __init tegra_pmc_early_init(void)
 		if (pmc->soc->maybe_tz_only)
 			pmc->tz_only = tegra_pmc_detect_tz_only(pmc);
 
-		tegra_powergate_init(pmc, np);
+		/* Create a bitmap of the available and valid partitions */
+		for (i = 0; i < pmc->soc->num_powergates; i++)
+			if (pmc->soc->powergates[i])
+				set_bit(i, pmc->powergates_available);
 
 		/*
 		 * Invert the interrupt polarity if a PMC device tree node

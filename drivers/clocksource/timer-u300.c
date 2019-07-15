@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Timer COH 901 328, runs the OS timer interrupt.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */

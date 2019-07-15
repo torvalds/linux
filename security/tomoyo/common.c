@@ -940,7 +940,7 @@ static bool tomoyo_manager(void)
 	const char *exe;
 	const struct task_struct *task = current;
 	const struct tomoyo_path_info *domainname = tomoyo_domain()->domainname;
-	bool found = false;
+	bool found = IS_ENABLED(CONFIG_SECURITY_TOMOYO_INSECURE_BUILTIN_SETTING);
 
 	if (!tomoyo_policy_loaded)
 		return true;
@@ -2810,6 +2810,16 @@ void tomoyo_check_profile(void)
  */
 void __init tomoyo_load_builtin_policy(void)
 {
+#ifdef CONFIG_SECURITY_TOMOYO_INSECURE_BUILTIN_SETTING
+	static char tomoyo_builtin_profile[] __initdata =
+		"PROFILE_VERSION=20150505\n"
+		"0-CONFIG={ mode=learning grant_log=no reject_log=yes }\n";
+	static char tomoyo_builtin_exception_policy[] __initdata =
+		"aggregator proc:/self/exe /proc/self/exe\n";
+	static char tomoyo_builtin_domain_policy[] __initdata = "";
+	static char tomoyo_builtin_manager[] __initdata = "";
+	static char tomoyo_builtin_stat[] __initdata = "";
+#else
 	/*
 	 * This include file is manually created and contains built-in policy
 	 * named "tomoyo_builtin_profile", "tomoyo_builtin_exception_policy",
@@ -2817,6 +2827,7 @@ void __init tomoyo_load_builtin_policy(void)
 	 * "tomoyo_builtin_stat" in the form of "static char [] __initdata".
 	 */
 #include "builtin-policy.h"
+#endif
 	u8 i;
 	const int idx = tomoyo_read_lock();
 

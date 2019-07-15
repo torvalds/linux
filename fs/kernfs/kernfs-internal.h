@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * fs/kernfs/kernfs-internal.h - kernfs internal header file
  *
  * Copyright (c) 2001-3 Patrick Mochel
  * Copyright (c) 2007 SUSE Linux Products GmbH
  * Copyright (c) 2007, 2013 Tejun Heo <teheo@suse.de>
- *
- * This file is released under the GPLv2.
  */
 
 #ifndef __KERNFS_INTERNAL_H
@@ -20,9 +19,11 @@
 #include <linux/fs_context.h>
 
 struct kernfs_iattrs {
-	struct iattr		ia_iattr;
-	void			*ia_secdata;
-	u32			ia_secdata_len;
+	kuid_t			ia_uid;
+	kgid_t			ia_gid;
+	struct timespec64	ia_atime;
+	struct timespec64	ia_mtime;
+	struct timespec64	ia_ctime;
 
 	struct simple_xattrs	xattrs;
 };

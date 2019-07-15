@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-rpc/dma.c
  *
  *  Copyright (C) 1998 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  DMA functions specific to RiscPC architecture
  */
@@ -151,6 +148,12 @@ static void iomd_free_dma(unsigned int chan, dma_t *dma)
 	free_irq(idma->irq, idma);
 }
 
+static struct device isa_dma_dev = {
+	.init_name		= "fallback device",
+	.coherent_dma_mask	= ~(dma_addr_t)0,
+	.dma_mask		= &isa_dma_dev.coherent_dma_mask,
+};
+
 static void iomd_enable_dma(unsigned int chan, dma_t *dma)
 {
 	struct iomd_dma *idma = container_of(dma, struct iomd_dma, dma);
@@ -168,7 +171,7 @@ static void iomd_enable_dma(unsigned int chan, dma_t *dma)
 			idma->dma.sg = &idma->dma.buf;
 			idma->dma.sgcount = 1;
 			idma->dma.buf.length = idma->dma.count;
-			idma->dma.buf.dma_address = dma_map_single(NULL,
+			idma->dma.buf.dma_address = dma_map_single(&isa_dma_dev,
 				idma->dma.addr, idma->dma.count,
 				idma->dma.dma_mode == DMA_MODE_READ ?
 				DMA_FROM_DEVICE : DMA_TO_DEVICE);

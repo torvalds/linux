@@ -33,10 +33,11 @@ static void init_once(void *ptr)
 static int __init erofs_init_inode_cache(void)
 {
 	erofs_inode_cachep = kmem_cache_create("erofs_inode",
-		sizeof(struct erofs_vnode), 0,
-		SLAB_RECLAIM_ACCOUNT, init_once);
+					       sizeof(struct erofs_vnode), 0,
+					       SLAB_RECLAIM_ACCOUNT,
+					       init_once);
 
-	return erofs_inode_cachep != NULL ? 0 : -ENOMEM;
+	return erofs_inode_cachep ? 0 : -ENOMEM;
 }
 
 static void erofs_exit_inode_cache(void)
@@ -49,7 +50,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 	struct erofs_vnode *vi =
 		kmem_cache_alloc(erofs_inode_cachep, GFP_KERNEL);
 
-	if (vi == NULL)
+	if (!vi)
 		return NULL;
 
 	/* zero out everything except vfs_inode */
@@ -57,9 +58,8 @@ static struct inode *alloc_inode(struct super_block *sb)
 	return &vi->vfs_inode;
 }
 
-static void i_callback(struct rcu_head *head)
+static void free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct erofs_vnode *vi = EROFS_V(inode);
 
 	/* be careful RCU symlink path (see ext4_inode_info->i_data)! */
@@ -71,9 +71,20 @@ static void i_callback(struct rcu_head *head)
 	kmem_cache_free(erofs_inode_cachep, vi);
 }
 
-static void destroy_inode(struct inode *inode)
+static bool check_layout_compatibility(struct super_block *sb,
+				       struct erofs_super_block *layout)
 {
-	call_rcu(&inode->i_rcu, i_callback);
+	const unsigned int requirements = le32_to_cpu(layout->requirements);
+
+	EROFS_SB(sb)->requirements = requirements;
+
+	/* check if current kernel meets all mandatory requirements */
+	if (requirements & (~EROFS_ALL_REQUIREMENTS)) {
+		errln("unidentified requirements %x, please upgrade kernel version",
+		      requirements & ~EROFS_ALL_REQUIREMENTS);
+		return false;
+	}
+	return true;
 }
 
 static int superblock_read(struct super_block *sb)
@@ -86,7 +97,7 @@ static int superblock_read(struct super_block *sb)
 
 	bh = sb_bread(sb, 0);
 
-	if (bh == NULL) {
+	if (!bh) {
 		errln("cannot read erofs superblock");
 		return -EIO;
 	}
@@ -105,9 +116,12 @@ static int superblock_read(struct super_block *sb)
 	/* 9(512 bytes) + LOG_SECTORS_PER_BLOCK == LOG_BLOCK_SIZE */
 	if (unlikely(blkszbits != LOG_BLOCK_SIZE)) {
 		errln("blksize %u isn't supported on this platform",
-			1 << blkszbits);
+		      1 << blkszbits);
 		goto out;
 	}
+
+	if (!check_layout_compatibility(sb, layout))
+		goto out;
 
 	sbi->blocks = le32_to_cpu(layout->blocks);
 	sbi->meta_blkaddr = le32_to_cpu(layout->meta_blkaddr);
@@ -121,7 +135,7 @@ static int superblock_read(struct super_block *sb)
 
 	if (1 << (sbi->clusterbits - PAGE_SHIFT) > Z_EROFS_CLUSTER_MAX_PAGES)
 		errln("clusterbits %u is not supported on this kernel",
-			sbi->clusterbits);
+		      sbi->clusterbits);
 #endif
 
 	sbi->root_nid = le16_to_cpu(layout->root_nid);
@@ -132,7 +146,7 @@ static int superblock_read(struct super_block *sb)
 
 	memcpy(&sb->s_uuid, layout->uuid, sizeof(layout->uuid));
 	memcpy(sbi->volume_name, layout->volume_name,
-		sizeof(layout->volume_name));
+	       sizeof(layout->volume_name));
 
 	ret = 0;
 out:
@@ -141,8 +155,9 @@ out:
 }
 
 #ifdef CONFIG_EROFS_FAULT_INJECTION
-char *erofs_fault_name[FAULT_MAX] = {
+const char *erofs_fault_name[FAULT_MAX] = {
 	[FAULT_KMALLOC]		= "kmalloc",
+	[FAULT_READ_IO]		= "read IO error",
 };
 
 static void __erofs_build_fault_attr(struct erofs_sb_info *sbi,
@@ -239,7 +254,7 @@ static int parse_options(struct super_block *sb, char *options)
 	if (!options)
 		return 0;
 
-	while ((p = strsep(&options, ",")) != NULL) {
+	while ((p = strsep(&options, ","))) {
 		int token;
 
 		if (!*p)
@@ -313,7 +328,8 @@ static int managed_cache_releasepage(struct page *page, gfp_t gfp_mask)
 }
 
 static void managed_cache_invalidatepage(struct page *page,
-	unsigned int offset, unsigned int length)
+					 unsigned int offset,
+					 unsigned int length)
 {
 	const unsigned int stop = length + offset;
 
@@ -336,7 +352,7 @@ static struct inode *erofs_init_managed_cache(struct super_block *sb)
 {
 	struct inode *inode = new_inode(sb);
 
-	if (unlikely(inode == NULL))
+	if (unlikely(!inode))
 		return ERR_PTR(-ENOMEM);
 
 	set_nlink(inode, 1);
@@ -352,7 +368,8 @@ static struct inode *erofs_init_managed_cache(struct super_block *sb)
 #endif
 
 static int erofs_read_super(struct super_block *sb,
-	const char *dev_name, void *data, int silent)
+			    const char *dev_name,
+			    void *data, int silent)
 {
 	struct inode *inode;
 	struct erofs_sb_info *sbi;
@@ -367,7 +384,7 @@ static int erofs_read_super(struct super_block *sb,
 	}
 
 	sbi = kzalloc(sizeof(struct erofs_sb_info), GFP_KERNEL);
-	if (unlikely(sbi == NULL)) {
+	if (unlikely(!sbi)) {
 		err = -ENOMEM;
 		goto err;
 	}
@@ -424,21 +441,21 @@ static int erofs_read_super(struct super_block *sb,
 
 	if (!S_ISDIR(inode->i_mode)) {
 		errln("rootino(nid %llu) is not a directory(i_mode %o)",
-			ROOT_NID(sbi), inode->i_mode);
+		      ROOT_NID(sbi), inode->i_mode);
 		err = -EINVAL;
 		iput(inode);
 		goto err_iget;
 	}
 
 	sb->s_root = d_make_root(inode);
-	if (sb->s_root == NULL) {
+	if (!sb->s_root) {
 		err = -ENOMEM;
 		goto err_iget;
 	}
 
 	/* save the device name to sbi */
 	sbi->dev_name = __getname();
-	if (sbi->dev_name == NULL) {
+	if (!sbi->dev_name) {
 		err = -ENOMEM;
 		goto err_devname;
 	}
@@ -450,7 +467,7 @@ static int erofs_read_super(struct super_block *sb,
 
 	if (!silent)
 		infoln("mounted on %s with opts: %s.", dev_name,
-			(char *)data);
+		       (char *)data);
 	return 0;
 	/*
 	 * please add a label for each exit point and use
@@ -459,6 +476,7 @@ static int erofs_read_super(struct super_block *sb,
 	 */
 err_devname:
 	dput(sb->s_root);
+	sb->s_root = NULL;
 err_iget:
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	iput(sbi->managed_cache);
@@ -481,7 +499,7 @@ static void erofs_put_super(struct super_block *sb)
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 
 	/* for cases which are failed in "read_super" */
-	if (sbi == NULL)
+	if (!sbi)
 		return;
 
 	WARN_ON(sb->s_magic != EROFS_SUPER_MAGIC);
@@ -515,7 +533,7 @@ struct erofs_mount_private {
 
 /* support mount_bdev() with options */
 static int erofs_fill_super(struct super_block *sb,
-	void *_priv, int silent)
+			    void *_priv, int silent)
 {
 	struct erofs_mount_private *priv = _priv;
 
@@ -635,7 +653,7 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 #endif
 	if (test_opt(sbi, FAULT_INJECTION))
 		seq_printf(seq, ",fault_injection=%u",
-			erofs_get_fault_rate(sbi));
+			   erofs_get_fault_rate(sbi));
 	return 0;
 }
 
@@ -668,7 +686,7 @@ out:
 const struct super_operations erofs_sops = {
 	.put_super = erofs_put_super,
 	.alloc_inode = alloc_inode,
-	.destroy_inode = destroy_inode,
+	.free_inode = free_inode,
 	.statfs = erofs_statfs,
 	.show_options = erofs_show_options,
 	.remount_fs = erofs_remount,

@@ -17,6 +17,13 @@ struct komeda_drv {
 	struct komeda_kms_dev *kms;
 };
 
+struct komeda_dev *dev_to_mdev(struct device *dev)
+{
+	struct komeda_drv *mdrv = dev_get_drvdata(dev);
+
+	return mdrv ? mdrv->mdev : NULL;
+}
+
 static void komeda_unbind(struct device *dev)
 {
 	struct komeda_drv *mdrv = dev_get_drvdata(dev);
@@ -120,7 +127,7 @@ static const struct komeda_product_data komeda_products[] = {
 	},
 };
 
-const struct of_device_id komeda_of_match[] = {
+static const struct of_device_id komeda_of_match[] = {
 	{ .compatible = "arm,mali-d71", .data = &komeda_products[MALI_D71], },
 	{},
 };

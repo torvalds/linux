@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2017 Benjamin Herrenschmidt, IBM Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 /* File to be included by other .c files */
@@ -130,24 +127,14 @@ static u32 GLUE(X_PFX,scan_interrupts)(struct kvmppc_xive_vcpu *xc,
 		 */
 		prio = ffs(pending) - 1;
 
-		/*
-		 * If the most favoured prio we found pending is less
-		 * favored (or equal) than a pending IPI, we return
-		 * the IPI instead.
-		 *
-		 * Note: If pending was 0 and mfrr is 0xff, we will
-		 * not spurriously take an IPI because mfrr cannot
-		 * then be smaller than cppr.
-		 */
-		if (prio >= xc->mfrr && xc->mfrr < xc->cppr) {
-			prio = xc->mfrr;
-			hirq = XICS_IPI;
+		/* Don't scan past the guest cppr */
+		if (prio >= xc->cppr || prio > 7) {
+			if (xc->mfrr < xc->cppr) {
+				prio = xc->mfrr;
+				hirq = XICS_IPI;
+			}
 			break;
 		}
-
-		/* Don't scan past the guest cppr */
-		if (prio >= xc->cppr || prio > 7)
-			break;
 
 		/* Grab queue and pointers */
 		q = &xc->queues[prio];
@@ -184,9 +171,12 @@ skip_ipi:
 		 * been set and another occurrence of the IPI will trigger.
 		 */
 		if (hirq == XICS_IPI || (prio == 0 && !qpage)) {
-			if (scan_type == scan_fetch)
+			if (scan_type == scan_fetch) {
 				GLUE(X_PFX,source_eoi)(xc->vp_ipi,
 						       &xc->vp_ipi_data);
+				q->idx = idx;
+				q->toggle = toggle;
+			}
 			/* Loop back on same queue with updated idx/toggle */
 #ifdef XIVE_RUNTIME_CHECKS
 			WARN_ON(hirq && hirq != XICS_IPI);
@@ -199,31 +189,40 @@ skip_ipi:
 		if (hirq == XICS_DUMMY)
 			goto skip_ipi;
 
+		/* Clear the pending bit if the queue is now empty */
+		if (!hirq) {
+			pending &= ~(1 << prio);
+
+			/*
+			 * Check if the queue count needs adjusting due to
+			 * interrupts being moved away.
+			 */
+			if (atomic_read(&q->pending_count)) {
+				int p = atomic_xchg(&q->pending_count, 0);
+				if (p) {
+#ifdef XIVE_RUNTIME_CHECKS
+					WARN_ON(p > atomic_read(&q->count));
+#endif
+					atomic_sub(p, &q->count);
+				}
+			}
+		}
+
+		/*
+		 * If the most favoured prio we found pending is less
+		 * favored (or equal) than a pending IPI, we return
+		 * the IPI instead.
+		 */
+		if (prio >= xc->mfrr && xc->mfrr < xc->cppr) {
+			prio = xc->mfrr;
+			hirq = XICS_IPI;
+			break;
+		}
+
 		/* If fetching, update queue pointers */
 		if (scan_type == scan_fetch) {
 			q->idx = idx;
 			q->toggle = toggle;
-		}
-
-		/* Something found, stop searching */
-		if (hirq)
-			break;
-
-		/* Clear the pending bit on the now empty queue */
-		pending &= ~(1 << prio);
-
-		/*
-		 * Check if the queue count needs adjusting due to
-		 * interrupts being moved away.
-		 */
-		if (atomic_read(&q->pending_count)) {
-			int p = atomic_xchg(&q->pending_count, 0);
-			if (p) {
-#ifdef XIVE_RUNTIME_CHECKS
-				WARN_ON(p > atomic_read(&q->count));
-#endif
-				atomic_sub(p, &q->count);
-			}
 		}
 	}
 

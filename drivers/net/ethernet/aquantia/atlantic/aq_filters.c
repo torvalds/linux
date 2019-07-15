@@ -843,9 +843,14 @@ int aq_filters_vlans_update(struct aq_nic_s *aq_nic)
 		return err;
 
 	if (aq_nic->ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER) {
-		if (hweight < AQ_VLAN_MAX_FILTERS)
-			err = aq_hw_ops->hw_filter_vlan_ctrl(aq_hw, true);
+		if (hweight < AQ_VLAN_MAX_FILTERS && hweight > 0) {
+			err = aq_hw_ops->hw_filter_vlan_ctrl(aq_hw,
+				!(aq_nic->packet_filter & IFF_PROMISC));
+			aq_nic->aq_nic_cfg.is_vlan_force_promisc = false;
+		} else {
 		/* otherwise left in promiscue mode */
+			aq_nic->aq_nic_cfg.is_vlan_force_promisc = true;
+		}
 	}
 
 	return err;
@@ -866,6 +871,7 @@ int aq_filters_vlan_offload_off(struct aq_nic_s *aq_nic)
 	if (unlikely(!aq_hw_ops->hw_filter_vlan_ctrl))
 		return -EOPNOTSUPP;
 
+	aq_nic->aq_nic_cfg.is_vlan_force_promisc = true;
 	err = aq_hw_ops->hw_filter_vlan_ctrl(aq_hw, false);
 	if (err)
 		return err;

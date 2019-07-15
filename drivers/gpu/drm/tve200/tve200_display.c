@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  * Parts of this file were based on sources as follows:
@@ -7,11 +8,6 @@
  * Copyright (C) 2007 Dave Airlie <airlied@linux.ie>
  * Copyright (C) 2011 Texas Instruments
  * Copyright (C) 2017 Eric Anholt
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms of
- * such GNU licence.
  */
 #include <linux/clk.h>
 #include <linux/version.h>
@@ -149,7 +145,8 @@ static void tve200_display_enable(struct drm_simple_display_pipe *pipe,
 	/* Vsync IRQ at start of Vsync at first */
 	ctrl1 |= TVE200_VSTSTYPE_VSYNC;
 
-	if (connector->display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+	if (connector->display_info.bus_flags &
+	    DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
 		ctrl1 |= TVE200_CTRL_TVCLKP;
 
 	if ((mode->hdisplay == 352 && mode->vdisplay == 240) || /* SIF(525) */

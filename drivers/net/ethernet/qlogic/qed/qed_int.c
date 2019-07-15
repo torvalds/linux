@@ -814,17 +814,11 @@ static inline u16 qed_attn_update_idx(struct qed_hwfn *p_hwfn,
 {
 	u16 rc = 0, index;
 
-	/* Make certain HW write took affect */
-	mmiowb();
-
 	index = le16_to_cpu(p_sb_desc->sb_attn->sb_index);
 	if (p_sb_desc->index != index) {
 		p_sb_desc->index	= index;
 		rc		      = QED_SB_ATT_IDX;
 	}
-
-	/* Make certain we got a consistent view with HW */
-	mmiowb();
 
 	return rc;
 }
@@ -1213,7 +1207,6 @@ static void qed_sb_ack_attn(struct qed_hwfn *p_hwfn,
 	/* Both segments (interrupts & acks) are written to same place address;
 	 * Need to guarantee all commands will be received (in-order) by HW.
 	 */
-	mmiowb();
 	barrier();
 }
 
@@ -1848,9 +1841,6 @@ static void qed_int_igu_enable_attn(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_ptt, IGU_REG_TRAILING_EDGE_LATCH, 0xfff);
 	qed_wr(p_hwfn, p_ptt, IGU_REG_ATTENTION_ENABLE, 0xfff);
 
-	/* Flush the writes to IGU */
-	mmiowb();
-
 	/* Unmask AEU signals toward IGU */
 	qed_wr(p_hwfn, p_ptt, MISC_REG_AEU_MASK_ATTN_IGU, 0xff);
 }
@@ -1913,9 +1903,6 @@ static void qed_int_igu_cleanup_sb(struct qed_hwfn *p_hwfn,
 	barrier();
 
 	qed_wr(p_hwfn, p_ptt, IGU_REG_COMMAND_REG_CTRL, cmd_ctrl);
-
-	/* Flush the write to IGU */
-	mmiowb();
 
 	/* calculate where to read the status bit from */
 	sb_bit = 1 << (igu_sb_id % 32);

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Samsung S5P G2D - 2D Graphics Accelerator Driver
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  * Kamil Debski, <k.debski@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version
  */
 
 #include <linux/module.h>
@@ -297,8 +293,8 @@ static int g2d_release(struct file *file)
 static int vidioc_querycap(struct file *file, void *priv,
 				struct v4l2_capability *cap)
 {
-	strncpy(cap->driver, G2D_NAME, sizeof(cap->driver) - 1);
-	strncpy(cap->card, G2D_NAME, sizeof(cap->card) - 1);
+	strscpy(cap->driver, G2D_NAME, sizeof(cap->driver));
+	strscpy(cap->card, G2D_NAME, sizeof(cap->card));
 	cap->bus_info[0] = 0;
 	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
@@ -312,7 +308,7 @@ static int vidioc_enum_fmt(struct file *file, void *prv, struct v4l2_fmtdesc *f)
 		return -EINVAL;
 	fmt = &formats[f->index];
 	f->pixelformat = fmt->fourcc;
-	strncpy(f->description, fmt->name, sizeof(f->description) - 1);
+	strscpy(f->description, fmt->name, sizeof(f->description));
 	return 0;
 }
 

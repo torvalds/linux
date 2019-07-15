@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Definitions and platform data for Analog Devices
  * Backlight drivers ADP8870
  *
  * Copyright 2009-2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #ifndef __LINUX_I2C_ADP8870_H

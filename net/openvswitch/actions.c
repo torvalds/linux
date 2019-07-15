@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2007-2017 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -168,6 +155,10 @@ static int clone_execute(struct datapath *dp, struct sk_buff *skb,
 			 u32 recirc_id,
 			 const struct nlattr *actions, int len,
 			 bool last, bool clone_flow_key);
+
+static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
+			      struct sw_flow_key *key,
+			      const struct nlattr *attr, int len);
 
 static void update_ethertype(struct sk_buff *skb, struct ethhdr *hdr,
 			     __be16 ethertype)
@@ -1213,6 +1204,40 @@ static int execute_recirc(struct datapath *dp, struct sk_buff *skb,
 	return clone_execute(dp, skb, key, recirc_id, NULL, 0, last, true);
 }
 
+static int execute_check_pkt_len(struct datapath *dp, struct sk_buff *skb,
+				 struct sw_flow_key *key,
+				 const struct nlattr *attr, bool last)
+{
+	const struct nlattr *actions, *cpl_arg;
+	const struct check_pkt_len_arg *arg;
+	int rem = nla_len(attr);
+	bool clone_flow_key;
+
+	/* The first netlink attribute in 'attr' is always
+	 * 'OVS_CHECK_PKT_LEN_ATTR_ARG'.
+	 */
+	cpl_arg = nla_data(attr);
+	arg = nla_data(cpl_arg);
+
+	if (skb->len <= arg->pkt_len) {
+		/* Second netlink attribute in 'attr' is always
+		 * 'OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_LESS_EQUAL'.
+		 */
+		actions = nla_next(cpl_arg, &rem);
+		clone_flow_key = !arg->exec_for_lesser_equal;
+	} else {
+		/* Third netlink attribute in 'attr' is always
+		 * 'OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_GREATER'.
+		 */
+		actions = nla_next(cpl_arg, &rem);
+		actions = nla_next(actions, &rem);
+		clone_flow_key = !arg->exec_for_greater;
+	}
+
+	return clone_execute(dp, skb, key, 0, nla_data(actions),
+			     nla_len(actions), last, clone_flow_key);
+}
+
 /* Execute a list of actions against 'skb'. */
 static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			      struct sw_flow_key *key,
@@ -1369,6 +1394,16 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			bool last = nla_is_last(a, rem);
 
 			err = clone(dp, skb, key, a, last);
+			if (last)
+				return err;
+
+			break;
+		}
+
+		case OVS_ACTION_ATTR_CHECK_PKT_LEN: {
+			bool last = nla_is_last(a, rem);
+
+			err = execute_check_pkt_len(dp, skb, key, a, last);
 			if (last)
 				return err;
 

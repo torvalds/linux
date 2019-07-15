@@ -63,11 +63,13 @@ struct encoder_info_frame {
 	struct dc_info_packet vsc;
 	/* HDR Static MetaData */
 	struct dc_info_packet hdrsmd;
+	/* custom sdp message */
+	struct dc_info_packet dpsdp;
 };
 
 struct encoder_unblank_param {
 	struct dc_link_settings link_settings;
-	unsigned int pixel_clk_khz;
+	struct dc_crtc_timing timing;
 };
 
 struct encoder_set_dp_phy_pattern_param {
@@ -88,7 +90,8 @@ struct stream_encoder_funcs {
 	void (*dp_set_stream_attribute)(
 		struct stream_encoder *enc,
 		struct dc_crtc_timing *crtc_timing,
-		enum dc_color_space output_color_space);
+		enum dc_color_space output_color_space,
+		uint32_t enable_sdp_splitting);
 
 	void (*hdmi_set_stream_attribute)(
 		struct stream_encoder *enc,

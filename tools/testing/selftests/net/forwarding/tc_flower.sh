@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
 ALL_TESTS="match_dst_mac_test match_src_mac_test match_dst_ip_test \
-	match_src_ip_test match_ip_flags_test"
+	match_src_ip_test match_ip_flags_test match_pcp_test match_vlan_test \
+	match_ip_tos_test"
 NUM_NETIFS=2
 source tc_common.sh
 source lib.sh
@@ -217,6 +218,96 @@ match_ip_flags_test()
 	tc filter del dev $h2 ingress protocol ip pref 4 handle 104 flower
 
 	log_test "ip_flags match ($tcflags)"
+}
+
+match_pcp_test()
+{
+	RET=0
+
+	vlan_create $h2 85 v$h2 192.0.2.11/24
+
+	tc filter add dev $h2 ingress protocol 802.1q pref 1 handle 101 \
+		flower vlan_prio 6 $tcflags dst_mac $h2mac action drop
+	tc filter add dev $h2 ingress protocol 802.1q pref 2 handle 102 \
+		flower vlan_prio 7 $tcflags dst_mac $h2mac action drop
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -B 192.0.2.11 -Q 7:85 -t ip -q
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -B 192.0.2.11 -Q 0:85 -t ip -q
+
+	tc_check_packets "dev $h2 ingress" 101 0
+	check_err $? "Matched on specified PCP when should not"
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on specified PCP"
+
+	tc filter del dev $h2 ingress protocol 802.1q pref 2 handle 102 flower
+	tc filter del dev $h2 ingress protocol 802.1q pref 1 handle 101 flower
+
+	vlan_destroy $h2 85
+
+	log_test "PCP match ($tcflags)"
+}
+
+match_vlan_test()
+{
+	RET=0
+
+	vlan_create $h2 85 v$h2 192.0.2.11/24
+	vlan_create $h2 75 v$h2 192.0.2.10/24
+
+	tc filter add dev $h2 ingress protocol 802.1q pref 1 handle 101 \
+		flower vlan_id 75 $tcflags action drop
+	tc filter add dev $h2 ingress protocol 802.1q pref 2 handle 102 \
+		flower vlan_id 85 $tcflags action drop
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -B 192.0.2.11 -Q 0:85 -t ip -q
+
+	tc_check_packets "dev $h2 ingress" 101 0
+	check_err $? "Matched on specified VLAN when should not"
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on specified VLAN"
+
+	tc filter del dev $h2 ingress protocol 802.1q pref 2 handle 102 flower
+	tc filter del dev $h2 ingress protocol 802.1q pref 1 handle 101 flower
+
+	vlan_destroy $h2 75
+	vlan_destroy $h2 85
+
+	log_test "VLAN match ($tcflags)"
+}
+
+match_ip_tos_test()
+{
+	RET=0
+
+	tc filter add dev $h2 ingress protocol ip pref 1 handle 101 flower \
+		$tcflags dst_ip 192.0.2.2 ip_tos 0x20 action drop
+	tc filter add dev $h2 ingress protocol ip pref 2 handle 102 flower \
+		$tcflags dst_ip 192.0.2.2 ip_tos 0x18 action drop
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip tos=18 -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched on a wrong filter (0x18)"
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter (0x18)"
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip tos=20 -q
+
+	tc_check_packets "dev $h2 ingress" 102 2
+	check_fail $? "Matched on a wrong filter (0x20)"
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_err $? "Did not match on correct filter (0x20)"
+
+	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
+	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
+
+	log_test "ip_tos match ($tcflags)"
 }
 
 setup_prepare()

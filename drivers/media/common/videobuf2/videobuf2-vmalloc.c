@@ -46,16 +46,16 @@ static void *vb2_vmalloc_alloc(struct device *dev, unsigned long attrs,
 
 	buf->size = size;
 	buf->vaddr = vmalloc_user(buf->size);
-	buf->dma_dir = dma_dir;
-	buf->handler.refcount = &buf->refcount;
-	buf->handler.put = vb2_vmalloc_put;
-	buf->handler.arg = buf;
-
 	if (!buf->vaddr) {
 		pr_debug("vmalloc of size %ld failed\n", buf->size);
 		kfree(buf);
 		return ERR_PTR(-ENOMEM);
 	}
+
+	buf->dma_dir = dma_dir;
+	buf->handler.refcount = &buf->refcount;
+	buf->handler.put = vb2_vmalloc_put;
+	buf->handler.arg = buf;
 
 	refcount_set(&buf->refcount, 1);
 	return buf;

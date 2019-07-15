@@ -643,7 +643,7 @@ struct rxe_atmeth {
 	__be32			rkey;
 	__be64			swap_add;
 	__be64			comp;
-} __attribute__((__packed__));
+} __packed;
 
 static inline u64 __atmeth_va(void *arg)
 {

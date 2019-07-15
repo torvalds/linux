@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NFC_HCI
        depends on NFC
        tristate "NFC HCI implementation"

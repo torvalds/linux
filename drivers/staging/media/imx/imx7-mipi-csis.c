@@ -9,6 +9,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -491,7 +492,7 @@ static int mipi_csis_clk_get(struct csi_state *state)
 
 	state->wrap_clk = devm_clk_get(dev, "wrap");
 	if (IS_ERR(state->wrap_clk))
-		return IS_ERR(state->wrap_clk);
+		return PTR_ERR(state->wrap_clk);
 
 	/* Set clock rate */
 	ret = clk_set_rate(state->wrap_clk, state->clk_frequency);
@@ -706,7 +707,7 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *mipi_sd,
 	fmt = mipi_csis_get_format(state, cfg, sdformat->which, sdformat->pad);
 
 	mutex_lock(&state->lock);
-	if (fmt && sdformat->pad == CSIS_PAD_SOURCE) {
+	if (sdformat->pad == CSIS_PAD_SOURCE) {
 		sdformat->format = *fmt;
 		goto unlock;
 	}
@@ -889,8 +890,6 @@ static int mipi_csis_subdev_init(struct v4l2_subdev *mipi_sd,
 	return ret;
 }
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
 
 static int mipi_csis_dump_regs_show(struct seq_file *m, void *private)
 {
@@ -900,7 +899,7 @@ static int mipi_csis_dump_regs_show(struct seq_file *m, void *private)
 }
 DEFINE_SHOW_ATTRIBUTE(mipi_csis_dump_regs);
 
-static int __init_or_module mipi_csis_debugfs_init(struct csi_state *state)
+static int mipi_csis_debugfs_init(struct csi_state *state)
 {
 	struct dentry *d;
 
@@ -933,17 +932,6 @@ static void mipi_csis_debugfs_exit(struct csi_state *state)
 {
 	debugfs_remove_recursive(state->debugfs_root);
 }
-
-#else
-static int mipi_csis_debugfs_init(struct csi_state *state __maybe_unused)
-{
-	return 0;
-}
-
-static void mipi_csis_debugfs_exit(struct csi_state *state __maybe_unused)
-{
-}
-#endif
 
 static int mipi_csis_probe(struct platform_device *pdev)
 {
@@ -1039,8 +1027,7 @@ disable_clock:
 
 static int mipi_csis_pm_suspend(struct device *dev, bool runtime)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct v4l2_subdev *mipi_sd = platform_get_drvdata(pdev);
+	struct v4l2_subdev *mipi_sd = dev_get_drvdata(dev);
 	struct csi_state *state = mipi_sd_to_csis_state(mipi_sd);
 	int ret = 0;
 
@@ -1064,8 +1051,7 @@ unlock:
 
 static int mipi_csis_pm_resume(struct device *dev, bool runtime)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct v4l2_subdev *mipi_sd = platform_get_drvdata(pdev);
+	struct v4l2_subdev *mipi_sd = dev_get_drvdata(dev);
 	struct csi_state *state = mipi_sd_to_csis_state(mipi_sd);
 	int ret = 0;
 

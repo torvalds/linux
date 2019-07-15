@@ -106,7 +106,7 @@ static ssize_t pmem_drc_remove_node(u32 drc_index)
 
 int dlpar_hp_pmem(struct pseries_hp_errorlog *hp_elog)
 {
-	u32 count, drc_index;
+	u32 drc_index;
 	int rc;
 
 	/* slim chance, but we might get a hotplug event while booting */
@@ -123,7 +123,6 @@ int dlpar_hp_pmem(struct pseries_hp_errorlog *hp_elog)
 		return -EINVAL;
 	}
 
-	count = hp_elog->_drc_u.drc_count;
 	drc_index = hp_elog->_drc_u.drc_index;
 
 	lock_device_hotplug();

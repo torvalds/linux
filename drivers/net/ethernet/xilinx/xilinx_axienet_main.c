@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xilinx Axi Ethernet device driver
  *
@@ -1596,7 +1597,7 @@ static int axienet_probe(struct platform_device *pdev)
 
 	/* Retrieve the MAC address */
 	mac_addr = of_get_mac_address(pdev->dev.of_node);
-	if (!mac_addr) {
+	if (IS_ERR(mac_addr)) {
 		dev_err(&pdev->dev, "could not find MAC address\n");
 		goto free_netdev;
 	}

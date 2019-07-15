@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* The industrial I/O core, trigger handling functions
  *
  * Copyright (c) 2008 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -254,8 +251,11 @@ static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 
 	/* Get irq number */
 	pf->irq = iio_trigger_get_irq(trig);
-	if (pf->irq < 0)
+	if (pf->irq < 0) {
+		pr_err("Could not find an available irq for trigger %s, CONFIG_IIO_CONSUMERS_PER_TRIGGER=%d limit might be exceeded\n",
+			trig->name, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
 		goto out_put_module;
+	}
 
 	/* Request irq */
 	ret = request_threaded_irq(pf->irq, pf->h, pf->thread,

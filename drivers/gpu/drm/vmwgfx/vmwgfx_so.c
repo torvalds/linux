@@ -170,13 +170,12 @@ static int vmw_view_create(struct vmw_resource *res)
 		return 0;
 	}
 
-	cmd = vmw_fifo_reserve_dx(res->dev_priv, view->cmd_size,
-				  view->ctx->id);
+	cmd = VMW_FIFO_RESERVE_DX(res->dev_priv, view->cmd_size, view->ctx->id);
 	if (!cmd) {
-		DRM_ERROR("Failed reserving FIFO space for view creation.\n");
 		mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
+
 	memcpy(cmd, &view->cmd, view->cmd_size);
 	WARN_ON(cmd->body.view_id != view->view_id);
 	/* Sid may have changed due to surface eviction. */
@@ -214,12 +213,9 @@ static int vmw_view_destroy(struct vmw_resource *res)
 	if (!view->committed || res->id == -1)
 		return 0;
 
-	cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd), view->ctx->id);
-	if (!cmd) {
-		DRM_ERROR("Failed reserving FIFO space for view "
-			  "destruction.\n");
+	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), view->ctx->id);
+	if (!cmd)
 		return -ENOMEM;
-	}
 
 	cmd->header.id = vmw_view_destroy_cmds[view->view_type];
 	cmd->header.size = sizeof(cmd->body);
@@ -338,12 +334,12 @@ int vmw_view_add(struct vmw_cmdbuf_res_manager *man,
 
 	if (cmd_size != vmw_view_define_sizes[view_type] +
 	    sizeof(SVGA3dCmdHeader)) {
-		DRM_ERROR("Illegal view create command size.\n");
+		VMW_DEBUG_USER("Illegal view create command size.\n");
 		return -EINVAL;
 	}
 
 	if (!vmw_view_id_ok(user_key, view_type)) {
-		DRM_ERROR("Illegal view add view id.\n");
+		VMW_DEBUG_USER("Illegal view add view id.\n");
 		return -EINVAL;
 	}
 
@@ -352,8 +348,7 @@ int vmw_view_add(struct vmw_cmdbuf_res_manager *man,
 	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv), size, &ttm_opt_ctx);
 	if (ret) {
 		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for view"
-				  " creation.\n");
+			DRM_ERROR("Out of graphics memory for view creation\n");
 		return ret;
 	}
 
@@ -413,7 +408,7 @@ int vmw_view_remove(struct vmw_cmdbuf_res_manager *man,
 		    struct vmw_resource **res_p)
 {
 	if (!vmw_view_id_ok(user_key, view_type)) {
-		DRM_ERROR("Illegal view remove view id.\n");
+		VMW_DEBUG_USER("Illegal view remove view id.\n");
 		return -EINVAL;
 	}
 
@@ -495,6 +490,30 @@ struct vmw_resource *vmw_view_lookup(struct vmw_cmdbuf_res_manager *man,
 {
 	return vmw_cmdbuf_res_lookup(man, vmw_cmdbuf_res_view,
 				     vmw_view_key(user_key, view_type));
+}
+
+/**
+ * vmw_view_dirtying - Return whether a view type is dirtying its resource
+ * @res: Pointer to the view
+ *
+ * Each time a resource is put on the validation list as the result of a
+ * view pointing to it, we need to determine whether that resource will
+ * be dirtied (written to by the GPU) as a result of the corresponding
+ * GPU operation. Currently only rendertarget- and depth-stencil views are
+ * capable of dirtying its resource.
+ *
+ * Return: Whether the view type of @res dirties the resource it points to.
+ */
+u32 vmw_view_dirtying(struct vmw_resource *res)
+{
+	static u32 view_is_dirtying[vmw_view_max] = {
+		[vmw_view_rt] = VMW_RES_DIRTY_SET,
+		[vmw_view_ds] = VMW_RES_DIRTY_SET,
+	};
+
+	/* Update this function as we add more view types */
+	BUILD_BUG_ON(vmw_view_max != 3);
+	return view_is_dirtying[vmw_view(res)->view_type];
 }
 
 const u32 vmw_view_destroy_cmds[] = {

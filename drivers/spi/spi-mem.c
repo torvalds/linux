@@ -135,8 +135,8 @@ static int spi_check_buswidth_req(struct spi_mem *mem, u8 buswidth, bool tx)
 	return -ENOTSUPP;
 }
 
-static bool spi_mem_default_supports_op(struct spi_mem *mem,
-					const struct spi_mem_op *op)
+bool spi_mem_default_supports_op(struct spi_mem *mem,
+				 const struct spi_mem_op *op)
 {
 	if (spi_check_buswidth_req(mem, op->cmd.buswidth, true))
 		return false;
@@ -622,7 +622,7 @@ void devm_spi_mem_dirmap_destroy(struct device *dev,
 EXPORT_SYMBOL_GPL(devm_spi_mem_dirmap_destroy);
 
 /**
- * spi_mem_dirmap_dirmap_read() - Read data through a direct mapping
+ * spi_mem_dirmap_read() - Read data through a direct mapping
  * @desc: direct mapping descriptor
  * @offs: offset to start reading from. Note that this is not an absolute
  *	  offset, but the offset within the direct mapping which already has
@@ -668,7 +668,7 @@ ssize_t spi_mem_dirmap_read(struct spi_mem_dirmap_desc *desc,
 EXPORT_SYMBOL_GPL(spi_mem_dirmap_read);
 
 /**
- * spi_mem_dirmap_dirmap_write() - Write data through a direct mapping
+ * spi_mem_dirmap_write() - Write data through a direct mapping
  * @desc: direct mapping descriptor
  * @offs: offset to start writing from. Note that this is not an absolute
  *	  offset, but the offset within the direct mapping which already has

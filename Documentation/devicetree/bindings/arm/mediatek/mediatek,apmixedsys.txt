@@ -14,6 +14,8 @@ Required Properties:
 	- "mediatek,mt7629-apmixedsys"
 	- "mediatek,mt8135-apmixedsys"
 	- "mediatek,mt8173-apmixedsys"
+	- "mediatek,mt8183-apmixedsys", "syscon"
+	- "mediatek,mt8516-apmixedsys"
 - #clock-cells: Must be 1
 
 The apmixedsys controller uses the common clk binding from

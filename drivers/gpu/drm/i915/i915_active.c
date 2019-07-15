@@ -6,6 +6,7 @@
 
 #include "i915_drv.h"
 #include "i915_active.h"
+#include "i915_globals.h"
 
 #define BKL(ref) (&(ref)->i915->drm.struct_mutex)
 
@@ -17,6 +18,7 @@
  * nodes from a local slab cache to hopefully reduce the fragmentation.
  */
 static struct i915_global_active {
+	struct i915_global base;
 	struct kmem_cache *slab_cache;
 } global;
 
@@ -285,16 +287,27 @@ void i915_active_retire_noop(struct i915_active_request *active,
 #include "selftests/i915_active.c"
 #endif
 
+static void i915_global_active_shrink(void)
+{
+	kmem_cache_shrink(global.slab_cache);
+}
+
+static void i915_global_active_exit(void)
+{
+	kmem_cache_destroy(global.slab_cache);
+}
+
+static struct i915_global_active global = { {
+	.shrink = i915_global_active_shrink,
+	.exit = i915_global_active_exit,
+} };
+
 int __init i915_global_active_init(void)
 {
 	global.slab_cache = KMEM_CACHE(active_node, SLAB_HWCACHE_ALIGN);
 	if (!global.slab_cache)
 		return -ENOMEM;
 
+	i915_global_register(&global.base);
 	return 0;
-}
-
-void __exit i915_global_active_exit(void)
-{
-	kmem_cache_destroy(global.slab_cache);
 }

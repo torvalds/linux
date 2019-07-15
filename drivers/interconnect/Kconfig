@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig INTERCONNECT
 	tristate "On-Chip Interconnect management support"
 	help

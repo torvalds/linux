@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Network device configuration
 #
@@ -505,6 +506,7 @@ source "drivers/net/hyperv/Kconfig"
 config NETDEVSIM
 	tristate "Simulated networking device"
 	depends on DEBUG_FS
+	select NET_DEVLINK
 	help
 	  This driver is a developer testing tool and software model that can
 	  be used to test various control path networking APIs, especially

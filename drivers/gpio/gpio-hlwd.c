@@ -208,7 +208,6 @@ static int hlwd_gpio_irq_set_type(struct irq_data *data, unsigned int flow_type)
 static int hlwd_gpio_probe(struct platform_device *pdev)
 {
 	struct hlwd_gpio *hlwd;
-	struct resource *regs_resource;
 	u32 ngpios;
 	int res;
 
@@ -216,8 +215,7 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 	if (!hlwd)
 		return -ENOMEM;
 
-	regs_resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hlwd->regs = devm_ioremap_resource(&pdev->dev, regs_resource);
+	hlwd->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hlwd->regs))
 		return PTR_ERR(hlwd->regs);
 

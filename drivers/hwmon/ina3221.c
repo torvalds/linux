@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * INA3221 Triple Current/Voltage Monitor
  *
  * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/hwmon.h>
@@ -22,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/util_macros.h>
 
 #define INA3221_DRIVER_NAME		"ina3221"
 
@@ -51,6 +44,9 @@
 #define INA3221_CONFIG_VBUS_CT_SHIFT	6
 #define INA3221_CONFIG_VBUS_CT_MASK	GENMASK(8, 6)
 #define INA3221_CONFIG_VBUS_CT(x)	(((x) & GENMASK(8, 6)) >> 6)
+#define INA3221_CONFIG_AVG_SHIFT	9
+#define INA3221_CONFIG_AVG_MASK		GENMASK(11, 9)
+#define INA3221_CONFIG_AVG(x)		(((x) & GENMASK(11, 9)) >> 9)
 #define INA3221_CONFIG_CHs_EN_MASK	GENMASK(14, 12)
 #define INA3221_CONFIG_CHx_EN(x)	BIT(14 - (x))
 
@@ -135,17 +131,42 @@ static const u16 ina3221_conv_time[] = {
 	140, 204, 332, 588, 1100, 2116, 4156, 8244,
 };
 
-static inline int ina3221_wait_for_data(struct ina3221_data *ina)
+/* Lookup table for number of samples using in averaging mode */
+static const int ina3221_avg_samples[] = {
+	1, 4, 16, 64, 128, 256, 512, 1024,
+};
+
+/* Converting update_interval in msec to conversion time in usec */
+static inline u32 ina3221_interval_ms_to_conv_time(u16 config, int interval)
 {
-	u32 channels = hweight16(ina->reg_config & INA3221_CONFIG_CHs_EN_MASK);
-	u32 vbus_ct_idx = INA3221_CONFIG_VBUS_CT(ina->reg_config);
-	u32 vsh_ct_idx = INA3221_CONFIG_VSH_CT(ina->reg_config);
+	u32 channels = hweight16(config & INA3221_CONFIG_CHs_EN_MASK);
+	u32 samples_idx = INA3221_CONFIG_AVG(config);
+	u32 samples = ina3221_avg_samples[samples_idx];
+
+	/* Bisect the result to Bus and Shunt conversion times */
+	return DIV_ROUND_CLOSEST(interval * 1000 / 2, channels * samples);
+}
+
+/* Converting CONFIG register value to update_interval in usec */
+static inline u32 ina3221_reg_to_interval_us(u16 config)
+{
+	u32 channels = hweight16(config & INA3221_CONFIG_CHs_EN_MASK);
+	u32 vbus_ct_idx = INA3221_CONFIG_VBUS_CT(config);
+	u32 vsh_ct_idx = INA3221_CONFIG_VSH_CT(config);
+	u32 samples_idx = INA3221_CONFIG_AVG(config);
+	u32 samples = ina3221_avg_samples[samples_idx];
 	u32 vbus_ct = ina3221_conv_time[vbus_ct_idx];
 	u32 vsh_ct = ina3221_conv_time[vsh_ct_idx];
-	u32 wait, cvrf;
 
 	/* Calculate total conversion time */
-	wait = channels * (vbus_ct + vsh_ct);
+	return channels * (vbus_ct + vsh_ct) * samples;
+}
+
+static inline int ina3221_wait_for_data(struct ina3221_data *ina)
+{
+	u32 wait, cvrf;
+
+	wait = ina3221_reg_to_interval_us(ina->reg_config);
 
 	/* Polling the CVRF bit to make sure read data is ready */
 	return regmap_field_read_poll_timeout(ina->fields[F_CVRF],
@@ -175,6 +196,26 @@ static const u8 ina3221_in_reg[] = {
 	INA3221_SHUNT2,
 	INA3221_SHUNT3,
 };
+
+static int ina3221_read_chip(struct device *dev, u32 attr, long *val)
+{
+	struct ina3221_data *ina = dev_get_drvdata(dev);
+	int regval;
+
+	switch (attr) {
+	case hwmon_chip_samples:
+		regval = INA3221_CONFIG_AVG(ina->reg_config);
+		*val = ina3221_avg_samples[regval];
+		return 0;
+	case hwmon_chip_update_interval:
+		/* Return in msec */
+		*val = ina3221_reg_to_interval_us(ina->reg_config);
+		*val = DIV_ROUND_CLOSEST(*val, 1000);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
 
 static int ina3221_read_in(struct device *dev, u32 attr, int channel, long *val)
 {
@@ -279,6 +320,48 @@ static int ina3221_read_curr(struct device *dev, u32 attr,
 	}
 }
 
+static int ina3221_write_chip(struct device *dev, u32 attr, long val)
+{
+	struct ina3221_data *ina = dev_get_drvdata(dev);
+	int ret, idx;
+	u32 tmp;
+
+	switch (attr) {
+	case hwmon_chip_samples:
+		idx = find_closest(val, ina3221_avg_samples,
+				   ARRAY_SIZE(ina3221_avg_samples));
+
+		tmp = (ina->reg_config & ~INA3221_CONFIG_AVG_MASK) |
+		      (idx << INA3221_CONFIG_AVG_SHIFT);
+		ret = regmap_write(ina->regmap, INA3221_CONFIG, tmp);
+		if (ret)
+			return ret;
+
+		/* Update reg_config accordingly */
+		ina->reg_config = tmp;
+		return 0;
+	case hwmon_chip_update_interval:
+		tmp = ina3221_interval_ms_to_conv_time(ina->reg_config, val);
+		idx = find_closest(tmp, ina3221_conv_time,
+				   ARRAY_SIZE(ina3221_conv_time));
+
+		/* Update Bus and Shunt voltage conversion times */
+		tmp = INA3221_CONFIG_VBUS_CT_MASK | INA3221_CONFIG_VSH_CT_MASK;
+		tmp = (ina->reg_config & ~tmp) |
+		      (idx << INA3221_CONFIG_VBUS_CT_SHIFT) |
+		      (idx << INA3221_CONFIG_VSH_CT_SHIFT);
+		ret = regmap_write(ina->regmap, INA3221_CONFIG, tmp);
+		if (ret)
+			return ret;
+
+		/* Update reg_config accordingly */
+		ina->reg_config = tmp;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int ina3221_write_curr(struct device *dev, u32 attr,
 			      int channel, long val)
 {
@@ -309,6 +392,7 @@ static int ina3221_write_enable(struct device *dev, int channel, bool enable)
 	struct ina3221_data *ina = dev_get_drvdata(dev);
 	u16 config, mask = INA3221_CONFIG_CHx_EN(channel);
 	u16 config_old = ina->reg_config & mask;
+	u32 tmp;
 	int ret;
 
 	config = enable ? mask : 0;
@@ -327,14 +411,13 @@ static int ina3221_write_enable(struct device *dev, int channel, bool enable)
 	}
 
 	/* Enable or disable the channel */
-	ret = regmap_update_bits(ina->regmap, INA3221_CONFIG, mask, config);
+	tmp = (ina->reg_config & ~mask) | (config & mask);
+	ret = regmap_write(ina->regmap, INA3221_CONFIG, tmp);
 	if (ret)
 		goto fail;
 
 	/* Cache the latest config register value */
-	ret = regmap_read(ina->regmap, INA3221_CONFIG, &ina->reg_config);
-	if (ret)
-		goto fail;
+	ina->reg_config = tmp;
 
 	/* For disabling routine, decrease refcount or suspend() at last */
 	if (!enable)
@@ -361,6 +444,9 @@ static int ina3221_read(struct device *dev, enum hwmon_sensor_types type,
 	mutex_lock(&ina->lock);
 
 	switch (type) {
+	case hwmon_chip:
+		ret = ina3221_read_chip(dev, attr, val);
+		break;
 	case hwmon_in:
 		/* 0-align channel ID */
 		ret = ina3221_read_in(dev, attr, channel - 1, val);
@@ -387,6 +473,9 @@ static int ina3221_write(struct device *dev, enum hwmon_sensor_types type,
 	mutex_lock(&ina->lock);
 
 	switch (type) {
+	case hwmon_chip:
+		ret = ina3221_write_chip(dev, attr, val);
+		break;
 	case hwmon_in:
 		/* 0-align channel ID */
 		ret = ina3221_write_enable(dev, channel - 1, val);
@@ -423,6 +512,14 @@ static umode_t ina3221_is_visible(const void *drvdata,
 	const struct ina3221_input *input = NULL;
 
 	switch (type) {
+	case hwmon_chip:
+		switch (attr) {
+		case hwmon_chip_samples:
+		case hwmon_chip_update_interval:
+			return 0644;
+		default:
+			return 0;
+		}
 	case hwmon_in:
 		/* Ignore in0_ */
 		if (channel == 0)
@@ -458,44 +555,29 @@ static umode_t ina3221_is_visible(const void *drvdata,
 	}
 }
 
-static const u32 ina3221_in_config[] = {
-	/* 0: dummy, skipped in is_visible */
-	HWMON_I_INPUT,
-	/* 1-3: input voltage Channels */
-	HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
-	HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
-	HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
-	/* 4-6: shunt voltage Channels */
-	HWMON_I_INPUT,
-	HWMON_I_INPUT,
-	HWMON_I_INPUT,
-	0
-};
-
-static const struct hwmon_channel_info ina3221_in = {
-	.type = hwmon_in,
-	.config = ina3221_in_config,
-};
-
 #define INA3221_HWMON_CURR_CONFIG (HWMON_C_INPUT | \
 				   HWMON_C_CRIT | HWMON_C_CRIT_ALARM | \
 				   HWMON_C_MAX | HWMON_C_MAX_ALARM)
 
-static const u32 ina3221_curr_config[] = {
-	INA3221_HWMON_CURR_CONFIG,
-	INA3221_HWMON_CURR_CONFIG,
-	INA3221_HWMON_CURR_CONFIG,
-	0
-};
-
-static const struct hwmon_channel_info ina3221_curr = {
-	.type = hwmon_curr,
-	.config = ina3221_curr_config,
-};
-
 static const struct hwmon_channel_info *ina3221_info[] = {
-	&ina3221_in,
-	&ina3221_curr,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_SAMPLES,
+			   HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(in,
+			   /* 0: dummy, skipped in is_visible */
+			   HWMON_I_INPUT,
+			   /* 1-3: input voltage Channels */
+			   HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
+			   /* 4-6: shunt voltage Channels */
+			   HWMON_I_INPUT,
+			   HWMON_I_INPUT,
+			   HWMON_I_INPUT),
+	HWMON_CHANNEL_INFO(curr,
+			   INA3221_HWMON_CURR_CONFIG,
+			   INA3221_HWMON_CURR_CONFIG,
+			   INA3221_HWMON_CURR_CONFIG),
 	NULL
 };
 

@@ -18,6 +18,7 @@
 #include <linux/pci.h>
 #include <linux/ethtool.h>
 #include <linux/firmware.h>
+#include <linux/sfp.h>
 
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_nsp.h"
@@ -151,6 +152,8 @@ static const struct nfp_et_stat nfp_mac_et_stats[] = {
 #define NN_ET_SWITCH_STATS_LEN 9
 #define NN_RVEC_GATHER_STATS	9
 #define NN_RVEC_PER_Q_STATS	3
+
+#define SFP_SFF_REV_COMPLIANCE	1
 
 static void nfp_net_get_nspinfo(struct nfp_app *app, char *version)
 {
@@ -1096,6 +1099,130 @@ nfp_app_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 					    buffer);
 }
 
+static int
+nfp_port_get_module_info(struct net_device *netdev,
+			 struct ethtool_modinfo *modinfo)
+{
+	struct nfp_eth_table_port *eth_port;
+	struct nfp_port *port;
+	unsigned int read_len;
+	struct nfp_nsp *nsp;
+	int err = 0;
+	u8 data;
+
+	port = nfp_port_from_netdev(netdev);
+	eth_port = nfp_port_get_eth_port(port);
+	if (!eth_port)
+		return -EOPNOTSUPP;
+
+	nsp = nfp_nsp_open(port->app->cpp);
+	if (IS_ERR(nsp)) {
+		err = PTR_ERR(nsp);
+		netdev_err(netdev, "Failed to access the NSP: %d\n", err);
+		return err;
+	}
+
+	if (!nfp_nsp_has_read_module_eeprom(nsp)) {
+		netdev_info(netdev, "reading module EEPROM not supported. Please update flash\n");
+		err = -EOPNOTSUPP;
+		goto exit_close_nsp;
+	}
+
+	switch (eth_port->interface) {
+	case NFP_INTERFACE_SFP:
+	case NFP_INTERFACE_SFP28:
+		err = nfp_nsp_read_module_eeprom(nsp, eth_port->eth_index,
+						 SFP_SFF8472_COMPLIANCE, &data,
+						 1, &read_len);
+		if (err < 0)
+			goto exit_close_nsp;
+
+		if (!data) {
+			modinfo->type = ETH_MODULE_SFF_8079;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+		} else {
+			modinfo->type = ETH_MODULE_SFF_8472;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		}
+		break;
+	case NFP_INTERFACE_QSFP:
+		err = nfp_nsp_read_module_eeprom(nsp, eth_port->eth_index,
+						 SFP_SFF_REV_COMPLIANCE, &data,
+						 1, &read_len);
+		if (err < 0)
+			goto exit_close_nsp;
+
+		if (data < 0x3) {
+			modinfo->type = ETH_MODULE_SFF_8436;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		} else {
+			modinfo->type = ETH_MODULE_SFF_8636;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+		}
+		break;
+	case NFP_INTERFACE_QSFP28:
+		modinfo->type = ETH_MODULE_SFF_8636;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+		break;
+	default:
+		netdev_err(netdev, "Unsupported module 0x%x detected\n",
+			   eth_port->interface);
+		err = -EINVAL;
+	}
+
+exit_close_nsp:
+	nfp_nsp_close(nsp);
+	return err;
+}
+
+static int
+nfp_port_get_module_eeprom(struct net_device *netdev,
+			   struct ethtool_eeprom *eeprom, u8 *data)
+{
+	struct nfp_eth_table_port *eth_port;
+	struct nfp_port *port;
+	struct nfp_nsp *nsp;
+	int err;
+
+	port = nfp_port_from_netdev(netdev);
+	eth_port = __nfp_port_get_eth_port(port);
+	if (!eth_port)
+		return -EOPNOTSUPP;
+
+	nsp = nfp_nsp_open(port->app->cpp);
+	if (IS_ERR(nsp)) {
+		err = PTR_ERR(nsp);
+		netdev_err(netdev, "Failed to access the NSP: %d\n", err);
+		return err;
+	}
+
+	if (!nfp_nsp_has_read_module_eeprom(nsp)) {
+		netdev_info(netdev, "reading module EEPROM not supported. Please update flash\n");
+		err = -EOPNOTSUPP;
+		goto exit_close_nsp;
+	}
+
+	err = nfp_nsp_read_module_eeprom(nsp, eth_port->eth_index,
+					 eeprom->offset, data, eeprom->len,
+					 &eeprom->len);
+	if (err < 0) {
+		if (eeprom->len) {
+			netdev_warn(netdev,
+				    "Incomplete read from module EEPROM: %d\n",
+				     err);
+			err = 0;
+		} else {
+			netdev_err(netdev,
+				   "Reading from module EEPROM failed: %d\n",
+				   err);
+		}
+	}
+
+exit_close_nsp:
+	nfp_nsp_close(nsp);
+	return err;
+}
+
 static int nfp_net_set_coalesce(struct net_device *netdev,
 				struct ethtool_coalesce *ec)
 {
@@ -1253,6 +1380,8 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.set_dump		= nfp_app_set_dump,
 	.get_dump_flag		= nfp_app_get_dump_flag,
 	.get_dump_data		= nfp_app_get_dump_data,
+	.get_module_info	= nfp_port_get_module_info,
+	.get_module_eeprom	= nfp_port_get_module_eeprom,
 	.get_coalesce           = nfp_net_get_coalesce,
 	.set_coalesce           = nfp_net_set_coalesce,
 	.get_channels		= nfp_net_get_channels,
@@ -1272,6 +1401,8 @@ const struct ethtool_ops nfp_port_ethtool_ops = {
 	.set_dump		= nfp_app_set_dump,
 	.get_dump_flag		= nfp_app_get_dump_flag,
 	.get_dump_data		= nfp_app_get_dump_data,
+	.get_module_info	= nfp_port_get_module_info,
+	.get_module_eeprom	= nfp_port_get_module_eeprom,
 	.get_link_ksettings	= nfp_net_get_link_ksettings,
 	.set_link_ksettings	= nfp_net_set_link_ksettings,
 	.get_fecparam		= nfp_port_get_fecparam,

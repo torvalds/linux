@@ -440,4 +440,7 @@ void i915_vma_parked(struct drm_i915_private *i915);
 	list_for_each_entry(V, &(OBJ)->vma.list, obj_link)		\
 		for_each_until(!i915_vma_is_ggtt(V))
 
+struct i915_vma *i915_vma_alloc(void);
+void i915_vma_free(struct i915_vma *vma);
+
 #endif

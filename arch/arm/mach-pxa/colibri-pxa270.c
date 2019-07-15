@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/colibri-pxa270.c
  *
  *  Support for Toradex PXA270 based Colibri module
  *  Daniel Mack <daniel@caiaq.de>
  *  Marek Vasut <marek.vasut@gmail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -24,7 +21,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach-types.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include <mach/audio.h>
 #include "colibri.h"

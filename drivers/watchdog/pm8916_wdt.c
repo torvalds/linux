@@ -132,15 +132,16 @@ static const struct watchdog_ops pm8916_wdt_ops = {
 
 static int pm8916_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct pm8916_wdt *wdt;
 	struct device *parent;
 	int err, irq;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
-	parent = pdev->dev.parent;
+	parent = dev->parent;
 
 	/*
 	 * The pm8916-pon-wdt is a child of the pon device, which is a child
@@ -150,20 +151,20 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
 	 */
 	wdt->regmap = dev_get_regmap(parent->parent, NULL);
 	if (!wdt->regmap) {
-		dev_err(&pdev->dev, "failed to locate regmap\n");
+		dev_err(dev, "failed to locate regmap\n");
 		return -ENODEV;
 	}
 
 	err = device_property_read_u32(parent, "reg", &wdt->baseaddr);
 	if (err) {
-		dev_err(&pdev->dev, "failed to get pm8916-pon address\n");
+		dev_err(dev, "failed to get pm8916-pon address\n");
 		return err;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq > 0) {
-		if (devm_request_irq(&pdev->dev, irq, pm8916_wdt_isr, 0,
-				     "pm8916_wdt", wdt))
+		if (devm_request_irq(dev, irq, pm8916_wdt_isr, 0, "pm8916_wdt",
+				     wdt))
 			irq = 0;
 	}
 
@@ -172,23 +173,23 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
 			   wdt->baseaddr + PON_PMIC_WD_RESET_S2_CTL,
 			   RESET_TYPE_HARD);
 	if (err) {
-		dev_err(&pdev->dev, "failed configure watchdog\n");
+		dev_err(dev, "failed configure watchdog\n");
 		return err;
 	}
 
 	wdt->wdev.info = (irq > 0) ? &pm8916_wdt_pt_ident : &pm8916_wdt_ident,
 	wdt->wdev.ops = &pm8916_wdt_ops,
-	wdt->wdev.parent = &pdev->dev;
+	wdt->wdev.parent = dev;
 	wdt->wdev.min_timeout = PM8916_WDT_MIN_TIMEOUT;
 	wdt->wdev.max_timeout = PM8916_WDT_MAX_TIMEOUT;
 	wdt->wdev.timeout = PM8916_WDT_DEFAULT_TIMEOUT;
 	wdt->wdev.pretimeout = 0;
 	watchdog_set_drvdata(&wdt->wdev, wdt);
 
-	watchdog_init_timeout(&wdt->wdev, 0, &pdev->dev);
+	watchdog_init_timeout(&wdt->wdev, 0, dev);
 	pm8916_wdt_configure_timers(&wdt->wdev);
 
-	return devm_watchdog_register_device(&pdev->dev, &wdt->wdev);
+	return devm_watchdog_register_device(dev, &wdt->wdev);
 }
 
 static const struct of_device_id pm8916_wdt_id_table[] = {

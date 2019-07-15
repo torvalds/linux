@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/phy.h>
 #include <linux/if_vlan.h>
+#include <linux/kfifo.h>
 
 #include "hclge_cmd.h"
 #include "hnae3.h"
@@ -188,6 +189,8 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_SUPPORT_25G_BIT		BIT(2)
 #define HCLGE_SUPPORT_50G_BIT		BIT(3)
 #define HCLGE_SUPPORT_100G_BIT		BIT(4)
+/* to be compatible with exsit board */
+#define HCLGE_SUPPORT_40G_BIT		BIT(5)
 #define HCLGE_SUPPORT_100M_BIT		BIT(6)
 #define HCLGE_SUPPORT_10M_BIT		BIT(7)
 #define HCLGE_SUPPORT_GE \
@@ -235,15 +238,25 @@ enum HCLGE_MAC_DUPLEX {
 	HCLGE_MAC_FULL
 };
 
+#define QUERY_SFP_SPEED		0
+#define QUERY_ACTIVE_SPEED	1
+
 struct hclge_mac {
 	u8 phy_addr;
 	u8 flag;
-	u8 media_type;
+	u8 media_type;	/* port media type, e.g. fibre/copper/backplane */
 	u8 mac_addr[ETH_ALEN];
 	u8 autoneg;
 	u8 duplex;
+	u8 support_autoneg;
+	u8 speed_type;	/* 0: sfp speed, 1: active speed */
 	u32 speed;
-	int link;	/* store the link status of mac & phy (if phy exit)*/
+	u32 speed_ability; /* speed ability supported by current media */
+	u32 module_type; /* sub media type, e.g. kr/cr/sr/lr */
+	u32 fec_mode; /* active fec mode */
+	u32 user_fec_mode;
+	u32 fec_ability;
+	int link;	/* store the link status of mac & phy (if phy exit) */
 	struct phy_device *phydev;
 	struct mii_bus *mdio_bus;
 	phy_interface_t phy_if;
@@ -649,6 +662,23 @@ struct hclge_vport_vlan_cfg {
 	u16 vlan_id;
 };
 
+struct hclge_rst_stats {
+	u32 reset_done_cnt;	/* the number of reset has completed */
+	u32 hw_reset_done_cnt;	/* the number of HW reset has completed */
+	u32 pf_rst_cnt;		/* the number of PF reset */
+	u32 flr_rst_cnt;	/* the number of FLR */
+	u32 core_rst_cnt;	/* the number of CORE reset */
+	u32 global_rst_cnt;	/* the number of GLOBAL */
+	u32 imp_rst_cnt;	/* the number of IMP reset */
+	u32 reset_cnt;		/* the number of reset */
+};
+
+/* time and register status when mac tunnel interruption occur */
+struct hclge_mac_tnl_stats {
+	u64 time;
+	u32 status;
+};
+
 /* For each bit of TCAM entry, it uses a pair of 'x' and
  * 'y' to indicate which value to match, like below:
  * ----------------------------------
@@ -675,6 +705,7 @@ struct hclge_vport_vlan_cfg {
 		(y) = (_k_ ^ ~_v_) & (_k_); \
 	} while (0)
 
+#define HCLGE_MAC_TNL_LOG_SIZE	8
 #define HCLGE_VPORT_NUM 256
 struct hclge_dev {
 	struct pci_dev *pdev;
@@ -691,7 +722,7 @@ struct hclge_dev {
 	unsigned long default_reset_request;
 	unsigned long reset_request;	/* reset has been requested */
 	unsigned long reset_pending;	/* client rst is pending to be served */
-	unsigned long reset_count;	/* the number of reset has been done */
+	struct hclge_rst_stats rst_stats;
 	u32 reset_fail_cnt;
 	u32 fw_version;
 	u16 num_vmdq_vport;		/* Num vmdq vport this PF has set up */
@@ -791,6 +822,9 @@ struct hclge_dev {
 	struct mutex umv_mutex; /* protect share_umv_size */
 
 	struct mutex vport_cfg_mutex;   /* Protect stored vf table */
+
+	DECLARE_KFIFO(mac_tnl_log, struct hclge_mac_tnl_stats,
+		      HCLGE_MAC_TNL_LOG_SIZE);
 };
 
 /* VPort level vlan tag configuration for TX direction */
@@ -807,10 +841,11 @@ struct hclge_tx_vtag_cfg {
 
 /* VPort level vlan tag configuration for RX direction */
 struct hclge_rx_vtag_cfg {
-	bool strip_tag1_en;	/* Whether strip inner vlan tag */
-	bool strip_tag2_en;	/* Whether strip outer vlan tag */
-	bool vlan1_vlan_prionly;/* Inner VLAN Tag up to descriptor Enable */
-	bool vlan2_vlan_prionly;/* Outer VLAN Tag up to descriptor Enable */
+	u8 rx_vlan_offload_en;	/* Whether enable rx vlan offload */
+	u8 strip_tag1_en;	/* Whether strip inner vlan tag */
+	u8 strip_tag2_en;	/* Whether strip outer vlan tag */
+	u8 vlan1_vlan_prionly;	/* Inner VLAN Tag up to descriptor Enable */
+	u8 vlan2_vlan_prionly;	/* Outer VLAN Tag up to descriptor Enable */
 };
 
 struct hclge_rss_tuple_cfg {
@@ -829,6 +864,17 @@ enum HCLGE_VPORT_STATE {
 	HCLGE_VPORT_STATE_MAX
 };
 
+struct hclge_vlan_info {
+	u16 vlan_proto; /* so far support 802.1Q only */
+	u16 qos;
+	u16 vlan_tag;
+};
+
+struct hclge_port_base_vlan_config {
+	u16 state;
+	struct hclge_vlan_info vlan_info;
+};
+
 struct hclge_vport {
 	u16 alloc_tqps;	/* Allocated Tx/Rx queues */
 
@@ -842,9 +888,10 @@ struct hclge_vport {
 	u16 alloc_rss_size;
 
 	u16 qs_offset;
-	u16 bw_limit;		/* VSI BW Limit (0 = disabled) */
+	u32 bw_limit;		/* VSI BW Limit (0 = disabled) */
 	u8  dwrr;
 
+	struct hclge_port_base_vlan_config port_base_vlan_cfg;
 	struct hclge_tx_vtag_cfg  txvlan_cfg;
 	struct hclge_rx_vtag_cfg  rxvlan_cfg;
 
@@ -924,9 +971,11 @@ void hclge_rm_vport_mac_table(struct hclge_vport *vport, const u8 *mac_addr,
 void hclge_rm_vport_all_mac_table(struct hclge_vport *vport, bool is_del_list,
 				  enum HCLGE_MAC_ADDR_TYPE mac_type);
 void hclge_uninit_vport_mac_table(struct hclge_dev *hdev);
-void hclge_add_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id);
-void hclge_rm_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id,
-			       bool is_write_tbl);
 void hclge_rm_vport_all_vlan_table(struct hclge_vport *vport, bool is_del_list);
 void hclge_uninit_vport_vlan_table(struct hclge_dev *hdev);
+int hclge_update_port_base_vlan_cfg(struct hclge_vport *vport, u16 state,
+				    struct hclge_vlan_info *vlan_info);
+int hclge_push_vf_port_base_vlan_info(struct hclge_vport *vport, u8 vfid,
+				      u16 state, u16 vlan_tag, u16 qos,
+				      u16 vlan_proto);
 #endif

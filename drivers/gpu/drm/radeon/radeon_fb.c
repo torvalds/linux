@@ -42,7 +42,7 @@
  * the helper contains a pointer to radeon framebuffer baseclass.
  */
 struct radeon_fbdev {
-	struct drm_fb_helper helper;
+	struct drm_fb_helper helper; /* must be first */
 	struct drm_framebuffer fb;
 	struct radeon_device *rdev;
 };
@@ -244,7 +244,8 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 		goto out;
 	}
 
-	info->par = rfbdev;
+	/* radeon resume is fragile and needs a vt switch to help it along */
+	info->skip_vt_switch = false;
 
 	ret = radeon_framebuffer_init(rdev->ddev, &rfbdev->fb, &mode_cmd, gobj);
 	if (ret) {
@@ -259,10 +260,6 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 
 	memset_io(rbo->kptr, 0x0, radeon_bo_size(rbo));
 
-	strcpy(info->fix.id, "radeondrmfb");
-
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
-
 	info->fbops = &radeonfb_ops;
 
 	tmp = radeon_bo_gpu_offset(rbo) - rdev->mc.vram_start;
@@ -271,7 +268,7 @@ static int radeonfb_create(struct drm_fb_helper *helper,
 	info->screen_base = rbo->kptr;
 	info->screen_size = radeon_bo_size(rbo);
 
-	drm_fb_helper_fill_var(info, &rfbdev->helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(info, &rfbdev->helper, sizes);
 
 	/* setup aperture base/size for vesafb takeover */
 	info->apertures->ranges[0].base = rdev->ddev->mode_config.fb_base;

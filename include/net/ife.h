@@ -4,7 +4,6 @@
 
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
-#include <linux/module.h>
 #include <uapi/linux/ife.h>
 
 #if IS_ENABLED(CONFIG_NET_IFE)

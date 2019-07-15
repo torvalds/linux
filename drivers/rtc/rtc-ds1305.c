@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rtc-ds1305.c -- driver for DS1305 and DS1306 SPI RTC chips
  *
  * Copyright (C) 2008 David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/kernel.h>
 #include <linux/init.h>

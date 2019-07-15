@@ -99,7 +99,7 @@ static void facility_mismatch(void)
 	print_machine_type();
 	print_missing_facilities();
 	sclp_early_printk("See Principles of Operations for facility bits\n");
-	disabled_wait(0x8badcccc);
+	disabled_wait();
 }
 
 void verify_facilities(void)

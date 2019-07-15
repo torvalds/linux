@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2013 Freescale Semiconductor, Inc.
  *
  * CPU Frequency Scaling driver for Freescale QorIQ SoCs.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
@@ -280,10 +277,12 @@ static const struct of_device_id node_matches[] __initconst = {
 
 	{ .compatible = "fsl,ls1012a-clockgen", },
 	{ .compatible = "fsl,ls1021a-clockgen", },
+	{ .compatible = "fsl,ls1028a-clockgen", },
 	{ .compatible = "fsl,ls1043a-clockgen", },
 	{ .compatible = "fsl,ls1046a-clockgen", },
 	{ .compatible = "fsl,ls1088a-clockgen", },
 	{ .compatible = "fsl,ls2080a-clockgen", },
+	{ .compatible = "fsl,lx2160a-clockgen", },
 	{ .compatible = "fsl,p4080-clockgen", },
 	{ .compatible = "fsl,qoriq-clockgen-1.0", },
 	{ .compatible = "fsl,qoriq-clockgen-2.0", },

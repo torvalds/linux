@@ -2279,10 +2279,6 @@ static inline void igbvf_tx_queue_adv(struct igbvf_adapter *adapter,
 	tx_ring->buffer_info[first].next_to_watch = tx_desc;
 	tx_ring->next_to_use = i;
 	writel(i, adapter->hw.hw_addr + tx_ring->tail);
-	/* we need this if more than one processor can write to our tail
-	 * at a time, it synchronizes IO on IA64/Altix systems
-	 */
-	mmiowb();
 }
 
 static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,

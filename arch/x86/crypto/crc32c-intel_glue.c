@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Using hardware provided CRC32 instruction to accelerate the CRC32 disposal.
  * CRC32C polynomial:0x1EDC6F41(BE)/0x82F63B78(LE)
@@ -9,30 +10,17 @@
  * Copyright (C) 2008 Intel Corporation
  * Authors: Austin Zhang <austin_zhang@linux.intel.com>
  *          Kent Liu <kent.liu@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 
 #include <asm/cpufeatures.h>
 #include <asm/cpu_device_id.h>
-#include <asm/fpu/internal.h>
+#include <asm/simd.h>
 
 #define CHKSUM_BLOCK_SIZE	1
 #define CHKSUM_DIGEST_SIZE	4
@@ -177,7 +165,7 @@ static int crc32c_pcl_intel_update(struct shash_desc *desc, const u8 *data,
 	 * use faster PCL version if datasize is large enough to
 	 * overcome kernel fpu state save/restore overhead
 	 */
-	if (len >= CRC32C_PCL_BREAKEVEN && irq_fpu_usable()) {
+	if (len >= CRC32C_PCL_BREAKEVEN && crypto_simd_usable()) {
 		kernel_fpu_begin();
 		*crcp = crc_pcl(data, len, *crcp);
 		kernel_fpu_end();
@@ -189,7 +177,7 @@ static int crc32c_pcl_intel_update(struct shash_desc *desc, const u8 *data,
 static int __crc32c_pcl_intel_finup(u32 *crcp, const u8 *data, unsigned int len,
 				u8 *out)
 {
-	if (len >= CRC32C_PCL_BREAKEVEN && irq_fpu_usable()) {
+	if (len >= CRC32C_PCL_BREAKEVEN && crypto_simd_usable()) {
 		kernel_fpu_begin();
 		*(__le32 *)out = ~cpu_to_le32(crc_pcl(data, len, *crcp));
 		kernel_fpu_end();

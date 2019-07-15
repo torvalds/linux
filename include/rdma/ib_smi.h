@@ -61,7 +61,7 @@ struct ib_smp {
 	u8	data[IB_SMP_DATA_SIZE];
 	u8	initial_path[IB_SMP_MAX_PATH_HOPS];
 	u8	return_path[IB_SMP_MAX_PATH_HOPS];
-} __attribute__ ((packed));
+} __packed;
 
 #define IB_SMP_DIRECTION			cpu_to_be16(0x8000)
 

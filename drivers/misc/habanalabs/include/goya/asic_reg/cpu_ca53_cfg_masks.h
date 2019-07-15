@@ -188,4 +188,3 @@
 #define CPU_CA53_CFG_ARM_PMU_EVENT_MASK                              0x3FFFFFFF
 
 #endif /* ASIC_REG_CPU_CA53_CFG_MASKS_H_ */
-

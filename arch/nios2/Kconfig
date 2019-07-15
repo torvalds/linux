@@ -23,7 +23,7 @@ config NIOS2
 	select SPARSE_IRQ
 	select USB_ARCH_HAS_HCD if USB_SUPPORT
 	select CPU_NO_EFFICIENT_FFS
-	select ARCH_DISCARD_MEMBLOCK
+	select MMU_GATHER_NO_RANGE if MMU
 
 config GENERIC_CSUM
 	def_bool y
@@ -39,9 +39,6 @@ config NO_IOPORT_MAP
 
 config FPU
 	def_bool n
-
-config RWSEM_GENERIC_SPINLOCK
-	def_bool y
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool n

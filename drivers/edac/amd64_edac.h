@@ -117,6 +117,8 @@
 #define PCI_DEVICE_ID_AMD_17H_DF_F6	0x1466
 #define PCI_DEVICE_ID_AMD_17H_M10H_DF_F0 0x15e8
 #define PCI_DEVICE_ID_AMD_17H_M10H_DF_F6 0x15ee
+#define PCI_DEVICE_ID_AMD_17H_M30H_DF_F0 0x1490
+#define PCI_DEVICE_ID_AMD_17H_M30H_DF_F6 0x1496
 
 /*
  * Function 1 - Address Map
@@ -272,8 +274,6 @@
 
 #define UMC_SDP_INIT			BIT(31)
 
-#define NUM_UMCS			2
-
 enum amd_families {
 	K8_CPUS = 0,
 	F10_CPUS,
@@ -284,6 +284,7 @@ enum amd_families {
 	F16_M30H_CPUS,
 	F17_CPUS,
 	F17_M10H_CPUS,
+	F17_M30H_CPUS,
 	NUM_FAMILIES,
 };
 
@@ -363,7 +364,7 @@ struct amd64_pvt {
 	u32 dct_sel_hi;		/* DRAM Controller Select High */
 	u32 online_spare;	/* On-Line spare Reg */
 
-	/* x4 or x8 syndromes in use */
+	/* x4, x8, or x16 syndromes in use */
 	u8 ecc_sym_sz;
 
 	/* place to store error injection parameters prior to issue */
@@ -396,8 +397,8 @@ struct err_info {
 
 static inline u32 get_umc_base(u8 channel)
 {
-	/* ch0: 0x50000, ch1: 0x150000 */
-	return 0x50000 + (!!channel << 20);
+	/* chY: 0xY50000 */
+	return 0x50000 + (channel << 20);
 }
 
 static inline u64 get_dram_base(struct amd64_pvt *pvt, u8 i)

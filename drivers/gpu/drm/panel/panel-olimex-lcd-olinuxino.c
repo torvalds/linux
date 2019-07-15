@@ -190,7 +190,6 @@ static int lcd_olinuxino_get_modes(struct drm_panel *panel)
 		num++;
 	}
 
-	memcpy(connector->display_info.name, lcd_info->name, 32);
 	connector->display_info.width_mm = lcd_info->width_mm;
 	connector->display_info.height_mm = lcd_info->height_mm;
 	connector->display_info.bpc = lcd_info->bpc;

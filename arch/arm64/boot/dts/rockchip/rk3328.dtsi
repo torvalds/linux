@@ -657,14 +657,17 @@
 		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_HDMI>,
-			 <&cru SCLK_HDMI_SFC>;
+			 <&cru SCLK_HDMI_SFC>,
+			 <&cru SCLK_RTC32K>;
 		clock-names = "iahb",
-			      "isfr";
+			      "isfr",
+			      "cec";
 		phys = <&hdmiphy>;
 		phy-names = "hdmi";
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdmi_cec &hdmii2c_xfer &hdmi_hpd>;
 		rockchip,grf = <&grf>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 
 		ports {

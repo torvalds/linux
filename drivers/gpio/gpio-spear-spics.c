@@ -122,15 +122,13 @@ static int spics_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct spear_spics *spics;
-	struct resource *res;
 	int ret;
 
 	spics = devm_kzalloc(&pdev->dev, sizeof(*spics), GFP_KERNEL);
 	if (!spics)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	spics->base = devm_ioremap_resource(&pdev->dev, res);
+	spics->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(spics->base))
 		return PTR_ERR(spics->base);
 

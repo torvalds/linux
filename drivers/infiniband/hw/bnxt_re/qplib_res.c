@@ -83,7 +83,8 @@ static void __free_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 }
 
 static int __alloc_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
-		       struct scatterlist *sghead, u32 pages, u32 pg_size)
+		       struct scatterlist *sghead, u32 pages,
+		       u32 nmaps, u32 pg_size)
 {
 	struct sg_dma_page_iter sg_iter;
 	bool is_umem = false;
@@ -116,7 +117,7 @@ static int __alloc_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 	} else {
 		i = 0;
 		is_umem = true;
-		for_each_sg_dma_page (sghead, &sg_iter, pages, 0) {
+		for_each_sg_dma_page(sghead, &sg_iter, nmaps, 0) {
 			pbl->pg_map_arr[i] = sg_page_iter_dma_address(&sg_iter);
 			pbl->pg_arr[i] = NULL;
 			pbl->pg_count++;
@@ -158,12 +159,13 @@ void bnxt_qplib_free_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq)
 
 /* All HWQs are power of 2 in size */
 int bnxt_qplib_alloc_init_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq,
-			      struct scatterlist *sghead, int nmap,
+			      struct bnxt_qplib_sg_info *sg_info,
 			      u32 *elements, u32 element_size, u32 aux,
 			      u32 pg_size, enum bnxt_qplib_hwq_type hwq_type)
 {
-	u32 pages, slots, size, aux_pages = 0, aux_size = 0;
+	u32 pages, maps, slots, size, aux_pages = 0, aux_size = 0;
 	dma_addr_t *src_phys_ptr, **dst_virt_ptr;
+	struct scatterlist *sghead = NULL;
 	int i, rc;
 
 	hwq->level = PBL_LVL_MAX;
@@ -177,6 +179,9 @@ int bnxt_qplib_alloc_init_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq,
 	}
 	size = roundup_pow_of_two(element_size);
 
+	if (sg_info)
+		sghead = sg_info->sglist;
+
 	if (!sghead) {
 		hwq->is_user = false;
 		pages = (slots * size) / pg_size + aux_pages;
@@ -184,17 +189,20 @@ int bnxt_qplib_alloc_init_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq,
 			pages++;
 		if (!pages)
 			return -EINVAL;
+		maps = 0;
 	} else {
 		hwq->is_user = true;
-		pages = nmap;
+		pages = sg_info->npages;
+		maps = sg_info->nmap;
 	}
 
 	/* Alloc the 1st memory block; can be a PDL/PTL/PBL */
 	if (sghead && (pages == MAX_PBL_LVL_0_PGS))
 		rc = __alloc_pbl(pdev, &hwq->pbl[PBL_LVL_0], sghead,
-				 pages, pg_size);
+				 pages, maps, pg_size);
 	else
-		rc = __alloc_pbl(pdev, &hwq->pbl[PBL_LVL_0], NULL, 1, pg_size);
+		rc = __alloc_pbl(pdev, &hwq->pbl[PBL_LVL_0], NULL,
+				 1, 0, pg_size);
 	if (rc)
 		goto fail;
 
@@ -204,7 +212,8 @@ int bnxt_qplib_alloc_init_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq,
 		if (pages > MAX_PBL_LVL_1_PGS) {
 			/* 2 levels of indirection */
 			rc = __alloc_pbl(pdev, &hwq->pbl[PBL_LVL_1], NULL,
-					 MAX_PBL_LVL_1_PGS_FOR_LVL_2, pg_size);
+					 MAX_PBL_LVL_1_PGS_FOR_LVL_2,
+					 0, pg_size);
 			if (rc)
 				goto fail;
 			/* Fill in lvl0 PBL */
@@ -217,7 +226,7 @@ int bnxt_qplib_alloc_init_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq,
 			hwq->level = PBL_LVL_1;
 
 			rc = __alloc_pbl(pdev, &hwq->pbl[PBL_LVL_2], sghead,
-					 pages, pg_size);
+					 pages, maps, pg_size);
 			if (rc)
 				goto fail;
 
@@ -246,7 +255,7 @@ int bnxt_qplib_alloc_init_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq,
 
 			/* 1 level of indirection */
 			rc = __alloc_pbl(pdev, &hwq->pbl[PBL_LVL_1], sghead,
-					 pages, pg_size);
+					 pages, maps, pg_size);
 			if (rc)
 				goto fail;
 			/* Fill in lvl0 PBL */
@@ -339,7 +348,7 @@ int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
 
 	/* QPC Tables */
 	ctx->qpc_tbl.max_elements = ctx->qpc_count;
-	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->qpc_tbl, NULL, 0,
+	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->qpc_tbl, NULL,
 				       &ctx->qpc_tbl.max_elements,
 				       BNXT_QPLIB_MAX_QP_CTX_ENTRY_SIZE, 0,
 				       PAGE_SIZE, HWQ_TYPE_CTX);
@@ -348,7 +357,7 @@ int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
 
 	/* MRW Tables */
 	ctx->mrw_tbl.max_elements = ctx->mrw_count;
-	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->mrw_tbl, NULL, 0,
+	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->mrw_tbl, NULL,
 				       &ctx->mrw_tbl.max_elements,
 				       BNXT_QPLIB_MAX_MRW_CTX_ENTRY_SIZE, 0,
 				       PAGE_SIZE, HWQ_TYPE_CTX);
@@ -357,7 +366,7 @@ int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
 
 	/* SRQ Tables */
 	ctx->srqc_tbl.max_elements = ctx->srqc_count;
-	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->srqc_tbl, NULL, 0,
+	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->srqc_tbl, NULL,
 				       &ctx->srqc_tbl.max_elements,
 				       BNXT_QPLIB_MAX_SRQ_CTX_ENTRY_SIZE, 0,
 				       PAGE_SIZE, HWQ_TYPE_CTX);
@@ -366,7 +375,7 @@ int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
 
 	/* CQ Tables */
 	ctx->cq_tbl.max_elements = ctx->cq_count;
-	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->cq_tbl, NULL, 0,
+	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->cq_tbl, NULL,
 				       &ctx->cq_tbl.max_elements,
 				       BNXT_QPLIB_MAX_CQ_CTX_ENTRY_SIZE, 0,
 				       PAGE_SIZE, HWQ_TYPE_CTX);
@@ -375,7 +384,7 @@ int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
 
 	/* TQM Buffer */
 	ctx->tqm_pde.max_elements = 512;
-	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->tqm_pde, NULL, 0,
+	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->tqm_pde, NULL,
 				       &ctx->tqm_pde.max_elements, sizeof(u64),
 				       0, PAGE_SIZE, HWQ_TYPE_CTX);
 	if (rc)
@@ -386,7 +395,7 @@ int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
 			continue;
 		ctx->tqm_tbl[i].max_elements = ctx->qpc_count *
 					       ctx->tqm_count[i];
-		rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->tqm_tbl[i], NULL, 0,
+		rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->tqm_tbl[i], NULL,
 					       &ctx->tqm_tbl[i].max_elements, 1,
 					       0, PAGE_SIZE, HWQ_TYPE_CTX);
 		if (rc)
@@ -424,7 +433,7 @@ int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
 
 	/* TIM Buffer */
 	ctx->tim_tbl.max_elements = ctx->qpc_count * 16;
-	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->tim_tbl, NULL, 0,
+	rc = bnxt_qplib_alloc_init_hwq(pdev, &ctx->tim_tbl, NULL,
 				       &ctx->tim_tbl.max_elements, 1,
 				       0, PAGE_SIZE, HWQ_TYPE_CTX);
 	if (rc)

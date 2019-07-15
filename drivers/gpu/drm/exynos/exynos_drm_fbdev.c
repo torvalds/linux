@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* exynos_drm_fbdev.c
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
@@ -5,11 +6,6 @@
  *	Inki Dae <inki.dae@samsung.com>
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <drm/drmP.h>
@@ -55,7 +51,7 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 			     exynos_gem->dma_addr, exynos_gem->size,
 			     exynos_gem->dma_attrs);
 	if (ret < 0) {
-		DRM_ERROR("failed to mmap.\n");
+		DRM_DEV_ERROR(to_dma_dev(helper->dev), "failed to mmap.\n");
 		return ret;
 	}
 
@@ -83,22 +79,22 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 
 	fbi = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(fbi)) {
-		DRM_ERROR("failed to allocate fb info.\n");
+		DRM_DEV_ERROR(to_dma_dev(helper->dev),
+			      "failed to allocate fb info.\n");
 		return PTR_ERR(fbi);
 	}
 
-	fbi->par = helper;
 	fbi->fbops = &exynos_drm_fb_ops;
 
-	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(fbi, helper, sizes);
 
 	nr_pages = exynos_gem->size >> PAGE_SHIFT;
 
 	exynos_gem->kvaddr = (void __iomem *) vmap(exynos_gem->pages, nr_pages,
 				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 	if (!exynos_gem->kvaddr) {
-		DRM_ERROR("failed to map pages to kernel space.\n");
+		DRM_DEV_ERROR(to_dma_dev(helper->dev),
+			      "failed to map pages to kernel space.\n");
 		return -EIO;
 	}
 
@@ -122,9 +118,10 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	unsigned long size;
 	int ret;
 
-	DRM_DEBUG_KMS("surface width(%d), height(%d) and bpp(%d\n",
-			sizes->surface_width, sizes->surface_height,
-			sizes->surface_bpp);
+	DRM_DEV_DEBUG_KMS(dev->dev,
+			  "surface width(%d), height(%d) and bpp(%d\n",
+			  sizes->surface_width, sizes->surface_height,
+			  sizes->surface_bpp);
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
@@ -154,7 +151,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	helper->fb =
 		exynos_drm_framebuffer_init(dev, &mode_cmd, &exynos_gem, 1);
 	if (IS_ERR(helper->fb)) {
-		DRM_ERROR("failed to create drm framebuffer.\n");
+		DRM_DEV_ERROR(dev->dev, "failed to create drm framebuffer.\n");
 		ret = PTR_ERR(helper->fb);
 		goto err_destroy_gem;
 	}
@@ -203,20 +200,23 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 	ret = drm_fb_helper_init(dev, helper, MAX_CONNECTOR);
 	if (ret < 0) {
-		DRM_ERROR("failed to initialize drm fb helper.\n");
+		DRM_DEV_ERROR(dev->dev,
+			      "failed to initialize drm fb helper.\n");
 		goto err_init;
 	}
 
 	ret = drm_fb_helper_single_add_all_connectors(helper);
 	if (ret < 0) {
-		DRM_ERROR("failed to register drm_fb_helper_connector.\n");
+		DRM_DEV_ERROR(dev->dev,
+			      "failed to register drm_fb_helper_connector.\n");
 		goto err_setup;
 
 	}
 
 	ret = drm_fb_helper_initial_config(helper, PREFERRED_BPP);
 	if (ret < 0) {
-		DRM_ERROR("failed to set up hw configuration.\n");
+		DRM_DEV_ERROR(dev->dev,
+			      "failed to set up hw configuration.\n");
 		goto err_setup;
 	}
 

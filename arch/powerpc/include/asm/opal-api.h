@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * OPAL API definitions.
  *
  * Copyright 2011-2015 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef __OPAL_API_H
@@ -186,8 +182,8 @@
 #define OPAL_XIVE_FREE_IRQ			140
 #define OPAL_XIVE_SYNC				141
 #define OPAL_XIVE_DUMP				142
-#define OPAL_XIVE_RESERVED3			143
-#define OPAL_XIVE_RESERVED4			144
+#define OPAL_XIVE_GET_QUEUE_STATE		143
+#define OPAL_XIVE_SET_QUEUE_STATE		144
 #define OPAL_SIGNAL_SYSTEM_RESET		145
 #define OPAL_NPU_INIT_CONTEXT			146
 #define OPAL_NPU_DESTROY_CONTEXT		147
@@ -209,8 +205,10 @@
 #define OPAL_SENSOR_GROUP_ENABLE		163
 #define OPAL_PCI_GET_PBCQ_TUNNEL_BAR		164
 #define OPAL_PCI_SET_PBCQ_TUNNEL_BAR		165
+#define OPAL_HANDLE_HMI2			166
 #define	OPAL_NX_COPROC_INIT			167
-#define OPAL_LAST				167
+#define OPAL_XIVE_GET_VP_STATE			170
+#define OPAL_LAST				170
 
 #define QUIESCE_HOLD			1 /* Spin all calls at entry */
 #define QUIESCE_REJECT			2 /* Fail all calls with OPAL_BUSY */
@@ -632,6 +630,15 @@ struct OpalHMIEvent {
 			} u;
 		} xstop_error;
 	} u;
+};
+
+/* OPAL_HANDLE_HMI2 out_flags */
+enum {
+	OPAL_HMI_FLAGS_TB_RESYNC	= (1ull << 0), /* Timebase has been resynced */
+	OPAL_HMI_FLAGS_DEC_LOST		= (1ull << 1), /* DEC lost, needs to be reprogrammed */
+	OPAL_HMI_FLAGS_HDEC_LOST	= (1ull << 2), /* HDEC lost, needs to be reprogrammed */
+	OPAL_HMI_FLAGS_TOD_TB_FAIL	= (1ull << 3), /* TOD/TB recovery failed. */
+	OPAL_HMI_FLAGS_NEW_EVENT	= (1ull << 63), /* An event has been created */
 };
 
 enum {
@@ -1118,6 +1125,7 @@ enum {
 enum {
 	OPAL_IMC_COUNTERS_NEST = 1,
 	OPAL_IMC_COUNTERS_CORE = 2,
+	OPAL_IMC_COUNTERS_TRACE = 3,
 };
 
 

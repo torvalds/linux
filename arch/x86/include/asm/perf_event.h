@@ -7,7 +7,7 @@
  */
 
 #define INTEL_PMC_MAX_GENERIC				       32
-#define INTEL_PMC_MAX_FIXED					3
+#define INTEL_PMC_MAX_FIXED					4
 #define INTEL_PMC_IDX_FIXED				       32
 
 #define X86_PMC_IDX_MAX					       64
@@ -32,6 +32,8 @@
 
 #define HSW_IN_TX					(1ULL << 32)
 #define HSW_IN_TX_CHECKPOINTED				(1ULL << 33)
+#define ICL_EVENTSEL_ADAPTIVE				(1ULL << 34)
+#define ICL_FIXED_0_ADAPTIVE				(1ULL << 32)
 
 #define AMD64_EVENTSEL_INT_CORE_ENABLE			(1ULL << 36)
 #define AMD64_EVENTSEL_GUESTONLY			(1ULL << 40)
@@ -86,6 +88,12 @@
 
 #define ARCH_PERFMON_BRANCH_MISSES_RETIRED		6
 #define ARCH_PERFMON_EVENTS_COUNT			7
+
+#define PEBS_DATACFG_MEMINFO	BIT_ULL(0)
+#define PEBS_DATACFG_GP	BIT_ULL(1)
+#define PEBS_DATACFG_XMMS	BIT_ULL(2)
+#define PEBS_DATACFG_LBRS	BIT_ULL(3)
+#define PEBS_DATACFG_LBR_SHIFT	24
 
 /*
  * Intel "Architectural Performance Monitoring" CPUID
@@ -177,6 +185,41 @@ struct x86_pmu_capability {
 #define GLOBAL_STATUS_TRACE_TOPAPMI			BIT_ULL(55)
 
 /*
+ * Adaptive PEBS v4
+ */
+
+struct pebs_basic {
+	u64 format_size;
+	u64 ip;
+	u64 applicable_counters;
+	u64 tsc;
+};
+
+struct pebs_meminfo {
+	u64 address;
+	u64 aux;
+	u64 latency;
+	u64 tsx_tuning;
+};
+
+struct pebs_gprs {
+	u64 flags, ip, ax, cx, dx, bx, sp, bp, si, di;
+	u64 r8, r9, r10, r11, r12, r13, r14, r15;
+};
+
+struct pebs_xmm {
+	u64 xmm[16*2];	/* two entries for each register */
+};
+
+struct pebs_lbr_entry {
+	u64 from, to, info;
+};
+
+struct pebs_lbr {
+	struct pebs_lbr_entry lbr[0]; /* Variable length */
+};
+
+/*
  * IBS cpuid feature detection
  */
 
@@ -248,6 +291,11 @@ extern void perf_events_lapic_init(void);
 #define PERF_EFLAGS_VM		(1UL << 5)
 
 struct pt_regs;
+struct x86_perf_regs {
+	struct pt_regs	regs;
+	u64		*xmm_regs;
+};
+
 extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
 extern unsigned long perf_misc_flags(struct pt_regs *regs);
 #define perf_misc_flags(regs)	perf_misc_flags(regs)
@@ -260,14 +308,9 @@ extern unsigned long perf_misc_flags(struct pt_regs *regs);
  */
 #define perf_arch_fetch_caller_regs(regs, __ip)		{	\
 	(regs)->ip = (__ip);					\
-	(regs)->bp = caller_frame_pointer();			\
+	(regs)->sp = (unsigned long)__builtin_frame_address(0);	\
 	(regs)->cs = __KERNEL_CS;				\
 	regs->flags = 0;					\
-	asm volatile(						\
-		_ASM_MOV "%%"_ASM_SP ", %0\n"			\
-		: "=m" ((regs)->sp)				\
-		:: "memory"					\
-	);							\
 }
 
 struct perf_guest_switch_msr {

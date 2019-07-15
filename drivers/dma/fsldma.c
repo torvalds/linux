@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale MPC85xx, MPC83xx DMA Engine support
  *
@@ -16,12 +17,6 @@
  * command for PCI read operations, instead of using the default PCI Read Line
  * command. Please be aware that this setting may result in read pre-fetching
  * on some platforms.
- *
- * This is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <linux/init.h>

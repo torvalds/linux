@@ -106,20 +106,14 @@ config SOC_EXYNOS5420
 	bool "SAMSUNG EXYNOS5420"
 	default y
 	depends on ARCH_EXYNOS5
+	select MCPM if SMP
+	select ARM_CCI400_PORT_CTRL
+	select ARM_CPU_SUSPEND
 
 config SOC_EXYNOS5800
 	bool "SAMSUNG EXYNOS5800"
 	default y
 	depends on SOC_EXYNOS5420
-
-config EXYNOS5420_MCPM
-	bool "Exynos5420 Multi-Cluster PM support"
-	depends on MCPM && SOC_EXYNOS5420
-	select ARM_CCI400_PORT_CTRL
-	select ARM_CPU_SUSPEND
-	help
-	  This is needed to provide CPU and cluster power management
-	  on Exynos5420 implementing big.LITTLE.
 
 config EXYNOS_CPU_SUSPEND
 	bool

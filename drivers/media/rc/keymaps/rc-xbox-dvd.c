@@ -42,7 +42,7 @@ static struct rc_map_list xbox_dvd_map = {
 	.map = {
 		.scan     = xbox_dvd,
 		.size     = ARRAY_SIZE(xbox_dvd),
-		.rc_proto = RC_PROTO_UNKNOWN,
+		.rc_proto = RC_PROTO_XBOX_DVD,
 		.name     = RC_MAP_XBOX_DVD,
 	}
 };

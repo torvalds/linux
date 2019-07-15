@@ -3140,12 +3140,14 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 			cdev->mf_bits = BIT(QED_MF_OVLAN_CLSS) |
 					BIT(QED_MF_LLH_PROTO_CLSS) |
 					BIT(QED_MF_UFP_SPECIFIC) |
-					BIT(QED_MF_8021Q_TAGGING);
+					BIT(QED_MF_8021Q_TAGGING) |
+					BIT(QED_MF_DONT_ADD_VLAN0_TAG);
 			break;
 		case NVM_CFG1_GLOB_MF_MODE_BD:
 			cdev->mf_bits = BIT(QED_MF_OVLAN_CLSS) |
 					BIT(QED_MF_LLH_PROTO_CLSS) |
-					BIT(QED_MF_8021AD_TAGGING);
+					BIT(QED_MF_8021AD_TAGGING) |
+					BIT(QED_MF_DONT_ADD_VLAN0_TAG);
 			break;
 		case NVM_CFG1_GLOB_MF_MODE_NPAR1_0:
 			cdev->mf_bits = BIT(QED_MF_LLH_MAC_CLSS) |

@@ -24,7 +24,10 @@ Required properties:
    * "cxo"
    * "axi"
    * "mnoc"
-- power-domains: should be <&clock_gpucc GPU_CX_GDSC>
+- power-domains: should be:
+	<&clock_gpucc GPU_CX_GDSC>
+	<&clock_gpucc GPU_GX_GDSC>
+- power-domain-names: Matching names for the power domains
 - iommus: phandle to the adreno iommu
 - operating-points-v2: phandle to the OPP operating points
 
@@ -51,7 +54,10 @@ Example:
 			<&gcc GCC_GPU_MEMNOC_GFX_CLK>;
 		clock-names = "gmu", "cxo", "axi", "memnoc";
 
-		power-domains = <&gpucc GPU_CX_GDSC>;
+		power-domains = <&gpucc GPU_CX_GDSC>,
+				<&gpucc GPU_GX_GDSC>;
+		power-domain-names = "cx", "gx";
+
 		iommus = <&adreno_smmu 5>;
 
 		operating-points-v2 = <&gmu_opp_table>;

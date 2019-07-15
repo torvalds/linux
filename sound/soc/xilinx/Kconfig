@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_SOC_XILINX_I2S
 	tristate "Audio support for the Xilinx I2S"
 	help

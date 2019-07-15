@@ -14,6 +14,7 @@
 #include <linux/cpufeature.h>
 #include <linux/crypto.h>
 #include <linux/fips.h>
+#include <linux/mutex.h>
 #include <crypto/algapi.h>
 #include <crypto/des.h>
 #include <asm/cpacf.h>
@@ -21,7 +22,7 @@
 #define DES3_KEY_SIZE	(3 * DES_KEY_SIZE)
 
 static u8 *ctrblk;
-static DEFINE_SPINLOCK(ctrblk_lock);
+static DEFINE_MUTEX(ctrblk_lock);
 
 static cpacf_mask_t km_functions, kmc_functions, kmctr_functions;
 
@@ -224,24 +225,11 @@ static int des3_setkey(struct crypto_tfm *tfm, const u8 *key,
 		       unsigned int key_len)
 {
 	struct s390_des_ctx *ctx = crypto_tfm_ctx(tfm);
+	int err;
 
-	if (!(crypto_memneq(key, &key[DES_KEY_SIZE], DES_KEY_SIZE) &&
-	    crypto_memneq(&key[DES_KEY_SIZE], &key[DES_KEY_SIZE * 2],
-			  DES_KEY_SIZE)) &&
-	    (tfm->crt_flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
-		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		return -EINVAL;
-	}
-
-	/* in fips mode, ensure k1 != k2 and k2 != k3 and k1 != k3 */
-	if (fips_enabled &&
-	    !(crypto_memneq(key, &key[DES_KEY_SIZE], DES_KEY_SIZE) &&
-	      crypto_memneq(&key[DES_KEY_SIZE], &key[DES_KEY_SIZE * 2],
-			    DES_KEY_SIZE) &&
-	      crypto_memneq(key, &key[DES_KEY_SIZE * 2], DES_KEY_SIZE))) {
-		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		return -EINVAL;
-	}
+	err = __des3_verify_key(&tfm->crt_flags, key);
+	if (unlikely(err))
+		return err;
 
 	memcpy(ctx->key, key, key_len);
 	return 0;
@@ -387,7 +375,7 @@ static int ctr_desall_crypt(struct blkcipher_desc *desc, unsigned long fc,
 	unsigned int n, nbytes;
 	int ret, locked;
 
-	locked = spin_trylock(&ctrblk_lock);
+	locked = mutex_trylock(&ctrblk_lock);
 
 	ret = blkcipher_walk_virt_block(desc, walk, DES_BLOCK_SIZE);
 	while ((nbytes = walk->nbytes) >= DES_BLOCK_SIZE) {
@@ -404,7 +392,7 @@ static int ctr_desall_crypt(struct blkcipher_desc *desc, unsigned long fc,
 		ret = blkcipher_walk_done(desc, walk, nbytes - n);
 	}
 	if (locked)
-		spin_unlock(&ctrblk_lock);
+		mutex_unlock(&ctrblk_lock);
 	/* final block may be < DES_BLOCK_SIZE, copy only nbytes */
 	if (nbytes) {
 		cpacf_kmctr(fc, ctx->key, buf, walk->src.virt.addr,

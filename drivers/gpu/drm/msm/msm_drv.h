@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __MSM_DRV_H__
@@ -33,7 +22,7 @@
 #include <linux/types.h>
 #include <linux/of_graph.h>
 #include <linux/of_device.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <linux/kthread.h>
 
 #include <drm/drmP.h>
@@ -185,6 +174,10 @@ struct msm_drm_private {
 	/* list of GEM objects: */
 	struct list_head inactive_list;
 
+	/* worker for delayed free of objects: */
+	struct work_struct free_work;
+	struct llist_head free_list;
+
 	struct workqueue_struct *wq;
 
 	unsigned int num_planes;
@@ -292,7 +285,6 @@ struct sg_table *msm_gem_prime_get_sg_table(struct drm_gem_object *obj);
 void *msm_gem_prime_vmap(struct drm_gem_object *obj);
 void msm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
-struct reservation_object *msm_gem_prime_res_obj(struct drm_gem_object *obj);
 struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,
 		struct dma_buf_attachment *attach, struct sg_table *sg);
 int msm_gem_prime_pin(struct drm_gem_object *obj);
@@ -325,6 +317,7 @@ void msm_gem_kernel_put(struct drm_gem_object *bo,
 		struct msm_gem_address_space *aspace, bool locked);
 struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		struct dma_buf *dmabuf, struct sg_table *sgt);
+void msm_gem_free_work(struct work_struct *work);
 
 __printf(2, 3)
 void msm_gem_object_set_name(struct drm_gem_object *bo, const char *fmt, ...);
@@ -420,6 +413,8 @@ struct msm_gpu_submitqueue *msm_submitqueue_get(struct msm_file_private *ctx,
 		u32 id);
 int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
 		u32 prio, u32 flags, u32 *id);
+int msm_submitqueue_query(struct drm_device *drm, struct msm_file_private *ctx,
+		struct drm_msm_submitqueue_query *args);
 int msm_submitqueue_remove(struct msm_file_private *ctx, u32 id);
 void msm_submitqueue_close(struct msm_file_private *ctx);
 

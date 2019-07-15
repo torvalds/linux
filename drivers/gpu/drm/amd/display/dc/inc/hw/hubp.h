@@ -130,6 +130,7 @@ struct hubp_funcs {
 	void (*hubp_clear_underflow)(struct hubp *hubp);
 	void (*hubp_disable_control)(struct hubp *hubp, bool disable_hubp);
 	unsigned int (*hubp_get_underflow_status)(struct hubp *hubp);
+	void (*hubp_init)(struct hubp *hubp);
 
 };
 

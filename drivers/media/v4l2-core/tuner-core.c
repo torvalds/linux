@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * i2c tv tuner chip device driver
  * core core, i.e. kernel interfaces, registering and so on

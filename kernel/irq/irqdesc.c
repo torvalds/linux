@@ -275,11 +275,12 @@ static struct attribute *irq_attrs[] = {
 	&actions_attr.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(irq);
 
 static struct kobj_type irq_kobj_type = {
 	.release	= irq_kobj_release,
 	.sysfs_ops	= &kobj_sysfs_ops,
-	.default_attrs	= irq_attrs,
+	.default_groups = irq_groups,
 };
 
 static void irq_sysfs_add(int irq, struct irq_desc *desc)

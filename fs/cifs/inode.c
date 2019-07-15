@@ -2116,6 +2116,43 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 	return rc;
 }
 
+int cifs_fiemap(struct inode *inode, struct fiemap_extent_info *fei, u64 start,
+		u64 len)
+{
+	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(cifs_i->vfs_inode.i_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+	struct TCP_Server_Info *server = tcon->ses->server;
+	struct cifsFileInfo *cfile;
+	int rc;
+
+	/*
+	 * We need to be sure that all dirty pages are written as they
+	 * might fill holes on the server.
+	 */
+	if (!CIFS_CACHE_READ(CIFS_I(inode)) && inode->i_mapping &&
+	    inode->i_mapping->nrpages != 0) {
+		rc = filemap_fdatawait(inode->i_mapping);
+		if (rc) {
+			mapping_set_error(inode->i_mapping, rc);
+			return rc;
+		}
+	}
+
+	cfile = find_readable_file(cifs_i, false);
+	if (cfile == NULL)
+		return -EINVAL;
+
+	if (server->ops->fiemap) {
+		rc = server->ops->fiemap(tcon, cfile, fei, start, len);
+		cifsFileInfo_put(cfile);
+		return rc;
+	}
+
+	cifsFileInfo_put(cfile);
+	return -ENOTSUPP;
+}
+
 static int cifs_truncate_page(struct address_space *mapping, loff_t from)
 {
 	pgoff_t index = from >> PAGE_SHIFT;

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 obj-y				:= extable.o tlb.o \
 				   fault.o init.o ioremap.o mmap.o \
                                    mm-nds32.o cacheflush.o proc.o

@@ -38,31 +38,21 @@ I915_SELFTEST_DECLARE(static struct igt_evict_ctl {
 
 static bool ggtt_is_idle(struct drm_i915_private *i915)
 {
-       struct intel_engine_cs *engine;
-       enum intel_engine_id id;
-
-       if (i915->gt.active_requests)
-	       return false;
-
-       for_each_engine(engine, i915, id) {
-	       if (!intel_engine_has_kernel_context(engine))
-		       return false;
-       }
-
-       return true;
+	return !i915->gt.active_requests;
 }
 
 static int ggtt_flush(struct drm_i915_private *i915)
 {
 	int err;
 
-	/* Not everything in the GGTT is tracked via vma (otherwise we
+	/*
+	 * Not everything in the GGTT is tracked via vma (otherwise we
 	 * could evict as required with minimal stalling) so we are forced
 	 * to idle the GPU and explicitly retire outstanding requests in
 	 * the hopes that we can then remove contexts and the like only
 	 * bound by their active reference.
 	 */
-	err = i915_gem_switch_to_kernel_context(i915);
+	err = i915_gem_switch_to_kernel_context(i915, i915->gt.active_engines);
 	if (err)
 		return err;
 

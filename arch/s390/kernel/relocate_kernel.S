@@ -58,11 +58,15 @@ ENTRY(relocate_kernel)
 		j	.base
 	.done:
 		sgr	%r0,%r0		# clear register r0
+		cghi	%r3,0
+		je	.diag
 		la	%r4,load_psw-.base(%r13)	# load psw-address into the register
 		o	%r3,4(%r4)	# or load address into psw
 		st	%r3,4(%r4)
 		mvc	0(8,%r0),0(%r4)	# copy psw to absolute address 0
+	.diag:
 		diag	%r0,%r0,0x308
+ENDPROC(relocate_kernel)
 
 		.align	8
 	load_psw:

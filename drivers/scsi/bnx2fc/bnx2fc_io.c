@@ -1083,7 +1083,6 @@ int bnx2fc_eh_device_reset(struct scsi_cmnd *sc_cmd)
 static int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
 {
 	struct bnx2fc_rport *tgt = io_req->tgt;
-	int rc = SUCCESS;
 	unsigned int time_left;
 
 	io_req->wait_for_comp = 1;
@@ -1110,7 +1109,7 @@ static int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
 
 	spin_lock_bh(&tgt->tgt_lock);
-	return rc;
+	return SUCCESS;
 }
 
 /**

@@ -980,12 +980,11 @@ static void qtnf_pearl_fw_work_handler(struct work_struct *work)
 {
 	struct qtnf_bus *bus = container_of(work, struct qtnf_bus, fw_work);
 	struct qtnf_pcie_pearl_state *ps = (void *)get_bus_priv(bus);
+	u32 state = QTN_RC_FW_LOADRDY | QTN_RC_FW_QLINK;
+	const char *fwname = QTN_PCI_PEARL_FW_NAME;
 	struct pci_dev *pdev = ps->base.pdev;
 	const struct firmware *fw;
 	int ret;
-	u32 state = QTN_RC_FW_LOADRDY | QTN_RC_FW_QLINK;
-	const char *fwname = QTN_PCI_PEARL_FW_NAME;
-	bool fw_boot_success = false;
 
 	if (ps->base.flashboot) {
 		state |= QTN_RC_FW_FLASHBOOT;
@@ -1031,23 +1030,23 @@ static void qtnf_pearl_fw_work_handler(struct work_struct *work)
 		goto fw_load_exit;
 	}
 
-	pr_info("firmware is up and running\n");
-
 	if (qtnf_poll_state(&ps->bda->bda_ep_state,
 			    QTN_EP_FW_QLINK_DONE, QTN_FW_QLINK_TIMEOUT_MS)) {
 		pr_err("firmware runtime failure\n");
 		goto fw_load_exit;
 	}
 
-	fw_boot_success = true;
+	pr_info("firmware is up and running\n");
+
+	ret = qtnf_pcie_fw_boot_done(bus);
+	if (ret)
+		goto fw_load_exit;
+
+	qtnf_debugfs_add_entry(bus, "hdp_stats", qtnf_dbg_hdp_stats);
+	qtnf_debugfs_add_entry(bus, "irq_stats", qtnf_dbg_irq_stats);
 
 fw_load_exit:
-	qtnf_pcie_fw_boot_done(bus, fw_boot_success);
-
-	if (fw_boot_success) {
-		qtnf_debugfs_add_entry(bus, "hdp_stats", qtnf_dbg_hdp_stats);
-		qtnf_debugfs_add_entry(bus, "irq_stats", qtnf_dbg_irq_stats);
-	}
+	put_device(&pdev->dev);
 }
 
 static void qtnf_pearl_reclaim_tasklet_fn(unsigned long data)

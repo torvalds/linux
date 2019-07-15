@@ -375,14 +375,20 @@ static struct tipc_node *tipc_node_create(struct net *net, u32 addr,
 		if (n->capabilities == capabilities)
 			goto exit;
 		/* Same node may come back with new capabilities */
-		write_lock_bh(&n->lock);
+		tipc_node_write_lock(n);
 		n->capabilities = capabilities;
 		for (bearer_id = 0; bearer_id < MAX_BEARERS; bearer_id++) {
 			l = n->links[bearer_id].link;
 			if (l)
 				tipc_link_update_caps(l, capabilities);
 		}
-		write_unlock_bh(&n->lock);
+		tipc_node_write_unlock_fast(n);
+
+		/* Calculate cluster capabilities */
+		tn->capabilities = TIPC_NODE_CAPABILITIES;
+		list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
+			tn->capabilities &= temp_node->capabilities;
+		}
 		goto exit;
 	}
 	n = kzalloc(sizeof(*n), GFP_ATOMIC);
@@ -433,6 +439,11 @@ static struct tipc_node *tipc_node_create(struct net *net, u32 addr,
 			break;
 	}
 	list_add_tail_rcu(&n->list, &temp_node->list);
+	/* Calculate cluster capabilities */
+	tn->capabilities = TIPC_NODE_CAPABILITIES;
+	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
+		tn->capabilities &= temp_node->capabilities;
+	}
 	trace_tipc_node_create(n, true, " ");
 exit:
 	spin_unlock_bh(&tn->node_list_lock);
@@ -589,6 +600,7 @@ static void  tipc_node_clear_links(struct tipc_node *node)
  */
 static bool tipc_node_cleanup(struct tipc_node *peer)
 {
+	struct tipc_node *temp_node;
 	struct tipc_net *tn = tipc_net(peer->net);
 	bool deleted = false;
 
@@ -604,6 +616,13 @@ static bool tipc_node_cleanup(struct tipc_node *peer)
 		deleted = true;
 	}
 	tipc_node_write_unlock(peer);
+
+	/* Calculate cluster capabilities */
+	tn->capabilities = TIPC_NODE_CAPABILITIES;
+	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
+		tn->capabilities &= temp_node->capabilities;
+	}
+
 	spin_unlock_bh(&tn->node_list_lock);
 	return deleted;
 }
@@ -695,7 +714,6 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 		*slot0 = bearer_id;
 		*slot1 = bearer_id;
 		tipc_node_fsm_evt(n, SELF_ESTABL_CONTACT_EVT);
-		n->failover_sent = false;
 		n->action_flags |= TIPC_NOTIFY_NODE_UP;
 		tipc_link_set_active(nl, true);
 		tipc_bcast_add_peer(n->net, nl, xmitq);
@@ -735,6 +753,49 @@ static void tipc_node_link_up(struct tipc_node *n, int bearer_id,
 	maddr = &n->links[bearer_id].maddr;
 	tipc_bearer_xmit(n->net, bearer_id, xmitq, maddr);
 	tipc_node_write_unlock(n);
+}
+
+/**
+ * tipc_node_link_failover() - start failover in case "half-failover"
+ *
+ * This function is only called in a very special situation where link
+ * failover can be already started on peer node but not on this node.
+ * This can happen when e.g.
+ *	1. Both links <1A-2A>, <1B-2B> down
+ *	2. Link endpoint 2A up, but 1A still down (e.g. due to network
+ *	   disturbance, wrong session, etc.)
+ *	3. Link <1B-2B> up
+ *	4. Link endpoint 2A down (e.g. due to link tolerance timeout)
+ *	5. Node 2 starts failover onto link <1B-2B>
+ *
+ *	==> Node 1 does never start link/node failover!
+ *
+ * @n: tipc node structure
+ * @l: link peer endpoint failingover (- can be NULL)
+ * @tnl: tunnel link
+ * @xmitq: queue for messages to be xmited on tnl link later
+ */
+static void tipc_node_link_failover(struct tipc_node *n, struct tipc_link *l,
+				    struct tipc_link *tnl,
+				    struct sk_buff_head *xmitq)
+{
+	/* Avoid to be "self-failover" that can never end */
+	if (!tipc_link_is_up(tnl))
+		return;
+
+	/* Don't rush, failure link may be in the process of resetting */
+	if (l && !tipc_link_is_reset(l))
+		return;
+
+	tipc_link_fsm_evt(tnl, LINK_SYNCH_END_EVT);
+	tipc_node_fsm_evt(n, NODE_SYNCH_END_EVT);
+
+	n->sync_point = tipc_link_rcv_nxt(tnl) + (U16_MAX / 2 - 1);
+	tipc_link_failover_prepare(l, tnl, xmitq);
+
+	if (l)
+		tipc_link_fsm_evt(l, LINK_FAILOVER_BEGIN_EVT);
+	tipc_node_fsm_evt(n, NODE_FAILOVER_BEGIN_EVT);
 }
 
 /**
@@ -1340,7 +1401,7 @@ static int __tipc_nl_add_node(struct tipc_nl_msg *msg, struct tipc_node *node)
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start(msg->skb, TIPC_NLA_NODE);
+	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_NODE);
 	if (!attrs)
 		goto msg_full;
 
@@ -1649,21 +1710,23 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 	/* Initiate or update failover mode if applicable */
 	if ((usr == TUNNEL_PROTOCOL) && (mtyp == FAILOVER_MSG)) {
 		syncpt = oseqno + exp_pkts - 1;
-		if (pl && tipc_link_is_up(pl)) {
+		if (pl && !tipc_link_is_reset(pl)) {
 			__tipc_node_link_down(n, &pb_id, xmitq, &maddr);
 			trace_tipc_node_link_down(n, true,
 						  "node link down <- failover!");
 			tipc_skb_queue_splice_tail_init(tipc_link_inputq(pl),
 							tipc_link_inputq(l));
 		}
+
 		/* If parallel link was already down, and this happened before
-		 * the tunnel link came up, FAILOVER was never sent. Ensure that
-		 * FAILOVER is sent to get peer out of NODE_FAILINGOVER state.
+		 * the tunnel link came up, node failover was never started.
+		 * Ensure that a FAILOVER_MSG is sent to get peer out of
+		 * NODE_FAILINGOVER state, also this node must accept
+		 * TUNNEL_MSGs from peer.
 		 */
-		if (n->state != NODE_FAILINGOVER && !n->failover_sent) {
-			tipc_link_create_dummy_tnl_msg(l, xmitq);
-			n->failover_sent = true;
-		}
+		if (n->state != NODE_FAILINGOVER)
+			tipc_node_link_failover(n, pl, l, xmitq);
+
 		/* If pkts arrive out of order, use lowest calculated syncpt */
 		if (less(syncpt, n->sync_point))
 			n->sync_point = syncpt;
@@ -1866,9 +1929,9 @@ int tipc_nl_peer_rm(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_NET])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_NET_MAX,
-			       info->attrs[TIPC_NLA_NET], tipc_nl_net_policy,
-			       info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_NET_MAX,
+					  info->attrs[TIPC_NLA_NET],
+					  tipc_nl_net_policy, info->extack);
 	if (err)
 		return err;
 
@@ -2024,9 +2087,9 @@ int tipc_nl_node_set_link(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_LINK])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_LINK_MAX,
-			       info->attrs[TIPC_NLA_LINK],
-			       tipc_nl_link_policy, info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_LINK_MAX,
+					  info->attrs[TIPC_NLA_LINK],
+					  tipc_nl_link_policy, info->extack);
 	if (err)
 		return err;
 
@@ -2100,9 +2163,9 @@ int tipc_nl_node_get_link(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_LINK])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_LINK_MAX,
-			       info->attrs[TIPC_NLA_LINK],
-			       tipc_nl_link_policy, info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_LINK_MAX,
+					  info->attrs[TIPC_NLA_LINK],
+					  tipc_nl_link_policy, info->extack);
 	if (err)
 		return err;
 
@@ -2165,9 +2228,9 @@ int tipc_nl_node_reset_link_stats(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_LINK])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_LINK_MAX,
-			       info->attrs[TIPC_NLA_LINK],
-			       tipc_nl_link_policy, info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_LINK_MAX,
+					  info->attrs[TIPC_NLA_LINK],
+					  tipc_nl_link_policy, info->extack);
 	if (err)
 		return err;
 
@@ -2305,9 +2368,10 @@ int tipc_nl_node_set_monitor(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[TIPC_NLA_MON])
 		return -EINVAL;
 
-	err = nla_parse_nested(attrs, TIPC_NLA_MON_MAX,
-			       info->attrs[TIPC_NLA_MON],
-			       tipc_nl_monitor_policy, info->extack);
+	err = nla_parse_nested_deprecated(attrs, TIPC_NLA_MON_MAX,
+					  info->attrs[TIPC_NLA_MON],
+					  tipc_nl_monitor_policy,
+					  info->extack);
 	if (err)
 		return err;
 
@@ -2334,7 +2398,7 @@ static int __tipc_nl_add_monitor_prop(struct net *net, struct tipc_nl_msg *msg)
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start(msg->skb, TIPC_NLA_MON);
+	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_MON);
 	if (!attrs)
 		goto msg_full;
 
@@ -2425,9 +2489,10 @@ int tipc_nl_node_dump_monitor_peer(struct sk_buff *skb,
 		if (!attrs[TIPC_NLA_MON])
 			return -EINVAL;
 
-		err = nla_parse_nested(mon, TIPC_NLA_MON_MAX,
-				       attrs[TIPC_NLA_MON],
-				       tipc_nl_monitor_policy, NULL);
+		err = nla_parse_nested_deprecated(mon, TIPC_NLA_MON_MAX,
+						  attrs[TIPC_NLA_MON],
+						  tipc_nl_monitor_policy,
+						  NULL);
 		if (err)
 			return err;
 
