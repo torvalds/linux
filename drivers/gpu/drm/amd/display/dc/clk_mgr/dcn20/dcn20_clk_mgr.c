@@ -198,6 +198,9 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 	bool force_reset = false;
 	int i;
 
+	if (dc->work_arounds.skip_clock_update)
+		return;
+
 	if (clk_mgr_base->clks.dispclk_khz == 0 ||
 		dc->debug.force_clock_mode & 0x1) {
 		//this is from resume or boot up, if forced_clock cfg option used, we bypass program dispclk and DPPCLK, but need set them for S3.

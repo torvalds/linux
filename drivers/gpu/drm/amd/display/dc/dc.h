@@ -122,6 +122,7 @@ struct dc_bug_wa {
 	bool no_connect_phy_config;
 	bool dedcn20_305_wa;
 	struct display_mode_lib alternate_dml;
+	bool skip_clock_update;
 };
 #endif
 
