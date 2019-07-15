@@ -4087,7 +4087,10 @@ int get_vmx_mem_address(struct kvm_vcpu *vcpu, unsigned long exit_qualification,
 		 * mode, e.g. a 32-bit address size can yield a 64-bit virtual
 		 * address when using FS/GS with a non-zero base.
 		 */
-		*ret = s.base + off;
+		if (seg_reg == VCPU_SREG_FS || seg_reg == VCPU_SREG_GS)
+			*ret = s.base + off;
+		else
+			*ret = off;
 
 		/* Long mode: #GP(0)/#SS(0) if the memory address is in a
 		 * non-canonical form. This is the only check on the memory
