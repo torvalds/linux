@@ -2687,7 +2687,7 @@ extern int apply_to_page_range(struct mm_struct *mm, unsigned long address,
 			       unsigned long size, pte_fn_t fn, void *data);
 
 struct pfn_range_apply;
-typedef int (*pter_fn_t)(pte_t *pte, unsigned long addr,
+typedef int (*pter_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
 			 struct pfn_range_apply *closure);
 struct pfn_range_apply {
 	struct mm_struct *mm;

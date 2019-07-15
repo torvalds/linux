@@ -2053,7 +2053,7 @@ static int apply_to_pte_range(struct pfn_range_apply *closure, pmd_t *pmd,
 	token = pmd_pgtable(*pmd);
 
 	do {
-		err = closure->ptefn(pte++, addr, closure);
+		err = closure->ptefn(pte++, token, addr, closure);
 		if (err)
 			break;
 	} while (addr += PAGE_SIZE, addr != end);
@@ -2194,14 +2194,14 @@ struct page_range_apply {
  * Callback wrapper to enable use of apply_to_pfn_range for
  * the apply_to_page_range interface
  */
-static int apply_to_page_range_wrapper(pte_t *pte,
+static int apply_to_page_range_wrapper(pte_t *pte, pgtable_t token,
 				       unsigned long addr,
 				       struct pfn_range_apply *pter)
 {
 	struct page_range_apply *pra =
 		container_of(pter, typeof(*pra), pter);
 
-	return pra->fn(pte, NULL, addr, pra->data);
+	return pra->fn(pte, token, addr, pra->data);
 }
 
 /*
