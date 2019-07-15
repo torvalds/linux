@@ -3,3 +3,6 @@
 # Copyright (c) 2019 Oracle.
 # All Rights Reserved.
 #
+obj-$(CONFIG_FS_IOMAP)		+= iomap.o
+
+iomap-$(CONFIG_SWAP)		+= swapfile.o
