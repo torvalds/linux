@@ -86,7 +86,6 @@ static ssize_t eeh_notify_resume_show(struct device *dev,
 	if (!edev || !edev->pe)
 		return -ENODEV;
 
-	pdn = pci_get_pdn(pdev);
 	return sprintf(buf, "%d\n", pdn->last_allow_rc);
 }
 
