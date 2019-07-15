@@ -549,7 +549,7 @@ ENTRY(interrupt_entry)
 	UNWIND_HINT_FUNC
 
 	movq	(%rdi), %rdi
-	jmpq	2f
+	jmp	2f
 1:
 	FENCE_SWAPGS_KERNEL_ENTRY
 2:
