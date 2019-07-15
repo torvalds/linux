@@ -1006,6 +1006,7 @@
 		reset-names = "hdmi",
 			      "hdmiphy";
 		rockchip,grf = <&grf>;
+		max-tmdsclk = <371250>;
 		status = "disabled";
 
 		ports {
