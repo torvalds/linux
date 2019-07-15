@@ -71,7 +71,6 @@ struct apu_led_pdata {
 	struct apu_led_priv *pled;
 	const struct apu_led_profile *profile;
 	int num_led_instances;
-	int iosize; /* for devm_ioremap() */
 	spinlock_t lock;
 };
 
@@ -127,7 +126,7 @@ static int apu_led_config(struct device *dev, struct apu_led_pdata *apuld)
 		led_cdev->brightness_set = apu1_led_brightness_set;
 
 		pled->param.addr = devm_ioremap(dev,
-				apu_led->profile[i].offset, apu_led->iosize);
+				apu_led->profile[i].offset, APU1_IOSIZE);
 		if (!pled->param.addr) {
 			err = -ENOMEM;
 			goto error;
@@ -160,7 +159,6 @@ static int __init apu_led_probe(struct platform_device *pdev)
 
 	apu_led->profile = apu1_led_profile;
 	apu_led->num_led_instances = ARRAY_SIZE(apu1_led_profile);
-	apu_led->iosize = APU1_IOSIZE;
 
 	spin_lock_init(&apu_led->lock);
 	return apu_led_config(&pdev->dev, apu_led);
