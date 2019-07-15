@@ -66,16 +66,10 @@ struct apu_led_profile {
 	unsigned long offset; /* for devm_ioremap */
 };
 
-/* Supported platform types */
-enum apu_led_platform_types {
-	APU1_LED_PLATFORM,
-};
-
 struct apu_led_pdata {
 	struct platform_device *pdev;
 	struct apu_led_priv *pled;
 	const struct apu_led_profile *profile;
-	enum apu_led_platform_types platform;
 	int num_led_instances;
 	int iosize; /* for devm_ioremap() */
 	spinlock_t lock;
@@ -130,8 +124,7 @@ static int apu_led_config(struct device *dev, struct apu_led_pdata *apuld)
 		led_cdev->brightness = apu_led->profile[i].brightness;
 		led_cdev->max_brightness = 1;
 		led_cdev->flags = LED_CORE_SUSPENDRESUME;
-		if (apu_led->platform == APU1_LED_PLATFORM)
-			led_cdev->brightness_set = apu1_led_brightness_set;
+		led_cdev->brightness_set = apu1_led_brightness_set;
 
 		pled->param.addr = devm_ioremap(dev,
 				apu_led->profile[i].offset, apu_led->iosize);
@@ -144,7 +137,7 @@ static int apu_led_config(struct device *dev, struct apu_led_pdata *apuld)
 		if (err)
 			goto error;
 
-		led_cdev->brightness_set(led_cdev, apu_led->profile[i].brightness);
+		apu1_led_brightness_set(led_cdev, apu_led->profile[i].brightness);
 	}
 
 	return 0;
@@ -166,7 +159,6 @@ static int __init apu_led_probe(struct platform_device *pdev)
 	apu_led->pdev = pdev;
 
 	apu_led->profile = apu1_led_profile;
-	apu_led->platform = APU1_LED_PLATFORM;
 	apu_led->num_led_instances = ARRAY_SIZE(apu1_led_profile);
 	apu_led->iosize = APU1_IOSIZE;
 
