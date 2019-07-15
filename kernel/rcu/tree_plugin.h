@@ -2079,6 +2079,7 @@ static int rcu_nocb_gp_kthread(void *arg)
  */
 static void nocb_cb_wait(struct rcu_data *rdp)
 {
+	unsigned long cur_gp_seq;
 	unsigned long flags;
 	bool needwake_gp = false;
 	struct rcu_node *rnp = rdp->mynode;
@@ -2091,7 +2092,9 @@ static void nocb_cb_wait(struct rcu_data *rdp)
 	local_bh_enable();
 	lockdep_assert_irqs_enabled();
 	rcu_nocb_lock_irqsave(rdp, flags);
-	if (raw_spin_trylock_rcu_node(rnp)) { /* irqs already disabled. */
+	if (rcu_segcblist_nextgp(&rdp->cblist, &cur_gp_seq) &&
+	    rcu_seq_done(&rnp->gp_seq, cur_gp_seq) &&
+	    raw_spin_trylock_rcu_node(rnp)) { /* irqs already disabled. */
 		needwake_gp = rcu_advance_cbs(rdp->mynode, rdp);
 		raw_spin_unlock_rcu_node(rnp); /* irqs remain disabled. */
 	}
