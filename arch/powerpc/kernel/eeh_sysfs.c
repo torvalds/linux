@@ -75,7 +75,7 @@ static ssize_t eeh_pe_state_store(struct device *dev,
 
 static DEVICE_ATTR_RW(eeh_pe_state);
 
-#ifdef CONFIG_PCI_IOV
+#if defined(CONFIG_PCI_IOV) && defined(CONFIG_PPC_PSERIES)
 static ssize_t eeh_notify_resume_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
@@ -132,7 +132,7 @@ static void eeh_notify_resume_remove(struct pci_dev *pdev)
 #else
 static inline int eeh_notify_resume_add(struct pci_dev *pdev) { return 0; }
 static inline void eeh_notify_resume_remove(struct pci_dev *pdev) { }
-#endif /* CONFIG_PCI_IOV */
+#endif /* CONFIG_PCI_IOV && CONFIG PPC_PSERIES*/
 
 void eeh_sysfs_add_device(struct pci_dev *pdev)
 {
