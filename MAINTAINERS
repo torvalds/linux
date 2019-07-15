@@ -899,7 +899,7 @@ L:	linux-iio@vger.kernel.org
 W:	http://ez.analog.com/community/linux-device-drivers
 S:	Supported
 F:	drivers/iio/adc/ad7124.c
-F:	Documentation/devicetree/bindings/iio/adc/adi,ad7124.txt
+F:	Documentation/devicetree/bindings/iio/adc/adi,ad7124.yaml
 
 ANALOG DEVICES INC AD7606 DRIVER
 M:	Stefan Popa <stefan.popa@analog.com>
@@ -4189,7 +4189,7 @@ M:	Jens Axboe <axboe@kernel.dk>
 L:	cgroups@vger.kernel.org
 L:	linux-block@vger.kernel.org
 T:	git git://git.kernel.dk/linux-block
-F:	Documentation/cgroup-v1/blkio-controller.rst
+F:	Documentation/admin-guide/cgroup-v1/blkio-controller.rst
 F:	block/blk-cgroup.c
 F:	include/linux/blk-cgroup.h
 F:	block/blk-throttle.c
@@ -6848,7 +6848,7 @@ R:	Sagi Shahar <sagis@google.com>
 R:	Jon Olson <jonolson@google.com>
 L:	netdev@vger.kernel.org
 S:	Supported
-F:	Documentation/networking/device_drivers/google/gve.txt
+F:	Documentation/networking/device_drivers/google/gve.rst
 F:	drivers/net/ethernet/google
 
 GPD POCKET FAN DRIVER
@@ -12096,7 +12096,7 @@ M:	Juergen Gross <jgross@suse.com>
 M:	Alok Kataria <akataria@vmware.com>
 L:	virtualization@lists.linux-foundation.org
 S:	Supported
-F:	Documentation/virtual/paravirt_ops.txt
+F:	Documentation/virtual/paravirt_ops.rst
 F:	arch/*/kernel/paravirt*
 F:	arch/*/include/asm/paravirt*.h
 F:	include/linux/hypervisor.h
