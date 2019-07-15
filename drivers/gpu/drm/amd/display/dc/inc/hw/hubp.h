@@ -111,9 +111,6 @@ struct hubp_funcs {
 
 	bool (*hubp_is_flip_pending)(struct hubp *hubp);
 
-	void (*hubp_update_dchub)(struct hubp *hubp,
-				struct dchub_init_data *dh_data);
-
 	void (*set_blank)(struct hubp *hubp, bool blank);
 	void (*set_hubp_blank_en)(struct hubp *hubp, bool blank);
 

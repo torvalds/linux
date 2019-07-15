@@ -2858,14 +2858,10 @@ static void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 
 static void dcn10_update_dchub(struct dce_hwseq *hws, struct dchub_init_data *dh_data)
 {
-	if (hws->ctx->dc->res_pool->hubbub != NULL) {
-		struct hubp *hubp = hws->ctx->dc->res_pool->hubps[0];
+	struct hubbub *hubbub = hws->ctx->dc->res_pool->hubbub;
 
-		if (hubp->funcs->hubp_update_dchub)
-			hubp->funcs->hubp_update_dchub(hubp, dh_data);
-		else
-			hubbub1_update_dchub(hws->ctx->dc->res_pool->hubbub, dh_data);
-	}
+	/* In DCN, this programming sequence is owned by the hubbub */
+	hubbub->funcs->update_dchub(hubbub, dh_data);
 }
 
 static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
