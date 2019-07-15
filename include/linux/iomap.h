@@ -7,6 +7,7 @@
 #include <linux/mm.h>
 #include <linux/types.h>
 #include <linux/mm_types.h>
+#include <linux/blkdev.h>
 
 struct address_space;
 struct fiemap_extent_info;
@@ -68,6 +69,12 @@ struct iomap {
 	void			*private; /* filesystem private */
 	const struct iomap_page_ops *page_ops;
 };
+
+static inline sector_t
+iomap_sector(struct iomap *iomap, loff_t pos)
+{
+	return (iomap->addr + pos - iomap->offset) >> SECTOR_SHIFT;
+}
 
 /*
  * When a filesystem sets page_ops in an iomap mapping it returns, page_prepare
