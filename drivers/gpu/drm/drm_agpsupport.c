@@ -1,4 +1,4 @@
-/**
+/*
  * \file drm_agpsupport.c
  * DRM support for AGP/GART backend
  *
