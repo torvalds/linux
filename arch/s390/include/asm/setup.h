@@ -54,6 +54,7 @@
 #define INITRD_SIZE_OFFSET	0x10410
 #define OLDMEM_BASE_OFFSET	0x10418
 #define OLDMEM_SIZE_OFFSET	0x10420
+#define KERNEL_VERSION_OFFSET	0x10428
 #define COMMAND_LINE_OFFSET	0x10480
 
 #ifndef __ASSEMBLY__
@@ -74,7 +75,8 @@ struct parmarea {
 	unsigned long initrd_size;			/* 0x10410 */
 	unsigned long oldmem_base;			/* 0x10418 */
 	unsigned long oldmem_size;			/* 0x10420 */
-	char pad1[0x10480 - 0x10428];			/* 0x10428 - 0x10480 */
+	unsigned long kernel_version;			/* 0x10428 */
+	char pad1[0x10480 - 0x10430];			/* 0x10430 - 0x10480 */
 	char command_line[ARCH_COMMAND_LINE_SIZE];	/* 0x10480 */
 };
 
