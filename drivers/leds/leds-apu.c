@@ -69,8 +69,6 @@ struct apu_led_profile {
 struct apu_led_pdata {
 	struct platform_device *pdev;
 	struct apu_led_priv *pled;
-	const struct apu_led_profile *profile;
-	int num_led_instances;
 	spinlock_t lock;
 };
 
@@ -109,24 +107,24 @@ static int apu_led_config(struct device *dev, struct apu_led_pdata *apuld)
 	int err;
 
 	apu_led->pled = devm_kcalloc(dev,
-		apu_led->num_led_instances, sizeof(struct apu_led_priv),
+		ARRAY_SIZE(apu1_led_profile), sizeof(struct apu_led_priv),
 		GFP_KERNEL);
 
 	if (!apu_led->pled)
 		return -ENOMEM;
 
-	for (i = 0; i < apu_led->num_led_instances; i++) {
+	for (i = 0; i < ARRAY_SIZE(apu1_led_profile); i++) {
 		struct apu_led_priv *pled = &apu_led->pled[i];
 		struct led_classdev *led_cdev = &pled->cdev;
 
-		led_cdev->name = apu_led->profile[i].name;
-		led_cdev->brightness = apu_led->profile[i].brightness;
+		led_cdev->name = apu1_led_profile[i].name;
+		led_cdev->brightness = apu1_led_profile[i].brightness;
 		led_cdev->max_brightness = 1;
 		led_cdev->flags = LED_CORE_SUSPENDRESUME;
 		led_cdev->brightness_set = apu1_led_brightness_set;
 
 		pled->param.addr = devm_ioremap(dev,
-				apu_led->profile[i].offset, APU1_IOSIZE);
+				apu1_led_profile[i].offset, APU1_IOSIZE);
 		if (!pled->param.addr) {
 			err = -ENOMEM;
 			goto error;
@@ -136,7 +134,7 @@ static int apu_led_config(struct device *dev, struct apu_led_pdata *apuld)
 		if (err)
 			goto error;
 
-		apu1_led_brightness_set(led_cdev, apu_led->profile[i].brightness);
+		apu1_led_brightness_set(led_cdev, apu1_led_profile[i].brightness);
 	}
 
 	return 0;
@@ -156,9 +154,6 @@ static int __init apu_led_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	apu_led->pdev = pdev;
-
-	apu_led->profile = apu1_led_profile;
-	apu_led->num_led_instances = ARRAY_SIZE(apu1_led_profile);
 
 	spin_lock_init(&apu_led->lock);
 	return apu_led_config(&pdev->dev, apu_led);
@@ -204,7 +199,7 @@ static void __exit apu_led_exit(void)
 {
 	int i;
 
-	for (i = 0; i < apu_led->num_led_instances; i++)
+	for (i = 0; i < ARRAY_SIZE(apu1_led_profile); i++)
 		led_classdev_unregister(&apu_led->pled[i].cdev);
 
 	platform_device_unregister(apu_led->pdev);
