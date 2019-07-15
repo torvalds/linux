@@ -26,7 +26,6 @@ struct apply_as {
 /**
  * apply_pt_wrprotect - Leaf pte callback to write-protect a pte
  * @pte: Pointer to the pte
- * @token: Page table token, see apply_to_pfn_range()
  * @addr: The virtual page address
  * @closure: Pointer to a struct pfn_range_apply embedded in a
  * struct apply_as
@@ -36,7 +35,7 @@ struct apply_as {
  *
  * Return: Always zero.
  */
-static int apply_pt_wrprotect(pte_t *pte, pgtable_t token,
+static int apply_pt_wrprotect(pte_t *pte,
 			      unsigned long addr,
 			      struct pfn_range_apply *closure)
 {
@@ -78,7 +77,6 @@ struct apply_as_clean {
 /**
  * apply_pt_clean - Leaf pte callback to clean a pte
  * @pte: Pointer to the pte
- * @token: Page table token, see apply_to_pfn_range()
  * @addr: The virtual page address
  * @closure: Pointer to a struct pfn_range_apply embedded in a
  * struct apply_as_clean
@@ -91,7 +89,7 @@ struct apply_as_clean {
  *
  * Return: Always zero.
  */
-static int apply_pt_clean(pte_t *pte, pgtable_t token,
+static int apply_pt_clean(pte_t *pte,
 			  unsigned long addr,
 			  struct pfn_range_apply *closure)
 {
