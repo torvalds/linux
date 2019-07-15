@@ -177,7 +177,6 @@ static void xfrmi_dev_uninit(struct net_device *dev)
 	struct xfrmi_net *xfrmn = net_generic(xi->net, xfrmi_net_id);
 
 	xfrmi_unlink(xfrmn, xi);
-	dev_put(xi->phydev);
 	dev_put(dev);
 }
 
@@ -364,7 +363,7 @@ static netdev_tx_t xfrmi_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto tx_err;
 	}
 
-	fl.flowi_oif = xi->phydev->ifindex;
+	fl.flowi_oif = xi->p.link;
 
 	ret = xfrmi_xmit2(skb, dev, &fl);
 	if (ret < 0)
@@ -553,7 +552,7 @@ static int xfrmi_get_iflink(const struct net_device *dev)
 {
 	struct xfrm_if *xi = netdev_priv(dev);
 
-	return xi->phydev->ifindex;
+	return xi->p.link;
 }
 
 
@@ -579,12 +578,14 @@ static void xfrmi_dev_setup(struct net_device *dev)
 	dev->needs_free_netdev	= true;
 	dev->priv_destructor	= xfrmi_dev_free;
 	netif_keep_dst(dev);
+
+	eth_broadcast_addr(dev->broadcast);
 }
 
 static int xfrmi_dev_init(struct net_device *dev)
 {
 	struct xfrm_if *xi = netdev_priv(dev);
-	struct net_device *phydev = xi->phydev;
+	struct net_device *phydev = __dev_get_by_index(xi->net, xi->p.link);
 	int err;
 
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
@@ -599,13 +600,19 @@ static int xfrmi_dev_init(struct net_device *dev)
 
 	dev->features |= NETIF_F_LLTX;
 
-	dev->needed_headroom = phydev->needed_headroom;
-	dev->needed_tailroom = phydev->needed_tailroom;
+	if (phydev) {
+		dev->needed_headroom = phydev->needed_headroom;
+		dev->needed_tailroom = phydev->needed_tailroom;
 
-	if (is_zero_ether_addr(dev->dev_addr))
-		eth_hw_addr_inherit(dev, phydev);
-	if (is_zero_ether_addr(dev->broadcast))
-		memcpy(dev->broadcast, phydev->broadcast, dev->addr_len);
+		if (is_zero_ether_addr(dev->dev_addr))
+			eth_hw_addr_inherit(dev, phydev);
+		if (is_zero_ether_addr(dev->broadcast))
+			memcpy(dev->broadcast, phydev->broadcast,
+			       dev->addr_len);
+	} else {
+		eth_hw_addr_random(dev);
+		eth_broadcast_addr(dev->broadcast);
+	}
 
 	return 0;
 }
@@ -655,13 +662,8 @@ static int xfrmi_newlink(struct net *src_net, struct net_device *dev,
 	xi->p = p;
 	xi->net = net;
 	xi->dev = dev;
-	xi->phydev = dev_get_by_index(net, p.link);
-	if (!xi->phydev)
-		return -ENODEV;
 
 	err = xfrmi_create(dev);
-	if (err < 0)
-		dev_put(xi->phydev);
 	return err;
 }
 
