@@ -5339,7 +5339,7 @@ CONFIG_MV643XX_ETH                              policy<{'armhf': 'm'}>
 CONFIG_MVMDIO                                   policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_MVNETA_BM_ENABLE                         policy<{'armhf': 'n'}>
 CONFIG_MVNETA                                   policy<{'armhf': 'm'}>
-CONFIG_MVPP2                                    policy<{'armhf': 'm'}>
+CONFIG_MVPP2                                    policy<{'arm64': 'm', 'armhf': 'm'}>
 CONFIG_PXA168_ETH                               policy<{'arm64': 'm', 'armhf': 'm'}>
 CONFIG_SKGE                                     policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_SKGE_DEBUG                               policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n'}>
@@ -11494,7 +11494,7 @@ CONFIG_ARCH_EXYNOS                              policy<{'arm64': 'n', 'armhf': '
 CONFIG_ARCH_HISI                                policy<{'arm64': 'y', 'armhf': 'y'}>
 CONFIG_ARCH_MEDIATEK                            policy<{'arm64': 'y', 'armhf': 'y'}>
 CONFIG_ARCH_MESON                               policy<{'arm64': 'n', 'armhf': 'y'}>
-CONFIG_ARCH_MVEBU                               policy<{'arm64': 'n', 'armhf': 'y'}>
+CONFIG_ARCH_MVEBU                               policy<{'arm64': 'y', 'armhf': 'y'}>
 CONFIG_ARCH_MXC                                 policy<{'arm64': 'y', 'armhf-generic': 'y', 'armhf-generic-lpae': 'n'}>
 CONFIG_ARCH_QCOM                                policy<{'arm64': 'y', 'armhf': 'y'}>
 CONFIG_ARCH_RENESAS                             policy<{'arm64': 'y', 'armhf': 'y'}>
