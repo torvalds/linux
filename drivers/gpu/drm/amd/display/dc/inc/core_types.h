@@ -228,7 +228,6 @@ struct resource_pool {
 
 struct dcn_fe_bandwidth {
 	int dppclk_khz;
-
 };
 
 struct stream_resource {
