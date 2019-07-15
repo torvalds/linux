@@ -88,6 +88,7 @@ struct trace {
 					  *sys_exit,
 					  *augmented;
 		}		events;
+		struct bpf_program *unaugmented_prog;
 	} syscalls;
 	struct {
 		struct bpf_map *map;
@@ -2733,6 +2734,14 @@ out_enomem:
 }
 
 #ifdef HAVE_LIBBPF_SUPPORT
+static struct bpf_program *trace__find_bpf_program_by_title(struct trace *trace, const char *name)
+{
+	if (trace->bpf_obj == NULL)
+		return NULL;
+
+	return bpf_object__find_program_by_title(trace->bpf_obj, name);
+}
+
 static void trace__init_bpf_map_syscall_args(struct trace *trace, int id, struct bpf_map_syscall_entry *entry)
 {
 	struct syscall *sc = trace__syscall_info(trace, NULL, id);
@@ -2813,6 +2822,12 @@ static int trace__set_ev_qualifier_bpf_filter(struct trace *trace __maybe_unused
 static int trace__init_syscalls_bpf_map(struct trace *trace __maybe_unused)
 {
 	return 0;
+}
+
+static struct bpf_program *trace__find_bpf_program_by_title(struct trace *trace __maybe_unused,
+							    const char *name __maybe_unused)
+{
+	return NULL;
 }
 #endif // HAVE_LIBBPF_SUPPORT
 
@@ -3914,6 +3929,7 @@ int cmd_trace(int argc, const char **argv)
 
 		trace__set_bpf_map_filtered_pids(&trace);
 		trace__set_bpf_map_syscalls(&trace);
+		trace.syscalls.unaugmented_prog = trace__find_bpf_program_by_title(&trace, "!raw_syscalls:unaugmented");
 	}
 
 	err = bpf__setup_stdout(trace.evlist);

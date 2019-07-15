@@ -88,6 +88,12 @@ unsigned int augmented_filename__read(struct augmented_filename *augmented_filen
 	return len;
 }
 
+SEC("!raw_syscalls:unaugmented")
+int syscall_unaugmented(struct syscall_enter_args *args)
+{
+	return 1;
+}
+
 SEC("raw_syscalls:sys_enter")
 int sys_enter(struct syscall_enter_args *args)
 {
