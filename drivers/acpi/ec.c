@@ -1060,10 +1060,15 @@ void acpi_ec_set_gpe_wake_mask(u8 action)
 		acpi_set_gpe_wake_mask(NULL, first_ec->gpe, action);
 }
 
-void acpi_ec_dispatch_gpe(void)
+bool acpi_ec_dispatch_gpe(void)
 {
-	if (first_ec)
-		acpi_dispatch_gpe(NULL, first_ec->gpe);
+	u32 ret;
+
+	if (!first_ec)
+		return false;
+
+	ret = acpi_dispatch_gpe(NULL, first_ec->gpe);
+	return ret == ACPI_INTERRUPT_HANDLED;
 }
 
 /* --------------------------------------------------------------------------
