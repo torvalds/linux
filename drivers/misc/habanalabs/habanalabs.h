@@ -636,6 +636,7 @@ struct hl_va_range {
  *				execution phase before the context switch phase
  *				has finished.
  * @asid: context's unique address space ID in the device's MMU.
+ * @handle: context's opaque handle for user
  */
 struct hl_ctx {
 	DECLARE_HASHTABLE(mem_hash, MEM_HASH_TABLE_BITS);
@@ -657,6 +658,7 @@ struct hl_ctx {
 	atomic_t		thread_ctx_switch_token;
 	u32			thread_ctx_switch_wait_token;
 	u32			asid;
+	u32			handle;
 };
 
 /**

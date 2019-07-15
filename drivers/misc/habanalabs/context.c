@@ -67,9 +67,20 @@ int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv)
 		goto out_err;
 	}
 
+	mutex_lock(&mgr->ctx_lock);
+	rc = idr_alloc(&mgr->ctx_handles, ctx, 1, 0, GFP_KERNEL);
+	mutex_unlock(&mgr->ctx_lock);
+
+	if (rc < 0) {
+		dev_err(hdev->dev, "Failed to allocate IDR for a new CTX\n");
+		goto free_ctx;
+	}
+
+	ctx->handle = rc;
+
 	rc = hl_ctx_init(hdev, ctx, false);
 	if (rc)
-		goto free_ctx;
+		goto remove_from_idr;
 
 	hl_hpriv_get(hpriv);
 	ctx->hpriv = hpriv;
@@ -78,18 +89,12 @@ int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv)
 	hpriv->ctx = ctx;
 	hdev->user_ctx = ctx;
 
-	mutex_lock(&mgr->ctx_lock);
-	rc = idr_alloc(&mgr->ctx_handles, ctx, 1, 0, GFP_KERNEL);
-	mutex_unlock(&mgr->ctx_lock);
-
-	if (rc < 0) {
-		dev_err(hdev->dev, "Failed to allocate IDR for a new CTX\n");
-		hl_ctx_free(hdev, ctx);
-		goto out_err;
-	}
-
 	return 0;
 
+remove_from_idr:
+	mutex_lock(&mgr->ctx_lock);
+	idr_remove(&mgr->ctx_handles, ctx->handle);
+	mutex_unlock(&mgr->ctx_lock);
 free_ctx:
 	kfree(ctx);
 out_err:
