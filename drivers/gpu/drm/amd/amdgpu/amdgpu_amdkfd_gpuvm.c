@@ -105,11 +105,24 @@ void amdgpu_amdkfd_gpuvm_init_mem_limits(void)
 		(kfd_mem_limit.max_ttm_mem_limit >> 20));
 }
 
+/* Estimate page table size needed to represent a given memory size
+ *
+ * With 4KB pages, we need one 8 byte PTE for each 4KB of memory
+ * (factor 512, >> 9). With 2MB pages, we need one 8 byte PTE for 2MB
+ * of memory (factor 256K, >> 18). ROCm user mode tries to optimize
+ * for 2MB pages for TLB efficiency. However, small allocations and
+ * fragmented system memory still need some 4KB pages. We choose a
+ * compromise that should work in most cases without reserving too
+ * much memory for page tables unnecessarily (factor 16K, >> 14).
+ */
+#define ESTIMATE_PT_SIZE(mem_size) ((mem_size) >> 14)
+
 static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 		uint64_t size, u32 domain, bool sg)
 {
+	uint64_t reserved_for_pt =
+		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
 	size_t acc_size, system_mem_needed, ttm_mem_needed, vram_needed;
-	uint64_t reserved_for_pt = amdgpu_amdkfd_total_mem_size >> 9;
 	int ret = 0;
 
 	acc_size = ttm_bo_dma_acc_size(&adev->mman.bdev, size,
