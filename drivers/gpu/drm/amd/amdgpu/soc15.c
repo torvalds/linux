@@ -717,9 +717,15 @@ static void soc15_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 		return;
 
 	/* Set the 2 events that we wish to watch, defined above */
-	/* Reg 40 is # received msgs, Reg 104 is # of posted requests sent */
+	/* Reg 40 is # received msgs */
 	perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK, EVENT0_SEL, 40);
-	perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK, EVENT1_SEL, 104);
+	/* Pre-VG20, Reg 104 is # of posted requests sent. On VG20 it's 108 */
+	if (adev->asic_type == CHIP_VEGA20)
+		perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK,
+					EVENT1_SEL, 108);
+	else
+		perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK,
+					EVENT1_SEL, 104);
 
 	/* Write to enable desired perf counters */
 	WREG32_PCIE(smnPCIE_PERF_CNTL_TXCLK, perfctr);
