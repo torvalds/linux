@@ -5,4 +5,7 @@
 #
 obj-$(CONFIG_FS_IOMAP)		+= iomap.o
 
+iomap-y				+= \
+					fiemap.o
+
 iomap-$(CONFIG_SWAP)		+= swapfile.o
