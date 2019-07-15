@@ -1780,8 +1780,8 @@ static irqreturn_t e1000_intr_msi(int __always_unused irq, void *data)
 		}
 		/* guard against interrupt when we're going down */
 		if (!test_bit(__E1000_DOWN, &adapter->state))
-			queue_delayed_work(adapter->e1000_workqueue,
-					   &adapter->watchdog_task, 1);
+			mod_delayed_work(adapter->e1000_workqueue,
+					 &adapter->watchdog_task, HZ);
 	}
 
 	/* Reset on uncorrectable ECC error */
@@ -1861,8 +1861,8 @@ static irqreturn_t e1000_intr(int __always_unused irq, void *data)
 		}
 		/* guard against interrupt when we're going down */
 		if (!test_bit(__E1000_DOWN, &adapter->state))
-			queue_delayed_work(adapter->e1000_workqueue,
-					   &adapter->watchdog_task, 1);
+			mod_delayed_work(adapter->e1000_workqueue,
+					 &adapter->watchdog_task, HZ);
 	}
 
 	/* Reset on uncorrectable ECC error */
@@ -1907,8 +1907,8 @@ static irqreturn_t e1000_msix_other(int __always_unused irq, void *data)
 		hw->mac.get_link_status = true;
 		/* guard against interrupt when we're going down */
 		if (!test_bit(__E1000_DOWN, &adapter->state))
-			queue_delayed_work(adapter->e1000_workqueue,
-					   &adapter->watchdog_task, 1);
+			mod_delayed_work(adapter->e1000_workqueue,
+					 &adapter->watchdog_task, HZ);
 	}
 
 	if (!test_bit(__E1000_DOWN, &adapter->state))
