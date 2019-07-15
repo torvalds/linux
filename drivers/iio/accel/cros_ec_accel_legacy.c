@@ -5,7 +5,7 @@
  * Copyright 2017 Google, Inc
  *
  * This driver uses the memory mapper cros-ec interface to communicate
- * with the Chrome OS EC about accelerometer data.
+ * with the Chrome OS EC about accelerometer data or older commands.
  * Accelerometer access is presented through iio sysfs.
  */
 
@@ -32,6 +32,39 @@
  * g / (2^10 - 1) = 0.009586168; with g = 9.80665 m.s^-2
  */
 #define ACCEL_LEGACY_NSCALE 9586168
+
+static int cros_ec_accel_legacy_read_cmd(struct iio_dev *indio_dev,
+				  unsigned long scan_mask, s16 *data)
+{
+	struct cros_ec_sensors_core_state *st = iio_priv(indio_dev);
+	int ret;
+	unsigned int i;
+	u8 sensor_num;
+
+	/*
+	 * Read all sensor data through a command.
+	 * Save sensor_num, it is assumed to stay.
+	 */
+	sensor_num = st->param.info.sensor_num;
+	st->param.cmd = MOTIONSENSE_CMD_DUMP;
+	st->param.dump.max_sensor_count = CROS_EC_SENSOR_LEGACY_NUM;
+	ret = cros_ec_motion_send_host_cmd(st,
+			sizeof(st->resp->dump) + CROS_EC_SENSOR_LEGACY_NUM *
+			sizeof(struct ec_response_motion_sensor_data));
+	st->param.info.sensor_num = sensor_num;
+	if (ret != 0) {
+		dev_warn(&indio_dev->dev, "Unable to read sensor data\n");
+		return ret;
+	}
+
+	for_each_set_bit(i, &scan_mask, indio_dev->masklength) {
+		*data = st->resp->dump.sensor[sensor_num].data[i] *
+			st->sign[i];
+		data++;
+	}
+
+	return 0;
+}
 
 static int cros_ec_accel_legacy_read(struct iio_dev *indio_dev,
 				     struct iio_chan_spec const *chan,
@@ -150,7 +183,10 @@ static int cros_ec_accel_legacy_probe(struct platform_device *pdev)
 	indio_dev->info = &cros_ec_accel_legacy_info;
 	state = iio_priv(indio_dev);
 
-	state->read_ec_sensors_data = cros_ec_sensors_read_lpc;
+	if (state->ec->cmd_readmem != NULL)
+		state->read_ec_sensors_data = cros_ec_sensors_read_lpc;
+	else
+		state->read_ec_sensors_data = cros_ec_accel_legacy_read_cmd;
 
 	indio_dev->channels = cros_ec_accel_legacy_channels;
 	indio_dev->num_channels = ARRAY_SIZE(cros_ec_accel_legacy_channels);
