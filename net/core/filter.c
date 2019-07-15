@@ -6890,14 +6890,14 @@ static bool sock_addr_is_valid_access(int off, int size,
 			if (!bpf_ctx_narrow_access_ok(off, size, size_default))
 				return false;
 		} else {
-			if (bpf_ctx_wide_store_ok(off, size,
-						  struct bpf_sock_addr,
-						  user_ip6))
+			if (bpf_ctx_wide_access_ok(off, size,
+						   struct bpf_sock_addr,
+						   user_ip6))
 				return true;
 
-			if (bpf_ctx_wide_store_ok(off, size,
-						  struct bpf_sock_addr,
-						  msg_src_ip6))
+			if (bpf_ctx_wide_access_ok(off, size,
+						   struct bpf_sock_addr,
+						   msg_src_ip6))
 				return true;
 
 			if (size != size_default)
