@@ -986,33 +986,37 @@ static void acpi_s2idle_wake(void)
 		lpi_check_constraints();
 
 	/*
-	 * If IRQD_WAKEUP_ARMED is not set for the SCI at this point, it means
-	 * that the SCI has triggered while suspended, so cancel the wakeup in
-	 * case it has not been a wakeup event (the GPEs will be checked later).
+	 * If IRQD_WAKEUP_ARMED is set for the SCI at this point, the SCI has
+	 * not triggered while suspended, so bail out.
 	 */
-	if (acpi_sci_irq_valid() &&
-	    !irqd_is_wakeup_armed(irq_get_irq_data(acpi_sci_irq))) {
+	if (!acpi_sci_irq_valid() ||
+	    irqd_is_wakeup_armed(irq_get_irq_data(acpi_sci_irq)))
+		return;
+
+	/*
+	 * If there are EC events to process, the wakeup may be a spurious one
+	 * coming from the EC.
+	 */
+	if (acpi_ec_dispatch_gpe()) {
+		/*
+		 * Cancel the wakeup and process all pending events in case
+		 * there are any wakeup ones in there.
+		 *
+		 * Note that if any non-EC GPEs are active at this point, the
+		 * SCI will retrigger after the rearming below, so no events
+		 * should be missed by canceling the wakeup here.
+		 */
 		pm_system_cancel_wakeup();
 		/*
-		 * On some platforms with the LPS0 _DSM device noirq resume
-		 * takes too much time for EC wakeup events to survive, so look
-		 * for them now.
+		 * The EC driver uses the system workqueue and an additional
+		 * special one, so those need to be flushed too.
 		 */
-		acpi_ec_dispatch_gpe();
+		acpi_os_wait_events_complete(); /* synchronize EC GPE processing */
+		acpi_ec_flush_work();
+		acpi_os_wait_events_complete(); /* synchronize Notify handling */
 	}
-}
 
-static void acpi_s2idle_sync(void)
-{
-	/*
-	 * Process all pending events in case there are any wakeup ones.
-	 *
-	 * The EC driver uses the system workqueue and an additional special
-	 * one, so those need to be flushed too.
-	 */
-	acpi_os_wait_events_complete();	/* synchronize SCI IRQ handling */
-	acpi_ec_flush_work();
-	acpi_os_wait_events_complete();	/* synchronize Notify handling */
+	rearm_wake_irq(acpi_sci_irq);
 }
 
 static void acpi_s2idle_restore(void)
@@ -1044,7 +1048,6 @@ static const struct platform_s2idle_ops acpi_s2idle_ops = {
 	.begin = acpi_s2idle_begin,
 	.prepare = acpi_s2idle_prepare,
 	.wake = acpi_s2idle_wake,
-	.sync = acpi_s2idle_sync,
 	.restore = acpi_s2idle_restore,
 	.end = acpi_s2idle_end,
 };
