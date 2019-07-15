@@ -687,7 +687,7 @@ ipv4_synproxy_hook(void *priv, struct sk_buff *skb,
 	state = &ct->proto.tcp;
 	switch (state->state) {
 	case TCP_CONNTRACK_CLOSE:
-		if (th->rst && !test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
+		if (th->rst && CTINFO2DIR(ctinfo) != IP_CT_DIR_ORIGINAL) {
 			nf_ct_seqadj_init(ct, ctinfo, synproxy->isn -
 						      ntohl(th->seq) + 1);
 			break;
@@ -1111,7 +1111,7 @@ ipv6_synproxy_hook(void *priv, struct sk_buff *skb,
 	state = &ct->proto.tcp;
 	switch (state->state) {
 	case TCP_CONNTRACK_CLOSE:
-		if (th->rst && !test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
+		if (th->rst && CTINFO2DIR(ctinfo) != IP_CT_DIR_ORIGINAL) {
 			nf_ct_seqadj_init(ct, ctinfo, synproxy->isn -
 						      ntohl(th->seq) + 1);
 			break;
