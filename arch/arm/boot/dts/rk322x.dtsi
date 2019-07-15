@@ -995,6 +995,7 @@
 		phys = <&hdmi_phy>;
 		phy-names = "hdmi";
 		rockchip,grf = <&grf>;
+		max-tmdsclk = <371250>;
 		status = "disabled";
 
 		ports {
