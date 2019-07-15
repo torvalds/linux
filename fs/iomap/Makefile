@@ -6,6 +6,7 @@
 obj-$(CONFIG_FS_IOMAP)		+= iomap.o
 
 iomap-y				+= \
+					buffered-io.o \
 					direct-io.o \
 					fiemap.o \
 					seek.o
