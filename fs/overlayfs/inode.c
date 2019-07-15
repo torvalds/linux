@@ -365,6 +365,21 @@ out:
 	return err;
 }
 
+int __ovl_xattr_get(struct dentry *dentry, struct inode *inode,
+		    const char *name, void *value, size_t size)
+{
+	ssize_t res;
+	const struct cred *old_cred;
+	struct dentry *realdentry =
+		ovl_i_dentry_upper(inode) ?: ovl_dentry_lower(dentry);
+
+	old_cred = ovl_override_creds(dentry->d_sb);
+	res = __vfs_getxattr(realdentry, d_inode(realdentry), name, value,
+			     size);
+	ovl_revert_creds(old_cred);
+	return res;
+}
+
 int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
 		  void *value, size_t size)
 {
