@@ -10,8 +10,6 @@
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
 
-#include "../internal.h"
-
 /*
  * Seek for SEEK_DATA / SEEK_HOLE within @page, starting at @lastoff.
  * Returns true if found and updates @lastoff to the offset in file.

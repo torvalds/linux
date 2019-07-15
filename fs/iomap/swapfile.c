@@ -9,8 +9,6 @@
 #include <linux/iomap.h>
 #include <linux/swap.h>
 
-#include "../internal.h"
-
 /* Swapfile activation */
 
 struct iomap_swapfile_info {

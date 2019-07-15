@@ -8,8 +8,6 @@
 #include <linux/fs.h>
 #include <linux/iomap.h>
 
-#include "../internal.h"
-
 /*
  * Execute a iomap write on a segment of the mapping that spans a
  * contiguous range of pages that have identical block mapping state.
