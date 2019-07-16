@@ -38,15 +38,14 @@ static int __init count_nonzero_bytes(void *ptr, size_t size)
 }
 
 /* Fill a buffer with garbage, skipping |skip| first bytes. */
-static void __init fill_with_garbage_skip(void *ptr, size_t size, size_t skip)
+static void __init fill_with_garbage_skip(void *ptr, int size, size_t skip)
 {
-	unsigned int *p = (unsigned int *)ptr;
+	unsigned int *p = (unsigned int *)((char *)ptr + skip);
 	int i = 0;
 
-	if (skip) {
-		WARN_ON(skip > size);
-		p += skip;
-	}
+	WARN_ON(skip > size);
+	size -= skip;
+
 	while (size >= sizeof(*p)) {
 		p[i] = GARBAGE_INT;
 		i++;
@@ -227,6 +226,7 @@ static int __init do_kmem_cache_size(size_t size, bool want_ctor,
 		if (buf_copy)
 			memcpy(buf_copy, buf, size);
 
+		kmem_cache_free(c, buf);
 		/*
 		 * Check that |buf| is intact after kmem_cache_free().
 		 * |want_zero| is false, because we wrote garbage to
