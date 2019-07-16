@@ -961,7 +961,7 @@ static int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 		struct timespec64 *end_time)
 {
 	struct poll_wqueues table;
- 	int err = -EFAULT, fdcount, len, size;
+	int err = -EFAULT, fdcount, len;
 	/* Allocate small arguments on the stack to save memory and be
 	   faster - use long to make sure the buffer is aligned properly
 	   on 64 bit archs to avoid unaligned access */
@@ -989,8 +989,8 @@ static int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 			break;
 
 		len = min(todo, POLLFD_PER_PAGE);
-		size = sizeof(struct poll_list) + sizeof(struct pollfd) * len;
-		walk = walk->next = kmalloc(size, GFP_KERNEL);
+		walk = walk->next = kmalloc(struct_size(walk, entries, len),
+					    GFP_KERNEL);
 		if (!walk) {
 			err = -ENOMEM;
 			goto out_fds;
