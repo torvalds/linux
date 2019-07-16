@@ -103,6 +103,7 @@ needed).
    vm/index
    bpf/index
    usb/index
+   PCI/index
    misc-devices/index
 
 Architecture-specific documentation

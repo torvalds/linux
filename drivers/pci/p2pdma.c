@@ -195,7 +195,7 @@ EXPORT_SYMBOL_GPL(pci_p2pdma_add_resource);
 
 /*
  * Note this function returns the parent PCI device with a
- * reference taken. It is the caller's responsibily to drop
+ * reference taken. It is the caller's responsibility to drop
  * the reference.
  */
 static struct pci_dev *find_parent_pci_dev(struct device *dev)
@@ -355,7 +355,7 @@ static int upstream_bridge_distance(struct pci_dev *provider,
 
 	/*
 	 * Allow the connection if both devices are on a whitelisted root
-	 * complex, but add an arbitary large value to the distance.
+	 * complex, but add an arbitrary large value to the distance.
 	 */
 	if (root_complex_whitelist(provider) &&
 	    root_complex_whitelist(client))
@@ -414,7 +414,7 @@ static int upstream_bridge_distance_warn(struct pci_dev *provider,
 }
 
 /**
- * pci_p2pdma_distance_many - Determive the cumulative distance between
+ * pci_p2pdma_distance_many - Determine the cumulative distance between
  *	a p2pdma provider and the clients in use.
  * @provider: p2pdma provider to check against the client list
  * @clients: array of devices to check (NULL-terminated)
@@ -443,6 +443,14 @@ int pci_p2pdma_distance_many(struct pci_dev *provider, struct device **clients,
 		return -1;
 
 	for (i = 0; i < num_clients; i++) {
+		if (IS_ENABLED(CONFIG_DMA_VIRT_OPS) &&
+		    clients[i]->dma_ops == &dma_virt_ops) {
+			if (verbose)
+				dev_warn(clients[i],
+					 "cannot be used for peer-to-peer DMA because the driver makes use of dma_virt_ops\n");
+			return -1;
+		}
+
 		pci_client = find_parent_pci_dev(clients[i]);
 		if (!pci_client) {
 			if (verbose)
@@ -721,7 +729,7 @@ int pci_p2pdma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	 * p2pdma mappings are not compatible with devices that use
 	 * dma_virt_ops. If the upper layers do the right thing
 	 * this should never happen because it will be prevented
-	 * by the check in pci_p2pdma_add_client()
+	 * by the check in pci_p2pdma_distance_many()
 	 */
 	if (WARN_ON_ONCE(IS_ENABLED(CONFIG_DMA_VIRT_OPS) &&
 			 dev->dma_ops == &dma_virt_ops))
