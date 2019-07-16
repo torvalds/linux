@@ -904,6 +904,8 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 		wowlan_config_cmd.wakeup_filter |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_RF_KILL_DEASSERT);
 
+	wowlan_config_cmd.sta_id = mvm->aux_sta.sta_id;
+
 	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, 0,
 				   sizeof(wowlan_config_cmd),
 				   &wowlan_config_cmd);
@@ -1010,6 +1012,8 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 		mvm->net_detect = true;
 	} else {
 		struct iwl_wowlan_config_cmd wowlan_config_cmd = {};
+
+		wowlan_config_cmd.sta_id = mvmvif->ap_sta_id;
 
 		ap_sta = rcu_dereference_protected(
 			mvm->fw_id_to_mac_id[mvmvif->ap_sta_id],
