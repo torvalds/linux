@@ -75,7 +75,19 @@ enum hl_device_status {
 	HL_DEVICE_STATUS_MALFUNCTION
 };
 
-/* Opcode for management ioctl */
+/* Opcode for management ioctl
+ *
+ * HW_IP_INFO         - Receive information about different IP blocks in the
+ *                      device.
+ * HL_INFO_HW_EVENTS  - Receive an array describing how many times each event
+ *                      occurred since the last hard reset.
+ * HL_INFO_DRAM_USAGE - Retrieve the dram usage inside the device and of the
+ *                      specific context. This is relevant only for GOYA device.
+ * HL_INFO_HW_IDLE    - Retrieve information about the idle status of each
+ *                      internal engine.
+ * HL_INFO_DEVICE_STATUS - Retrieve the device's status. This opcode doesn't
+ *                         require an open context.
+ */
 #define HL_INFO_HW_IP_INFO	0
 #define HL_INFO_HW_EVENTS	1
 #define HL_INFO_DRAM_USAGE	2
