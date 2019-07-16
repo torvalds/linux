@@ -450,7 +450,7 @@ struct rds_ib_mr *rds_ib_try_reuse_ibmr(struct rds_ib_mr_pool *pool)
 				rds_ib_stats_inc(s_ib_rdma_mr_8k_pool_depleted);
 			else
 				rds_ib_stats_inc(s_ib_rdma_mr_1m_pool_depleted);
-			return ERR_PTR(-EAGAIN);
+			break;
 		}
 
 		/* We do have some empty MRs. Flush them out. */
@@ -464,7 +464,7 @@ struct rds_ib_mr *rds_ib_try_reuse_ibmr(struct rds_ib_mr_pool *pool)
 			return ibmr;
 	}
 
-	return ibmr;
+	return NULL;
 }
 
 static void rds_ib_mr_pool_flush_worker(struct work_struct *work)
