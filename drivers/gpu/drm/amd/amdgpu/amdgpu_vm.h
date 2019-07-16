@@ -90,7 +90,7 @@ struct amdgpu_bo_list_entry;
                                 | AMDGPU_PTE_WRITEABLE  \
                                 | AMDGPU_PTE_MTYPE_VG10(AMDGPU_MTYPE_CC))
 
-/* NAVI10 only */
+/* gfx10 */
 #define AMDGPU_PTE_MTYPE_NV10(a)       ((uint64_t)(a) << 48)
 #define AMDGPU_PTE_MTYPE_NV10_MASK     AMDGPU_PTE_MTYPE_NV10(7ULL)
 
