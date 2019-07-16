@@ -2881,6 +2881,25 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 	vcpu->arch.enabled_gmap = vcpu->arch.gmap;
 }
 
+static bool kvm_has_pckmo_subfunc(struct kvm *kvm, unsigned long nr)
+{
+	if (test_bit_inv(nr, (unsigned long *)&kvm->arch.model.subfuncs.pckmo) &&
+	    test_bit_inv(nr, (unsigned long *)&kvm_s390_available_subfunc.pckmo))
+		return true;
+	return false;
+}
+
+static bool kvm_has_pckmo_ecc(struct kvm *kvm)
+{
+	/* At least one ECC subfunction must be present */
+	return kvm_has_pckmo_subfunc(kvm, 32) ||
+	       kvm_has_pckmo_subfunc(kvm, 33) ||
+	       kvm_has_pckmo_subfunc(kvm, 34) ||
+	       kvm_has_pckmo_subfunc(kvm, 40) ||
+	       kvm_has_pckmo_subfunc(kvm, 41);
+
+}
+
 static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
 {
 	/*
@@ -2893,13 +2912,19 @@ static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->crycbd = vcpu->kvm->arch.crypto.crycbd;
 	vcpu->arch.sie_block->ecb3 &= ~(ECB3_AES | ECB3_DEA);
 	vcpu->arch.sie_block->eca &= ~ECA_APIE;
+	vcpu->arch.sie_block->ecd &= ~ECD_ECC;
 
 	if (vcpu->kvm->arch.crypto.apie)
 		vcpu->arch.sie_block->eca |= ECA_APIE;
 
 	/* Set up protected key support */
-	if (vcpu->kvm->arch.crypto.aes_kw)
+	if (vcpu->kvm->arch.crypto.aes_kw) {
 		vcpu->arch.sie_block->ecb3 |= ECB3_AES;
+		/* ecc is also wrapped with AES key */
+		if (kvm_has_pckmo_ecc(vcpu->kvm))
+			vcpu->arch.sie_block->ecd |= ECD_ECC;
+	}
+
 	if (vcpu->kvm->arch.crypto.dea_kw)
 		vcpu->arch.sie_block->ecb3 |= ECB3_DEA;
 }
