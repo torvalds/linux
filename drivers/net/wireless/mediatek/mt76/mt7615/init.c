@@ -20,10 +20,24 @@ static void mt7615_phy_init(struct mt7615_dev *dev)
 
 static void mt7615_mac_init(struct mt7615_dev *dev)
 {
-	/* enable band 0 clk */
-	mt76_rmw(dev, MT_CFG_CCR,
-		 MT_CFG_CCR_MAC_D0_1X_GC_EN | MT_CFG_CCR_MAC_D0_2X_GC_EN,
-		 MT_CFG_CCR_MAC_D0_1X_GC_EN | MT_CFG_CCR_MAC_D0_2X_GC_EN);
+	u32 val;
+
+	/* enable band 0/1 clk */
+	mt76_set(dev, MT_CFG_CCR,
+		 MT_CFG_CCR_MAC_D0_1X_GC_EN | MT_CFG_CCR_MAC_D0_2X_GC_EN |
+		 MT_CFG_CCR_MAC_D1_1X_GC_EN | MT_CFG_CCR_MAC_D1_2X_GC_EN);
+
+	val = mt76_rmw(dev, MT_TMAC_TRCR0,
+		       MT_TMAC_TRCR_CCA_SEL | MT_TMAC_TRCR_SEC_CCA_SEL,
+		       FIELD_PREP(MT_TMAC_TRCR_CCA_SEL, 2) |
+		       FIELD_PREP(MT_TMAC_TRCR_SEC_CCA_SEL, 0));
+	mt76_wr(dev, MT_TMAC_TRCR1, val);
+
+	val = MT_AGG_ACR_PKT_TIME_EN | MT_AGG_ACR_NO_BA_AR_RULE |
+	      FIELD_PREP(MT_AGG_ACR_CFEND_RATE, 0x49) | /* 24M */
+	      FIELD_PREP(MT_AGG_ACR_BAR_RATE, 0x4b); /* 6M */
+	mt76_wr(dev, MT_AGG_ACR0, val);
+	mt76_wr(dev, MT_AGG_ACR1, val);
 
 	mt76_rmw_field(dev, MT_TMAC_CTCR0,
 		       MT_TMAC_CTCR0_INS_DDLMT_REFTIME, 0x3f);
