@@ -73,6 +73,9 @@ struct cros_ec_sensors_core_state {
 				    unsigned long scan_mask, s16 *data);
 
 	int curr_sampl_freq;
+
+	/* Table of known available frequencies : 0, Min and Max in mHz */
+	int frequencies[3];
 };
 
 /**
@@ -152,6 +155,24 @@ int cros_ec_motion_send_host_cmd(struct cros_ec_sensors_core_state *st,
 int cros_ec_sensors_core_read(struct cros_ec_sensors_core_state *st,
 			      struct iio_chan_spec const *chan,
 			      int *val, int *val2, long mask);
+
+/**
+ * cros_ec_sensors_core_read_avail() - get available values
+ * @indio_dev:		pointer to state information for device
+ * @chan:	channel specification structure table
+ * @vals:	list of available values
+ * @type:	type of data returned
+ * @length:	number of data returned in the array
+ * @mask:	specifies which values to be requested
+ *
+ * Return:	an error code, IIO_AVAIL_RANGE or IIO_AVAIL_LIST
+ */
+int cros_ec_sensors_core_read_avail(struct iio_dev *indio_dev,
+				    struct iio_chan_spec const *chan,
+				    const int **vals,
+				    int *type,
+				    int *length,
+				    long mask);
 
 /**
  * cros_ec_sensors_core_write() - function to write a value to the sensor
