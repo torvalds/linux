@@ -553,7 +553,7 @@ int venus_statfs(struct dentry *dentry, struct kstatfs *sfs)
         union outputArgs *outp;
         int insize, outsize, error;
         
-	insize = max_t(unsigned int, INSIZE(statfs), OUTSIZE(statfs));
+	insize = SIZE(statfs);
 	UPARG(CODA_STATFS);
 
 	error = coda_upcall(coda_vcp(dentry->d_sb), insize, &outsize, inp);
