@@ -23,6 +23,8 @@
 #include <linux/dma-buf.h>
 #include <linux/reservation.h>
 
+#include <drm/drm_file.h>
+
 #include "vgem_drv.h"
 
 #define VGEM_FENCE_TIMEOUT (10*HZ)

@@ -30,10 +30,17 @@
  * software renderer and the X server for efficient buffer sharing.
  */
 
-#include <linux/module.h>
-#include <linux/ramfs.h>
-#include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/shmem_fs.h>
+#include <linux/vmalloc.h>
+
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_prime.h>
+
 #include "vgem_drv.h"
 
 #define DRIVER_NAME	"vgem"
