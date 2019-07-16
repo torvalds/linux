@@ -100,8 +100,12 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 	ssize_t retval = 0, count = 0;
 	int error;
 
+	/* make sure there is enough to copy out the (opcode, unique) values */
+	if (nbytes < (2 * sizeof(u_int32_t)))
+		return -EINVAL;
+
         /* Peek at the opcode, uniquefier */
-	if (copy_from_user(&hdr, buf, 2 * sizeof(u_long)))
+	if (copy_from_user(&hdr, buf, 2 * sizeof(u_int32_t)))
 	        return -EFAULT;
 
         if (DOWNCALL(hdr.opcode)) {
@@ -127,7 +131,7 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 		}
 
 		/* what downcall errors does Venus handle ? */
-		error = coda_downcall(vcp, hdr.opcode, dcbuf);
+		error = coda_downcall(vcp, hdr.opcode, dcbuf, nbytes);
 
 		CODA_FREE(dcbuf, nbytes);
 		if (error) {

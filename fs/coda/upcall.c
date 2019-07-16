@@ -804,11 +804,43 @@ exit:
  *
  * CODA_REPLACE -- replace one CodaFid with another throughout the name cache */
 
-int coda_downcall(struct venus_comm *vcp, int opcode, union outputArgs *out)
+int coda_downcall(struct venus_comm *vcp, int opcode, union outputArgs *out,
+		  size_t nbytes)
 {
 	struct inode *inode = NULL;
 	struct CodaFid *fid = NULL, *newfid;
 	struct super_block *sb;
+
+	/*
+	 * Make sure we have received enough data from the cache
+	 * manager to populate the necessary fields in the buffer
+	 */
+	switch (opcode) {
+	case CODA_PURGEUSER:
+		if (nbytes < sizeof(struct coda_purgeuser_out))
+			return -EINVAL;
+		break;
+
+	case CODA_ZAPDIR:
+		if (nbytes < sizeof(struct coda_zapdir_out))
+			return -EINVAL;
+		break;
+
+	case CODA_ZAPFILE:
+		if (nbytes < sizeof(struct coda_zapfile_out))
+			return -EINVAL;
+		break;
+
+	case CODA_PURGEFID:
+		if (nbytes < sizeof(struct coda_purgefid_out))
+			return -EINVAL;
+		break;
+
+	case CODA_REPLACE:
+		if (nbytes < sizeof(struct coda_replace_out))
+			return -EINVAL;
+		break;
+	}
 
 	/* Handle invalidation requests. */
 	mutex_lock(&vcp->vc_mutex);
