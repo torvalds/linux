@@ -35,3 +35,4 @@ else:
     import linux.constants
     import linux.timerlist
     import linux.clk
+    import linux.genpd
