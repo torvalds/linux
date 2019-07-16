@@ -86,8 +86,6 @@ $(OUTPUT)/urandom_read: $(OUTPUT)/%: %.c
 $(OUTPUT)/test_stub.o: test_stub.c
 	$(CC) $(TEST_PROGS_CFLAGS) $(CFLAGS) -c -o $@ $<
 
-$(OUTPUT)/test_maps: map_tests/*.c
-
 BPFOBJ := $(OUTPUT)/libbpf.a
 
 $(TEST_GEN_PROGS): $(OUTPUT)/test_stub.o $(BPFOBJ)
@@ -257,9 +255,10 @@ MAP_TESTS_DIR = $(OUTPUT)/map_tests
 $(MAP_TESTS_DIR):
 	mkdir -p $@
 MAP_TESTS_H := $(MAP_TESTS_DIR)/tests.h
+MAP_TESTS_FILES := $(wildcard map_tests/*.c)
 test_maps.c: $(MAP_TESTS_H)
 $(OUTPUT)/test_maps: CFLAGS += $(TEST_MAPS_CFLAGS)
-MAP_TESTS_FILES := $(wildcard map_tests/*.c)
+$(OUTPUT)/test_maps: test_maps.c $(MAP_TESTS_H) $(MAP_TESTS_FILES)
 $(MAP_TESTS_H): $(MAP_TESTS_FILES) | $(MAP_TESTS_DIR)
 	$(shell ( cd map_tests/; \
 		  echo '/* Generated header, do not edit */'; \
@@ -276,6 +275,7 @@ $(MAP_TESTS_H): $(MAP_TESTS_FILES) | $(MAP_TESTS_DIR)
 VERIFIER_TESTS_H := $(OUTPUT)/verifier/tests.h
 test_verifier.c: $(VERIFIER_TESTS_H)
 $(OUTPUT)/test_verifier: CFLAGS += $(TEST_VERIFIER_CFLAGS)
+$(OUTPUT)/test_verifier: test_verifier.c $(VERIFIER_TESTS_H)
 
 VERIFIER_TESTS_DIR = $(OUTPUT)/verifier
 $(VERIFIER_TESTS_DIR):
