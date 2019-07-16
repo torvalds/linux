@@ -135,7 +135,7 @@ static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 		me = (*pos & GENMASK_ULL(33, 24)) >> 24;
 		pipe = (*pos & GENMASK_ULL(43, 34)) >> 34;
 		queue = (*pos & GENMASK_ULL(53, 44)) >> 44;
-		vmid = (*pos & GENMASK_ULL(48, 45)) >> 54;
+		vmid = (*pos & GENMASK_ULL(58, 54)) >> 54;
 
 		use_ring = 1;
 	} else {
