@@ -211,6 +211,20 @@ struct CodaFid {
  */
 enum coda_vtype	{ C_VNON, C_VREG, C_VDIR, C_VBLK, C_VCHR, C_VLNK, C_VSOCK, C_VFIFO, C_VBAD };
 
+#ifdef __linux__
+/*
+ * This matches the traditional Linux 'timespec' structure binary layout,
+ * before using 64-bit time_t everywhere. Overflows in y2038 on 32-bit
+ * architectures.
+ */
+struct vtimespec {
+	long		tv_sec;		/* seconds */
+	long		tv_nsec;	/* nanoseconds */
+};
+#else
+#define vtimespec timespec
+#endif
+
 struct coda_vattr {
 	long     	va_type;	/* vnode type (for create) */
 	u_short		va_mode;	/* files access mode and type */
@@ -220,9 +234,9 @@ struct coda_vattr {
 	long		va_fileid;	/* file id */
 	u_quad_t	va_size;	/* file size in bytes */
 	long		va_blocksize;	/* blocksize preferred for i/o */
-	struct timespec	va_atime;	/* time of last access */
-	struct timespec	va_mtime;	/* time of last modification */
-	struct timespec	va_ctime;	/* time file changed */
+	struct vtimespec va_atime;	/* time of last access */
+	struct vtimespec va_mtime;	/* time of last modification */
+	struct vtimespec va_ctime;	/* time file changed */
 	u_long		va_gen;		/* generation number of file */
 	u_long		va_flags;	/* flags defined for file */
 	cdev_t	        va_rdev;	/* device special file represents */

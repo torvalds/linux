@@ -66,6 +66,32 @@ unsigned short coda_flags_to_cflags(unsigned short flags)
 	return coda_flags;
 }
 
+static struct timespec64 coda_to_timespec64(struct vtimespec ts)
+{
+	/*
+	 * We interpret incoming timestamps as 'signed' to match traditional
+	 * usage and support pre-1970 timestamps, but this breaks in y2038
+	 * on 32-bit machines.
+	 */
+	struct timespec64 ts64 = {
+		.tv_sec = ts.tv_sec,
+		.tv_nsec = ts.tv_nsec,
+	};
+
+	return ts64;
+}
+
+static struct vtimespec timespec64_to_coda(struct timespec64 ts64)
+{
+	/* clamp the timestamps to the maximum range rather than wrapping */
+	struct vtimespec ts = {
+		.tv_sec = lower_32_bits(clamp_t(time64_t, ts64.tv_sec,
+						LONG_MIN, LONG_MAX)),
+		.tv_nsec = ts64.tv_nsec,
+	};
+
+	return ts;
+}
 
 /* utility functions below */
 void coda_vattr_to_iattr(struct inode *inode, struct coda_vattr *attr)
@@ -105,11 +131,11 @@ void coda_vattr_to_iattr(struct inode *inode, struct coda_vattr *attr)
 	if (attr->va_size != -1)
 		inode->i_blocks = (attr->va_size + 511) >> 9;
 	if (attr->va_atime.tv_sec != -1) 
-		inode->i_atime = timespec_to_timespec64(attr->va_atime);
+		inode->i_atime = coda_to_timespec64(attr->va_atime);
 	if (attr->va_mtime.tv_sec != -1)
-		inode->i_mtime = timespec_to_timespec64(attr->va_mtime);
+		inode->i_mtime = coda_to_timespec64(attr->va_mtime);
         if (attr->va_ctime.tv_sec != -1)
-		inode->i_ctime = timespec_to_timespec64(attr->va_ctime);
+		inode->i_ctime = coda_to_timespec64(attr->va_ctime);
 }
 
 
@@ -130,12 +156,12 @@ void coda_iattr_to_vattr(struct iattr *iattr, struct coda_vattr *vattr)
         vattr->va_uid = (vuid_t) -1; 
         vattr->va_gid = (vgid_t) -1;
         vattr->va_size = (off_t) -1;
-	vattr->va_atime.tv_sec = (time_t) -1;
-	vattr->va_atime.tv_nsec =  (time_t) -1;
-        vattr->va_mtime.tv_sec = (time_t) -1;
-        vattr->va_mtime.tv_nsec = (time_t) -1;
-	vattr->va_ctime.tv_sec = (time_t) -1;
-	vattr->va_ctime.tv_nsec = (time_t) -1;
+	vattr->va_atime.tv_sec = (long) -1;
+	vattr->va_atime.tv_nsec = (long) -1;
+	vattr->va_mtime.tv_sec = (long) -1;
+	vattr->va_mtime.tv_nsec = (long) -1;
+	vattr->va_ctime.tv_sec = (long) -1;
+	vattr->va_ctime.tv_nsec = (long) -1;
         vattr->va_type = C_VNON;
 	vattr->va_fileid = -1;
 	vattr->va_gen = -1;
@@ -175,13 +201,13 @@ void coda_iattr_to_vattr(struct iattr *iattr, struct coda_vattr *vattr)
                 vattr->va_size = iattr->ia_size;
 	}
         if ( valid & ATTR_ATIME ) {
-		vattr->va_atime = timespec64_to_timespec(iattr->ia_atime);
+		vattr->va_atime = timespec64_to_coda(iattr->ia_atime);
 	}
         if ( valid & ATTR_MTIME ) {
-		vattr->va_mtime = timespec64_to_timespec(iattr->ia_mtime);
+		vattr->va_mtime = timespec64_to_coda(iattr->ia_mtime);
 	}
         if ( valid & ATTR_CTIME ) {
-		vattr->va_ctime = timespec64_to_timespec(iattr->ia_ctime);
+		vattr->va_ctime = timespec64_to_coda(iattr->ia_ctime);
 	}
 }
 
