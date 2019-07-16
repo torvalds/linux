@@ -1312,7 +1312,7 @@ config GPIO_BT8XX
 	  The card needs to be physically altered for using it as a
 	  GPIO card. For more information on how to build a GPIO card
 	  from a BT8xx TV card, see the documentation file at
-	  Documentation/bt8xxgpio.txt
+	  Documentation/driver-api/bt8xxgpio.rst
 
 	  If unsure, say N.
 

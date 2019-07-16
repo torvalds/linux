@@ -384,6 +384,7 @@ more details, with real examples.
 -----------------------
 
 	Kbuild tracks dependencies on the following:
+
 	1) All prerequisite files (both `*.c` and `*.h`)
 	2) `CONFIG_` options used in all prerequisite files
 	3) Command-line used to compile target

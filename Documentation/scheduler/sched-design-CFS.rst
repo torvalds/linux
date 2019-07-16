@@ -222,7 +222,7 @@ SCHED_BATCH) tasks.
 
    These options need CONFIG_CGROUPS to be defined, and let the administrator
    create arbitrary groups of tasks, using the "cgroup" pseudo filesystem.  See
-   Documentation/cgroup-v1/cgroups.rst for more information about this filesystem.
+   Documentation/admin-guide/cgroup-v1/cgroups.rst for more information about this filesystem.
 
 When CONFIG_FAIR_GROUP_SCHED is defined, a "cpu.shares" file is created for each
 group created using the pseudo filesystem.  See example steps below to create
