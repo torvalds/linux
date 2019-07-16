@@ -848,7 +848,7 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip) { return 0; }
 
 int of_gpiochip_add(struct gpio_chip *chip)
 {
-	int status;
+	int ret;
 
 	if (!chip->of_node)
 		return 0;
@@ -863,9 +863,9 @@ int of_gpiochip_add(struct gpio_chip *chip)
 
 	of_gpiochip_init_valid_mask(chip);
 
-	status = of_gpiochip_add_pin_range(chip);
-	if (status)
-		return status;
+	ret = of_gpiochip_add_pin_range(chip);
+	if (ret)
+		return ret;
 
 	/* If the chip defines names itself, these take precedence */
 	if (!chip->names)
@@ -874,13 +874,13 @@ int of_gpiochip_add(struct gpio_chip *chip)
 
 	of_node_get(chip->of_node);
 
-	status = of_gpiochip_scan_gpios(chip);
-	if (status) {
+	ret = of_gpiochip_scan_gpios(chip);
+	if (ret) {
 		of_node_put(chip->of_node);
 		gpiochip_remove_pin_ranges(chip);
 	}
 
-	return status;
+	return ret;
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)
