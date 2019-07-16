@@ -13,7 +13,7 @@
  *   04-Dec-1997	RMK	Updated for new arch/arm/time.c
  *   13=Jun-2004	DS	Moved to arch/arm/common b/c shared w/CLPS7500
  */
-#include <linux/timex.h>
+#include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -27,11 +27,15 @@
 #define RPC_CLOCK_FREQ 2000000
 #define RPC_LATCH DIV_ROUND_CLOSEST(RPC_CLOCK_FREQ, HZ)
 
-static u32 ioc_timer_gettimeoffset(void)
+static u32 ioc_time;
+
+static u64 ioc_timer_read(struct clocksource *cs)
 {
 	unsigned int count1, count2, status;
-	long offset;
+	unsigned long flags;
+	u32 ticks;
 
+	local_irq_save(flags);
 	ioc_writeb (0, IOC_T0LATCH);
 	barrier ();
 	count1 = ioc_readb(IOC_T0CNTL) | (ioc_readb(IOC_T0CNTH) << 8);
@@ -41,26 +45,33 @@ static u32 ioc_timer_gettimeoffset(void)
 	ioc_writeb (0, IOC_T0LATCH);
 	barrier ();
 	count2 = ioc_readb(IOC_T0CNTL) | (ioc_readb(IOC_T0CNTH) << 8);
+	ticks = ioc_time + RPC_LATCH - count2;
+	local_irq_restore(flags);
 
-	offset = count2;
 	if (count2 < count1) {
 		/*
-		 * We have not had an interrupt between reading count1
-		 * and count2.
+		 * The timer has not reloaded between reading count1 and
+		 * count2, check whether an interrupt was actually pending.
 		 */
 		if (status & (1 << 5))
-			offset -= RPC_LATCH;
+			ticks += RPC_LATCH;
 	} else if (count2 > count1) {
 		/*
-		 * We have just had another interrupt between reading
-		 * count1 and count2.
+		 * The timer has reloaded, so count2 indicates the new
+		 * count since the wrap.  The interrupt would not have
+		 * been processed, so add the missed ticks.
 		 */
-		offset -= RPC_LATCH;
+		ticks += RPC_LATCH;
 	}
 
-	offset = (RPC_LATCH - offset) * (tick_nsec / 1000);
-	return DIV_ROUND_CLOSEST(offset, RPC_LATCH) * 1000;
+	return ticks;
 }
+
+static struct clocksource ioctime_clocksource = {
+	.read = ioc_timer_read,
+	.mask = CLOCKSOURCE_MASK(32),
+	.rating = 100,
+};
 
 void __init ioctime_init(void)
 {
@@ -72,6 +83,7 @@ void __init ioctime_init(void)
 static irqreturn_t
 ioc_timer_interrupt(int irq, void *dev_id)
 {
+	ioc_time += RPC_LATCH;
 	timer_tick();
 	return IRQ_HANDLED;
 }
@@ -86,7 +98,7 @@ static struct irqaction ioc_timer_irq = {
  */
 void __init ioc_timer_init(void)
 {
-	arch_gettimeoffset = ioc_timer_gettimeoffset;
+	WARN_ON(clocksource_register_hz(&ioctime_clocksource, RPC_CLOCK_FREQ));
 	ioctime_init();
 	setup_irq(IRQ_TIMER0, &ioc_timer_irq);
 }
