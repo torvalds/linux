@@ -2234,6 +2234,12 @@ static int kvm_s390_handle_pv(struct kvm *kvm, struct kvm_pv_cmd *cmd)
 		if (r)
 			break;
 
+		down_write(&current->mm->mmap_sem);
+		r = gmap_mark_unmergeable();
+		up_write(&current->mm->mmap_sem);
+		if (r)
+			break;
+
 		r = kvm_s390_pv_init_vm(kvm, &cmd->rc, &cmd->rrc);
 		if (r)
 			break;
