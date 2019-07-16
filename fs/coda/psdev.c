@@ -357,7 +357,7 @@ static const struct file_operations coda_psdev_fops = {
 	.llseek		= noop_llseek,
 };
 
-static int init_coda_psdev(void)
+static int __init init_coda_psdev(void)
 {
 	int i, err = 0;
 	if (register_chrdev(CODA_PSDEV_MAJOR, "coda", &coda_psdev_fops)) {
