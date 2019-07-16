@@ -166,7 +166,7 @@ static int fdomain_test_loopback(int base)
 
 static void fdomain_reset(int base)
 {
-	outb(1, base + REG_BCTL);
+	outb(BCTL_RST, base + REG_BCTL);
 	mdelay(20);
 	outb(0, base + REG_BCTL);
 	mdelay(1150);
