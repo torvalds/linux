@@ -26,14 +26,6 @@
 #include <asm/processor.h>
 #include <asm/hypervisor.h>
 
-extern const struct hypervisor_x86 x86_hyper_vmware;
-extern const struct hypervisor_x86 x86_hyper_ms_hyperv;
-extern const struct hypervisor_x86 x86_hyper_xen_pv;
-extern const struct hypervisor_x86 x86_hyper_xen_hvm;
-extern const struct hypervisor_x86 x86_hyper_kvm;
-extern const struct hypervisor_x86 x86_hyper_jailhouse;
-extern const struct hypervisor_x86 x86_hyper_acrn;
-
 static const __initconst struct hypervisor_x86 * const hypervisors[] =
 {
 #ifdef CONFIG_XEN_PV

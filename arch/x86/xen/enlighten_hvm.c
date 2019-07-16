@@ -259,7 +259,7 @@ static __init void xen_hvm_guest_late_init(void)
 #endif
 }
 
-const __initconst struct hypervisor_x86 x86_hyper_xen_hvm = {
+struct hypervisor_x86 x86_hyper_xen_hvm __initdata = {
 	.name                   = "Xen HVM",
 	.detect                 = xen_platform_hvm,
 	.type			= X86_HYPER_XEN_HVM,
