@@ -40,6 +40,7 @@
 #include "rds_single_path.h"
 #include "rds.h"
 #include "ib.h"
+#include "ib_mr.h"
 
 /*
  * Set the selected protocol version
@@ -993,6 +994,11 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 				ic->i_cm_id, err);
 		}
 
+		/* kick off "flush_worker" for all pools in order to reap
+		 * all FRMR registrations that are still marked "FRMR_IS_INUSE"
+		 */
+		rds_ib_flush_mrs();
+
 		/*
 		 * We want to wait for tx and rx completion to finish
 		 * before we tear down the connection, but we have to be
@@ -1005,6 +1011,7 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 		wait_event(rds_ib_ring_empty_wait,
 			   rds_ib_ring_empty(&ic->i_recv_ring) &&
 			   (atomic_read(&ic->i_signaled_sends) == 0) &&
+			   (atomic_read(&ic->i_fastreg_inuse_count) == 0) &&
 			   (atomic_read(&ic->i_fastreg_wrs) == RDS_IB_DEFAULT_FR_WR));
 		tasklet_kill(&ic->i_send_tasklet);
 		tasklet_kill(&ic->i_recv_tasklet);
