@@ -18,13 +18,15 @@
 
 #include <asm/mach-types.h>
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_CPU("ep93xx-ac97")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("ac97-codec", "ac97-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("ep93xx-ac97")));
+
 static struct snd_soc_dai_link simone_dai = {
 	.name		= "AC97",
 	.stream_name	= "AC97 HiFi",
-	.cpu_dai_name	= "ep93xx-ac97",
-	.codec_dai_name	= "ac97-hifi",
-	.codec_name	= "ac97-codec",
-	.platform_name	= "ep93xx-ac97",
+	SND_SOC_DAILINK_REG(hifi),
 };
 
 static struct snd_soc_card snd_soc_simone = {

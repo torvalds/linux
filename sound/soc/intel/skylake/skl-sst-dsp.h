@@ -169,7 +169,7 @@ struct skl_dsp_loader_ops {
 #define MAX_INSTANCE_BUFF 2
 
 struct uuid_module {
-	uuid_le uuid;
+	guid_t uuid;
 	int id;
 	int is_loadable;
 	int max_instance;
@@ -233,8 +233,8 @@ void bxt_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 
 int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 				unsigned int offset, int index);
-int skl_get_pvt_id(struct skl_sst *ctx, uuid_le *uuid_mod, int instance_id);
-int skl_put_pvt_id(struct skl_sst *ctx, uuid_le *uuid_mod, int *pvt_id);
+int skl_get_pvt_id(struct skl_sst *ctx, guid_t *uuid_mod, int instance_id);
+int skl_put_pvt_id(struct skl_sst *ctx, guid_t *uuid_mod, int *pvt_id);
 int skl_get_pvt_instance_id_map(struct skl_sst *ctx,
 				int module_id, int instance_id);
 void skl_freeup_uuid_list(struct skl_sst *ctx);
