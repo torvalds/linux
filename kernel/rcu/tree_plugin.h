@@ -1909,8 +1909,10 @@ static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_alldone,
 			rcu_advance_cbs_nowake(rdp->mynode, rdp);
 			rdp->nocb_gp_adv_time = j;
 		}
-		if (rdp->nocb_cb_sleep ||
-		    !rcu_segcblist_ready_cbs(&rdp->cblist))
+		smp_mb(); /* Enqueue before timer_pending(). */
+		if ((rdp->nocb_cb_sleep ||
+		     !rcu_segcblist_ready_cbs(&rdp->cblist)) &&
+		    !timer_pending(&rdp->nocb_bypass_timer))
 			wake_nocb_gp_defer(rdp, RCU_NOCB_WAKE_FORCE,
 					   TPS("WakeOvfIsDeferred"));
 		rcu_nocb_unlock_irqrestore(rdp, flags);
@@ -1929,6 +1931,7 @@ static void do_nocb_bypass_wakeup_timer(struct timer_list *t)
 
 	trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("Timer"));
 	rcu_nocb_lock_irqsave(rdp, flags);
+	smp_mb__after_spinlock(); /* Timer expire before wakeup. */
 	__call_rcu_nocb_wake(rdp, true, flags);
 }
 
