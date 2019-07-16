@@ -12611,6 +12611,17 @@ F:	arch/arm/boot/dts/picoxcell*
 F:	arch/arm/mach-picoxcell/
 F:	drivers/crypto/picoxcell*
 
+PIDFD API
+M:	Christian Brauner <christian@brauner.io>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/brauner/linux.git
+F:	samples/pidfd/
+F:	tools/testing/selftests/pidfd/
+K:	(?i)pidfd
+K:	(?i)clone3
+K:	\b(clone_args|kernel_clone_args)\b
+
 PIN CONTROL SUBSYSTEM
 M:	Linus Walleij <linus.walleij@linaro.org>
 L:	linux-gpio@vger.kernel.org
