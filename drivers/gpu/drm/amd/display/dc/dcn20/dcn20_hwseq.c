@@ -1353,13 +1353,15 @@ static void dcn20_apply_ctx_for_surface(
 		int num_planes,
 		struct dc_state *context)
 {
-
+	const unsigned int TIMEOUT_FOR_PIPE_ENABLE_MS = 100;
 	int i;
 	struct timing_generator *tg;
 	bool removed_pipe[6] = { false };
 	bool interdependent_update = false;
 	struct pipe_ctx *top_pipe_to_program =
 			find_top_pipe_for_stream(dc, context, stream);
+	struct pipe_ctx *prev_top_pipe_to_program =
+			find_top_pipe_for_stream(dc, dc->current_state, stream);
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (!top_pipe_to_program)
@@ -1453,6 +1455,22 @@ static void dcn20_apply_ctx_for_surface(
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (removed_pipe[i])
 			dcn20_disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
+
+	/*
+	 * If we are enabling a pipe, we need to wait for pending clear as this is a critical
+	 * part of the enable operation otherwise, DM may request an immediate flip which
+	 * will cause HW to perform an "immediate enable" (as opposed to "vsync enable") which
+	 * is unsupported on DCN.
+	 */
+	i = 0;
+	if (num_planes > 0 && top_pipe_to_program &&
+			(prev_top_pipe_to_program == NULL || prev_top_pipe_to_program->plane_state == NULL)) {
+		while (i < TIMEOUT_FOR_PIPE_ENABLE_MS &&
+				top_pipe_to_program->plane_res.hubp->funcs->hubp_is_flip_pending(top_pipe_to_program->plane_res.hubp)) {
+			i += 1;
+			msleep(1);
+		}
+	}
 }
 
 
