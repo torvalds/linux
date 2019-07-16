@@ -939,7 +939,8 @@ static int cdn_dp_request_firmware(struct cdn_dp_device *dp)
 	mutex_unlock(&dp->lock);
 
 	while (time_before(jiffies, timeout)) {
-		ret = request_firmware(&dp->fw, CDN_DP_FIRMWARE, dp->dev);
+		ret = request_firmware_direct(&dp->fw, CDN_DP_FIRMWARE,
+					      dp->dev);
 		if (ret == -ENOENT) {
 			msleep(sleep);
 			sleep *= 2;
