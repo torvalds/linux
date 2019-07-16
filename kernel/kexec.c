@@ -325,6 +325,234 @@ typedef uint64_t            UINTN;
 typedef char                CHAR8;
 typedef efi_system_table_t  EFI_SYSTEM_TABLE;
 typedef efi_char16_t        CHAR16;
+typedef UINT64              EFI_LBA;
+typedef unsigned char       BOOLEAN;
+
+/**
+  Block IO read only mode data and updated only via members of BlockIO
+**/
+typedef struct {
+  ///
+  /// The curent media Id. If the media changes, this value is changed.
+  ///
+  UINT32  MediaId;
+
+  ///
+  /// TRUE if the media is removable; otherwise, FALSE.
+  ///
+  BOOLEAN RemovableMedia;
+
+  ///
+  /// TRUE if there is a media currently present in the device;
+  /// othersise, FALSE. THis field shows the media present status
+  /// as of the most recent ReadBlocks() or WriteBlocks() call.
+  ///
+  BOOLEAN MediaPresent;
+
+  ///
+  /// TRUE if LBA 0 is the first block of a partition; otherwise
+  /// FALSE. For media with only one partition this would be TRUE.
+  ///
+  BOOLEAN LogicalPartition;
+
+  ///
+  /// TRUE if the media is marked read-only otherwise, FALSE.
+  /// This field shows the read-only status as of the most recent WriteBlocks () call.
+  ///
+  BOOLEAN ReadOnly;
+
+  ///
+  /// TRUE if the WriteBlock () function caches write data.
+  ///
+  BOOLEAN WriteCaching;
+
+  ///
+  /// The intrinsic block size of the device. If the media changes, then
+  /// this field is updated.
+  ///
+  UINT32  BlockSize;
+
+  ///
+  /// Supplies the alignment requirement for any buffer to read or write block(s).
+  ///
+  UINT32  IoAlign;
+
+  ///
+  /// The last logical block address on the device.
+  /// If the media changes, then this field is updated.
+  ///
+  EFI_LBA LastBlock;
+
+  ///
+  /// Only present if EFI_BLOCK_IO_PROTOCOL.Revision is greater than or equal to
+  /// EFI_BLOCK_IO_PROTOCOL_REVISION2. Returns the first LBA is aligned to
+  /// a physical block boundary.
+  ///
+  EFI_LBA LowestAlignedLba;
+
+  ///
+  /// Only present if EFI_BLOCK_IO_PROTOCOL.Revision is greater than or equal to
+  /// EFI_BLOCK_IO_PROTOCOL_REVISION2. Returns the number of logical blocks
+  /// per physical block.
+  ///
+  UINT32 LogicalBlocksPerPhysicalBlock;
+
+  ///
+  /// Only present if EFI_BLOCK_IO_PROTOCOL.Revision is greater than or equal to
+  /// EFI_BLOCK_IO_PROTOCOL_REVISION3. Returns the optimal transfer length
+  /// granularity as a number of logical blocks.
+  ///
+  UINT32 OptimalTransferLengthGranularity;
+} EFI_BLOCK_IO_MEDIA;
+
+/*
+ * This protocol provides control over block devices.
+ */
+typedef struct {
+        /*
+         * The revision to which the block IO interface adheres. All future
+         * revisions must be backwards compatible. If a future version is not
+         * back wards compatible, it is not the same GUID.
+        */
+        UINT64              Revision;
+        /*
+         * Pointer to the EFI_BLOCK_IO_MEDIA data for this device.
+         */
+        EFI_BLOCK_IO_MEDIA  *Media;
+
+        void*               Reset;
+        void*               ReadBlocks;
+        void*               WriteBlocks;
+        void*               FlushBlocks;
+
+        /* This is extra data we add on top. This will be accessible by the
+         * functions above, as their first parameter is "*This". */
+        uint64_t device_id;
+} EFI_BLOCK_IO_PROTOCOL;
+
+ __attribute__((ms_abi)) efi_status_t efi_block_io_reset(EFI_BLOCK_IO_PROTOCOL* block_io)
+{
+        DebugMSG( "NOT IMPLEMENTED. device_id = %lld", block_io->device_id );
+        return EFI_UNSUPPORTED;
+}
+
+ __attribute__((ms_abi)) efi_status_t efi_block_io_read_blocks(EFI_BLOCK_IO_PROTOCOL* block_io)
+{
+        DebugMSG( "NOT IMPLEMENTED. device_id = %lld", block_io->device_id );
+        return EFI_UNSUPPORTED;
+}
+
+ __attribute__((ms_abi)) efi_status_t efi_block_io_write_blocks(EFI_BLOCK_IO_PROTOCOL* block_io)
+{
+        DebugMSG( "NOT IMPLEMENTED. device_id = %lld", block_io->device_id );
+        return EFI_UNSUPPORTED;
+}
+
+ __attribute__((ms_abi)) efi_status_t efi_block_io_flush_blocks(EFI_BLOCK_IO_PROTOCOL* block_io)
+{
+        DebugMSG( "NOT IMPLEMENTED. device_id = %lld", block_io->device_id );
+        return EFI_UNSUPPORTED;
+}
+
+EFI_BLOCK_IO_MEDIA raw_device_media = {
+        .MediaId                           = 1,
+        .RemovableMedia                    = 0,
+        .MediaPresent                      = 1,
+        .LogicalPartition                  = 0,
+        .ReadOnly                          = 0,
+        .WriteCaching                      = 0,
+        .BlockSize                         = 512,
+        .IoAlign                           = 0,
+        .LastBlock                         = 104857599,
+        .LowestAlignedLba                  = 0,
+        .LogicalBlocksPerPhysicalBlock     = 0,
+        .OptimalTransferLengthGranularity  = 0,
+};
+
+EFI_BLOCK_IO_MEDIA partition_1_media = {
+        .MediaId                           = 1,
+        .RemovableMedia                    = 0,
+        .MediaPresent                      = 1,
+        .LogicalPartition                  = 1,
+        .ReadOnly                          = 0,
+        .WriteCaching                      = 0,
+        .BlockSize                         = 512,
+        .IoAlign                           = 0,
+        .LastBlock                         = 32733,
+        .LowestAlignedLba                  = 0,
+        .LogicalBlocksPerPhysicalBlock     = 0,
+        .OptimalTransferLengthGranularity  = 0,
+};
+
+EFI_BLOCK_IO_MEDIA partition_2_media = {
+        .MediaId                           = 1,
+        .RemovableMedia                    = 0,
+        .MediaPresent                      = 1,
+        .LogicalPartition                  = 1,
+        .ReadOnly                          = 0,
+        .WriteCaching                      = 0,
+        .BlockSize                         = 512,
+        .IoAlign                           = 0,
+        .LastBlock                         = 204799,
+        .LowestAlignedLba                  = 0,
+        .LogicalBlocksPerPhysicalBlock     = 0,
+        .OptimalTransferLengthGranularity  = 0,
+};
+
+EFI_BLOCK_IO_MEDIA partition_3_media = {
+        .MediaId                           = 1,
+        .RemovableMedia                    = 0,
+        .MediaPresent                      = 1,
+        .LogicalPartition                  = 1,
+        .ReadOnly                          = 0,
+        .WriteCaching                      = 0,
+        .BlockSize                         = 512,
+        .IoAlign                           = 0,
+        .LastBlock                         = 104617983,
+        .LowestAlignedLba                  = 0,
+        .LogicalBlocksPerPhysicalBlock     = 0,
+        .OptimalTransferLengthGranularity  = 0,
+};
+
+EFI_BLOCK_IO_PROTOCOL raw_device_block_io = {
+        .Revision = 0x20031,
+        .Media = &raw_device_media,
+        .Reset = efi_block_io_reset,
+        .ReadBlocks = efi_block_io_read_blocks,
+        .WriteBlocks = efi_block_io_write_blocks,
+        .FlushBlocks = efi_block_io_flush_blocks,
+        .device_id = 0
+};
+
+EFI_BLOCK_IO_PROTOCOL partition_1_block_io = {
+        .Revision = 0x20031,
+        .Media = &partition_1_media,
+        .Reset = efi_block_io_reset,
+        .ReadBlocks = efi_block_io_read_blocks,
+        .WriteBlocks = efi_block_io_write_blocks,
+        .FlushBlocks = efi_block_io_flush_blocks,
+        .device_id = 1
+};
+
+EFI_BLOCK_IO_PROTOCOL partition_2_block_io = {
+        .Revision = 0x20031,
+        .Media = &partition_2_media,
+        .Reset = efi_block_io_reset,
+        .ReadBlocks = efi_block_io_read_blocks,
+        .WriteBlocks = efi_block_io_write_blocks,
+        .FlushBlocks = efi_block_io_flush_blocks,
+        .device_id = 2
+};
+
+EFI_BLOCK_IO_PROTOCOL partition_3_block_io = {
+        .Revision = 0x20031,
+        .Media = &partition_3_media,
+        .Reset = efi_block_io_reset,
+        .ReadBlocks = efi_block_io_read_blocks,
+        .WriteBlocks = efi_block_io_write_blocks,
+        .FlushBlocks = efi_block_io_flush_blocks,
+        .device_id = 3
+};
 
 /*
  * Enumeration of memory types introduced in UEFI. */
@@ -1108,41 +1336,147 @@ EFI_DEVICE_PATH_PROTOCOL* creat_windows_loader_device(void)
         return windows_loader_device;
 }
 
-/* BOOT_DEVICE_HANDLE and windows_boot_device_path are mocks. The mock handle
- * helps us identify later on the handle. windows_boot_device_path is copied
- * from a normal Windows EFI boot we logged. */
-#define BOOT_DEVICE_HANDLE (EFI_HANDLE)0xDEADBEEF
+/* Below are mock devices to be used with OpenProtocol, LocateProtocol, etc.
+ * They are all taken from a normal Windows EFI boot we logged. */
 
-uint8_t windows_boot_device_path[72] = {
+/* This device path is the the raw hard drive.
+   It contains just PciRoot(0x0)/Pci(0x4,0x0)/Scsi(0x1,0x0) */
+uint8_t windows_raw_hd_device_path[30] = {
         /* ACPIPciRoot(0x0) */
         0x02, 0x01, 0x0C, 0x00, 0xD0, 0x41, 0x03, 0x0A,
         0x00, 0x00, 0x00, 0x00,
+
+        /* Pci(0x4,0x0) */
+        0x01, 0x01, 0x06, 0x00, 0x00, 0x04,
+
+        /* Scsi(0x1,0x0) */
+        0x03, 0x02, 0x08, 0x00, 0x01, 0x00, 0x00, 0x00,
+
+        /* No partition */
+
+        /* End Node */
+        0x7F, 0xFF, 0x04, 0x00,
+};
+
+/* Device-path:
+ *  PciRoot(0x0)/Pci(0x4,0x0)/Scsi(0x1,0x0)/
+    HD(1,GPT,268DBAA1-CFA8-4D22-A3E9-BFECF74555DA,0x22,0x7FDE) */
+uint8_t windows_partition_1_device_path[72] = {
+        /* ACPIPciRoot(0x0) */
+        0x02, 0x01, 0x0C, 0x00, 0xD0, 0x41, 0x03, 0x0A,
+        0x00, 0x00, 0x00, 0x00,
+
+        /* Pci(0x4,0x0) */
+        0x01, 0x01, 0x06, 0x00, 0x00, 0x04,
+
+        /* Scsi(0x1,0x0) */
+        0x03, 0x02, 0x08, 0x00, 0x01, 0x00, 0x00, 0x00,
+
+        /* HD(1,GPT,268DBAA1-CFA8-4D22-A3E9-BFECF74555DA,0x22,0x7FDE) */
+        0x04, 0x01, 0x2A, 0x00,
+        0x01, 0x00, 0x00, 0x00, 0x22, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0xDE, 0x7F, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0xA1, 0xBA, 0x8D, 0x26,
+        0xA8, 0xCF, 0x22, 0x4D, 0xA3, 0xE9, 0xBF, 0xEC,
+        0xF7, 0x45, 0x55, 0xDA, 0x02, 0x02,
+
+        /* End Node */
+        0x7F, 0xFF, 0x04, 0x00,
+};
+
+/* PciRoot(0x0)/Pci(0x4,0x0)/Scsi(0x1,0x0)/
+   HD(2,GPT,F6B5FF3C-2E8F-470D-98A8-D1110EDD1E1E,0x8000,0x32000) */
+uint8_t windows_partition_2_device_path[72] = {
+        /* PciRoot(0x0) */
+        0x02, 0x01, 0x0C, 0x00,
+        0xD0, 0x41, 0x03, 0x0A, 0x00, 0x00, 0x00, 0x00,
 
         /* Pci(0x4,0x0) */
         0x01, 0x01, 0x06, 0x00,
         0x00, 0x04,
 
         /* Scsi(0x1,0x0) */
-        0x03, 0x02, 0x08, 0x00, 0x01, 0x00,
-        0x00, 0x00,
+        0x03, 0x02, 0x08, 0x00,
+        0x01, 0x00, 0x00, 0x00,
 
         /* HD(2,GPT,F6B5FF3C-2E8F-470D-98A8-D1110EDD1E1E,0x8000,0x32000) */
-        0x04, 0x01, 0x2A, 0x00, 0x02, 0x00,
-        0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x20, 0x03, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x3C, 0xFF, 0xB5, 0xF6, 0x8F, 0x2E,
-        0x0D, 0x47, 0x98, 0xA8, 0xD1, 0x11, 0x0E, 0xDD,
-        0x1E, 0x1E, 0x02, 0x02,
+        0x04, 0x01, 0x2A, 0x00,
+        0x02, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x03, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x3C, 0xFF, 0xB5, 0xF6,
+        0x8F, 0x2E, 0x0D, 0x47, 0x98, 0xA8, 0xD1, 0x11,
+        0x0E, 0xDD, 0x1E, 0x1E, 0x02, 0x02,
 
         /* End Node */
         0x7F, 0xFF, 0x04, 0x00,
 };
 
+/* PciRoot(0x0)/Pci(0x4,0x0)/Scsi(0x1,0x0)/
+   HD(3,GPT,8B564A0A-EC1A-4653-9CF5-A691EA8C2D56,0x3A000,0x63C5800) */
+uint8_t windows_partition_3_device_path[72] = {
+        /* PciRoot(0x0) */
+        0x02, 0x01, 0x0C, 0x00,
+        0xD0, 0x41, 0x03, 0x0A, 0x00, 0x00, 0x00, 0x00,
+
+        /* Pci(0x4,0x0) */
+        0x01, 0x01, 0x06, 0x00,
+        0x00, 0x04,
+
+        /* Scsi(0x1,0x0) */
+        0x03, 0x02, 0x08, 0x00,
+        0x01, 0x00, 0x00, 0x00,
+
+        /* HD(3,GPT,8B564A0A-EC1A-4653-9CF5-A691EA8C2D56,0x3A000,0x63C5800) */
+        0x04, 0x01, 0x2A, 0x00,
+        0x03, 0x00, 0x00, 0x00, 0x00, 0xA0, 0x03, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x58, 0x3C, 0x06,
+        0x00, 0x00, 0x00, 0x00, 0x0A, 0x4A, 0x56, 0x8B,
+        0x1A, 0xEC, 0x53, 0x46, 0x9C, 0xF5, 0xA6, 0x91,
+        0xEA, 0x8C, 0x2D, 0x56, 0x02, 0x02,
+
+        /* End Node */
+        0x7F, 0xFF, 0x04, 0x00,
+};
+
+typedef struct {
+        EFI_HANDLE            handle;
+        size_t                size;
+        uint8_t               *device_path;
+        EFI_BLOCK_IO_PROTOCOL *block_io;
+} DeviceData;
+
+
+#define BOOT_RAW_DEVICE_HANDLE  0xDEADBEE0
+#define BOOT_PARTITION_1_HANDLE (BOOT_RAW_DEVICE_HANDLE + 1)
+#define BOOT_PARTITION_2_HANDLE (BOOT_RAW_DEVICE_HANDLE + 2)
+#define BOOT_PARTITION_3_HANDLE (BOOT_RAW_DEVICE_HANDLE + 3)
+
+DeviceData devices[4] = {
+        { ( EFI_HANDLE )BOOT_RAW_DEVICE_HANDLE,
+          sizeof( windows_raw_hd_device_path ),
+          windows_raw_hd_device_path,
+          &raw_device_block_io },
+        { ( EFI_HANDLE )BOOT_PARTITION_1_HANDLE,
+          sizeof( windows_partition_1_device_path ),
+          windows_partition_1_device_path,
+          &partition_1_block_io },
+        { ( EFI_HANDLE )BOOT_PARTITION_2_HANDLE,
+          sizeof( windows_partition_2_device_path ),
+          windows_partition_2_device_path,
+          &partition_2_block_io },
+        { ( EFI_HANDLE )BOOT_PARTITION_3_HANDLE,
+          sizeof( windows_partition_3_device_path ),
+          windows_partition_3_device_path,
+          &partition_3_block_io }
+};
+
+#define NUM_DEVICES (sizeof(devices) / sizeof(DeviceData))
+
 EFI_LOADED_IMAGE_PROTOCOL windows_loaded_image = {
         .Revision         = 0x1000,
         .ParentHandle     = (void*)0x420000,
         .SystemTable      = NULL,
-        .DeviceHandle     = BOOT_DEVICE_HANDLE,
+        .DeviceHandle     = ( EFI_HANDLE )BOOT_PARTITION_2_HANDLE,
         .FilePath         = NULL,
         .LoadOptionsSize  = sizeof(REVERSED_LOAD_OPTIONS),
         .LoadOptions      = NULL,
@@ -1234,22 +1568,52 @@ efi_status_t efi_handle_protocol_LoadedImage( void* handle, void** interface )
         return EFI_SUCCESS;
 }
 
+#define INVALID_DEVICE_ID -1
+int get_device_id( void* handle )
+{
+        int i = 0;
+        for (i = 0; i < NUM_DEVICES; i++ ) {
+                if (devices[i].handle == handle) {
+                        DebugMSG( "Found handle at devices[%d]", i );
+                        return i;
+                }
+        }
+
+        return INVALID_DEVICE_ID;
+}
+
 efi_status_t efi_handle_protocol_DevicePath( void* handle, void** interface )
 {
-        DebugMSG( "Called" );
+        int device_id = get_device_id( handle );
 
-        if (handle != BOOT_DEVICE_HANDLE) {
+        DebugMSG( "handle = %px", handle );
+
+        if (device_id == INVALID_DEVICE_ID) {
                 DebugMSG( "unknown handle %px", handle );
 
                 return EFI_UNSUPPORTED;
         }
 
-        *interface = (void*)windows_boot_device_path;
+        *interface = (void*)devices[device_id].device_path;
+        DumpBuffer( "Device Path",
+                    (uint8_t*) *interface, devices[device_id].size );
 
-        DebugMSG( "Returning constant boot device path @ %px",
-                   windows_boot_device_path );
+        return EFI_SUCCESS;
+}
 
-        DumpBuffer( "Boot Device Path", (uint8_t*) *interface, sizeof( windows_boot_device_path ) );
+efi_status_t efi_handle_protocol_BlockIO( void* handle, void** interface )
+{
+        int device_id = get_device_id( handle );
+
+        DebugMSG( "handle = %px", handle );
+
+        if (device_id == INVALID_DEVICE_ID) {
+                DebugMSG( "unknown handle %px", handle );
+
+                return EFI_UNSUPPORTED;
+        }
+
+        *interface = (void*)devices[device_id].block_io;
 
         return EFI_SUCCESS;
 }
@@ -1767,6 +2131,9 @@ __attribute__((ms_abi)) efi_status_t efi_hook_HandleProtocol( void* handle,
         if (strcmp (protocolName, "gEfiDevicePathProtocolGuid") == 0) {
                 return efi_handle_protocol_DevicePath( handle, interface );
         }
+        if (strcmp (protocolName, "gEfiBlockIoProtocolGuid") == 0) {
+                return efi_handle_protocol_BlockIO( handle, interface );
+        }
 
         DebugMSG( "Unsuppurted protocol requested." );
         return EFI_UNSUPPORTED;
@@ -1794,11 +2161,31 @@ __attribute__((ms_abi)) efi_status_t efi_hook_LocateHandle(
                                         EFI_HANDLE *Buffer)
 
 {
-         DebugMSG( "SearchType = %d, protocol = %s (%s), BufferSize = %lld",
-                   SearchType, GetGuidName( Protocol ),
-                   get_GUID_str( Protocol ), *BufferSize );
+        int i;
+        const char* protocol_name = GetGuidName( Protocol );
+        DebugMSG( "SearchType = %d, protocol = %s (%s), BufferSize = %lld "
+                  "Buffer @ %px",
+                  SearchType, protocol_name,
+                  get_GUID_str( Protocol ), *BufferSize, Buffer );
 
-         return EFI_NOT_FOUND;
+        if (strcmp (protocol_name, "gEfiBlockIoProtocolGuid") != 0 ) {
+                DebugMSG( "Unsupported protocol" );
+                return EFI_NOT_FOUND;
+        }
+
+        if (*BufferSize < sizeof( EFI_HANDLE ) * NUM_DEVICES) {
+               *BufferSize = sizeof( EFI_HANDLE ) * NUM_DEVICES;
+               return EFI_BUFFER_TOO_SMALL;
+        }
+
+        *BufferSize = sizeof( EFI_HANDLE ) * NUM_DEVICES;
+
+        for (i = 0; i < NUM_DEVICES; i++) {
+               Buffer[i] = devices[i].handle;
+               DebugMSG( "Adding devices[%d].handle = %px", i, Buffer[i] );
+        }
+
+        return EFI_SUCCESS;
 }
 
 __attribute__((ms_abi)) efi_status_t efi_hook_LocateDevicePath(void)
@@ -1909,14 +2296,22 @@ __attribute__((ms_abi)) efi_status_t efi_hook_OpenProtocol( EFI_HANDLE  UserHand
                                                         UserHandle, Interface );
         }
 
-        return EFI_UNSUPPORTED;
+        DebugMSG( "Deferring to HandleProtocol" );
+        return efi_hook_HandleProtocol( UserHandle, Protocol, Interface);
 }
 
-__attribute__((ms_abi)) efi_status_t efi_hook_CloseProtocol(void)
+__attribute__((ms_abi)) efi_status_t efi_hook_CloseProtocol(
+                                                EFI_HANDLE UserHandle,
+                                                EFI_GUID   *Protocol,
+                                                EFI_HANDLE AgentHandle,
+                                                EFI_HANDLE ControllerHandle )
 {
-         DebugMSG( "BOOT SERVICE #33 called" );
+         DebugMSG( "UserHandle: %px, AgentHandle: %px, ControllerHandle: %px "
+                   "protocol = %s (%s)",
+                   UserHandle, AgentHandle, ControllerHandle,
+                   GetGuidName( Protocol ), get_GUID_str( Protocol ));
 
-         return EFI_UNSUPPORTED;
+         return EFI_SUCCESS;
 }
 
 __attribute__((ms_abi)) efi_status_t efi_hook_OpenProtocolInformation(void)
