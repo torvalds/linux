@@ -11,9 +11,15 @@
 #ifndef UDL_DRV_H
 #define UDL_DRV_H
 
-#include <linux/usb.h>
-#include <drm/drm_gem.h>
 #include <linux/mm_types.h>
+#include <linux/usb.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem.h>
+
+struct drm_encoder;
+struct drm_mode_create_dumb;
 
 #define DRIVER_NAME		"udl"
 #define DRIVER_DESC		"DisplayLink"

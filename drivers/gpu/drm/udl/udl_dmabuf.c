@@ -5,10 +5,12 @@
  * Copyright (c) 2014 The Chromium OS Authors
  */
 
-#include <drm/drmP.h>
-#include "udl_drv.h"
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
+
+#include <drm/drm_prime.h>
+
+#include "udl_drv.h"
 
 struct udl_drm_dmabuf_attachment {
 	struct sg_table sgt;

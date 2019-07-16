@@ -4,9 +4,14 @@
  */
 
 #include <linux/module.h>
-#include <drm/drmP.h>
+
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_print.h>
+
 #include "udl_drv.h"
 
 static int udl_usb_suspend(struct usb_interface *interface,
