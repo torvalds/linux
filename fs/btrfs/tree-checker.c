@@ -821,6 +821,95 @@ static int check_inode_item(struct extent_buffer *leaf,
 	return 0;
 }
 
+static int check_root_item(struct extent_buffer *leaf, struct btrfs_key *key,
+			   int slot)
+{
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
+	struct btrfs_root_item ri;
+	const u64 valid_root_flags = BTRFS_ROOT_SUBVOL_RDONLY |
+				     BTRFS_ROOT_SUBVOL_DEAD;
+
+	/* No such tree id */
+	if (key->objectid == 0) {
+		generic_err(leaf, slot, "invalid root id 0");
+		return -EUCLEAN;
+	}
+
+	/*
+	 * Some older kernel may create ROOT_ITEM with non-zero offset, so here
+	 * we only check offset for reloc tree whose key->offset must be a
+	 * valid tree.
+	 */
+	if (key->objectid == BTRFS_TREE_RELOC_OBJECTID && key->offset == 0) {
+		generic_err(leaf, slot, "invalid root id 0 for reloc tree");
+		return -EUCLEAN;
+	}
+
+	if (btrfs_item_size_nr(leaf, slot) != sizeof(ri)) {
+		generic_err(leaf, slot,
+			    "invalid root item size, have %u expect %zu",
+			    btrfs_item_size_nr(leaf, slot), sizeof(ri));
+	}
+
+	read_extent_buffer(leaf, &ri, btrfs_item_ptr_offset(leaf, slot),
+			   sizeof(ri));
+
+	/* Generation related */
+	if (btrfs_root_generation(&ri) >
+	    btrfs_super_generation(fs_info->super_copy) + 1) {
+		generic_err(leaf, slot,
+			"invalid root generation, have %llu expect (0, %llu]",
+			    btrfs_root_generation(&ri),
+			    btrfs_super_generation(fs_info->super_copy) + 1);
+		return -EUCLEAN;
+	}
+	if (btrfs_root_generation_v2(&ri) >
+	    btrfs_super_generation(fs_info->super_copy) + 1) {
+		generic_err(leaf, slot,
+		"invalid root v2 generation, have %llu expect (0, %llu]",
+			    btrfs_root_generation_v2(&ri),
+			    btrfs_super_generation(fs_info->super_copy) + 1);
+		return -EUCLEAN;
+	}
+	if (btrfs_root_last_snapshot(&ri) >
+	    btrfs_super_generation(fs_info->super_copy) + 1) {
+		generic_err(leaf, slot,
+		"invalid root last_snapshot, have %llu expect (0, %llu]",
+			    btrfs_root_last_snapshot(&ri),
+			    btrfs_super_generation(fs_info->super_copy) + 1);
+		return -EUCLEAN;
+	}
+
+	/* Alignment and level check */
+	if (!IS_ALIGNED(btrfs_root_bytenr(&ri), fs_info->sectorsize)) {
+		generic_err(leaf, slot,
+		"invalid root bytenr, have %llu expect to be aligned to %u",
+			    btrfs_root_bytenr(&ri), fs_info->sectorsize);
+		return -EUCLEAN;
+	}
+	if (btrfs_root_level(&ri) >= BTRFS_MAX_LEVEL) {
+		generic_err(leaf, slot,
+			    "invalid root level, have %u expect [0, %u]",
+			    btrfs_root_level(&ri), BTRFS_MAX_LEVEL - 1);
+		return -EUCLEAN;
+	}
+	if (ri.drop_level >= BTRFS_MAX_LEVEL) {
+		generic_err(leaf, slot,
+			    "invalid root level, have %u expect [0, %u]",
+			    ri.drop_level, BTRFS_MAX_LEVEL - 1);
+		return -EUCLEAN;
+	}
+
+	/* Flags check */
+	if (btrfs_root_flags(&ri) & ~valid_root_flags) {
+		generic_err(leaf, slot,
+			    "invalid root flags, have 0x%llx expect mask 0x%llx",
+			    btrfs_root_flags(&ri), valid_root_flags);
+		return -EUCLEAN;
+	}
+	return 0;
+}
+
 /*
  * Common point to switch the item-specific validation.
  */
@@ -855,6 +944,9 @@ static int check_leaf_item(struct extent_buffer *leaf,
 		break;
 	case BTRFS_INODE_ITEM_KEY:
 		ret = check_inode_item(leaf, key, slot);
+		break;
+	case BTRFS_ROOT_ITEM_KEY:
+		ret = check_root_item(leaf, key, slot);
 		break;
 	}
 	return ret;
