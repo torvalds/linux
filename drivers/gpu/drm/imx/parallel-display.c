@@ -7,14 +7,16 @@
 
 #include <linux/component.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+#include <linux/platform_device.h>
+#include <linux/videodev2.h>
+
+#include <video/of_display_timing.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
-#include <linux/videodev2.h>
-#include <video/of_display_timing.h>
 
 #include "imx-drm.h"
 
