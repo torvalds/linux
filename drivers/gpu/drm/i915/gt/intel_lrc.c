@@ -495,6 +495,19 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 			list_move(&rq->sched.link, pl);
 			active = rq;
 		} else {
+			/*
+			 * Decouple the virtual breadcrumb before moving it
+			 * back to the virtual engine -- we don't want the
+			 * request to complete in the background and try
+			 * and cancel the breadcrumb on the virtual engine
+			 * (instead of the old engine where it is linked)!
+			 */
+			if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+				     &rq->fence.flags)) {
+				spin_lock(&rq->lock);
+				i915_request_cancel_breadcrumb(rq);
+				spin_unlock(&rq->lock);
+			}
 			rq->engine = owner;
 			owner->submit_request(rq);
 			active = NULL;
