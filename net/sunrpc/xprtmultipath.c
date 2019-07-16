@@ -19,7 +19,7 @@
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/xprtmultipath.h>
 
-typedef struct rpc_xprt *(*xprt_switch_find_xprt_t)(struct list_head *head,
+typedef struct rpc_xprt *(*xprt_switch_find_xprt_t)(struct rpc_xprt_switch *xps,
 		const struct rpc_xprt *cur);
 
 static const struct rpc_xprt_iter_ops rpc_xprt_iter_singular;
@@ -291,22 +291,15 @@ struct rpc_xprt *xprt_switch_find_next_entry(struct list_head *head,
 }
 
 static
-struct rpc_xprt *xprt_switch_set_next_cursor(struct list_head *head,
+struct rpc_xprt *xprt_switch_set_next_cursor(struct rpc_xprt_switch *xps,
 		struct rpc_xprt **cursor,
 		xprt_switch_find_xprt_t find_next)
 {
-	struct rpc_xprt *cur, *pos, *old;
+	struct rpc_xprt *pos, *old;
 
-	cur = READ_ONCE(*cursor);
-	for (;;) {
-		old = cur;
-		pos = find_next(head, old);
-		if (pos == NULL)
-			break;
-		cur = cmpxchg_relaxed(cursor, old, pos);
-		if (cur == old)
-			break;
-	}
+	old = smp_load_acquire(cursor);
+	pos = find_next(xps, old);
+	smp_store_release(cursor, pos);
 	return pos;
 }
 
@@ -318,13 +311,11 @@ struct rpc_xprt *xprt_iter_next_entry_multiple(struct rpc_xprt_iter *xpi,
 
 	if (xps == NULL)
 		return NULL;
-	return xprt_switch_set_next_cursor(&xps->xps_xprt_list,
-			&xpi->xpi_cursor,
-			find_next);
+	return xprt_switch_set_next_cursor(xps, &xpi->xpi_cursor, find_next);
 }
 
 static
-struct rpc_xprt *xprt_switch_find_next_entry_roundrobin(struct list_head *head,
+struct rpc_xprt *__xprt_switch_find_next_entry_roundrobin(struct list_head *head,
 		const struct rpc_xprt *cur)
 {
 	struct rpc_xprt *ret;
@@ -336,31 +327,49 @@ struct rpc_xprt *xprt_switch_find_next_entry_roundrobin(struct list_head *head,
 }
 
 static
-struct rpc_xprt *xprt_iter_next_entry_roundrobin(struct rpc_xprt_iter *xpi)
+struct rpc_xprt *xprt_switch_find_next_entry_roundrobin(struct rpc_xprt_switch *xps,
+		const struct rpc_xprt *cur)
 {
-	struct rpc_xprt_switch *xps = rcu_dereference(xpi->xpi_xpswitch);
+	struct list_head *head = &xps->xps_xprt_list;
 	struct rpc_xprt *xprt;
-	unsigned long xprt_queuelen;
-	unsigned long xps_queuelen;
+	unsigned int nactive;
 
-	do {
-		xprt = xprt_iter_next_entry_multiple(xpi,
-			xprt_switch_find_next_entry_roundrobin);
-		if (xprt == NULL)
+	for (;;) {
+		unsigned long xprt_queuelen, xps_queuelen;
+
+		xprt = __xprt_switch_find_next_entry_roundrobin(head, cur);
+		if (!xprt)
 			break;
 		xprt_queuelen = atomic_long_read(&xprt->queuelen);
-		if (xprt_queuelen <= 2)
-			break;
 		xps_queuelen = atomic_long_read(&xps->xps_queuelen);
+		nactive = READ_ONCE(xps->xps_nactive);
 		/* Exit loop if xprt_queuelen <= average queue length */
-	} while (xprt_queuelen * READ_ONCE(xps->xps_nactive) > xps_queuelen);
+		if (xprt_queuelen * nactive <= xps_queuelen)
+			break;
+		cur = xprt;
+	}
 	return xprt;
+}
+
+static
+struct rpc_xprt *xprt_iter_next_entry_roundrobin(struct rpc_xprt_iter *xpi)
+{
+	return xprt_iter_next_entry_multiple(xpi,
+			xprt_switch_find_next_entry_roundrobin);
+}
+
+static
+struct rpc_xprt *xprt_switch_find_next_entry_all(struct rpc_xprt_switch *xps,
+		const struct rpc_xprt *cur)
+{
+	return xprt_switch_find_next_entry(&xps->xps_xprt_list, cur);
 }
 
 static
 struct rpc_xprt *xprt_iter_next_entry_all(struct rpc_xprt_iter *xpi)
 {
-	return xprt_iter_next_entry_multiple(xpi, xprt_switch_find_next_entry);
+	return xprt_iter_next_entry_multiple(xpi,
+			xprt_switch_find_next_entry_all);
 }
 
 /*
