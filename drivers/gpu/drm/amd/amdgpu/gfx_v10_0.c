@@ -116,6 +116,11 @@ static const struct soc15_reg_golden golden_settings_gc_10_0_nv10[] =
 	/* Pending on emulation bring up */
 };
 
+static const struct soc15_reg_golden golden_settings_gc_10_1_nv14[] =
+{
+	/* Pending on emulation bring up */
+};
+
 #define DEFAULT_SH_MEM_CONFIG \
 	((SH_MEM_ADDRESS_MODE_64 << SH_MEM_CONFIG__ADDRESS_MODE__SHIFT) | \
 	 (SH_MEM_ALIGNMENT_MODE_UNALIGNED << SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT) | \
@@ -256,6 +261,14 @@ static void gfx_v10_0_init_golden_registers(struct amdgpu_device *adev)
 		soc15_program_register_sequence(adev,
 						golden_settings_gc_10_0_nv10,
 						(const u32)ARRAY_SIZE(golden_settings_gc_10_0_nv10));
+		break;
+	case CHIP_NAVI14:
+		soc15_program_register_sequence(adev,
+						golden_settings_gc_10_1,
+						(const u32)ARRAY_SIZE(golden_settings_gc_10_1));
+		soc15_program_register_sequence(adev,
+						golden_settings_gc_10_1_nv14,
+						(const u32)ARRAY_SIZE(golden_settings_gc_10_1_nv14));
 		break;
 	default:
 		break;
