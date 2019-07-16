@@ -25,6 +25,7 @@
 #include "pp_debug.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/gfp.h>
 
@@ -2219,6 +2220,8 @@ static uint32_t iceland_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU71_SoftRegisters, VoltageChangeTimeout);
 		case AverageGraphicsActivity:
 			return offsetof(SMU71_SoftRegisters, AverageGraphicsActivity);
+		case AverageMemoryActivity:
+			return offsetof(SMU71_SoftRegisters, AverageMemoryActivity);
 		case PreVBlankGap:
 			return offsetof(SMU71_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:
@@ -2659,6 +2662,7 @@ static bool iceland_is_dpm_running(struct pp_hwmgr *hwmgr)
 }
 
 const struct pp_smumgr_func iceland_smu_funcs = {
+	.name = "iceland_smu",
 	.smu_init = &iceland_smu_init,
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &iceland_start_smu,

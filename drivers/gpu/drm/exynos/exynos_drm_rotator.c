@@ -6,21 +6,21 @@
  *	Eunchul Kim <chulspro.kim@samsung.com>
  */
 
-#include <linux/kernel.h>
+#include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/platform_device.h>
-#include <linux/clk.h>
+#include <linux/kernel.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drmP.h>
 #include <drm/exynos_drm.h>
-#include "regs-rotator.h"
+
 #include "exynos_drm_drv.h"
 #include "exynos_drm_ipp.h"
+#include "regs-rotator.h"
 
 /*
  * Rotator supports image crop/rotator and input/output DMA operations.

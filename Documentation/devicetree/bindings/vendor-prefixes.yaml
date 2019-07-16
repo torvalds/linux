@@ -307,6 +307,8 @@ patternProperties:
     description: Everest Semiconductor Co. Ltd.
   "^everspin,.*":
     description: Everspin Technologies, Inc.
+  "^evervision,.*":
+    description: Evervision Electronics Co. Ltd.
   "^exar,.*":
     description: Exar Corporation
   "^excito,.*":
@@ -911,6 +913,8 @@ patternProperties:
     description: Shenzhen Techstar Electronics Co., Ltd.
   "^terasic,.*":
     description: Terasic Inc.
+  "^tfc,.*":
+    description: Three Five Corp
   "^thine,.*":
     description: THine Electronics, Inc.
   "^ti,.*":
@@ -987,6 +991,8 @@ patternProperties:
     description: Voipac Technologies s.r.o.
   "^vot,.*":
     description: Vision Optical Technology Co., Ltd.
+  "^vxt,.*":
+    description: VXT Ltd
   "^wd,.*":
     description: Western Digital Corp.
   "^wetek,.*":

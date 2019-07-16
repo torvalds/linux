@@ -15,10 +15,10 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_print.h>
-#include <drm/drmP.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -27,7 +27,6 @@
  * DOC: overview
  *
  * This library provides support for clients running in the kernel like fbdev and bootsplash.
- * Currently it's only partially implemented, just enough to support fbdev.
  *
  * GEM drivers which provide a GEM based dumb buffer with a virtual address are supported.
  */
@@ -92,14 +91,20 @@ int drm_client_init(struct drm_device *dev, struct drm_client_dev *client,
 	client->name = name;
 	client->funcs = funcs;
 
-	ret = drm_client_open(client);
+	ret = drm_client_modeset_create(client);
 	if (ret)
 		goto err_put_module;
+
+	ret = drm_client_open(client);
+	if (ret)
+		goto err_free;
 
 	drm_dev_get(dev);
 
 	return 0;
 
+err_free:
+	drm_client_modeset_free(client);
 err_put_module:
 	if (funcs)
 		module_put(funcs->owner);
@@ -148,6 +153,7 @@ void drm_client_release(struct drm_client_dev *client)
 
 	DRM_DEV_DEBUG_KMS(dev->dev, "%s\n", client->name);
 
+	drm_client_modeset_free(client);
 	drm_client_close(client);
 	drm_dev_put(dev);
 	if (client->funcs)
@@ -243,6 +249,7 @@ static void drm_client_buffer_delete(struct drm_client_buffer *buffer)
 static struct drm_client_buffer *
 drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height, u32 format)
 {
+	const struct drm_format_info *info = drm_format_info(format);
 	struct drm_mode_create_dumb dumb_args = { };
 	struct drm_device *dev = client->dev;
 	struct drm_client_buffer *buffer;
@@ -258,7 +265,7 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height, u
 
 	dumb_args.width = width;
 	dumb_args.height = height;
-	dumb_args.bpp = drm_format_plane_cpp(format, 0) * 8;
+	dumb_args.bpp = info->cpp[0] * 8;
 	ret = drm_mode_create_dumb(dev, &dumb_args, client->file);
 	if (ret)
 		goto err_delete;

@@ -21,6 +21,10 @@
  *
  */
 
+#include <linux/module.h>
+
+#include <drm/drm_drv.h>
+
 #include "amdgpu.h"
 
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev)
@@ -426,3 +430,47 @@ uint32_t amdgpu_virt_get_mclk(struct amdgpu_device *adev, bool lowest)
 	return clk;
 }
 
+void amdgpu_virt_init_reg_access_mode(struct amdgpu_device *adev)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+
+	if (virt->ops && virt->ops->init_reg_access_mode)
+		virt->ops->init_reg_access_mode(adev);
+}
+
+bool amdgpu_virt_support_psp_prg_ih_reg(struct amdgpu_device *adev)
+{
+	bool ret = false;
+	struct amdgpu_virt *virt = &adev->virt;
+
+	if (amdgpu_sriov_vf(adev)
+		&& (virt->reg_access_mode & AMDGPU_VIRT_REG_ACCESS_PSP_PRG_IH))
+		ret = true;
+
+	return ret;
+}
+
+bool amdgpu_virt_support_rlc_prg_reg(struct amdgpu_device *adev)
+{
+	bool ret = false;
+	struct amdgpu_virt *virt = &adev->virt;
+
+	if (amdgpu_sriov_vf(adev)
+		&& (virt->reg_access_mode & AMDGPU_VIRT_REG_ACCESS_RLC)
+		&& !(amdgpu_sriov_runtime(adev)))
+		ret = true;
+
+	return ret;
+}
+
+bool amdgpu_virt_support_skip_setting(struct amdgpu_device *adev)
+{
+	bool ret = false;
+	struct amdgpu_virt *virt = &adev->virt;
+
+	if (amdgpu_sriov_vf(adev)
+		&& (virt->reg_access_mode & AMDGPU_VIRT_REG_SKIP_SEETING))
+		ret = true;
+
+	return ret;
+}
