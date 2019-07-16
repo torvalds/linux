@@ -15,14 +15,17 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/consumer.h>
-#include <linux/backlight.h>
 #include <linux/gpio/consumer.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/platform_device.h>
+
 #include <video/display_timing.h>
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
-#include <drm/drm_atomic_helper.h>
+
+#include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_probe_helper.h>
 
 #include "tilcdc_drv.h"

@@ -18,21 +18,24 @@
 #ifndef __TILCDC_DRV_H__
 #define __TILCDC_DRV_H__
 
-#include <linux/clk.h>
 #include <linux/cpufreq.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/pm.h>
-#include <linux/pm_runtime.h>
-#include <linux/slab.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/list.h>
+#include <linux/irqreturn.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_bridge.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_print.h>
+
+struct clk;
+struct workqueue_struct;
+
+struct drm_connector;
+struct drm_connector_helper_funcs;
+struct drm_crtc;
+struct drm_device;
+struct drm_display_mode;
+struct drm_encoder;
+struct drm_framebuffer;
+struct drm_minor;
+struct drm_pending_vblank_event;
+struct drm_plane;
 
 /* Defaulting to pixel clock defined on AM335x */
 #define TILCDC_DEFAULT_MAX_PIXELCLOCK  126000

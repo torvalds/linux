@@ -15,12 +15,10 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <drm/drmP.h>
-
 #include <drm/drm_atomic.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic_helper.h>
-#include <uapi/drm/drm_fourcc.h>
+#include <drm/drm_fourcc.h>
 
 #include "tilcdc_drv.h"
 

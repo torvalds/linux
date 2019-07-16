@@ -15,16 +15,20 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/of_graph.h>
+#include <linux/pm_runtime.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_flip_work.h>
-#include <drm/drm_plane_helper.h>
-#include <linux/workqueue.h>
-#include <linux/completion.h>
-#include <linux/dma-mapping.h>
-#include <linux/of_graph.h>
-#include <linux/math64.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_print.h>
+#include <drm/drm_vblank.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"

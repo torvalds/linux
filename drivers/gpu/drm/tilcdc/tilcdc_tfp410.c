@@ -15,12 +15,14 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/i2c.h>
 #include <linux/gpio.h>
+#include <linux/mod_devicetable.h>
 #include <linux/of_gpio.h>
-#include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/consumer.h>
+#include <linux/platform_device.h>
+
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_probe_helper.h>
 
 #include "tilcdc_drv.h"
