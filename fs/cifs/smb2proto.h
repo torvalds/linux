@@ -158,6 +158,10 @@ extern int SMB2_close_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 extern void SMB2_close_free(struct smb_rqst *rqst);
 extern int SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
+extern int SMB2_flush_init(const unsigned int xid, struct smb_rqst *rqst,
+			   struct cifs_tcon *tcon,
+			   u64 persistent_file_id, u64 volatile_file_id);
+extern void SMB2_flush_free(struct smb_rqst *rqst);
 extern int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 			   u64 persistent_file_id, u64 volatile_file_id,
 			   struct smb2_file_all_info *data);
