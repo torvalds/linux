@@ -12,6 +12,11 @@
 	compatible = "raspberrypi,model-zero-w", "brcm,bcm2835";
 	model = "Raspberry Pi Zero W";
 
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0x20000000>;
+	};
+
 	chosen {
 		/* 8250 auxiliary UART instead of pl011 */
 		stdout-path = "serial1:115200n8";

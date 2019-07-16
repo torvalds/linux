@@ -9,6 +9,11 @@
 	compatible = "raspberrypi,model-b-rev2", "brcm,bcm2835";
 	model = "Raspberry Pi Model B rev2";
 
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0x10000000>;
+	};
+
 	leds {
 		act {
 			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;

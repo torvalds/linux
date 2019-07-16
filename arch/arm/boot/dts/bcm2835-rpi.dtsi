@@ -1,11 +1,6 @@
 #include <dt-bindings/power/raspberrypi-power.h>
 
 / {
-	memory@0 {
-		device_type = "memory";
-		reg = <0 0x10000000>;
-	};
-
 	leds {
 		compatible = "gpio-leds";
 
