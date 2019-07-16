@@ -18,6 +18,8 @@
 #include <linux/seq_file.h>
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_file.h>
 #include <drm/drm_fb_helper.h>
 
 #include "omap_drv.h"

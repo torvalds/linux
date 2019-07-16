@@ -15,11 +15,13 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/seq_file.h>
 #include <linux/shmem_fs.h>
 #include <linux/spinlock.h>
 #include <linux/pfn_t.h>
 
+#include <drm/drm_prime.h>
 #include <drm/drm_vma_manager.h>
 
 #include "omap_drv.h"

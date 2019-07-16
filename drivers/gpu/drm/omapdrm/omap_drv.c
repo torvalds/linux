@@ -15,15 +15,21 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/of.h>
+#include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 #include <linux/sort.h>
 #include <linux/sys_soc.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_probe_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_prime.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "omap_dmm_tiler.h"
 #include "omap_drv.h"

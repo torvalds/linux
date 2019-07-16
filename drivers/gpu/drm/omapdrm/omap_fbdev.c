@@ -18,6 +18,8 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_util.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_fourcc.h>
 
 #include "omap_drv.h"
 
