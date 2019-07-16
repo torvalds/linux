@@ -245,7 +245,7 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 	struct device_node *np = dev->of_node;
 	struct device_node *child;
 	struct ns2_led *led, *leds;
-	int num_leds = 0;
+	int ret, num_leds = 0;
 
 	num_leds = of_get_child_count(np);
 	if (!num_leds)
@@ -259,16 +259,16 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 	led = leds;
 	for_each_child_of_node(np, child) {
 		const char *string;
-		int ret, i, num_modes;
+		int i, num_modes;
 		struct ns2_led_modval *modval;
 
 		ret = of_get_named_gpio(child, "cmd-gpio", 0);
 		if (ret < 0)
-			return ret;
+			goto err_node_put;
 		led->cmd = ret;
 		ret = of_get_named_gpio(child, "slow-gpio", 0);
 		if (ret < 0)
-			return ret;
+			goto err_node_put;
 		led->slow = ret;
 		ret = of_property_read_string(child, "label", &string);
 		led->name = (ret == 0) ? string : child->name;
@@ -281,7 +281,8 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 		if (ret < 0 || ret % 3) {
 			dev_err(dev,
 				"Missing or malformed modes-map property\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_node_put;
 		}
 
 		num_modes = ret / 3;
@@ -289,8 +290,10 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 				      num_modes,
 				      sizeof(struct ns2_led_modval),
 				      GFP_KERNEL);
-		if (!modval)
-			return -ENOMEM;
+		if (!modval) {
+			ret = -ENOMEM;
+			goto err_node_put;
+		}
 
 		for (i = 0; i < num_modes; i++) {
 			of_property_read_u32_index(child,
@@ -314,6 +317,10 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 	pdata->num_leds = num_leds;
 
 	return 0;
+
+err_node_put:
+	of_node_put(child);
+	return ret;
 }
 
 static const struct of_device_id of_ns2_leds_match[] = {
