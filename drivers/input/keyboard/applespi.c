@@ -899,7 +899,6 @@ static void applespi_set_bl_level(struct led_classdev *led_cdev,
 	struct applespi_data *applespi =
 		container_of(led_cdev, struct applespi_data, backlight_info);
 	unsigned long flags;
-	int sts;
 
 	spin_lock_irqsave(&applespi->cmd_msg_lock, flags);
 
@@ -916,7 +915,7 @@ static void applespi_set_bl_level(struct led_classdev *led_cdev,
 			 KBD_BL_LEVEL_MIN);
 	}
 
-	sts = applespi_send_cmd_msg(applespi);
+	applespi_send_cmd_msg(applespi);
 
 	spin_unlock_irqrestore(&applespi->cmd_msg_lock, flags);
 }
