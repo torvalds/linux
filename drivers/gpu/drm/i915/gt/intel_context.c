@@ -239,6 +239,31 @@ void intel_context_exit_engine(struct intel_context *ce)
 	intel_engine_pm_put(ce->engine);
 }
 
+int intel_context_prepare_remote_request(struct intel_context *ce,
+					 struct i915_request *rq)
+{
+	struct intel_timeline *tl = ce->ring->timeline;
+	int err;
+
+	/* Only suitable for use in remotely modifying this context */
+	GEM_BUG_ON(rq->hw_context == ce);
+
+	/* Queue this switch after all other activity by this context. */
+	err = i915_active_request_set(&tl->last_request, rq);
+	if (err)
+		return err;
+
+	/*
+	 * Guarantee context image and the timeline remains pinned until the
+	 * modifying request is retired by setting the ce activity tracker.
+	 *
+	 * But we only need to take one pin on the account of it. Or in other
+	 * words transfer the pinned ce object to tracked active request.
+	 */
+	GEM_BUG_ON(i915_active_is_idle(&ce->active));
+	return i915_active_ref(&ce->active, rq->fence.context, rq);
+}
+
 struct i915_request *intel_context_create_request(struct intel_context *ce)
 {
 	struct i915_request *rq;

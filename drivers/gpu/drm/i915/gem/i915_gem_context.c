@@ -1173,26 +1173,11 @@ gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
-	/* Queue this switch after all other activity by this context. */
-	ret = i915_active_request_set(&ce->ring->timeline->last_request, rq);
-	if (ret)
-		goto out_add;
+	/* Serialise with the remote context */
+	ret = intel_context_prepare_remote_request(ce, rq);
+	if (ret == 0)
+		ret = gen8_emit_rpcs_config(rq, ce, sseu);
 
-	/*
-	 * Guarantee context image and the timeline remains pinned until the
-	 * modifying request is retired by setting the ce activity tracker.
-	 *
-	 * But we only need to take one pin on the account of it. Or in other
-	 * words transfer the pinned ce object to tracked active request.
-	 */
-	GEM_BUG_ON(i915_active_is_idle(&ce->active));
-	ret = i915_active_ref(&ce->active, rq->fence.context, rq);
-	if (ret)
-		goto out_add;
-
-	ret = gen8_emit_rpcs_config(rq, ce, sseu);
-
-out_add:
 	i915_request_add(rq);
 	return ret;
 }

@@ -139,6 +139,9 @@ static inline void intel_context_timeline_unlock(struct intel_context *ce)
 	mutex_unlock(&ce->ring->timeline->mutex);
 }
 
+int intel_context_prepare_remote_request(struct intel_context *ce,
+					 struct i915_request *rq);
+
 struct i915_request *intel_context_create_request(struct intel_context *ce);
 
 #endif /* __INTEL_CONTEXT_H__ */

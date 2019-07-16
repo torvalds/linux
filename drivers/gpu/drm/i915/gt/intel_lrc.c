@@ -1576,9 +1576,12 @@ __execlists_update_reg_state(struct intel_context *ce,
 	regs[CTX_RING_TAIL + 1] = ring->tail;
 
 	/* RPCS */
-	if (engine->class == RENDER_CLASS)
+	if (engine->class == RENDER_CLASS) {
 		regs[CTX_R_PWR_CLK_STATE + 1] =
 			intel_sseu_make_rpcs(engine->i915, &ce->sseu);
+
+		i915_oa_init_reg_state(engine, ce, regs);
+	}
 }
 
 static int
@@ -3001,8 +3004,6 @@ static void execlists_init_reg_state(u32 *regs,
 	if (rcs) {
 		regs[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
 		CTX_REG(regs, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE, 0);
-
-		i915_oa_init_reg_state(engine, ce, regs);
 	}
 
 	regs[CTX_END] = MI_BATCH_BUFFER_END;
