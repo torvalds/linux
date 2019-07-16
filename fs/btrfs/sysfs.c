@@ -16,6 +16,7 @@
 #include "transaction.h"
 #include "sysfs.h"
 #include "volumes.h"
+#include "space-info.h"
 
 static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj);
 static inline struct btrfs_fs_devices *to_fs_devs(struct kobject *kobj);
