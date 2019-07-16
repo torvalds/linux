@@ -309,7 +309,8 @@ void rds_ib_mr_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 	}
 
 	if (frmr->fr_inv) {
-		frmr->fr_state = FRMR_IS_FREE;
+		if (frmr->fr_state == FRMR_IS_INUSE)
+			frmr->fr_state = FRMR_IS_FREE;
 		frmr->fr_inv = false;
 		wake_up(&frmr->fr_inv_done);
 	}
