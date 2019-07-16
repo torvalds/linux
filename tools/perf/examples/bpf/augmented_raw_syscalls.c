@@ -67,13 +67,15 @@ struct augmented_filename {
 
 pid_filter(pids_filtered);
 
-struct augmented_args_filename {
+struct augmented_args_payload {
        struct syscall_enter_args args;
-       struct augmented_filename filename;
-       struct augmented_filename filename2;
+       struct {
+	       struct augmented_filename filename;
+	       struct augmented_filename filename2;
+       };
 };
 
-bpf_map(augmented_filename_map, PERCPU_ARRAY, int, struct augmented_args_filename, 1);
+bpf_map(augmented_args_tmp, PERCPU_ARRAY, int, struct augmented_args_payload, 1);
 
 static inline
 unsigned int augmented_filename__read(struct augmented_filename *augmented_filename,
@@ -111,7 +113,7 @@ int syscall_unaugmented(struct syscall_enter_args *args)
 
 /*
  * This will be tail_called from SEC("raw_syscalls:sys_enter"), so will find in
- * augmented_filename_map what was read by that raw_syscalls:sys_enter and go
+ * augmented_args_tmp what was read by that raw_syscalls:sys_enter and go
  * on from there, reading the first syscall arg as a string, i.e. open's
  * filename.
  */
@@ -119,7 +121,7 @@ SEC("!syscalls:sys_enter_open")
 int sys_enter_open(struct syscall_enter_args *args)
 {
 	int key = 0;
-	struct augmented_args_filename *augmented_args = bpf_map_lookup_elem(&augmented_filename_map, &key);
+	struct augmented_args_payload *augmented_args = bpf_map_lookup_elem(&augmented_args_tmp, &key);
 	const void *filename_arg = (const void *)args->args[0];
 	unsigned int len = sizeof(augmented_args->args);
 
@@ -136,7 +138,7 @@ SEC("!syscalls:sys_enter_openat")
 int sys_enter_openat(struct syscall_enter_args *args)
 {
 	int key = 0;
-	struct augmented_args_filename *augmented_args = bpf_map_lookup_elem(&augmented_filename_map, &key);
+	struct augmented_args_payload *augmented_args = bpf_map_lookup_elem(&augmented_args_tmp, &key);
 	const void *filename_arg = (const void *)args->args[1];
 	unsigned int len = sizeof(augmented_args->args);
 
@@ -153,7 +155,7 @@ SEC("!syscalls:sys_enter_renameat")
 int sys_enter_renameat(struct syscall_enter_args *args)
 {
 	int key = 0;
-	struct augmented_args_filename *augmented_args = bpf_map_lookup_elem(&augmented_filename_map, &key);
+	struct augmented_args_payload *augmented_args = bpf_map_lookup_elem(&augmented_args_tmp, &key);
 	const void *oldpath_arg = (const void *)args->args[1],
 		   *newpath_arg = (const void *)args->args[3];
 	unsigned int len = sizeof(augmented_args->args), oldpath_len;
@@ -171,7 +173,7 @@ int sys_enter_renameat(struct syscall_enter_args *args)
 SEC("raw_syscalls:sys_enter")
 int sys_enter(struct syscall_enter_args *args)
 {
-	struct augmented_args_filename *augmented_args;
+	struct augmented_args_payload *augmented_args;
 	/*
 	 * We start len, the amount of data that will be in the perf ring
 	 * buffer, if this is not filtered out by one of pid_filter__has(),
@@ -185,7 +187,7 @@ int sys_enter(struct syscall_enter_args *args)
 	struct syscall *syscall;
 	int key = 0;
 
-        augmented_args = bpf_map_lookup_elem(&augmented_filename_map, &key);
+        augmented_args = bpf_map_lookup_elem(&augmented_args_tmp, &key);
         if (augmented_args == NULL)
                 return 1;
 
