@@ -169,7 +169,7 @@ start:
 		__nop
 		.endr
 #ifndef CONFIG_THUMB2_KERNEL
-		mov	r0, r0
+		__nop
 #else
  AR_CLASS(	sub	pc, pc, #3	)	@ A/R: switch to Thumb2 mode
   M_CLASS(	nop.w			)	@ M: already in Thumb2 mode
