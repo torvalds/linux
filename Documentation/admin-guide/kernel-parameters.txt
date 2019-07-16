@@ -2877,6 +2877,17 @@
 			/sys/module/printk/parameters/console_suspend) to
 			turn on/off it dynamically.
 
+	novmcoredd	[KNL,KDUMP]
+			Disable device dump. Device dump allows drivers to
+			append dump data to vmcore so you can collect driver
+			specified debug info.  Drivers can append the data
+			without any limit and this data is stored in memory,
+			so this may cause significant memory stress.  Disabling
+			device dump can help save memory but the driver debug
+			data will be no longer available.  This parameter
+			is only available when CONFIG_PROC_VMCORE_DEVICE_DUMP
+			is set.
+
 	noaliencache	[MM, NUMA, SLAB] Disables the allocation of alien
 			caches in the slab allocator.  Saves per-node memory,
 			but will impact performance.
