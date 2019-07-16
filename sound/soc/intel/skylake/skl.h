@@ -37,6 +37,7 @@
 #define DMA_TRANSMITION_START	2
 #define DMA_TRANSMITION_STOP	3
 
+#define AZX_VS_EM2_DUM			BIT(23)
 #define AZX_REG_VS_EM2_L1SEN		BIT(13)
 
 struct skl_dsp_resource {
