@@ -18,7 +18,7 @@
 #include <linux/string.h>
 
 #include <linux/coda.h>
-#include <linux/coda_psdev.h>
+#include "coda_psdev.h"
 #include "coda_linux.h"
 
 /* initialize the debugging variables */
