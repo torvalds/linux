@@ -4128,7 +4128,22 @@ int cmd_trace(int argc, const char **argv)
 				if (perf_evsel__init_augmented_syscall_tp(augmented, evsel) ||
 				    perf_evsel__init_augmented_syscall_tp_args(augmented))
 					goto out;
+				/*
+				 * Augmented is __augmented_syscalls__ BPF_OUTPUT event
+				 * Above we made sure we can get from the payload the tp fields
+				 * that we get from syscalls:sys_enter tracefs format file.
+				 */
 				augmented->handler = trace__sys_enter;
+				/*
+				 * Now we do the same for the *syscalls:sys_enter event so that
+				 * if we handle it directly, i.e. if the BPF prog returns 0 so
+				 * as not to filter it, then we'll handle it just like we would
+				 * for the BPF_OUTPUT one:
+				 */
+				if (perf_evsel__init_augmented_syscall_tp(evsel, evsel) ||
+				    perf_evsel__init_augmented_syscall_tp_args(evsel))
+					goto out;
+				evsel->handler = trace__sys_enter;
 			}
 
 			if (strstarts(perf_evsel__name(evsel), "syscalls:sys_exit_")) {
