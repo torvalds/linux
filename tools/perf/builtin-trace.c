@@ -127,6 +127,7 @@ struct trace {
 	unsigned int		min_stack;
 	int			raw_augmented_syscalls_args_size;
 	bool			raw_augmented_syscalls;
+	bool			fd_path_disabled;
 	bool			sort_events;
 	bool			not_ev_qualifier;
 	bool			live;
@@ -1178,7 +1179,7 @@ static const char *thread__fd_path(struct thread *thread, int fd,
 {
 	struct thread_trace *ttrace = thread__priv(thread);
 
-	if (ttrace == NULL)
+	if (ttrace == NULL || trace->fd_path_disabled)
 		return NULL;
 
 	if (fd < 0)
@@ -2097,7 +2098,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 
 	ret = perf_evsel__sc_tp_uint(evsel, ret, sample);
 
-	if (sc->is_open && ret >= 0 && ttrace->filename.pending_open) {
+	if (!trace->fd_path_disabled && sc->is_open && ret >= 0 && ttrace->filename.pending_open) {
 		trace__set_fd_pathname(thread, ret, ttrace->filename.name);
 		ttrace->filename.pending_open = false;
 		++trace->stats.vfs_getname;
@@ -3206,7 +3207,6 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (trace->syscalls.prog_array.sys_enter)
 		trace__init_syscalls_bpf_prog_array_maps(trace);
 
-
 	if (trace->ev_qualifier_ids.nr > 0) {
 		err = trace__set_ev_qualifier_filter(trace);
 		if (err < 0)
@@ -3217,6 +3217,19 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 				 trace->syscalls.events.sys_exit->filter);
 		}
 	}
+
+	/*
+	 * If the "close" syscall is not traced, then we will not have the
+	 * opportunity to, in syscall_arg__scnprintf_close_fd() invalidate the
+	 * fd->pathname table and were ending up showing the last value set by
+	 * syscalls opening a pathname and associating it with a descriptor or
+	 * reading it from /proc/pid/fd/ in cases where that doesn't make
+	 * sense.
+	 *
+	 *  So just disable this beautifier (SCA_FD, SCA_FDAT) when 'close' is
+	 *  not in use.
+	 */
+	trace->fd_path_disabled = !trace__syscall_enabled(trace, syscalltbl__id(trace->sctbl, "close"));
 
 	err = perf_evlist__apply_filters(evlist, &evsel);
 	if (err < 0)
