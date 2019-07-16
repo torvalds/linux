@@ -329,6 +329,10 @@ static void usnic_get_dev_fw_str(struct ib_device *device, char *str)
 }
 
 static const struct ib_device_ops usnic_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_USNIC,
+	.uverbs_abi_ver = USNIC_UVERBS_ABI_VERSION,
+
 	.alloc_pd = usnic_ib_alloc_pd,
 	.alloc_ucontext = usnic_ib_alloc_ucontext,
 	.create_cq = usnic_ib_create_cq,
@@ -350,6 +354,7 @@ static const struct ib_device_ops usnic_dev_ops = {
 	.query_qp = usnic_ib_query_qp,
 	.reg_user_mr = usnic_ib_reg_mr,
 	INIT_RDMA_OBJ_SIZE(ib_pd, usnic_ib_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_cq, usnic_ib_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, usnic_ib_ucontext, ibucontext),
 };
 
@@ -384,12 +389,10 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 
 	us_ibdev->pdev = dev;
 	us_ibdev->netdev = pci_get_drvdata(dev);
-	us_ibdev->ib_dev.owner = THIS_MODULE;
 	us_ibdev->ib_dev.node_type = RDMA_NODE_USNIC_UDP;
 	us_ibdev->ib_dev.phys_port_cnt = USNIC_IB_PORT_CNT;
 	us_ibdev->ib_dev.num_comp_vectors = USNIC_IB_NUM_COMP_VECTORS;
 	us_ibdev->ib_dev.dev.parent = &dev->dev;
-	us_ibdev->ib_dev.uverbs_abi_ver = USNIC_UVERBS_ABI_VERSION;
 
 	us_ibdev->ib_dev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
@@ -412,7 +415,6 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 
 	ib_set_device_ops(&us_ibdev->ib_dev, &usnic_dev_ops);
 
-	us_ibdev->ib_dev.driver_id = RDMA_DRIVER_USNIC;
 	rdma_set_device_sysfs_group(&us_ibdev->ib_dev, &usnic_attr_group);
 
 	ret = ib_device_set_netdev(&us_ibdev->ib_dev, us_ibdev->netdev, 1);

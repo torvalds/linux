@@ -1,4 +1,6 @@
-INFINIBAND MIDLAYER LOCKING
+===========================
+InfiniBand Midlayer Locking
+===========================
 
   This guide is an attempt to make explicit the locking assumptions
   made by the InfiniBand midlayer.  It describes the requirements on
@@ -6,45 +8,47 @@ INFINIBAND MIDLAYER LOCKING
   protocols that use the midlayer.
 
 Sleeping and interrupt context
+==============================
 
   With the following exceptions, a low-level driver implementation of
   all of the methods in struct ib_device may sleep.  The exceptions
   are any methods from the list:
 
-    create_ah
-    modify_ah
-    query_ah
-    destroy_ah
-    post_send
-    post_recv
-    poll_cq
-    req_notify_cq
-    map_phys_fmr
+    - create_ah
+    - modify_ah
+    - query_ah
+    - destroy_ah
+    - post_send
+    - post_recv
+    - poll_cq
+    - req_notify_cq
+    - map_phys_fmr
 
   which may not sleep and must be callable from any context.
 
   The corresponding functions exported to upper level protocol
   consumers:
 
-    ib_create_ah
-    ib_modify_ah
-    ib_query_ah
-    ib_destroy_ah
-    ib_post_send
-    ib_post_recv
-    ib_req_notify_cq
-    ib_map_phys_fmr
+    - ib_create_ah
+    - ib_modify_ah
+    - ib_query_ah
+    - ib_destroy_ah
+    - ib_post_send
+    - ib_post_recv
+    - ib_req_notify_cq
+    - ib_map_phys_fmr
 
   are therefore safe to call from any context.
 
   In addition, the function
 
-    ib_dispatch_event
+    - ib_dispatch_event
 
   used by low-level drivers to dispatch asynchronous events through
   the midlayer is also safe to call from any context.
 
 Reentrancy
+----------
 
   All of the methods in struct ib_device exported by a low-level
   driver must be fully reentrant.  The low-level driver is required to
@@ -62,6 +66,7 @@ Reentrancy
   information between different calls of ib_poll_cq() is not defined.
 
 Callbacks
+---------
 
   A low-level driver must not perform a callback directly from the
   same callchain as an ib_device method call.  For example, it is not
@@ -74,18 +79,18 @@ Callbacks
   completion event handlers for the same CQ are not called
   simultaneously.  The driver must guarantee that only one CQ event
   handler for a given CQ is running at a time.  In other words, the
-  following situation is not allowed:
+  following situation is not allowed::
 
-        CPU1                                    CPU2
+          CPU1                                    CPU2
 
-  low-level driver ->
-    consumer CQ event callback:
-      /* ... */
-      ib_req_notify_cq(cq, ...);
-                                        low-level driver ->
-      /* ... */                           consumer CQ event callback:
-                                            /* ... */
-      return from CQ event handler
+    low-level driver ->
+      consumer CQ event callback:
+        /* ... */
+        ib_req_notify_cq(cq, ...);
+                                          low-level driver ->
+        /* ... */                           consumer CQ event callback:
+                                              /* ... */
+        return from CQ event handler
 
   The context in which completion event and asynchronous event
   callbacks run is not defined.  Depending on the low-level driver, it
@@ -93,6 +98,7 @@ Callbacks
   Upper level protocol consumers may not sleep in a callback.
 
 Hot-plug
+--------
 
   A low-level driver announces that a device is ready for use by
   consumers when it calls ib_register_device(), all initialization

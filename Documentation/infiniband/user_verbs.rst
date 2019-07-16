@@ -1,4 +1,6 @@
-USERSPACE VERBS ACCESS
+======================
+Userspace verbs access
+======================
 
   The ib_uverbs module, built by enabling CONFIG_INFINIBAND_USER_VERBS,
   enables direct userspace access to IB hardware via "verbs," as
@@ -13,6 +15,7 @@ USERSPACE VERBS ACCESS
   libmthca userspace driver be installed.
 
 User-kernel communication
+=========================
 
   Userspace communicates with the kernel for slow path, resource
   management operations via the /dev/infiniband/uverbsN character
@@ -28,6 +31,7 @@ User-kernel communication
   system call.
 
 Resource management
+===================
 
   Since creation and destruction of all IB resources is done by
   commands passed through a file descriptor, the kernel can keep track
@@ -41,6 +45,7 @@ Resource management
   prevent one process from touching another process's resources.
 
 Memory pinning
+==============
 
   Direct userspace I/O requires that memory regions that are potential
   I/O targets be kept resident at the same physical address.  The
@@ -54,13 +59,14 @@ Memory pinning
   number of pages pinned by a process.
 
 /dev files
+==========
 
   To create the appropriate character device files automatically with
-  udev, a rule like
+  udev, a rule like::
 
     KERNEL=="uverbs*", NAME="infiniband/%k"
 
-  can be used.  This will create device nodes named
+  can be used.  This will create device nodes named::
 
     /dev/infiniband/uverbs0
 

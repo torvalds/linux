@@ -607,11 +607,11 @@ send_hdrs_dma_out:
 qp_out:
 	rdma_destroy_qp(ic->i_cm_id);
 recv_cq_out:
-	if (!ib_destroy_cq(ic->i_recv_cq))
-		ic->i_recv_cq = NULL;
+	ib_destroy_cq(ic->i_recv_cq);
+	ic->i_recv_cq = NULL;
 send_cq_out:
-	if (!ib_destroy_cq(ic->i_send_cq))
-		ic->i_send_cq = NULL;
+	ib_destroy_cq(ic->i_send_cq);
+	ic->i_send_cq = NULL;
 rds_ibdev_out:
 	rds_ib_remove_conn(rds_ibdev, conn);
 out:

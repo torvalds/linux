@@ -183,6 +183,10 @@ static void qedr_roce_register_device(struct qedr_dev *dev)
 }
 
 static const struct ib_device_ops qedr_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_QEDR,
+	.uverbs_abi_ver = QEDR_ABI_VERSION,
+
 	.alloc_mr = qedr_alloc_mr,
 	.alloc_pd = qedr_alloc_pd,
 	.alloc_ucontext = qedr_alloc_ucontext,
@@ -220,6 +224,7 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.resize_cq = qedr_resize_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, qedr_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, qedr_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, qedr_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_srq, qedr_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, qedr_ucontext, ibucontext),
@@ -231,8 +236,6 @@ static int qedr_register_device(struct qedr_dev *dev)
 
 	dev->ibdev.node_guid = dev->attr.node_guid;
 	memcpy(dev->ibdev.node_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
-	dev->ibdev.owner = THIS_MODULE;
-	dev->ibdev.uverbs_abi_ver = QEDR_ABI_VERSION;
 
 	dev->ibdev.uverbs_cmd_mask = QEDR_UVERBS(GET_CONTEXT) |
 				     QEDR_UVERBS(QUERY_DEVICE) |
@@ -274,7 +277,6 @@ static int qedr_register_device(struct qedr_dev *dev)
 	rdma_set_device_sysfs_group(&dev->ibdev, &qedr_attr_group);
 	ib_set_device_ops(&dev->ibdev, &qedr_dev_ops);
 
-	dev->ibdev.driver_id = RDMA_DRIVER_QEDR;
 	rc = ib_device_set_netdev(&dev->ibdev, dev->ndev, 1);
 	if (rc)
 		return rc;

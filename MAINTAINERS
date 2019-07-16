@@ -11018,14 +11018,6 @@ F:	driver/net/net_failover.c
 F:	include/net/net_failover.h
 F:	Documentation/networking/net_failover.rst
 
-NETEFFECT IWARP RNIC DRIVER (IW_NES)
-M:	Faisal Latif <faisal.latif@intel.com>
-L:	linux-rdma@vger.kernel.org
-W:	http://www.intel.com/Products/Server/Adapters/Server-Cluster/Server-Cluster-overview.htm
-S:	Supported
-F:	drivers/infiniband/hw/nes/
-F:	include/uapi/rdma/nes-abi.h
-
 NETEM NETWORK EMULATOR
 M:	Stephen Hemminger <stephen@networkplumber.org>
 L:	netem@lists.linux-foundation.org (moderated for non-subscribers)
@@ -14754,6 +14746,13 @@ SOEKRIS NET48XX LED SUPPORT
 M:	Chris Boot <bootc@bootc.net>
 S:	Maintained
 F:	drivers/leds/leds-net48xx.c
+
+SOFT-IWARP DRIVER (siw)
+M:	Bernard Metzler <bmt@zurich.ibm.com>
+L:	linux-rdma@vger.kernel.org
+S:	Supported
+F:	drivers/infiniband/sw/siw/
+F:	include/uapi/rdma/siw-abi.h
 
 SOFT-ROCE DRIVER (rxe)
 M:	Moni Shoua <monis@mellanox.com>

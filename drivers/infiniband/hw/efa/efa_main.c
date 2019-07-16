@@ -100,7 +100,7 @@ static int efa_request_mgmnt_irq(struct efa_dev *dev)
 		nr_cpumask_bits, &irq->affinity_hint_mask, irq->vector);
 	irq_set_affinity_hint(irq->vector, &irq->affinity_hint_mask);
 
-	return err;
+	return 0;
 }
 
 static void efa_setup_mgmnt_irq(struct efa_dev *dev)
@@ -197,6 +197,10 @@ static void efa_stats_init(struct efa_dev *dev)
 }
 
 static const struct ib_device_ops efa_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_EFA,
+	.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION,
+
 	.alloc_pd = efa_alloc_pd,
 	.alloc_ucontext = efa_alloc_ucontext,
 	.create_ah = efa_create_ah,
@@ -220,6 +224,7 @@ static const struct ib_device_ops efa_dev_ops = {
 	.reg_user_mr = efa_reg_mr,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, efa_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, efa_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, efa_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, efa_ucontext, ibucontext),
 };
@@ -259,12 +264,10 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	if (err)
 		goto err_release_doorbell_bar;
 
-	dev->ibdev.owner = THIS_MODULE;
 	dev->ibdev.node_type = RDMA_NODE_UNSPECIFIED;
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = 1;
 	dev->ibdev.dev.parent = &pdev->dev;
-	dev->ibdev.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION;
 
 	dev->ibdev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
@@ -287,7 +290,6 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.uverbs_ex_cmd_mask =
 		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE);
 
-	dev->ibdev.driver_id = RDMA_DRIVER_EFA;
 	ib_set_device_ops(&dev->ibdev, &efa_dev_ops);
 
 	err = ib_register_device(&dev->ibdev, "efa_%d");

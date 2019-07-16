@@ -1,6 +1,9 @@
-USERSPACE MAD ACCESS
+====================
+Userspace MAD access
+====================
 
 Device files
+============
 
   Each port of each InfiniBand device has a "umad" device and an
   "issm" device attached.  For example, a two-port HCA will have two
@@ -8,12 +11,13 @@ Device files
   device of each type (for switch port 0).
 
 Creating MAD agents
+===================
 
   A MAD agent can be created by filling in a struct ib_user_mad_reg_req
   and then calling the IB_USER_MAD_REGISTER_AGENT ioctl on a file
   descriptor for the appropriate device file.  If the registration
   request succeeds, a 32-bit id will be returned in the structure.
-  For example:
+  For example::
 
 	struct ib_user_mad_reg_req req = { /* ... */ };
 	ret = ioctl(fd, IB_USER_MAD_REGISTER_AGENT, (char *) &req);
@@ -26,12 +30,14 @@ Creating MAD agents
   ioctl.  Also, all agents registered through a file descriptor will
   be unregistered when the descriptor is closed.
 
-  2014 -- a new registration ioctl is now provided which allows additional
+  2014
+       a new registration ioctl is now provided which allows additional
        fields to be provided during registration.
        Users of this registration call are implicitly setting the use of
        pkey_index (see below).
 
 Receiving MADs
+==============
 
   MADs are received using read().  The receive side now supports
   RMPP. The buffer passed to read() must be at least one
@@ -41,7 +47,8 @@ Receiving MADs
   MAD (RMPP), the errno is set to ENOSPC and the length of the
   buffer needed is set in mad.length.
 
-  Example for normal MAD (non RMPP) reads:
+  Example for normal MAD (non RMPP) reads::
+
 	struct ib_user_mad *mad;
 	mad = malloc(sizeof *mad + 256);
 	ret = read(fd, mad, sizeof *mad + 256);
@@ -50,7 +57,8 @@ Receiving MADs
 		free(mad);
 	}
 
-  Example for RMPP reads:
+  Example for RMPP reads::
+
 	struct ib_user_mad *mad;
 	mad = malloc(sizeof *mad + 256);
 	ret = read(fd, mad, sizeof *mad + 256);
@@ -76,11 +84,12 @@ Receiving MADs
   poll()/select() may be used to wait until a MAD can be read.
 
 Sending MADs
+============
 
   MADs are sent using write().  The agent ID for sending should be
   filled into the id field of the MAD, the destination LID should be
   filled into the lid field, and so on.  The send side does support
-  RMPP so arbitrary length MAD can be sent. For example:
+  RMPP so arbitrary length MAD can be sent. For example::
 
 	struct ib_user_mad *mad;
 
@@ -97,6 +106,7 @@ Sending MADs
 		perror("write");
 
 Transaction IDs
+===============
 
   Users of the umad devices can use the lower 32 bits of the
   transaction ID field (that is, the least significant half of the
@@ -105,6 +115,7 @@ Transaction IDs
   the kernel and will be overwritten before a MAD is sent.
 
 P_Key Index Handling
+====================
 
   The old ib_umad interface did not allow setting the P_Key index for
   MADs that are sent and did not provide a way for obtaining the P_Key
@@ -119,6 +130,7 @@ P_Key Index Handling
   default, and the IB_USER_MAD_ENABLE_PKEY ioctl will be removed.
 
 Setting IsSM Capability Bit
+===========================
 
   To set the IsSM capability bit for a port, simply open the
   corresponding issm device file.  If the IsSM bit is already set,
@@ -129,25 +141,26 @@ Setting IsSM Capability Bit
   the issm file.
 
 /dev files
+==========
 
   To create the appropriate character device files automatically with
-  udev, a rule like
+  udev, a rule like::
 
     KERNEL=="umad*", NAME="infiniband/%k"
     KERNEL=="issm*", NAME="infiniband/%k"
 
-  can be used.  This will create device nodes named
+  can be used.  This will create device nodes named::
 
     /dev/infiniband/umad0
     /dev/infiniband/issm0
 
   for the first port, and so on.  The InfiniBand device and port
-  associated with these devices can be determined from the files
+  associated with these devices can be determined from the files::
 
     /sys/class/infiniband_mad/umad0/ibdev
     /sys/class/infiniband_mad/umad0/port
 
-  and
+  and::
 
     /sys/class/infiniband_mad/issm0/ibdev
     /sys/class/infiniband_mad/issm0/port
