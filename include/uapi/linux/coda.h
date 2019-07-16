@@ -271,7 +271,8 @@ struct coda_statfs {
 #define CODA_STATFS	 34
 #define CODA_STORE	 35
 #define CODA_RELEASE	 36
-#define CODA_NCALLS 37
+#define CODA_ACCESS_INTENT 37
+#define CODA_NCALLS 38
 
 #define DOWNCALL(opcode) (opcode >= CODA_REPLACE && opcode <= CODA_PURGEFID)
 
@@ -281,8 +282,12 @@ struct coda_statfs {
 
 #define CIOC_KERNEL_VERSION _IOWR('c', 10, size_t)
 
+//      CODA_KERNEL_VERSION 0 /* don't care about kernel version number */
+//      CODA_KERNEL_VERSION 1 /* The old venus 4.6 compatible interface */
+//      CODA_KERNEL_VERSION 2 /* venus_lookup gets an extra parameter */
 //      CODA_KERNEL_VERSION 3 /* 128-bit file identifiers */
-#define CODA_KERNEL_VERSION 4 /* 64-bit timespec */
+//      CODA_KERNEL_VERSION 4 /* 64-bit timespec */
+#define CODA_KERNEL_VERSION 5 /* access intent support */
 
 /*
  *        Venus <-> Coda  RPC arguments
@@ -637,6 +642,25 @@ struct coda_statfs_out {
     struct coda_statfs stat;
 };
 
+#define CODA_ACCESS_TYPE_READ		1
+#define CODA_ACCESS_TYPE_WRITE		2
+#define CODA_ACCESS_TYPE_MMAP		3
+#define CODA_ACCESS_TYPE_READ_FINISH	4
+#define CODA_ACCESS_TYPE_WRITE_FINISH	5
+
+/* coda_access_intent: NO_OUT */
+struct coda_access_intent_in {
+	struct coda_in_hdr ih;
+	struct CodaFid VFid;
+	int count;
+	int pos;
+	int type;
+};
+
+struct coda_access_intent_out {
+	struct coda_out_hdr out;
+};
+
 /* 
  * Occasionally, we don't cache the fid returned by CODA_LOOKUP. 
  * For instance, if the fid is inconsistent. 
@@ -668,6 +692,7 @@ union inputArgs {
     struct coda_open_by_fd_in coda_open_by_fd;
     struct coda_open_by_path_in coda_open_by_path;
     struct coda_statfs_in coda_statfs;
+    struct coda_access_intent_in coda_access_intent;
 };
 
 union outputArgs {

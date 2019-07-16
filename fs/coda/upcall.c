@@ -569,6 +569,47 @@ int venus_statfs(struct dentry *dentry, struct kstatfs *sfs)
         return error;
 }
 
+int venus_access_intent(struct super_block *sb, struct CodaFid *fid,
+			bool *access_intent_supported,
+			size_t count, loff_t ppos, int type)
+{
+	union inputArgs *inp;
+	union outputArgs *outp;
+	int insize, outsize, error;
+	bool finalizer =
+		type == CODA_ACCESS_TYPE_READ_FINISH ||
+		type == CODA_ACCESS_TYPE_WRITE_FINISH;
+
+	if (!*access_intent_supported && !finalizer)
+		return 0;
+
+	insize = SIZE(access_intent);
+	UPARG(CODA_ACCESS_INTENT);
+
+	inp->coda_access_intent.VFid = *fid;
+	inp->coda_access_intent.count = count;
+	inp->coda_access_intent.pos = ppos;
+	inp->coda_access_intent.type = type;
+
+	error = coda_upcall(coda_vcp(sb), insize,
+			    finalizer ? NULL : &outsize, inp);
+
+	/*
+	 * we have to free the request buffer for synchronous upcalls
+	 * or when asynchronous upcalls fail, but not when asynchronous
+	 * upcalls succeed
+	 */
+	if (!finalizer || error)
+		kvfree(inp);
+
+	/* Chunked access is not supported or an old Coda client */
+	if (error == -EOPNOTSUPP) {
+		*access_intent_supported = false;
+		error = 0;
+	}
+	return error;
+}
+
 /*
  * coda_upcall and coda_downcall routines.
  */
@@ -598,10 +639,12 @@ static void coda_unblock_signals(sigset_t *old)
  * has seen them,
  * - CODA_CLOSE or CODA_RELEASE upcall  (to avoid reference count problems)
  * - CODA_STORE				(to avoid data loss)
+ * - CODA_ACCESS_INTENT                 (to avoid reference count problems)
  */
 #define CODA_INTERRUPTIBLE(r) (!coda_hard && \
 			       (((r)->uc_opcode != CODA_CLOSE && \
 				 (r)->uc_opcode != CODA_STORE && \
+				 (r)->uc_opcode != CODA_ACCESS_INTENT && \
 				 (r)->uc_opcode != CODA_RELEASE) || \
 				(r)->uc_flags & CODA_REQ_READ))
 
@@ -687,21 +730,25 @@ static int coda_upcall(struct venus_comm *vcp,
 		goto exit;
 	}
 
-	req->uc_data = (void *)buffer;
-	req->uc_flags = 0;
-	req->uc_inSize = inSize;
-	req->uc_outSize = *outSize ? *outSize : inSize;
-	req->uc_opcode = ((union inputArgs *)buffer)->ih.opcode;
-	req->uc_unique = ++vcp->vc_seq;
-	init_waitqueue_head(&req->uc_sleep);
+	buffer->ih.unique = ++vcp->vc_seq;
 
-	/* Fill in the common input args. */
-	((union inputArgs *)buffer)->ih.unique = req->uc_unique;
+	req->uc_data = (void *)buffer;
+	req->uc_flags = outSize ? 0 : CODA_REQ_ASYNC;
+	req->uc_inSize = inSize;
+	req->uc_outSize = (outSize && *outSize) ? *outSize : inSize;
+	req->uc_opcode = buffer->ih.opcode;
+	req->uc_unique = buffer->ih.unique;
+	init_waitqueue_head(&req->uc_sleep);
 
 	/* Append msg to pending queue and poke Venus. */
 	list_add_tail(&req->uc_chain, &vcp->vc_pending);
-
 	wake_up_interruptible(&vcp->vc_waitq);
+
+	if (req->uc_flags & CODA_REQ_ASYNC) {
+		mutex_unlock(&vcp->vc_mutex);
+		return 0;
+	}
+
 	/* We can be interrupted while we wait for Venus to process
 	 * our request.  If the interrupt occurs before Venus has read
 	 * the request, we dequeue and return. If it occurs after the
@@ -743,20 +790,20 @@ static int coda_upcall(struct venus_comm *vcp,
 	sig_req = kmalloc(sizeof(struct upc_req), GFP_KERNEL);
 	if (!sig_req) goto exit;
 
-	sig_req->uc_data = kvzalloc(sizeof(struct coda_in_hdr), GFP_KERNEL);
-	if (!sig_req->uc_data) {
+	sig_inputArgs = kvzalloc(sizeof(struct coda_in_hdr), GFP_KERNEL);
+	if (!sig_inputArgs) {
 		kfree(sig_req);
 		goto exit;
 	}
 
 	error = -EINTR;
-	sig_inputArgs = (union inputArgs *)sig_req->uc_data;
 	sig_inputArgs->ih.opcode = CODA_SIGNAL;
 	sig_inputArgs->ih.unique = req->uc_unique;
 
 	sig_req->uc_flags = CODA_REQ_ASYNC;
 	sig_req->uc_opcode = sig_inputArgs->ih.opcode;
 	sig_req->uc_unique = sig_inputArgs->ih.unique;
+	sig_req->uc_data = (void *)sig_inputArgs;
 	sig_req->uc_inSize = sizeof(struct coda_in_hdr);
 	sig_req->uc_outSize = sizeof(struct coda_in_hdr);
 
@@ -911,4 +958,3 @@ unlock_out:
 	iput(inode);
 	return 0;
 }
-
