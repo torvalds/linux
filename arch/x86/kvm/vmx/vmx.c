@@ -2323,6 +2323,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 			SECONDARY_EXEC_RDRAND_EXITING |
 			SECONDARY_EXEC_ENABLE_PML |
 			SECONDARY_EXEC_TSC_SCALING |
+			SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE |
 			SECONDARY_EXEC_PT_USE_GPA |
 			SECONDARY_EXEC_PT_CONCEAL_VMX |
 			SECONDARY_EXEC_ENABLE_VMFUNC |
@@ -4056,6 +4057,23 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 			else
 				vmx->nested.msrs.secondary_ctls_high &=
 					~SECONDARY_EXEC_RDSEED_EXITING;
+		}
+	}
+
+	if (vmx_waitpkg_supported()) {
+		bool waitpkg_enabled =
+			guest_cpuid_has(vcpu, X86_FEATURE_WAITPKG);
+
+		if (!waitpkg_enabled)
+			exec_control &= ~SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE;
+
+		if (nested) {
+			if (waitpkg_enabled)
+				vmx->nested.msrs.secondary_ctls_high |=
+					SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE;
+			else
+				vmx->nested.msrs.secondary_ctls_high &=
+					~SECONDARY_EXEC_ENABLE_USR_WAIT_PAUSE;
 		}
 	}
 
