@@ -33,6 +33,20 @@ struct syscall {
 
 bpf_map(syscalls, ARRAY, int, struct syscall, 512);
 
+/*
+ * What to augment at entry?
+ *
+ * Pointer arg payloads (filenames, etc) passed from userspace to the kernel
+ */
+bpf_map(syscalls_sys_enter, PROG_ARRAY, u32, u32, 512);
+
+/*
+ * What to augment at exit?
+ *
+ * Pointer arg payloads returned from the kernel (struct stat, etc) to userspace.
+ */
+bpf_map(syscalls_sys_exit, PROG_ARRAY, u32, u32, 512);
+
 struct syscall_enter_args {
 	unsigned long long common_tp_fields;
 	long		   syscall_nr;
