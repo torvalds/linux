@@ -1359,6 +1359,8 @@ static int trans_get_key(struct btree_trans *trans,
 	if (IS_ERR(*iter))
 		return PTR_ERR(*iter);
 
+	bch2_trans_iter_free_on_commit(trans, *iter);
+
 	*k = bch2_btree_iter_peek_slot(*iter);
 	ret = bkey_err(*k);
 	if (ret)
