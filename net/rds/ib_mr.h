@@ -57,6 +57,7 @@ struct rds_ib_frmr {
 	struct ib_mr		*mr;
 	enum rds_ib_fr_state	fr_state;
 	bool			fr_inv;
+	wait_queue_head_t	fr_inv_done;
 	struct ib_send_wr	fr_wr;
 	unsigned int		dma_npages;
 	unsigned int		sg_byte_len;

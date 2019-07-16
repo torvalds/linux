@@ -75,6 +75,7 @@ static struct rds_ib_mr *rds_ib_alloc_frmr(struct rds_ib_device *rds_ibdev,
 		pool->max_items_soft = pool->max_items;
 
 	frmr->fr_state = FRMR_IS_FREE;
+	init_waitqueue_head(&frmr->fr_inv_done);
 	return ibmr;
 
 out_no_cigar:
@@ -285,6 +286,7 @@ void rds_ib_mr_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 	if (frmr->fr_inv) {
 		frmr->fr_state = FRMR_IS_FREE;
 		frmr->fr_inv = false;
+		wake_up(&frmr->fr_inv_done);
 	}
 
 	atomic_inc(&ic->i_fastreg_wrs);
@@ -345,8 +347,31 @@ struct rds_ib_mr *rds_ib_reg_frmr(struct rds_ib_device *rds_ibdev,
 	}
 
 	do {
-		if (ibmr)
+		if (ibmr) {
+			/* Memory regions make it onto the "clean_list" via
+			 * "rds_ib_flush_mr_pool", after the memory region has
+			 * been posted for invalidation via "rds_ib_post_inv".
+			 *
+			 * At that point in time, "fr_state" may still be
+			 * in state "FRMR_IS_INUSE", since the only place where
+			 * "fr_state" transitions to "FRMR_IS_FREE" is in
+			 * is in "rds_ib_mr_cqe_handler", which is
+			 * triggered by a tasklet.
+			 *
+			 * So we wait for "fr_inv_done" to trigger
+			 * and only put memory regions onto the drop_list
+			 * that failed (i.e. not marked "FRMR_IS_FREE").
+			 *
+			 * This avoids the problem of memory-regions bouncing
+			 * between "clean_list" and "drop_list" before they
+			 * even have a chance to be properly invalidated.
+			 */
+			frmr = &ibmr->u.frmr;
+			wait_event(frmr->fr_inv_done, frmr->fr_state != FRMR_IS_INUSE);
+			if (frmr->fr_state == FRMR_IS_FREE)
+				break;
 			rds_ib_free_frmr(ibmr, true);
+		}
 		ibmr = rds_ib_alloc_frmr(rds_ibdev, nents);
 		if (IS_ERR(ibmr))
 			return ibmr;
