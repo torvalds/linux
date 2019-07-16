@@ -37,9 +37,7 @@ static ssize_t
 coda_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *coda_file = iocb->ki_filp;
-	struct coda_file_info *cfi = CODA_FTOC(coda_file);
-
-	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
+	struct coda_file_info *cfi = coda_ftoc(coda_file);
 
 	return vfs_iter_read(cfi->cfi_container, to, &iocb->ki_pos, 0);
 }
@@ -49,11 +47,9 @@ coda_file_write_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *coda_file = iocb->ki_filp;
 	struct inode *coda_inode = file_inode(coda_file);
-	struct coda_file_info *cfi = CODA_FTOC(coda_file);
+	struct coda_file_info *cfi = coda_ftoc(coda_file);
 	struct file *host_file;
 	ssize_t ret;
-
-	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
 
 	host_file = cfi->cfi_container;
 	file_start_write(host_file);
@@ -105,8 +101,7 @@ coda_file_mmap(struct file *coda_file, struct vm_area_struct *vma)
 	struct coda_vm_ops *cvm_ops;
 	int ret;
 
-	cfi = CODA_FTOC(coda_file);
-	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
+	cfi = coda_ftoc(coda_file);
 	host_file = cfi->cfi_container;
 
 	if (!host_file->f_op->mmap)
@@ -208,8 +203,7 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 	struct inode *host_inode;
 	int err;
 
-	cfi = CODA_FTOC(coda_file);
-	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
+	cfi = coda_ftoc(coda_file);
 
 	err = venus_close(coda_inode->i_sb, coda_i2f(coda_inode),
 			  coda_flags, coda_file->f_cred->fsuid);
@@ -251,8 +245,7 @@ int coda_fsync(struct file *coda_file, loff_t start, loff_t end, int datasync)
 		return err;
 	inode_lock(coda_inode);
 
-	cfi = CODA_FTOC(coda_file);
-	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
+	cfi = coda_ftoc(coda_file);
 	host_file = cfi->cfi_container;
 
 	err = vfs_fsync(host_file, datasync);

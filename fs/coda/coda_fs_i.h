@@ -42,8 +42,6 @@ struct coda_file_info {
 	unsigned int	   cfi_mapcount;  /* nr of times this file is mapped */
 };
 
-#define CODA_FTOC(file) ((struct coda_file_info *)((file)->private_data))
-
 /* flags */
 #define C_VATTR       0x1   /* Validity of vattr in inode */
 #define C_FLUSH       0x2   /* used after a flush */
@@ -54,6 +52,7 @@ struct inode *coda_cnode_make(struct CodaFid *, struct super_block *);
 struct inode *coda_iget(struct super_block *sb, struct CodaFid *fid, struct coda_vattr *attr);
 struct inode *coda_cnode_makectl(struct super_block *sb);
 struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb);
+struct coda_file_info *coda_ftoc(struct file *file);
 void coda_replace_fid(struct inode *, struct CodaFid *, struct CodaFid *);
 
 #endif
