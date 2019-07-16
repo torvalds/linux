@@ -295,8 +295,8 @@ struct coda_statfs {
 struct coda_in_hdr {
     u_int32_t opcode;
     u_int32_t unique;	    /* Keep multiple outstanding msgs distinct */
-    pid_t pid;
-    pid_t pgid;
+    __kernel_pid_t pid;
+    __kernel_pid_t pgid;
     vuid_t uid;
 };
 
