@@ -507,7 +507,7 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev)
 	 * APUs. So force the BO placement to VRAM in case this architecture
 	 * will not allow USWC mappings.
 	 */
-	if (adev->asic_type >= CHIP_CARRIZO && adev->asic_type < CHIP_RAVEN &&
+	if (adev->asic_type >= CHIP_CARRIZO && adev->asic_type <= CHIP_RAVEN &&
 	    adev->flags & AMD_IS_APU && amdgpu_bo_support_uswc(0) &&
 	    amdgpu_device_asic_has_dc_support(adev->asic_type))
 		domain |= AMDGPU_GEM_DOMAIN_GTT;
