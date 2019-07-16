@@ -137,11 +137,6 @@ struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb)
 	struct inode *inode;
 	unsigned long hash = coda_f2i(fid);
 
-	if ( !sb ) {
-		pr_warn("%s: no sb!\n", __func__);
-		return NULL;
-	}
-
 	inode = ilookup5(sb, hash, coda_test_inode, fid);
 	if ( !inode )
 		return NULL;
