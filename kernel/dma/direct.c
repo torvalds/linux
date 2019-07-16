@@ -399,11 +399,9 @@ int dma_direct_supported(struct device *dev, u64 mask)
 
 size_t dma_direct_max_mapping_size(struct device *dev)
 {
-	size_t size = SIZE_MAX;
-
 	/* If SWIOTLB is active, use its maximum mapping size */
-	if (is_swiotlb_active())
-		size = swiotlb_max_mapping_size(dev);
-
-	return size;
+	if (is_swiotlb_active() &&
+	    (dma_addressing_limited(dev) || swiotlb_force == SWIOTLB_FORCE))
+		return swiotlb_max_mapping_size(dev);
+	return SIZE_MAX;
 }
