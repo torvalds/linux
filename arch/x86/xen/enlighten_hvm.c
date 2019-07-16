@@ -231,14 +231,6 @@ bool __init xen_hvm_need_lapic(void)
 	return true;
 }
 
-static uint32_t __init xen_platform_hvm(void)
-{
-	if (xen_pv_domain())
-		return 0;
-
-	return xen_cpuid_base();
-}
-
 static __init void xen_hvm_guest_late_init(void)
 {
 #ifdef CONFIG_XEN_PVH
@@ -250,6 +242,9 @@ static __init void xen_hvm_guest_late_init(void)
 	/* PVH detected. */
 	xen_pvh = true;
 
+	if (nopv)
+		panic("\"nopv\" and \"xen_nopv\" parameters are unsupported in PVH guest.");
+
 	/* Make sure we don't fall back to (default) ACPI_IRQ_MODEL_PIC. */
 	if (!nr_ioapics && acpi_irq_model == ACPI_IRQ_MODEL_PIC)
 		acpi_irq_model = ACPI_IRQ_MODEL_PLATFORM;
@@ -257,6 +252,37 @@ static __init void xen_hvm_guest_late_init(void)
 	machine_ops.emergency_restart = xen_emergency_restart;
 	pv_info.name = "Xen PVH";
 #endif
+}
+
+static uint32_t __init xen_platform_hvm(void)
+{
+	uint32_t xen_domain = xen_cpuid_base();
+	struct x86_hyper_init *h = &x86_hyper_xen_hvm.init;
+
+	if (xen_pv_domain())
+		return 0;
+
+	if (xen_pvh_domain() && nopv) {
+		/* Guest booting via the Xen-PVH boot entry goes here */
+		pr_info("\"nopv\" parameter is ignored in PVH guest\n");
+		nopv = false;
+	} else if (nopv && xen_domain) {
+		/*
+		 * Guest booting via normal boot entry (like via grub2) goes
+		 * here.
+		 *
+		 * Use interface functions for bare hardware if nopv,
+		 * xen_hvm_guest_late_init is an exception as we need to
+		 * detect PVH and panic there.
+		 */
+		h->init_platform = x86_init_noop;
+		h->x2apic_available = bool_x86_init_noop;
+		h->init_mem_mapping = x86_init_noop;
+		h->init_after_bootmem = x86_init_noop;
+		h->guest_late_init = xen_hvm_guest_late_init;
+		x86_hyper_xen_hvm.runtime.pin_vcpu = x86_op_int_noop;
+	}
+	return xen_domain;
 }
 
 struct hypervisor_x86 x86_hyper_xen_hvm __initdata = {
@@ -268,4 +294,5 @@ struct hypervisor_x86 x86_hyper_xen_hvm __initdata = {
 	.init.init_mem_mapping	= xen_hvm_init_mem_mapping,
 	.init.guest_late_init	= xen_hvm_guest_late_init,
 	.runtime.pin_vcpu       = xen_pin_vcpu,
+	.ignore_nopv            = true,
 };
