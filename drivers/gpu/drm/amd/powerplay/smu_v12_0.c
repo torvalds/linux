@@ -36,6 +36,13 @@
 
 #define smnMP1_FIRMWARE_FLAGS                                0x3010024
 
+#define mmPWR_MISC_CNTL_STATUS					0x0183
+#define mmPWR_MISC_CNTL_STATUS_BASE_IDX				0
+#define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN__SHIFT	0x0
+#define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS__SHIFT		0x1
+#define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN_MASK		0x00000001L
+#define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS_MASK		0x00000006L
+
 static int smu_v12_0_send_msg_without_waiting(struct smu_context *smu,
 					      uint16_t msg)
 {
@@ -207,6 +214,42 @@ static int smu_v12_0_set_gfx_cgpg(struct smu_context *smu, bool enable)
 		SMU_MSG_SetGfxCGPG, enable ? 1 : 0);
 }
 
+static bool smu_v12_0_is_gfx_on(struct smu_context *smu)
+{
+	uint32_t reg;
+	struct amdgpu_device *adev = smu->adev;
+
+	reg = RREG32_SOC15(PWR, 0, mmPWR_MISC_CNTL_STATUS);
+	if ((reg & PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS_MASK) ==
+	    (0x2 << PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS__SHIFT))
+		return true;
+
+	return false;
+}
+
+static int smu_v12_0_gfx_off_control(struct smu_context *smu, bool enable)
+{
+	int ret = 0, timeout = 10;
+
+	if (enable) {
+		ret = smu_send_smc_msg(smu, SMU_MSG_AllowGfxOff);
+	} else {
+		ret = smu_send_smc_msg(smu, SMU_MSG_DisallowGfxOff);
+
+		/* confirm gfx is back to "on" state */
+		while (!smu_v12_0_is_gfx_on(smu)) {
+			msleep(1);
+			timeout--;
+			if (timeout == 0) {
+				DRM_ERROR("disable gfxoff timeout and failed!\n");
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v12_0_funcs = {
 	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
@@ -216,6 +259,7 @@ static const struct smu_funcs smu_v12_0_funcs = {
 	.send_smc_msg_with_param = smu_v12_0_send_msg_with_param,
 	.read_smc_arg = smu_v12_0_read_arg,
 	.set_gfx_cgpg = smu_v12_0_set_gfx_cgpg,
+	.gfx_off_control = smu_v12_0_gfx_off_control,
 };
 
 void smu_v12_0_set_smu_funcs(struct smu_context *smu)

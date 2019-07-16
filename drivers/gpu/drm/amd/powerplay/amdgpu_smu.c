@@ -737,7 +737,6 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		smu_v11_0_set_smu_funcs(smu);
 		break;
 	case CHIP_RENOIR:
-		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		if (adev->pm.pp_feature & PP_OVERDRIVE_MASK)
 			smu->od_enabled = true;
 		smu_v12_0_set_smu_funcs(smu);
