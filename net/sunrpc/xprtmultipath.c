@@ -194,9 +194,21 @@ void xprt_iter_default_rewind(struct rpc_xprt_iter *xpi)
 }
 
 static
+bool xprt_is_active(const struct rpc_xprt *xprt)
+{
+	return kref_read(&xprt->kref) != 0;
+}
+
+static
 struct rpc_xprt *xprt_switch_find_first_entry(struct list_head *head)
 {
-	return list_first_or_null_rcu(head, struct rpc_xprt, xprt_switch);
+	struct rpc_xprt *pos;
+
+	list_for_each_entry_rcu(pos, head, xprt_switch) {
+		if (xprt_is_active(pos))
+			return pos;
+	}
+	return NULL;
 }
 
 static
@@ -214,9 +226,12 @@ struct rpc_xprt *xprt_switch_find_current_entry(struct list_head *head,
 		const struct rpc_xprt *cur)
 {
 	struct rpc_xprt *pos;
+	bool found = false;
 
 	list_for_each_entry_rcu(pos, head, xprt_switch) {
 		if (cur == pos)
+			found = true;
+		if (found && xprt_is_active(pos))
 			return pos;
 	}
 	return NULL;
@@ -261,9 +276,12 @@ struct rpc_xprt *xprt_switch_find_next_entry(struct list_head *head,
 		const struct rpc_xprt *cur)
 {
 	struct rpc_xprt *pos, *prev = NULL;
+	bool found = false;
 
 	list_for_each_entry_rcu(pos, head, xprt_switch) {
 		if (cur == prev)
+			found = true;
+		if (found && xprt_is_active(pos))
 			return pos;
 		prev = pos;
 	}
