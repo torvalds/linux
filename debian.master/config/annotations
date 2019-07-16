@@ -1758,7 +1758,7 @@ CONFIG_DRM_VC4_HDMI_CEC                         policy<{'arm64': 'y'}>
 CONFIG_DRM_ETNAVIV                              policy<{'arm64': 'm', 'armhf-generic': 'm'}>
 CONFIG_DRM_ETNAVIV_THERMAL                      policy<{'arm64': 'y', 'armhf-generic': 'y'}>
 CONFIG_DRM_ARCPGU                               policy<{'arm64': 'm', 'armhf': 'm', 'ppc64el': 'm'}>
-CONFIG_DRM_HISI_HIBMC                           policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'n'}>
+CONFIG_DRM_HISI_HIBMC                           policy<{'arm64': 'm'}>
 CONFIG_DRM_HISI_KIRIN                           policy<{'arm64': 'm'}>
 CONFIG_HISI_KIRIN_DW_DSI                        policy<{'arm64': 'm'}>
 CONFIG_DRM_MEDIATEK                             policy<{'arm64': 'm', 'armhf': 'm'}>
@@ -1771,6 +1771,7 @@ CONFIG_DRM_TVE200                               policy<{'armhf': 'm'}>
 #
 CONFIG_DRM_MGAG200                              note<LP#1693337>
 CONFIG_DRM_STI                                  note<LP#1398458>
+CONFIG_DRM_HISI_HIBMC                           note<LP#1762940>
 
 # Menu: Device Drivers >> Graphics support >> Direct Rendering Manager (XFree86 4.1.0 and higher DRI support) >> AMD GPU
 CONFIG_DRM_AMDGPU                               policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'n'}>
