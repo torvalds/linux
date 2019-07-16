@@ -216,7 +216,7 @@ static void vnt_submit_rx_urb_complete(struct urb *urb)
 		}
 
 		urb->transfer_buffer = skb_put(rcb->skb,
-						skb_tailroom(rcb->skb));
+					       skb_tailroom(rcb->skb));
 	}
 
 	if (usb_submit_urb(urb, GFP_ATOMIC)) {
