@@ -9,7 +9,7 @@ struct btree;
 struct bkey;
 enum btree_node_type;
 
-extern const char * const bch_bkey_types[];
+extern const char * const bch2_bkey_types[];
 
 enum merge_result {
 	BCH_MERGE_NOMERGE,
