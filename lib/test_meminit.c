@@ -208,35 +208,37 @@ static int __init do_kmem_cache_size(size_t size, bool want_ctor,
 		/* Check that buf is zeroed, if it must be. */
 		fail = check_buf(buf, size, want_ctor, want_rcu, want_zero);
 		fill_with_garbage_skip(buf, size, want_ctor ? CTOR_BYTES : 0);
+
+		if (!want_rcu) {
+			kmem_cache_free(c, buf);
+			continue;
+		}
+
 		/*
 		 * If this is an RCU cache, use a critical section to ensure we
 		 * can touch objects after they're freed.
 		 */
-		if (want_rcu) {
-			rcu_read_lock();
-			/*
-			 * Copy the buffer to check that it's not wiped on
-			 * free().
-			 */
-			buf_copy = kmalloc(size, GFP_KERNEL);
-			if (buf_copy)
-				memcpy(buf_copy, buf, size);
+		rcu_read_lock();
+		/*
+		 * Copy the buffer to check that it's not wiped on
+		 * free().
+		 */
+		buf_copy = kmalloc(size, GFP_KERNEL);
+		if (buf_copy)
+			memcpy(buf_copy, buf, size);
+
+		/*
+		 * Check that |buf| is intact after kmem_cache_free().
+		 * |want_zero| is false, because we wrote garbage to
+		 * the buffer already.
+		 */
+		fail |= check_buf(buf, size, want_ctor, want_rcu,
+				  false);
+		if (buf_copy) {
+			fail |= (bool)memcmp(buf, buf_copy, size);
+			kfree(buf_copy);
 		}
-		kmem_cache_free(c, buf);
-		if (want_rcu) {
-			/*
-			 * Check that |buf| is intact after kmem_cache_free().
-			 * |want_zero| is false, because we wrote garbage to
-			 * the buffer already.
-			 */
-			fail |= check_buf(buf, size, want_ctor, want_rcu,
-					  false);
-			if (buf_copy) {
-				fail |= (bool)memcmp(buf, buf_copy, size);
-				kfree(buf_copy);
-			}
-			rcu_read_unlock();
-		}
+		rcu_read_unlock();
 	}
 	kmem_cache_destroy(c);
 
