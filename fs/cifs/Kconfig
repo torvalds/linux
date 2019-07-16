@@ -197,10 +197,10 @@ config CIFS_NFSD_EXPORT
 	  Allows NFS server to export a CIFS mounted share (nfsd over cifs)
 
 config CIFS_SMB_DIRECT
-	bool "SMB Direct support (Experimental)"
+	bool "SMB Direct support"
 	depends on CIFS=m && INFINIBAND && INFINIBAND_ADDR_TRANS || CIFS=y && INFINIBAND=y && INFINIBAND_ADDR_TRANS=y
 	help
-	  Enables SMB Direct experimental support for SMB 3.0, 3.02 and 3.1.1.
+	  Enables SMB Direct support for SMB 3.0, 3.02 and 3.1.1.
 	  SMB Direct allows transferring SMB packets over RDMA. If unsure,
 	  say N.
 
