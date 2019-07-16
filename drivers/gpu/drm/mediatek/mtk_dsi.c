@@ -3,12 +3,6 @@
  * Copyright (c) 2015 MediaTek Inc.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/drm_panel.h>
-#include <drm/drm_of.h>
-#include <drm/drm_probe_helper.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/iopoll.h>
@@ -17,8 +11,16 @@
 #include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+
 #include <video/mipi_display.h>
 #include <video/videomode.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_of.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 #include "mtk_drm_ddp_comp.h"
 

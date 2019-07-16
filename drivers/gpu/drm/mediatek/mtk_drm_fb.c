@@ -3,13 +3,14 @@
  * Copyright (c) 2015 MediaTek Inc.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_modeset_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_gem.h>
-#include <drm/drm_gem_framebuffer_helper.h>
 #include <linux/dma-buf.h>
 #include <linux/reservation.h>
+
+#include <drm/drm_modeset_helper.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "mtk_drm_drv.h"
 #include "mtk_drm_fb.h"
