@@ -781,6 +781,55 @@ void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct napi_struct *napi,
 		wake_up(&mvm->rx_sync_waitq);
 }
 
+static void iwl_mvm_oldsn_workaround(struct iwl_mvm *mvm,
+				     struct ieee80211_sta *sta, int tid,
+				     struct iwl_mvm_reorder_buffer *buffer,
+				     u32 reorder, u32 gp2, int queue)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	if (gp2 != buffer->consec_oldsn_ampdu_gp2) {
+		/* we have a new (A-)MPDU ... */
+
+		/*
+		 * reset counter to 0 if we didn't have any oldsn in
+		 * the last A-MPDU (as detected by GP2 being identical)
+		 */
+		if (!buffer->consec_oldsn_prev_drop)
+			buffer->consec_oldsn_drops = 0;
+
+		/* either way, update our tracking state */
+		buffer->consec_oldsn_ampdu_gp2 = gp2;
+	} else if (buffer->consec_oldsn_prev_drop) {
+		/*
+		 * tracking state didn't change, and we had an old SN
+		 * indication before - do nothing in this case, we
+		 * already noted this one down and are waiting for the
+		 * next A-MPDU (by GP2)
+		 */
+		return;
+	}
+
+	/* return unless this MPDU has old SN */
+	if (!(reorder & IWL_RX_MPDU_REORDER_BA_OLD_SN))
+		return;
+
+	/* update state */
+	buffer->consec_oldsn_prev_drop = 1;
+	buffer->consec_oldsn_drops++;
+
+	/* if limit is reached, send del BA and reset state */
+	if (buffer->consec_oldsn_drops == IWL_MVM_AMPDU_CONSEC_DROPS_DELBA) {
+		IWL_WARN(mvm,
+			 "reached %d old SN frames from %pM on queue %d, stopping BA session on TID %d\n",
+			 IWL_MVM_AMPDU_CONSEC_DROPS_DELBA,
+			 sta->addr, queue, tid);
+		ieee80211_stop_rx_ba_session(mvmsta->vif, BIT(tid), sta->addr);
+		buffer->consec_oldsn_prev_drop = 0;
+		buffer->consec_oldsn_drops = 0;
+	}
+}
+
 /*
  * Returns true if the MPDU was buffered\dropped, false if it should be passed
  * to upper layer.
@@ -792,6 +841,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 			    struct sk_buff *skb,
 			    struct iwl_rx_mpdu_desc *desc)
 {
+	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr = iwl_mvm_skb_get_hdr(skb);
 	struct iwl_mvm_sta *mvm_sta;
 	struct iwl_mvm_baid_data *baid_data;
@@ -893,6 +943,9 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		iwl_mvm_release_frames(mvm, sta, napi, baid_data, buffer,
 				       min_sn, IWL_MVM_RELEASE_SEND_RSS_SYNC);
 	}
+
+	iwl_mvm_oldsn_workaround(mvm, sta, tid, buffer, reorder,
+				 rx_status->device_timestamp, queue);
 
 	/* drop any oudated packets */
 	if (ieee80211_sn_less(sn, buffer->head_sn))

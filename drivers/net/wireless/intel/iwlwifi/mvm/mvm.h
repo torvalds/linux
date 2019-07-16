@@ -661,6 +661,12 @@ struct iwl_mvm_tcm {
  * @valid: reordering is valid for this queue
  * @lock: protect reorder buffer internal state
  * @mvm: mvm pointer, needed for frame timer context
+ * @consec_oldsn_drops: consecutive drops due to old SN
+ * @consec_oldsn_ampdu_gp2: A-MPDU GP2 timestamp to track
+ *	when to apply old SN consecutive drop workaround
+ * @consec_oldsn_prev_drop: track whether or not an MPDU
+ *	that was single/part of the previous A-MPDU was
+ *	dropped due to old SN
  */
 struct iwl_mvm_reorder_buffer {
 	u16 head_sn;
@@ -674,6 +680,9 @@ struct iwl_mvm_reorder_buffer {
 	bool valid;
 	spinlock_t lock;
 	struct iwl_mvm *mvm;
+	unsigned int consec_oldsn_drops;
+	u32 consec_oldsn_ampdu_gp2;
+	unsigned int consec_oldsn_prev_drop:1;
 } ____cacheline_aligned_in_smp;
 
 /**
