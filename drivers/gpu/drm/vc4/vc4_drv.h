@@ -6,15 +6,22 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/mm_types.h>
-#include <drm/drmP.h>
-#include <drm/drm_util.h>
+#include <linux/delay.h>
+#include <linux/refcount.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_atomic.h>
-#include <drm/drm_syncobj.h>
+#include <drm/drm_mm.h>
+#include <drm/drm_modeset_lock.h>
 
 #include "uapi/drm/vc4_drm.h"
+
+struct drm_device;
+struct drm_gem_object;
 
 /* Don't forget to update vc4_bo.c: bo_type_names[] when adding to
  * this.
