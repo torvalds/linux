@@ -833,10 +833,8 @@ static enum dma_status omap_dma_tx_status(struct dma_chan *chan,
 		return ret;
 
 	spin_lock_irqsave(&c->vc.lock, flags);
-	vd = vchan_find_desc(&c->vc, cookie);
-	if (vd) {
-		txstate->residue = omap_dma_desc_size(to_omap_dma_desc(&vd->tx));
-	} else if (c->desc && c->desc->vd.tx.cookie == cookie) {
+
+	if (c->desc && c->desc->vd.tx.cookie == cookie) {
 		struct omap_desc *d = c->desc;
 		dma_addr_t pos;
 
@@ -848,11 +846,15 @@ static enum dma_status omap_dma_tx_status(struct dma_chan *chan,
 			pos = 0;
 
 		txstate->residue = omap_dma_desc_size_pos(d, pos);
+	} else if ((vd = vchan_find_desc(&c->vc, cookie))) {
+		txstate->residue = omap_dma_desc_size(to_omap_dma_desc(&vd->tx));
 	} else {
 		txstate->residue = 0;
 	}
+
 	if (ret == DMA_IN_PROGRESS && c->paused)
 		ret = DMA_PAUSED;
+
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 
 	return ret;
