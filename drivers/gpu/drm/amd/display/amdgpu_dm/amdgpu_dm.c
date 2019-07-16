@@ -1186,14 +1186,14 @@ static int dm_resume(void *handle)
 	/* program HPD filter */
 	dc_resume(dm->dc);
 
-	/* On resume we need to  rewrite the MSTM control bits to enamble MST*/
-	s3_handle_mst(ddev, false);
-
 	/*
 	 * early enable HPD Rx IRQ, should be done before set mode as short
 	 * pulse interrupts are used for MST
 	 */
 	amdgpu_dm_irq_resume_early(adev);
+
+	/* On resume we need to rewrite the MSTM control bits to enable MST*/
+	s3_handle_mst(ddev, false);
 
 	/* Do detection*/
 	drm_connector_list_iter_begin(ddev, &iter);
