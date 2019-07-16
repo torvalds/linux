@@ -94,6 +94,7 @@ static struct facility_def facility_defs[] = {
 			139, /* multiple epoch facility */
 			146, /* msa extension 8 */
 			150, /* enhanced sort */
+			151, /* deflate conversion */
 			155, /* msa extension 9 */
 			-1  /* END */
 		}
