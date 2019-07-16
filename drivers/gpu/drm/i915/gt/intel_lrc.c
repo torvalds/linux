@@ -2183,11 +2183,23 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 	__tasklet_disable_sync_once(&execlists->tasklet);
 	GEM_BUG_ON(!reset_in_progress(execlists));
 
-	intel_engine_stop_cs(engine);
-
 	/* And flush any current direct submission. */
 	spin_lock_irqsave(&engine->active.lock, flags);
 	spin_unlock_irqrestore(&engine->active.lock, flags);
+
+	/*
+	 * We stop engines, otherwise we might get failed reset and a
+	 * dead gpu (on elk). Also as modern gpu as kbl can suffer
+	 * from system hang if batchbuffer is progressing when
+	 * the reset is issued, regardless of READY_TO_RESET ack.
+	 * Thus assume it is best to stop engines on all gens
+	 * where we have a gpu reset.
+	 *
+	 * WaKBLVECSSemaphoreWaitPoll:kbl (on ALL_ENGINES)
+	 *
+	 * FIXME: Wa for more modern gens needs to be validated
+	 */
+	intel_engine_stop_cs(engine);
 }
 
 static void reset_csb_pointers(struct intel_engine_cs *engine)

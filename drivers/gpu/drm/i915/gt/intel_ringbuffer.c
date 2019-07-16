@@ -739,7 +739,45 @@ out:
 
 static void reset_prepare(struct intel_engine_cs *engine)
 {
-	intel_engine_stop_cs(engine);
+	struct intel_uncore *uncore = engine->uncore;
+	const u32 base = engine->mmio_base;
+
+	/*
+	 * We stop engines, otherwise we might get failed reset and a
+	 * dead gpu (on elk). Also as modern gpu as kbl can suffer
+	 * from system hang if batchbuffer is progressing when
+	 * the reset is issued, regardless of READY_TO_RESET ack.
+	 * Thus assume it is best to stop engines on all gens
+	 * where we have a gpu reset.
+	 *
+	 * WaKBLVECSSemaphoreWaitPoll:kbl (on ALL_ENGINES)
+	 *
+	 * WaMediaResetMainRingCleanup:ctg,elk (presumably)
+	 *
+	 * FIXME: Wa for more modern gens needs to be validated
+	 */
+	GEM_TRACE("%s\n", engine->name);
+
+	if (intel_engine_stop_cs(engine))
+		GEM_TRACE("%s: timed out on STOP_RING\n", engine->name);
+
+	intel_uncore_write_fw(uncore,
+			      RING_HEAD(base),
+			      intel_uncore_read_fw(uncore, RING_TAIL(base)));
+	intel_uncore_posting_read_fw(uncore, RING_HEAD(base)); /* paranoia */
+
+	intel_uncore_write_fw(uncore, RING_HEAD(base), 0);
+	intel_uncore_write_fw(uncore, RING_TAIL(base), 0);
+	intel_uncore_posting_read_fw(uncore, RING_TAIL(base));
+
+	/* The ring must be empty before it is disabled */
+	intel_uncore_write_fw(uncore, RING_CTL(base), 0);
+
+	/* Check acts as a post */
+	if (intel_uncore_read_fw(uncore, RING_HEAD(base)))
+		GEM_TRACE("%s: ring head [%x] not parked\n",
+			  engine->name,
+			  intel_uncore_read_fw(uncore, RING_HEAD(base)));
 }
 
 static void reset_ring(struct intel_engine_cs *engine, bool stalled)
