@@ -3,7 +3,7 @@
  * Copyright (C) Jernej Skrabec <jernej.skrabec@siol.net>
  */
 
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
 
 #include "sun8i_csc.h"
 #include "sun8i_mixer.h"

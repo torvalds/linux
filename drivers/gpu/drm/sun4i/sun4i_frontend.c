@@ -3,9 +3,6 @@
  * Copyright (C) 2017 Free Electrons
  * Maxime Ripard <maxime.ripard@free-electrons.com>
  */
-#include <drm/drmP.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_fb_cma_helper.h>
 
 #include <linux/clk.h>
 #include <linux/component.h>
@@ -15,6 +12,13 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_plane.h>
 
 #include "sun4i_drv.h"
 #include "sun4i_frontend.h"
