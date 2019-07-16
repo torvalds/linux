@@ -48,18 +48,18 @@
 
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd-regs.h>
-#include <linux/version.h>
-#include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/shmem_fs.h>
+#include <linux/slab.h>
+#include <linux/version.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -67,6 +67,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "pl111_drm.h"
 #include "pl111_versatile.h"
