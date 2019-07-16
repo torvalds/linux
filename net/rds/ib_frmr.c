@@ -76,6 +76,7 @@ static struct rds_ib_mr *rds_ib_alloc_frmr(struct rds_ib_device *rds_ibdev,
 
 	frmr->fr_state = FRMR_IS_FREE;
 	init_waitqueue_head(&frmr->fr_inv_done);
+	init_waitqueue_head(&frmr->fr_reg_done);
 	return ibmr;
 
 out_no_cigar:
@@ -124,6 +125,7 @@ static int rds_ib_post_reg_frmr(struct rds_ib_mr *ibmr)
 	 */
 	ib_update_fast_reg_key(frmr->mr, ibmr->remap_count++);
 	frmr->fr_state = FRMR_IS_INUSE;
+	frmr->fr_reg = true;
 
 	memset(&reg_wr, 0, sizeof(reg_wr));
 	reg_wr.wr.wr_id = (unsigned long)(void *)ibmr;
@@ -144,7 +146,17 @@ static int rds_ib_post_reg_frmr(struct rds_ib_mr *ibmr)
 		if (printk_ratelimit())
 			pr_warn("RDS/IB: %s returned error(%d)\n",
 				__func__, ret);
+		goto out;
 	}
+
+	/* Wait for the registration to complete in order to prevent an invalid
+	 * access error resulting from a race between the memory region already
+	 * being accessed while registration is still pending.
+	 */
+	wait_event(frmr->fr_reg_done, !frmr->fr_reg);
+
+out:
+
 	return ret;
 }
 
@@ -262,6 +274,19 @@ static int rds_ib_post_inv(struct rds_ib_mr *ibmr)
 		pr_err("RDS/IB: %s returned error(%d)\n", __func__, ret);
 		goto out;
 	}
+
+	/* Wait for the FRMR_IS_FREE (or FRMR_IS_STALE) transition in order to
+	 * 1) avoid a silly bouncing between "clean_list" and "drop_list"
+	 *    triggered by function "rds_ib_reg_frmr" as it is releases frmr
+	 *    regions whose state is not "FRMR_IS_FREE" right away.
+	 * 2) prevents an invalid access error in a race
+	 *    from a pending "IB_WR_LOCAL_INV" operation
+	 *    with a teardown ("dma_unmap_sg", "put_page")
+	 *    and de-registration ("ib_dereg_mr") of the corresponding
+	 *    memory region.
+	 */
+	wait_event(frmr->fr_inv_done, frmr->fr_state != FRMR_IS_INUSE);
+
 out:
 	return ret;
 }
@@ -289,6 +314,11 @@ void rds_ib_mr_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 		wake_up(&frmr->fr_inv_done);
 	}
 
+	if (frmr->fr_reg) {
+		frmr->fr_reg = false;
+		wake_up(&frmr->fr_reg_done);
+	}
+
 	atomic_inc(&ic->i_fastreg_wrs);
 }
 
@@ -297,14 +327,18 @@ void rds_ib_unreg_frmr(struct list_head *list, unsigned int *nfreed,
 {
 	struct rds_ib_mr *ibmr, *next;
 	struct rds_ib_frmr *frmr;
-	int ret = 0;
+	int ret = 0, ret2;
 	unsigned int freed = *nfreed;
 
 	/* String all ib_mr's onto one list and hand them to ib_unmap_fmr */
 	list_for_each_entry(ibmr, list, unmap_list) {
-		if (ibmr->sg_dma_len)
-			ret |= rds_ib_post_inv(ibmr);
+		if (ibmr->sg_dma_len) {
+			ret2 = rds_ib_post_inv(ibmr);
+			if (ret2 && !ret)
+				ret = ret2;
+		}
 	}
+
 	if (ret)
 		pr_warn("RDS/IB: %s failed (err=%d)\n", __func__, ret);
 
@@ -347,31 +381,8 @@ struct rds_ib_mr *rds_ib_reg_frmr(struct rds_ib_device *rds_ibdev,
 	}
 
 	do {
-		if (ibmr) {
-			/* Memory regions make it onto the "clean_list" via
-			 * "rds_ib_flush_mr_pool", after the memory region has
-			 * been posted for invalidation via "rds_ib_post_inv".
-			 *
-			 * At that point in time, "fr_state" may still be
-			 * in state "FRMR_IS_INUSE", since the only place where
-			 * "fr_state" transitions to "FRMR_IS_FREE" is in
-			 * is in "rds_ib_mr_cqe_handler", which is
-			 * triggered by a tasklet.
-			 *
-			 * So we wait for "fr_inv_done" to trigger
-			 * and only put memory regions onto the drop_list
-			 * that failed (i.e. not marked "FRMR_IS_FREE").
-			 *
-			 * This avoids the problem of memory-regions bouncing
-			 * between "clean_list" and "drop_list" before they
-			 * even have a chance to be properly invalidated.
-			 */
-			frmr = &ibmr->u.frmr;
-			wait_event(frmr->fr_inv_done, frmr->fr_state != FRMR_IS_INUSE);
-			if (frmr->fr_state == FRMR_IS_FREE)
-				break;
+		if (ibmr)
 			rds_ib_free_frmr(ibmr, true);
-		}
 		ibmr = rds_ib_alloc_frmr(rds_ibdev, nents);
 		if (IS_ERR(ibmr))
 			return ibmr;
