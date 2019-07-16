@@ -14,16 +14,19 @@
 
 #include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <uapi/drm/v3d_drm.h>
 
-#include "uapi/drm/v3d_drm.h"
 #include "v3d_drv.h"
 #include "v3d_regs.h"
 
