@@ -284,6 +284,7 @@ properties:
       - description: LS1046A based Boards
         items:
           - enum:
+              - fsl,ls1046a-frwy
               - fsl,ls1046a-qds
               - fsl,ls1046a-rdb
           - const: fsl,ls1046a
