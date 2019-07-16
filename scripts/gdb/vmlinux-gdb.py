@@ -36,3 +36,4 @@ else:
     import linux.timerlist
     import linux.clk
     import linux.genpd
+    import linux.device
