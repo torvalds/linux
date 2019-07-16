@@ -158,6 +158,7 @@ struct rpc_xprt_ops {
 	int		(*bc_setup)(struct rpc_xprt *xprt,
 				    unsigned int min_reqs);
 	size_t		(*bc_maxpayload)(struct rpc_xprt *xprt);
+	unsigned int	(*bc_num_slots)(struct rpc_xprt *xprt);
 	void		(*bc_free_rqst)(struct rpc_rqst *rqst);
 	void		(*bc_destroy)(struct rpc_xprt *xprt,
 				      unsigned int max_reqs);
@@ -251,8 +252,9 @@ struct rpc_xprt {
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	struct svc_serv		*bc_serv;       /* The RPC service which will */
 						/* process the callback */
-	int			bc_alloc_count;	/* Total number of preallocs */
-	atomic_t		bc_free_slots;
+	unsigned int		bc_alloc_max;
+	unsigned int		bc_alloc_count;	/* Total number of preallocs */
+	atomic_t		bc_slot_count;	/* Number of allocated slots */
 	spinlock_t		bc_pa_lock;	/* Protects the preallocated
 						 * items */
 	struct list_head	bc_pa_list;	/* List of preallocated
