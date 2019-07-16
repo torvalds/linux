@@ -63,16 +63,6 @@ unsigned short coda_flags_to_cflags(unsigned short);
 void coda_sysctl_init(void);
 void coda_sysctl_clean(void);
 
-#define CODA_ALLOC(ptr, cast, size) do { \
-    if (size < PAGE_SIZE) \
-        ptr = kzalloc((unsigned long) size, GFP_KERNEL); \
-    else \
-        ptr = (cast)vzalloc((unsigned long) size); \
-    if (!ptr) \
-	pr_warn("kernel malloc returns 0 at %s:%d\n", __FILE__, __LINE__); \
-} while (0)
-
-
 #define CODA_FREE(ptr, size) kvfree((ptr))
 
 /* inode to cnode access functions */

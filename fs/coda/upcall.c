@@ -46,7 +46,7 @@ static void *alloc_upcall(int opcode, int size)
 {
 	union inputArgs *inp;
 
-	CODA_ALLOC(inp, union inputArgs *, size);
+	inp = kvzalloc(size, GFP_KERNEL);
         if (!inp)
 		return ERR_PTR(-ENOMEM);
 
@@ -743,7 +743,7 @@ static int coda_upcall(struct venus_comm *vcp,
 	sig_req = kmalloc(sizeof(struct upc_req), GFP_KERNEL);
 	if (!sig_req) goto exit;
 
-	CODA_ALLOC((sig_req->uc_data), char *, sizeof(struct coda_in_hdr));
+	sig_req->uc_data = kvzalloc(sizeof(struct coda_in_hdr), GFP_KERNEL);
 	if (!sig_req->uc_data) {
 		kfree(sig_req);
 		goto exit;

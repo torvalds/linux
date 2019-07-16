@@ -123,7 +123,11 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 				hdr.opcode, hdr.unique);
 		        nbytes = size;
 		}
-		CODA_ALLOC(dcbuf, union outputArgs *, nbytes);
+		dcbuf = kvmalloc(nbytes, GFP_KERNEL);
+		if (!dcbuf) {
+			retval = -ENOMEM;
+			goto out;
+		}
 		if (copy_from_user(dcbuf, buf, nbytes)) {
 			CODA_FREE(dcbuf, nbytes);
 			retval = -EFAULT;
