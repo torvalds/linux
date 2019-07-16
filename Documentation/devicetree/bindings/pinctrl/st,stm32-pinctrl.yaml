@@ -197,6 +197,7 @@ required:
 examples:
   - |
     #include <dt-bindings/pinctrl/stm32-pinfunc.h>
+    #include <dt-bindings/mfd/stm32f4-rcc.h>
     //Example 1
       pinctrl@40020000 {
               #address-cells = <1>;
@@ -210,6 +211,7 @@ examples:
                       #gpio-cells = <2>;
                       reg = <0x0 0x400>;
                       resets = <&reset_ahb1 0>;
+                      clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOA)>;
                       st,bank-name = "GPIOA";
               };
        };
@@ -227,6 +229,7 @@ examples:
                       #gpio-cells = <2>;
                       reg = <0x1000 0x400>;
                       resets = <&reset_ahb1 0>;
+                      clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOB)>;
                       st,bank-name = "GPIOB";
                       gpio-ranges = <&pinctrl 0 0 16>;
               };
@@ -236,6 +239,7 @@ examples:
                       #gpio-cells = <2>;
                       reg = <0x2000 0x400>;
                       resets = <&reset_ahb1 0>;
+                      clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOC)>;
                       st,bank-name = "GPIOC";
                       ngpios = <5>;
                       gpio-ranges = <&pinctrl 0 16 3>,
