@@ -8,35 +8,30 @@
  *     Jasper St. Pierre <jstpierre@mecheye.net>
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/platform_device.h>
 #include <linux/component.h>
+#include <linux/module.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
+#include <linux/soc/amlogic/meson-canvas.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_flip_work.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_rect.h>
+#include <drm/drm_vblank.h>
 
-#include "meson_drv.h"
-#include "meson_plane.h"
-#include "meson_overlay.h"
 #include "meson_crtc.h"
-#include "meson_venc_cvbs.h"
-
-#include "meson_vpp.h"
-#include "meson_viu.h"
-#include "meson_venc.h"
+#include "meson_drv.h"
+#include "meson_overlay.h"
+#include "meson_plane.h"
 #include "meson_registers.h"
+#include "meson_venc_cvbs.h"
+#include "meson_viu.h"
+#include "meson_vpp.h"
 
 #define DRIVER_NAME "meson"
 #define DRIVER_DESC "Amlogic Meson DRM driver"
