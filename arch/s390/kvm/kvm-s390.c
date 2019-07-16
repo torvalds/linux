@@ -653,6 +653,10 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 				set_kvm_facility(kvm->arch.model.fac_mask, 148);
 				set_kvm_facility(kvm->arch.model.fac_list, 148);
 			}
+			if (test_facility(152)) {
+				set_kvm_facility(kvm->arch.model.fac_mask, 152);
+				set_kvm_facility(kvm->arch.model.fac_list, 152);
+			}
 			r = 0;
 		} else
 			r = -EINVAL;
