@@ -195,8 +195,10 @@ static void compact_page_work(struct work_struct *w);
 static inline struct z3fold_buddy_slots *alloc_slots(struct z3fold_pool *pool,
 							gfp_t gfp)
 {
-	struct z3fold_buddy_slots *slots = kmem_cache_alloc(pool->c_handle,
-							    gfp);
+	struct z3fold_buddy_slots *slots;
+
+	slots = kmem_cache_alloc(pool->c_handle,
+				 (gfp & ~(__GFP_HIGHMEM | __GFP_MOVABLE)));
 
 	if (slots) {
 		memset(slots->slot, 0, sizeof(slots->slot));
@@ -853,7 +855,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
 	enum buddy bud;
 	bool can_sleep = gfpflags_allow_blocking(gfp);
 
-	if (!size || (gfp & __GFP_HIGHMEM))
+	if (!size)
 		return -EINVAL;
 
 	if (size > PAGE_SIZE)
