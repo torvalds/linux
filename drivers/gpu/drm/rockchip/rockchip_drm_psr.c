@@ -4,7 +4,6 @@
  * Author: Yakir Yang <ykk@rock-chips.com>
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_probe_helper.h>
 
