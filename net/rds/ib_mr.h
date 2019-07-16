@@ -98,6 +98,7 @@ struct rds_ib_mr_pool {
 	struct llist_head	free_list;	/* unused MRs */
 	struct llist_head	clean_list;	/* unused & unmapped MRs */
 	wait_queue_head_t	flush_wait;
+	spinlock_t		clean_lock;	/* "clean_list" concurrency */
 
 	atomic_t		free_pinned;	/* memory pinned by free MRs */
 	unsigned long		max_items;
