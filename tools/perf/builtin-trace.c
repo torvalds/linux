@@ -690,6 +690,10 @@ struct syscall_arg_fmt {
 static struct syscall_fmt {
 	const char *name;
 	const char *alias;
+	struct {
+		const char *sys_enter,
+			   *sys_exit;
+	}	   bpf_prog_name;
 	struct syscall_arg_fmt arg[6];
 	u8	   nr_args;
 	bool	   errpid;
@@ -823,6 +827,7 @@ static struct syscall_fmt {
 	{ .name	    = "newfstatat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
 	{ .name	    = "open",
+	  .bpf_prog_name = { .sys_enter = "!syscalls:sys_enter_open", },
 	  .arg = { [1] = { .scnprintf = SCA_OPEN_FLAGS, /* flags */ }, }, },
 	{ .name	    = "open_by_handle_at",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT,	/* dfd */ },
@@ -967,6 +972,10 @@ struct syscall {
 	struct tep_event    *tp_format;
 	int		    nr_args;
 	int		    args_size;
+	struct {
+		struct bpf_program *sys_enter,
+				   *sys_exit;
+	}		    bpf_prog;
 	bool		    is_exit;
 	bool		    is_open;
 	struct tep_format_field *args;
@@ -2742,6 +2751,39 @@ static struct bpf_program *trace__find_bpf_program_by_title(struct trace *trace,
 	return bpf_object__find_program_by_title(trace->bpf_obj, name);
 }
 
+static struct bpf_program *trace__find_syscall_bpf_prog(struct trace *trace, struct syscall *sc,
+							const char *prog_name, const char *type)
+{
+	struct bpf_program *prog;
+
+	if (prog_name == NULL)
+		goto out_unaugmented;
+
+	prog = trace__find_bpf_program_by_title(trace, prog_name);
+	if (prog != NULL)
+		return prog;
+
+	pr_debug("Couldn't find BPF prog \"%s\" to associate with syscalls:sys_%s_%s, not augmenting it\n",
+		 prog_name, type, sc->name);
+out_unaugmented:
+	return trace->syscalls.unaugmented_prog;
+}
+
+static void trace__init_syscall_bpf_progs(struct trace *trace, int id)
+{
+	struct syscall *sc = trace__syscall_info(trace, NULL, id);
+
+	if (sc == NULL)
+		return;
+
+	if (sc->fmt != NULL) {
+		sc->bpf_prog.sys_enter = trace__find_syscall_bpf_prog(trace, sc, sc->fmt->bpf_prog_name.sys_enter, "enter");
+		sc->bpf_prog.sys_exit  = trace__find_syscall_bpf_prog(trace, sc, sc->fmt->bpf_prog_name.sys_exit,  "exit");
+	} else {
+		sc->bpf_prog.sys_enter = sc->bpf_prog.sys_exit = trace->syscalls.unaugmented_prog;
+	}
+}
+
 static void trace__init_bpf_map_syscall_args(struct trace *trace, int id, struct bpf_map_syscall_entry *entry)
 {
 	struct syscall *sc = trace__syscall_info(trace, NULL, id);
@@ -2773,8 +2815,10 @@ static int trace__set_ev_qualifier_bpf_filter(struct trace *trace)
 	for (i = 0; i < trace->ev_qualifier_ids.nr; ++i) {
 		int key = trace->ev_qualifier_ids.entries[i];
 
-		if (value.enabled)
+		if (value.enabled) {
 			trace__init_bpf_map_syscall_args(trace, key, &value);
+			trace__init_syscall_bpf_progs(trace, key);
+		}
 
 		err = bpf_map_update_elem(fd, &key, &value, BPF_EXIST);
 		if (err)
@@ -2793,8 +2837,10 @@ static int __trace__init_syscalls_bpf_map(struct trace *trace, bool enabled)
 	int err = 0, key;
 
 	for (key = 0; key < trace->sctbl->syscalls.nr_entries; ++key) {
-		if (enabled)
+		if (enabled) {
 			trace__init_bpf_map_syscall_args(trace, key, &value);
+			trace__init_syscall_bpf_progs(trace, key);
+		}
 
 		err = bpf_map_update_elem(fd, &key, &value, BPF_ANY);
 		if (err)

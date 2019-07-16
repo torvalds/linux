@@ -94,6 +94,29 @@ int syscall_unaugmented(struct syscall_enter_args *args)
 	return 1;
 }
 
+/*
+ * This will be tail_called from SEC("raw_syscalls:sys_enter"), so will find in
+ * augmented_filename_map what was read by that raw_syscalls:sys_enter and go
+ * on from there, reading the first syscall arg as a string, i.e. open's
+ * filename.
+ */
+SEC("!syscalls:sys_enter_open")
+int sys_enter_open(struct syscall_enter_args *args)
+{
+	int key = 0;
+	struct augmented_args_filename *augmented_args = bpf_map_lookup_elem(&augmented_filename_map, &key);
+	const void *filename_arg = (const void *)args->args[0];
+	unsigned int len = sizeof(augmented_args->args);
+
+        if (augmented_args == NULL)
+                return 1; /* Failure: don't filter */
+
+	len += augmented_filename__read(&augmented_args->filename, filename_arg, sizeof(augmented_args->filename.value));
+
+	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */
+	return perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, augmented_args, len);
+}
+
 SEC("raw_syscalls:sys_enter")
 int sys_enter(struct syscall_enter_args *args)
 {
