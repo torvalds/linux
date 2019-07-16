@@ -15,10 +15,10 @@
  */
 
 struct sighand_struct {
-	refcount_t		count;
-	struct k_sigaction	action[_NSIG];
 	spinlock_t		siglock;
+	refcount_t		count;
 	wait_queue_head_t	signalfd_wqh;
+	struct k_sigaction	action[_NSIG];
 };
 
 /*
