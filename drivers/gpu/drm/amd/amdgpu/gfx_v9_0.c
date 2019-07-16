@@ -1648,6 +1648,7 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		gfx_v9_0_init_lbpw(adev);
 		break;
 	case CHIP_VEGA20:
