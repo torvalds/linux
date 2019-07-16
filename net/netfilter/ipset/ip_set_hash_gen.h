@@ -953,7 +953,7 @@ mtype_test_cidrs(struct ip_set *set, struct mtype_elem *d,
 		mtype_data_netmask(d, NCIDR_GET(h->nets[j].cidr[0]));
 #endif
 		key = HKEY(d, h->initval, t->htable_bits);
-		n =  rcu_dereference_bh(hbucket(t, key));
+		n = rcu_dereference_bh(hbucket(t, key));
 		if (!n)
 			continue;
 		for (i = 0; i < n->pos; i++) {
