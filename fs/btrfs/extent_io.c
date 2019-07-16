@@ -2911,7 +2911,7 @@ static int submit_extent_page(unsigned int opf, struct extent_io_tree *tree,
 			bio = NULL;
 		} else {
 			if (wbc)
-				wbc_account_io(wbc, page, page_size);
+				wbc_account_cgroup_owner(wbc, page, page_size);
 			return 0;
 		}
 	}
@@ -2924,7 +2924,7 @@ static int submit_extent_page(unsigned int opf, struct extent_io_tree *tree,
 	bio->bi_opf = opf;
 	if (wbc) {
 		wbc_init_bio(wbc, bio);
-		wbc_account_io(wbc, page, page_size);
+		wbc_account_cgroup_owner(wbc, page, page_size);
 	}
 
 	*bio_ret = bio;

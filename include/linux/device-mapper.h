@@ -95,8 +95,7 @@ typedef int (*dm_prepare_ioctl_fn) (struct dm_target *ti, struct block_device **
 
 typedef int (*dm_report_zones_fn) (struct dm_target *ti, sector_t sector,
 				   struct blk_zone *zones,
-				   unsigned int *nr_zones,
-				   gfp_t gfp_mask);
+				   unsigned int *nr_zones);
 
 /*
  * These iteration functions are typically used to check (and combine)
