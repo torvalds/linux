@@ -4815,6 +4815,7 @@ static int gfx_v9_0_set_powergating_state(void *handle,
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		if (!enable) {
 			amdgpu_gfx_off_ctrl(adev, false);
 			cancel_delayed_work_sync(&adev->gfx.gfx_off_delay_work);
