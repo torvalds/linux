@@ -58,7 +58,8 @@ config PROC_VMCORE_DEVICE_DUMP
 	  snapshot.
 
 	  If you say Y here, the collected device dumps will be added
-	  as ELF notes to /proc/vmcore.
+	  as ELF notes to /proc/vmcore. You can still disable device
+	  dump using the kernel command line option 'novmcoredd'.
 
 config PROC_SYSCTL
 	bool "Sysctl support (/proc/sys)" if EXPERT

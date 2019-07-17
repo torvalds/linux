@@ -1237,3 +1237,8 @@ int radix__ioremap_range(unsigned long ea, phys_addr_t pa, unsigned long size,
 		return 0;
 	}
 }
+
+int __init arch_ioremap_p4d_supported(void)
+{
+	return 0;
+}
