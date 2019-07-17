@@ -2077,11 +2077,6 @@ static ssize_t amdgpu_hwmon_show_sclk(struct device *dev,
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	/* sanity check PP is enabled */
-	if (!(adev->powerplay.pp_funcs &&
-	      adev->powerplay.pp_funcs->read_sensor))
-	      return -EINVAL;
-
 	/* get the sclk */
 	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_SCLK,
 				   (void *)&sclk, &size);
@@ -2111,11 +2106,6 @@ static ssize_t amdgpu_hwmon_show_mclk(struct device *dev,
 	if  ((adev->flags & AMD_IS_PX) &&
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
-
-	/* sanity check PP is enabled */
-	if (!(adev->powerplay.pp_funcs &&
-	      adev->powerplay.pp_funcs->read_sensor))
-	      return -EINVAL;
 
 	/* get the sclk */
 	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_MCLK,
