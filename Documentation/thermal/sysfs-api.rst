@@ -1,3 +1,4 @@
+===================================
 Generic Thermal Sysfs driver How To
 ===================================
 
@@ -9,6 +10,7 @@ Copyright (c)  2008 Intel Corporation
 
 
 0. Introduction
+===============
 
 The generic thermal sysfs provides a set of interfaces for thermal zone
 devices (sensors) and thermal cooling devices (fan, processor...) to register
@@ -25,59 +27,90 @@ An intelligent thermal management application can make decisions based on
 inputs from thermal zone attributes (the current temperature and trip point
 temperature) and throttle appropriate devices.
 
-[0-*]	denotes any positive number starting from 0
-[1-*]	denotes any positive number starting from 1
+- `[0-*]`	denotes any positive number starting from 0
+- `[1-*]`	denotes any positive number starting from 1
 
 1. thermal sysfs driver interface functions
+===========================================
 
 1.1 thermal zone device interface
-1.1.1 struct thermal_zone_device *thermal_zone_device_register(char *type,
-		int trips, int mask, void *devdata,
-		struct thermal_zone_device_ops *ops,
-		const struct thermal_zone_params *tzp,
-		int passive_delay, int polling_delay))
+---------------------------------
+
+    ::
+
+	struct thermal_zone_device
+	*thermal_zone_device_register(char *type,
+				      int trips, int mask, void *devdata,
+				      struct thermal_zone_device_ops *ops,
+				      const struct thermal_zone_params *tzp,
+				      int passive_delay, int polling_delay))
 
     This interface function adds a new thermal zone device (sensor) to
-    /sys/class/thermal folder as thermal_zone[0-*]. It tries to bind all the
+    /sys/class/thermal folder as `thermal_zone[0-*]`. It tries to bind all the
     thermal cooling devices registered at the same time.
 
-    type: the thermal zone type.
-    trips: the total number of trip points this thermal zone supports.
-    mask: Bit string: If 'n'th bit is set, then trip point 'n' is writeable.
-    devdata: device private data
-    ops: thermal zone device call-backs.
-	.bind: bind the thermal zone device with a thermal cooling device.
-	.unbind: unbind the thermal zone device with a thermal cooling device.
-	.get_temp: get the current temperature of the thermal zone.
-	.set_trips: set the trip points window. Whenever the current temperature
+    type:
+	the thermal zone type.
+    trips:
+	the total number of trip points this thermal zone supports.
+    mask:
+	Bit string: If 'n'th bit is set, then trip point 'n' is writeable.
+    devdata:
+	device private data
+    ops:
+	thermal zone device call-backs.
+
+	.bind:
+		bind the thermal zone device with a thermal cooling device.
+	.unbind:
+		unbind the thermal zone device with a thermal cooling device.
+	.get_temp:
+		get the current temperature of the thermal zone.
+	.set_trips:
+		    set the trip points window. Whenever the current temperature
 		    is updated, the trip points immediately below and above the
 		    current temperature are found.
-	.get_mode: get the current mode (enabled/disabled) of the thermal zone.
-	    - "enabled" means the kernel thermal management is enabled.
-	    - "disabled" will prevent kernel thermal driver action upon trip points
-	      so that user applications can take charge of thermal management.
-	.set_mode: set the mode (enabled/disabled) of the thermal zone.
-	.get_trip_type: get the type of certain trip point.
-	.get_trip_temp: get the temperature above which the certain trip point
+	.get_mode:
+		   get the current mode (enabled/disabled) of the thermal zone.
+
+			- "enabled" means the kernel thermal management is
+			  enabled.
+			- "disabled" will prevent kernel thermal driver action
+			  upon trip points so that user applications can take
+			  charge of thermal management.
+	.set_mode:
+		set the mode (enabled/disabled) of the thermal zone.
+	.get_trip_type:
+		get the type of certain trip point.
+	.get_trip_temp:
+			get the temperature above which the certain trip point
 			will be fired.
-	.set_emul_temp: set the emulation temperature which helps in debugging
+	.set_emul_temp:
+			set the emulation temperature which helps in debugging
 			different threshold temperature points.
-    tzp: thermal zone platform parameters.
-    passive_delay: number of milliseconds to wait between polls when
+    tzp:
+	thermal zone platform parameters.
+    passive_delay:
+	number of milliseconds to wait between polls when
 	performing passive cooling.
-    polling_delay: number of milliseconds to wait between polls when checking
+    polling_delay:
+	number of milliseconds to wait between polls when checking
 	whether trip points have been crossed (0 for interrupt driven systems).
 
+    ::
 
-1.1.2 void thermal_zone_device_unregister(struct thermal_zone_device *tz)
+	void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
     This interface function removes the thermal zone device.
     It deletes the corresponding entry from /sys/class/thermal folder and
     unbinds all the thermal cooling devices it uses.
 
-1.1.3 struct thermal_zone_device *thermal_zone_of_sensor_register(
-		struct device *dev, int sensor_id, void *data,
-		const struct thermal_zone_of_device_ops *ops)
+	::
+
+	   struct thermal_zone_device
+	   *thermal_zone_of_sensor_register(struct device *dev, int sensor_id,
+				void *data,
+				const struct thermal_zone_of_device_ops *ops)
 
 	This interface adds a new sensor to a DT thermal zone.
 	This function will search the list of thermal zones described in
@@ -87,25 +120,33 @@ temperature) and throttle appropriate devices.
 	thermal zone device.
 
 	The parameters for this interface are:
-	dev:		Device node of sensor containing valid node pointer in
-			dev->of_node.
-	sensor_id:	a sensor identifier, in case the sensor IP has more
-			than one sensors
-	data:		a private pointer (owned by the caller) that will be
-			passed back, when a temperature reading is needed.
-	ops:		struct thermal_zone_of_device_ops *.
 
-			get_temp:	a pointer to a function that reads the
+	dev:
+			Device node of sensor containing valid node pointer in
+			dev->of_node.
+	sensor_id:
+			a sensor identifier, in case the sensor IP has more
+			than one sensors
+	data:
+			a private pointer (owned by the caller) that will be
+			passed back, when a temperature reading is needed.
+	ops:
+			`struct thermal_zone_of_device_ops *`.
+
+			==============  =======================================
+			get_temp	a pointer to a function that reads the
 					sensor temperature. This is mandatory
 					callback provided by sensor driver.
-			set_trips:      a pointer to a function that sets a
+			set_trips	a pointer to a function that sets a
 					temperature window. When this window is
 					left the driver must inform the thermal
 					core via thermal_zone_device_update.
-			get_trend: 	a pointer to a function that reads the
+			get_trend 	a pointer to a function that reads the
 					sensor temperature trend.
-			set_emul_temp:	a pointer to a function that sets
+			set_emul_temp	a pointer to a function that sets
 					sensor emulated temperature.
+			==============  =======================================
+
 	The thermal zone temperature is provided by the get_temp() function
 	pointer of thermal_zone_of_device_ops. When called, it will
 	have the private pointer @data back.
@@ -114,8 +155,10 @@ temperature) and throttle appropriate devices.
 	handle. Caller should check the return handle with IS_ERR() for finding
 	whether success or not.
 
-1.1.4 void thermal_zone_of_sensor_unregister(struct device *dev,
-		struct thermal_zone_device *tzd)
+	::
+
+	    void thermal_zone_of_sensor_unregister(struct device *dev,
+						   struct thermal_zone_device *tzd)
 
 	This interface unregisters a sensor from a DT thermal zone which was
 	successfully added by interface thermal_zone_of_sensor_register().
@@ -124,21 +167,29 @@ temperature) and throttle appropriate devices.
 	interface. It will also silent the zone by remove the .get_temp() and
 	get_trend() thermal zone device callbacks.
 
-1.1.5 struct thermal_zone_device *devm_thermal_zone_of_sensor_register(
-		struct device *dev, int sensor_id,
-		void *data, const struct thermal_zone_of_device_ops *ops)
+	::
+
+	  struct thermal_zone_device
+	  *devm_thermal_zone_of_sensor_register(struct device *dev,
+				int sensor_id,
+				void *data,
+				const struct thermal_zone_of_device_ops *ops)
 
 	This interface is resource managed version of
 	thermal_zone_of_sensor_register().
+
 	All details of thermal_zone_of_sensor_register() described in
 	section 1.1.3 is applicable here.
+
 	The benefit of using this interface to register sensor is that it
 	is not require to explicitly call thermal_zone_of_sensor_unregister()
 	in error path or during driver unbinding as this is done by driver
 	resource manager.
 
-1.1.6 void devm_thermal_zone_of_sensor_unregister(struct device *dev,
-		struct thermal_zone_device *tzd)
+	::
+
+		void devm_thermal_zone_of_sensor_unregister(struct device *dev,
+						struct thermal_zone_device *tzd)
 
 	This interface is resource managed version of
 	thermal_zone_of_sensor_unregister().
@@ -147,123 +198,186 @@ temperature) and throttle appropriate devices.
 	Normally this function will not need to be called and the resource
 	management code will ensure that the resource is freed.
 
-1.1.7 int thermal_zone_get_slope(struct thermal_zone_device *tz)
+	::
+
+		int thermal_zone_get_slope(struct thermal_zone_device *tz)
 
 	This interface is used to read the slope attribute value
 	for the thermal zone device, which might be useful for platform
 	drivers for temperature calculations.
 
-1.1.8 int thermal_zone_get_offset(struct thermal_zone_device *tz)
+	::
+
+		int thermal_zone_get_offset(struct thermal_zone_device *tz)
 
 	This interface is used to read the offset attribute value
 	for the thermal zone device, which might be useful for platform
 	drivers for temperature calculations.
 
 1.2 thermal cooling device interface
-1.2.1 struct thermal_cooling_device *thermal_cooling_device_register(char *name,
-		void *devdata, struct thermal_cooling_device_ops *)
+------------------------------------
+
+
+    ::
+
+	struct thermal_cooling_device
+	*thermal_cooling_device_register(char *name,
+			void *devdata, struct thermal_cooling_device_ops *)
 
     This interface function adds a new thermal cooling device (fan/processor/...)
-    to /sys/class/thermal/ folder as cooling_device[0-*]. It tries to bind itself
+    to /sys/class/thermal/ folder as `cooling_device[0-*]`. It tries to bind itself
     to all the thermal zone devices registered at the same time.
-    name: the cooling device name.
-    devdata: device private data.
-    ops: thermal cooling devices call-backs.
-	.get_max_state: get the Maximum throttle state of the cooling device.
-	.get_cur_state: get the Currently requested throttle state of the cooling device.
-	.set_cur_state: set the Current throttle state of the cooling device.
 
-1.2.2 void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
+    name:
+	the cooling device name.
+    devdata:
+	device private data.
+    ops:
+	thermal cooling devices call-backs.
+
+	.get_max_state:
+		get the Maximum throttle state of the cooling device.
+	.get_cur_state:
+		get the Currently requested throttle state of the
+		cooling device.
+	.set_cur_state:
+		set the Current throttle state of the cooling device.
+
+    ::
+
+	void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 
     This interface function removes the thermal cooling device.
     It deletes the corresponding entry from /sys/class/thermal folder and
     unbinds itself from all the thermal zone devices using it.
 
 1.3 interface for binding a thermal zone device with a thermal cooling device
-1.3.1 int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
-	int trip, struct thermal_cooling_device *cdev,
-	unsigned long upper, unsigned long lower, unsigned int weight);
+-----------------------------------------------------------------------------
+
+    ::
+
+	int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
+		int trip, struct thermal_cooling_device *cdev,
+		unsigned long upper, unsigned long lower, unsigned int weight);
 
     This interface function binds a thermal cooling device to a particular trip
     point of a thermal zone device.
-    This function is usually called in the thermal zone device .bind callback.
-    tz: the thermal zone device
-    cdev: thermal cooling device
-    trip: indicates which trip point in this thermal zone the cooling device
-          is associated with.
-    upper:the Maximum cooling state for this trip point.
-          THERMAL_NO_LIMIT means no upper limit,
-	  and the cooling device can be in max_state.
-    lower:the Minimum cooling state can be used for this trip point.
-          THERMAL_NO_LIMIT means no lower limit,
-	  and the cooling device can be in cooling state 0.
-    weight: the influence of this cooling device in this thermal
-            zone.  See 1.4.1 below for more information.
 
-1.3.2 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
-		int trip, struct thermal_cooling_device *cdev);
+    This function is usually called in the thermal zone device .bind callback.
+
+    tz:
+	  the thermal zone device
+    cdev:
+	  thermal cooling device
+    trip:
+	  indicates which trip point in this thermal zone the cooling device
+	  is associated with.
+    upper:
+	  the Maximum cooling state for this trip point.
+	  THERMAL_NO_LIMIT means no upper limit,
+	  and the cooling device can be in max_state.
+    lower:
+	  the Minimum cooling state can be used for this trip point.
+	  THERMAL_NO_LIMIT means no lower limit,
+	  and the cooling device can be in cooling state 0.
+    weight:
+	  the influence of this cooling device in this thermal
+	  zone.  See 1.4.1 below for more information.
+
+    ::
+
+	int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
+				int trip, struct thermal_cooling_device *cdev);
 
     This interface function unbinds a thermal cooling device from a particular
     trip point of a thermal zone device. This function is usually called in
     the thermal zone device .unbind callback.
-    tz: the thermal zone device
-    cdev: thermal cooling device
-    trip: indicates which trip point in this thermal zone the cooling device
-          is associated with.
+
+    tz:
+	the thermal zone device
+    cdev:
+	thermal cooling device
+    trip:
+	indicates which trip point in this thermal zone the cooling device
+	is associated with.
 
 1.4 Thermal Zone Parameters
-1.4.1 struct thermal_bind_params
+---------------------------
+
+    ::
+
+	struct thermal_bind_params
+
     This structure defines the following parameters that are used to bind
     a zone with a cooling device for a particular trip point.
-    .cdev: The cooling device pointer
-    .weight: The 'influence' of a particular cooling device on this
-             zone. This is relative to the rest of the cooling
-             devices. For example, if all cooling devices have a
-             weight of 1, then they all contribute the same. You can
-             use percentages if you want, but it's not mandatory. A
-             weight of 0 means that this cooling device doesn't
-             contribute to the cooling of this zone unless all cooling
-             devices have a weight of 0. If all weights are 0, then
-             they all contribute the same.
-    .trip_mask:This is a bit mask that gives the binding relation between
-               this thermal zone and cdev, for a particular trip point.
-               If nth bit is set, then the cdev and thermal zone are bound
-               for trip point n.
-    .binding_limits: This is an array of cooling state limits. Must have
-                     exactly 2 * thermal_zone.number_of_trip_points. It is an
-                     array consisting of tuples <lower-state upper-state> of
-                     state limits. Each trip will be associated with one state
-                     limit tuple when binding. A NULL pointer means
-                     <THERMAL_NO_LIMITS THERMAL_NO_LIMITS> on all trips.
-                     These limits are used when binding a cdev to a trip point.
-    .match: This call back returns success(0) if the 'tz and cdev' need to
+
+    .cdev:
+	     The cooling device pointer
+    .weight:
+	     The 'influence' of a particular cooling device on this
+	     zone. This is relative to the rest of the cooling
+	     devices. For example, if all cooling devices have a
+	     weight of 1, then they all contribute the same. You can
+	     use percentages if you want, but it's not mandatory. A
+	     weight of 0 means that this cooling device doesn't
+	     contribute to the cooling of this zone unless all cooling
+	     devices have a weight of 0. If all weights are 0, then
+	     they all contribute the same.
+    .trip_mask:
+	       This is a bit mask that gives the binding relation between
+	       this thermal zone and cdev, for a particular trip point.
+	       If nth bit is set, then the cdev and thermal zone are bound
+	       for trip point n.
+    .binding_limits:
+		     This is an array of cooling state limits. Must have
+		     exactly 2 * thermal_zone.number_of_trip_points. It is an
+		     array consisting of tuples <lower-state upper-state> of
+		     state limits. Each trip will be associated with one state
+		     limit tuple when binding. A NULL pointer means
+		     <THERMAL_NO_LIMITS THERMAL_NO_LIMITS> on all trips.
+		     These limits are used when binding a cdev to a trip point.
+    .match:
+	    This call back returns success(0) if the 'tz and cdev' need to
 	    be bound, as per platform data.
-1.4.2 struct thermal_zone_params
+
+    ::
+
+	struct thermal_zone_params
+
     This structure defines the platform level parameters for a thermal zone.
     This data, for each thermal zone should come from the platform layer.
     This is an optional feature where some platforms can choose not to
     provide this data.
-    .governor_name: Name of the thermal governor used for this zone
-    .no_hwmon: a boolean to indicate if the thermal to hwmon sysfs interface
-               is required. when no_hwmon == false, a hwmon sysfs interface
-               will be created. when no_hwmon == true, nothing will be done.
-               In case the thermal_zone_params is NULL, the hwmon interface
-               will be created (for backward compatibility).
-    .num_tbps: Number of thermal_bind_params entries for this zone
-    .tbp: thermal_bind_params entries
+
+    .governor_name:
+	       Name of the thermal governor used for this zone
+    .no_hwmon:
+	       a boolean to indicate if the thermal to hwmon sysfs interface
+	       is required. when no_hwmon == false, a hwmon sysfs interface
+	       will be created. when no_hwmon == true, nothing will be done.
+	       In case the thermal_zone_params is NULL, the hwmon interface
+	       will be created (for backward compatibility).
+    .num_tbps:
+	       Number of thermal_bind_params entries for this zone
+    .tbp:
+	       thermal_bind_params entries
 
 2. sysfs attributes structure
+=============================
 
+==	================
 RO	read only value
 WO	write only value
 RW	read/write value
+==	================
 
 Thermal sysfs attributes will be represented under /sys/class/thermal.
 Hwmon sysfs I/F extension is also available under /sys/class/hwmon
 if hwmon is compiled in or built as a module.
 
-Thermal zone device sys I/F, created once it's registered:
-/sys/class/thermal/thermal_zone[0-*]:
+Thermal zone device sys I/F, created once it's registered::
+
+  /sys/class/thermal/thermal_zone[0-*]:
     |---type:			Type of the thermal zone
     |---temp:			Current temperature
     |---mode:			Working mode of the thermal zone
@@ -282,8 +396,9 @@ Thermal zone device sys I/F, created once it's registered:
     |---slope:                  Slope constant applied as linear extrapolation
     |---offset:                 Offset constant applied as linear extrapolation
 
-Thermal cooling device sys I/F, created once it's registered:
-/sys/class/thermal/cooling_device[0-*]:
+Thermal cooling device sys I/F, created once it's registered::
+
+  /sys/class/thermal/cooling_device[0-*]:
     |---type:			Type of the cooling device(processor/fan/...)
     |---max_state:		Maximum cooling state of the cooling device
     |---cur_state:		Current cooling state of the cooling device
@@ -299,11 +414,13 @@ the relationship between a thermal zone and its associated cooling device.
 They are created/removed for each successful execution of
 thermal_zone_bind_cooling_device/thermal_zone_unbind_cooling_device.
 
-/sys/class/thermal/thermal_zone[0-*]:
+::
+
+  /sys/class/thermal/thermal_zone[0-*]:
     |---cdev[0-*]:		[0-*]th cooling device in current thermal zone
     |---cdev[0-*]_trip_point:	Trip point that cdev[0-*] is associated with
     |---cdev[0-*]_weight:       Influence of the cooling device in
-                                this thermal zone
+				this thermal zone
 
 Besides the thermal zone device sysfs I/F and cooling device sysfs I/F,
 the generic thermal driver also creates a hwmon sysfs I/F for each _type_
@@ -311,16 +428,17 @@ of thermal zone device. E.g. the generic thermal driver registers one hwmon
 class device and build the associated hwmon sysfs I/F for all the registered
 ACPI thermal zones.
 
-/sys/class/hwmon/hwmon[0-*]:
+::
+
+  /sys/class/hwmon/hwmon[0-*]:
     |---name:			The type of the thermal zone devices
     |---temp[1-*]_input:	The current temperature of thermal zone [1-*]
     |---temp[1-*]_critical:	The critical trip point of thermal zone [1-*]
 
 Please read Documentation/hwmon/sysfs-interface.rst for additional information.
 
-***************************
-* Thermal zone attributes *
-***************************
+Thermal zone attributes
+-----------------------
 
 type
 	Strings which represent the thermal zone type.
@@ -340,54 +458,67 @@ mode
 	This file gives information about the algorithm that is currently
 	managing the thermal zone. It can be either default kernel based
 	algorithm or user space application.
-	enabled		= enable Kernel Thermal management.
-	disabled	= Preventing kernel thermal zone driver actions upon
+
+	enabled
+			  enable Kernel Thermal management.
+	disabled
+			  Preventing kernel thermal zone driver actions upon
 			  trip points so that user application can take full
 			  charge of the thermal management.
+
 	RW, Optional
 
 policy
 	One of the various thermal governors used for a particular zone.
+
 	RW, Required
 
 available_policies
 	Available thermal governors which can be used for a particular zone.
+
 	RO, Required
 
-trip_point_[0-*]_temp
+`trip_point_[0-*]_temp`
 	The temperature above which trip point will be fired.
+
 	Unit: millidegree Celsius
+
 	RO, Optional
 
-trip_point_[0-*]_type
+`trip_point_[0-*]_type`
 	Strings which indicate the type of the trip point.
-	E.g. it can be one of critical, hot, passive, active[0-*] for ACPI
+
+	E.g. it can be one of critical, hot, passive, `active[0-*]` for ACPI
 	thermal zone.
+
 	RO, Optional
 
-trip_point_[0-*]_hyst
+`trip_point_[0-*]_hyst`
 	The hysteresis value for a trip point, represented as an integer
 	Unit: Celsius
 	RW, Optional
 
-cdev[0-*]
+`cdev[0-*]`
 	Sysfs link to the thermal cooling device node where the sys I/F
 	for cooling device throttling control represents.
+
 	RO, Optional
 
-cdev[0-*]_trip_point
-	The trip point in this thermal zone which cdev[0-*] is associated
+`cdev[0-*]_trip_point`
+	The trip point in this thermal zone which `cdev[0-*]` is associated
 	with; -1 means the cooling device is not associated with any trip
 	point.
+
 	RO, Optional
 
-cdev[0-*]_weight
-        The influence of cdev[0-*] in this thermal zone. This value
-        is relative to the rest of cooling devices in the thermal
-        zone. For example, if a cooling device has a weight double
-        than that of other, it's twice as effective in cooling the
-        thermal zone.
-        RW, Optional
+`cdev[0-*]_weight`
+	The influence of `cdev[0-*]` in this thermal zone. This value
+	is relative to the rest of cooling devices in the thermal
+	zone. For example, if a cooling device has a weight double
+	than that of other, it's twice as effective in cooling the
+	thermal zone.
+
+	RW, Optional
 
 passive
 	Attribute is only present for zones in which the passive cooling
@@ -395,8 +526,11 @@ passive
 	and can be set to a temperature (in millidegrees) to enable a
 	passive trip point for the zone. Activation is done by polling with
 	an interval of 1 second.
+
 	Unit: millidegrees Celsius
+
 	Valid values: 0 (disabled) or greater than 1000
+
 	RW, Optional
 
 emul_temp
@@ -407,17 +541,21 @@ emul_temp
 	threshold and its associated cooling action. This is write only node
 	and writing 0 on this node should disable emulation.
 	Unit: millidegree Celsius
+
 	WO, Optional
 
-	  WARNING: Be careful while enabling this option on production systems,
-	  because userland can easily disable the thermal policy by simply
-	  flooding this sysfs node with low temperature values.
+	  WARNING:
+	    Be careful while enabling this option on production systems,
+	    because userland can easily disable the thermal policy by simply
+	    flooding this sysfs node with low temperature values.
 
 sustainable_power
 	An estimate of the sustained power that can be dissipated by
 	the thermal zone. Used by the power allocator governor. For
-	more information see Documentation/thermal/power_allocator.txt
+	more information see Documentation/thermal/power_allocator.rst
+
 	Unit: milliwatts
+
 	RW, Optional
 
 k_po
@@ -425,7 +563,8 @@ k_po
 	controller during temperature overshoot. Temperature overshoot
 	is when the current temperature is above the "desired
 	temperature" trip point. For more information see
-	Documentation/thermal/power_allocator.txt
+	Documentation/thermal/power_allocator.rst
+
 	RW, Optional
 
 k_pu
@@ -433,20 +572,23 @@ k_pu
 	controller during temperature undershoot. Temperature undershoot
 	is when the current temperature is below the "desired
 	temperature" trip point. For more information see
-	Documentation/thermal/power_allocator.txt
+	Documentation/thermal/power_allocator.rst
+
 	RW, Optional
 
 k_i
 	The integral term of the power allocator governor's PID
 	controller. This term allows the PID controller to compensate
 	for long term drift. For more information see
-	Documentation/thermal/power_allocator.txt
+	Documentation/thermal/power_allocator.rst
+
 	RW, Optional
 
 k_d
 	The derivative term of the power allocator governor's PID
 	controller. For more information see
-	Documentation/thermal/power_allocator.txt
+	Documentation/thermal/power_allocator.rst
+
 	RW, Optional
 
 integral_cutoff
@@ -456,8 +598,10 @@ integral_cutoff
 	example, if integral_cutoff is 0, then the integral term only
 	accumulates error when temperature is above the desired
 	temperature trip point. For more information see
-	Documentation/thermal/power_allocator.txt
+	Documentation/thermal/power_allocator.rst
+
 	Unit: millidegree Celsius
+
 	RW, Optional
 
 slope
@@ -465,6 +609,7 @@ slope
 	to determine a hotspot temperature based off the sensor's
 	raw readings. It is up to the device driver to determine
 	the usage of these values.
+
 	RW, Optional
 
 offset
@@ -472,28 +617,33 @@ offset
 	to determine a hotspot temperature based off the sensor's
 	raw readings. It is up to the device driver to determine
 	the usage of these values.
+
 	RW, Optional
 
-*****************************
-* Cooling device attributes *
-*****************************
+Cooling device attributes
+-------------------------
 
 type
 	String which represents the type of device, e.g:
+
 	- for generic ACPI: should be "Fan", "Processor" or "LCD"
 	- for memory controller device on intel_menlow platform:
 	  should be "Memory controller".
+
 	RO, Required
 
 max_state
 	The maximum permissible cooling state of this cooling device.
+
 	RO, Required
 
 cur_state
 	The current cooling state of this cooling device.
 	The value can any integer numbers between 0 and max_state:
+
 	- cur_state == 0 means no cooling
 	- cur_state == max_state means the maximum cooling.
+
 	RW, Required
 
 stats/reset
@@ -508,9 +658,11 @@ stats/time_in_state_ms:
 	units here is 10mS (similar to other time exported in /proc).
 	RO, Required
 
+
 stats/total_trans:
 	A single positive value showing the total number of times the state of a
 	cooling device is changed.
+
 	RO, Required
 
 stats/trans_table:
@@ -522,6 +674,7 @@ stats/trans_table:
 	RO, Required
 
 3. A simple implementation
+==========================
 
 ACPI thermal zone may support multiple trip points like critical, hot,
 passive, active. If an ACPI thermal zone supports critical, passive,
@@ -532,11 +685,10 @@ thermal_cooling_device. Both are considered to have the same
 effectiveness in cooling the thermal zone.
 
 If the processor is listed in _PSL method, and the fan is listed in _AL0
-method, the sys I/F structure will be built like this:
+method, the sys I/F structure will be built like this::
 
-/sys/class/thermal:
-
-|thermal_zone1:
+ /sys/class/thermal:
+  |thermal_zone1:
     |---type:			acpitz
     |---temp:			37000
     |---mode:			enabled
@@ -557,24 +709,24 @@ method, the sys I/F structure will be built like this:
     |---cdev1_trip_point:	2	/* cdev1 can be used for active[0]*/
     |---cdev1_weight:           1024
 
-|cooling_device0:
+  |cooling_device0:
     |---type:			Processor
     |---max_state:		8
     |---cur_state:		0
 
-|cooling_device3:
+  |cooling_device3:
     |---type:			Fan
     |---max_state:		2
     |---cur_state:		0
 
-/sys/class/hwmon:
-
-|hwmon0:
+ /sys/class/hwmon:
+  |hwmon0:
     |---name:			acpitz
     |---temp1_input:		37000
     |---temp1_crit:		100000
 
 4. Event Notification
+=====================
 
 The framework includes a simple notification mechanism, in the form of a
 netlink event. Netlink socket initialization is done during the _init_
@@ -587,21 +739,28 @@ event will be one of:{THERMAL_AUX0, THERMAL_AUX1, THERMAL_CRITICAL,
 THERMAL_DEV_FAULT}. Notification can be sent when the current temperature
 crosses any of the configured thresholds.
 
-5. Export Symbol APIs:
+5. Export Symbol APIs
+=====================
 
-5.1: get_tz_trend:
+5.1. get_tz_trend
+-----------------
+
 This function returns the trend of a thermal zone, i.e the rate of change
 of temperature of the thermal zone. Ideally, the thermal sensor drivers
 are supposed to implement the callback. If they don't, the thermal
 framework calculated the trend by comparing the previous and the current
 temperature values.
 
-5.2:get_thermal_instance:
+5.2. get_thermal_instance
+-------------------------
+
 This function returns the thermal_instance corresponding to a given
 {thermal_zone, cooling_device, trip_point} combination. Returns NULL
 if such an instance does not exist.
 
-5.3:thermal_notify_framework:
+5.3. thermal_notify_framework
+-----------------------------
+
 This function handles the trip events from sensor drivers. It starts
 throttling the cooling devices according to the policy configured.
 For CRITICAL and HOT trip points, this notifies the respective drivers,
@@ -609,12 +768,15 @@ and does actual throttling for other trip points i.e ACTIVE and PASSIVE.
 The throttling policy is based on the configured platform data; if no
 platform data is provided, this uses the step_wise throttling policy.
 
-5.4:thermal_cdev_update:
+5.4. thermal_cdev_update
+------------------------
+
 This function serves as an arbitrator to set the state of a cooling
 device. It sets the cooling device to the deepest cooling state if
 possible.
 
-6. thermal_emergency_poweroff:
+6. thermal_emergency_poweroff
+=============================
 
 On an event of critical trip temperature crossing. Thermal framework
 allows the system to shutdown gracefully by calling orderly_poweroff().
