@@ -49,6 +49,7 @@
 #include "mmhub_v1_0.h"
 #include "gfxhub_v1_1.h"
 #include "mmhub_v9_4.h"
+#include "umc_v6_1.h"
 
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
 
@@ -627,12 +628,24 @@ static void gmc_v9_0_set_gmc_funcs(struct amdgpu_device *adev)
 	adev->gmc.gmc_funcs = &gmc_v9_0_gmc_funcs;
 }
 
+static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+		adev->umc_funcs = &umc_v6_1_funcs;
+		break;
+	default:
+		break;
+	}
+}
+
 static int gmc_v9_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gmc_v9_0_set_gmc_funcs(adev);
 	gmc_v9_0_set_irq_funcs(adev);
+	gmc_v9_0_set_umc_funcs(adev);
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
@@ -721,6 +734,7 @@ static int gmc_v9_0_ecc_late_init(void *handle)
 		amdgpu_ras_feature_enable_on_boot(adev, &ras_block, 0);
 		return 0;
 	}
+
 	/* handle resume path. */
 	if (*ras_if) {
 		/* resend ras TA enable cmd during resume.
