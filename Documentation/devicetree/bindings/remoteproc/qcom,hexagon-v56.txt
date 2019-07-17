@@ -1,12 +1,13 @@
-Qualcomm Technology Inc. ADSP Peripheral Image Loader
+Qualcomm Technology Inc. Hexagon v56 Peripheral Image Loader
 
 This document defines the binding for a component that loads and boots firmware
-on the Qualcomm Technology Inc. ADSP Hexagon core.
+on the Qualcomm Technology Inc. Hexagon v56 core.
 
 - compatible:
 	Usage: required
 	Value type: <string>
 	Definition: must be one of:
+		    "qcom,qcs404-cdsp-pil",
 		    "qcom,sdm845-adsp-pil"
 
 - reg:
@@ -28,16 +29,25 @@ on the Qualcomm Technology Inc. ADSP Hexagon core.
 - clocks:
 	Usage: required
 	Value type: <prop-encoded-array>
-	Definition:  List of 8 phandle and clock specifier pairs for the adsp.
+	Definition:  List of phandles and clock specifier pairs for the Hexagon,
+		     per clock-names below.
 
 - clock-names:
-	Usage: required
+	Usage: required for SDM845 ADSP
 	Value type: <stringlist>
 	Definition: List of clock input name strings sorted in the same
 		    order as the clocks property. Definition must have
 		    "xo", "sway_cbcr", "lpass_ahbs_aon_cbcr",
 		    "lpass_ahbm_aon_cbcr", "qdsp6ss_xo", "qdsp6ss_sleep"
 		    and "qdsp6ss_core".
+
+- clock-names:
+	Usage: required for QCS404 CDSP
+	Value type: <stringlist>
+	Definition: List of clock input name strings sorted in the same
+		    order as the clocks property. Definition must have
+		    "xo", "sway", "tbu", "bimc", "ahb_aon", "q6ss_slave",
+		    "q6ss_master", "q6_axim".
 
 - power-domains:
 	Usage: required
@@ -47,28 +57,33 @@ on the Qualcomm Technology Inc. ADSP Hexagon core.
 - resets:
 	Usage: required
 	Value type: <phandle>
-	Definition: reference to the list of 2 reset-controller for the adsp.
+	Definition: reference to the list of resets for the Hexagon.
 
 - reset-names:
-        Usage: required
+        Usage: required for SDM845 ADSP
         Value type: <stringlist>
         Definition: must be "pdc_sync" and "cc_lpass"
+
+- reset-names:
+        Usage: required for QCS404 CDSP
+        Value type: <stringlist>
+        Definition: must be "restart"
 
 - qcom,halt-regs:
 	Usage: required
 	Value type: <prop-encoded-array>
 	Definition: a phandle reference to a syscon representing TCSR followed
-			by the offset within syscon for lpass halt register.
+		    by the offset within syscon for Hexagon halt register.
 
 - memory-region:
 	Usage: required
 	Value type: <phandle>
-	Definition: reference to the reserved-memory for the ADSP
+	Definition: reference to the reserved-memory for the firmware
 
 - qcom,smem-states:
 	Usage: required
 	Value type: <phandle>
-	Definition: reference to the smem state for requesting the ADSP to
+	Definition: reference to the smem state for requesting the Hexagon to
 		    shut down
 
 - qcom,smem-state-names:
@@ -79,7 +94,7 @@ on the Qualcomm Technology Inc. ADSP Hexagon core.
 
 = SUBNODES
 The adsp node may have an subnode named "glink-edge" that describes the
-communication edge, channels and devices related to the ADSP.
+communication edge, channels and devices related to the Hexagon.
 See ../soc/qcom/qcom,glink.txt for details on how to describe these.
 
 = EXAMPLE

@@ -13590,9 +13590,11 @@ L:	linux-remoteproc@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/remoteproc.git
 S:	Maintained
 F:	Documentation/devicetree/bindings/remoteproc/
+F:	Documentation/ABI/testing/sysfs-class-remoteproc
 F:	Documentation/remoteproc.txt
 F:	drivers/remoteproc/
 F:	include/linux/remoteproc.h
+F:	include/linux/remoteproc/
 
 REMOTE PROCESSOR MESSAGING (RPMSG) SUBSYSTEM
 M:	Ohad Ben-Cohen <ohad@wizery.com>
@@ -13602,8 +13604,11 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/rpmsg.git
 S:	Maintained
 F:	drivers/rpmsg/
 F:	Documentation/rpmsg.txt
+F:	Documentation/ABI/testing/sysfs-bus-rpmsg
 F:	include/linux/rpmsg.h
 F:	include/linux/rpmsg/
+F:	include/uapi/linux/rpmsg.h
+F:	samples/rpmsg/
 
 RENESAS CLOCK DRIVERS
 M:	Geert Uytterhoeven <geert+renesas@glider.be>
