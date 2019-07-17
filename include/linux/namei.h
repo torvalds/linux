@@ -37,6 +37,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_NO_REVAL		0x0080
 #define LOOKUP_JUMPED		0x1000
 #define LOOKUP_ROOT		0x2000
+#define LOOKUP_ROOT_GRABBED	0x0008
 
 extern int path_pts(struct path *path);
 
