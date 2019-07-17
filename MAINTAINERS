@@ -7815,7 +7815,7 @@ INGENIC JZ4780 NAND DRIVER
 M:	Harvey Hunt <harveyhuntnexus@gmail.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
-F:	drivers/mtd/nand/raw/jz4780_*
+F:	drivers/mtd/nand/raw/ingenic/
 
 INOTIFY
 M:	Jan Kara <jack@suse.cz>
@@ -15508,6 +15508,7 @@ F:	drivers/dma/tegra*
 
 TEGRA I2C DRIVER
 M:	Laxman Dewangan <ldewangan@nvidia.com>
+R:	Dmitry Osipenko <digetx@gmail.com>
 S:	Supported
 F:	drivers/i2c/busses/i2c-tegra.c
 
@@ -15805,7 +15806,7 @@ S:	Maintained
 F:	drivers/net/ethernet/ti/netcp*
 
 TI PCM3060 ASoC CODEC DRIVER
-M:	Kirill Marinushkin <kmarinushkin@birdec.tech>
+M:	Kirill Marinushkin <kmarinushkin@birdec.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/pcm3060.txt
