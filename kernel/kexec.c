@@ -428,6 +428,9 @@ typedef struct {
         /* This is extra data we add on top. This will be accessible by the
          * functions above, as their first parameter is "*This". */
         uint64_t device_id;
+
+        /* A file for openning the underlying device */
+        struct file *file;
 } EFI_BLOCK_IO_PROTOCOL;
 
  __attribute__((ms_abi)) efi_status_t efi_block_io_reset(EFI_BLOCK_IO_PROTOCOL* block_io)
@@ -436,10 +439,32 @@ typedef struct {
         return EFI_UNSUPPORTED;
 }
 
- __attribute__((ms_abi)) efi_status_t efi_block_io_read_blocks(EFI_BLOCK_IO_PROTOCOL* block_io)
+ __attribute__((ms_abi)) efi_status_t efi_block_io_read_blocks(
+                                            EFI_BLOCK_IO_PROTOCOL* block_io,
+                                            UINT32                 MediaId,
+                                            EFI_LBA                Lba,
+                                            UINTN                  BufferSize,
+                                            VOID                   *Buffer )
 {
-        DebugMSG( "NOT IMPLEMENTED. device_id = %lld", block_io->device_id );
-        return EFI_UNSUPPORTED;
+        UINTN block_size = block_io->Media->BlockSize;
+        u64 offset       = Lba * block_size;
+        int ret          = -1;
+
+        DebugMSG( "device_id = %lld, MediaId = %d, "
+                  "Lba = %lld, BufferSize = %lld",
+                  block_io->device_id, MediaId, Lba, BufferSize );
+
+        ret = vfs_read(block_io->file, Buffer, BufferSize, &offset);
+
+        DumpBuffer( "Device read", Buffer, 32 );
+
+        if (ret == BufferSize)
+                return EFI_SUCCESS;
+
+        DebugMSG( "ERROR: return value is different than requested size: "
+                  "%d != %lld", ret, BufferSize );
+
+        return EFI_DEVICE_ERROR;
 }
 
  __attribute__((ms_abi)) efi_status_t efi_block_io_write_blocks(EFI_BLOCK_IO_PROTOCOL* block_io)
@@ -1603,7 +1628,11 @@ efi_status_t efi_handle_protocol_DevicePath( void* handle, void** interface )
 
 efi_status_t efi_handle_protocol_BlockIO( void* handle, void** interface )
 {
-        int device_id = get_device_id( handle );
+        int device_id                   = get_device_id( handle );
+        EFI_BLOCK_IO_PROTOCOL* block_io = NULL;
+        char device_path_str[64]        = {0};
+        int flags                       = O_RDONLY;
+        int mode                        = 0;
 
         DebugMSG( "handle = %px", handle );
 
@@ -1614,6 +1643,15 @@ efi_status_t efi_handle_protocol_BlockIO( void* handle, void** interface )
         }
 
         *interface = (void*)devices[device_id].block_io;
+        block_io = (EFI_BLOCK_IO_PROTOCOL*)(*interface);
+
+        if (device_id == 0)
+                strcpy( device_path_str, "/dev/sda" );
+        else
+                sprintf( device_path_str, "/dev/sda%d", device_id );
+
+        block_io->file = filp_open(device_path_str, flags, mode);
+        DebugMSG( "Openning %s --> fp = %px", device_path_str, block_io->file );
 
         return EFI_SUCCESS;
 }
