@@ -1436,26 +1436,50 @@ err_obj:
 	return ERR_PTR(err);
 }
 
+static bool mcr_range(struct drm_i915_private *i915, u32 offset)
+{
+	/*
+	 * Registers in this range are affected by the MCR selector
+	 * which only controls CPU initiated MMIO. Routing does not
+	 * work for CS access so we cannot verify them on this path.
+	 */
+	if (INTEL_GEN(i915) >= 8 && (offset >= 0xb100 && offset <= 0xb3ff))
+		return true;
+
+	return false;
+}
+
 static int
 wa_list_srm(struct i915_request *rq,
 	    const struct i915_wa_list *wal,
 	    struct i915_vma *vma)
 {
+	struct drm_i915_private *i915 = rq->i915;
+	unsigned int i, count = 0;
 	const struct i915_wa *wa;
-	unsigned int i;
 	u32 srm, *cs;
 
 	srm = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
-	if (INTEL_GEN(rq->i915) >= 8)
+	if (INTEL_GEN(i915) >= 8)
 		srm++;
 
-	cs = intel_ring_begin(rq, 4 * wal->count);
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
+		if (!mcr_range(i915, i915_mmio_reg_offset(wa->reg)))
+			count++;
+	}
+
+	cs = intel_ring_begin(rq, 4 * count);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
+		u32 offset = i915_mmio_reg_offset(wa->reg);
+
+		if (mcr_range(i915, offset))
+			continue;
+
 		*cs++ = srm;
-		*cs++ = i915_mmio_reg_offset(wa->reg);
+		*cs++ = offset;
 		*cs++ = i915_ggtt_offset(vma) + sizeof(u32) * i;
 		*cs++ = 0;
 	}
@@ -1505,9 +1529,13 @@ static int engine_wa_list_verify(struct intel_context *ce,
 	}
 
 	err = 0;
-	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
+		if (mcr_range(rq->i915, i915_mmio_reg_offset(wa->reg)))
+			continue;
+
 		if (!wa_verify(wa, results[i], wal->name, from))
 			err = -ENXIO;
+	}
 
 	i915_gem_object_unpin_map(vma->obj);
 
