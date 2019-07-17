@@ -1088,6 +1088,11 @@ static int rk1608_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 			     struct rk1608_state, ctrl_handler);
 	int id = pdata->sd.grp_id;
 
+	if (!pdata->sensor[id]) {
+		dev_err(pdata->dev, "Did not find a sensor[%d]!\n", id);
+		return -EINVAL;
+	}
+
 	remote_ctrl = v4l2_ctrl_find(pdata->sensor[id]->ctrl_handler,
 				     ctrl->id);
 	if (remote_ctrl) {
