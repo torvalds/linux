@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/cdev.h>
 
-enum of_gpio_flags;
 struct acpi_device;
 
 /**
@@ -91,32 +90,6 @@ struct acpi_gpio_info {
 
 /* gpio suffixes used for ACPI and device tree lookup */
 static __maybe_unused const char * const gpio_suffixes[] = { "gpios", "gpio" };
-
-#ifdef CONFIG_OF_GPIO
-struct gpio_desc *of_find_gpio(struct device *dev,
-			       const char *con_id,
-			       unsigned int idx,
-			       unsigned long *lookupflags);
-struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
-		   const char *list_name, int index, enum of_gpio_flags *flags);
-int of_gpiochip_add(struct gpio_chip *gc);
-void of_gpiochip_remove(struct gpio_chip *gc);
-#else
-static inline struct gpio_desc *of_find_gpio(struct device *dev,
-					     const char *con_id,
-					     unsigned int idx,
-					     unsigned long *lookupflags)
-{
-	return ERR_PTR(-ENOENT);
-}
-static inline struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
-		   const char *list_name, int index, enum of_gpio_flags *flags)
-{
-	return ERR_PTR(-ENOENT);
-}
-static inline int of_gpiochip_add(struct gpio_chip *gc) { return 0; }
-static inline void of_gpiochip_remove(struct gpio_chip *gc) { }
-#endif /* CONFIG_OF_GPIO */
 
 #ifdef CONFIG_ACPI
 void acpi_gpiochip_add(struct gpio_chip *chip);

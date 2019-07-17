@@ -11,7 +11,6 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/gpio.h>
-#include <linux/of_gpio.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
@@ -30,6 +29,7 @@
 #include <uapi/linux/gpio.h>
 
 #include "gpiolib.h"
+#include "gpiolib-of.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/gpio.h>
@@ -360,22 +360,15 @@ static unsigned long *gpiochip_allocate_mask(struct gpio_chip *chip)
 	return p;
 }
 
-static int gpiochip_alloc_valid_mask(struct gpio_chip *gpiochip)
+static int gpiochip_alloc_valid_mask(struct gpio_chip *gc)
 {
-#ifdef CONFIG_OF_GPIO
-	int size;
-	struct device_node *np = gpiochip->of_node;
-
-	size = of_property_count_u32_elems(np,  "gpio-reserved-ranges");
-	if (size > 0 && size % 2 == 0)
-		gpiochip->need_valid_mask = true;
-#endif
-
-	if (!gpiochip->need_valid_mask)
+	if (IS_ENABLED(CONFIG_OF_GPIO))
+		gc->need_valid_mask = of_gpio_need_valid_mask(gc);
+	if (!gc->need_valid_mask)
 		return 0;
 
-	gpiochip->valid_mask = gpiochip_allocate_mask(gpiochip);
-	if (!gpiochip->valid_mask)
+	gc->valid_mask = gpiochip_allocate_mask(gc);
+	if (!gc->valid_mask)
 		return -ENOMEM;
 
 	return 0;
@@ -3993,27 +3986,6 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 	return desc;
 }
 
-static int dt_gpio_count(struct device *dev, const char *con_id)
-{
-	int ret;
-	char propname[32];
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
-		if (con_id)
-			snprintf(propname, sizeof(propname), "%s-%s",
-				 con_id, gpio_suffixes[i]);
-		else
-			snprintf(propname, sizeof(propname), "%s",
-				 gpio_suffixes[i]);
-
-		ret = of_gpio_named_count(dev->of_node, propname);
-		if (ret > 0)
-			break;
-	}
-	return ret ? ret : -ENOENT;
-}
-
 static int platform_gpio_count(struct device *dev, const char *con_id)
 {
 	struct gpiod_lookup_table *table;
@@ -4046,7 +4018,7 @@ int gpiod_count(struct device *dev, const char *con_id)
 	int count = -ENOENT;
 
 	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_node)
-		count = dt_gpio_count(dev, con_id);
+		count = of_gpio_get_count(dev, con_id);
 	else if (IS_ENABLED(CONFIG_ACPI) && dev && ACPI_HANDLE(dev))
 		count = acpi_gpio_count(dev, con_id);
 
@@ -4246,75 +4218,6 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 	return desc;
 }
 EXPORT_SYMBOL_GPL(gpiod_get_index);
-
-/**
- * gpiod_get_from_of_node() - obtain a GPIO from an OF node
- * @node:	handle of the OF node
- * @propname:	name of the DT property representing the GPIO
- * @index:	index of the GPIO to obtain for the consumer
- * @dflags:	GPIO initialization flags
- * @label:	label to attach to the requested GPIO
- *
- * Returns:
- * On successful request the GPIO pin is configured in accordance with
- * provided @dflags.
- *
- * In case of error an ERR_PTR() is returned.
- */
-struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
-					 const char *propname, int index,
-					 enum gpiod_flags dflags,
-					 const char *label)
-{
-	unsigned long lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
-	struct gpio_desc *desc;
-	enum of_gpio_flags flags;
-	bool active_low = false;
-	bool single_ended = false;
-	bool open_drain = false;
-	bool transitory = false;
-	int ret;
-
-	desc = of_get_named_gpiod_flags(node, propname,
-					index, &flags);
-
-	if (!desc || IS_ERR(desc)) {
-		return desc;
-	}
-
-	active_low = flags & OF_GPIO_ACTIVE_LOW;
-	single_ended = flags & OF_GPIO_SINGLE_ENDED;
-	open_drain = flags & OF_GPIO_OPEN_DRAIN;
-	transitory = flags & OF_GPIO_TRANSITORY;
-
-	ret = gpiod_request(desc, label);
-	if (ret == -EBUSY && (flags & GPIOD_FLAGS_BIT_NONEXCLUSIVE))
-		return desc;
-	if (ret)
-		return ERR_PTR(ret);
-
-	if (active_low)
-		lflags |= GPIO_ACTIVE_LOW;
-
-	if (single_ended) {
-		if (open_drain)
-			lflags |= GPIO_OPEN_DRAIN;
-		else
-			lflags |= GPIO_OPEN_SOURCE;
-	}
-
-	if (transitory)
-		lflags |= GPIO_TRANSITORY;
-
-	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
-	if (ret < 0) {
-		gpiod_put(desc);
-		return ERR_PTR(ret);
-	}
-
-	return desc;
-}
-EXPORT_SYMBOL(gpiod_get_from_of_node);
 
 /**
  * fwnode_get_named_gpiod - obtain a GPIO from firmware node

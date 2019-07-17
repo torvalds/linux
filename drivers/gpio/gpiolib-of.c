@@ -21,6 +21,34 @@
 #include <linux/gpio/machine.h>
 
 #include "gpiolib.h"
+#include "gpiolib-of.h"
+
+/*
+ * This is used by external users of of_gpio_count() from <linux/of_gpio.h>
+ *
+ * FIXME: get rid of those external users by converting them to GPIO
+ * descriptors and let them all use gpiod_get_count()
+ */
+int of_gpio_get_count(struct device *dev, const char *con_id)
+{
+	int ret;
+	char propname[32];
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
+		if (con_id)
+			snprintf(propname, sizeof(propname), "%s-%s",
+				 con_id, gpio_suffixes[i]);
+		else
+			snprintf(propname, sizeof(propname), "%s",
+				 gpio_suffixes[i]);
+
+		ret = of_gpio_named_count(dev->of_node, propname);
+		if (ret > 0)
+			break;
+	}
+	return ret ? ret : -ENOENT;
+}
 
 static int of_gpiochip_match_node_and_xlate(struct gpio_chip *chip, void *data)
 {
@@ -51,6 +79,23 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
 		return ERR_PTR(ret);
 
 	return gpiochip_get_desc(chip, ret);
+}
+
+/**
+ * of_gpio_need_valid_mask() - figure out if the OF GPIO driver needs
+ * to set the .valid_mask
+ * @dev: the device for the GPIO provider
+ * @return: true if the valid mask needs to be set
+ */
+bool of_gpio_need_valid_mask(struct gpio_chip *gc)
+{
+	int size;
+	struct device_node *np = gc->of_node;
+
+	size = of_property_count_u32_elems(np,  "gpio-reserved-ranges");
+	if (size > 0 && size % 2 == 0)
+		return true;
+	return false;
 }
 
 static void of_gpio_flags_quirks(struct device_node *np,
@@ -230,6 +275,75 @@ int of_get_named_gpio_flags(struct device_node *np, const char *list_name,
 		return desc_to_gpio(desc);
 }
 EXPORT_SYMBOL(of_get_named_gpio_flags);
+
+/**
+ * gpiod_get_from_of_node() - obtain a GPIO from an OF node
+ * @node:	handle of the OF node
+ * @propname:	name of the DT property representing the GPIO
+ * @index:	index of the GPIO to obtain for the consumer
+ * @dflags:	GPIO initialization flags
+ * @label:	label to attach to the requested GPIO
+ *
+ * Returns:
+ * On successful request the GPIO pin is configured in accordance with
+ * provided @dflags.
+ *
+ * In case of error an ERR_PTR() is returned.
+ */
+struct gpio_desc *gpiod_get_from_of_node(struct device_node *node,
+					 const char *propname, int index,
+					 enum gpiod_flags dflags,
+					 const char *label)
+{
+	unsigned long lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
+	struct gpio_desc *desc;
+	enum of_gpio_flags flags;
+	bool active_low = false;
+	bool single_ended = false;
+	bool open_drain = false;
+	bool transitory = false;
+	int ret;
+
+	desc = of_get_named_gpiod_flags(node, propname,
+					index, &flags);
+
+	if (!desc || IS_ERR(desc)) {
+		return desc;
+	}
+
+	active_low = flags & OF_GPIO_ACTIVE_LOW;
+	single_ended = flags & OF_GPIO_SINGLE_ENDED;
+	open_drain = flags & OF_GPIO_OPEN_DRAIN;
+	transitory = flags & OF_GPIO_TRANSITORY;
+
+	ret = gpiod_request(desc, label);
+	if (ret == -EBUSY && (flags & GPIOD_FLAGS_BIT_NONEXCLUSIVE))
+		return desc;
+	if (ret)
+		return ERR_PTR(ret);
+
+	if (active_low)
+		lflags |= GPIO_ACTIVE_LOW;
+
+	if (single_ended) {
+		if (open_drain)
+			lflags |= GPIO_OPEN_DRAIN;
+		else
+			lflags |= GPIO_OPEN_SOURCE;
+	}
+
+	if (transitory)
+		lflags |= GPIO_TRANSITORY;
+
+	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
+	if (ret < 0) {
+		gpiod_put(desc);
+		return ERR_PTR(ret);
+	}
+
+	return desc;
+}
+EXPORT_SYMBOL(gpiod_get_from_of_node);
 
 /*
  * The SPI GPIO bindings happened before we managed to establish that GPIO
