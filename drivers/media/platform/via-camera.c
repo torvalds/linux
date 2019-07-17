@@ -658,19 +658,22 @@ static const struct videobuf_queue_ops viacam_vb_ops = {
 static int viacam_open(struct file *filp)
 {
 	struct via_camera *cam = video_drvdata(filp);
+	int ret;
 
-	filp->private_data = cam;
 	/*
 	 * Note the new user.  If this is the first one, we'll also
 	 * need to power up the sensor.
 	 */
 	mutex_lock(&cam->lock);
-	if (cam->users == 0) {
-		int ret = viafb_request_dma();
+	ret = v4l2_fh_open(filp);
+	if (ret)
+		goto out;
+	if (v4l2_fh_is_singular_file(filp)) {
+		ret = viafb_request_dma();
 
 		if (ret) {
-			mutex_unlock(&cam->lock);
-			return ret;
+			v4l2_fh_release(filp);
+			goto out;
 		}
 		via_sensor_power_up(cam);
 		set_bit(CF_CONFIG_NEEDED, &cam->flags);
@@ -683,16 +686,19 @@ static int viacam_open(struct file *filp)
 				sizeof(struct videobuf_buffer), cam, NULL);
 	}
 	(cam->users)++;
+out:
 	mutex_unlock(&cam->lock);
-	return 0;
+	return ret;
 }
 
 static int viacam_release(struct file *filp)
 {
 	struct via_camera *cam = video_drvdata(filp);
+	bool last_open;
 
 	mutex_lock(&cam->lock);
 	(cam->users)--;
+	last_open = v4l2_fh_is_singular_file(filp);
 	/*
 	 * If the "owner" is closing, shut down any ongoing
 	 * operations.
@@ -712,11 +718,12 @@ static int viacam_release(struct file *filp)
 	/*
 	 * Last one out needs to turn out the lights.
 	 */
-	if (cam->users == 0) {
+	if (last_open) {
 		videobuf_mmap_free(&cam->vb_queue);
 		via_sensor_power_down(cam);
 		viafb_release_dma();
 	}
+	v4l2_fh_release(filp);
 	mutex_unlock(&cam->lock);
 	return 0;
 }
@@ -923,7 +930,7 @@ static int viacam_do_try_fmt(struct via_camera *cam,
 static int viacam_try_fmt_vid_cap(struct file *filp, void *priv,
 		struct v4l2_format *fmt)
 {
-	struct via_camera *cam = priv;
+	struct via_camera *cam = video_drvdata(filp);
 	struct v4l2_format sfmt;
 	int ret;
 
@@ -937,7 +944,7 @@ static int viacam_try_fmt_vid_cap(struct file *filp, void *priv,
 static int viacam_g_fmt_vid_cap(struct file *filp, void *priv,
 		struct v4l2_format *fmt)
 {
-	struct via_camera *cam = priv;
+	struct via_camera *cam = video_drvdata(filp);
 
 	mutex_lock(&cam->lock);
 	fmt->fmt.pix = cam->user_format;
@@ -948,7 +955,7 @@ static int viacam_g_fmt_vid_cap(struct file *filp, void *priv,
 static int viacam_s_fmt_vid_cap(struct file *filp, void *priv,
 		struct v4l2_format *fmt)
 {
-	struct via_camera *cam = priv;
+	struct via_camera *cam = video_drvdata(filp);
 	int ret;
 	struct v4l2_format sfmt;
 	struct via_format *f = via_find_format(fmt->fmt.pix.pixelformat);
@@ -997,7 +1004,7 @@ static int viacam_querycap(struct file *filp, void *priv,
 static int viacam_reqbufs(struct file *filp, void *priv,
 		struct v4l2_requestbuffers *rb)
 {
-	struct via_camera *cam = priv;
+	struct via_camera *cam = video_drvdata(filp);
 
 	return videobuf_reqbufs(&cam->vb_queue, rb);
 }
@@ -1005,28 +1012,28 @@ static int viacam_reqbufs(struct file *filp, void *priv,
 static int viacam_querybuf(struct file *filp, void *priv,
 		struct v4l2_buffer *buf)
 {
-	struct via_camera *cam = priv;
+	struct via_camera *cam = video_drvdata(filp);
 
 	return videobuf_querybuf(&cam->vb_queue, buf);
 }
 
 static int viacam_qbuf(struct file *filp, void *priv, struct v4l2_buffer *buf)
 {
-	struct via_camera *cam = priv;
+	struct via_camera *cam = video_drvdata(filp);
 
 	return videobuf_qbuf(&cam->vb_queue, buf);
 }
 
 static int viacam_dqbuf(struct file *filp, void *priv, struct v4l2_buffer *buf)
 {
-	struct via_camera *cam = priv;
+	struct via_camera *cam = video_drvdata(filp);
 
 	return videobuf_dqbuf(&cam->vb_queue, buf, filp->f_flags & O_NONBLOCK);
 }
 
 static int viacam_streamon(struct file *filp, void *priv, enum v4l2_buf_type t)
 {
-	struct via_camera *cam = priv;
+	struct via_camera *cam = video_drvdata(filp);
 	int ret = 0;
 
 	if (t != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -1077,7 +1084,7 @@ out:
 
 static int viacam_streamoff(struct file *filp, void *priv, enum v4l2_buf_type t)
 {
-	struct via_camera *cam = priv;
+	struct via_camera *cam = video_drvdata(filp);
 	int ret;
 
 	if (t != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -1106,7 +1113,7 @@ out:
 static int viacam_g_parm(struct file *filp, void *priv,
 		struct v4l2_streamparm *parm)
 {
-	struct via_camera *cam = priv;
+	struct via_camera *cam = video_drvdata(filp);
 	int ret;
 
 	mutex_lock(&cam->lock);
@@ -1119,7 +1126,7 @@ static int viacam_g_parm(struct file *filp, void *priv,
 static int viacam_s_parm(struct file *filp, void *priv,
 		struct v4l2_streamparm *parm)
 {
-	struct via_camera *cam = priv;
+	struct via_camera *cam = video_drvdata(filp);
 	int ret;
 
 	mutex_lock(&cam->lock);
@@ -1146,7 +1153,7 @@ static int viacam_enum_framesizes(struct file *filp, void *priv,
 static int viacam_enum_frameintervals(struct file *filp, void *priv,
 		struct v4l2_frmivalenum *interval)
 {
-	struct via_camera *cam = priv;
+	struct via_camera *cam = video_drvdata(filp);
 	struct v4l2_subdev_frame_interval_enum fie = {
 		.index = interval->index,
 		.code = cam->mbus_code,
@@ -1422,10 +1429,10 @@ static int viacam_probe(struct platform_device *pdev)
 	 */
 	cam->vdev = viacam_v4l_template;
 	cam->vdev.v4l2_dev = &cam->v4l2_dev;
+	video_set_drvdata(&cam->vdev, cam);
 	ret = video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret)
 		goto out_irq;
-	video_set_drvdata(&cam->vdev, cam);
 
 #ifdef CONFIG_PM
 	/*
