@@ -777,7 +777,8 @@
 			VF610_PAD_PTB15__I2C0_SDA		0x37ff
 		>;
 	};
-		pinctrl_i2c1: i2c1grp {
+
+	pinctrl_i2c1: i2c1grp {
 		fsl,pins = <
 			VF610_PAD_PTB16__I2C1_SCL		0x37ff
 			VF610_PAD_PTB17__I2C1_SDA		0x37ff
