@@ -196,7 +196,6 @@ static int imx_rngc_init(struct hwrng *rng)
 static int imx_rngc_probe(struct platform_device *pdev)
 {
 	struct imx_rngc *rngc;
-	struct resource *res;
 	int ret;
 	int irq;
 
@@ -204,8 +203,7 @@ static int imx_rngc_probe(struct platform_device *pdev)
 	if (!rngc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rngc->base = devm_ioremap_resource(&pdev->dev, res);
+	rngc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rngc->base))
 		return PTR_ERR(rngc->base);
 
