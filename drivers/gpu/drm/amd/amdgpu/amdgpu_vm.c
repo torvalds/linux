@@ -2945,17 +2945,25 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	struct amdgpu_bo_va_mapping *mapping, *tmp;
 	bool prt_fini_needed = !!adev->gmc.gmc_funcs->set_prt;
 	struct amdgpu_bo *root;
-	int i, r;
+	int i;
 
 	amdgpu_amdkfd_gpuvm_destroy_cb(adev, vm);
 
+	root = amdgpu_bo_ref(vm->root.base.bo);
+	amdgpu_bo_reserve(root, true);
 	if (vm->pasid) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&adev->vm_manager.pasid_lock, flags);
 		idr_remove(&adev->vm_manager.pasid_idr, vm->pasid);
 		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
+		vm->pasid = 0;
 	}
+
+	amdgpu_vm_free_pts(adev, vm, NULL);
+	amdgpu_bo_unreserve(root);
+	amdgpu_bo_unref(&root);
+	WARN_ON(vm->root.base.bo);
 
 	drm_sched_entity_destroy(&vm->direct);
 	drm_sched_entity_destroy(&vm->delayed);
@@ -2981,16 +2989,6 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		amdgpu_vm_free_mapping(adev, vm, mapping, NULL);
 	}
 
-	root = amdgpu_bo_ref(vm->root.base.bo);
-	r = amdgpu_bo_reserve(root, true);
-	if (r) {
-		dev_err(adev->dev, "Leaking page tables because BO reservation failed\n");
-	} else {
-		amdgpu_vm_free_pts(adev, vm, NULL);
-		amdgpu_bo_unreserve(root);
-	}
-	amdgpu_bo_unref(&root);
-	WARN_ON(vm->root.base.bo);
 	dma_fence_put(vm->last_update);
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; i++)
 		amdgpu_vmid_free_reserved(adev, vm, i);
