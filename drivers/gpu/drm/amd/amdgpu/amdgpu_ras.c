@@ -588,11 +588,19 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 		struct ras_query_if *info)
 {
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &info->head);
+	struct ras_err_data err_data = {0, 0};
 
 	if (!obj)
 		return -EINVAL;
-	/* TODO might read the register to read the count */
 
+	switch (info->head.block) {
+	case AMDGPU_RAS_BLOCK__UMC:
+		if (adev->umc_funcs->query_ras_error_count)
+			adev->umc_funcs->query_ras_error_count(adev, &err_data);
+		break;
+	default:
+		break;
+	}
 	info->ue_count = obj->err_data.ue_count;
 	info->ce_count = obj->err_data.ce_count;
 
@@ -986,6 +994,7 @@ static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 	struct ras_ih_data *data = &obj->ih_data;
 	struct amdgpu_iv_entry entry;
 	int ret;
+	struct ras_err_data err_data = {0, 0};
 
 	while (data->rptr != data->wptr) {
 		rmb();

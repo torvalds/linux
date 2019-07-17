@@ -245,7 +245,10 @@ static int gmc_v9_0_ecc_interrupt_state(struct amdgpu_device *adev,
 static int gmc_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
 		struct amdgpu_iv_entry *entry)
 {
+	struct ras_err_data err_data = {0, 0};
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+	if (adev->umc_funcs->query_ras_error_count)
+		adev->umc_funcs->query_ras_error_count(adev, &err_data);
 	amdgpu_ras_reset_gpu(adev, 0);
 	return AMDGPU_RAS_UE;
 }
