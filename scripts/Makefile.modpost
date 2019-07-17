@@ -6,8 +6,8 @@
 # Stage one of module building created the following:
 # a) The individual .o files used for the module
 # b) A <module>.o file which is the .o files above linked together
-# c) A <module>.mod file in $(MODVERDIR)/, listing the name of the
-#    the preliminary <module>.o file, plus all .o files
+# c) A <module>.mod file, listing the name of the preliminary <module>.o file,
+#    plus all .o files
 # d) modules.order, which lists all the modules
 
 # Stage 2 is handled by this file and does the following
