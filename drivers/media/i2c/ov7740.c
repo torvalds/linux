@@ -827,13 +827,9 @@ static int ov7740_set_fmt(struct v4l2_subdev *sd,
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		mbus_fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
 		*mbus_fmt = format->format;
-
+#endif
 		mutex_unlock(&ov7740->mutex);
 		return 0;
-#else
-		ret = -ENOTTY;
-		goto error;
-#endif
 	}
 
 	ret = ov7740_try_fmt_internal(sd, &format->format, &ovfmt, &fsize);
@@ -868,7 +864,7 @@ static int ov7740_get_fmt(struct v4l2_subdev *sd,
 		format->format = *mbus_fmt;
 		ret = 0;
 #else
-		ret = -ENOTTY;
+		ret = -EINVAL;
 #endif
 	} else {
 		format->format = ov7740->format;

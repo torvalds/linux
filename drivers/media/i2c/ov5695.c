@@ -823,9 +823,6 @@ static int ov5695_set_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
-#else
-		mutex_unlock(&ov5695->mutex);
-		return -ENOTTY;
 #endif
 	} else {
 		ov5695->cur_mode = mode;
@@ -856,7 +853,7 @@ static int ov5695_get_fmt(struct v4l2_subdev *sd,
 		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
 #else
 		mutex_unlock(&ov5695->mutex);
-		return -ENOTTY;
+		return -EINVAL;
 #endif
 	} else {
 		fmt->format.width = mode->width;

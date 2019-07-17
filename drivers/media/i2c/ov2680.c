@@ -675,7 +675,7 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		fmt = v4l2_subdev_get_try_format(&sensor->sd, cfg, format->pad);
 #else
-		ret = -ENOTTY;
+		ret = -EINVAL;
 #endif
 	} else {
 		fmt = &sensor->fmt;
@@ -723,10 +723,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		try_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
 		format->format = *try_fmt;
-#else
-		ret = -ENOTTY;
 #endif
-
 		goto unlock;
 	}
 

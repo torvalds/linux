@@ -929,7 +929,7 @@ static int ov2640_get_fmt(struct v4l2_subdev *sd,
 		format->format = *mf;
 		return 0;
 #else
-		return -ENOTTY;
+		return -EINVAL;
 #endif
 	}
 

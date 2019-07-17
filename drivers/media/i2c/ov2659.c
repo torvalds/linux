@@ -1055,7 +1055,7 @@ static int ov2659_get_fmt(struct v4l2_subdev *sd,
 		mutex_unlock(&ov2659->lock);
 		return 0;
 #else
-	return -ENOTTY;
+		return -EINVAL;
 #endif
 	}
 
@@ -1131,8 +1131,6 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
 		*mf = fmt->format;
-#else
-		ret = -ENOTTY;
 #endif
 	} else {
 		s64 val;
