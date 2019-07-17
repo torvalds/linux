@@ -1297,6 +1297,12 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_write_or(wal,
 			    GEN7_SARCHKMD,
 			    GEN7_DISABLE_SAMPLER_PREFETCH);
+
+		/* Wa_1409178092:icl */
+		wa_write_masked_or(wal,
+				   GEN11_SCRATCH2,
+				   GEN11_COHERENT_PARTIAL_WRITE_MERGE_ENABLE,
+				   0);
 	}
 
 	if (IS_GEN_RANGE(i915, 9, 11)) {
