@@ -483,7 +483,7 @@ static void ghes_do_proc(struct ghes *ghes,
 	int sev, sec_sev;
 	struct acpi_hest_generic_data *gdata;
 	guid_t *sec_type;
-	guid_t *fru_id = &NULL_UUID_LE;
+	const guid_t *fru_id = &guid_null;
 	char *fru_text = "";
 
 	sev = ghes_severity(estatus->error_severity);
