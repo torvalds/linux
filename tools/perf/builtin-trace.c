@@ -1492,13 +1492,13 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	const char *name = syscalltbl__name(trace->sctbl, id);
 
 	if (name == NULL)
-		return -1;
+		return -EINVAL;
 
 	if (id > trace->syscalls.max) {
 		struct syscall *nsyscalls = realloc(trace->syscalls.table, (id + 1) * sizeof(*sc));
 
 		if (nsyscalls == NULL)
-			return -1;
+			return -ENOMEM;
 
 		if (trace->syscalls.max != -1) {
 			memset(nsyscalls + trace->syscalls.max + 1, 0,
@@ -1525,10 +1525,10 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	}
 
 	if (syscall__alloc_arg_fmts(sc, IS_ERR(sc->tp_format) ? 6 : sc->tp_format->format.nr_fields))
-		return -1;
+		return -ENOMEM;
 
 	if (IS_ERR(sc->tp_format))
-		return -1;
+		return PTR_ERR(sc->tp_format);
 
 	sc->args = sc->tp_format->format.fields;
 	/*
@@ -1789,6 +1789,7 @@ typedef int (*tracepoint_handler)(struct trace *trace, struct perf_evsel *evsel,
 static struct syscall *trace__syscall_info(struct trace *trace,
 					   struct perf_evsel *evsel, int id)
 {
+	int err = 0;
 
 	if (id < 0) {
 
@@ -1811,9 +1812,10 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 	}
 
 	if ((id > trace->syscalls.max || trace->syscalls.table[id].name == NULL) &&
-	    trace__read_syscall_info(trace, id))
+	    (err = trace__read_syscall_info(trace, id)) != 0)
 		goto out_cant_read;
 
+	err = -EINVAL;
 	if ((id > trace->syscalls.max || trace->syscalls.table[id].name == NULL))
 		goto out_cant_read;
 
@@ -1821,7 +1823,8 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 
 out_cant_read:
 	if (verbose > 0) {
-		fprintf(trace->output, "Problems reading syscall %d", id);
+		char sbuf[STRERR_BUFSIZE];
+		fprintf(trace->output, "Problems reading syscall %d: %d (%s)", id, -err, str_error_r(-err, sbuf, sizeof(sbuf)));
 		if (id <= trace->syscalls.max && trace->syscalls.table[id].name != NULL)
 			fprintf(trace->output, "(%s)", trace->syscalls.table[id].name);
 		fputs(" information\n", trace->output);
