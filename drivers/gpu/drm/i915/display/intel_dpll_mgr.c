@@ -3127,8 +3127,13 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 		hw_state->cfgcr0 = I915_READ(TGL_DPLL_CFGCR0(id));
 		hw_state->cfgcr1 = I915_READ(TGL_DPLL_CFGCR1(id));
 	} else {
-		hw_state->cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(id));
-		hw_state->cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(id));
+		if (IS_ELKHARTLAKE(dev_priv) && id == DPLL_ID_EHL_DPLL4) {
+			hw_state->cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(4));
+			hw_state->cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(4));
+		} else {
+			hw_state->cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(id));
+			hw_state->cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(id));
+		}
 	}
 
 	ret = true;
@@ -3169,8 +3174,13 @@ static void icl_dpll_write(struct drm_i915_private *dev_priv,
 		cfgcr0_reg = TGL_DPLL_CFGCR0(id);
 		cfgcr1_reg = TGL_DPLL_CFGCR1(id);
 	} else {
-		cfgcr0_reg = ICL_DPLL_CFGCR0(id);
-		cfgcr1_reg = ICL_DPLL_CFGCR1(id);
+		if (IS_ELKHARTLAKE(dev_priv) && id == DPLL_ID_EHL_DPLL4) {
+			cfgcr0_reg = ICL_DPLL_CFGCR0(4);
+			cfgcr1_reg = ICL_DPLL_CFGCR1(4);
+		} else {
+			cfgcr0_reg = ICL_DPLL_CFGCR0(id);
+			cfgcr1_reg = ICL_DPLL_CFGCR1(id);
+		}
 	}
 
 	I915_WRITE(cfgcr0_reg, hw_state->cfgcr0);
