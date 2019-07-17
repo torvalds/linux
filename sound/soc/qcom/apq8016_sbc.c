@@ -150,12 +150,15 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 
 	link = data->dai_link;
 
-	dlc = devm_kzalloc(dev, sizeof(*dlc), GFP_KERNEL);
+	dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
 	if (!dlc)
 		return ERR_PTR(-ENOMEM);
 
-	link->cpus	= dlc;
-	link->num_cpus	= 1;
+	link->cpus	= &dlc[0];
+	link->platforms	= &dlc[1];
+
+	link->num_cpus		= 1;
+	link->num_platforms	= 1;
 
 	for_each_child_of_node(node, np) {
 		cpu = of_get_child_by_name(np, "cpu");
@@ -187,6 +190,7 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 			goto error;
 		}
 
+		link->platforms->of_node = link->cpus->of_node;
 		ret = of_property_read_string(np, "link-name", &link->name);
 		if (ret) {
 			dev_err(card->dev, "error getting codec dai_link name\n");

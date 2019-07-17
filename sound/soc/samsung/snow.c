@@ -14,9 +14,9 @@
 
 #define FIN_PLL_RATE		24000000
 
-SND_SOC_DAILINK_DEF(links_cpus,
-	DAILINK_COMP_ARRAY(COMP_EMPTY()));
-SND_SOC_DAILINK_DEF(links_codecs,
+SND_SOC_DAILINK_DEFS(links,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
 	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 struct snow_priv {
@@ -150,6 +150,8 @@ static int snow_probe(struct platform_device *pdev)
 	link->num_cpus = ARRAY_SIZE(links_cpus);
 	link->codecs = links_codecs;
 	link->num_codecs = ARRAY_SIZE(links_codecs);
+	link->platforms = links_platforms;
+	link->num_platforms = ARRAY_SIZE(links_platforms);
 
 	card->dai_link = link;
 	card->num_links = 1;
@@ -204,6 +206,8 @@ static int snow_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 	}
+
+	link->platforms->of_node = link->cpus->of_node;
 
 	/* Update card-name if provided through DT, else use default name */
 	snd_soc_of_parse_card_name(card, "samsung,model");

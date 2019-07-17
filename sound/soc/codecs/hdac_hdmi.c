@@ -2072,7 +2072,7 @@ static int hdac_hdmi_dev_probe(struct hdac_device *hdev)
 			"Failed in parse and map nid with err: %d\n", ret);
 		return ret;
 	}
-	snd_hdac_refresh_widgets(hdev, true);
+	snd_hdac_refresh_widgets(hdev);
 
 	/* ASoC specific initialization */
 	ret = devm_snd_soc_register_component(&hdev->dev, &hdmi_hda_codec,
@@ -2119,6 +2119,7 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 		return -EIO;
 	}
 
+	snd_hdac_codec_link_down(hdev);
 	snd_hdac_ext_bus_link_put(bus, hlink);
 
 	snd_hdac_display_power(bus, hdev->addr, false);
@@ -2145,6 +2146,7 @@ static int hdac_hdmi_runtime_resume(struct device *dev)
 	}
 
 	snd_hdac_ext_bus_link_get(bus, hlink);
+	snd_hdac_codec_link_up(hdev);
 
 	snd_hdac_display_power(bus, hdev->addr, true);
 

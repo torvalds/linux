@@ -614,7 +614,7 @@ static int shmem_add_to_page_cache(struct page *page,
 		if (xas_error(&xas))
 			goto unlock;
 next:
-		xas_store(&xas, page);
+		xas_store(&xas, page + i);
 		if (++i < nr) {
 			xas_next(&xas);
 			goto next;

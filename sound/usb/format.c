@@ -285,6 +285,33 @@ static int parse_uac2_sample_rate_range(struct snd_usb_audio *chip,
 	return nr_rates;
 }
 
+/* Line6 Helix series don't support the UAC2_CS_RANGE usb function
+ * call. Return a static table of known clock rates.
+ */
+static int line6_parse_audio_format_rates_quirk(struct snd_usb_audio *chip,
+						struct audioformat *fp)
+{
+	switch (chip->usb_id) {
+	case USB_ID(0x0E41, 0x4241): /* Line6 Helix */
+	case USB_ID(0x0E41, 0x4242): /* Line6 Helix Rack */
+	case USB_ID(0x0E41, 0x4244): /* Line6 Helix LT */
+	case USB_ID(0x0E41, 0x4246): /* Line6 HX-Stomp */
+		/* supported rates: 48Khz */
+		kfree(fp->rate_table);
+		fp->rate_table = kmalloc(sizeof(int), GFP_KERNEL);
+		if (!fp->rate_table)
+			return -ENOMEM;
+		fp->nr_rates = 1;
+		fp->rate_min = 48000;
+		fp->rate_max = 48000;
+		fp->rates = SNDRV_PCM_RATE_48000;
+		fp->rate_table[0] = 48000;
+		return 0;
+	}
+
+	return -ENODEV;
+}
+
 /*
  * parse the format descriptor and stores the possible sample rates
  * on the audioformat table (audio class v2 and v3).
@@ -294,7 +321,7 @@ static int parse_audio_format_rates_v2v3(struct snd_usb_audio *chip,
 {
 	struct usb_device *dev = chip->dev;
 	unsigned char tmp[2], *data;
-	int nr_triplets, data_size, ret = 0;
+	int nr_triplets, data_size, ret = 0, ret_l6;
 	int clock = snd_usb_clock_find_source(chip, fp->protocol,
 					      fp->clock, false);
 
@@ -313,9 +340,22 @@ static int parse_audio_format_rates_v2v3(struct snd_usb_audio *chip,
 			      tmp, sizeof(tmp));
 
 	if (ret < 0) {
-		dev_err(&dev->dev,
-			"%s(): unable to retrieve number of sample rates (clock %d)\n",
+		/* line6 helix devices don't support UAC2_CS_CONTROL_SAM_FREQ call */
+		ret_l6 = line6_parse_audio_format_rates_quirk(chip, fp);
+		if (ret_l6 == -ENODEV) {
+			/* no line6 device found continue showing the error */
+			dev_err(&dev->dev,
+				"%s(): unable to retrieve number of sample rates (clock %d)\n",
 				__func__, clock);
+			goto err;
+		}
+		if (ret_l6 == 0) {
+			dev_info(&dev->dev,
+				"%s(): unable to retrieve number of sample rates: set it to a predefined value (clock %d).\n",
+				__func__, clock);
+			return 0;
+		}
+		ret = ret_l6;
 		goto err;
 	}
 

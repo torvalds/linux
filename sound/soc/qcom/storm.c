@@ -55,7 +55,8 @@ static const struct snd_soc_ops storm_soc_ops = {
 
 SND_SOC_DAILINK_DEFS(hifi,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "HiFi")));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "HiFi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link storm_dai_link = {
 	.name		= "Primary",
@@ -74,6 +75,7 @@ static int storm_parse_of(struct snd_soc_card *card)
 		dev_err(card->dev, "error getting cpu phandle\n");
 		return -EINVAL;
 	}
+	dai_link->platforms->of_node = dai_link->cpus->of_node;
 
 	dai_link->codecs->of_node = of_parse_phandle(np, "codec", 0);
 	if (!dai_link->codecs->of_node) {
