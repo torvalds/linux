@@ -6229,9 +6229,8 @@ S:	Maintained
 F:	drivers/block/rsxx/
 
 FLOPPY DRIVER
-M:	Jiri Kosina <jikos@kernel.org>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/floppy.git
-S:	Odd fixes
+S:	Orphan
+L:	linux-block@vger.kernel.org
 F:	drivers/block/floppy.c
 
 FMC SUBSYSTEM
