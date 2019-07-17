@@ -281,6 +281,20 @@ static int set_segment_reg(struct task_struct *task,
 	if (invalid_selector(value))
 		return -EIO;
 
+	/*
+	 * This function has some ABI oddities.
+	 *
+	 * A 32-bit ptracer probably expects that writing FS or GS will change
+	 * FSBASE or GSBASE respectively.  In the absence of FSGSBASE support,
+	 * this code indeed has that effect.  When FSGSBASE is added, this
+	 * will require a special case.
+	 *
+	 * For existing 64-bit ptracers, writing FS or GS *also* currently
+	 * changes the base if the selector is nonzero the next time the task
+	 * is run.  This behavior may not be needed, and trying to preserve it
+	 * when FSGSBASE is added would be complicated at best.
+	 */
+
 	switch (offset) {
 	case offsetof(struct user_regs_struct,fs):
 		task->thread.fsindex = value;
@@ -370,6 +384,9 @@ static int putreg(struct task_struct *child,
 		 * When changing the FS base, use do_arch_prctl_64()
 		 * to set the index to zero and to set the base
 		 * as requested.
+		 *
+		 * NB: This behavior is nonsensical and likely needs to
+		 * change when FSGSBASE support is added.
 		 */
 		if (child->thread.fsbase != value)
 			return do_arch_prctl_64(child, ARCH_SET_FS, value);
