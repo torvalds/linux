@@ -959,30 +959,6 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 	}
 }
 
-u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
-{
-	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
-	unsigned int slice = fls(sseu->slice_mask) - 1;
-	unsigned int subslice;
-	u32 mcr_s_ss_select;
-
-	GEM_BUG_ON(slice >= ARRAY_SIZE(sseu->subslice_mask));
-	subslice = fls(sseu->subslice_mask[slice]);
-	GEM_BUG_ON(!subslice);
-	subslice--;
-
-	if (IS_GEN(dev_priv, 10))
-		mcr_s_ss_select = GEN8_MCR_SLICE(slice) |
-				  GEN8_MCR_SUBSLICE(subslice);
-	else if (INTEL_GEN(dev_priv) >= 11)
-		mcr_s_ss_select = GEN11_MCR_SLICE(slice) |
-				  GEN11_MCR_SUBSLICE(subslice);
-	else
-		mcr_s_ss_select = 0;
-
-	return mcr_s_ss_select;
-}
-
 static u32
 read_subslice_reg(struct intel_engine_cs *engine, int slice, int subslice,
 		  i915_reg_t reg)

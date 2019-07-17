@@ -2389,8 +2389,6 @@ void i915_driver_remove(struct drm_device *dev);
 void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
 
-u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv);
-
 static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
 {
 	return dev_priv->gvt;
