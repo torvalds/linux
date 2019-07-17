@@ -2320,8 +2320,6 @@ static int lpuart_probe(struct platform_device *pdev)
 	if (!sport)
 		return -ENOMEM;
 
-	pdev->dev.coherent_dma_mask = 0;
-
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
 		ret = ida_simple_get(&fsl_lpuart_ida, 0, UART_NR, GFP_KERNEL);
