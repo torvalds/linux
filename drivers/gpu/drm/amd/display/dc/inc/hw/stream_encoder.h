@@ -214,6 +214,9 @@ struct stream_encoder_funcs {
 	void (*hdmi_reset_stream_attribute)(
 		struct stream_encoder *enc);
 
+	unsigned int (*dig_source_otg)(
+		struct stream_encoder *enc);
+
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	void (*dp_set_dsc_config)(

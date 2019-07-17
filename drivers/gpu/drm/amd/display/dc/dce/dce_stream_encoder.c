@@ -1602,6 +1602,17 @@ static void dig_connect_to_otg(
 	REG_UPDATE(DIG_FE_CNTL, DIG_SOURCE_SELECT, tg_inst);
 }
 
+static unsigned int dig_source_otg(
+	struct stream_encoder *enc)
+{
+	uint32_t tg_inst = 0;
+	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
+
+	REG_GET(DIG_FE_CNTL, DIG_SOURCE_SELECT, &tg_inst);
+
+	return tg_inst;
+}
+
 static const struct stream_encoder_funcs dce110_str_enc_funcs = {
 	.dp_set_stream_attribute =
 		dce110_stream_encoder_dp_set_stream_attribute,
@@ -1637,6 +1648,7 @@ static const struct stream_encoder_funcs dce110_str_enc_funcs = {
 	.set_avmute = dce110_stream_encoder_set_avmute,
 	.dig_connect_to_otg  = dig_connect_to_otg,
 	.hdmi_reset_stream_attribute = dce110_reset_hdmi_stream_attribute,
+	.dig_source_otg = dig_source_otg,
 };
 
 void dce110_stream_encoder_construct(

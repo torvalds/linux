@@ -1893,7 +1893,7 @@ static int acquire_resource_from_hw_enabled_state(
 		struct dc_stream_state *stream)
 {
 	struct dc_link *link = stream->link;
-	unsigned int inst;
+	unsigned int inst, tg_inst;
 
 	/* Check for enabled DIG to identify enabled display */
 	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))
@@ -1905,28 +1905,37 @@ static int acquire_resource_from_hw_enabled_state(
 	 * current implementation always map 1-to-1, so this code makes
 	 * the same assumption and doesn't check OTG source.
 	 */
-	inst = link->link_enc->funcs->get_dig_frontend(link->link_enc) - 1;
+	inst = link->link_enc->funcs->get_dig_frontend(link->link_enc);
 
 	/* Instance should be within the range of the pool */
 	if (inst >= pool->pipe_count)
 		return -1;
 
-	if (!res_ctx->pipe_ctx[inst].stream) {
-		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[inst];
+	if (inst >= pool->stream_enc_count)
+		return -1;
 
-		pipe_ctx->stream_res.tg = pool->timing_generators[inst];
-		pipe_ctx->plane_res.mi = pool->mis[inst];
-		pipe_ctx->plane_res.hubp = pool->hubps[inst];
-		pipe_ctx->plane_res.ipp = pool->ipps[inst];
-		pipe_ctx->plane_res.xfm = pool->transforms[inst];
-		pipe_ctx->plane_res.dpp = pool->dpps[inst];
-		pipe_ctx->stream_res.opp = pool->opps[inst];
-		if (pool->dpps[inst])
-			pipe_ctx->plane_res.mpcc_inst = pool->dpps[inst]->inst;
-		pipe_ctx->pipe_idx = inst;
+	tg_inst = pool->stream_enc[inst]->funcs->dig_source_otg(pool->stream_enc[inst]);
+
+	if (tg_inst >= pool->timing_generator_count)
+		return false;
+
+	if (!res_ctx->pipe_ctx[tg_inst].stream) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[tg_inst];
+
+		pipe_ctx->stream_res.tg = pool->timing_generators[tg_inst];
+		pipe_ctx->plane_res.mi = pool->mis[tg_inst];
+		pipe_ctx->plane_res.hubp = pool->hubps[tg_inst];
+		pipe_ctx->plane_res.ipp = pool->ipps[tg_inst];
+		pipe_ctx->plane_res.xfm = pool->transforms[tg_inst];
+		pipe_ctx->plane_res.dpp = pool->dpps[tg_inst];
+		pipe_ctx->stream_res.opp = pool->opps[tg_inst];
+
+		if (pool->dpps[tg_inst])
+			pipe_ctx->plane_res.mpcc_inst = pool->dpps[tg_inst]->inst;
+		pipe_ctx->pipe_idx = tg_inst;
 
 		pipe_ctx->stream = stream;
-		return inst;
+		return tg_inst;
 	}
 
 	return -1;

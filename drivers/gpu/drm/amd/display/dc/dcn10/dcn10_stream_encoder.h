@@ -598,6 +598,9 @@ void enc1_dig_connect_to_otg(
 	struct stream_encoder *enc,
 	int tg_inst);
 
+unsigned int enc1_dig_source_otg(
+	struct stream_encoder *enc);
+
 void enc1_stream_encoder_set_stream_attribute_helper(
 	struct dcn10_stream_encoder *enc1,
 	struct dc_crtc_timing *crtc_timing);

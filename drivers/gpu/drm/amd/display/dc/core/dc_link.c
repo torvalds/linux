@@ -1421,6 +1421,16 @@ static enum dc_status enable_link_dp(
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	bool fec_enable;
 #endif
+	int i;
+	bool apply_seamless_boot_optimization = false;
+
+	// check for seamless boot
+	for (i = 0; i < state->stream_count; i++) {
+		if (state->streams[i]->apply_seamless_boot_optimization) {
+			apply_seamless_boot_optimization = true;
+			break;
+		}
+	}
 
 	/* get link settings for video mode timing */
 	decide_link_settings(stream, &link_settings);
@@ -1442,7 +1452,8 @@ static enum dc_status enable_link_dp(
 
 	pipe_ctx->stream_res.pix_clk_params.requested_sym_clk =
 			link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
-	state->clk_mgr->funcs->update_clocks(state->clk_mgr, state, false);
+	if (!apply_seamless_boot_optimization)
+		state->clk_mgr->funcs->update_clocks(state->clk_mgr, state, false);
 
 	dp_enable_link_phy(
 		link,

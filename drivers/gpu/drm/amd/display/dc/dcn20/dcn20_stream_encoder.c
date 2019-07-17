@@ -580,6 +580,7 @@ static const struct stream_encoder_funcs dcn20_str_enc_funcs = {
 	.setup_stereo_sync  = enc1_setup_stereo_sync,
 	.set_avmute = enc1_stream_encoder_set_avmute,
 	.dig_connect_to_otg  = enc1_dig_connect_to_otg,
+	.dig_source_otg = enc1_dig_source_otg,
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	.enc_read_state = enc2_read_state,
 #endif

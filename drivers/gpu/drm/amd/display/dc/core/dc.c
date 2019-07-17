@@ -960,7 +960,7 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 {
 	struct timing_generator *tg;
 	struct dc_link *link = sink->link;
-	unsigned int inst;
+	unsigned int enc_inst, tg_inst;
 
 	/* Check for enabled DIG to identify enabled display */
 	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))
@@ -972,13 +972,22 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 	 * current implementation always map 1-to-1, so this code makes
 	 * the same assumption and doesn't check OTG source.
 	 */
-	inst = link->link_enc->funcs->get_dig_frontend(link->link_enc) - 1;
+	enc_inst = link->link_enc->funcs->get_dig_frontend(link->link_enc);
 
 	/* Instance should be within the range of the pool */
-	if (inst >= dc->res_pool->pipe_count)
+	if (enc_inst >= dc->res_pool->pipe_count)
 		return false;
 
-	tg = dc->res_pool->timing_generators[inst];
+	if (enc_inst >= dc->res_pool->stream_enc_count)
+		return false;
+
+	tg_inst = dc->res_pool->stream_enc[enc_inst]->funcs->dig_source_otg(
+		dc->res_pool->stream_enc[enc_inst]);
+
+	if (tg_inst >= dc->res_pool->timing_generator_count)
+		return false;
+
+	tg = dc->res_pool->timing_generators[tg_inst];
 
 	if (!tg->funcs->is_matching_timing)
 		return false;
@@ -991,10 +1000,11 @@ bool dc_validate_seamless_boot_timing(const struct dc *dc,
 
 		dc->res_pool->dp_clock_source->funcs->get_pixel_clk_frequency_100hz(
 			dc->res_pool->dp_clock_source,
-			inst, &pix_clk_100hz);
+			tg_inst, &pix_clk_100hz);
 
 		if (crtc_timing->pix_clk_100hz != pix_clk_100hz)
 			return false;
+
 	}
 
 	return true;
@@ -1904,13 +1914,17 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 			if (stream_update->dpms_off) {
 				dc->hwss.pipe_control_lock(dc, pipe_ctx, true);
+
 				if (*stream_update->dpms_off) {
 					core_link_disable_stream(pipe_ctx, KEEP_ACQUIRED_RESOURCE);
 					dc->hwss.optimize_bandwidth(dc, dc->current_state);
 				} else {
-					dc->hwss.prepare_bandwidth(dc, dc->current_state);
+					if (!dc->optimize_seamless_boot)
+						dc->hwss.prepare_bandwidth(dc, dc->current_state);
+
 					core_link_enable_stream(dc->current_state, pipe_ctx);
 				}
+
 				dc->hwss.pipe_control_lock(dc, pipe_ctx, false);
 			}
 

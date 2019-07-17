@@ -1061,7 +1061,8 @@ static bool dcn20_program_pix_clk(
 static const struct clock_source_funcs dcn20_clk_src_funcs = {
 	.cs_power_down = dce110_clock_source_power_down,
 	.program_pix_clk = dcn20_program_pix_clk,
-	.get_pix_clk_dividers = dce112_get_pix_clk_dividers
+	.get_pix_clk_dividers = dce112_get_pix_clk_dividers,
+	.get_pixel_clk_frequency_100hz = get_pixel_clk_frequency_100hz
 };
 #endif
 

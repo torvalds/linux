@@ -539,6 +539,10 @@ struct dcn_otg_state {
 void optc1_read_otg_state(struct optc *optc1,
 		struct dcn_otg_state *s);
 
+bool optc1_is_matching_timing(
+	struct timing_generator *tg,
+	const struct dc_crtc_timing *otg_timing);
+
 bool optc1_validate_timing(
 	struct timing_generator *optc,
 	const struct dc_crtc_timing *timing);

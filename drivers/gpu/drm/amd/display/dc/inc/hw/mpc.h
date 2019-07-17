@@ -199,6 +199,9 @@ struct mpc_funcs {
 	 * Return:  void
 	 */
 	void (*mpc_init)(struct mpc *mpc);
+	void (*mpc_init_single_inst)(
+			struct mpc *mpc,
+			unsigned int mpcc_id);
 
 	/*
 	 * Update the blending configuration for a specified MPCC.

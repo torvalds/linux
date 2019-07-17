@@ -1098,9 +1098,16 @@ static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		}
 	}
 
-	/* Cannot reset the MPC mux if seamless boot */
-	if (!can_apply_seamless_boot)
-		dc->res_pool->mpc->funcs->mpc_init(dc->res_pool->mpc);
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		/* Cannot reset the MPC mux if seamless boot */
+		if (pipe_ctx->stream != NULL && can_apply_seamless_boot)
+			continue;
+
+		dc->res_pool->mpc->funcs->mpc_init_single_inst(
+				dc->res_pool->mpc, i);
+	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
