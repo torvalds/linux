@@ -25,3 +25,14 @@ config MTK_CQDMA
 
 	  This controller provides the channels which is dedicated to
 	  memory-to-memory transfer to offload from CPU.
+
+config MTK_UART_APDMA
+	tristate "MediaTek SoCs APDMA support for UART"
+	depends on OF && SERIAL_8250_MT6577
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support for the UART DMA engine found on MediaTek MTK SoCs.
+	  When SERIAL_8250_MT6577 is enabled, and if you want to use DMA,
+	  you can enable the config. The DMA engine can only be used
+	  with MediaTek SoCs.
