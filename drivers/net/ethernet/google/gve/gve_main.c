@@ -232,7 +232,7 @@ abort_with_mgmt_vector:
 abort_with_msix_enabled:
 	pci_disable_msix(priv->pdev);
 abort_with_msix_vectors:
-	kfree(priv->msix_vectors);
+	kvfree(priv->msix_vectors);
 	priv->msix_vectors = NULL;
 	return err;
 }
@@ -256,7 +256,7 @@ static void gve_free_notify_blocks(struct gve_priv *priv)
 	priv->ntfy_blocks = NULL;
 	free_irq(priv->msix_vectors[priv->mgmt_msix_idx].vector, priv);
 	pci_disable_msix(priv->pdev);
-	kfree(priv->msix_vectors);
+	kvfree(priv->msix_vectors);
 	priv->msix_vectors = NULL;
 }
 
@@ -445,12 +445,12 @@ static int gve_alloc_rings(struct gve_priv *priv)
 	return 0;
 
 free_rx:
-	kfree(priv->rx);
+	kvfree(priv->rx);
 	priv->rx = NULL;
 free_tx_queue:
 	gve_tx_free_rings(priv);
 free_tx:
-	kfree(priv->tx);
+	kvfree(priv->tx);
 	priv->tx = NULL;
 	return err;
 }
@@ -500,7 +500,7 @@ static void gve_free_rings(struct gve_priv *priv)
 			gve_remove_napi(priv, ntfy_idx);
 		}
 		gve_tx_free_rings(priv);
-		kfree(priv->tx);
+		kvfree(priv->tx);
 		priv->tx = NULL;
 	}
 	if (priv->rx) {
@@ -509,7 +509,7 @@ static void gve_free_rings(struct gve_priv *priv)
 			gve_remove_napi(priv, ntfy_idx);
 		}
 		gve_rx_free_rings(priv);
-		kfree(priv->rx);
+		kvfree(priv->rx);
 		priv->rx = NULL;
 	}
 }
@@ -592,9 +592,9 @@ static void gve_free_queue_page_list(struct gve_priv *priv,
 		gve_free_page(&priv->pdev->dev, qpl->pages[i],
 			      qpl->page_buses[i], gve_qpl_dma_dir(priv, id));
 
-	kfree(qpl->page_buses);
+	kvfree(qpl->page_buses);
 free_pages:
-	kfree(qpl->pages);
+	kvfree(qpl->pages);
 	priv->num_registered_pages -= qpl->num_entries;
 }
 
@@ -635,7 +635,7 @@ static int gve_alloc_qpls(struct gve_priv *priv)
 free_qpls:
 	for (j = 0; j <= i; j++)
 		gve_free_queue_page_list(priv, j);
-	kfree(priv->qpls);
+	kvfree(priv->qpls);
 	return err;
 }
 
@@ -644,12 +644,12 @@ static void gve_free_qpls(struct gve_priv *priv)
 	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
 	int i;
 
-	kfree(priv->qpl_cfg.qpl_id_map);
+	kvfree(priv->qpl_cfg.qpl_id_map);
 
 	for (i = 0; i < num_qpls; i++)
 		gve_free_queue_page_list(priv, i);
 
-	kfree(priv->qpls);
+	kvfree(priv->qpls);
 }
 
 /* Use this to schedule a reset when the device is capable of continuing
