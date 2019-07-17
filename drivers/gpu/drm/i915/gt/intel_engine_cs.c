@@ -969,9 +969,14 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
 {
 	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
+	unsigned int slice = fls(sseu->slice_mask) - 1;
+	unsigned int subslice;
 	u32 mcr_s_ss_select;
-	u32 slice = fls(sseu->slice_mask);
-	u32 subslice = fls(sseu->subslice_mask[slice]);
+
+	GEM_BUG_ON(slice >= ARRAY_SIZE(sseu->subslice_mask));
+	subslice = fls(sseu->subslice_mask[slice]);
+	GEM_BUG_ON(!subslice);
+	subslice--;
 
 	if (IS_GEN(dev_priv, 10))
 		mcr_s_ss_select = GEN8_MCR_SLICE(slice) |
