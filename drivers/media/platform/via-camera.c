@@ -1459,6 +1459,9 @@ static int viacam_remove(struct platform_device *pdev)
 
 	video_unregister_device(&cam->vdev);
 	v4l2_device_unregister(&cam->v4l2_dev);
+#ifdef CONFIG_PM
+	viafb_pm_unregister(&viacam_pm_hooks);
+#endif
 	free_irq(viadev->pdev->irq, cam);
 	via_sensor_power_release(cam);
 	v4l2_ctrl_handler_free(&cam->ctrl_handler);
