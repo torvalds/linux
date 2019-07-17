@@ -37,9 +37,9 @@ Contact:	"AceLan Kao" <acelan.kao@canonical.com>
 Description:
 		Resume on lid open. 1 means on, 0 means off.
 
-What:		/sys/devices/platform/<platform>/fan_mode
-Date:		Apr 2019
-KernelVersion:	5.2
+What:		/sys/devices/platform/<platform>/fan_boost_mode
+Date:		Sep 2019
+KernelVersion:	5.3
 Contact:	"Yurii Pavlovskyi" <yurii.pavlovskyi@gmail.com>
 Description:
 		Fan boost mode:
