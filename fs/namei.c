@@ -641,6 +641,13 @@ static bool legitimize_links(struct nameidata *nd)
 	return true;
 }
 
+static bool legitimize_root(struct nameidata *nd)
+{
+	if (!nd->root.mnt || (nd->flags & LOOKUP_ROOT))
+		return true;
+	return legitimize_path(nd, &nd->root, nd->root_seq);
+}
+
 /*
  * Path walking has 2 modes, rcu-walk and ref-walk (see
  * Documentation/filesystems/path-lookup.txt).  In situations when we can't
@@ -674,10 +681,8 @@ static int unlazy_walk(struct nameidata *nd)
 		goto out2;
 	if (unlikely(!legitimize_path(nd, &nd->path, nd->seq)))
 		goto out1;
-	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
-		if (unlikely(!legitimize_path(nd, &nd->root, nd->root_seq)))
-			goto out;
-	}
+	if (unlikely(!legitimize_root(nd)))
+		goto out;
 	rcu_read_unlock();
 	BUG_ON(nd->inode != parent->d_inode);
 	return 0;
@@ -736,12 +741,10 @@ static int unlazy_child(struct nameidata *nd, struct dentry *dentry, unsigned se
 	 * Sequence counts matched. Now make sure that the root is
 	 * still valid and get it if required.
 	 */
-	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
-		if (unlikely(!legitimize_path(nd, &nd->root, nd->root_seq))) {
-			rcu_read_unlock();
-			dput(dentry);
-			return -ECHILD;
-		}
+	if (unlikely(!legitimize_root(nd))) {
+		rcu_read_unlock();
+		dput(dentry);
+		return -ECHILD;
 	}
 
 	rcu_read_unlock();
