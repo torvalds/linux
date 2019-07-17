@@ -361,9 +361,10 @@ static bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable)
 	return result;
 }
 
-/* This has to be done after DSC was enabled on RX first, i.e. after dp_enable_dsc_on_rx() had been called
+/* The stream with these settings can be sent (unblanked) only after DSC was enabled on RX first,
+ * i.e. after dp_enable_dsc_on_rx() had been called
  */
-void set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
+void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 {
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
 	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
@@ -371,11 +372,9 @@ void set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 	struct pipe_ctx *odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
 
 	if (enable) {
-		/* TODO proper function */
 		struct dsc_config dsc_cfg;
 		struct dsc_optc_config dsc_optc_cfg;
 		enum optc_dsc_mode optc_dsc_mode;
-		uint8_t dsc_packed_pps[128];
 
 		/* Enable DSC hw block */
 		dsc_cfg.pic_width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
@@ -384,19 +383,20 @@ void set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		dsc_cfg.color_depth = stream->timing.display_color_depth;
 		dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
 
-		dsc->funcs->dsc_set_config(dsc, &dsc_cfg, &dsc_optc_cfg, &dsc_packed_pps[0]);
 		if (odm_pipe) {
 			struct display_stream_compressor *bot_dsc = odm_pipe->stream_res.dsc;
-			uint8_t dsc_packed_pps_odm[128];
 
 			dsc_cfg.pic_width /= 2;
 			ASSERT(dsc_cfg.dc_dsc_cfg.num_slices_h % 2 == 0);
 			dsc_cfg.dc_dsc_cfg.num_slices_h /= 2;
-			dsc->funcs->dsc_set_config(dsc, &dsc_cfg, &dsc_optc_cfg, &dsc_packed_pps_odm[0]);
-			bot_dsc->funcs->dsc_set_config(bot_dsc, &dsc_cfg, &dsc_optc_cfg, &dsc_packed_pps_odm[0]);
+			dsc->funcs->dsc_set_config(dsc, &dsc_cfg, &dsc_optc_cfg);
+			bot_dsc->funcs->dsc_set_config(bot_dsc, &dsc_cfg, &dsc_optc_cfg);
+			dsc->funcs->dsc_enable(dsc, pipe_ctx->stream_res.opp->inst);
 			bot_dsc->funcs->dsc_enable(bot_dsc, odm_pipe->stream_res.opp->inst);
+		} else {
+			dsc->funcs->dsc_set_config(dsc, &dsc_cfg, &dsc_optc_cfg);
+			dsc->funcs->dsc_enable(dsc, pipe_ctx->stream_res.opp->inst);
 		}
-		dsc->funcs->dsc_enable(dsc, pipe_ctx->stream_res.opp->inst);
 
 		optc_dsc_mode = dsc_optc_cfg.is_pixel_format_444 ? OPTC_DSC_ENABLED_444 : OPTC_DSC_ENABLED_NATIVE_SUBSAMPLED;
 
@@ -406,8 +406,9 @@ void set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(pipe_ctx->stream_res.stream_enc,
 									optc_dsc_mode,
 									dsc_optc_cfg.bytes_per_pixel,
-									dsc_optc_cfg.slice_width,
-									&dsc_packed_pps[0]);
+									dsc_optc_cfg.slice_width);
+
+			/* PPS SDP is set elsewhere because it has to be done after DIG FE is connected to DIG BE */
 
 		/* Enable DSC in OPTC */
 		pipe_ctx->stream_res.tg->funcs->set_dsc_config(pipe_ctx->stream_res.tg,
@@ -421,10 +422,14 @@ void set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 				OPTC_DSC_DISABLED, 0, 0);
 
 		/* disable DSC in stream encoder */
-		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment))
+		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(
 					pipe_ctx->stream_res.stream_enc,
-					OPTC_DSC_DISABLED, 0, 0, NULL);
+					OPTC_DSC_DISABLED, 0, 0);
+
+			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
+					pipe_ctx->stream_res.stream_enc, false, NULL);
+		}
 
 		/* disable DSC block */
 		pipe_ctx->stream_res.dsc->funcs->dsc_disable(pipe_ctx->stream_res.dsc);
@@ -445,17 +450,56 @@ bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable)
 
 	if (enable) {
 		if (dp_set_dsc_on_rx(pipe_ctx, true)) {
-			set_dsc_on_stream(pipe_ctx, true);
+			dp_set_dsc_on_stream(pipe_ctx, true);
 			result = true;
 		}
 	} else {
 		dp_set_dsc_on_rx(pipe_ctx, false);
-		set_dsc_on_stream(pipe_ctx, false);
+		dp_set_dsc_on_stream(pipe_ctx, false);
 		result = true;
 	}
 out:
 	return result;
 }
+
+bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable)
+{
+	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
+	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
+	struct dc_stream_state *stream = pipe_ctx->stream;
+
+	if (!pipe_ctx->stream->timing.flags.DSC || !dsc)
+		return false;
+
+	if (enable) {
+		struct dsc_config dsc_cfg;
+		uint8_t dsc_packed_pps[128];
+
+		/* Enable DSC hw block */
+		dsc_cfg.pic_width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+		dsc_cfg.pic_height = stream->timing.v_addressable + stream->timing.v_border_top + stream->timing.v_border_bottom;
+		dsc_cfg.pixel_encoding = stream->timing.pixel_encoding;
+		dsc_cfg.color_depth = stream->timing.display_color_depth;
+		dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
+
+		dsc->funcs->dsc_get_packed_pps(dsc, &dsc_cfg, &dsc_packed_pps[0]);
+		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment))
+			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
+									pipe_ctx->stream_res.stream_enc,
+									true,
+									&dsc_packed_pps[0]);
+
+	} else {
+		/* disable DSC PPS in stream encoder */
+		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
+						pipe_ctx->stream_res.stream_enc, false, NULL);
+		}
+	}
+
+	return true;
+}
+
 
 bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx)
 {
@@ -466,9 +510,9 @@ bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx)
 	if (!dsc)
 		return false;
 
-	set_dsc_on_stream(pipe_ctx, true);
+	dp_set_dsc_on_stream(pipe_ctx, true);
+	dp_set_dsc_pps_sdp(pipe_ctx, true);
 	return true;
 }
-
 #endif
 

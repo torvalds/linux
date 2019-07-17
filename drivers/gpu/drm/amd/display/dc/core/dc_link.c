@@ -2727,21 +2727,27 @@ void core_link_enable_stream(
 					CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 					COLOR_DEPTH_UNDEFINED);
 
-		core_dc->hwss.enable_stream(pipe_ctx);
-
-		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
-			allocate_mst_payload(pipe_ctx);
-
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 		if (pipe_ctx->stream->timing.flags.DSC) {
 			if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
 					dc_is_virtual_signal(pipe_ctx->stream->signal))
 				dp_set_dsc_enable(pipe_ctx, true);
-			pipe_ctx->stream_res.tg->funcs->wait_for_state(
-					pipe_ctx->stream_res.tg,
-					CRTC_STATE_VBLANK);
 		}
 #endif
+		core_dc->hwss.enable_stream(pipe_ctx);
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		/* Set DPS PPS SDP (AKA "info frames") */
+		if (pipe_ctx->stream->timing.flags.DSC) {
+			if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
+					dc_is_virtual_signal(pipe_ctx->stream->signal))
+				dp_set_dsc_pps_sdp(pipe_ctx, true);
+		}
+#endif
+
+		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
+			allocate_mst_payload(pipe_ctx);
+
 		core_dc->hwss.unblank_stream(pipe_ctx,
 			&pipe_ctx->stream->link->cur_link_settings);
 

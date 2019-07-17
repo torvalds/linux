@@ -29,7 +29,7 @@
 #include "dsc/dscc_types.h"
 
 static void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_config *pps);
-static bool dsc_prepare_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+static bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_values *dsc_reg_vals,
 			struct dsc_optc_config *dsc_optc_cfg);
 static void dsc_init_reg_values(struct dsc_reg_values *reg_vals);
 static void dsc_update_from_dsc_parameters(struct dsc_reg_values *reg_vals, const struct dsc_parameters *dsc_params);
@@ -42,7 +42,8 @@ static void dsc2_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock
 static void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state *s);
 static bool dsc2_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg);
 static void dsc2_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
-		struct dsc_optc_config *dsc_optc_cfg, uint8_t *dsc_packed_pps);
+		struct dsc_optc_config *dsc_optc_cfg);
+static bool dsc2_get_packed_pps(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg, uint8_t *dsc_packed_pps);
 static void dsc2_enable(struct display_stream_compressor *dsc, int opp_pipe);
 static void dsc2_disable(struct display_stream_compressor *dsc);
 
@@ -51,6 +52,7 @@ const struct dsc_funcs dcn20_dsc_funcs = {
 	.dsc_read_state = dsc2_read_state,
 	.dsc_validate_stream = dsc2_validate_stream,
 	.dsc_set_config = dsc2_set_config,
+	.dsc_get_packed_pps = dsc2_get_packed_pps,
 	.dsc_enable = dsc2_enable,
 	.dsc_disable = dsc2_disable,
 };
@@ -162,18 +164,17 @@ static void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_ds
 static bool dsc2_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg)
 {
 	struct dsc_optc_config dsc_optc_cfg;
+	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
 
-	if (dsc_cfg->pic_width > TO_DCN20_DSC(dsc)->max_image_width)
+	if (dsc_cfg->pic_width > dsc20->max_image_width)
 		return false;
 
-	return dsc_prepare_config(dsc, dsc_cfg, &dsc_optc_cfg);
+	return dsc_prepare_config(dsc_cfg, &dsc20->reg_vals, &dsc_optc_cfg);
 }
 
 
-static void dsc_config_log(struct display_stream_compressor *dsc,
-		const struct dsc_config *config)
+static void dsc_config_log(struct display_stream_compressor *dsc, const struct dsc_config *config)
 {
-	DC_LOG_DSC("Setting DSC Config at DSC inst %d", dsc->inst);
 	DC_LOG_DSC("\n\tnum_slices_h %d\n\tnum_slices_v %d\n\tbits_per_pixel %d\n\tcolor_depth %d",
 		config->dc_dsc_cfg.num_slices_h,
 		config->dc_dsc_cfg.num_slices_v,
@@ -182,17 +183,34 @@ static void dsc_config_log(struct display_stream_compressor *dsc,
 }
 
 static void dsc2_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
-		struct dsc_optc_config *dsc_optc_cfg, uint8_t *dsc_packed_pps)
+		struct dsc_optc_config *dsc_optc_cfg)
 {
 	bool is_config_ok;
 	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
 
+	DC_LOG_DSC("Setting DSC Config at DSC inst %d", dsc->inst);
 	dsc_config_log(dsc, dsc_cfg);
-	is_config_ok = dsc_prepare_config(dsc, dsc_cfg, dsc_optc_cfg);
+	is_config_ok = dsc_prepare_config(dsc_cfg, &dsc20->reg_vals, dsc_optc_cfg);
 	ASSERT(is_config_ok);
-	drm_dsc_pps_payload_pack((struct drm_dsc_picture_parameter_set *)dsc_packed_pps, &dsc20->reg_vals.pps);
 	dsc_log_pps(dsc, &dsc20->reg_vals.pps);
 	dsc_write_to_registers(dsc, &dsc20->reg_vals);
+}
+
+
+static bool dsc2_get_packed_pps(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg, uint8_t *dsc_packed_pps)
+{
+	bool is_config_ok;
+	struct dsc_reg_values dsc_reg_vals;
+	struct dsc_optc_config dsc_optc_cfg;
+
+	DC_LOG_DSC("Packed DSC PPS for DSC Config:");
+	dsc_config_log(dsc, dsc_cfg);
+	is_config_ok = dsc_prepare_config(dsc_cfg, &dsc_reg_vals, &dsc_optc_cfg);
+	ASSERT(is_config_ok);
+	drm_dsc_pps_payload_pack((struct drm_dsc_picture_parameter_set *)dsc_packed_pps, &dsc_reg_vals.pps);
+	dsc_log_pps(dsc, &dsc_reg_vals.pps);
+
+	return is_config_ok;
 }
 
 
@@ -282,12 +300,10 @@ static void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_co
 	}
 }
 
-static bool dsc_prepare_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+static bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_values *dsc_reg_vals,
 			struct dsc_optc_config *dsc_optc_cfg)
 {
 	struct dsc_parameters dsc_params;
-
-	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
 
 	/* Validate input parameters */
 	ASSERT(dsc_cfg->dc_dsc_cfg.num_slices_h);
@@ -315,54 +331,54 @@ static bool dsc_prepare_config(struct display_stream_compressor *dsc, const stru
 		return false;
 	}
 
-	dsc_init_reg_values(&dsc20->reg_vals);
+	dsc_init_reg_values(dsc_reg_vals);
 
 	/* Copy input config */
-	dsc20->reg_vals.pixel_format = dsc_dc_pixel_encoding_to_dsc_pixel_format(dsc_cfg->pixel_encoding, dsc_cfg->dc_dsc_cfg.ycbcr422_simple);
-	dsc20->reg_vals.num_slices_h = dsc_cfg->dc_dsc_cfg.num_slices_h;
-	dsc20->reg_vals.num_slices_v = dsc_cfg->dc_dsc_cfg.num_slices_v;
-	dsc20->reg_vals.pps.dsc_version_minor = dsc_cfg->dc_dsc_cfg.version_minor;
-	dsc20->reg_vals.pps.pic_width = dsc_cfg->pic_width;
-	dsc20->reg_vals.pps.pic_height = dsc_cfg->pic_height;
-	dsc20->reg_vals.pps.bits_per_component = dsc_dc_color_depth_to_dsc_bits_per_comp(dsc_cfg->color_depth);
-	dsc20->reg_vals.pps.block_pred_enable = dsc_cfg->dc_dsc_cfg.block_pred_enable;
-	dsc20->reg_vals.pps.line_buf_depth = dsc_cfg->dc_dsc_cfg.linebuf_depth;
-	dsc20->reg_vals.alternate_ich_encoding_en = dsc20->reg_vals.pps.dsc_version_minor == 1 ? 0 : 1;
+	dsc_reg_vals->pixel_format = dsc_dc_pixel_encoding_to_dsc_pixel_format(dsc_cfg->pixel_encoding, dsc_cfg->dc_dsc_cfg.ycbcr422_simple);
+	dsc_reg_vals->num_slices_h = dsc_cfg->dc_dsc_cfg.num_slices_h;
+	dsc_reg_vals->num_slices_v = dsc_cfg->dc_dsc_cfg.num_slices_v;
+	dsc_reg_vals->pps.dsc_version_minor = dsc_cfg->dc_dsc_cfg.version_minor;
+	dsc_reg_vals->pps.pic_width = dsc_cfg->pic_width;
+	dsc_reg_vals->pps.pic_height = dsc_cfg->pic_height;
+	dsc_reg_vals->pps.bits_per_component = dsc_dc_color_depth_to_dsc_bits_per_comp(dsc_cfg->color_depth);
+	dsc_reg_vals->pps.block_pred_enable = dsc_cfg->dc_dsc_cfg.block_pred_enable;
+	dsc_reg_vals->pps.line_buf_depth = dsc_cfg->dc_dsc_cfg.linebuf_depth;
+	dsc_reg_vals->alternate_ich_encoding_en = dsc_reg_vals->pps.dsc_version_minor == 1 ? 0 : 1;
 
 	// TODO: in addition to validating slice height (pic height must be divisible by slice height),
 	// see what happens when the same condition doesn't apply for slice_width/pic_width.
-	dsc20->reg_vals.pps.slice_width = dsc_cfg->pic_width / dsc_cfg->dc_dsc_cfg.num_slices_h;
-	dsc20->reg_vals.pps.slice_height = dsc_cfg->pic_height / dsc_cfg->dc_dsc_cfg.num_slices_v;
+	dsc_reg_vals->pps.slice_width = dsc_cfg->pic_width / dsc_cfg->dc_dsc_cfg.num_slices_h;
+	dsc_reg_vals->pps.slice_height = dsc_cfg->pic_height / dsc_cfg->dc_dsc_cfg.num_slices_v;
 
-	ASSERT(dsc20->reg_vals.pps.slice_height * dsc_cfg->dc_dsc_cfg.num_slices_v == dsc_cfg->pic_height);
-	if (!(dsc20->reg_vals.pps.slice_height * dsc_cfg->dc_dsc_cfg.num_slices_v == dsc_cfg->pic_height)) {
+	ASSERT(dsc_reg_vals->pps.slice_height * dsc_cfg->dc_dsc_cfg.num_slices_v == dsc_cfg->pic_height);
+	if (!(dsc_reg_vals->pps.slice_height * dsc_cfg->dc_dsc_cfg.num_slices_v == dsc_cfg->pic_height)) {
 		dm_output_to_console("%s: pix height %d not divisible by num_slices_v %d\n\n", __func__, dsc_cfg->pic_height, dsc_cfg->dc_dsc_cfg.num_slices_v);
 		return false;
 	}
 
-	dsc20->reg_vals.bpp_x32 = dsc_cfg->dc_dsc_cfg.bits_per_pixel << 1;
-	if (dsc20->reg_vals.pixel_format == DSC_PIXFMT_NATIVE_YCBCR420 || dsc20->reg_vals.pixel_format == DSC_PIXFMT_NATIVE_YCBCR422)
-		dsc20->reg_vals.pps.bits_per_pixel = dsc20->reg_vals.bpp_x32;
+	dsc_reg_vals->bpp_x32 = dsc_cfg->dc_dsc_cfg.bits_per_pixel << 1;
+	if (dsc_reg_vals->pixel_format == DSC_PIXFMT_NATIVE_YCBCR420 || dsc_reg_vals->pixel_format == DSC_PIXFMT_NATIVE_YCBCR422)
+		dsc_reg_vals->pps.bits_per_pixel = dsc_reg_vals->bpp_x32;
 	else
-		dsc20->reg_vals.pps.bits_per_pixel = dsc20->reg_vals.bpp_x32 >> 1;
+		dsc_reg_vals->pps.bits_per_pixel = dsc_reg_vals->bpp_x32 >> 1;
 
-	dsc20->reg_vals.pps.convert_rgb = dsc20->reg_vals.pixel_format == DSC_PIXFMT_RGB ? 1 : 0;
-	dsc20->reg_vals.pps.native_422 = (dsc20->reg_vals.pixel_format == DSC_PIXFMT_NATIVE_YCBCR422);
-	dsc20->reg_vals.pps.native_420 = (dsc20->reg_vals.pixel_format == DSC_PIXFMT_NATIVE_YCBCR420);
-	dsc20->reg_vals.pps.simple_422 = (dsc20->reg_vals.pixel_format == DSC_PIXFMT_SIMPLE_YCBCR422);
+	dsc_reg_vals->pps.convert_rgb = dsc_reg_vals->pixel_format == DSC_PIXFMT_RGB ? 1 : 0;
+	dsc_reg_vals->pps.native_422 = (dsc_reg_vals->pixel_format == DSC_PIXFMT_NATIVE_YCBCR422);
+	dsc_reg_vals->pps.native_420 = (dsc_reg_vals->pixel_format == DSC_PIXFMT_NATIVE_YCBCR420);
+	dsc_reg_vals->pps.simple_422 = (dsc_reg_vals->pixel_format == DSC_PIXFMT_SIMPLE_YCBCR422);
 
-	if (dscc_compute_dsc_parameters(&dsc20->reg_vals.pps, &dsc_params)) {
+	if (dscc_compute_dsc_parameters(&dsc_reg_vals->pps, &dsc_params)) {
 		dm_output_to_console("%s: DSC config failed\n", __func__);
 		return false;
 	}
 
-	dsc_update_from_dsc_parameters(&dsc20->reg_vals, &dsc_params);
+	dsc_update_from_dsc_parameters(dsc_reg_vals, &dsc_params);
 
 	dsc_optc_cfg->bytes_per_pixel = dsc_params.bytes_per_pixel;
-	dsc_optc_cfg->slice_width = dsc20->reg_vals.pps.slice_width;
-	dsc_optc_cfg->is_pixel_format_444 = dsc20->reg_vals.pixel_format == DSC_PIXFMT_RGB ||
-					dsc20->reg_vals.pixel_format == DSC_PIXFMT_YCBCR444 ||
-					dsc20->reg_vals.pixel_format == DSC_PIXFMT_SIMPLE_YCBCR422;
+	dsc_optc_cfg->slice_width = dsc_reg_vals->pps.slice_width;
+	dsc_optc_cfg->is_pixel_format_444 = dsc_reg_vals->pixel_format == DSC_PIXFMT_RGB ||
+					dsc_reg_vals->pixel_format == DSC_PIXFMT_YCBCR444 ||
+					dsc_reg_vals->pixel_format == DSC_PIXFMT_SIMPLE_YCBCR422;
 
 	return true;
 }
