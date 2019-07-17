@@ -282,18 +282,6 @@ static const char * const spectre_v1_strings[] = {
 	[SPECTRE_V1_MITIGATION_AUTO] = "Mitigation: usercopy/swapgs barriers and __user pointer sanitization",
 };
 
-static bool is_swapgs_serializing(void)
-{
-	/*
-	 * Technically, swapgs isn't serializing on AMD (despite it previously
-	 * being documented as such in the APM).  But according to AMD, %gs is
-	 * updated non-speculatively, and the issuing of %gs-relative memory
-	 * operands will be blocked until the %gs update completes, which is
-	 * good enough for our purposes.
-	 */
-	return boot_cpu_data.x86_vendor == X86_VENDOR_AMD;
-}
-
 /*
  * Does SMAP provide full mitigation against speculative kernel access to
  * userspace?
@@ -344,9 +332,11 @@ static void __init spectre_v1_select_mitigation(void)
 			 * PTI as the CR3 write in the Meltdown mitigation
 			 * is serializing.
 			 *
-			 * If neither is there, mitigate with an LFENCE.
+			 * If neither is there, mitigate with an LFENCE to
+			 * stop speculation through swapgs.
 			 */
-			if (!is_swapgs_serializing() && !boot_cpu_has(X86_FEATURE_PTI))
+			if (boot_cpu_has_bug(X86_BUG_SWAPGS) &&
+			    !boot_cpu_has(X86_FEATURE_PTI))
 				setup_force_cpu_cap(X86_FEATURE_FENCE_SWAPGS_USER);
 
 			/*
