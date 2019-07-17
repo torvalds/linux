@@ -562,7 +562,7 @@ config RTC_DRV_TPS6586X
 
 config RTC_DRV_TPS65910
 	tristate "TI TPS65910 RTC driver"
-	depends on RTC_CLASS && MFD_TPS65910
+	depends on MFD_TPS65910
 	help
 	  If you say yes here you get support for the RTC on the
 	  TPS65910 chips.
@@ -820,6 +820,7 @@ config RTC_DRV_MAX6902
 
 config RTC_DRV_PCF2123
 	tristate "NXP PCF2123"
+	select REGMAP_SPI
 	help
 	  If you say yes here you get support for the NXP PCF2123
 	  RTC chip.
