@@ -137,12 +137,37 @@ int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 {
 	int ret = 0, clk_id = 0;
 	uint32_t param = 0;
+	uint32_t clock_limit;
 
 	if (!min && !max)
 		return -EINVAL;
 
-	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+	if (!smu_clk_dpm_is_enabled(smu, clk_type)) {
+		switch (clk_type) {
+		case SMU_MCLK:
+		case SMU_UCLK:
+			clock_limit = smu->smu_table.boot_values.uclk;
+			break;
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			clock_limit = smu->smu_table.boot_values.gfxclk;
+			break;
+		case SMU_SOCCLK:
+			clock_limit = smu->smu_table.boot_values.socclk;
+			break;
+		default:
+			clock_limit = 0;
+			break;
+		}
+
+		/* clock in Mhz unit */
+		if (min)
+			*min = clock_limit / 100;
+		if (max)
+			*max = clock_limit / 100;
+
 		return 0;
+	}
 
 	mutex_lock(&smu->mutex);
 	clk_id = smu_clk_get_index(smu, clk_type);
