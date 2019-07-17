@@ -218,14 +218,14 @@ vfio-ccw cmd region
 -------------------
 
 The vfio-ccw cmd region is used to accept asynchronous instructions
-from userspace.
+from userspace::
 
-#define VFIO_CCW_ASYNC_CMD_HSCH (1 << 0)
-#define VFIO_CCW_ASYNC_CMD_CSCH (1 << 1)
-struct ccw_cmd_region {
-       __u32 command;
-       __u32 ret_code;
-} __packed;
+  #define VFIO_CCW_ASYNC_CMD_HSCH (1 << 0)
+  #define VFIO_CCW_ASYNC_CMD_CSCH (1 << 1)
+  struct ccw_cmd_region {
+         __u32 command;
+         __u32 ret_code;
+  } __packed;
 
 This region is exposed via region type VFIO_REGION_SUBTYPE_CCW_ASYNC_CMD.
 
