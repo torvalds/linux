@@ -1765,7 +1765,7 @@ static void mlx5_ib_prefetch_mr_work(struct work_struct *work)
 
 	num_pending_prefetch_dec(to_mdev(w->pd->device), w->sg_list,
 				 w->num_sge, 0);
-	kfree(w);
+	kvfree(w);
 }
 
 int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
@@ -1807,7 +1807,7 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 	if (valid_req)
 		queue_work(system_unbound_wq, &work->work);
 	else
-		kfree(work);
+		kvfree(work);
 
 	srcu_read_unlock(&dev->mr_srcu, srcu_key);
 
