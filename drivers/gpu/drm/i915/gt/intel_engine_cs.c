@@ -989,26 +989,16 @@ read_subslice_reg(struct intel_engine_cs *engine, int slice, int subslice,
 {
 	struct drm_i915_private *i915 = engine->i915;
 	struct intel_uncore *uncore = engine->uncore;
-	u32 mcr_slice_subslice_mask;
-	u32 mcr_slice_subslice_select;
-	u32 default_mcr_s_ss_select;
-	u32 mcr;
-	u32 ret;
+	u32 mcr_mask, mcr_ss, mcr, old_mcr, val;
 	enum forcewake_domains fw_domains;
 
 	if (INTEL_GEN(i915) >= 11) {
-		mcr_slice_subslice_mask = GEN11_MCR_SLICE_MASK |
-					  GEN11_MCR_SUBSLICE_MASK;
-		mcr_slice_subslice_select = GEN11_MCR_SLICE(slice) |
-					    GEN11_MCR_SUBSLICE(subslice);
+		mcr_mask = GEN11_MCR_SLICE_MASK | GEN11_MCR_SUBSLICE_MASK;
+		mcr_ss = GEN11_MCR_SLICE(slice) | GEN11_MCR_SUBSLICE(subslice);
 	} else {
-		mcr_slice_subslice_mask = GEN8_MCR_SLICE_MASK |
-					  GEN8_MCR_SUBSLICE_MASK;
-		mcr_slice_subslice_select = GEN8_MCR_SLICE(slice) |
-					    GEN8_MCR_SUBSLICE(subslice);
+		mcr_mask = GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK;
+		mcr_ss = GEN8_MCR_SLICE(slice) | GEN8_MCR_SUBSLICE(subslice);
 	}
-
-	default_mcr_s_ss_select = intel_calculate_mcr_s_ss_select(i915);
 
 	fw_domains = intel_uncore_forcewake_for_reg(uncore, reg,
 						    FW_REG_READ);
@@ -1019,26 +1009,23 @@ read_subslice_reg(struct intel_engine_cs *engine, int slice, int subslice,
 	spin_lock_irq(&uncore->lock);
 	intel_uncore_forcewake_get__locked(uncore, fw_domains);
 
-	mcr = intel_uncore_read_fw(uncore, GEN8_MCR_SELECTOR);
+	old_mcr = mcr = intel_uncore_read_fw(uncore, GEN8_MCR_SELECTOR);
 
-	WARN_ON_ONCE((mcr & mcr_slice_subslice_mask) !=
-		     default_mcr_s_ss_select);
-
-	mcr &= ~mcr_slice_subslice_mask;
-	mcr |= mcr_slice_subslice_select;
+	mcr &= ~mcr_mask;
+	mcr |= mcr_ss;
 	intel_uncore_write_fw(uncore, GEN8_MCR_SELECTOR, mcr);
 
-	ret = intel_uncore_read_fw(uncore, reg);
+	val = intel_uncore_read_fw(uncore, reg);
 
-	mcr &= ~mcr_slice_subslice_mask;
-	mcr |= default_mcr_s_ss_select;
+	mcr &= ~mcr_mask;
+	mcr |= old_mcr & mcr_mask;
 
 	intel_uncore_write_fw(uncore, GEN8_MCR_SELECTOR, mcr);
 
 	intel_uncore_forcewake_put__locked(uncore, fw_domains);
 	spin_unlock_irq(&uncore->lock);
 
-	return ret;
+	return val;
 }
 
 /* NB: please notice the memset */
