@@ -860,6 +860,11 @@ struct drm_mode_config {
 	struct drm_atomic_state *suspend_state;
 
 	const struct drm_mode_config_helper_funcs *helper_private;
+	/**
+	 * @loader_protect
+	 * ignore restore_fbdev_mode_atomic when in logo on state
+	 */
+	bool loader_protect;
 };
 
 void drm_mode_config_init(struct drm_device *dev);
