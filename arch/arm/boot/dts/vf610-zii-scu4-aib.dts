@@ -792,13 +792,6 @@
 		>;
 	};
 
-	pinctrl_i2c3: i2c3grp {
-		fsl,pins = <
-			VF610_PAD_PTA30__I2C3_SCL		0x37ff
-			VF610_PAD_PTA31__I2C3_SDA		0x37ff
-		>;
-	};
-
 	pinctrl_leds_debug: pinctrl-leds-debug {
 		fsl,pins = <
 			 VF610_PAD_PTB26__GPIO_96		0x31c2
