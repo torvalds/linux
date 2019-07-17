@@ -3011,7 +3011,6 @@ static int ab8500_charger_usb_get_property(struct power_supply *psy,
 static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 {
 	int ret = 0;
-	u8 bup_vch_range = 0, vbup33_vrtcn = 0;
 
 	/* Setup maximum charger current and voltage for ABB cut2.0 */
 	if (!is_ab8500_1p1_or_earlier(di->parent)) {
@@ -3111,12 +3110,6 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 		dev_err(di->dev, "failed to disable LED\n");
 		goto out;
 	}
-
-	/* Backup battery voltage and current */
-	if (di->bm->bkup_bat_v > BUP_VCH_SEL_3P1V)
-		bup_vch_range = BUP_VCH_RANGE;
-	if (di->bm->bkup_bat_v == BUP_VCH_SEL_3P3V)
-		vbup33_vrtcn = VBUP33_VRTCN;
 
 	ret = abx500_set_register_interruptible(di->dev,
 		AB8500_RTC,
