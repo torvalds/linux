@@ -1097,7 +1097,7 @@ static inline int lpuart_start_rx_dma(struct lpuart_port *sport)
 	if (sport->rx_dma_rng_buf_len < 16)
 		sport->rx_dma_rng_buf_len = 16;
 
-	ring->buf = kmalloc(sport->rx_dma_rng_buf_len, GFP_ATOMIC);
+	ring->buf = kzalloc(sport->rx_dma_rng_buf_len, GFP_ATOMIC);
 	if (!ring->buf)
 		return -ENOMEM;
 
