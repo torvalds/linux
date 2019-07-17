@@ -223,6 +223,7 @@ void rockchip_free_loader_memory(struct drm_device *drm)
 	free_reserved_area(start, end, -1, "drm_logo");
 	kfree(logo);
 	private->logo = NULL;
+	drm->mode_config.loader_protect = false;
 }
 
 static int init_loader_memory(struct drm_device *drm_dev)
@@ -963,6 +964,7 @@ static void show_loader_logo(struct drm_device *drm_dev)
 	rockchip_free_loader_memory(drm_dev);
 	drm_atomic_state_put(old_state);
 
+	mode_config->loader_protect = true;
 	drm_modeset_unlock_all(drm_dev);
 	return;
 err_free_old_state:
