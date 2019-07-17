@@ -214,6 +214,7 @@
 #define UARTFIFO_TXSIZE_OFF	4
 #define UARTFIFO_RXFE		0x00000008
 #define UARTFIFO_RXSIZE_OFF	0
+#define UARTFIFO_DEPTH(x)	(0x1 << ((x) ? ((x) + 1) : 0))
 
 #define UARTWATER_COUNT_MASK	0xff
 #define UARTWATER_TXCNT_OFF	8
@@ -1380,13 +1381,12 @@ static int lpuart_startup(struct uart_port *port)
 	/* determine FIFO size and enable FIFO mode */
 	temp = readb(sport->port.membase + UARTPFIFO);
 
-	sport->txfifo_size = 0x1 << (((temp >> UARTPFIFO_TXSIZE_OFF) &
-		UARTPFIFO_FIFOSIZE_MASK) + 1);
-
+	sport->txfifo_size = UARTFIFO_DEPTH((temp >> UARTPFIFO_TXSIZE_OFF) &
+					    UARTPFIFO_FIFOSIZE_MASK);
 	sport->port.fifosize = sport->txfifo_size;
 
-	sport->rxfifo_size = 0x1 << (((temp >> UARTPFIFO_RXSIZE_OFF) &
-		UARTPFIFO_FIFOSIZE_MASK) + 1);
+	sport->rxfifo_size = UARTFIFO_DEPTH((temp >> UARTPFIFO_RXSIZE_OFF) &
+					    UARTPFIFO_FIFOSIZE_MASK);
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 
@@ -1431,13 +1431,12 @@ static int lpuart32_startup(struct uart_port *port)
 	/* determine FIFO size */
 	temp = lpuart32_read(&sport->port, UARTFIFO);
 
-	sport->txfifo_size = 0x1 << (((temp >> UARTFIFO_TXSIZE_OFF) &
-		UARTFIFO_FIFOSIZE_MASK) - 1);
-
+	sport->txfifo_size = UARTFIFO_DEPTH((temp >> UARTFIFO_TXSIZE_OFF) &
+					    UARTFIFO_FIFOSIZE_MASK);
 	sport->port.fifosize = sport->txfifo_size;
 
-	sport->rxfifo_size = 0x1 << (((temp >> UARTFIFO_RXSIZE_OFF) &
-		UARTFIFO_FIFOSIZE_MASK) - 1);
+	sport->rxfifo_size = UARTFIFO_DEPTH((temp >> UARTFIFO_RXSIZE_OFF) &
+					    UARTFIFO_FIFOSIZE_MASK);
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 
