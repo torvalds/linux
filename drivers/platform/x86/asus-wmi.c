@@ -68,12 +68,12 @@ MODULE_LICENSE("GPL");
 #define ASUS_FAN_CTRL_MANUAL		1
 #define ASUS_FAN_CTRL_AUTO		2
 
-#define ASUS_FAN_MODE_NORMAL		0
-#define ASUS_FAN_MODE_OVERBOOST		1
-#define ASUS_FAN_MODE_OVERBOOST_MASK	0x01
-#define ASUS_FAN_MODE_SILENT		2
-#define ASUS_FAN_MODE_SILENT_MASK	0x02
-#define ASUS_FAN_MODES_MASK		0x03
+#define ASUS_FAN_BOOST_MODE_NORMAL		0
+#define ASUS_FAN_BOOST_MODE_OVERBOOST		1
+#define ASUS_FAN_BOOST_MODE_OVERBOOST_MASK	0x01
+#define ASUS_FAN_BOOST_MODE_SILENT		2
+#define ASUS_FAN_BOOST_MODE_SILENT_MASK		0x02
+#define ASUS_FAN_BOOST_MODES_MASK		0x03
 
 #define USB_INTEL_XUSB2PR		0xD0
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_XHCI	0x9c31
@@ -182,9 +182,9 @@ struct asus_wmi {
 	int asus_hwmon_num_fans;
 	int asus_hwmon_pwm;
 
-	bool fan_mode_available;
-	u8 fan_mode_mask;
-	u8 fan_mode;
+	bool fan_boost_mode_available;
+	u8 fan_boost_mode_mask;
+	u8 fan_boost_mode;
 
 	struct hotplug_slot hotplug_slot;
 	struct mutex hotplug_lock;
@@ -1487,14 +1487,15 @@ static int asus_wmi_fan_init(struct asus_wmi *asus)
 
 /* Fan mode *******************************************************************/
 
-static int fan_mode_check_present(struct asus_wmi *asus)
+static int fan_boost_mode_check_present(struct asus_wmi *asus)
 {
 	u32 result;
 	int err;
 
-	asus->fan_mode_available = false;
+	asus->fan_boost_mode_available = false;
 
-	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_FAN_MODE, &result);
+	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_FAN_BOOST_MODE,
+				    &result);
 	if (err) {
 		if (err == -ENODEV)
 			return 0;
@@ -1503,72 +1504,77 @@ static int fan_mode_check_present(struct asus_wmi *asus)
 	}
 
 	if ((result & ASUS_WMI_DSTS_PRESENCE_BIT) &&
-			(result & ASUS_FAN_MODES_MASK)) {
-		asus->fan_mode_available = true;
-		asus->fan_mode_mask = result & ASUS_FAN_MODES_MASK;
+			(result & ASUS_FAN_BOOST_MODES_MASK)) {
+		asus->fan_boost_mode_available = true;
+		asus->fan_boost_mode_mask = result & ASUS_FAN_BOOST_MODES_MASK;
 	}
 
 	return 0;
 }
 
-static int fan_mode_write(struct asus_wmi *asus)
+static int fan_boost_mode_write(struct asus_wmi *asus)
 {
 	int err;
 	u8 value;
 	u32 retval;
 
-	value = asus->fan_mode;
+	value = asus->fan_boost_mode;
 
-	pr_info("Set fan mode: %u\n", value);
-	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_FAN_MODE, value, &retval);
+	pr_info("Set fan boost mode: %u\n", value);
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_FAN_BOOST_MODE, value,
+				    &retval);
 
 	if (err) {
-		pr_warn("Failed to set fan mode: %d\n", err);
+		pr_warn("Failed to set fan boost mode: %d\n", err);
 		return err;
 	}
 
 	if (retval != 1) {
-		pr_warn("Failed to set fan mode (retval): 0x%x\n", retval);
+		pr_warn("Failed to set fan boost mode (retval): 0x%x\n",
+			retval);
 		return -EIO;
 	}
 
 	return 0;
 }
 
-static int fan_mode_switch_next(struct asus_wmi *asus)
+static int fan_boost_mode_switch_next(struct asus_wmi *asus)
 {
-	if (asus->fan_mode == ASUS_FAN_MODE_NORMAL) {
-		if (asus->fan_mode_mask & ASUS_FAN_MODE_OVERBOOST_MASK)
-			asus->fan_mode = ASUS_FAN_MODE_OVERBOOST;
-		else if (asus->fan_mode_mask & ASUS_FAN_MODE_SILENT_MASK)
-			asus->fan_mode = ASUS_FAN_MODE_SILENT;
-	} else if (asus->fan_mode == ASUS_FAN_MODE_OVERBOOST) {
-		if (asus->fan_mode_mask & ASUS_FAN_MODE_SILENT_MASK)
-			asus->fan_mode = ASUS_FAN_MODE_SILENT;
+	u8 mask = asus->fan_boost_mode_mask;
+
+	if (asus->fan_boost_mode == ASUS_FAN_BOOST_MODE_NORMAL) {
+		if (mask & ASUS_FAN_BOOST_MODE_OVERBOOST_MASK)
+			asus->fan_boost_mode = ASUS_FAN_BOOST_MODE_OVERBOOST;
+		else if (mask & ASUS_FAN_BOOST_MODE_SILENT_MASK)
+			asus->fan_boost_mode = ASUS_FAN_BOOST_MODE_SILENT;
+	} else if (asus->fan_boost_mode == ASUS_FAN_BOOST_MODE_OVERBOOST) {
+		if (mask & ASUS_FAN_BOOST_MODE_SILENT_MASK)
+			asus->fan_boost_mode = ASUS_FAN_BOOST_MODE_SILENT;
 		else
-			asus->fan_mode = ASUS_FAN_MODE_NORMAL;
+			asus->fan_boost_mode = ASUS_FAN_BOOST_MODE_NORMAL;
 	} else {
-		asus->fan_mode = ASUS_FAN_MODE_NORMAL;
+		asus->fan_boost_mode = ASUS_FAN_BOOST_MODE_NORMAL;
 	}
 
-	return fan_mode_write(asus);
+	return fan_boost_mode_write(asus);
 }
 
-static ssize_t fan_mode_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t fan_boost_mode_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct asus_wmi *asus = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", asus->fan_mode);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", asus->fan_boost_mode);
 }
 
-static ssize_t fan_mode_store(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t fan_boost_mode_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
 {
 	int result;
 	u8 new_mode;
-
 	struct asus_wmi *asus = dev_get_drvdata(dev);
+	u8 mask = asus->fan_boost_mode_mask;
 
 	result = kstrtou8(buf, 10, &new_mode);
 	if (result < 0) {
@@ -1576,24 +1582,24 @@ static ssize_t fan_mode_store(struct device *dev, struct device_attribute *attr,
 		return result;
 	}
 
-	if (new_mode == ASUS_FAN_MODE_OVERBOOST) {
-		if (!(asus->fan_mode_mask & ASUS_FAN_MODE_OVERBOOST_MASK))
+	if (new_mode == ASUS_FAN_BOOST_MODE_OVERBOOST) {
+		if (!(mask & ASUS_FAN_BOOST_MODE_OVERBOOST_MASK))
 			return -EINVAL;
-	} else if (new_mode == ASUS_FAN_MODE_SILENT) {
-		if (!(asus->fan_mode_mask & ASUS_FAN_MODE_SILENT_MASK))
+	} else if (new_mode == ASUS_FAN_BOOST_MODE_SILENT) {
+		if (!(mask & ASUS_FAN_BOOST_MODE_SILENT_MASK))
 			return -EINVAL;
-	} else if (new_mode != ASUS_FAN_MODE_NORMAL) {
+	} else if (new_mode != ASUS_FAN_BOOST_MODE_NORMAL) {
 		return -EINVAL;
 	}
 
-	asus->fan_mode = new_mode;
-	fan_mode_write(asus);
+	asus->fan_boost_mode = new_mode;
+	fan_boost_mode_write(asus);
 
 	return result;
 }
 
-// Fan mode: 0 - normal, 1 - overboost, 2 - silent
-static DEVICE_ATTR_RW(fan_mode);
+// Fan boost mode: 0 - normal, 1 - overboost, 2 - silent
+static DEVICE_ATTR_RW(fan_boost_mode);
 
 /* Backlight ******************************************************************/
 
@@ -1873,8 +1879,8 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 		return;
 	}
 
-	if (asus->fan_mode_available && code == NOTIFY_KBD_FBM) {
-		fan_mode_switch_next(asus);
+	if (asus->fan_boost_mode_available && code == NOTIFY_KBD_FBM) {
+		fan_boost_mode_switch_next(asus);
 		return;
 	}
 
@@ -2034,7 +2040,7 @@ static struct attribute *platform_attributes[] = {
 	&dev_attr_touchpad.attr,
 	&dev_attr_lid_resume.attr,
 	&dev_attr_als_enable.attr,
-	&dev_attr_fan_mode.attr,
+	&dev_attr_fan_boost_mode.attr,
 	NULL
 };
 
@@ -2056,8 +2062,8 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
 		devid = ASUS_WMI_DEVID_LID_RESUME;
 	else if (attr == &dev_attr_als_enable.attr)
 		devid = ASUS_WMI_DEVID_ALS_ENABLE;
-	else if (attr == &dev_attr_fan_mode.attr)
-		ok = asus->fan_mode_available;
+	else if (attr == &dev_attr_fan_boost_mode.attr)
+		ok = asus->fan_boost_mode_available;
 
 	if (devid != -1)
 		ok = !(asus_wmi_get_devstate_simple(asus, devid) < 0);
@@ -2315,9 +2321,9 @@ static int asus_wmi_add(struct platform_device *pdev)
 	if (err)
 		goto fail_platform;
 
-	err = fan_mode_check_present(asus);
+	err = fan_boost_mode_check_present(asus);
 	if (err)
-		goto fail_fan_mode;
+		goto fail_fan_boost_mode;
 
 	err = asus_wmi_sysfs_init(asus->platform_device);
 	if (err)
@@ -2402,7 +2408,7 @@ fail_hwmon:
 fail_input:
 	asus_wmi_sysfs_exit(asus->platform_device);
 fail_sysfs:
-fail_fan_mode:
+fail_fan_boost_mode:
 fail_platform:
 	kfree(asus);
 	return err;
