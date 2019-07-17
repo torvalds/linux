@@ -2072,6 +2072,12 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_REMAPPED;
 	}
 
+	if (unlikely(bio_op(bio) == REQ_OP_DISCARD)) {
+		/* Once merging, discards no longer effect change */
+		bio_endio(bio);
+		return DM_MAPIO_SUBMITTED;
+	}
+
 	chunk = sector_to_chunk(s->store, bio->bi_iter.bi_sector);
 
 	down_write(&s->lock);
@@ -2331,6 +2337,8 @@ static void snapshot_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	if (snap->discard_zeroes_cow) {
 		struct dm_snapshot *snap_src = NULL, *snap_dest = NULL;
 
+		down_read(&_origins_lock);
+
 		(void) __find_snapshots_sharing_cow(snap, &snap_src, &snap_dest, NULL);
 		if (snap_src && snap_dest)
 			snap = snap_src;
@@ -2338,6 +2346,8 @@ static void snapshot_io_hints(struct dm_target *ti, struct queue_limits *limits)
 		/* All discards are split on chunk_size boundary */
 		limits->discard_granularity = snap->store->chunk_size;
 		limits->max_discard_sectors = snap->store->chunk_size;
+
+		up_read(&_origins_lock);
 	}
 }
 
