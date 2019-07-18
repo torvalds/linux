@@ -610,7 +610,8 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 		unsigned int page_length = PAGE_SIZE - page_offset;
 		page_length = remain < page_length ? remain : page_length;
 		if (node.allocated) {
-			wmb(); /* flush the write before we modify the GGTT */
+			/* flush the write before we modify the GGTT */
+			intel_gt_flush_ggtt_writes(ggtt->vm.gt);
 			ggtt->vm.insert_page(&ggtt->vm,
 					     i915_gem_object_get_dma_address(obj, offset >> PAGE_SHIFT),
 					     node.start, I915_CACHE_NONE, 0);
@@ -639,8 +640,8 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_gem_object *obj,
 	i915_gem_object_unlock_fence(obj, fence);
 out_unpin:
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_gt_flush_ggtt_writes(ggtt->vm.gt);
 	if (node.allocated) {
-		wmb();
 		ggtt->vm.clear_range(&ggtt->vm, node.start, node.size);
 		remove_mappable_node(&node);
 	} else {
