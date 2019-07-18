@@ -288,11 +288,11 @@ struct page *sparse_decode_mem_map(unsigned long coded_mem_map, unsigned long pn
 
 static void __meminit sparse_init_one_section(struct mem_section *ms,
 		unsigned long pnum, struct page *mem_map,
-		struct mem_section_usage *usage)
+		struct mem_section_usage *usage, unsigned long flags)
 {
 	ms->section_mem_map &= ~SECTION_MAP_MASK;
-	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
-							SECTION_HAS_MEM_MAP;
+	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum)
+		| SECTION_HAS_MEM_MAP | flags;
 	ms->usage = usage;
 }
 
@@ -497,7 +497,8 @@ static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
 			goto failed;
 		}
 		check_usemap_section_nr(nid, usage);
-		sparse_init_one_section(__nr_to_section(pnum), pnum, map, usage);
+		sparse_init_one_section(__nr_to_section(pnum), pnum, map, usage,
+				SECTION_IS_EARLY);
 		usage = (void *) usage + mem_section_usage_size();
 	}
 	sparse_buffer_fini();
@@ -732,7 +733,7 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
 
 	set_section_nid(section_nr, nid);
 	section_mark_present(ms);
-	sparse_init_one_section(ms, section_nr, memmap, usage);
+	sparse_init_one_section(ms, section_nr, memmap, usage, 0);
 
 out:
 	if (ret < 0) {
@@ -772,19 +773,16 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
 }
 #endif
 
-static void free_section_usage(struct page *memmap,
+static void free_section_usage(struct mem_section *ms, struct page *memmap,
 		struct mem_section_usage *usage, struct vmem_altmap *altmap)
 {
-	struct page *usage_page;
-
 	if (!usage)
 		return;
 
-	usage_page = virt_to_page(usage);
 	/*
 	 * Check to see if allocation came from hot-plug-add
 	 */
-	if (PageSlab(usage_page) || PageCompound(usage_page)) {
+	if (!early_section(ms)) {
 		kfree(usage);
 		if (memmap)
 			__kfree_section_memmap(memmap, altmap);
@@ -816,6 +814,6 @@ void sparse_remove_one_section(struct mem_section *ms, unsigned long map_offset,
 
 	clear_hwpoisoned_pages(memmap + map_offset,
 			PAGES_PER_SECTION - map_offset);
-	free_section_usage(memmap, usage, altmap);
+	free_section_usage(ms, memmap, usage, altmap);
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
