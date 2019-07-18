@@ -43,6 +43,21 @@
 #define LEGACY_LUT_LENGTH		256
 
 /*
+ * ILK+ csc matrix:
+ *
+ * |R/Cr|   | c0 c1 c2 |   ( |R/Cr|   |preoff0| )   |postoff0|
+ * |G/Y | = | c3 c4 c5 | x ( |G/Y | + |preoff1| ) + |postoff1|
+ * |B/Cb|   | c6 c7 c8 |   ( |B/Cb|   |preoff2| )   |postoff2|
+ *
+ * ILK/SNB don't have explicit post offsets, and instead
+ * CSC_MODE_YUV_TO_RGB and CSC_BLACK_SCREEN_OFFSET are used:
+ *  CSC_MODE_YUV_TO_RGB=0 + CSC_BLACK_SCREEN_OFFSET=0 -> 1/2, 0, 1/2
+ *  CSC_MODE_YUV_TO_RGB=0 + CSC_BLACK_SCREEN_OFFSET=1 -> 1/2, 1/16, 1/2
+ *  CSC_MODE_YUV_TO_RGB=1 + CSC_BLACK_SCREEN_OFFSET=0 -> 0, 0, 0
+ *  CSC_MODE_YUV_TO_RGB=1 + CSC_BLACK_SCREEN_OFFSET=1 -> 1/16, 1/16, 1/16
+ */
+
+/*
  * Extract the CSC coefficient from a CTM coefficient (in U32.32 fixed point
  * format). This macro takes the coefficient we want transformed and the
  * number of fractional bits.
@@ -59,37 +74,38 @@
 
 #define ILK_CSC_POSTOFF_LIMITED_RANGE (16 * (1 << 12) / 255)
 
+/* Nop pre/post offsets */
 static const u16 ilk_csc_off_zero[3] = {};
 
+/* Identity matrix */
 static const u16 ilk_csc_coeff_identity[9] = {
 	ILK_CSC_COEFF_1_0, 0, 0,
 	0, ILK_CSC_COEFF_1_0, 0,
 	0, 0, ILK_CSC_COEFF_1_0,
 };
 
+/* Limited range RGB post offsets */
 static const u16 ilk_csc_postoff_limited_range[3] = {
 	ILK_CSC_POSTOFF_LIMITED_RANGE,
 	ILK_CSC_POSTOFF_LIMITED_RANGE,
 	ILK_CSC_POSTOFF_LIMITED_RANGE,
 };
 
+/* Full range RGB -> limited range RGB matrix */
 static const u16 ilk_csc_coeff_limited_range[9] = {
 	ILK_CSC_COEFF_LIMITED_RANGE, 0, 0,
 	0, ILK_CSC_COEFF_LIMITED_RANGE, 0,
 	0, 0, ILK_CSC_COEFF_LIMITED_RANGE,
 };
 
-/*
- * These values are direct register values specified in the Bspec,
- * for RGB->YUV conversion matrix (colorspace BT709)
- */
+/* BT.709 full range RGB -> limited range YCbCr matrix */
 static const u16 ilk_csc_coeff_rgb_to_ycbcr[9] = {
 	0x1e08, 0x9cc0, 0xb528,
 	0x2ba8, 0x09d8, 0x37e8,
 	0xbce8, 0x9ad8, 0x1e08,
 };
 
-/* Post offset values for RGB->YCBCR conversion */
+/* Limited range YCbCr post offsets */
 static const u16 ilk_csc_postoff_rgb_to_ycbcr[3] = {
 	0x0800, 0x0100, 0x0800,
 };
