@@ -242,9 +242,9 @@ del kernel:
 * Per inserire blocchi di testo con caratteri a dimensione fissa (codici di
   esempio, casi d'uso, eccetera): utilizzate ``::`` quando non è necessario
   evidenziare la sintassi, specialmente per piccoli frammenti; invece,
-  utilizzate ``.. code-block:: <language>`` per blocchi di più lunghi che
-  potranno beneficiare dell'avere la sintassi evidenziata. Per un breve pezzo
-  di codice da inserire nel testo, usate \`\`.
+  utilizzate ``.. code-block:: <language>`` per blocchi più lunghi che
+  beneficeranno della sintassi evidenziata. Per un breve pezzo di codice da
+  inserire nel testo, usate \`\`.
 
 
 Il dominio C
