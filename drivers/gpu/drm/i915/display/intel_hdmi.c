@@ -724,6 +724,10 @@ intel_hdmi_compute_avi_infoframe(struct intel_encoder *encoder,
 
 	drm_hdmi_avi_infoframe_colorspace(frame, conn_state);
 
+	/* nonsense combination */
+	WARN_ON(crtc_state->limited_color_range &&
+		crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);
+
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_RGB) {
 		drm_hdmi_avi_infoframe_quant_range(frame, connector,
 						   adjusted_mode,
@@ -2373,6 +2377,16 @@ static bool intel_hdmi_limited_color_range(const struct intel_crtc_state *crtc_s
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->base.adjusted_mode;
 
+	/*
+	 * Our YCbCr output is always limited range.
+	 * crtc_state->limited_color_range only applies to RGB,
+	 * and it must never be set for YCbCr or we risk setting
+	 * some conflicting bits in PIPECONF which will mess up
+	 * the colors on the monitor.
+	 */
+	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB)
+		return false;
+
 	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
 		return crtc_state->has_hdmi_sink &&
@@ -2406,9 +2420,6 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 	if (pipe_config->has_hdmi_sink)
 		pipe_config->has_infoframe = true;
 
-	pipe_config->limited_color_range =
-		intel_hdmi_limited_color_range(pipe_config, conn_state);
-
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		pipe_config->pixel_multiplier = 2;
 
@@ -2418,6 +2429,9 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 			return -EINVAL;
 		}
 	}
+
+	pipe_config->limited_color_range =
+		intel_hdmi_limited_color_range(pipe_config, conn_state);
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv))
 		pipe_config->has_pch_encoder = true;

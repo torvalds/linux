@@ -1706,9 +1706,6 @@ void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 
 	temp = TRANS_MSA_SYNC_CLK;
 
-	if (crtc_state->limited_color_range)
-		temp |= TRANS_MSA_CEA_RANGE;
-
 	switch (crtc_state->pipe_bpp) {
 	case 18:
 		temp |= TRANS_MSA_6_BPC;
@@ -1726,6 +1723,13 @@ void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 		MISSING_CASE(crtc_state->pipe_bpp);
 		break;
 	}
+
+	/* nonsense combination */
+	WARN_ON(crtc_state->limited_color_range &&
+		crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);
+
+	if (crtc_state->limited_color_range)
+		temp |= TRANS_MSA_CEA_RANGE;
 
 	/*
 	 * As per DP 1.2 spec section 2.3.4.3 while sending
