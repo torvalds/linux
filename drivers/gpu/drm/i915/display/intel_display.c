@@ -16294,6 +16294,21 @@ intel_mode_valid(struct drm_device *dev,
 	    mode->vtotal > vtotal_max)
 		return MODE_V_ILLEGAL;
 
+	if (INTEL_GEN(dev_priv) >= 5) {
+		if (mode->hdisplay < 64 ||
+		    mode->htotal - mode->hdisplay < 32)
+			return MODE_H_ILLEGAL;
+
+		if (mode->vtotal - mode->vdisplay < 5)
+			return MODE_V_ILLEGAL;
+	} else {
+		if (mode->htotal - mode->hdisplay < 32)
+			return MODE_H_ILLEGAL;
+
+		if (mode->vtotal - mode->vdisplay < 3)
+			return MODE_V_ILLEGAL;
+	}
+
 	return MODE_OK;
 }
 
