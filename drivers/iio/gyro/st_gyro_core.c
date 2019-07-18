@@ -368,6 +368,24 @@ static const struct iio_trigger_ops st_gyro_trigger_ops = {
 #define ST_GYRO_TRIGGER_OPS NULL
 #endif
 
+/*
+ * st_gyro_get_settings() - get sensor settings from device name
+ * @name: device name buffer reference.
+ *
+ * Return: valid reference on success, NULL otherwise.
+ */
+const struct st_sensor_settings *st_gyro_get_settings(const char *name)
+{
+	int index = st_sensors_get_settings_index(name,
+					st_gyro_sensors_settings,
+					ARRAY_SIZE(st_gyro_sensors_settings));
+	if (index < 0)
+		return NULL;
+
+	return &st_gyro_sensors_settings[index];
+}
+EXPORT_SYMBOL(st_gyro_get_settings);
+
 int st_gyro_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *gdata = iio_priv(indio_dev);
