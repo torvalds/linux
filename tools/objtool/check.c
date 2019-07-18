@@ -1934,13 +1934,12 @@ static int validate_sibling_call(struct instruction *insn, struct insn_state *st
  * each instruction and validate all the rules described in
  * tools/objtool/Documentation/stack-validation.txt.
  */
-static int validate_branch(struct objtool_file *file, struct instruction *first,
-			   struct insn_state state)
+static int validate_branch(struct objtool_file *file, struct symbol *func,
+			   struct instruction *first, struct insn_state state)
 {
 	struct alternative *alt;
 	struct instruction *insn, *next_insn;
 	struct section *sec;
-	struct symbol *func = NULL;
 	int ret;
 
 	insn = first;
@@ -1960,9 +1959,6 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 			     func->name, insn->func->name);
 			return 1;
 		}
-
-		if (insn->func)
-			func = insn->func->pfunc;
 
 		if (func && insn->ignore) {
 			WARN_FUNC("BUG: why am I validating an ignored function?",
@@ -1985,7 +1981,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 
 				i = insn;
 				save_insn = NULL;
-				func_for_each_insn_continue_reverse(file, insn->func, i) {
+				func_for_each_insn_continue_reverse(file, func, i) {
 					if (i->save) {
 						save_insn = i;
 						break;
@@ -2031,7 +2027,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 				if (alt->skip_orig)
 					skip_orig = true;
 
-				ret = validate_branch(file, alt->insn, state);
+				ret = validate_branch(file, func, alt->insn, state);
 				if (ret) {
 					if (backtrace)
 						BT_FUNC("(alt)", insn);
@@ -2069,7 +2065,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 
 			if (state.bp_scratch) {
 				WARN("%s uses BP as a scratch register",
-				     insn->func->name);
+				     func->name);
 				return 1;
 			}
 
@@ -2109,8 +2105,8 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 			} else if (insn->jump_dest &&
 				   (!func || !insn->jump_dest->func ||
 				    insn->jump_dest->func->pfunc == func)) {
-				ret = validate_branch(file, insn->jump_dest,
-						      state);
+				ret = validate_branch(file, func,
+						      insn->jump_dest, state);
 				if (ret) {
 					if (backtrace)
 						BT_FUNC("(branch)", insn);
@@ -2176,7 +2172,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 			break;
 
 		case INSN_CLAC:
-			if (!state.uaccess && insn->func) {
+			if (!state.uaccess && func) {
 				WARN_FUNC("redundant UACCESS disable", sec, insn->offset);
 				return 1;
 			}
@@ -2197,7 +2193,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 			break;
 
 		case INSN_CLD:
-			if (!state.df && insn->func)
+			if (!state.df && func)
 				WARN_FUNC("redundant CLD", sec, insn->offset);
 
 			state.df = false;
@@ -2236,7 +2232,7 @@ static int validate_unwind_hints(struct objtool_file *file)
 
 	for_each_insn(file, insn) {
 		if (insn->hint && !insn->visited) {
-			ret = validate_branch(file, insn, state);
+			ret = validate_branch(file, insn->func, insn, state);
 			if (ret && backtrace)
 				BT_FUNC("<=== (hint)", insn);
 			warnings += ret;
@@ -2363,12 +2359,12 @@ static int validate_functions(struct objtool_file *file)
 				continue;
 
 			insn = find_insn(file, sec, func->offset);
-			if (!insn || insn->ignore)
+			if (!insn || insn->ignore || insn->visited)
 				continue;
 
 			state.uaccess = func->alias->uaccess_safe;
 
-			ret = validate_branch(file, insn, state);
+			ret = validate_branch(file, func, insn, state);
 			if (ret && backtrace)
 				BT_FUNC("<=== (func)", insn);
 			warnings += ret;
