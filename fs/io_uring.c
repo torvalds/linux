@@ -1924,6 +1924,10 @@ static bool io_add_to_prev_work(struct async_list *list, struct io_kiocb *req)
 	ret = true;
 	spin_lock(&list->lock);
 	list_add_tail(&req->list, &list->list);
+	/*
+	 * Ensure we see a simultaneous modification from io_sq_wq_submit_work()
+	 */
+	smp_mb();
 	if (!atomic_read(&list->cnt)) {
 		list_del_init(&req->list);
 		ret = false;
