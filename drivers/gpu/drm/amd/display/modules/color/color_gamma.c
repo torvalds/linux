@@ -30,7 +30,6 @@
 #include "opp.h"
 #include "color_gamma.h"
 
-
 #define NUM_PTS_IN_REGION 16
 #define NUM_REGIONS 32
 #define MAX_HW_POINTS (NUM_PTS_IN_REGION*NUM_REGIONS)
@@ -162,59 +161,68 @@ static void compute_de_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 
 }
 
+
 /*de gamma, none linear to linear*/
-static void compute_hlg_oetf(struct fixed31_32 in_x, bool is_light0_12, struct fixed31_32 *out_y)
+static void compute_hlg_eotf(struct fixed31_32 in_x,
+		struct fixed31_32 *out_y,
+		uint32_t sdr_white_level, uint32_t max_luminance_nits)
 {
 	struct fixed31_32 a;
 	struct fixed31_32 b;
 	struct fixed31_32 c;
 	struct fixed31_32 threshold;
-	struct fixed31_32 reference_white_level;
+	struct fixed31_32 x;
 
+	struct fixed31_32 scaling_factor =
+			dc_fixpt_from_fraction(max_luminance_nits, sdr_white_level);
 	a = dc_fixpt_from_fraction(17883277, 100000000);
-	if (is_light0_12) {
-		/*light 0-12*/
-		b = dc_fixpt_from_fraction(28466892, 100000000);
-		c = dc_fixpt_from_fraction(55991073, 100000000);
-		threshold = dc_fixpt_one;
-		reference_white_level = dc_fixpt_half;
+	b = dc_fixpt_from_fraction(28466892, 100000000);
+	c = dc_fixpt_from_fraction(55991073, 100000000);
+	threshold = dc_fixpt_from_fraction(1, 2);
+
+	if (dc_fixpt_lt(in_x, threshold)) {
+		x = dc_fixpt_mul(in_x, in_x);
+		x = dc_fixpt_div_int(x, 3);
 	} else {
-		/*light 0-1*/
-		b = dc_fixpt_from_fraction(2372241, 100000000);
-		c = dc_fixpt_add(dc_fixpt_one, dc_fixpt_from_fraction(429347, 100000000));
-		threshold = dc_fixpt_from_fraction(1, 12);
-		reference_white_level = dc_fixpt_pow(dc_fixpt_from_fraction(3, 1), dc_fixpt_half);
+		x = dc_fixpt_sub(in_x, c);
+		x = dc_fixpt_div(x, a);
+		x = dc_fixpt_exp(x);
+		x = dc_fixpt_add(x, b);
+		x = dc_fixpt_div_int(x, 12);
 	}
-	if (dc_fixpt_lt(threshold, in_x))
-		*out_y = dc_fixpt_add(c, dc_fixpt_mul(a, dc_fixpt_log(dc_fixpt_sub(in_x, b))));
-	else
-		*out_y = dc_fixpt_mul(dc_fixpt_pow(in_x, dc_fixpt_half), reference_white_level);
+	*out_y = dc_fixpt_mul(x, scaling_factor);
+
 }
 
 /*re gamma, linear to none linear*/
-static void compute_hlg_eotf(struct fixed31_32 in_x, bool is_light0_12, struct fixed31_32 *out_y)
+static void compute_hlg_oetf(struct fixed31_32 in_x, struct fixed31_32 *out_y,
+		uint32_t sdr_white_level, uint32_t max_luminance_nits)
 {
 	struct fixed31_32 a;
 	struct fixed31_32 b;
 	struct fixed31_32 c;
-	struct fixed31_32 reference_white_level;
+	struct fixed31_32 threshold;
+	struct fixed31_32 x;
 
+	struct fixed31_32 scaling_factor =
+			dc_fixpt_from_fraction(sdr_white_level, max_luminance_nits);
 	a = dc_fixpt_from_fraction(17883277, 100000000);
-	if (is_light0_12) {
-		/*light 0-12*/
-		b = dc_fixpt_from_fraction(28466892, 100000000);
-		c = dc_fixpt_from_fraction(55991073, 100000000);
-		reference_white_level = dc_fixpt_from_fraction(4, 1);
+	b = dc_fixpt_from_fraction(28466892, 100000000);
+	c = dc_fixpt_from_fraction(55991073, 100000000);
+	threshold = dc_fixpt_from_fraction(1, 12);
+	x = dc_fixpt_mul(in_x, scaling_factor);
+
+
+	if (dc_fixpt_lt(x, threshold)) {
+		x = dc_fixpt_mul(x, dc_fixpt_from_fraction(3, 1));
+		*out_y = dc_fixpt_pow(x, dc_fixpt_half);
 	} else {
-		/*light 0-1*/
-		b = dc_fixpt_from_fraction(2372241, 100000000);
-		c = dc_fixpt_add(dc_fixpt_one, dc_fixpt_from_fraction(429347, 100000000));
-		reference_white_level = dc_fixpt_from_fraction(1, 3);
+		x = dc_fixpt_mul(x, dc_fixpt_from_fraction(12, 1));
+		x = dc_fixpt_sub(x, b);
+		x = dc_fixpt_log(x);
+		x = dc_fixpt_mul(a, x);
+		*out_y = dc_fixpt_add(x, c);
 	}
-	if (dc_fixpt_lt(dc_fixpt_half, in_x))
-		*out_y = dc_fixpt_add(dc_fixpt_exp(dc_fixpt_div(dc_fixpt_sub(in_x, c), a)), b);
-	else
-		*out_y = dc_fixpt_mul(dc_fixpt_pow(in_x, dc_fixpt_from_fraction(2, 1)), reference_white_level);
 }
 
 
@@ -1000,9 +1008,14 @@ release:
 	return ret;
 }
 
+
+
+
+
 static void build_hlg_degamma(struct pwl_float_data_ex *degamma,
 		uint32_t hw_points_num,
-		const struct hw_x_point *coordinate_x, bool is_light0_12)
+		const struct hw_x_point *coordinate_x,
+		uint32_t sdr_white_level, uint32_t max_luminance_nits)
 {
 	uint32_t i;
 
@@ -1010,9 +1023,9 @@ static void build_hlg_degamma(struct pwl_float_data_ex *degamma,
 	const struct hw_x_point *coord_x = coordinate_x;
 
 	i = 0;
-
+	//check when i == 434
 	while (i != hw_points_num + 1) {
-		compute_hlg_oetf(coord_x->x, is_light0_12, &rgb->r);
+		compute_hlg_eotf(coord_x->x, &rgb->r, sdr_white_level, max_luminance_nits);
 		rgb->g = rgb->r;
 		rgb->b = rgb->r;
 		++coord_x;
@@ -1021,9 +1034,11 @@ static void build_hlg_degamma(struct pwl_float_data_ex *degamma,
 	}
 }
 
+
 static void build_hlg_regamma(struct pwl_float_data_ex *regamma,
 		uint32_t hw_points_num,
-		const struct hw_x_point *coordinate_x, bool is_light0_12)
+		const struct hw_x_point *coordinate_x,
+		uint32_t sdr_white_level, uint32_t max_luminance_nits)
 {
 	uint32_t i;
 
@@ -1032,8 +1047,9 @@ static void build_hlg_regamma(struct pwl_float_data_ex *regamma,
 
 	i = 0;
 
+	//when i == 471
 	while (i != hw_points_num + 1) {
-		compute_hlg_eotf(coord_x->x, is_light0_12, &rgb->r);
+		compute_hlg_oetf(coord_x->x, &rgb->r, sdr_white_level, max_luminance_nits);
 		rgb->g = rgb->r;
 		rgb->b = rgb->r;
 		++coord_x;
@@ -1919,7 +1935,7 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 		build_hlg_degamma(curve,
 				MAX_HW_POINTS,
 				coordinates_x,
-				true);
+				80, 1000);
 	else if (tf == TRANSFER_FUNCTION_LINEAR) {
 		// just copy coordinates_x into curve
 		i = 0;
@@ -2038,11 +2054,15 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 				       GFP_KERNEL);
 		if (!rgb_regamma)
 			goto rgb_regamma_alloc_fail;
+		points->end_exponent = 4;
+		points->x_point_at_y1_red = 12;
+		points->x_point_at_y1_green = 12;
+		points->x_point_at_y1_blue = 12;
 
 		build_hlg_regamma(rgb_regamma,
 				MAX_HW_POINTS,
 				coordinates_x,
-				true);
+				80, 1000);
 		for (i = 0; i <= MAX_HW_POINTS ; i++) {
 			points->red[i]    = rgb_regamma[i].r;
 			points->green[i]  = rgb_regamma[i].g;
@@ -2124,7 +2144,7 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 		build_hlg_degamma(rgb_degamma,
 				MAX_HW_POINTS,
 				coordinates_x,
-				true);
+				80, 1000);
 		for (i = 0; i <= MAX_HW_POINTS ; i++) {
 			points->red[i]    = rgb_degamma[i].r;
 			points->green[i]  = rgb_degamma[i].g;
