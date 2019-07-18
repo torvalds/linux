@@ -136,11 +136,6 @@ static int amdgpu_ras_reserve_vram(struct amdgpu_device *adev,
 static int amdgpu_ras_release_vram(struct amdgpu_device *adev,
 		struct amdgpu_bo **bo_ptr);
 
-static void amdgpu_ras_self_test(struct amdgpu_device *adev)
-{
-	/* TODO */
-}
-
 static ssize_t amdgpu_ras_debugfs_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
@@ -1581,8 +1576,6 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 
 	if (amdgpu_ras_fs_init(adev))
 		goto fs_out;
-
-	amdgpu_ras_self_test(adev);
 
 	DRM_INFO("RAS INFO: ras initialized successfully, "
 			"hardware ability[%x] ras_mask[%x]\n",
