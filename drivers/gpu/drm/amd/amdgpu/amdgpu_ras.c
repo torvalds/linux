@@ -1557,6 +1557,12 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 
 	amdgpu_ras_check_supported(adev, &con->hw_supported,
 			&con->supported);
+	if (!con->hw_supported) {
+		amdgpu_ras_set_context(adev, NULL);
+		kfree(con);
+		return 0;
+	}
+
 	con->features = 0;
 	INIT_LIST_HEAD(&con->head);
 	/* Might need get this flag from vbios. */
