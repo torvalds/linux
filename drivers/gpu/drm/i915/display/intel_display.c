@@ -9420,8 +9420,18 @@ static void ironlake_set_pipeconf(const struct intel_crtc_state *crtc_state)
 	else
 		val |= PIPECONF_PROGRESSIVE;
 
+	/*
+	 * This would end up with an odd purple hue over
+	 * the entire display. Make sure we don't do it.
+	 */
+	WARN_ON(crtc_state->limited_color_range &&
+		crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);
+
 	if (crtc_state->limited_color_range)
 		val |= PIPECONF_COLOR_RANGE_SELECT;
+
+	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB)
+		val |= PIPECONF_OUTPUT_COLORSPACE_YUV709;
 
 	val |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
 
@@ -9959,7 +9969,6 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	if (!wakeref)
 		return false;
 
-	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 	pipe_config->shared_dpll = NULL;
 
@@ -9987,6 +9996,16 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 
 	if (tmp & PIPECONF_COLOR_RANGE_SELECT)
 		pipe_config->limited_color_range = true;
+
+	switch (tmp & PIPECONF_OUTPUT_COLORSPACE_MASK) {
+	case PIPECONF_OUTPUT_COLORSPACE_YUV601:
+	case PIPECONF_OUTPUT_COLORSPACE_YUV709:
+		pipe_config->output_format = INTEL_OUTPUT_FORMAT_YCBCR444;
+		break;
+	default:
+		pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+		break;
+	}
 
 	pipe_config->gamma_mode = (tmp & PIPECONF_GAMMA_MODE_MASK_ILK) >>
 		PIPECONF_GAMMA_MODE_SHIFT;
