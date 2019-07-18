@@ -51,6 +51,7 @@
 #include "pnfs.h"
 #include "nfs.h"
 #include "netns.h"
+#include "sysfs.h"
 
 #include "nfstrace.h"
 
@@ -208,7 +209,7 @@ static void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 	}
 
 	if (inode->i_mapping->nrpages == 0)
-		flags &= ~NFS_INO_INVALID_DATA;
+		flags &= ~(NFS_INO_INVALID_DATA|NFS_INO_DATA_INVAL_DEFER);
 	nfsi->cache_validity |= flags;
 	if (flags & NFS_INO_INVALID_DATA)
 		nfs_fscache_invalidate(inode);
@@ -652,7 +653,8 @@ static int nfs_vmtruncate(struct inode * inode, loff_t offset)
 	i_size_write(inode, offset);
 	/* Optimisation */
 	if (offset == 0)
-		NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_DATA;
+		NFS_I(inode)->cache_validity &= ~(NFS_INO_INVALID_DATA |
+				NFS_INO_DATA_INVAL_DEFER);
 	NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_SIZE;
 
 	spin_unlock(&inode->i_lock);
@@ -1032,6 +1034,10 @@ void nfs_inode_attach_open_context(struct nfs_open_context *ctx)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	spin_lock(&inode->i_lock);
+	if (list_empty(&nfsi->open_files) &&
+	    (nfsi->cache_validity & NFS_INO_DATA_INVAL_DEFER))
+		nfsi->cache_validity |= NFS_INO_INVALID_DATA |
+			NFS_INO_REVAL_FORCED;
 	list_add_tail_rcu(&ctx->list, &nfsi->open_files);
 	spin_unlock(&inode->i_lock);
 }
@@ -1100,6 +1106,7 @@ int nfs_open(struct inode *inode, struct file *filp)
 	nfs_fscache_open_file(inode, filp);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nfs_open);
 
 /*
  * This function is called whenever some part of NFS notices that
@@ -1312,7 +1319,8 @@ int nfs_revalidate_mapping(struct inode *inode,
 
 	set_bit(NFS_INO_INVALIDATING, bitlock);
 	smp_wmb();
-	nfsi->cache_validity &= ~NFS_INO_INVALID_DATA;
+	nfsi->cache_validity &= ~(NFS_INO_INVALID_DATA|
+			NFS_INO_DATA_INVAL_DEFER);
 	spin_unlock(&inode->i_lock);
 	trace_nfs_invalidate_mapping_enter(inode);
 	ret = nfs_invalidate_mapping(inode, mapping);
@@ -1870,7 +1878,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 				dprintk("NFS: change_attr change on server for file %s/%ld\n",
 						inode->i_sb->s_id,
 						inode->i_ino);
-			}
+			} else if (!have_delegation)
+				nfsi->cache_validity |= NFS_INO_DATA_INVAL_DEFER;
 			inode_set_iversion_raw(inode, fattr->change_attr);
 			attr_changed = true;
 		}
@@ -2159,12 +2168,8 @@ static int nfs_net_init(struct net *net)
 
 static void nfs_net_exit(struct net *net)
 {
-	struct nfs_net *nn = net_generic(net, nfs_net_id);
-
 	nfs_fs_proc_net_exit(net);
-	nfs_cleanup_cb_ident_idr(net);
-	WARN_ON_ONCE(!list_empty(&nn->nfs_client_list));
-	WARN_ON_ONCE(!list_empty(&nn->nfs_volume_list));
+	nfs_clients_exit(net);
 }
 
 static struct pernet_operations nfs_net_ops = {
@@ -2180,6 +2185,10 @@ static struct pernet_operations nfs_net_ops = {
 static int __init init_nfs_fs(void)
 {
 	int err;
+
+	err = nfs_sysfs_init();
+	if (err < 0)
+		goto out10;
 
 	err = register_pernet_subsys(&nfs_net_ops);
 	if (err < 0)
@@ -2244,6 +2253,8 @@ out7:
 out8:
 	unregister_pernet_subsys(&nfs_net_ops);
 out9:
+	nfs_sysfs_exit();
+out10:
 	return err;
 }
 
@@ -2260,6 +2271,7 @@ static void __exit exit_nfs_fs(void)
 	unregister_nfs_fs();
 	nfs_fs_proc_exit();
 	nfsiod_stop();
+	nfs_sysfs_exit();
 }
 
 /* Not quite true; I just maintain it */
