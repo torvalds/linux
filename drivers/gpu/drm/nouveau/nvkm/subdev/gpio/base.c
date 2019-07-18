@@ -184,6 +184,7 @@ static const struct dmi_system_id gpio_reset_ids[] = {
 };
 
 static enum dcb_gpio_func_name power_checks[] = {
+	DCB_GPIO_THERM_EXT_POWER_EVENT,
 	DCB_GPIO_EXT_POWER_LOW,
 };
 
