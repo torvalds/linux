@@ -922,13 +922,11 @@ int rtas_online_cpus_mask(cpumask_var_t cpus)
 
 	return ret;
 }
-EXPORT_SYMBOL(rtas_online_cpus_mask);
 
 int rtas_offline_cpus_mask(cpumask_var_t cpus)
 {
 	return rtas_cpu_state_change_mask(DOWN, cpus);
 }
-EXPORT_SYMBOL(rtas_offline_cpus_mask);
 
 int rtas_ibm_suspend_me(u64 handle)
 {
