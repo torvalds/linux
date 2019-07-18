@@ -79,7 +79,6 @@ struct trace {
 	struct perf_tool	tool;
 	struct syscalltbl	*sctbl;
 	struct {
-		int		max;
 		struct syscall  *table;
 		struct bpf_map  *map;
 		struct { // per syscall BPF_MAP_TYPE_PROG_ARRAY
@@ -1493,21 +1492,10 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	struct syscall *sc;
 	const char *name = syscalltbl__name(trace->sctbl, id);
 
-	if (id > trace->syscalls.max) {
-		struct syscall *nsyscalls = realloc(trace->syscalls.table, (id + 1) * sizeof(*sc));
-
-		if (nsyscalls == NULL)
+	if (trace->syscalls.table == NULL) {
+		trace->syscalls.table = calloc(trace->sctbl->syscalls.nr_entries, sizeof(*sc));
+		if (trace->syscalls.table == NULL)
 			return -ENOMEM;
-
-		if (trace->syscalls.max != -1) {
-			memset(nsyscalls + trace->syscalls.max + 1, 0,
-			       (id - trace->syscalls.max) * sizeof(*sc));
-		} else {
-			memset(nsyscalls, 0, (id + 1) * sizeof(*sc));
-		}
-
-		trace->syscalls.table = nsyscalls;
-		trace->syscalls.max   = id;
 	}
 
 	sc = trace->syscalls.table + id;
@@ -1819,11 +1807,11 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 
 	err = -EINVAL;
 
-	if ((id > trace->syscalls.max || trace->syscalls.table[id].name == NULL) &&
-	    (err = trace__read_syscall_info(trace, id)) != 0)
+	if (id > trace->sctbl->syscalls.max_id)
 		goto out_cant_read;
 
-	if (id > trace->syscalls.max)
+	if ((trace->syscalls.table == NULL || trace->syscalls.table[id].name == NULL) &&
+	    (err = trace__read_syscall_info(trace, id)) != 0)
 		goto out_cant_read;
 
 	if (trace->syscalls.table[id].name == NULL) {
@@ -1838,7 +1826,7 @@ out_cant_read:
 	if (verbose > 0) {
 		char sbuf[STRERR_BUFSIZE];
 		fprintf(trace->output, "Problems reading syscall %d: %d (%s)", id, -err, str_error_r(-err, sbuf, sizeof(sbuf)));
-		if (id <= trace->syscalls.max && trace->syscalls.table[id].name != NULL)
+		if (id <= trace->sctbl->syscalls.max_id && trace->syscalls.table[id].name != NULL)
 			fprintf(trace->output, "(%s)", trace->syscalls.table[id].name);
 		fputs(" information\n", trace->output);
 	}
@@ -3922,9 +3910,6 @@ int cmd_trace(int argc, const char **argv)
 		NULL
 	};
 	struct trace trace = {
-		.syscalls = {
-			. max = -1,
-		},
 		.opts = {
 			.target = {
 				.uid	   = UINT_MAX,
