@@ -78,6 +78,10 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	CHANNEL_SWITCH_TIME_EVENT_CMD = 0x4,
 	/**
+	 * @MISSED_VAP_NOTIF: &struct iwl_missed_vap_notif
+	 */
+	MISSED_VAP_NOTIF = 0xFA,
+	/**
 	 * @SESSION_PROTECTION_CMD: &struct iwl_mvm_session_prot_cmd
 	 */
 	SESSION_PROTECTION_CMD = 0x5,
@@ -139,6 +143,21 @@ struct iwl_probe_resp_data_notif {
 	u8 csa_counter;
 	u8 reserved[3];
 } __packed; /* PROBE_RESPONSE_DATA_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_missed_vap_notif - notification of missing vap detection
+ *
+ * @mac_id: the mac for which the ucode sends the notification for
+ * @num_beacon_intervals_elapsed: beacons elpased with no vap profile inside
+ * @profile_periodicity: beacons period to have our profile inside
+ * @reserved: reserved for alignment purposes
+ */
+struct iwl_missed_vap_notif {
+	__le32 mac_id;
+	u8 num_beacon_intervals_elapsed;
+	u8 profile_periodicity;
+	u8 reserved[2];
+} __packed; /* MISSED_VAP_NTFY_API_S_VER_1 */
 
 /**
  * struct iwl_channel_switch_noa_notif - Channel switch NOA notification
