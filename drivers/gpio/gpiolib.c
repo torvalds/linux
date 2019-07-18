@@ -351,7 +351,7 @@ static unsigned long *gpiochip_allocate_mask(struct gpio_chip *chip)
 {
 	unsigned long *p;
 
-	p = kmalloc_array(BITS_TO_LONGS(chip->ngpio), sizeof(*p), GFP_KERNEL);
+	p = bitmap_alloc(chip->ngpio, GFP_KERNEL);
 	if (!p)
 		return NULL;
 
@@ -385,7 +385,7 @@ static int gpiochip_init_valid_mask(struct gpio_chip *gpiochip)
 
 static void gpiochip_free_valid_mask(struct gpio_chip *gpiochip)
 {
-	kfree(gpiochip->valid_mask);
+	bitmap_free(gpiochip->valid_mask);
 	gpiochip->valid_mask = NULL;
 }
 
@@ -1620,7 +1620,7 @@ static int gpiochip_irqchip_init_valid_mask(struct gpio_chip *gpiochip)
 
 static void gpiochip_irqchip_free_valid_mask(struct gpio_chip *gpiochip)
 {
-	kfree(gpiochip->irq.valid_mask);
+	bitmap_free(gpiochip->irq.valid_mask);
 	gpiochip->irq.valid_mask = NULL;
 }
 
