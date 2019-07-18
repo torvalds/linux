@@ -35,7 +35,7 @@ def loadConfig(namespace):
             latex_documents = namespace['latex_documents']
 
             for l in latex_documents:
-                if l[0].find(dir) == 0:
+                if l[0].find(dir + '/') == 0:
                     has = True
                     fn = l[0][len(dir) + 1:]
                     new_latex_docs.append((fn, l[1], l[2], l[3], l[4]))
