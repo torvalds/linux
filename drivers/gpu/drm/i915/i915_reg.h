@@ -9759,18 +9759,7 @@ enum skl_power_gate {
 #define _TRANSC_MSA_MISC		0x62410
 #define _TRANS_EDP_MSA_MISC		0x6f410
 #define TRANS_MSA_MISC(tran) _MMIO_TRANS2(tran, _TRANSA_MSA_MISC)
-
-#define  TRANS_MSA_SYNC_CLK		(1 << 0)
-#define  TRANS_MSA_SAMPLING_444		(2 << 1)
-#define  TRANS_MSA_CLRSP_YCBCR		(1 << 3)
-#define  TRANS_MSA_YCBCR_BT709		(1 << 4)
-#define  TRANS_MSA_6_BPC		(0 << 5)
-#define  TRANS_MSA_8_BPC		(1 << 5)
-#define  TRANS_MSA_10_BPC		(2 << 5)
-#define  TRANS_MSA_12_BPC		(3 << 5)
-#define  TRANS_MSA_16_BPC		(4 << 5)
-#define  TRANS_MSA_CEA_RANGE		(1 << 3)
-#define  TRANS_MSA_USE_VSC_SDP		(1 << 14)
+/* See DP_MSA_MISC_* for the bit definitions */
 
 /* LCPLL Control */
 #define LCPLL_CTL			_MMIO(0x130040)

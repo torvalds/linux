@@ -1754,20 +1754,20 @@ void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
 
 	WARN_ON(transcoder_is_dsi(cpu_transcoder));
 
-	temp = TRANS_MSA_SYNC_CLK;
+	temp = DP_MSA_MISC_SYNC_CLOCK;
 
 	switch (crtc_state->pipe_bpp) {
 	case 18:
-		temp |= TRANS_MSA_6_BPC;
+		temp |= DP_MSA_MISC_6_BPC;
 		break;
 	case 24:
-		temp |= TRANS_MSA_8_BPC;
+		temp |= DP_MSA_MISC_8_BPC;
 		break;
 	case 30:
-		temp |= TRANS_MSA_10_BPC;
+		temp |= DP_MSA_MISC_10_BPC;
 		break;
 	case 36:
-		temp |= TRANS_MSA_12_BPC;
+		temp |= DP_MSA_MISC_12_BPC;
 		break;
 	default:
 		MISSING_CASE(crtc_state->pipe_bpp);
@@ -1779,7 +1779,7 @@ void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
 		crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);
 
 	if (crtc_state->limited_color_range)
-		temp |= TRANS_MSA_CEA_RANGE;
+		temp |= DP_MSA_MISC_COLOR_CEA_RGB;
 
 	/*
 	 * As per DP 1.2 spec section 2.3.4.3 while sending
@@ -1787,8 +1787,7 @@ void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
 	 * colorspace information.
 	 */
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
-		temp |= TRANS_MSA_SAMPLING_444 | TRANS_MSA_CLRSP_YCBCR |
-			TRANS_MSA_YCBCR_BT709;
+		temp |= DP_MSA_MISC_COLOR_YCBCR_444_BT709;
 
 	/*
 	 * As per DP 1.4a spec section 2.2.4.3 [MSA Field for Indication
@@ -1797,7 +1796,7 @@ void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
 	 * which indicate VSC SDP for the Pixel Encoding/Colorimetry Format.
 	 */
 	if (intel_dp_needs_vsc_sdp(crtc_state, conn_state))
-		temp |= TRANS_MSA_USE_VSC_SDP;
+		temp |= DP_MSA_MISC_COLOR_VSC_SDP;
 
 	I915_WRITE(TRANS_MSA_MISC(cpu_transcoder), temp);
 }
