@@ -137,8 +137,6 @@ static inline int register_one_node(int nid)
 extern void unregister_one_node(int nid);
 extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
 extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
-extern int register_mem_sect_under_node(struct memory_block *mem_blk,
-						void *arg);
 extern void unregister_memory_block_under_nodes(struct memory_block *mem_blk);
 
 extern int register_memory_node_under_compute_node(unsigned int mem_nid,
@@ -167,11 +165,6 @@ static inline int register_cpu_under_node(unsigned int cpu, unsigned int nid)
 	return 0;
 }
 static inline int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
-{
-	return 0;
-}
-static inline int register_mem_sect_under_node(struct memory_block *mem_blk,
-							void *arg)
 {
 	return 0;
 }
