@@ -148,4 +148,5 @@ extern const char *kvm_entry_trace;
 extern const char *kvm_exit_trace;
 #endif /* HAVE_KVM_STAT_SUPPORT */
 
+extern int kvm_add_default_arch_event(int *argc, const char **argv);
 #endif /* __PERF_KVM_STAT_H */
