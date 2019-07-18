@@ -5,6 +5,7 @@
 
 #include <linux/dma-buf.h>
 
+#include <drm/drm.h>
 #include <drm/drm_device.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_prime.h>
