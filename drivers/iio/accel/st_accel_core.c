@@ -1147,6 +1147,24 @@ out:
 #endif
 }
 
+/*
+ * st_accel_get_settings() - get sensor settings from device name
+ * @name: device name buffer reference.
+ *
+ * Return: valid reference on success, NULL otherwise.
+ */
+const struct st_sensor_settings *st_accel_get_settings(const char *name)
+{
+	int index = st_sensors_get_settings_index(name,
+					st_accel_sensors_settings,
+					ARRAY_SIZE(st_accel_sensors_settings));
+	if (index < 0)
+		return NULL;
+
+	return &st_accel_sensors_settings[index];
+}
+EXPORT_SYMBOL(st_accel_get_settings);
+
 int st_accel_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *adata = iio_priv(indio_dev);
