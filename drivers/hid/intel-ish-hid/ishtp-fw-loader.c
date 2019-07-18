@@ -816,9 +816,9 @@ static int load_fw_from_host(struct ishtp_cl_data *client_data)
 		goto end_err_fw_release;
 
 	release_firmware(fw);
-	kfree(filename);
 	dev_info(cl_data_to_dev(client_data), "ISH firmware %s loaded\n",
 		 filename);
+	kfree(filename);
 	return 0;
 
 end_err_fw_release:

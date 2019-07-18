@@ -58,7 +58,8 @@ static const struct snd_soc_ops atmel_asoc_wm8904_ops = {
 
 SND_SOC_DAILINK_DEFS(pcm,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "wm8904-hifi")));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "wm8904-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link atmel_asoc_wm8904_dailink = {
 	.name = "WM8904",
@@ -112,6 +113,7 @@ static int atmel_asoc_wm8904_dt_init(struct platform_device *pdev)
 		return ret;
 	}
 	dailink->cpus->of_node = cpu_np;
+	dailink->platforms->of_node = cpu_np;
 	of_node_put(cpu_np);
 
 	codec_np = of_parse_phandle(np, "atmel,audio-codec", 0);

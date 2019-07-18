@@ -125,7 +125,8 @@ static const struct snd_soc_ops rk_aif1_ops = {
 
 SND_SOC_DAILINK_DEFS(pcm,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "rt5645-aif1")));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "rt5645-aif1")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link rk_dailink = {
 	.name = "rt5645",
@@ -176,6 +177,8 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto put_codec_of_node;
 	}
+
+	rk_dailink.platforms->of_node = rk_dailink.cpus->of_node;
 
 	ret = snd_soc_of_parse_card_name(card, "rockchip,model");
 	if (ret) {

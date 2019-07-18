@@ -86,7 +86,8 @@ static const struct snd_soc_dapm_widget tegra_wm8753_dapm_widgets[] = {
 
 SND_SOC_DAILINK_DEFS(pcm,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "wm8753-hifi")));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "wm8753-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link tegra_wm8753_dai = {
 	.name = "WM8753",
@@ -149,6 +150,8 @@ static int tegra_wm8753_driver_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err;
 	}
+
+	tegra_wm8753_dai.platforms->of_node = tegra_wm8753_dai.cpus->of_node;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)

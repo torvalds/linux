@@ -1297,21 +1297,24 @@ static struct snd_soc_dai_link *sun4i_codec_create_link(struct device *dev,
 	struct snd_soc_dai_link *link = devm_kzalloc(dev, sizeof(*link),
 						     GFP_KERNEL);
 	struct snd_soc_dai_link_component *dlc = devm_kzalloc(dev,
-						2 * sizeof(*dlc), GFP_KERNEL);
+						3 * sizeof(*dlc), GFP_KERNEL);
 	if (!link || !dlc)
 		return NULL;
 
 	link->cpus	= &dlc[0];
 	link->codecs	= &dlc[1];
+	link->platforms	= &dlc[2];
 
 	link->num_cpus		= 1;
 	link->num_codecs	= 1;
+	link->num_platforms	= 1;
 
 	link->name		= "cdc";
 	link->stream_name	= "CDC PCM";
 	link->codecs->dai_name	= "Codec";
 	link->cpus->dai_name	= dev_name(dev);
 	link->codecs->name	= dev_name(dev);
+	link->platforms->name	= dev_name(dev);
 	link->dai_fmt		= SND_SOC_DAIFMT_I2S;
 
 	*num_links = 1;

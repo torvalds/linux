@@ -60,6 +60,7 @@ struct vc4_hdmi_audio {
 	struct snd_soc_dai_link link;
 	struct snd_soc_dai_link_component cpu;
 	struct snd_soc_dai_link_component codec;
+	struct snd_soc_dai_link_component platform;
 	int samplerate;
 	int channels;
 	struct snd_dmaengine_dai_dma_data dma_data;
@@ -1089,15 +1090,18 @@ static int vc4_hdmi_audio_init(struct vc4_hdmi *hdmi)
 
 	dai_link->cpus		= &hdmi->audio.cpu;
 	dai_link->codecs	= &hdmi->audio.codec;
+	dai_link->platforms	= &hdmi->audio.platform;
 
 	dai_link->num_cpus	= 1;
 	dai_link->num_codecs	= 1;
+	dai_link->num_platforms	= 1;
 
 	dai_link->name = "MAI";
 	dai_link->stream_name = "MAI PCM";
 	dai_link->codecs->dai_name = vc4_hdmi_audio_codec_dai_drv.name;
 	dai_link->cpus->dai_name = dev_name(dev);
 	dai_link->codecs->name = dev_name(dev);
+	dai_link->platforms->name = dev_name(dev);
 
 	card->dai_link = dai_link;
 	card->num_links = 1;

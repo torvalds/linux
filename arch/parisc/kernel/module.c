@@ -786,6 +786,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			/* 32-bit PC relative address */
 			*loc = val - dot - 8 + addend;
 			break;
+		case R_PARISC_PCREL64:
+			/* 64-bit PC relative address */
+			*loc64 = val - dot - 8 + addend;
+			break;
 		case R_PARISC_DIR64:
 			/* 64-bit effective address */
 			*loc64 = val + addend;

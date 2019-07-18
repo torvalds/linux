@@ -21,17 +21,17 @@
 #include "omap-mcpdm.h"
 #include "../codecs/twl6040.h"
 
-SND_SOC_DAILINK_DEF(link0_cpus,
-	DAILINK_COMP_ARRAY(COMP_EMPTY()));
-SND_SOC_DAILINK_DEF(link0_codecs,
+SND_SOC_DAILINK_DEFS(link0,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
 	DAILINK_COMP_ARRAY(COMP_CODEC("twl6040-codec",
-				      "twl6040-legacy")));
-
-SND_SOC_DAILINK_DEF(link1_cpus,
+				      "twl6040-legacy")),
 	DAILINK_COMP_ARRAY(COMP_EMPTY()));
-SND_SOC_DAILINK_DEF(link1_codecs,
+
+SND_SOC_DAILINK_DEFS(link1,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
 	DAILINK_COMP_ARRAY(COMP_CODEC("dmic-codec",
-				      "dmic-hifi")));
+				      "dmic-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 struct abe_twl6040 {
 	struct snd_soc_card card;
@@ -256,6 +256,9 @@ static int omap_abe_probe(struct platform_device *pdev)
 	priv->dai_links[0].cpus = link0_cpus;
 	priv->dai_links[0].num_cpus = 1;
 	priv->dai_links[0].cpus->of_node = dai_node;
+	priv->dai_links[0].platforms = link0_platforms;
+	priv->dai_links[0].num_platforms = 1;
+	priv->dai_links[0].platforms->of_node = dai_node;
 	priv->dai_links[0].codecs = link0_codecs;
 	priv->dai_links[0].num_codecs = 1;
 	priv->dai_links[0].init = omap_abe_twl6040_init;
@@ -269,6 +272,9 @@ static int omap_abe_probe(struct platform_device *pdev)
 		priv->dai_links[1].cpus = link1_cpus;
 		priv->dai_links[1].num_cpus = 1;
 		priv->dai_links[1].cpus->of_node = dai_node;
+		priv->dai_links[1].platforms = link1_platforms;
+		priv->dai_links[1].num_platforms = 1;
+		priv->dai_links[1].platforms->of_node = dai_node;
 		priv->dai_links[1].codecs = link1_codecs;
 		priv->dai_links[1].num_codecs = 1;
 		priv->dai_links[1].init = omap_abe_dmic_init;

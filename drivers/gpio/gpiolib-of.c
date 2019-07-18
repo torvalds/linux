@@ -118,8 +118,15 @@ static void of_gpio_flags_quirks(struct device_node *np,
 	 * Legacy handling of SPI active high chip select. If we have a
 	 * property named "cs-gpios" we need to inspect the child node
 	 * to determine if the flags should have inverted semantics.
+	 *
+	 * This does not apply to an SPI device named "spi-gpio", because
+	 * these have traditionally obtained their own GPIOs by parsing
+	 * the device tree directly and did not respect any "spi-cs-high"
+	 * property on the SPI bus children.
 	 */
-	if (IS_ENABLED(CONFIG_SPI_MASTER) && !strcmp(propname, "cs-gpios") &&
+	if (IS_ENABLED(CONFIG_SPI_MASTER) &&
+	    !strcmp(propname, "cs-gpios") &&
+	    !of_device_is_compatible(np, "spi-gpio") &&
 	    of_property_read_bool(np, "cs-gpios")) {
 		struct device_node *child;
 		u32 cs;

@@ -490,7 +490,11 @@ static void build_it_pkt_header(struct amdtp_stream *s, unsigned int cycle,
 				unsigned int data_blocks, unsigned int syt,
 				unsigned int index)
 {
+	unsigned int payload_length;
 	__be32 *cip_header;
+
+	payload_length = data_blocks * sizeof(__be32) * s->data_block_quadlets;
+	params->payload_length = payload_length;
 
 	if (s->flags & CIP_DBC_IS_END_EVENT) {
 		s->data_block_counter =
@@ -501,31 +505,29 @@ static void build_it_pkt_header(struct amdtp_stream *s, unsigned int cycle,
 		cip_header = (__be32 *)params->header;
 		generate_cip_header(s, cip_header, syt);
 		params->header_length = 2 * sizeof(__be32);
+		payload_length += params->header_length;
 	} else {
 		cip_header = NULL;
 	}
+
+	trace_amdtp_packet(s, cycle, cip_header, payload_length, data_blocks,
+			   index);
 
 	if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
 		s->data_block_counter =
 				(s->data_block_counter + data_blocks) & 0xff;
 	}
-
-	params->payload_length =
-			data_blocks * sizeof(__be32) * s->data_block_quadlets;
-
-	trace_amdtp_packet(s, cycle, cip_header, params->payload_length,
-			   data_blocks, index);
 }
 
 static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 			    unsigned int payload_length,
-			    unsigned int *data_blocks, unsigned int *syt)
+			    unsigned int *data_blocks, unsigned int *dbc,
+			    unsigned int *syt)
 {
 	u32 cip_header[2];
 	unsigned int sph;
 	unsigned int fmt;
 	unsigned int fdf;
-	unsigned int data_block_counter;
 	bool lost;
 
 	cip_header[0] = be32_to_cpu(buf[0]);
@@ -577,17 +579,17 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 	}
 
 	/* Check data block counter continuity */
-	data_block_counter = cip_header[0] & CIP_DBC_MASK;
+	*dbc = cip_header[0] & CIP_DBC_MASK;
 	if (*data_blocks == 0 && (s->flags & CIP_EMPTY_HAS_WRONG_DBC) &&
 	    s->data_block_counter != UINT_MAX)
-		data_block_counter = s->data_block_counter;
+		*dbc = s->data_block_counter;
 
 	if (((s->flags & CIP_SKIP_DBC_ZERO_CHECK) &&
-	     data_block_counter == s->ctx_data.tx.first_dbc) ||
+	     *dbc == s->ctx_data.tx.first_dbc) ||
 	    s->data_block_counter == UINT_MAX) {
 		lost = false;
 	} else if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
-		lost = data_block_counter != s->data_block_counter;
+		lost = *dbc != s->data_block_counter;
 	} else {
 		unsigned int dbc_interval;
 
@@ -596,25 +598,17 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 		else
 			dbc_interval = *data_blocks;
 
-		lost = data_block_counter !=
-		       ((s->data_block_counter + dbc_interval) & 0xff);
+		lost = *dbc != ((s->data_block_counter + dbc_interval) & 0xff);
 	}
 
 	if (lost) {
 		dev_err(&s->unit->device,
 			"Detect discontinuity of CIP: %02X %02X\n",
-			s->data_block_counter, data_block_counter);
+			s->data_block_counter, *dbc);
 		return -EIO;
 	}
 
 	*syt = cip_header[1] & CIP_SYT_MASK;
-
-	if (s->flags & CIP_DBC_IS_END_EVENT) {
-		s->data_block_counter = data_block_counter;
-	} else {
-		s->data_block_counter =
-				(data_block_counter + *data_blocks) & 0xff;
-	}
 
 	return 0;
 }
@@ -622,9 +616,10 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 			       const __be32 *ctx_header,
 			       unsigned int *payload_length,
-			       unsigned int *data_blocks,
-			       unsigned int *syt, unsigned int index)
+			       unsigned int *data_blocks, unsigned int *syt,
+			       unsigned int index)
 {
+	unsigned int dbc;
 	const __be32 *cip_header;
 	int err;
 
@@ -640,22 +635,28 @@ static int parse_ir_ctx_header(struct amdtp_stream *s, unsigned int cycle,
 	if (!(s->flags & CIP_NO_HEADER)) {
 		cip_header = ctx_header + 2;
 		err = check_cip_header(s, cip_header, *payload_length,
-				       data_blocks, syt);
+				       data_blocks, &dbc, syt);
 		if (err < 0)
 			return err;
 	} else {
 		cip_header = NULL;
+		err = 0;
 		*data_blocks = *payload_length / sizeof(__be32) /
 			       s->data_block_quadlets;
 		*syt = 0;
-		s->data_block_counter =
-				(s->data_block_counter + *data_blocks) & 0xff;
+
+		if (s->data_block_counter != UINT_MAX)
+			dbc = s->data_block_counter;
+		else
+			dbc = 0;
 	}
+
+	s->data_block_counter = dbc;
 
 	trace_amdtp_packet(s, cycle, cip_header, *payload_length, *data_blocks,
 			   index);
 
-	return 0;
+	return err;
 }
 
 // In CYCLE_TIMER register of IEEE 1394, 7 bits are used to represent second. On
@@ -699,7 +700,8 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 {
 	struct amdtp_stream *s = private_data;
 	const __be32 *ctx_header = header;
-	unsigned int i, packets = header_length / sizeof(*ctx_header);
+	unsigned int packets = header_length / sizeof(*ctx_header);
+	int i;
 
 	if (s->packet_index < 0)
 		return;
@@ -707,7 +709,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	for (i = 0; i < packets; ++i) {
 		u32 cycle;
 		unsigned int syt;
-		unsigned int data_block;
+		unsigned int data_blocks;
 		__be32 *buffer;
 		unsigned int pcm_frames;
 		struct {
@@ -718,12 +720,13 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 		cycle = compute_it_cycle(*ctx_header);
 		syt = calculate_syt(s, cycle);
-		data_block = calculate_data_blocks(s, syt);
+		data_blocks = calculate_data_blocks(s, syt);
 		buffer = s->buffer.packets[s->packet_index].buffer;
-		pcm_frames = s->process_data_blocks(s, buffer, data_block, &syt);
+		pcm_frames = s->process_data_blocks(s, buffer, data_blocks,
+						    &syt);
 
-		build_it_pkt_header(s, cycle, &template.params, data_block, syt,
-				    i);
+		build_it_pkt_header(s, cycle, &template.params, data_blocks,
+				    syt, i);
 
 		if (queue_out_packet(s, &template.params) < 0) {
 			cancel_stream(s);
@@ -757,7 +760,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	for (i = 0; i < packets; i++) {
 		u32 cycle;
 		unsigned int payload_length;
-		unsigned int data_block;
+		unsigned int data_blocks;
 		unsigned int syt;
 		__be32 *buffer;
 		unsigned int pcm_frames = 0;
@@ -767,13 +770,19 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 		cycle = compute_cycle_count(ctx_header[1]);
 		err = parse_ir_ctx_header(s, cycle, ctx_header, &payload_length,
-					  &data_block, &syt, i);
+					  &data_blocks, &syt, i);
 		if (err < 0 && err != -EAGAIN)
 			break;
+
 		if (err >= 0) {
 			buffer = s->buffer.packets[s->packet_index].buffer;
 			pcm_frames = s->process_data_blocks(s, buffer,
-							    data_block, &syt);
+							    data_blocks, &syt);
+
+			if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
+				s->data_block_counter += data_blocks;
+				s->data_block_counter &= 0xff;
+			}
 		}
 
 		if (queue_in_packet(s, &params) < 0)

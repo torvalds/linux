@@ -26,11 +26,13 @@
 /* Define the whole MOP500 soundcard, linking platform to the codec-drivers  */
 SND_SOC_DAILINK_DEFS(link1,
 	DAILINK_COMP_ARRAY(COMP_CPU("ux500-msp-i2s.1")),
-	DAILINK_COMP_ARRAY(COMP_CODEC("ab8500-codec.0", "ab8500-codec-dai.0")));
+	DAILINK_COMP_ARRAY(COMP_CODEC("ab8500-codec.0", "ab8500-codec-dai.0")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("ux500-msp-i2s.1")));
 
 SND_SOC_DAILINK_DEFS(link2,
 	DAILINK_COMP_ARRAY(COMP_CPU("ux500-msp-i2s.3")),
-	DAILINK_COMP_ARRAY(COMP_CODEC("ab8500-codec.0", "ab8500-codec-dai.1")));
+	DAILINK_COMP_ARRAY(COMP_CODEC("ab8500-codec.0", "ab8500-codec-dai.1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("ux500-msp-i2s.3")));
 
 static struct snd_soc_dai_link mop500_dai_links[] = {
 	{
@@ -86,6 +88,8 @@ static int mop500_of_probe(struct platform_device *pdev,
 	for (i = 0; i < 2; i++) {
 		mop500_dai_links[i].cpus->of_node = msp_np[i];
 		mop500_dai_links[i].cpus->dai_name = NULL;
+		mop500_dai_links[i].platforms->of_node = msp_np[i];
+		mop500_dai_links[i].platforms->name = NULL;
 		mop500_dai_links[i].codecs->of_node = codec_np;
 		mop500_dai_links[i].codecs->name = NULL;
 	}
