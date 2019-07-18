@@ -291,6 +291,59 @@ void parse_reloc_table(struct kexec_segment *segment, struct kimage* image)
 /*
  * EFI types definitions: */
 
+typedef void*               EFI_HANDLE;
+typedef void*               EFI_IMAGE_UNLOAD;
+typedef void                VOID;
+typedef uint8_t             UINT8;
+typedef uint16_t            UINT16;
+typedef uint32_t            UINT32;
+typedef uint64_t            UINT64;
+typedef uint64_t            UINTN;
+typedef char                CHAR8;
+typedef efi_system_table_t  EFI_SYSTEM_TABLE;
+typedef efi_char16_t        CHAR16;
+typedef UINT64              EFI_LBA;
+typedef unsigned char       BOOLEAN;
+typedef int32_t             INT32;
+
+
+/**
+  @par Data Structure Description:
+  Mode Structure pointed to by Simple Text Out protocol.
+**/
+typedef struct {
+  ///
+  /// The number of modes supported by QueryMode () and SetMode ().
+  ///
+  INT32   MaxMode;
+
+  //
+  // current settings
+  //
+
+  ///
+  /// The text mode of the output device(s).
+  ///
+  INT32   Mode;
+  ///
+  /// The current character output attribute.
+  ///
+  INT32   Attribute;
+  ///
+  /// The cursor's column.
+  ///
+  INT32   CursorColumn;
+  ///
+  /// The cursor's row.
+  ///
+  INT32   CursorRow;
+  ///
+  /// The cursor is currently visbile or not.
+  ///
+  BOOLEAN CursorVisible;
+} EFI_SIMPLE_TEXT_OUTPUT_MODE;
+
+
 typedef struct {
         void*  Reset;
 
@@ -306,7 +359,7 @@ typedef struct {
         void*  EnableCursor;
 
          /* Pointer to SIMPLE_TEXT_OUTPUT_MODE data. */
-        void* Mode;
+        EFI_SIMPLE_TEXT_OUTPUT_MODE* Mode;
 } EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL ;
 
 typedef struct {
@@ -317,20 +370,6 @@ typedef struct {
         void* RegisterKeyNotify;
         void* UnregisterKeyNotify;
 } EFI_SIMPLE_TEXT_EX_INPUT_PROTOCOL;
-
-typedef void*               EFI_HANDLE;
-typedef void*               EFI_IMAGE_UNLOAD;
-typedef void                VOID;
-typedef uint8_t             UINT8;
-typedef uint16_t            UINT16;
-typedef uint32_t            UINT32;
-typedef uint64_t            UINT64;
-typedef uint64_t            UINTN;
-typedef char                CHAR8;
-typedef efi_system_table_t  EFI_SYSTEM_TABLE;
-typedef efi_char16_t        CHAR16;
-typedef UINT64              EFI_LBA;
-typedef unsigned char       BOOLEAN;
 
 /**
   Block IO read only mode data and updated only via members of BlockIO
@@ -2549,6 +2588,15 @@ __attribute__((ms_abi)) efi_status_t efi_conout_hook_EnableCursor(void)
          return EFI_UNSUPPORTED;
 }
 
+EFI_SIMPLE_TEXT_OUTPUT_MODE efi_conout_mode = {
+        .MaxMode       = 3,
+        .Mode          = 0,
+        .Attribute     = 15,
+        .CursorColumn  = 0,
+        .CursorRow     = 0,
+        .CursorVisible = 0
+};
+
 EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL con_out = {
         .Reset             = efi_conout_hook_Reset,
         .OutputString      = efi_conout_hook_OutputString,
@@ -2559,8 +2607,7 @@ EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL con_out = {
         .ClearScreen       = efi_conout_hook_ClearScreen,
         .SetCursorPosition = efi_conout_hook_SetCursorPosition,
         .EnableCursor      = efi_conout_hook_EnableCursor,
-
-        .Mode = NULL
+        .Mode              = &efi_conout_mode
 };
 
 void* efi_boot_service_hooks[44] = {0};
