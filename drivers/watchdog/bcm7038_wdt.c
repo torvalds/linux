@@ -159,10 +159,8 @@ static int bcm7038_wdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_reboot(&wdt->wdd);
 	watchdog_stop_on_unregister(&wdt->wdd);
 	err = devm_watchdog_register_device(dev, &wdt->wdd);
-	if (err) {
-		dev_err(dev, "Failed to register watchdog device\n");
+	if (err)
 		return err;
-	}
 
 	dev_info(dev, "Registered BCM7038 Watchdog\n");
 
