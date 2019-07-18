@@ -305,6 +305,8 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	other = ctx->cs_pending[fence->cs_seq & (HL_MAX_PENDING_CS - 1)];
 	if ((other) && (!dma_fence_is_signaled(other))) {
 		spin_unlock(&ctx->cs_lock);
+		dev_dbg(hdev->dev,
+			"Rejecting CS because of too many in-flights CS\n");
 		rc = -EAGAIN;
 		goto free_fence;
 	}
