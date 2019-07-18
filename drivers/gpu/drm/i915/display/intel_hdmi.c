@@ -2365,6 +2365,24 @@ static int intel_hdmi_compute_clock(struct intel_encoder *encoder,
 	return 0;
 }
 
+static bool intel_hdmi_limited_color_range(const struct intel_crtc_state *crtc_state,
+					   const struct drm_connector_state *conn_state)
+{
+	const struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(conn_state);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
+
+	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
+		/* See CEA-861-E - 5.1 Default Encoding Parameters */
+		return crtc_state->has_hdmi_sink &&
+			drm_default_rgb_quant_range(adjusted_mode) ==
+			HDMI_QUANTIZATION_RANGE_LIMITED;
+	} else {
+		return intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_LIMITED;
+	}
+}
+
 int intel_hdmi_compute_config(struct intel_encoder *encoder,
 			      struct intel_crtc_state *pipe_config,
 			      struct drm_connector_state *conn_state)
@@ -2388,16 +2406,8 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 	if (pipe_config->has_hdmi_sink)
 		pipe_config->has_infoframe = true;
 
-	if (intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_AUTO) {
-		/* See CEA-861-E - 5.1 Default Encoding Parameters */
-		pipe_config->limited_color_range =
-			pipe_config->has_hdmi_sink &&
-			drm_default_rgb_quant_range(adjusted_mode) ==
-			HDMI_QUANTIZATION_RANGE_LIMITED;
-	} else {
-		pipe_config->limited_color_range =
-			intel_conn_state->broadcast_rgb == INTEL_BROADCAST_RGB_LIMITED;
-	}
+	pipe_config->limited_color_range =
+		intel_hdmi_limited_color_range(pipe_config, conn_state);
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		pipe_config->pixel_multiplier = 2;
