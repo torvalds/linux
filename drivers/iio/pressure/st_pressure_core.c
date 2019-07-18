@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/mutex.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
@@ -692,7 +691,6 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &press_info;
-	mutex_init(&press_data->tb.buf_lock);
 
 	err = st_sensors_power_enable(indio_dev);
 	if (err)
@@ -709,7 +707,6 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 	 * element.
 	 */
 	press_data->num_data_channels = press_data->sensor_settings->num_ch - 1;
-	press_data->multiread_bit = press_data->sensor_settings->multi_read_bit;
 	indio_dev->channels = press_data->sensor_settings->ch;
 	indio_dev->num_channels = press_data->sensor_settings->num_ch;
 

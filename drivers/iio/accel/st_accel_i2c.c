@@ -174,7 +174,9 @@ static int st_accel_i2c_probe(struct i2c_client *client)
 	adata = iio_priv(indio_dev);
 	adata->sensor_settings = (struct st_sensor_settings *)settings;
 
-	st_sensors_i2c_configure(indio_dev, client, adata);
+	ret = st_sensors_i2c_configure(indio_dev, client);
+	if (ret < 0)
+		return ret;
 
 	ret = st_accel_common_probe(indio_dev);
 	if (ret < 0)

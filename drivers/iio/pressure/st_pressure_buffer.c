@@ -39,7 +39,8 @@ static int st_press_buffer_postenable(struct iio_dev *indio_dev)
 	int err;
 	struct st_sensor_data *press_data = iio_priv(indio_dev);
 
-	press_data->buffer_data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
+	press_data->buffer_data = kmalloc(indio_dev->scan_bytes,
+					  GFP_DMA | GFP_KERNEL);
 	if (press_data->buffer_data == NULL) {
 		err = -ENOMEM;
 		goto allocate_memory_error;

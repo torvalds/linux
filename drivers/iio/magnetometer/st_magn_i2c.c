@@ -79,7 +79,9 @@ static int st_magn_i2c_probe(struct i2c_client *client,
 	mdata = iio_priv(indio_dev);
 	mdata->sensor_settings = (struct st_sensor_settings *)settings;
 
-	st_sensors_i2c_configure(indio_dev, client, mdata);
+	err = st_sensors_i2c_configure(indio_dev, client);
+	if (err < 0)
+		return err;
 
 	err = st_magn_common_probe(indio_dev);
 	if (err < 0)

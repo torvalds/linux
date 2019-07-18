@@ -87,7 +87,9 @@ static int st_gyro_i2c_probe(struct i2c_client *client,
 	gdata = iio_priv(indio_dev);
 	gdata->sensor_settings = (struct st_sensor_settings *)settings;
 
-	st_sensors_i2c_configure(indio_dev, client, gdata);
+	err = st_sensors_i2c_configure(indio_dev, client);
+	if (err < 0)
+		return err;
 
 	err = st_gyro_common_probe(indio_dev);
 	if (err < 0)

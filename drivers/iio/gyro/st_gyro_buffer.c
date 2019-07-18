@@ -39,7 +39,8 @@ static int st_gyro_buffer_postenable(struct iio_dev *indio_dev)
 	int err;
 	struct st_sensor_data *gdata = iio_priv(indio_dev);
 
-	gdata->buffer_data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
+	gdata->buffer_data = kmalloc(indio_dev->scan_bytes,
+				     GFP_DMA | GFP_KERNEL);
 	if (gdata->buffer_data == NULL) {
 		err = -ENOMEM;
 		goto allocate_memory_error;

@@ -13,7 +13,6 @@
 #include <linux/acpi.h>
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/mutex.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
@@ -1177,7 +1176,6 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &accel_info;
-	mutex_init(&adata->tb.buf_lock);
 
 	err = st_sensors_power_enable(indio_dev);
 	if (err)
@@ -1188,7 +1186,6 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 		goto st_accel_power_off;
 
 	adata->num_data_channels = ST_ACCEL_NUMBER_DATA_CHANNELS;
-	adata->multiread_bit = adata->sensor_settings->multi_read_bit;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
 
 	channels_size = indio_dev->num_channels * sizeof(struct iio_chan_spec);

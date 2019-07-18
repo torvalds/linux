@@ -15,6 +15,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/regmap.h>
 #include <asm/unaligned.h>
 #include <linux/iio/common/st_sensors.h>
 
@@ -28,19 +29,10 @@ static inline u32 st_sensors_get_unaligned_le24(const u8 *p)
 int st_sensors_write_data_with_mask(struct iio_dev *indio_dev,
 				    u8 reg_addr, u8 mask, u8 data)
 {
-	int err;
-	u8 new_data;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	err = sdata->tf->read_byte(&sdata->tb, sdata->dev, reg_addr, &new_data);
-	if (err < 0)
-		goto st_sensors_write_data_with_mask_error;
-
-	new_data = ((new_data & (~mask)) | ((data << __ffs(mask)) & mask));
-	err = sdata->tf->write_byte(&sdata->tb, sdata->dev, reg_addr, new_data);
-
-st_sensors_write_data_with_mask_error:
-	return err;
+	return regmap_update_bits(sdata->regmap,
+				  reg_addr, mask, data << __ffs(mask));
 }
 
 int st_sensors_debugfs_reg_access(struct iio_dev *indio_dev,
@@ -48,18 +40,14 @@ int st_sensors_debugfs_reg_access(struct iio_dev *indio_dev,
 				  unsigned *readval)
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
-	u8 readdata;
 	int err;
 
 	if (!readval)
-		return sdata->tf->write_byte(&sdata->tb, sdata->dev,
-					     (u8)reg, (u8)writeval);
+		return regmap_write(sdata->regmap, reg, writeval);
 
-	err = sdata->tf->read_byte(&sdata->tb, sdata->dev, (u8)reg, &readdata);
+	err = regmap_read(sdata->regmap, reg, readval);
 	if (err < 0)
 		return err;
-
-	*readval = (unsigned)readdata;
 
 	return 0;
 }
@@ -545,7 +533,7 @@ st_sensors_match_scale_error:
 EXPORT_SYMBOL(st_sensors_set_fullscale_by_gain);
 
 static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
-				struct iio_chan_spec const *ch, int *data)
+				     struct iio_chan_spec const *ch, int *data)
 {
 	int err;
 	u8 *outdata;
@@ -554,13 +542,12 @@ static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
 
 	byte_for_channel = DIV_ROUND_UP(ch->scan_type.realbits +
 					ch->scan_type.shift, 8);
-	outdata = kmalloc(byte_for_channel, GFP_KERNEL);
+	outdata = kmalloc(byte_for_channel, GFP_DMA | GFP_KERNEL);
 	if (!outdata)
 		return -ENOMEM;
 
-	err = sdata->tf->read_multiple_byte(&sdata->tb, sdata->dev,
-				ch->address, byte_for_channel,
-				outdata, sdata->multiread_bit);
+	err = regmap_bulk_read(sdata->regmap, ch->address,
+			       outdata, byte_for_channel);
 	if (err < 0)
 		goto st_sensors_free_memory;
 
@@ -645,13 +632,11 @@ EXPORT_SYMBOL(st_sensors_get_settings_index);
 int st_sensors_verify_id(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
-	int err;
-	u8 wai;
+	int wai, err;
 
 	if (sdata->sensor_settings->wai_addr) {
-		err = sdata->tf->read_byte(&sdata->tb, sdata->dev,
-					   sdata->sensor_settings->wai_addr,
-					   &wai);
+		err = regmap_read(sdata->regmap,
+				  sdata->sensor_settings->wai_addr, &wai);
 		if (err < 0) {
 			dev_err(&indio_dev->dev,
 				"failed to read Who-Am-I register.\n");

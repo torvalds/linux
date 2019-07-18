@@ -13,6 +13,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
 #include <linux/interrupt.h>
+#include <linux/regmap.h>
 #include <linux/iio/common/st_sensors.h>
 #include "st_sensors_core.h"
 
@@ -26,8 +27,7 @@
 static int st_sensors_new_samples_available(struct iio_dev *indio_dev,
 					    struct st_sensor_data *sdata)
 {
-	u8 status;
-	int ret;
+	int ret, status;
 
 	/* How would I know if I can't check it? */
 	if (!sdata->sensor_settings->drdy_irq.stat_drdy.addr)
@@ -37,9 +37,9 @@ static int st_sensors_new_samples_available(struct iio_dev *indio_dev,
 	if (!indio_dev->active_scan_mask)
 		return 0;
 
-	ret = sdata->tf->read_byte(&sdata->tb, sdata->dev,
-			sdata->sensor_settings->drdy_irq.stat_drdy.addr,
-			&status);
+	ret = regmap_read(sdata->regmap,
+			  sdata->sensor_settings->drdy_irq.stat_drdy.addr,
+			  &status);
 	if (ret < 0) {
 		dev_err(sdata->dev,
 			"error checking samples available\n");

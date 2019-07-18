@@ -112,7 +112,9 @@ static int st_press_i2c_probe(struct i2c_client *client,
 	press_data = iio_priv(indio_dev);
 	press_data->sensor_settings = (struct st_sensor_settings *)settings;
 
-	st_sensors_i2c_configure(indio_dev, client, press_data);
+	ret = st_sensors_i2c_configure(indio_dev, client);
+	if (ret < 0)
+		return ret;
 
 	ret = st_press_common_probe(indio_dev);
 	if (ret < 0)
