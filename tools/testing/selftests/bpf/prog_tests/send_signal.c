@@ -173,6 +173,18 @@ static int test_send_signal_tracepoint(void)
 	return test_send_signal_common(&attr, BPF_PROG_TYPE_TRACEPOINT, "tracepoint");
 }
 
+static int test_send_signal_perf(void)
+{
+	struct perf_event_attr attr = {
+		.sample_period = 1,
+		.type = PERF_TYPE_SOFTWARE,
+		.config = PERF_COUNT_SW_CPU_CLOCK,
+	};
+
+	return test_send_signal_common(&attr, BPF_PROG_TYPE_PERF_EVENT,
+				       "perf_sw_event");
+}
+
 static int test_send_signal_nmi(void)
 {
 	struct perf_event_attr attr = {
@@ -181,8 +193,26 @@ static int test_send_signal_nmi(void)
 		.type = PERF_TYPE_HARDWARE,
 		.config = PERF_COUNT_HW_CPU_CYCLES,
 	};
+	int pmu_fd;
 
-	return test_send_signal_common(&attr, BPF_PROG_TYPE_PERF_EVENT, "perf_event");
+	/* Some setups (e.g. virtual machines) might run with hardware
+	 * perf events disabled. If this is the case, skip this test.
+	 */
+	pmu_fd = syscall(__NR_perf_event_open, &attr, 0 /* pid */,
+			 -1 /* cpu */, -1 /* group_fd */, 0 /* flags */);
+	if (pmu_fd == -1) {
+		if (errno == ENOENT) {
+			printf("%s:SKIP:no PERF_COUNT_HW_CPU_CYCLES\n",
+				__func__);
+			return 0;
+		}
+		/* Let the test fail with a more informative message */
+	} else {
+		close(pmu_fd);
+	}
+
+	return test_send_signal_common(&attr, BPF_PROG_TYPE_PERF_EVENT,
+				       "perf_hw_event");
 }
 
 void test_send_signal(void)
@@ -190,6 +220,7 @@ void test_send_signal(void)
 	int ret = 0;
 
 	ret |= test_send_signal_tracepoint();
+	ret |= test_send_signal_perf();
 	ret |= test_send_signal_nmi();
 	if (!ret)
 		printf("test_send_signal:OK\n");
