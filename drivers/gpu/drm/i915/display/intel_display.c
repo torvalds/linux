@@ -8203,6 +8203,21 @@ static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state)
 		   (crtc_state->pipe_src_h - 1));
 }
 
+static bool intel_pipe_is_interlaced(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+
+	if (IS_GEN(dev_priv, 2))
+		return false;
+
+	if (INTEL_GEN(dev_priv) >= 9 ||
+	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+		return I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_INTERLACE_MASK_HSW;
+	else
+		return I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_INTERLACE_MASK;
+}
+
 static void intel_get_pipe_timings(struct intel_crtc *crtc,
 				   struct intel_crtc_state *pipe_config)
 {
@@ -8241,7 +8256,7 @@ static void intel_get_pipe_timings(struct intel_crtc *crtc,
 	pipe_config->base.adjusted_mode.crtc_vsync_start = (tmp & 0xffff) + 1;
 	pipe_config->base.adjusted_mode.crtc_vsync_end = ((tmp >> 16) & 0xffff) + 1;
 
-	if (I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_INTERLACE_MASK) {
+	if (intel_pipe_is_interlaced(pipe_config)) {
 		pipe_config->base.adjusted_mode.flags |= DRM_MODE_FLAG_INTERLACE;
 		pipe_config->base.adjusted_mode.crtc_vtotal += 1;
 		pipe_config->base.adjusted_mode.crtc_vblank_end += 1;
