@@ -301,9 +301,10 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	     !drv->states[0].disabled && !dev->states_usage[0].disable)) {
 		/*
 		 * In this case state[0] will be used no matter what, so return
-		 * it right away and keep the tick running.
+		 * it right away and keep the tick running if state[0] is a
+		 * polling one.
 		 */
-		*stop_tick = false;
+		*stop_tick = !(drv->states[0].flags & CPUIDLE_FLAG_POLLING);
 		return 0;
 	}
 
@@ -394,16 +395,9 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 
 			return idx;
 		}
-		if (s->exit_latency > latency_req) {
-			/*
-			 * If we break out of the loop for latency reasons, use
-			 * the target residency of the selected state as the
-			 * expected idle duration so that the tick is retained
-			 * as long as that target residency is low enough.
-			 */
-			predicted_us = drv->states[idx].target_residency;
+		if (s->exit_latency > latency_req)
 			break;
-		}
+
 		idx = i;
 	}
 
