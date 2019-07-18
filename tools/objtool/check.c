@@ -900,7 +900,7 @@ out:
 }
 
 static int add_jump_table(struct objtool_file *file, struct instruction *insn,
-			    struct rela *table, struct rela *next_table)
+			    struct rela *table)
 {
 	struct rela *rela = table;
 	struct instruction *dest_insn;
@@ -913,7 +913,9 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
 	 * instruction.
 	 */
 	list_for_each_entry_from(rela, &table->sec->rela_list, list) {
-		if (rela == next_table)
+
+		/* Check for the end of the table: */
+		if (rela != table && rela->jump_table_start)
 			break;
 
 		/* Make sure the table entries are consecutive: */
@@ -1072,13 +1074,15 @@ static struct rela *find_jump_table(struct objtool_file *file,
 	return NULL;
 }
 
-
-static int add_func_jump_tables(struct objtool_file *file,
-				  struct symbol *func)
+/*
+ * First pass: Mark the head of each jump table so that in the next pass,
+ * we know when a given jump table ends and the next one starts.
+ */
+static void mark_func_jump_tables(struct objtool_file *file,
+				    struct symbol *func)
 {
-	struct instruction *insn, *last = NULL, *prev_jump = NULL;
-	struct rela *rela, *prev_rela = NULL;
-	int ret;
+	struct instruction *insn, *last = NULL;
+	struct rela *rela;
 
 	func_for_each_insn_all(file, func, insn) {
 		if (!last)
@@ -1102,26 +1106,24 @@ static int add_func_jump_tables(struct objtool_file *file,
 			continue;
 
 		rela = find_jump_table(file, func, insn);
-		if (!rela)
+		if (rela) {
+			rela->jump_table_start = true;
+			insn->jump_table = rela;
+		}
+	}
+}
+
+static int add_func_jump_tables(struct objtool_file *file,
+				  struct symbol *func)
+{
+	struct instruction *insn;
+	int ret;
+
+	func_for_each_insn_all(file, func, insn) {
+		if (!insn->jump_table)
 			continue;
 
-		/*
-		 * We found a jump table, but we don't know yet how big it
-		 * is.  Don't add it until we reach the end of the function or
-		 * the beginning of another jump table in the same function.
-		 */
-		if (prev_jump) {
-			ret = add_jump_table(file, prev_jump, prev_rela, rela);
-			if (ret)
-				return ret;
-		}
-
-		prev_jump = insn;
-		prev_rela = rela;
-	}
-
-	if (prev_jump) {
-		ret = add_jump_table(file, prev_jump, prev_rela, NULL);
+		ret = add_jump_table(file, insn, insn->jump_table);
 		if (ret)
 			return ret;
 	}
@@ -1148,6 +1150,7 @@ static int add_jump_table_alts(struct objtool_file *file)
 			if (func->type != STT_FUNC)
 				continue;
 
+			mark_func_jump_tables(file, func);
 			ret = add_func_jump_tables(file, func);
 			if (ret)
 				return ret;

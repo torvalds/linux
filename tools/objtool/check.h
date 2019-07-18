@@ -38,6 +38,7 @@ struct instruction {
 	struct symbol *call_dest;
 	struct instruction *jump_dest;
 	struct instruction *first_jump_src;
+	struct rela *jump_table;
 	struct list_head alts;
 	struct symbol *func;
 	struct stack_op stack_op;
