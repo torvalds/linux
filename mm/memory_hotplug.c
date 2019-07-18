@@ -252,18 +252,6 @@ void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
 }
 #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
 
-static int __meminit __add_section(int nid, unsigned long pfn,
-		unsigned long nr_pages,	struct vmem_altmap *altmap)
-{
-	int ret;
-
-	if (pfn_valid(pfn))
-		return -EEXIST;
-
-	ret = sparse_add_section(nid, pfn, nr_pages, altmap);
-	return ret < 0 ? ret : 0;
-}
-
 static int check_pfn_span(unsigned long pfn, unsigned long nr_pages,
 		const char *reason)
 {
@@ -327,18 +315,11 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
 
 		pfns = min(nr_pages, PAGES_PER_SECTION
 				- (pfn & ~PAGE_SECTION_MASK));
-		err = __add_section(nid, pfn, pfns, altmap);
+		err = sparse_add_section(nid, pfn, pfns, altmap);
+		if (err)
+			break;
 		pfn += pfns;
 		nr_pages -= pfns;
-
-		/*
-		 * EEXIST is finally dealt with by ioresource collision
-		 * check. see add_memory() => register_memory_resource()
-		 * Warning will be printed if there is collision.
-		 */
-		if (err && (err != -EEXIST))
-			break;
-		err = 0;
 		cond_resched();
 	}
 	vmemmap_populate_print_last();
@@ -541,7 +522,7 @@ static void __remove_section(struct zone *zone, unsigned long pfn,
 		return;
 
 	__remove_zone(zone, pfn, nr_pages);
-	sparse_remove_one_section(ms, pfn, nr_pages, map_offset, altmap);
+	sparse_remove_section(ms, pfn, nr_pages, map_offset, altmap);
 }
 
 /**
