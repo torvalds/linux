@@ -82,8 +82,19 @@ static int si2168_ts_bus_ctrl(struct dvb_frontend *fe, int acquire)
 
 	dev_dbg(&client->dev, "%s acquire: %d\n", __func__, acquire);
 
+	/* set manual value */
+	if (dev->ts_mode & SI2168_TS_CLK_MANUAL) {
+		memcpy(cmd.args, "\x14\x00\x0d\x10\xe8\x03", 6);
+		cmd.wlen = 6;
+		cmd.rlen = 4;
+		ret = si2168_cmd_execute(client, &cmd);
+		if (ret)
+			return ret;
+	}
 	/* set TS_MODE property */
 	memcpy(cmd.args, "\x14\x00\x01\x10\x10\x00", 6);
+	if (dev->ts_mode & SI2168_TS_CLK_MANUAL)
+		cmd.args[4] = SI2168_TS_CLK_MANUAL;
 	if (acquire)
 		cmd.args[4] |= dev->ts_mode;
 	else
