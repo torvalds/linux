@@ -589,6 +589,7 @@ static int setup_initial_state(struct drm_device *drm_dev,
 	int found = 0, match = 0;
 	int num_modes;
 	int ret = 0;
+	struct rockchip_crtc_state *s = NULL;
 
 	if (!set->hdisplay || !set->vdisplay || !set->vrefresh)
 		is_crtc_enabled = false;
@@ -700,6 +701,8 @@ static int setup_initial_state(struct drm_device *drm_dev,
 		primary_state->crtc_w = hdisplay;
 		primary_state->crtc_h = vdisplay;
 	}
+	s = to_rockchip_crtc_state(crtc->state);
+	s->output_type = connector->connector_type;
 
 	return 0;
 
