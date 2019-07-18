@@ -591,6 +591,25 @@ static u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp,
 	return 0;
 }
 
+static bool intel_dp_hdisplay_bad(struct drm_i915_private *dev_priv,
+				  int hdisplay)
+{
+	/*
+	 * Older platforms don't like hdisplay==4096 with DP.
+	 *
+	 * On ILK/SNB/IVB the pipe seems to be somewhat running (scanline
+	 * and frame counter increment), but we don't get vblank interrupts,
+	 * and the pipe underruns immediately. The link also doesn't seem
+	 * to get trained properly.
+	 *
+	 * On CHV the vblank interrupts don't seem to disappear but
+	 * otherwise the symptoms are similar.
+	 *
+	 * TODO: confirm the behaviour on HSW+
+	 */
+	return hdisplay == 4096 && !HAS_DDI(dev_priv);
+}
+
 static enum drm_mode_status
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
@@ -625,6 +644,9 @@ intel_dp_mode_valid(struct drm_connector *connector,
 
 	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
 	mode_rate = intel_dp_link_required(target_clock, 18);
+
+	if (intel_dp_hdisplay_bad(dev_priv, mode->hdisplay))
+		return MODE_H_ILLEGAL;
 
 	/*
 	 * Output bpp is stored in 6.4 format so right shift by 4 to get the
@@ -2343,6 +2365,9 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		return -EINVAL;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
+		return -EINVAL;
+
+	if (intel_dp_hdisplay_bad(dev_priv, adjusted_mode->crtc_hdisplay))
 		return -EINVAL;
 
 	ret = intel_dp_compute_link_config(encoder, pipe_config, conn_state);
