@@ -689,6 +689,12 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 	if (!obj)
 		return -EINVAL;
 
+	if (block_info.block_id != TA_RAS_BLOCK__UMC) {
+		DRM_INFO("%s error injection is not supported yet\n",
+			 ras_block_str(info->head.block));
+		return -EINVAL;
+	}
+
 	ret = psp_ras_trigger_error(&adev->psp, &block_info);
 	if (ret)
 		DRM_ERROR("RAS ERROR: inject %s error failed ret %d\n",
