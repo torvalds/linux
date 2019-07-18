@@ -243,7 +243,7 @@ extern void pnv_npu_release_ownership(struct pnv_ioda_pe *npe);
 extern int pnv_npu2_init(struct pnv_phb *phb);
 
 /* pci-ioda-tce.c */
-#define POWERNV_IOMMU_DEFAULT_LEVELS	1
+#define POWERNV_IOMMU_DEFAULT_LEVELS	2
 #define POWERNV_IOMMU_MAX_LEVELS	5
 
 extern int pnv_tce_build(struct iommu_table *tbl, long index, long npages,

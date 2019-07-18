@@ -36,7 +36,8 @@ static __be64 *pnv_alloc_tce_level(int nid, unsigned int shift)
 	struct page *tce_mem = NULL;
 	__be64 *addr;
 
-	tce_mem = alloc_pages_node(nid, GFP_KERNEL, shift - PAGE_SHIFT);
+	tce_mem = alloc_pages_node(nid, GFP_ATOMIC | __GFP_NOWARN,
+			shift - PAGE_SHIFT);
 	if (!tce_mem) {
 		pr_err("Failed to allocate a TCE memory, level shift=%d\n",
 				shift);
@@ -161,6 +162,9 @@ void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
 
 		if (ptce)
 			*ptce = cpu_to_be64(0);
+		else
+			/* Skip the rest of the level */
+			i |= tbl->it_level_size - 1;
 	}
 }
 
@@ -260,16 +264,12 @@ long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
 	unsigned int table_shift = max_t(unsigned int, entries_shift + 3,
 			PAGE_SHIFT);
 	const unsigned long tce_table_size = 1UL << table_shift;
-	unsigned int tmplevels = levels;
 
 	if (!levels || (levels > POWERNV_IOMMU_MAX_LEVELS))
 		return -EINVAL;
 
 	if (!is_power_of_2(window_size))
 		return -EINVAL;
-
-	if (alloc_userspace_copy && (window_size > (1ULL << 32)))
-		tmplevels = 1;
 
 	/* Adjust direct table size from window_size and levels */
 	entries_shift = (entries_shift + levels - 1) / levels;
@@ -281,7 +281,7 @@ long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
 
 	/* Allocate TCE table */
 	addr = pnv_pci_ioda2_table_do_alloc_pages(nid, level_shift,
-			tmplevels, tce_table_size, &offset, &total_allocated);
+			1, tce_table_size, &offset, &total_allocated);
 
 	/* addr==NULL means that the first level allocation failed */
 	if (!addr)
@@ -292,18 +292,18 @@ long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
 	 * we did not allocate as much as we wanted,
 	 * release partially allocated table.
 	 */
-	if (tmplevels == levels && offset < tce_table_size)
+	if (levels == 1 && offset < tce_table_size)
 		goto free_tces_exit;
 
 	/* Allocate userspace view of the TCE table */
 	if (alloc_userspace_copy) {
 		offset = 0;
 		uas = pnv_pci_ioda2_table_do_alloc_pages(nid, level_shift,
-				tmplevels, tce_table_size, &offset,
+				1, tce_table_size, &offset,
 				&total_allocated_uas);
 		if (!uas)
 			goto free_tces_exit;
-		if (tmplevels == levels && (offset < tce_table_size ||
+		if (levels == 1 && (offset < tce_table_size ||
 				total_allocated_uas != total_allocated))
 			goto free_uas_exit;
 	}
@@ -318,7 +318,7 @@ long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
 
 	pr_debug("Created TCE table: ws=%08llx ts=%lx @%08llx base=%lx uas=%p levels=%d/%d\n",
 			window_size, tce_table_size, bus_offset, tbl->it_base,
-			tbl->it_userspace, tmplevels, levels);
+			tbl->it_userspace, 1, levels);
 
 	return 0;
 
