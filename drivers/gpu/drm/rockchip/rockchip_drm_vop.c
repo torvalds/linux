@@ -273,13 +273,13 @@ struct vop {
 	struct vop_win win[];
 };
 
-static __maybe_unused void vop_lock(struct vop *vop)
+static void vop_lock(struct vop *vop)
 {
 	mutex_lock(&vop->vop_lock);
 	rockchip_dmcfreq_lock();
 }
 
-static __maybe_unused void vop_unlock(struct vop *vop)
+static void vop_unlock(struct vop *vop)
 {
 	rockchip_dmcfreq_unlock();
 	mutex_unlock(&vop->vop_lock);
@@ -2414,12 +2414,22 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 
 static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
+				struct drm_display_mode *adj_mode)
 {
 	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
 
-	adjusted_mode->clock =
-		clk_round_rate(vop->dclk, mode->clock * 1000) / 1000;
+	if (mode->hdisplay > vop_data->max_output.width)
+		return false;
+
+	drm_mode_set_crtcinfo(adj_mode,
+			      CRTC_INTERLACE_HALVE_V | CRTC_STEREO_DOUBLE);
+
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		adj_mode->crtc_clock *= 2;
+
+	adj_mode->crtc_clock =
+		clk_round_rate(vop->dclk, adj_mode->crtc_clock * 1000) / 1000;
 
 	return true;
 }
@@ -2430,9 +2440,6 @@ static void vop_update_csc(struct drm_crtc *crtc)
 			to_rockchip_crtc_state(crtc->state);
 	struct vop *vop = to_vop(crtc);
 	u32 val;
-
-	//todo
-	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 
 	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
 	    !(vop->data->feature & VOP_FEATURE_OUTPUT_10BIT))
@@ -2452,6 +2459,8 @@ static void vop_update_csc(struct drm_crtc *crtc)
 		break;
 	case MEDIA_BUS_FMT_RGB666_1X18:
 	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
+	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
+	case MEDIA_BUS_FMT_RGB666_1X7X3_JEIDA:
 		VOP_CTRL_SET(vop, dither_down_en, 1);
 		VOP_CTRL_SET(vop, dither_down_mode, RGB888_TO_RGB666);
 		break;
@@ -2465,7 +2474,11 @@ static void vop_update_csc(struct drm_crtc *crtc)
 		VOP_CTRL_SET(vop, dither_down_en, 0);
 		VOP_CTRL_SET(vop, pre_dither_down_en, 0);
 		break;
+	case MEDIA_BUS_FMT_SRGB888_3X8:
+	case MEDIA_BUS_FMT_SRGB888_DUMMY_4X8:
 	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
+	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
 	default:
 		VOP_CTRL_SET(vop, dither_down_en, 0);
 		VOP_CTRL_SET(vop, pre_dither_down_en, 0);
@@ -2569,6 +2582,8 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	vop_disable_allwin(vop);
 	VOP_CTRL_SET(vop, standby, 0);
 	vop->mode_update = vop_crtc_mode_update(crtc);
+	if (vop->mode_update)
+		vop_disable_all_planes(vop);
 	dclk_inv = (adjusted_mode->flags & DRM_MODE_FLAG_CLKDIV2) ? 0 : 1;
 
 	VOP_CTRL_SET(vop, dclk_pol, dclk_inv);
@@ -2578,7 +2593,14 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		   0 : BIT(VSYNC_POSITIVE);
 	VOP_CTRL_SET(vop, pin_pol, val);
 
+	if (vop->dclk_source && vop->pll && vop->pll->pll) {
+		if (clk_set_parent(vop->dclk_source, vop->pll->pll))
+			DRM_DEV_ERROR(vop->dev,
+				      "failed to set dclk's parents\n");
+	}
+
 	switch (s->output_type) {
+	case DRM_MODE_CONNECTOR_DPI:
 	case DRM_MODE_CONNECTOR_LVDS:
 		VOP_CTRL_SET(vop, rgb_en, 1);
 		VOP_CTRL_SET(vop, rgb_pin_pol, val);
@@ -3141,6 +3163,8 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 	VOP_CTRL_SET(vop, bcsh_sin_hue, sin_hue);
 	VOP_CTRL_SET(vop, bcsh_cos_hue, cos_hue);
 	VOP_CTRL_SET(vop, bcsh_out_mode, BCSH_OUT_MODE_NORMAL_VIDEO);
+	if (VOP_MAJOR(vop->version) == 3 && VOP_MINOR(vop->version) == 0)
+		VOP_CTRL_SET(vop, auto_gate_en, 0);
 	VOP_CTRL_SET(vop, bcsh_en, s->bcsh_en);
 }
 
@@ -3234,8 +3258,8 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 		bool need_wait_vblank = 0;
 		int ret;
 
-		//if (vop->mode_update)
-		//	vop_disable_all_planes(vop);
+		if (vop->mode_update)
+			VOP_CTRL_SET(vop, dma_stop, 1);
 
 		need_wait_vblank = !vop_is_allwin_disabled(vop);
 		if (vop->mode_update && need_wait_vblank)
@@ -3385,9 +3409,10 @@ static void vop_crtc_reset(struct drm_crtc *crtc)
 
 static struct drm_crtc_state *vop_crtc_duplicate_state(struct drm_crtc *crtc)
 {
-	struct rockchip_crtc_state *rockchip_state;
+	struct rockchip_crtc_state *rockchip_state, *old_state;
 
-	rockchip_state = kzalloc(sizeof(*rockchip_state), GFP_KERNEL);
+	old_state = to_rockchip_crtc_state(crtc->state);
+	rockchip_state = kmemdup(old_state, sizeof(*old_state), GFP_KERNEL);
 	if (!rockchip_state)
 		return NULL;
 
