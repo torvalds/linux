@@ -470,6 +470,24 @@ static const struct iio_trigger_ops st_magn_trigger_ops = {
 #define ST_MAGN_TRIGGER_OPS NULL
 #endif
 
+/*
+ * st_magn_get_settings() - get sensor settings from device name
+ * @name: device name buffer reference.
+ *
+ * Return: valid reference on success, NULL otherwise.
+ */
+const struct st_sensor_settings *st_magn_get_settings(const char *name)
+{
+	int index = st_sensors_get_settings_index(name,
+					st_magn_sensors_settings,
+					ARRAY_SIZE(st_magn_sensors_settings));
+	if (index < 0)
+		return NULL;
+
+	return &st_magn_sensors_settings[index];
+}
+EXPORT_SYMBOL(st_magn_get_settings);
+
 int st_magn_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *mdata = iio_priv(indio_dev);
