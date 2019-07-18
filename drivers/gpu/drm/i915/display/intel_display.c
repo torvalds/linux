@@ -9444,6 +9444,10 @@ static void haswell_set_pipeconf(const struct intel_crtc_state *crtc_state)
 	else
 		val |= PIPECONF_PROGRESSIVE;
 
+	if (IS_HASWELL(dev_priv) &&
+	    crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB)
+		val |= PIPECONF_OUTPUT_COLORSPACE_YUV_HSW;
+
 	I915_WRITE(PIPECONF(cpu_transcoder), val);
 	POSTING_READ(PIPECONF(cpu_transcoder));
 }
@@ -10440,7 +10444,14 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 	intel_get_pipe_src_size(crtc, pipe_config);
 
-	if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv)) {
+	if (IS_HASWELL(dev_priv)) {
+		u32 tmp = I915_READ(PIPECONF(pipe_config->cpu_transcoder));
+
+		if (tmp & PIPECONF_OUTPUT_COLORSPACE_YUV_HSW)
+			pipe_config->output_format = INTEL_OUTPUT_FORMAT_YCBCR444;
+		else
+			pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+	} else {
 		pipe_config->output_format =
 			bdw_get_pipemisc_output_format(crtc);
 

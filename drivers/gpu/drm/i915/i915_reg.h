@@ -5683,6 +5683,7 @@ enum {
 #define   PIPECONF_CXSR_DOWNCLOCK	(1 << 16)
 #define   PIPECONF_EDP_RR_MODE_SWITCH_VLV	(1 << 14)
 #define   PIPECONF_COLOR_RANGE_SELECT	(1 << 13)
+#define   PIPECONF_OUTPUT_COLORSPACE_YUV_HSW	(1 << 11) /* hsw only */
 #define   PIPECONF_BPC_MASK	(0x7 << 5)
 #define   PIPECONF_8BPC		(0 << 5)
 #define   PIPECONF_10BPC	(1 << 5)
