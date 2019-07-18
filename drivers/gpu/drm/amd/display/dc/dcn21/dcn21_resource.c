@@ -804,7 +804,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.disable_pplib_wm_range = false,
 		.scl_reset_length10 = true,
 		.sanity_checks = true,
-		.disable_48mhz_pwrdwn = true,
+		.disable_48mhz_pwrdwn = false,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {

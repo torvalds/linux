@@ -190,12 +190,12 @@ void rn_vbios_smu_set_dcn_low_power_state(struct clk_mgr_internal *clk_mgr, enum
 		disp_count);
 }
 
-void rn_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr)
+void rn_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr, bool enable)
 {
 	rn_vbios_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_EnableTmdp48MHzRefclkPwrDown,
-			0);
+			enable);
 }
 
 void rn_vbios_smu_enable_pme_wa(struct clk_mgr_internal *clk_mgr)
