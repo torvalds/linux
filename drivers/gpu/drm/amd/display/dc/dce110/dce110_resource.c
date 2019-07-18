@@ -667,7 +667,8 @@ struct dce_aux *dce110_aux_engine_create(
 				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
 				    &aux_engine_regs[inst],
 					&aux_mask,
-					&aux_shift);
+					&aux_shift,
+					ctx->dc->caps.extended_aux_timeout_support);
 
 	return &aux_engine->base;
 }
@@ -1303,6 +1304,7 @@ static bool construct(
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 128;
 	dc->caps.is_apu = true;
+	dc->caps.extended_aux_timeout_support = false;
 
 	/*************************************************
 	 *  Create resources                             *

@@ -111,6 +111,7 @@ struct dc_caps {
 	bool force_dp_tps4_for_cp2520;
 	bool disable_dp_clk_share;
 	bool psp_setup_panel_mode;
+	bool extended_aux_timeout_support;
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	bool hw_3d_lut;
 #endif
@@ -220,6 +221,7 @@ struct dc_config {
 	bool power_down_display_on_boot;
 	bool edp_not_connected;
 	bool forced_clocks;
+	bool disable_extended_timeout_support; // Used to disable extended timeout and lttpr feature as well
 	bool multi_mon_pp_mclk_switch;
 };
 

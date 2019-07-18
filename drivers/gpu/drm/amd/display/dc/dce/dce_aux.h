@@ -250,7 +250,7 @@ struct dce_aux {
 	uint32_t max_defer_write_retry;
 
 	bool acquire_reset;
-	const struct dce_aux_funcs *funcs;
+	struct dce_aux_funcs *funcs;
 };
 
 struct dce110_aux_registers_mask {
@@ -277,7 +277,7 @@ struct aux_engine_dce110 {
 		uint32_t aux_dphy_rx_control0;
 		uint32_t aux_sw_status;
 	} addr;
-	uint32_t timeout_period;
+	uint32_t polling_timeout_period;
 };
 
 struct aux_engine_dce110_init_data {
@@ -294,7 +294,8 @@ struct dce_aux *dce110_aux_engine_construct(struct aux_engine_dce110 *aux_engine
 		const struct dce110_aux_registers *regs,
 
 		const struct dce110_aux_registers_mask *mask,
-		const struct dce110_aux_registers_shift *shift);
+		const struct dce110_aux_registers_shift *shift,
+		bool is_ext_aux_timeout_configurable);
 
 void dce110_engine_destroy(struct dce_aux **engine);
 
@@ -308,4 +309,13 @@ int dce_aux_transfer_raw(struct ddc_service *ddc,
 
 bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 		struct aux_payload *cmd);
+
+struct dce_aux_funcs {
+	bool (*configure_timeout)
+		(struct ddc_service *ddc,
+		 uint32_t timeout);
+	void (*destroy)
+		(struct aux_engine **ptr);
+};
+
 #endif

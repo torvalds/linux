@@ -414,7 +414,8 @@ struct dce_aux *dce120_aux_engine_create(
 				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
 				    &aux_engine_regs[inst],
 					&aux_mask,
-					&aux_shift);
+					&aux_shift,
+					ctx->dc->caps.extended_aux_timeout_support);
 
 	return &aux_engine->base;
 }
@@ -1016,7 +1017,7 @@ static bool construct(
 	dc->caps.max_cursor_size = 128;
 	dc->caps.dual_link_dvi = true;
 	dc->caps.psp_setup_panel_mode = true;
-
+	dc->caps.extended_aux_timeout_support = true;
 	dc->debug = debug_defaults;
 
 	/*************************************************
