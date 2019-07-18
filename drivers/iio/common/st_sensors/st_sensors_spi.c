@@ -102,9 +102,68 @@ static const struct st_sensor_transfer_function st_sensors_tf_spi = {
 	.read_multiple_byte = st_sensors_spi_read_multiple_byte,
 };
 
-void st_sensors_spi_configure(struct iio_dev *indio_dev,
-			struct spi_device *spi, struct st_sensor_data *sdata)
+/*
+ * st_sensors_is_spi_3_wire() - check if SPI 3-wire mode has been selected
+ * @spi: spi device reference.
+ *
+ * Return: true if SPI 3-wire mode is selected, false otherwise.
+ */
+static bool st_sensors_is_spi_3_wire(struct spi_device *spi)
 {
+	struct device_node *np = spi->dev.of_node;
+	struct st_sensors_platform_data *pdata;
+
+	pdata = (struct st_sensors_platform_data *)spi->dev.platform_data;
+	if ((np && of_property_read_bool(np, "spi-3wire")) ||
+	    (pdata && pdata->spi_3wire)) {
+		return true;
+	}
+
+	return false;
+}
+
+/*
+ * st_sensors_configure_spi_3_wire() - configure SPI 3-wire if needed
+ * @spi: spi device reference.
+ * @settings: sensor specific settings reference.
+ *
+ * Return: 0 on success, else a negative error code.
+ */
+static int st_sensors_configure_spi_3_wire(struct spi_device *spi,
+					   struct st_sensor_settings *settings)
+{
+	if (settings->sim.addr) {
+		u8 buffer[] = {
+			settings->sim.addr,
+			settings->sim.value
+		};
+
+		return spi_write(spi, buffer, 2);
+	}
+
+	return 0;
+}
+
+/*
+ * st_sensors_spi_configure() - configure SPI interface
+ * @indio_dev: IIO device reference.
+ * @spi: spi device reference.
+ *
+ * Return: 0 on success, else a negative error code.
+ */
+int st_sensors_spi_configure(struct iio_dev *indio_dev,
+			     struct spi_device *spi)
+{
+	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	int err;
+
+	if (st_sensors_is_spi_3_wire(spi)) {
+		err = st_sensors_configure_spi_3_wire(spi,
+						      sdata->sensor_settings);
+		if (err < 0)
+			return err;
+	}
+
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->dev.parent = &spi->dev;
@@ -113,6 +172,8 @@ void st_sensors_spi_configure(struct iio_dev *indio_dev,
 	sdata->dev = &spi->dev;
 	sdata->tf = &st_sensors_tf_spi;
 	sdata->get_irq_data_ready = st_sensors_spi_get_irq;
+
+	return 0;
 }
 EXPORT_SYMBOL(st_sensors_spi_configure);
 

@@ -1183,9 +1183,7 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 	if (err)
 		return err;
 
-	err = st_sensors_check_device_support(indio_dev,
-					ARRAY_SIZE(st_accel_sensors_settings),
-					st_accel_sensors_settings);
+	err = st_sensors_verify_id(indio_dev);
 	if (err < 0)
 		goto st_accel_power_off;
 

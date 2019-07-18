@@ -338,8 +338,7 @@ int st_sensors_get_settings_index(const char *name,
 				  const struct st_sensor_settings *list,
 				  const int list_length);
 
-int st_sensors_check_device_support(struct iio_dev *indio_dev,
-	int num_sensors_list, const struct st_sensor_settings *sensor_settings);
+int st_sensors_verify_id(struct iio_dev *indio_dev);
 
 ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 				struct device_attribute *attr, char *buf);

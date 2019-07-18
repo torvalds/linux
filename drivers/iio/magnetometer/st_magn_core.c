@@ -502,9 +502,7 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 	if (err)
 		return err;
 
-	err = st_sensors_check_device_support(indio_dev,
-					ARRAY_SIZE(st_magn_sensors_settings),
-					st_magn_sensors_settings);
+	err = st_sensors_verify_id(indio_dev);
 	if (err < 0)
 		goto st_magn_power_off;
 

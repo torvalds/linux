@@ -124,7 +124,9 @@ static int st_accel_spi_probe(struct spi_device *spi)
 	adata = iio_priv(indio_dev);
 	adata->sensor_settings = (struct st_sensor_settings *)settings;
 
-	st_sensors_spi_configure(indio_dev, spi, adata);
+	err = st_sensors_spi_configure(indio_dev, spi);
+	if (err < 0)
+		return err;
 
 	err = st_accel_common_probe(indio_dev);
 	if (err < 0)

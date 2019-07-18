@@ -73,7 +73,9 @@ static int st_magn_spi_probe(struct spi_device *spi)
 	mdata = iio_priv(indio_dev);
 	mdata->sensor_settings = (struct st_sensor_settings *)settings;
 
-	st_sensors_spi_configure(indio_dev, spi, mdata);
+	err = st_sensors_spi_configure(indio_dev, spi);
+	if (err < 0)
+		return err;
 
 	err = st_magn_common_probe(indio_dev);
 	if (err < 0)

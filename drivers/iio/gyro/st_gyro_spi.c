@@ -91,7 +91,9 @@ static int st_gyro_spi_probe(struct spi_device *spi)
 	gdata = iio_priv(indio_dev);
 	gdata->sensor_settings = (struct st_sensor_settings *)settings;
 
-	st_sensors_spi_configure(indio_dev, spi, gdata);
+	err = st_sensors_spi_configure(indio_dev, spi);
+	if (err < 0)
+		return err;
 
 	err = st_gyro_common_probe(indio_dev);
 	if (err < 0)

@@ -83,7 +83,9 @@ static int st_press_spi_probe(struct spi_device *spi)
 	press_data = iio_priv(indio_dev);
 	press_data->sensor_settings = (struct st_sensor_settings *)settings;
 
-	st_sensors_spi_configure(indio_dev, spi, press_data);
+	err = st_sensors_spi_configure(indio_dev, spi);
+	if (err < 0)
+		return err;
 
 	err = st_press_common_probe(indio_dev);
 	if (err < 0)
