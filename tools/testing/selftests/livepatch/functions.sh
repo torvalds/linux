@@ -29,13 +29,27 @@ function die() {
 	exit 1
 }
 
-# set_dynamic_debug() - setup kernel dynamic debug
-#	TODO - push and pop this config?
+function push_dynamic_debug() {
+        DYNAMIC_DEBUG=$(grep '^kernel/livepatch' /sys/kernel/debug/dynamic_debug/control | \
+                awk -F'[: ]' '{print "file " $1 " line " $2 " " $4}')
+}
+
+function pop_dynamic_debug() {
+	if [[ -n "$DYNAMIC_DEBUG" ]]; then
+		echo -n "$DYNAMIC_DEBUG" > /sys/kernel/debug/dynamic_debug/control
+	fi
+}
+
+# set_dynamic_debug() - save the current dynamic debug config and tweak
+# 			it for the self-tests.  Set a script exit trap
+#			that restores the original config.
 function set_dynamic_debug() {
-	cat << EOF > /sys/kernel/debug/dynamic_debug/control
-file kernel/livepatch/* +p
-func klp_try_switch_task -p
-EOF
+        push_dynamic_debug
+        trap pop_dynamic_debug EXIT INT TERM HUP
+        cat <<-EOF > /sys/kernel/debug/dynamic_debug/control
+		file kernel/livepatch/* +p
+		func klp_try_switch_task -p
+		EOF
 }
 
 # loop_until(cmd) - loop a command until it is successful or $MAX_RETRIES,
