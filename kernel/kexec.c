@@ -22,6 +22,10 @@
 #include <asm/desc.h>
 #include "kexec_internal.h"
 
+/* #define CONFIG_EFI */
+/* #define E820_X_MAX E820MAX */
+#include <asm/e820/api.h>
+
 static int copy_user_segment_list(struct kimage *image,
 				  unsigned long nr_segments,
 				  struct kexec_segment __user *segments)
@@ -1757,10 +1761,9 @@ efi_status_t efi_handle_protocol_SimpleTextInputExProtocol( void*  handle,
 
 /* This function receives a virtual addr and created a 1:1 mapping between
  * virtual memory to the actual physical address that belongs to addr */
-void efi_setup_11_mapping( void* addr, size_t size )
+/* start & end are physical addresses */
+void efi_setup_11_mapping_physical_addr( unsigned long start, unsigned long end )
 {
-        unsigned long start     = ALIGN_DOWN( virt_to_phys(addr), PAGE_SIZE);
-        unsigned long end       = ALIGN(virt_to_phys(addr) + size, PAGE_SIZE);
         unsigned long mmap_ret  = 0;
         unsigned long populate  = 0;
         int           remap_err = 0;
@@ -1831,6 +1834,14 @@ void efi_setup_11_mapping( void* addr, size_t size )
         DebugMSG( "remap_pfn_range -> %d", remap_err );
 
         up_write(&mm->mmap_sem);
+}
+
+void efi_setup_11_mapping( void* addr, size_t size )
+{
+        unsigned long start     = ALIGN_DOWN( virt_to_phys(addr), PAGE_SIZE);
+        unsigned long end       = ALIGN(virt_to_phys(addr) + size, PAGE_SIZE);
+
+        efi_setup_11_mapping_physical_addr( start, end );
 }
 
 #define EFI_MAX_MEMORY_MAPPINGS 1000
@@ -2745,6 +2756,130 @@ efi_runtime_services_t runtime_services = {
         .query_variable_info        = (void*)efi_runtime_query_variable_info
 };
 
+char memory_type_name[][20] = {
+	"Reserved",
+	"Loader Code",
+	"Loader Data",
+	"Boot Code",
+	"Boot Data",
+	"Runtime Code",
+	"Runtime Data",
+	"Conventional Memory",
+	"Unusable Memory",
+	"ACPI Reclaim Memory",
+	"ACPI Memory NVS",
+	"Memory Mapped I/O",
+	"MMIO Port Space",
+	"PAL Code"
+};
+
+char e820_types[][32] = {
+        "val=0",
+        "E820_RAM",
+        "E8E820_RESERVED",
+        "E8E820_ACPI",
+        "E8E820_NVS",
+        "E8E820_UNUSABLE",
+        "val=6",
+        "E8E820_PMEM",
+        "val=8",
+        "val=9",
+        "val=10",
+        "val=11",
+        "E820_PRAM"
+};
+
+void print_efi_memmap(void)
+{
+        struct e820_table* map = e820_table;
+        int i;
+
+        for (i = 0; i < map->nr_entries; i++) {
+                struct e820_entry *entry = &map->entries[i];
+                char *type_str = "<unknown>";
+                if (entry->type < 13)
+                        type_str = e820_types[entry->type];
+                if (entry->type == E820_TYPE_RESERVED_KERN )
+                        type_str = "E820_RESERVED_KERN";
+
+                DebugMSG( "%d: 0x%016llx-0x%016llx type=%d: %s",
+                          i,
+                          entry->addr,
+                          entry->addr + entry->size - 1,
+                          entry->type,
+                          type_str );
+        }
+}
+
+/* Locate the entry id in the e820 mapping that matches a physical address. */
+int get_efi_entry_by_addr(u64 addr)
+{
+        struct e820_table* map = e820_table;
+        int i;
+
+        for (i = 0; i < map->nr_entries; i++) {
+                struct e820_entry *entry = &map->entries[i];
+
+                if (addr >= entry->addr && addr < entry->addr + entry->size)
+                        return i;
+        }
+
+        return -1;
+
+}
+
+/* Receive addr, a physical address which resides in one of the e820 mappings,
+ * locate the matching region in the e820 mapping, and create a virtual address
+ * space matching exactly the physcial region (1:1 mapping). */
+void efi_remap_reserved_area( u64 addr )
+{
+        struct e820_table* map   = e820_table;
+        int entry_id             = get_efi_entry_by_addr( addr );
+        struct e820_entry *entry = &map->entries[entry_id];
+        unsigned long start      = ALIGN_DOWN( entry->addr ,PAGE_SIZE);
+        unsigned long end        = ALIGN( entry->addr + entry->size, PAGE_SIZE);
+
+        DebugMSG( "addr = 0x%llx, entry_id = %d entry->addr = 0x%llx",
+                  addr, entry_id, entry->addr );
+
+        efi_setup_11_mapping_physical_addr( start, end );
+}
+
+efi_config_table_t efi_config_table[2] = {0};
+
+void efi_setup_configuration_tables( efi_system_table_t *systab )
+{
+        efi_guid_t smbios_guid = SMBIOS_TABLE_GUID;
+        efi_guid_t acpi20_guid = ACPI_20_TABLE_GUID;
+        int table_id           = 0;
+
+        print_efi_memmap();
+        DebugMSG( "############### acpi20 @ 0x%lx (entry %d)",
+                  efi.acpi20, get_efi_entry_by_addr( efi.acpi20 ) );
+        DebugMSG( "############### acpi@ 0x%lx (entry %d)",
+                  efi.acpi, get_efi_entry_by_addr( efi.acpi ) );
+        DebugMSG( "############### SMBIOS @ 0x%lx (entry %d)",
+                  efi.smbios, get_efi_entry_by_addr( efi.smbios ) );
+
+        /* We need to make sure the physical address pointed by the
+         * configuration table is addressable also via virtual addressing. We
+         * solve this by creating a 1:1 mapping for the entire regions. */
+        efi_remap_reserved_area( efi.acpi20 );
+        efi_remap_reserved_area( efi.smbios );
+
+
+        memcpy( &efi_config_table[table_id].guid, &acpi20_guid,
+                sizeof(acpi20_guid) );
+        efi_config_table[table_id++].table = efi.acpi20;
+
+        memcpy( &efi_config_table[table_id].guid, &smbios_guid,
+                sizeof(smbios_guid) );
+        efi_config_table[table_id++].table = efi.smbios;
+
+        systab->nr_tables = table_id;
+        systab->tables    = (unsigned long)&efi_config_table;
+}
+
 static void hook_boot_services( efi_system_table_t *systab )
 
 {
@@ -2772,6 +2907,9 @@ static void hook_boot_services( efi_system_table_t *systab )
         systab->stderr_handle  = 0xdeadbeefcafe0003;
         systab->stderr         = 0xdeadbeefcafe0004;
         systab->runtime        = &runtime_services;
+
+        efi_setup_configuration_tables(systab);
+
         /*
          * We will fill boot_services with actual function pointer, but this is
          * a precaution in case we missed a function pointer in our setup. */
