@@ -1013,6 +1013,8 @@ xprt_request_enqueue_receive(struct rpc_task *task)
 
 	if (!xprt_request_need_enqueue_receive(task, req))
 		return;
+
+	xprt_request_prepare(task->tk_rqstp);
 	spin_lock(&xprt->queue_lock);
 
 	/* Update the softirq receive buffer */
