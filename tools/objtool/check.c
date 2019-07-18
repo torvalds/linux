@@ -276,7 +276,7 @@ static int decode_instructions(struct objtool_file *file)
 		}
 
 		list_for_each_entry(func, &sec->symbol_list, list) {
-			if (func->type != STT_FUNC)
+			if (func->type != STT_FUNC || func->alias != func)
 				continue;
 
 			if (!find_insn(file, sec, func->offset)) {
@@ -286,8 +286,7 @@ static int decode_instructions(struct objtool_file *file)
 			}
 
 			func_for_each_insn(file, func, insn)
-				if (!insn->func)
-					insn->func = func;
+				insn->func = func;
 		}
 	}
 
@@ -508,7 +507,7 @@ static void add_uaccess_safe(struct objtool_file *file)
 		if (!func)
 			continue;
 
-		func->alias->uaccess_safe = true;
+		func->uaccess_safe = true;
 	}
 }
 
@@ -1887,7 +1886,7 @@ static bool insn_state_match(struct instruction *insn, struct insn_state *state)
 static inline bool func_uaccess_safe(struct symbol *func)
 {
 	if (func)
-		return func->alias->uaccess_safe;
+		return func->uaccess_safe;
 
 	return false;
 }
@@ -2355,14 +2354,17 @@ static int validate_functions(struct objtool_file *file)
 
 	for_each_sec(file, sec) {
 		list_for_each_entry(func, &sec->symbol_list, list) {
-			if (func->type != STT_FUNC || func->pfunc != func)
+			if (func->type != STT_FUNC)
+				continue;
+
+			if (func->pfunc != func || func->alias != func)
 				continue;
 
 			insn = find_insn(file, sec, func->offset);
 			if (!insn || insn->ignore || insn->visited)
 				continue;
 
-			state.uaccess = func->alias->uaccess_safe;
+			state.uaccess = func->uaccess_safe;
 
 			ret = validate_branch(file, func, insn, state);
 			if (ret && backtrace)
