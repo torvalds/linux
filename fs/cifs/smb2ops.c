@@ -754,11 +754,12 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 	tcon->crfid.is_valid = true;
 	kref_init(&tcon->crfid.refcount);
 
+	/* BB TBD check to see if oplock level check can be removed below */
 	if (o_rsp->OplockLevel == SMB2_OPLOCK_LEVEL_LEASE) {
 		kref_get(&tcon->crfid.refcount);
-		oplock = smb2_parse_lease_state(server, o_rsp,
-						&oparms.fid->epoch,
-						oparms.fid->lease_key);
+		smb2_parse_contexts(server, o_rsp,
+				&oparms.fid->epoch,
+				oparms.fid->lease_key, &oplock, NULL);
 	} else
 		goto oshr_exit;
 
