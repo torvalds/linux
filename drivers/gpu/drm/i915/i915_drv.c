@@ -848,15 +848,6 @@ out_err:
 	return -ENOMEM;
 }
 
-static void i915_engines_cleanup(struct drm_i915_private *i915)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, i915, id)
-		kfree(engine);
-}
-
 static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 {
 	destroy_workqueue(dev_priv->hotplug.dp_wq);
@@ -928,7 +919,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	ret = i915_workqueues_init(dev_priv);
 	if (ret < 0)
-		goto err_engines;
+		return ret;
 
 	intel_gt_init_early(&dev_priv->gt, dev_priv);
 
@@ -961,8 +952,6 @@ err_uc:
 	i915_gem_cleanup_early(dev_priv);
 err_workqueues:
 	i915_workqueues_cleanup(dev_priv);
-err_engines:
-	i915_engines_cleanup(dev_priv);
 	return ret;
 }
 
@@ -978,7 +967,6 @@ static void i915_driver_late_release(struct drm_i915_private *dev_priv)
 	intel_uc_cleanup_early(&dev_priv->gt.uc);
 	i915_gem_cleanup_early(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
-	i915_engines_cleanup(dev_priv);
 
 	pm_qos_remove_request(&dev_priv->sb_qos);
 	mutex_destroy(&dev_priv->sb_lock);
@@ -1039,6 +1027,7 @@ err_bridge:
  */
 static void i915_driver_mmio_release(struct drm_i915_private *dev_priv)
 {
+	intel_engines_cleanup(dev_priv);
 	intel_teardown_mchbar(dev_priv);
 	intel_uncore_fini_mmio(&dev_priv->uncore);
 	pci_dev_put(dev_priv->bridge_dev);
