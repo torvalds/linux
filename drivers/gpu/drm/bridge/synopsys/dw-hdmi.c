@@ -2137,6 +2137,7 @@ static int dw_hdmi_bridge_attach(struct drm_bridge *bridge)
 	connector->interlace_allowed = 1;
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
+	connector->port = hdmi->dev->of_node;
 	drm_connector_helper_add(connector, &dw_hdmi_connector_helper_funcs);
 
 	drm_connector_init(bridge->dev, connector, &dw_hdmi_connector_funcs,
