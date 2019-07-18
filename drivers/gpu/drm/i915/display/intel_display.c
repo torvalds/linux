@@ -8727,47 +8727,24 @@ static void chv_crtc_clock_get(struct intel_crtc *crtc,
 	pipe_config->port_clock = chv_calc_dpll_params(refclk, &clock);
 }
 
-static void intel_get_crtc_ycbcr_config(struct intel_crtc *crtc,
-					struct intel_crtc_state *pipe_config)
+static enum intel_output_format
+bdw_get_pipemisc_output_format(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum intel_output_format output = INTEL_OUTPUT_FORMAT_RGB;
+	u32 tmp;
 
-	pipe_config->lspcon_downsampling = false;
+	tmp = I915_READ(PIPEMISC(crtc->pipe));
 
-	if (IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9) {
-		u32 tmp = I915_READ(PIPEMISC(crtc->pipe));
+	if (tmp & PIPEMISC_YUV420_ENABLE) {
+		/* We support 4:2:0 in full blend mode only */
+		WARN_ON((tmp & PIPEMISC_YUV420_MODE_FULL_BLEND) == 0);
 
-		if (tmp & PIPEMISC_OUTPUT_COLORSPACE_YUV) {
-			bool ycbcr420_enabled = tmp & PIPEMISC_YUV420_ENABLE;
-			bool blend = tmp & PIPEMISC_YUV420_MODE_FULL_BLEND;
-
-			if (ycbcr420_enabled) {
-				/* We support 4:2:0 in full blend mode only */
-				if (!blend)
-					output = INTEL_OUTPUT_FORMAT_INVALID;
-				else if (!(IS_GEMINILAKE(dev_priv) ||
-					   INTEL_GEN(dev_priv) >= 10))
-					output = INTEL_OUTPUT_FORMAT_INVALID;
-				else
-					output = INTEL_OUTPUT_FORMAT_YCBCR420;
-			} else {
-				/*
-				 * Currently there is no interface defined to
-				 * check user preference between RGB/YCBCR444
-				 * or YCBCR420. So the only possible case for
-				 * YCBCR444 usage is driving YCBCR420 output
-				 * with LSPCON, when pipe is configured for
-				 * YCBCR444 output and LSPCON takes care of
-				 * downsampling it.
-				 */
-				pipe_config->lspcon_downsampling = true;
-				output = INTEL_OUTPUT_FORMAT_YCBCR444;
-			}
-		}
+		return INTEL_OUTPUT_FORMAT_YCBCR420;
+	} else if (tmp & PIPEMISC_OUTPUT_COLORSPACE_YUV) {
+		return INTEL_OUTPUT_FORMAT_YCBCR444;
+	} else {
+		return INTEL_OUTPUT_FORMAT_RGB;
 	}
-
-	pipe_config->output_format = output;
 }
 
 static void i9xx_get_pipe_color_config(struct intel_crtc_state *crtc_state)
@@ -10462,7 +10439,23 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	intel_get_pipe_src_size(crtc, pipe_config);
-	intel_get_crtc_ycbcr_config(crtc, pipe_config);
+
+	if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv)) {
+		pipe_config->output_format =
+			bdw_get_pipemisc_output_format(crtc);
+
+		/*
+		 * Currently there is no interface defined to
+		 * check user preference between RGB/YCBCR444
+		 * or YCBCR420. So the only possible case for
+		 * YCBCR444 usage is driving YCBCR420 output
+		 * with LSPCON, when pipe is configured for
+		 * YCBCR444 output and LSPCON takes care of
+		 * downsampling it.
+		 */
+		pipe_config->lspcon_downsampling =
+			pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR444;
+	}
 
 	pipe_config->gamma_mode = I915_READ(GAMMA_MODE(crtc->pipe));
 
