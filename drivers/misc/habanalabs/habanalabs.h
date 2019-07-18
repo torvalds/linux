@@ -36,6 +36,8 @@
 
 #define HL_PCI_ELBI_TIMEOUT_MSEC	10 /* 10ms */
 
+#define HL_SIM_MAX_TIMEOUT_US		10000000 /* 10s */
+
 #define HL_MAX_QUEUES			128
 
 #define HL_MAX_JOBS_PER_CS		64
@@ -1041,14 +1043,18 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 	WREG32(mm##reg, (RREG32(mm##reg) & ~REG_FIELD_MASK(reg, field)) | \
 			(val) << REG_FIELD_SHIFT(reg, field))
 
+/* Timeout should be longer when working with simulator but cap the
+ * increased timeout to some maximum
+ */
 #define hl_poll_timeout(hdev, addr, val, cond, sleep_us, timeout_us) \
 ({ \
 	ktime_t __timeout; \
-	/* timeout should be longer when working with simulator */ \
 	if (hdev->pdev) \
 		__timeout = ktime_add_us(ktime_get(), timeout_us); \
 	else \
-		__timeout = ktime_add_us(ktime_get(), (timeout_us * 10)); \
+		__timeout = ktime_add_us(ktime_get(),\
+				min((u64)(timeout_us * 10), \
+					(u64) HL_SIM_MAX_TIMEOUT_US)); \
 	might_sleep_if(sleep_us); \
 	for (;;) { \
 		(val) = RREG32(addr); \
@@ -1080,11 +1086,12 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 				mem_written_by_device) \
 ({ \
 	ktime_t __timeout; \
-	/* timeout should be longer when working with simulator */ \
 	if (hdev->pdev) \
 		__timeout = ktime_add_us(ktime_get(), timeout_us); \
 	else \
-		__timeout = ktime_add_us(ktime_get(), (timeout_us * 10)); \
+		__timeout = ktime_add_us(ktime_get(),\
+				min((u64)(timeout_us * 10), \
+					(u64) HL_SIM_MAX_TIMEOUT_US)); \
 	might_sleep_if(sleep_us); \
 	for (;;) { \
 		/* Verify we read updates done by other cores or by device */ \
@@ -1110,11 +1117,12 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 					timeout_us) \
 ({ \
 	ktime_t __timeout; \
-	/* timeout should be longer when working with simulator */ \
 	if (hdev->pdev) \
 		__timeout = ktime_add_us(ktime_get(), timeout_us); \
 	else \
-		__timeout = ktime_add_us(ktime_get(), (timeout_us * 10)); \
+		__timeout = ktime_add_us(ktime_get(),\
+				min((u64)(timeout_us * 10), \
+					(u64) HL_SIM_MAX_TIMEOUT_US)); \
 	might_sleep_if(sleep_us); \
 	for (;;) { \
 		(val) = readl(addr); \
