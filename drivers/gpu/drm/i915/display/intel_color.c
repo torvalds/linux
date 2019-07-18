@@ -1213,6 +1213,21 @@ static u32 ilk_gamma_mode(const struct intel_crtc_state *crtc_state)
 		return GAMMA_MODE_MODE_10BIT;
 }
 
+static u32 ilk_csc_mode(const struct intel_crtc_state *crtc_state)
+{
+	/*
+	 * CSC comes after the LUT in RGB->YCbCr mode.
+	 * RGB->YCbCr needs the limited range offsets added to
+	 * the output. RGB limited range output is handled by
+	 * the hw automagically elsewhere.
+	 */
+	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB)
+		return CSC_BLACK_SCREEN_OFFSET;
+
+	return CSC_MODE_YUV_TO_RGB |
+		CSC_POSITION_BEFORE_GAMMA;
+}
+
 static int ilk_color_check(struct intel_crtc_state *crtc_state)
 {
 	int ret;
@@ -1226,15 +1241,15 @@ static int ilk_color_check(struct intel_crtc_state *crtc_state)
 		!crtc_state->c8_planes;
 
 	/*
-	 * We don't expose the ctm on ilk/snb currently,
-	 * nor do we enable YCbCr output. Also RGB limited
-	 * range output is handled by the hw automagically.
+	 * We don't expose the ctm on ilk/snb currently, also RGB
+	 * limited range output is handled by the hw automagically.
 	 */
-	crtc_state->csc_enable = false;
+	crtc_state->csc_enable =
+		crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB;
 
 	crtc_state->gamma_mode = ilk_gamma_mode(crtc_state);
 
-	crtc_state->csc_mode = 0;
+	crtc_state->csc_mode = ilk_csc_mode(crtc_state);
 
 	ret = intel_color_add_affected_planes(crtc_state);
 	if (ret)
