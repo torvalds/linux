@@ -62,7 +62,10 @@ struct cros_ec_sensors_core_state {
 	enum motionsensor_type type;
 	enum motionsensor_location loc;
 
-	s16 calib[CROS_EC_SENSOR_MAX_AXIS];
+	struct calib_data {
+		s16 offset;
+		u16 scale;
+	} calib[CROS_EC_SENSOR_MAX_AXIS];
 
 	u8 samples[CROS_EC_SAMPLE_SIZE];
 

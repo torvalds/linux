@@ -152,8 +152,6 @@ static int cros_ec_baro_probe(struct platform_device *pdev)
 	channel->ext_info = cros_ec_sensors_ext_info;
 	channel->scan_type.sign = 'u';
 
-	state->core.calib[0] = 0;
-
 	/* Sensor specific */
 	switch (state->core.type) {
 	case MOTIONSENSE_TYPE_BARO:

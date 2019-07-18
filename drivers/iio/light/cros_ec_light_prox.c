@@ -88,9 +88,10 @@ static int cros_ec_light_prox_read(struct iio_dev *indio_dev,
 		}
 
 		/* Save values */
-		st->core.calib[0] = st->core.resp->sensor_offset.offset[0];
+		st->core.calib[0].offset =
+			st->core.resp->sensor_offset.offset[0];
 
-		*val = st->core.calib[idx];
+		*val = st->core.calib[idx].offset;
 		break;
 	case IIO_CHAN_INFO_CALIBSCALE:
 		/*
@@ -134,11 +135,12 @@ static int cros_ec_light_prox_write(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
-		st->core.calib[idx] = val;
+		st->core.calib[idx].offset = val;
 		/* Send to EC for each axis, even if not complete */
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_OFFSET;
 		st->core.param.sensor_offset.flags = MOTION_SENSE_SET_OFFSET;
-		st->core.param.sensor_offset.offset[0] = st->core.calib[0];
+		st->core.param.sensor_offset.offset[0] =
+			st->core.calib[0].offset;
 		st->core.param.sensor_offset.temp =
 					EC_MOTION_SENSE_INVALID_CALIB_TEMP;
 		if (cros_ec_motion_send_host_cmd(&st->core, 0))
@@ -204,8 +206,6 @@ static int cros_ec_light_prox_probe(struct platform_device *pdev)
 	channel->scan_index = 0;
 	channel->ext_info = cros_ec_sensors_ext_info;
 	channel->scan_type.sign = 'u';
-
-	state->core.calib[0] = 0;
 
 	/* Sensor specific */
 	switch (state->core.type) {
