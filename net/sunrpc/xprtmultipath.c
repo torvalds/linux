@@ -103,7 +103,9 @@ struct rpc_xprt_switch *xprt_switch_alloc(struct rpc_xprt *xprt,
 	if (xps != NULL) {
 		spin_lock_init(&xps->xps_lock);
 		kref_init(&xps->xps_kref);
-		xps->xps_nxprts = 0;
+		xps->xps_nxprts = xps->xps_nactive = 0;
+		atomic_long_set(&xps->xps_queuelen, 0);
+		xps->xps_net = NULL;
 		INIT_LIST_HEAD(&xps->xps_xprt_list);
 		xps->xps_iter_ops = &rpc_xprt_iter_singular;
 		xprt_switch_add_xprt_locked(xps, xprt);
