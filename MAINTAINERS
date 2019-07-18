@@ -14789,6 +14789,7 @@ F:	Documentation/devicetree/bindings/net/socionext,uniphier-ave4.txt
 
 SOCIONEXT (SNI) NETSEC NETWORK DRIVER
 M:	Jassi Brar <jaswinder.singh@linaro.org>
+M:	Ilias Apalodimas <ilias.apalodimas@linaro.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/socionext/netsec.c
