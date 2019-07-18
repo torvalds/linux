@@ -42,6 +42,48 @@
  * 1.2 formally includes both eDP and DPI definitions.
  */
 
+/* MSA (Main Stream Attribute) MISC bits (as MISC1<<8|MISC0) */
+#define DP_MSA_MISC_SYNC_CLOCK			(1 << 0)
+#define DP_MSA_MISC_INTERLACE_VTOTAL_EVEN	(1 << 8)
+#define DP_MSA_MISC_STEREO_NO_3D		(0 << 9)
+#define DP_MSA_MISC_STEREO_PROG_RIGHT_EYE	(1 << 9)
+#define DP_MSA_MISC_STEREO_PROG_LEFT_EYE	(3 << 9)
+/* bits per component for non-RAW */
+#define DP_MSA_MISC_6_BPC			(0 << 5)
+#define DP_MSA_MISC_8_BPC			(1 << 5)
+#define DP_MSA_MISC_10_BPC			(2 << 5)
+#define DP_MSA_MISC_12_BPC			(3 << 5)
+#define DP_MSA_MISC_16_BPC			(4 << 5)
+/* bits per component for RAW */
+#define DP_MSA_MISC_RAW_6_BPC			(1 << 5)
+#define DP_MSA_MISC_RAW_7_BPC			(2 << 5)
+#define DP_MSA_MISC_RAW_8_BPC			(3 << 5)
+#define DP_MSA_MISC_RAW_10_BPC			(4 << 5)
+#define DP_MSA_MISC_RAW_12_BPC			(5 << 5)
+#define DP_MSA_MISC_RAW_14_BPC			(6 << 5)
+#define DP_MSA_MISC_RAW_16_BPC			(7 << 5)
+/* pixel encoding/colorimetry format */
+#define _DP_MSA_MISC_COLOR(misc1_7, misc0_21, misc0_3, misc0_4) \
+	((misc1_7) << 15 | (misc0_4) << 4 | (misc0_3) << 3 | ((misc0_21) << 1))
+#define DP_MSA_MISC_COLOR_RGB			_DP_MSA_MISC_COLOR(0, 0, 0, 0)
+#define DP_MSA_MISC_COLOR_CEA_RGB		_DP_MSA_MISC_COLOR(0, 0, 1, 0)
+#define DP_MSA_MISC_COLOR_RGB_WIDE_FIXED	_DP_MSA_MISC_COLOR(0, 3, 0, 0)
+#define DP_MSA_MISC_COLOR_RGB_WIDE_FLOAT	_DP_MSA_MISC_COLOR(0, 3, 0, 1)
+#define DP_MSA_MISC_COLOR_Y_ONLY		_DP_MSA_MISC_COLOR(1, 0, 0, 0)
+#define DP_MSA_MISC_COLOR_RAW			_DP_MSA_MISC_COLOR(1, 1, 0, 0)
+#define DP_MSA_MISC_COLOR_YCBCR_422_BT601	_DP_MSA_MISC_COLOR(0, 1, 1, 0)
+#define DP_MSA_MISC_COLOR_YCBCR_422_BT709	_DP_MSA_MISC_COLOR(0, 1, 1, 1)
+#define DP_MSA_MISC_COLOR_YCBCR_444_BT601	_DP_MSA_MISC_COLOR(0, 2, 1, 0)
+#define DP_MSA_MISC_COLOR_YCBCR_444_BT709	_DP_MSA_MISC_COLOR(0, 2, 1, 1)
+#define DP_MSA_MISC_COLOR_XVYCC_422_BT601	_DP_MSA_MISC_COLOR(0, 1, 0, 0)
+#define DP_MSA_MISC_COLOR_XVYCC_422_BT709	_DP_MSA_MISC_COLOR(0, 1, 0, 1)
+#define DP_MSA_MISC_COLOR_XVYCC_444_BT601	_DP_MSA_MISC_COLOR(0, 2, 0, 0)
+#define DP_MSA_MISC_COLOR_XVYCC_444_BT709	_DP_MSA_MISC_COLOR(0, 2, 0, 1)
+#define DP_MSA_MISC_COLOR_OPRGB			_DP_MSA_MISC_COLOR(0, 0, 1, 1)
+#define DP_MSA_MISC_COLOR_DCI_P3		_DP_MSA_MISC_COLOR(0, 3, 1, 0)
+#define DP_MSA_MISC_COLOR_COLOR_PROFILE		_DP_MSA_MISC_COLOR(0, 3, 1, 1)
+#define DP_MSA_MISC_COLOR_VSC_SDP		(1 << 14)
+
 #define DP_AUX_MAX_PAYLOAD_BYTES	16
 
 #define DP_AUX_I2C_WRITE		0x0
