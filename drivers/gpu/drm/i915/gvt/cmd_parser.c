@@ -378,17 +378,17 @@ struct cmd_info {
 	const char *name;
 	u32 opcode;
 
-#define F_LEN_MASK	(1U<<0)
+#define F_LEN_MASK	3U
 #define F_LEN_CONST  1U
 #define F_LEN_VAR    0U
+/* value is const although LEN maybe variable */
+#define F_LEN_VAR_FIXED    (1<<1)
 
 /*
  * command has its own ip advance logic
  * e.g. MI_BATCH_START, MI_BATCH_END
  */
-#define F_IP_ADVANCE_CUSTOM (1<<1)
-
-#define F_POST_HANDLE	(1<<2)
+#define F_IP_ADVANCE_CUSTOM (1<<2)
 	u32 flag;
 
 #define R_RCS	BIT(RCS0)
@@ -418,9 +418,12 @@ struct cmd_info {
 	 * flag == F_LEN_VAR : length bias bits
 	 * Note: length is in DWord
 	 */
-	u8 len;
+	u32 len;
 
 	parser_cmd_handler handler;
+
+	/* valid length in DWord */
+	u32 valid_len;
 };
 
 struct cmd_entry {
@@ -1912,7 +1915,7 @@ static const struct cmd_info cmd_info[] = {
 	{"MI_RS_CONTEXT", OP_MI_RS_CONTEXT, F_LEN_CONST, R_RCS, D_ALL, 0, 1,
 		NULL},
 
-	{"MI_DISPLAY_FLIP", OP_MI_DISPLAY_FLIP, F_LEN_VAR | F_POST_HANDLE,
+	{"MI_DISPLAY_FLIP", OP_MI_DISPLAY_FLIP, F_LEN_VAR,
 		R_RCS | R_BCS, D_ALL, 0, 8, cmd_handler_mi_display_flip},
 
 	{"MI_SEMAPHORE_MBOX", OP_MI_SEMAPHORE_MBOX, F_LEN_VAR, R_ALL, D_ALL,
