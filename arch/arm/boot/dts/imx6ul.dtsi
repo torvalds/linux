@@ -93,18 +93,6 @@
 		};
 	};
 
-	intc: interrupt-controller@a01000 {
-		compatible = "arm,gic-400", "arm,cortex-a7-gic";
-		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>;
-		#interrupt-cells = <3>;
-		interrupt-controller;
-		interrupt-parent = <&intc>;
-		reg = <0x00a01000 0x1000>,
-		      <0x00a02000 0x2000>,
-		      <0x00a04000 0x2000>,
-		      <0x00a06000 0x2000>;
-	};
-
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>,
@@ -169,6 +157,18 @@
 		ocram: sram@900000 {
 			compatible = "mmio-sram";
 			reg = <0x00900000 0x20000>;
+		};
+
+		intc: interrupt-controller@a01000 {
+			compatible = "arm,gic-400", "arm,cortex-a7-gic";
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>;
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			interrupt-parent = <&intc>;
+			reg = <0x00a01000 0x1000>,
+			      <0x00a02000 0x2000>,
+			      <0x00a04000 0x2000>,
+			      <0x00a06000 0x2000>;
 		};
 
 		dma_apbh: dma-apbh@1804000 {
