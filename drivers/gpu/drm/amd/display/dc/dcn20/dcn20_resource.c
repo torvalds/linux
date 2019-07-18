@@ -2612,7 +2612,7 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		goto restore_dml_state;
 	}
 
-	// Fallback #1: Try to only support G6 temperature read latency
+	// Fallback: Try to only support G6 temperature read latency
 	context->bw_ctx.dml.soc.dram_clock_change_latency_us = context->bw_ctx.dml.soc.dummy_pstate_latency_us;
 
 	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false);
@@ -2623,19 +2623,7 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		goto restore_dml_state;
 	}
 
-	// Fallback #2: Retry with "new" DCN20 to support G6 temperature read latency
-	memcpy (&context->bw_ctx.dml, &dc->work_arounds.alternate_dml, sizeof (struct display_mode_lib));
-	context->bw_ctx.dml.soc.dram_clock_change_latency_us = context->bw_ctx.dml.soc.dummy_pstate_latency_us;
-
-	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false);
-	dummy_pstate_supported = context->bw_ctx.bw.dcn.clk.p_state_change_support;
-
-	if (voltage_supported && dummy_pstate_supported) {
-		context->bw_ctx.bw.dcn.clk.p_state_change_support = false;
-		goto restore_dml_state;
-	}
-
-	// ERROR: fallback #2 is supposed to always work.
+	// ERROR: fallback is supposed to always work.
 	ASSERT(false);
 
 restore_dml_state:
@@ -3240,8 +3228,7 @@ static bool construct(
 		goto create_fail;
 	}
 
-	dml_init_instance(&dc->dml, &dcn2_0_soc, &dcn2_0_ip, DML_PROJECT_NAVI10);
-	dml_init_instance(&dc->work_arounds.alternate_dml, &dcn2_0_soc, &dcn2_0_ip, DML_PROJECT_NAVI10v2);
+	dml_init_instance(&dc->dml, &dcn2_0_soc, &dcn2_0_ip, DML_PROJECT_NAVI10v2);
 
 	if (!dc->debug.disable_pplib_wm_range) {
 		struct pp_smu_wm_range_sets ranges = {0};
