@@ -613,6 +613,7 @@ struct pptable_funcs {
 	int (*tables_init)(struct smu_context *smu, struct smu_table *tables);
 	int (*set_thermal_fan_table)(struct smu_context *smu);
 	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
+	int (*get_fan_speed_rpm)(struct smu_context *smu, uint32_t *speed);
 	int (*set_watermarks_table)(struct smu_context *smu, void *watermarks,
 				    struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 	int (*get_current_clk_freq_by_table)(struct smu_context *smu,
@@ -686,7 +687,6 @@ struct smu_funcs
 	int (*set_watermarks_for_clock_ranges)(struct smu_context *smu,
 					       struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 	int (*conv_power_profile_to_pplib_workload)(int power_profile);
-	int (*get_current_rpm)(struct smu_context *smu, uint32_t *speed);
 	uint32_t (*get_fan_control_mode)(struct smu_context *smu);
 	int (*set_fan_control_mode)(struct smu_context *smu, uint32_t mode);
 	int (*set_fan_speed_percent)(struct smu_context *smu, uint32_t speed);
@@ -752,8 +752,6 @@ struct smu_funcs
 	((smu)->funcs->init_max_sustainable_clocks ? (smu)->funcs->init_max_sustainable_clocks((smu)) : 0)
 #define smu_set_default_od_settings(smu, initialize) \
 	((smu)->ppt_funcs->set_default_od_settings ? (smu)->ppt_funcs->set_default_od_settings((smu), (initialize)) : 0)
-#define smu_get_current_rpm(smu, speed) \
-	((smu)->funcs->get_current_rpm ? (smu)->funcs->get_current_rpm((smu), (speed)) : 0)
 #define smu_set_fan_speed_rpm(smu, speed) \
 	((smu)->funcs->set_fan_speed_rpm ? (smu)->funcs->set_fan_speed_rpm((smu), (speed)) : 0)
 #define smu_send_smc_msg(smu, msg) \
@@ -842,6 +840,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_fan_speed_percent ? (smu)->ppt_funcs->get_fan_speed_percent((smu), (speed)) : 0)
 #define smu_set_fan_speed_percent(smu, speed) \
 	((smu)->funcs->set_fan_speed_percent ? (smu)->funcs->set_fan_speed_percent((smu), (speed)) : 0)
+#define smu_get_fan_speed_rpm(smu, speed) \
+	((smu)->ppt_funcs->get_fan_speed_rpm ? (smu)->ppt_funcs->get_fan_speed_rpm((smu), (speed)) : 0)
 
 #define smu_msg_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)

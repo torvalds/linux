@@ -954,12 +954,13 @@ static bool navi10_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
-static int navi10_get_fan_speed(struct smu_context *smu, uint16_t *value)
+static int navi10_get_fan_speed_rpm(struct smu_context *smu,
+				    uint32_t *speed)
 {
 	SmuMetrics_t metrics;
 	int ret = 0;
 
-	if (!value)
+	if (!speed)
 		return -EINVAL;
 
 	memset(&metrics, 0, sizeof(metrics));
@@ -969,7 +970,7 @@ static int navi10_get_fan_speed(struct smu_context *smu, uint16_t *value)
 	if (ret)
 		return ret;
 
-	*value = metrics.CurrFanSpeed;
+	*speed = metrics.CurrFanSpeed;
 
 	return ret;
 }
@@ -979,10 +980,10 @@ static int navi10_get_fan_speed_percent(struct smu_context *smu,
 {
 	int ret = 0;
 	uint32_t percent = 0;
-	uint16_t current_rpm;
+	uint32_t current_rpm;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
-	ret = navi10_get_fan_speed(smu, &current_rpm);
+	ret = navi10_get_fan_speed_rpm(smu, &current_rpm);
 	if (ret)
 		return ret;
 
@@ -1646,6 +1647,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.unforce_dpm_levels = navi10_unforce_dpm_levels,
 	.is_dpm_running = navi10_is_dpm_running,
 	.get_fan_speed_percent = navi10_get_fan_speed_percent,
+	.get_fan_speed_rpm = navi10_get_fan_speed_rpm,
 	.get_power_profile_mode = navi10_get_power_profile_mode,
 	.set_power_profile_mode = navi10_set_power_profile_mode,
 	.get_profiling_clk_mask = navi10_get_profiling_clk_mask,
