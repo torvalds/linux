@@ -1771,6 +1771,7 @@ TRACE_DEFINE_ENUM(PNFS_UPDATE_LAYOUT_BLOCKED);
 TRACE_DEFINE_ENUM(PNFS_UPDATE_LAYOUT_INVALID_OPEN);
 TRACE_DEFINE_ENUM(PNFS_UPDATE_LAYOUT_RETRY);
 TRACE_DEFINE_ENUM(PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET);
+TRACE_DEFINE_ENUM(PNFS_UPDATE_LAYOUT_EXIT);
 
 #define show_pnfs_update_layout_reason(reason)				\
 	__print_symbolic(reason,					\
@@ -1786,7 +1787,8 @@ TRACE_DEFINE_ENUM(PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET);
 		{ PNFS_UPDATE_LAYOUT_BLOCKED, "layouts blocked" },	\
 		{ PNFS_UPDATE_LAYOUT_INVALID_OPEN, "invalid open" },	\
 		{ PNFS_UPDATE_LAYOUT_RETRY, "retrying" },	\
-		{ PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET, "sent layoutget" })
+		{ PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET, "sent layoutget" }, \
+		{ PNFS_UPDATE_LAYOUT_EXIT, "exit" })
 
 TRACE_EVENT(pnfs_update_layout,
 		TP_PROTO(struct inode *inode,
@@ -1844,6 +1846,78 @@ TRACE_EVENT(pnfs_update_layout,
 			show_pnfs_update_layout_reason(__entry->reason)
 		)
 );
+
+DECLARE_EVENT_CLASS(pnfs_layout_event,
+		TP_PROTO(struct inode *inode,
+			loff_t pos,
+			u64 count,
+			enum pnfs_iomode iomode,
+			struct pnfs_layout_hdr *lo,
+			struct pnfs_layout_segment *lseg
+		),
+		TP_ARGS(inode, pos, count, iomode, lo, lseg),
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u64, fileid)
+			__field(u32, fhandle)
+			__field(loff_t, pos)
+			__field(u64, count)
+			__field(enum pnfs_iomode, iomode)
+			__field(int, layoutstateid_seq)
+			__field(u32, layoutstateid_hash)
+			__field(long, lseg)
+		),
+		TP_fast_assign(
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+			__entry->pos = pos;
+			__entry->count = count;
+			__entry->iomode = iomode;
+			if (lo != NULL) {
+				__entry->layoutstateid_seq =
+				be32_to_cpu(lo->plh_stateid.seqid);
+				__entry->layoutstateid_hash =
+				nfs_stateid_hash(&lo->plh_stateid);
+			} else {
+				__entry->layoutstateid_seq = 0;
+				__entry->layoutstateid_hash = 0;
+			}
+			__entry->lseg = (long)lseg;
+		),
+		TP_printk(
+			"fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"iomode=%s pos=%llu count=%llu "
+			"layoutstateid=%d:0x%08x lseg=0x%lx",
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			show_pnfs_iomode(__entry->iomode),
+			(unsigned long long)__entry->pos,
+			(unsigned long long)__entry->count,
+			__entry->layoutstateid_seq, __entry->layoutstateid_hash,
+			__entry->lseg
+		)
+);
+
+#define DEFINE_PNFS_LAYOUT_EVENT(name) \
+	DEFINE_EVENT(pnfs_layout_event, name, \
+		TP_PROTO(struct inode *inode, \
+			loff_t pos, \
+			u64 count, \
+			enum pnfs_iomode iomode, \
+			struct pnfs_layout_hdr *lo, \
+			struct pnfs_layout_segment *lseg \
+		), \
+		TP_ARGS(inode, pos, count, iomode, lo, lseg))
+
+DEFINE_PNFS_LAYOUT_EVENT(pnfs_mds_fallback_pg_init_read);
+DEFINE_PNFS_LAYOUT_EVENT(pnfs_mds_fallback_pg_init_write);
+DEFINE_PNFS_LAYOUT_EVENT(pnfs_mds_fallback_pg_get_mirror_count);
+DEFINE_PNFS_LAYOUT_EVENT(pnfs_mds_fallback_read_done);
+DEFINE_PNFS_LAYOUT_EVENT(pnfs_mds_fallback_write_done);
+DEFINE_PNFS_LAYOUT_EVENT(pnfs_mds_fallback_read_pagelist);
+DEFINE_PNFS_LAYOUT_EVENT(pnfs_mds_fallback_write_pagelist);
 
 #endif /* CONFIG_NFS_V4_1 */
 
