@@ -93,6 +93,7 @@ struct vop_csc {
 	struct vop_reg y2r_en;
 	struct vop_reg r2r_en;
 	struct vop_reg r2y_en;
+	struct vop_reg csc_mode;
 
 	uint32_t y2r_offset;
 	uint32_t r2r_offset;

@@ -430,7 +430,7 @@ static void vop_load_sdr2hdr_table(struct vop *vop, uint32_t cmd)
 			   table->sdr2hdr_st2084oetf_xn[i]);
 }
 
-static __maybe_unused void vop_load_csc_table(struct vop *vop, u32 offset, const u32 *table)
+static void vop_load_csc_table(struct vop *vop, u32 offset, const u32 *table)
 {
 	int i;
 
@@ -1062,18 +1062,18 @@ static int vop_csc_atomic_check(struct drm_crtc *crtc,
 		if (ret)
 			return ret;
 
+		vop_setup_csc_mode(is_input_yuv, s->yuv_overlay,
+				   vop_plane_state->color_space, s->color_space,
+				   &vop_plane_state->y2r_en,
+				   &vop_plane_state->r2y_en,
+				   &vop_plane_state->csc_mode);
+
 		if (csc_table) {
 			vop_plane_state->y2r_en = !!vop_plane_state->y2r_table;
 			vop_plane_state->r2r_en = !!vop_plane_state->r2r_table;
 			vop_plane_state->r2y_en = !!vop_plane_state->r2y_table;
 			continue;
 		}
-
-		vop_setup_csc_mode(is_input_yuv, s->yuv_overlay,
-				   vop_plane_state->color_space, s->color_space,
-				   &vop_plane_state->y2r_en,
-				   &vop_plane_state->r2y_en,
-				   &vop_plane_state->csc_mode);
 
 		/*
 		 * This is update for IC design not reasonable, when enable
@@ -1516,6 +1516,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	uint32_t act_info, dsp_info, dsp_st;
 	struct drm_rect *src = &vop_plane_state->src;
 	struct drm_rect *dest = &vop_plane_state->dest;
+	const uint32_t *y2r_table = vop_plane_state->y2r_table;
+	const uint32_t *r2r_table = vop_plane_state->r2r_table;
+	const uint32_t *r2y_table = vop_plane_state->r2y_table;
 	uint32_t val;
 	bool rb_swap, global_alpha_en;
 	int is_yuv = fb->format->is_yuv;
@@ -1632,9 +1635,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 
 	VOP_WIN_SET(vop, win, csc_mode, vop_plane_state->csc_mode);
 	if (win->csc) {
-		//vop_load_csc_table(vop, win->csc->y2r_offset, y2r_table);
-		//vop_load_csc_table(vop, win->csc->r2r_offset, r2r_table);
-		//vop_load_csc_table(vop, win->csc->r2y_offset, r2y_table);
+		vop_load_csc_table(vop, win->csc->y2r_offset, y2r_table);
+		vop_load_csc_table(vop, win->csc->r2r_offset, r2r_table);
+		vop_load_csc_table(vop, win->csc->r2y_offset, r2y_table);
 		VOP_WIN_SET_EXT(vop, win, csc, y2r_en, vop_plane_state->y2r_en);
 		VOP_WIN_SET_EXT(vop, win, csc, r2r_en, vop_plane_state->r2r_en);
 		VOP_WIN_SET_EXT(vop, win, csc, r2y_en, vop_plane_state->r2y_en);
@@ -3055,9 +3058,18 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 	if (!s->tv_state)
 		return;
 
+	/*
+	 * The BCSH only need to config once except one of the following
+	 * condition changed:
+	 *   1. tv_state: include brightness,contrast,saturation and hue;
+	 *   2. yuv_overlay: it is related to BCSH r2y module;
+	 *   3. mode_update: it is indicate mode change and resume from suspend;
+	 *   4. bcsh_en: control the BCSH module enable or disable state;
+	 *   5. bus_format: it is related to BCSH y2r module;
+	 */
 	if (!memcmp(s->tv_state,
 		    &vop->active_tv_state, sizeof(*s->tv_state)) &&
-	    s->yuv_overlay == old_s->yuv_overlay &&
+	    s->yuv_overlay == old_s->yuv_overlay && vop->mode_update &&
 	    s->bcsh_en == old_s->bcsh_en && s->bus_format == old_s->bus_format)
 		return;
 
