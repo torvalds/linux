@@ -17651,9 +17651,8 @@ L:	linux-xfs@vger.kernel.org
 W:	http://xfs.org/
 T:	git git://git.kernel.org/pub/scm/fs/xfs/xfs-linux.git
 S:	Supported
-F:	Documentation/filesystems/xfs.txt
+F:	Documentation/admin-guide/xfs.rst
 F:	Documentation/ABI/testing/sysfs-fs-xfs
-F:	Documentation/filesystems/xfs.txt
 F:	Documentation/filesystems/xfs-delayed-logging-design.txt
 F:	Documentation/filesystems/xfs-self-describing-metadata.txt
 F:	fs/xfs/

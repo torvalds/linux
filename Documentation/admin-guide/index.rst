@@ -77,6 +77,7 @@ configure specific aspects of kernel behavior to your liking.
    blockdev/index
    ext4
    binderfs
+   xfs
    pm/index
    thunderbolt
    LSM/index
