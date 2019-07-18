@@ -728,8 +728,8 @@ static void free_map_bootmem(struct page *memmap)
  * * -EEXIST	- Section has been present.
  * * -ENOMEM	- Out of memory.
  */
-int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
-				     struct vmem_altmap *altmap)
+int __meminit sparse_add_section(int nid, unsigned long start_pfn,
+		unsigned long nr_pages, struct vmem_altmap *altmap)
 {
 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
 	struct mem_section_usage *usage;
@@ -835,8 +835,9 @@ static void free_section_usage(struct mem_section *ms, struct page *memmap,
 		free_map_bootmem(memmap);
 }
 
-void sparse_remove_one_section(struct mem_section *ms, unsigned long map_offset,
-			       struct vmem_altmap *altmap)
+void sparse_remove_one_section(struct mem_section *ms, unsigned long pfn,
+		unsigned long nr_pages, unsigned long map_offset,
+		struct vmem_altmap *altmap)
 {
 	struct page *memmap = NULL;
 	struct mem_section_usage *usage = NULL;
@@ -849,10 +850,7 @@ void sparse_remove_one_section(struct mem_section *ms, unsigned long map_offset,
 		ms->usage = NULL;
 	}
 
-	clear_hwpoisoned_pages(memmap + map_offset,
-			PAGES_PER_SECTION - map_offset);
-	free_section_usage(ms, memmap, usage,
-			section_nr_to_pfn(__section_nr(ms)),
-			PAGES_PER_SECTION, altmap);
+	clear_hwpoisoned_pages(memmap + map_offset, nr_pages - map_offset);
+	free_section_usage(ms, memmap, usage, pfn, nr_pages, altmap);
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
