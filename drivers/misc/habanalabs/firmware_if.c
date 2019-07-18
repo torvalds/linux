@@ -97,7 +97,8 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	}
 
 	rc = hl_poll_timeout_memory(hdev, &pkt->fence, tmp,
-				(tmp == ARMCP_PACKET_FENCE_VAL), 1000, timeout);
+				(tmp == ARMCP_PACKET_FENCE_VAL), 1000,
+				timeout, true);
 
 	hl_hw_queue_inc_ci_kernel(hdev, hw_queue_id);
 
