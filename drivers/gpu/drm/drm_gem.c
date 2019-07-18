@@ -39,6 +39,7 @@
 #include <linux/mem_encrypt.h>
 #include <linux/pagevec.h>
 
+#include <drm/drm.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
