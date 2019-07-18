@@ -1203,7 +1203,7 @@ M:	James (Qian) Wang <james.qian.wang@arm.com>
 M:	Liviu Dudau <liviu.dudau@arm.com>
 L:	Mali DP Maintainers <malidp@foss.arm.com>
 S:	Supported
-T:	git git://linux-arm.org/linux-ld.git for-upstream/mali-dp
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	drivers/gpu/drm/arm/display/include/
 F:	drivers/gpu/drm/arm/display/komeda/
 F:	Documentation/devicetree/bindings/display/arm,komeda.txt
@@ -1214,7 +1214,7 @@ M:	Liviu Dudau <liviu.dudau@arm.com>
 M:	Brian Starkey <brian.starkey@arm.com>
 L:	Mali DP Maintainers <malidp@foss.arm.com>
 S:	Supported
-T:	git git://linux-arm.org/linux-ld.git for-upstream/mali-dp
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	drivers/gpu/drm/arm/
 F:	Documentation/devicetree/bindings/display/arm,malidp.txt
 F:	Documentation/gpu/afbc.rst
