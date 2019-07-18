@@ -374,6 +374,19 @@ typedef int (*parser_cmd_handler)(struct parser_exec_state *s);
 #define ADDR_FIX_4(x1, x2, x3, x4)	(ADDR_FIX_1(x1) | ADDR_FIX_3(x2, x3, x4))
 #define ADDR_FIX_5(x1, x2, x3, x4, x5)  (ADDR_FIX_1(x1) | ADDR_FIX_4(x2, x3, x4, x5))
 
+#define OP_LENGTH_BIAS 2
+#define CMD_LEN(value)  (value + OP_LENGTH_BIAS)
+
+static int gvt_check_valid_cmd_length(int len, int valid_len)
+{
+	if (valid_len != len) {
+		gvt_err("len is not valid:  len=%u  valid_len=%u\n",
+			len, valid_len);
+		return -EFAULT;
+	}
+	return 0;
+}
+
 struct cmd_info {
 	const char *name;
 	u32 opcode;
@@ -1918,18 +1931,21 @@ static const struct cmd_info cmd_info[] = {
 	{"MI_DISPLAY_FLIP", OP_MI_DISPLAY_FLIP, F_LEN_VAR,
 		R_RCS | R_BCS, D_ALL, 0, 8, cmd_handler_mi_display_flip},
 
-	{"MI_SEMAPHORE_MBOX", OP_MI_SEMAPHORE_MBOX, F_LEN_VAR, R_ALL, D_ALL,
-		0, 8, NULL},
+	{"MI_SEMAPHORE_MBOX", OP_MI_SEMAPHORE_MBOX, F_LEN_VAR | F_LEN_VAR_FIXED,
+		R_ALL, D_ALL, 0, 8, NULL, CMD_LEN(1)},
 
 	{"MI_MATH", OP_MI_MATH, F_LEN_VAR, R_ALL, D_ALL, 0, 8, NULL},
 
-	{"MI_URB_CLEAR", OP_MI_URB_CLEAR, F_LEN_VAR, R_RCS, D_ALL, 0, 8, NULL},
+	{"MI_URB_CLEAR", OP_MI_URB_CLEAR, F_LEN_VAR | F_LEN_VAR_FIXED, R_RCS,
+		D_ALL, 0, 8, NULL, CMD_LEN(0)},
 
-	{"MI_SEMAPHORE_SIGNAL", OP_MI_SEMAPHORE_SIGNAL, F_LEN_VAR, R_ALL,
-		D_BDW_PLUS, 0, 8, NULL},
+	{"MI_SEMAPHORE_SIGNAL", OP_MI_SEMAPHORE_SIGNAL,
+		F_LEN_VAR | F_LEN_VAR_FIXED, R_ALL, D_BDW_PLUS, 0, 8,
+		NULL, CMD_LEN(0)},
 
-	{"MI_SEMAPHORE_WAIT", OP_MI_SEMAPHORE_WAIT, F_LEN_VAR, R_ALL,
-		D_BDW_PLUS, ADDR_FIX_1(2), 8, cmd_handler_mi_semaphore_wait},
+	{"MI_SEMAPHORE_WAIT", OP_MI_SEMAPHORE_WAIT,
+		F_LEN_VAR | F_LEN_VAR_FIXED, R_ALL, D_BDW_PLUS, ADDR_FIX_1(2),
+		8, cmd_handler_mi_semaphore_wait, CMD_LEN(2)},
 
 	{"MI_STORE_DATA_IMM", OP_MI_STORE_DATA_IMM, F_LEN_VAR, R_ALL, D_BDW_PLUS,
 		ADDR_FIX_1(1), 10, cmd_handler_mi_store_data_imm},
@@ -1943,8 +1959,9 @@ static const struct cmd_info cmd_info[] = {
 	{"MI_UPDATE_GTT", OP_MI_UPDATE_GTT, F_LEN_VAR, R_ALL, D_BDW_PLUS, 0, 10,
 		cmd_handler_mi_update_gtt},
 
-	{"MI_STORE_REGISTER_MEM", OP_MI_STORE_REGISTER_MEM, F_LEN_VAR, R_ALL,
-		D_ALL, ADDR_FIX_1(2), 8, cmd_handler_srm},
+	{"MI_STORE_REGISTER_MEM", OP_MI_STORE_REGISTER_MEM,
+		F_LEN_VAR | F_LEN_VAR_FIXED, R_ALL, D_ALL, ADDR_FIX_1(2), 8,
+		cmd_handler_srm, CMD_LEN(2)},
 
 	{"MI_FLUSH_DW", OP_MI_FLUSH_DW, F_LEN_VAR, R_ALL, D_ALL, 0, 6,
 		cmd_handler_mi_flush_dw},
@@ -1952,26 +1969,30 @@ static const struct cmd_info cmd_info[] = {
 	{"MI_CLFLUSH", OP_MI_CLFLUSH, F_LEN_VAR, R_ALL, D_ALL, ADDR_FIX_1(1),
 		10, cmd_handler_mi_clflush},
 
-	{"MI_REPORT_PERF_COUNT", OP_MI_REPORT_PERF_COUNT, F_LEN_VAR, R_ALL,
-		D_ALL, ADDR_FIX_1(1), 6, cmd_handler_mi_report_perf_count},
+	{"MI_REPORT_PERF_COUNT", OP_MI_REPORT_PERF_COUNT,
+		F_LEN_VAR | F_LEN_VAR_FIXED, R_ALL, D_ALL, ADDR_FIX_1(1), 6,
+		cmd_handler_mi_report_perf_count, CMD_LEN(2)},
 
-	{"MI_LOAD_REGISTER_MEM", OP_MI_LOAD_REGISTER_MEM, F_LEN_VAR, R_ALL,
-		D_ALL, ADDR_FIX_1(2), 8, cmd_handler_lrm},
+	{"MI_LOAD_REGISTER_MEM", OP_MI_LOAD_REGISTER_MEM,
+		F_LEN_VAR | F_LEN_VAR_FIXED, R_ALL, D_ALL, ADDR_FIX_1(2), 8,
+		cmd_handler_lrm, CMD_LEN(2)},
 
-	{"MI_LOAD_REGISTER_REG", OP_MI_LOAD_REGISTER_REG, F_LEN_VAR, R_ALL,
-		D_ALL, 0, 8, cmd_handler_lrr},
+	{"MI_LOAD_REGISTER_REG", OP_MI_LOAD_REGISTER_REG,
+		F_LEN_VAR | F_LEN_VAR_FIXED, R_ALL, D_ALL, 0, 8,
+		cmd_handler_lrr, CMD_LEN(1)},
 
-	{"MI_RS_STORE_DATA_IMM", OP_MI_RS_STORE_DATA_IMM, F_LEN_VAR, R_RCS,
-		D_ALL, 0, 8, NULL},
+	{"MI_RS_STORE_DATA_IMM", OP_MI_RS_STORE_DATA_IMM,
+		F_LEN_VAR | F_LEN_VAR_FIXED, R_RCS, D_ALL, 0,
+		8, NULL, CMD_LEN(2)},
 
-	{"MI_LOAD_URB_MEM", OP_MI_LOAD_URB_MEM, F_LEN_VAR, R_RCS, D_ALL,
-		ADDR_FIX_1(2), 8, NULL},
+	{"MI_LOAD_URB_MEM", OP_MI_LOAD_URB_MEM, F_LEN_VAR | F_LEN_VAR_FIXED,
+		R_RCS, D_ALL, ADDR_FIX_1(2), 8, NULL, CMD_LEN(2)},
 
 	{"MI_STORE_URM_MEM", OP_MI_STORE_URM_MEM, F_LEN_VAR, R_RCS, D_ALL,
 		ADDR_FIX_1(2), 8, NULL},
 
-	{"MI_OP_2E", OP_MI_2E, F_LEN_VAR, R_ALL, D_BDW_PLUS, ADDR_FIX_2(1, 2),
-		8, cmd_handler_mi_op_2e},
+	{"MI_OP_2E", OP_MI_2E, F_LEN_VAR | F_LEN_VAR_FIXED, R_ALL, D_BDW_PLUS,
+		ADDR_FIX_2(1, 2), 8, cmd_handler_mi_op_2e, CMD_LEN(3)},
 
 	{"MI_OP_2F", OP_MI_2F, F_LEN_VAR, R_ALL, D_BDW_PLUS, ADDR_FIX_1(1),
 		8, cmd_handler_mi_op_2f},
@@ -1981,8 +2002,8 @@ static const struct cmd_info cmd_info[] = {
 		cmd_handler_mi_batch_buffer_start},
 
 	{"MI_CONDITIONAL_BATCH_BUFFER_END", OP_MI_CONDITIONAL_BATCH_BUFFER_END,
-		F_LEN_VAR, R_ALL, D_ALL, ADDR_FIX_1(2), 8,
-		cmd_handler_mi_conditional_batch_buffer_end},
+		F_LEN_VAR | F_LEN_VAR_FIXED, R_ALL, D_ALL, ADDR_FIX_1(2), 8,
+		cmd_handler_mi_conditional_batch_buffer_end, CMD_LEN(2)},
 
 	{"MI_LOAD_SCAN_LINES_INCL", OP_MI_LOAD_SCAN_LINES_INCL, F_LEN_CONST,
 		R_RCS | R_BCS, D_ALL, 0, 2, NULL},
@@ -2571,6 +2592,13 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 	trace_gvt_command(vgpu->id, s->ring_id, s->ip_gma, s->ip_va,
 			  cmd_length(s), s->buf_type, s->buf_addr_type,
 			  s->workload, info->name);
+
+	if ((info->flag & F_LEN_MASK) == F_LEN_VAR_FIXED) {
+		ret = gvt_check_valid_cmd_length(cmd_length(s),
+			info->valid_len);
+		if (ret)
+			return ret;
+	}
 
 	if (info->handler) {
 		ret = info->handler(s);
