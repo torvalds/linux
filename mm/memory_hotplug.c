@@ -288,8 +288,8 @@ static int check_pfn_span(unsigned long pfn, unsigned long nr_pages,
 int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
 		struct mhp_restrictions *restrictions)
 {
-	unsigned long i;
-	int start_sec, end_sec, err;
+	int err;
+	unsigned long nr, start_sec, end_sec;
 	struct vmem_altmap *altmap = restrictions->altmap;
 
 	if (altmap) {
@@ -310,7 +310,7 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
 
 	start_sec = pfn_to_section_nr(pfn);
 	end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
-	for (i = start_sec; i <= end_sec; i++) {
+	for (nr = start_sec; nr <= end_sec; nr++) {
 		unsigned long pfns;
 
 		pfns = min(nr_pages, PAGES_PER_SECTION
@@ -541,7 +541,7 @@ void __remove_pages(struct zone *zone, unsigned long pfn,
 		    unsigned long nr_pages, struct vmem_altmap *altmap)
 {
 	unsigned long map_offset = 0;
-	int i, start_sec, end_sec;
+	unsigned long nr, start_sec, end_sec;
 
 	map_offset = vmem_altmap_offset(altmap);
 
@@ -552,7 +552,7 @@ void __remove_pages(struct zone *zone, unsigned long pfn,
 
 	start_sec = pfn_to_section_nr(pfn);
 	end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
-	for (i = start_sec; i <= end_sec; i++) {
+	for (nr = start_sec; nr <= end_sec; nr++) {
 		unsigned long pfns;
 
 		cond_resched();

@@ -229,21 +229,21 @@ void subsection_mask_set(unsigned long *map, unsigned long pfn,
 void __init subsection_map_init(unsigned long pfn, unsigned long nr_pages)
 {
 	int end_sec = pfn_to_section_nr(pfn + nr_pages - 1);
-	int i, start_sec = pfn_to_section_nr(pfn);
+	unsigned long nr, start_sec = pfn_to_section_nr(pfn);
 
 	if (!nr_pages)
 		return;
 
-	for (i = start_sec; i <= end_sec; i++) {
+	for (nr = start_sec; nr <= end_sec; nr++) {
 		struct mem_section *ms;
 		unsigned long pfns;
 
 		pfns = min(nr_pages, PAGES_PER_SECTION
 				- (pfn & ~PAGE_SECTION_MASK));
-		ms = __nr_to_section(i);
+		ms = __nr_to_section(nr);
 		subsection_mask_set(ms->usage->subsection_map, pfn, pfns);
 
-		pr_debug("%s: sec: %d pfns: %ld set(%d, %d)\n", __func__, i,
+		pr_debug("%s: sec: %lu pfns: %lu set(%d, %d)\n", __func__, nr,
 				pfns, subsection_map_index(pfn),
 				subsection_map_index(pfn + pfns - 1));
 
