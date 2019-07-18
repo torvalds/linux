@@ -8,14 +8,14 @@
 #ifndef IIO_ADC_AD7606_H_
 #define IIO_ADC_AD7606_H_
 
-#define AD760X_CHANNEL(num, mask) {				\
+#define AD760X_CHANNEL(num, mask_sep, mask_type, mask_all) {	\
 		.type = IIO_VOLTAGE,				\
 		.indexed = 1,					\
 		.channel = num,					\
 		.address = num,					\
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),	\
-		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),\
-		.info_mask_shared_by_all = mask,		\
+		.info_mask_separate = mask_sep,			\
+		.info_mask_shared_by_type = mask_type,		\
+		.info_mask_shared_by_all = mask_all,		\
 		.scan_index = num,				\
 		.scan_type = {					\
 			.sign = 's',				\
@@ -25,11 +25,18 @@
 		},						\
 }
 
-#define AD7605_CHANNEL(num)	\
-	AD760X_CHANNEL(num, 0)
+#define AD7605_CHANNEL(num)				\
+	AD760X_CHANNEL(num, BIT(IIO_CHAN_INFO_RAW),	\
+		BIT(IIO_CHAN_INFO_SCALE), 0)
 
-#define AD7606_CHANNEL(num)	\
-	AD760X_CHANNEL(num, BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO))
+#define AD7606_CHANNEL(num)				\
+	AD760X_CHANNEL(num, BIT(IIO_CHAN_INFO_RAW),	\
+		BIT(IIO_CHAN_INFO_SCALE),		\
+		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO))
+
+#define AD7616_CHANNEL(num)	\
+	AD760X_CHANNEL(num, BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),\
+		0, BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO))
 
 /**
  * struct ad7606_chip_info - chip specific information
@@ -77,6 +84,7 @@ struct ad7606_chip_info {
  * @complete		completion to indicate end of conversion
  * @trig		The IIO trigger associated with the device.
  * @data		buffer for reading data from the device
+ * @d16			be16 buffer for reading data from the device
  */
 struct ad7606_state {
 	struct device			*dev;
@@ -110,6 +118,7 @@ struct ad7606_state {
 	 * 16 * 16-bit samples + 64-bit timestamp
 	 */
 	unsigned short			data[20] ____cacheline_aligned;
+	__be16				d16[2];
 };
 
 /**
@@ -117,11 +126,24 @@ struct ad7606_state {
  * @read_block		function pointer for reading blocks of data
  * @sw_mode_config:	pointer to a function which configured the device
  *			for software mode
+ * @reg_read	function pointer for reading spi register
+ * @reg_write	function pointer for writing spi register
+ * @write_mask	function pointer for write spi register with mask
+ * @rd_wr_cmd	pointer to the function which calculates the spi address
  */
 struct ad7606_bus_ops {
 	/* more methods added in future? */
 	int (*read_block)(struct device *dev, int num, void *data);
 	int (*sw_mode_config)(struct iio_dev *indio_dev);
+	int (*reg_read)(struct ad7606_state *st, unsigned int addr);
+	int (*reg_write)(struct ad7606_state *st,
+				unsigned int addr,
+				unsigned int val);
+	int (*write_mask)(struct ad7606_state *st,
+				 unsigned int addr,
+				 unsigned long mask,
+				 unsigned int val);
+	u16 (*rd_wr_cmd)(int addr, char isWriteOp);
 };
 
 int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
