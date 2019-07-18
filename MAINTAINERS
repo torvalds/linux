@@ -683,7 +683,7 @@ S:	Maintained
 F:	drivers/crypto/sunxi-ss/
 
 ALLWINNER VPU DRIVER
-M:	Maxime Ripard <maxime.ripard@bootlin.com>
+M:	Maxime Ripard <mripard@kernel.org>
 M:	Paul Kocialkowski <paul.kocialkowski@bootlin.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -1408,7 +1408,7 @@ S:	Maintained
 F:	drivers/clk/sunxi/
 
 ARM/Allwinner sunXi SoC support
-M:	Maxime Ripard <maxime.ripard@bootlin.com>
+M:	Maxime Ripard <mripard@kernel.org>
 M:	Chen-Yu Tsai <wens@csie.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -3573,7 +3573,7 @@ F:	Documentation/filesystems/caching/cachefiles.txt
 F:	fs/cachefiles/
 
 CADENCE MIPI-CSI2 BRIDGES
-M:	Maxime Ripard <maxime.ripard@bootlin.com>
+M:	Maxime Ripard <mripard@kernel.org>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/cdns,*.txt
@@ -5291,7 +5291,7 @@ F:	include/linux/vga*
 
 DRM DRIVERS AND MISC GPU PATCHES
 M:	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>
-M:	Maxime Ripard <maxime.ripard@bootlin.com>
+M:	Maxime Ripard <mripard@kernel.org>
 M:	Sean Paul <sean@poorly.run>
 W:	https://01.org/linuxgraphics/gfx-docs/maintainer-tools/drm-misc.html
 S:	Maintained
@@ -5304,7 +5304,7 @@ F:	include/uapi/drm/drm*
 F:	include/linux/vga*
 
 DRM DRIVERS FOR ALLWINNER A10
-M:	Maxime Ripard  <maxime.ripard@bootlin.com>
+M:	Maxime Ripard <mripard@kernel.org>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/sun4i/
