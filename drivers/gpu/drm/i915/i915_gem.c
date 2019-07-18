@@ -395,11 +395,9 @@ i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
 		unsigned page_length = PAGE_SIZE - page_offset;
 		page_length = remain < page_length ? remain : page_length;
 		if (node.allocated) {
-			wmb();
 			ggtt->vm.insert_page(&ggtt->vm,
 					     i915_gem_object_get_dma_address(obj, offset >> PAGE_SHIFT),
 					     node.start, I915_CACHE_NONE, 0);
-			wmb();
 		} else {
 			page_base += offset & PAGE_MASK;
 		}
@@ -419,7 +417,6 @@ i915_gem_gtt_pread(struct drm_i915_gem_object *obj,
 out_unpin:
 	mutex_lock(&i915->drm.struct_mutex);
 	if (node.allocated) {
-		wmb();
 		ggtt->vm.clear_range(&ggtt->vm, node.start, node.size);
 		remove_mappable_node(&node);
 	} else {
