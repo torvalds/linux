@@ -465,6 +465,8 @@ struct vop_data {
 #define POST_BUF_EMPTY_INTR		BIT(12)
 #define PWM_GEN_INTR			BIT(13)
 #define DMA_FINISH_INTR			BIT(14)
+#define FS_FIELD_INTR			BIT(15)
+#define FE_INTR				BIT(16)
 
 #define INTR_MASK			(DSP_HOLD_VALID_INTR | FS_INTR | \
 					 LINE_FLAG_INTR | BUS_ERROR_INTR | \
@@ -473,8 +475,8 @@ struct vop_data {
 					 WIN2_EMPTY_INTR | WIN3_EMPTY_INTR | \
 					 HWC_EMPTY_INTR | \
 					 POST_BUF_EMPTY_INTR | \
-					 DMA_FINISH_INTR)
-
+					 DMA_FINISH_INTR | FS_FIELD_INTR | \
+					 FE_INTR)
 #define DSP_HOLD_VALID_INTR_EN(x)	((x) << 4)
 #define FS_INTR_EN(x)			((x) << 5)
 #define LINE_FLAG_INTR_EN(x)		((x) << 6)
