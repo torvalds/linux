@@ -15,7 +15,7 @@
 
 #define DPAA2_CAAM_STORE_SIZE	16
 /* NAPI weight *must* be a multiple of the store size. */
-#define DPAA2_CAAM_NAPI_WEIGHT	64
+#define DPAA2_CAAM_NAPI_WEIGHT	512
 
 /* The congestion entrance threshold was chosen so that on LS2088
  * we support the maximum throughput for the available memory
