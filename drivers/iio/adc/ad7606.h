@@ -39,12 +39,6 @@
  *			oversampling ratios.
  * @oversampling_num	number of elements stored in oversampling_avail array
  * @os_req_reset	some devices require a reset to update oversampling
- * @write_scale_sw	pointer to the function which writes the scale via spi
-			in software mode
- * @write_os_sw		pointer to the function which writes the os via spi
-			in software mode
- * @sw_mode_config:	pointer to a function which configured the device
- *			for software mode
  */
 struct ad7606_chip_info {
 	const struct iio_chan_spec	*channels;
@@ -52,9 +46,6 @@ struct ad7606_chip_info {
 	const unsigned int		*oversampling_avail;
 	unsigned int			oversampling_num;
 	bool				os_req_reset;
-	int (*write_scale_sw)(struct iio_dev *indio_dev, int ch, int val);
-	int (*write_os_sw)(struct iio_dev *indio_dev, int val);
-	int (*sw_mode_config)(struct iio_dev *indio_dev);
 };
 
 /**
@@ -124,10 +115,13 @@ struct ad7606_state {
 /**
  * struct ad7606_bus_ops - driver bus operations
  * @read_block		function pointer for reading blocks of data
+ * @sw_mode_config:	pointer to a function which configured the device
+ *			for software mode
  */
 struct ad7606_bus_ops {
 	/* more methods added in future? */
 	int (*read_block)(struct device *dev, int num, void *data);
+	int (*sw_mode_config)(struct iio_dev *indio_dev);
 };
 
 int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,

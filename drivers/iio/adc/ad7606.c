@@ -597,7 +597,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	st->write_scale = ad7606_write_scale_hw;
 	st->write_os = ad7606_write_os_hw;
 
-	if (st->chip_info->sw_mode_config)
+	if (st->bops->sw_mode_config)
 		st->sw_mode_en = device_property_present(st->dev,
 							 "adi,sw-mode");
 
@@ -606,23 +606,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		memset32(st->range, 2, ARRAY_SIZE(st->range));
 		indio_dev->info = &ad7606_info_os_and_range;
 
-		/*
-		 * In software mode, the range gpio has no longer its function.
-		 * Instead, the scale can be configured individually for each
-		 * channel from the range registers.
-		 */
-		if (st->chip_info->write_scale_sw)
-			st->write_scale = st->chip_info->write_scale_sw;
-
-		/*
-		 * In software mode, the oversampling is no longer configured
-		 * with GPIO pins. Instead, the oversampling can be configured
-		 * in configuratiion register.
-		 */
-		if (st->chip_info->write_os_sw)
-			st->write_os = st->chip_info->write_os_sw;
-
-		ret = st->chip_info->sw_mode_config(indio_dev);
+		ret = st->bops->sw_mode_config(indio_dev);
 		if (ret < 0)
 			return ret;
 	}
