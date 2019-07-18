@@ -204,6 +204,12 @@ intel_context_init(struct intel_context *ce,
 			 __intel_context_active, __intel_context_retire);
 }
 
+void intel_context_fini(struct intel_context *ce)
+{
+	mutex_destroy(&ce->pin_mutex);
+	i915_active_fini(&ce->active);
+}
+
 static void i915_global_context_shrink(void)
 {
 	kmem_cache_shrink(global.slab_ce);

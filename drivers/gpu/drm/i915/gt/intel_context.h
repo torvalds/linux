@@ -16,6 +16,7 @@
 void intel_context_init(struct intel_context *ce,
 			struct i915_gem_context *ctx,
 			struct intel_engine_cs *engine);
+void intel_context_fini(struct intel_context *ce);
 
 struct intel_context *
 intel_context_create(struct i915_gem_context *ctx,

@@ -142,6 +142,7 @@ static void mock_context_destroy(struct kref *ref)
 	if (ce->ring)
 		mock_ring_free(ce->ring);
 
+	intel_context_fini(ce);
 	intel_context_free(ce);
 }
 

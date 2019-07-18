@@ -1388,6 +1388,7 @@ static void ring_context_destroy(struct kref *ref)
 	if (ce->state)
 		__ring_context_fini(ce);
 
+	intel_context_fini(ce);
 	intel_context_free(ce);
 }
 

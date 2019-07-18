@@ -1566,6 +1566,7 @@ static void execlists_context_destroy(struct kref *kref)
 	if (ce->state)
 		__execlists_context_fini(ce);
 
+	intel_context_fini(ce);
 	intel_context_free(ce);
 }
 
@@ -3199,6 +3200,7 @@ static void virtual_context_destroy(struct kref *kref)
 
 	if (ve->context.state)
 		__execlists_context_fini(&ve->context);
+	intel_context_fini(&ve->context);
 
 	kfree(ve->bonds);
 	kfree(ve);
