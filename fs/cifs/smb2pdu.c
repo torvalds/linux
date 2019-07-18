@@ -489,10 +489,25 @@ static void
 build_encrypt_ctxt(struct smb2_encryption_neg_context *pneg_ctxt)
 {
 	pneg_ctxt->ContextType = SMB2_ENCRYPTION_CAPABILITIES;
-	pneg_ctxt->DataLength = cpu_to_le16(4); /* Cipher Count + le16 cipher */
-	pneg_ctxt->CipherCount = cpu_to_le16(1);
-/* pneg_ctxt->Ciphers[0] = SMB2_ENCRYPTION_AES128_GCM;*/ /* not supported yet */
-	pneg_ctxt->Ciphers[0] = SMB2_ENCRYPTION_AES128_CCM;
+	pneg_ctxt->DataLength = cpu_to_le16(6); /* Cipher Count + two ciphers */
+	pneg_ctxt->CipherCount = cpu_to_le16(2);
+	pneg_ctxt->Ciphers[0] = SMB2_ENCRYPTION_AES128_GCM;
+	pneg_ctxt->Ciphers[1] = SMB2_ENCRYPTION_AES128_CCM;
+}
+
+static unsigned int
+build_netname_ctxt(struct smb2_netname_neg_context *pneg_ctxt, char *hostname)
+{
+	struct nls_table *cp = load_nls_default();
+
+	pneg_ctxt->ContextType = SMB2_NETNAME_NEGOTIATE_CONTEXT_ID;
+
+	/* copy up to max of first 100 bytes of server name to NetName field */
+	pneg_ctxt->DataLength = cpu_to_le16(2 +
+		(2 * cifs_strtoUTF16(pneg_ctxt->NetName, hostname, 100, cp)));
+	/* context size is DataLength + minimal smb2_neg_context */
+	return DIV_ROUND_UP(le16_to_cpu(pneg_ctxt->DataLength) +
+			sizeof(struct smb2_neg_context), 8) * 8;
 }
 
 static void
@@ -521,7 +536,7 @@ build_posix_ctxt(struct smb2_posix_neg_context *pneg_ctxt)
 
 static void
 assemble_neg_contexts(struct smb2_negotiate_req *req,
-		      unsigned int *total_len)
+		      struct TCP_Server_Info *server, unsigned int *total_len)
 {
 	char *pneg_ctxt = (char *)req;
 	unsigned int ctxt_len;
@@ -551,17 +566,25 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 	*total_len += ctxt_len;
 	pneg_ctxt += ctxt_len;
 
-	build_compression_ctxt((struct smb2_compression_capabilities_context *)
+	if (server->compress_algorithm) {
+		build_compression_ctxt((struct smb2_compression_capabilities_context *)
 				pneg_ctxt);
-	ctxt_len = DIV_ROUND_UP(
-		sizeof(struct smb2_compression_capabilities_context), 8) * 8;
+		ctxt_len = DIV_ROUND_UP(
+			sizeof(struct smb2_compression_capabilities_context),
+				8) * 8;
+		*total_len += ctxt_len;
+		pneg_ctxt += ctxt_len;
+		req->NegotiateContextCount = cpu_to_le16(5);
+	} else
+		req->NegotiateContextCount = cpu_to_le16(4);
+
+	ctxt_len = build_netname_ctxt((struct smb2_netname_neg_context *)pneg_ctxt,
+					server->hostname);
 	*total_len += ctxt_len;
 	pneg_ctxt += ctxt_len;
 
 	build_posix_ctxt((struct smb2_posix_neg_context *)pneg_ctxt);
 	*total_len += sizeof(struct smb2_posix_neg_context);
-
-	req->NegotiateContextCount = cpu_to_le16(4);
 }
 
 static void decode_preauth_context(struct smb2_preauth_neg_context *ctxt)
@@ -829,7 +852,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 		if ((ses->server->vals->protocol_id == SMB311_PROT_ID) ||
 		    (strcmp(ses->server->vals->version_string,
 		     SMBDEFAULT_VERSION_STRING) == 0))
-			assemble_neg_contexts(req, &total_len);
+			assemble_neg_contexts(req, server, &total_len);
 	}
 	iov[0].iov_base = (char *)req;
 	iov[0].iov_len = total_len;
@@ -2095,6 +2118,48 @@ add_twarp_context(struct kvec *iov, unsigned int *num_iovec, __u64 timewarp)
 	return 0;
 }
 
+static struct crt_query_id_ctxt *
+create_query_id_buf(void)
+{
+	struct crt_query_id_ctxt *buf;
+
+	buf = kzalloc(sizeof(struct crt_query_id_ctxt), GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	buf->ccontext.DataOffset = cpu_to_le16(0);
+	buf->ccontext.DataLength = cpu_to_le32(0);
+	buf->ccontext.NameOffset = cpu_to_le16(offsetof
+				(struct crt_query_id_ctxt, Name));
+	buf->ccontext.NameLength = cpu_to_le16(4);
+	/* SMB2_CREATE_QUERY_ON_DISK_ID is "QFid" */
+	buf->Name[0] = 'Q';
+	buf->Name[1] = 'F';
+	buf->Name[2] = 'i';
+	buf->Name[3] = 'd';
+	return buf;
+}
+
+/* See MS-SMB2 2.2.13.2.9 */
+static int
+add_query_id_context(struct kvec *iov, unsigned int *num_iovec)
+{
+	struct smb2_create_req *req = iov[0].iov_base;
+	unsigned int num = *num_iovec;
+
+	iov[num].iov_base = create_query_id_buf();
+	if (iov[num].iov_base == NULL)
+		return -ENOMEM;
+	iov[num].iov_len = sizeof(struct crt_query_id_ctxt);
+	if (!req->CreateContextsOffset)
+		req->CreateContextsOffset = cpu_to_le32(
+				sizeof(struct smb2_create_req) +
+				iov[num - 1].iov_len);
+	le32_add_cpu(&req->CreateContextsLength, sizeof(struct crt_query_id_ctxt));
+	*num_iovec = num + 1;
+	return 0;
+}
+
 static int
 alloc_path_with_tree_prefix(__le16 **out_path, int *out_size, int *out_len,
 			    const char *treename, const __le16 *path)
@@ -2423,6 +2488,12 @@ SMB2_open_init(struct cifs_tcon *tcon, struct smb_rqst *rqst, __u8 *oplock,
 			return rc;
 	}
 
+	if (n_iov > 2) {
+		struct create_context *ccontext =
+			(struct create_context *)iov[n_iov-1].iov_base;
+		ccontext->Next = cpu_to_le32(iov[n_iov-1].iov_len);
+	}
+	add_query_id_context(iov, &n_iov);
 
 	rqst->rq_nvec = n_iov;
 	return 0;
@@ -2550,12 +2621,11 @@ SMB2_ioctl_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 		 * indatalen is usually small at a couple of bytes max, so
 		 * just allocate through generic pool
 		 */
-		in_data_buf = kmalloc(indatalen, GFP_NOFS);
+		in_data_buf = kmemdup(in_data, indatalen, GFP_NOFS);
 		if (!in_data_buf) {
 			cifs_small_buf_release(req);
 			return -ENOMEM;
 		}
-		memcpy(in_data_buf, in_data, indatalen);
 	}
 
 	req->CtlCode = cpu_to_le32(opcode);
