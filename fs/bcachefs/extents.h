@@ -540,11 +540,11 @@ do {									\
 	}								\
 } while (0)
 
-bool __bch2_cut_front(struct bpos, struct bkey_s);
+void __bch2_cut_front(struct bpos, struct bkey_s);
 
-static inline bool bch2_cut_front(struct bpos where, struct bkey_i *k)
+static inline void bch2_cut_front(struct bpos where, struct bkey_i *k)
 {
-	return __bch2_cut_front(where, bkey_i_to_s(k));
+	__bch2_cut_front(where, bkey_i_to_s(k));
 }
 
 bool bch2_cut_back(struct bpos, struct bkey *);

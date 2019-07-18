@@ -707,44 +707,47 @@ void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
 
 /* Extents */
 
-bool __bch2_cut_front(struct bpos where, struct bkey_s k)
+void __bch2_cut_front(struct bpos where, struct bkey_s k)
 {
-	u64 len = 0;
+	u64 sub;
 
 	if (bkey_cmp(where, bkey_start_pos(k.k)) <= 0)
-		return false;
+		return;
 
 	EBUG_ON(bkey_cmp(where, k.k->p) > 0);
 
-	len = k.k->p.offset - where.offset;
+	sub = where.offset - bkey_start_offset(k.k);
 
-	BUG_ON(len > k.k->size);
+	k.k->size -= sub;
 
-	/*
-	 * Don't readjust offset if the key size is now 0, because that could
-	 * cause offset to point to the next bucket:
-	 */
-	if (!len)
+	if (!k.k->size)
 		k.k->type = KEY_TYPE_deleted;
-	else if (bkey_extent_is_data(k.k)) {
-		struct bkey_s_extent e = bkey_s_to_extent(k);
+
+	switch (k.k->type) {
+	case KEY_TYPE_deleted:
+	case KEY_TYPE_discard:
+	case KEY_TYPE_error:
+	case KEY_TYPE_cookie:
+		break;
+	case KEY_TYPE_extent: {
+		struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
 		union bch_extent_entry *entry;
 		bool seen_crc = false;
 
-		extent_for_each_entry(e, entry) {
+		bkey_extent_entry_for_each(ptrs, entry) {
 			switch (extent_entry_type(entry)) {
 			case BCH_EXTENT_ENTRY_ptr:
 				if (!seen_crc)
-					entry->ptr.offset += e.k->size - len;
+					entry->ptr.offset += sub;
 				break;
 			case BCH_EXTENT_ENTRY_crc32:
-				entry->crc32.offset += e.k->size - len;
+				entry->crc32.offset += sub;
 				break;
 			case BCH_EXTENT_ENTRY_crc64:
-				entry->crc64.offset += e.k->size - len;
+				entry->crc64.offset += sub;
 				break;
 			case BCH_EXTENT_ENTRY_crc128:
-				entry->crc128.offset += e.k->size - len;
+				entry->crc128.offset += sub;
 				break;
 			case BCH_EXTENT_ENTRY_stripe_ptr:
 				break;
@@ -753,11 +756,14 @@ bool __bch2_cut_front(struct bpos where, struct bkey_s k)
 			if (extent_entry_is_crc(entry))
 				seen_crc = true;
 		}
+
+		break;
 	}
-
-	k.k->size = len;
-
-	return true;
+	case KEY_TYPE_reservation:
+		break;
+	default:
+		BUG();
+	}
 }
 
 bool bch2_cut_back(struct bpos where, struct bkey *k)
@@ -770,8 +776,6 @@ bool bch2_cut_back(struct bpos where, struct bkey *k)
 	EBUG_ON(bkey_cmp(where, bkey_start_pos(k)) < 0);
 
 	len = where.offset - bkey_start_offset(k);
-
-	BUG_ON(len > k->size);
 
 	k->p = where;
 	k->size = len;
