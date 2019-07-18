@@ -150,14 +150,13 @@ static int ccp_init_dm_workarea(struct ccp_dm_workarea *wa,
 	if (len <= CCP_DMAPOOL_MAX_SIZE) {
 		wa->dma_pool = cmd_q->dma_pool;
 
-		wa->address = dma_pool_alloc(wa->dma_pool, GFP_KERNEL,
+		wa->address = dma_pool_zalloc(wa->dma_pool, GFP_KERNEL,
 					     &wa->dma.address);
 		if (!wa->address)
 			return -ENOMEM;
 
 		wa->dma.length = CCP_DMAPOOL_MAX_SIZE;
 
-		memset(wa->address, 0, CCP_DMAPOOL_MAX_SIZE);
 	} else {
 		wa->address = kzalloc(len, GFP_KERNEL);
 		if (!wa->address)
