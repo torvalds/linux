@@ -63,19 +63,29 @@ MODULE_DEVICE_TABLE(of, st_gyro_of_match);
 #endif
 
 static int st_gyro_i2c_probe(struct i2c_client *client,
-						const struct i2c_device_id *id)
+			     const struct i2c_device_id *id)
 {
-	struct iio_dev *indio_dev;
+	const struct st_sensor_settings *settings;
 	struct st_sensor_data *gdata;
+	struct iio_dev *indio_dev;
 	int err;
+
+	st_sensors_of_name_probe(&client->dev, st_gyro_of_match,
+				 client->name, sizeof(client->name));
+
+	settings = st_gyro_get_settings(client->name);
+	if (!settings) {
+		dev_err(&client->dev, "device name %s not recognized.\n",
+			client->name);
+		return -ENODEV;
+	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*gdata));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	gdata = iio_priv(indio_dev);
-	st_sensors_of_name_probe(&client->dev, st_gyro_of_match,
-				 client->name, sizeof(client->name));
+	gdata->sensor_settings = (struct st_sensor_settings *)settings;
 
 	st_sensors_i2c_configure(indio_dev, client, gdata);
 
