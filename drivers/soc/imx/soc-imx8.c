@@ -16,6 +16,9 @@
 #define IMX8MQ_SW_INFO_B1		0x40
 #define IMX8MQ_SW_MAGIC_B1		0xff0055aa
 
+#define OCOTP_UID_LOW			0x410
+#define OCOTP_UID_HIGH			0x420
+
 /* Same as ANADIG_DIGPROG_IMX7D */
 #define ANADIG_DIGPROG_IMX8MM	0x800
 
@@ -23,6 +26,16 @@ struct imx8_soc_data {
 	char *name;
 	u32 (*soc_revision)(void);
 };
+
+static u64 soc_uid;
+
+static ssize_t soc_uid_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%016llX\n", soc_uid);
+}
+
+static DEVICE_ATTR_RO(soc_uid);
 
 static u32 __init imx8mq_soc_revision(void)
 {
@@ -41,6 +54,10 @@ static u32 __init imx8mq_soc_revision(void)
 	magic = readl_relaxed(ocotp_base + IMX8MQ_SW_INFO_B1);
 	if (magic == IMX8MQ_SW_MAGIC_B1)
 		rev = REV_B1;
+
+	soc_uid = readl_relaxed(ocotp_base + OCOTP_UID_HIGH);
+	soc_uid <<= 32;
+	soc_uid |= readl_relaxed(ocotp_base + OCOTP_UID_LOW);
 
 	iounmap(ocotp_base);
 
@@ -139,6 +156,11 @@ static int __init imx8_soc_init(void)
 		ret = PTR_ERR(soc_dev);
 		goto free_rev;
 	}
+
+	ret = device_create_file(soc_device_to_device(soc_dev),
+				 &dev_attr_soc_uid);
+	if (ret)
+		goto free_rev;
 
 	if (IS_ENABLED(CONFIG_ARM_IMX_CPUFREQ_DT))
 		platform_device_register_simple("imx-cpufreq-dt", -1, NULL, 0);
