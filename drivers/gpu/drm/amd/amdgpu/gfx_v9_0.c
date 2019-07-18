@@ -3341,6 +3341,10 @@ static int gfx_v9_0_mqd_init(struct amdgpu_ring *ring)
 	mqd->compute_static_thread_mgmt_se1 = 0xffffffff;
 	mqd->compute_static_thread_mgmt_se2 = 0xffffffff;
 	mqd->compute_static_thread_mgmt_se3 = 0xffffffff;
+	mqd->compute_static_thread_mgmt_se4 = 0xffffffff;
+	mqd->compute_static_thread_mgmt_se5 = 0xffffffff;
+	mqd->compute_static_thread_mgmt_se6 = 0xffffffff;
+	mqd->compute_static_thread_mgmt_se7 = 0xffffffff;
 	mqd->compute_misc_reserved = 0x00000003;
 
 	mqd->dynamic_cu_mask_addr_lo =
