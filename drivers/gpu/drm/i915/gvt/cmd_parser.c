@@ -374,6 +374,9 @@ typedef int (*parser_cmd_handler)(struct parser_exec_state *s);
 #define ADDR_FIX_4(x1, x2, x3, x4)	(ADDR_FIX_1(x1) | ADDR_FIX_3(x2, x3, x4))
 #define ADDR_FIX_5(x1, x2, x3, x4, x5)  (ADDR_FIX_1(x1) | ADDR_FIX_4(x2, x3, x4, x5))
 
+#define DWORD_FIELD(dword, end, start) \
+	FIELD_GET(GENMASK(end, start), cmd_val(s, dword))
+
 #define OP_LENGTH_BIAS 2
 #define CMD_LEN(value)  (value + OP_LENGTH_BIAS)
 
@@ -960,6 +963,18 @@ static int cmd_handler_lri(struct parser_exec_state *s)
 	int i, ret = 0;
 	int cmd_len = cmd_length(s);
 	struct intel_gvt *gvt = s->vgpu->gvt;
+	u32 valid_len = CMD_LEN(1);
+
+	/*
+	 * Official intel docs are somewhat sloppy , check the definition of
+	 * MI_LOAD_REGISTER_IMM.
+	 */
+	#define MAX_VALID_LEN 127
+	if ((cmd_len < valid_len) || (cmd_len > MAX_VALID_LEN)) {
+		gvt_err("len is not valid:  len=%u  valid_len=%u\n",
+			cmd_len, valid_len);
+		return -EFAULT;
+	}
 
 	for (i = 1; i < cmd_len; i += 2) {
 		if (IS_BROADWELL(gvt->dev_priv) && s->ring_id != RCS0) {
@@ -1391,6 +1406,15 @@ static int cmd_handler_mi_display_flip(struct parser_exec_state *s)
 	int ret;
 	int i;
 	int len = cmd_length(s);
+	u32 valid_len = CMD_LEN(1);
+
+	/* Flip Type == Stereo 3D Flip */
+	if (DWORD_FIELD(2, 1, 0) == 2)
+		valid_len++;
+	ret = gvt_check_valid_cmd_length(cmd_length(s),
+			valid_len);
+	if (ret)
+		return ret;
 
 	ret = decode_mi_display_flip(s, &info);
 	if (ret) {
@@ -1510,11 +1534,20 @@ static int cmd_handler_mi_store_data_imm(struct parser_exec_state *s)
 	int op_size = (cmd_length(s) - 3) * sizeof(u32);
 	int core_id = (cmd_val(s, 2) & (1 << 0)) ? 1 : 0;
 	unsigned long gma, gma_low, gma_high;
+	u32 valid_len = CMD_LEN(2);
 	int ret = 0;
 
 	/* check ppggt */
 	if (!(cmd_val(s, 0) & (1 << 22)))
 		return 0;
+
+	/* check if QWORD */
+	if (DWORD_FIELD(0, 21, 21))
+		valid_len++;
+	ret = gvt_check_valid_cmd_length(cmd_length(s),
+			valid_len);
+	if (ret)
+		return ret;
 
 	gma = cmd_val(s, 2) & GENMASK(31, 2);
 
@@ -1558,9 +1591,18 @@ static int cmd_handler_mi_op_2f(struct parser_exec_state *s)
 	int op_size = (1 << ((cmd_val(s, 0) & GENMASK(20, 19)) >> 19)) *
 			sizeof(u32);
 	unsigned long gma, gma_high;
+	u32 valid_len = CMD_LEN(1);
 	int ret = 0;
 
 	if (!(cmd_val(s, 0) & (1 << 22)))
+		return ret;
+
+	/* check if QWORD */
+	if (DWORD_FIELD(0, 20, 19) == 1)
+		valid_len += 8;
+	ret = gvt_check_valid_cmd_length(cmd_length(s),
+			valid_len);
+	if (ret)
 		return ret;
 
 	gma = cmd_val(s, 1) & GENMASK(31, 2);
@@ -1600,6 +1642,16 @@ static int cmd_handler_mi_flush_dw(struct parser_exec_state *s)
 	bool index_mode = false;
 	int ret = 0;
 	u32 hws_pga, val;
+	u32 valid_len = CMD_LEN(2);
+
+	ret = gvt_check_valid_cmd_length(cmd_length(s),
+			valid_len);
+	if (ret) {
+		/* Check again for Qword */
+		ret = gvt_check_valid_cmd_length(cmd_length(s),
+			++valid_len);
+		return ret;
+	}
 
 	/* Check post-sync and ppgtt bit */
 	if (((cmd_val(s, 0) >> 14) & 0x3) && (cmd_val(s, 1) & (1 << 2))) {
