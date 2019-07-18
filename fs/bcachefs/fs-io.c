@@ -276,16 +276,16 @@ static int sum_sector_overwrites(struct btree_trans *trans,
 	return 0;
 }
 
-static int bch2_extent_update(struct btree_trans *trans,
-			      struct bch_inode_info *inode,
-			      struct disk_reservation *disk_res,
-			      struct quota_res *quota_res,
-			      struct btree_iter *extent_iter,
-			      struct bkey_i *k,
-			      u64 new_i_size,
-			      bool may_allocate,
-			      bool direct,
-			      s64 *total_delta)
+int bch2_extent_update(struct btree_trans *trans,
+		       struct bch_inode_info *inode,
+		       struct disk_reservation *disk_res,
+		       struct quota_res *quota_res,
+		       struct btree_iter *extent_iter,
+		       struct bkey_i *k,
+		       u64 new_i_size,
+		       bool may_allocate,
+		       bool direct,
+		       s64 *total_delta)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter *inode_iter = NULL;
@@ -296,8 +296,6 @@ static int bch2_extent_update(struct btree_trans *trans,
 	bool inode_locked = false;
 	s64 i_sectors_delta;
 	int ret;
-
-	bch2_trans_begin_updates(trans);
 
 	ret = bch2_btree_iter_traverse(extent_iter);
 	if (ret)
@@ -446,6 +444,8 @@ static int bchfs_write_index_update(struct bch_write_op *wop)
 		BKEY_PADDED(k) tmp;
 
 		bkey_copy(&tmp.k, bch2_keylist_front(keys));
+
+		bch2_trans_begin_updates(&trans);
 
 		ret = bch2_extent_update(&trans, inode,
 				&wop->res, quota_res,
@@ -2198,6 +2198,8 @@ static int __bch2_fpunch(struct bch_fs *c, struct bch_inode_info *inode,
 		bch2_key_resize(&delete.k, max_sectors);
 		bch2_cut_back(end, &delete.k);
 
+		bch2_trans_begin_updates(&trans);
+
 		ret = bch2_extent_update(&trans, inode,
 				&disk_res, NULL, iter, &delete,
 				0, true, true, NULL);
@@ -2546,6 +2548,8 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 				BCH_DISK_RESERVATION_NOFAIL);
 		BUG_ON(ret);
 
+		bch2_trans_begin_updates(&trans);
+
 		ret = bch2_extent_update(&trans, inode,
 				&disk_res, NULL,
 				dst, &copy.k,
@@ -2688,6 +2692,8 @@ static long bch2_fallocate(struct bch_inode_info *inode, int mode,
 
 			reservation.v.nr_replicas = disk_res.nr_replicas;
 		}
+
+		bch2_trans_begin_updates(&trans);
 
 		ret = bch2_extent_update(&trans, inode,
 				&disk_res, &quota_res,
