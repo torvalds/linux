@@ -34,7 +34,7 @@ static DEFINE_MUTEX(mem_sysfs_mutex);
 
 static int sections_per_block;
 
-static inline int base_memory_block_id(int section_nr)
+static inline int base_memory_block_id(unsigned long section_nr)
 {
 	return section_nr / sections_per_block;
 }
@@ -131,9 +131,9 @@ static ssize_t phys_index_show(struct device *dev,
 static ssize_t removable_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
-	unsigned long i, pfn;
-	int ret = 1;
 	struct memory_block *mem = to_memory_block(dev);
+	unsigned long pfn;
+	int ret = 1, i;
 
 	if (mem->state != MEM_ONLINE)
 		goto out;
@@ -691,15 +691,15 @@ static int init_memory_block(struct memory_block **memory, int block_id,
 	return ret;
 }
 
-static int add_memory_block(int base_section_nr)
+static int add_memory_block(unsigned long base_section_nr)
 {
+	int ret, section_count = 0;
 	struct memory_block *mem;
-	int i, ret, section_count = 0;
+	unsigned long nr;
 
-	for (i = base_section_nr;
-	     i < base_section_nr + sections_per_block;
-	     i++)
-		if (present_section_nr(i))
+	for (nr = base_section_nr; nr < base_section_nr + sections_per_block;
+	     nr++)
+		if (present_section_nr(nr))
 			section_count++;
 
 	if (section_count == 0)
@@ -822,10 +822,9 @@ static const struct attribute_group *memory_root_attr_groups[] = {
  */
 int __init memory_dev_init(void)
 {
-	unsigned int i;
 	int ret;
 	int err;
-	unsigned long block_sz;
+	unsigned long block_sz, nr;
 
 	ret = subsys_system_register(&memory_subsys, memory_root_attr_groups);
 	if (ret)
@@ -839,9 +838,9 @@ int __init memory_dev_init(void)
 	 * during boot and have been initialized
 	 */
 	mutex_lock(&mem_sysfs_mutex);
-	for (i = 0; i <= __highest_present_section_nr;
-		i += sections_per_block) {
-		err = add_memory_block(i);
+	for (nr = 0; nr <= __highest_present_section_nr;
+	     nr += sections_per_block) {
+		err = add_memory_block(nr);
 		if (!ret)
 			ret = err;
 	}
