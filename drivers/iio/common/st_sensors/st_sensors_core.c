@@ -633,28 +633,47 @@ static int st_sensors_init_interface_mode(struct iio_dev *indio_dev,
 	return 0;
 }
 
+/*
+ * st_sensors_get_settings_index() - get index of the sensor settings for a
+ *				     specific device from list of settings
+ * @name: device name buffer reference.
+ * @list: sensor settings list.
+ * @list_length: length of sensor settings list.
+ *
+ * Return: non negative number on success (valid index),
+ *	   negative error code otherwise.
+ */
+int st_sensors_get_settings_index(const char *name,
+				  const struct st_sensor_settings *list,
+				  const int list_length)
+{
+	int i, n;
+
+	for (i = 0; i < list_length; i++) {
+		for (n = 0; n < ST_SENSORS_MAX_4WAI; n++) {
+			if (strcmp(name, list[i].sensors_supported[n]) == 0)
+				return i;
+		}
+	}
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL(st_sensors_get_settings_index);
+
 int st_sensors_check_device_support(struct iio_dev *indio_dev,
 			int num_sensors_list,
 			const struct st_sensor_settings *sensor_settings)
 {
-	int i, n, err = 0;
-	u8 wai;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	int i, err;
+	u8 wai;
 
-	for (i = 0; i < num_sensors_list; i++) {
-		for (n = 0; n < ST_SENSORS_MAX_4WAI; n++) {
-			if (strcmp(indio_dev->name,
-				sensor_settings[i].sensors_supported[n]) == 0) {
-				break;
-			}
-		}
-		if (n < ST_SENSORS_MAX_4WAI)
-			break;
-	}
-	if (i == num_sensors_list) {
+	i = st_sensors_get_settings_index(indio_dev->name,
+					  sensor_settings, num_sensors_list);
+	if (i < 0) {
 		dev_err(&indio_dev->dev, "device name %s not recognized.\n",
-							indio_dev->name);
-		return -ENODEV;
+			indio_dev->name);
+		return i;
 	}
 
 	err = st_sensors_init_interface_mode(indio_dev, &sensor_settings[i]);
