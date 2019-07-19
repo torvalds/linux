@@ -639,7 +639,6 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	s->s_renew_seq = 0;
 	INIT_LIST_HEAD(&s->s_caps);
 	s->s_nr_caps = 0;
-	s->s_trim_caps = 0;
 	refcount_set(&s->s_ref, 1);
 	INIT_LIST_HEAD(&s->s_waiting);
 	INIT_LIST_HEAD(&s->s_unsafe);
@@ -1722,11 +1721,11 @@ out:
  */
 static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 {
-	struct ceph_mds_session *session = arg;
+	int *remaining = arg;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int used, wanted, oissued, mine;
 
-	if (session->s_trim_caps <= 0)
+	if (*remaining <= 0)
 		return -1;
 
 	spin_lock(&ci->i_ceph_lock);
@@ -1763,7 +1762,7 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 	if (oissued) {
 		/* we aren't the only cap.. just remove us */
 		__ceph_remove_cap(cap, true);
-		session->s_trim_caps--;
+		(*remaining)--;
 	} else {
 		struct dentry *dentry;
 		/* try dropping referring dentries */
@@ -1775,7 +1774,7 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 			d_prune_aliases(inode);
 			count = atomic_read(&inode->i_count);
 			if (count == 1)
-				session->s_trim_caps--;
+				(*remaining)--;
 			dout("trim_caps_cb %p cap %p pruned, count now %d\n",
 			     inode, cap, count);
 		} else {
@@ -1801,12 +1800,12 @@ int ceph_trim_caps(struct ceph_mds_client *mdsc,
 	dout("trim_caps mds%d start: %d / %d, trim %d\n",
 	     session->s_mds, session->s_nr_caps, max_caps, trim_caps);
 	if (trim_caps > 0) {
-		session->s_trim_caps = trim_caps;
-		ceph_iterate_session_caps(session, trim_caps_cb, session);
+		int remaining = trim_caps;
+
+		ceph_iterate_session_caps(session, trim_caps_cb, &remaining);
 		dout("trim_caps mds%d done: %d / %d, trimmed %d\n",
 		     session->s_mds, session->s_nr_caps, max_caps,
-			trim_caps - session->s_trim_caps);
-		session->s_trim_caps = 0;
+			trim_caps - remaining);
 	}
 
 	ceph_flush_cap_releases(mdsc, session);

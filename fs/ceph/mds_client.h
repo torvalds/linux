@@ -176,7 +176,7 @@ struct ceph_mds_session {
 	spinlock_t        s_cap_lock;
 	struct list_head  s_caps;     /* all caps issued by this session */
 	struct ceph_cap  *s_cap_iterator;
-	int               s_nr_caps, s_trim_caps;
+	int               s_nr_caps;
 	int               s_num_cap_releases;
 	int		  s_cap_reconnect;
 	int		  s_readonly;
