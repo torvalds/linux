@@ -621,6 +621,7 @@ struct pptable_funcs {
 	int (*get_thermal_temperature_range)(struct smu_context *smu, struct smu_temperature_range *range);
 	int (*get_uclk_dpm_states)(struct smu_context *smu, uint32_t *clocks_in_khz, uint32_t *num_states);
 	int (*set_default_od_settings)(struct smu_context *smu, bool initialize);
+	int (*set_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
 };
 
 struct smu_funcs
@@ -918,6 +919,9 @@ struct smu_funcs
 	((smu)->funcs->baco_get_state? (smu)->funcs->baco_get_state((smu), (state)) : 0)
 #define smu_baco_reset(smu) \
 	((smu)->funcs->baco_reset? (smu)->funcs->baco_reset((smu)) : 0)
+#define smu_asic_set_performance_level(smu, level) \
+	((smu)->ppt_funcs->set_performance_level? (smu)->ppt_funcs->set_performance_level((smu), (level)) : -EINVAL);
+
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

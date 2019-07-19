@@ -1565,6 +1565,60 @@ static int navi10_set_ppfeature_status(struct smu_context *smu,
 	return 0;
 }
 
+static int navi10_set_peak_clock_by_device(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+	uint32_t sclk_freq = 0, uclk_freq = 0;
+	uint32_t uclk_level = 0;
+
+	switch (adev->rev_id) {
+	case 0xf0: /* XTX */
+	case 0xc0:
+		sclk_freq = NAVI10_PEAK_SCLK_XTX;
+		break;
+	case 0xf1: /* XT */
+	case 0xc1:
+		sclk_freq = NAVI10_PEAK_SCLK_XT;
+		break;
+	default: /* XL */
+		sclk_freq = NAVI10_PEAK_SCLK_XL;
+		break;
+	}
+
+	ret = smu_get_dpm_level_count(smu, SMU_UCLK, &uclk_level);
+	if (ret)
+		return ret;
+	ret = smu_get_dpm_freq_by_index(smu, SMU_UCLK, uclk_level - 1, &uclk_freq);
+	if (ret)
+		return ret;
+
+	ret = smu_set_soft_freq_range(smu, SMU_SCLK, sclk_freq, sclk_freq);
+	if (ret)
+		return ret;
+	ret = smu_set_soft_freq_range(smu, SMU_UCLK, uclk_freq, uclk_freq);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
+static int navi10_set_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
+{
+	int ret = 0;
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		ret = navi10_set_peak_clock_by_device(smu);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -1600,6 +1654,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_uclk_dpm_states = navi10_get_uclk_dpm_states,
 	.get_ppfeature_status = navi10_get_ppfeature_status,
 	.set_ppfeature_status = navi10_set_ppfeature_status,
+	.set_performance_level = navi10_set_performance_level,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
