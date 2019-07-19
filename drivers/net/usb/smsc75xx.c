@@ -661,8 +661,7 @@ static void smsc75xx_status(struct usbnet *dev, struct urb *urb)
 		return;
 	}
 
-	memcpy(&intdata, urb->transfer_buffer, 4);
-	le32_to_cpus(&intdata);
+	intdata = get_unaligned_le32(urb->transfer_buffer);
 
 	netif_dbg(dev, link, dev->net, "intdata: 0x%08X\n", intdata);
 
@@ -2181,12 +2180,10 @@ static int smsc75xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		struct sk_buff *ax_skb;
 		unsigned char *packet;
 
-		memcpy(&rx_cmd_a, skb->data, sizeof(rx_cmd_a));
-		le32_to_cpus(&rx_cmd_a);
+		rx_cmd_a = get_unaligned_le32(skb->data);
 		skb_pull(skb, 4);
 
-		memcpy(&rx_cmd_b, skb->data, sizeof(rx_cmd_b));
-		le32_to_cpus(&rx_cmd_b);
+		rx_cmd_b = get_unaligned_le32(skb->data);
 		skb_pull(skb, 4 + RXW_PADDING);
 
 		packet = skb->data;
