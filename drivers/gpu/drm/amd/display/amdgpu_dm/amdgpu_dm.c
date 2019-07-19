@@ -56,6 +56,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
+#include <linux/component.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_uapi.h>
@@ -65,6 +66,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_vblank.h>
+#include <drm/drm_audio_component.h>
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "ivsrcid/dcn/irqsrcs_dcn_1_0.h"
@@ -508,6 +510,139 @@ static void amdgpu_dm_fbc_init(struct drm_connector *connector)
 
 }
 
+static int amdgpu_dm_audio_component_get_eld(struct device *kdev, int port,
+					  int pipe, bool *enabled,
+					  unsigned char *buf, int max_bytes)
+{
+	struct drm_device *dev = dev_get_drvdata(kdev);
+	struct amdgpu_device *adev = dev->dev_private;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct amdgpu_dm_connector *aconnector;
+	int ret = 0;
+
+	*enabled = false;
+
+	mutex_lock(&adev->dm.audio_lock);
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		aconnector = to_amdgpu_dm_connector(connector);
+		if (aconnector->audio_inst != port)
+			continue;
+
+		*enabled = true;
+		ret = drm_eld_size(connector->eld);
+		memcpy(buf, connector->eld, min(max_bytes, ret));
+
+		break;
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	mutex_unlock(&adev->dm.audio_lock);
+
+	DRM_DEBUG_KMS("Get ELD : idx=%d ret=%d en=%d\n", port, ret, *enabled);
+
+	return ret;
+}
+
+static const struct drm_audio_component_ops amdgpu_dm_audio_component_ops = {
+	.get_eld = amdgpu_dm_audio_component_get_eld,
+};
+
+static int amdgpu_dm_audio_component_bind(struct device *kdev,
+				       struct device *hda_kdev, void *data)
+{
+	struct drm_device *dev = dev_get_drvdata(kdev);
+	struct amdgpu_device *adev = dev->dev_private;
+	struct drm_audio_component *acomp = data;
+
+	acomp->ops = &amdgpu_dm_audio_component_ops;
+	acomp->dev = kdev;
+	adev->dm.audio_component = acomp;
+
+	return 0;
+}
+
+static void amdgpu_dm_audio_component_unbind(struct device *kdev,
+					  struct device *hda_kdev, void *data)
+{
+	struct drm_device *dev = dev_get_drvdata(kdev);
+	struct amdgpu_device *adev = dev->dev_private;
+	struct drm_audio_component *acomp = data;
+
+	acomp->ops = NULL;
+	acomp->dev = NULL;
+	adev->dm.audio_component = NULL;
+}
+
+static const struct component_ops amdgpu_dm_audio_component_bind_ops = {
+	.bind	= amdgpu_dm_audio_component_bind,
+	.unbind	= amdgpu_dm_audio_component_unbind,
+};
+
+static int amdgpu_dm_audio_init(struct amdgpu_device *adev)
+{
+	int i, ret;
+
+	if (!amdgpu_audio)
+		return 0;
+
+	adev->mode_info.audio.enabled = true;
+
+	adev->mode_info.audio.num_pins = adev->dm.dc->res_pool->audio_count;
+
+	for (i = 0; i < adev->mode_info.audio.num_pins; i++) {
+		adev->mode_info.audio.pin[i].channels = -1;
+		adev->mode_info.audio.pin[i].rate = -1;
+		adev->mode_info.audio.pin[i].bits_per_sample = -1;
+		adev->mode_info.audio.pin[i].status_bits = 0;
+		adev->mode_info.audio.pin[i].category_code = 0;
+		adev->mode_info.audio.pin[i].connected = false;
+		adev->mode_info.audio.pin[i].id =
+			adev->dm.dc->res_pool->audios[i]->inst;
+		adev->mode_info.audio.pin[i].offset = 0;
+	}
+
+	ret = component_add(adev->dev, &amdgpu_dm_audio_component_bind_ops);
+	if (ret < 0)
+		return ret;
+
+	adev->dm.audio_registered = true;
+
+	return 0;
+}
+
+static void amdgpu_dm_audio_fini(struct amdgpu_device *adev)
+{
+	if (!amdgpu_audio)
+		return;
+
+	if (!adev->mode_info.audio.enabled)
+		return;
+
+	if (adev->dm.audio_registered) {
+		component_del(adev->dev, &amdgpu_dm_audio_component_bind_ops);
+		adev->dm.audio_registered = false;
+	}
+
+	/* TODO: Disable audio? */
+
+	adev->mode_info.audio.enabled = false;
+}
+
+void amdgpu_dm_audio_eld_notify(struct amdgpu_device *adev, int pin)
+{
+	struct drm_audio_component *acomp = adev->dm.audio_component;
+
+	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify) {
+		DRM_DEBUG_KMS("Notify ELD: %d\n", pin);
+
+		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
+						 pin, -1);
+	}
+}
+
 static int amdgpu_dm_init(struct amdgpu_device *adev)
 {
 	struct dc_init_data init_data;
@@ -518,6 +653,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	memset(&init_data, 0, sizeof(init_data));
 
 	mutex_init(&adev->dm.dc_lock);
+	mutex_init(&adev->dm.audio_lock);
 
 	if(amdgpu_dm_irq_init(adev)) {
 		DRM_ERROR("amdgpu: failed to initialize DM IRQ support.\n");
@@ -621,6 +757,8 @@ error:
 
 static void amdgpu_dm_fini(struct amdgpu_device *adev)
 {
+	amdgpu_dm_audio_fini(adev);
+
 	amdgpu_dm_destroy_drm_device(&adev->dm);
 
 	/* DC Destroy TODO: Replace destroy DAL */
@@ -641,6 +779,7 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 		adev->dm.freesync_module = NULL;
 	}
 
+	mutex_destroy(&adev->dm.audio_lock);
 	mutex_destroy(&adev->dm.dc_lock);
 
 	return;
@@ -1885,6 +2024,10 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 				    &dm_atomic_state_funcs);
 
 	r = amdgpu_display_modeset_create_props(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_dm_audio_init(adev);
 	if (r)
 		return r;
 
@@ -4834,6 +4977,7 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 	aconnector->base.stereo_allowed = false;
 	aconnector->base.dpms = DRM_MODE_DPMS_OFF;
 	aconnector->hpd.hpd = AMDGPU_HPD_NONE; /* not used */
+	aconnector->audio_inst = -1;
 	mutex_init(&aconnector->hpd_lock);
 
 	/*
@@ -5728,6 +5872,81 @@ cleanup:
 	kfree(bundle);
 }
 
+static void amdgpu_dm_commit_audio(struct drm_device *dev,
+				   struct drm_atomic_state *state)
+{
+	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector *connector;
+	struct drm_connector_state *old_con_state, *new_con_state;
+	struct drm_crtc_state *new_crtc_state;
+	struct dm_crtc_state *new_dm_crtc_state;
+	const struct dc_stream_status *status;
+	int i, inst;
+
+	/* Notify device removals. */
+	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
+		if (old_con_state->crtc != new_con_state->crtc) {
+			/* CRTC changes require notification. */
+			goto notify;
+		}
+
+		if (!new_con_state->crtc)
+			continue;
+
+		new_crtc_state = drm_atomic_get_new_crtc_state(
+			state, new_con_state->crtc);
+
+		if (!new_crtc_state)
+			continue;
+
+		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
+			continue;
+
+	notify:
+		aconnector = to_amdgpu_dm_connector(connector);
+
+		mutex_lock(&adev->dm.audio_lock);
+		inst = aconnector->audio_inst;
+		aconnector->audio_inst = -1;
+		mutex_unlock(&adev->dm.audio_lock);
+
+		amdgpu_dm_audio_eld_notify(adev, inst);
+	}
+
+	/* Notify audio device additions. */
+	for_each_new_connector_in_state(state, connector, new_con_state, i) {
+		if (!new_con_state->crtc)
+			continue;
+
+		new_crtc_state = drm_atomic_get_new_crtc_state(
+			state, new_con_state->crtc);
+
+		if (!new_crtc_state)
+			continue;
+
+		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
+			continue;
+
+		new_dm_crtc_state = to_dm_crtc_state(new_crtc_state);
+		if (!new_dm_crtc_state->stream)
+			continue;
+
+		status = dc_stream_get_status(new_dm_crtc_state->stream);
+		if (!status)
+			continue;
+
+		aconnector = to_amdgpu_dm_connector(connector);
+
+		mutex_lock(&adev->dm.audio_lock);
+		inst = status->audio_inst;
+		aconnector->audio_inst = inst;
+		mutex_unlock(&adev->dm.audio_lock);
+
+		amdgpu_dm_audio_eld_notify(adev, inst);
+	}
+}
+
 /*
  * Enable interrupts on CRTCs that are newly active, undergone
  * a modeset, or have active planes again.
@@ -6105,6 +6324,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 
 	/* Enable interrupts for CRTCs going from 0 to n active planes. */
 	amdgpu_dm_enable_crtc_interrupts(dev, state, false);
+
+	/* Update audio instances for each connector. */
+	amdgpu_dm_commit_audio(dev, state);
 
 	/*
 	 * send vblank event on all events not handled in flip and

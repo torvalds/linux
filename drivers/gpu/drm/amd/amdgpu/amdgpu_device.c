@@ -2537,6 +2537,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	hash_init(adev->mn_hash);
 	mutex_init(&adev->lock_reset);
 	mutex_init(&adev->virt.dpm_mutex);
+	mutex_init(&adev->psp.mutex);
 
 	r = amdgpu_device_check_arguments(adev);
 	if (r)

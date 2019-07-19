@@ -157,7 +157,7 @@ extern int ignore_crat;
 /*
  * Set sh_mem_config.retry_disable on Vega10
  */
-extern int noretry;
+extern int amdgpu_noretry;
 
 /*
  * Halt if HWS hang is detected

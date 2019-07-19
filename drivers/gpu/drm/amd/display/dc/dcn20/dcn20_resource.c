@@ -2415,7 +2415,7 @@ struct pipe_ctx *dcn20_acquire_idle_pipe_for_layer(
 		ASSERT(0);
 
 	if (!idle_pipe)
-		return false;
+		return NULL;
 
 	idle_pipe->stream = head_pipe->stream;
 	idle_pipe->stream_res.tg = head_pipe->stream_res.tg;
@@ -2575,6 +2575,9 @@ static void cap_soc_clocks(
 		if ((bb->clock_limits[i].dram_speed_mts > (max_clocks.uClockInKhz / 1000) * 16)
 						&& max_clocks.uClockInKhz != 0)
 			bb->clock_limits[i].dram_speed_mts = (max_clocks.uClockInKhz / 1000) * 16;
+
+		// HACK: Force every uclk to max for now to "disable" uclk switching.
+		bb->clock_limits[i].dram_speed_mts = (max_clocks.uClockInKhz / 1000) * 16;
 
 		if ((bb->clock_limits[i].fabricclk_mhz > (max_clocks.fabricClockInKhz / 1000))
 						&& max_clocks.fabricClockInKhz != 0)
@@ -2783,6 +2786,8 @@ static bool init_soc_bounding_box(struct dc *dc,
 				le32_to_cpu(bb->vmm_page_size_bytes);
 		dcn2_0_soc.dram_clock_change_latency_us =
 				fixed16_to_double_to_cpu(bb->dram_clock_change_latency_us);
+		// HACK!! Lower uclock latency switch time so we don't switch
+		dcn2_0_soc.dram_clock_change_latency_us = 10;
 		dcn2_0_soc.writeback_dram_clock_change_latency_us =
 				fixed16_to_double_to_cpu(bb->writeback_dram_clock_change_latency_us);
 		dcn2_0_soc.return_bus_width_bytes =
@@ -2824,6 +2829,7 @@ static bool init_soc_bounding_box(struct dc *dc,
 		struct pp_smu_nv_clock_table max_clocks = {0};
 		unsigned int uclk_states[8] = {0};
 		unsigned int num_states = 0;
+		int i;
 		enum pp_smu_status status;
 		bool clock_limits_available = false;
 		bool uclk_states_available = false;
@@ -2844,6 +2850,10 @@ static bool init_soc_bounding_box(struct dc *dc,
 				max_clocks.dcfClockInKhz = max_clocks.socClockInKhz - 1000;
 			clock_limits_available = (status == PP_SMU_RESULT_OK);
 		}
+
+		// HACK: Use the max uclk_states value for all elements.
+		for (i = 0; i < num_states; i++)
+			uclk_states[i] = uclk_states[num_states - 1];
 
 		if (clock_limits_available && uclk_states_available && num_states)
 			update_bounding_box(dc, &dcn2_0_soc, &max_clocks, uclk_states, num_states);

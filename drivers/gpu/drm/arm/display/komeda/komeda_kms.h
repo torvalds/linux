@@ -33,11 +33,6 @@ struct komeda_plane {
 	 * Layers with same capabilities.
 	 */
 	struct komeda_layer *layer;
-
-	/** @prop_img_enhancement: for on/off image enhancement */
-	struct drm_property *prop_img_enhancement;
-	/** @prop_layer_split: for on/off layer_split */
-	struct drm_property *prop_layer_split;
 };
 
 /**
@@ -52,11 +47,8 @@ struct komeda_plane_state {
 	/** @zlist_node: zorder list node */
 	struct list_head zlist_node;
 
-	/* @img_enhancement: on/off image enhancement
-	 * @layer_split: on/off layer_split
-	 */
-	u8 img_enhancement : 1,
-	   layer_split : 1;
+	/** @layer_split: on/off layer_split */
+	u8 layer_split : 1;
 };
 
 /**
@@ -94,12 +86,6 @@ struct komeda_crtc {
 
 	/** @disable_done: this flip_done is for tracing the disable */
 	struct completion *disable_done;
-
-	/** @clock_ratio_property: property for ratio of (aclk << 32)/pxlclk */
-	struct drm_property *clock_ratio_property;
-
-	/** @slave_planes_property: property for slaves of the planes */
-	struct drm_property *slave_planes_property;
 };
 
 /**

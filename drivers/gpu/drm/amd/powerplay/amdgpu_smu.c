@@ -69,6 +69,9 @@ int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 	if (min <= 0 && max <= 0)
 		return -EINVAL;
 
+	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+		return 0;
+
 	clk_id = smu_clk_get_index(smu, clk_type);
 	if (clk_id < 0)
 		return clk_id;
@@ -101,6 +104,9 @@ int smu_set_hard_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 
 	if (min <= 0 && max <= 0)
 		return -EINVAL;
+
+	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+		return 0;
 
 	clk_id = smu_clk_get_index(smu, clk_type);
 	if (clk_id < 0)
@@ -135,23 +141,8 @@ int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 	if (!min && !max)
 		return -EINVAL;
 
-	switch (clk_type) {
-	case SMU_UCLK:
-		if (!smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
-			pr_warn("uclk dpm is not enabled\n");
-			return 0;
-		}
-		break;
-	case SMU_GFXCLK:
-	case SMU_SCLK:
-		if (!smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
-			pr_warn("gfxclk dpm is not enabled\n");
-			return 0;
-		}
-		break;
-	default:
-		break;
-	}
+	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+		return 0;
 
 	mutex_lock(&smu->mutex);
 	clk_id = smu_clk_get_index(smu, clk_type);
@@ -194,6 +185,9 @@ int smu_get_dpm_freq_by_index(struct smu_context *smu, enum smu_clk_type clk_typ
 	if (!value)
 		return -EINVAL;
 
+	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+		return 0;
+
 	clk_id = smu_clk_get_index(smu, clk_type);
 	if (clk_id < 0)
 		return clk_id;
@@ -221,6 +215,35 @@ int smu_get_dpm_level_count(struct smu_context *smu, enum smu_clk_type clk_type,
 {
 	return smu_get_dpm_freq_by_index(smu, clk_type, 0xff, value);
 }
+
+bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type)
+{
+	enum smu_feature_mask feature_id = 0;
+
+	switch (clk_type) {
+	case SMU_MCLK:
+	case SMU_UCLK:
+		feature_id = SMU_FEATURE_DPM_UCLK_BIT;
+		break;
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		feature_id = SMU_FEATURE_DPM_GFXCLK_BIT;
+		break;
+	case SMU_SOCCLK:
+		feature_id = SMU_FEATURE_DPM_SOCCLK_BIT;
+		break;
+	default:
+		return true;
+	}
+
+	if(!smu_feature_is_enabled(smu, feature_id)) {
+		pr_warn("smu %d clk dpm feature %d is not enabled\n", clk_type, feature_id);
+		return false;
+	}
+
+	return true;
+}
+
 
 int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
 			   bool gate)
@@ -300,7 +323,7 @@ int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
 	return ret;
 }
 
-int smu_update_table(struct smu_context *smu, enum smu_table_id table_index,
+int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int argument,
 		     void *table_data, bool drv2smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
@@ -327,7 +350,7 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index,
 	ret = smu_send_smc_msg_with_param(smu, drv2smu ?
 					  SMU_MSG_TransferTableDram2Smu :
 					  SMU_MSG_TransferTableSmu2Dram,
-					  table_id);
+					  table_id | ((argument & 0xFFFF) << 16));
 	if (ret)
 		return ret;
 
@@ -1372,10 +1395,10 @@ int smu_adjust_power_state_dynamic(struct smu_context *smu,
 			break;
 
 		case AMD_DPM_FORCED_LEVEL_AUTO:
+		case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 			ret = smu_unforce_dpm_levels(smu);
 			break;
 
-		case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 		case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 		case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 		case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
@@ -1385,8 +1408,9 @@ int smu_adjust_power_state_dynamic(struct smu_context *smu,
 							 &soc_mask);
 			if (ret)
 				return ret;
-			smu_force_clk_levels(smu, PP_SCLK, 1 << sclk_mask);
-			smu_force_clk_levels(smu, PP_MCLK, 1 << mclk_mask);
+			smu_force_clk_levels(smu, SMU_SCLK, 1 << sclk_mask);
+			smu_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask);
+			smu_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask);
 			break;
 
 		case AMD_DPM_FORCED_LEVEL_MANUAL:
@@ -1441,17 +1465,16 @@ int smu_handle_task(struct smu_context *smu,
 enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+	enum amd_dpm_forced_level level;
 
 	if (!smu_dpm_ctx->dpm_context)
 		return -EINVAL;
 
 	mutex_lock(&(smu->mutex));
-	if (smu_dpm_ctx->dpm_level != smu_dpm_ctx->saved_dpm_level) {
-		smu_dpm_ctx->saved_dpm_level = smu_dpm_ctx->dpm_level;
-	}
+	level = smu_dpm_ctx->dpm_level;
 	mutex_unlock(&(smu->mutex));
 
-	return smu_dpm_ctx->dpm_level;
+	return level;
 }
 
 int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
