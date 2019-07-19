@@ -1045,7 +1045,6 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 	rc = tls_set_sw_offload(sk, ctx, 0);
 	if (rc)
 		goto release_ctx;
-	tls_sw_strparser_arm(sk, ctx);
 
 	rc = netdev->tlsdev_ops->tls_dev_add(netdev, sk, TLS_OFFLOAD_CTX_DIR_RX,
 					     &ctx->crypto_recv.info,
