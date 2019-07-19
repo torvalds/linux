@@ -323,8 +323,7 @@ int ocelot_setup_tc_block_flower_bind(struct ocelot_port *port,
 		if (!port_block)
 			return -ENOMEM;
 
-		block_cb = flow_block_cb_alloc(f->net,
-					       ocelot_setup_tc_block_cb_flower,
+		block_cb = flow_block_cb_alloc(ocelot_setup_tc_block_cb_flower,
 					       port, port_block,
 					       ocelot_tc_block_unbind);
 		if (IS_ERR(block_cb)) {

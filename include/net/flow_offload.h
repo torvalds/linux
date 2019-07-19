@@ -264,7 +264,6 @@ struct flow_block_offload {
 struct flow_block_cb {
 	struct list_head	driver_list;
 	struct list_head	list;
-	struct net		*net;
 	tc_setup_cb_t		*cb;
 	void			*cb_ident;
 	void			*cb_priv;
@@ -272,7 +271,7 @@ struct flow_block_cb {
 	unsigned int		refcnt;
 };
 
-struct flow_block_cb *flow_block_cb_alloc(struct net *net, tc_setup_cb_t *cb,
+struct flow_block_cb *flow_block_cb_alloc(tc_setup_cb_t *cb,
 					  void *cb_ident, void *cb_priv,
 					  void (*release)(void *cb_priv));
 void flow_block_cb_free(struct flow_block_cb *block_cb);

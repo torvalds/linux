@@ -1318,8 +1318,7 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 					  &nfp_block_cb_list))
 			return -EBUSY;
 
-		block_cb = flow_block_cb_alloc(f->net,
-					       nfp_flower_setup_tc_block_cb,
+		block_cb = flow_block_cb_alloc(nfp_flower_setup_tc_block_cb,
 					       repr, repr, NULL);
 		if (IS_ERR(block_cb))
 			return PTR_ERR(block_cb);
@@ -1424,8 +1423,7 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 		cb_priv->app = app;
 		list_add(&cb_priv->list, &priv->indr_block_cb_priv);
 
-		block_cb = flow_block_cb_alloc(f->net,
-					       nfp_flower_setup_indr_block_cb,
+		block_cb = flow_block_cb_alloc(nfp_flower_setup_indr_block_cb,
 					       cb_priv, cb_priv,
 					       nfp_flower_setup_indr_tc_release);
 		if (IS_ERR(block_cb)) {

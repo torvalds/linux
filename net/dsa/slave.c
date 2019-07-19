@@ -967,7 +967,7 @@ static int dsa_slave_setup_tc_block(struct net_device *dev,
 		if (flow_block_cb_is_busy(cb, dev, &dsa_slave_block_cb_list))
 			return -EBUSY;
 
-		block_cb = flow_block_cb_alloc(f->net, cb, dev, dev, NULL);
+		block_cb = flow_block_cb_alloc(cb, dev, dev, NULL);
 		if (IS_ERR(block_cb))
 			return PTR_ERR(block_cb);
 
