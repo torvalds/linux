@@ -701,10 +701,9 @@ static void dump_ace(struct cifs_ace *pace, char *end_of_acl)
 }
 #endif
 
-
 static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 		       struct cifs_sid *pownersid, struct cifs_sid *pgrpsid,
-		       struct cifs_fattr *fattr)
+		       struct cifs_fattr *fattr, bool mode_from_special_sid)
 {
 	int i;
 	int num_aces = 0;
@@ -757,22 +756,34 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 #ifdef CONFIG_CIFS_DEBUG2
 			dump_ace(ppace[i], end_of_acl);
 #endif
-			if (compare_sids(&(ppace[i]->sid), pownersid) == 0)
+			if (mode_from_special_sid &&
+			    (compare_sids(&(ppace[i]->sid),
+					  &sid_unix_NFS_mode) == 0)) {
+				/*
+				 * Full permissions are:
+				 * 07777 = S_ISUID | S_ISGID | S_ISVTX |
+				 *         S_IRWXU | S_IRWXG | S_IRWXO
+				 */
+				fattr->cf_mode &= ~07777;
+				fattr->cf_mode |=
+					le32_to_cpu(ppace[i]->sid.sub_auth[2]);
+				break;
+			} else if (compare_sids(&(ppace[i]->sid), pownersid) == 0)
 				access_flags_to_mode(ppace[i]->access_req,
 						     ppace[i]->type,
 						     &fattr->cf_mode,
 						     &user_mask);
-			if (compare_sids(&(ppace[i]->sid), pgrpsid) == 0)
+			else if (compare_sids(&(ppace[i]->sid), pgrpsid) == 0)
 				access_flags_to_mode(ppace[i]->access_req,
 						     ppace[i]->type,
 						     &fattr->cf_mode,
 						     &group_mask);
-			if (compare_sids(&(ppace[i]->sid), &sid_everyone) == 0)
+			else if (compare_sids(&(ppace[i]->sid), &sid_everyone) == 0)
 				access_flags_to_mode(ppace[i]->access_req,
 						     ppace[i]->type,
 						     &fattr->cf_mode,
 						     &other_mask);
-			if (compare_sids(&(ppace[i]->sid), &sid_authusers) == 0)
+			else if (compare_sids(&(ppace[i]->sid), &sid_authusers) == 0)
 				access_flags_to_mode(ppace[i]->access_req,
 						     ppace[i]->type,
 						     &fattr->cf_mode,
@@ -851,7 +862,8 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 
 /* Convert CIFS ACL to POSIX form */
 static int parse_sec_desc(struct cifs_sb_info *cifs_sb,
-		struct cifs_ntsd *pntsd, int acl_len, struct cifs_fattr *fattr)
+		struct cifs_ntsd *pntsd, int acl_len, struct cifs_fattr *fattr,
+		bool get_mode_from_special_sid)
 {
 	int rc = 0;
 	struct cifs_sid *owner_sid_ptr, *group_sid_ptr;
@@ -900,7 +912,7 @@ static int parse_sec_desc(struct cifs_sb_info *cifs_sb,
 
 	if (dacloffset)
 		parse_dacl(dacl_ptr, end_of_acl, owner_sid_ptr,
-			   group_sid_ptr, fattr);
+			   group_sid_ptr, fattr, get_mode_from_special_sid);
 	else
 		cifs_dbg(FYI, "no ACL\n"); /* BB grant all or default perms? */
 
@@ -1128,8 +1140,8 @@ out:
 /* Translate the CIFS ACL (similar to NTFS ACL) for a file into mode bits */
 int
 cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
-		  struct inode *inode, const char *path,
-		  const struct cifs_fid *pfid)
+		  struct inode *inode, bool mode_from_special_sid,
+		  const char *path, const struct cifs_fid *pfid)
 {
 	struct cifs_ntsd *pntsd = NULL;
 	u32 acllen = 0;
@@ -1156,8 +1168,11 @@ cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
 	if (IS_ERR(pntsd)) {
 		rc = PTR_ERR(pntsd);
 		cifs_dbg(VFS, "%s: error %d getting sec desc\n", __func__, rc);
+	} else if (mode_from_special_sid) {
+		rc = parse_sec_desc(cifs_sb, pntsd, acllen, fattr, true);
 	} else {
-		rc = parse_sec_desc(cifs_sb, pntsd, acllen, fattr);
+		/* get approximated mode from ACL */
+		rc = parse_sec_desc(cifs_sb, pntsd, acllen, fattr, false);
 		kfree(pntsd);
 		if (rc)
 			cifs_dbg(VFS, "parse sec desc failed rc = %d\n", rc);
