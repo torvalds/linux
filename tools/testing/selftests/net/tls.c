@@ -911,6 +911,58 @@ TEST_F(tls, control_msg)
 	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
 }
 
+TEST(non_established) {
+	struct tls12_crypto_info_aes_gcm_256 tls12;
+	struct sockaddr_in addr;
+	int sfd, ret, fd;
+	socklen_t len;
+
+	len = sizeof(addr);
+
+	memset(&tls12, 0, sizeof(tls12));
+	tls12.info.version = TLS_1_2_VERSION;
+	tls12.info.cipher_type = TLS_CIPHER_AES_GCM_256;
+
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_port = 0;
+
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+	sfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	ret = bind(sfd, &addr, sizeof(addr));
+	ASSERT_EQ(ret, 0);
+	ret = listen(sfd, 10);
+	ASSERT_EQ(ret, 0);
+
+	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	EXPECT_EQ(ret, -1);
+	/* TLS ULP not supported */
+	if (errno == ENOENT)
+		return;
+	EXPECT_EQ(errno, ENOTSUPP);
+
+	ret = setsockopt(sfd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	EXPECT_EQ(ret, -1);
+	EXPECT_EQ(errno, ENOTSUPP);
+
+	ret = getsockname(sfd, &addr, &len);
+	ASSERT_EQ(ret, 0);
+
+	ret = connect(fd, &addr, sizeof(addr));
+	ASSERT_EQ(ret, 0);
+
+	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	ASSERT_EQ(ret, 0);
+
+	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	EXPECT_EQ(ret, -1);
+	EXPECT_EQ(errno, EEXIST);
+
+	close(fd);
+	close(sfd);
+}
+
 TEST(keysizes) {
 	struct tls12_crypto_info_aes_gcm_256 tls12;
 	struct sockaddr_in addr;
