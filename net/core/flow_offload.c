@@ -193,12 +193,12 @@ void flow_block_cb_free(struct flow_block_cb *block_cb)
 }
 EXPORT_SYMBOL(flow_block_cb_free);
 
-struct flow_block_cb *flow_block_cb_lookup(struct flow_block_offload *f,
+struct flow_block_cb *flow_block_cb_lookup(struct flow_block *block,
 					   flow_setup_cb_t *cb, void *cb_ident)
 {
 	struct flow_block_cb *block_cb;
 
-	list_for_each_entry(block_cb, f->driver_block_list, driver_list) {
+	list_for_each_entry(block_cb, &block->cb_list, list) {
 		if (block_cb->cb == cb &&
 		    block_cb->cb_ident == cb_ident)
 			return block_cb;
@@ -268,7 +268,7 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 		list_add_tail(&block_cb->driver_list, driver_block_list);
 		return 0;
 	case FLOW_BLOCK_UNBIND:
-		block_cb = flow_block_cb_lookup(f, cb, cb_ident);
+		block_cb = flow_block_cb_lookup(f->block, cb, cb_ident);
 		if (!block_cb)
 			return -ENOENT;
 

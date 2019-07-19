@@ -975,7 +975,7 @@ static int dsa_slave_setup_tc_block(struct net_device *dev,
 		list_add_tail(&block_cb->driver_list, &dsa_slave_block_cb_list);
 		return 0;
 	case FLOW_BLOCK_UNBIND:
-		block_cb = flow_block_cb_lookup(f, cb, dev);
+		block_cb = flow_block_cb_lookup(f->block, cb, dev);
 		if (!block_cb)
 			return -ENOENT;
 

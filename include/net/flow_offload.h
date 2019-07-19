@@ -249,6 +249,10 @@ enum flow_block_binder_type {
 	FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS,
 };
 
+struct flow_block {
+	struct list_head cb_list;
+};
+
 struct netlink_ext_ack;
 
 struct flow_block_offload {
@@ -256,6 +260,7 @@ struct flow_block_offload {
 	enum flow_block_binder_type binder_type;
 	bool block_shared;
 	struct net *net;
+	struct flow_block *block;
 	struct list_head cb_list;
 	struct list_head *driver_block_list;
 	struct netlink_ext_ack *extack;
@@ -280,7 +285,7 @@ struct flow_block_cb *flow_block_cb_alloc(flow_setup_cb_t *cb,
 					  void (*release)(void *cb_priv));
 void flow_block_cb_free(struct flow_block_cb *block_cb);
 
-struct flow_block_cb *flow_block_cb_lookup(struct flow_block_offload *offload,
+struct flow_block_cb *flow_block_cb_lookup(struct flow_block *block,
 					   flow_setup_cb_t *cb, void *cb_ident);
 
 void *flow_block_cb_priv(struct flow_block_cb *block_cb);
@@ -335,6 +340,11 @@ static inline struct flow_rule *
 flow_cls_offload_flow_rule(struct flow_cls_offload *flow_cmd)
 {
 	return flow_cmd->rule;
+}
+
+static inline void flow_block_init(struct flow_block *flow_block)
+{
+	INIT_LIST_HEAD(&flow_block->cb_list);
 }
 
 #endif /* _NET_FLOW_OFFLOAD_H */

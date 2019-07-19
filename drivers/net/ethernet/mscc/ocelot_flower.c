@@ -316,8 +316,8 @@ int ocelot_setup_tc_block_flower_bind(struct ocelot_port *port,
 	if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
 		return -EOPNOTSUPP;
 
-	block_cb = flow_block_cb_lookup(f, ocelot_setup_tc_block_cb_flower,
-					port);
+	block_cb = flow_block_cb_lookup(f->block,
+					ocelot_setup_tc_block_cb_flower, port);
 	if (!block_cb) {
 		port_block = ocelot_port_block_create(port);
 		if (!port_block)
@@ -350,8 +350,8 @@ void ocelot_setup_tc_block_flower_unbind(struct ocelot_port *port,
 {
 	struct flow_block_cb *block_cb;
 
-	block_cb = flow_block_cb_lookup(f, ocelot_setup_tc_block_cb_flower,
-					port);
+	block_cb = flow_block_cb_lookup(f->block,
+					ocelot_setup_tc_block_cb_flower, port);
 	if (!block_cb)
 		return;
 

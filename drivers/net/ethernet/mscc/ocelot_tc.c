@@ -169,7 +169,7 @@ static int ocelot_setup_tc_block(struct ocelot_port *port,
 		list_add_tail(&block_cb->driver_list, f->driver_block_list);
 		return 0;
 	case FLOW_BLOCK_UNBIND:
-		block_cb = flow_block_cb_lookup(f, cb, port);
+		block_cb = flow_block_cb_lookup(f->block, cb, port);
 		if (!block_cb)
 			return -ENOENT;
 

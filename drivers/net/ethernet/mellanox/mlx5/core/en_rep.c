@@ -752,7 +752,7 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 		if (!indr_priv)
 			return -ENOENT;
 
-		block_cb = flow_block_cb_lookup(f,
+		block_cb = flow_block_cb_lookup(f->block,
 						mlx5e_rep_indr_setup_block_cb,
 						indr_priv);
 		if (!block_cb)
