@@ -809,7 +809,6 @@ static int update_state(struct drm_device *drm_dev,
 static bool is_support_hotplug(uint32_t output_type)
 {
 	switch (output_type) {
-	case DRM_MODE_CONNECTOR_Unknown:
 	case DRM_MODE_CONNECTOR_DVII:
 	case DRM_MODE_CONNECTOR_DVID:
 	case DRM_MODE_CONNECTOR_DVIA:
