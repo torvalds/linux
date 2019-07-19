@@ -2629,6 +2629,19 @@ static int aead_need_fallback(struct aead_request *req)
 		return 1;
 	}
 
+	/*
+	 * RFC4106 and RFC4543 cannot handle the case where AAD is other than
+	 * 16 or 20 bytes long. So use fallback in this case.
+	 */
+	if (ctx->cipher.mode == CIPHER_MODE_GCM &&
+	    ctx->cipher.alg == CIPHER_ALG_AES &&
+	    rctx->iv_ctr_len == GCM_RFC4106_IV_SIZE &&
+	    req->assoclen != 16 && req->assoclen != 20) {
+		flow_log("RFC4106/RFC4543 needs fallback for assoclen"
+			 " other than 16 or 20 bytes\n");
+		return 1;
+	}
+
 	payload_len = req->cryptlen;
 	if (spu->spu_type == SPU_TYPE_SPUM)
 		payload_len += req->assoclen;
