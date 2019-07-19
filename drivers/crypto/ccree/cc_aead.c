@@ -2272,9 +2272,16 @@ out:
 static int cc_rfc4543_gcm_encrypt(struct aead_request *req)
 {
 	/* Very similar to cc_aead_encrypt() above. */
-
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-	int rc;
+	int rc = -EINVAL;
+
+	if (!valid_assoclen(req)) {
+		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		goto out;
+	}
 
 	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
@@ -2291,7 +2298,7 @@ static int cc_rfc4543_gcm_encrypt(struct aead_request *req)
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_ENCRYPT);
 	if (rc != -EINPROGRESS && rc != -EBUSY)
 		req->iv = areq_ctx->backup_iv;
-
+out:
 	return rc;
 }
 
@@ -2330,9 +2337,16 @@ out:
 static int cc_rfc4543_gcm_decrypt(struct aead_request *req)
 {
 	/* Very similar to cc_aead_decrypt() above. */
-
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
+	struct device *dev = drvdata_to_dev(ctx->drvdata);
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
-	int rc;
+	int rc = -EINVAL;
+
+	if (!valid_assoclen(req)) {
+		dev_err(dev, "invalid Assoclen:%u\n", req->assoclen);
+		goto out;
+	}
 
 	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
@@ -2349,7 +2363,7 @@ static int cc_rfc4543_gcm_decrypt(struct aead_request *req)
 	rc = cc_proc_aead(req, DRV_CRYPTO_DIRECTION_DECRYPT);
 	if (rc != -EINPROGRESS && rc != -EBUSY)
 		req->iv = areq_ctx->backup_iv;
-
+out:
 	return rc;
 }
 
