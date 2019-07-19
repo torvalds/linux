@@ -443,9 +443,6 @@ tinydrm
 Tinydrm is the helper driver for really simple fb drivers. The goal is to make
 those drivers as simple as possible, so lots of room for refactoring:
 
-- spi helpers, probably best put into spi core/helper code. Thierry said
-  the spi maintainer is fast&reactive, so shouldn't be a big issue.
-
 - extract the mipi-dbi helper (well, the non-tinydrm specific parts at
   least) into a separate helper, like we have for mipi-dsi already. Or follow
   one of the ideas for having a shared dsi/dbi helper, abstracting away the

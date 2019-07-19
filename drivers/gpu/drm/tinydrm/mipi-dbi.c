@@ -926,7 +926,7 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 *cmd,
 
 	gpiod_set_value_cansleep(mipi->dc, 0);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, 1);
-	ret = tinydrm_spi_transfer(spi, speed_hz, 8, cmd, 1);
+	ret = mipi_dbi_spi_transfer(spi, speed_hz, 8, cmd, 1);
 	if (ret || !num)
 		return ret;
 
@@ -936,7 +936,7 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 *cmd,
 	gpiod_set_value_cansleep(mipi->dc, 1);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, num);
 
-	return tinydrm_spi_transfer(spi, speed_hz, bpw, par, num);
+	return mipi_dbi_spi_transfer(spi, speed_hz, bpw, par, num);
 }
 
 /**
@@ -1006,6 +1006,51 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 	return 0;
 }
 EXPORT_SYMBOL(mipi_dbi_spi_init);
+
+/**
+ * mipi_dbi_spi_transfer - SPI transfer helper
+ * @spi: SPI device
+ * @speed_hz: Override speed (optional)
+ * @bpw: Bits per word
+ * @buf: Buffer to transfer
+ * @len: Buffer length
+ *
+ * This SPI transfer helper breaks up the transfer of @buf into chunks which
+ * the SPI controller driver can handle.
+ *
+ * Returns:
+ * Zero on success, negative error code on failure.
+ */
+int mipi_dbi_spi_transfer(struct spi_device *spi, u32 speed_hz,
+			  u8 bpw, const void *buf, size_t len)
+{
+	size_t max_chunk = spi_max_transfer_size(spi);
+	struct spi_transfer tr = {
+		.bits_per_word = bpw,
+		.speed_hz = speed_hz,
+	};
+	struct spi_message m;
+	size_t chunk;
+	int ret;
+
+	spi_message_init_with_transfers(&m, &tr, 1);
+
+	while (len) {
+		chunk = min(len, max_chunk);
+
+		tr.tx_buf = buf;
+		tr.len = chunk;
+		buf += chunk;
+		len -= chunk;
+
+		ret = spi_sync(spi, &m);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dbi_spi_transfer);
 
 #endif /* CONFIG_SPI */
 

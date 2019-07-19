@@ -11,9 +11,6 @@ Helpers
 .. kernel-doc:: include/drm/tinydrm/tinydrm-helpers.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/tinydrm/core/tinydrm-helpers.c
-   :export:
-
 .. kernel-doc:: drivers/gpu/drm/tinydrm/core/tinydrm-pipe.c
    :export:
 

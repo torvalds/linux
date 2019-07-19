@@ -83,7 +83,10 @@ void mipi_dbi_hw_reset(struct mipi_dbi *mipi);
 bool mipi_dbi_display_is_on(struct mipi_dbi *mipi);
 int mipi_dbi_poweron_reset(struct mipi_dbi *mipi);
 int mipi_dbi_poweron_conditional_reset(struct mipi_dbi *mipi);
+
 u32 mipi_dbi_spi_cmd_max_speed(struct spi_device *spi, size_t len);
+int mipi_dbi_spi_transfer(struct spi_device *spi, u32 speed_hz,
+			  u8 bpw, const void *buf, size_t len);
 
 int mipi_dbi_command_read(struct mipi_dbi *mipi, u8 cmd, u8 *val);
 int mipi_dbi_command_buf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len);

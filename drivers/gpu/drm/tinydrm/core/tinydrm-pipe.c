@@ -3,6 +3,8 @@
  * Copyright (C) 2016 Noralf Trønnes
  */
 
+#include <linux/module.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -177,3 +179,5 @@ int tinydrm_display_pipe_init(struct drm_device *drm,
 					    format_count, modifiers, connector);
 }
 EXPORT_SYMBOL(tinydrm_display_pipe_init);
+
+MODULE_LICENSE("GPL");

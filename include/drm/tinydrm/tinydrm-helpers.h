@@ -13,8 +13,6 @@ struct drm_framebuffer;
 struct drm_rect;
 struct drm_simple_display_pipe;
 struct drm_simple_display_pipe_funcs;
-struct spi_transfer;
-struct spi_device;
 struct device;
 
 /**
@@ -40,8 +38,5 @@ int tinydrm_display_pipe_init(struct drm_device *drm,
 			      unsigned int format_count,
 			      const struct drm_display_mode *mode,
 			      unsigned int rotation);
-
-int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
-			 u8 bpw, const void *buf, size_t len);
 
 #endif /* __LINUX_TINYDRM_HELPERS_H */
