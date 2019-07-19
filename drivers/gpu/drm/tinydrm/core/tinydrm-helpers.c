@@ -18,40 +18,7 @@
 #include <drm/drm_rect.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 
-static unsigned int spi_max;
-module_param(spi_max, uint, 0400);
-MODULE_PARM_DESC(spi_max, "Set a lower SPI max transfer size");
-
 #if IS_ENABLED(CONFIG_SPI)
-
-/**
- * tinydrm_spi_max_transfer_size - Determine max SPI transfer size
- * @spi: SPI device
- * @max_len: Maximum buffer size needed (optional)
- *
- * This function returns the maximum size to use for SPI transfers. It checks
- * the SPI master, the optional @max_len and the module parameter spi_max and
- * returns the smallest.
- *
- * Returns:
- * Maximum size for SPI transfers
- */
-size_t tinydrm_spi_max_transfer_size(struct spi_device *spi, size_t max_len)
-{
-	size_t ret;
-
-	ret = min(spi_max_transfer_size(spi), spi->master->max_dma_len);
-	if (max_len)
-		ret = min(ret, max_len);
-	if (spi_max)
-		ret = min_t(size_t, ret, spi_max);
-	ret &= ~0x3;
-	if (ret < 4)
-		ret = 4;
-
-	return ret;
-}
-EXPORT_SYMBOL(tinydrm_spi_max_transfer_size);
 
 /**
  * tinydrm_spi_transfer - SPI transfer helper
@@ -75,20 +42,18 @@ int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
 			 struct spi_transfer *header, u8 bpw, const void *buf,
 			 size_t len)
 {
+	size_t max_chunk = spi_max_transfer_size(spi);
 	struct spi_transfer tr = {
 		.bits_per_word = bpw,
 		.speed_hz = speed_hz,
 	};
 	struct spi_message m;
 	u16 *swap_buf = NULL;
-	size_t max_chunk;
 	size_t chunk;
 	int ret = 0;
 
 	if (WARN_ON_ONCE(bpw != 8 && bpw != 16))
 		return -EINVAL;
-
-	max_chunk = tinydrm_spi_max_transfer_size(spi, 0);
 
 	if (bpw == 16 && !spi_is_bpw_supported(spi, 16)) {
 		tr.bits_per_word = 8;

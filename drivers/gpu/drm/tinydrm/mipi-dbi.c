@@ -964,14 +964,8 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 *cmd,
 int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 		      struct gpio_desc *dc)
 {
-	size_t tx_size = tinydrm_spi_max_transfer_size(spi, 0);
 	struct device *dev = &spi->dev;
 	int ret;
-
-	if (tx_size < 16) {
-		DRM_ERROR("SPI transmit buffer too small: %zu\n", tx_size);
-		return -EINVAL;
-	}
 
 	/*
 	 * Even though it's not the SPI device that does DMA (the master does),
@@ -1001,8 +995,8 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 			mipi->swap_bytes = true;
 	} else {
 		mipi->command = mipi_dbi_typec1_command;
-		mipi->tx_buf9_len = tx_size;
-		mipi->tx_buf9 = devm_kmalloc(dev, tx_size, GFP_KERNEL);
+		mipi->tx_buf9_len = SZ_16K;
+		mipi->tx_buf9 = devm_kmalloc(dev, mipi->tx_buf9_len, GFP_KERNEL);
 		if (!mipi->tx_buf9)
 			return -ENOMEM;
 	}
