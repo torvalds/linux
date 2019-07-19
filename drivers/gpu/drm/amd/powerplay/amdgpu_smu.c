@@ -262,7 +262,6 @@ bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type)
 	}
 
 	if(!smu_feature_is_enabled(smu, feature_id)) {
-		pr_warn("smu %d clk dpm feature %d is not enabled\n", clk_type, feature_id);
 		return false;
 	}
 

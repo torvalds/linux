@@ -217,7 +217,6 @@ static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 
 	mapping = navi10_message_map[index];
 	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported SMU message: %d\n", index);
 		return -EINVAL;
 	}
 
@@ -233,7 +232,6 @@ static int navi10_get_smu_clk_index(struct smu_context *smc, uint32_t index)
 
 	mapping = navi10_clk_map[index];
 	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported SMU clock: %d\n", index);
 		return -EINVAL;
 	}
 
@@ -249,7 +247,6 @@ static int navi10_get_smu_feature_index(struct smu_context *smc, uint32_t index)
 
 	mapping = navi10_feature_mask_map[index];
 	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported SMU feature: %d\n", index);
 		return -EINVAL;
 	}
 
@@ -265,7 +262,6 @@ static int navi10_get_smu_table_index(struct smu_context *smc, uint32_t index)
 
 	mapping = navi10_table_map[index];
 	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported SMU table: %d\n", index);
 		return -EINVAL;
 	}
 
@@ -281,7 +277,6 @@ static int navi10_get_pwr_src_index(struct smu_context *smc, uint32_t index)
 
 	mapping = navi10_pwr_src_map[index];
 	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported power source: %d\n", index);
 		return -EINVAL;
 	}
 
@@ -298,7 +293,6 @@ static int navi10_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_P
 
 	mapping = navi10_workload_map[profile];
 	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported workload: %d\n", (int)profile);
 		return -EINVAL;
 	}
 
