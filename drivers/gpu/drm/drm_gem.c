@@ -633,6 +633,9 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 
 	pagevec_init(&pvec);
 	for (i = 0; i < npages; i++) {
+		if (!pages[i])
+			continue;
+
 		if (dirty)
 			set_page_dirty(pages[i]);
 
