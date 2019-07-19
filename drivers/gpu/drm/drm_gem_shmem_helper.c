@@ -119,11 +119,11 @@ void drm_gem_shmem_free_object(struct drm_gem_object *obj)
 		if (shmem->sgt) {
 			dma_unmap_sg(obj->dev->dev, shmem->sgt->sgl,
 				     shmem->sgt->nents, DMA_BIDIRECTIONAL);
-
-			drm_gem_shmem_put_pages(shmem);
 			sg_free_table(shmem->sgt);
 			kfree(shmem->sgt);
 		}
+		if (shmem->pages)
+			drm_gem_shmem_put_pages(shmem);
 	}
 
 	WARN_ON(shmem->pages_use_count);
