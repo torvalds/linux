@@ -23,6 +23,10 @@
 #ifndef __NAVI10_PPT_H__
 #define __NAVI10_PPT_H__
 
+#define NAVI10_PEAK_SCLK_XTX		(1830)
+#define NAVI10_PEAK_SCLK_XT  		(1755)
+#define NAVI10_PEAK_SCLK_XL  		(1625)
+
 extern void navi10_set_ppt_funcs(struct smu_context *smu);
 
 #endif
