@@ -806,7 +806,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 
 
 static int set_chmod_dacl(struct cifs_acl *pndacl, struct cifs_sid *pownersid,
-			struct cifs_sid *pgrpsid, __u64 nmode)
+			struct cifs_sid *pgrpsid, __u64 nmode, bool modefromsid)
 {
 	u16 size = 0;
 	struct cifs_acl *pnndacl;
@@ -820,8 +820,33 @@ static int set_chmod_dacl(struct cifs_acl *pndacl, struct cifs_sid *pownersid,
 	size += fill_ace_for_sid((struct cifs_ace *)((char *)pnndacl + size),
 					 &sid_everyone, nmode, S_IRWXO);
 
+	/* TBD: Move this ACE to the top of ACE list instead of bottom */
+	if (modefromsid) {
+		struct cifs_ace *pntace =
+			(struct cifs_ace *)((char *)pnndacl + size);
+		int i;
+
+		pntace->type = ACCESS_DENIED;
+		pntace->flags = 0x0;
+		pntace->sid.num_subauth = 3;
+		pntace->sid.revision = 1;
+		/* size = 1 + 1 + 2 + 4 + 1 + 1 + 6 + (psid->num_subauth * 4) */
+		pntace->size = cpu_to_le16(28);
+		size += 28;
+		for (i = 0; i < NUM_AUTHS; i++)
+			pntace->sid.authority[i] =
+				sid_unix_NFS_mode.authority[i];
+		pntace->sid.sub_auth[0] = sid_unix_NFS_mode.sub_auth[0];
+		pntace->sid.sub_auth[1] = sid_unix_NFS_mode.sub_auth[1];
+		pntace->sid.sub_auth[2] = cpu_to_le32(nmode & 07777);
+
+		pndacl->num_aces = cpu_to_le32(4);
+		size += fill_ace_for_sid((struct cifs_ace *)((char *)pnndacl + size),
+					 &sid_unix_NFS_mode, nmode, S_IRWXO);
+	} else
+		pndacl->num_aces = cpu_to_le32(3);
+
 	pndacl->size = cpu_to_le16(size + sizeof(struct cifs_acl));
-	pndacl->num_aces = cpu_to_le32(3);
 
 	return 0;
 }
@@ -921,7 +946,8 @@ static int parse_sec_desc(struct cifs_sb_info *cifs_sb,
 
 /* Convert permission bits from mode to equivalent CIFS ACL */
 static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
-	__u32 secdesclen, __u64 nmode, kuid_t uid, kgid_t gid, int *aclflag)
+	__u32 secdesclen, __u64 nmode, kuid_t uid, kgid_t gid,
+	bool mode_from_sid, int *aclflag)
 {
 	int rc = 0;
 	__u32 dacloffset;
@@ -946,7 +972,7 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 		ndacl_ptr->num_aces = 0;
 
 		rc = set_chmod_dacl(ndacl_ptr, owner_sid_ptr, group_sid_ptr,
-					nmode);
+				    nmode, mode_from_sid);
 		sidsoffset = ndacloffset + le16_to_cpu(ndacl_ptr->size);
 		/* copy sec desc control portion & owner and group sids */
 		copy_sec_desc(pntsd, pnntsd, sidsoffset);
@@ -1196,6 +1222,7 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
 	struct smb_version_operations *ops;
+	bool mode_from_sid;
 
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -1233,8 +1260,13 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 		return -ENOMEM;
 	}
 
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID)
+		mode_from_sid = true;
+	else
+		mode_from_sid = false;
+
 	rc = build_sec_desc(pntsd, pnntsd, secdesclen, nmode, uid, gid,
-				&aclflag);
+			    mode_from_sid, &aclflag);
 
 	cifs_dbg(NOISY, "build_sec_desc rc: %d\n", rc);
 
