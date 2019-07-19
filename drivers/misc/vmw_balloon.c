@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/mount.h>
+#include <linux/pseudo_fs.h>
 #include <linux/balloon_compaction.h>
 #include <linux/vmw_vmci_defs.h>
 #include <linux/vmw_vmci_api.h>
@@ -1728,22 +1729,15 @@ static inline void vmballoon_debugfs_exit(struct vmballoon *b)
 
 #ifdef CONFIG_BALLOON_COMPACTION
 
-static struct dentry *vmballoon_mount(struct file_system_type *fs_type,
-				      int flags, const char *dev_name,
-				      void *data)
+static int vmballoon_init_fs_context(struct fs_context *fc)
 {
-	static const struct dentry_operations ops = {
-		.d_dname = simple_dname,
-	};
-
-	return mount_pseudo(fs_type, "balloon-vmware:", NULL, &ops,
-			    BALLOON_VMW_MAGIC);
+	return init_pseudo(fc, BALLOON_VMW_MAGIC) ? 0 : -ENOMEM;
 }
 
 static struct file_system_type vmballoon_fs = {
-	.name           = "balloon-vmware",
-	.mount          = vmballoon_mount,
-	.kill_sb        = kill_anon_super,
+	.name           	= "balloon-vmware",
+	.init_fs_context	= vmballoon_init_fs_context,
+	.kill_sb        	= kill_anon_super,
 };
 
 static struct vfsmount *vmballoon_mnt;

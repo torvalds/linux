@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/ctype.h>
+#include <linux/fs_context.h>
 
 #include <linux/sunrpc/svcsock.h>
 #include <linux/lockd/lockd.h>
@@ -1337,7 +1338,7 @@ void nfsd_client_rmdir(struct dentry *dentry)
 	inode_unlock(dir);
 }
 
-static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
+static int nfsd_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct nfsd_net *nn = net_generic(current->nsproxy->net_ns,
 							nfsd_net_id);
@@ -1372,7 +1373,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 #endif
 		/* last one */ {""}
 	};
-	get_net(sb->s_fs_info);
+
 	ret = simple_fill_super(sb, 0x6e667364, nfsd_files);
 	if (ret)
 		return ret;
@@ -1381,14 +1382,31 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		return PTR_ERR(dentry);
 	nn->nfsd_client_dir = dentry;
 	return 0;
-
 }
 
-static struct dentry *nfsd_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int nfsd_fs_get_tree(struct fs_context *fc)
 {
-	struct net *net = current->nsproxy->net_ns;
-	return mount_ns(fs_type, flags, data, net, net->user_ns, nfsd_fill_super);
+	fc->s_fs_info = get_net(fc->net_ns);
+	return vfs_get_super(fc, vfs_get_keyed_super, nfsd_fill_super);
+}
+
+static void nfsd_fs_free_fc(struct fs_context *fc)
+{
+	if (fc->s_fs_info)
+		put_net(fc->s_fs_info);
+}
+
+static const struct fs_context_operations nfsd_fs_context_ops = {
+	.free		= nfsd_fs_free_fc,
+	.get_tree	= nfsd_fs_get_tree,
+};
+
+static int nfsd_init_fs_context(struct fs_context *fc)
+{
+	put_user_ns(fc->user_ns);
+	fc->user_ns = get_user_ns(fc->net_ns->user_ns);
+	fc->ops = &nfsd_fs_context_ops;
+	return 0;
 }
 
 static void nfsd_umount(struct super_block *sb)
@@ -1402,7 +1420,7 @@ static void nfsd_umount(struct super_block *sb)
 static struct file_system_type nfsd_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfsd",
-	.mount		= nfsd_mount,
+	.init_fs_context = nfsd_init_fs_context,
 	.kill_sb	= nfsd_umount,
 };
 MODULE_ALIAS_FS("nfsd");

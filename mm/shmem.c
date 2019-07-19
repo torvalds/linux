@@ -3777,10 +3777,6 @@ int __init shmem_init(void)
 {
 	int error;
 
-	/* If rootfs called this, don't re-init */
-	if (shmem_inode_cachep)
-		return 0;
-
 	shmem_init_inodecache();
 
 	error = register_filesystem(&shmem_fs_type);

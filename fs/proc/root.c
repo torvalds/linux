@@ -157,8 +157,6 @@ static int proc_get_tree(struct fs_context *fc)
 {
 	struct proc_fs_context *ctx = fc->fs_private;
 
-	put_user_ns(fc->user_ns);
-	fc->user_ns = get_user_ns(ctx->pid_ns->user_ns);
 	fc->s_fs_info = ctx->pid_ns;
 	return vfs_get_super(fc, vfs_get_keyed_super, proc_fill_super);
 }
@@ -167,8 +165,7 @@ static void proc_fs_context_free(struct fs_context *fc)
 {
 	struct proc_fs_context *ctx = fc->fs_private;
 
-	if (ctx->pid_ns)
-		put_pid_ns(ctx->pid_ns);
+	put_pid_ns(ctx->pid_ns);
 	kfree(ctx);
 }
 
@@ -188,6 +185,8 @@ static int proc_init_fs_context(struct fs_context *fc)
 		return -ENOMEM;
 
 	ctx->pid_ns = get_pid_ns(task_active_pid_ns(current));
+	put_user_ns(fc->user_ns);
+	fc->user_ns = get_user_ns(ctx->pid_ns->user_ns);
 	fc->fs_private = ctx;
 	fc->ops = &proc_fs_context_ops;
 	return 0;

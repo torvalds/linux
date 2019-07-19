@@ -29,6 +29,7 @@
 #include <linux/sched/task.h>
 #include <uapi/linux/mount.h>
 #include <linux/fs_context.h>
+#include <linux/shmem_fs.h>
 
 #include "pnode.h"
 #include "internal.h"
@@ -2788,6 +2789,8 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 		err = vfs_parse_fs_string(fc, "source", name, strlen(name));
 	if (!err)
 		err = parse_monolithic_mount_data(fc, data);
+	if (!err && !mount_capable(fc))
+		err = -EPERM;
 	if (!err)
 		err = vfs_get_tree(fc);
 	if (!err)
@@ -3295,8 +3298,8 @@ struct dentry *mount_subtree(struct vfsmount *m, const char *name)
 }
 EXPORT_SYMBOL(mount_subtree);
 
-int ksys_mount(char __user *dev_name, char __user *dir_name, char __user *type,
-	       unsigned long flags, void __user *data)
+int ksys_mount(const char __user *dev_name, const char __user *dir_name,
+	       const char __user *type, unsigned long flags, void __user *data)
 {
 	int ret;
 	char *kernel_type;
@@ -3687,13 +3690,8 @@ static void __init init_mount_tree(void)
 	struct mount *m;
 	struct mnt_namespace *ns;
 	struct path root;
-	struct file_system_type *type;
 
-	type = get_fs_type("rootfs");
-	if (!type)
-		panic("Can't find rootfs type");
-	mnt = vfs_kern_mount(type, 0, "rootfs", NULL);
-	put_filesystem(type);
+	mnt = vfs_kern_mount(&rootfs_fs_type, 0, "rootfs", NULL);
 	if (IS_ERR(mnt))
 		panic("Can't create rootfs");
 
@@ -3746,6 +3744,7 @@ void __init mnt_init(void)
 	fs_kobj = kobject_create_and_add("fs", NULL);
 	if (!fs_kobj)
 		printk(KERN_WARNING "%s: kobj create error\n", __func__);
+	shmem_init();
 	init_rootfs();
 	init_mount_tree();
 }
