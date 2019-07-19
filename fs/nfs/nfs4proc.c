@@ -2778,8 +2778,7 @@ static void nfs41_check_delegation_stateid(struct nfs4_state *state)
 	if (status == -NFS4ERR_EXPIRED || status == -NFS4ERR_BAD_STATEID)
 		nfs_finish_clear_delegation_stateid(state, &stateid);
 
-	if (delegation->cred)
-		put_cred(cred);
+	put_cred(cred);
 }
 
 /**
