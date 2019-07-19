@@ -684,6 +684,37 @@ TEST_F(tls, recv_lowat)
 	EXPECT_EQ(memcmp(send_mem, recv_mem + 10, 5), 0);
 }
 
+TEST_F(tls, bidir)
+{
+	struct tls12_crypto_info_aes_gcm_128 tls12;
+	char const *test_str = "test_read";
+	int send_len = 10;
+	char buf[10];
+	int ret;
+
+	memset(&tls12, 0, sizeof(tls12));
+	tls12.info.version = TLS_1_3_VERSION;
+	tls12.info.cipher_type = TLS_CIPHER_AES_GCM_128;
+
+	ret = setsockopt(self->fd, SOL_TLS, TLS_RX, &tls12, sizeof(tls12));
+	ASSERT_EQ(ret, 0);
+
+	ret = setsockopt(self->cfd, SOL_TLS, TLS_TX, &tls12, sizeof(tls12));
+	ASSERT_EQ(ret, 0);
+
+	ASSERT_EQ(strlen(test_str) + 1, send_len);
+
+	EXPECT_EQ(send(self->fd, test_str, send_len, 0), send_len);
+	EXPECT_NE(recv(self->cfd, buf, send_len, 0), -1);
+	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
+
+	memset(buf, 0, sizeof(buf));
+
+	EXPECT_EQ(send(self->cfd, test_str, send_len, 0), send_len);
+	EXPECT_NE(recv(self->fd, buf, send_len, 0), -1);
+	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
+};
+
 TEST_F(tls, pollin)
 {
 	char const *test_str = "test_poll";
