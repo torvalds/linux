@@ -628,6 +628,15 @@ u32 mipi_dbi_spi_cmd_max_speed(struct spi_device *spi, size_t len)
 }
 EXPORT_SYMBOL(mipi_dbi_spi_cmd_max_speed);
 
+static bool mipi_dbi_machine_little_endian(void)
+{
+#if defined(__LITTLE_ENDIAN)
+	return true;
+#else
+	return false;
+#endif
+}
+
 /*
  * MIPI DBI Type C Option 1
  *
@@ -650,7 +659,7 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *mipi, int dc,
 				   const void *buf, size_t len,
 				   unsigned int bpw)
 {
-	bool swap_bytes = (bpw == 16 && tinydrm_machine_little_endian());
+	bool swap_bytes = (bpw == 16 && mipi_dbi_machine_little_endian());
 	size_t chunk, max_chunk = mipi->tx_buf9_len;
 	struct spi_device *spi = mipi->spi;
 	struct spi_transfer tr = {
@@ -799,7 +808,7 @@ static int mipi_dbi_spi1_transfer(struct mipi_dbi *mipi, int dc,
 		size_t chunk = min(len, max_chunk);
 		unsigned int i;
 
-		if (bpw == 16 && tinydrm_machine_little_endian()) {
+		if (bpw == 16 && mipi_dbi_machine_little_endian()) {
 			for (i = 0; i < (chunk * 2); i += 2) {
 				dst16[i]     = *src16 >> 8;
 				dst16[i + 1] = *src16++ & 0xFF;
@@ -991,7 +1000,7 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 	if (dc) {
 		mipi->command = mipi_dbi_typec3_command;
 		mipi->dc = dc;
-		if (tinydrm_machine_little_endian() && !spi_is_bpw_supported(spi, 16))
+		if (mipi_dbi_machine_little_endian() && !spi_is_bpw_supported(spi, 16))
 			mipi->swap_bytes = true;
 	} else {
 		mipi->command = mipi_dbi_typec1_command;

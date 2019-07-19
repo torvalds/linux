@@ -15,21 +15,6 @@ struct drm_simple_display_pipe;
 struct drm_simple_display_pipe_funcs;
 struct device;
 
-/**
- * tinydrm_machine_little_endian - Machine is little endian
- *
- * Returns:
- * true if *defined(__LITTLE_ENDIAN)*, false otherwise
- */
-static inline bool tinydrm_machine_little_endian(void)
-{
-#if defined(__LITTLE_ENDIAN)
-	return true;
-#else
-	return false;
-#endif
-}
-
 int tinydrm_display_pipe_init(struct drm_device *drm,
 			      struct drm_simple_display_pipe *pipe,
 			      const struct drm_simple_display_pipe_funcs *funcs,
