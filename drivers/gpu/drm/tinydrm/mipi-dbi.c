@@ -782,7 +782,7 @@ static int mipi_dbi_spi1_transfer(struct mipi_dbi *mipi, int dc,
 	u16 *dst16;
 	int ret;
 
-	if (!tinydrm_spi_bpw_supported(spi, 9))
+	if (!spi_is_bpw_supported(spi, 9))
 		return mipi_dbi_spi1e_transfer(mipi, dc, buf, len, bpw);
 
 	tr.speed_hz = mipi_dbi_spi_cmd_max_speed(spi, len);
@@ -1003,8 +1003,7 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 	if (dc) {
 		mipi->command = mipi_dbi_typec3_command;
 		mipi->dc = dc;
-		if (tinydrm_machine_little_endian() &&
-		    !tinydrm_spi_bpw_supported(spi, 16))
+		if (tinydrm_machine_little_endian() && !spi_is_bpw_supported(spi, 16))
 			mipi->swap_bytes = true;
 	} else {
 		mipi->command = mipi_dbi_typec1_command;

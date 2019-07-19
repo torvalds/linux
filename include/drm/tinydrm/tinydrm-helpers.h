@@ -43,7 +43,6 @@ int tinydrm_display_pipe_init(struct drm_device *drm,
 			      unsigned int rotation);
 
 size_t tinydrm_spi_max_transfer_size(struct spi_device *spi, size_t max_len);
-bool tinydrm_spi_bpw_supported(struct spi_device *spi, u8 bpw);
 int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
 			 struct spi_transfer *header, u8 bpw, const void *buf,
 			 size_t len);

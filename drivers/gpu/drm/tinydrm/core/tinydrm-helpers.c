@@ -53,36 +53,6 @@ size_t tinydrm_spi_max_transfer_size(struct spi_device *spi, size_t max_len)
 }
 EXPORT_SYMBOL(tinydrm_spi_max_transfer_size);
 
-/**
- * tinydrm_spi_bpw_supported - Check if bits per word is supported
- * @spi: SPI device
- * @bpw: Bits per word
- *
- * This function checks to see if the SPI master driver supports @bpw.
- *
- * Returns:
- * True if @bpw is supported, false otherwise.
- */
-bool tinydrm_spi_bpw_supported(struct spi_device *spi, u8 bpw)
-{
-	u32 bpw_mask = spi->master->bits_per_word_mask;
-
-	if (bpw == 8)
-		return true;
-
-	if (!bpw_mask) {
-		dev_warn_once(&spi->dev,
-			      "bits_per_word_mask not set, assume 8-bit only\n");
-		return false;
-	}
-
-	if (bpw_mask & SPI_BPW_MASK(bpw))
-		return true;
-
-	return false;
-}
-EXPORT_SYMBOL(tinydrm_spi_bpw_supported);
-
 static void
 tinydrm_dbg_spi_print(struct spi_device *spi, struct spi_transfer *tr,
 		      const void *buf, int idx, bool tx)
@@ -159,7 +129,7 @@ int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
 		pr_debug("[drm:%s] bpw=%u, max_chunk=%zu, transfers:\n",
 			 __func__, bpw, max_chunk);
 
-	if (bpw == 16 && !tinydrm_spi_bpw_supported(spi, 16)) {
+	if (bpw == 16 && !spi_is_bpw_supported(spi, 16)) {
 		tr.bits_per_word = 8;
 		if (tinydrm_machine_little_endian()) {
 			swap_buf = kmalloc(min(len, max_chunk), GFP_KERNEL);
