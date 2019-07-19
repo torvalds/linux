@@ -257,8 +257,9 @@ struct amdgpu_vm {
 	struct amdgpu_vm_pt     root;
 	struct dma_fence	*last_update;
 
-	/* Scheduler entity for page table updates */
-	struct drm_sched_entity	entity;
+	/* Scheduler entities for page table updates */
+	struct drm_sched_entity	direct;
+	struct drm_sched_entity	delayed;
 
 	unsigned int		pasid;
 	/* dedicated to vm */

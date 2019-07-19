@@ -282,7 +282,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	    !dma_fence_is_later(updates, (*id)->flushed_updates))
 	    updates = NULL;
 
-	if ((*id)->owner != vm->entity.fence_context ||
+	if ((*id)->owner != vm->direct.fence_context ||
 	    job->vm_pd_addr != (*id)->pd_gpu_addr ||
 	    updates || !(*id)->last_flush ||
 	    ((*id)->last_flush->context != fence_context &&
@@ -349,7 +349,7 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 		struct dma_fence *flushed;
 
 		/* Check all the prerequisites to using this VMID */
-		if ((*id)->owner != vm->entity.fence_context)
+		if ((*id)->owner != vm->direct.fence_context)
 			continue;
 
 		if ((*id)->pd_gpu_addr != job->vm_pd_addr)
@@ -449,7 +449,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	}
 
 	id->pd_gpu_addr = job->vm_pd_addr;
-	id->owner = vm->entity.fence_context;
+	id->owner = vm->direct.fence_context;
 
 	if (job->vm_needs_flush) {
 		dma_fence_put(id->last_flush);

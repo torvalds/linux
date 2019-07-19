@@ -2671,11 +2671,16 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	spin_lock_init(&vm->invalidated_lock);
 	INIT_LIST_HEAD(&vm->freed);
 
-	/* create scheduler entity for page table updates */
-	r = drm_sched_entity_init(&vm->entity, adev->vm_manager.vm_pte_rqs,
+	/* create scheduler entities for page table updates */
+	r = drm_sched_entity_init(&vm->direct, adev->vm_manager.vm_pte_rqs,
 				  adev->vm_manager.vm_pte_num_rqs, NULL);
 	if (r)
 		return r;
+
+	r = drm_sched_entity_init(&vm->delayed, adev->vm_manager.vm_pte_rqs,
+				  adev->vm_manager.vm_pte_num_rqs, NULL);
+	if (r)
+		goto error_free_direct;
 
 	vm->pte_support_ats = false;
 
@@ -2705,7 +2710,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		bp.flags &= ~AMDGPU_GEM_CREATE_SHADOW;
 	r = amdgpu_bo_create(adev, &bp, &root);
 	if (r)
-		goto error_free_sched_entity;
+		goto error_free_delayed;
 
 	r = amdgpu_bo_reserve(root, true);
 	if (r)
@@ -2748,8 +2753,11 @@ error_free_root:
 	amdgpu_bo_unref(&vm->root.base.bo);
 	vm->root.base.bo = NULL;
 
-error_free_sched_entity:
-	drm_sched_entity_destroy(&vm->entity);
+error_free_delayed:
+	drm_sched_entity_destroy(&vm->delayed);
+
+error_free_direct:
+	drm_sched_entity_destroy(&vm->direct);
 
 	return r;
 }
@@ -2938,7 +2946,8 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
 	}
 
-	drm_sched_entity_destroy(&vm->entity);
+	drm_sched_entity_destroy(&vm->direct);
+	drm_sched_entity_destroy(&vm->delayed);
 
 	if (!RB_EMPTY_ROOT(&vm->va.rb_root)) {
 		dev_err(adev->dev, "still active bo inside vm\n");

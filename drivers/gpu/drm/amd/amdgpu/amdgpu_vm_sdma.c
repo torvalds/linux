@@ -99,12 +99,13 @@ static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 	struct dma_fence *f;
 	int r;
 
-	ring = container_of(p->vm->entity.rq->sched, struct amdgpu_ring, sched);
+	ring = container_of(p->vm->delayed.rq->sched, struct amdgpu_ring,
+			    sched);
 
 	WARN_ON(ib->length_dw == 0);
 	amdgpu_ring_pad_ib(ring, ib);
 	WARN_ON(ib->length_dw > p->num_dw_left);
-	r = amdgpu_job_submit(p->job, &p->vm->entity,
+	r = amdgpu_job_submit(p->job, &p->vm->delayed,
 			      AMDGPU_FENCE_OWNER_VM, &f);
 	if (r)
 		goto error;
