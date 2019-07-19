@@ -1518,7 +1518,7 @@ g4x_sprite_check_scaling(struct intel_crtc_state *crtc_state,
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	const struct drm_rect *src = &plane_state->base.src;
 	const struct drm_rect *dst = &plane_state->base.dst;
-	int src_x, src_y, src_w, src_h, crtc_w, crtc_h;
+	int src_x, src_w, src_h, crtc_w, crtc_h;
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->base.adjusted_mode;
 	unsigned int cpp = fb->format->cpp[0];
@@ -1529,7 +1529,6 @@ g4x_sprite_check_scaling(struct intel_crtc_state *crtc_state,
 	crtc_h = drm_rect_height(dst);
 
 	src_x = src->x1 >> 16;
-	src_y = src->y1 >> 16;
 	src_w = drm_rect_width(src) >> 16;
 	src_h = drm_rect_height(src) >> 16;
 
