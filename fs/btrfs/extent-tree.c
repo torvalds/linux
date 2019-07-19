@@ -7341,6 +7341,19 @@ static u64 update_block_group_flags(struct btrfs_fs_info *fs_info, u64 flags)
 	return flags;
 }
 
+/*
+ * Mark block group @cache read-only, so later write won't happen to block
+ * group @cache.
+ *
+ * If @force is not set, this function will only mark the block group readonly
+ * if we have enough free space (1M) in other metadata/system block groups.
+ * If @force is not set, this function will mark the block group readonly
+ * without checking free space.
+ *
+ * NOTE: This function doesn't care if other block groups can contain all the
+ * data in this block group. That check should be done by relocation routine,
+ * not this function.
+ */
 static int inc_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 {
 	struct btrfs_space_info *sinfo = cache->space_info;
@@ -7374,6 +7387,12 @@ static int inc_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 		    cache->bytes_super - btrfs_block_group_used(&cache->item);
 	sinfo_used = btrfs_space_info_used(sinfo, true);
 
+	/*
+	 * sinfo_used + num_bytes should always <= sinfo->total_bytes.
+	 *
+	 * Here we make sure if we mark this bg RO, we still have enough
+	 * free space as buffer (if min_allocable_bytes is not 0).
+	 */
 	if (sinfo_used + num_bytes + min_allocable_bytes <=
 	    sinfo->total_bytes) {
 		sinfo->bytes_readonly += num_bytes;
