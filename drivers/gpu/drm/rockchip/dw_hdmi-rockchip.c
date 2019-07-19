@@ -411,6 +411,7 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 			phy_set_bus_width(hdmi->phy, 8);
 	}
 	s->output_type = DRM_MODE_CONNECTOR_HDMIA;
+	s->tv_state = &conn_state->tv;
 
 	return 0;
 }

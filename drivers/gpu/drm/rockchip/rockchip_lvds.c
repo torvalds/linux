@@ -281,6 +281,7 @@ rockchip_lvds_encoder_atomic_check(struct drm_encoder *encoder,
 
 	s->output_mode = ROCKCHIP_OUT_MODE_P888;
 	s->output_type = DRM_MODE_CONNECTOR_LVDS;
+	s->tv_state = &conn_state->tv;
 
 	return 0;
 }
