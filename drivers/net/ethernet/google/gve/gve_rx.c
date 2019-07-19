@@ -35,7 +35,7 @@ static void gve_rx_free_ring(struct gve_priv *priv, int idx)
 
 	gve_unassign_qpl(priv, rx->data.qpl->id);
 	rx->data.qpl = NULL;
-	kfree(rx->data.page_info);
+	kvfree(rx->data.page_info);
 
 	slots = rx->data.mask + 1;
 	bytes = sizeof(*rx->data.data_ring) * slots;
@@ -168,7 +168,7 @@ abort_with_q_resources:
 			  rx->q_resources, rx->q_resources_bus);
 	rx->q_resources = NULL;
 abort_filled:
-	kfree(rx->data.page_info);
+	kvfree(rx->data.page_info);
 abort_with_slots:
 	bytes = sizeof(*rx->data.data_ring) * slots;
 	dma_free_coherent(hdev, bytes, rx->data.data_ring, rx->data.data_bus);

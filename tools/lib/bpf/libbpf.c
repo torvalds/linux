@@ -4126,8 +4126,8 @@ static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
 	}
 	attr.size = sizeof(attr);
 	attr.type = type;
-	attr.config1 = (uint64_t)(void *)name; /* kprobe_func or uprobe_path */
-	attr.config2 = offset;		       /* kprobe_addr or probe_offset */
+	attr.config1 = ptr_to_u64(name); /* kprobe_func or uprobe_path */
+	attr.config2 = offset;		 /* kprobe_addr or probe_offset */
 
 	/* pid filter is meaningful only for uprobes */
 	pfd = syscall(__NR_perf_event_open, &attr,

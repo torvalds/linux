@@ -5,12 +5,6 @@
 #include <sys/socket.h>
 #include <test_progs.h>
 
-#ifdef __x86_64__
-#define SYS_KPROBE_NAME "__x64_sys_nanosleep"
-#else
-#define SYS_KPROBE_NAME "sys_nanosleep"
-#endif
-
 static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 {
 	int cpu_data = *(int *)data, duration = 0;
@@ -56,7 +50,7 @@ void test_perf_buffer(void)
 
 	/* attach kprobe */
 	link = bpf_program__attach_kprobe(prog, false /* retprobe */,
-					  SYS_KPROBE_NAME);
+					  SYS_NANOSLEEP_KPROBE_NAME);
 	if (CHECK(IS_ERR(link), "attach_kprobe", "err %ld\n", PTR_ERR(link)))
 		goto out_close;
 
