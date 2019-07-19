@@ -42,7 +42,6 @@ int tinydrm_display_pipe_init(struct drm_device *drm,
 			      unsigned int rotation);
 
 int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
-			 struct spi_transfer *header, u8 bpw, const void *buf,
-			 size_t len);
+			 u8 bpw, const void *buf, size_t len);
 
 #endif /* __LINUX_TINYDRM_HELPERS_H */

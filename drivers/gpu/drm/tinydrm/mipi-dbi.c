@@ -926,7 +926,7 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 *cmd,
 
 	gpiod_set_value_cansleep(mipi->dc, 0);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, 1);
-	ret = tinydrm_spi_transfer(spi, speed_hz, NULL, 8, cmd, 1);
+	ret = tinydrm_spi_transfer(spi, speed_hz, 8, cmd, 1);
 	if (ret || !num)
 		return ret;
 
@@ -936,7 +936,7 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 *cmd,
 	gpiod_set_value_cansleep(mipi->dc, 1);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, num);
 
-	return tinydrm_spi_transfer(spi, speed_hz, NULL, bpw, par, num);
+	return tinydrm_spi_transfer(spi, speed_hz, bpw, par, num);
 }
 
 /**

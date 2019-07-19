@@ -24,23 +24,18 @@
  * tinydrm_spi_transfer - SPI transfer helper
  * @spi: SPI device
  * @speed_hz: Override speed (optional)
- * @header: Optional header transfer
  * @bpw: Bits per word
  * @buf: Buffer to transfer
  * @len: Buffer length
  *
  * This SPI transfer helper breaks up the transfer of @buf into chunks which
- * the SPI master driver can handle. If the machine is Little Endian and the
- * SPI master driver doesn't support 16 bits per word, it swaps the bytes and
- * does a 8-bit transfer.
- * If @header is set, it is prepended to each SPI message.
+ * the SPI controller driver can handle.
  *
  * Returns:
  * Zero on success, negative error code on failure.
  */
 int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
-			 struct spi_transfer *header, u8 bpw, const void *buf,
-			 size_t len)
+			 u8 bpw, const void *buf, size_t len)
 {
 	size_t max_chunk = spi_max_transfer_size(spi);
 	struct spi_transfer tr = {
@@ -48,43 +43,16 @@ int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
 		.speed_hz = speed_hz,
 	};
 	struct spi_message m;
-	u16 *swap_buf = NULL;
 	size_t chunk;
-	int ret = 0;
+	int ret;
 
-	if (WARN_ON_ONCE(bpw != 8 && bpw != 16))
-		return -EINVAL;
-
-	if (bpw == 16 && !spi_is_bpw_supported(spi, 16)) {
-		tr.bits_per_word = 8;
-		if (tinydrm_machine_little_endian()) {
-			swap_buf = kmalloc(min(len, max_chunk), GFP_KERNEL);
-			if (!swap_buf)
-				return -ENOMEM;
-		}
-	}
-
-	spi_message_init(&m);
-	if (header)
-		spi_message_add_tail(header, &m);
-	spi_message_add_tail(&tr, &m);
+	spi_message_init_with_transfers(&m, &tr, 1);
 
 	while (len) {
 		chunk = min(len, max_chunk);
 
 		tr.tx_buf = buf;
 		tr.len = chunk;
-
-		if (swap_buf) {
-			const u16 *buf16 = buf;
-			unsigned int i;
-
-			for (i = 0; i < chunk / 2; i++)
-				swap_buf[i] = swab16(buf16[i]);
-
-			tr.tx_buf = swap_buf;
-		}
-
 		buf += chunk;
 		len -= chunk;
 
