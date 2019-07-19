@@ -2416,10 +2416,23 @@ static const struct amdgpu_irq_src_funcs sdma_v4_0_ecc_irq_funcs = {
 
 static void sdma_v4_0_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_LAST;
+	switch (adev->sdma.num_instances) {
+	case 1:
+		adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE1;
+		adev->sdma.ecc_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE1;
+		break;
+	case 8:
+		adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_LAST;
+		adev->sdma.ecc_irq.num_types = AMDGPU_SDMA_IRQ_LAST;
+		break;
+	case 2:
+	default:
+		adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE2;
+		adev->sdma.ecc_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE2;
+		break;
+	}
 	adev->sdma.trap_irq.funcs = &sdma_v4_0_trap_irq_funcs;
 	adev->sdma.illegal_inst_irq.funcs = &sdma_v4_0_illegal_inst_irq_funcs;
-	adev->sdma.ecc_irq.num_types = AMDGPU_SDMA_IRQ_LAST;
 	adev->sdma.ecc_irq.funcs = &sdma_v4_0_ecc_irq_funcs;
 }
 
