@@ -847,7 +847,6 @@ int netvsc_recv_callback(struct net_device *net,
 				    csum_info, vlan, data, len);
 	if (unlikely(!skb)) {
 		++net_device_ctx->eth_stats.rx_no_memory;
-		rcu_read_unlock();
 		return NVSP_STAT_FAIL;
 	}
 
