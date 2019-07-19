@@ -2569,6 +2569,25 @@ static void intel_panel_info(struct seq_file *m, struct intel_panel *panel)
 	intel_seq_print_mode(m, 2, mode);
 }
 
+static void intel_hdcp_info(struct seq_file *m,
+			    struct intel_connector *intel_connector)
+{
+	bool hdcp_cap, hdcp2_cap;
+
+	hdcp_cap = intel_hdcp_capable(intel_connector);
+	hdcp2_cap = intel_hdcp2_capable(intel_connector);
+
+	if (hdcp_cap)
+		seq_puts(m, "HDCP1.4 ");
+	if (hdcp2_cap)
+		seq_puts(m, "HDCP2.2 ");
+
+	if (!hdcp_cap && !hdcp2_cap)
+		seq_puts(m, "None");
+
+	seq_puts(m, "\n");
+}
+
 static void intel_dp_info(struct seq_file *m,
 			  struct intel_connector *intel_connector)
 {
@@ -2582,6 +2601,10 @@ static void intel_dp_info(struct seq_file *m,
 
 	drm_dp_downstream_debug(m, intel_dp->dpcd, intel_dp->downstream_ports,
 				&intel_dp->aux);
+	if (intel_connector->hdcp.shim) {
+		seq_puts(m, "\tHDCP version: ");
+		intel_hdcp_info(m, intel_connector);
+	}
 }
 
 static void intel_dp_mst_info(struct seq_file *m,
@@ -2605,6 +2628,10 @@ static void intel_hdmi_info(struct seq_file *m,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&intel_encoder->base);
 
 	seq_printf(m, "\taudio support: %s\n", yesno(intel_hdmi->has_audio));
+	if (intel_connector->hdcp.shim) {
+		seq_puts(m, "\tHDCP version: ");
+		intel_hdcp_info(m, intel_connector);
+	}
 }
 
 static void intel_lvds_info(struct seq_file *m,
@@ -4528,7 +4555,6 @@ static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
 	struct intel_connector *intel_connector = to_intel_connector(connector);
-	bool hdcp_cap, hdcp2_cap;
 
 	if (connector->status != connector_status_connected)
 		return -ENODEV;
@@ -4539,17 +4565,7 @@ static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
 
 	seq_printf(m, "%s:%d HDCP version: ", connector->name,
 		   connector->base.id);
-	hdcp_cap = intel_hdcp_capable(intel_connector);
-	hdcp2_cap = intel_hdcp2_capable(intel_connector);
-
-	if (hdcp_cap)
-		seq_puts(m, "HDCP1.4 ");
-	if (hdcp2_cap)
-		seq_puts(m, "HDCP2.2 ");
-
-	if (!hdcp_cap && !hdcp2_cap)
-		seq_puts(m, "None");
-	seq_puts(m, "\n");
+	intel_hdcp_info(m, intel_connector);
 
 	return 0;
 }
