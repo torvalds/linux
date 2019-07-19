@@ -842,9 +842,14 @@ static bool iwl_mvm_sar_geo_support(struct iwl_mvm *mvm)
 	 * The GEO_TX_POWER_LIMIT command is not supported on earlier
 	 * firmware versions.  Unfortunately, we don't have a TLV API
 	 * flag to rely on, so rely on the major version which is in
-	 * the first byte of ucode_ver.
+	 * the first byte of ucode_ver.  This was implemented
+	 * initially on version 38 and then backported to 36, 29 and
+	 * 17.
 	 */
-	return IWL_UCODE_SERIAL(mvm->fw->ucode_ver) >= 41;
+	return IWL_UCODE_SERIAL(mvm->fw->ucode_ver) >= 38 ||
+	       IWL_UCODE_SERIAL(mvm->fw->ucode_ver) == 36 ||
+	       IWL_UCODE_SERIAL(mvm->fw->ucode_ver) == 29 ||
+	       IWL_UCODE_SERIAL(mvm->fw->ucode_ver) == 17;
 }
 
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
