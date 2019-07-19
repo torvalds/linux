@@ -608,23 +608,18 @@ static int nvme_tcp_recv_pdu(struct nvme_tcp_queue *queue, struct sk_buff *skb,
 
 	switch (hdr->type) {
 	case nvme_tcp_c2h_data:
-		ret = nvme_tcp_handle_c2h_data(queue, (void *)queue->pdu);
-		break;
+		return nvme_tcp_handle_c2h_data(queue, (void *)queue->pdu);
 	case nvme_tcp_rsp:
 		nvme_tcp_init_recv_ctx(queue);
-		ret = nvme_tcp_handle_comp(queue, (void *)queue->pdu);
-		break;
+		return nvme_tcp_handle_comp(queue, (void *)queue->pdu);
 	case nvme_tcp_r2t:
 		nvme_tcp_init_recv_ctx(queue);
-		ret = nvme_tcp_handle_r2t(queue, (void *)queue->pdu);
-		break;
+		return nvme_tcp_handle_r2t(queue, (void *)queue->pdu);
 	default:
 		dev_err(queue->ctrl->ctrl.device,
 			"unsupported pdu type (%d)\n", hdr->type);
 		return -EINVAL;
 	}
-
-	return ret;
 }
 
 static inline void nvme_tcp_end_request(struct request *rq, u16 status)
