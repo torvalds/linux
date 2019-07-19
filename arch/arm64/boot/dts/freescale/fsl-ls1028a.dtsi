@@ -554,6 +554,7 @@
 		clocks = <&dpclk>, <&aclk>, <&aclk>, <&pclk>;
 		clock-names = "pxlclk", "mclk", "aclk", "pclk";
 		arm,malidp-output-port-lines = /bits/ 8 <8 8 8>;
+		arm,malidp-arqos-value = <0xd000d000>;
 
 		port {
 			dp0_out: endpoint {
