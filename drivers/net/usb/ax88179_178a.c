@@ -1366,8 +1366,7 @@ static int ax88179_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		return 0;
 
 	skb_trim(skb, skb->len - 4);
-	memcpy(&rx_hdr, skb_tail_pointer(skb), 4);
-	le32_to_cpus(&rx_hdr);
+	rx_hdr = get_unaligned_le32(skb_tail_pointer(skb));
 
 	pkt_cnt = (u16)rx_hdr;
 	hdr_off = (u16)(rx_hdr >> 16);
