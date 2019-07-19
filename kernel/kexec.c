@@ -2732,11 +2732,17 @@ __attribute__((ms_abi)) efi_status_t efi_runtime_convert_pointer(void)
          return EFI_UNSUPPORTED;
 }
 
-__attribute__((ms_abi)) efi_status_t efi_runtime_get_variable(void)
+__attribute__((ms_abi)) void* efi_runtime_get_variable( CHAR16   *name,
+                                                        EFI_GUID *guid )
 {
-         DebugMSG( "Runtime service was called" );
+        char str_as_ascii[1024] = {0};
+        wchar_to_ascii( str_as_ascii, sizeof( str_as_ascii ), (char*)name );
 
-         return EFI_UNSUPPORTED;
+        DebugMSG( "name: %s, vendor = %s (%s)",
+                  str_as_ascii, GetGuidName( guid ),
+                  get_GUID_str( guid ) );
+
+        return NULL;
 }
 
 __attribute__((ms_abi)) efi_status_t efi_runtime_get_next_variable(void)
