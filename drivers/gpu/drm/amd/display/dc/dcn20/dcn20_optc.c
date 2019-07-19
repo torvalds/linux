@@ -224,7 +224,6 @@ void optc2_set_odm_bypass(struct timing_generator *optc,
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	uint32_t h_div_2 = 0;
 
-	optc1->comb_opp_id = 0xf;
 	REG_SET_3(OPTC_DATA_SOURCE_SELECT, 0,
 			OPTC_NUM_OF_INPUT_SEGMENT, 0,
 			OPTC_SEG0_SRC_SEL, optc->inst,
@@ -236,13 +235,16 @@ void optc2_set_odm_bypass(struct timing_generator *optc,
 			OTG_H_TIMING_DIV_BY2, h_div_2);
 	REG_SET(OPTC_MEMORY_CONFIG, 0,
 			OPTC_MEM_SEL, 0);
+	optc1->opp_count = 1;
 }
 
-void optc2_set_odm_combine(struct timing_generator *optc, int combine_opp_id,
-		int mpcc_hactive, enum dc_pixel_encoding pixel_encoding)
+void optc2_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_cnt,
+		struct dc_crtc_timing *timing)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	/* 2 pieces of memory required for up to 5120 displays, 4 for up to 8192 */
+	int mpcc_hactive = (timing->h_addressable + timing->h_border_left + timing->h_border_right)
+			/ opp_cnt;
 	int memory_mask = mpcc_hactive <= 2560 ? 0x3 : 0xf;
 	uint32_t data_fmt = 0;
 
@@ -257,23 +259,24 @@ void optc2_set_odm_combine(struct timing_generator *optc, int combine_opp_id,
 		REG_SET(OPTC_MEMORY_CONFIG, 0,
 			OPTC_MEM_SEL, memory_mask << (optc->inst * 4));
 
-	if (pixel_encoding == PIXEL_ENCODING_YCBCR422)
+	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
 		data_fmt = 1;
-	else if (pixel_encoding == PIXEL_ENCODING_YCBCR420)
+	else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		data_fmt = 2;
 
 	REG_UPDATE(OPTC_DATA_FORMAT_CONTROL, OPTC_DATA_FORMAT, data_fmt);
 
+	ASSERT(opp_cnt == 2);
 	REG_SET_3(OPTC_DATA_SOURCE_SELECT, 0,
 			OPTC_NUM_OF_INPUT_SEGMENT, 1,
-			OPTC_SEG0_SRC_SEL, optc->inst,
-			OPTC_SEG1_SRC_SEL, combine_opp_id);
+			OPTC_SEG0_SRC_SEL, opp_id[0],
+			OPTC_SEG1_SRC_SEL, opp_id[1]);
 
 	REG_UPDATE(OPTC_WIDTH_CONTROL,
 			OPTC_SEGMENT_WIDTH, mpcc_hactive);
 
 	REG_SET(OTG_H_TIMING_CNTL, 0, OTG_H_TIMING_DIV_BY2, 1);
-	optc1->comb_opp_id = combine_opp_id;
+	optc1->opp_count = opp_cnt;
 }
 
 void optc2_get_optc_source(struct timing_generator *optc,
@@ -538,6 +541,5 @@ void dcn20_timing_generator_init(struct optc *optc1)
 	optc1->min_v_blank_interlace = 5;
 	optc1->min_h_sync_width = 4;//	Minimum HSYNC = 8 pixels asked By HW in the first place for no actual reason. Oculus Rift S will not light up with 8 as it's hsyncWidth is 6. Changing it to 4 to fix that issue.
 	optc1->min_v_sync_width = 1;
-	optc1->comb_opp_id = 0xf;
 }
 

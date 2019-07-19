@@ -494,7 +494,7 @@ struct optc {
 	const struct dcn_optc_shift *tg_shift;
 	const struct dcn_optc_mask *tg_mask;
 
-	int comb_opp_id;
+	int opp_count;
 
 	uint32_t max_h_total;
 	uint32_t max_v_total;

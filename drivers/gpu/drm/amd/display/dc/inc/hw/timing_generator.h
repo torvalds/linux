@@ -267,9 +267,9 @@ struct timing_generator_funcs {
 			       uint32_t dsc_bytes_per_pixel,
 			       uint32_t dsc_slice_width);
 #endif
-	void (*set_odm_bypass)(struct timing_generator *tg, const struct dc_crtc_timing *dc_crtc_timing);
-	void (*set_odm_combine)(struct timing_generator *tg, int combine_opp_id,
-		int mpcc_hactive, enum dc_pixel_encoding pixel_encoding);
+	void (*set_odm_bypass)(struct timing_generator *optc, const struct dc_crtc_timing *dc_crtc_timing);
+	void (*set_odm_combine)(struct timing_generator *optc, int *opp_id, int opp_cnt,
+			struct dc_crtc_timing *timing);
 	void (*set_gsl)(struct timing_generator *optc, const struct gsl_params *params);
 	void (*set_gsl_source_select)(struct timing_generator *optc,
 			int group_idx,

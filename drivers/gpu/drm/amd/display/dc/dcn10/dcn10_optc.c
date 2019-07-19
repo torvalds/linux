@@ -287,7 +287,7 @@ void optc1_program_timing(
 
 	h_div_2 = optc1_is_two_pixels_per_containter(&patched_crtc_timing);
 	REG_UPDATE(OTG_H_TIMING_CNTL,
-			OTG_H_TIMING_DIV_BY2, h_div_2 || optc1->comb_opp_id != 0xf);
+			OTG_H_TIMING_DIV_BY2, h_div_2 || optc1->opp_count == 2);
 
 }
 
@@ -1513,7 +1513,6 @@ void dcn10_timing_generator_init(struct optc *optc1)
 	optc1->min_v_blank_interlace = 5;
 	optc1->min_h_sync_width = 8;
 	optc1->min_v_sync_width = 1;
-	optc1->comb_opp_id = 0xf;
 }
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT

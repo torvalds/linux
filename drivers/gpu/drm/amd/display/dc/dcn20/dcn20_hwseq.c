@@ -545,12 +545,14 @@ enum dc_status dcn20_enable_stream_timing(
 
 	/* TODO check if timing_changed, disable stream if timing changed */
 
-	if (odm_pipe)
+	if (odm_pipe) {
+		int opp_inst[2] = { pipe_ctx->stream_res.opp->inst, odm_pipe->stream_res.opp->inst };
+
 		pipe_ctx->stream_res.tg->funcs->set_odm_combine(
 				pipe_ctx->stream_res.tg,
-				odm_pipe->stream_res.opp->inst,
-				pipe_ctx->stream->timing.h_addressable/2,
-				pipe_ctx->stream->timing.pixel_encoding);
+				opp_inst, 2,
+				&pipe_ctx->stream->timing);
+	}
 	/* HW program guide assume display already disable
 	 * by unplug sequence. OTG assume stop.
 	 */
@@ -822,13 +824,15 @@ static void dcn20_update_odm(struct dc *dc, struct dc_state *context, struct pip
 {
 	struct pipe_ctx *combine_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
 
-	if (combine_pipe)
+	if (combine_pipe) {
+		int opp_inst[2] = { pipe_ctx->stream_res.opp->inst,
+				combine_pipe->stream_res.opp->inst };
+
 		pipe_ctx->stream_res.tg->funcs->set_odm_combine(
 				pipe_ctx->stream_res.tg,
-				combine_pipe->stream_res.opp->inst,
-				pipe_ctx->plane_res.scl_data.h_active,
-				pipe_ctx->stream->timing.pixel_encoding);
-	else
+				opp_inst, 2,
+				&pipe_ctx->stream->timing);
+	} else
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
 }
