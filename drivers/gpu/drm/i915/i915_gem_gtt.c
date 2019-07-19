@@ -905,6 +905,12 @@ static inline unsigned int gen8_pt_count(u64 start, u64 end)
 		return end - start;
 }
 
+static inline unsigned int gen8_pd_top_count(const struct i915_address_space *vm)
+{
+	unsigned int shift = __gen8_pte_shift(vm->top);
+	return (vm->total + (1ull << shift) - 1) >> shift;
+}
+
 static void __gen8_ppgtt_cleanup(struct i915_address_space *vm,
 				 struct i915_page_directory *pd,
 				 int count, int lvl)
@@ -930,9 +936,7 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 	if (intel_vgpu_active(vm->i915))
 		gen8_ppgtt_notify_vgt(ppgtt, false);
 
-	__gen8_ppgtt_cleanup(vm, ppgtt->pd,
-			     vm->total >> __gen8_pte_shift(vm->top),
-			     vm->top);
+	__gen8_ppgtt_cleanup(vm, ppgtt->pd, gen8_pd_top_count(vm), vm->top);
 	free_scratch(vm);
 }
 
@@ -1392,7 +1396,7 @@ static int gen8_preallocate_top_level_pdp(struct i915_ppgtt *ppgtt)
 	unsigned int idx;
 
 	GEM_BUG_ON(vm->top != 2);
-	GEM_BUG_ON((vm->total >> __gen8_pte_shift(2)) != GEN8_3LVL_PDPES);
+	GEM_BUG_ON(gen8_pd_top_count(vm) != GEN8_3LVL_PDPES);
 
 	for (idx = 0; idx < GEN8_3LVL_PDPES; idx++) {
 		struct i915_page_directory *pde;
@@ -1429,7 +1433,7 @@ static void ppgtt_init(struct i915_ppgtt *ppgtt, struct intel_gt *gt)
 static struct i915_page_directory *
 gen8_alloc_top_pd(struct i915_address_space *vm)
 {
-	const unsigned int count = vm->total >> __gen8_pte_shift(vm->top);
+	const unsigned int count = gen8_pd_top_count(vm);
 	struct i915_page_directory *pd;
 
 	GEM_BUG_ON(count > ARRAY_SIZE(pd->entry));
@@ -1515,8 +1519,7 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 
 err_free_pd:
 	__gen8_ppgtt_cleanup(&ppgtt->vm, ppgtt->pd,
-			     ppgtt->vm.total >> __gen8_pte_shift(ppgtt->vm.top),
-			     ppgtt->vm.top);
+			     gen8_pd_top_count(&ppgtt->vm), ppgtt->vm.top);
 err_free_scratch:
 	free_scratch(&ppgtt->vm);
 err_free:
