@@ -5,15 +5,6 @@ drm/tinydrm Tiny DRM drivers
 tinydrm is a collection of DRM drivers that are so small they can fit in a
 single source file.
 
-Helpers
-=======
-
-.. kernel-doc:: include/drm/tinydrm/tinydrm-helpers.h
-   :internal:
-
-.. kernel-doc:: drivers/gpu/drm/tinydrm/core/tinydrm-pipe.c
-   :export:
-
 MIPI DBI Compatible Controllers
 ===============================
 

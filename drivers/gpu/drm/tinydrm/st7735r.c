@@ -20,7 +20,6 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/mipi-dbi.h>
-#include <drm/tinydrm/tinydrm-helpers.h>
 
 #define ST7735R_FRMCTR1		0xb1
 #define ST7735R_FRMCTR2		0xb2

@@ -13,6 +13,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
+#include <drm/drm_connector.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -20,10 +21,11 @@
 #include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_vblank.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
+#include <drm/drm_vblank.h>
 #include <drm/tinydrm/mipi-dbi.h>
-#include <drm/tinydrm/tinydrm-helpers.h>
 #include <video/mipi_display.h>
 
 #define MIPI_DBI_MAX_SPI_READ_SPEED 2000000 /* 2MHz */
@@ -400,6 +402,60 @@ void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_disable);
 
+static int mipi_dbi_connector_get_modes(struct drm_connector *connector)
+{
+	struct mipi_dbi *mipi = drm_to_mipi_dbi(connector->dev);
+	struct drm_display_mode *mode;
+
+	mode = drm_mode_duplicate(connector->dev, &mipi->mode);
+	if (!mode) {
+		DRM_ERROR("Failed to duplicate mode\n");
+		return 0;
+	}
+
+	if (mode->name[0] == '\0')
+		drm_mode_set_name(mode);
+
+	mode->type |= DRM_MODE_TYPE_PREFERRED;
+	drm_mode_probed_add(connector, mode);
+
+	if (mode->width_mm) {
+		connector->display_info.width_mm = mode->width_mm;
+		connector->display_info.height_mm = mode->height_mm;
+	}
+
+	return 1;
+}
+
+static const struct drm_connector_helper_funcs mipi_dbi_connector_hfuncs = {
+	.get_modes = mipi_dbi_connector_get_modes,
+};
+
+static const struct drm_connector_funcs mipi_dbi_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+static int mipi_dbi_rotate_mode(struct drm_display_mode *mode,
+				unsigned int rotation)
+{
+	if (rotation == 0 || rotation == 180) {
+		return 0;
+	} else if (rotation == 90 || rotation == 270) {
+		swap(mode->hdisplay, mode->vdisplay);
+		swap(mode->hsync_start, mode->vsync_start);
+		swap(mode->hsync_end, mode->vsync_end);
+		swap(mode->htotal, mode->vtotal);
+		swap(mode->width_mm, mode->height_mm);
+		return 0;
+	} else {
+		return -EINVAL;
+	}
+}
+
 static const struct drm_mode_config_funcs mipi_dbi_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create_with_dirty,
 	.atomic_check = drm_atomic_helper_check,
@@ -440,6 +496,10 @@ int mipi_dbi_init_with_formats(struct mipi_dbi *mipi,
 			       const struct drm_display_mode *mode,
 			       unsigned int rotation, size_t tx_buf_size)
 {
+	static const uint64_t modifiers[] = {
+		DRM_FORMAT_MOD_LINEAR,
+		DRM_FORMAT_MOD_INVALID
+	};
 	struct drm_device *drm = &mipi->drm;
 	int ret;
 
@@ -452,16 +512,31 @@ int mipi_dbi_init_with_formats(struct mipi_dbi *mipi,
 	if (!mipi->tx_buf)
 		return -ENOMEM;
 
-	ret = tinydrm_display_pipe_init(drm, &mipi->pipe, funcs,
-					DRM_MODE_CONNECTOR_SPI,
-					formats, format_count, mode,
-					rotation);
+	drm_mode_copy(&mipi->mode, mode);
+	ret = mipi_dbi_rotate_mode(&mipi->mode, rotation);
+	if (ret) {
+		DRM_ERROR("Illegal rotation value %u\n", rotation);
+		return -EINVAL;
+	}
+
+	drm_connector_helper_add(&mipi->connector, &mipi_dbi_connector_hfuncs);
+	ret = drm_connector_init(drm, &mipi->connector, &mipi_dbi_connector_funcs,
+				 DRM_MODE_CONNECTOR_SPI);
+	if (ret)
+		return ret;
+
+	ret = drm_simple_display_pipe_init(drm, &mipi->pipe, funcs, formats, format_count,
+					   modifiers, &mipi->connector);
 	if (ret)
 		return ret;
 
 	drm_plane_enable_fb_damage_clips(&mipi->pipe.plane);
 
 	drm->mode_config.funcs = &mipi_dbi_mode_config_funcs;
+	drm->mode_config.min_width = mipi->mode.hdisplay;
+	drm->mode_config.max_width = mipi->mode.hdisplay;
+	drm->mode_config.min_height = mipi->mode.vdisplay;
+	drm->mode_config.max_height = mipi->mode.vdisplay;
 	mipi->rotation = rotation;
 
 	DRM_DEBUG_KMS("rotation = %u\n", rotation);

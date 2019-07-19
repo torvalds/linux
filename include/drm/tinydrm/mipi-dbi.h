@@ -46,6 +46,16 @@ struct mipi_dbi {
 	 */
 	struct drm_simple_display_pipe pipe;
 
+	/**
+	 * @connector: Connector
+	 */
+	struct drm_connector connector;
+
+	/**
+	 * @mode: Fixed display mode
+	 */
+	struct drm_display_mode mode;
+
 	struct spi_device *spi;
 	bool enabled;
 	struct mutex cmdlock;
