@@ -1542,7 +1542,7 @@ asmlinkage void kvm_spurious_fault(void);
  * Usually after catching the fault we just panic; during reboot
  * instead the instruction is ignored.
  */
-#define ____kvm_handle_fault_on_reboot(insn, cleanup_insn)		\
+#define __kvm_handle_fault_on_reboot(insn)				\
 	"666: \n\t"							\
 	insn "\n\t"							\
 	"jmp	668f \n\t"						\
@@ -1551,15 +1551,11 @@ asmlinkage void kvm_spurious_fault(void);
 	"668: \n\t"							\
 	".pushsection .fixup, \"ax\" \n\t"				\
 	"700: \n\t"							\
-	cleanup_insn "\n\t"						\
 	"cmpb	$0, kvm_rebooting\n\t"					\
 	"je	667b \n\t"						\
 	"jmp	668b \n\t"						\
 	".popsection \n\t"						\
 	_ASM_EXTABLE(666b, 700b)
-
-#define __kvm_handle_fault_on_reboot(insn)		\
-	____kvm_handle_fault_on_reboot(insn, "")
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
 int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end);
