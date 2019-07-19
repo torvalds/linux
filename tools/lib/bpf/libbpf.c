@@ -1500,6 +1500,12 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 			   BTF_ELF_SEC, err);
 		btf__free(obj->btf);
 		obj->btf = NULL;
+		/* btf_ext can't exist without btf, so free it as well */
+		if (obj->btf_ext) {
+			btf_ext__free(obj->btf_ext);
+			obj->btf_ext = NULL;
+		}
+
 		if (bpf_object__is_btf_mandatory(obj))
 			return err;
 	}
