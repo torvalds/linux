@@ -491,6 +491,9 @@ int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
 	struct ima_rule_entry *entry;
 	int action = 0, actmask = flags | (flags << 1);
 
+	if (template_desc)
+		*template_desc = ima_template_desc_current();
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(entry, ima_rules, list) {
 
@@ -510,6 +513,7 @@ int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
 				action |= IMA_FAIL_UNVERIFIABLE_SIGS;
 		}
 
+
 		if (entry->action & IMA_DO_MASK)
 			actmask &= ~(entry->action | entry->action << 1);
 		else
@@ -520,8 +524,6 @@ int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
 
 		if (template_desc && entry->template)
 			*template_desc = entry->template;
-		else if (template_desc)
-			*template_desc = ima_template_desc_current();
 
 		if (!actmask)
 			break;
