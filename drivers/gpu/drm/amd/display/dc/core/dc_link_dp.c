@@ -21,6 +21,9 @@
 #define DC_LOGGER \
 	link->ctx->logger
 
+
+#define DP_REPEATER_CONFIGURATION_AND_STATUS_OFFSET   0x50
+
 /* maximum pre emphasis level allowed for each voltage swing level*/
 static const enum dc_pre_emphasis voltage_swing_to_pre_emphasis[] = {
 		PRE_EMPHASIS_LEVEL3,
@@ -2753,6 +2756,14 @@ static bool retrieve_link_cap(struct dc_link *link)
 	int i;
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
 
+	/* Set default timeout to 3.2ms and read LTTPR capabilities */
+	bool ext_timeout_support = link->dc->caps.extended_aux_timeout_support &&
+			!link->dc->config.disable_extended_timeout_support;
+	if (ext_timeout_support) {
+		status = dc_link_aux_configure_timeout(link->ddc, LINK_AUX_DEFAULT_EXTENDED_TIMEOUT_PERIOD);
+		link->is_lttpr_mode_transparent = true;
+	}
+
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
 	memset(&down_strm_port_count,
 		'\0', sizeof(union down_stream_port_count));
@@ -2783,6 +2794,51 @@ static bool retrieve_link_cap(struct dc_link *link)
 	if (status != DC_OK) {
 		dm_error("%s: Read dpcd data failed.\n", __func__);
 		return false;
+	}
+
+	if (ext_timeout_support) {
+		status = core_link_read_dpcd(
+				link,
+				DP_PHY_REPEATER_CNT,
+				&link->dpcd_caps.lttpr_caps.phy_repeater_cnt,
+				sizeof(link->dpcd_caps.lttpr_caps.phy_repeater_cnt));
+
+		if (link->dpcd_caps.lttpr_caps.phy_repeater_cnt > 0) {
+
+			link->is_lttpr_mode_transparent = false;
+
+			status = core_link_read_dpcd(
+					link,
+					DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV,
+					(uint8_t *)&link->dpcd_caps.lttpr_caps.revision,
+					sizeof(link->dpcd_caps.lttpr_caps.revision));
+
+			status = core_link_read_dpcd(
+					link,
+					DP_MAX_LINK_RATE_PHY_REPEATER,
+					&link->dpcd_caps.lttpr_caps.max_link_rate,
+					sizeof(link->dpcd_caps.lttpr_caps.max_link_rate));
+
+			status = core_link_read_dpcd(
+					link,
+					DP_PHY_REPEATER_MODE,
+					(uint8_t *)&link->dpcd_caps.lttpr_caps.mode,
+					sizeof(link->dpcd_caps.lttpr_caps.mode));
+
+			status = core_link_read_dpcd(
+					link,
+					DP_MAX_LANE_COUNT_PHY_REPEATER,
+					&link->dpcd_caps.lttpr_caps.max_lane_count,
+					sizeof(link->dpcd_caps.lttpr_caps.max_lane_count));
+
+			status = core_link_read_dpcd(
+					link,
+					DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT,
+					&link->dpcd_caps.lttpr_caps.max_ext_timeout,
+					sizeof(link->dpcd_caps.lttpr_caps.max_ext_timeout));
+		} else {
+			dc_link_aux_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
+		}
 	}
 
 	{

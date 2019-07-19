@@ -122,6 +122,7 @@ struct dc_context {
 #define DC_EDID_BLOCK_SIZE 128
 #define MAX_SURFACE_NUM 4
 #define NUM_PIXEL_FORMATS 10
+#define MAX_REPEATER_CNT 8
 
 #include "dc_ddc_types.h"
 
@@ -405,6 +406,41 @@ enum dpcd_downstream_port_max_bpc {
 	DOWN_STREAM_MAX_12BPC,
 	DOWN_STREAM_MAX_16BPC
 };
+
+
+enum link_training_offset {
+	DPRX                = 0,
+	LTTPR_PHY_REPEATER1 = 1,
+	LTTPR_PHY_REPEATER2 = 2,
+	LTTPR_PHY_REPEATER3 = 3,
+	LTTPR_PHY_REPEATER4 = 4,
+	LTTPR_PHY_REPEATER5 = 5,
+	LTTPR_PHY_REPEATER6 = 6,
+	LTTPR_PHY_REPEATER7 = 7,
+	LTTPR_PHY_REPEATER8 = 8
+};
+
+enum lttpr_mode {
+	phy_repeater_mode_transparent		= 0x55,
+	phy_repeater_mode_non_transparent	= 0xAA
+};
+
+enum lttpr_rev {
+	lttpr_rev_unknown	= 0x0,
+	lttpr_rev_14		= 0x14,
+	lttpr_rev_max		= 0x20
+};
+
+struct dc_lttpr_caps {
+	enum lttpr_rev revision;
+	enum lttpr_mode mode;
+	uint8_t max_lane_count;
+	uint8_t max_link_rate;
+	uint8_t phy_repeater_cnt;
+	uint8_t max_ext_timeout;
+	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
+};
+
 struct dc_dongle_caps {
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
