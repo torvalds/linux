@@ -412,6 +412,65 @@ static const uint32_t mipi_dbi_formats[] = {
 };
 
 /**
+ * mipi_dbi_init_with_formats - MIPI DBI initialization with custom formats
+ * @mipi: &mipi_dbi structure to initialize
+ * @funcs: Display pipe functions
+ * @formats: Array of supported formats (DRM_FORMAT\_\*).
+ * @format_count: Number of elements in @formats
+ * @mode: Display mode
+ * @rotation: Initial rotation in degrees Counter Clock Wise
+ * @tx_buf_size: Allocate a transmit buffer of this size.
+ *
+ * This function sets up a &drm_simple_display_pipe with a &drm_connector that
+ * has one fixed &drm_display_mode which is rotated according to @rotation.
+ * This mode is used to set the mode config min/max width/height properties.
+ *
+ * Use mipi_dbi_init() if you don't need custom formats.
+ *
+ * Note:
+ * Some of the helper functions expects RGB565 to be the default format and the
+ * transmit buffer sized to fit that.
+ *
+ * Returns:
+ * Zero on success, negative error code on failure.
+ */
+int mipi_dbi_init_with_formats(struct mipi_dbi *mipi,
+			       const struct drm_simple_display_pipe_funcs *funcs,
+			       const uint32_t *formats, unsigned int format_count,
+			       const struct drm_display_mode *mode,
+			       unsigned int rotation, size_t tx_buf_size)
+{
+	struct drm_device *drm = &mipi->drm;
+	int ret;
+
+	if (!mipi->command)
+		return -EINVAL;
+
+	mutex_init(&mipi->cmdlock);
+
+	mipi->tx_buf = devm_kmalloc(drm->dev, tx_buf_size, GFP_KERNEL);
+	if (!mipi->tx_buf)
+		return -ENOMEM;
+
+	ret = tinydrm_display_pipe_init(drm, &mipi->pipe, funcs,
+					DRM_MODE_CONNECTOR_SPI,
+					formats, format_count, mode,
+					rotation);
+	if (ret)
+		return ret;
+
+	drm_plane_enable_fb_damage_clips(&mipi->pipe.plane);
+
+	drm->mode_config.funcs = &mipi_dbi_mode_config_funcs;
+	mipi->rotation = rotation;
+
+	DRM_DEBUG_KMS("rotation = %u\n", rotation);
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dbi_init_with_formats);
+
+/**
  * mipi_dbi_init - MIPI DBI initialization
  * @mipi: &mipi_dbi structure to initialize
  * @funcs: Display pipe functions
@@ -433,36 +492,12 @@ int mipi_dbi_init(struct mipi_dbi *mipi,
 		  const struct drm_display_mode *mode, unsigned int rotation)
 {
 	size_t bufsize = mode->vdisplay * mode->hdisplay * sizeof(u16);
-	struct drm_device *drm = &mipi->drm;
-	int ret;
 
-	if (!mipi->command)
-		return -EINVAL;
+	mipi->drm.mode_config.preferred_depth = 16;
 
-	mutex_init(&mipi->cmdlock);
-
-	mipi->tx_buf = devm_kmalloc(drm->dev, bufsize, GFP_KERNEL);
-	if (!mipi->tx_buf)
-		return -ENOMEM;
-
-	ret = tinydrm_display_pipe_init(drm, &mipi->pipe, funcs,
-					DRM_MODE_CONNECTOR_SPI,
-					mipi_dbi_formats,
-					ARRAY_SIZE(mipi_dbi_formats), mode,
-					rotation);
-	if (ret)
-		return ret;
-
-	drm_plane_enable_fb_damage_clips(&mipi->pipe.plane);
-
-	drm->mode_config.funcs = &mipi_dbi_mode_config_funcs;
-	drm->mode_config.preferred_depth = 16;
-	mipi->rotation = rotation;
-
-	DRM_DEBUG_KMS("preferred_depth=%u, rotation = %u\n",
-		      drm->mode_config.preferred_depth, rotation);
-
-	return 0;
+	return mipi_dbi_init_with_formats(mipi, funcs, mipi_dbi_formats,
+					  ARRAY_SIZE(mipi_dbi_formats), mode,
+					  rotation, bufsize);
 }
 EXPORT_SYMBOL(mipi_dbi_init);
 

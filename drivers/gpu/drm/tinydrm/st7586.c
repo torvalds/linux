@@ -24,7 +24,6 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
 #include <drm/tinydrm/mipi-dbi.h>
-#include <drm/tinydrm/tinydrm-helpers.h>
 
 /* controller-specific commands */
 #define ST7586_DISP_MODE_GRAY	0x38
@@ -283,12 +282,6 @@ static const struct drm_simple_display_pipe_funcs st7586_pipe_funcs = {
 	.prepare_fb	= drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
-static const struct drm_mode_config_funcs st7586_mode_config_funcs = {
-	.fb_create = drm_gem_fb_create_with_dirty,
-	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = drm_atomic_helper_commit,
-};
-
 static const struct drm_display_mode st7586_mode = {
 	DRM_SIMPLE_MODE(178, 128, 37, 27),
 };
@@ -342,15 +335,8 @@ static int st7586_probe(struct spi_device *spi)
 	}
 
 	drm_mode_config_init(drm);
-	drm->mode_config.preferred_depth = 32;
-	drm->mode_config.funcs = &st7586_mode_config_funcs;
-
-	mutex_init(&mipi->cmdlock);
 
 	bufsize = (st7586_mode.vdisplay + 2) / 3 * st7586_mode.hdisplay;
-	mipi->tx_buf = devm_kmalloc(dev, bufsize, GFP_KERNEL);
-	if (!mipi->tx_buf)
-		return -ENOMEM;
 
 	mipi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(mipi->reset)) {
@@ -365,7 +351,6 @@ static int st7586_probe(struct spi_device *spi)
 	}
 
 	device_property_read_u32(dev, "rotation", &rotation);
-	mipi->rotation = rotation;
 
 	ret = mipi_dbi_spi_init(spi, mipi, a0);
 	if (ret)
@@ -373,6 +358,12 @@ static int st7586_probe(struct spi_device *spi)
 
 	/* Cannot read from this controller via SPI */
 	mipi->read_commands = NULL;
+
+	ret = mipi_dbi_init_with_formats(mipi, &st7586_pipe_funcs,
+					 st7586_formats, ARRAY_SIZE(st7586_formats),
+					 &st7586_mode, rotation, bufsize);
+	if (ret)
+		return ret;
 
 	/*
 	 * we are using 8-bit data, so we are not actually swapping anything,
@@ -383,15 +374,6 @@ static int st7586_probe(struct spi_device *spi)
 	 */
 	mipi->swap_bytes = true;
 
-	ret = tinydrm_display_pipe_init(drm, &mipi->pipe, &st7586_pipe_funcs,
-					DRM_MODE_CONNECTOR_SPI,
-					st7586_formats, ARRAY_SIZE(st7586_formats),
-					&st7586_mode, rotation);
-	if (ret)
-		return ret;
-
-	drm_plane_enable_fb_damage_clips(&mipi->pipe.plane);
-
 	drm_mode_config_reset(drm);
 
 	ret = drm_dev_register(drm, 0);
@@ -399,9 +381,6 @@ static int st7586_probe(struct spi_device *spi)
 		return ret;
 
 	spi_set_drvdata(spi, drm);
-
-	DRM_DEBUG_KMS("preferred_depth=%u, rotation = %u\n",
-		      drm->mode_config.preferred_depth, rotation);
 
 	drm_fbdev_generic_setup(drm, 0);
 

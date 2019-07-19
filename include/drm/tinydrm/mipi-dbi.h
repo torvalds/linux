@@ -69,6 +69,11 @@ static inline struct mipi_dbi *drm_to_mipi_dbi(struct drm_device *drm)
 
 int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 		      struct gpio_desc *dc);
+int mipi_dbi_init_with_formats(struct mipi_dbi *mipi,
+			       const struct drm_simple_display_pipe_funcs *funcs,
+			       const uint32_t *formats, unsigned int format_count,
+			       const struct drm_display_mode *mode,
+			       unsigned int rotation, size_t tx_buf_size);
 int mipi_dbi_init(struct mipi_dbi *mipi,
 		  const struct drm_simple_display_pipe_funcs *funcs,
 		  const struct drm_display_mode *mode, unsigned int rotation);
