@@ -1103,7 +1103,7 @@ out:
 static int gen8_ppgtt_alloc(struct i915_address_space *vm,
 			    u64 start, u64 length)
 {
-	u64 from = start;
+	u64 from;
 	int err;
 
 	GEM_BUG_ON(!IS_ALIGNED(start, BIT_ULL(GEN8_PTE_SHIFT)));
@@ -1112,6 +1112,7 @@ static int gen8_ppgtt_alloc(struct i915_address_space *vm,
 	start >>= GEN8_PTE_SHIFT;
 	length >>= GEN8_PTE_SHIFT;
 	GEM_BUG_ON(length == 0);
+	from = start;
 
 	err = __gen8_ppgtt_alloc(vm, i915_vm_to_ppgtt(vm)->pd,
 				 &start, start + length, vm->top);
