@@ -1725,8 +1725,10 @@ static int ag71xx_probe(struct platform_device *pdev)
 	ag->stop_desc = dmam_alloc_coherent(&pdev->dev,
 					    sizeof(struct ag71xx_desc),
 					    &ag->stop_desc_dma, GFP_KERNEL);
-	if (!ag->stop_desc)
+	if (!ag->stop_desc) {
+		err = -ENOMEM;
 		goto err_free;
+	}
 
 	ag->stop_desc->data = 0;
 	ag->stop_desc->ctrl = 0;
