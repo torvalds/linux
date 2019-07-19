@@ -271,6 +271,8 @@ struct tls_context {
 	unsigned long flags;
 
 	/* cache cold stuff */
+	struct proto *sk_proto;
+
 	void (*sk_destruct)(struct sock *sk);
 	void (*sk_proto_close)(struct sock *sk, long timeout);
 
@@ -288,6 +290,8 @@ struct tls_context {
 
 	struct list_head list;
 	refcount_t refcount;
+
+	struct work_struct gc;
 };
 
 enum tls_offload_ctx_dir {
@@ -359,7 +363,6 @@ void tls_sw_strparser_done(struct tls_context *tls_ctx);
 int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 int tls_sw_sendpage(struct sock *sk, struct page *page,
 		    int offset, size_t size, int flags);
-void tls_sw_close(struct sock *sk, long timeout);
 void tls_sw_cancel_work_tx(struct tls_context *tls_ctx);
 void tls_sw_release_resources_tx(struct sock *sk);
 void tls_sw_free_ctx_tx(struct tls_context *tls_ctx);
