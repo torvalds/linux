@@ -428,8 +428,19 @@ release it yourself.
 --
 [mandatory]
 	d_alloc_root() is gone, along with a lot of bugs caused by code
-misusing it.  Replacement: d_make_root(inode).  The difference is,
-d_make_root() drops the reference to inode if dentry allocation fails.  
+misusing it.  Replacement: d_make_root(inode).  On success d_make_root(inode)
+allocates and returns a new dentry instantiated with the passed in inode.
+On failure NULL is returned and the passed in inode is dropped so the reference
+to inode is consumed in all cases and failure handling need not do any cleanup
+for the inode.  If d_make_root(inode) is passed a NULL inode it returns NULL
+and also requires no further error handling. Typical usage is:
+
+	inode = foofs_new_inode(....);
+	s->s_root = d_make_inode(inode);
+	if (!s->s_root)
+		/* Nothing needed for the inode cleanup */
+		return -ENOMEM;
+	...
 
 --
 [mandatory]
