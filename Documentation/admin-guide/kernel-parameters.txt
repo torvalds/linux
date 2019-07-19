@@ -4698,27 +4698,6 @@
 			Force threading of all interrupt handlers except those
 			marked explicitly IRQF_NO_THREAD.
 
-	tmem		[KNL,XEN]
-			Enable the Transcendent memory driver if built-in.
-
-	tmem.cleancache=0|1 [KNL, XEN]
-			Default is on (1). Disable the usage of the cleancache
-			API to send anonymous pages to the hypervisor.
-
-	tmem.frontswap=0|1 [KNL, XEN]
-			Default is on (1). Disable the usage of the frontswap
-			API to send swap pages to the hypervisor. If disabled
-			the selfballooning and selfshrinking are force disabled.
-
-	tmem.selfballooning=0|1 [KNL, XEN]
-			Default is on (1). Disable the driving of swap pages
-			to the hypervisor.
-
-	tmem.selfshrinking=0|1 [KNL, XEN]
-			Default is on (1). Partial swapoff that immediately
-			transfers pages from Xen hypervisor back to the
-			kernel based on different criteria.
-
 	topology=	[S390]
 			Format: {off | on}
 			Specify if the kernel should make use of the cpu
@@ -5288,6 +5267,8 @@
 	xen_nopv	[X86]
 			Disables the PV optimizations forcing the HVM guest to
 			run as generic HVM guest with no PV drivers.
+			This option is obsoleted by the "nopv" option, which
+			has equivalent effect for XEN platform.
 
 	xen_scrub_pages=	[XEN]
 			Boolean option to control scrubbing pages before giving them back
@@ -5301,6 +5282,11 @@
 			delta of virtualized Xen timers, where lower values
 			improve timer resolution at the expense of processing
 			more timer interrupts.
+
+	nopv=		[X86,XEN,KVM,HYPER_V,VMWARE]
+			Disables the PV optimizations forcing the guest to run
+			as generic guest with no PV drivers. Currently support
+			XEN HVM, KVM, HYPER_V and VMWARE guest.
 
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:
