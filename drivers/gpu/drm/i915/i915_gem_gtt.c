@@ -1116,7 +1116,7 @@ static int gen8_ppgtt_alloc(struct i915_address_space *vm,
 
 	err = __gen8_ppgtt_alloc(vm, i915_vm_to_ppgtt(vm)->pd,
 				 &start, start + length, vm->top);
-	if (unlikely(err))
+	if (unlikely(err && from != start))
 		__gen8_ppgtt_clear(vm, i915_vm_to_ppgtt(vm)->pd,
 				   from, start, vm->top);
 
