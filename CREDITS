@@ -1770,7 +1770,6 @@ S: USA
 
 N: Dave Jones
 E: davej@codemonkey.org.uk
-W: http://www.codemonkey.org.uk
 D: Assorted VIA x86 support.
 D: 2.5 AGPGART overhaul.
 D: CPUFREQ maintenance.
