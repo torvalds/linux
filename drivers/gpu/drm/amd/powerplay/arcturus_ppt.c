@@ -181,10 +181,8 @@ static int arcturus_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 		return -EINVAL;
 
 	mapping = arcturus_message_map[index];
-	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported SMU message: %d\n", index);
+	if (!(mapping.valid_mapping))
 		return -EINVAL;
-	}
 
 	return mapping.map_to;
 }
