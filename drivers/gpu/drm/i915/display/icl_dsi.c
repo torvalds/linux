@@ -763,7 +763,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	enum transcoder dsi_trans;
 	/* horizontal timings */
 	u16 htotal, hactive, hsync_start, hsync_end, hsync_size;
-	u16 hfront_porch, hback_porch;
+	u16 hback_porch;
 	/* vertical timings */
 	u16 vtotal, vactive, vsync_start, vsync_end, vsync_shift;
 
@@ -772,8 +772,6 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	hsync_start = adjusted_mode->crtc_hsync_start;
 	hsync_end = adjusted_mode->crtc_hsync_end;
 	hsync_size  = hsync_end - hsync_start;
-	hfront_porch = (adjusted_mode->crtc_hsync_start -
-			adjusted_mode->crtc_hdisplay);
 	hback_porch = (adjusted_mode->crtc_htotal -
 		       adjusted_mode->crtc_hsync_end);
 	vactive = adjusted_mode->crtc_vdisplay;
