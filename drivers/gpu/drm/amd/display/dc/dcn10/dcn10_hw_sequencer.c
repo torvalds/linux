@@ -721,7 +721,8 @@ static void false_optc_underflow_wa(
 		dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, old_pipe_ctx);
 	}
 
-	tg->funcs->set_blank_data_double_buffer(tg, true);
+	if (tg->funcs->set_blank_data_double_buffer)
+		tg->funcs->set_blank_data_double_buffer(tg, true);
 
 	if (tg->funcs->is_optc_underflow_occurred(tg) && !underflow)
 		tg->funcs->clear_optc_underflow(tg);
