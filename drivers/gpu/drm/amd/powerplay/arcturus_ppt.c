@@ -994,6 +994,29 @@ static int arcturus_read_sensor(struct smu_context *smu,
 	return ret;
 }
 
+static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
+				       enum smu_clk_type clk_type,
+				       uint32_t *value)
+{
+	static SmuMetrics_t metrics;
+	int ret = 0, clk_id = 0;
+
+	if (!value)
+		return -EINVAL;
+
+	clk_id = smu_clk_get_index(smu, clk_type);
+	if (clk_id < 0)
+		return -EINVAL;
+
+	ret = arcturus_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
+
+	*value = metrics.CurrClock[clk_id];
+
+	return ret;
+}
+
 static void arcturus_dump_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
@@ -1448,6 +1471,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.set_default_dpm_table = arcturus_set_default_dpm_table,
 	.populate_umd_state_clk = arcturus_populate_umd_state_clk,
 	.get_thermal_temperature_range = arcturus_get_thermal_temperature_range,
+	.get_current_clk_freq_by_table = arcturus_get_current_clk_freq_by_table,
 	.print_clk_levels = arcturus_print_clk_levels,
 	.force_clk_levels = arcturus_force_clk_levels,
 	.read_sensor = arcturus_read_sensor,
