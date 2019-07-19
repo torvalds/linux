@@ -1057,6 +1057,26 @@ static void initialize_training_settings(
 		lt_settings->enhanced_framing = 1;
 }
 
+static void configure_lttpr_mode(struct dc_link *link)
+{
+	/* aux timeout is already set to extended */
+	/* RESET/SET lttpr mode to enable non transparent mode */
+	enum lttpr_mode repeater_mode = phy_repeater_mode_transparent;
+
+	core_link_write_dpcd(link,
+			DP_PHY_REPEATER_MODE,
+			(uint8_t *)&repeater_mode,
+			sizeof(repeater_mode));
+
+	if (!link->is_lttpr_mode_transparent) {
+		repeater_mode = phy_repeater_mode_non_transparent;
+		core_link_write_dpcd(link,
+				DP_PHY_REPEATER_MODE,
+				(uint8_t *)&repeater_mode,
+				sizeof(repeater_mode));
+	}
+}
+
 static void print_status_message(
 	struct dc_link *link,
 	const struct link_training_settings *lt_settings,
@@ -1210,6 +1230,9 @@ enum link_training_result dc_link_dp_perform_link_training(
 	dp_set_fec_ready(link, fec_enable);
 #endif
 
+	/* Configure lttpr mode */
+	if (!link->is_lttpr_mode_transparent)
+		configure_lttpr_mode(link);
 
 	/* 2. perform link training (set link training done
 	 *  to false is done as well)
@@ -1426,6 +1449,17 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 			max_link_cap.link_spread)
 		max_link_cap.link_spread =
 				link->reported_link_cap.link_spread;
+	/*
+	 * account for lttpr repeaters cap
+	 * notes: repeaters do not snoop in the DPRX Capabilities addresses (3.6.3).
+	 */
+	if (!link->is_lttpr_mode_transparent) {
+		if (link->dpcd_caps.lttpr_caps.max_lane_count < max_link_cap.lane_count)
+			max_link_cap.lane_count = link->dpcd_caps.lttpr_caps.max_lane_count;
+
+		if (link->dpcd_caps.lttpr_caps.max_link_rate < max_link_cap.link_rate)
+			max_link_cap.link_rate = link->dpcd_caps.lttpr_caps.max_link_rate;
+	}
 	return max_link_cap;
 }
 
@@ -1570,6 +1604,13 @@ bool dp_verify_link_cap(
 	skip_link_training = false;
 
 	max_link_cap = get_max_link_cap(link);
+
+	/* Grant extended timeout request */
+	if (!link->is_lttpr_mode_transparent && link->dpcd_caps.lttpr_caps.max_ext_timeout > 0) {
+		uint8_t grant = link->dpcd_caps.lttpr_caps.max_ext_timeout & 0x80;
+
+		core_link_write_dpcd(link, DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT, &grant, sizeof(grant));
+	}
 
 	/* TODO implement override and monitor patch later */
 
@@ -2759,6 +2800,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	/* Set default timeout to 3.2ms and read LTTPR capabilities */
 	bool ext_timeout_support = link->dc->caps.extended_aux_timeout_support &&
 			!link->dc->config.disable_extended_timeout_support;
+
 	link->is_lttpr_mode_transparent = true;
 
 	if (ext_timeout_support) {
