@@ -11,9 +11,8 @@
 #include "vmcs.h"
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
-#define __ex_clear(x, reg) \
-	____kvm_handle_fault_on_reboot(x, "xor " reg ", " reg)
 
+asmlinkage void vmread_error(unsigned long field, bool fault);
 void vmwrite_error(unsigned long field, unsigned long value);
 void vmclear_error(struct vmcs *vmcs, u64 phys_addr);
 void vmptrld_error(struct vmcs *vmcs, u64 phys_addr);
@@ -68,8 +67,22 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 {
 	unsigned long value;
 
-	asm volatile (__ex_clear("vmread %1, %0", "%k0")
-		      : "=r"(value) : "r"(field));
+	asm volatile("1: vmread %2, %1\n\t"
+		     ".byte 0x3e\n\t" /* branch taken hint */
+		     "ja 3f\n\t"
+		     "mov %2, %%" _ASM_ARG1 "\n\t"
+		     "xor %%" _ASM_ARG2 ", %%" _ASM_ARG2 "\n\t"
+		     "2: call vmread_error\n\t"
+		     "xor %k1, %k1\n\t"
+		     "3:\n\t"
+
+		     ".pushsection .fixup, \"ax\"\n\t"
+		     "4: mov %2, %%" _ASM_ARG1 "\n\t"
+		     "mov $1, %%" _ASM_ARG2 "\n\t"
+		     "jmp 2b\n\t"
+		     ".popsection\n\t"
+		     _ASM_EXTABLE(1b, 4b)
+		     : ASM_CALL_CONSTRAINT, "=r"(value) : "r"(field) : "cc");
 	return value;
 }
 

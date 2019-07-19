@@ -349,6 +349,14 @@ do {					\
 	pr_warn_ratelimited(fmt);	\
 } while (0)
 
+asmlinkage void vmread_error(unsigned long field, bool fault)
+{
+	if (fault)
+		kvm_spurious_fault();
+	else
+		vmx_insn_failed("kvm: vmread failed: field=%lx\n", field);
+}
+
 noinline void vmwrite_error(unsigned long field, unsigned long value)
 {
 	vmx_insn_failed("kvm: vmwrite failed: field=%lx val=%lx err=%d\n",
