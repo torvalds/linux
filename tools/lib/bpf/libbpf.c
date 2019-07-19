@@ -20,6 +20,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
+#include <endian.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <asm/unistd.h>
@@ -612,10 +613,10 @@ errout:
 
 static int bpf_object__check_endianness(struct bpf_object *obj)
 {
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 	if (obj->efile.ehdr.e_ident[EI_DATA] == ELFDATA2LSB)
 		return 0;
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#elif __BYTE_ORDER == __BIG_ENDIAN
 	if (obj->efile.ehdr.e_ident[EI_DATA] == ELFDATA2MSB)
 		return 0;
 #else
