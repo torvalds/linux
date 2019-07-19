@@ -53,41 +53,6 @@ size_t tinydrm_spi_max_transfer_size(struct spi_device *spi, size_t max_len)
 }
 EXPORT_SYMBOL(tinydrm_spi_max_transfer_size);
 
-static void
-tinydrm_dbg_spi_print(struct spi_device *spi, struct spi_transfer *tr,
-		      const void *buf, int idx, bool tx)
-{
-	u32 speed_hz = tr->speed_hz ? tr->speed_hz : spi->max_speed_hz;
-	char linebuf[3 * 32];
-
-	hex_dump_to_buffer(buf, tr->len, 16,
-			   DIV_ROUND_UP(tr->bits_per_word, 8),
-			   linebuf, sizeof(linebuf), false);
-
-	printk(KERN_DEBUG
-	       "    tr(%i): speed=%u%s, bpw=%i, len=%u, %s_buf=[%s%s]\n", idx,
-	       speed_hz > 1000000 ? speed_hz / 1000000 : speed_hz / 1000,
-	       speed_hz > 1000000 ? "MHz" : "kHz", tr->bits_per_word, tr->len,
-	       tx ? "tx" : "rx", linebuf, tr->len > 16 ? " ..." : "");
-}
-
-/* called through tinydrm_dbg_spi_message() */
-void _tinydrm_dbg_spi_message(struct spi_device *spi, struct spi_message *m)
-{
-	struct spi_transfer *tmp;
-	int i = 0;
-
-	list_for_each_entry(tmp, &m->transfers, transfer_list) {
-
-		if (tmp->tx_buf)
-			tinydrm_dbg_spi_print(spi, tmp, tmp->tx_buf, i, true);
-		if (tmp->rx_buf)
-			tinydrm_dbg_spi_print(spi, tmp, tmp->rx_buf, i, false);
-		i++;
-	}
-}
-EXPORT_SYMBOL(_tinydrm_dbg_spi_message);
-
 /**
  * tinydrm_spi_transfer - SPI transfer helper
  * @spi: SPI device
@@ -125,10 +90,6 @@ int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
 
 	max_chunk = tinydrm_spi_max_transfer_size(spi, 0);
 
-	if (drm_debug & DRM_UT_DRIVER)
-		pr_debug("[drm:%s] bpw=%u, max_chunk=%zu, transfers:\n",
-			 __func__, bpw, max_chunk);
-
 	if (bpw == 16 && !spi_is_bpw_supported(spi, 16)) {
 		tr.bits_per_word = 8;
 		if (tinydrm_machine_little_endian()) {
@@ -162,7 +123,6 @@ int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
 		buf += chunk;
 		len -= chunk;
 
-		tinydrm_dbg_spi_message(spi, &m);
 		ret = spi_sync(spi, &m);
 		if (ret)
 			return ret;

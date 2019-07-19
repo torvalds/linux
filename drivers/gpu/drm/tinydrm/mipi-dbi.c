@@ -679,8 +679,6 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *mipi, int dc,
 		dst[8] = *src;
 		tr.len = 9;
 
-		tinydrm_dbg_spi_message(spi, &m);
-
 		return spi_sync(spi, &m);
 	}
 
@@ -758,7 +756,6 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *mipi, int dc,
 
 		tr.len = chunk + added;
 
-		tinydrm_dbg_spi_message(spi, &m);
 		ret = spi_sync(spi, &m);
 		if (ret)
 			return ret;
@@ -822,7 +819,6 @@ static int mipi_dbi_spi1_transfer(struct mipi_dbi *mipi, int dc,
 		tr.len = chunk;
 		len -= chunk;
 
-		tinydrm_dbg_spi_message(spi, &m);
 		ret = spi_sync(spi, &m);
 		if (ret)
 			return ret;
@@ -897,8 +893,6 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *mipi, u8 *cmd,
 	ret = spi_sync(spi, &m);
 	if (ret)
 		goto err_free;
-
-	tinydrm_dbg_spi_message(spi, &m);
 
 	if (tr[1].len == len) {
 		memcpy(data, buf, len);
