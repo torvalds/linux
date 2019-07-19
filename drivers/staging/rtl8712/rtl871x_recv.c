@@ -245,8 +245,7 @@ union recv_frame *r8712_portctrl(struct _adapter *adapter,
 	if (auth_alg == 2) {
 		/* get ether_type */
 		ptr = ptr + pfhdr->attrib.hdrlen + LLC_HEADER_SIZE;
-		memcpy(&ether_type, ptr, 2);
-		be16_to_cpus(&ether_type);
+		ether_type = get_unaligned_be16(ptr);
 
 		if ((psta != NULL) && (psta->ieee8021x_blocked)) {
 			/* blocked
