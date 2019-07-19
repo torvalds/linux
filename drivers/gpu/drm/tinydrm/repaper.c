@@ -23,6 +23,7 @@
 #include <linux/thermal.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_connector.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -30,10 +31,11 @@
 #include <drm/drm_format_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_modes.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
-#include <drm/tinydrm/tinydrm-helpers.h>
 
 #define REPAPER_RID_G2_COG_ID	0x12
 
@@ -60,6 +62,8 @@ enum repaper_epd_border_byte {
 struct repaper_epd {
 	struct drm_device drm;
 	struct drm_simple_display_pipe pipe;
+	const struct drm_display_mode *mode;
+	struct drm_connector connector;
 	struct spi_device *spi;
 
 	struct gpio_desc *panel_on;
@@ -873,6 +877,39 @@ static const struct drm_simple_display_pipe_funcs repaper_pipe_funcs = {
 	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
+static int repaper_connector_get_modes(struct drm_connector *connector)
+{
+	struct repaper_epd *epd = drm_to_epd(connector->dev);
+	struct drm_display_mode *mode;
+
+	mode = drm_mode_duplicate(connector->dev, epd->mode);
+	if (!mode) {
+		DRM_ERROR("Failed to duplicate mode\n");
+		return 0;
+	}
+
+	drm_mode_set_name(mode);
+	mode->type |= DRM_MODE_TYPE_PREFERRED;
+	drm_mode_probed_add(connector, mode);
+
+	connector->display_info.width_mm = mode->width_mm;
+	connector->display_info.height_mm = mode->height_mm;
+
+	return 1;
+}
+
+static const struct drm_connector_helper_funcs repaper_connector_hfuncs = {
+	.get_modes = repaper_connector_get_modes,
+};
+
+static const struct drm_connector_funcs repaper_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
 static const struct drm_mode_config_funcs repaper_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create_with_dirty,
 	.atomic_check = drm_atomic_helper_check,
@@ -1095,6 +1132,7 @@ static int repaper_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
+	epd->mode = mode;
 	epd->width = mode->hdisplay;
 	epd->height = mode->vdisplay;
 	epd->factored_stage_time = epd->stage_time;
@@ -1109,10 +1147,20 @@ static int repaper_probe(struct spi_device *spi)
 	if (!epd->current_frame)
 		return -ENOMEM;
 
-	ret = tinydrm_display_pipe_init(drm, &epd->pipe, &repaper_pipe_funcs,
-					DRM_MODE_CONNECTOR_SPI,
-					repaper_formats,
-					ARRAY_SIZE(repaper_formats), mode, 0);
+	drm->mode_config.min_width = mode->hdisplay;
+	drm->mode_config.max_width = mode->hdisplay;
+	drm->mode_config.min_height = mode->vdisplay;
+	drm->mode_config.max_height = mode->vdisplay;
+
+	drm_connector_helper_add(&epd->connector, &repaper_connector_hfuncs);
+	ret = drm_connector_init(drm, &epd->connector, &repaper_connector_funcs,
+				 DRM_MODE_CONNECTOR_SPI);
+	if (ret)
+		return ret;
+
+	ret = drm_simple_display_pipe_init(drm, &epd->pipe, &repaper_pipe_funcs,
+					   repaper_formats, ARRAY_SIZE(repaper_formats),
+					   NULL, &epd->connector);
 	if (ret)
 		return ret;
 
