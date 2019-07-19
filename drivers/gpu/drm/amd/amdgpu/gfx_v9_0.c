@@ -1313,9 +1313,9 @@ static void gfx_v9_0_read_wave_vgprs(struct amdgpu_device *adev, uint32_t simd,
 }
 
 static void gfx_v9_0_select_me_pipe_q(struct amdgpu_device *adev,
-				  u32 me, u32 pipe, u32 q)
+				  u32 me, u32 pipe, u32 q, u32 vm)
 {
-	soc15_grbm_select(adev, me, pipe, q, 0);
+	soc15_grbm_select(adev, me, pipe, q, vm);
 }
 
 static const struct amdgpu_gfx_funcs gfx_v9_0_gfx_funcs = {
@@ -1942,11 +1942,15 @@ static void gfx_v9_0_constants_init(struct amdgpu_device *adev)
 		if (i == 0) {
 			tmp = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE,
 					    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
+			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, RETRY_DISABLE,
+					    !!amdgpu_noretry);
 			WREG32_SOC15_RLC(GC, 0, mmSH_MEM_CONFIG, tmp);
 			WREG32_SOC15_RLC(GC, 0, mmSH_MEM_BASES, 0);
 		} else {
 			tmp = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE,
 					    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
+			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, RETRY_DISABLE,
+					    !!amdgpu_noretry);
 			WREG32_SOC15_RLC(GC, 0, mmSH_MEM_CONFIG, tmp);
 			tmp = REG_SET_FIELD(0, SH_MEM_BASES, PRIVATE_BASE,
 				(adev->gmc.private_aperture_start >> 48));

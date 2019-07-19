@@ -1157,12 +1157,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 
 	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 			q->properties.type)];
-	/*
-	 * Eviction state logic: mark all queues as evicted, even ones
-	 * not currently active. Restoring inactive queues later only
-	 * updates the is_evicted flag but is a no-op otherwise.
-	 */
-	q->properties.is_evicted = !!qpd->evicted;
+
 	if (q->properties.type == KFD_QUEUE_TYPE_SDMA ||
 		q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI)
 		dqm->asic_ops.init_sdma_vm(dqm, q, qpd);
@@ -1173,9 +1168,16 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 		retval = -ENOMEM;
 		goto out_deallocate_doorbell;
 	}
+
+	dqm_lock(dqm);
+	/*
+	 * Eviction state logic: mark all queues as evicted, even ones
+	 * not currently active. Restoring inactive queues later only
+	 * updates the is_evicted flag but is a no-op otherwise.
+	 */
+	q->properties.is_evicted = !!qpd->evicted;
 	mqd_mgr->init_mqd(mqd_mgr, &q->mqd, q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
-	dqm_lock(dqm);
 
 	list_add(&q->list, &qpd->queues_list);
 	qpd->queue_count++;

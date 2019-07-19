@@ -261,14 +261,20 @@ static int smu_v11_0_check_fw_version(struct smu_context *smu)
 	smu_minor = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 
-
+	/*
+	 * 1. if_version mismatch is not critical as our fw is designed
+	 * to be backward compatible.
+	 * 2. New fw usually brings some optimizations. But that's visible
+	 * only on the paired driver.
+	 * Considering above, we just leave user a warning message instead
+	 * of halt driver loading.
+	 */
 	if (if_version != smu->smc_if_version) {
 		pr_info("smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
 			"smu fw version = 0x%08x (%d.%d.%d)\n",
 			smu->smc_if_version, if_version,
 			smu_version, smu_major, smu_minor, smu_debug);
-		pr_err("SMU driver if version not matched\n");
-		ret = -EINVAL;
+		pr_warn("SMU driver if version not matched\n");
 	}
 
 	return ret;
@@ -703,7 +709,7 @@ static int smu_v11_0_write_pptable(struct smu_context *smu)
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret = 0;
 
-	ret = smu_update_table(smu, SMU_TABLE_PPTABLE,
+	ret = smu_update_table(smu, SMU_TABLE_PPTABLE, 0,
 			       table_context->driver_pptable, true);
 
 	return ret;
@@ -722,7 +728,7 @@ static int smu_v11_0_write_watermarks_table(struct smu_context *smu)
 	if (!table->cpu_addr)
 		return -EINVAL;
 
-	ret = smu_update_table(smu, SMU_TABLE_WATERMARKS, table->cpu_addr,
+	ret = smu_update_table(smu, SMU_TABLE_WATERMARKS, 0, table->cpu_addr,
 				true);
 
 	return ret;

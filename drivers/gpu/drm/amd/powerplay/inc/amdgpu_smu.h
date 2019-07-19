@@ -937,7 +937,7 @@ extern int smu_feature_is_supported(struct smu_context *smu,
 extern int smu_feature_set_supported(struct smu_context *smu,
 				     enum smu_feature_mask mask, bool enable);
 
-int smu_update_table(struct smu_context *smu, uint32_t table_index,
+int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int argument,
 		     void *table_data, bool drv2smu);
 
 bool is_support_sw_smu(struct amdgpu_device *adev);
@@ -973,5 +973,6 @@ int smu_set_hard_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu);
 int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level);
 int smu_set_display_count(struct smu_context *smu, uint32_t count);
+bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type);
 
 #endif

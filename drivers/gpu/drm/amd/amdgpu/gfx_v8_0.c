@@ -3436,9 +3436,9 @@ static void gfx_v8_0_select_se_sh(struct amdgpu_device *adev,
 }
 
 static void gfx_v8_0_select_me_pipe_q(struct amdgpu_device *adev,
-				  u32 me, u32 pipe, u32 q)
+				  u32 me, u32 pipe, u32 q, u32 vm)
 {
-	vi_srbm_select(adev, me, pipe, q, 0);
+	vi_srbm_select(adev, me, pipe, q, vm);
 }
 
 static u32 gfx_v8_0_get_rb_active_bitmap(struct amdgpu_device *adev)
