@@ -268,6 +268,9 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 	void (*sk_proto_close)(struct sock *sk, long timeout);
 	bool free_ctx = false;
 
+	if (ctx->tx_conf == TLS_SW)
+		tls_sw_cancel_work_tx(ctx);
+
 	lock_sock(sk);
 	sk_proto_close = ctx->sk_proto_close;
 
