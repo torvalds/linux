@@ -1258,8 +1258,7 @@ static void lan78xx_status(struct lan78xx_net *dev, struct urb *urb)
 		return;
 	}
 
-	memcpy(&intdata, urb->transfer_buffer, 4);
-	le32_to_cpus(&intdata);
+	intdata = get_unaligned_le32(urb->transfer_buffer);
 
 	if (intdata & INT_ENP_PHY_INT) {
 		netif_dbg(dev, link, dev->net, "PHY INTR: 0x%08x\n", intdata);
@@ -3105,16 +3104,13 @@ static int lan78xx_rx(struct lan78xx_net *dev, struct sk_buff *skb)
 		struct sk_buff *skb2;
 		unsigned char *packet;
 
-		memcpy(&rx_cmd_a, skb->data, sizeof(rx_cmd_a));
-		le32_to_cpus(&rx_cmd_a);
+		rx_cmd_a = get_unaligned_le32(skb->data);
 		skb_pull(skb, sizeof(rx_cmd_a));
 
-		memcpy(&rx_cmd_b, skb->data, sizeof(rx_cmd_b));
-		le32_to_cpus(&rx_cmd_b);
+		rx_cmd_b = get_unaligned_le32(skb->data);
 		skb_pull(skb, sizeof(rx_cmd_b));
 
-		memcpy(&rx_cmd_c, skb->data, sizeof(rx_cmd_c));
-		le16_to_cpus(&rx_cmd_c);
+		rx_cmd_c = get_unaligned_le16(skb->data);
 		skb_pull(skb, sizeof(rx_cmd_c));
 
 		packet = skb->data;
