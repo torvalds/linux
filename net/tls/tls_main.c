@@ -526,6 +526,8 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 		{
 #endif
 			rc = tls_set_sw_offload(sk, ctx, 1);
+			if (rc)
+				goto err_crypto_info;
 			conf = TLS_SW;
 		}
 	} else {
@@ -537,12 +539,12 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 		{
 #endif
 			rc = tls_set_sw_offload(sk, ctx, 0);
+			if (rc)
+				goto err_crypto_info;
+			tls_sw_strparser_arm(sk, ctx);
 			conf = TLS_SW;
 		}
 	}
-
-	if (rc)
-		goto err_crypto_info;
 
 	if (tx)
 		ctx->tx_conf = conf;
