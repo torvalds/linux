@@ -4,7 +4,6 @@
  * Copyright (C) 2002-2004 Eric Biederman  <ebiederm@xmission.com>
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/capability.h>
 #include <linux/mm.h>
@@ -22,8 +21,6 @@
 #include <asm/desc.h>
 #include "kexec_internal.h"
 
-/* #define CONFIG_EFI */
-/* #define E820_X_MAX E820MAX */
 #include <asm/e820/api.h>
 
 static int copy_user_segment_list(struct kimage *image,
@@ -305,6 +302,8 @@ typedef efi_char16_t        CHAR16;
 typedef UINT64              EFI_LBA;
 typedef unsigned char       BOOLEAN;
 typedef int32_t             INT32;
+/* typedef uint32_t            ULONG; */
+typedef unsigned char       UCHAR;
 
 
 /**
@@ -1904,9 +1903,10 @@ typedef struct {
 LIST_HEAD( efi_memory_mappings );
 uint64_t efi_mem_map_epoch = 0;
 
-void efi_register_mem_allocation(  EFI_MEMORY_TYPE       MemoryType,
-                                   UINTN                 NumberOfPages,
-                                   void*                 allocation )
+void efi_register_phys_mem_allocation( EFI_MEMORY_TYPE       MemoryType,
+                                       UINTN                 NumberOfPages,
+                                       unsigned long         phys_addr )
+
 {
         EFI_MEMORY_DESCRIPTOR *mem_map   = NULL;
         MemoryAllocation      *mem_alloc = kmalloc( sizeof(MemoryAllocation),
@@ -1916,9 +1916,9 @@ void efi_register_mem_allocation(  EFI_MEMORY_TYPE       MemoryType,
                 return;
         }
 
-        DebugMSG( "Registering %lld pages of type %s @ %px",
+        DebugMSG( "Registering %lld pages of type %s @ 0x%lx",
                    NumberOfPages, get_efi_mem_type_str( MemoryType ),
-                   allocation );
+                   phys_addr );
 
         /* TODO: Search if the memory address already exists in
          * &efi_memory_mappings. If so, use that mapping. */
@@ -1929,13 +1929,27 @@ void efi_register_mem_allocation(  EFI_MEMORY_TYPE       MemoryType,
         memset( mem_map, 0, sizeof( *mem_map ) );
         mem_map->type      = MemoryType;
         mem_map->pad       = 0;
-        mem_map->phys_addr = virt_to_phys( allocation );
+        mem_map->phys_addr = phys_addr;
         mem_map->virt_addr = 0;  // Similar to EDK-II code
         mem_map->num_pages = NumberOfPages;
         mem_map->attribute = EFI_DEFAULT_MEM_ATTRIBUTES;
 
         list_add_tail( &mem_alloc->list, &efi_memory_mappings);
 }
+
+void efi_register_mem_allocation(  EFI_MEMORY_TYPE       MemoryType,
+                                   UINTN                 NumberOfPages,
+                                   void*                 allocation )
+{
+        DebugMSG( "Registering %lld pages of type %s @ %px",
+                   NumberOfPages, get_efi_mem_type_str( MemoryType ),
+                   allocation );
+
+        efi_register_phys_mem_allocation( MemoryType,
+                                          NumberOfPages,
+                                          virt_to_phys( allocation ) );
+}
+
 
 efi_status_t efi_unregister_allocation( efi_physical_addr_t PhysicalAddress,
                                         UINTN               NumberOfPages )
@@ -2849,13 +2863,16 @@ void print_efi_memmap(void)
                 if (entry->type == E820_TYPE_RESERVED_KERN )
                         type_str = "E820_RESERVED_KERN";
 
-                DebugMSG( "%d: 0x%016llx-0x%016llx type=%d: %s",
+                DebugMSG( "%2d: 0x%016llx-0x%016llx  size: 0x%012llx type=%d: %s",
                           i,
                           entry->addr,
                           entry->addr + entry->size - 1,
+                          entry->size,
                           entry->type,
                           type_str );
         }
+
+        /* while(1){} */
 }
 
 /* Locate the entry id in the e820 mapping that matches a physical address. */
@@ -2892,7 +2909,98 @@ void efi_remap_reserved_area( u64 addr )
         efi_setup_11_mapping_physical_addr( start, end );
 }
 
+void efi_remap_phys_page( u64 addr )
+{
+        unsigned long start = ALIGN_DOWN( addr, PAGE_SIZE );
+        unsigned long end   = ALIGN( addr, PAGE_SIZE );
+
+        DebugMSG( "Remapping addr 0x%llx", addr );
+
+        efi_setup_11_mapping_physical_addr( start, end );
+}
+
 efi_config_table_t efi_config_table[2] = {0};
+
+struct DESCRIPTION_HEADER
+{
+    UINT32 Signature;
+    UINT32 Length;
+    UCHAR Revision;
+    UCHAR Checksum;
+    UCHAR OEMID[6];
+    UCHAR OEMTableID[8];
+    UINT32 OEMRevision;
+    UCHAR CreatorID[4];
+    UINT32 CreatorRev;
+} __attribute__((packed));
+
+struct  RSDP
+{
+    UINT64 Signature;
+    UCHAR Checksum;
+    UCHAR OEMID[6];
+    UCHAR Revision;
+    UINT32 RsdtAddress;
+    UINT32 Length;
+    UINT64 XsdtAddress;
+    UCHAR XChecksum;
+    UCHAR Reserved[3];
+} __attribute__((packed));
+
+struct RSDT
+{
+    struct DESCRIPTION_HEADER Header;
+    UINT32 Tables[];
+}  __attribute__((packed));
+
+struct BGRT_TABLE
+{
+    struct DESCRIPTION_HEADER Header;
+    UINT16 Version;
+    UCHAR Status;
+    UCHAR ImageType;
+    UINT64 LogoAddress;
+    UINT32 OffsetX;
+    UINT32 OffsetY;
+} __attribute__((packed)) ;
+
+#define BGRT_SIGNATURE  0x54524742              // "BGRT"
+struct BGRT_TABLE* efi_find_bgrt(void)
+{
+        struct RSDP *rsdp       = NULL;
+        struct RSDT *rsdt       = NULL;
+        struct BGRT_TABLE* bgrt = NULL;
+        int num_entries;
+        int i;
+
+        rsdp = (void*)efi.acpi20;
+        rsdt = (struct RSDT*)((u64)rsdp->RsdtAddress);
+        num_entries = (rsdt->Header.Length -
+                       sizeof(struct DESCRIPTION_HEADER))/sizeof(UINT32);
+
+        for (i=0; i < num_entries; i++) {
+                u64 table_addr = (u64)rsdt->Tables[i];
+                u32 signature = *(u32*)table_addr;
+
+                DebugMSG( "Table at 0x%llx signature = 0x%x",
+                          table_addr, signature );
+
+                if (signature == BGRT_SIGNATURE)
+                        bgrt = (struct BGRT_TABLE*)table_addr;
+        }
+
+        return bgrt;
+}
+
+
+void efi_remap_ram_used_by_tables(void)
+{
+        struct BGRT_TABLE* bgrt = efi_find_bgrt();
+
+        DebugMSG( "Found BGRT at %px", bgrt );
+
+        efi_remap_phys_page( bgrt->LogoAddress );
+}
 
 void efi_setup_configuration_tables( efi_system_table_t *systab )
 {
@@ -2914,7 +3022,6 @@ void efi_setup_configuration_tables( efi_system_table_t *systab )
         efi_remap_reserved_area( efi.acpi20 );
         efi_remap_reserved_area( efi.smbios );
 
-
         memcpy( &efi_config_table[table_id].guid, &acpi20_guid,
                 sizeof(acpi20_guid) );
         efi_config_table[table_id++].table = efi.acpi20;
@@ -2925,6 +3032,8 @@ void efi_setup_configuration_tables( efi_system_table_t *systab )
 
         systab->nr_tables = table_id;
         systab->tables    = (unsigned long)&efi_config_table;
+
+        efi_remap_ram_used_by_tables();
 }
 
 static void hook_boot_services( efi_system_table_t *systab )
@@ -2977,6 +3086,23 @@ static void hook_boot_services( efi_system_table_t *systab )
         systab->boottime = boot_services;
 }
 
+void efi_register_ram_as_available(void)
+{
+        /* We assume the last entry in the e820 map is usable RAM. Pieces of
+         * this memory are used by Linux, but we declare the entire region as
+         * usable memory so Windows loader will not fail wtih 0xC000009A:
+         * "STATUS_INSUFFICIENT_RESOURCES" */
+
+        u32 num_regions          = e820_table->nr_entries;
+        struct e820_entry *entry = &e820_table->entries[num_regions-1];
+
+        efi_register_phys_mem_allocation( EfiConventionalMemory,
+                                          NUM_PAGES( entry->size ),
+                                          entry->addr );
+}
+
+
+
 typedef uint64_t (*EFI_APP_ENTRY)( void* imageHandle, void* systemTable  )
         __attribute__((ms_abi));
 
@@ -2994,6 +3120,8 @@ void launch_efi_app(EFI_APP_ENTRY efiApp, efi_system_table_t *systab)
 
         efi_hook_AllocatePages( AllocateAnyPages, EfiConventionalMemory,
                                 pool_pages, &pool );
+
+        efi_register_ram_as_available();
         efiApp( ImageHandle, systab );
 }
 
