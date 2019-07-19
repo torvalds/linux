@@ -134,7 +134,7 @@ static int ocelot_setup_tc_block(struct ocelot_port *port,
 				 struct flow_block_offload *f)
 {
 	struct flow_block_cb *block_cb;
-	tc_setup_cb_t *cb;
+	flow_setup_cb_t *cb;
 	int err;
 
 	netdev_dbg(port->dev, "tc_block command %d, binder_type %d\n",

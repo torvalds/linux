@@ -165,7 +165,7 @@ void flow_rule_match_enc_opts(const struct flow_rule *rule,
 }
 EXPORT_SYMBOL(flow_rule_match_enc_opts);
 
-struct flow_block_cb *flow_block_cb_alloc(tc_setup_cb_t *cb,
+struct flow_block_cb *flow_block_cb_alloc(flow_setup_cb_t *cb,
 					  void *cb_ident, void *cb_priv,
 					  void (*release)(void *cb_priv))
 {
@@ -194,7 +194,7 @@ void flow_block_cb_free(struct flow_block_cb *block_cb)
 EXPORT_SYMBOL(flow_block_cb_free);
 
 struct flow_block_cb *flow_block_cb_lookup(struct flow_block_offload *f,
-					   tc_setup_cb_t *cb, void *cb_ident)
+					   flow_setup_cb_t *cb, void *cb_ident)
 {
 	struct flow_block_cb *block_cb;
 
@@ -226,7 +226,7 @@ unsigned int flow_block_cb_decref(struct flow_block_cb *block_cb)
 }
 EXPORT_SYMBOL(flow_block_cb_decref);
 
-bool flow_block_cb_is_busy(tc_setup_cb_t *cb, void *cb_ident,
+bool flow_block_cb_is_busy(flow_setup_cb_t *cb, void *cb_ident,
 			   struct list_head *driver_block_list)
 {
 	struct flow_block_cb *block_cb;
@@ -243,7 +243,8 @@ EXPORT_SYMBOL(flow_block_cb_is_busy);
 
 int flow_block_cb_setup_simple(struct flow_block_offload *f,
 			       struct list_head *driver_block_list,
-			       tc_setup_cb_t *cb, void *cb_ident, void *cb_priv,
+			       flow_setup_cb_t *cb,
+			       void *cb_ident, void *cb_priv,
 			       bool ingress_only)
 {
 	struct flow_block_cb *block_cb;
