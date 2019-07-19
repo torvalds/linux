@@ -664,7 +664,7 @@ static inline int _generic_set_opp_clk_only(struct device *dev, struct clk *clk,
 	return ret;
 }
 
-static int _generic_set_opp_regulator(const struct opp_table *opp_table,
+static int _generic_set_opp_regulator(struct opp_table *opp_table,
 				      struct device *dev,
 				      unsigned long old_freq,
 				      unsigned long freq,
@@ -697,6 +697,18 @@ static int _generic_set_opp_regulator(const struct opp_table *opp_table,
 		ret = _set_opp_voltage(dev, reg, new_supply);
 		if (ret)
 			goto restore_freq;
+	}
+
+	/*
+	 * Enable the regulator after setting its voltages, otherwise it breaks
+	 * some boot-enabled regulators.
+	 */
+	if (unlikely(!opp_table->regulator_enabled)) {
+		ret = regulator_enable(reg);
+		if (ret < 0)
+			dev_warn(dev, "Failed to enable regulator: %d", ret);
+		else
+			opp_table->regulator_enabled = true;
 	}
 
 	return 0;
@@ -825,10 +837,15 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		if (!_get_opp_count(opp_table))
 			return 0;
 
-		if (!opp_table->required_opp_tables) {
+		if (!opp_table->required_opp_tables && !opp_table->regulators) {
 			dev_err(dev, "target frequency can't be 0\n");
 			ret = -EINVAL;
 			goto put_opp_table;
+		}
+
+		if (opp_table->regulator_enabled) {
+			regulator_disable(opp_table->regulators[0]);
+			opp_table->regulator_enabled = false;
 		}
 
 		ret = _set_required_opps(dev, opp_table, NULL);
@@ -1717,6 +1734,13 @@ void dev_pm_opp_put_regulators(struct opp_table *opp_table)
 
 	/* Make sure there are no concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
+
+	if (opp_table->regulator_enabled) {
+		for (i = opp_table->regulator_count - 1; i >= 0; i--)
+			regulator_disable(opp_table->regulators[i]);
+
+		opp_table->regulator_enabled = false;
+	}
 
 	for (i = opp_table->regulator_count - 1; i >= 0; i--)
 		regulator_put(opp_table->regulators[i]);
