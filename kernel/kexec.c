@@ -107,9 +107,23 @@ out_free_image:
 	return ret;
 }
 
+/* #define DebugMSG( fmt, ... ) \ */
+/* do { \ */
+/*         printk( KERN_ERR "### %s:%d; " fmt "\n", __FUNCTION__, __LINE__, ## __VA_ARGS__ ); \ */
+/* }  while (0) */
+
+void InternalSerialPuts( char* str )
+{
+        while( *str != 0 )
+                outb((int)*str++, 0x3f8);
+}
+
 #define DebugMSG( fmt, ... ) \
 do { \
-        printk( KERN_ERR "### %s:%d; " fmt "\n", __FUNCTION__, __LINE__, ## __VA_ARGS__ ); \
+        char buffer[1024];                                 \
+        sprintf( buffer, "### %s:%d; " fmt "\n",           \
+                 __FUNCTION__, __LINE__, ## __VA_ARGS__ ); \
+        InternalSerialPuts( buffer );                      \
 }  while (0)
 
 
