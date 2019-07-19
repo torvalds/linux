@@ -1534,7 +1534,7 @@ enum {
 #define kvm_arch_vcpu_memslots_id(vcpu) ((vcpu)->arch.hflags & HF_SMM_MASK ? 1 : 0)
 #define kvm_memslots_for_spte_role(kvm, role) __kvm_memslots(kvm, (role).smm)
 
-asmlinkage void __noreturn kvm_spurious_fault(void);
+asmlinkage void kvm_spurious_fault(void);
 
 /*
  * Hardware virtualization extension instructions may fault if a

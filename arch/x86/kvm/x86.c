@@ -360,7 +360,8 @@ EXPORT_SYMBOL_GPL(kvm_set_apic_base);
 asmlinkage __visible void kvm_spurious_fault(void)
 {
 	/* Fault while not rebooting.  We want the trace. */
-	BUG();
+	if (!kvm_rebooting)
+		BUG();
 }
 EXPORT_SYMBOL_GPL(kvm_spurious_fault);
 
