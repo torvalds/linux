@@ -1110,7 +1110,7 @@ static int repaper_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	ret = tinydrm_display_pipe_init(drm, &epd->pipe, &repaper_pipe_funcs,
-					DRM_MODE_CONNECTOR_VIRTUAL,
+					DRM_MODE_CONNECTOR_SPI,
 					repaper_formats,
 					ARRAY_SIZE(repaper_formats), mode, 0);
 	if (ret)

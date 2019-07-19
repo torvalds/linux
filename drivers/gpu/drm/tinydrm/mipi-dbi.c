@@ -445,9 +445,8 @@ int mipi_dbi_init(struct mipi_dbi *mipi,
 	if (!mipi->tx_buf)
 		return -ENOMEM;
 
-	/* TODO: Maybe add DRM_MODE_CONNECTOR_SPI */
 	ret = tinydrm_display_pipe_init(drm, &mipi->pipe, funcs,
-					DRM_MODE_CONNECTOR_VIRTUAL,
+					DRM_MODE_CONNECTOR_SPI,
 					mipi_dbi_formats,
 					ARRAY_SIZE(mipi_dbi_formats), mode,
 					rotation);

@@ -384,7 +384,7 @@ static int st7586_probe(struct spi_device *spi)
 	mipi->swap_bytes = true;
 
 	ret = tinydrm_display_pipe_init(drm, &mipi->pipe, &st7586_pipe_funcs,
-					DRM_MODE_CONNECTOR_VIRTUAL,
+					DRM_MODE_CONNECTOR_SPI,
 					st7586_formats, ARRAY_SIZE(st7586_formats),
 					&st7586_mode, rotation);
 	if (ret)
