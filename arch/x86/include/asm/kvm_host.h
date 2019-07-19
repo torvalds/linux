@@ -1549,13 +1549,7 @@ asmlinkage void kvm_spurious_fault(void);
 	"667: \n\t"							\
 	"call	kvm_spurious_fault \n\t"				\
 	"668: \n\t"							\
-	".pushsection .fixup, \"ax\" \n\t"				\
-	"700: \n\t"							\
-	"cmpb	$0, kvm_rebooting\n\t"					\
-	"je	667b \n\t"						\
-	"jmp	668b \n\t"						\
-	".popsection \n\t"						\
-	_ASM_EXTABLE(666b, 700b)
+	_ASM_EXTABLE(666b, 667b)
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
 int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end);
