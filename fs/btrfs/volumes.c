@@ -1551,6 +1551,12 @@ static bool contains_pending_extent(struct btrfs_device *device, u64 *start,
  * @len is used to store the size of the free space that we find.
  * But if we don't find suitable free space, it is used to store the size of
  * the max free space.
+ *
+ * NOTE: This function will search *commit* root of device tree, and does extra
+ * check to ensure dev extents are not double allocated.
+ * This makes the function safe to allocate dev extents but may not report
+ * correct usable device space, as device extent freed in current transaction
+ * is not reported as avaiable.
  */
 static int find_free_dev_extent_start(struct btrfs_device *device,
 				u64 num_bytes, u64 search_start, u64 *start,
