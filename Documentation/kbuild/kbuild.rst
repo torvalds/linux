@@ -38,12 +38,11 @@ Additional options to the assembler (for built-in and modules).
 
 AFLAGS_MODULE
 -------------
-Additional module specific options to use for $(AS).
+Additional assembler options for modules.
 
 AFLAGS_KERNEL
 -------------
-Additional options for $(AS) when used for assembler
-code for code that is compiled as built-in.
+Additional assembler options for built-in.
 
 KCFLAGS
 -------

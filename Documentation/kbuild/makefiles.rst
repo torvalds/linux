@@ -328,7 +328,7 @@ more details, with real examples.
 	variable $(KBUILD_CFLAGS) and uses it for compilation flags for the
 	entire tree.
 
-	asflags-y specifies options for assembling with $(AS).
+	asflags-y specifies assembler options.
 
 	Example::
 
@@ -490,7 +490,7 @@ more details, with real examples.
 	as-instr checks if the assembler reports a specific instruction
 	and then outputs either option1 or option2
 	C escapes are supported in the test instruction
-	Note: as-instr-option uses KBUILD_AFLAGS for $(AS) options
+	Note: as-instr-option uses KBUILD_AFLAGS for assembler options
 
     cc-option
 	cc-option is used to check if $(CC) supports a given option, and if
@@ -906,7 +906,7 @@ When kbuild executes, the following steps are followed (roughly):
 	vmlinux. The usage of $(call if_changed,xxx) will be described later.
 
     KBUILD_AFLAGS
-	$(AS) assembler flags
+	Assembler flags
 
 	Default value - see top level Makefile
 	Append or modify as required per architecture.
@@ -949,16 +949,16 @@ When kbuild executes, the following steps are followed (roughly):
 	to 'y' when selected.
 
     KBUILD_AFLAGS_KERNEL
-	$(AS) options specific for built-in
+	Assembler options specific for built-in
 
 	$(KBUILD_AFLAGS_KERNEL) contains extra C compiler flags used to compile
 	resident kernel code.
 
     KBUILD_AFLAGS_MODULE
-	Options for $(AS) when building modules
+	Assembler options specific for modules
 
 	$(KBUILD_AFLAGS_MODULE) is used to add arch-specific options that
-	are used for $(AS).
+	are used for assembler.
 
 	From commandline AFLAGS_MODULE shall be used (see kbuild.txt).
 

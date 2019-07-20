@@ -29,9 +29,10 @@ ti-emif-sram-objs		:= ti-emif-pm.o ti-emif-sram-pm.o
 
 AFLAGS_ti-emif-sram-pm.o	:=-Wa,-march=armv7-a
 
-drivers/memory/ti-emif-sram-pm.o: include/generated/ti-emif-asm-offsets.h
+$(obj)/ti-emif-sram-pm.o: $(obj)/ti-emif-asm-offsets.h
 
-include/generated/ti-emif-asm-offsets.h: drivers/memory/emif-asm-offsets.s FORCE
+$(obj)/ti-emif-asm-offsets.h: $(obj)/emif-asm-offsets.s FORCE
 	$(call filechk,offsets,__TI_EMIF_ASM_OFFSETS_H__)
 
 targets += emif-asm-offsets.s
+clean-files += ti-emif-asm-offsets.h

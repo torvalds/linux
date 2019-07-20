@@ -30,8 +30,6 @@ header-test-$(CONFIG_CPU_BIG_ENDIAN) += linux/byteorder/big_endian.h
 header-test-$(CONFIG_CPU_LITTLE_ENDIAN) += linux/byteorder/little_endian.h
 header-test- += linux/coda.h
 header-test- += linux/coda_psdev.h
-header-test- += linux/dvb/audio.h
-header-test- += linux/dvb/osd.h
 header-test- += linux/elfcore.h
 header-test- += linux/errqueue.h
 header-test- += linux/fsmap.h
@@ -44,7 +42,6 @@ header-test- += linux/netfilter_bridge/ebtables.h
 header-test- += linux/netfilter_ipv4/ipt_LOG.h
 header-test- += linux/netfilter_ipv6/ip6t_LOG.h
 header-test- += linux/nfc.h
-header-test- += linux/nilfs2_ondisk.h
 header-test- += linux/omap3isp.h
 header-test- += linux/omapfb.h
 header-test- += linux/patchkey.h
@@ -59,9 +56,6 @@ header-test- += linux/v4l2-mediabus.h
 header-test- += linux/v4l2-subdev.h
 header-test- += linux/videodev2.h
 header-test- += linux/vm_sockets.h
-header-test- += misc/ocxl.h
-header-test- += mtd/mtd-abi.h
-header-test- += mtd/mtd-user.h
 header-test- += scsi/scsi_bsg_fc.h
 header-test- += scsi/scsi_netlink.h
 header-test- += scsi/scsi_netlink_fc.h
@@ -108,7 +102,6 @@ header-test- += linux/bpf_perf_event.h
 endif
 
 ifeq ($(SRCARCH),s390)
-header-test- += asm/runtime_instr.h
 header-test- += asm/zcrypt.h
 endif
 
@@ -116,7 +109,6 @@ ifeq ($(SRCARCH),sparc)
 header-test- += asm/stat.h
 header-test- += asm/uctx.h
 header-test- += asm/fbio.h
-header-test- += asm/openpromio.h
 endif
 
 # asm-generic/*.h is used by asm/*.h, and should not be included directly
