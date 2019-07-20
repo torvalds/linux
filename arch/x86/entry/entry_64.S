@@ -875,7 +875,12 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
 	UNWIND_HINT_REGS
 
 	.if \read_cr2
-	GET_CR2_INTO(%rdx);			/* can clobber %rax */
+	/*
+	 * Store CR2 early so subsequent faults cannot clobber it. Use R12 as
+	 * intermediate storage as RDX can be clobbered in enter_from_user_mode().
+	 * GET_CR2_INTO can clobber RAX.
+	 */
+	GET_CR2_INTO(%r12);
 	.endif
 
 	.if \shift_ist != -1
@@ -902,6 +907,10 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
 
 	.if \shift_ist != -1
 	subq	$\ist_offset, CPU_TSS_IST(\shift_ist)
+	.endif
+
+	.if \read_cr2
+	movq	%r12, %rdx			/* Move CR2 into 3rd argument */
 	.endif
 
 	call	\do_sym
