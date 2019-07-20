@@ -7,7 +7,7 @@
 
 &cbass_wakeup {
 	dmsc: dmsc {
-		compatible = "ti,k2g-sci";
+		compatible = "ti,am654-sci";
 		ti,host-id = <12>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -62,5 +62,31 @@
 		clock-names = "fck";
 		clocks = <&k3_clks 115 1>;
 		power-domains = <&k3_pds 115>;
+	};
+
+	intr_wkup_gpio: interrupt-controller2 {
+		compatible = "ti,sci-intr";
+		ti,intr-trigger-type = <1>;
+		interrupt-controller;
+		interrupt-parent = <&gic500>;
+		#interrupt-cells = <2>;
+		ti,sci = <&dmsc>;
+		ti,sci-dst-id = <56>;
+		ti,sci-rm-range-girq = <0x4>;
+	};
+
+	wkup_gpio0: wkup_gpio0@42110000 {
+		compatible = "ti,am654-gpio", "ti,keystone-gpio";
+		reg = <0x42110000 0x100>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&intr_wkup_gpio>;
+		interrupts = <59 128>, <59 129>, <59 130>, <59 131>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		ti,ngpio = <56>;
+		ti,davinci-gpio-unbanked = <0>;
+		clocks = <&k3_clks 59 0>;
+		clock-names = "gpio";
 	};
 };
