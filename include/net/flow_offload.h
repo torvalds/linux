@@ -2,8 +2,8 @@
 #define _NET_FLOW_OFFLOAD_H
 
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <net/flow_dissector.h>
-#include <net/sch_generic.h>
 
 struct flow_match {
 	struct flow_dissector	*dissector;
@@ -249,6 +249,10 @@ enum flow_block_binder_type {
 	FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS,
 };
 
+struct flow_block {
+	struct list_head cb_list;
+};
+
 struct netlink_ext_ack;
 
 struct flow_block_offload {
@@ -256,29 +260,33 @@ struct flow_block_offload {
 	enum flow_block_binder_type binder_type;
 	bool block_shared;
 	struct net *net;
+	struct flow_block *block;
 	struct list_head cb_list;
 	struct list_head *driver_block_list;
 	struct netlink_ext_ack *extack;
 };
 
+enum tc_setup_type;
+typedef int flow_setup_cb_t(enum tc_setup_type type, void *type_data,
+			    void *cb_priv);
+
 struct flow_block_cb {
 	struct list_head	driver_list;
 	struct list_head	list;
-	struct net		*net;
-	tc_setup_cb_t		*cb;
+	flow_setup_cb_t		*cb;
 	void			*cb_ident;
 	void			*cb_priv;
 	void			(*release)(void *cb_priv);
 	unsigned int		refcnt;
 };
 
-struct flow_block_cb *flow_block_cb_alloc(struct net *net, tc_setup_cb_t *cb,
+struct flow_block_cb *flow_block_cb_alloc(flow_setup_cb_t *cb,
 					  void *cb_ident, void *cb_priv,
 					  void (*release)(void *cb_priv));
 void flow_block_cb_free(struct flow_block_cb *block_cb);
 
-struct flow_block_cb *flow_block_cb_lookup(struct flow_block_offload *offload,
-					   tc_setup_cb_t *cb, void *cb_ident);
+struct flow_block_cb *flow_block_cb_lookup(struct flow_block *block,
+					   flow_setup_cb_t *cb, void *cb_ident);
 
 void *flow_block_cb_priv(struct flow_block_cb *block_cb);
 void flow_block_cb_incref(struct flow_block_cb *block_cb);
@@ -296,11 +304,12 @@ static inline void flow_block_cb_remove(struct flow_block_cb *block_cb,
 	list_move(&block_cb->list, &offload->cb_list);
 }
 
-bool flow_block_cb_is_busy(tc_setup_cb_t *cb, void *cb_ident,
+bool flow_block_cb_is_busy(flow_setup_cb_t *cb, void *cb_ident,
 			   struct list_head *driver_block_list);
 
 int flow_block_cb_setup_simple(struct flow_block_offload *f,
-			       struct list_head *driver_list, tc_setup_cb_t *cb,
+			       struct list_head *driver_list,
+			       flow_setup_cb_t *cb,
 			       void *cb_ident, void *cb_priv, bool ingress_only);
 
 enum flow_cls_command {
@@ -331,6 +340,11 @@ static inline struct flow_rule *
 flow_cls_offload_flow_rule(struct flow_cls_offload *flow_cmd)
 {
 	return flow_cmd->rule;
+}
+
+static inline void flow_block_init(struct flow_block *flow_block)
+{
+	INIT_LIST_HEAD(&flow_block->cb_list);
 }
 
 #endif /* _NET_FLOW_OFFLOAD_H */

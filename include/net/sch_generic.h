@@ -15,15 +15,13 @@
 #include <linux/mutex.h>
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
+#include <net/flow_offload.h>
 
 struct Qdisc_ops;
 struct qdisc_walker;
 struct tcf_walker;
 struct module;
 struct bpf_flow_keys;
-
-typedef int tc_setup_cb_t(enum tc_setup_type type,
-			  void *type_data, void *cb_priv);
 
 typedef int tc_indr_block_bind_cb_t(struct net_device *dev, void *cb_priv,
 				    enum tc_setup_type type, void *type_data);
@@ -313,7 +311,7 @@ struct tcf_proto_ops {
 	void			(*walk)(struct tcf_proto *tp,
 					struct tcf_walker *arg, bool rtnl_held);
 	int			(*reoffload)(struct tcf_proto *tp, bool add,
-					     tc_setup_cb_t *cb, void *cb_priv,
+					     flow_setup_cb_t *cb, void *cb_priv,
 					     struct netlink_ext_ack *extack);
 	void			(*bind_class)(void *, u32, unsigned long);
 	void *			(*tmplt_create)(struct net *net,
@@ -401,7 +399,7 @@ struct tcf_block {
 	refcount_t refcnt;
 	struct net *net;
 	struct Qdisc *q;
-	struct list_head cb_list;
+	struct flow_block flow_block;
 	struct list_head owner_list;
 	bool keep_dst;
 	unsigned int offloadcnt; /* Number of oddloaded filters */
