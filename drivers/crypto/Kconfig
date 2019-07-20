@@ -189,12 +189,12 @@ config S390_PRNG
 	  It is available as of z9.
 
 config CRYPTO_GHASH_S390
-	tristate "GHASH digest algorithm"
+	tristate "GHASH hash function"
 	depends on S390
 	select CRYPTO_HASH
 	help
-	  This is the s390 hardware accelerated implementation of the
-	  GHASH message digest algorithm for GCM (Galois/Counter Mode).
+	  This is the s390 hardware accelerated implementation of GHASH,
+	  the hash function used in GCM (Galois/Counter mode).
 
 	  It is available as of z196.
 

@@ -647,11 +647,12 @@ config CRYPTO_VPMSUM_TESTER
 	  Unless you are testing these algorithms, you don't need this.
 
 config CRYPTO_GHASH
-	tristate "GHASH digest algorithm"
+	tristate "GHASH hash function"
 	select CRYPTO_GF128MUL
 	select CRYPTO_HASH
 	help
-	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).
+	  GHASH is the hash function used in GCM (Galois/Counter Mode).
+	  It is not a general-purpose cryptographic hash function.
 
 config CRYPTO_POLY1305
 	tristate "Poly1305 authenticator algorithm"
@@ -976,12 +977,12 @@ config CRYPTO_WP512
 	  <http://www.larc.usp.br/~pbarreto/WhirlpoolPage.html>
 
 config CRYPTO_GHASH_CLMUL_NI_INTEL
-	tristate "GHASH digest algorithm (CLMUL-NI accelerated)"
+	tristate "GHASH hash function (CLMUL-NI accelerated)"
 	depends on X86 && 64BIT
 	select CRYPTO_CRYPTD
 	help
-	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).
-	  The implementation is accelerated by CLMUL-NI of Intel.
+	  This is the x86_64 CLMUL-NI accelerated implementation of
+	  GHASH, the hash function used in GCM (Galois/Counter mode).
 
 comment "Ciphers"
 
