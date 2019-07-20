@@ -1,35 +1,5 @@
-/**
- * Copyright (c) 2010-2012 Broadcom. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
- *    to endorse or promote products derived from this software without
- *    specific prior written permission.
- *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2, as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
- * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/* Copyright (c) 2010-2012 Broadcom. All rights reserved. */
 
 #include "vchiq_core.h"
 
@@ -1877,7 +1847,7 @@ bail_not_ready:
 static int
 slot_handler_func(void *v)
 {
-	struct vchiq_state *state = (struct vchiq_state *)v;
+	struct vchiq_state *state = v;
 	struct vchiq_shared_state *local = state->local;
 
 	DEBUG_INITIALISE(local)
@@ -1961,7 +1931,7 @@ slot_handler_func(void *v)
 static int
 recycle_func(void *v)
 {
-	struct vchiq_state *state = (struct vchiq_state *)v;
+	struct vchiq_state *state = v;
 	struct vchiq_shared_state *local = state->local;
 	BITSET_T *found;
 	size_t length;
@@ -1985,7 +1955,7 @@ recycle_func(void *v)
 static int
 sync_func(void *v)
 {
-	struct vchiq_state *state = (struct vchiq_state *)v;
+	struct vchiq_state *state = v;
 	struct vchiq_shared_state *local = state->local;
 	struct vchiq_header *header =
 		(struct vchiq_header *)SLOT_DATA_FROM_INDEX(state,
@@ -2111,7 +2081,7 @@ vchiq_init_slots(void *mem_base, int mem_size)
 	int mem_align =
 		(int)((VCHIQ_SLOT_SIZE - (long)mem_base) & VCHIQ_SLOT_MASK);
 	struct vchiq_slot_zero *slot_zero =
-		(struct vchiq_slot_zero *)((char *)mem_base + mem_align);
+		(struct vchiq_slot_zero *)(mem_base + mem_align);
 	int num_slots = (mem_size - mem_align)/VCHIQ_SLOT_SIZE;
 	int first_data_slot = VCHIQ_SLOT_ZERO_SLOTS;
 
@@ -2239,6 +2209,8 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero)
 	local->debug[DEBUG_ENTRIES] = DEBUG_MAX;
 
 	status = vchiq_platform_init_state(state);
+	if (status != VCHIQ_SUCCESS)
+		return VCHIQ_ERROR;
 
 	/*
 		bring up slot handler thread
@@ -3039,13 +3011,13 @@ VCHIQ_STATUS_T vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 	case VCHIQ_BULK_MODE_CALLBACK:
 		break;
 	case VCHIQ_BULK_MODE_BLOCKING:
-		bulk_waiter = (struct bulk_waiter *)userdata;
+		bulk_waiter = userdata;
 		init_completion(&bulk_waiter->event);
 		bulk_waiter->actual = 0;
 		bulk_waiter->bulk = NULL;
 		break;
 	case VCHIQ_BULK_MODE_WAITING:
-		bulk_waiter = (struct bulk_waiter *)userdata;
+		bulk_waiter = userdata;
 		bulk = bulk_waiter->bulk;
 		goto waiting;
 	default:
@@ -3624,7 +3596,7 @@ VCHIQ_STATUS_T vchiq_send_remote_use_active(struct vchiq_state *state)
 void vchiq_log_dump_mem(const char *label, u32 addr, const void *void_mem,
 	size_t num_bytes)
 {
-	const u8  *mem = (const u8 *)void_mem;
+	const u8  *mem = void_mem;
 	size_t          offset;
 	char            line_buf[100];
 	char           *s;

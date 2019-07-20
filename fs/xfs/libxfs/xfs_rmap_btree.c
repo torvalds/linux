@@ -578,6 +578,15 @@ xfs_rmapbt_calc_reserves(
 	tree_len = be32_to_cpu(agf->agf_rmap_blocks);
 	xfs_trans_brelse(tp, agbp);
 
+	/*
+	 * The log is permanently allocated, so the space it occupies will
+	 * never be available for the kinds of things that would require btree
+	 * expansion.  We therefore can pretend the space isn't there.
+	 */
+	if (mp->m_sb.sb_logstart &&
+	    XFS_FSB_TO_AGNO(mp, mp->m_sb.sb_logstart) == agno)
+		agblocks -= mp->m_sb.sb_logblocks;
+
 	/* Reserve 1% of the AG or enough for 1 block per record. */
 	*ask += max(agblocks / 100, xfs_rmapbt_max_size(mp, agblocks));
 	*used += tree_len;

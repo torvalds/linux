@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2007-2012 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
  */
 
 #include <linux/if_vlan.h>
@@ -170,7 +157,9 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 {
 	struct vport *vport;
 	struct internal_dev *internal_dev;
+	struct net_device *dev;
 	int err;
+	bool free_vport = true;
 
 	vport = ovs_vport_alloc(0, &ovs_internal_vport_ops, parms);
 	if (IS_ERR(vport)) {
@@ -178,8 +167,9 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 		goto error;
 	}
 
-	vport->dev = alloc_netdev(sizeof(struct internal_dev),
-				  parms->name, NET_NAME_USER, do_setup);
+	dev = alloc_netdev(sizeof(struct internal_dev),
+			   parms->name, NET_NAME_USER, do_setup);
+	vport->dev = dev;
 	if (!vport->dev) {
 		err = -ENOMEM;
 		goto error_free_vport;
@@ -200,8 +190,10 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 
 	rtnl_lock();
 	err = register_netdevice(vport->dev);
-	if (err)
+	if (err) {
+		free_vport = false;
 		goto error_unlock;
+	}
 
 	dev_set_promiscuity(vport->dev, 1);
 	rtnl_unlock();
@@ -211,11 +203,12 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 
 error_unlock:
 	rtnl_unlock();
-	free_percpu(vport->dev->tstats);
+	free_percpu(dev->tstats);
 error_free_netdev:
-	free_netdev(vport->dev);
+	free_netdev(dev);
 error_free_vport:
-	ovs_vport_free(vport);
+	if (free_vport)
+		ovs_vport_free(vport);
 error:
 	return ERR_PTR(err);
 }

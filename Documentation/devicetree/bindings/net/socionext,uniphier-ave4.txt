@@ -31,8 +31,8 @@ Required properties:
  - socionext,syscon-phy-mode: A phandle to syscon with one argument
 	that configures phy mode. The argument is the ID of MAC instance.
 
-Optional properties:
- - local-mac-address: See ethernet.txt in the same directory.
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Required subnode:
  - mdio: A container for child nodes representing phy nodes.

@@ -49,6 +49,8 @@
  */
 
 enum mode_set_atomic;
+struct drm_writeback_connector;
+struct drm_writeback_job;
 
 /**
  * struct drm_crtc_helper_funcs - helper operations for CRTCs
@@ -993,6 +995,11 @@ struct drm_connector_helper_funcs {
 	 */
 	void (*atomic_commit)(struct drm_connector *connector,
 			      struct drm_connector_state *state);
+
+	int (*prepare_writeback_job)(struct drm_writeback_connector *connector,
+				     struct drm_writeback_job *job);
+	void (*cleanup_writeback_job)(struct drm_writeback_connector *connector,
+				      struct drm_writeback_job *job);
 };
 
 /**
@@ -1177,6 +1184,14 @@ struct drm_plane_helper_funcs {
 	 * drivers shouldn't replace the &drm_plane_state but update the
 	 * current one with the new plane configurations in the new
 	 * plane_state.
+	 *
+	 * Drivers should also swap the framebuffers between current plane
+	 * state (&drm_plane.state) and new_state.
+	 * This is required since cleanup for async commits is performed on
+	 * the new state, rather than old state like for traditional commits.
+	 * Since we want to give up the reference on the current (old) fb
+	 * instead of our brand new one, swap them in the driver during the
+	 * async commit.
 	 *
 	 * FIXME:
 	 *  - It only works for single plane updates

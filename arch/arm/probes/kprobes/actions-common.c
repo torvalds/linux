@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/probes/kprobes/actions-common.c
  *
@@ -5,10 +6,6 @@
  *
  * Some contents moved here from arch/arm/include/asm/kprobes-arm.c which is
  * Copyright (C) 2006, 2007 Motorola Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>

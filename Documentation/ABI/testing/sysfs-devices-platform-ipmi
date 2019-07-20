@@ -212,7 +212,7 @@ Description:
 					Messages may be broken into parts if
 					they are long.
 
-		receieved_messages:	(RO) Number of message responses
+		received_messages:	(RO) Number of message responses
 					received.
 
 		received_message_parts: (RO) Number of message fragments

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * This file contains the iSCSI Target specific utility functions.
  *
@@ -5,15 +6,6 @@
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ******************************************************************************/
 
 #include <linux/list.h>
@@ -66,6 +58,8 @@ int iscsit_add_r2t_to_list(
 	struct iscsi_r2t *r2t;
 
 	lockdep_assert_held(&cmd->r2t_lock);
+
+	WARN_ON_ONCE((s32)xfer_len < 0);
 
 	r2t = kmem_cache_zalloc(lio_r2t_cache, GFP_ATOMIC);
 	if (!r2t) {
@@ -735,6 +729,7 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 	kfree(cmd->pdu_list);
 	kfree(cmd->seq_list);
 	kfree(cmd->tmr_req);
+	kfree(cmd->overflow_buf);
 	kfree(cmd->iov_data);
 	kfree(cmd->text_in_ptr);
 
@@ -768,6 +763,8 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 {
 	struct se_cmd *se_cmd = cmd->se_cmd.se_tfo ? &cmd->se_cmd : NULL;
 	int rc;
+
+	WARN_ON(!list_empty(&cmd->i_conn_node));
 
 	__iscsit_free_cmd(cmd, shutdown);
 	if (se_cmd) {

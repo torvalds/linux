@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Spanning tree protocol; interface code
  *	Linux ethernet bridge
  *
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -117,7 +113,8 @@ void br_stp_disable_port(struct net_bridge_port *p)
 	del_timer(&p->forward_delay_timer);
 	del_timer(&p->hold_timer);
 
-	br_fdb_delete_by_port(br, p, 0, 0);
+	if (!rcu_access_pointer(p->backup_port))
+		br_fdb_delete_by_port(br, p, 0, 0);
 	br_multicast_disable_port(p);
 
 	br_configuration_update(br);

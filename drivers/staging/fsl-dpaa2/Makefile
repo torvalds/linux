@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Freescale DataPath Acceleration Architecture Gen2 (DPAA2) drivers
 #

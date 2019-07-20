@@ -82,15 +82,15 @@
 
 /* Remove DIG by yuchen */
 
-typedef struct _Dynamic_Primary_CCA {
+struct dynamic_primary_CCA {
 	u8 PriCCA_flag;
 	u8 intf_flag;
 	u8 intf_type;
 	u8 DupRTS_flag;
 	u8 Monitor_flag;
 	u8 CH_offset;
-	u8 	MF_state;
-} Pri_CCA_T, *pPri_CCA_T;
+	u8 MF_state;
+};
 
 typedef struct _Rate_Adaptive_Table_ {
 	u8 firstconnect;
@@ -261,7 +261,7 @@ struct odm_packet_info {
 	bool is_beacon;
 };
 
-typedef struct _ODM_Phy_Dbg_Info_ {
+struct odm_phy_dbg_info {
 	/* ODM Write, debug info */
 	s8 RxSNRdB[4];
 	u32 NumQryPhyStatus;
@@ -271,11 +271,11 @@ typedef struct _ODM_Phy_Dbg_Info_ {
 	/* Others */
 	s32 RxEVM[4];
 
-} ODM_PHY_DBG_INFO_T;
+};
 
-typedef struct _ODM_Mac_Status_Info_ {
+struct odm_mac_status_info {
 	u8 test;
-} ODM_MAC_INFO;
+};
 
 typedef enum tag_Dynamic_ODM_Support_Ability_Type {
 	/*  BB Team */
@@ -1092,11 +1092,11 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 	/*  Define ........... */
 
 	/*  Latest packet phy info (ODM write) */
-	ODM_PHY_DBG_INFO_T PhyDbgInfo;
+	struct odm_phy_dbg_info PhyDbgInfo;
 	/* PHY_INFO_88E		PhyInfo; */
 
 	/*  Latest packet phy info (ODM write) */
-	ODM_MAC_INFO *pMacInfo;
+	struct odm_mac_status_info *pMacInfo;
 	/* MAC_INFO_88E		MacInfo; */
 
 	/*  Different Team independt structure?? */
@@ -1112,7 +1112,7 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 	FAT_T DM_FatTable;
 	DIG_T DM_DigTable;
 	PS_T DM_PSTable;
-	Pri_CCA_T DM_PriCCA;
+	struct dynamic_primary_CCA DM_PriCCA;
 	RXHP_T DM_RXHP_Table;
 	RA_T DM_RA_Table;
 	false_ALARM_STATISTICS FalseAlmCnt;

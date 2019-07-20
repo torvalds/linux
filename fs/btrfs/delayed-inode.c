@@ -691,7 +691,6 @@ static int btrfs_batch_insert_items(struct btrfs_root *root,
 				    struct btrfs_path *path,
 				    struct btrfs_delayed_item *item)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_delayed_item *curr, *next;
 	int free_space;
 	int total_data_size = 0, total_size = 0;
@@ -708,7 +707,7 @@ static int btrfs_batch_insert_items(struct btrfs_root *root,
 	BUG_ON(!path->nodes[0]);
 
 	leaf = path->nodes[0];
-	free_space = btrfs_leaf_free_space(fs_info, leaf);
+	free_space = btrfs_leaf_free_space(leaf);
 	INIT_LIST_HEAD(&head);
 
 	next = item;
@@ -1692,7 +1691,7 @@ int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 		name = (char *)(di + 1);
 		name_len = btrfs_stack_dir_name_len(di);
 
-		d_type = btrfs_filetype_table[di->type];
+		d_type = fs_ftype_to_dtype(di->type);
 		btrfs_disk_key_to_cpu(&location, &di->location);
 
 		over = !dir_emit(ctx, name, name_len,

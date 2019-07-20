@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 config HAS_DMA
 	bool
@@ -38,6 +39,9 @@ config ARCH_HAS_SYNC_DMA_FOR_CPU
 config ARCH_HAS_SYNC_DMA_FOR_CPU_ALL
 	bool
 
+config ARCH_HAS_DMA_PREP_COHERENT
+	bool
+
 config ARCH_HAS_DMA_COHERENT_TO_PFN
 	bool
 
@@ -57,6 +61,7 @@ config SWIOTLB
 
 config DMA_REMAP
 	depends on MMU
+	select GENERIC_ALLOCATOR
 	bool
 
 config DMA_DIRECT_REMAP

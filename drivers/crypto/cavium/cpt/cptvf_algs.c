@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 
 /*
  * Copyright (C) 2016 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <crypto/authenc.h>
-#include <crypto/cryptd.h>
 #include <crypto/crypto_wq.h>
 #include <crypto/des.h>
 #include <crypto/xts.h>
@@ -327,27 +323,36 @@ static int cvm_cfb_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 static int cvm_cbc_des3_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 			       u32 keylen)
 {
+	u32 flags = crypto_ablkcipher_get_flags(cipher);
+	int err;
+
+	err = __des3_verify_key(&flags, key);
+	if (unlikely(err)) {
+		crypto_ablkcipher_set_flags(cipher, flags);
+		return err;
+	}
+
 	return cvm_setkey(cipher, key, keylen, DES3_CBC);
 }
 
 static int cvm_ecb_des3_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 			       u32 keylen)
 {
+	u32 flags = crypto_ablkcipher_get_flags(cipher);
+	int err;
+
+	err = __des3_verify_key(&flags, key);
+	if (unlikely(err)) {
+		crypto_ablkcipher_set_flags(cipher, flags);
+		return err;
+	}
+
 	return cvm_setkey(cipher, key, keylen, DES3_ECB);
 }
 
 static int cvm_enc_dec_init(struct crypto_tfm *tfm)
 {
-	struct cvm_enc_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	memset(ctx, 0, sizeof(*ctx));
-	tfm->crt_ablkcipher.reqsize = sizeof(struct cvm_req_ctx) +
-					sizeof(struct ablkcipher_request);
-	/* Additional memory for ablkcipher_request is
-	 * allocated since the cryptd daemon uses
-	 * this memory for request_ctx information
-	 */
-
+	tfm->crt_ablkcipher.reqsize = sizeof(struct cvm_req_ctx);
 	return 0;
 }
 

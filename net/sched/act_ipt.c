@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/act_ipt.c		iptables target interface
  *
  *TODO: Add other tables. For now we only support the ipv4 table targets
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Copyright:	Jamal Hadi Salim (2002-13)
  */
@@ -113,7 +109,8 @@ static int __tcf_ipt_init(struct net *net, unsigned int id, struct nlattr *nla,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_IPT_MAX, nla, ipt_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_IPT_MAX, nla, ipt_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 

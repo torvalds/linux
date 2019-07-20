@@ -22,7 +22,6 @@ Core utilities
    workqueue
    genericirq
    xarray
-   flexible-arrays
    librs
    genalloc
    errseq

@@ -1073,7 +1073,6 @@ static void tg3_int_reenable(struct tg3_napi *tnapi)
 	struct tg3 *tp = tnapi->tp;
 
 	tw32_mailbox(tnapi->int_mbox, tnapi->last_tag << 24);
-	mmiowb();
 
 	/* When doing tagged status, this work check is unnecessary.
 	 * The last_tag we write above tells the chip which piece of
@@ -6999,7 +6998,6 @@ next_pkt_nopost:
 			tw32_rx_mbox(TG3_RX_JMB_PROD_IDX_REG,
 				     tpr->rx_jmb_prod_idx);
 		}
-		mmiowb();
 	} else if (work_mask) {
 		/* rx_std_buffers[] and rx_jmb_buffers[] entries must be
 		 * updated before the producer indices can be updated.
@@ -7210,8 +7208,6 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 			tw32_rx_mbox(TG3_RX_JMB_PROD_IDX_REG,
 				     dpr->rx_jmb_prod_idx);
 
-		mmiowb();
-
 		if (err)
 			tw32_f(HOSTCC_MODE, tp->coal_now);
 	}
@@ -7278,7 +7274,6 @@ static int tg3_poll_msix(struct napi_struct *napi, int budget)
 						  HOSTCC_MODE_ENABLE |
 						  tnapi->coal_now);
 			}
-			mmiowb();
 			break;
 		}
 	}
@@ -8156,10 +8151,9 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_tx_wake_queue(txq);
 	}
 
-	if (!skb->xmit_more || netif_xmit_stopped(txq)) {
+	if (!netdev_xmit_more() || netif_xmit_stopped(txq)) {
 		/* Packets are ready, update Tx producer idx on card. */
 		tw32_tx_mbox(tnapi->prodmbox, entry);
-		mmiowb();
 	}
 
 	return NETDEV_TX_OK;
@@ -12762,9 +12756,6 @@ static int tg3_set_phys_id(struct net_device *dev,
 			    enum ethtool_phys_id_state state)
 {
 	struct tg3 *tp = netdev_priv(dev);
-
-	if (!netif_running(tp->dev))
-		return -EAGAIN;
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:

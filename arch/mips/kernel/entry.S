@@ -58,15 +58,14 @@ resume_kernel:
 	local_irq_disable
 	lw	t0, TI_PRE_COUNT($28)
 	bnez	t0, restore_all
-need_resched:
 	LONG_L	t0, TI_FLAGS($28)
 	andi	t1, t0, _TIF_NEED_RESCHED
 	beqz	t1, restore_all
 	LONG_L	t0, PT_STATUS(sp)		# Interrupts off?
 	andi	t0, 1
 	beqz	t0, restore_all
-	jal	preempt_schedule_irq
-	b	need_resched
+	PTR_LA	ra, restore_all
+	j	preempt_schedule_irq
 #endif
 
 FEXPORT(ret_from_kernel_thread)

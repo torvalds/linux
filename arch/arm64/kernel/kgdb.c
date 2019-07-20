@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AArch64 KGDB support
  *
@@ -5,18 +6,6 @@
  *
  * Copyright (C) 2013 Cavium Inc.
  * Author: Vijaya Kumar K <vijaya.kumar@caviumnetworks.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/bug.h>
@@ -244,9 +233,6 @@ int kgdb_arch_handle_exception(int exception_vector, int signo,
 
 static int kgdb_brk_fn(struct pt_regs *regs, unsigned int esr)
 {
-	if (user_mode(regs))
-		return DBG_HOOK_ERROR;
-
 	kgdb_handle_exception(1, SIGTRAP, 0, regs);
 	return DBG_HOOK_HANDLED;
 }
@@ -254,9 +240,6 @@ NOKPROBE_SYMBOL(kgdb_brk_fn)
 
 static int kgdb_compiled_brk_fn(struct pt_regs *regs, unsigned int esr)
 {
-	if (user_mode(regs))
-		return DBG_HOOK_ERROR;
-
 	compiled_break = 1;
 	kgdb_handle_exception(1, SIGTRAP, 0, regs);
 
@@ -266,7 +249,7 @@ NOKPROBE_SYMBOL(kgdb_compiled_brk_fn);
 
 static int kgdb_step_brk_fn(struct pt_regs *regs, unsigned int esr)
 {
-	if (user_mode(regs) || !kgdb_single_step)
+	if (!kgdb_single_step)
 		return DBG_HOOK_ERROR;
 
 	kgdb_handle_exception(1, SIGTRAP, 0, regs);
@@ -275,15 +258,13 @@ static int kgdb_step_brk_fn(struct pt_regs *regs, unsigned int esr)
 NOKPROBE_SYMBOL(kgdb_step_brk_fn);
 
 static struct break_hook kgdb_brkpt_hook = {
-	.esr_mask	= 0xffffffff,
-	.esr_val	= (u32)ESR_ELx_VAL_BRK64(KGDB_DYN_DBG_BRK_IMM),
-	.fn		= kgdb_brk_fn
+	.fn		= kgdb_brk_fn,
+	.imm		= KGDB_DYN_DBG_BRK_IMM,
 };
 
 static struct break_hook kgdb_compiled_brkpt_hook = {
-	.esr_mask	= 0xffffffff,
-	.esr_val	= (u32)ESR_ELx_VAL_BRK64(KGDB_COMPILED_DBG_BRK_IMM),
-	.fn		= kgdb_compiled_brk_fn
+	.fn		= kgdb_compiled_brk_fn,
+	.imm		= KGDB_COMPILED_DBG_BRK_IMM,
 };
 
 static struct step_hook kgdb_step_hook = {
@@ -332,9 +313,9 @@ int kgdb_arch_init(void)
 	if (ret != 0)
 		return ret;
 
-	register_break_hook(&kgdb_brkpt_hook);
-	register_break_hook(&kgdb_compiled_brkpt_hook);
-	register_step_hook(&kgdb_step_hook);
+	register_kernel_break_hook(&kgdb_brkpt_hook);
+	register_kernel_break_hook(&kgdb_compiled_brkpt_hook);
+	register_kernel_step_hook(&kgdb_step_hook);
 	return 0;
 }
 
@@ -345,9 +326,9 @@ int kgdb_arch_init(void)
  */
 void kgdb_arch_exit(void)
 {
-	unregister_break_hook(&kgdb_brkpt_hook);
-	unregister_break_hook(&kgdb_compiled_brkpt_hook);
-	unregister_step_hook(&kgdb_step_hook);
+	unregister_kernel_break_hook(&kgdb_brkpt_hook);
+	unregister_kernel_break_hook(&kgdb_compiled_brkpt_hook);
+	unregister_kernel_step_hook(&kgdb_step_hook);
 	unregister_die_notifier(&kgdb_notifier);
 }
 

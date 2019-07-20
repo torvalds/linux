@@ -74,10 +74,6 @@ int null_zone_report(struct gendisk *disk, sector_t sector,
 	struct nullb_device *dev = nullb->dev;
 	unsigned int zno, nrz = 0;
 
-	if (!dev->zoned)
-		/* Not a zoned null device */
-		return -EOPNOTSUPP;
-
 	zno = null_zone_no(dev, sector);
 	if (zno < dev->nr_zones) {
 		nrz = min_t(unsigned int, *nr_zones, dev->nr_zones - zno);

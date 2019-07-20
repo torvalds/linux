@@ -83,4 +83,8 @@ struct pipe_ctx *find_top_pipe_for_stream(
 
 int get_vupdate_offset_from_vsync(struct pipe_ctx *pipe_ctx);
 
+void lock_all_pipes(struct dc *dc,
+	struct dc_state *context,
+	bool lock);
+
 #endif /* __DC_HWSS_DCN10_H__ */

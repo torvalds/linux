@@ -142,7 +142,7 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			rc = __orangefs_set_acl(inode, acl, type);
 		} else {
 			iattr.ia_valid = ATTR_MODE;
-			rc = orangefs_inode_setattr(inode, &iattr);
+			rc = __orangefs_setattr(inode, &iattr);
 		}
 
 		return rc;
@@ -185,7 +185,7 @@ int orangefs_init_acl(struct inode *inode, struct inode *dir)
 		inode->i_mode = mode;
 		iattr.ia_mode = mode;
 		iattr.ia_valid |= ATTR_MODE;
-		orangefs_inode_setattr(inode, &iattr);
+		__orangefs_setattr(inode, &iattr);
 	}
 
 	return error;

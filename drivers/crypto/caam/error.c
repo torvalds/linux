@@ -22,7 +22,7 @@ void caam_dump_sg(const char *level, const char *prefix_str, int prefix_type,
 	size_t len;
 	void *buf;
 
-	for (it = sg; it && tlen > 0 ; it = sg_next(sg)) {
+	for (it = sg; it && tlen > 0 ; it = sg_next(it)) {
 		/*
 		 * make sure the scatterlist's page
 		 * has a valid virtual memory mapping
@@ -138,7 +138,7 @@ static const struct {
 	{ 0x46, "Annotation length exceeds offset (reuse mode)"},
 	{ 0x48, "Annotation output enabled but ASA limited by ASAR (reuse mode)"},
 	{ 0x49, "Data offset correction exceeds input frame data length (reuse mode)"},
-	{ 0x4B, "Annotation output enabled but ASA cannote be expanded (frame list)"},
+	{ 0x4B, "Annotation output enabled but ASA cannot be expanded (frame list)"},
 	{ 0x51, "Unsupported IF reuse mode"},
 	{ 0x52, "Unsupported FL use mode"},
 	{ 0x53, "Unsupported RJD use mode"},

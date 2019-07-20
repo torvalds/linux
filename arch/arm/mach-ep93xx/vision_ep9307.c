@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-ep93xx/vision_ep9307.c
  * Vision Engraving Systems EP9307 SoM support.
  *
  * Copyright (C) 2008-2011 Vision Engraving Systems
  * H Hartley Sweeten <hsweeten@visionengravers.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -31,10 +27,10 @@
 
 #include <sound/cs4271.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 #include <linux/platform_data/video-ep93xx.h>
 #include <linux/platform_data/spi-ep93xx.h>
-#include <mach/gpio-ep93xx.h>
+#include "gpio-ep93xx.h"
 
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
@@ -245,15 +241,17 @@ static struct spi_board_info vision_spi_board_info[] __initdata = {
 	},
 };
 
-static int vision_spi_chipselects[] __initdata = {
-	EP93XX_GPIO_LINE_EGPIO6,
-	EP93XX_GPIO_LINE_EGPIO7,
-	EP93XX_GPIO_LINE_G(2),
+static struct gpiod_lookup_table vision_spi_cs_gpio_table = {
+	.dev_id = "ep93xx-spi.0",
+	.table = {
+		GPIO_LOOKUP_IDX("A", 6, "cs", 0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("A", 7, "cs", 1, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("G", 2, "cs", 2, GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct ep93xx_spi_info vision_spi_master __initdata = {
-	.chipselect	= vision_spi_chipselects,
-	.num_chipselect	= ARRAY_SIZE(vision_spi_chipselects),
 	.use_dma	= 1,
 };
 
@@ -295,6 +293,7 @@ static void __init vision_init_machine(void)
 	ep93xx_register_i2c(vision_i2c_info,
 				ARRAY_SIZE(vision_i2c_info));
 	gpiod_add_lookup_table(&vision_spi_mmc_gpio_table);
+	gpiod_add_lookup_table(&vision_spi_cs_gpio_table);
 	ep93xx_register_spi(&vision_spi_master, vision_spi_board_info,
 				ARRAY_SIZE(vision_spi_board_info));
 	vision_register_i2s();

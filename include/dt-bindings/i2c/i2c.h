@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This header provides constants for I2C bindings
  *
@@ -5,8 +6,6 @@
  * Copyright (C) 2015 by Renesas Electronics Corporation
  *
  * Wolfram Sang <wsa@sang-engineering.com>
- *
- * GPLv2 only
  */
 
 #ifndef _DT_BINDINGS_I2C_I2C_H

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #include <linux/module.h>
@@ -182,129 +179,6 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 }
 
 /**
- * find_good_lh - find a good log header
- * @jd: the journal
- * @blk: the segment to start searching from
- * @lh: the log header to fill in
- * @forward: if true search forward in the log, else search backward
- *
- * Call get_log_header() to get a log header for a segment, but if the
- * segment is bad, either scan forward or backward until we find a good one.
- *
- * Returns: errno
- */
-
-static int find_good_lh(struct gfs2_jdesc *jd, unsigned int *blk,
-			struct gfs2_log_header_host *head)
-{
-	unsigned int orig_blk = *blk;
-	int error;
-
-	for (;;) {
-		error = get_log_header(jd, *blk, head);
-		if (error <= 0)
-			return error;
-
-		if (++*blk == jd->jd_blocks)
-			*blk = 0;
-
-		if (*blk == orig_blk) {
-			gfs2_consist_inode(GFS2_I(jd->jd_inode));
-			return -EIO;
-		}
-	}
-}
-
-/**
- * jhead_scan - make sure we've found the head of the log
- * @jd: the journal
- * @head: this is filled in with the log descriptor of the head
- *
- * At this point, seg and lh should be either the head of the log or just
- * before.  Scan forward until we find the head.
- *
- * Returns: errno
- */
-
-static int jhead_scan(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head)
-{
-	unsigned int blk = head->lh_blkno;
-	struct gfs2_log_header_host lh;
-	int error;
-
-	for (;;) {
-		if (++blk == jd->jd_blocks)
-			blk = 0;
-
-		error = get_log_header(jd, blk, &lh);
-		if (error < 0)
-			return error;
-		if (error == 1)
-			continue;
-
-		if (lh.lh_sequence == head->lh_sequence) {
-			gfs2_consist_inode(GFS2_I(jd->jd_inode));
-			return -EIO;
-		}
-		if (lh.lh_sequence < head->lh_sequence)
-			break;
-
-		*head = lh;
-	}
-
-	return 0;
-}
-
-/**
- * gfs2_find_jhead - find the head of a log
- * @jd: the journal
- * @head: the log descriptor for the head of the log is returned here
- *
- * Do a binary search of a journal and find the valid log entry with the
- * highest sequence number.  (i.e. the log head)
- *
- * Returns: errno
- */
-
-int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head)
-{
-	struct gfs2_log_header_host lh_1, lh_m;
-	u32 blk_1, blk_2, blk_m;
-	int error;
-
-	blk_1 = 0;
-	blk_2 = jd->jd_blocks - 1;
-
-	for (;;) {
-		blk_m = (blk_1 + blk_2) / 2;
-
-		error = find_good_lh(jd, &blk_1, &lh_1);
-		if (error)
-			return error;
-
-		error = find_good_lh(jd, &blk_m, &lh_m);
-		if (error)
-			return error;
-
-		if (blk_1 == blk_m || blk_m == blk_2)
-			break;
-
-		if (lh_1.lh_sequence <= lh_m.lh_sequence)
-			blk_1 = blk_m;
-		else
-			blk_2 = blk_m;
-	}
-
-	error = jhead_scan(jd, &lh_1);
-	if (error)
-		return error;
-
-	*head = lh_1;
-
-	return error;
-}
-
-/**
  * foreach_descriptor - go through the active part of the log
  * @jd: the journal
  * @start: the first log header in the active region
@@ -316,7 +190,7 @@ int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head)
  * Returns: errno
  */
 
-static int foreach_descriptor(struct gfs2_jdesc *jd, unsigned int start,
+static int foreach_descriptor(struct gfs2_jdesc *jd, u32 start,
 			      unsigned int end, int pass)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
@@ -386,10 +260,12 @@ static void clean_journal(struct gfs2_jdesc *jd,
 			  struct gfs2_log_header_host *head)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	u32 lblock = head->lh_blkno;
 
-	sdp->sd_log_flush_head = head->lh_blkno;
-	gfs2_replay_incr_blk(jd, &sdp->sd_log_flush_head);
-	gfs2_write_log_header(sdp, jd, head->lh_sequence + 1, 0,
+	gfs2_replay_incr_blk(jd, &lblock);
+	if (jd->jd_jid == sdp->sd_lockstruct.ls_jid)
+		sdp->sd_log_flush_head = lblock;
+	gfs2_write_log_header(sdp, jd, head->lh_sequence + 1, 0, lblock,
 			      GFS2_LOG_HEAD_UNMOUNT | GFS2_LOG_HEAD_RECOVERY,
 			      REQ_PREFLUSH | REQ_FUA | REQ_META | REQ_SYNC);
 }
@@ -467,7 +343,7 @@ void gfs2_recover_func(struct work_struct *work)
 	if (error)
 		goto fail_gunlock_ji;
 
-	error = gfs2_find_jhead(jd, &head);
+	error = gfs2_find_jhead(jd, &head, true);
 	if (error)
 		goto fail_gunlock_ji;
 	t_jhd = ktime_get();

@@ -75,10 +75,10 @@ static int hisi_clk_set_phase(struct clk_hw *hw, int degrees)
 
 	spin_lock_irqsave(phase->lock, flags);
 
-	val = clk_readl(phase->reg);
+	val = readl(phase->reg);
 	val &= ~phase->mask;
 	val |= regval << phase->shift;
-	clk_writel(val, phase->reg);
+	writel(val, phase->reg);
 
 	spin_unlock_irqrestore(phase->lock, flags);
 

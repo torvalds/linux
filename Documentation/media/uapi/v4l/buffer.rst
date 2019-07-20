@@ -165,7 +165,7 @@ of appropriately sized buffers for each use case).
 struct v4l2_buffer
 ==================
 
-.. tabularcolumns:: |p{2.8cm}|p{2.5cm}|p{1.3cm}|p{10.5cm}|
+.. tabularcolumns:: |p{2.8cm}|p{2.5cm}|p{1.6cm}|p{10.2cm}|
 
 .. cssclass:: longtable
 
@@ -326,7 +326,7 @@ struct v4l2_buffer
 	Applications should not set ``V4L2_BUF_FLAG_REQUEST_FD`` for any ioctls
 	other than :ref:`VIDIOC_QBUF <VIDIOC_QBUF>`.
 
-	If the device does not support requests, then ``EACCES`` will be returned.
+	If the device does not support requests, then ``EBADR`` will be returned.
 	If requests are supported but an invalid request file descriptor is
 	given, then ``EINVAL`` will be returned.
 
@@ -420,7 +420,7 @@ enum v4l2_buf_type
 
 .. cssclass:: longtable
 
-.. tabularcolumns:: |p{7.2cm}|p{0.6cm}|p{9.7cm}|
+.. tabularcolumns:: |p{7.8cm}|p{0.6cm}|p{9.1cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -482,7 +482,11 @@ enum v4l2_buf_type
 Buffer Flags
 ============
 
-.. tabularcolumns:: |p{7.0cm}|p{2.2cm}|p{8.3cm}|
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{7.0cm}|p{2.1cm}|p{8.4cm}|
 
 .. cssclass:: longtable
 
@@ -681,6 +685,9 @@ Buffer Flags
 	exposure of the frame has begun. This is only valid for the
 	``V4L2_BUF_TYPE_VIDEO_CAPTURE`` buffer type.
 
+.. raw:: latex
+
+    \normalsize
 
 
 .. c:type:: v4l2_memory
@@ -688,7 +695,7 @@ Buffer Flags
 enum v4l2_memory
 ================
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{5.0cm}|p{0.8cm}|p{11.7cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -724,7 +731,7 @@ The :c:type:`v4l2_buffer_timecode` structure is designed to hold a
 struct v4l2_timecode
 --------------------
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{1.4cm}|p{2.8cm}|p{12.3cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -761,7 +768,7 @@ struct v4l2_timecode
 Timecode Types
 --------------
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{5.6cm}|p{0.8cm}|p{11.1cm}|
 
 .. flat-table::
     :header-rows:  0

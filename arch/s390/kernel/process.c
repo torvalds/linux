@@ -37,6 +37,7 @@
 #include <asm/irq.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
+#include <asm/stacktrace.h>
 #include <asm/switch_to.h>
 #include <asm/runtime_instr.h>
 #include "entry.h"

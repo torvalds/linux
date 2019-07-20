@@ -22,11 +22,8 @@
  */
 #ifndef __VEGA10_BACO_H__
 #define __VEGA10_BACO_H__
-#include "hwmgr.h"
-#include "common_baco.h"
+#include "smu9_baco.h"
 
-extern int vega10_baco_get_capability(struct pp_hwmgr *hwmgr, bool *cap);
-extern int vega10_baco_get_state(struct pp_hwmgr *hwmgr, enum BACO_STATE *state);
 extern int vega10_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state);
 
 #endif

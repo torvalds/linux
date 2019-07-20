@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	LASI Device Driver
  *
  *	(c) Copyright 1999 Red Hat Software
  *	Portions (c) Copyright 1999 The Puffin Group Inc.
  *	Portions (c) Copyright 1999 Hewlett-Packard
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
  *
  *	by Alan Cox <alan@redhat.com> and 
  * 	   Alex deVries <alex@onefishtwo.ca>

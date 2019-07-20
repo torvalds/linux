@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config WL18XX
 	tristate "TI wl18xx support"
 	depends on MAC80211

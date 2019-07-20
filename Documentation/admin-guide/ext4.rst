@@ -91,9 +91,47 @@ Currently Available
 * large block (up to pagesize) support
 * efficient new ordered mode in JBD2 and ext4 (avoid using buffer head to force
   the ordering)
+* Case-insensitive file name lookups
 
 [1] Filesystems with a block size of 1k may see a limit imposed by the
 directory hash tree having a maximum depth of two.
+
+case-insensitive file name lookups
+======================================================
+
+The case-insensitive file name lookup feature is supported on a
+per-directory basis, allowing the user to mix case-insensitive and
+case-sensitive directories in the same filesystem.  It is enabled by
+flipping the +F inode attribute of an empty directory.  The
+case-insensitive string match operation is only defined when we know how
+text in encoded in a byte sequence.  For that reason, in order to enable
+case-insensitive directories, the filesystem must have the
+casefold feature, which stores the filesystem-wide encoding
+model used.  By default, the charset adopted is the latest version of
+Unicode (12.1.0, by the time of this writing), encoded in the UTF-8
+form.  The comparison algorithm is implemented by normalizing the
+strings to the Canonical decomposition form, as defined by Unicode,
+followed by a byte per byte comparison.
+
+The case-awareness is name-preserving on the disk, meaning that the file
+name provided by userspace is a byte-per-byte match to what is actually
+written in the disk.  The Unicode normalization format used by the
+kernel is thus an internal representation, and not exposed to the
+userspace nor to the disk, with the important exception of disk hashes,
+used on large case-insensitive directories with DX feature.  On DX
+directories, the hash must be calculated using the casefolded version of
+the filename, meaning that the normalization format used actually has an
+impact on where the directory entry is stored.
+
+When we change from viewing filenames as opaque byte sequences to seeing
+them as encoded strings we need to address what happens when a program
+tries to create a file with an invalid name.  The Unicode subsystem
+within the kernel leaves the decision of what to do in this case to the
+filesystem, which select its preferred behavior by enabling/disabling
+the strict mode.  When Ext4 encounters one of those strings and the
+filesystem did not require strict mode, it falls back to considering the
+entire string as an opaque byte sequence, which still allows the user to
+operate on that file, but the case-insensitive lookups won't work.
 
 Options
 =======

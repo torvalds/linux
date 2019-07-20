@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DMASOUND_ATARI
 	tristate "Atari DMA sound support"
 	depends on ATARI && SOUND

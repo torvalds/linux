@@ -221,10 +221,6 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	struct sock *child;
 	bool own_req;
 
-	req->num_retrans = 0;
-	req->num_timeout = 0;
-	req->sk = NULL;
-
 	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL,
 							 NULL, &own_req);
 	if (!child)

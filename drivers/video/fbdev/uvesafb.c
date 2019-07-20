@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * A framebuffer driver for VBE 2.0+ compliant video cards
  *
@@ -1543,7 +1544,7 @@ static void uvesafb_ioremap(struct fb_info *info)
 static ssize_t uvesafb_show_vbe_ver(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct fb_info *info = platform_get_drvdata(to_platform_device(dev));
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct uvesafb_par *par = info->par;
 
 	return snprintf(buf, PAGE_SIZE, "%.4x\n", par->vbe_ib.vbe_version);
@@ -1554,7 +1555,7 @@ static DEVICE_ATTR(vbe_version, S_IRUGO, uvesafb_show_vbe_ver, NULL);
 static ssize_t uvesafb_show_vbe_modes(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct fb_info *info = platform_get_drvdata(to_platform_device(dev));
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct uvesafb_par *par = info->par;
 	int ret = 0, i;
 
@@ -1573,7 +1574,7 @@ static DEVICE_ATTR(vbe_modes, S_IRUGO, uvesafb_show_vbe_modes, NULL);
 static ssize_t uvesafb_show_vendor(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct fb_info *info = platform_get_drvdata(to_platform_device(dev));
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct uvesafb_par *par = info->par;
 
 	if (par->vbe_ib.oem_vendor_name_ptr)
@@ -1588,7 +1589,7 @@ static DEVICE_ATTR(oem_vendor, S_IRUGO, uvesafb_show_vendor, NULL);
 static ssize_t uvesafb_show_product_name(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct fb_info *info = platform_get_drvdata(to_platform_device(dev));
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct uvesafb_par *par = info->par;
 
 	if (par->vbe_ib.oem_product_name_ptr)
@@ -1603,7 +1604,7 @@ static DEVICE_ATTR(oem_product_name, S_IRUGO, uvesafb_show_product_name, NULL);
 static ssize_t uvesafb_show_product_rev(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct fb_info *info = platform_get_drvdata(to_platform_device(dev));
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct uvesafb_par *par = info->par;
 
 	if (par->vbe_ib.oem_product_rev_ptr)
@@ -1618,7 +1619,7 @@ static DEVICE_ATTR(oem_product_rev, S_IRUGO, uvesafb_show_product_rev, NULL);
 static ssize_t uvesafb_show_oem_string(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct fb_info *info = platform_get_drvdata(to_platform_device(dev));
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct uvesafb_par *par = info->par;
 
 	if (par->vbe_ib.oem_string_ptr)
@@ -1633,7 +1634,7 @@ static DEVICE_ATTR(oem_string, S_IRUGO, uvesafb_show_oem_string, NULL);
 static ssize_t uvesafb_show_nocrtc(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct fb_info *info = platform_get_drvdata(to_platform_device(dev));
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct uvesafb_par *par = info->par;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", par->nocrtc);
@@ -1642,7 +1643,7 @@ static ssize_t uvesafb_show_nocrtc(struct device *dev,
 static ssize_t uvesafb_store_nocrtc(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct fb_info *info = platform_get_drvdata(to_platform_device(dev));
+	struct fb_info *info = dev_get_drvdata(dev);
 	struct uvesafb_par *par = info->par;
 
 	if (count > 0) {

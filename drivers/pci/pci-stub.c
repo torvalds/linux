@@ -66,20 +66,18 @@ static int __init pci_stub_init(void)
 				&class, &class_mask);
 
 		if (fields < 2) {
-			printk(KERN_WARNING
-			       "pci-stub: invalid id string \"%s\"\n", id);
+			pr_warn("pci-stub: invalid ID string \"%s\"\n", id);
 			continue;
 		}
 
-		printk(KERN_INFO
-		       "pci-stub: add %04X:%04X sub=%04X:%04X cls=%08X/%08X\n",
+		pr_info("pci-stub: add %04X:%04X sub=%04X:%04X cls=%08X/%08X\n",
 		       vendor, device, subvendor, subdevice, class, class_mask);
 
 		rc = pci_add_dynid(&stub_driver, vendor, device,
 				   subvendor, subdevice, class, class_mask, 0);
 		if (rc)
-			printk(KERN_WARNING
-			       "pci-stub: failed to add dynamic id (%d)\n", rc);
+			pr_warn("pci-stub: failed to add dynamic ID (%d)\n",
+				rc);
 	}
 
 	return 0;

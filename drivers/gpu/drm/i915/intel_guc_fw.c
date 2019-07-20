@@ -241,7 +241,7 @@ static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
 
 	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
 
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	guc_prepare_xfer(guc);
 
@@ -254,7 +254,7 @@ static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
 
 	ret = guc_xfer_ucode(guc, vma);
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	return ret;
 }

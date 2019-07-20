@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NUMA support, based on the x86 implementation.
  *
  * Copyright (C) 2015 Cavium Inc.
  * Author: Ganapatrao Kulkarni <gkulkarni@cavium.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) "NUMA: " fmt
@@ -124,7 +113,7 @@ static void __init setup_node_to_cpumask_map(void)
 }
 
 /*
- *  Set the cpu to node and mem mapping
+ * Set the cpu to node and mem mapping
  */
 void numa_store_cpu_info(unsigned int cpu)
 {
@@ -200,7 +189,7 @@ void __init setup_per_cpu_areas(void)
 #endif
 
 /**
- * numa_add_memblk - Set node id to memblk
+ * numa_add_memblk() - Set node id to memblk
  * @nid: NUMA node ID of the new memblk
  * @start: Start address of the new memblk
  * @end:  End address of the new memblk
@@ -223,7 +212,7 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
 	return ret;
 }
 
-/**
+/*
  * Initialize NODE_DATA for a node on the local memory
  */
 static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
@@ -257,7 +246,7 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
 }
 
-/**
+/*
  * numa_free_distance
  *
  * The current table is freed.
@@ -277,10 +266,8 @@ void __init numa_free_distance(void)
 	numa_distance = NULL;
 }
 
-/**
- *
+/*
  * Create a new NUMA distance table.
- *
  */
 static int __init numa_alloc_distance(void)
 {
@@ -311,7 +298,7 @@ static int __init numa_alloc_distance(void)
 }
 
 /**
- * numa_set_distance - Set inter node NUMA distance from node to node.
+ * numa_set_distance() - Set inter node NUMA distance from node to node.
  * @from: the 'from' node to set distance
  * @to: the 'to'  node to set distance
  * @distance: NUMA distance
@@ -321,7 +308,6 @@ static int __init numa_alloc_distance(void)
  *
  * If @from or @to is higher than the highest known node or lower than zero
  * or @distance doesn't make sense, the call is ignored.
- *
  */
 void __init numa_set_distance(int from, int to, int distance)
 {
@@ -347,7 +333,7 @@ void __init numa_set_distance(int from, int to, int distance)
 	numa_distance[from * numa_distance_cnt + to] = distance;
 }
 
-/**
+/*
  * Return NUMA distance @from to @to
  */
 int __node_distance(int from, int to)
@@ -422,13 +408,15 @@ out_free_distance:
 }
 
 /**
- * dummy_numa_init - Fallback dummy NUMA init
+ * dummy_numa_init() - Fallback dummy NUMA init
  *
  * Used if there's no underlying NUMA architecture, NUMA initialization
  * fails, or NUMA is disabled on the command line.
  *
  * Must online at least one node (node 0) and add memory blocks that cover all
  * allowed memory. It is unlikely that this function fails.
+ *
+ * Return: 0 on success, -errno on failure.
  */
 static int __init dummy_numa_init(void)
 {
@@ -454,9 +442,9 @@ static int __init dummy_numa_init(void)
 }
 
 /**
- * arm64_numa_init - Initialize NUMA
+ * arm64_numa_init() - Initialize NUMA
  *
- * Try each configured NUMA initialization method until one succeeds.  The
+ * Try each configured NUMA initialization method until one succeeds. The
  * last fallback is dummy single node config encomapssing whole memory.
  */
 void __init arm64_numa_init(void)

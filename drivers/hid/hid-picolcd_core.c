@@ -1,20 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /***************************************************************************
  *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
  *                                                                         *
- *   This program is free software: you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation, version 2 of the License.               *
- *                                                                         *
- *   This driver is distributed in the hope that it will be useful, but    *
- *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
- *   General Public License for more details.                              *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this software. If not see <http://www.gnu.org/licenses/>.  *
  ***************************************************************************/
 
 #include <linux/hid.h>
@@ -28,6 +18,7 @@
 #include <linux/completion.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
+#include <linux/string.h>
 
 #include "hid-picolcd.h"
 
@@ -275,27 +266,20 @@ static ssize_t picolcd_operation_mode_store(struct device *dev,
 {
 	struct picolcd_data *data = dev_get_drvdata(dev);
 	struct hid_report *report = NULL;
-	size_t cnt = count;
 	int timeout = data->opmode_delay;
 	unsigned long flags;
 
-	if (cnt >= 3 && strncmp("lcd", buf, 3) == 0) {
+	if (sysfs_streq(buf, "lcd")) {
 		if (data->status & PICOLCD_BOOTLOADER)
 			report = picolcd_out_report(REPORT_EXIT_FLASHER, data->hdev);
-		buf += 3;
-		cnt -= 3;
-	} else if (cnt >= 10 && strncmp("bootloader", buf, 10) == 0) {
+	} else if (sysfs_streq(buf, "bootloader")) {
 		if (!(data->status & PICOLCD_BOOTLOADER))
 			report = picolcd_out_report(REPORT_EXIT_KEYBOARD, data->hdev);
-		buf += 10;
-		cnt -= 10;
-	}
-	if (!report || report->maxfield != 1)
+	} else {
 		return -EINVAL;
+	}
 
-	while (cnt > 0 && (buf[cnt-1] == '\n' || buf[cnt-1] == '\r'))
-		cnt--;
-	if (cnt != 0)
+	if (!report || report->maxfield != 1)
 		return -EINVAL;
 
 	spin_lock_irqsave(&data->lock, flags);

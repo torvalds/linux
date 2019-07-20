@@ -99,7 +99,7 @@ static void report_char_chartab_status(int reset, int received, int used,
 			snprintf(buf + (len - 1), sizeof(buf) - (len - 1),
 				 " with %d reject%s\n",
 				 rejected, rejected > 1 ? "s" : "");
-		printk(buf);
+		pr_info("%s", buf);
 	}
 }
 
@@ -154,7 +154,10 @@ static ssize_t chars_chartab_store(struct kobject *kobj,
 			continue;
 		}
 
-		/* Do not replace with kstrtoul: here we need temp to be updated */
+		/*
+		 * Do not replace with kstrtoul:
+		 * here we need temp to be updated
+		 */
 		index = simple_strtoul(cp, &temp, 10);
 		if (index > 255) {
 			rejected++;
@@ -741,7 +744,7 @@ static void report_msg_status(int reset, int received, int used,
 			snprintf(buf + (len - 1), sizeof(buf) - (len - 1),
 				 " with %d reject%s\n",
 				 rejected, rejected > 1 ? "s" : "");
-		printk(buf);
+		pr_info("%s", buf);
 	}
 }
 
@@ -788,7 +791,10 @@ static ssize_t message_store_helper(const char *buf, size_t count,
 			continue;
 		}
 
-		/* Do not replace with kstrtoul: here we need temp to be updated */
+		/*
+		 * Do not replace with kstrtoul:
+		 * here we need temp to be updated
+		 */
 		index = simple_strtoul(cp, &temp, 10);
 
 		while ((temp < linefeed) && (*temp == ' ' || *temp == '\t'))

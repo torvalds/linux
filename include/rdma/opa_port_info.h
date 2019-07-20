@@ -413,6 +413,6 @@ struct opa_port_info {
 	u8     local_port_num;
 	u8     reserved12;
 	u8     reserved13;                       /* was guid_cap */
-} __attribute__ ((packed));
+} __packed;
 
 #endif /* OPA_PORT_INFO_H */

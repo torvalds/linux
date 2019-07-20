@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * S3C24XX USB 2.0 High-speed USB controller gadget driver
  *
@@ -7,10 +8,6 @@
  * The S3C24XX USB 2.0 high-speed USB controller supports upto 9 endpoints.
  * Each endpoint can be configured as either in or out endpoint. Endpoints
  * can be configured for Bulk or Interrupt transfer mode.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #ifndef __LINUX_USB_S3C_HSUDC_H

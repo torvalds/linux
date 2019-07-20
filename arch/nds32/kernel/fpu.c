@@ -14,7 +14,7 @@ const struct fpu_struct init_fpuregs = {
 	.fd_regs = {[0 ... 31] = sNAN64},
 	.fpcsr = FPCSR_INIT,
 #if IS_ENABLED(CONFIG_SUPPORT_DENORMAL_ARITHMETIC)
-	.UDF_trap = 0
+	.UDF_IEX_trap = 0
 #endif
 };
 
@@ -178,7 +178,7 @@ inline void do_fpu_context_switch(struct pt_regs *regs)
 		/* First time FPU user.  */
 		load_fpu(&init_fpuregs);
 #if IS_ENABLED(CONFIG_SUPPORT_DENORMAL_ARITHMETIC)
-		current->thread.fpu.UDF_trap = init_fpuregs.UDF_trap;
+		current->thread.fpu.UDF_IEX_trap = init_fpuregs.UDF_IEX_trap;
 #endif
 		set_used_math();
 	}
@@ -206,7 +206,7 @@ inline void handle_fpu_exception(struct pt_regs *regs)
 	unsigned int fpcsr;
 	int si_code = 0, si_signo = SIGFPE;
 #if IS_ENABLED(CONFIG_SUPPORT_DENORMAL_ARITHMETIC)
-	unsigned long redo_except = FPCSR_mskDNIT|FPCSR_mskUDFT;
+	unsigned long redo_except = FPCSR_mskDNIT|FPCSR_mskUDFT|FPCSR_mskIEXT;
 #else
 	unsigned long redo_except = FPCSR_mskDNIT;
 #endif
@@ -215,20 +215,17 @@ inline void handle_fpu_exception(struct pt_regs *regs)
 	fpcsr = current->thread.fpu.fpcsr;
 
 	if (fpcsr & redo_except) {
-#if IS_ENABLED(CONFIG_SUPPORT_DENORMAL_ARITHMETIC)
-		if (fpcsr & FPCSR_mskUDFT)
-			current->thread.fpu.fpcsr &= ~FPCSR_mskIEX;
-#endif
 		si_signo = do_fpuemu(regs, &current->thread.fpu);
 		fpcsr = current->thread.fpu.fpcsr;
-		if (!si_signo)
+		if (!si_signo) {
+			current->thread.fpu.fpcsr &= ~(redo_except);
 			goto done;
+		}
 	} else if (fpcsr & FPCSR_mskRIT) {
 		if (!user_mode(regs))
 			do_exit(SIGILL);
 		si_signo = SIGILL;
 	}
-
 
 	switch (si_signo) {
 	case SIGFPE:

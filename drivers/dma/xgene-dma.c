@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Applied Micro X-Gene SoC DMA engine Driver
  *
  * Copyright (c) 2015, Applied Micro Circuits Corporation
  * Authors: Rameshwar Prasad Sahu <rsahu@apm.com>
  *	    Loc Ho <lho@apm.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * NOTE: PM support is currently not available.
  */
@@ -703,7 +691,7 @@ static void xgene_dma_cleanup_descriptors(struct xgene_dma_chan *chan)
 
 	INIT_LIST_HEAD(&ld_completed);
 
-	spin_lock_bh(&chan->lock);
+	spin_lock(&chan->lock);
 
 	/* Clean already completed and acked descriptors */
 	xgene_dma_clean_completed_descriptor(chan);
@@ -772,7 +760,7 @@ static void xgene_dma_cleanup_descriptors(struct xgene_dma_chan *chan)
 	 */
 	xgene_chan_xfer_ld_pending(chan);
 
-	spin_unlock_bh(&chan->lock);
+	spin_unlock(&chan->lock);
 
 	/* Run the callback for each descriptor, in order */
 	list_for_each_entry_safe(desc_sw, _desc_sw, &ld_completed, node) {
@@ -797,7 +785,7 @@ static int xgene_dma_alloc_chan_resources(struct dma_chan *dchan)
 		return -ENOMEM;
 	}
 
-	chan_dbg(chan, "Allocate descripto pool\n");
+	chan_dbg(chan, "Allocate descriptor pool\n");
 
 	return 1;
 }

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Drm device configuration
 #
@@ -173,6 +174,12 @@ config DRM_KMS_CMA_HELPER
 	help
 	  Choose this if you need the KMS CMA helper functions
 
+config DRM_GEM_SHMEM_HELPER
+	bool
+	depends on DRM
+	help
+	  Choose this if you need the GEM shmem helper functions
+
 config DRM_VM
 	bool
 	depends on DRM && MMU
@@ -194,7 +201,6 @@ config DRM_RADEON
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
-	select BACKLIGHT_LCD_SUPPORT
 	select INTERVAL_TREE
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
@@ -215,7 +221,6 @@ config DRM_AMDGPU
 	select POWER_SUPPLY
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
-	select BACKLIGHT_LCD_SUPPORT
 	select INTERVAL_TREE
 	select CHASH
 	help
@@ -224,8 +229,6 @@ config DRM_AMDGPU
 	  If M is selected, the module will be called amdgpu.
 
 source "drivers/gpu/drm/amd/amdgpu/Kconfig"
-
-source "drivers/gpu/drm/amd/lib/Kconfig"
 
 source "drivers/gpu/drm/nouveau/Kconfig"
 
@@ -250,6 +253,9 @@ config DRM_VKMS
 	  a VKMS.
 
 	  If M is selected the module will be called vkms.
+
+config DRM_ATI_PCIGART
+        bool
 
 source "drivers/gpu/drm/exynos/Kconfig"
 
@@ -329,12 +335,21 @@ source "drivers/gpu/drm/tve200/Kconfig"
 
 source "drivers/gpu/drm/xen/Kconfig"
 
+source "drivers/gpu/drm/vboxvideo/Kconfig"
+
+source "drivers/gpu/drm/lima/Kconfig"
+
+source "drivers/gpu/drm/panfrost/Kconfig"
+
+source "drivers/gpu/drm/aspeed/Kconfig"
+
 # Keep legacy drivers last
 
 menuconfig DRM_LEGACY
 	bool "Enable legacy drivers (DANGEROUS)"
 	depends on DRM && MMU
 	select DRM_VM
+	select DRM_ATI_PCIGART if PCI
 	help
 	  Enable legacy DRI1 drivers. Those drivers expose unsafe and dangerous
 	  APIs to user-space, which can be used to circumvent access

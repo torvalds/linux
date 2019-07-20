@@ -243,10 +243,10 @@ Optimization
 ^^^^^^^^^^^^
 
 The Kprobe-optimizer doesn't insert the jump instruction immediately;
-rather, it calls synchronize_sched() for safety first, because it's
+rather, it calls synchronize_rcu() for safety first, because it's
 possible for a CPU to be interrupted in the middle of executing the
-optimized region [3]_.  As you know, synchronize_sched() can ensure
-that all interruptions that were active when synchronize_sched()
+optimized region [3]_.  As you know, synchronize_rcu() can ensure
+that all interruptions that were active when synchronize_rcu()
 was called are done, but only if CONFIG_PREEMPT=n.  So, this version
 of kprobe optimization supports only kernels with CONFIG_PREEMPT=n [4]_.
 
@@ -321,6 +321,7 @@ architectures:
 - ppc
 - mips
 - s390
+- parisc
 
 Configuring Kprobes
 ===================

@@ -13,11 +13,24 @@
 
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "console=ttyS4,115200 earlyprintk";
+		bootargs = "console=tty0 console=ttyS4,115200 earlyprintk";
 	};
 
 	memory@80000000 {
 		reg = <0x80000000 0x20000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
 	};
 };
 
@@ -27,6 +40,7 @@
 		status = "okay";
 		m25p,fast-read;
 		label = "bmc";
+#include "openbmc-flash-layout.dtsi"
 	};
 };
 
@@ -96,4 +110,9 @@
 
 &uhci {
 	status = "okay";
+};
+
+&gfx {
+     status = "okay";
+     memory-region = <&gfx_memory>;
 };

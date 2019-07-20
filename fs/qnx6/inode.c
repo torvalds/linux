@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QNX6 file system, Linux implementation.
  *
@@ -29,14 +30,14 @@ static const struct super_operations qnx6_sops;
 
 static void qnx6_put_super(struct super_block *sb);
 static struct inode *qnx6_alloc_inode(struct super_block *sb);
-static void qnx6_destroy_inode(struct inode *inode);
+static void qnx6_free_inode(struct inode *inode);
 static int qnx6_remount(struct super_block *sb, int *flags, char *data);
 static int qnx6_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int qnx6_show_options(struct seq_file *seq, struct dentry *root);
 
 static const struct super_operations qnx6_sops = {
 	.alloc_inode	= qnx6_alloc_inode,
-	.destroy_inode	= qnx6_destroy_inode,
+	.free_inode	= qnx6_free_inode,
 	.put_super	= qnx6_put_super,
 	.statfs		= qnx6_statfs,
 	.remount_fs	= qnx6_remount,
@@ -602,15 +603,9 @@ static struct inode *qnx6_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void qnx6_i_callback(struct rcu_head *head)
+static void qnx6_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(qnx6_inode_cachep, QNX6_I(inode));
-}
-
-static void qnx6_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, qnx6_i_callback);
 }
 
 static void init_once(void *foo)

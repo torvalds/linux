@@ -70,11 +70,9 @@ bool resource_construct(
 	struct resource_pool *pool,
 	const struct resource_create_funcs *create_funcs);
 
-struct resource_pool *dc_create_resource_pool(
-				struct dc *dc,
-				int num_virtual_links,
-				enum dce_version dc_version,
-				struct hw_asic_id asic_id);
+struct resource_pool *dc_create_resource_pool(struct dc  *dc,
+					      const struct dc_init_data *init_data,
+					      enum dce_version dc_version);
 
 void dc_destroy_resource_pool(struct dc *dc);
 
@@ -131,7 +129,8 @@ bool resource_attach_surfaces_to_context(
 
 struct pipe_ctx *find_idle_secondary_pipe(
 		struct resource_context *res_ctx,
-		const struct resource_pool *pool);
+		const struct resource_pool *pool,
+		const struct pipe_ctx *primary_pipe);
 
 bool resource_is_stream_unchanged(
 	struct dc_state *old_context, struct dc_stream_state *stream);
@@ -171,5 +170,8 @@ void update_audio_usage(
 		bool acquired);
 
 unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format);
+
+struct pipe_ctx *dc_res_get_odm_bottom_pipe(struct pipe_ctx *pipe_ctx);
+bool dc_res_is_odm_head_pipe(struct pipe_ctx *pipe_ctx);
 
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

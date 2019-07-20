@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for STM32 DMA controller
  *
@@ -6,8 +7,6 @@
  * Copyright (C) M'boumba Cedric Madianga 2015
  * Author: M'boumba Cedric Madianga <cedric.madianga@gmail.com>
  *         Pierre-Yves Mordret <pierre-yves.mordret@st.com>
- *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/clk.h>
@@ -1042,33 +1041,97 @@ static u32 stm32_dma_get_remaining_bytes(struct stm32_dma_chan *chan)
 	return ndtr << width;
 }
 
+/**
+ * stm32_dma_is_current_sg - check that expected sg_req is currently transferred
+ * @chan: dma channel
+ *
+ * This function called when IRQ are disable, checks that the hardware has not
+ * switched on the next transfer in double buffer mode. The test is done by
+ * comparing the next_sg memory address with the hardware related register
+ * (based on CT bit value).
+ *
+ * Returns true if expected current transfer is still running or double
+ * buffer mode is not activated.
+ */
+static bool stm32_dma_is_current_sg(struct stm32_dma_chan *chan)
+{
+	struct stm32_dma_device *dmadev = stm32_dma_get_dev(chan);
+	struct stm32_dma_sg_req *sg_req;
+	u32 dma_scr, dma_smar, id;
+
+	id = chan->id;
+	dma_scr = stm32_dma_read(dmadev, STM32_DMA_SCR(id));
+
+	if (!(dma_scr & STM32_DMA_SCR_DBM))
+		return true;
+
+	sg_req = &chan->desc->sg_req[chan->next_sg];
+
+	if (dma_scr & STM32_DMA_SCR_CT) {
+		dma_smar = stm32_dma_read(dmadev, STM32_DMA_SM0AR(id));
+		return (dma_smar == sg_req->chan_reg.dma_sm0ar);
+	}
+
+	dma_smar = stm32_dma_read(dmadev, STM32_DMA_SM1AR(id));
+
+	return (dma_smar == sg_req->chan_reg.dma_sm1ar);
+}
+
 static size_t stm32_dma_desc_residue(struct stm32_dma_chan *chan,
 				     struct stm32_dma_desc *desc,
 				     u32 next_sg)
 {
 	u32 modulo, burst_size;
-	u32 residue = 0;
+	u32 residue;
+	u32 n_sg = next_sg;
+	struct stm32_dma_sg_req *sg_req = &chan->desc->sg_req[chan->next_sg];
 	int i;
 
 	/*
-	 * In cyclic mode, for the last period, residue = remaining bytes from
-	 * NDTR
+	 * Calculate the residue means compute the descriptors
+	 * information:
+	 * - the sg_req currently transferred
+	 * - the Hardware remaining position in this sg (NDTR bits field).
+	 *
+	 * A race condition may occur if DMA is running in cyclic or double
+	 * buffer mode, since the DMA register are automatically reloaded at end
+	 * of period transfer. The hardware may have switched to the next
+	 * transfer (CT bit updated) just before the position (SxNDTR reg) is
+	 * read.
+	 * In this case the SxNDTR reg could (or not) correspond to the new
+	 * transfer position, and not the expected one.
+	 * The strategy implemented in the stm32 driver is to:
+	 *  - read the SxNDTR register
+	 *  - crosscheck that hardware is still in current transfer.
+	 * In case of switch, we can assume that the DMA is at the beginning of
+	 * the next transfer. So we approximate the residue in consequence, by
+	 * pointing on the beginning of next transfer.
+	 *
+	 * This race condition doesn't apply for none cyclic mode, as double
+	 * buffer is not used. In such situation registers are updated by the
+	 * software.
 	 */
-	if (chan->desc->cyclic && next_sg == 0) {
-		residue = stm32_dma_get_remaining_bytes(chan);
-		goto end;
+
+	residue = stm32_dma_get_remaining_bytes(chan);
+
+	if (!stm32_dma_is_current_sg(chan)) {
+		n_sg++;
+		if (n_sg == chan->desc->num_sgs)
+			n_sg = 0;
+		residue = sg_req->len;
 	}
 
 	/*
-	 * For all other periods in cyclic mode, and in sg mode,
-	 * residue = remaining bytes from NDTR + remaining periods/sg to be
-	 * transferred
+	 * In cyclic mode, for the last period, residue = remaining bytes
+	 * from NDTR,
+	 * else for all other periods in cyclic mode, and in sg mode,
+	 * residue = remaining bytes from NDTR + remaining
+	 * periods/sg to be transferred
 	 */
-	for (i = next_sg; i < desc->num_sgs; i++)
-		residue += desc->sg_req[i].len;
-	residue += stm32_dma_get_remaining_bytes(chan);
+	if (!chan->desc->cyclic || n_sg != 0)
+		for (i = n_sg; i < desc->num_sgs; i++)
+			residue += desc->sg_req[i].len;
 
-end:
 	if (!chan->mem_burst)
 		return residue;
 
@@ -1302,13 +1365,16 @@ static int stm32_dma_probe(struct platform_device *pdev)
 
 	for (i = 0; i < STM32_DMA_MAX_CHANNELS; i++) {
 		chan = &dmadev->chan[i];
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
-		if (!res) {
-			ret = -EINVAL;
-			dev_err(&pdev->dev, "No irq resource for chan %d\n", i);
+		chan->irq = platform_get_irq(pdev, i);
+		ret = platform_get_irq(pdev, i);
+		if (ret < 0)  {
+			if (ret != -EPROBE_DEFER)
+				dev_err(&pdev->dev,
+					"No irq resource for chan %d\n", i);
 			goto err_unregister;
 		}
-		chan->irq = res->start;
+		chan->irq = ret;
+
 		ret = devm_request_irq(&pdev->dev, chan->irq,
 				       stm32_dma_chan_irq, 0,
 				       dev_name(chan2dev(chan)), chan);

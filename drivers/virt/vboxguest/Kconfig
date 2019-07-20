@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VBOXGUEST
 	tristate "Virtual Box Guest integration support"
 	depends on X86 && PCI && INPUT

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ecryptfs_format.h: helper functions for the encrypted key type
  *
@@ -9,10 +10,6 @@
  * Michael A. Halcrow <mahalcro@us.ibm.com>
  * Tyler Hicks <tyhicks@ou.edu>
  * Roberto Sassu <roberto.sassu@polito.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2 of the License.
  */
 
 #ifndef __KEYS_ECRYPTFS_H

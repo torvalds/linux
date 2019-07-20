@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*  Silan SC92031 PCI Fast Ethernet Adapter driver
  *
  *  Based on vendor drivers:
@@ -251,7 +252,6 @@ enum PMConfigBits {
  * use of mdelay() at _sc92031_reset.
  * Functions prefixed with _sc92031_ must be called with the lock held;
  * functions prefixed with sc92031_ must be called without the lock held.
- * Use mmiowb() before unlocking if the hardware was written to.
  */
 
 /* Locking rules for the interrupt:
@@ -361,7 +361,6 @@ static void sc92031_disable_interrupts(struct net_device *dev)
 	/* stop interrupts */
 	iowrite32(0, port_base + IntrMask);
 	_sc92031_dummy_read(port_base);
-	mmiowb();
 
 	/* wait for any concurrent interrupt/tasklet to finish */
 	synchronize_irq(priv->pdev->irq);
@@ -379,7 +378,6 @@ static void sc92031_enable_interrupts(struct net_device *dev)
 	wmb();
 
 	iowrite32(IntrBits, port_base + IntrMask);
-	mmiowb();
 }
 
 static void _sc92031_disable_tx_rx(struct net_device *dev)
@@ -867,7 +865,6 @@ out:
 	rmb();
 
 	iowrite32(intr_mask, port_base + IntrMask);
-	mmiowb();
 
 	spin_unlock(&priv->lock);
 }
@@ -901,7 +898,6 @@ out_none:
 	rmb();
 
 	iowrite32(intr_mask, port_base + IntrMask);
-	mmiowb();
 
 	return IRQ_NONE;
 }
@@ -978,7 +974,6 @@ static netdev_tx_t sc92031_start_xmit(struct sk_buff *skb,
 	iowrite32(priv->tx_bufs_dma_addr + entry * TX_BUF_SIZE,
 			port_base + TxAddr0 + entry * 4);
 	iowrite32(tx_status, port_base + TxStatus0 + entry * 4);
-	mmiowb();
 
 	if (priv->tx_head - priv->tx_tail >= NUM_TX_DESC)
 		netif_stop_queue(dev);
@@ -1024,7 +1019,6 @@ static int sc92031_open(struct net_device *dev)
 	spin_lock_bh(&priv->lock);
 
 	_sc92031_reset(dev);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 	sc92031_enable_interrupts(dev);
@@ -1060,7 +1054,6 @@ static int sc92031_stop(struct net_device *dev)
 
 	_sc92031_disable_tx_rx(dev);
 	_sc92031_tx_clear(dev);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 
@@ -1081,7 +1074,6 @@ static void sc92031_set_multicast_list(struct net_device *dev)
 
 	_sc92031_set_mar(dev);
 	_sc92031_set_rx_config(dev);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 }
@@ -1098,7 +1090,6 @@ static void sc92031_tx_timeout(struct net_device *dev)
 	priv->tx_timeouts++;
 
 	_sc92031_reset(dev);
-	mmiowb();
 
 	spin_unlock(&priv->lock);
 
@@ -1140,7 +1131,6 @@ sc92031_ethtool_get_link_ksettings(struct net_device *dev,
 
 	output_status = _sc92031_mii_read(port_base, MII_OutputStatus);
 	_sc92031_mii_scan(port_base);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 
@@ -1311,7 +1301,6 @@ static int sc92031_ethtool_set_wol(struct net_device *dev,
 
 	priv->pm_config = pm_config;
 	iowrite32(pm_config, port_base + PMConfig);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 
@@ -1337,7 +1326,6 @@ static int sc92031_ethtool_nway_reset(struct net_device *dev)
 
 out:
 	_sc92031_mii_scan(port_base);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 
@@ -1530,7 +1518,6 @@ static int sc92031_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	_sc92031_disable_tx_rx(dev);
 	_sc92031_tx_clear(dev);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 
@@ -1555,7 +1542,6 @@ static int sc92031_resume(struct pci_dev *pdev)
 	spin_lock_bh(&priv->lock);
 
 	_sc92031_reset(dev);
-	mmiowb();
 
 	spin_unlock_bh(&priv->lock);
 	sc92031_enable_interrupts(dev);

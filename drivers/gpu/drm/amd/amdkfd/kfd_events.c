@@ -1011,25 +1011,41 @@ void kfd_signal_vm_fault_event(struct kfd_dev *dev, unsigned int pasid,
 void kfd_signal_reset_event(struct kfd_dev *dev)
 {
 	struct kfd_hsa_hw_exception_data hw_exception_data;
+	struct kfd_hsa_memory_exception_data memory_exception_data;
 	struct kfd_process *p;
 	struct kfd_event *ev;
 	unsigned int temp;
 	uint32_t id, idx;
+	int reset_cause = atomic_read(&dev->sram_ecc_flag) ?
+			KFD_HW_EXCEPTION_ECC :
+			KFD_HW_EXCEPTION_GPU_HANG;
 
 	/* Whole gpu reset caused by GPU hang and memory is lost */
 	memset(&hw_exception_data, 0, sizeof(hw_exception_data));
 	hw_exception_data.gpu_id = dev->id;
 	hw_exception_data.memory_lost = 1;
+	hw_exception_data.reset_cause = reset_cause;
+
+	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
+	memory_exception_data.ErrorType = KFD_MEM_ERR_SRAM_ECC;
+	memory_exception_data.gpu_id = dev->id;
+	memory_exception_data.failure.imprecise = true;
 
 	idx = srcu_read_lock(&kfd_processes_srcu);
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
 		mutex_lock(&p->event_mutex);
 		id = KFD_FIRST_NONSIGNAL_EVENT_ID;
-		idr_for_each_entry_continue(&p->event_idr, ev, id)
+		idr_for_each_entry_continue(&p->event_idr, ev, id) {
 			if (ev->type == KFD_EVENT_TYPE_HW_EXCEPTION) {
 				ev->hw_exception_data = hw_exception_data;
 				set_event(ev);
 			}
+			if (ev->type == KFD_EVENT_TYPE_MEMORY &&
+			    reset_cause == KFD_HW_EXCEPTION_ECC) {
+				ev->memory_exception_data = memory_exception_data;
+				set_event(ev);
+			}
+		}
 		mutex_unlock(&p->event_mutex);
 	}
 	srcu_read_unlock(&kfd_processes_srcu, idx);

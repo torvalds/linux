@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-mmp/teton_bga.c
  *
@@ -6,10 +7,6 @@
  *  Author: Mark F. Brown <mark.brown314@gmail.com>
  *
  *  This code is based on aspenite.c
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  publishhed by the Free Software Foundation.
  */
 
 #include <linux/init.h>

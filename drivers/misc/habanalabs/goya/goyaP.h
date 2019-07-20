@@ -39,9 +39,13 @@
 #error "Number of MSIX interrupts must be smaller or equal to GOYA_MSIX_ENTRIES"
 #endif
 
-#define QMAN_FENCE_TIMEOUT_USEC		10000	/* 10 ms */
+#define QMAN_FENCE_TIMEOUT_USEC		10000		/* 10 ms */
 
-#define QMAN_STOP_TIMEOUT_USEC		100000	/* 100 ms */
+#define QMAN_STOP_TIMEOUT_USEC		100000		/* 100 ms */
+
+#define CORESIGHT_TIMEOUT_USEC		100000		/* 100 ms */
+
+#define GOYA_CPU_TIMEOUT_USEC		10000000	/* 10s */
 
 #define TPC_ENABLED_MASK		0xFF
 
@@ -49,19 +53,14 @@
 
 #define MAX_POWER_DEFAULT		200000		/* 200W */
 
-#define GOYA_ARMCP_INFO_TIMEOUT		10000000	/* 10s */
-#define GOYA_ARMCP_EEPROM_TIMEOUT	10000000	/* 10s */
-
 #define DRAM_PHYS_DEFAULT_SIZE		0x100000000ull	/* 4GB */
 
 /* DRAM Memory Map */
 
 #define CPU_FW_IMAGE_SIZE		0x10000000	/* 256MB */
-#define MMU_PAGE_TABLES_SIZE		0x0DE00000	/* 222MB */
+#define MMU_PAGE_TABLES_SIZE		0x0FC00000	/* 252MB */
 #define MMU_DRAM_DEFAULT_PAGE_SIZE	0x00200000	/* 2MB */
 #define MMU_CACHE_MNG_SIZE		0x00001000	/* 4KB */
-#define CPU_PQ_PKT_SIZE			0x00001000	/* 4KB */
-#define CPU_PQ_DATA_SIZE		0x01FFE000	/* 32MB - 8KB  */
 
 #define CPU_FW_IMAGE_ADDR		DRAM_PHYS_BASE
 #define MMU_PAGE_TABLES_ADDR		(CPU_FW_IMAGE_ADDR + CPU_FW_IMAGE_SIZE)
@@ -69,13 +68,13 @@
 						MMU_PAGE_TABLES_SIZE)
 #define MMU_CACHE_MNG_ADDR		(MMU_DRAM_DEFAULT_PAGE_ADDR + \
 					MMU_DRAM_DEFAULT_PAGE_SIZE)
-#define CPU_PQ_PKT_ADDR			(MMU_CACHE_MNG_ADDR + \
+#define DRAM_KMD_END_ADDR		(MMU_CACHE_MNG_ADDR + \
 						MMU_CACHE_MNG_SIZE)
-#define CPU_PQ_DATA_ADDR		(CPU_PQ_PKT_ADDR + CPU_PQ_PKT_SIZE)
-#define DRAM_BASE_ADDR_USER		(CPU_PQ_DATA_ADDR + CPU_PQ_DATA_SIZE)
 
-#if (DRAM_BASE_ADDR_USER != 0x20000000)
-#error "KMD must reserve 512MB"
+#define DRAM_BASE_ADDR_USER		0x20000000
+
+#if (DRAM_KMD_END_ADDR > DRAM_BASE_ADDR_USER)
+#error "KMD must reserve no more than 512MB"
 #endif
 
 /*
@@ -142,22 +141,12 @@
 #define HW_CAP_GOLDEN		0x00000400
 #define HW_CAP_TPC		0x00000800
 
-#define CPU_PKT_SHIFT		5
-#define CPU_PKT_SIZE		(1 << CPU_PKT_SHIFT)
-#define CPU_PKT_MASK		(~((1 << CPU_PKT_SHIFT) - 1))
-#define CPU_MAX_PKTS_IN_CB	32
-#define CPU_CB_SIZE		(CPU_PKT_SIZE * CPU_MAX_PKTS_IN_CB)
-#define CPU_ACCESSIBLE_MEM_SIZE	(HL_QUEUE_LENGTH * CPU_CB_SIZE)
-
 enum goya_fw_component {
 	FW_COMP_UBOOT,
 	FW_COMP_PREBOOT
 };
 
 struct goya_device {
-	int (*test_cpu_queue)(struct hl_device *hdev);
-	int (*armcp_info_get)(struct hl_device *hdev);
-
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t	hw_queues_lock;
 
@@ -170,13 +159,34 @@ struct goya_device {
 	u32		hw_cap_initialized;
 };
 
+void goya_get_fixed_properties(struct hl_device *hdev);
+int goya_mmu_init(struct hl_device *hdev);
+void goya_init_dma_qmans(struct hl_device *hdev);
+void goya_init_mme_qmans(struct hl_device *hdev);
+void goya_init_tpc_qmans(struct hl_device *hdev);
+int goya_init_cpu_queues(struct hl_device *hdev);
+void goya_init_security(struct hl_device *hdev);
+int goya_late_init(struct hl_device *hdev);
+void goya_late_fini(struct hl_device *hdev);
+
+void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi);
+void goya_flush_pq_write(struct hl_device *hdev, u64 *pq, u64 exp_val);
+void goya_update_eq_ci(struct hl_device *hdev, u32 val);
+void goya_restore_phase_topology(struct hl_device *hdev);
+int goya_context_switch(struct hl_device *hdev, u32 asid);
+
 int goya_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus,
 			u8 i2c_addr, u8 i2c_reg, u32 *val);
 int goya_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus,
 			u8 i2c_addr, u8 i2c_reg, u32 val);
+void goya_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state);
+
+int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id);
+int goya_test_queues(struct hl_device *hdev);
 int goya_test_cpu_queue(struct hl_device *hdev);
 int goya_send_cpu_message(struct hl_device *hdev, u32 *msg, u16 len,
 				u32 timeout, long *result);
+
 long goya_get_temperature(struct hl_device *hdev, int sensor_index, u32 attr);
 long goya_get_voltage(struct hl_device *hdev, int sensor_index, u32 attr);
 long goya_get_current(struct hl_device *hdev, int sensor_index, u32 attr);
@@ -184,28 +194,36 @@ long goya_get_fan_speed(struct hl_device *hdev, int sensor_index, u32 attr);
 long goya_get_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr);
 void goya_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
 			long value);
-void goya_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state);
-void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
-void goya_add_device_attr(struct hl_device *hdev,
-			struct attribute_group *dev_attr_grp);
-void goya_init_security(struct hl_device *hdev);
 u64 goya_get_max_power(struct hl_device *hdev);
 void goya_set_max_power(struct hl_device *hdev, u64 value);
 
-int goya_send_pci_access_msg(struct hl_device *hdev, u32 opcode);
-void goya_late_fini(struct hl_device *hdev);
+void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
+void goya_add_device_attr(struct hl_device *hdev,
+			struct attribute_group *dev_attr_grp);
+int goya_armcp_info_get(struct hl_device *hdev);
+int goya_debug_coresight(struct hl_device *hdev, void *data);
+void goya_halt_coresight(struct hl_device *hdev);
+
+void goya_mmu_prepare(struct hl_device *hdev, u32 asid);
+int goya_mmu_clear_pgt_range(struct hl_device *hdev);
+int goya_mmu_set_dram_default_page(struct hl_device *hdev);
+
 int goya_suspend(struct hl_device *hdev);
 int goya_resume(struct hl_device *hdev);
-void goya_flush_pq_write(struct hl_device *hdev, u64 *pq, u64 exp_val);
+
 void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry);
 void *goya_get_events_stat(struct hl_device *hdev, u32 *size);
+
 void goya_add_end_of_cb_packets(u64 kernel_address, u32 len, u64 cq_addr,
 				u32 cq_val, u32 msix_vec);
 int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser);
 void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
-		dma_addr_t *dma_handle,	u16 *queue_len);
+				dma_addr_t *dma_handle,	u16 *queue_len);
 u32 goya_get_dma_desc_list_size(struct hl_device *hdev, struct sg_table *sgt);
-int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id);
 int goya_send_heartbeat(struct hl_device *hdev);
+void *goya_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
+					dma_addr_t *dma_handle);
+void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
+					void *vaddr);
 
 #endif /* GOYAP_H_ */

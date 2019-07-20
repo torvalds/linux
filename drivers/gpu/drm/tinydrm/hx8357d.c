@@ -16,7 +16,9 @@
 #include <linux/property.h>
 #include <linux/spi/spi.h>
 
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
@@ -46,16 +48,18 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 			     struct drm_crtc_state *crtc_state,
 			     struct drm_plane_state *plane_state)
 {
-	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
-	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
+	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
 	u8 addr_mode;
-	int ret;
+	int ret, idx;
+
+	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+		return;
 
 	DRM_DEBUG_KMS("\n");
 
 	ret = mipi_dbi_poweron_conditional_reset(mipi);
 	if (ret < 0)
-		return;
+		goto out_exit;
 	if (ret == 1)
 		goto out_enable;
 
@@ -171,6 +175,8 @@ out_enable:
 	}
 	mipi_dbi_command(mipi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
 	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
+out_exit:
+	drm_dev_exit(idx);
 }
 
 static const struct drm_simple_display_pipe_funcs hx8357d_pipe_funcs = {
@@ -181,7 +187,7 @@ static const struct drm_simple_display_pipe_funcs hx8357d_pipe_funcs = {
 };
 
 static const struct drm_display_mode yx350hv15_mode = {
-	TINYDRM_MODE(320, 480, 60, 75),
+	DRM_SIMPLE_MODE(320, 480, 60, 75),
 };
 
 DEFINE_DRM_GEM_CMA_FOPS(hx8357d_fops);
@@ -189,6 +195,7 @@ DEFINE_DRM_GEM_CMA_FOPS(hx8357d_fops);
 static struct drm_driver hx8357d_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_ATOMIC,
 	.fops			= &hx8357d_fops,
+	.release		= mipi_dbi_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "hx8357d",
@@ -213,14 +220,24 @@ MODULE_DEVICE_TABLE(spi, hx8357d_id);
 static int hx8357d_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct drm_device *drm;
 	struct mipi_dbi *mipi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
 	int ret;
 
-	mipi = devm_kzalloc(dev, sizeof(*mipi), GFP_KERNEL);
+	mipi = kzalloc(sizeof(*mipi), GFP_KERNEL);
 	if (!mipi)
 		return -ENOMEM;
+
+	drm = &mipi->drm;
+	ret = devm_drm_dev_init(dev, drm, &hx8357d_driver);
+	if (ret) {
+		kfree(mipi);
+		return ret;
+	}
+
+	drm_mode_config_init(drm);
 
 	dc = devm_gpiod_get(dev, "dc", GPIOD_OUT_LOW);
 	if (IS_ERR(dc)) {
@@ -238,21 +255,36 @@ static int hx8357d_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = mipi_dbi_init(&spi->dev, mipi, &hx8357d_pipe_funcs,
-			    &hx8357d_driver, &yx350hv15_mode, rotation);
+	ret = mipi_dbi_init(mipi, &hx8357d_pipe_funcs, &yx350hv15_mode, rotation);
 	if (ret)
 		return ret;
 
-	spi_set_drvdata(spi, mipi);
+	drm_mode_config_reset(drm);
 
-	return devm_tinydrm_register(&mipi->tinydrm);
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		return ret;
+
+	spi_set_drvdata(spi, drm);
+
+	drm_fbdev_generic_setup(drm, 0);
+
+	return 0;
+}
+
+static int hx8357d_remove(struct spi_device *spi)
+{
+	struct drm_device *drm = spi_get_drvdata(spi);
+
+	drm_dev_unplug(drm);
+	drm_atomic_helper_shutdown(drm);
+
+	return 0;
 }
 
 static void hx8357d_shutdown(struct spi_device *spi)
 {
-	struct mipi_dbi *mipi = spi_get_drvdata(spi);
-
-	tinydrm_shutdown(&mipi->tinydrm);
+	drm_atomic_helper_shutdown(spi_get_drvdata(spi));
 }
 
 static struct spi_driver hx8357d_spi_driver = {
@@ -262,6 +294,7 @@ static struct spi_driver hx8357d_spi_driver = {
 	},
 	.id_table = hx8357d_id,
 	.probe = hx8357d_probe,
+	.remove = hx8357d_remove,
 	.shutdown = hx8357d_shutdown,
 };
 module_spi_driver(hx8357d_spi_driver);

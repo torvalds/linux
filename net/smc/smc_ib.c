@@ -146,18 +146,13 @@ out:
 static int smc_ib_fill_mac(struct smc_ib_device *smcibdev, u8 ibport)
 {
 	const struct ib_gid_attr *attr;
-	int rc = 0;
+	int rc;
 
 	attr = rdma_get_gid_attr(smcibdev->ibdev, ibport, 0);
 	if (IS_ERR(attr))
 		return -ENODEV;
 
-	if (attr->ndev)
-		memcpy(smcibdev->mac[ibport - 1], attr->ndev->dev_addr,
-		       ETH_ALEN);
-	else
-		rc = -ENODEV;
-
+	rc = rdma_read_gid_l2_fields(attr, NULL, smcibdev->mac[ibport - 1]);
 	rdma_put_gid_attr(attr);
 	return rc;
 }
@@ -185,6 +180,7 @@ int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
 			 unsigned short vlan_id, u8 gid[], u8 *sgid_index)
 {
 	const struct ib_gid_attr *attr;
+	const struct net_device *ndev;
 	int i;
 
 	for (i = 0; i < smcibdev->pattr[ibport - 1].gid_tbl_len; i++) {
@@ -192,11 +188,14 @@ int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
 		if (IS_ERR(attr))
 			continue;
 
-		if (attr->ndev &&
+		rcu_read_lock();
+		ndev = rdma_read_gid_attr_ndev_rcu(attr);
+		if (!IS_ERR(ndev) &&
 		    ((!vlan_id && !is_vlan_dev(attr->ndev)) ||
 		     (vlan_id && is_vlan_dev(attr->ndev) &&
 		      vlan_dev_vlan_id(attr->ndev) == vlan_id)) &&
 		    attr->gid_type == IB_GID_TYPE_ROCE) {
+			rcu_read_unlock();
 			if (gid)
 				memcpy(gid, &attr->gid, SMC_GID_SIZE);
 			if (sgid_index)
@@ -204,6 +203,7 @@ int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
 			rdma_put_gid_attr(attr);
 			return 0;
 		}
+		rcu_read_unlock();
 		rdma_put_gid_attr(attr);
 	}
 	return -ENODEV;

@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * AD193X Audio Codec driver
  *
  * Copyright 2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #ifndef __AD193X_H__

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Accelerated GHASH implementation with ARMv8 vmull.p64 instructions.
  *
  * Copyright (C) 2015 - 2018 Linaro Ltd. <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <asm/hwcap.h>
@@ -14,6 +11,7 @@
 #include <asm/unaligned.h>
 #include <crypto/cryptd.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/gf128mul.h>
 #include <linux/cpufeature.h>
 #include <linux/crypto.h>
@@ -185,7 +183,6 @@ static int ghash_async_init(struct ahash_request *req)
 	struct crypto_shash *child = cryptd_ahash_child(cryptd_tfm);
 
 	desc->tfm = child;
-	desc->flags = req->base.flags;
 	return crypto_shash_init(desc);
 }
 
@@ -196,7 +193,7 @@ static int ghash_async_update(struct ahash_request *req)
 	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct cryptd_ahash *cryptd_tfm = ctx->cryptd_tfm;
 
-	if (!may_use_simd() ||
+	if (!crypto_simd_usable() ||
 	    (in_atomic() && cryptd_ahash_queued(cryptd_tfm))) {
 		memcpy(cryptd_req, req, sizeof(*req));
 		ahash_request_set_tfm(cryptd_req, &cryptd_tfm->base);
@@ -214,7 +211,7 @@ static int ghash_async_final(struct ahash_request *req)
 	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct cryptd_ahash *cryptd_tfm = ctx->cryptd_tfm;
 
-	if (!may_use_simd() ||
+	if (!crypto_simd_usable() ||
 	    (in_atomic() && cryptd_ahash_queued(cryptd_tfm))) {
 		memcpy(cryptd_req, req, sizeof(*req));
 		ahash_request_set_tfm(cryptd_req, &cryptd_tfm->base);
@@ -232,7 +229,7 @@ static int ghash_async_digest(struct ahash_request *req)
 	struct ahash_request *cryptd_req = ahash_request_ctx(req);
 	struct cryptd_ahash *cryptd_tfm = ctx->cryptd_tfm;
 
-	if (!may_use_simd() ||
+	if (!crypto_simd_usable() ||
 	    (in_atomic() && cryptd_ahash_queued(cryptd_tfm))) {
 		memcpy(cryptd_req, req, sizeof(*req));
 		ahash_request_set_tfm(cryptd_req, &cryptd_tfm->base);
@@ -242,7 +239,6 @@ static int ghash_async_digest(struct ahash_request *req)
 		struct crypto_shash *child = cryptd_ahash_child(cryptd_tfm);
 
 		desc->tfm = child;
-		desc->flags = req->base.flags;
 		return shash_ahash_digest(req, desc);
 	}
 }
@@ -255,7 +251,6 @@ static int ghash_async_import(struct ahash_request *req, const void *in)
 	struct shash_desc *desc = cryptd_shash_desc(cryptd_req);
 
 	desc->tfm = cryptd_ahash_child(ctx->cryptd_tfm);
-	desc->flags = req->base.flags;
 
 	return crypto_shash_import(desc, in);
 }

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig BPFILTER
 	bool "BPF based packet filtering framework (BPFILTER)"
 	depends on NET && BPF && INET

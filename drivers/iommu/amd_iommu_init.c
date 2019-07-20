@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2010 Advanced Micro Devices, Inc.
  * Author: Joerg Roedel <jroedel@suse.de>
  *         Leo Duran <leo.duran@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #define pr_fmt(fmt)     "AMD-Vi: " fmt
@@ -187,12 +175,6 @@ bool amd_iommu_v2_present __read_mostly;
 static bool amd_iommu_pc_present __read_mostly;
 
 bool amd_iommu_force_isolation __read_mostly;
-
-/*
- * List of protection domains - used during resume
- */
-LIST_HEAD(amd_iommu_pd_list);
-spinlock_t amd_iommu_pd_lock;
 
 /*
  * Pointer to the device table which is shared by all AMD IOMMUs
@@ -2525,8 +2507,6 @@ static int __init early_amd_iommu_init(void)
 	 * error value placeholder
 	 */
 	__set_bit(0, amd_iommu_pd_alloc_bitmap);
-
-	spin_lock_init(&amd_iommu_pd_lock);
 
 	/*
 	 * now the data structures are allocated and basically initialized

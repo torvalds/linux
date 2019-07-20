@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Hibernation support specific for mips - temporary page tables
- *
- * Licensed under the GPLv2
  *
  * Copyright (C) 2009 Lemote Inc.
  * Author: Hu Hongbing <huhb@lemote.com>

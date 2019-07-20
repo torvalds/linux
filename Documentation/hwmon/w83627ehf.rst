@@ -1,0 +1,248 @@
+Kernel driver w83627ehf
+=======================
+
+Supported chips:
+
+  * Winbond W83627EHF/EHG (ISA access ONLY)
+
+    Prefix: 'w83627ehf'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: not available
+
+  * Winbond W83627DHG
+
+    Prefix: 'w83627dhg'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: not available
+
+  * Winbond W83627DHG-P
+
+    Prefix: 'w83627dhg'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: not available
+
+  * Winbond W83627UHG
+
+    Prefix: 'w83627uhg'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: available from www.nuvoton.com
+
+  * Winbond W83667HG
+
+    Prefix: 'w83667hg'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: not available
+
+  * Winbond W83667HG-B
+
+    Prefix: 'w83667hg'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from Nuvoton upon request
+
+  * Nuvoton NCT6775F/W83667HG-I
+
+    Prefix: 'nct6775'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from Nuvoton upon request
+
+  * Nuvoton NCT6776F
+
+    Prefix: 'nct6776'
+
+    Addresses scanned: ISA address retrieved from Super I/O registers
+
+    Datasheet: Available from Nuvoton upon request
+
+
+Authors:
+
+	- Jean Delvare <jdelvare@suse.de>
+	- Yuan Mu (Winbond)
+	- Rudolf Marek <r.marek@assembler.cz>
+	- David Hubbard <david.c.hubbard@gmail.com>
+	- Gong Jun <JGong@nuvoton.com>
+
+Description
+-----------
+
+This driver implements support for the Winbond W83627EHF, W83627EHG,
+W83627DHG, W83627DHG-P, W83627UHG, W83667HG, W83667HG-B, W83667HG-I
+(NCT6775F), and NCT6776F super I/O chips. We will refer to them collectively
+as Winbond chips.
+
+The chips implement 3 to 4 temperature sensors (9 for NCT6775F and NCT6776F),
+2 to 5 fan rotation speed sensors, 8 to 10 analog voltage sensors, one VID
+(except for 627UHG), alarms with beep warnings (control unimplemented),
+and some automatic fan regulation strategies (plus manual fan control mode).
+
+The temperature sensor sources on W82677HG-B, NCT6775F, and NCT6776F are
+configurable. temp4 and higher attributes are only reported if its temperature
+source differs from the temperature sources of the already reported temperature
+sensors. The configured source for each of the temperature sensors is provided
+in tempX_label.
+
+Temperatures are measured in degrees Celsius and measurement resolution is 1
+degC for temp1 and and 0.5 degC for temp2 and temp3. For temp4 and higher,
+resolution is 1 degC for W83667HG-B and 0.0 degC for NCT6775F and NCT6776F.
+An alarm is triggered when the temperature gets higher than high limit;
+it stays on until the temperature falls below the hysteresis value.
+Alarms are only supported for temp1, temp2, and temp3.
+
+Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
+triggered if the rotation speed has dropped below a programmable limit. Fan
+readings can be divided by a programmable divider (1, 2, 4, 8, 16, 32, 64 or
+128) to give the readings more range or accuracy. The driver sets the most
+suitable fan divisor itself. Some fans might not be present because they
+share pins with other functions.
+
+Voltage sensors (also known as IN sensors) report their values in millivolts.
+An alarm is triggered if the voltage has crossed a programmable minimum
+or maximum limit.
+
+The driver supports automatic fan control mode known as Thermal Cruise.
+In this mode, the chip attempts to keep the measured temperature in a
+predefined temperature range. If the temperature goes out of range, fan
+is driven slower/faster to reach the predefined range again.
+
+The mode works for fan1-fan4. Mapping of temperatures to pwm outputs is as
+follows::
+
+  temp1 -> pwm1
+  temp2 -> pwm2
+  temp3 -> pwm3 (not on 627UHG)
+  prog  -> pwm4 (not on 667HG and 667HG-B; the programmable setting is not
+		 supported by the driver)
+
+/sys files
+----------
+
+name
+	this is a standard hwmon device entry, it contains the name of
+	the device (see the prefix in the list of supported devices at
+	the top of this file)
+
+pwm[1-4]
+	this file stores PWM duty cycle or DC value (fan speed) in range:
+
+	   0 (stop) to 255 (full)
+
+pwm[1-4]_enable
+	this file controls mode of fan/temperature control:
+
+	* 1 Manual mode, write to pwm file any value 0-255 (full speed)
+	* 2 "Thermal Cruise" mode
+	* 3 "Fan Speed Cruise" mode
+	* 4 "Smart Fan III" mode
+	* 5 "Smart Fan IV" mode
+
+	SmartFan III mode is not supported on NCT6776F.
+
+	SmartFan IV mode is configurable only if it was configured at system
+	startup, and is only supported for W83677HG-B, NCT6775F, and NCT6776F.
+	SmartFan IV operational parameters can not be configured at this time,
+	and the various pwm attributes are not used in SmartFan IV mode.
+	The attributes can be written to, which is useful if you plan to
+	configure the system for a different pwm mode. However, the information
+	returned when reading pwm attributes is unrelated to SmartFan IV
+	operation.
+
+pwm[1-4]_mode
+	controls if output is PWM or DC level
+
+	* 0 DC output (0 - 12v)
+	* 1 PWM output
+
+Thermal Cruise mode
+-------------------
+
+If the temperature is in the range defined by:
+
+pwm[1-4]_target
+		   set target temperature, unit millidegree Celsius
+		   (range 0 - 127000)
+pwm[1-4]_tolerance
+		   tolerance, unit millidegree Celsius (range 0 - 15000)
+
+there are no changes to fan speed. Once the temperature leaves the interval,
+fan speed increases (temp is higher) or decreases if lower than desired.
+There are defined steps and times, but not exported by the driver yet.
+
+pwm[1-4]_min_output
+		   minimum fan speed (range 1 - 255), when the temperature
+		   is below defined range.
+pwm[1-4]_stop_time
+		   how many milliseconds [ms] must elapse to switch
+		   corresponding fan off. (when the temperature was below
+		   defined range).
+pwm[1-4]_start_output
+		   minimum fan speed (range 1 - 255) when spinning up
+pwm[1-4]_step_output
+		   rate of fan speed change (1 - 255)
+pwm[1-4]_stop_output
+		   minimum fan speed (range 1 - 255) when spinning down
+pwm[1-4]_max_output
+		   maximum fan speed (range 1 - 255), when the temperature
+		   is above defined range.
+
+Note: last six functions are influenced by other control bits, not yet exported
+      by the driver, so a change might not have any effect.
+
+Implementation Details
+----------------------
+
+Future driver development should bear in mind that the following registers have
+different functions on the 627EHF and the 627DHG. Some registers also have
+different power-on default values, but BIOS should already be loading
+appropriate defaults. Note that bank selection must be performed as is currently
+done in the driver for all register addresses.
+
+========================= =====================================================
+Register(s)		  Meaning
+========================= =====================================================
+0x49                      only on DHG, selects temperature source for AUX fan,
+			  CPU fan0
+0x4a                      not completely documented for the EHF and the DHG
+			  documentation assigns different behavior to bits 7
+			  and 6, including extending the temperature input
+			  selection to SmartFan I, not just SmartFan III.
+			  Testing on the EHF will reveal whether they are
+			  compatible or not.
+0x58                      Chip ID: 0xa1=EHF 0xc1=DHG
+0x5e                      only on DHG, has bits to enable "current mode"
+			  temperature detection and critical temperature
+			  protection
+0x45b                     only on EHF, bit 3, vin4 alarm (EHF supports 10
+			  inputs, only 9 on DHG)
+0x552                     only on EHF, vin4
+0x558                     only on EHF, vin4 high limit
+0x559                     only on EHF, vin4 low limit
+0x6b                      only on DHG, SYS fan critical temperature
+0x6c                      only on DHG, CPU fan0 critical temperature
+0x6d                      only on DHG, AUX fan critical temperature
+0x6e                      only on DHG, CPU fan1 critical temperature
+0x50-0x55 and 0x650-0x657 marked as:
+
+			    - "Test Register" for the EHF
+			    - "Reserved Register" for the DHG
+========================= =====================================================
+
+The DHG also supports PECI, where the DHG queries Intel CPU temperatures, and
+the ICH8 southbridge gets that data via PECI from the DHG, so that the
+southbridge drives the fans. And the DHG supports SST, a one-wire serial bus.
+
+The DHG-P has an additional automatic fan speed control mode named Smart Fan
+(TM) III+. This mode is not yet supported by the driver.

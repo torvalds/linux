@@ -63,8 +63,6 @@
 
 	reg_usb3_vbus: usb3-vbus {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb3_vbus_pin_a>;
 		regulator-name = "usb3-vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -114,13 +112,6 @@
 	drive-strength = <40>;
 	/* eMMC is missing pull-ups */
 	bias-pull-up;
-};
-
-&pio {
-	usb3_vbus_pin_a: usb3_vbus_pin {
-		pins = "PG11";
-		function = "gpio_out";
-	};
 };
 
 &r_i2c {

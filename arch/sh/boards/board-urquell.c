@@ -21,7 +21,7 @@
 #include <mach/urquell.h>
 #include <cpu/sh7786.h>
 #include <asm/heartbeat.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/smp-ops.h>
 
 /*

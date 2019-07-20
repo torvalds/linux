@@ -40,6 +40,7 @@ static int mt76x2u_probe(struct usb_interface *intf,
 		.tx_complete_skb = mt76x02u_tx_complete_skb,
 		.tx_status_data = mt76x02_tx_status_data,
 		.rx_skb = mt76x02_queue_rx_skb,
+		.sta_ps = mt76x02_sta_ps,
 		.sta_add = mt76x02_sta_add,
 		.sta_remove = mt76x02_sta_remove,
 	};
@@ -48,7 +49,7 @@ static int mt76x2u_probe(struct usb_interface *intf,
 	struct mt76_dev *mdev;
 	int err;
 
-	mdev = mt76_alloc_device(&intf->dev, sizeof(*dev), &mt76x2u_ops,
+	mdev = mt76_alloc_device(&udev->dev, sizeof(*dev), &mt76x2u_ops,
 				 &drv_ops);
 	if (!mdev)
 		return -ENOMEM;
@@ -57,6 +58,8 @@ static int mt76x2u_probe(struct usb_interface *intf,
 
 	udev = usb_get_dev(udev);
 	usb_reset_device(udev);
+
+	usb_set_intfdata(intf, dev);
 
 	mt76x02u_init_mcu(mdev);
 	err = mt76u_init(mdev, intf);
@@ -104,8 +107,7 @@ static int __maybe_unused mt76x2u_suspend(struct usb_interface *intf,
 {
 	struct mt76x02_dev *dev = usb_get_intfdata(intf);
 
-	mt76u_stop_queues(&dev->mt76);
-	mt76x2u_stop_hw(dev);
+	mt76u_stop_rx(&dev->mt76);
 
 	return 0;
 }
@@ -113,15 +115,11 @@ static int __maybe_unused mt76x2u_suspend(struct usb_interface *intf,
 static int __maybe_unused mt76x2u_resume(struct usb_interface *intf)
 {
 	struct mt76x02_dev *dev = usb_get_intfdata(intf);
-	struct mt76_usb *usb = &dev->mt76.usb;
 	int err;
 
-	err = mt76u_submit_rx_buffers(&dev->mt76);
+	err = mt76u_resume_rx(&dev->mt76);
 	if (err < 0)
 		goto err;
-
-	tasklet_enable(&usb->rx_tasklet);
-	tasklet_enable(&usb->tx_tasklet);
 
 	err = mt76x2u_init_hardware(dev);
 	if (err < 0)

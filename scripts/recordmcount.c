@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * recordmcount.c: construct a table of the locations of calls to 'mcount'
  * so that ftrace can find them quickly.
  * Copyright 2009 John F. Reiser <jreiser@BitWagon.com>.  All rights reserved.
- * Licensed under the GNU General Public License, version 2 (GPLv2).
  *
  * Restructured to fit Linux format, as well as other updates:
  *  Copyright 2010 Steven Rostedt <srostedt@redhat.com>, Red Hat Inc.

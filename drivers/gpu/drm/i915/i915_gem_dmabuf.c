@@ -107,6 +107,7 @@ static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 
+	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 }
 
@@ -300,7 +301,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 
 	get_dma_buf(dma_buf);
 
-	obj = i915_gem_object_alloc(to_i915(dev));
+	obj = i915_gem_object_alloc();
 	if (obj == NULL) {
 		ret = -ENOMEM;
 		goto fail_detach;

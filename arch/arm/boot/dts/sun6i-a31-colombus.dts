@@ -63,10 +63,8 @@
 	i2c_lcd: i2c {
 		/* The lcd panel i2c interface is hooked up via gpios */
 		compatible = "i2c-gpio";
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c_lcd_pins>;
-		gpios = <&pio 0 23 GPIO_ACTIVE_HIGH>, /* PA23, sda */
-			<&pio 0 24 GPIO_ACTIVE_HIGH>; /* PA24, scl */
+		sda-gpios = <&pio 0 23 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PA23 */
+		scl-gpios = <&pio 0 24 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PA24 */
 		i2c-gpio,delay-us = <5>;
 	};
 };
@@ -111,14 +109,6 @@
 	bus-width = <4>;
 	cd-gpios = <&pio 0 8 GPIO_ACTIVE_LOW>; /* PA8 */
 	status = "okay";
-};
-
-&pio {
-	i2c_lcd_pins: i2c-lcd-pins {
-		pins = "PA23", "PA24";
-		function = "gpio_out";
-		bias-pull-up;
-	};
 };
 
 &reg_usb2_vbus {

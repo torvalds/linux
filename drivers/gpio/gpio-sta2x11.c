@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics ConneXt (STA2X11) GPIO driver
  *
  * Copyright 2012 ST Microelectronics (Alessandro Rubini)
  * Based on gpio-ml-ioh.c, Copyright 2010 OKI Semiconductors Ltd.
  * Also based on previous sta2x11 work, Copyright 2011 Wind River Systems, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -360,7 +347,6 @@ static int gsta_probe(struct platform_device *dev)
 	struct pci_dev *pdev;
 	struct sta2x11_gpio_pdata *gpio_pdata;
 	struct gsta_gpio *chip;
-	struct resource *res;
 
 	pdev = *(struct pci_dev **)dev_get_platdata(&dev->dev);
 	gpio_pdata = dev_get_platdata(&pdev->dev);
@@ -369,13 +355,11 @@ static int gsta_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "no gpio config\n");
 	pr_debug("gpio config: %p\n", gpio_pdata);
 
-	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-
 	chip = devm_kzalloc(&dev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 	chip->dev = &dev->dev;
-	chip->reg_base = devm_ioremap_resource(&dev->dev, res);
+	chip->reg_base = devm_platform_ioremap_resource(dev, 0);
 	if (IS_ERR(chip->reg_base))
 		return PTR_ERR(chip->reg_base);
 

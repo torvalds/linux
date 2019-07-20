@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Derived from "arch/i386/kernel/process.c"
  *    Copyright (C) 1995  Linus Torvalds
@@ -7,11 +8,6 @@
  *
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/errno.h>
@@ -67,6 +63,7 @@
 #include <asm/cpu_has_feature.h>
 #include <asm/asm-prototypes.h>
 #include <asm/stacktrace.h>
+#include <asm/hw_breakpoint.h>
 
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
@@ -133,7 +130,8 @@ static int __init enable_strict_msr_control(char *str)
 }
 early_param("ppc_strict_facility_enable", enable_strict_msr_control);
 
-unsigned long msr_check_and_set(unsigned long bits)
+/* notrace because it's called by restore_math */
+unsigned long notrace msr_check_and_set(unsigned long bits)
 {
 	unsigned long oldmsr = mfmsr();
 	unsigned long newmsr;
@@ -152,7 +150,8 @@ unsigned long msr_check_and_set(unsigned long bits)
 }
 EXPORT_SYMBOL_GPL(msr_check_and_set);
 
-void __msr_check_and_clear(unsigned long bits)
+/* notrace because it's called by restore_math */
+void notrace __msr_check_and_clear(unsigned long bits)
 {
 	unsigned long oldmsr = mfmsr();
 	unsigned long newmsr;
@@ -525,7 +524,17 @@ void giveup_all(struct task_struct *tsk)
 }
 EXPORT_SYMBOL(giveup_all);
 
-void restore_math(struct pt_regs *regs)
+/*
+ * The exception exit path calls restore_math() with interrupts hard disabled
+ * but the soft irq state not "reconciled". ftrace code that calls
+ * local_irq_save/restore causes warnings.
+ *
+ * Rather than complicate the exit path, just don't trace restore_math. This
+ * could be done by having ftrace entry code check for this un-reconciled
+ * condition where MSR[EE]=0 and PACA_IRQ_HARD_DIS is not set, and
+ * temporarily fix it up for the duration of the ftrace call.
+ */
+void notrace restore_math(struct pt_regs *regs)
 {
 	unsigned long msr;
 
@@ -784,7 +793,7 @@ static inline int set_dabr(struct arch_hw_breakpoint *brk)
 	return __set_dabr(dabr, dabrx);
 }
 
-static inline int set_dawr(struct arch_hw_breakpoint *brk)
+int set_dawr(struct arch_hw_breakpoint *brk)
 {
 	unsigned long dawr, dawrx, mrd;
 
@@ -816,7 +825,7 @@ void __set_breakpoint(struct arch_hw_breakpoint *brk)
 {
 	memcpy(this_cpu_ptr(&current_brk), brk, sizeof(*brk));
 
-	if (cpu_has_feature(CPU_FTR_DAWR))
+	if (dawr_enabled())
 		// Power8 or later
 		set_dawr(brk);
 	else if (!cpu_has_feature(CPU_FTR_ARCH_207S))
@@ -830,8 +839,8 @@ void __set_breakpoint(struct arch_hw_breakpoint *brk)
 /* Check if we have DAWR or DABR hardware */
 bool ppc_breakpoint_available(void)
 {
-	if (cpu_has_feature(CPU_FTR_DAWR))
-		return true; /* POWER8 DAWR */
+	if (dawr_enabled())
+		return true; /* POWER8 DAWR or POWER9 forced DAWR */
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		return false; /* POWER9 with DAWR disabled */
 	/* DABR: Everything but POWER8 and POWER9 */
@@ -1150,11 +1159,6 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 
 	thread_pkey_regs_restore(new_thread, old_thread);
 }
-
-#ifdef CONFIG_PPC_BOOK3S_64
-#define CP_SIZE 128
-static const u8 dummy_copy_buffer[CP_SIZE] __attribute__((aligned(CP_SIZE)));
-#endif
 
 struct task_struct *__switch_to(struct task_struct *prev,
 	struct task_struct *new)
@@ -1729,7 +1733,8 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	unsigned long load_addr = regs->gpr[2];	/* saved by ELF_PLAT_INIT */
 
 #ifdef CONFIG_PPC_BOOK3S_64
-	preload_new_slb_context(start, sp);
+	if (!radix_enabled())
+		preload_new_slb_context(start, sp);
 #endif
 #endif
 

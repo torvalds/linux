@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hash algorithms supported by the CESA: MD5, SHA1 and SHA256.
  *
@@ -6,10 +7,6 @@
  *
  * This work is based on an initial version written by
  * Sebastian Andrzej Siewior < sebastian at breakpoint dot cc >
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <crypto/hmac.h>
@@ -135,11 +132,10 @@ static int mv_cesa_ahash_pad_len(struct mv_cesa_ahash_req *creq)
 
 static int mv_cesa_ahash_pad_req(struct mv_cesa_ahash_req *creq, u8 *buf)
 {
-	unsigned int index, padlen;
+	unsigned int padlen;
 
 	buf[0] = 0x80;
 	/* Pad out to 56 mod 64 */
-	index = creq->len & CESA_HASH_BLOCK_SIZE_MSK;
 	padlen = mv_cesa_ahash_pad_len(creq);
 	memset(buf + 1, 0, padlen - 1);
 

@@ -36,7 +36,6 @@
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
-#include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/printk.h>
 #ifdef CONFIG_INFINIBAND_QIB_DCA
@@ -95,7 +94,7 @@ MODULE_PARM_DESC(cc_table_size, "Congestion control table entries 0 (CCA disable
 
 static void verify_interrupt(struct timer_list *);
 
-static struct idr qib_unit_table;
+DEFINE_XARRAY_FLAGS(qib_dev_table, XA_FLAGS_ALLOC | XA_FLAGS_LOCK_IRQ);
 u32 qib_cpulist_count;
 unsigned long *qib_cpulist;
 
@@ -785,21 +784,9 @@ void __attribute__((weak)) qib_disable_wc(struct qib_devdata *dd)
 {
 }
 
-static inline struct qib_devdata *__qib_lookup(int unit)
-{
-	return idr_find(&qib_unit_table, unit);
-}
-
 struct qib_devdata *qib_lookup(int unit)
 {
-	struct qib_devdata *dd;
-	unsigned long flags;
-
-	spin_lock_irqsave(&qib_devs_lock, flags);
-	dd = __qib_lookup(unit);
-	spin_unlock_irqrestore(&qib_devs_lock, flags);
-
-	return dd;
+	return xa_load(&qib_dev_table, unit);
 }
 
 /*
@@ -1046,10 +1033,9 @@ void qib_free_devdata(struct qib_devdata *dd)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&qib_devs_lock, flags);
-	idr_remove(&qib_unit_table, dd->unit);
-	list_del(&dd->list);
-	spin_unlock_irqrestore(&qib_devs_lock, flags);
+	xa_lock_irqsave(&qib_dev_table, flags);
+	__xa_erase(&qib_dev_table, dd->unit);
+	xa_unlock_irqrestore(&qib_dev_table, flags);
 
 #ifdef CONFIG_DEBUG_FS
 	qib_dbg_ibdev_exit(&dd->verbs_dev);
@@ -1070,15 +1056,15 @@ u64 qib_int_counter(struct qib_devdata *dd)
 
 u64 qib_sps_ints(void)
 {
-	unsigned long flags;
+	unsigned long index, flags;
 	struct qib_devdata *dd;
 	u64 sps_ints = 0;
 
-	spin_lock_irqsave(&qib_devs_lock, flags);
-	list_for_each_entry(dd, &qib_dev_list, list) {
+	xa_lock_irqsave(&qib_dev_table, flags);
+	xa_for_each(&qib_dev_table, index, dd) {
 		sps_ints += qib_int_counter(dd);
 	}
-	spin_unlock_irqrestore(&qib_devs_lock, flags);
+	xa_unlock_irqrestore(&qib_dev_table, flags);
 	return sps_ints;
 }
 
@@ -1087,12 +1073,9 @@ u64 qib_sps_ints(void)
  * allocator, because the verbs cleanup process both does cleanup and
  * free of the data structure.
  * "extra" is for chip-specific data.
- *
- * Use the idr mechanism to get a unit number for this unit.
  */
 struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 {
-	unsigned long flags;
 	struct qib_devdata *dd;
 	int ret, nports;
 
@@ -1103,20 +1086,8 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	if (!dd)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&dd->list);
-
-	idr_preload(GFP_KERNEL);
-	spin_lock_irqsave(&qib_devs_lock, flags);
-
-	ret = idr_alloc(&qib_unit_table, dd, 0, 0, GFP_NOWAIT);
-	if (ret >= 0) {
-		dd->unit = ret;
-		list_add(&dd->list, &qib_dev_list);
-	}
-
-	spin_unlock_irqrestore(&qib_devs_lock, flags);
-	idr_preload_end();
-
+	ret = xa_alloc_irq(&qib_dev_table, &dd->unit, dd, xa_limit_32b,
+			GFP_KERNEL);
 	if (ret < 0) {
 		qib_early_err(&pdev->dev,
 			      "Could not allocate unit ID: error %d\n", -ret);
@@ -1255,8 +1226,6 @@ static int __init qib_ib_init(void)
 	 * These must be called before the driver is registered with
 	 * the PCI subsystem.
 	 */
-	idr_init(&qib_unit_table);
-
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 	dca_register_notify(&dca_notifier);
 #endif
@@ -1281,7 +1250,6 @@ bail_dev:
 #ifdef CONFIG_DEBUG_FS
 	qib_dbg_exit();
 #endif
-	idr_destroy(&qib_unit_table);
 	qib_dev_cleanup();
 bail:
 	return ret;
@@ -1313,7 +1281,7 @@ static void __exit qib_ib_cleanup(void)
 	qib_cpulist_count = 0;
 	kfree(qib_cpulist);
 
-	idr_destroy(&qib_unit_table);
+	WARN_ON(!xa_empty(&qib_dev_table));
 	qib_dev_cleanup();
 }
 

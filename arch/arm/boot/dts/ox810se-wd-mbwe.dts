@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * wd-mbwe.dtsi - Device tree file for Western Digital My Book World Edition
  *
  * Copyright (C) 2016 Neil Armstrong <narmstrong@baylibre.com>
- *
- * Licensed under GPLv2 or later
  */
 
 /dts-v1/;

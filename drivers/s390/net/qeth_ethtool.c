@@ -38,6 +38,7 @@ static const struct qeth_stats txq_stats[] = {
 	QETH_TXQ_STAT("linearized+error skbs", skbs_linearized_fail),
 	QETH_TXQ_STAT("TSO bytes", tso_bytes),
 	QETH_TXQ_STAT("Packing mode switches", packing_mode_switch),
+	QETH_TXQ_STAT("Queue stopped", stopped),
 };
 
 static const struct qeth_stats card_stats[] = {
@@ -152,6 +153,21 @@ static void qeth_get_drvinfo(struct net_device *dev,
 		sizeof(info->fw_version));
 	snprintf(info->bus_info, sizeof(info->bus_info), "%s/%s/%s",
 		 CARD_RDEV_ID(card), CARD_WDEV_ID(card), CARD_DDEV_ID(card));
+}
+
+static void qeth_get_channels(struct net_device *dev,
+			      struct ethtool_channels *channels)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	channels->max_rx = dev->num_rx_queues;
+	channels->max_tx = card->qdio.no_out_queues;
+	channels->max_other = 0;
+	channels->max_combined = 0;
+	channels->rx_count = dev->real_num_rx_queues;
+	channels->tx_count = dev->real_num_tx_queues;
+	channels->other_count = 0;
+	channels->combined_count = 0;
 }
 
 /* Helper function to fill 'advertising' and 'supported' which are the same. */
@@ -359,6 +375,7 @@ const struct ethtool_ops qeth_ethtool_ops = {
 	.get_ethtool_stats = qeth_get_ethtool_stats,
 	.get_sset_count = qeth_get_sset_count,
 	.get_drvinfo = qeth_get_drvinfo,
+	.get_channels = qeth_get_channels,
 	.get_link_ksettings = qeth_get_link_ksettings,
 };
 

@@ -107,6 +107,11 @@
  */
 #define MMU_FTR_1T_SEGMENT		ASM_CONST(0x40000000)
 
+/*
+ * Supports KUAP (key 0 controlling userspace addresses) on radix
+ */
+#define MMU_FTR_RADIX_KUAP		ASM_CONST(0x80000000)
+
 /* MMU feature bit sets for various CPUs */
 #define MMU_FTRS_DEFAULT_HPTE_ARCH_V2	\
 	MMU_FTR_HPTE_TABLE | MMU_FTR_PPCAS_ARCH_V2
@@ -124,6 +129,9 @@
 #ifndef __ASSEMBLY__
 #include <linux/bug.h>
 #include <asm/cputable.h>
+#include <asm/page.h>
+
+typedef pte_t *pgtable_t;
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
 #include <asm/percpu.h>
@@ -164,7 +172,10 @@ enum {
 #endif
 #ifdef CONFIG_PPC_RADIX_MMU
 		MMU_FTR_TYPE_RADIX |
-#endif
+#ifdef CONFIG_PPC_KUAP
+		MMU_FTR_RADIX_KUAP |
+#endif /* CONFIG_PPC_KUAP */
+#endif /* CONFIG_PPC_RADIX_MMU */
 		0,
 };
 
@@ -340,21 +351,6 @@ static inline bool strict_kernel_rwx_enabled(void)
  * Also we need to change he type of mm_context.low/high_slices_psize.
  */
 #define MMU_PAGE_COUNT	16
-
-/*
- * If we store section details in page->flags we can't increase the MAX_PHYSMEM_BITS
- * if we increase SECTIONS_WIDTH we will not store node details in page->flags and
- * page_to_nid does a page->section->node lookup
- * Hence only increase for VMEMMAP. Further depending on SPARSEMEM_EXTREME reduce
- * memory requirements with large number of sections.
- * 51 bits is the max physical real address on POWER9
- */
-#if defined(CONFIG_SPARSEMEM_VMEMMAP) && defined(CONFIG_SPARSEMEM_EXTREME) &&	\
-	defined (CONFIG_PPC_64K_PAGES)
-#define MAX_PHYSMEM_BITS        51
-#elif defined(CONFIG_PPC64)
-#define MAX_PHYSMEM_BITS        46
-#endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #include <asm/book3s/64/mmu.h>

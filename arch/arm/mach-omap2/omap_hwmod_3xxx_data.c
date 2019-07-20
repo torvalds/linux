@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap_hwmod_3xxx_data.c - hardware modules present on the OMAP3xxx chips
  *
  * Copyright (C) 2009-2011 Nokia Corporation
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The data in this file should be completely autogeneratable from
  * the TI hardware database or other technical documentation.
@@ -484,7 +481,6 @@ static struct omap_hwmod am35xx_uart4_hwmod = {
 static struct omap_hwmod_class i2c_class = {
 	.name	= "i2c",
 	.sysc	= &i2c_sysc,
-	.rev	= OMAP_I2C_IP_VERSION_1,
 	.reset	= &omap_i2c_reset,
 };
 
@@ -707,7 +703,6 @@ static struct omap_hwmod_class_sysconfig omap3xxx_gpio_sysc = {
 static struct omap_hwmod_class omap3xxx_gpio_hwmod_class = {
 	.name = "gpio",
 	.sysc = &omap3xxx_gpio_sysc,
-	.rev = 1,
 };
 
 /* gpio1 */
@@ -1029,7 +1024,6 @@ static struct omap_hwmod_class_sysconfig omap34xx_sr_sysc = {
 static struct omap_hwmod_class omap34xx_smartreflex_hwmod_class = {
 	.name = "smartreflex",
 	.sysc = &omap34xx_sr_sysc,
-	.rev  = 1,
 };
 
 static struct omap_hwmod_class_sysconfig omap36xx_sr_sysc = {
@@ -1044,7 +1038,6 @@ static struct omap_hwmod_class_sysconfig omap36xx_sr_sysc = {
 static struct omap_hwmod_class omap36xx_smartreflex_hwmod_class = {
 	.name = "smartreflex",
 	.sysc = &omap36xx_sr_sysc,
-	.rev  = 2,
 };
 
 /* SR1 */

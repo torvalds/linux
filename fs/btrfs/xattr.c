@@ -76,9 +76,8 @@ out:
 	return ret;
 }
 
-static int do_setxattr(struct btrfs_trans_handle *trans,
-		       struct inode *inode, const char *name,
-		       const void *value, size_t size, int flags)
+int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
+		   const char *name, const void *value, size_t size, int flags)
 {
 	struct btrfs_dir_item *di = NULL;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -86,6 +85,8 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 	size_t name_len = strlen(name);
 	int ret = 0;
+
+	ASSERT(trans);
 
 	if (name_len + size > BTRFS_MAX_XATTR_SIZE(root->fs_info))
 		return -ENOSPC;
@@ -174,7 +175,7 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 		char *ptr;
 
 		if (size > old_data_len) {
-			if (btrfs_leaf_free_space(fs_info, leaf) <
+			if (btrfs_leaf_free_space(leaf) <
 			    (size - old_data_len)) {
 				ret = -ENOSPC;
 				goto out;
@@ -184,17 +185,15 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 		if (old_data_len + name_len + sizeof(*di) == item_size) {
 			/* No other xattrs packed in the same leaf item. */
 			if (size > old_data_len)
-				btrfs_extend_item(fs_info, path,
-						  size - old_data_len);
+				btrfs_extend_item(path, size - old_data_len);
 			else if (size < old_data_len)
-				btrfs_truncate_item(fs_info, path,
-						    data_size, 1);
+				btrfs_truncate_item(path, data_size, 1);
 		} else {
 			/* There are other xattrs packed in the same item. */
 			ret = btrfs_delete_one_dir_name(trans, root, path, di);
 			if (ret)
 				goto out;
-			btrfs_extend_item(fs_info, path, data_size);
+			btrfs_extend_item(path, data_size);
 		}
 
 		item = btrfs_item_nr(slot);
@@ -214,36 +213,32 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 	}
 out:
 	btrfs_free_path(path);
+	if (!ret)
+		set_bit(BTRFS_INODE_COPY_EVERYTHING,
+			&BTRFS_I(inode)->runtime_flags);
 	return ret;
 }
 
 /*
  * @value: "" makes the attribute to empty, NULL removes it
  */
-int btrfs_setxattr(struct btrfs_trans_handle *trans,
-		     struct inode *inode, const char *name,
-		     const void *value, size_t size, int flags)
+int btrfs_setxattr_trans(struct inode *inode, const char *name,
+			 const void *value, size_t size, int flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_trans_handle *trans;
 	int ret;
-
-	if (btrfs_root_readonly(root))
-		return -EROFS;
-
-	if (trans)
-		return do_setxattr(trans, inode, name, value, size, flags);
 
 	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	ret = do_setxattr(trans, inode, name, value, size, flags);
+	ret = btrfs_setxattr(trans, inode, name, value, size, flags);
 	if (ret)
 		goto out;
 
 	inode_inc_iversion(inode);
 	inode->i_ctime = current_time(inode);
-	set_bit(BTRFS_INODE_COPY_EVERYTHING, &BTRFS_I(inode)->runtime_flags);
 	ret = btrfs_update_inode(trans, root, inode);
 	BUG_ON(ret);
 out:
@@ -370,7 +365,7 @@ static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
 				   size_t size, int flags)
 {
 	name = xattr_full_name(handler, name);
-	return btrfs_setxattr(NULL, inode, name, buffer, size, flags);
+	return btrfs_setxattr_trans(inode, name, buffer, size, flags);
 }
 
 static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
@@ -378,8 +373,30 @@ static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 					const char *name, const void *value,
 					size_t size, int flags)
 {
+	int ret;
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+
 	name = xattr_full_name(handler, name);
-	return btrfs_set_prop(inode, name, value, size, flags);
+	ret = btrfs_validate_prop(name, value, size);
+	if (ret)
+		return ret;
+
+	trans = btrfs_start_transaction(root, 2);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+
+	ret = btrfs_set_prop(trans, inode, name, value, size, flags);
+	if (!ret) {
+		inode_inc_iversion(inode);
+		inode->i_ctime = current_time(inode);
+		ret = btrfs_update_inode(trans, root, inode);
+		BUG_ON(ret);
+	}
+
+	btrfs_end_transaction(trans);
+
+	return ret;
 }
 
 static const struct xattr_handler btrfs_security_xattr_handler = {
@@ -419,10 +436,10 @@ const struct xattr_handler *btrfs_xattr_handlers[] = {
 };
 
 static int btrfs_initxattrs(struct inode *inode,
-			    const struct xattr *xattr_array, void *fs_info)
+			    const struct xattr *xattr_array, void *fs_private)
 {
+	struct btrfs_trans_handle *trans = fs_private;
 	const struct xattr *xattr;
-	struct btrfs_trans_handle *trans = fs_info;
 	unsigned int nofs_flag;
 	char *name;
 	int err = 0;
@@ -442,7 +459,7 @@ static int btrfs_initxattrs(struct inode *inode,
 		strcpy(name, XATTR_SECURITY_PREFIX);
 		strcpy(name + XATTR_SECURITY_PREFIX_LEN, xattr->name);
 		err = btrfs_setxattr(trans, inode, name, xattr->value,
-				xattr->value_len, 0);
+				     xattr->value_len, 0);
 		kfree(name);
 		if (err < 0)
 			break;

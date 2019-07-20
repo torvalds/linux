@@ -101,14 +101,12 @@ static const struct mtd_ooblayout_ops flctl_4secc_oob_largepage_ops = {
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
 
 static struct nand_bbt_descr flctl_4secc_smallpage = {
-	.options = NAND_BBT_SCAN2NDPAGE,
 	.offs = 11,
 	.len = 1,
 	.pattern = scan_ff_pattern,
 };
 
 static struct nand_bbt_descr flctl_4secc_largepage = {
-	.options = NAND_BBT_SCAN2NDPAGE,
 	.offs = 0,
 	.len = 2,
 	.pattern = scan_ff_pattern,
@@ -986,6 +984,7 @@ static void flctl_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 
 static int flctl_chip_attach_chip(struct nand_chip *chip)
 {
+	u64 targetsize = nanddev_target_size(&chip->base);
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
 
@@ -998,11 +997,11 @@ static int flctl_chip_attach_chip(struct nand_chip *chip)
 
 	if (mtd->writesize == 512) {
 		flctl->page_size = 0;
-		if (chip->chipsize > (32 << 20)) {
+		if (targetsize > (32 << 20)) {
 			/* big than 32MB */
 			flctl->rw_ADRCNT = ADRCNT_4;
 			flctl->erase_ADRCNT = ADRCNT_3;
-		} else if (chip->chipsize > (2 << 16)) {
+		} else if (targetsize > (2 << 16)) {
 			/* big than 128KB */
 			flctl->rw_ADRCNT = ADRCNT_3;
 			flctl->erase_ADRCNT = ADRCNT_2;
@@ -1012,11 +1011,11 @@ static int flctl_chip_attach_chip(struct nand_chip *chip)
 		}
 	} else {
 		flctl->page_size = 1;
-		if (chip->chipsize > (128 << 20)) {
+		if (targetsize > (128 << 20)) {
 			/* big than 128MB */
 			flctl->rw_ADRCNT = ADRCNT2_E;
 			flctl->erase_ADRCNT = ADRCNT_3;
-		} else if (chip->chipsize > (8 << 16)) {
+		} else if (targetsize > (8 << 16)) {
 			/* big than 512KB */
 			flctl->rw_ADRCNT = ADRCNT_4;
 			flctl->erase_ADRCNT = ADRCNT_2;
@@ -1177,6 +1176,8 @@ static int flctl_probe(struct platform_device *pdev)
 
 	if (pdata->flcmncr_val & SEL_16BIT)
 		nand->options |= NAND_BUSWIDTH_16;
+
+	nand->options |= NAND_BBM_FIRSTPAGE | NAND_BBM_SECONDPAGE;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_resume(&pdev->dev);

@@ -78,7 +78,7 @@ struct drm_plane_helper_funcs;
 /**
  * struct drm_crtc_state - mutable CRTC state
  *
- * Note that the distinction between @enable and @active is rather subtile:
+ * Note that the distinction between @enable and @active is rather subtle:
  * Flipping @active while @enable is set without changing anything else may
  * never return in a failure from the &drm_mode_config_funcs.atomic_check
  * callback. Userspace assumes that a DPMS On will always succeed. In other
@@ -472,7 +472,7 @@ struct drm_crtc_funcs {
 	/**
 	 * @destroy:
 	 *
-	 * Clean up plane resources. This is only called at driver unload time
+	 * Clean up CRTC resources. This is only called at driver unload time
 	 * through drm_mode_config_cleanup() since a CRTC cannot be hotplugged
 	 * in DRM.
 	 */

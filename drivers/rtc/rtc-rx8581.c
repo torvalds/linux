@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An I2C driver for the Epson RX8581 RTC
  *
  * Author: Martyn Welch <martyn.welch@ge.com>
  * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Based on: rtc-pcf8563.c (An I2C driver for the Philips PCF8563 RTC)
  * Copyright 2005-06 Tower Technologies

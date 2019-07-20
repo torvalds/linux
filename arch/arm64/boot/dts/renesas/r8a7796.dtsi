@@ -1775,7 +1775,7 @@
 				<0 0xec5a0000 0 0x100>,  /* ADG */
 				<0 0xec540000 0 0x1000>, /* SSIU */
 				<0 0xec541000 0 0x280>,  /* SSI */
-				<0 0xec740000 0 0x200>;  /* Audio DMAC peri peri*/
+				<0 0xec760000 0 0x200>;  /* Audio DMAC peri peri*/
 			reg-names = "scu", "adg", "ssiu", "ssi", "audmapp";
 
 			clocks = <&cpg CPG_MOD 1005>,
@@ -2160,17 +2160,6 @@
 					interrupts = <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>;
 					dmas = <&audma0 0x13>, <&audma1 0x14>;
 					dma-names = "rx", "tx";
-				};
-			};
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				port@0 {
-					reg = <0>;
-				};
-				port@1 {
-					reg = <1>;
 				};
 			};
 		};

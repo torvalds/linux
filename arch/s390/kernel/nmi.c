@@ -125,7 +125,7 @@ void nmi_free_per_cpu(struct lowcore *lc)
 static notrace void s390_handle_damage(void)
 {
 	smp_emergency_stop();
-	disabled_wait((unsigned long) __builtin_return_address(0));
+	disabled_wait();
 	while (1);
 }
 NOKPROBE_SYMBOL(s390_handle_damage);

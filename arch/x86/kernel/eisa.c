@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * EISA specific code
- *
- * This file is licensed under the GPL V2
  */
 #include <linux/ioport.h>
 #include <linux/eisa.h>

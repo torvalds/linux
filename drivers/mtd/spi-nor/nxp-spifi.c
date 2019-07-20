@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SPI-NOR driver for NXP SPI Flash Interface (SPIFI)
  *
@@ -5,11 +6,6 @@
  *
  * Based on Freescale QuadSPI driver:
  * Copyright (C) 2013 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/clk.h>

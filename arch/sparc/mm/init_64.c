@@ -2269,19 +2269,6 @@ static unsigned long last_valid_pfn;
 static void sun4u_pgprot_init(void);
 static void sun4v_pgprot_init(void);
 
-static phys_addr_t __init available_memory(void)
-{
-	phys_addr_t available = 0ULL;
-	phys_addr_t pa_start, pa_end;
-	u64 i;
-
-	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &pa_start,
-				&pa_end, NULL)
-		available = available + (pa_end  - pa_start);
-
-	return available;
-}
-
 #define _PAGE_CACHE_4U	(_PAGE_CP_4U | _PAGE_CV_4U)
 #define _PAGE_CACHE_4V	(_PAGE_CP_4V | _PAGE_CV_4V)
 #define __DIRTY_BITS_4U	 (_PAGE_MODIFIED_4U | _PAGE_WRITE_4U | _PAGE_W_4U)
@@ -2295,33 +2282,8 @@ static phys_addr_t __init available_memory(void)
  */
 static void __init reduce_memory(phys_addr_t limit_ram)
 {
-	phys_addr_t avail_ram = available_memory();
-	phys_addr_t pa_start, pa_end;
-	u64 i;
-
-	if (limit_ram >= avail_ram)
-		return;
-
-	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &pa_start,
-				&pa_end, NULL) {
-		phys_addr_t region_size = pa_end - pa_start;
-		phys_addr_t clip_start = pa_start;
-
-		avail_ram = avail_ram - region_size;
-		/* Are we consuming too much? */
-		if (avail_ram < limit_ram) {
-			phys_addr_t give_back = limit_ram - avail_ram;
-
-			region_size = region_size - give_back;
-			clip_start = clip_start + give_back;
-		}
-
-		memblock_remove(clip_start, region_size);
-
-		if (avail_ram <= limit_ram)
-			break;
-		i = 0UL;
-	}
+	limit_ram += memblock_reserved_size();
+	memblock_enforce_memory_limit(limit_ram);
 }
 
 void __init paging_init(void)
@@ -2609,14 +2571,6 @@ void free_initmem(void)
 			free_reserved_page(virt_to_page(page));
 	}
 }
-
-#ifdef CONFIG_BLK_DEV_INITRD
-void free_initrd_mem(unsigned long start, unsigned long end)
-{
-	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
-			   "initrd");
-}
-#endif
 
 pgprot_t PAGE_KERNEL __read_mostly;
 EXPORT_SYMBOL(PAGE_KERNEL);

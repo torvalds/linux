@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 nvkm-y += nvkm/subdev/secboot/base.o
 nvkm-y += nvkm/subdev/secboot/hs_ucode.o
 nvkm-y += nvkm/subdev/secboot/ls_ucode_gr.o

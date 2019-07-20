@@ -15,6 +15,8 @@ Supported adapters:
     http://support.amd.com/us/Embedded_TechDocs/44413.pdf
   * AMD Hudson-2, ML, CZ
     Datasheet: Not publicly available
+  * Hygon CZ
+    Datasheet: Not publicly available
   * Standard Microsystems (SMSC) SLC90E66 (Victory66) southbridge
     Datasheet: Publicly available at the SMSC website http://www.smsc.com
 

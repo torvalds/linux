@@ -247,10 +247,10 @@
 
 	usb {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <0 3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 		otg_vbus_drv: otg-vbus-drv {
-			rockchip,pins = <2 31 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

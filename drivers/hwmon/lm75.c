@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * lm75.c - Part of lm_sensors, Linux kernel modules for hardware
  *	 monitoring
  * Copyright (c) 1998, 1999  Frodo Looijaard <frodol@dds.nl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -59,6 +46,7 @@ enum lm75_type {		/* keep sorted in alphabetical order */
 	tmp175,
 	tmp275,
 	tmp75,
+	tmp75b,
 	tmp75c,
 };
 
@@ -194,35 +182,11 @@ static umode_t lm75_is_visible(const void *data, enum hwmon_sensor_types type,
 	return 0;
 }
 
-/*-----------------------------------------------------------------------*/
-
-/* device probe and removal */
-
-/* chip configuration */
-
-static const u32 lm75_chip_config[] = {
-	HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL,
-	0
-};
-
-static const struct hwmon_channel_info lm75_chip = {
-	.type = hwmon_chip,
-	.config = lm75_chip_config,
-};
-
-static const u32 lm75_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST,
-	0
-};
-
-static const struct hwmon_channel_info lm75_temp = {
-	.type = hwmon_temp,
-	.config = lm75_temp_config,
-};
-
 static const struct hwmon_channel_info *lm75_info[] = {
-	&lm75_chip,
-	&lm75_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST),
 	NULL
 };
 
@@ -378,6 +342,11 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		data->resolution = 12;
 		data->sample_time = MSEC_PER_SEC / 2;
 		break;
+	case tmp75b:  /* not one-shot mode, Conversion rate 37Hz */
+		clr_mask |= 1 << 15 | 0x3 << 13;
+		data->resolution = 12;
+		data->sample_time = MSEC_PER_SEC / 37;
+		break;
 	case tmp75c:
 		clr_mask |= 1 << 5;		/* not one-shot mode */
 		data->resolution = 12;
@@ -438,12 +407,13 @@ static const struct i2c_device_id lm75_ids[] = {
 	{ "tmp175", tmp175, },
 	{ "tmp275", tmp275, },
 	{ "tmp75", tmp75, },
+	{ "tmp75b", tmp75b, },
 	{ "tmp75c", tmp75c, },
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, lm75_ids);
 
-static const struct of_device_id lm75_of_match[] = {
+static const struct of_device_id __maybe_unused lm75_of_match[] = {
 	{
 		.compatible = "adi,adt75",
 		.data = (void *)adt75
@@ -535,6 +505,10 @@ static const struct of_device_id lm75_of_match[] = {
 	{
 		.compatible = "ti,tmp75",
 		.data = (void *)tmp75
+	},
+	{
+		.compatible = "ti,tmp75b",
+		.data = (void *)tmp75b
 	},
 	{
 		.compatible = "ti,tmp75c",

@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2017 Free Electrons
  * Copyright (C) 2017 NextThing Co
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/sizes.h>
@@ -418,7 +409,10 @@ static void hynix_nand_extract_oobsize(struct nand_chip *chip,
 				       bool valid_jedecid)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct nand_memory_organization *memorg;
 	u8 oobsize;
+
+	memorg = nanddev_get_memorg(&chip->base);
 
 	oobsize = ((chip->id.data[3] >> 2) & 0x3) |
 		  ((chip->id.data[3] >> 4) & 0x4);
@@ -426,16 +420,16 @@ static void hynix_nand_extract_oobsize(struct nand_chip *chip,
 	if (valid_jedecid) {
 		switch (oobsize) {
 		case 0:
-			mtd->oobsize = 2048;
+			memorg->oobsize = 2048;
 			break;
 		case 1:
-			mtd->oobsize = 1664;
+			memorg->oobsize = 1664;
 			break;
 		case 2:
-			mtd->oobsize = 1024;
+			memorg->oobsize = 1024;
 			break;
 		case 3:
-			mtd->oobsize = 640;
+			memorg->oobsize = 640;
 			break;
 		default:
 			/*
@@ -450,25 +444,25 @@ static void hynix_nand_extract_oobsize(struct nand_chip *chip,
 	} else {
 		switch (oobsize) {
 		case 0:
-			mtd->oobsize = 128;
+			memorg->oobsize = 128;
 			break;
 		case 1:
-			mtd->oobsize = 224;
+			memorg->oobsize = 224;
 			break;
 		case 2:
-			mtd->oobsize = 448;
+			memorg->oobsize = 448;
 			break;
 		case 3:
-			mtd->oobsize = 64;
+			memorg->oobsize = 64;
 			break;
 		case 4:
-			mtd->oobsize = 32;
+			memorg->oobsize = 32;
 			break;
 		case 5:
-			mtd->oobsize = 16;
+			memorg->oobsize = 16;
 			break;
 		case 6:
-			mtd->oobsize = 640;
+			memorg->oobsize = 640;
 			break;
 		default:
 			/*
@@ -492,8 +486,10 @@ static void hynix_nand_extract_oobsize(struct nand_chip *chip,
 		 * the actual OOB size for this chip is: 640 * 16k / 8k).
 		 */
 		if (chip->id.data[1] == 0xde)
-			mtd->oobsize *= mtd->writesize / SZ_8K;
+			memorg->oobsize *= memorg->pagesize / SZ_8K;
 	}
+
+	mtd->oobsize = memorg->oobsize;
 }
 
 static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
@@ -503,30 +499,30 @@ static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
 
 	if (valid_jedecid) {
 		/* Reference: H27UCG8T2E datasheet */
-		chip->ecc_step_ds = 1024;
+		chip->base.eccreq.step_size = 1024;
 
 		switch (ecc_level) {
 		case 0:
-			chip->ecc_step_ds = 0;
-			chip->ecc_strength_ds = 0;
+			chip->base.eccreq.step_size = 0;
+			chip->base.eccreq.strength = 0;
 			break;
 		case 1:
-			chip->ecc_strength_ds = 4;
+			chip->base.eccreq.strength = 4;
 			break;
 		case 2:
-			chip->ecc_strength_ds = 24;
+			chip->base.eccreq.strength = 24;
 			break;
 		case 3:
-			chip->ecc_strength_ds = 32;
+			chip->base.eccreq.strength = 32;
 			break;
 		case 4:
-			chip->ecc_strength_ds = 40;
+			chip->base.eccreq.strength = 40;
 			break;
 		case 5:
-			chip->ecc_strength_ds = 50;
+			chip->base.eccreq.strength = 50;
 			break;
 		case 6:
-			chip->ecc_strength_ds = 60;
+			chip->base.eccreq.strength = 60;
 			break;
 		default:
 			/*
@@ -547,14 +543,14 @@ static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
 		if (nand_tech < 3) {
 			/* > 26nm, reference: H27UBG8T2A datasheet */
 			if (ecc_level < 5) {
-				chip->ecc_step_ds = 512;
-				chip->ecc_strength_ds = 1 << ecc_level;
+				chip->base.eccreq.step_size = 512;
+				chip->base.eccreq.strength = 1 << ecc_level;
 			} else if (ecc_level < 7) {
 				if (ecc_level == 5)
-					chip->ecc_step_ds = 2048;
+					chip->base.eccreq.step_size = 2048;
 				else
-					chip->ecc_step_ds = 1024;
-				chip->ecc_strength_ds = 24;
+					chip->base.eccreq.step_size = 1024;
+				chip->base.eccreq.strength = 24;
 			} else {
 				/*
 				 * We should never reach this case, but if that
@@ -567,14 +563,14 @@ static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
 		} else {
 			/* <= 26nm, reference: H27UBG8T2B datasheet */
 			if (!ecc_level) {
-				chip->ecc_step_ds = 0;
-				chip->ecc_strength_ds = 0;
+				chip->base.eccreq.step_size = 0;
+				chip->base.eccreq.strength = 0;
 			} else if (ecc_level < 5) {
-				chip->ecc_step_ds = 512;
-				chip->ecc_strength_ds = 1 << (ecc_level - 1);
+				chip->base.eccreq.step_size = 512;
+				chip->base.eccreq.strength = 1 << (ecc_level - 1);
 			} else {
-				chip->ecc_step_ds = 1024;
-				chip->ecc_strength_ds = 24 +
+				chip->base.eccreq.step_size = 1024;
+				chip->base.eccreq.strength = 24 +
 							(8 * (ecc_level - 5));
 			}
 		}
@@ -587,7 +583,7 @@ static void hynix_nand_extract_scrambling_requirements(struct nand_chip *chip,
 	u8 nand_tech;
 
 	/* We need scrambling on all TLC NANDs*/
-	if (chip->bits_per_cell > 2)
+	if (nanddev_bits_per_cell(&chip->base) > 2)
 		chip->options |= NAND_NEED_SCRAMBLING;
 
 	/* And on MLC NANDs with sub-3xnm process */
@@ -609,8 +605,11 @@ static void hynix_nand_extract_scrambling_requirements(struct nand_chip *chip,
 static void hynix_nand_decode_id(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct nand_memory_organization *memorg;
 	bool valid_jedecid;
 	u8 tmp;
+
+	memorg = nanddev_get_memorg(&chip->base);
 
 	/*
 	 * Exclude all SLC NANDs from this advanced detection scheme.
@@ -625,7 +624,8 @@ static void hynix_nand_decode_id(struct nand_chip *chip)
 	}
 
 	/* Extract pagesize */
-	mtd->writesize = 2048 << (chip->id.data[3] & 0x03);
+	memorg->pagesize = 2048 << (chip->id.data[3] & 0x03);
+	mtd->writesize = memorg->pagesize;
 
 	tmp = (chip->id.data[3] >> 4) & 0x3;
 	/*
@@ -635,12 +635,19 @@ static void hynix_nand_decode_id(struct nand_chip *chip)
 	 * The only exception is when ID[3][4:5] == 3 and ID[3][7] == 0, in
 	 * this case the erasesize is set to 768KiB.
 	 */
-	if (chip->id.data[3] & 0x80)
+	if (chip->id.data[3] & 0x80) {
+		memorg->pages_per_eraseblock = (SZ_1M << tmp) /
+					       memorg->pagesize;
 		mtd->erasesize = SZ_1M << tmp;
-	else if (tmp == 3)
+	} else if (tmp == 3) {
+		memorg->pages_per_eraseblock = (SZ_512K + SZ_256K) /
+					       memorg->pagesize;
 		mtd->erasesize = SZ_512K + SZ_256K;
-	else
+	} else {
+		memorg->pages_per_eraseblock = (SZ_128K << tmp) /
+					       memorg->pagesize;
 		mtd->erasesize = SZ_128K << tmp;
+	}
 
 	/*
 	 * Modern Toggle DDR NANDs have a valid JEDECID even though they are
@@ -672,9 +679,9 @@ static int hynix_nand_init(struct nand_chip *chip)
 	int ret;
 
 	if (!nand_is_slc(chip))
-		chip->bbt_options |= NAND_BBT_SCANLASTPAGE;
+		chip->options |= NAND_BBM_LASTPAGE;
 	else
-		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;
+		chip->options |= NAND_BBM_FIRSTPAGE | NAND_BBM_SECONDPAGE;
 
 	hynix = kzalloc(sizeof(*hynix), GFP_KERNEL);
 	if (!hynix)

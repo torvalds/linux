@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SiS 300/540/630[S]/730[S],
  * SiS 315[E|PRO]/550/[M]65x/[M]66x[F|M|G]X/[M]74x[GX]/330/[M]76x[GX],
@@ -5,20 +6,6 @@
  * frame buffer driver for Linux kernels >= 2.4.14 and >=2.6.3
  *
  * Copyright (C) 2001-2005 Thomas Winischhofer, Vienna, Austria.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the named License,
- * or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Author:	Thomas Winischhofer <thomas@winischhofer.net>
  *
@@ -30,7 +17,6 @@
  *
  * Originally based on the VBE 2.0 compliant graphic boards framebuffer driver,
  * which is (c) 1998 Gerd Knorr <kraxel@goldbach.in-berlin.de>
- *
  */
 
 #include <linux/module.h>

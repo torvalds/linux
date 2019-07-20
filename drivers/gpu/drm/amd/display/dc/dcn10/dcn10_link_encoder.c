@@ -1304,7 +1304,6 @@ void dcn10_link_encoder_connect_dig_be_to_fe(
 #define HPD_REG_UPDATE_N(reg_name, n, ...)	\
 		generic_reg_update_ex(CTX, \
 				HPD_REG(reg_name), \
-				HPD_REG_READ(reg_name), \
 				n, __VA_ARGS__)
 
 #define HPD_REG_UPDATE(reg_name, field, val)	\
@@ -1337,7 +1336,6 @@ void dcn10_link_encoder_disable_hpd(struct link_encoder *enc)
 #define AUX_REG_UPDATE_N(reg_name, n, ...)	\
 		generic_reg_update_ex(CTX, \
 				AUX_REG(reg_name), \
-				AUX_REG_READ(reg_name), \
 				n, __VA_ARGS__)
 
 #define AUX_REG_UPDATE(reg_name, field, val)	\

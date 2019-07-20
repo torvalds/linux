@@ -109,18 +109,6 @@
 		function = "gpio_out";
 		drive-strength = <20>;
 	};
-
-	usb0_id_detect_pin: usb0-id-detect-pin {
-		pins = "PG2";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	usb0_vbus_detect_pin: usb0-vbus-detect-pin {
-		pins = "PG1";
-		function = "gpio_in";
-		bias-pull-down;
-	};
 };
 
 &reg_usb0_vbus {
@@ -145,10 +133,8 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>, <&usb0_vbus_detect_pin>;
-	usb0_id_det-gpio = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
-	usb0_vbus_det-gpio = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
+	usb0_id_det-gpios = <&pio 6 2 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PG2 */
+	usb0_vbus_det-gpios = <&pio 6 1 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>; /* PG1 */
 	usb0_vbus-supply = <&reg_usb0_vbus>;
 	usb1_vbus-supply = <&reg_usb1_vbus>;
 	status = "okay";

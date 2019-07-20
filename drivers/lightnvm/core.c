@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 IT University of Copenhagen. All rights reserved.
  * Initial release: Matias Bjorling <m@bjorling.me>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
- * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139,
- * USA.
- *
  */
 
 #include <linux/list.h>
@@ -44,6 +30,8 @@ struct nvm_dev_map {
 	struct nvm_ch_map *chnls;
 	int num_ch;
 };
+
+static void nvm_free(struct kref *ref);
 
 static struct nvm_target *nvm_find_target(struct nvm_dev *dev, const char *name)
 {
@@ -325,6 +313,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	struct nvm_target *t;
 	struct nvm_tgt_dev *tgt_dev;
 	void *targetdata;
+	unsigned int mdts;
 	int ret;
 
 	switch (create->conf.type) {
@@ -412,8 +401,12 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	tdisk->private_data = targetdata;
 	tqueue->queuedata = targetdata;
 
-	blk_queue_max_hw_sectors(tqueue,
-			(dev->geo.csecs >> 9) * NVM_MAX_VLBA);
+	mdts = (dev->geo.csecs >> 9) * NVM_MAX_VLBA;
+	if (dev->geo.mdts) {
+		mdts = min_t(u32, dev->geo.mdts,
+				(dev->geo.csecs >> 9) * NVM_MAX_VLBA);
+	}
+	blk_queue_max_hw_sectors(tqueue, mdts);
 
 	set_capacity(tdisk, tt->capacity(targetdata));
 	add_disk(tdisk);
@@ -476,7 +469,6 @@ static void __nvm_remove_target(struct nvm_target *t, bool graceful)
 
 /**
  * nvm_remove_tgt - Removes a target from the media manager
- * @dev:	device
  * @remove:	ioctl structure with target name to remove.
  *
  * Returns:
@@ -484,18 +476,28 @@ static void __nvm_remove_target(struct nvm_target *t, bool graceful)
  * 1: on not found
  * <0: on error
  */
-static int nvm_remove_tgt(struct nvm_dev *dev, struct nvm_ioctl_remove *remove)
+static int nvm_remove_tgt(struct nvm_ioctl_remove *remove)
 {
 	struct nvm_target *t;
+	struct nvm_dev *dev;
 
-	mutex_lock(&dev->mlock);
-	t = nvm_find_target(dev, remove->tgtname);
-	if (!t) {
+	down_read(&nvm_lock);
+	list_for_each_entry(dev, &nvm_devices, devices) {
+		mutex_lock(&dev->mlock);
+		t = nvm_find_target(dev, remove->tgtname);
+		if (t) {
+			mutex_unlock(&dev->mlock);
+			break;
+		}
 		mutex_unlock(&dev->mlock);
-		return 1;
 	}
+	up_read(&nvm_lock);
+
+	if (!t)
+		return 1;
+
 	__nvm_remove_target(t, true);
-	mutex_unlock(&dev->mlock);
+	kref_put(&dev->ref, nvm_free);
 
 	return 0;
 }
@@ -1089,15 +1091,16 @@ err_fmtype:
 	return ret;
 }
 
-static void nvm_free(struct nvm_dev *dev)
+static void nvm_free(struct kref *ref)
 {
-	if (!dev)
-		return;
+	struct nvm_dev *dev = container_of(ref, struct nvm_dev, ref);
 
 	if (dev->dma_pool)
 		dev->ops->destroy_dma_pool(dev->dma_pool);
 
-	nvm_unregister_map(dev);
+	if (dev->rmap)
+		nvm_unregister_map(dev);
+
 	kfree(dev->lun_map);
 	kfree(dev);
 }
@@ -1134,7 +1137,13 @@ err:
 
 struct nvm_dev *nvm_alloc_dev(int node)
 {
-	return kzalloc_node(sizeof(struct nvm_dev), GFP_KERNEL, node);
+	struct nvm_dev *dev;
+
+	dev = kzalloc_node(sizeof(struct nvm_dev), GFP_KERNEL, node);
+	if (dev)
+		kref_init(&dev->ref);
+
+	return dev;
 }
 EXPORT_SYMBOL(nvm_alloc_dev);
 
@@ -1142,12 +1151,16 @@ int nvm_register(struct nvm_dev *dev)
 {
 	int ret, exp_pool_size;
 
-	if (!dev->q || !dev->ops)
+	if (!dev->q || !dev->ops) {
+		kref_put(&dev->ref, nvm_free);
 		return -EINVAL;
+	}
 
 	ret = nvm_init(dev);
-	if (ret)
+	if (ret) {
+		kref_put(&dev->ref, nvm_free);
 		return ret;
+	}
 
 	exp_pool_size = max_t(int, PAGE_SIZE,
 			      (NVM_MAX_VLBA * (sizeof(u64) + dev->geo.sos)));
@@ -1157,7 +1170,7 @@ int nvm_register(struct nvm_dev *dev)
 						  exp_pool_size);
 	if (!dev->dma_pool) {
 		pr_err("nvm: could not create dma pool\n");
-		nvm_free(dev);
+		kref_put(&dev->ref, nvm_free);
 		return -ENOMEM;
 	}
 
@@ -1179,6 +1192,7 @@ void nvm_unregister(struct nvm_dev *dev)
 		if (t->dev->parent != dev)
 			continue;
 		__nvm_remove_target(t, false);
+		kref_put(&dev->ref, nvm_free);
 	}
 	mutex_unlock(&dev->mlock);
 
@@ -1186,13 +1200,14 @@ void nvm_unregister(struct nvm_dev *dev)
 	list_del(&dev->devices);
 	up_write(&nvm_lock);
 
-	nvm_free(dev);
+	kref_put(&dev->ref, nvm_free);
 }
 EXPORT_SYMBOL(nvm_unregister);
 
 static int __nvm_configure_create(struct nvm_ioctl_create *create)
 {
 	struct nvm_dev *dev;
+	int ret;
 
 	down_write(&nvm_lock);
 	dev = nvm_find_nvm_dev(create->dev);
@@ -1203,7 +1218,12 @@ static int __nvm_configure_create(struct nvm_ioctl_create *create)
 		return -EINVAL;
 	}
 
-	return nvm_create_tgt(dev, create);
+	kref_get(&dev->ref);
+	ret = nvm_create_tgt(dev, create);
+	if (ret)
+		kref_put(&dev->ref, nvm_free);
+
+	return ret;
 }
 
 static long nvm_ioctl_info(struct file *file, void __user *arg)
@@ -1322,8 +1342,6 @@ static long nvm_ioctl_dev_create(struct file *file, void __user *arg)
 static long nvm_ioctl_dev_remove(struct file *file, void __user *arg)
 {
 	struct nvm_ioctl_remove remove;
-	struct nvm_dev *dev;
-	int ret = 0;
 
 	if (copy_from_user(&remove, arg, sizeof(struct nvm_ioctl_remove)))
 		return -EFAULT;
@@ -1335,13 +1353,7 @@ static long nvm_ioctl_dev_remove(struct file *file, void __user *arg)
 		return -EINVAL;
 	}
 
-	list_for_each_entry(dev, &nvm_devices, devices) {
-		ret = nvm_remove_tgt(dev, &remove);
-		if (!ret)
-			break;
-	}
-
-	return ret;
+	return nvm_remove_tgt(&remove);
 }
 
 /* kept for compatibility reasons */

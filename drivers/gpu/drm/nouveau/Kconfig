@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_NOUVEAU
 	tristate "Nouveau (NVIDIA) cards"
 	depends on DRM && PCI && MMU
@@ -5,21 +6,30 @@ config DRM_NOUVEAU
 	select DRM_KMS_HELPER
 	select DRM_TTM
 	select BACKLIGHT_CLASS_DEVICE if DRM_NOUVEAU_BACKLIGHT
-	select BACKLIGHT_LCD_SUPPORT if DRM_NOUVEAU_BACKLIGHT
 	select ACPI_VIDEO if ACPI && X86 && BACKLIGHT_CLASS_DEVICE && INPUT
 	select X86_PLATFORM_DEVICES if ACPI && X86
 	select ACPI_WMI if ACPI && X86
 	select MXM_WMI if ACPI && X86
 	select POWER_SUPPLY
 	# Similar to i915, we need to select ACPI_VIDEO and it's dependencies
-	select BACKLIGHT_LCD_SUPPORT if ACPI && X86
 	select BACKLIGHT_CLASS_DEVICE if ACPI && X86
 	select INPUT if ACPI && X86
 	select THERMAL if ACPI && X86
 	select ACPI_VIDEO if ACPI && X86
-	select DRM_VM
 	help
 	  Choose this option for open-source NVIDIA support.
+
+config NOUVEAU_LEGACY_CTX_SUPPORT
+	bool "Nouveau legacy context support"
+	depends on DRM_NOUVEAU
+	select DRM_LEGACY
+	default y
+	help
+	  There was a version of the nouveau DDX that relied on legacy
+	  ctx ioctls not erroring out. But that was back in time a long
+	  ways, so offer a way to disable it now. For uapi compat with
+	  old nouveau ddx this should be on by default, but modern distros
+	  should consider turning it off.
 
 config NOUVEAU_PLATFORM_DRIVER
 	bool "Nouveau (NVIDIA) SoC GPUs"

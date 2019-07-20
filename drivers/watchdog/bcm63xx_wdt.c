@@ -116,7 +116,7 @@ static int bcm63xx_wdt_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 
 	bcm63xx_wdt_start();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int bcm63xx_wdt_release(struct inode *inode, struct file *file)

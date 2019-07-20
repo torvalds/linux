@@ -1744,7 +1744,7 @@ static int ucma_open(struct inode *inode, struct file *filp)
 	filp->private_data = file;
 	file->filp = filp;
 
-	return nonseekable_open(inode, filp);
+	return stream_open(inode, filp);
 }
 
 static int ucma_close(struct inode *inode, struct file *filp)

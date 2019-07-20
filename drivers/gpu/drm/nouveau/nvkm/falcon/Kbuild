@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 nvkm-y += nvkm/falcon/base.o
 nvkm-y += nvkm/falcon/v1.o
 nvkm-y += nvkm/falcon/msgqueue.o

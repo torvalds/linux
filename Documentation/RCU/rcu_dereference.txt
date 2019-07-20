@@ -351,3 +351,106 @@ garbage values.
 
 In short, rcu_dereference() is -not- optional when you are going to
 dereference the resulting pointer.
+
+
+WHICH MEMBER OF THE rcu_dereference() FAMILY SHOULD YOU USE?
+
+First, please avoid using rcu_dereference_raw() and also please avoid
+using rcu_dereference_check() and rcu_dereference_protected() with a
+second argument with a constant value of 1 (or true, for that matter).
+With that caution out of the way, here is some guidance for which
+member of the rcu_dereference() to use in various situations:
+
+1.	If the access needs to be within an RCU read-side critical
+	section, use rcu_dereference().  With the new consolidated
+	RCU flavors, an RCU read-side critical section is entered
+	using rcu_read_lock(), anything that disables bottom halves,
+	anything that disables interrupts, or anything that disables
+	preemption.
+
+2.	If the access might be within an RCU read-side critical section
+	on the one hand, or protected by (say) my_lock on the other,
+	use rcu_dereference_check(), for example:
+
+		p1 = rcu_dereference_check(p->rcu_protected_pointer,
+					   lockdep_is_held(&my_lock));
+
+
+3.	If the access might be within an RCU read-side critical section
+	on the one hand, or protected by either my_lock or your_lock on
+	the other, again use rcu_dereference_check(), for example:
+
+		p1 = rcu_dereference_check(p->rcu_protected_pointer,
+					   lockdep_is_held(&my_lock) ||
+					   lockdep_is_held(&your_lock));
+
+4.	If the access is on the update side, so that it is always protected
+	by my_lock, use rcu_dereference_protected():
+
+		p1 = rcu_dereference_protected(p->rcu_protected_pointer,
+					       lockdep_is_held(&my_lock));
+
+	This can be extended to handle multiple locks as in #3 above,
+	and both can be extended to check other conditions as well.
+
+5.	If the protection is supplied by the caller, and is thus unknown
+	to this code, that is the rare case when rcu_dereference_raw()
+	is appropriate.  In addition, rcu_dereference_raw() might be
+	appropriate when the lockdep expression would be excessively
+	complex, except that a better approach in that case might be to
+	take a long hard look at your synchronization design.  Still,
+	there are data-locking cases where any one of a very large number
+	of locks or reference counters suffices to protect the pointer,
+	so rcu_dereference_raw() does have its place.
+
+	However, its place is probably quite a bit smaller than one
+	might expect given the number of uses in the current kernel.
+	Ditto for its synonym, rcu_dereference_check( ... , 1), and
+	its close relative, rcu_dereference_protected(... , 1).
+
+
+SPARSE CHECKING OF RCU-PROTECTED POINTERS
+
+The sparse static-analysis tool checks for direct access to RCU-protected
+pointers, which can result in "interesting" bugs due to compiler
+optimizations involving invented loads and perhaps also load tearing.
+For example, suppose someone mistakenly does something like this:
+
+	p = q->rcu_protected_pointer;
+	do_something_with(p->a);
+	do_something_else_with(p->b);
+
+If register pressure is high, the compiler might optimize "p" out
+of existence, transforming the code to something like this:
+
+	do_something_with(q->rcu_protected_pointer->a);
+	do_something_else_with(q->rcu_protected_pointer->b);
+
+This could fatally disappoint your code if q->rcu_protected_pointer
+changed in the meantime.  Nor is this a theoretical problem:  Exactly
+this sort of bug cost Paul E. McKenney (and several of his innocent
+colleagues) a three-day weekend back in the early 1990s.
+
+Load tearing could of course result in dereferencing a mashup of a pair
+of pointers, which also might fatally disappoint your code.
+
+These problems could have been avoided simply by making the code instead
+read as follows:
+
+	p = rcu_dereference(q->rcu_protected_pointer);
+	do_something_with(p->a);
+	do_something_else_with(p->b);
+
+Unfortunately, these sorts of bugs can be extremely hard to spot during
+review.  This is where the sparse tool comes into play, along with the
+"__rcu" marker.  If you mark a pointer declaration, whether in a structure
+or as a formal parameter, with "__rcu", which tells sparse to complain if
+this pointer is accessed directly.  It will also cause sparse to complain
+if a pointer not marked with "__rcu" is accessed using rcu_dereference()
+and friends.  For example, ->rcu_protected_pointer might be declared as
+follows:
+
+	struct foo __rcu *rcu_protected_pointer;
+
+Use of "__rcu" is opt-in.  If you choose not to use it, then you should
+ignore the sparse warnings.

@@ -82,8 +82,9 @@ int ide_cdrom_drive_status(struct cdrom_device_info *cdi, int slot_nr)
 
 /*
  * ide-cd always generates media changed event if media is missing, which
- * makes it impossible to use for proper event reporting, so disk->events
- * is cleared to 0 and the following function is used only to trigger
+ * makes it impossible to use for proper event reporting, so
+ * DISK_EVENT_FLAG_UEVENT is cleared in disk->event_flags
+ * and the following function is used only to trigger
  * revalidation and never propagated to userland.
  */
 unsigned int ide_cdrom_check_events_real(struct cdrom_device_info *cdi,

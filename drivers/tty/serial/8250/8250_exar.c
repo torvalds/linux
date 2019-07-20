@@ -361,12 +361,15 @@ static const struct exar8250_platform iot2040_platform = {
 	.register_gpio = iot2040_register_gpio,
 };
 
+/*
+ * For SIMATIC IOT2000, only IOT2040 and its variants have the Exar device,
+ * IOT2020 doesn't have. Therefore it is sufficient to match on the common
+ * board name after the device was found.
+ */
 static const struct dmi_system_id exar_platforms[] = {
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "SIMATIC IOT2000"),
-			DMI_EXACT_MATCH(DMI_BOARD_ASSET_TAG,
-					"6ES7647-0AA00-1YA2"),
 		},
 		.driver_data = (void *)&iot2040_platform,
 	},

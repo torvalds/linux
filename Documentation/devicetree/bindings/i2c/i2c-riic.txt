@@ -1,7 +1,10 @@
 Device tree configuration for Renesas RIIC driver
 
 Required properties:
-- compatible      : "renesas,riic-<soctype>". "renesas,riic-rz" as fallback
+- compatible      :
+	"renesas,riic-r7s72100" if the device is a part of a R7S72100 SoC.
+	"renesas,riic-r7s9210" if the device is a part of a R7S9210 SoC.
+	"renesas,riic-rz" for a generic RZ/A compatible device.
 - reg             : address start and address range size of device
 - interrupts      : 8 interrupts (TEI, RI, TI, SPI, STI, NAKI, ALI, TMOI)
 - clock-frequency : frequency of bus clock in Hz

@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Promise PATA TX2/TX4/TX2000/133 IDE driver for pdc20268 to pdc20277.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  *  Ported to libata by:
  *  Albert Lee <albertcc@tw.ibm.com> IBM Corporation
@@ -15,12 +11,10 @@
  *  Author: Frank Tiernan (frankt@promise.com)
  *  Released under terms of General Public License
  *
- *
  *  libata documentation is available via 'make {ps|pdf}docs',
  *  as Documentation/driver-api/libata.rst
  *
  *  Hardware information only available under NDA.
- *
  */
 #include <linux/kernel.h>
 #include <linux/module.h>

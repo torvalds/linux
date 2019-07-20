@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
  * Copyright (c) 2016,2017 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
  */
 #include <linux/bpf.h>
 #include <linux/btf.h>
@@ -22,7 +14,7 @@
 #include "map_in_map.h"
 
 #define ARRAY_CREATE_FLAG_MASK \
-	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY)
+	(BPF_F_NUMA_NODE | BPF_F_ACCESS_MASK)
 
 static void bpf_array_free_percpu(struct bpf_array *array)
 {
@@ -63,6 +55,7 @@ int array_map_alloc_check(union bpf_attr *attr)
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
 	    attr->value_size == 0 ||
 	    attr->map_flags & ~ARRAY_CREATE_FLAG_MASK ||
+	    !bpf_map_flags_access_ok(attr->map_flags) ||
 	    (percpu && numa_node != NUMA_NO_NODE))
 		return -EINVAL;
 
@@ -158,6 +151,36 @@ static void *array_map_lookup_elem(struct bpf_map *map, void *key)
 		return NULL;
 
 	return array->value + array->elem_size * (index & array->index_mask);
+}
+
+static int array_map_direct_value_addr(const struct bpf_map *map, u64 *imm,
+				       u32 off)
+{
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+
+	if (map->max_entries != 1)
+		return -ENOTSUPP;
+	if (off >= map->value_size)
+		return -EINVAL;
+
+	*imm = (unsigned long)array->value;
+	return 0;
+}
+
+static int array_map_direct_value_meta(const struct bpf_map *map, u64 imm,
+				       u32 *off)
+{
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
+	u64 base = (unsigned long)array->value;
+	u64 range = array->elem_size;
+
+	if (map->max_entries != 1)
+		return -ENOTSUPP;
+	if (imm < base || imm >= base + range)
+		return -ENOENT;
+
+	*off = imm - base;
+	return 0;
 }
 
 /* emit BPF instructions equivalent to C code of array_map_lookup_elem() */
@@ -360,7 +383,8 @@ static void array_map_seq_show_elem(struct bpf_map *map, void *key,
 		return;
 	}
 
-	seq_printf(m, "%u: ", *(u32 *)key);
+	if (map->btf_key_type_id)
+		seq_printf(m, "%u: ", *(u32 *)key);
 	btf_type_seq_show(map->btf, map->btf_value_type_id, value, m);
 	seq_puts(m, "\n");
 
@@ -397,6 +421,18 @@ static int array_map_check_btf(const struct bpf_map *map,
 {
 	u32 int_data;
 
+	/* One exception for keyless BTF: .bss/.data/.rodata map */
+	if (btf_type_is_void(key_type)) {
+		if (map->map_type != BPF_MAP_TYPE_ARRAY ||
+		    map->max_entries != 1)
+			return -EINVAL;
+
+		if (BTF_INFO_KIND(value_type->info) != BTF_KIND_DATASEC)
+			return -EINVAL;
+
+		return 0;
+	}
+
 	if (BTF_INFO_KIND(key_type->info) != BTF_KIND_INT)
 		return -EINVAL;
 
@@ -419,6 +455,8 @@ const struct bpf_map_ops array_map_ops = {
 	.map_update_elem = array_map_update_elem,
 	.map_delete_elem = array_map_delete_elem,
 	.map_gen_lookup = array_map_gen_lookup,
+	.map_direct_value_addr = array_map_direct_value_addr,
+	.map_direct_value_meta = array_map_direct_value_meta,
 	.map_seq_show_elem = array_map_seq_show_elem,
 	.map_check_btf = array_map_check_btf,
 };
@@ -439,6 +477,9 @@ static int fd_array_map_alloc_check(union bpf_attr *attr)
 {
 	/* only file descriptors can be stored in this type of map */
 	if (attr->value_size != sizeof(u32))
+		return -EINVAL;
+	/* Program read-only/write-only not supported for special maps yet. */
+	if (attr->map_flags & (BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG))
 		return -EINVAL;
 	return array_map_alloc_check(attr);
 }

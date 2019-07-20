@@ -165,6 +165,7 @@ static int invoke_sdei_fn(unsigned long function_id, unsigned long arg0,
 
 	return err;
 }
+NOKPROBE_SYMBOL(invoke_sdei_fn);
 
 static struct sdei_event *sdei_event_find(u32 event_num)
 {
@@ -879,6 +880,7 @@ static void sdei_smccc_smc(unsigned long function_id,
 {
 	arm_smccc_smc(function_id, arg0, arg1, arg2, arg3, arg4, 0, 0, res);
 }
+NOKPROBE_SYMBOL(sdei_smccc_smc);
 
 static void sdei_smccc_hvc(unsigned long function_id,
 			   unsigned long arg0, unsigned long arg1,
@@ -887,6 +889,7 @@ static void sdei_smccc_hvc(unsigned long function_id,
 {
 	arm_smccc_hvc(function_id, arg0, arg1, arg2, arg3, arg4, 0, 0, res);
 }
+NOKPROBE_SYMBOL(sdei_smccc_hvc);
 
 int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
 		       sdei_event_callback *critical_cb)

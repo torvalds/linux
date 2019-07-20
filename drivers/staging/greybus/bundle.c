@@ -32,7 +32,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 {
 	struct gb_bundle *bundle = to_gb_bundle(dev);
 
-	if (bundle->state == NULL)
+	if (!bundle->state)
 		return sprintf(buf, "\n");
 
 	return sprintf(buf, "%s\n", bundle->state);

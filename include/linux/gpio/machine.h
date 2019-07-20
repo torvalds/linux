@@ -6,14 +6,16 @@
 #include <linux/list.h>
 
 enum gpio_lookup_flags {
-	GPIO_ACTIVE_HIGH = (0 << 0),
-	GPIO_ACTIVE_LOW = (1 << 0),
-	GPIO_OPEN_DRAIN = (1 << 1),
-	GPIO_OPEN_SOURCE = (1 << 2),
-	GPIO_PERSISTENT = (0 << 3),
-	GPIO_TRANSITORY = (1 << 3),
-	GPIO_PULL_UP = (1 << 4),
-	GPIO_PULL_DOWN = (1 << 5),
+	GPIO_ACTIVE_HIGH		= (0 << 0),
+	GPIO_ACTIVE_LOW			= (1 << 0),
+	GPIO_OPEN_DRAIN			= (1 << 1),
+	GPIO_OPEN_SOURCE		= (1 << 2),
+	GPIO_PERSISTENT			= (0 << 3),
+	GPIO_TRANSITORY			= (1 << 3),
+	GPIO_PULL_UP			= (1 << 4),
+	GPIO_PULL_DOWN			= (1 << 5),
+
+	GPIO_LOOKUP_FLAGS_DEFAULT	= GPIO_ACTIVE_HIGH | GPIO_PERSISTENT,
 };
 
 /**
@@ -22,7 +24,7 @@ enum gpio_lookup_flags {
  * @chip_hwnum: hardware number (i.e. relative to the chip) of the GPIO
  * @con_id: name of the GPIO from the device's point of view
  * @idx: index of the GPIO in case several GPIOs share the same name
- * @flags: mask of GPIO_* values
+ * @flags: bitmask of gpio_lookup_flags GPIO_* values
  *
  * gpiod_lookup is a lookup table for associating GPIOs to specific devices and
  * functions using platform data.
@@ -32,7 +34,7 @@ struct gpiod_lookup {
 	u16 chip_hwnum;
 	const char *con_id;
 	unsigned int idx;
-	enum gpio_lookup_flags flags;
+	unsigned long flags;
 };
 
 struct gpiod_lookup_table {
@@ -46,7 +48,7 @@ struct gpiod_lookup_table {
  * @chip_label: name of the chip the GPIO belongs to
  * @chip_hwnum: hardware number (i.e. relative to the chip) of the GPIO
  * @line_name: consumer name for the hogged line
- * @lflags: mask of GPIO lookup flags
+ * @lflags: bitmask of gpio_lookup_flags GPIO_* values
  * @dflags: GPIO flags used to specify the direction and value
  */
 struct gpiod_hog {
@@ -54,7 +56,7 @@ struct gpiod_hog {
 	const char *chip_label;
 	u16 chip_hwnum;
 	const char *line_name;
-	enum gpio_lookup_flags lflags;
+	unsigned long lflags;
 	int dflags;
 };
 

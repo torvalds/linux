@@ -92,21 +92,10 @@ static void wilco_ec_prepare(struct wilco_ec_message *msg,
 			     struct wilco_ec_request *rq)
 {
 	memset(rq, 0, sizeof(*rq));
-
-	/* Handle messages without trimming bytes from the request */
-	if (msg->request_size && msg->flags & WILCO_EC_FLAG_RAW_REQUEST) {
-		rq->reserved_raw = *(u8 *)msg->request_data;
-		msg->request_size--;
-		memmove(msg->request_data, msg->request_data + 1,
-			msg->request_size);
-	}
-
-	/* Fill in request packet */
 	rq->struct_version = EC_MAILBOX_PROTO_VERSION;
 	rq->mailbox_id = msg->type;
 	rq->mailbox_version = EC_MAILBOX_VERSION;
-	rq->data_size = msg->request_size + EC_MAILBOX_DATA_EXTRA;
-	rq->command = msg->command;
+	rq->data_size = msg->request_size;
 
 	/* Checksum header and data */
 	rq->checksum = wilco_ec_checksum(rq, sizeof(*rq));
@@ -159,6 +148,12 @@ static int wilco_ec_transfer(struct wilco_ec_device *ec,
 		return -EIO;
 	}
 
+	/*
+	 * The EC always returns either EC_MAILBOX_DATA_SIZE or
+	 * EC_MAILBOX_DATA_SIZE_EXTENDED bytes of data, so we need to
+	 * calculate the checksum on **all** of this data, even if we
+	 * won't use all of it.
+	 */
 	if (msg->flags & WILCO_EC_FLAG_EXTENDED_DATA)
 		size = EC_MAILBOX_DATA_SIZE_EXTENDED;
 	else
@@ -173,33 +168,26 @@ static int wilco_ec_transfer(struct wilco_ec_device *ec,
 		return -EBADMSG;
 	}
 
-	/* Check that the EC reported success */
-	msg->result = rs->result;
-	if (msg->result) {
-		dev_dbg(ec->dev, "bad response: 0x%02x\n", msg->result);
+	if (rs->result) {
+		dev_dbg(ec->dev, "EC reported failure: 0x%02x\n", rs->result);
 		return -EBADMSG;
 	}
 
-	/* Check the returned data size, skipping the header */
 	if (rs->data_size != size) {
 		dev_dbg(ec->dev, "unexpected packet size (%u != %zu)",
 			rs->data_size, size);
 		return -EMSGSIZE;
 	}
 
-	/* Skip 1 response data byte unless specified */
-	size = (msg->flags & WILCO_EC_FLAG_RAW_RESPONSE) ? 0 : 1;
-	if ((ssize_t) rs->data_size - size < msg->response_size) {
-		dev_dbg(ec->dev, "response data too short (%zd < %zu)",
-			(ssize_t) rs->data_size - size, msg->response_size);
+	if (rs->data_size < msg->response_size) {
+		dev_dbg(ec->dev, "EC didn't return enough data (%u < %zu)",
+			rs->data_size, msg->response_size);
 		return -EMSGSIZE;
 	}
 
-	/* Ignore response data bytes as requested */
-	memcpy(msg->response_data, rs->data + size, msg->response_size);
+	memcpy(msg->response_data, rs->data, msg->response_size);
 
-	/* Return actual amount of data received */
-	return msg->response_size;
+	return rs->data_size;
 }
 
 /**
@@ -207,10 +195,12 @@ static int wilco_ec_transfer(struct wilco_ec_device *ec,
  * @ec: EC device.
  * @msg: EC message data for request and response.
  *
- * On entry msg->type, msg->flags, msg->command, msg->request_size,
- * msg->response_size, and msg->request_data should all be filled in.
+ * On entry msg->type, msg->request_size, and msg->request_data should all be
+ * filled in. If desired, msg->flags can be set.
  *
- * On exit msg->result and msg->response_data will be filled.
+ * If a response is expected, msg->response_size should be set, and
+ * msg->response_data should point to a buffer with enough space. On exit
+ * msg->response_data will be filled.
  *
  * Return: number of bytes received or negative error code on failure.
  */
@@ -219,9 +209,8 @@ int wilco_ec_mailbox(struct wilco_ec_device *ec, struct wilco_ec_message *msg)
 	struct wilco_ec_request *rq;
 	int ret;
 
-	dev_dbg(ec->dev, "cmd=%02x type=%04x flags=%02x rslen=%zu rqlen=%zu\n",
-		msg->command, msg->type, msg->flags, msg->response_size,
-		msg->request_size);
+	dev_dbg(ec->dev, "type=%04x flags=%02x rslen=%zu rqlen=%zu\n",
+		msg->type, msg->flags, msg->response_size, msg->request_size);
 
 	mutex_lock(&ec->mailbox_lock);
 	/* Prepare request packet */

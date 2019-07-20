@@ -11,8 +11,6 @@
 #ifndef _XTENSA_PCI_H
 #define _XTENSA_PCI_H
 
-#ifdef __KERNEL__
-
 /* Can be used to override the logic in pci_scan_bus for skipping
  * already-configured bus numbers - to be used for buggy BIOSes
  * or architectures with incomplete PCI setup by the loader
@@ -44,8 +42,6 @@
 #define HAVE_PCI_MMAP			1
 #define ARCH_GENERIC_PCI_MMAP_RESOURCE	1
 #define arch_can_pci_mmap_io()		1
-
-#endif /* __KERNEL__ */
 
 /* Generic PCI */
 #include <asm-generic/pci.h>

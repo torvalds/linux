@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Watchdog timer for machines with the CS5535/CS5536 companion chip
  *
  * Copyright (C) 2006-2007, Advanced Micro Devices, Inc.
  * Copyright (C) 2009  Andres Salomon <dilinger@collabora.co.uk>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -92,7 +88,7 @@ static int geodewdt_open(struct inode *inode, struct file *file)
 		__module_get(THIS_MODULE);
 
 	geodewdt_ping();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int geodewdt_release(struct inode *inode, struct file *file)

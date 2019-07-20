@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  *
  *  Copyright (C) 2010 John Crispin <john@phrozen.org>
  *  Copyright (C) 2017 Hauke Mehrtens <hauke@hauke-m.de>
@@ -203,7 +201,6 @@ static int ltq_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ltq_wdt_priv *priv;
 	struct watchdog_device *wdt;
-	struct resource *res;
 	struct clk *clk;
 	const struct ltq_wdt_hw *ltq_wdt_hw;
 	int ret;
@@ -213,8 +210,7 @@ static int ltq_wdt_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->membase = devm_ioremap_resource(dev, res);
+	priv->membase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->membase))
 		return PTR_ERR(priv->membase);
 

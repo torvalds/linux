@@ -286,7 +286,7 @@ struct diag_pkt {
 #define RHF_TID_ERR		(0x1ull << 59)
 #define RHF_LEN_ERR		(0x1ull << 60)
 #define RHF_ECC_ERR		(0x1ull << 61)
-#define RHF_VCRC_ERR		(0x1ull << 62)
+#define RHF_RESERVED		(0x1ull << 62)
 #define RHF_ICRC_ERR		(0x1ull << 63)
 
 #define RHF_ERROR_SMASK 0xffe0000000000000ull		/* bits 63:53 */

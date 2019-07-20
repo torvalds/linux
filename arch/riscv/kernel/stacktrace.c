@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2008 ARM Limited
  * Copyright (C) 2014 Regents of the University of California
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/export.h>
@@ -33,9 +25,9 @@ static void notrace walk_stackframe(struct task_struct *task,
 	unsigned long fp, sp, pc;
 
 	if (regs) {
-		fp = GET_FP(regs);
-		sp = GET_USP(regs);
-		pc = GET_IP(regs);
+		fp = frame_pointer(regs);
+		sp = user_stack_pointer(regs);
+		pc = instruction_pointer(regs);
 	} else if (task == NULL || task == current) {
 		const register unsigned long current_sp __asm__ ("sp");
 		fp = (unsigned long)__builtin_frame_address(0);
@@ -64,12 +56,8 @@ static void notrace walk_stackframe(struct task_struct *task,
 		frame = (struct stackframe *)fp - 1;
 		sp = fp;
 		fp = frame->fp;
-#ifdef HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 		pc = ftrace_graph_ret_addr(current, NULL, frame->ra,
 					   (unsigned long *)(fp - 8));
-#else
-		pc = frame->ra - 0x4;
-#endif
 	}
 }
 
@@ -82,8 +70,8 @@ static void notrace walk_stackframe(struct task_struct *task,
 	unsigned long *ksp;
 
 	if (regs) {
-		sp = GET_USP(regs);
-		pc = GET_IP(regs);
+		sp = user_stack_pointer(regs);
+		pc = instruction_pointer(regs);
 	} else if (task == NULL || task == current) {
 		const register unsigned long current_sp __asm__ ("sp");
 		sp = current_sp;
@@ -169,8 +157,6 @@ static bool save_trace(unsigned long pc, void *arg)
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
 	walk_stackframe(tsk, NULL, save_trace, trace);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
 

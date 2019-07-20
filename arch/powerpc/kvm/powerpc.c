@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2007
  *
@@ -570,6 +559,16 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_PPC_GET_CPU_CHAR:
 		r = 1;
 		break;
+#ifdef CONFIG_KVM_XIVE
+	case KVM_CAP_PPC_IRQ_XIVE:
+		/*
+		 * We need XIVE to be enabled on the platform (implies
+		 * a POWER9 processor) and the PowerNV platform, as
+		 * nested is not yet supported.
+		 */
+		r = xive_enabled() && !!cpu_has_feature(CPU_FTR_HVMODE);
+		break;
+#endif
 
 	case KVM_CAP_PPC_ALLOC_HTAB:
 		r = hv_enabled;
@@ -644,11 +643,11 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		else
 			r = num_online_cpus();
 		break;
-	case KVM_CAP_NR_MEMSLOTS:
-		r = KVM_USER_MEM_SLOTS;
-		break;
 	case KVM_CAP_MAX_VCPUS:
 		r = KVM_MAX_VCPUS;
+		break;
+	case KVM_CAP_MAX_VCPU_ID:
+		r = KVM_MAX_VCPU_ID;
 		break;
 #ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_CAP_PPC_GET_SMMU_INFO:
@@ -752,6 +751,9 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 			kvmppc_xive_cleanup_vcpu(vcpu);
 		else
 			kvmppc_xics_free_icp(vcpu);
+		break;
+	case KVMPPC_IRQ_XIVE:
+		kvmppc_xive_native_cleanup_vcpu(vcpu);
 		break;
 	}
 
@@ -1941,6 +1943,30 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		break;
 	}
 #endif /* CONFIG_KVM_XICS */
+#ifdef CONFIG_KVM_XIVE
+	case KVM_CAP_PPC_IRQ_XIVE: {
+		struct fd f;
+		struct kvm_device *dev;
+
+		r = -EBADF;
+		f = fdget(cap->args[0]);
+		if (!f.file)
+			break;
+
+		r = -ENXIO;
+		if (!xive_enabled())
+			break;
+
+		r = -EPERM;
+		dev = kvm_device_from_filp(f.file);
+		if (dev)
+			r = kvmppc_xive_native_connect_vcpu(dev, vcpu,
+							    cap->args[1]);
+
+		fdput(f);
+		break;
+	}
+#endif /* CONFIG_KVM_XIVE */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	case KVM_CAP_PPC_FWNMI:
 		r = -EINVAL;

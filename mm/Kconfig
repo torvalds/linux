@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 menu "Memory Management options"
 
@@ -11,23 +12,24 @@ choice
 	default DISCONTIGMEM_MANUAL if ARCH_DISCONTIGMEM_DEFAULT
 	default SPARSEMEM_MANUAL if ARCH_SPARSEMEM_DEFAULT
 	default FLATMEM_MANUAL
+	help
+	  This option allows you to change some of the ways that
+	  Linux manages its memory internally. Most users will
+	  only have one option here selected by the architecture
+	  configuration. This is normal.
 
 config FLATMEM_MANUAL
 	bool "Flat Memory"
 	depends on !(ARCH_DISCONTIGMEM_ENABLE || ARCH_SPARSEMEM_ENABLE) || ARCH_FLATMEM_ENABLE
 	help
-	  This option allows you to change some of the ways that
-	  Linux manages its memory internally.  Most users will
-	  only have one option here: FLATMEM.  This is normal
-	  and a correct option.
+	  This option is best suited for non-NUMA systems with
+	  flat address space. The FLATMEM is the most efficient
+	  system in terms of performance and resource consumption
+	  and it is the best option for smaller systems.
 
-	  Some users of more advanced features like NUMA and
-	  memory hotplug may have different options here.
-	  DISCONTIGMEM is a more mature, better tested system,
-	  but is incompatible with memory hotplug and may suffer
-	  decreased performance over SPARSEMEM.  If unsure between
-	  "Sparse Memory" and "Discontiguous Memory", choose
-	  "Discontiguous Memory".
+	  For systems that have holes in their physical address
+	  spaces and for features like NUMA and memory hotplug,
+	  choose "Sparse Memory"
 
 	  If unsure, choose this option (Flat Memory) over any other.
 
@@ -38,29 +40,26 @@ config DISCONTIGMEM_MANUAL
 	  This option provides enhanced support for discontiguous
 	  memory systems, over FLATMEM.  These systems have holes
 	  in their physical address spaces, and this option provides
-	  more efficient handling of these holes.  However, the vast
-	  majority of hardware has quite flat address spaces, and
-	  can have degraded performance from the extra overhead that
-	  this option imposes.
+	  more efficient handling of these holes.
 
-	  Many NUMA configurations will have this as the only option.
+	  Although "Discontiguous Memory" is still used by several
+	  architectures, it is considered deprecated in favor of
+	  "Sparse Memory".
 
-	  If unsure, choose "Flat Memory" over this option.
+	  If unsure, choose "Sparse Memory" over this option.
 
 config SPARSEMEM_MANUAL
 	bool "Sparse Memory"
 	depends on ARCH_SPARSEMEM_ENABLE
 	help
 	  This will be the only option for some systems, including
-	  memory hotplug systems.  This is normal.
+	  memory hot-plug systems.  This is normal.
 
-	  For many other systems, this will be an alternative to
-	  "Discontiguous Memory".  This option provides some potential
-	  performance benefits, along with decreased code complexity,
-	  but it is newer, and more experimental.
+	  This option provides efficient support for systems with
+	  holes is their physical address space and allows memory
+	  hot-plug and hot-remove.
 
-	  If unsure, choose "Discontiguous Memory" or "Flat Memory"
-	  over this option.
+	  If unsure, choose "Flat Memory" over this option.
 
 endchoice
 
@@ -136,7 +135,7 @@ config HAVE_MEMBLOCK_PHYS_MAP
 config HAVE_GENERIC_GUP
 	bool
 
-config ARCH_DISCARD_MEMBLOCK
+config ARCH_KEEP_MEMBLOCK
 	bool
 
 config MEMORY_ISOLATION
@@ -161,7 +160,6 @@ config MEMORY_HOTPLUG_SPARSE
 
 config MEMORY_HOTPLUG_DEFAULT_ONLINE
         bool "Online the newly added memory blocks by default"
-        default n
         depends on MEMORY_HOTPLUG
         help
 	  This option sets the default policy setting for memory hotplug
@@ -257,6 +255,9 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
 
 config ARCH_ENABLE_THP_MIGRATION
 	bool
+
+config CONTIG_ALLOC
+       def_bool (MEMORY_ISOLATION && COMPACTION) || CMA
 
 config PHYS_ADDR_T_64BIT
 	def_bool 64BIT
@@ -436,7 +437,6 @@ config NEED_PER_CPU_KM
 
 config CLEANCACHE
 	bool "Enable cleancache driver to cache clean pages if tmem is present"
-	default n
 	help
 	  Cleancache can be thought of as a page-granularity victim cache
 	  for clean pages that the kernel's pageframe replacement algorithm
@@ -460,7 +460,6 @@ config CLEANCACHE
 config FRONTSWAP
 	bool "Enable frontswap to cache swap pages if tmem is present"
 	depends on SWAP
-	default n
 	help
 	  Frontswap is so named because it can be thought of as the opposite
 	  of a "backing" store for a swap device.  The data is stored into
@@ -532,7 +531,6 @@ config ZSWAP
 	depends on FRONTSWAP && CRYPTO=y
 	select CRYPTO_LZO
 	select ZPOOL
-	default n
 	help
 	  A lightweight compressed cache for swap pages.  It takes
 	  pages that are in the process of being swapped out and attempts to
@@ -549,14 +547,12 @@ config ZSWAP
 
 config ZPOOL
 	tristate "Common API for compressed memory storage"
-	default n
 	help
 	  Compressed memory storage API.  This allows using either zbud or
 	  zsmalloc.
 
 config ZBUD
 	tristate "Low (Up to 2x) density storage for compressed pages"
-	default n
 	help
 	  A special purpose allocator for storing compressed pages.
 	  It is designed to store up to two compressed pages per physical
@@ -567,7 +563,6 @@ config ZBUD
 config Z3FOLD
 	tristate "Up to 3x density storage for compressed pages"
 	depends on ZPOOL
-	default n
 	help
 	  A special purpose allocator for storing compressed pages.
 	  It is designed to store up to three compressed pages per physical
@@ -577,7 +572,6 @@ config Z3FOLD
 config ZSMALLOC
 	tristate "Memory allocator for compressed pages"
 	depends on MMU
-	default n
 	help
 	  zsmalloc is a slab-based memory allocator designed to store
 	  compressed RAM pages.  zsmalloc uses virtual memory mapping
@@ -628,7 +622,6 @@ config MAX_STACK_SIZE_MB
 
 config DEFERRED_STRUCT_PAGE_INIT
 	bool "Defer initialisation of struct pages to kthreads"
-	default n
 	depends on SPARSEMEM
 	depends on !NEED_PER_CPU_KM
 	depends on 64BIT
@@ -676,6 +669,22 @@ config ZONE_DEVICE
 
 	  If FS_DAX is enabled, then say Y.
 
+config ARCH_HAS_HMM_MIRROR
+	bool
+	default y
+	depends on (X86_64 || PPC64)
+	depends on MMU && 64BIT
+
+config ARCH_HAS_HMM_DEVICE
+	bool
+	default y
+	depends on (X86_64 || PPC64)
+	depends on MEMORY_HOTPLUG
+	depends on MEMORY_HOTREMOVE
+	depends on SPARSEMEM_VMEMMAP
+	depends on ARCH_HAS_ZONE_DEVICE
+	select XARRAY_MULTI
+
 config ARCH_HAS_HMM
 	bool
 	default y
@@ -694,12 +703,12 @@ config DEV_PAGEMAP_OPS
 
 config HMM
 	bool
+	select MMU_NOTIFIER
 	select MIGRATE_VMA_HELPER
 
 config HMM_MIRROR
 	bool "HMM mirror CPU page table into a device page table"
 	depends on ARCH_HAS_HMM
-	select MMU_NOTIFIER
 	select HMM
 	help
 	  Select HMM_MIRROR if you want to mirror range of the CPU page table of a
@@ -740,7 +749,6 @@ config ARCH_HAS_PKEYS
 
 config PERCPU_STATS
 	bool "Collect percpu memory statistics"
-	default n
 	help
 	  This feature collects and exposes statistics via debugfs. The
 	  information includes global and per chunk statistics, which can
@@ -748,7 +756,6 @@ config PERCPU_STATS
 
 config GUP_BENCHMARK
 	bool "Enable infrastructure for get_user_pages_fast() benchmarking"
-	default n
 	help
 	  Provides /sys/kernel/debug/gup_benchmark that helps with testing
 	  performance of get_user_pages_fast().

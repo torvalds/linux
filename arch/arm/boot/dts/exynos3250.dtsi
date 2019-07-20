@@ -97,42 +97,46 @@
 		};
 	};
 
+	fixed-rate-clocks {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		xusbxti: clock@0 {
+			compatible = "fixed-clock";
+			reg = <0>;
+			clock-frequency = <0>;
+			#clock-cells = <0>;
+			clock-output-names = "xusbxti";
+		};
+
+		xxti: clock@1 {
+			compatible = "fixed-clock";
+			reg = <1>;
+			clock-frequency = <0>;
+			#clock-cells = <0>;
+			clock-output-names = "xxti";
+		};
+
+		xtcxo: clock@2 {
+			compatible = "fixed-clock";
+			reg = <2>;
+			clock-frequency = <0>;
+			#clock-cells = <0>;
+			clock-output-names = "xtcxo";
+		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a7-pmu";
+		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-
-		fixed-rate-clocks {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			xusbxti: clock@0 {
-				compatible = "fixed-clock";
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <0>;
-				clock-frequency = <0>;
-				#clock-cells = <0>;
-				clock-output-names = "xusbxti";
-			};
-
-			xxti: clock@1 {
-				compatible = "fixed-clock";
-				reg = <1>;
-				clock-frequency = <0>;
-				#clock-cells = <0>;
-				clock-output-names = "xxti";
-			};
-
-			xtcxo: clock@2 {
-				compatible = "fixed-clock";
-				reg = <2>;
-				clock-frequency = <0>;
-				#clock-cells = <0>;
-				clock-output-names = "xtcxo";
-			};
-		};
 
 		sysram@2020000 {
 			compatible = "mmio-sram";
@@ -671,12 +675,6 @@
 				     <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 			#pwm-cells = <3>;
 			status = "disabled";
-		};
-
-		pmu {
-			compatible = "arm,cortex-a7-pmu";
-			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		ppmu_dmc0: ppmu_dmc0@106a0000 {

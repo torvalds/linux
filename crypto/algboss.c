@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Create default crypto algorithm instances.
  *
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/internal/aead.h>
@@ -296,7 +291,13 @@ static void __exit cryptomgr_exit(void)
 	BUG_ON(err);
 }
 
-subsys_initcall(cryptomgr_init);
+/*
+ * This is arch_initcall() so that the crypto self-tests are run on algorithms
+ * registered early by subsys_initcall().  subsys_initcall() is needed for
+ * generic implementations so that they're available for comparison tests when
+ * other implementations are registered later by module_init().
+ */
+arch_initcall(cryptomgr_init);
 module_exit(cryptomgr_exit);
 
 MODULE_LICENSE("GPL");

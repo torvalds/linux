@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -404,7 +395,8 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 		return;
 	}
 
-	tc_cfg.vsync_count = vsync_hz / (mode->vtotal * mode->vrefresh);
+	tc_cfg.vsync_count = vsync_hz /
+				(mode->vtotal * drm_mode_vrefresh(mode));
 
 	/* enable external TE after kickoff to avoid premature autorefresh */
 	tc_cfg.hw_vsync_mode = 0;
@@ -424,7 +416,7 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 	DPU_DEBUG_CMDENC(cmd_enc,
 		"tc %d vsync_clk_speed_hz %u vtotal %u vrefresh %u\n",
 		phys_enc->hw_pp->idx - PINGPONG_0, vsync_hz,
-		mode->vtotal, mode->vrefresh);
+		mode->vtotal, drm_mode_vrefresh(mode));
 	DPU_DEBUG_CMDENC(cmd_enc,
 		"tc %d enable %u start_pos %u rd_ptr_irq %u\n",
 		phys_enc->hw_pp->idx - PINGPONG_0, tc_enable, tc_cfg.start_pos,

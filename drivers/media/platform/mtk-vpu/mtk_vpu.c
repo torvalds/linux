@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
 * Copyright (c) 2016 MediaTek Inc.
 * Author: Andrew-CT Chen <andrew-ct.chen@mediatek.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
 */
 #include <linux/clk.h>
 #include <linux/debugfs.h>
@@ -614,7 +606,7 @@ static void vpu_init_ipi_handler(void *data, unsigned int len, void *priv)
 	struct vpu_run *run = (struct vpu_run *)data;
 
 	vpu->run.signaled = run->signaled;
-	strncpy(vpu->run.fw_ver, run->fw_ver, VPU_FW_VER_LEN);
+	strscpy(vpu->run.fw_ver, run->fw_ver, sizeof(vpu->run.fw_ver));
 	vpu->run.dec_capability = run->dec_capability;
 	vpu->run.enc_capability = run->enc_capability;
 	wake_up_interruptible(&vpu->run.wq);

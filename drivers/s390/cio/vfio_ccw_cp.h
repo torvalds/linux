@@ -21,6 +21,7 @@
  * @ccwchain_list: list head of ccwchains
  * @orb: orb for the currently processed ssch request
  * @mdev: the mediated device to perform page pinning/unpinning
+ * @initialized: whether this instance is actually initialized
  *
  * @ccwchain_list is the head of a ccwchain list, that contents the
  * translated result of the guest channel program that pointed out by
@@ -30,6 +31,7 @@ struct channel_program {
 	struct list_head ccwchain_list;
 	union orb orb;
 	struct device *mdev;
+	bool initialized;
 };
 
 extern int cp_init(struct channel_program *cp, struct device *mdev,

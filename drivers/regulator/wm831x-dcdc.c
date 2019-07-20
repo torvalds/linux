@@ -1,15 +1,10 @@
-/*
- * wm831x-dcdc.c  --  DC-DC buck convertor driver for the WM831x series
- *
- * Copyright 2009 Wolfson Microelectronics PLC.
- *
- * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// wm831x-dcdc.c  --  DC-DC buck converter driver for the WM831x series
+//
+// Copyright 2009 Wolfson Microelectronics PLC.
+//
+// Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -183,9 +178,11 @@ static irqreturn_t wm831x_dcdc_uv_irq(int irq, void *data)
 {
 	struct wm831x_dcdc *dcdc = data;
 
+	regulator_lock(dcdc->regulator);
 	regulator_notifier_call_chain(dcdc->regulator,
 				      REGULATOR_EVENT_UNDER_VOLTAGE,
 				      NULL);
+	regulator_unlock(dcdc->regulator);
 
 	return IRQ_HANDLED;
 }
@@ -194,9 +191,11 @@ static irqreturn_t wm831x_dcdc_oc_irq(int irq, void *data)
 {
 	struct wm831x_dcdc *dcdc = data;
 
+	regulator_lock(dcdc->regulator);
 	regulator_notifier_call_chain(dcdc->regulator,
 				      REGULATOR_EVENT_OVER_CURRENT,
 				      NULL);
+	regulator_unlock(dcdc->regulator);
 
 	return IRQ_HANDLED;
 }

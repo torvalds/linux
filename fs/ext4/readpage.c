@@ -71,7 +71,6 @@ static inline bool ext4_bio_encrypted(struct bio *bio)
 static void mpage_end_io(struct bio *bio)
 {
 	struct bio_vec *bv;
-	int i;
 	struct bvec_iter_all iter_all;
 
 	if (ext4_bio_encrypted(bio)) {
@@ -82,7 +81,7 @@ static void mpage_end_io(struct bio *bio)
 			return;
 		}
 	}
-	bio_for_each_segment_all(bv, bio, i, iter_all) {
+	bio_for_each_segment_all(bv, bio, iter_all) {
 		struct page *page = bv->bv_page;
 
 		if (!bio->bi_status) {
@@ -127,9 +126,10 @@ int ext4_mpage_readpages(struct address_space *mapping,
 		int fully_mapped = 1;
 		unsigned first_hole = blocks_per_page;
 
-		prefetchw(&page->flags);
 		if (pages) {
 			page = lru_to_page(pages);
+
+			prefetchw(&page->flags);
 			list_del(&page->lru);
 			if (add_to_page_cache_lru(page, mapping, page->index,
 				  readahead_gfp_mask(mapping)))
@@ -244,7 +244,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 			struct fscrypt_ctx *ctx = NULL;
 
 			if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode)) {
-				ctx = fscrypt_get_ctx(inode, GFP_NOFS);
+				ctx = fscrypt_get_ctx(GFP_NOFS);
 				if (IS_ERR(ctx))
 					goto set_error_page;
 			}
