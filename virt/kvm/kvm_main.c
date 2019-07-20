@@ -314,6 +314,7 @@ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 	kvm_vcpu_set_in_spin_loop(vcpu, false);
 	kvm_vcpu_set_dy_eligible(vcpu, false);
 	vcpu->preempted = false;
+	vcpu->ready = false;
 
 	r = kvm_arch_vcpu_init(vcpu);
 	if (r < 0)
@@ -2387,6 +2388,7 @@ bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu)
 	wqp = kvm_arch_vcpu_wq(vcpu);
 	if (swq_has_sleeper(wqp)) {
 		swake_up_one(wqp);
+		WRITE_ONCE(vcpu->ready, true);
 		++vcpu->stat.halt_wakeup;
 		return true;
 	}
@@ -2500,7 +2502,7 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 				continue;
 			} else if (pass && i > last_boosted_vcpu)
 				break;
-			if (!READ_ONCE(vcpu->preempted))
+			if (!READ_ONCE(vcpu->ready))
 				continue;
 			if (vcpu == me)
 				continue;
@@ -4203,8 +4205,8 @@ static void kvm_sched_in(struct preempt_notifier *pn, int cpu)
 {
 	struct kvm_vcpu *vcpu = preempt_notifier_to_vcpu(pn);
 
-	if (vcpu->preempted)
-		vcpu->preempted = false;
+	vcpu->preempted = false;
+	WRITE_ONCE(vcpu->ready, false);
 
 	kvm_arch_sched_in(vcpu, cpu);
 
@@ -4216,8 +4218,10 @@ static void kvm_sched_out(struct preempt_notifier *pn,
 {
 	struct kvm_vcpu *vcpu = preempt_notifier_to_vcpu(pn);
 
-	if (current->state == TASK_RUNNING)
+	if (current->state == TASK_RUNNING) {
 		vcpu->preempted = true;
+		WRITE_ONCE(vcpu->ready, true);
+	}
 	kvm_arch_vcpu_put(vcpu);
 }
 

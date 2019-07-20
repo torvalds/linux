@@ -51,6 +51,7 @@
 #include <linux/kvm_irqfd.h>
 #include <linux/irqbypass.h>
 #include <linux/sched/stat.h>
+#include <linux/sched/isolation.h>
 #include <linux/mem_encrypt.h>
 
 #include <trace/events/kvm.h>
@@ -152,6 +153,9 @@ EXPORT_SYMBOL_GPL(enable_vmware_backdoor);
 
 static bool __read_mostly force_emulation_prefix = false;
 module_param(force_emulation_prefix, bool, S_IRUGO);
+
+int __read_mostly pi_inject_timer = -1;
+module_param(pi_inject_timer, bint, S_IRUGO | S_IWUSR);
 
 #define KVM_NR_SHARED_MSRS 16
 
@@ -1456,12 +1460,8 @@ static void update_pvclock_gtod(struct timekeeper *tk)
 
 void kvm_set_pending_timer(struct kvm_vcpu *vcpu)
 {
-	/*
-	 * Note: KVM_REQ_PENDING_TIMER is implicitly checked in
-	 * vcpu_enter_guest.  This function is only called from
-	 * the physical CPU that is running vcpu.
-	 */
 	kvm_make_request(KVM_REQ_PENDING_TIMER, vcpu);
+	kvm_vcpu_kick(vcpu);
 }
 
 static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
@@ -1540,9 +1540,6 @@ static void kvm_get_time_scale(uint64_t scaled_hz, uint64_t base_hz,
 
 	*pshift = shift;
 	*pmultiplier = div_frac(scaled64, tps32);
-
-	pr_debug("%s: base_hz %llu => %llu, shift %d, mul %u\n",
-		 __func__, base_hz, scaled_hz, shift, *pmultiplier);
 }
 
 #ifdef CONFIG_X86_64
@@ -1785,12 +1782,10 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	    vcpu->arch.virtual_tsc_khz == kvm->arch.last_tsc_khz) {
 		if (!kvm_check_tsc_unstable()) {
 			offset = kvm->arch.cur_tsc_offset;
-			pr_debug("kvm: matched tsc offset for %llu\n", data);
 		} else {
 			u64 delta = nsec_to_cycles(vcpu, elapsed);
 			data += delta;
 			offset = kvm_compute_tsc_offset(vcpu, data);
-			pr_debug("kvm: adjusted tsc offset by %llu\n", delta);
 		}
 		matched = true;
 		already_matched = (vcpu->arch.this_tsc_generation == kvm->arch.cur_tsc_generation);
@@ -1809,8 +1804,6 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		kvm->arch.cur_tsc_write = data;
 		kvm->arch.cur_tsc_offset = offset;
 		matched = false;
-		pr_debug("kvm: new tsc generation %llu, clock %llu\n",
-			 kvm->arch.cur_tsc_generation, data);
 	}
 
 	/*
@@ -6911,7 +6904,6 @@ static void kvm_timer_init(void)
 		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
 					  CPUFREQ_TRANSITION_NOTIFIER);
 	}
-	pr_debug("kvm: max_tsc_khz = %ld\n", max_tsc_khz);
 
 	cpuhp_setup_state(CPUHP_AP_X86_KVM_CLK_ONLINE, "x86/kvm/clk:online",
 			  kvmclock_cpu_online, kvmclock_cpu_down_prep);
@@ -7070,6 +7062,8 @@ int kvm_arch_init(void *opaque)
 		host_xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
 
 	kvm_lapic_init();
+	if (pi_inject_timer == -1)
+		pi_inject_timer = housekeeping_enabled(HK_FLAG_TIMER);
 #ifdef CONFIG_X86_64
 	pvclock_gtod_register_notifier(&pvclock_gtod_notifier);
 

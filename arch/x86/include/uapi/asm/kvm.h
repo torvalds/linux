@@ -435,9 +435,12 @@ struct kvm_nested_state {
 
 /* for KVM_CAP_PMU_EVENT_FILTER */
 struct kvm_pmu_event_filter {
-       __u32 action;
-       __u32 nevents;
-       __u64 events[0];
+	__u32 action;
+	__u32 nevents;
+	__u32 fixed_counter_bitmap;
+	__u32 flags;
+	__u32 pad[4];
+	__u64 events[0];
 };
 
 #define KVM_PMU_EVENT_ALLOW 0

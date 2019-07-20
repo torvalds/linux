@@ -5829,6 +5829,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	}
 
 	if (unlikely(vmx->fail)) {
+		dump_vmcs();
 		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		vcpu->run->fail_entry.hardware_entry_failure_reason
 			= vmcs_read32(VM_INSTRUCTION_ERROR);
@@ -7064,7 +7065,8 @@ static int vmx_set_hv_timer(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc,
 	u64 tscl, guest_tscl, delta_tsc, lapic_timer_advance_cycles;
 	struct kvm_timer *ktimer = &vcpu->arch.apic->lapic_timer;
 
-	if (kvm_mwait_in_guest(vcpu->kvm))
+	if (kvm_mwait_in_guest(vcpu->kvm) ||
+		kvm_can_post_timer_interrupt(vcpu))
 		return -EOPNOTSUPP;
 
 	vmx = to_vmx(vcpu);
@@ -7453,7 +7455,7 @@ static int enable_smi_window(struct kvm_vcpu *vcpu)
 
 static bool vmx_need_emulation_on_page_fault(struct kvm_vcpu *vcpu)
 {
-	return 0;
+	return false;
 }
 
 static __init int hardware_setup(void)

@@ -27,7 +27,7 @@ void test_vcpu_creation(int first_vcpu_id, int num_vcpus)
 	printf("Testing creating %d vCPUs, with IDs %d...%d.\n",
 	       num_vcpus, first_vcpu_id, first_vcpu_id + num_vcpus - 1);
 
-	vm = vm_create(VM_MODE_P52V48_4K, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
+	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
 
 	for (i = 0; i < num_vcpus; i++) {
 		int vcpu_id = first_vcpu_id + i;
