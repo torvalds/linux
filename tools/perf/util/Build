@@ -69,7 +69,6 @@ perf-y += svghelper.o
 perf-y += sort.o
 perf-y += hist.o
 perf-y += util.o
-perf-y += xyarray.o
 perf-y += cpumap.o
 perf-y += cputopo.o
 perf-y += cgroup.o

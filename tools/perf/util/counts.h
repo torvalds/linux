@@ -2,7 +2,7 @@
 #ifndef __PERF_COUNTS_H
 #define __PERF_COUNTS_H
 
-#include "xyarray.h"
+#include <internal/xyarray.h>
 
 struct perf_counts_values {
 	union {

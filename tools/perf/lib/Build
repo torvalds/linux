@@ -4,6 +4,7 @@ libperf-y += threadmap.o
 libperf-y += evsel.o
 libperf-y += evlist.o
 libperf-y += zalloc.o
+libperf-y += xyarray.o
 
 $(OUTPUT)zalloc.o: ../../lib/zalloc.c FORCE
 	$(call rule_mkdir)
