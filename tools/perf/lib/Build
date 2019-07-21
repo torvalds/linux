@@ -1,2 +1,3 @@
 libperf-y += core.o
 libperf-y += cpumap.o
+libperf-y += threadmap.o

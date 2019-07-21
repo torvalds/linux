@@ -5,18 +5,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <linux/refcount.h>
-
-struct thread_map_data {
-	pid_t    pid;
-	char	*comm;
-};
-
-struct perf_thread_map {
-	refcount_t refcnt;
-	int nr;
-	int err_thread;
-	struct thread_map_data map[];
-};
+#include <internal/threadmap.h>
 
 struct thread_map_event;
 
