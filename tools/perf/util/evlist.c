@@ -48,7 +48,7 @@ void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 
 	for (i = 0; i < PERF_EVLIST__HLIST_SIZE; ++i)
 		INIT_HLIST_HEAD(&evlist->heads[i]);
-	INIT_LIST_HEAD(&evlist->entries);
+	INIT_LIST_HEAD(&evlist->core.entries);
 	perf_evlist__set_maps(evlist, cpus, threads);
 	fdarray__init(&evlist->pollfd, 64);
 	evlist->workload.pid = -1;
@@ -180,7 +180,7 @@ static void perf_evlist__propagate_maps(struct evlist *evlist)
 void evlist__add(struct evlist *evlist, struct evsel *entry)
 {
 	entry->evlist = evlist;
-	list_add_tail(&entry->core.node, &evlist->entries);
+	list_add_tail(&entry->core.node, &evlist->core.entries);
 	entry->idx = evlist->nr_entries;
 	entry->tracking = !entry->idx;
 
@@ -226,7 +226,7 @@ void perf_evlist__set_leader(struct evlist *evlist)
 {
 	if (evlist->nr_entries) {
 		evlist->nr_groups = evlist->nr_entries > 1 ? 1 : 0;
-		__perf_evlist__set_leader(&evlist->entries);
+		__perf_evlist__set_leader(&evlist->core.entries);
 	}
 }
 
@@ -1683,7 +1683,7 @@ void perf_evlist__to_front(struct evlist *evlist,
 			list_move_tail(&evsel->core.node, &move);
 	}
 
-	list_splice(&move, &evlist->entries);
+	list_splice(&move, &evlist->core.entries);
 }
 
 void perf_evlist__set_tracking_event(struct evlist *evlist,

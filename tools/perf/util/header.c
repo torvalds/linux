@@ -304,7 +304,7 @@ static int write_tracing_data(struct feat_fd *ff,
 	if (WARN(ff->buf, "Error: calling %s in pipe-mode.\n", __func__))
 		return -1;
 
-	return read_tracing_data(ff->fd, &evlist->entries);
+	return read_tracing_data(ff->fd, &evlist->core.entries);
 }
 
 static int write_build_id(struct feat_fd *ff,
@@ -4112,7 +4112,7 @@ int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd,
 	 * - write the tracing data from the temp file
 	 *   to the pipe
 	 */
-	tdata = tracing_data_get(&evlist->entries, fd, true);
+	tdata = tracing_data_get(&evlist->core.entries, fd, true);
 	if (!tdata)
 		return -1;
 

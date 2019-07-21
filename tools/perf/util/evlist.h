@@ -8,6 +8,7 @@
 #include <linux/list.h>
 #include <api/fd/array.h>
 #include <stdio.h>
+#include <internal/evlist.h>
 #include "../perf.h"
 #include "event.h"
 #include "evsel.h"
@@ -25,7 +26,7 @@ struct record_opts;
 #define PERF_EVLIST__HLIST_SIZE (1 << PERF_EVLIST__HLIST_BITS)
 
 struct evlist {
-	struct list_head entries;
+	struct perf_evlist core;
 	struct hlist_head heads[PERF_EVLIST__HLIST_SIZE];
 	int		 nr_entries;
 	int		 nr_groups;
@@ -225,17 +226,17 @@ void perf_evlist__splice_list_tail(struct evlist *evlist,
 
 static inline bool perf_evlist__empty(struct evlist *evlist)
 {
-	return list_empty(&evlist->entries);
+	return list_empty(&evlist->core.entries);
 }
 
 static inline struct evsel *perf_evlist__first(struct evlist *evlist)
 {
-	return list_entry(evlist->entries.next, struct evsel, core.node);
+	return list_entry(evlist->core.entries.next, struct evsel, core.node);
 }
 
 static inline struct evsel *perf_evlist__last(struct evlist *evlist)
 {
-	return list_entry(evlist->entries.prev, struct evsel, core.node);
+	return list_entry(evlist->core.entries.prev, struct evsel, core.node);
 }
 
 size_t perf_evlist__fprintf(struct evlist *evlist, FILE *fp);
@@ -261,7 +262,7 @@ void perf_evlist__to_front(struct evlist *evlist,
  * @evsel: struct evsel iterator
  */
 #define evlist__for_each_entry(evlist, evsel) \
-	__evlist__for_each_entry(&(evlist)->entries, evsel)
+	__evlist__for_each_entry(&(evlist)->core.entries, evsel)
 
 /**
  * __evlist__for_each_entry_continue - continue iteration thru all the evsels
@@ -277,7 +278,7 @@ void perf_evlist__to_front(struct evlist *evlist,
  * @evsel: struct evsel iterator
  */
 #define evlist__for_each_entry_continue(evlist, evsel) \
-	__evlist__for_each_entry_continue(&(evlist)->entries, evsel)
+	__evlist__for_each_entry_continue(&(evlist)->core.entries, evsel)
 
 /**
  * __evlist__for_each_entry_reverse - iterate thru all the evsels in reverse order
@@ -293,7 +294,7 @@ void perf_evlist__to_front(struct evlist *evlist,
  * @evsel: struct evsel iterator
  */
 #define evlist__for_each_entry_reverse(evlist, evsel) \
-	__evlist__for_each_entry_reverse(&(evlist)->entries, evsel)
+	__evlist__for_each_entry_reverse(&(evlist)->core.entries, evsel)
 
 /**
  * __evlist__for_each_entry_safe - safely iterate thru all the evsels
@@ -311,7 +312,7 @@ void perf_evlist__to_front(struct evlist *evlist,
  * @tmp: struct evsel temp iterator
  */
 #define evlist__for_each_entry_safe(evlist, tmp, evsel) \
-	__evlist__for_each_entry_safe(&(evlist)->entries, tmp, evsel)
+	__evlist__for_each_entry_safe(&(evlist)->core.entries, tmp, evsel)
 
 void perf_evlist__set_tracking_event(struct evlist *evlist,
 				     struct evsel *tracking_evsel);

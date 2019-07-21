@@ -208,7 +208,7 @@ int parse_cgroups(const struct option *opt, const char *str,
 	char *s;
 	int ret, i;
 
-	if (list_empty(&evlist->entries)) {
+	if (list_empty(&evlist->core.entries)) {
 		fprintf(stderr, "must define events before cgroups\n");
 		return -1;
 	}
