@@ -197,14 +197,14 @@ struct target;
 struct thread_map;
 struct record_opts;
 
-static inline struct perf_cpu_map *perf_evsel__cpus(struct evsel *evsel)
+static inline struct perf_cpu_map *evsel__cpus(struct evsel *evsel)
 {
 	return evsel->cpus;
 }
 
 static inline int perf_evsel__nr_cpus(struct evsel *evsel)
 {
-	return perf_evsel__cpus(evsel)->nr;
+	return evsel__cpus(evsel)->nr;
 }
 
 void perf_counts_values__scale(struct perf_counts_values *count,

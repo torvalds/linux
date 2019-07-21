@@ -109,7 +109,7 @@ static void aggr_printout(struct perf_stat_config *config,
 		} else {
 			fprintf(config->output, "CPU%*d%s ",
 				config->csv_output ? 0 : -5,
-				perf_evsel__cpus(evsel)->map[id],
+				evsel__cpus(evsel)->map[id],
 				config->csv_sep);
 		}
 		break;
@@ -325,7 +325,7 @@ static int first_shadow_cpu(struct perf_stat_config *config,
 		return 0;
 
 	for (i = 0; i < perf_evsel__nr_cpus(evsel); i++) {
-		int cpu2 = perf_evsel__cpus(evsel)->map[i];
+		int cpu2 = evsel__cpus(evsel)->map[i];
 
 		if (config->aggr_get_id(config, evlist->cpus, cpu2) == id)
 			return cpu2;
@@ -593,7 +593,7 @@ static void aggr_cb(struct perf_stat_config *config,
 	for (cpu = 0; cpu < perf_evsel__nr_cpus(counter); cpu++) {
 		struct perf_counts_values *counts;
 
-		s2 = config->aggr_get_id(config, perf_evsel__cpus(counter), cpu);
+		s2 = config->aggr_get_id(config, evsel__cpus(counter), cpu);
 		if (s2 != ad->id)
 			continue;
 		if (first)
