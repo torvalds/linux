@@ -73,7 +73,7 @@ void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 void perf_evlist__exit(struct evlist *evlist);
 void evlist__delete(struct evlist *evlist);
 
-void perf_evlist__add(struct evlist *evlist, struct evsel *entry);
+void evlist__add(struct evlist *evlist, struct evsel *entry);
 void perf_evlist__remove(struct evlist *evlist, struct evsel *evsel);
 
 int __perf_evlist__add_default(struct evlist *evlist, bool precise);

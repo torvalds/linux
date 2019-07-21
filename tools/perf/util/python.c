@@ -974,7 +974,7 @@ static PyObject *pyrf_evlist__add(struct pyrf_evlist *pevlist,
 	Py_INCREF(pevsel);
 	evsel = &((struct pyrf_evsel *)pevsel)->evsel;
 	evsel->idx = evlist->nr_entries;
-	perf_evlist__add(evlist, evsel);
+	evlist__add(evlist, evsel);
 
 	return Py_BuildValue("i", evlist->nr_entries);
 }
