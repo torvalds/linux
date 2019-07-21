@@ -478,9 +478,7 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	nr_ports = board->num_ports ? board->num_ports : pcidev->device & 0x0f;
 
-	priv = devm_kzalloc(&pcidev->dev, sizeof(*priv) +
-			    sizeof(unsigned int) * nr_ports,
-			    GFP_KERNEL);
+	priv = devm_kzalloc(&pcidev->dev, struct_size(priv, line, nr_ports), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
