@@ -436,7 +436,7 @@ for the inode.  If d_make_root(inode) is passed a NULL inode it returns NULL
 and also requires no further error handling. Typical usage is:
 
 	inode = foofs_new_inode(....);
-	s->s_root = d_make_inode(inode);
+	s->s_root = d_make_root(inode);
 	if (!s->s_root)
 		/* Nothing needed for the inode cleanup */
 		return -ENOMEM;
