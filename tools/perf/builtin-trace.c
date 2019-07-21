@@ -4270,7 +4270,7 @@ int cmd_trace(int argc, const char **argv)
 		symbol_conf.use_callchain = true;
 	}
 
-	if (trace.evlist->nr_entries > 0) {
+	if (trace.evlist->core.nr_entries > 0) {
 		evlist__set_evsel_handler(trace.evlist, trace__event_handler);
 		if (evlist__set_syscall_tp_fields(trace.evlist)) {
 			perror("failed to set syscalls:* tracepoint fields");
@@ -4368,7 +4368,7 @@ init_augmented_syscall_tp:
 		trace.summary = trace.summary_only;
 
 	if (!trace.trace_syscalls && !trace.trace_pgfaults &&
-	    trace.evlist->nr_entries == 0 /* Was --events used? */) {
+	    trace.evlist->core.nr_entries == 0 /* Was --events used? */) {
 		trace.trace_syscalls = true;
 	}
 

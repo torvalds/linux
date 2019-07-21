@@ -1909,7 +1909,7 @@ int parse_events(struct evlist *evlist, const char *str,
 {
 	struct parse_events_state parse_state = {
 		.list   = LIST_HEAD_INIT(parse_state.list),
-		.idx    = evlist->nr_entries,
+		.idx    = evlist->core.nr_entries,
 		.error  = err,
 		.evlist = evlist,
 	};
@@ -2040,7 +2040,7 @@ foreach_evsel_in_last_glob(struct evlist *evlist,
 	 *
 	 * So no need to WARN here, let *func do this.
 	 */
-	if (evlist->nr_entries > 0)
+	if (evlist->core.nr_entries > 0)
 		last = perf_evlist__last(evlist);
 
 	do {

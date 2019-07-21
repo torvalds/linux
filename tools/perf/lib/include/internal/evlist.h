@@ -4,6 +4,7 @@
 
 struct perf_evlist {
 	struct list_head	entries;
+	int			nr_entries;
 };
 
 #endif /* __LIBPERF_INTERNAL_EVLIST_H */

@@ -28,7 +28,6 @@ struct record_opts;
 struct evlist {
 	struct perf_evlist core;
 	struct hlist_head heads[PERF_EVLIST__HLIST_SIZE];
-	int		 nr_entries;
 	int		 nr_groups;
 	int		 nr_mmaps;
 	bool		 enabled;

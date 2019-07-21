@@ -936,7 +936,7 @@ static int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	if (sym == NULL)
 		return 0;
-	src = symbol__hists(sym, evsel->evlist->nr_entries);
+	src = symbol__hists(sym, evsel->evlist->core.nr_entries);
 	return (src) ?  __symbol__inc_addr_samples(sym, map, src, evsel->idx,
 						   addr, sample) : 0;
 }

@@ -166,7 +166,7 @@ void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 		 */
 		use_sample_identifier = perf_can_sample_identifier();
 		sample_id = true;
-	} else if (evlist->nr_entries > 1) {
+	} else if (evlist->core.nr_entries > 1) {
 		struct evsel *first = perf_evlist__first(evlist);
 
 		evlist__for_each_entry(evlist, evsel) {

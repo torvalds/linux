@@ -125,7 +125,7 @@ static void perf_evlist__purge(struct evlist *evlist)
 		evsel__delete(pos);
 	}
 
-	evlist->nr_entries = 0;
+	evlist->core.nr_entries = 0;
 }
 
 void perf_evlist__exit(struct evlist *evlist)
@@ -180,12 +180,13 @@ static void perf_evlist__propagate_maps(struct evlist *evlist)
 
 void evlist__add(struct evlist *evlist, struct evsel *entry)
 {
-	perf_evlist__add(&evlist->core, &entry->core);
 	entry->evlist = evlist;
-	entry->idx = evlist->nr_entries;
+	entry->idx = evlist->core.nr_entries;
 	entry->tracking = !entry->idx;
 
-	if (!evlist->nr_entries++)
+	perf_evlist__add(&evlist->core, &entry->core);
+
+	if (evlist->core.nr_entries == 1)
 		perf_evlist__set_id_pos(evlist);
 
 	__perf_evlist__propagate_maps(evlist, entry);
@@ -195,7 +196,6 @@ void evlist__remove(struct evlist *evlist, struct evsel *evsel)
 {
 	evsel->evlist = NULL;
 	perf_evlist__remove(&evlist->core, &evsel->core);
-	evlist->nr_entries -= 1;
 }
 
 void perf_evlist__splice_list_tail(struct evlist *evlist,
@@ -225,8 +225,8 @@ void __perf_evlist__set_leader(struct list_head *list)
 
 void perf_evlist__set_leader(struct evlist *evlist)
 {
-	if (evlist->nr_entries) {
-		evlist->nr_groups = evlist->nr_entries > 1 ? 1 : 0;
+	if (evlist->core.nr_entries) {
+		evlist->nr_groups = evlist->core.nr_entries > 1 ? 1 : 0;
 		__perf_evlist__set_leader(&evlist->core.entries);
 	}
 }
@@ -249,7 +249,7 @@ int perf_evlist__add_dummy(struct evlist *evlist)
 		.config = PERF_COUNT_SW_DUMMY,
 		.size	= sizeof(attr), /* to capture ABI version */
 	};
-	struct evsel *evsel = perf_evsel__new_idx(&attr, evlist->nr_entries);
+	struct evsel *evsel = perf_evsel__new_idx(&attr, evlist->core.nr_entries);
 
 	if (evsel == NULL)
 		return -ENOMEM;
@@ -266,7 +266,7 @@ static int evlist__add_attrs(struct evlist *evlist,
 	size_t i;
 
 	for (i = 0; i < nr_attrs; i++) {
-		evsel = perf_evsel__new_idx(attrs + i, evlist->nr_entries + i);
+		evsel = perf_evsel__new_idx(attrs + i, evlist->core.nr_entries + i);
 		if (evsel == NULL)
 			goto out_delete_partial_list;
 		list_add_tail(&evsel->core.node, &head);
@@ -581,7 +581,7 @@ struct evsel *perf_evlist__id2evsel(struct evlist *evlist, u64 id)
 {
 	struct perf_sample_id *sid;
 
-	if (evlist->nr_entries == 1 || !id)
+	if (evlist->core.nr_entries == 1 || !id)
 		return perf_evlist__first(evlist);
 
 	sid = perf_evlist__id2sid(evlist, id);
@@ -639,7 +639,7 @@ struct evsel *perf_evlist__event2evsel(struct evlist *evlist,
 	int hash;
 	u64 id;
 
-	if (evlist->nr_entries == 1)
+	if (evlist->core.nr_entries == 1)
 		return first;
 
 	if (!first->attr.sample_id_all &&
@@ -1222,7 +1222,7 @@ bool perf_evlist__valid_sample_type(struct evlist *evlist)
 {
 	struct evsel *pos;
 
-	if (evlist->nr_entries == 1)
+	if (evlist->core.nr_entries == 1)
 		return true;
 
 	if (evlist->id_pos < 0 || evlist->is_pos < 0)
@@ -1849,7 +1849,7 @@ int perf_evlist__add_sb_event(struct evlist **evlist,
 		attr->sample_id_all = 1;
 	}
 
-	evsel = perf_evsel__new_idx(attr, (*evlist)->nr_entries);
+	evsel = perf_evsel__new_idx(attr, (*evlist)->core.nr_entries);
 	if (!evsel)
 		goto out_err;
 

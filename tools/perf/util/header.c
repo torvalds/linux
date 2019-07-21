@@ -476,7 +476,7 @@ static int write_event_desc(struct feat_fd *ff,
 	u32 nre, nri, sz;
 	int ret;
 
-	nre = evlist->nr_entries;
+	nre = evlist->core.nr_entries;
 
 	/*
 	 * write number of events
@@ -3100,7 +3100,7 @@ int perf_session__write_header(struct perf_session *session,
 		.attr_size = sizeof(f_attr),
 		.attrs = {
 			.offset = attr_offset,
-			.size   = evlist->nr_entries * sizeof(f_attr),
+			.size   = evlist->core.nr_entries * sizeof(f_attr),
 		},
 		.data = {
 			.offset = header->data_offset,

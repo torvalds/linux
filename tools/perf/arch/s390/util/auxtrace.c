@@ -90,7 +90,7 @@ struct auxtrace_record *auxtrace_record__init(struct evlist *evlist,
 	int diagnose = 0;
 
 	*err = 0;
-	if (evlist->nr_entries == 0)
+	if (evlist->core.nr_entries == 0)
 		return NULL;
 
 	evlist__for_each_entry(evlist, pos) {

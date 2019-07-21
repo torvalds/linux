@@ -973,10 +973,10 @@ static PyObject *pyrf_evlist__add(struct pyrf_evlist *pevlist,
 
 	Py_INCREF(pevsel);
 	evsel = &((struct pyrf_evsel *)pevsel)->evsel;
-	evsel->idx = evlist->nr_entries;
+	evsel->idx = evlist->core.nr_entries;
 	evlist__add(evlist, evsel);
 
-	return Py_BuildValue("i", evlist->nr_entries);
+	return Py_BuildValue("i", evlist->core.nr_entries);
 }
 
 static struct perf_mmap *get_md(struct evlist *evlist, int cpu)
@@ -1112,7 +1112,7 @@ static Py_ssize_t pyrf_evlist__length(PyObject *obj)
 {
 	struct pyrf_evlist *pevlist = (void *)obj;
 
-	return pevlist->evlist.nr_entries;
+	return pevlist->evlist.core.nr_entries;
 }
 
 static PyObject *pyrf_evlist__item(PyObject *obj, Py_ssize_t i)
@@ -1120,7 +1120,7 @@ static PyObject *pyrf_evlist__item(PyObject *obj, Py_ssize_t i)
 	struct pyrf_evlist *pevlist = (void *)obj;
 	struct evsel *pos;
 
-	if (i >= pevlist->evlist.nr_entries)
+	if (i >= pevlist->evlist.core.nr_entries)
 		return NULL;
 
 	evlist__for_each_entry(&pevlist->evlist, pos) {

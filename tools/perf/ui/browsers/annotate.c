@@ -422,7 +422,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	notes = symbol__annotation(dl->ops.target.sym);
 	pthread_mutex_lock(&notes->lock);
 
-	if (!symbol__hists(dl->ops.target.sym, evsel->evlist->nr_entries)) {
+	if (!symbol__hists(dl->ops.target.sym, evsel->evlist->core.nr_entries)) {
 		pthread_mutex_unlock(&notes->lock);
 		ui__warning("Not enough memory for annotating '%s' symbol!\n",
 			    dl->ops.target.sym->name);

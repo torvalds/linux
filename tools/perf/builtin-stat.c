@@ -1366,7 +1366,7 @@ static int add_default_attributes(void)
 		free(str);
 	}
 
-	if (!evsel_list->nr_entries) {
+	if (!evsel_list->core.nr_entries) {
 		if (target__has_cpu(&target))
 			default_attrs0[0].config = PERF_COUNT_SW_CPU_CLOCK;
 
@@ -1683,7 +1683,7 @@ static void setup_system_wide(int forks)
 				return;
 		}
 
-		if (evsel_list->nr_entries)
+		if (evsel_list->core.nr_entries)
 			target.system_wide = true;
 	}
 }

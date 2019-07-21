@@ -3404,7 +3404,7 @@ int perf_evlist__tui_browse_hists(struct evlist *evlist, const char *help,
 				  bool warn_lost_event,
 				  struct annotation_options *annotation_opts)
 {
-	int nr_entries = evlist->nr_entries;
+	int nr_entries = evlist->core.nr_entries;
 
 single_entry:
 	if (nr_entries == 1) {
