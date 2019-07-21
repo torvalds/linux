@@ -167,8 +167,8 @@ static void __perf_evlist__propagate_maps(struct evlist *evlist,
 		evsel->core.cpus = perf_cpu_map__get(evsel->core.own_cpus);
 	}
 
-	perf_thread_map__put(evsel->threads);
-	evsel->threads = perf_thread_map__get(evlist->threads);
+	perf_thread_map__put(evsel->core.threads);
+	evsel->core.threads = perf_thread_map__get(evlist->threads);
 }
 
 static void perf_evlist__propagate_maps(struct evlist *evlist)
@@ -1407,7 +1407,7 @@ int evlist__open(struct evlist *evlist)
 	perf_evlist__update_id_pos(evlist);
 
 	evlist__for_each_entry(evlist, evsel) {
-		err = evsel__open(evsel, evsel->core.cpus, evsel->threads);
+		err = evsel__open(evsel, evsel->core.cpus, evsel->core.threads);
 		if (err < 0)
 			goto out_err;
 	}
