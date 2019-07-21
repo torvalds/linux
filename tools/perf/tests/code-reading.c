@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/param.h>
 #include <perf/cpumap.h>
+#include <perf/evlist.h>
 
 #include "parse-events.h"
 #include "evlist.h"
@@ -629,7 +630,7 @@ static int do_test_code_reading(bool try_kcore)
 			goto out_put;
 		}
 
-		perf_evlist__set_maps(evlist, cpus, threads);
+		perf_evlist__set_maps(&evlist->core, cpus, threads);
 
 		str = do_determine_event(excl_kernel);
 		pr_debug("Parsing event '%s'\n", str);
@@ -658,7 +659,7 @@ static int do_test_code_reading(bool try_kcore)
 				 */
 				perf_cpu_map__get(cpus);
 				perf_thread_map__get(threads);
-				perf_evlist__set_maps(evlist, NULL, NULL);
+				perf_evlist__set_maps(&evlist->core, NULL, NULL);
 				evlist__delete(evlist);
 				evlist = NULL;
 				continue;

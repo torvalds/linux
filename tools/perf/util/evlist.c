@@ -51,7 +51,7 @@ void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 	for (i = 0; i < PERF_EVLIST__HLIST_SIZE; ++i)
 		INIT_HLIST_HEAD(&evlist->heads[i]);
 	perf_evlist__init(&evlist->core);
-	perf_evlist__set_maps(evlist, cpus, threads);
+	perf_evlist__set_maps(&evlist->core, cpus, threads);
 	fdarray__init(&evlist->pollfd, 64);
 	evlist->workload.pid = -1;
 	evlist->bkw_mmap_state = BKW_MMAP_NOTREADY;
@@ -152,33 +152,6 @@ void evlist__delete(struct evlist *evlist)
 	free(evlist);
 }
 
-static void __perf_evlist__propagate_maps(struct evlist *evlist,
-					  struct evsel *evsel)
-{
-	/*
-	 * We already have cpus for evsel (via PMU sysfs) so
-	 * keep it, if there's no target cpu list defined.
-	 */
-	if (!evsel->core.own_cpus || evlist->core.has_user_cpus) {
-		perf_cpu_map__put(evsel->core.cpus);
-		evsel->core.cpus = perf_cpu_map__get(evlist->core.cpus);
-	} else if (evsel->core.cpus != evsel->core.own_cpus) {
-		perf_cpu_map__put(evsel->core.cpus);
-		evsel->core.cpus = perf_cpu_map__get(evsel->core.own_cpus);
-	}
-
-	perf_thread_map__put(evsel->core.threads);
-	evsel->core.threads = perf_thread_map__get(evlist->core.threads);
-}
-
-static void perf_evlist__propagate_maps(struct evlist *evlist)
-{
-	struct evsel *evsel;
-
-	evlist__for_each_entry(evlist, evsel)
-		__perf_evlist__propagate_maps(evlist, evsel);
-}
-
 void evlist__add(struct evlist *evlist, struct evsel *entry)
 {
 	entry->evlist = evlist;
@@ -189,8 +162,6 @@ void evlist__add(struct evlist *evlist, struct evsel *entry)
 
 	if (evlist->core.nr_entries == 1)
 		perf_evlist__set_id_pos(evlist);
-
-	__perf_evlist__propagate_maps(evlist, entry);
 }
 
 void evlist__remove(struct evlist *evlist, struct evsel *evsel)
@@ -1097,36 +1068,13 @@ int perf_evlist__create_maps(struct evlist *evlist, struct target *target)
 
 	evlist->core.has_user_cpus = !!target->cpu_list;
 
-	perf_evlist__set_maps(evlist, cpus, threads);
+	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
 	return 0;
 
 out_delete_threads:
 	perf_thread_map__put(threads);
 	return -1;
-}
-
-void perf_evlist__set_maps(struct evlist *evlist, struct perf_cpu_map *cpus,
-			   struct perf_thread_map *threads)
-{
-	/*
-	 * Allow for the possibility that one or another of the maps isn't being
-	 * changed i.e. don't put it.  Note we are assuming the maps that are
-	 * being applied are brand new and evlist is taking ownership of the
-	 * original reference count of 1.  If that is not the case it is up to
-	 * the caller to increase the reference count.
-	 */
-	if (cpus != evlist->core.cpus) {
-		perf_cpu_map__put(evlist->core.cpus);
-		evlist->core.cpus = perf_cpu_map__get(cpus);
-	}
-
-	if (threads != evlist->core.threads) {
-		perf_thread_map__put(evlist->core.threads);
-		evlist->core.threads = perf_thread_map__get(threads);
-	}
-
-	perf_evlist__propagate_maps(evlist);
 }
 
 void __perf_evlist__set_sample_bit(struct evlist *evlist,
@@ -1381,7 +1329,7 @@ static int perf_evlist__create_syswide_maps(struct evlist *evlist)
 	if (!threads)
 		goto out_put;
 
-	perf_evlist__set_maps(evlist, cpus, threads);
+	perf_evlist__set_maps(&evlist->core, cpus, threads);
 out:
 	return err;
 out_put:

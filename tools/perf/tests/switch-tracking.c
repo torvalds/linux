@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <linux/zalloc.h>
 #include <perf/cpumap.h>
+#include <perf/evlist.h>
 
 #include "parse-events.h"
 #include "evlist.h"
@@ -354,7 +355,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	perf_evlist__set_maps(evlist, cpus, threads);
+	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
 	/* First event */
 	err = parse_events(evlist, "cpu-clock:u", NULL);

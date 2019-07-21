@@ -191,8 +191,6 @@ int perf_evlist__enable_event_idx(struct evlist *evlist,
 void perf_evlist__set_selected(struct evlist *evlist,
 			       struct evsel *evsel);
 
-void perf_evlist__set_maps(struct evlist *evlist, struct perf_cpu_map *cpus,
-			   struct perf_thread_map *threads);
 int perf_evlist__create_maps(struct evlist *evlist, struct target *target);
 int perf_evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel);
 

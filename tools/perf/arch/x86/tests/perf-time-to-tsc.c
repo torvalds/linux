@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include <sys/prctl.h>
 #include <perf/cpumap.h>
+#include <perf/evlist.h>
 
 #include "parse-events.h"
 #include "evlist.h"
@@ -72,7 +73,7 @@ int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest __maybe
 	evlist = evlist__new();
 	CHECK_NOT_NULL__(evlist);
 
-	perf_evlist__set_maps(evlist, cpus, threads);
+	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
 	CHECK__(parse_events(evlist, "cycles:u", NULL));
 

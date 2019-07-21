@@ -83,6 +83,7 @@
 #include <sys/resource.h>
 
 #include <linux/ctype.h>
+#include <perf/evlist.h>
 
 #define DEFAULT_SEPARATOR	" "
 #define FREEZE_ON_SMI_PATH	"devices/cpu/freeze_on_smi"
@@ -1517,7 +1518,7 @@ static int set_maps(struct perf_stat *st)
 	if (WARN_ONCE(st->maps_allocated, "stats double allocation\n"))
 		return -EINVAL;
 
-	perf_evlist__set_maps(evsel_list, st->cpus, st->threads);
+	perf_evlist__set_maps(&evsel_list->core, st->cpus, st->threads);
 
 	if (perf_evlist__alloc_stats(evsel_list, true))
 		return -ENOMEM;

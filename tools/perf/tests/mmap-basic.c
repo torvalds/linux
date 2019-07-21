@@ -12,6 +12,7 @@
 #include "tests.h"
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <perf/evlist.h>
 
 /*
  * This test will generate random numbers of calls to some getpid syscalls,
@@ -68,7 +69,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		goto out_free_cpus;
 	}
 
-	perf_evlist__set_maps(evlist, cpus, threads);
+	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
 	for (i = 0; i < nsyscalls; ++i) {
 		char name[64];

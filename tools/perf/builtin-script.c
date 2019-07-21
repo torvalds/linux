@@ -48,6 +48,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <subcmd/pager.h>
+#include <perf/evlist.h>
 
 #include <linux/ctype.h>
 
@@ -3264,7 +3265,7 @@ static int set_maps(struct perf_script *script)
 	if (WARN_ONCE(script->allocated, "stats double allocation\n"))
 		return -EINVAL;
 
-	perf_evlist__set_maps(evlist, script->cpus, script->threads);
+	perf_evlist__set_maps(&evlist->core, script->cpus, script->threads);
 
 	if (perf_evlist__alloc_stats(evlist, true))
 		return -ENOMEM;

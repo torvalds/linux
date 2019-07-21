@@ -20,6 +20,7 @@ LIBPERF_0.0.1 {
 		perf_evlist__add;
 		perf_evlist__remove;
 		perf_evlist__next;
+		perf_evlist__set_maps;
 	local:
 		*;
 };

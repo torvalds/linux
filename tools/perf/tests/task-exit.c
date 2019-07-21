@@ -7,6 +7,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <perf/evlist.h>
 
 static int exited;
 static int nr_exit;
@@ -71,7 +72,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 		goto out_free_maps;
 	}
 
-	perf_evlist__set_maps(evlist, cpus, threads);
+	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
 	cpus	= NULL;
 	threads = NULL;

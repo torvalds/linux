@@ -11,6 +11,7 @@
 #include "util/evlist.h"
 #include "util/cpumap.h"
 #include "util/thread_map.h"
+#include <perf/evlist.h>
 
 #define NR_LOOPS  10000000
 
@@ -64,7 +65,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		goto out_free_maps;
 	}
 
-	perf_evlist__set_maps(evlist, cpus, threads);
+	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
 	cpus	= NULL;
 	threads = NULL;

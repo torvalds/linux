@@ -6,6 +6,8 @@
 
 struct perf_evlist;
 struct perf_evsel;
+struct perf_cpu_map;
+struct perf_thread_map;
 
 LIBPERF_API void perf_evlist__init(struct perf_evlist *evlist);
 LIBPERF_API void perf_evlist__add(struct perf_evlist *evlist,
@@ -21,5 +23,9 @@ LIBPERF_API struct perf_evsel* perf_evlist__next(struct perf_evlist *evlist,
 	for ((pos) = perf_evlist__next((evlist), NULL);	\
 	     (pos) != NULL;				\
 	     (pos) = perf_evlist__next((evlist), (pos)))
+
+LIBPERF_API void perf_evlist__set_maps(struct perf_evlist *evlist,
+				       struct perf_cpu_map *cpus,
+				       struct perf_thread_map *threads);
 
 #endif /* __LIBPERF_EVLIST_H */
