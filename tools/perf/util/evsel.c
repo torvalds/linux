@@ -1265,12 +1265,6 @@ int perf_evsel__alloc_id(struct evsel *evsel, int ncpus, int nthreads)
 	return 0;
 }
 
-static void perf_evsel__free_fd(struct evsel *evsel)
-{
-	xyarray__delete(evsel->core.fd);
-	evsel->core.fd = NULL;
-}
-
 static void perf_evsel__free_id(struct evsel *evsel)
 {
 	xyarray__delete(evsel->sample_id);
@@ -1289,23 +1283,12 @@ static void perf_evsel__free_config_terms(struct evsel *evsel)
 	}
 }
 
-void perf_evsel__close_fd(struct evsel *evsel)
-{
-	int cpu, thread;
-
-	for (cpu = 0; cpu < xyarray__max_x(evsel->core.fd); cpu++)
-		for (thread = 0; thread < xyarray__max_y(evsel->core.fd); ++thread) {
-			close(FD(evsel, cpu, thread));
-			FD(evsel, cpu, thread) = -1;
-		}
-}
-
 void perf_evsel__exit(struct evsel *evsel)
 {
 	assert(list_empty(&evsel->core.node));
 	assert(evsel->evlist == NULL);
 	perf_evsel__free_counts(evsel);
-	perf_evsel__free_fd(evsel);
+	perf_evsel__free_fd(&evsel->core);
 	perf_evsel__free_id(evsel);
 	perf_evsel__free_config_terms(evsel);
 	cgroup__put(evsel->cgrp);
@@ -2057,13 +2040,9 @@ out_close:
 	return err;
 }
 
-void perf_evsel__close(struct evsel *evsel)
+void evsel__close(struct evsel *evsel)
 {
-	if (evsel->core.fd == NULL)
-		return;
-
-	perf_evsel__close_fd(evsel);
-	perf_evsel__free_fd(evsel);
+	perf_evsel__close(&evsel->core);
 	perf_evsel__free_id(evsel);
 }
 

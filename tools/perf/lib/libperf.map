@@ -15,6 +15,7 @@ LIBPERF_0.0.1 {
 		perf_evsel__delete;
 		perf_evsel__init;
 		perf_evsel__open;
+		perf_evsel__close;
 		perf_evlist__new;
 		perf_evlist__delete;
 		perf_evlist__init;

@@ -268,7 +268,6 @@ const char *perf_evsel__group_name(struct evsel *evsel);
 int perf_evsel__group_desc(struct evsel *evsel, char *buf, size_t size);
 
 int perf_evsel__alloc_id(struct evsel *evsel, int ncpus, int nthreads);
-void perf_evsel__close_fd(struct evsel *evsel);
 
 void __perf_evsel__set_sample_bit(struct evsel *evsel,
 				  enum perf_event_sample_format bit);
@@ -298,7 +297,7 @@ int perf_evsel__open_per_thread(struct evsel *evsel,
 				struct perf_thread_map *threads);
 int evsel__open(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads);
-void perf_evsel__close(struct evsel *evsel);
+void evsel__close(struct evsel *evsel);
 
 struct perf_sample;
 

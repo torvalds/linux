@@ -34,6 +34,7 @@
 #include <linux/err.h>
 #include <linux/zalloc.h>
 #include <perf/evlist.h>
+#include <perf/evsel.h>
 #include <perf/cpumap.h>
 
 #ifdef LACKS_SIGQUEUE_PROTOTYPE
@@ -1303,7 +1304,7 @@ void evlist__close(struct evlist *evlist)
 	struct evsel *evsel;
 
 	evlist__for_each_entry_reverse(evlist, evsel)
-		perf_evsel__close(evsel);
+		evsel__close(evsel);
 }
 
 static int perf_evlist__create_syswide_maps(struct evlist *evlist)
@@ -1772,7 +1773,7 @@ struct evsel *perf_evlist__reset_weak_group(struct evlist *evsel_list,
 			is_open = false;
 		if (c2->leader == leader) {
 			if (is_open)
-				perf_evsel__close(c2);
+				evsel__close(c2);
 			c2->leader = c2;
 			c2->core.nr_members = 0;
 		}
