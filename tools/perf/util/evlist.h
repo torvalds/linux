@@ -146,7 +146,7 @@ void perf_evlist__toggle_bkw_mmap(struct evlist *evlist, enum bkw_mmap_state sta
 
 void perf_evlist__mmap_consume(struct evlist *evlist, int idx);
 
-int perf_evlist__open(struct evlist *evlist);
+int evlist__open(struct evlist *evlist);
 void perf_evlist__close(struct evlist *evlist);
 
 struct callchain_param;

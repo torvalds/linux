@@ -95,7 +95,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 	evsel->attr.wakeup_events = 1;
 	evsel->attr.exclude_kernel = 1;
 
-	err = perf_evlist__open(evlist);
+	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("Couldn't open the evlist: %s\n",
 			 str_error_r(-err, sbuf, sizeof(sbuf)));

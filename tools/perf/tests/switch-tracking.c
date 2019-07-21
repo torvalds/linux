@@ -450,7 +450,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		}
 	}
 
-	if (perf_evlist__open(evlist) < 0) {
+	if (evlist__open(evlist) < 0) {
 		pr_debug("Not supported\n");
 		err = 0;
 		goto out;

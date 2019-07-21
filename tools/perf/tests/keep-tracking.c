@@ -94,7 +94,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 	evsel->attr.disabled = 1;
 	evsel->attr.enable_on_exec = 0;
 
-	if (perf_evlist__open(evlist) < 0) {
+	if (evlist__open(evlist) < 0) {
 		pr_debug("Unable to open dummy and cycles event\n");
 		err = TEST_SKIP;
 		goto out_err;

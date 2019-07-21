@@ -646,7 +646,7 @@ static int do_test_code_reading(bool try_kcore)
 		evsel->attr.disabled = 1;
 		evsel->attr.enable_on_exec = 0;
 
-		ret = perf_evlist__open(evlist);
+		ret = evlist__open(evlist);
 		if (ret < 0) {
 			if (!excl_kernel) {
 				excl_kernel = true;

@@ -38,7 +38,7 @@ static int attach__enable_on_exec(struct evlist *evlist)
 
 	evsel->attr.enable_on_exec = 1;
 
-	err = perf_evlist__open(evlist);
+	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));

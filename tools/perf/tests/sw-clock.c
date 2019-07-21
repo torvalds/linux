@@ -69,7 +69,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	cpus	= NULL;
 	threads = NULL;
 
-	if (perf_evlist__open(evlist)) {
+	if (evlist__open(evlist)) {
 		const char *knob = "/proc/sys/kernel/perf_event_max_sample_rate";
 
 		err = -errno;
