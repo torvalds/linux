@@ -1019,7 +1019,7 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
 	struct fcoe_fcf *fcf;
 	struct fcoe_fcf new;
-	unsigned long sol_tov = msecs_to_jiffies(FCOE_CTRL_SOL_TOV);
+	unsigned long sol_tov = msecs_to_jiffies(FCOE_CTLR_SOL_TOV);
 	int first = 0;
 	int mtu_valid;
 	int found = 0;
