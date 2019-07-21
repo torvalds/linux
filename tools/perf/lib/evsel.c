@@ -3,6 +3,7 @@
 #include <linux/list.h>
 #include <internal/evsel.h>
 #include <linux/zalloc.h>
+#include <stdlib.h>
 
 void perf_evsel__init(struct perf_evsel *evsel, struct perf_event_attr *attr)
 {
@@ -18,4 +19,9 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr)
 		perf_evsel__init(evsel, attr);
 
 	return evsel;
+}
+
+void perf_evsel__delete(struct perf_evsel *evsel)
+{
+	free(evsel);
 }
