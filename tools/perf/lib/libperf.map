@@ -13,6 +13,8 @@ LIBPERF_0.0.1 {
 		perf_thread_map__put;
 		perf_evsel__new;
 		perf_evsel__delete;
+		perf_evsel__enable;
+		perf_evsel__disable;
 		perf_evsel__init;
 		perf_evsel__open;
 		perf_evsel__close;

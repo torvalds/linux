@@ -14,6 +14,7 @@
 #include <internal/threadmap.h>
 #include <internal/lib.h>
 #include <linux/string.h>
+#include <sys/ioctl.h>
 
 void perf_evsel__init(struct perf_evsel *evsel, struct perf_event_attr *attr)
 {
@@ -178,4 +179,39 @@ int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
 		return -errno;
 
 	return 0;
+}
+
+static int perf_evsel__run_ioctl(struct perf_evsel *evsel,
+				 int ioc,  void *arg)
+{
+	int cpu, thread;
+
+	for (cpu = 0; cpu < xyarray__max_x(evsel->fd); cpu++) {
+		for (thread = 0; thread < xyarray__max_y(evsel->fd); thread++) {
+			int fd = FD(evsel, cpu, thread),
+			    err = ioctl(fd, ioc, arg);
+
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
+int perf_evsel__enable(struct perf_evsel *evsel)
+{
+	return perf_evsel__run_ioctl(evsel, PERF_EVENT_IOC_ENABLE, 0);
+}
+
+int perf_evsel__disable(struct perf_evsel *evsel)
+{
+	return perf_evsel__run_ioctl(evsel, PERF_EVENT_IOC_DISABLE, 0);
+}
+
+int perf_evsel__apply_filter(struct perf_evsel *evsel, const char *filter)
+{
+	return perf_evsel__run_ioctl(evsel,
+				     PERF_EVENT_IOC_SET_FILTER,
+				     (void *)filter);
 }
