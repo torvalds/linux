@@ -1825,8 +1825,8 @@ static int perf_event_open(struct evsel *evsel,
 	return fd;
 }
 
-int perf_evsel__open(struct evsel *evsel, struct perf_cpu_map *cpus,
-		     struct perf_thread_map *threads)
+int evsel__open(struct evsel *evsel, struct perf_cpu_map *cpus,
+		struct perf_thread_map *threads)
 {
 	int cpu, thread, nthreads;
 	unsigned long flags = PERF_FLAG_FD_CLOEXEC;
@@ -2086,13 +2086,13 @@ void perf_evsel__close(struct evsel *evsel)
 int perf_evsel__open_per_cpu(struct evsel *evsel,
 			     struct perf_cpu_map *cpus)
 {
-	return perf_evsel__open(evsel, cpus, NULL);
+	return evsel__open(evsel, cpus, NULL);
 }
 
 int perf_evsel__open_per_thread(struct evsel *evsel,
 				struct perf_thread_map *threads)
 {
-	return perf_evsel__open(evsel, NULL, threads);
+	return evsel__open(evsel, NULL, threads);
 }
 
 static int perf_evsel__parse_id_sample(const struct evsel *evsel,
