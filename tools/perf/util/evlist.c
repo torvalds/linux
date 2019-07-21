@@ -160,11 +160,11 @@ static void __perf_evlist__propagate_maps(struct evlist *evlist,
 	 * keep it, if there's no target cpu list defined.
 	 */
 	if (!evsel->own_cpus || evlist->has_user_cpus) {
-		perf_cpu_map__put(evsel->cpus);
-		evsel->cpus = perf_cpu_map__get(evlist->cpus);
-	} else if (evsel->cpus != evsel->own_cpus) {
-		perf_cpu_map__put(evsel->cpus);
-		evsel->cpus = perf_cpu_map__get(evsel->own_cpus);
+		perf_cpu_map__put(evsel->core.cpus);
+		evsel->core.cpus = perf_cpu_map__get(evlist->cpus);
+	} else if (evsel->core.cpus != evsel->own_cpus) {
+		perf_cpu_map__put(evsel->core.cpus);
+		evsel->core.cpus = perf_cpu_map__get(evsel->own_cpus);
 	}
 
 	perf_thread_map__put(evsel->threads);
@@ -786,7 +786,7 @@ static int perf_evlist__mmap_per_evsel(struct evlist *evlist, int idx,
 		if (evsel->system_wide && thread)
 			continue;
 
-		cpu = cpu_map__idx(evsel->cpus, evlist_cpu);
+		cpu = cpu_map__idx(evsel->core.cpus, evlist_cpu);
 		if (cpu == -1)
 			continue;
 
@@ -1407,7 +1407,7 @@ int evlist__open(struct evlist *evlist)
 	perf_evlist__update_id_pos(evlist);
 
 	evlist__for_each_entry(evlist, evsel) {
-		err = evsel__open(evsel, evsel->cpus, evsel->threads);
+		err = evsel__open(evsel, evsel->core.cpus, evsel->threads);
 		if (err < 0)
 			goto out_err;
 	}

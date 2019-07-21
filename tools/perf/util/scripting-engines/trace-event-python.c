@@ -1393,7 +1393,7 @@ static void python_process_stat(struct perf_stat_config *config,
 				struct evsel *counter, u64 tstamp)
 {
 	struct perf_thread_map *threads = counter->threads;
-	struct perf_cpu_map *cpus = counter->cpus;
+	struct perf_cpu_map *cpus = counter->core.cpus;
 	int cpu, thread;
 
 	if (config->aggr_mode == AGGR_GLOBAL) {
