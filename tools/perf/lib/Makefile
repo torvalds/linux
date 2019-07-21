@@ -109,6 +109,11 @@ all: fixdep
 clean:
 	$(call QUIET_CLEAN, libperf) $(RM) $(LIBPERF_A) \
                 *.o *~ *.a *.so *.so.$(VERSION) *.so.$(LIBPERF_VERSION) .*.d .*.cmd LIBPERF-CFLAGS $(LIBPERF_PC)
+	$(Q)$(MAKE) -C tests clean
+
+tests:
+	$(Q)$(MAKE) -C tests
+	$(Q)$(MAKE) -C tests run
 
 $(LIBPERF_PC):
 	$(QUIET_GEN)sed -e "s|@PREFIX@|$(prefix)|" \
@@ -150,4 +155,4 @@ install: install_lib install_headers install_pkgconfig
 
 FORCE:
 
-.PHONY: all install clean FORCE
+.PHONY: all install clean tests FORCE
