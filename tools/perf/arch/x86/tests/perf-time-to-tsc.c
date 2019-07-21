@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <linux/types.h>
 #include <sys/prctl.h>
+#include <perf/cpumap.h>
 
 #include "parse-events.h"
 #include "evlist.h"
@@ -65,7 +66,7 @@ int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest __maybe
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	CHECK_NOT_NULL__(threads);
 
-	cpus = cpu_map__new(NULL);
+	cpus = perf_cpu_map__new(NULL);
 	CHECK_NOT_NULL__(cpus);
 
 	evlist = evlist__new();

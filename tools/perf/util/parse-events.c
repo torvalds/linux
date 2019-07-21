@@ -24,6 +24,7 @@
 #include "bpf-loader.h"
 #include "debug.h"
 #include <api/fs/tracing_path.h>
+#include <perf/cpumap.h>
 #include "parse-events-bison.h"
 #define YY_EXTRA_TYPE int
 #include "parse-events-flex.h"
@@ -323,7 +324,7 @@ __add_event(struct list_head *list, int *idx,
 {
 	struct evsel *evsel;
 	struct perf_cpu_map *cpus = pmu ? pmu->cpus :
-			       cpu_list ? cpu_map__new(cpu_list) : NULL;
+			       cpu_list ? perf_cpu_map__new(cpu_list) : NULL;
 
 	event_attr_init(attr);
 

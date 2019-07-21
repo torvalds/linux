@@ -156,7 +156,7 @@ static int cs_etm_set_option(struct auxtrace_record *itr,
 {
 	int i, err = -EINVAL;
 	struct perf_cpu_map *event_cpus = evsel->evlist->cpus;
-	struct perf_cpu_map *online_cpus = cpu_map__new(NULL);
+	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
 
 	/* Set option of each CPU we have */
 	for (i = 0; i < cpu__max_cpu(); i++) {
@@ -490,7 +490,7 @@ cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 	int i;
 	int etmv3 = 0, etmv4 = 0;
 	struct perf_cpu_map *event_cpus = evlist->cpus;
-	struct perf_cpu_map *online_cpus = cpu_map__new(NULL);
+	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
 
 	/* cpu map is not empty, we have specific CPUs to work with */
 	if (!cpu_map__empty(event_cpus)) {
@@ -637,7 +637,7 @@ static int cs_etm_info_fill(struct auxtrace_record *itr,
 	u64 nr_cpu, type;
 	struct perf_cpu_map *cpu_map;
 	struct perf_cpu_map *event_cpus = session->evlist->cpus;
-	struct perf_cpu_map *online_cpus = cpu_map__new(NULL);
+	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
 	struct cs_etm_recording *ptr =
 			container_of(itr, struct cs_etm_recording, itr);
 	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;

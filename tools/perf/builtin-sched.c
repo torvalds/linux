@@ -3183,7 +3183,7 @@ static int setup_map_cpus(struct perf_sched *sched)
 	if (!sched->map.cpus_str)
 		return 0;
 
-	map = cpu_map__new(sched->map.cpus_str);
+	map = perf_cpu_map__new(sched->map.cpus_str);
 	if (!map) {
 		pr_err("failed to get cpus map from %s\n", sched->map.cpus_str);
 		return -1;
@@ -3217,7 +3217,7 @@ static int setup_color_cpus(struct perf_sched *sched)
 	if (!sched->map.color_cpus_str)
 		return 0;
 
-	map = cpu_map__new(sched->map.color_cpus_str);
+	map = perf_cpu_map__new(sched->map.color_cpus_str);
 	if (!map) {
 		pr_err("failed to get thread map from %s\n", sched->map.color_cpus_str);
 		return -1;

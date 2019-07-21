@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <api/fs/fs.h>
 #include <subcmd/parse-options.h>
+#include <perf/cpumap.h>
 #include "util.h"
 #include "cloexec.h"
 
@@ -63,7 +64,7 @@ static bool perf_probe_api(setup_probe_fn_t fn)
 	struct perf_cpu_map *cpus;
 	int cpu, ret, i = 0;
 
-	cpus = cpu_map__new(NULL);
+	cpus = perf_cpu_map__new(NULL);
 	if (!cpus)
 		return false;
 	cpu = cpus->map[0];
@@ -118,7 +119,7 @@ bool perf_can_record_cpu_wide(void)
 	struct perf_cpu_map *cpus;
 	int cpu, fd;
 
-	cpus = cpu_map__new(NULL);
+	cpus = perf_cpu_map__new(NULL);
 	if (!cpus)
 		return false;
 	cpu = cpus->map[0];
@@ -275,7 +276,7 @@ bool perf_evlist__can_select_event(struct evlist *evlist, const char *str)
 	evsel = perf_evlist__last(temp_evlist);
 
 	if (!evlist || cpu_map__empty(evlist->cpus)) {
-		struct perf_cpu_map *cpus = cpu_map__new(NULL);
+		struct perf_cpu_map *cpus = perf_cpu_map__new(NULL);
 
 		cpu =  cpus ? cpus->map[0] : 0;
 		perf_cpu_map__put(cpus);

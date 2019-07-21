@@ -20,6 +20,7 @@
 #include <linux/time64.h>
 #include <dirent.h>
 #include <bpf/libbpf.h>
+#include <perf/cpumap.h>
 
 #include "evlist.h"
 #include "evsel.h"
@@ -2348,7 +2349,7 @@ static int process_numa_topology(struct feat_fd *ff, void *data __maybe_unused)
 		if (!str)
 			goto error;
 
-		n->map = cpu_map__new(str);
+		n->map = perf_cpu_map__new(str);
 		if (!n->map)
 			goto error;
 

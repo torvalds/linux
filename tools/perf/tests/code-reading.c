@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>
+#include <perf/cpumap.h>
 
 #include "parse-events.h"
 #include "evlist.h"
@@ -613,9 +614,9 @@ static int do_test_code_reading(bool try_kcore)
 		goto out_put;
 	}
 
-	cpus = cpu_map__new(NULL);
+	cpus = perf_cpu_map__new(NULL);
 	if (!cpus) {
-		pr_debug("cpu_map__new failed\n");
+		pr_debug("perf_cpu_map__new failed\n");
 		goto out_put;
 	}
 

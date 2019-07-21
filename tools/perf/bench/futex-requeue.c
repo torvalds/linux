@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/time64.h>
 #include <errno.h>
+#include <perf/cpumap.h>
 #include "bench.h"
 #include "futex.h"
 #include "cpumap.h"
@@ -123,7 +124,7 @@ int bench_futex_requeue(int argc, const char **argv)
 	if (argc)
 		goto err;
 
-	cpu = cpu_map__new(NULL);
+	cpu = perf_cpu_map__new(NULL);
 	if (!cpu)
 		err(EXIT_FAILURE, "cpu_map__new");
 

@@ -15,6 +15,7 @@
 #include <api/fs/fs.h>
 #include <locale.h>
 #include <regex.h>
+#include <perf/cpumap.h>
 #include "pmu.h"
 #include "parse-events.h"
 #include "cpumap.h"
@@ -581,7 +582,7 @@ static struct perf_cpu_map *__pmu_cpumask(const char *path)
 	if (!file)
 		return NULL;
 
-	cpus = cpu_map__read(file);
+	cpus = perf_cpu_map__read(file);
 	fclose(file);
 	return cpus;
 }

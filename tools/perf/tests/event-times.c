@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <perf/cpumap.h>
 #include "tests.h"
 #include "evlist.h"
 #include "evsel.h"
@@ -115,9 +116,9 @@ static int attach__cpu_disabled(struct evlist *evlist)
 
 	pr_debug("attaching to CPU 0 as enabled\n");
 
-	cpus = cpu_map__new("0");
+	cpus = perf_cpu_map__new("0");
 	if (cpus == NULL) {
-		pr_debug("failed to call cpu_map__new\n");
+		pr_debug("failed to call perf_cpu_map__new\n");
 		return -1;
 	}
 
@@ -144,9 +145,9 @@ static int attach__cpu_enabled(struct evlist *evlist)
 
 	pr_debug("attaching to CPU 0 as enabled\n");
 
-	cpus = cpu_map__new("0");
+	cpus = perf_cpu_map__new("0");
 	if (cpus == NULL) {
-		pr_debug("failed to call cpu_map__new\n");
+		pr_debug("failed to call perf_cpu_map__new\n");
 		return -1;
 	}
 

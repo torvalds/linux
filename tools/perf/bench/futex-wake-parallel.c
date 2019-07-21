@@ -237,7 +237,7 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 	act.sa_sigaction = toggle_done;
 	sigaction(SIGINT, &act, NULL);
 
-	cpu = cpu_map__new(NULL);
+	cpu = perf_cpu_map__new(NULL);
 	if (!cpu)
 		err(EXIT_FAILURE, "calloc");
 

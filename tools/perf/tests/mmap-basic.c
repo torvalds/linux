@@ -3,6 +3,7 @@
 #include <inttypes.h>
 /* For the CLR_() macros */
 #include <pthread.h>
+#include <perf/cpumap.h>
 
 #include "evlist.h"
 #include "evsel.h"
@@ -46,7 +47,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		return -1;
 	}
 
-	cpus = cpu_map__new(NULL);
+	cpus = perf_cpu_map__new(NULL);
 	if (cpus == NULL) {
 		pr_debug("cpu_map__new\n");
 		goto out_free_threads;

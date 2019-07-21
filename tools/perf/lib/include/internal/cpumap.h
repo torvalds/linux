@@ -10,4 +10,8 @@ struct perf_cpu_map {
 	int		map[];
 };
 
+#ifndef MAX_NR_CPUS
+#define MAX_NR_CPUS	2048
+#endif
+
 #endif /* __LIBPERF_INTERNAL_CPUMAP_H */

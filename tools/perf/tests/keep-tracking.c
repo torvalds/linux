@@ -2,6 +2,7 @@
 #include <linux/types.h>
 #include <unistd.h>
 #include <sys/prctl.h>
+#include <perf/cpumap.h>
 
 #include "parse-events.h"
 #include "evlist.h"
@@ -75,7 +76,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	CHECK_NOT_NULL__(threads);
 
-	cpus = cpu_map__new(NULL);
+	cpus = perf_cpu_map__new(NULL);
 	CHECK_NOT_NULL__(cpus);
 
 	evlist = evlist__new();

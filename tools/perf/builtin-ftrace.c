@@ -202,7 +202,7 @@ static int set_tracing_cpu(struct perf_ftrace *ftrace)
 
 static int reset_tracing_cpu(void)
 {
-	struct perf_cpu_map *cpumap = cpu_map__new(NULL);
+	struct perf_cpu_map *cpumap = perf_cpu_map__new(NULL);
 	int ret;
 
 	ret = set_tracing_cpumask(cpumap);
