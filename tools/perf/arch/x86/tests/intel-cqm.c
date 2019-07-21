@@ -51,7 +51,7 @@ int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subt
 
 	flag = perf_event_open_cloexec_flag();
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (!evlist) {
 		pr_debug("perf_evlist__new failed\n");
 		return TEST_FAIL;

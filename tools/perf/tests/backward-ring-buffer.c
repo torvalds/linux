@@ -99,7 +99,7 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 	pid[sizeof(pid) - 1] = '\0';
 	opts.target.tid = opts.target.pid = pid;
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (!evlist) {
 		pr_debug("Not enough memory to create evlist\n");
 		return TEST_FAIL;

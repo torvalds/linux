@@ -55,7 +55,7 @@ void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 	evlist->bkw_mmap_state = BKW_MMAP_NOTREADY;
 }
 
-struct evlist *perf_evlist__new(void)
+struct evlist *evlist__new(void)
 {
 	struct evlist *evlist = zalloc(sizeof(*evlist));
 
@@ -67,7 +67,7 @@ struct evlist *perf_evlist__new(void)
 
 struct evlist *perf_evlist__new_default(void)
 {
-	struct evlist *evlist = perf_evlist__new();
+	struct evlist *evlist = evlist__new();
 
 	if (evlist && perf_evlist__add_default(evlist)) {
 		perf_evlist__delete(evlist);
@@ -79,7 +79,7 @@ struct evlist *perf_evlist__new_default(void)
 
 struct evlist *perf_evlist__new_dummy(void)
 {
-	struct evlist *evlist = perf_evlist__new();
+	struct evlist *evlist = evlist__new();
 
 	if (evlist && perf_evlist__add_dummy(evlist)) {
 		perf_evlist__delete(evlist);
@@ -1839,7 +1839,7 @@ int perf_evlist__add_sb_event(struct evlist **evlist,
 	bool new_evlist = (*evlist) == NULL;
 
 	if (*evlist == NULL)
-		*evlist = perf_evlist__new();
+		*evlist = evlist__new();
 	if (*evlist == NULL)
 		return -1;
 

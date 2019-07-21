@@ -581,7 +581,7 @@ int test__hists_output(struct test *test __maybe_unused, int subtest __maybe_unu
 	struct machines machines;
 	struct machine *machine;
 	struct evsel *evsel;
-	struct evlist *evlist = perf_evlist__new();
+	struct evlist *evlist = evlist__new();
 	size_t i;
 	test_fn_t testcases[] = {
 		test1,

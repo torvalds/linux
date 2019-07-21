@@ -166,7 +166,7 @@ static int test_times(int (attach)(struct evlist *),
 	struct evsel *evsel;
 	int err = -1, i;
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (!evlist) {
 		pr_debug("failed to create event list\n");
 		goto out_err;

@@ -19,7 +19,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 	int err = -EAGAIN, fd;
 	static pid_t pid = -1;
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (!evlist)
 		return -ENOMEM;
 
@@ -264,7 +264,7 @@ bool perf_evlist__can_select_event(struct evlist *evlist, const char *str)
 	bool ret = false;
 	pid_t pid = -1;
 
-	temp_evlist = perf_evlist__new();
+	temp_evlist = evlist__new();
 	if (!temp_evlist)
 		return false;
 

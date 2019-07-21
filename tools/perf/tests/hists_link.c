@@ -272,7 +272,7 @@ int test__hists_link(struct test *test __maybe_unused, int subtest __maybe_unuse
 	struct machines machines;
 	struct machine *machine = NULL;
 	struct evsel *evsel, *first;
-	struct evlist *evlist = perf_evlist__new();
+	struct evlist *evlist = evlist__new();
 
 	if (evlist == NULL)
                 return -ENOMEM;

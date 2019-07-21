@@ -65,7 +65,7 @@ struct evsel_str_handler {
 	void	   *handler;
 };
 
-struct evlist *perf_evlist__new(void);
+struct evlist *evlist__new(void);
 struct evlist *perf_evlist__new_default(void);
 struct evlist *perf_evlist__new_dummy(void);
 void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,

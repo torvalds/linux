@@ -1290,7 +1290,7 @@ static struct evlist *kvm_live_event_list(void)
 	int err = -1;
 	const char * const *events_tp;
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (evlist == NULL)
 		return NULL;
 

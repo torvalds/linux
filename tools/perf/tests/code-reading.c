@@ -622,7 +622,7 @@ static int do_test_code_reading(bool try_kcore)
 	while (1) {
 		const char *str;
 
-		evlist = perf_evlist__new();
+		evlist = evlist__new();
 		if (!evlist) {
 			pr_debug("perf_evlist__new failed\n");
 			goto out_put;

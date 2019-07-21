@@ -146,7 +146,7 @@ static int ppc__setup_book3s_hv(struct perf_kvm_stat *kvm,
 /* Wrapper to setup kvm tracepoints */
 static int ppc__setup_kvm_tp(struct perf_kvm_stat *kvm)
 {
-	struct evlist *evlist = perf_evlist__new();
+	struct evlist *evlist = evlist__new();
 
 	if (evlist == NULL)
 		return -ENOMEM;

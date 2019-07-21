@@ -495,7 +495,7 @@ int cmd_ftrace(int argc, const char **argv)
 		goto out_delete_filters;
 	}
 
-	ftrace.evlist = perf_evlist__new();
+	ftrace.evlist = evlist__new();
 	if (ftrace.evlist == NULL) {
 		ret = -ENOMEM;
 		goto out_delete_filters;

@@ -1777,7 +1777,7 @@ static int test_event(struct evlist_test *e)
 		return 0;
 	}
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (evlist == NULL)
 		return -ENOMEM;
 

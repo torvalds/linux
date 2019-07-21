@@ -43,9 +43,9 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 
 	attr.sample_freq = 500;
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (evlist == NULL) {
-		pr_debug("perf_evlist__new\n");
+		pr_debug("evlist__new\n");
 		return -1;
 	}
 

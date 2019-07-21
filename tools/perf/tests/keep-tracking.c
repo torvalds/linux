@@ -78,7 +78,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 	cpus = cpu_map__new(NULL);
 	CHECK_NOT_NULL__(cpus);
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	CHECK_NOT_NULL__(evlist);
 
 	perf_evlist__set_maps(evlist, cpus, threads);

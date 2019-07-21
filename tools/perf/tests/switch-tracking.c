@@ -347,9 +347,9 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	evlist = perf_evlist__new();
+	evlist = evlist__new();
 	if (!evlist) {
-		pr_debug("perf_evlist__new failed!\n");
+		pr_debug("evlist__new failed!\n");
 		goto out_err;
 	}
 
