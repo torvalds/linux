@@ -19,6 +19,15 @@ struct perf_counts *perf_counts__new(int ncpus, int nthreads)
 		}
 
 		counts->values = values;
+
+		values = xyarray__new(ncpus, nthreads, sizeof(bool));
+		if (!values) {
+			xyarray__delete(counts->values);
+			free(counts);
+			return NULL;
+		}
+
+		counts->loaded = values;
 	}
 
 	return counts;
@@ -27,6 +36,7 @@ struct perf_counts *perf_counts__new(int ncpus, int nthreads)
 void perf_counts__delete(struct perf_counts *counts)
 {
 	if (counts) {
+		xyarray__delete(counts->loaded);
 		xyarray__delete(counts->values);
 		free(counts);
 	}
@@ -34,6 +44,7 @@ void perf_counts__delete(struct perf_counts *counts)
 
 static void perf_counts__reset(struct perf_counts *counts)
 {
+	xyarray__reset(counts->loaded);
 	xyarray__reset(counts->values);
 }
 

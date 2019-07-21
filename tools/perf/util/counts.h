@@ -13,13 +13,13 @@ struct perf_counts_values {
 		};
 		u64 values[3];
 	};
-	bool	loaded;
 };
 
 struct perf_counts {
 	s8			  scaled;
 	struct perf_counts_values aggr;
 	struct xyarray		  *values;
+	struct xyarray		  *loaded;
 };
 
 
@@ -27,6 +27,18 @@ static inline struct perf_counts_values*
 perf_counts(struct perf_counts *counts, int cpu, int thread)
 {
 	return xyarray__entry(counts->values, cpu, thread);
+}
+
+static inline bool
+perf_counts__is_loaded(struct perf_counts *counts, int cpu, int thread)
+{
+	return *((bool *) xyarray__entry(counts->loaded, cpu, thread));
+}
+
+static inline void
+perf_counts__set_loaded(struct perf_counts *counts, int cpu, int thread, bool loaded)
+{
+	*((bool *) xyarray__entry(counts->loaded, cpu, thread)) = loaded;
 }
 
 struct perf_counts *perf_counts__new(int ncpus, int nthreads);

@@ -287,7 +287,7 @@ static int read_counter(struct perf_evsel *counter, struct timespec *rs)
 			 * The leader's group read loads data into its group members
 			 * (via perf_evsel__read_counter) and sets threir count->loaded.
 			 */
-			if (!count->loaded &&
+			if (!perf_counts__is_loaded(counter->counts, cpu, thread) &&
 			    read_single_counter(counter, cpu, thread, rs)) {
 				counter->counts->scaled = -1;
 				perf_counts(counter->counts, cpu, thread)->ena = 0;
@@ -295,7 +295,7 @@ static int read_counter(struct perf_evsel *counter, struct timespec *rs)
 				return -1;
 			}
 
-			count->loaded = false;
+			perf_counts__set_loaded(counter->counts, cpu, thread, false);
 
 			if (STAT_RECORD) {
 				if (perf_evsel__write_stat_event(counter, cpu, thread, count)) {
