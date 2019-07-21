@@ -909,6 +909,7 @@ header-test-			+= net/netfilter/nf_tables.h
 header-test-			+= net/netfilter/nf_tables_core.h
 header-test-			+= net/netfilter/nf_tables_ipv4.h
 header-test-			+= net/netfilter/nf_tables_ipv6.h
+header-test-			+= net/netfilter/nf_tables_offload.h
 header-test-			+= net/netfilter/nft_fib.h
 header-test-			+= net/netfilter/nft_meta.h
 header-test-			+= net/netfilter/nft_reject.h
