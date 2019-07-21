@@ -1020,7 +1020,7 @@ static int ov2680_check_id(struct ov2680_dev *sensor)
 	return 0;
 }
 
-static int ov2860_parse_dt(struct ov2680_dev *sensor)
+static int ov2680_parse_dt(struct ov2680_dev *sensor)
 {
 	struct device *dev = ov2680_to_dev(sensor);
 	int ret;
@@ -1061,7 +1061,7 @@ static int ov2680_probe(struct i2c_client *client)
 
 	sensor->i2c_client = client;
 
-	ret = ov2860_parse_dt(sensor);
+	ret = ov2680_parse_dt(sensor);
 	if (ret < 0)
 		return -EINVAL;
 
