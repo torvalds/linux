@@ -623,7 +623,7 @@ static void strip_fini(struct perf_inject *inject)
 		    ok_to_remove(evlist, evsel)) {
 			pr_debug("Deleting %s\n", perf_evsel__name(evsel));
 			perf_evlist__remove(evlist, evsel);
-			perf_evsel__delete(evsel);
+			evsel__delete(evsel);
 		}
 	}
 }
@@ -725,7 +725,7 @@ static int __cmd_inject(struct perf_inject *inject)
 				pr_debug("Deleting %s\n",
 					 perf_evsel__name(evsel));
 				perf_evlist__remove(session->evlist, evsel);
-				perf_evsel__delete(evsel);
+				evsel__delete(evsel);
 			}
 			if (inject->strip)
 				strip_fini(inject);

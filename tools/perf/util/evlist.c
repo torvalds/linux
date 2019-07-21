@@ -121,7 +121,7 @@ static void perf_evlist__purge(struct evlist *evlist)
 	evlist__for_each_entry_safe(evlist, n, pos) {
 		list_del_init(&pos->node);
 		pos->evlist = NULL;
-		perf_evsel__delete(pos);
+		evsel__delete(pos);
 	}
 
 	evlist->nr_entries = 0;
@@ -277,7 +277,7 @@ static int perf_evlist__add_attrs(struct evlist *evlist,
 
 out_delete_partial_list:
 	__evlist__for_each_entry_safe(&head, n, evsel)
-		perf_evsel__delete(evsel);
+		evsel__delete(evsel);
 	return -1;
 }
 

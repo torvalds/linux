@@ -316,7 +316,7 @@ new_event:
 out:
 	return evsel;
 error_free:
-	perf_evsel__delete(evsel);
+	evsel__delete(evsel);
 	evsel = NULL;
 	goto out;
 }
@@ -1333,7 +1333,7 @@ void perf_evsel__exit(struct evsel *evsel)
 	perf_evsel__object.fini(evsel);
 }
 
-void perf_evsel__delete(struct evsel *evsel)
+void evsel__delete(struct evsel *evsel)
 {
 	perf_evsel__exit(evsel);
 	free(evsel);

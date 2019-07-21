@@ -64,7 +64,7 @@ int test__perf_evsel__tp_sched_test(struct test *test __maybe_unused, int subtes
 	if (perf_evsel__test_field(evsel, "next_prio", 4, true))
 		ret = -1;
 
-	perf_evsel__delete(evsel);
+	evsel__delete(evsel);
 
 	evsel = perf_evsel__newtp("sched", "sched_wakeup");
 
@@ -85,6 +85,6 @@ int test__perf_evsel__tp_sched_test(struct test *test __maybe_unused, int subtes
 	if (perf_evsel__test_field(evsel, "target_cpu", 4, true))
 		ret = -1;
 
-	perf_evsel__delete(evsel);
+	evsel__delete(evsel);
 	return ret;
 }

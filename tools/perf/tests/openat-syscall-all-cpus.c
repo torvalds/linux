@@ -118,7 +118,7 @@ int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int
 out_close_fd:
 	perf_evsel__close_fd(evsel);
 out_evsel_delete:
-	perf_evsel__delete(evsel);
+	evsel__delete(evsel);
 out_cpu_map_delete:
 	cpu_map__put(cpus);
 out_thread_map_delete:

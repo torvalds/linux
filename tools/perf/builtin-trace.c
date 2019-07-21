@@ -274,10 +274,10 @@ static int perf_evsel__init_tp_ptr_field(struct evsel *evsel,
 	({ struct syscall_tp *sc = evsel->priv;\
 	   perf_evsel__init_tp_ptr_field(evsel, &sc->name, #name); })
 
-static void perf_evsel__delete_priv(struct evsel *evsel)
+static void evsel__delete_priv(struct evsel *evsel)
 {
 	zfree(&evsel->priv);
-	perf_evsel__delete(evsel);
+	evsel__delete(evsel);
 }
 
 static int perf_evsel__init_syscall_tp(struct evsel *evsel)
@@ -368,7 +368,7 @@ static struct evsel *perf_evsel__raw_syscall_newtp(const char *direction, void *
 	return evsel;
 
 out_delete:
-	perf_evsel__delete_priv(evsel);
+	evsel__delete_priv(evsel);
 	return NULL;
 }
 
@@ -2638,7 +2638,7 @@ static bool perf_evlist__add_vfs_getname(struct evlist *evlist)
 
 		list_del_init(&evsel->node);
 		evsel->evlist = NULL;
-		perf_evsel__delete(evsel);
+		evsel__delete(evsel);
 	}
 
 	return found;
@@ -2739,9 +2739,9 @@ out:
 	return ret;
 
 out_delete_sys_exit:
-	perf_evsel__delete_priv(sys_exit);
+	evsel__delete_priv(sys_exit);
 out_delete_sys_enter:
-	perf_evsel__delete_priv(sys_enter);
+	evsel__delete_priv(sys_enter);
 	goto out;
 }
 

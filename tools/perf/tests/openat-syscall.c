@@ -59,7 +59,7 @@ int test__openat_syscall_event(struct test *test __maybe_unused, int subtest __m
 out_close_fd:
 	perf_evsel__close_fd(evsel);
 out_evsel_delete:
-	perf_evsel__delete(evsel);
+	evsel__delete(evsel);
 out_thread_map_delete:
 	thread_map__put(threads);
 	return err;
