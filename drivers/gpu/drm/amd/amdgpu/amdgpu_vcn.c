@@ -100,7 +100,8 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	case CHIP_NAVI14:
 		fw_name = FIRMWARE_NAVI14;
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
-		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
+		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) &&
+		    adev->asic_type != CHIP_RENOIR) /* to be removed while vcn psp loading works */
 			adev->vcn.indirect_sram = true;
 		break;
 	case CHIP_NAVI12:
@@ -160,7 +161,8 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	}
 
 	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_CONTEXT_SIZE;
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP ||
+	    adev->asic_type == CHIP_RENOIR)
 		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
@@ -271,7 +273,8 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 			unsigned offset;
 
 			hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
-			if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
+			if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP ||
+			    adev->asic_type == CHIP_RENOIR) {
 				offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
 				memcpy_toio(adev->vcn.inst[i].cpu_addr, adev->vcn.fw->data + offset,
 					    le32_to_cpu(hdr->ucode_size_bytes));
