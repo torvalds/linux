@@ -9,7 +9,7 @@
 
 struct metric_event {
 	struct rb_node nd;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct list_head head; /* list of metric_expr */
 };
 
@@ -17,11 +17,11 @@ struct metric_expr {
 	struct list_head nd;
 	const char *metric_expr;
 	const char *metric_name;
-	struct perf_evsel **metric_events;
+	struct evsel **metric_events;
 };
 
 struct metric_event *metricgroup__lookup(struct rblist *metric_events,
-					 struct perf_evsel *evsel,
+					 struct evsel *evsel,
 					 bool create);
 int metricgroup__parse_groups(const struct option *opt,
 			const char *str,

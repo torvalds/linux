@@ -14,7 +14,7 @@
 
 static int attach__enable_on_exec(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel = perf_evlist__last(evlist);
+	struct evsel *evsel = perf_evlist__last(evlist);
 	struct target target = {
 		.uid = UINT_MAX,
 	};
@@ -56,7 +56,7 @@ static int detach__enable_on_exec(struct perf_evlist *evlist)
 
 static int attach__current_disabled(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel = perf_evlist__last(evlist);
+	struct evsel *evsel = perf_evlist__last(evlist);
 	struct perf_thread_map *threads;
 	int err;
 
@@ -82,7 +82,7 @@ static int attach__current_disabled(struct perf_evlist *evlist)
 
 static int attach__current_enabled(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel = perf_evlist__last(evlist);
+	struct evsel *evsel = perf_evlist__last(evlist);
 	struct perf_thread_map *threads;
 	int err;
 
@@ -102,14 +102,14 @@ static int attach__current_enabled(struct perf_evlist *evlist)
 
 static int detach__disable(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel = perf_evlist__last(evlist);
+	struct evsel *evsel = perf_evlist__last(evlist);
 
 	return perf_evsel__enable(evsel);
 }
 
 static int attach__cpu_disabled(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel = perf_evlist__last(evlist);
+	struct evsel *evsel = perf_evlist__last(evlist);
 	struct perf_cpu_map *cpus;
 	int err;
 
@@ -138,7 +138,7 @@ static int attach__cpu_disabled(struct perf_evlist *evlist)
 
 static int attach__cpu_enabled(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel = perf_evlist__last(evlist);
+	struct evsel *evsel = perf_evlist__last(evlist);
 	struct perf_cpu_map *cpus;
 	int err;
 
@@ -163,7 +163,7 @@ static int test_times(int (attach)(struct perf_evlist *),
 {
 	struct perf_counts_values count;
 	struct perf_evlist *evlist = NULL;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	int err = -1, i;
 
 	evlist = perf_evlist__new();

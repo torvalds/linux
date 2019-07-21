@@ -761,7 +761,7 @@ static int intel_bts_synth_events(struct intel_bts *bts,
 				  struct perf_session *session)
 {
 	struct perf_evlist *evlist = session->evlist;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct perf_event_attr attr;
 	bool found = false;
 	u64 id;

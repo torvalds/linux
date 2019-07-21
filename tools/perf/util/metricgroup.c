@@ -21,7 +21,7 @@
 #include <linux/zalloc.h>
 
 struct metric_event *metricgroup__lookup(struct rblist *metric_events,
-					 struct perf_evsel *evsel,
+					 struct evsel *evsel,
 					 bool create)
 {
 	struct rb_node *nd;
@@ -86,10 +86,10 @@ struct egroup {
 	const char *metric_expr;
 };
 
-static bool record_evsel(int *ind, struct perf_evsel **start,
+static bool record_evsel(int *ind, struct evsel **start,
 			 int idnum,
-			 struct perf_evsel **metric_events,
-			 struct perf_evsel *ev)
+			 struct evsel **metric_events,
+			 struct evsel *ev)
 {
 	metric_events[*ind] = ev;
 	if (*ind == 0)
@@ -101,12 +101,12 @@ static bool record_evsel(int *ind, struct perf_evsel **start,
 	return false;
 }
 
-static struct perf_evsel *find_evsel_group(struct perf_evlist *perf_evlist,
-					   const char **ids,
-					   int idnum,
-					   struct perf_evsel **metric_events)
+static struct evsel *find_evsel_group(struct perf_evlist *perf_evlist,
+				      const char **ids,
+				      int idnum,
+				      struct evsel **metric_events)
 {
-	struct perf_evsel *ev, *start = NULL;
+	struct evsel *ev, *start = NULL;
 	int ind = 0;
 
 	evlist__for_each_entry (perf_evlist, ev) {
@@ -148,10 +148,10 @@ static int metricgroup__setup_events(struct list_head *groups,
 	int i = 0;
 	int ret = 0;
 	struct egroup *eg;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	list_for_each_entry (eg, groups, nd) {
-		struct perf_evsel **metric_events;
+		struct evsel **metric_events;
 
 		metric_events = calloc(sizeof(void *), eg->idnum + 1);
 		if (!metric_events) {

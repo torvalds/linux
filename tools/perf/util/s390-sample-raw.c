@@ -203,7 +203,7 @@ static void s390_cpumcfdg_dump(struct perf_sample *sample)
 void perf_evlist__s390_sample_raw(struct perf_evlist *evlist, union perf_event *event,
 				  struct perf_sample *sample)
 {
-	struct perf_evsel *ev_bc000;
+	struct evsel *ev_bc000;
 
 	if (event->header.type != PERF_RECORD_SAMPLE)
 		return;

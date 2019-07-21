@@ -86,7 +86,7 @@ struct trace {
 					*sys_exit;
 		}		prog_array;
 		struct {
-			struct perf_evsel *sys_enter,
+			struct evsel *sys_enter,
 					  *sys_exit,
 					  *augmented;
 		}		events;
@@ -242,7 +242,7 @@ struct syscall_tp {
 	};
 };
 
-static int perf_evsel__init_tp_uint_field(struct perf_evsel *evsel,
+static int perf_evsel__init_tp_uint_field(struct evsel *evsel,
 					  struct tp_field *field,
 					  const char *name)
 {
@@ -258,7 +258,7 @@ static int perf_evsel__init_tp_uint_field(struct perf_evsel *evsel,
 	({ struct syscall_tp *sc = evsel->priv;\
 	   perf_evsel__init_tp_uint_field(evsel, &sc->name, #name); })
 
-static int perf_evsel__init_tp_ptr_field(struct perf_evsel *evsel,
+static int perf_evsel__init_tp_ptr_field(struct evsel *evsel,
 					 struct tp_field *field,
 					 const char *name)
 {
@@ -274,13 +274,13 @@ static int perf_evsel__init_tp_ptr_field(struct perf_evsel *evsel,
 	({ struct syscall_tp *sc = evsel->priv;\
 	   perf_evsel__init_tp_ptr_field(evsel, &sc->name, #name); })
 
-static void perf_evsel__delete_priv(struct perf_evsel *evsel)
+static void perf_evsel__delete_priv(struct evsel *evsel)
 {
 	zfree(&evsel->priv);
 	perf_evsel__delete(evsel);
 }
 
-static int perf_evsel__init_syscall_tp(struct perf_evsel *evsel)
+static int perf_evsel__init_syscall_tp(struct evsel *evsel)
 {
 	struct syscall_tp *sc = evsel->priv = malloc(sizeof(struct syscall_tp));
 
@@ -297,7 +297,7 @@ out_delete:
 	return -ENOENT;
 }
 
-static int perf_evsel__init_augmented_syscall_tp(struct perf_evsel *evsel, struct perf_evsel *tp)
+static int perf_evsel__init_augmented_syscall_tp(struct evsel *evsel, struct evsel *tp)
 {
 	struct syscall_tp *sc = evsel->priv = malloc(sizeof(struct syscall_tp));
 
@@ -319,21 +319,21 @@ out_delete:
 	return -EINVAL;
 }
 
-static int perf_evsel__init_augmented_syscall_tp_args(struct perf_evsel *evsel)
+static int perf_evsel__init_augmented_syscall_tp_args(struct evsel *evsel)
 {
 	struct syscall_tp *sc = evsel->priv;
 
 	return __tp_field__init_ptr(&sc->args, sc->id.offset + sizeof(u64));
 }
 
-static int perf_evsel__init_augmented_syscall_tp_ret(struct perf_evsel *evsel)
+static int perf_evsel__init_augmented_syscall_tp_ret(struct evsel *evsel)
 {
 	struct syscall_tp *sc = evsel->priv;
 
 	return __tp_field__init_uint(&sc->ret, sizeof(u64), sc->id.offset + sizeof(u64), evsel->needs_swap);
 }
 
-static int perf_evsel__init_raw_syscall_tp(struct perf_evsel *evsel, void *handler)
+static int perf_evsel__init_raw_syscall_tp(struct evsel *evsel, void *handler)
 {
 	evsel->priv = malloc(sizeof(struct syscall_tp));
 	if (evsel->priv != NULL) {
@@ -351,9 +351,9 @@ out_delete:
 	return -ENOENT;
 }
 
-static struct perf_evsel *perf_evsel__raw_syscall_newtp(const char *direction, void *handler)
+static struct evsel *perf_evsel__raw_syscall_newtp(const char *direction, void *handler)
 {
-	struct perf_evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
+	struct evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
 
 	/* older kernel (e.g., RHEL6) use syscalls:{enter,exit} */
 	if (IS_ERR(evsel))
@@ -1775,12 +1775,12 @@ next_arg:
 	return printed;
 }
 
-typedef int (*tracepoint_handler)(struct trace *trace, struct perf_evsel *evsel,
+typedef int (*tracepoint_handler)(struct trace *trace, struct evsel *evsel,
 				  union perf_event *event,
 				  struct perf_sample *sample);
 
 static struct syscall *trace__syscall_info(struct trace *trace,
-					   struct perf_evsel *evsel, int id)
+					   struct evsel *evsel, int id)
 {
 	int err = 0;
 
@@ -1886,7 +1886,7 @@ static int trace__printf_interrupted_entry(struct trace *trace)
 	return printed;
 }
 
-static int trace__fprintf_sample(struct trace *trace, struct perf_evsel *evsel,
+static int trace__fprintf_sample(struct trace *trace, struct evsel *evsel,
 				 struct perf_sample *sample, struct thread *thread)
 {
 	int printed = 0;
@@ -1929,7 +1929,7 @@ static void *syscall__augmented_args(struct syscall *sc, struct perf_sample *sam
 	return augmented_args;
 }
 
-static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
+static int trace__sys_enter(struct trace *trace, struct evsel *evsel,
 			    union perf_event *event __maybe_unused,
 			    struct perf_sample *sample)
 {
@@ -2008,7 +2008,7 @@ out_put:
 	return err;
 }
 
-static int trace__fprintf_sys_enter(struct trace *trace, struct perf_evsel *evsel,
+static int trace__fprintf_sys_enter(struct trace *trace, struct evsel *evsel,
 				    struct perf_sample *sample)
 {
 	struct thread_trace *ttrace;
@@ -2041,7 +2041,7 @@ out_put:
 	return err;
 }
 
-static int trace__resolve_callchain(struct trace *trace, struct perf_evsel *evsel,
+static int trace__resolve_callchain(struct trace *trace, struct evsel *evsel,
 				    struct perf_sample *sample,
 				    struct callchain_cursor *cursor)
 {
@@ -2069,7 +2069,7 @@ static int trace__fprintf_callchain(struct trace *trace, struct perf_sample *sam
 	return sample__fprintf_callchain(sample, 38, print_opts, &callchain_cursor, trace->output);
 }
 
-static const char *errno_to_name(struct perf_evsel *evsel, int err)
+static const char *errno_to_name(struct evsel *evsel, int err)
 {
 	struct perf_env *env = perf_evsel__env(evsel);
 	const char *arch_name = perf_env__arch(env);
@@ -2077,7 +2077,7 @@ static const char *errno_to_name(struct perf_evsel *evsel, int err)
 	return arch_syscalls__strerrno(arch_name, err);
 }
 
-static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
+static int trace__sys_exit(struct trace *trace, struct evsel *evsel,
 			   union perf_event *event __maybe_unused,
 			   struct perf_sample *sample)
 {
@@ -2211,7 +2211,7 @@ out_put:
 	return err;
 }
 
-static int trace__vfs_getname(struct trace *trace, struct perf_evsel *evsel,
+static int trace__vfs_getname(struct trace *trace, struct evsel *evsel,
 			      union perf_event *event __maybe_unused,
 			      struct perf_sample *sample)
 {
@@ -2272,7 +2272,7 @@ out:
 	return 0;
 }
 
-static int trace__sched_stat_runtime(struct trace *trace, struct perf_evsel *evsel,
+static int trace__sched_stat_runtime(struct trace *trace, struct evsel *evsel,
 				     union perf_event *event __maybe_unused,
 				     struct perf_sample *sample)
 {
@@ -2334,7 +2334,7 @@ static void bpf_output__fprintf(struct trace *trace,
 	++trace->nr_events_printed;
 }
 
-static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
+static int trace__event_handler(struct trace *trace, struct evsel *evsel,
 				union perf_event *event __maybe_unused,
 				struct perf_sample *sample)
 {
@@ -2436,7 +2436,7 @@ static void print_location(FILE *f, struct perf_sample *sample,
 }
 
 static int trace__pgfault(struct trace *trace,
-			  struct perf_evsel *evsel,
+			  struct evsel *evsel,
 			  union perf_event *event __maybe_unused,
 			  struct perf_sample *sample)
 {
@@ -2511,7 +2511,7 @@ out_put:
 }
 
 static void trace__set_base_time(struct trace *trace,
-				 struct perf_evsel *evsel,
+				 struct evsel *evsel,
 				 struct perf_sample *sample)
 {
 	/*
@@ -2530,7 +2530,7 @@ static void trace__set_base_time(struct trace *trace,
 static int trace__process_sample(struct perf_tool *tool,
 				 union perf_event *event,
 				 struct perf_sample *sample,
-				 struct perf_evsel *evsel,
+				 struct evsel *evsel,
 				 struct machine *machine __maybe_unused)
 {
 	struct trace *trace = container_of(tool, struct trace, tool);
@@ -2619,7 +2619,7 @@ static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp);
 static bool perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 {
 	bool found = false;
-	struct perf_evsel *evsel, *tmp;
+	struct evsel *evsel, *tmp;
 	struct parse_events_error err = { .idx = 0, };
 	int ret = parse_events(evlist, "probe:vfs_getname*", &err);
 
@@ -2644,9 +2644,9 @@ static bool perf_evlist__add_vfs_getname(struct perf_evlist *evlist)
 	return found;
 }
 
-static struct perf_evsel *perf_evsel__new_pgfault(u64 config)
+static struct evsel *perf_evsel__new_pgfault(u64 config)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct perf_event_attr attr = {
 		.type = PERF_TYPE_SOFTWARE,
 		.mmap_data = 1,
@@ -2667,7 +2667,7 @@ static struct perf_evsel *perf_evsel__new_pgfault(u64 config)
 static void trace__handle_event(struct trace *trace, union perf_event *event, struct perf_sample *sample)
 {
 	const u32 type = event->header.type;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	if (type != PERF_RECORD_SAMPLE) {
 		trace__process_event(trace, trace->host, event, sample);
@@ -2700,7 +2700,7 @@ static int trace__add_syscall_newtp(struct trace *trace)
 {
 	int ret = -1;
 	struct perf_evlist *evlist = trace->evlist;
-	struct perf_evsel *sys_enter, *sys_exit;
+	struct evsel *sys_enter, *sys_exit;
 
 	sys_enter = perf_evsel__raw_syscall_newtp("sys_enter", trace__sys_enter);
 	if (sys_enter == NULL)
@@ -2748,7 +2748,7 @@ out_delete_sys_enter:
 static int trace__set_ev_qualifier_tp_filter(struct trace *trace)
 {
 	int err = -1;
-	struct perf_evsel *sys_exit;
+	struct evsel *sys_exit;
 	char *filter = asprintf_expr_inout_ints("id", !trace->not_ev_qualifier,
 						trace->ev_qualifier_ids.nr,
 						trace->ev_qualifier_ids.entries);
@@ -3251,7 +3251,7 @@ static int ordered_events__deliver_event(struct ordered_events *oe,
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = trace->evlist;
-	struct perf_evsel *evsel, *pgfault_maj = NULL, *pgfault_min = NULL;
+	struct evsel *evsel, *pgfault_maj = NULL, *pgfault_min = NULL;
 	int err = -1, i;
 	unsigned long before;
 	const bool forks = argc > 0;
@@ -3543,7 +3543,7 @@ out_errno:
 
 static int trace__replay(struct trace *trace)
 {
-	const struct perf_evsel_str_handler handlers[] = {
+	const struct evsel_str_handler handlers[] = {
 		{ "probe:vfs_getname",	     trace__vfs_getname, },
 	};
 	struct perf_data data = {
@@ -3552,7 +3552,7 @@ static int trace__replay(struct trace *trace)
 		.force = trace->force,
 	};
 	struct perf_session *session;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	int err = -1;
 
 	trace->tool.sample	  = trace__process_sample;
@@ -3845,7 +3845,7 @@ static int parse_pagefaults(const struct option *opt, const char *str,
 
 static void evlist__set_evsel_handler(struct perf_evlist *evlist, void *handler)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel)
 		evsel->handler = handler;
@@ -3853,7 +3853,7 @@ static void evlist__set_evsel_handler(struct perf_evlist *evlist, void *handler)
 
 static int evlist__set_syscall_tp_fields(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->priv || !evsel->tp_format)
@@ -4161,7 +4161,7 @@ int cmd_trace(int argc, const char **argv)
 	};
 	bool __maybe_unused max_stack_user_set = true;
 	bool mmap_pages_user_set = true;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	const char * const trace_subcommands[] = { "record", NULL };
 	int err = -1;
 	char bf[BUFSIZ];
@@ -4305,7 +4305,7 @@ int cmd_trace(int argc, const char **argv)
 
 			if (trace.syscalls.events.augmented->priv == NULL &&
 			    strstr(perf_evsel__name(evsel), "syscalls:sys_enter")) {
-				struct perf_evsel *augmented = trace.syscalls.events.augmented;
+				struct evsel *augmented = trace.syscalls.events.augmented;
 				if (perf_evsel__init_augmented_syscall_tp(augmented, evsel) ||
 				    perf_evsel__init_augmented_syscall_tp_args(augmented))
 					goto out;

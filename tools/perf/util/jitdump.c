@@ -118,7 +118,7 @@ jit_close(struct jit_buf_desc *jd)
 static int
 jit_validate_events(struct perf_session *session)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	/*
 	 * check that all events use CLOCK_MONOTONIC
@@ -758,7 +758,7 @@ jit_process(struct perf_session *session,
 	    pid_t pid,
 	    u64 *nbytes)
 {
-	struct perf_evsel *first;
+	struct evsel *first;
 	struct jit_buf_desc jd;
 	int ret;
 

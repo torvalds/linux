@@ -55,7 +55,7 @@ static const char *metadata_etmv4_ro[CS_ETMV4_PRIV_MAX] = {
 static bool cs_etm_is_etmv4(struct auxtrace_record *itr, int cpu);
 
 static int cs_etm_set_context_id(struct auxtrace_record *itr,
-				 struct perf_evsel *evsel, int cpu)
+				 struct evsel *evsel, int cpu)
 {
 	struct cs_etm_recording *ptr;
 	struct perf_pmu *cs_etm_pmu;
@@ -104,7 +104,7 @@ out:
 }
 
 static int cs_etm_set_timestamp(struct auxtrace_record *itr,
-				struct perf_evsel *evsel, int cpu)
+				struct evsel *evsel, int cpu)
 {
 	struct cs_etm_recording *ptr;
 	struct perf_pmu *cs_etm_pmu;
@@ -152,7 +152,7 @@ out:
 }
 
 static int cs_etm_set_option(struct auxtrace_record *itr,
-			     struct perf_evsel *evsel, u32 option)
+			     struct evsel *evsel, u32 option)
 {
 	int i, err = -EINVAL;
 	struct perf_cpu_map *event_cpus = evsel->evlist->cpus;
@@ -208,7 +208,7 @@ static int cs_etm_parse_snapshot_options(struct auxtrace_record *itr,
 }
 
 static int cs_etm_set_sink_attr(struct perf_pmu *pmu,
-				struct perf_evsel *evsel)
+				struct evsel *evsel)
 {
 	char msg[BUFSIZ], path[PATH_MAX], *sink;
 	struct perf_evsel_config_term *term;
@@ -252,7 +252,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	struct cs_etm_recording *ptr =
 				container_of(itr, struct cs_etm_recording, itr);
 	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
-	struct perf_evsel *evsel, *cs_etm_evsel = NULL;
+	struct evsel *evsel, *cs_etm_evsel = NULL;
 	struct perf_cpu_map *cpus = evlist->cpus;
 	bool privileged = (geteuid() == 0 || perf_event_paranoid() < 0);
 	int err = 0;
@@ -407,7 +407,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 
 	/* Add dummy event to keep tracking */
 	if (opts->full_auxtrace) {
-		struct perf_evsel *tracking_evsel;
+		struct evsel *tracking_evsel;
 
 		err = parse_events(evlist, "dummy:u", NULL);
 		if (err)
@@ -435,7 +435,7 @@ static u64 cs_etm_get_config(struct auxtrace_record *itr)
 			container_of(itr, struct cs_etm_recording, itr);
 	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
 	struct perf_evlist *evlist = ptr->evlist;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type == cs_etm_pmu->type) {
@@ -817,7 +817,7 @@ static int cs_etm_snapshot_start(struct auxtrace_record *itr)
 {
 	struct cs_etm_recording *ptr =
 			container_of(itr, struct cs_etm_recording, itr);
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->cs_etm_pmu->type)
@@ -830,7 +830,7 @@ static int cs_etm_snapshot_finish(struct auxtrace_record *itr)
 {
 	struct cs_etm_recording *ptr =
 			container_of(itr, struct cs_etm_recording, itr);
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->cs_etm_pmu->type)
@@ -858,7 +858,7 @@ static int cs_etm_read_finish(struct auxtrace_record *itr, int idx)
 {
 	struct cs_etm_recording *ptr =
 			container_of(itr, struct cs_etm_recording, itr);
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->cs_etm_pmu->type)

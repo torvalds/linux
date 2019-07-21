@@ -21,7 +21,7 @@ struct auxtrace_record *auxtrace_record__init_intel(struct perf_evlist *evlist,
 {
 	struct perf_pmu *intel_pt_pmu;
 	struct perf_pmu *intel_bts_pmu;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	bool found_pt = false;
 	bool found_bts = false;
 

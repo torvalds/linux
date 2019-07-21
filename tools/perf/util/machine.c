@@ -2287,7 +2287,7 @@ static int find_prev_cpumode(struct ip_callchain *chain, struct thread *thread,
 
 static int thread__resolve_callchain_sample(struct thread *thread,
 					    struct callchain_cursor *cursor,
-					    struct perf_evsel *evsel,
+					    struct evsel *evsel,
 					    struct perf_sample *sample,
 					    struct symbol **parent,
 					    struct addr_location *root_al,
@@ -2493,7 +2493,7 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 
 static int thread__resolve_callchain_unwind(struct thread *thread,
 					    struct callchain_cursor *cursor,
-					    struct perf_evsel *evsel,
+					    struct evsel *evsel,
 					    struct perf_sample *sample,
 					    int max_stack)
 {
@@ -2513,7 +2513,7 @@ static int thread__resolve_callchain_unwind(struct thread *thread,
 
 int thread__resolve_callchain(struct thread *thread,
 			      struct callchain_cursor *cursor,
-			      struct perf_evsel *evsel,
+			      struct evsel *evsel,
 			      struct perf_sample *sample,
 			      struct symbol **parent,
 			      struct addr_location *root_al,

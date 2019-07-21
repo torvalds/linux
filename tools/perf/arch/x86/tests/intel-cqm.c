@@ -41,7 +41,7 @@ static pid_t spawn(void)
 int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_evlist *evlist = NULL;
-	struct perf_evsel *evsel = NULL;
+	struct evsel *evsel = NULL;
 	struct perf_event_attr pe;
 	int i, fd[2], flag, ret;
 	size_t mmap_len;

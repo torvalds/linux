@@ -14,7 +14,7 @@
 int test__openat_syscall_event(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1, fd;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	unsigned int nr_openat_calls = 111, i;
 	struct perf_thread_map *threads = thread_map__new(-1, getpid(), UINT_MAX);
 	char sbuf[STRERR_BUFSIZE];

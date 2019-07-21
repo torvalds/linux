@@ -80,7 +80,7 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_evlist *evlist;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct event_name tmp;
 
 	evlist = perf_evlist__new_default();

@@ -33,7 +33,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 	const char *filename = "/etc/passwd";
 	int flags = O_RDONLY | O_DIRECTORY;
 	struct perf_evlist *evlist = perf_evlist__new();
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	int err = -1, i, nr_events = 0, nr_polls = 0;
 	char sbuf[STRERR_BUFSIZE];
 

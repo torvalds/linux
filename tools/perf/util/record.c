@@ -9,12 +9,12 @@
 #include "util.h"
 #include "cloexec.h"
 
-typedef void (*setup_probe_fn_t)(struct perf_evsel *evsel);
+typedef void (*setup_probe_fn_t)(struct evsel *evsel);
 
 static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 {
 	struct perf_evlist *evlist;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	unsigned long flags = perf_event_open_cloexec_flag();
 	int err = -EAGAIN, fd;
 	static pid_t pid = -1;
@@ -78,17 +78,17 @@ static bool perf_probe_api(setup_probe_fn_t fn)
 	return false;
 }
 
-static void perf_probe_sample_identifier(struct perf_evsel *evsel)
+static void perf_probe_sample_identifier(struct evsel *evsel)
 {
 	evsel->attr.sample_type |= PERF_SAMPLE_IDENTIFIER;
 }
 
-static void perf_probe_comm_exec(struct perf_evsel *evsel)
+static void perf_probe_comm_exec(struct evsel *evsel)
 {
 	evsel->attr.comm_exec = 1;
 }
 
-static void perf_probe_context_switch(struct perf_evsel *evsel)
+static void perf_probe_context_switch(struct evsel *evsel)
 {
 	evsel->attr.context_switch = 1;
 }
@@ -135,7 +135,7 @@ bool perf_can_record_cpu_wide(void)
 void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts,
 			 struct callchain_param *callchain)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	bool use_sample_identifier = false;
 	bool use_comm_exec;
 	bool sample_id = opts->sample_id;
@@ -167,7 +167,7 @@ void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts,
 		use_sample_identifier = perf_can_sample_identifier();
 		sample_id = true;
 	} else if (evlist->nr_entries > 1) {
-		struct perf_evsel *first = perf_evlist__first(evlist);
+		struct evsel *first = perf_evlist__first(evlist);
 
 		evlist__for_each_entry(evlist, evsel) {
 			if (evsel->attr.sample_type == first->attr.sample_type)
@@ -259,7 +259,7 @@ int record_opts__config(struct record_opts *opts)
 bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str)
 {
 	struct perf_evlist *temp_evlist;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	int err, fd, cpu;
 	bool ret = false;
 	pid_t pid = -1;

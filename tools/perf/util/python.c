@@ -93,7 +93,7 @@ PyMODINIT_FUNC PyInit_perf(void);
 
 struct pyrf_event {
 	PyObject_HEAD
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct perf_sample sample;
 	union perf_event   event;
 };
@@ -383,7 +383,7 @@ static PyObject*
 get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 {
 	const char *str = _PyUnicode_AsString(PyObject_Str(attr_name));
-	struct perf_evsel *evsel = pevent->evsel;
+	struct evsel *evsel = pevent->evsel;
 	struct tep_format_field *field;
 
 	if (!evsel->tp_format) {
@@ -674,7 +674,7 @@ static int pyrf_thread_map__setup_types(void)
 struct pyrf_evsel {
 	PyObject_HEAD
 
-	struct perf_evsel evsel;
+	struct evsel evsel;
 };
 
 static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
@@ -795,7 +795,7 @@ static void pyrf_evsel__delete(struct pyrf_evsel *pevsel)
 static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 				  PyObject *args, PyObject *kwargs)
 {
-	struct perf_evsel *evsel = &pevsel->evsel;
+	struct evsel *evsel = &pevsel->evsel;
 	struct perf_cpu_map *cpus = NULL;
 	struct perf_thread_map *threads = NULL;
 	PyObject *pcpus = NULL, *pthreads = NULL;
@@ -966,7 +966,7 @@ static PyObject *pyrf_evlist__add(struct pyrf_evlist *pevlist,
 {
 	struct perf_evlist *evlist = &pevlist->evlist;
 	PyObject *pevsel;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	if (!PyArg_ParseTuple(args, "O", &pevsel))
 		return NULL;
@@ -1018,7 +1018,7 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 	if (event != NULL) {
 		PyObject *pyevent = pyrf_event__new(event);
 		struct pyrf_event *pevent = (struct pyrf_event *)pyevent;
-		struct perf_evsel *evsel;
+		struct evsel *evsel;
 
 		if (pyevent == NULL)
 			return PyErr_NoMemory();
@@ -1118,7 +1118,7 @@ static Py_ssize_t pyrf_evlist__length(PyObject *obj)
 static PyObject *pyrf_evlist__item(PyObject *obj, Py_ssize_t i)
 {
 	struct pyrf_evlist *pevlist = (void *)obj;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 
 	if (i >= pevlist->evlist.nr_entries)
 		return NULL;

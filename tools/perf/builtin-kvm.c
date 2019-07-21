@@ -57,7 +57,7 @@ static const char *get_filename_for_perf_kvm(void)
 #ifdef HAVE_KVM_STAT_SUPPORT
 #include "util/kvm-stat.h"
 
-void exit_event_get_key(struct perf_evsel *evsel,
+void exit_event_get_key(struct evsel *evsel,
 			struct perf_sample *sample,
 			struct event_key *key)
 {
@@ -65,12 +65,12 @@ void exit_event_get_key(struct perf_evsel *evsel,
 	key->key = perf_evsel__intval(evsel, sample, kvm_exit_reason);
 }
 
-bool kvm_exit_event(struct perf_evsel *evsel)
+bool kvm_exit_event(struct evsel *evsel)
 {
 	return !strcmp(evsel->name, kvm_exit_trace);
 }
 
-bool exit_event_begin(struct perf_evsel *evsel,
+bool exit_event_begin(struct evsel *evsel,
 		      struct perf_sample *sample, struct event_key *key)
 {
 	if (kvm_exit_event(evsel)) {
@@ -81,12 +81,12 @@ bool exit_event_begin(struct perf_evsel *evsel,
 	return false;
 }
 
-bool kvm_entry_event(struct perf_evsel *evsel)
+bool kvm_entry_event(struct evsel *evsel)
 {
 	return !strcmp(evsel->name, kvm_entry_trace);
 }
 
-bool exit_event_end(struct perf_evsel *evsel,
+bool exit_event_end(struct evsel *evsel,
 		    struct perf_sample *sample __maybe_unused,
 		    struct event_key *key __maybe_unused)
 {
@@ -286,7 +286,7 @@ static bool update_kvm_event(struct kvm_event *event, int vcpu_id,
 }
 
 static bool is_child_event(struct perf_kvm_stat *kvm,
-			   struct perf_evsel *evsel,
+			   struct evsel *evsel,
 			   struct perf_sample *sample,
 			   struct event_key *key)
 {
@@ -396,7 +396,7 @@ static bool handle_end_event(struct perf_kvm_stat *kvm,
 
 static
 struct vcpu_event_record *per_vcpu_record(struct thread *thread,
-					  struct perf_evsel *evsel,
+					  struct evsel *evsel,
 					  struct perf_sample *sample)
 {
 	/* Only kvm_entry records vcpu id. */
@@ -419,7 +419,7 @@ struct vcpu_event_record *per_vcpu_record(struct thread *thread,
 
 static bool handle_kvm_event(struct perf_kvm_stat *kvm,
 			     struct thread *thread,
-			     struct perf_evsel *evsel,
+			     struct evsel *evsel,
 			     struct perf_sample *sample)
 {
 	struct vcpu_event_record *vcpu_record;
@@ -672,7 +672,7 @@ static bool skip_sample(struct perf_kvm_stat *kvm,
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine)
 {
 	int err = 0;
@@ -1011,7 +1011,7 @@ out:
 static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 {
 	int err, rc = -1;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	struct perf_evlist *evlist = kvm->evlist;
 	char sbuf[STRERR_BUFSIZE];
 

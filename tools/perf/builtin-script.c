@@ -242,7 +242,7 @@ static struct {
 	},
 };
 
-struct perf_evsel_script {
+struct evsel_script {
        char *filename;
        FILE *fp;
        u64  samples;
@@ -251,15 +251,15 @@ struct perf_evsel_script {
        int  gnum;
 };
 
-static inline struct perf_evsel_script *evsel_script(struct perf_evsel *evsel)
+static inline struct evsel_script *evsel_script(struct evsel *evsel)
 {
-	return (struct perf_evsel_script *)evsel->priv;
+	return (struct evsel_script *)evsel->priv;
 }
 
-static struct perf_evsel_script *perf_evsel_script__new(struct perf_evsel *evsel,
+static struct evsel_script *perf_evsel_script__new(struct evsel *evsel,
 							struct perf_data *data)
 {
-	struct perf_evsel_script *es = zalloc(sizeof(*es));
+	struct evsel_script *es = zalloc(sizeof(*es));
 
 	if (es != NULL) {
 		if (asprintf(&es->filename, "%s.%s.dump", data->file.path, perf_evsel__name(evsel)) < 0)
@@ -277,7 +277,7 @@ out_free:
 	return NULL;
 }
 
-static void perf_evsel_script__delete(struct perf_evsel_script *es)
+static void perf_evsel_script__delete(struct evsel_script *es)
 {
 	zfree(&es->filename);
 	fclose(es->fp);
@@ -285,7 +285,7 @@ static void perf_evsel_script__delete(struct perf_evsel_script *es)
 	free(es);
 }
 
-static int perf_evsel_script__fprintf(struct perf_evsel_script *es, FILE *fp)
+static int perf_evsel_script__fprintf(struct evsel_script *es, FILE *fp)
 {
 	struct stat st;
 
@@ -340,7 +340,7 @@ static const char *output_field2str(enum perf_output_field field)
 
 #define PRINT_FIELD(x)  (output[output_type(attr->type)].fields & PERF_OUTPUT_##x)
 
-static int perf_evsel__do_check_stype(struct perf_evsel *evsel,
+static int perf_evsel__do_check_stype(struct evsel *evsel,
 				      u64 sample_type, const char *sample_msg,
 				      enum perf_output_field field,
 				      bool allow_user_set)
@@ -372,7 +372,7 @@ static int perf_evsel__do_check_stype(struct perf_evsel *evsel,
 	return 0;
 }
 
-static int perf_evsel__check_stype(struct perf_evsel *evsel,
+static int perf_evsel__check_stype(struct evsel *evsel,
 				   u64 sample_type, const char *sample_msg,
 				   enum perf_output_field field)
 {
@@ -380,7 +380,7 @@ static int perf_evsel__check_stype(struct perf_evsel *evsel,
 					  false);
 }
 
-static int perf_evsel__check_attr(struct perf_evsel *evsel,
+static int perf_evsel__check_attr(struct evsel *evsel,
 				  struct perf_session *session)
 {
 	struct perf_event_attr *attr = &evsel->attr;
@@ -507,7 +507,7 @@ static void set_print_ip_opts(struct perf_event_attr *attr)
 static int perf_session__check_output_opt(struct perf_session *session)
 {
 	unsigned int j;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	for (j = 0; j < OUTPUT_TYPE_MAX; ++j) {
 		evsel = perf_session__find_first_evtype(session, attr_type(j));
@@ -614,7 +614,7 @@ static int perf_sample__fprintf_uregs(struct perf_sample *sample,
 
 static int perf_sample__fprintf_start(struct perf_sample *sample,
 				      struct thread *thread,
-				      struct perf_evsel *evsel,
+				      struct evsel *evsel,
 				      u32 type, FILE *fp)
 {
 	struct perf_event_attr *attr = &evsel->attr;
@@ -1162,7 +1162,7 @@ out:
 }
 
 static const char *resolve_branch_sym(struct perf_sample *sample,
-				      struct perf_evsel *evsel,
+				      struct evsel *evsel,
 				      struct thread *thread,
 				      struct addr_location *al,
 				      u64 *ip)
@@ -1191,7 +1191,7 @@ static const char *resolve_branch_sym(struct perf_sample *sample,
 }
 
 static int perf_sample__fprintf_callindent(struct perf_sample *sample,
-					   struct perf_evsel *evsel,
+					   struct evsel *evsel,
 					   struct thread *thread,
 					   struct addr_location *al, FILE *fp)
 {
@@ -1285,7 +1285,7 @@ static int perf_sample__fprintf_ipc(struct perf_sample *sample,
 }
 
 static int perf_sample__fprintf_bts(struct perf_sample *sample,
-				    struct perf_evsel *evsel,
+				    struct evsel *evsel,
 				    struct thread *thread,
 				    struct addr_location *al,
 				    struct machine *machine, FILE *fp)
@@ -1593,7 +1593,7 @@ static int perf_sample__fprintf_synth_cbr(struct perf_sample *sample, FILE *fp)
 }
 
 static int perf_sample__fprintf_synth(struct perf_sample *sample,
-				      struct perf_evsel *evsel, FILE *fp)
+				      struct evsel *evsel, FILE *fp)
 {
 	switch (evsel->attr.config) {
 	case PERF_SYNTH_INTEL_PTWRITE:
@@ -1638,7 +1638,7 @@ struct perf_script {
 
 static int perf_evlist__max_name_len(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	int max = 0;
 
 	evlist__for_each_entry(evlist, evsel) {
@@ -1670,7 +1670,7 @@ static int data_src__fprintf(u64 data_src, FILE *fp)
 struct metric_ctx {
 	struct perf_sample	*sample;
 	struct thread		*thread;
-	struct perf_evsel	*evsel;
+	struct evsel	*evsel;
 	FILE 			*fp;
 };
 
@@ -1705,7 +1705,7 @@ static void script_new_line(struct perf_stat_config *config __maybe_unused,
 
 static void perf_sample__fprint_metric(struct perf_script *script,
 				       struct thread *thread,
-				       struct perf_evsel *evsel,
+				       struct evsel *evsel,
 				       struct perf_sample *sample,
 				       FILE *fp)
 {
@@ -1720,7 +1720,7 @@ static void perf_sample__fprint_metric(struct perf_script *script,
 			 },
 		.force_header = false,
 	};
-	struct perf_evsel *ev2;
+	struct evsel *ev2;
 	u64 val;
 
 	if (!evsel->stats)
@@ -1747,7 +1747,7 @@ static void perf_sample__fprint_metric(struct perf_script *script,
 }
 
 static bool show_event(struct perf_sample *sample,
-		       struct perf_evsel *evsel,
+		       struct evsel *evsel,
 		       struct thread *thread,
 		       struct addr_location *al)
 {
@@ -1788,14 +1788,14 @@ static bool show_event(struct perf_sample *sample,
 }
 
 static void process_event(struct perf_script *script,
-			  struct perf_sample *sample, struct perf_evsel *evsel,
+			  struct perf_sample *sample, struct evsel *evsel,
 			  struct addr_location *al,
 			  struct machine *machine)
 {
 	struct thread *thread = al->thread;
 	struct perf_event_attr *attr = &evsel->attr;
 	unsigned int type = output_type(attr->type);
-	struct perf_evsel_script *es = evsel->priv;
+	struct evsel_script *es = evsel->priv;
 	FILE *fp = es->fp;
 
 	if (output[type].fields == 0)
@@ -1897,7 +1897,7 @@ static void process_event(struct perf_script *script,
 
 static struct scripting_ops	*scripting_ops;
 
-static void __process_stat(struct perf_evsel *counter, u64 tstamp)
+static void __process_stat(struct evsel *counter, u64 tstamp)
 {
 	int nthreads = thread_map__nr(counter->threads);
 	int ncpus = perf_evsel__nr_cpus(counter);
@@ -1931,7 +1931,7 @@ static void __process_stat(struct perf_evsel *counter, u64 tstamp)
 	}
 }
 
-static void process_stat(struct perf_evsel *counter, u64 tstamp)
+static void process_stat(struct evsel *counter, u64 tstamp)
 {
 	if (scripting_ops && scripting_ops->process_stat)
 		scripting_ops->process_stat(&stat_config, counter, tstamp);
@@ -1973,7 +1973,7 @@ static bool filter_cpu(struct perf_sample *sample)
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine)
 {
 	struct perf_script *scr = container_of(tool, struct perf_script, tool);
@@ -2022,9 +2022,9 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 {
 	struct perf_script *scr = container_of(tool, struct perf_script, tool);
 	struct perf_evlist *evlist;
-	struct perf_evsel *evsel, *pos;
+	struct evsel *evsel, *pos;
 	int err;
-	static struct perf_evsel_script *es;
+	static struct evsel_script *es;
 
 	err = perf_event__process_attr(tool, event, pevlist);
 	if (err)
@@ -2071,7 +2071,7 @@ static int process_comm_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	struct evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 	int ret = -1;
 
 	thread = machine__findnew_thread(machine, event->comm.pid, event->comm.tid);
@@ -2108,7 +2108,7 @@ static int process_namespaces_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	struct evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 	int ret = -1;
 
 	thread = machine__findnew_thread(machine, event->namespaces.pid,
@@ -2146,7 +2146,7 @@ static int process_fork_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	struct evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 
 	if (perf_event__process_fork(tool, event, sample, machine) < 0)
 		return -1;
@@ -2181,7 +2181,7 @@ static int process_exit_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	struct evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 
 	thread = machine__findnew_thread(machine, event->fork.pid, event->fork.tid);
 	if (thread == NULL) {
@@ -2216,7 +2216,7 @@ static int process_mmap_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	struct evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 
 	if (perf_event__process_mmap(tool, event, sample, machine) < 0)
 		return -1;
@@ -2250,7 +2250,7 @@ static int process_mmap2_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	struct evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 
 	if (perf_event__process_mmap2(tool, event, sample, machine) < 0)
 		return -1;
@@ -2284,7 +2284,7 @@ static int process_switch_event(struct perf_tool *tool,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	struct evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 
 	if (perf_event__process_switch(tool, event, sample, machine) < 0)
 		return -1;
@@ -2319,7 +2319,7 @@ process_lost_event(struct perf_tool *tool,
 {
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	struct evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 	struct thread *thread;
 
 	thread = machine__findnew_thread(machine, sample->pid,
@@ -2355,7 +2355,7 @@ process_bpf_events(struct perf_tool *tool __maybe_unused,
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
-	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	struct evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 
 	if (machine__process_ksymbol(machine, event, sample) < 0)
 		return -1;
@@ -2389,7 +2389,7 @@ static void sig_handler(int sig __maybe_unused)
 static void perf_script__fclose_per_event_dump(struct perf_script *script)
 {
 	struct perf_evlist *evlist = script->session->evlist;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (!evsel->priv)
@@ -2401,7 +2401,7 @@ static void perf_script__fclose_per_event_dump(struct perf_script *script)
 
 static int perf_script__fopen_per_event_dump(struct perf_script *script)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(script->session->evlist, evsel) {
 		/*
@@ -2428,8 +2428,8 @@ out_err_fclose:
 
 static int perf_script__setup_per_event_dump(struct perf_script *script)
 {
-	struct perf_evsel *evsel;
-	static struct perf_evsel_script es_stdout;
+	struct evsel *evsel;
+	static struct evsel_script es_stdout;
 
 	if (script->per_event_dump)
 		return perf_script__fopen_per_event_dump(script);
@@ -2444,10 +2444,10 @@ static int perf_script__setup_per_event_dump(struct perf_script *script)
 
 static void perf_script__exit_per_event_dump_stats(struct perf_script *script)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(script->session->evlist, evsel) {
-		struct perf_evsel_script *es = evsel->priv;
+		struct evsel_script *es = evsel->priv;
 
 		perf_evsel_script__fprintf(es, stdout);
 		perf_evsel_script__delete(es);
@@ -3003,7 +3003,7 @@ static int check_ev_match(char *dir_name, char *scriptname,
 {
 	char filename[MAXPATHLEN], evname[128];
 	char line[BUFSIZ], *p;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	int match, len;
 	FILE *fp;
 
@@ -3236,7 +3236,7 @@ static int process_stat_round_event(struct perf_session *session,
 				    union perf_event *event)
 {
 	struct stat_round_event *round = &event->stat_round;
-	struct perf_evsel *counter;
+	struct evsel *counter;
 
 	evlist__for_each_entry(session->evlist, counter) {
 		perf_stat_process_counter(&stat_config, counter);

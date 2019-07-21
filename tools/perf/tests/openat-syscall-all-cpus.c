@@ -21,7 +21,7 @@ int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int
 {
 	int err = -1, fd, cpu;
 	struct perf_cpu_map *cpus;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	unsigned int nr_openat_calls = 111, i;
 	cpu_set_t cpu_set;
 	struct perf_thread_map *threads = thread_map__new(-1, getpid(), UINT_MAX);

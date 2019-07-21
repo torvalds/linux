@@ -234,7 +234,7 @@ static int write_stat_round_event(u64 tm, u64 type)
 #define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
 
 static int
-perf_evsel__write_stat_event(struct perf_evsel *counter, u32 cpu, u32 thread,
+perf_evsel__write_stat_event(struct evsel *counter, u32 cpu, u32 thread,
 			     struct perf_counts_values *count)
 {
 	struct perf_sample_id *sid = SID(counter, cpu, thread);
@@ -243,7 +243,7 @@ perf_evsel__write_stat_event(struct perf_evsel *counter, u32 cpu, u32 thread,
 					   process_synthesized_event, NULL);
 }
 
-static int read_single_counter(struct perf_evsel *counter, int cpu,
+static int read_single_counter(struct evsel *counter, int cpu,
 			       int thread, struct timespec *rs)
 {
 	if (counter->tool_event == PERF_TOOL_DURATION_TIME) {
@@ -261,7 +261,7 @@ static int read_single_counter(struct perf_evsel *counter, int cpu,
  * Read out the results of a single counter:
  * do not aggregate counts across CPUs in system-wide mode
  */
-static int read_counter(struct perf_evsel *counter, struct timespec *rs)
+static int read_counter(struct evsel *counter, struct timespec *rs)
 {
 	int nthreads = thread_map__nr(evsel_list->threads);
 	int ncpus, cpu, thread;
@@ -319,7 +319,7 @@ static int read_counter(struct perf_evsel *counter, struct timespec *rs)
 
 static void read_counters(struct timespec *rs)
 {
-	struct perf_evsel *counter;
+	struct evsel *counter;
 	int ret;
 
 	evlist__for_each_entry(evsel_list, counter) {
@@ -389,7 +389,7 @@ static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *inf
 	workload_exec_errno = info->si_value.sival_int;
 }
 
-static bool perf_evsel__should_store_id(struct perf_evsel *counter)
+static bool perf_evsel__should_store_id(struct evsel *counter)
 {
 	return STAT_RECORD || counter->attr.read_format & PERF_FORMAT_ID;
 }
@@ -423,7 +423,7 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	int timeout = stat_config.timeout;
 	char msg[BUFSIZ];
 	unsigned long long t0, t1;
-	struct perf_evsel *counter;
+	struct evsel *counter;
 	struct timespec ts;
 	size_t l;
 	int status = 0;
@@ -868,7 +868,7 @@ static int perf_stat__get_core_cached(struct perf_stat_config *config,
 
 static bool term_percore_set(void)
 {
-	struct perf_evsel *counter;
+	struct evsel *counter;
 
 	evlist__for_each_entry(evsel_list, counter) {
 		if (counter->percore)
@@ -1462,7 +1462,7 @@ static int process_stat_round_event(struct perf_session *session,
 				    union perf_event *event)
 {
 	struct stat_round_event *stat_round = &event->stat_round;
-	struct perf_evsel *counter;
+	struct evsel *counter;
 	struct timespec tsh, *ts = NULL;
 	const char **argv = session->header.env.cmdline_argv;
 	int argc = session->header.env.nr_cmdline;
@@ -1676,7 +1676,7 @@ static void setup_system_wide(int forks)
 	if (!forks)
 		target.system_wide = true;
 	else {
-		struct perf_evsel *counter;
+		struct evsel *counter;
 
 		evlist__for_each_entry(evsel_list, counter) {
 			if (!counter->system_wide)

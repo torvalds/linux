@@ -595,7 +595,7 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 				  struct hist_browser_timer *hbt __maybe_unused,
 				  float min_pcnt)
 {
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	GtkWidget *vbox;
 	GtkWidget *notebook;
 	GtkWidget *info_bar;

@@ -405,7 +405,7 @@ static struct tracepoint_path *
 get_tracepoints_path(struct list_head *pattrs)
 {
 	struct tracepoint_path path, *ppath = &path;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	int nr_tracepoints = 0;
 
 	list_for_each_entry(pos, pattrs, node) {
@@ -441,7 +441,7 @@ next:
 
 bool have_tracepoints(struct list_head *pattrs)
 {
-	struct perf_evsel *pos;
+	struct evsel *pos;
 
 	list_for_each_entry(pos, pattrs, node)
 		if (pos->attr.type == PERF_TYPE_TRACEPOINT)

@@ -413,7 +413,7 @@ static int add_tracepoint_fields_values(struct ctf_writer *cw,
 static int add_tracepoint_values(struct ctf_writer *cw,
 				 struct bt_ctf_event_class *event_class,
 				 struct bt_ctf_event *event,
-				 struct perf_evsel *evsel,
+				 struct evsel *evsel,
 				 struct perf_sample *sample)
 {
 	struct tep_format_field *common_fields = evsel->tp_format->format.common_fields;
@@ -584,7 +584,7 @@ put_len_type:
 
 static int add_generic_values(struct ctf_writer *cw,
 			      struct bt_ctf_event *event,
-			      struct perf_evsel *evsel,
+			      struct evsel *evsel,
 			      struct perf_sample *sample)
 {
 	u64 type = evsel->attr.sample_type;
@@ -753,7 +753,7 @@ static struct ctf_stream *ctf_stream(struct ctf_writer *cw, int cpu)
 }
 
 static int get_sample_cpu(struct ctf_writer *cw, struct perf_sample *sample,
-			  struct perf_evsel *evsel)
+			  struct evsel *evsel)
 {
 	int cpu = 0;
 
@@ -785,7 +785,7 @@ static bool is_flush_needed(struct ctf_stream *cs)
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *_event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine __maybe_unused)
 {
 	struct convert *c = container_of(tool, struct convert, tool);
@@ -1051,7 +1051,7 @@ static int add_tracepoint_fields_types(struct ctf_writer *cw,
 }
 
 static int add_tracepoint_types(struct ctf_writer *cw,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct bt_ctf_event_class *class)
 {
 	struct tep_format_field *common_fields = evsel->tp_format->format.common_fields;
@@ -1084,7 +1084,7 @@ static int add_bpf_output_types(struct ctf_writer *cw,
 	return bt_ctf_event_class_add_field(class, seq_type, "raw_data");
 }
 
-static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
+static int add_generic_types(struct ctf_writer *cw, struct evsel *evsel,
 			     struct bt_ctf_event_class *event_class)
 {
 	u64 type = evsel->attr.sample_type;
@@ -1150,7 +1150,7 @@ static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
 	return 0;
 }
 
-static int add_event(struct ctf_writer *cw, struct perf_evsel *evsel)
+static int add_event(struct ctf_writer *cw, struct evsel *evsel)
 {
 	struct bt_ctf_event_class *event_class;
 	struct evsel_priv *priv;
@@ -1202,7 +1202,7 @@ err:
 static int setup_events(struct ctf_writer *cw, struct perf_session *session)
 {
 	struct perf_evlist *evlist = session->evlist;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	int ret;
 
 	evlist__for_each_entry(evlist, evsel) {
@@ -1309,7 +1309,7 @@ static int setup_non_sample_events(struct ctf_writer *cw,
 static void cleanup_events(struct perf_session *session)
 {
 	struct perf_evlist *evlist = session->evlist;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
 		struct evsel_priv *priv;

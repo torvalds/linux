@@ -555,7 +555,7 @@ static int do_test_code_reading(bool try_kcore)
 	struct perf_thread_map *threads = NULL;
 	struct perf_cpu_map *cpus = NULL;
 	struct perf_evlist *evlist = NULL;
-	struct perf_evsel *evsel = NULL;
+	struct evsel *evsel = NULL;
 	int err = -1, ret;
 	pid_t pid;
 	struct map *map;

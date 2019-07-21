@@ -52,8 +52,8 @@ static int spin_sleep(void)
 }
 
 struct switch_tracking {
-	struct perf_evsel *switch_evsel;
-	struct perf_evsel *cycles_evsel;
+	struct evsel *switch_evsel;
+	struct evsel *cycles_evsel;
 	pid_t *tids;
 	int nr_tids;
 	int comm_seen[4];
@@ -118,7 +118,7 @@ static int process_sample_event(struct perf_evlist *evlist,
 				struct switch_tracking *switch_tracking)
 {
 	struct perf_sample sample;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	pid_t next_tid, prev_tid;
 	int cpu, err;
 
@@ -330,8 +330,8 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	struct perf_thread_map *threads = NULL;
 	struct perf_cpu_map *cpus = NULL;
 	struct perf_evlist *evlist = NULL;
-	struct perf_evsel *evsel, *cpu_clocks_evsel, *cycles_evsel;
-	struct perf_evsel *switch_evsel, *tracking_evsel;
+	struct evsel *evsel, *cpu_clocks_evsel, *cycles_evsel;
+	struct evsel *switch_evsel, *tracking_evsel;
 	const char *comm;
 	int err = -1;
 

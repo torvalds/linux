@@ -11,7 +11,7 @@
 
 struct addr_location;
 struct branch_stack;
-struct perf_evsel;
+struct evsel;
 struct perf_sample;
 struct symbol;
 struct thread;
@@ -175,7 +175,7 @@ struct callchain_cursor;
 
 int thread__resolve_callchain(struct thread *thread,
 			      struct callchain_cursor *cursor,
-			      struct perf_evsel *evsel,
+			      struct evsel *evsel,
 			      struct perf_sample *sample,
 			      struct symbol **parent,
 			      struct addr_location *root_al,

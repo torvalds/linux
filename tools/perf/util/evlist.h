@@ -46,7 +46,7 @@ struct perf_evlist {
 	struct perf_mmap *overwrite_mmap;
 	struct perf_thread_map *threads;
 	struct perf_cpu_map *cpus;
-	struct perf_evsel *selected;
+	struct evsel *selected;
 	struct events_stats stats;
 	struct perf_env	*env;
 	void (*trace_event_sample_raw)(struct perf_evlist *evlist,
@@ -60,7 +60,7 @@ struct perf_evlist {
 	} thread;
 };
 
-struct perf_evsel_str_handler {
+struct evsel_str_handler {
 	const char *name;
 	void	   *handler;
 };
@@ -73,8 +73,8 @@ void perf_evlist__init(struct perf_evlist *evlist, struct perf_cpu_map *cpus,
 void perf_evlist__exit(struct perf_evlist *evlist);
 void perf_evlist__delete(struct perf_evlist *evlist);
 
-void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry);
-void perf_evlist__remove(struct perf_evlist *evlist, struct perf_evsel *evsel);
+void perf_evlist__add(struct perf_evlist *evlist, struct evsel *entry);
+void perf_evlist__remove(struct perf_evlist *evlist, struct evsel *evsel);
 
 int __perf_evlist__add_default(struct perf_evlist *evlist, bool precise);
 
@@ -117,17 +117,17 @@ int perf_evlist__set_tp_filter(struct perf_evlist *evlist, const char *filter);
 int perf_evlist__set_tp_filter_pid(struct perf_evlist *evlist, pid_t pid);
 int perf_evlist__set_tp_filter_pids(struct perf_evlist *evlist, size_t npids, pid_t *pids);
 
-struct perf_evsel *
+struct evsel *
 perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id);
 
-struct perf_evsel *
+struct evsel *
 perf_evlist__find_tracepoint_by_name(struct perf_evlist *evlist,
 				     const char *name);
 
-void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
+void perf_evlist__id_add(struct perf_evlist *evlist, struct evsel *evsel,
 			 int cpu, int thread, u64 id);
 int perf_evlist__id_add_fd(struct perf_evlist *evlist,
-			   struct perf_evsel *evsel,
+			   struct evsel *evsel,
 			   int cpu, int thread, int fd);
 
 int perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
@@ -136,8 +136,8 @@ int perf_evlist__filter_pollfd(struct perf_evlist *evlist, short revents_and_mas
 
 int perf_evlist__poll(struct perf_evlist *evlist, int timeout);
 
-struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
-struct perf_evsel *perf_evlist__id2evsel_strict(struct perf_evlist *evlist,
+struct evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
+struct evsel *perf_evlist__id2evsel_strict(struct perf_evlist *evlist,
 						u64 id);
 
 struct perf_sample_id *perf_evlist__id2sid(struct perf_evlist *evlist, u64 id);
@@ -189,15 +189,15 @@ void perf_evlist__enable(struct perf_evlist *evlist);
 void perf_evlist__toggle_enable(struct perf_evlist *evlist);
 
 int perf_evlist__enable_event_idx(struct perf_evlist *evlist,
-				  struct perf_evsel *evsel, int idx);
+				  struct evsel *evsel, int idx);
 
 void perf_evlist__set_selected(struct perf_evlist *evlist,
-			       struct perf_evsel *evsel);
+			       struct evsel *evsel);
 
 void perf_evlist__set_maps(struct perf_evlist *evlist, struct perf_cpu_map *cpus,
 			   struct perf_thread_map *threads);
 int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target);
-int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel);
+int perf_evlist__apply_filters(struct perf_evlist *evlist, struct evsel **err_evsel);
 
 void __perf_evlist__set_leader(struct list_head *list);
 void perf_evlist__set_leader(struct perf_evlist *evlist);
@@ -228,14 +228,14 @@ static inline bool perf_evlist__empty(struct perf_evlist *evlist)
 	return list_empty(&evlist->entries);
 }
 
-static inline struct perf_evsel *perf_evlist__first(struct perf_evlist *evlist)
+static inline struct evsel *perf_evlist__first(struct perf_evlist *evlist)
 {
-	return list_entry(evlist->entries.next, struct perf_evsel, node);
+	return list_entry(evlist->entries.next, struct evsel, node);
 }
 
-static inline struct perf_evsel *perf_evlist__last(struct perf_evlist *evlist)
+static inline struct evsel *perf_evlist__last(struct perf_evlist *evlist)
 {
-	return list_entry(evlist->entries.prev, struct perf_evsel, node);
+	return list_entry(evlist->entries.prev, struct evsel, node);
 }
 
 size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp);
@@ -245,7 +245,7 @@ int perf_evlist__strerror_mmap(struct perf_evlist *evlist, int err, char *buf, s
 
 bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str);
 void perf_evlist__to_front(struct perf_evlist *evlist,
-			   struct perf_evsel *move_evsel);
+			   struct evsel *move_evsel);
 
 /**
  * __evlist__for_each_entry - iterate thru all the evsels
@@ -314,18 +314,18 @@ void perf_evlist__to_front(struct perf_evlist *evlist,
 	__evlist__for_each_entry_safe(&(evlist)->entries, tmp, evsel)
 
 void perf_evlist__set_tracking_event(struct perf_evlist *evlist,
-				     struct perf_evsel *tracking_evsel);
+				     struct evsel *tracking_evsel);
 
-struct perf_evsel *
+struct evsel *
 perf_evlist__find_evsel_by_str(struct perf_evlist *evlist, const char *str);
 
-struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
+struct evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
 					    union perf_event *event);
 
 bool perf_evlist__exclude_kernel(struct perf_evlist *evlist);
 
 void perf_evlist__force_leader(struct perf_evlist *evlist);
 
-struct perf_evsel *perf_evlist__reset_weak_group(struct perf_evlist *evlist,
-						 struct perf_evsel *evsel);
+struct evsel *perf_evlist__reset_weak_group(struct perf_evlist *evlist,
+						 struct evsel *evsel);
 #endif /* __PERF_EVLIST_H */

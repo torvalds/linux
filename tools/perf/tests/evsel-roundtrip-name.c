@@ -11,7 +11,7 @@ static int perf_evsel__roundtrip_cache_name_test(void)
 {
 	char name[128];
 	int type, op, err = 0, ret = 0, i, idx;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct perf_evlist *evlist = perf_evlist__new();
 
         if (evlist == NULL)
@@ -67,7 +67,7 @@ static int perf_evsel__roundtrip_cache_name_test(void)
 static int __perf_evsel__name_array_test(const char *names[], int nr_names)
 {
 	int i, err;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct perf_evlist *evlist = perf_evlist__new();
 
         if (evlist == NULL)

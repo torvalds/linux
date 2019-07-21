@@ -128,7 +128,7 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 	int err = 0;
 	struct report *rep = arg;
 	struct hist_entry *he = iter->he;
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 	struct perf_sample *sample = iter->sample;
 	struct mem_info *mi;
 	struct branch_info *bi;
@@ -172,7 +172,7 @@ static int hist_iter__branch_callback(struct hist_entry_iter *iter,
 	struct report *rep = arg;
 	struct branch_info *bi;
 	struct perf_sample *sample = iter->sample;
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 	int err;
 
 	if (!ui__has_annotation() && !rep->symbol_ipc)
@@ -225,7 +225,7 @@ static int process_feature_event(struct perf_session *session,
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine)
 {
 	struct report *rep = container_of(tool, struct report, tool);
@@ -292,7 +292,7 @@ out_put:
 static int process_read_event(struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
-			      struct perf_evsel *evsel,
+			      struct evsel *evsel,
 			      struct machine *machine __maybe_unused)
 {
 	struct report *rep = container_of(tool, struct report, tool);
@@ -400,7 +400,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	char unit;
 	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 	u64 nr_events = hists->stats.total_period;
-	struct perf_evsel *evsel = hists_to_evsel(hists);
+	struct evsel *evsel = hists_to_evsel(hists);
 	char buf[512];
 	size_t size = sizeof(buf);
 	int socked_id = hists->socket_filter;
@@ -414,7 +414,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	}
 
 	if (perf_evsel__is_group_event(evsel)) {
-		struct perf_evsel *pos;
+		struct evsel *pos;
 
 		perf_evsel__group_desc(evsel, buf, size);
 		evname = buf;
@@ -463,7 +463,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 					 struct report *rep,
 					 const char *help)
 {
-	struct perf_evsel *pos;
+	struct evsel *pos;
 
 	if (!quiet) {
 		fprintf(stdout, "#\n# Total Lost Samples: %" PRIu64 "\n#\n",
@@ -586,7 +586,7 @@ static int report__browse_hists(struct report *rep)
 static int report__collapse_hists(struct report *rep)
 {
 	struct ui_progress prog;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	int ret = 0;
 
 	ui_progress__init(&prog, rep->nr_entries, "Merging related events...");
@@ -623,7 +623,7 @@ static int hists__resort_cb(struct hist_entry *he, void *arg)
 	struct symbol *sym = he->ms.sym;
 
 	if (rep->symbol_ipc && sym && !sym->annotate2) {
-		struct perf_evsel *evsel = hists_to_evsel(he->hists);
+		struct evsel *evsel = hists_to_evsel(he->hists);
 
 		symbol__annotate2(sym, he->ms.map, evsel,
 				  &annotation__default_options, NULL);
@@ -635,7 +635,7 @@ static int hists__resort_cb(struct hist_entry *he, void *arg)
 static void report__output_resort(struct report *rep)
 {
 	struct ui_progress prog;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 
 	ui_progress__init(&prog, rep->nr_entries, "Sorting events for output...");
 
@@ -818,7 +818,7 @@ static int __cmd_report(struct report *rep)
 {
 	int ret;
 	struct perf_session *session = rep->session;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	struct perf_data *data = session->data;
 
 	signal(SIGINT, sig_handler);

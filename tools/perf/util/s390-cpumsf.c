@@ -918,7 +918,7 @@ s390_cpumsf_process_event(struct perf_session *session,
 					      struct s390_cpumsf,
 					      auxtrace);
 	u64 timestamp = sample->time;
-	struct perf_evsel *ev_bc000;
+	struct evsel *ev_bc000;
 
 	int err = 0;
 

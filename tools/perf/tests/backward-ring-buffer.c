@@ -83,7 +83,7 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 	int ret = TEST_SKIP, err, sample_count = 0, comm_count = 0;
 	char pid[16], sbuf[STRERR_BUFSIZE];
 	struct perf_evlist *evlist;
-	struct perf_evsel *evsel __maybe_unused;
+	struct evsel *evsel __maybe_unused;
 	struct parse_events_error parse_error;
 	struct record_opts opts = {
 		.target = {

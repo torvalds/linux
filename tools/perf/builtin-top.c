@@ -101,7 +101,7 @@ static void perf_top__resize(struct perf_top *top)
 
 static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct symbol *sym;
 	struct annotation *notes;
 	struct map *map;
@@ -186,7 +186,7 @@ static void ui__warn_map_erange(struct map *map, struct symbol *sym, u64 ip)
 static void perf_top__record_precise_ip(struct perf_top *top,
 					struct hist_entry *he,
 					struct perf_sample *sample,
-					struct perf_evsel *evsel, u64 ip)
+					struct evsel *evsel, u64 ip)
 {
 	struct annotation *notes;
 	struct symbol *sym = he->ms.sym;
@@ -228,7 +228,7 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 static void perf_top__show_details(struct perf_top *top)
 {
 	struct hist_entry *he = top->sym_filter_entry;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct annotation *notes;
 	struct symbol *symbol;
 	int more;
@@ -270,7 +270,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	char bf[160];
 	int printed = 0;
 	const int win_width = top->winsize.ws_col - 1;
-	struct perf_evsel *evsel = top->sym_evsel;
+	struct evsel *evsel = top->sym_evsel;
 	struct hists *hists = evsel__hists(evsel);
 
 	puts(CONSOLE_CLEAR);
@@ -554,7 +554,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 static void perf_top__sort_new_samples(void *arg)
 {
 	struct perf_top *t = arg;
-	struct perf_evsel *evsel = t->sym_evsel;
+	struct evsel *evsel = t->sym_evsel;
 	struct hists *hists;
 
 	if (t->evlist->selected != NULL)
@@ -586,7 +586,7 @@ static void stop_top(void)
 
 static void *display_thread_tui(void *arg)
 {
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	struct perf_top *top = arg;
 	const char *help = "For a higher level overview, try: perf top --sort comm,dso";
 	struct hist_browser_timer hbt = {
@@ -693,7 +693,7 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 {
 	struct perf_top *top = arg;
 	struct hist_entry *he = iter->he;
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 
 	if (perf_hpp_list.sym && single)
 		perf_top__record_precise_ip(top, he, iter->sample, evsel, al->addr);
@@ -705,7 +705,7 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 
 static void perf_event__process_sample(struct perf_tool *tool,
 				       const union perf_event *event,
-				       struct perf_evsel *evsel,
+				       struct evsel *evsel,
 				       struct perf_sample *sample,
 				       struct machine *machine)
 {
@@ -813,7 +813,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 static void
 perf_top__process_lost(struct perf_top *top, union perf_event *event,
-		       struct perf_evsel *evsel)
+		       struct evsel *evsel)
 {
 	struct hists *hists = evsel__hists(evsel);
 
@@ -825,7 +825,7 @@ perf_top__process_lost(struct perf_top *top, union perf_event *event,
 static void
 perf_top__process_lost_samples(struct perf_top *top,
 			       union perf_event *event,
-			       struct perf_evsel *evsel)
+			       struct evsel *evsel)
 {
 	struct hists *hists = evsel__hists(evsel);
 
@@ -912,7 +912,7 @@ static int perf_top__overwrite_check(struct perf_top *top)
 	struct perf_evlist *evlist = top->evlist;
 	struct perf_evsel_config_term *term;
 	struct list_head *config_terms;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	int set, overwrite = -1;
 
 	evlist__for_each_entry(evlist, evsel) {
@@ -952,11 +952,11 @@ static int perf_top__overwrite_check(struct perf_top *top)
 }
 
 static int perf_top_overwrite_fallback(struct perf_top *top,
-				       struct perf_evsel *evsel)
+				       struct evsel *evsel)
 {
 	struct record_opts *opts = &top->record_opts;
 	struct perf_evlist *evlist = top->evlist;
-	struct perf_evsel *counter;
+	struct evsel *counter;
 
 	if (!opts->overwrite)
 		return 0;
@@ -975,7 +975,7 @@ static int perf_top_overwrite_fallback(struct perf_top *top,
 static int perf_top__start_counters(struct perf_top *top)
 {
 	char msg[BUFSIZ];
-	struct perf_evsel *counter;
+	struct evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
 
@@ -1104,7 +1104,7 @@ static int deliver_event(struct ordered_events *qe,
 	struct perf_session *session = top->session;
 	union perf_event *event = qevent->event;
 	struct perf_sample sample;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct machine *machine;
 	int ret = -1;
 

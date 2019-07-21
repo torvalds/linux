@@ -248,7 +248,7 @@ static void compute_stats(struct c2c_hist_entry *c2c_he,
 static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine)
 {
 	struct c2c_hists *c2c_hists = &c2c.hists;
@@ -2237,7 +2237,7 @@ static void print_pareto(FILE *out)
 static void print_c2c_info(FILE *out, struct perf_session *session)
 {
 	struct perf_evlist *evlist = session->evlist;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	bool first = true;
 
 	fprintf(out, "=================================================\n");

@@ -36,7 +36,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 #define nsyscalls ARRAY_SIZE(syscall_names)
 	unsigned int nr_events[nsyscalls],
 		     expected_nr_events[nsyscalls], i, j;
-	struct perf_evsel *evsels[nsyscalls], *evsel;
+	struct evsel *evsels[nsyscalls], *evsel;
 	char sbuf[STRERR_BUFSIZE];
 	struct perf_mmap *md;
 

@@ -53,7 +53,7 @@ struct auxtrace_record
 *auxtrace_record__init(struct perf_evlist *evlist, int *err)
 {
 	struct perf_pmu	*cs_etm_pmu;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	bool found_etm = false;
 	bool found_spe = false;
 	static struct perf_pmu **arm_spe_pmus = NULL;

@@ -79,13 +79,13 @@ struct scripting_ops {
 	int (*stop_script) (void);
 	void (*process_event) (union perf_event *event,
 			       struct perf_sample *sample,
-			       struct perf_evsel *evsel,
+			       struct evsel *evsel,
 			       struct addr_location *al);
 	void (*process_switch)(union perf_event *event,
 			       struct perf_sample *sample,
 			       struct machine *machine);
 	void (*process_stat)(struct perf_stat_config *config,
-			     struct perf_evsel *evsel, u64 tstamp);
+			     struct evsel *evsel, u64 tstamp);
 	void (*process_stat_interval)(u64 tstamp);
 	int (*generate_script) (struct tep_handle *pevent, const char *outfile);
 };

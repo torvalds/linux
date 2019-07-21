@@ -116,7 +116,7 @@ struct hist_entry_iter {
 
 	bool hide_unresolved;
 
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct perf_sample *sample;
 	struct hist_entry *he;
 	struct symbol *parent;
@@ -171,9 +171,9 @@ void hist_entry__delete(struct hist_entry *he);
 
 typedef int (*hists__resort_cb_t)(struct hist_entry *he, void *arg);
 
-void perf_evsel__output_resort_cb(struct perf_evsel *evsel, struct ui_progress *prog,
+void perf_evsel__output_resort_cb(struct evsel *evsel, struct ui_progress *prog,
 				  hists__resort_cb_t cb, void *cb_arg);
-void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *prog);
+void perf_evsel__output_resort(struct evsel *evsel, struct ui_progress *prog);
 void hists__output_resort(struct hists *hists, struct ui_progress *prog);
 void hists__output_resort_cb(struct hists *hists, struct ui_progress *prog,
 			     hists__resort_cb_t cb);
@@ -219,17 +219,17 @@ void hists__match(struct hists *leader, struct hists *other);
 int hists__link(struct hists *leader, struct hists *other);
 
 struct hists_evsel {
-	struct perf_evsel evsel;
+	struct evsel evsel;
 	struct hists	  hists;
 };
 
-static inline struct perf_evsel *hists_to_evsel(struct hists *hists)
+static inline struct evsel *hists_to_evsel(struct hists *hists)
 {
 	struct hists_evsel *hevsel = container_of(hists, struct hists_evsel, hists);
 	return &hevsel->evsel;
 }
 
-static inline struct hists *evsel__hists(struct perf_evsel *evsel)
+static inline struct hists *evsel__hists(struct evsel *evsel)
 {
 	struct hists_evsel *hevsel = (struct hists_evsel *)evsel;
 	return &hevsel->hists;
@@ -453,11 +453,11 @@ enum rstype {
 #include "../ui/keysyms.h"
 void attr_to_script(char *buf, struct perf_event_attr *attr);
 
-int map_symbol__tui_annotate(struct map_symbol *ms, struct perf_evsel *evsel,
+int map_symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 			     struct hist_browser_timer *hbt,
 			     struct annotation_options *annotation_opts);
 
-int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
+int hist_entry__tui_annotate(struct hist_entry *he, struct evsel *evsel,
 			     struct hist_browser_timer *hbt,
 			     struct annotation_options *annotation_opts);
 
@@ -468,11 +468,11 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 				  bool warn_lost_event,
 				  struct annotation_options *annotation_options);
 
-int script_browse(const char *script_opt, struct perf_evsel *evsel);
+int script_browse(const char *script_opt, struct evsel *evsel);
 
 void run_script(char *cmd);
 int res_sample_browse(struct res_sample *res_samples, int num_res,
-		      struct perf_evsel *evsel, enum rstype rstype);
+		      struct evsel *evsel, enum rstype rstype);
 void res_sample_init(void);
 #else
 static inline
@@ -487,7 +487,7 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 	return 0;
 }
 static inline int map_symbol__tui_annotate(struct map_symbol *ms __maybe_unused,
-					   struct perf_evsel *evsel __maybe_unused,
+					   struct evsel *evsel __maybe_unused,
 					   struct hist_browser_timer *hbt __maybe_unused,
 					   struct annotation_options *annotation_options __maybe_unused)
 {
@@ -495,7 +495,7 @@ static inline int map_symbol__tui_annotate(struct map_symbol *ms __maybe_unused,
 }
 
 static inline int hist_entry__tui_annotate(struct hist_entry *he __maybe_unused,
-					   struct perf_evsel *evsel __maybe_unused,
+					   struct evsel *evsel __maybe_unused,
 					   struct hist_browser_timer *hbt __maybe_unused,
 					   struct annotation_options *annotation_opts __maybe_unused)
 {
@@ -503,14 +503,14 @@ static inline int hist_entry__tui_annotate(struct hist_entry *he __maybe_unused,
 }
 
 static inline int script_browse(const char *script_opt __maybe_unused,
-				struct perf_evsel *evsel __maybe_unused)
+				struct evsel *evsel __maybe_unused)
 {
 	return 0;
 }
 
 static inline int res_sample_browse(struct res_sample *res_samples __maybe_unused,
 				    int num_res __maybe_unused,
-				    struct perf_evsel *evsel __maybe_unused,
+				    struct evsel *evsel __maybe_unused,
 				    enum rstype rstype __maybe_unused)
 {
 	return 0;

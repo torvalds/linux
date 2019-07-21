@@ -12,7 +12,7 @@
 #include <string.h>
 
 struct list_head;
-struct perf_evsel;
+struct evsel;
 struct perf_evlist;
 struct parse_events_error;
 

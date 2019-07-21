@@ -39,7 +39,7 @@ enum bpf_loader_errno {
 	__BPF_LOADER_ERRNO__END,
 };
 
-struct perf_evsel;
+struct evsel;
 struct perf_evlist;
 struct bpf_object;
 struct parse_events_term;
@@ -80,7 +80,7 @@ int bpf__apply_obj_config(void);
 int bpf__strerror_apply_obj_config(int err, char *buf, size_t size);
 
 int bpf__setup_stdout(struct perf_evlist *evlist);
-struct perf_evsel *bpf__setup_output_event(struct perf_evlist *evlist, const char *name);
+struct evsel *bpf__setup_output_event(struct perf_evlist *evlist, const char *name);
 int bpf__strerror_setup_output_event(struct perf_evlist *evlist, int err, char *buf, size_t size);
 #else
 #include <errno.h>
@@ -137,7 +137,7 @@ bpf__setup_stdout(struct perf_evlist *evlist __maybe_unused)
 	return 0;
 }
 
-static inline struct perf_evsel *
+static inline struct evsel *
 bpf__setup_output_event(struct perf_evlist *evlist __maybe_unused, const char *name __maybe_unused)
 {
 	return NULL;

@@ -9,7 +9,7 @@
 struct perf_session;
 union perf_event;
 struct perf_evlist;
-struct perf_evsel;
+struct evsel;
 struct perf_sample;
 struct perf_tool;
 struct machine;
@@ -17,7 +17,7 @@ struct ordered_events;
 
 typedef int (*event_sample)(struct perf_tool *tool, union perf_event *event,
 			    struct perf_sample *sample,
-			    struct perf_evsel *evsel, struct machine *machine);
+			    struct evsel *evsel, struct machine *machine);
 
 typedef int (*event_op)(struct perf_tool *tool, union perf_event *event,
 			struct perf_sample *sample, struct machine *machine);

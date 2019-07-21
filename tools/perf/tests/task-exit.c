@@ -37,7 +37,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 {
 	int err = -1;
 	union perf_event *event;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct perf_evlist *evlist;
 	struct target target = {
 		.uid		= UINT_MAX,

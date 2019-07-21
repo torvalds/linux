@@ -2084,7 +2084,7 @@ static char *addr_filter__to_str(struct addr_filter *filt)
 	return err < 0 ? NULL : filter;
 }
 
-static int parse_addr_filter(struct perf_evsel *evsel, const char *filter,
+static int parse_addr_filter(struct evsel *evsel, const char *filter,
 			     int max_nr)
 {
 	struct addr_filters filts;
@@ -2135,7 +2135,7 @@ out_exit:
 	return err;
 }
 
-static struct perf_pmu *perf_evsel__find_pmu(struct perf_evsel *evsel)
+static struct perf_pmu *perf_evsel__find_pmu(struct evsel *evsel)
 {
 	struct perf_pmu *pmu = NULL;
 
@@ -2147,7 +2147,7 @@ static struct perf_pmu *perf_evsel__find_pmu(struct perf_evsel *evsel)
 	return pmu;
 }
 
-static int perf_evsel__nr_addr_filter(struct perf_evsel *evsel)
+static int perf_evsel__nr_addr_filter(struct evsel *evsel)
 {
 	struct perf_pmu *pmu = perf_evsel__find_pmu(evsel);
 	int nr_addr_filters = 0;
@@ -2162,7 +2162,7 @@ static int perf_evsel__nr_addr_filter(struct perf_evsel *evsel)
 
 int auxtrace_parse_filters(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	char *filter;
 	int err, max_nr;
 

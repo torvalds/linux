@@ -86,7 +86,7 @@ struct auxtrace_record *auxtrace_record__init(struct perf_evlist *evlist,
 					      int *err)
 {
 	struct auxtrace_record *aux;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	int diagnose = 0;
 
 	*err = 0;

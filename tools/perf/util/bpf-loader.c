@@ -817,7 +817,7 @@ struct bpf_map_op {
 	} k;
 	union {
 		u64 value;
-		struct perf_evsel *evsel;
+		struct evsel *evsel;
 	} v;
 };
 
@@ -1063,7 +1063,7 @@ __bpf_map__config_event(struct bpf_map *map,
 			struct parse_events_term *term,
 			struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	const struct bpf_map_def *def;
 	struct bpf_map_op *op;
 	const char *map_name = bpf_map__name(map);
@@ -1401,7 +1401,7 @@ apply_config_value_for_key(int map_fd, void *pkey,
 
 static int
 apply_config_evsel_for_key(const char *name, int map_fd, void *pkey,
-			   struct perf_evsel *evsel)
+			   struct evsel *evsel)
 {
 	struct xyarray *xy = evsel->fd;
 	struct perf_event_attr *attr;
@@ -1523,11 +1523,11 @@ int bpf__apply_obj_config(void)
 			(strcmp(name, 			\
 				bpf_map__name(pos)) == 0))
 
-struct perf_evsel *bpf__setup_output_event(struct perf_evlist *evlist, const char *name)
+struct evsel *bpf__setup_output_event(struct perf_evlist *evlist, const char *name)
 {
 	struct bpf_map_priv *tmpl_priv = NULL;
 	struct bpf_object *obj, *tmp;
-	struct perf_evsel *evsel = NULL;
+	struct evsel *evsel = NULL;
 	struct bpf_map *map;
 	int err;
 	bool need_init = false;
@@ -1602,7 +1602,7 @@ struct perf_evsel *bpf__setup_output_event(struct perf_evlist *evlist, const cha
 
 int bpf__setup_stdout(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel = bpf__setup_output_event(evlist, "__bpf_stdout__");
+	struct evsel *evsel = bpf__setup_output_event(evlist, "__bpf_stdout__");
 	return PTR_ERR_OR_ZERO(evsel);
 }
 

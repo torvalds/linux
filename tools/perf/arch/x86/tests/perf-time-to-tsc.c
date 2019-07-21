@@ -52,7 +52,7 @@ int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest __maybe
 	struct perf_thread_map *threads = NULL;
 	struct perf_cpu_map *cpus = NULL;
 	struct perf_evlist *evlist = NULL;
-	struct perf_evsel *evsel = NULL;
+	struct evsel *evsel = NULL;
 	int err = -1, ret, i;
 	const char *comm1, *comm2;
 	struct perf_tsc_conversion tc;

@@ -215,13 +215,13 @@ static int perf_event__drop_aux(struct perf_tool *tool,
 typedef int (*inject_handler)(struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample,
-			      struct perf_evsel *evsel,
+			      struct evsel *evsel,
 			      struct machine *machine);
 
 static int perf_event__repipe_sample(struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample,
-				     struct perf_evsel *evsel,
+				     struct evsel *evsel,
 				     struct machine *machine)
 {
 	if (evsel && evsel->handler) {
@@ -424,7 +424,7 @@ static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
 static int perf_event__inject_buildid(struct perf_tool *tool,
 				      union perf_event *event,
 				      struct perf_sample *sample,
-				      struct perf_evsel *evsel __maybe_unused,
+				      struct evsel *evsel __maybe_unused,
 				      struct machine *machine)
 {
 	struct addr_location al;
@@ -465,7 +465,7 @@ repipe:
 static int perf_inject__sched_process_exit(struct perf_tool *tool,
 					   union perf_event *event __maybe_unused,
 					   struct perf_sample *sample,
-					   struct perf_evsel *evsel __maybe_unused,
+					   struct evsel *evsel __maybe_unused,
 					   struct machine *machine __maybe_unused)
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
@@ -485,7 +485,7 @@ static int perf_inject__sched_process_exit(struct perf_tool *tool,
 static int perf_inject__sched_switch(struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample,
-				     struct perf_evsel *evsel,
+				     struct evsel *evsel,
 				     struct machine *machine)
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
@@ -509,7 +509,7 @@ static int perf_inject__sched_switch(struct perf_tool *tool,
 static int perf_inject__sched_stat(struct perf_tool *tool,
 				   union perf_event *event __maybe_unused,
 				   struct perf_sample *sample,
-				   struct perf_evsel *evsel,
+				   struct evsel *evsel,
 				   struct machine *machine)
 {
 	struct event_entry *ent;
@@ -541,7 +541,7 @@ static void sig_handler(int sig __maybe_unused)
 	session_done = 1;
 }
 
-static int perf_evsel__check_stype(struct perf_evsel *evsel,
+static int perf_evsel__check_stype(struct evsel *evsel,
 				   u64 sample_type, const char *sample_msg)
 {
 	struct perf_event_attr *attr = &evsel->attr;
@@ -559,7 +559,7 @@ static int perf_evsel__check_stype(struct perf_evsel *evsel,
 static int drop_sample(struct perf_tool *tool __maybe_unused,
 		       union perf_event *event __maybe_unused,
 		       struct perf_sample *sample __maybe_unused,
-		       struct perf_evsel *evsel __maybe_unused,
+		       struct evsel *evsel __maybe_unused,
 		       struct machine *machine __maybe_unused)
 {
 	return 0;
@@ -568,7 +568,7 @@ static int drop_sample(struct perf_tool *tool __maybe_unused,
 static void strip_init(struct perf_inject *inject)
 {
 	struct perf_evlist *evlist = inject->session->evlist;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	inject->tool.context_switch = perf_event__drop;
 
@@ -576,7 +576,7 @@ static void strip_init(struct perf_inject *inject)
 		evsel->handler = drop_sample;
 }
 
-static bool has_tracking(struct perf_evsel *evsel)
+static bool has_tracking(struct evsel *evsel)
 {
 	return evsel->attr.mmap || evsel->attr.mmap2 || evsel->attr.comm ||
 	       evsel->attr.task;
@@ -591,9 +591,9 @@ static bool has_tracking(struct perf_evsel *evsel)
  * and it has a compatible sample type.
  */
 static bool ok_to_remove(struct perf_evlist *evlist,
-			 struct perf_evsel *evsel_to_remove)
+			 struct evsel *evsel_to_remove)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	int cnt = 0;
 	bool ok = false;
 
@@ -615,7 +615,7 @@ static bool ok_to_remove(struct perf_evlist *evlist,
 static void strip_fini(struct perf_inject *inject)
 {
 	struct perf_evlist *evlist = inject->session->evlist;
-	struct perf_evsel *evsel, *tmp;
+	struct evsel *evsel, *tmp;
 
 	/* Remove non-synthesized evsels if possible */
 	evlist__for_each_entry_safe(evlist, tmp, evsel) {
@@ -651,7 +651,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	if (inject->build_ids) {
 		inject->tool.sample = perf_event__inject_buildid;
 	} else if (inject->sched_stat) {
-		struct perf_evsel *evsel;
+		struct evsel *evsel;
 
 		evlist__for_each_entry(session->evlist, evsel) {
 			const char *name = perf_evsel__name(evsel);
@@ -712,7 +712,7 @@ static int __cmd_inject(struct perf_inject *inject)
 		 * remove the evsel.
 		 */
 		if (inject->itrace_synth_opts.set) {
-			struct perf_evsel *evsel;
+			struct evsel *evsel;
 
 			perf_header__clear_feat(&session->header,
 						HEADER_AUXTRACE);

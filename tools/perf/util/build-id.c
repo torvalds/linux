@@ -37,7 +37,7 @@ static bool no_buildid_cache;
 int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 			   union perf_event *event,
 			   struct perf_sample *sample,
-			   struct perf_evsel *evsel __maybe_unused,
+			   struct evsel *evsel __maybe_unused,
 			   struct machine *machine)
 {
 	struct addr_location al;

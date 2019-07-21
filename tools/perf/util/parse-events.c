@@ -314,14 +314,14 @@ static char *get_config_name(struct list_head *head_terms)
 	return NULL;
 }
 
-static struct perf_evsel *
+static struct evsel *
 __add_event(struct list_head *list, int *idx,
 	    struct perf_event_attr *attr,
 	    char *name, struct perf_pmu *pmu,
 	    struct list_head *config_terms, bool auto_merge_stats,
 	    const char *cpu_list)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct perf_cpu_map *cpus = pmu ? pmu->cpus :
 			       cpu_list ? cpu_map__new(cpu_list) : NULL;
 
@@ -357,7 +357,7 @@ static int add_event(struct list_head *list, int *idx,
 static int add_event_tool(struct list_head *list, int *idx,
 			  enum perf_tool_event tool_event)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct perf_event_attr attr = {
 		.type = PERF_TYPE_SOFTWARE,
 		.config = PERF_COUNT_SW_DUMMY,
@@ -510,7 +510,7 @@ static int add_tracepoint(struct list_head *list, int *idx,
 			  struct parse_events_error *err,
 			  struct list_head *head_config)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evsel = perf_evsel__newtp_idx(sys_name, evt_name, (*idx)++);
 	if (IS_ERR(evsel)) {
@@ -637,7 +637,7 @@ static int add_bpf_event(const char *group, const char *event, int fd, struct bp
 	struct __add_bpf_event_param *param = _param;
 	struct parse_events_state *parse_state = param->parse_state;
 	struct list_head *list = param->list;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	int err;
 	/*
 	 * Check if we should add the event, i.e. if it is a TP but starts with a '!',
@@ -656,7 +656,7 @@ static int add_bpf_event(const char *group, const char *event, int fd, struct bp
 					  event, parse_state->error,
 					  param->head_config);
 	if (err) {
-		struct perf_evsel *evsel, *tmp;
+		struct evsel *evsel, *tmp;
 
 		pr_debug("Failed to add BPF event %s:%s\n",
 			 group, event);
@@ -1306,7 +1306,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	struct perf_event_attr attr;
 	struct perf_pmu_info info;
 	struct perf_pmu *pmu;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct parse_events_error *err = parse_state->error;
 	bool use_uncore_alias;
 	LIST_HEAD(config_terms);
@@ -1453,13 +1453,13 @@ static int
 parse_events__set_leader_for_uncore_aliase(char *name, struct list_head *list,
 					   struct parse_events_state *parse_state)
 {
-	struct perf_evsel *evsel, *leader;
+	struct evsel *evsel, *leader;
 	uintptr_t *leaders;
 	bool is_leader = true;
 	int i, nr_pmu = 0, total_members, ret = 0;
 
-	leader = list_first_entry(list, struct perf_evsel, node);
-	evsel = list_last_entry(list, struct perf_evsel, node);
+	leader = list_first_entry(list, struct evsel, node);
+	evsel = list_last_entry(list, struct evsel, node);
 	total_members = evsel->idx - leader->idx + 1;
 
 	leaders = calloc(total_members, sizeof(uintptr_t));
@@ -1521,12 +1521,12 @@ parse_events__set_leader_for_uncore_aliase(char *name, struct list_head *list,
 	__evlist__for_each_entry(list, evsel) {
 		if (i >= nr_pmu)
 			i = 0;
-		evsel->leader = (struct perf_evsel *) leaders[i++];
+		evsel->leader = (struct evsel *) leaders[i++];
 	}
 
 	/* The number of members and group name are same for each group */
 	for (i = 0; i < nr_pmu; i++) {
-		evsel = (struct perf_evsel *) leaders[i];
+		evsel = (struct evsel *) leaders[i];
 		evsel->nr_members = total_members / nr_pmu;
 		evsel->group_name = name ? strdup(name) : NULL;
 	}
@@ -1544,7 +1544,7 @@ out:
 void parse_events__set_leader(char *name, struct list_head *list,
 			      struct parse_events_state *parse_state)
 {
-	struct perf_evsel *leader;
+	struct evsel *leader;
 
 	if (list_empty(list)) {
 		WARN_ONCE(true, "WARNING: failed to set leader: empty list");
@@ -1555,7 +1555,7 @@ void parse_events__set_leader(char *name, struct list_head *list,
 		return;
 
 	__perf_evlist__set_leader(list);
-	leader = list_entry(list->next, struct perf_evsel, node);
+	leader = list_entry(list->next, struct evsel, node);
 	leader->group_name = name ? strdup(name) : NULL;
 }
 
@@ -1588,7 +1588,7 @@ struct event_modifier {
 };
 
 static int get_event_modifier(struct event_modifier *mod, char *str,
-			       struct perf_evsel *evsel)
+			       struct evsel *evsel)
 {
 	int eu = evsel ? evsel->attr.exclude_user : 0;
 	int ek = evsel ? evsel->attr.exclude_kernel : 0;
@@ -1701,7 +1701,7 @@ static int check_modifier(char *str)
 
 int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct event_modifier mod;
 
 	if (str == NULL)
@@ -1738,7 +1738,7 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 
 int parse_events_name(struct list_head *list, char *name)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	__evlist__for_each_entry(list, evsel) {
 		if (!evsel->name)
@@ -1918,7 +1918,7 @@ int parse_events(struct perf_evlist *evlist, const char *str,
 	ret = parse_events__scanner(str, &parse_state, PE_START_EVENTS);
 	perf_pmu__parse_cleanup();
 	if (!ret) {
-		struct perf_evsel *last;
+		struct evsel *last;
 
 		if (list_empty(&parse_state.list)) {
 			WARN_ONCE(true, "WARNING: event parser found nothing\n");
@@ -2027,11 +2027,11 @@ int parse_events_option(const struct option *opt, const char *str,
 
 static int
 foreach_evsel_in_last_glob(struct perf_evlist *evlist,
-			   int (*func)(struct perf_evsel *evsel,
+			   int (*func)(struct evsel *evsel,
 				       const void *arg),
 			   const void *arg)
 {
-	struct perf_evsel *last = NULL;
+	struct evsel *last = NULL;
 	int err;
 
 	/*
@@ -2052,13 +2052,13 @@ foreach_evsel_in_last_glob(struct perf_evlist *evlist,
 
 		if (last->node.prev == &evlist->entries)
 			return 0;
-		last = list_entry(last->node.prev, struct perf_evsel, node);
+		last = list_entry(last->node.prev, struct evsel, node);
 	} while (!last->cmdline_group_boundary);
 
 	return 0;
 }
 
-static int set_filter(struct perf_evsel *evsel, const void *arg)
+static int set_filter(struct evsel *evsel, const void *arg)
 {
 	const char *str = arg;
 	bool found = false;
@@ -2115,7 +2115,7 @@ int parse_filter(const struct option *opt, const char *str,
 					  (const void *)str);
 }
 
-static int add_exclude_perf_filter(struct perf_evsel *evsel,
+static int add_exclude_perf_filter(struct evsel *evsel,
 				   const void *arg __maybe_unused)
 {
 	char new_filter[64];
@@ -2307,7 +2307,7 @@ static bool is_event_supported(u8 type, unsigned config)
 {
 	bool ret = true;
 	int open_return;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct perf_event_attr attr = {
 		.type = type,
 		.config = config,

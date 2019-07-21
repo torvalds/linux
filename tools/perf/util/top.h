@@ -10,7 +10,7 @@
 #include <sys/ioctl.h>
 
 struct perf_evlist;
-struct perf_evsel;
+struct evsel;
 struct perf_session;
 
 struct perf_top {
@@ -33,7 +33,7 @@ struct perf_top {
 	bool		   vmlinux_warned;
 	bool		   dump_symtab;
 	struct hist_entry  *sym_filter_entry;
-	struct perf_evsel  *sym_evsel;
+	struct evsel 	   *sym_evsel;
 	struct perf_session *session;
 	struct winsize	   winsize;
 	int		   realtime_prio;

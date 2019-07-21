@@ -112,7 +112,7 @@ static u64 intel_pt_masked_bits(u64 mask, u64 bits)
 static int intel_pt_read_config(struct perf_pmu *intel_pt_pmu, const char *str,
 				struct perf_evlist *evlist, u64 *res)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	u64 mask;
 
 	*res = 0;
@@ -271,7 +271,7 @@ intel_pt_pmu_default_config(struct perf_pmu *intel_pt_pmu)
 static const char *intel_pt_find_filter(struct perf_evlist *evlist,
 					struct perf_pmu *intel_pt_pmu)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type == intel_pt_pmu->type)
@@ -401,7 +401,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 static int intel_pt_track_switches(struct perf_evlist *evlist)
 {
 	const char *sched_switch = "sched:sched_switch";
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	int err;
 
 	if (!perf_evlist__can_select_event(evlist, sched_switch))
@@ -513,7 +513,7 @@ out_err:
 }
 
 static int intel_pt_validate_config(struct perf_pmu *intel_pt_pmu,
-				    struct perf_evsel *evsel)
+				    struct evsel *evsel)
 {
 	int err;
 	char c;
@@ -556,7 +556,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 			container_of(itr, struct intel_pt_recording, itr);
 	struct perf_pmu *intel_pt_pmu = ptr->intel_pt_pmu;
 	bool have_timing_info, need_immediate = false;
-	struct perf_evsel *evsel, *intel_pt_evsel = NULL;
+	struct evsel *evsel, *intel_pt_evsel = NULL;
 	const struct perf_cpu_map *cpus = evlist->cpus;
 	bool privileged = geteuid() == 0 || perf_event_paranoid() < 0;
 	u64 tsc_bit;
@@ -685,7 +685,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 					!target__has_task(&opts->target);
 
 			if (!cpu_wide && perf_can_record_cpu_wide()) {
-				struct perf_evsel *switch_evsel;
+				struct evsel *switch_evsel;
 
 				err = parse_events(evlist, "dummy:u", NULL);
 				if (err)
@@ -743,7 +743,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 
 	/* Add dummy event to keep tracking */
 	if (opts->full_auxtrace) {
-		struct perf_evsel *tracking_evsel;
+		struct evsel *tracking_evsel;
 
 		err = parse_events(evlist, "dummy:u", NULL);
 		if (err)
@@ -784,7 +784,7 @@ static int intel_pt_snapshot_start(struct auxtrace_record *itr)
 {
 	struct intel_pt_recording *ptr =
 			container_of(itr, struct intel_pt_recording, itr);
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)
@@ -797,7 +797,7 @@ static int intel_pt_snapshot_finish(struct auxtrace_record *itr)
 {
 	struct intel_pt_recording *ptr =
 			container_of(itr, struct intel_pt_recording, itr);
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)
@@ -1070,7 +1070,7 @@ static int intel_pt_read_finish(struct auxtrace_record *itr, int idx)
 {
 	struct intel_pt_recording *ptr =
 			container_of(itr, struct intel_pt_recording, itr);
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)

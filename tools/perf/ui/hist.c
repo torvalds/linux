@@ -25,7 +25,7 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 {
 	int ret;
 	struct hists *hists = he->hists;
-	struct perf_evsel *evsel = hists_to_evsel(hists);
+	struct evsel *evsel = hists_to_evsel(hists);
 	char *buf = hpp->buf;
 	size_t size = hpp->size;
 
@@ -153,7 +153,7 @@ static int __hpp__sort(struct hist_entry *a, struct hist_entry *b,
 {
 	s64 ret;
 	int i, nr_members;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct hist_entry *pair;
 	u64 *fields_a, *fields_b;
 
@@ -223,7 +223,7 @@ static int hpp__width_fn(struct perf_hpp_fmt *fmt,
 			 struct hists *hists)
 {
 	int len = fmt->user_len ?: fmt->len;
-	struct perf_evsel *evsel = hists_to_evsel(hists);
+	struct evsel *evsel = hists_to_evsel(hists);
 
 	if (symbol_conf.event_group)
 		len = max(len, evsel->nr_members * fmt->len);
@@ -797,7 +797,7 @@ static int add_hierarchy_fmt(struct hists *hists, struct perf_hpp_fmt *fmt)
 int perf_hpp__setup_hists_formats(struct perf_hpp_list *list,
 				  struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct perf_hpp_fmt *fmt;
 	struct hists *hists;
 	int ret;

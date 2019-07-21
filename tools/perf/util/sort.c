@@ -698,7 +698,7 @@ struct sort_entry sort_time = {
 static char *get_trace_output(struct hist_entry *he)
 {
 	struct trace_seq seq;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct tep_record rec = {
 		.data = he->raw_data,
 		.size = he->raw_size,
@@ -723,7 +723,7 @@ static char *get_trace_output(struct hist_entry *he)
 static int64_t
 sort__trace_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evsel = hists_to_evsel(left->hists);
 	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
@@ -740,7 +740,7 @@ sort__trace_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__trace_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evsel = hists_to_evsel(he->hists);
 	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
@@ -1984,7 +1984,7 @@ static int __sort_dimension__add_hpp_output(struct sort_dimension *sd,
 
 struct hpp_dynamic_entry {
 	struct perf_hpp_fmt hpp;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct tep_format_field *field;
 	unsigned dynamic_len;
 	bool raw_trace;
@@ -2218,7 +2218,7 @@ static void hde_free(struct perf_hpp_fmt *fmt)
 }
 
 static struct hpp_dynamic_entry *
-__alloc_dynamic_entry(struct perf_evsel *evsel, struct tep_format_field *field,
+__alloc_dynamic_entry(struct evsel *evsel, struct tep_format_field *field,
 		      int level)
 {
 	struct hpp_dynamic_entry *hde;
@@ -2313,10 +2313,10 @@ static int parse_field_name(char *str, char **event, char **field, char **opt)
  *   2. full event name (e.g. sched:sched_switch)
  *   3. partial event name (should not contain ':')
  */
-static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_name)
+static struct evsel *find_evsel(struct perf_evlist *evlist, char *event_name)
 {
-	struct perf_evsel *evsel = NULL;
-	struct perf_evsel *pos;
+	struct evsel *evsel = NULL;
+	struct evsel *pos;
 	bool full_name;
 
 	/* case 1 */
@@ -2352,7 +2352,7 @@ static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_nam
 	return evsel;
 }
 
-static int __dynamic_dimension__add(struct perf_evsel *evsel,
+static int __dynamic_dimension__add(struct evsel *evsel,
 				    struct tep_format_field *field,
 				    bool raw_trace, int level)
 {
@@ -2368,7 +2368,7 @@ static int __dynamic_dimension__add(struct perf_evsel *evsel,
 	return 0;
 }
 
-static int add_evsel_fields(struct perf_evsel *evsel, bool raw_trace, int level)
+static int add_evsel_fields(struct evsel *evsel, bool raw_trace, int level)
 {
 	int ret;
 	struct tep_format_field *field;
@@ -2388,7 +2388,7 @@ static int add_all_dynamic_fields(struct perf_evlist *evlist, bool raw_trace,
 				  int level)
 {
 	int ret;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
@@ -2405,7 +2405,7 @@ static int add_all_matching_fields(struct perf_evlist *evlist,
 				   char *field_name, bool raw_trace, int level)
 {
 	int ret = -ESRCH;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct tep_format_field *field;
 
 	evlist__for_each_entry(evlist, evsel) {
@@ -2427,7 +2427,7 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok,
 			     int level)
 {
 	char *str, *event_name, *field_name, *opt_name;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct tep_format_field *field;
 	bool raw_trace = symbol_conf.raw_trace;
 	int ret = 0;
@@ -2720,7 +2720,7 @@ static const char *get_default_sort_order(struct perf_evlist *evlist)
 		default_tracepoint_sort_order,
 	};
 	bool use_trace = true;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	BUG_ON(sort__mode >= ARRAY_SIZE(default_sort_orders));
 

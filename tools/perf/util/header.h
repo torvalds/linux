@@ -135,16 +135,16 @@ int perf_event__synthesize_attrs(struct perf_tool *tool,
 				 struct perf_evlist *evlist,
 				 perf_event__handler_t process);
 int perf_event__synthesize_event_update_unit(struct perf_tool *tool,
-					     struct perf_evsel *evsel,
+					     struct evsel *evsel,
 					     perf_event__handler_t process);
 int perf_event__synthesize_event_update_scale(struct perf_tool *tool,
-					      struct perf_evsel *evsel,
+					      struct evsel *evsel,
 					      perf_event__handler_t process);
 int perf_event__synthesize_event_update_name(struct perf_tool *tool,
-					     struct perf_evsel *evsel,
+					     struct evsel *evsel,
 					     perf_event__handler_t process);
 int perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
-					     struct perf_evsel *evsel,
+					     struct evsel *evsel,
 					     perf_event__handler_t process);
 int perf_event__process_attr(struct perf_tool *tool, union perf_event *event,
 			     struct perf_evlist **pevlist);

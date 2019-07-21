@@ -24,7 +24,7 @@ void res_sample_init(void)
 }
 
 int res_sample_browse(struct res_sample *res_samples, int num_res,
-		      struct perf_evsel *evsel, enum rstype rstype)
+		      struct evsel *evsel, enum rstype rstype)
 {
 	char **names;
 	int i, n;

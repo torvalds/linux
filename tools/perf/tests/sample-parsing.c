@@ -153,7 +153,7 @@ static bool samples_same(const struct perf_sample *s1,
 
 static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 {
-	struct perf_evsel evsel = {
+	struct evsel evsel = {
 		.needs_swap = false,
 		.attr = {
 			.sample_type = sample_type,

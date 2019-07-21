@@ -92,7 +92,7 @@ static int open_cgroup(const char *name)
 
 static struct cgroup *evlist__find_cgroup(struct perf_evlist *evlist, const char *str)
 {
-	struct perf_evsel *counter;
+	struct evsel *counter;
 	/*
 	 * check if cgrp is already defined, if so we reuse it
 	 */
@@ -139,7 +139,7 @@ struct cgroup *evlist__findnew_cgroup(struct perf_evlist *evlist, const char *na
 
 static int add_cgroup(struct perf_evlist *evlist, const char *str)
 {
-	struct perf_evsel *counter;
+	struct evsel *counter;
 	struct cgroup *cgrp = evlist__findnew_cgroup(evlist, str);
 	int n;
 
@@ -184,7 +184,7 @@ struct cgroup *cgroup__get(struct cgroup *cgroup)
        return cgroup;
 }
 
-static void evsel__set_default_cgroup(struct perf_evsel *evsel, struct cgroup *cgroup)
+static void evsel__set_default_cgroup(struct evsel *evsel, struct cgroup *cgroup)
 {
 	if (evsel->cgrp == NULL)
 		evsel->cgrp = cgroup__get(cgroup);
@@ -192,7 +192,7 @@ static void evsel__set_default_cgroup(struct perf_evsel *evsel, struct cgroup *c
 
 void evlist__set_default_cgroup(struct perf_evlist *evlist, struct cgroup *cgroup)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel)
 		evsel__set_default_cgroup(evsel, cgroup);
@@ -202,7 +202,7 @@ int parse_cgroups(const struct option *opt, const char *str,
 		  int unset __maybe_unused)
 {
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
-	struct perf_evsel *counter;
+	struct evsel *counter;
 	struct cgroup *cgrp = NULL;
 	const char *p, *e, *eos = str + strlen(str);
 	char *s;

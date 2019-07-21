@@ -258,7 +258,7 @@ static void define_event_symbols(struct tep_event *event,
 }
 
 static SV *perl_process_callchain(struct perf_sample *sample,
-				  struct perf_evsel *evsel,
+				  struct evsel *evsel,
 				  struct addr_location *al)
 {
 	AV *list;
@@ -336,7 +336,7 @@ exit:
 }
 
 static void perl_process_tracepoint(struct perf_sample *sample,
-				    struct perf_evsel *evsel,
+				    struct evsel *evsel,
 				    struct addr_location *al)
 {
 	struct thread *thread = al->thread;
@@ -431,7 +431,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 
 static void perl_process_event_generic(union perf_event *event,
 				       struct perf_sample *sample,
-				       struct perf_evsel *evsel)
+				       struct evsel *evsel)
 {
 	dSP;
 
@@ -455,7 +455,7 @@ static void perl_process_event_generic(union perf_event *event,
 
 static void perl_process_event(union perf_event *event,
 			       struct perf_sample *sample,
-			       struct perf_evsel *evsel,
+			       struct evsel *evsel,
 			       struct addr_location *al)
 {
 	perl_process_tracepoint(sample, evsel, al);

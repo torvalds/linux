@@ -32,7 +32,7 @@ const char *ppc_book3s_hv_kvm_tp[] = {
 const char *kvm_events_tp[NR_TPS + 1];
 const char *kvm_exit_reason;
 
-static void hcall_event_get_key(struct perf_evsel *evsel,
+static void hcall_event_get_key(struct evsel *evsel,
 				struct perf_sample *sample,
 				struct event_key *key)
 {
@@ -55,14 +55,14 @@ static const char *get_hcall_exit_reason(u64 exit_code)
 	return "UNKNOWN";
 }
 
-static bool hcall_event_end(struct perf_evsel *evsel,
+static bool hcall_event_end(struct evsel *evsel,
 			    struct perf_sample *sample __maybe_unused,
 			    struct event_key *key __maybe_unused)
 {
 	return (!strcmp(evsel->name, kvm_events_tp[3]));
 }
 
-static bool hcall_event_begin(struct perf_evsel *evsel,
+static bool hcall_event_begin(struct evsel *evsel,
 			      struct perf_sample *sample, struct event_key *key)
 {
 	if (!strcmp(evsel->name, kvm_events_tp[2])) {

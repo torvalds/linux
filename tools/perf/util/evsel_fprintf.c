@@ -33,14 +33,14 @@ static int __print_attr__fprintf(FILE *fp, const char *name, const char *val, vo
 	return comma_fprintf(fp, (bool *)priv, " %s: %s", name, val);
 }
 
-int perf_evsel__fprintf(struct perf_evsel *evsel,
+int perf_evsel__fprintf(struct evsel *evsel,
 			struct perf_attr_details *details, FILE *fp)
 {
 	bool first = true;
 	int printed = 0;
 
 	if (details->event_group) {
-		struct perf_evsel *pos;
+		struct evsel *pos;
 
 		if (!perf_evsel__is_group_leader(evsel))
 			return 0;
