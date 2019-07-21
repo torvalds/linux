@@ -24,7 +24,7 @@ int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int
 	struct perf_evsel *evsel;
 	unsigned int nr_openat_calls = 111, i;
 	cpu_set_t cpu_set;
-	struct thread_map *threads = thread_map__new(-1, getpid(), UINT_MAX);
+	struct perf_thread_map *threads = thread_map__new(-1, getpid(), UINT_MAX);
 	char sbuf[STRERR_BUFSIZE];
 	char errbuf[BUFSIZ];
 

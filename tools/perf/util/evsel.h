@@ -126,7 +126,7 @@ struct perf_evsel {
 	void			*handler;
 	struct perf_cpu_map	*cpus;
 	struct perf_cpu_map	*own_cpus;
-	struct thread_map	*threads;
+	struct perf_thread_map *threads;
 	unsigned int		sample_size;
 	int			id_pos;
 	int			is_pos;
@@ -302,9 +302,9 @@ int perf_evsel__disable(struct perf_evsel *evsel);
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
 			     struct perf_cpu_map *cpus);
 int perf_evsel__open_per_thread(struct perf_evsel *evsel,
-				struct thread_map *threads);
+				struct perf_thread_map *threads);
 int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
-		     struct thread_map *threads);
+		     struct perf_thread_map *threads);
 void perf_evsel__close(struct perf_evsel *evsel);
 
 struct perf_sample;

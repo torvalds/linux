@@ -57,7 +57,7 @@ static int detach__enable_on_exec(struct perf_evlist *evlist)
 static int attach__current_disabled(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = perf_evlist__last(evlist);
-	struct thread_map *threads;
+	struct perf_thread_map *threads;
 	int err;
 
 	pr_debug("attaching to current thread as disabled\n");
@@ -83,7 +83,7 @@ static int attach__current_disabled(struct perf_evlist *evlist)
 static int attach__current_enabled(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = perf_evlist__last(evlist);
-	struct thread_map *threads;
+	struct perf_thread_map *threads;
 	int err;
 
 	pr_debug("attaching to current thread as enabled\n");

@@ -38,7 +38,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		.freq = 1,
 	};
 	struct perf_cpu_map *cpus;
-	struct thread_map *threads;
+	struct perf_thread_map *threads;
 	struct perf_mmap *md;
 
 	attr.sample_freq = 500;

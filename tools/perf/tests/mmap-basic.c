@@ -27,7 +27,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 {
 	int err = -1;
 	union perf_event *event;
-	struct thread_map *threads;
+	struct perf_thread_map *threads;
 	struct perf_cpu_map *cpus;
 	struct perf_evlist *evlist;
 	cpu_set_t cpu_set;

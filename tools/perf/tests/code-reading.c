@@ -552,7 +552,7 @@ static int do_test_code_reading(bool try_kcore)
 	struct state state = {
 		.done_cnt = 0,
 	};
-	struct thread_map *threads = NULL;
+	struct perf_thread_map *threads = NULL;
 	struct perf_cpu_map *cpus = NULL;
 	struct perf_evlist *evlist = NULL;
 	struct perf_evsel *evsel = NULL;

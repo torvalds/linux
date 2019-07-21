@@ -2313,7 +2313,7 @@ static bool is_event_supported(u8 type, unsigned config)
 		.config = config,
 		.disabled = 1,
 	};
-	struct thread_map *tmap = thread_map__new_by_tid(0);
+	struct perf_thread_map *tmap = thread_map__new_by_tid(0);
 
 	if (tmap == NULL)
 		return false;

@@ -616,7 +616,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 }
 
 int perf_event__synthesize_thread_map(struct perf_tool *tool,
-				      struct thread_map *threads,
+				      struct perf_thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine,
 				      bool mmap_data)
@@ -972,7 +972,7 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 }
 
 int perf_event__synthesize_thread_map2(struct perf_tool *tool,
-				      struct thread_map *threads,
+				      struct perf_thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine)
 {
@@ -1377,7 +1377,7 @@ size_t perf_event__fprintf_mmap2(union perf_event *event, FILE *fp)
 
 size_t perf_event__fprintf_thread_map(union perf_event *event, FILE *fp)
 {
-	struct thread_map *threads = thread_map__new_event(&event->thread_map);
+	struct perf_thread_map *threads = thread_map__new_event(&event->thread_map);
 	size_t ret;
 
 	ret = fprintf(fp, " nr: ");

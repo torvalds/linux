@@ -1047,7 +1047,7 @@ record__finish_output(struct record *rec)
 static int record__synthesize_workload(struct record *rec, bool tail)
 {
 	int err;
-	struct thread_map *thread_map;
+	struct perf_thread_map *thread_map;
 
 	if (rec->opts.tail_synthesize != tail)
 		return 0;

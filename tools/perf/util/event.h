@@ -674,7 +674,7 @@ union perf_event {
 void perf_event__print_totals(void);
 
 struct perf_tool;
-struct thread_map;
+struct perf_thread_map;
 struct perf_cpu_map;
 struct perf_stat_config;
 struct perf_counts_values;
@@ -685,11 +685,11 @@ typedef int (*perf_event__handler_t)(struct perf_tool *tool,
 				     struct machine *machine);
 
 int perf_event__synthesize_thread_map(struct perf_tool *tool,
-				      struct thread_map *threads,
+				      struct perf_thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine, bool mmap_data);
 int perf_event__synthesize_thread_map2(struct perf_tool *tool,
-				      struct thread_map *threads,
+				      struct perf_thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine);
 int perf_event__synthesize_cpu_map(struct perf_tool *tool,

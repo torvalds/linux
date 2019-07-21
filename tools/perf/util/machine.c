@@ -2599,7 +2599,7 @@ int machines__for_each_thread(struct machines *machines,
 }
 
 int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
-				  struct target *target, struct thread_map *threads,
+				  struct target *target, struct perf_thread_map *threads,
 				  perf_event__handler_t process, bool data_mmap,
 				  unsigned int nr_threads_synthesize)
 {

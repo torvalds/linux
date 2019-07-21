@@ -46,7 +46,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 	const char *argv[] = { "true", NULL };
 	char sbuf[STRERR_BUFSIZE];
 	struct perf_cpu_map *cpus;
-	struct thread_map *threads;
+	struct perf_thread_map *threads;
 	struct perf_mmap *md;
 
 	signal(SIGCHLD, sig_handler);

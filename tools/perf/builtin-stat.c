@@ -165,7 +165,7 @@ struct perf_stat {
 	struct perf_tool	 tool;
 	bool			 maps_allocated;
 	struct perf_cpu_map	*cpus;
-	struct thread_map	*threads;
+	struct perf_thread_map *threads;
 	enum aggr_mode		 aggr_mode;
 };
 
@@ -395,7 +395,7 @@ static bool perf_evsel__should_store_id(struct perf_evsel *counter)
 }
 
 static bool is_target_alive(struct target *_target,
-			    struct thread_map *threads)
+			    struct perf_thread_map *threads)
 {
 	struct stat st;
 	int i;

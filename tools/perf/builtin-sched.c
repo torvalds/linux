@@ -159,7 +159,7 @@ struct perf_sched_map {
 	DECLARE_BITMAP(comp_cpus_mask, MAX_CPUS);
 	int			*comp_cpus;
 	bool			 comp;
-	struct thread_map	*color_pids;
+	struct perf_thread_map *color_pids;
 	const char		*color_pids_str;
 	struct perf_cpu_map	*color_cpus;
 	const char		*color_cpus_str;
@@ -3195,7 +3195,7 @@ static int setup_map_cpus(struct perf_sched *sched)
 
 static int setup_color_pids(struct perf_sched *sched)
 {
-	struct thread_map *map;
+	struct perf_thread_map *map;
 
 	if (!sched->map.color_pids_str)
 		return 0;

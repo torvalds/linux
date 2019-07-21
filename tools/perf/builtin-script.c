@@ -1628,7 +1628,7 @@ struct perf_script {
 	bool			allocated;
 	bool			per_event_dump;
 	struct perf_cpu_map	*cpus;
-	struct thread_map	*threads;
+	struct perf_thread_map *threads;
 	int			name_width;
 	const char              *time_str;
 	struct perf_time_interval *ptime_range;

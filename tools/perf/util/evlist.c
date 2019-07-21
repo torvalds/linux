@@ -42,7 +42,7 @@ int sigqueue(pid_t pid, int sig, const union sigval value);
 #define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
 
 void perf_evlist__init(struct perf_evlist *evlist, struct perf_cpu_map *cpus,
-		       struct thread_map *threads)
+		       struct perf_thread_map *threads)
 {
 	int i;
 
@@ -1013,7 +1013,7 @@ int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
 {
 	struct perf_evsel *evsel;
 	const struct perf_cpu_map *cpus = evlist->cpus;
-	const struct thread_map *threads = evlist->threads;
+	const struct perf_thread_map *threads = evlist->threads;
 	/*
 	 * Delay setting mp.prot: set it before calling perf_mmap__mmap.
 	 * Its value is decided by evsel's write_backward.
@@ -1059,7 +1059,7 @@ int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
 {
 	bool all_threads = (target->per_thread && target->system_wide);
 	struct perf_cpu_map *cpus;
-	struct thread_map *threads;
+	struct perf_thread_map *threads;
 
 	/*
 	 * If specify '-a' and '--per-thread' to perf record, perf record
@@ -1105,7 +1105,7 @@ out_delete_threads:
 }
 
 void perf_evlist__set_maps(struct perf_evlist *evlist, struct perf_cpu_map *cpus,
-			   struct thread_map *threads)
+			   struct perf_thread_map *threads)
 {
 	/*
 	 * Allow for the possibility that one or another of the maps isn't being
@@ -1359,7 +1359,7 @@ void perf_evlist__close(struct perf_evlist *evlist)
 static int perf_evlist__create_syswide_maps(struct perf_evlist *evlist)
 {
 	struct perf_cpu_map *cpus;
-	struct thread_map *threads;
+	struct perf_thread_map *threads;
 	int err = -ENOMEM;
 
 	/*

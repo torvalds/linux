@@ -1392,7 +1392,7 @@ process_stat(struct perf_evsel *counter, int cpu, int thread, u64 tstamp,
 static void python_process_stat(struct perf_stat_config *config,
 				struct perf_evsel *counter, u64 tstamp)
 {
-	struct thread_map *threads = counter->threads;
+	struct perf_thread_map *threads = counter->threads;
 	struct perf_cpu_map *cpus = counter->cpus;
 	int cpu, thread;
 

@@ -605,7 +605,7 @@ static int pyrf_cpu_map__setup_types(void)
 struct pyrf_thread_map {
 	PyObject_HEAD
 
-	struct thread_map *threads;
+	struct perf_thread_map *threads;
 };
 
 static int pyrf_thread_map__init(struct pyrf_thread_map *pthreads,
@@ -797,7 +797,7 @@ static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 {
 	struct perf_evsel *evsel = &pevsel->evsel;
 	struct perf_cpu_map *cpus = NULL;
-	struct thread_map *threads = NULL;
+	struct perf_thread_map *threads = NULL;
 	PyObject *pcpus = NULL, *pthreads = NULL;
 	int group = 0, inherit = 0;
 	static char *kwlist[] = { "cpus", "threads", "group", "inherit", NULL };
@@ -866,7 +866,7 @@ static int pyrf_evlist__init(struct pyrf_evlist *pevlist,
 {
 	PyObject *pcpus = NULL, *pthreads = NULL;
 	struct perf_cpu_map *cpus;
-	struct thread_map *threads;
+	struct perf_thread_map *threads;
 
 	if (!PyArg_ParseTuple(args, "OO", &pcpus, &pthreads))
 		return -1;
