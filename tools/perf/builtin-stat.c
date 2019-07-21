@@ -263,7 +263,7 @@ static int read_single_counter(struct evsel *counter, int cpu,
  */
 static int read_counter(struct evsel *counter, struct timespec *rs)
 {
-	int nthreads = thread_map__nr(evsel_list->threads);
+	int nthreads = thread_map__nr(evsel_list->core.threads);
 	int ncpus, cpu, thread;
 
 	if (target__has_cpu(&target) && !target__has_per_thread(&target))
@@ -485,15 +485,15 @@ try_again:
                                         ui__warning("%s\n", msg);
                                 goto try_again;
 			} else if (target__has_per_thread(&target) &&
-				   evsel_list->threads &&
-				   evsel_list->threads->err_thread != -1) {
+				   evsel_list->core.threads &&
+				   evsel_list->core.threads->err_thread != -1) {
 				/*
 				 * For global --per-thread case, skip current
 				 * error thread.
 				 */
-				if (!thread_map__remove(evsel_list->threads,
-							evsel_list->threads->err_thread)) {
-					evsel_list->threads->err_thread = -1;
+				if (!thread_map__remove(evsel_list->core.threads,
+							evsel_list->core.threads->err_thread)) {
+					evsel_list->core.threads->err_thread = -1;
 					goto try_again;
 				}
 			}
@@ -579,7 +579,7 @@ try_again:
 		enable_counters();
 		while (!done) {
 			nanosleep(&ts, NULL);
-			if (!is_target_alive(&target, evsel_list->threads))
+			if (!is_target_alive(&target, evsel_list->core.threads))
 				break;
 			if (timeout)
 				break;
@@ -1889,10 +1889,10 @@ int cmd_stat(int argc, const char **argv)
 	 * so we could print it out on output.
 	 */
 	if (stat_config.aggr_mode == AGGR_THREAD) {
-		thread_map__read_comms(evsel_list->threads);
+		thread_map__read_comms(evsel_list->core.threads);
 		if (target.system_wide) {
 			if (runtime_stat_new(&stat_config,
-				thread_map__nr(evsel_list->threads))) {
+				thread_map__nr(evsel_list->core.threads))) {
 				goto out;
 			}
 		}

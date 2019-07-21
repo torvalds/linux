@@ -990,7 +990,7 @@ static int perf_top__start_counters(struct perf_top *top)
 	evlist__for_each_entry(evlist, counter) {
 try_again:
 		if (evsel__open(counter, top->evlist->core.cpus,
-				     top->evlist->threads) < 0) {
+				     top->evlist->core.threads) < 0) {
 
 			/*
 			 * Specially handle overwrite fall back.
@@ -1222,7 +1222,7 @@ static int __cmd_top(struct perf_top *top)
 		pr_debug("Couldn't synthesize BPF events: Pre-existing BPF programs won't have symbols resolved.\n");
 
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
-				    top->evlist->threads, false,
+				    top->evlist->core.threads, false,
 				    top->nr_threads_synthesize);
 
 	if (top->nr_threads_synthesize > 1)

@@ -1275,7 +1275,7 @@ static int record__synthesize(struct record *rec, bool tail)
 	if (err)
 		goto out;
 
-	err = perf_event__synthesize_thread_map2(&rec->tool, rec->evlist->threads,
+	err = perf_event__synthesize_thread_map2(&rec->tool, rec->evlist->core.threads,
 						 process_synthesized_event,
 						NULL);
 	if (err < 0) {
@@ -1295,7 +1295,7 @@ static int record__synthesize(struct record *rec, bool tail)
 	if (err < 0)
 		pr_warning("Couldn't synthesize bpf events.\n");
 
-	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->threads,
+	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->core.threads,
 					    process_synthesized_event, opts->sample_address,
 					    1);
 out:

@@ -1404,7 +1404,7 @@ static int trace__symbols_init(struct trace *trace, struct evlist *evlist)
 		goto out;
 
 	err = __machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
-					    evlist->threads, trace__tool_process, false,
+					    evlist->core.threads, trace__tool_process, false,
 					    1);
 out:
 	if (err)
@@ -3183,7 +3183,7 @@ static int trace__set_filter_pids(struct trace *trace)
 			err = bpf_map__set_filter_pids(trace->filter_pids.map, trace->filter_pids.nr,
 						       trace->filter_pids.entries);
 		}
-	} else if (thread_map__pid(trace->evlist->threads, 0) == -1) {
+	} else if (thread_map__pid(trace->evlist->core.threads, 0) == -1) {
 		err = trace__set_filter_loop_pids(trace);
 	}
 
@@ -3412,8 +3412,8 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		evlist__enable(evlist);
 	}
 
-	trace->multiple_threads = thread_map__pid(evlist->threads, 0) == -1 ||
-				  evlist->threads->nr > 1 ||
+	trace->multiple_threads = thread_map__pid(evlist->core.threads, 0) == -1 ||
+				  evlist->core.threads->nr > 1 ||
 				  perf_evlist__first(evlist)->core.attr.inherit;
 
 	/*

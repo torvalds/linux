@@ -507,7 +507,7 @@ int perf_stat_synthesize_config(struct perf_stat_config *config,
 	err = perf_event__synthesize_extra_attr(tool, evlist, process,
 						attrs);
 
-	err = perf_event__synthesize_thread_map2(tool, evlist->threads,
+	err = perf_event__synthesize_thread_map2(tool, evlist->core.threads,
 						 process, NULL);
 	if (err < 0) {
 		pr_err("Couldn't synthesize thread map.\n");

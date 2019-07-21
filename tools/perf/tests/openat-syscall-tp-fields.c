@@ -58,7 +58,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 
 	perf_evsel__config(evsel, &opts, NULL);
 
-	perf_thread_map__set_pid(evlist->threads, 0, getpid());
+	perf_thread_map__set_pid(evlist->core.threads, 0, getpid());
 
 	err = evlist__open(evlist);
 	if (err < 0) {
