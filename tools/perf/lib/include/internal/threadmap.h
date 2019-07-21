@@ -18,4 +18,6 @@ struct perf_thread_map {
 	struct thread_map_data map[];
 };
 
+struct perf_thread_map *perf_thread_map__realloc(struct perf_thread_map *map, int nr);
+
 #endif /* __LIBPERF_INTERNAL_THREADMAP_H */
