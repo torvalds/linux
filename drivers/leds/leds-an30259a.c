@@ -353,7 +353,7 @@ MODULE_DEVICE_TABLE(i2c, an30259a_id);
 
 static struct i2c_driver an30259a_driver = {
 	.driver = {
-		.name = "leds-an32059a",
+		.name = "leds-an30259a",
 		.of_match_table = of_match_ptr(an30259a_match_table),
 	},
 	.probe_new = an30259a_probe,
@@ -364,5 +364,5 @@ static struct i2c_driver an30259a_driver = {
 module_i2c_driver(an30259a_driver);
 
 MODULE_AUTHOR("Simon Shields <simon@lineageos.org>");
-MODULE_DESCRIPTION("AN32059A LED driver");
+MODULE_DESCRIPTION("AN30259A LED driver");
 MODULE_LICENSE("GPL v2");
