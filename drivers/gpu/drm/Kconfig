@@ -354,6 +354,8 @@ source "drivers/gpu/drm/aspeed/Kconfig"
 
 source "drivers/gpu/drm/mcde/Kconfig"
 
+source "drivers/gpu/drm/gm12u320/Kconfig"
+
 # Keep legacy drivers last
 
 menuconfig DRM_LEGACY
