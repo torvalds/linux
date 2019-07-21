@@ -90,7 +90,7 @@ set_methods:
 	return 0;
 }
 
-#define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
+#define FD(e, x, y) (*(int *)xyarray__entry(e->core.fd, x, y))
 
 int __perf_evsel__sample_size(u64 sample_type)
 {
@@ -1155,9 +1155,9 @@ void perf_evsel__config(struct evsel *evsel, struct record_opts *opts,
 
 static int perf_evsel__alloc_fd(struct evsel *evsel, int ncpus, int nthreads)
 {
-	evsel->fd = xyarray__new(ncpus, nthreads, sizeof(int));
+	evsel->core.fd = xyarray__new(ncpus, nthreads, sizeof(int));
 
-	if (evsel->fd) {
+	if (evsel->core.fd) {
 		int cpu, thread;
 		for (cpu = 0; cpu < ncpus; cpu++) {
 			for (thread = 0; thread < nthreads; thread++) {
@@ -1166,7 +1166,7 @@ static int perf_evsel__alloc_fd(struct evsel *evsel, int ncpus, int nthreads)
 		}
 	}
 
-	return evsel->fd != NULL ? 0 : -ENOMEM;
+	return evsel->core.fd != NULL ? 0 : -ENOMEM;
 }
 
 static int perf_evsel__run_ioctl(struct evsel *evsel,
@@ -1174,8 +1174,8 @@ static int perf_evsel__run_ioctl(struct evsel *evsel,
 {
 	int cpu, thread;
 
-	for (cpu = 0; cpu < xyarray__max_x(evsel->fd); cpu++) {
-		for (thread = 0; thread < xyarray__max_y(evsel->fd); thread++) {
+	for (cpu = 0; cpu < xyarray__max_x(evsel->core.fd); cpu++) {
+		for (thread = 0; thread < xyarray__max_y(evsel->core.fd); thread++) {
 			int fd = FD(evsel, cpu, thread),
 			    err = ioctl(fd, ioc, arg);
 
@@ -1283,8 +1283,8 @@ int perf_evsel__alloc_id(struct evsel *evsel, int ncpus, int nthreads)
 
 static void perf_evsel__free_fd(struct evsel *evsel)
 {
-	xyarray__delete(evsel->fd);
-	evsel->fd = NULL;
+	xyarray__delete(evsel->core.fd);
+	evsel->core.fd = NULL;
 }
 
 static void perf_evsel__free_id(struct evsel *evsel)
@@ -1309,8 +1309,8 @@ void perf_evsel__close_fd(struct evsel *evsel)
 {
 	int cpu, thread;
 
-	for (cpu = 0; cpu < xyarray__max_x(evsel->fd); cpu++)
-		for (thread = 0; thread < xyarray__max_y(evsel->fd); ++thread) {
+	for (cpu = 0; cpu < xyarray__max_x(evsel->core.fd); cpu++)
+		for (thread = 0; thread < xyarray__max_y(evsel->core.fd); ++thread) {
 			close(FD(evsel, cpu, thread));
 			FD(evsel, cpu, thread) = -1;
 		}
@@ -1555,7 +1555,7 @@ static int get_group_fd(struct evsel *evsel, int cpu, int thread)
 	 * Leader must be already processed/open,
 	 * if not it's a bug.
 	 */
-	BUG_ON(!leader->fd);
+	BUG_ON(!leader->core.fd);
 
 	fd = FD(leader, cpu, thread);
 	BUG_ON(fd == -1);
@@ -1865,7 +1865,7 @@ int evsel__open(struct evsel *evsel, struct perf_cpu_map *cpus,
 	else
 		nthreads = threads->nr;
 
-	if (evsel->fd == NULL &&
+	if (evsel->core.fd == NULL &&
 	    perf_evsel__alloc_fd(evsel, cpus->nr, nthreads) < 0)
 		return -ENOMEM;
 
@@ -2075,7 +2075,7 @@ out_close:
 
 void perf_evsel__close(struct evsel *evsel)
 {
-	if (evsel->fd == NULL)
+	if (evsel->core.fd == NULL)
 		return;
 
 	perf_evsel__close_fd(evsel);
@@ -3048,8 +3048,8 @@ static int store_evsel_ids(struct evsel *evsel, struct evlist *evlist)
 {
 	int cpu, thread;
 
-	for (cpu = 0; cpu < xyarray__max_x(evsel->fd); cpu++) {
-		for (thread = 0; thread < xyarray__max_y(evsel->fd);
+	for (cpu = 0; cpu < xyarray__max_x(evsel->core.fd); cpu++) {
+		for (thread = 0; thread < xyarray__max_y(evsel->core.fd);
 		     thread++) {
 			int fd = FD(evsel, cpu, thread);
 

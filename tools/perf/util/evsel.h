@@ -104,7 +104,6 @@ struct evsel {
 	struct perf_evsel	core;
 	struct evlist	*evlist;
 	char			*filter;
-	struct xyarray		*fd;
 	struct xyarray		*sample_id;
 	u64			*id;
 	struct perf_counts	*counts;

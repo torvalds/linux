@@ -40,7 +40,7 @@
 int sigqueue(pid_t pid, int sig, const union sigval value);
 #endif
 
-#define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
+#define FD(e, x, y) (*(int *)xyarray__entry(e->core.fd, x, y))
 #define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
 
 void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
@@ -321,7 +321,7 @@ void evlist__disable(struct evlist *evlist)
 	struct evsel *pos;
 
 	evlist__for_each_entry(evlist, pos) {
-		if (pos->disabled || !perf_evsel__is_group_leader(pos) || !pos->fd)
+		if (pos->disabled || !perf_evsel__is_group_leader(pos) || !pos->core.fd)
 			continue;
 		evsel__disable(pos);
 	}
@@ -334,7 +334,7 @@ void evlist__enable(struct evlist *evlist)
 	struct evsel *pos;
 
 	evlist__for_each_entry(evlist, pos) {
-		if (!perf_evsel__is_group_leader(pos) || !pos->fd)
+		if (!perf_evsel__is_group_leader(pos) || !pos->core.fd)
 			continue;
 		evsel__enable(pos);
 	}
@@ -353,7 +353,7 @@ static int perf_evlist__enable_event_cpu(struct evlist *evlist,
 	int thread;
 	int nr_threads = perf_evlist__nr_threads(evlist, evsel);
 
-	if (!evsel->fd)
+	if (!evsel->core.fd)
 		return -EINVAL;
 
 	for (thread = 0; thread < nr_threads; thread++) {
@@ -371,7 +371,7 @@ static int perf_evlist__enable_event_thread(struct evlist *evlist,
 	int cpu;
 	int nr_cpus = cpu_map__nr(evlist->core.cpus);
 
-	if (!evsel->fd)
+	if (!evsel->core.fd)
 		return -EINVAL;
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {

@@ -1403,7 +1403,7 @@ static int
 apply_config_evsel_for_key(const char *name, int map_fd, void *pkey,
 			   struct evsel *evsel)
 {
-	struct xyarray *xy = evsel->fd;
+	struct xyarray *xy = evsel->core.fd;
 	struct perf_event_attr *attr;
 	unsigned int key, events;
 	bool check_pass = false;
