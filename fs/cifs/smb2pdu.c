@@ -1873,10 +1873,21 @@ create_reconnect_durable_buf(struct cifs_fid *fid)
 	return buf;
 }
 
-__u8
-smb2_parse_lease_state(struct TCP_Server_Info *server,
+static void
+parse_query_id_ctxt(struct create_context *cc, struct smb2_file_all_info *buf)
+{
+	struct create_on_disk_id *pdisk_id = (struct create_on_disk_id *)cc;
+
+	cifs_dbg(FYI, "parse query id context 0x%llx 0x%llx\n",
+		pdisk_id->DiskFileId, pdisk_id->VolumeId);
+	buf->IndexNumber = pdisk_id->DiskFileId;
+}
+
+void
+smb2_parse_contexts(struct TCP_Server_Info *server,
 		       struct smb2_create_rsp *rsp,
-		       unsigned int *epoch, char *lease_key)
+		       unsigned int *epoch, char *lease_key, __u8 *oplock,
+		       struct smb2_file_all_info *buf)
 {
 	char *data_offset;
 	struct create_context *cc;
@@ -1884,15 +1895,24 @@ smb2_parse_lease_state(struct TCP_Server_Info *server,
 	unsigned int remaining;
 	char *name;
 
+	*oplock = 0;
 	data_offset = (char *)rsp + le32_to_cpu(rsp->CreateContextsOffset);
 	remaining = le32_to_cpu(rsp->CreateContextsLength);
 	cc = (struct create_context *)data_offset;
+
+	/* Initialize inode number to 0 in case no valid data in qfid context */
+	if (buf)
+		buf->IndexNumber = 0;
+
 	while (remaining >= sizeof(struct create_context)) {
 		name = le16_to_cpu(cc->NameOffset) + (char *)cc;
 		if (le16_to_cpu(cc->NameLength) == 4 &&
-		    strncmp(name, "RqLs", 4) == 0)
-			return server->ops->parse_lease_buf(cc, epoch,
-							    lease_key);
+		    strncmp(name, SMB2_CREATE_REQUEST_LEASE, 4) == 0)
+			*oplock = server->ops->parse_lease_buf(cc, epoch,
+							   lease_key);
+		else if (buf && (le16_to_cpu(cc->NameLength) == 4) &&
+		    strncmp(name, SMB2_CREATE_QUERY_ON_DISK_ID, 4) == 0)
+			parse_query_id_ctxt(cc, buf);
 
 		next = le32_to_cpu(cc->Next);
 		if (!next)
@@ -1901,7 +1921,10 @@ smb2_parse_lease_state(struct TCP_Server_Info *server,
 		cc = (struct create_context *)((char *)cc + next);
 	}
 
-	return 0;
+	if (rsp->OplockLevel != SMB2_OPLOCK_LEVEL_LEASE)
+		*oplock = rsp->OplockLevel;
+
+	return;
 }
 
 static int
@@ -2588,12 +2611,9 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 		buf->DeletePending = 0;
 	}
 
-	if (rsp->OplockLevel == SMB2_OPLOCK_LEVEL_LEASE)
-		*oplock = smb2_parse_lease_state(server, rsp,
-						 &oparms->fid->epoch,
-						 oparms->fid->lease_key);
-	else
-		*oplock = rsp->OplockLevel;
+
+	smb2_parse_contexts(server, rsp, &oparms->fid->epoch,
+			    oparms->fid->lease_key, oplock, buf);
 creat_exit:
 	SMB2_open_free(&rqst);
 	free_rsp_buf(resp_buftype, rsp);

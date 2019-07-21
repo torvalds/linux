@@ -818,7 +818,9 @@ struct durable_reconnect_context_v2 {
 } __packed;
 
 /* See MS-SMB2 2.2.14.2.9 */
-struct on_disk_id {
+struct create_on_disk_id {
+	struct create_context ccontext;
+	__u8   Name[8];
 	__le64 DiskFileId;
 	__le64 VolumeId;
 	__u32  Reserved[4];
