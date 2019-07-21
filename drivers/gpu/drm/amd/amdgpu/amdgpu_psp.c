@@ -1023,6 +1023,10 @@ out:
 		     ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2_JT))
 			/* skip mec JT when autoload is enabled */
 			continue;
+		/* Renoir only needs to load mec jump table one time */
+		if (adev->asic_type == CHIP_RENOIR &&
+		    ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2_JT)
+			continue;
 
 		ret = psp_execute_np_fw_load(psp, ucode);
 		if (ret)
