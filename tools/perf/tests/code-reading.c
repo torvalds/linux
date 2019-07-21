@@ -656,7 +656,7 @@ static int do_test_code_reading(bool try_kcore)
 				 * call. Getting refference to keep them alive.
 				 */
 				perf_cpu_map__get(cpus);
-				thread_map__get(threads);
+				perf_thread_map__get(threads);
 				perf_evlist__set_maps(evlist, NULL, NULL);
 				evlist__delete(evlist);
 				evlist = NULL;
@@ -706,7 +706,7 @@ out_err:
 		evlist__delete(evlist);
 	} else {
 		perf_cpu_map__put(cpus);
-		thread_map__put(threads);
+		perf_thread_map__put(threads);
 	}
 	machine__delete_threads(machine);
 	machine__delete(machine);

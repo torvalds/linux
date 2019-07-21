@@ -992,7 +992,7 @@ int perf_event__synthesize_thread_map2(struct perf_tool *tool,
 
 	for (i = 0; i < threads->nr; i++) {
 		struct thread_map_event_entry *entry = &event->thread_map.entries[i];
-		char *comm = thread_map__comm(threads, i);
+		char *comm = perf_thread_map__comm(threads, i);
 
 		if (!comm)
 			comm = (char *) "";
@@ -1387,7 +1387,7 @@ size_t perf_event__fprintf_thread_map(union perf_event *event, FILE *fp)
 	else
 		ret += fprintf(fp, "failed to get threads from event\n");
 
-	thread_map__put(threads);
+	perf_thread_map__put(threads);
 	return ret;
 }
 

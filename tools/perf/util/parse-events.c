@@ -2337,7 +2337,7 @@ static bool is_event_supported(u8 type, unsigned config)
 		evsel__delete(evsel);
 	}
 
-	thread_map__put(tmap);
+	perf_thread_map__put(tmap);
 	return ret;
 }
 

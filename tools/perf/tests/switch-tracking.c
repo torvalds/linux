@@ -570,7 +570,7 @@ out:
 		evlist__delete(evlist);
 	} else {
 		perf_cpu_map__put(cpus);
-		thread_map__put(threads);
+		perf_thread_map__put(threads);
 	}
 
 	return err;

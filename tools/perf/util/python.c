@@ -626,7 +626,7 @@ static int pyrf_thread_map__init(struct pyrf_thread_map *pthreads,
 
 static void pyrf_thread_map__delete(struct pyrf_thread_map *pthreads)
 {
-	thread_map__put(pthreads->threads);
+	perf_thread_map__put(pthreads->threads);
 	Py_TYPE(pthreads)->tp_free((PyObject*)pthreads);
 }
 

@@ -142,7 +142,7 @@ void evlist__delete(struct evlist *evlist)
 	perf_evlist__munmap(evlist);
 	evlist__close(evlist);
 	perf_cpu_map__put(evlist->cpus);
-	thread_map__put(evlist->threads);
+	perf_thread_map__put(evlist->threads);
 	evlist->cpus = NULL;
 	evlist->threads = NULL;
 	perf_evlist__purge(evlist);
@@ -165,8 +165,8 @@ static void __perf_evlist__propagate_maps(struct evlist *evlist,
 		evsel->cpus = perf_cpu_map__get(evsel->own_cpus);
 	}
 
-	thread_map__put(evsel->threads);
-	evsel->threads = thread_map__get(evlist->threads);
+	perf_thread_map__put(evsel->threads);
+	evsel->threads = perf_thread_map__get(evlist->threads);
 }
 
 static void perf_evlist__propagate_maps(struct evlist *evlist)
@@ -1100,7 +1100,7 @@ int perf_evlist__create_maps(struct evlist *evlist, struct target *target)
 	return 0;
 
 out_delete_threads:
-	thread_map__put(threads);
+	perf_thread_map__put(threads);
 	return -1;
 }
 
@@ -1120,8 +1120,8 @@ void perf_evlist__set_maps(struct evlist *evlist, struct perf_cpu_map *cpus,
 	}
 
 	if (threads != evlist->threads) {
-		thread_map__put(evlist->threads);
-		evlist->threads = thread_map__get(threads);
+		perf_thread_map__put(evlist->threads);
+		evlist->threads = perf_thread_map__get(threads);
 	}
 
 	perf_evlist__propagate_maps(evlist);

@@ -76,7 +76,7 @@ static int attach__current_disabled(struct evlist *evlist)
 		return err;
 	}
 
-	thread_map__put(threads);
+	perf_thread_map__put(threads);
 	return evsel__enable(evsel) == 0 ? TEST_OK : TEST_FAIL;
 }
 
@@ -96,7 +96,7 @@ static int attach__current_enabled(struct evlist *evlist)
 
 	err = perf_evsel__open_per_thread(evsel, threads);
 
-	thread_map__put(threads);
+	perf_thread_map__put(threads);
 	return err == 0 ? TEST_OK : TEST_FAIL;
 }
 

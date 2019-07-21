@@ -1060,7 +1060,7 @@ static int record__synthesize_workload(struct record *rec, bool tail)
 						 process_synthesized_event,
 						 &rec->session->machines.host,
 						 rec->opts.sample_address);
-	thread_map__put(thread_map);
+	perf_thread_map__put(thread_map);
 	return err;
 }
 

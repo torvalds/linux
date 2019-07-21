@@ -18,9 +18,6 @@ struct perf_thread_map *thread_map__new_all_cpus(void);
 struct perf_thread_map *thread_map__new(pid_t pid, pid_t tid, uid_t uid);
 struct perf_thread_map *thread_map__new_event(struct thread_map_event *event);
 
-struct perf_thread_map *thread_map__get(struct perf_thread_map *map);
-void thread_map__put(struct perf_thread_map *map);
-
 struct perf_thread_map *thread_map__new_str(const char *pid,
 		const char *tid, uid_t uid, bool all_threads);
 
@@ -36,11 +33,6 @@ static inline int thread_map__nr(struct perf_thread_map *threads)
 static inline pid_t thread_map__pid(struct perf_thread_map *map, int thread)
 {
 	return map->map[thread].pid;
-}
-
-static inline char *thread_map__comm(struct perf_thread_map *map, int thread)
-{
-	return map->map[thread].comm;
 }
 
 void thread_map__read_comms(struct perf_thread_map *threads);

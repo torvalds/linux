@@ -122,6 +122,6 @@ out_evsel_delete:
 out_cpu_map_delete:
 	perf_cpu_map__put(cpus);
 out_thread_map_delete:
-	thread_map__put(threads);
+	perf_thread_map__put(threads);
 	return err;
 }

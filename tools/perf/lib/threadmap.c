@@ -4,6 +4,8 @@
 #include <linux/refcount.h>
 #include <internal/threadmap.h>
 #include <string.h>
+#include <asm/bug.h>
+#include <stdio.h>
 
 static void perf_thread_map__reset(struct perf_thread_map *map, int start, int nr)
 {
@@ -35,6 +37,11 @@ void perf_thread_map__set_pid(struct perf_thread_map *map, int thread, pid_t pid
 	map->map[thread].pid = pid;
 }
 
+char *perf_thread_map__comm(struct perf_thread_map *map, int thread)
+{
+	return map->map[thread].comm;
+}
+
 struct perf_thread_map *perf_thread_map__new_dummy(void)
 {
 	struct perf_thread_map *threads = thread_map__alloc(1);
@@ -45,4 +52,30 @@ struct perf_thread_map *perf_thread_map__new_dummy(void)
 		refcount_set(&threads->refcnt, 1);
 	}
 	return threads;
+}
+
+static void perf_thread_map__delete(struct perf_thread_map *threads)
+{
+	if (threads) {
+		int i;
+
+		WARN_ONCE(refcount_read(&threads->refcnt) != 0,
+			  "thread map refcnt unbalanced\n");
+		for (i = 0; i < threads->nr; i++)
+			free(perf_thread_map__comm(threads, i));
+		free(threads);
+	}
+}
+
+struct perf_thread_map *perf_thread_map__get(struct perf_thread_map *map)
+{
+	if (map)
+		refcount_inc(&map->refcnt);
+	return map;
+}
+
+void perf_thread_map__put(struct perf_thread_map *map)
+{
+	if (map && refcount_dec_and_test(&map->refcnt))
+		perf_thread_map__delete(map);
 }

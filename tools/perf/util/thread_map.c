@@ -304,32 +304,6 @@ struct perf_thread_map *thread_map__new_str(const char *pid, const char *tid,
 	return thread_map__new_by_tid_str(tid);
 }
 
-static void thread_map__delete(struct perf_thread_map *threads)
-{
-	if (threads) {
-		int i;
-
-		WARN_ONCE(refcount_read(&threads->refcnt) != 0,
-			  "thread map refcnt unbalanced\n");
-		for (i = 0; i < threads->nr; i++)
-			free(thread_map__comm(threads, i));
-		free(threads);
-	}
-}
-
-struct perf_thread_map *thread_map__get(struct perf_thread_map *map)
-{
-	if (map)
-		refcount_inc(&map->refcnt);
-	return map;
-}
-
-void thread_map__put(struct perf_thread_map *map)
-{
-	if (map && refcount_dec_and_test(&map->refcnt))
-		thread_map__delete(map);
-}
-
 size_t thread_map__fprintf(struct perf_thread_map *threads, FILE *fp)
 {
 	int i;
