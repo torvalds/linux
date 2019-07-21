@@ -1,4 +1,6 @@
 LIBPERF_0.0.1 {
+	global:
+		libperf_set_print;
 	local:
 		*;
 };
