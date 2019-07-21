@@ -2400,7 +2400,7 @@ static int trace__event_handler(struct trace *trace, struct evsel *evsel,
 			++trace->nr_events_printed;
 
 			if (evsel->max_events != ULONG_MAX && ++evsel->nr_events_printed == evsel->max_events) {
-				perf_evsel__disable(evsel);
+				evsel__disable(evsel);
 				perf_evsel__close(evsel);
 			}
 		}

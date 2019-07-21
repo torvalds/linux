@@ -1244,7 +1244,7 @@ int evsel__enable(struct evsel *evsel)
 	return err;
 }
 
-int perf_evsel__disable(struct evsel *evsel)
+int evsel__disable(struct evsel *evsel)
 {
 	int err = perf_evsel__run_ioctl(evsel, PERF_EVENT_IOC_DISABLE, 0);
 	/*

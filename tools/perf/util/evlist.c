@@ -350,7 +350,7 @@ void perf_evlist__disable(struct evlist *evlist)
 	evlist__for_each_entry(evlist, pos) {
 		if (pos->disabled || !perf_evsel__is_group_leader(pos) || !pos->fd)
 			continue;
-		perf_evsel__disable(pos);
+		evsel__disable(pos);
 	}
 
 	evlist->enabled = false;
