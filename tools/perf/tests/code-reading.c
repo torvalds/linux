@@ -362,7 +362,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 }
 
 static int process_sample_event(struct machine *machine,
-				struct perf_evlist *evlist,
+				struct evlist *evlist,
 				union perf_event *event, struct state *state)
 {
 	struct perf_sample sample;
@@ -385,7 +385,7 @@ static int process_sample_event(struct machine *machine,
 	return ret;
 }
 
-static int process_event(struct machine *machine, struct perf_evlist *evlist,
+static int process_event(struct machine *machine, struct evlist *evlist,
 			 union perf_event *event, struct state *state)
 {
 	if (event->header.type == PERF_RECORD_SAMPLE)
@@ -408,7 +408,7 @@ static int process_event(struct machine *machine, struct perf_evlist *evlist,
 	return 0;
 }
 
-static int process_events(struct machine *machine, struct perf_evlist *evlist,
+static int process_events(struct machine *machine, struct evlist *evlist,
 			  struct state *state)
 {
 	union perf_event *event;
@@ -554,7 +554,7 @@ static int do_test_code_reading(bool try_kcore)
 	};
 	struct perf_thread_map *threads = NULL;
 	struct perf_cpu_map *cpus = NULL;
-	struct perf_evlist *evlist = NULL;
+	struct evlist *evlist = NULL;
 	struct evsel *evsel = NULL;
 	int err = -1, ret;
 	pid_t pid;

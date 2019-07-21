@@ -44,7 +44,7 @@ struct intel_pt_recording {
 	struct auxtrace_record		itr;
 	struct perf_pmu			*intel_pt_pmu;
 	int				have_sched_switch;
-	struct perf_evlist		*evlist;
+	struct evlist		*evlist;
 	bool				snapshot_mode;
 	bool				snapshot_init_done;
 	size_t				snapshot_size;
@@ -110,7 +110,7 @@ static u64 intel_pt_masked_bits(u64 mask, u64 bits)
 }
 
 static int intel_pt_read_config(struct perf_pmu *intel_pt_pmu, const char *str,
-				struct perf_evlist *evlist, u64 *res)
+				struct evlist *evlist, u64 *res)
 {
 	struct evsel *evsel;
 	u64 mask;
@@ -132,7 +132,7 @@ static int intel_pt_read_config(struct perf_pmu *intel_pt_pmu, const char *str,
 }
 
 static size_t intel_pt_psb_period(struct perf_pmu *intel_pt_pmu,
-				  struct perf_evlist *evlist)
+				  struct evlist *evlist)
 {
 	u64 val;
 	int err, topa_multiple_entries;
@@ -268,7 +268,7 @@ intel_pt_pmu_default_config(struct perf_pmu *intel_pt_pmu)
 	return attr;
 }
 
-static const char *intel_pt_find_filter(struct perf_evlist *evlist,
+static const char *intel_pt_find_filter(struct evlist *evlist,
 					struct perf_pmu *intel_pt_pmu)
 {
 	struct evsel *evsel;
@@ -289,7 +289,7 @@ static size_t intel_pt_filter_bytes(const char *filter)
 }
 
 static size_t
-intel_pt_info_priv_size(struct auxtrace_record *itr, struct perf_evlist *evlist)
+intel_pt_info_priv_size(struct auxtrace_record *itr, struct evlist *evlist)
 {
 	struct intel_pt_recording *ptr =
 			container_of(itr, struct intel_pt_recording, itr);
@@ -398,7 +398,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	return 0;
 }
 
-static int intel_pt_track_switches(struct perf_evlist *evlist)
+static int intel_pt_track_switches(struct evlist *evlist)
 {
 	const char *sched_switch = "sched:sched_switch";
 	struct evsel *evsel;
@@ -549,7 +549,7 @@ static int intel_pt_validate_config(struct perf_pmu *intel_pt_pmu,
 }
 
 static int intel_pt_recording_options(struct auxtrace_record *itr,
-				      struct perf_evlist *evlist,
+				      struct evlist *evlist,
 				      struct record_opts *opts)
 {
 	struct intel_pt_recording *ptr =

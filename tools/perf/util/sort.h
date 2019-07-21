@@ -301,9 +301,9 @@ struct block_hist {
 extern struct sort_entry sort_thread;
 extern struct list_head hist_entry__sort_list;
 
-struct perf_evlist;
+struct evlist;
 struct tep_handle;
-int setup_sorting(struct perf_evlist *evlist);
+int setup_sorting(struct evlist *evlist);
 int setup_output_field(void);
 void reset_output_field(void);
 void sort__setup_elide(FILE *fp);
@@ -318,7 +318,7 @@ bool is_strict_order(const char *order);
 int hpp_dimension__add_output(unsigned col);
 void reset_dimensions(void);
 int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
-			struct perf_evlist *evlist,
+			struct evlist *evlist,
 			int level);
 int output_field_add(struct perf_hpp_list *list, char *tok);
 int64_t

@@ -25,7 +25,7 @@ static void testcase(void)
 	}
 }
 
-static int count_samples(struct perf_evlist *evlist, int *sample_count,
+static int count_samples(struct evlist *evlist, int *sample_count,
 			 int *comm_count)
 {
 	int i;
@@ -55,7 +55,7 @@ static int count_samples(struct perf_evlist *evlist, int *sample_count,
 	return TEST_OK;
 }
 
-static int do_test(struct perf_evlist *evlist, int mmap_pages,
+static int do_test(struct evlist *evlist, int mmap_pages,
 		   int *sample_count, int *comm_count)
 {
 	int err;
@@ -82,7 +82,7 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 {
 	int ret = TEST_SKIP, err, sample_count = 0, comm_count = 0;
 	char pid[16], sbuf[STRERR_BUFSIZE];
-	struct perf_evlist *evlist;
+	struct evlist *evlist;
 	struct evsel *evsel __maybe_unused;
 	struct parse_events_error parse_error;
 	struct record_opts opts = {

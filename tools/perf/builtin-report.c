@@ -193,7 +193,7 @@ out:
 }
 
 static void setup_forced_leader(struct report *report,
-				struct perf_evlist *evlist)
+				struct evlist *evlist)
 {
 	if (report->group_set)
 		perf_evlist__force_leader(evlist);
@@ -459,7 +459,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	return ret + fprintf(fp, "\n#\n");
 }
 
-static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
+static int perf_evlist__tty_browse_hists(struct evlist *evlist,
 					 struct report *rep,
 					 const char *help)
 {
@@ -532,7 +532,7 @@ static void report__warn_kptr_restrict(const struct report *rep)
 
 static int report__gtk_browse_hists(struct report *rep, const char *help)
 {
-	int (*hist_browser)(struct perf_evlist *evlist, const char *help,
+	int (*hist_browser)(struct evlist *evlist, const char *help,
 			    struct hist_browser_timer *timer, float min_pcnt);
 
 	hist_browser = dlsym(perf_gtk_handle, "perf_evlist__gtk_browse_hists");
@@ -549,7 +549,7 @@ static int report__browse_hists(struct report *rep)
 {
 	int ret;
 	struct perf_session *session = rep->session;
-	struct perf_evlist *evlist = session->evlist;
+	struct evlist *evlist = session->evlist;
 	const char *help = perf_tip(system_path(TIPDIR));
 
 	if (help == NULL) {

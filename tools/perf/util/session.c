@@ -300,7 +300,7 @@ static int process_event_synth_tracing_data_stub(struct perf_session *session
 
 static int process_event_synth_attr_stub(struct perf_tool *tool __maybe_unused,
 					 union perf_event *event __maybe_unused,
-					 struct perf_evlist **pevlist
+					 struct evlist **pevlist
 					 __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
@@ -309,7 +309,7 @@ static int process_event_synth_attr_stub(struct perf_tool *tool __maybe_unused,
 
 static int process_event_synth_event_update_stub(struct perf_tool *tool __maybe_unused,
 						 union perf_event *event __maybe_unused,
-						 struct perf_evlist **pevlist
+						 struct evlist **pevlist
 						 __maybe_unused)
 {
 	if (dump_trace)
@@ -1129,7 +1129,7 @@ static void stack_user__printf(struct stack_dump *dump)
 	       dump->size, dump->offset);
 }
 
-static void perf_evlist__print_tstamp(struct perf_evlist *evlist,
+static void perf_evlist__print_tstamp(struct evlist *evlist,
 				       union perf_event *event,
 				       struct perf_sample *sample)
 {
@@ -1178,7 +1178,7 @@ static void sample_read__printf(struct perf_sample *sample, u64 read_format)
 			sample->read.one.id, sample->read.one.value);
 }
 
-static void dump_event(struct perf_evlist *evlist, union perf_event *event,
+static void dump_event(struct evlist *evlist, union perf_event *event,
 		       u64 file_offset, struct perf_sample *sample)
 {
 	if (!dump_trace)
@@ -1296,7 +1296,7 @@ static struct machine *machines__find_for_cpumode(struct machines *machines,
 	return &machines->host;
 }
 
-static int deliver_sample_value(struct perf_evlist *evlist,
+static int deliver_sample_value(struct evlist *evlist,
 				struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
@@ -1326,7 +1326,7 @@ static int deliver_sample_value(struct perf_evlist *evlist,
 	return tool->sample(tool, event, sample, sid->evsel, machine);
 }
 
-static int deliver_sample_group(struct perf_evlist *evlist,
+static int deliver_sample_group(struct evlist *evlist,
 				struct perf_tool *tool,
 				union  perf_event *event,
 				struct perf_sample *sample,
@@ -1347,7 +1347,7 @@ static int deliver_sample_group(struct perf_evlist *evlist,
 }
 
 static int
- perf_evlist__deliver_sample(struct perf_evlist *evlist,
+ perf_evlist__deliver_sample(struct evlist *evlist,
 			     struct perf_tool *tool,
 			     union  perf_event *event,
 			     struct perf_sample *sample,
@@ -1372,7 +1372,7 @@ static int
 }
 
 static int machines__deliver_event(struct machines *machines,
-				   struct perf_evlist *evlist,
+				   struct evlist *evlist,
 				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct perf_tool *tool, u64 file_offset)
@@ -1553,7 +1553,7 @@ int perf_session__deliver_synth_event(struct perf_session *session,
 				      union perf_event *event,
 				      struct perf_sample *sample)
 {
-	struct perf_evlist *evlist = session->evlist;
+	struct evlist *evlist = session->evlist;
 	struct perf_tool *tool = session->tool;
 
 	events_stats__inc(&evlist->stats, event->header.type);
@@ -1631,7 +1631,7 @@ out_parse_sample:
 static s64 perf_session__process_event(struct perf_session *session,
 				       union perf_event *event, u64 file_offset)
 {
-	struct perf_evlist *evlist = session->evlist;
+	struct evlist *evlist = session->evlist;
 	struct perf_tool *tool = session->tool;
 	int ret;
 
@@ -2357,7 +2357,7 @@ out:
 int perf_event__process_id_index(struct perf_session *session,
 				 union perf_event *event)
 {
-	struct perf_evlist *evlist = session->evlist;
+	struct evlist *evlist = session->evlist;
 	struct id_index_event *ie = &event->id_index;
 	size_t i, nr, max_nr;
 
@@ -2393,7 +2393,7 @@ int perf_event__process_id_index(struct perf_session *session,
 
 int perf_event__synthesize_id_index(struct perf_tool *tool,
 				    perf_event__handler_t process,
-				    struct perf_evlist *evlist,
+				    struct evlist *evlist,
 				    struct machine *machine)
 {
 	union perf_event *ev;

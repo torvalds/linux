@@ -839,7 +839,7 @@ static u64 last_timestamp;
 static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 {
 	struct record_opts *opts = &top->record_opts;
-	struct perf_evlist *evlist = top->evlist;
+	struct evlist *evlist = top->evlist;
 	struct perf_mmap *md;
 	union perf_event *event;
 
@@ -874,7 +874,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 static void perf_top__mmap_read(struct perf_top *top)
 {
 	bool overwrite = top->record_opts.overwrite;
-	struct perf_evlist *evlist = top->evlist;
+	struct evlist *evlist = top->evlist;
 	int i;
 
 	if (overwrite)
@@ -909,7 +909,7 @@ static void perf_top__mmap_read(struct perf_top *top)
 static int perf_top__overwrite_check(struct perf_top *top)
 {
 	struct record_opts *opts = &top->record_opts;
-	struct perf_evlist *evlist = top->evlist;
+	struct evlist *evlist = top->evlist;
 	struct perf_evsel_config_term *term;
 	struct list_head *config_terms;
 	struct evsel *evsel;
@@ -955,7 +955,7 @@ static int perf_top_overwrite_fallback(struct perf_top *top,
 				       struct evsel *evsel)
 {
 	struct record_opts *opts = &top->record_opts;
-	struct perf_evlist *evlist = top->evlist;
+	struct evlist *evlist = top->evlist;
 	struct evsel *counter;
 
 	if (!opts->overwrite)
@@ -976,7 +976,7 @@ static int perf_top__start_counters(struct perf_top *top)
 {
 	char msg[BUFSIZ];
 	struct evsel *counter;
-	struct perf_evlist *evlist = top->evlist;
+	struct evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
 
 	if (perf_top__overwrite_check(top)) {
@@ -1100,7 +1100,7 @@ static int deliver_event(struct ordered_events *qe,
 			 struct ordered_event *qevent)
 {
 	struct perf_top *top = qe->data;
-	struct perf_evlist *evlist = top->evlist;
+	struct evlist *evlist = top->evlist;
 	struct perf_session *session = top->session;
 	union perf_event *event = qevent->event;
 	struct perf_sample sample;
@@ -1511,7 +1511,7 @@ int cmd_top(int argc, const char **argv)
 		    "Record namespaces events"),
 	OPT_END()
 	};
-	struct perf_evlist *sb_evlist = NULL;
+	struct evlist *sb_evlist = NULL;
 	const char * const top_usage[] = {
 		"perf top [<options>]",
 		NULL

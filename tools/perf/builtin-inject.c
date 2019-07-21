@@ -96,7 +96,7 @@ static int perf_event__repipe_op2_synth(struct perf_session *session,
 
 static int perf_event__repipe_attr(struct perf_tool *tool,
 				   union perf_event *event,
-				   struct perf_evlist **pevlist)
+				   struct evlist **pevlist)
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject,
 						  tool);
@@ -567,7 +567,7 @@ static int drop_sample(struct perf_tool *tool __maybe_unused,
 
 static void strip_init(struct perf_inject *inject)
 {
-	struct perf_evlist *evlist = inject->session->evlist;
+	struct evlist *evlist = inject->session->evlist;
 	struct evsel *evsel;
 
 	inject->tool.context_switch = perf_event__drop;
@@ -590,7 +590,7 @@ static bool has_tracking(struct evsel *evsel)
  * their selected event to exist, except if there is only 1 selected event left
  * and it has a compatible sample type.
  */
-static bool ok_to_remove(struct perf_evlist *evlist,
+static bool ok_to_remove(struct evlist *evlist,
 			 struct evsel *evsel_to_remove)
 {
 	struct evsel *evsel;
@@ -614,7 +614,7 @@ static bool ok_to_remove(struct perf_evlist *evlist,
 
 static void strip_fini(struct perf_inject *inject)
 {
-	struct perf_evlist *evlist = inject->session->evlist;
+	struct evlist *evlist = inject->session->evlist;
 	struct evsel *evsel, *tmp;
 
 	/* Remove non-synthesized evsels if possible */

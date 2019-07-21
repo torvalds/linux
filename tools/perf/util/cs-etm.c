@@ -1222,7 +1222,7 @@ static int cs_etm__synth_event(struct perf_session *session,
 static int cs_etm__synth_events(struct cs_etm_auxtrace *etm,
 				struct perf_session *session)
 {
-	struct perf_evlist *evlist = session->evlist;
+	struct evlist *evlist = session->evlist;
 	struct evsel *evsel;
 	struct perf_event_attr attr;
 	bool found = false;
@@ -2295,7 +2295,7 @@ static int cs_etm__process_auxtrace_event(struct perf_session *session,
 static bool cs_etm__is_timeless_decoding(struct cs_etm_auxtrace *etm)
 {
 	struct evsel *evsel;
-	struct perf_evlist *evlist = etm->session->evlist;
+	struct evlist *evlist = etm->session->evlist;
 	bool timeless_decoding = true;
 
 	/*

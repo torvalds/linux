@@ -124,7 +124,7 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 }
 
 void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
-				   struct perf_evlist *evlist, int idx,
+				   struct evlist *evlist, int idx,
 				   bool per_cpu)
 {
 	mp->idx = idx;
@@ -503,7 +503,7 @@ void auxtrace_heap__pop(struct auxtrace_heap *heap)
 }
 
 size_t auxtrace_record__info_priv_size(struct auxtrace_record *itr,
-				       struct perf_evlist *evlist)
+				       struct evlist *evlist)
 {
 	if (itr)
 		return itr->info_priv_size(itr, evlist);
@@ -556,7 +556,7 @@ int auxtrace_record__find_snapshot(struct auxtrace_record *itr, int idx,
 }
 
 int auxtrace_record__options(struct auxtrace_record *itr,
-			     struct perf_evlist *evlist,
+			     struct evlist *evlist,
 			     struct record_opts *opts)
 {
 	if (itr)
@@ -585,7 +585,7 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 }
 
 struct auxtrace_record *__weak
-auxtrace_record__init(struct perf_evlist *evlist __maybe_unused, int *err)
+auxtrace_record__init(struct evlist *evlist __maybe_unused, int *err)
 {
 	*err = 0;
 	return NULL;
@@ -2160,7 +2160,7 @@ static int perf_evsel__nr_addr_filter(struct evsel *evsel)
 	return nr_addr_filters;
 }
 
-int auxtrace_parse_filters(struct perf_evlist *evlist)
+int auxtrace_parse_filters(struct evlist *evlist)
 {
 	struct evsel *evsel;
 	char *filter;

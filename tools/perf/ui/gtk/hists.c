@@ -590,7 +590,7 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 	gtk_container_add(GTK_CONTAINER(window), view);
 }
 
-int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
+int perf_evlist__gtk_browse_hists(struct evlist *evlist,
 				  const char *help,
 				  struct hist_browser_timer *hbt __maybe_unused,
 				  float min_pcnt)

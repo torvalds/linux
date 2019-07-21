@@ -50,7 +50,7 @@ static struct perf_pmu **find_all_arm_spe_pmus(int *nr_spes, int *err)
 }
 
 struct auxtrace_record
-*auxtrace_record__init(struct perf_evlist *evlist, int *err)
+*auxtrace_record__init(struct evlist *evlist, int *err)
 {
 	struct perf_pmu	*cs_etm_pmu;
 	struct evsel *evsel;

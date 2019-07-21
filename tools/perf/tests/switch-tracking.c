@@ -113,7 +113,7 @@ static int check_cpu(struct switch_tracking *switch_tracking, int cpu)
 	return 0;
 }
 
-static int process_sample_event(struct perf_evlist *evlist,
+static int process_sample_event(struct evlist *evlist,
 				union perf_event *event,
 				struct switch_tracking *switch_tracking)
 {
@@ -163,7 +163,7 @@ static int process_sample_event(struct perf_evlist *evlist,
 	return 0;
 }
 
-static int process_event(struct perf_evlist *evlist, union perf_event *event,
+static int process_event(struct evlist *evlist, union perf_event *event,
 			 struct switch_tracking *switch_tracking)
 {
 	if (event->header.type == PERF_RECORD_SAMPLE)
@@ -203,7 +203,7 @@ struct event_node {
 	u64 event_time;
 };
 
-static int add_event(struct perf_evlist *evlist, struct list_head *events,
+static int add_event(struct evlist *evlist, struct list_head *events,
 		     union perf_event *event)
 {
 	struct perf_sample sample;
@@ -252,7 +252,7 @@ static int compar(const void *a, const void *b)
 	return cmp;
 }
 
-static int process_events(struct perf_evlist *evlist,
+static int process_events(struct evlist *evlist,
 			  struct switch_tracking *switch_tracking)
 {
 	union perf_event *event;
@@ -329,7 +329,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	};
 	struct perf_thread_map *threads = NULL;
 	struct perf_cpu_map *cpus = NULL;
-	struct perf_evlist *evlist = NULL;
+	struct evlist *evlist = NULL;
 	struct evsel *evsel, *cpu_clocks_evsel, *cycles_evsel;
 	struct evsel *switch_evsel, *tracking_evsel;
 	const char *comm;

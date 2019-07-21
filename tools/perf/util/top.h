@@ -9,13 +9,13 @@
 #include <stdbool.h>
 #include <sys/ioctl.h>
 
-struct perf_evlist;
+struct evlist;
 struct evsel;
 struct perf_session;
 
 struct perf_top {
 	struct perf_tool   tool;
-	struct perf_evlist *evlist;
+	struct evlist *evlist;
 	struct record_opts record_opts;
 	struct annotation_options annotation_opts;
 	/*

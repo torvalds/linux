@@ -106,7 +106,7 @@ const char * const kvm_skip_events[] = {
 };
 
 
-static int is_tracepoint_available(const char *str, struct perf_evlist *evlist)
+static int is_tracepoint_available(const char *str, struct evlist *evlist)
 {
 	struct parse_events_error err;
 	int ret;
@@ -119,7 +119,7 @@ static int is_tracepoint_available(const char *str, struct perf_evlist *evlist)
 }
 
 static int ppc__setup_book3s_hv(struct perf_kvm_stat *kvm,
-				struct perf_evlist *evlist)
+				struct evlist *evlist)
 {
 	const char **events_ptr;
 	int i, nr_tp = 0, err = -1;
@@ -146,7 +146,7 @@ static int ppc__setup_book3s_hv(struct perf_kvm_stat *kvm,
 /* Wrapper to setup kvm tracepoints */
 static int ppc__setup_kvm_tp(struct perf_kvm_stat *kvm)
 {
-	struct perf_evlist *evlist = perf_evlist__new();
+	struct evlist *evlist = perf_evlist__new();
 
 	if (evlist == NULL)
 		return -ENOMEM;

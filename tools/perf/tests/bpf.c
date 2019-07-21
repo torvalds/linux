@@ -118,7 +118,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 
 	char pid[16];
 	char sbuf[STRERR_BUFSIZE];
-	struct perf_evlist *evlist;
+	struct evlist *evlist;
 	int i, ret = TEST_FAIL, err = 0, count = 0;
 
 	struct parse_events_state parse_state;

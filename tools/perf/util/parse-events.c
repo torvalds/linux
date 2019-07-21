@@ -1904,7 +1904,7 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	return ret;
 }
 
-int parse_events(struct perf_evlist *evlist, const char *str,
+int parse_events(struct evlist *evlist, const char *str,
 		 struct parse_events_error *err)
 {
 	struct parse_events_state parse_state = {
@@ -2013,7 +2013,7 @@ void parse_events_print_error(struct parse_events_error *err,
 int parse_events_option(const struct option *opt, const char *str,
 			int unset __maybe_unused)
 {
-	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
+	struct evlist *evlist = *(struct evlist **)opt->value;
 	struct parse_events_error err = { .idx = 0, };
 	int ret = parse_events(evlist, str, &err);
 
@@ -2026,7 +2026,7 @@ int parse_events_option(const struct option *opt, const char *str,
 }
 
 static int
-foreach_evsel_in_last_glob(struct perf_evlist *evlist,
+foreach_evsel_in_last_glob(struct evlist *evlist,
 			   int (*func)(struct evsel *evsel,
 				       const void *arg),
 			   const void *arg)
@@ -2109,7 +2109,7 @@ static int set_filter(struct evsel *evsel, const void *arg)
 int parse_filter(const struct option *opt, const char *str,
 		 int unset __maybe_unused)
 {
-	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
+	struct evlist *evlist = *(struct evlist **)opt->value;
 
 	return foreach_evsel_in_last_glob(evlist, set_filter,
 					  (const void *)str);
@@ -2141,7 +2141,7 @@ int exclude_perf(const struct option *opt,
 		 const char *arg __maybe_unused,
 		 int unset __maybe_unused)
 {
-	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
+	struct evlist *evlist = *(struct evlist **)opt->value;
 
 	return foreach_evsel_in_last_glob(evlist, add_exclude_perf_filter,
 					  NULL);

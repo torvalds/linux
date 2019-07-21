@@ -24,7 +24,7 @@
 	}					\
 }
 
-static int find_comm(struct perf_evlist *evlist, const char *comm)
+static int find_comm(struct evlist *evlist, const char *comm)
 {
 	union perf_event *event;
 	struct perf_mmap *md;
@@ -67,7 +67,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 	};
 	struct perf_thread_map *threads = NULL;
 	struct perf_cpu_map *cpus = NULL;
-	struct perf_evlist *evlist = NULL;
+	struct evlist *evlist = NULL;
 	struct evsel *evsel = NULL;
 	int found, err = -1;
 	const char *comm;

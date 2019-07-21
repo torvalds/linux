@@ -35,7 +35,7 @@ struct intel_bts_snapshot_ref {
 struct intel_bts_recording {
 	struct auxtrace_record		itr;
 	struct perf_pmu			*intel_bts_pmu;
-	struct perf_evlist		*evlist;
+	struct evlist		*evlist;
 	bool				snapshot_mode;
 	size_t				snapshot_size;
 	int				snapshot_ref_cnt;
@@ -50,7 +50,7 @@ struct branch {
 
 static size_t
 intel_bts_info_priv_size(struct auxtrace_record *itr __maybe_unused,
-			 struct perf_evlist *evlist __maybe_unused)
+			 struct evlist *evlist __maybe_unused)
 {
 	return INTEL_BTS_AUXTRACE_PRIV_SIZE;
 }
@@ -99,7 +99,7 @@ static int intel_bts_info_fill(struct auxtrace_record *itr,
 }
 
 static int intel_bts_recording_options(struct auxtrace_record *itr,
-				       struct perf_evlist *evlist,
+				       struct evlist *evlist,
 				       struct record_opts *opts)
 {
 	struct intel_bts_recording *btsr =

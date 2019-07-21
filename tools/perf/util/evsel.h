@@ -102,7 +102,7 @@ struct bpf_object;
  */
 struct evsel {
 	struct list_head	node;
-	struct perf_evlist	*evlist;
+	struct evlist	*evlist;
 	struct perf_event_attr	attr;
 	char			*filter;
 	struct xyarray		*fd;
@@ -506,5 +506,5 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 
 struct perf_env *perf_evsel__env(struct evsel *evsel);
 
-int perf_evsel__store_ids(struct evsel *evsel, struct perf_evlist *evlist);
+int perf_evsel__store_ids(struct evsel *evsel, struct evlist *evlist);
 #endif /* __PERF_EVSEL_H */

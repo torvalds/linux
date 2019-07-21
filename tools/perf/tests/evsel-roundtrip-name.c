@@ -12,7 +12,7 @@ static int perf_evsel__roundtrip_cache_name_test(void)
 	char name[128];
 	int type, op, err = 0, ret = 0, i, idx;
 	struct evsel *evsel;
-	struct perf_evlist *evlist = perf_evlist__new();
+	struct evlist *evlist = perf_evlist__new();
 
         if (evlist == NULL)
                 return -ENOMEM;
@@ -68,7 +68,7 @@ static int __perf_evsel__name_array_test(const char *names[], int nr_names)
 {
 	int i, err;
 	struct evsel *evsel;
-	struct perf_evlist *evlist = perf_evlist__new();
+	struct evlist *evlist = perf_evlist__new();
 
         if (evlist == NULL)
                 return -ENOMEM;

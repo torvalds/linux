@@ -2313,7 +2313,7 @@ static int parse_field_name(char *str, char **event, char **field, char **opt)
  *   2. full event name (e.g. sched:sched_switch)
  *   3. partial event name (should not contain ':')
  */
-static struct evsel *find_evsel(struct perf_evlist *evlist, char *event_name)
+static struct evsel *find_evsel(struct evlist *evlist, char *event_name)
 {
 	struct evsel *evsel = NULL;
 	struct evsel *pos;
@@ -2384,7 +2384,7 @@ static int add_evsel_fields(struct evsel *evsel, bool raw_trace, int level)
 	return 0;
 }
 
-static int add_all_dynamic_fields(struct perf_evlist *evlist, bool raw_trace,
+static int add_all_dynamic_fields(struct evlist *evlist, bool raw_trace,
 				  int level)
 {
 	int ret;
@@ -2401,7 +2401,7 @@ static int add_all_dynamic_fields(struct perf_evlist *evlist, bool raw_trace,
 	return 0;
 }
 
-static int add_all_matching_fields(struct perf_evlist *evlist,
+static int add_all_matching_fields(struct evlist *evlist,
 				   char *field_name, bool raw_trace, int level)
 {
 	int ret = -ESRCH;
@@ -2423,7 +2423,7 @@ static int add_all_matching_fields(struct perf_evlist *evlist,
 	return ret;
 }
 
-static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok,
+static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 			     int level)
 {
 	char *str, *event_name, *field_name, *opt_name;
@@ -2567,7 +2567,7 @@ int hpp_dimension__add_output(unsigned col)
 }
 
 int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
-			struct perf_evlist *evlist,
+			struct evlist *evlist,
 			int level)
 {
 	unsigned int i;
@@ -2663,7 +2663,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 }
 
 static int setup_sort_list(struct perf_hpp_list *list, char *str,
-			   struct perf_evlist *evlist)
+			   struct evlist *evlist)
 {
 	char *tmp, *tok;
 	int ret = 0;
@@ -2709,7 +2709,7 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 	return ret;
 }
 
-static const char *get_default_sort_order(struct perf_evlist *evlist)
+static const char *get_default_sort_order(struct evlist *evlist)
 {
 	const char *default_sort_orders[] = {
 		default_sort_order,
@@ -2743,7 +2743,7 @@ out_no_evlist:
 	return default_sort_orders[sort__mode];
 }
 
-static int setup_sort_order(struct perf_evlist *evlist)
+static int setup_sort_order(struct evlist *evlist)
 {
 	char *new_sort_order;
 
@@ -2804,7 +2804,7 @@ static char *setup_overhead(char *keys)
 	return keys;
 }
 
-static int __setup_sorting(struct perf_evlist *evlist)
+static int __setup_sorting(struct evlist *evlist)
 {
 	char *str;
 	const char *sort_keys;
@@ -3057,7 +3057,7 @@ out:
 	return ret;
 }
 
-int setup_sorting(struct perf_evlist *evlist)
+int setup_sorting(struct evlist *evlist)
 {
 	int err;
 

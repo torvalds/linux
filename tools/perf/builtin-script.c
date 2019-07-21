@@ -1636,7 +1636,7 @@ struct perf_script {
 	int			range_num;
 };
 
-static int perf_evlist__max_name_len(struct perf_evlist *evlist)
+static int perf_evlist__max_name_len(struct evlist *evlist)
 {
 	struct evsel *evsel;
 	int max = 0;
@@ -2018,10 +2018,10 @@ out_put:
 }
 
 static int process_attr(struct perf_tool *tool, union perf_event *event,
-			struct perf_evlist **pevlist)
+			struct evlist **pevlist)
 {
 	struct perf_script *scr = container_of(tool, struct perf_script, tool);
-	struct perf_evlist *evlist;
+	struct evlist *evlist;
 	struct evsel *evsel, *pos;
 	int err;
 	static struct evsel_script *es;
@@ -2388,7 +2388,7 @@ static void sig_handler(int sig __maybe_unused)
 
 static void perf_script__fclose_per_event_dump(struct perf_script *script)
 {
-	struct perf_evlist *evlist = script->session->evlist;
+	struct evlist *evlist = script->session->evlist;
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
@@ -3256,7 +3256,7 @@ static int process_stat_config_event(struct perf_session *session __maybe_unused
 
 static int set_maps(struct perf_script *script)
 {
-	struct perf_evlist *evlist = script->session->evlist;
+	struct evlist *evlist = script->session->evlist;
 
 	if (!script->cpus || !script->threads)
 		return 0;

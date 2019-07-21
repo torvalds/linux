@@ -23,7 +23,7 @@ struct itrace_synth_opts;
 struct perf_session {
 	struct perf_header	header;
 	struct machines		machines;
-	struct perf_evlist	*evlist;
+	struct evlist	*evlist;
 	struct auxtrace		*auxtrace;
 	struct itrace_synth_opts *itrace_synth_opts;
 	struct list_head	auxtrace_index;
@@ -140,7 +140,7 @@ int perf_event__process_id_index(struct perf_session *session,
 
 int perf_event__synthesize_id_index(struct perf_tool *tool,
 				    perf_event__handler_t process,
-				    struct perf_evlist *evlist,
+				    struct evlist *evlist,
 				    struct machine *machine);
 
 #endif /* __PERF_SESSION_H */

@@ -130,7 +130,7 @@ static const char *smi_cost_attrs = {
 	"}"
 };
 
-static struct perf_evlist	*evsel_list;
+static struct evlist	*evsel_list;
 
 static struct target target = {
 	.uid	= UINT_MAX,

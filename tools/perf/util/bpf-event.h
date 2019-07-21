@@ -37,7 +37,7 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 				      perf_event__handler_t process,
 				      struct machine *machine,
 				      struct record_opts *opts);
-int bpf_event__add_sb_event(struct perf_evlist **evlist,
+int bpf_event__add_sb_event(struct evlist **evlist,
 				 struct perf_env *env);
 void bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
 				    struct perf_env *env,
@@ -58,7 +58,7 @@ static inline int perf_event__synthesize_bpf_events(struct perf_session *session
 	return 0;
 }
 
-static inline int bpf_event__add_sb_event(struct perf_evlist **evlist __maybe_unused,
+static inline int bpf_event__add_sb_event(struct evlist **evlist __maybe_unused,
 					  struct perf_env *env __maybe_unused)
 {
 	return 0;

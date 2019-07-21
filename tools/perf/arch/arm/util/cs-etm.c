@@ -32,7 +32,7 @@
 struct cs_etm_recording {
 	struct auxtrace_record	itr;
 	struct perf_pmu		*cs_etm_pmu;
-	struct perf_evlist	*evlist;
+	struct evlist		*evlist;
 	int			wrapped_cnt;
 	bool			*wrapped;
 	bool			snapshot_mode;
@@ -245,7 +245,7 @@ static int cs_etm_set_sink_attr(struct perf_pmu *pmu,
 }
 
 static int cs_etm_recording_options(struct auxtrace_record *itr,
-				    struct perf_evlist *evlist,
+				    struct evlist *evlist,
 				    struct record_opts *opts)
 {
 	int ret;
@@ -434,7 +434,7 @@ static u64 cs_etm_get_config(struct auxtrace_record *itr)
 	struct cs_etm_recording *ptr =
 			container_of(itr, struct cs_etm_recording, itr);
 	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
-	struct perf_evlist *evlist = ptr->evlist;
+	struct evlist *evlist = ptr->evlist;
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
@@ -485,7 +485,7 @@ static u64 cs_etmv4_get_config(struct auxtrace_record *itr)
 
 static size_t
 cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
-		      struct perf_evlist *evlist __maybe_unused)
+		      struct evlist *evlist __maybe_unused)
 {
 	int i;
 	int etmv3 = 0, etmv4 = 0;

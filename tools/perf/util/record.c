@@ -13,7 +13,7 @@ typedef void (*setup_probe_fn_t)(struct evsel *evsel);
 
 static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 {
-	struct perf_evlist *evlist;
+	struct evlist *evlist;
 	struct evsel *evsel;
 	unsigned long flags = perf_event_open_cloexec_flag();
 	int err = -EAGAIN, fd;
@@ -132,7 +132,7 @@ bool perf_can_record_cpu_wide(void)
 	return true;
 }
 
-void perf_evlist__config(struct perf_evlist *evlist, struct record_opts *opts,
+void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 			 struct callchain_param *callchain)
 {
 	struct evsel *evsel;
@@ -256,9 +256,9 @@ int record_opts__config(struct record_opts *opts)
 	return record_opts__config_freq(opts);
 }
 
-bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str)
+bool perf_evlist__can_select_event(struct evlist *evlist, const char *str)
 {
-	struct perf_evlist *temp_evlist;
+	struct evlist *temp_evlist;
 	struct evsel *evsel;
 	int err, fd, cpu;
 	bool ret = false;

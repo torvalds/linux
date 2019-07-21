@@ -62,7 +62,7 @@ static struct sample fake_samples[][5] = {
 	},
 };
 
-static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
+static int add_hist_entries(struct evlist *evlist, struct machine *machine)
 {
 	struct evsel *evsel;
 	struct addr_location al;
@@ -272,7 +272,7 @@ int test__hists_link(struct test *test __maybe_unused, int subtest __maybe_unuse
 	struct machines machines;
 	struct machine *machine = NULL;
 	struct evsel *evsel, *first;
-	struct perf_evlist *evlist = perf_evlist__new();
+	struct evlist *evlist = perf_evlist__new();
 
 	if (evlist == NULL)
                 return -ENOMEM;

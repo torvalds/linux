@@ -27,12 +27,12 @@
 struct arm_spe_recording {
 	struct auxtrace_record		itr;
 	struct perf_pmu			*arm_spe_pmu;
-	struct perf_evlist		*evlist;
+	struct evlist		*evlist;
 };
 
 static size_t
 arm_spe_info_priv_size(struct auxtrace_record *itr __maybe_unused,
-		       struct perf_evlist *evlist __maybe_unused)
+		       struct evlist *evlist __maybe_unused)
 {
 	return ARM_SPE_AUXTRACE_PRIV_SIZE;
 }
@@ -59,7 +59,7 @@ static int arm_spe_info_fill(struct auxtrace_record *itr,
 }
 
 static int arm_spe_recording_options(struct auxtrace_record *itr,
-				     struct perf_evlist *evlist,
+				     struct evlist *evlist,
 				     struct record_opts *opts)
 {
 	struct arm_spe_recording *sper =

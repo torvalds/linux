@@ -11,7 +11,7 @@
 #include "util.h"
 #include "debug.h"
 
-static int process_event(struct perf_evlist **pevlist, union perf_event *event)
+static int process_event(struct evlist **pevlist, union perf_event *event)
 {
 	struct perf_sample sample;
 
@@ -39,7 +39,7 @@ static int process_event(struct perf_evlist **pevlist, union perf_event *event)
 
 static int process_events(union perf_event **events, size_t count)
 {
-	struct perf_evlist *evlist = NULL;
+	struct evlist *evlist = NULL;
 	int err = 0;
 	size_t i;
 

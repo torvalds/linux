@@ -449,7 +449,7 @@ static struct perf_diff pdiff = {
 };
 
 static struct evsel *evsel_match(struct evsel *evsel,
-				      struct perf_evlist *evlist)
+				      struct evlist *evlist)
 {
 	struct evsel *e;
 
@@ -461,7 +461,7 @@ static struct evsel *evsel_match(struct evsel *evsel,
 	return NULL;
 }
 
-static void perf_evlist__collapse_resort(struct perf_evlist *evlist)
+static void perf_evlist__collapse_resort(struct evlist *evlist)
 {
 	struct evsel *evsel;
 
@@ -1009,7 +1009,7 @@ static void data__fprintf(void)
 
 static void data_process(void)
 {
-	struct perf_evlist *evlist_base = data__files[0].session->evlist;
+	struct evlist *evlist_base = data__files[0].session->evlist;
 	struct evsel *evsel_base;
 	bool first = true;
 
@@ -1019,7 +1019,7 @@ static void data_process(void)
 		int i;
 
 		data__for_each_file_new(i, d) {
-			struct perf_evlist *evlist = d->session->evlist;
+			struct evlist *evlist = d->session->evlist;
 			struct evsel *evsel;
 			struct hists *hists;
 

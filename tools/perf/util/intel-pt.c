@@ -2713,7 +2713,7 @@ static int intel_pt_synth_event(struct perf_session *session, const char *name,
 	return err;
 }
 
-static void intel_pt_set_event_name(struct perf_evlist *evlist, u64 id,
+static void intel_pt_set_event_name(struct evlist *evlist, u64 id,
 				    const char *name)
 {
 	struct evsel *evsel;
@@ -2729,7 +2729,7 @@ static void intel_pt_set_event_name(struct perf_evlist *evlist, u64 id,
 }
 
 static struct evsel *intel_pt_evsel(struct intel_pt *pt,
-					 struct perf_evlist *evlist)
+					 struct evlist *evlist)
 {
 	struct evsel *evsel;
 
@@ -2744,7 +2744,7 @@ static struct evsel *intel_pt_evsel(struct intel_pt *pt,
 static int intel_pt_synth_events(struct intel_pt *pt,
 				 struct perf_session *session)
 {
-	struct perf_evlist *evlist = session->evlist;
+	struct evlist *evlist = session->evlist;
 	struct evsel *evsel = intel_pt_evsel(pt, evlist);
 	struct perf_event_attr attr;
 	u64 id;
@@ -2894,7 +2894,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 	return 0;
 }
 
-static struct evsel *intel_pt_find_sched_switch(struct perf_evlist *evlist)
+static struct evsel *intel_pt_find_sched_switch(struct evlist *evlist)
 {
 	struct evsel *evsel;
 
@@ -2908,7 +2908,7 @@ static struct evsel *intel_pt_find_sched_switch(struct perf_evlist *evlist)
 	return NULL;
 }
 
-static bool intel_pt_find_switch(struct perf_evlist *evlist)
+static bool intel_pt_find_switch(struct evlist *evlist)
 {
 	struct evsel *evsel;
 

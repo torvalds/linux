@@ -27,7 +27,7 @@
 #define DEFAULT_TRACER  "function_graph"
 
 struct perf_ftrace {
-	struct perf_evlist	*evlist;
+	struct evlist		*evlist;
 	struct target		target;
 	const char		*tracer;
 	struct list_head	filters;

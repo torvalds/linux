@@ -2924,7 +2924,7 @@ static int perf_timehist__process_sample(struct perf_tool *tool,
 }
 
 static int timehist_check_attr(struct perf_sched *sched,
-			       struct perf_evlist *evlist)
+			       struct evlist *evlist)
 {
 	struct evsel *evsel;
 	struct evsel_runtime *er;
@@ -2963,7 +2963,7 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	};
 
 	struct perf_session *session;
-	struct perf_evlist *evlist;
+	struct evlist *evlist;
 	int err = -1;
 
 	/*

@@ -8,7 +8,7 @@
 
 struct perf_session;
 union perf_event;
-struct perf_evlist;
+struct evlist;
 struct evsel;
 struct perf_sample;
 struct perf_tool;
@@ -24,7 +24,7 @@ typedef int (*event_op)(struct perf_tool *tool, union perf_event *event,
 
 typedef int (*event_attr_op)(struct perf_tool *tool,
 			     union perf_event *event,
-			     struct perf_evlist **pevlist);
+			     struct evlist **pevlist);
 
 typedef int (*event_op2)(struct perf_session *session, union perf_event *event);
 typedef s64 (*event_op3)(struct perf_session *session, union perf_event *event);

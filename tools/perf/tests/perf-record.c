@@ -50,7 +50,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	};
 	cpu_set_t cpu_mask;
 	size_t cpu_mask_size = sizeof(cpu_mask);
-	struct perf_evlist *evlist = perf_evlist__new_dummy();
+	struct evlist *evlist = perf_evlist__new_dummy();
 	struct evsel *evsel;
 	struct perf_sample sample;
 	const char *cmd = "sleep";

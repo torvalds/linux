@@ -795,7 +795,7 @@ static int add_hierarchy_fmt(struct hists *hists, struct perf_hpp_fmt *fmt)
 }
 
 int perf_hpp__setup_hists_formats(struct perf_hpp_list *list,
-				  struct perf_evlist *evlist)
+				  struct evlist *evlist)
 {
 	struct evsel *evsel;
 	struct perf_hpp_fmt *fmt;

@@ -12,7 +12,7 @@
 #include "thread_map.h"
 #include "target.h"
 
-static int attach__enable_on_exec(struct perf_evlist *evlist)
+static int attach__enable_on_exec(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__last(evlist);
 	struct target target = {
@@ -48,13 +48,13 @@ static int attach__enable_on_exec(struct perf_evlist *evlist)
 	return perf_evlist__start_workload(evlist) == 1 ? TEST_OK : TEST_FAIL;
 }
 
-static int detach__enable_on_exec(struct perf_evlist *evlist)
+static int detach__enable_on_exec(struct evlist *evlist)
 {
 	waitpid(evlist->workload.pid, NULL, 0);
 	return 0;
 }
 
-static int attach__current_disabled(struct perf_evlist *evlist)
+static int attach__current_disabled(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__last(evlist);
 	struct perf_thread_map *threads;
@@ -80,7 +80,7 @@ static int attach__current_disabled(struct perf_evlist *evlist)
 	return perf_evsel__enable(evsel) == 0 ? TEST_OK : TEST_FAIL;
 }
 
-static int attach__current_enabled(struct perf_evlist *evlist)
+static int attach__current_enabled(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__last(evlist);
 	struct perf_thread_map *threads;
@@ -100,14 +100,14 @@ static int attach__current_enabled(struct perf_evlist *evlist)
 	return err == 0 ? TEST_OK : TEST_FAIL;
 }
 
-static int detach__disable(struct perf_evlist *evlist)
+static int detach__disable(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__last(evlist);
 
 	return perf_evsel__enable(evsel);
 }
 
-static int attach__cpu_disabled(struct perf_evlist *evlist)
+static int attach__cpu_disabled(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__last(evlist);
 	struct perf_cpu_map *cpus;
@@ -136,7 +136,7 @@ static int attach__cpu_disabled(struct perf_evlist *evlist)
 	return perf_evsel__enable(evsel);
 }
 
-static int attach__cpu_enabled(struct perf_evlist *evlist)
+static int attach__cpu_enabled(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__last(evlist);
 	struct perf_cpu_map *cpus;
@@ -158,11 +158,11 @@ static int attach__cpu_enabled(struct perf_evlist *evlist)
 	return err ? TEST_FAIL : TEST_OK;
 }
 
-static int test_times(int (attach)(struct perf_evlist *),
-		      int (detach)(struct perf_evlist *))
+static int test_times(int (attach)(struct evlist *),
+		      int (detach)(struct evlist *))
 {
 	struct perf_counts_values count;
-	struct perf_evlist *evlist = NULL;
+	struct evlist *evlist = NULL;
 	struct evsel *evsel;
 	int err = -1, i;
 

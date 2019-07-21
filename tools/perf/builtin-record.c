@@ -73,7 +73,7 @@ struct record {
 	u64			bytes_written;
 	struct perf_data	data;
 	struct auxtrace_record	*itr;
-	struct perf_evlist	*evlist;
+	struct evlist	*evlist;
 	struct perf_session	*session;
 	int			realtime_prio;
 	bool			no_buildid;
@@ -346,7 +346,7 @@ static void record__aio_set_pos(int trace_fd, off_t pos)
 static void record__aio_mmap_read_sync(struct record *rec)
 {
 	int i;
-	struct perf_evlist *evlist = rec->evlist;
+	struct evlist *evlist = rec->evlist;
 	struct perf_mmap *maps = evlist->mmap;
 
 	if (!record__aio_enabled(rec))
@@ -672,7 +672,7 @@ static int record__auxtrace_init(struct record *rec __maybe_unused)
 #endif
 
 static int record__mmap_evlist(struct record *rec,
-			       struct perf_evlist *evlist)
+			       struct evlist *evlist)
 {
 	struct record_opts *opts = &rec->opts;
 	char msg[512];
@@ -714,7 +714,7 @@ static int record__open(struct record *rec)
 {
 	char msg[BUFSIZ];
 	struct evsel *pos;
-	struct perf_evlist *evlist = rec->evlist;
+	struct evlist *evlist = rec->evlist;
 	struct perf_session *session = rec->session;
 	struct record_opts *opts = &rec->opts;
 	int rc = 0;
@@ -904,7 +904,7 @@ static size_t zstd_compress(struct perf_session *session, void *dst, size_t dst_
 	return compressed;
 }
 
-static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evlist,
+static int record__mmap_read_evlist(struct record *rec, struct evlist *evlist,
 				    bool overwrite, bool synch)
 {
 	u64 bytes_written = rec->bytes_written;
@@ -1165,7 +1165,7 @@ perf_event__synth_time_conv(const struct perf_event_mmap_page *pc __maybe_unused
 }
 
 static const struct perf_event_mmap_page *
-perf_evlist__pick_pc(struct perf_evlist *evlist)
+perf_evlist__pick_pc(struct evlist *evlist)
 {
 	if (evlist) {
 		if (evlist->mmap && evlist->mmap[0].base)
@@ -1313,7 +1313,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	struct perf_data *data = &rec->data;
 	struct perf_session *session;
 	bool disabled = false, draining = false;
-	struct perf_evlist *sb_evlist = NULL;
+	struct evlist *sb_evlist = NULL;
 	int fd;
 	float ratio = 0;
 

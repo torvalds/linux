@@ -29,7 +29,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 	union perf_event *event;
 	struct perf_thread_map *threads;
 	struct perf_cpu_map *cpus;
-	struct perf_evlist *evlist;
+	struct evlist *evlist;
 	cpu_set_t cpu_set;
 	const char *syscall_names[] = { "getsid", "getppid", "getpgid", };
 	pid_t (*syscalls[])(void) = { (void *)getsid, getppid, (void*)getpgid };

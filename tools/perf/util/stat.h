@@ -144,7 +144,7 @@ static inline void init_stats(struct stats *stats)
 }
 
 struct evsel;
-struct perf_evlist;
+struct evlist;
 
 struct perf_aggr_thread_value {
 	struct evsel *counter;
@@ -189,11 +189,11 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   struct perf_stat_output_ctx *out,
 				   struct rblist *metric_events,
 				   struct runtime_stat *st);
-void perf_stat__collect_metric_expr(struct perf_evlist *);
+void perf_stat__collect_metric_expr(struct evlist *);
 
-int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw);
-void perf_evlist__free_stats(struct perf_evlist *evlist);
-void perf_evlist__reset_stats(struct perf_evlist *evlist);
+int perf_evlist__alloc_stats(struct evlist *evlist, bool alloc_raw);
+void perf_evlist__free_stats(struct evlist *evlist);
+void perf_evlist__reset_stats(struct evlist *evlist);
 
 int perf_stat_process_counter(struct perf_stat_config *config,
 			      struct evsel *counter);
@@ -212,11 +212,11 @@ int create_perf_stat_counter(struct evsel *evsel,
 			     struct target *target);
 int perf_stat_synthesize_config(struct perf_stat_config *config,
 				struct perf_tool *tool,
-				struct perf_evlist *evlist,
+				struct evlist *evlist,
 				perf_event__handler_t process,
 				bool attrs);
 void
-perf_evlist__print_counters(struct perf_evlist *evlist,
+perf_evlist__print_counters(struct evlist *evlist,
 			    struct perf_stat_config *config,
 			    struct target *_target,
 			    struct timespec *ts,

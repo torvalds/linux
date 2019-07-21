@@ -168,7 +168,7 @@ static int perf_evsel__alloc_stats(struct evsel *evsel, bool alloc_raw)
 	return 0;
 }
 
-int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw)
+int perf_evlist__alloc_stats(struct evlist *evlist, bool alloc_raw)
 {
 	struct evsel *evsel;
 
@@ -184,7 +184,7 @@ out_free:
 	return -1;
 }
 
-void perf_evlist__free_stats(struct perf_evlist *evlist)
+void perf_evlist__free_stats(struct evlist *evlist)
 {
 	struct evsel *evsel;
 
@@ -195,7 +195,7 @@ void perf_evlist__free_stats(struct perf_evlist *evlist)
 	}
 }
 
-void perf_evlist__reset_stats(struct perf_evlist *evlist)
+void perf_evlist__reset_stats(struct evlist *evlist)
 {
 	struct evsel *evsel;
 
@@ -490,7 +490,7 @@ int create_perf_stat_counter(struct evsel *evsel,
 
 int perf_stat_synthesize_config(struct perf_stat_config *config,
 				struct perf_tool *tool,
-				struct perf_evlist *evlist,
+				struct evlist *evlist,
 				perf_event__handler_t process,
 				bool attrs)
 {

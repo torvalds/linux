@@ -312,7 +312,7 @@ static void print_metric_header(struct perf_stat_config *config,
 static int first_shadow_cpu(struct perf_stat_config *config,
 			    struct evsel *evsel, int id)
 {
-	struct perf_evlist *evlist = evsel->evlist;
+	struct evlist *evlist = evsel->evlist;
 	int i;
 
 	if (!config->aggr_get_id)
@@ -365,7 +365,7 @@ static void abs_printout(struct perf_stat_config *config,
 
 static bool is_mixed_hw_group(struct evsel *counter)
 {
-	struct perf_evlist *evlist = counter->evlist;
+	struct evlist *evlist = counter->evlist;
 	u32 pmu_type = counter->attr.type;
 	struct evsel *pos;
 
@@ -489,7 +489,7 @@ static void printout(struct perf_stat_config *config, int id, int nr,
 }
 
 static void aggr_update_shadow(struct perf_stat_config *config,
-			       struct perf_evlist *evlist)
+			       struct evlist *evlist)
 {
 	int cpu, s2, id, s;
 	u64 val;
@@ -545,7 +545,7 @@ static void collect_all_aliases(struct perf_stat_config *config, struct evsel *c
 				       bool first),
 			    void *data)
 {
-	struct perf_evlist *evlist = counter->evlist;
+	struct evlist *evlist = counter->evlist;
 	struct evsel *alias;
 
 	alias = list_prepare_entry(counter, &(evlist->entries), node);
@@ -651,7 +651,7 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 }
 
 static void print_aggr(struct perf_stat_config *config,
-		       struct perf_evlist *evlist,
+		       struct evlist *evlist,
 		       char *prefix)
 {
 	bool metric_only = config->metric_only;
@@ -859,7 +859,7 @@ static void print_counter(struct perf_stat_config *config,
 }
 
 static void print_no_aggr_metric(struct perf_stat_config *config,
-				 struct perf_evlist *evlist,
+				 struct evlist *evlist,
 				 char *prefix)
 {
 	int cpu;
@@ -910,7 +910,7 @@ static const char *aggr_header_csv[] = {
 };
 
 static void print_metric_headers(struct perf_stat_config *config,
-				 struct perf_evlist *evlist,
+				 struct evlist *evlist,
 				 const char *prefix, bool no_indent)
 {
 	struct perf_stat_output_ctx out;
@@ -949,7 +949,7 @@ static void print_metric_headers(struct perf_stat_config *config,
 }
 
 static void print_interval(struct perf_stat_config *config,
-			   struct perf_evlist *evlist,
+			   struct evlist *evlist,
 			   char *prefix, struct timespec *ts)
 {
 	bool metric_only = config->metric_only;
@@ -1156,7 +1156,7 @@ static void print_percore(struct perf_stat_config *config,
 }
 
 void
-perf_evlist__print_counters(struct perf_evlist *evlist,
+perf_evlist__print_counters(struct evlist *evlist,
 			    struct perf_stat_config *config,
 			    struct target *_target,
 			    struct timespec *ts,

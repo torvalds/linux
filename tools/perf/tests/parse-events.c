@@ -44,7 +44,7 @@ static bool kvm_s390_create_vm_valid(void)
 }
 #endif
 
-static int test__checkevent_tracepoint(struct perf_evlist *evlist)
+static int test__checkevent_tracepoint(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -57,7 +57,7 @@ static int test__checkevent_tracepoint(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_tracepoint_multi(struct perf_evlist *evlist)
+static int test__checkevent_tracepoint_multi(struct evlist *evlist)
 {
 	struct evsel *evsel;
 
@@ -75,7 +75,7 @@ static int test__checkevent_tracepoint_multi(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_raw(struct perf_evlist *evlist)
+static int test__checkevent_raw(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -85,7 +85,7 @@ static int test__checkevent_raw(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_numeric(struct perf_evlist *evlist)
+static int test__checkevent_numeric(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -95,7 +95,7 @@ static int test__checkevent_numeric(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_symbolic_name(struct perf_evlist *evlist)
+static int test__checkevent_symbolic_name(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -106,7 +106,7 @@ static int test__checkevent_symbolic_name(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_symbolic_name_config(struct perf_evlist *evlist)
+static int test__checkevent_symbolic_name_config(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -127,7 +127,7 @@ static int test__checkevent_symbolic_name_config(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_symbolic_alias(struct perf_evlist *evlist)
+static int test__checkevent_symbolic_alias(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -138,7 +138,7 @@ static int test__checkevent_symbolic_alias(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_genhw(struct perf_evlist *evlist)
+static int test__checkevent_genhw(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -148,7 +148,7 @@ static int test__checkevent_genhw(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_breakpoint(struct perf_evlist *evlist)
+static int test__checkevent_breakpoint(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -162,7 +162,7 @@ static int test__checkevent_breakpoint(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_breakpoint_x(struct perf_evlist *evlist)
+static int test__checkevent_breakpoint_x(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -175,7 +175,7 @@ static int test__checkevent_breakpoint_x(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_breakpoint_r(struct perf_evlist *evlist)
+static int test__checkevent_breakpoint_r(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -190,7 +190,7 @@ static int test__checkevent_breakpoint_r(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_breakpoint_w(struct perf_evlist *evlist)
+static int test__checkevent_breakpoint_w(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -205,7 +205,7 @@ static int test__checkevent_breakpoint_w(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_breakpoint_rw(struct perf_evlist *evlist)
+static int test__checkevent_breakpoint_rw(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -220,7 +220,7 @@ static int test__checkevent_breakpoint_rw(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_tracepoint_modifier(struct perf_evlist *evlist)
+static int test__checkevent_tracepoint_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -233,7 +233,7 @@ static int test__checkevent_tracepoint_modifier(struct perf_evlist *evlist)
 }
 
 static int
-test__checkevent_tracepoint_multi_modifier(struct perf_evlist *evlist)
+test__checkevent_tracepoint_multi_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel;
 
@@ -251,7 +251,7 @@ test__checkevent_tracepoint_multi_modifier(struct perf_evlist *evlist)
 	return test__checkevent_tracepoint_multi(evlist);
 }
 
-static int test__checkevent_raw_modifier(struct perf_evlist *evlist)
+static int test__checkevent_raw_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -263,7 +263,7 @@ static int test__checkevent_raw_modifier(struct perf_evlist *evlist)
 	return test__checkevent_raw(evlist);
 }
 
-static int test__checkevent_numeric_modifier(struct perf_evlist *evlist)
+static int test__checkevent_numeric_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -275,7 +275,7 @@ static int test__checkevent_numeric_modifier(struct perf_evlist *evlist)
 	return test__checkevent_numeric(evlist);
 }
 
-static int test__checkevent_symbolic_name_modifier(struct perf_evlist *evlist)
+static int test__checkevent_symbolic_name_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -287,7 +287,7 @@ static int test__checkevent_symbolic_name_modifier(struct perf_evlist *evlist)
 	return test__checkevent_symbolic_name(evlist);
 }
 
-static int test__checkevent_exclude_host_modifier(struct perf_evlist *evlist)
+static int test__checkevent_exclude_host_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -297,7 +297,7 @@ static int test__checkevent_exclude_host_modifier(struct perf_evlist *evlist)
 	return test__checkevent_symbolic_name(evlist);
 }
 
-static int test__checkevent_exclude_guest_modifier(struct perf_evlist *evlist)
+static int test__checkevent_exclude_guest_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -307,7 +307,7 @@ static int test__checkevent_exclude_guest_modifier(struct perf_evlist *evlist)
 	return test__checkevent_symbolic_name(evlist);
 }
 
-static int test__checkevent_symbolic_alias_modifier(struct perf_evlist *evlist)
+static int test__checkevent_symbolic_alias_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -319,7 +319,7 @@ static int test__checkevent_symbolic_alias_modifier(struct perf_evlist *evlist)
 	return test__checkevent_symbolic_alias(evlist);
 }
 
-static int test__checkevent_genhw_modifier(struct perf_evlist *evlist)
+static int test__checkevent_genhw_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -331,7 +331,7 @@ static int test__checkevent_genhw_modifier(struct perf_evlist *evlist)
 	return test__checkevent_genhw(evlist);
 }
 
-static int test__checkevent_exclude_idle_modifier(struct perf_evlist *evlist)
+static int test__checkevent_exclude_idle_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -346,7 +346,7 @@ static int test__checkevent_exclude_idle_modifier(struct perf_evlist *evlist)
 	return test__checkevent_symbolic_name(evlist);
 }
 
-static int test__checkevent_exclude_idle_modifier_1(struct perf_evlist *evlist)
+static int test__checkevent_exclude_idle_modifier_1(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -361,7 +361,7 @@ static int test__checkevent_exclude_idle_modifier_1(struct perf_evlist *evlist)
 	return test__checkevent_symbolic_name(evlist);
 }
 
-static int test__checkevent_breakpoint_modifier(struct perf_evlist *evlist)
+static int test__checkevent_breakpoint_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -376,7 +376,7 @@ static int test__checkevent_breakpoint_modifier(struct perf_evlist *evlist)
 	return test__checkevent_breakpoint(evlist);
 }
 
-static int test__checkevent_breakpoint_x_modifier(struct perf_evlist *evlist)
+static int test__checkevent_breakpoint_x_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -390,7 +390,7 @@ static int test__checkevent_breakpoint_x_modifier(struct perf_evlist *evlist)
 	return test__checkevent_breakpoint_x(evlist);
 }
 
-static int test__checkevent_breakpoint_r_modifier(struct perf_evlist *evlist)
+static int test__checkevent_breakpoint_r_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -404,7 +404,7 @@ static int test__checkevent_breakpoint_r_modifier(struct perf_evlist *evlist)
 	return test__checkevent_breakpoint_r(evlist);
 }
 
-static int test__checkevent_breakpoint_w_modifier(struct perf_evlist *evlist)
+static int test__checkevent_breakpoint_w_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -418,7 +418,7 @@ static int test__checkevent_breakpoint_w_modifier(struct perf_evlist *evlist)
 	return test__checkevent_breakpoint_w(evlist);
 }
 
-static int test__checkevent_breakpoint_rw_modifier(struct perf_evlist *evlist)
+static int test__checkevent_breakpoint_rw_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -432,7 +432,7 @@ static int test__checkevent_breakpoint_rw_modifier(struct perf_evlist *evlist)
 	return test__checkevent_breakpoint_rw(evlist);
 }
 
-static int test__checkevent_pmu(struct perf_evlist *evlist)
+static int test__checkevent_pmu(struct evlist *evlist)
 {
 
 	struct evsel *evsel = perf_evlist__first(evlist);
@@ -451,7 +451,7 @@ static int test__checkevent_pmu(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_list(struct perf_evlist *evlist)
+static int test__checkevent_list(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -490,7 +490,7 @@ static int test__checkevent_list(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_pmu_name(struct perf_evlist *evlist)
+static int test__checkevent_pmu_name(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -511,7 +511,7 @@ static int test__checkevent_pmu_name(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_pmu_partial_time_callgraph(struct perf_evlist *evlist)
+static int test__checkevent_pmu_partial_time_callgraph(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -544,7 +544,7 @@ static int test__checkevent_pmu_partial_time_callgraph(struct perf_evlist *evlis
 	return 0;
 }
 
-static int test__checkevent_pmu_events(struct perf_evlist *evlist)
+static int test__checkevent_pmu_events(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -562,7 +562,7 @@ static int test__checkevent_pmu_events(struct perf_evlist *evlist)
 }
 
 
-static int test__checkevent_pmu_events_mix(struct perf_evlist *evlist)
+static int test__checkevent_pmu_events_mix(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -634,7 +634,7 @@ static int test__checkterms_simple(struct list_head *terms)
 	return 0;
 }
 
-static int test__group1(struct perf_evlist *evlist)
+static int test__group1(struct evlist *evlist)
 {
 	struct evsel *evsel, *leader;
 
@@ -676,7 +676,7 @@ static int test__group1(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__group2(struct perf_evlist *evlist)
+static int test__group2(struct evlist *evlist)
 {
 	struct evsel *evsel, *leader;
 
@@ -731,7 +731,7 @@ static int test__group2(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__group3(struct perf_evlist *evlist __maybe_unused)
+static int test__group3(struct evlist *evlist __maybe_unused)
 {
 	struct evsel *evsel, *leader;
 
@@ -823,7 +823,7 @@ static int test__group3(struct perf_evlist *evlist __maybe_unused)
 	return 0;
 }
 
-static int test__group4(struct perf_evlist *evlist __maybe_unused)
+static int test__group4(struct evlist *evlist __maybe_unused)
 {
 	struct evsel *evsel, *leader;
 
@@ -867,7 +867,7 @@ static int test__group4(struct perf_evlist *evlist __maybe_unused)
 	return 0;
 }
 
-static int test__group5(struct perf_evlist *evlist __maybe_unused)
+static int test__group5(struct evlist *evlist __maybe_unused)
 {
 	struct evsel *evsel, *leader;
 
@@ -953,7 +953,7 @@ static int test__group5(struct perf_evlist *evlist __maybe_unused)
 	return 0;
 }
 
-static int test__group_gh1(struct perf_evlist *evlist)
+static int test__group_gh1(struct evlist *evlist)
 {
 	struct evsel *evsel, *leader;
 
@@ -993,7 +993,7 @@ static int test__group_gh1(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__group_gh2(struct perf_evlist *evlist)
+static int test__group_gh2(struct evlist *evlist)
 {
 	struct evsel *evsel, *leader;
 
@@ -1033,7 +1033,7 @@ static int test__group_gh2(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__group_gh3(struct perf_evlist *evlist)
+static int test__group_gh3(struct evlist *evlist)
 {
 	struct evsel *evsel, *leader;
 
@@ -1073,7 +1073,7 @@ static int test__group_gh3(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__group_gh4(struct perf_evlist *evlist)
+static int test__group_gh4(struct evlist *evlist)
 {
 	struct evsel *evsel, *leader;
 
@@ -1113,7 +1113,7 @@ static int test__group_gh4(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__leader_sample1(struct perf_evlist *evlist)
+static int test__leader_sample1(struct evlist *evlist)
 {
 	struct evsel *evsel, *leader;
 
@@ -1166,7 +1166,7 @@ static int test__leader_sample1(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__leader_sample2(struct perf_evlist *evlist __maybe_unused)
+static int test__leader_sample2(struct evlist *evlist __maybe_unused)
 {
 	struct evsel *evsel, *leader;
 
@@ -1205,7 +1205,7 @@ static int test__leader_sample2(struct perf_evlist *evlist __maybe_unused)
 	return 0;
 }
 
-static int test__checkevent_pinned_modifier(struct perf_evlist *evlist)
+static int test__checkevent_pinned_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1218,7 +1218,7 @@ static int test__checkevent_pinned_modifier(struct perf_evlist *evlist)
 	return test__checkevent_symbolic_name(evlist);
 }
 
-static int test__pinned_group(struct perf_evlist *evlist)
+static int test__pinned_group(struct evlist *evlist)
 {
 	struct evsel *evsel, *leader;
 
@@ -1249,7 +1249,7 @@ static int test__pinned_group(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_breakpoint_len(struct perf_evlist *evlist)
+static int test__checkevent_breakpoint_len(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1264,7 +1264,7 @@ static int test__checkevent_breakpoint_len(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_breakpoint_len_w(struct perf_evlist *evlist)
+static int test__checkevent_breakpoint_len_w(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1280,7 +1280,7 @@ static int test__checkevent_breakpoint_len_w(struct perf_evlist *evlist)
 }
 
 static int
-test__checkevent_breakpoint_len_rw_modifier(struct perf_evlist *evlist)
+test__checkevent_breakpoint_len_rw_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1292,7 +1292,7 @@ test__checkevent_breakpoint_len_rw_modifier(struct perf_evlist *evlist)
 	return test__checkevent_breakpoint_rw(evlist);
 }
 
-static int test__checkevent_precise_max_modifier(struct perf_evlist *evlist)
+static int test__checkevent_precise_max_modifier(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1303,7 +1303,7 @@ static int test__checkevent_precise_max_modifier(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_config_symbol(struct perf_evlist *evlist)
+static int test__checkevent_config_symbol(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1311,7 +1311,7 @@ static int test__checkevent_config_symbol(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_config_raw(struct perf_evlist *evlist)
+static int test__checkevent_config_raw(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1319,7 +1319,7 @@ static int test__checkevent_config_raw(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_config_num(struct perf_evlist *evlist)
+static int test__checkevent_config_num(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1327,7 +1327,7 @@ static int test__checkevent_config_num(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_config_cache(struct perf_evlist *evlist)
+static int test__checkevent_config_cache(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1340,7 +1340,7 @@ static bool test__intel_pt_valid(void)
 	return !!perf_pmu__find("intel_pt");
 }
 
-static int test__intel_pt(struct perf_evlist *evlist)
+static int test__intel_pt(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1348,7 +1348,7 @@ static int test__intel_pt(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__checkevent_complex_name(struct perf_evlist *evlist)
+static int test__checkevent_complex_name(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1356,7 +1356,7 @@ static int test__checkevent_complex_name(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__sym_event_slash(struct perf_evlist *evlist)
+static int test__sym_event_slash(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1366,7 +1366,7 @@ static int test__sym_event_slash(struct perf_evlist *evlist)
 	return 0;
 }
 
-static int test__sym_event_dc(struct perf_evlist *evlist)
+static int test__sym_event_dc(struct evlist *evlist)
 {
 	struct evsel *evsel = perf_evlist__first(evlist);
 
@@ -1422,7 +1422,7 @@ static int count_tracepoints(void)
 	return cnt;
 }
 
-static int test__all_tracepoints(struct perf_evlist *evlist)
+static int test__all_tracepoints(struct evlist *evlist)
 {
 	TEST_ASSERT_VAL("wrong events count",
 			count_tracepoints() == evlist->nr_entries);
@@ -1435,7 +1435,7 @@ struct evlist_test {
 	__u32 type;
 	const int id;
 	bool (*valid)(void);
-	int (*check)(struct perf_evlist *evlist);
+	int (*check)(struct evlist *evlist);
 };
 
 static struct evlist_test test__events[] = {
@@ -1769,7 +1769,7 @@ static struct terms_test test__terms[] = {
 static int test_event(struct evlist_test *e)
 {
 	struct parse_events_error err = { .idx = 0, };
-	struct perf_evlist *evlist;
+	struct evlist *evlist;
 	int ret;
 
 	if (e->valid && !e->valid()) {

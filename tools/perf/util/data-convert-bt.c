@@ -1201,7 +1201,7 @@ err:
 
 static int setup_events(struct ctf_writer *cw, struct perf_session *session)
 {
-	struct perf_evlist *evlist = session->evlist;
+	struct evlist *evlist = session->evlist;
 	struct evsel *evsel;
 	int ret;
 
@@ -1308,7 +1308,7 @@ static int setup_non_sample_events(struct ctf_writer *cw,
 
 static void cleanup_events(struct perf_session *session)
 {
-	struct perf_evlist *evlist = session->evlist;
+	struct evlist *evlist = session->evlist;
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {

@@ -47,7 +47,7 @@ static struct sample fake_samples[] = {
 	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_KERNEL_PAGE_FAULT, .socket = 3 },
 };
 
-static int add_hist_entries(struct perf_evlist *evlist,
+static int add_hist_entries(struct evlist *evlist,
 			    struct machine *machine)
 {
 	struct evsel *evsel;
@@ -109,7 +109,7 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 	struct machines machines;
 	struct machine *machine;
 	struct evsel *evsel;
-	struct perf_evlist *evlist = perf_evlist__new();
+	struct evlist *evlist = perf_evlist__new();
 
 	TEST_ASSERT_VAL("No memory", evlist);
 

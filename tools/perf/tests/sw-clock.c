@@ -28,7 +28,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	char sbuf[STRERR_BUFSIZE];
 	union perf_event *event;
 	struct evsel *evsel;
-	struct perf_evlist *evlist;
+	struct evlist *evlist;
 	struct perf_event_attr attr = {
 		.type = PERF_TYPE_SOFTWARE,
 		.config = clock_id,
