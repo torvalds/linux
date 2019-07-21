@@ -436,7 +436,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	ret = fprintf(fp, "# Samples: %lu%c", nr_samples, unit);
 	if (evname != NULL) {
 		ret += fprintf(fp, " of event%s '%s'",
-			       evsel->nr_members > 1 ? "s" : "", evname);
+			       evsel->core.nr_members > 1 ? "s" : "", evname);
 	}
 
 	if (rep->time_str)

@@ -369,7 +369,7 @@ static bool is_mixed_hw_group(struct evsel *counter)
 	u32 pmu_type = counter->core.attr.type;
 	struct evsel *pos;
 
-	if (counter->nr_members < 2)
+	if (counter->core.nr_members < 2)
 		return false;
 
 	evlist__for_each_entry(evlist, pos) {

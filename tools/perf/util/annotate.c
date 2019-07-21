@@ -1170,7 +1170,7 @@ annotation_line__new(struct annotate_args *args, size_t privsize)
 	int nr = 1;
 
 	if (perf_evsel__is_group_event(evsel))
-		nr = evsel->nr_members;
+		nr = evsel->core.nr_members;
 
 	size += sizeof(al->data[0]) * nr;
 
@@ -1448,7 +1448,7 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 			return -1;
 
 		if (perf_evsel__is_group_event(evsel))
-			width *= evsel->nr_members;
+			width *= evsel->core.nr_members;
 
 		if (!*al->line)
 			printf(" %*s:\n", width, " ");
@@ -2272,7 +2272,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	len = symbol__size(sym);
 
 	if (perf_evsel__is_group_event(evsel)) {
-		width *= evsel->nr_members;
+		width *= evsel->core.nr_members;
 		perf_evsel__group_desc(evsel, buf, sizeof(buf));
 		evsel_name = buf;
 	}
@@ -2968,7 +2968,7 @@ int symbol__annotate2(struct symbol *sym, struct map *map, struct evsel *evsel,
 		return -1;
 
 	if (perf_evsel__is_group_event(evsel))
-		nr_pcnt = evsel->nr_members;
+		nr_pcnt = evsel->core.nr_members;
 
 	err = symbol__annotate(sym, map, evsel, 0, options, parch);
 	if (err)

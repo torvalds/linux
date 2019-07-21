@@ -188,7 +188,7 @@ void __perf_evlist__set_leader(struct list_head *list)
 	leader = list_entry(list->next, struct evsel, core.node);
 	evsel = list_entry(list->prev, struct evsel, core.node);
 
-	leader->nr_members = evsel->idx - leader->idx + 1;
+	leader->core.nr_members = evsel->idx - leader->idx + 1;
 
 	__evlist__for_each_entry(list, evsel) {
 		evsel->leader = leader;
@@ -1761,7 +1761,7 @@ struct evsel *perf_evlist__reset_weak_group(struct evlist *evsel_list,
 
 	leader = evsel->leader;
 	pr_debug("Weak group for %s/%d failed\n",
-			leader->name, leader->nr_members);
+			leader->name, leader->core.nr_members);
 
 	/*
 	 * for_each_group_member doesn't work here because it doesn't
@@ -1774,7 +1774,7 @@ struct evsel *perf_evlist__reset_weak_group(struct evlist *evsel_list,
 			if (is_open)
 				perf_evsel__close(c2);
 			c2->leader = c2;
-			c2->nr_members = 0;
+			c2->core.nr_members = 0;
 		}
 	}
 	return leader;

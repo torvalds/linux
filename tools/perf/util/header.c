@@ -772,10 +772,10 @@ static int write_group_desc(struct feat_fd *ff,
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (perf_evsel__is_group_leader(evsel) &&
-		    evsel->nr_members > 1) {
+		    evsel->core.nr_members > 1) {
 			const char *name = evsel->group_name ?: "{anon_group}";
 			u32 leader_idx = evsel->idx;
-			u32 nr_members = evsel->nr_members;
+			u32 nr_members = evsel->core.nr_members;
 
 			ret = do_write_string(ff, name);
 			if (ret < 0)
@@ -1812,11 +1812,11 @@ static void print_group_desc(struct feat_fd *ff, FILE *fp)
 
 	evlist__for_each_entry(session->evlist, evsel) {
 		if (perf_evsel__is_group_leader(evsel) &&
-		    evsel->nr_members > 1) {
+		    evsel->core.nr_members > 1) {
 			fprintf(fp, "# group: %s{%s", evsel->group_name ?: "",
 				perf_evsel__name(evsel));
 
-			nr = evsel->nr_members - 1;
+			nr = evsel->core.nr_members - 1;
 		} else if (nr) {
 			fprintf(fp, ",%s", perf_evsel__name(evsel));
 
@@ -2463,7 +2463,7 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 				evsel->group_name = desc[i].name;
 				desc[i].name = NULL;
 			}
-			evsel->nr_members = desc[i].nr_members;
+			evsel->core.nr_members = desc[i].nr_members;
 
 			if (i >= nr_groups || nr > 0) {
 				pr_debug("invalid group desc\n");
@@ -2471,7 +2471,7 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 			}
 
 			leader = evsel;
-			nr = evsel->nr_members - 1;
+			nr = evsel->core.nr_members - 1;
 			i++;
 		} else if (nr) {
 			/* This is a group member */

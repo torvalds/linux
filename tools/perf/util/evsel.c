@@ -948,7 +948,7 @@ void perf_evsel__config(struct evsel *evsel, struct record_opts *opts,
 		 * Apply group format only if we belong to group
 		 * with more than one members.
 		 */
-		if (leader->nr_members > 1) {
+		if (leader->core.nr_members > 1) {
 			attr->read_format |= PERF_FORMAT_GROUP;
 			attr->inherit = 0;
 		}
@@ -1396,7 +1396,7 @@ static int perf_evsel__read_size(struct evsel *evsel)
 		entry += sizeof(u64);
 
 	if (read_format & PERF_FORMAT_GROUP) {
-		nr = evsel->nr_members;
+		nr = evsel->core.nr_members;
 		size += sizeof(u64);
 	}
 
@@ -1453,7 +1453,7 @@ perf_evsel__process_group_data(struct evsel *leader,
 
 	nr = *data++;
 
-	if (nr != (u64) leader->nr_members)
+	if (nr != (u64) leader->core.nr_members)
 		return -EINVAL;
 
 	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)

@@ -142,7 +142,6 @@ struct evsel {
 	bool			use_uncore_alias;
 	/* parse modifier helper */
 	int			exclude_GH;
-	int			nr_members;
 	int			sample_read;
 	unsigned long		*per_pkg_mask;
 	struct evsel		*leader;
@@ -414,7 +413,7 @@ static inline bool perf_evsel__is_group_event(struct evsel *evsel)
 	if (!symbol_conf.event_group)
 		return false;
 
-	return perf_evsel__is_group_leader(evsel) && evsel->nr_members > 1;
+	return perf_evsel__is_group_leader(evsel) && evsel->core.nr_members > 1;
 }
 
 bool perf_evsel__is_function_event(struct evsel *evsel);

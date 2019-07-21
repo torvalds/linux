@@ -1734,7 +1734,7 @@ static void perf_sample__fprint_metric(struct perf_script *script,
 				       sample->cpu,
 				       &rt_stat);
 	evsel_script(evsel)->val = val;
-	if (evsel_script(evsel->leader)->gnum == evsel->leader->nr_members) {
+	if (evsel_script(evsel->leader)->gnum == evsel->leader->core.nr_members) {
 		for_each_group_member (ev2, evsel->leader) {
 			perf_stat__print_shadow_stats(&stat_config, ev2,
 						      evsel_script(ev2)->val,

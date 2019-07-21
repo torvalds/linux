@@ -479,7 +479,7 @@ try_again:
 				counter->supported = false;
 
 				if ((counter->leader != counter) ||
-				    !(counter->leader->nr_members > 1))
+				    !(counter->leader->core.nr_members > 1))
 					continue;
 			} else if (perf_evsel__fallback(counter, errno, msg, sizeof(msg))) {
                                 if (verbose > 0)

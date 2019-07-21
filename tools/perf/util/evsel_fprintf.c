@@ -45,14 +45,14 @@ int perf_evsel__fprintf(struct evsel *evsel,
 		if (!perf_evsel__is_group_leader(evsel))
 			return 0;
 
-		if (evsel->nr_members > 1)
+		if (evsel->core.nr_members > 1)
 			printed += fprintf(fp, "%s{", evsel->group_name ?: "");
 
 		printed += fprintf(fp, "%s", perf_evsel__name(evsel));
 		for_each_group_member(pos, evsel)
 			printed += fprintf(fp, ",%s", perf_evsel__name(pos));
 
-		if (evsel->nr_members > 1)
+		if (evsel->core.nr_members > 1)
 			printed += fprintf(fp, "}");
 		goto out;
 	}

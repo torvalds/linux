@@ -43,7 +43,7 @@ static int __hpp__fmt(struct perf_hpp *hpp, struct hist_entry *he,
 	if (perf_evsel__is_group_event(evsel)) {
 		int prev_idx, idx_delta;
 		struct hist_entry *pair;
-		int nr_members = evsel->nr_members;
+		int nr_members = evsel->core.nr_members;
 
 		prev_idx = perf_evsel__group_idx(evsel);
 
@@ -165,7 +165,7 @@ static int __hpp__sort(struct hist_entry *a, struct hist_entry *b,
 	if (!perf_evsel__is_group_event(evsel))
 		return ret;
 
-	nr_members = evsel->nr_members;
+	nr_members = evsel->core.nr_members;
 	fields_a = calloc(nr_members, sizeof(*fields_a));
 	fields_b = calloc(nr_members, sizeof(*fields_b));
 
@@ -226,7 +226,7 @@ static int hpp__width_fn(struct perf_hpp_fmt *fmt,
 	struct evsel *evsel = hists_to_evsel(hists);
 
 	if (symbol_conf.event_group)
-		len = max(len, evsel->nr_members * fmt->len);
+		len = max(len, evsel->core.nr_members * fmt->len);
 
 	if (len < (int)strlen(fmt->name))
 		len = strlen(fmt->name);

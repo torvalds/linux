@@ -1528,7 +1528,7 @@ parse_events__set_leader_for_uncore_aliase(char *name, struct list_head *list,
 	/* The number of members and group name are same for each group */
 	for (i = 0; i < nr_pmu; i++) {
 		evsel = (struct evsel *) leaders[i];
-		evsel->nr_members = total_members / nr_pmu;
+		evsel->core.nr_members = total_members / nr_pmu;
 		evsel->group_name = name ? strdup(name) : NULL;
 	}
 

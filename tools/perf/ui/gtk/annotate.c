@@ -129,7 +129,7 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct symbol *sym,
 		gtk_list_store_append(store, &iter);
 
 		if (perf_evsel__is_group_event(evsel)) {
-			for (i = 0; i < evsel->nr_members; i++) {
+			for (i = 0; i < evsel->core.nr_members; i++) {
 				ret += perf_gtk__get_percent(s + ret,
 							     sizeof(s) - ret,
 							     sym, pos,
