@@ -70,7 +70,7 @@ static int do_test(struct evlist *evlist, int mmap_pages,
 
 	evlist__enable(evlist);
 	testcase();
-	perf_evlist__disable(evlist);
+	evlist__disable(evlist);
 
 	err = count_samples(evlist, sample_count, comm_count);
 	perf_evlist__munmap(evlist);

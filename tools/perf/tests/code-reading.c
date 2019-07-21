@@ -684,7 +684,7 @@ static int do_test_code_reading(bool try_kcore)
 
 	do_something();
 
-	perf_evlist__disable(evlist);
+	evlist__disable(evlist);
 
 	ret = process_events(machine, evlist, &state);
 	if (ret < 0)

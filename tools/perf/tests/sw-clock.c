@@ -92,7 +92,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	for (i = 0; i < NR_LOOPS; i++)
 		tmp++;
 
-	perf_evlist__disable(evlist);
+	evlist__disable(evlist);
 
 	md = &evlist->mmap[0];
 	if (perf_mmap__read_init(md) < 0)

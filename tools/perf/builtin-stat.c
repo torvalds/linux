@@ -373,7 +373,7 @@ static void disable_counters(void)
 	 * from counting before reading their constituent counters.
 	 */
 	if (!target__none(&target))
-		perf_evlist__disable(evsel_list);
+		evlist__disable(evsel_list);
 }
 
 static volatile int workload_exec_errno;

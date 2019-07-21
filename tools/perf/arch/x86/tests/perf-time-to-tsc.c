@@ -107,7 +107,7 @@ int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest __maybe
 	comm2 = "Test COMM 2";
 	CHECK__(prctl(PR_SET_NAME, (unsigned long)comm2, 0, 0, 0));
 
-	perf_evlist__disable(evlist);
+	evlist__disable(evlist);
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		md = &evlist->mmap[i];

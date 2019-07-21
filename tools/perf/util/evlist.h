@@ -184,7 +184,7 @@ void perf_evlist__munmap(struct evlist *evlist);
 
 size_t perf_evlist__mmap_size(unsigned long pages);
 
-void perf_evlist__disable(struct evlist *evlist);
+void evlist__disable(struct evlist *evlist);
 void evlist__enable(struct evlist *evlist);
 void perf_evlist__toggle_enable(struct evlist *evlist);
 

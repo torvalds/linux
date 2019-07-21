@@ -112,7 +112,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 	comm = "Test COMM 1";
 	CHECK__(prctl(PR_SET_NAME, (unsigned long)comm, 0, 0, 0));
 
-	perf_evlist__disable(evlist);
+	evlist__disable(evlist);
 
 	found = find_comm(evlist, comm);
 	if (found != 1) {
@@ -134,7 +134,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 	comm = "Test COMM 2";
 	CHECK__(prctl(PR_SET_NAME, (unsigned long)comm, 0, 0, 0));
 
-	perf_evlist__disable(evlist);
+	evlist__disable(evlist);
 
 	found = find_comm(evlist, comm);
 	if (found != 1) {
@@ -146,7 +146,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 
 out_err:
 	if (evlist) {
-		perf_evlist__disable(evlist);
+		evlist__disable(evlist);
 		evlist__delete(evlist);
 	} else {
 		cpu_map__put(cpus);

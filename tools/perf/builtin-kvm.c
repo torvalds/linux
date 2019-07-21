@@ -993,7 +993,7 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 			err = fdarray__poll(fda, 100);
 	}
 
-	perf_evlist__disable(kvm->evlist);
+	evlist__disable(kvm->evlist);
 
 	if (err == 0) {
 		sort_result(kvm);
