@@ -189,7 +189,7 @@ struct perf_cpu_map *cpu_map__new(const char *cpu_list)
 	else if (*cpu_list != '\0')
 		cpus = cpu_map__default_new();
 	else
-		cpus = cpu_map__dummy_new();
+		cpus = perf_cpu_map__dummy_new();
 invalid:
 	free(tmp_cpus);
 out:
@@ -254,19 +254,6 @@ size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp)
 	cpu_map__snprint(map, buf, sizeof(buf));
 	return fprintf(fp, "%s\n", buf);
 #undef BUFSIZE
-}
-
-struct perf_cpu_map *cpu_map__dummy_new(void)
-{
-	struct perf_cpu_map *cpus = malloc(sizeof(*cpus) + sizeof(int));
-
-	if (cpus != NULL) {
-		cpus->nr = 1;
-		cpus->map[0] = -1;
-		refcount_set(&cpus->refcnt, 1);
-	}
-
-	return cpus;
 }
 
 struct perf_cpu_map *cpu_map__empty_new(int nr)
