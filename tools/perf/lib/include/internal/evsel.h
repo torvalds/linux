@@ -11,6 +11,7 @@ struct perf_evsel {
 	struct list_head	 node;
 	struct perf_event_attr	 attr;
 	struct perf_cpu_map	*cpus;
+	struct perf_cpu_map	*own_cpus;
 };
 
 #endif /* __LIBPERF_INTERNAL_EVSEL_H */

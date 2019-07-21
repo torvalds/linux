@@ -159,12 +159,12 @@ static void __perf_evlist__propagate_maps(struct evlist *evlist,
 	 * We already have cpus for evsel (via PMU sysfs) so
 	 * keep it, if there's no target cpu list defined.
 	 */
-	if (!evsel->own_cpus || evlist->has_user_cpus) {
+	if (!evsel->core.own_cpus || evlist->has_user_cpus) {
 		perf_cpu_map__put(evsel->core.cpus);
 		evsel->core.cpus = perf_cpu_map__get(evlist->cpus);
-	} else if (evsel->core.cpus != evsel->own_cpus) {
+	} else if (evsel->core.cpus != evsel->core.own_cpus) {
 		perf_cpu_map__put(evsel->core.cpus);
-		evsel->core.cpus = perf_cpu_map__get(evsel->own_cpus);
+		evsel->core.cpus = perf_cpu_map__get(evsel->core.own_cpus);
 	}
 
 	perf_thread_map__put(evsel->threads);
