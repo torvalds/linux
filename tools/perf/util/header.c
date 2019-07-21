@@ -3886,7 +3886,7 @@ size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
 	struct event_update_event *ev = &event->event_update;
 	struct event_update_event_scale *ev_scale;
 	struct event_update_event_cpus *ev_cpus;
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 	size_t ret;
 
 	ret = fprintf(fp, "\n... id:    %" PRIu64 "\n", ev->id);
@@ -4054,7 +4054,7 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 	struct event_update_event_cpus *ev_cpus;
 	struct perf_evlist *evlist;
 	struct perf_evsel *evsel;
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 
 	if (!pevlist || *pevlist == NULL)
 		return -EINVAL;

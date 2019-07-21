@@ -215,7 +215,7 @@ static int check_per_pkg(struct perf_evsel *counter,
 			 struct perf_counts_values *vals, int cpu, bool *skip)
 {
 	unsigned long *mask = counter->per_pkg_mask;
-	struct cpu_map *cpus = perf_evsel__cpus(counter);
+	struct perf_cpu_map *cpus = perf_evsel__cpus(counter);
 	int s;
 
 	*skip = false;

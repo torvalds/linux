@@ -1627,7 +1627,7 @@ struct perf_script {
 	bool			show_bpf_events;
 	bool			allocated;
 	bool			per_event_dump;
-	struct cpu_map		*cpus;
+	struct perf_cpu_map	*cpus;
 	struct thread_map	*threads;
 	int			name_width;
 	const char              *time_str;

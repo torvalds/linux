@@ -61,7 +61,7 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 {
 	struct event_update_event *ev = (struct event_update_event*) event;
 	struct event_update_event_cpus *ev_data;
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 
 	ev_data = (struct event_update_event_cpus*) ev->data;
 

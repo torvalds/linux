@@ -116,7 +116,7 @@ static void *workerfn(void *arg)
 }
 
 static void create_threads(struct worker *w, pthread_attr_t thread_attr,
-			   struct cpu_map *cpu)
+			   struct perf_cpu_map *cpu)
 {
 	cpu_set_t cpuset;
 	unsigned int i;
@@ -150,7 +150,7 @@ int bench_futex_lock_pi(int argc, const char **argv)
 	unsigned int i;
 	struct sigaction act;
 	pthread_attr_t thread_attr;
-	struct cpu_map *cpu;
+	struct perf_cpu_map *cpu;
 
 	argc = parse_options(argc, argv, options, bench_futex_lock_pi_usage, 0);
 	if (argc)

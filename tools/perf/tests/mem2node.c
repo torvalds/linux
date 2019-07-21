@@ -19,7 +19,7 @@ static struct node {
 
 static unsigned long *get_bitmap(const char *str, int nbits)
 {
-	struct cpu_map *map = cpu_map__new(str);
+	struct perf_cpu_map *map = cpu_map__new(str);
 	unsigned long *bm = NULL;
 	int i;
 

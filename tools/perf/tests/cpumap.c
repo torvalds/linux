@@ -17,7 +17,7 @@ static int process_event_mask(struct perf_tool *tool __maybe_unused,
 	struct cpu_map_event *map_event = &event->cpu_map;
 	struct cpu_map_mask *mask;
 	struct cpu_map_data *data;
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 	int i;
 
 	data = &map_event->data;
@@ -51,7 +51,7 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 	struct cpu_map_event *map_event = &event->cpu_map;
 	struct cpu_map_entries *cpus;
 	struct cpu_map_data *data;
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 
 	data = &map_event->data;
 
@@ -75,7 +75,7 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 
 int test__cpu_map_synthesize(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 
 	/* This one is better stores in mask. */
 	cpus = cpu_map__new("0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19");
@@ -97,7 +97,7 @@ int test__cpu_map_synthesize(struct test *test __maybe_unused, int subtest __may
 
 static int cpu_map_print(const char *str)
 {
-	struct cpu_map *map = cpu_map__new(str);
+	struct perf_cpu_map *map = cpu_map__new(str);
 	char buf[100];
 
 	if (!map)

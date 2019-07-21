@@ -110,7 +110,7 @@ static int detach__disable(struct perf_evlist *evlist)
 static int attach__cpu_disabled(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = perf_evlist__last(evlist);
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 	int err;
 
 	pr_debug("attaching to CPU 0 as enabled\n");
@@ -139,7 +139,7 @@ static int attach__cpu_disabled(struct perf_evlist *evlist)
 static int attach__cpu_enabled(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = perf_evlist__last(evlist);
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 	int err;
 
 	pr_debug("attaching to CPU 0 as enabled\n");

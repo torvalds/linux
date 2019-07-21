@@ -1008,7 +1008,7 @@ int perf_event__synthesize_thread_map2(struct perf_tool *tool,
 }
 
 static void synthesize_cpus(struct cpu_map_entries *cpus,
-			    struct cpu_map *map)
+			    struct perf_cpu_map *map)
 {
 	int i;
 
@@ -1019,7 +1019,7 @@ static void synthesize_cpus(struct cpu_map_entries *cpus,
 }
 
 static void synthesize_mask(struct cpu_map_mask *mask,
-			    struct cpu_map *map, int max)
+			    struct perf_cpu_map *map, int max)
 {
 	int i;
 
@@ -1030,12 +1030,12 @@ static void synthesize_mask(struct cpu_map_mask *mask,
 		set_bit(map->map[i], mask->mask);
 }
 
-static size_t cpus_size(struct cpu_map *map)
+static size_t cpus_size(struct perf_cpu_map *map)
 {
 	return sizeof(struct cpu_map_entries) + map->nr * sizeof(u16);
 }
 
-static size_t mask_size(struct cpu_map *map, int *max)
+static size_t mask_size(struct perf_cpu_map *map, int *max)
 {
 	int i;
 
@@ -1052,7 +1052,7 @@ static size_t mask_size(struct cpu_map *map, int *max)
 	return sizeof(struct cpu_map_mask) + BITS_TO_LONGS(*max) * sizeof(long);
 }
 
-void *cpu_map_data__alloc(struct cpu_map *map, size_t *size, u16 *type, int *max)
+void *cpu_map_data__alloc(struct perf_cpu_map *map, size_t *size, u16 *type, int *max)
 {
 	size_t size_cpus, size_mask;
 	bool is_dummy = cpu_map__empty(map);
@@ -1086,7 +1086,7 @@ void *cpu_map_data__alloc(struct cpu_map *map, size_t *size, u16 *type, int *max
 	return zalloc(*size);
 }
 
-void cpu_map_data__synthesize(struct cpu_map_data *data, struct cpu_map *map,
+void cpu_map_data__synthesize(struct cpu_map_data *data, struct perf_cpu_map *map,
 			      u16 type, int max)
 {
 	data->type = type;
@@ -1102,7 +1102,7 @@ void cpu_map_data__synthesize(struct cpu_map_data *data, struct cpu_map *map,
 	};
 }
 
-static struct cpu_map_event* cpu_map_event__new(struct cpu_map *map)
+static struct cpu_map_event* cpu_map_event__new(struct perf_cpu_map *map)
 {
 	size_t size = sizeof(struct cpu_map_event);
 	struct cpu_map_event *event;
@@ -1122,7 +1122,7 @@ static struct cpu_map_event* cpu_map_event__new(struct cpu_map *map)
 }
 
 int perf_event__synthesize_cpu_map(struct perf_tool *tool,
-				   struct cpu_map *map,
+				   struct perf_cpu_map *map,
 				   perf_event__handler_t process,
 				   struct machine *machine)
 {
@@ -1393,7 +1393,7 @@ size_t perf_event__fprintf_thread_map(union perf_event *event, FILE *fp)
 
 size_t perf_event__fprintf_cpu_map(union perf_event *event, FILE *fp)
 {
-	struct cpu_map *cpus = cpu_map__new_data(&event->cpu_map.data);
+	struct perf_cpu_map *cpus = cpu_map__new_data(&event->cpu_map.data);
 	size_t ret;
 
 	ret = fprintf(fp, ": ");

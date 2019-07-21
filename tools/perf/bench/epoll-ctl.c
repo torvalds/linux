@@ -219,7 +219,7 @@ static void init_fdmaps(struct worker *w, int pct)
 	}
 }
 
-static int do_threads(struct worker *worker, struct cpu_map *cpu)
+static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 {
 	pthread_attr_t thread_attr, *attrp = NULL;
 	cpu_set_t cpuset;
@@ -301,7 +301,7 @@ int bench_epoll_ctl(int argc, const char **argv)
 	int j, ret = 0;
 	struct sigaction act;
 	struct worker *worker = NULL;
-	struct cpu_map *cpu;
+	struct perf_cpu_map *cpu;
 	struct rlimit rl, prevrl;
 	unsigned int i;
 

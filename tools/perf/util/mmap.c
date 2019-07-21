@@ -325,7 +325,7 @@ void perf_mmap__munmap(struct perf_mmap *map)
 static void build_node_mask(int node, cpu_set_t *mask)
 {
 	int c, cpu, nr_cpus;
-	const struct cpu_map *cpu_map = NULL;
+	const struct perf_cpu_map *cpu_map = NULL;
 
 	cpu_map = cpu_map__online();
 	if (!cpu_map)

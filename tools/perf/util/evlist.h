@@ -18,7 +18,7 @@
 
 struct pollfd;
 struct thread_map;
-struct cpu_map;
+struct perf_cpu_map;
 struct record_opts;
 
 #define PERF_EVLIST__HLIST_BITS 8
@@ -45,7 +45,7 @@ struct perf_evlist {
 	struct perf_mmap *mmap;
 	struct perf_mmap *overwrite_mmap;
 	struct thread_map *threads;
-	struct cpu_map	  *cpus;
+	struct perf_cpu_map *cpus;
 	struct perf_evsel *selected;
 	struct events_stats stats;
 	struct perf_env	*env;
@@ -68,7 +68,7 @@ struct perf_evsel_str_handler {
 struct perf_evlist *perf_evlist__new(void);
 struct perf_evlist *perf_evlist__new_default(void);
 struct perf_evlist *perf_evlist__new_dummy(void);
-void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
+void perf_evlist__init(struct perf_evlist *evlist, struct perf_cpu_map *cpus,
 		       struct thread_map *threads);
 void perf_evlist__exit(struct perf_evlist *evlist);
 void perf_evlist__delete(struct perf_evlist *evlist);
@@ -194,7 +194,7 @@ int perf_evlist__enable_event_idx(struct perf_evlist *evlist,
 void perf_evlist__set_selected(struct perf_evlist *evlist,
 			       struct perf_evsel *evsel);
 
-void perf_evlist__set_maps(struct perf_evlist *evlist, struct cpu_map *cpus,
+void perf_evlist__set_maps(struct perf_evlist *evlist, struct perf_cpu_map *cpus,
 			   struct thread_map *threads);
 int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target);
 int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel);

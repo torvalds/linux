@@ -124,8 +124,8 @@ struct perf_evsel {
 	u64			db_id;
 	struct cgroup		*cgrp;
 	void			*handler;
-	struct cpu_map		*cpus;
-	struct cpu_map		*own_cpus;
+	struct perf_cpu_map	*cpus;
+	struct perf_cpu_map	*own_cpus;
 	struct thread_map	*threads;
 	unsigned int		sample_size;
 	int			id_pos;
@@ -192,12 +192,12 @@ struct perf_missing_features {
 
 extern struct perf_missing_features perf_missing_features;
 
-struct cpu_map;
+struct perf_cpu_map;
 struct target;
 struct thread_map;
 struct record_opts;
 
-static inline struct cpu_map *perf_evsel__cpus(struct perf_evsel *evsel)
+static inline struct perf_cpu_map *perf_evsel__cpus(struct perf_evsel *evsel)
 {
 	return evsel->cpus;
 }
@@ -300,10 +300,10 @@ int perf_evsel__enable(struct perf_evsel *evsel);
 int perf_evsel__disable(struct perf_evsel *evsel);
 
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
-			     struct cpu_map *cpus);
+			     struct perf_cpu_map *cpus);
 int perf_evsel__open_per_thread(struct perf_evsel *evsel,
 				struct thread_map *threads);
-int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
+int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 		     struct thread_map *threads);
 void perf_evsel__close(struct perf_evsel *evsel);
 

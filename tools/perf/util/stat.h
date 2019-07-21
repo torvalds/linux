@@ -92,7 +92,7 @@ struct runtime_stat {
 };
 
 typedef int (*aggr_get_id_t)(struct perf_stat_config *config,
-			     struct cpu_map *m, int cpu);
+			     struct perf_cpu_map *m, int cpu);
 
 struct perf_stat_config {
 	enum aggr_mode		 aggr_mode;
@@ -122,9 +122,9 @@ struct perf_stat_config {
 	const char		*csv_sep;
 	struct stats		*walltime_nsecs_stats;
 	struct rusage		 ru_data;
-	struct cpu_map		*aggr_map;
+	struct perf_cpu_map		*aggr_map;
 	aggr_get_id_t		 aggr_get_id;
-	struct cpu_map		*cpus_aggr_map;
+	struct perf_cpu_map		*cpus_aggr_map;
 	u64			*walltime_run;
 	struct rblist		 metric_events;
 };

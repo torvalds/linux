@@ -328,7 +328,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		},
 	};
 	struct thread_map *threads = NULL;
-	struct cpu_map *cpus = NULL;
+	struct perf_cpu_map *cpus = NULL;
 	struct perf_evlist *evlist = NULL;
 	struct perf_evsel *evsel, *cpu_clocks_evsel, *cycles_evsel;
 	struct perf_evsel *switch_evsel, *tracking_evsel;

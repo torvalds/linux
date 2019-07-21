@@ -2273,7 +2273,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap)
 {
 	int i, err = -1;
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 
 	for (i = 0; i < PERF_TYPE_MAX; ++i) {
 		struct perf_evsel *evsel;

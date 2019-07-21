@@ -288,7 +288,7 @@ static void print_summary(void)
 	       (int) runtime.tv_sec);
 }
 
-static int do_threads(struct worker *worker, struct cpu_map *cpu)
+static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 {
 	pthread_attr_t thread_attr, *attrp = NULL;
 	cpu_set_t cpuset;
@@ -415,7 +415,7 @@ int bench_epoll_wait(int argc, const char **argv)
 	struct sigaction act;
 	unsigned int i;
 	struct worker *worker = NULL;
-	struct cpu_map *cpu;
+	struct perf_cpu_map *cpu;
 	pthread_t wthread;
 	struct rlimit rl, prevrl;
 

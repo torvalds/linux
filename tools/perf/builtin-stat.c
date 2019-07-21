@@ -164,7 +164,7 @@ struct perf_stat {
 	u64			 bytes_written;
 	struct perf_tool	 tool;
 	bool			 maps_allocated;
-	struct cpu_map		*cpus;
+	struct perf_cpu_map	*cpus;
 	struct thread_map	*threads;
 	enum aggr_mode		 aggr_mode;
 };
@@ -803,24 +803,24 @@ static struct option stat_options[] = {
 };
 
 static int perf_stat__get_socket(struct perf_stat_config *config __maybe_unused,
-				 struct cpu_map *map, int cpu)
+				 struct perf_cpu_map *map, int cpu)
 {
 	return cpu_map__get_socket(map, cpu, NULL);
 }
 
 static int perf_stat__get_die(struct perf_stat_config *config __maybe_unused,
-			      struct cpu_map *map, int cpu)
+			      struct perf_cpu_map *map, int cpu)
 {
 	return cpu_map__get_die(map, cpu, NULL);
 }
 
 static int perf_stat__get_core(struct perf_stat_config *config __maybe_unused,
-			       struct cpu_map *map, int cpu)
+			       struct perf_cpu_map *map, int cpu)
 {
 	return cpu_map__get_core(map, cpu, NULL);
 }
 
-static int cpu_map__get_max(struct cpu_map *map)
+static int cpu_map__get_max(struct perf_cpu_map *map)
 {
 	int i, max = -1;
 
@@ -833,7 +833,7 @@ static int cpu_map__get_max(struct cpu_map *map)
 }
 
 static int perf_stat__get_aggr(struct perf_stat_config *config,
-			       aggr_get_id_t get_id, struct cpu_map *map, int idx)
+			       aggr_get_id_t get_id, struct perf_cpu_map *map, int idx)
 {
 	int cpu;
 
@@ -849,19 +849,19 @@ static int perf_stat__get_aggr(struct perf_stat_config *config,
 }
 
 static int perf_stat__get_socket_cached(struct perf_stat_config *config,
-					struct cpu_map *map, int idx)
+					struct perf_cpu_map *map, int idx)
 {
 	return perf_stat__get_aggr(config, perf_stat__get_socket, map, idx);
 }
 
 static int perf_stat__get_die_cached(struct perf_stat_config *config,
-					struct cpu_map *map, int idx)
+					struct perf_cpu_map *map, int idx)
 {
 	return perf_stat__get_aggr(config, perf_stat__get_die, map, idx);
 }
 
 static int perf_stat__get_core_cached(struct perf_stat_config *config,
-				      struct cpu_map *map, int idx)
+				      struct perf_cpu_map *map, int idx)
 {
 	return perf_stat__get_aggr(config, perf_stat__get_core, map, idx);
 }
@@ -939,7 +939,7 @@ static void perf_stat__exit_aggr_mode(void)
 	stat_config.cpus_aggr_map = NULL;
 }
 
-static inline int perf_env__get_cpu(struct perf_env *env, struct cpu_map *map, int idx)
+static inline int perf_env__get_cpu(struct perf_env *env, struct perf_cpu_map *map, int idx)
 {
 	int cpu;
 
@@ -954,7 +954,7 @@ static inline int perf_env__get_cpu(struct perf_env *env, struct cpu_map *map, i
 	return cpu;
 }
 
-static int perf_env__get_socket(struct cpu_map *map, int idx, void *data)
+static int perf_env__get_socket(struct perf_cpu_map *map, int idx, void *data)
 {
 	struct perf_env *env = data;
 	int cpu = perf_env__get_cpu(env, map, idx);
@@ -962,7 +962,7 @@ static int perf_env__get_socket(struct cpu_map *map, int idx, void *data)
 	return cpu == -1 ? -1 : env->cpu[cpu].socket_id;
 }
 
-static int perf_env__get_die(struct cpu_map *map, int idx, void *data)
+static int perf_env__get_die(struct perf_cpu_map *map, int idx, void *data)
 {
 	struct perf_env *env = data;
 	int die_id = -1, cpu = perf_env__get_cpu(env, map, idx);
@@ -986,7 +986,7 @@ static int perf_env__get_die(struct cpu_map *map, int idx, void *data)
 	return die_id;
 }
 
-static int perf_env__get_core(struct cpu_map *map, int idx, void *data)
+static int perf_env__get_core(struct perf_cpu_map *map, int idx, void *data)
 {
 	struct perf_env *env = data;
 	int core = -1, cpu = perf_env__get_cpu(env, map, idx);
@@ -1016,37 +1016,37 @@ static int perf_env__get_core(struct cpu_map *map, int idx, void *data)
 	return core;
 }
 
-static int perf_env__build_socket_map(struct perf_env *env, struct cpu_map *cpus,
-				      struct cpu_map **sockp)
+static int perf_env__build_socket_map(struct perf_env *env, struct perf_cpu_map *cpus,
+				      struct perf_cpu_map **sockp)
 {
 	return cpu_map__build_map(cpus, sockp, perf_env__get_socket, env);
 }
 
-static int perf_env__build_die_map(struct perf_env *env, struct cpu_map *cpus,
-				   struct cpu_map **diep)
+static int perf_env__build_die_map(struct perf_env *env, struct perf_cpu_map *cpus,
+				   struct perf_cpu_map **diep)
 {
 	return cpu_map__build_map(cpus, diep, perf_env__get_die, env);
 }
 
-static int perf_env__build_core_map(struct perf_env *env, struct cpu_map *cpus,
-				    struct cpu_map **corep)
+static int perf_env__build_core_map(struct perf_env *env, struct perf_cpu_map *cpus,
+				    struct perf_cpu_map **corep)
 {
 	return cpu_map__build_map(cpus, corep, perf_env__get_core, env);
 }
 
 static int perf_stat__get_socket_file(struct perf_stat_config *config __maybe_unused,
-				      struct cpu_map *map, int idx)
+				      struct perf_cpu_map *map, int idx)
 {
 	return perf_env__get_socket(map, idx, &perf_stat.session->header.env);
 }
 static int perf_stat__get_die_file(struct perf_stat_config *config __maybe_unused,
-				   struct cpu_map *map, int idx)
+				   struct perf_cpu_map *map, int idx)
 {
 	return perf_env__get_die(map, idx, &perf_stat.session->header.env);
 }
 
 static int perf_stat__get_core_file(struct perf_stat_config *config __maybe_unused,
-				    struct cpu_map *map, int idx)
+				    struct perf_cpu_map *map, int idx)
 {
 	return perf_env__get_core(map, idx, &perf_stat.session->header.env);
 }
@@ -1551,7 +1551,7 @@ int process_cpu_map_event(struct perf_session *session,
 {
 	struct perf_tool *tool = session->tool;
 	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 
 	if (st->cpus) {
 		pr_warning("Extra cpu map event, ignoring.\n");

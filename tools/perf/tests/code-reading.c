@@ -553,7 +553,7 @@ static int do_test_code_reading(bool try_kcore)
 		.done_cnt = 0,
 	};
 	struct thread_map *threads = NULL;
-	struct cpu_map *cpus = NULL;
+	struct perf_cpu_map *cpus = NULL;
 	struct perf_evlist *evlist = NULL;
 	struct perf_evsel *evsel = NULL;
 	int err = -1, ret;

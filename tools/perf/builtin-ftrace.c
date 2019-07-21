@@ -165,7 +165,7 @@ static int set_tracing_pid(struct perf_ftrace *ftrace)
 	return 0;
 }
 
-static int set_tracing_cpumask(struct cpu_map *cpumap)
+static int set_tracing_cpumask(struct perf_cpu_map *cpumap)
 {
 	char *cpumask;
 	size_t mask_size;
@@ -192,7 +192,7 @@ static int set_tracing_cpumask(struct cpu_map *cpumap)
 
 static int set_tracing_cpu(struct perf_ftrace *ftrace)
 {
-	struct cpu_map *cpumap = ftrace->evlist->cpus;
+	struct perf_cpu_map *cpumap = ftrace->evlist->cpus;
 
 	if (!target__has_cpu(&ftrace->target))
 		return 0;
@@ -202,7 +202,7 @@ static int set_tracing_cpu(struct perf_ftrace *ftrace)
 
 static int reset_tracing_cpu(void)
 {
-	struct cpu_map *cpumap = cpu_map__new(NULL);
+	struct perf_cpu_map *cpumap = cpu_map__new(NULL);
 	int ret;
 
 	ret = set_tracing_cpumask(cpumap);

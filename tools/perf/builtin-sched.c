@@ -161,9 +161,9 @@ struct perf_sched_map {
 	bool			 comp;
 	struct thread_map	*color_pids;
 	const char		*color_pids_str;
-	struct cpu_map		*color_cpus;
+	struct perf_cpu_map	*color_cpus;
 	const char		*color_cpus_str;
-	struct cpu_map		*cpus;
+	struct perf_cpu_map	*cpus;
 	const char		*cpus_str;
 };
 
@@ -3170,7 +3170,7 @@ static int perf_sched__lat(struct perf_sched *sched)
 
 static int setup_map_cpus(struct perf_sched *sched)
 {
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 
 	sched->max_cpu  = sysconf(_SC_NPROCESSORS_CONF);
 
@@ -3212,7 +3212,7 @@ static int setup_color_pids(struct perf_sched *sched)
 
 static int setup_color_cpus(struct perf_sched *sched)
 {
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 
 	if (!sched->map.color_cpus_str)
 		return 0;

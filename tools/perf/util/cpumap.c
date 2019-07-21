@@ -17,9 +17,9 @@ static int max_present_cpu_num;
 static int max_node_num;
 static int *cpunode_map;
 
-static struct cpu_map *cpu_map__default_new(void)
+static struct perf_cpu_map *cpu_map__default_new(void)
 {
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 	int nr_cpus;
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -39,10 +39,10 @@ static struct cpu_map *cpu_map__default_new(void)
 	return cpus;
 }
 
-static struct cpu_map *cpu_map__trim_new(int nr_cpus, int *tmp_cpus)
+static struct perf_cpu_map *cpu_map__trim_new(int nr_cpus, int *tmp_cpus)
 {
 	size_t payload_size = nr_cpus * sizeof(int);
-	struct cpu_map *cpus = malloc(sizeof(*cpus) + payload_size);
+	struct perf_cpu_map *cpus = malloc(sizeof(*cpus) + payload_size);
 
 	if (cpus != NULL) {
 		cpus->nr = nr_cpus;
@@ -53,9 +53,9 @@ static struct cpu_map *cpu_map__trim_new(int nr_cpus, int *tmp_cpus)
 	return cpus;
 }
 
-struct cpu_map *cpu_map__read(FILE *file)
+struct perf_cpu_map *cpu_map__read(FILE *file)
 {
-	struct cpu_map *cpus = NULL;
+	struct perf_cpu_map *cpus = NULL;
 	int nr_cpus = 0;
 	int *tmp_cpus = NULL, *tmp;
 	int max_entries = 0;
@@ -108,9 +108,9 @@ out_free_tmp:
 	return cpus;
 }
 
-static struct cpu_map *cpu_map__read_all_cpu_map(void)
+static struct perf_cpu_map *cpu_map__read_all_cpu_map(void)
 {
-	struct cpu_map *cpus = NULL;
+	struct perf_cpu_map *cpus = NULL;
 	FILE *onlnf;
 
 	onlnf = fopen("/sys/devices/system/cpu/online", "r");
@@ -122,9 +122,9 @@ static struct cpu_map *cpu_map__read_all_cpu_map(void)
 	return cpus;
 }
 
-struct cpu_map *cpu_map__new(const char *cpu_list)
+struct perf_cpu_map *cpu_map__new(const char *cpu_list)
 {
-	struct cpu_map *cpus = NULL;
+	struct perf_cpu_map *cpus = NULL;
 	unsigned long start_cpu, end_cpu = 0;
 	char *p = NULL;
 	int i, nr_cpus = 0;
@@ -196,9 +196,9 @@ out:
 	return cpus;
 }
 
-static struct cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
+static struct perf_cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
 {
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 
 	map = cpu_map__empty_new(cpus->nr);
 	if (map) {
@@ -220,9 +220,9 @@ static struct cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
 	return map;
 }
 
-static struct cpu_map *cpu_map__from_mask(struct cpu_map_mask *mask)
+static struct perf_cpu_map *cpu_map__from_mask(struct cpu_map_mask *mask)
 {
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 	int nr, nbits = mask->nr * mask->long_size * BITS_PER_BYTE;
 
 	nr = bitmap_weight(mask->mask, nbits);
@@ -238,7 +238,7 @@ static struct cpu_map *cpu_map__from_mask(struct cpu_map_mask *mask)
 
 }
 
-struct cpu_map *cpu_map__new_data(struct cpu_map_data *data)
+struct perf_cpu_map *cpu_map__new_data(struct cpu_map_data *data)
 {
 	if (data->type == PERF_CPU_MAP__CPUS)
 		return cpu_map__from_entries((struct cpu_map_entries *)data->data);
@@ -246,7 +246,7 @@ struct cpu_map *cpu_map__new_data(struct cpu_map_data *data)
 		return cpu_map__from_mask((struct cpu_map_mask *)data->data);
 }
 
-size_t cpu_map__fprintf(struct cpu_map *map, FILE *fp)
+size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp)
 {
 #define BUFSIZE 1024
 	char buf[BUFSIZE];
@@ -256,9 +256,9 @@ size_t cpu_map__fprintf(struct cpu_map *map, FILE *fp)
 #undef BUFSIZE
 }
 
-struct cpu_map *cpu_map__dummy_new(void)
+struct perf_cpu_map *cpu_map__dummy_new(void)
 {
-	struct cpu_map *cpus = malloc(sizeof(*cpus) + sizeof(int));
+	struct perf_cpu_map *cpus = malloc(sizeof(*cpus) + sizeof(int));
 
 	if (cpus != NULL) {
 		cpus->nr = 1;
@@ -269,9 +269,9 @@ struct cpu_map *cpu_map__dummy_new(void)
 	return cpus;
 }
 
-struct cpu_map *cpu_map__empty_new(int nr)
+struct perf_cpu_map *cpu_map__empty_new(int nr)
 {
-	struct cpu_map *cpus = malloc(sizeof(*cpus) + sizeof(int) * nr);
+	struct perf_cpu_map *cpus = malloc(sizeof(*cpus) + sizeof(int) * nr);
 
 	if (cpus != NULL) {
 		int i;
@@ -286,7 +286,7 @@ struct cpu_map *cpu_map__empty_new(int nr)
 	return cpus;
 }
 
-static void cpu_map__delete(struct cpu_map *map)
+static void cpu_map__delete(struct perf_cpu_map *map)
 {
 	if (map) {
 		WARN_ONCE(refcount_read(&map->refcnt) != 0,
@@ -295,14 +295,14 @@ static void cpu_map__delete(struct cpu_map *map)
 	}
 }
 
-struct cpu_map *cpu_map__get(struct cpu_map *map)
+struct perf_cpu_map *cpu_map__get(struct perf_cpu_map *map)
 {
 	if (map)
 		refcount_inc(&map->refcnt);
 	return map;
 }
 
-void cpu_map__put(struct cpu_map *map)
+void cpu_map__put(struct perf_cpu_map *map)
 {
 	if (map && refcount_dec_and_test(&map->refcnt))
 		cpu_map__delete(map);
@@ -324,7 +324,7 @@ int cpu_map__get_socket_id(int cpu)
 	return ret ?: value;
 }
 
-int cpu_map__get_socket(struct cpu_map *map, int idx, void *data __maybe_unused)
+int cpu_map__get_socket(struct perf_cpu_map *map, int idx, void *data __maybe_unused)
 {
 	int cpu;
 
@@ -341,11 +341,11 @@ static int cmp_ids(const void *a, const void *b)
 	return *(int *)a - *(int *)b;
 }
 
-int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
-		       int (*f)(struct cpu_map *map, int cpu, void *data),
+int cpu_map__build_map(struct perf_cpu_map *cpus, struct perf_cpu_map **res,
+		       int (*f)(struct perf_cpu_map *map, int cpu, void *data),
 		       void *data)
 {
-	struct cpu_map *c;
+	struct perf_cpu_map *c;
 	int nr = cpus->nr;
 	int cpu, s1, s2;
 
@@ -380,7 +380,7 @@ int cpu_map__get_die_id(int cpu)
 	return ret ?: value;
 }
 
-int cpu_map__get_die(struct cpu_map *map, int idx, void *data)
+int cpu_map__get_die(struct perf_cpu_map *map, int idx, void *data)
 {
 	int cpu, die_id, s;
 
@@ -419,7 +419,7 @@ int cpu_map__get_core_id(int cpu)
 	return ret ?: value;
 }
 
-int cpu_map__get_core(struct cpu_map *map, int idx, void *data)
+int cpu_map__get_core(struct perf_cpu_map *map, int idx, void *data)
 {
 	int cpu, s_die;
 
@@ -448,17 +448,17 @@ int cpu_map__get_core(struct cpu_map *map, int idx, void *data)
 	return (s_die << 16) | (cpu & 0xffff);
 }
 
-int cpu_map__build_socket_map(struct cpu_map *cpus, struct cpu_map **sockp)
+int cpu_map__build_socket_map(struct perf_cpu_map *cpus, struct perf_cpu_map **sockp)
 {
 	return cpu_map__build_map(cpus, sockp, cpu_map__get_socket, NULL);
 }
 
-int cpu_map__build_die_map(struct cpu_map *cpus, struct cpu_map **diep)
+int cpu_map__build_die_map(struct perf_cpu_map *cpus, struct perf_cpu_map **diep)
 {
 	return cpu_map__build_map(cpus, diep, cpu_map__get_die, NULL);
 }
 
-int cpu_map__build_core_map(struct cpu_map *cpus, struct cpu_map **corep)
+int cpu_map__build_core_map(struct perf_cpu_map *cpus, struct perf_cpu_map **corep)
 {
 	return cpu_map__build_map(cpus, corep, cpu_map__get_core, NULL);
 }
@@ -670,12 +670,12 @@ int cpu__setup_cpunode_map(void)
 	return 0;
 }
 
-bool cpu_map__has(struct cpu_map *cpus, int cpu)
+bool cpu_map__has(struct perf_cpu_map *cpus, int cpu)
 {
 	return cpu_map__idx(cpus, cpu) != -1;
 }
 
-int cpu_map__idx(struct cpu_map *cpus, int cpu)
+int cpu_map__idx(struct perf_cpu_map *cpus, int cpu)
 {
 	int i;
 
@@ -687,12 +687,12 @@ int cpu_map__idx(struct cpu_map *cpus, int cpu)
 	return -1;
 }
 
-int cpu_map__cpu(struct cpu_map *cpus, int idx)
+int cpu_map__cpu(struct perf_cpu_map *cpus, int idx)
 {
 	return cpus->map[idx];
 }
 
-size_t cpu_map__snprint(struct cpu_map *map, char *buf, size_t size)
+size_t cpu_map__snprint(struct perf_cpu_map *map, char *buf, size_t size)
 {
 	int i, cpu, start = -1;
 	bool first = true;
@@ -744,7 +744,7 @@ static char hex_char(unsigned char val)
 	return '?';
 }
 
-size_t cpu_map__snprint_mask(struct cpu_map *map, char *buf, size_t size)
+size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size)
 {
 	int i, cpu;
 	char *ptr = buf;
@@ -781,9 +781,9 @@ size_t cpu_map__snprint_mask(struct cpu_map *map, char *buf, size_t size)
 	return ptr - buf;
 }
 
-const struct cpu_map *cpu_map__online(void) /* thread unsafe */
+const struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
 {
-	static const struct cpu_map *online = NULL;
+	static const struct perf_cpu_map *online = NULL;
 
 	if (!online)
 		online = cpu_map__new(NULL); /* from /sys/devices/system/cpu/online */

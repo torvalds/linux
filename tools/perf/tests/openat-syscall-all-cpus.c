@@ -20,7 +20,7 @@
 int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1, fd, cpu;
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 	struct perf_evsel *evsel;
 	unsigned int nr_openat_calls = 111, i;
 	cpu_set_t cpu_set;

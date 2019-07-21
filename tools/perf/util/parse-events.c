@@ -322,7 +322,7 @@ __add_event(struct list_head *list, int *idx,
 	    const char *cpu_list)
 {
 	struct perf_evsel *evsel;
-	struct cpu_map *cpus = pmu ? pmu->cpus :
+	struct perf_cpu_map *cpus = pmu ? pmu->cpus :
 			       cpu_list ? cpu_map__new(cpu_list) : NULL;
 
 	event_attr_init(attr);

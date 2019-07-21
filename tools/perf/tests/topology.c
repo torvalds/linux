@@ -57,7 +57,7 @@ static int session_write_header(char *path)
 	return 0;
 }
 
-static int check_cpu_topology(char *path, struct cpu_map *map)
+static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 {
 	struct perf_session *session;
 	struct perf_data data = {
@@ -116,7 +116,7 @@ static int check_cpu_topology(char *path, struct cpu_map *map)
 int test__session_topology(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	char path[PATH_MAX];
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 	int ret = TEST_FAIL;
 
 	TEST_ASSERT_VAL("can't get templ file", !get_temp(path));

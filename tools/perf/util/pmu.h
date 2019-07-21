@@ -28,7 +28,7 @@ struct perf_pmu {
 	bool is_uncore;
 	int max_precise;
 	struct perf_event_attr *default_config;
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 	struct list_head format;  /* HEAD struct perf_pmu_format -> list */
 	struct list_head aliases; /* HEAD struct perf_pmu_alias -> list */
 	struct list_head list;    /* ELEM */

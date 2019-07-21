@@ -16,7 +16,7 @@ char *get_cpuid_str(struct perf_pmu *pmu)
 	const char *sysfs = sysfs__mountpoint();
 	int cpu;
 	u64 midr = 0;
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 	FILE *file;
 
 	if (!sysfs || !pmu || !pmu->cpus)

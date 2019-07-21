@@ -176,7 +176,7 @@ struct cpu_topology *cpu_topology__new(void)
 	size_t sz;
 	long ncpus;
 	int ret = -1;
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 	bool has_die = has_die_topology();
 
 	ncpus = cpu__max_present_cpu();
@@ -289,7 +289,7 @@ err:
 
 struct numa_topology *numa_topology__new(void)
 {
-	struct cpu_map *node_map = NULL;
+	struct perf_cpu_map *node_map = NULL;
 	struct numa_topology *tp = NULL;
 	char path[MAXPATHLEN];
 	char *buf = NULL;

@@ -84,7 +84,7 @@ static void *workerfn(void *arg __maybe_unused)
 }
 
 static void block_threads(pthread_t *w,
-			  pthread_attr_t thread_attr, struct cpu_map *cpu)
+			  pthread_attr_t thread_attr, struct perf_cpu_map *cpu)
 {
 	cpu_set_t cpuset;
 	unsigned int i;
@@ -117,7 +117,7 @@ int bench_futex_requeue(int argc, const char **argv)
 	unsigned int i, j;
 	struct sigaction act;
 	pthread_attr_t thread_attr;
-	struct cpu_map *cpu;
+	struct perf_cpu_map *cpu;
 
 	argc = parse_options(argc, argv, options, bench_futex_requeue_usage, 0);
 	if (argc)

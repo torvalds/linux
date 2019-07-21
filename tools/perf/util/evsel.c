@@ -1825,7 +1825,7 @@ static int perf_event_open(struct perf_evsel *evsel,
 	return fd;
 }
 
-int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
+int perf_evsel__open(struct perf_evsel *evsel, struct perf_cpu_map *cpus,
 		     struct thread_map *threads)
 {
 	int cpu, thread, nthreads;
@@ -1837,7 +1837,7 @@ int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 		return -EINVAL;
 
 	if (cpus == NULL) {
-		static struct cpu_map *empty_cpu_map;
+		static struct perf_cpu_map *empty_cpu_map;
 
 		if (empty_cpu_map == NULL) {
 			empty_cpu_map = cpu_map__dummy_new();
@@ -2084,7 +2084,7 @@ void perf_evsel__close(struct perf_evsel *evsel)
 }
 
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
-			     struct cpu_map *cpus)
+			     struct perf_cpu_map *cpus)
 {
 	return perf_evsel__open(evsel, cpus, NULL);
 }
@@ -3064,7 +3064,7 @@ static int store_evsel_ids(struct perf_evsel *evsel, struct perf_evlist *evlist)
 
 int perf_evsel__store_ids(struct perf_evsel *evsel, struct perf_evlist *evlist)
 {
-	struct cpu_map *cpus = evsel->cpus;
+	struct perf_cpu_map *cpus = evsel->cpus;
 	struct thread_map *threads = evsel->threads;
 
 	if (perf_evsel__alloc_id(evsel, cpus->nr, threads->nr))
