@@ -3212,7 +3212,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 {
 	struct evsel_menu *menu = container_of(browser,
 						    struct evsel_menu, b);
-	struct evsel *evsel = list_entry(entry, struct evsel, node);
+	struct evsel *evsel = list_entry(entry, struct evsel, core.node);
 	struct hists *hists = evsel__hists(evsel);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 	unsigned long nr_events = hists->stats.nr_events[PERF_RECORD_SAMPLE];
@@ -3309,13 +3309,13 @@ browse_hists:
 			ui_browser__show_title(&menu->b, title);
 			switch (key) {
 			case K_TAB:
-				if (pos->node.next == &evlist->entries)
+				if (pos->core.node.next == &evlist->entries)
 					pos = perf_evlist__first(evlist);
 				else
 					pos = perf_evsel__next(pos);
 				goto browse_hists;
 			case K_UNTAB:
-				if (pos->node.prev == &evlist->entries)
+				if (pos->core.node.prev == &evlist->entries)
 					pos = perf_evlist__last(evlist);
 				else
 					pos = perf_evsel__prev(pos);
@@ -3351,7 +3351,7 @@ out:
 static bool filter_group_entries(struct ui_browser *browser __maybe_unused,
 				 void *entry)
 {
-	struct evsel *evsel = list_entry(entry, struct evsel, node);
+	struct evsel *evsel = list_entry(entry, struct evsel, core.node);
 
 	if (symbol_conf.event_group && !perf_evsel__is_group_leader(evsel))
 		return true;

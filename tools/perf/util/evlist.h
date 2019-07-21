@@ -230,12 +230,12 @@ static inline bool perf_evlist__empty(struct evlist *evlist)
 
 static inline struct evsel *perf_evlist__first(struct evlist *evlist)
 {
-	return list_entry(evlist->entries.next, struct evsel, node);
+	return list_entry(evlist->entries.next, struct evsel, core.node);
 }
 
 static inline struct evsel *perf_evlist__last(struct evlist *evlist)
 {
-	return list_entry(evlist->entries.prev, struct evsel, node);
+	return list_entry(evlist->entries.prev, struct evsel, core.node);
 }
 
 size_t perf_evlist__fprintf(struct evlist *evlist, FILE *fp);
@@ -253,7 +253,7 @@ void perf_evlist__to_front(struct evlist *evlist,
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry(list, evsel) \
-        list_for_each_entry(evsel, list, node)
+        list_for_each_entry(evsel, list, core.node)
 
 /**
  * evlist__for_each_entry - iterate thru all the evsels
@@ -269,7 +269,7 @@ void perf_evlist__to_front(struct evlist *evlist,
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry_continue(list, evsel) \
-        list_for_each_entry_continue(evsel, list, node)
+        list_for_each_entry_continue(evsel, list, core.node)
 
 /**
  * evlist__for_each_entry_continue - continue iteration thru all the evsels
@@ -285,7 +285,7 @@ void perf_evlist__to_front(struct evlist *evlist,
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry_reverse(list, evsel) \
-        list_for_each_entry_reverse(evsel, list, node)
+        list_for_each_entry_reverse(evsel, list, core.node)
 
 /**
  * evlist__for_each_entry_reverse - iterate thru all the evsels in reverse order
@@ -302,7 +302,7 @@ void perf_evlist__to_front(struct evlist *evlist,
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry_safe(list, tmp, evsel) \
-        list_for_each_entry_safe(evsel, tmp, list, node)
+        list_for_each_entry_safe(evsel, tmp, list, core.node)
 
 /**
  * evlist__for_each_entry_safe - safely iterate thru all the evsels

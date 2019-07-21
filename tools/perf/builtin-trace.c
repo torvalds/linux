@@ -2636,7 +2636,7 @@ static bool evlist__add_vfs_getname(struct evlist *evlist)
 			continue;
 		}
 
-		list_del_init(&evsel->node);
+		list_del_init(&evsel->core.node);
 		evsel->evlist = NULL;
 		evsel__delete(evsel);
 	}

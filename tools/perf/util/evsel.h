@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <linux/perf_event.h>
 #include <linux/types.h>
+#include <internal/evsel.h>
 #include "xyarray.h"
 #include "symbol_conf.h"
 #include "cpumap.h"
@@ -87,8 +88,7 @@ struct bpf_object;
 /** struct evsel - event selector
  *
  * @evlist - evlist this evsel is in, if it is in one.
- * @node - To insert it into evlist->entries or in other list_heads, say in
- *         the event parsing routines.
+ * @core - libperf evsel object
  * @name - Can be set to retain the original event name passed by the user,
  *         so that when showing results in tools such as 'perf stat', we
  *         show the name used, not some alias.
@@ -101,7 +101,7 @@ struct bpf_object;
  * @priv:   And what is in its containing unnamed union are tool specific
  */
 struct evsel {
-	struct list_head	node;
+	struct perf_evsel	core;
 	struct evlist	*evlist;
 	struct perf_event_attr	attr;
 	char			*filter;
@@ -386,12 +386,12 @@ int perf_evsel__parse_sample_timestamp(struct evsel *evsel,
 
 static inline struct evsel *perf_evsel__next(struct evsel *evsel)
 {
-	return list_entry(evsel->node.next, struct evsel, node);
+	return list_entry(evsel->core.node.next, struct evsel, core.node);
 }
 
 static inline struct evsel *perf_evsel__prev(struct evsel *evsel)
 {
-	return list_entry(evsel->node.prev, struct evsel, node);
+	return list_entry(evsel->core.node.prev, struct evsel, core.node);
 }
 
 /**
@@ -478,15 +478,15 @@ static inline int perf_evsel__group_idx(struct evsel *evsel)
 
 /* Iterates group WITHOUT the leader. */
 #define for_each_group_member(_evsel, _leader) 					\
-for ((_evsel) = list_entry((_leader)->node.next, struct evsel, node); 	\
+for ((_evsel) = list_entry((_leader)->core.node.next, struct evsel, core.node); \
      (_evsel) && (_evsel)->leader == (_leader);					\
-     (_evsel) = list_entry((_evsel)->node.next, struct evsel, node))
+     (_evsel) = list_entry((_evsel)->core.node.next, struct evsel, core.node))
 
 /* Iterates group WITH the leader. */
 #define for_each_group_evsel(_evsel, _leader) 					\
 for ((_evsel) = _leader; 							\
      (_evsel) && (_evsel)->leader == (_leader);					\
-     (_evsel) = list_entry((_evsel)->node.next, struct evsel, node))
+     (_evsel) = list_entry((_evsel)->core.node.next, struct evsel, core.node))
 
 static inline bool perf_evsel__has_branch_callstack(const struct evsel *evsel)
 {

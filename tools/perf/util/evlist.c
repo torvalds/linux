@@ -119,7 +119,7 @@ static void perf_evlist__purge(struct evlist *evlist)
 	struct evsel *pos, *n;
 
 	evlist__for_each_entry_safe(evlist, n, pos) {
-		list_del_init(&pos->node);
+		list_del_init(&pos->core.node);
 		pos->evlist = NULL;
 		evsel__delete(pos);
 	}
@@ -180,7 +180,7 @@ static void perf_evlist__propagate_maps(struct evlist *evlist)
 void evlist__add(struct evlist *evlist, struct evsel *entry)
 {
 	entry->evlist = evlist;
-	list_add_tail(&entry->node, &evlist->entries);
+	list_add_tail(&entry->core.node, &evlist->entries);
 	entry->idx = evlist->nr_entries;
 	entry->tracking = !entry->idx;
 
@@ -193,7 +193,7 @@ void evlist__add(struct evlist *evlist, struct evsel *entry)
 void evlist__remove(struct evlist *evlist, struct evsel *evsel)
 {
 	evsel->evlist = NULL;
-	list_del_init(&evsel->node);
+	list_del_init(&evsel->core.node);
 	evlist->nr_entries -= 1;
 }
 
@@ -203,7 +203,7 @@ void perf_evlist__splice_list_tail(struct evlist *evlist,
 	struct evsel *evsel, *temp;
 
 	__evlist__for_each_entry_safe(list, temp, evsel) {
-		list_del_init(&evsel->node);
+		list_del_init(&evsel->core.node);
 		evlist__add(evlist, evsel);
 	}
 }
@@ -212,8 +212,8 @@ void __perf_evlist__set_leader(struct list_head *list)
 {
 	struct evsel *evsel, *leader;
 
-	leader = list_entry(list->next, struct evsel, node);
-	evsel = list_entry(list->prev, struct evsel, node);
+	leader = list_entry(list->next, struct evsel, core.node);
+	evsel = list_entry(list->prev, struct evsel, core.node);
 
 	leader->nr_members = evsel->idx - leader->idx + 1;
 
@@ -268,7 +268,7 @@ static int evlist__add_attrs(struct evlist *evlist,
 		evsel = perf_evsel__new_idx(attrs + i, evlist->nr_entries + i);
 		if (evsel == NULL)
 			goto out_delete_partial_list;
-		list_add_tail(&evsel->node, &head);
+		list_add_tail(&evsel->core.node, &head);
 	}
 
 	perf_evlist__splice_list_tail(evlist, &head);
@@ -1680,7 +1680,7 @@ void perf_evlist__to_front(struct evlist *evlist,
 
 	evlist__for_each_entry_safe(evlist, n, evsel) {
 		if (evsel->leader == move_evsel->leader)
-			list_move_tail(&evsel->node, &move);
+			list_move_tail(&evsel->core.node, &move);
 	}
 
 	list_splice(&move, &evlist->entries);

@@ -343,7 +343,7 @@ __add_event(struct list_head *list, int *idx,
 	if (config_terms)
 		list_splice(config_terms, &evsel->config_terms);
 
-	list_add_tail(&evsel->node, list);
+	list_add_tail(&evsel->core.node, list);
 	return evsel;
 }
 
@@ -526,7 +526,7 @@ static int add_tracepoint(struct list_head *list, int *idx,
 		list_splice(&config_terms, &evsel->config_terms);
 	}
 
-	list_add_tail(&evsel->node, list);
+	list_add_tail(&evsel->core.node, list);
 	return 0;
 }
 
@@ -660,15 +660,15 @@ static int add_bpf_event(const char *group, const char *event, int fd, struct bp
 
 		pr_debug("Failed to add BPF event %s:%s\n",
 			 group, event);
-		list_for_each_entry_safe(evsel, tmp, &new_evsels, node) {
-			list_del_init(&evsel->node);
+		list_for_each_entry_safe(evsel, tmp, &new_evsels, core.node) {
+			list_del_init(&evsel->core.node);
 			evsel__delete(evsel);
 		}
 		return err;
 	}
 	pr_debug("adding %s:%s\n", group, event);
 
-	list_for_each_entry(pos, &new_evsels, node) {
+	list_for_each_entry(pos, &new_evsels, core.node) {
 		pr_debug("adding %s:%s to %p\n",
 			 group, event, pos);
 		pos->bpf_fd = fd;
@@ -1458,8 +1458,8 @@ parse_events__set_leader_for_uncore_aliase(char *name, struct list_head *list,
 	bool is_leader = true;
 	int i, nr_pmu = 0, total_members, ret = 0;
 
-	leader = list_first_entry(list, struct evsel, node);
-	evsel = list_last_entry(list, struct evsel, node);
+	leader = list_first_entry(list, struct evsel, core.node);
+	evsel = list_last_entry(list, struct evsel, core.node);
 	total_members = evsel->idx - leader->idx + 1;
 
 	leaders = calloc(total_members, sizeof(uintptr_t));
@@ -1555,7 +1555,7 @@ void parse_events__set_leader(char *name, struct list_head *list,
 		return;
 
 	__perf_evlist__set_leader(list);
-	leader = list_entry(list->next, struct evsel, node);
+	leader = list_entry(list->next, struct evsel, core.node);
 	leader->group_name = name ? strdup(name) : NULL;
 }
 
@@ -2050,9 +2050,9 @@ foreach_evsel_in_last_glob(struct evlist *evlist,
 		if (!last)
 			return 0;
 
-		if (last->node.prev == &evlist->entries)
+		if (last->core.node.prev == &evlist->entries)
 			return 0;
-		last = list_entry(last->node.prev, struct evsel, node);
+		last = list_entry(last->core.node.prev, struct evsel, core.node);
 	} while (!last->cmdline_group_boundary);
 
 	return 0;
