@@ -140,7 +140,7 @@ void evlist__delete(struct evlist *evlist)
 		return;
 
 	perf_evlist__munmap(evlist);
-	perf_evlist__close(evlist);
+	evlist__close(evlist);
 	cpu_map__put(evlist->cpus);
 	thread_map__put(evlist->threads);
 	evlist->cpus = NULL;
@@ -1348,7 +1348,7 @@ void perf_evlist__set_selected(struct evlist *evlist,
 	evlist->selected = evsel;
 }
 
-void perf_evlist__close(struct evlist *evlist)
+void evlist__close(struct evlist *evlist)
 {
 	struct evsel *evsel;
 
@@ -1412,7 +1412,7 @@ int evlist__open(struct evlist *evlist)
 
 	return 0;
 out_err:
-	perf_evlist__close(evlist);
+	evlist__close(evlist);
 	errno = -err;
 	return err;
 }

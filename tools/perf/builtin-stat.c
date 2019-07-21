@@ -613,7 +613,7 @@ try_again:
 	 * later the evsel_list will be closed after.
 	 */
 	if (!STAT_RECORD)
-		perf_evlist__close(evsel_list);
+		evlist__close(evsel_list);
 
 	return WEXITSTATUS(status);
 }
@@ -2003,7 +2003,7 @@ int cmd_stat(int argc, const char **argv)
 			perf_session__write_header(perf_stat.session, evsel_list, fd, true);
 		}
 
-		perf_evlist__close(evsel_list);
+		evlist__close(evsel_list);
 		perf_session__delete(perf_stat.session);
 	}
 
