@@ -29,9 +29,6 @@ int cpu_map__build_die_map(struct perf_cpu_map *cpus, struct perf_cpu_map **diep
 int cpu_map__build_core_map(struct perf_cpu_map *cpus, struct perf_cpu_map **corep);
 const struct perf_cpu_map *cpu_map__online(void); /* thread unsafe */
 
-struct perf_cpu_map *cpu_map__get(struct perf_cpu_map *map);
-void cpu_map__put(struct perf_cpu_map *map);
-
 static inline int cpu_map__socket(struct perf_cpu_map *sock, int s)
 {
 	if (!sock || s > sock->nr || s < 0)

@@ -626,7 +626,7 @@ static bool pmu_is_uncore(const char *name)
 
 	snprintf(path, PATH_MAX, CPUS_TEMPLATE_UNCORE, sysfs, name);
 	cpus = __pmu_cpumask(path);
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 
 	return !!cpus;
 }

@@ -1403,7 +1403,7 @@ size_t perf_event__fprintf_cpu_map(union perf_event *event, FILE *fp)
 	else
 		ret += fprintf(fp, "failed to get cpumap from event\n");
 
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 	return ret;
 }
 

@@ -149,7 +149,7 @@ out_err:
 		evlist__disable(evlist);
 		evlist__delete(evlist);
 	} else {
-		cpu_map__put(cpus);
+		perf_cpu_map__put(cpus);
 		thread_map__put(threads);
 	}
 

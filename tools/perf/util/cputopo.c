@@ -219,7 +219,7 @@ struct cpu_topology *cpu_topology__new(void)
 	}
 
 out_free:
-	cpu_map__put(map);
+	perf_cpu_map__put(map);
 	if (ret) {
 		cpu_topology__delete(tp);
 		tp = NULL;
@@ -335,7 +335,7 @@ struct numa_topology *numa_topology__new(void)
 out:
 	free(buf);
 	fclose(fp);
-	cpu_map__put(node_map);
+	perf_cpu_map__put(node_map);
 	return tp;
 }
 

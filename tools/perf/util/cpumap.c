@@ -273,28 +273,6 @@ struct perf_cpu_map *cpu_map__empty_new(int nr)
 	return cpus;
 }
 
-static void cpu_map__delete(struct perf_cpu_map *map)
-{
-	if (map) {
-		WARN_ONCE(refcount_read(&map->refcnt) != 0,
-			  "cpu_map refcnt unbalanced\n");
-		free(map);
-	}
-}
-
-struct perf_cpu_map *cpu_map__get(struct perf_cpu_map *map)
-{
-	if (map)
-		refcount_inc(&map->refcnt);
-	return map;
-}
-
-void cpu_map__put(struct perf_cpu_map *map)
-{
-	if (map && refcount_dec_and_test(&map->refcnt))
-		cpu_map__delete(map);
-}
-
 static int cpu__get_topology_int(int cpu, const char *name, int *value)
 {
 	char path[PATH_MAX];

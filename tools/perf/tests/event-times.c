@@ -132,7 +132,7 @@ static int attach__cpu_disabled(struct evlist *evlist)
 		return err;
 	}
 
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 	return evsel__enable(evsel);
 }
 
@@ -154,7 +154,7 @@ static int attach__cpu_enabled(struct evlist *evlist)
 	if (err == -EACCES)
 		return TEST_SKIP;
 
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 	return err ? TEST_FAIL : TEST_OK;
 }
 

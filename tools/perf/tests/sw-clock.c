@@ -125,7 +125,7 @@ out_init:
 	}
 
 out_free_maps:
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 	thread_map__put(threads);
 out_delete_evlist:
 	evlist__delete(evlist);

@@ -206,7 +206,7 @@ static int reset_tracing_cpu(void)
 	int ret;
 
 	ret = set_tracing_cpumask(cpumap);
-	cpu_map__put(cpumap);
+	perf_cpu_map__put(cpumap);
 	return ret;
 }
 

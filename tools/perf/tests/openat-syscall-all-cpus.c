@@ -120,7 +120,7 @@ out_close_fd:
 out_evsel_delete:
 	evsel__delete(evsel);
 out_cpu_map_delete:
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 out_thread_map_delete:
 	thread_map__put(threads);
 	return err;

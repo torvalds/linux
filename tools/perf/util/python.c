@@ -557,7 +557,7 @@ static int pyrf_cpu_map__init(struct pyrf_cpu_map *pcpus,
 
 static void pyrf_cpu_map__delete(struct pyrf_cpu_map *pcpus)
 {
-	cpu_map__put(pcpus->cpus);
+	perf_cpu_map__put(pcpus->cpus);
 	Py_TYPE(pcpus)->tp_free((PyObject*)pcpus);
 }
 

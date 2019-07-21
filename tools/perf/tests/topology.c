@@ -133,7 +133,7 @@ int test__session_topology(struct test *test __maybe_unused, int subtest __maybe
 	}
 
 	ret = check_cpu_topology(path, map);
-	cpu_map__put(map);
+	perf_cpu_map__put(map);
 
 free_path:
 	unlink(path);

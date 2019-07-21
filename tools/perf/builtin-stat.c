@@ -933,8 +933,8 @@ static int perf_stat_init_aggr_mode(void)
 
 static void perf_stat__exit_aggr_mode(void)
 {
-	cpu_map__put(stat_config.aggr_map);
-	cpu_map__put(stat_config.cpus_aggr_map);
+	perf_cpu_map__put(stat_config.aggr_map);
+	perf_cpu_map__put(stat_config.cpus_aggr_map);
 	stat_config.aggr_map = NULL;
 	stat_config.cpus_aggr_map = NULL;
 }

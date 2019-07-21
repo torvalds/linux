@@ -67,7 +67,7 @@ static bool perf_probe_api(setup_probe_fn_t fn)
 	if (!cpus)
 		return false;
 	cpu = cpus->map[0];
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 
 	do {
 		ret = perf_do_probe_api(fn, cpu, try[i++]);
@@ -122,7 +122,7 @@ bool perf_can_record_cpu_wide(void)
 	if (!cpus)
 		return false;
 	cpu = cpus->map[0];
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 
 	fd = sys_perf_event_open(&attr, -1, cpu, -1, 0);
 	if (fd < 0)
@@ -278,7 +278,7 @@ bool perf_evlist__can_select_event(struct evlist *evlist, const char *str)
 		struct perf_cpu_map *cpus = cpu_map__new(NULL);
 
 		cpu =  cpus ? cpus->map[0] : 0;
-		cpu_map__put(cpus);
+		perf_cpu_map__put(cpus);
 	} else {
 		cpu = evlist->cpus->map[0];
 	}

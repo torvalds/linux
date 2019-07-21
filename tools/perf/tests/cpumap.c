@@ -39,7 +39,7 @@ static int process_event_mask(struct perf_tool *tool __maybe_unused,
 		TEST_ASSERT_VAL("wrong cpu", map->map[i] == i);
 	}
 
-	cpu_map__put(map);
+	perf_cpu_map__put(map);
 	return 0;
 }
 
@@ -68,7 +68,7 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 	TEST_ASSERT_VAL("wrong cpu", map->map[0] == 1);
 	TEST_ASSERT_VAL("wrong cpu", map->map[1] == 256);
 	TEST_ASSERT_VAL("wrong refcnt", refcount_read(&map->refcnt) == 1);
-	cpu_map__put(map);
+	perf_cpu_map__put(map);
 	return 0;
 }
 
@@ -83,7 +83,7 @@ int test__cpu_map_synthesize(struct test *test __maybe_unused, int subtest __may
 	TEST_ASSERT_VAL("failed to synthesize map",
 		!perf_event__synthesize_cpu_map(NULL, cpus, process_event_mask, NULL));
 
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 
 	/* This one is better stores in cpu values. */
 	cpus = cpu_map__new("1,256");
@@ -91,7 +91,7 @@ int test__cpu_map_synthesize(struct test *test __maybe_unused, int subtest __may
 	TEST_ASSERT_VAL("failed to synthesize map",
 		!perf_event__synthesize_cpu_map(NULL, cpus, process_event_cpus, NULL));
 
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 	return 0;
 }
 
