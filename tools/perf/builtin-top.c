@@ -1661,7 +1661,7 @@ int cmd_top(int argc, const char **argv)
 		perf_evlist__stop_sb_thread(sb_evlist);
 
 out_delete_evlist:
-	perf_evlist__delete(top.evlist);
+	evlist__delete(top.evlist);
 	perf_session__delete(top.session);
 
 	return status;

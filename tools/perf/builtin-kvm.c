@@ -1325,7 +1325,7 @@ static struct evlist *kvm_live_event_list(void)
 
 out:
 	if (err) {
-		perf_evlist__delete(evlist);
+		evlist__delete(evlist);
 		evlist = NULL;
 	}
 
@@ -1460,7 +1460,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 out:
 	perf_session__delete(kvm->session);
 	kvm->session = NULL;
-	perf_evlist__delete(kvm->evlist);
+	evlist__delete(kvm->evlist);
 
 	return err;
 }

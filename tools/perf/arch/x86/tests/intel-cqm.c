@@ -124,6 +124,6 @@ int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subt
 	kill(pid, SIGKILL);
 	wait(NULL);
 out:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return err;
 }

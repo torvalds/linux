@@ -1935,7 +1935,7 @@ int parse_events(struct evlist *evlist, const char *str,
 
 	/*
 	 * There are 2 users - builtin-record and builtin-test objects.
-	 * Both call perf_evlist__delete in case of error, so we dont
+	 * Both call evlist__delete in case of error, so we dont
 	 * need to bother.
 	 */
 	return ret;

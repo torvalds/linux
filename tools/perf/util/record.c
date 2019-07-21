@@ -53,7 +53,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 	err = 0;
 
 out_delete:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return err;
 }
 
@@ -299,7 +299,7 @@ bool perf_evlist__can_select_event(struct evlist *evlist, const char *str)
 	ret = true;
 
 out_delete:
-	perf_evlist__delete(temp_evlist);
+	evlist__delete(temp_evlist);
 	return ret;
 }
 

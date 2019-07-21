@@ -134,7 +134,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 out_ok:
 	err = 0;
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 out:
 	return err;
 }

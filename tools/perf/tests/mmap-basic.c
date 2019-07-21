@@ -151,7 +151,7 @@ out_init:
 	}
 
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	cpus	= NULL;
 	threads = NULL;
 out_free_cpus:

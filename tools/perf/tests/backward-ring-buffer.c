@@ -150,6 +150,6 @@ int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __m
 
 	ret = TEST_OK;
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return ret;
 }

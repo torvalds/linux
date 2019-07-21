@@ -3498,7 +3498,7 @@ out_disable:
 out_delete_evlist:
 	trace__symbols__exit(trace);
 
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	cgroup__put(trace->cgroup);
 	trace->evlist = NULL;
 	trace->live = false;

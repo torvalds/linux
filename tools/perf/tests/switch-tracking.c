@@ -567,7 +567,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 out:
 	if (evlist) {
 		perf_evlist__disable(evlist);
-		perf_evlist__delete(evlist);
+		evlist__delete(evlist);
 	} else {
 		cpu_map__put(cpus);
 		thread_map__put(threads);

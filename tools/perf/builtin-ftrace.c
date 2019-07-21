@@ -508,7 +508,7 @@ int cmd_ftrace(int argc, const char **argv)
 	ret = __cmd_ftrace(&ftrace, argc, argv);
 
 out_delete_evlist:
-	perf_evlist__delete(ftrace.evlist);
+	evlist__delete(ftrace.evlist);
 
 out_delete_filters:
 	delete_filter_func(&ftrace.filters);

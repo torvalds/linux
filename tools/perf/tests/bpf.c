@@ -200,7 +200,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	ret = TEST_OK;
 
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return ret;
 }
 

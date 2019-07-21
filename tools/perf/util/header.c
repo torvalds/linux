@@ -3591,7 +3591,7 @@ int perf_session__read_header(struct perf_session *session)
 		evsel->needs_swap = header->needs_swap;
 		/*
 		 * Do it before so that if perf_evsel__alloc_id fails, this
-		 * entry gets purged too at perf_evlist__delete().
+		 * entry gets purged too at evlist__delete().
 		 */
 		perf_evlist__add(session->evlist, evsel);
 
@@ -3628,7 +3628,7 @@ out_errno:
 	return -errno;
 
 out_delete_evlist:
-	perf_evlist__delete(session->evlist);
+	evlist__delete(session->evlist);
 	session->evlist = NULL;
 	return -ENOMEM;
 }

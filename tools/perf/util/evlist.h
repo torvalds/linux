@@ -71,7 +71,7 @@ struct evlist *perf_evlist__new_dummy(void);
 void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 		  struct perf_thread_map *threads);
 void perf_evlist__exit(struct evlist *evlist);
-void perf_evlist__delete(struct evlist *evlist);
+void evlist__delete(struct evlist *evlist);
 
 void perf_evlist__add(struct evlist *evlist, struct evsel *entry);
 void perf_evlist__remove(struct evlist *evlist, struct evsel *evsel);

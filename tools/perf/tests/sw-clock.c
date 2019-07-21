@@ -128,7 +128,7 @@ out_free_maps:
 	cpu_map__put(cpus);
 	thread_map__put(threads);
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return err;
 }
 

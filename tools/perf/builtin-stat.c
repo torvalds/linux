@@ -2015,7 +2015,7 @@ out:
 	if (smi_cost && smi_reset)
 		sysfs__write_int(FREEZE_ON_SMI_PATH, 0);
 
-	perf_evlist__delete(evsel_list);
+	evlist__delete(evsel_list);
 
 	runtime_stat_delete(&stat_config);
 

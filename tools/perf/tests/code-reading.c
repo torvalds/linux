@@ -658,7 +658,7 @@ static int do_test_code_reading(bool try_kcore)
 				cpu_map__get(cpus);
 				thread_map__get(threads);
 				perf_evlist__set_maps(evlist, NULL, NULL);
-				perf_evlist__delete(evlist);
+				evlist__delete(evlist);
 				evlist = NULL;
 				continue;
 			}
@@ -703,7 +703,7 @@ out_put:
 out_err:
 
 	if (evlist) {
-		perf_evlist__delete(evlist);
+		evlist__delete(evlist);
 	} else {
 		cpu_map__put(cpus);
 		thread_map__put(threads);

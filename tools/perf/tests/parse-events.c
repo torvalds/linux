@@ -1790,7 +1790,7 @@ static int test_event(struct evlist_test *e)
 		ret = e->check(evlist);
 	}
 
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 
 	return ret;
 }

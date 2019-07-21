@@ -325,7 +325,7 @@ found_exit:
 		++errs;
 	}
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 out:
 	return (err < 0 || errs > 0) ? -1 : 0;
 }

@@ -60,7 +60,7 @@ static int perf_evsel__roundtrip_cache_name_test(void)
 		}
 	}
 
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return ret;
 }
 
@@ -91,7 +91,7 @@ static int __perf_evsel__name_array_test(const char *names[], int nr_names)
 	}
 
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return err;
 }
 

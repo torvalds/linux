@@ -204,7 +204,7 @@ static int test_times(int (attach)(struct evlist *),
 		 count.ena, count.run);
 
 out_err:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return !err ? TEST_OK : TEST_FAIL;
 }
 

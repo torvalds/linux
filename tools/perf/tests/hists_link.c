@@ -334,7 +334,7 @@ int test__hists_link(struct test *test __maybe_unused, int subtest __maybe_unuse
 
 out:
 	/* tear down everything */
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	reset_output_field();
 	machines__exit(&machines);
 

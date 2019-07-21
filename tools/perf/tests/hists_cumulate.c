@@ -731,7 +731,7 @@ int test__hists_cumulate(struct test *test __maybe_unused, int subtest __maybe_u
 
 out:
 	/* tear down everything */
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	machines__exit(&machines);
 
 	return err;

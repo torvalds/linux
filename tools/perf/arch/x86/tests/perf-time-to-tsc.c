@@ -163,6 +163,6 @@ next_event:
 	err = 0;
 
 out_err:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	return err;
 }
