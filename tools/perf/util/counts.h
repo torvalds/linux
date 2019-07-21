@@ -3,17 +3,7 @@
 #define __PERF_COUNTS_H
 
 #include <internal/xyarray.h>
-
-struct perf_counts_values {
-	union {
-		struct {
-			u64 val;
-			u64 ena;
-			u64 run;
-		};
-		u64 values[3];
-	};
-};
+#include <perf/evsel.h>
 
 struct perf_counts {
 	s8			  scaled;

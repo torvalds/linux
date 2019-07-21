@@ -196,7 +196,7 @@ static int test_times(int (attach)(struct evlist *),
 
 	TEST_ASSERT_VAL("failed to detach", !detach(evlist));
 
-	perf_evsel__read(evsel, 0, 0, &count);
+	perf_evsel__read(&evsel->core, 0, 0, &count);
 
 	err = !(count.ena == count.run);
 
