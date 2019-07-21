@@ -14,7 +14,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/dwc3-omap.h>
 #include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
 #include <linux/ioport.h>
@@ -105,6 +104,12 @@
 #define USBOTGSS_UTMI_OTG_CTRL_SESSEND		BIT(3)
 #define USBOTGSS_UTMI_OTG_CTRL_SESSVALID	BIT(2)
 #define USBOTGSS_UTMI_OTG_CTRL_VBUSVALID	BIT(1)
+
+enum dwc3_omap_utmi_mode {
+	DWC3_OMAP_UTMI_MODE_UNKNOWN = 0,
+	DWC3_OMAP_UTMI_MODE_HW,
+	DWC3_OMAP_UTMI_MODE_SW,
+};
 
 struct dwc3_omap {
 	struct device		*dev;
