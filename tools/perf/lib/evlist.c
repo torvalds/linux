@@ -4,6 +4,7 @@
 #include <internal/evlist.h>
 #include <internal/evsel.h>
 #include <linux/zalloc.h>
+#include <stdlib.h>
 
 void perf_evlist__init(struct perf_evlist *evlist)
 {
@@ -53,4 +54,9 @@ perf_evlist__next(struct perf_evlist *evlist, struct perf_evsel *prev)
 		return NULL;
 
 	return next;
+}
+
+void perf_evlist__delete(struct perf_evlist *evlist)
+{
+	free(evlist);
 }
