@@ -36,7 +36,7 @@ static int attach__enable_on_exec(struct evlist *evlist)
 		return err;
 	}
 
-	evsel->attr.enable_on_exec = 1;
+	evsel->core.attr.enable_on_exec = 1;
 
 	err = evlist__open(evlist);
 	if (err < 0) {
@@ -68,7 +68,7 @@ static int attach__current_disabled(struct evlist *evlist)
 		return -1;
 	}
 
-	evsel->attr.disabled = 1;
+	evsel->core.attr.disabled = 1;
 
 	err = perf_evsel__open_per_thread(evsel, threads);
 	if (err) {
@@ -121,7 +121,7 @@ static int attach__cpu_disabled(struct evlist *evlist)
 		return -1;
 	}
 
-	evsel->attr.disabled = 1;
+	evsel->core.attr.disabled = 1;
 
 	err = perf_evsel__open_per_cpu(evsel, cpus);
 	if (err) {
@@ -179,7 +179,7 @@ static int test_times(int (attach)(struct evlist *),
 	}
 
 	evsel = perf_evlist__last(evlist);
-	evsel->attr.read_format |=
+	evsel->core.attr.read_format |=
 		PERF_FORMAT_TOTAL_TIME_ENABLED |
 		PERF_FORMAT_TOTAL_TIME_RUNNING;
 

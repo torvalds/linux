@@ -530,8 +530,8 @@ found:
 
 	sample_sw.period = sample->period;
 	sample_sw.time	 = sample->time;
-	perf_event__synthesize_sample(event_sw, evsel->attr.sample_type,
-				      evsel->attr.read_format, &sample_sw);
+	perf_event__synthesize_sample(event_sw, evsel->core.attr.sample_type,
+				      evsel->core.attr.read_format, &sample_sw);
 	build_id__mark_dso_hit(tool, event_sw, &sample_sw, evsel, machine);
 	return perf_event__repipe(tool, event_sw, &sample_sw, machine);
 }
@@ -544,7 +544,7 @@ static void sig_handler(int sig __maybe_unused)
 static int perf_evsel__check_stype(struct evsel *evsel,
 				   u64 sample_type, const char *sample_msg)
 {
-	struct perf_event_attr *attr = &evsel->attr;
+	struct perf_event_attr *attr = &evsel->core.attr;
 	const char *name = perf_evsel__name(evsel);
 
 	if (!(attr->sample_type & sample_type)) {
@@ -578,8 +578,8 @@ static void strip_init(struct perf_inject *inject)
 
 static bool has_tracking(struct evsel *evsel)
 {
-	return evsel->attr.mmap || evsel->attr.mmap2 || evsel->attr.comm ||
-	       evsel->attr.task;
+	return evsel->core.attr.mmap || evsel->core.attr.mmap2 || evsel->core.attr.comm ||
+	       evsel->core.attr.task;
 }
 
 #define COMPAT_MASK (PERF_SAMPLE_ID | PERF_SAMPLE_TID | PERF_SAMPLE_TIME | \
@@ -603,8 +603,8 @@ static bool ok_to_remove(struct evlist *evlist,
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->handler != drop_sample) {
 			cnt += 1;
-			if ((evsel->attr.sample_type & COMPAT_MASK) ==
-			    (evsel_to_remove->attr.sample_type & COMPAT_MASK))
+			if ((evsel->core.attr.sample_type & COMPAT_MASK) ==
+			    (evsel_to_remove->core.attr.sample_type & COMPAT_MASK))
 				ok = true;
 		}
 	}

@@ -113,13 +113,13 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 	btsr->snapshot_mode = opts->auxtrace_snapshot_mode;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->attr.type == intel_bts_pmu->type) {
+		if (evsel->core.attr.type == intel_bts_pmu->type) {
 			if (intel_bts_evsel) {
 				pr_err("There may be only one " INTEL_BTS_PMU_NAME " event\n");
 				return -EINVAL;
 			}
-			evsel->attr.freq = 0;
-			evsel->attr.sample_period = 1;
+			evsel->core.attr.freq = 0;
+			evsel->core.attr.sample_period = 1;
 			intel_bts_evsel = evsel;
 			opts->full_auxtrace = true;
 		}
@@ -231,8 +231,8 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 
 		perf_evlist__set_tracking_event(evlist, tracking_evsel);
 
-		tracking_evsel->attr.freq = 0;
-		tracking_evsel->attr.sample_period = 1;
+		tracking_evsel->core.attr.freq = 0;
+		tracking_evsel->core.attr.sample_period = 1;
 	}
 
 	return 0;
@@ -316,7 +316,7 @@ static int intel_bts_snapshot_start(struct auxtrace_record *itr)
 	struct evsel *evsel;
 
 	evlist__for_each_entry(btsr->evlist, evsel) {
-		if (evsel->attr.type == btsr->intel_bts_pmu->type)
+		if (evsel->core.attr.type == btsr->intel_bts_pmu->type)
 			return evsel__disable(evsel);
 	}
 	return -EINVAL;
@@ -329,7 +329,7 @@ static int intel_bts_snapshot_finish(struct auxtrace_record *itr)
 	struct evsel *evsel;
 
 	evlist__for_each_entry(btsr->evlist, evsel) {
-		if (evsel->attr.type == btsr->intel_bts_pmu->type)
+		if (evsel->core.attr.type == btsr->intel_bts_pmu->type)
 			return evsel__enable(evsel);
 	}
 	return -EINVAL;
@@ -411,7 +411,7 @@ static int intel_bts_read_finish(struct auxtrace_record *itr, int idx)
 	struct evsel *evsel;
 
 	evlist__for_each_entry(btsr->evlist, evsel) {
-		if (evsel->attr.type == btsr->intel_bts_pmu->type)
+		if (evsel->core.attr.type == btsr->intel_bts_pmu->type)
 			return perf_evlist__enable_event_idx(btsr->evlist,
 							     evsel, idx);
 	}

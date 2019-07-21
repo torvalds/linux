@@ -210,7 +210,7 @@ void perf_evlist__s390_sample_raw(struct evlist *evlist, union perf_event *event
 
 	ev_bc000 = perf_evlist__event2evsel(evlist, event);
 	if (ev_bc000 == NULL ||
-	    ev_bc000->attr.config != PERF_EVENT_CPUM_CF_DIAG)
+	    ev_bc000->core.attr.config != PERF_EVENT_CPUM_CF_DIAG)
 		return;
 
 	/* Display raw data on screen */

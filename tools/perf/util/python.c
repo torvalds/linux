@@ -337,7 +337,7 @@ static PyObject *pyrf_sample_event__repr(struct pyrf_event *pevent)
 
 static bool is_tracepoint(struct pyrf_event *pevent)
 {
-	return pevent->evsel->attr.type == PERF_TYPE_TRACEPOINT;
+	return pevent->evsel->core.attr.type == PERF_TYPE_TRACEPOINT;
 }
 
 static PyObject*
@@ -389,7 +389,7 @@ get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 	if (!evsel->tp_format) {
 		struct tep_event *tp_format;
 
-		tp_format = trace_event__tp_format_id(evsel->attr.config);
+		tp_format = trace_event__tp_format_id(evsel->core.attr.config);
 		if (!tp_format)
 			return NULL;
 
@@ -812,7 +812,7 @@ static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 	if (pcpus != NULL)
 		cpus = ((struct pyrf_cpu_map *)pcpus)->cpus;
 
-	evsel->attr.inherit = inherit;
+	evsel->core.attr.inherit = inherit;
 	/*
 	 * This will group just the fds for this single evsel, to group
 	 * multiple events, use evlist.open().

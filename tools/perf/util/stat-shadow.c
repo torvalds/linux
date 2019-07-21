@@ -150,15 +150,15 @@ static int evsel_context(struct evsel *evsel)
 {
 	int ctx = 0;
 
-	if (evsel->attr.exclude_kernel)
+	if (evsel->core.attr.exclude_kernel)
 		ctx |= CTX_BIT_KERNEL;
-	if (evsel->attr.exclude_user)
+	if (evsel->core.attr.exclude_user)
 		ctx |= CTX_BIT_USER;
-	if (evsel->attr.exclude_hv)
+	if (evsel->core.attr.exclude_hv)
 		ctx |= CTX_BIT_HV;
-	if (evsel->attr.exclude_host)
+	if (evsel->core.attr.exclude_host)
 		ctx |= CTX_BIT_HOST;
-	if (evsel->attr.exclude_idle)
+	if (evsel->core.attr.exclude_idle)
 		ctx |= CTX_BIT_IDLE;
 
 	return ctx;
@@ -829,8 +829,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all branches", 0);
 	} else if (
-		evsel->attr.type == PERF_TYPE_HW_CACHE &&
-		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_L1D |
+		evsel->core.attr.type == PERF_TYPE_HW_CACHE &&
+		evsel->core.attr.config ==  ( PERF_COUNT_HW_CACHE_L1D |
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
@@ -839,8 +839,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all L1-dcache hits", 0);
 	} else if (
-		evsel->attr.type == PERF_TYPE_HW_CACHE &&
-		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_L1I |
+		evsel->core.attr.type == PERF_TYPE_HW_CACHE &&
+		evsel->core.attr.config ==  ( PERF_COUNT_HW_CACHE_L1I |
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
@@ -849,8 +849,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all L1-icache hits", 0);
 	} else if (
-		evsel->attr.type == PERF_TYPE_HW_CACHE &&
-		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_DTLB |
+		evsel->core.attr.type == PERF_TYPE_HW_CACHE &&
+		evsel->core.attr.config ==  ( PERF_COUNT_HW_CACHE_DTLB |
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
@@ -859,8 +859,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all dTLB cache hits", 0);
 	} else if (
-		evsel->attr.type == PERF_TYPE_HW_CACHE &&
-		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_ITLB |
+		evsel->core.attr.type == PERF_TYPE_HW_CACHE &&
+		evsel->core.attr.config ==  ( PERF_COUNT_HW_CACHE_ITLB |
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
@@ -869,8 +869,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		else
 			print_metric(config, ctxp, NULL, NULL, "of all iTLB cache hits", 0);
 	} else if (
-		evsel->attr.type == PERF_TYPE_HW_CACHE &&
-		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_LL |
+		evsel->core.attr.type == PERF_TYPE_HW_CACHE &&
+		evsel->core.attr.config ==  ( PERF_COUNT_HW_CACHE_LL |
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 

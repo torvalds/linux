@@ -60,22 +60,22 @@ int perf_evsel__fprintf(struct evsel *evsel,
 	printed += fprintf(fp, "%s", perf_evsel__name(evsel));
 
 	if (details->verbose) {
-		printed += perf_event_attr__fprintf(fp, &evsel->attr,
+		printed += perf_event_attr__fprintf(fp, &evsel->core.attr,
 						    __print_attr__fprintf, &first);
 	} else if (details->freq) {
 		const char *term = "sample_freq";
 
-		if (!evsel->attr.freq)
+		if (!evsel->core.attr.freq)
 			term = "sample_period";
 
 		printed += comma_fprintf(fp, &first, " %s=%" PRIu64,
-					 term, (u64)evsel->attr.sample_freq);
+					 term, (u64)evsel->core.attr.sample_freq);
 	}
 
 	if (details->trace_fields) {
 		struct tep_format_field *field;
 
-		if (evsel->attr.type != PERF_TYPE_TRACEPOINT) {
+		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT) {
 			printed += comma_fprintf(fp, &first, " (not a tracepoint)");
 			goto out;
 		}

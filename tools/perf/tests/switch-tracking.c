@@ -420,8 +420,8 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 
 	perf_evlist__set_tracking_event(evlist, tracking_evsel);
 
-	tracking_evsel->attr.freq = 0;
-	tracking_evsel->attr.sample_period = 1;
+	tracking_evsel->core.attr.freq = 0;
+	tracking_evsel->core.attr.sample_period = 1;
 
 	perf_evsel__set_sample_bit(tracking_evsel, TIME);
 
@@ -435,7 +435,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	}
 
 	/* Check tracking event is tracking */
-	if (!tracking_evsel->attr.mmap || !tracking_evsel->attr.comm) {
+	if (!tracking_evsel->core.attr.mmap || !tracking_evsel->core.attr.comm) {
 		pr_debug("Tracking event not tracking\n");
 		goto out_err;
 	}
@@ -443,7 +443,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	/* Check non-tracking events are not tracking */
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel != tracking_evsel) {
-			if (evsel->attr.mmap || evsel->attr.comm) {
+			if (evsel->core.attr.mmap || evsel->core.attr.comm) {
 				pr_debug("Non-tracking event is tracking\n");
 				goto out_err;
 			}

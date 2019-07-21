@@ -2638,7 +2638,7 @@ int __hists__scnprintf_title(struct hists *hists, char *bf, size_t size, bool sh
 		enable_ref = true;
 
 	if (show_freq)
-		scnprintf(sample_freq_str, sizeof(sample_freq_str), " %d Hz,", evsel->attr.sample_freq);
+		scnprintf(sample_freq_str, sizeof(sample_freq_str), " %d Hz,", evsel->core.attr.sample_freq);
 
 	nr_samples = convert_unit(nr_samples, &unit);
 	printed = scnprintf(bf, size,

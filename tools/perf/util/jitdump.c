@@ -124,7 +124,7 @@ jit_validate_events(struct perf_session *session)
 	 * check that all events use CLOCK_MONOTONIC
 	 */
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (evsel->attr.use_clockid == 0 || evsel->attr.clockid != CLOCK_MONOTONIC)
+		if (evsel->core.attr.use_clockid == 0 || evsel->core.attr.clockid != CLOCK_MONOTONIC)
 			return -1;
 	}
 	return 0;
@@ -779,7 +779,7 @@ jit_process(struct perf_session *session,
 	 * perf sets the same sample type to all events as of now
 	 */
 	first = perf_evlist__first(session->evlist);
-	jd.sample_type = first->attr.sample_type;
+	jd.sample_type = first->core.attr.sample_type;
 
 	*nbytes = 0;
 

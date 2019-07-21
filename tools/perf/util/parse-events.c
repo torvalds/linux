@@ -1590,16 +1590,16 @@ struct event_modifier {
 static int get_event_modifier(struct event_modifier *mod, char *str,
 			       struct evsel *evsel)
 {
-	int eu = evsel ? evsel->attr.exclude_user : 0;
-	int ek = evsel ? evsel->attr.exclude_kernel : 0;
-	int eh = evsel ? evsel->attr.exclude_hv : 0;
-	int eH = evsel ? evsel->attr.exclude_host : 0;
-	int eG = evsel ? evsel->attr.exclude_guest : 0;
-	int eI = evsel ? evsel->attr.exclude_idle : 0;
-	int precise = evsel ? evsel->attr.precise_ip : 0;
+	int eu = evsel ? evsel->core.attr.exclude_user : 0;
+	int ek = evsel ? evsel->core.attr.exclude_kernel : 0;
+	int eh = evsel ? evsel->core.attr.exclude_hv : 0;
+	int eH = evsel ? evsel->core.attr.exclude_host : 0;
+	int eG = evsel ? evsel->core.attr.exclude_guest : 0;
+	int eI = evsel ? evsel->core.attr.exclude_idle : 0;
+	int precise = evsel ? evsel->core.attr.precise_ip : 0;
 	int precise_max = 0;
 	int sample_read = 0;
-	int pinned = evsel ? evsel->attr.pinned : 0;
+	int pinned = evsel ? evsel->core.attr.pinned : 0;
 
 	int exclude = eu | ek | eh;
 	int exclude_GH = evsel ? evsel->exclude_GH : 0;
@@ -1717,20 +1717,20 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 		if (add && get_event_modifier(&mod, str, evsel))
 			return -EINVAL;
 
-		evsel->attr.exclude_user   = mod.eu;
-		evsel->attr.exclude_kernel = mod.ek;
-		evsel->attr.exclude_hv     = mod.eh;
-		evsel->attr.precise_ip     = mod.precise;
-		evsel->attr.exclude_host   = mod.eH;
-		evsel->attr.exclude_guest  = mod.eG;
-		evsel->attr.exclude_idle   = mod.eI;
+		evsel->core.attr.exclude_user   = mod.eu;
+		evsel->core.attr.exclude_kernel = mod.ek;
+		evsel->core.attr.exclude_hv     = mod.eh;
+		evsel->core.attr.precise_ip     = mod.precise;
+		evsel->core.attr.exclude_host   = mod.eH;
+		evsel->core.attr.exclude_guest  = mod.eG;
+		evsel->core.attr.exclude_idle   = mod.eI;
 		evsel->exclude_GH          = mod.exclude_GH;
 		evsel->sample_read         = mod.sample_read;
 		evsel->precise_max         = mod.precise_max;
 		evsel->weak_group	   = mod.weak;
 
 		if (perf_evsel__is_group_leader(evsel))
-			evsel->attr.pinned = mod.pinned;
+			evsel->core.attr.pinned = mod.pinned;
 	}
 
 	return 0;
@@ -2071,7 +2071,7 @@ static int set_filter(struct evsel *evsel, const void *arg)
 		return -1;
 	}
 
-	if (evsel->attr.type == PERF_TYPE_TRACEPOINT) {
+	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
 		if (perf_evsel__append_tp_filter(evsel, str) < 0) {
 			fprintf(stderr,
 				"not enough memory to hold filter string\n");
@@ -2082,7 +2082,7 @@ static int set_filter(struct evsel *evsel, const void *arg)
 	}
 
 	while ((pmu = perf_pmu__scan(pmu)) != NULL)
-		if (pmu->type == evsel->attr.type) {
+		if (pmu->type == evsel->core.attr.type) {
 			found = true;
 			break;
 		}
@@ -2120,7 +2120,7 @@ static int add_exclude_perf_filter(struct evsel *evsel,
 {
 	char new_filter[64];
 
-	if (evsel == NULL || evsel->attr.type != PERF_TYPE_TRACEPOINT) {
+	if (evsel == NULL || evsel->core.attr.type != PERF_TYPE_TRACEPOINT) {
 		fprintf(stderr,
 			"--exclude-perf option should follow a -e tracepoint option\n");
 		return -1;
@@ -2331,7 +2331,7 @@ static bool is_event_supported(u8 type, unsigned config)
 			 * by default as some ARM machines do not support it.
 			 *
 			 */
-			evsel->attr.exclude_kernel = 1;
+			evsel->core.attr.exclude_kernel = 1;
 			ret = evsel__open(evsel, NULL, tmap) >= 0;
 		}
 		evsel__delete(evsel);

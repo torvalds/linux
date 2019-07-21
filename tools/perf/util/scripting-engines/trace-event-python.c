@@ -636,7 +636,7 @@ static void set_sample_read_in_dict(PyObject *dict_sample,
 					 struct perf_sample *sample,
 					 struct evsel *evsel)
 {
-	u64 read_format = evsel->attr.read_format;
+	u64 read_format = evsel->core.attr.read_format;
 	PyObject *values;
 	unsigned int i;
 
@@ -707,7 +707,7 @@ static void set_regs_in_dict(PyObject *dict,
 			     struct perf_sample *sample,
 			     struct evsel *evsel)
 {
-	struct perf_event_attr *attr = &evsel->attr;
+	struct perf_event_attr *attr = &evsel->core.attr;
 	char bf[512];
 
 	regs_map(&sample->intr_regs, attr->sample_regs_intr, bf, sizeof(bf));
@@ -737,7 +737,7 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 		Py_FatalError("couldn't create Python dictionary");
 
 	pydict_set_item_string_decref(dict, "ev_name", _PyUnicode_FromString(perf_evsel__name(evsel)));
-	pydict_set_item_string_decref(dict, "attr", _PyBytes_FromStringAndSize((const char *)&evsel->attr, sizeof(evsel->attr)));
+	pydict_set_item_string_decref(dict, "attr", _PyBytes_FromStringAndSize((const char *)&evsel->core.attr, sizeof(evsel->core.attr)));
 
 	pydict_set_item_string_decref(dict_sample, "pid",
 			_PyLong_FromLong(sample->pid));
@@ -809,7 +809,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 
 	if (!event) {
 		snprintf(handler_name, sizeof(handler_name),
-			 "ug! no event found for type %" PRIu64, (u64)evsel->attr.config);
+			 "ug! no event found for type %" PRIu64, (u64)evsel->core.attr.config);
 		Py_FatalError(handler_name);
 	}
 
@@ -1163,7 +1163,7 @@ static void python_export_synth(struct db_export *dbe, struct export_sample *es)
 	t = tuple_new(3);
 
 	tuple_set_u64(t, 0, es->db_id);
-	tuple_set_u64(t, 1, es->evsel->attr.config);
+	tuple_set_u64(t, 1, es->evsel->core.attr.config);
 	tuple_set_bytes(t, 2, es->sample->raw_data, es->sample->raw_size);
 
 	call_object(tables->synth_handler, t, "synth_data");
@@ -1178,7 +1178,7 @@ static int python_export_sample(struct db_export *dbe,
 
 	python_export_sample_table(dbe, es);
 
-	if (es->evsel->attr.type == PERF_TYPE_SYNTH && tables->synth_handler)
+	if (es->evsel->core.attr.type == PERF_TYPE_SYNTH && tables->synth_handler)
 		python_export_synth(dbe, es);
 
 	return 0;
@@ -1316,7 +1316,7 @@ static void python_process_event(union perf_event *event,
 {
 	struct tables *tables = &tables_global;
 
-	switch (evsel->attr.type) {
+	switch (evsel->core.attr.type) {
 	case PERF_TYPE_TRACEPOINT:
 		python_process_tracepoint(sample, evsel, al);
 		break;

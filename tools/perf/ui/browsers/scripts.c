@@ -100,7 +100,7 @@ static int list_scripts(char *script_name, bool *custom,
 		return -1;
 
 	if (evsel)
-		attr_to_script(scriptc.extra_format, &evsel->attr);
+		attr_to_script(scriptc.extra_format, &evsel->core.attr);
 	add_script_option("Show individual samples", "", &scriptc);
 	add_script_option("Show individual samples with assembler", "-F +insn --xed",
 			  &scriptc);

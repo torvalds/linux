@@ -103,7 +103,6 @@ struct bpf_object;
 struct evsel {
 	struct perf_evsel	core;
 	struct evlist	*evlist;
-	struct perf_event_attr	attr;
 	char			*filter;
 	struct xyarray		*fd;
 	struct xyarray		*sample_id;
@@ -327,21 +326,21 @@ u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sam
 struct tep_format_field *perf_evsel__field(struct evsel *evsel, const char *name);
 
 #define perf_evsel__match(evsel, t, c)		\
-	(evsel->attr.type == PERF_TYPE_##t &&	\
-	 evsel->attr.config == PERF_COUNT_##c)
+	(evsel->core.attr.type == PERF_TYPE_##t &&	\
+	 evsel->core.attr.config == PERF_COUNT_##c)
 
 static inline bool perf_evsel__match2(struct evsel *e1,
 				      struct evsel *e2)
 {
-	return (e1->attr.type == e2->attr.type) &&
-	       (e1->attr.config == e2->attr.config);
+	return (e1->core.attr.type == e2->core.attr.type) &&
+	       (e1->core.attr.config == e2->core.attr.config);
 }
 
 #define perf_evsel__cmp(a, b)			\
 	((a) &&					\
 	 (b) &&					\
-	 (a)->attr.type == (b)->attr.type &&	\
-	 (a)->attr.config == (b)->attr.config)
+	 (a)->core.attr.type == (b)->core.attr.type &&	\
+	 (a)->core.attr.config == (b)->core.attr.config)
 
 int perf_evsel__read(struct evsel *evsel, int cpu, int thread,
 		     struct perf_counts_values *count);
@@ -490,12 +489,12 @@ for ((_evsel) = _leader; 							\
 
 static inline bool perf_evsel__has_branch_callstack(const struct evsel *evsel)
 {
-	return evsel->attr.branch_sample_type & PERF_SAMPLE_BRANCH_CALL_STACK;
+	return evsel->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_CALL_STACK;
 }
 
 static inline bool evsel__has_callchain(const struct evsel *evsel)
 {
-	return (evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) != 0;
+	return (evsel->core.attr.sample_type & PERF_SAMPLE_CALLCHAIN) != 0;
 }
 
 typedef int (*attr__fprintf_f)(FILE *, const char *, const char *, void *);

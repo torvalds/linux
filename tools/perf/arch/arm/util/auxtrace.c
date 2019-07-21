@@ -70,14 +70,14 @@ struct auxtrace_record
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (cs_etm_pmu &&
-		    evsel->attr.type == cs_etm_pmu->type)
+		    evsel->core.attr.type == cs_etm_pmu->type)
 			found_etm = true;
 
 		if (!nr_spes)
 			continue;
 
 		for (i = 0; i < nr_spes; i++) {
-			if (evsel->attr.type == arm_spe_pmus[i]->type) {
+			if (evsel->core.attr.type == arm_spe_pmus[i]->type) {
 				found_spe = true;
 				break;
 			}

@@ -366,7 +366,7 @@ static void abs_printout(struct perf_stat_config *config,
 static bool is_mixed_hw_group(struct evsel *counter)
 {
 	struct evlist *evlist = counter->evlist;
-	u32 pmu_type = counter->attr.type;
+	u32 pmu_type = counter->core.attr.type;
 	struct evsel *pos;
 
 	if (counter->nr_members < 2)
@@ -374,13 +374,13 @@ static bool is_mixed_hw_group(struct evsel *counter)
 
 	evlist__for_each_entry(evlist, pos) {
 		/* software events can be part of any hardware group */
-		if (pos->attr.type == PERF_TYPE_SOFTWARE)
+		if (pos->core.attr.type == PERF_TYPE_SOFTWARE)
 			continue;
 		if (pmu_type == PERF_TYPE_SOFTWARE) {
-			pmu_type = pos->attr.type;
+			pmu_type = pos->core.attr.type;
 			continue;
 		}
-		if (pmu_type != pos->attr.type)
+		if (pmu_type != pos->core.attr.type)
 			return true;
 	}
 

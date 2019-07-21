@@ -966,7 +966,7 @@ static int perf_top_overwrite_fallback(struct perf_top *top,
 		return 0;
 
 	evlist__for_each_entry(evlist, counter)
-		counter->attr.write_backward = false;
+		counter->core.attr.write_backward = false;
 	opts->overwrite = false;
 	pr_debug2("fall back to non-overwrite mode\n");
 	return 1;

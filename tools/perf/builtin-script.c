@@ -345,7 +345,7 @@ static int perf_evsel__do_check_stype(struct evsel *evsel,
 				      enum perf_output_field field,
 				      bool allow_user_set)
 {
-	struct perf_event_attr *attr = &evsel->attr;
+	struct perf_event_attr *attr = &evsel->core.attr;
 	int type = output_type(attr->type);
 	const char *evname;
 
@@ -383,7 +383,7 @@ static int perf_evsel__check_stype(struct evsel *evsel,
 static int perf_evsel__check_attr(struct evsel *evsel,
 				  struct perf_session *session)
 {
-	struct perf_event_attr *attr = &evsel->attr;
+	struct perf_event_attr *attr = &evsel->core.attr;
 	bool allow_user_set;
 
 	if (perf_header__has_feat(&session->header, HEADER_STAT))
@@ -418,7 +418,7 @@ static int perf_evsel__check_attr(struct evsel *evsel,
 		return -EINVAL;
 
 	if (PRINT_FIELD(SYM) &&
-		!(evsel->attr.sample_type & (PERF_SAMPLE_IP|PERF_SAMPLE_ADDR))) {
+		!(evsel->core.attr.sample_type & (PERF_SAMPLE_IP|PERF_SAMPLE_ADDR))) {
 		pr_err("Display of symbols requested but neither sample IP nor "
 			   "sample address\navailable. Hence, no addresses to convert "
 		       "to symbols.\n");
@@ -430,7 +430,7 @@ static int perf_evsel__check_attr(struct evsel *evsel,
 		return -EINVAL;
 	}
 	if (PRINT_FIELD(DSO) &&
-		!(evsel->attr.sample_type & (PERF_SAMPLE_IP|PERF_SAMPLE_ADDR))) {
+		!(evsel->core.attr.sample_type & (PERF_SAMPLE_IP|PERF_SAMPLE_ADDR))) {
 		pr_err("Display of DSO requested but no address to convert.\n");
 		return -EINVAL;
 	}
@@ -531,7 +531,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		if (evsel == NULL)
 			continue;
 
-		set_print_ip_opts(&evsel->attr);
+		set_print_ip_opts(&evsel->core.attr);
 	}
 
 	if (!no_callchain) {
@@ -558,7 +558,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		j = PERF_TYPE_TRACEPOINT;
 
 		evlist__for_each_entry(session->evlist, evsel) {
-			if (evsel->attr.type != j)
+			if (evsel->core.attr.type != j)
 				continue;
 
 			if (evsel__has_callchain(evsel)) {
@@ -566,7 +566,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 				output[j].fields |= PERF_OUTPUT_SYM;
 				output[j].fields |= PERF_OUTPUT_SYMOFFSET;
 				output[j].fields |= PERF_OUTPUT_DSO;
-				set_print_ip_opts(&evsel->attr);
+				set_print_ip_opts(&evsel->core.attr);
 				goto out;
 			}
 		}
@@ -617,7 +617,7 @@ static int perf_sample__fprintf_start(struct perf_sample *sample,
 				      struct evsel *evsel,
 				      u32 type, FILE *fp)
 {
-	struct perf_event_attr *attr = &evsel->attr;
+	struct perf_event_attr *attr = &evsel->core.attr;
 	unsigned long secs;
 	unsigned long long nsecs;
 	int printed = 0;
@@ -1168,7 +1168,7 @@ static const char *resolve_branch_sym(struct perf_sample *sample,
 				      u64 *ip)
 {
 	struct addr_location addr_al;
-	struct perf_event_attr *attr = &evsel->attr;
+	struct perf_event_attr *attr = &evsel->core.attr;
 	const char *name = NULL;
 
 	if (sample->flags & (PERF_IP_FLAG_CALL | PERF_IP_FLAG_TRACE_BEGIN)) {
@@ -1195,7 +1195,7 @@ static int perf_sample__fprintf_callindent(struct perf_sample *sample,
 					   struct thread *thread,
 					   struct addr_location *al, FILE *fp)
 {
-	struct perf_event_attr *attr = &evsel->attr;
+	struct perf_event_attr *attr = &evsel->core.attr;
 	size_t depth = thread_stack__depth(thread, sample->cpu);
 	const char *name = NULL;
 	static int spacing;
@@ -1290,7 +1290,7 @@ static int perf_sample__fprintf_bts(struct perf_sample *sample,
 				    struct addr_location *al,
 				    struct machine *machine, FILE *fp)
 {
-	struct perf_event_attr *attr = &evsel->attr;
+	struct perf_event_attr *attr = &evsel->core.attr;
 	unsigned int type = output_type(attr->type);
 	bool print_srcline_last = false;
 	int printed = 0;
@@ -1322,7 +1322,7 @@ static int perf_sample__fprintf_bts(struct perf_sample *sample,
 
 	/* print branch_to information */
 	if (PRINT_FIELD(ADDR) ||
-	    ((evsel->attr.sample_type & PERF_SAMPLE_ADDR) &&
+	    ((evsel->core.attr.sample_type & PERF_SAMPLE_ADDR) &&
 	     !output[type].user_set)) {
 		printed += fprintf(fp, " => ");
 		printed += perf_sample__fprintf_addr(sample, thread, attr, fp);
@@ -1595,7 +1595,7 @@ static int perf_sample__fprintf_synth_cbr(struct perf_sample *sample, FILE *fp)
 static int perf_sample__fprintf_synth(struct perf_sample *sample,
 				      struct evsel *evsel, FILE *fp)
 {
-	switch (evsel->attr.config) {
+	switch (evsel->core.attr.config) {
 	case PERF_SYNTH_INTEL_PTWRITE:
 		return perf_sample__fprintf_synth_ptwrite(sample, fp);
 	case PERF_SYNTH_INTEL_MWAIT:
@@ -1793,7 +1793,7 @@ static void process_event(struct perf_script *script,
 			  struct machine *machine)
 {
 	struct thread *thread = al->thread;
-	struct perf_event_attr *attr = &evsel->attr;
+	struct perf_event_attr *attr = &evsel->core.attr;
 	unsigned int type = output_type(attr->type);
 	struct evsel_script *es = evsel->priv;
 	FILE *fp = es->fp;
@@ -2046,18 +2046,18 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 		}
 	}
 
-	if (evsel->attr.type >= PERF_TYPE_MAX &&
-	    evsel->attr.type != PERF_TYPE_SYNTH)
+	if (evsel->core.attr.type >= PERF_TYPE_MAX &&
+	    evsel->core.attr.type != PERF_TYPE_SYNTH)
 		return 0;
 
 	evlist__for_each_entry(evlist, pos) {
-		if (pos->attr.type == evsel->attr.type && pos != evsel)
+		if (pos->core.attr.type == evsel->core.attr.type && pos != evsel)
 			return 0;
 	}
 
-	set_print_ip_opts(&evsel->attr);
+	set_print_ip_opts(&evsel->core.attr);
 
-	if (evsel->attr.sample_type)
+	if (evsel->core.attr.sample_type)
 		err = perf_evsel__check_attr(evsel, scr->session);
 
 	return err;
@@ -2083,7 +2083,7 @@ static int process_comm_event(struct perf_tool *tool,
 	if (perf_event__process_comm(tool, event, sample, machine) < 0)
 		goto out;
 
-	if (!evsel->attr.sample_id_all) {
+	if (!evsel->core.attr.sample_id_all) {
 		sample->cpu = 0;
 		sample->time = 0;
 		sample->tid = event->comm.tid;
@@ -2121,7 +2121,7 @@ static int process_namespaces_event(struct perf_tool *tool,
 	if (perf_event__process_namespaces(tool, event, sample, machine) < 0)
 		goto out;
 
-	if (!evsel->attr.sample_id_all) {
+	if (!evsel->core.attr.sample_id_all) {
 		sample->cpu = 0;
 		sample->time = 0;
 		sample->tid = event->namespaces.tid;
@@ -2157,7 +2157,7 @@ static int process_fork_event(struct perf_tool *tool,
 		return -1;
 	}
 
-	if (!evsel->attr.sample_id_all) {
+	if (!evsel->core.attr.sample_id_all) {
 		sample->cpu = 0;
 		sample->time = event->fork.time;
 		sample->tid = event->fork.tid;
@@ -2189,7 +2189,7 @@ static int process_exit_event(struct perf_tool *tool,
 		return -1;
 	}
 
-	if (!evsel->attr.sample_id_all) {
+	if (!evsel->core.attr.sample_id_all) {
 		sample->cpu = 0;
 		sample->time = 0;
 		sample->tid = event->fork.tid;
@@ -2227,7 +2227,7 @@ static int process_mmap_event(struct perf_tool *tool,
 		return -1;
 	}
 
-	if (!evsel->attr.sample_id_all) {
+	if (!evsel->core.attr.sample_id_all) {
 		sample->cpu = 0;
 		sample->time = 0;
 		sample->tid = event->mmap.tid;
@@ -2261,7 +2261,7 @@ static int process_mmap2_event(struct perf_tool *tool,
 		return -1;
 	}
 
-	if (!evsel->attr.sample_id_all) {
+	if (!evsel->core.attr.sample_id_all) {
 		sample->cpu = 0;
 		sample->time = 0;
 		sample->tid = event->mmap2.tid;
@@ -2360,7 +2360,7 @@ process_bpf_events(struct perf_tool *tool __maybe_unused,
 	if (machine__process_ksymbol(machine, event, sample) < 0)
 		return -1;
 
-	if (!evsel->attr.sample_id_all) {
+	if (!evsel->core.attr.sample_id_all) {
 		perf_event__fprintf(event, stdout);
 		return 0;
 	}

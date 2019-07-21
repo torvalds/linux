@@ -154,7 +154,7 @@ static bool perf_session__has_comm_exec(struct perf_session *session)
 	struct evsel *evsel;
 
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (evsel->attr.comm_exec)
+		if (evsel->core.attr.comm_exec)
 			return true;
 	}
 
@@ -1210,7 +1210,7 @@ static void dump_sample(struct evsel *evsel, union perf_event *event,
 	       event->header.misc, sample->pid, sample->tid, sample->ip,
 	       sample->period, sample->addr);
 
-	sample_type = evsel->attr.sample_type;
+	sample_type = evsel->core.attr.sample_type;
 
 	if (evsel__has_callchain(evsel))
 		callchain__printf(evsel, sample);
@@ -1240,7 +1240,7 @@ static void dump_sample(struct evsel *evsel, union perf_event *event,
 		printf("... transaction: %" PRIx64 "\n", sample->transaction);
 
 	if (sample_type & PERF_SAMPLE_READ)
-		sample_read__printf(sample, evsel->attr.read_format);
+		sample_read__printf(sample, evsel->core.attr.read_format);
 }
 
 static void dump_read(struct evsel *evsel, union perf_event *event)
@@ -1258,7 +1258,7 @@ static void dump_read(struct evsel *evsel, union perf_event *event)
 	if (!evsel)
 		return;
 
-	read_format = evsel->attr.read_format;
+	read_format = evsel->core.attr.read_format;
 
 	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
 		printf("... time enabled : %" PRIu64 "\n", read_event->time_enabled);
@@ -1355,8 +1355,8 @@ static int
 			     struct machine *machine)
 {
 	/* We know evsel != NULL. */
-	u64 sample_type = evsel->attr.sample_type;
-	u64 read_format = evsel->attr.read_format;
+	u64 sample_type = evsel->core.attr.sample_type;
+	u64 read_format = evsel->core.attr.read_format;
 
 	/* Standard sample delivery. */
 	if (!(sample_type & PERF_SAMPLE_READ))
@@ -1709,7 +1709,7 @@ perf_session__warn_order(const struct perf_session *session)
 	bool should_warn = true;
 
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (evsel->attr.write_backward)
+		if (evsel->core.attr.write_backward)
 			should_warn = false;
 	}
 
@@ -2186,7 +2186,7 @@ bool perf_session__has_traces(struct perf_session *session, const char *msg)
 	struct evsel *evsel;
 
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (evsel->attr.type == PERF_TYPE_TRACEPOINT)
+		if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT)
 			return true;
 	}
 
@@ -2263,7 +2263,7 @@ struct evsel *perf_session__find_first_evtype(struct perf_session *session,
 	struct evsel *pos;
 
 	evlist__for_each_entry(session->evlist, pos) {
-		if (pos->attr.type == type)
+		if (pos->core.attr.type == type)
 			return pos;
 	}
 	return NULL;
@@ -2282,7 +2282,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 		if (!evsel)
 			continue;
 
-		if (!(evsel->attr.sample_type & PERF_SAMPLE_CPU)) {
+		if (!(evsel->core.attr.sample_type & PERF_SAMPLE_CPU)) {
 			pr_err("File does not contain CPU events. "
 			       "Remove -C option to proceed.\n");
 			return -1;

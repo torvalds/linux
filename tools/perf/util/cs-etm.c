@@ -1230,7 +1230,7 @@ static int cs_etm__synth_events(struct cs_etm_auxtrace *etm,
 	int err;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->attr.type == etm->pmu_type) {
+		if (evsel->core.attr.type == etm->pmu_type) {
 			found = true;
 			break;
 		}
@@ -1244,7 +1244,7 @@ static int cs_etm__synth_events(struct cs_etm_auxtrace *etm,
 	memset(&attr, 0, sizeof(struct perf_event_attr));
 	attr.size = sizeof(struct perf_event_attr);
 	attr.type = PERF_TYPE_HARDWARE;
-	attr.sample_type = evsel->attr.sample_type & PERF_SAMPLE_MASK;
+	attr.sample_type = evsel->core.attr.sample_type & PERF_SAMPLE_MASK;
 	attr.sample_type |= PERF_SAMPLE_IP | PERF_SAMPLE_TID |
 			    PERF_SAMPLE_PERIOD;
 	if (etm->timeless_decoding)
@@ -1252,13 +1252,13 @@ static int cs_etm__synth_events(struct cs_etm_auxtrace *etm,
 	else
 		attr.sample_type |= PERF_SAMPLE_TIME;
 
-	attr.exclude_user = evsel->attr.exclude_user;
-	attr.exclude_kernel = evsel->attr.exclude_kernel;
-	attr.exclude_hv = evsel->attr.exclude_hv;
-	attr.exclude_host = evsel->attr.exclude_host;
-	attr.exclude_guest = evsel->attr.exclude_guest;
-	attr.sample_id_all = evsel->attr.sample_id_all;
-	attr.read_format = evsel->attr.read_format;
+	attr.exclude_user = evsel->core.attr.exclude_user;
+	attr.exclude_kernel = evsel->core.attr.exclude_kernel;
+	attr.exclude_hv = evsel->core.attr.exclude_hv;
+	attr.exclude_host = evsel->core.attr.exclude_host;
+	attr.exclude_guest = evsel->core.attr.exclude_guest;
+	attr.sample_id_all = evsel->core.attr.sample_id_all;
+	attr.read_format = evsel->core.attr.read_format;
 
 	/* create new id val to be a fixed offset from evsel id */
 	id = evsel->id[0] + 1000000000;
@@ -2303,7 +2303,7 @@ static bool cs_etm__is_timeless_decoding(struct cs_etm_auxtrace *etm)
 	 * with the time bit set.
 	 */
 	evlist__for_each_entry(evlist, evsel) {
-		if ((evsel->attr.sample_type & PERF_SAMPLE_TIME))
+		if ((evsel->core.attr.sample_type & PERF_SAMPLE_TIME))
 			timeless_decoding = false;
 	}
 

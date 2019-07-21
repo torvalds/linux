@@ -29,7 +29,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 	evsel = perf_evlist__first(evlist);
 
 	while (1) {
-		fd = sys_perf_event_open(&evsel->attr, pid, cpu, -1, flags);
+		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, -1, flags);
 		if (fd < 0) {
 			if (pid == -1 && errno == EACCES) {
 				pid = 0;
@@ -43,7 +43,7 @@ static int perf_do_probe_api(setup_probe_fn_t fn, int cpu, const char *str)
 
 	fn(evsel);
 
-	fd = sys_perf_event_open(&evsel->attr, pid, cpu, -1, flags);
+	fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, -1, flags);
 	if (fd < 0) {
 		if (errno == EINVAL)
 			err = -EINVAL;
@@ -80,17 +80,17 @@ static bool perf_probe_api(setup_probe_fn_t fn)
 
 static void perf_probe_sample_identifier(struct evsel *evsel)
 {
-	evsel->attr.sample_type |= PERF_SAMPLE_IDENTIFIER;
+	evsel->core.attr.sample_type |= PERF_SAMPLE_IDENTIFIER;
 }
 
 static void perf_probe_comm_exec(struct evsel *evsel)
 {
-	evsel->attr.comm_exec = 1;
+	evsel->core.attr.comm_exec = 1;
 }
 
 static void perf_probe_context_switch(struct evsel *evsel)
 {
-	evsel->attr.context_switch = 1;
+	evsel->core.attr.context_switch = 1;
 }
 
 bool perf_can_sample_identifier(void)
@@ -155,7 +155,7 @@ void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 	evlist__for_each_entry(evlist, evsel) {
 		perf_evsel__config(evsel, opts, callchain);
 		if (evsel->tracking && use_comm_exec)
-			evsel->attr.comm_exec = 1;
+			evsel->core.attr.comm_exec = 1;
 	}
 
 	if (opts->full_auxtrace) {
@@ -170,7 +170,7 @@ void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 		struct evsel *first = perf_evlist__first(evlist);
 
 		evlist__for_each_entry(evlist, evsel) {
-			if (evsel->attr.sample_type == first->attr.sample_type)
+			if (evsel->core.attr.sample_type == first->core.attr.sample_type)
 				continue;
 			use_sample_identifier = perf_can_sample_identifier();
 			break;
@@ -284,7 +284,7 @@ bool perf_evlist__can_select_event(struct evlist *evlist, const char *str)
 	}
 
 	while (1) {
-		fd = sys_perf_event_open(&evsel->attr, pid, cpu, -1,
+		fd = sys_perf_event_open(&evsel->core.attr, pid, cpu, -1,
 					 perf_event_open_cloexec_flag());
 		if (fd < 0) {
 			if (pid == -1 && errno == EACCES) {

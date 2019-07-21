@@ -726,7 +726,7 @@ sort__trace_cmp(struct hist_entry *left, struct hist_entry *right)
 	struct evsel *evsel;
 
 	evsel = hists_to_evsel(left->hists);
-	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
+	if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)
 		return 0;
 
 	if (left->trace_output == NULL)
@@ -743,7 +743,7 @@ static int hist_entry__trace_snprintf(struct hist_entry *he, char *bf,
 	struct evsel *evsel;
 
 	evsel = hists_to_evsel(he->hists);
-	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
+	if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)
 		return scnprintf(bf, size, "%-.*s", width, "N/A");
 
 	if (he->trace_output == NULL)
@@ -2391,7 +2391,7 @@ static int add_all_dynamic_fields(struct evlist *evlist, bool raw_trace,
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
+		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
 
 		ret = add_evsel_fields(evsel, raw_trace, level);
@@ -2409,7 +2409,7 @@ static int add_all_matching_fields(struct evlist *evlist,
 	struct tep_format_field *field;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
+		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
 
 		field = tep_find_any_field(evsel->tp_format, field_name);
@@ -2470,7 +2470,7 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 		goto out;
 	}
 
-	if (evsel->attr.type != PERF_TYPE_TRACEPOINT) {
+	if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT) {
 		pr_debug("%s is not a tracepoint event\n", event_name);
 		ret = -EINVAL;
 		goto out;
@@ -2728,7 +2728,7 @@ static const char *get_default_sort_order(struct evlist *evlist)
 		goto out_no_evlist;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->attr.type != PERF_TYPE_TRACEPOINT) {
+		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT) {
 			use_trace = false;
 			break;
 		}

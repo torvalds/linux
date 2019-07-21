@@ -732,7 +732,7 @@ static int record__open(struct record *rec)
 		pos->tracking = 0;
 		pos = perf_evlist__last(evlist);
 		pos->tracking = 1;
-		pos->attr.enable_on_exec = 1;
+		pos->core.attr.enable_on_exec = 1;
 	}
 
 	perf_evlist__config(evlist, opts, &callchain_param);

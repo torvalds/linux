@@ -79,7 +79,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 			goto out_delete_evlist;
 		}
 
-		evsels[i]->attr.wakeup_events = 1;
+		evsels[i]->core.attr.wakeup_events = 1;
 		perf_evsel__set_sample_id(evsels[i], false);
 
 		evlist__add(evlist, evsels[i]);

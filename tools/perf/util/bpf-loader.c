@@ -1421,7 +1421,7 @@ apply_config_evsel_for_key(const char *name, int map_fd, void *pkey,
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_EVTDIM;
 	}
 
-	attr = &evsel->attr;
+	attr = &evsel->core.attr;
 	if (attr->inherit) {
 		pr_debug("ERROR: Can't put inherit event into map %s\n", name);
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_EVTINH;

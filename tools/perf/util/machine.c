@@ -2498,8 +2498,8 @@ static int thread__resolve_callchain_unwind(struct thread *thread,
 					    int max_stack)
 {
 	/* Can we do dwarf post unwind? */
-	if (!((evsel->attr.sample_type & PERF_SAMPLE_REGS_USER) &&
-	      (evsel->attr.sample_type & PERF_SAMPLE_STACK_USER)))
+	if (!((evsel->core.attr.sample_type & PERF_SAMPLE_REGS_USER) &&
+	      (evsel->core.attr.sample_type & PERF_SAMPLE_STACK_USER)))
 		return 0;
 
 	/* Bail out if nothing was captured. */

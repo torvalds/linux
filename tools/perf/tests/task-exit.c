@@ -84,16 +84,16 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 	}
 
 	evsel = perf_evlist__first(evlist);
-	evsel->attr.task = 1;
+	evsel->core.attr.task = 1;
 #ifdef __s390x__
-	evsel->attr.sample_freq = 1000000;
+	evsel->core.attr.sample_freq = 1000000;
 #else
-	evsel->attr.sample_freq = 1;
+	evsel->core.attr.sample_freq = 1;
 #endif
-	evsel->attr.inherit = 0;
-	evsel->attr.watermark = 0;
-	evsel->attr.wakeup_events = 1;
-	evsel->attr.exclude_kernel = 1;
+	evsel->core.attr.inherit = 0;
+	evsel->core.attr.watermark = 0;
+	evsel->core.attr.wakeup_events = 1;
+	evsel->core.attr.exclude_kernel = 1;
 
 	err = evlist__open(evlist);
 	if (err < 0) {

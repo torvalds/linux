@@ -587,7 +587,7 @@ static int add_generic_values(struct ctf_writer *cw,
 			      struct evsel *evsel,
 			      struct perf_sample *sample)
 {
-	u64 type = evsel->attr.sample_type;
+	u64 type = evsel->core.attr.sample_type;
 	int ret;
 
 	/*
@@ -757,7 +757,7 @@ static int get_sample_cpu(struct ctf_writer *cw, struct perf_sample *sample,
 {
 	int cpu = 0;
 
-	if (evsel->attr.sample_type & PERF_SAMPLE_CPU)
+	if (evsel->core.attr.sample_type & PERF_SAMPLE_CPU)
 		cpu = sample->cpu;
 
 	if (cpu > cw->stream_cnt) {
@@ -795,7 +795,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct bt_ctf_event_class *event_class;
 	struct bt_ctf_event *event;
 	int ret;
-	unsigned long type = evsel->attr.sample_type;
+	unsigned long type = evsel->core.attr.sample_type;
 
 	if (WARN_ONCE(!priv, "Failed to setup all events.\n"))
 		return 0;
@@ -820,7 +820,7 @@ static int process_sample_event(struct perf_tool *tool,
 	if (ret)
 		return -1;
 
-	if (evsel->attr.type == PERF_TYPE_TRACEPOINT) {
+	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
 		ret = add_tracepoint_values(cw, event_class, event,
 					    evsel, sample);
 		if (ret)
@@ -1087,7 +1087,7 @@ static int add_bpf_output_types(struct ctf_writer *cw,
 static int add_generic_types(struct ctf_writer *cw, struct evsel *evsel,
 			     struct bt_ctf_event_class *event_class)
 {
-	u64 type = evsel->attr.sample_type;
+	u64 type = evsel->core.attr.sample_type;
 
 	/*
 	 * missing:
@@ -1157,7 +1157,7 @@ static int add_event(struct ctf_writer *cw, struct evsel *evsel)
 	const char *name = perf_evsel__name(evsel);
 	int ret;
 
-	pr("Adding event '%s' (type %d)\n", name, evsel->attr.type);
+	pr("Adding event '%s' (type %d)\n", name, evsel->core.attr.type);
 
 	event_class = bt_ctf_event_class_create(name);
 	if (!event_class)
@@ -1167,7 +1167,7 @@ static int add_event(struct ctf_writer *cw, struct evsel *evsel)
 	if (ret)
 		goto err;
 
-	if (evsel->attr.type == PERF_TYPE_TRACEPOINT) {
+	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
 		ret = add_tracepoint_types(cw, evsel, event_class);
 		if (ret)
 			goto err;

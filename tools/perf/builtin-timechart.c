@@ -557,7 +557,7 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct timechart *tchart = container_of(tool, struct timechart, tool);
 
-	if (evsel->attr.sample_type & PERF_SAMPLE_TIME) {
+	if (evsel->core.attr.sample_type & PERF_SAMPLE_TIME) {
 		if (!tchart->first_time || tchart->first_time > sample->time)
 			tchart->first_time = sample->time;
 		if (tchart->last_time < sample->time)
