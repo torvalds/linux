@@ -2,10 +2,13 @@
 #ifndef __LIBPERF_INTERNAL_EVLIST_H
 #define __LIBPERF_INTERNAL_EVLIST_H
 
+struct perf_cpu_map;
+
 struct perf_evlist {
-	struct list_head	entries;
-	int			nr_entries;
-	bool			has_user_cpus;
+	struct list_head	 entries;
+	int			 nr_entries;
+	bool			 has_user_cpus;
+	struct perf_cpu_map	*cpus;
 };
 
 #endif /* __LIBPERF_INTERNAL_EVLIST_H */

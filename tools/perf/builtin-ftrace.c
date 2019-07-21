@@ -192,7 +192,7 @@ static int set_tracing_cpumask(struct perf_cpu_map *cpumap)
 
 static int set_tracing_cpu(struct perf_ftrace *ftrace)
 {
-	struct perf_cpu_map *cpumap = ftrace->evlist->cpus;
+	struct perf_cpu_map *cpumap = ftrace->evlist->core.cpus;
 
 	if (!target__has_cpu(&ftrace->target))
 		return 0;

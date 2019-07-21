@@ -155,7 +155,7 @@ static int cs_etm_set_option(struct auxtrace_record *itr,
 			     struct evsel *evsel, u32 option)
 {
 	int i, err = -EINVAL;
-	struct perf_cpu_map *event_cpus = evsel->evlist->cpus;
+	struct perf_cpu_map *event_cpus = evsel->evlist->core.cpus;
 	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
 
 	/* Set option of each CPU we have */
@@ -253,7 +253,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 				container_of(itr, struct cs_etm_recording, itr);
 	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
 	struct evsel *evsel, *cs_etm_evsel = NULL;
-	struct perf_cpu_map *cpus = evlist->cpus;
+	struct perf_cpu_map *cpus = evlist->core.cpus;
 	bool privileged = (geteuid() == 0 || perf_event_paranoid() < 0);
 	int err = 0;
 
@@ -489,7 +489,7 @@ cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 {
 	int i;
 	int etmv3 = 0, etmv4 = 0;
-	struct perf_cpu_map *event_cpus = evlist->cpus;
+	struct perf_cpu_map *event_cpus = evlist->core.cpus;
 	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
 
 	/* cpu map is not empty, we have specific CPUs to work with */
@@ -636,7 +636,7 @@ static int cs_etm_info_fill(struct auxtrace_record *itr,
 	u32 offset;
 	u64 nr_cpu, type;
 	struct perf_cpu_map *cpu_map;
-	struct perf_cpu_map *event_cpus = session->evlist->cpus;
+	struct perf_cpu_map *event_cpus = session->evlist->core.cpus;
 	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
 	struct cs_etm_recording *ptr =
 			container_of(itr, struct cs_etm_recording, itr);

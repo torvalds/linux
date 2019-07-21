@@ -44,7 +44,6 @@ struct evlist {
 	struct perf_mmap *mmap;
 	struct perf_mmap *overwrite_mmap;
 	struct perf_thread_map *threads;
-	struct perf_cpu_map *cpus;
 	struct evsel *selected;
 	struct events_stats stats;
 	struct perf_env	*env;
