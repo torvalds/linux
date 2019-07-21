@@ -462,7 +462,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out_err;
 	}
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 
 	err = evsel__disable(cpu_clocks_evsel);
 	if (err) {

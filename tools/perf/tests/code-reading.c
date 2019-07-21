@@ -680,7 +680,7 @@ static int do_test_code_reading(bool try_kcore)
 		goto out_put;
 	}
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 
 	do_something();
 

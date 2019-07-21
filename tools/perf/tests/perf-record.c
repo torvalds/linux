@@ -153,7 +153,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	 * Now that all is properly set up, enable the events, they will
 	 * count just on workload.pid, which will start...
 	 */
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 
 	/*
 	 * Now!

@@ -1453,7 +1453,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 * so don't spoil it by prematurely enabling them.
 	 */
 	if (!target__none(&opts->target) && !opts->initial_delay)
-		perf_evlist__enable(rec->evlist);
+		evlist__enable(rec->evlist);
 
 	/*
 	 * Let the child rip
@@ -1506,7 +1506,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	if (opts->initial_delay) {
 		usleep(opts->initial_delay * USEC_PER_MSEC);
-		perf_evlist__enable(rec->evlist);
+		evlist__enable(rec->evlist);
 	}
 
 	trigger_ready(&auxtrace_snapshot_trigger);

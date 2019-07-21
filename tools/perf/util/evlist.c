@@ -356,7 +356,7 @@ void perf_evlist__disable(struct evlist *evlist)
 	evlist->enabled = false;
 }
 
-void perf_evlist__enable(struct evlist *evlist)
+void evlist__enable(struct evlist *evlist)
 {
 	struct evsel *pos;
 
@@ -371,7 +371,7 @@ void perf_evlist__enable(struct evlist *evlist)
 
 void perf_evlist__toggle_enable(struct evlist *evlist)
 {
-	(evlist->enabled ? perf_evlist__disable : perf_evlist__enable)(evlist);
+	(evlist->enabled ? perf_evlist__disable : evlist__enable)(evlist);
 }
 
 static int perf_evlist__enable_event_cpu(struct evlist *evlist,

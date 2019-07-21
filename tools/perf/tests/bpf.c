@@ -171,7 +171,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 	(*func)();
 	perf_evlist__disable(evlist);
 

@@ -3402,14 +3402,14 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out_error_mmap;
 
 	if (!target__none(&trace->opts.target) && !trace->opts.initial_delay)
-		perf_evlist__enable(evlist);
+		evlist__enable(evlist);
 
 	if (forks)
 		perf_evlist__start_workload(evlist);
 
 	if (trace->opts.initial_delay) {
 		usleep(trace->opts.initial_delay * 1000);
-		perf_evlist__enable(evlist);
+		evlist__enable(evlist);
 	}
 
 	trace->multiple_threads = thread_map__pid(evlist->threads, 0) == -1 ||

@@ -68,7 +68,7 @@ static int do_test(struct evlist *evlist, int mmap_pages,
 		return TEST_FAIL;
 	}
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 	testcase();
 	perf_evlist__disable(evlist);
 

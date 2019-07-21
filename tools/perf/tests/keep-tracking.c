@@ -107,7 +107,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 	 * enabled.
 	 */
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 
 	comm = "Test COMM 1";
 	CHECK__(prctl(PR_SET_NAME, (unsigned long)comm, 0, 0, 0));
@@ -125,7 +125,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 	 * disabled with the dummy event still enabled.
 	 */
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 
 	evsel = perf_evlist__last(evlist);
 

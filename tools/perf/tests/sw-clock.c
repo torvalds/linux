@@ -86,7 +86,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 
 	/* collect samples */
 	for (i = 0; i < NR_LOOPS; i++)

@@ -97,7 +97,7 @@ int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest __maybe
 		goto out_err;
 	}
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 
 	comm1 = "Test COMM 1";
 	CHECK__(prctl(PR_SET_NAME, (unsigned long)comm1, 0, 0, 0));

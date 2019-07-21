@@ -362,7 +362,7 @@ static void enable_counters(void)
 	 * - we have initial delay configured
 	 */
 	if (!target__none(&target) || stat_config.initial_delay)
-		perf_evlist__enable(evsel_list);
+		evlist__enable(evsel_list);
 }
 
 static void disable_counters(void)

@@ -972,7 +972,7 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 		goto out;
 
 	/* everything is good - enable the events and process */
-	perf_evlist__enable(kvm->evlist);
+	evlist__enable(kvm->evlist);
 
 	while (!done) {
 		struct fdarray *fda = &kvm->evlist->pollfd;

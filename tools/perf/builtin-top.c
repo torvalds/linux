@@ -1255,7 +1255,7 @@ static int __cmd_top(struct perf_top *top)
 	 * so leave the check here.
 	 */
         if (!target__none(&opts->target))
-                perf_evlist__enable(top->evlist);
+		evlist__enable(top->evlist);
 
 	ret = -1;
 	if (pthread_create(&thread_process, NULL, process_thread, top)) {
