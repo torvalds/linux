@@ -5,15 +5,10 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <linux/refcount.h>
+#include <internal/cpumap.h>
 
 #include "perf.h"
 #include "util/debug.h"
-
-struct perf_cpu_map {
-	refcount_t refcnt;
-	int nr;
-	int map[];
-};
 
 struct perf_cpu_map *cpu_map__new(const char *cpu_list);
 struct perf_cpu_map *cpu_map__empty_new(int nr);
