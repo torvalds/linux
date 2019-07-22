@@ -3144,6 +3144,9 @@ try_onemore:
 #ifdef CONFIG_FS_ENCRYPTION
 	sb->s_cop = &f2fs_cryptops;
 #endif
+#ifdef CONFIG_FS_VERITY
+	sb->s_vop = &f2fs_verityops;
+#endif
 	sb->s_xattr = f2fs_xattr_handlers;
 	sb->s_export_op = &f2fs_export_ops;
 	sb->s_magic = F2FS_SUPER_MAGIC;
