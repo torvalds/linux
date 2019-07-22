@@ -814,25 +814,20 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	}
 
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		if (codec_dai->driver->ops->prepare) {
-			ret = codec_dai->driver->ops->prepare(substream,
-							      codec_dai);
-			if (ret < 0) {
-				dev_err(codec_dai->dev,
-					"ASoC: codec DAI prepare error: %d\n",
-					ret);
-				goto out;
-			}
+		ret = snd_soc_dai_prepare(codec_dai, substream);
+		if (ret < 0) {
+			dev_err(codec_dai->dev,
+				"ASoC: codec DAI prepare error: %d\n",
+				ret);
+			goto out;
 		}
 	}
 
-	if (cpu_dai->driver->ops->prepare) {
-		ret = cpu_dai->driver->ops->prepare(substream, cpu_dai);
-		if (ret < 0) {
-			dev_err(cpu_dai->dev,
-				"ASoC: cpu DAI prepare error: %d\n", ret);
-			goto out;
-		}
+	ret = snd_soc_dai_prepare(cpu_dai, substream);
+	if (ret < 0) {
+		dev_err(cpu_dai->dev,
+			"ASoC: cpu DAI prepare error: %d\n", ret);
+		goto out;
 	}
 
 	/* cancel any delayed stream shutdown that is pending */

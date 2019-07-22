@@ -307,3 +307,14 @@ void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
 	if (dai->driver->ops->shutdown)
 		dai->driver->ops->shutdown(substream, dai);
 }
+
+int snd_soc_dai_prepare(struct snd_soc_dai *dai,
+			struct snd_pcm_substream *substream)
+{
+	int ret = 0;
+
+	if (dai->driver->ops->prepare)
+		ret = dai->driver->ops->prepare(substream, dai);
+
+	return ret;
+}
