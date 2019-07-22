@@ -351,7 +351,7 @@ u8 r8712_set_802_11_add_wep(struct _adapter *padapter,
 		wep->KeyLength);
 	psecuritypriv->DefKeylen[keyid] = wep->KeyLength;
 	psecuritypriv->PrivacyKeyIndex = keyid;
-	if (r8712_set_key(padapter, psecuritypriv, keyid) == _FAIL)
+	if (r8712_set_key(padapter, psecuritypriv, keyid))
 		return false;
 	return _SUCCESS;
 }

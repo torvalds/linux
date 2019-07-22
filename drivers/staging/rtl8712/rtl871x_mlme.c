@@ -1171,22 +1171,22 @@ int r8712_set_auth(struct _adapter *adapter,
 	return 0;
 }
 
-sint r8712_set_key(struct _adapter *adapter,
-		   struct security_priv *psecuritypriv,
-	     sint keyid)
+int r8712_set_key(struct _adapter *adapter,
+		  struct security_priv *psecuritypriv,
+		  sint keyid)
 {
 	struct cmd_priv *pcmdpriv = &adapter->cmdpriv;
 	struct cmd_obj *pcmd;
 	struct setkey_parm *psetkeyparm;
 	u8 keylen;
-	sint ret = _SUCCESS;
+	int ret;
 
 	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
 	if (!pcmd)
-		return _FAIL;
+		return -ENOMEM;
 	psetkeyparm = kzalloc(sizeof(*psetkeyparm), GFP_ATOMIC);
 	if (!psetkeyparm) {
-		ret = _FAIL;
+		ret = -ENOMEM;
 		goto err_free_cmd;
 	}
 	if (psecuritypriv->AuthAlgrthm == 2) { /* 802.1X */
@@ -1211,7 +1211,7 @@ sint r8712_set_key(struct _adapter *adapter,
 		break;
 	case _TKIP_:
 		if (keyid < 1 || keyid > 2) {
-			ret = _FAIL;
+			ret = -EINVAL;
 			goto err_free_parm;
 		}
 		keylen = 16;
@@ -1221,7 +1221,7 @@ sint r8712_set_key(struct _adapter *adapter,
 		break;
 	case _AES_:
 		if (keyid < 1 || keyid > 2) {
-			ret = _FAIL;
+			ret = -EINVAL;
 			goto err_free_parm;
 		}
 		keylen = 16;
@@ -1230,7 +1230,7 @@ sint r8712_set_key(struct _adapter *adapter,
 		psetkeyparm->grpkey = 1;
 		break;
 	default:
-		ret = _FAIL;
+		ret = -EINVAL;
 		goto err_free_parm;
 	}
 	pcmd->cmdcode = _SetKey_CMD_;
@@ -1240,7 +1240,7 @@ sint r8712_set_key(struct _adapter *adapter,
 	pcmd->rspsz = 0;
 	INIT_LIST_HEAD(&pcmd->list);
 	r8712_enqueue_cmd(pcmdpriv, pcmd);
-	return ret;
+	return 0;
 
 err_free_parm:
 	kfree(psetkeyparm);
