@@ -832,7 +832,7 @@ static int clk_alpha_pll_postdiv_set_rate(struct clk_hw *hw, unsigned long rate,
 	int div;
 
 	/* 16 -> 0xf, 8 -> 0x7, 4 -> 0x3, 2 -> 0x1, 1 -> 0x0 */
-	div = DIV_ROUND_UP_ULL((u64)parent_rate, rate) - 1;
+	div = DIV_ROUND_UP_ULL(parent_rate, rate) - 1;
 
 	return regmap_update_bits(pll->clkr.regmap, PLL_USER_CTL(pll),
 				  PLL_POST_DIV_MASK(pll) << PLL_POST_DIV_SHIFT,
@@ -1094,7 +1094,7 @@ static int clk_alpha_pll_postdiv_fabia_set_rate(struct clk_hw *hw,
 		return -EINVAL;
 	}
 
-	div = DIV_ROUND_UP_ULL((u64)parent_rate, rate);
+	div = DIV_ROUND_UP_ULL(parent_rate, rate);
 	for (i = 0; i < pll->num_post_div; i++) {
 		if (pll->post_div_table[i].div == div) {
 			val = pll->post_div_table[i].val;
