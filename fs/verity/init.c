@@ -41,7 +41,15 @@ static int __init fsverity_init(void)
 	if (err)
 		return err;
 
+	err = fsverity_init_workqueue();
+	if (err)
+		goto err_exit_info_cache;
+
 	pr_debug("Initialized fs-verity\n");
 	return 0;
+
+err_exit_info_cache:
+	fsverity_exit_info_cache();
+	return err;
 }
 late_initcall(fsverity_init)

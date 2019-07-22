@@ -134,5 +134,10 @@ void fsverity_set_info(struct inode *inode, struct fsverity_info *vi);
 void fsverity_free_info(struct fsverity_info *vi);
 
 int __init fsverity_init_info_cache(void);
+void __init fsverity_exit_info_cache(void);
+
+/* verify.c */
+
+int __init fsverity_init_workqueue(void);
 
 #endif /* _FSVERITY_PRIVATE_H */
