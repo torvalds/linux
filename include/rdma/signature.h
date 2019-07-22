@@ -6,6 +6,8 @@
 #ifndef _RDMA_SIGNATURE_H_
 #define _RDMA_SIGNATURE_H_
 
+#include <linux/types.h>
+
 enum ib_signature_prot_cap {
 	IB_PROT_T10DIF_TYPE_1 = 1,
 	IB_PROT_T10DIF_TYPE_2 = 1 << 1,
