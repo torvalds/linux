@@ -196,6 +196,9 @@ struct snd_sof_dsp_ops {
 	int (*trace_trigger)(struct snd_sof_dev *sdev,
 			     int cmd); /* optional */
 
+	/* misc */
+	int (*get_bar_index)(struct snd_sof_dev *sdev,
+			     u32 type); /* optional */
 	/* DAI ops */
 	struct snd_soc_dai_driver *drv;
 	int num_drv;
