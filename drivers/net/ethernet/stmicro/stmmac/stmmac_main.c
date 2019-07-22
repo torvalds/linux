@@ -1295,6 +1295,8 @@ static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 			  "(%s) dma_rx_phy=0x%08x\n", __func__,
 			  (u32)rx_q->dma_rx_phy);
 
+		stmmac_clear_rx_descriptors(priv, queue);
+
 		for (i = 0; i < DMA_RX_SIZE; i++) {
 			struct dma_desc *p;
 
@@ -1311,8 +1313,6 @@ static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 
 		rx_q->cur_rx = 0;
 		rx_q->dirty_rx = (unsigned int)(i - DMA_RX_SIZE);
-
-		stmmac_clear_rx_descriptors(priv, queue);
 
 		/* Setup the chained descriptor addresses */
 		if (priv->mode == STMMAC_CHAIN_MODE) {
