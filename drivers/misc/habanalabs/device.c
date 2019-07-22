@@ -630,8 +630,6 @@ static void device_hard_reset_pending(struct work_struct *work)
 		container_of(work, struct hl_device_reset_work, reset_work);
 	struct hl_device *hdev = device_reset_work->hdev;
 
-	device_kill_open_processes(hdev);
-
 	hl_device_reset(hdev, true, true);
 
 	kfree(device_reset_work);
@@ -735,6 +733,13 @@ again:
 
 	/* Go over all the queues, release all CS and their jobs */
 	hl_cs_rollback_all(hdev);
+
+	/* Kill processes here after CS rollback. This is because the process
+	 * can't really exit until all its CSs are done, which is what we
+	 * do in cs rollback
+	 */
+	if (from_hard_reset_thread)
+		device_kill_open_processes(hdev);
 
 	/* Release kernel context */
 	if ((hard_reset) && (hl_ctx_put(hdev->kernel_ctx) == 1))
@@ -1129,8 +1134,6 @@ void hl_device_fini(struct hl_device *hdev)
 
 	hdev->hard_reset_pending = true;
 
-	device_kill_open_processes(hdev);
-
 	hl_hwmon_fini(hdev);
 
 	device_late_fini(hdev);
@@ -1148,6 +1151,12 @@ void hl_device_fini(struct hl_device *hdev)
 
 	/* Go over all the queues, release all CS and their jobs */
 	hl_cs_rollback_all(hdev);
+
+	/* Kill processes here after CS rollback. This is because the process
+	 * can't really exit until all its CSs are done, which is what we
+	 * do in cs rollback
+	 */
+	device_kill_open_processes(hdev);
 
 	hl_cb_pool_fini(hdev);
 
