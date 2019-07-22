@@ -43,6 +43,8 @@
 
 #define MSG_MAP(msg, index) \
 	[SMU_MSG_##msg] = {1, (index)}
+#define ARCTURUS_FEA_MAP(smu_feature, arcturus_feature) \
+	[smu_feature] = {1, (arcturus_feature)}
 
 #define SMU_FEATURES_LOW_MASK        0x00000000FFFFFFFF
 #define SMU_FEATURES_LOW_SHIFT       0
@@ -125,12 +127,15 @@ static struct smu_11_0_cmn2aisc_mapping arcturus_feature_mask_map[SMU_FEATURE_CO
 	FEA_MAP(DPM_GFXCLK),
 	FEA_MAP(DPM_UCLK),
 	FEA_MAP(DPM_SOCCLK),
+	FEA_MAP(DPM_FCLK),
 	FEA_MAP(DPM_MP0CLK),
 	FEA_MAP(DS_GFXCLK),
 	FEA_MAP(DS_SOCCLK),
 	FEA_MAP(DS_LCLK),
+	FEA_MAP(DS_FCLK),
 	FEA_MAP(DS_UCLK),
 	FEA_MAP(GFX_ULV),
+	ARCTURUS_FEA_MAP(SMU_FEATURE_VCN_PG_BIT, FEATURE_DPM_VCN_BIT),
 	FEA_MAP(RSMU_SMN_CG),
 	FEA_MAP(PPT),
 	FEA_MAP(TDC),
