@@ -1545,15 +1545,16 @@ static int soc_probe_link_dais(struct snd_soc_card *card,
 			num = rtd->dai_link->id;
 	}
 
-	if (cpu_dai->driver->compress_new) {
-		/* create compress_device" */
-		ret = cpu_dai->driver->compress_new(rtd, num);
-		if (ret < 0) {
+	/* create compress_device if possible */
+	ret = snd_soc_dai_compress_new(cpu_dai, rtd, num);
+	if (ret != -ENOTSUPP) {
+		if (ret < 0)
 			dev_err(card->dev, "ASoC: can't create compress %s\n",
 					 dai_link->stream_name);
-			return ret;
-		}
-	} else if (!dai_link->params) {
+		return ret;
+	}
+
+	if (!dai_link->params) {
 		/* create the pcm */
 		ret = soc_new_pcm(rtd, num);
 		if (ret < 0) {

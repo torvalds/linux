@@ -166,6 +166,8 @@ void snd_soc_dai_suspend(struct snd_soc_dai *dai);
 void snd_soc_dai_resume(struct snd_soc_dai *dai);
 int snd_soc_dai_probe(struct snd_soc_dai *dai);
 int snd_soc_dai_remove(struct snd_soc_dai *dai);
+int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
+			     struct snd_soc_pcm_runtime *rtd, int num);
 
 struct snd_soc_dai_ops {
 	/*
