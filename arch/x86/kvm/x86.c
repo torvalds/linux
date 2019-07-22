@@ -3264,6 +3264,10 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	kvm_x86_ops->vcpu_load(vcpu, cpu);
 
+	fpregs_assert_state_consistent();
+	if (test_thread_flag(TIF_NEED_FPU_LOAD))
+		switch_fpu_return();
+
 	/* Apply any externally detected TSC adjustments (due to suspend) */
 	if (unlikely(vcpu->arch.tsc_offset_adjustment)) {
 		adjust_tsc_offset_host(vcpu, vcpu->arch.tsc_offset_adjustment);
@@ -7955,9 +7959,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		wait_lapic_expire(vcpu);
 	guest_enter_irqoff();
 
-	fpregs_assert_state_consistent();
-	if (test_thread_flag(TIF_NEED_FPU_LOAD))
-		switch_fpu_return();
+	/* The preempt notifier should have taken care of the FPU already.  */
+	WARN_ON_ONCE(test_thread_flag(TIF_NEED_FPU_LOAD));
 
 	if (unlikely(vcpu->arch.switch_db_regs)) {
 		set_debugreg(0, 7);
