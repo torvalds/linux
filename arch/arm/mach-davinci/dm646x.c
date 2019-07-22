@@ -1,5 +1,5 @@
 /*
- * TI DaVinci DM644x chip specific setup
+ * TI DaVinci DM646x chip specific setup
  *
  * Author: Kevin Hilman, Deep Root Systems, LLC
  *
