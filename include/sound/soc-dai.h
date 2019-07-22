@@ -148,6 +148,8 @@ int snd_soc_dai_is_dummy(struct snd_soc_dai *dai);
 int snd_soc_dai_hw_params(struct snd_soc_dai *dai,
 			  struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params);
+void snd_soc_dai_hw_free(struct snd_soc_dai *dai,
+			 struct snd_pcm_substream *substream);
 
 struct snd_soc_dai_ops {
 	/*

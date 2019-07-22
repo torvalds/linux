@@ -282,3 +282,10 @@ int snd_soc_dai_hw_params(struct snd_soc_dai *dai,
 
 	return 0;
 }
+
+void snd_soc_dai_hw_free(struct snd_soc_dai *dai,
+			 struct snd_pcm_substream *substream)
+{
+	if (dai->driver->ops->hw_free)
+		dai->driver->ops->hw_free(substream, dai);
+}
