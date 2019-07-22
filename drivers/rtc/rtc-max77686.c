@@ -693,11 +693,11 @@ static int max77686_init_rtc_regmap(struct max77686_rtc_info *info)
 		goto add_rtc_irq;
 	}
 
-	info->rtc = i2c_new_dummy(parent_i2c->adapter,
-				  info->drv_data->rtc_i2c_addr);
-	if (!info->rtc) {
+	info->rtc = i2c_new_dummy_device(parent_i2c->adapter,
+					 info->drv_data->rtc_i2c_addr);
+	if (IS_ERR(info->rtc)) {
 		dev_err(info->dev, "Failed to allocate I2C device for RTC\n");
-		return -ENODEV;
+		return PTR_ERR(info->rtc);
 	}
 
 	info->rtc_regmap = devm_regmap_init_i2c(info->rtc,
