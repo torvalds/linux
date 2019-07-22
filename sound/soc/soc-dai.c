@@ -365,3 +365,10 @@ void snd_soc_dai_resume(struct snd_soc_dai *dai)
 	if (dai->driver->resume)
 		dai->driver->resume(dai);
 }
+
+int snd_soc_dai_probe(struct snd_soc_dai *dai)
+{
+	if (dai->driver->probe)
+		return dai->driver->probe(dai);
+	return 0;
+}
