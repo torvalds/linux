@@ -1491,15 +1491,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		 */
 		c->tlbsize = (read_c0_info() & (1 << 29)) ? 64 : 48;
 		break;
-	case PRID_IMP_R8000:
-		c->cputype = CPU_R8000;
-		__cpu_name[cpu] = "RM8000";
-		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = MIPS_CPU_TLB | MIPS_CPU_4KEX |
-			     MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
-		c->tlbsize = 384;      /* has weird TLB: 3-way x 128 */
-		break;
 	case PRID_IMP_R10000:
 		c->cputype = CPU_R10000;
 		__cpu_name[cpu] = "R10000";

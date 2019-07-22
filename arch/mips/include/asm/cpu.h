@@ -301,11 +301,6 @@ enum cpu_type_enum {
 	CPU_SR71000, CPU_TX49XX,
 
 	/*
-	 * R8000 class processors
-	 */
-	CPU_R8000,
-
-	/*
 	 * TX3900 class processors
 	 */
 	CPU_TX3912, CPU_TX3922, CPU_TX3927,

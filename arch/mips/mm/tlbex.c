@@ -2633,10 +2633,6 @@ void build_tlb_refill_handler(void)
 #endif
 		break;
 
-	case CPU_R8000:
-		panic("No R8000 TLB refill handler yet");
-		break;
-
 	default:
 		if (cpu_has_ldpte)
 			setup_pw();

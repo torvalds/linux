@@ -1652,16 +1652,6 @@ config CPU_NEVADA
 	help
 	  QED / PMC-Sierra RM52xx-series ("Nevada") processors.
 
-config CPU_R8000
-	bool "R8000"
-	depends on SYS_HAS_CPU_R8000
-	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
-	select CPU_SUPPORTS_64BIT_KERNEL
-	help
-	  MIPS Technologies R8000 processors.  Note these processors are
-	  uncommon and the support for them is incomplete.
-
 config CPU_R10000
 	bool "R10000"
 	depends on SYS_HAS_CPU_R10000
@@ -1969,9 +1959,6 @@ config SYS_HAS_CPU_R5500
 config SYS_HAS_CPU_NEVADA
 	bool
 
-config SYS_HAS_CPU_R8000
-	bool
-
 config SYS_HAS_CPU_R10000
 	bool
 	select ARCH_HAS_SYNC_DMA_FOR_CPU if DMA_NONCOHERENT
@@ -2172,13 +2159,13 @@ config PAGE_SIZE_4KB
 
 config PAGE_SIZE_8KB
 	bool "8kB"
-	depends on CPU_R8000 || CPU_CAVIUM_OCTEON
+	depends on CPU_CAVIUM_OCTEON
 	depends on !MIPS_VA_BITS_48
 	help
 	  Using 8kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available
-	  only on R8000 and cnMIPS processors.  Note that you will need a
-	  suitable Linux distribution to support this.
+	  only on cnMIPS processors.  Note that you will need a suitable Linux
+	  distribution to support this.
 
 config PAGE_SIZE_16KB
 	bool "16kB"
@@ -2269,7 +2256,7 @@ config CPU_HAS_PREFETCH
 
 config CPU_GENERIC_DUMP_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_R8000 || CPU_TX39XX)
+	default y if !(CPU_R3000 || CPU_TX39XX)
 
 config MIPS_FP_SUPPORT
 	bool "Floating Point support" if EXPERT
@@ -2298,7 +2285,7 @@ config CPU_R4K_FPU
 
 config CPU_R4K_CACHE_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_R8000 || CPU_SB1 || CPU_TX39XX || CPU_CAVIUM_OCTEON)
+	default y if !(CPU_R3000 || CPU_SB1 || CPU_TX39XX || CPU_CAVIUM_OCTEON)
 
 config MIPS_MT_SMP
 	bool "MIPS MT SMP support (1 TC on each available VPE)"
@@ -2555,7 +2542,6 @@ config CPU_R4400_WORKAROUNDS
 config MIPS_ASID_SHIFT
 	int
 	default 6 if CPU_R3000 || CPU_TX39XX
-	default 4 if CPU_R8000
 	default 0
 
 config MIPS_ASID_BITS
