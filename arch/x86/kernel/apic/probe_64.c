@@ -36,13 +36,6 @@ void __init default_setup_apic_routing(void)
 		x86_platform.apic_post_init();
 }
 
-/* Same for both flat and physical. */
-
-void apic_send_IPI_self(int vector)
-{
-	__default_send_IPI_shortcut(APIC_DEST_SELF, vector);
-}
-
 int __init default_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	struct apic **drv;

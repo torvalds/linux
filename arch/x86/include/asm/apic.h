@@ -468,10 +468,6 @@ static inline unsigned default_get_apic_id(unsigned long x)
 #define TRAMPOLINE_PHYS_LOW		0x467
 #define TRAMPOLINE_PHYS_HIGH		0x469
 
-#ifdef CONFIG_X86_64
-extern void apic_send_IPI_self(int vector);
-#endif
-
 extern void generic_bigsmp_probe(void);
 
 #ifdef CONFIG_X86_LOCAL_APIC

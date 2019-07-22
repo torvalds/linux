@@ -76,33 +76,6 @@ flat_send_IPI_mask_allbutself(const struct cpumask *cpumask, int vector)
 	_flat_send_IPI_mask(mask, vector);
 }
 
-static void flat_send_IPI_allbutself(int vector)
-{
-	int cpu = smp_processor_id();
-
-	if (IS_ENABLED(CONFIG_HOTPLUG_CPU) || vector == NMI_VECTOR) {
-		if (!cpumask_equal(cpu_online_mask, cpumask_of(cpu))) {
-			unsigned long mask = cpumask_bits(cpu_online_mask)[0];
-
-			if (cpu < BITS_PER_LONG)
-				__clear_bit(cpu, &mask);
-
-			_flat_send_IPI_mask(mask, vector);
-		}
-	} else if (num_online_cpus() > 1) {
-		__default_send_IPI_shortcut(APIC_DEST_ALLBUT, vector);
-	}
-}
-
-static void flat_send_IPI_all(int vector)
-{
-	if (vector == NMI_VECTOR) {
-		flat_send_IPI_mask(cpu_online_mask, vector);
-	} else {
-		__default_send_IPI_shortcut(APIC_DEST_ALLINC, vector);
-	}
-}
-
 static unsigned int flat_get_apic_id(unsigned long x)
 {
 	return (x >> 24) & 0xFF;
@@ -164,9 +137,9 @@ static struct apic apic_flat __ro_after_init = {
 	.send_IPI			= default_send_IPI_single,
 	.send_IPI_mask			= flat_send_IPI_mask,
 	.send_IPI_mask_allbutself	= flat_send_IPI_mask_allbutself,
-	.send_IPI_allbutself		= flat_send_IPI_allbutself,
-	.send_IPI_all			= flat_send_IPI_all,
-	.send_IPI_self			= apic_send_IPI_self,
+	.send_IPI_allbutself		= default_send_IPI_allbutself,
+	.send_IPI_all			= default_send_IPI_all,
+	.send_IPI_self			= default_send_IPI_self,
 
 	.inquire_remote_apic		= default_inquire_remote_apic,
 
@@ -216,16 +189,6 @@ static void physflat_init_apic_ldr(void)
 	 */
 }
 
-static void physflat_send_IPI_allbutself(int vector)
-{
-	default_send_IPI_mask_allbutself_phys(cpu_online_mask, vector);
-}
-
-static void physflat_send_IPI_all(int vector)
-{
-	default_send_IPI_mask_sequence_phys(cpu_online_mask, vector);
-}
-
 static int physflat_probe(void)
 {
 	if (apic == &apic_physflat || num_possible_cpus() > 8 ||
@@ -267,9 +230,9 @@ static struct apic apic_physflat __ro_after_init = {
 	.send_IPI			= default_send_IPI_single_phys,
 	.send_IPI_mask			= default_send_IPI_mask_sequence_phys,
 	.send_IPI_mask_allbutself	= default_send_IPI_mask_allbutself_phys,
-	.send_IPI_allbutself		= physflat_send_IPI_allbutself,
-	.send_IPI_all			= physflat_send_IPI_all,
-	.send_IPI_self			= apic_send_IPI_self,
+	.send_IPI_allbutself		= default_send_IPI_allbutself,
+	.send_IPI_all			= default_send_IPI_all,
+	.send_IPI_self			= default_send_IPI_self,
 
 	.inquire_remote_apic		= default_inquire_remote_apic,
 
