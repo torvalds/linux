@@ -1,3 +1,4 @@
+====================================
 Coherent Accelerator Interface (CXL)
 ====================================
 
@@ -20,6 +21,8 @@ Introduction
 
 Hardware overview
 =================
+
+    ::
 
          POWER8/9             FPGA
        +----------+        +---------+
@@ -59,14 +62,16 @@ Hardware overview
     the fault. The context to which this fault is serviced is based on
     who owns that acceleration function.
 
-    POWER8 <-----> PSL Version 8 is compliant to the CAIA Version 1.0.
-    POWER9 <-----> PSL Version 9 is compliant to the CAIA Version 2.0.
+    - POWER8 and PSL Version 8 are compliant to the CAIA Version 1.0.
+    - POWER9 and PSL Version 9 are compliant to the CAIA Version 2.0.
+
     This PSL Version 9 provides new features such as:
+
     * Interaction with the nest MMU on the P9 chip.
     * Native DMA support.
     * Supports sending ASB_Notify messages for host thread wakeup.
     * Supports Atomic operations.
-    * ....
+    * etc.
 
     Cards with a PSL9 won't work on a POWER8 system and cards with a
     PSL8 won't work on a POWER9 system.
@@ -147,7 +152,9 @@ User API
     master devices.
 
     A userspace library libcxl is available here:
+
 	https://github.com/ibm-capi/libcxl
+
     This provides a C interface to this kernel API.
 
 open
@@ -165,7 +172,8 @@ open
     When all available contexts are allocated the open call will fail
     and return -ENOSPC.
 
-    Note: IRQs need to be allocated for each context, which may limit
+    Note:
+	  IRQs need to be allocated for each context, which may limit
           the number of contexts that can be created, and therefore
           how many times the device can be opened. The POWER8 CAPP
           supports 2040 IRQs and 3 are used by the kernel, so 2037 are
@@ -186,7 +194,9 @@ ioctl
         updated as userspace allocates and frees memory. This ioctl
         returns once the AFU context is started.
 
-        Takes a pointer to a struct cxl_ioctl_start_work:
+        Takes a pointer to a struct cxl_ioctl_start_work
+
+            ::
 
                 struct cxl_ioctl_start_work {
                         __u64 flags;
@@ -269,7 +279,7 @@ read
     The buffer passed to read() must be at least 4K bytes.
 
     The result of the read will be a buffer of one or more events,
-    each event is of type struct cxl_event, of varying size.
+    each event is of type struct cxl_event, of varying size::
 
             struct cxl_event {
                     struct cxl_event_header header;
@@ -280,7 +290,9 @@ read
                     };
             };
 
-    The struct cxl_event_header is defined as:
+    The struct cxl_event_header is defined as
+
+        ::
 
             struct cxl_event_header {
                     __u16 type;
@@ -307,7 +319,9 @@ read
             For future extensions and padding.
 
     If the event type is CXL_EVENT_AFU_INTERRUPT then the event
-    structure is defined as:
+    structure is defined as
+
+        ::
 
             struct cxl_event_afu_interrupt {
                     __u16 flags;
@@ -326,7 +340,9 @@ read
             For future extensions and padding.
 
     If the event type is CXL_EVENT_DATA_STORAGE then the event
-    structure is defined as:
+    structure is defined as
+
+        ::
 
             struct cxl_event_data_storage {
                     __u16 flags;
@@ -356,7 +372,9 @@ read
             For future extensions
 
     If the event type is CXL_EVENT_AFU_ERROR then the event structure
-    is defined as:
+    is defined as
+
+        ::
 
             struct cxl_event_afu_error {
                     __u16 flags;
@@ -393,15 +411,15 @@ open
 ioctl
 -----
 
-CXL_IOCTL_DOWNLOAD_IMAGE:
-CXL_IOCTL_VALIDATE_IMAGE:
+CXL_IOCTL_DOWNLOAD_IMAGE / CXL_IOCTL_VALIDATE_IMAGE:
     Starts and controls flashing a new FPGA image. Partial
     reconfiguration is not supported (yet), so the image must contain
     a copy of the PSL and AFU(s). Since an image can be quite large,
     the caller may have to iterate, splitting the image in smaller
     chunks.
 
-    Takes a pointer to a struct cxl_adapter_image:
+    Takes a pointer to a struct cxl_adapter_image::
+
         struct cxl_adapter_image {
             __u64 flags;
             __u64 data;
@@ -442,7 +460,7 @@ Udev rules
     The following udev rules could be used to create a symlink to the
     most logical chardev to use in any programming mode (afuX.Yd for
     dedicated, afuX.Ys for afu directed), since the API is virtually
-    identical for each:
+    identical for each::
 
 	SUBSYSTEM=="cxl", ATTRS{mode}=="dedicated_process", SYMLINK="cxl/%b"
 	SUBSYSTEM=="cxl", ATTRS{mode}=="afu_directed", \

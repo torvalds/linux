@@ -1,11 +1,13 @@
+=============================
 Linux 2.6.x on MPC52xx family
------------------------------
+=============================
 
 For the latest info, go to http://www.246tNt.com/mpc52xx/
 
 To compile/use :
 
-  - U-Boot:
+  - U-Boot::
+
      # <edit Makefile to set ARCH=ppc & CROSS_COMPILE=... ( also EXTRAVERSION
         if you wish to ).
      # make lite5200_defconfig
@@ -16,7 +18,8 @@ To compile/use :
      => tftpboot 400000 pRamdisk
      => bootm 200000 400000
 
-  - DBug:
+  - DBug::
+
      # <edit Makefile to set ARCH=ppc & CROSS_COMPILE=... ( also EXTRAVERSION
         if you wish to ).
      # make lite5200_defconfig
@@ -28,7 +31,8 @@ To compile/use :
      DBug> dn -i zImage.initrd.lite5200
 
 
-Some remarks :
+Some remarks:
+
  - The port is named mpc52xxx, and config options are PPC_MPC52xx. The MGT5100
    is not supported, and I'm not sure anyone is interesting in working on it
    so. I didn't took 5xxx because there's apparently a lot of 5xxx that have
