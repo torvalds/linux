@@ -234,7 +234,7 @@ static inline void midi_use_bytes(struct amdtp_stream *s,
 }
 
 static void write_midi_messages(struct amdtp_stream *s, __be32 *buffer,
-				unsigned int data_blocks)
+		unsigned int data_blocks, unsigned int data_block_counter)
 {
 	struct amdtp_dot *p = s->protocol;
 	unsigned int f, port;
@@ -242,7 +242,7 @@ static void write_midi_messages(struct amdtp_stream *s, __be32 *buffer,
 	u8 *b;
 
 	for (f = 0; f < data_blocks; f++) {
-		port = (s->data_block_counter + f) % 8;
+		port = (data_block_counter + f) % 8;
 		b = (u8 *)&buffer[0];
 
 		len = 0;
@@ -330,9 +330,8 @@ void amdtp_dot_midi_trigger(struct amdtp_stream *s, unsigned int port,
 }
 
 static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
-					   __be32 *buffer,
-					   unsigned int data_blocks,
-					   unsigned int *syt)
+			__be32 *buffer, unsigned int data_blocks,
+			unsigned int data_block_counter, unsigned int *syt)
 {
 	struct snd_pcm_substream *pcm;
 	unsigned int pcm_frames;
@@ -351,9 +350,8 @@ static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 }
 
 static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
-					   __be32 *buffer,
-					   unsigned int data_blocks,
-					   unsigned int *syt)
+			__be32 *buffer, unsigned int data_blocks,
+			unsigned int data_block_counter, unsigned int *syt)
 {
 	struct snd_pcm_substream *pcm;
 	unsigned int pcm_frames;
@@ -367,7 +365,7 @@ static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
 		pcm_frames = 0;
 	}
 
-	write_midi_messages(s, buffer, data_blocks);
+	write_midi_messages(s, buffer, data_blocks, data_block_counter);
 
 	return pcm_frames;
 }

@@ -722,7 +722,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		data_blocks = calculate_data_blocks(s, syt);
 		buffer = s->buffer.packets[s->packet_index].buffer;
 		pcm_frames = s->process_data_blocks(s, buffer, data_blocks,
-						    &syt);
+						s->data_block_counter, &syt);
 
 		build_it_pkt_header(s, cycle, &template.params, data_blocks,
 				    syt, i);
@@ -776,7 +776,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		if (err >= 0) {
 			buffer = s->buffer.packets[s->packet_index].buffer;
 			pcm_frames = s->process_data_blocks(s, buffer,
-							    data_blocks, &syt);
+				data_blocks, s->data_block_counter, &syt);
 
 			if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
 				s->data_block_counter += data_blocks;

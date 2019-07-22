@@ -103,9 +103,8 @@ int amdtp_ff_add_pcm_hw_constraints(struct amdtp_stream *s,
 }
 
 static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
-					   __be32 *buffer,
-					   unsigned int data_blocks,
-					   unsigned int *syt)
+			__be32 *buffer, unsigned int data_blocks,
+			unsigned int data_block_counter, unsigned int *syt)
 {
 	struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
 	unsigned int pcm_frames;
@@ -122,9 +121,8 @@ static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
 }
 
 static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
-					   __be32 *buffer,
-					   unsigned int data_blocks,
-					   unsigned int *syt)
+			__be32 *buffer, unsigned int data_blocks,
+			unsigned int data_block_counter, unsigned int *syt)
 {
 	struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
 	unsigned int pcm_frames;
