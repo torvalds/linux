@@ -513,3 +513,9 @@ Redirects leak clear text
 
 In the RX direction, if segment has already been decrypted by the device
 and it gets redirected or mirrored - clear text will be transmitted out.
+
+shutdown() doesn't clear TLS state
+----------------------------------
+
+shutdown() system call allows for a TLS socket to be reused as a different
+connection. Offload doesn't currently handle that.
