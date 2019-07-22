@@ -18,6 +18,44 @@
 struct fsverity_operations {
 
 	/**
+	 * Begin enabling verity on the given file.
+	 *
+	 * @filp: a readonly file descriptor for the file
+	 *
+	 * The filesystem must do any needed filesystem-specific preparations
+	 * for enabling verity, e.g. evicting inline data.  It also must return
+	 * -EBUSY if verity is already being enabled on the given file.
+	 *
+	 * i_rwsem is held for write.
+	 *
+	 * Return: 0 on success, -errno on failure
+	 */
+	int (*begin_enable_verity)(struct file *filp);
+
+	/**
+	 * End enabling verity on the given file.
+	 *
+	 * @filp: a readonly file descriptor for the file
+	 * @desc: the verity descriptor to write, or NULL on failure
+	 * @desc_size: size of verity descriptor, or 0 on failure
+	 * @merkle_tree_size: total bytes the Merkle tree took up
+	 *
+	 * If desc == NULL, then enabling verity failed and the filesystem only
+	 * must do any necessary cleanups.  Else, it must also store the given
+	 * verity descriptor to a fs-specific location associated with the inode
+	 * and do any fs-specific actions needed to mark the inode as a verity
+	 * inode, e.g. setting a bit in the on-disk inode.  The filesystem is
+	 * also responsible for setting the S_VERITY flag in the VFS inode.
+	 *
+	 * i_rwsem is held for write, but it may have been dropped between
+	 * ->begin_enable_verity() and ->end_enable_verity().
+	 *
+	 * Return: 0 on success, -errno on failure
+	 */
+	int (*end_enable_verity)(struct file *filp, const void *desc,
+				 size_t desc_size, u64 merkle_tree_size);
+
+	/**
 	 * Get the verity descriptor of the given inode.
 	 *
 	 * @inode: an inode with the S_VERITY flag set
@@ -50,6 +88,22 @@ struct fsverity_operations {
 	 */
 	struct page *(*read_merkle_tree_page)(struct inode *inode,
 					      pgoff_t index);
+
+	/**
+	 * Write a Merkle tree block to the given inode.
+	 *
+	 * @inode: the inode for which the Merkle tree is being built
+	 * @buf: block to write
+	 * @index: 0-based index of the block within the Merkle tree
+	 * @log_blocksize: log base 2 of the Merkle tree block size
+	 *
+	 * This is only called between ->begin_enable_verity() and
+	 * ->end_enable_verity().
+	 *
+	 * Return: 0 on success, -errno on failure
+	 */
+	int (*write_merkle_tree_block)(struct inode *inode, const void *buf,
+				       u64 index, int log_blocksize);
 };
 
 #ifdef CONFIG_FS_VERITY
@@ -59,6 +113,10 @@ static inline struct fsverity_info *fsverity_get_info(const struct inode *inode)
 	/* pairs with the cmpxchg() in fsverity_set_info() */
 	return READ_ONCE(inode->i_verity_info);
 }
+
+/* enable.c */
+
+extern int fsverity_ioctl_enable(struct file *filp, const void __user *arg);
 
 /* open.c */
 
@@ -77,6 +135,14 @@ extern void fsverity_enqueue_verify_work(struct work_struct *work);
 static inline struct fsverity_info *fsverity_get_info(const struct inode *inode)
 {
 	return NULL;
+}
+
+/* enable.c */
+
+static inline int fsverity_ioctl_enable(struct file *filp,
+					const void __user *arg)
+{
+	return -EOPNOTSUPP;
 }
 
 /* open.c */
