@@ -413,6 +413,12 @@
 			ti,sci-rm-range-vint = <0x0>;
 			ti,sci-rm-range-global-event = <0x1>;
 		};
+
+		hwspinlock: spinlock@30e00000 {
+			compatible = "ti,am654-hwspinlock";
+			reg = <0x00 0x30e00000 0x00 0x1000>;
+			#hwlock-cells = <1>;
+		};
 	};
 
 	main_gpio0:  main_gpio0@600000 {
