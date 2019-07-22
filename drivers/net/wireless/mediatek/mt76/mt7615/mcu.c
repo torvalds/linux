@@ -626,6 +626,8 @@ int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 #define WMM_CW_MIN_SET	BIT(1)
 #define WMM_CW_MAX_SET	BIT(2)
 #define WMM_TXOP_SET	BIT(3)
+#define WMM_PARAM_SET	(WMM_AIFS_SET | WMM_CW_MIN_SET | \
+			 WMM_CW_MAX_SET | WMM_TXOP_SET)
 	struct req_data {
 		u8 number;
 		u8 rsv[3];
@@ -638,19 +640,17 @@ int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 	} __packed req = {
 		.number = 1,
 		.queue = queue,
-		.valid = WMM_AIFS_SET | WMM_TXOP_SET,
+		.valid = WMM_PARAM_SET,
 		.aifs = params->aifs,
+		.cw_min = 5,
+		.cw_max = cpu_to_le16(10),
 		.txop = cpu_to_le16(params->txop),
 	};
 
-	if (params->cw_min) {
-		req.valid |= WMM_CW_MIN_SET;
-		req.cw_min = params->cw_min;
-	}
-	if (params->cw_max) {
-		req.valid |= WMM_CW_MAX_SET;
-		req.cw_max = cpu_to_le16(params->cw_max);
-	}
+	if (params->cw_min)
+		req.cw_min = fls(params->cw_min);
+	if (params->cw_max)
+		req.cw_max = cpu_to_le16(fls(params->cw_max));
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EDCA_UPDATE,
 				   &req, sizeof(req), true);
