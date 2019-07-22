@@ -1011,8 +1011,7 @@ out:
 component_err:
 	soc_pcm_components_hw_free(substream, component);
 
-	if (cpu_dai->driver->ops->hw_free)
-		cpu_dai->driver->ops->hw_free(substream, cpu_dai);
+	snd_soc_dai_hw_free(cpu_dai, substream);
 	cpu_dai->rate = 0;
 
 interface_err:
@@ -1023,8 +1022,7 @@ codec_err:
 		if (!snd_soc_dai_stream_valid(codec_dai, substream->stream))
 			continue;
 
-		if (codec_dai->driver->ops->hw_free)
-			codec_dai->driver->ops->hw_free(substream, codec_dai);
+		snd_soc_dai_hw_free(codec_dai, substream);
 		codec_dai->rate = 0;
 	}
 
@@ -1083,12 +1081,10 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 		if (!snd_soc_dai_stream_valid(codec_dai, substream->stream))
 			continue;
 
-		if (codec_dai->driver->ops->hw_free)
-			codec_dai->driver->ops->hw_free(substream, codec_dai);
+		snd_soc_dai_hw_free(codec_dai, substream);
 	}
 
-	if (cpu_dai->driver->ops->hw_free)
-		cpu_dai->driver->ops->hw_free(substream, cpu_dai);
+	snd_soc_dai_hw_free(cpu_dai, substream);
 
 	mutex_unlock(&rtd->pcm_mutex);
 	return 0;

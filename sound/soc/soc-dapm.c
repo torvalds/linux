@@ -3898,9 +3898,7 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 		snd_soc_dapm_widget_for_each_source_path(w, path) {
 			source = path->source->priv;
 
-			if (source->driver->ops->hw_free)
-				source->driver->ops->hw_free(&substream,
-							     source);
+			snd_soc_dai_hw_free(source, &substream);
 
 			source->active--;
 			if (source->driver->ops->shutdown)
@@ -3912,8 +3910,7 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 		snd_soc_dapm_widget_for_each_sink_path(w, path) {
 			sink = path->sink->priv;
 
-			if (sink->driver->ops->hw_free)
-				sink->driver->ops->hw_free(&substream, sink);
+			snd_soc_dai_hw_free(sink, &substream);
 
 			sink->active--;
 			if (sink->driver->ops->shutdown)
