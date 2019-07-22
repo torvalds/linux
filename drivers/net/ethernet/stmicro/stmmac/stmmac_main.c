@@ -814,19 +814,14 @@ static void stmmac_validate(struct phylink_config *config,
 	phylink_set(mac_supported, 10baseT_Full);
 	phylink_set(mac_supported, 100baseT_Half);
 	phylink_set(mac_supported, 100baseT_Full);
+	phylink_set(mac_supported, 1000baseT_Half);
+	phylink_set(mac_supported, 1000baseT_Full);
+	phylink_set(mac_supported, 1000baseKX_Full);
 
 	phylink_set(mac_supported, Autoneg);
 	phylink_set(mac_supported, Pause);
 	phylink_set(mac_supported, Asym_Pause);
 	phylink_set_port_modes(mac_supported);
-
-	if (priv->plat->has_gmac ||
-	    priv->plat->has_gmac4 ||
-	    priv->plat->has_xgmac) {
-		phylink_set(mac_supported, 1000baseT_Half);
-		phylink_set(mac_supported, 1000baseT_Full);
-		phylink_set(mac_supported, 1000baseKX_Full);
-	}
 
 	/* Cut down 1G if asked to */
 	if ((max_speed > 0) && (max_speed < 1000)) {
