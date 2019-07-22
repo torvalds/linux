@@ -195,7 +195,6 @@ static void dw_edma_v0_core_write_chunk(struct dw_edma_chunk *chunk)
 	struct dw_edma_v0_lli __iomem *lli;
 	struct dw_edma_v0_llp __iomem *llp;
 	u32 control = 0, i = 0;
-	u64 sar, dar, addr;
 	int j;
 
 	lli = chunk->ll_region.vaddr;
@@ -214,13 +213,11 @@ static void dw_edma_v0_core_write_chunk(struct dw_edma_chunk *chunk)
 		/* Transfer size */
 		SET_LL(&lli[i].transfer_size, child->sz);
 		/* SAR - low, high */
-		sar = cpu_to_le64(child->sar);
-		SET_LL(&lli[i].sar_low, lower_32_bits(sar));
-		SET_LL(&lli[i].sar_high, upper_32_bits(sar));
+		SET_LL(&lli[i].sar_low, lower_32_bits(child->sar));
+		SET_LL(&lli[i].sar_high, upper_32_bits(child->sar));
 		/* DAR - low, high */
-		dar = cpu_to_le64(child->dar);
-		SET_LL(&lli[i].dar_low, lower_32_bits(dar));
-		SET_LL(&lli[i].dar_high, upper_32_bits(dar));
+		SET_LL(&lli[i].dar_low, lower_32_bits(child->dar));
+		SET_LL(&lli[i].dar_high, upper_32_bits(child->dar));
 		i++;
 	}
 
@@ -232,9 +229,8 @@ static void dw_edma_v0_core_write_chunk(struct dw_edma_chunk *chunk)
 	/* Channel control */
 	SET_LL(&llp->control, control);
 	/* Linked list  - low, high */
-	addr = cpu_to_le64(chunk->ll_region.paddr);
-	SET_LL(&llp->llp_low, lower_32_bits(addr));
-	SET_LL(&llp->llp_high, upper_32_bits(addr));
+	SET_LL(&llp->llp_low, lower_32_bits(chunk->ll_region.paddr));
+	SET_LL(&llp->llp_high, upper_32_bits(chunk->ll_region.paddr));
 }
 
 void dw_edma_v0_core_start(struct dw_edma_chunk *chunk, bool first)
@@ -242,7 +238,6 @@ void dw_edma_v0_core_start(struct dw_edma_chunk *chunk, bool first)
 	struct dw_edma_chan *chan = chunk->chan;
 	struct dw_edma *dw = chan->chip->dw;
 	u32 tmp;
-	u64 llp;
 
 	dw_edma_v0_core_write_chunk(chunk);
 
@@ -262,9 +257,10 @@ void dw_edma_v0_core_start(struct dw_edma_chunk *chunk, bool first)
 		SET_CH(dw, chan->dir, chan->id, ch_control1,
 		       (DW_EDMA_V0_CCS | DW_EDMA_V0_LLE));
 		/* Linked list - low, high */
-		llp = cpu_to_le64(chunk->ll_region.paddr);
-		SET_CH(dw, chan->dir, chan->id, llp_low, lower_32_bits(llp));
-		SET_CH(dw, chan->dir, chan->id, llp_high, upper_32_bits(llp));
+		SET_CH(dw, chan->dir, chan->id, llp_low,
+		       lower_32_bits(chunk->ll_region.paddr));
+		SET_CH(dw, chan->dir, chan->id, llp_high,
+		       upper_32_bits(chunk->ll_region.paddr));
 	}
 	/* Doorbell */
 	SET_RW(dw, chan->dir, doorbell,
