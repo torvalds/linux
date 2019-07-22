@@ -170,13 +170,9 @@ static int __init apu_led_init(void)
 	struct platform_device *pdev;
 	int err;
 
-	if (!dmi_match(DMI_SYS_VENDOR, "PC Engines")) {
-		pr_err("No PC Engines board detected\n");
-		return -ENODEV;
-	}
-	if (!(dmi_match(DMI_PRODUCT_NAME, "APU"))) {
-		pr_err("Unknown PC Engines board: %s\n",
-				dmi_get_system_info(DMI_PRODUCT_NAME));
+	if (!(dmi_match(DMI_SYS_VENDOR, "PC Engines") &&
+	      dmi_match(DMI_PRODUCT_NAME, "APU"))) {
+		pr_err("No PC Engines APUv1 board detected. For APUv2,3 support, enable CONFIG_PCENGINES_APU2\n");
 		return -ENODEV;
 	}
 
