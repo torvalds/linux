@@ -2292,23 +2292,31 @@ static int mlx4_init_fw(struct mlx4_dev *dev)
 static int mlx4_init_hca(struct mlx4_dev *dev)
 {
 	struct mlx4_priv	  *priv = mlx4_priv(dev);
+	struct mlx4_init_hca_param *init_hca = NULL;
+	struct mlx4_dev_cap	  *dev_cap = NULL;
 	struct mlx4_adapter	   adapter;
-	struct mlx4_dev_cap	   dev_cap;
 	struct mlx4_profile	   profile;
-	struct mlx4_init_hca_param init_hca;
 	u64 icm_size;
 	struct mlx4_config_dev_params params;
 	int err;
 
 	if (!mlx4_is_slave(dev)) {
-		err = mlx4_dev_cap(dev, &dev_cap);
-		if (err) {
-			mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting\n");
-			return err;
+		dev_cap = kzalloc(sizeof(*dev_cap), GFP_KERNEL);
+		init_hca = kzalloc(sizeof(*init_hca), GFP_KERNEL);
+
+		if (!dev_cap || !init_hca) {
+			err = -ENOMEM;
+			goto out_free;
 		}
 
-		choose_steering_mode(dev, &dev_cap);
-		choose_tunnel_offload_mode(dev, &dev_cap);
+		err = mlx4_dev_cap(dev, dev_cap);
+		if (err) {
+			mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting\n");
+			goto out_free;
+		}
+
+		choose_steering_mode(dev, dev_cap);
+		choose_tunnel_offload_mode(dev, dev_cap);
 
 		if (dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_STATIC &&
 		    mlx4_is_master(dev))
@@ -2331,48 +2339,48 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 		    MLX4_STEERING_MODE_DEVICE_MANAGED)
 			profile.num_mcg = MLX4_FS_NUM_MCG;
 
-		icm_size = mlx4_make_profile(dev, &profile, &dev_cap,
-					     &init_hca);
+		icm_size = mlx4_make_profile(dev, &profile, dev_cap,
+					     init_hca);
 		if ((long long) icm_size < 0) {
 			err = icm_size;
-			return err;
+			goto out_free;
 		}
 
 		dev->caps.max_fmr_maps = (1 << (32 - ilog2(dev->caps.num_mpts))) - 1;
 
 		if (enable_4k_uar || !dev->persist->num_vfs) {
-			init_hca.log_uar_sz = ilog2(dev->caps.num_uars) +
+			init_hca->log_uar_sz = ilog2(dev->caps.num_uars) +
 						    PAGE_SHIFT - DEFAULT_UAR_PAGE_SHIFT;
-			init_hca.uar_page_sz = DEFAULT_UAR_PAGE_SHIFT - 12;
+			init_hca->uar_page_sz = DEFAULT_UAR_PAGE_SHIFT - 12;
 		} else {
-			init_hca.log_uar_sz = ilog2(dev->caps.num_uars);
-			init_hca.uar_page_sz = PAGE_SHIFT - 12;
+			init_hca->log_uar_sz = ilog2(dev->caps.num_uars);
+			init_hca->uar_page_sz = PAGE_SHIFT - 12;
 		}
 
-		init_hca.mw_enabled = 0;
+		init_hca->mw_enabled = 0;
 		if (dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW ||
 		    dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN)
-			init_hca.mw_enabled = INIT_HCA_TPT_MW_ENABLE;
+			init_hca->mw_enabled = INIT_HCA_TPT_MW_ENABLE;
 
-		err = mlx4_init_icm(dev, &dev_cap, &init_hca, icm_size);
+		err = mlx4_init_icm(dev, dev_cap, init_hca, icm_size);
 		if (err)
-			return err;
+			goto out_free;
 
-		err = mlx4_INIT_HCA(dev, &init_hca);
+		err = mlx4_INIT_HCA(dev, init_hca);
 		if (err) {
 			mlx4_err(dev, "INIT_HCA command failed, aborting\n");
 			goto err_free_icm;
 		}
 
-		if (dev_cap.flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS) {
-			err = mlx4_query_func(dev, &dev_cap);
+		if (dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_SYS_EQS) {
+			err = mlx4_query_func(dev, dev_cap);
 			if (err < 0) {
 				mlx4_err(dev, "QUERY_FUNC command failed, aborting.\n");
 				goto err_close;
 			} else if (err & MLX4_QUERY_FUNC_NUM_SYS_EQS) {
-				dev->caps.num_eqs = dev_cap.max_eqs;
-				dev->caps.reserved_eqs = dev_cap.reserved_eqs;
-				dev->caps.reserved_uars = dev_cap.reserved_uars;
+				dev->caps.num_eqs = dev_cap->max_eqs;
+				dev->caps.reserved_eqs = dev_cap->reserved_eqs;
+				dev->caps.reserved_uars = dev_cap->reserved_uars;
 			}
 		}
 
@@ -2381,14 +2389,13 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 		 * read HCA frequency by QUERY_HCA command
 		 */
 		if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS) {
-			memset(&init_hca, 0, sizeof(init_hca));
-			err = mlx4_QUERY_HCA(dev, &init_hca);
+			err = mlx4_QUERY_HCA(dev, init_hca);
 			if (err) {
 				mlx4_err(dev, "QUERY_HCA command failed, disable timestamp\n");
 				dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_TS;
 			} else {
 				dev->caps.hca_core_clock =
-					init_hca.hca_core_clock;
+					init_hca->hca_core_clock;
 			}
 
 			/* In case we got HCA frequency 0 - disable timestamping
@@ -2464,7 +2471,8 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 	priv->eq_table.inta_pin = adapter.inta_pin;
 	memcpy(dev->board_id, adapter.board_id, sizeof(dev->board_id));
 
-	return 0;
+	err = 0;
+	goto out_free;
 
 unmap_bf:
 	unmap_internal_clock(dev);
@@ -2482,6 +2490,10 @@ err_close:
 err_free_icm:
 	if (!mlx4_is_slave(dev))
 		mlx4_free_icms(dev);
+
+out_free:
+	kfree(dev_cap);
+	kfree(init_hca);
 
 	return err;
 }
