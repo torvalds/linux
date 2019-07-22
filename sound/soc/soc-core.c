@@ -631,8 +631,8 @@ static void soc_resume_deferred(struct work_struct *work)
 		if (rtd->dai_link->ignore_suspend)
 			continue;
 
-		if (cpu_dai->driver->resume && cpu_dai->driver->bus_control)
-			cpu_dai->driver->resume(cpu_dai);
+		if (cpu_dai->driver->bus_control)
+			snd_soc_dai_resume(cpu_dai);
 	}
 
 	for_each_card_components(card, component) {
@@ -678,8 +678,8 @@ static void soc_resume_deferred(struct work_struct *work)
 		if (rtd->dai_link->ignore_suspend)
 			continue;
 
-		if (cpu_dai->driver->resume && !cpu_dai->driver->bus_control)
-			cpu_dai->driver->resume(cpu_dai);
+		if (!cpu_dai->driver->bus_control)
+			snd_soc_dai_resume(cpu_dai);
 	}
 
 	if (card->resume_post)
