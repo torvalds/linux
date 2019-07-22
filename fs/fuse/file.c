@@ -383,12 +383,11 @@ static inline bool fuse_page_is_writeback(struct inode *inode, pgoff_t index)
  * Since fuse doesn't rely on the VM writeback tracking, this has to
  * use some other means.
  */
-static int fuse_wait_on_page_writeback(struct inode *inode, pgoff_t index)
+static void fuse_wait_on_page_writeback(struct inode *inode, pgoff_t index)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
 	wait_event(fi->page_waitq, !fuse_page_is_writeback(inode, index));
-	return 0;
 }
 
 /*
