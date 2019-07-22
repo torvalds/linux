@@ -403,7 +403,7 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 
 	/* socclk */
 	single_dpm_table = &(dpm_table->soc_table);
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		ret = arcturus_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_SOCCLK);
 		if (ret) {
@@ -418,7 +418,7 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 
 	/* gfxclk */
 	single_dpm_table = &(dpm_table->gfx_table);
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
 		ret = arcturus_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_GFXCLK);
 		if (ret) {
@@ -433,7 +433,7 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 
 	/* memclk */
 	single_dpm_table = &(dpm_table->mem_table);
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		ret = arcturus_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_UCLK);
 		if (ret) {
@@ -448,7 +448,7 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 
 	/* fclk */
 	single_dpm_table = &(dpm_table->fclk_table);
-	if (smu_feature_is_enabled(smu,FEATURE_DPM_FCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_FCLK_BIT)) {
 		ret = arcturus_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_FCLK);
 		if (ret) {
