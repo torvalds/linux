@@ -14,8 +14,8 @@ config TINYDRM_MIPI_DBI
 config TINYDRM_HX8357D
 	tristate "DRM support for HX8357D display panels"
 	depends on DRM_TINYDRM && SPI
-	depends on BACKLIGHT_CLASS_DEVICE
 	select TINYDRM_MIPI_DBI
+	select BACKLIGHT_CLASS_DEVICE
 	help
 	  DRM driver for the following HX8357D panels:
 	  * YX350HV15-T 3.5" 340x350 TFT (Adafruit 3.5")
@@ -35,8 +35,8 @@ config TINYDRM_ILI9225
 config TINYDRM_ILI9341
 	tristate "DRM support for ILI9341 display panels"
 	depends on DRM_TINYDRM && SPI
-	depends on BACKLIGHT_CLASS_DEVICE
 	select TINYDRM_MIPI_DBI
+	select BACKLIGHT_CLASS_DEVICE
 	help
 	  DRM driver for the following Ilitek ILI9341 panels:
 	  * YX240QV29-T 2.4" 240x320 TFT (Adafruit 2.4")
@@ -46,8 +46,8 @@ config TINYDRM_ILI9341
 config TINYDRM_MI0283QT
 	tristate "DRM support for MI0283QT"
 	depends on DRM_TINYDRM && SPI
-	depends on BACKLIGHT_CLASS_DEVICE
 	select TINYDRM_MIPI_DBI
+	select BACKLIGHT_CLASS_DEVICE
 	help
 	  DRM driver for the Multi-Inno MI0283QT display panel
 	  If M is selected the module will be called mi0283qt.
@@ -78,8 +78,8 @@ config TINYDRM_ST7586
 config TINYDRM_ST7735R
 	tristate "DRM support for Sitronix ST7735R display panels"
 	depends on DRM_TINYDRM && SPI
-	depends on BACKLIGHT_CLASS_DEVICE
 	select TINYDRM_MIPI_DBI
+	select BACKLIGHT_CLASS_DEVICE
 	help
 	  DRM driver Sitronix ST7735R with one of the following LCDs:
 	  * JD-T18003-T01 1.8" 128x160 TFT
