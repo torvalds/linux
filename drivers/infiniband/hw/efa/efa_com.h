@@ -45,7 +45,6 @@ struct efa_com_admin_sq {
 
 /* Don't use anything other than atomic64 */
 struct efa_com_stats_admin {
-	atomic64_t aborted_cmd;
 	atomic64_t submitted_cmd;
 	atomic64_t completed_cmd;
 	atomic64_t no_completion;

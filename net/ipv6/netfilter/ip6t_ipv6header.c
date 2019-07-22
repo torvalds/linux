@@ -71,7 +71,7 @@ ipv6header_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 		if (nexthdr == NEXTHDR_FRAGMENT)
 			hdrlen = 8;
 		else if (nexthdr == NEXTHDR_AUTH)
-			hdrlen = (hp->hdrlen + 2) << 2;
+			hdrlen = ipv6_authlen(hp);
 		else
 			hdrlen = ipv6_optlen(hp);
 

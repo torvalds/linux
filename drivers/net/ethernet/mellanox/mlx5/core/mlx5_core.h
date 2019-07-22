@@ -111,6 +111,11 @@ enum {
 	MLX5_DRIVER_SYND = 0xbadd00de,
 };
 
+enum mlx5_semaphore_space_address {
+	MLX5_SEMAPHORE_SPACE_DOMAIN     = 0xA,
+	MLX5_SEMAPHORE_SW_RESET         = 0x20,
+};
+
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_query_board_id(struct mlx5_core_dev *dev);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id);
@@ -118,6 +123,7 @@ int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_fast_teardown_hca(struct mlx5_core_dev *dev);
 void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force);
+void mlx5_error_sw_reset(struct mlx5_core_dev *dev);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
 void mlx5_recover_device(struct mlx5_core_dev *dev);
 int mlx5_sriov_init(struct mlx5_core_dev *dev);
@@ -153,6 +159,19 @@ int mlx5_query_qcam_reg(struct mlx5_core_dev *mdev, u32 *qcam,
 void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev);
 void mlx5_lag_remove(struct mlx5_core_dev *dev);
 
+int mlx5_irq_table_init(struct mlx5_core_dev *dev);
+void mlx5_irq_table_cleanup(struct mlx5_core_dev *dev);
+int mlx5_irq_table_create(struct mlx5_core_dev *dev);
+void mlx5_irq_table_destroy(struct mlx5_core_dev *dev);
+int mlx5_irq_attach_nb(struct mlx5_irq_table *irq_table, int vecidx,
+		       struct notifier_block *nb);
+int mlx5_irq_detach_nb(struct mlx5_irq_table *irq_table, int vecidx,
+		       struct notifier_block *nb);
+struct cpumask *
+mlx5_irq_get_affinity_mask(struct mlx5_irq_table *irq_table, int vecidx);
+struct cpu_rmap *mlx5_irq_get_rmap(struct mlx5_irq_table *table);
+int mlx5_irq_get_num_comp(struct mlx5_irq_table *table);
+
 int mlx5_events_init(struct mlx5_core_dev *dev);
 void mlx5_events_cleanup(struct mlx5_core_dev *dev);
 void mlx5_events_start(struct mlx5_core_dev *dev);
@@ -184,7 +203,10 @@ int mlx5_set_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 arm, u8 mode);
 			    MLX5_CAP_MCAM_FEATURE((mdev), mtpps_fs) &&	\
 			    MLX5_CAP_MCAM_FEATURE((mdev), mtpps_enh_out_per_adj))
 
-int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw);
+int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw,
+			struct netlink_ext_ack *extack);
+int mlx5_fw_version_query(struct mlx5_core_dev *dev,
+			  u32 *running_ver, u32 *stored_ver);
 
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
@@ -213,7 +235,7 @@ enum {
 	MLX5_NIC_IFC_FULL		= 0,
 	MLX5_NIC_IFC_DISABLED		= 1,
 	MLX5_NIC_IFC_NO_DRAM_NIC	= 2,
-	MLX5_NIC_IFC_INVALID		= 3
+	MLX5_NIC_IFC_SW_RESET		= 7
 };
 
 u8 mlx5_get_nic_state(struct mlx5_core_dev *dev);

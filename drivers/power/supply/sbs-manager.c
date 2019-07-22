@@ -314,7 +314,7 @@ static const struct power_supply_desc sbsm_default_psy_desc = {
 static int sbsm_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct sbsm_data *data;
 	struct device *dev = &client->dev;
 	struct power_supply_desc *psy_desc;

@@ -150,10 +150,10 @@ var S_SAVE_SPI_INIT_MTYPE_SHIFT		=   28
 var S_SAVE_SPI_INIT_FIRST_WAVE_MASK	=   0x04000000		//bit[26]: FirstWaveInTG
 var S_SAVE_SPI_INIT_FIRST_WAVE_SHIFT	=   26
 
-var S_SAVE_PC_HI_RCNT_SHIFT		=   28			//FIXME	 check with Brian to ensure all fields other than PC[47:0] can be used
-var S_SAVE_PC_HI_RCNT_MASK		=   0xF0000000		//FIXME
-var S_SAVE_PC_HI_FIRST_REPLAY_SHIFT	=   27			//FIXME
-var S_SAVE_PC_HI_FIRST_REPLAY_MASK	=   0x08000000		//FIXME
+var S_SAVE_PC_HI_RCNT_SHIFT		=   27			//FIXME	 check with Brian to ensure all fields other than PC[47:0] can be used
+var S_SAVE_PC_HI_RCNT_MASK		=   0xF8000000		//FIXME
+var S_SAVE_PC_HI_FIRST_REPLAY_SHIFT	=   26			//FIXME
+var S_SAVE_PC_HI_FIRST_REPLAY_MASK	=   0x04000000		//FIXME
 
 var s_save_spi_init_lo		    =	exec_lo
 var s_save_spi_init_hi		    =	exec_hi
@@ -162,8 +162,8 @@ var s_save_pc_lo	    =	ttmp0		//{TTMP1, TTMP0} = {3'h0,pc_rewind[3:0], HT[0],tra
 var s_save_pc_hi	    =	ttmp1
 var s_save_exec_lo	    =	ttmp2
 var s_save_exec_hi	    =	ttmp3
-var s_save_tmp		    =	ttmp4
-var s_save_trapsts	    =	ttmp5		//not really used until the end of the SAVE routine
+var s_save_tmp		    =	ttmp14
+var s_save_trapsts	    =	ttmp15		//not really used until the end of the SAVE routine
 var s_save_xnack_mask_lo    =	ttmp6
 var s_save_xnack_mask_hi    =	ttmp7
 var s_save_buf_rsrc0	    =	ttmp8
@@ -171,9 +171,9 @@ var s_save_buf_rsrc1	    =	ttmp9
 var s_save_buf_rsrc2	    =	ttmp10
 var s_save_buf_rsrc3	    =	ttmp11
 var s_save_status	    =	ttmp12
-var s_save_mem_offset	    =	ttmp14
+var s_save_mem_offset	    =	ttmp4
 var s_save_alloc_size	    =	s_save_trapsts		//conflict
-var s_save_m0		    =	ttmp15
+var s_save_m0		    =	ttmp5
 var s_save_ttmps_lo	    =	s_save_tmp		//no conflict
 var s_save_ttmps_hi	    =	s_save_trapsts		//no conflict
 
@@ -207,10 +207,10 @@ var s_restore_mode	    =	ttmp7
 
 var s_restore_pc_lo	    =	ttmp0
 var s_restore_pc_hi	    =	ttmp1
-var s_restore_exec_lo	    =	ttmp14
-var s_restore_exec_hi	    = 	ttmp15
-var s_restore_status	    =	ttmp4
-var s_restore_trapsts	    =	ttmp5
+var s_restore_exec_lo	    =	ttmp4
+var s_restore_exec_hi	    = 	ttmp5
+var s_restore_status	    =	ttmp14
+var s_restore_trapsts	    =	ttmp15
 var s_restore_xnack_mask_lo =	xnack_mask_lo
 var s_restore_xnack_mask_hi =	xnack_mask_hi
 var s_restore_buf_rsrc0	    =	ttmp8
@@ -266,10 +266,16 @@ if (!EMU_RUN_HACK)
 
 L_HALT_WAVE:
     // If STATUS.HALT is set then this fault must come from SQC instruction fetch.
-    // We cannot prevent further faults so just terminate the wavefront.
+    // We cannot prevent further faults. Spin wait until context saved.
     s_and_b32       ttmp2, s_save_status, SQ_WAVE_STATUS_HALT_MASK
     s_cbranch_scc0  L_NOT_ALREADY_HALTED
-    s_endpgm
+
+L_WAIT_CTX_SAVE:
+    s_sleep         0x10
+    s_getreg_b32    ttmp2, hwreg(HW_REG_TRAPSTS)
+    s_and_b32       ttmp2, ttmp2, SQ_WAVE_TRAPSTS_SAVECTX_MASK
+    s_cbranch_scc0  L_WAIT_CTX_SAVE
+
 L_NOT_ALREADY_HALTED:
     s_or_b32        s_save_status, s_save_status, SQ_WAVE_STATUS_HALT_MASK
 
@@ -293,12 +299,12 @@ L_FETCH_2ND_TRAP:
     // Read second-level TBA/TMA from first-level TMA and jump if available.
     // ttmp[2:5] and ttmp12 can be used (others hold SPI-initialized debug data)
     // ttmp12 holds SQ_WAVE_STATUS
-    s_getreg_b32    ttmp4, hwreg(HW_REG_SQ_SHADER_TMA_LO)
-    s_getreg_b32    ttmp5, hwreg(HW_REG_SQ_SHADER_TMA_HI)
-    s_lshl_b64      [ttmp4, ttmp5], [ttmp4, ttmp5], 0x8
-    s_load_dwordx2  [ttmp2, ttmp3], [ttmp4, ttmp5], 0x0 glc:1 // second-level TBA
+    s_getreg_b32    ttmp14, hwreg(HW_REG_SQ_SHADER_TMA_LO)
+    s_getreg_b32    ttmp15, hwreg(HW_REG_SQ_SHADER_TMA_HI)
+    s_lshl_b64      [ttmp14, ttmp15], [ttmp14, ttmp15], 0x8
+    s_load_dwordx2  [ttmp2, ttmp3], [ttmp14, ttmp15], 0x0 glc:1 // second-level TBA
     s_waitcnt       lgkmcnt(0)
-    s_load_dwordx2  [ttmp4, ttmp5], [ttmp4, ttmp5], 0x8 glc:1 // second-level TMA
+    s_load_dwordx2  [ttmp14, ttmp15], [ttmp14, ttmp15], 0x8 glc:1 // second-level TMA
     s_waitcnt       lgkmcnt(0)
     s_and_b64       [ttmp2, ttmp3], [ttmp2, ttmp3], [ttmp2, ttmp3]
     s_cbranch_scc0  L_NO_NEXT_TRAP // second-level trap handler not been set
@@ -405,7 +411,7 @@ end
     else
     end
 
-    // Save trap temporaries 6-11, 13-15 initialized by SPI debug dispatch logic
+    // Save trap temporaries 4-11, 13 initialized by SPI debug dispatch logic
     // ttmp SR memory offset : size(VGPR)+size(SGPR)+0x40
     get_vgpr_size_bytes(s_save_ttmps_lo)
     get_sgpr_size_bytes(s_save_ttmps_hi)
@@ -413,13 +419,11 @@ end
     s_add_u32	    s_save_ttmps_lo, s_save_ttmps_lo, s_save_spi_init_lo
     s_addc_u32	    s_save_ttmps_hi, s_save_spi_init_hi, 0x0
     s_and_b32	    s_save_ttmps_hi, s_save_ttmps_hi, 0xFFFF
-    s_store_dwordx2 [ttmp6, ttmp7], [s_save_ttmps_lo, s_save_ttmps_hi], 0x40 glc:1
+    s_store_dwordx4 [ttmp4, ttmp5, ttmp6, ttmp7], [s_save_ttmps_lo, s_save_ttmps_hi], 0x50 glc:1
     ack_sqc_store_workaround()
-    s_store_dwordx4 [ttmp8, ttmp9, ttmp10, ttmp11], [s_save_ttmps_lo, s_save_ttmps_hi], 0x48 glc:1
+    s_store_dwordx4 [ttmp8, ttmp9, ttmp10, ttmp11], [s_save_ttmps_lo, s_save_ttmps_hi], 0x60 glc:1
     ack_sqc_store_workaround()
-    s_store_dword   ttmp13, [s_save_ttmps_lo, s_save_ttmps_hi], 0x58 glc:1
-    ack_sqc_store_workaround()
-    s_store_dwordx2 [ttmp14, ttmp15], [s_save_ttmps_lo, s_save_ttmps_hi], 0x5C glc:1
+    s_store_dword   ttmp13, [s_save_ttmps_lo, s_save_ttmps_hi], 0x74 glc:1
     ack_sqc_store_workaround()
 
     /*	    setup Resource Contants    */
@@ -1093,7 +1097,7 @@ end
     //s_setreg_b32  hwreg(HW_REG_TRAPSTS),  s_restore_trapsts	   //don't overwrite SAVECTX bit as it may be set through external SAVECTX during restore
     s_setreg_b32    hwreg(HW_REG_MODE),	    s_restore_mode
 
-    // Restore trap temporaries 6-11, 13-15 initialized by SPI debug dispatch logic
+    // Restore trap temporaries 4-11, 13 initialized by SPI debug dispatch logic
     // ttmp SR memory offset : size(VGPR)+size(SGPR)+0x40
     get_vgpr_size_bytes(s_restore_ttmps_lo)
     get_sgpr_size_bytes(s_restore_ttmps_hi)
@@ -1101,10 +1105,9 @@ end
     s_add_u32	    s_restore_ttmps_lo, s_restore_ttmps_lo, s_restore_buf_rsrc0
     s_addc_u32	    s_restore_ttmps_hi, s_restore_buf_rsrc1, 0x0
     s_and_b32	    s_restore_ttmps_hi, s_restore_ttmps_hi, 0xFFFF
-    s_load_dwordx2  [ttmp6, ttmp7], [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x40 glc:1
-    s_load_dwordx4  [ttmp8, ttmp9, ttmp10, ttmp11], [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x48 glc:1
-    s_load_dword    ttmp13, [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x58 glc:1
-    s_load_dwordx2  [ttmp14, ttmp15], [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x5C glc:1
+    s_load_dwordx4  [ttmp4, ttmp5, ttmp6, ttmp7], [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x50 glc:1
+    s_load_dwordx4  [ttmp8, ttmp9, ttmp10, ttmp11], [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x60 glc:1
+    s_load_dword    ttmp13, [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x74 glc:1
     s_waitcnt	    lgkmcnt(0)
 
     //reuse s_restore_m0 as a temp register

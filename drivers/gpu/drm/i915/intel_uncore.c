@@ -111,9 +111,11 @@ wait_ack_set(const struct intel_uncore_forcewake_domain *d,
 static inline void
 fw_domain_wait_ack_clear(const struct intel_uncore_forcewake_domain *d)
 {
-	if (wait_ack_clear(d, FORCEWAKE_KERNEL))
+	if (wait_ack_clear(d, FORCEWAKE_KERNEL)) {
 		DRM_ERROR("%s: timed out waiting for forcewake ack to clear.\n",
 			  intel_uncore_forcewake_domain_to_str(d->id));
+		add_taint_for_CI(TAINT_WARN); /* CI now unreliable */
+	}
 }
 
 enum ack_type {
@@ -186,9 +188,11 @@ fw_domain_get(const struct intel_uncore_forcewake_domain *d)
 static inline void
 fw_domain_wait_ack_set(const struct intel_uncore_forcewake_domain *d)
 {
-	if (wait_ack_set(d, FORCEWAKE_KERNEL))
+	if (wait_ack_set(d, FORCEWAKE_KERNEL)) {
 		DRM_ERROR("%s: timed out waiting for forcewake ack request.\n",
 			  intel_uncore_forcewake_domain_to_str(d->id));
+		add_taint_for_CI(TAINT_WARN); /* CI now unreliable */
+	}
 }
 
 static inline void
@@ -579,7 +583,7 @@ void intel_uncore_forcewake_get(struct intel_uncore *uncore,
 	if (!uncore->funcs.force_wake_get)
 		return;
 
-	__assert_rpm_wakelock_held(uncore->rpm);
+	assert_rpm_wakelock_held(uncore->rpm);
 
 	spin_lock_irqsave(&uncore->lock, irqflags);
 	__intel_uncore_forcewake_get(uncore, fw_domains);
@@ -733,7 +737,7 @@ void assert_forcewakes_active(struct intel_uncore *uncore,
 	if (!uncore->funcs.force_wake_get)
 		return;
 
-	__assert_rpm_wakelock_held(uncore->rpm);
+	assert_rpm_wakelock_held(uncore->rpm);
 
 	fw_domains &= uncore->fw_domains;
 	WARN(fw_domains & ~uncore->fw_domains_active,
@@ -1050,7 +1054,7 @@ unclaimed_reg_debug(struct intel_uncore *uncore,
 
 #define GEN2_READ_HEADER(x) \
 	u##x val = 0; \
-	__assert_rpm_wakelock_held(uncore->rpm);
+	assert_rpm_wakelock_held(uncore->rpm);
 
 #define GEN2_READ_FOOTER \
 	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
@@ -1092,7 +1096,7 @@ __gen2_read(64)
 	u32 offset = i915_mmio_reg_offset(reg); \
 	unsigned long irqflags; \
 	u##x val = 0; \
-	__assert_rpm_wakelock_held(uncore->rpm); \
+	assert_rpm_wakelock_held(uncore->rpm); \
 	spin_lock_irqsave(&uncore->lock, irqflags); \
 	unclaimed_reg_debug(uncore, reg, true, true)
 
@@ -1166,7 +1170,7 @@ __gen6_read(64)
 
 #define GEN2_WRITE_HEADER \
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
-	__assert_rpm_wakelock_held(uncore->rpm); \
+	assert_rpm_wakelock_held(uncore->rpm); \
 
 #define GEN2_WRITE_FOOTER
 
@@ -1204,7 +1208,7 @@ __gen2_write(32)
 	u32 offset = i915_mmio_reg_offset(reg); \
 	unsigned long irqflags; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
-	__assert_rpm_wakelock_held(uncore->rpm); \
+	assert_rpm_wakelock_held(uncore->rpm); \
 	spin_lock_irqsave(&uncore->lock, irqflags); \
 	unclaimed_reg_debug(uncore, reg, false, true)
 
@@ -1457,8 +1461,8 @@ static void intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 					 unsigned long action, void *data)
 {
-	struct drm_i915_private *dev_priv = container_of(nb,
-			struct drm_i915_private, uncore.pmic_bus_access_nb);
+	struct intel_uncore *uncore = container_of(nb,
+			struct intel_uncore, pmic_bus_access_nb);
 
 	switch (action) {
 	case MBI_PMIC_BUS_ACCESS_BEGIN:
@@ -1475,12 +1479,12 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 		 * wake reference -> disable wakeref asserts for the time of
 		 * the access.
 		 */
-		disable_rpm_wakeref_asserts(dev_priv);
-		intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
-		enable_rpm_wakeref_asserts(dev_priv);
+		disable_rpm_wakeref_asserts(uncore->rpm);
+		intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
+		enable_rpm_wakeref_asserts(uncore->rpm);
 		break;
 	case MBI_PMIC_BUS_ACCESS_END:
-		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
+		intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 		break;
 	}
 
@@ -1668,7 +1672,8 @@ static const struct reg_whitelist {
 int i915_reg_read_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *i915 = to_i915(dev);
+	struct intel_uncore *uncore = &i915->uncore;
 	struct drm_i915_reg_read *reg = data;
 	struct reg_whitelist const *entry;
 	intel_wakeref_t wakeref;
@@ -1685,7 +1690,7 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 		GEM_BUG_ON(entry->size > 8);
 		GEM_BUG_ON(entry_offset & (entry->size - 1));
 
-		if (INTEL_INFO(dev_priv)->gen_mask & entry->gen_mask &&
+		if (INTEL_INFO(i915)->gen_mask & entry->gen_mask &&
 		    entry_offset == (reg->offset & -entry->size))
 			break;
 		entry++;
@@ -1697,18 +1702,22 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 
 	flags = reg->offset & (entry->size - 1);
 
-	with_intel_runtime_pm(dev_priv, wakeref) {
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		if (entry->size == 8 && flags == I915_REG_READ_8B_WA)
-			reg->val = I915_READ64_2x32(entry->offset_ldw,
-						    entry->offset_udw);
+			reg->val = intel_uncore_read64_2x32(uncore,
+							    entry->offset_ldw,
+							    entry->offset_udw);
 		else if (entry->size == 8 && flags == 0)
-			reg->val = I915_READ64(entry->offset_ldw);
+			reg->val = intel_uncore_read64(uncore,
+						       entry->offset_ldw);
 		else if (entry->size == 4 && flags == 0)
-			reg->val = I915_READ(entry->offset_ldw);
+			reg->val = intel_uncore_read(uncore, entry->offset_ldw);
 		else if (entry->size == 2 && flags == 0)
-			reg->val = I915_READ16(entry->offset_ldw);
+			reg->val = intel_uncore_read16(uncore,
+						       entry->offset_ldw);
 		else if (entry->size == 1 && flags == 0)
-			reg->val = I915_READ8(entry->offset_ldw);
+			reg->val = intel_uncore_read8(uncore,
+						      entry->offset_ldw);
 		else
 			ret = -EINVAL;
 	}

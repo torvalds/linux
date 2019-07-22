@@ -1,25 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Serial Attached SCSI (SAS) Port class
  *
  * Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
- *
- * This file is licensed under GPLv2.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include "sas_internal.h"
@@ -70,7 +54,7 @@ static void sas_resume_port(struct asd_sas_phy *phy)
 			continue;
 		}
 
-		if (dev->dev_type == SAS_EDGE_EXPANDER_DEVICE || dev->dev_type == SAS_FANOUT_EXPANDER_DEVICE) {
+		if (dev_is_expander(dev->dev_type)) {
 			dev->ex_dev.ex_change_count = -1;
 			for (i = 0; i < dev->ex_dev.num_phys; i++) {
 				struct ex_phy *phy = &dev->ex_dev.ex_phy[i];
@@ -195,7 +179,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 
 	sas_discover_event(phy->port, DISCE_DISCOVER_DOMAIN);
 	/* Only insert a revalidate event after initial discovery */
-	if (port_dev && sas_dev_type_is_expander(port_dev->dev_type)) {
+	if (port_dev && dev_is_expander(port_dev->dev_type)) {
 		struct expander_device *ex_dev = &port_dev->ex_dev;
 
 		ex_dev->ex_change_count = -1;
@@ -264,7 +248,7 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 	spin_unlock_irqrestore(&sas_ha->phy_port_lock, flags);
 
 	/* Only insert revalidate event if the port still has members */
-	if (port->port && dev && sas_dev_type_is_expander(dev->dev_type)) {
+	if (port->port && dev && dev_is_expander(dev->dev_type)) {
 		struct expander_device *ex_dev = &dev->ex_dev;
 
 		ex_dev->ex_change_count = -1;

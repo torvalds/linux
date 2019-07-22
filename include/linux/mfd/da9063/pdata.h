@@ -11,55 +11,6 @@
 #ifndef __MFD_DA9063_PDATA_H__
 #define __MFD_DA9063_PDATA_H__
 
-#include <linux/regulator/machine.h>
-
-/*
- * Regulator configuration
- */
-/* DA9063 and DA9063L regulator IDs */
-enum {
-	/* BUCKs */
-	DA9063_ID_BCORE1,
-	DA9063_ID_BCORE2,
-	DA9063_ID_BPRO,
-	DA9063_ID_BMEM,
-	DA9063_ID_BIO,
-	DA9063_ID_BPERI,
-
-	/* BCORE1 and BCORE2 in merged mode */
-	DA9063_ID_BCORES_MERGED,
-	/* BMEM and BIO in merged mode */
-	DA9063_ID_BMEM_BIO_MERGED,
-	/* When two BUCKs are merged, they cannot be reused separately */
-
-	/* LDOs on both DA9063 and DA9063L */
-	DA9063_ID_LDO3,
-	DA9063_ID_LDO7,
-	DA9063_ID_LDO8,
-	DA9063_ID_LDO9,
-	DA9063_ID_LDO11,
-
-	/* DA9063-only LDOs */
-	DA9063_ID_LDO1,
-	DA9063_ID_LDO2,
-	DA9063_ID_LDO4,
-	DA9063_ID_LDO5,
-	DA9063_ID_LDO6,
-	DA9063_ID_LDO10,
-};
-
-/* Regulators platform data */
-struct da9063_regulator_data {
-	int				id;
-	struct regulator_init_data	*initdata;
-};
-
-struct da9063_regulators_pdata {
-	unsigned			n_regulators;
-	struct da9063_regulator_data	*regulator_data;
-};
-
-
 /*
  * RGB LED configuration
  */

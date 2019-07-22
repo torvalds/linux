@@ -42,6 +42,9 @@ dvb-usb-digitv-objs := digitv.o
 obj-$(CONFIG_DVB_USB_DIGITV) += dvb-usb-digitv.o
 
 dvb-usb-cxusb-objs := cxusb.o
+ifeq ($(CONFIG_DVB_USB_CXUSB_ANALOG),y)
+dvb-usb-cxusb-objs += cxusb-analog.o
+endif
 obj-$(CONFIG_DVB_USB_CXUSB) += dvb-usb-cxusb.o
 
 dvb-usb-ttusb2-objs := ttusb2.o

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014,2016 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -109,12 +109,17 @@ struct wil_fw_record_concurrency { /* type == wil_fw_type_comment */
 
 /* brd file info encoded inside a comment record */
 #define WIL_BRD_FILE_MAGIC (0xabcddcbb)
+
+struct brd_info {
+	__le32 base_addr;
+	__le32 max_size_bytes;
+} __packed;
+
 struct wil_fw_record_brd_file { /* type == wil_fw_type_comment */
 	/* identifies brd file record */
 	struct wil_fw_record_comment_hdr hdr;
 	__le32 version;
-	__le32 base_addr;
-	__le32 max_size_bytes;
+	struct brd_info brd_info[0];
 } __packed;
 
 /* perform action

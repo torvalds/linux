@@ -15,7 +15,7 @@ normally be unsharable, specifically:
 * visorinput - keyboard and mouse
 
 These drivers conform to the standard Linux bus/device model described
-within Documentation/driver-model/, and utilize a driver named visorbus to
+within Documentation/driver-api/driver-model/, and utilize a driver named visorbus to
 present the virtual busses involved. Drivers in the 'visor*' driver set are
 commonly referred to as "guest drivers" or "client drivers".  All drivers
 except visorbus expose a device of a specific usable class to the Linux guest
@@ -141,7 +141,7 @@ called automatically by the visorbus driver at appropriate times:
 -----------------------------------
 
 Because visorbus is a standard Linux bus driver in the model described in
-Documentation/driver-model/, the hierarchy of s-Par virtual devices is
+Documentation/driver-api/driver-model/, the hierarchy of s-Par virtual devices is
 published in the sysfs tree beneath /bus/visorbus/, e.g.,
 /sys/bus/visorbus/devices/ might look like:
 

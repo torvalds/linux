@@ -149,6 +149,43 @@ extern void paging_init(void);
 extern void page_table_range_init(unsigned long start, unsigned long end,
 				  pgd_t *pgd);
 
+static inline bool __pte_access_permitted(pte_t pte, u64 prot)
+{
+	return (pte_val(pte) & (prot | _PAGE_SPECIAL)) == prot;
+}
+
+#ifdef CONFIG_X2TLB
+static inline bool pte_access_permitted(pte_t pte, bool write)
+{
+	u64 prot = _PAGE_PRESENT;
+
+	prot |= _PAGE_EXT(_PAGE_EXT_KERN_READ | _PAGE_EXT_USER_READ);
+	if (write)
+		prot |= _PAGE_EXT(_PAGE_EXT_KERN_WRITE | _PAGE_EXT_USER_WRITE);
+	return __pte_access_permitted(pte, prot);
+}
+#elif defined(CONFIG_SUPERH64)
+static inline bool pte_access_permitted(pte_t pte, bool write)
+{
+	u64 prot = _PAGE_PRESENT | _PAGE_USER | _PAGE_READ;
+
+	if (write)
+		prot |= _PAGE_WRITE;
+	return __pte_access_permitted(pte, prot);
+}
+#else
+static inline bool pte_access_permitted(pte_t pte, bool write)
+{
+	u64 prot = _PAGE_PRESENT | _PAGE_USER;
+
+	if (write)
+		prot |= _PAGE_RW;
+	return __pte_access_permitted(pte, prot);
+}
+#endif
+
+#define pte_access_permitted pte_access_permitted
+
 /* arch/sh/mm/mmap.c */
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN

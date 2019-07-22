@@ -121,6 +121,8 @@
 #define EXPANSION_MFAULTS	0x0010	/* Multiple faults detected    */
 #define EXPANSION_RESV		0xffe0	/* Unused...                   */
 
+#define ESTATUS_1000_XFULL	0x8000	/* Can do 1000BaseX Full       */
+#define ESTATUS_1000_XHALF	0x4000	/* Can do 1000BaseX Half       */
 #define ESTATUS_1000_TFULL	0x2000	/* Can do 1000BT Full          */
 #define ESTATUS_1000_THALF	0x1000	/* Can do 1000BT Half          */
 

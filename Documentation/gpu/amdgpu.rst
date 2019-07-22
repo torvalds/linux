@@ -37,10 +37,10 @@ Buffer Objects
 PRIME Buffer Sharing
 --------------------
 
-.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_prime.c
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_dma_buf.c
    :doc: PRIME Buffer Sharing
 
-.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_prime.c
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_dma_buf.c
    :internal:
 
 MMU Notifier
@@ -69,6 +69,26 @@ Interrupt Handling
 
 .. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_irq.c
    :internal:
+
+AMDGPU XGMI Support
+===================
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_xgmi.c
+   :doc: AMDGPU XGMI Support
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_xgmi.c
+   :internal:
+
+AMDGPU RAS debugfs control interface
+====================================
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_ras.c
+   :doc: AMDGPU RAS debugfs control interface
+
+
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_ras.c
+   :internal:
+
 
 GPU Power/Thermal Controls and Monitoring
 =========================================

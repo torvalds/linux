@@ -15,9 +15,9 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
+#include <linux/zalloc.h>
 #include <asm/bug.h>
 #include <sys/param.h>
-#include "util.h"
 #include "debug.h"
 #include "builtin.h"
 #include <subcmd/parse-options.h>

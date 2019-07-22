@@ -258,6 +258,7 @@ drive-push-pull		- drive actively high and low
 drive-open-drain	- drive with open drain
 drive-open-source	- drive with open source
 drive-strength		- sink or source at most X mA
+drive-strength-microamp	- sink or source at most X uA
 input-enable		- enable input on pin (no effect on output, such as
 			  enabling an input buffer)
 input-disable		- disable input on pin (no effect on output, such as
@@ -325,6 +326,8 @@ arguments are described below.
   supporting it the pull strength in Ohm. bias-disable will disable the pull.
 
 - drive-strength takes as argument the target strength in mA.
+
+- drive-strength-microamp takes as argument the target strength in uA.
 
 - input-debounce takes the debounce time in usec as argument
   or 0 to disable debouncing

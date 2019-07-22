@@ -1650,7 +1650,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	}
 
 check_need_indicate_scan_done:
-	if (true == need_indicate_scan_done)
+	if (need_indicate_scan_done)
 	{
 		rtw_cfg80211_surveydone_event_callback(padapter);
 		rtw_cfg80211_indicate_scan_done(padapter, false);
@@ -2439,23 +2439,7 @@ void rtw_cfg80211_indicate_sta_disassoc(struct adapter *padapter, unsigned char 
 	cfg80211_del_sta(ndev, da, GFP_ATOMIC);
 }
 
-static int rtw_cfg80211_monitor_if_open(struct net_device *ndev)
-{
-	int ret = 0;
 
-	DBG_8192C("%s\n", __func__);
-
-	return ret;
-}
-
-static int rtw_cfg80211_monitor_if_close(struct net_device *ndev)
-{
-	int ret = 0;
-
-	DBG_8192C("%s\n", __func__);
-
-	return ret;
-}
 
 static netdev_tx_t rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb, struct net_device *ndev)
 {
@@ -2604,20 +2588,10 @@ fail:
 
 }
 
-static int rtw_cfg80211_monitor_if_set_mac_address(struct net_device *ndev, void *addr)
-{
-	int ret = 0;
 
-	DBG_8192C("%s\n", __func__);
-
-	return ret;
-}
 
 static const struct net_device_ops rtw_cfg80211_monitor_if_ops = {
-	.ndo_open = rtw_cfg80211_monitor_if_open,
-       .ndo_stop = rtw_cfg80211_monitor_if_close,
-       .ndo_start_xmit = rtw_cfg80211_monitor_if_xmit_entry,
-       .ndo_set_mac_address = rtw_cfg80211_monitor_if_set_mac_address,
+	.ndo_start_xmit = rtw_cfg80211_monitor_if_xmit_entry,
 };
 
 static int rtw_cfg80211_add_monitor_if (struct adapter *padapter, char *name, struct net_device **ndev)
@@ -2896,9 +2870,9 @@ static int cfg80211_rtw_del_station(struct wiphy *wiphy, struct net_device *ndev
 
 		flush_all_cam_entry(padapter);	/* clear CAM */
 
-		ret = rtw_sta_flush(padapter);
+		rtw_sta_flush(padapter);
 
-		return ret;
+		return 0;
 	}
 
 

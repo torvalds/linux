@@ -3614,11 +3614,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 		netif_warn(efx, probe, efx->net_dev,
 			   "failed to create MTDs (%d)\n", rc);
 
-	rc = pci_enable_pcie_error_reporting(pci_dev);
-	if (rc && rc != -EINVAL)
-		netif_notice(efx, probe, efx->net_dev,
-			     "PCIE error reporting unavailable (%d).\n",
-			     rc);
+	(void)pci_enable_pcie_error_reporting(pci_dev);
 
 	if (efx->type->udp_tnl_push_ports)
 		efx->type->udp_tnl_push_ports(efx);

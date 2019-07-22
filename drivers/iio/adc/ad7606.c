@@ -140,7 +140,7 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 			   int *val2,
 			   long m)
 {
-	int ret;
+	int ret, ch = 0;
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	switch (m) {
@@ -157,8 +157,10 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 		*val = (short)ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
+		if (st->sw_mode_en)
+			ch = chan->address;
 		*val = 0;
-		*val2 = st->scale_avail[st->range];
+		*val2 = st->scale_avail[st->range[ch]];
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		*val = st->oversampling;
@@ -194,6 +196,32 @@ static ssize_t in_voltage_scale_available_show(struct device *dev,
 
 static IIO_DEVICE_ATTR_RO(in_voltage_scale_available, 0);
 
+static int ad7606_write_scale_hw(struct iio_dev *indio_dev, int ch, int val)
+{
+	struct ad7606_state *st = iio_priv(indio_dev);
+
+	gpiod_set_value(st->gpio_range, val);
+
+	return 0;
+}
+
+static int ad7606_write_os_hw(struct iio_dev *indio_dev, int val)
+{
+	struct ad7606_state *st = iio_priv(indio_dev);
+	DECLARE_BITMAP(values, 3);
+
+	values[0] = val;
+
+	gpiod_set_array_value(ARRAY_SIZE(values), st->gpio_os->desc,
+			      st->gpio_os->info, values);
+
+	/* AD7616 requires a reset to update value */
+	if (st->chip_info->os_req_reset)
+		ad7606_reset(st);
+
+	return 0;
+}
+
 static int ad7606_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int val,
@@ -201,15 +229,20 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 			    long mask)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	DECLARE_BITMAP(values, 3);
-	int i;
+	int i, ret, ch = 0;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		mutex_lock(&st->lock);
 		i = find_closest(val2, st->scale_avail, st->num_scales);
-		gpiod_set_value(st->gpio_range, i);
-		st->range = i;
+		if (st->sw_mode_en)
+			ch = chan->address;
+		ret = st->write_scale(indio_dev, ch, i);
+		if (ret < 0) {
+			mutex_unlock(&st->lock);
+			return ret;
+		}
+		st->range[ch] = i;
 		mutex_unlock(&st->lock);
 
 		return 0;
@@ -218,17 +251,12 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		i = find_closest(val, st->oversampling_avail,
 				 st->num_os_ratios);
-
-		values[0] = i;
-
 		mutex_lock(&st->lock);
-		gpiod_set_array_value(ARRAY_SIZE(values), st->gpio_os->desc,
-				      st->gpio_os->info, values);
-
-		/* AD7616 requires a reset to update value */
-		if (st->chip_info->os_req_reset)
-			ad7606_reset(st);
-
+		ret = st->write_os(indio_dev, i);
+		if (ret < 0) {
+			mutex_unlock(&st->lock);
+			return ret;
+		}
 		st->oversampling = st->oversampling_avail[i];
 		mutex_unlock(&st->lock);
 
@@ -536,7 +564,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	st->bops = bops;
 	st->base_address = base_address;
 	/* tied to logic low, analog input range is +/- 5V */
-	st->range = 0;
+	st->range[0] = 0;
 	st->oversampling = 1;
 	st->scale_avail = ad7606_scale_avail;
 	st->num_scales = ARRAY_SIZE(ad7606_scale_avail);
@@ -588,6 +616,39 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	ret = ad7606_reset(st);
 	if (ret)
 		dev_warn(st->dev, "failed to RESET: no RESET GPIO specified\n");
+
+	st->write_scale = ad7606_write_scale_hw;
+	st->write_os = ad7606_write_os_hw;
+
+	if (st->chip_info->sw_mode_config)
+		st->sw_mode_en = device_property_present(st->dev,
+							 "adi,sw-mode");
+
+	if (st->sw_mode_en) {
+		/* After reset, in software mode, ±10 V is set by default */
+		memset32(st->range, 2, ARRAY_SIZE(st->range));
+		indio_dev->info = &ad7606_info_os_and_range;
+
+		/*
+		 * In software mode, the range gpio has no longer its function.
+		 * Instead, the scale can be configured individually for each
+		 * channel from the range registers.
+		 */
+		if (st->chip_info->write_scale_sw)
+			st->write_scale = st->chip_info->write_scale_sw;
+
+		/*
+		 * In software mode, the oversampling is no longer configured
+		 * with GPIO pins. Instead, the oversampling can be configured
+		 * in configuratiion register.
+		 */
+		if (st->chip_info->write_os_sw)
+			st->write_os = st->chip_info->write_os_sw;
+
+		ret = st->chip_info->sw_mode_config(indio_dev);
+		if (ret < 0)
+			return ret;
+	}
 
 	st->trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
 					  indio_dev->name, indio_dev->id);
@@ -643,7 +704,7 @@ static int ad7606_resume(struct device *dev)
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	if (st->gpio_standby) {
-		gpiod_set_value(st->gpio_range, st->range);
+		gpiod_set_value(st->gpio_range, st->range[0]);
 		gpiod_set_value(st->gpio_standby, 1);
 		ad7606_reset(st);
 	}

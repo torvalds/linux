@@ -317,6 +317,18 @@ MLXSW_ITEM64(cmd_mbox, query_fw, doorbell_page_offset, 0x40, 0, 64);
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, doorbell_page_bar, 0x48, 30, 2);
 
+/* cmd_mbox_query_fw_free_running_clock_offset
+ * The offset of the free running clock page
+ */
+MLXSW_ITEM64(cmd_mbox, query_fw, free_running_clock_offset, 0x50, 0, 64);
+
+/* cmd_mbox_query_fw_fr_rn_clk_bar
+ * PCI base address register (BAR) of the free running clock page
+ * 0: BAR 0
+ * 1: 64 bit BAR
+ */
+MLXSW_ITEM32(cmd_mbox, query_fw, fr_rn_clk_bar, 0x58, 30, 2);
+
 /* QUERY_BOARDINFO - Query Board Information
  * -----------------------------------------
  * OpMod == 0 (N/A), INMmod == 0 (N/A)

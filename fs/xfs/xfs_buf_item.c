@@ -5,19 +5,17 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_priv.h"
-#include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
-#include "xfs_inode.h"
 
 
 kmem_zone_t	*xfs_buf_item_zone;
@@ -520,7 +518,7 @@ xfs_buf_item_push(
 	/* has a previous flush failed due to IO errors? */
 	if ((bp->b_flags & XBF_WRITE_FAIL) &&
 	    ___ratelimit(&xfs_buf_write_fail_rl_state, "XFS: Failing async write")) {
-		xfs_warn(bp->b_target->bt_mount,
+		xfs_warn(bp->b_mount,
 "Failing async write on buffer block 0x%llx. Retrying async write.",
 			 (long long)bp->b_bn);
 	}
@@ -594,7 +592,7 @@ xfs_buf_item_put(
  * free the item.
  */
 STATIC void
-xfs_buf_item_unlock(
+xfs_buf_item_release(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
@@ -609,7 +607,7 @@ xfs_buf_item_unlock(
 						   &lip->li_flags);
 #endif
 
-	trace_xfs_buf_item_unlock(bip);
+	trace_xfs_buf_item_release(bip);
 
 	/*
 	 * The bli dirty state should match whether the blf has logged segments
@@ -637,6 +635,14 @@ xfs_buf_item_unlock(
 		return;
 	ASSERT(!stale || aborted);
 	xfs_buf_relse(bp);
+}
+
+STATIC void
+xfs_buf_item_committing(
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		commit_lsn)
+{
+	return xfs_buf_item_release(lip);
 }
 
 /*
@@ -671,25 +677,15 @@ xfs_buf_item_committed(
 	return lsn;
 }
 
-STATIC void
-xfs_buf_item_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		commit_lsn)
-{
-}
-
-/*
- * This is the ops vector shared by all buf log items.
- */
 static const struct xfs_item_ops xfs_buf_item_ops = {
 	.iop_size	= xfs_buf_item_size,
 	.iop_format	= xfs_buf_item_format,
 	.iop_pin	= xfs_buf_item_pin,
 	.iop_unpin	= xfs_buf_item_unpin,
-	.iop_unlock	= xfs_buf_item_unlock,
+	.iop_release	= xfs_buf_item_release,
+	.iop_committing	= xfs_buf_item_committing,
 	.iop_committed	= xfs_buf_item_committed,
 	.iop_push	= xfs_buf_item_push,
-	.iop_committing = xfs_buf_item_committing
 };
 
 STATIC int
@@ -743,7 +739,7 @@ xfs_buf_item_init(
 	 * this buffer. If we do already have one, there is
 	 * nothing to do here so return.
 	 */
-	ASSERT(bp->b_target->bt_mount == mp);
+	ASSERT(bp->b_mount == mp);
 	if (bip) {
 		ASSERT(bip->bli_item.li_type == XFS_LI_BUF);
 		ASSERT(!bp->b_transp);
@@ -980,9 +976,9 @@ xfs_buf_item_relse(
  */
 void
 xfs_buf_attach_iodone(
-	xfs_buf_t	*bp,
-	void		(*cb)(xfs_buf_t *, xfs_log_item_t *),
-	xfs_log_item_t	*lip)
+	struct xfs_buf		*bp,
+	void			(*cb)(struct xfs_buf *, struct xfs_log_item *),
+	struct xfs_log_item	*lip)
 {
 	ASSERT(xfs_buf_islocked(bp));
 

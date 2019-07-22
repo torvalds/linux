@@ -133,6 +133,8 @@ struct rtw8822c_efuse {
 #define REG_DYMPRITH	0x86c
 #define REG_DYMENTH0	0x870
 #define REG_DYMENTH	0x874
+#define REG_SBD		0x88c
+#define BITS_SUBTUNE		GENMASK(15, 12)
 #define REG_DYMTHMIN	0x8a4
 #define REG_TXBWCTL	0x9b0
 #define REG_TXCLK	0x9b4
@@ -140,12 +142,20 @@ struct rtw8822c_efuse {
 #define REG_MRCM	0xc38
 #define REG_AGCSWSH	0xc44
 #define REG_ANTWTPD	0xc54
+#define REG_PT_CHSMO	0xcbc
+#define BIT_PT_OPT		BIT(21)
 #define REG_ORITXCODE	0x1800
 #define REG_3WIRE	0x180c
 #define BIT_3WIRE_TX_EN		BIT(0)
 #define BIT_3WIRE_RX_EN		BIT(1)
 #define BIT_3WIRE_PI_ON		BIT(28)
 #define REG_RXAGCCTL0	0x18ac
+#define BITS_RXAGC_CCK		GENMASK(15, 12)
+#define BITS_RXAGC_OFDM		GENMASK(8, 4)
+#define REG_DCKA_I_0	0x18bc
+#define REG_DCKA_I_1	0x18c0
+#define REG_DCKA_Q_0	0x18d8
+#define REG_DCKA_Q_1	0x18dc
 #define REG_CCKSB	0x1a00
 #define REG_RXCCKSEL	0x1a04
 #define REG_BGCTRL	0x1a14
@@ -164,11 +174,15 @@ struct rtw8822c_efuse {
 #define REG_TXF5	0x1aa0
 #define REG_TXF6	0x1aac
 #define REG_TXF7	0x1ab0
+#define REG_CCK_SOURCE	0x1abc
+#define BIT_NBI_EN		BIT(30)
 #define REG_TXANT	0x1c28
 #define REG_ENCCK	0x1c3c
 #define BIT_CCK_BLK_EN		BIT(1)
 #define BIT_CCK_OFDM_BLK_EN	(BIT(0) | BIT(1))
 #define REG_CCAMSK	0x1c80
+#define REG_RX_BREAK	0x1d2c
+#define BIT_COM_RX_GCK_EN	BIT(31)
 #define REG_RXFNCTL	0x1d30
 #define REG_RXIGI	0x1d70
 #define REG_ENFN	0x1e24
@@ -178,9 +192,18 @@ struct rtw8822c_efuse {
 #define REG_CNT_CTRL	0x1eb4
 #define BIT_ALL_CNT_RST		BIT(25)
 #define REG_OFDM_FACNT	0x2d00
+#define REG_OFDM_FACNT1	0x2d04
+#define REG_OFDM_FACNT2	0x2d08
+#define REG_OFDM_FACNT3	0x2d0c
+#define REG_OFDM_FACNT4	0x2d10
+#define REG_OFDM_FACNT5	0x2d20
 #define REG_OFDM_TXCNT	0x2de0
 #define REG_ORITXCODE2	0x4100
 #define REG_3WIRE2	0x410c
 #define REG_RXAGCCTL	0x41ac
+#define REG_DCKB_I_0	0x41bc
+#define REG_DCKB_I_1	0x41c0
+#define REG_DCKB_Q_0	0x41d8
+#define REG_DCKB_Q_1	0x41dc
 
 #endif

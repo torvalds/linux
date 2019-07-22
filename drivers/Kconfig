@@ -188,8 +188,6 @@ source "drivers/ipack/Kconfig"
 
 source "drivers/reset/Kconfig"
 
-source "drivers/fmc/Kconfig"
-
 source "drivers/phy/Kconfig"
 
 source "drivers/powercap/Kconfig"

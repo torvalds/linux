@@ -39,7 +39,7 @@ static int __validate_auth(struct ceph_mon_client *monc);
 /*
  * Decode a monmap blob (e.g., during mount).
  */
-struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
+static struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 {
 	struct ceph_monmap *m = NULL;
 	int i, err = -EINVAL;
@@ -50,7 +50,7 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	ceph_decode_32_safe(&p, end, len, bad);
 	ceph_decode_need(&p, end, len, bad);
 
-	dout("monmap_decode %p %p len %d\n", p, end, (int)(end-p));
+	dout("monmap_decode %p %p len %d (%d)\n", p, end, len, (int)(end-p));
 	p += sizeof(u16);  /* skip version */
 
 	ceph_decode_need(&p, end, sizeof(fsid) + 2*sizeof(u32), bad);
@@ -58,7 +58,6 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	epoch = ceph_decode_32(&p);
 
 	num_mon = ceph_decode_32(&p);
-	ceph_decode_need(&p, end, num_mon*sizeof(m->mon_inst[0]), bad);
 
 	if (num_mon > CEPH_MAX_MON)
 		goto bad;
@@ -68,17 +67,22 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	m->fsid = fsid;
 	m->epoch = epoch;
 	m->num_mon = num_mon;
-	ceph_decode_copy(&p, m->mon_inst, num_mon*sizeof(m->mon_inst[0]));
-	for (i = 0; i < num_mon; i++)
-		ceph_decode_addr(&m->mon_inst[i].addr);
+	for (i = 0; i < num_mon; ++i) {
+		struct ceph_entity_inst *inst = &m->mon_inst[i];
 
+		/* copy name portion */
+		ceph_decode_copy_safe(&p, end, &inst->name,
+					sizeof(inst->name), bad);
+		err = ceph_decode_entity_addr(&p, end, &inst->addr);
+		if (err)
+			goto bad;
+	}
 	dout("monmap_decode epoch %d, num_mon %d\n", m->epoch,
 	     m->num_mon);
 	for (i = 0; i < m->num_mon; i++)
 		dout("monmap_decode  mon%d is %s\n", i,
 		     ceph_pr_addr(&m->mon_inst[i].addr));
 	return m;
-
 bad:
 	dout("monmap_decode failed with %d\n", err);
 	kfree(m);
@@ -469,6 +473,7 @@ static void ceph_monc_handle_map(struct ceph_mon_client *monc,
 	if (IS_ERR(monmap)) {
 		pr_err("problem decoding monmap, %d\n",
 		       (int)PTR_ERR(monmap));
+		ceph_msg_dump(msg);
 		goto out;
 	}
 

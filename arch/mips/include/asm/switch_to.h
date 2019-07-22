@@ -42,7 +42,7 @@ extern struct task_struct *ll_task;
  * inline to try to keep the overhead down. If we have been forced to run on
  * a "CPU" with an FPU because of a previous high level of FP computation,
  * but did not actually use the FPU during the most recent time-slice (CU1
- * isn't set), we undo the restriction on cpus_allowed.
+ * isn't set), we undo the restriction on cpus_mask.
  *
  * We're not calling set_cpus_allowed() here, because we have no need to
  * force prompt migration - we're already switching the current CPU to a
@@ -57,7 +57,7 @@ do {									\
 	    test_ti_thread_flag(__prev_ti, TIF_FPUBOUND) &&		\
 	    (!(KSTK_STATUS(prev) & ST0_CU1))) {				\
 		clear_ti_thread_flag(__prev_ti, TIF_FPUBOUND);		\
-		prev->cpus_allowed = prev->thread.user_cpus_allowed;	\
+		prev->cpus_mask = prev->thread.user_cpus_allowed;	\
 	}								\
 	next->thread.emulated_fp = 0;					\
 } while(0)

@@ -2153,6 +2153,132 @@ static struct clk_regmap meson8b_vdec_hevc = {
 	},
 };
 
+/* TODO: the clock at index 0 is "DDR_PLL" which we don't support yet */
+static const char * const meson8b_cts_amclk_parent_names[] = {
+	"mpll0", "mpll1", "mpll2"
+};
+
+static u32 meson8b_cts_amclk_mux_table[] = { 1, 2, 3 };
+
+static struct clk_regmap meson8b_cts_amclk_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_AUD_CLK_CNTL,
+		.mask = 0x3,
+		.shift = 9,
+		.table = meson8b_cts_amclk_mux_table,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cts_amclk_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = meson8b_cts_amclk_parent_names,
+		.num_parents = ARRAY_SIZE(meson8b_cts_amclk_parent_names),
+	},
+};
+
+static struct clk_regmap meson8b_cts_amclk_div = {
+	.data = &(struct clk_regmap_div_data) {
+		.offset = HHI_AUD_CLK_CNTL,
+		.shift = 0,
+		.width = 8,
+		.flags = CLK_DIVIDER_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cts_amclk_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_names = (const char *[]){ "cts_amclk_sel" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_cts_amclk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_AUD_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cts_amclk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "cts_amclk_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+/* TODO: the clock at index 0 is "DDR_PLL" which we don't support yet */
+static const char * const meson8b_cts_mclk_i958_parent_names[] = {
+	"mpll0", "mpll1", "mpll2"
+};
+
+static u32 meson8b_cts_mclk_i958_mux_table[] = { 1, 2, 3 };
+
+static struct clk_regmap meson8b_cts_mclk_i958_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_AUD_CLK_CNTL2,
+		.mask = 0x3,
+		.shift = 25,
+		.table = meson8b_cts_mclk_i958_mux_table,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "cts_mclk_i958_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = meson8b_cts_mclk_i958_parent_names,
+		.num_parents = ARRAY_SIZE(meson8b_cts_mclk_i958_parent_names),
+	},
+};
+
+static struct clk_regmap meson8b_cts_mclk_i958_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_AUD_CLK_CNTL2,
+		.shift = 16,
+		.width = 8,
+		.flags = CLK_DIVIDER_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "cts_mclk_i958_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_names = (const char *[]){ "cts_mclk_i958_sel" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_cts_mclk_i958 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_AUD_CLK_CNTL2,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cts_mclk_i958",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "cts_mclk_i958_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_cts_i958 = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_AUD_CLK_CNTL2,
+		.mask = 0x1,
+		.shift = 27,
+		},
+	.hw.init = &(struct clk_init_data){
+		.name = "cts_i958",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = (const char *[]){ "cts_amclk",
+						  "cts_mclk_i958" },
+		.num_parents = 2,
+		/*
+		 * The parent is specific to origin of the audio data. Let the
+		 * consumer choose the appropriate parent.
+		 */
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+	},
+};
+
 /* Everything Else (EE) domain gates */
 
 static MESON_GATE(meson8b_ddr, HHI_GCLK_MPEG0, 0);
@@ -2432,6 +2558,13 @@ static struct clk_hw_onecell_data meson8_hw_onecell_data = {
 		[CLKID_VDEC_HEVC_DIV]	    = &meson8b_vdec_hevc_div.hw,
 		[CLKID_VDEC_HEVC_EN]	    = &meson8b_vdec_hevc_en.hw,
 		[CLKID_VDEC_HEVC]	    = &meson8b_vdec_hevc.hw,
+		[CLKID_CTS_AMCLK_SEL]	    = &meson8b_cts_amclk_sel.hw,
+		[CLKID_CTS_AMCLK_DIV]	    = &meson8b_cts_amclk_div.hw,
+		[CLKID_CTS_AMCLK]	    = &meson8b_cts_amclk.hw,
+		[CLKID_CTS_MCLK_I958_SEL]   = &meson8b_cts_mclk_i958_sel.hw,
+		[CLKID_CTS_MCLK_I958_DIV]   = &meson8b_cts_mclk_i958_div.hw,
+		[CLKID_CTS_MCLK_I958]	    = &meson8b_cts_mclk_i958.hw,
+		[CLKID_CTS_I958]	    = &meson8b_cts_i958.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -2641,6 +2774,13 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_VDEC_HEVC_DIV]	    = &meson8b_vdec_hevc_div.hw,
 		[CLKID_VDEC_HEVC_EN]	    = &meson8b_vdec_hevc_en.hw,
 		[CLKID_VDEC_HEVC]	    = &meson8b_vdec_hevc.hw,
+		[CLKID_CTS_AMCLK_SEL]	    = &meson8b_cts_amclk_sel.hw,
+		[CLKID_CTS_AMCLK_DIV]	    = &meson8b_cts_amclk_div.hw,
+		[CLKID_CTS_AMCLK]	    = &meson8b_cts_amclk.hw,
+		[CLKID_CTS_MCLK_I958_SEL]   = &meson8b_cts_mclk_i958_sel.hw,
+		[CLKID_CTS_MCLK_I958_DIV]   = &meson8b_cts_mclk_i958_div.hw,
+		[CLKID_CTS_MCLK_I958]	    = &meson8b_cts_mclk_i958.hw,
+		[CLKID_CTS_I958]	    = &meson8b_cts_i958.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -2852,6 +2992,13 @@ static struct clk_hw_onecell_data meson8m2_hw_onecell_data = {
 		[CLKID_VDEC_HEVC_DIV]	    = &meson8b_vdec_hevc_div.hw,
 		[CLKID_VDEC_HEVC_EN]	    = &meson8b_vdec_hevc_en.hw,
 		[CLKID_VDEC_HEVC]	    = &meson8b_vdec_hevc.hw,
+		[CLKID_CTS_AMCLK_SEL]	    = &meson8b_cts_amclk_sel.hw,
+		[CLKID_CTS_AMCLK_DIV]	    = &meson8b_cts_amclk_div.hw,
+		[CLKID_CTS_AMCLK]	    = &meson8b_cts_amclk.hw,
+		[CLKID_CTS_MCLK_I958_SEL]   = &meson8b_cts_mclk_i958_sel.hw,
+		[CLKID_CTS_MCLK_I958_DIV]   = &meson8b_cts_mclk_i958_div.hw,
+		[CLKID_CTS_MCLK_I958]	    = &meson8b_cts_mclk_i958.hw,
+		[CLKID_CTS_I958]	    = &meson8b_cts_i958.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -3041,6 +3188,13 @@ static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_vdec_hevc_div,
 	&meson8b_vdec_hevc_en,
 	&meson8b_vdec_hevc,
+	&meson8b_cts_amclk,
+	&meson8b_cts_amclk_sel,
+	&meson8b_cts_amclk_div,
+	&meson8b_cts_mclk_i958_sel,
+	&meson8b_cts_mclk_i958_div,
+	&meson8b_cts_mclk_i958,
+	&meson8b_cts_i958,
 };
 
 static const struct meson8b_clk_reset_line {

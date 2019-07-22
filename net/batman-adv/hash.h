@@ -12,12 +12,11 @@
 #include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <linux/list.h>
+#include <linux/lockdep.h>
 #include <linux/rculist.h>
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
-
-struct lock_class_key;
 
 /* callback to a compare function.  should compare 2 element datas for their
  * keys

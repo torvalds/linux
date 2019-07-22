@@ -166,7 +166,7 @@ static int huawei_wmi_input_setup(struct wmi_device *wdev)
 	return input_register_device(priv->idev);
 }
 
-static int huawei_wmi_probe(struct wmi_device *wdev)
+static int huawei_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct huawei_wmi_priv *priv;
 	int err;

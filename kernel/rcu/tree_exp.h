@@ -250,7 +250,7 @@ static void rcu_report_exp_cpu_mult(struct rcu_node *rnp,
  */
 static void rcu_report_exp_rdp(struct rcu_data *rdp)
 {
-	WRITE_ONCE(rdp->deferred_qs, false);
+	WRITE_ONCE(rdp->exp_deferred_qs, false);
 	rcu_report_exp_cpu_mult(rdp->mynode, rdp->grpmask, true);
 }
 
@@ -259,8 +259,7 @@ static bool sync_exp_work_done(unsigned long s)
 {
 	if (rcu_exp_gp_seq_done(s)) {
 		trace_rcu_exp_grace_period(rcu_state.name, s, TPS("done"));
-		/* Ensure test happens before caller kfree(). */
-		smp_mb__before_atomic(); /* ^^^ */
+		smp_mb(); /* Ensure test happens before caller kfree(). */
 		return true;
 	}
 	return false;
@@ -384,7 +383,12 @@ retry_ipi:
 			mask_ofl_test |= mask;
 			continue;
 		}
+		if (get_cpu() == cpu) {
+			put_cpu();
+			continue;
+		}
 		ret = smp_call_function_single(cpu, rcu_exp_handler, NULL, 0);
+		put_cpu();
 		if (!ret) {
 			mask_ofl_ipi &= ~mask;
 			continue;
@@ -611,7 +615,7 @@ static void rcu_exp_handler(void *unused)
 		    rcu_dynticks_curr_cpu_in_eqs()) {
 			rcu_report_exp_rdp(rdp);
 		} else {
-			rdp->deferred_qs = true;
+			rdp->exp_deferred_qs = true;
 			set_tsk_need_resched(t);
 			set_preempt_need_resched();
 		}
@@ -633,7 +637,7 @@ static void rcu_exp_handler(void *unused)
 	if (t->rcu_read_lock_nesting > 0) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		if (rnp->expmask & rdp->grpmask) {
-			rdp->deferred_qs = true;
+			rdp->exp_deferred_qs = true;
 			t->rcu_read_unlock_special.b.exp_hint = true;
 		}
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
@@ -656,7 +660,7 @@ static void rcu_exp_handler(void *unused)
 	 *
 	 * Otherwise, force a context switch after the CPU enables everything.
 	 */
-	rdp->deferred_qs = true;
+	rdp->exp_deferred_qs = true;
 	if (!(preempt_count() & (PREEMPT_MASK | SOFTIRQ_MASK)) ||
 	    WARN_ON_ONCE(rcu_dynticks_curr_cpu_in_eqs())) {
 		rcu_preempt_deferred_qs(t);
@@ -694,6 +698,16 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp)
 
 #else /* #ifdef CONFIG_PREEMPT_RCU */
 
+/* Request an expedited quiescent state. */
+static void rcu_exp_need_qs(void)
+{
+	__this_cpu_write(rcu_data.cpu_no_qs.b.exp, true);
+	/* Store .exp before .rcu_urgent_qs. */
+	smp_store_release(this_cpu_ptr(&rcu_data.rcu_urgent_qs), true);
+	set_tsk_need_resched(current);
+	set_preempt_need_resched();
+}
+
 /* Invoked on each online non-idle CPU for expedited quiescent state. */
 static void rcu_exp_handler(void *unused)
 {
@@ -709,25 +723,38 @@ static void rcu_exp_handler(void *unused)
 		rcu_report_exp_rdp(this_cpu_ptr(&rcu_data));
 		return;
 	}
-	__this_cpu_write(rcu_data.cpu_no_qs.b.exp, true);
-	/* Store .exp before .rcu_urgent_qs. */
-	smp_store_release(this_cpu_ptr(&rcu_data.rcu_urgent_qs), true);
-	set_tsk_need_resched(current);
-	set_preempt_need_resched();
+	rcu_exp_need_qs();
 }
 
 /* Send IPI for expedited cleanup if needed at end of CPU-hotplug operation. */
 static void sync_sched_exp_online_cleanup(int cpu)
 {
+	unsigned long flags;
+	int my_cpu;
 	struct rcu_data *rdp;
 	int ret;
 	struct rcu_node *rnp;
 
 	rdp = per_cpu_ptr(&rcu_data, cpu);
 	rnp = rdp->mynode;
-	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask))
+	my_cpu = get_cpu();
+	/* Quiescent state either not needed or already requested, leave. */
+	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask) ||
+	    __this_cpu_read(rcu_data.cpu_no_qs.b.exp)) {
+		put_cpu();
 		return;
+	}
+	/* Quiescent state needed on current CPU, so set it up locally. */
+	if (my_cpu == cpu) {
+		local_irq_save(flags);
+		rcu_exp_need_qs();
+		local_irq_restore(flags);
+		put_cpu();
+		return;
+	}
+	/* Quiescent state needed on some other CPU, send IPI. */
 	ret = smp_call_function_single(cpu, rcu_exp_handler, NULL, 0);
+	put_cpu();
 	WARN_ON_ONCE(ret);
 }
 
@@ -765,7 +792,6 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp)
  */
 void synchronize_rcu_expedited(void)
 {
-	struct rcu_data *rdp;
 	struct rcu_exp_work rew;
 	struct rcu_node *rnp;
 	unsigned long s;
@@ -802,7 +828,6 @@ void synchronize_rcu_expedited(void)
 	}
 
 	/* Wait for expedited grace period to complete. */
-	rdp = per_cpu_ptr(&rcu_data, raw_smp_processor_id());
 	rnp = rcu_get_root();
 	wait_event(rnp->exp_wq[rcu_seq_ctr(s) & 0x3],
 		   sync_exp_work_done(s));

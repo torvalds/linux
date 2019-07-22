@@ -220,7 +220,21 @@ Usage
 In order to use AF_XDP sockets there are two parts needed. The
 user-space application and the XDP program. For a complete setup and
 usage example, please refer to the sample application. The user-space
-side is xdpsock_user.c and the XDP side xdpsock_kern.c.
+side is xdpsock_user.c and the XDP side is part of libbpf.
+
+The XDP code sample included in tools/lib/bpf/xsk.c is the following::
+
+   SEC("xdp_sock") int xdp_sock_prog(struct xdp_md *ctx)
+   {
+       int index = ctx->rx_queue_index;
+
+       // A set entry here means that the correspnding queue_id
+       // has an active AF_XDP socket bound to it.
+       if (bpf_map_lookup_elem(&xsks_map, &index))
+           return bpf_redirect_map(&xsks_map, index, 0);
+
+       return XDP_PASS;
+   }
 
 Naive ring dequeue and enqueue could look like this::
 

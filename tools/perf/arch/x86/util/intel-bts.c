@@ -9,12 +9,12 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
+#include <linux/zalloc.h>
 
 #include "../../util/cpumap.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
 #include "../../util/session.h"
-#include "../../util/util.h"
 #include "../../util/pmu.h"
 #include "../../util/debug.h"
 #include "../../util/tsc.h"

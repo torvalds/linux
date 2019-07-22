@@ -383,7 +383,7 @@ static int erofs_read_super(struct super_block *sb,
 		goto err;
 	}
 
-	sbi = kzalloc(sizeof(struct erofs_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (unlikely(!sbi)) {
 		err = -ENOMEM;
 		goto err;

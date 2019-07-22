@@ -84,7 +84,10 @@ union hdmi_info_packet {
 		uint16_t bar_left;
 		uint16_t bar_right;
 
-		uint8_t reserved[14];
+		uint8_t F140_F143:4;
+		uint8_t ACE0_ACE3:4;
+
+		uint8_t reserved[13];
 	} bits;
 
 	struct info_packet_raw_data packet_raw_data;

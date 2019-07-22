@@ -7,10 +7,13 @@ Required properties:
 - clocks: A list of phandle + clock-specifier pairs, one for each entry
     in 'clock-names'
 - clock-names: A list of clock names. It should contain:
-      - "mclk": for the main processor clock
-      - "pclk": for the APB interface clock
+      - "aclk": for the main processor clock
 - #address-cells: Must be 1
 - #size-cells: Must be 0
+- iommus: configure the stream id to IOMMU, Must be configured if want to
+    enable iommu in display. for how to configure this node please reference
+        devicetree/bindings/iommu/arm,smmu-v3.txt,
+        devicetree/bindings/iommu/iommu.txt
 
 Required properties for sub-node: pipeline@nq
 Each device contains one or two pipeline sub-nodes (at least one), each
@@ -20,7 +23,6 @@ pipeline node should provide properties:
     in 'clock-names'
 - clock-names: should contain:
       - "pxclk": pixel clock
-      - "aclk": AXI interface clock
 
 - port: each pipeline connect to an encoder input port. The connection is
     modeled using the OF graph bindings specified in
@@ -42,12 +44,15 @@ Example:
 		compatible = "arm,mali-d71";
 		reg = <0xc00000 0x20000>;
 		interrupts = <0 168 4>;
-		clocks = <&dpu_mclk>, <&dpu_aclk>;
-		clock-names = "mclk", "pclk";
+		clocks = <&dpu_aclk>;
+		clock-names = "aclk";
+		iommus = <&smmu 0>, <&smmu 1>, <&smmu 2>, <&smmu 3>,
+			<&smmu 4>, <&smmu 5>, <&smmu 6>, <&smmu 7>,
+			<&smmu 8>, <&smmu 9>;
 
 		dp0_pipe0: pipeline@0 {
-			clocks = <&fpgaosc2>, <&dpu_aclk>;
-			clock-names = "pxclk", "aclk";
+			clocks = <&fpgaosc2>;
+			clock-names = "pxclk";
 			reg = <0>;
 
 			port {
@@ -58,8 +63,8 @@ Example:
 		};
 
 		dp0_pipe1: pipeline@1 {
-			clocks = <&fpgaosc2>, <&dpu_aclk>;
-			clock-names = "pxclk", "aclk";
+			clocks = <&fpgaosc2>;
+			clock-names = "pxclk";
 			reg = <1>;
 
 			port {

@@ -15,8 +15,6 @@
 #include <linux/seq_file.h>
 #include <linux/pinctrl/pinctrl.h>
 
-#ifdef CONFIG_PINMUX
-
 struct pinctrl_dev;
 
 /**
@@ -83,7 +81,5 @@ struct pinmux_ops {
 				   bool input);
 	bool strict;
 };
-
-#endif /* CONFIG_PINMUX */
 
 #endif /* __LINUX_PINCTRL_PINMUX_H */

@@ -77,7 +77,7 @@ static const struct gpio_led_platform_data apu2_leds_pdata = {
 	.leds		= apu2_leds,
 };
 
-struct gpiod_lookup_table gpios_led_table = {
+static struct gpiod_lookup_table gpios_led_table = {
 	.dev_id = "leds-gpio",
 	.table = {
 		GPIO_LOOKUP_IDX(AMD_FCH_GPIO_DRIVER_NAME, APU2_GPIO_LINE_LED1,
@@ -110,7 +110,7 @@ static const struct gpio_keys_platform_data apu2_keys_pdata = {
 	.name		= "apu2-keys",
 };
 
-struct gpiod_lookup_table gpios_key_table = {
+static struct gpiod_lookup_table gpios_key_table = {
 	.dev_id = "gpio-keys-polled",
 	.table = {
 		GPIO_LOOKUP_IDX(AMD_FCH_GPIO_DRIVER_NAME, APU2_GPIO_LINE_MODESW,

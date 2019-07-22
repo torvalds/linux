@@ -30,9 +30,7 @@ int load_kallsyms(void)
 	if (!f)
 		return -ENOENT;
 
-	while (!feof(f)) {
-		if (!fgets(buf, sizeof(buf), f))
-			break;
+	while (fgets(buf, sizeof(buf), f)) {
 		if (sscanf(buf, "%p %c %s", &addr, &symbol, func) != 3)
 			break;
 		if (!addr)
