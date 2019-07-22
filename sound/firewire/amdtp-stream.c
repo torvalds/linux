@@ -776,16 +776,24 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 	for (i = 0; i < packets; ++i) {
 		const struct pkt_desc *desc = s->pkt_descs + i;
+		struct snd_pcm_substream *pcm;
 		unsigned int pcm_frames;
+
+		pcm_frames = s->process_data_blocks(s, desc->ctx_payload,
+				desc->data_blocks, desc->data_block_counter);
+
+		pcm = READ_ONCE(s->pcm);
+		if (pcm && pcm_frames > 0)
+			update_pcm_pointers(s, pcm, pcm_frames);
+	}
+
+	for (i = 0; i < packets; ++i) {
+		const struct pkt_desc *desc = s->pkt_descs + i;
 		unsigned int syt;
 		struct {
 			struct fw_iso_packet params;
 			__be32 header[IT_PKT_HEADER_SIZE_CIP / sizeof(__be32)];
 		} template = { {0}, {0} };
-		struct snd_pcm_substream *pcm;
-
-		pcm_frames = s->process_data_blocks(s, desc->ctx_payload,
-				desc->data_blocks, desc->data_block_counter);
 
 		if (s->ctx_data.rx.syt_override < 0)
 			syt = desc->syt;
@@ -800,10 +808,6 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 			cancel_stream(s);
 			return;
 		}
-
-		pcm = READ_ONCE(s->pcm);
-		if (pcm && pcm_frames > 0)
-			update_pcm_pointers(s, pcm, pcm_frames);
 	}
 
 	fw_iso_context_queue_flush(s->context);
@@ -831,28 +835,29 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 			cancel_stream(s);
 			return;
 		}
-	}
+	} else {
+		for (i = 0; i < packets; ++i) {
+			const struct pkt_desc *desc = s->pkt_descs;
+			struct snd_pcm_substream *pcm;
+			unsigned int pcm_frames;
 
-	for (i = 0; i < packets; i++) {
-		const struct pkt_desc *desc = s->pkt_descs;
-		unsigned int pcm_frames = 0;
-		struct fw_iso_packet params = {0};
-		struct snd_pcm_substream *pcm;
-
-		if (err >= 0) {
 			pcm_frames = s->process_data_blocks(s,
 					desc->ctx_payload, desc->data_blocks,
 					desc->data_block_counter);
+
+			pcm = READ_ONCE(s->pcm);
+			if (pcm && pcm_frames > 0)
+				update_pcm_pointers(s, pcm, pcm_frames);
 		}
+	}
+
+	for (i = 0; i < packets; ++i) {
+		struct fw_iso_packet params = {0};
 
 		if (queue_in_packet(s, &params) < 0) {
 			cancel_stream(s);
 			return;
 		}
-
-		pcm = READ_ONCE(s->pcm);
-		if (pcm && pcm_frames > 0)
-			update_pcm_pointers(s, pcm, pcm_frames);
 	}
 
 	fw_iso_context_queue_flush(s->context);
