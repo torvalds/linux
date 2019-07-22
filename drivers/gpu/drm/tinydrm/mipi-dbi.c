@@ -16,7 +16,6 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
@@ -201,8 +200,9 @@ EXPORT_SYMBOL(mipi_dbi_command_stackbuf);
 int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 		      struct drm_rect *clip, bool swap)
 {
-	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	struct dma_buf_attachment *import_attach = cma_obj->base.import_attach;
+	struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
+	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(gem);
+	struct dma_buf_attachment *import_attach = gem->import_attach;
 	struct drm_format_name_buf format_name;
 	void *src = cma_obj->vaddr;
 	int ret = 0;
@@ -240,7 +240,8 @@ EXPORT_SYMBOL(mipi_dbi_buf_copy);
 
 static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 {
-	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
+	struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
+	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(gem);
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
 	unsigned int height = rect->y2 - rect->y1;
 	unsigned int width = rect->x2 - rect->x1;
