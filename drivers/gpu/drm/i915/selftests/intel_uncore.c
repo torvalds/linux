@@ -176,7 +176,7 @@ static int live_forcewake_ops(void *arg)
 		return 0;
 	}
 
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	for_each_fw_domain(domain, uncore, tmp) {
 		smp_store_mb(domain->active, false);
@@ -247,7 +247,7 @@ static int live_forcewake_ops(void *arg)
 	}
 
 out_rpm:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	return err;
 }
 

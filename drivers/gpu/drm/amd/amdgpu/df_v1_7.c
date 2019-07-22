@@ -29,7 +29,7 @@
 
 static u32 df_v1_7_channel_number[] = {1, 2, 0, 4, 0, 8, 0, 16, 2};
 
-static void df_v1_7_init (struct amdgpu_device *adev)
+static void df_v1_7_sw_init(struct amdgpu_device *adev)
 {
 }
 
@@ -110,7 +110,7 @@ static void df_v1_7_enable_ecc_force_par_wr_rmw(struct amdgpu_device *adev,
 }
 
 const struct amdgpu_df_funcs df_v1_7_funcs = {
-	.init = df_v1_7_init,
+	.sw_init = df_v1_7_sw_init,
 	.enable_broadcast_mode = df_v1_7_enable_broadcast_mode,
 	.get_fb_channel_number = df_v1_7_get_fb_channel_number,
 	.get_hbm_channel_number = df_v1_7_get_hbm_channel_number,

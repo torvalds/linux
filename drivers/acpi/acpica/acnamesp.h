@@ -207,8 +207,6 @@ acpi_ns_dump_object_paths(acpi_object_type type,
  */
 acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info);
 
-void acpi_ns_exec_module_code_list(void);
-
 /*
  * nsarguments - Argument count/type checking for predefined/reserved names
  */

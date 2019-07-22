@@ -81,6 +81,7 @@ static const struct stmmac_hwif_entry {
 	const void *hwtimestamp;
 	const void *mode;
 	const void *tc;
+	const void *mmc;
 	int (*setup)(struct stmmac_priv *priv);
 	int (*quirks)(struct stmmac_priv *priv);
 } stmmac_hw[] = {
@@ -100,6 +101,7 @@ static const struct stmmac_hwif_entry {
 		.hwtimestamp = &stmmac_ptp,
 		.mode = NULL,
 		.tc = NULL,
+		.mmc = &dwmac_mmc_ops,
 		.setup = dwmac100_setup,
 		.quirks = stmmac_dwmac1_quirks,
 	}, {
@@ -117,6 +119,7 @@ static const struct stmmac_hwif_entry {
 		.hwtimestamp = &stmmac_ptp,
 		.mode = NULL,
 		.tc = NULL,
+		.mmc = &dwmac_mmc_ops,
 		.setup = dwmac1000_setup,
 		.quirks = stmmac_dwmac1_quirks,
 	}, {
@@ -134,6 +137,7 @@ static const struct stmmac_hwif_entry {
 		.hwtimestamp = &stmmac_ptp,
 		.mode = NULL,
 		.tc = &dwmac510_tc_ops,
+		.mmc = &dwmac_mmc_ops,
 		.setup = dwmac4_setup,
 		.quirks = stmmac_dwmac4_quirks,
 	}, {
@@ -151,6 +155,7 @@ static const struct stmmac_hwif_entry {
 		.hwtimestamp = &stmmac_ptp,
 		.mode = &dwmac4_ring_mode_ops,
 		.tc = &dwmac510_tc_ops,
+		.mmc = &dwmac_mmc_ops,
 		.setup = dwmac4_setup,
 		.quirks = NULL,
 	}, {
@@ -168,6 +173,7 @@ static const struct stmmac_hwif_entry {
 		.hwtimestamp = &stmmac_ptp,
 		.mode = &dwmac4_ring_mode_ops,
 		.tc = &dwmac510_tc_ops,
+		.mmc = &dwmac_mmc_ops,
 		.setup = dwmac4_setup,
 		.quirks = NULL,
 	}, {
@@ -185,6 +191,7 @@ static const struct stmmac_hwif_entry {
 		.hwtimestamp = &stmmac_ptp,
 		.mode = &dwmac4_ring_mode_ops,
 		.tc = &dwmac510_tc_ops,
+		.mmc = &dwmac_mmc_ops,
 		.setup = dwmac4_setup,
 		.quirks = NULL,
 	}, {
@@ -202,6 +209,7 @@ static const struct stmmac_hwif_entry {
 		.hwtimestamp = &stmmac_ptp,
 		.mode = NULL,
 		.tc = &dwmac510_tc_ops,
+		.mmc = NULL,
 		.setup = dwxgmac2_setup,
 		.quirks = NULL,
 	},
@@ -267,6 +275,7 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 		mac->ptp = mac->ptp ? : entry->hwtimestamp;
 		mac->mode = mac->mode ? : entry->mode;
 		mac->tc = mac->tc ? : entry->tc;
+		mac->mmc = mac->mmc ? : entry->mmc;
 
 		priv->hw = mac;
 		priv->ptpaddr = priv->ioaddr + entry->regs.ptp_off;

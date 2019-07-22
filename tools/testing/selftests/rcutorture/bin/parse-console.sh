@@ -106,6 +106,7 @@ fi | tee -a $file.diags
 
 egrep 'Badness|WARNING:|Warn|BUG|===========|Call Trace:|Oops:|detected stalls on CPUs/tasks:|self-detected stall on CPU|Stall ended before state dump start|\?\?\? Writer stall state|rcu_.*kthread starved for' < $file |
 grep -v 'ODEBUG: ' |
+grep -v 'This means that this is a DEBUG kernel and it is' |
 grep -v 'Warning: unable to open an initial console' > $T.diags
 if test -s $T.diags
 then

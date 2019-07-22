@@ -4,7 +4,6 @@
  * All Rights Reserved.
  */
 
-#include <linux/capability.h>
 
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -12,17 +11,13 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_bit.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
-#include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
-#include "xfs_trace.h"
 #include "xfs_icache.h"
-#include "xfs_defer.h"
 
 STATIC int	xfs_qm_log_quotaoff(xfs_mount_t *, xfs_qoff_logitem_t **, uint);
 STATIC int	xfs_qm_log_quotaoff_end(xfs_mount_t *, xfs_qoff_logitem_t *,

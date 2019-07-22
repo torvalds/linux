@@ -23,6 +23,7 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 
 /* debug masks - set these bits in hw->debug_mask to control output */
 #define ICE_DBG_INIT		BIT_ULL(1)
+#define ICE_DBG_FW_LOG		BIT_ULL(3)
 #define ICE_DBG_LINK		BIT_ULL(4)
 #define ICE_DBG_PHY		BIT_ULL(5)
 #define ICE_DBG_QCTX		BIT_ULL(6)
@@ -61,6 +62,13 @@ enum ice_fc_mode {
 	ICE_FC_DFLT
 };
 
+enum ice_fec_mode {
+	ICE_FEC_NONE = 0,
+	ICE_FEC_RS,
+	ICE_FEC_BASER,
+	ICE_FEC_AUTO
+};
+
 enum ice_set_fc_aq_failures {
 	ICE_SET_FC_AQ_FAIL_NONE = 0,
 	ICE_SET_FC_AQ_FAIL_GET,
@@ -86,12 +94,14 @@ enum ice_media_type {
 enum ice_vsi_type {
 	ICE_VSI_PF = 0,
 	ICE_VSI_VF,
+	ICE_VSI_LB = 6,
 };
 
 struct ice_link_status {
 	/* Refer to ice_aq_phy_type for bits definition */
 	u64 phy_type_low;
 	u64 phy_type_high;
+	u8 topo_media_conflict;
 	u16 max_frame_size;
 	u16 link_speed;
 	u16 req_speeds;
@@ -99,6 +109,7 @@ struct ice_link_status {
 	u8 link_info;
 	u8 an_info;
 	u8 ext_info;
+	u8 fec_info;
 	u8 pacing;
 	/* Refer to #define from module_type[ICE_MODULE_TYPE_TOTAL_BYTE] of
 	 * ice_aqc_get_phy_caps structure
@@ -423,7 +434,7 @@ struct ice_hw {
 	struct ice_fw_log_cfg fw_log;
 
 /* Device max aggregate bandwidths corresponding to the GL_PWR_MODE_CTL
- * register. Used for determining the itr/intrl granularity during
+ * register. Used for determining the ITR/intrl granularity during
  * initialization.
  */
 #define ICE_MAX_AGG_BW_200G	0x0

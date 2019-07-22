@@ -789,33 +789,16 @@ static const struct file_operations atk_debugfs_ggrp_fops = {
 static void atk_debugfs_init(struct atk_data *data)
 {
 	struct dentry *d;
-	struct dentry *f;
 
 	data->debugfs.id = 0;
 
 	d = debugfs_create_dir("asus_atk0110", NULL);
-	if (!d || IS_ERR(d))
-		return;
 
-	f = debugfs_create_x32("id", 0600, d, &data->debugfs.id);
-	if (!f || IS_ERR(f))
-		goto cleanup;
-
-	f = debugfs_create_file_unsafe("gitm", 0400, d, data,
-				       &atk_debugfs_gitm);
-	if (!f || IS_ERR(f))
-		goto cleanup;
-
-	f = debugfs_create_file("ggrp", 0400, d, data,
-				&atk_debugfs_ggrp_fops);
-	if (!f || IS_ERR(f))
-		goto cleanup;
+	debugfs_create_x32("id", 0600, d, &data->debugfs.id);
+	debugfs_create_file_unsafe("gitm", 0400, d, data, &atk_debugfs_gitm);
+	debugfs_create_file("ggrp", 0400, d, data, &atk_debugfs_ggrp_fops);
 
 	data->debugfs.root = d;
-
-	return;
-cleanup:
-	debugfs_remove_recursive(d);
 }
 
 static void atk_debugfs_cleanup(struct atk_data *data)

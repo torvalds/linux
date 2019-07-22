@@ -301,6 +301,8 @@ extern struct x86_apic_ops x86_apic_ops;
 extern void x86_early_init_platform_quirks(void);
 extern void x86_init_noop(void);
 extern void x86_init_uint_noop(unsigned int unused);
+extern bool bool_x86_init_noop(void);
+extern void x86_op_int_noop(int cpu);
 extern bool x86_pnpbios_disabled(void);
 
 #endif

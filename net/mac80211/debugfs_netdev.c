@@ -815,9 +815,8 @@ void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata)
 	sprintf(buf, "netdev:%s", sdata->name);
 	sdata->vif.debugfs_dir = debugfs_create_dir(buf,
 		sdata->local->hw.wiphy->debugfsdir);
-	if (sdata->vif.debugfs_dir)
-		sdata->debugfs.subdir_stations = debugfs_create_dir("stations",
-			sdata->vif.debugfs_dir);
+	sdata->debugfs.subdir_stations = debugfs_create_dir("stations",
+							sdata->vif.debugfs_dir);
 	add_files(sdata);
 }
 
@@ -842,8 +841,5 @@ void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)
 		return;
 
 	sprintf(buf, "netdev:%s", sdata->name);
-	if (!debugfs_rename(dir->d_parent, dir, dir->d_parent, buf))
-		sdata_err(sdata,
-			  "debugfs: failed to rename debugfs dir to %s\n",
-			  buf);
+	debugfs_rename(dir->d_parent, dir, dir->d_parent, buf);
 }

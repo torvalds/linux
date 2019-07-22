@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "util.h"
 #include "../perf.h"
 #include <subcmd/parse-options.h>
 #include "evsel.h"
 #include "cgroup.h"
 #include "evlist.h"
 #include <linux/stringify.h>
+#include <linux/zalloc.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -124,7 +124,7 @@ static struct cgroup *cgroup__new(const char *name)
 	return cgroup;
 
 out_free_name:
-	free(cgroup->name);
+	zfree(&cgroup->name);
 out_err:
 	free(cgroup);
 	return NULL;

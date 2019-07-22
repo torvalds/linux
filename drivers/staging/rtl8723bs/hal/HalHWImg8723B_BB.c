@@ -299,7 +299,7 @@ void ODM_ReadAndConfig_MP_8723B_AGC_TAB(PDM_ODM_T pDM_Odm)
 				READ_NEXT_PAIR(v1, v2, i);
 			}
 
-			if (bMatched == false) {
+			if (!bMatched) {
 				/*  Condition isn't matched.
 				*   Discard the following (offset, data) pairs.
 				*/
@@ -568,7 +568,7 @@ void ODM_ReadAndConfig_MP_8723B_PHY_REG(PDM_ODM_T pDM_Odm)
 				READ_NEXT_PAIR(v1, v2, i);
 			}
 
-			if (bMatched == false) {
+			if (!bMatched) {
 				/*  Condition isn't matched.
 				*   Discard the following (offset, data) pairs.
 				*/

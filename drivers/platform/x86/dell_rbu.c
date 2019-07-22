@@ -24,7 +24,7 @@
  * on every time the packet data is written. This driver requires an
  * application to break the BIOS image in to fixed sized packet chunks.
  *
- * See Documentation/dell_rbu.txt for more info.
+ * See Documentation/driver-api/dell_rbu.rst for more info.
  */
 #include <linux/init.h>
 #include <linux/module.h>

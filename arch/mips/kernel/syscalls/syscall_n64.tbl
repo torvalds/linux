@@ -348,3 +348,5 @@
 431	n64	fsconfig			sys_fsconfig
 432	n64	fsmount				sys_fsmount
 433	n64	fspick				sys_fspick
+434	n64	pidfd_open			sys_pidfd_open
+# 435 reserved for clone3

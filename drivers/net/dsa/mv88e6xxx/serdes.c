@@ -208,7 +208,7 @@ static irqreturn_t mv88e6352_serdes_thread_fn(int irq, void *dev_id)
 	u16 status;
 	int err;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	err = mv88e6352_serdes_read(chip, MV88E6352_SERDES_INT_STATUS, &status);
 	if (err)
@@ -219,7 +219,7 @@ static irqreturn_t mv88e6352_serdes_thread_fn(int irq, void *dev_id)
 		mv88e6352_serdes_irq_link(chip, port->port);
 	}
 out:
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	return ret;
 }
@@ -253,12 +253,12 @@ int mv88e6352_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
 	/* Requesting the IRQ will trigger irq callbacks. So we cannot
 	 * hold the reg_lock.
 	 */
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 	err = request_threaded_irq(chip->ports[port].serdes_irq, NULL,
 				   mv88e6352_serdes_thread_fn,
 				   IRQF_ONESHOT, "mv88e6xxx-serdes",
 				   &chip->ports[port]);
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	if (err) {
 		dev_err(chip->dev, "Unable to request SERDES interrupt: %d\n",
@@ -279,9 +279,9 @@ void mv88e6352_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
 	/* Freeing the IRQ will trigger irq callbacks. So we cannot
 	 * hold the reg_lock.
 	 */
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 	free_irq(chip->ports[port].serdes_irq, &chip->ports[port]);
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	chip->ports[port].serdes_irq = 0;
 }
@@ -621,7 +621,7 @@ static irqreturn_t mv88e6390_serdes_thread_fn(int irq, void *dev_id)
 
 	lane = mv88e6390x_serdes_get_lane(chip, port->port);
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	switch (cmode) {
 	case MV88E6XXX_PORT_STS_CMODE_SGMII:
@@ -637,7 +637,7 @@ static irqreturn_t mv88e6390_serdes_thread_fn(int irq, void *dev_id)
 		}
 	}
 out:
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	return ret;
 }
@@ -666,12 +666,12 @@ int mv88e6390x_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
 	/* Requesting the IRQ will trigger irq callbacks. So we cannot
 	 * hold the reg_lock.
 	 */
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 	err = request_threaded_irq(chip->ports[port].serdes_irq, NULL,
 				   mv88e6390_serdes_thread_fn,
 				   IRQF_ONESHOT, "mv88e6xxx-serdes",
 				   &chip->ports[port]);
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	if (err) {
 		dev_err(chip->dev, "Unable to request SERDES interrupt: %d\n",
@@ -705,9 +705,9 @@ void mv88e6390x_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
 	/* Freeing the IRQ will trigger irq callbacks. So we cannot
 	 * hold the reg_lock.
 	 */
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 	free_irq(chip->ports[port].serdes_irq, &chip->ports[port]);
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	chip->ports[port].serdes_irq = 0;
 }

@@ -26,6 +26,7 @@
 #include "kfd_device_queue_manager.h"
 #include "kfd_priv.h"
 #include "kfd_kernel_queue.h"
+#include "amdgpu_amdkfd.h"
 
 static inline struct process_queue_node *get_queue_by_qid(
 			struct process_queue_manager *pqm, unsigned int qid)
@@ -74,6 +75,55 @@ void kfd_process_dequeue_from_device(struct kfd_process_device *pdd)
 	pdd->already_dequeued = true;
 }
 
+int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
+			void *gws)
+{
+	struct kfd_dev *dev = NULL;
+	struct process_queue_node *pqn;
+	struct kfd_process_device *pdd;
+	struct kgd_mem *mem = NULL;
+	int ret;
+
+	pqn = get_queue_by_qid(pqm, qid);
+	if (!pqn) {
+		pr_err("Queue id does not match any known queue\n");
+		return -EINVAL;
+	}
+
+	if (pqn->q)
+		dev = pqn->q->device;
+	if (WARN_ON(!dev))
+		return -ENODEV;
+
+	pdd = kfd_get_process_device_data(dev, pqm->process);
+	if (!pdd) {
+		pr_err("Process device data doesn't exist\n");
+		return -EINVAL;
+	}
+
+	/* Only allow one queue per process can have GWS assigned */
+	if (gws && pdd->qpd.num_gws)
+		return -EBUSY;
+
+	if (!gws && pdd->qpd.num_gws == 0)
+		return -EINVAL;
+
+	if (gws)
+		ret = amdgpu_amdkfd_add_gws_to_process(pdd->process->kgd_process_info,
+			gws, &mem);
+	else
+		ret = amdgpu_amdkfd_remove_gws_from_process(pdd->process->kgd_process_info,
+			pqn->q->gws);
+	if (unlikely(ret))
+		return ret;
+
+	pqn->q->gws = mem;
+	pdd->qpd.num_gws = gws ? amdgpu_amdkfd_get_num_gws(dev->kgd) : 0;
+
+	return pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
+							pqn->q);
+}
+
 void kfd_process_dequeue_from_all_devices(struct kfd_process *p)
 {
 	struct kfd_process_device *pdd;
@@ -100,6 +150,9 @@ void pqm_uninit(struct process_queue_manager *pqm)
 	struct process_queue_node *pqn, *next;
 
 	list_for_each_entry_safe(pqn, next, &pqm->queues, process_queue_list) {
+		if (pqn->q && pqn->q->gws)
+			amdgpu_amdkfd_remove_gws_from_process(pqm->process->kgd_process_info,
+				pqn->q->gws);
 		uninit_queue(pqn->q);
 		list_del(&pqn->process_queue_list);
 		kfree(pqn);
@@ -186,8 +239,13 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 
 	switch (type) {
 	case KFD_QUEUE_TYPE_SDMA:
-		if (dev->dqm->queue_count >= get_num_sdma_queues(dev->dqm)) {
-			pr_err("Over-subscription is not allowed for SDMA.\n");
+	case KFD_QUEUE_TYPE_SDMA_XGMI:
+		if ((type == KFD_QUEUE_TYPE_SDMA && dev->dqm->sdma_queue_count
+			>= get_num_sdma_queues(dev->dqm)) ||
+			(type == KFD_QUEUE_TYPE_SDMA_XGMI &&
+			dev->dqm->xgmi_sdma_queue_count
+			>= get_num_xgmi_sdma_queues(dev->dqm))) {
+			pr_debug("Over-subscription is not allowed for SDMA.\n");
 			retval = -EPERM;
 			goto err_create_queue;
 		}
@@ -325,6 +383,13 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 			if (retval != -ETIME)
 				goto err_destroy_queue;
 		}
+
+		if (pqn->q->gws) {
+			amdgpu_amdkfd_remove_gws_from_process(pqm->process->kgd_process_info,
+				pqn->q->gws);
+			pdd->qpd.num_gws = 0;
+		}
+
 		kfree(pqn->q->properties.cu_mask);
 		pqn->q->properties.cu_mask = NULL;
 		uninit_queue(pqn->q);
@@ -446,6 +511,7 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 			q = pqn->q;
 			switch (q->properties.type) {
 			case KFD_QUEUE_TYPE_SDMA:
+			case KFD_QUEUE_TYPE_SDMA_XGMI:
 				seq_printf(m, "  SDMA queue on device %x\n",
 					   q->device->id);
 				mqd_type = KFD_MQD_TYPE_SDMA;
@@ -461,8 +527,7 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 					   q->properties.type, q->device->id);
 				continue;
 			}
-			mqd_mgr = q->device->dqm->ops.get_mqd_manager(
-				q->device->dqm, mqd_type);
+			mqd_mgr = q->device->dqm->mqd_mgrs[mqd_type];
 		} else if (pqn->kq) {
 			q = pqn->kq->queue;
 			mqd_mgr = pqn->kq->mqd_mgr;
@@ -470,7 +535,6 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 			case KFD_QUEUE_TYPE_DIQ:
 				seq_printf(m, "  DIQ on device %x\n",
 					   pqn->kq->dev->id);
-				mqd_type = KFD_MQD_TYPE_HIQ;
 				break;
 			default:
 				seq_printf(m,

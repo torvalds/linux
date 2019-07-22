@@ -40,7 +40,6 @@ extern int  vchiu_queue_init(struct vchiu_queue *queue, int size);
 extern void vchiu_queue_delete(struct vchiu_queue *queue);
 
 extern int vchiu_queue_is_empty(struct vchiu_queue *queue);
-extern int vchiu_queue_is_full(struct vchiu_queue *queue);
 
 extern void vchiu_queue_push(struct vchiu_queue *queue,
 			     struct vchiq_header *header);

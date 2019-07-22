@@ -30,7 +30,6 @@
 #include <asm/sclp.h>
 #include <asm/facility.h>
 #include <asm/boot_data.h>
-#include <asm/pci_insn.h>
 #include "entry.h"
 
 /*
@@ -236,7 +235,6 @@ static __init void detect_machine_facilities(void)
 		clock_comparator_max = -1ULL >> 1;
 		__ctl_set_bit(0, 53);
 	}
-	enable_mio_ctl();
 }
 
 static inline void save_vector_registers(void)

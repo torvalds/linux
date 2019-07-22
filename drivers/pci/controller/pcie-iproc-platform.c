@@ -87,7 +87,7 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 
 	/*
 	 * DT nodes are not used by all platforms that use the iProc PCIe
-	 * core driver. For platforms that require explict inbound mapping
+	 * core driver. For platforms that require explicit inbound mapping
 	 * configuration, "dma-ranges" would have been present in DT
 	 */
 	pcie->need_ib_cfg = of_property_read_bool(np, "dma-ranges");

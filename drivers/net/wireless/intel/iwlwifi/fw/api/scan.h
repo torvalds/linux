@@ -750,6 +750,21 @@ struct iwl_scan_req_umac {
 			struct iwl_scan_umac_chan_param channel;
 			u8 data[];
 		} v8; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_8 */
+		struct {
+			u8 active_dwell[SCAN_TWO_LMACS];
+			u8 adwell_default_hb_n_aps;
+			u8 adwell_default_lb_n_aps;
+			u8 adwell_default_n_aps_social;
+			u8 general_flags2;
+			__le16 adwell_max_budget;
+			__le32 max_out_time[SCAN_TWO_LMACS];
+			__le32 suspend_time[SCAN_TWO_LMACS];
+			__le32 scan_priority;
+			u8 passive_dwell[SCAN_TWO_LMACS];
+			u8 num_of_fragments[SCAN_TWO_LMACS];
+			struct iwl_scan_umac_chan_param channel;
+			u8 data[];
+		} v9; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_9 */
 	};
 } __packed;
 

@@ -65,6 +65,10 @@ OPTIONS
 	-p, --pretty
 		  Generate human-readable JSON output. Implies **-j**.
 
+	-d, --debug
+		  Print all logs available from libbpf, including debug-level
+		  information.
+
 EXAMPLES
 ========
 

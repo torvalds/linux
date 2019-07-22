@@ -356,59 +356,6 @@ static inline bool is_in_v2_mode(void)
 }
 
 /*
- * This is ugly, but preserves the userspace API for existing cpuset
- * users. If someone tries to mount the "cpuset" filesystem, we
- * silently switch it to mount "cgroup" instead
- */
-static int cpuset_get_tree(struct fs_context *fc)
-{
-	struct file_system_type *cgroup_fs;
-	struct fs_context *new_fc;
-	int ret;
-
-	cgroup_fs = get_fs_type("cgroup");
-	if (!cgroup_fs)
-		return -ENODEV;
-
-	new_fc = fs_context_for_mount(cgroup_fs, fc->sb_flags);
-	if (IS_ERR(new_fc)) {
-		ret = PTR_ERR(new_fc);
-	} else {
-		static const char agent_path[] = "/sbin/cpuset_release_agent";
-		ret = vfs_parse_fs_string(new_fc, "cpuset", NULL, 0);
-		if (!ret)
-			ret = vfs_parse_fs_string(new_fc, "noprefix", NULL, 0);
-		if (!ret)
-			ret = vfs_parse_fs_string(new_fc, "release_agent",
-					agent_path, sizeof(agent_path) - 1);
-		if (!ret)
-			ret = vfs_get_tree(new_fc);
-		if (!ret) {	/* steal the result */
-			fc->root = new_fc->root;
-			new_fc->root = NULL;
-		}
-		put_fs_context(new_fc);
-	}
-	put_filesystem(cgroup_fs);
-	return ret;
-}
-
-static const struct fs_context_operations cpuset_fs_context_ops = {
-	.get_tree	= cpuset_get_tree,
-};
-
-static int cpuset_init_fs_context(struct fs_context *fc)
-{
-	fc->ops = &cpuset_fs_context_ops;
-	return 0;
-}
-
-static struct file_system_type cpuset_fs_type = {
-	.name			= "cpuset",
-	.init_fs_context	= cpuset_init_fs_context,
-};
-
-/*
  * Return in pmask the portion of a cpusets's cpus_allowed that
  * are online.  If none are online, walk up the cpuset hierarchy
  * until we find one that does have some online cpus.
@@ -729,7 +676,7 @@ static inline int nr_cpusets(void)
  * load balancing domains (sched domains) as specified by that partial
  * partition.
  *
- * See "What is sched_load_balance" in Documentation/cgroup-v1/cpusets.txt
+ * See "What is sched_load_balance" in Documentation/admin-guide/cgroup-v1/cpusets.rst
  * for a background explanation of this.
  *
  * Does not return errors, on the theory that the callers of this
@@ -2829,7 +2776,7 @@ static void cpuset_fork(struct task_struct *task)
 	if (task_css_is_root(task, cpuset_cgrp_id))
 		return;
 
-	set_cpus_allowed_ptr(task, &current->cpus_allowed);
+	set_cpus_allowed_ptr(task, current->cpus_ptr);
 	task->mems_allowed = current->mems_allowed;
 }
 
@@ -2853,13 +2800,11 @@ struct cgroup_subsys cpuset_cgrp_subsys = {
 /**
  * cpuset_init - initialize cpusets at system boot
  *
- * Description: Initialize top_cpuset and the cpuset internal file system,
+ * Description: Initialize top_cpuset
  **/
 
 int __init cpuset_init(void)
 {
-	int err = 0;
-
 	BUG_ON(!alloc_cpumask_var(&top_cpuset.cpus_allowed, GFP_KERNEL));
 	BUG_ON(!alloc_cpumask_var(&top_cpuset.effective_cpus, GFP_KERNEL));
 	BUG_ON(!zalloc_cpumask_var(&top_cpuset.subparts_cpus, GFP_KERNEL));
@@ -2872,10 +2817,6 @@ int __init cpuset_init(void)
 	fmeter_init(&top_cpuset.fmeter);
 	set_bit(CS_SCHED_LOAD_BALANCE, &top_cpuset.flags);
 	top_cpuset.relax_domain_level = -1;
-
-	err = register_filesystem(&cpuset_fs_type);
-	if (err < 0)
-		return err;
 
 	BUG_ON(!alloc_cpumask_var(&cpus_attach, GFP_KERNEL));
 
