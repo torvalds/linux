@@ -334,6 +334,10 @@ struct intel_gvt {
 	struct {
 		struct engine_mmio *mmio;
 		int ctx_mmio_count[I915_NUM_ENGINES];
+		u32 *tlb_mmio_offset_list;
+		u32 tlb_mmio_offset_list_cnt;
+		u32 *mocs_mmio_offset_list;
+		u32 mocs_mmio_offset_list_cnt;
 	} engine_mmio_list;
 
 	struct dentry *debugfs_root;
