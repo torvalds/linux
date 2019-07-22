@@ -428,7 +428,13 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		return err;
 
 	s->sph = 1;
-	s->ctx_data.rx.fdf = MOTU_FDF_AM824;
+
+	if (dir == AMDTP_OUT_STREAM) {
+		// Use fixed value for FDF field.
+		s->ctx_data.rx.fdf = MOTU_FDF_AM824;
+		// Not used.
+		s->ctx_data.rx.syt_override = 0xffff;
+	}
 
 	return 0;
 }

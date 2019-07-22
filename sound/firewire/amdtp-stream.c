@@ -104,6 +104,9 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	s->fmt = fmt;
 	s->process_data_blocks = process_data_blocks;
 
+	if (dir == AMDTP_OUT_STREAM)
+		s->ctx_data.rx.syt_override = -1;
+
 	return 0;
 }
 EXPORT_SYMBOL(amdtp_stream_init);
@@ -716,6 +719,9 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 		if (s->flags & CIP_DBC_IS_END_EVENT)
 			dbc = (dbc + data_blocks) & 0xff;
+
+		if (s->ctx_data.rx.syt_override >= 0)
+			syt = s->ctx_data.rx.syt_override;
 
 		build_it_pkt_header(s, cycle, &template.params, data_blocks,
 				    dbc, syt, i);

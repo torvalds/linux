@@ -220,8 +220,12 @@ int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,
 	if (err < 0)
 		return 0;
 
-	/* Use fixed value for FDF field. */
-	s->ctx_data.rx.fdf = 0x00;
+	if (dir == AMDTP_OUT_STREAM) {
+		// Use fixed value for FDF field.
+		s->ctx_data.rx.fdf = 0x00;
+		// Not used.
+		s->ctx_data.rx.syt_override = 0x0000;
+	}
 
 	/* This protocol uses fixed number of data channels for PCM samples. */
 	p = s->protocol;
