@@ -337,3 +337,9 @@ int __init fsverity_init_info_cache(void)
 		return -ENOMEM;
 	return 0;
 }
+
+void __init fsverity_exit_info_cache(void)
+{
+	kmem_cache_destroy(fsverity_info_cachep);
+	fsverity_info_cachep = NULL;
+}
