@@ -1607,6 +1607,7 @@ static int __nfs4_reclaim_open_state(struct nfs4_state_owner *sp, struct nfs4_st
 static int nfs4_reclaim_open_state(struct nfs4_state_owner *sp, const struct nfs4_state_recovery_ops *ops)
 {
 	struct nfs4_state *state;
+	unsigned int loop = 0;
 	int status = 0;
 
 	/* Note: we rely on the sp->so_states list being ordered 
@@ -1633,8 +1634,10 @@ restart:
 
 		switch (status) {
 		default:
-			if (status >= 0)
+			if (status >= 0) {
+				loop = 0;
 				break;
+			}
 			printk(KERN_ERR "NFS: %s: unhandled error %d\n", __func__, status);
 			/* Fall through */
 		case -ENOENT:
@@ -1648,6 +1651,10 @@ restart:
 			break;
 		case -EAGAIN:
 			ssleep(1);
+			if (loop++ < 10) {
+				set_bit(ops->state_flag_bit, &state->flags);
+				break;
+			}
 			/* Fall through */
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_STALE_STATEID:
