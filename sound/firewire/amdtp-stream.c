@@ -768,13 +768,11 @@ static void process_ctx_payloads(struct amdtp_stream *s,
 
 	for (i = 0; i < packets; ++i) {
 		const struct pkt_desc *desc = descs + i;
-		struct snd_pcm_substream *pcm;
+		struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
 		unsigned int pcm_frames;
 
-		pcm_frames = s->process_data_blocks(s, desc->ctx_payload,
-				desc->data_blocks, desc->data_block_counter);
+		pcm_frames = s->process_data_blocks(s, desc, pcm);
 
-		pcm = READ_ONCE(s->pcm);
 		if (pcm && pcm_frames > 0)
 			update_pcm_pointers(s, pcm, pcm_frames);
 	}

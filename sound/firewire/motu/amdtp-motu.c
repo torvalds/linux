@@ -299,23 +299,27 @@ static void __maybe_unused copy_message(u64 *frames, __be32 *buffer,
 }
 
 static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
-				__be32 *buffer, unsigned int data_blocks,
-				unsigned int data_block_counter)
+					   const struct pkt_desc *desc,
+					   struct snd_pcm_substream *pcm)
 {
 	struct amdtp_motu *p = s->protocol;
-	struct snd_pcm_substream *pcm;
+	unsigned int pcm_frames;
 
-	trace_data_block_sph(s, data_blocks, buffer);
-	trace_data_block_message(s, data_blocks, buffer);
+	trace_data_block_sph(s, desc->data_blocks, desc->ctx_payload);
+	trace_data_block_message(s, desc->data_blocks, desc->ctx_payload);
 
 	if (p->midi_ports)
-		read_midi_messages(s, buffer, data_blocks);
+		read_midi_messages(s, desc->ctx_payload, desc->data_blocks);
 
-	pcm = READ_ONCE(s->pcm);
-	if (data_blocks > 0 && pcm)
-		read_pcm_s32(s, pcm->runtime, buffer, data_blocks);
+	if (pcm) {
+		read_pcm_s32(s, pcm->runtime, desc->ctx_payload,
+			     desc->data_blocks);
+		pcm_frames = desc->data_blocks;
+	} else {
+		pcm_frames = 0;
+	}
 
-	return data_blocks;
+	return pcm_frames;
 }
 
 static inline void compute_next_elapse_from_start(struct amdtp_motu *p)
@@ -361,29 +365,32 @@ static void write_sph(struct amdtp_stream *s, __be32 *buffer,
 }
 
 static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
-				__be32 *buffer, unsigned int data_blocks,
-				unsigned int data_block_counter)
+					   const struct pkt_desc *desc,
+					   struct snd_pcm_substream *pcm)
 {
 	struct amdtp_motu *p = (struct amdtp_motu *)s->protocol;
-	struct snd_pcm_substream *pcm;
+	unsigned int pcm_frames;
 
 	/* TODO: how to interact control messages between userspace? */
 
 	if (p->midi_ports)
-		write_midi_messages(s, buffer, data_blocks);
+		write_midi_messages(s, desc->ctx_payload, desc->data_blocks);
 
-	pcm = READ_ONCE(s->pcm);
-	if (pcm)
-		write_pcm_s32(s, pcm->runtime, buffer, data_blocks);
-	else
-		write_pcm_silence(s, buffer, data_blocks);
+	if (pcm) {
+		write_pcm_s32(s, pcm->runtime, desc->ctx_payload,
+			      desc->data_blocks);
+		pcm_frames = desc->data_blocks;
+	} else {
+		write_pcm_silence(s, desc->ctx_payload, desc->data_blocks);
+		pcm_frames = 0;
+	}
 
-	write_sph(s, buffer, data_blocks);
+	write_sph(s, desc->ctx_payload, desc->data_blocks);
 
-	trace_data_block_sph(s, data_blocks, buffer);
-	trace_data_block_message(s, data_blocks, buffer);
+	trace_data_block_sph(s, desc->data_blocks, desc->ctx_payload);
+	trace_data_block_message(s, desc->data_blocks, desc->ctx_payload);
 
-	return data_blocks;
+	return pcm_frames;
 }
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,

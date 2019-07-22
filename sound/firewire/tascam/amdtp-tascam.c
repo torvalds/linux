@@ -166,33 +166,38 @@ static void read_status_messages(struct amdtp_stream *s,
 }
 
 static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
-				__be32 *buffer, unsigned int data_blocks,
-				unsigned int data_block_counter)
+					   const struct pkt_desc *desc,
+					   struct snd_pcm_substream *pcm)
 {
-	struct snd_pcm_substream *pcm;
+	unsigned int pcm_frames;
 
-	pcm = READ_ONCE(s->pcm);
-	if (data_blocks > 0 && pcm)
-		read_pcm_s32(s, pcm, buffer, data_blocks);
+	if (pcm) {
+		read_pcm_s32(s, pcm, desc->ctx_payload, desc->data_blocks);
+		pcm_frames = desc->data_blocks;
+	} else {
+		pcm_frames = 0;
+	}
 
-	read_status_messages(s, buffer, data_blocks);
+	read_status_messages(s, desc->ctx_payload, desc->data_blocks);
 
-	return data_blocks;
+	return pcm_frames;
 }
 
 static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
-				__be32 *buffer, unsigned int data_blocks,
-				unsigned int data_block_counter)
+					   const struct pkt_desc *desc,
+					   struct snd_pcm_substream *pcm)
 {
-	struct snd_pcm_substream *pcm;
+	unsigned int pcm_frames;
 
-	pcm = READ_ONCE(s->pcm);
-	if (pcm)
-		write_pcm_s32(s, pcm, buffer, data_blocks);
-	else
-		write_pcm_silence(s, buffer, data_blocks);
+	if (pcm) {
+		write_pcm_s32(s, pcm, desc->ctx_payload, desc->data_blocks);
+		pcm_frames = desc->data_blocks;
+	} else {
+		write_pcm_silence(s, desc->ctx_payload, desc->data_blocks);
+		pcm_frames = 0;
+	}
 
-	return data_blocks;
+	return pcm_frames;
 }
 
 int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,

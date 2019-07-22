@@ -336,44 +336,46 @@ static void read_midi_messages(struct amdtp_stream *s, __be32 *buffer,
 }
 
 static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
-				__be32 *buffer, unsigned int data_blocks,
-				unsigned int data_block_counter)
+					   const struct pkt_desc *desc,
+					   struct snd_pcm_substream *pcm)
 {
 	struct amdtp_am824 *p = s->protocol;
-	struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
 	unsigned int pcm_frames;
 
 	if (pcm) {
-		write_pcm_s32(s, pcm, buffer, data_blocks);
-		pcm_frames = data_blocks * p->frame_multiplier;
+		write_pcm_s32(s, pcm, desc->ctx_payload, desc->data_blocks);
+		pcm_frames = desc->data_blocks * p->frame_multiplier;
 	} else {
-		write_pcm_silence(s, buffer, data_blocks);
+		write_pcm_silence(s, desc->ctx_payload, desc->data_blocks);
 		pcm_frames = 0;
 	}
 
-	if (p->midi_ports)
-		write_midi_messages(s, buffer, data_blocks, data_block_counter);
+	if (p->midi_ports) {
+		write_midi_messages(s, desc->ctx_payload, desc->data_blocks,
+				    desc->data_block_counter);
+	}
 
 	return pcm_frames;
 }
 
 static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
-				__be32 *buffer, unsigned int data_blocks,
-				unsigned int data_block_counter)
+					   const struct pkt_desc *desc,
+					   struct snd_pcm_substream *pcm)
 {
 	struct amdtp_am824 *p = s->protocol;
-	struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
 	unsigned int pcm_frames;
 
 	if (pcm) {
-		read_pcm_s32(s, pcm, buffer, data_blocks);
-		pcm_frames = data_blocks * p->frame_multiplier;
+		read_pcm_s32(s, pcm, desc->ctx_payload, desc->data_blocks);
+		pcm_frames = desc->data_blocks * p->frame_multiplier;
 	} else {
 		pcm_frames = 0;
 	}
 
-	if (p->midi_ports)
-		read_midi_messages(s, buffer, data_blocks, data_block_counter);
+	if (p->midi_ports) {
+		read_midi_messages(s, desc->ctx_payload, desc->data_blocks,
+				   desc->data_block_counter);
+	}
 
 	return pcm_frames;
 }
