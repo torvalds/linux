@@ -1486,6 +1486,7 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 	bch2_fs_inconsistent_on(overflow, c,
 		"bucket sector count overflow: %u + %lli > U16_MAX",
 		old, sectors);
+	BUG_ON(overflow);
 
 	a = trans_update_key(trans, iter, BKEY_ALLOC_U64s_MAX);
 	ret = PTR_ERR_OR_ZERO(a);

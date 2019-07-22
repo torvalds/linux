@@ -2602,9 +2602,7 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct address_space *mapping = inode->v.i_mapping;
 	struct btree_trans trans;
-	struct btree_iter *src, *dst;
-	BKEY_PADDED(k) copy;
-	struct bkey_s_c k;
+	struct btree_iter *src, *dst, *del = NULL;
 	loff_t new_size;
 	int ret;
 
@@ -2636,73 +2634,123 @@ static long bch2_fcollapse(struct bch_inode_info *inode,
 	if (ret)
 		goto err;
 
+	ret = __bch2_fpunch(c, inode, offset >> 9,
+			    (offset + len) >> 9);
+	if (ret)
+		goto err;
+
 	dst = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 			POS(inode->v.i_ino, offset >> 9),
-			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+			BTREE_ITER_INTENT);
 	BUG_ON(IS_ERR_OR_NULL(dst));
 
 	src = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
-			POS_MIN, BTREE_ITER_SLOTS);
+			POS(inode->v.i_ino, (offset + len) >> 9),
+			BTREE_ITER_INTENT);
 	BUG_ON(IS_ERR_OR_NULL(src));
 
-	while (bkey_cmp(dst->pos,
-			POS(inode->v.i_ino,
-			    round_up(new_size, block_bytes(c)) >> 9)) < 0) {
-		struct disk_reservation disk_res;
+	while (1) {
+		struct disk_reservation disk_res =
+			bch2_disk_reservation_init(c, 0);
+		BKEY_PADDED(k) copy;
+		struct bkey_i delete;
+		struct bkey_s_c k;
+		struct bpos next_pos;
+		unsigned commit_flags = BTREE_INSERT_NOFAIL|
+			BTREE_INSERT_ATOMIC|
+			BTREE_INSERT_USE_RESERVE;
+
+		k = bch2_btree_iter_peek(src);
+		if ((ret = bkey_err(k)))
+			goto bkey_err;
+
+		if (!k.k || k.k->p.inode != inode->v.i_ino)
+			break;
+
+		BUG_ON(src->pos.offset != bkey_start_offset(k.k));
+
+		bch2_btree_iter_set_pos(dst,
+			POS(inode->v.i_ino, src->pos.offset - (len >> 9)));
 
 		ret = bch2_btree_iter_traverse(dst);
 		if (ret)
 			goto bkey_err;
 
-		bch2_btree_iter_set_pos(src,
-			POS(dst->pos.inode, dst->pos.offset + (len >> 9)));
-
-		k = bch2_btree_iter_peek_slot(src);
-		if ((ret = bkey_err(k)))
-			goto bkey_err;
-
 		bkey_reassemble(&copy.k, k);
-
-		bch2_cut_front(src->pos, &copy.k);
-		copy.k.k.p.offset -= len >> 9;
-
+		copy.k.k.p = dst->pos;
+		copy.k.k.p.offset += copy.k.k.size;
 		ret = bch2_extent_trim_atomic(&copy.k, dst);
 		if (ret)
 			goto bkey_err;
 
-		BUG_ON(bkey_cmp(dst->pos, bkey_start_pos(&copy.k.k)));
+		bkey_init(&delete.k);
+		delete.k.p = src->pos;
+		bch2_key_resize(&delete.k, copy.k.k.size);
 
-		ret = bch2_disk_reservation_get(c, &disk_res, copy.k.k.size,
-				bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(&copy.k)),
-				BCH_DISK_RESERVATION_NOFAIL);
-		BUG_ON(ret);
+		next_pos = delete.k.p;
 
-		bch2_trans_begin_updates(&trans);
+		/*
+		 * If the new and old keys overlap (because we're moving an
+		 * extent that's bigger than the amount we're collapsing by),
+		 * we need to trim the delete key here so they don't overlap
+		 * because overlaps on insertions aren't handled before
+		 * triggers are run, so the overwrite will get double counted
+		 * by the triggers machinery:
+		 */
+		if (bkey_cmp(copy.k.k.p, bkey_start_pos(&delete.k)) > 0) {
+			bch2_cut_front(copy.k.k.p, &delete);
 
-		ret = bch2_extent_update(&trans, inode,
-				&disk_res, NULL,
-				dst, &copy.k,
-				0, true, true, NULL);
+			del = bch2_trans_copy_iter(&trans, src);
+			BUG_ON(IS_ERR_OR_NULL(del));
+
+			bch2_btree_iter_set_pos(del,
+				bkey_start_pos(&delete.k));
+			bch2_trans_update(&trans,
+				BTREE_INSERT_ENTRY(del, &delete));
+		} else {
+			bch2_trans_update(&trans,
+				BTREE_INSERT_ENTRY(src, &delete));
+		}
+
+		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(dst, &copy.k));
+
+		if (copy.k.k.size == k.k->size) {
+			/*
+			 * If we're moving the entire extent, we can skip
+			 * running triggers:
+			 */
+			commit_flags |= BTREE_INSERT_NOMARK;
+		} else {
+			/* We might end up splitting compressed extents: */
+			unsigned nr_ptrs =
+				bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(&copy.k));
+
+			ret = bch2_disk_reservation_get(c, &disk_res,
+					copy.k.k.size, nr_ptrs,
+					BCH_DISK_RESERVATION_NOFAIL);
+			BUG_ON(ret);
+		}
+
+		ret = bch2_trans_commit(&trans, &disk_res,
+					&inode->ei_journal_seq,
+					commit_flags);
 		bch2_disk_reservation_put(c, &disk_res);
 bkey_err:
+		if (del)
+			bch2_trans_iter_free(&trans, del);
+		del = NULL;
+
+		if (!ret)
+			bch2_btree_iter_set_pos(src, next_pos);
+
 		if (ret == -EINTR)
 			ret = 0;
 		if (ret)
 			goto err;
-		/*
-		 * XXX: if we error here we've left data with multiple
-		 * pointers... which isn't a _super_ serious problem...
-		 */
 
 		bch2_trans_cond_resched(&trans);
 	}
 	bch2_trans_unlock(&trans);
-
-	ret = __bch2_fpunch(c, inode,
-			round_up(new_size, block_bytes(c)) >> 9,
-			U64_MAX);
-	if (ret)
-		goto err;
 
 	i_size_write(&inode->v, new_size);
 	mutex_lock(&inode->ei_update_lock);
