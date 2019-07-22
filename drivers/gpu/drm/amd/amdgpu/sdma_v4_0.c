@@ -1627,6 +1627,7 @@ static int sdma_v4_0_early_init(void *handle)
 }
 
 static int sdma_v4_0_process_ras_data_cb(struct amdgpu_device *adev,
+		struct ras_err_data *err_data,
 		struct amdgpu_iv_entry *entry);
 
 static int sdma_v4_0_late_init(void *handle)
@@ -1960,6 +1961,7 @@ static int sdma_v4_0_process_trap_irq(struct amdgpu_device *adev,
 }
 
 static int sdma_v4_0_process_ras_data_cb(struct amdgpu_device *adev,
+		struct ras_err_data *err_data,
 		struct amdgpu_iv_entry *entry)
 {
 	uint32_t instance, err_source;
