@@ -487,10 +487,9 @@ int snd_soc_suspend(struct device *dev)
 			continue;
 
 		for_each_rtd_codec_dai(rtd, i, dai) {
-			struct snd_soc_dai_driver *drv = dai->driver;
-
-			if (drv->ops->digital_mute && dai->playback_active)
-				drv->ops->digital_mute(dai, 1);
+			if (dai->playback_active)
+				snd_soc_dai_digital_mute(dai, 1,
+						SNDRV_PCM_STREAM_PLAYBACK);
 		}
 	}
 
@@ -665,10 +664,9 @@ static void soc_resume_deferred(struct work_struct *work)
 			continue;
 
 		for_each_rtd_codec_dai(rtd, i, dai) {
-			struct snd_soc_dai_driver *drv = dai->driver;
-
-			if (drv->ops->digital_mute && dai->playback_active)
-				drv->ops->digital_mute(dai, 0);
+			if (dai->playback_active)
+				snd_soc_dai_digital_mute(dai, 0,
+						SNDRV_PCM_STREAM_PLAYBACK);
 		}
 	}
 
