@@ -839,9 +839,9 @@ void rockchip_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 	/* Nothing to do if allocated by DMA mapping API. */
 }
 
-static int rockchip_gem_dumb_map_offset(struct drm_file *file_priv,
-					struct drm_device *dev, uint32_t handle,
-					uint64_t *offset)
+int rockchip_gem_dumb_map_offset(struct drm_file *file_priv,
+				 struct drm_device *dev, uint32_t handle,
+				 uint64_t *offset)
 {
 	struct drm_gem_object *obj;
 	int ret;

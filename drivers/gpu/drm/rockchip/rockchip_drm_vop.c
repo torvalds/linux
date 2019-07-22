@@ -1484,6 +1484,22 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	}
 }
 
+static int vop_plane_prepare_fb(struct drm_plane *plane,
+				struct drm_plane_state *new_state)
+{
+	if (plane->state->fb)
+		drm_framebuffer_get(plane->state->fb);
+
+	return 0;
+}
+
+static void vop_plane_cleanup_fb(struct drm_plane *plane,
+				 struct drm_plane_state *old_state)
+{
+	if (old_state->fb)
+		drm_framebuffer_put(old_state->fb);
+}
+
 static int vop_plane_atomic_check(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
@@ -1794,6 +1810,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs plane_helper_funcs = {
+	.prepare_fb = vop_plane_prepare_fb,
+	.cleanup_fb = vop_plane_cleanup_fb,
 	.atomic_check = vop_plane_atomic_check,
 	.atomic_update = vop_plane_atomic_update,
 	.atomic_disable = vop_plane_atomic_disable,
@@ -2516,8 +2534,6 @@ static void vop_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
 
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.loader_protect = vop_crtc_loader_protect,
-	.enable_vblank = vop_crtc_enable_vblank,
-	.disable_vblank = vop_crtc_disable_vblank,
 	.cancel_pending_vblank = vop_crtc_cancel_pending_vblank,
 	.debugfs_init = vop_crtc_debugfs_init,
 	.debugfs_dump = vop_crtc_debugfs_dump,

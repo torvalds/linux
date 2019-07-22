@@ -1029,6 +1029,32 @@ static int __init rockchip_clocks_loader_unprotect(void)
 late_initcall_sync(rockchip_clocks_loader_unprotect);
 #endif
 
+int rockchip_drm_crtc_send_mcu_cmd(struct drm_device *drm_dev,
+				   struct device_node *np_crtc,
+				   u32 type, u32 value)
+{
+	struct drm_crtc *crtc;
+	int pipe = 0;
+	struct rockchip_drm_private *priv;
+
+	if (!np_crtc || !of_device_is_available(np_crtc))
+		return -EINVAL;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		if (of_get_parent(crtc->port) == np_crtc)
+			break;
+	}
+
+	pipe = drm_crtc_index(crtc);
+	if (pipe >= ROCKCHIP_MAX_CRTC)
+		return -EINVAL;
+	priv = crtc->dev->dev_private;
+	if (priv->crtc_funcs[pipe]->crtc_send_mcu_cmd)
+		priv->crtc_funcs[pipe]->crtc_send_mcu_cmd(crtc, type, value);
+
+	return 0;
+}
+
 /*
  * Attach a (component) device to the shared drm dma mapping from master drm
  * device.  This is used by the VOPs to map GEM buffers to a common DMA
@@ -1089,6 +1115,29 @@ void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc)
 	priv->crtc_funcs[pipe] = NULL;
 }
 
+static int rockchip_drm_fault_handler(struct iommu_domain *iommu,
+				      struct device *dev,
+				      unsigned long iova, int flags, void *arg)
+{
+	struct drm_device *drm_dev = arg;
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		int pipe = drm_crtc_index(crtc);
+
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->regs_dump)
+			priv->crtc_funcs[pipe]->regs_dump(crtc, NULL);
+
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->debugfs_dump)
+			priv->crtc_funcs[pipe]->debugfs_dump(crtc, NULL);
+	}
+
+	return 0;
+}
+
 static int rockchip_drm_init_iommu(struct drm_device *drm_dev)
 {
 	struct rockchip_drm_private *private = drm_dev->dev_private;
@@ -1110,6 +1159,9 @@ static int rockchip_drm_init_iommu(struct drm_device *drm_dev)
 		  start, end);
 	drm_mm_init(&private->mm, start, end - start + 1);
 	mutex_init(&private->mm_lock);
+
+	iommu_set_fault_handler(private->domain, rockchip_drm_fault_handler,
+				drm_dev);
 
 	return 0;
 }
@@ -1374,9 +1426,6 @@ static int rockchip_drm_bind(struct device *dev)
 	if (IS_ERR(drm_dev))
 		return PTR_ERR(drm_dev);
 
-	ret = drm_dev_set_unique(drm_dev, dev_name(dev));
-	if (ret)
-		goto err_free;
 	dev_set_drvdata(dev, drm_dev);
 
 	private = devm_kzalloc(drm_dev->dev, sizeof(*private), GFP_KERNEL);
@@ -1480,6 +1529,9 @@ static int rockchip_drm_bind(struct device *dev)
 	drm_for_each_crtc(crtc, drm_dev) {
 		struct drm_fb_helper *helper = private->fbdev_helper;
 		struct rockchip_crtc_state *s = NULL;
+
+		if (!helper)
+			break;
 
 		s = to_rockchip_crtc_state(crtc->state);
 		if (is_support_hotplug(s->output_type)) {
@@ -1604,6 +1656,8 @@ static struct drm_driver rockchip_drm_driver = {
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.gem_free_object_unlocked = rockchip_gem_free_object,
 	.dumb_create		= rockchip_gem_dumb_create,
+	.dumb_map_offset	= rockchip_gem_dumb_map_offset,
+	.dumb_destroy		= drm_gem_dumb_destroy,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_import	= drm_gem_prime_import,
