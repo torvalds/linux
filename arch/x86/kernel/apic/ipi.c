@@ -5,6 +5,31 @@
 
 #include "local.h"
 
+#ifdef CONFIG_SMP
+#ifdef CONFIG_HOTPLUG_CPU
+#define DEFAULT_SEND_IPI	(1)
+#else
+#define DEFAULT_SEND_IPI	(0)
+#endif
+
+static int apic_ipi_shorthand_off __ro_after_init = DEFAULT_SEND_IPI;
+
+static __init int apic_ipi_shorthand(char *str)
+{
+	get_option(&str, &apic_ipi_shorthand_off);
+	return 1;
+}
+__setup("no_ipi_broadcast=", apic_ipi_shorthand);
+
+static int __init print_ipi_mode(void)
+{
+	pr_info("IPI shorthand broadcast: %s\n",
+		apic_ipi_shorthand_off ? "disabled" : "enabled");
+	return 0;
+}
+late_initcall(print_ipi_mode);
+#endif
+
 static inline int __prepare_ICR2(unsigned int mask)
 {
 	return SET_APIC_DEST_FIELD(mask);
@@ -203,7 +228,7 @@ void default_send_IPI_allbutself(int vector)
 	if (num_online_cpus() < 2)
 		return;
 
-	if (no_broadcast || vector == NMI_VECTOR) {
+	if (apic_ipi_shorthand_off || vector == NMI_VECTOR) {
 		apic->send_IPI_mask_allbutself(cpu_online_mask, vector);
 	} else {
 		__default_send_IPI_shortcut(APIC_DEST_ALLBUT, vector);
@@ -212,7 +237,7 @@ void default_send_IPI_allbutself(int vector)
 
 void default_send_IPI_all(int vector)
 {
-	if (no_broadcast || vector == NMI_VECTOR) {
+	if (apic_ipi_shorthand_off || vector == NMI_VECTOR) {
 		apic->send_IPI_mask(cpu_online_mask, vector);
 	} else {
 		__default_send_IPI_shortcut(APIC_DEST_ALLINC, vector);
