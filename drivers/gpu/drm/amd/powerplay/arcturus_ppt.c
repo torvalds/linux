@@ -994,6 +994,44 @@ static int arcturus_read_sensor(struct smu_context *smu,
 	return ret;
 }
 
+static int arcturus_get_fan_speed_rpm(struct smu_context *smu,
+				      uint32_t *speed)
+{
+	SmuMetrics_t metrics;
+	int ret = 0;
+
+	if (!speed)
+		return -EINVAL;
+
+	ret = arcturus_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
+
+	*speed = metrics.CurrFanSpeed;
+
+	return ret;
+}
+
+static int arcturus_get_fan_speed_percent(struct smu_context *smu,
+					  uint32_t *speed)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+	uint32_t percent, current_rpm;
+	int ret = 0;
+
+	if (!speed)
+		return -EINVAL;
+
+	ret = arcturus_get_fan_speed_rpm(smu, &current_rpm);
+	if (ret)
+		return ret;
+
+	percent = current_rpm * 100 / pptable->FanMaximumRpm;
+	*speed = percent > 100 ? 100 : percent;
+
+	return ret;
+}
+
 static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
 				       enum smu_clk_type clk_type,
 				       uint32_t *value)
@@ -1475,6 +1513,8 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.print_clk_levels = arcturus_print_clk_levels,
 	.force_clk_levels = arcturus_force_clk_levels,
 	.read_sensor = arcturus_read_sensor,
+	.get_fan_speed_percent = arcturus_get_fan_speed_percent,
+	.get_fan_speed_rpm = arcturus_get_fan_speed_rpm,
 	/* debug (internal used) */
 	.dump_pptable = arcturus_dump_pptable,
 };
