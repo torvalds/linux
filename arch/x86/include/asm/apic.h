@@ -467,8 +467,6 @@ static inline unsigned default_get_apic_id(unsigned long x)
 
 #ifdef CONFIG_X86_64
 extern void apic_send_IPI_self(int vector);
-
-DECLARE_PER_CPU(int, x2apic_extra_bits);
 #endif
 
 extern void generic_bigsmp_probe(void);
