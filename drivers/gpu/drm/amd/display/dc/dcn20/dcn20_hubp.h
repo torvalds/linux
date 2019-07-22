@@ -252,7 +252,7 @@ bool hubp2_program_surface_flip_and_addr(
 	bool flip_immediate);
 
 void hubp2_dcc_control(struct hubp *hubp, bool enable,
-		bool independent_64b_blks);
+		enum hubp_ind_block_size independent_64b_blks);
 
 void hubp2_program_size(
 	struct hubp *hubp,

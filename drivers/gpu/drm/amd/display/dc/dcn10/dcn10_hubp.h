@@ -698,7 +698,7 @@ void hubp1_program_tiling(
 
 void hubp1_dcc_control(struct hubp *hubp,
 		bool enable,
-		bool independent_64b_blks);
+		enum hubp_ind_block_size independent_64b_blks);
 
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 bool hubp1_program_surface_flip_and_addr(
