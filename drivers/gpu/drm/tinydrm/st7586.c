@@ -21,9 +21,9 @@
 #include <drm/drm_format_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_mipi_dbi.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
-#include <drm/tinydrm/mipi-dbi.h>
 
 /* controller-specific commands */
 #define ST7586_DISP_MODE_GRAY	0x38

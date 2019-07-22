@@ -20,8 +20,8 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_mipi_dbi.h>
 #include <drm/drm_modeset_helper.h>
-#include <drm/tinydrm/mipi-dbi.h>
 #include <video/mipi_display.h>
 
 #define ILI9341_FRMCTR1		0xb1

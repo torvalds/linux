@@ -24,9 +24,9 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_mipi_dbi.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
-#include <drm/tinydrm/mipi-dbi.h>
 
 #define ILI9225_DRIVER_READ_CODE	0x00
 #define ILI9225_DRIVER_OUTPUT_CONTROL	0x01
