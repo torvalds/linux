@@ -45,6 +45,12 @@ Optional properties:
 	byte 2: packet payload length
 	byte 3 and beyond: number byte of payload
 
+- power-invert: power invert control
+- rockchip,cmd-type: default is DSI cmd, or "spi", "mcu" cmd type
+- spi-sdi: spi init panel for spi-sdi io
+- spi-scl: spi init panel for spi-scl io
+- spi-cs: spi init pael for spi-cs io
+
 Example:
 
 	panel: panel {
