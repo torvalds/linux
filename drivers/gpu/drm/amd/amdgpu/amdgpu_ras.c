@@ -588,7 +588,7 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 		struct ras_query_if *info)
 {
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &info->head);
-	struct ras_err_data err_data = {0, 0};
+	struct ras_err_data err_data = {0, 0, 0, NULL};
 
 	if (!obj)
 		return -EINVAL;
