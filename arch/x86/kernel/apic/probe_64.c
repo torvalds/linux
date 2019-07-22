@@ -8,19 +8,8 @@
  * Martin Bligh, Andi Kleen, James Bottomley, John Stultz, and
  * James Cleverdon.
  */
-#include <linux/threads.h>
-#include <linux/cpumask.h>
-#include <linux/string.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/ctype.h>
-#include <linux/hardirq.h>
-#include <linux/dmar.h>
-
-#include <asm/smp.h>
 #include <asm/apic.h>
 #include <asm/ipi.h>
-#include <asm/setup.h>
 
 /*
  * Check the APIC IDs in bios_cpu_apicid and choose the APIC mode.

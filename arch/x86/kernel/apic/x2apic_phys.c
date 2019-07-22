@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/threads.h>
-#include <linux/cpumask.h>
-#include <linux/string.h>
-#include <linux/kernel.h>
-#include <linux/ctype.h>
-#include <linux/dmar.h>
 
-#include <asm/smp.h>
+#include <linux/cpumask.h>
+#include <linux/acpi.h>
+
 #include <asm/ipi.h>
+
 #include "x2apic.h"
 
 int x2apic_phys;

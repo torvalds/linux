@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/threads.h>
-#include <linux/cpumask.h>
-#include <linux/string.h>
-#include <linux/kernel.h>
-#include <linux/ctype.h>
-#include <linux/dmar.h>
-#include <linux/irq.h>
-#include <linux/cpu.h>
 
-#include <asm/smp.h>
+#include <linux/cpuhotplug.h>
+#include <linux/cpumask.h>
+#include <linux/slab.h>
+#include <linux/mm.h>
+
+#include <asm/apic.h>
+
 #include "x2apic.h"
 
 struct cluster_mask {

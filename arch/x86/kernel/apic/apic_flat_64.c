@@ -8,21 +8,14 @@
  * Martin Bligh, Andi Kleen, James Bottomley, John Stultz, and
  * James Cleverdon.
  */
-#include <linux/acpi.h>
-#include <linux/errno.h>
-#include <linux/threads.h>
 #include <linux/cpumask.h>
-#include <linux/string.h>
-#include <linux/kernel.h>
-#include <linux/ctype.h>
-#include <linux/hardirq.h>
 #include <linux/export.h>
+#include <linux/acpi.h>
 
-#include <asm/smp.h>
-#include <asm/ipi.h>
-#include <asm/apic.h>
-#include <asm/apic_flat_64.h>
 #include <asm/jailhouse_para.h>
+#include <asm/apic_flat_64.h>
+#include <asm/apic.h>
+#include <asm/ipi.h>
 
 static struct apic apic_physflat;
 static struct apic apic_flat;

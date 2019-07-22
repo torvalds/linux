@@ -6,26 +6,12 @@
  *
  * Generic x86 APIC driver probe layer.
  */
-#include <linux/threads.h>
-#include <linux/cpumask.h>
 #include <linux/export.h>
-#include <linux/string.h>
-#include <linux/kernel.h>
-#include <linux/ctype.h>
-#include <linux/init.h>
 #include <linux/errno.h>
-#include <asm/fixmap.h>
-#include <asm/mpspec.h>
-#include <asm/apicdef.h>
+
 #include <asm/apic.h>
-#include <asm/setup.h>
-
-#include <linux/smp.h>
-#include <asm/ipi.h>
-
-#include <linux/interrupt.h>
 #include <asm/acpi.h>
-#include <asm/e820/api.h>
+#include <asm/ipi.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 #define DEFAULT_SEND_IPI	(1)
