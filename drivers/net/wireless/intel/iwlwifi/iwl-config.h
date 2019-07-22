@@ -379,6 +379,7 @@ struct iwl_cfg_trans_params {
  * @ht_params: point to ht parameters
  * @led_mode: 0=blinking, 1=On(RF On)/Off(RF Off)
  * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
+ * @tx_with_siso_diversity: 1x1 device with tx antenna diversity
  * @internal_wimax_coex: internal wifi/wimax combo device
  * @high_temp: Is this NIC is designated to be in high temperature.
  * @host_interrupt_operation_mode: device needs host interrupt operation
@@ -441,6 +442,7 @@ struct iwl_cfg {
 	u16 nvm_ver;
 	u16 nvm_calib_ver;
 	u32 rx_with_siso_diversity:1,
+	    tx_with_siso_diversity:1,
 	    bt_shared_single_ant:1,
 	    internal_wimax_coex:1,
 	    host_interrupt_operation_mode:1,
