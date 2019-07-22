@@ -760,6 +760,26 @@ static inline void cancel_stream(struct amdtp_stream *s)
 	WRITE_ONCE(s->pcm_buffer_pointer, SNDRV_PCM_POS_XRUN);
 }
 
+static void process_ctx_payloads(struct amdtp_stream *s,
+				 const struct pkt_desc *descs,
+				 unsigned int packets)
+{
+	int i;
+
+	for (i = 0; i < packets; ++i) {
+		const struct pkt_desc *desc = descs + i;
+		struct snd_pcm_substream *pcm;
+		unsigned int pcm_frames;
+
+		pcm_frames = s->process_data_blocks(s, desc->ctx_payload,
+				desc->data_blocks, desc->data_block_counter);
+
+		pcm = READ_ONCE(s->pcm);
+		if (pcm && pcm_frames > 0)
+			update_pcm_pointers(s, pcm, pcm_frames);
+	}
+}
+
 static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				size_t header_length, void *header,
 				void *private_data)
@@ -774,18 +794,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 
 	generate_ideal_pkt_descs(s, s->pkt_descs, ctx_header, packets);
 
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = s->pkt_descs + i;
-		struct snd_pcm_substream *pcm;
-		unsigned int pcm_frames;
-
-		pcm_frames = s->process_data_blocks(s, desc->ctx_payload,
-				desc->data_blocks, desc->data_block_counter);
-
-		pcm = READ_ONCE(s->pcm);
-		if (pcm && pcm_frames > 0)
-			update_pcm_pointers(s, pcm, pcm_frames);
-	}
+	process_ctx_payloads(s, s->pkt_descs, packets);
 
 	for (i = 0; i < packets; ++i) {
 		const struct pkt_desc *desc = s->pkt_descs + i;
@@ -836,19 +845,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 			return;
 		}
 	} else {
-		for (i = 0; i < packets; ++i) {
-			const struct pkt_desc *desc = s->pkt_descs;
-			struct snd_pcm_substream *pcm;
-			unsigned int pcm_frames;
-
-			pcm_frames = s->process_data_blocks(s,
-					desc->ctx_payload, desc->data_blocks,
-					desc->data_block_counter);
-
-			pcm = READ_ONCE(s->pcm);
-			if (pcm && pcm_frames > 0)
-				update_pcm_pointers(s, pcm, pcm_frames);
-		}
+		process_ctx_payloads(s, s->pkt_descs, packets);
 	}
 
 	for (i = 0; i < packets; ++i) {
