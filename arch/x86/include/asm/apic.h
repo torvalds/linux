@@ -177,6 +177,8 @@ extern void lapic_online(void);
 extern void lapic_offline(void);
 extern bool apic_needs_pit(void);
 
+extern void apic_send_IPI_allbutself(unsigned int vector);
+
 #else /* !CONFIG_X86_LOCAL_APIC */
 static inline void lapic_shutdown(void) { }
 #define local_apic_timer_c2_ok		1

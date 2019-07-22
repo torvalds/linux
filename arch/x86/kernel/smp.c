@@ -215,7 +215,7 @@ static void native_stop_other_cpus(int wait)
 		/* sync above data before sending IRQ */
 		wmb();
 
-		apic->send_IPI_allbutself(REBOOT_VECTOR);
+		apic_send_IPI_allbutself(REBOOT_VECTOR);
 
 		/*
 		 * Don't wait longer than a second for IPI completion. The
@@ -241,7 +241,7 @@ static void native_stop_other_cpus(int wait)
 
 			pr_emerg("Shutting down cpus with NMI\n");
 
-			apic->send_IPI_allbutself(NMI_VECTOR);
+			apic_send_IPI_allbutself(NMI_VECTOR);
 		}
 		/*
 		 * Don't wait longer than 10 ms if the caller didn't
