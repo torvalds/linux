@@ -16,7 +16,7 @@ static inline void __xapic_wait_icr_idle(void)
 		cpu_relax();
 }
 
-void __default_send_IPI_shortcut(unsigned int shortcut, int vector, unsigned int dest)
+void __default_send_IPI_shortcut(unsigned int shortcut, int vector)
 {
 	/*
 	 * Subtle. In the case of the 'never do double writes' workaround
@@ -33,9 +33,10 @@ void __default_send_IPI_shortcut(unsigned int shortcut, int vector, unsigned int
 	__xapic_wait_icr_idle();
 
 	/*
-	 * No need to touch the target chip field
+	 * No need to touch the target chip field. Also the destination
+	 * mode is ignored when a shorthand is used.
 	 */
-	cfg = __prepare_ICR(shortcut, vector, dest);
+	cfg = __prepare_ICR(shortcut, vector, 0);
 
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
@@ -202,8 +203,7 @@ void default_send_IPI_allbutself(int vector)
 	if (no_broadcast || vector == NMI_VECTOR) {
 		apic->send_IPI_mask_allbutself(cpu_online_mask, vector);
 	} else {
-		__default_send_IPI_shortcut(APIC_DEST_ALLBUT, vector,
-					    apic->dest_logical);
+		__default_send_IPI_shortcut(APIC_DEST_ALLBUT, vector);
 	}
 }
 
@@ -212,14 +212,13 @@ void default_send_IPI_all(int vector)
 	if (no_broadcast || vector == NMI_VECTOR) {
 		apic->send_IPI_mask(cpu_online_mask, vector);
 	} else {
-		__default_send_IPI_shortcut(APIC_DEST_ALLINC, vector,
-					    apic->dest_logical);
+		__default_send_IPI_shortcut(APIC_DEST_ALLINC, vector);
 	}
 }
 
 void default_send_IPI_self(int vector)
 {
-	__default_send_IPI_shortcut(APIC_DEST_SELF, vector, apic->dest_logical);
+	__default_send_IPI_shortcut(APIC_DEST_SELF, vector);
 }
 
 /* must come after the send_IPI functions above for inlining */
