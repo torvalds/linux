@@ -454,13 +454,13 @@ static int sfe4001_init(struct ef4_nic *efx)
 
 #if IS_ENABLED(CONFIG_SENSORS_LM90)
 	board->hwmon_client =
-		i2c_new_device(&board->i2c_adap, &sfe4001_hwmon_info);
+		i2c_new_client_device(&board->i2c_adap, &sfe4001_hwmon_info);
 #else
 	board->hwmon_client =
-		i2c_new_dummy(&board->i2c_adap, sfe4001_hwmon_info.addr);
+		i2c_new_dummy_device(&board->i2c_adap, sfe4001_hwmon_info.addr);
 #endif
-	if (!board->hwmon_client)
-		return -EIO;
+	if (IS_ERR(board->hwmon_client))
+		return PTR_ERR(board->hwmon_client);
 
 	/* Raise board/PHY high limit from 85 to 90 degrees Celsius */
 	rc = i2c_smbus_write_byte_data(board->hwmon_client,
@@ -468,9 +468,9 @@ static int sfe4001_init(struct ef4_nic *efx)
 	if (rc)
 		goto fail_hwmon;
 
-	board->ioexp_client = i2c_new_dummy(&board->i2c_adap, PCA9539);
-	if (!board->ioexp_client) {
-		rc = -EIO;
+	board->ioexp_client = i2c_new_dummy_device(&board->i2c_adap, PCA9539);
+	if (IS_ERR(board->ioexp_client)) {
+		rc = PTR_ERR(board->ioexp_client);
 		goto fail_hwmon;
 	}
 
