@@ -18,8 +18,7 @@
 
 #include <asm/pgtable.h>
 
-#include "apic_flat_64.h"
-#include "ipi.h"
+#include "local.h"
 
 u8 numachip_system __read_mostly;
 static const struct apic apic_numachip1;

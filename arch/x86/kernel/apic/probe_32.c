@@ -8,11 +8,12 @@
  */
 #include <linux/export.h>
 #include <linux/errno.h>
+#include <linux/smp.h>
 
 #include <asm/apic.h>
 #include <asm/acpi.h>
 
-#include "ipi.h"
+#include "local.h"
 
 #ifdef CONFIG_HOTPLUG_CPU
 #define DEFAULT_SEND_IPI	(1)

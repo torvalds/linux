@@ -7,7 +7,7 @@
 
 #include <asm/apic.h>
 
-#include "x2apic.h"
+#include "local.h"
 
 struct cluster_mask {
 	unsigned int	clusterid;

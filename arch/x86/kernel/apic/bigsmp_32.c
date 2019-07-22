@@ -10,7 +10,7 @@
 
 #include <asm/apic.h>
 
-#include "ipi.h"
+#include "local.h"
 
 static unsigned bigsmp_get_apic_id(unsigned long x)
 {

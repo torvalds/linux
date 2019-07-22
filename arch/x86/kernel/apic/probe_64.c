@@ -10,7 +10,7 @@
  */
 #include <asm/apic.h>
 
-#include "ipi.h"
+#include "local.h"
 
 /*
  * Check the APIC IDs in bios_cpu_apicid and choose the APIC mode.

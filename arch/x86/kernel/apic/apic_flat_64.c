@@ -15,8 +15,7 @@
 #include <asm/jailhouse_para.h>
 #include <asm/apic.h>
 
-#include "apic_flat_64.h"
-#include "ipi.h"
+#include "local.h"
 
 static struct apic apic_physflat;
 static struct apic apic_flat;
