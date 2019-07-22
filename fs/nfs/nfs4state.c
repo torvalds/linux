@@ -1463,7 +1463,7 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 		nfs4_schedule_state_manager(clp);
 }
 
-static void nfs4_state_mark_open_context_bad(struct nfs4_state *state)
+static void nfs4_state_mark_open_context_bad(struct nfs4_state *state, int err)
 {
 	struct inode *inode = state->inode;
 	struct nfs_inode *nfsi = NFS_I(inode);
@@ -1474,6 +1474,8 @@ static void nfs4_state_mark_open_context_bad(struct nfs4_state *state)
 		if (ctx->state != state)
 			continue;
 		set_bit(NFS_CONTEXT_BAD, &ctx->flags);
+		pr_warn("NFSv4: state recovery failed for open file %pd2, "
+				"error = %d\n", ctx->dentry, err);
 	}
 	rcu_read_unlock();
 }
@@ -1481,7 +1483,7 @@ static void nfs4_state_mark_open_context_bad(struct nfs4_state *state)
 static void nfs4_state_mark_recovery_failed(struct nfs4_state *state, int error)
 {
 	set_bit(NFS_STATE_RECOVERY_FAILED, &state->flags);
-	nfs4_state_mark_open_context_bad(state);
+	nfs4_state_mark_open_context_bad(state, error);
 }
 
 
