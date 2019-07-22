@@ -8,13 +8,7 @@
 DEFINE_STATIC_KEY_FALSE(apic_use_ipi_shorthand);
 
 #ifdef CONFIG_SMP
-#ifdef CONFIG_HOTPLUG_CPU
-#define DEFAULT_SEND_IPI	(1)
-#else
-#define DEFAULT_SEND_IPI	(0)
-#endif
-
-static int apic_ipi_shorthand_off __ro_after_init = DEFAULT_SEND_IPI;
+static int apic_ipi_shorthand_off __ro_after_init;
 
 static __init int apic_ipi_shorthand(char *str)
 {
@@ -293,27 +287,12 @@ void default_send_IPI_mask_logical(const struct cpumask *cpumask, int vector)
 
 void default_send_IPI_allbutself(int vector)
 {
-	/*
-	 * if there are no other CPUs in the system then we get an APIC send
-	 * error if we try to broadcast, thus avoid sending IPIs in this case.
-	 */
-	if (num_online_cpus() < 2)
-		return;
-
-	if (apic_ipi_shorthand_off || vector == NMI_VECTOR) {
-		apic->send_IPI_mask_allbutself(cpu_online_mask, vector);
-	} else {
-		__default_send_IPI_shortcut(APIC_DEST_ALLBUT, vector);
-	}
+	__default_send_IPI_shortcut(APIC_DEST_ALLBUT, vector);
 }
 
 void default_send_IPI_all(int vector)
 {
-	if (apic_ipi_shorthand_off || vector == NMI_VECTOR) {
-		apic->send_IPI_mask(cpu_online_mask, vector);
-	} else {
-		__default_send_IPI_shortcut(APIC_DEST_ALLINC, vector);
-	}
+	__default_send_IPI_shortcut(APIC_DEST_ALLINC, vector);
 }
 
 void default_send_IPI_self(int vector)
