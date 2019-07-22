@@ -379,3 +379,11 @@ int snd_soc_dai_remove(struct snd_soc_dai *dai)
 		return dai->driver->remove(dai);
 	return 0;
 }
+
+int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
+			     struct snd_soc_pcm_runtime *rtd, int num)
+{
+	if (dai->driver->compress_new)
+		return dai->driver->compress_new(rtd, num);
+	return -ENOTSUPP;
+}
