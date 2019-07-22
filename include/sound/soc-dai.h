@@ -168,6 +168,7 @@ int snd_soc_dai_probe(struct snd_soc_dai *dai);
 int snd_soc_dai_remove(struct snd_soc_dai *dai);
 int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
 			     struct snd_soc_pcm_runtime *rtd, int num);
+bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int stream);
 
 struct snd_soc_dai_ops {
 	/*
