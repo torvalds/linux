@@ -267,6 +267,8 @@ static int arcturus_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER
 
 static int arcturus_tables_init(struct smu_context *smu, struct smu_table *tables)
 {
+	struct smu_table_context *smu_table = &smu->smu_table;
+
 	SMU_TABLE_INIT(tables, SMU_TABLE_PPTABLE, sizeof(PPTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
@@ -275,6 +277,11 @@ static int arcturus_tables_init(struct smu_context *smu, struct smu_table *table
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+
+	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
+	if (!smu_table->metrics_table)
+		return -ENOMEM;
+	smu_table->metrics_time = 0;
 
 	return 0;
 }
