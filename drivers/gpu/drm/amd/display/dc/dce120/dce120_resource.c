@@ -1165,16 +1165,6 @@ static bool construct(
 	if (!resource_construct(num_virtual_links, dc, &pool->base, res_funcs))
 		goto res_create_fail;
 
-	/*
-	 * This is a bit of a hack. The xGMI enabled info is used to determine
-	 * if audio and display clocks need to be adjusted with the WAFL link's
-	 * SS info. This is a responsiblity of the clk_mgr. But since MMHUB is
-	 * under hwseq, and the relevant register is in MMHUB, we have to do it
-	 * here.
-	 */
-	if (is_vg20 && dce121_xgmi_enabled(dc->hwseq))
-		dce121_clock_patch_xgmi_ss_info(dc->clk_mgr);
-
 	/* Create hardware sequencer */
 	if (!dce120_hw_sequencer_create(dc))
 		goto controller_create_fail;

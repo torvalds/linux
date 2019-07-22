@@ -2094,6 +2094,10 @@ static int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 		return 0;
 	}
 
+	/* use hardware fan control */
+	if (hwmgr->thermal_controller.use_hw_fan_control)
+		return 0;
+
 	tmp64 = hwmgr->thermal_controller.advanceFanControlParameters.
 			usPWMMin * duty100;
 	do_div(tmp64, 10000);
@@ -2552,6 +2556,7 @@ static int polaris10_update_dpm_settings(struct pp_hwmgr *hwmgr,
 }
 
 const struct pp_smumgr_func polaris10_smu_funcs = {
+	.name = "polaris10_smu",
 	.smu_init = polaris10_smu_init,
 	.smu_fini = smu7_smu_fini,
 	.start_smu = polaris10_start_smu,

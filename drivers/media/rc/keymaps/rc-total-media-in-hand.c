@@ -10,16 +10,16 @@
 
 /* Uses NEC extended 0x02bd */
 static struct rc_map_table total_media_in_hand[] = {
-	{ 0x02bd00, KEY_1 },
-	{ 0x02bd01, KEY_2 },
-	{ 0x02bd02, KEY_3 },
-	{ 0x02bd03, KEY_4 },
-	{ 0x02bd04, KEY_5 },
-	{ 0x02bd05, KEY_6 },
-	{ 0x02bd06, KEY_7 },
-	{ 0x02bd07, KEY_8 },
-	{ 0x02bd08, KEY_9 },
-	{ 0x02bd09, KEY_0 },
+	{ 0x02bd00, KEY_NUMERIC_1 },
+	{ 0x02bd01, KEY_NUMERIC_2 },
+	{ 0x02bd02, KEY_NUMERIC_3 },
+	{ 0x02bd03, KEY_NUMERIC_4 },
+	{ 0x02bd04, KEY_NUMERIC_5 },
+	{ 0x02bd05, KEY_NUMERIC_6 },
+	{ 0x02bd06, KEY_NUMERIC_7 },
+	{ 0x02bd07, KEY_NUMERIC_8 },
+	{ 0x02bd08, KEY_NUMERIC_9 },
+	{ 0x02bd09, KEY_NUMERIC_0 },
 	{ 0x02bd0a, KEY_MUTE },
 	{ 0x02bd0b, KEY_CYCLEWINDOWS },    /* yellow, [min / max] */
 	{ 0x02bd0c, KEY_VIDEO },           /* TV / AV */

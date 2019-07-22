@@ -39,8 +39,6 @@
 enum efa_cmd_status {
 	EFA_CMD_SUBMITTED,
 	EFA_CMD_COMPLETED,
-	/* Abort - canceled by the driver */
-	EFA_CMD_ABORTED,
 };
 
 struct efa_comp_ctx {
@@ -280,36 +278,34 @@ static void efa_com_dealloc_ctx_id(struct efa_com_admin_queue *aq,
 static inline void efa_com_put_comp_ctx(struct efa_com_admin_queue *aq,
 					struct efa_comp_ctx *comp_ctx)
 {
-	u16 comp_id = comp_ctx->user_cqe->acq_common_descriptor.command &
-		      EFA_ADMIN_ACQ_COMMON_DESC_COMMAND_ID_MASK;
+	u16 cmd_id = comp_ctx->user_cqe->acq_common_descriptor.command &
+		     EFA_ADMIN_ACQ_COMMON_DESC_COMMAND_ID_MASK;
+	u16 ctx_id = cmd_id & (aq->depth - 1);
 
-	ibdev_dbg(aq->efa_dev, "Putting completion command_id %d\n", comp_id);
+	ibdev_dbg(aq->efa_dev, "Put completion command_id %#x\n", cmd_id);
 	comp_ctx->occupied = 0;
-	efa_com_dealloc_ctx_id(aq, comp_id);
+	efa_com_dealloc_ctx_id(aq, ctx_id);
 }
 
 static struct efa_comp_ctx *efa_com_get_comp_ctx(struct efa_com_admin_queue *aq,
-						 u16 command_id, bool capture)
+						 u16 cmd_id, bool capture)
 {
-	if (command_id >= aq->depth) {
-		ibdev_err(aq->efa_dev,
-			  "command id is larger than the queue size. cmd_id: %u queue size %d\n",
-			  command_id, aq->depth);
-		return NULL;
-	}
+	u16 ctx_id = cmd_id & (aq->depth - 1);
 
-	if (aq->comp_ctx[command_id].occupied && capture) {
-		ibdev_err(aq->efa_dev, "Completion context is occupied\n");
+	if (aq->comp_ctx[ctx_id].occupied && capture) {
+		ibdev_err(aq->efa_dev,
+			  "Completion context for command_id %#x is occupied\n",
+			  cmd_id);
 		return NULL;
 	}
 
 	if (capture) {
-		aq->comp_ctx[command_id].occupied = 1;
-		ibdev_dbg(aq->efa_dev, "Taking completion ctxt command_id %d\n",
-			  command_id);
+		aq->comp_ctx[ctx_id].occupied = 1;
+		ibdev_dbg(aq->efa_dev,
+			  "Take completion ctxt for command_id %#x\n", cmd_id);
 	}
 
-	return &aq->comp_ctx[command_id];
+	return &aq->comp_ctx[ctx_id];
 }
 
 static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
@@ -320,6 +316,7 @@ static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queu
 {
 	struct efa_comp_ctx *comp_ctx;
 	u16 queue_size_mask;
+	u16 cmd_id;
 	u16 ctx_id;
 	u16 pi;
 
@@ -328,13 +325,16 @@ static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queu
 
 	ctx_id = efa_com_alloc_ctx_id(aq);
 
+	/* cmd_id LSBs are the ctx_id and MSBs are entropy bits from pc */
+	cmd_id = ctx_id & queue_size_mask;
+	cmd_id |= aq->sq.pc & ~queue_size_mask;
+	cmd_id &= EFA_ADMIN_AQ_COMMON_DESC_COMMAND_ID_MASK;
+
+	cmd->aq_common_descriptor.command_id = cmd_id;
 	cmd->aq_common_descriptor.flags |= aq->sq.phase &
 		EFA_ADMIN_AQ_COMMON_DESC_PHASE_MASK;
 
-	cmd->aq_common_descriptor.command_id |= ctx_id &
-		EFA_ADMIN_AQ_COMMON_DESC_COMMAND_ID_MASK;
-
-	comp_ctx = efa_com_get_comp_ctx(aq, ctx_id, true);
+	comp_ctx = efa_com_get_comp_ctx(aq, cmd_id, true);
 	if (!comp_ctx) {
 		efa_com_dealloc_ctx_id(aq, ctx_id);
 		return ERR_PTR(-EINVAL);
@@ -532,16 +532,6 @@ static int efa_com_wait_and_process_admin_cq_polling(struct efa_comp_ctx *comp_c
 		msleep(aq->poll_interval);
 	}
 
-	if (comp_ctx->status == EFA_CMD_ABORTED) {
-		ibdev_err(aq->efa_dev, "Command was aborted\n");
-		atomic64_inc(&aq->stats.aborted_cmd);
-		err = -ENODEV;
-		goto out;
-	}
-
-	WARN_ONCE(comp_ctx->status != EFA_CMD_COMPLETED,
-		  "Invalid completion status %d\n", comp_ctx->status);
-
 	err = efa_com_comp_status_to_errno(comp_ctx->comp_status);
 out:
 	efa_com_put_comp_ctx(aq, comp_ctx);
@@ -666,66 +656,6 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 }
 
 /**
- * efa_com_abort_admin_commands - Abort all the outstanding admin commands.
- * @edev: EFA communication layer struct
- *
- * This method aborts all the outstanding admin commands.
- * The caller should then call efa_com_wait_for_abort_completion to make sure
- * all the commands were completed.
- */
-static void efa_com_abort_admin_commands(struct efa_com_dev *edev)
-{
-	struct efa_com_admin_queue *aq = &edev->aq;
-	struct efa_comp_ctx *comp_ctx;
-	unsigned long flags;
-	u16 i;
-
-	spin_lock(&aq->sq.lock);
-	spin_lock_irqsave(&aq->cq.lock, flags);
-	for (i = 0; i < aq->depth; i++) {
-		comp_ctx = efa_com_get_comp_ctx(aq, i, false);
-		if (!comp_ctx)
-			break;
-
-		comp_ctx->status = EFA_CMD_ABORTED;
-
-		complete(&comp_ctx->wait_event);
-	}
-	spin_unlock_irqrestore(&aq->cq.lock, flags);
-	spin_unlock(&aq->sq.lock);
-}
-
-/**
- * efa_com_wait_for_abort_completion - Wait for admin commands abort.
- * @edev: EFA communication layer struct
- *
- * This method wait until all the outstanding admin commands will be completed.
- */
-static void efa_com_wait_for_abort_completion(struct efa_com_dev *edev)
-{
-	struct efa_com_admin_queue *aq = &edev->aq;
-	int i;
-
-	/* all mine */
-	for (i = 0; i < aq->depth; i++)
-		down(&aq->avail_cmds);
-
-	/* let it go */
-	for (i = 0; i < aq->depth; i++)
-		up(&aq->avail_cmds);
-}
-
-static void efa_com_admin_flush(struct efa_com_dev *edev)
-{
-	struct efa_com_admin_queue *aq = &edev->aq;
-
-	clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
-
-	efa_com_abort_admin_commands(edev);
-	efa_com_wait_for_abort_completion(edev);
-}
-
-/**
  * efa_com_admin_destroy - Destroy the admin and the async events queues.
  * @edev: EFA communication layer struct
  */
@@ -737,7 +667,7 @@ void efa_com_admin_destroy(struct efa_com_dev *edev)
 	struct efa_com_admin_sq *sq = &aq->sq;
 	u16 size;
 
-	efa_com_admin_flush(edev);
+	clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
 
 	devm_kfree(edev->dmadev, aq->comp_ctx_pool);
 	devm_kfree(edev->dmadev, aq->comp_ctx);

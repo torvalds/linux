@@ -118,7 +118,7 @@ int __init skx_adxl_get(void);
 void __exit skx_adxl_put(void);
 void skx_set_decode(skx_decode_f decode);
 
-int skx_get_src_id(struct skx_dev *d, u8 *id);
+int skx_get_src_id(struct skx_dev *d, int off, u8 *id);
 int skx_get_node_id(struct skx_dev *d, u8 *id);
 
 int skx_get_all_bus_mappings(unsigned int did, int off, enum type,

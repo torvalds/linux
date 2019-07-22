@@ -2103,10 +2103,9 @@ static int aty128_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* We have the resources. Now virtualize them */
 	info = framebuffer_alloc(sizeof(struct aty128fb_par), &pdev->dev);
-	if (info == NULL) {
-		printk(KERN_ERR "aty128fb: can't alloc fb_info_aty128\n");
+	if (!info)
 		goto err_free_mmio;
-	}
+
 	par = info->par;
 
 	info->pseudo_palette = par->pseudo_palette;

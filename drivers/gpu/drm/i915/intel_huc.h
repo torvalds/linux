@@ -25,6 +25,7 @@
 #ifndef _INTEL_HUC_H_
 #define _INTEL_HUC_H_
 
+#include "i915_reg.h"
 #include "intel_uc_fw.h"
 #include "intel_huc_fw.h"
 
@@ -35,6 +36,12 @@ struct intel_huc {
 	/* HuC-specific additions */
 	struct i915_vma *rsa_data;
 	void *rsa_data_vaddr;
+
+	struct {
+		i915_reg_t reg;
+		u32 mask;
+		u32 value;
+	} status;
 };
 
 void intel_huc_init_early(struct intel_huc *huc);

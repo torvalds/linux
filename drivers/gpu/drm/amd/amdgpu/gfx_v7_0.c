@@ -4169,9 +4169,9 @@ static void gfx_v7_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t simd,
 }
 
 static void gfx_v7_0_select_me_pipe_q(struct amdgpu_device *adev,
-				  u32 me, u32 pipe, u32 q)
+				  u32 me, u32 pipe, u32 q, u32 vm)
 {
-	cik_srbm_select(adev, me, pipe, q, 0);
+	cik_srbm_select(adev, me, pipe, q, vm);
 }
 
 static const struct amdgpu_gfx_funcs gfx_v7_0_gfx_funcs = {
@@ -4462,7 +4462,7 @@ static int gfx_v7_0_sw_init(void *handle)
 		ring->ring_obj = NULL;
 		sprintf(ring->name, "gfx");
 		r = amdgpu_ring_init(adev, ring, 1024,
-				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_EOP);
+				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP);
 		if (r)
 			return r;
 	}
@@ -4799,7 +4799,7 @@ static int gfx_v7_0_set_eop_interrupt_state(struct amdgpu_device *adev,
 					    enum amdgpu_interrupt_state state)
 {
 	switch (type) {
-	case AMDGPU_CP_IRQ_GFX_EOP:
+	case AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP:
 		gfx_v7_0_set_gfx_eop_interrupt_state(adev, state);
 		break;
 	case AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP:

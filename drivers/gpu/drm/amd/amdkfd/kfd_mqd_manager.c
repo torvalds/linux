@@ -25,7 +25,27 @@
 #include "amdgpu_amdkfd.h"
 #include "kfd_device_queue_manager.h"
 
-struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev)
+/* Mapping queue priority to pipe priority, indexed by queue priority */
+int pipe_priority_map[] = {
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_LOW,
+	KFD_PIPE_PRIORITY_CS_MEDIUM,
+	KFD_PIPE_PRIORITY_CS_MEDIUM,
+	KFD_PIPE_PRIORITY_CS_MEDIUM,
+	KFD_PIPE_PRIORITY_CS_MEDIUM,
+	KFD_PIPE_PRIORITY_CS_HIGH,
+	KFD_PIPE_PRIORITY_CS_HIGH,
+	KFD_PIPE_PRIORITY_CS_HIGH,
+	KFD_PIPE_PRIORITY_CS_HIGH,
+	KFD_PIPE_PRIORITY_CS_HIGH
+};
+
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev, struct queue_properties *q)
 {
 	struct kfd_mem_obj *mqd_mem_obj = NULL;
 
@@ -66,7 +86,7 @@ struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
 	return mqd_mem_obj;
 }
 
-void uninit_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
+void free_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
 			struct kfd_mem_obj *mqd_mem_obj)
 {
 	WARN_ON(!mqd_mem_obj->gtt_mem);

@@ -182,8 +182,43 @@ bool hubbub1_verify_allow_pstate_change_high(
 	 * 29:    WB1 Allow Pstate Change
 	 * 30:    Arbiter's allow_pstate_change
 	 * 31:    SOC pstate change request"
-	 *
-	 * RV1:
+	 */
+	/*DCN2.x:
+	HUBBUB:DCHUBBUB_TEST_ARB_DEBUG10 DCHUBBUBDEBUGIND:0xB
+	0: Pipe0 Plane0 Allow P-state Change
+	1: Pipe0 Plane1 Allow P-state Change
+	2: Pipe0 Cursor0 Allow P-state Change
+	3: Pipe0 Cursor1 Allow P-state Change
+	4: Pipe1 Plane0 Allow P-state Change
+	5: Pipe1 Plane1 Allow P-state Change
+	6: Pipe1 Cursor0 Allow P-state Change
+	7: Pipe1 Cursor1 Allow P-state Change
+	8: Pipe2 Plane0 Allow P-state Change
+	9: Pipe2 Plane1 Allow P-state Change
+	10: Pipe2 Cursor0 Allow P-state Change
+	11: Pipe2 Cursor1 Allow P-state Change
+	12: Pipe3 Plane0 Allow P-state Change
+	13: Pipe3 Plane1 Allow P-state Change
+	14: Pipe3 Cursor0 Allow P-state Change
+	15: Pipe3 Cursor1 Allow P-state Change
+	16: Pipe4 Plane0 Allow P-state Change
+	17: Pipe4 Plane1 Allow P-state Change
+	18: Pipe4 Cursor0 Allow P-state Change
+	19: Pipe4 Cursor1 Allow P-state Change
+	20: Pipe5 Plane0 Allow P-state Change
+	21: Pipe5 Plane1 Allow P-state Change
+	22: Pipe5 Cursor0 Allow P-state Change
+	23: Pipe5 Cursor1 Allow P-state Change
+	24: Pipe6 Plane0 Allow P-state Change
+	25: Pipe6 Plane1 Allow P-state Change
+	26: Pipe6 Cursor0 Allow P-state Change
+	27: Pipe6 Cursor1 Allow P-state Change
+	28: WB0 Allow P-state Change
+	29: WB1 Allow P-state Change
+	30: Arbiter`s Allow P-state Change
+	31: SOC P-state Change request
+	*/
+	/* RV1:
 	 * dchubbubdebugind, at: 0x7
 	 * description "3-0:   Pipe0 cursor0 QOS
 	 * 7-4:   Pipe1 cursor0 QOS

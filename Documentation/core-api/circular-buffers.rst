@@ -3,7 +3,7 @@ Circular Buffers
 ================
 
 :Author: David Howells <dhowells@redhat.com>
-:Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+:Author: Paul E. McKenney <paulmck@linux.ibm.com>
 
 
 Linux provides a number of features that can be used to implement circular

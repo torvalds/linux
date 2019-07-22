@@ -303,7 +303,7 @@ essere categorizzate in:
      LICENSES/dual
 
    I file in questa cartella contengono il testo completo della rispettiva
-   licenza e i suoi `Metatags`_.  I nomi dei file sono identici agli
+   licenza e i suoi `Metatag`_.  I nomi dei file sono identici agli
    identificatori di licenza SPDX che dovrebbero essere usati nei file
    sorgenti.
 
@@ -326,19 +326,19 @@ essere categorizzate in:
 
    Esempio del formato del file::
 
-   Valid-License-Identifier: MPL-1.1
-   SPDX-URL: https://spdx.org/licenses/MPL-1.1.html
-   Usage-Guide:
-     Do NOT use. The MPL-1.1 is not GPL2 compatible. It may only be used for
-     dual-licensed files where the other license is GPL2 compatible.
-     If you end up using this it MUST be used together with a GPL2 compatible
-     license using "OR".
-     To use the Mozilla Public License version 1.1 put the following SPDX
-     tag/value pair into a comment according to the placement guidelines in
-     the licensing rules documentation:
-   SPDX-License-Identifier: MPL-1.1
-   License-Text:
-     Full license text
+    Valid-License-Identifier: MPL-1.1
+    SPDX-URL: https://spdx.org/licenses/MPL-1.1.html
+    Usage-Guide:
+      Do NOT use. The MPL-1.1 is not GPL2 compatible. It may only be used for
+      dual-licensed files where the other license is GPL2 compatible.
+      If you end up using this it MUST be used together with a GPL2 compatible
+      license using "OR".
+      To use the Mozilla Public License version 1.1 put the following SPDX
+      tag/value pair into a comment according to the placement guidelines in
+      the licensing rules documentation:
+    SPDX-License-Identifier: MPL-1.1
+    License-Text:
+      Full license text
 
 |
 

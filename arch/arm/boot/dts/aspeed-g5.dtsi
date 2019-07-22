@@ -60,7 +60,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		fmc: flash-controller@1e620000 {
+		fmc: spi@1e620000 {
 			reg = < 0x1e620000 0xc4
 				0x20000000 0x10000000 >;
 			#address-cells = <1>;
@@ -86,7 +86,7 @@
 			};
 		};
 
-		spi1: flash-controller@1e630000 {
+		spi1: spi@1e630000 {
 			reg = < 0x1e630000 0xc4
 				0x30000000 0x08000000 >;
 			#address-cells = <1>;
@@ -106,7 +106,7 @@
 			};
 		};
 
-		spi2: flash-controller@1e631000 {
+		spi2: spi@1e631000 {
 			reg = < 0x1e631000 0xc4
 				0x38000000 0x08000000 >;
 			#address-cells = <1>;
@@ -218,6 +218,11 @@
 					compatible = "aspeed,g5-pinctrl";
 					aspeed,external-nodes = <&gfx &lhc>;
 
+				};
+
+				p2a: p2a-control {
+					compatible = "aspeed,ast2500-p2a-ctrl";
+					status = "disabled";
 				};
 			};
 

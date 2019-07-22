@@ -77,5 +77,14 @@ u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv, i915_reg_t reg);
 
 u32 intel_get_cagf(struct drm_i915_private *dev_priv, u32 rpstat1);
 
+unsigned long i915_chipset_val(struct drm_i915_private *dev_priv);
+unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
+unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
+void i915_update_gfx_val(struct drm_i915_private *dev_priv);
+
+bool ironlake_set_drps(struct drm_i915_private *dev_priv, u8 val);
+int intel_set_rps(struct drm_i915_private *dev_priv, u8 val);
+void intel_rps_mark_interactive(struct drm_i915_private *i915, bool interactive);
+bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable);
 
 #endif /* __INTEL_PM_H__ */

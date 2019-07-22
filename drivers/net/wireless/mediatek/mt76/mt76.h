@@ -30,6 +30,7 @@
 #define MT_TX_RING_SIZE     256
 #define MT_MCU_RING_SIZE    32
 #define MT_RX_BUF_SIZE      2048
+#define MT_SKB_HEAD_LEN     128
 
 struct mt76_dev;
 struct mt76_wcid;
@@ -258,10 +259,11 @@ struct mt76_rx_tid {
 #define MT_TX_CB_TXS_DONE		BIT(1)
 #define MT_TX_CB_TXS_FAILED		BIT(2)
 
-#define MT_PACKET_ID_MASK		GENMASK(7, 0)
+#define MT_PACKET_ID_MASK		GENMASK(6, 0)
 #define MT_PACKET_ID_NO_ACK		0
 #define MT_PACKET_ID_NO_SKB		1
 #define MT_PACKET_ID_FIRST		2
+#define MT_PACKET_ID_HAS_RATE		BIT(7)
 
 #define MT_TX_STATUS_SKB_TIMEOUT	HZ
 
@@ -381,7 +383,8 @@ enum mt76u_out_ep {
 	__MT_EP_OUT_MAX,
 };
 
-#define MT_SG_MAX_SIZE		8
+#define MT_TX_SG_MAX_SIZE	8
+#define MT_RX_SG_MAX_SIZE	1
 #define MT_NUM_TX_ENTRIES	256
 #define MT_NUM_RX_ENTRIES	128
 #define MCU_RESP_URB_SIZE	1024
@@ -393,9 +396,7 @@ struct mt76_usb {
 	struct delayed_work stat_work;
 
 	u8 out_ep[__MT_EP_OUT_MAX];
-	u16 out_max_packet;
 	u8 in_ep[__MT_EP_IN_MAX];
-	u16 in_max_packet;
 	bool sg_en;
 
 	struct mt76u_mcu {
@@ -452,6 +453,7 @@ struct mt76_dev {
 	int tx_dma_idx[4];
 
 	struct tasklet_struct tx_tasklet;
+	struct napi_struct tx_napi;
 	struct delayed_work mac_work;
 
 	wait_queue_head_t tx_wait;
@@ -482,6 +484,8 @@ struct mt76_dev {
 	struct mt76_rate_power rate_power;
 	int txpower_conf;
 	int txpower_cur;
+
+	enum nl80211_dfs_regions region;
 
 	u32 debugfs_reg;
 
@@ -688,6 +692,14 @@ static inline void mt76_insert_hdr_pad(struct sk_buff *skb)
 	skb->data[len + 1] = 0;
 }
 
+static inline bool mt76_is_skb_pktid(u8 pktid)
+{
+	if (pktid & MT_PACKET_ID_HAS_RATE)
+		return false;
+
+	return pktid >= MT_PACKET_ID_FIRST;
+}
+
 void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb);
 void mt76_tx(struct mt76_dev *dev, struct ieee80211_sta *sta,
 	     struct mt76_wcid *wcid, struct sk_buff *skb);
@@ -749,6 +761,10 @@ void mt76_csa_check(struct mt76_dev *dev);
 void mt76_csa_finish(struct mt76_dev *dev);
 
 int mt76_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set);
+void mt76_insert_ccmp_hdr(struct sk_buff *skb, u8 key_id);
+int mt76_get_rate(struct mt76_dev *dev,
+		  struct ieee80211_supported_band *sband,
+		  int idx, bool cck);
 
 /* internal */
 void mt76_tx_free(struct mt76_dev *dev);

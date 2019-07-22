@@ -60,8 +60,8 @@ struct ip_mc_socklist {
 
 struct ip_sf_list {
 	struct ip_sf_list	*sf_next;
-	__be32			sf_inaddr;
 	unsigned long		sf_count[2];	/* include/exclude counts */
+	__be32			sf_inaddr;
 	unsigned char		sf_gsresp;	/* include in g & s response? */
 	unsigned char		sf_oldin;	/* change state */
 	unsigned char		sf_crcount;	/* retrans. left to send */

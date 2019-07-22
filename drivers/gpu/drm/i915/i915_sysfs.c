@@ -48,7 +48,7 @@ static u32 calc_residency(struct drm_i915_private *dev_priv,
 	intel_wakeref_t wakeref;
 	u64 res = 0;
 
-	with_intel_runtime_pm(dev_priv, wakeref)
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
 		res = intel_rc6_residency_us(dev_priv, reg);
 
 	return DIV_ROUND_CLOSEST_ULL(res, 1000);
@@ -264,7 +264,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 	intel_wakeref_t wakeref;
 	u32 freq;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		vlv_punit_get(dev_priv);
@@ -276,7 +276,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 		freq = intel_get_cagf(dev_priv, I915_READ(GEN6_RPSTAT1));
 	}
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", intel_gpu_freq(dev_priv, freq));
 }
@@ -364,7 +364,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	if (ret)
 		return ret;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 	mutex_lock(&rps->lock);
 
 	val = intel_freq_opcode(dev_priv, val);
@@ -392,7 +392,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 
 unlock:
 	mutex_unlock(&rps->lock);
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return ret ?: count;
 }
@@ -420,7 +420,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	if (ret)
 		return ret;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 	mutex_lock(&rps->lock);
 
 	val = intel_freq_opcode(dev_priv, val);
@@ -444,7 +444,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 
 unlock:
 	mutex_unlock(&rps->lock);
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return ret ?: count;
 }

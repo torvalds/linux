@@ -500,20 +500,18 @@ static const struct v4l2_file_operations vivid_radio_fops = {
 static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	.vidioc_querycap		= vidioc_querycap,
 
-	.vidioc_enum_fmt_vid_cap	= vidioc_enum_fmt_vid,
+	.vidioc_enum_fmt_vid_cap	= vivid_enum_fmt_vid,
 	.vidioc_g_fmt_vid_cap		= vidioc_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap		= vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap		= vidioc_s_fmt_vid_cap,
-	.vidioc_enum_fmt_vid_cap_mplane = vidioc_enum_fmt_vid_mplane,
 	.vidioc_g_fmt_vid_cap_mplane	= vidioc_g_fmt_vid_cap_mplane,
 	.vidioc_try_fmt_vid_cap_mplane	= vidioc_try_fmt_vid_cap_mplane,
 	.vidioc_s_fmt_vid_cap_mplane	= vidioc_s_fmt_vid_cap_mplane,
 
-	.vidioc_enum_fmt_vid_out	= vidioc_enum_fmt_vid,
+	.vidioc_enum_fmt_vid_out	= vivid_enum_fmt_vid,
 	.vidioc_g_fmt_vid_out		= vidioc_g_fmt_vid_out,
 	.vidioc_try_fmt_vid_out		= vidioc_try_fmt_vid_out,
 	.vidioc_s_fmt_vid_out		= vidioc_s_fmt_vid_out,
-	.vidioc_enum_fmt_vid_out_mplane = vidioc_enum_fmt_vid_mplane,
 	.vidioc_g_fmt_vid_out_mplane	= vidioc_g_fmt_vid_out_mplane,
 	.vidioc_try_fmt_vid_out_mplane	= vidioc_try_fmt_vid_out_mplane,
 	.vidioc_s_fmt_vid_out_mplane	= vidioc_s_fmt_vid_out_mplane,
@@ -669,6 +667,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	v4l2_std_id tvnorms_cap = 0, tvnorms_out = 0;
 	int ret;
 	int i;
+#ifdef CONFIG_VIDEO_VIVID_CEC
+	unsigned int cec_tx_bus_cnt = 0;
+#endif
 
 	/* allocate main vivid state structure */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -722,6 +723,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		in_type_counter[HDMI]--;
 		dev->num_inputs--;
 	}
+	dev->num_hdmi_inputs = in_type_counter[HDMI];
 
 	/* how many outputs do we have and of what type? */
 	dev->num_outputs = num_outputs[inst];
@@ -732,6 +734,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	for (i = 0; i < dev->num_outputs; i++) {
 		dev->output_type[i] = ((output_types[inst] >> i) & 1) ? HDMI : SVID;
 		dev->output_name_counter[i] = out_type_counter[dev->output_type[i]]++;
+		dev->display_present[i] = true;
 	}
 	dev->has_audio_outputs = out_type_counter[SVID];
 	if (out_type_counter[HDMI] == 16) {
@@ -743,6 +746,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		out_type_counter[HDMI]--;
 		dev->num_outputs--;
 	}
+	dev->num_hdmi_outputs = out_type_counter[HDMI];
 
 	/* do we create a video capture device? */
 	dev->has_vid_cap = node_type & 0x0001;
@@ -1001,13 +1005,15 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	dev->webcam_size_idx = 1;
 	dev->webcam_ival_idx = 3;
 	tpg_s_fourcc(&dev->tpg, dev->fmt_cap->fourcc);
-	dev->std_cap = V4L2_STD_PAL;
 	dev->std_out = V4L2_STD_PAL;
 	if (dev->input_type[0] == TV || dev->input_type[0] == SVID)
 		tvnorms_cap = V4L2_STD_ALL;
 	if (dev->output_type[0] == SVID)
 		tvnorms_out = V4L2_STD_ALL;
-	dev->dv_timings_cap = def_dv_timings;
+	for (i = 0; i < MAX_INPUTS; i++) {
+		dev->dv_timings_cap[i] = def_dv_timings;
+		dev->std_cap[i] = V4L2_STD_PAL;
+	}
 	dev->dv_timings_out = def_dv_timings;
 	dev->tv_freq = 2804 /* 175.25 * 16 */;
 	dev->tv_audmode = V4L2_TUNER_MODE_STEREO;
@@ -1037,20 +1043,23 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	if (ret)
 		goto unreg_dev;
 
+	/* enable/disable interface specific controls */
+	if (dev->num_outputs && dev->output_type[0] != HDMI)
+		v4l2_ctrl_activate(dev->ctrl_display_present, false);
+	if (dev->num_inputs && dev->input_type[0] != HDMI) {
+		v4l2_ctrl_activate(dev->ctrl_dv_timings_signal_mode, false);
+		v4l2_ctrl_activate(dev->ctrl_dv_timings, false);
+	} else if (dev->num_inputs && dev->input_type[0] == HDMI) {
+		v4l2_ctrl_activate(dev->ctrl_std_signal_mode, false);
+		v4l2_ctrl_activate(dev->ctrl_standard, false);
+	}
+
 	/*
 	 * update the capture and output formats to do a proper initial
 	 * configuration.
 	 */
 	vivid_update_format_cap(dev, false);
 	vivid_update_format_out(dev);
-
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vid_cap);
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vid_out);
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vbi_cap);
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vbi_out);
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_radio_rx);
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_radio_tx);
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_sdr_cap);
 
 	/* initialize overlay */
 	dev->fb_cap.fmt.width = dev->src_rect.width;
@@ -1212,6 +1221,47 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 				dev->fb_info.node);
 	}
 
+#ifdef CONFIG_VIDEO_VIVID_CEC
+	if (dev->has_vid_cap && in_type_counter[HDMI]) {
+		struct cec_adapter *adap;
+
+		adap = vivid_cec_alloc_adap(dev, 0, false);
+		ret = PTR_ERR_OR_ZERO(adap);
+		if (ret < 0)
+			goto unreg_dev;
+		dev->cec_rx_adap = adap;
+	}
+
+	if (dev->has_vid_out) {
+		for (i = 0; i < dev->num_outputs; i++) {
+			struct cec_adapter *adap;
+
+			if (dev->output_type[i] != HDMI)
+				continue;
+
+			dev->cec_output2bus_map[i] = cec_tx_bus_cnt;
+			adap = vivid_cec_alloc_adap(dev, cec_tx_bus_cnt, true);
+			ret = PTR_ERR_OR_ZERO(adap);
+			if (ret < 0) {
+				for (i = 0; i < dev->num_outputs; i++)
+					cec_delete_adapter(dev->cec_tx_adap[i]);
+				goto unreg_dev;
+			}
+
+			dev->cec_tx_adap[cec_tx_bus_cnt] = adap;
+			cec_tx_bus_cnt++;
+		}
+	}
+#endif
+
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vid_cap);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vid_out);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vbi_cap);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vbi_out);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_radio_rx);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_radio_tx);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_sdr_cap);
+
 	/* finally start creating the device nodes */
 	if (dev->has_vid_cap) {
 		vfd = &dev->vid_cap_dev;
@@ -1241,22 +1291,15 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 
 #ifdef CONFIG_VIDEO_VIVID_CEC
 		if (in_type_counter[HDMI]) {
-			struct cec_adapter *adap;
-
-			adap = vivid_cec_alloc_adap(dev, 0, false);
-			ret = PTR_ERR_OR_ZERO(adap);
-			if (ret < 0)
-				goto unreg_dev;
-			dev->cec_rx_adap = adap;
-			ret = cec_register_adapter(adap, &pdev->dev);
+			ret = cec_register_adapter(dev->cec_rx_adap, &pdev->dev);
 			if (ret < 0) {
-				cec_delete_adapter(adap);
+				cec_delete_adapter(dev->cec_rx_adap);
 				dev->cec_rx_adap = NULL;
 				goto unreg_dev;
 			}
-			cec_s_phys_addr(adap, 0, false);
+			cec_s_phys_addr(dev->cec_rx_adap, 0, false);
 			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI input 0\n",
-				  dev_name(&adap->devnode.dev));
+				  dev_name(&dev->cec_rx_adap->devnode.dev));
 		}
 #endif
 
@@ -1268,10 +1311,6 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	}
 
 	if (dev->has_vid_out) {
-#ifdef CONFIG_VIDEO_VIVID_CEC
-		unsigned int bus_cnt = 0;
-#endif
-
 		vfd = &dev->vid_out_dev;
 		snprintf(vfd->name, sizeof(vfd->name),
 			 "vivid-%03d-vid-out", inst);
@@ -1299,30 +1338,21 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 #endif
 
 #ifdef CONFIG_VIDEO_VIVID_CEC
-		for (i = 0; i < dev->num_outputs; i++) {
-			struct cec_adapter *adap;
-
-			if (dev->output_type[i] != HDMI)
-				continue;
-			dev->cec_output2bus_map[i] = bus_cnt;
-			adap = vivid_cec_alloc_adap(dev, bus_cnt, true);
-			ret = PTR_ERR_OR_ZERO(adap);
-			if (ret < 0)
-				goto unreg_dev;
-			dev->cec_tx_adap[bus_cnt] = adap;
-			ret = cec_register_adapter(adap, &pdev->dev);
+		for (i = 0; i < cec_tx_bus_cnt; i++) {
+			ret = cec_register_adapter(dev->cec_tx_adap[i], &pdev->dev);
 			if (ret < 0) {
-				cec_delete_adapter(adap);
-				dev->cec_tx_adap[bus_cnt] = NULL;
+				for (; i < cec_tx_bus_cnt; i++) {
+					cec_delete_adapter(dev->cec_tx_adap[i]);
+					dev->cec_tx_adap[i] = NULL;
+				}
 				goto unreg_dev;
 			}
 			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI output %d\n",
-				  dev_name(&adap->devnode.dev), bus_cnt);
-			bus_cnt++;
-			if (bus_cnt <= out_type_counter[HDMI])
-				cec_s_phys_addr(adap, bus_cnt << 12, false);
+				  dev_name(&dev->cec_tx_adap[i]->devnode.dev), i);
+			if (i <= out_type_counter[HDMI])
+				cec_s_phys_addr(dev->cec_tx_adap[i], i << 12, false);
 			else
-				cec_s_phys_addr(adap, 0x1000, false);
+				cec_s_phys_addr(dev->cec_tx_adap[i], 0x1000, false);
 		}
 #endif
 

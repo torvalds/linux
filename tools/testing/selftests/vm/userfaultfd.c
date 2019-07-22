@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Stress userfaultfd syscall.
  *
  *  Copyright (C) 2015  Red Hat, Inc.
- *
- *  This work is licensed under the terms of the GNU GPL, version 2. See
- *  the COPYING file in the top-level directory.
  *
  * This test allocates two virtual areas and bounces the physical
  * memory across the two virtual areas (from area_src to area_dst)

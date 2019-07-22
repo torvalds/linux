@@ -1578,7 +1578,7 @@ void exhalbtc_scan_notify_wifi_only(struct wifi_only_cfg *wifionly_cfg,
 
 void exhalbtc_connect_notify(struct btc_coexist *btcoexist, u8 action)
 {
-	u8 asso_type, asso_type_v2;
+	u8 asso_type;
 	bool wifi_under_5g;
 
 	if (!halbtc_is_bt_coexist_available(btcoexist))
@@ -1589,15 +1589,10 @@ void exhalbtc_connect_notify(struct btc_coexist *btcoexist, u8 action)
 
 	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_UNDER_5G, &wifi_under_5g);
 
-	if (action) {
+	if (action)
 		asso_type = BTC_ASSOCIATE_START;
-		asso_type_v2 = wifi_under_5g ? BTC_ASSOCIATE_5G_START :
-					       BTC_ASSOCIATE_START;
-	} else {
+	else
 		asso_type = BTC_ASSOCIATE_FINISH;
-		asso_type_v2 = wifi_under_5g ? BTC_ASSOCIATE_5G_FINISH :
-					       BTC_ASSOCIATE_FINISH;
-	}
 
 	halbtc_leave_low_power(btcoexist);
 
@@ -1743,30 +1738,6 @@ void exhalbtc_rf_status_notify(struct btc_coexist *btcoexist, u8 type)
 		if (btcoexist->board_info.btdm_ant_num == 1)
 			ex_btc8723b1ant_rf_status_notify(btcoexist, type);
 	} else if (IS_HARDWARE_TYPE_8192E(btcoexist->adapter)) {
-	}
-}
-
-void exhalbtc_stack_operation_notify(struct btc_coexist *btcoexist, u8 type)
-{
-	u8 stack_op_type;
-
-	if (!halbtc_is_bt_coexist_available(btcoexist))
-		return;
-	btcoexist->statistics.cnt_stack_operation_notify++;
-	if (btcoexist->manual_control)
-		return;
-
-	if ((type == HCI_BT_OP_INQUIRY_START) ||
-	    (type == HCI_BT_OP_PAGING_START) ||
-	    (type == HCI_BT_OP_PAIRING_START)) {
-		stack_op_type = BTC_STACK_OP_INQ_PAGE_PAIR_START;
-	} else if ((type == HCI_BT_OP_INQUIRY_FINISH) ||
-		   (type == HCI_BT_OP_PAGING_SUCCESS) ||
-		   (type == HCI_BT_OP_PAGING_UNSUCCESS) ||
-		   (type == HCI_BT_OP_PAIRING_FINISH)) {
-		stack_op_type = BTC_STACK_OP_INQ_PAGE_PAIR_FINISH;
-	} else {
-		stack_op_type = BTC_STACK_OP_NONE;
 	}
 }
 

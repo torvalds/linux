@@ -38,6 +38,18 @@ extern void xfs_qm_exit(void);
 # define XFS_SCRUB_STRING
 #endif
 
+#ifdef CONFIG_XFS_ONLINE_REPAIR
+# define XFS_REPAIR_STRING	"repair, "
+#else
+# define XFS_REPAIR_STRING
+#endif
+
+#ifdef CONFIG_XFS_WARN
+# define XFS_WARN_STRING	"verbose warnings, "
+#else
+# define XFS_WARN_STRING
+#endif
+
 #ifdef DEBUG
 # define XFS_DBG_STRING		"debug"
 #else
@@ -49,6 +61,8 @@ extern void xfs_qm_exit(void);
 				XFS_SECURITY_STRING \
 				XFS_REALTIME_STRING \
 				XFS_SCRUB_STRING \
+				XFS_REPAIR_STRING \
+				XFS_WARN_STRING \
 				XFS_DBG_STRING /* DBG must be last */
 
 struct xfs_inode;

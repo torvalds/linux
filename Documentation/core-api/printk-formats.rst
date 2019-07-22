@@ -119,7 +119,7 @@ Kernel Pointers
 
 For printing kernel pointers which should be hidden from unprivileged
 users. The behaviour of %pK depends on the kptr_restrict sysctl - see
-Documentation/sysctl/kernel.txt for more details.
+Documentation/admin-guide/sysctl/kernel.rst for more details.
 
 Unmodified Addresses
 --------------------

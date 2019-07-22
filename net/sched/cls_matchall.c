@@ -21,6 +21,7 @@ struct cls_mall_head {
 	unsigned int in_hw_count;
 	struct tc_matchall_pcnt __percpu *pf;
 	struct rcu_work rwork;
+	bool deleting;
 };
 
 static int mall_classify(struct sk_buff *skb, const struct tcf_proto *tp,
@@ -258,7 +259,11 @@ err_exts_init:
 static int mall_delete(struct tcf_proto *tp, void *arg, bool *last,
 		       bool rtnl_held, struct netlink_ext_ack *extack)
 {
-	return -EOPNOTSUPP;
+	struct cls_mall_head *head = rtnl_dereference(tp->root);
+
+	head->deleting = true;
+	*last = true;
+	return 0;
 }
 
 static void mall_walk(struct tcf_proto *tp, struct tcf_walker *arg,
@@ -269,7 +274,7 @@ static void mall_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 	if (arg->count < arg->skip)
 		goto skip;
 
-	if (!head)
+	if (!head || head->deleting)
 		return;
 	if (arg->fn(tp, head, arg) < 0)
 		arg->stop = 1;

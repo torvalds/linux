@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/ssp.c
  *
@@ -5,10 +6,6 @@
  *
  *  Copyright (C) 2003 Russell King.
  *  Copyright (C) 2003 Wolfson Microelectronics PLC
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  PXA2xx SSP driver.  This provides the generic core for simple
  *  IO-based SSP applications and allows easy port setup for DMA access.

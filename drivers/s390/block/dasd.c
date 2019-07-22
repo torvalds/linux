@@ -70,7 +70,6 @@ MODULE_LICENSE("GPL");
  * SECTION: prototypes for static functions of dasd.c
  */
 static int  dasd_alloc_queue(struct dasd_block *);
-static void dasd_setup_queue(struct dasd_block *);
 static void dasd_free_queue(struct dasd_block *);
 static int dasd_flush_block_queue(struct dasd_block *);
 static void dasd_device_tasklet(unsigned long);
@@ -120,9 +119,18 @@ struct dasd_device *dasd_alloc_device(void)
 		kfree(device);
 		return ERR_PTR(-ENOMEM);
 	}
+	/* Get two pages for ese format. */
+	device->ese_mem = (void *)__get_free_pages(GFP_ATOMIC | GFP_DMA, 1);
+	if (!device->ese_mem) {
+		free_page((unsigned long) device->erp_mem);
+		free_pages((unsigned long) device->ccw_mem, 1);
+		kfree(device);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	dasd_init_chunklist(&device->ccw_chunks, device->ccw_mem, PAGE_SIZE*2);
 	dasd_init_chunklist(&device->erp_chunks, device->erp_mem, PAGE_SIZE);
+	dasd_init_chunklist(&device->ese_chunks, device->ese_mem, PAGE_SIZE * 2);
 	spin_lock_init(&device->mem_lock);
 	atomic_set(&device->tasklet_scheduled, 0);
 	tasklet_init(&device->tasklet, dasd_device_tasklet,
@@ -146,6 +154,7 @@ struct dasd_device *dasd_alloc_device(void)
 void dasd_free_device(struct dasd_device *device)
 {
 	kfree(device->private);
+	free_pages((unsigned long) device->ese_mem, 1);
 	free_page((unsigned long) device->erp_mem);
 	free_pages((unsigned long) device->ccw_mem, 1);
 	kfree(device);
@@ -348,7 +357,8 @@ static int dasd_state_basic_to_ready(struct dasd_device *device)
 			}
 			return rc;
 		}
-		dasd_setup_queue(block);
+		if (device->discipline->setup_blk_queue)
+			device->discipline->setup_blk_queue(block);
 		set_capacity(block->gdp,
 			     block->blocks << block->s2b_shift);
 		device->state = DASD_STATE_READY;
@@ -1258,6 +1268,49 @@ struct dasd_ccw_req *dasd_smalloc_request(int magic, int cplength, int datasize,
 }
 EXPORT_SYMBOL(dasd_smalloc_request);
 
+struct dasd_ccw_req *dasd_fmalloc_request(int magic, int cplength,
+					  int datasize,
+					  struct dasd_device *device)
+{
+	struct dasd_ccw_req *cqr;
+	unsigned long flags;
+	int size, cqr_size;
+	char *data;
+
+	cqr_size = (sizeof(*cqr) + 7L) & -8L;
+	size = cqr_size;
+	if (cplength > 0)
+		size += cplength * sizeof(struct ccw1);
+	if (datasize > 0)
+		size += datasize;
+
+	spin_lock_irqsave(&device->mem_lock, flags);
+	cqr = dasd_alloc_chunk(&device->ese_chunks, size);
+	spin_unlock_irqrestore(&device->mem_lock, flags);
+	if (!cqr)
+		return ERR_PTR(-ENOMEM);
+	memset(cqr, 0, sizeof(*cqr));
+	data = (char *)cqr + cqr_size;
+	cqr->cpaddr = NULL;
+	if (cplength > 0) {
+		cqr->cpaddr = data;
+		data += cplength * sizeof(struct ccw1);
+		memset(cqr->cpaddr, 0, cplength * sizeof(struct ccw1));
+	}
+	cqr->data = NULL;
+	if (datasize > 0) {
+		cqr->data = data;
+		memset(cqr->data, 0, datasize);
+	}
+
+	cqr->magic = magic;
+	set_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
+	dasd_get_device(device);
+
+	return cqr;
+}
+EXPORT_SYMBOL(dasd_fmalloc_request);
+
 void dasd_sfree_request(struct dasd_ccw_req *cqr, struct dasd_device *device)
 {
 	unsigned long flags;
@@ -1268,6 +1321,17 @@ void dasd_sfree_request(struct dasd_ccw_req *cqr, struct dasd_device *device)
 	dasd_put_device(device);
 }
 EXPORT_SYMBOL(dasd_sfree_request);
+
+void dasd_ffree_request(struct dasd_ccw_req *cqr, struct dasd_device *device)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&device->mem_lock, flags);
+	dasd_free_chunk(&device->ese_chunks, cqr);
+	spin_unlock_irqrestore(&device->mem_lock, flags);
+	dasd_put_device(device);
+}
+EXPORT_SYMBOL(dasd_ffree_request);
 
 /*
  * Check discipline magic in cqr.
@@ -1573,13 +1637,43 @@ static int dasd_check_hpf_error(struct irb *irb)
 	     irb->scsw.tm.sesq == SCSW_SESQ_PATH_NOFCX));
 }
 
+static int dasd_ese_needs_format(struct dasd_block *block, struct irb *irb)
+{
+	struct dasd_device *device = NULL;
+	u8 *sense = NULL;
+
+	if (!block)
+		return 0;
+	device = block->base;
+	if (!device || !device->discipline->is_ese)
+		return 0;
+	if (!device->discipline->is_ese(device))
+		return 0;
+
+	sense = dasd_get_sense(irb);
+	if (!sense)
+		return 0;
+
+	return !!(sense[1] & SNS1_NO_REC_FOUND) ||
+		!!(sense[1] & SNS1_FILE_PROTECTED) ||
+		scsw_cstat(&irb->scsw) == SCHN_STAT_INCORR_LEN;
+}
+
+static int dasd_ese_oos_cond(u8 *sense)
+{
+	return sense[0] & SNS0_EQUIPMENT_CHECK &&
+		sense[1] & SNS1_PERM_ERR &&
+		sense[1] & SNS1_WRITE_INHIBITED &&
+		sense[25] == 0x01;
+}
+
 /*
  * Interrupt handler for "normal" ssch-io based dasd devices.
  */
 void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		      struct irb *irb)
 {
-	struct dasd_ccw_req *cqr, *next;
+	struct dasd_ccw_req *cqr, *next, *fcqr;
 	struct dasd_device *device;
 	unsigned long now;
 	int nrf_suppressed = 0;
@@ -1641,6 +1735,17 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 				test_bit(DASD_CQR_SUPPRESS_FP, &cqr->flags);
 			nrf_suppressed = (sense[1] & SNS1_NO_REC_FOUND) &&
 				test_bit(DASD_CQR_SUPPRESS_NRF, &cqr->flags);
+
+			/*
+			 * Extent pool probably out-of-space.
+			 * Stop device and check exhaust level.
+			 */
+			if (dasd_ese_oos_cond(sense)) {
+				dasd_generic_space_exhaust(device, cqr);
+				device->discipline->ext_pool_exhaust(device, cqr);
+				dasd_put_device(device);
+				return;
+			}
 		}
 		if (!(fp_suppressed || nrf_suppressed))
 			device->discipline->dump_sense_dbf(device, irb, "int");
@@ -1670,6 +1775,31 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		DBF_EVENT_DEVID(DBF_DEBUG, cdev, "%s",
 				"invalid device in request");
 		return;
+	}
+
+	if (dasd_ese_needs_format(cqr->block, irb)) {
+		if (rq_data_dir((struct request *)cqr->callback_data) == READ) {
+			device->discipline->ese_read(cqr);
+			cqr->status = DASD_CQR_SUCCESS;
+			cqr->stopclk = now;
+			dasd_device_clear_timer(device);
+			dasd_schedule_device_bh(device);
+			return;
+		}
+		fcqr = device->discipline->ese_format(device, cqr);
+		if (IS_ERR(fcqr)) {
+			/*
+			 * If we can't format now, let the request go
+			 * one extra round. Maybe we can format later.
+			 */
+			cqr->status = DASD_CQR_QUEUED;
+		} else {
+			fcqr->status = DASD_CQR_QUEUED;
+			cqr->status = DASD_CQR_QUEUED;
+			list_add(&fcqr->devlist, &device->ccw_queue);
+			dasd_schedule_device_bh(device);
+			return;
+		}
 	}
 
 	/* Check for clear pending */
@@ -1910,7 +2040,7 @@ static void __dasd_device_check_expire(struct dasd_device *device)
 static int __dasd_device_is_unusable(struct dasd_device *device,
 				     struct dasd_ccw_req *cqr)
 {
-	int mask = ~(DASD_STOPPED_DC_WAIT | DASD_UNRESUMED_PM);
+	int mask = ~(DASD_STOPPED_DC_WAIT | DASD_UNRESUMED_PM | DASD_STOPPED_NOSPC);
 
 	if (test_bit(DASD_FLAG_OFFLINE, &device->flags) &&
 	    !test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
@@ -2410,6 +2540,15 @@ int dasd_sleep_on_queue(struct list_head *ccw_queue)
 	return _dasd_sleep_on_queue(ccw_queue, 0);
 }
 EXPORT_SYMBOL(dasd_sleep_on_queue);
+
+/*
+ * Start requests from a ccw_queue and wait interruptible for their completion.
+ */
+int dasd_sleep_on_queue_interruptible(struct list_head *ccw_queue)
+{
+	return _dasd_sleep_on_queue(ccw_queue, 1);
+}
+EXPORT_SYMBOL(dasd_sleep_on_queue_interruptible);
 
 /*
  * Queue a request to the tail of the device ccw_queue and wait
@@ -3130,55 +3269,6 @@ static int dasd_alloc_queue(struct dasd_block *block)
 }
 
 /*
- * Allocate and initialize request queue.
- */
-static void dasd_setup_queue(struct dasd_block *block)
-{
-	unsigned int logical_block_size = block->bp_block;
-	struct request_queue *q = block->request_queue;
-	unsigned int max_bytes, max_discard_sectors;
-	int max;
-
-	if (block->base->features & DASD_FEATURE_USERAW) {
-		/*
-		 * the max_blocks value for raw_track access is 256
-		 * it is higher than the native ECKD value because we
-		 * only need one ccw per track
-		 * so the max_hw_sectors are
-		 * 2048 x 512B = 1024kB = 16 tracks
-		 */
-		max = 2048;
-	} else {
-		max = block->base->discipline->max_blocks << block->s2b_shift;
-	}
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
-	q->limits.max_dev_sectors = max;
-	blk_queue_logical_block_size(q, logical_block_size);
-	blk_queue_max_hw_sectors(q, max);
-	blk_queue_max_segments(q, USHRT_MAX);
-	/* with page sized segments we can translate each segement into
-	 * one idaw/tidaw
-	 */
-	blk_queue_max_segment_size(q, PAGE_SIZE);
-	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
-
-	/* Only activate blocklayer discard support for devices that support it */
-	if (block->base->features & DASD_FEATURE_DISCARD) {
-		q->limits.discard_granularity = logical_block_size;
-		q->limits.discard_alignment = PAGE_SIZE;
-
-		/* Calculate max_discard_sectors and make it PAGE aligned */
-		max_bytes = USHRT_MAX * logical_block_size;
-		max_bytes = ALIGN(max_bytes, PAGE_SIZE) - PAGE_SIZE;
-		max_discard_sectors = max_bytes / logical_block_size;
-
-		blk_queue_max_discard_sectors(q, max_discard_sectors);
-		blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
-		blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
-	}
-}
-
-/*
  * Deactivate and free request queue.
  */
 static void dasd_free_queue(struct dasd_block *block)
@@ -3805,6 +3895,43 @@ int dasd_generic_verify_path(struct dasd_device *device, __u8 lpm)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dasd_generic_verify_path);
+
+void dasd_generic_space_exhaust(struct dasd_device *device,
+				struct dasd_ccw_req *cqr)
+{
+	dasd_eer_write(device, NULL, DASD_EER_NOSPC);
+
+	if (device->state < DASD_STATE_BASIC)
+		return;
+
+	if (cqr->status == DASD_CQR_IN_IO ||
+	    cqr->status == DASD_CQR_CLEAR_PENDING) {
+		cqr->status = DASD_CQR_QUEUED;
+		cqr->retries++;
+	}
+	dasd_device_set_stop_bits(device, DASD_STOPPED_NOSPC);
+	dasd_device_clear_timer(device);
+	dasd_schedule_device_bh(device);
+}
+EXPORT_SYMBOL_GPL(dasd_generic_space_exhaust);
+
+void dasd_generic_space_avail(struct dasd_device *device)
+{
+	dev_info(&device->cdev->dev, "Extent pool space is available\n");
+	DBF_DEV_EVENT(DBF_WARNING, device, "%s", "space available");
+
+	dasd_device_remove_stop_bits(device, DASD_STOPPED_NOSPC);
+	dasd_schedule_device_bh(device);
+
+	if (device->block) {
+		dasd_schedule_block_bh(device->block);
+		if (device->block->request_queue)
+			blk_mq_run_hw_queues(device->block->request_queue, true);
+	}
+	if (!device->stopped)
+		wake_up(&generic_waitq);
+}
+EXPORT_SYMBOL_GPL(dasd_generic_space_avail);
 
 /*
  * clear active requests and requeue them to block layer if possible

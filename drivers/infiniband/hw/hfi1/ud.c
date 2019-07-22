@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2018 Intel Corporation.
+ * Copyright(c) 2015 - 2019 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -87,7 +87,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	rcu_read_lock();
 
 	qp = rvt_lookup_qpn(ib_to_rvt(sqp->ibqp.device), &ibp->rvp,
-			    swqe->ud_wr.remote_qpn);
+			    rvt_get_swqe_remote_qpn(swqe));
 	if (!qp) {
 		ibp->rvp.n_pkt_drops++;
 		rcu_read_unlock();
@@ -105,7 +105,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		goto drop;
 	}
 
-	ah_attr = &ibah_to_rvtah(swqe->ud_wr.ah)->attr;
+	ah_attr = rvt_get_swqe_ah_attr(swqe);
 	ppd = ppd_from_ibp(ibp);
 
 	if (qp->ibqp.qp_num > 1) {
@@ -135,8 +135,8 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	if (qp->ibqp.qp_num) {
 		u32 qkey;
 
-		qkey = (int)swqe->ud_wr.remote_qkey < 0 ?
-			sqp->qkey : swqe->ud_wr.remote_qkey;
+		qkey = (int)rvt_get_swqe_remote_qkey(swqe) < 0 ?
+			sqp->qkey : rvt_get_swqe_remote_qkey(swqe);
 		if (unlikely(qkey != qp->qkey))
 			goto drop; /* silently drop per IBTA spec */
 	}
@@ -240,7 +240,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	if (qp->ibqp.qp_type == IB_QPT_GSI || qp->ibqp.qp_type == IB_QPT_SMI) {
 		if (sqp->ibqp.qp_type == IB_QPT_GSI ||
 		    sqp->ibqp.qp_type == IB_QPT_SMI)
-			wc.pkey_index = swqe->ud_wr.pkey_index;
+			wc.pkey_index = rvt_get_swqe_pkey_index(swqe);
 		else
 			wc.pkey_index = sqp->s_pkey_index;
 	} else {
@@ -255,8 +255,7 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	wc.dlid_path_bits = rdma_ah_get_dlid(ah_attr) & ((1 << ppd->lmc) - 1);
 	wc.port_num = qp->port_num;
 	/* Signal completion event if the solicited bit is set. */
-	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
-		     swqe->wr.send_flags & IB_SEND_SOLICITED);
+	rvt_recv_cq(qp, &wc, swqe->wr.send_flags & IB_SEND_SOLICITED);
 	ibp->rvp.n_loop_pkts++;
 bail_unlock:
 	spin_unlock_irqrestore(&qp->r_lock, flags);
@@ -283,20 +282,21 @@ static void hfi1_make_bth_deth(struct rvt_qp *qp, struct rvt_swqe *wqe,
 		bth0 |= IB_BTH_SOLICITED;
 	bth0 |= extra_bytes << 20;
 	if (qp->ibqp.qp_type == IB_QPT_GSI || qp->ibqp.qp_type == IB_QPT_SMI)
-		*pkey = hfi1_get_pkey(ibp, wqe->ud_wr.pkey_index);
+		*pkey = hfi1_get_pkey(ibp, rvt_get_swqe_pkey_index(wqe));
 	else
 		*pkey = hfi1_get_pkey(ibp, qp->s_pkey_index);
 	if (!bypass)
 		bth0 |= *pkey;
 	ohdr->bth[0] = cpu_to_be32(bth0);
-	ohdr->bth[1] = cpu_to_be32(wqe->ud_wr.remote_qpn);
+	ohdr->bth[1] = cpu_to_be32(rvt_get_swqe_remote_qpn(wqe));
 	ohdr->bth[2] = cpu_to_be32(mask_psn(wqe->psn));
 	/*
 	 * Qkeys with the high order bit set mean use the
 	 * qkey from the QP context instead of the WR (see 10.2.5).
 	 */
-	ohdr->u.ud.deth[0] = cpu_to_be32((int)wqe->ud_wr.remote_qkey < 0 ?
-					 qp->qkey : wqe->ud_wr.remote_qkey);
+	ohdr->u.ud.deth[0] =
+		cpu_to_be32((int)rvt_get_swqe_remote_qkey(wqe) < 0 ? qp->qkey :
+			    rvt_get_swqe_remote_qkey(wqe));
 	ohdr->u.ud.deth[1] = cpu_to_be32(qp->ibqp.qp_num);
 }
 
@@ -316,7 +316,7 @@ void hfi1_make_ud_req_9B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 	ibp = to_iport(qp->ibqp.device, qp->port_num);
 	ppd = ppd_from_ibp(ibp);
-	ah_attr = &ibah_to_rvtah(wqe->ud_wr.ah)->attr;
+	ah_attr = rvt_get_swqe_ah_attr(wqe);
 
 	extra_bytes = -wqe->length & 3;
 	nwords = ((wqe->length + extra_bytes) >> 2) + SIZE_OF_CRC;
@@ -380,7 +380,7 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	struct hfi1_pportdata *ppd;
 	struct hfi1_ibport *ibp;
 	u32 dlid, slid, nwords, extra_bytes;
-	u32 dest_qp = wqe->ud_wr.remote_qpn;
+	u32 dest_qp = rvt_get_swqe_remote_qpn(wqe);
 	u32 src_qp = qp->ibqp.qp_num;
 	u16 len, pkey;
 	u8 l4, sc5;
@@ -388,7 +388,7 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 	ibp = to_iport(qp->ibqp.device, qp->port_num);
 	ppd = ppd_from_ibp(ibp);
-	ah_attr = &ibah_to_rvtah(wqe->ud_wr.ah)->attr;
+	ah_attr = rvt_get_swqe_ah_attr(wqe);
 
 	/*
 	 * Build 16B Management Packet if either the destination
@@ -450,7 +450,7 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 	if (is_mgmt) {
 		l4 = OPA_16B_L4_FM;
-		pkey = hfi1_get_pkey(ibp, wqe->ud_wr.pkey_index);
+		pkey = hfi1_get_pkey(ibp, rvt_get_swqe_pkey_index(wqe));
 		hfi1_16B_set_qpn(&ps->s_txreq->phdr.hdr.opah.u.mgmt,
 				 dest_qp, src_qp);
 	} else {
@@ -515,7 +515,7 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	/* Construct the header. */
 	ibp = to_iport(qp->ibqp.device, qp->port_num);
 	ppd = ppd_from_ibp(ibp);
-	ah_attr = &ibah_to_rvtah(wqe->ud_wr.ah)->attr;
+	ah_attr = rvt_get_swqe_ah_attr(wqe);
 	priv->hdr_type = hfi1_get_hdr_type(ppd->lid, ah_attr);
 	if ((!hfi1_check_mcast(rdma_ah_get_dlid(ah_attr))) ||
 	    (rdma_ah_get_dlid(ah_attr) == be32_to_cpu(OPA_LID_PERMISSIVE))) {
@@ -683,7 +683,7 @@ void return_cnp_16B(struct hfi1_ibport *ibp, struct rvt_qp *qp,
 	pbc = create_pbc(ppd, pbc_flags, qp->srate_mbps, vl, plen);
 	if (ctxt) {
 		pbuf = sc_buffer_alloc(ctxt, plen, NULL, NULL);
-		if (pbuf) {
+		if (!IS_ERR_OR_NULL(pbuf)) {
 			trace_pio_output_ibhdr(ppd->dd, &hdr, sc5);
 			ppd->dd->pio_inline_send(ppd->dd, pbuf, pbc,
 						 &hdr, hwords);
@@ -738,7 +738,7 @@ void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 	pbc = create_pbc(ppd, pbc_flags, qp->srate_mbps, vl, plen);
 	if (ctxt) {
 		pbuf = sc_buffer_alloc(ctxt, plen, NULL, NULL);
-		if (pbuf) {
+		if (!IS_ERR_OR_NULL(pbuf)) {
 			trace_pio_output_ibhdr(ppd->dd, &hdr, sc5);
 			ppd->dd->pio_inline_send(ppd->dd, pbuf, pbc,
 						 &hdr, hwords);
@@ -1061,7 +1061,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		dlid & ((1 << ppd_from_ibp(ibp)->lmc) - 1);
 	wc.port_num = qp->port_num;
 	/* Signal completion event if the solicited bit is set. */
-	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc, solicited);
+	rvt_recv_cq(qp, &wc, solicited);
 	return;
 
 drop:

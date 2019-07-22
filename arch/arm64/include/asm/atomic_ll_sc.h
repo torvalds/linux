@@ -1,21 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Based on arch/arm/include/asm/atomic.h
  *
  * Copyright (C) 1996 Russell King.
  * Copyright (C) 2002 Deep Blue Solutions Ltd.
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __ASM_ATOMIC_LL_SC_H
@@ -133,9 +122,9 @@ ATOMIC_OPS(xor, eor)
 
 #define ATOMIC64_OP(op, asm_op)						\
 __LL_SC_INLINE void							\
-__LL_SC_PREFIX(arch_atomic64_##op(long i, atomic64_t *v))		\
+__LL_SC_PREFIX(arch_atomic64_##op(s64 i, atomic64_t *v))		\
 {									\
-	long result;							\
+	s64 result;							\
 	unsigned long tmp;						\
 									\
 	asm volatile("// atomic64_" #op "\n"				\
@@ -150,10 +139,10 @@ __LL_SC_PREFIX(arch_atomic64_##op(long i, atomic64_t *v))		\
 __LL_SC_EXPORT(arch_atomic64_##op);
 
 #define ATOMIC64_OP_RETURN(name, mb, acq, rel, cl, op, asm_op)		\
-__LL_SC_INLINE long							\
-__LL_SC_PREFIX(arch_atomic64_##op##_return##name(long i, atomic64_t *v))\
+__LL_SC_INLINE s64							\
+__LL_SC_PREFIX(arch_atomic64_##op##_return##name(s64 i, atomic64_t *v))\
 {									\
-	long result;							\
+	s64 result;							\
 	unsigned long tmp;						\
 									\
 	asm volatile("// atomic64_" #op "_return" #name "\n"		\
@@ -172,10 +161,10 @@ __LL_SC_PREFIX(arch_atomic64_##op##_return##name(long i, atomic64_t *v))\
 __LL_SC_EXPORT(arch_atomic64_##op##_return##name);
 
 #define ATOMIC64_FETCH_OP(name, mb, acq, rel, cl, op, asm_op)		\
-__LL_SC_INLINE long							\
-__LL_SC_PREFIX(arch_atomic64_fetch_##op##name(long i, atomic64_t *v))	\
+__LL_SC_INLINE s64							\
+__LL_SC_PREFIX(arch_atomic64_fetch_##op##name(s64 i, atomic64_t *v))	\
 {									\
-	long result, val;						\
+	s64 result, val;						\
 	unsigned long tmp;						\
 									\
 	asm volatile("// atomic64_fetch_" #op #name "\n"		\
@@ -225,10 +214,10 @@ ATOMIC64_OPS(xor, eor)
 #undef ATOMIC64_OP_RETURN
 #undef ATOMIC64_OP
 
-__LL_SC_INLINE long
+__LL_SC_INLINE s64
 __LL_SC_PREFIX(arch_atomic64_dec_if_positive(atomic64_t *v))
 {
-	long result;
+	s64 result;
 	unsigned long tmp;
 
 	asm volatile("// atomic64_dec_if_positive\n"

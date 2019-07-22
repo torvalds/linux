@@ -27,12 +27,13 @@
 
 #include "gt/mock_engine.h"
 
-#include "mock_context.h"
 #include "mock_request.h"
 #include "mock_gem_device.h"
-#include "mock_gem_object.h"
 #include "mock_gtt.h"
 #include "mock_uncore.h"
+
+#include "gem/selftests/mock_context.h"
+#include "gem/selftests/mock_gem_object.h"
 
 void mock_device_flush(struct drm_i915_private *i915)
 {
@@ -55,7 +56,6 @@ static void mock_device_release(struct drm_device *dev)
 
 	mutex_lock(&i915->drm.struct_mutex);
 	mock_device_flush(i915);
-	i915_gem_contexts_lost(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	flush_work(&i915->gem.idle_work);
@@ -151,8 +151,6 @@ struct drm_i915_private *mock_gem_device(void)
 	i915 = (struct drm_i915_private *)(pdev + 1);
 	pci_set_drvdata(pdev, i915);
 
-	intel_runtime_pm_init_early(i915);
-
 	dev_pm_domain_set(&pdev->dev, &pm_domain);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
@@ -166,6 +164,8 @@ struct drm_i915_private *mock_gem_device(void)
 	}
 	i915->drm.pdev = pdev;
 	i915->drm.dev_private = i915;
+
+	intel_runtime_pm_init_early(&i915->runtime_pm);
 
 	/* Using the global GTT may ask questions about KMS users, so prepare */
 	drm_mode_config_init(&i915->drm);
@@ -202,6 +202,7 @@ struct drm_i915_private *mock_gem_device(void)
 
 	INIT_LIST_HEAD(&i915->gt.active_rings);
 	INIT_LIST_HEAD(&i915->gt.closed_vma);
+	spin_lock_init(&i915->gt.closed_lock);
 
 	mutex_lock(&i915->drm.struct_mutex);
 

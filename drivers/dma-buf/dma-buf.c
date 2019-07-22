@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Framework for buffer objects that can be shared across devices/subsystems.
  *
@@ -8,18 +9,6 @@
  * Arnd Bergmann <arnd@arndb.de>, Rob Clark <rob@ti.com> and
  * Daniel Vetter <daniel@ffwll.ch> for their support in creation and
  * refining of this idea.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/fs.h>
@@ -35,6 +24,7 @@
 #include <linux/reservation.h>
 #include <linux/mm.h>
 #include <linux/mount.h>
+#include <linux/pseudo_fs.h>
 
 #include <uapi/linux/dma-buf.h>
 #include <uapi/linux/magic.h>
@@ -70,16 +60,20 @@ static const struct dentry_operations dma_buf_dentry_ops = {
 
 static struct vfsmount *dma_buf_mnt;
 
-static struct dentry *dma_buf_fs_mount(struct file_system_type *fs_type,
-		int flags, const char *name, void *data)
+static int dma_buf_fs_init_context(struct fs_context *fc)
 {
-	return mount_pseudo(fs_type, "dmabuf:", NULL, &dma_buf_dentry_ops,
-			DMA_BUF_MAGIC);
+	struct pseudo_fs_context *ctx;
+
+	ctx = init_pseudo(fc, DMA_BUF_MAGIC);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->dops = &dma_buf_dentry_ops;
+	return 0;
 }
 
 static struct file_system_type dma_buf_fs_type = {
 	.name = "dmabuf",
-	.mount = dma_buf_fs_mount,
+	.init_fs_context = dma_buf_fs_init_context,
 	.kill_sb = kill_anon_super,
 };
 

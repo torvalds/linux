@@ -827,7 +827,7 @@ static int ttm_mem_evict_wait_busy(struct ttm_buffer_object *busy_bo,
 	if (!r)
 		reservation_object_unlock(busy_bo->resv);
 
-	return r == -EDEADLK ? -EAGAIN : r;
+	return r == -EDEADLK ? -EBUSY : r;
 }
 
 static int ttm_mem_evict_first(struct ttm_bo_device *bdev,

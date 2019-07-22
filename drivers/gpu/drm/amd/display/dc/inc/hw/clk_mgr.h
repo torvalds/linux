@@ -53,8 +53,6 @@ struct clk_mgr_funcs {
 	void (*enable_pme_wa) (struct clk_mgr *clk_mgr);
 };
 
-void dce121_clock_patch_xgmi_ss_info(struct clk_mgr *clk_mgr_base);
-
 struct clk_mgr {
 	struct dc_context *ctx;
 	struct clk_mgr_funcs *funcs;

@@ -26,6 +26,8 @@
 
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_lrc_reg.h"
+#include "gt/intel_context.h"
+#include "gem/i915_gem_context.h"
 
 #include "intel_guc_submission.h"
 #include "i915_drv.h"
@@ -555,10 +557,10 @@ static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
  */
 static void flush_ggtt_writes(struct i915_vma *vma)
 {
-	struct drm_i915_private *dev_priv = vma->vm->i915;
+	struct drm_i915_private *i915 = vma->vm->i915;
 
 	if (i915_vma_is_map_and_fenceable(vma))
-		POSTING_READ_FW(GUC_STATUS);
+		intel_uncore_posting_read_fw(&i915->uncore, GUC_STATUS);
 }
 
 static void inject_preempt_context(struct work_struct *work)
@@ -738,7 +740,7 @@ static bool __guc_dequeue(struct intel_engine_cs *engine)
 	bool submit = false;
 	struct rb_node *rb;
 
-	lockdep_assert_held(&engine->timeline.lock);
+	lockdep_assert_held(&engine->active.lock);
 
 	if (port_isset(port)) {
 		if (intel_engine_has_preemption(engine)) {
@@ -820,7 +822,7 @@ static void guc_submission_tasklet(unsigned long data)
 	struct i915_request *rq;
 	unsigned long flags;
 
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 
 	rq = port_request(port);
 	while (rq && i915_request_completed(rq)) {
@@ -845,7 +847,7 @@ static void guc_submission_tasklet(unsigned long data)
 	if (!execlists_is_active(execlists, EXECLISTS_ACTIVE_PREEMPT))
 		guc_dequeue(engine);
 
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 static void guc_reset_prepare(struct intel_engine_cs *engine)
@@ -882,7 +884,7 @@ static void guc_reset(struct intel_engine_cs *engine, bool stalled)
 	struct i915_request *rq;
 	unsigned long flags;
 
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 
 	execlists_cancel_port_requests(execlists);
 
@@ -898,7 +900,7 @@ static void guc_reset(struct intel_engine_cs *engine, bool stalled)
 	intel_lr_context_reset(engine, rq->hw_context, rq->head, stalled);
 
 out_unlock:
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 static void guc_cancel_requests(struct intel_engine_cs *engine)
@@ -924,13 +926,13 @@ static void guc_cancel_requests(struct intel_engine_cs *engine)
 	 * submission's irq state, we also wish to remind ourselves that
 	 * it is irq state.)
 	 */
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 
 	/* Cancel the requests on the HW and clear the ELSP tracker. */
 	execlists_cancel_port_requests(execlists);
 
 	/* Mark all executing requests as skipped. */
-	list_for_each_entry(rq, &engine->timeline.requests, link) {
+	list_for_each_entry(rq, &engine->active.requests, sched.link) {
 		if (!i915_request_signaled(rq))
 			dma_fence_set_error(&rq->fence, -EIO);
 
@@ -959,7 +961,7 @@ static void guc_cancel_requests(struct intel_engine_cs *engine)
 	execlists->queue = RB_ROOT_CACHED;
 	GEM_BUG_ON(port_isset(execlists->port));
 
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 static void guc_reset_finish(struct intel_engine_cs *engine)
@@ -1304,7 +1306,7 @@ static void guc_interrupts_capture(struct drm_i915_private *dev_priv)
 	 */
 	irqs = _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
 	for_each_engine(engine, dev_priv, id)
-		I915_WRITE(RING_MODE_GEN7(engine), irqs);
+		ENGINE_WRITE(engine, RING_MODE_GEN7, irqs);
 
 	/* route USER_INTERRUPT to Host, all others are sent to GuC. */
 	irqs = GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
@@ -1351,7 +1353,7 @@ static void guc_interrupts_release(struct drm_i915_private *dev_priv)
 	irqs = _MASKED_FIELD(GFX_FORWARD_VBLANK_MASK, GFX_FORWARD_VBLANK_NEVER);
 	irqs |= _MASKED_BIT_DISABLE(GFX_INTERRUPT_STEERING);
 	for_each_engine(engine, dev_priv, id)
-		I915_WRITE(RING_MODE_GEN7(engine), irqs);
+		ENGINE_WRITE(engine, RING_MODE_GEN7, irqs);
 
 	/* route all GT interrupts to the host */
 	I915_WRITE(GUC_BCS_RCS_IER, 0);
@@ -1425,10 +1427,6 @@ int intel_guc_submission_enable(struct intel_guc *guc)
 		     I915_NUM_ENGINES > GUC_WQ_SIZE);
 
 	GEM_BUG_ON(!guc->execbuf_client);
-
-	err = intel_guc_sample_forcewake(guc);
-	if (err)
-		return err;
 
 	err = guc_clients_enable(guc);
 	if (err)

@@ -36,22 +36,15 @@ enum DF_V3_6_MGCG {
 };
 
 /* Defined in global_features.h as FTI_PERFMON_VISIBLE */
-#define AMDGPU_DF_MAX_COUNTERS		4
+#define DF_V3_6_MAX_COUNTERS		4
 
 /* get flags from df perfmon config */
-#define GET_EVENT(x)			(x & 0xFFUL)
-#define GET_INSTANCE(x)			((x >> 8) & 0xFFUL)
-#define GET_UNITMASK(x)			((x >> 16) & 0xFFUL)
-#define GET_INSTANCE_CONFIG(x)		(0ULL | (0x07ULL) \
-					| ((0x046ULL + x) << 8) \
-					| (0x02 << 16))
+#define DF_V3_6_GET_EVENT(x)		(x & 0xFFUL)
+#define DF_V3_6_GET_INSTANCE(x)		((x >> 8) & 0xFFUL)
+#define DF_V3_6_GET_UNITMASK(x)		((x >> 16) & 0xFFUL)
+#define DF_V3_6_PERFMON_OVERFLOW	0xFFFFFFFFFFFFULL
 
-/* df event conf macros */
-#define IS_DF_XGMI_0_TX(x) (GET_EVENT(x) == 0x7 \
-		&& GET_INSTANCE(x) == 0x46 && GET_UNITMASK(x) == 0x2)
-#define IS_DF_XGMI_1_TX(x) (GET_EVENT(x) == 0x7 \
-		&& GET_INSTANCE(x) == 0x47 && GET_UNITMASK(x) == 0x2)
-
+extern const struct attribute_group *df_v3_6_attr_groups[];
 extern const struct amdgpu_df_funcs df_v3_6_funcs;
 
 #endif

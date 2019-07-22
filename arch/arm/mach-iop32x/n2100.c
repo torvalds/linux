@@ -27,6 +27,7 @@
 #include <linux/reboot.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -341,6 +342,7 @@ device_initcall(n2100_request_gpios);
 static void __init n2100_init_machine(void)
 {
 	register_iop32x_gpio();
+	gpiod_add_lookup_table(&iop3xx_i2c0_gpio_lookup);
 	platform_device_register(&iop3xx_i2c0_device);
 	platform_device_register(&n2100_flash_device);
 	platform_device_register(&n2100_serial_device);

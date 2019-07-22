@@ -39,9 +39,7 @@ struct gbefb_par {
 	int valid;
 };
 
-#ifdef CONFIG_SGI_IP32
 #define GBE_BASE	0x16000000 /* SGI O2 */
-#endif
 
 /* macro for fastest write-though access to the framebuffer */
 #ifdef CONFIG_MIPS
@@ -50,10 +48,6 @@ struct gbefb_par {
 #else
 #define pgprot_fb(_prot) (((_prot) & (~_CACHE_MASK)) | _CACHE_CACHABLE_NO_WA)
 #endif
-#endif
-#ifdef CONFIG_X86
-#define pgprot_fb(_prot) (((_prot) & ~_PAGE_CACHE_MASK) |	\
-			  cachemode2protval(_PAGE_CACHE_MODE_UC_MINUS))
 #endif
 
 /*
@@ -279,7 +273,7 @@ static void gbe_turn_off(void)
 	val = 0;
 	SET_GBE_FIELD(VT_XY, FREEZE, val, 1);
 	gbe->vt_xy = val;
-	udelay(10000);
+	mdelay(10);
 	for (i = 0; i < 10000; i++) {
 		val = gbe->vt_xy;
 		if (GET_GBE_FIELD(VT_XY, FREEZE, val) != 1)
@@ -294,7 +288,7 @@ static void gbe_turn_off(void)
 	val = gbe->dotclock;
 	SET_GBE_FIELD(DOTCLK, RUN, val, 0);
 	gbe->dotclock = val;
-	udelay(10000);
+	mdelay(10);
 	for (i = 0; i < 10000; i++) {
 		val = gbe->dotclock;
 		if (GET_GBE_FIELD(DOTCLK, RUN, val))
@@ -331,7 +325,7 @@ static void gbe_turn_on(void)
 	val = gbe->dotclock;
 	SET_GBE_FIELD(DOTCLK, RUN, val, 1);
 	gbe->dotclock = val;
-	udelay(10000);
+	mdelay(10);
 	for (i = 0; i < 10000; i++) {
 		val = gbe->dotclock;
 		if (GET_GBE_FIELD(DOTCLK, RUN, val) != 1)
@@ -346,7 +340,7 @@ static void gbe_turn_on(void)
 	val = 0;
 	SET_GBE_FIELD(VT_XY, FREEZE, val, 0);
 	gbe->vt_xy = val;
-	udelay(10000);
+	mdelay(10);
 	for (i = 0; i < 10000; i++) {
 		val = gbe->vt_xy;
 		if (GET_GBE_FIELD(VT_XY, FREEZE, val))
@@ -547,7 +541,7 @@ static void gbe_set_timing_info(struct gbe_timing_info *timing)
 	SET_GBE_FIELD(DOTCLK, P, val, timing->pll_p);
 	SET_GBE_FIELD(DOTCLK, RUN, val, 0);	/* do not start yet */
 	gbe->dotclock = val;
-	udelay(10000);
+	mdelay(10);
 
 	/* setup pixel counter */
 	val = 0;
@@ -1018,9 +1012,10 @@ static int gbefb_mmap(struct fb_info *info,
 
 	/* remap using the fastest write-through mode on architecture */
 	/* try not polluting the cache when possible */
+#ifdef CONFIG_MIPS
 	pgprot_val(vma->vm_page_prot) =
 		pgprot_fb(pgprot_val(vma->vm_page_prot));
-
+#endif
 	/* VM_IO | VM_DONTEXPAND | VM_DONTDUMP are set by remap_pfn_range() */
 
 	/* look for the starting tile */

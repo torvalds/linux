@@ -203,11 +203,15 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 
 	pr_debug("Finished map process and queues to runlist\n");
 
-	if (is_over_subscription)
+	if (is_over_subscription) {
+		if (!pm->is_over_subscription)
+			pr_warn("Runlist is getting oversubscribed. Expect reduced ROCm performance.\n");
 		retval = pm->pmf->runlist(pm, &rl_buffer[rl_wptr],
 					*rl_gpu_addr,
 					alloc_size_bytes / sizeof(uint32_t),
 					true);
+	}
+	pm->is_over_subscription = is_over_subscription;
 
 	for (i = 0; i < alloc_size_bytes / sizeof(uint32_t); i++)
 		pr_debug("0x%2X ", rl_buffer[i]);
@@ -236,6 +240,9 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		pm->pmf = &kfd_v9_pm_funcs;
+		break;
+	case CHIP_NAVI10:
+		pm->pmf = &kfd_v10_pm_funcs;
 		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",

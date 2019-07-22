@@ -22,18 +22,6 @@
 #define dprintk(dev, level, fmt, arg...) \
 	v4l2_dbg(level, vivid_debug, &dev->v4l2_dev, fmt, ## arg)
 
-/* Maximum allowed frame rate
- *
- * vivid will allow setting timeperframe in [1/FPS_MAX - FPS_MAX/1] range.
- *
- * Ideally FPS_MAX should be infinity, i.e. practically UINT_MAX, but that
- * might hit application errors when they manipulate these values.
- *
- * Besides, for tpf < 10ms image-generation logic should be changed, to avoid
- * producing frames with equal content.
- */
-#define FPS_MAX 100
-
 /* The maximum number of clip rectangles */
 #define MAX_CLIPS  16
 /* The maximum number of inputs */
@@ -180,9 +168,11 @@ struct vivid_dev {
 	/* supported features */
 	bool				multiplanar;
 	unsigned			num_inputs;
+	unsigned int			num_hdmi_inputs;
 	u8				input_type[MAX_INPUTS];
 	u8				input_name_counter[MAX_INPUTS];
 	unsigned			num_outputs;
+	unsigned int			num_hdmi_outputs;
 	u8				output_type[MAX_OUTPUTS];
 	u8				output_name_counter[MAX_OUTPUTS];
 	bool				has_audio_inputs;
@@ -237,6 +227,7 @@ struct vivid_dev {
 		struct v4l2_ctrl	*ctrl_dv_timings_signal_mode;
 		struct v4l2_ctrl	*ctrl_dv_timings;
 	};
+	struct v4l2_ctrl		*ctrl_display_present;
 	struct v4l2_ctrl		*ctrl_has_crop_cap;
 	struct v4l2_ctrl		*ctrl_has_compose_cap;
 	struct v4l2_ctrl		*ctrl_has_scaler_cap;
@@ -245,6 +236,11 @@ struct vivid_dev {
 	struct v4l2_ctrl		*ctrl_has_scaler_out;
 	struct v4l2_ctrl		*ctrl_tx_mode;
 	struct v4l2_ctrl		*ctrl_tx_rgb_range;
+	struct v4l2_ctrl		*ctrl_tx_edid_present;
+	struct v4l2_ctrl		*ctrl_tx_hotplug;
+	struct v4l2_ctrl		*ctrl_tx_rxsense;
+
+	struct v4l2_ctrl		*ctrl_rx_power_present;
 
 	struct v4l2_ctrl		*radio_tx_rds_pi;
 	struct v4l2_ctrl		*radio_tx_rds_pty;
@@ -299,23 +295,24 @@ struct vivid_dev {
 	bool				time_wrap;
 	u64				time_wrap_offset;
 	unsigned			perc_dropped_buffers;
-	enum vivid_signal_mode		std_signal_mode;
-	unsigned			query_std_last;
-	v4l2_std_id			query_std;
-	enum tpg_video_aspect		std_aspect_ratio;
+	enum vivid_signal_mode		std_signal_mode[MAX_INPUTS];
+	unsigned int			query_std_last[MAX_INPUTS];
+	v4l2_std_id			query_std[MAX_INPUTS];
+	enum tpg_video_aspect		std_aspect_ratio[MAX_INPUTS];
 
-	enum vivid_signal_mode		dv_timings_signal_mode;
+	enum vivid_signal_mode		dv_timings_signal_mode[MAX_INPUTS];
 	char				**query_dv_timings_qmenu;
 	char				*query_dv_timings_qmenu_strings;
 	unsigned			query_dv_timings_size;
-	unsigned			query_dv_timings_last;
-	unsigned			query_dv_timings;
-	enum tpg_video_aspect		dv_timings_aspect_ratio;
+	unsigned int			query_dv_timings_last[MAX_INPUTS];
+	unsigned int			query_dv_timings[MAX_INPUTS];
+	enum tpg_video_aspect		dv_timings_aspect_ratio[MAX_INPUTS];
 
 	/* Input */
 	unsigned			input;
-	v4l2_std_id			std_cap;
-	struct v4l2_dv_timings		dv_timings_cap;
+	v4l2_std_id			std_cap[MAX_INPUTS];
+	struct v4l2_dv_timings		dv_timings_cap[MAX_INPUTS];
+	int				dv_timings_cap_sel[MAX_INPUTS];
 	u32				service_set_cap;
 	struct vivid_vbi_gen_data	vbi_gen;
 	u8				*edid;
@@ -327,6 +324,8 @@ struct vivid_dev {
 	unsigned			tv_audmode;
 	unsigned			tv_field_cap;
 	unsigned			tv_audio_input;
+
+	u32				power_present;
 
 	/* Capture Overlay */
 	struct v4l2_framebuffer		fb_cap;
@@ -360,6 +359,7 @@ struct vivid_dev {
 	u8				*scaled_line;
 	u8				*blended_line;
 	unsigned			cur_scaled_line;
+	bool				display_present[MAX_OUTPUTS];
 
 	/* Output Overlay */
 	void				*fb_vbase_out;

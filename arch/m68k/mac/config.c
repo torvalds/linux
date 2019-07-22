@@ -911,6 +911,10 @@ static const struct resource mac_scsi_iifx_rsrc[] __initconst = {
 		.flags = IORESOURCE_MEM,
 		.start = 0x50008000,
 		.end   = 0x50009FFF,
+	}, {
+		.flags = IORESOURCE_MEM,
+		.start = 0x50008000,
+		.end   = 0x50009FFF,
 	},
 };
 
@@ -1012,10 +1016,12 @@ int __init mac_platform_init(void)
 	case MAC_SCSI_IIFX:
 		/* Addresses from The Guide to Mac Family Hardware.
 		 * $5000 8000 - $5000 9FFF: SCSI DMA
+		 * $5000 A000 - $5000 BFFF: Alternate SCSI
 		 * $5000 C000 - $5000 DFFF: Alternate SCSI (DMA)
 		 * $5000 E000 - $5000 FFFF: Alternate SCSI (Hsk)
-		 * The SCSI DMA custom IC embeds the 53C80 core. mac_scsi does
-		 * not make use of its DMA or hardware handshaking logic.
+		 * The A/UX header file sys/uconfig.h says $50F0 8000.
+		 * The "SCSI DMA" custom IC embeds the 53C80 core and
+		 * supports Programmed IO, DMA and PDMA (hardware handshake).
 		 */
 		platform_device_register_simple("mac_scsi", 0,
 			mac_scsi_iifx_rsrc, ARRAY_SIZE(mac_scsi_iifx_rsrc));

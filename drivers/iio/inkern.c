@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* The industrial I/O core in kernel channel mapping
  *
  * Copyright (c) 2011 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #include <linux/err.h>
 #include <linux/export.h>
@@ -93,7 +90,7 @@ static const struct iio_chan_spec
 
 #ifdef CONFIG_OF
 
-static int iio_dev_node_match(struct device *dev, void *data)
+static int iio_dev_node_match(struct device *dev, const void *data)
 {
 	return dev->of_node == data && dev->type == &iio_device_type;
 }

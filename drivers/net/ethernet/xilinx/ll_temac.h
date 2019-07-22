@@ -361,7 +361,7 @@ struct temac_local {
 	/* For synchronization of indirect register access.  Must be
 	 * shared mutex between interfaces in same TEMAC block.
 	 */
-	struct mutex *indirect_mutex;
+	spinlock_t *indirect_lock;
 	u32 options;			/* Current options word */
 	int last_link;
 	unsigned int temac_features;
@@ -388,8 +388,9 @@ struct temac_local {
 /* xilinx_temac.c */
 int temac_indirect_busywait(struct temac_local *lp);
 u32 temac_indirect_in32(struct temac_local *lp, int reg);
+u32 temac_indirect_in32_locked(struct temac_local *lp, int reg);
 void temac_indirect_out32(struct temac_local *lp, int reg, u32 value);
-
+void temac_indirect_out32_locked(struct temac_local *lp, int reg, u32 value);
 
 /* xilinx_temac_mdio.c */
 int temac_mdio_setup(struct temac_local *lp, struct platform_device *pdev);

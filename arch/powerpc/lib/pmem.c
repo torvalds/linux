@@ -15,14 +15,14 @@
 void arch_wb_cache_pmem(void *addr, size_t size)
 {
 	unsigned long start = (unsigned long) addr;
-	flush_inval_dcache_range(start, start + size);
+	flush_dcache_range(start, start + size);
 }
 EXPORT_SYMBOL(arch_wb_cache_pmem);
 
 void arch_invalidate_pmem(void *addr, size_t size)
 {
 	unsigned long start = (unsigned long) addr;
-	flush_inval_dcache_range(start, start + size);
+	flush_dcache_range(start, start + size);
 }
 EXPORT_SYMBOL(arch_invalidate_pmem);
 
@@ -35,7 +35,7 @@ long __copy_from_user_flushcache(void *dest, const void __user *src,
 	unsigned long copied, start = (unsigned long) dest;
 
 	copied = __copy_from_user(dest, src, size);
-	flush_inval_dcache_range(start, start + size);
+	flush_dcache_range(start, start + size);
 
 	return copied;
 }
@@ -45,7 +45,7 @@ void *memcpy_flushcache(void *dest, const void *src, size_t size)
 	unsigned long start = (unsigned long) dest;
 
 	memcpy(dest, src, size);
-	flush_inval_dcache_range(start, start + size);
+	flush_dcache_range(start, start + size);
 
 	return dest;
 }

@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef ARMADA_DRM_H
 #define ARMADA_DRM_H
@@ -78,6 +75,7 @@ void armada_fbdev_fini(struct drm_device *);
 
 int armada_overlay_plane_create(struct drm_device *, unsigned long);
 
+void armada_drm_crtc_debugfs_init(struct armada_crtc *dcrtc);
 int armada_drm_debugfs_init(struct drm_minor *);
 
 #endif

@@ -564,24 +564,24 @@ unlock:
 static int iwl_mvm_fwrt_dump_start(void *ctx)
 {
 	struct iwl_mvm *mvm = ctx;
-	int ret;
-
-	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
-	if (ret)
-		return ret;
+	int ret = 0;
 
 	mutex_lock(&mvm->mutex);
 
-	return 0;
+	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
+	if (ret)
+		mutex_unlock(&mvm->mutex);
+
+	return ret;
 }
 
 static void iwl_mvm_fwrt_dump_end(void *ctx)
 {
 	struct iwl_mvm *mvm = ctx;
 
-	mutex_unlock(&mvm->mutex);
-
 	iwl_mvm_unref(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
+
+	mutex_unlock(&mvm->mutex);
 }
 
 static bool iwl_mvm_fwrt_fw_running(void *ctx)
@@ -799,11 +799,11 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_trans_configure(mvm->trans, &trans_cfg);
 
 	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
-	trans->dbg_dest_tlv = mvm->fw->dbg.dest_tlv;
-	trans->dbg_n_dest_reg = mvm->fw->dbg.n_dest_reg;
-	memcpy(trans->dbg_conf_tlv, mvm->fw->dbg.conf_tlv,
-	       sizeof(trans->dbg_conf_tlv));
-	trans->dbg_trigger_tlv = mvm->fw->dbg.trigger_tlv;
+	trans->dbg.dest_tlv = mvm->fw->dbg.dest_tlv;
+	trans->dbg.n_dest_reg = mvm->fw->dbg.n_dest_reg;
+	memcpy(trans->dbg.conf_tlv, mvm->fw->dbg.conf_tlv,
+	       sizeof(trans->dbg.conf_tlv));
+	trans->dbg.trigger_tlv = mvm->fw->dbg.trigger_tlv;
 
 	trans->iml = mvm->fw->iml;
 	trans->iml_len = mvm->fw->iml_len;
@@ -880,7 +880,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	return op_mode;
 
  out_free:
-	iwl_fw_flush_dump(&mvm->fwrt);
+	iwl_fw_flush_dumps(&mvm->fwrt);
 	iwl_fw_runtime_free(&mvm->fwrt);
 
 	if (iwlmvm_mod_params.init_dbg)
@@ -918,9 +918,6 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	kfree(mvm->error_recovery_buf);
 	mvm->error_recovery_buf = NULL;
 
-#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_IWLWIFI_DEBUGFS)
-	kfree(mvm->d3_resume_sram);
-#endif
 	iwl_trans_op_mode_leave(mvm->trans);
 
 	iwl_phy_db_free(mvm->phy_db);
@@ -1212,7 +1209,8 @@ void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state)
 static bool iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-	bool calibrating = READ_ONCE(mvm->calibrating);
+	bool rfkill_safe_init_done = READ_ONCE(mvm->rfkill_safe_init_done);
+	bool unified = iwl_mvm_has_unified_ucode(mvm);
 
 	if (state)
 		set_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);
@@ -1221,15 +1219,23 @@ static bool iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 
 	iwl_mvm_set_rfkill_state(mvm);
 
-	/* iwl_run_init_mvm_ucode is waiting for results, abort it */
-	if (calibrating)
+	 /* iwl_run_init_mvm_ucode is waiting for results, abort it. */
+	if (rfkill_safe_init_done)
 		iwl_abort_notification_waits(&mvm->notif_wait);
+
+	/*
+	 * Don't ask the transport to stop the firmware. We'll do it
+	 * after cfg80211 takes us down.
+	 */
+	if (unified)
+		return false;
 
 	/*
 	 * Stop the device if we run OPERATIONAL firmware or if we are in the
 	 * middle of the calibrations.
 	 */
-	return state && (mvm->fwrt.cur_fw_img != IWL_UCODE_INIT || calibrating);
+	return state && (mvm->fwrt.cur_fw_img != IWL_UCODE_INIT ||
+			 rfkill_safe_init_done);
 }
 
 static void iwl_mvm_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)

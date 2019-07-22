@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Broadcom BCM63138 DSL SoCs SMP support code
  *
  * Copyright (C) 2015, Broadcom Corporation
- *
- * Licensed under the terms of the GPLv2
  */
 
 #include <linux/delay.h>
@@ -142,6 +141,7 @@ static int bcm63138_smp_boot_secondary(unsigned int cpu,
 	 * return
 	 */
 	ret = bcm63xx_pmb_power_on_cpu(dn);
+	of_node_put(dn);
 	if (ret)
 		goto out;
 out:

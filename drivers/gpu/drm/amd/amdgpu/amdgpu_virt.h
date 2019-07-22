@@ -253,6 +253,7 @@ typedef struct amdgim_vf2pf_info_v2 amdgim_vf2pf_info ;
 struct amdgpu_virt {
 	uint32_t			caps;
 	struct amdgpu_bo		*csa_obj;
+	void				*csa_cpu_addr;
 	bool chained_ib_support;
 	uint32_t			reg_val_offs;
 	struct amdgpu_irq_src		ack_irq;

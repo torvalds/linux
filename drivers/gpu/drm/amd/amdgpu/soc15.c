@@ -275,15 +275,6 @@ static bool soc15_read_bios_from_rom(struct amdgpu_device *adev,
 	return true;
 }
 
-struct soc15_allowed_register_entry {
-	uint32_t hwip;
-	uint32_t inst;
-	uint32_t seg;
-	uint32_t reg_offset;
-	bool grbm_indexed;
-};
-
-
 static struct soc15_allowed_register_entry soc15_allowed_read_registers[] = {
 	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS)},
 	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS2)},
@@ -388,7 +379,7 @@ void soc15_program_register_sequence(struct amdgpu_device *adev,
 		} else {
 			tmp = RREG32(reg);
 			tmp &= ~(entry->and_mask);
-			tmp |= entry->or_mask;
+			tmp |= (entry->or_mask & entry->and_mask);
 		}
 
 		if (reg == SOC15_REG_OFFSET(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3) ||
@@ -658,8 +649,6 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 #if defined(CONFIG_DRM_AMD_DC)
 		else if (amdgpu_device_has_dc_support(adev))
 			amdgpu_device_ip_block_add(adev, &dm_ip_block);
-#else
-#	warning "Enable CONFIG_DRM_AMD_DC for display support on SOC15."
 #endif
 		if (!(adev->asic_type == CHIP_VEGA20 && amdgpu_sriov_vf(adev))) {
 			amdgpu_device_ip_block_add(adev, &uvd_v7_0_ip_block);
@@ -680,8 +669,6 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 #if defined(CONFIG_DRM_AMD_DC)
 		else if (amdgpu_device_has_dc_support(adev))
 			amdgpu_device_ip_block_add(adev, &dm_ip_block);
-#else
-#	warning "Enable CONFIG_DRM_AMD_DC for display support on SOC15."
 #endif
 		amdgpu_device_ip_block_add(adev, &vcn_v1_0_ip_block);
 		break;
@@ -722,13 +709,19 @@ static void soc15_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	/* This reports 0 on APUs, so return to avoid writing/reading registers
 	 * that may or may not be different from their GPU counterparts
 	 */
-	 if (adev->flags & AMD_IS_APU)
-		 return;
+	if (adev->flags & AMD_IS_APU)
+		return;
 
 	/* Set the 2 events that we wish to watch, defined above */
-	/* Reg 40 is # received msgs, Reg 104 is # of posted requests sent */
+	/* Reg 40 is # received msgs */
 	perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK, EVENT0_SEL, 40);
-	perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK, EVENT1_SEL, 104);
+	/* Pre-VG20, Reg 104 is # of posted requests sent. On VG20 it's 108 */
+	if (adev->asic_type == CHIP_VEGA20)
+		perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK,
+					EVENT1_SEL, 108);
+	else
+		perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK,
+					EVENT1_SEL, 104);
 
 	/* Write to enable desired perf counters */
 	WREG32_PCIE(smnPCIE_PERF_CNTL_TXCLK, perfctr);
@@ -1035,6 +1028,8 @@ static int soc15_common_sw_init(void *handle)
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_add_irq_id(adev);
 
+	adev->df_funcs->sw_init(adev);
+
 	return 0;
 }
 
@@ -1081,6 +1076,7 @@ static int soc15_common_hw_init(void *handle)
 	 */
 	if (adev->nbio_funcs->remap_hdp_registers)
 		adev->nbio_funcs->remap_hdp_registers(adev);
+
 	/* enable the doorbell aperture */
 	soc15_enable_doorbell_aperture(adev, true);
 	/* HW doorbell routing policy: doorbell writing not

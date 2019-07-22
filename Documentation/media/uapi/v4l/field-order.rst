@@ -51,6 +51,11 @@ determined by the video standard. Hence the distinction between temporal
 and spatial order of fields. The diagrams below should make this
 clearer.
 
+In V4L it is assumed that all video cameras transmit fields on the media
+bus in the same order they were captured, so if the top field was
+captured first (is the older field), the top field is also transmitted
+first on the bus.
+
 All video capture and output devices must report the current field
 order. Some drivers may permit the selection of a different order, to
 this end applications initialize the ``field`` field of struct
@@ -101,10 +106,10 @@ enum v4l2_field
     * - ``V4L2_FIELD_INTERLACED``
       - 4
       - Images contain both fields, interleaved line by line. The temporal
-	order of the fields (whether the top or bottom field is first
-	transmitted) depends on the current video standard. M/NTSC
-	transmits the bottom field first, all other standards the top
-	field first.
+	order of the fields (whether the top or bottom field is older)
+	depends on the current video standard. In M/NTSC the bottom
+	field is the older field. In all other standards the top field
+	is the older field.
     * - ``V4L2_FIELD_SEQ_TB``
       - 5
       - Images contain both fields, the top field lines are stored first
@@ -135,11 +140,11 @@ enum v4l2_field
     * - ``V4L2_FIELD_INTERLACED_TB``
       - 8
       - Images contain both fields, interleaved line by line, top field
-	first. The top field is transmitted first.
+	first. The top field is the older field.
     * - ``V4L2_FIELD_INTERLACED_BT``
       - 9
       - Images contain both fields, interleaved line by line, top field
-	first. The bottom field is transmitted first.
+	first. The bottom field is the older field.
 
 
 

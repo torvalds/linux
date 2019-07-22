@@ -36,7 +36,7 @@ typedef struct compat_xfs_bstime {
 	__s32		tv_nsec;	/* and nanoseconds	*/
 } compat_xfs_bstime_t;
 
-typedef struct compat_xfs_bstat {
+struct compat_xfs_bstat {
 	__u64		bs_ino;		/* inode number			*/
 	__u16		bs_mode;	/* type and mode		*/
 	__u16		bs_nlink;	/* number of links		*/
@@ -61,14 +61,14 @@ typedef struct compat_xfs_bstat {
 	__u32		bs_dmevmask;	/* DMIG event mask		*/
 	__u16		bs_dmstate;	/* DMIG state info		*/
 	__u16		bs_aextents;	/* attribute number of extents	*/
-} __compat_packed compat_xfs_bstat_t;
+} __compat_packed;
 
-typedef struct compat_xfs_fsop_bulkreq {
+struct compat_xfs_fsop_bulkreq {
 	compat_uptr_t	lastip;		/* last inode # pointer		*/
 	__s32		icount;		/* count of entries in buffer	*/
 	compat_uptr_t	ubuffer;	/* user buffer for inode desc.	*/
 	compat_uptr_t	ocount;		/* output count pointer		*/
-} compat_xfs_fsop_bulkreq_t;
+};
 
 #define XFS_IOC_FSBULKSTAT_32 \
 	_IOWR('X', 101, struct compat_xfs_fsop_bulkreq)
@@ -106,7 +106,7 @@ typedef struct compat_xfs_swapext {
 	xfs_off_t		sx_offset;	/* offset into file */
 	xfs_off_t		sx_length;	/* leng from offset */
 	char			sx_pad[16];	/* pad space, unused */
-	compat_xfs_bstat_t	sx_stat;	/* stat of target b4 copy */
+	struct compat_xfs_bstat	sx_stat;	/* stat of target b4 copy */
 } __compat_packed compat_xfs_swapext_t;
 
 #define XFS_IOC_SWAPEXT_32	_IOWR('X', 109, struct compat_xfs_swapext)
@@ -201,11 +201,11 @@ typedef struct compat_xfs_fsop_geom_v1 {
 #define XFS_IOC_FSGEOMETRY_V1_32  \
 	_IOR('X', 100, struct compat_xfs_fsop_geom_v1)
 
-typedef struct compat_xfs_inogrp {
+struct compat_xfs_inogrp {
 	__u64		xi_startino;	/* starting inode number	*/
 	__s32		xi_alloccount;	/* # bits set in allocmask	*/
 	__u64		xi_allocmask;	/* mask of allocated inodes	*/
-} __attribute__((packed)) compat_xfs_inogrp_t;
+} __attribute__((packed));
 
 /* These growfs input structures have padding on the end, so must translate */
 typedef struct compat_xfs_growfs_data {

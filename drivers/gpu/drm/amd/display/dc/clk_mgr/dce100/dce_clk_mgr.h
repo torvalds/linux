@@ -29,28 +29,6 @@
 
 #include "dc.h"
 
-/* Starting DID for each range */
-enum dentist_base_divider_id {
-	DENTIST_BASE_DID_1 = 0x08,
-	DENTIST_BASE_DID_2 = 0x40,
-	DENTIST_BASE_DID_3 = 0x60,
-	DENTIST_BASE_DID_4 = 0x7e,
-	DENTIST_MAX_DID = 0x7f
-};
-
-/* Starting point and step size for each divider range.*/
-enum dentist_divider_range {
-	DENTIST_DIVIDER_RANGE_1_START = 8,   /* 2.00  */
-	DENTIST_DIVIDER_RANGE_1_STEP  = 1,   /* 0.25  */
-	DENTIST_DIVIDER_RANGE_2_START = 64,  /* 16.00 */
-	DENTIST_DIVIDER_RANGE_2_STEP  = 2,   /* 0.50  */
-	DENTIST_DIVIDER_RANGE_3_START = 128, /* 32.00 */
-	DENTIST_DIVIDER_RANGE_3_STEP  = 4,   /* 1.00  */
-	DENTIST_DIVIDER_RANGE_4_START = 248, /* 62.00 */
-	DENTIST_DIVIDER_RANGE_4_STEP  = 264, /* 66.00 */
-	DENTIST_DIVIDER_RANGE_SCALE_FACTOR = 4
-};
-
 /* functions shared by other dce clk mgrs */
 int dce_adjust_dp_ref_freq_for_ss(struct clk_mgr_internal *clk_mgr_dce, int dp_ref_clk_khz);
 int dce_get_dp_ref_freq_khz(struct clk_mgr *clk_mgr_base);

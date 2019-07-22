@@ -1402,6 +1402,10 @@ static enum bp_result get_integrated_info_v11(
 	info->ma_channel_number = info_v11->umachannelnumber;
 	info->lvds_ss_percentage =
 	le16_to_cpu(info_v11->lvds_ss_percentage);
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	info->dp_ss_control =
+	le16_to_cpu(info_v11->reserved1);
+#endif
 	info->lvds_sspread_rate_in_10hz =
 	le16_to_cpu(info_v11->lvds_ss_rate_10hz);
 	info->hdmi_ss_percentage =

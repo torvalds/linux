@@ -15,7 +15,83 @@
 
 #include "bfq-iosched.h"
 
-#if defined(CONFIG_BFQ_GROUP_IOSCHED) &&  defined(CONFIG_DEBUG_BLK_CGROUP)
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
+static int bfq_stat_init(struct bfq_stat *stat, gfp_t gfp)
+{
+	int ret;
+
+	ret = percpu_counter_init(&stat->cpu_cnt, 0, gfp);
+	if (ret)
+		return ret;
+
+	atomic64_set(&stat->aux_cnt, 0);
+	return 0;
+}
+
+static void bfq_stat_exit(struct bfq_stat *stat)
+{
+	percpu_counter_destroy(&stat->cpu_cnt);
+}
+
+/**
+ * bfq_stat_add - add a value to a bfq_stat
+ * @stat: target bfq_stat
+ * @val: value to add
+ *
+ * Add @val to @stat.  The caller must ensure that IRQ on the same CPU
+ * don't re-enter this function for the same counter.
+ */
+static inline void bfq_stat_add(struct bfq_stat *stat, uint64_t val)
+{
+	percpu_counter_add_batch(&stat->cpu_cnt, val, BLKG_STAT_CPU_BATCH);
+}
+
+/**
+ * bfq_stat_read - read the current value of a bfq_stat
+ * @stat: bfq_stat to read
+ */
+static inline uint64_t bfq_stat_read(struct bfq_stat *stat)
+{
+	return percpu_counter_sum_positive(&stat->cpu_cnt);
+}
+
+/**
+ * bfq_stat_reset - reset a bfq_stat
+ * @stat: bfq_stat to reset
+ */
+static inline void bfq_stat_reset(struct bfq_stat *stat)
+{
+	percpu_counter_set(&stat->cpu_cnt, 0);
+	atomic64_set(&stat->aux_cnt, 0);
+}
+
+/**
+ * bfq_stat_add_aux - add a bfq_stat into another's aux count
+ * @to: the destination bfq_stat
+ * @from: the source
+ *
+ * Add @from's count including the aux one to @to's aux count.
+ */
+static inline void bfq_stat_add_aux(struct bfq_stat *to,
+				     struct bfq_stat *from)
+{
+	atomic64_add(bfq_stat_read(from) + atomic64_read(&from->aux_cnt),
+		     &to->aux_cnt);
+}
+
+/**
+ * blkg_prfill_stat - prfill callback for bfq_stat
+ * @sf: seq_file to print to
+ * @pd: policy private data of interest
+ * @off: offset to the bfq_stat in @pd
+ *
+ * prfill callback for printing a bfq_stat.
+ */
+static u64 blkg_prfill_stat(struct seq_file *sf, struct blkg_policy_data *pd,
+		int off)
+{
+	return __blkg_prfill_u64(sf, pd, bfq_stat_read((void *)pd + off));
+}
 
 /* bfqg stats flags */
 enum bfqg_stats_flags {
@@ -53,7 +129,7 @@ static void bfqg_stats_update_group_wait_time(struct bfqg_stats *stats)
 
 	now = ktime_get_ns();
 	if (now > stats->start_group_wait_time)
-		blkg_stat_add(&stats->group_wait_time,
+		bfq_stat_add(&stats->group_wait_time,
 			      now - stats->start_group_wait_time);
 	bfqg_stats_clear_waiting(stats);
 }
@@ -82,14 +158,14 @@ static void bfqg_stats_end_empty_time(struct bfqg_stats *stats)
 
 	now = ktime_get_ns();
 	if (now > stats->start_empty_time)
-		blkg_stat_add(&stats->empty_time,
+		bfq_stat_add(&stats->empty_time,
 			      now - stats->start_empty_time);
 	bfqg_stats_clear_empty(stats);
 }
 
 void bfqg_stats_update_dequeue(struct bfq_group *bfqg)
 {
-	blkg_stat_add(&bfqg->stats.dequeue, 1);
+	bfq_stat_add(&bfqg->stats.dequeue, 1);
 }
 
 void bfqg_stats_set_start_empty_time(struct bfq_group *bfqg)
@@ -119,7 +195,7 @@ void bfqg_stats_update_idle_time(struct bfq_group *bfqg)
 		u64 now = ktime_get_ns();
 
 		if (now > stats->start_idle_time)
-			blkg_stat_add(&stats->idle_time,
+			bfq_stat_add(&stats->idle_time,
 				      now - stats->start_idle_time);
 		bfqg_stats_clear_idling(stats);
 	}
@@ -137,9 +213,9 @@ void bfqg_stats_update_avg_queue_size(struct bfq_group *bfqg)
 {
 	struct bfqg_stats *stats = &bfqg->stats;
 
-	blkg_stat_add(&stats->avg_queue_size_sum,
+	bfq_stat_add(&stats->avg_queue_size_sum,
 		      blkg_rwstat_total(&stats->queued));
-	blkg_stat_add(&stats->avg_queue_size_samples, 1);
+	bfq_stat_add(&stats->avg_queue_size_samples, 1);
 	bfqg_stats_update_group_wait_time(stats);
 }
 
@@ -176,7 +252,7 @@ void bfqg_stats_update_completion(struct bfq_group *bfqg, u64 start_time_ns,
 				io_start_time_ns - start_time_ns);
 }
 
-#else /* CONFIG_BFQ_GROUP_IOSCHED && CONFIG_DEBUG_BLK_CGROUP */
+#else /* CONFIG_BFQ_CGROUP_DEBUG */
 
 void bfqg_stats_update_io_add(struct bfq_group *bfqg, struct bfq_queue *bfqq,
 			      unsigned int op) { }
@@ -190,7 +266,7 @@ void bfqg_stats_update_idle_time(struct bfq_group *bfqg) { }
 void bfqg_stats_set_start_idle_time(struct bfq_group *bfqg) { }
 void bfqg_stats_update_avg_queue_size(struct bfq_group *bfqg) { }
 
-#endif /* CONFIG_BFQ_GROUP_IOSCHED && CONFIG_DEBUG_BLK_CGROUP */
+#endif /* CONFIG_BFQ_CGROUP_DEBUG */
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 
@@ -274,18 +350,18 @@ void bfqg_and_blkg_put(struct bfq_group *bfqg)
 /* @stats = 0 */
 static void bfqg_stats_reset(struct bfqg_stats *stats)
 {
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	/* queued stats shouldn't be cleared */
 	blkg_rwstat_reset(&stats->merged);
 	blkg_rwstat_reset(&stats->service_time);
 	blkg_rwstat_reset(&stats->wait_time);
-	blkg_stat_reset(&stats->time);
-	blkg_stat_reset(&stats->avg_queue_size_sum);
-	blkg_stat_reset(&stats->avg_queue_size_samples);
-	blkg_stat_reset(&stats->dequeue);
-	blkg_stat_reset(&stats->group_wait_time);
-	blkg_stat_reset(&stats->idle_time);
-	blkg_stat_reset(&stats->empty_time);
+	bfq_stat_reset(&stats->time);
+	bfq_stat_reset(&stats->avg_queue_size_sum);
+	bfq_stat_reset(&stats->avg_queue_size_samples);
+	bfq_stat_reset(&stats->dequeue);
+	bfq_stat_reset(&stats->group_wait_time);
+	bfq_stat_reset(&stats->idle_time);
+	bfq_stat_reset(&stats->empty_time);
 #endif
 }
 
@@ -295,19 +371,19 @@ static void bfqg_stats_add_aux(struct bfqg_stats *to, struct bfqg_stats *from)
 	if (!to || !from)
 		return;
 
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	/* queued stats shouldn't be cleared */
 	blkg_rwstat_add_aux(&to->merged, &from->merged);
 	blkg_rwstat_add_aux(&to->service_time, &from->service_time);
 	blkg_rwstat_add_aux(&to->wait_time, &from->wait_time);
-	blkg_stat_add_aux(&from->time, &from->time);
-	blkg_stat_add_aux(&to->avg_queue_size_sum, &from->avg_queue_size_sum);
-	blkg_stat_add_aux(&to->avg_queue_size_samples,
+	bfq_stat_add_aux(&from->time, &from->time);
+	bfq_stat_add_aux(&to->avg_queue_size_sum, &from->avg_queue_size_sum);
+	bfq_stat_add_aux(&to->avg_queue_size_samples,
 			  &from->avg_queue_size_samples);
-	blkg_stat_add_aux(&to->dequeue, &from->dequeue);
-	blkg_stat_add_aux(&to->group_wait_time, &from->group_wait_time);
-	blkg_stat_add_aux(&to->idle_time, &from->idle_time);
-	blkg_stat_add_aux(&to->empty_time, &from->empty_time);
+	bfq_stat_add_aux(&to->dequeue, &from->dequeue);
+	bfq_stat_add_aux(&to->group_wait_time, &from->group_wait_time);
+	bfq_stat_add_aux(&to->idle_time, &from->idle_time);
+	bfq_stat_add_aux(&to->empty_time, &from->empty_time);
 #endif
 }
 
@@ -355,35 +431,35 @@ void bfq_init_entity(struct bfq_entity *entity, struct bfq_group *bfqg)
 
 static void bfqg_stats_exit(struct bfqg_stats *stats)
 {
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	blkg_rwstat_exit(&stats->merged);
 	blkg_rwstat_exit(&stats->service_time);
 	blkg_rwstat_exit(&stats->wait_time);
 	blkg_rwstat_exit(&stats->queued);
-	blkg_stat_exit(&stats->time);
-	blkg_stat_exit(&stats->avg_queue_size_sum);
-	blkg_stat_exit(&stats->avg_queue_size_samples);
-	blkg_stat_exit(&stats->dequeue);
-	blkg_stat_exit(&stats->group_wait_time);
-	blkg_stat_exit(&stats->idle_time);
-	blkg_stat_exit(&stats->empty_time);
+	bfq_stat_exit(&stats->time);
+	bfq_stat_exit(&stats->avg_queue_size_sum);
+	bfq_stat_exit(&stats->avg_queue_size_samples);
+	bfq_stat_exit(&stats->dequeue);
+	bfq_stat_exit(&stats->group_wait_time);
+	bfq_stat_exit(&stats->idle_time);
+	bfq_stat_exit(&stats->empty_time);
 #endif
 }
 
 static int bfqg_stats_init(struct bfqg_stats *stats, gfp_t gfp)
 {
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	if (blkg_rwstat_init(&stats->merged, gfp) ||
 	    blkg_rwstat_init(&stats->service_time, gfp) ||
 	    blkg_rwstat_init(&stats->wait_time, gfp) ||
 	    blkg_rwstat_init(&stats->queued, gfp) ||
-	    blkg_stat_init(&stats->time, gfp) ||
-	    blkg_stat_init(&stats->avg_queue_size_sum, gfp) ||
-	    blkg_stat_init(&stats->avg_queue_size_samples, gfp) ||
-	    blkg_stat_init(&stats->dequeue, gfp) ||
-	    blkg_stat_init(&stats->group_wait_time, gfp) ||
-	    blkg_stat_init(&stats->idle_time, gfp) ||
-	    blkg_stat_init(&stats->empty_time, gfp)) {
+	    bfq_stat_init(&stats->time, gfp) ||
+	    bfq_stat_init(&stats->avg_queue_size_sum, gfp) ||
+	    bfq_stat_init(&stats->avg_queue_size_samples, gfp) ||
+	    bfq_stat_init(&stats->dequeue, gfp) ||
+	    bfq_stat_init(&stats->group_wait_time, gfp) ||
+	    bfq_stat_init(&stats->idle_time, gfp) ||
+	    bfq_stat_init(&stats->empty_time, gfp)) {
 		bfqg_stats_exit(stats);
 		return -ENOMEM;
 	}
@@ -909,7 +985,7 @@ static ssize_t bfq_io_set_weight(struct kernfs_open_file *of,
 	return ret ?: nbytes;
 }
 
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 static int bfqg_print_stat(struct seq_file *sf, void *v)
 {
 	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)), blkg_prfill_stat,
@@ -927,17 +1003,34 @@ static int bfqg_print_rwstat(struct seq_file *sf, void *v)
 static u64 bfqg_prfill_stat_recursive(struct seq_file *sf,
 				      struct blkg_policy_data *pd, int off)
 {
-	u64 sum = blkg_stat_recursive_sum(pd_to_blkg(pd),
-					  &blkcg_policy_bfq, off);
+	struct blkcg_gq *blkg = pd_to_blkg(pd);
+	struct blkcg_gq *pos_blkg;
+	struct cgroup_subsys_state *pos_css;
+	u64 sum = 0;
+
+	lockdep_assert_held(&blkg->q->queue_lock);
+
+	rcu_read_lock();
+	blkg_for_each_descendant_pre(pos_blkg, pos_css, blkg) {
+		struct bfq_stat *stat;
+
+		if (!pos_blkg->online)
+			continue;
+
+		stat = (void *)blkg_to_pd(pos_blkg, &blkcg_policy_bfq) + off;
+		sum += bfq_stat_read(stat) + atomic64_read(&stat->aux_cnt);
+	}
+	rcu_read_unlock();
+
 	return __blkg_prfill_u64(sf, pd, sum);
 }
 
 static u64 bfqg_prfill_rwstat_recursive(struct seq_file *sf,
 					struct blkg_policy_data *pd, int off)
 {
-	struct blkg_rwstat sum = blkg_rwstat_recursive_sum(pd_to_blkg(pd),
-							   &blkcg_policy_bfq,
-							   off);
+	struct blkg_rwstat_sample sum;
+
+	blkg_rwstat_recursive_sum(pd_to_blkg(pd), &blkcg_policy_bfq, off, &sum);
 	return __blkg_prfill_rwstat(sf, pd, &sum);
 }
 
@@ -975,12 +1068,13 @@ static int bfqg_print_stat_sectors(struct seq_file *sf, void *v)
 static u64 bfqg_prfill_sectors_recursive(struct seq_file *sf,
 					 struct blkg_policy_data *pd, int off)
 {
-	struct blkg_rwstat tmp = blkg_rwstat_recursive_sum(pd->blkg, NULL,
-					offsetof(struct blkcg_gq, stat_bytes));
-	u64 sum = atomic64_read(&tmp.aux_cnt[BLKG_RWSTAT_READ]) +
-		atomic64_read(&tmp.aux_cnt[BLKG_RWSTAT_WRITE]);
+	struct blkg_rwstat_sample tmp;
 
-	return __blkg_prfill_u64(sf, pd, sum >> 9);
+	blkg_rwstat_recursive_sum(pd->blkg, NULL,
+			offsetof(struct blkcg_gq, stat_bytes), &tmp);
+
+	return __blkg_prfill_u64(sf, pd,
+		(tmp.cnt[BLKG_RWSTAT_READ] + tmp.cnt[BLKG_RWSTAT_WRITE]) >> 9);
 }
 
 static int bfqg_print_stat_sectors_recursive(struct seq_file *sf, void *v)
@@ -995,11 +1089,11 @@ static u64 bfqg_prfill_avg_queue_size(struct seq_file *sf,
 				      struct blkg_policy_data *pd, int off)
 {
 	struct bfq_group *bfqg = pd_to_bfqg(pd);
-	u64 samples = blkg_stat_read(&bfqg->stats.avg_queue_size_samples);
+	u64 samples = bfq_stat_read(&bfqg->stats.avg_queue_size_samples);
 	u64 v = 0;
 
 	if (samples) {
-		v = blkg_stat_read(&bfqg->stats.avg_queue_size_sum);
+		v = bfq_stat_read(&bfqg->stats.avg_queue_size_sum);
 		v = div64_u64(v, samples);
 	}
 	__blkg_prfill_u64(sf, pd, v);
@@ -1014,7 +1108,7 @@ static int bfqg_print_avg_queue_size(struct seq_file *sf, void *v)
 			  0, false);
 	return 0;
 }
-#endif /* CONFIG_DEBUG_BLK_CGROUP */
+#endif /* CONFIG_BFQ_CGROUP_DEBUG */
 
 struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int node)
 {
@@ -1062,7 +1156,7 @@ struct cftype bfq_blkcg_legacy_files[] = {
 		.private = (unsigned long)&blkcg_policy_bfq,
 		.seq_show = blkg_print_stat_ios,
 	},
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	{
 		.name = "bfq.time",
 		.private = offsetof(struct bfq_group, stats.time),
@@ -1092,7 +1186,7 @@ struct cftype bfq_blkcg_legacy_files[] = {
 		.private = offsetof(struct bfq_group, stats.queued),
 		.seq_show = bfqg_print_rwstat,
 	},
-#endif /* CONFIG_DEBUG_BLK_CGROUP */
+#endif /* CONFIG_BFQ_CGROUP_DEBUG */
 
 	/* the same statistics which cover the bfqg and its descendants */
 	{
@@ -1105,7 +1199,7 @@ struct cftype bfq_blkcg_legacy_files[] = {
 		.private = (unsigned long)&blkcg_policy_bfq,
 		.seq_show = blkg_print_stat_ios_recursive,
 	},
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	{
 		.name = "bfq.time_recursive",
 		.private = offsetof(struct bfq_group, stats.time),
@@ -1159,7 +1253,7 @@ struct cftype bfq_blkcg_legacy_files[] = {
 		.private = offsetof(struct bfq_group, stats.dequeue),
 		.seq_show = bfqg_print_stat,
 	},
-#endif	/* CONFIG_DEBUG_BLK_CGROUP */
+#endif	/* CONFIG_BFQ_CGROUP_DEBUG */
 	{ }	/* terminate */
 };
 

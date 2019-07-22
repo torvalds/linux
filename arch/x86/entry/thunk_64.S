@@ -1,9 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Save registers before calling assembly functions. This avoids
  * disturbance of register allocation in some inline assembly constructs.
  * Copyright 2001,2002 by Andi Kleen, SuSE Labs.
  * Added trace_hardirqs callers - Copyright 2007 Steven Rostedt, Red Hat, Inc.
- * Subject to the GNU public license, v.2. No warranty of any kind.
  */
 #include <linux/linkage.h>
 #include "calling.h"
@@ -12,9 +12,7 @@
 
 	/* rdi:	arg1 ... normal C conventions. rax is saved/restored. */
 	.macro THUNK name, func, put_ret_addr_in_rdi=0
-	.globl \name
-	.type \name, @function
-\name:
+	ENTRY(\name)
 	pushq %rbp
 	movq %rsp, %rbp
 
@@ -35,6 +33,7 @@
 
 	call \func
 	jmp  .L_restore
+	ENDPROC(\name)
 	_ASM_NOKPROBE(\name)
 	.endm
 

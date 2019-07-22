@@ -220,7 +220,21 @@ Usage
 In order to use AF_XDP sockets there are two parts needed. The
 user-space application and the XDP program. For a complete setup and
 usage example, please refer to the sample application. The user-space
-side is xdpsock_user.c and the XDP side xdpsock_kern.c.
+side is xdpsock_user.c and the XDP side is part of libbpf.
+
+The XDP code sample included in tools/lib/bpf/xsk.c is the following::
+
+   SEC("xdp_sock") int xdp_sock_prog(struct xdp_md *ctx)
+   {
+       int index = ctx->rx_queue_index;
+
+       // A set entry here means that the correspnding queue_id
+       // has an active AF_XDP socket bound to it.
+       if (bpf_map_lookup_elem(&xsks_map, &index))
+           return bpf_redirect_map(&xsks_map, index, 0);
+
+       return XDP_PASS;
+   }
 
 Naive ring dequeue and enqueue could look like this::
 
@@ -316,16 +330,16 @@ A: When a netdev of a physical NIC is initialized, Linux usually
    all the traffic, you can force the netdev to only have 1 queue, queue
    id 0, and then bind to queue 0. You can use ethtool to do this::
 
-   sudo ethtool -L <interface> combined 1
+     sudo ethtool -L <interface> combined 1
 
    If you want to only see part of the traffic, you can program the
    NIC through ethtool to filter out your traffic to a single queue id
    that you can bind your XDP socket to. Here is one example in which
    UDP traffic to and from port 4242 are sent to queue 2::
 
-   sudo ethtool -N <interface> rx-flow-hash udp4 fn
-   sudo ethtool -N <interface> flow-type udp4 src-port 4242 dst-port \
-   4242 action 2
+     sudo ethtool -N <interface> rx-flow-hash udp4 fn
+     sudo ethtool -N <interface> flow-type udp4 src-port 4242 dst-port \
+     4242 action 2
 
    A number of other ways are possible all up to the capabilitites of
    the NIC you have.

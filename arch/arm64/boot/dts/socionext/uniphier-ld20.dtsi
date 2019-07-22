@@ -9,8 +9,6 @@
 #include <dt-bindings/gpio/uniphier-gpio.h>
 #include <dt-bindings/thermal/thermal.h>
 
-/memreserve/ 0x80000000 0x02000000;
-
 / {
 	compatible = "socionext,uniphier-ld20";
 	#address-cells = <2>;
@@ -212,6 +210,17 @@
 							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		secure-memory@81000000 {
+			reg = <0x0 0x81000000 0x0 0x01000000>;
+			no-map;
 		};
 	};
 
@@ -921,6 +930,8 @@
 			status = "disabled";
 			reg-names = "nand_data", "denali_reg";
 			reg = <0x68000000 0x20>, <0x68100000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 65 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_nand>;

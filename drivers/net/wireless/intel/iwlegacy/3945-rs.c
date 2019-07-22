@@ -631,9 +631,6 @@ il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 		il_sta = NULL;
 	}
 
-	if (rate_control_send_low(sta, il_sta, txrc))
-		return;
-
 	rate_mask = sta->supp_rates[sband->band];
 
 	/* get user max rate if set */
@@ -846,17 +843,8 @@ il3945_add_debugfs(void *il, void *il_sta, struct dentry *dir)
 {
 	struct il3945_rs_sta *lq_sta = il_sta;
 
-	lq_sta->rs_sta_dbgfs_stats_table_file =
-	    debugfs_create_file("rate_stats_table", 0600, dir, lq_sta,
-				&rs_sta_dbgfs_stats_table_ops);
-
-}
-
-static void
-il3945_remove_debugfs(void *il, void *il_sta)
-{
-	struct il3945_rs_sta *lq_sta = il_sta;
-	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
+	debugfs_create_file("rate_stats_table", 0600, dir, lq_sta,
+			    &rs_sta_dbgfs_stats_table_ops);
 }
 #endif
 
@@ -883,7 +871,6 @@ static const struct rate_control_ops rs_ops = {
 	.free_sta = il3945_rs_free_sta,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.add_sta_debugfs = il3945_add_debugfs,
-	.remove_sta_debugfs = il3945_remove_debugfs,
 #endif
 
 };

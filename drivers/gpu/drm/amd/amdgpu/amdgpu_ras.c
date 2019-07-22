@@ -335,12 +335,13 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 	case 2:
 		ret = amdgpu_ras_reserve_vram(adev,
 				data.inject.address, PAGE_SIZE, &bo);
-		/* This address might be used already on failure. In fact we can
-		 * perform an injection in such case.
-		 */
-		if (ret)
-			break;
-		data.inject.address = amdgpu_bo_gpu_offset(bo);
+		if (ret) {
+			/* address was offset, now it is absolute.*/
+			data.inject.address += adev->gmc.vram_start;
+			if (data.inject.address > adev->gmc.vram_end)
+				break;
+		} else
+			data.inject.address = amdgpu_bo_gpu_offset(bo);
 		ret = amdgpu_ras_error_inject(adev, &data.inject);
 		amdgpu_ras_release_vram(adev, &bo);
 		break;
@@ -969,40 +970,24 @@ static int amdgpu_ras_sysfs_remove_all(struct amdgpu_device *adev)
 /* sysfs end */
 
 /* debugfs begin */
-static int amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
+static void amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct drm_minor *minor = adev->ddev->primary;
-	struct dentry *root = minor->debugfs_root, *dir;
-	struct dentry *ent;
 
-	dir = debugfs_create_dir("ras", root);
-	if (IS_ERR(dir))
-		return -EINVAL;
-
-	con->dir = dir;
-
-	ent = debugfs_create_file("ras_ctrl",
-			S_IWUGO | S_IRUGO, con->dir,
-			adev, &amdgpu_ras_debugfs_ctrl_ops);
-	if (IS_ERR(ent)) {
-		debugfs_remove(con->dir);
-		return -EINVAL;
-	}
-
-	con->ent = ent;
-	return 0;
+	con->dir = debugfs_create_dir("ras", minor->debugfs_root);
+	con->ent = debugfs_create_file("ras_ctrl", S_IWUGO | S_IRUGO, con->dir,
+				       adev, &amdgpu_ras_debugfs_ctrl_ops);
 }
 
-int amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
+void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
 		struct ras_fs_if *head)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &head->head);
-	struct dentry *ent;
 
 	if (!obj || obj->ent)
-		return -EINVAL;
+		return;
 
 	get_obj(obj);
 
@@ -1010,34 +995,25 @@ int amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
 			head->debugfs_name,
 			sizeof(obj->fs_data.debugfs_name));
 
-	ent = debugfs_create_file(obj->fs_data.debugfs_name,
-			S_IWUGO | S_IRUGO, con->dir,
-			obj, &amdgpu_ras_debugfs_ops);
-
-	if (IS_ERR(ent))
-		return -EINVAL;
-
-	obj->ent = ent;
-
-	return 0;
+	obj->ent = debugfs_create_file(obj->fs_data.debugfs_name,
+				       S_IWUGO | S_IRUGO, con->dir, obj,
+				       &amdgpu_ras_debugfs_ops);
 }
 
-int amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
+void amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
 		struct ras_common_if *head)
 {
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, head);
 
 	if (!obj || !obj->ent)
-		return 0;
+		return;
 
 	debugfs_remove(obj->ent);
 	obj->ent = NULL;
 	put_obj(obj);
-
-	return 0;
 }
 
-static int amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
+static void amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj, *tmp;
@@ -1050,8 +1026,6 @@ static int amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 	debugfs_remove(con->dir);
 	con->dir = NULL;
 	con->ent = NULL;
-
-	return 0;
 }
 /* debugfs end */
 

@@ -30,14 +30,11 @@ int snd_ff_stream_get_multiplier_mode(enum cip_sfc sfc,
 	return 0;
 }
 
-static void release_resources(struct snd_ff *ff)
-{
-	fw_iso_resources_free(&ff->tx_resources);
-	fw_iso_resources_free(&ff->rx_resources);
-}
-
 static inline void finish_session(struct snd_ff *ff)
 {
+	amdtp_stream_stop(&ff->tx_stream);
+	amdtp_stream_stop(&ff->rx_stream);
+
 	ff->spec->protocol->finish_session(ff);
 	ff->spec->protocol->switch_fetching_mode(ff, false);
 }
@@ -103,36 +100,24 @@ void snd_ff_stream_destroy_duplex(struct snd_ff *ff)
 	destroy_stream(ff, AMDTP_OUT_STREAM);
 }
 
-int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
+int snd_ff_stream_reserve_duplex(struct snd_ff *ff, unsigned int rate)
 {
 	unsigned int curr_rate;
 	enum snd_ff_clock_src src;
 	int err;
 
-	if (ff->substreams_counter == 0)
-		return 0;
-
 	err = ff->spec->protocol->get_clock(ff, &curr_rate, &src);
 	if (err < 0)
 		return err;
-	if (curr_rate != rate ||
-	    amdtp_streaming_error(&ff->tx_stream) ||
-	    amdtp_streaming_error(&ff->rx_stream)) {
-		finish_session(ff);
 
-		amdtp_stream_stop(&ff->tx_stream);
-		amdtp_stream_stop(&ff->rx_stream);
-
-		release_resources(ff);
-	}
-
-	/*
-	 * Regardless of current source of clock signal, drivers transfer some
-	 * packets. Then, the device transfers packets.
-	 */
-	if (!amdtp_stream_running(&ff->rx_stream)) {
+	if (ff->substreams_counter == 0 || curr_rate != rate) {
 		enum snd_ff_stream_mode mode;
 		int i;
+
+		finish_session(ff);
+
+		fw_iso_resources_free(&ff->tx_resources);
+		fw_iso_resources_free(&ff->rx_resources);
 
 		for (i = 0; i < CIP_SFC_COUNT; ++i) {
 			if (amdtp_rate_table[i] == rate)
@@ -155,6 +140,30 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 		if (err < 0)
 			return err;
 
+		err = ff->spec->protocol->allocate_resources(ff, rate);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
+{
+	int err;
+
+	if (ff->substreams_counter == 0)
+		return 0;
+
+	if (amdtp_streaming_error(&ff->tx_stream) ||
+	    amdtp_streaming_error(&ff->rx_stream))
+		finish_session(ff);
+
+	/*
+	 * Regardless of current source of clock signal, drivers transfer some
+	 * packets. Then, the device transfers packets.
+	 */
+	if (!amdtp_stream_running(&ff->rx_stream)) {
 		err = ff->spec->protocol->begin_session(ff, rate);
 		if (err < 0)
 			goto error;
@@ -192,37 +201,29 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 
 	return 0;
 error:
-	amdtp_stream_stop(&ff->tx_stream);
-	amdtp_stream_stop(&ff->rx_stream);
-
 	finish_session(ff);
-	release_resources(ff);
 
 	return err;
 }
 
 void snd_ff_stream_stop_duplex(struct snd_ff *ff)
 {
-	if (ff->substreams_counter > 0)
-		return;
+	if (ff->substreams_counter == 0) {
+		finish_session(ff);
 
-	amdtp_stream_stop(&ff->tx_stream);
-	amdtp_stream_stop(&ff->rx_stream);
-	finish_session(ff);
-	release_resources(ff);
+		fw_iso_resources_free(&ff->tx_resources);
+		fw_iso_resources_free(&ff->rx_resources);
+	}
 }
 
 void snd_ff_stream_update_duplex(struct snd_ff *ff)
 {
-	/* The device discontinue to transfer packets.  */
+	// The device discontinue to transfer packets.
 	amdtp_stream_pcm_abort(&ff->tx_stream);
 	amdtp_stream_stop(&ff->tx_stream);
 
 	amdtp_stream_pcm_abort(&ff->rx_stream);
 	amdtp_stream_stop(&ff->rx_stream);
-
-	fw_iso_resources_update(&ff->tx_resources);
-	fw_iso_resources_update(&ff->rx_resources);
 }
 
 void snd_ff_stream_lock_changed(struct snd_ff *ff)

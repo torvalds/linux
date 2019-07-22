@@ -147,6 +147,12 @@
 
 #define FAMILY_RV 142 /* DCN 1*/
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+
+#define FAMILY_NV 143 /* DCN 2*/
+
+#endif
+
 /*
  * ASIC chip ID
  */

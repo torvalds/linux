@@ -32,7 +32,7 @@ struct device;
 
 /*
  * This structure describes all the operations that can be done on the
- * physical hardware.  See Documentation/serial/driver.rst for details.
+ * physical hardware.  See Documentation/driver-api/serial/driver.rst for details.
  */
 struct uart_ops {
 	unsigned int	(*tx_empty)(struct uart_port *);
