@@ -986,7 +986,7 @@ static struct pinctrl_desc madera_pin_desc = {
 static int madera_pin_probe(struct platform_device *pdev)
 {
 	struct madera *madera = dev_get_drvdata(pdev->dev.parent);
-	const struct madera_pdata *pdata = dev_get_platdata(madera->dev);
+	const struct madera_pdata *pdata = &madera->pdata;
 	struct madera_pin_private *priv;
 	int ret;
 
@@ -1037,7 +1037,7 @@ static int madera_pin_probe(struct platform_device *pdev)
 	}
 
 	/* if the configuration is provided through pdata, apply it */
-	if (pdata && pdata->gpio_configs) {
+	if (pdata->gpio_configs) {
 		ret = pinctrl_register_mappings(pdata->gpio_configs,
 						pdata->n_gpio_configs);
 		if (ret) {
