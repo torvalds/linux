@@ -76,9 +76,6 @@ struct ras_common_if {
 	char name[32];
 };
 
-typedef int (*ras_ih_cb)(struct amdgpu_device *adev,
-		struct amdgpu_iv_entry *entry);
-
 struct amdgpu_ras {
 	/* ras infrastructure */
 	/* for ras itself. */
@@ -108,21 +105,6 @@ struct amdgpu_ras {
 	uint32_t flags;
 };
 
-struct ras_ih_data {
-	/* interrupt bottom half */
-	struct work_struct ih_work;
-	int inuse;
-	/* IP callback */
-	ras_ih_cb cb;
-	/* full of entries */
-	unsigned char *ring;
-	unsigned int ring_size;
-	unsigned int element_size;
-	unsigned int aligned_element_size;
-	unsigned int rptr;
-	unsigned int wptr;
-};
-
 struct ras_fs_data {
 	char sysfs_name[32];
 	char debugfs_name[32];
@@ -147,6 +129,25 @@ struct ras_err_handler_data {
 	int space_left;
 	/* last reserved entry's index + 1 */
 	int last_reserved;
+};
+
+typedef int (*ras_ih_cb)(struct amdgpu_device *adev,
+		struct ras_err_data *err_data,
+		struct amdgpu_iv_entry *entry);
+
+struct ras_ih_data {
+	/* interrupt bottom half */
+	struct work_struct ih_work;
+	int inuse;
+	/* IP callback */
+	ras_ih_cb cb;
+	/* full of entries */
+	unsigned char *ring;
+	unsigned int ring_size;
+	unsigned int element_size;
+	unsigned int aligned_element_size;
+	unsigned int rptr;
+	unsigned int wptr;
 };
 
 struct ras_manager {

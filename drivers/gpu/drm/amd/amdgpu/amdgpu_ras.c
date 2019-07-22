@@ -1005,7 +1005,7 @@ static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 	struct ras_ih_data *data = &obj->ih_data;
 	struct amdgpu_iv_entry entry;
 	int ret;
-	struct ras_err_data err_data = {0, 0};
+	struct ras_err_data err_data = {0, 0, 0, NULL};
 
 	while (data->rptr != data->wptr) {
 		rmb();
@@ -1020,14 +1020,14 @@ static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 		 * from the callback to udpate the error type/count, etc
 		 */
 		if (data->cb) {
-			ret = data->cb(obj->adev, &entry);
+			ret = data->cb(obj->adev, &err_data, &entry);
 			/* ue will trigger an interrupt, and in that case
 			 * we need do a reset to recovery the whole system.
 			 * But leave IP do that recovery, here we just dispatch
 			 * the error.
 			 */
 			if (ret == AMDGPU_RAS_UE) {
-				obj->err_data.ue_count++;
+				obj->err_data.ue_count += err_data.ue_count;
 			}
 			/* Might need get ce count by register, but not all IP
 			 * saves ce count, some IP just use one bit or two bits
