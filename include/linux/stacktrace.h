@@ -9,9 +9,9 @@ struct task_struct;
 struct pt_regs;
 
 #ifdef CONFIG_STACKTRACE
-void stack_trace_print(unsigned long *trace, unsigned int nr_entries,
+void stack_trace_print(const unsigned long *trace, unsigned int nr_entries,
 		       int spaces);
-int stack_trace_snprint(char *buf, size_t size, unsigned long *entries,
+int stack_trace_snprint(char *buf, size_t size, const unsigned long *entries,
 			unsigned int nr_entries, int spaces);
 unsigned int stack_trace_save(unsigned long *store, unsigned int size,
 			      unsigned int skipnr);
