@@ -29,6 +29,16 @@
 #include "umc/umc_6_1_1_offset.h"
 #include "umc/umc_6_1_1_sh_mask.h"
 
+#define smnMCA_UMC0_MCUMC_ADDRT0	0x50f10
+
+static uint32_t
+	umc_v6_1_channel_idx_tbl[UMC_V6_1_UMC_INSTANCE_NUM][UMC_V6_1_CHANNEL_INSTANCE_NUM] = {
+		{2, 18, 11, 27},	{4, 20, 13, 29},
+		{1, 17, 8, 24},		{7, 23, 14, 30},
+		{10, 26, 3, 19},	{12, 28, 5, 21},
+		{9, 25, 0, 16},		{15, 31, 6, 22}
+};
+
 static void umc_v6_1_enable_umc_index_mode(struct amdgpu_device *adev,
 					   uint32_t umc_instance)
 {

@@ -24,6 +24,8 @@
 struct amdgpu_umc_funcs {
 	void (*query_ras_error_count)(struct amdgpu_device *adev,
 					void *ras_error_status);
+	void (*query_ras_error_address)(struct amdgpu_device *adev,
+					void *ras_error_status);
 };
 
 struct amdgpu_umc {
