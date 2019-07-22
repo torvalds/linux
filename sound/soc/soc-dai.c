@@ -289,3 +289,14 @@ void snd_soc_dai_hw_free(struct snd_soc_dai *dai,
 	if (dai->driver->ops->hw_free)
 		dai->driver->ops->hw_free(substream, dai);
 }
+
+int snd_soc_dai_startup(struct snd_soc_dai *dai,
+			struct snd_pcm_substream *substream)
+{
+	int ret = 0;
+
+	if (dai->driver->ops->startup)
+		ret = dai->driver->ops->startup(substream, dai);
+
+	return ret;
+}

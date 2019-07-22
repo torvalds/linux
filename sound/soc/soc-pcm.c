@@ -501,13 +501,11 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
 	/* startup the audio subsystem */
-	if (cpu_dai->driver->ops->startup) {
-		ret = cpu_dai->driver->ops->startup(substream, cpu_dai);
-		if (ret < 0) {
-			dev_err(cpu_dai->dev, "ASoC: can't open interface"
-				" %s: %d\n", cpu_dai->name, ret);
-			goto out;
-		}
+	ret = snd_soc_dai_startup(cpu_dai, substream);
+	if (ret < 0) {
+		dev_err(cpu_dai->dev, "ASoC: can't open interface %s: %d\n",
+			cpu_dai->name, ret);
+		goto out;
 	}
 
 	for_each_rtdcom(rtd, rtdcom) {
@@ -534,15 +532,12 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	component = NULL;
 
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		if (codec_dai->driver->ops->startup) {
-			ret = codec_dai->driver->ops->startup(substream,
-							      codec_dai);
-			if (ret < 0) {
-				dev_err(codec_dai->dev,
-					"ASoC: can't open codec %s: %d\n",
-					codec_dai->name, ret);
-				goto codec_dai_err;
-			}
+		ret = snd_soc_dai_startup(codec_dai, substream);
+		if (ret < 0) {
+			dev_err(codec_dai->dev,
+				"ASoC: can't open codec %s: %d\n",
+				codec_dai->name, ret);
+			goto codec_dai_err;
 		}
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
