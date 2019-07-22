@@ -972,4 +972,19 @@ struct iwl_fw_cmd_version {
 	u8 notif_ver;
 } __packed;
 
+static inline size_t _iwl_tlv_array_len(const struct iwl_ucode_tlv *tlv,
+					size_t fixed_size, size_t var_size)
+{
+	size_t var_len = le32_to_cpu(tlv->length) - fixed_size;
+
+	if (WARN_ON(var_len % var_size))
+		return 0;
+
+	return var_len / var_size;
+}
+
+#define iwl_tlv_array_len(_tlv_ptr, _struct_ptr, _memb)			\
+	_iwl_tlv_array_len((_tlv_ptr), sizeof(*(_struct_ptr)),		\
+			   sizeof(_struct_ptr->_memb[0]))
+
 #endif  /* __iwl_fw_file_h__ */
