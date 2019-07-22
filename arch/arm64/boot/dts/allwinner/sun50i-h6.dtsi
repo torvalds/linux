@@ -215,7 +215,7 @@
 			#dma-cells = <1>;
 		};
 
-		sid: sid@3006000 {
+		sid: efuse@3006000 {
 			compatible = "allwinner,sun50i-h6-sid";
 			reg = <0x03006000 0x400>;
 		};
