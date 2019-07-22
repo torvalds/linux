@@ -9,6 +9,7 @@
 #ifndef __RK1608_H__
 #define __RK1608_H__
 
+#include <linux/clk.h>
 #include <linux/spi/spi.h>
 #include <linux/miscdevice.h>
 #include <linux/version.h>
@@ -105,6 +106,7 @@ struct rk1608_state {
 	struct v4l2_subdev *sensor[4];
 	struct device *dev;
 	struct spi_device *spi;
+	struct clk *mclk;
 	struct miscdevice misc;
 	struct rk1608_client_list clients;
 	int log_level;

@@ -813,6 +813,21 @@ static int rk1608_power_on(struct rk1608_state *pdata)
 	struct spi_device *spi = pdata->spi;
 	int ret = 0;
 
+	if (!IS_ERR(pdata->mclk)) {
+		ret = clk_set_rate(pdata->mclk, RK1608_MCLK_RATE);
+		if (ret < 0)
+			dev_warn(pdata->dev, "Failed to set mclk rate\n");
+		if (clk_get_rate(pdata->mclk) != RK1608_MCLK_RATE)
+			dev_warn(pdata->dev, "mclk(%lu) mismatched\n",
+				 clk_get_rate(pdata->mclk));
+
+		ret = clk_prepare_enable(pdata->mclk);
+		if (ret < 0)
+			dev_warn(pdata->dev, "Failed to enable mclk\n");
+		else
+			usleep_range(3000, 3500);
+	}
+
 	/* Request rk1608 enter slave mode */
 	rk1608_cs_set_value(pdata, 0);
 	if (pdata->wakeup_gpio)
@@ -861,6 +876,9 @@ static int rk1608_power_off(struct rk1608_state *pdata)
 	if (pdata->reset_gpio)
 		gpiod_direction_output(pdata->reset_gpio, 0);
 	rk1608_cs_set_value(pdata, 0);
+
+	if (!IS_ERR(pdata->mclk))
+		clk_disable_unprepare(pdata->mclk);
 
 	return 0;
 }
@@ -1555,6 +1573,10 @@ static int rk1608_parse_dt_property(struct rk1608_state *pdata)
 		dev_err(dev, "can not find aesync_gpio\n");
 		return PTR_ERR(pdata->aesync_gpio);
 	}
+
+	pdata->mclk = devm_clk_get(dev, "mclk");
+	if (IS_ERR(pdata->mclk))
+		dev_warn(dev, "Failed to get mclk, do you use ext 24M clk?\n");
 
 	pdata->msg_num = 0;
 	init_waitqueue_head(&pdata->msg_wait);
