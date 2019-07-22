@@ -242,57 +242,29 @@ static struct dentry *blockcheck_debugfs_create(const char *name,
 static void ocfs2_blockcheck_debug_remove(struct ocfs2_blockcheck_stats *stats)
 {
 	if (stats) {
-		debugfs_remove(stats->b_debug_check);
-		stats->b_debug_check = NULL;
-		debugfs_remove(stats->b_debug_failure);
-		stats->b_debug_failure = NULL;
-		debugfs_remove(stats->b_debug_recover);
-		stats->b_debug_recover = NULL;
-		debugfs_remove(stats->b_debug_dir);
+		debugfs_remove_recursive(stats->b_debug_dir);
 		stats->b_debug_dir = NULL;
 	}
 }
 
-static int ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,
-					  struct dentry *parent)
+static void ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,
+					   struct dentry *parent)
 {
-	int rc = -EINVAL;
-
-	if (!stats)
-		goto out;
-
 	stats->b_debug_dir = debugfs_create_dir("blockcheck", parent);
-	if (!stats->b_debug_dir)
-		goto out;
 
-	stats->b_debug_check =
-		blockcheck_debugfs_create("blocks_checked",
-					  stats->b_debug_dir,
-					  &stats->b_check_count);
+	blockcheck_debugfs_create("blocks_checked", stats->b_debug_dir,
+				  &stats->b_check_count);
 
-	stats->b_debug_failure =
-		blockcheck_debugfs_create("checksums_failed",
-					  stats->b_debug_dir,
-					  &stats->b_failure_count);
+	blockcheck_debugfs_create("checksums_failed", stats->b_debug_dir,
+				  &stats->b_failure_count);
 
-	stats->b_debug_recover =
-		blockcheck_debugfs_create("ecc_recoveries",
-					  stats->b_debug_dir,
-					  &stats->b_recover_count);
-	if (stats->b_debug_check && stats->b_debug_failure &&
-	    stats->b_debug_recover)
-		rc = 0;
-
-out:
-	if (rc)
-		ocfs2_blockcheck_debug_remove(stats);
-	return rc;
+	blockcheck_debugfs_create("ecc_recoveries", stats->b_debug_dir,
+				  &stats->b_recover_count);
 }
 #else
-static inline int ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,
-						 struct dentry *parent)
+static inline void ocfs2_blockcheck_debug_install(struct ocfs2_blockcheck_stats *stats,
+						  struct dentry *parent)
 {
-	return 0;
 }
 
 static inline void ocfs2_blockcheck_debug_remove(struct ocfs2_blockcheck_stats *stats)
@@ -301,10 +273,10 @@ static inline void ocfs2_blockcheck_debug_remove(struct ocfs2_blockcheck_stats *
 #endif  /* CONFIG_DEBUG_FS */
 
 /* Always-called wrappers for starting and stopping the debugfs files */
-int ocfs2_blockcheck_stats_debugfs_install(struct ocfs2_blockcheck_stats *stats,
-					   struct dentry *parent)
+void ocfs2_blockcheck_stats_debugfs_install(struct ocfs2_blockcheck_stats *stats,
+					    struct dentry *parent)
 {
-	return ocfs2_blockcheck_debug_install(stats, parent);
+	ocfs2_blockcheck_debug_install(stats, parent);
 }
 
 void ocfs2_blockcheck_stats_debugfs_remove(struct ocfs2_blockcheck_stats *stats)

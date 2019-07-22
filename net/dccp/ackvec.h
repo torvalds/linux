@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ACKVEC_H
 #define _ACKVEC_H
 /*
@@ -6,9 +7,6 @@
  *  An implementation of Ack Vectors for the DCCP protocol
  *  Copyright (c) 2007 University of Aberdeen, Scotland, UK
  *  Copyright (c) 2005 Arnaldo Carvalho de Melo <acme@mandriva.com>
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License version 2 as
- *	published by the Free Software Foundation.
  */
 
 #include <linux/dccp.h>

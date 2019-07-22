@@ -647,11 +647,23 @@ static int debug_close(struct inode *inode, struct file *file)
 	return 0; /* success */
 }
 
-/*
- * debug_register_mode:
- * - Creates and initializes debug area for the caller
- *   The mode parameter allows to specify access rights for the s390dbf files
- * - Returns handle for debug area
+/**
+ * debug_register_mode() - creates and initializes debug area.
+ *
+ * @name:	Name of debug log (e.g. used for debugfs entry)
+ * @pages_per_area:	Number of pages, which will be allocated per area
+ * @nr_areas:	Number of debug areas
+ * @buf_size:	Size of data area in each debug entry
+ * @mode:	File mode for debugfs files. E.g. S_IRWXUGO
+ * @uid:	User ID for debugfs files. Currently only 0 is supported.
+ * @gid:	Group ID for debugfs files. Currently only 0 is supported.
+ *
+ * Return:
+ * - Handle for generated debug area
+ * - %NULL if register failed
+ *
+ * Allocates memory for a debug log.
+ * Must not be called within an interrupt handler.
  */
 debug_info_t *debug_register_mode(const char *name, int pages_per_area,
 				  int nr_areas, int buf_size, umode_t mode,
@@ -681,10 +693,21 @@ out:
 }
 EXPORT_SYMBOL(debug_register_mode);
 
-/*
- * debug_register:
- * - creates and initializes debug area for the caller
- * - returns handle for debug area
+/**
+ * debug_register() - creates and initializes debug area with default file mode.
+ *
+ * @name:	Name of debug log (e.g. used for debugfs entry)
+ * @pages_per_area:	Number of pages, which will be allocated per area
+ * @nr_areas:	Number of debug areas
+ * @buf_size:	Size of data area in each debug entry
+ *
+ * Return:
+ * - Handle for generated debug area
+ * - %NULL if register failed
+ *
+ * Allocates memory for a debug log.
+ * The debugfs file mode access permissions are read and write for user.
+ * Must not be called within an interrupt handler.
  */
 debug_info_t *debug_register(const char *name, int pages_per_area,
 			     int nr_areas, int buf_size)
@@ -694,9 +717,13 @@ debug_info_t *debug_register(const char *name, int pages_per_area,
 }
 EXPORT_SYMBOL(debug_register);
 
-/*
- * debug_unregister:
- * - give back debug area
+/**
+ * debug_unregister() - give back debug area.
+ *
+ * @id:		handle for debug log
+ *
+ * Return:
+ *    none
  */
 void debug_unregister(debug_info_t *id)
 {
@@ -745,9 +772,14 @@ out:
 	return rc;
 }
 
-/*
- * debug_set_level:
- * - set actual debug level
+/**
+ * debug_set_level() - Sets new actual debug level if new_level is valid.
+ *
+ * @id:		handle for debug log
+ * @new_level:	new debug level
+ *
+ * Return:
+ *    none
  */
 void debug_set_level(debug_info_t *id, int new_level)
 {
@@ -873,6 +905,14 @@ static struct ctl_table s390dbf_dir_table[] = {
 
 static struct ctl_table_header *s390dbf_sysctl_header;
 
+/**
+ * debug_stop_all() - stops the debug feature if stopping is allowed.
+ *
+ * Return:
+ * -   none
+ *
+ * Currently used in case of a kernel oops.
+ */
 void debug_stop_all(void)
 {
 	if (debug_stoppable)
@@ -880,6 +920,17 @@ void debug_stop_all(void)
 }
 EXPORT_SYMBOL(debug_stop_all);
 
+/**
+ * debug_set_critical() - event/exception functions try lock instead of spin.
+ *
+ * Return:
+ * -   none
+ *
+ * Currently used in case of stopping all CPUs but the current one.
+ * Once in this state, functions to write a debug entry for an
+ * event or exception no longer spin on the debug area lock,
+ * but only try to get it and fail if they do not get the lock.
+ */
 void debug_set_critical(void)
 {
 	debug_critical = 1;
@@ -1036,8 +1087,16 @@ debug_entry_t *__debug_sprintf_exception(debug_info_t *id, int level, char *stri
 }
 EXPORT_SYMBOL(__debug_sprintf_exception);
 
-/*
- * debug_register_view:
+/**
+ * debug_register_view() - registers new debug view and creates debugfs
+ *			   dir entry
+ *
+ * @id:		handle for debug log
+ * @view:	pointer to debug view struct
+ *
+ * Return:
+ * -   0  : ok
+ * -   < 0: Error
  */
 int debug_register_view(debug_info_t *id, struct debug_view *view)
 {
@@ -1077,8 +1136,16 @@ out:
 }
 EXPORT_SYMBOL(debug_register_view);
 
-/*
- * debug_unregister_view:
+/**
+ * debug_unregister_view() - unregisters debug view and removes debugfs
+ *			     dir entry
+ *
+ * @id:		handle for debug log
+ * @view:	pointer to debug view struct
+ *
+ * Return:
+ * -   0  : ok
+ * -   < 0: Error
  */
 int debug_unregister_view(debug_info_t *id, struct debug_view *view)
 {

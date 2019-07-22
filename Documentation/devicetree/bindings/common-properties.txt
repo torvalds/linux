@@ -5,30 +5,29 @@ Endianness
 ----------
 
 The Devicetree Specification does not define any properties related to hardware
-byteswapping, but endianness issues show up frequently in porting Linux to
+byte swapping, but endianness issues show up frequently in porting drivers to
 different machine types.  This document attempts to provide a consistent
-way of handling byteswapping across drivers.
+way of handling byte swapping across drivers.
 
 Optional properties:
  - big-endian: Boolean; force big endian register accesses
    unconditionally (e.g. ioread32be/iowrite32be).  Use this if you
-   know the peripheral always needs to be accessed in BE mode.
+   know the peripheral always needs to be accessed in big endian (BE) mode.
  - little-endian: Boolean; force little endian register accesses
    unconditionally (e.g. readl/writel).  Use this if you know the
-   peripheral always needs to be accessed in LE mode.
+   peripheral always needs to be accessed in little endian (LE) mode.
  - native-endian: Boolean; always use register accesses matched to the
    endianness of the kernel binary (e.g. LE vmlinux -> readl/writel,
-   BE vmlinux -> ioread32be/iowrite32be).  In this case no byteswaps
+   BE vmlinux -> ioread32be/iowrite32be).  In this case no byte swaps
    will ever be performed.  Use this if the hardware "self-adjusts"
    register endianness based on the CPU's configured endianness.
 
 If a binding supports these properties, then the binding should also
 specify the default behavior if none of these properties are present.
 In such cases, little-endian is the preferred default, but it is not
-a requirement.  The of_device_is_big_endian() and of_fdt_is_big_endian()
-helper functions do assume that little-endian is the default, because
-most existing (PCI-based) drivers implicitly default to LE by using
-readl/writel for MMIO accesses.
+a requirement.  Some implementations assume that little-endian is
+the default, because most existing (PCI-based) drivers implicitly
+default to LE for their MMIO accesses.
 
 Examples:
 Scenario 1 : CPU in LE mode & device in LE mode.

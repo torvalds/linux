@@ -5,7 +5,7 @@ Contact:	Janne Kanniainen <janne.kanniainen@gmail.com>
 Description:
 		Set the mode of LEDs. You should notice that changing the mode
 		of one LED will update the mode of its two sibling devices as
-		well.
+		well. Possible values are:
 
 		0 - normal
 		1 - audio

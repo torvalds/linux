@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/adfs/map.c
  *
  *  Copyright (C) 1997-2002 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
-#include <linux/buffer_head.h>
 #include <asm/unaligned.h>
 #include "adfs.h"
 
@@ -67,9 +63,8 @@ static DEFINE_RWLOCK(adfs_map_lock);
  * output of:
  *  gcc -D__KERNEL__ -O2 -I../../include -o - -S map.c
  */
-static int
-lookup_zone(const struct adfs_discmap *dm, const unsigned int idlen,
-	    const unsigned int frag_id, unsigned int *offset)
+static int lookup_zone(const struct adfs_discmap *dm, const unsigned int idlen,
+		       const u32 frag_id, unsigned int *offset)
 {
 	const unsigned int mapsize = dm->dm_endbit;
 	const u32 idmask = (1 << idlen) - 1;
@@ -188,9 +183,8 @@ error:
 	return 0;
 }
 
-static int
-scan_map(struct adfs_sb_info *asb, unsigned int zone,
-	 const unsigned int frag_id, unsigned int mapoff)
+static int scan_map(struct adfs_sb_info *asb, unsigned int zone,
+		    const u32 frag_id, unsigned int mapoff)
 {
 	const unsigned int idlen = asb->s_idlen;
 	struct adfs_discmap *dm, *dm_end;
@@ -244,9 +238,7 @@ adfs_map_free(struct super_block *sb)
 	return signed_asl(total, asb->s_map2blk);
 }
 
-int
-adfs_map_lookup(struct super_block *sb, unsigned int frag_id,
-		unsigned int offset)
+int adfs_map_lookup(struct super_block *sb, u32 frag_id, unsigned int offset)
 {
 	struct adfs_sb_info *asb = ADFS_SB(sb);
 	unsigned int zone, mapoff;

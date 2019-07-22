@@ -7,19 +7,19 @@
 
 #include "bpf_helpers.h"
 
-struct bpf_map_def SEC("maps") result_number = {
-	.type		= BPF_MAP_TYPE_ARRAY,
-	.key_size	= sizeof(__u32),
-	.value_size	= sizeof(__u64),
-	.max_entries	= 11,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 11);
+	__type(key, __u32);
+	__type(value, __u64);
+} result_number SEC(".maps");
 
-struct bpf_map_def SEC("maps") result_string = {
-	.type		= BPF_MAP_TYPE_ARRAY,
-	.key_size	= sizeof(__u32),
-	.value_size	= 32,
-	.max_entries	= 5,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 5);
+	__type(key, __u32);
+	const char (*value)[32];
+} result_string SEC(".maps");
 
 struct foo {
 	__u8  a;
@@ -27,12 +27,12 @@ struct foo {
 	__u64 c;
 };
 
-struct bpf_map_def SEC("maps") result_struct = {
-	.type		= BPF_MAP_TYPE_ARRAY,
-	.key_size	= sizeof(__u32),
-	.value_size	= sizeof(struct foo),
-	.max_entries	= 5,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 5);
+	__type(key, __u32);
+	__type(value, struct foo);
+} result_struct SEC(".maps");
 
 /* Relocation tests for __u64s. */
 static       __u64 num0;

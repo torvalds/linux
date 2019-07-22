@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Maxim Integrated
  * 7-bit, Multi-Channel Sink/Source Current DAC Driver
  * Copyright (C) 2017 Maxim Integrated
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -235,12 +232,6 @@ static int ds4424_probe(struct i2c_client *client,
 	indio_dev->name = id->name;
 	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->dev.parent = &client->dev;
-
-	if (!client->dev.of_node) {
-		dev_err(&client->dev,
-				"Not found DT.\n");
-		return -ENODEV;
-	}
 
 	data->vcc_reg = devm_regulator_get(&client->dev, "vcc");
 	if (IS_ERR(data->vcc_reg)) {

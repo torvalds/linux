@@ -305,7 +305,7 @@ int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
 }
 
 /*
- * Cleanup a pci_bridge_emul structure that was previously initilized
+ * Cleanup a pci_bridge_emul structure that was previously initialized
  * using pci_bridge_emul_init().
  */
 void pci_bridge_emul_cleanup(struct pci_bridge_emul *bridge)

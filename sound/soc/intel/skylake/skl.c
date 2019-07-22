@@ -184,6 +184,25 @@ void skl_update_d0i3c(struct device *dev, bool enable)
 			snd_hdac_chip_readb(bus, VS_D0I3C));
 }
 
+/**
+ * skl_dum_set - set DUM bit in EM2 register
+ * @bus: HD-audio core bus
+ *
+ * Addresses incorrect position reporting for capture streams.
+ * Used on device power up.
+ */
+static void skl_dum_set(struct hdac_bus *bus)
+{
+	/* For the DUM bit to be set, CRST needs to be out of reset state */
+	if (!(snd_hdac_chip_readb(bus, GCTL) & AZX_GCTL_RESET)) {
+		skl_enable_miscbdcge(bus->dev, false);
+		snd_hdac_bus_exit_link_reset(bus);
+		skl_enable_miscbdcge(bus->dev, true);
+	}
+
+	snd_hdac_chip_updatel(bus, VS_EM2, AZX_VS_EM2_DUM, AZX_VS_EM2_DUM);
+}
+
 /* called from IRQ */
 static void skl_stream_update(struct hdac_bus *bus, struct hdac_stream *hstr)
 {
@@ -291,6 +310,7 @@ static int _skl_resume(struct hdac_bus *bus)
 	struct skl *skl = bus_to_skl(bus);
 
 	skl_init_pci(skl);
+	skl_dum_set(bus);
 	skl_init_chip(bus, true);
 
 	return skl_resume_dsp(skl);
@@ -430,7 +450,6 @@ static int skl_free(struct hdac_bus *bus)
 
 	snd_hdac_ext_bus_exit(bus);
 
-	cancel_work_sync(&skl->probe_work);
 	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
 		snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
 		snd_hdac_i915_exit(bus);
@@ -859,6 +878,9 @@ static int skl_create(struct pci_dev *pci,
 	hbus = skl_to_hbus(skl);
 	bus = skl_to_bus(skl);
 
+	INIT_LIST_HEAD(&skl->ppl_list);
+	INIT_LIST_HEAD(&skl->bind_list);
+
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC)
 	ext_ops = snd_soc_hdac_hda_get_ops();
 #endif
@@ -948,6 +970,7 @@ static int skl_first_init(struct hdac_bus *bus)
 
 	/* initialize chip */
 	skl_init_pci(skl);
+	skl_dum_set(bus);
 
 	return skl_init_chip(bus, true);
 }
@@ -1108,14 +1131,13 @@ static void skl_remove(struct pci_dev *pci)
 	struct hdac_bus *bus = pci_get_drvdata(pci);
 	struct skl *skl = bus_to_skl(bus);
 
-	release_firmware(skl->tplg);
+	cancel_work_sync(&skl->probe_work);
 
 	pm_runtime_get_noresume(&pci->dev);
 
 	/* codec removal, invoke bus_device_remove */
 	snd_hdac_ext_bus_device_remove(bus);
 
-	skl->debugfs = NULL;
 	skl_platform_unregister(&pci->dev);
 	skl_free_dsp(skl);
 	skl_machine_device_unregister(skl);
@@ -1157,6 +1179,16 @@ static const struct pci_device_id skl_ids[] = {
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_CFL)
 	/* CFL */
 	{ PCI_DEVICE(0x8086, 0xa348),
+		.driver_data = (unsigned long)&snd_soc_acpi_intel_cnl_machines},
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_CML_LP)
+	/* CML-LP */
+	{ PCI_DEVICE(0x8086, 0x02c8),
+		.driver_data = (unsigned long)&snd_soc_acpi_intel_cnl_machines},
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_CML_H)
+	/* CML-H */
+	{ PCI_DEVICE(0x8086, 0x06c8),
 		.driver_data = (unsigned long)&snd_soc_acpi_intel_cnl_machines},
 #endif
 	{ 0, }

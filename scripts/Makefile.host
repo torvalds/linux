@@ -6,7 +6,7 @@
 #
 # Both C and C++ are supported, but preferred language is C for such utilities.
 #
-# Sample syntax (see Documentation/kbuild/makefiles.txt for reference)
+# Sample syntax (see Documentation/kbuild/makefiles.rst for reference)
 # hostprogs-y := bin2hex
 # Will compile bin2hex.c and create an executable named bin2hex
 #
@@ -69,7 +69,7 @@ _hostcxx_flags = $(KBUILD_HOSTCXXFLAGS) $(HOST_EXTRACXXFLAGS) \
 
 # $(objtree)/$(obj) for including generated headers from checkin source files
 ifeq ($(KBUILD_EXTMOD),)
-ifneq ($(srctree),.)
+ifdef building_out_of_srctree
 _hostc_flags   += -I $(objtree)/$(obj)
 _hostcxx_flags += -I $(objtree)/$(obj)
 endif

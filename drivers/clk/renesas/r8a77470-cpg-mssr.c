@@ -175,7 +175,7 @@ static const unsigned int r8a77470_crit_mod_clks[] __initconst = {
  *---------------------------------------------------
  * 0  0		20		x80	x78	x50
  * 0  1		26		x60	x60	x56
- * 1  0		Prohibitted setting
+ * 1  0		Prohibited setting
  * 1  1		30		x52	x52	x50
  *
  * *1 :	Table 7.4 indicates VCO output (PLL0 = VCO)

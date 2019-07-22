@@ -25,9 +25,11 @@
  * Jackie Li<yaodong.li@intel.com>
  */
 
+#include <linux/delay.h>
+
 #include "mdfld_dsi_dpi.h"
-#include "mdfld_output.h"
 #include "mdfld_dsi_pkg_sender.h"
+#include "mdfld_output.h"
 #include "psb_drv.h"
 #include "tc35876x-dsi-lvds.h"
 

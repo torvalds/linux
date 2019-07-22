@@ -372,3 +372,11 @@
 &adc {
 	status = "okay";
 };
+
+&ehci0 {
+	status = "okay";
+};
+
+&ehci1 {
+	status = "okay";
+};

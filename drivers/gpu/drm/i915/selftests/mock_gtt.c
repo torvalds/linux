@@ -55,17 +55,14 @@ static void mock_cleanup(struct i915_address_space *vm)
 {
 }
 
-struct i915_hw_ppgtt *
-mock_ppgtt(struct drm_i915_private *i915,
-	   const char *name)
+struct i915_ppgtt *mock_ppgtt(struct drm_i915_private *i915, const char *name)
 {
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_ppgtt *ppgtt;
 
 	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
 	if (!ppgtt)
 		return NULL;
 
-	kref_init(&ppgtt->ref);
 	ppgtt->vm.i915 = i915;
 	ppgtt->vm.total = round_down(U64_MAX, PAGE_SIZE);
 	ppgtt->vm.file = ERR_PTR(-ENODEV);

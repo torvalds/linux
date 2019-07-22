@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * include/linux/irqchip/arm-gic-common.h
  *
  * Copyright (C) 2016 ARM Limited, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef __LINUX_IRQCHIP_ARM_GIC_COMMON_H
 #define __LINUX_IRQCHIP_ARM_GIC_COMMON_H
@@ -38,5 +35,10 @@ struct gic_kvm_info {
 };
 
 const struct gic_kvm_info *gic_get_kvm_info(void);
+
+struct irq_domain;
+struct fwnode_handle;
+int gicv2m_init(struct fwnode_handle *parent_handle,
+		struct irq_domain *parent);
 
 #endif /* __LINUX_IRQCHIP_ARM_GIC_COMMON_H */

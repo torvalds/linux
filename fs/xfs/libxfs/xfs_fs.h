@@ -97,7 +97,7 @@ struct getbmapx {
  * For use by backup and restore programs to set the XFS on-disk inode
  * fields di_dmevmask and di_dmstate.  These must be set to exactly and
  * only values previously obtained via xfs_bulkstat!  (Specifically the
- * xfs_bstat_t fields bs_dmevmask and bs_dmstate.)
+ * struct xfs_bstat fields bs_dmevmask and bs_dmstate.)
  */
 #ifndef HAVE_FSDMIDATA
 struct fsdmidata {
@@ -328,7 +328,7 @@ typedef struct xfs_bstime {
 	__s32		tv_nsec;	/* and nanoseconds	*/
 } xfs_bstime_t;
 
-typedef struct xfs_bstat {
+struct xfs_bstat {
 	__u64		bs_ino;		/* inode number			*/
 	__u16		bs_mode;	/* type and mode		*/
 	__u16		bs_nlink;	/* number of links		*/
@@ -356,7 +356,53 @@ typedef struct xfs_bstat {
 	__u32		bs_dmevmask;	/* DMIG event mask		*/
 	__u16		bs_dmstate;	/* DMIG state info		*/
 	__u16		bs_aextents;	/* attribute number of extents	*/
-} xfs_bstat_t;
+};
+
+/* New bulkstat structure that reports v5 features and fixes padding issues */
+struct xfs_bulkstat {
+	uint64_t	bs_ino;		/* inode number			*/
+	uint64_t	bs_size;	/* file size			*/
+
+	uint64_t	bs_blocks;	/* number of blocks		*/
+	uint64_t	bs_xflags;	/* extended flags		*/
+
+	uint64_t	bs_atime;	/* access time, seconds		*/
+	uint64_t	bs_mtime;	/* modify time, seconds		*/
+
+	uint64_t	bs_ctime;	/* inode change time, seconds	*/
+	uint64_t	bs_btime;	/* creation time, seconds	*/
+
+	uint32_t	bs_gen;		/* generation count		*/
+	uint32_t	bs_uid;		/* user id			*/
+	uint32_t	bs_gid;		/* group id			*/
+	uint32_t	bs_projectid;	/* project id			*/
+
+	uint32_t	bs_atime_nsec;	/* access time, nanoseconds	*/
+	uint32_t	bs_mtime_nsec;	/* modify time, nanoseconds	*/
+	uint32_t	bs_ctime_nsec;	/* inode change time, nanoseconds */
+	uint32_t	bs_btime_nsec;	/* creation time, nanoseconds	*/
+
+	uint32_t	bs_blksize;	/* block size			*/
+	uint32_t	bs_rdev;	/* device value			*/
+	uint32_t	bs_cowextsize_blks; /* cow extent size hint, blocks */
+	uint32_t	bs_extsize_blks; /* extent size hint, blocks	*/
+
+	uint32_t	bs_nlink;	/* number of links		*/
+	uint32_t	bs_extents;	/* number of extents		*/
+	uint32_t	bs_aextents;	/* attribute number of extents	*/
+	uint16_t	bs_version;	/* structure version		*/
+	uint16_t	bs_forkoff;	/* inode fork offset in bytes	*/
+
+	uint16_t	bs_sick;	/* sick inode metadata		*/
+	uint16_t	bs_checked;	/* checked inode metadata	*/
+	uint16_t	bs_mode;	/* type and mode		*/
+	uint16_t	bs_pad2;	/* zeroed			*/
+
+	uint64_t	bs_pad[7];	/* zeroed			*/
+};
+
+#define XFS_BULKSTAT_VERSION_V1	(1)
+#define XFS_BULKSTAT_VERSION_V5	(5)
 
 /* bs_sick flags */
 #define XFS_BS_SICK_INODE	(1 << 0)  /* inode core */
@@ -374,7 +420,7 @@ typedef struct xfs_bstat {
  * to retain compatibility with "old" filesystems).
  */
 static inline uint32_t
-bstat_get_projid(struct xfs_bstat *bs)
+bstat_get_projid(const struct xfs_bstat *bs)
 {
 	return (uint32_t)bs->bs_projid_hi << 16 | bs->bs_projid_lo;
 }
@@ -382,23 +428,79 @@ bstat_get_projid(struct xfs_bstat *bs)
 /*
  * The user-level BulkStat Request interface structure.
  */
-typedef struct xfs_fsop_bulkreq {
+struct xfs_fsop_bulkreq {
 	__u64		__user *lastip;	/* last inode # pointer		*/
 	__s32		icount;		/* count of entries in buffer	*/
 	void		__user *ubuffer;/* user buffer for inode desc.	*/
 	__s32		__user *ocount;	/* output count pointer		*/
-} xfs_fsop_bulkreq_t;
-
+};
 
 /*
  * Structures returned from xfs_inumbers routine (XFS_IOC_FSINUMBERS).
  */
-typedef struct xfs_inogrp {
+struct xfs_inogrp {
 	__u64		xi_startino;	/* starting inode number	*/
 	__s32		xi_alloccount;	/* # bits set in allocmask	*/
 	__u64		xi_allocmask;	/* mask of allocated inodes	*/
-} xfs_inogrp_t;
+};
 
+/* New inumbers structure that reports v5 features and fixes padding issues */
+struct xfs_inumbers {
+	uint64_t	xi_startino;	/* starting inode number	*/
+	uint64_t	xi_allocmask;	/* mask of allocated inodes	*/
+	uint8_t		xi_alloccount;	/* # bits set in allocmask	*/
+	uint8_t		xi_version;	/* version			*/
+	uint8_t		xi_padding[6];	/* zero				*/
+};
+
+#define XFS_INUMBERS_VERSION_V1	(1)
+#define XFS_INUMBERS_VERSION_V5	(5)
+
+/* Header for bulk inode requests. */
+struct xfs_bulk_ireq {
+	uint64_t	ino;		/* I/O: start with this inode	*/
+	uint32_t	flags;		/* I/O: operation flags		*/
+	uint32_t	icount;		/* I: count of entries in buffer */
+	uint32_t	ocount;		/* O: count of entries filled out */
+	uint32_t	agno;		/* I: see comment for IREQ_AGNO	*/
+	uint64_t	reserved[5];	/* must be zero			*/
+};
+
+/*
+ * Only return results from the specified @agno.  If @ino is zero, start
+ * with the first inode of @agno.
+ */
+#define XFS_BULK_IREQ_AGNO	(1 << 0)
+
+/*
+ * Return bulkstat information for a single inode, where @ino value is a
+ * special value, not a literal inode number.  See the XFS_BULK_IREQ_SPECIAL_*
+ * values below.  Not compatible with XFS_BULK_IREQ_AGNO.
+ */
+#define XFS_BULK_IREQ_SPECIAL	(1 << 1)
+
+#define XFS_BULK_IREQ_FLAGS_ALL	(XFS_BULK_IREQ_AGNO | \
+				 XFS_BULK_IREQ_SPECIAL)
+
+/* Operate on the root directory inode. */
+#define XFS_BULK_IREQ_SPECIAL_ROOT	(1)
+
+/*
+ * ioctl structures for v5 bulkstat and inumbers requests
+ */
+struct xfs_bulkstat_req {
+	struct xfs_bulk_ireq	hdr;
+	struct xfs_bulkstat	bulkstat[];
+};
+#define XFS_BULKSTAT_REQ_SIZE(nr)	(sizeof(struct xfs_bulkstat_req) + \
+					 (nr) * sizeof(struct xfs_bulkstat))
+
+struct xfs_inumbers_req {
+	struct xfs_bulk_ireq	hdr;
+	struct xfs_inumbers	inumbers[];
+};
+#define XFS_INUMBERS_REQ_SIZE(nr)	(sizeof(struct xfs_inumbers_req) + \
+					 (nr) * sizeof(struct xfs_inumbers))
 
 /*
  * Error injection.
@@ -529,7 +631,7 @@ typedef struct xfs_swapext
 	xfs_off_t	sx_offset;	/* offset into file */
 	xfs_off_t	sx_length;	/* leng from offset */
 	char		sx_pad[16];	/* pad space, unused */
-	xfs_bstat_t	sx_stat;	/* stat of target b4 copy */
+	struct xfs_bstat sx_stat;	/* stat of target b4 copy */
 } xfs_swapext_t;
 
 /*
@@ -701,6 +803,8 @@ struct xfs_scrub_metadata {
 #define XFS_IOC_FSGEOMETRY_V4	     _IOR ('X', 124, struct xfs_fsop_geom_v4)
 #define XFS_IOC_GOINGDOWN	     _IOR ('X', 125, uint32_t)
 #define XFS_IOC_FSGEOMETRY	     _IOR ('X', 126, struct xfs_fsop_geom)
+#define XFS_IOC_BULKSTAT	     _IOR ('X', 127, struct xfs_bulkstat_req)
+#define XFS_IOC_INUMBERS	     _IOR ('X', 128, struct xfs_inumbers_req)
 /*	XFS_IOC_GETFSUUID ---------- deprecated 140	 */
 
 

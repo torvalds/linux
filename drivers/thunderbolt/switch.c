@@ -239,7 +239,16 @@ static int tb_switch_nvm_read(void *priv, unsigned int offset, void *val,
 	int ret;
 
 	pm_runtime_get_sync(&sw->dev);
+
+	if (!mutex_trylock(&sw->tb->lock)) {
+		ret = restart_syscall();
+		goto out;
+	}
+
 	ret = dma_port_flash_read(sw->dma_port, offset, val, bytes);
+	mutex_unlock(&sw->tb->lock);
+
+out:
 	pm_runtime_mark_last_busy(&sw->dev);
 	pm_runtime_put_autosuspend(&sw->dev);
 
@@ -1019,7 +1028,6 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 	 * the new tunnel too early.
 	 */
 	pci_lock_rescan_remove();
-	pm_runtime_get_sync(&sw->dev);
 
 	switch (val) {
 	/* Approve switch */
@@ -1040,8 +1048,6 @@ static int tb_switch_set_authorized(struct tb_switch *sw, unsigned int val)
 		break;
 	}
 
-	pm_runtime_mark_last_busy(&sw->dev);
-	pm_runtime_put_autosuspend(&sw->dev);
 	pci_unlock_rescan_remove();
 
 	if (!ret) {
@@ -1069,7 +1075,10 @@ static ssize_t authorized_store(struct device *dev,
 	if (val > 2)
 		return -EINVAL;
 
+	pm_runtime_get_sync(&sw->dev);
 	ret = tb_switch_set_authorized(sw, val);
+	pm_runtime_mark_last_busy(&sw->dev);
+	pm_runtime_put_autosuspend(&sw->dev);
 
 	return ret ? ret : count;
 }
@@ -1195,8 +1204,12 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 	bool val;
 	int ret;
 
-	if (!mutex_trylock(&sw->tb->lock))
-		return restart_syscall();
+	pm_runtime_get_sync(&sw->dev);
+
+	if (!mutex_trylock(&sw->tb->lock)) {
+		ret = restart_syscall();
+		goto exit_rpm;
+	}
 
 	/* If NVMem devices are not yet added */
 	if (!sw->nvm) {
@@ -1217,13 +1230,9 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 			goto exit_unlock;
 		}
 
-		pm_runtime_get_sync(&sw->dev);
 		ret = nvm_validate_and_write(sw);
-		if (ret) {
-			pm_runtime_mark_last_busy(&sw->dev);
-			pm_runtime_put_autosuspend(&sw->dev);
+		if (ret)
 			goto exit_unlock;
-		}
 
 		sw->nvm->authenticating = true;
 
@@ -1239,12 +1248,13 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 		} else {
 			ret = nvm_authenticate_device(sw);
 		}
-		pm_runtime_mark_last_busy(&sw->dev);
-		pm_runtime_put_autosuspend(&sw->dev);
 	}
 
 exit_unlock:
 	mutex_unlock(&sw->tb->lock);
+exit_rpm:
+	pm_runtime_mark_last_busy(&sw->dev);
+	pm_runtime_put_autosuspend(&sw->dev);
 
 	if (ret)
 		return ret;
@@ -1380,11 +1390,22 @@ static void tb_switch_release(struct device *dev)
  */
 static int __maybe_unused tb_switch_runtime_suspend(struct device *dev)
 {
+	struct tb_switch *sw = tb_to_switch(dev);
+	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
+
+	if (cm_ops->runtime_suspend_switch)
+		return cm_ops->runtime_suspend_switch(sw);
+
 	return 0;
 }
 
 static int __maybe_unused tb_switch_runtime_resume(struct device *dev)
 {
+	struct tb_switch *sw = tb_to_switch(dev);
+	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
+
+	if (cm_ops->runtime_resume_switch)
+		return cm_ops->runtime_resume_switch(sw);
 	return 0;
 }
 
@@ -1946,10 +1967,10 @@ struct tb_sw_lookup {
 	u64 route;
 };
 
-static int tb_switch_match(struct device *dev, void *data)
+static int tb_switch_match(struct device *dev, const void *data)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
-	struct tb_sw_lookup *lookup = data;
+	const struct tb_sw_lookup *lookup = data;
 
 	if (!sw)
 		return 0;

@@ -14,6 +14,7 @@
 #include "panfrost_gpu.h"
 #include "panfrost_job.h"
 #include "panfrost_mmu.h"
+#include "panfrost_perfcnt.h"
 
 static int panfrost_reset_init(struct panfrost_device *pfdev)
 {
@@ -55,11 +56,33 @@ static int panfrost_clk_init(struct panfrost_device *pfdev)
 	if (err)
 		return err;
 
+	pfdev->bus_clock = devm_clk_get_optional(pfdev->dev, "bus");
+	if (IS_ERR(pfdev->bus_clock)) {
+		dev_err(pfdev->dev, "get bus_clock failed %ld\n",
+			PTR_ERR(pfdev->bus_clock));
+		return PTR_ERR(pfdev->bus_clock);
+	}
+
+	if (pfdev->bus_clock) {
+		rate = clk_get_rate(pfdev->bus_clock);
+		dev_info(pfdev->dev, "bus_clock rate = %lu\n", rate);
+
+		err = clk_prepare_enable(pfdev->bus_clock);
+		if (err)
+			goto disable_clock;
+	}
+
 	return 0;
+
+disable_clock:
+	clk_disable_unprepare(pfdev->clock);
+
+	return err;
 }
 
 static void panfrost_clk_fini(struct panfrost_device *pfdev)
 {
+	clk_disable_unprepare(pfdev->bus_clock);
 	clk_disable_unprepare(pfdev->clock);
 }
 
@@ -149,7 +172,13 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	pm_runtime_mark_last_busy(pfdev->dev);
 	pm_runtime_put_autosuspend(pfdev->dev);
 
+	err = panfrost_perfcnt_init(pfdev);
+	if (err)
+		goto err_out5;
+
 	return 0;
+err_out5:
+	panfrost_job_fini(pfdev);
 err_out4:
 	panfrost_mmu_fini(pfdev);
 err_out3:
@@ -165,6 +194,7 @@ err_out0:
 
 void panfrost_device_fini(struct panfrost_device *pfdev)
 {
+	panfrost_perfcnt_fini(pfdev);
 	panfrost_job_fini(pfdev);
 	panfrost_mmu_fini(pfdev);
 	panfrost_gpu_fini(pfdev);

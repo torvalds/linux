@@ -1185,9 +1185,6 @@ static long mbochs_ioctl(struct mdev_device *mdev, unsigned int cmd,
 {
 	int ret = 0;
 	unsigned long minsz, outsz;
-	struct mdev_state *mdev_state;
-
-	mdev_state = mdev_get_drvdata(mdev);
 
 	switch (cmd) {
 	case VFIO_DEVICE_GET_INFO:

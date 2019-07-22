@@ -10,6 +10,8 @@ Copyright (C) 2017 Lucas Bates <lucasb@mojatatu.com>
 NAMES = {
           # Substitute your own tc path here
           'TC': '/sbin/tc',
+          # Substitute your own ip path here
+          'IP': '/sbin/ip',
           # Name of veth devices to be created for the namespace
           'DEV0': 'v0p0',
           'DEV1': 'v0p1',

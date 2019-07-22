@@ -6,15 +6,15 @@
  **************************************************************************/
 
 #include <linux/backlight.h>
-#include <drm/drmP.h>
+
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
-#include "psb_drv.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
+
+#include "gma_device.h"
 #include "intel_bios.h"
 #include "psb_device.h"
-#include "gma_device.h"
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_reg.h"
 
 static int psb_output_init(struct drm_device *dev)
 {

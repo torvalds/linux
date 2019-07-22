@@ -122,8 +122,10 @@ void *alloc_insn_page(void)
 	void *page;
 
 	page = vmalloc_exec(PAGE_SIZE);
-	if (page)
+	if (page) {
 		set_memory_ro((unsigned long)page, 1);
+		set_vm_flush_reset_perms(page);
+	}
 
 	return page;
 }

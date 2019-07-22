@@ -122,7 +122,7 @@ int ocrdma_reg_mr(struct ocrdma_dev *, struct ocrdma_hw_mr *hwmr,
 			u32 pd_id, int acc);
 int ocrdma_mbx_create_cq(struct ocrdma_dev *, struct ocrdma_cq *,
 				int entries, int dpp_cq, u16 pd_id);
-int ocrdma_mbx_destroy_cq(struct ocrdma_dev *, struct ocrdma_cq *);
+void ocrdma_mbx_destroy_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq);
 
 int ocrdma_mbx_create_qp(struct ocrdma_qp *, struct ib_qp_init_attr *attrs,
 			 u8 enable_dpp_cq, u16 dpp_cq_id, u16 *dpp_offset,

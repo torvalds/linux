@@ -77,16 +77,19 @@ static const struct snd_soc_dapm_route audio_map[] = {
 };
 
 /* Digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(aic23,
+	DAILINK_COMP_ARRAY(COMP_CPU("omap-mcbsp.1")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic23-codec",
+				      "tlv320aic23-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("omap-mcbsp.1")));
+
 static struct snd_soc_dai_link osk_dai = {
 	.name = "TLV320AIC23",
 	.stream_name = "AIC23",
-	.cpu_dai_name = "omap-mcbsp.1",
-	.codec_dai_name = "tlv320aic23-hifi",
-	.platform_name = "omap-mcbsp.1",
-	.codec_name = "tlv320aic23-codec",
 	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBM_CFM,
 	.ops = &osk_ops,
+	SND_SOC_DAILINK_REG(aic23),
 };
 
 /* Audio machine driver */

@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Enter and leave deep sleep state on MPC83xx
  *
  * Copyright (c) 2006-2008 Freescale Semiconductor, Inc.
  * Author: Scott Wood <scottwood@freescale.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <asm/page.h>

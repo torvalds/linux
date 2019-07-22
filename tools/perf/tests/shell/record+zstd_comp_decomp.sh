@@ -1,6 +1,8 @@
 #!/bin/sh
 # Zstd perf.data compression/decompression
 
+# SPDX-License-Identifier: GPL-2.0
+
 trace_file=$(mktemp /tmp/perf.data.XXX)
 perf_tool=perf
 

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright © 2015 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /**
@@ -799,12 +796,35 @@ vc4_prime_import_sg_table(struct drm_device *dev,
 	return obj;
 }
 
+static int vc4_grab_bin_bo(struct vc4_dev *vc4, struct vc4_file *vc4file)
+{
+	int ret;
+
+	if (!vc4->v3d)
+		return -ENODEV;
+
+	if (vc4file->bin_bo_used)
+		return 0;
+
+	ret = vc4_v3d_bin_bo_get(vc4, &vc4file->bin_bo_used);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
 	struct drm_vc4_create_bo *args = data;
+	struct vc4_file *vc4file = file_priv->driver_priv;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_bo *bo = NULL;
 	int ret;
+
+	ret = vc4_grab_bin_bo(vc4, vc4file);
+	if (ret)
+		return ret;
 
 	/*
 	 * We can't allocate from the BO cache, because the BOs don't
@@ -846,6 +866,8 @@ vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
 	struct drm_vc4_create_shader_bo *args = data;
+	struct vc4_file *vc4file = file_priv->driver_priv;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_bo *bo = NULL;
 	int ret;
 
@@ -864,6 +886,10 @@ vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 		DRM_INFO("Pad set: 0x%08x\n", args->pad);
 		return -EINVAL;
 	}
+
+	ret = vc4_grab_bin_bo(vc4, vc4file);
+	if (ret)
+		return ret;
 
 	bo = vc4_bo_create(dev, args->size, true, VC4_BO_TYPE_V3D_SHADER);
 	if (IS_ERR(bo))
@@ -894,7 +920,7 @@ vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 	 */
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
 
- fail:
+fail:
 	drm_gem_object_put_unlocked(&bo->base.base);
 
 	return ret;

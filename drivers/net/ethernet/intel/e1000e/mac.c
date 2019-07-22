@@ -797,7 +797,7 @@ static s32 e1000_poll_fiber_serdes_link_generic(struct e1000_hw *hw)
 	 * milliseconds even if the other end is doing it in SW).
 	 */
 	for (i = 0; i < FIBER_LINK_UP_LIMIT; i++) {
-		usleep_range(10000, 20000);
+		usleep_range(10000, 11000);
 		status = er32(STATUS);
 		if (status & E1000_STATUS_LU)
 			break;

@@ -6,7 +6,7 @@
 config NET_VENDOR_ATHEROS
 	bool "Atheros devices"
 	default y
-	depends on PCI
+	depends on (PCI || ATH79)
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -16,6 +16,14 @@ config NET_VENDOR_ATHEROS
 	  for your specific card in the following questions.
 
 if NET_VENDOR_ATHEROS
+
+config AG71XX
+	tristate "Atheros AR7XXX/AR9XXX built-in ethernet mac support"
+	depends on ATH79
+	select PHYLIB
+	help
+	  If you wish to compile a kernel for AR7XXX/91XXX and enable
+	  ethernet support, then you should always answer Y to this.
 
 config ATL2
 	tristate "Atheros L2 Fast Ethernet support"

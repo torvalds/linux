@@ -1008,7 +1008,7 @@ plip_rewrite_address(const struct net_device *dev, struct ethhdr *eth)
 	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev) {
 		/* Any address will do - we take the first */
-		const struct in_ifaddr *ifa = in_dev->ifa_list;
+		const struct in_ifaddr *ifa = rcu_dereference(in_dev->ifa_list);
 		if (ifa) {
 			memcpy(eth->h_source, dev->dev_addr, ETH_ALEN);
 			memset(eth->h_dest, 0xfc, 2);
@@ -1103,7 +1103,7 @@ plip_open(struct net_device *dev)
 		/* Any address will do - we take the first. We already
 		   have the first two bytes filled with 0xfc, from
 		   plip_init_dev(). */
-		struct in_ifaddr *ifa=in_dev->ifa_list;
+		const struct in_ifaddr *ifa = rcu_dereference(in_dev->ifa_list);
 		if (ifa != NULL) {
 			memcpy(dev->dev_addr+2, &ifa->ifa_local, 4);
 		}

@@ -145,7 +145,7 @@ enum hns3_nic_state {
 #define HNS3_RXD_TSIND_M			(0x7 << HNS3_RXD_TSIND_S)
 #define HNS3_RXD_LKBK_B				15
 #define HNS3_RXD_GRO_SIZE_S			16
-#define HNS3_RXD_GRO_SIZE_M			(0x3ff << HNS3_RXD_GRO_SIZE_S)
+#define HNS3_RXD_GRO_SIZE_M			(0x3fff << HNS3_RXD_GRO_SIZE_S)
 
 #define HNS3_TXD_L3T_S				0
 #define HNS3_TXD_L3T_M				(0x3 << HNS3_TXD_L3T_S)
@@ -384,7 +384,6 @@ struct ring_stats {
 			u64 rx_err_cnt;
 			u64 reuse_pg_cnt;
 			u64 err_pkt_len;
-			u64 non_vld_descs;
 			u64 err_bd_num;
 			u64 l2_err;
 			u64 l3l4_csum_err;
@@ -417,7 +416,7 @@ struct hns3_enet_ring {
 	 */
 	int next_to_clean;
 
-	int pull_len; /* head length for current packet */
+	u32 pull_len; /* head length for current packet */
 	u32 frag_num;
 	unsigned char *va; /* first buffer address for current packet */
 
@@ -444,25 +443,6 @@ enum hns3_flow_level_range {
 	HNS3_FLOW_MID = 1,
 	HNS3_FLOW_HIGH = 2,
 	HNS3_FLOW_ULTRA = 3,
-};
-
-enum hns3_link_mode_bits {
-	HNS3_LM_FIBRE_BIT = BIT(0),
-	HNS3_LM_AUTONEG_BIT = BIT(1),
-	HNS3_LM_TP_BIT = BIT(2),
-	HNS3_LM_PAUSE_BIT = BIT(3),
-	HNS3_LM_BACKPLANE_BIT = BIT(4),
-	HNS3_LM_10BASET_HALF_BIT = BIT(5),
-	HNS3_LM_10BASET_FULL_BIT = BIT(6),
-	HNS3_LM_100BASET_HALF_BIT = BIT(7),
-	HNS3_LM_100BASET_FULL_BIT = BIT(8),
-	HNS3_LM_1000BASET_FULL_BIT = BIT(9),
-	HNS3_LM_10000BASEKR_FULL_BIT = BIT(10),
-	HNS3_LM_25000BASEKR_FULL_BIT = BIT(11),
-	HNS3_LM_40000BASELR4_FULL_BIT = BIT(12),
-	HNS3_LM_50000BASEKR2_FULL_BIT = BIT(13),
-	HNS3_LM_100000BASEKR4_FULL_BIT = BIT(14),
-	HNS3_LM_COUNT = 15
 };
 
 #define HNS3_INT_GL_MAX			0x1FE0
@@ -550,7 +530,6 @@ struct hns3_nic_priv {
 	struct notifier_block notifier_block;
 	/* Vxlan/Geneve information */
 	struct hns3_udp_tunnel udp_tnl[HNS3_UDP_TNL_MAX];
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct hns3_enet_coalesce tx_coal;
 	struct hns3_enet_coalesce rx_coal;
 };
@@ -631,7 +610,7 @@ static inline bool hns3_nic_resetting(struct net_device *netdev)
 
 #define hnae3_buf_size(_ring) ((_ring)->buf_size)
 #define hnae3_page_order(_ring) (get_order(hnae3_buf_size(_ring)))
-#define hnae3_page_size(_ring) (PAGE_SIZE << hnae3_page_order(_ring))
+#define hnae3_page_size(_ring) (PAGE_SIZE << (u32)hnae3_page_order(_ring))
 
 /* iterator for handling rings in ring group */
 #define hns3_for_each_ring(pos, head) \

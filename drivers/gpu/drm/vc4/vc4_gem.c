@@ -820,6 +820,7 @@ static int
 vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 {
 	struct drm_vc4_submit_cl *args = exec->args;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	void *temp = NULL;
 	void *bin;
 	int ret = 0;
@@ -918,6 +919,12 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	if (ret)
 		goto fail;
 
+	if (exec->found_tile_binning_mode_config_packet) {
+		ret = vc4_v3d_bin_bo_get(vc4, &exec->bin_bo_used);
+		if (ret)
+			goto fail;
+	}
+
 	/* Block waiting on any previous rendering into the CS's VBO,
 	 * IB, or textures, so that pixels are actually written by the
 	 * time we try to read them.
@@ -965,6 +972,10 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
 	vc4->bin_alloc_used &= ~exec->bin_slots;
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+
+	/* Release the reference on the binner BO if needed. */
+	if (exec->bin_bo_used)
+		vc4_v3d_bin_bo_put(vc4);
 
 	/* Release the reference we had on the perf monitor. */
 	vc4_perfmon_put(exec->perfmon);

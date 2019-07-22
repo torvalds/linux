@@ -28,7 +28,7 @@ struct net_device *mlx5_ib_get_rep_netdev(struct mlx5_eswitch *esw,
 #else /* CONFIG_MLX5_ESWITCH */
 static inline u8 mlx5_ib_eswitch_mode(struct mlx5_eswitch *esw)
 {
-	return SRIOV_NONE;
+	return MLX5_ESWITCH_NONE;
 }
 
 static inline
@@ -72,6 +72,6 @@ struct net_device *mlx5_ib_get_rep_netdev(struct mlx5_eswitch *esw,
 static inline
 struct mlx5_ib_dev *mlx5_ib_rep_to_dev(struct mlx5_eswitch_rep *rep)
 {
-	return (struct mlx5_ib_dev *)rep->rep_if[REP_IB].priv;
+	return rep->rep_data[REP_IB].priv;
 }
 #endif /* __MLX5_IB_REP_H__ */

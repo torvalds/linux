@@ -469,11 +469,6 @@ static struct clk_regmap axg_mpll0_div = {
 			.shift   = 16,
 			.width   = 9,
 		},
-		.ssen = {
-			.reg_off = HHI_MPLL_CNTL,
-			.shift   = 25,
-			.width	 = 1,
-		},
 		.misc = {
 			.reg_off = HHI_PLL_TOP_MISC,
 			.shift   = 0,
@@ -567,6 +562,11 @@ static struct clk_regmap axg_mpll2_div = {
 			.reg_off = HHI_MPLL_CNTL9,
 			.shift   = 16,
 			.width   = 9,
+		},
+		.ssen = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 25,
+			.width	 = 1,
 		},
 		.misc = {
 			.reg_off = HHI_PLL_TOP_MISC,

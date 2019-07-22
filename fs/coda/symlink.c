@@ -17,8 +17,7 @@
 #include <linux/pagemap.h>
 
 #include <linux/coda.h>
-#include <linux/coda_psdev.h>
-
+#include "coda_psdev.h"
 #include "coda_linux.h"
 
 static int coda_symlink_filler(struct file *file, struct page *page)

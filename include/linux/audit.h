@@ -182,6 +182,9 @@ static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 }
 
 extern u32 audit_enabled;
+
+extern int audit_signal_info(int sig, struct task_struct *t);
+
 #else /* CONFIG_AUDIT */
 static inline __printf(4, 5)
 void audit_log(struct audit_context *ctx, gfp_t gfp_mask, int type,
@@ -235,6 +238,12 @@ static inline unsigned int audit_get_sessionid(struct task_struct *tsk)
 }
 
 #define audit_enabled AUDIT_OFF
+
+static inline int audit_signal_info(int sig, struct task_struct *t)
+{
+	return 0;
+}
+
 #endif /* CONFIG_AUDIT */
 
 #ifdef CONFIG_AUDIT_COMPAT_GENERIC

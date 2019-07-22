@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Extend a 32-bit counter to 63 bits
  *
  *  Author:	Nicolas Pitre
  *  Created:	December 3, 2006
  *  Copyright:	MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_CNT32_TO_63_H__

@@ -22,7 +22,10 @@ source ${basedir}/parameters.sh
 [ -z "$CLONE_SKB" ] && CLONE_SKB="0"
 [ -z "$BURST" ]     && BURST=32
 [ -z "$COUNT" ]     && COUNT="0" # Zero means indefinitely
-
+if [ -n "$DST_PORT" ]; then
+    read -r DST_MIN DST_MAX <<< $(parse_ports $DST_PORT)
+    validate_ports $DST_MIN $DST_MAX
+fi
 
 # Base Config
 DELAY="0"  # Zero means max speed
@@ -49,6 +52,13 @@ for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     # Single destination
     pg_set $dev "dst_mac $DST_MAC"
     pg_set $dev "dst $DEST_IP"
+
+    if [ -n "$DST_PORT" ]; then
+	# Single destination port or random port range
+	pg_set $dev "flag UDPDST_RND"
+	pg_set $dev "udp_dst_min $DST_MIN"
+	pg_set $dev "udp_dst_max $DST_MAX"
+    fi
 
     # Setup source IP-addresses based on thread number
     pg_set $dev "src_min 198.18.$((thread+1)).1"

@@ -129,6 +129,24 @@ static inline int extwriter_counter_read(struct btrfs_transaction *trans)
 }
 
 /*
+ * To be called after all the new block groups attached to the transaction
+ * handle have been created (btrfs_create_pending_block_groups()).
+ */
+void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+
+	if (!trans->chunk_bytes_reserved)
+		return;
+
+	WARN_ON_ONCE(!list_empty(&trans->new_bgs));
+
+	btrfs_block_rsv_release(fs_info, &fs_info->chunk_block_rsv,
+				trans->chunk_bytes_reserved);
+	trans->chunk_bytes_reserved = 0;
+}
+
+/*
  * either allocate a new transaction or hop into the existing one
  */
 static noinline int join_transaction(struct btrfs_fs_info *fs_info,

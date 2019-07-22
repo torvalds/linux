@@ -118,8 +118,6 @@ struct mt76x02_dfs_seq_stats {
 };
 
 struct mt76x02_dfs_pattern_detector {
-	enum nl80211_dfs_regions region;
-
 	u8 chirp_pulse_cnt;
 	u32 chirp_pulse_ts;
 

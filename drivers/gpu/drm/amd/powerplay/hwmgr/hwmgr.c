@@ -194,6 +194,7 @@ int hwmgr_sw_init(struct pp_hwmgr *hwmgr)
 		return -EINVAL;
 
 	phm_register_irq_handlers(hwmgr);
+	pr_info("hwmgr_sw_init smu backed is %s\n", hwmgr->smumgr_funcs->name);
 
 	return hwmgr->smumgr_funcs->smu_init(hwmgr);
 }
@@ -326,7 +327,7 @@ int hwmgr_resume(struct pp_hwmgr *hwmgr)
 	if (ret)
 		return ret;
 
-	ret = psm_adjust_power_state_dynamic(hwmgr, true, NULL);
+	ret = psm_adjust_power_state_dynamic(hwmgr, false, NULL);
 
 	return ret;
 }

@@ -27,8 +27,11 @@
 
 #include <uapi/drm/i915_drm.h>
 
-#include "intel_engine_types.h"
-#include "intel_display.h"
+#include "display/intel_display.h"
+
+#include "gt/intel_engine_types.h"
+#include "gt/intel_context_types.h"
+#include "gt/intel_sseu.h"
 
 struct drm_printer;
 struct drm_i915_private;
@@ -88,7 +91,6 @@ enum intel_platform {
 /* HSW/BDW/SKL/KBL/CFL */
 #define INTEL_SUBPLATFORM_ULT	(0)
 #define INTEL_SUBPLATFORM_ULX	(1)
-#define INTEL_SUBPLATFORM_AML	(2)
 
 /* CNL/ICL */
 #define INTEL_SUBPLATFORM_PORTF	(0)
@@ -102,14 +104,13 @@ enum intel_ppgtt_type {
 #define DEV_INFO_FOR_EACH_FLAG(func) \
 	func(is_mobile); \
 	func(is_lp); \
-	func(is_alpha_support); \
+	func(require_force_probe); \
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
 	func(gpu_reset_clobbers_display); \
 	func(has_reset_engine); \
 	func(has_fpga_dbg); \
 	func(has_guc); \
-	func(has_guc_ct); \
 	func(has_l3_dpf); \
 	func(has_llc); \
 	func(has_logical_ring_contexts); \
@@ -118,6 +119,7 @@ enum intel_ppgtt_type {
 	func(has_pooled_eu); \
 	func(has_rc6); \
 	func(has_rc6p); \
+	func(has_rps); \
 	func(has_runtime_pm); \
 	func(has_snoop); \
 	func(has_coherent_ggtt); \
@@ -138,33 +140,6 @@ enum intel_ppgtt_type {
 	func(has_psr); \
 	func(overlay_needs_physical); \
 	func(supports_tv);
-
-#define GEN_MAX_SLICES		(6) /* CNL upper bound */
-#define GEN_MAX_SUBSLICES	(8) /* ICL upper bound */
-
-struct sseu_dev_info {
-	u8 slice_mask;
-	u8 subslice_mask[GEN_MAX_SLICES];
-	u16 eu_total;
-	u8 eu_per_subslice;
-	u8 min_eu_in_pool;
-	/* For each slice, which subslice(s) has(have) 7 EUs (bitfield)? */
-	u8 subslice_7eu[3];
-	u8 has_slice_pg:1;
-	u8 has_subslice_pg:1;
-	u8 has_eu_pg:1;
-
-	/* Topology fields */
-	u8 max_slices;
-	u8 max_subslices;
-	u8 max_eus_per_subslice;
-
-	/* We don't have more than 8 eus per subslice at the moment and as we
-	 * store eus enabled using bits, no need to multiply by eus per
-	 * subslice.
-	 */
-	u8 eu_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICES];
-};
 
 struct intel_device_info {
 	u16 gen_mask;
@@ -202,8 +177,8 @@ struct intel_device_info {
 	int cursor_offsets[I915_MAX_PIPES];
 
 	struct color_luts {
-		u16 degamma_lut_size;
-		u16 gamma_lut_size;
+		u32 degamma_lut_size;
+		u32 gamma_lut_size;
 		u32 degamma_lut_tests;
 		u32 gamma_lut_tests;
 	} color;
@@ -240,53 +215,6 @@ struct intel_driver_caps {
 	unsigned int scheduler;
 	bool has_logical_contexts:1;
 };
-
-static inline unsigned int sseu_subslice_total(const struct sseu_dev_info *sseu)
-{
-	unsigned int i, total = 0;
-
-	for (i = 0; i < ARRAY_SIZE(sseu->subslice_mask); i++)
-		total += hweight8(sseu->subslice_mask[i]);
-
-	return total;
-}
-
-static inline int sseu_eu_idx(const struct sseu_dev_info *sseu,
-			      int slice, int subslice)
-{
-	int subslice_stride = DIV_ROUND_UP(sseu->max_eus_per_subslice,
-					   BITS_PER_BYTE);
-	int slice_stride = sseu->max_subslices * subslice_stride;
-
-	return slice * slice_stride + subslice * subslice_stride;
-}
-
-static inline u16 sseu_get_eus(const struct sseu_dev_info *sseu,
-			       int slice, int subslice)
-{
-	int i, offset = sseu_eu_idx(sseu, slice, subslice);
-	u16 eu_mask = 0;
-
-	for (i = 0;
-	     i < DIV_ROUND_UP(sseu->max_eus_per_subslice, BITS_PER_BYTE); i++) {
-		eu_mask |= ((u16) sseu->eu_mask[offset + i]) <<
-			(i * BITS_PER_BYTE);
-	}
-
-	return eu_mask;
-}
-
-static inline void sseu_set_eus(struct sseu_dev_info *sseu,
-				int slice, int subslice, u16 eu_mask)
-{
-	int i, offset = sseu_eu_idx(sseu, slice, subslice);
-
-	for (i = 0;
-	     i < DIV_ROUND_UP(sseu->max_eus_per_subslice, BITS_PER_BYTE); i++) {
-		sseu->eu_mask[offset + i] =
-			(eu_mask >> (BITS_PER_BYTE * i)) & 0xff;
-	}
-}
 
 const char *intel_platform_name(enum intel_platform platform);
 

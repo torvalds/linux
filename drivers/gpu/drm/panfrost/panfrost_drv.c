@@ -19,6 +19,10 @@
 #include "panfrost_mmu.h"
 #include "panfrost_job.h"
 #include "panfrost_gpu.h"
+#include "panfrost_perfcnt.h"
+
+static bool unstable_ioctls;
+module_param_unsafe(unstable_ioctls, bool, 0600);
 
 static int panfrost_ioctl_get_param(struct drm_device *ddev, void *data, struct drm_file *file)
 {
@@ -63,7 +67,7 @@ static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 	return 0;
 
 err_free:
-	drm_gem_object_put_unlocked(&shmem->base);
+	drm_gem_handle_delete(file, args->handle);
 	return ret;
 }
 
@@ -297,6 +301,14 @@ static int panfrost_ioctl_get_bo_offset(struct drm_device *dev, void *data,
 	return 0;
 }
 
+int panfrost_unstable_ioctl_check(void)
+{
+	if (!unstable_ioctls)
+		return -ENOSYS;
+
+	return 0;
+}
+
 static int
 panfrost_open(struct drm_device *dev, struct drm_file *file)
 {
@@ -318,6 +330,7 @@ panfrost_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct panfrost_file_priv *panfrost_priv = file->driver_priv;
 
+	panfrost_perfcnt_close(panfrost_priv);
 	panfrost_job_close(panfrost_priv);
 
 	kfree(panfrost_priv);
@@ -337,6 +350,8 @@ static const struct drm_ioctl_desc panfrost_drm_driver_ioctls[] = {
 	PANFROST_IOCTL(MMAP_BO,		mmap_bo,	DRM_RENDER_ALLOW),
 	PANFROST_IOCTL(GET_PARAM,	get_param,	DRM_RENDER_ALLOW),
 	PANFROST_IOCTL(GET_BO_OFFSET,	get_bo_offset,	DRM_RENDER_ALLOW),
+	PANFROST_IOCTL(PERFCNT_ENABLE,	perfcnt_enable,	DRM_RENDER_ALLOW),
+	PANFROST_IOCTL(PERFCNT_DUMP,	perfcnt_dump,	DRM_RENDER_ALLOW),
 };
 
 DEFINE_DRM_GEM_SHMEM_FOPS(panfrost_drm_driver_fops);

@@ -13,9 +13,6 @@
 #include <traceevent/event-parse.h>
 
 #include "builtin.h"
-
-#include "util/util.h"
-
 #include "util/color.h"
 #include <linux/list.h>
 #include "util/cache.h"
@@ -24,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/callchain.h"

@@ -9,6 +9,8 @@
 #include <asm/export.h>
 #include <asm/ftrace.h>
 #include <asm/nospec-branch.h>
+#include <asm/frame.h>
+#include <asm/asm-offsets.h>
 
 # define function_hook	__fentry__
 EXPORT_SYMBOL(__fentry__)
@@ -89,26 +91,38 @@ END(ftrace_caller)
 
 ENTRY(ftrace_regs_caller)
 	/*
-	 * i386 does not save SS and ESP when coming from kernel.
-	 * Instead, to get sp, &regs->sp is used (see ptrace.h).
-	 * Unfortunately, that means eflags must be at the same location
-	 * as the current return ip is. We move the return ip into the
-	 * regs->ip location, and move flags into the return ip location.
+	 * We're here from an mcount/fentry CALL, and the stack frame looks like:
+	 *
+	 *  <previous context>
+	 *  RET-IP
+	 *
+	 * The purpose of this function is to call out in an emulated INT3
+	 * environment with a stack frame like:
+	 *
+	 *  <previous context>
+	 *  gap / RET-IP
+	 *  gap
+	 *  gap
+	 *  gap
+	 *  pt_regs
+	 *
+	 * We do _NOT_ restore: ss, flags, cs, gs, fs, es, ds
 	 */
-	pushl	$__KERNEL_CS
-	pushl	4(%esp)				/* Save the return ip */
-	pushl	$0				/* Load 0 into orig_ax */
+	subl	$3*4, %esp	# RET-IP + 3 gaps
+	pushl	%ss		# ss
+	pushl	%esp		# points at ss
+	addl	$5*4, (%esp)	#   make it point at <previous context>
+	pushfl			# flags
+	pushl	$__KERNEL_CS	# cs
+	pushl	7*4(%esp)	# ip <- RET-IP
+	pushl	$0		# orig_eax
+
 	pushl	%gs
 	pushl	%fs
 	pushl	%es
 	pushl	%ds
+
 	pushl	%eax
-
-	/* Get flags and place them into the return ip slot */
-	pushf
-	popl	%eax
-	movl	%eax, 8*4(%esp)
-
 	pushl	%ebp
 	pushl	%edi
 	pushl	%esi
@@ -116,24 +130,27 @@ ENTRY(ftrace_regs_caller)
 	pushl	%ecx
 	pushl	%ebx
 
-	movl	12*4(%esp), %eax		/* Load ip (1st parameter) */
-	subl	$MCOUNT_INSN_SIZE, %eax		/* Adjust ip */
-	movl	15*4(%esp), %edx		/* Load parent ip (2nd parameter) */
-	movl	function_trace_op, %ecx		/* Save ftrace_pos in 3rd parameter */
-	pushl	%esp				/* Save pt_regs as 4th parameter */
+	ENCODE_FRAME_POINTER
+
+	movl	PT_EIP(%esp), %eax	# 1st argument: IP
+	subl	$MCOUNT_INSN_SIZE, %eax
+	movl	21*4(%esp), %edx	# 2nd argument: parent ip
+	movl	function_trace_op, %ecx	# 3rd argument: ftrace_pos
+	pushl	%esp			# 4th argument: pt_regs
 
 GLOBAL(ftrace_regs_call)
 	call	ftrace_stub
 
-	addl	$4, %esp			/* Skip pt_regs */
+	addl	$4, %esp		# skip 4th argument
 
-	/* restore flags */
-	push	14*4(%esp)
-	popf
+	/* place IP below the new SP */
+	movl	PT_OLDESP(%esp), %eax
+	movl	PT_EIP(%esp), %ecx
+	movl	%ecx, -4(%eax)
 
-	/* Move return ip back to its original location */
-	movl	12*4(%esp), %eax
-	movl	%eax, 14*4(%esp)
+	/* place EAX below that */
+	movl	PT_EAX(%esp), %ecx
+	movl	%ecx, -8(%eax)
 
 	popl	%ebx
 	popl	%ecx
@@ -141,14 +158,9 @@ GLOBAL(ftrace_regs_call)
 	popl	%esi
 	popl	%edi
 	popl	%ebp
-	popl	%eax
-	popl	%ds
-	popl	%es
-	popl	%fs
-	popl	%gs
 
-	/* use lea to not affect flags */
-	lea	3*4(%esp), %esp			/* Skip orig_ax, ip and cs */
+	lea	-8(%eax), %esp
+	popl	%eax
 
 	jmp	.Lftrace_ret
 
