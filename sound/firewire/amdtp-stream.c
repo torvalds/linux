@@ -714,8 +714,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		data_blocks = calculate_data_blocks(s, syt);
 		buffer = s->buffer.packets[s->packet_index].buffer;
 		dbc = s->data_block_counter;
-		pcm_frames = s->process_data_blocks(s, buffer, data_blocks, dbc,
-						    &syt);
+		pcm_frames = s->process_data_blocks(s, buffer, data_blocks, dbc);
 
 		if (s->flags & CIP_DBC_IS_END_EVENT)
 			dbc = (dbc + data_blocks) & 0xff;
@@ -782,7 +781,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		if (err >= 0) {
 			buffer = s->buffer.packets[s->packet_index].buffer;
 			pcm_frames = s->process_data_blocks(s, buffer,
-				data_blocks, dbc, &syt);
+							    data_blocks, dbc);
 
 			if (!(s->flags & CIP_DBC_IS_END_EVENT))
 				dbc = (dbc + data_blocks) & 0xff;

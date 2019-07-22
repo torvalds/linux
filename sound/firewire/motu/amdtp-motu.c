@@ -299,8 +299,8 @@ static void __maybe_unused copy_message(u64 *frames, __be32 *buffer,
 }
 
 static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
-			__be32 *buffer, unsigned int data_blocks,
-			unsigned int data_block_counter, unsigned int *syt)
+				__be32 *buffer, unsigned int data_blocks,
+				unsigned int data_block_counter)
 {
 	struct amdtp_motu *p = s->protocol;
 	struct snd_pcm_substream *pcm;
@@ -361,14 +361,11 @@ static void write_sph(struct amdtp_stream *s, __be32 *buffer,
 }
 
 static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
-			__be32 *buffer, unsigned int data_blocks,
-			unsigned int data_block_counter, unsigned int *syt)
+				__be32 *buffer, unsigned int data_blocks,
+				unsigned int data_block_counter)
 {
 	struct amdtp_motu *p = (struct amdtp_motu *)s->protocol;
 	struct snd_pcm_substream *pcm;
-
-	/* Not used. */
-	*syt = 0xffff;
 
 	/* TODO: how to interact control messages between userspace? */
 

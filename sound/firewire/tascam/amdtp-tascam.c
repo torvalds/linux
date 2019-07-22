@@ -166,8 +166,8 @@ static void read_status_messages(struct amdtp_stream *s,
 }
 
 static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
-			__be32 *buffer, unsigned int data_blocks,
-			unsigned int data_block_counter, unsigned int *syt)
+				__be32 *buffer, unsigned int data_blocks,
+				unsigned int data_block_counter)
 {
 	struct snd_pcm_substream *pcm;
 
@@ -181,13 +181,10 @@ static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
 }
 
 static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
-			__be32 *buffer, unsigned int data_blocks,
-			unsigned int data_block_counter, unsigned int *syt)
+				__be32 *buffer, unsigned int data_blocks,
+				unsigned int data_block_counter)
 {
 	struct snd_pcm_substream *pcm;
-
-	/* This field is not used. */
-	*syt = 0x0000;
 
 	pcm = READ_ONCE(s->pcm);
 	if (pcm)

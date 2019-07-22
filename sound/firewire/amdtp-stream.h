@@ -99,8 +99,7 @@ typedef unsigned int (*amdtp_stream_process_data_blocks_t)(
 						struct amdtp_stream *s,
 						__be32 *buffer,
 						unsigned int data_blocks,
-						unsigned int data_block_counter,
-						unsigned int *syt);
+						unsigned int data_block_counter);
 struct amdtp_stream {
 	struct fw_unit *unit;
 	enum cip_flags flags;
