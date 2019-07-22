@@ -33,6 +33,8 @@
  * @CIP_HEADER_WITHOUT_EOH: Only for in-stream. CIP Header doesn't include
  *	valid EOH.
  * @CIP_NO_HEADERS: a lack of headers in packets
+ * @CIP_UNALIGHED_DBC: Only for in-stream. The value of dbc is not alighed to
+ *	the value of current SYT_INTERVAL; e.g. initial value is not zero.
  */
 enum cip_flags {
 	CIP_NONBLOCKING		= 0x00,
@@ -45,6 +47,7 @@ enum cip_flags {
 	CIP_JUMBO_PAYLOAD	= 0x40,
 	CIP_HEADER_WITHOUT_EOH	= 0x80,
 	CIP_NO_HEADER		= 0x100,
+	CIP_UNALIGHED_DBC	= 0x200,
 };
 
 /**
@@ -119,8 +122,6 @@ struct amdtp_stream {
 			// Fixed interval of dbc between previos/current
 			// packets.
 			unsigned int dbc_interval;
-			// Indicate the value of dbc field in a first packet.
-			unsigned int first_dbc;
 		} tx;
 		struct {
 			// To calculate CIP data blocks and tstamp.

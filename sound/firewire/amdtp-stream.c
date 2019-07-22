@@ -584,8 +584,7 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 	    s->data_block_counter != UINT_MAX)
 		*dbc = s->data_block_counter;
 
-	if (((s->flags & CIP_SKIP_DBC_ZERO_CHECK) &&
-	     *dbc == s->ctx_data.tx.first_dbc) ||
+	if ((*dbc == 0x00 && (s->flags & CIP_SKIP_DBC_ZERO_CHECK)) ||
 	    s->data_block_counter == UINT_MAX) {
 		lost = false;
 	} else if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
