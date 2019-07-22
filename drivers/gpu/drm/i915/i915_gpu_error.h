@@ -85,7 +85,6 @@ struct i915_gpu_state {
 		/* Software tracked state */
 		bool idle;
 		unsigned long hangcheck_timestamp;
-		struct i915_address_space *vm;
 		int num_requests;
 		u32 reset_count;
 
@@ -160,22 +159,6 @@ struct i915_gpu_state {
 			};
 		} vm_info;
 	} engine[I915_NUM_ENGINES];
-
-	struct drm_i915_error_buffer {
-		u32 size;
-		u32 name;
-		u64 gtt_offset;
-		u32 read_domains;
-		u32 write_domain;
-		s32 fence_reg:I915_MAX_NUM_FENCE_BITS;
-		u32 tiling:2;
-		u32 dirty:1;
-		u32 purgeable:1;
-		u32 userptr:1;
-		u32 cache_level:3;
-	} *active_bo[I915_NUM_ENGINES], *pinned_bo;
-	u32 active_bo_count[I915_NUM_ENGINES], pinned_bo_count;
-	struct i915_address_space *active_vm[I915_NUM_ENGINES];
 
 	struct scatterlist *sgl, *fit;
 };
