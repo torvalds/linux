@@ -202,7 +202,7 @@ struct async_list {
 
 	struct file		*file;
 	off_t			io_end;
-	size_t			io_pages;
+	size_t			io_len;
 };
 
 struct io_ring_ctx {
@@ -1158,28 +1158,26 @@ static void io_async_list_note(int rw, struct io_kiocb *req, size_t len)
 	off_t io_end = kiocb->ki_pos + len;
 
 	if (filp == async_list->file && kiocb->ki_pos == async_list->io_end) {
-		unsigned long max_pages;
+		unsigned long max_bytes;
 
 		/* Use 8x RA size as a decent limiter for both reads/writes */
-		max_pages = filp->f_ra.ra_pages;
-		if (!max_pages)
-			max_pages = VM_READAHEAD_PAGES;
-		max_pages *= 8;
+		max_bytes = filp->f_ra.ra_pages << (PAGE_SHIFT + 3);
+		if (!max_bytes)
+			max_bytes = VM_READAHEAD_PAGES << (PAGE_SHIFT + 3);
 
-		/* If max pages are exceeded, reset the state */
-		len >>= PAGE_SHIFT;
-		if (async_list->io_pages + len <= max_pages) {
+		/* If max len are exceeded, reset the state */
+		if (async_list->io_len + len <= max_bytes) {
 			req->flags |= REQ_F_SEQ_PREV;
-			async_list->io_pages += len;
+			async_list->io_len += len;
 		} else {
 			io_end = 0;
-			async_list->io_pages = 0;
+			async_list->io_len = 0;
 		}
 	}
 
 	/* New file? Reset state. */
 	if (async_list->file != filp) {
-		async_list->io_pages = 0;
+		async_list->io_len = 0;
 		async_list->file = filp;
 	}
 	async_list->io_end = io_end;
