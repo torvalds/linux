@@ -342,3 +342,14 @@ int snd_soc_dai_bespoke_trigger(struct snd_soc_dai *dai,
 
 	return ret;
 }
+
+snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
+				    struct snd_pcm_substream *substream)
+{
+	int delay = 0;
+
+	if (dai->driver->ops->delay)
+		delay = dai->driver->ops->delay(substream, dai);
+
+	return delay;
+}
