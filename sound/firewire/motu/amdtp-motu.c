@@ -310,13 +310,10 @@ static void __maybe_unused copy_message(u64 *frames, __be32 *buffer,
 	}
 }
 
-static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
-					    const struct pkt_desc *descs,
-					    unsigned int packets,
-					    struct snd_pcm_substream *pcm)
+static void probe_tracepoints_events(struct amdtp_stream *s,
+				     const struct pkt_desc *descs,
+				     unsigned int packets)
 {
-	struct amdtp_motu *p = s->protocol;
-	unsigned int pcm_frames = 0;
 	int i;
 
 	for (i = 0; i < packets; ++i) {
@@ -326,15 +323,37 @@ static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
 
 		trace_data_block_sph(s, data_blocks, buf);
 		trace_data_block_message(s, data_blocks, buf);
+	}
+}
 
-		if (p->midi_ports)
-			read_midi_messages(s, buf, data_blocks);
+static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
+					    const struct pkt_desc *descs,
+					    unsigned int packets,
+					    struct snd_pcm_substream *pcm)
+{
+	struct amdtp_motu *p = s->protocol;
+	unsigned int pcm_frames = 0;
+	int i;
+
+	// For data block processing.
+	for (i = 0; i < packets; ++i) {
+		const struct pkt_desc *desc = descs + i;
+		__be32 *buf = desc->ctx_payload;
+		unsigned int data_blocks = desc->data_blocks;
 
 		if (pcm) {
 			read_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
 			pcm_frames += data_blocks;
 		}
+
+		if (p->midi_ports)
+			read_midi_messages(s, buf, data_blocks);
 	}
+
+	// For tracepoints.
+	if (trace_data_block_sph_enabled() ||
+	    trace_data_block_message_enabled())
+		probe_tracepoints_events(s, descs, packets);
 
 	return pcm_frames;
 }
@@ -390,15 +409,11 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 	unsigned int pcm_frames = 0;
 	int i;
 
+	// For data block processing.
 	for (i = 0; i < packets; ++i) {
 		const struct pkt_desc *desc = descs + i;
 		__be32 *buf = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
-
-		// TODO: how to interact control messages between userspace?
-
-		if (p->midi_ports)
-			write_midi_messages(s, buf, data_blocks);
 
 		if (pcm) {
 			write_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
@@ -407,11 +422,18 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 			write_pcm_silence(s, buf, data_blocks);
 		}
 
-		write_sph(s, buf, data_blocks);
+		if (p->midi_ports)
+			write_midi_messages(s, buf, data_blocks);
 
-		trace_data_block_sph(s, data_blocks, buf);
-		trace_data_block_message(s, data_blocks, buf);
+		// TODO: how to interact control messages between userspace?
+
+		write_sph(s, buf, data_blocks);
 	}
+
+	// For tracepoints.
+	if (trace_data_block_sph_enabled() ||
+	    trace_data_block_message_enabled())
+		probe_tracepoints_events(s, descs, packets);
 
 	return pcm_frames;
 }
