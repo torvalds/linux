@@ -94,6 +94,14 @@ enum amdtp_stream_direction {
 	AMDTP_IN_STREAM
 };
 
+struct pkt_desc {
+	u32 cycle;
+	u32 syt;
+	unsigned int data_blocks;
+	unsigned int data_block_counter;
+	__be32 *ctx_payload;
+};
+
 struct amdtp_stream;
 typedef unsigned int (*amdtp_stream_process_data_blocks_t)(
 						struct amdtp_stream *s,
@@ -110,6 +118,7 @@ struct amdtp_stream {
 	struct fw_iso_context *context;
 	struct iso_packets_buffer buffer;
 	int packet_index;
+	struct pkt_desc *pkt_descs;
 	int tag;
 	union {
 		struct {
