@@ -1872,11 +1872,11 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 		goto err_entity;
 	}
 
-	state->i2c_edid = i2c_new_dummy(client->adapter,
+	state->i2c_edid = i2c_new_dummy_device(client->adapter,
 					state->i2c_edid_addr >> 1);
-	if (state->i2c_edid == NULL) {
+	if (IS_ERR(state->i2c_edid)) {
 		v4l2_err(sd, "failed to register edid i2c client\n");
-		err = -ENOMEM;
+		err = PTR_ERR(state->i2c_edid);
 		goto err_entity;
 	}
 
@@ -1889,11 +1889,11 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 	}
 
 	if (state->pdata.cec_clk) {
-		state->i2c_cec = i2c_new_dummy(client->adapter,
+		state->i2c_cec = i2c_new_dummy_device(client->adapter,
 					       state->i2c_cec_addr >> 1);
-		if (state->i2c_cec == NULL) {
+		if (IS_ERR(state->i2c_cec)) {
 			v4l2_err(sd, "failed to register cec i2c client\n");
-			err = -ENOMEM;
+			err = PTR_ERR(state->i2c_cec);
 			goto err_unreg_edid;
 		}
 		adv7511_wr(sd, 0xe2, 0x00); /* power up cec section */
@@ -1901,10 +1901,10 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 		adv7511_wr(sd, 0xe2, 0x01); /* power down cec section */
 	}
 
-	state->i2c_pktmem = i2c_new_dummy(client->adapter, state->i2c_pktmem_addr >> 1);
-	if (state->i2c_pktmem == NULL) {
+	state->i2c_pktmem = i2c_new_dummy_device(client->adapter, state->i2c_pktmem_addr >> 1);
+	if (IS_ERR(state->i2c_pktmem)) {
 		v4l2_err(sd, "failed to register pktmem i2c client\n");
-		err = -ENOMEM;
+		err = PTR_ERR(state->i2c_pktmem);
 		goto err_unreg_cec;
 	}
 
