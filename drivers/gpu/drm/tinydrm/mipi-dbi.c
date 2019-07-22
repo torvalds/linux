@@ -241,16 +241,16 @@ EXPORT_SYMBOL(mipi_dbi_buf_copy);
 static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 {
 	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	struct mipi_dbi *mipi = drm_to_mipi_dbi(fb->dev);
+	struct mipi_dbi *dbidev = drm_to_mipi_dbi(fb->dev);
 	unsigned int height = rect->y2 - rect->y1;
 	unsigned int width = rect->x2 - rect->x1;
-	struct mipi_dbi *dbi = mipi;
+	struct mipi_dbi *dbi = dbidev;
 	bool swap = dbi->swap_bytes;
 	int idx, ret = 0;
 	bool full;
 	void *tr;
 
-	if (!mipi->enabled)
+	if (!dbidev->enabled)
 		return;
 
 	if (!drm_dev_enter(fb->dev, &idx))
@@ -262,8 +262,8 @@ static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 
 	if (!dbi->dc || !full || swap ||
 	    fb->format->format == DRM_FORMAT_XRGB8888) {
-		tr = mipi->tx_buf;
-		ret = mipi_dbi_buf_copy(mipi->tx_buf, fb, rect, swap);
+		tr = dbidev->tx_buf;
+		ret = mipi_dbi_buf_copy(dbidev->tx_buf, fb, rect, swap);
 		if (ret)
 			goto err_msg;
 	} else {
@@ -315,7 +315,7 @@ EXPORT_SYMBOL(mipi_dbi_pipe_update);
 
 /**
  * mipi_dbi_enable_flush - MIPI DBI enable helper
- * @mipi: MIPI DBI structure
+ * @dbidev: MIPI DBI device structure
  * @crtc_state: CRTC state
  * @plane_state: Plane state
  *
@@ -327,7 +327,7 @@ EXPORT_SYMBOL(mipi_dbi_pipe_update);
  * framebuffer flushing, can't use this function since they both use the same
  * flushing code.
  */
-void mipi_dbi_enable_flush(struct mipi_dbi *mipi,
+void mipi_dbi_enable_flush(struct mipi_dbi *dbidev,
 			   struct drm_crtc_state *crtc_state,
 			   struct drm_plane_state *plane_state)
 {
@@ -340,37 +340,37 @@ void mipi_dbi_enable_flush(struct mipi_dbi *mipi,
 	};
 	int idx;
 
-	if (!drm_dev_enter(&mipi->drm, &idx))
+	if (!drm_dev_enter(&dbidev->drm, &idx))
 		return;
 
-	mipi->enabled = true;
+	dbidev->enabled = true;
 	mipi_dbi_fb_dirty(fb, &rect);
-	backlight_enable(mipi->backlight);
+	backlight_enable(dbidev->backlight);
 
 	drm_dev_exit(idx);
 }
 EXPORT_SYMBOL(mipi_dbi_enable_flush);
 
-static void mipi_dbi_blank(struct mipi_dbi *mipi)
+static void mipi_dbi_blank(struct mipi_dbi *dbidev)
 {
-	struct drm_device *drm = &mipi->drm;
+	struct drm_device *drm = &dbidev->drm;
 	u16 height = drm->mode_config.min_height;
 	u16 width = drm->mode_config.min_width;
 	size_t len = width * height * 2;
-	struct mipi_dbi *dbi = mipi;
+	struct mipi_dbi *dbi = dbidev;
 	int idx;
 
 	if (!drm_dev_enter(drm, &idx))
 		return;
 
-	memset(mipi->tx_buf, 0, len);
+	memset(dbidev->tx_buf, 0, len);
 
 	mipi_dbi_command(dbi, MIPI_DCS_SET_COLUMN_ADDRESS, 0, 0,
 			 (width >> 8) & 0xFF, (width - 1) & 0xFF);
 	mipi_dbi_command(dbi, MIPI_DCS_SET_PAGE_ADDRESS, 0, 0,
 			 (height >> 8) & 0xFF, (height - 1) & 0xFF);
 	mipi_dbi_command_buf(dbi, MIPI_DCS_WRITE_MEMORY_START,
-			     (u8 *)mipi->tx_buf, len);
+			     (u8 *)dbidev->tx_buf, len);
 
 	drm_dev_exit(idx);
 }
@@ -385,31 +385,31 @@ static void mipi_dbi_blank(struct mipi_dbi *mipi)
  */
 void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
-	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
+	struct mipi_dbi *dbidev = drm_to_mipi_dbi(pipe->crtc.dev);
 
-	if (!mipi->enabled)
+	if (!dbidev->enabled)
 		return;
 
 	DRM_DEBUG_KMS("\n");
 
-	mipi->enabled = false;
+	dbidev->enabled = false;
 
-	if (mipi->backlight)
-		backlight_disable(mipi->backlight);
+	if (dbidev->backlight)
+		backlight_disable(dbidev->backlight);
 	else
-		mipi_dbi_blank(mipi);
+		mipi_dbi_blank(dbidev);
 
-	if (mipi->regulator)
-		regulator_disable(mipi->regulator);
+	if (dbidev->regulator)
+		regulator_disable(dbidev->regulator);
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_disable);
 
 static int mipi_dbi_connector_get_modes(struct drm_connector *connector)
 {
-	struct mipi_dbi *mipi = drm_to_mipi_dbi(connector->dev);
+	struct mipi_dbi *dbidev = drm_to_mipi_dbi(connector->dev);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(connector->dev, &mipi->mode);
+	mode = drm_mode_duplicate(connector->dev, &dbidev->mode);
 	if (!mode) {
 		DRM_ERROR("Failed to duplicate mode\n");
 		return 0;
@@ -471,7 +471,7 @@ static const uint32_t mipi_dbi_formats[] = {
 
 /**
  * mipi_dbi_init_with_formats - MIPI DBI initialization with custom formats
- * @mipi: &mipi_dbi structure to initialize
+ * @dbidev: MIPI DBI device structure to initialize
  * @funcs: Display pipe functions
  * @formats: Array of supported formats (DRM_FORMAT\_\*).
  * @format_count: Number of elements in @formats
@@ -492,7 +492,7 @@ static const uint32_t mipi_dbi_formats[] = {
  * Returns:
  * Zero on success, negative error code on failure.
  */
-int mipi_dbi_init_with_formats(struct mipi_dbi *mipi,
+int mipi_dbi_init_with_formats(struct mipi_dbi *dbidev,
 			       const struct drm_simple_display_pipe_funcs *funcs,
 			       const uint32_t *formats, unsigned int format_count,
 			       const struct drm_display_mode *mode,
@@ -502,42 +502,42 @@ int mipi_dbi_init_with_formats(struct mipi_dbi *mipi,
 		DRM_FORMAT_MOD_LINEAR,
 		DRM_FORMAT_MOD_INVALID
 	};
-	struct drm_device *drm = &mipi->drm;
+	struct drm_device *drm = &dbidev->drm;
 	int ret;
 
-	if (!mipi->command)
+	if (!dbidev->command)
 		return -EINVAL;
 
-	mipi->tx_buf = devm_kmalloc(drm->dev, tx_buf_size, GFP_KERNEL);
-	if (!mipi->tx_buf)
+	dbidev->tx_buf = devm_kmalloc(drm->dev, tx_buf_size, GFP_KERNEL);
+	if (!dbidev->tx_buf)
 		return -ENOMEM;
 
-	drm_mode_copy(&mipi->mode, mode);
-	ret = mipi_dbi_rotate_mode(&mipi->mode, rotation);
+	drm_mode_copy(&dbidev->mode, mode);
+	ret = mipi_dbi_rotate_mode(&dbidev->mode, rotation);
 	if (ret) {
 		DRM_ERROR("Illegal rotation value %u\n", rotation);
 		return -EINVAL;
 	}
 
-	drm_connector_helper_add(&mipi->connector, &mipi_dbi_connector_hfuncs);
-	ret = drm_connector_init(drm, &mipi->connector, &mipi_dbi_connector_funcs,
+	drm_connector_helper_add(&dbidev->connector, &mipi_dbi_connector_hfuncs);
+	ret = drm_connector_init(drm, &dbidev->connector, &mipi_dbi_connector_funcs,
 				 DRM_MODE_CONNECTOR_SPI);
 	if (ret)
 		return ret;
 
-	ret = drm_simple_display_pipe_init(drm, &mipi->pipe, funcs, formats, format_count,
-					   modifiers, &mipi->connector);
+	ret = drm_simple_display_pipe_init(drm, &dbidev->pipe, funcs, formats, format_count,
+					   modifiers, &dbidev->connector);
 	if (ret)
 		return ret;
 
-	drm_plane_enable_fb_damage_clips(&mipi->pipe.plane);
+	drm_plane_enable_fb_damage_clips(&dbidev->pipe.plane);
 
 	drm->mode_config.funcs = &mipi_dbi_mode_config_funcs;
-	drm->mode_config.min_width = mipi->mode.hdisplay;
-	drm->mode_config.max_width = mipi->mode.hdisplay;
-	drm->mode_config.min_height = mipi->mode.vdisplay;
-	drm->mode_config.max_height = mipi->mode.vdisplay;
-	mipi->rotation = rotation;
+	drm->mode_config.min_width = dbidev->mode.hdisplay;
+	drm->mode_config.max_width = dbidev->mode.hdisplay;
+	drm->mode_config.min_height = dbidev->mode.vdisplay;
+	drm->mode_config.max_height = dbidev->mode.vdisplay;
+	dbidev->rotation = rotation;
 
 	DRM_DEBUG_KMS("rotation = %u\n", rotation);
 
@@ -547,7 +547,7 @@ EXPORT_SYMBOL(mipi_dbi_init_with_formats);
 
 /**
  * mipi_dbi_init - MIPI DBI initialization
- * @mipi: &mipi_dbi structure to initialize
+ * @dbidev: MIPI DBI device structure to initialize
  * @funcs: Display pipe functions
  * @mode: Display mode
  * @rotation: Initial rotation in degrees Counter Clock Wise
@@ -562,15 +562,15 @@ EXPORT_SYMBOL(mipi_dbi_init_with_formats);
  * Returns:
  * Zero on success, negative error code on failure.
  */
-int mipi_dbi_init(struct mipi_dbi *mipi,
+int mipi_dbi_init(struct mipi_dbi *dbidev,
 		  const struct drm_simple_display_pipe_funcs *funcs,
 		  const struct drm_display_mode *mode, unsigned int rotation)
 {
 	size_t bufsize = mode->vdisplay * mode->hdisplay * sizeof(u16);
 
-	mipi->drm.mode_config.preferred_depth = 16;
+	dbidev->drm.mode_config.preferred_depth = 16;
 
-	return mipi_dbi_init_with_formats(mipi, funcs, mipi_dbi_formats,
+	return mipi_dbi_init_with_formats(dbidev, funcs, mipi_dbi_formats,
 					  ARRAY_SIZE(mipi_dbi_formats), mode,
 					  rotation, bufsize);
 }
@@ -646,14 +646,14 @@ bool mipi_dbi_display_is_on(struct mipi_dbi *dbi)
 }
 EXPORT_SYMBOL(mipi_dbi_display_is_on);
 
-static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi *mipi, bool cond)
+static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi *dbidev, bool cond)
 {
-	struct device *dev = mipi->drm.dev;
-	struct mipi_dbi *dbi = mipi;
+	struct device *dev = dbidev->drm.dev;
+	struct mipi_dbi *dbi = dbidev;
 	int ret;
 
-	if (mipi->regulator) {
-		ret = regulator_enable(mipi->regulator);
+	if (dbidev->regulator) {
+		ret = regulator_enable(dbidev->regulator);
 		if (ret) {
 			DRM_DEV_ERROR(dev, "Failed to enable regulator (%d)\n", ret);
 			return ret;
@@ -667,8 +667,8 @@ static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi *mipi, bool cond)
 	ret = mipi_dbi_command(dbi, MIPI_DCS_SOFT_RESET);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "Failed to send reset command (%d)\n", ret);
-		if (mipi->regulator)
-			regulator_disable(mipi->regulator);
+		if (dbidev->regulator)
+			regulator_disable(dbidev->regulator);
 		return ret;
 	}
 
@@ -687,7 +687,7 @@ static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi *mipi, bool cond)
 
 /**
  * mipi_dbi_poweron_reset - MIPI DBI poweron and reset
- * @mipi: MIPI DBI structure
+ * @dbidev: MIPI DBI device structure
  *
  * This function enables the regulator if used and does a hardware and software
  * reset.
@@ -695,15 +695,15 @@ static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi *mipi, bool cond)
  * Returns:
  * Zero on success, or a negative error code.
  */
-int mipi_dbi_poweron_reset(struct mipi_dbi *mipi)
+int mipi_dbi_poweron_reset(struct mipi_dbi *dbidev)
 {
-	return mipi_dbi_poweron_reset_conditional(mipi, false);
+	return mipi_dbi_poweron_reset_conditional(dbidev, false);
 }
 EXPORT_SYMBOL(mipi_dbi_poweron_reset);
 
 /**
  * mipi_dbi_poweron_conditional_reset - MIPI DBI poweron and conditional reset
- * @mipi: MIPI DBI structure
+ * @dbidev: MIPI DBI device structure
  *
  * This function enables the regulator if used and if the display is off, it
  * does a hardware and software reset. If mipi_dbi_display_is_on() determines
@@ -713,9 +713,9 @@ EXPORT_SYMBOL(mipi_dbi_poweron_reset);
  * Zero if the controller was reset, 1 if the display was already on, or a
  * negative error code.
  */
-int mipi_dbi_poweron_conditional_reset(struct mipi_dbi *mipi)
+int mipi_dbi_poweron_conditional_reset(struct mipi_dbi *dbidev)
 {
-	return mipi_dbi_poweron_reset_conditional(mipi, true);
+	return mipi_dbi_poweron_reset_conditional(dbidev, true);
 }
 EXPORT_SYMBOL(mipi_dbi_poweron_conditional_reset);
 

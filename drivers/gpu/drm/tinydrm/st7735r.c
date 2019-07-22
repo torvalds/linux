@@ -42,8 +42,8 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 				      struct drm_crtc_state *crtc_state,
 				      struct drm_plane_state *plane_state)
 {
-	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
-	struct mipi_dbi *dbi = mipi;
+	struct mipi_dbi *dbidev = drm_to_mipi_dbi(pipe->crtc.dev);
+	struct mipi_dbi *dbi = dbidev;
 	int ret, idx;
 	u8 addr_mode;
 
@@ -52,7 +52,7 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	DRM_DEBUG_KMS("\n");
 
-	ret = mipi_dbi_poweron_reset(mipi);
+	ret = mipi_dbi_poweron_reset(dbidev);
 	if (ret)
 		goto out_exit;
 
@@ -73,7 +73,7 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 	mipi_dbi_command(dbi, ST7735R_PWCTR5, 0x8a, 0xee);
 	mipi_dbi_command(dbi, ST7735R_VMCTR1, 0x0e);
 	mipi_dbi_command(dbi, MIPI_DCS_EXIT_INVERT_MODE);
-	switch (mipi->rotation) {
+	switch (dbidev->rotation) {
 	default:
 		addr_mode = ST7735R_MX | ST7735R_MY;
 		break;
@@ -104,7 +104,7 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	msleep(20);
 
-	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
+	mipi_dbi_enable_flush(dbidev, crtc_state, plane_state);
 out_exit:
 	drm_dev_exit(idx);
 }
@@ -150,22 +150,22 @@ MODULE_DEVICE_TABLE(spi, st7735r_id);
 static int st7735r_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct mipi_dbi *dbidev;
 	struct drm_device *drm;
-	struct mipi_dbi *mipi;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
 	int ret;
 
-	mipi = kzalloc(sizeof(*mipi), GFP_KERNEL);
-	if (!mipi)
+	dbidev = kzalloc(sizeof(*dbidev), GFP_KERNEL);
+	if (!dbidev)
 		return -ENOMEM;
 
-	dbi = mipi;
-	drm = &mipi->drm;
+	dbi = dbidev;
+	drm = &dbidev->drm;
 	ret = devm_drm_dev_init(dev, drm, &st7735r_driver);
 	if (ret) {
-		kfree(mipi);
+		kfree(dbidev);
 		return ret;
 	}
 
@@ -183,9 +183,9 @@ static int st7735r_probe(struct spi_device *spi)
 		return PTR_ERR(dc);
 	}
 
-	mipi->backlight = devm_of_find_backlight(dev);
-	if (IS_ERR(mipi->backlight))
-		return PTR_ERR(mipi->backlight);
+	dbidev->backlight = devm_of_find_backlight(dev);
+	if (IS_ERR(dbidev->backlight))
+		return PTR_ERR(dbidev->backlight);
 
 	device_property_read_u32(dev, "rotation", &rotation);
 
@@ -196,7 +196,7 @@ static int st7735r_probe(struct spi_device *spi)
 	/* Cannot read from Adafruit 1.8" display via SPI */
 	dbi->read_commands = NULL;
 
-	ret = mipi_dbi_init(mipi, &jd_t18003_t01_pipe_funcs, &jd_t18003_t01_mode, rotation);
+	ret = mipi_dbi_init(dbidev, &jd_t18003_t01_pipe_funcs, &jd_t18003_t01_mode, rotation);
 	if (ret)
 		return ret;
 

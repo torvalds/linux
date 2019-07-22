@@ -79,25 +79,25 @@ static inline struct mipi_dbi *drm_to_mipi_dbi(struct drm_device *drm)
 
 int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *dbi,
 		      struct gpio_desc *dc);
-int mipi_dbi_init_with_formats(struct mipi_dbi *mipi,
+int mipi_dbi_init_with_formats(struct mipi_dbi *dbidev,
 			       const struct drm_simple_display_pipe_funcs *funcs,
 			       const uint32_t *formats, unsigned int format_count,
 			       const struct drm_display_mode *mode,
 			       unsigned int rotation, size_t tx_buf_size);
-int mipi_dbi_init(struct mipi_dbi *mipi,
+int mipi_dbi_init(struct mipi_dbi *dbidev,
 		  const struct drm_simple_display_pipe_funcs *funcs,
 		  const struct drm_display_mode *mode, unsigned int rotation);
 void mipi_dbi_release(struct drm_device *drm);
 void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 			  struct drm_plane_state *old_state);
-void mipi_dbi_enable_flush(struct mipi_dbi *mipi,
+void mipi_dbi_enable_flush(struct mipi_dbi *dbidev,
 			   struct drm_crtc_state *crtc_state,
 			   struct drm_plane_state *plan_state);
 void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe);
 void mipi_dbi_hw_reset(struct mipi_dbi *dbi);
 bool mipi_dbi_display_is_on(struct mipi_dbi *dbi);
-int mipi_dbi_poweron_reset(struct mipi_dbi *mipi);
-int mipi_dbi_poweron_conditional_reset(struct mipi_dbi *mipi);
+int mipi_dbi_poweron_reset(struct mipi_dbi *dbidev);
+int mipi_dbi_poweron_conditional_reset(struct mipi_dbi *dbidev);
 
 u32 mipi_dbi_spi_cmd_max_speed(struct spi_device *spi, size_t len);
 int mipi_dbi_spi_transfer(struct spi_device *spi, u32 speed_hz,

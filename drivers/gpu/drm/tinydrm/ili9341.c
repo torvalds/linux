@@ -53,8 +53,8 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 			     struct drm_crtc_state *crtc_state,
 			     struct drm_plane_state *plane_state)
 {
-	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
-	struct mipi_dbi *dbi = mipi;
+	struct mipi_dbi *dbidev = drm_to_mipi_dbi(pipe->crtc.dev);
+	struct mipi_dbi *dbi = dbidev;
 	u8 addr_mode;
 	int ret, idx;
 
@@ -63,7 +63,7 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 
 	DRM_DEBUG_KMS("\n");
 
-	ret = mipi_dbi_poweron_conditional_reset(mipi);
+	ret = mipi_dbi_poweron_conditional_reset(dbidev);
 	if (ret < 0)
 		goto out_exit;
 	if (ret == 1)
@@ -113,7 +113,7 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 	msleep(100);
 
 out_enable:
-	switch (mipi->rotation) {
+	switch (dbidev->rotation) {
 	default:
 		addr_mode = ILI9341_MADCTL_MX;
 		break;
@@ -130,7 +130,7 @@ out_enable:
 	}
 	addr_mode |= ILI9341_MADCTL_BGR;
 	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
-	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
+	mipi_dbi_enable_flush(dbidev, crtc_state, plane_state);
 out_exit:
 	drm_dev_exit(idx);
 }
@@ -176,22 +176,22 @@ MODULE_DEVICE_TABLE(spi, ili9341_id);
 static int ili9341_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct mipi_dbi *dbidev;
 	struct drm_device *drm;
-	struct mipi_dbi *mipi;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
 	int ret;
 
-	mipi = kzalloc(sizeof(*mipi), GFP_KERNEL);
-	if (!mipi)
+	dbidev = kzalloc(sizeof(*dbidev), GFP_KERNEL);
+	if (!dbidev)
 		return -ENOMEM;
 
-	dbi = mipi;
-	drm = &mipi->drm;
+	dbi = dbidev;
+	drm = &dbidev->drm;
 	ret = devm_drm_dev_init(dev, drm, &ili9341_driver);
 	if (ret) {
-		kfree(mipi);
+		kfree(dbidev);
 		return ret;
 	}
 
@@ -209,9 +209,9 @@ static int ili9341_probe(struct spi_device *spi)
 		return PTR_ERR(dc);
 	}
 
-	mipi->backlight = devm_of_find_backlight(dev);
-	if (IS_ERR(mipi->backlight))
-		return PTR_ERR(mipi->backlight);
+	dbidev->backlight = devm_of_find_backlight(dev);
+	if (IS_ERR(dbidev->backlight))
+		return PTR_ERR(dbidev->backlight);
 
 	device_property_read_u32(dev, "rotation", &rotation);
 
@@ -219,7 +219,7 @@ static int ili9341_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = mipi_dbi_init(mipi, &ili9341_pipe_funcs, &yx240qv29_mode, rotation);
+	ret = mipi_dbi_init(dbidev, &ili9341_pipe_funcs, &yx240qv29_mode, rotation);
 	if (ret)
 		return ret;
 

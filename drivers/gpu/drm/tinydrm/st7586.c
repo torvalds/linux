@@ -114,11 +114,11 @@ static int st7586_buf_copy(void *dst, struct drm_framebuffer *fb,
 
 static void st7586_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 {
-	struct mipi_dbi *mipi = drm_to_mipi_dbi(fb->dev);
-	struct mipi_dbi *dbi = mipi;
+	struct mipi_dbi *dbidev = drm_to_mipi_dbi(fb->dev);
+	struct mipi_dbi *dbi = dbidev;
 	int start, end, idx, ret = 0;
 
-	if (!mipi->enabled)
+	if (!dbidev->enabled)
 		return;
 
 	if (!drm_dev_enter(fb->dev, &idx))
@@ -130,7 +130,7 @@ static void st7586_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 
 	DRM_DEBUG_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
 
-	ret = st7586_buf_copy(mipi->tx_buf, fb, rect);
+	ret = st7586_buf_copy(dbidev->tx_buf, fb, rect);
 	if (ret)
 		goto err_msg;
 
@@ -146,7 +146,7 @@ static void st7586_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 			 (rect->y2 >> 8) & 0xFF, (rect->y2 - 1) & 0xFF);
 
 	ret = mipi_dbi_command_buf(dbi, MIPI_DCS_WRITE_MEMORY_START,
-				   (u8 *)mipi->tx_buf,
+				   (u8 *)dbidev->tx_buf,
 				   (end - start) * (rect->y2 - rect->y1));
 err_msg:
 	if (ret)
@@ -177,9 +177,9 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 			       struct drm_crtc_state *crtc_state,
 			       struct drm_plane_state *plane_state)
 {
-	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
+	struct mipi_dbi *dbidev = drm_to_mipi_dbi(pipe->crtc.dev);
 	struct drm_framebuffer *fb = plane_state->fb;
-	struct mipi_dbi *dbi = mipi;
+	struct mipi_dbi *dbi = dbidev;
 	struct drm_rect rect = {
 		.x1 = 0,
 		.x2 = fb->width,
@@ -194,7 +194,7 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	DRM_DEBUG_KMS("\n");
 
-	ret = mipi_dbi_poweron_reset(mipi);
+	ret = mipi_dbi_poweron_reset(dbidev);
 	if (ret)
 		goto out_exit;
 
@@ -222,7 +222,7 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 	mipi_dbi_command(dbi, ST7586_DISP_MODE_GRAY);
 	mipi_dbi_command(dbi, ST7586_ENABLE_DDRAM, 0x02);
 
-	switch (mipi->rotation) {
+	switch (dbidev->rotation) {
 	default:
 		addr_mode = 0x00;
 		break;
@@ -245,7 +245,7 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	msleep(100);
 
-	mipi->enabled = true;
+	dbidev->enabled = true;
 	st7586_fb_dirty(fb, &rect);
 
 	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
@@ -318,23 +318,23 @@ MODULE_DEVICE_TABLE(spi, st7586_id);
 static int st7586_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct mipi_dbi *dbidev;
 	struct drm_device *drm;
-	struct mipi_dbi *mipi;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *a0;
 	u32 rotation = 0;
 	size_t bufsize;
 	int ret;
 
-	mipi = kzalloc(sizeof(*mipi), GFP_KERNEL);
-	if (!mipi)
+	dbidev = kzalloc(sizeof(*dbidev), GFP_KERNEL);
+	if (!dbidev)
 		return -ENOMEM;
 
-	dbi = mipi;
-	drm = &mipi->drm;
+	dbi = dbidev;
+	drm = &dbidev->drm;
 	ret = devm_drm_dev_init(dev, drm, &st7586_driver);
 	if (ret) {
-		kfree(mipi);
+		kfree(dbidev);
 		return ret;
 	}
 
@@ -363,7 +363,7 @@ static int st7586_probe(struct spi_device *spi)
 	/* Cannot read from this controller via SPI */
 	dbi->read_commands = NULL;
 
-	ret = mipi_dbi_init_with_formats(mipi, &st7586_pipe_funcs,
+	ret = mipi_dbi_init_with_formats(dbidev, &st7586_pipe_funcs,
 					 st7586_formats, ARRAY_SIZE(st7586_formats),
 					 &st7586_mode, rotation, bufsize);
 	if (ret)

@@ -47,8 +47,8 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 			     struct drm_crtc_state *crtc_state,
 			     struct drm_plane_state *plane_state)
 {
-	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
-	struct mipi_dbi *dbi = mipi;
+	struct mipi_dbi *dbidev = drm_to_mipi_dbi(pipe->crtc.dev);
+	struct mipi_dbi *dbi = dbidev;
 	u8 addr_mode;
 	int ret, idx;
 
@@ -57,7 +57,7 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 
 	DRM_DEBUG_KMS("\n");
 
-	ret = mipi_dbi_poweron_conditional_reset(mipi);
+	ret = mipi_dbi_poweron_conditional_reset(dbidev);
 	if (ret < 0)
 		goto out_exit;
 	if (ret == 1)
@@ -159,7 +159,7 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 	usleep_range(5000, 7000);
 
 out_enable:
-	switch (mipi->rotation) {
+	switch (dbidev->rotation) {
 	default:
 		addr_mode = HX8357D_MADCTL_MX | HX8357D_MADCTL_MY;
 		break;
@@ -174,7 +174,7 @@ out_enable:
 		break;
 	}
 	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
-	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
+	mipi_dbi_enable_flush(dbidev, crtc_state, plane_state);
 out_exit:
 	drm_dev_exit(idx);
 }
@@ -220,20 +220,20 @@ MODULE_DEVICE_TABLE(spi, hx8357d_id);
 static int hx8357d_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct mipi_dbi *dbidev;
 	struct drm_device *drm;
-	struct mipi_dbi *mipi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
 	int ret;
 
-	mipi = kzalloc(sizeof(*mipi), GFP_KERNEL);
-	if (!mipi)
+	dbidev = kzalloc(sizeof(*dbidev), GFP_KERNEL);
+	if (!dbidev)
 		return -ENOMEM;
 
-	drm = &mipi->drm;
+	drm = &dbidev->drm;
 	ret = devm_drm_dev_init(dev, drm, &hx8357d_driver);
 	if (ret) {
-		kfree(mipi);
+		kfree(dbidev);
 		return ret;
 	}
 
@@ -245,17 +245,17 @@ static int hx8357d_probe(struct spi_device *spi)
 		return PTR_ERR(dc);
 	}
 
-	mipi->backlight = devm_of_find_backlight(dev);
-	if (IS_ERR(mipi->backlight))
-		return PTR_ERR(mipi->backlight);
+	dbidev->backlight = devm_of_find_backlight(dev);
+	if (IS_ERR(dbidev->backlight))
+		return PTR_ERR(dbidev->backlight);
 
 	device_property_read_u32(dev, "rotation", &rotation);
 
-	ret = mipi_dbi_spi_init(spi, mipi, dc);
+	ret = mipi_dbi_spi_init(spi, dbidev, dc);
 	if (ret)
 		return ret;
 
-	ret = mipi_dbi_init(mipi, &hx8357d_pipe_funcs, &yx350hv15_mode, rotation);
+	ret = mipi_dbi_init(dbidev, &hx8357d_pipe_funcs, &yx350hv15_mode, rotation);
 	if (ret)
 		return ret;
 
