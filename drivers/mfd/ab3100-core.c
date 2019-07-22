@@ -865,10 +865,10 @@ static int ab3100_probe(struct i2c_client *client,
 		 &ab3100->chip_name[0]);
 
 	/* Attach a second dummy i2c_client to the test register address */
-	ab3100->testreg_client = i2c_new_dummy(client->adapter,
+	ab3100->testreg_client = i2c_new_dummy_device(client->adapter,
 					       client->addr + 1);
-	if (!ab3100->testreg_client) {
-		err = -ENOMEM;
+	if (IS_ERR(ab3100->testreg_client)) {
+		err = PTR_ERR(ab3100->testreg_client);
 		goto exit_no_testreg_client;
 	}
 
