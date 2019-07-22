@@ -603,7 +603,6 @@ void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 
 	case CPU_VR4131:
 	case CPU_VR4133:
-	case CPU_R5432:
 		uasm_i_nop(p);
 		uasm_i_nop(p);
 		tlbw(p);

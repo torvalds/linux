@@ -1631,14 +1631,6 @@ config CPU_R5000
 	help
 	  MIPS Technologies R5000-series processors other than the Nevada.
 
-config CPU_R5432
-	bool "R5432"
-	depends on SYS_HAS_CPU_R5432
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_SUPPORTS_HUGEPAGES
-	select CPU_HAS_LOAD_STORE_LR
-
 config CPU_R5500
 	bool "R5500"
 	depends on SYS_HAS_CPU_R5500
@@ -1969,9 +1961,6 @@ config SYS_HAS_CPU_TX49XX
 	bool
 
 config SYS_HAS_CPU_R5000
-	bool
-
-config SYS_HAS_CPU_R5432
 	bool
 
 config SYS_HAS_CPU_R5500

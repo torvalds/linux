@@ -138,10 +138,6 @@ static inline int __pure __get_cpu_type(const int cpu_type)
 	case CPU_R5000:
 #endif
 
-#ifdef CONFIG_SYS_HAS_CPU_R5432
-	case CPU_R5432:
-#endif
-
 #ifdef CONFIG_SYS_HAS_CPU_R5500
 	case CPU_R5500:
 #endif
