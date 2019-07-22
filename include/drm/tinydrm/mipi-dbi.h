@@ -18,24 +18,62 @@ struct gpio_desc;
 struct regulator;
 
 /**
- * struct mipi_dbi - MIPI DBI controller
- * @spi: SPI device
- * @enabled: Pipeline is enabled
- * @cmdlock: Command lock
- * @command: Bus specific callback executing commands.
- * @read_commands: Array of read commands terminated by a zero entry.
- *                 Reading is disabled if this is NULL.
- * @dc: Optional D/C gpio.
- * @tx_buf: Buffer used for transfer (copy clip rect area)
- * @tx_buf9: Buffer used for Option 1 9-bit conversion
- * @tx_buf9_len: Size of tx_buf9.
- * @swap_bytes: Swap bytes in buffer before transfer
- * @reset: Optional reset gpio
- * @rotation: initial rotation in degrees Counter Clock Wise
- * @backlight: backlight device (optional)
- * @regulator: power regulator (optional)
+ * struct mipi_dbi - MIPI DBI interface
  */
 struct mipi_dbi {
+	/**
+	 * @cmdlock: Command lock
+	 */
+	struct mutex cmdlock;
+
+	/**
+	 * @command: Bus specific callback executing commands.
+	 */
+	int (*command)(struct mipi_dbi *dbi, u8 *cmd, u8 *param, size_t num);
+
+	/**
+	 * @read_commands: Array of read commands terminated by a zero entry.
+	 *                 Reading is disabled if this is NULL.
+	 */
+	const u8 *read_commands;
+
+	/**
+	 * @swap_bytes: Swap bytes in buffer before transfer
+	 */
+	bool swap_bytes;
+
+	/**
+	 * @reset: Optional reset gpio
+	 */
+	struct gpio_desc *reset;
+
+	/* Type C specific */
+
+	/**
+	 * @spi: SPI device
+	 */
+	struct spi_device *spi;
+
+	/**
+	 * @dc: Optional D/C gpio.
+	 */
+	struct gpio_desc *dc;
+
+	/**
+	 * @tx_buf9: Buffer used for Option 1 9-bit conversion
+	 */
+	void *tx_buf9;
+
+	/**
+	 * @tx_buf9_len: Size of tx_buf9.
+	 */
+	size_t tx_buf9_len;
+};
+
+/**
+ * struct mipi_dbi_dev - MIPI DBI device
+ */
+struct mipi_dbi_dev {
 	/**
 	 * @drm: DRM device
 	 */
@@ -56,48 +94,63 @@ struct mipi_dbi {
 	 */
 	struct drm_display_mode mode;
 
-	struct spi_device *spi;
+	/**
+	 * @enabled: Pipeline is enabled
+	 */
 	bool enabled;
-	struct mutex cmdlock;
-	int (*command)(struct mipi_dbi *dbi, u8 *cmd, u8 *param, size_t num);
-	const u8 *read_commands;
-	struct gpio_desc *dc;
+
+	/**
+	 * @tx_buf: Buffer used for transfer (copy clip rect area)
+	 */
 	u16 *tx_buf;
-	void *tx_buf9;
-	size_t tx_buf9_len;
-	bool swap_bytes;
-	struct gpio_desc *reset;
+
+	/**
+	 * @rotation: initial rotation in degrees Counter Clock Wise
+	 */
 	unsigned int rotation;
+
+	/**
+	 * @backlight: backlight device (optional)
+	 */
 	struct backlight_device *backlight;
+
+	/**
+	 * @regulator: power regulator (optional)
+	 */
 	struct regulator *regulator;
+
+	/**
+	 * @dbi: MIPI DBI interface
+	 */
+	struct mipi_dbi dbi;
 };
 
-static inline struct mipi_dbi *drm_to_mipi_dbi(struct drm_device *drm)
+static inline struct mipi_dbi_dev *drm_to_mipi_dbi_dev(struct drm_device *drm)
 {
-	return container_of(drm, struct mipi_dbi, drm);
+	return container_of(drm, struct mipi_dbi_dev, drm);
 }
 
 int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *dbi,
 		      struct gpio_desc *dc);
-int mipi_dbi_init_with_formats(struct mipi_dbi *dbidev,
-			       const struct drm_simple_display_pipe_funcs *funcs,
-			       const uint32_t *formats, unsigned int format_count,
-			       const struct drm_display_mode *mode,
-			       unsigned int rotation, size_t tx_buf_size);
-int mipi_dbi_init(struct mipi_dbi *dbidev,
-		  const struct drm_simple_display_pipe_funcs *funcs,
-		  const struct drm_display_mode *mode, unsigned int rotation);
+int mipi_dbi_dev_init_with_formats(struct mipi_dbi_dev *dbidev,
+				   const struct drm_simple_display_pipe_funcs *funcs,
+				   const uint32_t *formats, unsigned int format_count,
+				   const struct drm_display_mode *mode,
+				   unsigned int rotation, size_t tx_buf_size);
+int mipi_dbi_dev_init(struct mipi_dbi_dev *dbidev,
+		      const struct drm_simple_display_pipe_funcs *funcs,
+		      const struct drm_display_mode *mode, unsigned int rotation);
 void mipi_dbi_release(struct drm_device *drm);
 void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 			  struct drm_plane_state *old_state);
-void mipi_dbi_enable_flush(struct mipi_dbi *dbidev,
+void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,
 			   struct drm_crtc_state *crtc_state,
 			   struct drm_plane_state *plan_state);
 void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe);
 void mipi_dbi_hw_reset(struct mipi_dbi *dbi);
 bool mipi_dbi_display_is_on(struct mipi_dbi *dbi);
-int mipi_dbi_poweron_reset(struct mipi_dbi *dbidev);
-int mipi_dbi_poweron_conditional_reset(struct mipi_dbi *dbidev);
+int mipi_dbi_poweron_reset(struct mipi_dbi_dev *dbidev);
+int mipi_dbi_poweron_conditional_reset(struct mipi_dbi_dev *dbidev);
 
 u32 mipi_dbi_spi_cmd_max_speed(struct spi_device *spi, size_t len);
 int mipi_dbi_spi_transfer(struct spi_device *spi, u32 speed_hz,

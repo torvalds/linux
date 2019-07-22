@@ -241,10 +241,10 @@ EXPORT_SYMBOL(mipi_dbi_buf_copy);
 static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 {
 	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	struct mipi_dbi *dbidev = drm_to_mipi_dbi(fb->dev);
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
 	unsigned int height = rect->y2 - rect->y1;
 	unsigned int width = rect->x2 - rect->x1;
-	struct mipi_dbi *dbi = dbidev;
+	struct mipi_dbi *dbi = &dbidev->dbi;
 	bool swap = dbi->swap_bytes;
 	int idx, ret = 0;
 	bool full;
@@ -327,7 +327,7 @@ EXPORT_SYMBOL(mipi_dbi_pipe_update);
  * framebuffer flushing, can't use this function since they both use the same
  * flushing code.
  */
-void mipi_dbi_enable_flush(struct mipi_dbi *dbidev,
+void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,
 			   struct drm_crtc_state *crtc_state,
 			   struct drm_plane_state *plane_state)
 {
@@ -351,13 +351,13 @@ void mipi_dbi_enable_flush(struct mipi_dbi *dbidev,
 }
 EXPORT_SYMBOL(mipi_dbi_enable_flush);
 
-static void mipi_dbi_blank(struct mipi_dbi *dbidev)
+static void mipi_dbi_blank(struct mipi_dbi_dev *dbidev)
 {
 	struct drm_device *drm = &dbidev->drm;
 	u16 height = drm->mode_config.min_height;
 	u16 width = drm->mode_config.min_width;
+	struct mipi_dbi *dbi = &dbidev->dbi;
 	size_t len = width * height * 2;
-	struct mipi_dbi *dbi = dbidev;
 	int idx;
 
 	if (!drm_dev_enter(drm, &idx))
@@ -385,7 +385,7 @@ static void mipi_dbi_blank(struct mipi_dbi *dbidev)
  */
 void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
-	struct mipi_dbi *dbidev = drm_to_mipi_dbi(pipe->crtc.dev);
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
 
 	if (!dbidev->enabled)
 		return;
@@ -406,7 +406,7 @@ EXPORT_SYMBOL(mipi_dbi_pipe_disable);
 
 static int mipi_dbi_connector_get_modes(struct drm_connector *connector)
 {
-	struct mipi_dbi *dbidev = drm_to_mipi_dbi(connector->dev);
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(connector->dev);
 	struct drm_display_mode *mode;
 
 	mode = drm_mode_duplicate(connector->dev, &dbidev->mode);
@@ -470,7 +470,7 @@ static const uint32_t mipi_dbi_formats[] = {
 };
 
 /**
- * mipi_dbi_init_with_formats - MIPI DBI initialization with custom formats
+ * mipi_dbi_dev_init_with_formats - MIPI DBI device initialization with custom formats
  * @dbidev: MIPI DBI device structure to initialize
  * @funcs: Display pipe functions
  * @formats: Array of supported formats (DRM_FORMAT\_\*).
@@ -483,7 +483,7 @@ static const uint32_t mipi_dbi_formats[] = {
  * has one fixed &drm_display_mode which is rotated according to @rotation.
  * This mode is used to set the mode config min/max width/height properties.
  *
- * Use mipi_dbi_init() if you don't need custom formats.
+ * Use mipi_dbi_dev_init() if you don't need custom formats.
  *
  * Note:
  * Some of the helper functions expects RGB565 to be the default format and the
@@ -492,11 +492,11 @@ static const uint32_t mipi_dbi_formats[] = {
  * Returns:
  * Zero on success, negative error code on failure.
  */
-int mipi_dbi_init_with_formats(struct mipi_dbi *dbidev,
-			       const struct drm_simple_display_pipe_funcs *funcs,
-			       const uint32_t *formats, unsigned int format_count,
-			       const struct drm_display_mode *mode,
-			       unsigned int rotation, size_t tx_buf_size)
+int mipi_dbi_dev_init_with_formats(struct mipi_dbi_dev *dbidev,
+				   const struct drm_simple_display_pipe_funcs *funcs,
+				   const uint32_t *formats, unsigned int format_count,
+				   const struct drm_display_mode *mode,
+				   unsigned int rotation, size_t tx_buf_size)
 {
 	static const uint64_t modifiers[] = {
 		DRM_FORMAT_MOD_LINEAR,
@@ -505,7 +505,7 @@ int mipi_dbi_init_with_formats(struct mipi_dbi *dbidev,
 	struct drm_device *drm = &dbidev->drm;
 	int ret;
 
-	if (!dbidev->command)
+	if (!dbidev->dbi.command)
 		return -EINVAL;
 
 	dbidev->tx_buf = devm_kmalloc(drm->dev, tx_buf_size, GFP_KERNEL);
@@ -543,10 +543,10 @@ int mipi_dbi_init_with_formats(struct mipi_dbi *dbidev,
 
 	return 0;
 }
-EXPORT_SYMBOL(mipi_dbi_init_with_formats);
+EXPORT_SYMBOL(mipi_dbi_dev_init_with_formats);
 
 /**
- * mipi_dbi_init - MIPI DBI initialization
+ * mipi_dbi_dev_init - MIPI DBI device initialization
  * @dbidev: MIPI DBI device structure to initialize
  * @funcs: Display pipe functions
  * @mode: Display mode
@@ -562,19 +562,19 @@ EXPORT_SYMBOL(mipi_dbi_init_with_formats);
  * Returns:
  * Zero on success, negative error code on failure.
  */
-int mipi_dbi_init(struct mipi_dbi *dbidev,
-		  const struct drm_simple_display_pipe_funcs *funcs,
-		  const struct drm_display_mode *mode, unsigned int rotation)
+int mipi_dbi_dev_init(struct mipi_dbi_dev *dbidev,
+		      const struct drm_simple_display_pipe_funcs *funcs,
+		      const struct drm_display_mode *mode, unsigned int rotation)
 {
 	size_t bufsize = mode->vdisplay * mode->hdisplay * sizeof(u16);
 
 	dbidev->drm.mode_config.preferred_depth = 16;
 
-	return mipi_dbi_init_with_formats(dbidev, funcs, mipi_dbi_formats,
-					  ARRAY_SIZE(mipi_dbi_formats), mode,
-					  rotation, bufsize);
+	return mipi_dbi_dev_init_with_formats(dbidev, funcs, mipi_dbi_formats,
+					      ARRAY_SIZE(mipi_dbi_formats), mode,
+					      rotation, bufsize);
 }
-EXPORT_SYMBOL(mipi_dbi_init);
+EXPORT_SYMBOL(mipi_dbi_dev_init);
 
 /**
  * mipi_dbi_release - DRM driver release helper
@@ -586,13 +586,13 @@ EXPORT_SYMBOL(mipi_dbi_init);
  */
 void mipi_dbi_release(struct drm_device *drm)
 {
-	struct mipi_dbi *dbi = drm_to_mipi_dbi(drm);
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(drm);
 
 	DRM_DEBUG_DRIVER("\n");
 
 	drm_mode_config_cleanup(drm);
 	drm_dev_fini(drm);
-	kfree(dbi);
+	kfree(dbidev);
 }
 EXPORT_SYMBOL(mipi_dbi_release);
 
@@ -646,10 +646,10 @@ bool mipi_dbi_display_is_on(struct mipi_dbi *dbi)
 }
 EXPORT_SYMBOL(mipi_dbi_display_is_on);
 
-static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi *dbidev, bool cond)
+static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi_dev *dbidev, bool cond)
 {
 	struct device *dev = dbidev->drm.dev;
-	struct mipi_dbi *dbi = dbidev;
+	struct mipi_dbi *dbi = &dbidev->dbi;
 	int ret;
 
 	if (dbidev->regulator) {
@@ -695,7 +695,7 @@ static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi *dbidev, bool cond
  * Returns:
  * Zero on success, or a negative error code.
  */
-int mipi_dbi_poweron_reset(struct mipi_dbi *dbidev)
+int mipi_dbi_poweron_reset(struct mipi_dbi_dev *dbidev)
 {
 	return mipi_dbi_poweron_reset_conditional(dbidev, false);
 }
@@ -713,7 +713,7 @@ EXPORT_SYMBOL(mipi_dbi_poweron_reset);
  * Zero if the controller was reset, 1 if the display was already on, or a
  * negative error code.
  */
-int mipi_dbi_poweron_conditional_reset(struct mipi_dbi *dbidev)
+int mipi_dbi_poweron_conditional_reset(struct mipi_dbi_dev *dbidev)
 {
 	return mipi_dbi_poweron_reset_conditional(dbidev, true);
 }
@@ -1066,7 +1066,7 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *dbi, u8 *cmd,
  * @dc: D/C gpio (optional)
  *
  * This function sets &mipi_dbi->command, enables &mipi_dbi->read_commands for the
- * usual read commands. It should be followed by a call to mipi_dbi_init() or
+ * usual read commands. It should be followed by a call to mipi_dbi_dev_init() or
  * a driver-specific init.
  *
  * If @dc is set, a Type C Option 3 interface is assumed, if not
@@ -1183,13 +1183,13 @@ static ssize_t mipi_dbi_debugfs_command_write(struct file *file,
 					      size_t count, loff_t *ppos)
 {
 	struct seq_file *m = file->private_data;
-	struct mipi_dbi *mipi = m->private;
+	struct mipi_dbi_dev *dbidev = m->private;
 	u8 val, cmd = 0, parameters[64];
 	char *buf, *pos, *token;
 	unsigned int i;
 	int ret, idx;
 
-	if (!drm_dev_enter(&mipi->drm, &idx))
+	if (!drm_dev_enter(&dbidev->drm, &idx))
 		return -ENODEV;
 
 	buf = memdup_user_nul(ubuf, count);
@@ -1228,7 +1228,7 @@ static ssize_t mipi_dbi_debugfs_command_write(struct file *file,
 		}
 	}
 
-	ret = mipi_dbi_command_buf(mipi, cmd, parameters, i);
+	ret = mipi_dbi_command_buf(&dbidev->dbi, cmd, parameters, i);
 
 err_free:
 	kfree(buf);
@@ -1240,16 +1240,17 @@ err_exit:
 
 static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
 {
-	struct mipi_dbi *mipi = m->private;
+	struct mipi_dbi_dev *dbidev = m->private;
+	struct mipi_dbi *dbi = &dbidev->dbi;
 	u8 cmd, val[4];
 	int ret, idx;
 	size_t len;
 
-	if (!drm_dev_enter(&mipi->drm, &idx))
+	if (!drm_dev_enter(&dbidev->drm, &idx))
 		return -ENODEV;
 
 	for (cmd = 0; cmd < 255; cmd++) {
-		if (!mipi_dbi_command_is_read(mipi, cmd))
+		if (!mipi_dbi_command_is_read(dbi, cmd))
 			continue;
 
 		switch (cmd) {
@@ -1269,7 +1270,7 @@ static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
 		}
 
 		seq_printf(m, "%02x: ", cmd);
-		ret = mipi_dbi_command_buf(mipi, cmd, val, len);
+		ret = mipi_dbi_command_buf(dbi, cmd, val, len);
 		if (ret) {
 			seq_puts(m, "XX\n");
 			continue;
@@ -1311,12 +1312,12 @@ static const struct file_operations mipi_dbi_debugfs_command_fops = {
  */
 int mipi_dbi_debugfs_init(struct drm_minor *minor)
 {
-	struct mipi_dbi *mipi = drm_to_mipi_dbi(minor->dev);
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(minor->dev);
 	umode_t mode = S_IFREG | S_IWUSR;
 
-	if (mipi->read_commands)
+	if (dbidev->dbi.read_commands)
 		mode |= S_IRUGO;
-	debugfs_create_file("command", mode, minor->debugfs_root, mipi,
+	debugfs_create_file("command", mode, minor->debugfs_root, dbidev,
 			    &mipi_dbi_debugfs_command_fops);
 
 	return 0;

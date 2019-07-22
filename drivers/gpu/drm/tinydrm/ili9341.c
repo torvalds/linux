@@ -53,8 +53,8 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 			     struct drm_crtc_state *crtc_state,
 			     struct drm_plane_state *plane_state)
 {
-	struct mipi_dbi *dbidev = drm_to_mipi_dbi(pipe->crtc.dev);
-	struct mipi_dbi *dbi = dbidev;
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	struct mipi_dbi *dbi = &dbidev->dbi;
 	u8 addr_mode;
 	int ret, idx;
 
@@ -176,7 +176,7 @@ MODULE_DEVICE_TABLE(spi, ili9341_id);
 static int ili9341_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct mipi_dbi *dbidev;
+	struct mipi_dbi_dev *dbidev;
 	struct drm_device *drm;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *dc;
@@ -187,7 +187,7 @@ static int ili9341_probe(struct spi_device *spi)
 	if (!dbidev)
 		return -ENOMEM;
 
-	dbi = dbidev;
+	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
 	ret = devm_drm_dev_init(dev, drm, &ili9341_driver);
 	if (ret) {
@@ -219,7 +219,7 @@ static int ili9341_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = mipi_dbi_init(dbidev, &ili9341_pipe_funcs, &yx240qv29_mode, rotation);
+	ret = mipi_dbi_dev_init(dbidev, &ili9341_pipe_funcs, &yx240qv29_mode, rotation);
 	if (ret)
 		return ret;
 

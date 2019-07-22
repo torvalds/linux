@@ -78,10 +78,10 @@ static inline int ili9225_command(struct mipi_dbi *dbi, u8 cmd, u16 data)
 static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 {
 	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	struct mipi_dbi *dbidev = drm_to_mipi_dbi(fb->dev);
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
 	unsigned int height = rect->y2 - rect->y1;
 	unsigned int width = rect->x2 - rect->x1;
-	struct mipi_dbi *dbi = dbidev;
+	struct mipi_dbi *dbi = &dbidev->dbi;
 	bool swap = dbi->swap_bytes;
 	u16 x_start, y_start;
 	u16 x1, x2, y1, y2;
@@ -183,10 +183,10 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 				struct drm_crtc_state *crtc_state,
 				struct drm_plane_state *plane_state)
 {
-	struct mipi_dbi *dbidev = drm_to_mipi_dbi(pipe->crtc.dev);
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct device *dev = pipe->crtc.dev->dev;
-	struct mipi_dbi *dbi = dbidev;
+	struct mipi_dbi *dbi = &dbidev->dbi;
 	struct drm_rect rect = {
 		.x1 = 0,
 		.x2 = fb->width,
@@ -291,8 +291,8 @@ out_exit:
 
 static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
-	struct mipi_dbi *dbidev = drm_to_mipi_dbi(pipe->crtc.dev);
-	struct mipi_dbi *dbi = dbidev;
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	struct mipi_dbi *dbi = &dbidev->dbi;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -378,7 +378,7 @@ MODULE_DEVICE_TABLE(spi, ili9225_id);
 static int ili9225_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct mipi_dbi *dbidev;
+	struct mipi_dbi_dev *dbidev;
 	struct drm_device *drm;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *rs;
@@ -389,7 +389,7 @@ static int ili9225_probe(struct spi_device *spi)
 	if (!dbidev)
 		return -ENOMEM;
 
-	dbi = dbidev;
+	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
 	ret = devm_drm_dev_init(dev, drm, &ili9225_driver);
 	if (ret) {
@@ -420,7 +420,7 @@ static int ili9225_probe(struct spi_device *spi)
 	/* override the command function set in  mipi_dbi_spi_init() */
 	dbi->command = ili9225_dbi_command;
 
-	ret = mipi_dbi_init(dbidev, &ili9225_pipe_funcs, &ili9225_mode, rotation);
+	ret = mipi_dbi_dev_init(dbidev, &ili9225_pipe_funcs, &ili9225_mode, rotation);
 	if (ret)
 		return ret;
 

@@ -114,8 +114,8 @@ static int st7586_buf_copy(void *dst, struct drm_framebuffer *fb,
 
 static void st7586_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 {
-	struct mipi_dbi *dbidev = drm_to_mipi_dbi(fb->dev);
-	struct mipi_dbi *dbi = dbidev;
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
+	struct mipi_dbi *dbi = &dbidev->dbi;
 	int start, end, idx, ret = 0;
 
 	if (!dbidev->enabled)
@@ -177,9 +177,9 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 			       struct drm_crtc_state *crtc_state,
 			       struct drm_plane_state *plane_state)
 {
-	struct mipi_dbi *dbidev = drm_to_mipi_dbi(pipe->crtc.dev);
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
 	struct drm_framebuffer *fb = plane_state->fb;
-	struct mipi_dbi *dbi = dbidev;
+	struct mipi_dbi *dbi = &dbidev->dbi;
 	struct drm_rect rect = {
 		.x1 = 0,
 		.x2 = fb->width,
@@ -255,7 +255,7 @@ out_exit:
 
 static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
-	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
 
 	/*
 	 * This callback is not protected by drm_dev_enter/exit since we want to
@@ -266,11 +266,11 @@ static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
 
 	DRM_DEBUG_KMS("\n");
 
-	if (!mipi->enabled)
+	if (!dbidev->enabled)
 		return;
 
-	mipi_dbi_command(mipi, MIPI_DCS_SET_DISPLAY_OFF);
-	mipi->enabled = false;
+	mipi_dbi_command(&dbidev->dbi, MIPI_DCS_SET_DISPLAY_OFF);
+	dbidev->enabled = false;
 }
 
 static const u32 st7586_formats[] = {
@@ -318,7 +318,7 @@ MODULE_DEVICE_TABLE(spi, st7586_id);
 static int st7586_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct mipi_dbi *dbidev;
+	struct mipi_dbi_dev *dbidev;
 	struct drm_device *drm;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *a0;
@@ -330,7 +330,7 @@ static int st7586_probe(struct spi_device *spi)
 	if (!dbidev)
 		return -ENOMEM;
 
-	dbi = dbidev;
+	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
 	ret = devm_drm_dev_init(dev, drm, &st7586_driver);
 	if (ret) {
@@ -363,9 +363,9 @@ static int st7586_probe(struct spi_device *spi)
 	/* Cannot read from this controller via SPI */
 	dbi->read_commands = NULL;
 
-	ret = mipi_dbi_init_with_formats(dbidev, &st7586_pipe_funcs,
-					 st7586_formats, ARRAY_SIZE(st7586_formats),
-					 &st7586_mode, rotation, bufsize);
+	ret = mipi_dbi_dev_init_with_formats(dbidev, &st7586_pipe_funcs,
+					     st7586_formats, ARRAY_SIZE(st7586_formats),
+					     &st7586_mode, rotation, bufsize);
 	if (ret)
 		return ret;
 

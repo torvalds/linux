@@ -42,8 +42,8 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 				      struct drm_crtc_state *crtc_state,
 				      struct drm_plane_state *plane_state)
 {
-	struct mipi_dbi *dbidev = drm_to_mipi_dbi(pipe->crtc.dev);
-	struct mipi_dbi *dbi = dbidev;
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	struct mipi_dbi *dbi = &dbidev->dbi;
 	int ret, idx;
 	u8 addr_mode;
 
@@ -150,7 +150,7 @@ MODULE_DEVICE_TABLE(spi, st7735r_id);
 static int st7735r_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct mipi_dbi *dbidev;
+	struct mipi_dbi_dev *dbidev;
 	struct drm_device *drm;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *dc;
@@ -161,7 +161,7 @@ static int st7735r_probe(struct spi_device *spi)
 	if (!dbidev)
 		return -ENOMEM;
 
-	dbi = dbidev;
+	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
 	ret = devm_drm_dev_init(dev, drm, &st7735r_driver);
 	if (ret) {
@@ -196,7 +196,7 @@ static int st7735r_probe(struct spi_device *spi)
 	/* Cannot read from Adafruit 1.8" display via SPI */
 	dbi->read_commands = NULL;
 
-	ret = mipi_dbi_init(dbidev, &jd_t18003_t01_pipe_funcs, &jd_t18003_t01_mode, rotation);
+	ret = mipi_dbi_dev_init(dbidev, &jd_t18003_t01_pipe_funcs, &jd_t18003_t01_mode, rotation);
 	if (ret)
 		return ret;
 

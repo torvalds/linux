@@ -47,8 +47,8 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 			     struct drm_crtc_state *crtc_state,
 			     struct drm_plane_state *plane_state)
 {
-	struct mipi_dbi *dbidev = drm_to_mipi_dbi(pipe->crtc.dev);
-	struct mipi_dbi *dbi = dbidev;
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	struct mipi_dbi *dbi = &dbidev->dbi;
 	u8 addr_mode;
 	int ret, idx;
 
@@ -220,7 +220,7 @@ MODULE_DEVICE_TABLE(spi, hx8357d_id);
 static int hx8357d_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct mipi_dbi *dbidev;
+	struct mipi_dbi_dev *dbidev;
 	struct drm_device *drm;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
@@ -251,11 +251,11 @@ static int hx8357d_probe(struct spi_device *spi)
 
 	device_property_read_u32(dev, "rotation", &rotation);
 
-	ret = mipi_dbi_spi_init(spi, dbidev, dc);
+	ret = mipi_dbi_spi_init(spi, &dbidev->dbi, dc);
 	if (ret)
 		return ret;
 
-	ret = mipi_dbi_init(dbidev, &hx8357d_pipe_funcs, &yx350hv15_mode, rotation);
+	ret = mipi_dbi_dev_init(dbidev, &hx8357d_pipe_funcs, &yx350hv15_mode, rotation);
 	if (ret)
 		return ret;
 
