@@ -387,3 +387,21 @@ int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
 		return dai->driver->compress_new(rtd, num);
 	return -ENOTSUPP;
 }
+
+/*
+ * snd_soc_dai_stream_valid() - check if a DAI supports the given stream
+ *
+ * Returns true if the DAI supports the indicated stream type.
+ */
+bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int dir)
+{
+	struct snd_soc_pcm_stream *stream;
+
+	if (dir == SNDRV_PCM_STREAM_PLAYBACK)
+		stream = &dai->driver->playback;
+	else
+		stream = &dai->driver->capture;
+
+	/* If the codec specifies any channels at all, it supports the stream */
+	return stream->channels_min;
+}

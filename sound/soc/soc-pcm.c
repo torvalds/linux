@@ -29,24 +29,6 @@
 
 #define DPCM_MAX_BE_USERS	8
 
-/*
- * snd_soc_dai_stream_valid() - check if a DAI supports the given stream
- *
- * Returns true if the DAI supports the indicated stream type.
- */
-static bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int stream)
-{
-	struct snd_soc_pcm_stream *codec_stream;
-
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		codec_stream = &dai->driver->playback;
-	else
-		codec_stream = &dai->driver->capture;
-
-	/* If the codec specifies any channels at all, it supports the stream */
-	return codec_stream->channels_min;
-}
-
 /**
  * snd_soc_runtime_activate() - Increment active count for PCM runtime components
  * @rtd: ASoC PCM runtime that is activated
@@ -2672,8 +2654,8 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 		new ? "new" : "old", fe->dai_link->name);
 
 	/* skip if FE doesn't have playback capability */
-	if (!fe->cpu_dai->driver->playback.channels_min ||
-	    !fe->codec_dai->driver->playback.channels_min)
+	if (!snd_soc_dai_stream_valid(fe->cpu_dai,   SNDRV_PCM_STREAM_PLAYBACK) ||
+	    !snd_soc_dai_stream_valid(fe->codec_dai, SNDRV_PCM_STREAM_PLAYBACK))
 		goto capture;
 
 	/* skip if FE isn't currently playing */
@@ -2703,8 +2685,8 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 
 capture:
 	/* skip if FE doesn't have capture capability */
-	if (!fe->cpu_dai->driver->capture.channels_min ||
-	    !fe->codec_dai->driver->capture.channels_min)
+	if (!snd_soc_dai_stream_valid(fe->cpu_dai,   SNDRV_PCM_STREAM_CAPTURE) ||
+	    !snd_soc_dai_stream_valid(fe->codec_dai, SNDRV_PCM_STREAM_CAPTURE))
 		return 0;
 
 	/* skip if FE isn't currently capturing */
@@ -3014,14 +2996,13 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		capture = rtd->dai_link->dpcm_capture;
 	} else {
 		for_each_rtd_codec_dai(rtd, i, codec_dai) {
-			if (codec_dai->driver->playback.channels_min)
+			if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_PLAYBACK) &&
+			    snd_soc_dai_stream_valid(cpu_dai,   SNDRV_PCM_STREAM_PLAYBACK))
 				playback = 1;
-			if (codec_dai->driver->capture.channels_min)
+			if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_CAPTURE) &&
+			    snd_soc_dai_stream_valid(cpu_dai,   SNDRV_PCM_STREAM_CAPTURE))
 				capture = 1;
 		}
-
-		capture = capture && cpu_dai->driver->capture.channels_min;
-		playback = playback && cpu_dai->driver->playback.channels_min;
 	}
 
 	if (rtd->dai_link->playback_only) {
@@ -3359,11 +3340,11 @@ static ssize_t dpcm_state_read_file(struct file *file, char __user *user_buf,
 	if (!buf)
 		return -ENOMEM;
 
-	if (fe->cpu_dai->driver->playback.channels_min)
+	if (snd_soc_dai_stream_valid(fe->cpu_dai, SNDRV_PCM_STREAM_PLAYBACK))
 		offset += dpcm_show_state(fe, SNDRV_PCM_STREAM_PLAYBACK,
 					buf + offset, out_count - offset);
 
-	if (fe->cpu_dai->driver->capture.channels_min)
+	if (snd_soc_dai_stream_valid(fe->cpu_dai, SNDRV_PCM_STREAM_CAPTURE))
 		offset += dpcm_show_state(fe, SNDRV_PCM_STREAM_CAPTURE,
 					buf + offset, out_count - offset);
 
