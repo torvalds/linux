@@ -5,6 +5,8 @@
 
 #include "local.h"
 
+DEFINE_STATIC_KEY_FALSE(apic_use_ipi_shorthand);
+
 #ifdef CONFIG_SMP
 #ifdef CONFIG_HOTPLUG_CPU
 #define DEFAULT_SEND_IPI	(1)
@@ -28,7 +30,27 @@ static int __init print_ipi_mode(void)
 	return 0;
 }
 late_initcall(print_ipi_mode);
-#endif
+
+void apic_smt_update(void)
+{
+	/*
+	 * Do not switch to broadcast mode if:
+	 * - Disabled on the command line
+	 * - Only a single CPU is online
+	 * - Not all present CPUs have been at least booted once
+	 *
+	 * The latter is important as the local APIC might be in some
+	 * random state and a broadcast might cause havoc. That's
+	 * especially true for NMI broadcasting.
+	 */
+	if (apic_ipi_shorthand_off || num_online_cpus() == 1 ||
+	    !cpumask_equal(cpu_present_mask, &cpus_booted_once_mask)) {
+		static_branch_disable(&apic_use_ipi_shorthand);
+	} else {
+		static_branch_enable(&apic_use_ipi_shorthand);
+	}
+}
+#endif /* CONFIG_SMP */
 
 static inline int __prepare_ICR2(unsigned int mask)
 {
