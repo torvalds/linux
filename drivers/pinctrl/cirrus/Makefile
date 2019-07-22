@@ -15,5 +15,8 @@ endif
 ifeq ($(CONFIG_PINCTRL_CS47L90),y)
 pinctrl-madera-objs		+= pinctrl-cs47l90.o
 endif
+ifeq ($(CONFIG_PINCTRL_CS47L92),y)
+pinctrl-madera-objs		+= pinctrl-cs47l92.o
+endif
 
 obj-$(CONFIG_PINCTRL_MADERA)	+= pinctrl-madera.o

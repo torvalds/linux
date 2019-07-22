@@ -396,6 +396,16 @@ static const struct {
 		.group_names = madera_pin_single_group_names,
 		.func = 0x157
 	},
+	{
+		.name = "aux-pdm-clk",
+		.group_names = madera_pin_single_group_names,
+		.func = 0x280
+	},
+	{
+		.name = "aux-pdm-dat",
+		.group_names = madera_pin_single_group_names,
+		.func = 0x281
+	},
 };
 
 static u16 madera_pin_make_drv_str(struct madera_pin_private *priv,
@@ -1021,6 +1031,12 @@ static int madera_pin_probe(struct platform_device *pdev)
 	case CS47L91:
 		if (IS_ENABLED(CONFIG_PINCTRL_CS47L90))
 			priv->chip = &cs47l90_pin_chip;
+		break;
+	case CS42L92:
+	case CS47L92:
+	case CS47L93:
+		if (IS_ENABLED(CONFIG_PINCTRL_CS47L92))
+			priv->chip = &cs47l92_pin_chip;
 		break;
 	default:
 		break;

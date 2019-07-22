@@ -26,3 +26,6 @@ config PINCTRL_CS47L85
 
 config PINCTRL_CS47L90
 	bool
+
+config PINCTRL_CS47L92
+	bool
