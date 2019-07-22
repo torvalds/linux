@@ -616,7 +616,7 @@ struct kvm_vcpu_arch {
 	 * "guest_fpu" state here contains the guest FPU context, with the
 	 * host PRKU bits.
 	 */
-	struct fpu user_fpu;
+	struct fpu *user_fpu;
 	struct fpu *guest_fpu;
 
 	u64 xcr0;
