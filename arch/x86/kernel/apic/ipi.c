@@ -3,7 +3,8 @@
 #include <linux/cpumask.h>
 
 #include <asm/apic.h>
-#include <asm/ipi.h>
+
+#include "ipi.h"
 
 void __default_send_IPI_shortcut(unsigned int shortcut, int vector, unsigned int dest)
 {

@@ -11,7 +11,8 @@
 
 #include <asm/apic.h>
 #include <asm/acpi.h>
-#include <asm/ipi.h>
+
+#include "ipi.h"
 
 #ifdef CONFIG_HOTPLUG_CPU
 #define DEFAULT_SEND_IPI	(1)

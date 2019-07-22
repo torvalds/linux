@@ -9,7 +9,8 @@
  * James Cleverdon.
  */
 #include <asm/apic.h>
-#include <asm/ipi.h>
+
+#include "ipi.h"
 
 /*
  * Check the APIC IDs in bios_cpu_apicid and choose the APIC mode.

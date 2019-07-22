@@ -3,9 +3,8 @@
 #include <linux/cpumask.h>
 #include <linux/acpi.h>
 
-#include <asm/ipi.h>
-
 #include "x2apic.h"
+#include "ipi.h"
 
 int x2apic_phys;
 
