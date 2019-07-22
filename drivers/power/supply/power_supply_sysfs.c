@@ -207,6 +207,7 @@ static ssize_t power_supply_show_property(struct device *dev,
 			      power_supply_typec_src_rp_text[value.intval]);
 		break;
 	case POWER_SUPPLY_PROP_DIE_HEALTH:
+	case POWER_SUPPLY_PROP_SKIN_HEALTH:
 	case POWER_SUPPLY_PROP_CONNECTOR_HEALTH:
 		ret = sprintf(buf, "%s\n",
 			      power_supply_health_text[value.intval]);
@@ -462,6 +463,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(force_main_fcc),
 	POWER_SUPPLY_ATTR(comp_clamp_level),
 	POWER_SUPPLY_ATTR(adapter_cc_mode),
+	POWER_SUPPLY_ATTR(skin_health),
 	/* Charge pump properties */
 	POWER_SUPPLY_ATTR(cp_status1),
 	POWER_SUPPLY_ATTR(cp_status2),
