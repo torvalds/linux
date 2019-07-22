@@ -425,25 +425,19 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev)
 
 int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 {
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct sof_intel_hda_stream *hda_stream;
-	struct hdac_ext_stream *stream;
-	struct hdac_stream *s;
-
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct snd_soc_pcm_runtime *rtd;
+	struct hdac_ext_stream *stream;
 	struct hdac_ext_link *link;
+	struct hdac_stream *s;
 	const char *name;
 	int stream_tag;
-#endif
 
 	/* set internal flag for BE */
 	list_for_each_entry(s, &bus->stream_list, list) {
 		stream = stream_to_hdac_ext_stream(s);
-		hda_stream = container_of(stream, struct sof_intel_hda_stream,
-					  hda_stream);
-		hda_stream->hw_params_upon_resume = 1;
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+
 		/*
 		 * clear and release stream. This should already be taken care
 		 * for running streams when the SUSPEND trigger is called.
@@ -460,8 +454,9 @@ int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 			snd_hdac_ext_link_clear_stream_id(link, stream_tag);
 			snd_hdac_ext_stream_release(stream,
 						    HDAC_EXT_STREAM_TYPE_LINK);
+			stream->link_prepared = 0;
 		}
-#endif
 	}
+#endif
 	return 0;
 }
