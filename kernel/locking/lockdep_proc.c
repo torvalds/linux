@@ -399,7 +399,7 @@ static void seq_lock_time(struct seq_file *m, struct lock_time *lt)
 
 static void seq_stats(struct seq_file *m, struct lock_stat_data *data)
 {
-	struct lockdep_subclass_key *ckey;
+	const struct lockdep_subclass_key *ckey;
 	struct lock_class_stats *stats;
 	struct lock_class *class;
 	const char *cname;

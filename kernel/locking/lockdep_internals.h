@@ -116,7 +116,8 @@ extern struct lock_chain lock_chains[];
 extern void get_usage_chars(struct lock_class *class,
 			    char usage[LOCK_USAGE_CHARS]);
 
-extern const char * __get_key_name(struct lockdep_subclass_key *key, char *str);
+extern const char *__get_key_name(const struct lockdep_subclass_key *key,
+				  char *str);
 
 struct lock_class *lock_chain_get_class(struct lock_chain *chain, int i);
 
