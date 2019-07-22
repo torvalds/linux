@@ -120,7 +120,7 @@ void r8712_init_recvbuf(struct _adapter *padapter, struct recv_buf *precvbuf)
 	}
 }
 
-int r8712_free_recvframe(union recv_frame *precvframe,
+void r8712_free_recvframe(union recv_frame *precvframe,
 		   struct  __queue *pfree_recv_queue)
 {
 	unsigned long irqL;
@@ -139,7 +139,6 @@ int r8712_free_recvframe(union recv_frame *precvframe,
 			precvpriv->free_recvframe_cnt++;
 	}
 	spin_unlock_irqrestore(&pfree_recv_queue->lock, irqL);
-	return _SUCCESS;
 }
 
 static void update_recvframe_attrib_from_recvstat(struct rx_pkt_attrib *pattrib,
