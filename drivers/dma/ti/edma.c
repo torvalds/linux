@@ -15,7 +15,6 @@
 
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
-#include <linux/edma.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -2185,6 +2184,8 @@ static struct dma_chan *of_edma_xlate(struct of_phandle_args *dma_spec,
 }
 #endif
 
+static bool edma_filter_fn(struct dma_chan *chan, void *param);
+
 static int edma_probe(struct platform_device *pdev)
 {
 	struct edma_soc_info	*info = pdev->dev.platform_data;
@@ -2524,7 +2525,7 @@ static struct platform_driver edma_tptc_driver = {
 	},
 };
 
-bool edma_filter_fn(struct dma_chan *chan, void *param)
+static bool edma_filter_fn(struct dma_chan *chan, void *param)
 {
 	bool match = false;
 
