@@ -150,6 +150,11 @@ static int madera_gpio_probe(struct platform_device *pdev)
 	case CS47L91:
 		madera_gpio->gpio_chip.ngpio = CS47L90_NUM_GPIOS;
 		break;
+	case CS42L92:
+	case CS47L92:
+	case CS47L93:
+		madera_gpio->gpio_chip.ngpio = CS47L92_NUM_GPIOS;
+		break;
 	default:
 		dev_err(&pdev->dev, "Unknown chip variant %d\n", madera->type);
 		return -EINVAL;
