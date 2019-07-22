@@ -862,36 +862,6 @@ static void soc_pcm_codec_params_fixup(struct snd_pcm_hw_params *params,
 	interval->max = channels;
 }
 
-int soc_dai_hw_params(struct snd_pcm_substream *substream,
-		      struct snd_pcm_hw_params *params,
-		      struct snd_soc_dai *dai)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	int ret;
-
-	/* perform any topology hw_params fixups before DAI  */
-	if (rtd->dai_link->be_hw_params_fixup) {
-		ret = rtd->dai_link->be_hw_params_fixup(rtd, params);
-		if (ret < 0) {
-			dev_err(rtd->dev,
-				"ASoC: hw_params topology fixup failed %d\n",
-				ret);
-			return ret;
-		}
-	}
-
-	if (dai->driver->ops->hw_params) {
-		ret = dai->driver->ops->hw_params(substream, params, dai);
-		if (ret < 0) {
-			dev_err(dai->dev, "ASoC: can't set %s hw params: %d\n",
-				dai->name, ret);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static int soc_pcm_components_hw_free(struct snd_pcm_substream *substream,
 				      struct snd_soc_component *last)
 {
@@ -974,7 +944,8 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 			soc_pcm_codec_params_fixup(&codec_params,
 						   codec_dai->rx_mask);
 
-		ret = soc_dai_hw_params(substream, &codec_params, codec_dai);
+		ret = snd_soc_dai_hw_params(codec_dai, substream,
+					    &codec_params);
 		if(ret < 0)
 			goto codec_err;
 
@@ -986,7 +957,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_dapm_update_dai(substream, &codec_params, codec_dai);
 	}
 
-	ret = soc_dai_hw_params(substream, params, cpu_dai);
+	ret = snd_soc_dai_hw_params(cpu_dai, substream, params);
 	if (ret < 0)
 		goto interface_err;
 
