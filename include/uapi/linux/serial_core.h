@@ -150,9 +150,6 @@
 
 #define PORT_PNX8XXX	70
 
-/* Hilscher netx */
-#define PORT_NETX	71
-
 /* SUN4V Hypervisor Console */
 #define PORT_SUNHV	72
 
