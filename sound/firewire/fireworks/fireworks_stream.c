@@ -146,7 +146,7 @@ int snd_efw_stream_init_duplex(struct snd_efw *efw)
 	    (efw->firmware_version == 0x5070000 ||
 	     efw->firmware_version == 0x5070300 ||
 	     efw->firmware_version == 0x5080000))
-		efw->tx_stream.ctx_data.tx.first_dbc = 0x02;
+		efw->tx_stream.flags |= CIP_UNALIGHED_DBC;
 	/* AudioFire9 always reports wrong dbs. */
 	if (efw->is_af9)
 		efw->tx_stream.flags |= CIP_WRONG_DBS;
