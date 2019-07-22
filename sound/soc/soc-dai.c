@@ -318,3 +318,15 @@ int snd_soc_dai_prepare(struct snd_soc_dai *dai,
 
 	return ret;
 }
+
+int snd_soc_dai_trigger(struct snd_soc_dai *dai,
+			struct snd_pcm_substream *substream,
+			int cmd)
+{
+	int ret = 0;
+
+	if (dai->driver->ops->trigger)
+		ret = dai->driver->ops->trigger(substream, cmd, dai);
+
+	return ret;
+}
