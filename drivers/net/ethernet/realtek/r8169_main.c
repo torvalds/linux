@@ -3251,9 +3251,9 @@ static void rtl8168g_1_hw_phy_config(struct rtl8169_private *tp)
 
 	ret = phy_read_paged(tp->phydev, 0x0a46, 0x13);
 	if (ret & BIT(8))
-		phy_modify_paged(tp->phydev, 0x0c41, 0x12, 0, BIT(1));
+		phy_modify_paged(tp->phydev, 0x0c41, 0x15, 0, BIT(1));
 	else
-		phy_modify_paged(tp->phydev, 0x0c41, 0x12, BIT(1), 0);
+		phy_modify_paged(tp->phydev, 0x0c41, 0x15, BIT(1), 0);
 
 	/* Enable PHY auto speed down */
 	phy_modify_paged(tp->phydev, 0x0a44, 0x11, 0, BIT(3) | BIT(2));

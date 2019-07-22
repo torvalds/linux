@@ -1152,7 +1152,7 @@ static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 }
 
 static int u32_reoffload_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
-			       bool add, tc_setup_cb_t *cb, void *cb_priv,
+			       bool add, flow_setup_cb_t *cb, void *cb_priv,
 			       struct netlink_ext_ack *extack)
 {
 	struct tc_cls_u32_offload cls_u32 = {};
@@ -1172,7 +1172,7 @@ static int u32_reoffload_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
 }
 
 static int u32_reoffload_knode(struct tcf_proto *tp, struct tc_u_knode *n,
-			       bool add, tc_setup_cb_t *cb, void *cb_priv,
+			       bool add, flow_setup_cb_t *cb, void *cb_priv,
 			       struct netlink_ext_ack *extack)
 {
 	struct tc_u_hnode *ht = rtnl_dereference(n->ht_down);
@@ -1213,7 +1213,7 @@ static int u32_reoffload_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 	return 0;
 }
 
-static int u32_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
+static int u32_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 			 void *cb_priv, struct netlink_ext_ack *extack)
 {
 	struct tc_u_common *tp_c = tp->data;

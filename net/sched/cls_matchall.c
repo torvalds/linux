@@ -282,7 +282,7 @@ skip:
 	arg->count++;
 }
 
-static int mall_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
+static int mall_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 			  void *cb_priv, struct netlink_ext_ack *extack)
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
