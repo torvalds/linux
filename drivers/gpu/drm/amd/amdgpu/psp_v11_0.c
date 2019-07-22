@@ -55,6 +55,8 @@ MODULE_FIRMWARE("amdgpu/navi12_ta.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_sos.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_asd.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_ta.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_sos.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_asd.bin");
 
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
@@ -94,6 +96,9 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		break;
 	case CHIP_ARCTURUS:
 		chip_name = "arcturus";
+		break;
+	case CHIP_SIENNA_CICHLID:
+		chip_name = "sienna_cichlid";
 		break;
 	default:
 		BUG();
@@ -166,6 +171,8 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 			adev->psp.ta_dtm_start_addr = (uint8_t *)adev->psp.ta_hdcp_start_addr +
 				le32_to_cpu(ta_hdr->ta_dtm_offset_bytes);
 		}
+		break;
+	case CHIP_SIENNA_CICHLID:
 		break;
 	default:
 		BUG();
