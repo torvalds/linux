@@ -3839,7 +3839,7 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 				}
 			}
 			source->active++;
-			ret = soc_dai_hw_params(&substream, params, source);
+			ret = snd_soc_dai_hw_params(source, &substream, params);
 			if (ret < 0)
 				goto out;
 
@@ -3861,7 +3861,7 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 				}
 			}
 			sink->active++;
-			ret = soc_dai_hw_params(&substream, params, sink);
+			ret = snd_soc_dai_hw_params(sink, &substream, params);
 			if (ret < 0)
 				goto out;
 
