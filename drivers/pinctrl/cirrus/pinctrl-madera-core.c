@@ -1004,6 +1004,10 @@ static int madera_pin_probe(struct platform_device *pdev)
 	pdev->dev.of_node = madera->dev->of_node;
 
 	switch (madera->type) {
+	case CS47L15:
+		if (IS_ENABLED(CONFIG_PINCTRL_CS47L15))
+			priv->chip = &cs47l15_pin_chip;
+		break;
 	case CS47L35:
 		if (IS_ENABLED(CONFIG_PINCTRL_CS47L35))
 			priv->chip = &cs47l35_pin_chip;
