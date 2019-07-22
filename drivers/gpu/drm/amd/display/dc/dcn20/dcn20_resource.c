@@ -2128,6 +2128,74 @@ static bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx)
 }
 #endif
 
+static struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		const struct pipe_ctx *primary_pipe)
+{
+	struct pipe_ctx *secondary_pipe = NULL;
+
+	if (dc && primary_pipe) {
+		int j;
+		int preferred_pipe_idx = 0;
+
+		/* first check the prev dc state:
+		 * if this primary pipe has a bottom pipe in prev. state
+		 * and if the bottom pipe is still available (which it should be),
+		 * pick that pipe as secondary
+		 */
+		if (dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe) {
+			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe->pipe_idx;
+			if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
+				secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
+				secondary_pipe->pipe_idx = preferred_pipe_idx;
+			}
+		}
+
+		/*
+		 * if this primary pipe does not have a bottom pipe in prev. state
+		 * start backward and find a pipe that did not used to be a bottom pipe in
+		 * prev. dc state. This way we make sure we keep the same assignment as
+		 * last state and will not have to reprogram every pipe
+		 */
+		if (secondary_pipe == NULL) {
+			for (j = dc->res_pool->pipe_count - 1; j >= 0; j--) {
+				if (dc->current_state->res_ctx.pipe_ctx[j].top_pipe == NULL) {
+					preferred_pipe_idx = j;
+
+					if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
+						secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
+						secondary_pipe->pipe_idx = preferred_pipe_idx;
+						break;
+					}
+				}
+			}
+		}
+		/*
+		 * We should never hit this assert unless assignments are shuffled around
+		 * if this happens we will prob. hit a vsync tdr
+		 */
+		ASSERT(secondary_pipe);
+		/*
+		 * search backwards for the second pipe to keep pipe
+		 * assignment more consistent
+		 */
+		if (secondary_pipe == NULL) {
+			for (j = dc->res_pool->pipe_count - 1; j >= 0; j--) {
+				preferred_pipe_idx = j;
+
+				if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
+					secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
+					secondary_pipe->pipe_idx = preferred_pipe_idx;
+					break;
+				}
+			}
+		}
+	}
+
+	return secondary_pipe;
+}
+
 bool dcn20_fast_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
@@ -2281,7 +2349,7 @@ bool dcn20_fast_validate_bw(
 		if (force_split && context->bw_ctx.dml.vba.NoOfDPP[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] == 1)
 			context->bw_ctx.dml.vba.RequiredDPPCLK[vlevel][context->bw_ctx.dml.vba.maxMpcComb][pipe_idx] /= 2;
 		if (!pipe->top_pipe && !pipe->plane_state && context->bw_ctx.dml.vba.ODMCombineEnabled[pipe_idx]) {
-			hsplit_pipe = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
+			hsplit_pipe = dcn20_find_secondary_pipe(dc, &context->res_ctx, dc->res_pool, pipe);
 			ASSERT(hsplit_pipe);
 			if (!dcn20_split_stream_for_combine(
 					&context->res_ctx, dc->res_pool,
@@ -2322,7 +2390,7 @@ bool dcn20_fast_validate_bw(
 		if (need_split3d || need_split || force_split) {
 			if (!hsplit_pipe || hsplit_pipe->plane_state != pipe->plane_state) {
 				/* pipe not split previously needs split */
-				hsplit_pipe = find_idle_secondary_pipe(&context->res_ctx, dc->res_pool, pipe);
+				hsplit_pipe = dcn20_find_secondary_pipe(dc, &context->res_ctx, dc->res_pool, pipe);
 				ASSERT(hsplit_pipe || force_split);
 				if (!hsplit_pipe)
 					continue;
