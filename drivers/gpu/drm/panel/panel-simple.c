@@ -36,7 +36,10 @@
 #include <video/display_timing.h>
 #include <video/mipi_display.h>
 #include <video/of_display_timing.h>
+#include <linux/of_graph.h>
 #include <video/videomode.h>
+
+#include "../rockchip/rockchip_drm_drv.h"
 
 struct panel_cmd_header {
 	u8 data_type;
@@ -117,12 +120,31 @@ struct panel_simple {
 
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *reset_gpio;
+	int cmd_type;
+
+	struct gpio_desc *spi_sdi_gpio;
+	struct gpio_desc *spi_scl_gpio;
+	struct gpio_desc *spi_cs_gpio;
+	struct device_node *np_crtc;
 };
 
-static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
-{
-	return container_of(panel, struct panel_simple, base);
-}
+enum rockchip_cmd_type {
+	CMD_TYPE_DEFAULT,
+	CMD_TYPE_SPI,
+	CMD_TYPE_MCU
+};
+
+enum MCU_IOCTL {
+	MCU_WRCMD = 0,
+	MCU_WRDATA,
+	MCU_SETBYPASS,
+};
+
+enum rockchip_spi_cmd_type {
+	SPI_3LINE_9BIT_MODE_CMD = 0,
+	SPI_3LINE_9BIT_MODE_DATA,
+	SPI_4LINE_8BIT_MODE,
+};
 
 static void panel_simple_sleep(unsigned int msec)
 {
@@ -130,6 +152,24 @@ static void panel_simple_sleep(unsigned int msec)
 		msleep(msec);
 	else
 		usleep_range(msec * 1000, (msec + 1) * 1000);
+}
+
+static inline int get_panel_cmd_type(const char *s)
+{
+	if (!s)
+		return -EINVAL;
+
+	if (strncmp(s, "spi", 3) == 0)
+		return CMD_TYPE_SPI;
+	else if (strncmp(s, "mcu", 3) == 0)
+		return CMD_TYPE_MCU;
+
+	return CMD_TYPE_DEFAULT;
+}
+
+static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
+{
+	return container_of(panel, struct panel_simple, base);
 }
 
 static int panel_simple_parse_cmd_seq(struct device *dev,
@@ -186,6 +226,100 @@ static int panel_simple_parse_cmd_seq(struct device *dev,
 
 		d += header->payload_length;
 		len -= header->payload_length;
+	}
+
+	return 0;
+}
+
+static void panel_simple_spi_write_cmd(struct panel_simple *panel,
+				       u8 type, int value)
+{
+	int i;
+
+	gpiod_direction_output(panel->spi_cs_gpio, 0);
+
+	/**
+	 * send cmd or data flag for 3line 9bit serial data
+	 */
+	if (type == SPI_3LINE_9BIT_MODE_CMD) {
+		gpiod_direction_output(panel->spi_sdi_gpio, 0);
+		gpiod_direction_output(panel->spi_scl_gpio, 0);
+		udelay(10);
+		gpiod_direction_output(panel->spi_scl_gpio, 1);
+		udelay(10);
+	} else if (type == SPI_3LINE_9BIT_MODE_DATA) {
+		gpiod_direction_output(panel->spi_sdi_gpio, 1);
+		gpiod_direction_output(panel->spi_scl_gpio, 0);
+		udelay(10);
+		gpiod_direction_output(panel->spi_scl_gpio, 1);
+		udelay(10);
+	}
+
+	/**
+	 * send the 8bit value from the MSB
+	 */
+	for (i = 0; i < 8; i++) {
+		if (value & 0x80)
+			gpiod_direction_output(panel->spi_sdi_gpio, 1);
+		else
+			gpiod_direction_output(panel->spi_sdi_gpio, 0);
+
+		gpiod_direction_output(panel->spi_scl_gpio, 0);
+		udelay(10);
+		gpiod_direction_output(panel->spi_scl_gpio, 1);
+		value <<= 1;
+		udelay(10);
+	}
+
+	gpiod_direction_output(panel->spi_cs_gpio, 1);
+}
+
+static int panel_simple_xfer_mcu_cmd_seq(struct panel_simple *panel,
+				      struct panel_cmd_seq *cmds)
+{
+	int i;
+
+	if (!cmds)
+		return -EINVAL;
+
+	rockchip_drm_crtc_send_mcu_cmd(panel->base.drm,
+				       panel->np_crtc, MCU_SETBYPASS, 1);
+	for (i = 0; i < cmds->cmd_cnt; i++) {
+		struct panel_cmd_desc *cmd = &cmds->cmds[i];
+		u32 value = 0;
+
+		value = cmd->payload[0];
+		rockchip_drm_crtc_send_mcu_cmd(panel->base.drm, panel->np_crtc,
+					       cmd->header.data_type, value);
+		if (cmd->header.delay)
+			panel_simple_sleep(cmd->header.delay);
+	}
+	rockchip_drm_crtc_send_mcu_cmd(panel->base.drm,
+				       panel->np_crtc, MCU_SETBYPASS, 0);
+
+	return 0;
+}
+
+static int panel_simple_xfer_spi_cmd_seq(struct panel_simple *panel,
+					 struct panel_cmd_seq *cmds)
+{
+	int i;
+
+	if (!cmds)
+		return -EINVAL;
+
+	for (i = 0; i < cmds->cmd_cnt; i++) {
+		struct panel_cmd_desc *cmd = &cmds->cmds[i];
+		int value = 0;
+
+		if (cmd->header.payload_length == 2)
+			value = (cmd->payload[0] << 8) | cmd->payload[1];
+		else
+			value = cmd->payload[0];
+		panel_simple_spi_write_cmd(panel, cmd->header.data_type, value);
+
+		if (cmd->header.delay)
+			panel_simple_sleep(cmd->header.delay);
 	}
 
 	return 0;
@@ -348,6 +482,7 @@ static int panel_simple_loader_protect(struct drm_panel *panel, bool on)
 static int panel_simple_disable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
+	int err = 0;
 
 	if (!p->enabled)
 		return 0;
@@ -361,6 +496,11 @@ static int panel_simple_disable(struct drm_panel *panel)
 	if (p->desc->delay.disable)
 		panel_simple_sleep(p->desc->delay.disable);
 
+	if (p->cmd_type == CMD_TYPE_MCU) {
+		err = panel_simple_xfer_mcu_cmd_seq(p, p->desc->exit_seq);
+		if (err)
+			dev_err(panel->dev, "failed to send exit cmds seq\n");
+	}
 	p->enabled = false;
 
 	return 0;
@@ -369,12 +509,19 @@ static int panel_simple_disable(struct drm_panel *panel)
 static int panel_simple_unprepare(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
+	int err = 0;
 
 	if (!p->prepared)
 		return 0;
 
-	if (p->desc->exit_seq)
-		panel_simple_xfer_cmd_seq(p, p->desc->exit_seq);
+	if (p->desc->exit_seq) {
+		if (p->dsi)
+			panel_simple_xfer_cmd_seq(p, p->desc->exit_seq);
+		else if (p->cmd_type == CMD_TYPE_SPI)
+			err = panel_simple_xfer_spi_cmd_seq(p, p->desc->exit_seq);
+		if (err)
+			dev_err(panel->dev, "failed to send exit cmds seq\n");
+	}
 
 	gpiod_direction_output(p->reset_gpio, 1);
 
@@ -419,8 +566,14 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	if (p->desc->delay.init)
 		panel_simple_sleep(p->desc->delay.init);
 
-	if (p->desc->init_seq)
-		panel_simple_xfer_cmd_seq(p, p->desc->init_seq);
+	if (p->desc->init_seq) {
+		if (p->dsi)
+			panel_simple_xfer_cmd_seq(p, p->desc->init_seq);
+		else if (p->cmd_type == CMD_TYPE_SPI)
+			err = panel_simple_xfer_spi_cmd_seq(p, p->desc->init_seq);
+		if (err)
+			dev_err(panel->dev, "failed to send init cmds seq\n");
+	}
 
 	p->prepared = true;
 
@@ -430,10 +583,16 @@ static int panel_simple_prepare(struct drm_panel *panel)
 static int panel_simple_enable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
+	int err = 0;
 
 	if (p->enabled)
 		return 0;
 
+	if (p->cmd_type == CMD_TYPE_MCU) {
+		err = panel_simple_xfer_mcu_cmd_seq(p, p->desc->init_seq);
+		if (err)
+			dev_err(panel->dev, "failed to send init cmds seq\n");
+	}
 	if (p->desc->delay.enable)
 		panel_simple_sleep(p->desc->delay.enable);
 
@@ -500,6 +659,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 {
 	struct device_node *backlight, *ddc;
 	struct panel_simple *panel;
+	const char *cmd_type;
 	int err;
 
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
@@ -531,6 +691,57 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		return err;
 	}
 
+	if (of_property_read_string(dev->of_node, "rockchip,cmd-type",
+				    &cmd_type))
+		panel->cmd_type = CMD_TYPE_DEFAULT;
+	else
+		panel->cmd_type = get_panel_cmd_type(cmd_type);
+
+	if (panel->cmd_type == CMD_TYPE_SPI) {
+		panel->spi_sdi_gpio =
+				devm_gpiod_get_optional(dev, "spi-sdi", 0);
+		if (IS_ERR(panel->spi_sdi_gpio)) {
+			err = PTR_ERR(panel->spi_sdi_gpio);
+			dev_err(dev, "failed to request spi_sdi: %d\n", err);
+			return err;
+		}
+
+		panel->spi_scl_gpio =
+				devm_gpiod_get_optional(dev, "spi-scl", 0);
+		if (IS_ERR(panel->spi_scl_gpio)) {
+			err = PTR_ERR(panel->spi_scl_gpio);
+			dev_err(dev, "failed to request spi_scl: %d\n", err);
+			return err;
+		}
+
+		panel->spi_cs_gpio = devm_gpiod_get_optional(dev, "spi-cs", 0);
+		if (IS_ERR(panel->spi_cs_gpio)) {
+			err = PTR_ERR(panel->spi_cs_gpio);
+			dev_err(dev, "failed to request spi_cs: %d\n", err);
+			return err;
+		}
+		gpiod_direction_output(panel->spi_cs_gpio, 1);
+		gpiod_direction_output(panel->spi_sdi_gpio, 1);
+		gpiod_direction_output(panel->spi_scl_gpio, 1);
+	} else if (panel->cmd_type == CMD_TYPE_MCU) {
+		struct device_node *port, *endpoint;
+		struct device_node *np;
+
+		port = of_graph_get_port_by_id(dev->of_node, 0);
+		if (port) {
+			endpoint = of_get_next_child(port, NULL);
+			/* get connect device node */
+			np = of_graph_get_remote_port_parent(endpoint);
+
+			port = of_graph_get_port_by_id(np, 0);
+			if (port) {
+				endpoint = of_get_next_child(port, NULL);
+				/* get crtc device node */
+				np = of_graph_get_remote_port_parent(endpoint);
+				panel->np_crtc = np;
+			}
+		}
+	}
 	panel->power_invert =
 			of_property_read_bool(dev->of_node, "power-invert");
 
