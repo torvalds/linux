@@ -64,6 +64,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	int err = 0;
 	const struct psp_firmware_header_v1_0 *sos_hdr;
 	const struct psp_firmware_header_v1_1 *sos_hdr_v1_1;
+	const struct psp_firmware_header_v1_2 *sos_hdr_v1_2;
 	const struct psp_firmware_header_v1_0 *asd_hdr;
 	const struct ta_firmware_header_v1_0 *ta_hdr;
 
@@ -78,6 +79,9 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		break;
 	case CHIP_NAVI14:
 		chip_name = "navi14";
+		break;
+	case CHIP_ARCTURUS:
+		chip_name = "arcturus";
 		break;
 	default:
 		BUG();
@@ -113,6 +117,12 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_1->kdb_size_bytes);
 			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
 					le32_to_cpu(sos_hdr_v1_1->kdb_offset_bytes);
+		}
+		if (sos_hdr->header.header_version_minor == 2) {
+			sos_hdr_v1_2 = (const struct psp_firmware_header_v1_2 *)adev->psp.sos_fw->data;
+			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_2->kdb_size_bytes);
+			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
+						    le32_to_cpu(sos_hdr_v1_2->kdb_offset_bytes);
 		}
 		break;
 	default:

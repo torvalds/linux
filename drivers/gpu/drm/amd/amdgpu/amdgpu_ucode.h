@@ -90,6 +90,15 @@ struct psp_firmware_header_v1_1 {
 	uint32_t kdb_size_bytes;
 };
 
+/* version_major=1, version_minor=2 */
+struct psp_firmware_header_v1_2 {
+	struct psp_firmware_header_v1_0 v1_0;
+	uint32_t reserve[3];
+	uint32_t kdb_header_version;
+	uint32_t kdb_offset_bytes;
+	uint32_t kdb_size_bytes;
+};
+
 /* version_major=1, version_minor=0 */
 struct ta_firmware_header_v1_0 {
 	struct common_firmware_header header;
