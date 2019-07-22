@@ -25,7 +25,7 @@ enum dw_edma_control {
 
 static inline struct dw_edma_v0_regs __iomem *__dw_regs(struct dw_edma *dw)
 {
-	return (struct dw_edma_v0_regs __iomem *)dw->rg_region.vaddr;
+	return dw->rg_region.vaddr;
 }
 
 #define SET(dw, name, value)				\
@@ -192,13 +192,13 @@ u32 dw_edma_v0_core_status_abort_int(struct dw_edma *dw, enum dw_edma_dir dir)
 static void dw_edma_v0_core_write_chunk(struct dw_edma_chunk *chunk)
 {
 	struct dw_edma_burst *child;
-	struct dw_edma_v0_lli *lli;
-	struct dw_edma_v0_llp *llp;
+	struct dw_edma_v0_lli __iomem *lli;
+	struct dw_edma_v0_llp __iomem *llp;
 	u32 control = 0, i = 0;
 	u64 sar, dar, addr;
 	int j;
 
-	lli = (struct dw_edma_v0_lli *)chunk->ll_region.vaddr;
+	lli = chunk->ll_region.vaddr;
 
 	if (chunk->cb)
 		control = DW_EDMA_V0_CB;
@@ -224,7 +224,7 @@ static void dw_edma_v0_core_write_chunk(struct dw_edma_chunk *chunk)
 		i++;
 	}
 
-	llp = (struct dw_edma_v0_llp *)&lli[i];
+	llp = (void __iomem *)&lli[i];
 	control = DW_EDMA_V0_LLP | DW_EDMA_V0_TCB;
 	if (!chunk->cb)
 		control |= DW_EDMA_V0_CB;
