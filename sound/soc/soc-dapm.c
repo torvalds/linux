@@ -3828,15 +3828,11 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 		snd_soc_dapm_widget_for_each_source_path(w, path) {
 			source = path->source->priv;
 
-			if (source->driver->ops->startup) {
-				ret = source->driver->ops->startup(&substream,
-								   source);
-				if (ret < 0) {
-					dev_err(source->dev,
-						"ASoC: startup() failed: %d\n",
-						ret);
-					goto out;
-				}
+			ret = snd_soc_dai_startup(source, &substream);
+			if (ret < 0) {
+				dev_err(source->dev,
+					"ASoC: startup() failed: %d\n", ret);
+				goto out;
 			}
 			source->active++;
 			ret = snd_soc_dai_hw_params(source, &substream, params);
@@ -3850,15 +3846,11 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 		snd_soc_dapm_widget_for_each_sink_path(w, path) {
 			sink = path->sink->priv;
 
-			if (sink->driver->ops->startup) {
-				ret = sink->driver->ops->startup(&substream,
-								 sink);
-				if (ret < 0) {
-					dev_err(sink->dev,
-						"ASoC: startup() failed: %d\n",
-						ret);
-					goto out;
-				}
+			ret = snd_soc_dai_startup(sink, &substream);
+			if (ret < 0) {
+				dev_err(sink->dev,
+					"ASoC: startup() failed: %d\n", ret);
+				goto out;
 			}
 			sink->active++;
 			ret = snd_soc_dai_hw_params(sink, &substream, params);
