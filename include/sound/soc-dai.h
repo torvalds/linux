@@ -158,6 +158,8 @@ int snd_soc_dai_prepare(struct snd_soc_dai *dai,
 			struct snd_pcm_substream *substream);
 int snd_soc_dai_trigger(struct snd_soc_dai *dai,
 			struct snd_pcm_substream *substream, int cmd);
+int snd_soc_dai_bespoke_trigger(struct snd_soc_dai *dai,
+			struct snd_pcm_substream *substream, int cmd);
 
 struct snd_soc_dai_ops {
 	/*

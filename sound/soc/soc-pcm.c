@@ -1107,19 +1107,15 @@ static int soc_pcm_bespoke_trigger(struct snd_pcm_substream *substream,
 	int i, ret;
 
 	for_each_rtd_codec_dai(rtd, i, codec_dai) {
-		if (codec_dai->driver->ops->bespoke_trigger) {
-			ret = codec_dai->driver->ops->bespoke_trigger(substream,
-								cmd, codec_dai);
-			if (ret < 0)
-				return ret;
-		}
-	}
-
-	if (cpu_dai->driver->ops->bespoke_trigger) {
-		ret = cpu_dai->driver->ops->bespoke_trigger(substream, cmd, cpu_dai);
+		ret = snd_soc_dai_bespoke_trigger(codec_dai, substream, cmd);
 		if (ret < 0)
 			return ret;
 	}
+
+	snd_soc_dai_bespoke_trigger(cpu_dai, substream, cmd);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 /*
