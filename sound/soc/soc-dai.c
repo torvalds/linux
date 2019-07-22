@@ -372,3 +372,10 @@ int snd_soc_dai_probe(struct snd_soc_dai *dai)
 		return dai->driver->probe(dai);
 	return 0;
 }
+
+int snd_soc_dai_remove(struct snd_soc_dai *dai)
+{
+	if (dai->driver->remove)
+		return dai->driver->remove(dai);
+	return 0;
+}
