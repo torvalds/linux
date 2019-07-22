@@ -175,35 +175,49 @@ static void read_status_messages(struct amdtp_stream *s,
 	}
 }
 
-static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
-					   const struct pkt_desc *desc,
-					   struct snd_pcm_substream *pcm)
+static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
+					    const struct pkt_desc *descs,
+					    unsigned int packets,
+					    struct snd_pcm_substream *pcm)
 {
 	unsigned int pcm_frames = 0;
+	int i;
 
-	if (pcm) {
-		read_pcm_s32(s, pcm, desc->ctx_payload, desc->data_blocks,
-			     pcm_frames);
-		pcm_frames += desc->data_blocks;
+	for (i = 0; i < packets; ++i) {
+		const struct pkt_desc *desc = descs + i;
+		__be32 *buf = desc->ctx_payload;
+		unsigned int data_blocks = desc->data_blocks;
+
+		if (pcm) {
+			read_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
+			pcm_frames += data_blocks;
+		}
+
+		read_status_messages(s, buf, data_blocks);
 	}
-
-	read_status_messages(s, desc->ctx_payload, desc->data_blocks);
 
 	return pcm_frames;
 }
 
-static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
-					   const struct pkt_desc *desc,
-					   struct snd_pcm_substream *pcm)
+static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
+					    const struct pkt_desc *descs,
+					    unsigned int packets,
+					    struct snd_pcm_substream *pcm)
 {
 	unsigned int pcm_frames = 0;
+	int i;
 
-	if (pcm) {
-		write_pcm_s32(s, pcm, desc->ctx_payload, desc->data_blocks,
-			      pcm_frames);
-		pcm_frames += desc->data_blocks;
-	} else {
-		write_pcm_silence(s, desc->ctx_payload, desc->data_blocks);
+	for (i = 0; i < packets; ++i) {
+		const struct pkt_desc *desc = descs + i;
+		__be32 *buf = desc->ctx_payload;
+		unsigned int data_blocks = desc->data_blocks;
+
+		if (pcm) {
+			write_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
+			pcm_frames += data_blocks;
+		} else {
+			write_pcm_silence(s, buf, data_blocks);
+		}
 	}
 
 	return pcm_frames;
@@ -212,22 +226,22 @@ static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
 int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir, unsigned int pcm_channels)
 {
-	amdtp_stream_process_data_blocks_t process_data_blocks;
+	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
 	struct amdtp_tscm *p;
 	unsigned int fmt;
 	int err;
 
 	if (dir == AMDTP_IN_STREAM) {
 		fmt = AMDTP_FMT_TSCM_TX;
-		process_data_blocks = process_tx_data_blocks;
+		process_ctx_payloads = process_ir_ctx_payloads;
 	} else {
 		fmt = AMDTP_FMT_TSCM_RX;
-		process_data_blocks = process_rx_data_blocks;
+		process_ctx_payloads = process_it_ctx_payloads;
 	}
 
 	err = amdtp_stream_init(s, unit, dir,
-				CIP_NONBLOCKING | CIP_SKIP_DBC_ZERO_CHECK, fmt,
-				process_data_blocks, sizeof(struct amdtp_tscm));
+			CIP_NONBLOCKING | CIP_SKIP_DBC_ZERO_CHECK, fmt,
+			process_ctx_payloads, sizeof(struct amdtp_tscm));
 	if (err < 0)
 		return 0;
 

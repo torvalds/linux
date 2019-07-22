@@ -310,23 +310,30 @@ static void __maybe_unused copy_message(u64 *frames, __be32 *buffer,
 	}
 }
 
-static unsigned int process_tx_data_blocks(struct amdtp_stream *s,
-					   const struct pkt_desc *desc,
-					   struct snd_pcm_substream *pcm)
+static unsigned int process_ir_ctx_payloads(struct amdtp_stream *s,
+					    const struct pkt_desc *descs,
+					    unsigned int packets,
+					    struct snd_pcm_substream *pcm)
 {
 	struct amdtp_motu *p = s->protocol;
 	unsigned int pcm_frames = 0;
+	int i;
 
-	trace_data_block_sph(s, desc->data_blocks, desc->ctx_payload);
-	trace_data_block_message(s, desc->data_blocks, desc->ctx_payload);
+	for (i = 0; i < packets; ++i) {
+		const struct pkt_desc *desc = descs + i;
+		__be32 *buf = desc->ctx_payload;
+		unsigned int data_blocks = desc->data_blocks;
 
-	if (p->midi_ports)
-		read_midi_messages(s, desc->ctx_payload, desc->data_blocks);
+		trace_data_block_sph(s, data_blocks, buf);
+		trace_data_block_message(s, data_blocks, buf);
 
-	if (pcm) {
-		read_pcm_s32(s, pcm, desc->ctx_payload, desc->data_blocks,
-			     pcm_frames);
-		pcm_frames = desc->data_blocks;
+		if (p->midi_ports)
+			read_midi_messages(s, buf, data_blocks);
+
+		if (pcm) {
+			read_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
+			pcm_frames += data_blocks;
+		}
 	}
 
 	return pcm_frames;
@@ -374,30 +381,37 @@ static void write_sph(struct amdtp_stream *s, __be32 *buffer,
 	}
 }
 
-static unsigned int process_rx_data_blocks(struct amdtp_stream *s,
-					   const struct pkt_desc *desc,
-					   struct snd_pcm_substream *pcm)
+static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
+					    const struct pkt_desc *descs,
+					    unsigned int packets,
+					    struct snd_pcm_substream *pcm)
 {
 	struct amdtp_motu *p = s->protocol;
 	unsigned int pcm_frames = 0;
+	int i;
 
-	/* TODO: how to interact control messages between userspace? */
+	for (i = 0; i < packets; ++i) {
+		const struct pkt_desc *desc = descs + i;
+		__be32 *buf = desc->ctx_payload;
+		unsigned int data_blocks = desc->data_blocks;
 
-	if (p->midi_ports)
-		write_midi_messages(s, desc->ctx_payload, desc->data_blocks);
+		// TODO: how to interact control messages between userspace?
 
-	if (pcm) {
-		write_pcm_s32(s, pcm, desc->ctx_payload, desc->data_blocks,
-			      pcm_frames);
-		pcm_frames = desc->data_blocks;
-	} else {
-		write_pcm_silence(s, desc->ctx_payload, desc->data_blocks);
+		if (p->midi_ports)
+			write_midi_messages(s, buf, data_blocks);
+
+		if (pcm) {
+			write_pcm_s32(s, pcm, buf, data_blocks, pcm_frames);
+			pcm_frames += data_blocks;
+		} else {
+			write_pcm_silence(s, buf, data_blocks);
+		}
+
+		write_sph(s, buf, data_blocks);
+
+		trace_data_block_sph(s, data_blocks, buf);
+		trace_data_block_message(s, data_blocks, buf);
 	}
-
-	write_sph(s, desc->ctx_payload, desc->data_blocks);
-
-	trace_data_block_sph(s, desc->data_blocks, desc->ctx_payload);
-	trace_data_block_message(s, desc->data_blocks, desc->ctx_payload);
 
 	return pcm_frames;
 }
@@ -406,13 +420,13 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
 		    const struct snd_motu_protocol *const protocol)
 {
-	amdtp_stream_process_data_blocks_t process_data_blocks;
+	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
 	int fmt = CIP_FMT_MOTU;
 	int flags = CIP_BLOCKING;
 	int err;
 
 	if (dir == AMDTP_IN_STREAM) {
-		process_data_blocks = process_tx_data_blocks;
+		process_ctx_payloads = process_ir_ctx_payloads;
 
 		/*
 		 * Units of version 3 transmits packets with invalid CIP header
@@ -431,11 +445,11 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 				 CIP_SKIP_DBC_ZERO_CHECK;
 		}
 	} else {
-		process_data_blocks = process_rx_data_blocks;
+		process_ctx_payloads = process_it_ctx_payloads;
 		flags |= CIP_DBC_IS_END_EVENT;
 	}
 
-	err = amdtp_stream_init(s, unit, dir, flags, fmt, process_data_blocks,
+	err = amdtp_stream_init(s, unit, dir, flags, fmt, process_ctx_payloads,
 				sizeof(struct amdtp_motu));
 	if (err < 0)
 		return err;

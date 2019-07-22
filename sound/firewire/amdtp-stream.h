@@ -103,9 +103,10 @@ struct pkt_desc {
 };
 
 struct amdtp_stream;
-typedef unsigned int (*amdtp_stream_process_data_blocks_t)(
+typedef unsigned int (*amdtp_stream_process_ctx_payloads_t)(
 						struct amdtp_stream *s,
 						const struct pkt_desc *desc,
+						unsigned int packets,
 						struct snd_pcm_substream *pcm);
 struct amdtp_stream {
 	struct fw_unit *unit;
@@ -168,13 +169,13 @@ struct amdtp_stream {
 
 	/* For backends to process data blocks. */
 	void *protocol;
-	amdtp_stream_process_data_blocks_t process_data_blocks;
+	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
 };
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 		      enum amdtp_stream_direction dir, enum cip_flags flags,
 		      unsigned int fmt,
-		      amdtp_stream_process_data_blocks_t process_data_blocks,
+		      amdtp_stream_process_ctx_payloads_t process_ctx_payloads,
 		      unsigned int protocol_size);
 void amdtp_stream_destroy(struct amdtp_stream *s);
 

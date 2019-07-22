@@ -74,16 +74,16 @@ static void pcm_period_tasklet(unsigned long data);
  * @dir: the direction of stream
  * @flags: the packet transmission method to use
  * @fmt: the value of fmt field in CIP header
- * @process_data_blocks: callback handler to process data blocks
+ * @process_ctx_payloads: callback handler to process payloads of isoc context
  * @protocol_size: the size to allocate newly for protocol
  */
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 		      enum amdtp_stream_direction dir, enum cip_flags flags,
 		      unsigned int fmt,
-		      amdtp_stream_process_data_blocks_t process_data_blocks,
+		      amdtp_stream_process_ctx_payloads_t process_ctx_payloads,
 		      unsigned int protocol_size)
 {
-	if (process_data_blocks == NULL)
+	if (process_ctx_payloads == NULL)
 		return -EINVAL;
 
 	s->protocol = kzalloc(protocol_size, GFP_KERNEL);
@@ -102,7 +102,7 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	s->callbacked = false;
 
 	s->fmt = fmt;
-	s->process_data_blocks = process_data_blocks;
+	s->process_ctx_payloads = process_ctx_payloads;
 
 	if (dir == AMDTP_OUT_STREAM)
 		s->ctx_data.rx.syt_override = -1;
@@ -764,18 +764,13 @@ static void process_ctx_payloads(struct amdtp_stream *s,
 				 const struct pkt_desc *descs,
 				 unsigned int packets)
 {
-	int i;
+	struct snd_pcm_substream *pcm;
+	unsigned int pcm_frames;
 
-	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = descs + i;
-		struct snd_pcm_substream *pcm = READ_ONCE(s->pcm);
-		unsigned int pcm_frames;
-
-		pcm_frames = s->process_data_blocks(s, desc, pcm);
-
-		if (pcm && pcm_frames > 0)
-			update_pcm_pointers(s, pcm, pcm_frames);
-	}
+	pcm = READ_ONCE(s->pcm);
+	pcm_frames = s->process_ctx_payloads(s, descs, packets, pcm);
+	if (pcm)
+		update_pcm_pointers(s, pcm, pcm_frames);
 }
 
 static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
