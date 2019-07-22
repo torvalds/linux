@@ -730,6 +730,8 @@ int f2fs_setxattr(struct inode *inode, int index, const char *name,
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	int err;
 
+	if (unlikely(f2fs_cp_error(sbi)))
+		return -EIO;
 	err = f2fs_is_checkpoint_ready(sbi);
 	if (err)
 		return err;
