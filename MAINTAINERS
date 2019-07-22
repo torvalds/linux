@@ -5103,6 +5103,7 @@ F:	drivers/gpu/drm/gm12u320/
 
 DRM DRIVER FOR ILITEK ILI9225 PANELS
 M:	David Lechner <david@lechnology.com>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/tinydrm/ili9225.c
 F:	Documentation/devicetree/bindings/display/ilitek,ili9225.txt
@@ -5131,6 +5132,7 @@ F:	drivers/gpu/drm/mgag200/
 
 DRM DRIVER FOR MI0283QT
 M:	Noralf Trønnes <noralf@tronnes.org>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/tinydrm/mi0283qt.c
 F:	Documentation/devicetree/bindings/display/multi-inno,mi0283qt.txt
@@ -5164,6 +5166,7 @@ F:	Documentation/devicetree/bindings/display/panel/olimex,lcd-olinuxino.txt
 
 DRM DRIVER FOR PERVASIVE DISPLAYS REPAPER PANELS
 M:	Noralf Trønnes <noralf@tronnes.org>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/tinydrm/repaper.c
 F:	Documentation/devicetree/bindings/display/repaper.txt
@@ -5223,12 +5226,14 @@ F:	Documentation/devicetree/bindings/display/panel/sitronix,st7701.txt
 
 DRM DRIVER FOR SITRONIX ST7586 PANELS
 M:	David Lechner <david@lechnology.com>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/tinydrm/st7586.c
 F:	Documentation/devicetree/bindings/display/sitronix,st7586.txt
 
 DRM DRIVER FOR SITRONIX ST7735R PANELS
 M:	David Lechner <david@lechnology.com>
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 S:	Maintained
 F:	drivers/gpu/drm/tinydrm/st7735r.c
 F:	Documentation/devicetree/bindings/display/sitronix,st7735r.txt
@@ -5537,14 +5542,6 @@ F:	drivers/gpu/drm/drm_panel.c
 F:	drivers/gpu/drm/panel/
 F:	include/drm/drm_panel.h
 F:	Documentation/devicetree/bindings/display/panel/
-
-DRM TINYDRM DRIVERS
-M:	Noralf Trønnes <noralf@tronnes.org>
-W:	https://github.com/notro/tinydrm/wiki/Development
-T:	git git://anongit.freedesktop.org/drm/drm-misc
-S:	Maintained
-F:	drivers/gpu/drm/tinydrm/
-F:	include/drm/tinydrm/
 
 DRM DRIVERS FOR XEN
 M:	Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
