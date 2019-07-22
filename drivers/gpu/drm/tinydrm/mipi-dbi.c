@@ -506,8 +506,6 @@ int mipi_dbi_init_with_formats(struct mipi_dbi *mipi,
 	if (!mipi->command)
 		return -EINVAL;
 
-	mutex_init(&mipi->cmdlock);
-
 	mipi->tx_buf = devm_kmalloc(drm->dev, tx_buf_size, GFP_KERNEL);
 	if (!mipi->tx_buf)
 		return -ENOMEM;
@@ -1119,6 +1117,8 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 		if (!mipi->tx_buf9)
 			return -ENOMEM;
 	}
+
+	mutex_init(&mipi->cmdlock);
 
 	DRM_DEBUG_DRIVER("SPI speed: %uMHz\n", spi->max_speed_hz / 1000000);
 
