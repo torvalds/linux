@@ -59,7 +59,7 @@ struct mipi_dbi {
 	struct spi_device *spi;
 	bool enabled;
 	struct mutex cmdlock;
-	int (*command)(struct mipi_dbi *mipi, u8 *cmd, u8 *param, size_t num);
+	int (*command)(struct mipi_dbi *dbi, u8 *cmd, u8 *param, size_t num);
 	const u8 *read_commands;
 	struct gpio_desc *dc;
 	u16 *tx_buf;
@@ -77,7 +77,7 @@ static inline struct mipi_dbi *drm_to_mipi_dbi(struct drm_device *drm)
 	return container_of(drm, struct mipi_dbi, drm);
 }
 
-int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
+int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *dbi,
 		      struct gpio_desc *dc);
 int mipi_dbi_init_with_formats(struct mipi_dbi *mipi,
 			       const struct drm_simple_display_pipe_funcs *funcs,
@@ -94,8 +94,8 @@ void mipi_dbi_enable_flush(struct mipi_dbi *mipi,
 			   struct drm_crtc_state *crtc_state,
 			   struct drm_plane_state *plan_state);
 void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe);
-void mipi_dbi_hw_reset(struct mipi_dbi *mipi);
-bool mipi_dbi_display_is_on(struct mipi_dbi *mipi);
+void mipi_dbi_hw_reset(struct mipi_dbi *dbi);
+bool mipi_dbi_display_is_on(struct mipi_dbi *dbi);
 int mipi_dbi_poweron_reset(struct mipi_dbi *mipi);
 int mipi_dbi_poweron_conditional_reset(struct mipi_dbi *mipi);
 
@@ -103,14 +103,14 @@ u32 mipi_dbi_spi_cmd_max_speed(struct spi_device *spi, size_t len);
 int mipi_dbi_spi_transfer(struct spi_device *spi, u32 speed_hz,
 			  u8 bpw, const void *buf, size_t len);
 
-int mipi_dbi_command_read(struct mipi_dbi *mipi, u8 cmd, u8 *val);
-int mipi_dbi_command_buf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len);
-int mipi_dbi_command_stackbuf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len);
+int mipi_dbi_command_read(struct mipi_dbi *dbi, u8 cmd, u8 *val);
+int mipi_dbi_command_buf(struct mipi_dbi *dbi, u8 cmd, u8 *data, size_t len);
+int mipi_dbi_command_stackbuf(struct mipi_dbi *dbi, u8 cmd, u8 *data, size_t len);
 int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 		      struct drm_rect *clip, bool swap);
 /**
  * mipi_dbi_command - MIPI DCS command with optional parameter(s)
- * @mipi: MIPI structure
+ * @dbi: MIPI DBI structure
  * @cmd: Command
  * @seq...: Optional parameter(s)
  *
@@ -120,10 +120,10 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
  * Returns:
  * Zero on success, negative error code on failure.
  */
-#define mipi_dbi_command(mipi, cmd, seq...) \
+#define mipi_dbi_command(dbi, cmd, seq...) \
 ({ \
 	u8 d[] = { seq }; \
-	mipi_dbi_command_stackbuf(mipi, cmd, d, ARRAY_SIZE(d)); \
+	mipi_dbi_command_stackbuf(dbi, cmd, d, ARRAY_SIZE(d)); \
 })
 
 #ifdef CONFIG_DEBUG_FS

@@ -48,6 +48,7 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 			     struct drm_plane_state *plane_state)
 {
 	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
+	struct mipi_dbi *dbi = mipi;
 	u8 addr_mode;
 	int ret, idx;
 
@@ -63,22 +64,22 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 		goto out_enable;
 
 	/* setextc */
-	mipi_dbi_command(mipi, HX8357D_SETEXTC, 0xFF, 0x83, 0x57);
+	mipi_dbi_command(dbi, HX8357D_SETEXTC, 0xFF, 0x83, 0x57);
 	msleep(150);
 
 	/* setRGB which also enables SDO */
-	mipi_dbi_command(mipi, HX8357D_SETRGB, 0x00, 0x00, 0x06, 0x06);
+	mipi_dbi_command(dbi, HX8357D_SETRGB, 0x00, 0x00, 0x06, 0x06);
 
 	/* -1.52V */
-	mipi_dbi_command(mipi, HX8357D_SETCOM, 0x25);
+	mipi_dbi_command(dbi, HX8357D_SETCOM, 0x25);
 
 	/* Normal mode 70Hz, Idle mode 55 Hz */
-	mipi_dbi_command(mipi, HX8357D_SETOSC, 0x68);
+	mipi_dbi_command(dbi, HX8357D_SETOSC, 0x68);
 
 	/* Set Panel - BGR, Gate direction swapped */
-	mipi_dbi_command(mipi, HX8357D_SETPANEL, 0x05);
+	mipi_dbi_command(dbi, HX8357D_SETPANEL, 0x05);
 
-	mipi_dbi_command(mipi, HX8357D_SETPOWER,
+	mipi_dbi_command(dbi, HX8357D_SETPOWER,
 			 0x00,  /* Not deep standby */
 			 0x15,  /* BT */
 			 0x1C,  /* VSPR */
@@ -86,7 +87,7 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 			 0x83,  /* AP */
 			 0xAA);  /* FS */
 
-	mipi_dbi_command(mipi, HX8357D_SETSTBA,
+	mipi_dbi_command(dbi, HX8357D_SETSTBA,
 			 0x50,  /* OPON normal */
 			 0x50,  /* OPON idle */
 			 0x01,  /* STBA */
@@ -94,7 +95,7 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 			 0x1E,  /* STBA */
 			 0x08);  /* GEN */
 
-	mipi_dbi_command(mipi, HX8357D_SETCYC,
+	mipi_dbi_command(dbi, HX8357D_SETCYC,
 			 0x02,  /* NW 0x02 */
 			 0x40,  /* RTN */
 			 0x00,  /* DIV */
@@ -103,7 +104,7 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 			 0x0D,  /* GDON */
 			 0x78);  /* GDOFF */
 
-	mipi_dbi_command(mipi, HX8357D_SETGAMMA,
+	mipi_dbi_command(dbi, HX8357D_SETGAMMA,
 			 0x02,
 			 0x0A,
 			 0x11,
@@ -140,21 +141,21 @@ static void yx240qv29_enable(struct drm_simple_display_pipe *pipe,
 			 0x01);
 
 	/* 16 bit */
-	mipi_dbi_command(mipi, MIPI_DCS_SET_PIXEL_FORMAT,
+	mipi_dbi_command(dbi, MIPI_DCS_SET_PIXEL_FORMAT,
 			 MIPI_DCS_PIXEL_FMT_16BIT);
 
 	/* TE off */
-	mipi_dbi_command(mipi, MIPI_DCS_SET_TEAR_ON, 0x00);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_TEAR_ON, 0x00);
 
 	/* tear line */
-	mipi_dbi_command(mipi, MIPI_DCS_SET_TEAR_SCANLINE, 0x00, 0x02);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_TEAR_SCANLINE, 0x00, 0x02);
 
 	/* Exit Sleep */
-	mipi_dbi_command(mipi, MIPI_DCS_EXIT_SLEEP_MODE);
+	mipi_dbi_command(dbi, MIPI_DCS_EXIT_SLEEP_MODE);
 	msleep(150);
 
 	/* display on */
-	mipi_dbi_command(mipi, MIPI_DCS_SET_DISPLAY_ON);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
 	usleep_range(5000, 7000);
 
 out_enable:
@@ -172,7 +173,7 @@ out_enable:
 		addr_mode = HX8357D_MADCTL_MV | HX8357D_MADCTL_MX;
 		break;
 	}
-	mipi_dbi_command(mipi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
 	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
 out_exit:
 	drm_dev_exit(idx);

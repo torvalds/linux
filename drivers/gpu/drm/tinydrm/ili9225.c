@@ -68,11 +68,11 @@
 #define ILI9225_GAMMA_CONTROL_9		0x58
 #define ILI9225_GAMMA_CONTROL_10	0x59
 
-static inline int ili9225_command(struct mipi_dbi *mipi, u8 cmd, u16 data)
+static inline int ili9225_command(struct mipi_dbi *dbi, u8 cmd, u16 data)
 {
 	u8 par[2] = { data >> 8, data & 0xff };
 
-	return mipi_dbi_command_buf(mipi, cmd, par, 2);
+	return mipi_dbi_command_buf(dbi, cmd, par, 2);
 }
 
 static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
@@ -81,7 +81,8 @@ static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	struct mipi_dbi *mipi = drm_to_mipi_dbi(fb->dev);
 	unsigned int height = rect->y2 - rect->y1;
 	unsigned int width = rect->x2 - rect->x1;
-	bool swap = mipi->swap_bytes;
+	struct mipi_dbi *dbi = mipi;
+	bool swap = dbi->swap_bytes;
 	u16 x_start, y_start;
 	u16 x1, x2, y1, y2;
 	int idx, ret = 0;
@@ -98,7 +99,7 @@ static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 
 	DRM_DEBUG_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
 
-	if (!mipi->dc || !full || swap ||
+	if (!dbi->dc || !full || swap ||
 	    fb->format->format == DRM_FORMAT_XRGB8888) {
 		tr = mipi->tx_buf;
 		ret = mipi_dbi_buf_copy(mipi->tx_buf, fb, rect, swap);
@@ -143,15 +144,15 @@ static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 		break;
 	}
 
-	ili9225_command(mipi, ILI9225_HORIZ_WINDOW_ADDR_1, x2);
-	ili9225_command(mipi, ILI9225_HORIZ_WINDOW_ADDR_2, x1);
-	ili9225_command(mipi, ILI9225_VERT_WINDOW_ADDR_1, y2);
-	ili9225_command(mipi, ILI9225_VERT_WINDOW_ADDR_2, y1);
+	ili9225_command(dbi, ILI9225_HORIZ_WINDOW_ADDR_1, x2);
+	ili9225_command(dbi, ILI9225_HORIZ_WINDOW_ADDR_2, x1);
+	ili9225_command(dbi, ILI9225_VERT_WINDOW_ADDR_1, y2);
+	ili9225_command(dbi, ILI9225_VERT_WINDOW_ADDR_2, y1);
 
-	ili9225_command(mipi, ILI9225_RAM_ADDRESS_SET_1, x_start);
-	ili9225_command(mipi, ILI9225_RAM_ADDRESS_SET_2, y_start);
+	ili9225_command(dbi, ILI9225_RAM_ADDRESS_SET_1, x_start);
+	ili9225_command(dbi, ILI9225_RAM_ADDRESS_SET_2, y_start);
 
-	ret = mipi_dbi_command_buf(mipi, ILI9225_WRITE_DATA_TO_GRAM, tr,
+	ret = mipi_dbi_command_buf(dbi, ILI9225_WRITE_DATA_TO_GRAM, tr,
 				   width * height * 2);
 err_msg:
 	if (ret)
@@ -185,6 +186,7 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct device *dev = pipe->crtc.dev->dev;
+	struct mipi_dbi *dbi = mipi;
 	struct drm_rect rect = {
 		.x1 = 0,
 		.x2 = fb->width,
@@ -199,7 +201,7 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	DRM_DEBUG_KMS("\n");
 
-	mipi_dbi_hw_reset(mipi);
+	mipi_dbi_hw_reset(dbi);
 
 	/*
 	 * There don't seem to be two example init sequences that match, so
@@ -207,27 +209,27 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 	 * https://github.com/Nkawu/TFT_22_ILI9225/blob/master/src/TFT_22_ILI9225.cpp
 	 */
 
-	ret = ili9225_command(mipi, ILI9225_POWER_CONTROL_1, 0x0000);
+	ret = ili9225_command(dbi, ILI9225_POWER_CONTROL_1, 0x0000);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "Error sending command %d\n", ret);
 		goto out_exit;
 	}
-	ili9225_command(mipi, ILI9225_POWER_CONTROL_2, 0x0000);
-	ili9225_command(mipi, ILI9225_POWER_CONTROL_3, 0x0000);
-	ili9225_command(mipi, ILI9225_POWER_CONTROL_4, 0x0000);
-	ili9225_command(mipi, ILI9225_POWER_CONTROL_5, 0x0000);
+	ili9225_command(dbi, ILI9225_POWER_CONTROL_2, 0x0000);
+	ili9225_command(dbi, ILI9225_POWER_CONTROL_3, 0x0000);
+	ili9225_command(dbi, ILI9225_POWER_CONTROL_4, 0x0000);
+	ili9225_command(dbi, ILI9225_POWER_CONTROL_5, 0x0000);
 
 	msleep(40);
 
-	ili9225_command(mipi, ILI9225_POWER_CONTROL_2, 0x0018);
-	ili9225_command(mipi, ILI9225_POWER_CONTROL_3, 0x6121);
-	ili9225_command(mipi, ILI9225_POWER_CONTROL_4, 0x006f);
-	ili9225_command(mipi, ILI9225_POWER_CONTROL_5, 0x495f);
-	ili9225_command(mipi, ILI9225_POWER_CONTROL_1, 0x0800);
+	ili9225_command(dbi, ILI9225_POWER_CONTROL_2, 0x0018);
+	ili9225_command(dbi, ILI9225_POWER_CONTROL_3, 0x6121);
+	ili9225_command(dbi, ILI9225_POWER_CONTROL_4, 0x006f);
+	ili9225_command(dbi, ILI9225_POWER_CONTROL_5, 0x495f);
+	ili9225_command(dbi, ILI9225_POWER_CONTROL_1, 0x0800);
 
 	msleep(10);
 
-	ili9225_command(mipi, ILI9225_POWER_CONTROL_2, 0x103b);
+	ili9225_command(dbi, ILI9225_POWER_CONTROL_2, 0x103b);
 
 	msleep(50);
 
@@ -245,41 +247,41 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 		am_id = 0x28;
 		break;
 	}
-	ili9225_command(mipi, ILI9225_DRIVER_OUTPUT_CONTROL, 0x011c);
-	ili9225_command(mipi, ILI9225_LCD_AC_DRIVING_CONTROL, 0x0100);
-	ili9225_command(mipi, ILI9225_ENTRY_MODE, 0x1000 | am_id);
-	ili9225_command(mipi, ILI9225_DISPLAY_CONTROL_1, 0x0000);
-	ili9225_command(mipi, ILI9225_BLANK_PERIOD_CONTROL_1, 0x0808);
-	ili9225_command(mipi, ILI9225_FRAME_CYCLE_CONTROL, 0x1100);
-	ili9225_command(mipi, ILI9225_INTERFACE_CONTROL, 0x0000);
-	ili9225_command(mipi, ILI9225_OSCILLATION_CONTROL, 0x0d01);
-	ili9225_command(mipi, ILI9225_VCI_RECYCLING, 0x0020);
-	ili9225_command(mipi, ILI9225_RAM_ADDRESS_SET_1, 0x0000);
-	ili9225_command(mipi, ILI9225_RAM_ADDRESS_SET_2, 0x0000);
+	ili9225_command(dbi, ILI9225_DRIVER_OUTPUT_CONTROL, 0x011c);
+	ili9225_command(dbi, ILI9225_LCD_AC_DRIVING_CONTROL, 0x0100);
+	ili9225_command(dbi, ILI9225_ENTRY_MODE, 0x1000 | am_id);
+	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x0000);
+	ili9225_command(dbi, ILI9225_BLANK_PERIOD_CONTROL_1, 0x0808);
+	ili9225_command(dbi, ILI9225_FRAME_CYCLE_CONTROL, 0x1100);
+	ili9225_command(dbi, ILI9225_INTERFACE_CONTROL, 0x0000);
+	ili9225_command(dbi, ILI9225_OSCILLATION_CONTROL, 0x0d01);
+	ili9225_command(dbi, ILI9225_VCI_RECYCLING, 0x0020);
+	ili9225_command(dbi, ILI9225_RAM_ADDRESS_SET_1, 0x0000);
+	ili9225_command(dbi, ILI9225_RAM_ADDRESS_SET_2, 0x0000);
 
-	ili9225_command(mipi, ILI9225_GATE_SCAN_CONTROL, 0x0000);
-	ili9225_command(mipi, ILI9225_VERTICAL_SCROLL_1, 0x00db);
-	ili9225_command(mipi, ILI9225_VERTICAL_SCROLL_2, 0x0000);
-	ili9225_command(mipi, ILI9225_VERTICAL_SCROLL_3, 0x0000);
-	ili9225_command(mipi, ILI9225_PARTIAL_DRIVING_POS_1, 0x00db);
-	ili9225_command(mipi, ILI9225_PARTIAL_DRIVING_POS_2, 0x0000);
+	ili9225_command(dbi, ILI9225_GATE_SCAN_CONTROL, 0x0000);
+	ili9225_command(dbi, ILI9225_VERTICAL_SCROLL_1, 0x00db);
+	ili9225_command(dbi, ILI9225_VERTICAL_SCROLL_2, 0x0000);
+	ili9225_command(dbi, ILI9225_VERTICAL_SCROLL_3, 0x0000);
+	ili9225_command(dbi, ILI9225_PARTIAL_DRIVING_POS_1, 0x00db);
+	ili9225_command(dbi, ILI9225_PARTIAL_DRIVING_POS_2, 0x0000);
 
-	ili9225_command(mipi, ILI9225_GAMMA_CONTROL_1, 0x0000);
-	ili9225_command(mipi, ILI9225_GAMMA_CONTROL_2, 0x0808);
-	ili9225_command(mipi, ILI9225_GAMMA_CONTROL_3, 0x080a);
-	ili9225_command(mipi, ILI9225_GAMMA_CONTROL_4, 0x000a);
-	ili9225_command(mipi, ILI9225_GAMMA_CONTROL_5, 0x0a08);
-	ili9225_command(mipi, ILI9225_GAMMA_CONTROL_6, 0x0808);
-	ili9225_command(mipi, ILI9225_GAMMA_CONTROL_7, 0x0000);
-	ili9225_command(mipi, ILI9225_GAMMA_CONTROL_8, 0x0a00);
-	ili9225_command(mipi, ILI9225_GAMMA_CONTROL_9, 0x0710);
-	ili9225_command(mipi, ILI9225_GAMMA_CONTROL_10, 0x0710);
+	ili9225_command(dbi, ILI9225_GAMMA_CONTROL_1, 0x0000);
+	ili9225_command(dbi, ILI9225_GAMMA_CONTROL_2, 0x0808);
+	ili9225_command(dbi, ILI9225_GAMMA_CONTROL_3, 0x080a);
+	ili9225_command(dbi, ILI9225_GAMMA_CONTROL_4, 0x000a);
+	ili9225_command(dbi, ILI9225_GAMMA_CONTROL_5, 0x0a08);
+	ili9225_command(dbi, ILI9225_GAMMA_CONTROL_6, 0x0808);
+	ili9225_command(dbi, ILI9225_GAMMA_CONTROL_7, 0x0000);
+	ili9225_command(dbi, ILI9225_GAMMA_CONTROL_8, 0x0a00);
+	ili9225_command(dbi, ILI9225_GAMMA_CONTROL_9, 0x0710);
+	ili9225_command(dbi, ILI9225_GAMMA_CONTROL_10, 0x0710);
 
-	ili9225_command(mipi, ILI9225_DISPLAY_CONTROL_1, 0x0012);
+	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x0012);
 
 	msleep(50);
 
-	ili9225_command(mipi, ILI9225_DISPLAY_CONTROL_1, 0x1017);
+	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x1017);
 
 	mipi->enabled = true;
 	ili9225_fb_dirty(fb, &rect);
@@ -290,6 +292,7 @@ out_exit:
 static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
 	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
+	struct mipi_dbi *dbi = mipi;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -303,33 +306,33 @@ static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
 	if (!mipi->enabled)
 		return;
 
-	ili9225_command(mipi, ILI9225_DISPLAY_CONTROL_1, 0x0000);
+	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x0000);
 	msleep(50);
-	ili9225_command(mipi, ILI9225_POWER_CONTROL_2, 0x0007);
+	ili9225_command(dbi, ILI9225_POWER_CONTROL_2, 0x0007);
 	msleep(50);
-	ili9225_command(mipi, ILI9225_POWER_CONTROL_1, 0x0a02);
+	ili9225_command(dbi, ILI9225_POWER_CONTROL_1, 0x0a02);
 
 	mipi->enabled = false;
 }
 
-static int ili9225_dbi_command(struct mipi_dbi *mipi, u8 *cmd, u8 *par,
+static int ili9225_dbi_command(struct mipi_dbi *dbi, u8 *cmd, u8 *par,
 			       size_t num)
 {
-	struct spi_device *spi = mipi->spi;
+	struct spi_device *spi = dbi->spi;
 	unsigned int bpw = 8;
 	u32 speed_hz;
 	int ret;
 
-	gpiod_set_value_cansleep(mipi->dc, 0);
+	gpiod_set_value_cansleep(dbi->dc, 0);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, 1);
 	ret = mipi_dbi_spi_transfer(spi, speed_hz, 8, cmd, 1);
 	if (ret || !num)
 		return ret;
 
-	if (*cmd == ILI9225_WRITE_DATA_TO_GRAM && !mipi->swap_bytes)
+	if (*cmd == ILI9225_WRITE_DATA_TO_GRAM && !dbi->swap_bytes)
 		bpw = 16;
 
-	gpiod_set_value_cansleep(mipi->dc, 1);
+	gpiod_set_value_cansleep(dbi->dc, 1);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, num);
 
 	return mipi_dbi_spi_transfer(spi, speed_hz, bpw, par, num);
@@ -377,6 +380,7 @@ static int ili9225_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct drm_device *drm;
 	struct mipi_dbi *mipi;
+	struct mipi_dbi *dbi;
 	struct gpio_desc *rs;
 	u32 rotation = 0;
 	int ret;
@@ -385,6 +389,7 @@ static int ili9225_probe(struct spi_device *spi)
 	if (!mipi)
 		return -ENOMEM;
 
+	dbi = mipi;
 	drm = &mipi->drm;
 	ret = devm_drm_dev_init(dev, drm, &ili9225_driver);
 	if (ret) {
@@ -394,10 +399,10 @@ static int ili9225_probe(struct spi_device *spi)
 
 	drm_mode_config_init(drm);
 
-	mipi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(mipi->reset)) {
+	dbi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(dbi->reset)) {
 		DRM_DEV_ERROR(dev, "Failed to get gpio 'reset'\n");
-		return PTR_ERR(mipi->reset);
+		return PTR_ERR(dbi->reset);
 	}
 
 	rs = devm_gpiod_get(dev, "rs", GPIOD_OUT_LOW);
@@ -408,12 +413,12 @@ static int ili9225_probe(struct spi_device *spi)
 
 	device_property_read_u32(dev, "rotation", &rotation);
 
-	ret = mipi_dbi_spi_init(spi, mipi, rs);
+	ret = mipi_dbi_spi_init(spi, dbi, rs);
 	if (ret)
 		return ret;
 
 	/* override the command function set in  mipi_dbi_spi_init() */
-	mipi->command = ili9225_dbi_command;
+	dbi->command = ili9225_dbi_command;
 
 	ret = mipi_dbi_init(mipi, &ili9225_pipe_funcs, &ili9225_mode, rotation);
 	if (ret)

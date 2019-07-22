@@ -43,6 +43,7 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 				      struct drm_plane_state *plane_state)
 {
 	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
+	struct mipi_dbi *dbi = mipi;
 	int ret, idx;
 	u8 addr_mode;
 
@@ -57,21 +58,21 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	msleep(150);
 
-	mipi_dbi_command(mipi, MIPI_DCS_EXIT_SLEEP_MODE);
+	mipi_dbi_command(dbi, MIPI_DCS_EXIT_SLEEP_MODE);
 	msleep(500);
 
-	mipi_dbi_command(mipi, ST7735R_FRMCTR1, 0x01, 0x2c, 0x2d);
-	mipi_dbi_command(mipi, ST7735R_FRMCTR2, 0x01, 0x2c, 0x2d);
-	mipi_dbi_command(mipi, ST7735R_FRMCTR3, 0x01, 0x2c, 0x2d, 0x01, 0x2c,
+	mipi_dbi_command(dbi, ST7735R_FRMCTR1, 0x01, 0x2c, 0x2d);
+	mipi_dbi_command(dbi, ST7735R_FRMCTR2, 0x01, 0x2c, 0x2d);
+	mipi_dbi_command(dbi, ST7735R_FRMCTR3, 0x01, 0x2c, 0x2d, 0x01, 0x2c,
 			 0x2d);
-	mipi_dbi_command(mipi, ST7735R_INVCTR, 0x07);
-	mipi_dbi_command(mipi, ST7735R_PWCTR1, 0xa2, 0x02, 0x84);
-	mipi_dbi_command(mipi, ST7735R_PWCTR2, 0xc5);
-	mipi_dbi_command(mipi, ST7735R_PWCTR3, 0x0a, 0x00);
-	mipi_dbi_command(mipi, ST7735R_PWCTR4, 0x8a, 0x2a);
-	mipi_dbi_command(mipi, ST7735R_PWCTR5, 0x8a, 0xee);
-	mipi_dbi_command(mipi, ST7735R_VMCTR1, 0x0e);
-	mipi_dbi_command(mipi, MIPI_DCS_EXIT_INVERT_MODE);
+	mipi_dbi_command(dbi, ST7735R_INVCTR, 0x07);
+	mipi_dbi_command(dbi, ST7735R_PWCTR1, 0xa2, 0x02, 0x84);
+	mipi_dbi_command(dbi, ST7735R_PWCTR2, 0xc5);
+	mipi_dbi_command(dbi, ST7735R_PWCTR3, 0x0a, 0x00);
+	mipi_dbi_command(dbi, ST7735R_PWCTR4, 0x8a, 0x2a);
+	mipi_dbi_command(dbi, ST7735R_PWCTR5, 0x8a, 0xee);
+	mipi_dbi_command(dbi, ST7735R_VMCTR1, 0x0e);
+	mipi_dbi_command(dbi, MIPI_DCS_EXIT_INVERT_MODE);
 	switch (mipi->rotation) {
 	default:
 		addr_mode = ST7735R_MX | ST7735R_MY;
@@ -86,20 +87,20 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 		addr_mode = ST7735R_MY | ST7735R_MV;
 		break;
 	}
-	mipi_dbi_command(mipi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
-	mipi_dbi_command(mipi, MIPI_DCS_SET_PIXEL_FORMAT,
+	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_PIXEL_FORMAT,
 			 MIPI_DCS_PIXEL_FMT_16BIT);
-	mipi_dbi_command(mipi, ST7735R_GAMCTRP1, 0x02, 0x1c, 0x07, 0x12, 0x37,
+	mipi_dbi_command(dbi, ST7735R_GAMCTRP1, 0x02, 0x1c, 0x07, 0x12, 0x37,
 			 0x32, 0x29, 0x2d, 0x29, 0x25, 0x2b, 0x39, 0x00, 0x01,
 			 0x03, 0x10);
-	mipi_dbi_command(mipi, ST7735R_GAMCTRN1, 0x03, 0x1d, 0x07, 0x06, 0x2e,
+	mipi_dbi_command(dbi, ST7735R_GAMCTRN1, 0x03, 0x1d, 0x07, 0x06, 0x2e,
 			 0x2c, 0x29, 0x2d, 0x2e, 0x2e, 0x37, 0x3f, 0x00, 0x00,
 			 0x02, 0x10);
-	mipi_dbi_command(mipi, MIPI_DCS_SET_DISPLAY_ON);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
 
 	msleep(100);
 
-	mipi_dbi_command(mipi, MIPI_DCS_ENTER_NORMAL_MODE);
+	mipi_dbi_command(dbi, MIPI_DCS_ENTER_NORMAL_MODE);
 
 	msleep(20);
 
@@ -151,6 +152,7 @@ static int st7735r_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct drm_device *drm;
 	struct mipi_dbi *mipi;
+	struct mipi_dbi *dbi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
 	int ret;
@@ -159,6 +161,7 @@ static int st7735r_probe(struct spi_device *spi)
 	if (!mipi)
 		return -ENOMEM;
 
+	dbi = mipi;
 	drm = &mipi->drm;
 	ret = devm_drm_dev_init(dev, drm, &st7735r_driver);
 	if (ret) {
@@ -168,10 +171,10 @@ static int st7735r_probe(struct spi_device *spi)
 
 	drm_mode_config_init(drm);
 
-	mipi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(mipi->reset)) {
+	dbi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(dbi->reset)) {
 		DRM_DEV_ERROR(dev, "Failed to get gpio 'reset'\n");
-		return PTR_ERR(mipi->reset);
+		return PTR_ERR(dbi->reset);
 	}
 
 	dc = devm_gpiod_get(dev, "dc", GPIOD_OUT_LOW);
@@ -186,12 +189,12 @@ static int st7735r_probe(struct spi_device *spi)
 
 	device_property_read_u32(dev, "rotation", &rotation);
 
-	ret = mipi_dbi_spi_init(spi, mipi, dc);
+	ret = mipi_dbi_spi_init(spi, dbi, dc);
 	if (ret)
 		return ret;
 
 	/* Cannot read from Adafruit 1.8" display via SPI */
-	mipi->read_commands = NULL;
+	dbi->read_commands = NULL;
 
 	ret = mipi_dbi_init(mipi, &jd_t18003_t01_pipe_funcs, &jd_t18003_t01_mode, rotation);
 	if (ret)
