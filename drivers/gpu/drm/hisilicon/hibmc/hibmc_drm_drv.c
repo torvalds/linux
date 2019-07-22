@@ -22,14 +22,7 @@
 
 static const struct file_operations hibmc_fops = {
 	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-	.compat_ioctl	= drm_compat_ioctl,
-	.mmap		= hibmc_mmap,
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= no_llseek,
+	DRM_VRAM_MM_FILE_OPERATIONS
 };
 
 static irqreturn_t hibmc_drm_interrupt(int irq, void *arg)
@@ -58,9 +51,10 @@ static struct drm_driver hibmc_driver = {
 	.desc			= "hibmc drm driver",
 	.major			= 1,
 	.minor			= 0,
-	.gem_free_object_unlocked = hibmc_gem_free_object,
+	.gem_free_object_unlocked =
+		drm_gem_vram_driver_gem_free_object_unlocked,
 	.dumb_create            = hibmc_dumb_create,
-	.dumb_map_offset        = hibmc_dumb_mmap_offset,
+	.dumb_map_offset        = drm_gem_vram_driver_dumb_mmap_offset,
 	.irq_handler		= hibmc_drm_interrupt,
 };
 

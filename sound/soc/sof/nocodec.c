@@ -21,6 +21,7 @@ static int sof_nocodec_bes_setup(struct device *dev,
 				 struct snd_soc_dai_link *links,
 				 int link_num, struct snd_soc_card *card)
 {
+	struct snd_soc_dai_link_component *dlc;
 	int i;
 
 	if (!ops || !links || !card)
@@ -28,17 +29,29 @@ static int sof_nocodec_bes_setup(struct device *dev,
 
 	/* set up BE dai_links */
 	for (i = 0; i < link_num; i++) {
+		dlc = devm_kzalloc(dev, 3 * sizeof(*dlc), GFP_KERNEL);
+		if (!dlc)
+			return -ENOMEM;
+
 		links[i].name = devm_kasprintf(dev, GFP_KERNEL,
 					       "NoCodec-%d", i);
 		if (!links[i].name)
 			return -ENOMEM;
 
+		links[i].cpus = &dlc[0];
+		links[i].codecs = &dlc[1];
+		links[i].platforms = &dlc[2];
+
+		links[i].num_cpus = 1;
+		links[i].num_codecs = 1;
+		links[i].num_platforms = 1;
+
 		links[i].id = i;
 		links[i].no_pcm = 1;
-		links[i].cpu_dai_name = ops->drv[i].name;
-		links[i].platform_name = dev_name(dev);
-		links[i].codec_dai_name = "snd-soc-dummy-dai";
-		links[i].codec_name = "snd-soc-dummy";
+		links[i].cpus->dai_name = ops->drv[i].name;
+		links[i].platforms->name = dev_name(dev);
+		links[i].codecs->dai_name = "snd-soc-dummy-dai";
+		links[i].codecs->name = "snd-soc-dummy";
 		links[i].dpcm_playback = 1;
 		links[i].dpcm_capture = 1;
 	}

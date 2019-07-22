@@ -179,26 +179,6 @@ config X86_DECODER_SELFTEST
 	 decoder code.
 	 If unsure, say "N".
 
-#
-# IO delay types:
-#
-
-config IO_DELAY_TYPE_0X80
-	int
-	default "0"
-
-config IO_DELAY_TYPE_0XED
-	int
-	default "1"
-
-config IO_DELAY_TYPE_UDELAY
-	int
-	default "2"
-
-config IO_DELAY_TYPE_NONE
-	int
-	default "3"
-
 choice
 	prompt "IO delay type"
 	default IO_DELAY_0X80
@@ -228,30 +208,6 @@ config IO_DELAY_NONE
 	  delay for certain operations. Should work on most new machines.
 
 endchoice
-
-if IO_DELAY_0X80
-config DEFAULT_IO_DELAY_TYPE
-	int
-	default IO_DELAY_TYPE_0X80
-endif
-
-if IO_DELAY_0XED
-config DEFAULT_IO_DELAY_TYPE
-	int
-	default IO_DELAY_TYPE_0XED
-endif
-
-if IO_DELAY_UDELAY
-config DEFAULT_IO_DELAY_TYPE
-	int
-	default IO_DELAY_TYPE_UDELAY
-endif
-
-if IO_DELAY_NONE
-config DEFAULT_IO_DELAY_TYPE
-	int
-	default IO_DELAY_TYPE_NONE
-endif
 
 config DEBUG_BOOT_PARAMS
 	bool "Debug boot parameters"

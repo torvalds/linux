@@ -382,6 +382,8 @@ enum {
 };
 
 static const struct ib_device_ops rvt_dev_ops = {
+	.uverbs_abi_ver = RVT_UVERBS_ABI_VERSION,
+
 	.alloc_fmr = rvt_alloc_fmr,
 	.alloc_mr = rvt_alloc_mr,
 	.alloc_pd = rvt_alloc_pd,
@@ -427,6 +429,7 @@ static const struct ib_device_ops rvt_dev_ops = {
 	.unmap_fmr = rvt_unmap_fmr,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, rvt_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, rvt_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, rvt_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_srq, rvt_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, rvt_ucontext, ibucontext),
@@ -530,7 +533,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
  *
  * Return: 0 on success otherwise an errno.
  */
-int rvt_register_device(struct rvt_dev_info *rdi, u32 driver_id)
+int rvt_register_device(struct rvt_dev_info *rdi)
 {
 	int ret = 0, i;
 
@@ -600,7 +603,6 @@ int rvt_register_device(struct rvt_dev_info *rdi, u32 driver_id)
 	 * exactly which functions rdmavt supports, nor do they know the ABI
 	 * version, so we do all of this sort of stuff here.
 	 */
-	rdi->ibdev.uverbs_abi_ver = RVT_UVERBS_ABI_VERSION;
 	rdi->ibdev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)         |
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)        |
@@ -636,7 +638,6 @@ int rvt_register_device(struct rvt_dev_info *rdi, u32 driver_id)
 	if (!rdi->ibdev.num_comp_vectors)
 		rdi->ibdev.num_comp_vectors = 1;
 
-	rdi->ibdev.driver_id = driver_id;
 	/* We are now good to announce we exist */
 	ret = ib_register_device(&rdi->ibdev, dev_name(&rdi->ibdev.dev));
 	if (ret) {

@@ -5,6 +5,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/hwspinlock.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -42,9 +43,15 @@ static void stm32_hwspinlock_unlock(struct hwspinlock *lock)
 	writel(STM32_MUTEX_COREID, lock_addr);
 }
 
+static void stm32_hwspinlock_relax(struct hwspinlock *lock)
+{
+	ndelay(50);
+}
+
 static const struct hwspinlock_ops stm32_hwspinlock_ops = {
 	.trylock	= stm32_hwspinlock_trylock,
 	.unlock		= stm32_hwspinlock_unlock,
+	.relax		= stm32_hwspinlock_relax,
 };
 
 static int stm32_hwspinlock_probe(struct platform_device *pdev)

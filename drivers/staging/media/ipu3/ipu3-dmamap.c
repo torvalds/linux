@@ -31,22 +31,17 @@ static void imgu_dmamap_free_buffer(struct page **pages,
  * Based on the implementation of __iommu_dma_alloc_pages()
  * defined in drivers/iommu/dma-iommu.c
  */
-static struct page **imgu_dmamap_alloc_buffer(size_t size,
-					      unsigned long order_mask,
-					      gfp_t gfp)
+static struct page **imgu_dmamap_alloc_buffer(size_t size, gfp_t gfp)
 {
 	struct page **pages;
 	unsigned int i = 0, count = size >> PAGE_SHIFT;
+	unsigned int order_mask = 1;
 	const gfp_t high_order_gfp = __GFP_NOWARN | __GFP_NORETRY;
 
 	/* Allocate mem for array of page ptrs */
 	pages = kvmalloc_array(count, sizeof(*pages), GFP_KERNEL);
 
 	if (!pages)
-		return NULL;
-
-	order_mask &= (2U << MAX_ORDER) - 1;
-	if (!order_mask)
 		return NULL;
 
 	gfp |= __GFP_HIGHMEM | __GFP_ZERO;
@@ -99,7 +94,6 @@ void *imgu_dmamap_alloc(struct imgu_device *imgu, struct imgu_css_map *map,
 			size_t len)
 {
 	unsigned long shift = iova_shift(&imgu->iova_domain);
-	unsigned int alloc_sizes = imgu->mmu->pgsize_bitmap;
 	struct device *dev = &imgu->pci_dev->dev;
 	size_t size = PAGE_ALIGN(len);
 	struct page **pages;
@@ -114,8 +108,7 @@ void *imgu_dmamap_alloc(struct imgu_device *imgu, struct imgu_css_map *map,
 	if (!iova)
 		return NULL;
 
-	pages = imgu_dmamap_alloc_buffer(size, alloc_sizes >> PAGE_SHIFT,
-					 GFP_KERNEL);
+	pages = imgu_dmamap_alloc_buffer(size, GFP_KERNEL);
 	if (!pages)
 		goto out_free_iova;
 
@@ -257,7 +250,7 @@ int imgu_dmamap_init(struct imgu_device *imgu)
 	if (ret)
 		return ret;
 
-	order = __ffs(imgu->mmu->pgsize_bitmap);
+	order = __ffs(IPU3_PAGE_SIZE);
 	base_pfn = max_t(unsigned long, 1, imgu->mmu->aperture_start >> order);
 	init_iova_domain(&imgu->iova_domain, 1UL << order, base_pfn);
 

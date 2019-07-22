@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* linux/drivers/video/sm501fb.c
  *
  * Copyright (c) 2006 Simtec Electronics
  *	Vincent Sanders <vince@simtec.co.uk>
  *	Ben Dooks <ben@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Framebuffer driver for the Silicon Motion SM501
  */
@@ -1868,10 +1865,8 @@ static int sm501fb_probe_one(struct sm501fb_info *info,
 	}
 
 	fbi = framebuffer_alloc(sizeof(struct sm501fb_par), info->dev);
-	if (fbi == NULL) {
-		dev_err(info->dev, "cannot allocate %s framebuffer\n", name);
+	if (!fbi)
 		return -ENOMEM;
-	}
 
 	par = fbi->par;
 	par->info = info;

@@ -13,6 +13,17 @@ modules.
 
 -------------------------------------------------
 
+watchdog core:
+    open_timeout:
+	Maximum time, in seconds, for which the watchdog framework will take
+	care of pinging a running hardware watchdog until userspace opens the
+	corresponding /dev/watchdogN device. A value of 0 means an infinite
+	timeout. Setting this to a non-zero value can be useful to ensure that
+	either userspace comes up properly, or the board gets reset and allows
+	fallback logic in the bootloader to try something else.
+
+-------------------------------------------------
+
 acquirewdt:
     wdt_stop:
 	Acquire WDT 'stop' io port (default 0x43)

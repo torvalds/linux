@@ -25,8 +25,9 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
+#include <drm/drm_debugfs.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu_sched.h"
 #include "amdgpu_uvd.h"
@@ -35,13 +36,15 @@
 
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
+#include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_gem.h"
 #include "amdgpu_display.h"
 #include "amdgpu_ras.h"
 
-static void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
+void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
 {
 	struct amdgpu_gpu_instance *gpu_instance;
 	int i;
@@ -102,7 +105,7 @@ done_free:
 	dev->dev_private = NULL;
 }
 
-static void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
+void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
 {
 	struct amdgpu_gpu_instance *gpu_instance;
 
@@ -590,13 +593,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct drm_amdgpu_info_gds gds_info;
 
 		memset(&gds_info, 0, sizeof(gds_info));
-		gds_info.gds_gfx_partition_size = adev->gds.mem.gfx_partition_size;
-		gds_info.compute_partition_size = adev->gds.mem.cs_partition_size;
-		gds_info.gds_total_size = adev->gds.mem.total_size;
-		gds_info.gws_per_gfx_partition = adev->gds.gws.gfx_partition_size;
-		gds_info.gws_per_compute_partition = adev->gds.gws.cs_partition_size;
-		gds_info.oa_per_gfx_partition = adev->gds.oa.gfx_partition_size;
-		gds_info.oa_per_compute_partition = adev->gds.oa.cs_partition_size;
+		gds_info.compute_partition_size = adev->gds.gds_size;
+		gds_info.gds_total_size = adev->gds.gds_size;
+		gds_info.gws_per_compute_partition = adev->gds.gws_size;
+		gds_info.oa_per_compute_partition = adev->gds.oa_size;
 		return copy_to_user(out, &gds_info,
 				    min((size_t)size, sizeof(gds_info))) ? -EFAULT : 0;
 	}
@@ -712,7 +712,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.ids_flags = 0;
 		if (adev->flags & AMD_IS_APU)
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_FUSION;
-		if (amdgpu_sriov_vf(adev))
+		if (amdgpu_mcbp || amdgpu_sriov_vf(adev))
 			dev_info.ids_flags |= AMDGPU_IDS_FLAGS_PREEMPTION;
 
 		vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
@@ -764,6 +764,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.gs_vgt_table_depth = adev->gfx.config.gs_vgt_table_depth;
 		dev_info.gs_prim_buffer_depth = adev->gfx.config.gs_prim_buffer_depth;
 		dev_info.max_gs_waves_per_vgt = adev->gfx.config.max_gs_threads;
+
+		if (adev->family >= AMDGPU_FAMILY_NV)
+			dev_info.pa_sc_tile_steering_override =
+				adev->gfx.config.pa_sc_tile_steering_override;
 
 		return copy_to_user(out, &dev_info,
 				    min((size_t)size, sizeof(dev_info))) ? -EFAULT : 0;
@@ -977,7 +981,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	int r, pasid;
 
 	/* Ensure IB tests are run on ring */
-	flush_delayed_work(&adev->late_init_work);
+	flush_delayed_work(&adev->delayed_init_work);
 
 	file_priv->driver_priv = NULL;
 
@@ -1006,7 +1010,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		goto error_vm;
 	}
 
-	if (amdgpu_sriov_vf(adev)) {
+	if (amdgpu_mcbp || amdgpu_sriov_vf(adev)) {
 		uint64_t csa_addr = amdgpu_csa_vaddr(adev) & AMDGPU_GMC_HOLE_MASK;
 
 		r = amdgpu_map_static_csa(adev, &fpriv->vm, adev->virt.csa_obj,
@@ -1069,7 +1073,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	amdgpu_vm_bo_rmv(adev, fpriv->prt_va);
 
-	if (amdgpu_sriov_vf(adev)) {
+	if (amdgpu_mcbp || amdgpu_sriov_vf(adev)) {
 		/* TODO: how to handle reserve failure */
 		BUG_ON(amdgpu_bo_reserve(adev->virt.csa_obj, true));
 		amdgpu_vm_bo_rmv(adev, fpriv->csa_va);

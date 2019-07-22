@@ -50,15 +50,20 @@ static struct snd_soc_ops arndale_ops = {
 	.hw_params = arndale_hw_params,
 };
 
+SND_SOC_DAILINK_DEFS(rt5631_hifi,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "rt5631-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link arndale_rt5631_dai[] = {
 	{
 		.name = "RT5631 HiFi",
 		.stream_name = "Primary",
-		.codec_dai_name = "rt5631-hifi",
 		.dai_fmt = SND_SOC_DAIFMT_I2S
 			| SND_SOC_DAIFMT_NB_NF
 			| SND_SOC_DAIFMT_CBS_CFS,
 		.ops = &arndale_ops,
+		SND_SOC_DAILINK_REG(rt5631_hifi),
 	},
 };
 
@@ -78,24 +83,24 @@ static int arndale_audio_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 
 	for (n = 0; np && n < ARRAY_SIZE(arndale_rt5631_dai); n++) {
-		if (!arndale_rt5631_dai[n].cpu_dai_name) {
-			arndale_rt5631_dai[n].cpu_of_node = of_parse_phandle(np,
+		if (!arndale_rt5631_dai[n].cpus->dai_name) {
+			arndale_rt5631_dai[n].cpus->of_node = of_parse_phandle(np,
 					"samsung,audio-cpu", n);
 
-			if (!arndale_rt5631_dai[n].cpu_of_node) {
+			if (!arndale_rt5631_dai[n].cpus->of_node) {
 				dev_err(&pdev->dev,
 				"Property 'samsung,audio-cpu' missing or invalid\n");
 				return -EINVAL;
 			}
 		}
-		if (!arndale_rt5631_dai[n].platform_name)
-			arndale_rt5631_dai[n].platform_of_node =
-					arndale_rt5631_dai[n].cpu_of_node;
+		if (!arndale_rt5631_dai[n].platforms->name)
+			arndale_rt5631_dai[n].platforms->of_node =
+					arndale_rt5631_dai[n].cpus->of_node;
 
-		arndale_rt5631_dai[n].codec_name = NULL;
-		arndale_rt5631_dai[n].codec_of_node = of_parse_phandle(np,
+		arndale_rt5631_dai[n].codecs->name = NULL;
+		arndale_rt5631_dai[n].codecs->of_node = of_parse_phandle(np,
 					"samsung,audio-codec", n);
-		if (!arndale_rt5631_dai[0].codec_of_node) {
+		if (!arndale_rt5631_dai[0].codecs->of_node) {
 			dev_err(&pdev->dev,
 			"Property 'samsung,audio-codec' missing or invalid\n");
 			return -EINVAL;

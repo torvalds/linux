@@ -3685,3 +3685,68 @@ int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_FEATURE_SUPPORT,
 			   features, &mcp_resp, &mcp_param);
 }
+
+int qed_mcp_get_engine_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_mcp_mb_params mb_params = {0};
+	struct qed_dev *cdev = p_hwfn->cdev;
+	u8 fir_valid, l2_valid;
+	int rc;
+
+	mb_params.cmd = DRV_MSG_CODE_GET_ENGINE_CONFIG;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		return rc;
+
+	if (mb_params.mcp_resp == FW_MSG_CODE_UNSUPPORTED) {
+		DP_INFO(p_hwfn,
+			"The get_engine_config command is unsupported by the MFW\n");
+		return -EOPNOTSUPP;
+	}
+
+	fir_valid = QED_MFW_GET_FIELD(mb_params.mcp_param,
+				      FW_MB_PARAM_ENG_CFG_FIR_AFFIN_VALID);
+	if (fir_valid)
+		cdev->fir_affin =
+		    QED_MFW_GET_FIELD(mb_params.mcp_param,
+				      FW_MB_PARAM_ENG_CFG_FIR_AFFIN_VALUE);
+
+	l2_valid = QED_MFW_GET_FIELD(mb_params.mcp_param,
+				     FW_MB_PARAM_ENG_CFG_L2_AFFIN_VALID);
+	if (l2_valid)
+		cdev->l2_affin_hint =
+		    QED_MFW_GET_FIELD(mb_params.mcp_param,
+				      FW_MB_PARAM_ENG_CFG_L2_AFFIN_VALUE);
+
+	DP_INFO(p_hwfn,
+		"Engine affinity config: FIR={valid %hhd, value %hhd}, L2_hint={valid %hhd, value %hhd}\n",
+		fir_valid, cdev->fir_affin, l2_valid, cdev->l2_affin_hint);
+
+	return 0;
+}
+
+int qed_mcp_get_ppfid_bitmap(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_mcp_mb_params mb_params = {0};
+	struct qed_dev *cdev = p_hwfn->cdev;
+	int rc;
+
+	mb_params.cmd = DRV_MSG_CODE_GET_PPFID_BITMAP;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		return rc;
+
+	if (mb_params.mcp_resp == FW_MSG_CODE_UNSUPPORTED) {
+		DP_INFO(p_hwfn,
+			"The get_ppfid_bitmap command is unsupported by the MFW\n");
+		return -EOPNOTSUPP;
+	}
+
+	cdev->ppfid_bitmap = QED_MFW_GET_FIELD(mb_params.mcp_param,
+					       FW_MB_PARAM_PPFID_BITMAP);
+
+	DP_VERBOSE(p_hwfn, QED_MSG_SP, "PPFID bitmap 0x%hhx\n",
+		   cdev->ppfid_bitmap);
+
+	return 0;
+}

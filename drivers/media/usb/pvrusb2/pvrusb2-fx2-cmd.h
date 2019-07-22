@@ -1,17 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
- *
  *  Copyright (C) 2007 Michael Krufky <mkrufky@linuxtv.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #ifndef _PVRUSB2_FX2_CMD_H_
@@ -37,6 +27,10 @@
 #define FX2CMD_STREAMING_OFF    0x37u
 
 #define FX2CMD_FWPOST1          0x52u
+
+/* These 2 only exist on Model 160xxx */
+#define FX2CMD_HCW_DEMOD_RESET_PIN 0xd4u
+#define FX2CMD_HCW_MAKO_SLEEP_PIN  0xd5u
 
 #define FX2CMD_POWER_OFF        0xdcu
 #define FX2CMD_POWER_ON         0xdeu

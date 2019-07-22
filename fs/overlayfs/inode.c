@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Copyright (C) 2011 Novell Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/fs.h>
@@ -553,15 +550,15 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev,
 	int xinobits = ovl_xino_bits(inode->i_sb);
 
 	/*
-	 * When NFS export is enabled and d_ino is consistent with st_ino
-	 * (samefs or i_ino has enough bits to encode layer), set the same
-	 * value used for d_ino to i_ino, because nfsd readdirplus compares
-	 * d_ino values to i_ino values of child entries. When called from
+	 * When d_ino is consistent with st_ino (samefs or i_ino has enough
+	 * bits to encode layer), set the same value used for st_ino to i_ino,
+	 * so inode number exposed via /proc/locks and a like will be
+	 * consistent with d_ino and st_ino values. An i_ino value inconsistent
+	 * with d_ino also causes nfsd readdirplus to fail.  When called from
 	 * ovl_new_inode(), ino arg is 0, so i_ino will be updated to real
 	 * upper inode i_ino on ovl_inode_init() or ovl_inode_update().
 	 */
-	if (inode->i_sb->s_export_op &&
-	    (ovl_same_sb(inode->i_sb) || xinobits)) {
+	if (ovl_same_sb(inode->i_sb) || xinobits) {
 		inode->i_ino = ino;
 		if (xinobits && fsid && !(ino >> (64 - xinobits)))
 			inode->i_ino |= (unsigned long)fsid << (64 - xinobits);

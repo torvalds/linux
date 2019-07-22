@@ -162,7 +162,6 @@ ENTRY(swsusp_arch_resume)
 	larl	%r1,__swsusp_reset_dma
 	lg	%r1,0(%r1)
 	BASR_EX	%r14,%r1
-#ifdef CONFIG_SMP
 	larl	%r1,smp_cpu_mt_shift
 	icm	%r1,15,0(%r1)
 	jz	smt_done
@@ -172,7 +171,6 @@ smt_loop:
 	brc	8,smt_done			/* accepted */
 	brc	2,smt_loop			/* busy, try again */
 smt_done:
-#endif
 	larl	%r1,.Lnew_pgm_check_psw
 	lpswe	0(%r1)
 pgm_check_entry:

@@ -256,16 +256,6 @@ enum v4l_dbg_inputs {
 	MXT_V4L_INPUT_MAX,
 };
 
-static const struct v4l2_file_operations mxt_video_fops = {
-	.owner = THIS_MODULE,
-	.open = v4l2_fh_open,
-	.release = vb2_fop_release,
-	.unlocked_ioctl = video_ioctl2,
-	.read = vb2_fop_read,
-	.mmap = vb2_fop_mmap,
-	.poll = vb2_fop_poll,
-};
-
 enum mxt_suspend_mode {
 	MXT_SUSPEND_DEEP_SLEEP	= 0,
 	MXT_SUSPEND_T9_CTRL	= 1,
@@ -1521,7 +1511,8 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *fw)
 		} else if (config_crc == data->config_crc) {
 			dev_dbg(dev, "Config CRC 0x%06X: OK\n",
 				 data->config_crc);
-			return 0;
+			ret = 0;
+			goto release_raw;
 		} else {
 			dev_info(dev, "Config CRC 0x%06X: does not match file 0x%06X\n",
 				 data->config_crc, config_crc);
@@ -2218,6 +2209,16 @@ recheck:
 }
 
 #ifdef CONFIG_TOUCHSCREEN_ATMEL_MXT_T37
+static const struct v4l2_file_operations mxt_video_fops = {
+	.owner = THIS_MODULE,
+	.open = v4l2_fh_open,
+	.release = vb2_fop_release,
+	.unlocked_ioctl = video_ioctl2,
+	.read = vb2_fop_read,
+	.mmap = vb2_fop_mmap,
+	.poll = vb2_fop_poll,
+};
+
 static u16 mxt_get_debug_value(struct mxt_data *data, unsigned int x,
 			       unsigned int y)
 {

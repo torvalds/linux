@@ -190,7 +190,7 @@ void tipc_named_node_up(struct net *net, u32 dnode)
 	struct name_table *nt = tipc_name_table(net);
 	struct sk_buff_head head;
 
-	__skb_queue_head_init(&head);
+	skb_queue_head_init(&head);
 
 	read_lock_bh(&nt->cluster_scope_lock);
 	named_distribute(net, &head, dnode, &nt->cluster_scope);

@@ -3,10 +3,12 @@
  * Copyright (c) 2007, Intel Corporation.
  *
  **************************************************************************/
-#include <drm/drmP.h>
+
+#include <linux/highmem.h>
+
+#include "mmu.h"
 #include "psb_drv.h"
 #include "psb_reg.h"
-#include "mmu.h"
 
 /*
  * Code for the SGX MMU:

@@ -1,0 +1,200 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Voltage/Current Regulators
+
+maintainers:
+  - Liam Girdwood <lgirdwood@gmail.com>
+  - Mark Brown <broonie@kernel.org>
+
+properties:
+  regulator-name:
+    description: A string used as a descriptive name for regulator outputs
+    $ref: "/schemas/types.yaml#/definitions/string"
+
+  regulator-min-microvolt:
+    description: smallest voltage consumers may set
+
+  regulator-max-microvolt:
+    description: largest voltage consumers may set
+
+  regulator-microvolt-offset:
+    description: Offset applied to voltages to compensate for voltage drops
+
+  regulator-min-microamp:
+    description: smallest current consumers may set
+
+  regulator-max-microamp:
+    description: largest current consumers may set
+
+  regulator-input-current-limit-microamp:
+    description: maximum input current regulator allows
+
+  regulator-always-on:
+    description: boolean, regulator should never be disabled
+    type: boolean
+
+  regulator-boot-on:
+    description: bootloader/firmware enabled regulator
+    type: boolean
+
+  regulator-allow-bypass:
+    description: allow the regulator to go into bypass mode
+    type: boolean
+
+  regulator-allow-set-load:
+    description: allow the regulator performance level to be configured
+    type: boolean
+
+  regulator-ramp-delay:
+    description: ramp delay for regulator(in uV/us) For hardware which supports
+      disabling ramp rate, it should be explicitly initialised to zero (regulator-ramp-delay
+      = <0>) for disabling ramp delay.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  regulator-enable-ramp-delay:
+    description: The time taken, in microseconds, for the supply rail to
+      reach the target voltage, plus/minus whatever tolerance the board
+      design requires. This property describes the total system ramp time
+      required due to the combination of internal ramping of the regulator
+      itself, and board design issues such as trace capacitance and load
+      on the supply.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  regulator-settling-time-us:
+    description: Settling time, in microseconds, for voltage change if regulator
+      have the constant time for any level voltage change. This is useful
+      when regulator have exponential voltage change.
+
+  regulator-settling-time-up-us:
+    description: Settling time, in microseconds, for voltage increase if
+      the regulator needs a constant time to settle after voltage increases
+      of any level. This is useful for regulators with exponential voltage
+      changes.
+
+  regulator-settling-time-down-us:
+    description: Settling time, in microseconds, for voltage decrease if
+      the regulator needs a constant time to settle after voltage decreases
+      of any level. This is useful for regulators with exponential voltage
+      changes.
+
+  regulator-soft-start:
+    description: Enable soft start so that voltage ramps slowly
+    type: boolean
+
+  regulator-initial-mode:
+    description: initial operating mode. The set of possible operating modes
+      depends on the capabilities of every hardware so each device binding
+      documentation explains which values the regulator supports.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  regulator-allowed-modes:
+    description: list of operating modes that software is allowed to configure
+      for the regulator at run-time.  Elements may be specified in any order.
+      The set of possible operating modes depends on the capabilities of
+      every hardware so each device binding document explains which values
+      the regulator supports.
+    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+
+  regulator-system-load:
+    description: Load in uA present on regulator that is not captured by
+      any consumer request.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  regulator-pull-down:
+    description: Enable pull down resistor when the regulator is disabled.
+    type: boolean
+
+  regulator-over-current-protection:
+    description: Enable over current protection.
+    type: boolean
+
+  regulator-active-discharge:
+    description: |
+      tristate, enable/disable active discharge of regulators. The values are:
+      0: Disable active discharge.
+      1: Enable active discharge.
+      Absence of this property will leave configuration to default.
+    allOf:
+      - $ref: "/schemas/types.yaml#/definitions/uint32"
+      - enum: [ 0, 1 ]
+
+  regulator-coupled-with:
+    description: Regulators with which the regulator is coupled. The linkage
+      is 2-way - all coupled regulators should be linked with each other.
+      A regulator should not be coupled with its supplier.
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+
+  regulator-coupled-max-spread:
+    description: Array of maximum spread between voltages of coupled regulators
+      in microvolts, each value in the array relates to the corresponding
+      couple specified by the regulator-coupled-with property.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  regulator-max-step-microvolt:
+    description: Maximum difference between current and target voltages
+      that can be changed safely in a single step.
+
+patternProperties:
+  ".*-supply$":
+    description: Input supply phandle(s) for this node
+
+  regulator-state-(standby|mem|disk):
+    type: object
+    description:
+      sub-nodes for regulator state in Standby, Suspend-to-RAM, and
+      Suspend-to-DISK modes. Equivalent with standby, mem, and disk Linux
+      sleep states.
+
+    properties:
+      regulator-on-in-suspend:
+        description: regulator should be on in suspend state.
+        type: boolean
+
+      regulator-off-in-suspend:
+        description: regulator should be off in suspend state.
+        type: boolean
+
+      regulator-suspend-min-microvolt:
+        description: minimum voltage may be set in suspend state.
+
+      regulator-suspend-max-microvolt:
+        description: maximum voltage may be set in suspend state.
+
+      regulator-suspend-microvolt:
+        description: the default voltage which regulator would be set in
+          suspend. This property is now deprecated, instead setting voltage
+          for suspend mode via the API which regulator driver provides is
+          recommended.
+
+      regulator-changeable-in-suspend:
+        description: whether the default voltage and the regulator on/off
+          in suspend can be changed in runtime.
+        type: boolean
+
+      regulator-mode:
+        description: operating mode in the given suspend state. The set
+          of possible operating modes depends on the capabilities of every
+          hardware so the valid modes are documented on each regulator device
+          tree binding document.
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+
+    additionalProperties: false
+
+examples:
+  - |
+    xyzreg: regulator@0 {
+      regulator-min-microvolt = <1000000>;
+      regulator-max-microvolt = <2500000>;
+      regulator-always-on;
+      vin-supply = <&vin>;
+
+      regulator-state-mem {
+        regulator-on-in-suspend;
+      };
+    };
+
+...

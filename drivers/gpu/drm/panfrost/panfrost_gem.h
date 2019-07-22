@@ -11,6 +11,7 @@ struct panfrost_gem_object {
 	struct drm_gem_shmem_object base;
 
 	struct drm_mm_node node;
+	bool is_mapped;
 };
 
 static inline

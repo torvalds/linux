@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Kexec bzImage loader
  *
  * Copyright (C) 2014 Red Hat Inc.
  * Authors:
  *      Vivek Goyal <vgoyal@redhat.com>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #define pr_fmt(fmt)	"kexec-bzImage64: " fmt
@@ -318,6 +316,11 @@ static int bzImage64_probe(const char *buf, unsigned long len)
 	 */
 	if (efi_enabled(EFI_RUNTIME_SERVICES) && !efi_enabled(EFI_64BIT)) {
 		pr_debug("EFI is 32 bit. Can't load kernel above 4G.\n");
+		return ret;
+	}
+
+	if (!(header->xloadflags & XLF_5LEVEL) && pgtable_l5_enabled()) {
+		pr_err("bzImage cannot handle 5-level paging mode.\n");
 		return ret;
 	}
 

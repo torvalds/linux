@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Driver for ST M41T93 SPI RTC
  *
  * (c) 2010 Nikolaus Voss, Weinmann Medical GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/bcd.h>

@@ -18,7 +18,7 @@ This file lists all modules that are built into the kernel. This is used
 by modprobe to not fail when trying to load something builtin.
 
 modules.builtin.modinfo
---------------------------------------------------
+-----------------------
 This file contains modinfo from all modules that are built into the kernel.
 Unlike modinfo of a separate module, all fields are prefixed with module name.
 
@@ -38,12 +38,11 @@ Additional options to the assembler (for built-in and modules).
 
 AFLAGS_MODULE
 -------------
-Additional module specific options to use for $(AS).
+Additional assembler options for modules.
 
 AFLAGS_KERNEL
 -------------
-Additional options for $(AS) when used for assembler
-code for code that is compiled as built-in.
+Additional assembler options for built-in.
 
 KCFLAGS
 -------
@@ -153,6 +152,7 @@ Install script called when using "make install".
 The default name is "installkernel".
 
 The script will be called with the following arguments:
+
    - $1 - kernel version
    - $2 - kernel image file
    - $3 - kernel map file
@@ -199,6 +199,15 @@ $(objtree) is the directory where output files are saved.
 The output directory is often set using "O=..." on the commandline.
 
 The value can be overridden in which case the default value is ignored.
+
+KBUILD_ABS_SRCTREE
+--------------------------------------------------
+Kbuild uses a relative path to point to the tree when possible. For instance,
+when building in the source tree, the source tree path is '.'
+
+Setting this flag requests Kbuild to use absolute path to the source tree.
+There are some useful cases to do so, like when generating tag files with
+absolute path entries etc.
 
 KBUILD_SIGN_PIN
 ---------------

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Port on Texas Instruments TMS320C6x architecture
  *
  *  Copyright (C) 2004, 2006, 2009, 2010, 2011 Texas Instruments Incorporated
  *  Author: Aurelien Jacquiot (aurelien.jacquiot@jaluna.com)
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/ptrace.h>
@@ -253,7 +250,7 @@ static void do_trap(struct exception_info *except_info, struct pt_regs *regs)
 	die_if_kernel(except_info->kernel_str, regs, addr);
 
 	force_sig_fault(except_info->signo, except_info->code,
-			(void __user *)addr, current);
+			(void __user *)addr);
 }
 
 /*

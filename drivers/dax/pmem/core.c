@@ -16,7 +16,7 @@ struct dev_dax *__dax_pmem_probe(struct device *dev, enum dev_dax_subsys subsys)
 	struct dev_dax *dev_dax;
 	struct nd_namespace_io *nsio;
 	struct dax_region *dax_region;
-	struct dev_pagemap pgmap = { 0 };
+	struct dev_pagemap pgmap = { };
 	struct nd_namespace_common *ndns;
 	struct nd_dax *nd_dax = to_nd_dax(dev);
 	struct nd_pfn *nd_pfn = &nd_dax->nd_pfn;

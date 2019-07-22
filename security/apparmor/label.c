@@ -76,7 +76,7 @@ void __aa_proxy_redirect(struct aa_label *orig, struct aa_label *new)
 
 	AA_BUG(!orig);
 	AA_BUG(!new);
-	lockdep_assert_held_exclusive(&labels_set(orig)->lock);
+	lockdep_assert_held_write(&labels_set(orig)->lock);
 
 	tmp = rcu_dereference_protected(orig->proxy->label,
 					&labels_ns(orig)->lock);
@@ -566,7 +566,7 @@ static bool __label_remove(struct aa_label *label, struct aa_label *new)
 
 	AA_BUG(!ls);
 	AA_BUG(!label);
-	lockdep_assert_held_exclusive(&ls->lock);
+	lockdep_assert_held_write(&ls->lock);
 
 	if (new)
 		__aa_proxy_redirect(label, new);
@@ -603,7 +603,7 @@ static bool __label_replace(struct aa_label *old, struct aa_label *new)
 	AA_BUG(!ls);
 	AA_BUG(!old);
 	AA_BUG(!new);
-	lockdep_assert_held_exclusive(&ls->lock);
+	lockdep_assert_held_write(&ls->lock);
 	AA_BUG(new->flags & FLAG_IN_TREE);
 
 	if (!label_is_stale(old))
@@ -640,7 +640,7 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
 	AA_BUG(!ls);
 	AA_BUG(!label);
 	AA_BUG(labels_set(label) != ls);
-	lockdep_assert_held_exclusive(&ls->lock);
+	lockdep_assert_held_write(&ls->lock);
 	AA_BUG(label->flags & FLAG_IN_TREE);
 
 	/* Figure out where to put new node */

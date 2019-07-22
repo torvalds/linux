@@ -148,7 +148,7 @@ _GLOBAL(tm_reclaim)
 	/* Stash the stack pointer away for use after reclaim */
 	std	r1, PACAR1(r13)
 
-	/* Clear MSR RI since we are about to change r1, EE is already off. */
+	/* Clear MSR RI since we are about to use SCRATCH0, EE is already off */
 	li	r5, 0
 	mtmsrd	r5, 1
 
@@ -474,7 +474,7 @@ restore_gprs:
 
 	REST_GPR(7, r7)
 
-	/* Clear MSR RI since we are about to change r1. EE is already off */
+	/* Clear MSR RI since we are about to use SCRATCH0. EE is already off */
 	li	r5, 0
 	mtmsrd	r5, 1
 

@@ -200,6 +200,13 @@ use --per-socket in addition to -a. (system-wide).  The output includes the
 socket number and the number of online processors on that socket. This is
 useful to gauge the amount of aggregation.
 
+--per-die::
+Aggregate counts per processor die for system-wide mode measurements.  This
+is a useful mode to detect imbalance between dies.  To enable this mode,
+use --per-die in addition to -a. (system-wide).  The output includes the
+die number and the number of online processors on that die. This is
+useful to gauge the amount of aggregation.
+
 --per-core::
 Aggregate counts per physical processor for system-wide mode measurements.  This
 is a useful mode to detect imbalance between physical cores.  To enable this mode,
@@ -238,6 +245,9 @@ Input file name.
 
 --per-socket::
 Aggregate counts per processor socket for system-wide mode measurements.
+
+--per-die::
+Aggregate counts per processor die for system-wide mode measurements.
 
 --per-core::
 Aggregate counts per physical processor for system-wide mode measurements.

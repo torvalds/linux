@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2013 Freescale Semiconductor, Inc.
  *
  * CPU Frequency Scaling driver for Freescale QorIQ SoCs.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt

@@ -270,6 +270,7 @@ void __inode_attach_wb(struct inode *inode, struct page *page)
 	if (unlikely(cmpxchg(&inode->i_wb, NULL, wb)))
 		wb_put(wb);
 }
+EXPORT_SYMBOL_GPL(__inode_attach_wb);
 
 /**
  * locked_inode_to_wb_and_lock_list - determine a locked inode's wb and lock it
@@ -582,6 +583,7 @@ void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
 	if (unlikely(wb_dying(wbc->wb)))
 		inode_switch_wbs(inode, wbc->wb_id);
 }
+EXPORT_SYMBOL_GPL(wbc_attach_and_unlock_inode);
 
 /**
  * wbc_detach_inode - disassociate wbc from inode and perform foreign detection
@@ -701,9 +703,10 @@ void wbc_detach_inode(struct writeback_control *wbc)
 	wb_put(wbc->wb);
 	wbc->wb = NULL;
 }
+EXPORT_SYMBOL_GPL(wbc_detach_inode);
 
 /**
- * wbc_account_io - account IO issued during writeback
+ * wbc_account_cgroup_owner - account writeback to update inode cgroup ownership
  * @wbc: writeback_control of the writeback in progress
  * @page: page being written out
  * @bytes: number of bytes being written out
@@ -712,9 +715,10 @@ void wbc_detach_inode(struct writeback_control *wbc)
  * controlled by @wbc.  Keep the book for foreign inode detection.  See
  * wbc_detach_inode().
  */
-void wbc_account_io(struct writeback_control *wbc, struct page *page,
-		    size_t bytes)
+void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
+			      size_t bytes)
 {
+	struct cgroup_subsys_state *css;
 	int id;
 
 	/*
@@ -723,10 +727,15 @@ void wbc_account_io(struct writeback_control *wbc, struct page *page,
 	 * behind a slow cgroup.  Ultimately, we want pageout() to kick off
 	 * regular writeback instead of writing things out itself.
 	 */
-	if (!wbc->wb)
+	if (!wbc->wb || wbc->no_cgroup_owner)
 		return;
 
-	id = mem_cgroup_css_from_page(page)->id;
+	css = mem_cgroup_css_from_page(page);
+	/* dead cgroups shouldn't contribute to inode ownership arbitration */
+	if (!(css->flags & CSS_ONLINE))
+		return;
+
+	id = css->id;
 
 	if (id == wbc->wb_id) {
 		wbc->wb_bytes += bytes;
@@ -744,7 +753,7 @@ void wbc_account_io(struct writeback_control *wbc, struct page *page,
 	else
 		wbc->wb_tcand_bytes -= min(bytes, wbc->wb_tcand_bytes);
 }
-EXPORT_SYMBOL_GPL(wbc_account_io);
+EXPORT_SYMBOL_GPL(wbc_account_cgroup_owner);
 
 /**
  * inode_congested - test whether an inode is congested

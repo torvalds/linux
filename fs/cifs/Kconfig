@@ -10,12 +10,14 @@ config CIFS
 	select CRYPTO_SHA512
 	select CRYPTO_CMAC
 	select CRYPTO_HMAC
-	select CRYPTO_ARC4
+	select CRYPTO_LIB_ARC4
 	select CRYPTO_AEAD2
 	select CRYPTO_CCM
+	select CRYPTO_GCM
 	select CRYPTO_ECB
 	select CRYPTO_AES
 	select CRYPTO_DES
+	select KEYS
 	help
 	  This is the client VFS module for the SMB3 family of NAS protocols,
 	  (including support for the most recent, most secure dialect SMB3.1.1)
@@ -109,7 +111,7 @@ config CIFS_WEAK_PW_HASH
 
 config CIFS_UPCALL
 	bool "Kerberos/SPNEGO advanced session setup"
-	depends on CIFS && KEYS
+	depends on CIFS
 	select DNS_RESOLVER
 	help
 	  Enables an upcall mechanism for CIFS which accesses userspace helper
@@ -144,14 +146,6 @@ config CIFS_POSIX
 	  (such as Samba 3.10 and later) which can negotiate
 	  CIFS POSIX ACL support.  If unsure, say N.
 
-config CIFS_ACL
-	bool "Provide CIFS ACL support"
-	depends on CIFS_XATTR && KEYS
-	help
-	  Allows fetching CIFS/NTFS ACL from the server.  The DACL blob
-	  is handed over to the application/caller.  See the man
-	  page for getcifsacl for more information.  If unsure, say Y.
-
 config CIFS_DEBUG
 	bool "Enable CIFS debugging routines"
 	default y
@@ -184,7 +178,7 @@ config CIFS_DEBUG_DUMP_KEYS
 
 config CIFS_DFS_UPCALL
 	bool "DFS feature support"
-	depends on CIFS && KEYS
+	depends on CIFS
 	select DNS_RESOLVER
 	help
 	  Distributed File System (DFS) support is used to access shares
@@ -203,10 +197,10 @@ config CIFS_NFSD_EXPORT
 	  Allows NFS server to export a CIFS mounted share (nfsd over cifs)
 
 config CIFS_SMB_DIRECT
-	bool "SMB Direct support (Experimental)"
+	bool "SMB Direct support"
 	depends on CIFS=m && INFINIBAND && INFINIBAND_ADDR_TRANS || CIFS=y && INFINIBAND=y && INFINIBAND_ADDR_TRANS=y
 	help
-	  Enables SMB Direct experimental support for SMB 3.0, 3.02 and 3.1.1.
+	  Enables SMB Direct support for SMB 3.0, 3.02 and 3.1.1.
 	  SMB Direct allows transferring SMB packets over RDMA. If unsure,
 	  say N.
 

@@ -7,6 +7,7 @@
 
 #define pr_fmt(fmt) "radix-mmu: " fmt
 
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/sched/mm.h>
 #include <linux/memblock.h>
@@ -198,14 +199,14 @@ void radix__change_memory_range(unsigned long start, unsigned long end,
 		pudp = pud_alloc(&init_mm, pgdp, idx);
 		if (!pudp)
 			continue;
-		if (pud_huge(*pudp)) {
+		if (pud_is_leaf(*pudp)) {
 			ptep = (pte_t *)pudp;
 			goto update_the_pte;
 		}
 		pmdp = pmd_alloc(&init_mm, pudp, idx);
 		if (!pmdp)
 			continue;
-		if (pmd_huge(*pmdp)) {
+		if (pmd_is_leaf(*pmdp)) {
 			ptep = pmdp_ptep(pmdp);
 			goto update_the_pte;
 		}
@@ -319,7 +320,7 @@ static int __meminit create_physical_mapping(unsigned long start,
 	return 0;
 }
 
-void __init radix_init_pgtable(void)
+static void __init radix_init_pgtable(void)
 {
 	unsigned long rts_field;
 	struct memblock_region *reg;
@@ -515,14 +516,6 @@ void __init radix__early_init_devtree(void)
 	mmu_psize_defs[MMU_PAGE_64K].shift = 16;
 	mmu_psize_defs[MMU_PAGE_64K].ap = 0x5;
 found:
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
-	if (mmu_psize_defs[MMU_PAGE_2M].shift) {
-		/*
-		 * map vmemmap using 2M if available
-		 */
-		mmu_vmemmap_psize = MMU_PAGE_2M;
-	}
-#endif /* CONFIG_SPARSEMEM_VMEMMAP */
 	return;
 }
 
@@ -587,7 +580,13 @@ void __init radix__early_init_mmu(void)
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	/* vmemmap mapping */
-	mmu_vmemmap_psize = mmu_virtual_psize;
+	if (mmu_psize_defs[MMU_PAGE_2M].shift) {
+		/*
+		 * map vmemmap using 2M if available
+		 */
+		mmu_vmemmap_psize = MMU_PAGE_2M;
+	} else
+		mmu_vmemmap_psize = mmu_virtual_psize;
 #endif
 	/*
 	 * initialize page table size
@@ -832,7 +831,7 @@ static void remove_pmd_table(pmd_t *pmd_start, unsigned long addr,
 		if (!pmd_present(*pmd))
 			continue;
 
-		if (pmd_huge(*pmd)) {
+		if (pmd_is_leaf(*pmd)) {
 			split_kernel_mapping(addr, end, PMD_SIZE, (pte_t *)pmd);
 			continue;
 		}
@@ -857,7 +856,7 @@ static void remove_pud_table(pud_t *pud_start, unsigned long addr,
 		if (!pud_present(*pud))
 			continue;
 
-		if (pud_huge(*pud)) {
+		if (pud_is_leaf(*pud)) {
 			split_kernel_mapping(addr, end, PUD_SIZE, (pte_t *)pud);
 			continue;
 		}
@@ -883,7 +882,7 @@ static void __meminit remove_pagetable(unsigned long start, unsigned long end)
 		if (!pgd_present(*pgd))
 			continue;
 
-		if (pgd_huge(*pgd)) {
+		if (pgd_is_leaf(*pgd)) {
 			split_kernel_mapping(addr, end, PGDIR_SIZE, (pte_t *)pgd);
 			continue;
 		}
@@ -1117,4 +1116,129 @@ void radix__ptep_modify_prot_commit(struct vm_area_struct *vma,
 		radix__flush_tlb_page(vma, addr);
 
 	set_pte_at(mm, addr, ptep, pte);
+}
+
+int __init arch_ioremap_pud_supported(void)
+{
+	/* HPT does not cope with large pages in the vmalloc area */
+	return radix_enabled();
+}
+
+int __init arch_ioremap_pmd_supported(void)
+{
+	return radix_enabled();
+}
+
+int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
+{
+	return 0;
+}
+
+int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
+{
+	pte_t *ptep = (pte_t *)pud;
+	pte_t new_pud = pfn_pte(__phys_to_pfn(addr), prot);
+
+	if (!radix_enabled())
+		return 0;
+
+	set_pte_at(&init_mm, 0 /* radix unused */, ptep, new_pud);
+
+	return 1;
+}
+
+int pud_clear_huge(pud_t *pud)
+{
+	if (pud_huge(*pud)) {
+		pud_clear(pud);
+		return 1;
+	}
+
+	return 0;
+}
+
+int pud_free_pmd_page(pud_t *pud, unsigned long addr)
+{
+	pmd_t *pmd;
+	int i;
+
+	pmd = (pmd_t *)pud_page_vaddr(*pud);
+	pud_clear(pud);
+
+	flush_tlb_kernel_range(addr, addr + PUD_SIZE);
+
+	for (i = 0; i < PTRS_PER_PMD; i++) {
+		if (!pmd_none(pmd[i])) {
+			pte_t *pte;
+			pte = (pte_t *)pmd_page_vaddr(pmd[i]);
+
+			pte_free_kernel(&init_mm, pte);
+		}
+	}
+
+	pmd_free(&init_mm, pmd);
+
+	return 1;
+}
+
+int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
+{
+	pte_t *ptep = (pte_t *)pmd;
+	pte_t new_pmd = pfn_pte(__phys_to_pfn(addr), prot);
+
+	if (!radix_enabled())
+		return 0;
+
+	set_pte_at(&init_mm, 0 /* radix unused */, ptep, new_pmd);
+
+	return 1;
+}
+
+int pmd_clear_huge(pmd_t *pmd)
+{
+	if (pmd_huge(*pmd)) {
+		pmd_clear(pmd);
+		return 1;
+	}
+
+	return 0;
+}
+
+int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
+{
+	pte_t *pte;
+
+	pte = (pte_t *)pmd_page_vaddr(*pmd);
+	pmd_clear(pmd);
+
+	flush_tlb_kernel_range(addr, addr + PMD_SIZE);
+
+	pte_free_kernel(&init_mm, pte);
+
+	return 1;
+}
+
+int radix__ioremap_range(unsigned long ea, phys_addr_t pa, unsigned long size,
+			pgprot_t prot, int nid)
+{
+	if (likely(slab_is_available())) {
+		int err = ioremap_page_range(ea, ea + size, pa, prot);
+		if (err)
+			unmap_kernel_range(ea, size);
+		return err;
+	} else {
+		unsigned long i;
+
+		for (i = 0; i < size; i += PAGE_SIZE) {
+			int err = map_kernel_page(ea + i, pa + i, prot);
+			if (WARN_ON_ONCE(err)) /* Should clean up */
+				return err;
+		}
+		return 0;
+	}
+}
+
+int __init arch_ioremap_p4d_supported(void)
+{
+	return 0;
 }

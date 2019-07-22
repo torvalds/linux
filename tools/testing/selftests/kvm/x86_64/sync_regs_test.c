@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Test for x86 KVM_CAP_SYNC_REGS
  *
  * Copyright (C) 2018, Google LLC.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Verifies expected behavior of x86 KVM_CAP_SYNC_REGS functionality,
  * including requesting an invalid register set, updates to/from values

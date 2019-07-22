@@ -34,8 +34,9 @@ class SubPlugin(TdcPlugin):
             'buildebpf',
             'options for buildebpfPlugin')
         self.argparser_group.add_argument(
-            '-B', '--buildebpf', action='store_true',
-            help='build eBPF programs')
+            '--nobuildebpf', action='store_false', default=True,
+            dest='buildebpf',
+            help='Don\'t build eBPF programs')
 
         return self.argparser
 

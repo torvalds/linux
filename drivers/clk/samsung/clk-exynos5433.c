@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Chanwoo Choi <cw00.choi@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Common Clock Framework support for Exynos5433 SoC.
  */
@@ -5590,8 +5587,8 @@ static int __init exynos5433_cmu_probe(struct platform_device *pdev)
 	data->nr_clk_save = info->nr_clk_regs;
 	data->clk_suspend = info->suspend_regs;
 	data->nr_clk_suspend = info->nr_suspend_regs;
-	data->nr_pclks = of_count_phandle_with_args(dev->of_node, "clocks",
-						    "#clock-cells");
+	data->nr_pclks = of_clk_get_parent_count(dev->of_node);
+
 	if (data->nr_pclks > 0) {
 		data->pclks = devm_kcalloc(dev, sizeof(struct clk *),
 					   data->nr_pclks, GFP_KERNEL);

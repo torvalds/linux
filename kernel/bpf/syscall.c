@@ -180,19 +180,6 @@ void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr)
 	map->numa_node = bpf_map_attr_numa_node(attr);
 }
 
-int bpf_map_precharge_memlock(u32 pages)
-{
-	struct user_struct *user = get_current_user();
-	unsigned long memlock_limit, cur;
-
-	memlock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-	cur = atomic_long_read(&user->locked_vm);
-	free_uid(user);
-	if (cur + pages > memlock_limit)
-		return -EPERM;
-	return 0;
-}
-
 static int bpf_charge_memlock(struct user_struct *user, u32 pages)
 {
 	unsigned long memlock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
@@ -206,45 +193,62 @@ static int bpf_charge_memlock(struct user_struct *user, u32 pages)
 
 static void bpf_uncharge_memlock(struct user_struct *user, u32 pages)
 {
-	atomic_long_sub(pages, &user->locked_vm);
+	if (user)
+		atomic_long_sub(pages, &user->locked_vm);
 }
 
-static int bpf_map_init_memlock(struct bpf_map *map)
+int bpf_map_charge_init(struct bpf_map_memory *mem, size_t size)
 {
-	struct user_struct *user = get_current_user();
+	u32 pages = round_up(size, PAGE_SIZE) >> PAGE_SHIFT;
+	struct user_struct *user;
 	int ret;
 
-	ret = bpf_charge_memlock(user, map->pages);
+	if (size >= U32_MAX - PAGE_SIZE)
+		return -E2BIG;
+
+	user = get_current_user();
+	ret = bpf_charge_memlock(user, pages);
 	if (ret) {
 		free_uid(user);
 		return ret;
 	}
-	map->user = user;
-	return ret;
+
+	mem->pages = pages;
+	mem->user = user;
+
+	return 0;
 }
 
-static void bpf_map_release_memlock(struct bpf_map *map)
+void bpf_map_charge_finish(struct bpf_map_memory *mem)
 {
-	struct user_struct *user = map->user;
-	bpf_uncharge_memlock(user, map->pages);
-	free_uid(user);
+	bpf_uncharge_memlock(mem->user, mem->pages);
+	free_uid(mem->user);
+}
+
+void bpf_map_charge_move(struct bpf_map_memory *dst,
+			 struct bpf_map_memory *src)
+{
+	*dst = *src;
+
+	/* Make sure src will not be used for the redundant uncharging. */
+	memset(src, 0, sizeof(struct bpf_map_memory));
 }
 
 int bpf_map_charge_memlock(struct bpf_map *map, u32 pages)
 {
 	int ret;
 
-	ret = bpf_charge_memlock(map->user, pages);
+	ret = bpf_charge_memlock(map->memory.user, pages);
 	if (ret)
 		return ret;
-	map->pages += pages;
+	map->memory.pages += pages;
 	return ret;
 }
 
 void bpf_map_uncharge_memlock(struct bpf_map *map, u32 pages)
 {
-	bpf_uncharge_memlock(map->user, pages);
-	map->pages -= pages;
+	bpf_uncharge_memlock(map->memory.user, pages);
+	map->memory.pages -= pages;
 }
 
 static int bpf_map_alloc_id(struct bpf_map *map)
@@ -295,11 +299,13 @@ void bpf_map_free_id(struct bpf_map *map, bool do_idr_lock)
 static void bpf_map_free_deferred(struct work_struct *work)
 {
 	struct bpf_map *map = container_of(work, struct bpf_map, work);
+	struct bpf_map_memory mem;
 
-	bpf_map_release_memlock(map);
+	bpf_map_charge_move(&mem, &map->memory);
 	security_bpf_map_free(map);
 	/* implementation dependent freeing */
 	map->ops->map_free(map);
+	bpf_map_charge_finish(&mem);
 }
 
 static void bpf_map_put_uref(struct bpf_map *map)
@@ -387,7 +393,7 @@ static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
 		   map->value_size,
 		   map->max_entries,
 		   map->map_flags,
-		   map->pages * 1ULL << PAGE_SHIFT,
+		   map->memory.pages * 1ULL << PAGE_SHIFT,
 		   map->id,
 		   READ_ONCE(map->frozen));
 
@@ -541,6 +547,7 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 static int map_create(union bpf_attr *attr)
 {
 	int numa_node = bpf_map_attr_numa_node(attr);
+	struct bpf_map_memory mem;
 	struct bpf_map *map;
 	int f_flags;
 	int err;
@@ -565,7 +572,7 @@ static int map_create(union bpf_attr *attr)
 
 	err = bpf_obj_name_cpy(map->name, attr->map_name);
 	if (err)
-		goto free_map_nouncharge;
+		goto free_map;
 
 	atomic_set(&map->refcnt, 1);
 	atomic_set(&map->usercnt, 1);
@@ -575,20 +582,20 @@ static int map_create(union bpf_attr *attr)
 
 		if (!attr->btf_value_type_id) {
 			err = -EINVAL;
-			goto free_map_nouncharge;
+			goto free_map;
 		}
 
 		btf = btf_get_by_fd(attr->btf_fd);
 		if (IS_ERR(btf)) {
 			err = PTR_ERR(btf);
-			goto free_map_nouncharge;
+			goto free_map;
 		}
 
 		err = map_check_btf(map, btf, attr->btf_key_type_id,
 				    attr->btf_value_type_id);
 		if (err) {
 			btf_put(btf);
-			goto free_map_nouncharge;
+			goto free_map;
 		}
 
 		map->btf = btf;
@@ -600,15 +607,11 @@ static int map_create(union bpf_attr *attr)
 
 	err = security_bpf_map_alloc(map);
 	if (err)
-		goto free_map_nouncharge;
-
-	err = bpf_map_init_memlock(map);
-	if (err)
-		goto free_map_sec;
+		goto free_map;
 
 	err = bpf_map_alloc_id(map);
 	if (err)
-		goto free_map;
+		goto free_map_sec;
 
 	err = bpf_map_new_fd(map, f_flags);
 	if (err < 0) {
@@ -624,13 +627,13 @@ static int map_create(union bpf_attr *attr)
 
 	return err;
 
-free_map:
-	bpf_map_release_memlock(map);
 free_map_sec:
 	security_bpf_map_free(map);
-free_map_nouncharge:
+free_map:
 	btf_put(map->btf);
+	bpf_map_charge_move(&mem, &map->memory);
 	map->ops->map_free(map);
+	bpf_map_charge_finish(&mem);
 	return err;
 }
 
@@ -1573,6 +1576,24 @@ bpf_prog_load_check_attach_type(enum bpf_prog_type prog_type,
 		case BPF_CGROUP_INET6_CONNECT:
 		case BPF_CGROUP_UDP4_SENDMSG:
 		case BPF_CGROUP_UDP6_SENDMSG:
+		case BPF_CGROUP_UDP4_RECVMSG:
+		case BPF_CGROUP_UDP6_RECVMSG:
+			return 0;
+		default:
+			return -EINVAL;
+		}
+	case BPF_PROG_TYPE_CGROUP_SKB:
+		switch (expected_attach_type) {
+		case BPF_CGROUP_INET_INGRESS:
+		case BPF_CGROUP_INET_EGRESS:
+			return 0;
+		default:
+			return -EINVAL;
+		}
+	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
+		switch (expected_attach_type) {
+		case BPF_CGROUP_SETSOCKOPT:
+		case BPF_CGROUP_GETSOCKOPT:
 			return 0;
 		default:
 			return -EINVAL;
@@ -1596,7 +1617,9 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 	if (CHECK_ATTR(BPF_PROG_LOAD))
 		return -EINVAL;
 
-	if (attr->prog_flags & ~(BPF_F_STRICT_ALIGNMENT | BPF_F_ANY_ALIGNMENT))
+	if (attr->prog_flags & ~(BPF_F_STRICT_ALIGNMENT |
+				 BPF_F_ANY_ALIGNMENT |
+				 BPF_F_TEST_RND_HI32))
 		return -EINVAL;
 
 	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&
@@ -1666,7 +1689,7 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 	if (err < 0)
 		goto free_prog;
 
-	prog->aux->load_time = ktime_get_boot_ns();
+	prog->aux->load_time = ktime_get_boottime_ns();
 	err = bpf_obj_name_cpy(prog->aux->name, attr->prog_name);
 	if (err)
 		goto free_prog;
@@ -1825,7 +1848,12 @@ static int bpf_prog_attach_check_attach_type(const struct bpf_prog *prog,
 	switch (prog->type) {
 	case BPF_PROG_TYPE_CGROUP_SOCK:
 	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
+	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
 		return attach_type == prog->expected_attach_type ? 0 : -EINVAL;
+	case BPF_PROG_TYPE_CGROUP_SKB:
+		return prog->enforce_expected_attach_type &&
+			prog->expected_attach_type != attach_type ?
+			-EINVAL : 0;
 	default:
 		return 0;
 	}
@@ -1867,6 +1895,8 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 	case BPF_CGROUP_INET6_CONNECT:
 	case BPF_CGROUP_UDP4_SENDMSG:
 	case BPF_CGROUP_UDP6_SENDMSG:
+	case BPF_CGROUP_UDP4_RECVMSG:
+	case BPF_CGROUP_UDP6_RECVMSG:
 		ptype = BPF_PROG_TYPE_CGROUP_SOCK_ADDR;
 		break;
 	case BPF_CGROUP_SOCK_OPS:
@@ -1890,6 +1920,10 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 		break;
 	case BPF_CGROUP_SYSCTL:
 		ptype = BPF_PROG_TYPE_CGROUP_SYSCTL;
+		break;
+	case BPF_CGROUP_GETSOCKOPT:
+	case BPF_CGROUP_SETSOCKOPT:
+		ptype = BPF_PROG_TYPE_CGROUP_SOCKOPT;
 		break;
 	default:
 		return -EINVAL;
@@ -1952,6 +1986,8 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 	case BPF_CGROUP_INET6_CONNECT:
 	case BPF_CGROUP_UDP4_SENDMSG:
 	case BPF_CGROUP_UDP6_SENDMSG:
+	case BPF_CGROUP_UDP4_RECVMSG:
+	case BPF_CGROUP_UDP6_RECVMSG:
 		ptype = BPF_PROG_TYPE_CGROUP_SOCK_ADDR;
 		break;
 	case BPF_CGROUP_SOCK_OPS:
@@ -1971,6 +2007,10 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 		return skb_flow_dissector_bpf_prog_detach(attr);
 	case BPF_CGROUP_SYSCTL:
 		ptype = BPF_PROG_TYPE_CGROUP_SYSCTL;
+		break;
+	case BPF_CGROUP_GETSOCKOPT:
+	case BPF_CGROUP_SETSOCKOPT:
+		ptype = BPF_PROG_TYPE_CGROUP_SOCKOPT;
 		break;
 	default:
 		return -EINVAL;
@@ -2003,9 +2043,13 @@ static int bpf_prog_query(const union bpf_attr *attr,
 	case BPF_CGROUP_INET6_CONNECT:
 	case BPF_CGROUP_UDP4_SENDMSG:
 	case BPF_CGROUP_UDP6_SENDMSG:
+	case BPF_CGROUP_UDP4_RECVMSG:
+	case BPF_CGROUP_UDP6_RECVMSG:
 	case BPF_CGROUP_SOCK_OPS:
 	case BPF_CGROUP_DEVICE:
 	case BPF_CGROUP_SYSCTL:
+	case BPF_CGROUP_GETSOCKOPT:
+	case BPF_CGROUP_SETSOCKOPT:
 		break;
 	case BPF_LIRC_MODE2:
 		return lirc_prog_query(attr, uattr);

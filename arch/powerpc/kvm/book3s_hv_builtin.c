@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2011 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/cpu.h>
@@ -823,6 +820,8 @@ static void flush_guest_tlb(struct kvm *kvm)
 				     : : "r" (rb), "i" (1), "i" (1), "i" (0),
 				       "r" (0) : "memory");
 		}
+		asm volatile("ptesync": : :"memory");
+		asm volatile(PPC_RADIX_INVALIDATE_ERAT_GUEST : : :"memory");
 	} else {
 		for (set = 0; set < kvm->arch.tlb_sets; ++set) {
 			/* R=0 PRS=0 RIC=0 */
@@ -831,8 +830,9 @@ static void flush_guest_tlb(struct kvm *kvm)
 				       "r" (0) : "memory");
 			rb += PPC_BIT(51);	/* increment set number */
 		}
+		asm volatile("ptesync": : :"memory");
+		asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT : : :"memory");
 	}
-	asm volatile("ptesync": : :"memory");
 }
 
 void kvmppc_check_need_tlb_flush(struct kvm *kvm, int pcpu,

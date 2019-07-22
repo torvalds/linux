@@ -18,10 +18,9 @@
 #include <linux/percpu-refcount.h>
 #include <linux/random.h>
 #include <linux/seq_buf.h>
+#include <linux/iommu.h>
 
 struct pci_p2pdma {
-	struct percpu_ref devmap_ref;
-	struct completion devmap_ref_done;
 	struct gen_pool *pool;
 	bool p2pmem_published;
 };
@@ -74,41 +73,20 @@ static const struct attribute_group p2pmem_group = {
 	.name = "p2pmem",
 };
 
-static void pci_p2pdma_percpu_release(struct percpu_ref *ref)
-{
-	struct pci_p2pdma *p2p =
-		container_of(ref, struct pci_p2pdma, devmap_ref);
-
-	complete_all(&p2p->devmap_ref_done);
-}
-
-static void pci_p2pdma_percpu_kill(struct percpu_ref *ref)
-{
-	/*
-	 * pci_p2pdma_add_resource() may be called multiple times
-	 * by a driver and may register the percpu_kill devm action multiple
-	 * times. We only want the first action to actually kill the
-	 * percpu_ref.
-	 */
-	if (percpu_ref_is_dying(ref))
-		return;
-
-	percpu_ref_kill(ref);
-}
-
 static void pci_p2pdma_release(void *data)
 {
 	struct pci_dev *pdev = data;
+	struct pci_p2pdma *p2pdma = pdev->p2pdma;
 
-	if (!pdev->p2pdma)
+	if (!p2pdma)
 		return;
 
-	wait_for_completion(&pdev->p2pdma->devmap_ref_done);
-	percpu_ref_exit(&pdev->p2pdma->devmap_ref);
-
-	gen_pool_destroy(pdev->p2pdma->pool);
-	sysfs_remove_group(&pdev->dev.kobj, &p2pmem_group);
+	/* Flush and disable pci_alloc_p2p_mem() */
 	pdev->p2pdma = NULL;
+	synchronize_rcu();
+
+	gen_pool_destroy(p2pdma->pool);
+	sysfs_remove_group(&pdev->dev.kobj, &p2pmem_group);
 }
 
 static int pci_p2pdma_setup(struct pci_dev *pdev)
@@ -123,12 +101,6 @@ static int pci_p2pdma_setup(struct pci_dev *pdev)
 	p2p->pool = gen_pool_create(PAGE_SHIFT, dev_to_node(&pdev->dev));
 	if (!p2p->pool)
 		goto out;
-
-	init_completion(&p2p->devmap_ref_done);
-	error = percpu_ref_init(&p2p->devmap_ref,
-			pci_p2pdma_percpu_release, 0, GFP_KERNEL);
-	if (error)
-		goto out_pool_destroy;
 
 	error = devm_add_action_or_reset(&pdev->dev, pci_p2pdma_release, pdev);
 	if (error)
@@ -188,15 +160,12 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 	pgmap = devm_kzalloc(&pdev->dev, sizeof(*pgmap), GFP_KERNEL);
 	if (!pgmap)
 		return -ENOMEM;
-
 	pgmap->res.start = pci_resource_start(pdev, bar) + offset;
 	pgmap->res.end = pgmap->res.start + size - 1;
 	pgmap->res.flags = pci_resource_flags(pdev, bar);
-	pgmap->ref = &pdev->p2pdma->devmap_ref;
 	pgmap->type = MEMORY_DEVICE_PCI_P2PDMA;
 	pgmap->pci_p2pdma_bus_offset = pci_bus_address(pdev, bar) -
 		pci_resource_start(pdev, bar);
-	pgmap->kill = pci_p2pdma_percpu_kill;
 
 	addr = devm_memremap_pages(&pdev->dev, pgmap);
 	if (IS_ERR(addr)) {
@@ -204,17 +173,20 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 		goto pgmap_free;
 	}
 
-	error = gen_pool_add_virt(pdev->p2pdma->pool, (unsigned long)addr,
+	error = gen_pool_add_owner(pdev->p2pdma->pool, (unsigned long)addr,
 			pci_bus_address(pdev, bar) + offset,
-			resource_size(&pgmap->res), dev_to_node(&pdev->dev));
+			resource_size(&pgmap->res), dev_to_node(&pdev->dev),
+			pgmap->ref);
 	if (error)
-		goto pgmap_free;
+		goto pages_free;
 
 	pci_info(pdev, "added peer-to-peer DMA memory %pR\n",
 		 &pgmap->res);
 
 	return 0;
 
+pages_free:
+	devm_memunmap_pages(&pdev->dev, pgmap);
 pgmap_free:
 	devm_kfree(&pdev->dev, pgmap);
 	return error;
@@ -223,7 +195,7 @@ EXPORT_SYMBOL_GPL(pci_p2pdma_add_resource);
 
 /*
  * Note this function returns the parent PCI device with a
- * reference taken. It is the caller's responsibily to drop
+ * reference taken. It is the caller's responsibility to drop
  * the reference.
  */
 static struct pci_dev *find_parent_pci_dev(struct device *dev)
@@ -283,6 +255,9 @@ static bool root_complex_whitelist(struct pci_dev *dev)
 	struct pci_host_bridge *host = pci_find_host_bridge(dev->bus);
 	struct pci_dev *root = pci_get_slot(host->bus, PCI_DEVFN(0, 0));
 	unsigned short vendor, device;
+
+	if (iommu_present(dev->dev.bus))
+		return false;
 
 	if (!root)
 		return false;
@@ -380,7 +355,7 @@ static int upstream_bridge_distance(struct pci_dev *provider,
 
 	/*
 	 * Allow the connection if both devices are on a whitelisted root
-	 * complex, but add an arbitary large value to the distance.
+	 * complex, but add an arbitrary large value to the distance.
 	 */
 	if (root_complex_whitelist(provider) &&
 	    root_complex_whitelist(client))
@@ -439,7 +414,7 @@ static int upstream_bridge_distance_warn(struct pci_dev *provider,
 }
 
 /**
- * pci_p2pdma_distance_many - Determive the cumulative distance between
+ * pci_p2pdma_distance_many - Determine the cumulative distance between
  *	a p2pdma provider and the clients in use.
  * @provider: p2pdma provider to check against the client list
  * @clients: array of devices to check (NULL-terminated)
@@ -468,6 +443,14 @@ int pci_p2pdma_distance_many(struct pci_dev *provider, struct device **clients,
 		return -1;
 
 	for (i = 0; i < num_clients; i++) {
+		if (IS_ENABLED(CONFIG_DMA_VIRT_OPS) &&
+		    clients[i]->dma_ops == &dma_virt_ops) {
+			if (verbose)
+				dev_warn(clients[i],
+					 "cannot be used for peer-to-peer DMA because the driver makes use of dma_virt_ops\n");
+			return -1;
+		}
+
 		pci_client = find_parent_pci_dev(clients[i]);
 		if (!pci_client) {
 			if (verbose)
@@ -585,19 +568,30 @@ EXPORT_SYMBOL_GPL(pci_p2pmem_find_many);
  */
 void *pci_alloc_p2pmem(struct pci_dev *pdev, size_t size)
 {
-	void *ret;
+	void *ret = NULL;
+	struct percpu_ref *ref;
 
+	/*
+	 * Pairs with synchronize_rcu() in pci_p2pdma_release() to
+	 * ensure pdev->p2pdma is non-NULL for the duration of the
+	 * read-lock.
+	 */
+	rcu_read_lock();
 	if (unlikely(!pdev->p2pdma))
-		return NULL;
+		goto out;
 
-	if (unlikely(!percpu_ref_tryget_live(&pdev->p2pdma->devmap_ref)))
-		return NULL;
+	ret = (void *)gen_pool_alloc_owner(pdev->p2pdma->pool, size,
+			(void **) &ref);
+	if (!ret)
+		goto out;
 
-	ret = (void *)gen_pool_alloc(pdev->p2pdma->pool, size);
-
-	if (unlikely(!ret))
-		percpu_ref_put(&pdev->p2pdma->devmap_ref);
-
+	if (unlikely(!percpu_ref_tryget_live(ref))) {
+		gen_pool_free(pdev->p2pdma->pool, (unsigned long) ret, size);
+		ret = NULL;
+		goto out;
+	}
+out:
+	rcu_read_unlock();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pci_alloc_p2pmem);
@@ -610,8 +604,11 @@ EXPORT_SYMBOL_GPL(pci_alloc_p2pmem);
  */
 void pci_free_p2pmem(struct pci_dev *pdev, void *addr, size_t size)
 {
-	gen_pool_free(pdev->p2pdma->pool, (uintptr_t)addr, size);
-	percpu_ref_put(&pdev->p2pdma->devmap_ref);
+	struct percpu_ref *ref;
+
+	gen_pool_free_owner(pdev->p2pdma->pool, (uintptr_t)addr, size,
+			(void **) &ref);
+	percpu_ref_put(ref);
 }
 EXPORT_SYMBOL_GPL(pci_free_p2pmem);
 
@@ -732,7 +729,7 @@ int pci_p2pdma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	 * p2pdma mappings are not compatible with devices that use
 	 * dma_virt_ops. If the upper layers do the right thing
 	 * this should never happen because it will be prevented
-	 * by the check in pci_p2pdma_add_client()
+	 * by the check in pci_p2pdma_distance_many()
 	 */
 	if (WARN_ON_ONCE(IS_ENABLED(CONFIG_DMA_VIRT_OPS) &&
 			 dev->dma_ops == &dma_virt_ops))

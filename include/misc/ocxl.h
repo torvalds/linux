@@ -32,7 +32,10 @@ struct ocxl_afu_config {
 	u8 pp_mmio_bar;         /* per-process MMIO area */
 	u64 pp_mmio_offset;
 	u32 pp_mmio_stride;
-	u8 log_mem_size;
+	u64 lpc_mem_offset;
+	u64 lpc_mem_size;
+	u64 special_purpose_mem_offset;
+	u64 special_purpose_mem_size;
 	u8 pasid_supported_log;
 	u16 actag_supported;
 };

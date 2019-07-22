@@ -376,9 +376,41 @@ Description:
 		supply. Normally this is configured based on the type of
 		connection made (e.g. A configured SDP should output a maximum
 		of 500mA so the input current limit is set to the same value).
+		Use preferably input_power_limit, and for problems that can be
+		solved using power limit use input_current_limit.
 
 		Access: Read, Write
 		Valid values: Represented in microamps
+
+What:		/sys/class/power_supply/<supply_name>/input_voltage_limit
+Date:		May 2019
+Contact:	linux-pm@vger.kernel.org
+Description:
+		This entry configures the incoming VBUS voltage limit currently
+		set in the supply. Normally this is configured based on
+		system-level knowledge or user input (e.g. This is part of the
+		Pixel C's thermal management strategy to effectively limit the
+		input power to 5V when the screen is on to meet Google's skin
+		temperature targets). Note that this feature should not be
+		used for safety critical things.
+		Use preferably input_power_limit, and for problems that can be
+		solved using power limit use input_voltage_limit.
+
+		Access: Read, Write
+		Valid values: Represented in microvolts
+
+What:		/sys/class/power_supply/<supply_name>/input_power_limit
+Date:		May 2019
+Contact:	linux-pm@vger.kernel.org
+Description:
+		This entry configures the incoming power limit currently set
+		in the supply. Normally this is configured based on
+		system-level knowledge or user input. Use preferably this
+		feature to limit the incoming power and use current/voltage
+		limit only for problems that can be solved using power limit.
+
+		Access: Read, Write
+		Valid values: Represented in microwatts
 
 What:		/sys/class/power_supply/<supply_name>/online,
 Date:		May 2007

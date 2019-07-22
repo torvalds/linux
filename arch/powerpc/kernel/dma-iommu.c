@@ -71,7 +71,7 @@ static dma_addr_t dma_iommu_map_page(struct device *dev, struct page *page,
 		return dma_direct_map_page(dev, page, offset, size, direction,
 				attrs);
 	return iommu_map_page(dev, get_iommu_table_base(dev), page, offset,
-			      size, device_to_mask(dev), direction, attrs);
+			      size, dma_get_mask(dev), direction, attrs);
 }
 
 
@@ -82,6 +82,8 @@ static void dma_iommu_unmap_page(struct device *dev, dma_addr_t dma_handle,
 	if (!dma_iommu_map_bypass(dev, attrs))
 		iommu_unmap_page(get_iommu_table_base(dev), dma_handle, size,
 				direction,  attrs);
+	else
+		dma_direct_unmap_page(dev, dma_handle, size, direction, attrs);
 }
 
 
@@ -92,7 +94,7 @@ static int dma_iommu_map_sg(struct device *dev, struct scatterlist *sglist,
 	if (dma_iommu_map_bypass(dev, attrs))
 		return dma_direct_map_sg(dev, sglist, nelems, direction, attrs);
 	return ppc_iommu_map_sg(dev, get_iommu_table_base(dev), sglist, nelems,
-				device_to_mask(dev), direction, attrs);
+				dma_get_mask(dev), direction, attrs);
 }
 
 static void dma_iommu_unmap_sg(struct device *dev, struct scatterlist *sglist,
@@ -102,6 +104,8 @@ static void dma_iommu_unmap_sg(struct device *dev, struct scatterlist *sglist,
 	if (!dma_iommu_map_bypass(dev, attrs))
 		ppc_iommu_unmap_sg(get_iommu_table_base(dev), sglist, nelems,
 			   direction, attrs);
+	else
+		dma_direct_unmap_sg(dev, sglist, nelems, direction, attrs);
 }
 
 static bool dma_iommu_bypass_supported(struct device *dev, u64 mask)
@@ -163,6 +167,34 @@ u64 dma_iommu_get_required_mask(struct device *dev)
 	return mask;
 }
 
+static void dma_iommu_sync_for_cpu(struct device *dev, dma_addr_t addr,
+		size_t size, enum dma_data_direction dir)
+{
+	if (dma_iommu_alloc_bypass(dev))
+		dma_direct_sync_single_for_cpu(dev, addr, size, dir);
+}
+
+static void dma_iommu_sync_for_device(struct device *dev, dma_addr_t addr,
+		size_t sz, enum dma_data_direction dir)
+{
+	if (dma_iommu_alloc_bypass(dev))
+		dma_direct_sync_single_for_device(dev, addr, sz, dir);
+}
+
+extern void dma_iommu_sync_sg_for_cpu(struct device *dev,
+		struct scatterlist *sgl, int nents, enum dma_data_direction dir)
+{
+	if (dma_iommu_alloc_bypass(dev))
+		dma_direct_sync_sg_for_cpu(dev, sgl, nents, dir);
+}
+
+extern void dma_iommu_sync_sg_for_device(struct device *dev,
+		struct scatterlist *sgl, int nents, enum dma_data_direction dir)
+{
+	if (dma_iommu_alloc_bypass(dev))
+		dma_direct_sync_sg_for_device(dev, sgl, nents, dir);
+}
+
 const struct dma_map_ops dma_iommu_ops = {
 	.alloc			= dma_iommu_alloc_coherent,
 	.free			= dma_iommu_free_coherent,
@@ -172,4 +204,8 @@ const struct dma_map_ops dma_iommu_ops = {
 	.map_page		= dma_iommu_map_page,
 	.unmap_page		= dma_iommu_unmap_page,
 	.get_required_mask	= dma_iommu_get_required_mask,
+	.sync_single_for_cpu	= dma_iommu_sync_for_cpu,
+	.sync_single_for_device	= dma_iommu_sync_for_device,
+	.sync_sg_for_cpu	= dma_iommu_sync_sg_for_cpu,
+	.sync_sg_for_device	= dma_iommu_sync_sg_for_device,
 };

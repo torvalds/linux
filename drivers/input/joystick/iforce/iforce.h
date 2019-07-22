@@ -6,16 +6,11 @@
  *  USB/RS232 I-Force joysticks and wheels.
  */
 
-/*
- */
-
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
-#include <linux/usb.h>
-#include <linux/serio.h>
 #include <linux/circ_buf.h>
 #include <linux/mutex.h>
 
@@ -27,10 +22,6 @@
 
 
 #define IFORCE_MAX_LENGTH	16
-
-/* iforce::bus */
-#define IFORCE_232	1
-#define IFORCE_USB	2
 
 #define IFORCE_EFFECTS_MAX	32
 
@@ -81,27 +72,21 @@ struct iforce_device {
 	signed short *ff;
 };
 
+struct iforce;
+
+struct iforce_xport_ops {
+	void (*xmit)(struct iforce *iforce);
+	int (*get_id)(struct iforce *iforce, u8 id,
+		      u8 *response_data, size_t *response_len);
+	int (*start_io)(struct iforce *iforce);
+	void (*stop_io)(struct iforce *iforce);
+};
+
 struct iforce {
 	struct input_dev *dev;		/* Input device interface */
 	struct iforce_device *type;
-	int bus;
+	const struct iforce_xport_ops *xport_ops;
 
-	unsigned char data[IFORCE_MAX_LENGTH];
-	unsigned char edata[IFORCE_MAX_LENGTH];
-	u16 ecmd;
-	u16 expect_packet;
-
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-	struct serio *serio;		/* RS232 transfer */
-	int idx, pkt, len, id;
-	unsigned char csum;
-#endif
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-	struct usb_device *usbdev;	/* USB transfer */
-	struct usb_interface *intf;
-	struct urb *irq, *out, *ctrl;
-	struct usb_ctrlrequest cr;
-#endif
 	spinlock_t xmit_lock;
 	/* Buffer used for asynchronous sending of bytes to the device */
 	struct circ_buf xmit;
@@ -127,23 +112,24 @@ struct iforce {
 /* Encode a time value */
 #define TIME_SCALE(a)	(a)
 
+static inline int iforce_get_id_packet(struct iforce *iforce, u8 id,
+				       u8 *response_data, size_t *response_len)
+{
+	return iforce->xport_ops->get_id(iforce, id,
+					 response_data, response_len);
+}
 
 /* Public functions */
-/* iforce-serio.c */
-void iforce_serial_xmit(struct iforce *iforce);
-
-/* iforce-usb.c */
-void iforce_usb_xmit(struct iforce *iforce);
-
 /* iforce-main.c */
-int iforce_init_device(struct iforce *iforce);
+int iforce_init_device(struct device *parent, u16 bustype,
+		       struct iforce *iforce);
 
 /* iforce-packets.c */
 int iforce_control_playback(struct iforce*, u16 id, unsigned int);
-void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data);
+void iforce_process_packet(struct iforce *iforce,
+			   u8 packet_id, u8 *data, size_t len);
 int iforce_send_packet(struct iforce *iforce, u16 cmd, unsigned char* data);
 void iforce_dump_packet(struct iforce *iforce, char *msg, u16 cmd, unsigned char *data);
-int iforce_get_id_packet(struct iforce *iforce, char *packet);
 
 /* iforce-ff.c */
 int iforce_upload_periodic(struct iforce *, struct ff_effect *, struct ff_effect *);

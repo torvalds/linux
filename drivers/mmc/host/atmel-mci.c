@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Atmel MultiMedia Card Interface driver
  *
  * Copyright (C) 2004-2008 Atmel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/blkdev.h>
 #include <linux/clk.h>
@@ -579,42 +576,18 @@ static void atmci_init_debugfs(struct atmel_mci_slot *slot)
 	struct mmc_host		*mmc = slot->mmc;
 	struct atmel_mci	*host = slot->host;
 	struct dentry		*root;
-	struct dentry		*node;
 
 	root = mmc->debugfs_root;
 	if (!root)
 		return;
 
-	node = debugfs_create_file("regs", S_IRUSR, root, host,
-				   &atmci_regs_fops);
-	if (IS_ERR(node))
-		return;
-	if (!node)
-		goto err;
-
-	node = debugfs_create_file("req", S_IRUSR, root, slot,
-				   &atmci_req_fops);
-	if (!node)
-		goto err;
-
-	node = debugfs_create_u32("state", S_IRUSR, root, (u32 *)&host->state);
-	if (!node)
-		goto err;
-
-	node = debugfs_create_x32("pending_events", S_IRUSR, root,
-				     (u32 *)&host->pending_events);
-	if (!node)
-		goto err;
-
-	node = debugfs_create_x32("completed_events", S_IRUSR, root,
-				     (u32 *)&host->completed_events);
-	if (!node)
-		goto err;
-
-	return;
-
-err:
-	dev_err(&mmc->class_dev, "failed to initialize debugfs for slot\n");
+	debugfs_create_file("regs", S_IRUSR, root, host, &atmci_regs_fops);
+	debugfs_create_file("req", S_IRUSR, root, slot, &atmci_req_fops);
+	debugfs_create_u32("state", S_IRUSR, root, (u32 *)&host->state);
+	debugfs_create_x32("pending_events", S_IRUSR, root,
+			   (u32 *)&host->pending_events);
+	debugfs_create_x32("completed_events", S_IRUSR, root,
+			   (u32 *)&host->completed_events);
 }
 
 #if defined(CONFIG_OF)

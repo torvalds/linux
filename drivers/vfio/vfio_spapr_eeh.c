@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * EEH functionality support for VFIO devices. The feature is only
  * available on sPAPR compatible platforms.
  *
  * Copyright Gavin Shan, IBM Corporation 2014.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

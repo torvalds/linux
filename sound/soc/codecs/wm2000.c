@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm2000.c  --  WM2000 ALSA Soc Audio driver
  *
  * Copyright 2008-2011 Wolfson Microelectronics PLC.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The download image for the WM2000 will be requested as
  * 'wm2000_anc.bin' by default (overridable via platform data) at

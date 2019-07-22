@@ -6,6 +6,7 @@
 
 #include <stdbool.h>
 #include <linux/coresight-pmu.h>
+#include <linux/zalloc.h>
 
 #include "../../util/auxtrace.h"
 #include "../../util/evlist.h"

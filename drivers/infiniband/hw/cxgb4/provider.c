@@ -271,7 +271,6 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 		return -EINVAL;
 
 	dev = to_c4iw_dev(ibdev);
-	memset(props, 0, sizeof *props);
 	memcpy(&props->sys_image_guid, dev->rdev.lldi.ports[0]->dev_addr, 6);
 	props->hw_ver = CHELSIO_CHIP_RELEASE(dev->rdev.lldi.adapter_type);
 	props->fw_ver = dev->rdev.lldi.fw_vers;
@@ -490,6 +489,10 @@ static int fill_res_entry(struct sk_buff *msg, struct rdma_restrack_entry *res)
 }
 
 static const struct ib_device_ops c4iw_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_CXGB4,
+	.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION,
+
 	.alloc_hw_stats = c4iw_alloc_stats,
 	.alloc_mr = c4iw_alloc_mr,
 	.alloc_mw = c4iw_alloc_mw,
@@ -534,6 +537,7 @@ static const struct ib_device_ops c4iw_dev_ops = {
 	.reg_user_mr = c4iw_reg_user_mr,
 	.req_notify_cq = c4iw_arm_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, c4iw_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_cq, c4iw_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_srq, c4iw_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, c4iw_ucontext, ibucontext),
 };
@@ -561,7 +565,6 @@ void c4iw_register_device(struct work_struct *work)
 	pr_debug("c4iw_dev %p\n", dev);
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->rdev.lldi.ports[0]->dev_addr, 6);
-	dev->ibdev.owner = THIS_MODULE;
 	dev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY | IB_DEVICE_MEM_WINDOW;
 	if (fastreg_support)
 		dev->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
@@ -594,13 +597,11 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.phys_port_cnt = dev->rdev.lldi.nports;
 	dev->ibdev.num_comp_vectors =  dev->rdev.lldi.nciq;
 	dev->ibdev.dev.parent = &dev->rdev.lldi.pdev->dev;
-	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
 
 	memcpy(dev->ibdev.iw_ifname, dev->rdev.lldi.ports[0]->name,
 	       sizeof(dev->ibdev.iw_ifname));
 
 	rdma_set_device_sysfs_group(&dev->ibdev, &c4iw_attr_group);
-	dev->ibdev.driver_id = RDMA_DRIVER_CXGB4;
 	ib_set_device_ops(&dev->ibdev, &c4iw_dev_ops);
 	ret = set_netdevs(&dev->ibdev, &dev->rdev);
 	if (ret)

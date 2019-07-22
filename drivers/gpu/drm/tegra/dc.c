@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Avionic Design GmbH
  * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -25,6 +22,9 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
+
+static void tegra_crtc_atomic_destroy_state(struct drm_crtc *crtc,
+					    struct drm_crtc_state *state);
 
 static void tegra_dc_stats_reset(struct tegra_dc_stats *stats)
 {
@@ -1155,20 +1155,12 @@ static void tegra_dc_destroy(struct drm_crtc *crtc)
 
 static void tegra_crtc_reset(struct drm_crtc *crtc)
 {
-	struct tegra_dc_state *state;
+	struct tegra_dc_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
 
 	if (crtc->state)
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+		tegra_crtc_atomic_destroy_state(crtc, crtc->state);
 
-	kfree(crtc->state);
-	crtc->state = NULL;
-
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state) {
-		crtc->state = &state->base;
-		crtc->state->crtc = crtc;
-	}
-
+	__drm_atomic_helper_crtc_reset(crtc, &state->base);
 	drm_crtc_vblank_reset(crtc);
 }
 
@@ -2375,10 +2367,10 @@ static int tegra_dc_parse_dt(struct tegra_dc *dc)
 	return 0;
 }
 
-static int tegra_dc_match_by_pipe(struct device *dev, void *data)
+static int tegra_dc_match_by_pipe(struct device *dev, const void *data)
 {
 	struct tegra_dc *dc = dev_get_drvdata(dev);
-	unsigned int pipe = (unsigned long)data;
+	unsigned int pipe = (unsigned long)(void *)data;
 
 	return dc->pipe == pipe;
 }

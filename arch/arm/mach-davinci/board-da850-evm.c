@@ -631,19 +631,32 @@ static void da850_evm_bb_keys_init(unsigned gpio)
 	}
 }
 
-#define DA850_N_BB_USER_LED	2
-
 static struct gpio_led da850_evm_bb_leds[] = {
-	[0 ... DA850_N_BB_USER_LED - 1] = {
-		.active_low = 1,
-		.gpio = -1, /* assigned at runtime */
-		.name = NULL, /* assigned at runtime */
+	{
+		.name = "user_led2",
+	},
+	{
+		.name = "user_led1",
 	},
 };
 
 static struct gpio_led_platform_data da850_evm_bb_leds_pdata = {
 	.leds = da850_evm_bb_leds,
 	.num_leds = ARRAY_SIZE(da850_evm_bb_leds),
+};
+
+static struct gpiod_lookup_table da850_evm_bb_leds_gpio_table = {
+	.dev_id = "leds-gpio",
+	.table = {
+		GPIO_LOOKUP_IDX("i2c-bb-expander",
+				DA850_EVM_BB_EXP_USER_LED2, NULL,
+				0, GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP_IDX("i2c-bb-expander",
+				DA850_EVM_BB_EXP_USER_LED2 + 1, NULL,
+				1, GPIO_ACTIVE_LOW),
+
+		{ },
+	},
 };
 
 static struct platform_device da850_evm_bb_leds_device = {
@@ -653,20 +666,6 @@ static struct platform_device da850_evm_bb_leds_device = {
 		.platform_data = &da850_evm_bb_leds_pdata
 	}
 };
-
-static void da850_evm_bb_leds_init(unsigned gpio)
-{
-	int i;
-	struct gpio_led *led;
-
-	for (i = 0; i < DA850_N_BB_USER_LED; i++) {
-		led = &da850_evm_bb_leds[i];
-
-		led->gpio = gpio + DA850_EVM_BB_EXP_USER_LED2 + i;
-		led->name =
-			da850_evm_bb_exp[DA850_EVM_BB_EXP_USER_LED2 + i];
-	}
-}
 
 static int da850_evm_bb_expander_setup(struct i2c_client *client,
 						unsigned gpio, unsigned ngpio,
@@ -685,7 +684,7 @@ static int da850_evm_bb_expander_setup(struct i2c_client *client,
 		goto io_exp_setup_sw_fail;
 	}
 
-	da850_evm_bb_leds_init(gpio);
+	gpiod_add_lookup_table(&da850_evm_bb_leds_gpio_table);
 	ret = platform_device_register(&da850_evm_bb_leds_device);
 	if (ret) {
 		pr_warn("Could not register baseboard GPIO expander LEDs");
@@ -729,10 +728,12 @@ static struct i2c_board_info __initdata da850_evm_i2c_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("tca6416", 0x20),
+		.dev_name = "ui-expander",
 		.platform_data = &da850_evm_ui_expander_info,
 	},
 	{
 		I2C_BOARD_INFO("tca6416", 0x21),
+		.dev_name = "bb-expander",
 		.platform_data = &da850_evm_bb_expander_info,
 	},
 };
@@ -1480,6 +1481,8 @@ static __init void da850_evm_init(void)
 	if (ret)
 		pr_warn("%s: dsp/rproc registration failed: %d\n",
 			__func__, ret);
+
+	regulator_has_full_constraints();
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE

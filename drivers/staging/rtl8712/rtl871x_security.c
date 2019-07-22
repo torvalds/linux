@@ -665,7 +665,7 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 			length = ((union recv_frame *)precvframe)->
 				 u.hdr.len - prxattrib->hdrlen -
 				 prxattrib->iv_len;
-			if (IS_MCAST(prxattrib->ra)) {
+			if (is_multicast_ether_addr(prxattrib->ra)) {
 				idx = iv[3];
 				prwskey = &psecuritypriv->XGrpKey[
 					 ((idx >> 6) & 0x3) - 1].skey[0];
@@ -1368,7 +1368,7 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 		stainfo = r8712_get_stainfo(&padapter->stapriv,
 					    &prxattrib->ta[0]);
 		if (stainfo != NULL) {
-			if (IS_MCAST(prxattrib->ra)) {
+			if (is_multicast_ether_addr(prxattrib->ra)) {
 				iv = pframe + prxattrib->hdrlen;
 				idx = iv[3];
 				prwskey = &psecuritypriv->XGrpKey[

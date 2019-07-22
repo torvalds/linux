@@ -35,6 +35,7 @@
 /* device flags */
 #define RMI_DEVICE			BIT(0)
 #define RMI_DEVICE_HAS_PHYS_BUTTONS	BIT(1)
+#define RMI_DEVICE_OUTPUT_SET_REPORT	BIT(2)
 
 /*
  * retrieve the ctrl registers
@@ -163,9 +164,19 @@ static int rmi_set_mode(struct hid_device *hdev, u8 mode)
 
 static int rmi_write_report(struct hid_device *hdev, u8 *report, int len)
 {
+	struct rmi_data *data = hid_get_drvdata(hdev);
 	int ret;
 
-	ret = hid_hw_output_report(hdev, (void *)report, len);
+	if (data->device_flags & RMI_DEVICE_OUTPUT_SET_REPORT) {
+		/*
+		 * Talk to device by using SET_REPORT requests instead.
+		 */
+		ret = hid_hw_raw_request(hdev, report[0], report,
+				len, HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
+	} else {
+		ret = hid_hw_output_report(hdev, (void *)report, len);
+	}
+
 	if (ret < 0) {
 		dev_err(&hdev->dev, "failed to write hid report (%d)\n", ret);
 		return ret;
@@ -747,6 +758,8 @@ static const struct hid_device_id rmi_id[] = {
 		.driver_data = RMI_DEVICE_HAS_PHYS_BUTTONS },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_X1_COVER) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_PRIMAX, USB_DEVICE_ID_PRIMAX_REZEL) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SYNAPTICS, USB_DEVICE_ID_SYNAPTICS_ACER_SWITCH5),
+		.driver_data = RMI_DEVICE_OUTPUT_SET_REPORT },
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_RMI, HID_ANY_ID, HID_ANY_ID) },
 	{ }
 };

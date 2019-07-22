@@ -332,7 +332,8 @@ config FB_SA1100
 
 config FB_IMX
 	tristate "Freescale i.MX1/21/25/27 LCD support"
-	depends on FB && ARCH_MXC
+	depends on FB && HAVE_CLK && HAS_IOMEM
+	depends on ARCH_MXC || COMPILE_TEST
 	select LCD_CLASS_DEVICE
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -670,7 +671,8 @@ config FB_HGA
 
 config FB_GBE
 	bool "SGI Graphics Backend frame buffer support"
-	depends on (FB = y) && SGI_IP32
+	depends on (FB = y) && HAS_IOMEM
+	depends on SGI_IP32 || COMPILE_TEST
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -808,7 +810,8 @@ config FB_XVR1000
 
 config FB_PVR2
 	tristate "NEC PowerVR 2 display support"
-	depends on FB && SH_DREAMCAST
+	depends on FB && HAS_IOMEM
+	depends on SH_DREAMCAST || COMPILE_TEST
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -856,7 +859,8 @@ config FB_S1D13XXX
 
 config FB_ATMEL
 	tristate "AT91 LCD Controller support"
-	depends on FB && OF && HAVE_FB_ATMEL
+	depends on FB && OF && HAVE_CLK && HAS_IOMEM
+	depends on HAVE_FB_ATMEL || COMPILE_TEST
 	select FB_BACKLIGHT
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1729,7 +1733,8 @@ config FB_68328
 
 config FB_PXA168
 	tristate "PXA168/910 LCD framebuffer support"
-	depends on FB && (CPU_PXA168 || CPU_PXA910)
+	depends on FB && HAVE_CLK && HAS_IOMEM
+	depends on CPU_PXA168 || CPU_PXA910 || COMPILE_TEST
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -1873,7 +1878,8 @@ config FB_TMIO_ACCELL
 
 config FB_S3C
 	tristate "Samsung S3C framebuffer support"
-	depends on FB && (CPU_S3C2416 || ARCH_S3C64XX)
+	depends on FB && HAVE_CLK && HAS_IOMEM
+	depends on (CPU_S3C2416 || ARCH_S3C64XX) || COMPILE_TEST
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2055,7 +2061,8 @@ config FB_SH7760
 
 config FB_DA8XX
 	tristate "DA8xx/OMAP-L1xx/AM335x Framebuffer support"
-	depends on FB && (ARCH_DAVINCI_DA8XX || SOC_AM33XX)
+	depends on FB && HAVE_CLK && HAS_IOMEM
+	depends on ARCH_DAVINCI_DA8XX || SOC_AM33XX || COMPILE_TEST
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2172,7 +2179,7 @@ config FB_EP93XX
 
 config FB_PRE_INIT_FB
 	bool "Don't reinitialize, use bootloader's GDC/Display configuration"
-	depends on FB && (FB_MB862XX_LIME || FB_MXS)
+	depends on FB && FB_MB862XX_LIME
 	---help---
 	  Select this option if display contents should be inherited as set by
 	  the bootloader.
@@ -2212,17 +2219,6 @@ config FB_JZ4740
 	select FB_SYS_IMAGEBLIT
 	help
 	  Framebuffer support for the JZ4740 SoC.
-
-config FB_MXS
-	tristate "MXS LCD framebuffer support"
-	depends on FB && (ARCH_MXS || ARCH_MXC)
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	select FB_MODE_HELPERS
-	select VIDEOMODE_HELPERS
-	help
-	  Framebuffer support for the MXS SoC.
 
 config FB_PUV3_UNIGFX
 	tristate "PKUnity v3 Unigfx framebuffer support"

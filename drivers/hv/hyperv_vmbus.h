@@ -138,7 +138,6 @@ struct hv_per_cpu_context {
 	 * per-cpu list of the channels based on their CPU affinity.
 	 */
 	struct list_head chan_list;
-	struct clock_event_device *clk_evt;
 };
 
 struct hv_context {
@@ -175,8 +174,6 @@ extern void hv_synic_free(void);
 extern int hv_synic_init(unsigned int cpu);
 
 extern int hv_synic_cleanup(unsigned int cpu);
-
-extern void hv_synic_clockevents_cleanup(void);
 
 /* Interface */
 
