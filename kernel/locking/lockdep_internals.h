@@ -140,6 +140,10 @@ extern unsigned int max_bfs_queue_depth;
 #ifdef CONFIG_PROVE_LOCKING
 extern unsigned long lockdep_count_forward_deps(struct lock_class *);
 extern unsigned long lockdep_count_backward_deps(struct lock_class *);
+#ifdef CONFIG_TRACE_IRQFLAGS
+u64 lockdep_stack_trace_count(void);
+u64 lockdep_stack_hash_count(void);
+#endif
 #else
 static inline unsigned long
 lockdep_count_forward_deps(struct lock_class *class)

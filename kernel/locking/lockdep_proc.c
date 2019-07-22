@@ -285,6 +285,12 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 			nr_process_chains);
 	seq_printf(m, " stack-trace entries:           %11lu [max: %lu]\n",
 			nr_stack_trace_entries, MAX_STACK_TRACE_ENTRIES);
+#if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_PROVE_LOCKING)
+	seq_printf(m, " number of stack traces:        %llu\n",
+		   lockdep_stack_trace_count());
+	seq_printf(m, " number of stack hash chains:   %llu\n",
+		   lockdep_stack_hash_count());
+#endif
 	seq_printf(m, " combined max dependencies:     %11u\n",
 			(nr_hardirq_chains + 1) *
 			(nr_softirq_chains + 1) *
