@@ -56,6 +56,9 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 		err = -EIO;
 		goto err;
 	}
+	err = f2fs_is_checkpoint_ready(sbi);
+	if (err)
+		goto err;
 
 	sb_start_pagefault(inode->i_sb);
 
@@ -1567,6 +1570,9 @@ static long f2fs_fallocate(struct file *file, int mode,
 
 	if (unlikely(f2fs_cp_error(F2FS_I_SB(inode))))
 		return -EIO;
+	ret = f2fs_is_checkpoint_ready(F2FS_I_SB(inode));
+	if (ret)
+		return ret;
 
 	/* f2fs only support ->fallocate for regular file */
 	if (!S_ISREG(inode->i_mode))
@@ -3062,8 +3068,13 @@ static int f2fs_ioc_resize_fs(struct file *filp, unsigned long arg)
 
 long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	int ret;
+
 	if (unlikely(f2fs_cp_error(F2FS_I_SB(file_inode(filp)))))
 		return -EIO;
+	ret = f2fs_is_checkpoint_ready(F2FS_I_SB(file_inode(filp)));
+	if (ret)
+		return ret;
 
 	switch (cmd) {
 	case F2FS_IOC_GETFLAGS:

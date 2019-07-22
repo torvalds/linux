@@ -801,9 +801,13 @@ out:
 static int f2fs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+	int ret;
 
 	if (unlikely(f2fs_cp_error(sbi)))
 		return -EIO;
+	ret = f2fs_is_checkpoint_ready(sbi);
+	if (ret)
+		return ret;
 
 	if (IS_ENCRYPTED(dir) || DUMMY_ENCRYPTION_ENABLED(sbi)) {
 		int err = fscrypt_get_encryption_info(dir);
