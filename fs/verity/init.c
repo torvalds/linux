@@ -33,7 +33,13 @@ void fsverity_msg(const struct inode *inode, const char *level,
 
 static int __init fsverity_init(void)
 {
+	int err;
+
 	fsverity_check_hash_algs();
+
+	err = fsverity_init_info_cache();
+	if (err)
+		return err;
 
 	pr_debug("Initialized fs-verity\n");
 	return 0;
