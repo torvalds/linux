@@ -1434,18 +1434,17 @@ static int soc_probe_link_components(struct snd_soc_card *card,
 
 static int soc_probe_dai(struct snd_soc_dai *dai, int order)
 {
+	int ret;
+
 	if (dai->probed ||
 	    dai->driver->probe_order != order)
 		return 0;
 
-	if (dai->driver->probe) {
-		int ret = dai->driver->probe(dai);
-
-		if (ret < 0) {
-			dev_err(dai->dev, "ASoC: failed to probe DAI %s: %d\n",
-				dai->name, ret);
-			return ret;
-		}
+	ret = snd_soc_dai_probe(dai);
+	if (ret < 0) {
+		dev_err(dai->dev, "ASoC: failed to probe DAI %s: %d\n",
+			dai->name, ret);
+		return ret;
 	}
 
 	dai->probed = 1;
