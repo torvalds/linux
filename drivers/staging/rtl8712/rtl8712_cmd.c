@@ -311,7 +311,7 @@ int r8712_cmd_thread(void *context)
 			break;
 		if (padapter->driver_stopped || padapter->surprise_removed)
 			break;
-		if (r8712_register_cmd_alive(padapter) != _SUCCESS)
+		if (r8712_register_cmd_alive(padapter))
 			continue;
 _next:
 		pcmd = r8712_dequeue_cmd(&pcmdpriv->cmd_queue);
