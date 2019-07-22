@@ -53,7 +53,7 @@ int r8712_init_mlme_priv(struct _adapter *padapter)
 	pbuf = kmalloc_array(MAX_BSS_CNT, sizeof(struct wlan_network),
 			     GFP_ATOMIC);
 	if (!pbuf)
-		return _FAIL;
+		return -ENOMEM;
 	pmlmepriv->free_bss_buf = pbuf;
 	pnetwork = (struct wlan_network *)pbuf;
 	for (i = 0; i < MAX_BSS_CNT; i++) {
@@ -67,7 +67,7 @@ int r8712_init_mlme_priv(struct _adapter *padapter)
 	pmlmepriv->sitesurveyctrl.traffic_busy = false;
 	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
 	r8712_init_mlme_timer(padapter);
-	return _SUCCESS;
+	return 0;
 }
 
 struct wlan_network *_r8712_alloc_network(struct mlme_priv *pmlmepriv)
