@@ -165,6 +165,7 @@ snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
 void snd_soc_dai_suspend(struct snd_soc_dai *dai);
 void snd_soc_dai_resume(struct snd_soc_dai *dai);
 int snd_soc_dai_probe(struct snd_soc_dai *dai);
+int snd_soc_dai_remove(struct snd_soc_dai *dai);
 
 struct snd_soc_dai_ops {
 	/*
