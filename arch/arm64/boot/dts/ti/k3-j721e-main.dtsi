@@ -89,6 +89,12 @@
 			ti,sci-rm-range-vint = <0xa>;
 			ti,sci-rm-range-global-event = <0xd>;
 		};
+
+		hwspinlock: spinlock@30e00000 {
+			compatible = "ti,am654-hwspinlock";
+			reg = <0x00 0x30e00000 0x00 0x1000>;
+			#hwlock-cells = <1>;
+		};
 	};
 
 	secure_proxy_main: mailbox@32c00000 {
