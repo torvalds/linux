@@ -107,7 +107,7 @@ void r8712_free_recv_priv(struct recv_priv *precvpriv)
 			    skb_queue_len(&precvpriv->free_recv_skb_queue));
 }
 
-int r8712_init_recvbuf(struct _adapter *padapter, struct recv_buf *precvbuf)
+void r8712_init_recvbuf(struct _adapter *padapter, struct recv_buf *precvbuf)
 {
 	precvbuf->transfer_len = 0;
 	precvbuf->len = 0;
@@ -118,7 +118,6 @@ int r8712_init_recvbuf(struct _adapter *padapter, struct recv_buf *precvbuf)
 		precvbuf->ptail = precvbuf->pbuf;
 		precvbuf->pend = precvbuf->pdata + MAX_RECVBUF_SZ;
 	}
-	return _SUCCESS;
 }
 
 int r8712_free_recvframe(union recv_frame *precvframe,
