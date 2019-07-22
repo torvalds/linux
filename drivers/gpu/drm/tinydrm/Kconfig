@@ -10,6 +10,7 @@ menuconfig DRM_TINYDRM
 
 config TINYDRM_MIPI_DBI
 	tristate
+	select DRM_KMS_HELPER
 
 config TINYDRM_HX8357D
 	tristate "DRM support for HX8357D display panels"
