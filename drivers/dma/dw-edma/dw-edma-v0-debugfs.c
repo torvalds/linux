@@ -48,7 +48,7 @@ static struct {
 } lim[2][EDMA_V0_MAX_NR_CH];
 
 struct debugfs_entries {
-	char					name[24];
+	const char				*name;
 	dma_addr_t				*reg;
 };
 
