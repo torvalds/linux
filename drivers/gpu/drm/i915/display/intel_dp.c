@@ -231,6 +231,7 @@ static int intel_dp_get_fia_supported_lane_count(struct intel_dp *intel_dp)
 	switch (lane_info) {
 	default:
 		MISSING_CASE(lane_info);
+		/* fall through */
 	case 1:
 	case 2:
 	case 4:
