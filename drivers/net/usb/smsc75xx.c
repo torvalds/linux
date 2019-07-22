@@ -2255,6 +2255,7 @@ static struct sk_buff *smsc75xx_tx_fixup(struct usbnet *dev,
 					 struct sk_buff *skb, gfp_t flags)
 {
 	u32 tx_cmd_a, tx_cmd_b;
+	void *ptr;
 
 	if (skb_cow_head(skb, SMSC75XX_TX_OVERHEAD)) {
 		dev_kfree_skb_any(skb);
@@ -2275,13 +2276,9 @@ static struct sk_buff *smsc75xx_tx_fixup(struct usbnet *dev,
 		tx_cmd_b = 0;
 	}
 
-	skb_push(skb, 4);
-	cpu_to_le32s(&tx_cmd_b);
-	memcpy(skb->data, &tx_cmd_b, 4);
-
-	skb_push(skb, 4);
-	cpu_to_le32s(&tx_cmd_a);
-	memcpy(skb->data, &tx_cmd_a, 4);
+	ptr = skb_push(skb, 8);
+	put_unaligned_le32(tx_cmd_a, ptr);
+	put_unaligned_le32(tx_cmd_b, ptr + 4);
 
 	return skb;
 }
