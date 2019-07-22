@@ -300,3 +300,10 @@ int snd_soc_dai_startup(struct snd_soc_dai *dai,
 
 	return ret;
 }
+
+void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
+			 struct snd_pcm_substream *substream)
+{
+	if (dai->driver->ops->shutdown)
+		dai->driver->ops->shutdown(substream, dai);
+}
