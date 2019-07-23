@@ -109,49 +109,6 @@ static int is_skl_dsp_widget_type(struct snd_soc_dapm_widget *w,
 	}
 }
 
-/*
- * Each pipelines needs memory to be allocated. Check if we have free memory
- * from available pool.
- */
-static bool skl_is_pipe_mem_avail(struct skl_dev *skl,
-				struct skl_module_cfg *mconfig)
-{
-	if (skl->resource.mem + mconfig->pipe->memory_pages >
-				skl->resource.max_mem) {
-		dev_err(skl->dev,
-				"%s: module_id %d instance %d\n", __func__,
-				mconfig->id.module_id,
-				mconfig->id.instance_id);
-		dev_err(skl->dev,
-				"exceeds ppl memory available %d mem %d\n",
-				skl->resource.max_mem, skl->resource.mem);
-		return false;
-	} else {
-		return true;
-	}
-}
-
-/*
- * Add the mem to the mem pool. This is freed when pipe is deleted.
- * Note: DSP does actual memory management we only keep track for complete
- * pool
- */
-static void skl_tplg_alloc_pipe_mem(struct skl_dev *skl,
-				struct skl_module_cfg *mconfig)
-{
-	skl->resource.mem += mconfig->pipe->memory_pages;
-}
-
-/*
- * Free the memory when tearing down
- */
-static void
-skl_tplg_free_pipe_mem(struct skl_dev *skl, struct skl_module_cfg *mconfig)
-{
-	skl->resource.mem -= mconfig->pipe->memory_pages;
-}
-
-
 static void skl_dump_mconfig(struct skl_dev *skl, struct skl_module_cfg *mcfg)
 {
 	struct skl_module_iface *iface = &mcfg->module->formats[0];
@@ -681,7 +638,6 @@ skl_tplg_get_pipe_config(struct skl_dev *skl, struct skl_module_cfg *mconfig)
 /*
  * Mixer module represents a pipeline. So in the Pre-PMU event of mixer we
  * need create the pipeline. So we do following:
- *   - check the resources
  *   - Create the pipeline
  *   - Initialize the modules in pipeline
  *   - finally bind all modules together
@@ -700,9 +656,6 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	if (ret < 0)
 		return ret;
 
-	if (!skl_is_pipe_mem_avail(skl, mconfig))
-		return -ENOMEM;
-
 	/*
 	 * Create a list of modules for pipe.
 	 * This list contains modules from source to sink
@@ -710,8 +663,6 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	ret = skl_create_pipeline(skl, mconfig->pipe);
 	if (ret < 0)
 		return ret;
-
-	skl_tplg_alloc_pipe_mem(skl, mconfig);
 
 	/* Init all pipe modules from source to sink */
 	ret = skl_tplg_init_pipe_modules(skl, s_pipe);
@@ -1207,7 +1158,6 @@ static int skl_tplg_mixer_dapm_pre_pmd_event(struct snd_soc_dapm_widget *w,
 
 /*
  * in the Post-PMD event of mixer we need to do following:
- *   - Free the mem used
  *   - Unbind the modules within the pipeline
  *   - Delete the pipeline (modules are not required to be explicitly
  *     deleted, pipeline delete is enough here
@@ -1223,8 +1173,6 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 
 	if (s_pipe->state == SKL_PIPE_INVALID)
 		return -EINVAL;
-
-	skl_tplg_free_pipe_mem(skl, mconfig);
 
 	list_for_each_entry(w_module, &s_pipe->w_list, node) {
 		if (list_empty(&skl->bind_list))
@@ -2921,8 +2869,6 @@ void skl_cleanup_resources(struct skl_dev *skl)
 	if (!card || !card->instantiated)
 		return;
 
-	skl->resource.mem = 0;
-
 	list_for_each_entry(w, &card->widgets, list) {
 		if (is_skl_dsp_widget_type(w, skl->dev) && w->priv != NULL)
 			skl_clear_pin_config(soc_component, w);
@@ -3619,9 +3565,6 @@ static void skl_tplg_set_pipe_type(struct skl_dev *skl, struct skl_pipe *pipe)
 		pipe->passthru = false;
 }
 
-/* This will be read from topology manifest, currently defined here */
-#define SKL_FW_MAX_MEM 1000000
-
 /*
  * SKL topology init routine
  */
@@ -3655,8 +3598,6 @@ int skl_tplg_init(struct snd_soc_component *component, struct hdac_bus *bus)
 		release_firmware(fw);
 		return -EINVAL;
 	}
-
-	skl->resource.max_mem = SKL_FW_MAX_MEM;
 
 	skl->tplg = fw;
 	ret = skl_tplg_create_pipe_widget_list(component);
