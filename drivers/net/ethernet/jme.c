@@ -3192,8 +3192,7 @@ jme_shutdown(struct pci_dev *pdev)
 static int
 jme_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct net_device *netdev = dev_get_drvdata(dev);
 	struct jme_adapter *jme = netdev_priv(netdev);
 
 	if (!netif_running(netdev))
@@ -3235,8 +3234,7 @@ jme_suspend(struct device *dev)
 static int
 jme_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct net_device *netdev = dev_get_drvdata(dev);
 	struct jme_adapter *jme = netdev_priv(netdev);
 
 	if (!netif_running(netdev))
