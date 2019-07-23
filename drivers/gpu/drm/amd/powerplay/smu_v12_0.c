@@ -144,20 +144,35 @@ static int smu_v12_0_check_fw_status(struct smu_context *smu)
 
 static int smu_v12_0_check_fw_version(struct smu_context *smu)
 {
-	uint32_t smc_if_version = 0xff;
+	uint32_t if_version = 0xff, smu_version = 0xff;
+	uint16_t smu_major;
+	uint8_t smu_minor, smu_debug;
 	int ret = 0;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion);
+	ret = smu_get_smc_version(smu, &if_version, &smu_version);
 	if (ret)
-		goto err;
+		return ret;
 
-	ret = smu_read_smc_arg(smu, &smc_if_version);
-	if (ret)
-		goto err;
+	smu_major = (smu_version >> 16) & 0xffff;
+	smu_minor = (smu_version >> 8) & 0xff;
+	smu_debug = (smu_version >> 0) & 0xff;
 
-	if (smc_if_version != smu->smc_if_version)
-		ret = -EINVAL;
-err:
+	/*
+	 * 1. if_version mismatch is not critical as our fw is designed
+	 * to be backward compatible.
+	 * 2. New fw usually brings some optimizations. But that's visible
+	 * only on the paired driver.
+	 * Considering above, we just leave user a warning message instead
+	 * of halt driver loading.
+	 */
+	if (if_version != smu->smc_if_version) {
+		pr_info("smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
+			"smu fw version = 0x%08x (%d.%d.%d)\n",
+			smu->smc_if_version, if_version,
+			smu_version, smu_major, smu_minor, smu_debug);
+		pr_warn("SMU driver if version not matched\n");
+	}
+
 	return ret;
 }
 

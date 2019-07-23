@@ -25,6 +25,7 @@
 #include "amdgpu_smu.h"
 #include "soc15_common.h"
 #include "smu_v12_0_ppsmc.h"
+#include "smu12_driver_if.h"
 #include "renoir_ppt.h"
 
 
@@ -118,4 +119,5 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 void renoir_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &renoir_ppt_funcs;
+	smu->smc_if_version = SMU12_DRIVER_IF_VERSION;
 }
