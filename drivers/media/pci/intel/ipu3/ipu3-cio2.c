@@ -2000,8 +2000,7 @@ static int __maybe_unused cio2_suspend(struct device *dev)
 
 static int __maybe_unused cio2_resume(struct device *dev)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
+	struct cio2_device *cio2 = dev_get_drvdata(dev);
 	int r = 0;
 	struct cio2_queue *q = cio2->cur_queue;
 
