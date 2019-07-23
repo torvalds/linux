@@ -967,6 +967,7 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 
 	window = skb->data[20];
 
+	sock_hold(make);
 	skb->sk             = make;
 	skb->destructor     = sock_efree;
 	make->sk_state	    = TCP_ESTABLISHED;
