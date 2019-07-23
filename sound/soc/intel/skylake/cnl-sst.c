@@ -24,8 +24,7 @@
 #include "../common/sst-dsp-priv.h"
 #include "../common/sst-ipc.h"
 #include "cnl-sst-dsp.h"
-#include "skl-sst-dsp.h"
-#include "skl-sst-ipc.h"
+#include "skl.h"
 
 #define CNL_FW_ROM_INIT		0x1
 #define CNL_FW_INIT		0x5
@@ -109,7 +108,7 @@ static int sst_transfer_fw_host_dma(struct sst_dsp *ctx)
 static int cnl_load_base_firmware(struct sst_dsp *ctx)
 {
 	struct firmware stripped_fw;
-	struct skl_sst *cnl = ctx->thread_context;
+	struct skl_dev *cnl = ctx->thread_context;
 	int ret;
 
 	if (!ctx->fw) {
@@ -167,7 +166,7 @@ cnl_load_base_firmware_failed:
 
 static int cnl_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 {
-	struct skl_sst *cnl = ctx->thread_context;
+	struct skl_dev *cnl = ctx->thread_context;
 	unsigned int core_mask = SKL_DSP_CORE_MASK(core_id);
 	struct skl_ipc_dxstate_info dx;
 	int ret;
@@ -229,7 +228,7 @@ err:
 
 static int cnl_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
 {
-	struct skl_sst *cnl = ctx->thread_context;
+	struct skl_dev *cnl = ctx->thread_context;
 	unsigned int core_mask = SKL_DSP_CORE_MASK(core_id);
 	struct skl_ipc_dxstate_info dx;
 	int ret;
@@ -293,7 +292,7 @@ static struct sst_ops cnl_ops = {
 static irqreturn_t cnl_dsp_irq_thread_handler(int irq, void *context)
 {
 	struct sst_dsp *dsp = context;
-	struct skl_sst *cnl = sst_dsp_get_thread_context(dsp);
+	struct skl_dev *cnl = sst_dsp_get_thread_context(dsp);
 	struct sst_generic_ipc *ipc = &cnl->ipc;
 	struct skl_ipc_header header = {0};
 	u32 hipcida, hipctdr, hipctdd;
@@ -386,7 +385,7 @@ static bool cnl_ipc_is_dsp_busy(struct sst_dsp *dsp)
 	return (hipcidr & CNL_ADSP_REG_HIPCIDR_BUSY);
 }
 
-static int cnl_ipc_init(struct device *dev, struct skl_sst *cnl)
+static int cnl_ipc_init(struct device *dev, struct skl_dev *cnl)
 {
 	struct sst_generic_ipc *ipc;
 	int err;
@@ -415,9 +414,9 @@ static int cnl_ipc_init(struct device *dev, struct skl_sst *cnl)
 
 int cnl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 		     const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
-		     struct skl_sst **dsp)
+		     struct skl_dev **dsp)
 {
-	struct skl_sst *cnl;
+	struct skl_dev *cnl;
 	struct sst_dsp *sst;
 	int ret;
 
@@ -454,12 +453,12 @@ int cnl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 }
 EXPORT_SYMBOL_GPL(cnl_sst_dsp_init);
 
-int cnl_sst_init_fw(struct device *dev, struct skl_sst *ctx)
+int cnl_sst_init_fw(struct device *dev, struct skl_dev *skl)
 {
 	int ret;
-	struct sst_dsp *sst = ctx->dsp;
+	struct sst_dsp *sst = skl->dsp;
 
-	ret = ctx->dsp->fw_ops.load_fw(sst);
+	ret = skl->dsp->fw_ops.load_fw(sst);
 	if (ret < 0) {
 		dev_err(dev, "load base fw failed: %d", ret);
 		return ret;
@@ -467,21 +466,21 @@ int cnl_sst_init_fw(struct device *dev, struct skl_sst *ctx)
 
 	skl_dsp_init_core_state(sst);
 
-	ctx->is_first_boot = false;
+	skl->is_first_boot = false;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cnl_sst_init_fw);
 
-void cnl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
+void cnl_sst_dsp_cleanup(struct device *dev, struct skl_dev *skl)
 {
-	if (ctx->dsp->fw)
-		release_firmware(ctx->dsp->fw);
+	if (skl->dsp->fw)
+		release_firmware(skl->dsp->fw);
 
-	skl_freeup_uuid_list(ctx);
-	cnl_ipc_free(&ctx->ipc);
+	skl_freeup_uuid_list(skl);
+	cnl_ipc_free(&skl->ipc);
 
-	ctx->dsp->ops->free(ctx->dsp);
+	skl->dsp->ops->free(skl->dsp);
 }
 EXPORT_SYMBOL_GPL(cnl_sst_dsp_cleanup);
 

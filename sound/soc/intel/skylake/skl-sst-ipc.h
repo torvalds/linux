@@ -10,9 +10,9 @@
 
 #include <linux/irqreturn.h>
 #include "../common/sst-ipc.h"
+#include "skl-sst-dsp.h"
 
 struct sst_dsp;
-struct skl_sst;
 struct sst_generic_ipc;
 
 enum skl_ipc_pipeline_state {
@@ -65,54 +65,6 @@ struct skl_d0i3_data {
 struct skl_lib_info {
 	char name[SKL_LIB_NAME_LENGTH];
 	const struct firmware *fw;
-};
-
-struct skl_sst {
-	struct device *dev;
-	struct sst_dsp *dsp;
-
-	/* boot */
-	wait_queue_head_t boot_wait;
-	bool boot_complete;
-
-	/* module load */
-	wait_queue_head_t mod_load_wait;
-	bool mod_load_complete;
-	bool mod_load_status;
-
-	/* IPC messaging */
-	struct sst_generic_ipc ipc;
-
-	/* callback for miscbdge */
-	void (*enable_miscbdcge)(struct device *dev, bool enable);
-	/* Is CGCTL.MISCBDCGE disabled */
-	bool miscbdcg_disabled;
-
-	/* Populate module information */
-	struct list_head uuid_list;
-
-	/* Is firmware loaded */
-	bool fw_loaded;
-
-	/* first boot ? */
-	bool is_first_boot;
-
-	/* multi-core */
-	struct skl_dsp_cores cores;
-
-	/* library info */
-	struct skl_lib_info  lib_info[SKL_MAX_LIB];
-	int lib_count;
-
-	/* Callback to update D0i3C register */
-	void (*update_d0i3c)(struct device *dev, bool enable);
-
-	struct skl_d0i3_data d0i3;
-
-	const struct skl_dsp_ops *dsp_ops;
-
-	/* Callback to update dynamic clock and power gating registers */
-	void (*clock_power_gating)(struct device *dev, bool enable);
 };
 
 struct skl_ipc_init_instance_msg {
@@ -204,7 +156,7 @@ void skl_ipc_int_disable(struct sst_dsp *dsp);
 
 bool skl_ipc_int_status(struct sst_dsp *dsp);
 void skl_ipc_free(struct sst_generic_ipc *ipc);
-int skl_ipc_init(struct device *dev, struct skl_sst *skl);
+int skl_ipc_init(struct device *dev, struct skl_dev *skl);
 void skl_clear_module_cnt(struct sst_dsp *ctx);
 
 void skl_ipc_process_reply(struct sst_generic_ipc *ipc,

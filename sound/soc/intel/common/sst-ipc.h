@@ -35,6 +35,7 @@ struct ipc_message {
 };
 
 struct sst_generic_ipc;
+struct sst_dsp;
 
 struct sst_plat_ipc_ops {
 	void (*tx_msg)(struct sst_generic_ipc *, struct ipc_message *);

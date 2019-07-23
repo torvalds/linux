@@ -12,7 +12,7 @@
 #include "../common/sst-dsp.h"
 #include "../common/sst-ipc.h"
 #include "../common/sst-dsp-priv.h"
-#include "skl-sst-ipc.h"
+#include "skl.h"
 
 /* various timeout values */
 #define SKL_DSP_PU_TO		50
@@ -33,7 +33,7 @@ void skl_dsp_set_state_locked(struct sst_dsp *ctx, int state)
  */
 void skl_dsp_init_core_state(struct sst_dsp *ctx)
 {
-	struct skl_sst *skl = ctx->thread_context;
+	struct skl_dev *skl = ctx->thread_context;
 	int i;
 
 	skl->cores.state[SKL_DSP_CORE0_ID] = SKL_DSP_RUNNING;
@@ -48,7 +48,7 @@ void skl_dsp_init_core_state(struct sst_dsp *ctx)
 /* Get the mask for all enabled cores */
 unsigned int skl_dsp_get_enabled_cores(struct sst_dsp *ctx)
 {
-	struct skl_sst *skl = ctx->thread_context;
+	struct skl_dev *skl = ctx->thread_context;
 	unsigned int core_mask, en_cores_mask;
 	u32 val;
 
@@ -335,7 +335,7 @@ irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id)
  */
 int skl_dsp_get_core(struct sst_dsp *ctx, unsigned int core_id)
 {
-	struct skl_sst *skl = ctx->thread_context;
+	struct skl_dev *skl = ctx->thread_context;
 	int ret = 0;
 
 	if (core_id >= skl->cores.count) {
@@ -364,7 +364,7 @@ EXPORT_SYMBOL_GPL(skl_dsp_get_core);
 
 int skl_dsp_put_core(struct sst_dsp *ctx, unsigned int core_id)
 {
-	struct skl_sst *skl = ctx->thread_context;
+	struct skl_dev *skl = ctx->thread_context;
 	int ret = 0;
 
 	if (core_id >= skl->cores.count) {

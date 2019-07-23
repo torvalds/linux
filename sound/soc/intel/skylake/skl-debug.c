@@ -20,7 +20,7 @@
 #define FW_REG_SIZE	0x60
 
 struct skl_debug {
-	struct skl *skl;
+	struct skl_dev *skl;
 	struct device *dev;
 
 	struct dentry *fs;
@@ -172,7 +172,7 @@ static ssize_t fw_softreg_read(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
 	struct skl_debug *d = file->private_data;
-	struct sst_dsp *sst = d->skl->skl_sst->dsp;
+	struct sst_dsp *sst = d->skl->dsp;
 	size_t w0_stat_sz = sst->addr.w0_stat_sz;
 	void __iomem *in_base = sst->mailbox.in_base;
 	void __iomem *fw_reg_addr;
@@ -213,7 +213,7 @@ static const struct file_operations soft_regs_ctrl_fops = {
 	.llseek = default_llseek,
 };
 
-struct skl_debug *skl_debugfs_init(struct skl *skl)
+struct skl_debug *skl_debugfs_init(struct skl_dev *skl)
 {
 	struct skl_debug *d;
 
@@ -252,7 +252,7 @@ err:
 	return NULL;
 }
 
-void skl_debugfs_exit(struct skl *skl)
+void skl_debugfs_exit(struct skl_dev *skl)
 {
 	struct skl_debug *d = skl->debugfs;
 
