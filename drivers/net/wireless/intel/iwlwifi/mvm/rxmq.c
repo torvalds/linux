@@ -377,8 +377,16 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 		stats->flag |= RX_FLAG_DECRYPTED;
 		return 0;
 	default:
-		/* Expected in monitor (not having the keys) */
-		if (!mvm->monitor_on)
+		/*
+		 * Sometimes we can get frames that were not decrypted
+		 * because the firmware didn't have the keys yet. This can
+		 * happen after connection where we can get multicast frames
+		 * before the GTK is installed.
+		 * Silently drop those frames.
+		 * Also drop un-decrypted frames in monitor mode.
+		 */
+		if (!is_multicast_ether_addr(hdr->addr1) &&
+		    !mvm->monitor_on && net_ratelimit())
 			IWL_ERR(mvm, "Unhandled alg: 0x%x\n", status);
 	}
 
