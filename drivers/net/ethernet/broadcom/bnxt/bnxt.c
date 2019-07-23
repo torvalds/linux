@@ -888,7 +888,7 @@ static struct sk_buff *bnxt_rx_page_skb(struct bnxt *bp,
 {
 	unsigned int payload = offset_and_len >> 16;
 	unsigned int len = offset_and_len & 0xffff;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	struct page *page = data;
 	u16 prod = rxr->rx_prod;
 	struct sk_buff *skb;

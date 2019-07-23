@@ -1657,7 +1657,7 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 				     len);
 		} else {
 			frag = &skb_shinfo(skb)->frags[f];
-			len = frag->size;
+			len = skb_frag_size(frag);
 			wil_dbg_txrx(wil, "TSO: frag[%d]: len %u\n", f, len);
 		}
 
@@ -1678,8 +1678,8 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 
 			if (!headlen) {
 				pa = skb_frag_dma_map(dev, frag,
-						      frag->size - len, lenmss,
-						      DMA_TO_DEVICE);
+						      skb_frag_size(frag) - len,
+						      lenmss, DMA_TO_DEVICE);
 				vring->ctx[i].mapped_as = wil_mapped_as_page;
 			} else {
 				pa = dma_map_single(dev,
@@ -1900,8 +1900,7 @@ static int __wil_tx_ring(struct wil6210_priv *wil, struct wil6210_vif *vif,
 
 	/* middle segments */
 	for (; f < nr_frags; f++) {
-		const struct skb_frag_struct *frag =
-				&skb_shinfo(skb)->frags[f];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[f];
 		int len = skb_frag_size(frag);
 
 		*_d = *d;

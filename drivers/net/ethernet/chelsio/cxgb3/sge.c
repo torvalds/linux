@@ -2132,7 +2132,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	struct port_info *pi = netdev_priv(qs->netdev);
 	struct sk_buff *skb = NULL;
 	struct cpl_rx_pkt *cpl;
-	struct skb_frag_struct *rx_frag;
+	skb_frag_t *rx_frag;
 	int nr_frags;
 	int offset = 0;
 

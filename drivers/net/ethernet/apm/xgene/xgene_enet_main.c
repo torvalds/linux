@@ -340,7 +340,8 @@ static int xgene_enet_work_msg(struct sk_buff *skb, u64 *hopinfo)
 				nr_frags = skb_shinfo(skb)->nr_frags;
 
 				for (i = 0; i < 2 && i < nr_frags; i++)
-					len += skb_shinfo(skb)->frags[i].size;
+					len += skb_frag_size(
+						&skb_shinfo(skb)->frags[i]);
 
 				/* HW requires header must reside in 3 buffer */
 				if (unlikely(hdr_len > len)) {
