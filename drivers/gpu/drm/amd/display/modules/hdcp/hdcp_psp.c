@@ -109,7 +109,7 @@ enum mod_hdcp_status mod_hdcp_add_display_topology(struct mod_hdcp *hdcp)
 			dtm_cmd->dtm_in_message.topology_update_v2.dig_fe = display->dig_fe;
 			dtm_cmd->dtm_in_message.topology_update_v2.dp_mst_vcid = display->vc_id;
 			dtm_cmd->dtm_in_message.topology_update_v2.max_hdcp_supported_version =
-				TA_DTM_HDCP_VERSION_MAX_SUPPORTED__1_x;
+				TA_DTM_HDCP_VERSION_MAX_SUPPORTED__2_2;
 			dtm_cmd->dtm_status = TA_DTM_STATUS__GENERIC_FAILURE;
 
 			psp_dtm_invoke(psp, dtm_cmd->cmd_id);

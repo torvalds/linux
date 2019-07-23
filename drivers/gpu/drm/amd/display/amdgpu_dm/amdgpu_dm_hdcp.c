@@ -190,7 +190,7 @@ static void event_property_update(struct work_struct *work)
 		}
 	}
 
-	if (hdcp_work->encryption_status == MOD_HDCP_ENCRYPTION_STATUS_HDCP1_ON)
+	if (hdcp_work->encryption_status != MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF)
 		drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_ENABLED);
 	else
 		drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_DESIRED);
@@ -294,7 +294,6 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->dig_be = config->link_enc_inst;
 	link->ddc_line = aconnector->dc_link->ddc_hw_inst + 1;
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
-	link->adjust.hdcp2.disable = 1;
 
 }
 
