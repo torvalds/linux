@@ -94,6 +94,7 @@ var SGPR_SAVE_USE_SQC		    =	1		    //use SQC D$ to do the write
 var USE_MTBUF_INSTEAD_OF_MUBUF	    =	0		    //because TC EMU currently asserts on 0 of // overload DFMT field to carry 4 more bits of stride for MUBUF opcodes
 var SWIZZLE_EN			    =	0		    //whether we use swizzled buffer addressing
 var ACK_SQC_STORE		    =	1		    //workaround for suspected SQC store bug causing incorrect stores under concurrency
+var SAVE_AFTER_XNACK_ERROR	    =	1		    //workaround for TCP store failure after XNACK error when ALLOW_REPLAY=0, for debugger
 
 /**************************************************************************/
 /*			variables					  */
@@ -107,6 +108,7 @@ var SQ_WAVE_STATUS_PRE_SPI_PRIO_SHIFT   = 0
 var SQ_WAVE_STATUS_PRE_SPI_PRIO_SIZE    = 1
 var SQ_WAVE_STATUS_POST_SPI_PRIO_SHIFT  = 3
 var SQ_WAVE_STATUS_POST_SPI_PRIO_SIZE   = 29
+var SQ_WAVE_STATUS_ALLOW_REPLAY_MASK    = 0x400000
 
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT	= 12
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE	= 9
@@ -127,6 +129,7 @@ var SQ_WAVE_TRAPSTS_POST_SAVECTX_MASK	=   0xFFFFF800
 var SQ_WAVE_TRAPSTS_POST_SAVECTX_SHIFT	=   11
 var SQ_WAVE_TRAPSTS_POST_SAVECTX_SIZE	=   21
 var SQ_WAVE_TRAPSTS_ILLEGAL_INST_MASK	=   0x800
+var SQ_WAVE_TRAPSTS_XNACK_ERROR_MASK	=   0x10000000
 
 var SQ_WAVE_IB_STS_RCNT_SHIFT		=   16			//FIXME
 var SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT	=   15			//FIXME
@@ -584,6 +587,16 @@ if G8SR_VGPR_SR_IN_DWX4
 	s_and_b32 s_save_buf_rsrc1, s_save_buf_rsrc1, 0x0000FFFF   // reset const stride to 0
 	s_or_b32  s_save_buf_rsrc1, s_save_buf_rsrc1, S_SAVE_BUF_RSRC_WORD1_STRIDE  // reset const stride to 4 bytes
 else
+if SAVE_AFTER_XNACK_ERROR
+	check_if_tcp_store_ok()
+	s_cbranch_scc1 L_SAVE_FIRST_VGPRS_WITH_TCP
+
+	write_vgprs_to_mem_with_sqc(v0, 4, s_save_buf_rsrc0, s_save_mem_offset)
+	s_branch L_SAVE_LDS
+
+L_SAVE_FIRST_VGPRS_WITH_TCP:
+end
+
 	buffer_store_dword v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
 	buffer_store_dword v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1  offset:256
 	buffer_store_dword v2, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1  offset:256*2
@@ -683,6 +696,27 @@ elsif LDS_DMA_ENABLE==1 && UNROLL==1 // UNROOL	, has ichace miss
 else   // BUFFER_STORE
       v_mbcnt_lo_u32_b32 v2, 0xffffffff, 0x0
       v_mbcnt_hi_u32_b32 v3, 0xffffffff, v2	// tid
+
+if SAVE_AFTER_XNACK_ERROR
+	check_if_tcp_store_ok()
+	s_cbranch_scc1 L_SAVE_LDS_WITH_TCP
+
+	v_lshlrev_b32 v2, 2, v3
+L_SAVE_LDS_LOOP_SQC:
+	ds_read2_b32 v[0:1], v2 offset0:0 offset1:0x40
+	s_waitcnt lgkmcnt(0)
+
+	write_vgprs_to_mem_with_sqc(v0, 2, s_save_buf_rsrc0, s_save_mem_offset)
+
+	v_add_u32 v2, 0x200, v2
+	v_cmp_lt_u32 vcc[0:1], v2, s_save_alloc_size
+	s_cbranch_vccnz L_SAVE_LDS_LOOP_SQC
+
+	s_branch L_SAVE_LDS_DONE
+
+L_SAVE_LDS_WITH_TCP:
+end
+
       v_mul_i32_i24 v2, v3, 8	// tid*8
       v_mov_b32 v3, 256*2
       s_mov_b32 m0, 0x10000
@@ -768,6 +802,21 @@ else
 
     s_set_gpr_idx_on	m0, 0x1 //M0[7:0] = M0[7:0] and M0[15:12] = 0x1
     s_add_u32	    s_save_alloc_size, s_save_alloc_size, 0x1000		    //add 0x1000 since we compare m0 against it later
+
+if SAVE_AFTER_XNACK_ERROR
+	check_if_tcp_store_ok()
+	s_cbranch_scc1 L_SAVE_VGPR_LOOP
+
+L_SAVE_VGPR_LOOP_SQC:
+	write_vgprs_to_mem_with_sqc(v0, 4, s_save_buf_rsrc0, s_save_mem_offset)
+
+	s_add_u32 m0, m0, 4
+	s_cmp_lt_u32 m0, s_save_alloc_size
+	s_cbranch_scc1 L_SAVE_VGPR_LOOP_SQC
+
+	s_set_gpr_idx_off
+	s_branch L_SAVE_VGPR_END
+end
 
   L_SAVE_VGPR_LOOP:
     v_mov_b32	    v0, v0		//v0 = v[0+m0]
@@ -1265,7 +1314,39 @@ function read_16sgpr_from_mem(s, s_rsrc, s_mem_offset)
     s_sub_u32	    s_mem_offset, s_mem_offset, 4*16
 end
 
+function check_if_tcp_store_ok
+	// If STATUS.ALLOW_REPLAY=0 and TRAPSTS.XNACK_ERROR=1 then TCP stores will fail.
+	s_and_b32 s_save_tmp, s_save_status, SQ_WAVE_STATUS_ALLOW_REPLAY_MASK
+	s_cbranch_scc1 L_TCP_STORE_CHECK_DONE
 
+	s_getreg_b32 s_save_tmp, hwreg(HW_REG_TRAPSTS)
+	s_andn2_b32 s_save_tmp, SQ_WAVE_TRAPSTS_XNACK_ERROR_MASK, s_save_tmp
+
+L_TCP_STORE_CHECK_DONE:
+end
+
+function write_vgpr_to_mem_with_sqc(v, s_rsrc, s_mem_offset)
+	s_mov_b32 s4, 0
+
+L_WRITE_VGPR_LANE_LOOP:
+	for var lane = 0; lane < 4; ++ lane
+		v_readlane_b32 s[lane], v, s4
+		s_add_u32 s4, s4, 1
+	end
+
+	s_buffer_store_dwordx4 s[0:3], s_rsrc, s_mem_offset glc:1
+	ack_sqc_store_workaround()
+
+	s_add_u32 s_mem_offset, s_mem_offset, 0x10
+	s_cmp_eq_u32 s4, 0x40
+	s_cbranch_scc0 L_WRITE_VGPR_LANE_LOOP
+end
+
+function write_vgprs_to_mem_with_sqc(v, n_vgprs, s_rsrc, s_mem_offset)
+	for var vgpr = 0; vgpr < n_vgprs; ++ vgpr
+		write_vgpr_to_mem_with_sqc(v[vgpr], s_rsrc, s_mem_offset)
+	end
+end
 
 function get_lds_size_bytes(s_lds_size_byte)
     // SQ LDS granularity is 64DW, while PGM_RSRC2.lds_size is in granularity 128DW
