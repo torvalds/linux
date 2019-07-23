@@ -82,8 +82,7 @@ static struct drm_dp_aux_dev *alloc_drm_dp_aux_dev(struct drm_dp_aux *aux)
 	kref_init(&aux_dev->refcount);
 
 	mutex_lock(&aux_idr_mutex);
-	index = idr_alloc_cyclic(&aux_idr, aux_dev, 0, DRM_AUX_MINORS,
-				 GFP_KERNEL);
+	index = idr_alloc(&aux_idr, aux_dev, 0, DRM_AUX_MINORS, GFP_KERNEL);
 	mutex_unlock(&aux_idr_mutex);
 	if (index < 0) {
 		kfree(aux_dev);
