@@ -1230,6 +1230,10 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 				 void *data, uint32_t *size)
 {
 	int ret = 0;
+
+	if(!data || !size)
+		return -EINVAL;
+
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
 		ret = smu_get_current_clk_freq(smu, SMU_UCLK, (uint32_t *)data);
@@ -1251,10 +1255,6 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		ret = smu_common_read_sensor(smu, sensor, data, size);
 		break;
 	}
-
-	/* try get sensor data by asic */
-	if (ret)
-		ret = smu_asic_read_sensor(smu, sensor, data, size);
 
 	if (ret)
 		*size = 0;

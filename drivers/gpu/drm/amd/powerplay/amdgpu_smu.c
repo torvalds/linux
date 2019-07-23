@@ -413,6 +413,9 @@ int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
 	struct smu_power_gate *power_gate = &smu_power->power_gate;
 	int ret = 0;
 
+	if(!data || !size)
+		return -EINVAL;
+
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK:
 		*((uint32_t *)data) = smu->pstate_sclk;

@@ -634,9 +634,9 @@ struct smu_funcs
 #define smu_start_thermal_control(smu) \
 	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
 #define smu_read_sensor(smu, sensor, data, size) \
-	((smu)->funcs->read_sensor? (smu)->funcs->read_sensor((smu), (sensor), (data), (size)) : 0)
-#define smu_asic_read_sensor(smu, sensor, data, size) \
 	((smu)->ppt_funcs->read_sensor? (smu)->ppt_funcs->read_sensor((smu), (sensor), (data), (size)) : 0)
+#define smu_smc_read_sensor(smu, sensor, data, size) \
+	((smu)->funcs->read_sensor? (smu)->funcs->read_sensor((smu), (sensor), (data), (size)) : -EINVAL)
 #define smu_get_power_profile_mode(smu, buf) \
 	((smu)->ppt_funcs->get_power_profile_mode ? (smu)->ppt_funcs->get_power_profile_mode((smu), buf) : 0)
 #define smu_set_power_profile_mode(smu, param, param_size) \
