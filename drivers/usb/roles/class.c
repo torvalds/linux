@@ -90,11 +90,6 @@ static int switch_fwnode_match(struct device *dev, const void *fwnode)
 	return dev_fwnode(dev) == fwnode;
 }
 
-static int switch_name_match(struct device *dev, const void *name)
-{
-	return !strcmp((const char *)name, dev_name(dev));
-}
-
 static void *usb_role_switch_match(struct device_connection *con, int ep,
 				   void *data)
 {
@@ -107,8 +102,7 @@ static void *usb_role_switch_match(struct device_connection *con, int ep,
 		dev = class_find_device(role_class, NULL, con->fwnode,
 					switch_fwnode_match);
 	} else {
-		dev = class_find_device(role_class, NULL, con->endpoint[ep],
-					switch_name_match);
+		dev = class_find_device_by_name(role_class, con->endpoint[ep]);
 	}
 
 	return dev ? to_role_switch(dev) : ERR_PTR(-EPROBE_DEFER);
