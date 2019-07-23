@@ -134,10 +134,10 @@ struct keyboard_protocol {
  * struct tp_finger - single trackpad finger structure, le16-aligned
  *
  * @origin:		zero when switching track finger
- * @abs_x:		absolute x coodinate
- * @abs_y:		absolute y coodinate
- * @rel_x:		relative x coodinate
- * @rel_y:		relative y coodinate
+ * @abs_x:		absolute x coordinate
+ * @abs_y:		absolute y coordinate
+ * @rel_x:		relative x coordinate
+ * @rel_y:		relative y coordinate
  * @tool_major:		tool area, major axis
  * @tool_minor:		tool area, minor axis
  * @orientation:	16384 when point, else 15 bit angle
