@@ -252,9 +252,6 @@ struct qdio_q {
 	/* input or output queue */
 	int is_input_q;
 
-	/* list of thinint input queues */
-	struct list_head entry;
-
 	/* upper-layer program handler */
 	qdio_handler_t (*handler);
 
@@ -272,6 +269,7 @@ struct qdio_irq {
 	struct qib qib;
 	u32 *dsci;		/* address of device state change indicator */
 	struct ccw_device *cdev;
+	struct list_head entry;		/* list of thinint devices */
 	struct dentry *debugfs_dev;
 	struct dentry *debugfs_perf;
 
@@ -373,8 +371,8 @@ extern u64 last_ai_time;
 void qdio_setup_thinint(struct qdio_irq *irq_ptr);
 int qdio_establish_thinint(struct qdio_irq *irq_ptr);
 void qdio_shutdown_thinint(struct qdio_irq *irq_ptr);
-void tiqdio_add_input_queues(struct qdio_irq *irq_ptr);
-void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr);
+void tiqdio_add_device(struct qdio_irq *irq_ptr);
+void tiqdio_remove_device(struct qdio_irq *irq_ptr);
 void tiqdio_inbound_processing(unsigned long q);
 int tiqdio_allocate_memory(void);
 void tiqdio_free_memory(void);

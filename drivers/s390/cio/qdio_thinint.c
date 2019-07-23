@@ -66,26 +66,20 @@ static void put_indicator(u32 *addr)
 	atomic_dec(&ind->count);
 }
 
-void tiqdio_add_input_queues(struct qdio_irq *irq_ptr)
+void tiqdio_add_device(struct qdio_irq *irq_ptr)
 {
 	mutex_lock(&tiq_list_lock);
-	list_add_rcu(&irq_ptr->input_qs[0]->entry, &tiq_list);
+	list_add_rcu(&irq_ptr->entry, &tiq_list);
 	mutex_unlock(&tiq_list_lock);
 }
 
-void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
+void tiqdio_remove_device(struct qdio_irq *irq_ptr)
 {
-	struct qdio_q *q;
-
-	q = irq_ptr->input_qs[0];
-	if (!q)
-		return;
-
 	mutex_lock(&tiq_list_lock);
-	list_del_rcu(&q->entry);
+	list_del_rcu(&irq_ptr->entry);
 	mutex_unlock(&tiq_list_lock);
 	synchronize_rcu();
-	INIT_LIST_HEAD(&q->entry);
+	INIT_LIST_HEAD(&irq_ptr->entry);
 }
 
 static inline int has_multiple_inq_on_dsci(struct qdio_irq *irq_ptr)
@@ -174,7 +168,7 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating)
 {
 	u32 si_used = clear_shared_ind();
-	struct qdio_q *q;
+	struct qdio_irq *irq;
 
 	last_ai_time = S390_lowcore.int_clock;
 	inc_irq_stat(IRQIO_QAI);
@@ -182,12 +176,8 @@ static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating)
 	/* protect tiq_list entries, only changed in activate or shutdown */
 	rcu_read_lock();
 
-	/* check for work on all inbound thinint queues */
-	list_for_each_entry_rcu(q, &tiq_list, entry) {
-		struct qdio_irq *irq;
-
+	list_for_each_entry_rcu(irq, &tiq_list, entry) {
 		/* only process queues from changed sets */
-		irq = q->irq_ptr;
 		if (unlikely(references_shared_dsci(irq))) {
 			if (!si_used)
 				continue;
