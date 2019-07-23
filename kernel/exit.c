@@ -1596,10 +1596,13 @@ static long kernel_waitid(int which, pid_t upid, struct waitid_info *infop,
 		break;
 	case P_PGID:
 		type = PIDTYPE_PGID;
-		if (upid <= 0)
+		if (upid < 0)
 			return -EINVAL;
 
-		pid = find_get_pid(upid);
+		if (upid)
+			pid = find_get_pid(upid);
+		else
+			pid = get_task_pid(current, PIDTYPE_PGID);
 		break;
 	case P_PIDFD:
 		type = PIDTYPE_PID;
