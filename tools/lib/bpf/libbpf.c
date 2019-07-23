@@ -1760,14 +1760,21 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 			 (long long) sym.st_value, sym.st_name, name);
 
 		shdr_idx = sym.st_shndx;
+		insn_idx = rel.r_offset / sizeof(struct bpf_insn);
+		pr_debug("relocation: insn_idx=%u, shdr_idx=%u\n",
+			 insn_idx, shdr_idx);
+
+		if (shdr_idx >= SHN_LORESERVE) {
+			pr_warning("relocation: not yet supported relo for non-static global \'%s\' variable in special section (0x%x) found in insns[%d].code 0x%x\n",
+				   name, shdr_idx, insn_idx,
+				   insns[insn_idx].code);
+			return -LIBBPF_ERRNO__RELOC;
+		}
 		if (!bpf_object__relo_in_known_section(obj, shdr_idx)) {
 			pr_warning("Program '%s' contains unrecognized relo data pointing to section %u\n",
 				   prog->section_name, shdr_idx);
 			return -LIBBPF_ERRNO__RELOC;
 		}
-
-		insn_idx = rel.r_offset / sizeof(struct bpf_insn);
-		pr_debug("relocation: insn_idx=%u\n", insn_idx);
 
 		if (insns[insn_idx].code == (BPF_JMP | BPF_CALL)) {
 			if (insns[insn_idx].src_reg != BPF_PSEUDO_CALL) {
