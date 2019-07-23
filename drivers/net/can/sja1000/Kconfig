@@ -21,6 +21,16 @@ config CAN_EMS_PCMCIA
 	  This driver is for the one or two channel CPC-CARD cards from
 	  EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
 
+config CAN_F81601
+	tristate "Fintek F81601 PCIE to 2 CAN Controller"
+	depends on PCI
+	help
+	  This driver adds support for Fintek F81601 PCIE to 2 CAN
+	  Controller. It had internal 24MHz clock source, but it can
+	  be changed by manufacturer. Use modinfo to get usage for
+	  parameters. Visit http://www.fintek.com.tw to get more
+	  information.
+
 config CAN_KVASER_PCI
 	tristate "Kvaser PCIcanx and Kvaser PCIcan PCI Cards"
 	depends on PCI

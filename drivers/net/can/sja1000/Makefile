@@ -5,6 +5,7 @@
 
 obj-$(CONFIG_CAN_EMS_PCI) += ems_pci.o
 obj-$(CONFIG_CAN_EMS_PCMCIA) += ems_pcmcia.o
+obj-$(CONFIG_CAN_F81601) += f81601.o
 obj-$(CONFIG_CAN_KVASER_PCI) += kvaser_pci.o
 obj-$(CONFIG_CAN_PEAK_PCI) += peak_pci.o
 obj-$(CONFIG_CAN_PEAK_PCMCIA) += peak_pcmcia.o
