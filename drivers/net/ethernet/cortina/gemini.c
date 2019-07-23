@@ -1182,9 +1182,8 @@ static int gmac_map_tx_bufs(struct net_device *netdev, struct sk_buff *skb,
 			buflen = skb_headlen(skb);
 		} else {
 			skb_frag = skb_si->frags + frag;
-			buffer = page_address(skb_frag_page(skb_frag)) +
-				 skb_frag->page_offset;
-			buflen = skb_frag->size;
+			buffer = skb_frag_address(skb_frag);
+			buflen = skb_frag_size(skb_frag);
 		}
 
 		if (frag == last_frag) {

@@ -2485,19 +2485,19 @@ do_frag_list:
 	for (fragidx = 0; fragidx < skb_shinfo(skb)->nr_frags; fragidx++) {
 		skb_frag_t *frag  = &skb_shinfo(skb)->frags[fragidx];
 
-		if (offset < frag->size)
+		if (offset < skb_frag_size(frag))
 			break;
 
-		offset -= frag->size;
+		offset -= skb_frag_size(frag);
 	}
 
 	for (; len && fragidx < skb_shinfo(skb)->nr_frags; fragidx++) {
 		skb_frag_t *frag  = &skb_shinfo(skb)->frags[fragidx];
 
-		slen = min_t(size_t, len, frag->size - offset);
+		slen = min_t(size_t, len, skb_frag_size(frag) - offset);
 
 		while (slen) {
-			ret = kernel_sendpage_locked(sk, frag->page.p,
+			ret = kernel_sendpage_locked(sk, skb_frag_page(frag),
 						     frag->page_offset + offset,
 						     slen, MSG_DONTWAIT);
 			if (ret <= 0)
@@ -2975,11 +2975,15 @@ skb_zerocopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
 	skb_zerocopy_clone(to, from, GFP_ATOMIC);
 
 	for (i = 0; i < skb_shinfo(from)->nr_frags; i++) {
+		int size;
+
 		if (!len)
 			break;
 		skb_shinfo(to)->frags[j] = skb_shinfo(from)->frags[i];
-		skb_shinfo(to)->frags[j].size = min_t(int, skb_shinfo(to)->frags[j].size, len);
-		len -= skb_shinfo(to)->frags[j].size;
+		size = min_t(int, skb_frag_size(&skb_shinfo(to)->frags[j]),
+					len);
+		skb_frag_size_set(&skb_shinfo(to)->frags[j], size);
+		len -= size;
 		skb_frag_ref(to, j);
 		j++;
 	}
@@ -3293,7 +3297,7 @@ static int skb_prepare_for_shift(struct sk_buff *skb)
 int skb_shift(struct sk_buff *tgt, struct sk_buff *skb, int shiftlen)
 {
 	int from, to, merge, todo;
-	struct skb_frag_struct *fragfrom, *fragto;
+	skb_frag_t *fragfrom, *fragto;
 
 	BUG_ON(shiftlen > skb->len);
 
@@ -3360,7 +3364,7 @@ int skb_shift(struct sk_buff *tgt, struct sk_buff *skb, int shiftlen)
 
 		} else {
 			__skb_frag_ref(fragfrom);
-			fragto->page = fragfrom->page;
+			fragto->bv_page = fragfrom->bv_page;
 			fragto->page_offset = fragfrom->page_offset;
 			skb_frag_size_set(fragto, todo);
 
@@ -3625,10 +3629,10 @@ static inline skb_frag_t skb_head_frag_to_page_desc(struct sk_buff *frag_skb)
 	struct page *page;
 
 	page = virt_to_head_page(frag_skb->head);
-	head_frag.page.p = page;
+	__skb_frag_set_page(&head_frag, page);
 	head_frag.page_offset = frag_skb->data -
 		(unsigned char *)page_address(page);
-	head_frag.size = skb_headlen(frag_skb);
+	skb_frag_size_set(&head_frag, skb_headlen(frag_skb));
 	return head_frag;
 }
 
@@ -4021,7 +4025,7 @@ int skb_gro_receive(struct sk_buff *p, struct sk_buff *skb)
 
 		pinfo->nr_frags = nr_frags + 1 + skbinfo->nr_frags;
 
-		frag->page.p	  = page;
+		__skb_frag_set_page(frag, page);
 		frag->page_offset = first_offset;
 		skb_frag_size_set(frag, first_size);
 

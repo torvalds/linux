@@ -946,7 +946,7 @@ static void fm10k_tx_map(struct fm10k_ring *tx_ring,
 	struct sk_buff *skb = first->skb;
 	struct fm10k_tx_buffer *tx_buffer;
 	struct fm10k_tx_desc *tx_desc;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	unsigned char *data;
 	dma_addr_t dma;
 	unsigned int data_len, size;
@@ -1074,7 +1074,8 @@ netdev_tx_t fm10k_xmit_frame_ring(struct sk_buff *skb,
 	 * otherwise try next time
 	 */
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
-		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
+		count += TXD_USE_COUNT(skb_frag_size(
+						&skb_shinfo(skb)->frags[f]));
 
 	if (fm10k_maybe_stop_tx(tx_ring, count + 3)) {
 		tx_ring->tx_stats.tx_busy++;

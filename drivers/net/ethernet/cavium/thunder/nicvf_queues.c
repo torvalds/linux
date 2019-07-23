@@ -1588,9 +1588,7 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
 		goto doorbell;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const struct skb_frag_struct *frag;
-
-		frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		qentry = nicvf_get_nxt_sqentry(sq, qentry);
 		size = skb_frag_size(frag);

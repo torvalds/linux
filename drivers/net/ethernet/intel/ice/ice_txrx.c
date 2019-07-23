@@ -1521,7 +1521,7 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 {
 	u64 td_offset, td_tag, td_cmd;
 	u16 i = tx_ring->next_to_use;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	unsigned int data_len, size;
 	struct ice_tx_desc *tx_desc;
 	struct ice_tx_buf *tx_buf;
@@ -1923,7 +1923,7 @@ static unsigned int ice_txd_use_count(unsigned int size)
  */
 static unsigned int ice_xmit_desc_count(struct sk_buff *skb)
 {
-	const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
+	const skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int count = 0, size = skb_headlen(skb);
 
@@ -1954,7 +1954,7 @@ static unsigned int ice_xmit_desc_count(struct sk_buff *skb)
  */
 static bool __ice_chk_linearize(struct sk_buff *skb)
 {
-	const struct skb_frag_struct *frag, *stale;
+	const skb_frag_t *frag, *stale;
 	int nr_frags, sum;
 
 	/* no need to check if number of frags is less than 7 */

@@ -243,14 +243,14 @@ static void tls_append_frag(struct tls_record_info *record,
 	skb_frag_t *frag;
 
 	frag = &record->frags[record->num_frags - 1];
-	if (frag->page.p == pfrag->page &&
-	    frag->page_offset + frag->size == pfrag->offset) {
-		frag->size += size;
+	if (skb_frag_page(frag) == pfrag->page &&
+	    frag->page_offset + skb_frag_size(frag) == pfrag->offset) {
+		skb_frag_size_add(frag, size);
 	} else {
 		++frag;
-		frag->page.p = pfrag->page;
+		__skb_frag_set_page(frag, pfrag->page);
 		frag->page_offset = pfrag->offset;
-		frag->size = size;
+		skb_frag_size_set(frag, size);
 		++record->num_frags;
 		get_page(pfrag->page);
 	}
@@ -301,8 +301,8 @@ static int tls_push_record(struct sock *sk,
 		frag = &record->frags[i];
 		sg_unmark_end(&offload_ctx->sg_tx_data[i]);
 		sg_set_page(&offload_ctx->sg_tx_data[i], skb_frag_page(frag),
-			    frag->size, frag->page_offset);
-		sk_mem_charge(sk, frag->size);
+			    skb_frag_size(frag), frag->page_offset);
+		sk_mem_charge(sk, skb_frag_size(frag));
 		get_page(skb_frag_page(frag));
 	}
 	sg_mark_end(&offload_ctx->sg_tx_data[record->num_frags - 1]);

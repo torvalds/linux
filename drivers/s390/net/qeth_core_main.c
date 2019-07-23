@@ -3515,7 +3515,7 @@ static int qeth_get_elements_for_frags(struct sk_buff *skb)
 	int cnt, elements = 0;
 
 	for (cnt = 0; cnt < skb_shinfo(skb)->nr_frags; cnt++) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[cnt];
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[cnt];
 
 		elements += qeth_get_elements_for_range(
 			(addr_t)skb_frag_address(frag),

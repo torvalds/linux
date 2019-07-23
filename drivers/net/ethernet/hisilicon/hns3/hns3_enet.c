@@ -1033,7 +1033,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
 	struct hns3_desc *desc = &ring->desc[ring->next_to_use];
 	struct device *dev = ring_to_dev(ring);
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	unsigned int frag_buf_num;
 	int k, sizeoflast;
 	dma_addr_t dma;
@@ -1086,7 +1086,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 
 		dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
 	} else {
-		frag = (struct skb_frag_struct *)priv;
+		frag = (skb_frag_t *)priv;
 		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
 	}
 
@@ -1159,7 +1159,7 @@ static int hns3_nic_bd_num(struct sk_buff *skb)
 	bd_num = hns3_tx_bd_count(size);
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		int frag_bd_num;
 
 		size = skb_frag_size(frag);
@@ -1290,7 +1290,7 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 		&tx_ring_data(priv, skb->queue_mapping);
 	struct hns3_enet_ring *ring = ring_data->ring;
 	struct netdev_queue *dev_queue;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	int next_to_use_head;
 	int buf_num;
 	int seg_num;

@@ -280,11 +280,10 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 		hw_buffer.s.size = skb_headlen(skb);
 		CVM_OCT_SKB_CB(skb)[0] = hw_buffer.u64;
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			struct skb_frag_struct *fs = skb_shinfo(skb)->frags + i;
+			skb_frag_t *fs = skb_shinfo(skb)->frags + i;
 
 			hw_buffer.s.addr =
-				XKPHYS_TO_PHYS((u64)(page_address(fs->page.p) +
-					       fs->page_offset));
+				XKPHYS_TO_PHYS((u64)skb_frag_address(fs));
 			hw_buffer.s.size = fs->size;
 			CVM_OCT_SKB_CB(skb)[i + 1] = hw_buffer.u64;
 		}

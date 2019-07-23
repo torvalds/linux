@@ -2030,12 +2030,12 @@ jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 	bool hidma = jme->dev->features & NETIF_F_HIGHDMA;
 	int i, nr_frags = skb_shinfo(skb)->nr_frags;
 	int mask = jme->tx_ring_mask;
-	const struct skb_frag_struct *frag;
 	u32 len;
 	int ret = 0;
 
 	for (i = 0 ; i < nr_frags ; ++i) {
-		frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+
 		ctxdesc = txdesc + ((idx + i + 2) & (mask));
 		ctxbi = txbi + ((idx + i + 2) & (mask));
 
@@ -2046,7 +2046,6 @@ jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 			jme_drop_tx_map(jme, idx, i);
 			goto out;
 		}
-
 	}
 
 	len = skb_is_nonlinear(skb) ? skb_headlen(skb) : skb->len;

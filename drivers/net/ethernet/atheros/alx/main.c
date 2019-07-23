@@ -1465,9 +1465,7 @@ static int alx_map_tx_skb(struct alx_tx_queue *txq, struct sk_buff *skb)
 	tpd->len = cpu_to_le16(maplen);
 
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++) {
-		struct skb_frag_struct *frag;
-
-		frag = &skb_shinfo(skb)->frags[f];
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[f];
 
 		if (++txq->write_idx == txq->count)
 			txq->write_idx = 0;

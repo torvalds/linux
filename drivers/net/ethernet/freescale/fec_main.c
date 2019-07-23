@@ -365,7 +365,7 @@ fec_enet_txq_submit_frag_skb(struct fec_enet_priv_tx_q *txq,
 		status = fec16_to_cpu(bdp->cbd_sc);
 		status &= ~BD_ENET_TX_STATS;
 		status |= (BD_ENET_TX_TC | BD_ENET_TX_READY);
-		frag_len = skb_shinfo(skb)->frags[frag].size;
+		frag_len = skb_frag_size(&skb_shinfo(skb)->frags[frag]);
 
 		/* Handle the last BD specially */
 		if (frag == nr_frags - 1) {
@@ -387,7 +387,7 @@ fec_enet_txq_submit_frag_skb(struct fec_enet_priv_tx_q *txq,
 			ebdp->cbd_esc = cpu_to_fec32(estatus);
 		}
 
-		bufaddr = page_address(this_frag->page.p) + this_frag->page_offset;
+		bufaddr = skb_frag_address(this_frag);
 
 		index = fec_enet_get_bd_index(bdp, &txq->bd);
 		if (((unsigned long) bufaddr) & fep->tx_align ||

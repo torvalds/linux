@@ -1434,7 +1434,7 @@ static void lan743x_tx_frame_add_lso(struct lan743x_tx *tx,
 }
 
 static int lan743x_tx_frame_add_fragment(struct lan743x_tx *tx,
-					 const struct skb_frag_struct *fragment,
+					 const skb_frag_t *fragment,
 					 unsigned int frame_length)
 {
 	/* called only from within lan743x_tx_xmit_frame
@@ -1607,9 +1607,8 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 		goto finish;
 
 	for (j = 0; j < nr_frags; j++) {
-		const struct skb_frag_struct *frag;
+		const skb_frag_t *frag = &(skb_shinfo(skb)->frags[j]);
 
-		frag = &(skb_shinfo(skb)->frags[j]);
 		if (lan743x_tx_frame_add_fragment(tx, frag, frame_length)) {
 			/* upon error no need to call
 			 *	lan743x_tx_frame_end

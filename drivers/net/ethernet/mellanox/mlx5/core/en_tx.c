@@ -210,7 +210,7 @@ mlx5e_txwqe_build_dsegs(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	}
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		int fsz = skb_frag_size(frag);
 
 		dma_addr = skb_frag_dma_map(sq->pdev, frag, 0, fsz,

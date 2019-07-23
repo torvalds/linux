@@ -1286,7 +1286,7 @@ myri10ge_vlan_rx(struct net_device *dev, void *addr, struct sk_buff *skb)
 {
 	u8 *va;
 	struct vlan_ethhdr *veh;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	__wsum vsum;
 
 	va = addr;
@@ -1318,7 +1318,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum)
 {
 	struct myri10ge_priv *mgp = ss->mgp;
 	struct sk_buff *skb;
-	struct skb_frag_struct *rx_frags;
+	skb_frag_t *rx_frags;
 	struct myri10ge_rx_buf *rx;
 	int i, idx, remainder, bytes;
 	struct pci_dev *pdev = mgp->pdev;
@@ -1351,7 +1351,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum)
 		return 0;
 	}
 	rx_frags = skb_shinfo(skb)->frags;
-	/* Fill skb_frag_struct(s) with data from our receive */
+	/* Fill skb_frag_t(s) with data from our receive */
 	for (i = 0, remainder = len; remainder > 0; i++) {
 		myri10ge_unmap_rx_page(pdev, &rx->info[idx], bytes);
 		skb_fill_page_desc(skb, i, rx->info[idx].page,
@@ -1365,7 +1365,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum)
 
 	/* remove padding */
 	rx_frags[0].page_offset += MXGEFW_PAD;
-	rx_frags[0].size -= MXGEFW_PAD;
+	skb_frag_size_sub(&rx_frags[0], MXGEFW_PAD);
 	len -= MXGEFW_PAD;
 
 	skb->len = len;
@@ -2628,7 +2628,7 @@ static netdev_tx_t myri10ge_xmit(struct sk_buff *skb,
 	struct myri10ge_slice_state *ss;
 	struct mcp_kreq_ether_send *req;
 	struct myri10ge_tx_buf *tx;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	struct netdev_queue *netdev_queue;
 	dma_addr_t bus;
 	u32 low;

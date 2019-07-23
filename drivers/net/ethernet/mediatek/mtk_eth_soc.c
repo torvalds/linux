@@ -696,7 +696,7 @@ static int mtk_tx_map(struct sk_buff *skb, struct net_device *dev,
 	txd = itxd;
 	nr_frags = skb_shinfo(skb)->nr_frags;
 	for (i = 0; i < nr_frags; i++) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		unsigned int offset = 0;
 		int frag_size = skb_frag_size(frag);
 
@@ -781,7 +781,7 @@ err_dma:
 static inline int mtk_cal_txd_req(struct sk_buff *skb)
 {
 	int i, nfrags;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 
 	nfrags = 1;
 	if (skb_is_gso(skb)) {

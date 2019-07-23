@@ -1471,7 +1471,7 @@ static int __wil_tx_ring_tso_edma(struct wil6210_priv *wil,
 	/* Rest of the descriptors are from the SKB fragments */
 	for (f = 0; f < nr_frags; f++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[f];
-		int len = frag->size;
+		int len = skb_frag_size(frag);
 
 		wil_dbg_txrx(wil, "TSO: frag[%d]: len %u, descs_used %d\n", f,
 			     len, descs_used);

@@ -245,7 +245,7 @@ static int hns_nic_maybe_stop_tso(
 	int frag_num;
 	struct sk_buff *skb = *out_skb;
 	struct sk_buff *new_skb = NULL;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 
 	size = skb_headlen(skb);
 	buf_num = (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
@@ -309,7 +309,7 @@ netdev_tx_t hns_nic_net_xmit_hw(struct net_device *ndev,
 	struct hnae_ring *ring = ring_data->ring;
 	struct device *dev = ring_to_dev(ring);
 	struct netdev_queue *dev_queue;
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	int buf_num;
 	int seg_num;
 	dma_addr_t dma;
