@@ -1664,6 +1664,13 @@ static int f2fs_setflags_common(struct inode *inode, u32 iflags, u32 mask)
 	if (IS_NOQUOTA(inode))
 		return -EPERM;
 
+	if ((iflags ^ fi->i_flags) & F2FS_CASEFOLD_FL) {
+		if (!f2fs_sb_has_casefold(F2FS_I_SB(inode)))
+			return -EOPNOTSUPP;
+		if (!f2fs_empty_dir(inode))
+			return -ENOTEMPTY;
+	}
+
 	fi->i_flags = iflags | (fi->i_flags & ~mask);
 
 	if (fi->i_flags & F2FS_PROJINHERIT_FL)
@@ -1698,6 +1705,7 @@ static const struct {
 	{ F2FS_INDEX_FL,	FS_INDEX_FL },
 	{ F2FS_DIRSYNC_FL,	FS_DIRSYNC_FL },
 	{ F2FS_PROJINHERIT_FL,	FS_PROJINHERIT_FL },
+	{ F2FS_CASEFOLD_FL,	FS_CASEFOLD_FL },
 };
 
 #define F2FS_GETTABLE_FS_FL (		\
@@ -1711,7 +1719,8 @@ static const struct {
 		FS_PROJINHERIT_FL |	\
 		FS_ENCRYPT_FL |		\
 		FS_INLINE_DATA_FL |	\
-		FS_NOCOW_FL)
+		FS_NOCOW_FL |		\
+		FS_CASEFOLD_FL)
 
 #define F2FS_SETTABLE_FS_FL (		\
 		FS_SYNC_FL |		\
@@ -1720,7 +1729,8 @@ static const struct {
 		FS_NODUMP_FL |		\
 		FS_NOATIME_FL |		\
 		FS_DIRSYNC_FL |		\
-		FS_PROJINHERIT_FL)
+		FS_PROJINHERIT_FL |	\
+		FS_CASEFOLD_FL)
 
 /* Convert f2fs on-disk i_flags to FS_IOC_{GET,SET}FLAGS flags */
 static inline u32 f2fs_iflags_to_fsflags(u32 iflags)

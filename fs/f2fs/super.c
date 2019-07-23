@@ -3152,6 +3152,7 @@ static int f2fs_setup_casefold(struct f2fs_sb_info *sbi)
 
 		sbi->s_encoding = encoding;
 		sbi->s_encoding_flags = encoding_flags;
+		sbi->sb->s_d_op = &f2fs_dentry_ops;
 	}
 #else
 	if (f2fs_sb_has_casefold(sbi)) {

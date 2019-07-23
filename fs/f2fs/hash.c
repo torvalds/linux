@@ -14,6 +14,7 @@
 #include <linux/f2fs_fs.h>
 #include <linux/cryptohash.h>
 #include <linux/pagemap.h>
+#include <linux/unicode.h>
 
 #include "f2fs.h"
 
@@ -67,7 +68,7 @@ static void str2hashbuf(const unsigned char *msg, size_t len,
 		*buf++ = pad;
 }
 
-f2fs_hash_t f2fs_dentry_hash(const struct qstr *name_info,
+static f2fs_hash_t __f2fs_dentry_hash(const struct qstr *name_info,
 				struct fscrypt_name *fname)
 {
 	__u32 hash;
@@ -102,4 +103,38 @@ f2fs_hash_t f2fs_dentry_hash(const struct qstr *name_info,
 	hash = buf[0];
 	f2fs_hash = cpu_to_le32(hash & ~F2FS_HASH_COL_BIT);
 	return f2fs_hash;
+}
+
+f2fs_hash_t f2fs_dentry_hash(const struct inode *dir,
+		const struct qstr *name_info, struct fscrypt_name *fname)
+{
+#ifdef CONFIG_UNICODE
+	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
+	const struct unicode_map *um = sbi->s_encoding;
+	int r, dlen;
+	unsigned char *buff;
+	struct qstr folded;
+
+	if (!name_info->len || !IS_CASEFOLDED(dir))
+		goto opaque_seq;
+
+	buff = f2fs_kzalloc(sbi, sizeof(char) * PATH_MAX, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
+	dlen = utf8_casefold(um, name_info, buff, PATH_MAX);
+	if (dlen < 0) {
+		kvfree(buff);
+		goto opaque_seq;
+	}
+	folded.name = buff;
+	folded.len = dlen;
+	r = __f2fs_dentry_hash(&folded, fname);
+
+	kvfree(buff);
+	return r;
+
+opaque_seq:
+#endif
+	return __f2fs_dentry_hash(name_info, fname);
 }
