@@ -549,10 +549,7 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 				lm3532_als_configure(priv, led);
 		}
 
-		led->num_leds = fwnode_property_read_u32_array(child,
-							       "led-sources",
-							       NULL, 0);
-
+		led->num_leds = fwnode_property_count_u32(child, "led-sources");
 		if (led->num_leds > LM3532_MAX_LED_STRINGS) {
 			dev_err(&priv->client->dev, "To many LED string defined\n");
 			continue;
