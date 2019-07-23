@@ -3614,6 +3614,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	mutex_init(&trans_pcie->fw_mon_data.mutex);
 #endif
 
+	iwl_dbg_tlv_init(trans);
+
 	return trans;
 
 out_free_ict:

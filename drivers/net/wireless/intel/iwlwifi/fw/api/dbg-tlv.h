@@ -63,19 +63,6 @@
 #define IWL_FW_INI_MAX_CFG_NAME			64
 
 /**
- * struct iwl_fw_ini_header: Common Header for all debug group TLV's structures
- *
- * @tlv_version: version info
- * @apply_point: &enum iwl_fw_ini_apply_point
- * @data: TLV data followed
- */
-struct iwl_fw_ini_header {
-	__le32 tlv_version;
-	__le32 apply_point;
-	u8 data[];
-} __packed; /* FW_DEBUG_TLV_HEADER_S */
-
-/**
  * enum iwl_fw_ini_dbg_domain - debug domains
  * allows to send host cmd or collect memory region if a given domain is enabled
  *
@@ -103,22 +90,17 @@ struct iwl_fw_ini_hcmd {
 } __packed; /* FW_DEBUG_TLV_HCMD_DATA_API_S_VER_1 */
 
 /**
- * struct iwl_fw_ini_hcmd_tlv - (IWL_UCODE_TLV_TYPE_HCMD)
- * Generic Host command pass through TLV
+ * struct iwl_fw_ini_header - Common Header for all ini debug TLV's structures
  *
- * @header: header
- * @domain: send command only if the specific domain is enabled
- *	&enum iwl_fw_ini_dbg_domain
- * @period_msec: period in which the hcmd will be sent to FW. Measured in msec
- *	(0 = one time command).
- * @hcmd: a variable length host-command to be sent to apply the configuration.
+ * @version: TLV version
+ * @domain: domain of the TLV. One of &enum iwl_fw_ini_dbg_domain
+ * @data: TLV data
  */
-struct iwl_fw_ini_hcmd_tlv {
-	struct iwl_fw_ini_header header;
+struct iwl_fw_ini_header {
+	__le32 version;
 	__le32 domain;
-	__le32 period_msec;
-	struct iwl_fw_ini_hcmd hcmd;
-} __packed; /* FW_DEBUG_TLV_HCMD_API_S_VER_1 */
+	u8 data[];
+} __packed; /* FW_TLV_DEBUG_HEADER_S_VER_1 */
 
 #define IWL_FW_INI_MAX_REGION_ID	64
 #define IWL_FW_INI_MAX_NAME		32
@@ -396,6 +378,22 @@ struct iwl_fw_ini_trigger_tlv {
 	__le64 regions_mask;
 	__le32 data[];
 } __packed; /* FW_TLV_DEBUG_TRIGGER_API_S_VER_1 */
+
+/**
+ * struct iwl_fw_ini_hcmd_tlv - Generic Host command pass through TLV
+ *
+ * @hdr: debug header
+ * @time_point: time point. One of &enum iwl_fw_ini_time_point
+ * @period_msec: interval at which the hcmd will be sent to the FW.
+ *	Measured in msec (0 = one time command)
+ * @hcmd: a variable length host-command to be sent to apply the configuration
+ */
+struct iwl_fw_ini_hcmd_tlv {
+	struct iwl_fw_ini_header hdr;
+	__le32 time_point;
+	__le32 period_msec;
+	struct iwl_fw_ini_hcmd hcmd;
+} __packed; /* FW_TLV_DEBUG_HCMD_API_S_VER_1 */
 
 /**
  * enum iwl_fw_ini_trigger_id
