@@ -96,6 +96,11 @@ enum crc_selection {
 	INTERSECT_WINDOW_NOT_A_NOT_B,
 };
 
+enum h_timing_div_mode {
+	H_TIMING_NO_DIV,
+	H_TIMING_DIV_BY2,
+};
+
 struct crc_params {
 	/* Regions used to calculate CRC*/
 	uint16_t windowa_x_start;

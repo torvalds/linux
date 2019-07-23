@@ -154,7 +154,7 @@ void optc1_program_timing(
 	uint32_t h_sync_polarity, v_sync_polarity;
 	uint32_t start_point = 0;
 	uint32_t field_num = 0;
-	uint32_t h_div_2;
+	enum h_timing_div_mode h_div = H_TIMING_NO_DIV;
 
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -285,10 +285,11 @@ void optc1_program_timing(
 	 * of stereo handled in explicit call
 	 */
 
-	h_div_2 = optc1_is_two_pixels_per_containter(&patched_crtc_timing);
-	REG_UPDATE(OTG_H_TIMING_CNTL,
-			OTG_H_TIMING_DIV_BY2, h_div_2 || optc1->opp_count == 2);
+	if (optc1_is_two_pixels_per_containter(&patched_crtc_timing) || optc1->opp_count == 2)
+		h_div = H_TIMING_DIV_BY2;
 
+	REG_UPDATE(OTG_H_TIMING_CNTL,
+		OTG_H_TIMING_DIV_BY2, h_div);
 }
 
 void optc1_set_vtg_params(struct timing_generator *optc,
