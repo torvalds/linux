@@ -1083,6 +1083,9 @@ static int smu_hw_init(void *handle)
 		}
 	}
 
+	if (!smu->pm_enabled)
+		return 0;
+
 	ret = smu_feature_init_dpm(smu);
 	if (ret)
 		goto failed;
