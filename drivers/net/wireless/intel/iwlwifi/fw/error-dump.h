@@ -379,6 +379,18 @@ struct iwl_fw_ini_error_dump_register {
 	__le32 data;
 } __packed;
 
+/**
+ * struct iwl_fw_ini_dump_cfg_name - configuration name
+ * @image_type: image type the configuration is related to
+ * @cfg_name_len: length of the configuration name
+ * @cfg_name: name of the configuraiton
+ */
+struct iwl_fw_ini_dump_cfg_name {
+	__le32 image_type;
+	__le32 cfg_name_len;
+	u8 cfg_name[IWL_FW_INI_MAX_CFG_NAME];
+} __packed;
+
 /* struct iwl_fw_ini_dump_info - ini dump information
  * @version: dump version
  * @time_point: time point that caused the dump collection
@@ -396,16 +408,12 @@ struct iwl_fw_ini_error_dump_register {
  * @lmac_minor: lmac minor version
  * @umac_major: umac major version
  * @umac_minor: umac minor version
+ * @fw_mon_mode: FW monitor mode &enum iwl_fw_ini_buffer_location
+ * @regions_mask: bitmap mask of regions ids in the dump
  * @build_tag_len: length of the build tag
  * @build_tag: build tag string
- * @img_name_len: length of the FW image name
- * @img_name: FW image name
- * @internal_dbg_cfg_name_len: length of the internal debug configuration name
- * @internal_dbg_cfg_name: internal debug configuration name
- * @external_dbg_cfg_name_len: length of the external debug configuration name
- * @external_dbg_cfg_name: external debug configuration name
- * @regions_num: number of region ids
- * @region_ids: region ids the trigger configured to collect
+ * @num_of_cfg_names: number of configuration name structs
+ * @cfg_names: configuration names
  */
 struct iwl_fw_ini_dump_info {
 	__le32 version;
@@ -424,16 +432,12 @@ struct iwl_fw_ini_dump_info {
 	__le32 lmac_minor;
 	__le32 umac_major;
 	__le32 umac_minor;
+	__le32 fw_mon_mode;
+	__le64 regions_mask;
 	__le32 build_tag_len;
 	u8 build_tag[FW_VER_HUMAN_READABLE_SZ];
-	__le32 img_name_len;
-	u8 img_name[IWL_FW_INI_MAX_IMG_NAME_LEN];
-	__le32 internal_dbg_cfg_name_len;
-	u8 internal_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
-	__le32 external_dbg_cfg_name_len;
-	u8 external_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
-	__le32 regions_num;
-	__le32 region_ids[];
+	__le32 num_of_cfg_names;
+	struct iwl_fw_ini_dump_cfg_name cfg_names[];
 } __packed;
 
 /**

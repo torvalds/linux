@@ -1864,7 +1864,15 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_dump_entry *entry;
 	struct iwl_fw_error_dump_data *tlv;
 	struct iwl_fw_ini_dump_info *dump;
+	struct iwl_dbg_tlv_node *node;
+	struct iwl_fw_ini_dump_cfg_name *cfg_name;
 	u32 size = sizeof(*tlv) + sizeof(*dump);
+	u32 num_of_cfg_names = 0;
+
+	list_for_each_entry(node, &fwrt->trans->dbg.debug_info_tlv_list, list) {
+		size += sizeof(*cfg_name);
+		num_of_cfg_names++;
+	}
 
 	entry = kmalloc(sizeof(*entry) + size, GFP_KERNEL);
 	if (!entry)
@@ -1901,9 +1909,26 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	dump->umac_major = cpu_to_le32(fwrt->dump.fw_ver.umac_major);
 	dump->umac_minor = cpu_to_le32(fwrt->dump.fw_ver.umac_minor);
 
+	dump->fw_mon_mode = cpu_to_le32(fwrt->trans->dbg.ini_dest);
+	dump->regions_mask = trigger->regions_mask;
+
 	dump->build_tag_len = cpu_to_le32(sizeof(dump->build_tag));
 	memcpy(dump->build_tag, fwrt->fw->human_readable,
 	       sizeof(dump->build_tag));
+
+	cfg_name = dump->cfg_names;
+	dump->num_of_cfg_names = cpu_to_le32(num_of_cfg_names);
+	list_for_each_entry(node, &fwrt->trans->dbg.debug_info_tlv_list, list) {
+		struct iwl_fw_ini_debug_info_tlv *debug_info =
+			(void *)node->tlv.data;
+
+		cfg_name->image_type = debug_info->image_type;
+		cfg_name->cfg_name_len =
+			cpu_to_le32(IWL_FW_INI_MAX_CFG_NAME);
+		memcpy(cfg_name->cfg_name, debug_info->debug_cfg_name,
+		       sizeof(cfg_name->cfg_name));
+		cfg_name++;
+	}
 
 	/* add dump info TLV to the beginning of the list since it needs to be
 	 * the first TLV in the dump

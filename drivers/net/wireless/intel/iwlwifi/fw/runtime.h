@@ -177,10 +177,6 @@ struct iwl_fw_runtime {
 
 		struct iwl_txf_iter_data txf_iter_data;
 
-		u8 img_name[IWL_FW_INI_MAX_IMG_NAME_LEN];
-		u8 internal_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
-		u8 external_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
-
 		struct {
 			u8 type;
 			u8 subtype;

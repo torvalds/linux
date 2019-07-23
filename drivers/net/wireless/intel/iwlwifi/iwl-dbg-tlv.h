@@ -65,11 +65,11 @@
 #include <linux/types.h>
 
 /**
- * struct iwl_apply_point_data
- * @list: list to go through the TLVs of the apply point
- * @tlv: a debug TLV
+ * struct iwl_dbg_tlv_node - debug TLV node
+ * @list: list of &struct iwl_dbg_tlv_node
+ * @tlv: debug TLV
  */
-struct iwl_apply_point_data {
+struct iwl_dbg_tlv_node {
 	struct list_head list;
 	struct iwl_ucode_tlv tlv;
 };

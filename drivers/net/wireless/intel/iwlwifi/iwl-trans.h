@@ -722,6 +722,7 @@ struct iwl_self_init_dram {
  * @hw_error: equals true if hw error interrupt was received from the FW
  * @ini_dest: debug monitor destination uses &enum iwl_fw_ini_buffer_location
  * @active_regions: active regions
+ * @debug_info_tlv_list: list of debug info TLVs
  */
 struct iwl_trans_debug {
 	u8 n_dest_reg;
@@ -747,6 +748,7 @@ struct iwl_trans_debug {
 	enum iwl_fw_ini_buffer_location ini_dest;
 
 	struct iwl_ucode_tlv *active_regions[IWL_FW_INI_MAX_REGION_ID];
+	struct list_head debug_info_tlv_list;
 };
 
 /**

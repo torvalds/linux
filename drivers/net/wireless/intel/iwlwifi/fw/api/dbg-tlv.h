@@ -60,6 +60,8 @@
 
 #include <linux/bitops.h>
 
+#define IWL_FW_INI_MAX_CFG_NAME			64
+
 /**
  * struct iwl_fw_ini_header: Common Header for all debug group TLV's structures
  *
@@ -295,6 +297,21 @@ struct iwl_fw_ini_region_tlv {
 } __packed; /* FW_TLV_DEBUG_REGION_API_S_VER_1 */
 
 /**
+ * struct iwl_fw_ini_debug_info_tlv
+ *
+ * debug configuration name for a specific image
+ *
+ * @hdr: debug header
+ * @image_type: image type
+ * @debug_cfg_name: debug configuration name
+ */
+struct iwl_fw_ini_debug_info_tlv {
+	struct iwl_fw_ini_header hdr;
+	__le32 image_type;
+	u8 debug_cfg_name[IWL_FW_INI_MAX_CFG_NAME];
+} __packed; /* FW_TLV_DEBUG_INFO_API_S_VER_1 */
+
+/**
  * struct iwl_fw_ini_trigger
  *
  * @trigger_id: &enum iwl_fw_ini_trigger_id
@@ -379,28 +396,6 @@ struct iwl_fw_ini_trigger_tlv {
 	__le64 regions_mask;
 	__le32 data[];
 } __packed; /* FW_TLV_DEBUG_TRIGGER_API_S_VER_1 */
-
-#define IWL_FW_INI_MAX_IMG_NAME_LEN 32
-#define IWL_FW_INI_MAX_DBG_CFG_NAME_LEN 64
-
-/**
- * struct iwl_fw_ini_debug_info_tlv - (IWL_UCODE_TLV_TYPE_DEBUG_INFO)
- *
- * holds image name and debug configuration name
- *
- * @header: header
- * @img_name_len: length of the image name string
- * @img_name: image name string
- * @dbg_cfg_name_len : length of the debug configuration name string
- * @dbg_cfg_name: debug configuration name string
- */
-struct iwl_fw_ini_debug_info_tlv {
-	struct iwl_fw_ini_header header;
-	__le32 img_name_len;
-	u8 img_name[IWL_FW_INI_MAX_IMG_NAME_LEN];
-	__le32 dbg_cfg_name_len;
-	u8 dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
-} __packed; /* FW_DEBUG_TLV_INFO_API_S_VER_1 */
 
 /**
  * enum iwl_fw_ini_trigger_id
