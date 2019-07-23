@@ -597,13 +597,16 @@ void rdma_counter_init(struct ib_device *dev)
 	struct rdma_port_counter *port_counter;
 	u32 port;
 
-	if (!dev->ops.alloc_hw_stats || !dev->port_data)
+	if (!dev->port_data)
 		return;
 
 	rdma_for_each_port(dev, port) {
 		port_counter = &dev->port_data[port].port_counter;
 		port_counter->mode.mode = RDMA_COUNTER_MODE_NONE;
 		mutex_init(&port_counter->lock);
+
+		if (!dev->ops.alloc_hw_stats)
+			continue;
 
 		port_counter->hstats = dev->ops.alloc_hw_stats(dev, port);
 		if (!port_counter->hstats)
@@ -626,9 +629,6 @@ void rdma_counter_release(struct ib_device *dev)
 {
 	struct rdma_port_counter *port_counter;
 	u32 port;
-
-	if (!dev->ops.alloc_hw_stats)
-		return;
 
 	rdma_for_each_port(dev, port) {
 		port_counter = &dev->port_data[port].port_counter;
