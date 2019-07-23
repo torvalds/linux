@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-noncoherent.h>
 #include <linux/dma-contiguous.h>
 #include <linux/highmem.h>
 #include <linux/memblock.h>
@@ -1125,6 +1126,19 @@ int arm_dma_supported(struct device *dev, u64 mask)
 
 static const struct dma_map_ops *arm_get_dma_map_ops(bool coherent)
 {
+	/*
+	 * When CONFIG_ARM_LPAE is set, physical address can extend above
+	 * 32-bits, which then can't be addressed by devices that only support
+	 * 32-bit DMA.
+	 * Use the generic dma-direct / swiotlb ops code in that case, as that
+	 * handles bounce buffering for us.
+	 *
+	 * Note: this checks CONFIG_ARM_LPAE instead of CONFIG_SWIOTLB as the
+	 * latter is also selected by the Xen code, but that code for now relies
+	 * on non-NULL dev_dma_ops.  To be cleaned up later.
+	 */
+	if (IS_ENABLED(CONFIG_ARM_LPAE))
+		return NULL;
 	return coherent ? &arm_coherent_dma_ops : &arm_dma_ops;
 }
 
@@ -2329,6 +2343,9 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	const struct dma_map_ops *dma_ops;
 
 	dev->archdata.dma_coherent = coherent;
+#ifdef CONFIG_SWIOTLB
+	dev->dma_coherent = coherent;
+#endif
 
 	/*
 	 * Don't override the dma_ops if they have already been set. Ideally
@@ -2363,3 +2380,47 @@ void arch_teardown_dma_ops(struct device *dev)
 	/* Let arch_setup_dma_ops() start again from scratch upon re-probe */
 	set_dma_ops(dev, NULL);
 }
+
+#ifdef CONFIG_SWIOTLB
+void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
+		size_t size, enum dma_data_direction dir)
+{
+	__dma_page_cpu_to_dev(phys_to_page(paddr), paddr & (PAGE_SIZE - 1),
+			      size, dir);
+}
+
+void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
+		size_t size, enum dma_data_direction dir)
+{
+	__dma_page_dev_to_cpu(phys_to_page(paddr), paddr & (PAGE_SIZE - 1),
+			      size, dir);
+}
+
+long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
+		dma_addr_t dma_addr)
+{
+	return dma_to_pfn(dev, dma_addr);
+}
+
+pgprot_t arch_dma_mmap_pgprot(struct device *dev, pgprot_t prot,
+		unsigned long attrs)
+{
+	if (!dev_is_dma_coherent(dev))
+		return __get_dma_pgprot(attrs, prot);
+	return prot;
+}
+
+void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
+		gfp_t gfp, unsigned long attrs)
+{
+	return __dma_alloc(dev, size, dma_handle, gfp,
+			   __get_dma_pgprot(attrs, PAGE_KERNEL), false,
+			   attrs, __builtin_return_address(0));
+}
+
+void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
+		dma_addr_t dma_handle, unsigned long attrs)
+{
+	__arm_dma_free(dev, size, cpu_addr, dma_handle, attrs, false);
+}
+#endif /* CONFIG_SWIOTLB */
