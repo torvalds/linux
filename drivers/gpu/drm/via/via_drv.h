@@ -113,12 +113,32 @@ enum via_family {
 };
 
 /* VIA MMIO register access */
-#define VIA_BASE ((dev_priv->mmio))
+static inline u32 via_read(struct drm_via_private *dev_priv, u32 reg)
+{
+	return readl((void __iomem *)(dev_priv->mmio->handle + reg));
+}
 
-#define VIA_READ(reg)		DRM_READ32(VIA_BASE, reg)
-#define VIA_WRITE(reg, val)	DRM_WRITE32(VIA_BASE, reg, val)
-#define VIA_READ8(reg)		DRM_READ8(VIA_BASE, reg)
-#define VIA_WRITE8(reg, val)	DRM_WRITE8(VIA_BASE, reg, val)
+static inline void via_write(struct drm_via_private *dev_priv, u32 reg,
+			     u32 val)
+{
+	writel(val, (void __iomem *)(dev_priv->mmio->handle + reg));
+}
+
+static inline void via_write8(struct drm_via_private *dev_priv, u32 reg,
+			      u32 val)
+{
+	writeb(val, (void __iomem *)(dev_priv->mmio->handle + reg));
+}
+
+static inline void via_write8_mask(struct drm_via_private *dev_priv,
+				   u32 reg, u32 mask, u32 val)
+{
+	u32 tmp;
+
+	tmp = readb((void __iomem *)(dev_priv->mmio->handle + reg));
+	tmp = (tmp & ~mask) | (val & mask);
+	writeb(tmp, (void __iomem *)(dev_priv->mmio->handle + reg));
+}
 
 extern const struct drm_ioctl_desc via_ioctls[];
 extern int via_max_ioctl;

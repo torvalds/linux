@@ -214,16 +214,16 @@ via_fire_dmablit(struct drm_device *dev, drm_via_sg_info_t *vsg, int engine)
 {
 	drm_via_private_t *dev_priv = (drm_via_private_t *)dev->dev_private;
 
-	VIA_WRITE(VIA_PCI_DMA_MAR0 + engine*0x10, 0);
-	VIA_WRITE(VIA_PCI_DMA_DAR0 + engine*0x10, 0);
-	VIA_WRITE(VIA_PCI_DMA_CSR0 + engine*0x04, VIA_DMA_CSR_DD | VIA_DMA_CSR_TD |
+	via_write(dev_priv, VIA_PCI_DMA_MAR0 + engine*0x10, 0);
+	via_write(dev_priv, VIA_PCI_DMA_DAR0 + engine*0x10, 0);
+	via_write(dev_priv, VIA_PCI_DMA_CSR0 + engine*0x04, VIA_DMA_CSR_DD | VIA_DMA_CSR_TD |
 		  VIA_DMA_CSR_DE);
-	VIA_WRITE(VIA_PCI_DMA_MR0  + engine*0x04, VIA_DMA_MR_CM | VIA_DMA_MR_TDIE);
-	VIA_WRITE(VIA_PCI_DMA_BCR0 + engine*0x10, 0);
-	VIA_WRITE(VIA_PCI_DMA_DPR0 + engine*0x10, vsg->chain_start);
+	via_write(dev_priv, VIA_PCI_DMA_MR0  + engine*0x04, VIA_DMA_MR_CM | VIA_DMA_MR_TDIE);
+	via_write(dev_priv, VIA_PCI_DMA_BCR0 + engine*0x10, 0);
+	via_write(dev_priv, VIA_PCI_DMA_DPR0 + engine*0x10, vsg->chain_start);
 	wmb();
-	VIA_WRITE(VIA_PCI_DMA_CSR0 + engine*0x04, VIA_DMA_CSR_DE | VIA_DMA_CSR_TS);
-	VIA_READ(VIA_PCI_DMA_CSR0 + engine*0x04);
+	via_write(dev_priv, VIA_PCI_DMA_CSR0 + engine*0x04, VIA_DMA_CSR_DE | VIA_DMA_CSR_TS);
+	via_read(dev_priv, VIA_PCI_DMA_CSR0 + engine*0x04);
 }
 
 /*
@@ -291,7 +291,7 @@ via_abort_dmablit(struct drm_device *dev, int engine)
 {
 	drm_via_private_t *dev_priv = (drm_via_private_t *)dev->dev_private;
 
-	VIA_WRITE(VIA_PCI_DMA_CSR0 + engine*0x04, VIA_DMA_CSR_TA);
+	via_write(dev_priv, VIA_PCI_DMA_CSR0 + engine*0x04, VIA_DMA_CSR_TA);
 }
 
 static void
@@ -299,7 +299,7 @@ via_dmablit_engine_off(struct drm_device *dev, int engine)
 {
 	drm_via_private_t *dev_priv = (drm_via_private_t *)dev->dev_private;
 
-	VIA_WRITE(VIA_PCI_DMA_CSR0 + engine*0x04, VIA_DMA_CSR_TD | VIA_DMA_CSR_DD);
+	via_write(dev_priv, VIA_PCI_DMA_CSR0 + engine*0x04, VIA_DMA_CSR_TD | VIA_DMA_CSR_DD);
 }
 
 
@@ -330,7 +330,7 @@ via_dmablit_handler(struct drm_device *dev, int engine, int from_irq)
 		spin_lock_irqsave(&blitq->blit_lock, irqsave);
 
 	done_transfer = blitq->is_active &&
-	  ((status = VIA_READ(VIA_PCI_DMA_CSR0 + engine*0x04)) & VIA_DMA_CSR_TD);
+	  ((status = via_read(dev_priv, VIA_PCI_DMA_CSR0 + engine*0x04)) & VIA_DMA_CSR_TD);
 	done_transfer = done_transfer || (blitq->aborting && !(status & VIA_DMA_CSR_DE));
 
 	cur = blitq->cur;
@@ -349,7 +349,7 @@ via_dmablit_handler(struct drm_device *dev, int engine, int from_irq)
 		 * Clear transfer done flag.
 		 */
 
-		VIA_WRITE(VIA_PCI_DMA_CSR0 + engine*0x04,  VIA_DMA_CSR_TD);
+		via_write(dev_priv, VIA_PCI_DMA_CSR0 + engine*0x04,  VIA_DMA_CSR_TD);
 
 		blitq->is_active = 0;
 		blitq->aborting = 0;
