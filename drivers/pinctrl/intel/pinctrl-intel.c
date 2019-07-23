@@ -29,7 +29,6 @@
 #define REVID_MASK			GENMASK(31, 16)
 
 #define PADBAR				0x00c
-#define GPI_IS				0x100
 
 #define PADOWN_BITS			4
 #define PADOWN_SHIFT(p)			((p) % 8 * PADOWN_BITS)
@@ -1341,9 +1340,6 @@ static int intel_pinctrl_probe(struct platform_device *pdev,
 
 		community->regs = regs;
 		community->pad_regs = regs + padbar;
-
-		if (!community->is_offset)
-			community->is_offset = GPI_IS;
 
 		ret = intel_pinctrl_add_padgroups(pctrl, community);
 		if (ret)

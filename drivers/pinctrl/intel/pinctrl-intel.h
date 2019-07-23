@@ -75,8 +75,7 @@ struct intel_padgroup {
  * @hostown_offset: Register offset of HOSTSW_OWN from @regs. If %0 then it
  *                  is assumed that the host owns the pin (rather than
  *                  ACPI).
- * @is_offset: Register offset of GPI_IS from @regs. If %0 then uses the
- *             default (%0x100).
+ * @is_offset: Register offset of GPI_IS from @regs.
  * @ie_offset: Register offset of GPI_IE from @regs.
  * @pin_base: Starting pin of pins in this community
  * @gpp_size: Maximum number of pads in each group, such as PADCFGLOCK,
