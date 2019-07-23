@@ -363,6 +363,7 @@ MODULE_DEVICE_TABLE(i2c, fsa9480_id);
 
 static const struct of_device_id fsa9480_of_match[] = {
 	{ .compatible = "fcs,fsa9480", },
+	{ .compatible = "fcs,fsa880", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, fsa9480_of_match);
