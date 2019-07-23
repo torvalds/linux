@@ -567,6 +567,10 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(struct ap_message *ap_msg,
 	payload_hdr = (struct pld_hdr *)((&(msg->pld_lenfmt))+lfmt);
 	*fcode = payload_hdr->func_val & 0xFFFF;
 
+	/* enable special processing based on the cprbs flags special bit */
+	if (msg->cprbx.flags & 0x20)
+		ap_msg->special = 1;
+
 	return 0;
 }
 

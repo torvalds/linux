@@ -104,8 +104,7 @@ static int fm3130_get_time(struct device *dev, struct rtc_time *t)
 	fm3130_rtc_mode(dev, FM3130_MODE_READ);
 
 	/* read the RTC date and time registers all at once */
-	tmp = i2c_transfer(to_i2c_adapter(fm3130->client->dev.parent),
-			fm3130->msg, 2);
+	tmp = i2c_transfer(fm3130->client->adapter, fm3130->msg, 2);
 	if (tmp != 2) {
 		dev_err(dev, "%s error %d\n", "read", tmp);
 		return -EIO;
@@ -197,8 +196,7 @@ static int fm3130_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	}
 
 	/* read the RTC alarm registers all at once */
-	tmp = i2c_transfer(to_i2c_adapter(fm3130->client->dev.parent),
-			&fm3130->msg[2], 2);
+	tmp = i2c_transfer(fm3130->client->adapter, &fm3130->msg[2], 2);
 	if (tmp != 2) {
 		dev_err(dev, "%s error %d\n", "read", tmp);
 		return -EIO;
@@ -348,7 +346,7 @@ static int fm3130_probe(struct i2c_client *client,
 	struct fm3130		*fm3130;
 	int			err = -ENODEV;
 	int			tmp;
-	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter	*adapter = client->adapter;
 
 	if (!i2c_check_functionality(adapter,
 			I2C_FUNC_I2C | I2C_FUNC_SMBUS_WRITE_BYTE_DATA))

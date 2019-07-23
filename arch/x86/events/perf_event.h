@@ -613,14 +613,11 @@ struct x86_pmu {
 	int		attr_rdpmc_broken;
 	int		attr_rdpmc;
 	struct attribute **format_attrs;
-	struct attribute **event_attrs;
-	struct attribute **caps_attrs;
 
 	ssize_t		(*events_sysfs_show)(char *page, u64 config);
-	struct attribute **cpu_events;
+	const struct attribute_group **attr_update;
 
 	unsigned long	attr_freeze_on_smi;
-	struct attribute **attrs;
 
 	/*
 	 * CPU Hotplug hooks
@@ -885,8 +882,6 @@ static inline void set_linear_ip(struct pt_regs *regs, unsigned long ip)
 
 ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event);
 ssize_t intel_event_sysfs_show(char *page, u64 config);
-
-struct attribute **merge_attr(struct attribute **a, struct attribute **b);
 
 ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
 			  char *page);

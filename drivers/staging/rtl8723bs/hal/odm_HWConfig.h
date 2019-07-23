@@ -140,8 +140,6 @@ HAL_STATUS ODM_ConfigBBWithHeaderFile(
 	PDM_ODM_T pDM_Odm, ODM_BB_Config_Type ConfigType
 );
 
-HAL_STATUS ODM_ConfigMACWithHeaderFile(PDM_ODM_T pDM_Odm);
-
 HAL_STATUS ODM_ConfigFWWithHeaderFile(
 	PDM_ODM_T pDM_Odm,
 	ODM_FW_Config_Type ConfigType,

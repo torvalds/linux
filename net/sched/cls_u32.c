@@ -20,9 +20,6 @@
  *	pure RSVP doesn't need such a general approach and can use
  *	much simpler (and faster) schemes, sort of cls_rsvp.c.
  *
- *	JHS: We should remove the CONFIG_NET_CLS_IND from here
- *	eventually when the meta match extension is made available
- *
  *	nfmark match added by Catalin(ux aka Dino) BOIE <catab at umbrella.ro>
  */
 
@@ -48,9 +45,7 @@ struct tc_u_knode {
 	u32			handle;
 	struct tc_u_hnode __rcu	*ht_up;
 	struct tcf_exts		exts;
-#ifdef CONFIG_NET_CLS_IND
 	int			ifindex;
-#endif
 	u8			fshift;
 	struct tcf_result	res;
 	struct tc_u_hnode __rcu	*ht_down;
@@ -176,12 +171,10 @@ check_terminal:
 			if (n->sel.flags & TC_U32_TERMINAL) {
 
 				*res = n->res;
-#ifdef CONFIG_NET_CLS_IND
 				if (!tcf_match_indev(skb, n->ifindex)) {
 					n = rcu_dereference_bh(n->next);
 					goto next_knode;
 				}
-#endif
 #ifdef CONFIG_CLS_U32_PERF
 				__this_cpu_inc(n->pf->rhit);
 #endif
@@ -761,7 +754,6 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 		tcf_bind_filter(tp, &n->res, base);
 	}
 
-#ifdef CONFIG_NET_CLS_IND
 	if (tb[TCA_U32_INDEV]) {
 		int ret;
 		ret = tcf_change_indev(net, tb[TCA_U32_INDEV], extack);
@@ -769,7 +761,6 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 			return -EINVAL;
 		n->ifindex = ret;
 	}
-#endif
 	return 0;
 }
 
@@ -817,9 +808,7 @@ static struct tc_u_knode *u32_init_knode(struct net *net, struct tcf_proto *tp,
 	new->handle = n->handle;
 	RCU_INIT_POINTER(new->ht_up, n->ht_up);
 
-#ifdef CONFIG_NET_CLS_IND
 	new->ifindex = n->ifindex;
-#endif
 	new->fshift = n->fshift;
 	new->res = n->res;
 	new->flags = n->flags;
@@ -1351,14 +1340,12 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		if (tcf_exts_dump(skb, &n->exts) < 0)
 			goto nla_put_failure;
 
-#ifdef CONFIG_NET_CLS_IND
 		if (n->ifindex) {
 			struct net_device *dev;
 			dev = __dev_get_by_index(net, n->ifindex);
 			if (dev && nla_put_string(skb, TCA_U32_INDEV, dev->name))
 				goto nla_put_failure;
 		}
-#endif
 #ifdef CONFIG_CLS_U32_PERF
 		gpf = kzalloc(sizeof(struct tc_u32_pcnt) +
 			      n->sel.nkeys * sizeof(u64),
@@ -1422,9 +1409,7 @@ static int __init init_u32(void)
 #ifdef CONFIG_CLS_U32_PERF
 	pr_info("    Performance counters on\n");
 #endif
-#ifdef CONFIG_NET_CLS_IND
 	pr_info("    input device check on\n");
-#endif
 #ifdef CONFIG_NET_CLS_ACT
 	pr_info("    Actions configured\n");
 #endif

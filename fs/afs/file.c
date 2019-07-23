@@ -310,8 +310,7 @@ int afs_page_filler(void *data, struct page *page)
 		/* fall through */
 	default:
 	go_on:
-		req = kzalloc(sizeof(struct afs_read) + sizeof(struct page *),
-			      GFP_KERNEL);
+		req = kzalloc(struct_size(req, array, 1), GFP_KERNEL);
 		if (!req)
 			goto enomem;
 
@@ -461,8 +460,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 		n++;
 	}
 
-	req = kzalloc(sizeof(struct afs_read) + sizeof(struct page *) * n,
-		      GFP_NOFS);
+	req = kzalloc(struct_size(req, array, n), GFP_NOFS);
 	if (!req)
 		return -ENOMEM;
 

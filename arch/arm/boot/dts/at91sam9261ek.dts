@@ -14,14 +14,6 @@
 	chosen {
 		bootargs = "rootfstype=ubifs ubi.mtd=5 root=ubi0:rootfs rw";
 		stdout-path = "serial0:115200n8";
-
-		clocksource {
-			timer = <&timer0>;
-		};
-
-		clockevent {
-			timer = <&timer1>;
-		};
 	};
 
 	memory {

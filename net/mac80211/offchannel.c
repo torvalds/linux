@@ -199,6 +199,10 @@ static void ieee80211_roc_notify_destroy(struct ieee80211_roc_work *roc)
 		cfg80211_remain_on_channel_expired(&roc->sdata->wdev,
 						   roc->cookie, roc->chan,
 						   GFP_KERNEL);
+	else
+		cfg80211_tx_mgmt_expired(&roc->sdata->wdev,
+					 roc->mgmt_tx_cookie,
+					 roc->chan, GFP_KERNEL);
 
 	list_del(&roc->list);
 	kfree(roc);

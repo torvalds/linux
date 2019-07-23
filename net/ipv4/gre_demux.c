@@ -83,7 +83,7 @@ int gre_parse_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	options = (__be32 *)(greh + 1);
 	if (greh->flags & GRE_CSUM) {
 		if (!skb_checksum_simple_validate(skb)) {
-			skb_checksum_try_convert(skb, IPPROTO_GRE, 0,
+			skb_checksum_try_convert(skb, IPPROTO_GRE,
 						 null_compute_pseudo);
 		} else if (csum_err) {
 			*csum_err = true;

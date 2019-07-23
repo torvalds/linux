@@ -64,7 +64,7 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 			       "be 0x%x\n", p_drv->name, did->prod_id[i],
 			       did->prod_id_hash[i], hash);
 			printk(KERN_DEBUG "pcmcia: see "
-				"Documentation/pcmcia/devicetable.txt for "
+				"Documentation/pcmcia/devicetable.rst for "
 				"details\n");
 		}
 		did++;

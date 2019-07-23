@@ -9,17 +9,16 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
+#include "xfs_shared.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
-#include "xfs_buf_item.h"
 #include "xfs_bmap_item.h"
 #include "xfs_log.h"
 #include "xfs_bmap.h"
 #include "xfs_icache.h"
-#include "xfs_trace.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_trans_space.h"
 
@@ -96,15 +95,6 @@ xfs_bui_item_format(
 }
 
 /*
- * Pinning has no meaning for an bui item, so just return.
- */
-STATIC void
-xfs_bui_item_pin(
-	struct xfs_log_item	*lip)
-{
-}
-
-/*
  * The unpin operation is the last place an BUI is manipulated in the log. It is
  * either inserted in the AIL or aborted in the event of a log I/O error. In
  * either case, the BUI transaction has been successfully committed to make it
@@ -123,71 +113,22 @@ xfs_bui_item_unpin(
 }
 
 /*
- * BUI items have no locking or pushing.  However, since BUIs are pulled from
- * the AIL when their corresponding BUDs are committed to disk, their situation
- * is very similar to being pinned.  Return XFS_ITEM_PINNED so that the caller
- * will eventually flush the log.  This should help in getting the BUI out of
- * the AIL.
- */
-STATIC uint
-xfs_bui_item_push(
-	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list)
-{
-	return XFS_ITEM_PINNED;
-}
-
-/*
  * The BUI has been either committed or aborted if the transaction has been
  * cancelled. If the transaction was cancelled, an BUD isn't going to be
  * constructed and thus we free the BUI here directly.
  */
 STATIC void
-xfs_bui_item_unlock(
+xfs_bui_item_release(
 	struct xfs_log_item	*lip)
 {
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
-		xfs_bui_release(BUI_ITEM(lip));
+	xfs_bui_release(BUI_ITEM(lip));
 }
 
-/*
- * The BUI is logged only once and cannot be moved in the log, so simply return
- * the lsn at which it's been logged.
- */
-STATIC xfs_lsn_t
-xfs_bui_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	return lsn;
-}
-
-/*
- * The BUI dependency tracking op doesn't do squat.  It can't because
- * it doesn't know where the free extent is coming from.  The dependency
- * tracking has to be handled by the "enclosing" metadata object.  For
- * example, for inodes, the inode is locked throughout the extent freeing
- * so the dependency should be recorded there.
- */
-STATIC void
-xfs_bui_item_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-}
-
-/*
- * This is the ops vector shared by all bui log items.
- */
 static const struct xfs_item_ops xfs_bui_item_ops = {
 	.iop_size	= xfs_bui_item_size,
 	.iop_format	= xfs_bui_item_format,
-	.iop_pin	= xfs_bui_item_pin,
 	.iop_unpin	= xfs_bui_item_unpin,
-	.iop_unlock	= xfs_bui_item_unlock,
-	.iop_committed	= xfs_bui_item_committed,
-	.iop_push	= xfs_bui_item_push,
-	.iop_committing = xfs_bui_item_committing,
+	.iop_release	= xfs_bui_item_release,
 };
 
 /*
@@ -249,125 +190,240 @@ xfs_bud_item_format(
 }
 
 /*
- * Pinning has no meaning for an bud item, so just return.
- */
-STATIC void
-xfs_bud_item_pin(
-	struct xfs_log_item	*lip)
-{
-}
-
-/*
- * Since pinning has no meaning for an bud item, unpinning does
- * not either.
- */
-STATIC void
-xfs_bud_item_unpin(
-	struct xfs_log_item	*lip,
-	int			remove)
-{
-}
-
-/*
- * There isn't much you can do to push on an bud item.  It is simply stuck
- * waiting for the log to be flushed to disk.
- */
-STATIC uint
-xfs_bud_item_push(
-	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list)
-{
-	return XFS_ITEM_PINNED;
-}
-
-/*
  * The BUD is either committed or aborted if the transaction is cancelled. If
  * the transaction is cancelled, drop our reference to the BUI and free the
  * BUD.
  */
 STATIC void
-xfs_bud_item_unlock(
+xfs_bud_item_release(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_bud_log_item	*budp = BUD_ITEM(lip);
 
-	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
-		xfs_bui_release(budp->bud_buip);
-		kmem_zone_free(xfs_bud_zone, budp);
-	}
-}
-
-/*
- * When the bud item is committed to disk, all we need to do is delete our
- * reference to our partner bui item and then free ourselves. Since we're
- * freeing ourselves we must return -1 to keep the transaction code from
- * further referencing this item.
- */
-STATIC xfs_lsn_t
-xfs_bud_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	struct xfs_bud_log_item	*budp = BUD_ITEM(lip);
-
-	/*
-	 * Drop the BUI reference regardless of whether the BUD has been
-	 * aborted. Once the BUD transaction is constructed, it is the sole
-	 * responsibility of the BUD to release the BUI (even if the BUI is
-	 * aborted due to log I/O error).
-	 */
 	xfs_bui_release(budp->bud_buip);
 	kmem_zone_free(xfs_bud_zone, budp);
-
-	return (xfs_lsn_t)-1;
 }
 
-/*
- * The BUD dependency tracking op doesn't do squat.  It can't because
- * it doesn't know where the free extent is coming from.  The dependency
- * tracking has to be handled by the "enclosing" metadata object.  For
- * example, for inodes, the inode is locked throughout the extent freeing
- * so the dependency should be recorded there.
- */
-STATIC void
-xfs_bud_item_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-}
-
-/*
- * This is the ops vector shared by all bud log items.
- */
 static const struct xfs_item_ops xfs_bud_item_ops = {
+	.flags		= XFS_ITEM_RELEASE_WHEN_COMMITTED,
 	.iop_size	= xfs_bud_item_size,
 	.iop_format	= xfs_bud_item_format,
-	.iop_pin	= xfs_bud_item_pin,
-	.iop_unpin	= xfs_bud_item_unpin,
-	.iop_unlock	= xfs_bud_item_unlock,
-	.iop_committed	= xfs_bud_item_committed,
-	.iop_push	= xfs_bud_item_push,
-	.iop_committing = xfs_bud_item_committing,
+	.iop_release	= xfs_bud_item_release,
 };
 
-/*
- * Allocate and initialize an bud item with the given number of extents.
- */
-struct xfs_bud_log_item *
-xfs_bud_init(
-	struct xfs_mount		*mp,
+static struct xfs_bud_log_item *
+xfs_trans_get_bud(
+	struct xfs_trans		*tp,
 	struct xfs_bui_log_item		*buip)
-
 {
-	struct xfs_bud_log_item	*budp;
+	struct xfs_bud_log_item		*budp;
 
 	budp = kmem_zone_zalloc(xfs_bud_zone, KM_SLEEP);
-	xfs_log_item_init(mp, &budp->bud_item, XFS_LI_BUD, &xfs_bud_item_ops);
+	xfs_log_item_init(tp->t_mountp, &budp->bud_item, XFS_LI_BUD,
+			  &xfs_bud_item_ops);
 	budp->bud_buip = buip;
 	budp->bud_format.bud_bui_id = buip->bui_format.bui_id;
 
+	xfs_trans_add_item(tp, &budp->bud_item);
 	return budp;
 }
+
+/*
+ * Finish an bmap update and log it to the BUD. Note that the
+ * transaction is marked dirty regardless of whether the bmap update
+ * succeeds or fails to support the BUI/BUD lifecycle rules.
+ */
+static int
+xfs_trans_log_finish_bmap_update(
+	struct xfs_trans		*tp,
+	struct xfs_bud_log_item		*budp,
+	enum xfs_bmap_intent_type	type,
+	struct xfs_inode		*ip,
+	int				whichfork,
+	xfs_fileoff_t			startoff,
+	xfs_fsblock_t			startblock,
+	xfs_filblks_t			*blockcount,
+	xfs_exntst_t			state)
+{
+	int				error;
+
+	error = xfs_bmap_finish_one(tp, ip, type, whichfork, startoff,
+			startblock, blockcount, state);
+
+	/*
+	 * Mark the transaction dirty, even on error. This ensures the
+	 * transaction is aborted, which:
+	 *
+	 * 1.) releases the BUI and frees the BUD
+	 * 2.) shuts down the filesystem
+	 */
+	tp->t_flags |= XFS_TRANS_DIRTY;
+	set_bit(XFS_LI_DIRTY, &budp->bud_item.li_flags);
+
+	return error;
+}
+
+/* Sort bmap intents by inode. */
+static int
+xfs_bmap_update_diff_items(
+	void				*priv,
+	struct list_head		*a,
+	struct list_head		*b)
+{
+	struct xfs_bmap_intent		*ba;
+	struct xfs_bmap_intent		*bb;
+
+	ba = container_of(a, struct xfs_bmap_intent, bi_list);
+	bb = container_of(b, struct xfs_bmap_intent, bi_list);
+	return ba->bi_owner->i_ino - bb->bi_owner->i_ino;
+}
+
+/* Get an BUI. */
+STATIC void *
+xfs_bmap_update_create_intent(
+	struct xfs_trans		*tp,
+	unsigned int			count)
+{
+	struct xfs_bui_log_item		*buip;
+
+	ASSERT(count == XFS_BUI_MAX_FAST_EXTENTS);
+	ASSERT(tp != NULL);
+
+	buip = xfs_bui_init(tp->t_mountp);
+	ASSERT(buip != NULL);
+
+	/*
+	 * Get a log_item_desc to point at the new item.
+	 */
+	xfs_trans_add_item(tp, &buip->bui_item);
+	return buip;
+}
+
+/* Set the map extent flags for this mapping. */
+static void
+xfs_trans_set_bmap_flags(
+	struct xfs_map_extent		*bmap,
+	enum xfs_bmap_intent_type	type,
+	int				whichfork,
+	xfs_exntst_t			state)
+{
+	bmap->me_flags = 0;
+	switch (type) {
+	case XFS_BMAP_MAP:
+	case XFS_BMAP_UNMAP:
+		bmap->me_flags = type;
+		break;
+	default:
+		ASSERT(0);
+	}
+	if (state == XFS_EXT_UNWRITTEN)
+		bmap->me_flags |= XFS_BMAP_EXTENT_UNWRITTEN;
+	if (whichfork == XFS_ATTR_FORK)
+		bmap->me_flags |= XFS_BMAP_EXTENT_ATTR_FORK;
+}
+
+/* Log bmap updates in the intent item. */
+STATIC void
+xfs_bmap_update_log_item(
+	struct xfs_trans		*tp,
+	void				*intent,
+	struct list_head		*item)
+{
+	struct xfs_bui_log_item		*buip = intent;
+	struct xfs_bmap_intent		*bmap;
+	uint				next_extent;
+	struct xfs_map_extent		*map;
+
+	bmap = container_of(item, struct xfs_bmap_intent, bi_list);
+
+	tp->t_flags |= XFS_TRANS_DIRTY;
+	set_bit(XFS_LI_DIRTY, &buip->bui_item.li_flags);
+
+	/*
+	 * atomic_inc_return gives us the value after the increment;
+	 * we want to use it as an array index so we need to subtract 1 from
+	 * it.
+	 */
+	next_extent = atomic_inc_return(&buip->bui_next_extent) - 1;
+	ASSERT(next_extent < buip->bui_format.bui_nextents);
+	map = &buip->bui_format.bui_extents[next_extent];
+	map->me_owner = bmap->bi_owner->i_ino;
+	map->me_startblock = bmap->bi_bmap.br_startblock;
+	map->me_startoff = bmap->bi_bmap.br_startoff;
+	map->me_len = bmap->bi_bmap.br_blockcount;
+	xfs_trans_set_bmap_flags(map, bmap->bi_type, bmap->bi_whichfork,
+			bmap->bi_bmap.br_state);
+}
+
+/* Get an BUD so we can process all the deferred rmap updates. */
+STATIC void *
+xfs_bmap_update_create_done(
+	struct xfs_trans		*tp,
+	void				*intent,
+	unsigned int			count)
+{
+	return xfs_trans_get_bud(tp, intent);
+}
+
+/* Process a deferred rmap update. */
+STATIC int
+xfs_bmap_update_finish_item(
+	struct xfs_trans		*tp,
+	struct list_head		*item,
+	void				*done_item,
+	void				**state)
+{
+	struct xfs_bmap_intent		*bmap;
+	xfs_filblks_t			count;
+	int				error;
+
+	bmap = container_of(item, struct xfs_bmap_intent, bi_list);
+	count = bmap->bi_bmap.br_blockcount;
+	error = xfs_trans_log_finish_bmap_update(tp, done_item,
+			bmap->bi_type,
+			bmap->bi_owner, bmap->bi_whichfork,
+			bmap->bi_bmap.br_startoff,
+			bmap->bi_bmap.br_startblock,
+			&count,
+			bmap->bi_bmap.br_state);
+	if (!error && count > 0) {
+		ASSERT(bmap->bi_type == XFS_BMAP_UNMAP);
+		bmap->bi_bmap.br_blockcount = count;
+		return -EAGAIN;
+	}
+	kmem_free(bmap);
+	return error;
+}
+
+/* Abort all pending BUIs. */
+STATIC void
+xfs_bmap_update_abort_intent(
+	void				*intent)
+{
+	xfs_bui_release(intent);
+}
+
+/* Cancel a deferred rmap update. */
+STATIC void
+xfs_bmap_update_cancel_item(
+	struct list_head		*item)
+{
+	struct xfs_bmap_intent		*bmap;
+
+	bmap = container_of(item, struct xfs_bmap_intent, bi_list);
+	kmem_free(bmap);
+}
+
+const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
+	.max_items	= XFS_BUI_MAX_FAST_EXTENTS,
+	.diff_items	= xfs_bmap_update_diff_items,
+	.create_intent	= xfs_bmap_update_create_intent,
+	.abort_intent	= xfs_bmap_update_abort_intent,
+	.log_item	= xfs_bmap_update_log_item,
+	.create_done	= xfs_bmap_update_create_done,
+	.finish_item	= xfs_bmap_update_finish_item,
+	.cancel_item	= xfs_bmap_update_cancel_item,
+};
 
 /*
  * Process a bmap update intent item that was recovered from the log.

@@ -601,10 +601,11 @@ static int mthca_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 	return 0;
 }
 
-static struct ib_cq *mthca_create_cq(struct ib_device *ibdev,
-				     const struct ib_cq_init_attr *attr,
-				     struct ib_udata *udata)
+static int mthca_create_cq(struct ib_cq *ibcq,
+			   const struct ib_cq_init_attr *attr,
+			   struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	struct mthca_create_cq ucmd;
 	struct mthca_cq *cq;
@@ -614,20 +615,20 @@ static struct ib_cq *mthca_create_cq(struct ib_device *ibdev,
 		udata, struct mthca_ucontext, ibucontext);
 
 	if (attr->flags)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (entries < 1 || entries > to_mdev(ibdev)->limits.max_cqes)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (udata) {
-		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
-			return ERR_PTR(-EFAULT);
+		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd)))
+			return -EFAULT;
 
 		err = mthca_map_user_db(to_mdev(ibdev), &context->uar,
 					context->db_tab, ucmd.set_db_index,
 					ucmd.set_db_page);
 		if (err)
-			return ERR_PTR(err);
+			return err;
 
 		err = mthca_map_user_db(to_mdev(ibdev), &context->uar,
 					context->db_tab, ucmd.arm_db_index,
@@ -636,11 +637,7 @@ static struct ib_cq *mthca_create_cq(struct ib_device *ibdev,
 			goto err_unmap_set;
 	}
 
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq) {
-		err = -ENOMEM;
-		goto err_unmap_arm;
-	}
+	cq = to_mcq(ibcq);
 
 	if (udata) {
 		cq->buf.mr.ibmr.lkey = ucmd.lkey;
@@ -655,20 +652,17 @@ static struct ib_cq *mthca_create_cq(struct ib_device *ibdev,
 			    udata ? ucmd.pdn : to_mdev(ibdev)->driver_pd.pd_num,
 			    cq);
 	if (err)
-		goto err_free;
+		goto err_unmap_arm;
 
 	if (udata && ib_copy_to_udata(udata, &cq->cqn, sizeof(__u32))) {
 		mthca_free_cq(to_mdev(ibdev), cq);
 		err = -EFAULT;
-		goto err_free;
+		goto err_unmap_arm;
 	}
 
 	cq->resize_buf = NULL;
 
-	return &cq->ibcq;
-
-err_free:
-	kfree(cq);
+	return 0;
 
 err_unmap_arm:
 	if (udata)
@@ -680,7 +674,7 @@ err_unmap_set:
 		mthca_unmap_user_db(to_mdev(ibdev), &context->uar,
 				    context->db_tab, ucmd.set_db_index);
 
-	return ERR_PTR(err);
+	return err;
 }
 
 static int mthca_alloc_resize_buf(struct mthca_dev *dev, struct mthca_cq *cq,
@@ -804,7 +798,7 @@ out:
 	return ret;
 }
 
-static int mthca_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
+static void mthca_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
 	if (udata) {
 		struct mthca_ucontext *context =
@@ -823,9 +817,6 @@ static int mthca_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 				    to_mcq(cq)->set_ci_db_index);
 	}
 	mthca_free_cq(to_mdev(cq->device), to_mcq(cq));
-	kfree(cq);
-
-	return 0;
 }
 
 static inline u32 convert_access(int acc)
@@ -962,8 +953,7 @@ static int mthca_dereg_mr(struct ib_mr *mr, struct ib_udata *udata)
 	struct mthca_mr *mmr = to_mmr(mr);
 
 	mthca_free_mr(to_mdev(mr->device), mmr);
-	if (mmr->umem)
-		ib_umem_release(mmr->umem);
+	ib_umem_release(mmr->umem);
 	kfree(mmr);
 
 	return 0;
@@ -1153,6 +1143,11 @@ static void get_dev_fw_str(struct ib_device *device, char *str)
 }
 
 static const struct ib_device_ops mthca_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_MTHCA,
+	.uverbs_abi_ver = MTHCA_UVERBS_ABI_VERSION,
+	.uverbs_no_driver_id_binding = 1,
+
 	.alloc_pd = mthca_alloc_pd,
 	.alloc_ucontext = mthca_alloc_ucontext,
 	.attach_mcast = mthca_multicast_attach,
@@ -1185,6 +1180,7 @@ static const struct ib_device_ops mthca_dev_ops = {
 	.resize_cq = mthca_resize_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, mthca_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, mthca_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, mthca_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, mthca_ucontext, ibucontext),
 };
@@ -1243,9 +1239,6 @@ int mthca_register_device(struct mthca_dev *dev)
 	if (ret)
 		return ret;
 
-	dev->ib_dev.owner                = THIS_MODULE;
-
-	dev->ib_dev.uverbs_abi_ver	 = MTHCA_UVERBS_ABI_VERSION;
 	dev->ib_dev.uverbs_cmd_mask	 =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
@@ -1303,7 +1296,6 @@ int mthca_register_device(struct mthca_dev *dev)
 	mutex_init(&dev->cap_mask_mutex);
 
 	rdma_set_device_sysfs_group(&dev->ib_dev, &mthca_attr_group);
-	dev->ib_dev.driver_id = RDMA_DRIVER_MTHCA;
 	ret = ib_register_device(&dev->ib_dev, "mthca%d");
 	if (ret)
 		return ret;

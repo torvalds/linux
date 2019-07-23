@@ -20,6 +20,16 @@ config PCMCIA_AHA152X
 	  To compile this driver as a module, choose M here: the
 	  module will be called aha152x_cs.
 
+config PCMCIA_FDOMAIN
+	tristate "Future Domain PCMCIA support"
+	select SCSI_FDOMAIN
+	help
+	  Say Y here if you intend to attach this type of PCMCIA SCSI host
+	  adapter to your computer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fdomain_cs.
+
 config PCMCIA_NINJA_SCSI
 	tristate "NinjaSCSI-3 / NinjaSCSI-32Bi (16bit) PCMCIA support"
 	depends on !64BIT

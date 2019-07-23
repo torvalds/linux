@@ -323,7 +323,7 @@ static int tipc_mcast_send_sync(struct net *net, struct sk_buff *skb,
 
 	hdr = buf_msg(skb);
 	if (msg_user(hdr) == MSG_FRAGMENTER)
-		hdr = msg_get_wrapped(hdr);
+		hdr = msg_inner_hdr(hdr);
 	if (msg_type(hdr) != TIPC_MCAST_MSG)
 		return 0;
 
@@ -392,7 +392,7 @@ int tipc_mcast_xmit(struct net *net, struct sk_buff_head *pkts,
 		skb = skb_peek(pkts);
 		hdr = buf_msg(skb);
 		if (msg_user(hdr) == MSG_FRAGMENTER)
-			hdr = msg_get_wrapped(hdr);
+			hdr = msg_inner_hdr(hdr);
 		msg_set_is_rcast(hdr, method->rcast);
 
 		/* Switch method ? */

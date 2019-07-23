@@ -789,10 +789,9 @@ static int intel_th_populate(struct intel_th *th)
 	return 0;
 }
 
-static int match_devt(struct device *dev, void *data)
+static int match_devt(struct device *dev, const void *data)
 {
-	dev_t devt = (dev_t)(unsigned long)data;
-
+	dev_t devt = (dev_t)(unsigned long)(void *)data;
 	return dev->devt == devt;
 }
 

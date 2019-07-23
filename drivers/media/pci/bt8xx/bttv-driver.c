@@ -2453,7 +2453,6 @@ static int bttv_s_fmt_vid_overlay(struct file *file, void *priv,
 static int bttv_querycap(struct file *file, void  *priv,
 				struct v4l2_capability *cap)
 {
-	struct video_device *vdev = video_devdata(file);
 	struct bttv_fh *fh = priv;
 	struct bttv *btv = fh->btv;
 
@@ -2464,17 +2463,17 @@ static int bttv_querycap(struct file *file, void  *priv,
 	strscpy(cap->card, btv->video_dev.name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "PCI:%s", pci_name(btv->c.pci));
-	cap->capabilities =
-		V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_STREAMING |
-		V4L2_CAP_DEVICE_CAPS;
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+			    V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS;
 	if (no_overlay <= 0)
 		cap->capabilities |= V4L2_CAP_VIDEO_OVERLAY;
 	if (video_is_registered(&btv->vbi_dev))
 		cap->capabilities |= V4L2_CAP_VBI_CAPTURE;
-	if (video_is_registered(&btv->radio_dev))
+	if (video_is_registered(&btv->radio_dev)) {
 		cap->capabilities |= V4L2_CAP_RADIO;
+		if (btv->has_tea575x)
+			cap->capabilities |= V4L2_CAP_HW_FREQ_SEEK;
+	}
 
 	/*
 	 * No need to lock here: those vars are initialized during board
@@ -2484,27 +2483,6 @@ static int bttv_querycap(struct file *file, void  *priv,
 		cap->capabilities |= V4L2_CAP_RDS_CAPTURE;
 	if (btv->tuner_type != TUNER_ABSENT)
 		cap->capabilities |= V4L2_CAP_TUNER;
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
-		cap->device_caps = cap->capabilities &
-			(V4L2_CAP_VIDEO_CAPTURE |
-			 V4L2_CAP_READWRITE |
-			 V4L2_CAP_STREAMING |
-			 V4L2_CAP_VIDEO_OVERLAY |
-			 V4L2_CAP_TUNER);
-	else if (vdev->vfl_type == VFL_TYPE_VBI)
-		cap->device_caps = cap->capabilities &
-			(V4L2_CAP_VBI_CAPTURE |
-			 V4L2_CAP_READWRITE |
-			 V4L2_CAP_STREAMING |
-			 V4L2_CAP_TUNER);
-	else {
-		cap->device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
-		if (btv->has_saa6588)
-			cap->device_caps |= V4L2_CAP_READWRITE |
-						V4L2_CAP_RDS_CAPTURE;
-		if (btv->has_tea575x)
-			cap->device_caps |= V4L2_CAP_HW_FREQ_SEEK;
-	}
 	return 0;
 }
 
@@ -3939,6 +3917,12 @@ static int bttv_register_video(struct bttv *btv)
 
 	/* video */
 	vdev_init(btv, &btv->video_dev, &bttv_video_template, "video");
+	btv->video_dev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER |
+				     V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	if (btv->tuner_type != TUNER_ABSENT)
+		btv->video_dev.device_caps |= V4L2_CAP_TUNER;
+	if (no_overlay <= 0)
+		btv->video_dev.device_caps |= V4L2_CAP_VIDEO_OVERLAY;
 
 	if (video_register_device(&btv->video_dev, VFL_TYPE_GRABBER,
 				  video_nr[btv->c.nr]) < 0)
@@ -3953,6 +3937,10 @@ static int bttv_register_video(struct bttv *btv)
 
 	/* vbi */
 	vdev_init(btv, &btv->vbi_dev, &bttv_video_template, "vbi");
+	btv->vbi_dev.device_caps = V4L2_CAP_VBI_CAPTURE | V4L2_CAP_READWRITE |
+				   V4L2_CAP_STREAMING | V4L2_CAP_TUNER;
+	if (btv->tuner_type != TUNER_ABSENT)
+		btv->vbi_dev.device_caps |= V4L2_CAP_TUNER;
 
 	if (video_register_device(&btv->vbi_dev, VFL_TYPE_VBI,
 				  vbi_nr[btv->c.nr]) < 0)
@@ -3964,6 +3952,12 @@ static int bttv_register_video(struct bttv *btv)
 		return 0;
 	/* radio */
 	vdev_init(btv, &btv->radio_dev, &radio_template, "radio");
+	btv->radio_dev.device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
+	if (btv->has_saa6588)
+		btv->radio_dev.device_caps |= V4L2_CAP_READWRITE |
+					      V4L2_CAP_RDS_CAPTURE;
+	if (btv->has_tea575x)
+		btv->radio_dev.device_caps |= V4L2_CAP_HW_FREQ_SEEK;
 	btv->radio_dev.ctrl_handler = &btv->radio_ctrl_handler;
 	if (video_register_device(&btv->radio_dev, VFL_TYPE_RADIO,
 				  radio_nr[btv->c.nr]) < 0)

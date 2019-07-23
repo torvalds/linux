@@ -29,7 +29,7 @@ static int ip32_be_handler(struct pt_regs *regs, int is_fixup)
 	show_regs(regs);
 	dump_tlb_all();
 	while(1);
-	force_sig(SIGBUS, current);
+	force_sig(SIGBUS);
 }
 
 void __init ip32_be_init(void)

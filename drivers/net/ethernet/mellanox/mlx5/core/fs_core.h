@@ -170,6 +170,7 @@ struct fs_fte {
 	u32				val[MLX5_ST_SZ_DW_MATCH_PARAM];
 	u32				dests_size;
 	u32				index;
+	struct mlx5_flow_context	flow_context;
 	struct mlx5_flow_act		action;
 	enum fs_fte_status		status;
 	struct mlx5_fc			*counter;

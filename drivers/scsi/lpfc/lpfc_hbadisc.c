@@ -5277,6 +5277,41 @@ lpfc_findnode_did(struct lpfc_vport *vport, uint32_t did)
 }
 
 struct lpfc_nodelist *
+lpfc_findnode_mapped(struct lpfc_vport *vport)
+{
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_nodelist *ndlp;
+	uint32_t data1;
+	unsigned long iflags;
+
+	spin_lock_irqsave(shost->host_lock, iflags);
+
+	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
+		if (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE ||
+		    ndlp->nlp_state == NLP_STE_MAPPED_NODE) {
+			data1 = (((uint32_t)ndlp->nlp_state << 24) |
+				 ((uint32_t)ndlp->nlp_xri << 16) |
+				 ((uint32_t)ndlp->nlp_type << 8) |
+				 ((uint32_t)ndlp->nlp_rpi & 0xff));
+			spin_unlock_irqrestore(shost->host_lock, iflags);
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+					 "2025 FIND node DID "
+					 "Data: x%p x%x x%x x%x %p\n",
+					 ndlp, ndlp->nlp_DID,
+					 ndlp->nlp_flag, data1,
+					 ndlp->active_rrqs_xri_bitmap);
+			return ndlp;
+		}
+	}
+	spin_unlock_irqrestore(shost->host_lock, iflags);
+
+	/* FIND node did <did> NOT FOUND */
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+			 "2026 FIND mapped did NOT FOUND.\n");
+	return NULL;
+}
+
+struct lpfc_nodelist *
 lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);

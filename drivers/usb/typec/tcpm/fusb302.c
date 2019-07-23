@@ -1697,13 +1697,12 @@ static int fusb302_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct fusb302_chip *chip;
-	struct i2c_adapter *adapter;
+	struct i2c_adapter *adapter = client->adapter;
 	struct device *dev = &client->dev;
 	const char *name;
 	int ret = 0;
 	u32 v;
 
-	adapter = to_i2c_adapter(client->dev.parent);
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
 		dev_err(&client->dev,
 			"I2C/SMBus block functionality not supported!\n");

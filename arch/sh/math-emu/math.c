@@ -560,7 +560,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 			task_thread_info(tsk)->status |= TS_USEDFPU;
 		} else {
 			force_sig_fault(SIGFPE, FPE_FLTINV,
-					(void __user *)regs->pc, tsk);
+					(void __user *)regs->pc);
 		}
 
 		regs->pc = nextpc;

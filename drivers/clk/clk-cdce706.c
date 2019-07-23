@@ -630,7 +630,7 @@ of_clk_cdce_get(struct of_phandle_args *clkspec, void *data)
 static int cdce706_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct cdce706_dev_data *cdce;
 	int ret;
 

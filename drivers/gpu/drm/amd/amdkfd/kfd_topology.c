@@ -454,6 +454,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.lds_size_in_kb);
 	sysfs_show_32bit_prop(buffer, "gds_size_in_kb",
 			dev->node_props.gds_size_in_kb);
+	sysfs_show_32bit_prop(buffer, "num_gws",
+			dev->node_props.num_gws);
 	sysfs_show_32bit_prop(buffer, "wave_front_size",
 			dev->node_props.wave_front_size);
 	sysfs_show_32bit_prop(buffer, "array_count",
@@ -476,6 +478,10 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.drm_render_minor);
 	sysfs_show_64bit_prop(buffer, "hive_id",
 			dev->node_props.hive_id);
+	sysfs_show_32bit_prop(buffer, "num_sdma_engines",
+			dev->node_props.num_sdma_engines);
+	sysfs_show_32bit_prop(buffer, "num_sdma_xgmi_engines",
+			dev->node_props.num_sdma_xgmi_engines);
 
 	if (dev->gpu) {
 		log_max_watch_addr =
@@ -1078,8 +1084,9 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 			local_mem_info.local_mem_size_public;
 
 	buf[0] = gpu->pdev->devfn;
-	buf[1] = gpu->pdev->subsystem_vendor;
-	buf[2] = gpu->pdev->subsystem_device;
+	buf[1] = gpu->pdev->subsystem_vendor |
+		(gpu->pdev->subsystem_device << 16);
+	buf[2] = pci_domain_nr(gpu->pdev->bus);
 	buf[3] = gpu->pdev->device;
 	buf[4] = gpu->pdev->bus->number;
 	buf[5] = lower_32_bits(local_mem_size);
@@ -1281,6 +1288,12 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		gpu->shared_resources.drm_render_minor;
 
 	dev->node_props.hive_id = gpu->hive_id;
+	dev->node_props.num_sdma_engines = gpu->device_info->num_sdma_engines;
+	dev->node_props.num_sdma_xgmi_engines =
+				gpu->device_info->num_xgmi_sdma_engines;
+	dev->node_props.num_gws = (hws_gws_support &&
+		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
+		amdgpu_amdkfd_get_num_gws(dev->gpu->kgd) : 0;
 
 	kfd_fill_mem_clk_max_info(dev);
 	kfd_fill_iolink_non_crat_info(dev);
@@ -1298,6 +1311,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
 		pr_debug("Adding doorbell packet type capability\n");
 		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_1_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
@@ -1307,6 +1321,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
+	case CHIP_NAVI10:
 		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_2_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
@@ -1316,17 +1331,24 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		     dev->gpu->device_info->asic_family);
 	}
 
+	/*
+	* Overwrite ATS capability according to needs_iommu_device to fix
+	* potential missing corresponding bit in CRAT of BIOS.
+	*/
+	if (dev->gpu->device_info->needs_iommu_device)
+		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
+	else
+		dev->node_props.capability &= ~HSA_CAP_ATS_PRESENT;
+
 	/* Fix errors in CZ CRAT.
 	 * simd_count: Carrizo CRAT reports wrong simd_count, probably
 	 *		because it doesn't consider masked out CUs
 	 * max_waves_per_simd: Carrizo reports wrong max_waves_per_simd
-	 * capability flag: Carrizo CRAT doesn't report IOMMU flags
 	 */
 	if (dev->gpu->device_info->asic_family == CHIP_CARRIZO) {
 		dev->node_props.simd_count =
 			cu_info.simd_per_cu * cu_info.cu_active_number;
 		dev->node_props.max_waves_per_simd = 10;
-		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
 	}
 
 	ctx = amdgpu_ras_get_context((struct amdgpu_device *)(dev->gpu->kgd));

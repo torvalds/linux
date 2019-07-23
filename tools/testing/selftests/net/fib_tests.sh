@@ -9,12 +9,13 @@ ret=0
 ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
-TESTS="unregister down carrier nexthop ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw"
+TESTS="unregister down carrier nexthop ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter"
 
 VERBOSE=0
 PAUSE_ON_FAIL=no
 PAUSE=no
 IP="ip -netns ns1"
+NS_EXEC="ip netns exec ns1"
 
 log_test()
 {
@@ -431,6 +432,37 @@ fib_carrier_test()
 {
 	fib_carrier_local_test
 	fib_carrier_unicast_test
+}
+
+fib_rp_filter_test()
+{
+	echo
+	echo "IPv4 rp_filter tests"
+
+	setup
+
+	set -e
+	$IP link set dev lo address 52:54:00:6a:c7:5e
+	$IP link set dummy0 address 52:54:00:6a:c7:5e
+	$IP link add dummy1 type dummy
+	$IP link set dummy1 address 52:54:00:6a:c7:5e
+	$IP link set dev dummy1 up
+	$NS_EXEC sysctl -qw net.ipv4.conf.all.rp_filter=1
+	$NS_EXEC sysctl -qw net.ipv4.conf.all.accept_local=1
+	$NS_EXEC sysctl -qw net.ipv4.conf.all.route_localnet=1
+
+	$NS_EXEC tc qd add dev dummy1 parent root handle 1: fq_codel
+	$NS_EXEC tc filter add dev dummy1 parent 1: protocol arp basic action mirred egress redirect dev lo
+	$NS_EXEC tc filter add dev dummy1 parent 1: protocol ip basic action mirred egress redirect dev lo
+	set +e
+
+	run_cmd "ip netns exec ns1 ping -I dummy1 -w1 -c1 198.51.100.1"
+	log_test $? 0 "rp_filter passes local packets"
+
+	run_cmd "ip netns exec ns1 ping -I dummy1 -w1 -c1 127.0.0.1"
+	log_test $? 0 "rp_filter passes loopback packets"
+
+	cleanup
 }
 
 ################################################################################
@@ -1557,6 +1589,7 @@ do
 	fib_unreg_test|unregister)	fib_unreg_test;;
 	fib_down_test|down)		fib_down_test;;
 	fib_carrier_test|carrier)	fib_carrier_test;;
+	fib_rp_filter_test|rp_filter)	fib_rp_filter_test;;
 	fib_nexthop_test|nexthop)	fib_nexthop_test;;
 	ipv6_route_test|ipv6_rt)	ipv6_route_test;;
 	ipv4_route_test|ipv4_rt)	ipv4_route_test;;

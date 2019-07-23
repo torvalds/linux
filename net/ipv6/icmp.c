@@ -75,9 +75,9 @@
  *
  *	On SMP we have one ICMP socket per-cpu.
  */
-static inline struct sock *icmpv6_sk(struct net *net)
+static struct sock *icmpv6_sk(struct net *net)
 {
-	return *this_cpu_ptr(net->ipv6.icmp_sk);
+	return this_cpu_read(*net->ipv6.icmp_sk);
 }
 
 static int icmpv6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
@@ -703,6 +703,9 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	tmp_hdr.icmp6_type = ICMPV6_ECHO_REPLY;
 
 	memset(&fl6, 0, sizeof(fl6));
+	if (net->ipv6.sysctl.flowlabel_reflect & FLOWLABEL_REFLECT_ICMPV6_ECHO_REPLIES)
+		fl6.flowlabel = ip6_flowlabel(ipv6_hdr(skb));
+
 	fl6.flowi6_proto = IPPROTO_ICMPV6;
 	fl6.daddr = ipv6_hdr(skb)->saddr;
 	if (saddr)

@@ -2,8 +2,7 @@
 #ifndef _IP_SET_COUNTER_H
 #define _IP_SET_COUNTER_H
 
-/* Copyright (C) 2015 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
- */
+/* Copyright (C) 2015 Jozsef Kadlecsik <kadlec@netfilter.org> */
 
 #ifdef __KERNEL__
 

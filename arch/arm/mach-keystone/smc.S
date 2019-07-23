@@ -18,6 +18,7 @@
  *
  * Return: Non zero value on failure
  */
+	.arch_extension sec
 ENTRY(keystone_cpu_smc)
 	stmfd   sp!, {r4-r11, lr}
 	smc	#0

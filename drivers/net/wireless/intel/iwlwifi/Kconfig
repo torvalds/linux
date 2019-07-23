@@ -40,7 +40,7 @@ config IWLWIFI
 
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
+	  say M here and read <file:Documentation/kbuild/modules.rst>.  The
 	  module will be called iwlwifi.
 
 if IWLWIFI

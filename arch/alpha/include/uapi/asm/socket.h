@@ -122,6 +122,8 @@
 #define SO_RCVTIMEO_NEW         66
 #define SO_SNDTIMEO_NEW         67
 
+#define SO_DETACH_REUSEPORT_BPF 68
+
 #if !defined(__KERNEL__)
 
 #if __BITS_PER_LONG == 64

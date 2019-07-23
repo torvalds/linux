@@ -17,8 +17,8 @@
 /* See trace-events-sample.h for a detailed description of why this
  * guard clause is different from most normal include files.
  */
-#if !defined(_I40E_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
-#define _I40E_TRACE_H_
+#if !defined(_IAVF_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
+#define _IAVF_TRACE_H_
 
 #include <linux/tracepoint.h>
 

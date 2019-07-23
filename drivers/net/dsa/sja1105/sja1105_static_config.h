@@ -20,10 +20,12 @@
 #define SJA1105ET_SIZE_MAC_CONFIG_ENTRY			28
 #define SJA1105ET_SIZE_L2_LOOKUP_PARAMS_ENTRY		4
 #define SJA1105ET_SIZE_GENERAL_PARAMS_ENTRY		40
+#define SJA1105ET_SIZE_AVB_PARAMS_ENTRY			12
 #define SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY		20
 #define SJA1105PQRS_SIZE_MAC_CONFIG_ENTRY		32
 #define SJA1105PQRS_SIZE_L2_LOOKUP_PARAMS_ENTRY		16
 #define SJA1105PQRS_SIZE_GENERAL_PARAMS_ENTRY		44
+#define SJA1105PQRS_SIZE_AVB_PARAMS_ENTRY		16
 
 /* UM10944.pdf Page 11, Table 2. Configuration Blocks */
 enum {
@@ -34,6 +36,7 @@ enum {
 	BLKID_MAC_CONFIG				= 0x09,
 	BLKID_L2_LOOKUP_PARAMS				= 0x0D,
 	BLKID_L2_FORWARDING_PARAMS			= 0x0E,
+	BLKID_AVB_PARAMS				= 0x10,
 	BLKID_GENERAL_PARAMS				= 0x11,
 	BLKID_XMII_PARAMS				= 0x4E,
 };
@@ -46,6 +49,7 @@ enum sja1105_blk_idx {
 	BLK_IDX_MAC_CONFIG,
 	BLK_IDX_L2_LOOKUP_PARAMS,
 	BLK_IDX_L2_FORWARDING_PARAMS,
+	BLK_IDX_AVB_PARAMS,
 	BLK_IDX_GENERAL_PARAMS,
 	BLK_IDX_XMII_PARAMS,
 	BLK_IDX_MAX,
@@ -64,6 +68,7 @@ enum sja1105_blk_idx {
 #define SJA1105_MAX_L2_FORWARDING_PARAMS_COUNT		1
 #define SJA1105_MAX_GENERAL_PARAMS_COUNT		1
 #define SJA1105_MAX_XMII_PARAMS_COUNT			1
+#define SJA1105_MAX_AVB_PARAMS_COUNT			1
 
 #define SJA1105_MAX_FRAME_MEMORY			929
 
@@ -122,9 +127,36 @@ struct sja1105_l2_lookup_entry {
 	u64 destports;
 	u64 enfport;
 	u64 index;
+	/* P/Q/R/S only */
+	u64 mask_iotag;
+	u64 mask_vlanid;
+	u64 mask_macaddr;
+	u64 iotag;
+	u64 lockeds;
+	union {
+		/* LOCKEDS=1: Static FDB entries */
+		struct {
+			u64 tsreg;
+			u64 mirrvlan;
+			u64 takets;
+			u64 mirr;
+			u64 retag;
+		};
+		/* LOCKEDS=0: Dynamically learned FDB entries */
+		struct {
+			u64 touched;
+			u64 age;
+		};
+	};
 };
 
 struct sja1105_l2_lookup_params_entry {
+	u64 maxaddrp[5];     /* P/Q/R/S only */
+	u64 start_dynspc;    /* P/Q/R/S only */
+	u64 drpnolearn;      /* P/Q/R/S only */
+	u64 use_static;      /* P/Q/R/S only */
+	u64 owr_dyn;         /* P/Q/R/S only */
+	u64 learn_once;      /* P/Q/R/S only */
 	u64 maxage;          /* Shared */
 	u64 dyn_tbsz;        /* E/T only */
 	u64 poly;            /* E/T only */
@@ -151,6 +183,11 @@ struct sja1105_l2_policing_entry {
 	u64 rate;
 	u64 maxlen;
 	u64 partition;
+};
+
+struct sja1105_avb_params_entry {
+	u64 destmeta;
+	u64 srcmeta;
 };
 
 struct sja1105_mac_config_entry {

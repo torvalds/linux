@@ -297,8 +297,6 @@
 	 *
 	 * Only one thermal zone per AP/CP may trigger interrupts at a time, the
 	 * first one that will have a critical trip point will be chosen.
-	 *
-	 * The cooling maps are always empty as there are no cooling devices.
 	 */
 	thermal-zones {
 		ap_thermal_ic: ap-thermal-ic {
@@ -318,44 +316,136 @@
 			cooling-maps { };
 		};
 
-		ap_thermal_cpu1: ap-thermal-cpu1 {
+		ap_thermal_cpu0: ap-thermal-cpu0 {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
 			thermal-sensors = <&ap_thermal 1>;
 
-			trips { };
-			cooling-maps { };
+			trips {
+				cpu0_hot: cpu0-hot {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu0_emerg: cpu0-emerg {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0_hot: map0-hot {
+					trip = <&cpu0_hot>;
+					cooling-device = <&cpu0 1 2>,
+						<&cpu1 1 2>;
+				};
+				map0_emerg: map0-ermerg {
+					trip = <&cpu0_emerg>;
+					cooling-device = <&cpu0 3 3>,
+						<&cpu1 3 3>;
+				};
+			};
+		};
+
+		ap_thermal_cpu1: ap-thermal-cpu1 {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&ap_thermal 2>;
+
+			trips {
+				cpu1_hot: cpu1-hot {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu1_emerg: cpu1-emerg {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map1_hot: map1-hot {
+					trip = <&cpu1_hot>;
+					cooling-device = <&cpu0 1 2>,
+						<&cpu1 1 2>;
+				};
+				map1_emerg: map1-emerg {
+					trip = <&cpu1_emerg>;
+					cooling-device = <&cpu0 3 3>,
+						<&cpu1 3 3>;
+				};
+			};
 		};
 
 		ap_thermal_cpu2: ap-thermal-cpu2 {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&ap_thermal 2>;
+			thermal-sensors = <&ap_thermal 3>;
 
-			trips { };
-			cooling-maps { };
+			trips {
+				cpu2_hot: cpu2-hot {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu2_emerg: cpu2-emerg {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map2_hot: map2-hot {
+					trip = <&cpu2_hot>;
+					cooling-device = <&cpu2 1 2>,
+						<&cpu3 1 2>;
+				};
+				map2_emerg: map2-emerg {
+					trip = <&cpu2_emerg>;
+					cooling-device = <&cpu2 3 3>,
+						<&cpu3 3 3>;
+				};
+			};
 		};
 
 		ap_thermal_cpu3: ap-thermal-cpu3 {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&ap_thermal 3>;
-
-			trips { };
-			cooling-maps { };
-		};
-
-		ap_thermal_cpu4: ap-thermal-cpu4 {
-			polling-delay-passive = <1000>;
-			polling-delay = <1000>;
-
 			thermal-sensors = <&ap_thermal 4>;
 
-			trips { };
-			cooling-maps { };
+			trips {
+				cpu3_hot: cpu3-hot {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu3_emerg: cpu3-emerg {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map3_hot: map3-bhot {
+					trip = <&cpu3_hot>;
+					cooling-device = <&cpu2 1 2>,
+						<&cpu3 1 2>;
+				};
+				map3_emerg: map3-emerg {
+					trip = <&cpu3_emerg>;
+					cooling-device = <&cpu2 3 3>,
+						<&cpu3 3 3>;
+				};
+			};
 		};
 	};
 };

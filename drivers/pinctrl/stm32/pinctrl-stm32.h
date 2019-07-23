@@ -65,5 +65,7 @@ struct stm32_gpio_bank;
 int stm32_pctl_probe(struct platform_device *pdev);
 void stm32_pmx_get_mode(struct stm32_gpio_bank *bank,
 			int pin, u32 *mode, u32 *alt);
+int stm32_pinctrl_resume(struct device *dev);
+
 #endif /* __PINCTRL_STM32_H */
 

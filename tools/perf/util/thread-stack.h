@@ -43,6 +43,8 @@ enum {
  * @call_time: timestamp of call (if known)
  * @return_time: timestamp of return (if known)
  * @branch_count: number of branches seen between call and return
+ * @insn_count: approx. number of instructions between call and return
+ * @cyc_count: approx. number of cycles between call and return
  * @call_ref: external reference to 'call' sample (e.g. db_id)
  * @return_ref:  external reference to 'return' sample (e.g. db_id)
  * @db_id: id used for db-export
@@ -56,6 +58,8 @@ struct call_return {
 	u64 call_time;
 	u64 return_time;
 	u64 branch_count;
+	u64 insn_count;
+	u64 cyc_count;
 	u64 call_ref;
 	u64 return_ref;
 	u64 db_id;

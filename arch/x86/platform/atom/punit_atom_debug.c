@@ -104,24 +104,12 @@ DEFINE_SHOW_ATTRIBUTE(punit_dev_state);
 
 static struct dentry *punit_dbg_file;
 
-static int punit_dbgfs_register(struct punit_device *punit_device)
+static void punit_dbgfs_register(struct punit_device *punit_device)
 {
-	struct dentry *dev_state;
-
 	punit_dbg_file = debugfs_create_dir("punit_atom", NULL);
-	if (!punit_dbg_file)
-		return -ENXIO;
 
-	dev_state = debugfs_create_file("dev_power_state", 0444,
-					punit_dbg_file, punit_device,
-					&punit_dev_state_fops);
-	if (!dev_state) {
-		pr_err("punit_dev_state register failed\n");
-		debugfs_remove(punit_dbg_file);
-		return -ENXIO;
-	}
-
-	return 0;
+	debugfs_create_file("dev_power_state", 0444, punit_dbg_file,
+			    punit_device, &punit_dev_state_fops);
 }
 
 static void punit_dbgfs_unregister(void)
@@ -145,15 +133,12 @@ MODULE_DEVICE_TABLE(x86cpu, intel_punit_cpu_ids);
 static int __init punit_atom_debug_init(void)
 {
 	const struct x86_cpu_id *id;
-	int ret;
 
 	id = x86_match_cpu(intel_punit_cpu_ids);
 	if (!id)
 		return -ENODEV;
 
-	ret = punit_dbgfs_register((struct punit_device *)id->driver_data);
-	if (ret < 0)
-		return ret;
+	punit_dbgfs_register((struct punit_device *)id->driver_data);
 
 	return 0;
 }

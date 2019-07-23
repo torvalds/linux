@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Tiffany Lin <tiffany.lin@mediatek.com>
@@ -34,8 +34,8 @@ int mtk_vcodec_init_dec_pm(struct mtk_vcodec_dev *mtkdev)
 	}
 
 	pdev = of_find_device_by_node(node);
+	of_node_put(node);
 	if (WARN_ON(!pdev)) {
-		of_node_put(node);
 		return -1;
 	}
 	pm->larbvdec = &pdev->dev;

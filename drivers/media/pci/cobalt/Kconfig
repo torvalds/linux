@@ -3,7 +3,7 @@ config VIDEO_COBALT
 	tristate "Cisco Cobalt support"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	depends on PCI_MSI && MTD_COMPLEX_MAPPINGS
-	depends on GPIOLIB || COMPILE_TEST
+	depends on (GPIOLIB && DRM_I2C_ADV7511=n) || COMPILE_TEST
 	depends on SND
 	depends on MTD
 	select I2C_ALGOBIT

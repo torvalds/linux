@@ -18,7 +18,7 @@ menuconfig WATCHDOG
 	  reboot the machine) and a driver for hardware watchdog boards, which
 	  are more robust and can also keep track of the temperature inside
 	  your computer. For details, read
-	  <file:Documentation/watchdog/watchdog-api.txt> in the kernel source.
+	  <file:Documentation/watchdog/watchdog-api.rst> in the kernel source.
 
 	  The watchdog is usually used together with the watchdog daemon
 	  which is available from
@@ -57,6 +57,15 @@ config WATCHDOG_HANDLE_BOOT_ENABLED
 	  /dev/watchdog file. If you say N here, the kernel will not update
 	  the watchdog on its own. Thus if your userspace does not start fast
 	  enough your device will reboot.
+
+config WATCHDOG_OPEN_TIMEOUT
+	int "Timeout value for opening watchdog device"
+	default 0
+	help
+	  The maximum time, in seconds, for which the watchdog framework takes
+	  care of pinging a hardware watchdog.  A value of 0 means infinite. The
+	  value set here can be overridden by the commandline parameter
+	  "watchdog.open_timeout".
 
 config WATCHDOG_SYSFS
 	bool "Read different watchdog information through sysfs"
@@ -717,6 +726,7 @@ config IMX2_WDT
 config IMX_SC_WDT
 	tristate "IMX SC Watchdog"
 	depends on HAVE_ARM_SMCCC
+	depends on IMX_SCU
 	select WATCHDOG_CORE
 	help
 	  This is the driver for the system controller watchdog
@@ -1870,7 +1880,7 @@ config BOOKE_WDT
 	  Watchdog driver for PowerPC Book-E chips, such as the Freescale
 	  MPC85xx SOCs and the IBM PowerPC 440.
 
-	  Please see Documentation/watchdog/watchdog-api.txt for
+	  Please see Documentation/watchdog/watchdog-api.rst for
 	  more information.
 
 config BOOKE_WDT_DEFAULT_TIMEOUT
@@ -2019,7 +2029,7 @@ config PCWATCHDOG
 	  This card simply watches your kernel to make sure it doesn't freeze,
 	  and if it does, it reboots your computer after a certain amount of
 	  time. This driver is like the WDT501 driver but for different
-	  hardware. Please read <file:Documentation/watchdog/pcwd-watchdog.txt>. The PC
+	  hardware. Please read <file:Documentation/watchdog/pcwd-watchdog.rst>. The PC
 	  watchdog cards can be ordered from <http://www.berkprod.com/>.
 
 	  To compile this driver as a module, choose M here: the

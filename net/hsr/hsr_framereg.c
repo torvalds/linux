@@ -104,7 +104,7 @@ int hsr_create_self_node(struct list_head *self_node_db,
 	return 0;
 }
 
-void hsr_del_node(struct list_head *self_node_db)
+void hsr_del_self_node(struct list_head *self_node_db)
 {
 	struct hsr_node *node;
 
@@ -115,6 +115,15 @@ void hsr_del_node(struct list_head *self_node_db)
 		list_del_rcu(&node->mac_list);
 		kfree(node);
 	}
+}
+
+void hsr_del_nodes(struct list_head *node_db)
+{
+	struct hsr_node *node;
+	struct hsr_node *tmp;
+
+	list_for_each_entry_safe(node, tmp, node_db, mac_list)
+		kfree(node);
 }
 
 /* Allocate an hsr_node and add it to node_db. 'addr' is the node's address_A;

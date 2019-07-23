@@ -173,13 +173,14 @@ void mt76x2_init_txpower(struct mt76x02_dev *dev,
 		mt76x2_get_power_info(dev, &txp, chan);
 		mt76x2_get_rate_power(dev, &t, chan);
 
-		chan->max_power = mt76x02_get_max_rate_power(&t) +
+		chan->orig_mpwr = mt76x02_get_max_rate_power(&t) +
 				  txp.target_power;
-		chan->max_power = DIV_ROUND_UP(chan->max_power, 2);
+		chan->orig_mpwr = DIV_ROUND_UP(chan->orig_mpwr, 2);
 
 		/* convert to combined output power on 2x2 devices */
-		chan->max_power += 3;
-		chan->orig_mpwr = chan->max_power;
+		chan->orig_mpwr += 3;
+		chan->max_power = min_t(int, chan->max_reg_power,
+					chan->orig_mpwr);
 	}
 }
 EXPORT_SYMBOL_GPL(mt76x2_init_txpower);
