@@ -1122,6 +1122,10 @@ struct iwl_mvm {
 		int responses[IWL_MVM_TOF_MAX_APS];
 	} ftm_initiator;
 
+	struct {
+		u8 d0i3_resp;
+	} cmd_ver;
+
 	struct ieee80211_vif *nan_vif;
 #define IWL_MAX_BAID	32
 	struct iwl_mvm_baid_data __rcu *baid_map[IWL_MAX_BAID];

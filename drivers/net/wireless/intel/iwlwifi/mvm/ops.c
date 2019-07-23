@@ -608,6 +608,27 @@ static const struct iwl_fw_runtime_ops iwl_mvm_fwrt_ops = {
 	.d3_debug_enable = iwl_mvm_d3_debug_enable,
 };
 
+static u8 iwl_mvm_lookup_notif_ver(struct iwl_mvm *mvm, u8 grp, u8 cmd, u8 def)
+{
+	const struct iwl_fw_cmd_version *entry;
+	unsigned int i;
+
+	if (!mvm->fw->ucode_capa.cmd_versions ||
+	    !mvm->fw->ucode_capa.n_cmd_versions)
+		return def;
+
+	entry = mvm->fw->ucode_capa.cmd_versions;
+	for (i = 0; i < mvm->fw->ucode_capa.n_cmd_versions; i++, entry++) {
+		if (entry->group == grp && entry->cmd == cmd) {
+			if (entry->notif_ver == IWL_FW_CMD_VER_UNKNOWN)
+				return def;
+			return entry->notif_ver;
+		}
+	}
+
+	return def;
+}
+
 static struct iwl_op_mode *
 iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		      const struct iwl_fw *fw, struct dentry *dbgfs_dir)
@@ -721,6 +742,12 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->tcm.uapsd_nonagg_ts = jiffies;
 
 	INIT_DELAYED_WORK(&mvm->cs_tx_unblock_dwork, iwl_mvm_tx_unblock_dwork);
+
+	mvm->cmd_ver.d0i3_resp =
+		iwl_mvm_lookup_notif_ver(mvm, LEGACY_GROUP, D0I3_END_CMD, 0);
+	/* we only support version 1 */
+	if (WARN_ON_ONCE(mvm->cmd_ver.d0i3_resp > 1))
+		goto out_free;
 
 	/*
 	 * Populate the state variables that the transport layer needs
