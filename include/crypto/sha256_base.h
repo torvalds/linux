@@ -5,6 +5,9 @@
  * Copyright (C) 2015 Linaro Ltd <ard.biesheuvel@linaro.org>
  */
 
+#ifndef _CRYPTO_SHA256_BASE_H
+#define _CRYPTO_SHA256_BASE_H
+
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
 #include <linux/crypto.h>
@@ -123,3 +126,5 @@ static inline int sha256_base_finish(struct shash_desc *desc, u8 *out)
 	*sctx = (struct sha256_state){};
 	return 0;
 }
+
+#endif /* _CRYPTO_SHA256_BASE_H */
