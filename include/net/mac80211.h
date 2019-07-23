@@ -3914,7 +3914,8 @@ struct ieee80211_ops {
 				 struct ieee80211_channel *chan,
 				 int duration,
 				 enum ieee80211_roc_type type);
-	int (*cancel_remain_on_channel)(struct ieee80211_hw *hw);
+	int (*cancel_remain_on_channel)(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif);
 	int (*set_ringparam)(struct ieee80211_hw *hw, u32 tx, u32 rx);
 	void (*get_ringparam)(struct ieee80211_hw *hw,
 			      u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max);
