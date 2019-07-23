@@ -77,11 +77,11 @@ struct hvs_send_buf {
 					 VMBUS_PKT_TRAILER_SIZE)
 
 union hvs_service_id {
-	uuid_le	srv_id;
+	guid_t	srv_id;
 
 	struct {
 		unsigned int svm_port;
-		unsigned char b[sizeof(uuid_le) - sizeof(unsigned int)];
+		unsigned char b[sizeof(guid_t) - sizeof(unsigned int)];
 	};
 };
 
@@ -89,8 +89,8 @@ union hvs_service_id {
 struct hvsock {
 	struct vsock_sock *vsk;
 
-	uuid_le vm_srv_id;
-	uuid_le host_srv_id;
+	guid_t vm_srv_id;
+	guid_t host_srv_id;
 
 	struct vmbus_channel *chan;
 	struct vmpacket_descriptor *recv_desc;
@@ -159,21 +159,21 @@ struct hvsock {
 #define MIN_HOST_EPHEMERAL_PORT		(MAX_HOST_LISTEN_PORT + 1)
 
 /* 00000000-facb-11e6-bd58-64006a7986d3 */
-static const uuid_le srv_id_template =
-	UUID_LE(0x00000000, 0xfacb, 0x11e6, 0xbd, 0x58,
-		0x64, 0x00, 0x6a, 0x79, 0x86, 0xd3);
+static const guid_t srv_id_template =
+	GUID_INIT(0x00000000, 0xfacb, 0x11e6, 0xbd, 0x58,
+		  0x64, 0x00, 0x6a, 0x79, 0x86, 0xd3);
 
-static bool is_valid_srv_id(const uuid_le *id)
+static bool is_valid_srv_id(const guid_t *id)
 {
-	return !memcmp(&id->b[4], &srv_id_template.b[4], sizeof(uuid_le) - 4);
+	return !memcmp(&id->b[4], &srv_id_template.b[4], sizeof(guid_t) - 4);
 }
 
-static unsigned int get_port_by_srv_id(const uuid_le *svr_id)
+static unsigned int get_port_by_srv_id(const guid_t *svr_id)
 {
 	return *((unsigned int *)svr_id);
 }
 
-static void hvs_addr_init(struct sockaddr_vm *addr, const uuid_le *svr_id)
+static void hvs_addr_init(struct sockaddr_vm *addr, const guid_t *svr_id)
 {
 	unsigned int port = get_port_by_srv_id(svr_id);
 
@@ -316,7 +316,7 @@ static void hvs_close_connection(struct vmbus_channel *chan)
 
 static void hvs_open_connection(struct vmbus_channel *chan)
 {
-	uuid_le *if_instance, *if_type;
+	guid_t *if_instance, *if_type;
 	unsigned char conn_from_host;
 
 	struct sockaddr_vm addr;
