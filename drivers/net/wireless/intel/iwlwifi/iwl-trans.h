@@ -724,6 +724,8 @@ struct iwl_self_init_dram {
  * @active_regions: active regions
  * @debug_info_tlv_list: list of debug info TLVs
  * @time_point: array of debug time points
+ * @domains_bitmap: bitmap of active domains other than
+ *	&IWL_FW_INI_DOMAIN_ALWAYS_ON
  */
 struct iwl_trans_debug {
 	u8 n_dest_reg;
@@ -752,6 +754,8 @@ struct iwl_trans_debug {
 	struct list_head debug_info_tlv_list;
 	struct iwl_dbg_tlv_time_point_data
 		time_point[IWL_FW_INI_TIME_POINT_NUM];
+
+	u32 domains_bitmap;
 };
 
 /**

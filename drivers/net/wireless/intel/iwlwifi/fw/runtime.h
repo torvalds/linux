@@ -67,6 +67,8 @@
 #include "fw/api/paging.h"
 #include "iwl-eeprom-parse.h"
 
+#define IWL_FW_DBG_DOMAIN		IWL_FW_INI_DOMAIN_ALWAYS_ON
+
 struct iwl_fw_runtime_ops {
 	int (*dump_start)(void *ctx);
 	void (*dump_end)(void *ctx);
@@ -126,6 +128,14 @@ struct iwl_txf_iter_data {
 };
 
 /**
+ * enum iwl_fw_runtime_status - fw runtime status flags
+ * @STATUS_GEN_ACTIVE_TRIGS: generating active trigger list
+ */
+enum iwl_fw_runtime_status {
+	STATUS_GEN_ACTIVE_TRIGS,
+};
+
+/**
  * struct iwl_fw_runtime - runtime data for firmware
  * @fw: firmware image
  * @cfg: NIC configuration
@@ -138,6 +148,7 @@ struct iwl_txf_iter_data {
  * @smem_cfg: saved firmware SMEM configuration
  * @cur_fw_img: current firmware image, must be maintained by
  *	the driver by calling &iwl_fw_set_current_image()
+ * @status: &enum iwl_fw_runtime_status
  * @dump: debug dump data
  */
 struct iwl_fw_runtime {
@@ -157,6 +168,8 @@ struct iwl_fw_runtime {
 
 	/* memory configuration */
 	struct iwl_fwrt_shared_mem_cfg smem_cfg;
+
+	unsigned long status;
 
 	/* debug */
 	struct {

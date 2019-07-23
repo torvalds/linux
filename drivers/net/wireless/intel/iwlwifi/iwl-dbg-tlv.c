@@ -350,6 +350,12 @@ void iwl_dbg_tlv_free(struct iwl_trans *trans)
 			list_del(&tlv_node->list);
 			kfree(tlv_node);
 		}
+
+		list_for_each_entry_safe(tlv_node, tlv_node_tmp,
+					 &tp->active_trig_list, list) {
+			list_del(&tlv_node->list);
+			kfree(tlv_node);
+		}
 	}
 }
 
@@ -408,13 +414,285 @@ void iwl_dbg_tlv_init(struct iwl_trans *trans)
 
 		INIT_LIST_HEAD(&tp->trig_list);
 		INIT_LIST_HEAD(&tp->hcmd_list);
+		INIT_LIST_HEAD(&tp->active_trig_list);
 	}
+}
+
+static void iwl_dbg_tlv_send_hcmds(struct iwl_fw_runtime *fwrt,
+				   struct list_head *hcmd_list)
+{
+	struct iwl_dbg_tlv_node *node;
+
+	list_for_each_entry(node, hcmd_list, list) {
+		struct iwl_fw_ini_hcmd_tlv *hcmd = (void *)node->tlv.data;
+		struct iwl_fw_ini_hcmd *hcmd_data = &hcmd->hcmd;
+		u32 domain = le32_to_cpu(hcmd->hdr.domain);
+		u16 hcmd_len = le32_to_cpu(node->tlv.length) - sizeof(*hcmd);
+		struct iwl_host_cmd cmd = {
+			.id = WIDE_ID(hcmd_data->group, hcmd_data->id),
+			.len = { hcmd_len, },
+			.data = { hcmd_data->data, },
+		};
+
+		if (domain != IWL_FW_INI_DOMAIN_ALWAYS_ON &&
+		    !(domain & fwrt->trans->dbg.domains_bitmap))
+			continue;
+
+		iwl_trans_send_cmd(fwrt->trans, &cmd);
+	}
+}
+
+static bool is_trig_data_contained(struct iwl_ucode_tlv *new,
+				   struct iwl_ucode_tlv *old)
+{
+	struct iwl_fw_ini_trigger_tlv *new_trig = (void *)new->data;
+	struct iwl_fw_ini_trigger_tlv *old_trig = (void *)old->data;
+	__le32 *new_data = new_trig->data, *old_data = old_trig->data;
+	u32 new_dwords_num = iwl_tlv_array_len(new, new_trig, data);
+	u32 old_dwords_num = iwl_tlv_array_len(new, new_trig, data);
+	int i, j;
+
+	for (i = 0; i < new_dwords_num; i++) {
+		bool match = false;
+
+		for (j = 0; j < old_dwords_num; j++) {
+			if (new_data[i] == old_data[j]) {
+				match = true;
+				break;
+			}
+		}
+		if (!match)
+			return false;
+	}
+
+	return true;
+}
+
+static int iwl_dbg_tlv_override_trig_node(struct iwl_fw_runtime *fwrt,
+					  struct iwl_ucode_tlv *trig_tlv,
+					  struct iwl_dbg_tlv_node *node)
+{
+	struct iwl_ucode_tlv *node_tlv = &node->tlv;
+	struct iwl_fw_ini_trigger_tlv *node_trig = (void *)node_tlv->data;
+	struct iwl_fw_ini_trigger_tlv *trig = (void *)trig_tlv->data;
+	u32 policy = le32_to_cpu(trig->apply_policy);
+	u32 size = le32_to_cpu(trig_tlv->length);
+	u32 trig_data_len = size - sizeof(*trig);
+	u32 offset = 0;
+
+	if (!(policy & IWL_FW_INI_APPLY_POLICY_OVERRIDE_DATA)) {
+		u32 data_len = le32_to_cpu(node_tlv->length) -
+			sizeof(*node_trig);
+
+		IWL_DEBUG_FW(fwrt,
+			     "WRT: Appending trigger data (time point %u)\n",
+			     le32_to_cpu(trig->time_point));
+
+		offset += data_len;
+		size += data_len;
+	} else {
+		IWL_DEBUG_FW(fwrt,
+			     "WRT: Overriding trigger data (time point %u)\n",
+			     le32_to_cpu(trig->time_point));
+	}
+
+	if (size != le32_to_cpu(node_tlv->length)) {
+		struct list_head *prev = node->list.prev;
+		struct iwl_dbg_tlv_node *tmp;
+
+		list_del(&node->list);
+
+		tmp = krealloc(node, sizeof(*node) + size, GFP_KERNEL);
+		if (!tmp) {
+			IWL_WARN(fwrt,
+				 "WRT: No memory to override trigger (time point %u)\n",
+				 le32_to_cpu(trig->time_point));
+
+			list_add(&node->list, prev);
+
+			return -ENOMEM;
+		}
+
+		list_add(&tmp->list, prev);
+		node_tlv = &tmp->tlv;
+		node_trig = (void *)node_tlv->data;
+	}
+
+	memcpy(node_trig->data + offset, trig->data, trig_data_len);
+	node_tlv->length = cpu_to_le32(size);
+
+	if (policy & IWL_FW_INI_APPLY_POLICY_OVERRIDE_CFG) {
+		IWL_DEBUG_FW(fwrt,
+			     "WRT: Overriding trigger configuration (time point %u)\n",
+			     le32_to_cpu(trig->time_point));
+
+		/* the first 11 dwords are configuration related */
+		memcpy(node_trig, trig, sizeof(__le32) * 11);
+	}
+
+	if (policy & IWL_FW_INI_APPLY_POLICY_OVERRIDE_REGIONS) {
+		IWL_DEBUG_FW(fwrt,
+			     "WRT: Overriding trigger regions (time point %u)\n",
+			     le32_to_cpu(trig->time_point));
+
+		node_trig->regions_mask = trig->regions_mask;
+	} else {
+		IWL_DEBUG_FW(fwrt,
+			     "WRT: Appending trigger regions (time point %u)\n",
+			     le32_to_cpu(trig->time_point));
+
+		node_trig->regions_mask |= trig->regions_mask;
+	}
+
+	return 0;
+}
+
+static int
+iwl_dbg_tlv_add_active_trigger(struct iwl_fw_runtime *fwrt,
+			       struct list_head *trig_list,
+			       struct iwl_ucode_tlv *trig_tlv)
+{
+	struct iwl_fw_ini_trigger_tlv *trig = (void *)trig_tlv->data;
+	struct iwl_dbg_tlv_node *node, *match = NULL;
+	u32 policy = le32_to_cpu(trig->apply_policy);
+
+	list_for_each_entry(node, trig_list, list) {
+		if (!(policy & IWL_FW_INI_APPLY_POLICY_MATCH_TIME_POINT))
+			break;
+
+		if (!(policy & IWL_FW_INI_APPLY_POLICY_MATCH_DATA) ||
+		    is_trig_data_contained(trig_tlv, &node->tlv)) {
+			match = node;
+			break;
+		}
+	}
+
+	if (!match) {
+		IWL_DEBUG_FW(fwrt, "WRT: Enabling trigger (time point %u)\n",
+			     le32_to_cpu(trig->time_point));
+		return iwl_dbg_tlv_add(trig_tlv, trig_list);
+	}
+
+	return iwl_dbg_tlv_override_trig_node(fwrt, trig_tlv, match);
+}
+
+static void
+iwl_dbg_tlv_gen_active_trig_list(struct iwl_fw_runtime *fwrt,
+				 struct iwl_dbg_tlv_time_point_data *tp)
+{
+	struct iwl_dbg_tlv_node *node, *tmp;
+	struct list_head *trig_list = &tp->trig_list;
+	struct list_head *active_trig_list = &tp->active_trig_list;
+
+	list_for_each_entry_safe(node, tmp, active_trig_list, list) {
+		list_del(&node->list);
+		kfree(node);
+	}
+
+	list_for_each_entry(node, trig_list, list) {
+		struct iwl_ucode_tlv *tlv = &node->tlv;
+		struct iwl_fw_ini_trigger_tlv *trig = (void *)tlv->data;
+		u32 domain = le32_to_cpu(trig->hdr.domain);
+
+		if (domain != IWL_FW_INI_DOMAIN_ALWAYS_ON &&
+		    !(domain & fwrt->trans->dbg.domains_bitmap))
+			continue;
+
+		iwl_dbg_tlv_add_active_trigger(fwrt, active_trig_list, tlv);
+	}
+}
+
+int iwl_dbg_tlv_gen_active_trigs(struct iwl_fw_runtime *fwrt, u32 new_domain)
+{
+	int i;
+
+	if (test_and_set_bit(STATUS_GEN_ACTIVE_TRIGS, &fwrt->status))
+		return -EBUSY;
+
+	iwl_fw_flush_dumps(fwrt);
+
+	fwrt->trans->dbg.domains_bitmap = new_domain;
+
+	IWL_DEBUG_FW(fwrt,
+		     "WRT: Generating active triggers list, domain 0x%x\n",
+		     fwrt->trans->dbg.domains_bitmap);
+
+	for (i = 0; i < ARRAY_SIZE(fwrt->trans->dbg.time_point); i++) {
+		struct iwl_dbg_tlv_time_point_data *tp =
+			&fwrt->trans->dbg.time_point[i];
+
+		iwl_dbg_tlv_gen_active_trig_list(fwrt, tp);
+	}
+
+	clear_bit(STATUS_GEN_ACTIVE_TRIGS, &fwrt->status);
+
+	return 0;
+}
+
+static int
+iwl_dbg_tlv_tp_trigger(struct iwl_fw_runtime *fwrt,
+		       struct list_head *active_trig_list,
+		       union iwl_dbg_tlv_tp_data *tp_data,
+		       bool (*data_check)(struct iwl_fw_runtime *fwrt,
+					  struct iwl_fwrt_dump_data *dump_data,
+					  union iwl_dbg_tlv_tp_data *tp_data,
+					  u32 trig_data))
+{
+	struct iwl_dbg_tlv_node *node;
+
+	list_for_each_entry(node, active_trig_list, list) {
+		struct iwl_fwrt_dump_data dump_data = {
+			.trig = (void *)node->tlv.data,
+		};
+		u32 num_data = iwl_tlv_array_len(&node->tlv, dump_data.trig,
+						 data);
+		int ret, i;
+
+		if (!num_data) {
+			ret = iwl_fw_dbg_ini_collect(fwrt, &dump_data);
+			if (ret)
+				return ret;
+		}
+
+		for (i = 0; i < num_data; i++) {
+			if (!data_check ||
+			    data_check(fwrt, &dump_data, tp_data,
+				       le32_to_cpu(dump_data.trig->data[i]))) {
+				ret = iwl_fw_dbg_ini_collect(fwrt, &dump_data);
+				if (ret)
+					return ret;
+
+				break;
+			}
+		}
+	}
+
+	return 0;
 }
 
 void iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
 			    enum iwl_fw_ini_time_point tp_id,
 			    union iwl_dbg_tlv_tp_data *tp_data)
 {
-	/* will be used later */
+	struct list_head *hcmd_list, *trig_list;
+
+	if (!iwl_trans_dbg_ini_valid(fwrt->trans) ||
+	    tp_id == IWL_FW_INI_TIME_POINT_INVALID ||
+	    tp_id >= IWL_FW_INI_TIME_POINT_NUM)
+		return;
+
+	hcmd_list = &fwrt->trans->dbg.time_point[tp_id].hcmd_list;
+	trig_list = &fwrt->trans->dbg.time_point[tp_id].active_trig_list;
+
+	switch (tp_id) {
+	case IWL_FW_INI_TIME_POINT_EARLY:
+		iwl_dbg_tlv_gen_active_trigs(fwrt, IWL_FW_DBG_DOMAIN);
+		iwl_dbg_tlv_tp_trigger(fwrt, trig_list, tp_data, NULL);
+		break;
+	default:
+		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);
+		iwl_dbg_tlv_tp_trigger(fwrt, trig_list, tp_data, NULL);
+		break;
+	}
 }
 IWL_EXPORT_SYMBOL(iwl_dbg_tlv_time_point);

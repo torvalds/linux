@@ -61,18 +61,7 @@
 #include <linux/bitops.h>
 
 #define IWL_FW_INI_MAX_CFG_NAME			64
-
-/**
- * enum iwl_fw_ini_dbg_domain - debug domains
- * allows to send host cmd or collect memory region if a given domain is enabled
- *
- * @IWL_FW_INI_DBG_DOMAIN_ALWAYS_ON: the default domain, always on
- * @IWL_FW_INI_DBG_DOMAIN_REPORT_PS: power save domain
- */
-enum iwl_fw_ini_dbg_domain {
-	IWL_FW_INI_DBG_DOMAIN_ALWAYS_ON = 0,
-	IWL_FW_INI_DBG_DOMAIN_REPORT_PS,
-}; /* FW_DEBUG_TLV_DOMAIN_API_E_VER_1 */
+#define IWL_FW_INI_DOMAIN_ALWAYS_ON		0
 
 /**
  * struct iwl_fw_ini_hcmd
@@ -652,4 +641,22 @@ enum iwl_fw_ini_time_point {
 	IWL_FW_INI_TIME_POINT_NUM,
 }; /* FW_TLV_DEBUG_TIME_POINT_API_E */
 
+/**
+ * enum iwl_fw_ini_trigger_apply_policy - Determines how to apply triggers
+ *
+ * @IWL_FW_INI_APPLY_POLICY_MATCH_TIME_POINT: match by time point
+ * @IWL_FW_INI_APPLY_POLICY_MATCH_DATA: match by trigger data
+ * @IWL_FW_INI_APPLY_POLICY_OVERRIDE_REGIONS: override regions mask.
+ *	Append otherwise
+ * @IWL_FW_INI_APPLY_POLICY_OVERRIDE_CFG: override trigger configuration
+ * @IWL_FW_INI_APPLY_POLICY_OVERRIDE_DATA: override trigger data.
+ *	Append otherwise
+ */
+enum iwl_fw_ini_trigger_apply_policy {
+	IWL_FW_INI_APPLY_POLICY_MATCH_TIME_POINT	= BIT(0),
+	IWL_FW_INI_APPLY_POLICY_MATCH_DATA		= BIT(1),
+	IWL_FW_INI_APPLY_POLICY_OVERRIDE_REGIONS	= BIT(8),
+	IWL_FW_INI_APPLY_POLICY_OVERRIDE_CFG		= BIT(9),
+	IWL_FW_INI_APPLY_POLICY_OVERRIDE_DATA		= BIT(10),
+};
 #endif

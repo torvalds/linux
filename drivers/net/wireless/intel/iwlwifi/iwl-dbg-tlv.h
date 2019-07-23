@@ -85,10 +85,12 @@ union iwl_dbg_tlv_tp_data {
 /**
  * struct iwl_dbg_tlv_time_point_data
  * @trig_list: list of triggers
+ * @active_trig_list: list of active triggers
  * @hcmd_list: list of host commands
  */
 struct iwl_dbg_tlv_time_point_data {
 	struct list_head trig_list;
+	struct list_head active_trig_list;
 	struct list_head hcmd_list;
 };
 
@@ -103,6 +105,7 @@ void iwl_dbg_tlv_init(struct iwl_trans *trans);
 void iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
 			    enum iwl_fw_ini_time_point tp_id,
 			    union iwl_dbg_tlv_tp_data *tp_data);
+int iwl_dbg_tlv_gen_active_trigs(struct iwl_fw_runtime *fwrt, u32 new_domain);
 void iwl_dbg_tlv_del_timers(struct iwl_trans *trans);
 
 #endif /* __iwl_dbg_tlv_h__*/
