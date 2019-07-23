@@ -25,8 +25,9 @@
  * Video and XvMC related functions.
  */
 
-#include <drm/drmP.h>
+#include <drm/drm_device.h>
 #include <drm/via_drm.h>
+
 #include "via_drv.h"
 
 void via_init_futex(drm_via_private_t *dev_priv)

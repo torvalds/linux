@@ -34,13 +34,16 @@
  * the same DMA mappings?
  */
 
-#include <drm/drmP.h>
-#include <drm/via_drm.h>
-#include "via_drv.h"
-#include "via_dmablit.h"
-
 #include <linux/pagemap.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_pci.h>
+#include <drm/via_drm.h>
+
+#include "via_dmablit.h"
+#include "via_drv.h"
 
 #define VIA_PGDN(x)	     (((unsigned long)(x)) & PAGE_MASK)
 #define VIA_PGOFF(x)	    (((unsigned long)(x)) & ~PAGE_MASK)

@@ -35,8 +35,10 @@
  * The refresh rate is also calculated for video playback sync purposes.
  */
 
-#include <drm/drmP.h>
+#include <drm/drm_device.h>
+#include <drm/drm_vblank.h>
 #include <drm/via_drm.h>
+
 #include "via_drv.h"
 
 #define VIA_REG_INTERRUPT       0x200

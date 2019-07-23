@@ -34,8 +34,15 @@
  *    Thomas Hellstrom.
  */
 
-#include <drm/drmP.h>
+#include <linux/delay.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm.h>
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
 #include <drm/via_drm.h>
+
 #include "via_drv.h"
 #include "via_3d_reg.h"
 

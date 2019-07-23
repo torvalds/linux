@@ -28,13 +28,13 @@
  * be very slow.
  */
 
-#include "via_3d_reg.h"
-#include <drm/drmP.h>
-#include <drm/via_drm.h>
+#include <drm/drm_device.h>
 #include <drm/drm_legacy.h>
-#include "via_verifier.h"
+#include <drm/via_drm.h>
+
+#include "via_3d_reg.h"
 #include "via_drv.h"
-#include <linux/kernel.h>
+#include "via_verifier.h"
 
 typedef enum {
 	state_command,
