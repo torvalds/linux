@@ -58,24 +58,6 @@ void skl_dsp_set_astate_cfg(struct skl_dev *skl, u32 cnt, void *data)
 	skl_ipc_set_large_config(&skl->ipc, &msg, data);
 }
 
-#define NOTIFICATION_PARAM_ID 3
-#define NOTIFICATION_MASK 0xf
-
-/* disable notfication for underruns/overruns from firmware module */
-void skl_dsp_enable_notification(struct skl_dev *skl, bool enable)
-{
-	struct notification_mask mask;
-	struct skl_ipc_large_config_msg	msg = {0};
-
-	mask.notify = NOTIFICATION_MASK;
-	mask.enable = enable;
-
-	msg.large_param_id = NOTIFICATION_PARAM_ID;
-	msg.param_data_size = sizeof(mask);
-
-	skl_ipc_set_large_config(&skl->ipc, &msg, (u32 *)&mask);
-}
-
 static int skl_dsp_setup_spib(struct device *dev, unsigned int size,
 				int stream_tag, int enable)
 {
@@ -435,8 +417,6 @@ int skl_resume_dsp(struct skl_dev *skl)
 	skl->clock_power_gating(skl->dev, true);
 	if (ret < 0)
 		return ret;
-
-	skl_dsp_enable_notification(skl, false);
 
 	if (skl->cfg.astate_cfg != NULL) {
 		skl_dsp_set_astate_cfg(skl, skl->cfg.astate_cfg->count,

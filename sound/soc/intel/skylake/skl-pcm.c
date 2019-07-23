@@ -1445,7 +1445,6 @@ static int skl_platform_soc_probe(struct snd_soc_component *component)
 		}
 		skl_populate_modules(skl);
 		skl->update_d0i3c = skl_update_d0i3c;
-		skl_dsp_enable_notification(skl, false);
 
 		if (skl->cfg.astate_cfg != NULL) {
 			skl_dsp_set_astate_cfg(skl,

@@ -240,7 +240,6 @@ int skl_get_pvt_instance_id_map(struct skl_dev *skl,
 void skl_freeup_uuid_list(struct skl_dev *skl);
 
 int skl_dsp_strip_extended_manifest(struct firmware *fw);
-void skl_dsp_enable_notification(struct skl_dev *skl, bool enable);
 
 void skl_dsp_set_astate_cfg(struct skl_dev *skl, u32 cnt, void *data);
 

@@ -140,11 +140,6 @@ struct skl_src_module_cfg {
 	enum skl_s_freq src_cfg;
 } __packed;
 
-struct notification_mask {
-	u32 notify;
-	u32 enable;
-} __packed;
-
 struct skl_up_down_mixer_cfg {
 	struct skl_base_cfg base_cfg;
 	enum skl_ch_cfg out_ch_cfg;
