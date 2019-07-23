@@ -5466,21 +5466,21 @@ static struct rdma_hw_stats *mlx5_ib_alloc_hw_stats(struct ib_device *ibdev,
 						    u8 port_num)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	struct mlx5_ib_port *port = &dev->port[port_num - 1];
+	const struct mlx5_ib_counters *cnts = &dev->port[port_num - 1].cnts;
 
 	/* We support only per port stats */
 	if (port_num == 0)
 		return NULL;
 
-	return rdma_alloc_hw_stats_struct(port->cnts.names,
-					  port->cnts.num_q_counters +
-					  port->cnts.num_cong_counters +
-					  port->cnts.num_ext_ppcnt_counters,
+	return rdma_alloc_hw_stats_struct(cnts->names,
+					  cnts->num_q_counters +
+					  cnts->num_cong_counters +
+					  cnts->num_ext_ppcnt_counters,
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
 
 static int mlx5_ib_query_q_counters(struct mlx5_core_dev *mdev,
-				    struct mlx5_ib_port *port,
+				    const struct mlx5_ib_counters *cnts,
 				    struct rdma_hw_stats *stats,
 				    u16 set_id)
 {
@@ -5497,8 +5497,8 @@ static int mlx5_ib_query_q_counters(struct mlx5_core_dev *mdev,
 	if (ret)
 		goto free;
 
-	for (i = 0; i < port->cnts.num_q_counters; i++) {
-		val = *(__be32 *)(out + port->cnts.offsets[i]);
+	for (i = 0; i < cnts->num_q_counters; i++) {
+		val = *(__be32 *)(out + cnts->offsets[i]);
 		stats->value[i] = (u64)be32_to_cpu(val);
 	}
 
@@ -5508,10 +5508,10 @@ free:
 }
 
 static int mlx5_ib_query_ext_ppcnt_counters(struct mlx5_ib_dev *dev,
-					  struct mlx5_ib_port *port,
-					  struct rdma_hw_stats *stats)
+					    const struct mlx5_ib_counters *cnts,
+					    struct rdma_hw_stats *stats)
 {
-	int offset = port->cnts.num_q_counters + port->cnts.num_cong_counters;
+	int offset = cnts->num_q_counters + cnts->num_cong_counters;
 	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 	int ret, i;
 	void *out;
@@ -5524,12 +5524,10 @@ static int mlx5_ib_query_ext_ppcnt_counters(struct mlx5_ib_dev *dev,
 	if (ret)
 		goto free;
 
-	for (i = 0; i < port->cnts.num_ext_ppcnt_counters; i++) {
+	for (i = 0; i < cnts->num_ext_ppcnt_counters; i++)
 		stats->value[i + offset] =
 			be64_to_cpup((__be64 *)(out +
-				    port->cnts.offsets[i + offset]));
-	}
-
+				    cnts->offsets[i + offset]));
 free:
 	kvfree(out);
 	return ret;
@@ -5540,7 +5538,7 @@ static int mlx5_ib_get_hw_stats(struct ib_device *ibdev,
 				u8 port_num, int index)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	struct mlx5_ib_port *port = &dev->port[port_num - 1];
+	struct mlx5_ib_counters *cnts = &dev->port[port_num - 1].cnts;
 	struct mlx5_core_dev *mdev;
 	int ret, num_counters;
 	u8 mdev_port_num;
@@ -5548,18 +5546,17 @@ static int mlx5_ib_get_hw_stats(struct ib_device *ibdev,
 	if (!stats)
 		return -EINVAL;
 
-	num_counters = port->cnts.num_q_counters +
-		       port->cnts.num_cong_counters +
-		       port->cnts.num_ext_ppcnt_counters;
+	num_counters = cnts->num_q_counters +
+		       cnts->num_cong_counters +
+		       cnts->num_ext_ppcnt_counters;
 
 	/* q_counters are per IB device, query the master mdev */
-	ret = mlx5_ib_query_q_counters(dev->mdev, port, stats,
-				       port->cnts.set_id);
+	ret = mlx5_ib_query_q_counters(dev->mdev, cnts, stats, cnts->set_id);
 	if (ret)
 		return ret;
 
 	if (MLX5_CAP_PCAM_FEATURE(dev->mdev, rx_icrc_encapsulated_counter)) {
-		ret =  mlx5_ib_query_ext_ppcnt_counters(dev, port, stats);
+		ret =  mlx5_ib_query_ext_ppcnt_counters(dev, cnts, stats);
 		if (ret)
 			return ret;
 	}
@@ -5576,10 +5573,10 @@ static int mlx5_ib_get_hw_stats(struct ib_device *ibdev,
 		}
 		ret = mlx5_lag_query_cong_counters(dev->mdev,
 						   stats->value +
-						   port->cnts.num_q_counters,
-						   port->cnts.num_cong_counters,
-						   port->cnts.offsets +
-						   port->cnts.num_q_counters);
+						   cnts->num_q_counters,
+						   cnts->num_cong_counters,
+						   cnts->offsets +
+						   cnts->num_q_counters);
 
 		mlx5_ib_put_native_port_mdev(dev, port_num);
 		if (ret)
@@ -5594,20 +5591,21 @@ static struct rdma_hw_stats *
 mlx5_ib_counter_alloc_stats(struct rdma_counter *counter)
 {
 	struct mlx5_ib_dev *dev = to_mdev(counter->device);
-	struct mlx5_ib_port *port = &dev->port[counter->port - 1];
+	const struct mlx5_ib_counters *cnts =
+			&dev->port[counter->port - 1].cnts;
 
 	/* Q counters are in the beginning of all counters */
-	return rdma_alloc_hw_stats_struct(port->cnts.names,
-					  port->cnts.num_q_counters,
+	return rdma_alloc_hw_stats_struct(cnts->names,
+					  cnts->num_q_counters,
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
 
 static int mlx5_ib_counter_update_stats(struct rdma_counter *counter)
 {
 	struct mlx5_ib_dev *dev = to_mdev(counter->device);
-	struct mlx5_ib_port *port = &dev->port[counter->port - 1];
+	struct mlx5_ib_counters *cnts = &dev->port[counter->port - 1].cnts;
 
-	return mlx5_ib_query_q_counters(dev->mdev, port,
+	return mlx5_ib_query_q_counters(dev->mdev, cnts,
 					counter->stats, counter->id);
 }
 
