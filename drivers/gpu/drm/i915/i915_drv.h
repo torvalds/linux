@@ -152,7 +152,7 @@ enum hpd_pin {
 #define HPD_STORM_DEFAULT_THRESHOLD 50
 
 struct i915_hotplug {
-	struct work_struct hotplug_work;
+	struct delayed_work hotplug_work;
 
 	struct {
 		unsigned long last_jiffies;
@@ -164,6 +164,7 @@ struct i915_hotplug {
 		} state;
 	} stats[HPD_NUM_PINS];
 	u32 event_bits;
+	u32 retry_bits;
 	struct delayed_work reenable_work;
 
 	u32 long_port_mask;

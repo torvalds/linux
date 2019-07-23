@@ -221,14 +221,21 @@ struct intel_fbdev {
 	struct mutex hpd_lock;
 };
 
+enum intel_hotplug_state {
+	INTEL_HOTPLUG_UNCHANGED,
+	INTEL_HOTPLUG_CHANGED,
+	INTEL_HOTPLUG_RETRY,
+};
+
 struct intel_encoder {
 	struct drm_encoder base;
 
 	enum intel_output_type type;
 	enum port port;
 	unsigned int cloneable;
-	bool (*hotplug)(struct intel_encoder *encoder,
-			struct intel_connector *connector);
+	enum intel_hotplug_state (*hotplug)(struct intel_encoder *encoder,
+					    struct intel_connector *connector,
+					    bool irq_received);
 	enum intel_output_type (*compute_output_type)(struct intel_encoder *,
 						      struct intel_crtc_state *,
 						      struct drm_connector_state *);
@@ -1921,8 +1928,9 @@ int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector);
 void intel_dvo_init(struct drm_i915_private *dev_priv);
 /* intel_hotplug.c */
 void intel_hpd_poll_init(struct drm_i915_private *dev_priv);
-bool intel_encoder_hotplug(struct intel_encoder *encoder,
-			   struct intel_connector *connector);
+enum intel_hotplug_state intel_encoder_hotplug(struct intel_encoder *encoder,
+					       struct intel_connector *connector,
+					       bool irq_received);
 
 /* legacy fbdev emulation in intel_fbdev.c */
 #ifdef CONFIG_DRM_FBDEV_EMULATION
