@@ -1263,11 +1263,13 @@ static void bch2_read_retry(struct bch_fs *c, struct bch_read_bio *rbio,
 	struct bkey_s_c k;
 	int ret;
 
-	bch2_trans_init(&trans, c, 0, 0);
-
 	flags &= ~BCH_READ_LAST_FRAGMENT;
 	flags |= BCH_READ_MUST_CLONE;
+
+	bch2_trans_init(&trans, c, 0, 0);
 retry:
+	bch2_trans_begin(&trans);
+
 	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
 			   POS(inode, bvec_iter.bi_sector),
 			   BTREE_ITER_SLOTS, k, ret) {
