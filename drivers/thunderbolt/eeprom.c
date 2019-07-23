@@ -414,7 +414,7 @@ static int tb_drom_copy_efi(struct tb_switch *sw, u16 *size)
 	struct device *dev = &sw->tb->nhi->pdev->dev;
 	int len, res;
 
-	len = device_property_read_u8_array(dev, "ThunderboltDROM", NULL, 0);
+	len = device_property_count_u8(dev, "ThunderboltDROM");
 	if (len < 0 || len < sizeof(struct tb_drom_header))
 		return -EINVAL;
 
