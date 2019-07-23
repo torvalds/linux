@@ -1555,8 +1555,7 @@ static int stm32_mdma_probe(struct platform_device *pdev)
 			 nr_requests);
 	}
 
-	count = device_property_read_u32_array(&pdev->dev, "st,ahb-addr-masks",
-					       NULL, 0);
+	count = device_property_count_u32(&pdev->dev, "st,ahb-addr-masks");
 	if (count < 0)
 		count = 0;
 
