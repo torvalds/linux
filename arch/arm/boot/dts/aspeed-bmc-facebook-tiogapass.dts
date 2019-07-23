@@ -144,6 +144,42 @@
 &i2c5 {
 	status = "okay";
 	// CPU Voltage regulators
+	regulator@48 {
+		compatible = "infineon,pxe1610";
+		reg = <0x48>;
+	};
+	regulator@4a {
+		compatible = "infineon,pxe1610";
+		reg = <0x4a>;
+	};
+	regulator@50 {
+		compatible = "infineon,pxe1610";
+		reg = <0x50>;
+	};
+	regulator@52 {
+		compatible = "infineon,pxe1610";
+		reg = <0x52>;
+	};
+	regulator@58 {
+		compatible = "infineon,pxe1610";
+		reg = <0x58>;
+	};
+	regulator@5a {
+		compatible = "infineon,pxe1610";
+		reg = <0x5a>;
+	};
+	regulator@68 {
+		compatible = "infineon,pxe1610";
+		reg = <0x68>;
+	};
+	regulator@70 {
+		compatible = "infineon,pxe1610";
+		reg = <0x70>;
+	};
+	regulator@72 {
+		compatible = "infineon,pxe1610";
+		reg = <0x72>;
+	};
 };
 
 &i2c6 {
