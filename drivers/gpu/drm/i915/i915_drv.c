@@ -2395,8 +2395,7 @@ static int i915_resume_switcheroo(struct drm_device *dev)
 
 static int i915_pm_prepare(struct device *kdev)
 {
-	struct pci_dev *pdev = to_pci_dev(kdev);
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_device *dev = dev_get_drvdata(kdev);
 
 	if (!dev) {
 		dev_err(kdev, "DRM not initialized, aborting suspend.\n");
@@ -2411,8 +2410,7 @@ static int i915_pm_prepare(struct device *kdev)
 
 static int i915_pm_suspend(struct device *kdev)
 {
-	struct pci_dev *pdev = to_pci_dev(kdev);
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_device *dev = dev_get_drvdata(kdev);
 
 	if (!dev) {
 		dev_err(kdev, "DRM not initialized, aborting suspend.\n");
@@ -2906,8 +2904,7 @@ static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 
 static int intel_runtime_suspend(struct device *kdev)
 {
-	struct pci_dev *pdev = to_pci_dev(kdev);
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_device *dev = dev_get_drvdata(kdev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	int ret;
@@ -3005,8 +3002,7 @@ static int intel_runtime_suspend(struct device *kdev)
 
 static int intel_runtime_resume(struct device *kdev)
 {
-	struct pci_dev *pdev = to_pci_dev(kdev);
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_device *dev = dev_get_drvdata(kdev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	int ret = 0;
