@@ -205,11 +205,6 @@ static void typec_altmode_put_partner(struct altmode *altmode)
 	put_device(&adev->dev);
 }
 
-static int typec_port_fwnode_match(struct device *dev, const void *fwnode)
-{
-	return dev_fwnode(dev) == fwnode;
-}
-
 static void *typec_port_match(struct device_connection *con, int ep, void *data)
 {
 	struct device *dev;
@@ -219,8 +214,7 @@ static void *typec_port_match(struct device_connection *con, int ep, void *data)
 	 * we need to return ERR_PTR(-PROBE_DEFER) when there is no device.
 	 */
 	if (con->fwnode)
-		return class_find_device(typec_class, NULL, con->fwnode,
-					 typec_port_fwnode_match);
+		return class_find_device_by_fwnode(typec_class, con->fwnode);
 
 	dev = class_find_device_by_name(typec_class, con->endpoint[ep]);
 
