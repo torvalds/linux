@@ -81,6 +81,7 @@
 struct sh_veu_dev;
 
 struct sh_veu_file {
+	struct v4l2_fh fh;
 	struct sh_veu_dev *veu_dev;
 	bool cfg_needed;
 };
@@ -961,12 +962,14 @@ static int sh_veu_open(struct file *file)
 	if (!veu_file)
 		return -ENOMEM;
 
+	v4l2_fh_init(&veu_file->fh, video_devdata(file));
 	veu_file->veu_dev = veu;
 	veu_file->cfg_needed = true;
 
 	file->private_data = veu_file;
 
 	pm_runtime_get_sync(veu->dev);
+	v4l2_fh_add(&veu_file->fh);
 
 	dev_dbg(veu->dev, "Created instance %p\n", veu_file);
 
@@ -996,6 +999,8 @@ static int sh_veu_release(struct file *file)
 	}
 
 	pm_runtime_put(veu->dev);
+	v4l2_fh_del(&veu_file->fh);
+	v4l2_fh_exit(&veu_file->fh);
 
 	kfree(veu_file);
 
