@@ -1759,8 +1759,7 @@ static const struct sdhci_ops sdhci_pci_ops = {
 #ifdef CONFIG_PM_SLEEP
 static int sdhci_pci_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct sdhci_pci_chip *chip = pci_get_drvdata(pdev);
+	struct sdhci_pci_chip *chip = dev_get_drvdata(dev);
 
 	if (!chip)
 		return 0;
@@ -1773,8 +1772,7 @@ static int sdhci_pci_suspend(struct device *dev)
 
 static int sdhci_pci_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct sdhci_pci_chip *chip = pci_get_drvdata(pdev);
+	struct sdhci_pci_chip *chip = dev_get_drvdata(dev);
 
 	if (!chip)
 		return 0;
@@ -1789,8 +1787,7 @@ static int sdhci_pci_resume(struct device *dev)
 #ifdef CONFIG_PM
 static int sdhci_pci_runtime_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct sdhci_pci_chip *chip = pci_get_drvdata(pdev);
+	struct sdhci_pci_chip *chip = dev_get_drvdata(dev);
 
 	if (!chip)
 		return 0;
@@ -1803,8 +1800,7 @@ static int sdhci_pci_runtime_suspend(struct device *dev)
 
 static int sdhci_pci_runtime_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct sdhci_pci_chip *chip = pci_get_drvdata(pdev);
+	struct sdhci_pci_chip *chip = dev_get_drvdata(dev);
 
 	if (!chip)
 		return 0;
