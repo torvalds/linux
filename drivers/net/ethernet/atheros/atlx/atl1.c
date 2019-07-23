@@ -2753,8 +2753,7 @@ static int atl1_close(struct net_device *netdev)
 #ifdef CONFIG_PM_SLEEP
 static int atl1_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct net_device *netdev = dev_get_drvdata(dev);
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 	struct atl1_hw *hw = &adapter->hw;
 	u32 ctrl = 0;
@@ -2779,7 +2778,7 @@ static int atl1_suspend(struct device *dev)
 		val = atl1_get_speed_and_duplex(hw, &speed, &duplex);
 		if (val) {
 			if (netif_msg_ifdown(adapter))
-				dev_printk(KERN_DEBUG, &pdev->dev,
+				dev_printk(KERN_DEBUG, dev,
 					"error getting speed/duplex\n");
 			goto disable_wol;
 		}
@@ -2836,8 +2835,7 @@ static int atl1_suspend(struct device *dev)
 
 static int atl1_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct net_device *netdev = dev_get_drvdata(dev);
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 
 	iowrite32(0, adapter->hw.hw_addr + REG_WOL_CTRL);

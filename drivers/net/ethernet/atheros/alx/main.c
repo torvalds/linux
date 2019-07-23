@@ -1877,8 +1877,7 @@ static void alx_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int alx_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct alx_priv *alx = pci_get_drvdata(pdev);
+	struct alx_priv *alx = dev_get_drvdata(dev);
 
 	if (!netif_running(alx->dev))
 		return 0;
@@ -1889,8 +1888,7 @@ static int alx_suspend(struct device *dev)
 
 static int alx_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct alx_priv *alx = pci_get_drvdata(pdev);
+	struct alx_priv *alx = dev_get_drvdata(dev);
 	struct alx_hw *hw = &alx->hw;
 	int err;
 
