@@ -456,12 +456,14 @@ struct iwl_fw_error_dump_rb {
  * @header: header of the region
  * @write_ptr: write pointer position in the buffer
  * @cycle_cnt: cycles count
+ * @cur_frag: current fragment in use
  * @ranges: the memory ranges of this this region
  */
 struct iwl_fw_ini_monitor_dump {
 	struct iwl_fw_ini_error_dump_header header;
 	__le32 write_ptr;
 	__le32 cycle_cnt;
+	__le32 cur_frag;
 	struct iwl_fw_ini_error_dump_range ranges[];
 } __packed;
 

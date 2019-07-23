@@ -1165,6 +1165,42 @@ static int iwl_dump_ini_paging_iter(struct iwl_fw_runtime *fwrt,
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
 
+static int
+iwl_dump_ini_mon_dram_iter(struct iwl_fw_runtime *fwrt,
+			   struct iwl_dump_ini_region_data *reg_data,
+			   void *range_ptr, int idx)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	struct iwl_dram_data *frag;
+	u32 alloc_id = le32_to_cpu(reg->dram_alloc_id);
+
+	frag = &fwrt->trans->dbg.fw_mon_ini[alloc_id].frags[idx];
+
+	range->dram_base_addr = cpu_to_le64(frag->physical);
+	range->range_data_size = cpu_to_le32(frag->size);
+
+	memcpy(range->data, frag->block, frag->size);
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
+static int iwl_dump_ini_mon_smem_iter(struct iwl_fw_runtime *fwrt,
+				      struct iwl_dump_ini_region_data *reg_data,
+				      void *range_ptr, int idx)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	u32 addr = le32_to_cpu(reg->internal_buffer.base_addr);
+
+	range->internal_base_addr = cpu_to_le32(addr);
+	range->range_data_size = reg->internal_buffer.size;
+	iwl_trans_read_mem_bytes(fwrt->trans, addr, range->data,
+				 le32_to_cpu(reg->internal_buffer.size));
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
 static bool iwl_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 			     struct iwl_dump_ini_region_data *reg_data, int idx)
 {
@@ -1406,6 +1442,88 @@ iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
 	return dump->ranges;
 }
 
+/**
+ * mask_apply_and_normalize - applies mask on val and normalize the result
+ *
+ * The normalization is based on the first set bit in the mask
+ *
+ * @val: value
+ * @mask: mask to apply and to normalize with
+ */
+static u32 mask_apply_and_normalize(u32 val, u32 mask)
+{
+	return (val & mask) >> (ffs(mask) - 1);
+}
+
+static __le32 iwl_get_mon_reg(struct iwl_fw_runtime *fwrt, u32 alloc_id,
+			      const struct iwl_fw_mon_reg *reg_info)
+{
+	u32 val, offs;
+
+	/* The header addresses of DBGCi is calculate as follows:
+	 * DBGC1 address + (0x100 * i)
+	 */
+	offs = (alloc_id - IWL_FW_INI_ALLOCATION_ID_DBGC1) * 0x100;
+
+	if (!reg_info || !reg_info->addr || !reg_info->mask)
+		return 0;
+
+	val = iwl_read_prph_no_grab(fwrt->trans, reg_info->addr + offs);
+
+	return cpu_to_le32(mask_apply_and_normalize(val, reg_info->mask));
+}
+
+static void *
+iwl_dump_ini_mon_fill_header(struct iwl_fw_runtime *fwrt,
+			     struct iwl_dump_ini_region_data *reg_data,
+			     struct iwl_fw_ini_monitor_dump *data,
+			     const struct iwl_fw_mon_regs *addrs)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	u32 alloc_id = le32_to_cpu(reg->dram_alloc_id);
+	unsigned long flags;
+
+	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags)) {
+		IWL_ERR(fwrt, "Failed to get monitor header\n");
+		return NULL;
+	}
+
+	data->write_ptr = iwl_get_mon_reg(fwrt, alloc_id,
+					  &addrs->write_ptr);
+	data->cycle_cnt = iwl_get_mon_reg(fwrt, alloc_id,
+					  &addrs->cycle_cnt);
+	data->cur_frag = iwl_get_mon_reg(fwrt, alloc_id,
+					 &addrs->cur_frag);
+
+	iwl_trans_release_nic_access(fwrt->trans, &flags);
+
+	data->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
+
+	return data->ranges;
+}
+
+static void *
+iwl_dump_ini_mon_dram_fill_header(struct iwl_fw_runtime *fwrt,
+				  struct iwl_dump_ini_region_data *reg_data,
+				  void *data)
+{
+	struct iwl_fw_ini_monitor_dump *mon_dump = (void *)data;
+
+	return iwl_dump_ini_mon_fill_header(fwrt, reg_data, mon_dump,
+					    &fwrt->trans->cfg->mon_dram_regs);
+}
+
+static void *
+iwl_dump_ini_mon_smem_fill_header(struct iwl_fw_runtime *fwrt,
+				  struct iwl_dump_ini_region_data *reg_data,
+				  void *data)
+{
+	struct iwl_fw_ini_monitor_dump *mon_dump = (void *)data;
+
+	return iwl_dump_ini_mon_fill_header(fwrt, reg_data, mon_dump,
+					    &fwrt->trans->cfg->mon_smem_regs);
+}
+
 static u32 iwl_dump_ini_mem_ranges(struct iwl_fw_runtime *fwrt,
 				   struct iwl_dump_ini_region_data *reg_data)
 {
@@ -1421,6 +1539,27 @@ static u32 iwl_dump_ini_paging_ranges(struct iwl_fw_runtime *fwrt,
 		return fwrt->trans->init_dram.paging_cnt;
 
 	return fwrt->num_of_paging_blk;
+}
+
+static u32
+iwl_dump_ini_mon_dram_ranges(struct iwl_fw_runtime *fwrt,
+			     struct iwl_dump_ini_region_data *reg_data)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_mon *fw_mon;
+	u32 ranges = 0, alloc_id = le32_to_cpu(reg->dram_alloc_id);
+	int i;
+
+	fw_mon = &fwrt->trans->dbg.fw_mon_ini[alloc_id];
+
+	for (i = 0; i < fw_mon->num_frags; i++) {
+		if (!fw_mon->frags[i].size)
+			break;
+
+		ranges++;
+	}
+
+	return ranges;
 }
 
 static u32 iwl_dump_ini_txf_ranges(struct iwl_fw_runtime *fwrt,
@@ -1472,6 +1611,55 @@ iwl_dump_ini_paging_get_size(struct iwl_fw_runtime *fwrt,
 			size += range_header_len +
 				fwrt->fw_paging_db[i].fw_paging_size;
 	}
+
+	return size;
+}
+
+static u32
+iwl_dump_ini_mon_dram_get_size(struct iwl_fw_runtime *fwrt,
+			       struct iwl_dump_ini_region_data *reg_data)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_mon *fw_mon;
+	u32 size = 0, alloc_id = le32_to_cpu(reg->dram_alloc_id);
+	int i;
+
+	fw_mon = &fwrt->trans->dbg.fw_mon_ini[alloc_id];
+
+	for (i = 0; i < fw_mon->num_frags; i++) {
+		struct iwl_dram_data *frag = &fw_mon->frags[i];
+
+		if (!frag->size)
+			break;
+
+		size += sizeof(struct iwl_fw_ini_error_dump_range) + frag->size;
+	}
+
+	if (size)
+		size += sizeof(struct iwl_fw_ini_monitor_dump);
+
+	return size;
+}
+
+static u32
+iwl_dump_ini_mon_smem_get_size(struct iwl_fw_runtime *fwrt,
+			       struct iwl_dump_ini_region_data *reg_data)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_allocation_tlv *fw_mon_cfg;
+	u32 alloc_id = le32_to_cpu(reg->internal_buffer.alloc_id), size;
+
+	fw_mon_cfg = &fwrt->trans->dbg.fw_mon_cfg[alloc_id];
+	if (le32_to_cpu(fw_mon_cfg->buf_location) !=
+	    IWL_FW_INI_LOCATION_SRAM_PATH)
+		return 0;
+
+	size = le32_to_cpu(reg->internal_buffer.size);
+	if (!size)
+		return 0;
+
+	size += sizeof(struct iwl_fw_ini_monitor_dump) +
+		sizeof(struct iwl_fw_ini_error_dump_range);
 
 	return size;
 }
@@ -1680,8 +1868,18 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 
 static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
 	[IWL_FW_INI_REGION_INVALID] = {},
-	[IWL_FW_INI_REGION_INTERNAL_BUFFER] = {},
-	[IWL_FW_INI_REGION_DRAM_BUFFER] = {},
+	[IWL_FW_INI_REGION_INTERNAL_BUFFER] = {
+		.get_num_of_ranges = iwl_dump_ini_single_range,
+		.get_size = iwl_dump_ini_mon_smem_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mon_smem_fill_header,
+		.fill_range = iwl_dump_ini_mon_smem_iter,
+	},
+	[IWL_FW_INI_REGION_DRAM_BUFFER] = {
+		.get_num_of_ranges = iwl_dump_ini_mon_dram_ranges,
+		.get_size = iwl_dump_ini_mon_dram_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mon_dram_fill_header,
+		.fill_range = iwl_dump_ini_mon_dram_iter,
+	},
 	[IWL_FW_INI_REGION_TXF] = {
 		.get_num_of_ranges = iwl_dump_ini_txf_ranges,
 		.get_size = iwl_dump_ini_txf_get_size,

@@ -74,28 +74,6 @@ struct iwl_fw_ini_header {
 } __packed; /* FW_DEBUG_TLV_HEADER_S */
 
 /**
- * struct iwl_fw_ini_allocation_tlv - (IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION)
- * buffer allocation TLV - for debug
- *
- * @iwl_fw_ini_header: header
- * @allocation_id: &enum iwl_fw_ini_allocation_id - to bind allocation and hcmd
- *	if needed (DBGC1/DBGC2/SDFX/...)
- * @buffer_location: type of iwl_fw_ini_buffer_location
- * @size: size in bytes
- * @max_fragments: the maximum allowed fragmentation in the desired memory
- *	allocation above
- * @min_frag_size: the minimum allowed fragmentation size in bytes
- */
-struct iwl_fw_ini_allocation_tlv {
-	struct iwl_fw_ini_header header;
-	__le32 allocation_id;
-	__le32 buffer_location;
-	__le32 size;
-	__le32 max_fragments;
-	__le32 min_frag_size;
-} __packed; /* FW_DEBUG_TLV_BUFFER_ALLOCATION_TLV_S_VER_1 */
-
-/**
  * enum iwl_fw_ini_dbg_domain - debug domains
  * allows to send host cmd or collect memory region if a given domain is enabled
  *
@@ -349,6 +327,25 @@ struct iwl_fw_ini_trigger {
 	__le32 num_regions;
 	__le32 data[];
 } __packed; /* FW_TLV_DEBUG_TRIGGER_CONFIG_API_S_VER_1 */
+
+/**
+ * struct iwl_fw_ini_allocation_tlv - Allocates DRAM buffers
+ *
+ * @hdr: debug header
+ * @alloc_id: allocation id. One of &enum iwl_fw_ini_allocation_id
+ * @buf_location: buffer location. One of &enum iwl_fw_ini_buffer_location
+ * @req_size: requested buffer size
+ * @max_frags_num: maximum number of fragments
+ * @min_size: minimum buffer size
+ */
+struct iwl_fw_ini_allocation_tlv {
+	struct iwl_fw_ini_header hdr;
+	__le32 alloc_id;
+	__le32 buf_location;
+	__le32 req_size;
+	__le32 max_frags_num;
+	__le32 min_size;
+} __packed; /* FW_TLV_DEBUG_BUFFER_ALLOCATION_API_S_VER_1 */
 
 /**
  * struct iwl_fw_ini_trigger_tlv - trigger TLV

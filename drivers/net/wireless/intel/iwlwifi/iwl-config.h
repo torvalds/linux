@@ -360,6 +360,28 @@ struct iwl_cfg_trans_params {
 };
 
 /**
+ * struct iwl_fw_mon_reg - FW monitor register info
+ * @addr: register address
+ * @mask: register mask
+ */
+struct iwl_fw_mon_reg {
+	u32 addr;
+	u32 mask;
+};
+
+/**
+ * struct iwl_fw_mon_regs - FW monitor registers
+ * @write_ptr: write pointer register
+ * @cycle_cnt: cycle count register
+ * @cur_frag: current fragment in use
+ */
+struct iwl_fw_mon_regs {
+	struct iwl_fw_mon_reg write_ptr;
+	struct iwl_fw_mon_reg cycle_cnt;
+	struct iwl_fw_mon_reg cur_frag;
+};
+
+/**
  * struct iwl_cfg
  * @trans: the trans-specific configuration part
  * @name: Official name of the device
@@ -471,12 +493,10 @@ struct iwl_cfg {
 	u32 d3_debug_data_base_addr;
 	u32 d3_debug_data_length;
 	u32 min_txq_size;
-	u32 fw_mon_smem_write_ptr_addr;
-	u32 fw_mon_smem_write_ptr_msk;
-	u32 fw_mon_smem_cycle_cnt_ptr_addr;
-	u32 fw_mon_smem_cycle_cnt_ptr_msk;
 	u32 gp2_reg_addr;
 	u32 min_256_ba_txq_size;
+	const struct iwl_fw_mon_regs mon_dram_regs;
+	const struct iwl_fw_mon_regs mon_smem_regs;
 };
 
 extern const struct iwl_csr_params iwl_csr_v1;
