@@ -120,4 +120,6 @@ source "drivers/staging/kpc2000/Kconfig"
 
 source "drivers/staging/isdn/Kconfig"
 
+source "drivers/staging/qlge/Kconfig"
+
 endif # STAGING
