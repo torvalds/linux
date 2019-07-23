@@ -48,6 +48,7 @@ enum {
 	MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT = BIT(0),
 	MLX5_FLOW_TABLE_TUNNEL_EN_DECAP = BIT(1),
 	MLX5_FLOW_TABLE_TERMINATION = BIT(2),
+	MLX5_FLOW_TABLE_UNMANAGED = BIT(3),
 };
 
 #define LEFTOVERS_RULE_NUM	 2
@@ -150,6 +151,7 @@ struct mlx5_flow_table_attr {
 	int max_fte;
 	u32 level;
 	u32 flags;
+	struct mlx5_flow_table *next_ft;
 
 	struct {
 		int max_num_groups;
