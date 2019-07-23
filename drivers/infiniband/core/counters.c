@@ -393,6 +393,9 @@ u64 rdma_counter_get_hwstat_value(struct ib_device *dev, u8 port, u32 index)
 	u64 sum;
 
 	port_counter = &dev->port_data[port].port_counter;
+	if (!port_counter->hstats)
+		return 0;
+
 	sum = get_running_counters_hwstat_sum(dev, port, index);
 	sum += port_counter->hstats->value[index];
 
