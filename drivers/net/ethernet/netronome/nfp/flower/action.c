@@ -59,6 +59,17 @@ nfp_fl_push_mpls(struct nfp_fl_push_mpls *push_mpls,
 	return 0;
 }
 
+static void
+nfp_fl_pop_mpls(struct nfp_fl_pop_mpls *pop_mpls,
+		const struct flow_action_entry *act)
+{
+	size_t act_size = sizeof(struct nfp_fl_pop_mpls);
+
+	pop_mpls->head.jump_id = NFP_FL_ACTION_OPCODE_POP_MPLS;
+	pop_mpls->head.len_lw = act_size >> NFP_FL_LW_SIZ;
+	pop_mpls->ethtype = act->mpls_pop.proto;
+}
+
 static void nfp_fl_pop_vlan(struct nfp_fl_pop_vlan *pop_vlan)
 {
 	size_t act_size = sizeof(struct nfp_fl_pop_vlan);
@@ -905,6 +916,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 	struct nfp_fl_push_vlan *psh_v;
 	struct nfp_fl_push_mpls *psh_m;
 	struct nfp_fl_pop_vlan *pop_v;
+	struct nfp_fl_pop_mpls *pop_m;
 	int err;
 
 	switch (act->id) {
@@ -1024,6 +1036,19 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		if (err)
 			return err;
 		*a_len += sizeof(struct nfp_fl_push_mpls);
+		break;
+	case FLOW_ACTION_MPLS_POP:
+		if (*a_len +
+		    sizeof(struct nfp_fl_pop_mpls) > NFP_FL_MAX_A_SIZ) {
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at pop MPLS");
+			return -EOPNOTSUPP;
+		}
+
+		pop_m = (struct nfp_fl_pop_mpls *)&nfp_fl->action_data[*a_len];
+		nfp_fl->meta.shortcut = cpu_to_be32(NFP_FL_SC_ACT_NULL);
+
+		nfp_fl_pop_mpls(pop_m, act);
+		*a_len += sizeof(struct nfp_fl_pop_mpls);
 		break;
 	default:
 		/* Currently we do not handle any other actions. */
