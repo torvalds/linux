@@ -477,7 +477,7 @@ static void skl_set_base_module_format(struct skl_dev *skl,
 
 	base_cfg->audio_fmt.interleaving = format->interleaving_style;
 
-	base_cfg->cps = res->cps;
+	base_cfg->cpc = res->cpc;
 	base_cfg->ibs = res->ibs;
 	base_cfg->obs = res->obs;
 	base_cfg->is_pages = res->is_pages;

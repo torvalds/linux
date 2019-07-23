@@ -2205,10 +2205,6 @@ static int skl_tplg_fill_res_tkn(struct device *dev,
 		return -EINVAL;
 
 	switch (tkn_elem->token) {
-	case SKL_TKN_MM_U32_CPS:
-		res->cps = tkn_elem->value;
-		break;
-
 	case SKL_TKN_MM_U32_DMA_SIZE:
 		res->dma_buffer_size = tkn_elem->value;
 		break;
@@ -2229,16 +2225,17 @@ static int skl_tplg_fill_res_tkn(struct device *dev,
 		res->ibs = tkn_elem->value;
 		break;
 
-	case SKL_TKN_U32_MAX_MCPS:
-		res->cps = tkn_elem->value;
-		break;
-
 	case SKL_TKN_MM_U32_RES_PIN_ID:
 	case SKL_TKN_MM_U32_PIN_BUF:
 		ret = skl_tplg_manifest_pin_res_tkn(dev, tkn_elem, res,
 						    pin_idx, dir);
 		if (ret < 0)
 			return ret;
+		break;
+
+	case SKL_TKN_MM_U32_CPS:
+	case SKL_TKN_U32_MAX_MCPS:
+		/* ignore unused tokens */
 		break;
 
 	default:
@@ -2693,7 +2690,7 @@ static int skl_tplg_get_pvt_data_v4(struct snd_soc_tplg_dapm_widget *tplg_w,
 		return ret;
 	mconfig->id.module_id = -1;
 	mconfig->id.instance_id = dfw->instance_id;
-	mconfig->module->resources[0].cps = dfw->max_mcps;
+	mconfig->module->resources[0].cpc = dfw->max_mcps / 1000;
 	mconfig->module->resources[0].ibs = dfw->ibs;
 	mconfig->module->resources[0].obs = dfw->obs;
 	mconfig->core_id = dfw->core_id;

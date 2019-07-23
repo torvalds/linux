@@ -66,6 +66,8 @@ static ssize_t module_read(struct file *file, char __user *user_buf,
 			   size_t count, loff_t *ppos)
 {
 	struct skl_module_cfg *mconfig = file->private_data;
+	struct skl_module *module = mconfig->module;
+	struct skl_module_res *res = &module->resources[mconfig->res_idx];
 	char *buf;
 	ssize_t ret;
 
@@ -79,8 +81,8 @@ static ssize_t module_read(struct file *file, char __user *user_buf,
 			mconfig->id.pvt_id);
 
 	ret += snprintf(buf + ret, MOD_BUF - ret,
-			"Resources:\n\tMCPS %#x\n\tIBS %#x\n\tOBS %#x\t\n",
-			mconfig->mcps, mconfig->ibs, mconfig->obs);
+			"Resources:\n\tCPC %#x\n\tIBS %#x\n\tOBS %#x\t\n",
+			res->cpc, res->ibs, res->obs);
 
 	ret += snprintf(buf + ret, MOD_BUF - ret,
 			"Module data:\n\tCore %d\n\tIn queue %d\n\t"
