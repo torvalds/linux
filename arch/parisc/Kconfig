@@ -61,6 +61,8 @@ config PARISC
 	select HAVE_KRETPROBES
 	select HAVE_DYNAMIC_FTRACE if $(cc-option,-fpatchable-function-entry=1,1)
 	select HAVE_FTRACE_MCOUNT_RECORD if HAVE_DYNAMIC_FTRACE
+	select HAVE_KPROBES_ON_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
