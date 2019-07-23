@@ -233,7 +233,7 @@ static const struct regulator_ops act8865_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 };
 
-static const struct regulator_ops act8865_ldo_ops = {
+static const struct regulator_ops act8865_fixed_ldo_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -287,7 +287,7 @@ static const struct regulator_desc act8600_regulators[] = {
 		.of_match = of_match_ptr("LDO_REG9"),
 		.regulators_node = of_match_ptr("regulators"),
 		.id = ACT8600_ID_LDO9,
-		.ops = &act8865_ldo_ops,
+		.ops = &act8865_fixed_ldo_ops,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = 1,
 		.fixed_uV = 3300000,
@@ -300,7 +300,7 @@ static const struct regulator_desc act8600_regulators[] = {
 		.of_match = of_match_ptr("LDO_REG10"),
 		.regulators_node = of_match_ptr("regulators"),
 		.id = ACT8600_ID_LDO10,
-		.ops = &act8865_ldo_ops,
+		.ops = &act8865_fixed_ldo_ops,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = 1,
 		.fixed_uV = 1200000,
