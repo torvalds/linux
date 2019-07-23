@@ -1318,6 +1318,7 @@ struct i40e_hw_port_stats {
 #define I40E_SR_VPD_PTR				0x2F
 #define I40E_SR_PCIE_ALT_AUTO_LOAD_PTR		0x3E
 #define I40E_SR_SW_CHECKSUM_WORD		0x3F
+#define I40E_SR_EMP_SR_SETTINGS_PTR		0x48
 
 /* Auxiliary field, mask and shift definition for Shadow RAM and NVM Flash */
 #define I40E_SR_VPD_MODULE_MAX_SIZE		1024
