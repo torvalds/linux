@@ -490,9 +490,7 @@ void ext2_free_blocks (struct inode * inode, unsigned long block,
 	struct ext2_super_block * es = sbi->s_es;
 	unsigned freed = 0, group_freed;
 
-	if (block < le32_to_cpu(es->s_first_data_block) ||
-	    block + count < block ||
-	    block + count > le32_to_cpu(es->s_blocks_count)) {
+	if (!ext2_data_block_valid(sbi, block, count)) {
 		ext2_error (sb, "ext2_free_blocks",
 			    "Freeing blocks not in datazone - "
 			    "block = %lu, count = %lu", block, count);
