@@ -1057,14 +1057,19 @@ static int v4l_querycap(const struct v4l2_ioctl_ops *ops,
 
 	ret = ops->vidioc_querycap(file, fh, cap);
 
-	cap->capabilities |= V4L2_CAP_EXT_PIX_FORMAT;
 	/*
-	 * Drivers MUST fill in device_caps, so check for this and
-	 * warn if it was forgotten.
+	 * Drivers must not change device_caps, so check for this and
+	 * warn if this happened.
 	 */
-	WARN(!(cap->capabilities & V4L2_CAP_DEVICE_CAPS) ||
-		!cap->device_caps, "Bad caps for driver %s, %x %x",
-		cap->driver, cap->capabilities, cap->device_caps);
+	WARN_ON(cap->device_caps != vfd->device_caps);
+	/*
+	 * Check that capabilities is a superset of
+	 * vfd->device_caps | V4L2_CAP_DEVICE_CAPS
+	 */
+	WARN_ON((cap->capabilities &
+		 (vfd->device_caps | V4L2_CAP_DEVICE_CAPS)) !=
+		(vfd->device_caps | V4L2_CAP_DEVICE_CAPS));
+	cap->capabilities |= V4L2_CAP_EXT_PIX_FORMAT;
 	cap->device_caps |= V4L2_CAP_EXT_PIX_FORMAT;
 
 	return ret;

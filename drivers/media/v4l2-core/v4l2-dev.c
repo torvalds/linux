@@ -859,6 +859,9 @@ int __video_register_device(struct video_device *vdev,
 	/* the v4l2_dev pointer MUST be present */
 	if (WARN_ON(!vdev->v4l2_dev))
 		return -EINVAL;
+	/* the device_caps field MUST be set */
+	if (WARN_ON(!vdev->device_caps))
+		return -EINVAL;
 
 	/* v4l2_fh support */
 	spin_lock_init(&vdev->fh_lock);
