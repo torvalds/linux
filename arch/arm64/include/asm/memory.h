@@ -201,7 +201,7 @@ extern u64			vabits_user;
  * pass on to access_ok(), for instance.
  */
 #define untagged_addr(addr)	\
-	((__typeof__(addr))sign_extend64((u64)(addr), 55))
+	((__typeof__(addr))sign_extend64((__force u64)(addr), 55))
 
 #ifdef CONFIG_KASAN_SW_TAGS
 #define __tag_shifted(tag)	((u64)(tag) << 56)
