@@ -1444,6 +1444,7 @@ int smu_adjust_power_state_dynamic(struct smu_context *smu,
 
 	if (!smu->pm_enabled)
 		return -EINVAL;
+
 	if (!skip_display_settings) {
 		ret = smu_display_config_changed(smu);
 		if (ret) {
@@ -1452,8 +1453,6 @@ int smu_adjust_power_state_dynamic(struct smu_context *smu,
 		}
 	}
 
-	if (!smu->pm_enabled)
-		return -EINVAL;
 	ret = smu_apply_clocks_adjust_rules(smu);
 	if (ret) {
 		pr_err("Failed to apply clocks adjust rules!");
@@ -1472,9 +1471,14 @@ int smu_adjust_power_state_dynamic(struct smu_context *smu,
 		ret = smu_asic_set_performance_level(smu, level);
 		if (ret) {
 			ret = smu_default_set_performance_level(smu, level);
+			if (ret) {
+				pr_err("Failed to set performance level!");
+				return ret;
+			}
 		}
-		if (!ret)
-			smu_dpm_ctx->dpm_level = level;
+
+		/* update the saved copy */
+		smu_dpm_ctx->dpm_level = level;
 	}
 
 	if (smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
@@ -1533,28 +1537,18 @@ enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu)
 
 int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
 {
-	int ret = 0;
-	int i;
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+	int ret = 0;
 
 	if (!smu_dpm_ctx->dpm_context)
 		return -EINVAL;
 
-	for (i = 0; i < smu->adev->num_ip_blocks; i++) {
-		if (smu->adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC)
-			break;
-	}
-
-
-	smu->adev->ip_blocks[i].version->funcs->enable_umd_pstate(smu, &level);
-	ret = smu_handle_task(smu, level,
-			      AMD_PP_TASK_READJUST_POWER_STATE);
+	ret = smu_enable_umd_pstate(smu, &level);
 	if (ret)
 		return ret;
 
-	mutex_lock(&smu->mutex);
-	smu_dpm_ctx->dpm_level = level;
-	mutex_unlock(&smu->mutex);
+	ret = smu_handle_task(smu, level,
+			      AMD_PP_TASK_READJUST_POWER_STATE);
 
 	return ret;
 }

@@ -317,13 +317,6 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	if (!amdgpu_sriov_vf(adev)) {
-		if (is_support_sw_smu(adev))
-			current_level = smu_get_performance_level(&adev->smu);
-		else if (adev->powerplay.pp_funcs->get_performance_level)
-			current_level = amdgpu_dpm_get_performance_level(adev);
-	}
-
 	if (strncmp("low", buf, strlen("low")) == 0) {
 		level = AMD_DPM_FORCED_LEVEL_LOW;
 	} else if (strncmp("high", buf, strlen("high")) == 0) {
@@ -347,17 +340,23 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 		goto fail;
 	}
 
-        if (amdgpu_sriov_vf(adev)) {
-                if (amdgim_is_hwperf(adev) &&
-                    adev->virt.ops->force_dpm_level) {
-                        mutex_lock(&adev->pm.mutex);
-                        adev->virt.ops->force_dpm_level(adev, level);
-                        mutex_unlock(&adev->pm.mutex);
-                        return count;
-                } else {
-                        return -EINVAL;
+	/* handle sriov case here */
+	if (amdgpu_sriov_vf(adev)) {
+		if (amdgim_is_hwperf(adev) &&
+		    adev->virt.ops->force_dpm_level) {
+			mutex_lock(&adev->pm.mutex);
+			adev->virt.ops->force_dpm_level(adev, level);
+			mutex_unlock(&adev->pm.mutex);
+			return count;
+		} else {
+			return -EINVAL;
 		}
-        }
+	}
+
+	if (is_support_sw_smu(adev))
+		current_level = smu_get_performance_level(&adev->smu);
+	else if (adev->powerplay.pp_funcs->get_performance_level)
+		current_level = amdgpu_dpm_get_performance_level(adev);
 
 	if (current_level == level)
 		return count;
