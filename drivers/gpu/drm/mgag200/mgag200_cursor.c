@@ -213,7 +213,6 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	mdev->cursor.pixels_current = pixels_next;
 
 	drm_gem_vram_kunmap(pixels_next);
-	drm_gem_vram_unpin(pixels_next);
 	drm_gem_vram_kunmap(gbo);
 	drm_gem_vram_unpin(gbo);
 	drm_gem_object_put_unlocked(obj);
