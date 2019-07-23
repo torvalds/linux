@@ -173,8 +173,7 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 #ifdef CONFIG_PM
 static int i2c_dw_pci_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct dw_i2c_dev *i_dev = pci_get_drvdata(pdev);
+	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
 	i_dev->suspended = true;
 	i_dev->disable(i_dev);
@@ -184,8 +183,7 @@ static int i2c_dw_pci_suspend(struct device *dev)
 
 static int i2c_dw_pci_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct dw_i2c_dev *i_dev = pci_get_drvdata(pdev);
+	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 	int ret;
 
 	ret = i_dev->init(i_dev);

@@ -1912,8 +1912,7 @@ static int i801_suspend(struct device *dev)
 
 static int i801_resume(struct device *dev)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct i801_priv *priv = pci_get_drvdata(pci_dev);
+	struct i801_priv *priv = dev_get_drvdata(dev);
 
 	i801_enable_host_notify(&priv->adapter);
 
