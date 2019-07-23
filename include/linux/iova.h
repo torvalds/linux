@@ -237,7 +237,7 @@ static inline void init_iova_domain(struct iova_domain *iovad,
 {
 }
 
-bool has_iova_flush_queue(struct iova_domain *iovad)
+static inline bool has_iova_flush_queue(struct iova_domain *iovad)
 {
 	return false;
 }
