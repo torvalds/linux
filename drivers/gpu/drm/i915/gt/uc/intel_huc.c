@@ -162,7 +162,7 @@ int intel_huc_check_status(struct intel_huc *huc)
 {
 	struct intel_gt *gt = huc_to_gt(huc);
 	intel_wakeref_t wakeref;
-	bool status = false;
+	u32 status = 0;
 
 	if (!intel_uc_is_using_huc(&gt->uc))
 		return -ENODEV;
