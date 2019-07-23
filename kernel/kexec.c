@@ -1593,19 +1593,43 @@ EFI_LOADED_IMAGE_PROTOCOL windows_loaded_image = {
 efi_system_table_t  fake_systab        = {0};
 efi_boot_services_t linux_bootservices = {0};
 
+__attribute__((ms_abi)) efi_status_t efi_hook_AllocatePages(
+                                           EFI_ALLOCATE_TYPE     Type,
+                                           EFI_MEMORY_TYPE       MemoryType,
+                                           UINTN                 NumberOfPages,
+                                           efi_physical_addr_t   *Memory );
+
+#define NUM_PAGES(size) ((size-1) / PAGE_SIZE + 1)
+
+void efi_setup_11_mapping( void* addr, size_t size );
 void kimage_load_pe(struct kimage *image, unsigned long nr_segments)
 {
         unsigned long raw_image_relative_start;
         size_t        image_size = 0;
         int           i;
+        /* u64           image_base = image->segment[0].mem; */
 
         /* Calculate total image size and allocate it: */
         for (i = 0; i < nr_segments; i++) {
                 image_size += image->segment[i].memsz;
         }
-        image->raw_image          = vmalloc_exec( image_size );
+
+        /* TODO: The followng base address should be taken from the segments:
+         * image->raw_image = image->segment[0].mem;
+           We need to fix u-root to have segment[0].mem be ImageBase */
+        image->raw_image          = (void*)0x10000000;
+
+        /* We allocate the raw_image in a 1:1 virt-to-phys mapping, so the code
+         * can continue executing after Windows loader is taking over CR3 and
+         * replaces the page table */
+        efi_hook_AllocatePages( AllocateAddress, EfiLoaderCode,
+                                NUM_PAGES( image_size ),
+                                (efi_physical_addr_t*) &image->raw_image );
 
         /* ImageBase in objdump of efi image */
+        /* TODO: So this is not really ImageBase. We should fix u-root. However,
+         * we neex this reference value to calculate offsets inside our
+         * allocation on image->raw_image. */
         image->raw_image_mem_base = image->segment[0].mem;
 
         raw_image_relative_start  = image->start - image->raw_image_mem_base;
@@ -1810,7 +1834,6 @@ efi_status_t efi_handle_protocol_SimpleTextInputExProtocol( void*  handle,
         return EFI_SUCCESS;
 }
 /*********** End of protocols *****************/
-
 /* This function receives a virtual addr and created a 1:1 mapping between
  * virtual memory to the actual physical address that belongs to addr */
 /* start & end are physical addresses */
@@ -1882,7 +1905,7 @@ void efi_setup_11_mapping_physical_addr( unsigned long start, unsigned long end 
         /* Next,remap the physical memory, allocated to the kernel,
          * to the user-space */
         remap_err = remap_pfn_range( vma, start, start >> PAGE_SHIFT,
-                                     end - start, PAGE_KERNEL );
+                                     end - start, PAGE_KERNEL_EXEC );
         DebugMSG( "remap_pfn_range -> %d", remap_err );
 
         up_write(&mm->mmap_sem);
@@ -1895,7 +1918,6 @@ void efi_setup_11_mapping( void* addr, size_t size )
 
         efi_setup_11_mapping_physical_addr( start, end );
 }
-
 #define EFI_MAX_MEMORY_MAPPINGS 1000
 #define EFI_DEFAULT_MEM_ATTRIBUTES ( EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT | EFI_MEMORY_WB )
 
@@ -2103,8 +2125,6 @@ __attribute__((ms_abi)) efi_status_t efi_hook_GetMemoryMap(
 
         return EFI_SUCCESS;
 }
-
-#define NUM_PAGES(size) ((size-1) / PAGE_SIZE + 1)
 
 __attribute__((ms_abi)) efi_status_t efi_hook_AllocatePool(
                         EFI_MEMORY_TYPE pool_type,
@@ -3012,7 +3032,9 @@ struct BGRT_TABLE* efi_find_bgrt(void)
         return bgrt;
 }
 
-
+/* The ACPI configuration tables may point to areas in regular RAM. We want to
+ * create 1:1 mappings for these locataions so we won't get a page fault when
+ * Windows loader accesses them. */
 void efi_remap_ram_used_by_tables(void)
 {
         struct BGRT_TABLE* bgrt = efi_find_bgrt();
