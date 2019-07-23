@@ -106,7 +106,7 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 	return volume;
 
 error_1:
-	afs_put_cell(params->net, volume->cell);
+	afs_put_cell(volume->cell);
 	kfree(volume);
 error_0:
 	return ERR_PTR(ret);
@@ -228,7 +228,7 @@ static void afs_destroy_volume(struct afs_net *net, struct afs_volume *volume)
 
 	afs_remove_volume_from_cell(volume);
 	afs_put_serverlist(net, rcu_access_pointer(volume->servers));
-	afs_put_cell(net, volume->cell);
+	afs_put_cell(volume->cell);
 	trace_afs_volume(volume->vid, atomic_read(&volume->usage),
 			 afs_volume_trace_free);
 	kfree_rcu(volume, rcu);
