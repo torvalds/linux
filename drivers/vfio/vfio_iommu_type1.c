@@ -1038,6 +1038,27 @@ static int vfio_pin_map_dma(struct vfio_iommu *iommu, struct vfio_dma *dma,
 	return ret;
 }
 
+/*
+ * Check dma map request is within a valid iova range
+ */
+static bool vfio_iommu_iova_dma_valid(struct vfio_iommu *iommu,
+				      dma_addr_t start, dma_addr_t end)
+{
+	struct list_head *iova = &iommu->iova_list;
+	struct vfio_iova *node;
+
+	list_for_each_entry(node, iova, list) {
+		if (start >= node->start && end <= node->end)
+			return true;
+	}
+
+	/*
+	 * Check for list_empty() as well since a container with
+	 * a single mdev device will have an empty list.
+	 */
+	return list_empty(iova);
+}
+
 static int vfio_dma_do_map(struct vfio_iommu *iommu,
 			   struct vfio_iommu_type1_dma_map *map)
 {
@@ -1078,6 +1099,11 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 
 	if (!iommu->dma_avail) {
 		ret = -ENOSPC;
+		goto out_unlock;
+	}
+
+	if (!vfio_iommu_iova_dma_valid(iommu, iova, iova + size - 1)) {
+		ret = -EINVAL;
 		goto out_unlock;
 	}
 
