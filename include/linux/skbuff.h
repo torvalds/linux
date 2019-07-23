@@ -314,8 +314,8 @@ struct skb_frag_struct {
 	struct {
 		struct page *p;
 	} page;
-	__u32 page_offset;
 	__u32 size;
+	__u32 page_offset;
 };
 
 /**
