@@ -252,12 +252,15 @@ static int mbigen_of_create_domain(struct platform_device *pdev,
 
 		parent = platform_bus_type.dev_root;
 		child = of_platform_device_create(np, NULL, parent);
-		if (!child)
+		if (!child) {
+			of_node_put(np);
 			return -ENOMEM;
+		}
 
 		if (of_property_read_u32(child->dev.of_node, "num-pins",
 					 &num_pins) < 0) {
 			dev_err(&pdev->dev, "No num-pins property\n");
+			of_node_put(np);
 			return -EINVAL;
 		}
 
@@ -265,8 +268,10 @@ static int mbigen_of_create_domain(struct platform_device *pdev,
 							   mbigen_write_msg,
 							   &mbigen_domain_ops,
 							   mgn_chip);
-		if (!domain)
+		if (!domain) {
+			of_node_put(np);
 			return -ENOMEM;
+		}
 	}
 
 	return 0;
