@@ -948,6 +948,9 @@ struct amdgpu_device {
 	/* KFD */
 	struct amdgpu_kfd_dev		kfd;
 
+	/* UMC */
+	struct amdgpu_umc		umc;
+
 	/* display related functionality */
 	struct amdgpu_display_manager dm;
 
@@ -973,7 +976,6 @@ struct amdgpu_device {
 
 	const struct amdgpu_nbio_funcs	*nbio_funcs;
 	const struct amdgpu_df_funcs	*df_funcs;
-	const struct amdgpu_umc_funcs	*umc_funcs;
 
 	/* delayed work_func for deferring clockgating during resume */
 	struct delayed_work     delayed_init_work;

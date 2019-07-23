@@ -595,8 +595,8 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 
 	switch (info->head.block) {
 	case AMDGPU_RAS_BLOCK__UMC:
-		if (adev->umc_funcs->query_ras_error_count)
-			adev->umc_funcs->query_ras_error_count(adev, &err_data);
+		if (adev->umc.funcs->query_ras_error_count)
+			adev->umc.funcs->query_ras_error_count(adev, &err_data);
 		break;
 	default:
 		break;

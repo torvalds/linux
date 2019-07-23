@@ -247,8 +247,8 @@ static int gmc_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
 {
 	struct ras_err_data err_data = {0, 0};
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-	if (adev->umc_funcs->query_ras_error_count)
-		adev->umc_funcs->query_ras_error_count(adev, &err_data);
+	if (adev->umc.funcs->query_ras_error_count)
+		adev->umc.funcs->query_ras_error_count(adev, &err_data);
 	amdgpu_ras_reset_gpu(adev, 0);
 	return AMDGPU_RAS_UE;
 }
@@ -635,7 +635,9 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
-		adev->umc_funcs = &umc_v6_1_funcs;
+		adev->umc.max_ras_err_cnt_per_query =
+			UMC_V6_1_UMC_INSTANCE_NUM * UMC_V6_1_CHANNEL_INSTANCE_NUM;
+		adev->umc.funcs = &umc_v6_1_funcs;
 		break;
 	default:
 		break;

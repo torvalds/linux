@@ -26,4 +26,10 @@ struct amdgpu_umc_funcs {
 					void *ras_error_status);
 };
 
+struct amdgpu_umc {
+	/* max error count in one ras query call */
+	uint32_t max_ras_err_cnt_per_query;
+	const struct amdgpu_umc_funcs *funcs;
+};
+
 #endif
