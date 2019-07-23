@@ -1057,9 +1057,11 @@ out:
 /**
  * struct iwl_dump_ini_region_data - region data
  * @reg_tlv: region TLV
+ * @dump_data: dump data
  */
 struct iwl_dump_ini_region_data {
 	struct iwl_ucode_tlv *reg_tlv;
+	struct iwl_fwrt_dump_data *dump_data;
 };
 
 static int iwl_dump_ini_prph_iter(struct iwl_fw_runtime *fwrt,
@@ -1449,6 +1451,27 @@ iwl_dump_ini_err_table_iter(struct iwl_fw_runtime *fwrt,
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
 
+static int iwl_dump_ini_fw_pkt_iter(struct iwl_fw_runtime *fwrt,
+				    struct iwl_dump_ini_region_data *reg_data,
+				    void *range_ptr, int idx)
+{
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	struct iwl_rx_packet *pkt = reg_data->dump_data->fw_pkt;
+	u32 pkt_len;
+
+	if (!pkt)
+		return -EIO;
+
+	pkt_len = iwl_rx_packet_payload_len(pkt);
+
+	memcpy(&range->fw_pkt_hdr, &pkt->hdr, sizeof(range->fw_pkt_hdr));
+	range->range_data_size = cpu_to_le32(pkt_len);
+
+	memcpy(range->data, pkt->data, pkt_len);
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
 static void *
 iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
 			     struct iwl_dump_ini_region_data *reg_data,
@@ -1753,6 +1776,23 @@ iwl_dump_ini_err_table_get_size(struct iwl_fw_runtime *fwrt,
 	return size;
 }
 
+static u32
+iwl_dump_ini_fw_pkt_get_size(struct iwl_fw_runtime *fwrt,
+			     struct iwl_dump_ini_region_data *reg_data)
+{
+	u32 size = 0;
+
+	if (!reg_data->dump_data->fw_pkt)
+		return 0;
+
+	size += iwl_rx_packet_payload_len(reg_data->dump_data->fw_pkt);
+	if (size)
+		size += sizeof(struct iwl_fw_ini_error_dump) +
+			sizeof(struct iwl_fw_ini_error_dump_range);
+
+	return size;
+}
+
 /**
  * struct iwl_dump_ini_mem_ops - ini memory dump operations
  * @get_num_of_ranges: returns the number of memory ranges in the region.
@@ -1976,7 +2016,12 @@ static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
 		.fill_mem_hdr = iwl_dump_ini_err_table_fill_header,
 		.fill_range = iwl_dump_ini_err_table_iter,
 	},
-	[IWL_FW_INI_REGION_RSP_OR_NOTIF] = {},
+	[IWL_FW_INI_REGION_RSP_OR_NOTIF] = {
+		.get_num_of_ranges = iwl_dump_ini_single_range,
+		.get_size = iwl_dump_ini_fw_pkt_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_fw_pkt_iter,
+	},
 	[IWL_FW_INI_REGION_DEVICE_MEMORY] = {
 		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
 		.get_size = iwl_dump_ini_mem_get_size,
@@ -2012,7 +2057,9 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 				struct list_head *list)
 {
 	struct iwl_fw_ini_trigger_tlv *trigger = dump_data->trig;
-	struct iwl_dump_ini_region_data reg_data = {};
+	struct iwl_dump_ini_region_data reg_data = {
+		.dump_data = dump_data,
+	};
 	int i;
 	u32 size = 0;
 	u64 regions_mask = le64_to_cpu(trigger->regions_mask);
@@ -2155,6 +2202,8 @@ static void iwl_dump_ini_list_free(struct list_head *list)
 static void iwl_fw_error_dump_data_free(struct iwl_fwrt_dump_data *dump_data)
 {
 	dump_data->trig = NULL;
+	kfree(dump_data->fw_pkt);
+	dump_data->fw_pkt = NULL;
 }
 
 static void iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,

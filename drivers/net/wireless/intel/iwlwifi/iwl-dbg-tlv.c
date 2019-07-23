@@ -940,6 +940,33 @@ int iwl_dbg_tlv_gen_active_trigs(struct iwl_fw_runtime *fwrt, u32 new_domain)
 	return 0;
 }
 
+static bool iwl_dbg_tlv_check_fw_pkt(struct iwl_fw_runtime *fwrt,
+				     struct iwl_fwrt_dump_data *dump_data,
+				     union iwl_dbg_tlv_tp_data *tp_data,
+				     u32 trig_data)
+{
+	struct iwl_rx_packet *pkt = tp_data->fw_pkt;
+	struct iwl_cmd_header *wanted_hdr = (void *)&trig_data;
+
+	if (pkt && ((wanted_hdr->cmd == 0 && wanted_hdr->group_id == 0) ||
+		    (pkt->hdr.cmd == wanted_hdr->cmd &&
+		     pkt->hdr.group_id == wanted_hdr->group_id))) {
+		struct iwl_rx_packet *fw_pkt =
+			kmemdup(pkt,
+				sizeof(*pkt) + iwl_rx_packet_payload_len(pkt),
+				GFP_ATOMIC);
+
+		if (!fw_pkt)
+			return false;
+
+		dump_data->fw_pkt = fw_pkt;
+
+		return true;
+	}
+
+	return false;
+}
+
 static int
 iwl_dbg_tlv_tp_trigger(struct iwl_fw_runtime *fwrt,
 		       struct list_head *active_trig_list,
@@ -1038,6 +1065,11 @@ void iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
 	case IWL_FW_INI_TIME_POINT_PERIODIC:
 		iwl_dbg_tlv_set_periodic_trigs(fwrt);
 		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);
+		break;
+	case IWL_FW_INI_TIME_POINT_FW_RSP_OR_NOTIF:
+		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);
+		iwl_dbg_tlv_tp_trigger(fwrt, trig_list, tp_data,
+				       iwl_dbg_tlv_check_fw_pkt);
 		break;
 	default:
 		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);

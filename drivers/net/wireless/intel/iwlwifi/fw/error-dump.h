@@ -65,6 +65,7 @@
 #define __fw_error_dump_h__
 
 #include <linux/types.h>
+#include "fw/api/cmdhdr.h"
 
 #define IWL_FW_ERROR_DUMP_BARKER	0x14789632
 #define IWL_FW_INI_ERROR_DUMP_BARKER	0x14789633
@@ -327,6 +328,7 @@ struct iwl_fw_ini_fifo_hdr {
  * @dram_base_addr: base address of dram monitor range
  * @page_num: page number of memory range
  * @fifo_hdr: fifo header of memory range
+ * @fw_pkt: FW packet header of memory range
  * @data: the actual memory
  */
 struct iwl_fw_ini_error_dump_range {
@@ -336,6 +338,7 @@ struct iwl_fw_ini_error_dump_range {
 		__le64 dram_base_addr;
 		__le32 page_num;
 		struct iwl_fw_ini_fifo_hdr fifo_hdr;
+		struct iwl_cmd_header fw_pkt_hdr;
 	};
 	__le32 data[];
 } __packed;
