@@ -1473,7 +1473,6 @@ hi6421-pmic-core
 hi6421-regulator
 hi6421v530-regulator
 hi8435
-hibmc-drm
 hid
 hid-a4tech
 hid-accutouch
