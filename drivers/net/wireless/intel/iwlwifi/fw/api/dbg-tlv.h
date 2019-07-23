@@ -219,18 +219,102 @@ struct iwl_fw_ini_region_cfg {
 } __packed; /* FW_DEBUG_TLV_REGION_CONFIG_API_S_VER_1 */
 
 /**
- * struct iwl_fw_ini_region_tlv - (IWL_UCODE_TLV_TYPE_REGIONS)
- * defines memory regions to dump
+ * struct iwl_fw_ini_region_dev_addr - Configuration to read device addresses
  *
- * @header: header
- * @num_regions: how many different region section and IDs are coming next
- * @region_config: list of dump configurations
+ * @size: size of each memory chunk
+ * @offset: offset to add to the base address of each chunk
+ */
+struct iwl_fw_ini_region_dev_addr {
+	__le32 size;
+	__le32 offset;
+} __packed; /* FW_TLV_DEBUG_DEVICE_ADDR_API_S_VER_1 */
+
+/**
+ * struct iwl_fw_ini_region_fifos - Configuration to read Tx/Rx fifos
+ *
+ * @fid: fifos ids array. Used to determine what fifos to collect
+ * @hdr_only: if non zero, collect only the registers
+ * @offset: offset to add to the registers addresses
+ */
+struct iwl_fw_ini_region_fifos {
+	__le32 fid[2];
+	__le32 hdr_only;
+	__le32 offset;
+} __packed; /* FW_TLV_DEBUG_REGION_FIFOS_API_S_VER_1 */
+
+/**
+ * struct iwl_fw_ini_region_err_table - error table region data
+ *
+ * Configuration to read Umac/Lmac error table
+ *
+ * @version: version of the error table
+ * @base_addr: base address of the error table
+ * @size: size of the error table
+ * @offset: offset to add to &base_addr
+ */
+struct iwl_fw_ini_region_err_table {
+	__le32 version;
+	__le32 base_addr;
+	__le32 size;
+	__le32 offset;
+} __packed; /* FW_TLV_DEBUG_REGION_ERROR_TABLE_API_S_VER_1 */
+
+/**
+ * struct iwl_fw_ini_region_internal_buffer - internal buffer region data
+ *
+ * Configuration to read internal monitor buffer
+ *
+ * @alloc_id: allocation id one of &enum iwl_fw_ini_allocation_id
+ * @base_addr: internal buffer base address
+ * @size: size internal buffer size
+ */
+struct iwl_fw_ini_region_internal_buffer {
+	__le32 alloc_id;
+	__le32 base_addr;
+	__le32 size;
+} __packed; /* FW_TLV_DEBUG_REGION_INTERNAL_BUFFER_API_S_VER_1 */
+
+/**
+ * struct iwl_fw_ini_region_tlv - region TLV
+ *
+ * Configures parameters for region data collection
+ *
+ * @hdr: debug header
+ * @id: region id. Max id is &IWL_FW_INI_MAX_REGION_ID
+ * @type: region type. One of &enum iwl_fw_ini_region_type
+ * @name: region name
+ * @dev_addr: device address configuration. Used by
+ *	&IWL_FW_INI_REGION_DEVICE_MEMORY, &IWL_FW_INI_REGION_PERIPHERY_MAC,
+ *	&IWL_FW_INI_REGION_PERIPHERY_PHY, &IWL_FW_INI_REGION_PERIPHERY_AUX,
+ *	&IWL_FW_INI_REGION_PAGING, &IWL_FW_INI_REGION_CSR,
+ *	&IWL_FW_INI_REGION_DRAM_IMR and &IWL_FW_INI_REGION_PCI_IOSF_CONFIG
+ * @fifos: fifos configuration. Used by &IWL_FW_INI_REGION_TXF and
+ *	&IWL_FW_INI_REGION_RXF
+ * @err_table: error table configuration. Used by
+ *	IWL_FW_INI_REGION_LMAC_ERROR_TABLE and
+ *	IWL_FW_INI_REGION_UMAC_ERROR_TABLE
+ * @internal_buffer: internal monitor buffer configuration. Used by
+ *	&IWL_FW_INI_REGION_INTERNAL_BUFFER
+ * @dram_alloc_id: dram allocation id. One of &enum iwl_fw_ini_allocation_id.
+ *	Used by &IWL_FW_INI_REGION_DRAM_BUFFER
+ * @tlv_mask: tlv collection mask. Used by &IWL_FW_INI_REGION_TLV
+ * @addrs: array of addresses attached to the end of the region tlv
  */
 struct iwl_fw_ini_region_tlv {
-	struct iwl_fw_ini_header header;
-	__le32 num_regions;
-	struct iwl_fw_ini_region_cfg region_config[];
-} __packed; /* FW_DEBUG_TLV_REGIONS_API_S_VER_1 */
+	struct iwl_fw_ini_header hdr;
+	__le32 id;
+	__le32 type;
+	u8 name[IWL_FW_INI_MAX_NAME];
+	union {
+		struct iwl_fw_ini_region_dev_addr dev_addr;
+		struct iwl_fw_ini_region_fifos fifos;
+		struct iwl_fw_ini_region_err_table err_table;
+		struct iwl_fw_ini_region_internal_buffer internal_buffer;
+		__le32 dram_alloc_id;
+		__le32 tlv_mask;
+	}; /* FW_TLV_DEBUG_REGION_CONF_PARAMS_API_U_VER_1 */
+	__le32 addrs[];
+} __packed; /* FW_TLV_DEBUG_REGION_API_S_VER_1 */
 
 /**
  * struct iwl_fw_ini_trigger
@@ -452,42 +536,44 @@ enum iwl_fw_ini_debug_flow {
  * enum iwl_fw_ini_region_type
  *
  * @IWL_FW_INI_REGION_INVALID: invalid
+ * @IWL_FW_INI_REGION_TLV: uCode and debug TLVs
+ * @IWL_FW_INI_REGION_INTERNAL_BUFFER: monitor SMEM buffer
+ * @IWL_FW_INI_REGION_DRAM_BUFFER: monitor DRAM buffer
+ * @IWL_FW_INI_REGION_TXF: TX fifos
+ * @IWL_FW_INI_REGION_RXF: RX fifo
+ * @IWL_FW_INI_REGION_LMAC_ERROR_TABLE: lmac error table
+ * @IWL_FW_INI_REGION_UMAC_ERROR_TABLE: umac error table
+ * @IWL_FW_INI_REGION_RSP_OR_NOTIF: FW response or notification data
  * @IWL_FW_INI_REGION_DEVICE_MEMORY: device internal memory
  * @IWL_FW_INI_REGION_PERIPHERY_MAC: periphery registers of MAC
  * @IWL_FW_INI_REGION_PERIPHERY_PHY: periphery registers of PHY
  * @IWL_FW_INI_REGION_PERIPHERY_AUX: periphery registers of AUX
- * @IWL_FW_INI_REGION_DRAM_BUFFER: DRAM buffer
- * @IWL_FW_INI_REGION_DRAM_IMR: IMR memory
- * @IWL_FW_INI_REGION_INTERNAL_BUFFER: undefined
- * @IWL_FW_INI_REGION_TXF: TX fifos
- * @IWL_FW_INI_REGION_RXF: RX fifo
  * @IWL_FW_INI_REGION_PAGING: paging memory
  * @IWL_FW_INI_REGION_CSR: CSR registers
- * @IWL_FW_INI_REGION_NOTIFICATION: FW notification data
- * @IWL_FW_INI_REGION_DHC: dhc response to dump
- * @IWL_FW_INI_REGION_LMAC_ERROR_TABLE: lmac error table
- * @IWL_FW_INI_REGION_UMAC_ERROR_TABLE: umac error table
+ * @IWL_FW_INI_REGION_DRAM_IMR: IMR memory
+ * @IWL_FW_INI_REGION_PCI_IOSF_CONFIG: PCI/IOSF config
  * @IWL_FW_INI_REGION_NUM: number of region types
  */
 enum iwl_fw_ini_region_type {
 	IWL_FW_INI_REGION_INVALID,
+	IWL_FW_INI_REGION_TLV,
+	IWL_FW_INI_REGION_INTERNAL_BUFFER,
+	IWL_FW_INI_REGION_DRAM_BUFFER,
+	IWL_FW_INI_REGION_TXF,
+	IWL_FW_INI_REGION_RXF,
+	IWL_FW_INI_REGION_LMAC_ERROR_TABLE,
+	IWL_FW_INI_REGION_UMAC_ERROR_TABLE,
+	IWL_FW_INI_REGION_RSP_OR_NOTIF,
 	IWL_FW_INI_REGION_DEVICE_MEMORY,
 	IWL_FW_INI_REGION_PERIPHERY_MAC,
 	IWL_FW_INI_REGION_PERIPHERY_PHY,
 	IWL_FW_INI_REGION_PERIPHERY_AUX,
-	IWL_FW_INI_REGION_DRAM_BUFFER,
-	IWL_FW_INI_REGION_DRAM_IMR,
-	IWL_FW_INI_REGION_INTERNAL_BUFFER,
-	IWL_FW_INI_REGION_TXF,
-	IWL_FW_INI_REGION_RXF,
 	IWL_FW_INI_REGION_PAGING,
 	IWL_FW_INI_REGION_CSR,
-	IWL_FW_INI_REGION_NOTIFICATION,
-	IWL_FW_INI_REGION_DHC,
-	IWL_FW_INI_REGION_LMAC_ERROR_TABLE,
-	IWL_FW_INI_REGION_UMAC_ERROR_TABLE,
+	IWL_FW_INI_REGION_DRAM_IMR,
+	IWL_FW_INI_REGION_PCI_IOSF_CONFIG,
 	IWL_FW_INI_REGION_NUM
-}; /* FW_DEBUG_TLV_REGION_TYPE_E_VER_1 */
+}; /* FW_TLV_DEBUG_REGION_TYPE_API_E */
 
 /**
  * enum iwl_fw_ini_time_point
