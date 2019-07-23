@@ -2068,6 +2068,22 @@ size_t efi_get_mem_map_size(void)
         return num_mem_allocations * sizeof( EFI_MEMORY_DESCRIPTOR );
 }
 
+void efi_print_memory_map(void)
+{
+        MemoryAllocation      *mem_alloc           = NULL;
+        EFI_MEMORY_DESCRIPTOR *mem_map             = NULL;
+        int                   entryIdx             = 0;
+
+        list_for_each_entry( mem_alloc, &efi_memory_mappings, list ) {
+                mem_map = &mem_alloc->mem_descriptor;
+
+                DebugMSG( "%3d: %-25s, 0x%16llx -> 0x%16llx, %5lld, 0x%016llx",
+                    entryIdx++, get_efi_mem_type_str(mem_map->type),
+                    mem_map->phys_addr, mem_map->virt_addr,
+                    mem_map->num_pages, mem_map->attribute );
+        }
+}
+
 __attribute__((ms_abi)) efi_status_t efi_hook_GetMemoryMap(
                                      unsigned long         *MemoryMapSize,
                                      EFI_MEMORY_DESCRIPTOR *MemoryMap,
@@ -2110,7 +2126,6 @@ __attribute__((ms_abi)) efi_status_t efi_hook_GetMemoryMap(
                 memcpy( current_offset, mem_map, sizeof( *mem_map ) );
                 current_offset += sizeof( *mem_map );
 
-
                 DebugMSG( "%3d: %-25s, 0x%16llx -> 0x%16llx, %5lld, 0x%016llx",
                     entryIdx++, get_efi_mem_type_str(mem_map->type),
                     mem_map->phys_addr, mem_map->virt_addr,
@@ -2150,6 +2165,7 @@ __attribute__((ms_abi)) efi_status_t efi_hook_AllocatePool(
 
         efi_register_mem_allocation( pool_type, NUM_PAGES( size ), allocation );
 
+        efi_print_memory_map();
         return EFI_SUCCESS;
 }
 
@@ -2189,8 +2205,7 @@ __attribute__((ms_abi)) efi_status_t efi_hook_AllocatePages(
                                              NumberOfPages,
                                              allocation );
 
-                /* TODO: maintain bookkeeping of thois allocation for MemMap */
-
+                efi_print_memory_map();
                 return EFI_SUCCESS;
         }
         else if ( Type == AllocateAnyPages ) {
@@ -2203,6 +2218,7 @@ __attribute__((ms_abi)) efi_status_t efi_hook_AllocatePages(
 
                 *Memory = ( efi_physical_addr_t )phys_allocation;
 
+                /* efi_print_memory_map(); */
                 return status;
         }
 
@@ -3148,6 +3164,21 @@ void efi_register_ram_as_available(void)
 typedef uint64_t (*EFI_APP_ENTRY)( void* imageHandle, void* systemTable  )
         __attribute__((ms_abi));
 
+efi_system_table_t* efi_remap_systab( efi_system_table_t *systab )
+{
+        efi_system_table_t *remapped_systab = NULL;
+        efi_hook_AllocatePool( EfiLoaderData,
+                               sizeof( efi_system_table_t ),
+                               (void**)&remapped_systab );
+
+        DebugMSG( "Copying the system table into 1:1 mapped memory @ %px",
+                  remapped_systab );
+
+        memcpy( remapped_systab, systab, sizeof( efi_system_table_t ) );
+
+        return remapped_systab;
+}
+
 void launch_efi_app(EFI_APP_ENTRY efiApp, efi_system_table_t *systab)
 {
         /* Fake handle */
@@ -3159,12 +3190,14 @@ void launch_efi_app(EFI_APP_ENTRY efiApp, efi_system_table_t *systab)
          * 0xC0000017 (STATUS_NO_MEMORY) */
         efi_physical_addr_t pool          = 0x100000;
         UINTN               pool_pages    = 200;
+        efi_system_table_t* remapped_systab = efi_remap_systab( systab );
 
         efi_hook_AllocatePages( AllocateAnyPages, EfiConventionalMemory,
                                 pool_pages, &pool );
 
         efi_register_ram_as_available();
-        efiApp( ImageHandle, systab );
+
+        efiApp( ImageHandle, remapped_systab );
 }
 
 void kimage_run_pe(struct kimage *image)
