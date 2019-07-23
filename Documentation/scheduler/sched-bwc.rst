@@ -9,15 +9,16 @@ CFS bandwidth control is a CONFIG_FAIR_GROUP_SCHED extension which allows the
 specification of the maximum CPU bandwidth available to a group or hierarchy.
 
 The bandwidth allowed for a group is specified using a quota and period. Within
-each given "period" (microseconds), a group is allowed to consume only up to
-"quota" microseconds of CPU time.  When the CPU bandwidth consumption of a
-group exceeds this limit (for that period), the tasks belonging to its
-hierarchy will be throttled and are not allowed to run again until the next
-period.
+each given "period" (microseconds), a task group is allocated up to "quota"
+microseconds of CPU time. That quota is assigned to per-cpu run queues in
+slices as threads in the cgroup become runnable. Once all quota has been
+assigned any additional requests for quota will result in those threads being
+throttled. Throttled threads will not be able to run again until the next
+period when the quota is replenished.
 
-A group's unused runtime is globally tracked, being refreshed with quota units
-above at each period boundary.  As threads consume this bandwidth it is
-transferred to cpu-local "silos" on a demand basis.  The amount transferred
+A group's unassigned quota is globally tracked, being refreshed back to
+cfs_quota units at each period boundary. As threads consume this bandwidth it
+is transferred to cpu-local "silos" on a demand basis. The amount transferred
 within each of these updates is tunable and described as the "slice".
 
 Management
@@ -35,12 +36,12 @@ The default values are::
 
 A value of -1 for cpu.cfs_quota_us indicates that the group does not have any
 bandwidth restriction in place, such a group is described as an unconstrained
-bandwidth group.  This represents the traditional work-conserving behavior for
+bandwidth group. This represents the traditional work-conserving behavior for
 CFS.
 
 Writing any (valid) positive value(s) will enact the specified bandwidth limit.
-The minimum quota allowed for the quota or period is 1ms.  There is also an
-upper bound on the period length of 1s.  Additional restrictions exist when
+The minimum quota allowed for the quota or period is 1ms. There is also an
+upper bound on the period length of 1s. Additional restrictions exist when
 bandwidth limits are used in a hierarchical fashion, these are explained in
 more detail below.
 
@@ -53,8 +54,8 @@ unthrottled if it is in a constrained state.
 System wide settings
 --------------------
 For efficiency run-time is transferred between the global pool and CPU local
-"silos" in a batch fashion.  This greatly reduces global accounting pressure
-on large systems.  The amount transferred each time such an update is required
+"silos" in a batch fashion. This greatly reduces global accounting pressure
+on large systems. The amount transferred each time such an update is required
 is described as the "slice".
 
 This is tunable via procfs::
@@ -96,6 +97,51 @@ There are two ways in which a group may become throttled:
 
 In case b) above, even though the child may have runtime remaining it will not
 be allowed to until the parent's runtime is refreshed.
+
+CFS Bandwidth Quota Caveats
+---------------------------
+Once a slice is assigned to a cpu it does not expire.  However all but 1ms of
+the slice may be returned to the global pool if all threads on that cpu become
+unrunnable. This is configured at compile time by the min_cfs_rq_runtime
+variable. This is a performance tweak that helps prevent added contention on
+the global lock.
+
+The fact that cpu-local slices do not expire results in some interesting corner
+cases that should be understood.
+
+For cgroup cpu constrained applications that are cpu limited this is a
+relatively moot point because they will naturally consume the entirety of their
+quota as well as the entirety of each cpu-local slice in each period. As a
+result it is expected that nr_periods roughly equal nr_throttled, and that
+cpuacct.usage will increase roughly equal to cfs_quota_us in each period.
+
+For highly-threaded, non-cpu bound applications this non-expiration nuance
+allows applications to briefly burst past their quota limits by the amount of
+unused slice on each cpu that the task group is running on (typically at most
+1ms per cpu or as defined by min_cfs_rq_runtime).  This slight burst only
+applies if quota had been assigned to a cpu and then not fully used or returned
+in previous periods. This burst amount will not be transferred between cores.
+As a result, this mechanism still strictly limits the task group to quota
+average usage, albeit over a longer time window than a single period.  This
+also limits the burst ability to no more than 1ms per cpu.  This provides
+better more predictable user experience for highly threaded applications with
+small quota limits on high core count machines. It also eliminates the
+propensity to throttle these applications while simultanously using less than
+quota amounts of cpu. Another way to say this, is that by allowing the unused
+portion of a slice to remain valid across periods we have decreased the
+possibility of wastefully expiring quota on cpu-local silos that don't need a
+full slice's amount of cpu time.
+
+The interaction between cpu-bound and non-cpu-bound-interactive applications
+should also be considered, especially when single core usage hits 100%. If you
+gave each of these applications half of a cpu-core and they both got scheduled
+on the same CPU it is theoretically possible that the non-cpu bound application
+will use up to 1ms additional quota in some periods, thereby preventing the
+cpu-bound application from fully using its quota by that same amount. In these
+instances it will be up to the CFS algorithm (see sched-design-CFS.rst) to
+decide which application is chosen to run, as they will both be runnable and
+have remaining quota. This runtime discrepancy will be made up in the following
+periods when the interactive application idles.
 
 Examples
 --------
