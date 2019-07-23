@@ -1232,15 +1232,15 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 			return ret;
 	}
 
-	adev->pm.dpm.thermal.min_temp = range.min;
-	adev->pm.dpm.thermal.max_temp = range.max;
-	adev->pm.dpm.thermal.max_edge_emergency_temp = range.edge_emergency_max;
-	adev->pm.dpm.thermal.min_hotspot_temp = range.hotspot_min;
-	adev->pm.dpm.thermal.max_hotspot_crit_temp = range.hotspot_crit_max;
-	adev->pm.dpm.thermal.max_hotspot_emergency_temp = range.hotspot_emergency_max;
-	adev->pm.dpm.thermal.min_mem_temp = range.mem_min;
-	adev->pm.dpm.thermal.max_mem_crit_temp = range.mem_crit_max;
-	adev->pm.dpm.thermal.max_mem_emergency_temp = range.mem_emergency_max;
+	adev->pm.dpm.thermal.min_temp = range.min * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	adev->pm.dpm.thermal.max_temp = range.max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	adev->pm.dpm.thermal.max_edge_emergency_temp = range.edge_emergency_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	adev->pm.dpm.thermal.min_hotspot_temp = range.hotspot_min * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	adev->pm.dpm.thermal.max_hotspot_crit_temp = range.hotspot_crit_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	adev->pm.dpm.thermal.max_hotspot_emergency_temp = range.hotspot_emergency_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	adev->pm.dpm.thermal.min_mem_temp = range.mem_min * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	adev->pm.dpm.thermal.max_mem_crit_temp = range.mem_crit_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	adev->pm.dpm.thermal.max_mem_emergency_temp = range.mem_emergency_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	adev->pm.dpm.thermal.min_temp = range.min * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	adev->pm.dpm.thermal.max_temp = range.max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
