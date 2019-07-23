@@ -72,6 +72,7 @@
 #define NFP_FL_ACTION_OPCODE_POP_MPLS		4
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL	6
 #define NFP_FL_ACTION_OPCODE_SET_ETHERNET	7
+#define NFP_FL_ACTION_OPCODE_SET_MPLS		8
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS	9
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_TTL_TOS	10
 #define NFP_FL_ACTION_OPCODE_SET_IPV6_SRC	11
@@ -243,6 +244,13 @@ struct nfp_fl_push_mpls {
 struct nfp_fl_pop_mpls {
 	struct nfp_fl_act_head head;
 	__be16 ethtype;
+};
+
+struct nfp_fl_set_mpls {
+	struct nfp_fl_act_head head;
+	__be16 reserved;
+	__be32 lse_mask;
+	__be32 lse;
 };
 
 /* Metadata with L2 (1W/4B)
