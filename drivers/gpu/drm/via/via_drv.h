@@ -24,8 +24,13 @@
 #ifndef _VIA_DRV_H_
 #define _VIA_DRV_H_
 
-#include <drm/drm_mm.h>
+#include <linux/jiffies.h>
+#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/wait.h>
+
 #include <drm/drm_legacy.h>
+#include <drm/drm_mm.h>
 
 #define DRIVER_AUTHOR	"Various"
 
@@ -139,6 +144,41 @@ static inline void via_write8_mask(struct drm_via_private *dev_priv,
 	tmp = (tmp & ~mask) | (val & mask);
 	writeb(tmp, (void __iomem *)(dev_priv->mmio->handle + reg));
 }
+
+/*
+ * Poll in a loop waiting for 'contidition' to be true.
+ * Note: A direct replacement with wait_event_interruptible_timeout()
+ *       will not work unless driver is updated to emit wake_up()
+ *       in relevant places that can impact the 'condition'
+ *
+ * Returns:
+ *   ret keeps current value if 'condition' becomes true
+ *   ret = -BUSY if timeout happens
+ *   ret = -EINTR if a signal interrupted the waiting period
+ */
+#define VIA_WAIT_ON( ret, queue, timeout, condition )		\
+do {								\
+	DECLARE_WAITQUEUE(entry, current);			\
+	unsigned long end = jiffies + (timeout);		\
+	add_wait_queue(&(queue), &entry);			\
+								\
+	for (;;) {						\
+		__set_current_state(TASK_INTERRUPTIBLE);	\
+		if (condition)					\
+			break;					\
+		if (time_after_eq(jiffies, end)) {		\
+			ret = -EBUSY;				\
+			break;					\
+		}						\
+		schedule_timeout((HZ/100 > 1) ? HZ/100 : 1);	\
+		if (signal_pending(current)) {			\
+			ret = -EINTR;				\
+			break;					\
+		}						\
+	}							\
+	__set_current_state(TASK_RUNNING);			\
+	remove_wait_queue(&(queue), &entry);			\
+} while (0)
 
 extern const struct drm_ioctl_desc via_ioctls[];
 extern int via_max_ioctl;
