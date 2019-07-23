@@ -16,6 +16,7 @@
 #include <linux/regulator/act8865.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/power_supply.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regmap.h>
 
@@ -117,6 +118,11 @@
 
 #define ACT8600_LDO10_ENA		0x40	/* ON - [6] */
 #define ACT8600_SUDCDC_VSEL_MASK	0xFF	/* SUDCDC VSET - [7:0] */
+
+#define ACT8600_APCH_CHG_ACIN		BIT(7)
+#define ACT8600_APCH_CHG_USB		BIT(6)
+#define ACT8600_APCH_CSTATE0		BIT(5)
+#define ACT8600_APCH_CSTATE1		BIT(4)
 
 /*
  * ACT8865 voltage number
@@ -372,6 +378,75 @@ static void act8865_power_off(void)
 	while (1);
 }
 
+static int act8600_charger_get_status(struct regmap *map)
+{
+	unsigned int val;
+	int ret;
+	u8 state0, state1;
+
+	ret = regmap_read(map, ACT8600_APCH_STAT, &val);
+	if (ret < 0)
+		return ret;
+
+	state0 = val & ACT8600_APCH_CSTATE0;
+	state1 = val & ACT8600_APCH_CSTATE1;
+
+	if (state0 && !state1)
+		return POWER_SUPPLY_STATUS_CHARGING;
+	if (!state0 && state1)
+		return POWER_SUPPLY_STATUS_NOT_CHARGING;
+	if (!state0 && !state1)
+		return POWER_SUPPLY_STATUS_DISCHARGING;
+
+	return POWER_SUPPLY_STATUS_UNKNOWN;
+}
+
+static int act8600_charger_get_property(struct power_supply *psy,
+		enum power_supply_property psp, union power_supply_propval *val)
+{
+	struct regmap *map = power_supply_get_drvdata(psy);
+	int ret;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_STATUS:
+		ret = act8600_charger_get_status(map);
+		if (ret < 0)
+			return ret;
+
+		val->intval = ret;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static enum power_supply_property act8600_charger_properties[] = {
+	POWER_SUPPLY_PROP_STATUS,
+};
+
+static const struct power_supply_desc act8600_charger_desc = {
+	.name = "act8600-charger",
+	.type = POWER_SUPPLY_TYPE_BATTERY,
+	.properties = act8600_charger_properties,
+	.num_properties = ARRAY_SIZE(act8600_charger_properties),
+	.get_property = act8600_charger_get_property,
+};
+
+static int act8600_charger_probe(struct device *dev, struct regmap *regmap)
+{
+	struct power_supply *charger;
+	struct power_supply_config cfg = {
+		.drv_data = regmap,
+		.of_node = dev->of_node,
+	};
+
+	charger = devm_power_supply_register(dev, &act8600_charger_desc, &cfg);
+
+	return IS_ERR(charger) ? PTR_ERR(charger) : 0;
+}
+
 static int act8865_pmic_probe(struct i2c_client *client,
 			      const struct i2c_device_id *i2c_id)
 {
@@ -480,6 +555,15 @@ static int act8865_pmic_probe(struct i2c_client *client,
 		if (IS_ERR(rdev)) {
 			dev_err(dev, "failed to register %s\n", desc->name);
 			return PTR_ERR(rdev);
+		}
+	}
+
+	if (type == ACT8600) {
+		ret = act8600_charger_probe(dev, act8865->regmap);
+		if (ret < 0) {
+			if (ret != -EPROBE_DEFER)
+				dev_err(dev, "Failed to probe charger");
+			return ret;
 		}
 	}
 
