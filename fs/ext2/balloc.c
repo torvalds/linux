@@ -1203,13 +1203,13 @@ int ext2_data_block_valid(struct ext2_sb_info *sbi, ext2_fsblk_t start_blk,
 			  unsigned int count)
 {
 	if ((start_blk <= le32_to_cpu(sbi->s_es->s_first_data_block)) ||
-	    (start_blk + count < start_blk) ||
-	    (start_blk > le32_to_cpu(sbi->s_es->s_blocks_count)))
+	    (start_blk + count - 1 < start_blk) ||
+	    (start_blk + count - 1 >= le32_to_cpu(sbi->s_es->s_blocks_count)))
 		return 0;
 
 	/* Ensure we do not step over superblock */
 	if ((start_blk <= sbi->s_sb_block) &&
-	    (start_blk + count >= sbi->s_sb_block))
+	    (start_blk + count - 1 >= sbi->s_sb_block))
 		return 0;
 
 	return 1;
