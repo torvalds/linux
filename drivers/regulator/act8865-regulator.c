@@ -113,6 +113,8 @@
  * Field Definitions.
  */
 #define	ACT8865_ENA		0x80	/* ON - [7] */
+#define	ACT8865_DIS		0x40	/* DIS - [6] */
+
 #define	ACT8865_VSEL_MASK	0x3F	/* VSET - [5:0] */
 
 
@@ -233,13 +235,24 @@ static const struct regulator_ops act8865_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 };
 
+static const struct regulator_ops act8865_ldo_ops = {
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.set_pull_down		= regulator_set_pull_down_regmap,
+};
+
 static const struct regulator_ops act8865_fixed_ldo_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
 };
 
-#define ACT88xx_REG(_name, _family, _id, _vsel_reg, _supply)		\
+#define ACT88xx_REG_(_name, _family, _id, _vsel_reg, _supply, _ops)	\
 	[_family##_ID_##_id] = {					\
 		.name			= _name,			\
 		.of_match		= of_match_ptr(_name),		\
@@ -247,7 +260,7 @@ static const struct regulator_ops act8865_fixed_ldo_ops = {
 		.supply_name		= _supply,			\
 		.id			= _family##_ID_##_id,		\
 		.type			= REGULATOR_VOLTAGE,		\
-		.ops			= &act8865_ops,			\
+		.ops			= _ops,				\
 		.n_voltages		= ACT8865_VOLTAGE_NUM,		\
 		.linear_ranges		= act8865_voltage_ranges,	\
 		.n_linear_ranges	= ARRAY_SIZE(act8865_voltage_ranges), \
@@ -255,8 +268,16 @@ static const struct regulator_ops act8865_fixed_ldo_ops = {
 		.vsel_mask		= ACT8865_VSEL_MASK,		\
 		.enable_reg		= _family##_##_id##_CTRL,	\
 		.enable_mask		= ACT8865_ENA,			\
+		.pull_down_reg		= _family##_##_id##_CTRL,	\
+		.pull_down_mask		= ACT8865_DIS,			\
 		.owner			= THIS_MODULE,			\
 	}
+
+#define ACT88xx_REG(_name, _family, _id, _vsel_reg, _supply) \
+	ACT88xx_REG_(_name, _family, _id, _vsel_reg, _supply, &act8865_ops)
+
+#define ACT88xx_LDO(_name, _family, _id, _vsel_reg, _supply) \
+	ACT88xx_REG_(_name, _family, _id, _vsel_reg, _supply, &act8865_ldo_ops)
 
 static const struct regulator_desc act8600_regulators[] = {
 	ACT88xx_REG("DCDC1", ACT8600, DCDC1, VSET, "vp1"),
@@ -329,20 +350,20 @@ static const struct regulator_desc act8865_regulators[] = {
 	ACT88xx_REG("DCDC_REG1", ACT8865, DCDC1, VSET1, "vp1"),
 	ACT88xx_REG("DCDC_REG2", ACT8865, DCDC2, VSET1, "vp2"),
 	ACT88xx_REG("DCDC_REG3", ACT8865, DCDC3, VSET1, "vp3"),
-	ACT88xx_REG("LDO_REG1", ACT8865, LDO1, VSET, "inl45"),
-	ACT88xx_REG("LDO_REG2", ACT8865, LDO2, VSET, "inl45"),
-	ACT88xx_REG("LDO_REG3", ACT8865, LDO3, VSET, "inl67"),
-	ACT88xx_REG("LDO_REG4", ACT8865, LDO4, VSET, "inl67"),
+	ACT88xx_LDO("LDO_REG1", ACT8865, LDO1, VSET, "inl45"),
+	ACT88xx_LDO("LDO_REG2", ACT8865, LDO2, VSET, "inl45"),
+	ACT88xx_LDO("LDO_REG3", ACT8865, LDO3, VSET, "inl67"),
+	ACT88xx_LDO("LDO_REG4", ACT8865, LDO4, VSET, "inl67"),
 };
 
 static const struct regulator_desc act8865_alt_regulators[] = {
 	ACT88xx_REG("DCDC_REG1", ACT8865, DCDC1, VSET2, "vp1"),
 	ACT88xx_REG("DCDC_REG2", ACT8865, DCDC2, VSET2, "vp2"),
 	ACT88xx_REG("DCDC_REG3", ACT8865, DCDC3, VSET2, "vp3"),
-	ACT88xx_REG("LDO_REG1", ACT8865, LDO1, VSET, "inl45"),
-	ACT88xx_REG("LDO_REG2", ACT8865, LDO2, VSET, "inl45"),
-	ACT88xx_REG("LDO_REG3", ACT8865, LDO3, VSET, "inl67"),
-	ACT88xx_REG("LDO_REG4", ACT8865, LDO4, VSET, "inl67"),
+	ACT88xx_LDO("LDO_REG1", ACT8865, LDO1, VSET, "inl45"),
+	ACT88xx_LDO("LDO_REG2", ACT8865, LDO2, VSET, "inl45"),
+	ACT88xx_LDO("LDO_REG3", ACT8865, LDO3, VSET, "inl67"),
+	ACT88xx_LDO("LDO_REG4", ACT8865, LDO4, VSET, "inl67"),
 };
 
 #ifdef CONFIG_OF
