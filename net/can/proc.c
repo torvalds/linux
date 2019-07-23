@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 /*
  * proc.c - procfs support for Protocol family CAN core module
  *

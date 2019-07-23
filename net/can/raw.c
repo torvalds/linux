@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 /*
  * raw.c - Raw sockets for protocol family CAN
  *
