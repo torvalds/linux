@@ -24,13 +24,16 @@
 #ifndef _VIA_DRV_H_
 #define _VIA_DRV_H_
 
+#include <linux/irqreturn.h>
 #include <linux/jiffies.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
 #include <linux/wait.h>
 
+#include <drm/drm_ioctl.h>
 #include <drm/drm_legacy.h>
 #include <drm/drm_mm.h>
+#include <drm/via_drm.h>
 
 #define DRIVER_AUTHOR	"Various"
 
