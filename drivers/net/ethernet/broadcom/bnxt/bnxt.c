@@ -10920,8 +10920,7 @@ shutdown_exit:
 #ifdef CONFIG_PM_SLEEP
 static int bnxt_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 	struct bnxt *bp = netdev_priv(dev);
 	int rc = 0;
 
@@ -10937,8 +10936,7 @@ static int bnxt_suspend(struct device *device)
 
 static int bnxt_resume(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 	struct bnxt *bp = netdev_priv(dev);
 	int rc = 0;
 
