@@ -1101,16 +1101,14 @@ amdgpu_pci_shutdown(struct pci_dev *pdev)
 
 static int amdgpu_pmops_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_suspend(drm_dev, true, true);
 }
 
 static int amdgpu_pmops_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	/* GPU comes up enabled by the bios on resume */
 	if (amdgpu_device_is_px(drm_dev)) {
@@ -1124,33 +1122,29 @@ static int amdgpu_pmops_resume(struct device *dev)
 
 static int amdgpu_pmops_freeze(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_suspend(drm_dev, false, true);
 }
 
 static int amdgpu_pmops_thaw(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_resume(drm_dev, false, true);
 }
 
 static int amdgpu_pmops_poweroff(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_suspend(drm_dev, true, true);
 }
 
 static int amdgpu_pmops_restore(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
 	return amdgpu_device_resume(drm_dev, false, true);
 }
 
@@ -1209,8 +1203,7 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 
 static int amdgpu_pmops_runtime_idle(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct drm_crtc *crtc;
 
 	if (!amdgpu_device_is_px(drm_dev)) {
