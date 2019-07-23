@@ -86,6 +86,7 @@
 #include "amdgpu_smu.h"
 #include "amdgpu_discovery.h"
 #include "amdgpu_mes.h"
+#include "amdgpu_umc.h"
 
 #define MAX_GPU_INSTANCE		16
 
@@ -967,6 +968,7 @@ struct amdgpu_device {
 
 	const struct amdgpu_nbio_funcs	*nbio_funcs;
 	const struct amdgpu_df_funcs	*df_funcs;
+	const struct amdgpu_umc_funcs	*umc_funcs;
 
 	/* delayed work_func for deferring clockgating during resume */
 	struct delayed_work     delayed_init_work;
