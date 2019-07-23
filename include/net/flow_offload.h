@@ -131,6 +131,9 @@ enum flow_action_id {
 	FLOW_ACTION_SAMPLE,
 	FLOW_ACTION_POLICE,
 	FLOW_ACTION_CT,
+	FLOW_ACTION_MPLS_PUSH,
+	FLOW_ACTION_MPLS_POP,
+	FLOW_ACTION_MPLS_MANGLE,
 };
 
 /* This is mirroring enum pedit_header_type definition for easy mapping between
@@ -184,6 +187,22 @@ struct flow_action_entry {
 			int action;
 			u16 zone;
 		} ct;
+		struct {				/* FLOW_ACTION_MPLS_PUSH */
+			u32		label;
+			__be16		proto;
+			u8		tc;
+			u8		bos;
+			u8		ttl;
+		} mpls_push;
+		struct {				/* FLOW_ACTION_MPLS_POP */
+			__be16		proto;
+		} mpls_pop;
+		struct {				/* FLOW_ACTION_MPLS_MANGLE */
+			u32		label;
+			u8		tc;
+			u8		bos;
+			u8		ttl;
+		} mpls_mangle;
 	};
 };
 
