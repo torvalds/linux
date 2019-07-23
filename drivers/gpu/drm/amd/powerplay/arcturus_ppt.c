@@ -664,15 +664,15 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 }
 
 static int arcturus_upload_dpm_level(struct smu_context *smu, bool max,
-				   uint32_t feature_mask)
+				     uint32_t feature_mask)
 {
-	struct arcturus_dpm_table *dpm_table;
 	struct arcturus_single_dpm_table *single_dpm_table;
+	struct arcturus_dpm_table *dpm_table =
+			smu->smu_dpm.dpm_context;
 	uint32_t freq;
 	int ret = 0;
 
-	dpm_table = smu->smu_dpm.dpm_context;
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT) &&
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_GFXCLK_MASK)) {
 		single_dpm_table = &(dpm_table->gfx_table);
 		freq = max ? single_dpm_table->dpm_state.soft_max_level :
@@ -682,6 +682,36 @@ static int arcturus_upload_dpm_level(struct smu_context *smu, bool max,
 			(PPCLK_GFXCLK << 16) | (freq & 0xffff));
 		if (ret) {
 			pr_err("Failed to set soft %s gfxclk !\n",
+						max ? "max" : "min");
+			return ret;
+		}
+	}
+
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
+	    (feature_mask & FEATURE_DPM_UCLK_MASK)) {
+		single_dpm_table = &(dpm_table->mem_table);
+		freq = max ? single_dpm_table->dpm_state.soft_max_level :
+			single_dpm_table->dpm_state.soft_min_level;
+		ret = smu_send_smc_msg_with_param(smu,
+			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
+			(PPCLK_UCLK << 16) | (freq & 0xffff));
+		if (ret) {
+			pr_err("Failed to set soft %s memclk !\n",
+						max ? "max" : "min");
+			return ret;
+		}
+	}
+
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT) &&
+	    (feature_mask & FEATURE_DPM_SOCCLK_MASK)) {
+		single_dpm_table = &(dpm_table->soc_table);
+		freq = max ? single_dpm_table->dpm_state.soft_max_level :
+			single_dpm_table->dpm_state.soft_min_level;
+		ret = smu_send_smc_msg_with_param(smu,
+			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
+			(PPCLK_SOCCLK << 16) | (freq & 0xffff));
+		if (ret) {
+			pr_err("Failed to set soft %s socclk !\n",
 						max ? "max" : "min");
 			return ret;
 		}
@@ -1084,6 +1114,194 @@ static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
 	}
 
 	return ret;
+}
+
+static uint32_t arcturus_find_lowest_dpm_level(struct arcturus_single_dpm_table *table)
+{
+	uint32_t i;
+
+	for (i = 0; i < table->count; i++) {
+		if (table->dpm_levels[i].enabled)
+			break;
+	}
+	if (i >= table->count) {
+		i = 0;
+		table->dpm_levels[i].enabled = true;
+	}
+
+	return i;
+}
+
+static uint32_t arcturus_find_highest_dpm_level(struct arcturus_single_dpm_table *table)
+{
+	int i = 0;
+
+	if (table->count <= 0) {
+		pr_err("[%s] DPM Table has no entry!", __func__);
+		return 0;
+	}
+	if (table->count > MAX_DPM_NUMBER) {
+		pr_err("[%s] DPM Table has too many entries!", __func__);
+		return MAX_DPM_NUMBER - 1;
+	}
+
+	for (i = table->count - 1; i >= 0; i--) {
+		if (table->dpm_levels[i].enabled)
+			break;
+	}
+	if (i < 0) {
+		i = 0;
+		table->dpm_levels[i].enabled = true;
+	}
+
+	return i;
+}
+
+
+
+static int arcturus_force_dpm_limit_value(struct smu_context *smu, bool highest)
+{
+	struct arcturus_dpm_table *dpm_table =
+		(struct arcturus_dpm_table *)smu->smu_dpm.dpm_context;
+	uint32_t soft_level;
+	int ret = 0;
+
+	/* gfxclk */
+	if (highest)
+		soft_level = arcturus_find_highest_dpm_level(&(dpm_table->gfx_table));
+	else
+		soft_level = arcturus_find_lowest_dpm_level(&(dpm_table->gfx_table));
+
+	dpm_table->gfx_table.dpm_state.soft_min_level =
+		dpm_table->gfx_table.dpm_state.soft_max_level =
+		dpm_table->gfx_table.dpm_levels[soft_level].value;
+
+	/* uclk */
+	if (highest)
+		soft_level = arcturus_find_highest_dpm_level(&(dpm_table->mem_table));
+	else
+		soft_level = arcturus_find_lowest_dpm_level(&(dpm_table->mem_table));
+
+	dpm_table->mem_table.dpm_state.soft_min_level =
+		dpm_table->mem_table.dpm_state.soft_max_level =
+		dpm_table->mem_table.dpm_levels[soft_level].value;
+
+	/* socclk */
+	if (highest)
+		soft_level = arcturus_find_highest_dpm_level(&(dpm_table->soc_table));
+	else
+		soft_level = arcturus_find_lowest_dpm_level(&(dpm_table->soc_table));
+
+	dpm_table->soc_table.dpm_state.soft_min_level =
+		dpm_table->soc_table.dpm_state.soft_max_level =
+		dpm_table->soc_table.dpm_levels[soft_level].value;
+
+	ret = arcturus_upload_dpm_level(smu, false, 0xFFFFFFFF);
+	if (ret) {
+		pr_err("Failed to upload boot level to %s!\n",
+				highest ? "highest" : "lowest");
+		return ret;
+	}
+
+	ret = arcturus_upload_dpm_level(smu, true, 0xFFFFFFFF);
+	if (ret) {
+		pr_err("Failed to upload dpm max level to %s!\n!",
+				highest ? "highest" : "lowest");
+		return ret;
+	}
+
+	return ret;
+}
+
+static int arcturus_unforce_dpm_levels(struct smu_context *smu)
+{
+	struct arcturus_dpm_table *dpm_table =
+		(struct arcturus_dpm_table *)smu->smu_dpm.dpm_context;
+	uint32_t soft_min_level, soft_max_level;
+	int ret = 0;
+
+	/* gfxclk */
+	soft_min_level = arcturus_find_lowest_dpm_level(&(dpm_table->gfx_table));
+	soft_max_level = arcturus_find_highest_dpm_level(&(dpm_table->gfx_table));
+	dpm_table->gfx_table.dpm_state.soft_min_level =
+		dpm_table->gfx_table.dpm_levels[soft_min_level].value;
+	dpm_table->gfx_table.dpm_state.soft_max_level =
+		dpm_table->gfx_table.dpm_levels[soft_max_level].value;
+
+	/* uclk */
+	soft_min_level = arcturus_find_lowest_dpm_level(&(dpm_table->mem_table));
+	soft_max_level = arcturus_find_highest_dpm_level(&(dpm_table->mem_table));
+	dpm_table->mem_table.dpm_state.soft_min_level =
+		dpm_table->gfx_table.dpm_levels[soft_min_level].value;
+	dpm_table->mem_table.dpm_state.soft_max_level =
+		dpm_table->gfx_table.dpm_levels[soft_max_level].value;
+
+	/* socclk */
+	soft_min_level = arcturus_find_lowest_dpm_level(&(dpm_table->soc_table));
+	soft_max_level = arcturus_find_highest_dpm_level(&(dpm_table->soc_table));
+	dpm_table->soc_table.dpm_state.soft_min_level =
+		dpm_table->soc_table.dpm_levels[soft_min_level].value;
+	dpm_table->soc_table.dpm_state.soft_max_level =
+		dpm_table->soc_table.dpm_levels[soft_max_level].value;
+
+	ret = arcturus_upload_dpm_level(smu, false, 0xFFFFFFFF);
+	if (ret) {
+		pr_err("Failed to upload DPM Bootup Levels!");
+		return ret;
+	}
+
+	ret = arcturus_upload_dpm_level(smu, true, 0xFFFFFFFF);
+	if (ret) {
+		pr_err("Failed to upload DPM Max Levels!");
+		return ret;
+	}
+
+	return ret;
+}
+
+static int
+arcturus_get_profiling_clk_mask(struct smu_context *smu,
+				enum amd_dpm_forced_level level,
+				uint32_t *sclk_mask,
+				uint32_t *mclk_mask,
+				uint32_t *soc_mask)
+{
+	struct arcturus_dpm_table *dpm_table =
+		(struct arcturus_dpm_table *)smu->smu_dpm.dpm_context;
+	struct arcturus_single_dpm_table *gfx_dpm_table;
+	struct arcturus_single_dpm_table *mem_dpm_table;
+	struct arcturus_single_dpm_table *soc_dpm_table;
+
+	if (!smu->smu_dpm.dpm_context)
+		return -EINVAL;
+
+	gfx_dpm_table = &dpm_table->gfx_table;
+	mem_dpm_table = &dpm_table->mem_table;
+	soc_dpm_table = &dpm_table->soc_table;
+
+	*sclk_mask = 0;
+	*mclk_mask = 0;
+	*soc_mask  = 0;
+
+	if (gfx_dpm_table->count > ARCTURUS_UMD_PSTATE_GFXCLK_LEVEL &&
+	    mem_dpm_table->count > ARCTURUS_UMD_PSTATE_MCLK_LEVEL &&
+	    soc_dpm_table->count > ARCTURUS_UMD_PSTATE_SOCCLK_LEVEL) {
+		*sclk_mask = ARCTURUS_UMD_PSTATE_GFXCLK_LEVEL;
+		*mclk_mask = ARCTURUS_UMD_PSTATE_MCLK_LEVEL;
+		*soc_mask  = ARCTURUS_UMD_PSTATE_SOCCLK_LEVEL;
+	}
+
+	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) {
+		*sclk_mask = 0;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) {
+		*mclk_mask = 0;
+	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
+		*sclk_mask = gfx_dpm_table->count - 1;
+		*mclk_mask = mem_dpm_table->count - 1;
+		*soc_mask  = soc_dpm_table->count - 1;
+	}
+
+	return 0;
 }
 
 static void arcturus_dump_pptable(struct smu_context *smu)
@@ -1546,6 +1764,9 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.read_sensor = arcturus_read_sensor,
 	.get_fan_speed_percent = arcturus_get_fan_speed_percent,
 	.get_fan_speed_rpm = arcturus_get_fan_speed_rpm,
+	.force_dpm_limit_value = arcturus_force_dpm_limit_value,
+	.unforce_dpm_levels = arcturus_unforce_dpm_levels,
+	.get_profiling_clk_mask = arcturus_get_profiling_clk_mask,
 	/* debug (internal used) */
 	.dump_pptable = arcturus_dump_pptable,
 };
