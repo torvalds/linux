@@ -951,14 +951,14 @@ wait_for_timelines(struct drm_i915_private *i915,
 int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 			   unsigned int flags, long timeout)
 {
+	/* If the device is asleep, we have no requests outstanding */
+	if (!READ_ONCE(i915->gt.awake))
+		return 0;
+
 	GEM_TRACE("flags=%x (%s), timeout=%ld%s, awake?=%s\n",
 		  flags, flags & I915_WAIT_LOCKED ? "locked" : "unlocked",
 		  timeout, timeout == MAX_SCHEDULE_TIMEOUT ? " (forever)" : "",
 		  yesno(i915->gt.awake));
-
-	/* If the device is asleep, we have no requests outstanding */
-	if (!READ_ONCE(i915->gt.awake))
-		return 0;
 
 	timeout = wait_for_timelines(i915, flags, timeout);
 	if (timeout < 0)
