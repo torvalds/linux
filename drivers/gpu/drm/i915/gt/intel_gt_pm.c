@@ -118,6 +118,8 @@ void intel_gt_sanitize(struct intel_gt *gt, bool force)
 
 	GEM_TRACE("\n");
 
+	intel_uc_sanitize(&gt->uc);
+
 	if (!reset_engines(gt) && !force)
 		return;
 

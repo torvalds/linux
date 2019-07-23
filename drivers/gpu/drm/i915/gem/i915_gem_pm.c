@@ -239,7 +239,6 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 	}
 	spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
-	intel_uc_sanitize(&i915->gt.uc);
 	i915_gem_sanitize(i915);
 }
 
