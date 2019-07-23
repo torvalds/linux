@@ -169,6 +169,7 @@ int device_match_of_node(struct device *dev, const void *np);
 int device_match_fwnode(struct device *dev, const void *fwnode);
 int device_match_devt(struct device *dev, const void *pdevt);
 int device_match_acpi_dev(struct device *dev, const void *adev);
+int device_match_any(struct device *dev, const void *unused);
 
 int bus_for_each_dev(struct bus_type *bus, struct device *start, void *data,
 		     int (*fn)(struct device *dev, void *data));
@@ -223,6 +224,16 @@ static inline struct device *bus_find_device_by_devt(struct bus_type *bus,
 						     dev_t devt)
 {
 	return bus_find_device(bus, NULL, &devt, device_match_devt);
+}
+
+/**
+ * bus_find_next_device - Find the next device after a given device in a
+ * given bus.
+ */
+static inline struct device *
+bus_find_next_device(struct bus_type *bus,struct device *cur)
+{
+	return bus_find_device(bus, cur, NULL, device_match_any);
 }
 
 #ifdef CONFIG_ACPI
@@ -463,6 +474,12 @@ static inline struct device *driver_find_device_by_devt(struct device_driver *dr
 							dev_t devt)
 {
 	return driver_find_device(drv, NULL, &devt, device_match_devt);
+}
+
+static inline struct device *driver_find_next_device(struct device_driver *drv,
+						     struct device *start)
+{
+	return driver_find_device(drv, start, NULL, device_match_any);
 }
 
 #ifdef CONFIG_ACPI
