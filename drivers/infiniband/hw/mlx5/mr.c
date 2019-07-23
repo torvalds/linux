@@ -548,13 +548,16 @@ void mlx5_mr_cache_free(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 		return;
 
 	c = order2idx(dev, mr->order);
-	if (c < 0 || c >= MAX_MR_CACHE_ENTRIES) {
-		mlx5_ib_warn(dev, "order %d, cache index %d\n", mr->order, c);
+	WARN_ON(c < 0 || c >= MAX_MR_CACHE_ENTRIES);
+
+	if (unreg_umr(dev, mr)) {
+		mr->allocated_from_cache = false;
+		destroy_mkey(dev, mr);
+		ent = &cache->ent[c];
+		if (ent->cur < ent->limit)
+			queue_work(cache->wq, &ent->work);
 		return;
 	}
-
-	if (unreg_umr(dev, mr))
-		return;
 
 	ent = &cache->ent[c];
 	spin_lock_irq(&ent->lock);
