@@ -194,7 +194,7 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 			return ERR_CAST(dev_list);
 		for (i = 0; dev_list[i]; i++) {
 			dev = dev_list[i];
-			vf = pci_get_drvdata(to_pci_dev(dev));
+			vf = dev_get_drvdata(dev);
 			spin_lock(&vf->lock);
 			vnic = vf->vnic;
 			if (!usnic_vnic_check_room(vnic, res_spec)) {
