@@ -2,10 +2,12 @@
 /* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <linux/bitfield.h>
+#include <linux/mpls.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_csum.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_mirred.h>
+#include <net/tc_act/tc_mpls.h>
 #include <net/tc_act/tc_pedit.h>
 #include <net/tc_act/tc_vlan.h>
 #include <net/tc_act/tc_tunnel_key.h>
@@ -24,6 +26,38 @@
 #define NFP_FL_SUPPORTED_IPV4_UDP_TUN_FLAGS	(NFP_FL_TUNNEL_CSUM | \
 						 NFP_FL_TUNNEL_KEY | \
 						 NFP_FL_TUNNEL_GENEVE_OPT)
+
+static int
+nfp_fl_push_mpls(struct nfp_fl_push_mpls *push_mpls,
+		 const struct flow_action_entry *act,
+		 struct netlink_ext_ack *extack)
+{
+	size_t act_size = sizeof(struct nfp_fl_push_mpls);
+	u32 mpls_lse = 0;
+
+	push_mpls->head.jump_id = NFP_FL_ACTION_OPCODE_PUSH_MPLS;
+	push_mpls->head.len_lw = act_size >> NFP_FL_LW_SIZ;
+
+	/* BOS is optional in the TC action but required for offload. */
+	if (act->mpls_push.bos != ACT_MPLS_BOS_NOT_SET) {
+		mpls_lse |= act->mpls_push.bos << MPLS_LS_S_SHIFT;
+	} else {
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: BOS field must explicitly be set for MPLS push");
+		return -EOPNOTSUPP;
+	}
+
+	/* Leave MPLS TC as a default value of 0 if not explicitly set. */
+	if (act->mpls_push.tc != ACT_MPLS_TC_NOT_SET)
+		mpls_lse |= act->mpls_push.tc << MPLS_LS_TC_SHIFT;
+
+	/* Proto, label and TTL are enforced and verified for MPLS push. */
+	mpls_lse |= act->mpls_push.label << MPLS_LS_LABEL_SHIFT;
+	mpls_lse |= act->mpls_push.ttl << MPLS_LS_TTL_SHIFT;
+	push_mpls->ethtype = act->mpls_push.proto;
+	push_mpls->lse = cpu_to_be32(mpls_lse);
+
+	return 0;
+}
 
 static void nfp_fl_pop_vlan(struct nfp_fl_pop_vlan *pop_vlan)
 {
@@ -869,6 +903,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 	struct nfp_fl_set_ipv4_tun *set_tun;
 	struct nfp_fl_pre_tunnel *pre_tun;
 	struct nfp_fl_push_vlan *psh_v;
+	struct nfp_fl_push_mpls *psh_m;
 	struct nfp_fl_pop_vlan *pop_v;
 	int err;
 
@@ -974,6 +1009,21 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		 * csum update list. Which will later be used to check support.
 		 */
 		*csum_updated &= ~act->csum_flags;
+		break;
+	case FLOW_ACTION_MPLS_PUSH:
+		if (*a_len +
+		    sizeof(struct nfp_fl_push_mpls) > NFP_FL_MAX_A_SIZ) {
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: maximum allowed action list size exceeded at push MPLS");
+			return -EOPNOTSUPP;
+		}
+
+		psh_m = (struct nfp_fl_push_mpls *)&nfp_fl->action_data[*a_len];
+		nfp_fl->meta.shortcut = cpu_to_be32(NFP_FL_SC_ACT_NULL);
+
+		err = nfp_fl_push_mpls(psh_m, act, extack);
+		if (err)
+			return err;
+		*a_len += sizeof(struct nfp_fl_push_mpls);
 		break;
 	default:
 		/* Currently we do not handle any other actions. */

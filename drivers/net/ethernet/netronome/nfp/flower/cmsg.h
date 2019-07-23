@@ -68,6 +68,7 @@
 #define NFP_FL_ACTION_OPCODE_OUTPUT		0
 #define NFP_FL_ACTION_OPCODE_PUSH_VLAN		1
 #define NFP_FL_ACTION_OPCODE_POP_VLAN		2
+#define NFP_FL_ACTION_OPCODE_PUSH_MPLS		3
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL	6
 #define NFP_FL_ACTION_OPCODE_SET_ETHERNET	7
 #define NFP_FL_ACTION_OPCODE_SET_IPV4_ADDRS	9
@@ -230,6 +231,12 @@ struct nfp_fl_push_geneve {
 	u8 type;
 	u8 length;
 	u8 opt_data[];
+};
+
+struct nfp_fl_push_mpls {
+	struct nfp_fl_act_head head;
+	__be16 ethtype;
+	__be32 lse;
 };
 
 /* Metadata with L2 (1W/4B)
