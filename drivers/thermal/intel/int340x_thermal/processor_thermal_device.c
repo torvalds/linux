@@ -137,6 +137,72 @@ static const struct attribute_group power_limit_attribute_group = {
 	.name = "power_limits"
 };
 
+static ssize_t tcc_offset_degree_celsius_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	u64 val;
+	int err;
+
+	err = rdmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, &val);
+	if (err)
+		return err;
+
+	val = (val >> 24) & 0xff;
+	return sprintf(buf, "%d\n", (int)val);
+}
+
+static int tcc_offset_update(int tcc)
+{
+	u64 val;
+	int err;
+
+	if (!tcc)
+		return -EINVAL;
+
+	err = rdmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, &val);
+	if (err)
+		return err;
+
+	val &= ~GENMASK_ULL(31, 24);
+	val |= (tcc & 0xff) << 24;
+
+	err = wrmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, val);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int tcc_offset_save;
+
+static ssize_t tcc_offset_degree_celsius_store(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
+{
+	u64 val;
+	int tcc, err;
+
+	err = rdmsrl_safe(MSR_PLATFORM_INFO, &val);
+	if (err)
+		return err;
+
+	if (!(val & BIT(30)))
+		return -EACCES;
+
+	if (kstrtoint(buf, 0, &tcc))
+		return -EINVAL;
+
+	err = tcc_offset_update(tcc);
+	if (err)
+		return err;
+
+	tcc_offset_save = tcc;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(tcc_offset_degree_celsius);
+
 static int stored_tjmax; /* since it is fixed, we can have local storage */
 
 static int get_tjmax(void)
@@ -332,6 +398,7 @@ static void proc_thermal_remove(struct proc_thermal_device *proc_priv)
 	acpi_remove_notify_handler(proc_priv->adev->handle,
 				   ACPI_DEVICE_NOTIFY, proc_thermal_notify);
 	int340x_thermal_zone_remove(proc_priv->int340x_zone);
+	sysfs_remove_file(&proc_priv->dev->kobj, &dev_attr_tcc_offset_degree_celsius.attr);
 	sysfs_remove_group(&proc_priv->dev->kobj,
 			   &power_limit_attribute_group);
 }
@@ -355,8 +422,15 @@ static int int3401_add(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "Creating sysfs group for PROC_THERMAL_PLATFORM_DEV\n");
 
-	return sysfs_create_group(&pdev->dev.kobj,
-					 &power_limit_attribute_group);
+	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_tcc_offset_degree_celsius.attr);
+	if (ret)
+		return ret;
+
+	ret = sysfs_create_group(&pdev->dev.kobj, &power_limit_attribute_group);
+	if (ret)
+		sysfs_remove_file(&pdev->dev.kobj, &dev_attr_tcc_offset_degree_celsius.attr);
+
+	return ret;
 }
 
 static int int3401_remove(struct platform_device *pdev)
@@ -588,8 +662,15 @@ static int  proc_thermal_pci_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "Creating sysfs group for PROC_THERMAL_PCI\n");
 
-	return sysfs_create_group(&pdev->dev.kobj,
-					 &power_limit_attribute_group);
+	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_tcc_offset_degree_celsius.attr);
+	if (ret)
+		return ret;
+
+	ret = sysfs_create_group(&pdev->dev.kobj, &power_limit_attribute_group);
+	if (ret)
+		sysfs_remove_file(&pdev->dev.kobj, &dev_attr_tcc_offset_degree_celsius.attr);
+
+	return ret;
 }
 
 static void  proc_thermal_pci_remove(struct pci_dev *pdev)
@@ -614,6 +695,8 @@ static int proc_thermal_resume(struct device *dev)
 
 	proc_dev = dev_get_drvdata(dev);
 	proc_thermal_read_ppcc(proc_dev);
+
+	tcc_offset_update(tcc_offset_save);
 
 	return 0;
 }
