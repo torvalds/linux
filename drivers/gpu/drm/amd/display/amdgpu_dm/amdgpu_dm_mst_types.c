@@ -388,7 +388,7 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 				       struct amdgpu_dm_connector *aconnector)
 {
 	aconnector->dm_dp_aux.aux.name = "dmdc";
-	aconnector->dm_dp_aux.aux.dev = dm->adev->dev;
+	aconnector->dm_dp_aux.aux.dev = aconnector->base.kdev;
 	aconnector->dm_dp_aux.aux.transfer = dm_dp_aux_transfer;
 	aconnector->dm_dp_aux.ddc_service = aconnector->dc_link->ddc;
 
