@@ -183,8 +183,6 @@ struct iwl_fw_runtime {
 		/* ts of the beginning of a non-collect fw dbg data period */
 		unsigned long non_collect_ts_start[IWL_FW_INI_TIME_POINT_NUM];
 		u32 *d3_debug_data;
-		struct iwl_fw_ini_region_cfg *active_regs[IWL_FW_INI_MAX_REGION_ID];
-		struct iwl_fw_ini_active_triggers active_trigs[IWL_FW_TRIGGER_ID_NUM];
 		u32 lmac_err_id[MAX_NUM_LMAC];
 		u32 umac_err_id;
 
@@ -219,16 +217,6 @@ static inline void iwl_fw_runtime_free(struct iwl_fw_runtime *fwrt)
 
 	kfree(fwrt->dump.d3_debug_data);
 	fwrt->dump.d3_debug_data = NULL;
-
-	for (i = 0; i < IWL_FW_TRIGGER_ID_NUM; i++) {
-		struct iwl_fw_ini_active_triggers *active =
-			&fwrt->dump.active_trigs[i];
-
-		active->active = false;
-		active->size = 0;
-		kfree(active->trig);
-		active->trig = NULL;
-	}
 
 	iwl_dbg_tlv_del_timers(fwrt->trans);
 	for (i = 0; i < IWL_FW_RUNTIME_DUMP_WK_NUM; i++)
