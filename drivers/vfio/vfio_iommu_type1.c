@@ -1496,6 +1496,88 @@ static int vfio_iommu_aper_resize(struct list_head *iova,
 	return 0;
 }
 
+/*
+ * Check reserved region conflicts with existing dma mappings
+ */
+static bool vfio_iommu_resv_conflict(struct vfio_iommu *iommu,
+				     struct list_head *resv_regions)
+{
+	struct iommu_resv_region *region;
+
+	/* Check for conflict with existing dma mappings */
+	list_for_each_entry(region, resv_regions, list) {
+		if (region->type == IOMMU_RESV_DIRECT_RELAXABLE)
+			continue;
+
+		if (vfio_find_dma(iommu, region->start, region->length))
+			return true;
+	}
+
+	return false;
+}
+
+/*
+ * Check iova region overlap with  reserved regions and
+ * exclude them from the iommu iova range
+ */
+static int vfio_iommu_resv_exclude(struct list_head *iova,
+				   struct list_head *resv_regions)
+{
+	struct iommu_resv_region *resv;
+	struct vfio_iova *n, *next;
+
+	list_for_each_entry(resv, resv_regions, list) {
+		phys_addr_t start, end;
+
+		if (resv->type == IOMMU_RESV_DIRECT_RELAXABLE)
+			continue;
+
+		start = resv->start;
+		end = resv->start + resv->length - 1;
+
+		list_for_each_entry_safe(n, next, iova, list) {
+			int ret = 0;
+
+			/* No overlap */
+			if (start > n->end || end < n->start)
+				continue;
+			/*
+			 * Insert a new node if current node overlaps with the
+			 * reserve region to exlude that from valid iova range.
+			 * Note that, new node is inserted before the current
+			 * node and finally the current node is deleted keeping
+			 * the list updated and sorted.
+			 */
+			if (start > n->start)
+				ret = vfio_iommu_iova_insert(&n->list, n->start,
+							     start - 1);
+			if (!ret && end < n->end)
+				ret = vfio_iommu_iova_insert(&n->list, end + 1,
+							     n->end);
+			if (ret)
+				return ret;
+
+			list_del(&n->list);
+			kfree(n);
+		}
+	}
+
+	if (list_empty(iova))
+		return -EINVAL;
+
+	return 0;
+}
+
+static void vfio_iommu_resv_free(struct list_head *resv_regions)
+{
+	struct iommu_resv_region *n, *next;
+
+	list_for_each_entry_safe(n, next, resv_regions, list) {
+		list_del(&n->list);
+		kfree(n);
+	}
+}
+
 static void vfio_iommu_iova_free(struct list_head *iova)
 {
 	struct vfio_iova *n, *next;
@@ -1547,6 +1629,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	phys_addr_t resv_msi_base;
 	struct iommu_domain_geometry geo;
 	LIST_HEAD(iova_copy);
+	LIST_HEAD(group_resv_regions);
 
 	mutex_lock(&iommu->lock);
 
@@ -1632,6 +1715,15 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 		goto out_detach;
 	}
 
+	ret = iommu_get_group_resv_regions(iommu_group, &group_resv_regions);
+	if (ret)
+		goto out_detach;
+
+	if (vfio_iommu_resv_conflict(iommu, &group_resv_regions)) {
+		ret = -EINVAL;
+		goto out_detach;
+	}
+
 	/*
 	 * We don't want to work on the original iova list as the list
 	 * gets modified and in case of failure we have to retain the
@@ -1643,6 +1735,10 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 
 	ret = vfio_iommu_aper_resize(&iova_copy, geo.aperture_start,
 				     geo.aperture_end);
+	if (ret)
+		goto out_detach;
+
+	ret = vfio_iommu_resv_exclude(&iova_copy, &group_resv_regions);
 	if (ret)
 		goto out_detach;
 
@@ -1706,6 +1802,7 @@ done:
 	/* Delete the old one and insert new iova list */
 	vfio_iommu_iova_insert_copy(iommu, &iova_copy);
 	mutex_unlock(&iommu->lock);
+	vfio_iommu_resv_free(&group_resv_regions);
 
 	return 0;
 
@@ -1714,6 +1811,7 @@ out_detach:
 out_domain:
 	iommu_domain_free(domain->domain);
 	vfio_iommu_iova_free(&iova_copy);
+	vfio_iommu_resv_free(&group_resv_regions);
 out_free:
 	kfree(domain);
 	kfree(group);
