@@ -39,14 +39,6 @@ struct indicator_t {
 static LIST_HEAD(tiq_list);
 static DEFINE_MUTEX(tiq_list_lock);
 
-/* Adapter interrupt definitions */
-static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating);
-
-static struct airq_struct tiqdio_airq = {
-	.handler = tiqdio_thinint_handler,
-	.isc = QDIO_AIRQ_ISC,
-};
-
 static struct indicator_t *q_indicators;
 
 u64 last_ai_time;
@@ -208,6 +200,11 @@ static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating)
 	}
 	rcu_read_unlock();
 }
+
+static struct airq_struct tiqdio_airq = {
+	.handler = tiqdio_thinint_handler,
+	.isc = QDIO_AIRQ_ISC,
+};
 
 static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 {
