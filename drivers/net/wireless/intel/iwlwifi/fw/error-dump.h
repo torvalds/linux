@@ -381,10 +381,9 @@ struct iwl_fw_ini_error_dump_register {
 
 /* struct iwl_fw_ini_dump_info - ini dump information
  * @version: dump version
- * @trigger_id: trigger id that caused the dump collection
- * @trigger_reason: not supported yet
- * @is_external_cfg: 1 if an external debug configuration was loaded
- *	and 0 otherwise
+ * @time_point: time point that caused the dump collection
+ * @trigger_reason: reason of the trigger
+ * @external_cfg_state: &enum iwl_ini_cfg_state
  * @ver_type: FW version type
  * @ver_subtype: FW version subype
  * @hw_step: HW step
@@ -410,9 +409,9 @@ struct iwl_fw_ini_error_dump_register {
  */
 struct iwl_fw_ini_dump_info {
 	__le32 version;
-	__le32 trigger_id;
+	__le32 time_point;
 	__le32 trigger_reason;
-	__le32 is_external_cfg;
+	__le32 external_cfg_state;
 	__le32 ver_type;
 	__le32 ver_subtype;
 	__le32 hw_step;

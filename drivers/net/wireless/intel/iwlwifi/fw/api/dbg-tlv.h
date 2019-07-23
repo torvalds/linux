@@ -351,18 +351,37 @@ struct iwl_fw_ini_trigger {
 } __packed; /* FW_TLV_DEBUG_TRIGGER_CONFIG_API_S_VER_1 */
 
 /**
- * struct iwl_fw_ini_trigger_tlv - (IWL_UCODE_TLV_TYPE_TRIGGERS)
- * Triggers that hold memory regions to dump in case a trigger fires
+ * struct iwl_fw_ini_trigger_tlv - trigger TLV
  *
- * @header: header
- * @num_triggers: how many different triggers section and IDs are coming next
- * @trigger_config: list of trigger configurations
+ * Trigger that upon firing, determines what regions to collect
+ *
+ * @hdr: debug header
+ * @time_point: time point. One of &enum iwl_fw_ini_time_point
+ * @trigger_reason: trigger reason
+ * @apply_policy: uses &enum iwl_fw_ini_trigger_apply_policy
+ * @dump_delay: delay from trigger fire to dump, in usec
+ * @occurrences: max trigger fire occurrences allowed
+ * @reserved: unused
+ * @ignore_consec: ignore consecutive triggers, in usec
+ * @reset_fw: if non zero, will reset and reload the FW
+ * @multi_dut: initiate debug dump data on several DUTs
+ * @regions_mask: mask of regions to collect
+ * @data: trigger data
  */
 struct iwl_fw_ini_trigger_tlv {
-	struct iwl_fw_ini_header header;
-	__le32 num_triggers;
-	struct iwl_fw_ini_trigger trigger_config[];
-} __packed; /* FW_TLV_DEBUG_TRIGGERS_API_S_VER_1 */
+	struct iwl_fw_ini_header hdr;
+	__le32 time_point;
+	__le32 trigger_reason;
+	__le32 apply_policy;
+	__le32 dump_delay;
+	__le32 occurrences;
+	__le32 reserved;
+	__le32 ignore_consec;
+	__le32 reset_fw;
+	__le32 multi_dut;
+	__le64 regions_mask;
+	__le32 data[];
+} __packed; /* FW_TLV_DEBUG_TRIGGER_API_S_VER_1 */
 
 #define IWL_FW_INI_MAX_IMG_NAME_LEN 32
 #define IWL_FW_INI_MAX_DBG_CFG_NAME_LEN 64

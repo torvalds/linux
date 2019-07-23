@@ -91,6 +91,27 @@ struct iwl_fwrt_shared_mem_cfg {
 #define IWL_FW_RUNTIME_DUMP_WK_NUM 5
 
 /**
+ * struct iwl_fwrt_dump_data - dump data
+ * @trig: trigger the worker was scheduled upon
+ * @fw_pkt: packet received from FW
+ */
+struct iwl_fwrt_dump_data {
+	struct iwl_fw_ini_trigger_tlv *trig;
+	struct iwl_rx_packet *fw_pkt;
+};
+
+/**
+ * struct iwl_fwrt_wk_data - dump worker data struct
+ * @idx: index of the worker
+ * @wk: worker
+ */
+struct iwl_fwrt_wk_data  {
+	u8 idx;
+	struct delayed_work wk;
+	struct iwl_fwrt_dump_data dump_data;
+};
+
+/**
  * struct iwl_txf_iter_data - Tx fifo iterator data struct
  * @fifo: fifo number
  * @lmac: lmac number
@@ -141,17 +162,13 @@ struct iwl_fw_runtime {
 	struct {
 		const struct iwl_fw_dump_desc *desc;
 		bool monitor_only;
-		struct {
-			u8 idx;
-			enum iwl_fw_ini_trigger_id ini_trig_id;
-			struct delayed_work wk;
-		} wks[IWL_FW_RUNTIME_DUMP_WK_NUM];
+		struct iwl_fwrt_wk_data wks[IWL_FW_RUNTIME_DUMP_WK_NUM];
 		unsigned long active_wks;
 
 		u8 conf;
 
 		/* ts of the beginning of a non-collect fw dbg data period */
-		unsigned long non_collect_ts_start[IWL_FW_TRIGGER_ID_NUM];
+		unsigned long non_collect_ts_start[IWL_FW_INI_TIME_POINT_NUM];
 		u32 *d3_debug_data;
 		struct iwl_fw_ini_region_cfg *active_regs[IWL_FW_INI_MAX_REGION_ID];
 		struct iwl_fw_ini_active_triggers active_trigs[IWL_FW_TRIGGER_ID_NUM];
