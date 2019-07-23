@@ -1859,7 +1859,7 @@ static void nvme_rdma_shutdown_ctrl(struct nvme_rdma_ctrl *ctrl, bool shutdown)
 	if (shutdown)
 		nvme_shutdown_ctrl(&ctrl->ctrl);
 	else
-		nvme_disable_ctrl(&ctrl->ctrl, ctrl->ctrl.cap);
+		nvme_disable_ctrl(&ctrl->ctrl);
 	nvme_rdma_teardown_admin_queue(ctrl, shutdown);
 }
 

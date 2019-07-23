@@ -1950,7 +1950,7 @@ static int nvme_wait_ready(struct nvme_ctrl *ctrl, u64 cap, bool enabled)
  * bits', but doing so may cause the device to complete commands to the
  * admin queue ... and we don't know what memory that might be pointing at!
  */
-int nvme_disable_ctrl(struct nvme_ctrl *ctrl, u64 cap)
+int nvme_disable_ctrl(struct nvme_ctrl *ctrl)
 {
 	int ret;
 
@@ -1964,7 +1964,7 @@ int nvme_disable_ctrl(struct nvme_ctrl *ctrl, u64 cap)
 	if (ctrl->quirks & NVME_QUIRK_DELAY_BEFORE_CHK_RDY)
 		msleep(NVME_QUIRK_DELAY_AMOUNT);
 
-	return nvme_wait_ready(ctrl, cap, false);
+	return nvme_wait_ready(ctrl, ctrl->cap, false);
 }
 EXPORT_SYMBOL_GPL(nvme_disable_ctrl);
 

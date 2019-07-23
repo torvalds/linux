@@ -1403,7 +1403,7 @@ static void nvme_disable_admin_queue(struct nvme_dev *dev, bool shutdown)
 	if (shutdown)
 		nvme_shutdown_ctrl(&dev->ctrl);
 	else
-		nvme_disable_ctrl(&dev->ctrl, dev->ctrl.cap);
+		nvme_disable_ctrl(&dev->ctrl);
 
 	nvme_poll_irqdisable(nvmeq, -1);
 }
@@ -1679,7 +1679,7 @@ static int nvme_pci_configure_admin_queue(struct nvme_dev *dev)
 	    (readl(dev->bar + NVME_REG_CSTS) & NVME_CSTS_NSSRO))
 		writel(NVME_CSTS_NSSRO, dev->bar + NVME_REG_CSTS);
 
-	result = nvme_disable_ctrl(&dev->ctrl, dev->ctrl.cap);
+	result = nvme_disable_ctrl(&dev->ctrl);
 	if (result < 0)
 		return result;
 

@@ -1886,7 +1886,7 @@ static void nvme_tcp_teardown_ctrl(struct nvme_ctrl *ctrl, bool shutdown)
 	if (shutdown)
 		nvme_shutdown_ctrl(ctrl);
 	else
-		nvme_disable_ctrl(ctrl, ctrl->cap);
+		nvme_disable_ctrl(ctrl);
 	nvme_tcp_teardown_admin_queue(ctrl, shutdown);
 }
 
