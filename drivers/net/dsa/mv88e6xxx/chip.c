@@ -2721,6 +2721,7 @@ static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip,
 			err = mv88e6xxx_mdio_register(chip, child, true);
 			if (err) {
 				mv88e6xxx_mdios_unregister(chip);
+				of_node_put(child);
 				return err;
 			}
 		}
