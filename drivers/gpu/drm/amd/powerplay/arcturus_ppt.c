@@ -1053,7 +1053,35 @@ static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	*value = metrics.CurrClock[clk_id];
+	switch (clk_id) {
+	case PPCLK_GFXCLK:
+		/*
+		 * CurrClock[clk_id] can provide accurate
+		 *   output only when the dpm feature is enabled.
+		 * We can use Average_* for dpm disabled case.
+		 *   But this is available for gfxclk/uclk/socclk.
+		 */
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT))
+			*value = metrics.CurrClock[PPCLK_GFXCLK];
+		else
+			*value = metrics.AverageGfxclkFrequency;
+		break;
+	case PPCLK_UCLK:
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT))
+			*value = metrics.CurrClock[PPCLK_UCLK];
+		else
+			*value = metrics.AverageUclkFrequency;
+		break;
+	case PPCLK_SOCCLK:
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT))
+			*value = metrics.CurrClock[PPCLK_SOCCLK];
+		else
+			*value = metrics.AverageSocclkFrequency;
+		break;
+	default:
+		*value = metrics.CurrClock[clk_id];
+		break;
+	}
 
 	return ret;
 }
