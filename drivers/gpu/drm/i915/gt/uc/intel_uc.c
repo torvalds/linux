@@ -37,17 +37,17 @@ static void guc_free_load_err_log(struct intel_guc *guc);
  */
 static int __intel_uc_reset_hw(struct intel_uc *uc)
 {
-	struct drm_i915_private *dev_priv = uc_to_gt(uc)->i915;
+	struct intel_gt *gt = uc_to_gt(uc);
 	int ret;
 	u32 guc_status;
 
-	ret = intel_reset_guc(&dev_priv->gt);
+	ret = intel_reset_guc(gt);
 	if (ret) {
 		DRM_ERROR("Failed to reset GuC, ret = %d\n", ret);
 		return ret;
 	}
 
-	guc_status = I915_READ(GUC_STATUS);
+	guc_status = intel_uncore_read(gt->uncore, GUC_STATUS);
 	WARN(!(guc_status & GS_MIA_IN_RESET),
 	     "GuC status: 0x%x, MIA core expected to be in reset\n",
 	     guc_status);
