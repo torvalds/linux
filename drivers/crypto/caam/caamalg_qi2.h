@@ -10,6 +10,7 @@
 #include <soc/fsl/dpaa2-io.h>
 #include <soc/fsl/dpaa2-fd.h>
 #include <linux/threads.h>
+#include <linux/netdevice.h>
 #include "dpseci.h"
 #include "desc_constr.h"
 
@@ -64,6 +65,7 @@ struct dpaa2_caam_priv {
 	struct iommu_domain *domain;
 
 	struct dpaa2_caam_priv_per_cpu __percpu *ppriv;
+	struct dentry *dfs_root;
 };
 
 /**

@@ -15,6 +15,7 @@
 #include "key_gen.h"
 #include "caamalg_desc.h"
 #include "caamhash_desc.h"
+#include "dpseci-debugfs.h"
 #include <linux/fsl/mc.h>
 #include <soc/fsl/dpaa2-io.h>
 #include <soc/fsl/dpaa2-fd.h>
@@ -5098,6 +5099,8 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 		goto err_bind;
 	}
 
+	dpaa2_dpseci_debugfs_init(priv);
+
 	/* register crypto algorithms the device supports */
 	for (i = 0; i < ARRAY_SIZE(driver_algs); i++) {
 		struct caam_skcipher_alg *t_alg = driver_algs + i;
@@ -5264,6 +5267,8 @@ static int __cold dpaa2_caam_remove(struct fsl_mc_device *ls_dev)
 
 	dev = &ls_dev->dev;
 	priv = dev_get_drvdata(dev);
+
+	dpaa2_dpseci_debugfs_exit(priv);
 
 	for (i = 0; i < ARRAY_SIZE(driver_aeads); i++) {
 		struct caam_aead_alg *t_alg = driver_aeads + i;
