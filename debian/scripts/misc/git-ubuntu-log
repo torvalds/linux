@@ -78,6 +78,11 @@ for line in sys.stdin:
     elif line.startswith('    Ignore:'):
         entry['ignore'] = True
 
+    elif line.startswith('    Properties:'):
+        for prop in line.strip().split()[1:]:
+            if prop in ('ignore', 'no-changelog'):
+                entry['ignore'] = True
+
 add_entry(entry)
 
 entries.reverse()
