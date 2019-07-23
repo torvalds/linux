@@ -95,6 +95,7 @@ var USE_MTBUF_INSTEAD_OF_MUBUF	    =	0		    //because TC EMU currently asserts o
 var SWIZZLE_EN			    =	0		    //whether we use swizzled buffer addressing
 var ACK_SQC_STORE		    =	1		    //workaround for suspected SQC store bug causing incorrect stores under concurrency
 var SAVE_AFTER_XNACK_ERROR	    =	1		    //workaround for TCP store failure after XNACK error when ALLOW_REPLAY=0, for debugger
+var SINGLE_STEP_MISSED_WORKAROUND   =	1		    //workaround for lost MODE.DEBUG_EN exception when SAVECTX raised
 
 /**************************************************************************/
 /*			variables					  */
@@ -135,6 +136,8 @@ var SQ_WAVE_IB_STS_RCNT_SHIFT		=   16			//FIXME
 var SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT	=   15			//FIXME
 var SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK	= 0x1F8000
 var SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK_NEG	= 0x00007FFF	//FIXME
+
+var SQ_WAVE_MODE_DEBUG_EN_MASK		=   0x800
 
 var SQ_BUF_RSRC_WORD1_ATC_SHIFT	    =	24
 var SQ_BUF_RSRC_WORD3_MTYPE_SHIFT   =	27
@@ -253,6 +256,23 @@ L_SKIP_RESTORE:
 
     s_getreg_b32    s_save_status, hwreg(HW_REG_STATUS)				    //save STATUS since we will change SCC
     s_andn2_b32	    s_save_status, s_save_status, SQ_WAVE_STATUS_SPI_PRIO_MASK	    //check whether this is for save
+
+if SINGLE_STEP_MISSED_WORKAROUND
+    // No single step exceptions if MODE.DEBUG_EN=0.
+    s_getreg_b32    ttmp2, hwreg(HW_REG_MODE)
+    s_and_b32       ttmp2, ttmp2, SQ_WAVE_MODE_DEBUG_EN_MASK
+    s_cbranch_scc0  L_NO_SINGLE_STEP_WORKAROUND
+
+    // Second-level trap already handled exception if STATUS.HALT=1.
+    s_and_b32       ttmp2, s_save_status, SQ_WAVE_STATUS_HALT_MASK
+
+    // Prioritize single step exception over context save.
+    // Second-level trap will halt wave and RFE, re-entering for SAVECTX.
+    s_cbranch_scc0  L_FETCH_2ND_TRAP
+
+L_NO_SINGLE_STEP_WORKAROUND:
+end
+
     s_getreg_b32    s_save_trapsts, hwreg(HW_REG_TRAPSTS)
     s_and_b32       ttmp2, s_save_trapsts, SQ_WAVE_TRAPSTS_SAVECTX_MASK    //check whether this is for save
     s_cbranch_scc1  L_SAVE					//this is the operation for save
