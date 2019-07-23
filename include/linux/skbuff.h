@@ -3166,7 +3166,7 @@ static inline bool skb_can_coalesce(struct sk_buff *skb, int i,
 	if (skb_zcopy(skb))
 		return false;
 	if (i) {
-		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i - 1];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
 
 		return page == skb_frag_page(frag) &&
 		       off == frag->page_offset + skb_frag_size(frag);
