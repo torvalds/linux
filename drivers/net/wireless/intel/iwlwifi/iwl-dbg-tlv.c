@@ -95,6 +95,20 @@ struct iwl_dbg_tlv_ver_data {
 	int max_ver;
 };
 
+/**
+ * struct iwl_dbg_tlv_timer_node - timer node struct
+ * @list: list of &struct iwl_dbg_tlv_timer_node
+ * @timer: timer
+ * @fwrt: &struct iwl_fw_runtime
+ * @tlv: TLV attach to the timer node
+ */
+struct iwl_dbg_tlv_timer_node {
+	struct list_head list;
+	struct timer_list timer;
+	struct iwl_fw_runtime *fwrt;
+	struct iwl_ucode_tlv *tlv;
+};
+
 static const struct iwl_dbg_tlv_ver_data
 dbg_ver_table[IWL_DBG_TLV_TYPE_NUM] = {
 	[IWL_DBG_TLV_TYPE_DEBUG_INFO]	= {.min_ver = 1, .max_ver = 1,},
@@ -310,7 +324,14 @@ out_err:
 
 void iwl_dbg_tlv_del_timers(struct iwl_trans *trans)
 {
-	/* will be used later */
+	struct list_head *timer_list = &trans->dbg.periodic_trig_list;
+	struct iwl_dbg_tlv_timer_node *node, *tmp;
+
+	list_for_each_entry_safe(node, tmp, timer_list, list) {
+		del_timer(&node->timer);
+		list_del(&node->list);
+		kfree(node);
+	}
 }
 IWL_EXPORT_SYMBOL(iwl_dbg_tlv_del_timers);
 
@@ -438,6 +459,7 @@ void iwl_dbg_tlv_init(struct iwl_trans *trans)
 	int i;
 
 	INIT_LIST_HEAD(&trans->dbg.debug_info_tlv_list);
+	INIT_LIST_HEAD(&trans->dbg.periodic_trig_list);
 
 	for (i = 0; i < ARRAY_SIZE(trans->dbg.time_point); i++) {
 		struct iwl_dbg_tlv_time_point_data *tp =
@@ -651,6 +673,83 @@ static void iwl_dbg_tlv_send_hcmds(struct iwl_fw_runtime *fwrt,
 			continue;
 
 		iwl_trans_send_cmd(fwrt->trans, &cmd);
+	}
+}
+
+static void iwl_dbg_tlv_periodic_trig_handler(struct timer_list *t)
+{
+	struct iwl_dbg_tlv_timer_node *timer_node =
+		from_timer(timer_node, t, timer);
+	struct iwl_fwrt_dump_data dump_data = {
+		.trig = (void *)timer_node->tlv->data,
+	};
+	int ret;
+
+	ret = iwl_fw_dbg_ini_collect(timer_node->fwrt, &dump_data);
+	if (!ret || ret == -EBUSY) {
+		u32 occur = le32_to_cpu(dump_data.trig->occurrences);
+		u32 collect_interval = le32_to_cpu(dump_data.trig->data[0]);
+
+		if (!occur)
+			return;
+
+		mod_timer(t, jiffies + msecs_to_jiffies(collect_interval));
+	}
+}
+
+static void iwl_dbg_tlv_set_periodic_trigs(struct iwl_fw_runtime *fwrt)
+{
+	struct iwl_dbg_tlv_node *node;
+	struct list_head *trig_list =
+		&fwrt->trans->dbg.time_point[IWL_FW_INI_TIME_POINT_PERIODIC].active_trig_list;
+
+	list_for_each_entry(node, trig_list, list) {
+		struct iwl_fw_ini_trigger_tlv *trig = (void *)node->tlv.data;
+		struct iwl_dbg_tlv_timer_node *timer_node;
+		u32 occur = le32_to_cpu(trig->occurrences), collect_interval;
+		u32 min_interval = 100;
+
+		if (!occur)
+			continue;
+
+		/* make sure there is at least one dword of data for the
+		 * interval value
+		 */
+		if (le32_to_cpu(node->tlv.length) <
+		    sizeof(*trig) + sizeof(__le32)) {
+			IWL_ERR(fwrt,
+				"WRT: Invalid periodic trigger data was not given\n");
+			continue;
+		}
+
+		if (le32_to_cpu(trig->data[0]) < min_interval) {
+			IWL_WARN(fwrt,
+				 "WRT: Override min interval from %u to %u msec\n",
+				 le32_to_cpu(trig->data[0]), min_interval);
+			trig->data[0] = cpu_to_le32(min_interval);
+		}
+
+		collect_interval = le32_to_cpu(trig->data[0]);
+
+		timer_node = kzalloc(sizeof(*timer_node), GFP_KERNEL);
+		if (!timer_node) {
+			IWL_ERR(fwrt,
+				"WRT: Failed to allocate periodic trigger\n");
+			continue;
+		}
+
+		timer_node->fwrt = fwrt;
+		timer_node->tlv = &node->tlv;
+		timer_setup(&timer_node->timer,
+			    iwl_dbg_tlv_periodic_trig_handler, 0);
+
+		list_add_tail(&timer_node->list,
+			      &fwrt->trans->dbg.periodic_trig_list);
+
+		IWL_DEBUG_FW(fwrt, "WRT: Enabling periodic trigger\n");
+
+		mod_timer(&timer_node->timer,
+			  jiffies + msecs_to_jiffies(collect_interval));
 	}
 }
 
@@ -935,6 +1034,10 @@ void iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
 		iwl_dbg_tlv_apply_buffers(fwrt);
 		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);
 		iwl_dbg_tlv_tp_trigger(fwrt, trig_list, tp_data, NULL);
+		break;
+	case IWL_FW_INI_TIME_POINT_PERIODIC:
+		iwl_dbg_tlv_set_periodic_trigs(fwrt);
+		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);
 		break;
 	default:
 		iwl_dbg_tlv_send_hcmds(fwrt, hcmd_list);
