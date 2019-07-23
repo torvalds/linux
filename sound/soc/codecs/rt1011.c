@@ -39,7 +39,7 @@ static const struct reg_sequence init_list[] = {
 	{ RT1011_POWER_9, 0xa840 },
 
 	{ RT1011_ADC_SET_5, 0x0a20 },
-	{ RT1011_DAC_SET_2, 0xa232 },
+	{ RT1011_DAC_SET_2, 0xa032 },
 	{ RT1011_ADC_SET_1, 0x2925 },
 
 	{ RT1011_SPK_PRO_DC_DET_1, 0xb00c },
@@ -1917,7 +1917,7 @@ static int rt1011_set_bias_level(struct snd_soc_component *component,
 		snd_soc_component_write(component,
 			RT1011_SYSTEM_RESET_2, 0x0000);
 		snd_soc_component_write(component,
-			RT1011_SYSTEM_RESET_3, 0x0000);
+			RT1011_SYSTEM_RESET_3, 0x0001);
 		snd_soc_component_write(component,
 			RT1011_SYSTEM_RESET_1, 0x003f);
 		snd_soc_component_write(component,
