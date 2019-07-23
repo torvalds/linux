@@ -15,8 +15,9 @@
 #include "pinctrl-intel.h"
 
 #define DNV_PAD_OWN	0x020
-#define DNV_HOSTSW_OWN	0x0C0
 #define DNV_PADCFGLOCK	0x090
+#define DNV_HOSTSW_OWN	0x0C0
+#define DNV_GPI_IS	0x100
 #define DNV_GPI_IE	0x120
 
 #define DNV_GPP(n, s, e)				\
@@ -32,6 +33,7 @@
 		.padown_offset = DNV_PAD_OWN,		\
 		.padcfglock_offset = DNV_PADCFGLOCK,	\
 		.hostown_offset = DNV_HOSTSW_OWN,	\
+		.is_offset = DNV_GPI_IS,		\
 		.ie_offset = DNV_GPI_IE,		\
 		.pin_base = (s),			\
 		.npins = ((e) - (s) + 1),		\
