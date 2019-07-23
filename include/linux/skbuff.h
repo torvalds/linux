@@ -14,6 +14,7 @@
 #include <linux/compiler.h>
 #include <linux/time.h>
 #include <linux/bug.h>
+#include <linux/bvec.h>
 #include <linux/cache.h>
 #include <linux/rbtree.h>
 #include <linux/socket.h>
@@ -308,13 +309,7 @@ extern int sysctl_max_skb_frags;
  */
 #define GSO_BY_FRAGS	0xFFFF
 
-typedef struct skb_frag_struct skb_frag_t;
-
-struct skb_frag_struct {
-	struct page *bv_page;
-	unsigned int bv_len;
-	__u32 page_offset;
-};
+typedef struct bio_vec skb_frag_t;
 
 /**
  * skb_frag_size - Returns the size of a skb fragment

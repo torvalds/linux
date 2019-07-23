@@ -18,7 +18,10 @@
 struct bio_vec {
 	struct page	*bv_page;
 	unsigned int	bv_len;
-	unsigned int	bv_offset;
+	union {
+		__u32		page_offset;
+		unsigned int	bv_offset;
+	};
 };
 
 struct bvec_iter {
