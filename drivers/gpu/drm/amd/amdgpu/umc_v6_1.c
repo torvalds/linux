@@ -94,18 +94,11 @@ static void umc_v6_1_query_correctable_error_count(struct amdgpu_device *adev,
 
 	/* check for SRAM correctable error
 	  MCUMC_STATUS is a 64 bit register */
-	mc_umc_status =
-		RREG32(mc_umc_status_addr + umc_reg_offset);
-	mc_umc_status |=
-		(uint64_t)RREG32(mc_umc_status_addr + umc_reg_offset + 1) << 32;
+	mc_umc_status = RREG64(mc_umc_status_addr + umc_reg_offset);
 	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, ErrorCodeExt) == 6 &&
 	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
 	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, CECC) == 1)
 		*error_count += 1;
-
-	/* clear the MCUMC_STATUS */
-	WREG32(mc_umc_status_addr + umc_reg_offset, 0);
-	WREG32(mc_umc_status_addr + umc_reg_offset + 1, 0);
 }
 
 static void umc_v6_1_querry_uncorrectable_error_count(struct amdgpu_device *adev,
@@ -119,10 +112,7 @@ static void umc_v6_1_querry_uncorrectable_error_count(struct amdgpu_device *adev
                 SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
 
 	/* check the MCUMC_STATUS */
-	mc_umc_status = RREG32(mc_umc_status_addr + umc_reg_offset);
-	mc_umc_status |=
-		(uint64_t)RREG32(mc_umc_status_addr + umc_reg_offset + 1) << 32;
-
+	mc_umc_status = RREG64(mc_umc_status_addr + umc_reg_offset);
 	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
 		REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, ErrorCodeExt) == 6 &&
 		(REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1 ||
@@ -130,17 +120,16 @@ static void umc_v6_1_querry_uncorrectable_error_count(struct amdgpu_device *adev
 		REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UC) == 1 ||
 		REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, TCC) == 1))
 		*error_count += 1;
-
-	/* clear the MCUMC_STATUS */
-	WREG32(mc_umc_status_addr + umc_reg_offset, 0);
-	WREG32(mc_umc_status_addr + umc_reg_offset + 1, 0);
 }
 
 static void umc_v6_1_query_ras_error_count(struct amdgpu_device *adev,
 					   void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
-	uint32_t umc_inst, channel_inst, umc_reg_offset;
+	uint32_t umc_inst, channel_inst, umc_reg_offset, mc_umc_status_addr;
+
+	mc_umc_status_addr =
+		SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
 
 	for (umc_inst = 0; umc_inst < UMC_V6_1_UMC_INSTANCE_NUM; umc_inst++) {
 		/* enable the index mode to query eror count per channel */
@@ -152,6 +141,8 @@ static void umc_v6_1_query_ras_error_count(struct amdgpu_device *adev,
 							       &(err_data->ce_count));
 			umc_v6_1_querry_uncorrectable_error_count(adev, umc_reg_offset,
 								  &(err_data->ue_count));
+			/* clear umc status */
+			WREG64(mc_umc_status_addr + umc_reg_offset, 0x0ULL);
 		}
 	}
 	umc_v6_1_disable_umc_index_mode(adev);
