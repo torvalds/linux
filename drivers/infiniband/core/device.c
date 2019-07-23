@@ -508,6 +508,9 @@ static void ib_device_release(struct device *device)
 			  rcu_head);
 	}
 
+	mutex_destroy(&dev->unregistration_lock);
+	mutex_destroy(&dev->compat_devs_mutex);
+
 	xa_destroy(&dev->compat_devs);
 	xa_destroy(&dev->client_data);
 	kfree_rcu(dev, rcu_head);
