@@ -155,9 +155,14 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 			return -EINVAL;
 
 		data->head.block = block_id;
-		data->head.type = memcmp("ue", err, 2) == 0 ?
-			AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE :
-			AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE;
+		/* only ue and ce errors are supported */
+		if (!memcmp("ue", err, 2))
+			data->head.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		else if (!memcmp("ce", err, 2))
+			data->head.type = AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE;
+		else
+			return -EINVAL;
+
 		data->op = op;
 
 		if (op == 2) {
