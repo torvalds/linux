@@ -3664,11 +3664,7 @@ int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale)
 		return -EINVAL;
 	if (decimals < 0)
 		decimals = 0;
-	while (decimals < scale) {
-		result *= 10;
-		decimals ++;
-	}
-	*res = result;
+	*res = result * int_pow(10, scale - decimals);
 	return 0;
 }
 
