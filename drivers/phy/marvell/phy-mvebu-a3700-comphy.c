@@ -277,13 +277,17 @@ static int mvebu_a3700_comphy_probe(struct platform_device *pdev)
 		}
 
 		lane = devm_kzalloc(&pdev->dev, sizeof(*lane), GFP_KERNEL);
-		if (!lane)
+		if (!lane) {
+			of_node_put(child);
 			return -ENOMEM;
+		}
 
 		phy = devm_phy_create(&pdev->dev, child,
 				      &mvebu_a3700_comphy_ops);
-		if (IS_ERR(phy))
+		if (IS_ERR(phy)) {
+			of_node_put(child);
 			return PTR_ERR(phy);
+		}
 
 		lane->dev = &pdev->dev;
 		lane->mode = PHY_MODE_INVALID;
