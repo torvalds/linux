@@ -1295,6 +1295,8 @@ static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 			  "(%s) dma_rx_phy=0x%08x\n", __func__,
 			  (u32)rx_q->dma_rx_phy);
 
+		stmmac_clear_rx_descriptors(priv, queue);
+
 		for (i = 0; i < DMA_RX_SIZE; i++) {
 			struct dma_desc *p;
 
@@ -1311,8 +1313,6 @@ static int init_dma_rx_desc_rings(struct net_device *dev, gfp_t flags)
 
 		rx_q->cur_rx = 0;
 		rx_q->dirty_rx = (unsigned int)(i - DMA_RX_SIZE);
-
-		stmmac_clear_rx_descriptors(priv, queue);
 
 		/* Setup the chained descriptor addresses */
 		if (priv->mode == STMMAC_CHAIN_MODE) {
@@ -1555,9 +1555,8 @@ static int alloc_dma_rx_desc_resources(struct stmmac_priv *priv)
 			goto err_dma;
 		}
 
-		rx_q->buf_pool = kmalloc_array(DMA_RX_SIZE,
-					       sizeof(*rx_q->buf_pool),
-					       GFP_KERNEL);
+		rx_q->buf_pool = kcalloc(DMA_RX_SIZE, sizeof(*rx_q->buf_pool),
+					 GFP_KERNEL);
 		if (!rx_q->buf_pool)
 			goto err_dma;
 
@@ -1608,15 +1607,15 @@ static int alloc_dma_tx_desc_resources(struct stmmac_priv *priv)
 		tx_q->queue_index = queue;
 		tx_q->priv_data = priv;
 
-		tx_q->tx_skbuff_dma = kmalloc_array(DMA_TX_SIZE,
-						    sizeof(*tx_q->tx_skbuff_dma),
-						    GFP_KERNEL);
+		tx_q->tx_skbuff_dma = kcalloc(DMA_TX_SIZE,
+					      sizeof(*tx_q->tx_skbuff_dma),
+					      GFP_KERNEL);
 		if (!tx_q->tx_skbuff_dma)
 			goto err_dma;
 
-		tx_q->tx_skbuff = kmalloc_array(DMA_TX_SIZE,
-						sizeof(struct sk_buff *),
-						GFP_KERNEL);
+		tx_q->tx_skbuff = kcalloc(DMA_TX_SIZE,
+					  sizeof(struct sk_buff *),
+					  GFP_KERNEL);
 		if (!tx_q->tx_skbuff)
 			goto err_dma;
 
