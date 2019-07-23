@@ -860,7 +860,7 @@ static int ib_nl_send_msg(struct ib_sa_query *query, gfp_t gfp_mask)
 	/* Repair the nlmsg header length */
 	nlmsg_end(skb, nlh);
 
-	return rdma_nl_multicast(skb, RDMA_NL_GROUP_LS, gfp_mask);
+	return rdma_nl_multicast(&init_net, skb, RDMA_NL_GROUP_LS, gfp_mask);
 }
 
 static int ib_nl_make_request(struct ib_sa_query *query, gfp_t gfp_mask)
