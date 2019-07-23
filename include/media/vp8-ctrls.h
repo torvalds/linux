@@ -11,6 +11,8 @@
 #ifndef _VP8_CTRLS_H_
 #define _VP8_CTRLS_H_
 
+#include <linux/types.h>
+
 #define V4L2_PIX_FMT_VP8_FRAME v4l2_fourcc('V', 'P', '8', 'F')
 
 #define V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER (V4L2_CID_MPEG_BASE + 2000)
