@@ -648,8 +648,7 @@ static void sil_quirkproc(ide_drive_t *drive)
 
 static void init_iops_siimage(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	struct ide_host *host = pci_get_drvdata(dev);
+	struct ide_host *host = dev_get_drvdata(hwif->dev);
 
 	hwif->hwif_data = NULL;
 
