@@ -53,8 +53,12 @@ void notrace __hot ftrace_function_trampoline(unsigned long parent,
 #ifndef CONFIG_DYNAMIC_FTRACE
 	extern ftrace_func_t ftrace_trace_function;
 #endif
-	if (ftrace_trace_function != ftrace_stub)
-		ftrace_trace_function(self_addr, parent, NULL, NULL);
+	extern struct ftrace_ops *function_trace_op;
+
+	if (function_trace_op->flags & FTRACE_OPS_FL_ENABLED &&
+	    ftrace_trace_function != ftrace_stub)
+		ftrace_trace_function(self_addr, parent,
+				function_trace_op, NULL);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	if (ftrace_graph_return != (trace_func_graph_ret_t) ftrace_stub ||
