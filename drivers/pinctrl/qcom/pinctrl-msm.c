@@ -617,8 +617,7 @@ static int msm_gpio_init_valid_mask(struct gpio_chip *chip)
 	}
 
 	/* The number of GPIOs in the ACPI tables */
-	len = ret = device_property_read_u16_array(pctrl->dev, "gpios", NULL,
-						   0);
+	len = ret = device_property_count_u16(pctrl->dev, "gpios");
 	if (ret < 0)
 		return 0;
 
@@ -996,7 +995,7 @@ static bool msm_gpio_needs_valid_mask(struct msm_pinctrl *pctrl)
 	if (pctrl->soc->reserved_gpios)
 		return true;
 
-	return device_property_read_u16_array(pctrl->dev, "gpios", NULL, 0) > 0;
+	return device_property_count_u16(pctrl->dev, "gpios") > 0;
 }
 
 static int msm_gpio_init(struct msm_pinctrl *pctrl)
