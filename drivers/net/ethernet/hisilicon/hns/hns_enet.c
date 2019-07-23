@@ -11,7 +11,6 @@
 #include <linux/io.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
-#include <linux/marvell_phy.h>
 #include <linux/module.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
@@ -1150,13 +1149,6 @@ static void hns_nic_adjust_link(struct net_device *ndev)
 	}
 }
 
-static int hns_phy_marvell_fixup(struct phy_device *phydev)
-{
-	phydev->dev_flags |= MARVELL_PHY_LED0_LINK_LED1_ACTIVE;
-
-	return 0;
-}
-
 /**
  *hns_nic_init_phy - init phy
  *@ndev: net device
@@ -1181,16 +1173,6 @@ int hns_nic_init_phy(struct net_device *ndev, struct hnae_handle *h)
 
 	if (h->phy_if != PHY_INTERFACE_MODE_XGMII) {
 		phy_dev->dev_flags = 0;
-
-		/* register the PHY fixup (for Marvell 88E1510) */
-		ret = phy_register_fixup_for_uid(MARVELL_PHY_ID_88E1510,
-						 MARVELL_PHY_ID_MASK,
-						 hns_phy_marvell_fixup);
-		/* we can live without it, so just issue a warning */
-		if (ret)
-			netdev_warn(ndev,
-				    "Cannot register PHY fixup, ret=%d\n",
-				    ret);
 
 		ret = phy_connect_direct(ndev, phy_dev, hns_nic_adjust_link,
 					 h->phy_if);
@@ -2448,11 +2430,8 @@ static int hns_nic_dev_remove(struct platform_device *pdev)
 		hns_nic_uninit_ring_data(priv);
 	priv->ring_data = NULL;
 
-	if (ndev->phydev) {
-		phy_unregister_fixup_for_uid(MARVELL_PHY_ID_88E1510,
-					     MARVELL_PHY_ID_MASK);
+	if (ndev->phydev)
 		phy_disconnect(ndev->phydev);
-	}
 
 	if (!IS_ERR_OR_NULL(priv->ae_handle))
 		hnae_put_handle(priv->ae_handle);
