@@ -165,7 +165,7 @@ static void __iomem *intel_get_padcfg(struct intel_pinctrl *pctrl,
 	padno = pin_to_padno(community, pin);
 	nregs = (community->features & PINCTRL_FEATURE_DEBOUNCE) ? 4 : 2;
 
-	if (reg == PADCFG2 && !(community->features & PINCTRL_FEATURE_DEBOUNCE))
+	if (reg >= nregs * 4)
 		return NULL;
 
 	return community->pad_regs + reg + padno * nregs * 4;
