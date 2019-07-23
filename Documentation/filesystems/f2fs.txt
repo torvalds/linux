@@ -413,6 +413,9 @@ Files in /sys/fs/f2fs/<devname>
                               that would be unusable if checkpoint=disable were
                               to be set.
 
+encoding 	              This shows the encoding used for casefolding.
+                              If casefolding is not enabled, returns (none)
+
 ================================================================================
 USAGE
 ================================================================================
