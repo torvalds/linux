@@ -1,0 +1,304 @@
+[
+    {
+        "id": "a519",
+        "name": "Add bfifo qdisc with system default parameters on egress",
+        "__comment": "When omitted, queue size in bfifo is calculated as: txqueuelen * (MTU + LinkLayerHdrSize), where LinkLayerHdrSize=14 for Ethernet",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DEV1 handle 1: root bfifo",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc bfifo 1: root.*limit [0-9]+b",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 handle 1: root bfifo",
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "585c",
+        "name": "Add pfifo qdisc with system default parameters on egress",
+        "__comment": "When omitted, queue size in pfifo is defaulted to the interface's txqueuelen value.",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DEV1 handle 1: root pfifo",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc pfifo 1: root.*limit [0-9]+p",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 handle 1: root pfifo",
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "a86e",
+        "name": "Add bfifo qdisc with system default parameters on egress with handle of maximum value",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DEV1 root handle ffff: bfifo",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc bfifo ffff: root.*limit [0-9]+b",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 handle ffff: root bfifo",
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "9ac8",
+        "name": "Add bfifo qdisc on egress with queue size of 3000 bytes",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DEV1 handle 1: root bfifo limit 3000b",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc bfifo 1: root.*limit 3000b",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 handle 1: root bfifo",
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "f4e6",
+        "name": "Add pfifo qdisc on egress with queue size of 3000 packets",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 txqueuelen 3000 type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DEV1 handle 1: root pfifo limit 3000",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc pfifo 1: root.*limit 3000p",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 handle 1: root pfifo",
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "b1b1",
+        "name": "Add bfifo qdisc with system default parameters on egress with invalid handle exceeding maximum value",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DEV1 root handle 10000: bfifo",
+        "expExitCode": "255",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc bfifo 10000: root.*limit [0-9]+b",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "8d5e",
+        "name": "Add bfifo qdisc on egress with unsupported argument",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DEV1 handle 1: root bfifo foorbar",
+        "expExitCode": "1",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc bfifo 1: root",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "7787",
+        "name": "Add pfifo qdisc on egress with unsupported argument",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DEV1 handle 1: root pfifo foorbar",
+        "expExitCode": "1",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc pfifo 1: root",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "c4b6",
+        "name": "Replace bfifo qdisc on egress with new queue size",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link del dev $DEV1 type dummy || /bin/true",
+            "$IP link add dev $DEV1 txqueuelen 1000 type dummy",
+            "$TC qdisc add dev $DEV1 handle 1: root bfifo"
+        ],
+        "cmdUnderTest": "$TC qdisc replace dev $DEV1 handle 1: root bfifo limit 3000b",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc bfifo 1: root.*limit 3000b",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 handle 1: root bfifo",
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "3df6",
+        "name": "Replace pfifo qdisc on egress with new queue size",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link del dev $DEV1 type dummy || /bin/true",
+            "$IP link add dev $DEV1 txqueuelen 1000 type dummy",
+            "$TC qdisc add dev $DEV1 handle 1: root pfifo"
+        ],
+        "cmdUnderTest": "$TC qdisc replace dev $DEV1 handle 1: root pfifo limit 30",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc pfifo 1: root.*limit 30p",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 handle 1: root pfifo",
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "7a67",
+        "name": "Add bfifo qdisc on egress with queue size in invalid format",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DEV1 handle 1: root bfifo limit foo-bar",
+        "expExitCode": "1",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc bfifo 1: root.*limit foo-bar",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "1298",
+        "name": "Add duplicate bfifo qdisc on egress",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 type dummy || /bin/true",
+            "$TC qdisc add dev $DEV1 handle 1: root bfifo"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DEV1 handle 1: root bfifo",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc bfifo 1: root",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 handle 1: root bfifo",
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "45a0",
+        "name": "Delete nonexistent bfifo qdisc",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc del dev $DEV1 root handle 1: bfifo",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc bfifo 1: root",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "972b",
+        "name": "Add prio qdisc on egress with invalid format for handles",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DEV1 root handle 123^ bfifo limit 100b",
+        "expExitCode": "255",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc bfifo 123 root",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    },
+    {
+        "id": "4d39",
+        "name": "Delete bfifo qdisc twice",
+        "category": [
+            "qdisc",
+            "fifo"
+        ],
+        "setup": [
+            "$IP link add dev $DEV1 type dummy || /bin/true",
+            "$TC qdisc add dev $DEV1 root handle 1: bfifo",
+            "$TC qdisc del dev $DEV1 root handle 1: bfifo"
+        ],
+        "cmdUnderTest": "$TC qdisc del dev $DEV1 handle 1: root bfifo",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc bfifo 1: root",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DEV1 type dummy"
+        ]
+    }
+]
