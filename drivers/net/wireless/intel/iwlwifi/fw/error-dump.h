@@ -434,7 +434,18 @@ struct iwl_fw_ini_dump_info {
 	u8 external_dbg_cfg_name[IWL_FW_INI_MAX_DBG_CFG_NAME_LEN];
 	__le32 regions_num;
 	__le32 region_ids[];
+} __packed;
 
+/**
+ * struct iwl_fw_ini_err_table_dump - ini error table dump
+ * @header: header of the region
+ * @version: error table version
+ * @ranges: the memory ranges of this this region
+ */
+struct iwl_fw_ini_err_table_dump {
+	struct iwl_fw_ini_error_dump_header header;
+	__le32 version;
+	struct iwl_fw_ini_error_dump_range ranges[];
 } __packed;
 
 /**

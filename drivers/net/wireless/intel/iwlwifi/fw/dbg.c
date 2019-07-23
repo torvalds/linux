@@ -1430,6 +1430,25 @@ out:
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
 
+static int
+iwl_dump_ini_err_table_iter(struct iwl_fw_runtime *fwrt,
+			    struct iwl_dump_ini_region_data *reg_data,
+			    void *range_ptr, int idx)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_region_err_table *err_table = &reg->err_table;
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	u32 addr = le32_to_cpu(err_table->base_addr) +
+		   le32_to_cpu(err_table->offset);
+
+	range->internal_base_addr = cpu_to_le32(addr);
+	range->range_data_size = err_table->size;
+	iwl_trans_read_mem_bytes(fwrt->trans, addr, range->data,
+				 le32_to_cpu(err_table->size));
+
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
 static void *
 iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
 			     struct iwl_dump_ini_region_data *reg_data,
@@ -1522,6 +1541,20 @@ iwl_dump_ini_mon_smem_fill_header(struct iwl_fw_runtime *fwrt,
 
 	return iwl_dump_ini_mon_fill_header(fwrt, reg_data, mon_dump,
 					    &fwrt->trans->cfg->mon_smem_regs);
+}
+
+static void *
+iwl_dump_ini_err_table_fill_header(struct iwl_fw_runtime *fwrt,
+				   struct iwl_dump_ini_region_data *reg_data,
+				   void *data)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_err_table_dump *dump = data;
+
+	dump->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
+	dump->version = reg->err_table.version;
+
+	return dump->ranges;
 }
 
 static u32 iwl_dump_ini_mem_ranges(struct iwl_fw_runtime *fwrt,
@@ -1702,6 +1735,20 @@ static u32 iwl_dump_ini_rxf_get_size(struct iwl_fw_runtime *fwrt,
 
 	iwl_ini_get_rxf_data(fwrt, reg_data, &rx_data);
 	size += rx_data.size;
+
+	return size;
+}
+
+static u32
+iwl_dump_ini_err_table_get_size(struct iwl_fw_runtime *fwrt,
+				struct iwl_dump_ini_region_data *reg_data)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	u32 size = le32_to_cpu(reg->err_table.size);
+
+	if (size)
+		size += sizeof(struct iwl_fw_ini_err_table_dump) +
+			sizeof(struct iwl_fw_ini_error_dump_range);
 
 	return size;
 }
@@ -1892,8 +1939,18 @@ static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
 		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
 		.fill_range = iwl_dump_ini_rxf_iter,
 	},
-	[IWL_FW_INI_REGION_LMAC_ERROR_TABLE] = {},
-	[IWL_FW_INI_REGION_UMAC_ERROR_TABLE] = {},
+	[IWL_FW_INI_REGION_LMAC_ERROR_TABLE] = {
+		.get_num_of_ranges = iwl_dump_ini_single_range,
+		.get_size = iwl_dump_ini_err_table_get_size,
+		.fill_mem_hdr = iwl_dump_ini_err_table_fill_header,
+		.fill_range = iwl_dump_ini_err_table_iter,
+	},
+	[IWL_FW_INI_REGION_UMAC_ERROR_TABLE] = {
+		.get_num_of_ranges = iwl_dump_ini_single_range,
+		.get_size = iwl_dump_ini_err_table_get_size,
+		.fill_mem_hdr = iwl_dump_ini_err_table_fill_header,
+		.fill_range = iwl_dump_ini_err_table_iter,
+	},
 	[IWL_FW_INI_REGION_RSP_OR_NOTIF] = {},
 	[IWL_FW_INI_REGION_DEVICE_MEMORY] = {
 		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
