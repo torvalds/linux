@@ -1037,7 +1037,7 @@
 			resets = <&ccu RST_BUS_HDMI1>;
 			reset-names = "ctrl";
 			phys = <&hdmi_phy>;
-			phy-names = "hdmi-phy";
+			phy-names = "phy";
 			pinctrl-names = "default";
 			pinctrl-0 = <&hdmi_pins>;
 			status = "disabled";
