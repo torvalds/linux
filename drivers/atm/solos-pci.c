@@ -516,9 +516,8 @@ struct geos_gpio_attr {
 static ssize_t geos_gpio_store(struct device *dev, struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
 	struct geos_gpio_attr *gattr = container_of(attr, struct geos_gpio_attr, attr);
-	struct solos_card *card = pci_get_drvdata(pdev);
+	struct solos_card *card = dev_get_drvdata(dev);
 	uint32_t data32;
 
 	if (count != 1 && (count != 2 || buf[1] != '\n'))
@@ -542,9 +541,8 @@ static ssize_t geos_gpio_store(struct device *dev, struct device_attribute *attr
 static ssize_t geos_gpio_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
 	struct geos_gpio_attr *gattr = container_of(attr, struct geos_gpio_attr, attr);
-	struct solos_card *card = pci_get_drvdata(pdev);
+	struct solos_card *card = dev_get_drvdata(dev);
 	uint32_t data32;
 
 	data32 = ioread32(card->config_regs + GPIO_STATUS);
@@ -556,9 +554,8 @@ static ssize_t geos_gpio_show(struct device *dev, struct device_attribute *attr,
 static ssize_t hardware_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
 	struct geos_gpio_attr *gattr = container_of(attr, struct geos_gpio_attr, attr);
-	struct solos_card *card = pci_get_drvdata(pdev);
+	struct solos_card *card = dev_get_drvdata(dev);
 	uint32_t data32;
 
 	data32 = ioread32(card->config_regs + GPIO_STATUS);
