@@ -187,11 +187,15 @@ setup_prepare()
 	sw1_create
 	sw2_create
 	h2_create
+
+	forwarding_enable
 }
 
 cleanup()
 {
 	pre_cleanup
+
+	forwarding_restore
 
 	h2_destroy
 	sw2_destroy
