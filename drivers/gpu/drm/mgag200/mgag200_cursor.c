@@ -112,7 +112,7 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 			"failed to kmap cursor updates: %d\n", ret);
 		goto err_drm_gem_vram_unpin_dst;
 	}
-	gpu_addr = drm_gem_vram_offset(pixels_2);
+	gpu_addr = drm_gem_vram_offset(pixels_next);
 	if (gpu_addr < 0) {
 		ret = (int)gpu_addr;
 		dev_err(&dev->pdev->dev,
