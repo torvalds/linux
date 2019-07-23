@@ -295,8 +295,7 @@ void destroy_hdev(struct hl_device *hdev)
 
 static int hl_pmops_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct hl_device *hdev = pci_get_drvdata(pdev);
+	struct hl_device *hdev = dev_get_drvdata(dev);
 
 	pr_debug("Going to suspend PCI device\n");
 
@@ -310,8 +309,7 @@ static int hl_pmops_suspend(struct device *dev)
 
 static int hl_pmops_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct hl_device *hdev = pci_get_drvdata(pdev);
+	struct hl_device *hdev = dev_get_drvdata(dev);
 
 	pr_debug("Going to resume PCI device\n");
 
