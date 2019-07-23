@@ -1259,6 +1259,8 @@ bool dc_set_generic_gpio_for_stereo(bool enable,
 	struct gpio_generic_mux_config *config = kzalloc(sizeof(struct gpio_generic_mux_config),
 			   GFP_KERNEL);
 
+	if (!config)
+		return false;
 	pin_info = dal_gpio_get_generic_pin_info(gpio_service, GPIO_ID_GENERIC, 0);
 
 	if (pin_info.mask == 0xFFFFFFFF || pin_info.offset == 0xFFFFFFFF) {
