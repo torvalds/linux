@@ -1842,6 +1842,7 @@ static bool elantech_use_host_notify(struct psmouse *psmouse,
 		/* SMbus implementation is stable since 2018 */
 		if (dmi_get_bios_year() >= 2018)
 			return true;
+		/* fall through */
 	default:
 		psmouse_dbg(psmouse,
 			    "Ignoring SMBus bus provider %d\n", info->bus);
