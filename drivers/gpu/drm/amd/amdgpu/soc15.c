@@ -465,12 +465,14 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int soc15_asic_reset(struct amdgpu_device *adev)
+static enum amd_reset_method
+soc15_asic_reset_method(struct amdgpu_device *adev)
 {
-	int ret;
 	bool baco_reset;
 
 	switch (adev->asic_type) {
+	case CHIP_RAVEN:
+		return AMD_RESET_METHOD_MODE2;
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 		soc15_asic_get_baco_capability(adev, &baco_reset);
@@ -494,6 +496,16 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 	}
 
 	if (baco_reset)
+		return AMD_RESET_METHOD_BACO;
+	else
+		return AMD_RESET_METHOD_MODE1;
+}
+
+static int soc15_asic_reset(struct amdgpu_device *adev)
+{
+	int ret;
+
+	if (soc15_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)
 		ret = soc15_asic_baco_reset(adev);
 	else
 		ret = soc15_asic_mode1_reset(adev);
@@ -807,6 +819,7 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.read_bios_from_rom = &soc15_read_bios_from_rom,
 	.read_register = &soc15_read_register,
 	.reset = &soc15_asic_reset,
+	.reset_method = &soc15_asic_reset_method,
 	.set_vga_state = &soc15_vga_set_state,
 	.get_xclk = &soc15_get_xclk,
 	.set_uvd_clocks = &soc15_set_uvd_clocks,
