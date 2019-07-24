@@ -1463,7 +1463,6 @@ static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 			p->mnt.mnt_flags |= MNT_SYNC_UMOUNT;
 
 		disconnect = disconnect_mount(p, how);
-
 		if (mnt_has_parent(p)) {
 			mnt_add_count(p->mnt_parent, -1);
 			if (!disconnect) {
@@ -1471,10 +1470,11 @@ static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 				list_add_tail(&p->mnt_child, &p->mnt_parent->mnt_mounts);
 			} else {
 				umount_mnt(p);
-				hlist_add_head(&p->mnt_umount, &unmounted);
 			}
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
+		if (disconnect)
+			hlist_add_head(&p->mnt_umount, &unmounted);
 	}
 }
 
