@@ -1249,6 +1249,11 @@ static inline void iwl_trans_fw_error(struct iwl_trans *trans)
 		iwl_op_mode_nic_error(trans->op_mode);
 }
 
+static inline bool iwl_trans_fw_running(struct iwl_trans *trans)
+{
+	return trans->state == IWL_TRANS_FW_ALIVE;
+}
+
 static inline void iwl_trans_sync_nmi(struct iwl_trans *trans)
 {
 	if (trans->ops->sync_nmi)
