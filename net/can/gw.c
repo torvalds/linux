@@ -260,28 +260,28 @@ static void cgw_csum_crc8_rel(struct can_frame *cf, struct cgw_csum_crc8 *crc8)
 
 	if (from <= to) {
 		for (i = crc8->from_idx; i <= crc8->to_idx; i++)
-			crc = crc8->crctab[crc^cf->data[i]];
+			crc = crc8->crctab[crc ^ cf->data[i]];
 	} else {
 		for (i = crc8->from_idx; i >= crc8->to_idx; i--)
-			crc = crc8->crctab[crc^cf->data[i]];
+			crc = crc8->crctab[crc ^ cf->data[i]];
 	}
 
 	switch (crc8->profile) {
 	case CGW_CRC8PRF_1U8:
-		crc = crc8->crctab[crc^crc8->profile_data[0]];
+		crc = crc8->crctab[crc ^ crc8->profile_data[0]];
 		break;
 
 	case  CGW_CRC8PRF_16U8:
-		crc = crc8->crctab[crc^crc8->profile_data[cf->data[1] & 0xF]];
+		crc = crc8->crctab[crc ^ crc8->profile_data[cf->data[1] & 0xF]];
 		break;
 
 	case CGW_CRC8PRF_SFFID_XOR:
-		crc = crc8->crctab[crc^(cf->can_id & 0xFF)^
+		crc = crc8->crctab[crc ^ (cf->can_id & 0xFF) ^
 				   (cf->can_id >> 8 & 0xFF)];
 		break;
 	}
 
-	cf->data[crc8->result_idx] = crc^crc8->final_xor_val;
+	cf->data[crc8->result_idx] = crc ^ crc8->final_xor_val;
 }
 
 static void cgw_csum_crc8_pos(struct can_frame *cf, struct cgw_csum_crc8 *crc8)
@@ -290,24 +290,24 @@ static void cgw_csum_crc8_pos(struct can_frame *cf, struct cgw_csum_crc8 *crc8)
 	int i;
 
 	for (i = crc8->from_idx; i <= crc8->to_idx; i++)
-		crc = crc8->crctab[crc^cf->data[i]];
+		crc = crc8->crctab[crc ^ cf->data[i]];
 
 	switch (crc8->profile) {
 	case CGW_CRC8PRF_1U8:
-		crc = crc8->crctab[crc^crc8->profile_data[0]];
+		crc = crc8->crctab[crc ^ crc8->profile_data[0]];
 		break;
 
 	case  CGW_CRC8PRF_16U8:
-		crc = crc8->crctab[crc^crc8->profile_data[cf->data[1] & 0xF]];
+		crc = crc8->crctab[crc ^ crc8->profile_data[cf->data[1] & 0xF]];
 		break;
 
 	case CGW_CRC8PRF_SFFID_XOR:
-		crc = crc8->crctab[crc^(cf->can_id & 0xFF)^
+		crc = crc8->crctab[crc ^ (cf->can_id & 0xFF) ^
 				   (cf->can_id >> 8 & 0xFF)];
 		break;
 	}
 
-	cf->data[crc8->result_idx] = crc^crc8->final_xor_val;
+	cf->data[crc8->result_idx] = crc ^ crc8->final_xor_val;
 }
 
 static void cgw_csum_crc8_neg(struct can_frame *cf, struct cgw_csum_crc8 *crc8)
@@ -316,24 +316,24 @@ static void cgw_csum_crc8_neg(struct can_frame *cf, struct cgw_csum_crc8 *crc8)
 	int i;
 
 	for (i = crc8->from_idx; i >= crc8->to_idx; i--)
-		crc = crc8->crctab[crc^cf->data[i]];
+		crc = crc8->crctab[crc ^ cf->data[i]];
 
 	switch (crc8->profile) {
 	case CGW_CRC8PRF_1U8:
-		crc = crc8->crctab[crc^crc8->profile_data[0]];
+		crc = crc8->crctab[crc ^ crc8->profile_data[0]];
 		break;
 
 	case  CGW_CRC8PRF_16U8:
-		crc = crc8->crctab[crc^crc8->profile_data[cf->data[1] & 0xF]];
+		crc = crc8->crctab[crc ^ crc8->profile_data[cf->data[1] & 0xF]];
 		break;
 
 	case CGW_CRC8PRF_SFFID_XOR:
-		crc = crc8->crctab[crc^(cf->can_id & 0xFF)^
+		crc = crc8->crctab[crc ^ (cf->can_id & 0xFF) ^
 				   (cf->can_id >> 8 & 0xFF)];
 		break;
 	}
 
-	cf->data[crc8->result_idx] = crc^crc8->final_xor_val;
+	cf->data[crc8->result_idx] = crc ^ crc8->final_xor_val;
 }
 
 /* the receive & process & send function */
@@ -623,7 +623,7 @@ cont:
 	return skb->len;
 }
 
-static const struct nla_policy cgw_policy[CGW_MAX+1] = {
+static const struct nla_policy cgw_policy[CGW_MAX + 1] = {
 	[CGW_MOD_AND]	= { .len = sizeof(struct cgw_frame_mod) },
 	[CGW_MOD_OR]	= { .len = sizeof(struct cgw_frame_mod) },
 	[CGW_MOD_XOR]	= { .len = sizeof(struct cgw_frame_mod) },
@@ -641,7 +641,7 @@ static const struct nla_policy cgw_policy[CGW_MAX+1] = {
 static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			  u8 gwtype, void *gwtypeattr, u8 *limhops)
 {
-	struct nlattr *tb[CGW_MAX+1];
+	struct nlattr *tb[CGW_MAX + 1];
 	struct cgw_frame_mod mb;
 	int modidx = 0;
 	int err = 0;
