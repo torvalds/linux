@@ -72,6 +72,21 @@ void dpp20_read_state(struct dpp *dpp_base,
 	}
 }
 
+void dpp2_power_on_obuf(
+		struct dpp *dpp_base,
+	bool power_on)
+{
+	struct dcn20_dpp *dpp = TO_DCN20_DPP(dpp_base);
+
+	REG_UPDATE(CM_MEM_PWR_CTRL, SHARED_MEM_PWR_DIS, power_on == true ? 1:0);
+
+	REG_UPDATE(OBUF_MEM_PWR_CTRL,
+			OBUF_MEM_PWR_FORCE, power_on == true ? 0:1);
+
+	REG_UPDATE(DSCL_MEM_PWR_CTRL,
+			LUT_MEM_PWR_FORCE, power_on == true ? 0:1);
+}
+
 void dpp2_dummy_program_input_lut(
 		struct dpp *dpp_base,
 		const struct dc_gamma *gamma)
@@ -227,6 +242,7 @@ static void dpp2_cnv_setup (
 				CUR0_ENABLE, 0);
 
 	}
+	dpp2_power_on_obuf(dpp_base, true);
 
 }
 

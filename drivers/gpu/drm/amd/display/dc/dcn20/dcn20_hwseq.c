@@ -631,6 +631,10 @@ void dcn20_program_output_csc(struct dc *dc,
 {
 	struct mpc *mpc = dc->res_pool->mpc;
 	enum mpc_output_csc_mode ocsc_mode = MPC_OUTPUT_CSC_COEF_A;
+	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
+
+	if (mpc->funcs->power_on_mpc_mem_pwr)
+		mpc->funcs->power_on_mpc_mem_pwr(mpc, mpcc_id, true);
 
 	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
 		if (mpc->funcs->set_output_csc != NULL)
@@ -660,6 +664,8 @@ bool dcn20_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 	 * if programming for all pipes is required then remove condition
 	 * pipe_ctx->top_pipe == NULL ,but then fix the diagnostic.
 	 */
+	if (mpc->funcs->power_on_mpc_mem_pwr)
+		mpc->funcs->power_on_mpc_mem_pwr(mpc, mpcc_id, true);
 	if ((pipe_ctx->top_pipe == NULL || dc_res_is_odm_head_pipe(pipe_ctx))
 			&& mpc->funcs->set_output_gamma && stream->out_transfer_func) {
 		if (stream->out_transfer_func->type == TF_TYPE_HWPWL)
