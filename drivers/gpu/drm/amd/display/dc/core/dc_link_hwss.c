@@ -19,6 +19,36 @@
 #include "resource.h"
 #endif
 
+static uint8_t convert_to_count(uint8_t lttpr_repeater_count)
+{
+	switch (lttpr_repeater_count) {
+	case 0x80: // 1 lttpr repeater
+		return 1;
+	case 0x40: // 2 lttpr repeaters
+		return 2;
+	case 0x20: // 3 lttpr repeaters
+		return 3;
+	case 0x10: // 4 lttpr repeaters
+		return 4;
+	case 0x08: // 5 lttpr repeaters
+		return 5;
+	case 0x04: // 6 lttpr repeaters
+		return 6;
+	case 0x02: // 7 lttpr repeaters
+		return 7;
+	case 0x01: // 8 lttpr repeaters
+		return 8;
+	default:
+		break;
+	}
+	return 0; // invalid value
+}
+
+static inline bool is_immediate_downstream(struct dc_link *link, uint32_t offset)
+{
+	return (convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) == offset);
+}
+
 enum dc_status core_link_read_dpcd(
 	struct dc_link *link,
 	uint32_t address,
@@ -212,7 +242,8 @@ void dp_disable_link_phy_mst(struct dc_link *link, enum signal_type signal)
 
 bool dp_set_hw_training_pattern(
 	struct dc_link *link,
-	enum dc_dp_training_pattern pattern)
+	enum dc_dp_training_pattern pattern,
+	uint32_t offset)
 {
 	enum dp_test_pattern test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 
@@ -240,9 +271,13 @@ bool dp_set_hw_training_pattern(
 
 void dp_set_hw_lane_settings(
 	struct dc_link *link,
-	const struct link_training_settings *link_settings)
+	const struct link_training_settings *link_settings,
+	uint32_t offset)
 {
 	struct link_encoder *encoder = link->link_enc;
+
+	if (!link->is_lttpr_mode_transparent && !is_immediate_downstream(link, offset))
+		return;
 
 	/* call Encoder to set lane settings */
 	encoder->funcs->dp_set_lane_settings(encoder, link_settings);
