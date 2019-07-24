@@ -465,7 +465,7 @@ static int act8600_charger_probe(struct device *dev, struct regmap *regmap)
 
 	charger = devm_power_supply_register(dev, &act8600_charger_desc, &cfg);
 
-	return IS_ERR(charger) ? PTR_ERR(charger) : 0;
+	return PTR_ERR_OR_ZERO(charger);
 }
 
 static int act8865_pmic_probe(struct i2c_client *client,
