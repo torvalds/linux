@@ -236,7 +236,7 @@ enum clk_id {
 	tegra_clk_soc_therm,
 	tegra_clk_soc_therm_8,
 	tegra_clk_sor0,
-	tegra_clk_sor0_lvds,
+	tegra_clk_sor0_out,
 	tegra_clk_sor1,
 	tegra_clk_sor1_out,
 	tegra_clk_spdif,
