@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
-/*
- * af_can.c - Protocol family CAN core module
+/* af_can.c - Protocol family CAN core module
  *            (used by different CAN protocol modules)
  *
  * Copyright (c) 2002-2017 Volkswagen Group Electronic Research
@@ -84,9 +83,7 @@ static DEFINE_MUTEX(proto_tab_lock);
 
 static atomic_t skbcounter = ATOMIC_INIT(0);
 
-/*
- * af_can socket functions
- */
+/* af_can socket functions */
 
 static void can_sock_destruct(struct sock *sk)
 {
@@ -132,8 +129,7 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 
 		err = request_module("can-proto-%d", protocol);
 
-		/*
-		 * In case of error we only print a message but don't
+		/* In case of error we only print a message but don't
 		 * return the error code immediately.  Below we will
 		 * return -EPROTONOSUPPORT
 		 */
@@ -180,9 +176,7 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 	return err;
 }
 
-/*
- * af_can tx path
- */
+/* af_can tx path */
 
 /**
  * can_send - transmit a CAN frame (optional with local loopback)
@@ -218,8 +212,7 @@ int can_send(struct sk_buff *skb, int loop)
 	} else
 		goto inval_skb;
 
-	/*
-	 * Make sure the CAN frame can pass the selected CAN netdevice.
+	/* Make sure the CAN frame can pass the selected CAN netdevice.
 	 * As structs can_frame and canfd_frame are similar, we can provide
 	 * CAN FD frames to legacy CAN drivers as long as the length is <= 8
 	 */
@@ -250,8 +243,7 @@ int can_send(struct sk_buff *skb, int loop)
 		/* indication for the CAN driver: do loopback */
 		skb->pkt_type = PACKET_LOOPBACK;
 
-		/*
-		 * The reference to the originating sock may be required
+		/* The reference to the originating sock may be required
 		 * by the receiving socket to check whether the frame is
 		 * its own. Example: can_raw sockopt CAN_RAW_RECV_OWN_MSGS
 		 * Therefore we have to ensure that skb->sk remains the
@@ -260,8 +252,7 @@ int can_send(struct sk_buff *skb, int loop)
 		 */
 
 		if (!(skb->dev->flags & IFF_ECHO)) {
-			/*
-			 * If the interface is not capable to do loopback
+			/* If the interface is not capable to do loopback
 			 * itself, we do it here.
 			 */
 			newskb = skb_clone(skb, GFP_ATOMIC);
@@ -304,9 +295,7 @@ inval_skb:
 }
 EXPORT_SYMBOL(can_send);
 
-/*
- * af_can rx path
- */
+/* af_can rx path */
 
 static struct can_dev_rcv_lists *find_dev_rcv_lists(struct net *net,
 						struct net_device *dev)
@@ -498,9 +487,7 @@ int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 }
 EXPORT_SYMBOL(can_rx_register);
 
-/*
- * can_rx_delete_receiver - rcu callback for single receiver entry removal
- */
+/* can_rx_delete_receiver - rcu callback for single receiver entry removal */
 static void can_rx_delete_receiver(struct rcu_head *rp)
 {
 	struct receiver *r = container_of(rp, struct receiver, rcu);
@@ -549,8 +536,7 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 
 	rl = find_rcv_list(&can_id, &mask, d);
 
-	/*
-	 * Search the receiver list for the item to delete.  This should
+	/* Search the receiver list for the item to delete.  This should
 	 * exist, since no receiver may be unregistered that hasn't
 	 * been registered before.
 	 */
@@ -561,8 +547,7 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 			break;
 	}
 
-	/*
-	 * Check for bugs in CAN protocol implementations using af_can.c:
+	/* Check for bugs in CAN protocol implementations using af_can.c:
 	 * 'r' will be NULL if no matching list item was found for removal.
 	 */
 
@@ -737,9 +722,7 @@ static int canfd_rcv(struct sk_buff *skb, struct net_device *dev,
 	return NET_RX_SUCCESS;
 }
 
-/*
- * af_can protocol functions
- */
+/* af_can protocol functions */
 
 /**
  * can_proto_register - register CAN transport protocol
@@ -801,9 +784,7 @@ void can_proto_unregister(const struct can_proto *cp)
 }
 EXPORT_SYMBOL(can_proto_unregister);
 
-/*
- * af_can notifier to create/remove CAN netdevice specific structs
- */
+/* af_can notifier to create/remove CAN netdevice specific structs */
 static int can_notifier(struct notifier_block *nb, unsigned long msg,
 			void *ptr)
 {
@@ -913,9 +894,7 @@ static void can_pernet_exit(struct net *net)
 	kfree(net->can.can_pstats);
 }
 
-/*
- * af_can module init/exit functions
- */
+/* af_can module init/exit functions */
 
 static struct packet_type can_packet __read_mostly = {
 	.type = cpu_to_be16(ETH_P_CAN),
