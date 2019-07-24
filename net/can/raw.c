@@ -280,7 +280,6 @@ static int raw_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	switch (msg) {
-
 	case NETDEV_UNREGISTER:
 		lock_sock(sk);
 		/* remove current filters & unregister */
@@ -499,7 +498,6 @@ static int raw_setsockopt(struct socket *sock, int level, int optname,
 		return -EINVAL;
 
 	switch (optname) {
-
 	case CAN_RAW_FILTER:
 		if (optlen % sizeof(struct can_filter) != 0)
 			return -EINVAL;
@@ -662,11 +660,11 @@ static int raw_getsockopt(struct socket *sock, int level, int optname,
 		return -EINVAL;
 
 	switch (optname) {
-
 	case CAN_RAW_FILTER:
 		lock_sock(sk);
 		if (ro->count > 0) {
 			int fsize = ro->count * sizeof(struct can_filter);
+
 			if (len > fsize)
 				len = fsize;
 			if (copy_to_user(optval, ro->filter, len))
