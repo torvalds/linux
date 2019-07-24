@@ -1090,9 +1090,9 @@ static int kvmppc_xive_native_create(struct kvm_device *dev, u32 type)
 	xive->ops = &kvmppc_xive_native_ops;
 
 	if (ret)
-		kfree(xive);
+		return ret;
 
-	return ret;
+	return 0;
 }
 
 /*
