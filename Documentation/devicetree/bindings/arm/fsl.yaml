@@ -38,12 +38,16 @@ properties:
       - description: i.MX27 Product Development Kit
         items:
           - enum:
+              - armadeus,imx27-apf27      # APF27 SoM
+              - armadeus,imx27-apf27dev   # APF27 SoM on APF27Dev board
               - fsl,imx27-pdk
           - const: fsl,imx27
 
       - description: i.MX28 based Boards
         items:
           - enum:
+              - armadeus,imx28-apf28      # APF28 SoM
+              - armadeus,imx28-apf28dev   # APF28 SoM on APF28Dev board
               - fsl,imx28-evk
               - i2se,duckbill
               - i2se,duckbill-2
@@ -87,7 +91,8 @@ properties:
       - description: i.MX51 Babbage Board
         items:
           - enum:
-              - armadeus,imx51-apf51
+              - armadeus,imx51-apf51    # APF51 SoM
+              - armadeus,imx51-apf51dev # APF51 SoM on APF51Dev board
               - fsl,imx51-babbage
               - technologic,imx51-ts4800
           - const: fsl,imx51
@@ -106,6 +111,8 @@ properties:
       - description: i.MX6Q based Boards
         items:
           - enum:
+              - armadeus,imx6q-apf6       # APF6 (Quad/Dual) SoM
+              - armadeus,imx6q-apf6dev    # APF6 (Quad/Dual) SoM on APF6Dev board
               - emtrion,emcon-mx6         # emCON-MX6D or emCON-MX6Q SoM
               - emtrion,emcon-mx6-avari   # emCON-MX6D or emCON-MX6Q SoM on Avari Base
               - fsl,imx6q-arm2
@@ -126,6 +133,8 @@ properties:
       - description: i.MX6DL based Boards
         items:
           - enum:
+              - armadeus,imx6dl-apf6      # APF6 (Solo) SoM
+              - armadeus,imx6dl-apf6dldev # APF6 (Solo) SoM on APF6Dev board
               - eckelmann,imx6dl-ci4x10
               - emtrion,emcon-mx6         # emCON-MX6S or emCON-MX6DL SoM
               - emtrion,emcon-mx6-avari   # emCON-MX6S or emCON-MX6DL SoM on Avari Base
@@ -160,6 +169,8 @@ properties:
       - description: i.MX6UL based Boards
         items:
           - enum:
+              - armadeus,imx6ul-opos6ul    # OPOS6UL (i.MX6UL) SoM
+              - armadeus,imx6ul-opos6uldev # OPOS6UL (i.MX6UL) SoM on OPOS6ULDev board
               - fsl,imx6ul-14x14-evk      # i.MX6 UltraLite 14x14 EVK Board
               - kontron,imx6ul-n6310-som  # Kontron N6310 SOM
           - const: fsl,imx6ul
@@ -180,6 +191,8 @@ properties:
       - description: i.MX6ULL based Boards
         items:
           - enum:
+              - armadeus,imx6ull-opos6ul    # OPOS6UL (i.MX6ULL) SoM
+              - armadeus,imx6ull-opos6uldev # OPOS6UL (i.MX6ULL) SoM on OPOS6ULDev board
               - fsl,imx6ull-14x14-evk     # i.MX6 UltraLiteLite 14x14 EVK Board
           - const: fsl,imx6ull
 
