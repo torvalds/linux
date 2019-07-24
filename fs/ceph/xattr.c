@@ -903,11 +903,9 @@ ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)
 {
 	struct inode *inode = d_inode(dentry);
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_vxattr *vxattrs = ceph_inode_vxattrs(inode);
 	bool len_only = (size == 0);
 	u32 namelen;
 	int err;
-	int i;
 
 	spin_lock(&ci->i_ceph_lock);
 	dout("listxattr %p ver=%lld index_ver=%lld\n", inode,
@@ -935,33 +933,6 @@ ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)
 		}
 		names = __copy_xattr_names(ci, names);
 		size -= namelen;
-	}
-
-
-	/* virtual xattr names, too */
-	if (vxattrs) {
-		for (i = 0; vxattrs[i].name; i++) {
-			size_t this_len;
-
-			if (vxattrs[i].flags & VXATTR_FLAG_HIDDEN)
-				continue;
-			if (vxattrs[i].exists_cb && !vxattrs[i].exists_cb(ci))
-				continue;
-
-			this_len = strlen(vxattrs[i].name) + 1;
-			namelen += this_len;
-			if (len_only)
-				continue;
-
-			if (this_len > size) {
-				err = -ERANGE;
-				goto out;
-			}
-
-			memcpy(names, vxattrs[i].name, this_len);
-			names += this_len;
-			size -= this_len;
-		}
 	}
 	err = namelen;
 out:
