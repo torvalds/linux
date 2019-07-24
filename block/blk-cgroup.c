@@ -1006,6 +1006,21 @@ unlock:
 	return ret;
 }
 
+static int blkcg_css_online(struct cgroup_subsys_state *css)
+{
+	struct blkcg *blkcg = css_to_blkcg(css);
+	struct blkcg *parent = blkcg_parent(blkcg);
+
+	/*
+	 * blkcg_pin_online() is used to delay blkcg offline so that blkgs
+	 * don't go offline while cgwbs are still active on them.  Pin the
+	 * parent so that offline always happens towards the root.
+	 */
+	if (parent)
+		blkcg_pin_online(parent);
+	return 0;
+}
+
 /**
  * blkcg_init_queue - initialize blkcg part of request queue
  * @q: request_queue to initialize
@@ -1199,6 +1214,7 @@ static void blkcg_exit(struct task_struct *tsk)
 
 struct cgroup_subsys io_cgrp_subsys = {
 	.css_alloc = blkcg_css_alloc,
+	.css_online = blkcg_css_online,
 	.css_offline = blkcg_css_offline,
 	.css_free = blkcg_css_free,
 	.can_attach = blkcg_can_attach,

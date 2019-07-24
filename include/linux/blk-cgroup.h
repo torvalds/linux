@@ -436,8 +436,12 @@ static inline void blkcg_pin_online(struct blkcg *blkcg)
  */
 static inline void blkcg_unpin_online(struct blkcg *blkcg)
 {
-	if (refcount_dec_and_test(&blkcg->online_pin))
+	do {
+		if (!refcount_dec_and_test(&blkcg->online_pin))
+			break;
 		blkcg_destroy_blkgs(blkcg);
+		blkcg = blkcg_parent(blkcg);
+	} while (blkcg);
 }
 
 /**
