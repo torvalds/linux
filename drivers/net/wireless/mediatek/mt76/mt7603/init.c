@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ISC */
+// SPDX-License-Identifier: ISC
 
 #include <linux/etherdevice.h>
 #include "mt7603.h"
@@ -505,7 +505,6 @@ mt7603_init_txpower(struct mt7603_dev *dev,
 		chan->orig_mpwr = target_power;
 	}
 }
-
 
 int mt7603_register_device(struct mt7603_dev *dev)
 {
