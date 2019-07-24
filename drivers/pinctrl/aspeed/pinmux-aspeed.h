@@ -702,11 +702,12 @@ struct aspeed_pin_function {
 struct aspeed_pinmux_data;
 
 struct aspeed_pinmux_ops {
-	int (*set)(const struct aspeed_pinmux_data *ctx,
+	int (*set)(struct aspeed_pinmux_data *ctx,
 		   const struct aspeed_sig_expr *expr, bool enabled);
 };
 
 struct aspeed_pinmux_data {
+	struct device *dev;
 	struct regmap *maps[ASPEED_NR_PINMUX_IPS];
 
 	const struct aspeed_pinmux_ops *ops;
@@ -725,7 +726,7 @@ int aspeed_sig_expr_eval(const struct aspeed_pinmux_data *ctx,
 			 const struct aspeed_sig_expr *expr,
 			 bool enabled);
 
-static inline int aspeed_sig_expr_set(const struct aspeed_pinmux_data *ctx,
+static inline int aspeed_sig_expr_set(struct aspeed_pinmux_data *ctx,
 				      const struct aspeed_sig_expr *expr,
 				      bool enabled)
 {

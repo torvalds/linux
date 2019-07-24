@@ -2507,6 +2507,61 @@ static struct aspeed_pin_config aspeed_g5_configs[] = {
 	{ PIN_CONFIG_INPUT_DEBOUNCE, { A20, B19 }, SCUA8, 27 },
 };
 
+static struct regmap *aspeed_g5_acquire_regmap(struct aspeed_pinmux_data *ctx,
+					       int ip)
+{
+	if (ip == ASPEED_IP_SCU) {
+		WARN(!ctx->maps[ip], "Missing SCU syscon!");
+		return ctx->maps[ip];
+	}
+
+	if (ip >= ASPEED_NR_PINMUX_IPS)
+		return ERR_PTR(-EINVAL);
+
+	if (likely(ctx->maps[ip]))
+		return ctx->maps[ip];
+
+	if (ip == ASPEED_IP_GFX) {
+		struct device_node *node;
+		struct regmap *map;
+
+		node = of_parse_phandle(ctx->dev->of_node,
+					"aspeed,external-nodes", 0);
+		if (node) {
+			map = syscon_node_to_regmap(node);
+			of_node_put(node);
+			if (IS_ERR(map))
+				return map;
+		} else
+			return ERR_PTR(-ENODEV);
+
+		ctx->maps[ASPEED_IP_GFX] = map;
+		dev_dbg(ctx->dev, "Acquired GFX regmap");
+		return map;
+	}
+
+	if (ip == ASPEED_IP_LPC) {
+		struct device_node *node;
+		struct regmap *map;
+
+		node = of_parse_phandle(ctx->dev->of_node,
+					"aspeed,external-nodes", 1);
+		if (node) {
+			map = syscon_node_to_regmap(node->parent);
+			of_node_put(node);
+			if (IS_ERR(map))
+				return map;
+		} else
+			map = ERR_PTR(-ENODEV);
+
+		ctx->maps[ASPEED_IP_LPC] = map;
+		dev_dbg(ctx->dev, "Acquired LPC regmap");
+		return map;
+	}
+
+	return ERR_PTR(-EINVAL);
+}
+
 /**
  * Configure a pin's signal by applying an expression's descriptor state for
  * all descriptors in the expression.
@@ -2520,7 +2575,7 @@ static struct aspeed_pin_config aspeed_g5_configs[] = {
  * Return: 0 if the expression is configured as requested and a negative error
  * code otherwise
  */
-static int aspeed_g5_sig_expr_set(const struct aspeed_pinmux_data *ctx,
+static int aspeed_g5_sig_expr_set(struct aspeed_pinmux_data *ctx,
 				  const struct aspeed_sig_expr *expr,
 				  bool enable)
 {
@@ -2531,9 +2586,15 @@ static int aspeed_g5_sig_expr_set(const struct aspeed_pinmux_data *ctx,
 		const struct aspeed_sig_desc *desc = &expr->descs[i];
 		u32 pattern = enable ? desc->enable : desc->disable;
 		u32 val = (pattern << __ffs(desc->mask));
+		struct regmap *map;
 
-		if (!ctx->maps[desc->ip])
-			return -ENODEV;
+		map = aspeed_g5_acquire_regmap(ctx, desc->ip);
+		if (IS_ERR(map)) {
+			dev_err(ctx->dev,
+				"Failed to acquire regmap for IP block %d\n",
+				desc->ip);
+			return PTR_ERR(map);
+		}
 
 		/*
 		 * Strap registers are configured in hardware or by early-boot
@@ -2641,34 +2702,11 @@ static struct pinctrl_desc aspeed_g5_pinctrl_desc = {
 static int aspeed_g5_pinctrl_probe(struct platform_device *pdev)
 {
 	int i;
-	struct regmap *map;
-	struct device_node *node;
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_g5_pins); i++)
 		aspeed_g5_pins[i].number = i;
 
-	node = of_parse_phandle(pdev->dev.of_node, "aspeed,external-nodes", 0);
-	map = syscon_node_to_regmap(node);
-	of_node_put(node);
-	if (IS_ERR(map)) {
-		dev_warn(&pdev->dev, "No GFX phandle found, some mux configurations may fail\n");
-		map = NULL;
-	}
-	aspeed_g5_pinctrl_data.pinmux.maps[ASPEED_IP_GFX] = map;
-
-	node = of_parse_phandle(pdev->dev.of_node, "aspeed,external-nodes", 1);
-	if (node) {
-		map = syscon_node_to_regmap(node->parent);
-		if (IS_ERR(map)) {
-			dev_warn(&pdev->dev, "LHC parent is not a syscon, some mux configurations may fail\n");
-			map = NULL;
-		}
-	} else {
-		dev_warn(&pdev->dev, "No LHC phandle found, some mux configurations may fail\n");
-		map = NULL;
-	}
-	of_node_put(node);
-	aspeed_g5_pinctrl_data.pinmux.maps[ASPEED_IP_LPC] = map;
+	aspeed_g5_pinctrl_data.pinmux.dev = &pdev->dev;
 
 	return aspeed_pinctrl_probe(pdev, &aspeed_g5_pinctrl_desc,
 			&aspeed_g5_pinctrl_data);
