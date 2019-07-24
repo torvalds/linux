@@ -22,9 +22,7 @@ description: |+
 
 properties:
   compatible:
-    enum:
-      - aspeed,ast2500-pinctrl
-      - aspeed,g5-pinctrl
+    const: aspeed,ast2500-pinctrl
   aspeed,external-nodes:
     minItems: 2
     maxItems: 2

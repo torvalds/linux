@@ -15,16 +15,13 @@ description: |+
 
   - compatible:     Should be one of the following:
                     "aspeed,ast2400-scu", "syscon", "simple-mfd"
-                    "aspeed,g4-scu", "syscon", "simple-mfd"
 
   Refer to the the bindings described in
   Documentation/devicetree/bindings/mfd/syscon.txt
 
 properties:
   compatible:
-    enum:
-      - aspeed,ast2400-pinctrl
-      - aspeed,g4-pinctrl
+    const: aspeed,ast2400-pinctrl
 
 patternProperties:
   '^.*$':
