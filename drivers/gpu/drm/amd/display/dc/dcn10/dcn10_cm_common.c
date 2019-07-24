@@ -343,8 +343,8 @@ bool cm_helper_translate_curve_to_hw_format(
 		region_start = -MAX_LOW_POINT;
 		region_end   = NUMBER_REGIONS - MAX_LOW_POINT;
 	} else {
-		/* 10 segments
-		 * segment is from 2^-10 to 2^0
+		/* 11 segments
+		 * segment is from 2^-10 to 2^1
 		 * There are less than 256 points, for optimization
 		 */
 		seg_distr[0] = 3;

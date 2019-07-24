@@ -1435,6 +1435,34 @@ static bool dcn10_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 	return result;
 }
 
+#define MAX_NUM_HW_POINTS 0x200
+
+static void log_tf(struct dc_context *ctx,
+				struct dc_transfer_func *tf, uint32_t hw_points_num)
+{
+	// DC_LOG_GAMMA is default logging of all hw points
+	// DC_LOG_ALL_GAMMA logs all points, not only hw points
+	// DC_LOG_ALL_TF_POINTS logs all channels of the tf
+	int i = 0;
+
+	DC_LOGGER_INIT(ctx->logger);
+	DC_LOG_GAMMA("Gamma Correction TF");
+	DC_LOG_ALL_GAMMA("Logging all tf points...");
+	DC_LOG_ALL_TF_CHANNELS("Logging all channels...");
+
+	for (i = 0; i < hw_points_num; i++) {
+		DC_LOG_GAMMA("R %d %llu\n", i, tf->tf_pts.red[i].value);
+		DC_LOG_ALL_TF_CHANNELS("G %d, %llu\n", i, tf->tf_pts.green[i].value);
+		DC_LOG_ALL_TF_CHANNELS("B %d, %llu\n", i, tf->tf_pts.blue[i].value);
+	}
+
+	for (i = hw_points_num; i < MAX_NUM_HW_POINTS; i++) {
+		DC_LOG_ALL_GAMMA("R %d %llu\n", i, tf->tf_pts.red[i].value);
+		DC_LOG_ALL_TF_CHANNELS("G %d %llu\n", i, tf->tf_pts.green[i].value);
+		DC_LOG_ALL_TF_CHANNELS("B %d %llu\n", i, tf->tf_pts.blue[i].value);
+	}
+}
+
 static bool
 dcn10_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 			       const struct dc_stream_state *stream)
@@ -1462,6 +1490,10 @@ dcn10_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 				&dpp->regamma_params, OPP_REGAMMA_USER);
 	} else
 		dpp->funcs->dpp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_BYPASS);
+
+	log_tf(stream->ctx,
+			stream->out_transfer_func,
+			dpp->regamma_params.hw_points_num);
 
 	return true;
 }
