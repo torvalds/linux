@@ -511,8 +511,12 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	res = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
 	if (res < 0) {
 		if (!fscrypt_dummy_context_enabled(inode) ||
-		    IS_ENCRYPTED(inode))
+		    IS_ENCRYPTED(inode)) {
+			fscrypt_warn(inode,
+				     "Error %d getting encryption context",
+				     res);
 			return res;
+		}
 		/* Fake up a context for an unencrypted directory */
 		memset(&ctx, 0, sizeof(ctx));
 		ctx.format = FS_ENCRYPTION_CONTEXT_FORMAT_V1;
@@ -520,14 +524,22 @@ int fscrypt_get_encryption_info(struct inode *inode)
 		ctx.filenames_encryption_mode = FS_ENCRYPTION_MODE_AES_256_CTS;
 		memset(ctx.master_key_descriptor, 0x42, FS_KEY_DESCRIPTOR_SIZE);
 	} else if (res != sizeof(ctx)) {
+		fscrypt_warn(inode,
+			     "Unknown encryption context size (%d bytes)", res);
 		return -EINVAL;
 	}
 
-	if (ctx.format != FS_ENCRYPTION_CONTEXT_FORMAT_V1)
+	if (ctx.format != FS_ENCRYPTION_CONTEXT_FORMAT_V1) {
+		fscrypt_warn(inode, "Unknown encryption context version (%d)",
+			     ctx.format);
 		return -EINVAL;
+	}
 
-	if (ctx.flags & ~FS_POLICY_FLAGS_VALID)
+	if (ctx.flags & ~FS_POLICY_FLAGS_VALID) {
+		fscrypt_warn(inode, "Unknown encryption context flags (0x%02x)",
+			     ctx.flags);
 		return -EINVAL;
+	}
 
 	crypt_info = kmem_cache_zalloc(fscrypt_info_cachep, GFP_NOFS);
 	if (!crypt_info)
