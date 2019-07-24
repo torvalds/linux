@@ -79,6 +79,8 @@ struct tb_switch_nvm {
  * @connection_key: Connection key used with ICM messaging
  * @link: Root switch link this switch is connected (ICM only)
  * @depth: Depth in the chain this switch is connected (ICM only)
+ * @rpm_complete: Completion used to wait for runtime resume to
+ *		  complete (ICM only)
  *
  * When the switch is being added or removed to the domain (other
  * switches) you need to have domain lock held.
@@ -112,6 +114,7 @@ struct tb_switch {
 	u8 connection_key;
 	u8 link;
 	u8 depth;
+	struct completion rpm_complete;
 };
 
 /**
@@ -250,6 +253,8 @@ struct tb_path {
  * @complete: Connection manager specific complete
  * @runtime_suspend: Connection manager specific runtime_suspend
  * @runtime_resume: Connection manager specific runtime_resume
+ * @runtime_suspend_switch: Runtime suspend a switch
+ * @runtime_resume_switch: Runtime resume a switch
  * @handle_event: Handle thunderbolt event
  * @get_boot_acl: Get boot ACL list
  * @set_boot_acl: Set boot ACL list
@@ -270,6 +275,8 @@ struct tb_cm_ops {
 	void (*complete)(struct tb *tb);
 	int (*runtime_suspend)(struct tb *tb);
 	int (*runtime_resume)(struct tb *tb);
+	int (*runtime_suspend_switch)(struct tb_switch *sw);
+	int (*runtime_resume_switch)(struct tb_switch *sw);
 	void (*handle_event)(struct tb *tb, enum tb_cfg_pkg_type,
 			     const void *buf, size_t size);
 	int (*get_boot_acl)(struct tb *tb, uuid_t *uuids, size_t nuuids);

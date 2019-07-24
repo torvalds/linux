@@ -28,15 +28,26 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/vmalloc.h>
-#include <linux/slab.h>
-#include <linux/log2.h>
 #include <linux/export.h>
+#include <linux/log2.h>
+#include <linux/mm.h>
+#include <linux/mman.h>
+#include <linux/nospec.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+#include <linux/vmalloc.h>
+
 #include <asm/shmparam.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_print.h>
+
 #include "drm_legacy.h"
 
-#include <linux/nospec.h>
 
 static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 						  struct drm_local_map *map)
@@ -1340,7 +1351,10 @@ static int copy_one_buf(void *data, int count, struct drm_buf_entry *from)
 				 .size = from->buf_size,
 				 .low_mark = from->low_mark,
 				 .high_mark = from->high_mark};
-	return copy_to_user(to, &v, offsetof(struct drm_buf_desc, flags));
+
+	if (copy_to_user(to, &v, offsetof(struct drm_buf_desc, flags)))
+		return -EFAULT;
+	return 0;
 }
 
 int drm_legacy_infobufs(struct drm_device *dev, void *data,

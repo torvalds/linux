@@ -39,6 +39,7 @@
 #include <linux/skbuff.h>
 #include <net/xfrm.h>
 #include "en.h"
+#include "en/txrx.h"
 
 struct sk_buff *mlx5e_ipsec_handle_rx_skb(struct net_device *netdev,
 					  struct sk_buff *skb, u32 *cqe_bcnt);

@@ -23,8 +23,10 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <drm/drmP.h>
+
+#include <drm/drm_device.h>
 #include <drm/radeon_drm.h>
+
 #include "radeon.h"
 
 static void radeon_lock_cursor(struct drm_crtc *crtc, bool lock)

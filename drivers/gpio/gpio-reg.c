@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * gpio-reg: single register individually fixed-direction GPIOs
  *
  * Copyright (C) 2016 Russell King
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
  */
 #include <linux/gpio/driver.h>
 #include <linux/gpio/gpio-reg.h>

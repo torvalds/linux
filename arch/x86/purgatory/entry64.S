@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2003,2004  Eric Biederman (ebiederm@xmission.com)
  * Copyright (C) 2014  Red Hat Inc.
@@ -5,9 +6,6 @@
  * Author(s): Vivek Goyal <vgoyal@redhat.com>
  *
  * This code has been taken from kexec-tools.
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 	.text

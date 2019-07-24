@@ -132,6 +132,15 @@ config DRM_PANEL_ORISETECH_OTM8009A
 	  Say Y here if you want to enable support for Orise Technology
 	  otm8009a 480x800 dsi 2dl panel.
 
+config DRM_PANEL_OSD_OSD101T2587_53TS
+	tristate "OSD OSD101T2587-53TS DSI 1920x1200 video mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for One Stop Displays
+	  OSD101T2587-53TS 10.1" 1920x1200 dsi panel.
+
 config DRM_PANEL_PANASONIC_VVX10F034N00
 	tristate "Panasonic VVX10F034N00 1920x1200 video mode panel"
 	depends on OF
@@ -200,6 +209,15 @@ config DRM_PANEL_SAMSUNG_S6E63J0X03
 	depends on DRM_MIPI_DSI
 	depends on BACKLIGHT_CLASS_DEVICE
 	select VIDEOMODE_HELPERS
+
+config DRM_PANEL_SAMSUNG_S6E63M0
+	tristate "Samsung S6E63M0 RGB/SPI panel"
+	depends on OF
+	depends on SPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Samsung S6E63M0
+	  AMOLED LCD panel.
 
 config DRM_PANEL_SAMSUNG_S6E8AA0
 	tristate "Samsung S6E8AA0 DSI video mode panel"

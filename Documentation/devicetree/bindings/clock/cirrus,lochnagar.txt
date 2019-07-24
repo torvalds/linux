@@ -40,6 +40,7 @@ Optional properties:
        input audio clocks from host system.
      - ln-psia1-mclk, ln-psia2-mclk : Optional input audio clocks from
        external connector.
+     - ln-spdif-mclk : Optional input audio clock from SPDIF.
      - ln-spdif-clkout : Optional input audio clock from SPDIF.
      - ln-adat-mclk : Optional input audio clock from ADAT.
      - ln-pmic-32k : On board fixed clock.

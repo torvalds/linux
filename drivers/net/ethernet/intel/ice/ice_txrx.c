@@ -55,7 +55,7 @@ void ice_clean_tx_ring(struct ice_ring *tx_ring)
 	if (!tx_ring->tx_buf)
 		return;
 
-	/* Free all the Tx ring sk_bufss */
+	/* Free all the Tx ring sk_buffs */
 	for (i = 0; i < tx_ring->count; i++)
 		ice_unmap_and_free_tx_buf(tx_ring, &tx_ring->tx_buf[i]);
 
@@ -1101,7 +1101,7 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
  * ice_adjust_itr_by_size_and_speed - Adjust ITR based on current traffic
  * @port_info: port_info structure containing the current link speed
  * @avg_pkt_size: average size of Tx or Rx packets based on clean routine
- * @itr: itr value to update
+ * @itr: ITR value to update
  *
  * Calculate how big of an increment should be applied to the ITR value passed
  * in based on wmem_default, SKB overhead, Ethernet overhead, and the current
@@ -1316,7 +1316,7 @@ clear_counts:
  */
 static u32 ice_buildreg_itr(u16 itr_idx, u16 itr)
 {
-	/* The itr value is reported in microseconds, and the register value is
+	/* The ITR value is reported in microseconds, and the register value is
 	 * recorded in 2 microsecond units. For this reason we only need to
 	 * shift by the GLINT_DYN_CTL_INTERVAL_S - ICE_ITR_GRAN_S to apply this
 	 * granularity as a shift instead of division. The mask makes sure the
@@ -1645,7 +1645,7 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 	return;
 
 dma_error:
-	/* clear dma mappings for failed tx_buf map */
+	/* clear DMA mappings for failed tx_buf map */
 	for (;;) {
 		tx_buf = &tx_ring->tx_buf[i];
 		ice_unmap_and_free_tx_buf(tx_ring, tx_buf);
@@ -1874,10 +1874,10 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 	cd_mss = skb_shinfo(skb)->gso_size;
 
 	/* record cdesc_qw1 with TSO parameters */
-	off->cd_qw1 |= ICE_TX_DESC_DTYPE_CTX |
-			 (ICE_TX_CTX_DESC_TSO << ICE_TXD_CTX_QW1_CMD_S) |
-			 (cd_tso_len << ICE_TXD_CTX_QW1_TSO_LEN_S) |
-			 (cd_mss << ICE_TXD_CTX_QW1_MSS_S);
+	off->cd_qw1 |= (u64)(ICE_TX_DESC_DTYPE_CTX |
+			     (ICE_TX_CTX_DESC_TSO << ICE_TXD_CTX_QW1_CMD_S) |
+			     (cd_tso_len << ICE_TXD_CTX_QW1_TSO_LEN_S) |
+			     (cd_mss << ICE_TXD_CTX_QW1_MSS_S));
 	first->tx_flags |= ICE_TX_FLAGS_TSO;
 	return 1;
 }

@@ -174,7 +174,7 @@ struct sock *inet6_lookup_listener(struct net *net,
 				     saddr, sport, &in6addr_any, hnum,
 				     dif, sdif);
 done:
-	if (unlikely(IS_ERR(result)))
+	if (IS_ERR(result))
 		return NULL;
 	return result;
 }

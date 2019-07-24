@@ -9,9 +9,8 @@
 
 #include "main.h"
 
+#include <linux/netdevice.h>
 #include <linux/types.h>
-
-struct net_device;
 
 /**
  * enum batadv_bandwidth_units - bandwidth unit types

@@ -301,7 +301,7 @@ void ODM_ReadAndConfig_MP_8723B_RadioA(PDM_ODM_T pDM_Odm)
 				READ_NEXT_PAIR(v1, v2, i);
 			}
 
-			if (bMatched == false) {
+			if (!bMatched) {
 				/*  Condition isn't matched.
 				*   Discard the following (offset, data) pairs.
 				*/

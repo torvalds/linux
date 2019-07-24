@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/sysfs.h>
 
 #include "i2c-core.h"
 
@@ -112,12 +113,12 @@ void of_i2c_register_devices(struct i2c_adapter *adap)
 	of_node_put(bus);
 }
 
-static int of_dev_node_match(struct device *dev, void *data)
+static int of_dev_node_match(struct device *dev, const void *data)
 {
 	return dev->of_node == data;
 }
 
-static int of_dev_or_parent_node_match(struct device *dev, void *data)
+static int of_dev_or_parent_node_match(struct device *dev, const void *data)
 {
 	if (dev->of_node == data)
 		return 1;

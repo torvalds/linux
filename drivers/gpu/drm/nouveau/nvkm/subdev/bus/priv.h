@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_BUS_PRIV_H__
 #define __NVKM_BUS_PRIV_H__
 #define nvkm_bus(p) container_of((p), struct nvkm_bus, subdev)

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sha512-glue.c - accelerated SHA-384/512 for ARM
  *
  * Copyright (C) 2015 Linaro Ltd <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <crypto/internal/hash.h>
@@ -37,7 +34,7 @@ int sha512_arm_update(struct shash_desc *desc, const u8 *data,
 		(sha512_block_fn *)sha512_block_data_order);
 }
 
-int sha512_arm_final(struct shash_desc *desc, u8 *out)
+static int sha512_arm_final(struct shash_desc *desc, u8 *out)
 {
 	sha512_base_do_finalize(desc,
 		(sha512_block_fn *)sha512_block_data_order);

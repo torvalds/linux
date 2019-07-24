@@ -330,7 +330,7 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
 
 config PPC_RADIX_MMU
 	bool "Radix MMU Support"
-	depends on PPC_BOOK3S_64 && HUGETLB_PAGE
+	depends on PPC_BOOK3S_64
 	select ARCH_HAS_GIGANTIC_PAGE
 	select PPC_HAVE_KUEP
 	select PPC_HAVE_KUAP

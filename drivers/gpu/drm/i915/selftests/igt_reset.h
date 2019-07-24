@@ -11,5 +11,6 @@
 
 void igt_global_reset_lock(struct drm_i915_private *i915);
 void igt_global_reset_unlock(struct drm_i915_private *i915);
+bool igt_force_reset(struct drm_i915_private *i915);
 
 #endif

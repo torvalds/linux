@@ -6,8 +6,10 @@
 
 #include <linux/prime_numbers.h>
 
-#include "../i915_selftest.h"
+#include "gem/i915_gem_pm.h"
+
 #include "i915_random.h"
+#include "i915_selftest.h"
 
 #include "igt_flush_test.h"
 #include "mock_gem_device.h"
@@ -454,7 +456,7 @@ tl_write(struct i915_timeline *tl, struct intel_engine_cs *engine, u32 value)
 		goto out;
 	}
 
-	rq = i915_request_alloc(engine, engine->i915->kernel_context);
+	rq = i915_request_create(engine->kernel_context);
 	if (IS_ERR(rq))
 		goto out_unpin;
 
@@ -513,7 +515,7 @@ static int live_hwsp_engine(void *arg)
 		return -ENOMEM;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	count = 0;
 	for_each_engine(engine, i915, id) {
@@ -556,7 +558,7 @@ out:
 		i915_timeline_put(tl);
 	}
 
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	kvfree(timelines);
@@ -589,7 +591,7 @@ static int live_hwsp_alternate(void *arg)
 		return -ENOMEM;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	count = 0;
 	for (n = 0; n < NUM_TIMELINES; n++) {
@@ -632,7 +634,7 @@ out:
 		i915_timeline_put(tl);
 	}
 
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	kvfree(timelines);
@@ -656,7 +658,7 @@ static int live_hwsp_wrap(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	tl = i915_timeline_create(i915, NULL);
 	if (IS_ERR(tl)) {
@@ -678,7 +680,7 @@ static int live_hwsp_wrap(void *arg)
 		if (!intel_engine_can_store_dword(engine))
 			continue;
 
-		rq = i915_request_alloc(engine, i915->kernel_context);
+		rq = i915_request_create(engine->kernel_context);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			goto out;
@@ -722,7 +724,7 @@ static int live_hwsp_wrap(void *arg)
 
 		i915_request_add(rq);
 
-		if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0) {
+		if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 			pr_err("Wait for timeline writes timed out!\n");
 			err = -EIO;
 			goto out;
@@ -747,7 +749,7 @@ out:
 out_free:
 	i915_timeline_put(tl);
 out_rpm:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;
@@ -769,7 +771,7 @@ static int live_hwsp_recycle(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	count = 0;
 	for_each_engine(engine, i915, id) {
@@ -795,9 +797,7 @@ static int live_hwsp_recycle(void *arg)
 				goto out;
 			}
 
-			if (i915_request_wait(rq,
-					      I915_WAIT_LOCKED,
-					      HZ / 5) < 0) {
+			if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 				pr_err("Wait for timeline writes timed out!\n");
 				i915_timeline_put(tl);
 				err = -EIO;
@@ -823,7 +823,7 @@ static int live_hwsp_recycle(void *arg)
 out:
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		err = -EIO;
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;

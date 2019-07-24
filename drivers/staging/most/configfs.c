@@ -35,56 +35,42 @@ static struct list_head mdev_link_list;
 
 static int set_cfg_buffer_size(struct mdev_link *link)
 {
-	if (!link->buffer_size)
-		return -ENODATA;
 	return most_set_cfg_buffer_size(link->device, link->channel,
 					link->buffer_size);
 }
 
 static int set_cfg_subbuffer_size(struct mdev_link *link)
 {
-	if (!link->subbuffer_size)
-		return -ENODATA;
 	return most_set_cfg_subbuffer_size(link->device, link->channel,
 					   link->subbuffer_size);
 }
 
 static int set_cfg_dbr_size(struct mdev_link *link)
 {
-	if (!link->dbr_size)
-		return -ENODATA;
 	return most_set_cfg_dbr_size(link->device, link->channel,
 				     link->dbr_size);
 }
 
 static int set_cfg_num_buffers(struct mdev_link *link)
 {
-	if (!link->num_buffers)
-		return -ENODATA;
 	return most_set_cfg_num_buffers(link->device, link->channel,
 					link->num_buffers);
 }
 
 static int set_cfg_packets_xact(struct mdev_link *link)
 {
-	if (!link->packets_per_xact)
-		return -ENODATA;
 	return most_set_cfg_packets_xact(link->device, link->channel,
 					 link->packets_per_xact);
 }
 
 static int set_cfg_direction(struct mdev_link *link)
 {
-	if (!strlen(link->direction))
-		return -ENODATA;
 	return most_set_cfg_direction(link->device, link->channel,
 				      link->direction);
 }
 
 static int set_cfg_datatype(struct mdev_link *link)
 {
-	if (!strlen(link->datatype))
-		return -ENODATA;
 	return most_set_cfg_datatype(link->device, link->channel,
 				     link->datatype);
 }

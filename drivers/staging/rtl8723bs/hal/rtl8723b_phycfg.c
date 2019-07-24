@@ -45,7 +45,7 @@ static	u32 phy_CalculateBitShift(u32 BitMask)
 /**
 * Function:	PHY_QueryBBReg
 *
-* OverView:	Read "sepcific bits" from BB register
+* OverView:	Read "specific bits" from BB register
 *
 * Input:
 *		struct adapter *	Adapter,
@@ -375,7 +375,7 @@ s32 PHY_MACConfig8723B(struct adapter *Adapter)
 	/*  */
 	rtStatus = phy_ConfigMACWithParaFile(Adapter, pszMACRegFile);
 	if (rtStatus == _FAIL) {
-		ODM_ConfigMACWithHeaderFile(&pHalData->odmpriv);
+		ODM_ReadAndConfig_MP_8723B_MAC_REG(&pHalData->odmpriv);
 		rtStatus = _SUCCESS;
 	}
 

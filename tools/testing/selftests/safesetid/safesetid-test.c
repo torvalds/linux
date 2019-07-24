@@ -142,23 +142,19 @@ static void ensure_securityfs_mounted(void)
 
 static void write_policies(void)
 {
+	static char *policy_str =
+		"1:2\n"
+		"1:3\n"
+		"2:2\n"
+		"3:3\n";
 	ssize_t written;
 	int fd;
 
 	fd = open(add_whitelist_policy_file, O_WRONLY);
 	if (fd < 0)
 		die("cant open add_whitelist_policy file\n");
-	written = write(fd, "1:2", strlen("1:2"));
-	if (written != strlen("1:2")) {
-		if (written >= 0) {
-			die("short write to %s\n", add_whitelist_policy_file);
-		} else {
-			die("write to %s failed: %s\n",
-				add_whitelist_policy_file, strerror(errno));
-		}
-	}
-	written = write(fd, "1:3", strlen("1:3"));
-	if (written != strlen("1:3")) {
+	written = write(fd, policy_str, strlen(policy_str));
+	if (written != strlen(policy_str)) {
 		if (written >= 0) {
 			die("short write to %s\n", add_whitelist_policy_file);
 		} else {

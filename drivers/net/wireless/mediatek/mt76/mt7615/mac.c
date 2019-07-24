@@ -13,6 +13,11 @@
 #include "../dma.h"
 #include "mac.h"
 
+static inline s8 to_rssi(u32 field, u32 rxv)
+{
+	return (FIELD_GET(field, rxv) - 220) / 2;
+}
+
 static struct mt76_wcid *mt7615_rx_get_wcid(struct mt7615_dev *dev,
 					    u8 idx, bool unicast)
 {
@@ -36,54 +41,6 @@ static struct mt76_wcid *mt7615_rx_get_wcid(struct mt7615_dev *dev,
 	return &sta->vif->sta.wcid;
 }
 
-static int mt7615_get_rate(struct mt7615_dev *dev,
-			   struct ieee80211_supported_band *sband,
-			   int idx, bool cck)
-{
-	int offset = 0;
-	int len = sband->n_bitrates;
-	int i;
-
-	if (cck) {
-		if (sband == &dev->mt76.sband_5g.sband)
-			return 0;
-
-		idx &= ~BIT(2); /* short preamble */
-	} else if (sband == &dev->mt76.sband_2g.sband) {
-		offset = 4;
-	}
-
-	for (i = offset; i < len; i++) {
-		if ((sband->bitrates[i].hw_value & GENMASK(7, 0)) == idx)
-			return i;
-	}
-
-	return 0;
-}
-
-static void mt7615_insert_ccmp_hdr(struct sk_buff *skb, u8 key_id)
-{
-	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
-	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
-	u8 *pn = status->iv;
-	u8 *hdr;
-
-	__skb_push(skb, 8);
-	memmove(skb->data, skb->data + 8, hdr_len);
-	hdr = skb->data + hdr_len;
-
-	hdr[0] = pn[5];
-	hdr[1] = pn[4];
-	hdr[2] = 0;
-	hdr[3] = 0x20 | (key_id << 6);
-	hdr[4] = pn[3];
-	hdr[5] = pn[2];
-	hdr[6] = pn[1];
-	hdr[7] = pn[0];
-
-	status->flag &= ~RX_FLAG_IV_STRIPPED;
-}
-
 int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
@@ -95,6 +52,9 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	u32 rxd2 = le32_to_cpu(rxd[2]);
 	bool unicast, remove_pad, insert_ccmp_hdr = false;
 	int i, idx;
+
+	if (!test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
+		return -EINVAL;
 
 	memset(status, 0, sizeof(*status));
 
@@ -165,6 +125,7 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	if (rxd0 & MT_RXD0_NORMAL_GROUP_3) {
 		u32 rxdg0 = le32_to_cpu(rxd[0]);
 		u32 rxdg1 = le32_to_cpu(rxd[1]);
+		u32 rxdg3 = le32_to_cpu(rxd[3]);
 		u8 stbc = FIELD_GET(MT_RXV1_HT_STBC, rxdg0);
 		bool cck = false;
 
@@ -174,7 +135,7 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 			cck = true;
 			/* fall through */
 		case MT_PHY_TYPE_OFDM:
-			i = mt7615_get_rate(dev, sband, i, cck);
+			i = mt76_get_rate(&dev->mt76, sband, i, cck);
 			break;
 		case MT_PHY_TYPE_HT_GF:
 		case MT_PHY_TYPE_HT:
@@ -214,7 +175,21 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 
 		status->enc_flags |= RX_ENC_FLAG_STBC_MASK * stbc;
 
-		/* TODO: RSSI */
+		status->chains = dev->mt76.antenna_mask;
+		status->chain_signal[0] = to_rssi(MT_RXV4_RCPI0, rxdg3);
+		status->chain_signal[1] = to_rssi(MT_RXV4_RCPI1, rxdg3);
+		status->chain_signal[2] = to_rssi(MT_RXV4_RCPI2, rxdg3);
+		status->chain_signal[3] = to_rssi(MT_RXV4_RCPI3, rxdg3);
+		status->signal = status->chain_signal[0];
+
+		for (i = 1; i < hweight8(dev->mt76.antenna_mask); i++) {
+			if (!(status->chains & BIT(i)))
+				continue;
+
+			status->signal = max(status->signal,
+					     status->chain_signal[i]);
+		}
+
 		rxd += 6;
 		if ((u8 *)rxd - skb->data >= skb->len)
 			return -EINVAL;
@@ -225,7 +200,7 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	if (insert_ccmp_hdr) {
 		u8 key_id = FIELD_GET(MT_RXD1_NORMAL_KEY_ID, rxd1);
 
-		mt7615_insert_ccmp_hdr(skb, key_id);
+		mt76_insert_ccmp_hdr(skb, key_id);
 	}
 
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -549,23 +524,20 @@ static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt7615_sta *sta,
 {
 	struct ieee80211_supported_band *sband;
 	int i, idx, count, final_idx = 0;
-	bool fixed_rate, final_mpdu, ack_timeout;
+	bool fixed_rate, ack_timeout;
 	bool probe, ampdu, cck = false;
 	u32 final_rate, final_rate_flags, final_nss, txs;
-	u8 pid;
 
 	fixed_rate = info->status.rates[0].count;
 	probe = !!(info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
 
 	txs = le32_to_cpu(txs_data[1]);
-	final_mpdu = txs & MT_TXS1_ACKED_MPDU;
 	ampdu = !fixed_rate && (txs & MT_TXS1_AMPDU);
 
 	txs = le32_to_cpu(txs_data[3]);
 	count = FIELD_GET(MT_TXS3_TX_COUNT, txs);
 
 	txs = le32_to_cpu(txs_data[0]);
-	pid = FIELD_GET(MT_TXS0_PID, txs);
 	final_rate = FIELD_GET(MT_TXS0_TX_RATE, txs);
 	ack_timeout = txs & MT_TXS0_ACK_TIMEOUT;
 
@@ -628,7 +600,8 @@ out:
 		else
 			sband = &dev->mt76.sband_2g.sband;
 		final_rate &= MT_TX_RATE_IDX;
-		final_rate = mt7615_get_rate(dev, sband, final_rate, cck);
+		final_rate = mt76_get_rate(&dev->mt76, sband, final_rate,
+					   cck);
 		final_rate_flags = 0;
 		break;
 	case MT_PHY_TYPE_HT_GF:

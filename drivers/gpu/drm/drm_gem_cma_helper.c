@@ -9,15 +9,16 @@
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  */
 
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/mutex.h>
-#include <linux/export.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
+#include <linux/mm.h>
+#include <linux/mutex.h>
+#include <linux/slab.h>
 
-#include <drm/drmP.h>
 #include <drm/drm.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_vma_manager.h>
 

@@ -223,7 +223,7 @@ int amdtp_tscm_init(struct amdtp_stream *s, struct fw_unit *unit,
 		return 0;
 
 	/* Use fixed value for FDF field. */
-	s->fdf = 0x00;
+	s->ctx_data.rx.fdf = 0x00;
 
 	/* This protocol uses fixed number of data channels for PCM samples. */
 	p = s->protocol;

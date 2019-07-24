@@ -23,6 +23,9 @@
  *      Modified 2011-01-14 added S/PDIF input on RayDATs by Adrian Knoth
  *
  *	Modified 2011-01-25 variable period sizes on RayDAT/AIO by Adrian Knoth
+ *
+ *      Modified 2019-05-23 fix AIO single speed ADAT capture and playback
+ *      by Philippe.Bekaert@uhasselt.be
  */
 
 /* *************    Register Documentation   *******************************************************
@@ -1091,9 +1094,9 @@ static int hdspm_autosync_ref(struct hdspm *hdspm);
 static int hdspm_set_toggle_setting(struct hdspm *hdspm, u32 regmask, int out);
 static int snd_hdspm_set_defaults(struct hdspm *hdspm);
 static int hdspm_system_clock_mode(struct hdspm *hdspm);
-static void hdspm_set_sgbuf(struct hdspm *hdspm,
-			    struct snd_pcm_substream *substream,
-			     unsigned int reg, int channels);
+static void hdspm_set_channel_dma_addr(struct hdspm *hdspm,
+				       struct snd_pcm_substream *substream,
+				       unsigned int reg, int channels);
 
 static int hdspm_aes_sync_check(struct hdspm *hdspm, int idx);
 static int hdspm_wc_sync_check(struct hdspm *hdspm);
@@ -5574,11 +5577,16 @@ static int snd_hdspm_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 
-		hdspm_set_sgbuf(hdspm, substream, HDSPM_pageAddressBufferOut,
-				params_channels(params));
+		for (i = 0; i < params_channels(params); ++i) {
+			int c = hdspm->channel_map_out[i];
 
-		for (i = 0; i < params_channels(params); ++i)
-			snd_hdspm_enable_out(hdspm, i, 1);
+			if (c < 0)
+				continue;      /* just make sure */
+			hdspm_set_channel_dma_addr(hdspm, substream,
+						   HDSPM_pageAddressBufferOut,
+						   c);
+			snd_hdspm_enable_out(hdspm, c, 1);
+		}
 
 		hdspm->playback_buffer =
 			(unsigned char *) substream->runtime->dma_area;
@@ -5586,11 +5594,16 @@ static int snd_hdspm_hw_params(struct snd_pcm_substream *substream,
 			"Allocated sample buffer for playback at %p\n",
 				hdspm->playback_buffer);
 	} else {
-		hdspm_set_sgbuf(hdspm, substream, HDSPM_pageAddressBufferIn,
-				params_channels(params));
+		for (i = 0; i < params_channels(params); ++i) {
+			int c = hdspm->channel_map_in[i];
 
-		for (i = 0; i < params_channels(params); ++i)
-			snd_hdspm_enable_in(hdspm, i, 1);
+			if (c < 0)
+				continue;
+			hdspm_set_channel_dma_addr(hdspm, substream,
+						   HDSPM_pageAddressBufferIn,
+						   c);
+			snd_hdspm_enable_in(hdspm, c, 1);
+		}
 
 		hdspm->capture_buffer =
 			(unsigned char *) substream->runtime->dma_area;
@@ -5651,19 +5664,17 @@ static int snd_hdspm_hw_free(struct snd_pcm_substream *substream)
 	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-
-		/* params_channels(params) should be enough,
-		   but to get sure in case of error */
-		for (i = 0; i < hdspm->max_channels_out; ++i)
+		/* Just disable all channels. The saving when disabling a */
+		/* smaller set is not worth the trouble. */
+		for (i = 0; i < HDSPM_MAX_CHANNELS; ++i)
 			snd_hdspm_enable_out(hdspm, i, 0);
 
 		hdspm->playback_buffer = NULL;
 	} else {
-		for (i = 0; i < hdspm->max_channels_in; ++i)
+		for (i = 0; i < HDSPM_MAX_CHANNELS; ++i)
 			snd_hdspm_enable_in(hdspm, i, 0);
 
 		hdspm->capture_buffer = NULL;
-
 	}
 
 	snd_pcm_lib_free_pages(substream);
@@ -6402,17 +6413,17 @@ static int snd_hdspm_preallocate_memory(struct hdspm *hdspm)
 	return 0;
 }
 
-
-static void hdspm_set_sgbuf(struct hdspm *hdspm,
-			    struct snd_pcm_substream *substream,
-			     unsigned int reg, int channels)
+/* Inform the card what DMA addresses to use for the indicated channel. */
+/* Each channel got 16 4K pages allocated for DMA transfers. */
+static void hdspm_set_channel_dma_addr(struct hdspm *hdspm,
+				       struct snd_pcm_substream *substream,
+				       unsigned int reg, int channel)
 {
 	int i;
 
-	/* continuous memory segment */
-	for (i = 0; i < (channels * 16); i++)
+	for (i = channel * 16; i < channel * 16 + 16; i++)
 		hdspm_write(hdspm, reg + 4 * i,
-				snd_pcm_sgbuf_get_addr(substream, 4096 * i));
+			    snd_pcm_sgbuf_get_addr(substream, 4096 * i));
 }
 
 

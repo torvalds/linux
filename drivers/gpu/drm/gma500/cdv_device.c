@@ -6,15 +6,16 @@
  **************************************************************************/
 
 #include <linux/backlight.h>
-#include <drm/drmP.h>
+#include <linux/delay.h>
+
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
-#include "psb_drv.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
-#include "intel_bios.h"
+
 #include "cdv_device.h"
 #include "gma_device.h"
+#include "intel_bios.h"
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_reg.h"
 
 #define VGA_SR_INDEX		0x3c4
 #define VGA_SR_DATA		0x3c5

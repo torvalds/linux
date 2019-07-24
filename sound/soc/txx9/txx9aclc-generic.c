@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic TXx9 ACLC machine driver
  *
@@ -5,10 +6,6 @@
  *
  * Based on RBTX49xx patch from CELF patch archive.
  * (C) Copyright TOSHIBA CORPORATION 2004-2006
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This is a very generic AC97 sound machine driver for boards which
  * have (AC97) audio at ACLC (e.g. RBTX49XX boards).
@@ -21,13 +18,15 @@
 #include <sound/soc.h>
 #include "txx9aclc.h"
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_CPU("txx9aclc-ac97")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("ac97-codec", "ac97-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("txx9aclc-pcm-audio")));
+
 static struct snd_soc_dai_link txx9aclc_generic_dai = {
 	.name = "AC97",
 	.stream_name = "AC97 HiFi",
-	.cpu_dai_name = "txx9aclc-ac97",
-	.codec_dai_name = "ac97-hifi",
-	.platform_name	= "txx9aclc-pcm-audio",
-	.codec_name	= "ac97-codec",
+	SND_SOC_DAILINK_REG(hifi),
 };
 
 static struct snd_soc_card txx9aclc_generic_card = {

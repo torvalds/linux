@@ -1,6 +1,6 @@
 rfkill - radio frequency (RF) connector kill switch support
 
-For details to this subsystem look at Documentation/rfkill.txt.
+For details to this subsystem look at Documentation/driver-api/rfkill.rst.
 
 For the deprecated /sys/class/rfkill/*/claim knobs of this interface look in
 Documentation/ABI/removed/sysfs-class-rfkill.

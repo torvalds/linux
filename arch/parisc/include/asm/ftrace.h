@@ -5,11 +5,22 @@
 #ifndef __ASSEMBLY__
 extern void mcount(void);
 
-#define MCOUNT_INSN_SIZE 4
-
+#define MCOUNT_ADDR		((unsigned long)mcount)
+#define MCOUNT_INSN_SIZE	4
+#define CC_USING_NOP_MCOUNT
 extern unsigned long sys_call_table[];
 
 extern unsigned long return_address(unsigned int);
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+extern void ftrace_caller(void);
+
+struct dyn_arch_ftrace {
+};
+
+unsigned long ftrace_call_adjust(unsigned long addr);
+
+#endif
 
 #define ftrace_return_address(n) return_address(n)
 

@@ -102,13 +102,15 @@ static struct list_head *mlx5_fc_counters_lookup_next(struct mlx5_core_dev *dev,
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
 	unsigned long next_id = (unsigned long)id + 1;
 	struct mlx5_fc *counter;
+	unsigned long tmp;
 
 	rcu_read_lock();
 	/* skip counters that are in idr, but not yet in counters list */
-	while ((counter = idr_get_next_ul(&fc_stats->counters_idr,
-					  &next_id)) != NULL &&
-	       list_empty(&counter->list))
-		next_id++;
+	idr_for_each_entry_continue_ul(&fc_stats->counters_idr,
+				       counter, tmp, next_id) {
+		if (!list_empty(&counter->list))
+			break;
+	}
 	rcu_read_unlock();
 
 	return counter ? &counter->list : &fc_stats->counters;

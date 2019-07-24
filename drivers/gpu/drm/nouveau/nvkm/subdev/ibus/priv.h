@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_IBUS_PRIV_H__
 #define __NVKM_IBUS_PRIV_H__
 

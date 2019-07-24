@@ -292,6 +292,7 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	struct cxgb4_range ocq;
 	struct cxgb4_range key;
 	unsigned int ncrypto_fc;
+	struct cxgb4_range ppod_edram;
 };
 
 struct chcr_stats_debug {
@@ -393,6 +394,7 @@ int cxgb4_immdata_send(struct net_device *dev, unsigned int idx,
 int cxgb4_crypto_send(struct net_device *dev, struct sk_buff *skb);
 unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo);
 unsigned int cxgb4_port_chan(const struct net_device *dev);
+unsigned int cxgb4_port_e2cchan(const struct net_device *dev);
 unsigned int cxgb4_port_viid(const struct net_device *dev);
 unsigned int cxgb4_tp_smt_idx(enum chip_type chip, unsigned int viid);
 unsigned int cxgb4_port_idx(const struct net_device *dev);

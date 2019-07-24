@@ -1079,7 +1079,7 @@ yet and must be cleared on entry.
 
 4.35 KVM_SET_USER_MEMORY_REGION
 
-Capability: KVM_CAP_USER_MEM
+Capability: KVM_CAP_USER_MEMORY
 Architectures: all
 Type: vm ioctl
 Parameters: struct kvm_userspace_memory_region (in)
@@ -2205,7 +2205,7 @@ max_vq.  This is the maximum vector length available to the guest on
 this vcpu, and determines which register slices are visible through
 this ioctl interface.
 
-(See Documentation/arm64/sve.txt for an explanation of the "vq"
+(See Documentation/arm64/sve.rst for an explanation of the "vq"
 nomenclature.)
 
 KVM_REG_ARM64_SVE_VLS is only accessible after KVM_ARM_VCPU_INIT.
@@ -3857,43 +3857,59 @@ Type: vcpu ioctl
 Parameters: struct kvm_nested_state (in/out)
 Returns: 0 on success, -1 on error
 Errors:
-  E2BIG:     the total state size (including the fixed-size part of struct
-             kvm_nested_state) exceeds the value of 'size' specified by
+  E2BIG:     the total state size exceeds the value of 'size' specified by
              the user; the size required will be written into size.
 
 struct kvm_nested_state {
 	__u16 flags;
 	__u16 format;
 	__u32 size;
+
 	union {
-		struct kvm_vmx_nested_state vmx;
-		struct kvm_svm_nested_state svm;
+		struct kvm_vmx_nested_state_hdr vmx;
+		struct kvm_svm_nested_state_hdr svm;
+
+		/* Pad the header to 128 bytes.  */
 		__u8 pad[120];
-	};
-	__u8 data[0];
+	} hdr;
+
+	union {
+		struct kvm_vmx_nested_state_data vmx[0];
+		struct kvm_svm_nested_state_data svm[0];
+	} data;
 };
 
 #define KVM_STATE_NESTED_GUEST_MODE	0x00000001
 #define KVM_STATE_NESTED_RUN_PENDING	0x00000002
+#define KVM_STATE_NESTED_EVMCS		0x00000004
 
-#define KVM_STATE_NESTED_SMM_GUEST_MODE	0x00000001
-#define KVM_STATE_NESTED_SMM_VMXON	0x00000002
+#define KVM_STATE_NESTED_FORMAT_VMX		0
+#define KVM_STATE_NESTED_FORMAT_SVM		1
 
-struct kvm_vmx_nested_state {
+#define KVM_STATE_NESTED_VMX_VMCS_SIZE		0x1000
+
+#define KVM_STATE_NESTED_VMX_SMM_GUEST_MODE	0x00000001
+#define KVM_STATE_NESTED_VMX_SMM_VMXON		0x00000002
+
+struct kvm_vmx_nested_state_hdr {
 	__u64 vmxon_pa;
-	__u64 vmcs_pa;
+	__u64 vmcs12_pa;
 
 	struct {
 		__u16 flags;
 	} smm;
 };
 
+struct kvm_vmx_nested_state_data {
+	__u8 vmcs12[KVM_STATE_NESTED_VMX_VMCS_SIZE];
+	__u8 shadow_vmcs12[KVM_STATE_NESTED_VMX_VMCS_SIZE];
+};
+
 This ioctl copies the vcpu's nested virtualization state from the kernel to
 userspace.
 
-The maximum size of the state, including the fixed-size part of struct
-kvm_nested_state, can be retrieved by passing KVM_CAP_NESTED_STATE to
-the KVM_CHECK_EXTENSION ioctl().
+The maximum size of the state can be retrieved by passing KVM_CAP_NESTED_STATE
+to the KVM_CHECK_EXTENSION ioctl().
 
 4.115 KVM_SET_NESTED_STATE
 
@@ -3903,8 +3919,8 @@ Type: vcpu ioctl
 Parameters: struct kvm_nested_state (in)
 Returns: 0 on success, -1 on error
 
-This copies the vcpu's kvm_nested_state struct from userspace to the kernel.  For
-the definition of struct kvm_nested_state, see KVM_GET_NESTED_STATE.
+This copies the vcpu's kvm_nested_state struct from userspace to the kernel.
+For the definition of struct kvm_nested_state, see KVM_GET_NESTED_STATE.
 
 4.116 KVM_(UN)REGISTER_COALESCED_MMIO
 
@@ -4064,6 +4080,37 @@ KVM_ARM_VCPU_FINALIZE call.
 
 See KVM_ARM_VCPU_INIT for details of vcpu features that require finalization
 using this ioctl.
+
+4.120 KVM_SET_PMU_EVENT_FILTER
+
+Capability: KVM_CAP_PMU_EVENT_FILTER
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_pmu_event_filter (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_pmu_event_filter {
+	__u32 action;
+	__u32 nevents;
+	__u32 fixed_counter_bitmap;
+	__u32 flags;
+	__u32 pad[4];
+	__u64 events[0];
+};
+
+This ioctl restricts the set of PMU events that the guest can program.
+The argument holds a list of events which will be allowed or denied.
+The eventsel+umask of each event the guest attempts to program is compared
+against the events field to determine whether the guest should have access.
+The events field only controls general purpose counters; fixed purpose
+counters are controlled by the fixed_counter_bitmap.
+
+No flags are defined yet, the field must be zero.
+
+Valid values for 'action':
+#define KVM_PMU_EVENT_ALLOW 0
+#define KVM_PMU_EVENT_DENY 1
+
 
 5. The kvm_run structure
 ------------------------
@@ -4893,6 +4940,8 @@ Valid bits in args[0] are
 
 #define KVM_X86_DISABLE_EXITS_MWAIT            (1 << 0)
 #define KVM_X86_DISABLE_EXITS_HLT              (1 << 1)
+#define KVM_X86_DISABLE_EXITS_PAUSE            (1 << 2)
+#define KVM_X86_DISABLE_EXITS_CSTATE           (1 << 3)
 
 Enabling this capability on a VM provides userspace with a way to no
 longer intercept some instructions for improved latency in some

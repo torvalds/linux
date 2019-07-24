@@ -24,6 +24,7 @@
 #define __SUMO_DPM_H__
 
 #include "atom.h"
+#include "radeon.h"
 
 #define SUMO_MAX_HARDWARE_POWERLEVELS 5
 #define SUMO_PM_NUMBER_OF_TC 15

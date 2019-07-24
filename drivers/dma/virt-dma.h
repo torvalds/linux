@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Virtual DMA channel support for DMAengine
  *
  * Copyright (C) 2012 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef VIRT_DMA_H
 #define VIRT_DMA_H
@@ -17,6 +14,7 @@
 
 struct virt_dma_desc {
 	struct dma_async_tx_descriptor tx;
+	struct dmaengine_result tx_result;
 	/* protected by vc.lock */
 	struct list_head node;
 };
@@ -64,6 +62,9 @@ static inline struct dma_async_tx_descriptor *vchan_tx_prep(struct virt_dma_chan
 	vd->tx.flags = tx_flags;
 	vd->tx.tx_submit = vchan_tx_submit;
 	vd->tx.desc_free = vchan_tx_desc_free;
+
+	vd->tx_result.result = DMA_TRANS_NOERROR;
+	vd->tx_result.residue = 0;
 
 	spin_lock_irqsave(&vc->lock, flags);
 	list_add_tail(&vd->node, &vc->desc_allocated);

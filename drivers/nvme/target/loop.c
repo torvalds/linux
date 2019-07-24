@@ -77,7 +77,7 @@ static void nvme_loop_complete_rq(struct request *req)
 	struct nvme_loop_iod *iod = blk_mq_rq_to_pdu(req);
 
 	nvme_cleanup_cmd(req);
-	sg_free_table_chained(&iod->sg_table, true);
+	sg_free_table_chained(&iod->sg_table, SG_CHUNK_SIZE);
 	nvme_complete_rq(req);
 }
 
@@ -157,7 +157,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		iod->sg_table.sgl = iod->first_sgl;
 		if (sg_alloc_table_chained(&iod->sg_table,
 				blk_rq_nr_phys_segments(req),
-				iod->sg_table.sgl))
+				iod->sg_table.sgl, SG_CHUNK_SIZE))
 			return BLK_STS_RESOURCE;
 
 		iod->req.sg = iod->sg_table.sgl;

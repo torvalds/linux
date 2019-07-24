@@ -391,7 +391,7 @@ static int __setup_rt_frame(int sig, struct ksignal *ksig,
 		put_user_ex(&frame->uc, &frame->puc);
 
 		/* Create the ucontext.  */
-		if (boot_cpu_has(X86_FEATURE_XSAVE))
+		if (static_cpu_has(X86_FEATURE_XSAVE))
 			put_user_ex(UC_FP_XSTATE, &frame->uc.uc_flags);
 		else
 			put_user_ex(0, &frame->uc.uc_flags);
@@ -857,7 +857,7 @@ void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 		pr_cont("\n");
 	}
 
-	force_sig(SIGSEGV, me);
+	force_sig(SIGSEGV);
 }
 
 #ifdef CONFIG_X86_X32_ABI

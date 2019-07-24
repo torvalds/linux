@@ -8,7 +8,6 @@
 #ifndef _PSB_GTT_H_
 #define _PSB_GTT_H_
 
-#include <drm/drmP.h>
 #include <drm/drm_gem.h>
 
 /* This wants cleaning up with respect to the psb_dev and un-needed stuff */

@@ -12,7 +12,6 @@
 #include <linux/console.h>
 #include <asm/termbits.h>
 #include <asm/irq.h>
-#include "ssl.h"
 #include "chan.h"
 #include <init.h>
 #include <irq_user.h>

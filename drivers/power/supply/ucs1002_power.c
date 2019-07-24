@@ -336,7 +336,7 @@ static int ucs1002_get_usb_type(struct ucs1002_info *info,
 	case F_ACTIVE_MODE_BC12_CDP:
 		type = POWER_SUPPLY_USB_TYPE_CDP;
 		break;
-	};
+	}
 
 	val->intval = type;
 

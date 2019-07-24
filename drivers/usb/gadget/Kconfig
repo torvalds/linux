@@ -228,7 +228,7 @@ config USB_CONFIGFS
 	  specified simply by creating appropriate directories in configfs.
 	  Associating functions with configurations is done by creating
 	  appropriate symbolic links.
-	  For more information see Documentation/usb/gadget_configfs.txt.
+	  For more information see Documentation/usb/gadget_configfs.rst.
 
 config USB_CONFIGFS_SERIAL
 	bool "Generic serial bulk in/out"
@@ -441,7 +441,7 @@ config USB_CONFIGFS_F_HID
 	  The HID function driver provides generic emulation of USB
 	  Human Interface Devices (HID).
 
-	  For more information, see Documentation/usb/gadget_hid.txt.
+	  For more information, see Documentation/usb/gadget_hid.rst.
 
 config USB_CONFIGFS_F_UVC
 	bool "USB Webcam function"
@@ -466,7 +466,7 @@ config USB_CONFIGFS_F_PRINTER
 	  receive or send printer data. It can use ioctl calls to
 	  the device file to get or set printer status.
 
-	  For more information, see Documentation/usb/gadget_printer.txt
+	  For more information, see Documentation/usb/gadget_printer.rst
 	  which includes sample code for accessing the device file.
 
 config USB_CONFIGFS_F_TCM

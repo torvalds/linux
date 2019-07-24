@@ -97,7 +97,7 @@ static inline void rtw_write8_set(struct rtw_dev *rtwdev, u32 addr, u8 bit)
 	rtw_write8(rtwdev, addr, val | bit);
 }
 
-static inline void rtw_writ16_set(struct rtw_dev *rtwdev, u32 addr, u16 bit)
+static inline void rtw_write16_set(struct rtw_dev *rtwdev, u32 addr, u16 bit)
 {
 	u16 val;
 

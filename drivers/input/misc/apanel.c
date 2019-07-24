@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Fujitsu Lifebook Application Panel button drive
  *
  *  Copyright (C) 2007 Stephen Hemminger <shemminger@linux-foundation.org>
  *  Copyright (C) 2001-2003 Jochen Eisinger <jochen@penguin-breeder.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Many Fujitsu Lifebook laptops have a small panel of buttons that are
  * accessible via the i2c/smbus interface. This driver polls those

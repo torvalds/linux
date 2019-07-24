@@ -1,0 +1,18 @@
+Bitmain BM1880 SoC Reset Controller
+===================================
+
+Please also refer to reset.txt in this directory for common reset
+controller binding usage.
+
+Required properties:
+- compatible:   Should be "bitmain,bm1880-reset"
+- reg:          Offset and length of reset controller space in SCTRL.
+- #reset-cells: Must be 1.
+
+Example:
+
+        rst: reset-controller@c00 {
+                compatible = "bitmain,bm1880-reset";
+                reg = <0xc00 0x8>;
+                #reset-cells = <1>;
+        };
