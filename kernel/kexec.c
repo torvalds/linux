@@ -1768,6 +1768,21 @@ efi_status_t efi_handle_protocol_BlockIO( void* handle, void** interface )
                                         sizeof( *devices[device_id].block_io ) );
         block_io = (EFI_BLOCK_IO_PROTOCOL*)(*interface);
 
+        /* We need to fix block_io->Media to point into 1:1 mapped memory. The
+         * macro access_ok tells us if Media is already in user space, which is
+         * the general area of physical addresses. */
+        if (!access_ok( block_io->Media, sizeof( *(block_io->Media) ) )) {
+                DebugMSG( "Media @ %px; converting to 1:1 mapped address",
+                          block_io->Media );
+                block_io->Media = efi_map_11_and_register_allocation(
+                                        block_io->Media,
+                                        sizeof( *(block_io->Media) ) );
+        }
+        else {
+                DebugMSG ("Media @ %px - already in 1:1 mapped area",
+                          block_io->Media );
+        }
+
         if (device_id == 0)
                 strcpy( device_path_str, "/dev/sda" );
         else
