@@ -1182,25 +1182,38 @@ void clear_local_APIC(void)
 }
 
 /**
+ * apic_soft_disable - Clears and software disables the local APIC on hotplug
+ *
+ * Contrary to disable_local_APIC() this does not touch the enable bit in
+ * MSR_IA32_APICBASE. Clearing that bit on systems based on the 3 wire APIC
+ * bus would require a hardware reset as the APIC would lose track of bus
+ * arbitration. On systems with FSB delivery APICBASE could be disabled,
+ * but it has to be guaranteed that no interrupt is sent to the APIC while
+ * in that state and it's not clear from the SDM whether it still responds
+ * to INIT/SIPI messages. Stay on the safe side and use software disable.
+ */
+void apic_soft_disable(void)
+{
+	u32 value;
+
+	clear_local_APIC();
+
+	/* Soft disable APIC (implies clearing of registers for 82489DX!). */
+	value = apic_read(APIC_SPIV);
+	value &= ~APIC_SPIV_APIC_ENABLED;
+	apic_write(APIC_SPIV, value);
+}
+
+/**
  * disable_local_APIC - clear and disable the local APIC
  */
 void disable_local_APIC(void)
 {
-	unsigned int value;
-
 	/* APIC hasn't been mapped yet */
 	if (!x2apic_mode && !apic_phys)
 		return;
 
-	clear_local_APIC();
-
-	/*
-	 * Disable APIC (implies clearing of registers
-	 * for 82489DX!).
-	 */
-	value = apic_read(APIC_SPIV);
-	value &= ~APIC_SPIV_APIC_ENABLED;
-	apic_write(APIC_SPIV, value);
+	apic_soft_disable();
 
 #ifdef CONFIG_X86_32
 	/*
