@@ -6091,8 +6091,6 @@ static struct CommandList *cmd_tagged_alloc(struct ctlr_info *h,
 		if (idx != h->last_collision_tag) { /* Print once per tag */
 			dev_warn(&h->pdev->dev,
 				"%s: tag collision (tag=%d)\n", __func__, idx);
-			if (c->scsi_cmd != NULL)
-				scsi_print_command(c->scsi_cmd);
 			if (scmd)
 				scsi_print_command(scmd);
 			h->last_collision_tag = idx;
