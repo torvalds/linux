@@ -549,23 +549,7 @@ int pl111_display_init(struct drm_device *drm)
 {
 	struct pl111_drm_dev_private *priv = drm->dev_private;
 	struct device *dev = drm->dev;
-	struct device_node *endpoint;
-	u32 tft_r0b0g0[3];
 	int ret;
-
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (!endpoint)
-		return -ENODEV;
-
-	if (of_property_read_u32_array(endpoint,
-				       "arm,pl11x,tft-r0g0b0-pads",
-				       tft_r0b0g0,
-				       ARRAY_SIZE(tft_r0b0g0)) != 0) {
-		dev_err(dev, "arm,pl11x,tft-r0g0b0-pads should be 3 ints\n");
-		of_node_put(endpoint);
-		return -ENOENT;
-	}
-	of_node_put(endpoint);
 
 	ret = pl111_init_clock_divider(drm);
 	if (ret)
