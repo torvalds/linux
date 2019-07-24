@@ -3934,6 +3934,7 @@ static int tegra_sor_probe(struct platform_device *pdev)
 			sor->pad = TEGRA_IO_PAD_LVDS;
 		} else if (sor->soc->supports_dp) {
 			sor->ops = &tegra_sor_dp_ops;
+			sor->pad = TEGRA_IO_PAD_LVDS;
 		} else {
 			dev_err(&pdev->dev, "unknown (DP) support\n");
 			return -ENODEV;
