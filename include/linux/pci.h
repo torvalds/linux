@@ -1559,14 +1559,6 @@ bool pci_aer_available(void);
 static inline bool pci_aer_available(void) { return false; }
 #endif
 
-#ifdef CONFIG_PCIE_ECRC
-void pcie_set_ecrc_checking(struct pci_dev *dev);
-void pcie_ecrc_get_policy(char *str);
-#else
-static inline void pcie_set_ecrc_checking(struct pci_dev *dev) { }
-static inline void pcie_ecrc_get_policy(char *str) { }
-#endif
-
 bool pci_ats_disabled(void);
 
 #ifdef CONFIG_PCIE_PTM
