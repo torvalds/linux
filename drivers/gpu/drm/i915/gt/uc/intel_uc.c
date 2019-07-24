@@ -492,7 +492,7 @@ int intel_uc_init_hw(struct intel_uc *uc)
 		}
 
 		intel_guc_ads_reset(guc);
-		intel_guc_init_params(guc);
+		intel_guc_write_params(guc);
 		ret = intel_guc_fw_upload(guc);
 		if (ret == 0)
 			break;

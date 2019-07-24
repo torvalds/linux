@@ -126,66 +126,6 @@ static void guc_shared_data_destroy(struct intel_guc *guc)
 	i915_vma_unpin_and_release(&guc->shared_data, I915_VMA_RELEASE_MAP);
 }
 
-int intel_guc_init(struct intel_guc *guc)
-{
-	struct intel_gt *gt = guc_to_gt(guc);
-	int ret;
-
-	ret = intel_uc_fw_init(&guc->fw);
-	if (ret)
-		goto err_fetch;
-
-	ret = guc_shared_data_create(guc);
-	if (ret)
-		goto err_fw;
-	GEM_BUG_ON(!guc->shared_data);
-
-	ret = intel_guc_log_create(&guc->log);
-	if (ret)
-		goto err_shared;
-
-	ret = intel_guc_ads_create(guc);
-	if (ret)
-		goto err_log;
-	GEM_BUG_ON(!guc->ads_vma);
-
-	ret = intel_guc_ct_init(&guc->ct);
-	if (ret)
-		goto err_ads;
-
-	/* We need to notify the guc whenever we change the GGTT */
-	i915_ggtt_enable_guc(gt->ggtt);
-
-	return 0;
-
-err_ads:
-	intel_guc_ads_destroy(guc);
-err_log:
-	intel_guc_log_destroy(&guc->log);
-err_shared:
-	guc_shared_data_destroy(guc);
-err_fw:
-	intel_uc_fw_fini(&guc->fw);
-err_fetch:
-	intel_uc_fw_cleanup_fetch(&guc->fw);
-	return ret;
-}
-
-void intel_guc_fini(struct intel_guc *guc)
-{
-	struct intel_gt *gt = guc_to_gt(guc);
-
-	i915_ggtt_disable_guc(gt->ggtt);
-
-	intel_guc_ct_fini(&guc->ct);
-
-	intel_guc_ads_destroy(guc);
-	intel_guc_log_destroy(&guc->log);
-	guc_shared_data_destroy(guc);
-	intel_uc_fw_fini(&guc->fw);
-	intel_uc_fw_cleanup_fetch(&guc->fw);
-}
-
 static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 {
 	u32 level = intel_guc_log_get_level(&guc->log);
@@ -281,13 +221,12 @@ static u32 guc_ctl_ads_flags(struct intel_guc *guc)
  * transfer. These parameters are read by the firmware on startup
  * and cannot be changed thereafter.
  */
-void intel_guc_init_params(struct intel_guc *guc)
+static void guc_init_params(struct intel_guc *guc)
 {
-	struct intel_uncore *uncore = guc_to_gt(guc)->uncore;
-	u32 params[GUC_CTL_MAX_DWORDS];
+	u32 *params = guc->params;
 	int i;
 
-	memset(params, 0, sizeof(params));
+	BUILD_BUG_ON(sizeof(guc->params) != GUC_CTL_MAX_DWORDS * sizeof(u32));
 
 	params[GUC_CTL_CTXINFO] = guc_ctl_ctxinfo_flags(guc);
 	params[GUC_CTL_LOG_PARAMS] = guc_ctl_log_params_flags(guc);
@@ -297,6 +236,17 @@ void intel_guc_init_params(struct intel_guc *guc)
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
 		DRM_DEBUG_DRIVER("param[%2d] = %#x\n", i, params[i]);
+}
+
+/*
+ * Initialise the GuC parameter block before starting the firmware
+ * transfer. These parameters are read by the firmware on startup
+ * and cannot be changed thereafter.
+ */
+void intel_guc_write_params(struct intel_guc *guc)
+{
+	struct intel_uncore *uncore = guc_to_gt(guc)->uncore;
+	int i;
 
 	/*
 	 * All SOFT_SCRATCH registers are in FORCEWAKE_BLITTER domain and
@@ -308,9 +258,72 @@ void intel_guc_init_params(struct intel_guc *guc)
 	intel_uncore_write(uncore, SOFT_SCRATCH(0), 0);
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
-		intel_uncore_write(uncore, SOFT_SCRATCH(1 + i), params[i]);
+		intel_uncore_write(uncore, SOFT_SCRATCH(1 + i), guc->params[i]);
 
 	intel_uncore_forcewake_put(uncore, FORCEWAKE_BLITTER);
+}
+
+int intel_guc_init(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+	int ret;
+
+	ret = intel_uc_fw_init(&guc->fw);
+	if (ret)
+		goto err_fetch;
+
+	ret = guc_shared_data_create(guc);
+	if (ret)
+		goto err_fw;
+	GEM_BUG_ON(!guc->shared_data);
+
+	ret = intel_guc_log_create(&guc->log);
+	if (ret)
+		goto err_shared;
+
+	ret = intel_guc_ads_create(guc);
+	if (ret)
+		goto err_log;
+	GEM_BUG_ON(!guc->ads_vma);
+
+	ret = intel_guc_ct_init(&guc->ct);
+	if (ret)
+		goto err_ads;
+
+	/* now that everything is perma-pinned, initialize the parameters */
+	guc_init_params(guc);
+
+	/* We need to notify the guc whenever we change the GGTT */
+	i915_ggtt_enable_guc(gt->ggtt);
+
+	return 0;
+
+err_ads:
+	intel_guc_ads_destroy(guc);
+err_log:
+	intel_guc_log_destroy(&guc->log);
+err_shared:
+	guc_shared_data_destroy(guc);
+err_fw:
+	intel_uc_fw_fini(&guc->fw);
+err_fetch:
+	intel_uc_fw_cleanup_fetch(&guc->fw);
+	return ret;
+}
+
+void intel_guc_fini(struct intel_guc *guc)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+
+	i915_ggtt_disable_guc(gt->ggtt);
+
+	intel_guc_ct_fini(&guc->ct);
+
+	intel_guc_ads_destroy(guc);
+	intel_guc_log_destroy(&guc->log);
+	guc_shared_data_destroy(guc);
+	intel_uc_fw_fini(&guc->fw);
+	intel_uc_fw_cleanup_fetch(&guc->fw);
 }
 
 int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,

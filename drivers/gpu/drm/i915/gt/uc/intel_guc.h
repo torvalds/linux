@@ -76,6 +76,9 @@ struct intel_guc {
 	/* Cyclic counter mod pagesize	*/
 	u32 db_cacheline;
 
+	/* Control params for fw initialization */
+	u32 params[GUC_CTL_MAX_DWORDS];
+
 	/* GuC's FW specific registers used in MMIO send */
 	struct {
 		u32 base;
@@ -152,7 +155,7 @@ static inline u32 intel_guc_ggtt_offset(struct intel_guc *guc,
 
 void intel_guc_init_early(struct intel_guc *guc);
 void intel_guc_init_send_regs(struct intel_guc *guc);
-void intel_guc_init_params(struct intel_guc *guc);
+void intel_guc_write_params(struct intel_guc *guc);
 int intel_guc_init(struct intel_guc *guc);
 void intel_guc_fini(struct intel_guc *guc);
 int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,
