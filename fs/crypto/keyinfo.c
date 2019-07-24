@@ -166,10 +166,9 @@ static struct fscrypt_mode *
 select_encryption_mode(const struct fscrypt_info *ci, const struct inode *inode)
 {
 	if (!fscrypt_valid_enc_modes(ci->ci_data_mode, ci->ci_filename_mode)) {
-		fscrypt_warn(inode->i_sb,
-			     "inode %lu uses unsupported encryption modes (contents mode %d, filenames mode %d)",
-			     inode->i_ino, ci->ci_data_mode,
-			     ci->ci_filename_mode);
+		fscrypt_warn(inode,
+			     "Unsupported encryption modes (contents mode %d, filenames mode %d)",
+			     ci->ci_data_mode, ci->ci_filename_mode);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -206,14 +205,14 @@ static int find_and_derive_key(const struct inode *inode,
 
 	if (ctx->flags & FS_POLICY_FLAG_DIRECT_KEY) {
 		if (mode->ivsize < offsetofend(union fscrypt_iv, nonce)) {
-			fscrypt_warn(inode->i_sb,
-				     "direct key mode not allowed with %s",
+			fscrypt_warn(inode,
+				     "Direct key mode not allowed with %s",
 				     mode->friendly_name);
 			err = -EINVAL;
 		} else if (ctx->contents_encryption_mode !=
 			   ctx->filenames_encryption_mode) {
-			fscrypt_warn(inode->i_sb,
-				     "direct key mode not allowed with different contents and filenames modes");
+			fscrypt_warn(inode,
+				     "Direct key mode not allowed with different contents and filenames modes");
 			err = -EINVAL;
 		} else {
 			memcpy(derived_key, payload->raw, mode->keysize);
@@ -238,9 +237,8 @@ allocate_skcipher_for_mode(struct fscrypt_mode *mode, const u8 *raw_key,
 
 	tfm = crypto_alloc_skcipher(mode->cipher_str, 0, 0);
 	if (IS_ERR(tfm)) {
-		fscrypt_warn(inode->i_sb,
-			     "error allocating '%s' transform for inode %lu: %ld",
-			     mode->cipher_str, inode->i_ino, PTR_ERR(tfm));
+		fscrypt_warn(inode, "Error allocating '%s' transform: %ld",
+			     mode->cipher_str, PTR_ERR(tfm));
 		return tfm;
 	}
 	if (unlikely(!mode->logged_impl_name)) {
@@ -472,9 +470,9 @@ static int setup_crypto_transform(struct fscrypt_info *ci,
 
 		err = init_essiv_generator(ci, raw_key, mode->keysize);
 		if (err) {
-			fscrypt_warn(inode->i_sb,
-				     "error initializing ESSIV generator for inode %lu: %d",
-				     inode->i_ino, err);
+			fscrypt_warn(inode,
+				     "Error initializing ESSIV generator: %d",
+				     err);
 			return err;
 		}
 	}

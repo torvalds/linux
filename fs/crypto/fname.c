@@ -71,9 +71,7 @@ int fname_encrypt(struct inode *inode, const struct qstr *iname,
 	res = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
 	skcipher_request_free(req);
 	if (res < 0) {
-		fscrypt_err(inode->i_sb,
-			    "Filename encryption failed for inode %lu: %d",
-			    inode->i_ino, res);
+		fscrypt_err(inode, "Filename encryption failed: %d", res);
 		return res;
 	}
 
@@ -117,9 +115,7 @@ static int fname_decrypt(struct inode *inode,
 	res = crypto_wait_req(crypto_skcipher_decrypt(req), &wait);
 	skcipher_request_free(req);
 	if (res < 0) {
-		fscrypt_err(inode->i_sb,
-			    "Filename decryption failed for inode %lu: %d",
-			    inode->i_ino, res);
+		fscrypt_err(inode, "Filename decryption failed: %d", res);
 		return res;
 	}
 

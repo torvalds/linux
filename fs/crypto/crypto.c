@@ -187,10 +187,8 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
 		res = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
 	skcipher_request_free(req);
 	if (res) {
-		fscrypt_err(inode->i_sb,
-			    "%scryption failed for inode %lu, block %llu: %d",
-			    (rw == FS_DECRYPT ? "de" : "en"),
-			    inode->i_ino, lblk_num, res);
+		fscrypt_err(inode, "%scryption failed for block %llu: %d",
+			    (rw == FS_DECRYPT ? "De" : "En"), lblk_num, res);
 		return res;
 	}
 	return 0;
@@ -452,7 +450,7 @@ fail:
 	return res;
 }
 
-void fscrypt_msg(struct super_block *sb, const char *level,
+void fscrypt_msg(const struct inode *inode, const char *level,
 		 const char *fmt, ...)
 {
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
@@ -466,8 +464,9 @@ void fscrypt_msg(struct super_block *sb, const char *level,
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	if (sb)
-		printk("%sfscrypt (%s): %pV\n", level, sb->s_id, &vaf);
+	if (inode)
+		printk("%sfscrypt (%s, inode %lu): %pV\n",
+		       level, inode->i_sb->s_id, inode->i_ino, &vaf);
 	else
 		printk("%sfscrypt: %pV\n", level, &vaf);
 	va_end(args);
