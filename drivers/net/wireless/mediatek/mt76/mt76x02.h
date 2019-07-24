@@ -71,8 +71,8 @@ struct mt76x02_calibration {
 struct mt76x02_beacon_ops {
 	unsigned int nslots;
 	unsigned int slot_size;
-	void (*pre_tbtt_enable) (struct mt76x02_dev *, bool);
-	void (*beacon_enable) (struct mt76x02_dev *, bool);
+	void (*pre_tbtt_enable)(struct mt76x02_dev *dev, bool en);
+	void (*beacon_enable)(struct mt76x02_dev *dev, bool en);
 };
 
 struct mt76x02_dev {
@@ -137,8 +137,8 @@ extern struct ieee80211_rate mt76x02_rates[12];
 
 void mt76x02_init_device(struct mt76x02_dev *dev);
 void mt76x02_configure_filter(struct ieee80211_hw *hw,
-			     unsigned int changed_flags,
-			     unsigned int *total_flags, u64 multicast);
+			      unsigned int changed_flags,
+			      unsigned int *total_flags, u64 multicast);
 int mt76x02_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		    struct ieee80211_sta *sta);
 void mt76x02_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -147,20 +147,20 @@ void mt76x02_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 void mt76x02_config_mac_addr_list(struct mt76x02_dev *dev);
 
 int mt76x02_add_interface(struct ieee80211_hw *hw,
-			 struct ieee80211_vif *vif);
+			  struct ieee80211_vif *vif);
 void mt76x02_remove_interface(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif);
+			      struct ieee80211_vif *vif);
 
 int mt76x02_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			struct ieee80211_ampdu_params *params);
+			 struct ieee80211_ampdu_params *params);
 int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-		   struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-		   struct ieee80211_key_conf *key);
+		    struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		    struct ieee80211_key_conf *key);
 int mt76x02_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   u16 queue, const struct ieee80211_tx_queue_params *params);
+		    u16 queue, const struct ieee80211_tx_queue_params *params);
 void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta);
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta);
 s8 mt76x02_tx_get_max_txpwr_adj(struct mt76x02_dev *dev,
 				const struct ieee80211_tx_rate *rate);
 s8 mt76x02_tx_get_txpwr_adj(struct mt76x02_dev *dev, s8 txpwr,
@@ -197,6 +197,7 @@ struct beacon_bc_data {
 	struct sk_buff_head q;
 	struct sk_buff *tail[8];
 };
+
 void mt76x02_init_beacon_config(struct mt76x02_dev *dev);
 void mt76x02e_init_beacon_config(struct mt76x02_dev *dev);
 void mt76x02_resync_beacon_timer(struct mt76x02_dev *dev);

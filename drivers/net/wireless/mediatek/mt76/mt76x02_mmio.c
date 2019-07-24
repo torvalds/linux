@@ -97,7 +97,8 @@ void mt76x02e_init_beacon_config(struct mt76x02_dev *dev)
 	dev->beacon_ops = &beacon_ops;
 
 	/* Fire a pre-TBTT interrupt 8 ms before TBTT */
-	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_PRE_TBTT, 8 << 4);
+	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_PRE_TBTT,
+		       8 << 4);
 	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_GP_TIMER,
 		       MT_DFS_GP_INTERVAL);
 	mt76_wr(dev, MT_INT_TIMER_EN, 0);
@@ -201,7 +202,7 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 		return -ENOMEM;
 
 	tasklet_init(&dev->mt76.tx_tasklet, mt76x02_tx_tasklet,
-		     (unsigned long) dev);
+		     (unsigned long)dev);
 	tasklet_init(&dev->mt76.pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet,
 		     (unsigned long)dev);
 
@@ -395,12 +396,12 @@ static void mt76x02_key_sync(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76_wcid *wcid;
 
 	if (!sta)
-	    return;
+		return;
 
-	wcid = (struct mt76_wcid *) sta->drv_priv;
+	wcid = (struct mt76_wcid *)sta->drv_priv;
 
 	if (wcid->hw_key_idx != key->keyidx || wcid->sw_iv)
-	    return;
+		return;
 
 	mt76x02_mac_wcid_sync_pn(dev, wcid->idx, key);
 }

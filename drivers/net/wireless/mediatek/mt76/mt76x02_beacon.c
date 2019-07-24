@@ -237,7 +237,8 @@ mt76x02_add_buffered_bc(void *priv, u8 *mac, struct ieee80211_vif *vif)
 }
 
 void
-mt76x02_enqueue_buffered_bc(struct mt76x02_dev *dev, struct beacon_bc_data *data,
+mt76x02_enqueue_buffered_bc(struct mt76x02_dev *dev,
+			    struct beacon_bc_data *data,
 			    int max_nframes)
 {
 	int i, nframes;
@@ -280,5 +281,4 @@ void mt76x02_init_beacon_config(struct mt76x02_dev *dev)
 	mt76x02_set_beacon_offsets(dev);
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_beacon_config);
-
 

@@ -33,10 +33,12 @@ static struct usb_device_id mt76x0_device_table[] = {
 	{ USB_DEVICE(0x7392, 0xc711) }, /* Devolo Wifi ac Stick */
 	{ USB_DEVICE(0x0df6, 0x0079) }, /* Sitecom Europe B.V. ac  Stick */
 	{ USB_DEVICE(0x2357, 0x0123) }, /* TP-LINK T2UHP */
-	{ USB_DEVICE(0x2357, 0x0105),
-	  .driver_info = 1,	     }, /* TP-LINK Archer T1U */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x0E8D, 0x7630, 0xff, 0x2, 0xff)}, /* MT7630U */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x0E8D, 0x7650, 0xff, 0x2, 0xff)}, /* MT7650U */
+	/* TP-LINK Archer T1U */
+	{ USB_DEVICE(0x2357, 0x0105), .driver_info = 1, },
+	/* MT7630U */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0E8D, 0x7630, 0xff, 0x2, 0xff)},
+	/* MT7650U */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0E8D, 0x7650, 0xff, 0x2, 0xff)},
 	{ 0, }
 };
 
@@ -237,7 +239,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 	if (ret)
 		goto err;
 
-	/* Disable the HW, otherwise MCU fail to initalize on hot reboot */
+	/* Disable the HW, otherwise MCU fail to initialize on hot reboot */
 	mt76x0_chip_onoff(dev, false, false);
 
 	if (!mt76x02_wait_for_mac(mdev)) {
@@ -275,9 +277,9 @@ err:
 static void mt76x0_disconnect(struct usb_interface *usb_intf)
 {
 	struct mt76x02_dev *dev = usb_get_intfdata(usb_intf);
-	bool initalized = test_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	bool initialized = test_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
 
-	if (!initalized)
+	if (!initialized)
 		return;
 
 	ieee80211_unregister_hw(dev->mt76.hw);

@@ -21,14 +21,14 @@
 #define CCK_RATE(_idx, _rate) {					\
 	.bitrate = _rate,					\
 	.flags = IEEE80211_RATE_SHORT_PREAMBLE,			\
-	.hw_value = (MT_PHY_TYPE_CCK << 8) | _idx,		\
-	.hw_value_short = (MT_PHY_TYPE_CCK << 8) | (8 + _idx),	\
+	.hw_value = (MT_PHY_TYPE_CCK << 8) | (_idx),		\
+	.hw_value_short = (MT_PHY_TYPE_CCK << 8) | (8 + (_idx)),	\
 }
 
 #define OFDM_RATE(_idx, _rate) {				\
 	.bitrate = _rate,					\
-	.hw_value = (MT_PHY_TYPE_OFDM << 8) | _idx,		\
-	.hw_value_short = (MT_PHY_TYPE_OFDM << 8) | _idx,	\
+	.hw_value = (MT_PHY_TYPE_OFDM << 8) | (_idx),		\
+	.hw_value_short = (MT_PHY_TYPE_OFDM << 8) | (_idx),	\
 }
 
 struct ieee80211_rate mt76x02_rates[] = {
@@ -281,7 +281,7 @@ mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
 	mvif->idx = idx;
 	mvif->group_wcid.idx = MT_VIF_WCID(idx);
 	mvif->group_wcid.hw_key_idx = -1;
-	mtxq = (struct mt76_txq *) vif->txq->drv_priv;
+	mtxq = (struct mt76_txq *)vif->txq->drv_priv;
 	mtxq->wcid = &mvif->group_wcid;
 
 	mt76_txq_init(&dev->mt76, vif->txq);
@@ -345,7 +345,7 @@ int mt76x02_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	enum ieee80211_ampdu_mlme_action action = params->action;
 	struct ieee80211_sta *sta = params->sta;
 	struct mt76x02_dev *dev = hw->priv;
-	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
+	struct mt76x02_sta *msta = (struct mt76x02_sta *)sta->drv_priv;
 	struct ieee80211_txq *txq = sta->txq[params->tid];
 	u16 tid = params->tid;
 	u16 ssn = params->ssn;
@@ -434,7 +434,7 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
 		return -EOPNOTSUPP;
 
-	msta = sta ? (struct mt76x02_sta *) sta->drv_priv : NULL;
+	msta = sta ? (struct mt76x02_sta *)sta->drv_priv : NULL;
 	wcid = msta ? &msta->wcid : &mvif->group_wcid;
 
 	if (cmd == SET_KEY) {
@@ -558,11 +558,11 @@ int mt76x02_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
 EXPORT_SYMBOL_GPL(mt76x02_set_rts_threshold);
 
 void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta)
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta)
 {
 	struct mt76x02_dev *dev = hw->priv;
-	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
+	struct mt76x02_sta *msta = (struct mt76x02_sta *)sta->drv_priv;
 	struct ieee80211_sta_rates *rates = rcu_dereference(sta->rates);
 	struct ieee80211_tx_rate rate = {};
 

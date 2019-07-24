@@ -65,7 +65,7 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			break;
 		}
 
-		rxfce = (u32 *) skb->cb;
+		rxfce = (u32 *)skb->cb;
 
 		if (seq == FIELD_GET(MT_RX_FCE_INFO_CMD_SEQ, *rxfce))
 			check_seq = true;
@@ -86,11 +86,11 @@ int mt76x02_mcu_function_select(struct mt76x02_dev *dev, enum mcu_function func,
 				u32 val)
 {
 	struct {
-	    __le32 id;
-	    __le32 value;
+		__le32 id;
+		__le32 value;
 	} __packed __aligned(4) msg = {
-	    .id = cpu_to_le32(func),
-	    .value = cpu_to_le32(val),
+		.id = cpu_to_le32(func),
+		.value = cpu_to_le32(val),
 	};
 	bool wait = false;
 
@@ -111,7 +111,8 @@ int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on)
 		.level = cpu_to_le32(0),
 	};
 
-	return mt76_mcu_send_msg(dev, CMD_POWER_SAVING_OP, &msg, sizeof(msg), false);
+	return mt76_mcu_send_msg(dev, CMD_POWER_SAVING_OP, &msg, sizeof(msg),
+				 false);
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_set_radio_state);
 

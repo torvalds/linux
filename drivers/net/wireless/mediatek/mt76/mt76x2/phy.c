@@ -25,7 +25,8 @@ mt76x2_adjust_high_lna_gain(struct mt76x02_dev *dev, int reg, s8 offset)
 {
 	s8 gain;
 
-	gain = FIELD_GET(MT_BBP_AGC_LNA_HIGH_GAIN, mt76_rr(dev, MT_BBP(AGC, reg)));
+	gain = FIELD_GET(MT_BBP_AGC_LNA_HIGH_GAIN,
+			 mt76_rr(dev, MT_BBP(AGC, reg)));
 	gain -= offset / 2;
 	mt76_rmw_field(dev, MT_BBP(AGC, reg), MT_BBP_AGC_LNA_HIGH_GAIN, gain);
 }
@@ -295,7 +296,7 @@ void mt76x2_phy_update_channel_gain(struct mt76x02_dev *dev)
 		dev->cal.avg_rssi_all = -75;
 
 	low_gain = (dev->cal.avg_rssi_all > mt76x02_get_rssi_gain_thresh(dev)) +
-		   (dev->cal.avg_rssi_all > mt76x02_get_low_rssi_gain_thresh(dev));
+		(dev->cal.avg_rssi_all > mt76x02_get_low_rssi_gain_thresh(dev));
 
 	gain_change = dev->cal.low_gain < 0 ||
 		      (dev->cal.low_gain & 2) ^ (low_gain & 2);

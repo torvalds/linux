@@ -33,7 +33,7 @@ mt76x2_eeprom_get_macaddr(struct mt76x02_dev *dev)
 static bool
 mt76x2_has_cal_free_data(struct mt76x02_dev *dev, u8 *efuse)
 {
-	u16 *efuse_w = (u16 *) efuse;
+	u16 *efuse_w = (u16 *)efuse;
 
 	if (efuse_w[MT_EE_NIC_CONF_0] != 0)
 		return false;
@@ -372,7 +372,8 @@ mt76x2_get_power_info_2g(struct mt76x02_dev *dev,
 	t->chain[chain].tssi_slope = data[0];
 	t->chain[chain].tssi_offset = data[1];
 	t->chain[chain].target_power = data[2];
-	t->chain[chain].delta = mt76x02_sign_extend_optional(data[delta_idx], 7);
+	t->chain[chain].delta =
+		mt76x02_sign_extend_optional(data[delta_idx], 7);
 
 	val = mt76x02_eeprom_get(dev, MT_EE_RF_2G_TSSI_OFF_TXPOWER);
 	t->target_power = val >> 8;
@@ -381,7 +382,7 @@ mt76x2_get_power_info_2g(struct mt76x02_dev *dev,
 static void
 mt76x2_get_power_info_5g(struct mt76x02_dev *dev,
 			 struct mt76x2_tx_power_info *t,
-		         struct ieee80211_channel *chan,
+			 struct ieee80211_channel *chan,
 			 int chain, int offset)
 {
 	int channel = chan->hw_value;
@@ -423,7 +424,8 @@ mt76x2_get_power_info_5g(struct mt76x02_dev *dev,
 	t->chain[chain].tssi_slope = data[0];
 	t->chain[chain].tssi_offset = data[1];
 	t->chain[chain].target_power = data[2];
-	t->chain[chain].delta = mt76x02_sign_extend_optional(data[delta_idx], 7);
+	t->chain[chain].delta =
+		mt76x02_sign_extend_optional(data[delta_idx], 7);
 
 	val = mt76x02_eeprom_get(dev, MT_EE_RF_2G_RX_HIGH_GAIN);
 	t->target_power = val & 0xff;
