@@ -244,6 +244,18 @@ static const struct soc15_reg_golden golden_settings_sdma_arct[] =
 	SOC15_REG_GOLDEN_VALUE(SDMA7, 0, mmSDMA7_GB_ADDR_CONFIG_READ, 0x0000773f, 0x00004002)
 };
 
+static const struct soc15_reg_golden golden_settings_sdma_4_3[] = {
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_CHICKEN_BITS, 0xfe931f07, 0x02831f07),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_CLK_CTRL, 0xffffffff, 0x3f000100),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG, 0x0018773f, 0x00003002),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG_READ, 0x0018773f, 0x00003002),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GFX_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_POWER_CNTL, 0x003fff07, 0x40000051),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_RLC0_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_RLC1_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_UTCL1_PAGE, 0x000003ff, 0x000003c0),
+};
+
 static u32 sdma_v4_0_get_reg_offset(struct amdgpu_device *adev,
 		u32 instance, u32 offset)
 {
@@ -367,6 +379,11 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 			soc15_program_register_sequence(adev,
 							golden_settings_sdma_rv1,
 							ARRAY_SIZE(golden_settings_sdma_rv1));
+		break;
+	case CHIP_RENOIR:
+		soc15_program_register_sequence(adev,
+						golden_settings_sdma_4_3,
+						ARRAY_SIZE(golden_settings_sdma_4_3));
 		break;
 	default:
 		break;
