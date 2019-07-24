@@ -111,7 +111,6 @@ struct cf_mod {
 	u32 uid;
 };
 
-
 /* So far we just support CAN -> CAN routing and frame modifications.
  *
  * The internal can_can_gw structure contains data and attributes for
@@ -268,7 +267,6 @@ static void cgw_csum_crc8_rel(struct can_frame *cf, struct cgw_csum_crc8 *crc8)
 	}
 
 	switch (crc8->profile) {
-
 	case CGW_CRC8PRF_1U8:
 		crc = crc8->crctab[crc^crc8->profile_data[0]];
 		break;
@@ -281,7 +279,6 @@ static void cgw_csum_crc8_rel(struct can_frame *cf, struct cgw_csum_crc8 *crc8)
 		crc = crc8->crctab[crc^(cf->can_id & 0xFF)^
 				   (cf->can_id >> 8 & 0xFF)];
 		break;
-
 	}
 
 	cf->data[crc8->result_idx] = crc^crc8->final_xor_val;
@@ -296,7 +293,6 @@ static void cgw_csum_crc8_pos(struct can_frame *cf, struct cgw_csum_crc8 *crc8)
 		crc = crc8->crctab[crc^cf->data[i]];
 
 	switch (crc8->profile) {
-
 	case CGW_CRC8PRF_1U8:
 		crc = crc8->crctab[crc^crc8->profile_data[0]];
 		break;
@@ -323,7 +319,6 @@ static void cgw_csum_crc8_neg(struct can_frame *cf, struct cgw_csum_crc8 *crc8)
 		crc = crc8->crctab[crc^cf->data[i]];
 
 	switch (crc8->profile) {
-
 	case CGW_CRC8PRF_1U8:
 		crc = crc8->crctab[crc^crc8->profile_data[0]];
 		break;
@@ -478,14 +473,12 @@ static int cgw_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	if (msg == NETDEV_UNREGISTER) {
-
 		struct cgw_job *gwj = NULL;
 		struct hlist_node *nx;
 
 		ASSERT_RTNL();
 
 		hlist_for_each_entry_safe(gwj, nx, &net->can.cgw_list, list) {
-
 			if (gwj->src.dev == dev || gwj->dst.dev == dev) {
 				hlist_del(&gwj->list);
 				cgw_unregister_filter(net, gwj);
@@ -583,7 +576,6 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj, int type,
 	}
 
 	if (gwj->gwtype == CGW_TYPE_CAN_CAN) {
-
 		if (gwj->ccgw.filter.can_id || gwj->ccgw.filter.can_mask) {
 			if (nla_put(skb, CGW_FILTER, sizeof(struct can_filter),
 				    &gwj->ccgw.filter) < 0)
@@ -737,7 +729,6 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 
 	/* check for checksum operations after CAN frame modifications */
 	if (modidx) {
-
 		if (tb[CGW_CS_CRC8]) {
 			struct cgw_csum_crc8 *c = nla_data(tb[CGW_CS_CRC8]);
 
@@ -790,10 +781,9 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 	}
 
 	if (gwtype == CGW_TYPE_CAN_CAN) {
-
 		/* check CGW_TYPE_CAN_CAN specific attributes */
-
 		struct can_can_gw *ccgw = (struct can_can_gw *)gwtypeattr;
+
 		memset(ccgw, 0, sizeof(*ccgw));
 
 		/* check for can_filter in attributes */
@@ -854,12 +844,10 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh,
 		return err;
 
 	if (mod.uid) {
-
 		ASSERT_RTNL();
 
 		/* check for updating an existing job with identical uid */
 		hlist_for_each_entry(gwj, &net->can.cgw_list, list) {
-
 			if (gwj->mod.uid != mod.uid)
 				continue;
 
@@ -980,7 +968,6 @@ static int cgw_remove_job(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	/* remove only the first matching entry */
 	hlist_for_each_entry_safe(gwj, nx, &net->can.cgw_list, list) {
-
 		if (gwj->flags != r->flags)
 			continue;
 
