@@ -202,14 +202,14 @@ static void append_func(Elf_Ehdr *const ehdr,
 	new_e_shoff = t;
 
 	/* body for new shstrtab */
-	ulseek(fd_map, sb.st_size, SEEK_SET);
-	uwrite(fd_map, old_shstr_sh_offset + (void *)ehdr, old_shstr_sh_size);
-	uwrite(fd_map, mc_name, 1 + strlen(mc_name));
+	ulseek(sb.st_size, SEEK_SET);
+	uwrite(old_shstr_sh_offset + (void *)ehdr, old_shstr_sh_size);
+	uwrite(mc_name, 1 + strlen(mc_name));
 
 	/* old(modified) Elf_Shdr table, word-byte aligned */
-	ulseek(fd_map, t, SEEK_SET);
+	ulseek(t, SEEK_SET);
 	t += sizeof(Elf_Shdr) * old_shnum;
-	uwrite(fd_map, old_shoff + (void *)ehdr,
+	uwrite(old_shoff + (void *)ehdr,
 	       sizeof(Elf_Shdr) * old_shnum);
 
 	/* new sections __mcount_loc and .rel__mcount_loc */
@@ -225,7 +225,7 @@ static void append_func(Elf_Ehdr *const ehdr,
 	mcsec.sh_info = 0;
 	mcsec.sh_addralign = _w(_size);
 	mcsec.sh_entsize = _w(_size);
-	uwrite(fd_map, &mcsec, sizeof(mcsec));
+	uwrite(&mcsec, sizeof(mcsec));
 
 	mcsec.sh_name = w(old_shstr_sh_size);
 	mcsec.sh_type = (sizeof(Elf_Rela) == rel_entsize)
@@ -239,15 +239,15 @@ static void append_func(Elf_Ehdr *const ehdr,
 	mcsec.sh_info = w(old_shnum);
 	mcsec.sh_addralign = _w(_size);
 	mcsec.sh_entsize = _w(rel_entsize);
-	uwrite(fd_map, &mcsec, sizeof(mcsec));
+	uwrite(&mcsec, sizeof(mcsec));
 
-	uwrite(fd_map, mloc0, (void *)mlocp - (void *)mloc0);
-	uwrite(fd_map, mrel0, (void *)mrelp - (void *)mrel0);
+	uwrite(mloc0, (void *)mlocp - (void *)mloc0);
+	uwrite(mrel0, (void *)mrelp - (void *)mrel0);
 
 	ehdr->e_shoff = _w(new_e_shoff);
 	ehdr->e_shnum = w2(2 + w2(ehdr->e_shnum));  /* {.rel,}__mcount_loc */
-	ulseek(fd_map, 0, SEEK_SET);
-	uwrite(fd_map, ehdr, sizeof(*ehdr));
+	ulseek(0, SEEK_SET);
+	uwrite(ehdr, sizeof(*ehdr));
 }
 
 static unsigned get_mcountsym(Elf_Sym const *const sym0,
@@ -396,8 +396,8 @@ static void nop_mcount(Elf_Shdr const *const relhdr,
 			Elf_Rel rel;
 			rel = *(Elf_Rel *)relp;
 			Elf_r_info(&rel, Elf_r_sym(relp), rel_type_nop);
-			ulseek(fd_map, (void *)relp - (void *)ehdr, SEEK_SET);
-			uwrite(fd_map, &rel, sizeof(rel));
+			ulseek((void *)relp - (void *)ehdr, SEEK_SET);
+			uwrite(&rel, sizeof(rel));
 		}
 		relp = (Elf_Rel const *)(rel_entsize + (void *)relp);
 	}

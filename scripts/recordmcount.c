@@ -92,7 +92,7 @@ succeed_file(void)
 /* ulseek, uwrite, ...:  Check return value for errors. */
 
 static off_t
-ulseek(int const fd, off_t const offset, int const whence)
+ulseek(off_t const offset, int const whence)
 {
 	switch (whence) {
 	case SEEK_SET:
@@ -113,7 +113,7 @@ ulseek(int const fd, off_t const offset, int const whence)
 }
 
 static size_t
-uwrite(int const fd, void const *const buf, size_t const count)
+uwrite(void const *const buf, size_t const count)
 {
 	size_t cnt = count;
 	off_t idx = 0;
@@ -183,8 +183,8 @@ static int make_nop_x86(void *map, size_t const offset)
 		return -1;
 
 	/* convert to nop */
-	ulseek(fd_map, offset - 1, SEEK_SET);
-	uwrite(fd_map, ideal_nop, 5);
+	ulseek(offset - 1, SEEK_SET);
+	uwrite(ideal_nop, 5);
 	return 0;
 }
 
@@ -232,10 +232,10 @@ static int make_nop_arm(void *map, size_t const offset)
 		return -1;
 
 	/* Convert to nop */
-	ulseek(fd_map, off, SEEK_SET);
+	ulseek(off, SEEK_SET);
 
 	do {
-		uwrite(fd_map, ideal_nop, nop_size);
+		uwrite(ideal_nop, nop_size);
 	} while (--cnt > 0);
 
 	return 0;
@@ -252,8 +252,8 @@ static int make_nop_arm64(void *map, size_t const offset)
 		return -1;
 
 	/* Convert to nop */
-	ulseek(fd_map, offset, SEEK_SET);
-	uwrite(fd_map, ideal_nop, 4);
+	ulseek(offset, SEEK_SET);
+	uwrite(ideal_nop, 4);
 	return 0;
 }
 
