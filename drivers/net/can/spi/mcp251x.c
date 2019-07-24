@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * CAN bus driver for Microchip 251x/25625 CAN Controller with SPI Interface
+/* CAN bus driver for Microchip 251x/25625 CAN Controller with SPI Interface
  *
  * MCP2510 support and bug fixes by Christian Pellegrin
  * <chripell@evolware.org>
@@ -191,8 +190,7 @@
 #define SET_BYTE(val, byte)			\
 	(((val) & 0xff) << ((byte) * 8))
 
-/*
- * Buffer size required for the largest SPI transfer (i.e., reading a
+/* Buffer size required for the largest SPI transfer (i.e., reading a
  * frame)
  */
 #define CAN_FRAME_MAX_DATA_LEN	8
@@ -282,8 +280,7 @@ static void mcp251x_clean(struct net_device *net)
 	priv->tx_len = 0;
 }
 
-/*
- * Note about handling of error return of mcp251x_spi_trans: accessing
+/* Note about handling of error return of mcp251x_spi_trans: accessing
  * registers via SPI is not really different conceptually than using
  * normal I/O assembler instructions, although it's much more
  * complicated from a practical POV. So it's not advisable to always
@@ -1094,8 +1091,7 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	if (mcp251x_enable_dma) {
 		spi->dev.coherent_dma_mask = ~0;
 
-		/*
-		 * Minimum coherent DMA allocation is PAGE_SIZE, so allocate
+		/* Minimum coherent DMA allocation is PAGE_SIZE, so allocate
 		 * that much and share it between Tx and Rx DMA buffers.
 		 */
 		priv->spi_tx_buf = dmam_alloc_coherent(&spi->dev,
@@ -1189,8 +1185,7 @@ static int __maybe_unused mcp251x_can_suspend(struct device *dev)
 
 	priv->force_quit = 1;
 	disable_irq(spi->irq);
-	/*
-	 * Note: at this point neither IST nor workqueues are running.
+	/* Note: at this point neither IST nor workqueues are running.
 	 * open/stop cannot be called anyway so locking is not needed
 	 */
 	if (netif_running(net)) {
