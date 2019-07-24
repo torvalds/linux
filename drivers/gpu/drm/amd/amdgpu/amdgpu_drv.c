@@ -79,9 +79,10 @@
  * - 3.31.0 - Add support for per-flip tiling attribute changes with DC
  * - 3.32.0 - Add syncobj timeline support to AMDGPU_CS.
  * - 3.33.0 - Fixes for GDS ENOMEM failures in AMDGPU_CS.
+ * - 3.34.0 - Non-DC can flip correctly between buffers with different pitches
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	33
+#define KMS_DRIVER_MINOR	34
 #define KMS_DRIVER_PATCHLEVEL	0
 
 #define AMDGPU_MAX_TIMEOUT_PARAM_LENTH	256
