@@ -308,5 +308,7 @@ void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
 					 struct seq_file *m);
 #endif
 
+bool amdgpu_bo_support_uswc(u64 bo_flags);
+
 
 #endif
