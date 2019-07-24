@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
 /*
  * linux/can/core.h
  *
@@ -57,6 +57,5 @@ extern void can_rx_unregister(struct net *net, struct net_device *dev,
 			      void *data);
 
 extern int can_send(struct sk_buff *skb, int loop);
-extern int can_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 
 #endif /* !_CAN_CORE_H */

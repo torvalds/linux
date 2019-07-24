@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 /*
  * af_can.c - Protocol family CAN core module
  *            (used by different CAN protocol modules)
@@ -86,15 +87,6 @@ static atomic_t skbcounter = ATOMIC_INIT(0);
 /*
  * af_can socket functions
  */
-
-int can_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-	default:
-		return -ENOIOCTLCMD;
-	}
-}
-EXPORT_SYMBOL(can_ioctl);
 
 static void can_sock_destruct(struct sock *sk)
 {

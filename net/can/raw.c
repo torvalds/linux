@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 /*
  * raw.c - Raw sockets for protocol family CAN
  *
@@ -845,7 +846,7 @@ static const struct proto_ops raw_ops = {
 	.accept        = sock_no_accept,
 	.getname       = raw_getname,
 	.poll          = datagram_poll,
-	.ioctl         = can_ioctl,	/* use can_ioctl() from af_can.c */
+	.ioctl         = sock_no_ioctl,
 	.gettstamp     = sock_gettstamp,
 	.listen        = sock_no_listen,
 	.shutdown      = sock_no_shutdown,
