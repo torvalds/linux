@@ -447,7 +447,6 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 	/* delete frame due to misconfiguration */
 	gwj->deleted_frames++;
 	kfree_skb(nskb);
-	return;
 }
 
 static inline int cgw_register_filter(struct net *net, struct cgw_job *gwj)
