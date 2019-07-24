@@ -2982,8 +2982,6 @@ static s32 brcmf_update_bss_info(struct brcmf_cfg80211_info *cfg,
 	struct brcmf_pub *drvr = cfg->pub;
 	struct brcmf_bss_info_le *bi;
 	const struct brcmf_tlv *tim;
-	u16 beacon_interval;
-	u8 dtim_period;
 	size_t ie_len;
 	u8 *ie;
 	s32 err = 0;
@@ -3007,12 +3005,9 @@ static s32 brcmf_update_bss_info(struct brcmf_cfg80211_info *cfg,
 
 	ie = ((u8 *)bi) + le16_to_cpu(bi->ie_offset);
 	ie_len = le32_to_cpu(bi->ie_length);
-	beacon_interval = le16_to_cpu(bi->beacon_period);
 
 	tim = brcmf_parse_tlvs(ie, ie_len, WLAN_EID_TIM);
-	if (tim)
-		dtim_period = tim->data[1];
-	else {
+	if (!tim) {
 		/*
 		* active scan was done so we could not get dtim
 		* information out of probe response.
@@ -3024,7 +3019,6 @@ static s32 brcmf_update_bss_info(struct brcmf_cfg80211_info *cfg,
 			bphy_err(drvr, "wl dtim_assoc failed (%d)\n", err);
 			goto update_bss_info_out;
 		}
-		dtim_period = (u8)var;
 	}
 
 update_bss_info_out:
