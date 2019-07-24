@@ -508,7 +508,7 @@ static ssize_t efx_ef10_show_link_control_flag(struct device *dev,
 					       struct device_attribute *attr,
 					       char *buf)
 {
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct efx_nic *efx = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%d\n",
 		       ((efx->mcdi->fn_flags) &
@@ -520,7 +520,7 @@ static ssize_t efx_ef10_show_primary_flag(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct efx_nic *efx = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%d\n",
 		       ((efx->mcdi->fn_flags) &
