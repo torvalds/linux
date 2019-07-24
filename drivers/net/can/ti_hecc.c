@@ -46,8 +46,7 @@ MODULE_VERSION(HECC_MODULE_VERSION);
 #define HECC_MAX_MAILBOXES	32	/* hardware mailboxes - do not change */
 #define MAX_TX_PRIO		0x3F	/* hardware value - do not change */
 
-/*
- * Important Note: TX mailbox configuration
+/* Important Note: TX mailbox configuration
  * TX mailboxes should be restricted to the number of SKB buffers to avoid
  * maintaining SKB buffers separately. TX mailboxes should be a power of 2
  * for the mailbox logic to work.  Top mailbox numbers are reserved for RX
@@ -309,8 +308,7 @@ static void ti_hecc_reset(struct net_device *ndev)
 	/* Set change control request and wait till enabled */
 	hecc_set_bit(priv, HECC_CANMC, HECC_CANMC_CCR);
 
-	/*
-	 * INFO: It has been observed that at times CCE bit may not be
+	/* INFO: It has been observed that at times CCE bit may not be
 	 * set and hw seems to be ok even if this bit is not set so
 	 * timing out with a timing of 1ms to respect the specs
 	 */
@@ -320,8 +318,7 @@ static void ti_hecc_reset(struct net_device *ndev)
 		udelay(10);
 	}
 
-	/*
-	 * Note: On HECC, BTC can be programmed only in initialization mode, so
+	/* Note: On HECC, BTC can be programmed only in initialization mode, so
 	 * it is expected that the can bittiming parameters are set via ip
 	 * utility before the device is opened
 	 */
@@ -330,13 +327,11 @@ static void ti_hecc_reset(struct net_device *ndev)
 	/* Clear CCR (and CANMC register) and wait for CCE = 0 enable */
 	hecc_write(priv, HECC_CANMC, 0);
 
-	/*
-	 * INFO: CAN net stack handles bus off and hence disabling auto-bus-on
+	/* INFO: CAN net stack handles bus off and hence disabling auto-bus-on
 	 * hecc_set_bit(priv, HECC_CANMC, HECC_CANMC_ABO);
 	 */
 
-	/*
-	 * INFO: It has been observed that at times CCE bit may not be
+	/* INFO: It has been observed that at times CCE bit may not be
 	 * set and hw seems to be ok even if this bit is not set so
 	 */
 	cnt = HECC_CCE_WAIT_COUNT;
@@ -439,8 +434,7 @@ static int ti_hecc_get_berr_counter(const struct net_device *ndev,
 	return 0;
 }
 
-/*
- * ti_hecc_xmit: HECC Transmit
+/* ti_hecc_xmit: HECC Transmit
  *
  * The transmit mailboxes start from 0 to HECC_MAX_TX_MBOX. In HECC the
  * priority of the mailbox for tranmission is dependent upon priority setting
@@ -601,8 +595,7 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 		hecc_clear_bit(priv, HECC_CANMC, HECC_CANMC_CCR);
 	}
 
-	/*
-	 * Need to check busoff condition in error status register too to
+	/* Need to check busoff condition in error status register too to
 	 * ensure warning interrupts don't hog the system
 	 */
 	if ((int_status & HECC_CANGIF_BOIF) || (err_status & HECC_CANES_BO)) {
