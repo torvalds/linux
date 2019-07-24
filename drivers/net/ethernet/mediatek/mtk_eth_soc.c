@@ -787,7 +787,8 @@ static inline int mtk_cal_txd_req(struct sk_buff *skb)
 	if (skb_is_gso(skb)) {
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			frag = &skb_shinfo(skb)->frags[i];
-			nfrags += DIV_ROUND_UP(frag->size, MTK_TX_DMA_BUF_LEN);
+			nfrags += DIV_ROUND_UP(skb_frag_size(frag),
+						MTK_TX_DMA_BUF_LEN);
 		}
 	} else {
 		nfrags += skb_shinfo(skb)->nr_frags;

@@ -1958,7 +1958,7 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 	/* populate the rest of SGT entries */
 	for (i = 0; i < nr_frags; i++) {
 		frag = &skb_shinfo(skb)->frags[i];
-		frag_len = frag->size;
+		frag_len = skb_frag_size(frag);
 		WARN_ON(!skb_frag_page(frag));
 		addr = skb_frag_dma_map(dev, frag, 0,
 					frag_len, dma_dir);

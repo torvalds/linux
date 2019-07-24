@@ -1448,7 +1448,7 @@ cxgbit_lro_skb_merge(struct cxgbit_sock *csk, struct sk_buff *skb, u8 pdu_idx)
 		hpdu_cb->frags++;
 		hpdu_cb->hfrag_idx = hfrag_idx;
 
-		len = skb_frag_size(&hssi->frags[hfrag_idx]);;
+		len = skb_frag_size(&hssi->frags[hfrag_idx]);
 		hskb->len += len;
 		hskb->data_len += len;
 		hskb->truesize += len;
