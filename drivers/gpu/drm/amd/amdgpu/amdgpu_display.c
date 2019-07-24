@@ -500,8 +500,15 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev)
 	uint32_t domain = AMDGPU_GEM_DOMAIN_VRAM;
 
 #if defined(CONFIG_DRM_AMD_DC)
+	/*
+	 * if amdgpu_bo_validate_uswc returns false it means that USWC mappings
+	 * is not supported for this board. But this mapping is required
+	 * to avoid hang caused by placement of scanout BO in GTT on certain
+	 * APUs. So force the BO placement to VRAM in case this architecture
+	 * will not allow USWC mappings.
+	 */
 	if (adev->asic_type >= CHIP_CARRIZO && adev->asic_type < CHIP_RAVEN &&
-	    adev->flags & AMD_IS_APU &&
+	    adev->flags & AMD_IS_APU && amdgpu_bo_support_uswc(0) &&
 	    amdgpu_device_asic_has_dc_support(adev->asic_type))
 		domain |= AMDGPU_GEM_DOMAIN_GTT;
 #endif
