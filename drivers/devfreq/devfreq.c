@@ -867,7 +867,7 @@ EXPORT_SYMBOL_GPL(devfreq_get_devfreq_by_phandle);
 
 /**
  * devm_devfreq_remove_device() - Resource-managed devfreq_remove_device()
- * @dev:	the device to add devfreq feature.
+ * @dev:	the device from which to remove devfreq feature.
  * @devfreq:	the devfreq instance to be removed
  */
 void devm_devfreq_remove_device(struct device *dev, struct devfreq *devfreq)
