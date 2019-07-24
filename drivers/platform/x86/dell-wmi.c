@@ -313,6 +313,7 @@ static const struct key_entry dell_wmi_keymap_type_0011[] = {
 	/* Keyboard backlight level changed */
 	{ KE_IGNORE, 0x01e1, { KEY_RESERVED } },
 	{ KE_IGNORE, 0x01e2, { KEY_RESERVED } },
+	{ KE_IGNORE, 0x01e3, { KEY_RESERVED } },
 	{ KE_IGNORE, 0x02ea, { KEY_RESERVED } },
 	{ KE_IGNORE, 0x02eb, { KEY_RESERVED } },
 	{ KE_IGNORE, 0x02ec, { KEY_RESERVED } },
