@@ -319,6 +319,21 @@ typedef int32_t             INT32;
 /* typedef uint32_t            ULONG; */
 typedef unsigned char       UCHAR;
 
+//
+// Toggle state
+//
+#define EFI_TOGGLE_STATE_VALID    0x80
+#define EFI_KEY_STATE_EXPOSED     0x40
+#define EFI_SCROLL_LOCK_ACTIVE    0x01
+#define EFI_NUM_LOCK_ACTIVE       0x02
+#define EFI_CAPS_LOCK_ACTIVE      0x04
+
+///
+/// EFI_KEY_TOGGLE_STATE. The toggle states are defined.
+/// They are: EFI_TOGGLE_STATE_VALID, EFI_SCROLL_LOCK_ACTIVE
+/// EFI_NUM_LOCK_ACTIVE, EFI_CAPS_LOCK_ACTIVE
+///
+typedef UINT8 EFI_KEY_TOGGLE_STATE;
 
 /**
   @par Data Structure Description:
@@ -1783,10 +1798,10 @@ __attribute__((ms_abi)) efi_status_t efi_conin_hook_ReadKeyStrokeEx(void)
 }
 
 __attribute__((ms_abi)) efi_status_t efi_conin_hook_SetState(
-                                                        void* this_protocol,
-                                                        void* KeyToggleState )
+                                        void* this_protocol,
+                                        EFI_KEY_TOGGLE_STATE* KeyToggleState )
 {
-         DebugMSG( "Ignoring call!" );
+         DebugMSG( "KeyToggleState = 0x%x", *KeyToggleState );
 
          return EFI_SUCCESS;
 }
