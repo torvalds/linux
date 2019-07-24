@@ -331,7 +331,7 @@ struct inet_frag_queue *inet_frag_find(struct fqdir *fqdir, void *key)
 	prev = rhashtable_lookup(&fqdir->rhashtable, key, fqdir->f->rhash_params);
 	if (!prev)
 		fq = inet_frag_create(fqdir, key, &prev);
-	if (prev && !IS_ERR(prev)) {
+	if (!IS_ERR_OR_NULL(prev)) {
 		fq = prev;
 		if (!refcount_inc_not_zero(&fq->refcnt))
 			fq = NULL;
