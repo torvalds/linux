@@ -355,6 +355,14 @@ static const char * const imx8mn_clko2_sels[] = {"osc_24m", "sys_pll2_200m", "sy
 static struct clk *clks[IMX8MN_CLK_END];
 static struct clk_onecell_data clk_data;
 
+static struct clk ** const uart_clks[] = {
+	&clks[IMX8MN_CLK_UART1_ROOT],
+	&clks[IMX8MN_CLK_UART2_ROOT],
+	&clks[IMX8MN_CLK_UART3_ROOT],
+	&clks[IMX8MN_CLK_UART4_ROOT],
+	NULL
+};
+
 static int imx8mn_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -611,6 +619,8 @@ static int imx8mn_clocks_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to register clks for i.MX8MN\n");
 		goto unregister_clks;
 	}
+
+	imx_register_uart_clocks(uart_clks);
 
 	return 0;
 
