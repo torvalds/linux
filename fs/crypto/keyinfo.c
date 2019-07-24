@@ -237,8 +237,13 @@ allocate_skcipher_for_mode(struct fscrypt_mode *mode, const u8 *raw_key,
 
 	tfm = crypto_alloc_skcipher(mode->cipher_str, 0, 0);
 	if (IS_ERR(tfm)) {
-		fscrypt_warn(inode, "Error allocating '%s' transform: %ld",
-			     mode->cipher_str, PTR_ERR(tfm));
+		if (PTR_ERR(tfm) == -ENOENT)
+			fscrypt_warn(inode,
+				     "Missing crypto API support for %s (API name: \"%s\")",
+				     mode->friendly_name, mode->cipher_str);
+		else
+			fscrypt_err(inode, "Error allocating '%s' transform: %ld",
+				    mode->cipher_str, PTR_ERR(tfm));
 		return tfm;
 	}
 	if (unlikely(!mode->logged_impl_name)) {
@@ -384,9 +389,13 @@ static int derive_essiv_salt(const u8 *key, int keysize, u8 *salt)
 
 		tfm = crypto_alloc_shash("sha256", 0, 0);
 		if (IS_ERR(tfm)) {
-			fscrypt_warn(NULL,
-				     "error allocating SHA-256 transform: %ld",
-				     PTR_ERR(tfm));
+			if (PTR_ERR(tfm) == -ENOENT)
+				fscrypt_warn(NULL,
+					     "Missing crypto API support for SHA-256");
+			else
+				fscrypt_err(NULL,
+					    "Error allocating SHA-256 transform: %ld",
+					    PTR_ERR(tfm));
 			return PTR_ERR(tfm);
 		}
 		prev_tfm = cmpxchg(&essiv_hash_tfm, NULL, tfm);
