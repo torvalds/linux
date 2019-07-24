@@ -62,6 +62,9 @@ const char *ras_block_string[] = {
 #define AMDGPU_RAS_FLAG_INIT_NEED_RESET		2
 #define RAS_DEFAULT_FLAGS (AMDGPU_RAS_FLAG_INIT_BY_VBIOS)
 
+/* inject address is 52 bits */
+#define	RAS_UMC_INJECT_ADDR_LIMIT	(0x1ULL << 52)
+
 static int amdgpu_ras_reserve_vram(struct amdgpu_device *adev,
 		uint64_t offset, uint64_t size,
 		struct amdgpu_bo **bo_ptr);
@@ -247,7 +250,6 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
 	struct ras_debug_if data;
-	struct amdgpu_bo *bo;
 	int ret = 0;
 
 	ret = amdgpu_ras_debugfs_ctrl_parse_data(f, buf, size, pos, &data);
@@ -265,17 +267,14 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 		ret = amdgpu_ras_feature_enable(adev, &data.head, 1);
 		break;
 	case 2:
-		ret = amdgpu_ras_reserve_vram(adev,
-				data.inject.address, PAGE_SIZE, &bo);
-		if (ret) {
-			/* address was offset, now it is absolute.*/
-			data.inject.address += adev->gmc.vram_start;
-			if (data.inject.address > adev->gmc.vram_end)
-				break;
-		} else
-			data.inject.address = amdgpu_bo_gpu_offset(bo);
+		if ((data.inject.address >= adev->gmc.mc_vram_size) ||
+		    (data.inject.address >= RAS_UMC_INJECT_ADDR_LIMIT)) {
+			ret = -EINVAL;
+			break;
+		}
+
+		/* data.inject.address is offset instead of absolute gpu address */
 		ret = amdgpu_ras_error_inject(adev, &data.inject);
-		amdgpu_ras_release_vram(adev, &bo);
 		break;
 	default:
 		ret = -EINVAL;
