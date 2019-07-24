@@ -637,6 +637,7 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		vega10_reg_base_init(adev);
 		break;
 	case CHIP_VEGA20:
@@ -1132,6 +1133,11 @@ static int soc15_common_early_init(void *handle)
 			AMD_CG_SUPPORT_MC_LS;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x32;
+		break;
+	case CHIP_RENOIR:
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x91;
 		break;
 	default:
 		/* FIXME: not supported yet */
