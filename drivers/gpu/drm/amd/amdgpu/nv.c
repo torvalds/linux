@@ -289,6 +289,18 @@ static int nv_asic_mode1_reset(struct amdgpu_device *adev)
 
 	return ret;
 }
+
+static enum amd_reset_method
+nv_asic_reset_method(struct amdgpu_device *adev)
+{
+	struct smu_context *smu = &adev->smu;
+
+	if (smu_baco_is_support(smu))
+		return AMD_RESET_METHOD_BACO;
+	else
+		return AMD_RESET_METHOD_MODE1;
+}
+
 static int nv_asic_reset(struct amdgpu_device *adev)
 {
 
@@ -303,7 +315,7 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 	int ret = 0;
 	struct smu_context *smu = &adev->smu;
 
-	if (smu_baco_is_support(smu))
+	if (nv_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)
 		ret = smu_baco_reset(smu);
 	else
 		ret = nv_asic_mode1_reset(adev);
@@ -500,6 +512,7 @@ static const struct amdgpu_asic_funcs nv_asic_funcs =
 	.read_bios_from_rom = &nv_read_bios_from_rom,
 	.read_register = &nv_read_register,
 	.reset = &nv_asic_reset,
+	.reset_method = &nv_asic_reset_method,
 	.set_vga_state = &nv_vga_set_state,
 	.get_xclk = &nv_get_xclk,
 	.set_uvd_clocks = &nv_set_uvd_clocks,
