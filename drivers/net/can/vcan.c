@@ -1,5 +1,4 @@
-/*
- * vcan.c - Virtual CAN interface
+/* vcan.c - Virtual CAN interface
  *
  * Copyright (c) 2002-2017 Volkswagen Group Electronic Research
  * All rights reserved.
@@ -57,9 +56,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Urs Thuermann <urs.thuermann@volkswagen.de>");
 MODULE_ALIAS_RTNL_LINK(DRV_NAME);
 
-
-/*
- * CAN test feature:
+/* CAN test feature:
  * Enable the echo on driver level for testing the CAN core echo modes.
  * See Documentation/networking/can.rst for details.
  */
@@ -101,10 +98,8 @@ static netdev_tx_t vcan_tx(struct sk_buff *skb, struct net_device *dev)
 
 	if (!echo) {
 		/* no echo handling available inside this driver */
-
 		if (loop) {
-			/*
-			 * only count the packets here, because the
+			/* only count the packets here, because the
 			 * CAN core already did the echo for us
 			 */
 			stats->rx_packets++;
