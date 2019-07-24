@@ -22,11 +22,11 @@
 #include <linux/pm_qos.h>
 #include <asm/unaligned.h>
 
-#define CREATE_TRACE_POINTS
-#include "trace.h"
-
 #include "nvme.h"
 #include "fabrics.h"
+
+#define CREATE_TRACE_POINTS
+#include "trace.h"
 
 #define NVME_MINORS		(1U << MINORBITS)
 
@@ -279,6 +279,8 @@ void nvme_complete_rq(struct request *req)
 			return;
 		}
 	}
+
+	nvme_trace_bio_complete(req, status);
 	blk_mq_end_request(req, status);
 }
 EXPORT_SYMBOL_GPL(nvme_complete_rq);
