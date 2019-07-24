@@ -42,7 +42,7 @@
 			    VGIC_AFFINITY_LEVEL(val, 3))
 
 /*
- * As per Documentation/virtual/kvm/devices/arm-vgic-v3.txt,
+ * As per Documentation/virt/kvm/devices/arm-vgic-v3.txt,
  * below macros are defined for CPUREG encoding.
  */
 #define KVM_REG_ARM_VGIC_SYSREG_OP0_MASK   0x000000000000c000
@@ -63,7 +63,7 @@
 				      KVM_REG_ARM_VGIC_SYSREG_OP2_MASK)
 
 /*
- * As per Documentation/virtual/kvm/devices/arm-vgic-its.txt,
+ * As per Documentation/virt/kvm/devices/arm-vgic-its.txt,
  * below macros are defined for ITS table entry encoding.
  */
 #define KVM_ITS_CTE_VALID_SHIFT		63
