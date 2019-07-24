@@ -1724,6 +1724,8 @@ int get_device_id( void* handle )
         return INVALID_DEVICE_ID;
 }
 
+void* efi_map_11_and_register_allocation(void* virt_kernel_addr, size_t size);
+
 efi_status_t efi_handle_protocol_DevicePath( void* handle, void** interface )
 {
         int device_id = get_device_id( handle );
@@ -1736,7 +1738,9 @@ efi_status_t efi_handle_protocol_DevicePath( void* handle, void** interface )
                 return EFI_UNSUPPORTED;
         }
 
-        *interface = (void*)devices[device_id].device_path;
+        *interface = efi_map_11_and_register_allocation(
+                                        devices[device_id].device_path,
+                                        devices[device_id].size );
         DumpBuffer( "Device Path",
                     (uint8_t*) *interface, devices[device_id].size );
 
@@ -1759,7 +1763,9 @@ efi_status_t efi_handle_protocol_BlockIO( void* handle, void** interface )
                 return EFI_UNSUPPORTED;
         }
 
-        *interface = (void*)devices[device_id].block_io;
+        *interface = efi_map_11_and_register_allocation(
+                                        devices[device_id].block_io,
+                                        sizeof( *devices[device_id].block_io ) );
         block_io = (EFI_BLOCK_IO_PROTOCOL*)(*interface);
 
         if (device_id == 0)
@@ -1831,8 +1837,6 @@ EFI_SIMPLE_TEXT_EX_INPUT_PROTOCOL con_in = {
         .RegisterKeyNotify   = efi_conin_hook_RegisterKeyNotify,
         .UnregisterKeyNotify = efi_conin_hook_UnregisterKeyNotify
 };
-
-void* efi_map_11_and_register_allocation(void* virt_kernel_addr, size_t size);
 
 efi_status_t efi_handle_protocol_SimpleTextInputExProtocol( void*  handle,
                                                             void** interface )
@@ -3189,12 +3193,15 @@ void* efi_map_11_and_register_allocation(void* virt_kernel_addr, size_t size)
 
         unsigned long physical_address = virt_to_phys(virt_kernel_addr);
 
-        /* Create the mapping */
+        /* Create the mapping. efi_setup_11_mapping will handle the case that
+         * the mapping already exists. */
         efi_setup_11_mapping(virt_kernel_addr, size);
 
         /* We need to make sure that Windows loader maps this addresses in its
          * own memory pages structures. We make sure of that by having these
          * areas apear returned by GetMemoryMap as EfiBootServicesData, */
+        /* TODO: Handle the case that the mapping is already registered. Right
+         * now the mapping will be added, even if it already exists. */
         efi_register_phys_mem_allocation(
                 EfiBootServicesData,
                 NUM_PAGES(sizeof( size )),
