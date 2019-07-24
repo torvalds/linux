@@ -4078,8 +4078,7 @@ static void skge_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int skge_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct skge_hw *hw  = pci_get_drvdata(pdev);
+	struct skge_hw *hw  = dev_get_drvdata(dev);
 	int i;
 
 	if (!hw)
@@ -4103,8 +4102,7 @@ static int skge_suspend(struct device *dev)
 
 static int skge_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct skge_hw *hw  = pci_get_drvdata(pdev);
+	struct skge_hw *hw  = dev_get_drvdata(dev);
 	int i, err;
 
 	if (!hw)
