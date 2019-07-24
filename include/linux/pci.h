@@ -1239,11 +1239,6 @@ bool pcie_relaxed_ordering_enabled(struct pci_dev *dev);
 void pci_wakeup_bus(struct pci_bus *bus);
 void pci_bus_set_current_state(struct pci_bus *bus, pci_power_t state);
 
-/* PCI Virtual Channel */
-int pci_save_vc_state(struct pci_dev *dev);
-void pci_restore_vc_state(struct pci_dev *dev);
-void pci_allocate_vc_save_buffers(struct pci_dev *dev);
-
 /* For use by arch with custom probe code */
 void set_pcie_port_type(struct pci_dev *pdev);
 void set_pcie_hotplug_bridge(struct pci_dev *pdev);
