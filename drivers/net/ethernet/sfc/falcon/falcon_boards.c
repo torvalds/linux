@@ -357,7 +357,7 @@ fail_on:
 static ssize_t show_phy_flash_cfg(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	struct ef4_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct ef4_nic *efx = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", !!(efx->phy_mode & PHY_MODE_SPECIAL));
 }
 
@@ -365,7 +365,7 @@ static ssize_t set_phy_flash_cfg(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	struct ef4_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct ef4_nic *efx = dev_get_drvdata(dev);
 	enum ef4_phy_mode old_mode, new_mode;
 	int err;
 
