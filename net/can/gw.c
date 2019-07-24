@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-/*
- * gw.c - CAN frame Gateway/Router/Bridge with netlink interface
+/* gw.c - CAN frame Gateway/Router/Bridge with netlink interface
  *
  * Copyright (c) 2017 Volkswagen Group Electronic Research
  * All rights reserved.
@@ -113,8 +112,7 @@ struct cf_mod {
 };
 
 
-/*
- * So far we just support CAN -> CAN routing and frame modifications.
+/* So far we just support CAN -> CAN routing and frame modifications.
  *
  * The internal can_can_gw structure contains data and attributes for
  * a CAN -> CAN gateway job.
@@ -170,8 +168,7 @@ MODFUNC(mod_set_data, *(u64 *)cf->data = *(u64 *)mod->modframe.set.data)
 
 static inline void canframecpy(struct can_frame *dst, struct can_frame *src)
 {
-	/*
-	 * Copy the struct members separately to ensure that no uninitialized
+	/* Copy the struct members separately to ensure that no uninitialized
 	 * data are copied in the 3 bytes hole of the struct. This is needed
 	 * to make easy compares of the data in the struct cf_mod.
 	 */
@@ -183,8 +180,7 @@ static inline void canframecpy(struct can_frame *dst, struct can_frame *src)
 
 static int cgw_chk_csum_parms(s8 fr, s8 to, s8 re)
 {
-	/*
-	 * absolute dlc values 0 .. 7 => 0 .. 7, e.g. data [0]
+	/* absolute dlc values 0 .. 7 => 0 .. 7, e.g. data [0]
 	 * relative to received dlc -1 .. -8 :
 	 * e.g. for received dlc = 8
 	 * -1 => index = 7 (data[7])
@@ -353,8 +349,7 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 	struct sk_buff *nskb;
 	int modidx = 0;
 
-	/*
-	 * Do not handle CAN frames routed more than 'max_hops' times.
+	/* Do not handle CAN frames routed more than 'max_hops' times.
 	 * In general we should never catch this delimiter which is intended
 	 * to cover a misconfiguration protection (e.g. circular CAN routes).
 	 *
@@ -385,8 +380,7 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 	    can_skb_prv(skb)->ifindex == gwj->dst.dev->ifindex)
 		return;
 
-	/*
-	 * clone the given skb, which has not been done in can_rcv()
+	/* clone the given skb, which has not been done in can_rcv()
 	 *
 	 * When there is at least one modification function activated,
 	 * we need to copy the skb as we want to modify skb->data.
@@ -755,8 +749,7 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			nla_memcpy(&mod->csum.crc8, tb[CGW_CS_CRC8],
 				   CGW_CS_CRC8_LEN);
 
-			/*
-			 * select dedicated processing function to reduce
+			/* select dedicated processing function to reduce
 			 * runtime operations in receive hot path.
 			 */
 			if (c->from_idx < 0 || c->to_idx < 0 ||
@@ -779,8 +772,7 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 			nla_memcpy(&mod->csum.xor, tb[CGW_CS_XOR],
 				   CGW_CS_XOR_LEN);
 
-			/*
-			 * select dedicated processing function to reduce
+			/* select dedicated processing function to reduce
 			 * runtime operations in receive hot path.
 			 */
 			if (c->from_idx < 0 || c->to_idx < 0 ||
