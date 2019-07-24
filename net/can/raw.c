@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-/*
- * raw.c - Raw sockets for protocol family CAN
+/* raw.c - Raw sockets for protocol family CAN
  *
  * Copyright (c) 2002-2007 Volkswagen Group Electronic Research
  * All rights reserved.
@@ -65,8 +64,7 @@ MODULE_ALIAS("can-proto-1");
 
 #define MASK_ALL 0
 
-/*
- * A raw socket has a list of can_filters attached to it, each receiving
+/* A raw socket has a list of can_filters attached to it, each receiving
  * the CAN frames matching that filter.  If the filter list is empty,
  * no CAN frames will be received by the socket.  The default after
  * opening the socket, is to have one filter which receives all frames.
@@ -97,8 +95,7 @@ struct raw_sock {
 	struct uniqframe __percpu *uniq;
 };
 
-/*
- * Return pointer to store the extra msg flags for raw_recvmsg().
+/* Return pointer to store the extra msg flags for raw_recvmsg().
  * We use the space of one unsigned int beyond the 'struct sockaddr_can'
  * in skb->cb.
  */
@@ -157,8 +154,7 @@ static void raw_rcv(struct sk_buff *oskb, void *data)
 	if (!skb)
 		return;
 
-	/*
-	 *  Put the datagram to the queue so that raw_recvmsg() can
+	/*  Put the datagram to the queue so that raw_recvmsg() can
 	 *  get it from there.  We need to pass the interface index to
 	 *  raw_recvmsg().  We pass a whole struct sockaddr_can in skb->cb
 	 *  containing the interface index.
