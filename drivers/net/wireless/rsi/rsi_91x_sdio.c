@@ -944,7 +944,7 @@ static int rsi_sdio_ta_reset(struct rsi_hw *adapter)
 	put_unaligned_le32(TA_HOLD_THREAD_VALUE, data);
 	addr = TA_HOLD_THREAD_REG | RSI_SD_REQUEST_MASTER;
 	status = rsi_sdio_write_register_multiple(adapter, addr,
-						  (u8 *)&data,
+						  (u8 *)data,
 						  RSI_9116_REG_SIZE);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to hold TA threads\n");
@@ -954,7 +954,7 @@ static int rsi_sdio_ta_reset(struct rsi_hw *adapter)
 	put_unaligned_le32(TA_SOFT_RST_CLR, data);
 	addr = TA_SOFT_RESET_REG | RSI_SD_REQUEST_MASTER;
 	status = rsi_sdio_write_register_multiple(adapter, addr,
-						  (u8 *)&data,
+						  (u8 *)data,
 						  RSI_9116_REG_SIZE);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to get TA out of reset\n");
@@ -964,7 +964,7 @@ static int rsi_sdio_ta_reset(struct rsi_hw *adapter)
 	put_unaligned_le32(TA_PC_ZERO, data);
 	addr = TA_TH0_PC_REG | RSI_SD_REQUEST_MASTER;
 	status = rsi_sdio_write_register_multiple(adapter, addr,
-						  (u8 *)&data,
+						  (u8 *)data,
 						  RSI_9116_REG_SIZE);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to Reset TA PC value\n");
@@ -975,7 +975,7 @@ static int rsi_sdio_ta_reset(struct rsi_hw *adapter)
 	put_unaligned_le32(TA_RELEASE_THREAD_VALUE, data);
 	addr = TA_RELEASE_THREAD_REG | RSI_SD_REQUEST_MASTER;
 	status = rsi_sdio_write_register_multiple(adapter, addr,
-						  (u8 *)&data,
+						  (u8 *)data,
 						  RSI_9116_REG_SIZE);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to release TA threads\n");
