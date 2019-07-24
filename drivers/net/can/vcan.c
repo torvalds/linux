@@ -65,7 +65,6 @@ static bool echo; /* echo testing. Default: 0 (Off) */
 module_param(echo, bool, 0444);
 MODULE_PARM_DESC(echo, "Echo sent frames (for testing). Default: 0 (Off)");
 
-
 static void vcan_rx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
@@ -112,7 +111,6 @@ static netdev_tx_t vcan_tx(struct sk_buff *skb, struct net_device *dev)
 	/* perform standard echo handling for CAN network interfaces */
 
 	if (loop) {
-
 		skb = can_create_echo_skb(skb);
 		if (!skb)
 			return NETDEV_TX_OK;
