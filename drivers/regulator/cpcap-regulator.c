@@ -90,7 +90,7 @@
 #define CPCAP_REG_OFF_MODE_SEC		BIT(15)
 
 /**
- * SoC specific configuraion for CPCAP regulator. There are at least three
+ * SoC specific configuration for CPCAP regulator. There are at least three
  * different SoCs each with their own parameters: omap3, omap4 and tegra2.
  *
  * The assign_reg and assign_mask seem to allow toggling between primary

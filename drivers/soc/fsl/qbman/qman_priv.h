@@ -193,7 +193,14 @@ extern struct gen_pool *qm_cgralloc; /* CGR ID allocator */
 u32 qm_get_pools_sdqcr(void);
 
 int qman_wq_alloc(void);
-void qman_liodn_fixup(u16 channel);
+#ifdef CONFIG_FSL_PAMU
+#define qman_liodn_fixup __qman_liodn_fixup
+#else
+static inline void qman_liodn_fixup(u16 channel)
+{
+}
+#endif
+void __qman_liodn_fixup(u16 channel);
 void qman_set_sdest(u16 channel, unsigned int cpu_idx);
 
 struct qman_portal *qman_create_affine_portal(

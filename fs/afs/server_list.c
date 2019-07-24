@@ -16,7 +16,8 @@ void afs_put_serverlist(struct afs_net *net, struct afs_server_list *slist)
 	if (slist && refcount_dec_and_test(&slist->usage)) {
 		for (i = 0; i < slist->nr_servers; i++) {
 			afs_put_cb_interest(net, slist->servers[i].cb_interest);
-			afs_put_server(net, slist->servers[i].server);
+			afs_put_server(net, slist->servers[i].server,
+				       afs_server_trace_put_slist);
 		}
 		kfree(slist);
 	}
@@ -67,7 +68,8 @@ struct afs_server_list *afs_alloc_server_list(struct afs_cell *cell,
 				break;
 		if (j < slist->nr_servers) {
 			if (slist->servers[j].server == server) {
-				afs_put_server(cell->net, server);
+				afs_put_server(cell->net, server,
+					       afs_server_trace_put_slist_isort);
 				continue;
 			}
 

@@ -60,22 +60,39 @@ static struct workqueue_struct *comp_vector_wq;
  * @solicited: true if @entry is solicited
  *
  * This may be called with qp->s_lock held.
+ *
+ * Return: return true on success, else return
+ * false if cq is full.
  */
-void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
+bool rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 {
-	struct rvt_cq_wc *wc;
+	struct ib_uverbs_wc *uqueue = NULL;
+	struct ib_wc *kqueue = NULL;
+	struct rvt_cq_wc *u_wc = NULL;
+	struct rvt_k_cq_wc *k_wc = NULL;
 	unsigned long flags;
 	u32 head;
 	u32 next;
+	u32 tail;
 
 	spin_lock_irqsave(&cq->lock, flags);
 
+	if (cq->ip) {
+		u_wc = cq->queue;
+		uqueue = &u_wc->uqueue[0];
+		head = RDMA_READ_UAPI_ATOMIC(u_wc->head);
+		tail = RDMA_READ_UAPI_ATOMIC(u_wc->tail);
+	} else {
+		k_wc = cq->kqueue;
+		kqueue = &k_wc->kqueue[0];
+		head = k_wc->head;
+		tail = k_wc->tail;
+	}
+
 	/*
-	 * Note that the head pointer might be writable by user processes.
-	 * Take care to verify it is a sane value.
+	 * Note that the head pointer might be writable by
+	 * user processes.Take care to verify it is a sane value.
 	 */
-	wc = cq->queue;
-	head = wc->head;
 	if (head >= (unsigned)cq->ibcq.cqe) {
 		head = cq->ibcq.cqe;
 		next = 0;
@@ -83,7 +100,12 @@ void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 		next = head + 1;
 	}
 
-	if (unlikely(next == wc->tail)) {
+	if (unlikely(next == tail || cq->cq_full)) {
+		struct rvt_dev_info *rdi = cq->rdi;
+
+		if (!cq->cq_full)
+			rvt_pr_err_ratelimited(rdi, "CQ is full!\n");
+		cq->cq_full = true;
 		spin_unlock_irqrestore(&cq->lock, flags);
 		if (cq->ibcq.event_handler) {
 			struct ib_event ev;
@@ -93,30 +115,30 @@ void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 			ev.event = IB_EVENT_CQ_ERR;
 			cq->ibcq.event_handler(&ev, cq->ibcq.cq_context);
 		}
-		return;
+		return false;
 	}
 	trace_rvt_cq_enter(cq, entry, head);
-	if (cq->ip) {
-		wc->uqueue[head].wr_id = entry->wr_id;
-		wc->uqueue[head].status = entry->status;
-		wc->uqueue[head].opcode = entry->opcode;
-		wc->uqueue[head].vendor_err = entry->vendor_err;
-		wc->uqueue[head].byte_len = entry->byte_len;
-		wc->uqueue[head].ex.imm_data = entry->ex.imm_data;
-		wc->uqueue[head].qp_num = entry->qp->qp_num;
-		wc->uqueue[head].src_qp = entry->src_qp;
-		wc->uqueue[head].wc_flags = entry->wc_flags;
-		wc->uqueue[head].pkey_index = entry->pkey_index;
-		wc->uqueue[head].slid = ib_lid_cpu16(entry->slid);
-		wc->uqueue[head].sl = entry->sl;
-		wc->uqueue[head].dlid_path_bits = entry->dlid_path_bits;
-		wc->uqueue[head].port_num = entry->port_num;
+	if (uqueue) {
+		uqueue[head].wr_id = entry->wr_id;
+		uqueue[head].status = entry->status;
+		uqueue[head].opcode = entry->opcode;
+		uqueue[head].vendor_err = entry->vendor_err;
+		uqueue[head].byte_len = entry->byte_len;
+		uqueue[head].ex.imm_data = entry->ex.imm_data;
+		uqueue[head].qp_num = entry->qp->qp_num;
+		uqueue[head].src_qp = entry->src_qp;
+		uqueue[head].wc_flags = entry->wc_flags;
+		uqueue[head].pkey_index = entry->pkey_index;
+		uqueue[head].slid = ib_lid_cpu16(entry->slid);
+		uqueue[head].sl = entry->sl;
+		uqueue[head].dlid_path_bits = entry->dlid_path_bits;
+		uqueue[head].port_num = entry->port_num;
 		/* Make sure entry is written before the head index. */
-		smp_wmb();
+		RDMA_WRITE_UAPI_ATOMIC(u_wc->head, next);
 	} else {
-		wc->kqueue[head] = *entry;
+		kqueue[head] = *entry;
+		k_wc->head = next;
 	}
-	wc->head = next;
 
 	if (cq->notify == IB_CQ_NEXT_COMP ||
 	    (cq->notify == IB_CQ_SOLICITED &&
@@ -132,6 +154,7 @@ void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 	}
 
 	spin_unlock_irqrestore(&cq->lock, flags);
+	return true;
 }
 EXPORT_SYMBOL(rvt_cq_enter);
 
@@ -166,42 +189,37 @@ static void send_complete(struct work_struct *work)
 
 /**
  * rvt_create_cq - create a completion queue
- * @ibdev: the device this completion queue is attached to
+ * @ibcq: Allocated CQ
  * @attr: creation attributes
  * @udata: user data for libibverbs.so
  *
  * Called by ib_create_cq() in the generic verbs code.
  *
- * Return: pointer to the completion queue or negative errno values
- * for failure.
+ * Return: 0 on success
  */
-struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_udata *udata)
+int rvt_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		  struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
-	struct rvt_cq *cq;
-	struct rvt_cq_wc *wc;
-	struct ib_cq *ret;
+	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
+	struct rvt_cq_wc *u_wc = NULL;
+	struct rvt_k_cq_wc *k_wc = NULL;
 	u32 sz;
 	unsigned int entries = attr->cqe;
 	int comp_vector = attr->comp_vector;
+	int err;
 
 	if (attr->flags)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (entries < 1 || entries > rdi->dparms.props.max_cqe)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (comp_vector < 0)
 		comp_vector = 0;
 
 	comp_vector = comp_vector % rdi->ibdev.num_comp_vectors;
-
-	/* Allocate the completion queue structure. */
-	cq = kzalloc_node(sizeof(*cq), GFP_KERNEL, rdi->dparms.node);
-	if (!cq)
-		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * Allocate the completion queue entries and head/tail pointers.
@@ -210,17 +228,18 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 	 * We need to use vmalloc() in order to support mmap and large
 	 * numbers of entries.
 	 */
-	sz = sizeof(*wc);
-	if (udata && udata->outlen >= sizeof(__u64))
-		sz += sizeof(struct ib_uverbs_wc) * (entries + 1);
-	else
-		sz += sizeof(struct ib_wc) * (entries + 1);
-	wc = udata ?
-		vmalloc_user(sz) :
-		vzalloc_node(sz, rdi->dparms.node);
-	if (!wc) {
-		ret = ERR_PTR(-ENOMEM);
-		goto bail_cq;
+	if (udata && udata->outlen >= sizeof(__u64)) {
+		sz = sizeof(struct ib_uverbs_wc) * (entries + 1);
+		sz += sizeof(*u_wc);
+		u_wc = vmalloc_user(sz);
+		if (!u_wc)
+			return -ENOMEM;
+	} else {
+		sz = sizeof(struct ib_wc) * (entries + 1);
+		sz += sizeof(*k_wc);
+		k_wc = vzalloc_node(sz, rdi->dparms.node);
+		if (!k_wc)
+			return -ENOMEM;
 	}
 
 	/*
@@ -228,26 +247,22 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 	 * See rvt_mmap() for details.
 	 */
 	if (udata && udata->outlen >= sizeof(__u64)) {
-		int err;
-
-		cq->ip = rvt_create_mmap_info(rdi, sz, udata, wc);
+		cq->ip = rvt_create_mmap_info(rdi, sz, udata, u_wc);
 		if (!cq->ip) {
-			ret = ERR_PTR(-ENOMEM);
+			err = -ENOMEM;
 			goto bail_wc;
 		}
 
 		err = ib_copy_to_udata(udata, &cq->ip->offset,
 				       sizeof(cq->ip->offset));
-		if (err) {
-			ret = ERR_PTR(err);
+		if (err)
 			goto bail_ip;
-		}
 	}
 
 	spin_lock_irq(&rdi->n_cqs_lock);
 	if (rdi->n_cqs_allocated == rdi->dparms.props.max_cq) {
 		spin_unlock_irq(&rdi->n_cqs_lock);
-		ret = ERR_PTR(-ENOMEM);
+		err = -ENOMEM;
 		goto bail_ip;
 	}
 
@@ -277,21 +292,20 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 	cq->notify = RVT_CQ_NONE;
 	spin_lock_init(&cq->lock);
 	INIT_WORK(&cq->comptask, send_complete);
-	cq->queue = wc;
-
-	ret = &cq->ibcq;
+	if (u_wc)
+		cq->queue = u_wc;
+	else
+		cq->kqueue = k_wc;
 
 	trace_rvt_create_cq(cq, attr);
-	goto done;
+	return 0;
 
 bail_ip:
 	kfree(cq->ip);
 bail_wc:
-	vfree(wc);
-bail_cq:
-	kfree(cq);
-done:
-	return ret;
+	vfree(u_wc);
+	vfree(k_wc);
+	return err;
 }
 
 /**
@@ -300,10 +314,8 @@ done:
  * @udata: user data or NULL for kernel object
  *
  * Called by ib_destroy_cq() in the generic verbs code.
- *
- * Return: always 0
  */
-int rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+void rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
 	struct rvt_dev_info *rdi = cq->rdi;
@@ -316,9 +328,6 @@ int rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		kref_put(&cq->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(cq->queue);
-	kfree(cq);
-
-	return 0;
 }
 
 /**
@@ -345,9 +354,16 @@ int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
 	if (cq->notify != IB_CQ_NEXT_COMP)
 		cq->notify = notify_flags & IB_CQ_SOLICITED_MASK;
 
-	if ((notify_flags & IB_CQ_REPORT_MISSED_EVENTS) &&
-	    cq->queue->head != cq->queue->tail)
-		ret = 1;
+	if (notify_flags & IB_CQ_REPORT_MISSED_EVENTS) {
+		if (cq->queue) {
+			if (RDMA_READ_UAPI_ATOMIC(cq->queue->head) !=
+				RDMA_READ_UAPI_ATOMIC(cq->queue->tail))
+				ret = 1;
+		} else {
+			if (cq->kqueue->head != cq->kqueue->tail)
+				ret = 1;
+		}
+	}
 
 	spin_unlock_irqrestore(&cq->lock, flags);
 
@@ -363,12 +379,14 @@ int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags)
 int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 {
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
-	struct rvt_cq_wc *old_wc;
-	struct rvt_cq_wc *wc;
 	u32 head, tail, n;
 	int ret;
 	u32 sz;
 	struct rvt_dev_info *rdi = cq->rdi;
+	struct rvt_cq_wc *u_wc = NULL;
+	struct rvt_cq_wc *old_u_wc = NULL;
+	struct rvt_k_cq_wc *k_wc = NULL;
+	struct rvt_k_cq_wc *old_k_wc = NULL;
 
 	if (cqe < 1 || cqe > rdi->dparms.props.max_cqe)
 		return -EINVAL;
@@ -376,17 +394,19 @@ int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	/*
 	 * Need to use vmalloc() if we want to support large #s of entries.
 	 */
-	sz = sizeof(*wc);
-	if (udata && udata->outlen >= sizeof(__u64))
-		sz += sizeof(struct ib_uverbs_wc) * (cqe + 1);
-	else
-		sz += sizeof(struct ib_wc) * (cqe + 1);
-	wc = udata ?
-		vmalloc_user(sz) :
-		vzalloc_node(sz, rdi->dparms.node);
-	if (!wc)
-		return -ENOMEM;
-
+	if (udata && udata->outlen >= sizeof(__u64)) {
+		sz = sizeof(struct ib_uverbs_wc) * (cqe + 1);
+		sz += sizeof(*u_wc);
+		u_wc = vmalloc_user(sz);
+		if (!u_wc)
+			return -ENOMEM;
+	} else {
+		sz = sizeof(struct ib_wc) * (cqe + 1);
+		sz += sizeof(*k_wc);
+		k_wc = vzalloc_node(sz, rdi->dparms.node);
+		if (!k_wc)
+			return -ENOMEM;
+	}
 	/* Check that we can write the offset to mmap. */
 	if (udata && udata->outlen >= sizeof(__u64)) {
 		__u64 offset = 0;
@@ -401,11 +421,18 @@ int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	 * Make sure head and tail are sane since they
 	 * might be user writable.
 	 */
-	old_wc = cq->queue;
-	head = old_wc->head;
+	if (u_wc) {
+		old_u_wc = cq->queue;
+		head = RDMA_READ_UAPI_ATOMIC(old_u_wc->head);
+		tail = RDMA_READ_UAPI_ATOMIC(old_u_wc->tail);
+	} else {
+		old_k_wc = cq->kqueue;
+		head = old_k_wc->head;
+		tail = old_k_wc->tail;
+	}
+
 	if (head > (u32)cq->ibcq.cqe)
 		head = (u32)cq->ibcq.cqe;
-	tail = old_wc->tail;
 	if (tail > (u32)cq->ibcq.cqe)
 		tail = (u32)cq->ibcq.cqe;
 	if (head < tail)
@@ -417,27 +444,36 @@ int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 		goto bail_unlock;
 	}
 	for (n = 0; tail != head; n++) {
-		if (cq->ip)
-			wc->uqueue[n] = old_wc->uqueue[tail];
+		if (u_wc)
+			u_wc->uqueue[n] = old_u_wc->uqueue[tail];
 		else
-			wc->kqueue[n] = old_wc->kqueue[tail];
+			k_wc->kqueue[n] = old_k_wc->kqueue[tail];
 		if (tail == (u32)cq->ibcq.cqe)
 			tail = 0;
 		else
 			tail++;
 	}
 	cq->ibcq.cqe = cqe;
-	wc->head = n;
-	wc->tail = 0;
-	cq->queue = wc;
+	if (u_wc) {
+		RDMA_WRITE_UAPI_ATOMIC(u_wc->head, n);
+		RDMA_WRITE_UAPI_ATOMIC(u_wc->tail, 0);
+		cq->queue = u_wc;
+	} else {
+		k_wc->head = n;
+		k_wc->tail = 0;
+		cq->kqueue = k_wc;
+	}
 	spin_unlock_irq(&cq->lock);
 
-	vfree(old_wc);
+	if (u_wc)
+		vfree(old_u_wc);
+	else
+		vfree(old_k_wc);
 
 	if (cq->ip) {
 		struct rvt_mmap_info *ip = cq->ip;
 
-		rvt_update_mmap_info(rdi, ip, sz, wc);
+		rvt_update_mmap_info(rdi, ip, sz, u_wc);
 
 		/*
 		 * Return the offset to mmap.
@@ -461,7 +497,9 @@ int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 bail_unlock:
 	spin_unlock_irq(&cq->lock);
 bail_free:
-	vfree(wc);
+	vfree(u_wc);
+	vfree(k_wc);
+
 	return ret;
 }
 
@@ -479,7 +517,7 @@ bail_free:
 int rvt_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 {
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
-	struct rvt_cq_wc *wc;
+	struct rvt_k_cq_wc *wc;
 	unsigned long flags;
 	int npolled;
 	u32 tail;
@@ -490,7 +528,7 @@ int rvt_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 
 	spin_lock_irqsave(&cq->lock, flags);
 
-	wc = cq->queue;
+	wc = cq->kqueue;
 	tail = wc->tail;
 	if (tail > (u32)cq->ibcq.cqe)
 		tail = (u32)cq->ibcq.cqe;

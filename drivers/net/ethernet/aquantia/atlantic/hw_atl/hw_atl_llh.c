@@ -1004,6 +1004,22 @@ void hw_atl_rpo_rx_desc_vlan_stripping_set(struct aq_hw_s *aq_hw,
 			    rx_desc_vlan_stripping);
 }
 
+void hw_atl_rpo_outer_vlan_tag_mode_set(void *context,
+					u32 outervlantagmode)
+{
+	aq_hw_write_reg_bit(context, HW_ATL_RPO_OUTER_VL_INS_MODE_ADR,
+			    HW_ATL_RPO_OUTER_VL_INS_MODE_MSK,
+			    HW_ATL_RPO_OUTER_VL_INS_MODE_SHIFT,
+			    outervlantagmode);
+}
+
+u32 hw_atl_rpo_outer_vlan_tag_mode_get(void *context)
+{
+	return aq_hw_read_reg_bit(context, HW_ATL_RPO_OUTER_VL_INS_MODE_ADR,
+				  HW_ATL_RPO_OUTER_VL_INS_MODE_MSK,
+				  HW_ATL_RPO_OUTER_VL_INS_MODE_SHIFT);
+}
+
 void hw_atl_rpo_tcp_udp_crc_offload_en_set(struct aq_hw_s *aq_hw,
 					   u32 tcp_udp_crc_offload_en)
 {

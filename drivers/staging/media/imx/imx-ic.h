@@ -10,11 +10,10 @@
 #include <media/v4l2-subdev.h>
 
 struct imx_ic_priv {
-	struct device *dev;
+	struct device *ipu_dev;
+	struct ipu_soc *ipu;
 	struct v4l2_subdev sd;
-	int    ipu_id;
 	int    task_id;
-	void   *prp_priv;
 	void   *task_priv;
 };
 
@@ -29,6 +28,5 @@ struct imx_ic_ops {
 
 extern struct imx_ic_ops imx_ic_prp_ops;
 extern struct imx_ic_ops imx_ic_prpencvf_ops;
-extern struct imx_ic_ops imx_ic_pp_ops;
 
 #endif

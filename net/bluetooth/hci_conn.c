@@ -520,6 +520,9 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	set_bit(HCI_CONN_POWER_SAVE, &conn->flags);
 	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
 
+	/* Set Default Authenticated payload timeout to 30s */
+	conn->auth_payload_timeout = DEFAULT_AUTH_PAYLOAD_TIMEOUT;
+
 	if (conn->role == HCI_ROLE_MASTER)
 		conn->out = true;
 
@@ -912,7 +915,7 @@ static void hci_req_directed_advertising(struct hci_request *req,
 				    sizeof(cp), &cp);
 		}
 
-		__hci_req_enable_ext_advertising(req);
+		__hci_req_enable_ext_advertising(req, 0x00);
 	} else {
 		struct hci_cp_le_set_adv_param cp;
 

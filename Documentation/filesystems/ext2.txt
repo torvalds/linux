@@ -57,7 +57,13 @@ noacl				Don't support POSIX ACLs.
 
 nobh				Do not attach buffer_heads to file pagecache.
 
-grpquota,noquota,quota,usrquota	Quota options are silently ignored by ext2.
+quota, usrquota			Enable user disk quota support
+				(requires CONFIG_QUOTA).
+
+grpquota			Enable group disk quota support
+				(requires CONFIG_QUOTA).
+
+noquota option ls silently ignored by ext2.
 
 
 Specification

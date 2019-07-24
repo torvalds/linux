@@ -8,30 +8,6 @@
 
 #include <drv_types.h>
 
-/**
-* Function:	PHY_CalculateBitShift
-*
-* OverView:	Get shifted position of the BitMask
-*
-* Input:
-*		u32 	BitMask,
-*
-* Output:	none
-* Return:		u32 	Return the shift bit bit position of the mask
-*/
-u32 PHY_CalculateBitShift(u32 BitMask)
-{
-	u32 i;
-
-	for (i = 0; i <= 31; i++) {
-		if (((BitMask>>i) &  0x1) == 1)
-			break;
-	}
-
-	return i;
-}
-
-
 /*  */
 /*  ==> RF shadow Operation API Code Section!!! */
 /*  */
@@ -179,38 +155,3 @@ void PHY_RFShadowCompareFlagSetAll(IN PADAPTER Adapter)
 	}
 
 }	/* PHY_RFShadowCompareFlagSetAll */
-
-
-void PHY_RFShadowRecorverFlagSetAll(IN PADAPTER Adapter)
-{
-	u8 eRFPath = 0;
-	u32 Offset = 0, maxReg = GET_RF6052_REAL_MAX_REG(Adapter);
-
-	for (eRFPath = 0; eRFPath < RF6052_MAX_PATH; eRFPath++) {
-		for (Offset = 0; Offset < maxReg; Offset++) {
-			/*  2008/11/20 MH For S3S4 test, we only check reg 26/27 now!!!! */
-			if (Offset != 0x26 && Offset != 0x27)
-				PHY_RFShadowRecorverFlagSet(Adapter, eRFPath, Offset, false);
-			else
-				PHY_RFShadowRecorverFlagSet(Adapter, eRFPath, Offset, true);
-		}
-	}
-
-}	/* PHY_RFShadowCompareFlagSetAll */
-
-void PHY_RFShadowRefresh(IN PADAPTER Adapter)
-{
-	u8 eRFPath = 0;
-	u32 Offset = 0, maxReg = GET_RF6052_REAL_MAX_REG(Adapter);
-
-	for (eRFPath = 0; eRFPath < RF6052_MAX_PATH; eRFPath++) {
-		for (Offset = 0; Offset < maxReg; Offset++) {
-			RF_Shadow[eRFPath][Offset].Value = 0;
-			RF_Shadow[eRFPath][Offset].Compare = false;
-			RF_Shadow[eRFPath][Offset].Recorver  = false;
-			RF_Shadow[eRFPath][Offset].ErrorOrNot = false;
-			RF_Shadow[eRFPath][Offset].Driver_Write = false;
-		}
-	}
-
-}	/* PHY_RFShadowRead */

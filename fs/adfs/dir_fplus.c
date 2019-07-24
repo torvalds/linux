@@ -4,7 +4,6 @@
  *
  *  Copyright (C) 1997-1999 Russell King
  */
-#include <linux/buffer_head.h>
 #include <linux/slab.h>
 #include "adfs.h"
 #include "dir_fplus.h"
@@ -37,17 +36,15 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 	h = (struct adfs_bigdirheader *)dir->bh_fplus[0]->b_data;
 	size = le32_to_cpu(h->bigdirsize);
 	if (size != sz) {
-		printk(KERN_WARNING "adfs: adfs_fplus_read:"
-					" directory header size %X\n"
-					" does not match directory size %X\n",
-					size, sz);
+		adfs_msg(sb, KERN_WARNING,
+			 "directory header size %X does not match directory size %X",
+			 size, sz);
 	}
 
 	if (h->bigdirversion[0] != 0 || h->bigdirversion[1] != 0 ||
 	    h->bigdirversion[2] != 0 || size & 2047 ||
 	    h->bigdirstartname != cpu_to_le32(BIGDIRSTARTNAME)) {
-		printk(KERN_WARNING "adfs: dir object %X has"
-					" malformed dir header\n", id);
+		adfs_error(sb, "dir %06x has malformed header", id);
 		goto out;
 	}
 
@@ -58,9 +55,10 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 			kcalloc(size, sizeof(struct buffer_head *),
 				GFP_KERNEL);
 		if (!bh_fplus) {
+			adfs_msg(sb, KERN_ERR,
+				 "not enough memory for dir object %X (%d blocks)",
+				 id, size);
 			ret = -ENOMEM;
-			adfs_error(sb, "not enough memory for"
-					" dir object %X (%d blocks)", id, size);
 			goto out;
 		}
 		dir->bh_fplus = bh_fplus;
@@ -91,8 +89,7 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 	if (t->bigdirendname != cpu_to_le32(BIGDIRENDNAME) ||
 	    t->bigdirendmasseq != h->startmasseq ||
 	    t->reserved[0] != 0 || t->reserved[1] != 0) {
-		printk(KERN_WARNING "adfs: dir object %X has "
-					"malformed dir end\n", id);
+		adfs_error(sb, "dir %06x has malformed tail", id);
 		goto out;
 	}
 
@@ -180,7 +177,7 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 	obj->loadaddr = le32_to_cpu(bde.bigdirload);
 	obj->execaddr = le32_to_cpu(bde.bigdirexec);
 	obj->size     = le32_to_cpu(bde.bigdirlen);
-	obj->file_id  = le32_to_cpu(bde.bigdirindaddr);
+	obj->indaddr  = le32_to_cpu(bde.bigdirindaddr);
 	obj->attr     = le32_to_cpu(bde.bigdirattr);
 	obj->name_len = le32_to_cpu(bde.bigdirobnamelen);
 

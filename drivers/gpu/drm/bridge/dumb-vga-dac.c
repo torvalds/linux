@@ -11,9 +11,9 @@
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 struct dumb_vga {

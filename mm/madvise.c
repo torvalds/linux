@@ -354,7 +354,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 			continue;
 		}
 
-		page = _vm_normal_page(vma, addr, ptent, true);
+		page = vm_normal_page(vma, addr, ptent);
 		if (!page)
 			continue;
 

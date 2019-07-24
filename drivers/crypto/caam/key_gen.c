@@ -16,9 +16,7 @@ void split_key_done(struct device *dev, u32 *desc, u32 err,
 {
 	struct split_key_result *res = context;
 
-#ifdef DEBUG
-	dev_err(dev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
-#endif
+	dev_dbg(dev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 
 	if (err)
 		caam_jr_strstatus(dev, err);
@@ -55,12 +53,10 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 	adata->keylen_pad = split_key_pad_len(adata->algtype &
 					      OP_ALG_ALGSEL_MASK);
 
-#ifdef DEBUG
-	dev_err(jrdev, "split keylen %d split keylen padded %d\n",
+	dev_dbg(jrdev, "split keylen %d split keylen padded %d\n",
 		adata->keylen, adata->keylen_pad);
-	print_hex_dump(KERN_ERR, "ctx.key@" __stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key_in, keylen, 1);
-#endif
+	print_hex_dump_debug("ctx.key@" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key_in, keylen, 1);
 
 	if (adata->keylen_pad > max_keylen)
 		return -EINVAL;
@@ -102,10 +98,9 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 	append_fifo_store(desc, dma_addr, adata->keylen,
 			  LDST_CLASS_2_CCB | FIFOST_TYPE_SPLIT_KEK);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
-#endif
+	print_hex_dump_debug("jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
 
 	result.err = 0;
 	init_completion(&result.completion);
@@ -115,11 +110,10 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 		/* in progress */
 		wait_for_completion(&result.completion);
 		ret = result.err;
-#ifdef DEBUG
-		print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, key_out,
-			       adata->keylen_pad, 1);
-#endif
+
+		print_hex_dump_debug("ctx.key@"__stringify(__LINE__)": ",
+				     DUMP_PREFIX_ADDRESS, 16, 4, key_out,
+				     adata->keylen_pad, 1);
 	}
 
 	dma_unmap_single(jrdev, dma_addr, adata->keylen_pad, DMA_BIDIRECTIONAL);

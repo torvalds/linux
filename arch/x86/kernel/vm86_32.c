@@ -583,7 +583,7 @@ int handle_vm86_trap(struct kernel_vm86_regs *regs, long error_code, int trapno)
 		return 1; /* we let this handle by the calling routine */
 	current->thread.trap_nr = trapno;
 	current->thread.error_code = error_code;
-	force_sig(SIGTRAP, current);
+	force_sig(SIGTRAP);
 	return 0;
 }
 

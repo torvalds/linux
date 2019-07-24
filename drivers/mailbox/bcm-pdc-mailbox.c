@@ -395,8 +395,6 @@ struct pdc_state {
 	 */
 	struct scatterlist *src_sg[PDC_RING_ENTRIES];
 
-	struct dentry *debugfs_stats;  /* debug FS stats file for this PDC */
-
 	/* counters */
 	u32  pdc_requests;     /* number of request messages submitted */
 	u32  pdc_replies;      /* number of reply messages received */
@@ -501,9 +499,8 @@ static void pdc_setup_debugfs(struct pdc_state *pdcs)
 		debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
 
 	/* S_IRUSR == 0400 */
-	pdcs->debugfs_stats = debugfs_create_file(spu_stats_name, 0400,
-						  debugfs_dir, pdcs,
-						  &pdc_debugfs_stats);
+	debugfs_create_file(spu_stats_name, 0400, debugfs_dir, pdcs,
+			    &pdc_debugfs_stats);
 }
 
 static void pdc_free_debugfs(void)
@@ -1603,7 +1600,6 @@ static int pdc_probe(struct platform_device *pdev)
 	if (err)
 		goto cleanup_buf_pool;
 
-	pdcs->debugfs_stats = NULL;
 	pdc_setup_debugfs(pdcs);
 
 	dev_dbg(dev, "pdc_probe() successful");

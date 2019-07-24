@@ -21,6 +21,7 @@ struct hinic_txq_stats {
 	u64     tx_busy;
 	u64     tx_wake;
 	u64     tx_dropped;
+	u64	big_frags_pkts;
 
 	struct u64_stats_sync   syncp;
 };

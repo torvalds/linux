@@ -64,7 +64,7 @@ struct client_debug_mask {
 	__u64 mask2;
 };
 
-static int orangefs_kernel_debug_init(void);
+static void orangefs_kernel_debug_init(void);
 
 static int orangefs_debug_help_open(struct inode *, struct file *);
 static void *help_start(struct seq_file *, loff_t *);
@@ -99,7 +99,6 @@ static char *debug_help_string;
 static char client_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
 static char client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
 
-static struct dentry *help_file_dentry;
 static struct dentry *client_debug_dentry;
 static struct dentry *debug_dir;
 
@@ -151,10 +150,8 @@ static DEFINE_MUTEX(orangefs_help_file_lock);
  * initialize kmod debug operations, create orangefs debugfs dir and
  * ORANGEFS_KMOD_DEBUG_HELP_FILE.
  */
-int orangefs_debugfs_init(int debug_mask)
+void orangefs_debugfs_init(int debug_mask)
 {
-	int rc = -ENOMEM;
-
 	/* convert input debug mask to a 64-bit unsigned integer */
         orangefs_gossip_debug_mask = (unsigned long long)debug_mask;
 
@@ -183,37 +180,21 @@ int orangefs_debugfs_init(int debug_mask)
 		(unsigned long long)orangefs_gossip_debug_mask);
 
 	debug_dir = debugfs_create_dir("orangefs", NULL);
-	if (!debug_dir) {
-		pr_info("%s: debugfs_create_dir failed.\n", __func__);
-		goto out;
-	}
 
-	help_file_dentry = debugfs_create_file(ORANGEFS_KMOD_DEBUG_HELP_FILE,
-				  0444,
-				  debug_dir,
-				  debug_help_string,
-				  &debug_help_fops);
-	if (!help_file_dentry) {
-		pr_info("%s: debugfs_create_file failed.\n", __func__);
-		goto out;
-	}
+	debugfs_create_file(ORANGEFS_KMOD_DEBUG_HELP_FILE, 0444, debug_dir,
+			    debug_help_string, &debug_help_fops);
 
 	orangefs_debug_disabled = 0;
 
-	rc = orangefs_kernel_debug_init();
-
-out:
-
-	return rc;
+	orangefs_kernel_debug_init();
 }
 
 /*
  * initialize the kernel-debug file.
  */
-static int orangefs_kernel_debug_init(void)
+static void orangefs_kernel_debug_init(void)
 {
 	int rc = -ENOMEM;
-	struct dentry *ret;
 	char *k_buffer = NULL;
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
@@ -230,24 +211,11 @@ static int orangefs_kernel_debug_init(void)
 		pr_info("%s: overflow 1!\n", __func__);
 	}
 
-	ret = debugfs_create_file(ORANGEFS_KMOD_DEBUG_FILE,
-				  0444,
-				  debug_dir,
-				  k_buffer,
-				  &kernel_debug_fops);
-	if (!ret) {
-		pr_info("%s: failed to create %s.\n",
-			__func__,
-			ORANGEFS_KMOD_DEBUG_FILE);
-		goto out;
-	}
-
-	rc = 0;
+	debugfs_create_file(ORANGEFS_KMOD_DEBUG_FILE, 0444, debug_dir, k_buffer,
+			    &kernel_debug_fops);
 
 out:
-
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: rc:%d:\n", __func__, rc);
-	return rc;
 }
 
 
@@ -353,12 +321,6 @@ static int orangefs_client_debug_init(void)
 						  debug_dir,
 						  c_buffer,
 						  &kernel_debug_fops);
-	if (!client_debug_dentry) {
-		pr_info("%s: failed to create updated %s.\n",
-			__func__,
-			ORANGEFS_CLIENT_DEBUG_FILE);
-		goto out;
-	}
 
 	rc = 0;
 

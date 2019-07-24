@@ -43,34 +43,33 @@ int hwbm_pool_refill(struct hwbm_pool *bm_pool, gfp_t gfp)
 }
 EXPORT_SYMBOL_GPL(hwbm_pool_refill);
 
-int hwbm_pool_add(struct hwbm_pool *bm_pool, unsigned int buf_num, gfp_t gfp)
+int hwbm_pool_add(struct hwbm_pool *bm_pool, unsigned int buf_num)
 {
 	int err, i;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bm_pool->lock, flags);
+	mutex_lock(&bm_pool->buf_lock);
 	if (bm_pool->buf_num == bm_pool->size) {
 		pr_warn("pool already filled\n");
-		spin_unlock_irqrestore(&bm_pool->lock, flags);
+		mutex_unlock(&bm_pool->buf_lock);
 		return bm_pool->buf_num;
 	}
 
 	if (buf_num + bm_pool->buf_num > bm_pool->size) {
 		pr_warn("cannot allocate %d buffers for pool\n",
 			buf_num);
-		spin_unlock_irqrestore(&bm_pool->lock, flags);
+		mutex_unlock(&bm_pool->buf_lock);
 		return 0;
 	}
 
 	if ((buf_num + bm_pool->buf_num) < bm_pool->buf_num) {
 		pr_warn("Adding %d buffers to the %d current buffers will overflow\n",
 			buf_num,  bm_pool->buf_num);
-		spin_unlock_irqrestore(&bm_pool->lock, flags);
+		mutex_unlock(&bm_pool->buf_lock);
 		return 0;
 	}
 
 	for (i = 0; i < buf_num; i++) {
-		err = hwbm_pool_refill(bm_pool, gfp);
+		err = hwbm_pool_refill(bm_pool, GFP_KERNEL);
 		if (err < 0)
 			break;
 	}
@@ -79,7 +78,7 @@ int hwbm_pool_add(struct hwbm_pool *bm_pool, unsigned int buf_num, gfp_t gfp)
 	bm_pool->buf_num += i;
 
 	pr_debug("hwpm pool: %d of %d buffers added\n", i, buf_num);
-	spin_unlock_irqrestore(&bm_pool->lock, flags);
+	mutex_unlock(&bm_pool->buf_lock);
 
 	return i;
 }

@@ -212,7 +212,7 @@ synchronize_rcu()
 
 rcu_assign_pointer()
 
-	typeof(p) rcu_assign_pointer(p, typeof(p) v);
+	void rcu_assign_pointer(p, typeof(p) v);
 
 	Yes, rcu_assign_pointer() -is- implemented as a macro, though it
 	would be cool to be able to declare a function in this manner.
@@ -220,9 +220,9 @@ rcu_assign_pointer()
 
 	The updater uses this function to assign a new value to an
 	RCU-protected pointer, in order to safely communicate the change
-	in value from the updater to the reader.  This function returns
-	the new value, and also executes any memory-barrier instructions
-	required for a given CPU architecture.
+	in value from the updater to the reader.  This macro does not
+	evaluate to an rvalue, but it does execute any memory-barrier
+	instructions required for a given CPU architecture.
 
 	Perhaps just as important, it serves to document (1) which
 	pointers are protected by RCU and (2) the point at which a

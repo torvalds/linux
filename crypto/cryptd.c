@@ -16,7 +16,6 @@
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/cryptd.h>
-#include <crypto/crypto_wq.h>
 #include <linux/atomic.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -26,10 +25,13 @@
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 static unsigned int cryptd_max_cpu_qlen = 1000;
 module_param(cryptd_max_cpu_qlen, uint, 0);
 MODULE_PARM_DESC(cryptd_max_cpu_qlen, "Set cryptd Max queue depth");
+
+static struct workqueue_struct *cryptd_wq;
 
 struct cryptd_cpu_queue {
 	struct crypto_queue queue;
@@ -136,7 +138,7 @@ static int cryptd_enqueue_request(struct cryptd_queue *queue,
 	if (err == -ENOSPC)
 		goto out_put_cpu;
 
-	queue_work_on(cpu, kcrypto_wq, &cpu_queue->work);
+	queue_work_on(cpu, cryptd_wq, &cpu_queue->work);
 
 	if (!atomic_read(refcnt))
 		goto out_put_cpu;
@@ -179,7 +181,7 @@ static void cryptd_queue_worker(struct work_struct *work)
 	req->complete(req, 0);
 
 	if (cpu_queue->queue.qlen)
-		queue_work(kcrypto_wq, &cpu_queue->work);
+		queue_work(cryptd_wq, &cpu_queue->work);
 }
 
 static inline struct cryptd_queue *cryptd_get_queue(struct crypto_tfm *tfm)
@@ -919,7 +921,7 @@ static int cryptd_create(struct crypto_template *tmpl, struct rtattr **tb)
 	switch (algt->type & algt->mask & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_BLKCIPHER:
 		return cryptd_create_skcipher(tmpl, tb, &queue);
-	case CRYPTO_ALG_TYPE_DIGEST:
+	case CRYPTO_ALG_TYPE_HASH:
 		return cryptd_create_hash(tmpl, tb, &queue);
 	case CRYPTO_ALG_TYPE_AEAD:
 		return cryptd_create_aead(tmpl, tb, &queue);
@@ -1119,19 +1121,31 @@ static int __init cryptd_init(void)
 {
 	int err;
 
+	cryptd_wq = alloc_workqueue("cryptd", WQ_MEM_RECLAIM | WQ_CPU_INTENSIVE,
+				    1);
+	if (!cryptd_wq)
+		return -ENOMEM;
+
 	err = cryptd_init_queue(&queue, cryptd_max_cpu_qlen);
 	if (err)
-		return err;
+		goto err_destroy_wq;
 
 	err = crypto_register_template(&cryptd_tmpl);
 	if (err)
-		cryptd_fini_queue(&queue);
+		goto err_fini_queue;
 
+	return 0;
+
+err_fini_queue:
+	cryptd_fini_queue(&queue);
+err_destroy_wq:
+	destroy_workqueue(cryptd_wq);
 	return err;
 }
 
 static void __exit cryptd_exit(void)
 {
+	destroy_workqueue(cryptd_wq);
 	cryptd_fini_queue(&queue);
 	crypto_unregister_template(&cryptd_tmpl);
 }

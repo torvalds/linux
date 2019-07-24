@@ -78,6 +78,7 @@
 #define IMX7D_REG_ADC_INT_STATUS_CHANNEL_CONV_TIME_OUT		0xf0000
 
 #define IMX7D_ADC_TIMEOUT		msecs_to_jiffies(100)
+#define IMX7D_ADC_INPUT_CLK		24000000
 
 enum imx7d_adc_clk_pre_div {
 	IMX7D_ADC_ANALOG_CLK_PRE_DIV_4,
@@ -100,8 +101,6 @@ struct imx7d_adc_feature {
 	enum imx7d_adc_average_num avg_num;
 
 	u32 core_time_unit;	/* impact the sample rate */
-
-	bool average_en;
 };
 
 struct imx7d_adc {
@@ -179,7 +178,6 @@ static void imx7d_adc_feature_config(struct imx7d_adc *info)
 	info->adc_feature.clk_pre_div = IMX7D_ADC_ANALOG_CLK_PRE_DIV_4;
 	info->adc_feature.avg_num = IMX7D_ADC_AVERAGE_NUM_32;
 	info->adc_feature.core_time_unit = 1;
-	info->adc_feature.average_en = true;
 }
 
 static void imx7d_adc_sample_rate_set(struct imx7d_adc *info)
@@ -240,9 +238,8 @@ static void imx7d_adc_channel_set(struct imx7d_adc *info)
 
 	/* the channel choose single conversion, and enable average mode */
 	cfg1 |= (IMX7D_REG_ADC_CH_CFG1_CHANNEL_EN |
-		 IMX7D_REG_ADC_CH_CFG1_CHANNEL_SINGLE);
-	if (info->adc_feature.average_en)
-		cfg1 |= IMX7D_REG_ADC_CH_CFG1_CHANNEL_AVG_EN;
+		 IMX7D_REG_ADC_CH_CFG1_CHANNEL_SINGLE |
+		 IMX7D_REG_ADC_CH_CFG1_CHANNEL_AVG_EN);
 
 	/*
 	 * physical channel 0 chose logical channel A
@@ -272,13 +269,11 @@ static void imx7d_adc_channel_set(struct imx7d_adc *info)
 
 static u32 imx7d_adc_get_sample_rate(struct imx7d_adc *info)
 {
-	/* input clock is always 24MHz */
-	u32 input_clk = 24000000;
 	u32 analogue_core_clk;
 	u32 core_time_unit = info->adc_feature.core_time_unit;
 	u32 tmp;
 
-	analogue_core_clk = input_clk / info->pre_div_num;
+	analogue_core_clk = IMX7D_ADC_INPUT_CLK / info->pre_div_num;
 	tmp = (core_time_unit + 1) * 6;
 
 	return analogue_core_clk / tmp;
@@ -493,11 +488,8 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 	info->dev = dev;
 
 	info->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(info->regs)) {
-		ret = PTR_ERR(info->regs);
-		dev_err(dev, "Failed to remap adc memory, err = %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(info->regs))
+		return PTR_ERR(info->regs);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -531,9 +523,7 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 	indio_dev->channels = imx7d_adc_iio_channels;
 	indio_dev->num_channels = ARRAY_SIZE(imx7d_adc_iio_channels);
 
-	ret = devm_request_irq(dev, irq,
-			       imx7d_adc_isr, 0,
-			       dev_name(dev), info);
+	ret = devm_request_irq(dev, irq, imx7d_adc_isr, 0, dev_name(dev), info);
 	if (ret < 0) {
 		dev_err(dev, "Failed requesting irq, irq = %d\n", irq);
 		return ret;

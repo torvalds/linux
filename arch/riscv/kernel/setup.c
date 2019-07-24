@@ -39,11 +39,9 @@ struct screen_info screen_info = {
 atomic_t hart_lottery;
 unsigned long boot_cpu_hartid;
 
-void __init parse_dtb(phys_addr_t dtb_phys)
+void __init parse_dtb(void)
 {
-	void *dtb = __va(dtb_phys);
-
-	if (early_init_dt_scan(dtb))
+	if (early_init_dt_scan(dtb_early_va))
 		return;
 
 	pr_err("No DTB passed to the kernel\n");

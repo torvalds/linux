@@ -37,6 +37,15 @@ zpci_attr(segment1, "0x%02x\n", pfip[1]);
 zpci_attr(segment2, "0x%02x\n", pfip[2]);
 zpci_attr(segment3, "0x%02x\n", pfip[3]);
 
+static ssize_t mio_enabled_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
+
+	return sprintf(buf, zpci_use_mio(zdev) ? "1\n" : "0\n");
+}
+static DEVICE_ATTR_RO(mio_enabled);
+
 static ssize_t recover_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
@@ -115,6 +124,7 @@ static struct attribute *zpci_dev_attrs[] = {
 	&dev_attr_vfn.attr,
 	&dev_attr_uid.attr,
 	&dev_attr_recover.attr,
+	&dev_attr_mio_enabled.attr,
 	NULL,
 };
 static struct attribute_group zpci_attr_group = {

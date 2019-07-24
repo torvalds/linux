@@ -100,7 +100,7 @@ struct buffer_desc {
 	u16 pkt_len;
 	u16 buf_len;
 #endif
-	u32 phys_addr;
+	dma_addr_t phys_addr;
 	u32 __reserved[4];
 	struct buffer_desc *next;
 	enum dma_data_direction dir;
@@ -117,9 +117,9 @@ struct crypt_ctl {
 	u8 mode;		/* NPE_OP_*  operation mode */
 #endif
 	u8 iv[MAX_IVLEN];	/* IV for CBC mode or CTR IV for CTR mode */
-	u32 icv_rev_aes;	/* icv or rev aes */
-	u32 src_buf;
-	u32 dst_buf;
+	dma_addr_t icv_rev_aes;	/* icv or rev aes */
+	dma_addr_t src_buf;
+	dma_addr_t dst_buf;
 #ifdef __ARMEB__
 	u16 auth_offs;		/* Authentication start offset */
 	u16 auth_len;		/* Authentication data length */
@@ -320,7 +320,8 @@ static struct crypt_ctl *get_crypt_desc_emerg(void)
 	}
 }
 
-static void free_buf_chain(struct device *dev, struct buffer_desc *buf,u32 phys)
+static void free_buf_chain(struct device *dev, struct buffer_desc *buf,
+			   dma_addr_t phys)
 {
 	while (buf) {
 		struct buffer_desc *buf1;
@@ -602,7 +603,7 @@ static int register_chain_var(struct crypto_tfm *tfm, u8 xpad, u32 target,
 	struct buffer_desc *buf;
 	int i;
 	u8 *pad;
-	u32 pad_phys, buf_phys;
+	dma_addr_t pad_phys, buf_phys;
 
 	BUILD_BUG_ON(NPE_CTX_LEN < HMAC_PAD_BLOCKLEN);
 	pad = dma_pool_alloc(ctx_pool, GFP_KERNEL, &pad_phys);
@@ -787,7 +788,7 @@ static struct buffer_desc *chainup_buffers(struct device *dev,
 	for (; nbytes > 0; sg = sg_next(sg)) {
 		unsigned len = min(nbytes, sg->length);
 		struct buffer_desc *next_buf;
-		u32 next_buf_phys;
+		dma_addr_t next_buf_phys;
 		void *ptr;
 
 		nbytes -= len;

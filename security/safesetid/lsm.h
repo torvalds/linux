@@ -15,19 +15,39 @@
 #define _SAFESETID_H
 
 #include <linux/types.h>
+#include <linux/uidgid.h>
+#include <linux/hashtable.h>
 
 /* Flag indicating whether initialization completed */
 extern int safesetid_initialized;
 
-/* Function type. */
-enum safesetid_whitelist_file_write_type {
-	SAFESETID_WHITELIST_ADD, /* Add whitelist policy. */
-	SAFESETID_WHITELIST_FLUSH, /* Flush whitelist policies. */
+enum sid_policy_type {
+	SIDPOL_DEFAULT, /* source ID is unaffected by policy */
+	SIDPOL_CONSTRAINED, /* source ID is affected by policy */
+	SIDPOL_ALLOWED /* target ID explicitly allowed */
 };
 
-/* Add entry to safesetid whitelist to allow 'parent' to setid to 'child'. */
-int add_safesetid_whitelist_entry(kuid_t parent, kuid_t child);
+/*
+ * Hash table entry to store safesetid policy signifying that 'src_uid'
+ * can setuid to 'dst_uid'.
+ */
+struct setuid_rule {
+	struct hlist_node next;
+	kuid_t src_uid;
+	kuid_t dst_uid;
+};
 
-void flush_safesetid_whitelist_entries(void);
+#define SETID_HASH_BITS 8 /* 256 buckets in hash table */
+
+struct setuid_ruleset {
+	DECLARE_HASHTABLE(rules, SETID_HASH_BITS);
+	char *policy_str;
+	struct rcu_head rcu;
+};
+
+enum sid_policy_type _setuid_policy_lookup(struct setuid_ruleset *policy,
+		kuid_t src, kuid_t dst);
+
+extern struct setuid_ruleset __rcu *safesetid_setuid_rules;
 
 #endif /* _SAFESETID_H */

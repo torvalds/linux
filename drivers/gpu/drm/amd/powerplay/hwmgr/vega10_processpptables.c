@@ -21,6 +21,7 @@
  *
  */
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
 
@@ -1371,3 +1372,27 @@ int vega10_get_powerplay_table_entry(struct pp_hwmgr *hwmgr,
 
 	return result;
 }
+
+int vega10_baco_set_cap(struct pp_hwmgr *hwmgr)
+{
+	int result = 0;
+
+	const ATOM_Vega10_POWERPLAYTABLE *powerplay_table;
+
+	powerplay_table = get_powerplay_table(hwmgr);
+
+	PP_ASSERT_WITH_CODE((powerplay_table != NULL),
+		"Missing PowerPlay Table!", return -1);
+
+	result = check_powerplay_tables(hwmgr, powerplay_table);
+
+	PP_ASSERT_WITH_CODE((result == 0),
+			    "check_powerplay_tables failed", return result);
+
+	set_hw_cap(
+			hwmgr,
+			0 != (le32_to_cpu(powerplay_table->ulPlatformCaps) & ATOM_VEGA10_PP_PLATFORM_CAP_BACO),
+			PHM_PlatformCaps_BACO);
+	return result;
+}
+

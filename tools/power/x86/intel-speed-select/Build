@@ -1,0 +1,1 @@
+intel-speed-select-y +=  isst-config.o isst-core.o isst-display.o

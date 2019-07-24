@@ -24,3 +24,12 @@ Description:    /sys/kernel/iommu_groups/reserved_regions list IOVA
 		region is described on a single line: the 1st field is
 		the base IOVA, the second is the end IOVA and the third
 		field describes the type of the region.
+
+What:		/sys/kernel/iommu_groups/reserved_regions
+Date: 		June 2019
+KernelVersion:  v5.3
+Contact: 	Eric Auger <eric.auger@redhat.com>
+Description:    In case an RMRR is used only by graphics or USB devices
+		it is now exposed as "direct-relaxable" instead of "direct".
+		In device assignment use case, for instance, those RMRR
+		are considered to be relaxable and safe.

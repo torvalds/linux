@@ -38,8 +38,6 @@
 
 #include <linux/sysctl.h>
 
-static int zero;
-static int one = 1;
 static struct ctl_table_header *tipc_ctl_hdr;
 
 static struct ctl_table tipc_table[] = {
@@ -49,7 +47,7 @@ static struct ctl_table tipc_table[] = {
 		.maxlen		= sizeof(sysctl_tipc_rmem),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1         = &one,
+		.extra1         = SYSCTL_ONE,
 	},
 	{
 		.procname	= "named_timeout",
@@ -57,7 +55,7 @@ static struct ctl_table tipc_table[] = {
 		.maxlen		= sizeof(sysctl_tipc_named_timeout),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1         = &zero,
+		.extra1         = SYSCTL_ZERO,
 	},
 	{
 		.procname       = "sk_filter",

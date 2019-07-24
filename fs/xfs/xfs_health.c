@@ -9,12 +9,8 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_bit.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_inode.h"
 #include "xfs_trace.h"
 #include "xfs_health.h"
@@ -373,7 +369,7 @@ static const struct ioctl_sick_map ino_map[] = {
 void
 xfs_bulkstat_health(
 	struct xfs_inode		*ip,
-	struct xfs_bstat		*bs)
+	struct xfs_bulkstat		*bs)
 {
 	const struct ioctl_sick_map	*m;
 	unsigned int			sick;

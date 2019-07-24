@@ -7,6 +7,6 @@
 #define rcu_dereference_raw(p) rcu_dereference(p)
 #define rcu_dereference_protected(p, cond) rcu_dereference(p)
 #define rcu_dereference_check(p, cond) rcu_dereference(p)
-#define RCU_INIT_POINTER(p, v)	(p) = (v)
+#define RCU_INIT_POINTER(p, v)	do { (p) = (v); } while (0)
 
 #endif
