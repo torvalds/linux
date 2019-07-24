@@ -491,7 +491,7 @@ struct vba_vars_st {
 	unsigned int NoOfDPP[DC__VOLTAGE_STATES + 1][2][DC__NUM_DPP__MAX];
 	int NoOfDPPThisState[DC__NUM_DPP__MAX];
 	bool ODMCombineEnablePerState[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
-	bool ODMCombineTypeEnablePerState[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
+	enum odm_combine_mode ODMCombineTypeEnablePerState[DC__VOLTAGE_STATES + 1][DC__NUM_DPP__MAX];
 	unsigned int SwathWidthYThisState[DC__NUM_DPP__MAX];
 	unsigned int SwathHeightCPerState[DC__VOLTAGE_STATES + 1][2][DC__NUM_DPP__MAX];
 	unsigned int SwathHeightYThisState[DC__NUM_DPP__MAX];
