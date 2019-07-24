@@ -27,6 +27,7 @@
 #include "amdgpu_smu.h"
 #include "soc15_common.h"
 #include "smu_v11_0.h"
+#include "smu_v12_0.h"
 #include "atom.h"
 #include "amd_pcie.h"
 
@@ -735,6 +736,12 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 			smu->od_enabled = true;
 		smu_v11_0_set_smu_funcs(smu);
 		break;
+	case CHIP_RENOIR:
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+		if (adev->pm.pp_feature & PP_OVERDRIVE_MASK)
+			smu->od_enabled = true;
+		smu_v12_0_set_smu_funcs(smu);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1030,6 +1037,9 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret;
+
+	if (adev->flags & AMD_IS_APU)
+		return 0;
 
 	if (smu_is_dpm_running(smu) && adev->in_suspend) {
 		pr_info("dpm has been enabled\n");
@@ -1786,6 +1796,15 @@ const struct amdgpu_ip_block_version smu_v11_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 11,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &smu_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version smu_v12_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 12,
 	.minor = 0,
 	.rev = 0,
 	.funcs = &smu_ip_funcs,
