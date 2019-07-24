@@ -125,12 +125,12 @@ extern struct page *fscrypt_alloc_bounce_page(gfp_t gfp_flags);
 extern const struct dentry_operations fscrypt_d_ops;
 
 extern void __printf(3, 4) __cold
-fscrypt_msg(struct super_block *sb, const char *level, const char *fmt, ...);
+fscrypt_msg(const struct inode *inode, const char *level, const char *fmt, ...);
 
-#define fscrypt_warn(sb, fmt, ...)		\
-	fscrypt_msg(sb, KERN_WARNING, fmt, ##__VA_ARGS__)
-#define fscrypt_err(sb, fmt, ...)		\
-	fscrypt_msg(sb, KERN_ERR, fmt, ##__VA_ARGS__)
+#define fscrypt_warn(inode, fmt, ...)		\
+	fscrypt_msg((inode), KERN_WARNING, fmt, ##__VA_ARGS__)
+#define fscrypt_err(inode, fmt, ...)		\
+	fscrypt_msg((inode), KERN_ERR, fmt, ##__VA_ARGS__)
 
 #define FSCRYPT_MAX_IV_SIZE	32
 
