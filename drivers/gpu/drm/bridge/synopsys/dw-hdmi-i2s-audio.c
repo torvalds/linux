@@ -209,7 +209,12 @@ static void dw_hdmi_i2s_audio_shutdown(struct device *dev, void *data)
 
 	dw_hdmi_audio_disable(hdmi);
 
-	hdmi_write(audio, HDMI_AUD_CONF0_SW_RESET, HDMI_AUD_CONF0);
+	hdmi_update_bits(audio,
+			 HDMI_AUD_CONF0_SW_RESET,
+			 HDMI_AUD_CONF0_SW_RESET |
+				(HDMI_AUD_CONF0_I2S_ALL_ENABLE ^
+				 HDMI_AUD_CONF0_I2S_SELECT_MASK),
+			 HDMI_AUD_CONF0);
 }
 
 static int dw_hdmi_i2s_get_dai_id(struct snd_soc_component *component,
