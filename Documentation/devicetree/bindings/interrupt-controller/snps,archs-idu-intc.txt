@@ -1,7 +1,8 @@
 * ARC-HS Interrupt Distribution Unit
 
-  This optional 2nd level interrupt controller can be used in SMP configurations for
-  dynamic IRQ routing, load balancing of common/external IRQs towards core intc.
+  This optional 2nd level interrupt controller can be used in SMP configurations
+  for dynamic IRQ routing, load balancing of common/external IRQs towards core
+  intc.
 
 Properties:
 
@@ -13,8 +14,8 @@ Properties:
   of the particular interrupt line of IDU corresponds to the line N+24 of the
   core interrupt controller.
 
-  intc accessed via the special ARC AUX register interface, hence "reg" property
-  is not specified.
+  The interrupt controller is accessed via the special ARC AUX register
+  interface, hence "reg" property is not specified.
 
 Example:
 	core_intc: core-interrupt-controller {
