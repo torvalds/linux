@@ -1616,19 +1616,15 @@ static ssize_t amdgpu_hwmon_set_pwm1_enable(struct device *dev,
 	     (adev->ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
 
-	if (is_support_sw_smu(adev)) {
-		err = kstrtoint(buf, 10, &value);
-		if (err)
-			return err;
+	err = kstrtoint(buf, 10, &value);
+	if (err)
+		return err;
 
+	if (is_support_sw_smu(adev)) {
 		smu_set_fan_control_mode(&adev->smu, value);
 	} else {
 		if (!adev->powerplay.pp_funcs->set_fan_control_mode)
 			return -EINVAL;
-
-		err = kstrtoint(buf, 10, &value);
-		if (err)
-			return err;
 
 		amdgpu_dpm_set_fan_control_mode(adev, value);
 	}
@@ -2049,15 +2045,17 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
 		return err;
 
 	value = value / 1000000; /* convert to Watt */
+
 	if (is_support_sw_smu(adev)) {
-		adev->smu.funcs->set_power_limit(&adev->smu, value);
+		err = smu_set_power_limit(&adev->smu, value);
 	} else if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->set_power_limit) {
 		err = adev->powerplay.pp_funcs->set_power_limit(adev->powerplay.pp_handle, value);
-		if (err)
-			return err;
 	} else {
-		return -EINVAL;
+		err = -EINVAL;
 	}
+
+	if (err)
+		return err;
 
 	return count;
 }

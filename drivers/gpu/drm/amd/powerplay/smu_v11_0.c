@@ -1100,6 +1100,8 @@ static int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 		max_power_limit *= (100 + smu->smu_table.TDPODLimit);
 		max_power_limit /= 100;
 	}
+	if (n > max_power_limit)
+		return -EINVAL;
 
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n);
@@ -1421,17 +1423,17 @@ smu_v11_0_get_fan_control_mode(struct smu_context *smu)
 }
 
 static int
-smu_v11_0_smc_fan_control(struct smu_context *smu, bool start)
+smu_v11_0_auto_fan_control(struct smu_context *smu, bool auto_fan_control)
 {
 	int ret = 0;
 
 	if (smu_feature_is_supported(smu, SMU_FEATURE_FAN_CONTROL_BIT))
 		return 0;
 
-	ret = smu_feature_set_enabled(smu, SMU_FEATURE_FAN_CONTROL_BIT, start);
+	ret = smu_feature_set_enabled(smu, SMU_FEATURE_FAN_CONTROL_BIT, auto_fan_control);
 	if (ret)
 		pr_err("[%s]%s smc FAN CONTROL feature failed!",
-		       __func__, (start ? "Start" : "Stop"));
+		       __func__, (auto_fan_control ? "Start" : "Stop"));
 
 	return ret;
 }
@@ -1455,16 +1457,15 @@ static int
 smu_v11_0_set_fan_speed_percent(struct smu_context *smu, uint32_t speed)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t duty100;
-	uint32_t duty;
+	uint32_t duty100, duty;
 	uint64_t tmp64;
-	bool stop = 0;
 
 	if (speed > 100)
 		speed = 100;
 
-	if (smu_v11_0_smc_fan_control(smu, stop))
+	if (smu_v11_0_auto_fan_control(smu, 0))
 		return -EINVAL;
+
 	duty100 = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL1),
 				CG_FDO_CTRL1, FMAX_DUTY100);
 	if (!duty100)
@@ -1486,18 +1487,16 @@ smu_v11_0_set_fan_control_mode(struct smu_context *smu,
 			       uint32_t mode)
 {
 	int ret = 0;
-	bool start = 1;
-	bool stop  = 0;
 
 	switch (mode) {
 	case AMD_FAN_CTRL_NONE:
 		ret = smu_v11_0_set_fan_speed_percent(smu, 100);
 		break;
 	case AMD_FAN_CTRL_MANUAL:
-		ret = smu_v11_0_smc_fan_control(smu, stop);
+		ret = smu_v11_0_auto_fan_control(smu, 0);
 		break;
 	case AMD_FAN_CTRL_AUTO:
-		ret = smu_v11_0_smc_fan_control(smu, start);
+		ret = smu_v11_0_auto_fan_control(smu, 1);
 		break;
 	default:
 		break;
@@ -1517,13 +1516,12 @@ static int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 	int ret;
 	uint32_t tach_period, crystal_clock_freq;
-	bool stop = 0;
 
 	if (!speed)
 		return -EINVAL;
 
 	mutex_lock(&(smu->mutex));
-	ret = smu_v11_0_smc_fan_control(smu, stop);
+	ret = smu_v11_0_auto_fan_control(smu, 0);
 	if (ret)
 		goto set_fan_speed_rpm_failed;
 
