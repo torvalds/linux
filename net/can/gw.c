@@ -775,9 +775,8 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 				mod->csumfunc.xor = cgw_csum_xor_neg;
 		}
 
-		if (tb[CGW_MOD_UID]) {
+		if (tb[CGW_MOD_UID])
 			nla_memcpy(&mod->uid, tb[CGW_MOD_UID], sizeof(u32));
-		}
 	}
 
 	if (gwtype == CGW_TYPE_CAN_CAN) {
