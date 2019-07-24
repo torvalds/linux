@@ -1817,6 +1817,7 @@ EFI_SIMPLE_TEXT_EX_INPUT_PROTOCOL con_in = {
         .UnregisterKeyNotify = efi_conin_hook_UnregisterKeyNotify
 };
 
+void* efi_map_11_and_register_allocation(void* virt_kernel_addr, size_t size);
 
 efi_status_t efi_handle_protocol_SimpleTextInputExProtocol( void*  handle,
                                                             void** interface )
@@ -1829,10 +1830,12 @@ efi_status_t efi_handle_protocol_SimpleTextInputExProtocol( void*  handle,
                 return EFI_UNSUPPORTED;
         }
 
-        *interface = &con_in;
+        *interface = efi_map_11_and_register_allocation( &con_in,
+                                                         sizeof( con_in ) );
 
         return EFI_SUCCESS;
 }
+
 /*********** End of protocols *****************/
 /* This function receives a virtual addr and created a 1:1 mapping between
  * virtual memory to the actual physical address that belongs to addr */
@@ -3159,43 +3162,55 @@ void efi_register_ram_as_available(void)
                                           entry->addr );
 }
 
-
-
 typedef uint64_t (*EFI_APP_ENTRY)( void* imageHandle, void* systemTable  )
         __attribute__((ms_abi));
 
-efi_system_table_t* efi_remap_systab( efi_system_table_t *systab )
+/* Different parts of Windows loader will need to believe they have physical
+ * addresses of various structures. We do this by creating a virtual address
+ * which is identical to the physical address of the structure. */
+void* efi_map_11_and_register_allocation(void* virt_kernel_addr, size_t size)
 {
-        efi_system_table_t *remapped_systab = NULL;
-        efi_hook_AllocatePool( EfiLoaderData,
-                               sizeof( efi_system_table_t ),
-                               (void**)&remapped_systab );
+        /* TODO: check reurn values for errors */
 
-        DebugMSG( "Copying the system table into 1:1 mapped memory @ %px",
-                  remapped_systab );
+        unsigned long physical_address = virt_to_phys(virt_kernel_addr);
 
-        memcpy( remapped_systab, systab, sizeof( efi_system_table_t ) );
+        /* Create the mapping */
+        efi_setup_11_mapping(virt_kernel_addr, size);
 
-        return remapped_systab;
+        /* We need to make sure that Windows loader maps this addresses in its
+         * own memory pages structures. We make sure of that by having these
+         * areas apear returned by GetMemoryMap as EfiBootServicesData, */
+        efi_register_phys_mem_allocation(
+                EfiBootServicesData,
+                NUM_PAGES(sizeof( size )),
+                physical_address);
+
+        return (void*)physical_address;
 }
 
 void launch_efi_app(EFI_APP_ENTRY efiApp, efi_system_table_t *systab)
 {
         /* Fake handle */
-        EFI_HANDLE          ImageHandle   = (void*)0xDEADBEEF;
+        EFI_HANDLE          ImageHandle     = (void*)0xDEADBEEF;
+        efi_physical_addr_t pool            = 0x100000;
+        UINTN               pool_pages      = 200;
+        efi_system_table_t* remapped_systab = NULL;
 
         /* We need to create a large pool of EfiConventionalMemory, so Windows
          * loader will believe there is sufficient memory. Otherwise it won't
          * even call the EFI AllocatePages function and fail with error code
          * 0xC0000017 (STATUS_NO_MEMORY) */
-        efi_physical_addr_t pool          = 0x100000;
-        UINTN               pool_pages    = 200;
-        efi_system_table_t* remapped_systab = efi_remap_systab( systab );
-
         efi_hook_AllocatePages( AllocateAnyPages, EfiConventionalMemory,
                                 pool_pages, &pool );
 
         efi_register_ram_as_available();
+
+        /* The system table must be accessible via physical addressing. We
+         * therefore create 1:1 mapping of the location of it. */
+        remapped_systab =
+                (efi_system_table_t *)efi_map_11_and_register_allocation(
+                                                        systab,
+                                                        sizeof( *systab ));
 
         efiApp( ImageHandle, remapped_systab );
 }
