@@ -97,6 +97,18 @@ void setup_x_points_distribution(void)
 	}
 }
 
+void log_x_points_distribution(struct dal_logger *logger)
+{
+	int i = 0;
+
+	if (logger != NULL) {
+		LOG_GAMMA_WRITE("]Log X Distribution\n");
+
+		for (i = 0; i < MAX_HW_POINTS; i++)
+			LOG_GAMMA_WRITE("]%llu\n", coordinates_x[i].x.value);
+	}
+}
+
 static void compute_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
 {
 	/* consts for PQ gamma formula. */

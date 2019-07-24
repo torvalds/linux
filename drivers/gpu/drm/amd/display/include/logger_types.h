@@ -117,6 +117,7 @@ enum dc_log_type {
 	LOG_DSC,
 #endif
 	LOG_DWB,
+	LOG_GAMMA_DEBUG,
 	LOG_SECTION_TOTAL_COUNT
 };
 
