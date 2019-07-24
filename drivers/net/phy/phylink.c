@@ -912,10 +912,10 @@ void phylink_start(struct phylink *pl)
 
 	if (pl->link_an_mode == MLO_AN_FIXED && !IS_ERR(pl->link_gpio))
 		mod_timer(&pl->link_poll, jiffies + HZ);
-	if (pl->sfp_bus)
-		sfp_upstream_start(pl->sfp_bus);
 	if (pl->phydev)
 		phy_start(pl->phydev);
+	if (pl->sfp_bus)
+		sfp_upstream_start(pl->sfp_bus);
 }
 EXPORT_SYMBOL_GPL(phylink_start);
 
@@ -932,10 +932,10 @@ void phylink_stop(struct phylink *pl)
 {
 	ASSERT_RTNL();
 
-	if (pl->phydev)
-		phy_stop(pl->phydev);
 	if (pl->sfp_bus)
 		sfp_upstream_stop(pl->sfp_bus);
+	if (pl->phydev)
+		phy_stop(pl->phydev);
 	if (pl->link_an_mode == MLO_AN_FIXED && !IS_ERR(pl->link_gpio))
 		del_timer_sync(&pl->link_poll);
 
