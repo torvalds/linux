@@ -4469,7 +4469,6 @@ static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 /* Device initialization routine */
 static int mvneta_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct device_node *dn = pdev->dev.of_node;
 	struct device_node *bm_node;
 	struct mvneta_port *pp;
@@ -4553,8 +4552,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	if (!IS_ERR(pp->clk_bus))
 		clk_prepare_enable(pp->clk_bus);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pp->base = devm_ioremap_resource(&pdev->dev, res);
+	pp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pp->base)) {
 		err = PTR_ERR(pp->base);
 		goto err_clk;
