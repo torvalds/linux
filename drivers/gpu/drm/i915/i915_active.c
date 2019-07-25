@@ -378,12 +378,12 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 					    struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
+	intel_engine_mask_t tmp, mask = engine->mask;
 	struct llist_node *pos, *next;
-	unsigned long tmp;
 	int err;
 
-	GEM_BUG_ON(!engine->mask);
-	for_each_engine_masked(engine, i915, engine->mask, tmp) {
+	GEM_BUG_ON(!mask);
+	for_each_engine_masked(engine, i915, mask, tmp) {
 		struct intel_context *kctx = engine->kernel_context;
 		struct active_node *node;
 
