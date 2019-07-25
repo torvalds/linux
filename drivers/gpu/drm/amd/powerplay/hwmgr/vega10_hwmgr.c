@@ -5219,6 +5219,30 @@ static int vega10_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int vega10_set_mp1_state(struct pp_hwmgr *hwmgr,
+				enum pp_mp1_state mp1_state)
+{
+	uint16_t msg;
+	int ret;
+
+	switch (mp1_state) {
+	case PP_MP1_STATE_UNLOAD:
+		msg = PPSMC_MSG_PrepareMp1ForUnload;
+		break;
+	case PP_MP1_STATE_SHUTDOWN:
+	case PP_MP1_STATE_RESET:
+	case PP_MP1_STATE_NONE:
+	default:
+		return 0;
+	}
+
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc(hwmgr, msg)) == 0,
+			    "[PrepareMp1] Failed!",
+			    return ret);
+
+	return 0;
+}
+
 static int vega10_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state,
 				PHM_PerformanceLevelDesignation designation, uint32_t index,
 				PHM_PerformanceLevel *level)
@@ -5308,6 +5332,7 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.enable_mgpu_fan_boost = vega10_enable_mgpu_fan_boost,
 	.get_ppfeature_status = vega10_get_ppfeature_status,
 	.set_ppfeature_status = vega10_set_ppfeature_status,
+	.set_mp1_state = vega10_set_mp1_state,
 };
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
