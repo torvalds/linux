@@ -3704,22 +3704,23 @@ static int ice_vsi_rebuild_all(struct ice_pf *pf)
 
 	/* loop through pf->vsi array and reinit the VSI if found */
 	ice_for_each_vsi(pf, i) {
+		struct ice_vsi *vsi = pf->vsi[i];
 		int err;
 
-		if (!pf->vsi[i])
+		if (!vsi)
 			continue;
 
-		err = ice_vsi_rebuild(pf->vsi[i]);
+		err = ice_vsi_rebuild(vsi);
 		if (err) {
 			dev_err(&pf->pdev->dev,
 				"VSI at index %d rebuild failed\n",
-				pf->vsi[i]->idx);
+				vsi->idx);
 			return err;
 		}
 
 		dev_info(&pf->pdev->dev,
 			 "VSI at index %d rebuilt. vsi_num = 0x%x\n",
-			 pf->vsi[i]->idx, pf->vsi[i]->vsi_num);
+			 vsi->idx, vsi->vsi_num);
 	}
 
 	return 0;
@@ -3737,25 +3738,27 @@ static int ice_vsi_replay_all(struct ice_pf *pf)
 
 	/* loop through pf->vsi array and replay the VSI if found */
 	ice_for_each_vsi(pf, i) {
-		if (!pf->vsi[i])
+		struct ice_vsi *vsi = pf->vsi[i];
+
+		if (!vsi)
 			continue;
 
-		ret = ice_replay_vsi(hw, pf->vsi[i]->idx);
+		ret = ice_replay_vsi(hw, vsi->idx);
 		if (ret) {
 			dev_err(&pf->pdev->dev,
 				"VSI at index %d replay failed %d\n",
-				pf->vsi[i]->idx, ret);
+				vsi->idx, ret);
 			return -EIO;
 		}
 
 		/* Re-map HW VSI number, using VSI handle that has been
 		 * previously validated in ice_replay_vsi() call above
 		 */
-		pf->vsi[i]->vsi_num = ice_get_hw_vsi_num(hw, pf->vsi[i]->idx);
+		vsi->vsi_num = ice_get_hw_vsi_num(hw, vsi->idx);
 
 		dev_info(&pf->pdev->dev,
 			 "VSI at index %d filter replayed successfully - vsi_num %i\n",
-			 pf->vsi[i]->idx, pf->vsi[i]->vsi_num);
+			 vsi->idx, vsi->vsi_num);
 	}
 
 	/* Clean up replay filter after successful re-configuration */
