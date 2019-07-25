@@ -1393,7 +1393,7 @@ static void rtl8723b_set_Fw_AP_Offload_Cmd(struct adapter *padapter, u8 bFuncEn)
 			H2C_AP_OFFLOAD_LEN, u1H2CAPOffloadCtrlParm);
 }
 
-static void rtl8723b_set_AP_FwWoWlan_cmd(struct adapter *padapter, u8 enable)
+void rtl8723b_set_ap_wowlan_cmd(struct adapter *padapter, u8 enable)
 {
 	DBG_871X_LEVEL(_drv_always_, "+%s()+: enable =%d\n", __func__, enable);
 	if (enable) {
@@ -1407,11 +1407,6 @@ static void rtl8723b_set_AP_FwWoWlan_cmd(struct adapter *padapter, u8 enable)
 	msleep(10);
 	DBG_871X_LEVEL(_drv_always_, "-%s()-\n", __func__);
 	return ;
-}
-
-void rtl8723b_set_ap_wowlan_cmd(struct adapter *padapter, u8 enable)
-{
-	rtl8723b_set_AP_FwWoWlan_cmd(padapter, enable);
 }
 #endif /* CONFIG_AP_WOWLAN */
 
