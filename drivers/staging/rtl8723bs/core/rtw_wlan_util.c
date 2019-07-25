@@ -1996,11 +1996,6 @@ void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 	}
 }
 
-void beacon_timing_control(struct adapter *padapter)
-{
-	rtw_hal_bcn_related_reg_setting(padapter);
-}
-
 void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta)
 {
 	int i;
