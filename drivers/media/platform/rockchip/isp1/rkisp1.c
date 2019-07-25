@@ -218,6 +218,30 @@ u32 rkisp1_mbus_pixelcode_to_v4l2(u32 pixelcode)
 
 /****************  register operations ****************/
 
+static void rkisp1_config_clk(struct rkisp1_device *dev, int on)
+{
+	u32 val = !on ? 0 :
+		CIF_ICCL_ISP_CLK | CIF_ICCL_CP_CLK | CIF_ICCL_MRSZ_CLK |
+		CIF_ICCL_SRSZ_CLK | CIF_ICCL_JPEG_CLK | CIF_ICCL_MI_CLK |
+		CIF_ICCL_IE_CLK | CIF_ICCL_MIPI_CLK | CIF_ICCL_DCROP_CLK;
+
+	writel(val, dev->base_addr + CIF_ICCL);
+
+#if RKISP1_RK3326_USE_OLDMIPI
+	if (dev->isp_ver == ISP_V13) {
+#else
+	if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13) {
+#endif
+		val = !on ? 0 :
+		      CIF_CLK_CTRL_MI_Y12 | CIF_CLK_CTRL_MI_SP |
+		      CIF_CLK_CTRL_MI_RAW0 | CIF_CLK_CTRL_MI_RAW1 |
+		      CIF_CLK_CTRL_MI_READ | CIF_CLK_CTRL_MI_RAWRD |
+		      CIF_CLK_CTRL_CP | CIF_CLK_CTRL_IE;
+
+		writel(val, dev->base_addr + CIF_VI_ISP_CLK_CTRL_V12);
+	}
+}
+
 /*
  * Image Stabilization.
  * This should only be called when configuring CIF
@@ -761,6 +785,8 @@ static int rkisp1_isp_stop(struct rkisp1_device *dev)
 		writel(0, base + CIF_ISP_CSI0_MASK2);
 		writel(0, base + CIF_ISP_CSI0_MASK3);
 	}
+
+	rkisp1_config_clk(dev, true);
 	dev->isp_state = ISP_STOP;
 
 	if (dev->emd_vc <= CIF_ISP_ADD_DATA_VC_MAX) {
@@ -833,27 +859,6 @@ static int rkisp1_isp_start(struct rkisp1_device *dev)
 		 readl(base + CIF_MIPI_CTRL));
 
 	return 0;
-}
-
-static void rkisp1_config_clk(struct rkisp1_device *dev)
-{
-	u32 val = CIF_ICCL_ISP_CLK | CIF_ICCL_CP_CLK | CIF_ICCL_MRSZ_CLK |
-		CIF_ICCL_SRSZ_CLK | CIF_ICCL_JPEG_CLK | CIF_ICCL_MI_CLK |
-		CIF_ICCL_IE_CLK | CIF_ICCL_MIPI_CLK | CIF_ICCL_DCROP_CLK;
-
-	writel(val, dev->base_addr + CIF_ICCL);
-
-#if RKISP1_RK3326_USE_OLDMIPI
-	if (dev->isp_ver == ISP_V13) {
-#else
-	if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13) {
-#endif
-		val = CIF_CLK_CTRL_MI_Y12 | CIF_CLK_CTRL_MI_SP |
-		      CIF_CLK_CTRL_MI_RAW0 | CIF_CLK_CTRL_MI_RAW1 |
-		      CIF_CLK_CTRL_MI_READ | CIF_CLK_CTRL_MI_RAWRD |
-		      CIF_CLK_CTRL_CP | CIF_CLK_CTRL_IE;
-		writel(val, dev->base_addr + CIF_VI_ISP_CLK_CTRL_V12);
-	}
 }
 
 /***************************** isp sub-devs *******************************/
@@ -1434,7 +1439,7 @@ static int rkisp1_isp_sd_s_power(struct v4l2_subdev *sd, int on)
 		if (ret < 0)
 			return ret;
 
-		rkisp1_config_clk(isp_dev);
+		rkisp1_config_clk(isp_dev, on);
 		if (isp_dev->isp_ver == ISP_V12 ||
 		    isp_dev->isp_ver == ISP_V13) {
 			/* disable csi_rx interrupt */
@@ -1444,6 +1449,7 @@ static int rkisp1_isp_sd_s_power(struct v4l2_subdev *sd, int on)
 			writel(0, base + CIF_ISP_CSI0_MASK3);
 		}
 	} else {
+		rkisp1_config_clk(isp_dev, on);
 		ret = pm_runtime_put(isp_dev->dev);
 		if (ret < 0)
 			return ret;
