@@ -707,6 +707,7 @@ struct ceph_file_info {
 	struct list_head rw_contexts;
 
 	errseq_t meta_err;
+	atomic_t num_locks;
 };
 
 struct ceph_dir_file_info {

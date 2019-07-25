@@ -2570,8 +2570,13 @@ static void __take_cap_refs(struct ceph_inode_info *ci, int got,
  *
  * FIXME: how does a 0 return differ from -EAGAIN?
  */
+enum {
+	NON_BLOCKING	= 1,
+	CHECK_FILELOCK	= 2,
+};
+
 static int try_get_cap_refs(struct inode *inode, int need, int want,
-			    loff_t endoff, bool nonblock, int *got)
+			    loff_t endoff, int flags, int *got)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
@@ -2585,6 +2590,13 @@ static int try_get_cap_refs(struct inode *inode, int need, int want,
 
 again:
 	spin_lock(&ci->i_ceph_lock);
+
+	if ((flags & CHECK_FILELOCK) &&
+	    (ci->i_ceph_flags & CEPH_I_ERROR_FILELOCK)) {
+		dout("try_get_cap_refs %p error filelock\n", inode);
+		ret = -EIO;
+		goto out_unlock;
+	}
 
 	/* make sure file is actually open */
 	file_wanted = __ceph_caps_file_wanted(ci);
@@ -2647,7 +2659,7 @@ again:
 					 * we can not call down_read() when
 					 * task isn't in TASK_RUNNING state
 					 */
-					if (nonblock) {
+					if (flags & NON_BLOCKING) {
 						ret = -EAGAIN;
 						goto out_unlock;
 					}
@@ -2752,7 +2764,8 @@ int ceph_try_get_caps(struct inode *inode, int need, int want,
 	if (ret < 0)
 		return ret;
 
-	ret = try_get_cap_refs(inode, need, want, 0, nonblock, got);
+	ret = try_get_cap_refs(inode, need, want, 0,
+			       (nonblock ? NON_BLOCKING : 0), got);
 	return ret == -EAGAIN ? 0 : ret;
 }
 
@@ -2764,9 +2777,10 @@ int ceph_try_get_caps(struct inode *inode, int need, int want,
 int ceph_get_caps(struct file *filp, int need, int want,
 		  loff_t endoff, int *got, struct page **pinned_page)
 {
+	struct ceph_file_info *fi = filp->private_data;
 	struct inode *inode = file_inode(filp);
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	int _got, ret;
+	int ret, _got, flags;
 
 	ret = ceph_pool_perm_check(inode, need);
 	if (ret < 0)
@@ -2776,17 +2790,19 @@ int ceph_get_caps(struct file *filp, int need, int want,
 		if (endoff > 0)
 			check_max_size(inode, endoff);
 
+		flags = atomic_read(&fi->num_locks) ? CHECK_FILELOCK : 0;
 		_got = 0;
 		ret = try_get_cap_refs(inode, need, want, endoff,
-				       false, &_got);
+				       flags, &_got);
 		if (ret == -EAGAIN)
 			continue;
 		if (!ret) {
 			DEFINE_WAIT_FUNC(wait, woken_wake_function);
 			add_wait_queue(&ci->i_cap_wq, &wait);
 
+			flags |= NON_BLOCKING;
 			while (!(ret = try_get_cap_refs(inode, need, want,
-							endoff, true, &_got))) {
+							endoff, flags, &_got))) {
 				if (signal_pending(current)) {
 					ret = -ERESTARTSYS;
 					break;
