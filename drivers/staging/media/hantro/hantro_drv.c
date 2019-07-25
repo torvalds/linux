@@ -262,7 +262,7 @@ static const struct v4l2_ctrl_ops hantro_ctrl_ops = {
 	.s_ctrl = hantro_s_ctrl,
 };
 
-static struct hantro_ctrl controls[] = {
+static const struct hantro_ctrl controls[] = {
 	{
 		.codec = HANTRO_JPEG_ENCODER,
 		.cfg = {
