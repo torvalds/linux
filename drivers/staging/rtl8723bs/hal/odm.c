@@ -339,8 +339,6 @@ void ODM_TXPowerTrackingCheck(PDM_ODM_T pDM_Odm);
 
 void odm_RateAdaptiveMaskInit(PDM_ODM_T pDM_Odm);
 
-void odm_TXPowerTrackingThermalMeterInit(PDM_ODM_T pDM_Odm);
-
 
 void odm_TXPowerTrackingInit(PDM_ODM_T pDM_Odm);
 
@@ -1324,11 +1322,6 @@ void odm_RSSIMonitorCheckCE(PDM_ODM_T pDM_Odm)
 /* 3 Tx Power Tracking */
 /* 3 ============================================================ */
 
-void odm_TXPowerTrackingInit(PDM_ODM_T pDM_Odm)
-{
-	odm_TXPowerTrackingThermalMeterInit(pDM_Odm);
-}
-
 static u8 getSwingIndex(PDM_ODM_T pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
@@ -1353,7 +1346,7 @@ static u8 getSwingIndex(PDM_ODM_T pDM_Odm)
 	return i;
 }
 
-void odm_TXPowerTrackingThermalMeterInit(PDM_ODM_T pDM_Odm)
+void odm_TXPowerTrackingInit(PDM_ODM_T pDM_Odm)
 {
 	u8 defaultSwingIndex = getSwingIndex(pDM_Odm);
 	u8 p = 0;
