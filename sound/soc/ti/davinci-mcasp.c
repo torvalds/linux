@@ -109,6 +109,7 @@ struct davinci_mcasp {
 
 	/* Used for comstraint setting on the second stream */
 	u32	channels;
+	u8	active_serializers[2];
 
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio_chip;
@@ -813,6 +814,7 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	u8 rx_ser = 0;
 	u8 slots = mcasp->tdm_slots;
 	u8 max_active_serializers = (channels + slots - 1) / slots;
+	u8 max_rx_serializers, max_tx_serializers;
 	int active_serializers, numevt;
 	u32 reg;
 	/* Default configuration */
@@ -822,22 +824,28 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		mcasp_set_reg(mcasp, DAVINCI_MCASP_TXSTAT_REG, 0xFFFFFFFF);
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_XEVTCTL_REG, TXDATADMADIS);
+		max_tx_serializers = max_active_serializers;
+		max_rx_serializers =
+			mcasp->active_serializers[SNDRV_PCM_STREAM_CAPTURE];
 	} else {
 		mcasp_set_reg(mcasp, DAVINCI_MCASP_RXSTAT_REG, 0xFFFFFFFF);
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_REVTCTL_REG, RXDATADMADIS);
+		max_tx_serializers =
+			mcasp->active_serializers[SNDRV_PCM_STREAM_PLAYBACK];
+		max_rx_serializers = max_active_serializers;
 	}
 
 	for (i = 0; i < mcasp->num_serializer; i++) {
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_XRSRCTL_REG(i),
 			       mcasp->serial_dir[i]);
 		if (mcasp->serial_dir[i] == TX_MODE &&
-					tx_ser < max_active_serializers) {
+					tx_ser < max_tx_serializers) {
 			mcasp_mod_bits(mcasp, DAVINCI_MCASP_XRSRCTL_REG(i),
 				       mcasp->dismod, DISMOD_MASK);
 			set_bit(PIN_BIT_AXR(i), &mcasp->pdir);
 			tx_ser++;
 		} else if (mcasp->serial_dir[i] == RX_MODE &&
-					rx_ser < max_active_serializers) {
+					rx_ser < max_rx_serializers) {
 			clear_bit(PIN_BIT_AXR(i), &mcasp->pdir);
 			rx_ser++;
 		} else {
@@ -884,7 +892,8 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 		} else {
 			dma_data->maxburst = 0;
 		}
-		return 0;
+
+		goto out;
 	}
 
 	if (period_words % active_serializers) {
@@ -913,6 +922,9 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	if (numevt == 1)
 		numevt = 0;
 	dma_data->maxburst = numevt;
+
+out:
+	mcasp->active_serializers[stream] = active_serializers;
 
 	return 0;
 }
@@ -1153,6 +1165,37 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	int period_size = params_period_size(params);
 	int ret;
 
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_U8:
+	case SNDRV_PCM_FORMAT_S8:
+		word_length = 8;
+		break;
+
+	case SNDRV_PCM_FORMAT_U16_LE:
+	case SNDRV_PCM_FORMAT_S16_LE:
+		word_length = 16;
+		break;
+
+	case SNDRV_PCM_FORMAT_U24_3LE:
+	case SNDRV_PCM_FORMAT_S24_3LE:
+		word_length = 24;
+		break;
+
+	case SNDRV_PCM_FORMAT_U24_LE:
+	case SNDRV_PCM_FORMAT_S24_LE:
+		word_length = 24;
+		break;
+
+	case SNDRV_PCM_FORMAT_U32_LE:
+	case SNDRV_PCM_FORMAT_S32_LE:
+		word_length = 32;
+		break;
+
+	default:
+		printk(KERN_WARNING "davinci-mcasp: unsupported PCM format");
+		return -EINVAL;
+	}
+
 	ret = davinci_mcasp_set_dai_fmt(cpu_dai, mcasp->dai_fmt);
 	if (ret)
 		return ret;
@@ -1186,37 +1229,6 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 
 	if (ret)
 		return ret;
-
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_U8:
-	case SNDRV_PCM_FORMAT_S8:
-		word_length = 8;
-		break;
-
-	case SNDRV_PCM_FORMAT_U16_LE:
-	case SNDRV_PCM_FORMAT_S16_LE:
-		word_length = 16;
-		break;
-
-	case SNDRV_PCM_FORMAT_U24_3LE:
-	case SNDRV_PCM_FORMAT_S24_3LE:
-		word_length = 24;
-		break;
-
-	case SNDRV_PCM_FORMAT_U24_LE:
-	case SNDRV_PCM_FORMAT_S24_LE:
-		word_length = 24;
-		break;
-
-	case SNDRV_PCM_FORMAT_U32_LE:
-	case SNDRV_PCM_FORMAT_S32_LE:
-		word_length = 32;
-		break;
-
-	default:
-		printk(KERN_WARNING "davinci-mcasp: unsupported PCM format");
-		return -EINVAL;
-	}
 
 	davinci_config_channel_size(mcasp, word_length);
 
@@ -1404,12 +1416,13 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 	max_channels *= tdm_slots;
 	/*
 	 * If the already active stream has less channels than the calculated
-	 * limnit based on the seirializers * tdm_slots, we need to use that as
-	 * a constraint for the second stream.
-	 * Otherwise (first stream or less allowed channels) we use the
-	 * calculated constraint.
+	 * limit based on the seirializers * tdm_slots, and only one serializer
+	 * is in use we need to use that as a constraint for the second stream.
+	 * Otherwise (first stream or less allowed channels or more than one
+	 * serializer in use) we use the calculated constraint.
 	 */
-	if (mcasp->channels && mcasp->channels < max_channels)
+	if (mcasp->channels && mcasp->channels < max_channels &&
+	    ruledata->serializers == 1)
 		max_channels = mcasp->channels;
 	/*
 	 * But we can always allow channels upto the amount of
@@ -1470,6 +1483,7 @@ static void davinci_mcasp_shutdown(struct snd_pcm_substream *substream,
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(cpu_dai);
 
 	mcasp->substreams[substream->stream] = NULL;
+	mcasp->active_serializers[substream->stream] = 0;
 
 	if (mcasp->op_mode == DAVINCI_MCASP_DIT_MODE)
 		return;
