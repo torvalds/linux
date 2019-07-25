@@ -271,8 +271,8 @@ static int ti_hecc_set_btc(struct ti_hecc_priv *priv)
 		if (bit_timing->brp > 4)
 			can_btc |= HECC_CANBTC_SAM;
 		else
-			netdev_warn(priv->ndev, "WARN: Triple"
-				"sampling not set due to h/w limitations");
+			netdev_warn(priv->ndev,
+				    "WARN: Triple sampling not set due to h/w limitations");
 	}
 	can_btc |= ((bit_timing->sjw - 1) & 0x3) << 8;
 	can_btc |= ((bit_timing->brp - 1) & 0xFF) << 16;
@@ -562,7 +562,8 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 	if (!skb) {
 		if (printk_ratelimit())
 			netdev_err(priv->ndev,
-				"ti_hecc_error: alloc_can_err_skb() failed\n");
+				   "%s: alloc_can_err_skb() failed\n",
+				   __func__);
 		return -ENOMEM;
 	}
 
