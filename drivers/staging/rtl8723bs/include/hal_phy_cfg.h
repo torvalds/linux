@@ -73,7 +73,7 @@ u8 			Rate
 	);
 
 u8
-PHY_GetTxPowerIndex_8723B(
+PHY_GetTxPowerIndex(
 struct adapter *		padapter,
 u8 			RFPath,
 u8 			Rate,

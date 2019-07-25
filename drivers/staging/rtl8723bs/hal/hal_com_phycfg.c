@@ -2040,17 +2040,6 @@ void PHY_SetTxPowerLimit(
 	}
 }
 
-u8 PHY_GetTxPowerIndex(
-	struct adapter *padapter,
-	u8 RFPath,
-	u8 Rate,
-	enum CHANNEL_WIDTH BandWidth,
-	u8 Channel
-)
-{
-	return PHY_GetTxPowerIndex_8723B(padapter, RFPath, Rate, BandWidth, Channel);
-}
-
 void Hal_ChannelPlanToRegulation(struct adapter *Adapter, u16 ChannelPlan)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
