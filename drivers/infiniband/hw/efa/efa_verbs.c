@@ -41,6 +41,33 @@ static inline u64 get_mmap_key(const struct efa_mmap_entry *efa)
 	       ((u64)efa->mmap_page << PAGE_SHIFT);
 }
 
+#define EFA_DEFINE_STATS(op) \
+	op(EFA_TX_BYTES, "tx_bytes") \
+	op(EFA_TX_PKTS, "tx_pkts") \
+	op(EFA_RX_BYTES, "rx_bytes") \
+	op(EFA_RX_PKTS, "rx_pkts") \
+	op(EFA_RX_DROPS, "rx_drops") \
+	op(EFA_SUBMITTED_CMDS, "submitted_cmds") \
+	op(EFA_COMPLETED_CMDS, "completed_cmds") \
+	op(EFA_NO_COMPLETION_CMDS, "no_completion_cmds") \
+	op(EFA_KEEP_ALIVE_RCVD, "keep_alive_rcvd") \
+	op(EFA_ALLOC_PD_ERR, "alloc_pd_err") \
+	op(EFA_CREATE_QP_ERR, "create_qp_err") \
+	op(EFA_REG_MR_ERR, "reg_mr_err") \
+	op(EFA_ALLOC_UCONTEXT_ERR, "alloc_ucontext_err") \
+	op(EFA_CREATE_AH_ERR, "create_ah_err")
+
+#define EFA_STATS_ENUM(ename, name) ename,
+#define EFA_STATS_STR(ename, name) [ename] = name,
+
+enum efa_hw_stats {
+	EFA_DEFINE_STATS(EFA_STATS_ENUM)
+};
+
+static const char *const efa_stats_names[] = {
+	EFA_DEFINE_STATS(EFA_STATS_STR)
+};
+
 #define EFA_CHUNK_PAYLOAD_SHIFT       12
 #define EFA_CHUNK_PAYLOAD_SIZE        BIT(EFA_CHUNK_PAYLOAD_SHIFT)
 #define EFA_CHUNK_PAYLOAD_PTR_SIZE    8
@@ -1725,6 +1752,54 @@ void efa_destroy_ah(struct ib_ah *ibah, u32 flags)
 	}
 
 	efa_ah_destroy(dev, ah);
+}
+
+struct rdma_hw_stats *efa_alloc_hw_stats(struct ib_device *ibdev, u8 port_num)
+{
+	return rdma_alloc_hw_stats_struct(efa_stats_names,
+					  ARRAY_SIZE(efa_stats_names),
+					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
+
+int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
+		     u8 port_num, int index)
+{
+	struct efa_com_get_stats_params params = {};
+	union efa_com_get_stats_result result;
+	struct efa_dev *dev = to_edev(ibdev);
+	struct efa_com_basic_stats *bs;
+	struct efa_com_stats_admin *as;
+	struct efa_stats *s;
+	int err;
+
+	params.type = EFA_ADMIN_GET_STATS_TYPE_BASIC;
+	params.scope = EFA_ADMIN_GET_STATS_SCOPE_ALL;
+
+	err = efa_com_get_stats(&dev->edev, &params, &result);
+	if (err)
+		return err;
+
+	bs = &result.basic_stats;
+	stats->value[EFA_TX_BYTES] = bs->tx_bytes;
+	stats->value[EFA_TX_PKTS] = bs->tx_pkts;
+	stats->value[EFA_RX_BYTES] = bs->rx_bytes;
+	stats->value[EFA_RX_PKTS] = bs->rx_pkts;
+	stats->value[EFA_RX_DROPS] = bs->rx_drops;
+
+	as = &dev->edev.aq.stats;
+	stats->value[EFA_SUBMITTED_CMDS] = atomic64_read(&as->submitted_cmd);
+	stats->value[EFA_COMPLETED_CMDS] = atomic64_read(&as->completed_cmd);
+	stats->value[EFA_NO_COMPLETION_CMDS] = atomic64_read(&as->no_completion);
+
+	s = &dev->stats;
+	stats->value[EFA_KEEP_ALIVE_RCVD] = atomic64_read(&s->keep_alive_rcvd);
+	stats->value[EFA_ALLOC_PD_ERR] = atomic64_read(&s->sw_stats.alloc_pd_err);
+	stats->value[EFA_CREATE_QP_ERR] = atomic64_read(&s->sw_stats.create_qp_err);
+	stats->value[EFA_REG_MR_ERR] = atomic64_read(&s->sw_stats.reg_mr_err);
+	stats->value[EFA_ALLOC_UCONTEXT_ERR] = atomic64_read(&s->sw_stats.alloc_ucontext_err);
+	stats->value[EFA_CREATE_AH_ERR] = atomic64_read(&s->sw_stats.create_ah_err);
+
+	return ARRAY_SIZE(efa_stats_names);
 }
 
 enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,

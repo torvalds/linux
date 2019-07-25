@@ -702,3 +702,38 @@ int efa_com_dealloc_uar(struct efa_com_dev *edev,
 
 	return 0;
 }
+
+int efa_com_get_stats(struct efa_com_dev *edev,
+		      struct efa_com_get_stats_params *params,
+		      union efa_com_get_stats_result *result)
+{
+	struct efa_com_admin_queue *aq = &edev->aq;
+	struct efa_admin_aq_get_stats_cmd cmd = {};
+	struct efa_admin_acq_get_stats_resp resp;
+	int err;
+
+	cmd.aq_common_descriptor.opcode = EFA_ADMIN_GET_STATS;
+	cmd.type = params->type;
+	cmd.scope = params->scope;
+	cmd.scope_modifier = params->scope_modifier;
+
+	err = efa_com_cmd_exec(aq,
+			       (struct efa_admin_aq_entry *)&cmd,
+			       sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp,
+			       sizeof(resp));
+	if (err) {
+		ibdev_err(edev->efa_dev,
+			  "Failed to get stats type-%u scope-%u.%u [%d]\n",
+			  cmd.type, cmd.scope, cmd.scope_modifier, err);
+		return err;
+	}
+
+	result->basic_stats.tx_bytes = resp.basic_stats.tx_bytes;
+	result->basic_stats.tx_pkts = resp.basic_stats.tx_pkts;
+	result->basic_stats.rx_bytes = resp.basic_stats.rx_bytes;
+	result->basic_stats.rx_pkts = resp.basic_stats.rx_pkts;
+	result->basic_stats.rx_drops = resp.basic_stats.rx_drops;
+
+	return 0;
+}
