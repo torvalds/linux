@@ -459,6 +459,26 @@ void intel_uc_fw_cleanup_fetch(struct intel_uc_fw *uc_fw)
 }
 
 /**
+ * intel_uc_fw_copy_rsa - copy fw RSA to buffer
+ *
+ * @uc_fw: uC firmware
+ * @dst: dst buffer
+ * @max_len: max number of bytes to copy
+ *
+ * Return: number of copied bytes.
+ */
+size_t intel_uc_fw_copy_rsa(struct intel_uc_fw *uc_fw, void *dst, u32 max_len)
+{
+	struct sg_table *pages = uc_fw->obj->mm.pages;
+	u32 size = min_t(u32, uc_fw->rsa_size, max_len);
+
+	GEM_BUG_ON(!intel_uc_fw_is_available(uc_fw));
+
+	return sg_pcopy_to_buffer(pages->sgl, pages->nents,
+				  dst, size, uc_fw->rsa_offset);
+}
+
+/**
  * intel_uc_fw_dump - dump information about uC firmware
  * @uc_fw: uC firmware
  * @p: the &drm_printer

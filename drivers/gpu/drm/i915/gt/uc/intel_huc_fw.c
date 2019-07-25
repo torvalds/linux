@@ -36,17 +36,17 @@ void intel_huc_fw_init_early(struct intel_huc *huc)
 
 static void huc_xfer_rsa(struct intel_huc *huc)
 {
-	struct intel_uc_fw *fw = &huc->fw;
-	struct sg_table *pages = fw->obj->mm.pages;
+	size_t copied;
 
 	/*
 	 * HuC firmware image is outside GuC accessible range.
 	 * Copy the RSA signature out of the image into
 	 * the perma-pinned region set aside for it
 	 */
-	sg_pcopy_to_buffer(pages->sgl, pages->nents,
-			   huc->rsa_data_vaddr, fw->rsa_size,
-			   fw->rsa_offset);
+	GEM_BUG_ON(huc->fw.rsa_size > huc->rsa_data->size);
+	copied = intel_uc_fw_copy_rsa(&huc->fw, huc->rsa_data_vaddr,
+				      huc->rsa_data->size);
+	GEM_BUG_ON(copied < huc->fw.rsa_size);
 }
 
 static int huc_xfer_ucode(struct intel_huc *huc)

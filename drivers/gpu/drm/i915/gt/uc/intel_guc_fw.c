@@ -75,13 +75,12 @@ static void guc_prepare_xfer(struct intel_guc *guc)
 static void guc_xfer_rsa(struct intel_guc *guc)
 {
 	struct intel_uncore *uncore = guc_to_gt(guc)->uncore;
-	struct intel_uc_fw *fw = &guc->fw;
-	struct sg_table *pages = fw->obj->mm.pages;
 	u32 rsa[UOS_RSA_SCRATCH_COUNT];
+	size_t copied;
 	int i;
 
-	sg_pcopy_to_buffer(pages->sgl, pages->nents,
-			   rsa, sizeof(rsa), fw->rsa_offset);
+	copied = intel_uc_fw_copy_rsa(&guc->fw, rsa, sizeof(rsa));
+	GEM_BUG_ON(copied < sizeof(rsa));
 
 	for (i = 0; i < UOS_RSA_SCRATCH_COUNT; i++)
 		intel_uncore_write(uncore, UOS_RSA_SCRATCH(i), rsa[i]);
