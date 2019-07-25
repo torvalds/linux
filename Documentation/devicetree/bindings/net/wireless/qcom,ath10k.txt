@@ -81,6 +81,12 @@ Optional properties:
 	Definition: Name of external front end module used. Some valid FEM names
 		    for example: "microsemi-lx5586", "sky85703-11"
 		    and "sky85803" etc.
+- qcom,snoc-host-cap-8bit-quirk:
+	Usage: Optional
+	Value type: <empty>
+	Definition: Quirk specifying that the firmware expects the 8bit version
+		    of the host capability QMI request
+
 
 Example (to supply PCI based wifi block details):
 
