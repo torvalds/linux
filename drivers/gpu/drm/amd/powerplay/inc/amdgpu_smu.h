@@ -432,8 +432,6 @@ struct pptable_funcs {
 				      uint32_t *mclk_mask,
 				      uint32_t *soc_mask);
 	int (*set_cpu_power_state)(struct smu_context *smu);
-	int (*set_ppfeature_status)(struct smu_context *smu, uint64_t ppfeatures);
-	int (*get_ppfeature_status)(struct smu_context *smu, char *buf);
 	bool (*is_dpm_running)(struct smu_context *smu);
 	int (*tables_init)(struct smu_context *smu, struct smu_table *tables);
 	int (*set_thermal_fan_table)(struct smu_context *smu);
@@ -713,10 +711,6 @@ struct smu_funcs
 	((smu)->ppt_funcs->dpm_set_vce_enable ? (smu)->ppt_funcs->dpm_set_vce_enable((smu), (enable)) : 0)
 #define smu_set_xgmi_pstate(smu, pstate) \
 		((smu)->funcs->set_xgmi_pstate ? (smu)->funcs->set_xgmi_pstate((smu), (pstate)) : 0)
-#define smu_set_ppfeature_status(smu, ppfeatures) \
-	((smu)->ppt_funcs->set_ppfeature_status ? (smu)->ppt_funcs->set_ppfeature_status((smu), (ppfeatures)) : -EINVAL)
-#define smu_get_ppfeature_status(smu, buf) \
-	((smu)->ppt_funcs->get_ppfeature_status ? (smu)->ppt_funcs->get_ppfeature_status((smu), (buf)) : -EINVAL)
 #define smu_set_watermarks_table(smu, tab, clock_ranges) \
 	((smu)->ppt_funcs->set_watermarks_table ? (smu)->ppt_funcs->set_watermarks_table((smu), (tab), (clock_ranges)) : 0)
 #define smu_get_current_clk_freq_by_table(smu, clk_type, value) \
@@ -804,5 +798,7 @@ bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type)
 int smu_feature_update_enable_state(struct smu_context *smu, uint64_t feature_mask, bool enabled);
 const char *smu_get_message_name(struct smu_context *smu, enum smu_message_type type);
 const char *smu_get_feature_name(struct smu_context *smu, enum smu_feature_mask feature);
+size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf);
+int smu_sys_set_pp_feature_mask(struct smu_context *smu, uint64_t new_mask);
 
 #endif

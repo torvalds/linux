@@ -745,10 +745,10 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 }
 
 /**
- * DOC: ppfeatures
+ * DOC: pp_features
  *
  * The amdgpu driver provides a sysfs API for adjusting what powerplay
- * features to be enabled. The file ppfeatures is used for this. And
+ * features to be enabled. The file pp_features is used for this. And
  * this is only available for Vega10 and later dGPUs.
  *
  * Reading back the file will show you the followings:
@@ -760,7 +760,7 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
  * the corresponding bit from original ppfeature masks and input the
  * new ppfeature masks.
  */
-static ssize_t amdgpu_set_ppfeature_status(struct device *dev,
+static ssize_t amdgpu_set_pp_feature_status(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf,
 		size_t count)
@@ -777,7 +777,7 @@ static ssize_t amdgpu_set_ppfeature_status(struct device *dev,
 	pr_debug("featuremask = 0x%llx\n", featuremask);
 
 	if (is_support_sw_smu(adev)) {
-		ret = smu_set_ppfeature_status(&adev->smu, featuremask);
+		ret = smu_sys_set_pp_feature_mask(&adev->smu, featuremask);
 		if (ret)
 			return -EINVAL;
 	} else if (adev->powerplay.pp_funcs->set_ppfeature_status) {
@@ -789,7 +789,7 @@ static ssize_t amdgpu_set_ppfeature_status(struct device *dev,
 	return count;
 }
 
-static ssize_t amdgpu_get_ppfeature_status(struct device *dev,
+static ssize_t amdgpu_get_pp_feature_status(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
@@ -797,7 +797,7 @@ static ssize_t amdgpu_get_ppfeature_status(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 
 	if (is_support_sw_smu(adev)) {
-		return smu_get_ppfeature_status(&adev->smu, buf);
+		return smu_sys_get_pp_feature_mask(&adev->smu, buf);
 	} else if (adev->powerplay.pp_funcs->get_ppfeature_status)
 		return amdgpu_dpm_get_ppfeature_status(adev, buf);
 
@@ -1457,9 +1457,9 @@ static DEVICE_ATTR(gpu_busy_percent, S_IRUGO,
 static DEVICE_ATTR(mem_busy_percent, S_IRUGO,
 		amdgpu_get_memory_busy_percent, NULL);
 static DEVICE_ATTR(pcie_bw, S_IRUGO, amdgpu_get_pcie_bw, NULL);
-static DEVICE_ATTR(ppfeatures, S_IRUGO | S_IWUSR,
-		amdgpu_get_ppfeature_status,
-		amdgpu_set_ppfeature_status);
+static DEVICE_ATTR(pp_features, S_IRUGO | S_IWUSR,
+		amdgpu_get_pp_feature_status,
+		amdgpu_set_pp_feature_status);
 static DEVICE_ATTR(unique_id, S_IRUGO, amdgpu_get_unique_id, NULL);
 
 static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
@@ -2914,10 +2914,10 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 	if ((adev->asic_type >= CHIP_VEGA10) &&
 	    !(adev->flags & AMD_IS_APU)) {
 		ret = device_create_file(adev->dev,
-				&dev_attr_ppfeatures);
+				&dev_attr_pp_features);
 		if (ret) {
 			DRM_ERROR("failed to create device file	"
-					"ppfeatures\n");
+					"pp_features\n");
 			return ret;
 		}
 	}
@@ -2971,7 +2971,7 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 		device_remove_file(adev->dev, &dev_attr_unique_id);
 	if ((adev->asic_type >= CHIP_VEGA10) &&
 	    !(adev->flags & AMD_IS_APU))
-		device_remove_file(adev->dev, &dev_attr_ppfeatures);
+		device_remove_file(adev->dev, &dev_attr_pp_features);
 }
 
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
