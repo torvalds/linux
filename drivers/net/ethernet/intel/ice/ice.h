@@ -220,6 +220,7 @@ enum ice_state {
 	__ICE_CFG_BUSY,
 	__ICE_SERVICE_SCHED,
 	__ICE_SERVICE_DIS,
+	__ICE_OICR_INTR_DIS,		/* Global OICR interrupt disabled */
 	__ICE_STATE_NBITS		/* must be last */
 };
 
