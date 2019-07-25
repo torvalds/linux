@@ -171,6 +171,13 @@ enum PP_HWMON_TEMP {
 	PP_TEMP_MAX
 };
 
+enum pp_mp1_state {
+	PP_MP1_STATE_NONE,
+	PP_MP1_STATE_SHUTDOWN,
+	PP_MP1_STATE_UNLOAD,
+	PP_MP1_STATE_RESET,
+};
+
 #define PP_GROUP_MASK        0xF0000000
 #define PP_GROUP_SHIFT       28
 
@@ -266,6 +273,7 @@ struct amd_pm_funcs {
 	int (*get_power_profile_mode)(void *handle, char *buf);
 	int (*set_power_profile_mode)(void *handle, long *input, uint32_t size);
 	int (*odn_edit_dpm_table)(void *handle, uint32_t type, long *input, uint32_t size);
+	int (*set_mp1_state)(void *handle, enum pp_mp1_state mp1_state);
 /* export to DC */
 	u32 (*get_sclk)(void *handle, bool low);
 	u32 (*get_mclk)(void *handle, bool low);

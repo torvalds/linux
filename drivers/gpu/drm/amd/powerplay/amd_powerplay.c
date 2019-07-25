@@ -924,6 +924,21 @@ static int pp_odn_edit_dpm_table(void *handle, uint32_t type, long *input, uint3
 	return hwmgr->hwmgr_func->odn_edit_dpm_table(hwmgr, type, input, size);
 }
 
+static int pp_dpm_set_mp1_state(void *handle, enum pp_mp1_state mp1_state)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->set_mp1_state == NULL) {
+		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
+
+	return hwmgr->hwmgr_func->set_mp1_state(hwmgr, mp1_state);
+}
+
 static int pp_dpm_switch_power_profile(void *handle,
 		enum PP_SMC_POWER_PROFILE type, bool en)
 {
@@ -1525,6 +1540,7 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.get_power_profile_mode = pp_get_power_profile_mode,
 	.set_power_profile_mode = pp_set_power_profile_mode,
 	.odn_edit_dpm_table = pp_odn_edit_dpm_table,
+	.set_mp1_state = pp_dpm_set_mp1_state,
 	.set_power_limit = pp_set_power_limit,
 	.get_power_limit = pp_get_power_limit,
 /* export to DC */
