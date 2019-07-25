@@ -70,15 +70,6 @@ struct wilc_p2p_mgmt_data {
 static const u8 p2p_oui[] = {0x50, 0x6f, 0x9A, 0x09};
 static const u8 p2p_vendor_spec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
 
-#define WILC_IP_TIMEOUT_MS		15000
-
-static void clear_during_ip(struct timer_list *t)
-{
-	struct wilc_vif *vif = from_timer(vif, t, during_ip_timer);
-
-	vif->obtaining_ip = false;
-}
-
 static void cfg_scan_result(enum scan_event scan_event,
 			    struct wilc_rcvd_net_info *info, void *user_void)
 {
@@ -1421,7 +1412,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	priv->p2p.recv_random = 0x00;
 	priv->p2p.is_wilc_ie = false;
 	vif->obtaining_ip = false;
-	del_timer(&vif->during_ip_timer);
 
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
@@ -1469,8 +1459,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 	case NL80211_IFTYPE_P2P_GO:
 		vif->obtaining_ip = true;
-		mod_timer(&vif->during_ip_timer,
-			  jiffies + msecs_to_jiffies(WILC_IP_TIMEOUT_MS));
 		wilc_set_operation_mode(vif, WILC_AP_MODE);
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev.iftype = type;
@@ -1948,8 +1936,6 @@ int wilc_init_host_int(struct net_device *net)
 	struct wilc_vif *vif = netdev_priv(net);
 	struct wilc_priv *priv = &vif->priv;
 
-	timer_setup(&vif->during_ip_timer, clear_during_ip, 0);
-
 	priv->p2p_listen_state = false;
 
 	mutex_init(&priv->scan_req_lock);
@@ -1970,8 +1956,6 @@ void wilc_deinit_host_int(struct net_device *net)
 
 	mutex_destroy(&priv->scan_req_lock);
 	ret = wilc_deinit(vif);
-
-	del_timer_sync(&vif->during_ip_timer);
 
 	if (ret)
 		netdev_err(net, "Error while deinitializing host interface\n");

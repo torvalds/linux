@@ -684,8 +684,6 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 		hif_drv->hif_state = HOST_IF_CONNECTED;
 
 		vif->obtaining_ip = true;
-		mod_timer(&vif->during_ip_timer,
-			  jiffies + msecs_to_jiffies(10000));
 	} else {
 		hif_drv->hif_state = HOST_IF_IDLE;
 	}
