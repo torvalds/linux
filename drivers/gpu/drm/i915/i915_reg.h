@@ -7461,21 +7461,29 @@ enum {
 #define GEN11_DE_HPD_IMR		_MMIO(0x44474)
 #define GEN11_DE_HPD_IIR		_MMIO(0x44478)
 #define GEN11_DE_HPD_IER		_MMIO(0x4447c)
+#define  GEN12_TC6_HOTPLUG			(1 << 21)
+#define  GEN12_TC5_HOTPLUG			(1 << 20)
 #define  GEN11_TC4_HOTPLUG			(1 << 19)
 #define  GEN11_TC3_HOTPLUG			(1 << 18)
 #define  GEN11_TC2_HOTPLUG			(1 << 17)
 #define  GEN11_TC1_HOTPLUG			(1 << 16)
 #define  GEN11_TC_HOTPLUG(tc_port)		(1 << ((tc_port) + 16))
-#define  GEN11_DE_TC_HOTPLUG_MASK		(GEN11_TC4_HOTPLUG | \
+#define  GEN11_DE_TC_HOTPLUG_MASK		(GEN12_TC6_HOTPLUG | \
+						 GEN12_TC5_HOTPLUG | \
+						 GEN11_TC4_HOTPLUG | \
 						 GEN11_TC3_HOTPLUG | \
 						 GEN11_TC2_HOTPLUG | \
 						 GEN11_TC1_HOTPLUG)
+#define  GEN12_TBT6_HOTPLUG			(1 << 5)
+#define  GEN12_TBT5_HOTPLUG			(1 << 4)
 #define  GEN11_TBT4_HOTPLUG			(1 << 3)
 #define  GEN11_TBT3_HOTPLUG			(1 << 2)
 #define  GEN11_TBT2_HOTPLUG			(1 << 1)
 #define  GEN11_TBT1_HOTPLUG			(1 << 0)
 #define  GEN11_TBT_HOTPLUG(tc_port)		(1 << (tc_port))
-#define  GEN11_DE_TBT_HOTPLUG_MASK		(GEN11_TBT4_HOTPLUG | \
+#define  GEN11_DE_TBT_HOTPLUG_MASK		(GEN12_TBT6_HOTPLUG | \
+						 GEN12_TBT5_HOTPLUG | \
+						 GEN11_TBT4_HOTPLUG | \
 						 GEN11_TBT3_HOTPLUG | \
 						 GEN11_TBT2_HOTPLUG | \
 						 GEN11_TBT1_HOTPLUG)

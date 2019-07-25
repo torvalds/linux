@@ -58,6 +58,8 @@
  * and related files, but that will be described in separate chapters.
  */
 
+typedef bool (*long_pulse_detect_func)(enum hpd_pin pin, u32 val);
+
 static const u32 hpd_ilk[HPD_NUM_PINS] = {
 	[HPD_PORT_A] = DE_DP_A_HOTPLUG,
 };
@@ -133,6 +135,15 @@ static const u32 hpd_gen11[HPD_NUM_PINS] = {
 	[HPD_PORT_D] = GEN11_TC2_HOTPLUG | GEN11_TBT2_HOTPLUG,
 	[HPD_PORT_E] = GEN11_TC3_HOTPLUG | GEN11_TBT3_HOTPLUG,
 	[HPD_PORT_F] = GEN11_TC4_HOTPLUG | GEN11_TBT4_HOTPLUG
+};
+
+static const u32 hpd_gen12[HPD_NUM_PINS] = {
+	[HPD_PORT_D] = GEN11_TC1_HOTPLUG | GEN11_TBT1_HOTPLUG,
+	[HPD_PORT_E] = GEN11_TC2_HOTPLUG | GEN11_TBT2_HOTPLUG,
+	[HPD_PORT_F] = GEN11_TC3_HOTPLUG | GEN11_TBT3_HOTPLUG,
+	[HPD_PORT_G] = GEN11_TC4_HOTPLUG | GEN11_TBT4_HOTPLUG,
+	[HPD_PORT_H] = GEN12_TC5_HOTPLUG | GEN12_TBT5_HOTPLUG,
+	[HPD_PORT_I] = GEN12_TC6_HOTPLUG | GEN12_TBT6_HOTPLUG
 };
 
 static const u32 hpd_icp[HPD_NUM_PINS] = {
@@ -1694,6 +1705,26 @@ static bool gen11_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 	}
 }
 
+static bool gen12_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
+{
+	switch (pin) {
+	case HPD_PORT_D:
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC1);
+	case HPD_PORT_E:
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC2);
+	case HPD_PORT_F:
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC3);
+	case HPD_PORT_G:
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC4);
+	case HPD_PORT_H:
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC5);
+	case HPD_PORT_I:
+		return val & GEN11_HOTPLUG_CTL_LONG_DETECT(PORT_TC6);
+	default:
+		return false;
+	}
+}
+
 static bool bxt_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 {
 	switch (pin) {
@@ -2881,6 +2912,16 @@ static void gen11_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 	u32 pin_mask = 0, long_mask = 0;
 	u32 trigger_tc = iir & GEN11_DE_TC_HOTPLUG_MASK;
 	u32 trigger_tbt = iir & GEN11_DE_TBT_HOTPLUG_MASK;
+	long_pulse_detect_func long_pulse_detect;
+	const u32 *hpd;
+
+	if (INTEL_GEN(dev_priv) >= 12) {
+		long_pulse_detect = gen12_port_hotplug_long_detect;
+		hpd = hpd_gen12;
+	} else {
+		long_pulse_detect = gen11_port_hotplug_long_detect;
+		hpd = hpd_gen11;
+	}
 
 	if (trigger_tc) {
 		u32 dig_hotplug_reg;
@@ -2889,8 +2930,7 @@ static void gen11_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 		I915_WRITE(GEN11_TC_HOTPLUG_CTL, dig_hotplug_reg);
 
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask, trigger_tc,
-				   dig_hotplug_reg, hpd_gen11,
-				   gen11_port_hotplug_long_detect);
+				   dig_hotplug_reg, hpd, long_pulse_detect);
 	}
 
 	if (trigger_tbt) {
@@ -2900,8 +2940,7 @@ static void gen11_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 		I915_WRITE(GEN11_TBT_HOTPLUG_CTL, dig_hotplug_reg);
 
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask, trigger_tbt,
-				   dig_hotplug_reg, hpd_gen11,
-				   gen11_port_hotplug_long_detect);
+				   dig_hotplug_reg, hpd, long_pulse_detect);
 	}
 
 	if (pin_mask)
@@ -3928,9 +3967,11 @@ static void gen11_hpd_detection_setup(struct drm_i915_private *dev_priv)
 static void gen11_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug_irqs, enabled_irqs;
+	const u32 *hpd;
 	u32 val;
 
-	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd_gen11);
+	hpd = INTEL_GEN(dev_priv) >= 12 ? hpd_gen12 : hpd_gen11;
+	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd);
 	hotplug_irqs = GEN11_DE_TC_HOTPLUG_MASK | GEN11_DE_TBT_HOTPLUG_MASK;
 
 	val = I915_READ(GEN11_DE_HPD_IMR);
