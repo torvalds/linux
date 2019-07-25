@@ -2051,13 +2051,6 @@ u8 PHY_GetTxPowerIndex(
 	return PHY_GetTxPowerIndex_8723B(padapter, RFPath, Rate, BandWidth, Channel);
 }
 
-void PHY_SetTxPowerIndex(
-	struct adapter *padapter, u32 PowerIndex, u8 RFPath, u8 Rate
-)
-{
-	PHY_SetTxPowerIndex_8723B(padapter, PowerIndex, RFPath, Rate);
-}
-
 void Hal_ChannelPlanToRegulation(struct adapter *Adapter, u16 ChannelPlan)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);

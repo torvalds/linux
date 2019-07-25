@@ -585,7 +585,7 @@ int PHY_RFConfig8723B(struct adapter *Adapter)
  *                                                                                    <20120830, Kordan>
  **************************************************************************************************************/
 
-void PHY_SetTxPowerIndex_8723B(
+void PHY_SetTxPowerIndex(
 	struct adapter *Adapter,
 	u32 PowerIndex,
 	u8 RFPath,

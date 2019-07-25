@@ -65,7 +65,7 @@ int PHY_RFConfig8723B(struct adapter *Adapter	);
 s32 PHY_MACConfig8723B(struct adapter *padapter);
 
 void
-PHY_SetTxPowerIndex_8723B(
+PHY_SetTxPowerIndex(
 struct adapter *		Adapter,
 u32 				PowerIndex,
 u8 			RFPath,

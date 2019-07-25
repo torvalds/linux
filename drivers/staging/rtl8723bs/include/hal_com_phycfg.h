@@ -223,14 +223,6 @@ u8 			Channel
 	);
 
 void
-PHY_SetTxPowerIndex(
-struct adapter *	padapter,
-u32 			PowerIndex,
-u8 		RFPath,
-u8 		Rate
-	);
-
-void
 Hal_ChannelPlanToRegulation(
 struct adapter *	Adapter,
 u16 			ChannelPlan
