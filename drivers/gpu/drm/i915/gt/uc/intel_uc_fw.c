@@ -190,10 +190,8 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
  *
  * Fetch uC firmware into GEM obj.
  */
-void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
-		       struct intel_uc_fw *uc_fw)
+void intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 {
-	struct pci_dev *pdev = dev_priv->drm.pdev;
 	struct drm_i915_gem_object *obj;
 	const struct firmware *fw = NULL;
 	struct uc_css_header *css;
@@ -202,7 +200,7 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 
 	GEM_BUG_ON(!intel_uc_fw_supported(uc_fw));
 
-	err = request_firmware(&fw, uc_fw->path, &pdev->dev);
+	err = request_firmware(&fw, uc_fw->path, i915->drm.dev);
 	if (err)
 		goto fail;
 
@@ -295,8 +293,7 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		goto fail;
 	}
 
-	obj = i915_gem_object_create_shmem_from_data(dev_priv,
-						     fw->data, fw->size);
+	obj = i915_gem_object_create_shmem_from_data(i915, fw->data, fw->size);
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
 		DRM_DEBUG_DRIVER("%s fw object_create err=%d\n",

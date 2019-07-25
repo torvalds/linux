@@ -355,10 +355,10 @@ void intel_uc_fetch_firmwares(struct intel_uc *uc)
 	if (!intel_uc_is_using_guc(uc))
 		return;
 
-	intel_uc_fw_fetch(i915, &uc->guc.fw);
+	intel_uc_fw_fetch(&uc->guc.fw, i915);
 
 	if (intel_uc_is_using_huc(uc))
-		intel_uc_fw_fetch(i915, &uc->huc.fw);
+		intel_uc_fw_fetch(&uc->huc.fw, i915);
 }
 
 void intel_uc_cleanup_firmwares(struct intel_uc *uc)
