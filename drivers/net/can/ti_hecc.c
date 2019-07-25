@@ -514,7 +514,8 @@ static netdev_tx_t ti_hecc_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return NETDEV_TX_OK;
 }
 
-static inline struct ti_hecc_priv *rx_offload_to_priv(struct can_rx_offload *offload)
+static inline
+struct ti_hecc_priv *rx_offload_to_priv(struct can_rx_offload *offload)
 {
 	return container_of(offload, struct ti_hecc_priv, offload);
 }
@@ -672,8 +673,9 @@ static irqreturn_t ti_hecc_interrupt(int irq, void *dev_id)
 			hecc_clear_bit(priv, HECC_CANME, mbx_mask);
 			spin_unlock_irqrestore(&priv->mbx_lock, flags);
 			stamp = hecc_read_stamp(priv, mbxno);
-			stats->tx_bytes += can_rx_offload_get_echo_skb(&priv->offload,
-									mbxno, stamp);
+			stats->tx_bytes +=
+				can_rx_offload_get_echo_skb(&priv->offload,
+							    mbxno, stamp);
 			stats->tx_packets++;
 			can_led_event(ndev, CAN_LED_EVENT_TX);
 			--priv->tx_tail;
