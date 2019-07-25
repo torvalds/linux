@@ -57,6 +57,9 @@ struct twlreg_info {
 #define VREG_BC_PROC		3
 #define VREG_BC_CLK_RST		4
 
+/* TWL6030 LDO register values for VREG_VOLTAGE */
+#define TWL6030_VREG_VOLTAGE_WR_S   BIT(7)
+
 /* TWL6030 LDO register values for CFG_STATE */
 #define TWL6030_CFG_STATE_OFF	0x00
 #define TWL6030_CFG_STATE_ON	0x01
@@ -68,9 +71,10 @@ struct twlreg_info {
 #define TWL6030_CFG_STATE_APP(v)	(((v) & TWL6030_CFG_STATE_APP_MASK) >>\
 						TWL6030_CFG_STATE_APP_SHIFT)
 
-/* Flags for SMPS Voltage reading */
+/* Flags for SMPS Voltage reading and LDO reading*/
 #define SMPS_OFFSET_EN		BIT(0)
 #define SMPS_EXTENDED_EN	BIT(1)
+#define TWL_6030_WARM_RESET	BIT(3)
 
 /* twl6032 SMPS EPROM values */
 #define TWL6030_SMPS_OFFSET		0xB0
@@ -250,6 +254,9 @@ twl6030ldo_set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
 
+	if (info->flags & TWL_6030_WARM_RESET)
+		selector |= TWL6030_VREG_VOLTAGE_WR_S;
+
 	return twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_VOLTAGE,
 			    selector);
 }
@@ -258,6 +265,9 @@ static int twl6030ldo_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
 	int vsel = twlreg_read(info, TWL_MODULE_PM_RECEIVER, VREG_VOLTAGE);
+
+	if (info->flags & TWL_6030_WARM_RESET)
+		vsel &= ~TWL6030_VREG_VOLTAGE_WR_S;
 
 	return vsel;
 }
@@ -709,6 +719,9 @@ static int twlreg_probe(struct platform_device *pdev)
 			info->flags |= SMPS_OFFSET_EN;
 		break;
 	}
+
+	if (of_get_property(np, "ti,retain-on-reset", NULL))
+		info->flags |= TWL_6030_WARM_RESET;
 
 	config.dev = &pdev->dev;
 	config.init_data = initdata;
