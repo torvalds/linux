@@ -9,7 +9,7 @@
  * based on the silicon variant in use. Qualcomm Process Voltage Scaling Tables
  * defines the voltage and frequency value based on the msm-id in SMEM
  * and speedbin blown in the efuse combination.
- * The qcom-cpufreq-kryo driver reads the msm-id and efuse value from the SoC
+ * The qcom-cpufreq-nvmem driver reads the msm-id and efuse value from the SoC
  * to provide the OPP framework with required information.
  * This is used to determine the voltage and frequency value for each OPP of
  * operating-points-v2 table when it is parsed by the OPP framework.
@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
@@ -42,9 +43,9 @@ enum _msm8996_version {
 	NUM_OF_MSM8996_VERSIONS,
 };
 
-static struct platform_device *cpufreq_dt_pdev, *kryo_cpufreq_pdev;
+static struct platform_device *cpufreq_dt_pdev, *cpufreq_pdev;
 
-static enum _msm8996_version qcom_cpufreq_kryo_get_msm_id(void)
+static enum _msm8996_version qcom_cpufreq_get_msm_id(void)
 {
 	size_t len;
 	u32 *msm_id;
@@ -73,28 +74,62 @@ static enum _msm8996_version qcom_cpufreq_kryo_get_msm_id(void)
 	return version;
 }
 
-static int qcom_cpufreq_kryo_probe(struct platform_device *pdev)
+static int qcom_cpufreq_kryo_name_version(struct device *cpu_dev,
+					  struct nvmem_cell *speedbin_nvmem,
+					  u32 *versions)
+{
+	size_t len;
+	u8 *speedbin;
+	enum _msm8996_version msm8996_version;
+
+	msm8996_version = qcom_cpufreq_get_msm_id();
+	if (NUM_OF_MSM8996_VERSIONS == msm8996_version) {
+		dev_err(cpu_dev, "Not Snapdragon 820/821!");
+		return -ENODEV;
+	}
+
+	speedbin = nvmem_cell_read(speedbin_nvmem, &len);
+	if (IS_ERR(speedbin))
+		return PTR_ERR(speedbin);
+
+	switch (msm8996_version) {
+	case MSM8996_V3:
+		*versions = 1 << (unsigned int)(*speedbin);
+		break;
+	case MSM8996_SG:
+		*versions = 1 << ((unsigned int)(*speedbin) + 4);
+		break;
+	default:
+		BUG();
+		break;
+	}
+
+	kfree(speedbin);
+	return 0;
+}
+
+static int qcom_cpufreq_probe(struct platform_device *pdev)
 {
 	struct opp_table **opp_tables;
-	enum _msm8996_version msm8996_version;
+	int (*get_version)(struct device *cpu_dev,
+			   struct nvmem_cell *speedbin_nvmem,
+			   u32 *versions);
 	struct nvmem_cell *speedbin_nvmem;
 	struct device_node *np;
 	struct device *cpu_dev;
 	unsigned cpu;
-	u8 *speedbin;
 	u32 versions;
-	size_t len;
+	const struct of_device_id *match;
 	int ret;
 
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev)
 		return -ENODEV;
 
-	msm8996_version = qcom_cpufreq_kryo_get_msm_id();
-	if (NUM_OF_MSM8996_VERSIONS == msm8996_version) {
-		dev_err(cpu_dev, "Not Snapdragon 820/821!");
+	match = pdev->dev.platform_data;
+	get_version = match->data;
+	if (!get_version)
 		return -ENODEV;
-	}
 
 	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
 	if (!np)
@@ -115,23 +150,10 @@ static int qcom_cpufreq_kryo_probe(struct platform_device *pdev)
 		return PTR_ERR(speedbin_nvmem);
 	}
 
-	speedbin = nvmem_cell_read(speedbin_nvmem, &len);
+	ret = get_version(cpu_dev, speedbin_nvmem, &versions);
 	nvmem_cell_put(speedbin_nvmem);
-	if (IS_ERR(speedbin))
-		return PTR_ERR(speedbin);
-
-	switch (msm8996_version) {
-	case MSM8996_V3:
-		versions = 1 << (unsigned int)(*speedbin);
-		break;
-	case MSM8996_SG:
-		versions = 1 << ((unsigned int)(*speedbin) + 4);
-		break;
-	default:
-		BUG();
-		break;
-	}
-	kfree(speedbin);
+	if (ret)
+		return ret;
 
 	opp_tables = kcalloc(num_possible_cpus(), sizeof(*opp_tables), GFP_KERNEL);
 	if (!opp_tables)
@@ -174,7 +196,7 @@ free_opp:
 	return ret;
 }
 
-static int qcom_cpufreq_kryo_remove(struct platform_device *pdev)
+static int qcom_cpufreq_remove(struct platform_device *pdev)
 {
 	struct opp_table **opp_tables = platform_get_drvdata(pdev);
 	unsigned int cpu;
@@ -189,18 +211,20 @@ static int qcom_cpufreq_kryo_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver qcom_cpufreq_kryo_driver = {
-	.probe = qcom_cpufreq_kryo_probe,
-	.remove = qcom_cpufreq_kryo_remove,
+static struct platform_driver qcom_cpufreq_driver = {
+	.probe = qcom_cpufreq_probe,
+	.remove = qcom_cpufreq_remove,
 	.driver = {
-		.name = "qcom-cpufreq-kryo",
+		.name = "qcom-cpufreq-nvmem",
 	},
 };
 
-static const struct of_device_id qcom_cpufreq_kryo_match_list[] __initconst = {
-	{ .compatible = "qcom,apq8096", },
-	{ .compatible = "qcom,msm8996", },
-	{}
+static const struct of_device_id qcom_cpufreq_match_list[] __initconst = {
+	{ .compatible = "qcom,apq8096",
+	  .data = qcom_cpufreq_kryo_name_version },
+	{ .compatible = "qcom,msm8996",
+	  .data = qcom_cpufreq_kryo_name_version },
+	{},
 };
 
 /*
@@ -209,7 +233,7 @@ static const struct of_device_id qcom_cpufreq_kryo_match_list[] __initconst = {
  * which may be defered as well. The init here is only registering
  * the driver and the platform device.
  */
-static int __init qcom_cpufreq_kryo_init(void)
+static int __init qcom_cpufreq_init(void)
 {
 	struct device_node *np = of_find_node_by_path("/");
 	const struct of_device_id *match;
@@ -218,32 +242,32 @@ static int __init qcom_cpufreq_kryo_init(void)
 	if (!np)
 		return -ENODEV;
 
-	match = of_match_node(qcom_cpufreq_kryo_match_list, np);
+	match = of_match_node(qcom_cpufreq_match_list, np);
 	of_node_put(np);
 	if (!match)
 		return -ENODEV;
 
-	ret = platform_driver_register(&qcom_cpufreq_kryo_driver);
+	ret = platform_driver_register(&qcom_cpufreq_driver);
 	if (unlikely(ret < 0))
 		return ret;
 
-	kryo_cpufreq_pdev = platform_device_register_simple(
-		"qcom-cpufreq-kryo", -1, NULL, 0);
-	ret = PTR_ERR_OR_ZERO(kryo_cpufreq_pdev);
+	cpufreq_pdev = platform_device_register_data(NULL, "qcom-cpufreq-nvmem",
+						     -1, match, sizeof(*match));
+	ret = PTR_ERR_OR_ZERO(cpufreq_pdev);
 	if (0 == ret)
 		return 0;
 
-	platform_driver_unregister(&qcom_cpufreq_kryo_driver);
+	platform_driver_unregister(&qcom_cpufreq_driver);
 	return ret;
 }
-module_init(qcom_cpufreq_kryo_init);
+module_init(qcom_cpufreq_init);
 
-static void __exit qcom_cpufreq_kryo_exit(void)
+static void __exit qcom_cpufreq_exit(void)
 {
-	platform_device_unregister(kryo_cpufreq_pdev);
-	platform_driver_unregister(&qcom_cpufreq_kryo_driver);
+	platform_device_unregister(cpufreq_pdev);
+	platform_driver_unregister(&qcom_cpufreq_driver);
 }
-module_exit(qcom_cpufreq_kryo_exit);
+module_exit(qcom_cpufreq_exit);
 
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. Kryo CPUfreq driver");
+MODULE_DESCRIPTION("Qualcomm Technologies, Inc. CPUfreq driver");
 MODULE_LICENSE("GPL v2");
