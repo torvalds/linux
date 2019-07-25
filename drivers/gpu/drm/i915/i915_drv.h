@@ -2271,20 +2271,9 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define HAS_IPC(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_ipc)
 
-/*
- * For now, anything with a GuC requires uCode loading, and then supports
- * command submission once loaded. But these are logically independent
- * properties, so we have separate macros to test them.
- */
-#define HAS_GUC(dev_priv)	(INTEL_INFO(dev_priv)->has_guc)
-#define HAS_GUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
-#define HAS_GUC_SCHED(dev_priv)	(HAS_GUC(dev_priv))
+#define HAS_GT_UC(dev_priv)	(INTEL_INFO(dev_priv)->has_gt_uc)
 
-/* For now, anything with a GuC has also HuC */
-#define HAS_HUC(dev_priv)	(HAS_GUC(dev_priv))
-#define HAS_HUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
-
-/* Having a GuC is not the same as using a GuC */
+/* Having GuC/HuC is not the same as using GuC/HuC */
 #define USES_GUC(dev_priv)		intel_uc_is_using_guc(&(dev_priv)->gt.uc)
 #define USES_GUC_SUBMISSION(dev_priv)	intel_uc_is_using_guc_submission(&(dev_priv)->gt.uc)
 #define USES_HUC(dev_priv)		intel_uc_is_using_huc(&(dev_priv)->gt.uc)

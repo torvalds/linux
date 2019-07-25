@@ -1865,7 +1865,7 @@ static int i915_huc_load_status_info(struct seq_file *m, void *data)
 	intel_wakeref_t wakeref;
 	struct drm_printer p;
 
-	if (!HAS_HUC(dev_priv))
+	if (!HAS_GT_UC(dev_priv))
 		return -ENODEV;
 
 	p = drm_seq_file_printer(m);
@@ -1883,7 +1883,7 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 	intel_wakeref_t wakeref;
 	struct drm_printer p;
 
-	if (!HAS_GUC(dev_priv))
+	if (!HAS_GT_UC(dev_priv))
 		return -ENODEV;
 
 	p = drm_seq_file_printer(m);
@@ -2062,7 +2062,7 @@ static int i915_guc_log_dump(struct seq_file *m, void *data)
 	u32 *log;
 	int i = 0;
 
-	if (!HAS_GUC(dev_priv))
+	if (!HAS_GT_UC(dev_priv))
 		return -ENODEV;
 
 	if (dump_load_err)

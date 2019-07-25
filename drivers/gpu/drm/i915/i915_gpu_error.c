@@ -651,7 +651,7 @@ static void err_print_uc(struct drm_i915_error_state_buf *m,
 	const struct i915_gpu_state *error =
 		container_of(error_uc, typeof(*error), uc);
 
-	if (!error->device_info.has_guc)
+	if (!error->device_info.has_gt_uc)
 		return;
 
 	intel_uc_fw_dump(&error_uc->guc_fw, &p);
@@ -1455,7 +1455,7 @@ capture_uc_state(struct i915_gpu_state *error, struct compress *compress)
 	struct intel_uc *uc = &i915->gt.uc;
 
 	/* Capturing uC state won't be useful if there is no GuC */
-	if (!error->device_info.has_guc)
+	if (!error->device_info.has_gt_uc)
 		return;
 
 	error_uc->guc_fw = uc->guc.fw;

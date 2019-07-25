@@ -4766,7 +4766,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev_priv->l3_parity.remap_info[i] = NULL;
 
 	/* pre-gen11 the guc irqs bits are in the upper 16 bits of the pm reg */
-	if (HAS_GUC_SCHED(dev_priv) && INTEL_GEN(dev_priv) < 11)
+	if (HAS_GT_UC(dev_priv) && INTEL_GEN(dev_priv) < 11)
 		dev_priv->gt.pm_guc_events = GUC_INTR_GUC2HOST << 16;
 
 	/* Let's track the enabled rps events */

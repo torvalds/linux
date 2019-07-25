@@ -595,7 +595,7 @@ int intel_reset_guc(struct intel_gt *gt)
 		INTEL_GEN(gt->i915) >= 11 ? GEN11_GRDOM_GUC : GEN9_GRDOM_GUC;
 	int ret;
 
-	GEM_BUG_ON(!HAS_GUC(gt->i915));
+	GEM_BUG_ON(!HAS_GT_UC(gt->i915));
 
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 	ret = gen6_hw_domain_reset(gt, guc_domain);

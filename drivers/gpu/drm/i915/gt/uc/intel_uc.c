@@ -61,7 +61,7 @@ static int __get_platform_enable_guc(struct intel_uc *uc)
 	struct intel_uc_fw *huc_fw = &uc->huc.fw;
 	int enable_guc = 0;
 
-	if (!HAS_GUC(uc_to_gt(uc)->i915))
+	if (!HAS_GT_UC(uc_to_gt(uc)->i915))
 		return 0;
 
 	/* We don't want to enable GuC/HuC on pre-Gen11 by default */

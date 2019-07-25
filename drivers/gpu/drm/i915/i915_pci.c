@@ -595,7 +595,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	GEN9_DEFAULT_PAGE_SIZES, \
 	.has_logical_ring_preemption = 1, \
 	.display.has_csr = 1, \
-	.has_guc = 1, \
+	.has_gt_uc = 1, \
 	.display.has_ipc = 1, \
 	.ddb_size = 896
 
@@ -647,7 +647,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.display.has_dp_mst = 1, \
 	.has_logical_ring_contexts = 1, \
 	.has_logical_ring_preemption = 1, \
-	.has_guc = 1, \
+	.has_gt_uc = 1, \
 	.ppgtt_type = INTEL_PPGTT_FULL, \
 	.ppgtt_size = 48, \
 	.has_reset_engine = 1, \

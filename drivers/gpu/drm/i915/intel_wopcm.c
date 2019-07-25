@@ -74,7 +74,7 @@ void intel_wopcm_init_early(struct intel_wopcm *wopcm)
 {
 	struct drm_i915_private *i915 = wopcm_to_i915(wopcm);
 
-	if (!HAS_GUC(i915))
+	if (!HAS_GT_UC(i915))
 		return;
 
 	if (INTEL_GEN(i915) >= 11)
@@ -263,7 +263,7 @@ int intel_wopcm_init_hw(struct intel_wopcm *wopcm, struct intel_gt *gt)
 	if (!USES_GUC(i915))
 		return 0;
 
-	GEM_BUG_ON(!HAS_GUC(i915));
+	GEM_BUG_ON(!HAS_GT_UC(i915));
 	GEM_BUG_ON(!wopcm->guc.size);
 	GEM_BUG_ON(!wopcm->guc.base);
 
