@@ -49,14 +49,6 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 
 	GEM_BUG_ON(!intel_uc_fw_supported(uc_fw));
 
-	if (!uc_fw->path) {
-		dev_info(dev_priv->drm.dev,
-			 "%s: No firmware was defined for %s!\n",
-			 intel_uc_fw_type_repr(uc_fw->type),
-			 intel_platform_name(INTEL_INFO(dev_priv)->platform));
-		return;
-	}
-
 	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
 

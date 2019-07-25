@@ -68,7 +68,7 @@ static int __get_platform_enable_guc(struct intel_uc *uc)
 	if (INTEL_GEN(uc_to_gt(uc)->i915) < 11)
 		return 0;
 
-	if (intel_uc_fw_is_selected(guc_fw) && intel_uc_fw_is_selected(huc_fw))
+	if (intel_uc_fw_supported(guc_fw) && intel_uc_fw_supported(huc_fw))
 		enable_guc |= ENABLE_GUC_LOAD_HUC;
 
 	return enable_guc;
@@ -123,26 +123,28 @@ static void sanitize_options_early(struct intel_uc *uc)
 			 yesno(intel_uc_is_using_huc(uc)));
 
 	/* Verify GuC firmware availability */
-	if (intel_uc_is_using_guc(uc) && !intel_uc_fw_is_selected(guc_fw)) {
-		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
-			 "enable_guc", i915_modparams.enable_guc,
-			 !intel_uc_fw_supported(guc_fw) ?
-				"no GuC hardware" : "no GuC firmware");
+	if (intel_uc_is_using_guc(uc) && !intel_uc_fw_supported(guc_fw)) {
+		DRM_WARN("Incompatible option detected: enable_guc=%d, "
+			 "but GuC is not supported!\n",
+			 i915_modparams.enable_guc);
+		DRM_INFO("Disabling GuC/HuC loading!\n");
+		i915_modparams.enable_guc = 0;
 	}
 
 	/* Verify HuC firmware availability */
-	if (intel_uc_is_using_huc(uc) && !intel_uc_fw_is_selected(huc_fw)) {
-		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
-			 "enable_guc", i915_modparams.enable_guc,
-			 !intel_uc_fw_supported(huc_fw) ?
-				"no HuC hardware" : "no HuC firmware");
+	if (intel_uc_is_using_huc(uc) && !intel_uc_fw_supported(huc_fw)) {
+		DRM_WARN("Incompatible option detected: enable_guc=%d, "
+			 "but HuC is not supported!\n",
+			 i915_modparams.enable_guc);
+		DRM_INFO("Disabling HuC loading!\n");
+		i915_modparams.enable_guc &= ~ENABLE_GUC_LOAD_HUC;
 	}
 
 	/* XXX: GuC submission is unavailable for now */
 	if (intel_uc_is_using_guc_submission(uc)) {
-		DRM_INFO("Incompatible option detected: %s=%d, %s!\n",
-			 "enable_guc", i915_modparams.enable_guc,
-			 "GuC submission not supported");
+		DRM_INFO("Incompatible option detected: enable_guc=%d, "
+			 "but GuC submission is not supported!\n",
+			 i915_modparams.enable_guc);
 		DRM_INFO("Switching to non-GuC submission mode!\n");
 		i915_modparams.enable_guc &= ~ENABLE_GUC_SUBMISSION;
 	}
@@ -153,10 +155,9 @@ static void sanitize_options_early(struct intel_uc *uc)
 			__get_default_guc_log_level(uc);
 
 	if (i915_modparams.guc_log_level > 0 && !intel_uc_is_using_guc(uc)) {
-		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
-			 "guc_log_level", i915_modparams.guc_log_level,
-			 !intel_uc_fw_supported(guc_fw) ?
-				"no GuC hardware" : "GuC not enabled");
+		DRM_WARN("Incompatible option detected: guc_log_level=%d, "
+			 "but GuC is not enabled!\n",
+			 i915_modparams.guc_log_level);
 		i915_modparams.guc_log_level = 0;
 	}
 

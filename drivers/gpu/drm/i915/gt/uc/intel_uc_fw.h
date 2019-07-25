@@ -125,11 +125,6 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 	uc_fw->type = type;
 }
 
-static inline bool intel_uc_fw_is_selected(struct intel_uc_fw *uc_fw)
-{
-	return uc_fw->path != NULL;
-}
-
 static inline bool intel_uc_fw_is_loaded(struct intel_uc_fw *uc_fw)
 {
 	return uc_fw->load_status == INTEL_UC_FIRMWARE_SUCCESS;

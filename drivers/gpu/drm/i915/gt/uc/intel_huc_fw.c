@@ -74,12 +74,10 @@ static void huc_fw_select(struct intel_uc_fw *huc_fw)
 
 	GEM_BUG_ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
 
-	if (!HAS_GT_UC(dev_priv)) {
-		huc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_SUPPORTED;
-		return;
-	}
+	huc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_SUPPORTED;
 
-	huc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_STARTED;
+	if (!HAS_GT_UC(dev_priv))
+		return;
 
 	if (i915_modparams.huc_firmware_path) {
 		huc_fw->path = i915_modparams.huc_firmware_path;
@@ -106,6 +104,9 @@ static void huc_fw_select(struct intel_uc_fw *huc_fw)
 		huc_fw->major_ver_wanted = ICL_HUC_FW_MAJOR;
 		huc_fw->minor_ver_wanted = ICL_HUC_FW_MINOR;
 	}
+
+	if (huc_fw->path)
+		huc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_STARTED;
 }
 
 /**
