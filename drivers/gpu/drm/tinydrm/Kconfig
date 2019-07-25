@@ -1,16 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
-menuconfig DRM_TINYDRM
-	tristate "Support for simple displays"
-	depends on DRM
-	select DRM_KMS_HELPER
-	select DRM_KMS_CMA_HELPER
-	help
-	  Choose this option if you have a tinydrm supported display.
-	  If M is selected the module will be called tinydrm.
-
 config TINYDRM_HX8357D
 	tristate "DRM support for HX8357D display panels"
-	depends on DRM_TINYDRM && SPI
+	depends on DRM && SPI
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DBI
 	select BACKLIGHT_CLASS_DEVICE
 	help
@@ -21,7 +14,9 @@ config TINYDRM_HX8357D
 
 config TINYDRM_ILI9225
 	tristate "DRM support for ILI9225 display panels"
-	depends on DRM_TINYDRM && SPI
+	depends on DRM && SPI
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DBI
 	help
 	  DRM driver for the following Ilitek ILI9225 panels:
@@ -31,7 +26,9 @@ config TINYDRM_ILI9225
 
 config TINYDRM_ILI9341
 	tristate "DRM support for ILI9341 display panels"
-	depends on DRM_TINYDRM && SPI
+	depends on DRM && SPI
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DBI
 	select BACKLIGHT_CLASS_DEVICE
 	help
@@ -42,7 +39,9 @@ config TINYDRM_ILI9341
 
 config TINYDRM_MI0283QT
 	tristate "DRM support for MI0283QT"
-	depends on DRM_TINYDRM && SPI
+	depends on DRM && SPI
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DBI
 	select BACKLIGHT_CLASS_DEVICE
 	help
@@ -51,7 +50,9 @@ config TINYDRM_MI0283QT
 
 config TINYDRM_REPAPER
 	tristate "DRM support for Pervasive Displays RePaper panels (V231)"
-	depends on DRM_TINYDRM && SPI
+	depends on DRM && SPI
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
 	depends on THERMAL || !THERMAL
 	help
 	  DRM driver for the following Pervasive Displays panels:
@@ -64,7 +65,9 @@ config TINYDRM_REPAPER
 
 config TINYDRM_ST7586
 	tristate "DRM support for Sitronix ST7586 display panels"
-	depends on DRM_TINYDRM && SPI
+	depends on DRM && SPI
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DBI
 	help
 	  DRM driver for the following Sitronix ST7586 panels:
@@ -74,7 +77,9 @@ config TINYDRM_ST7586
 
 config TINYDRM_ST7735R
 	tristate "DRM support for Sitronix ST7735R display panels"
-	depends on DRM_TINYDRM && SPI
+	depends on DRM && SPI
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DBI
 	select BACKLIGHT_CLASS_DEVICE
 	help
