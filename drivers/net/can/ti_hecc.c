@@ -222,7 +222,7 @@ static inline u32 hecc_read_stamp(struct ti_hecc_priv *priv, u32 mbxno)
 }
 
 static inline void hecc_write_mbx(struct ti_hecc_priv *priv, u32 mbxno,
-	u32 reg, u32 val)
+				  u32 reg, u32 val)
 {
 	__raw_writel(val, priv->mbx + mbxno * 0x10 + reg);
 }
@@ -243,13 +243,13 @@ static inline u32 hecc_read(struct ti_hecc_priv *priv, int reg)
 }
 
 static inline void hecc_set_bit(struct ti_hecc_priv *priv, int reg,
-	u32 bit_mask)
+				u32 bit_mask)
 {
 	hecc_write(priv, reg, hecc_read(priv, reg) | bit_mask);
 }
 
 static inline void hecc_clear_bit(struct ti_hecc_priv *priv, int reg,
-	u32 bit_mask)
+				  u32 bit_mask)
 {
 	hecc_write(priv, reg, hecc_read(priv, reg) & ~bit_mask);
 }
@@ -390,7 +390,7 @@ static void ti_hecc_start(struct net_device *ndev)
 	} else {
 		hecc_write(priv, HECC_CANMIL, 0);
 		hecc_write(priv, HECC_CANGIM,
-			HECC_CANGIM_DEF_MASK | HECC_CANGIM_I0EN);
+			   HECC_CANGIM_DEF_MASK | HECC_CANGIM_I0EN);
 	}
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 }
@@ -424,7 +424,7 @@ static int ti_hecc_do_set_mode(struct net_device *ndev, enum can_mode mode)
 }
 
 static int ti_hecc_get_berr_counter(const struct net_device *ndev,
-					struct can_berr_counter *bec)
+				    struct can_berr_counter *bec)
 {
 	struct ti_hecc_priv *priv = netdev_priv(ndev);
 
@@ -472,8 +472,8 @@ static netdev_tx_t ti_hecc_xmit(struct sk_buff *skb, struct net_device *ndev)
 		spin_unlock_irqrestore(&priv->mbx_lock, flags);
 		netif_stop_queue(ndev);
 		netdev_err(priv->ndev,
-			"BUG: TX mbx not ready tx_head=%08X, tx_tail=%08X\n",
-			priv->tx_head, priv->tx_tail);
+			   "BUG: TX mbx not ready tx_head=%08X, tx_tail=%08X\n",
+			   priv->tx_head, priv->tx_tail);
 		return NETDEV_TX_BUSY;
 	}
 	spin_unlock_irqrestore(&priv->mbx_lock, flags);
@@ -490,10 +490,10 @@ static netdev_tx_t ti_hecc_xmit(struct sk_buff *skb, struct net_device *ndev)
 		data = (cf->can_id & CAN_SFF_MASK) << 18;
 	hecc_write_mbx(priv, mbxno, HECC_CANMID, data);
 	hecc_write_mbx(priv, mbxno, HECC_CANMDL,
-		be32_to_cpu(*(__be32 *)(cf->data)));
+		       be32_to_cpu(*(__be32 *)(cf->data)));
 	if (cf->can_dlc > 4)
 		hecc_write_mbx(priv, mbxno, HECC_CANMDH,
-			be32_to_cpu(*(__be32 *)(cf->data + 4)));
+			       be32_to_cpu(*(__be32 *)(cf->data + 4)));
 	else
 		*(u32 *)(cf->data + 4) = 0;
 	can_put_echo_skb(skb, ndev, mbxno);
@@ -501,7 +501,7 @@ static netdev_tx_t ti_hecc_xmit(struct sk_buff *skb, struct net_device *ndev)
 	spin_lock_irqsave(&priv->mbx_lock, flags);
 	--priv->tx_head;
 	if ((hecc_read(priv, HECC_CANME) & BIT(get_tx_head_mb(priv))) ||
-		(priv->tx_head & HECC_TX_MASK) == HECC_TX_MASK) {
+	    (priv->tx_head & HECC_TX_MASK) == HECC_TX_MASK) {
 		netif_stop_queue(ndev);
 	}
 	hecc_set_bit(priv, HECC_CANME, mbx_mask);
@@ -549,7 +549,7 @@ static unsigned int ti_hecc_mailbox_read(struct can_rx_offload *offload,
 }
 
 static int ti_hecc_error(struct net_device *ndev, int int_status,
-	int err_status)
+			 int err_status)
 {
 	struct ti_hecc_priv *priv = netdev_priv(ndev);
 	struct can_frame *cf;
@@ -649,15 +649,16 @@ static irqreturn_t ti_hecc_interrupt(int irq, void *dev_id)
 	unsigned long flags, rx_pending;
 
 	int_status = hecc_read(priv,
-		(priv->use_hecc1int) ? HECC_CANGIF1 : HECC_CANGIF0);
+			       priv->use_hecc1int ?
+			       HECC_CANGIF1 : HECC_CANGIF0);
 
 	if (!int_status)
 		return IRQ_NONE;
 
 	err_status = hecc_read(priv, HECC_CANES);
 	if (err_status & (HECC_BUS_ERROR | HECC_CANES_BO |
-		HECC_CANES_EP | HECC_CANES_EW))
-			ti_hecc_error(ndev, int_status, err_status);
+			  HECC_CANES_EP | HECC_CANES_EW))
+		ti_hecc_error(ndev, int_status, err_status);
 
 	if (int_status & HECC_CANGIF_GMIF) {
 		while (priv->tx_tail - priv->tx_head > 0) {
@@ -679,10 +680,10 @@ static irqreturn_t ti_hecc_interrupt(int irq, void *dev_id)
 		}
 
 		/* restart queue if wrap-up or if queue stalled on last pkt */
-		if (((priv->tx_head == priv->tx_tail) &&
-		((priv->tx_head & HECC_TX_MASK) != HECC_TX_MASK)) ||
-		(((priv->tx_tail & HECC_TX_MASK) == HECC_TX_MASK) &&
-		((priv->tx_head & HECC_TX_MASK) == HECC_TX_MASK)))
+		if ((priv->tx_head == priv->tx_tail &&
+		     ((priv->tx_head & HECC_TX_MASK) != HECC_TX_MASK)) ||
+		    (((priv->tx_tail & HECC_TX_MASK) == HECC_TX_MASK) &&
+		     ((priv->tx_head & HECC_TX_MASK) == HECC_TX_MASK)))
 			netif_wake_queue(ndev);
 
 		/* offload RX mailboxes and let NAPI deliver them */
@@ -711,7 +712,7 @@ static int ti_hecc_open(struct net_device *ndev)
 	int err;
 
 	err = request_irq(ndev->irq, ti_hecc_interrupt, IRQF_SHARED,
-			ndev->name, ndev);
+			  ndev->name, ndev);
 	if (err) {
 		netdev_err(ndev, "error requesting interrupt\n");
 		return err;
@@ -887,7 +888,7 @@ static int ti_hecc_probe(struct platform_device *pdev)
 	devm_can_led_init(ndev);
 
 	dev_info(&pdev->dev, "device registered (reg_base=%p, irq=%u)\n",
-		priv->base, (u32) ndev->irq);
+		 priv->base, (u32)ndev->irq);
 
 	return 0;
 
