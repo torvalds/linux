@@ -763,17 +763,6 @@ static bool hal_EfusePartialWriteCheck(struct adapter *pAdapter, u8 efuseType, u
 	return ret;
 }
 
-static bool
-hal_EfusePgCheckAvailableAddr(
-		struct adapter *pAdapter,
-		u8 efuseType
-	)
-{
-	if (Efuse_GetCurrentSize(pAdapter) >= EFUSE_MAP_LEN_88E)
-		return false;
-	return true;
-}
-
 static void hal_EfuseConstructPGPkt(u8 offset, u8 word_en, u8 *pData, struct pgpkt *pTargetPkt)
 {
 	memset((void *)pTargetPkt->data, 0xFF, sizeof(u8)*8);
@@ -789,7 +778,7 @@ bool Efuse_PgPacketWrite(struct adapter *pAdapter, u8 offset, u8 word_en, u8 *pD
 	u16			startAddr = 0;
 	u8 efuseType = EFUSE_WIFI;
 
-	if (!hal_EfusePgCheckAvailableAddr(pAdapter, efuseType))
+	if (Efuse_GetCurrentSize(pAdapter) >= EFUSE_MAP_LEN_88E)
 		return false;
 
 	hal_EfuseConstructPGPkt(offset, word_en, pData, &targetPkt);
