@@ -151,8 +151,6 @@ int hantro_vp8_dec_init(struct hantro_ctx *ctx)
 	if (!aux_buf->cpu)
 		return -ENOMEM;
 
-	memset(aux_buf->cpu, 0, aux_buf->size);
-
 	/*
 	 * Allocate probability table buffer,
 	 * total 1208 bytes, 4K page is far enough.
