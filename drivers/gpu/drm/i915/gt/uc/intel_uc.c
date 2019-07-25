@@ -397,21 +397,8 @@ int intel_uc_init(struct intel_uc *uc)
 			goto err_guc;
 	}
 
-	if (intel_uc_is_using_guc_submission(uc)) {
-		/*
-		 * This is stuff we need to have available at fw load time
-		 * if we are planning to enable submission later
-		 */
-		ret = intel_guc_submission_init(guc);
-		if (ret)
-			goto err_huc;
-	}
-
 	return 0;
 
-err_huc:
-	if (intel_uc_is_using_huc(uc))
-		intel_huc_fini(huc);
 err_guc:
 	intel_guc_fini(guc);
 	return ret;
@@ -425,9 +412,6 @@ void intel_uc_fini(struct intel_uc *uc)
 		return;
 
 	GEM_BUG_ON(!intel_uc_fw_supported(&guc->fw));
-
-	if (intel_uc_is_using_guc_submission(uc))
-		intel_guc_submission_fini(guc);
 
 	if (intel_uc_is_using_huc(uc))
 		intel_huc_fini(&uc->huc);

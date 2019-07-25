@@ -290,6 +290,16 @@ int intel_guc_init(struct intel_guc *guc)
 	if (ret)
 		goto err_ads;
 
+	if (intel_uc_is_using_guc_submission(&gt->uc)) {
+		/*
+		 * This is stuff we need to have available at fw load time
+		 * if we are planning to enable submission later
+		 */
+		ret = intel_guc_submission_init(guc);
+		if (ret)
+			goto err_ct;
+	}
+
 	/* now that everything is perma-pinned, initialize the parameters */
 	guc_init_params(guc);
 
@@ -298,6 +308,8 @@ int intel_guc_init(struct intel_guc *guc)
 
 	return 0;
 
+err_ct:
+	intel_guc_ct_fini(&guc->ct);
 err_ads:
 	intel_guc_ads_destroy(guc);
 err_log:
@@ -316,6 +328,9 @@ void intel_guc_fini(struct intel_guc *guc)
 	struct intel_gt *gt = guc_to_gt(guc);
 
 	i915_ggtt_disable_guc(gt->ggtt);
+
+	if (intel_uc_is_using_guc_submission(&gt->uc))
+		intel_guc_submission_fini(guc);
 
 	intel_guc_ct_fini(&guc->ct);
 
