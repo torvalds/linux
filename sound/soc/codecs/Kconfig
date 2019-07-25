@@ -70,6 +70,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS43130 if I2C
 	select SND_SOC_CS4341 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_CS4349 if I2C
+	select SND_SOC_CS47L15 if MFD_CS47L15
 	select SND_SOC_CS47L24 if MFD_CS47L24
 	select SND_SOC_CS47L35 if MFD_CS47L35
 	select SND_SOC_CS47L85 if MFD_CS47L85
@@ -581,6 +582,9 @@ config SND_SOC_CS4349
 	tristate "Cirrus Logic CS4349 CODEC"
 	depends on I2C
 
+config SND_SOC_CS47L15
+	tristate
+
 config SND_SOC_CS47L24
 	tristate
 
@@ -722,9 +726,11 @@ config SND_SOC_LOCHNAGAR_SC
 
 config SND_SOC_MADERA
 	tristate
+	default y if SND_SOC_CS47L15=y
 	default y if SND_SOC_CS47L35=y
 	default y if SND_SOC_CS47L85=y
 	default y if SND_SOC_CS47L90=y
+	default m if SND_SOC_CS47L15=m
 	default m if SND_SOC_CS47L35=m
 	default m if SND_SOC_CS47L85=m
 	default m if SND_SOC_CS47L90=m

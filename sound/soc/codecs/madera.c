@@ -1041,6 +1041,10 @@ static void madera_configure_input_mode(struct madera *madera)
 	int max_analogue_inputs, max_dmic_sup, i;
 
 	switch (madera->type) {
+	case CS47L15:
+		max_analogue_inputs = 1;
+		max_dmic_sup = 2;
+		break;
 	case CS47L35:
 		max_analogue_inputs = 2;
 		max_dmic_sup = 2;
