@@ -105,8 +105,8 @@ static int smu_v11_0_send_msg(struct smu_context *smu, uint16_t msg)
 	ret = smu_v11_0_wait_for_response(smu);
 
 	if (ret)
-		pr_err("Failed to send message 0x%x, response 0x%x\n", index,
-		       ret);
+		pr_err("failed send message: %10s (%d) response %#x\n",
+		       smu_get_message_name(smu, msg), index, ret);
 
 	return ret;
 
@@ -126,8 +126,8 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu, uint16_t msg,
 
 	ret = smu_v11_0_wait_for_response(smu);
 	if (ret)
-		pr_err("Failed to send message 0x%x, response 0x%x, param 0x%x\n",
-		       index, ret, param);
+		pr_err("failed send message: %10s (%d) \tparam: 0x%08x response %#x\n",
+		       smu_get_message_name(smu, msg), index, param, ret);
 
 	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
 
@@ -137,8 +137,8 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu, uint16_t msg,
 
 	ret = smu_v11_0_wait_for_response(smu);
 	if (ret)
-		pr_err("Failed to send message 0x%x, response 0x%x param 0x%x\n",
-		       index, ret, param);
+		pr_err("failed send message: %10s (%d) \tparam: 0x%08x response %#x\n",
+		       smu_get_message_name(smu, msg), index, param, ret);
 
 	return ret;
 }
