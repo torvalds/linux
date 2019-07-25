@@ -140,6 +140,7 @@ typedef int (poll_fn)(struct blk_mq_hw_ctx *);
 typedef int (map_queues_fn)(struct blk_mq_tag_set *set);
 typedef bool (busy_fn)(struct request_queue *);
 typedef void (complete_fn)(struct request *);
+typedef void (cleanup_rq_fn)(struct request *);
 
 
 struct blk_mq_ops {
@@ -199,6 +200,12 @@ struct blk_mq_ops {
 	exit_request_fn		*exit_request;
 	/* Called from inside blk_get_request() */
 	void (*initialize_rq_fn)(struct request *rq);
+
+	/*
+	 * Called before freeing one request which isn't completed yet,
+	 * and usually for freeing the driver private data
+	 */
+	cleanup_rq_fn		*cleanup_rq;
 
 	/*
 	 * If set, returns whether or not this queue currently is busy
@@ -365,6 +372,12 @@ static inline blk_qc_t request_to_qc_t(struct blk_mq_hw_ctx *hctx,
 
 	return rq->internal_tag | (hctx->queue_num << BLK_QC_T_SHIFT) |
 			BLK_QC_T_INTERNAL;
+}
+
+static inline void blk_mq_cleanup_rq(struct request *rq)
+{
+	if (rq->q->mq_ops->cleanup_rq)
+		rq->q->mq_ops->cleanup_rq(rq);
 }
 
 #endif
