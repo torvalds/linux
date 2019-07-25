@@ -27,6 +27,7 @@
 #include <drm/drm_print.h>
 
 #include "intel_uc_fw.h"
+#include "intel_uc_fw_abi.h"
 #include "i915_drv.h"
 
 /*
