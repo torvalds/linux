@@ -3063,6 +3063,34 @@ static int vega20_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int vega20_set_mp1_state(struct pp_hwmgr *hwmgr,
+				enum pp_mp1_state mp1_state)
+{
+	uint16_t msg;
+	int ret;
+
+	switch (mp1_state) {
+	case PP_MP1_STATE_SHUTDOWN:
+		msg = PPSMC_MSG_PrepareMp1ForShutdown;
+		break;
+	case PP_MP1_STATE_UNLOAD:
+		msg = PPSMC_MSG_PrepareMp1ForUnload;
+		break;
+	case PP_MP1_STATE_RESET:
+		msg = PPSMC_MSG_PrepareMp1ForReset;
+		break;
+	case PP_MP1_STATE_NONE:
+	default:
+		return 0;
+	}
+
+	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc(hwmgr, msg)) == 0,
+			    "[PrepareMp1] Failed!",
+			    return ret);
+
+	return 0;
+}
+
 static int vega20_get_ppfeature_status(struct pp_hwmgr *hwmgr, char *buf)
 {
 	static const char *ppfeature_name[] = {
@@ -4123,6 +4151,7 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	.get_asic_baco_capability = vega20_baco_get_capability,
 	.get_asic_baco_state = vega20_baco_get_state,
 	.set_asic_baco_state = vega20_baco_set_state,
+	.set_mp1_state = vega20_set_mp1_state,
 };
 
 int vega20_hwmgr_init(struct pp_hwmgr *hwmgr)
