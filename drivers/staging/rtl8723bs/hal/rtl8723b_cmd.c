@@ -1300,7 +1300,7 @@ static void rtl8723b_set_FwScanOffloadInfo_cmd(struct adapter *padapter, PRSVDPA
 }
 #endif /* CONFIG_PNO_SUPPORT */
 
-static void rtl8723b_set_FwWoWlanRelated_cmd(struct adapter *padapter, u8 enable)
+void rtl8723b_set_wowlan_cmd(struct adapter *padapter, u8 enable)
 {
 	struct security_priv *psecpriv = &padapter->securitypriv;
 	struct pwrctrl_priv *ppwrpriv = adapter_to_pwrctl(padapter);
@@ -1345,11 +1345,6 @@ static void rtl8723b_set_FwWoWlanRelated_cmd(struct adapter *padapter, u8 enable
 	}
 
 	DBG_871X_LEVEL(_drv_always_, "-%s()-\n", __func__);
-}
-
-void rtl8723b_set_wowlan_cmd(struct adapter *padapter, u8 enable)
-{
-	rtl8723b_set_FwWoWlanRelated_cmd(padapter, enable);
 }
 #endif /* CONFIG_WOWLAN */
 
