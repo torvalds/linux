@@ -5026,6 +5026,26 @@ static int mlxsw_sp1_resources_kvd_register(struct mlxsw_core *mlxsw_core)
 	return 0;
 }
 
+static int mlxsw_sp2_resources_kvd_register(struct mlxsw_core *mlxsw_core)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_core);
+	struct devlink_resource_size_params kvd_size_params;
+	u32 kvd_size;
+
+	if (!MLXSW_CORE_RES_VALID(mlxsw_core, KVD_SIZE))
+		return -EIO;
+
+	kvd_size = MLXSW_CORE_RES_GET(mlxsw_core, KVD_SIZE);
+	devlink_resource_size_params_init(&kvd_size_params, kvd_size, kvd_size,
+					  MLXSW_SP_KVD_GRANULARITY,
+					  DEVLINK_RESOURCE_UNIT_ENTRY);
+
+	return devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD,
+					 kvd_size, MLXSW_SP_RESOURCE_KVD,
+					 DEVLINK_RESOURCE_ID_PARENT_TOP,
+					 &kvd_size_params);
+}
+
 static int mlxsw_sp1_resources_register(struct mlxsw_core *mlxsw_core)
 {
 	return mlxsw_sp1_resources_kvd_register(mlxsw_core);
@@ -5033,7 +5053,7 @@ static int mlxsw_sp1_resources_register(struct mlxsw_core *mlxsw_core)
 
 static int mlxsw_sp2_resources_register(struct mlxsw_core *mlxsw_core)
 {
-	return 0;
+	return mlxsw_sp2_resources_kvd_register(mlxsw_core);
 }
 
 static int mlxsw_sp_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
