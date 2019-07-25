@@ -15,10 +15,9 @@
 #include <asm/bootinfo.h>
 #include <asm/prom.h>
 
-#include <asm/mach-jz4740/base.h>
-
 #include "reset.h"
 
+#define JZ4740_EMC_BASE_ADDR 0x13010000
 
 #define JZ4740_EMC_SDRAM_CTRL 0x80
 
