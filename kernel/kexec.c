@@ -22,6 +22,7 @@
 #include "kexec_internal.h"
 
 #include <asm/e820/api.h>
+/* #include <uapi/asm/e820.h> */
 
 static int copy_user_segment_list(struct kimage *image,
 				  unsigned long nr_segments,
@@ -1617,12 +1618,14 @@ __attribute__((ms_abi)) efi_status_t efi_hook_AllocatePages(
 #define NUM_PAGES(size) ((size-1) / PAGE_SIZE + 1)
 
 void efi_setup_11_mapping( void* addr, size_t size );
+void* efi_map_11_and_register_allocation(void* virt_kernel_addr, size_t size);
+
 void kimage_load_pe(struct kimage *image, unsigned long nr_segments)
 {
         unsigned long raw_image_relative_start;
         size_t        image_size = 0;
         int           i;
-        /* u64           image_base = image->segment[0].mem; */
+        efi_system_table_t* remapped_systab = NULL;
 
         /* Calculate total image size and allocate it: */
         for (i = 0; i < nr_segments; i++) {
@@ -1664,7 +1667,14 @@ void kimage_load_pe(struct kimage *image, unsigned long nr_segments)
 
         windows_loaded_image.ImageBase   = (VOID*)image->raw_image;
         windows_loaded_image.ImageSize   = image_size;
-        windows_loaded_image.SystemTable = (void*)&fake_systab;
+
+        /* The system table must be accessible via physical addressing. We
+         * therefore create 1:1 mapping of the location of it. */
+        remapped_systab =
+                (efi_system_table_t *)efi_map_11_and_register_allocation(
+                                                        &fake_systab,
+                                                        sizeof( fake_systab ));
+        windows_loaded_image.SystemTable = remapped_systab;
 
        /* We now need to parse the relocation table of the PE and then patch the
         * efi binary. We assume that the last segment is the relocatiuon
@@ -1723,8 +1733,6 @@ int get_device_id( void* handle )
 
         return INVALID_DEVICE_ID;
 }
-
-void* efi_map_11_and_register_allocation(void* virt_kernel_addr, size_t size);
 
 efi_status_t efi_handle_protocol_DevicePath( void* handle, void** interface )
 {
@@ -2964,8 +2972,6 @@ void print_efi_memmap(void)
                           entry->type,
                           type_str );
         }
-
-        /* while(1){} */
 }
 
 /* Locate the entry id in the e820 mapping that matches a physical address. */
@@ -3126,7 +3132,9 @@ void efi_setup_configuration_tables( efi_system_table_t *systab )
         efi_config_table[table_id++].table = efi.smbios;
 
         systab->nr_tables = table_id;
-        systab->tables    = (unsigned long)&efi_config_table;
+        systab->tables    = (unsigned long)efi_map_11_and_register_allocation(
+                                                &efi_config_table,
+                                                sizeof(efi_config_table));
 
         efi_remap_ram_used_by_tables();
 }
@@ -3154,10 +3162,15 @@ static void hook_boot_services( efi_system_table_t *systab )
         systab->con_in_handle  = CON_IN_HANDLE;
         systab->con_in         = 0xdeadbeefcafe0001;
         systab->con_out_handle = 0xdeadbeefcafebabe;
-        systab->con_out        = (unsigned long) &con_out;
+        systab->con_out        =
+                        (unsigned long)efi_map_11_and_register_allocation(
+                                                &con_out,
+                                                sizeof(con_out) );
         systab->stderr_handle  = 0xdeadbeefcafe0003;
         systab->stderr         = 0xdeadbeefcafe0004;
-        systab->runtime        = &runtime_services;
+        systab->runtime        = efi_map_11_and_register_allocation(
+                                                &runtime_services,
+                                                sizeof(runtime_services) );
 
         efi_setup_configuration_tables(systab);
 
