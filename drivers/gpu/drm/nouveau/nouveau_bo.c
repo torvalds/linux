@@ -299,6 +299,8 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 			  type, &nvbo->placement,
 			  align >> PAGE_SHIFT, false, acc_size, sg,
 			  robj, nouveau_bo_del_ttm);
+	nvbo->gem.resv = nvbo->bo.resv;
+
 	if (ret) {
 		/* ttm will call nouveau_bo_del_ttm if it fails.. */
 		return ret;

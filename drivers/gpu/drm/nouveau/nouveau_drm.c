@@ -1131,7 +1131,6 @@ driver_stub = {
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_pin = nouveau_gem_prime_pin,
-	.gem_prime_res_obj = nouveau_gem_prime_res_obj,
 	.gem_prime_unpin = nouveau_gem_prime_unpin,
 	.gem_prime_get_sg_table = nouveau_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table = nouveau_gem_prime_import_sg_table,
