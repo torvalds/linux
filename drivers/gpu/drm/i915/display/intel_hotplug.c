@@ -104,6 +104,12 @@ enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
 		if (IS_CNL_WITH_PORT_F(dev_priv))
 			return HPD_PORT_E;
 		return HPD_PORT_F;
+	case PORT_G:
+		return HPD_PORT_G;
+	case PORT_H:
+		return HPD_PORT_H;
+	case PORT_I:
+		return HPD_PORT_I;
 	default:
 		MISSING_CASE(port);
 		return HPD_NONE;

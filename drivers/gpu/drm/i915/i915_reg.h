@@ -7861,12 +7861,15 @@ enum {
 				 SDE_FDI_RXB_CPT | \
 				 SDE_FDI_RXA_CPT)
 
-/* south display engine interrupt: ICP */
+/* south display engine interrupt: ICP/TGP */
+#define SDE_TC6_HOTPLUG_TGP		(1 << 29)
+#define SDE_TC5_HOTPLUG_TGP		(1 << 28)
 #define SDE_TC4_HOTPLUG_ICP		(1 << 27)
 #define SDE_TC3_HOTPLUG_ICP		(1 << 26)
 #define SDE_TC2_HOTPLUG_ICP		(1 << 25)
 #define SDE_TC1_HOTPLUG_ICP		(1 << 24)
 #define SDE_GMBUS_ICP			(1 << 23)
+#define SDE_DDIC_HOTPLUG_TGP		(1 << 18)
 #define SDE_DDIB_HOTPLUG_ICP		(1 << 17)
 #define SDE_DDIA_HOTPLUG_ICP		(1 << 16)
 #define SDE_TC_HOTPLUG_ICP(tc_port)	(1 << ((tc_port) + 24))
@@ -7877,6 +7880,11 @@ enum {
 					 SDE_TC3_HOTPLUG_ICP |	\
 					 SDE_TC2_HOTPLUG_ICP |	\
 					 SDE_TC1_HOTPLUG_ICP)
+#define SDE_DDI_MASK_TGP		(SDE_DDIC_HOTPLUG_TGP | \
+					 SDE_DDI_MASK_ICP)
+#define SDE_TC_MASK_TGP			(SDE_TC6_HOTPLUG_TGP |	\
+					 SDE_TC5_HOTPLUG_TGP |	\
+					 SDE_TC_MASK_ICP)
 
 #define SDEISR  _MMIO(0xc4000)
 #define SDEIMR  _MMIO(0xc4004)
@@ -7944,6 +7952,12 @@ enum {
  */
 
 #define SHOTPLUG_CTL_DDI			_MMIO(0xc4030)
+#define   TGP_DDIC_HPD_ENABLE			(1 << 11)
+#define   TGP_DDIC_HPD_STATUS_MASK		(3 << 8)
+#define   TGP_DDIC_HPD_NO_DETECT		(0 << 8)
+#define   TGP_DDIC_HPD_SHORT_DETECT		(1 << 8)
+#define   TGP_DDIC_HPD_LONG_DETECT		(2 << 8)
+#define   TGP_DDIC_HPD_SHORT_LONG_DETECT	(3 << 8)
 #define   ICP_DDIB_HPD_ENABLE			(1 << 7)
 #define   ICP_DDIB_HPD_STATUS_MASK		(3 << 4)
 #define   ICP_DDIB_HPD_NO_DETECT		(0 << 4)
@@ -8066,6 +8080,18 @@ enum {
 
 #define   ICP_TC_HPD_LONG_DETECT(tc_port)	(2 << (tc_port) * 4)
 #define   ICP_TC_HPD_SHORT_DETECT(tc_port)	(1 << (tc_port) * 4)
+
+#define ICP_DDI_HPD_ENABLE_MASK		(ICP_DDIB_HPD_ENABLE |	\
+					 ICP_DDIA_HPD_ENABLE)
+#define ICP_TC_HPD_ENABLE_MASK		(ICP_TC_HPD_ENABLE(PORT_TC4) | \
+					 ICP_TC_HPD_ENABLE(PORT_TC3) | \
+					 ICP_TC_HPD_ENABLE(PORT_TC2) | \
+					 ICP_TC_HPD_ENABLE(PORT_TC1))
+#define TGP_DDI_HPD_ENABLE_MASK		(TGP_DDIC_HPD_ENABLE |	\
+					 ICP_DDI_HPD_ENABLE_MASK)
+#define TGP_TC_HPD_ENABLE_MASK		(ICP_TC_HPD_ENABLE(PORT_TC6) | \
+					 ICP_TC_HPD_ENABLE(PORT_TC5) | \
+					 ICP_TC_HPD_ENABLE_MASK)
 
 #define _PCH_DPLL_A              0xc6014
 #define _PCH_DPLL_B              0xc6018

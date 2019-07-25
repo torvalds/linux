@@ -153,6 +153,10 @@ enum hpd_pin {
 	HPD_PORT_D,
 	HPD_PORT_E,
 	HPD_PORT_F,
+	HPD_PORT_G,
+	HPD_PORT_H,
+	HPD_PORT_I,
+
 	HPD_NUM_PINS
 };
 
