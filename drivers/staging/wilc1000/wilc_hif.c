@@ -2010,9 +2010,6 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 	int result;
 	s8 power_mode;
 
-	if (wilc_wlan_get_num_conn_ifcs(vif->wilc) == 2 && enabled)
-		return 0;
-
 	if (enabled)
 		power_mode = WILC_FW_MIN_FAST_PS;
 	else
