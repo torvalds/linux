@@ -43,8 +43,8 @@ static const char * const ath10k_regulators[] = {
 	"vdd-3.3-ch0",
 };
 
-static struct ath10k_clk_info clk_cfg[] = {
-	{NULL, "cxo_ref_clk_pin", 0, false},
+static const char * const ath10k_clocks[] = {
+	"cxo_ref_clk_pin",
 };
 
 static void ath10k_snoc_htc_tx_cb(struct ath10k_ce_pipe *ce_state);
@@ -1346,104 +1346,6 @@ static void ath10k_snoc_release_resource(struct ath10k *ar)
 		ath10k_ce_free_pipe(ar, i);
 }
 
-static int ath10k_get_clk_info(struct ath10k *ar, struct device *dev,
-			       struct ath10k_clk_info *clk_info)
-{
-	struct clk *handle;
-	int ret = 0;
-
-	handle = devm_clk_get(dev, clk_info->name);
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		if (clk_info->required) {
-			ath10k_err(ar, "snoc clock %s isn't available: %d\n",
-				   clk_info->name, ret);
-			return ret;
-		}
-		ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc ignoring clock %s: %d\n",
-			   clk_info->name,
-			   ret);
-		return 0;
-	}
-
-	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc clock %s freq %u\n",
-		   clk_info->name, clk_info->freq);
-
-	clk_info->handle = handle;
-
-	return ret;
-}
-
-static int ath10k_snoc_clk_init(struct ath10k *ar)
-{
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_clk_info *clk_info;
-	int ret = 0;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(clk_cfg); i++) {
-		clk_info = &ar_snoc->clk[i];
-
-		if (!clk_info->handle)
-			continue;
-
-		ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc clock %s being enabled\n",
-			   clk_info->name);
-
-		if (clk_info->freq) {
-			ret = clk_set_rate(clk_info->handle, clk_info->freq);
-
-			if (ret) {
-				ath10k_err(ar, "failed to set clock %s freq %u\n",
-					   clk_info->name, clk_info->freq);
-				goto err_clock_config;
-			}
-		}
-
-		ret = clk_prepare_enable(clk_info->handle);
-		if (ret) {
-			ath10k_err(ar, "failed to enable clock %s\n",
-				   clk_info->name);
-			goto err_clock_config;
-		}
-	}
-
-	return 0;
-
-err_clock_config:
-	for (i = i - 1; i >= 0; i--) {
-		clk_info = &ar_snoc->clk[i];
-
-		if (!clk_info->handle)
-			continue;
-
-		clk_disable_unprepare(clk_info->handle);
-	}
-
-	return ret;
-}
-
-static int ath10k_snoc_clk_deinit(struct ath10k *ar)
-{
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_clk_info *clk_info;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(clk_cfg); i++) {
-		clk_info = &ar_snoc->clk[i];
-
-		if (!clk_info->handle)
-			continue;
-
-		ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc clock %s being disabled\n",
-			   clk_info->name);
-
-		clk_disable_unprepare(clk_info->handle);
-	}
-
-	return 0;
-}
-
 static int ath10k_hw_power_on(struct ath10k *ar)
 {
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
@@ -1455,7 +1357,7 @@ static int ath10k_hw_power_on(struct ath10k *ar)
 	if (ret)
 		return ret;
 
-	ret = ath10k_snoc_clk_init(ar);
+	ret = clk_bulk_prepare_enable(ar_snoc->num_clks, ar_snoc->clks);
 	if (ret)
 		goto vreg_off;
 
@@ -1472,7 +1374,7 @@ static int ath10k_hw_power_off(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "soc power off\n");
 
-	ath10k_snoc_clk_deinit(ar);
+	clk_bulk_disable_unprepare(ar_snoc->num_clks, ar_snoc->clks);
 
 	return regulator_bulk_disable(ar_snoc->num_vregs, ar_snoc->vregs);
 }
@@ -1560,12 +1462,21 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_free_irq;
 
-	ar_snoc->clk = clk_cfg;
-	for (i = 0; i < ARRAY_SIZE(clk_cfg); i++) {
-		ret = ath10k_get_clk_info(ar, dev, &ar_snoc->clk[i]);
-		if (ret)
-			goto err_free_irq;
+	ar_snoc->num_clks = ARRAY_SIZE(ath10k_clocks);
+	ar_snoc->clks = devm_kcalloc(&pdev->dev, ar_snoc->num_clks,
+				     sizeof(*ar_snoc->clks), GFP_KERNEL);
+	if (!ar_snoc->clks) {
+		ret = -ENOMEM;
+		goto err_free_irq;
 	}
+
+	for (i = 0; i < ar_snoc->num_clks; i++)
+		ar_snoc->clks[i].id = ath10k_clocks[i];
+
+	ret = devm_clk_bulk_get_optional(&pdev->dev, ar_snoc->num_clks,
+					 ar_snoc->clks);
+	if (ret)
+		goto err_free_irq;
 
 	ret = ath10k_hw_power_on(ar);
 	if (ret) {
