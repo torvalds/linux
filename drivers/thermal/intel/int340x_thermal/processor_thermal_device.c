@@ -487,6 +487,7 @@ static int proc_thermal_rapl_add(struct pci_dev *pdev,
 				rapl_mmio_cpu_online, rapl_mmio_cpu_down_prep);
 	if (ret < 0) {
 		powercap_unregister_control_type(rapl_mmio_priv.control_type);
+		rapl_mmio_priv.control_type = NULL;
 		return ret;
 	}
 	rapl_mmio_priv.pcap_rapl_online = ret;
@@ -496,6 +497,9 @@ static int proc_thermal_rapl_add(struct pci_dev *pdev,
 
 static void proc_thermal_rapl_remove(void)
 {
+	if (IS_ERR_OR_NULL(rapl_mmio_priv.control_type))
+		return;
+
 	cpuhp_remove_state(rapl_mmio_priv.pcap_rapl_online);
 	powercap_unregister_control_type(rapl_mmio_priv.control_type);
 }
