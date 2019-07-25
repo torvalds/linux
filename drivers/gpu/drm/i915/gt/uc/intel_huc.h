@@ -35,7 +35,6 @@ struct intel_huc {
 
 	/* HuC-specific additions */
 	struct i915_vma *rsa_data;
-	void *rsa_data_vaddr;
 
 	struct {
 		i915_reg_t reg;

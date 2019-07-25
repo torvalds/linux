@@ -50,6 +50,7 @@ static int intel_huc_rsa_data_create(struct intel_huc *huc)
 	struct intel_gt *gt = huc_to_gt(huc);
 	struct intel_guc *guc = &gt->uc.guc;
 	struct i915_vma *vma;
+	size_t copied;
 	void *vaddr;
 
 	/*
@@ -62,6 +63,7 @@ static int intel_huc_rsa_data_create(struct intel_huc *huc)
 	 * the authentication since its GGTT offset will be GuC
 	 * accessible.
 	 */
+	GEM_BUG_ON(huc->fw.rsa_size > PAGE_SIZE);
 	vma = intel_guc_allocate_vma(guc, PAGE_SIZE);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
@@ -72,26 +74,43 @@ static int intel_huc_rsa_data_create(struct intel_huc *huc)
 		return PTR_ERR(vaddr);
 	}
 
+	copied = intel_uc_fw_copy_rsa(&huc->fw, vaddr, vma->size);
+	GEM_BUG_ON(copied < huc->fw.rsa_size);
+
+	i915_gem_object_unpin_map(vma->obj);
+
 	huc->rsa_data = vma;
-	huc->rsa_data_vaddr = vaddr;
 
 	return 0;
 }
 
 static void intel_huc_rsa_data_destroy(struct intel_huc *huc)
 {
-	i915_vma_unpin_and_release(&huc->rsa_data, I915_VMA_RELEASE_MAP);
+	i915_vma_unpin_and_release(&huc->rsa_data, 0);
 }
 
 int intel_huc_init(struct intel_huc *huc)
 {
 	int err;
 
-	err = intel_huc_rsa_data_create(huc);
+	err = intel_uc_fw_init(&huc->fw);
 	if (err)
 		return err;
 
-	return intel_uc_fw_init(&huc->fw);
+	/*
+	 * HuC firmware image is outside GuC accessible range.
+	 * Copy the RSA signature out of the image into
+	 * a perma-pinned region set aside for it
+	 */
+	err = intel_huc_rsa_data_create(huc);
+	if (err)
+		goto out_fini;
+
+	return 0;
+
+out_fini:
+	intel_uc_fw_fini(&huc->fw);
+	return err;
 }
 
 void intel_huc_fini(struct intel_huc *huc)

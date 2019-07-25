@@ -34,21 +34,6 @@ void intel_huc_fw_init_early(struct intel_huc *huc)
 	intel_uc_fw_init_early(&huc->fw, INTEL_UC_FW_TYPE_HUC, huc_to_gt(huc)->i915);
 }
 
-static void huc_xfer_rsa(struct intel_huc *huc)
-{
-	size_t copied;
-
-	/*
-	 * HuC firmware image is outside GuC accessible range.
-	 * Copy the RSA signature out of the image into
-	 * the perma-pinned region set aside for it
-	 */
-	GEM_BUG_ON(huc->fw.rsa_size > huc->rsa_data->size);
-	copied = intel_uc_fw_copy_rsa(&huc->fw, huc->rsa_data_vaddr,
-				      huc->rsa_data->size);
-	GEM_BUG_ON(copied < huc->fw.rsa_size);
-}
-
 static int huc_xfer_ucode(struct intel_huc *huc)
 {
 	struct intel_uc_fw *huc_fw = &huc->fw;
@@ -107,8 +92,6 @@ static int huc_xfer_ucode(struct intel_huc *huc)
 static int huc_fw_xfer(struct intel_uc_fw *huc_fw)
 {
 	struct intel_huc *huc = container_of(huc_fw, struct intel_huc, fw);
-
-	huc_xfer_rsa(huc);
 
 	return huc_xfer_ucode(huc);
 }
