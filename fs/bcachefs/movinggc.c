@@ -69,26 +69,19 @@ static bool __copygc_pred(struct bch_dev *ca,
 			  struct bkey_s_c k)
 {
 	copygc_heap *h = &ca->copygc_heap;
+	const struct bch_extent_ptr *ptr =
+		bch2_bkey_has_device(k, ca->dev_idx);
 
-	switch (k.k->type) {
-	case KEY_TYPE_extent: {
-		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-		const struct bch_extent_ptr *ptr =
-			bch2_extent_has_device(e, ca->dev_idx);
+	if (ptr) {
+		struct copygc_heap_entry search = { .offset = ptr->offset };
 
-		if (ptr) {
-			struct copygc_heap_entry search = { .offset = ptr->offset };
+		ssize_t i = eytzinger0_find_le(h->data, h->used,
+					       sizeof(h->data[0]),
+					       bucket_offset_cmp, &search);
 
-			ssize_t i = eytzinger0_find_le(h->data, h->used,
-						       sizeof(h->data[0]),
-						       bucket_offset_cmp, &search);
-
-			return (i >= 0 &&
-				ptr->offset < h->data[i].offset + ca->mi.bucket_size &&
-				ptr->gen == h->data[i].gen);
-		}
-		break;
-	}
+		return (i >= 0 &&
+			ptr->offset < h->data[i].offset + ca->mi.bucket_size &&
+			ptr->gen == h->data[i].gen);
 	}
 
 	return false;

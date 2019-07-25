@@ -1041,11 +1041,11 @@ static void bchfs_read(struct btree_trans *trans, struct btree_iter *iter,
 			bool want_full_extent = false;
 
 			if (bkey_extent_is_data(k.k)) {
-				struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
+				struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 				const union bch_extent_entry *i;
 				struct extent_ptr_decoded p;
 
-				extent_for_each_ptr_decode(e, p, i)
+				bkey_for_each_ptr_decode(k.k, ptrs, p, i)
 					want_full_extent |= ((p.crc.csum_type != 0) |
 							     (p.crc.compression_type != 0));
 			}

@@ -249,6 +249,33 @@ void bch2_bkey_drop_device(struct bkey_s k, unsigned dev)
 	bch2_bkey_drop_ptrs(k, ptr, ptr->dev == dev);
 }
 
+const struct bch_extent_ptr *
+bch2_bkey_has_device(struct bkey_s_c k, unsigned dev)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const struct bch_extent_ptr *ptr;
+
+	bkey_for_each_ptr(ptrs, ptr)
+		if (ptr->dev == dev)
+			return ptr;
+
+	return NULL;
+}
+
+bool bch2_bkey_has_target(struct bch_fs *c, struct bkey_s_c k, unsigned target)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const struct bch_extent_ptr *ptr;
+
+	bkey_for_each_ptr(ptrs, ptr)
+		if (bch2_dev_in_target(c, ptr->dev, target) &&
+		    (!ptr->cached ||
+		     !ptr_stale(bch_dev_bkey_exists(c, ptr->dev), ptr)))
+			return true;
+
+	return false;
+}
+
 /* extent specific utility code */
 
 const struct bch_extent_ptr *
@@ -279,20 +306,6 @@ bch2_extent_has_group(struct bch_fs *c, struct bkey_s_c_extent e, unsigned group
 	return NULL;
 }
 
-const struct bch_extent_ptr *
-bch2_extent_has_target(struct bch_fs *c, struct bkey_s_c_extent e, unsigned target)
-{
-	const struct bch_extent_ptr *ptr;
-
-	extent_for_each_ptr(e, ptr)
-		if (bch2_dev_in_target(c, ptr->dev, target) &&
-		    (!ptr->cached ||
-		     !ptr_stale(bch_dev_bkey_exists(c, ptr->dev), ptr)))
-			return ptr;
-
-	return NULL;
-}
-
 unsigned bch2_extent_is_compressed(struct bkey_s_c k)
 {
 	unsigned ret = 0;
@@ -313,16 +326,17 @@ unsigned bch2_extent_is_compressed(struct bkey_s_c k)
 	return ret;
 }
 
-bool bch2_extent_matches_ptr(struct bch_fs *c, struct bkey_s_c_extent e,
-			     struct bch_extent_ptr m, u64 offset)
+bool bch2_bkey_matches_ptr(struct bch_fs *c, struct bkey_s_c k,
+			   struct bch_extent_ptr m, u64 offset)
 {
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
 
-	extent_for_each_ptr_decode(e, p, entry)
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
 		if (p.ptr.dev	== m.dev &&
 		    p.ptr.gen	== m.gen &&
-		    (s64) p.ptr.offset + p.crc.offset - bkey_start_offset(e.k) ==
+		    (s64) p.ptr.offset + p.crc.offset - bkey_start_offset(k.k) ==
 		    (s64) m.offset  - offset)
 			return true;
 
@@ -389,16 +403,17 @@ static inline bool can_narrow_crc(struct bch_extent_crc_unpacked u,
 		bch2_csum_type_is_encryption(n.csum_type);
 }
 
-bool bch2_can_narrow_extent_crcs(struct bkey_s_c_extent e,
+bool bch2_can_narrow_extent_crcs(struct bkey_s_c k,
 				 struct bch_extent_crc_unpacked n)
 {
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	struct bch_extent_crc_unpacked crc;
 	const union bch_extent_entry *i;
 
 	if (!n.csum_type)
 		return false;
 
-	extent_for_each_crc(e, crc, i)
+	bkey_for_each_crc(k.k, ptrs, crc, i)
 		if (can_narrow_crc(crc, n))
 			return true;
 
@@ -414,9 +429,9 @@ bool bch2_can_narrow_extent_crcs(struct bkey_s_c_extent e,
  * currently live (so that readers won't have to bounce) while we've got the
  * checksum we need:
  */
-bool bch2_extent_narrow_crcs(struct bkey_i_extent *e,
-			     struct bch_extent_crc_unpacked n)
+bool bch2_bkey_narrow_crcs(struct bkey_i *k, struct bch_extent_crc_unpacked n)
 {
+	struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(k));
 	struct bch_extent_crc_unpacked u;
 	struct extent_ptr_decoded p;
 	union bch_extent_entry *i;
@@ -424,7 +439,7 @@ bool bch2_extent_narrow_crcs(struct bkey_i_extent *e,
 
 	/* Find a checksum entry that covers only live data: */
 	if (!n.csum_type) {
-		extent_for_each_crc(extent_i_to_s(e), u, i)
+		bkey_for_each_crc(&k->k, ptrs, u, i)
 			if (!u.compression_type &&
 			    u.csum_type &&
 			    u.live_size == u.uncompressed_size) {
@@ -436,15 +451,15 @@ bool bch2_extent_narrow_crcs(struct bkey_i_extent *e,
 found:
 	BUG_ON(n.compression_type);
 	BUG_ON(n.offset);
-	BUG_ON(n.live_size != e->k.size);
+	BUG_ON(n.live_size != k->k.size);
 
 restart_narrow_pointers:
-	extent_for_each_ptr_decode(extent_i_to_s(e), p, i)
+	bkey_for_each_ptr_decode(&k->k, ptrs, p, i)
 		if (can_narrow_crc(p.crc, n)) {
-			bch2_bkey_drop_ptr(extent_i_to_s(e).s, &i->ptr);
+			bch2_bkey_drop_ptr(bkey_i_to_s(k), &i->ptr);
 			p.ptr.offset += p.crc.offset;
 			p.crc = n;
-			bch2_extent_ptr_decoded_append(e, &p);
+			bch2_extent_ptr_decoded_append(k, &p);
 			ret = true;
 			goto restart_narrow_pointers;
 		}
@@ -1397,9 +1412,12 @@ static void bch2_extent_crc_pack(union bch_extent_crc *dst,
 #undef set_common_fields
 }
 
-static void bch2_extent_crc_init(union bch_extent_crc *crc,
-				 struct bch_extent_crc_unpacked new)
+void bch2_extent_crc_append(struct bkey_i *k,
+			    struct bch_extent_crc_unpacked new)
 {
+	struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(k));
+	union bch_extent_crc *crc = (void *) ptrs.end;
+
 	if (bch_crc_bytes[new.csum_type]	<= 4 &&
 	    new.uncompressed_size - 1		<= CRC32_SIZE_MAX &&
 	    new.nonce				<= CRC32_NONCE_MAX)
@@ -1416,54 +1434,53 @@ static void bch2_extent_crc_init(union bch_extent_crc *crc,
 		BUG();
 
 	bch2_extent_crc_pack(crc, new);
+
+	k->k.u64s += extent_entry_u64s(ptrs.end);
+
+	EBUG_ON(bkey_val_u64s(&k->k) > BKEY_EXTENT_VAL_U64s_MAX);
 }
 
-void bch2_extent_crc_append(struct bkey_i_extent *e,
-			    struct bch_extent_crc_unpacked new)
-{
-	bch2_extent_crc_init((void *) extent_entry_last(extent_i_to_s(e)), new);
-	__extent_entry_push(e);
-}
-
-static inline void __extent_entry_insert(struct bkey_i_extent *e,
+static inline void __extent_entry_insert(struct bkey_i *k,
 					 union bch_extent_entry *dst,
 					 union bch_extent_entry *new)
 {
-	union bch_extent_entry *end = extent_entry_last(extent_i_to_s(e));
+	union bch_extent_entry *end = bkey_val_end(bkey_i_to_s(k));
 
 	memmove_u64s_up((u64 *) dst + extent_entry_u64s(new),
 			dst, (u64 *) end - (u64 *) dst);
-	e->k.u64s += extent_entry_u64s(new);
+	k->k.u64s += extent_entry_u64s(new);
 	memcpy_u64s_small(dst, new, extent_entry_u64s(new));
 }
 
-void bch2_extent_ptr_decoded_append(struct bkey_i_extent *e,
+void bch2_extent_ptr_decoded_append(struct bkey_i *k,
 				    struct extent_ptr_decoded *p)
 {
-	struct bch_extent_crc_unpacked crc = bch2_extent_crc_unpack(&e->k, NULL);
+	struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(k));
+	struct bch_extent_crc_unpacked crc =
+		bch2_extent_crc_unpack(&k->k, NULL);
 	union bch_extent_entry *pos;
 	unsigned i;
 
 	if (!bch2_crc_unpacked_cmp(crc, p->crc)) {
-		pos = e->v.start;
+		pos = ptrs.start;
 		goto found;
 	}
 
-	extent_for_each_crc(extent_i_to_s(e), crc, pos)
+	bkey_for_each_crc(&k->k, ptrs, crc, pos)
 		if (!bch2_crc_unpacked_cmp(crc, p->crc)) {
 			pos = extent_entry_next(pos);
 			goto found;
 		}
 
-	bch2_extent_crc_append(e, p->crc);
-	pos = extent_entry_last(extent_i_to_s(e));
+	bch2_extent_crc_append(k, p->crc);
+	pos = bkey_val_end(bkey_i_to_s(k));
 found:
 	p->ptr.type = 1 << BCH_EXTENT_ENTRY_ptr;
-	__extent_entry_insert(e, pos, to_entry(&p->ptr));
+	__extent_entry_insert(k, pos, to_entry(&p->ptr));
 
 	for (i = 0; i < p->ec_nr; i++) {
 		p->ec[i].type = 1 << BCH_EXTENT_ENTRY_stripe_ptr;
-		__extent_entry_insert(e, pos, to_entry(&p->ec[i]));
+		__extent_entry_insert(k, pos, to_entry(&p->ec[i]));
 	}
 }
 

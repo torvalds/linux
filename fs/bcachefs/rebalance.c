@@ -38,9 +38,9 @@ void bch2_rebalance_add_key(struct bch_fs *c,
 			    struct bkey_s_c k,
 			    struct bch_io_opts *io_opts)
 {
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
-	struct bkey_s_c_extent e;
 
 	if (!bkey_extent_is_data(k.k))
 		return;
@@ -49,9 +49,7 @@ void bch2_rebalance_add_key(struct bch_fs *c,
 	    !io_opts->background_compression)
 		return;
 
-	e = bkey_s_c_to_extent(k);
-
-	extent_for_each_ptr_decode(e, p, entry)
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
 		if (rebalance_ptr_pred(c, p, io_opts)) {
 			struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 

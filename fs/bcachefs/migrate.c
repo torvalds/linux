@@ -49,8 +49,7 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k))) {
-		if (!bkey_extent_is_data(k.k) ||
-		    !bch2_extent_has_device(bkey_s_c_to_extent(k), dev_idx)) {
+		if (!bch2_bkey_has_device(k, dev_idx)) {
 			ret = bch2_mark_bkey_replicas(c, k);
 			if (ret)
 				break;

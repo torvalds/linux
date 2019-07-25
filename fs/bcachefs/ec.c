@@ -162,19 +162,20 @@ static int extent_matches_stripe(struct bch_fs *c,
 				 struct bch_stripe *v,
 				 struct bkey_s_c k)
 {
-	struct bkey_s_c_extent e;
-	const struct bch_extent_ptr *ptr;
-	int idx;
 
-	if (!bkey_extent_is_data(k.k))
-		return -1;
+	switch (k.k->type) {
+	case KEY_TYPE_extent: {
+		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
+		const struct bch_extent_ptr *ptr;
+		int idx;
 
-	e = bkey_s_c_to_extent(k);
-
-	extent_for_each_ptr(e, ptr) {
-		idx = ptr_matches_stripe(c, v, ptr);
-		if (idx >= 0)
-			return idx;
+		extent_for_each_ptr(e, ptr) {
+			idx = ptr_matches_stripe(c, v, ptr);
+			if (idx >= 0)
+				return idx;
+		}
+		break;
+	}
 	}
 
 	return -1;
@@ -182,19 +183,20 @@ static int extent_matches_stripe(struct bch_fs *c,
 
 static bool extent_has_stripe_ptr(struct bkey_s_c k, u64 idx)
 {
-	struct bkey_s_c_extent e;
-	const union bch_extent_entry *entry;
+	switch (k.k->type) {
+	case KEY_TYPE_extent: {
+		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
+		const union bch_extent_entry *entry;
 
-	if (!bkey_extent_is_data(k.k))
-		return false;
+		extent_for_each_entry(e, entry)
+			if (extent_entry_type(entry) ==
+			    BCH_EXTENT_ENTRY_stripe_ptr &&
+			    entry->stripe_ptr.idx == idx)
+				return true;
 
-	e = bkey_s_c_to_extent(k);
-
-	extent_for_each_entry(e, entry)
-		if (extent_entry_type(entry) ==
-		    BCH_EXTENT_ENTRY_stripe_ptr &&
-		    entry->stripe_ptr.idx == idx)
-			return true;
+		break;
+	}
+	}
 
 	return false;
 }

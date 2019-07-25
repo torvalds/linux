@@ -1148,15 +1148,15 @@ static int bch2_tmpfile(struct mnt_idmap *idmap,
 }
 
 static int bch2_fill_extent(struct fiemap_extent_info *info,
-			    const struct bkey_i *k, unsigned flags)
+			    struct bkey_s_c k, unsigned flags)
 {
-	if (bkey_extent_is_data(&k->k)) {
-		struct bkey_s_c_extent e = bkey_i_to_s_c_extent(k);
+	if (bkey_extent_is_data(k.k)) {
+		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 		const union bch_extent_entry *entry;
 		struct extent_ptr_decoded p;
 		int ret;
 
-		extent_for_each_ptr_decode(e, p, entry) {
+		bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 			int flags2 = 0;
 			u64 offset = p.ptr.offset;
 
@@ -1166,22 +1166,22 @@ static int bch2_fill_extent(struct fiemap_extent_info *info,
 				offset += p.crc.offset;
 
 			if ((offset & (PAGE_SECTORS - 1)) ||
-			    (e.k->size & (PAGE_SECTORS - 1)))
+			    (k.k->size & (PAGE_SECTORS - 1)))
 				flags2 |= FIEMAP_EXTENT_NOT_ALIGNED;
 
 			ret = fiemap_fill_next_extent(info,
-						bkey_start_offset(e.k) << 9,
+						bkey_start_offset(k.k) << 9,
 						offset << 9,
-						e.k->size << 9, flags|flags2);
+						k.k->size << 9, flags|flags2);
 			if (ret)
 				return ret;
 		}
 
 		return 0;
-	} else if (k->k.type == KEY_TYPE_reservation) {
+	} else if (k.k->type == KEY_TYPE_reservation) {
 		return fiemap_fill_next_extent(info,
-					       bkey_start_offset(&k->k) << 9,
-					       0, k->k.size << 9,
+					       bkey_start_offset(k.k) << 9,
+					       0, k.k->size << 9,
 					       flags|
 					       FIEMAP_EXTENT_DELALLOC|
 					       FIEMAP_EXTENT_UNWRITTEN);
@@ -1198,7 +1198,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	BKEY_PADDED(k) tmp;
+	BKEY_PADDED(k) cur, prev;
 	bool have_extent = false;
 	int ret = 0;
 
@@ -1212,25 +1212,31 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	bch2_trans_init(&trans, c, 0, 0);
 
 	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
-			   POS(ei->v.i_ino, start >> 9), 0, k, ret)
+			   POS(ei->v.i_ino, start >> 9), 0, k, ret) {
+		if (bkey_cmp(bkey_start_pos(k.k),
+			     POS(ei->v.i_ino, (start + len) >> 9)) >= 0)
+			break;
+
+		bkey_reassemble(&cur.k, k);
+		k = bkey_i_to_s_c(&cur.k);
+
 		if (bkey_extent_is_data(k.k) ||
 		    k.k->type == KEY_TYPE_reservation) {
-			if (bkey_cmp(bkey_start_pos(k.k),
-				     POS(ei->v.i_ino, (start + len) >> 9)) >= 0)
-				break;
-
 			if (have_extent) {
-				ret = bch2_fill_extent(info, &tmp.k, 0);
+				ret = bch2_fill_extent(info,
+						bkey_i_to_s_c(&prev.k), 0);
 				if (ret)
 					break;
 			}
 
-			bkey_reassemble(&tmp.k, k);
+			bkey_copy(&prev.k, &cur.k);
 			have_extent = true;
 		}
+	}
 
 	if (!ret && have_extent)
-		ret = bch2_fill_extent(info, &tmp.k, FIEMAP_EXTENT_LAST);
+		ret = bch2_fill_extent(info, bkey_i_to_s_c(&prev.k),
+				       FIEMAP_EXTENT_LAST);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
 	return ret < 0 ? ret : 0;
