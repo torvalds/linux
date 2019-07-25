@@ -665,14 +665,14 @@ static int twlreg_probe(struct platform_device *pdev)
 	struct regulation_constraints	*c;
 	struct regulator_dev		*rdev;
 	struct regulator_config		config = { };
+	struct device_node		*np = pdev->dev.of_node;
 
 	template = of_device_get_match_data(&pdev->dev);
 	if (!template)
 		return -ENODEV;
 
 	id = template->desc.id;
-	initdata = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node,
-						&template->desc);
+	initdata = of_get_regulator_init_data(&pdev->dev, np, &template->desc);
 	if (!initdata)
 		return -EINVAL;
 
@@ -713,7 +713,7 @@ static int twlreg_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.init_data = initdata;
 	config.driver_data = info;
-	config.of_node = pdev->dev.of_node;
+	config.of_node = np;
 
 	rdev = devm_regulator_register(&pdev->dev, &info->desc, &config);
 	if (IS_ERR(rdev)) {
