@@ -34,8 +34,6 @@ static const struct net_device_ops ice_netdev_ops;
 static void ice_rebuild(struct ice_pf *pf);
 
 static void ice_vsi_release_all(struct ice_pf *pf);
-static void ice_update_vsi_stats(struct ice_vsi *vsi);
-static void ice_update_pf_stats(struct ice_pf *pf);
 
 /**
  * ice_get_tx_pending - returns number of Tx descriptors not processed
@@ -3254,7 +3252,7 @@ static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
  * ice_update_vsi_stats - Update VSI stats counters
  * @vsi: the VSI to be updated
  */
-static void ice_update_vsi_stats(struct ice_vsi *vsi)
+void ice_update_vsi_stats(struct ice_vsi *vsi)
 {
 	struct rtnl_link_stats64 *cur_ns = &vsi->net_stats;
 	struct ice_eth_stats *cur_es = &vsi->eth_stats;
@@ -3290,7 +3288,7 @@ static void ice_update_vsi_stats(struct ice_vsi *vsi)
  * ice_update_pf_stats - Update PF port stats counters
  * @pf: PF whose stats needs to be updated
  */
-static void ice_update_pf_stats(struct ice_pf *pf)
+void ice_update_pf_stats(struct ice_pf *pf)
 {
 	struct ice_hw_port_stats *prev_ps, *cur_ps;
 	struct ice_hw *hw = &pf->hw;
