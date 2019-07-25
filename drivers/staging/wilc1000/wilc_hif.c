@@ -679,8 +679,6 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	if (mac_status == WILC_MAC_STATUS_CONNECTED &&
 	    conn_info->status == WLAN_STATUS_SUCCESS) {
 		ether_addr_copy(hif_drv->assoc_bssid, conn_info->bssid);
-		wilc_set_power_mgmt(vif, 0, 0);
-
 		hif_drv->hif_state = HOST_IF_CONNECTED;
 	} else {
 		hif_drv->hif_state = HOST_IF_IDLE;
@@ -704,14 +702,11 @@ static inline void host_int_handle_disconnect(struct wilc_vif *vif)
 		handle_scan_done(vif, SCAN_EVENT_ABORTED);
 	}
 
-	if (hif_drv->conn_info.conn_result) {
-		wilc_set_power_mgmt(vif, 0, 0);
-
+	if (hif_drv->conn_info.conn_result)
 		hif_drv->conn_info.conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
 					       0, hif_drv->conn_info.arg);
-	} else {
+	else
 		netdev_err(vif->ndev, "%s: conn_result is NULL\n", __func__);
-	}
 
 	eth_zero_addr(hif_drv->assoc_bssid);
 
@@ -766,8 +761,6 @@ int wilc_disconnect(struct wilc_vif *vif)
 	wid.type = WID_CHAR;
 	wid.val = (s8 *)&dummy_reason_code;
 	wid.size = sizeof(char);
-
-	wilc_set_power_mgmt(vif, 0, 0);
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 	if (result) {

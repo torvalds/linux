@@ -1393,8 +1393,7 @@ static int set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	if (!priv->hif_drv)
 		return -EIO;
 
-	if (vif->wilc->enable_ps)
-		wilc_set_power_mgmt(vif, enabled, timeout);
+	wilc_set_power_mgmt(vif, enabled, timeout);
 
 	return 0;
 }
@@ -1424,9 +1423,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 		memset(priv->assoc_stainfo.sta_associated_bss, 0,
 		       WILC_MAX_NUM_STA * ETH_ALEN);
-
-		wl->enable_ps = true;
-		wilc_set_power_mgmt(vif, 1, 0);
 		break;
 
 	case NL80211_IFTYPE_P2P_CLIENT:
@@ -1437,12 +1433,9 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		vif->iftype = WILC_CLIENT_MODE;
 		wilc_set_operation_mode(vif, WILC_STATION_MODE);
 
-		wl->enable_ps = false;
-		wilc_set_power_mgmt(vif, 0, 0);
 		break;
 
 	case NL80211_IFTYPE_AP:
-		wl->enable_ps = false;
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev.iftype = type;
 		vif->iftype = WILC_AP_MODE;
@@ -1451,7 +1444,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
 						 0, vif->idx);
 			wilc_set_operation_mode(vif, WILC_AP_MODE);
-			wilc_set_power_mgmt(vif, 0, 0);
 		}
 		break;
 
@@ -1460,9 +1452,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev.iftype = type;
 		vif->iftype = WILC_GO_MODE;
-
-		wl->enable_ps = false;
-		wilc_set_power_mgmt(vif, 0, 0);
 		break;
 
 	default:
@@ -1484,7 +1473,6 @@ static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 		netdev_err(dev, "Error in setting channel\n");
 
 	wilc_wlan_set_bssid(dev, dev->dev_addr, WILC_AP_MODE);
-	wilc_set_power_mgmt(vif, 0, 0);
 
 	return wilc_add_beacon(vif, settings->beacon_interval,
 				   settings->dtim_period, &settings->beacon);
@@ -1835,7 +1823,6 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 	*wilc = wl;
 	wl->io_type = io_type;
 	wl->hif_func = ops;
-	wl->enable_ps = false;
 	wl->chip_ps_state = WILC_CHIP_WAKEDUP;
 	INIT_LIST_HEAD(&wl->txq_head.list);
 	INIT_LIST_HEAD(&wl->rxq_head.list);
