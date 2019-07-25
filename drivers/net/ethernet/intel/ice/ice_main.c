@@ -3262,25 +3262,25 @@ void ice_update_pf_stats(struct ice_pf *pf)
 {
 	struct ice_hw_port_stats *prev_ps, *cur_ps;
 	struct ice_hw *hw = &pf->hw;
-	u8 pf_id;
+	u8 port;
 
+	port = hw->port_info->lport;
 	prev_ps = &pf->stats_prev;
 	cur_ps = &pf->stats;
-	pf_id = hw->pf_id;
 
-	ice_stat_update40(hw, GLPRT_GORCL(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_GORCL(port), pf->stat_prev_loaded,
 			  &prev_ps->eth.rx_bytes,
 			  &cur_ps->eth.rx_bytes);
 
-	ice_stat_update40(hw, GLPRT_UPRCL(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_UPRCL(port), pf->stat_prev_loaded,
 			  &prev_ps->eth.rx_unicast,
 			  &cur_ps->eth.rx_unicast);
 
-	ice_stat_update40(hw, GLPRT_MPRCL(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_MPRCL(port), pf->stat_prev_loaded,
 			  &prev_ps->eth.rx_multicast,
 			  &cur_ps->eth.rx_multicast);
 
-	ice_stat_update40(hw, GLPRT_BPRCL(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_BPRCL(port), pf->stat_prev_loaded,
 			  &prev_ps->eth.rx_broadcast,
 			  &cur_ps->eth.rx_broadcast);
 
@@ -3288,109 +3288,109 @@ void ice_update_pf_stats(struct ice_pf *pf)
 			  &prev_ps->eth.rx_discards,
 			  &cur_ps->eth.rx_discards);
 
-	ice_stat_update40(hw, GLPRT_GOTCL(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_GOTCL(port), pf->stat_prev_loaded,
 			  &prev_ps->eth.tx_bytes,
 			  &cur_ps->eth.tx_bytes);
 
-	ice_stat_update40(hw, GLPRT_UPTCL(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_UPTCL(port), pf->stat_prev_loaded,
 			  &prev_ps->eth.tx_unicast,
 			  &cur_ps->eth.tx_unicast);
 
-	ice_stat_update40(hw, GLPRT_MPTCL(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_MPTCL(port), pf->stat_prev_loaded,
 			  &prev_ps->eth.tx_multicast,
 			  &cur_ps->eth.tx_multicast);
 
-	ice_stat_update40(hw, GLPRT_BPTCL(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_BPTCL(port), pf->stat_prev_loaded,
 			  &prev_ps->eth.tx_broadcast,
 			  &cur_ps->eth.tx_broadcast);
 
-	ice_stat_update32(hw, GLPRT_TDOLD(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_TDOLD(port), pf->stat_prev_loaded,
 			  &prev_ps->tx_dropped_link_down,
 			  &cur_ps->tx_dropped_link_down);
 
-	ice_stat_update40(hw, GLPRT_PRC64L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PRC64L(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_size_64, &cur_ps->rx_size_64);
 
-	ice_stat_update40(hw, GLPRT_PRC127L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PRC127L(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_size_127, &cur_ps->rx_size_127);
 
-	ice_stat_update40(hw, GLPRT_PRC255L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PRC255L(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_size_255, &cur_ps->rx_size_255);
 
-	ice_stat_update40(hw, GLPRT_PRC511L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PRC511L(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_size_511, &cur_ps->rx_size_511);
 
-	ice_stat_update40(hw, GLPRT_PRC1023L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PRC1023L(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_size_1023, &cur_ps->rx_size_1023);
 
-	ice_stat_update40(hw, GLPRT_PRC1522L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PRC1522L(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_size_1522, &cur_ps->rx_size_1522);
 
-	ice_stat_update40(hw, GLPRT_PRC9522L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PRC9522L(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_size_big, &cur_ps->rx_size_big);
 
-	ice_stat_update40(hw, GLPRT_PTC64L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PTC64L(port), pf->stat_prev_loaded,
 			  &prev_ps->tx_size_64, &cur_ps->tx_size_64);
 
-	ice_stat_update40(hw, GLPRT_PTC127L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PTC127L(port), pf->stat_prev_loaded,
 			  &prev_ps->tx_size_127, &cur_ps->tx_size_127);
 
-	ice_stat_update40(hw, GLPRT_PTC255L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PTC255L(port), pf->stat_prev_loaded,
 			  &prev_ps->tx_size_255, &cur_ps->tx_size_255);
 
-	ice_stat_update40(hw, GLPRT_PTC511L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PTC511L(port), pf->stat_prev_loaded,
 			  &prev_ps->tx_size_511, &cur_ps->tx_size_511);
 
-	ice_stat_update40(hw, GLPRT_PTC1023L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PTC1023L(port), pf->stat_prev_loaded,
 			  &prev_ps->tx_size_1023, &cur_ps->tx_size_1023);
 
-	ice_stat_update40(hw, GLPRT_PTC1522L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PTC1522L(port), pf->stat_prev_loaded,
 			  &prev_ps->tx_size_1522, &cur_ps->tx_size_1522);
 
-	ice_stat_update40(hw, GLPRT_PTC9522L(pf_id), pf->stat_prev_loaded,
+	ice_stat_update40(hw, GLPRT_PTC9522L(port), pf->stat_prev_loaded,
 			  &prev_ps->tx_size_big, &cur_ps->tx_size_big);
 
-	ice_stat_update32(hw, GLPRT_LXONRXC(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_LXONRXC(port), pf->stat_prev_loaded,
 			  &prev_ps->link_xon_rx, &cur_ps->link_xon_rx);
 
-	ice_stat_update32(hw, GLPRT_LXOFFRXC(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_LXOFFRXC(port), pf->stat_prev_loaded,
 			  &prev_ps->link_xoff_rx, &cur_ps->link_xoff_rx);
 
-	ice_stat_update32(hw, GLPRT_LXONTXC(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_LXONTXC(port), pf->stat_prev_loaded,
 			  &prev_ps->link_xon_tx, &cur_ps->link_xon_tx);
 
-	ice_stat_update32(hw, GLPRT_LXOFFTXC(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_LXOFFTXC(port), pf->stat_prev_loaded,
 			  &prev_ps->link_xoff_tx, &cur_ps->link_xoff_tx);
 
 	ice_update_dcb_stats(pf);
 
-	ice_stat_update32(hw, GLPRT_CRCERRS(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_CRCERRS(port), pf->stat_prev_loaded,
 			  &prev_ps->crc_errors, &cur_ps->crc_errors);
 
-	ice_stat_update32(hw, GLPRT_ILLERRC(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_ILLERRC(port), pf->stat_prev_loaded,
 			  &prev_ps->illegal_bytes, &cur_ps->illegal_bytes);
 
-	ice_stat_update32(hw, GLPRT_MLFC(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_MLFC(port), pf->stat_prev_loaded,
 			  &prev_ps->mac_local_faults,
 			  &cur_ps->mac_local_faults);
 
-	ice_stat_update32(hw, GLPRT_MRFC(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_MRFC(port), pf->stat_prev_loaded,
 			  &prev_ps->mac_remote_faults,
 			  &cur_ps->mac_remote_faults);
 
-	ice_stat_update32(hw, GLPRT_RLEC(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_RLEC(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_len_errors, &cur_ps->rx_len_errors);
 
-	ice_stat_update32(hw, GLPRT_RUC(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_RUC(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_undersize, &cur_ps->rx_undersize);
 
-	ice_stat_update32(hw, GLPRT_RFC(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_RFC(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_fragments, &cur_ps->rx_fragments);
 
-	ice_stat_update32(hw, GLPRT_ROC(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_ROC(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_oversize, &cur_ps->rx_oversize);
 
-	ice_stat_update32(hw, GLPRT_RJC(pf_id), pf->stat_prev_loaded,
+	ice_stat_update32(hw, GLPRT_RJC(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_jabber, &cur_ps->rx_jabber);
 
 	pf->stat_prev_loaded = true;
