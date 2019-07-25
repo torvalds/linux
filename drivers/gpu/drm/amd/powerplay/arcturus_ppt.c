@@ -327,7 +327,6 @@ static int arcturus_allocate_dpm_context(struct smu_context *smu)
 	return 0;
 }
 
-#define FEATURE_MASK(feature) (1ULL << feature)
 static int
 arcturus_get_allowed_feature_mask(struct smu_context *smu,
 				  uint32_t *feature_mask, uint32_t num)
@@ -335,9 +334,8 @@ arcturus_get_allowed_feature_mask(struct smu_context *smu,
 	if (num > 2)
 		return -EINVAL;
 
-	memset(feature_mask, 0, sizeof(uint32_t) * num);
-
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT);
+	/* pptable will handle the features to enable */
+	memset(feature_mask, 0xFF, sizeof(uint32_t) * num);
 
 	return 0;
 }
