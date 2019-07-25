@@ -3032,18 +3032,23 @@ bad:
 	pr_err("mdsc_handle_forward decode error err=%d\n", err);
 }
 
-static int __decode_and_drop_session_metadata(void **p, void *end)
+static int __decode_session_metadata(void **p, void *end,
+				     bool *blacklisted)
 {
 	/* map<string,string> */
 	u32 n;
+	bool err_str;
 	ceph_decode_32_safe(p, end, n, bad);
 	while (n-- > 0) {
 		u32 len;
 		ceph_decode_32_safe(p, end, len, bad);
 		ceph_decode_need(p, end, len, bad);
+		err_str = !strncmp(*p, "error_string", len);
 		*p += len;
 		ceph_decode_32_safe(p, end, len, bad);
 		ceph_decode_need(p, end, len, bad);
+		if (err_str && strnstr(*p, "blacklisted", len))
+			*blacklisted = true;
 		*p += len;
 	}
 	return 0;
@@ -3067,6 +3072,7 @@ static void handle_session(struct ceph_mds_session *session,
 	u64 seq;
 	unsigned long features = 0;
 	int wake = 0;
+	bool blacklisted = false;
 
 	/* decode */
 	ceph_decode_need(&p, end, sizeof(*h), bad);
@@ -3079,7 +3085,7 @@ static void handle_session(struct ceph_mds_session *session,
 	if (msg_version >= 3) {
 		u32 len;
 		/* version >= 2, metadata */
-		if (__decode_and_drop_session_metadata(&p, end) < 0)
+		if (__decode_session_metadata(&p, end, &blacklisted) < 0)
 			goto bad;
 		/* version >= 3, feature bits */
 		ceph_decode_32_safe(&p, end, len, bad);
@@ -3166,6 +3172,8 @@ static void handle_session(struct ceph_mds_session *session,
 		session->s_state = CEPH_MDS_SESSION_REJECTED;
 		cleanup_session_requests(mdsc, session);
 		remove_session_caps(session);
+		if (blacklisted)
+			mdsc->fsc->blacklisted = true;
 		wake = 2; /* for good measure */
 		break;
 
@@ -4015,7 +4023,27 @@ static void lock_unlock_sessions(struct ceph_mds_client *mdsc)
 	mutex_unlock(&mdsc->mutex);
 }
 
+static void maybe_recover_session(struct ceph_mds_client *mdsc)
+{
+	struct ceph_fs_client *fsc = mdsc->fsc;
 
+	if (!ceph_test_mount_opt(fsc, CLEANRECOVER))
+		return;
+
+	if (READ_ONCE(fsc->mount_state) != CEPH_MOUNT_MOUNTED)
+		return;
+
+	if (!READ_ONCE(fsc->blacklisted))
+		return;
+
+	if (fsc->last_auto_reconnect &&
+	    time_before(jiffies, fsc->last_auto_reconnect + HZ * 60 * 30))
+		return;
+
+	pr_info("auto reconnect after blacklisted\n");
+	fsc->last_auto_reconnect = jiffies;
+	ceph_force_reconnect(fsc->sb);
+}
 
 /*
  * delayed work -- periodically trim expired leases, renew caps with mds
@@ -4088,6 +4116,8 @@ static void delayed_work(struct work_struct *work)
 	ceph_queue_cap_reclaim_work(mdsc);
 
 	ceph_trim_snapid_map(mdsc);
+
+	maybe_recover_session(mdsc);
 
 	schedule_delayed(mdsc);
 }
