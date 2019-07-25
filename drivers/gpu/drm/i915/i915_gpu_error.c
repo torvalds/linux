@@ -298,7 +298,7 @@ static void *compress_next_page(struct compress *c,
 	if (dst->page_count >= dst->num_pages)
 		return ERR_PTR(-ENOSPC);
 
-	page = pool_alloc(&c->pool, ATOMIC_MAYFAIL);
+	page = pool_alloc(&c->pool, ALLOW_FAIL);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
@@ -327,8 +327,6 @@ static int compress_page(struct compress *c,
 
 		if (zlib_deflate(zstream, Z_NO_FLUSH) != Z_OK)
 			return -EIO;
-
-		touch_nmi_watchdog();
 	} while (zstream->avail_in);
 
 	/* Fallback to uncompressed if we increase size? */
@@ -407,7 +405,7 @@ static int compress_page(struct compress *c,
 {
 	void *ptr;
 
-	ptr = pool_alloc(&c->pool, ATOMIC_MAYFAIL);
+	ptr = pool_alloc(&c->pool, ALLOW_FAIL);
 	if (!ptr)
 		return -ENOMEM;
 
@@ -1001,12 +999,14 @@ i915_error_object_create(struct drm_i915_private *i915,
 	dma_addr_t dma;
 	int ret;
 
+	might_sleep();
+
 	if (!vma || !vma->pages)
 		return NULL;
 
 	num_pages = min_t(u64, vma->size, vma->obj->base.size) >> PAGE_SHIFT;
 	num_pages = DIV_ROUND_UP(10 * num_pages, 8); /* worstcase zlib growth */
-	dst = kmalloc(sizeof(*dst) + num_pages * sizeof(u32 *), ATOMIC_MAYFAIL);
+	dst = kmalloc(sizeof(*dst) + num_pages * sizeof(u32 *), ALLOW_FAIL);
 	if (!dst)
 		return NULL;
 
@@ -1027,9 +1027,9 @@ i915_error_object_create(struct drm_i915_private *i915,
 
 		ggtt->vm.insert_page(&ggtt->vm, dma, slot, I915_CACHE_NONE, 0);
 
-		s = io_mapping_map_atomic_wc(&ggtt->iomap, slot);
+		s = io_mapping_map_wc(&ggtt->iomap, slot, PAGE_SIZE);
 		ret = compress_page(compress, (void  __force *)s, dst);
-		io_mapping_unmap_atomic(s);
+		io_mapping_unmap(s);
 		if (ret)
 			break;
 	}
@@ -1302,10 +1302,42 @@ static void record_context(struct drm_i915_error_context *e,
 	e->active = atomic_read(&ctx->active_count);
 }
 
-static void
+struct capture_vma {
+	struct capture_vma *next;
+	void **slot;
+};
+
+static struct capture_vma *
+capture_vma(struct capture_vma *next,
+	    struct i915_vma *vma,
+	    struct drm_i915_error_object **out)
+{
+	struct capture_vma *c;
+
+	*out = NULL;
+	if (!vma)
+		return next;
+
+	c = kmalloc(sizeof(*c), ATOMIC_MAYFAIL);
+	if (!c)
+		return next;
+
+	if (!i915_active_trygrab(&vma->active)) {
+		kfree(c);
+		return next;
+	}
+
+	c->slot = (void **)out;
+	*c->slot = i915_vma_get(vma);
+
+	c->next = next;
+	return c;
+}
+
+static struct capture_vma *
 request_record_user_bo(struct i915_request *request,
 		       struct drm_i915_error_engine *ee,
-		       struct compress *compress)
+		       struct capture_vma *capture)
 {
 	struct i915_capture_list *c;
 	struct drm_i915_error_object **bo;
@@ -1315,7 +1347,7 @@ request_record_user_bo(struct i915_request *request,
 	for (c = request->capture_list; c; c = c->next)
 		max++;
 	if (!max)
-		return;
+		return capture;
 
 	bo = kmalloc_array(max, sizeof(*bo), ATOMIC_MAYFAIL);
 	if (!bo) {
@@ -1324,21 +1356,19 @@ request_record_user_bo(struct i915_request *request,
 		bo = kmalloc_array(max, sizeof(*bo), ATOMIC_MAYFAIL);
 	}
 	if (!bo)
-		return;
+		return capture;
 
 	count = 0;
 	for (c = request->capture_list; c; c = c->next) {
-		bo[count] = i915_error_object_create(request->i915,
-						     c->vma,
-						     compress);
-		if (!bo[count])
-			break;
+		capture = capture_vma(capture, c->vma, &bo[count]);
 		if (++count == max)
 			break;
 	}
 
 	ee->user_bo = bo;
 	ee->user_bo_count = count;
+
+	return capture;
 }
 
 static struct drm_i915_error_object *
@@ -1369,6 +1399,7 @@ gem_record_rings(struct i915_gpu_state *error, struct compress *compress)
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct intel_engine_cs *engine = i915->engine[i];
 		struct drm_i915_error_engine *ee = &error->engine[i];
+		struct capture_vma *capture = NULL;
 		struct i915_request *request;
 		unsigned long flags;
 
@@ -1393,26 +1424,29 @@ gem_record_rings(struct i915_gpu_state *error, struct compress *compress)
 
 			record_context(&ee->context, ctx);
 
-			/* We need to copy these to an anonymous buffer
+			/*
+			 * We need to copy these to an anonymous buffer
 			 * as the simplest method to avoid being overwritten
 			 * by userspace.
 			 */
-			ee->batchbuffer =
-				i915_error_object_create(i915,
-							 request->batch,
-							 compress);
+			capture = capture_vma(capture,
+					      request->batch,
+					      &ee->batchbuffer);
 
 			if (HAS_BROKEN_CS_TLB(i915))
-				ee->wa_batchbuffer =
-				  i915_error_object_create(i915,
-							   engine->gt->scratch,
-							   compress);
-			request_record_user_bo(request, ee, compress);
+				capture = capture_vma(capture,
+						      engine->gt->scratch,
+						      &ee->wa_batchbuffer);
 
-			ee->ctx =
-				i915_error_object_create(i915,
-							 request->hw_context->state,
-							 compress);
+			capture = request_record_user_bo(request, ee, capture);
+
+			capture = capture_vma(capture,
+					      request->hw_context->state,
+					      &ee->ctx);
+
+			capture = capture_vma(capture,
+					      ring->vma,
+					      &ee->ringbuffer);
 
 			error->simulated |=
 				i915_gem_context_no_error_capture(ctx);
@@ -1423,14 +1457,24 @@ gem_record_rings(struct i915_gpu_state *error, struct compress *compress)
 
 			ee->cpu_ring_head = ring->head;
 			ee->cpu_ring_tail = ring->tail;
-			ee->ringbuffer =
-				i915_error_object_create(i915,
-							 ring->vma,
-							 compress);
 
 			engine_record_requests(engine, request, ee);
 		}
 		spin_unlock_irqrestore(&engine->active.lock, flags);
+
+		while (capture) {
+			struct capture_vma *this = capture;
+			struct i915_vma *vma = *this->slot;
+
+			*this->slot =
+				i915_error_object_create(i915, vma, compress);
+
+			i915_active_ungrab(&vma->active);
+			i915_vma_put(vma);
+
+			capture = this->next;
+			kfree(this);
+		}
 
 		ee->hws_page =
 			i915_error_object_create(i915,

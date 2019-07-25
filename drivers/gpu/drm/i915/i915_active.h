@@ -395,6 +395,9 @@ int i915_active_acquire(struct i915_active *ref);
 void i915_active_release(struct i915_active *ref);
 void __i915_active_release_nested(struct i915_active *ref, int subclass);
 
+bool i915_active_trygrab(struct i915_active *ref);
+void i915_active_ungrab(struct i915_active *ref);
+
 static inline bool
 i915_active_is_idle(const struct i915_active *ref)
 {

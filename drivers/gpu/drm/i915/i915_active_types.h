@@ -36,6 +36,9 @@ struct i915_active {
 	struct mutex mutex;
 	atomic_t count;
 
+	unsigned long flags;
+#define I915_ACTIVE_GRAB_BIT 0
+
 	int (*active)(struct i915_active *ref);
 	void (*retire)(struct i915_active *ref);
 

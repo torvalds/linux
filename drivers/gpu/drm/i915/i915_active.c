@@ -196,6 +196,7 @@ void __i915_active_init(struct drm_i915_private *i915,
 	debug_active_init(ref);
 
 	ref->i915 = i915;
+	ref->flags = 0;
 	ref->active = active;
 	ref->retire = retire;
 	ref->tree = RB_ROOT;
@@ -262,6 +263,34 @@ void i915_active_release(struct i915_active *ref)
 	active_retire(ref);
 }
 
+static void __active_ungrab(struct i915_active *ref)
+{
+	clear_and_wake_up_bit(I915_ACTIVE_GRAB_BIT, &ref->flags);
+}
+
+bool i915_active_trygrab(struct i915_active *ref)
+{
+	debug_active_assert(ref);
+
+	if (test_and_set_bit(I915_ACTIVE_GRAB_BIT, &ref->flags))
+		return false;
+
+	if (!atomic_add_unless(&ref->count, 1, 0)) {
+		__active_ungrab(ref);
+		return false;
+	}
+
+	return true;
+}
+
+void i915_active_ungrab(struct i915_active *ref)
+{
+	GEM_BUG_ON(!test_bit(I915_ACTIVE_GRAB_BIT, &ref->flags));
+
+	active_retire(ref);
+	__active_ungrab(ref);
+}
+
 int i915_active_wait(struct i915_active *ref)
 {
 	struct active_node *it, *n;
@@ -270,7 +299,7 @@ int i915_active_wait(struct i915_active *ref)
 	might_sleep();
 	might_lock(&ref->mutex);
 
-	if (RB_EMPTY_ROOT(&ref->tree))
+	if (i915_active_is_idle(ref))
 		return 0;
 
 	err = mutex_lock_interruptible(&ref->mutex);
@@ -291,6 +320,9 @@ int i915_active_wait(struct i915_active *ref)
 	__active_retire(ref);
 	if (err)
 		return err;
+
+	if (wait_on_bit(&ref->flags, I915_ACTIVE_GRAB_BIT, TASK_KILLABLE))
+		return -EINTR;
 
 	if (!i915_active_is_idle(ref))
 		return -EBUSY;
