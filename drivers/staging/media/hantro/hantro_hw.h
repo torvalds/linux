@@ -15,6 +15,8 @@
 #include <media/vp8-ctrls.h>
 #include <media/videobuf2-core.h>
 
+#define DEC_8190_ALIGN_MASK	0x07U
+
 struct hantro_dev;
 struct hantro_ctx;
 struct hantro_buf;
@@ -92,6 +94,8 @@ enum hantro_enc_fmt {
 extern const struct hantro_variant rk3399_vpu_variant;
 extern const struct hantro_variant rk3328_vpu_variant;
 extern const struct hantro_variant rk3288_vpu_variant;
+
+extern const u32 vp8_dec_mc_filter[8][6];
 
 void hantro_watchdog(struct work_struct *work);
 void hantro_run(struct hantro_ctx *ctx);

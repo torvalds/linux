@@ -16,8 +16,6 @@
 #include "hantro.h"
 #include "hantro_g1_regs.h"
 
-#define DEC_8190_ALIGN_MASK	0x07U
-
 /* DCT partition base address regs */
 static const struct hantro_reg vp8_dec_dct_base[8] = {
 	{ G1_REG_ADDR_STR, 0, 0xffffffff },
@@ -129,21 +127,6 @@ static const struct hantro_reg vp8_dec_pred_bc_tap[8][4] = {
 		{ G1_REG_BD_REF_PIC(3), 22, 0x3ff },
 		{ G1_REG_BD_REF_PIC(3), 12, 0x3ff },
 	},
-};
-
-/*
- * filter taps taken to 7-bit precision,
- * reference RFC6386#Page-16, filters[8][6]
- */
-static const u32 vp8_dec_mc_filter[8][6] = {
-	{ 0, 0, 128, 0, 0, 0 },
-	{ 0, -6, 123, 12, -1, 0 },
-	{ 2, -11, 108, 36, -8, 1 },
-	{ 0, -9, 93, 50, -6, 0 },
-	{ 3, -16, 77, 77, -16, 3 },
-	{ 0, -6, 50, 93, -9, 0 },
-	{ 1, -8, 36, 108, -11, 2 },
-	{ 0, -1, 12, 123, -6, 0 }
 };
 
 /*
