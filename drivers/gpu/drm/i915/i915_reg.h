@@ -7418,6 +7418,9 @@ enum {
 #define  GEN8_PORT_DP_A_HOTPLUG		(1 << 3)
 #define  BXT_DE_PORT_GMBUS		(1 << 1)
 #define  GEN8_AUX_CHANNEL_A		(1 << 0)
+#define  TGL_DE_PORT_AUX_DDIC		(1 << 2)
+#define  TGL_DE_PORT_AUX_DDIB		(1 << 1)
+#define  TGL_DE_PORT_AUX_DDIA		(1 << 0)
 
 #define GEN8_DE_MISC_ISR _MMIO(0x44460)
 #define GEN8_DE_MISC_IMR _MMIO(0x44464)
