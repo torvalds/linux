@@ -29,6 +29,162 @@
 #include "intel_uc_fw.h"
 #include "i915_drv.h"
 
+/*
+ * List of required GuC and HuC binaries per-platform.
+ * Must be ordered based on platform + revid, from newer to older.
+ */
+#define INTEL_UC_FIRMWARE_DEFS(fw_def, guc_def, huc_def) \
+	fw_def(ICELAKE,    0, guc_def(icl, 33, 0, 0), huc_def(icl,  8,  4, 3238)) \
+	fw_def(COFFEELAKE, 0, guc_def(kbl, 33, 0, 0), huc_def(kbl, 02, 00, 1810)) \
+	fw_def(GEMINILAKE, 0, guc_def(glk, 33, 0, 0), huc_def(glk, 03, 01, 2893)) \
+	fw_def(KABYLAKE,   0, guc_def(kbl, 33, 0, 0), huc_def(kbl, 02, 00, 1810)) \
+	fw_def(BROXTON,    0, guc_def(bxt, 33, 0, 0), huc_def(bxt, 01,  8, 2893)) \
+	fw_def(SKYLAKE,    0, guc_def(skl, 33, 0, 0), huc_def(skl, 01, 07, 1398))
+
+#define __MAKE_UC_FW_PATH(prefix_, name_, separator_, major_, minor_, patch_) \
+	"i915/" \
+	__stringify(prefix_) name_ \
+	__stringify(major_) separator_ \
+	__stringify(minor_) separator_ \
+	__stringify(patch_) ".bin"
+
+#define MAKE_GUC_FW_PATH(prefix_, major_, minor_, patch_) \
+	__MAKE_UC_FW_PATH(prefix_, "_guc_", ".", major_, minor_, patch_)
+
+#define MAKE_HUC_FW_PATH(prefix_, major_, minor_, bld_num_) \
+	__MAKE_UC_FW_PATH(prefix_, "_huc_ver", "_", major_, minor_, bld_num_)
+
+/* All blobs need to be declared via MODULE_FIRMWARE() */
+#define INTEL_UC_MODULE_FW(platform_, revid_, guc_, huc_) \
+	MODULE_FIRMWARE(guc_); \
+	MODULE_FIRMWARE(huc_);
+
+INTEL_UC_FIRMWARE_DEFS(INTEL_UC_MODULE_FW, MAKE_GUC_FW_PATH, MAKE_HUC_FW_PATH)
+
+/* The below structs and macros are used to iterate across the list of blobs */
+struct __packed uc_fw_blob {
+	u8 major;
+	u8 minor;
+	const char *path;
+};
+
+#define UC_FW_BLOB(major_, minor_, path_) \
+	{ .major = major_, .minor = minor_, .path = path_ }
+
+#define GUC_FW_BLOB(prefix_, major_, minor_, patch_) \
+	UC_FW_BLOB(major_, minor_, \
+		   MAKE_GUC_FW_PATH(prefix_, major_, minor_, patch_))
+
+#define HUC_FW_BLOB(prefix_, major_, minor_, bld_num_) \
+	UC_FW_BLOB(major_, minor_, \
+		   MAKE_HUC_FW_PATH(prefix_, major_, minor_, bld_num_))
+
+struct __packed uc_fw_platform_requirement {
+	enum intel_platform p;
+	u8 rev; /* first platform rev using this FW */
+	const struct uc_fw_blob blobs[INTEL_UC_FW_NUM_TYPES];
+};
+
+#define MAKE_FW_LIST(platform_, revid_, guc_, huc_) \
+{ \
+	.p = INTEL_##platform_, \
+	.rev = revid_, \
+	.blobs[INTEL_UC_FW_TYPE_GUC] = guc_, \
+	.blobs[INTEL_UC_FW_TYPE_HUC] = huc_, \
+},
+
+static void
+__uc_fw_auto_select(struct intel_uc_fw *uc_fw, enum intel_platform p, u8 rev)
+{
+	static const struct uc_fw_platform_requirement fw_blobs[] = {
+		INTEL_UC_FIRMWARE_DEFS(MAKE_FW_LIST, GUC_FW_BLOB, HUC_FW_BLOB)
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fw_blobs) && p <= fw_blobs[i].p; i++) {
+		if (p == fw_blobs[i].p && rev >= fw_blobs[i].rev) {
+			const struct uc_fw_blob *blob =
+					&fw_blobs[i].blobs[uc_fw->type];
+			uc_fw->path = blob->path;
+			uc_fw->major_ver_wanted = blob->major;
+			uc_fw->minor_ver_wanted = blob->minor;
+			break;
+		}
+	}
+
+	/* make sure the list is ordered as expected */
+	if (IS_ENABLED(CONFIG_DRM_I915_SELFTEST)) {
+		for (i = 1; i < ARRAY_SIZE(fw_blobs); i++) {
+			if (fw_blobs[i].p < fw_blobs[i - 1].p)
+				continue;
+
+			if (fw_blobs[i].p == fw_blobs[i - 1].p &&
+			    fw_blobs[i].rev < fw_blobs[i - 1].rev)
+				continue;
+
+			pr_err("invalid FW blob order: %s r%u comes before %s r%u\n",
+			       intel_platform_name(fw_blobs[i - 1].p),
+			       fw_blobs[i - 1].rev,
+			       intel_platform_name(fw_blobs[i].p),
+			       fw_blobs[i].rev);
+
+			uc_fw->path = NULL;
+		}
+	}
+}
+
+static bool
+__uc_fw_override(struct intel_uc_fw *uc_fw)
+{
+	switch (uc_fw->type) {
+	case INTEL_UC_FW_TYPE_GUC:
+		uc_fw->path = i915_modparams.guc_firmware_path;
+		break;
+	case INTEL_UC_FW_TYPE_HUC:
+		uc_fw->path = i915_modparams.huc_firmware_path;
+		break;
+	}
+
+	return uc_fw->path;
+}
+
+/**
+ * intel_uc_fw_init_early - initialize the uC object and select the firmware
+ * @i915: device private
+ * @uc_fw: uC firmware
+ * @type: type of uC
+ *
+ * Initialize the state of our uC object and relevant tracking and select the
+ * firmware to fetch and load.
+ */
+void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
+			    enum intel_uc_fw_type type,
+			    struct drm_i915_private *i915)
+{
+	/*
+	 * we use FIRMWARE_UNINITIALIZED to detect checks against fetch_status
+	 * before we're looked at the HW caps to see if we have uc support
+	 */
+	BUILD_BUG_ON(INTEL_UC_FIRMWARE_UNINITIALIZED);
+	GEM_BUG_ON(uc_fw->fetch_status);
+	GEM_BUG_ON(uc_fw->load_status);
+	GEM_BUG_ON(uc_fw->path);
+
+	uc_fw->type = type;
+
+	if (HAS_GT_UC(i915) && likely(!__uc_fw_override(uc_fw)))
+		__uc_fw_auto_select(uc_fw, INTEL_INFO(i915)->platform,
+				    INTEL_REVID(i915));
+
+	if (uc_fw->path) {
+		uc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_STARTED;
+		uc_fw->load_status = INTEL_UC_FIRMWARE_NOT_STARTED;
+	} else {
+		uc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_SUPPORTED;
+		uc_fw->load_status = INTEL_UC_FIRMWARE_NOT_SUPPORTED;
+	}
+}
+
 /**
  * intel_uc_fw_fetch - fetch uC firmware
  *

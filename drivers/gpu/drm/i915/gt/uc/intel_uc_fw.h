@@ -44,9 +44,10 @@ enum intel_uc_fw_status {
 };
 
 enum intel_uc_fw_type {
-	INTEL_UC_FW_TYPE_GUC,
+	INTEL_UC_FW_TYPE_GUC = 0,
 	INTEL_UC_FW_TYPE_HUC
 };
+#define INTEL_UC_FW_NUM_TYPES 2
 
 /*
  * This structure encapsulates all the data needed during the process
@@ -109,22 +110,6 @@ static inline const char *intel_uc_fw_type_repr(enum intel_uc_fw_type type)
 	return "uC";
 }
 
-static inline
-void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
-			    enum intel_uc_fw_type type)
-{
-	/*
-	 * we use FIRMWARE_UNINITIALIZED to detect checks against fetch_status
-	 * before we're looked at the HW caps to see if we have uc support
-	 */
-	BUILD_BUG_ON(INTEL_UC_FIRMWARE_UNINITIALIZED);
-
-	uc_fw->path = NULL;
-	uc_fw->fetch_status = INTEL_UC_FIRMWARE_UNINITIALIZED;
-	uc_fw->load_status = INTEL_UC_FIRMWARE_NOT_STARTED;
-	uc_fw->type = type;
-}
-
 static inline bool intel_uc_fw_is_loaded(struct intel_uc_fw *uc_fw)
 {
 	return uc_fw->load_status == INTEL_UC_FIRMWARE_SUCCESS;
@@ -159,7 +144,10 @@ static inline u32 intel_uc_fw_get_upload_size(struct intel_uc_fw *uc_fw)
 	return uc_fw->header_size + uc_fw->ucode_size;
 }
 
-void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
+void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
+			    enum intel_uc_fw_type type,
+			    struct drm_i915_private *i915);
+void intel_uc_fw_fetch(struct drm_i915_private *i915,
 		       struct intel_uc_fw *uc_fw);
 void intel_uc_fw_cleanup_fetch(struct intel_uc_fw *uc_fw);
 int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
