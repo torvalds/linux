@@ -342,11 +342,12 @@ static void cfg_tap(struct hantro_ctx *ctx,
 		return; /* Tap filter not used. */
 
 	for (i = 0; i < 8; i++) {
-		val = (vp8_dec_mc_filter[i][0] << 2) | vp8_dec_mc_filter[i][5];
+		val = (hantro_vp8_dec_mc_filter[i][0] << 2) |
+		       hantro_vp8_dec_mc_filter[i][5];
 
 		for (j = 0; j < 4; j++)
 			hantro_reg_write(vpu, &vp8_dec_pred_bc_tap[i][j],
-					 vp8_dec_mc_filter[i][j + 1]);
+					 hantro_vp8_dec_mc_filter[i][j + 1]);
 
 		switch (i) {
 		case 2:

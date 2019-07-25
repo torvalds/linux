@@ -439,7 +439,7 @@ static void cfg_tap(struct hantro_ctx *ctx,
 			if (vp8_dec_pred_bc_tap[i][j].base != 0)
 				hantro_reg_write(vpu,
 						 &vp8_dec_pred_bc_tap[i][j],
-						 vp8_dec_mc_filter[i][j]);
+						 hantro_vp8_dec_mc_filter[i][j]);
 		}
 	}
 }

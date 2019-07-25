@@ -35,7 +35,7 @@ struct vp8_prob_tbl_packed {
  * filter taps taken to 7-bit precision,
  * reference RFC6386#Page-16, filters[8][6]
  */
-const u32 vp8_dec_mc_filter[8][6] = {
+const u32 hantro_vp8_dec_mc_filter[8][6] = {
 	{ 0, 0, 128, 0, 0, 0 },
 	{ 0, -6, 123, 12, -1, 0 },
 	{ 2, -11, 108, 36, -8, 1 },
