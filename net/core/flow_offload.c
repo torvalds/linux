@@ -165,7 +165,7 @@ void flow_rule_match_enc_opts(const struct flow_rule *rule,
 }
 EXPORT_SYMBOL(flow_rule_match_enc_opts);
 
-struct flow_block_cb *flow_block_cb_alloc(struct net *net, tc_setup_cb_t *cb,
+struct flow_block_cb *flow_block_cb_alloc(flow_setup_cb_t *cb,
 					  void *cb_ident, void *cb_priv,
 					  void (*release)(void *cb_priv))
 {
@@ -175,7 +175,6 @@ struct flow_block_cb *flow_block_cb_alloc(struct net *net, tc_setup_cb_t *cb,
 	if (!block_cb)
 		return ERR_PTR(-ENOMEM);
 
-	block_cb->net = net;
 	block_cb->cb = cb;
 	block_cb->cb_ident = cb_ident;
 	block_cb->cb_priv = cb_priv;
@@ -194,14 +193,13 @@ void flow_block_cb_free(struct flow_block_cb *block_cb)
 }
 EXPORT_SYMBOL(flow_block_cb_free);
 
-struct flow_block_cb *flow_block_cb_lookup(struct flow_block_offload *f,
-					   tc_setup_cb_t *cb, void *cb_ident)
+struct flow_block_cb *flow_block_cb_lookup(struct flow_block *block,
+					   flow_setup_cb_t *cb, void *cb_ident)
 {
 	struct flow_block_cb *block_cb;
 
-	list_for_each_entry(block_cb, f->driver_block_list, driver_list) {
-		if (block_cb->net == f->net &&
-		    block_cb->cb == cb &&
+	list_for_each_entry(block_cb, &block->cb_list, list) {
+		if (block_cb->cb == cb &&
 		    block_cb->cb_ident == cb_ident)
 			return block_cb;
 	}
@@ -228,7 +226,7 @@ unsigned int flow_block_cb_decref(struct flow_block_cb *block_cb)
 }
 EXPORT_SYMBOL(flow_block_cb_decref);
 
-bool flow_block_cb_is_busy(tc_setup_cb_t *cb, void *cb_ident,
+bool flow_block_cb_is_busy(flow_setup_cb_t *cb, void *cb_ident,
 			   struct list_head *driver_block_list)
 {
 	struct flow_block_cb *block_cb;
@@ -245,7 +243,8 @@ EXPORT_SYMBOL(flow_block_cb_is_busy);
 
 int flow_block_cb_setup_simple(struct flow_block_offload *f,
 			       struct list_head *driver_block_list,
-			       tc_setup_cb_t *cb, void *cb_ident, void *cb_priv,
+			       flow_setup_cb_t *cb,
+			       void *cb_ident, void *cb_priv,
 			       bool ingress_only)
 {
 	struct flow_block_cb *block_cb;
@@ -261,8 +260,7 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 		if (flow_block_cb_is_busy(cb, cb_ident, driver_block_list))
 			return -EBUSY;
 
-		block_cb = flow_block_cb_alloc(f->net, cb, cb_ident,
-					       cb_priv, NULL);
+		block_cb = flow_block_cb_alloc(cb, cb_ident, cb_priv, NULL);
 		if (IS_ERR(block_cb))
 			return PTR_ERR(block_cb);
 
@@ -270,7 +268,7 @@ int flow_block_cb_setup_simple(struct flow_block_offload *f,
 		list_add_tail(&block_cb->driver_list, driver_block_list);
 		return 0;
 	case FLOW_BLOCK_UNBIND:
-		block_cb = flow_block_cb_lookup(f, cb, cb_ident);
+		block_cb = flow_block_cb_lookup(f->block, cb, cb_ident);
 		if (!block_cb)
 			return -ENOENT;
 

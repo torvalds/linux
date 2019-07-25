@@ -194,7 +194,7 @@ struct sw_flow_actions {
 	struct nlattr actions[];
 };
 
-struct flow_stats {
+struct sw_flow_stats {
 	u64 packet_count;		/* Number of packets matched. */
 	u64 byte_count;			/* Number of bytes matched. */
 	unsigned long used;		/* Last used time (in jiffies). */
@@ -216,7 +216,7 @@ struct sw_flow {
 	struct cpumask cpu_used_mask;
 	struct sw_flow_mask *mask;
 	struct sw_flow_actions __rcu *sf_acts;
-	struct flow_stats __rcu *stats[]; /* One for each CPU.  First one
+	struct sw_flow_stats __rcu *stats[]; /* One for each CPU.  First one
 					   * is allocated at flow creation time,
 					   * the rest are allocated on demand
 					   * while holding the 'stats[0].lock'.
