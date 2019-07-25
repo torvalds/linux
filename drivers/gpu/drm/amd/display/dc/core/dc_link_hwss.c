@@ -289,7 +289,9 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 
 			dp_receiver_power_ctrl(link, false);
 
-			link->dc->hwss.disable_stream(&pipes[i], KEEP_ACQUIRED_RESOURCE);
+			link->dc->hwss.disable_stream(&pipes[i]);
+			if ((&pipes[i])->stream_res.audio && !link->dc->debug.az_endpoint_mute_only)
+				(&pipes[i])->stream_res.audio->funcs->az_disable((&pipes[i])->stream_res.audio);
 
 			link->link_enc->funcs->disable_output(
 					link->link_enc,

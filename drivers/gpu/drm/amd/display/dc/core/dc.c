@@ -1918,7 +1918,11 @@ static void commit_planes_do_stream_update(struct dc *dc,
 				dc->hwss.pipe_control_lock(dc, pipe_ctx, true);
 
 				if (*stream_update->dpms_off) {
-					core_link_disable_stream(pipe_ctx, KEEP_ACQUIRED_RESOURCE);
+					core_link_disable_stream(pipe_ctx);
+					/* for dpms, keep acquired resources*/
+					if (pipe_ctx->stream_res.audio && !dc->debug.az_endpoint_mute_only)
+						pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
+
 					dc->hwss.optimize_bandwidth(dc, dc->current_state);
 				} else {
 					if (!dc->optimize_seamless_boot)

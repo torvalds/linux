@@ -981,7 +981,7 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 	}
 }
 
-void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
+void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc *dc;
 	struct pp_smu_funcs *pp_smu = NULL;
@@ -1004,24 +1004,13 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 		if (dc->res_pool->pp_smu)
 			pp_smu = dc->res_pool->pp_smu;
 
-		if (option != KEEP_ACQUIRED_RESOURCE ||
-				!dc->debug.az_endpoint_mute_only)
-			/*only disalbe az_endpoint if power down or free*/
-			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
-
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
 					pipe_ctx->stream_res.stream_enc);
 		else
 			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_disable(
 					pipe_ctx->stream_res.stream_enc);
-		/*don't free audio if it is from retrain or internal disable stream*/
-		if (option == FREE_ACQUIRED_RESOURCE && dc->caps.dynamic_audio == true) {
-			/*we have to dynamic arbitrate the audio endpoints*/
-			/*we free the resource, need reset is_audio_acquired*/
-			update_audio_usage(&dc->current_state->res_ctx, dc->res_pool, pipe_ctx->stream_res.audio, false);
-			pipe_ctx->stream_res.audio = NULL;
-		}
+
 		if (clk_mgr->funcs->enable_pme_wa)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
 			clk_mgr->funcs->enable_pme_wa(clk_mgr);
@@ -1034,7 +1023,7 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 	}
 }
 
-void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
+void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
@@ -1051,7 +1040,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
 			pipe_ctx->stream_res.stream_enc);
 
-	dc->hwss.disable_audio_stream(pipe_ctx, option);
+	dc->hwss.disable_audio_stream(pipe_ctx);
 
 	link->link_enc->funcs->connect_dig_be_to_fe(
 			link->link_enc,
@@ -1914,8 +1903,25 @@ static void dce110_reset_hw_ctx_wrap(
 			/* Disable if new stream is null. O/w, if stream is
 			 * disabled already, no need to disable again.
 			 */
-			if (!pipe_ctx->stream || !pipe_ctx->stream->dpms_off)
-				core_link_disable_stream(pipe_ctx_old, FREE_ACQUIRED_RESOURCE);
+			if (!pipe_ctx->stream || !pipe_ctx->stream->dpms_off) {
+				core_link_disable_stream(pipe_ctx_old);
+
+				/* free acquired resources*/
+				if (pipe_ctx_old->stream_res.audio) {
+					/*disable az_endpoint*/
+					pipe_ctx_old->stream_res.audio->funcs->
+							az_disable(pipe_ctx_old->stream_res.audio);
+
+					/*free audio*/
+					if (dc->caps.dynamic_audio == true) {
+						/*we have to dynamic arbitrate the audio endpoints*/
+						/*we free the resource, need reset is_audio_acquired*/
+						update_audio_usage(&dc->current_state->res_ctx, dc->res_pool,
+								pipe_ctx_old->stream_res.audio, false);
+						pipe_ctx_old->stream_res.audio = NULL;
+					}
+				}
+			}
 
 			pipe_ctx_old->stream_res.tg->funcs->set_blank(pipe_ctx_old->stream_res.tg, true);
 			if (!hwss_wait_for_blank_complete(pipe_ctx_old->stream_res.tg)) {

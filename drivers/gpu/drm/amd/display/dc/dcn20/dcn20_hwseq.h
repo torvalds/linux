@@ -75,7 +75,7 @@ bool dcn20_dmdata_status_done(struct pipe_ctx *pipe_ctx);
 
 void dcn20_set_dmdata_attributes(struct pipe_ctx *pipe_ctx);
 
-void dcn20_disable_stream(struct pipe_ctx *pipe_ctx, int option);
+void dcn20_disable_stream(struct pipe_ctx *pipe_ctx);
 
 void dcn20_program_tripleBuffer(
 		const struct dc *dc,

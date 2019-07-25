@@ -2804,7 +2804,7 @@ void core_link_enable_stream(
 #endif
 }
 
-void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
+void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -2839,7 +2839,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 			write_i2c_redriver_setting(pipe_ctx, false);
 		}
 	}
-	core_dc->hwss.disable_stream(pipe_ctx, option);
+	core_dc->hwss.disable_stream(pipe_ctx);
 
 	disable_link(pipe_ctx->stream->link, pipe_ctx->stream->signal);
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT

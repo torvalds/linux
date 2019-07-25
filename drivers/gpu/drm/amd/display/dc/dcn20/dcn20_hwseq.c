@@ -1461,9 +1461,9 @@ void dcn20_set_dmdata_attributes(struct pipe_ctx *pipe_ctx)
 	hubp->funcs->dmdata_set_attributes(hubp, &attr);
 }
 
-void dcn20_disable_stream(struct pipe_ctx *pipe_ctx, int option)
+void dcn20_disable_stream(struct pipe_ctx *pipe_ctx)
 {
-	dce110_disable_stream(pipe_ctx, option);
+	dce110_disable_stream(pipe_ctx);
 }
 
 static void dcn20_init_vm_ctx(
@@ -1617,9 +1617,23 @@ static void dcn20_reset_back_end_for_pipe(
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		/* DPMS may already disable */
 		if (!pipe_ctx->stream->dpms_off)
-			core_link_disable_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
-		else if (pipe_ctx->stream_res.audio) {
-			dc->hwss.disable_audio_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
+			core_link_disable_stream(pipe_ctx);
+		else if (pipe_ctx->stream_res.audio)
+			dc->hwss.disable_audio_stream(pipe_ctx);
+
+		/* free acquired resources */
+		if (pipe_ctx->stream_res.audio) {
+			/*disable az_endpoint*/
+			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
+
+			/*free audio*/
+			if (dc->caps.dynamic_audio == true) {
+				/*we have to dynamic arbitrate the audio endpoints*/
+				/*we free the resource, need reset is_audio_acquired*/
+				update_audio_usage(&dc->current_state->res_ctx, dc->res_pool,
+						pipe_ctx->stream_res.audio, false);
+				pipe_ctx->stream_res.audio = NULL;
+			}
 		}
 	}
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT

@@ -828,11 +828,23 @@ static void dcn10_reset_back_end_for_pipe(
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		/* DPMS may already disable */
 		if (!pipe_ctx->stream->dpms_off)
-			core_link_disable_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
-		else if (pipe_ctx->stream_res.audio) {
-			dc->hwss.disable_audio_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
-		}
+			core_link_disable_stream(pipe_ctx);
+		else if (pipe_ctx->stream_res.audio)
+			dc->hwss.disable_audio_stream(pipe_ctx);
 
+		if (pipe_ctx->stream_res.audio) {
+			/*disable az_endpoint*/
+			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
+
+			/*free audio*/
+			if (dc->caps.dynamic_audio == true) {
+				/*we have to dynamic arbitrate the audio endpoints*/
+				/*we free the resource, need reset is_audio_acquired*/
+				update_audio_usage(&dc->current_state->res_ctx, dc->res_pool,
+						pipe_ctx->stream_res.audio, false);
+				pipe_ctx->stream_res.audio = NULL;
+			}
+		}
 	}
 
 	/* by upper caller loop, parent pipe: pipe0, will be reset last.

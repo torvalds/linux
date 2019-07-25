@@ -196,8 +196,7 @@ struct hw_sequencer_funcs {
 
 	void (*enable_stream)(struct pipe_ctx *pipe_ctx);
 
-	void (*disable_stream)(struct pipe_ctx *pipe_ctx,
-			int option);
+	void (*disable_stream)(struct pipe_ctx *pipe_ctx);
 
 	void (*unblank_stream)(struct pipe_ctx *pipe_ctx,
 			struct dc_link_settings *link_settings);
@@ -206,7 +205,7 @@ struct hw_sequencer_funcs {
 
 	void (*enable_audio_stream)(struct pipe_ctx *pipe_ctx);
 
-	void (*disable_audio_stream)(struct pipe_ctx *pipe_ctx, int option);
+	void (*disable_audio_stream)(struct pipe_ctx *pipe_ctx);
 
 	void (*pipe_control_lock)(
 				struct dc *dc,

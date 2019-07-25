@@ -63,11 +63,6 @@ struct link_init_data {
 				TODO: remove it when DC is complete. */
 };
 
-enum {
-	FREE_ACQUIRED_RESOURCE = 0,
-	KEEP_ACQUIRED_RESOURCE = 1,
-};
-
 struct dc_link *link_create(const struct link_init_data *init_params);
 void link_destroy(struct dc_link **link);
 
@@ -82,7 +77,7 @@ void core_link_enable_stream(
 		struct dc_state *state,
 		struct pipe_ctx *pipe_ctx);
 
-void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option);
+void core_link_disable_stream(struct pipe_ctx *pipe_ctx);
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 /********** DAL Core*********************/
