@@ -254,10 +254,18 @@ int intel_context_prepare_remote_request(struct intel_context *ce,
 	/* Only suitable for use in remotely modifying this context */
 	GEM_BUG_ON(rq->hw_context == ce);
 
-	/* Queue this switch after all other activity by this context. */
-	err = i915_active_request_set(&tl->last_request, rq);
-	if (err)
-		return err;
+	if (rq->timeline != tl) { /* beware timeline sharing */
+		err = mutex_lock_interruptible_nested(&tl->mutex,
+						      SINGLE_DEPTH_NESTING);
+		if (err)
+			return err;
+
+		/* Queue this switch after current activity by this context. */
+		err = i915_active_request_set(&tl->last_request, rq);
+		if (err)
+			goto unlock;
+	}
+	lockdep_assert_held(&tl->mutex);
 
 	/*
 	 * Guarantee context image and the timeline remains pinned until the
@@ -267,7 +275,12 @@ int intel_context_prepare_remote_request(struct intel_context *ce,
 	 * words transfer the pinned ce object to tracked active request.
 	 */
 	GEM_BUG_ON(i915_active_is_idle(&ce->active));
-	return i915_active_ref(&ce->active, rq->fence.context, rq);
+	err = i915_active_ref(&ce->active, rq->fence.context, rq);
+
+unlock:
+	if (rq->timeline != tl)
+		mutex_unlock(&tl->mutex);
+	return err;
 }
 
 struct i915_request *intel_context_create_request(struct intel_context *ce)
