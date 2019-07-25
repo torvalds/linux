@@ -990,6 +990,7 @@ struct amdgpu_device {
 	/* record last mm index being written through WREG32*/
 	unsigned long last_mm_index;
 	bool                            in_gpu_reset;
+	enum pp_mp1_state               mp1_state;
 	struct mutex  lock_reset;
 	struct amdgpu_doorbell_index doorbell_index;
 
