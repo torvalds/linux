@@ -15,7 +15,6 @@ s390 Architecture
     vfio-ap
     vfio-ccw
     zfcpdump
-    dasd
     common_io
 
     text_files
