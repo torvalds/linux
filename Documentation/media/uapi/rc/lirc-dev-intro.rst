@@ -66,11 +66,12 @@ on the following table.
 
     For transmitting (aka sending), create a ``struct lirc_scancode`` with
     the desired scancode set in the ``scancode`` member, :c:type:`rc_proto`
-    set the IR protocol, and all other members set to 0. Write this struct to
-    the lirc device.
+    set to the :ref:`IR protocol <Remote_controllers_Protocols>`, and all other
+    members set to 0. Write this struct to the lirc device.
 
-    For receiving, you read ``struct lirc_scancode`` from the lirc device,
-    with ``scancode`` set to the received scancode and the IR protocol
+    For receiving, you read ``struct lirc_scancode`` from the LIRC device.
+    The ``scancode`` field is set to the received scancode and the
+    :ref:`IR protocol <Remote_controllers_Protocols>` is set in
     :c:type:`rc_proto`. If the scancode maps to a valid key code, this is set
     in the ``keycode`` field, else it is set to ``KEY_RESERVED``.
 
@@ -146,7 +147,8 @@ on the following table.
 BPF based IR decoder
 ********************
 
-The kernel has support for decoding the most common IR protocols, but there
+The kernel has support for decoding the most common
+:ref:`IR protocols <Remote_controllers_Protocols>`, but there
 are many protocols which are not supported. To support these, it is possible
 to load an BPF program which does the decoding. This can only be done on
 LIRC devices which support reading raw IR.
