@@ -1645,6 +1645,10 @@ static void std_log(const struct v4l2_ctrl *ctrl)
 #define zero_padding(s) \
 	memset(&(s).padding, 0, sizeof((s).padding))
 
+/*
+ * Compound controls validation requires setting unused fields/flags to zero
+ * in order to properly detect unchanged controls with std_equal's memcmp.
+ */
 static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 				 union v4l2_ctrl_ptr ptr)
 {
