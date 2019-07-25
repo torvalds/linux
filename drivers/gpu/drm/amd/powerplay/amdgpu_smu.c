@@ -743,6 +743,12 @@ static int smu_sw_init(void *handle)
 		return ret;
 	}
 
+	ret = smu_register_irq_handler(smu);
+	if (ret) {
+		pr_err("Failed to register smc irq handler!\n");
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -751,6 +757,9 @@ static int smu_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 	int ret;
+
+	kfree(smu->irq_source);
+	smu->irq_source = NULL;
 
 	ret = smu_smc_table_sw_fini(smu);
 	if (ret) {
@@ -1111,10 +1120,6 @@ static int smu_hw_init(void *handle)
 	if (ret)
 		goto failed;
 
-	ret = smu_register_irq_handler(smu);
-	if (ret)
-		goto failed;
-
 	if (!smu->pm_enabled)
 		adev->pm.dpm_enabled = false;
 	else
@@ -1143,9 +1148,6 @@ static int smu_hw_fini(void *handle)
 
 	kfree(table_context->overdrive_table);
 	table_context->overdrive_table = NULL;
-
-	kfree(smu->irq_source);
-	smu->irq_source = NULL;
 
 	ret = smu_fini_fb_allocations(smu);
 	if (ret)
