@@ -919,6 +919,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3288-tinker.dtb \
 	rk3288-tinker-s.dtb \
 	rk3288-veyron-brain.dtb \
+	rk3288-veyron-fievel.dtb \
 	rk3288-veyron-jaq.dtb \
 	rk3288-veyron-jerry.dtb \
 	rk3288-veyron-mickey.dtb \
