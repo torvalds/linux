@@ -192,6 +192,7 @@ static void dsc2_set_config(struct display_stream_compressor *dsc, const struct 
 	dsc_config_log(dsc, dsc_cfg);
 	is_config_ok = dsc_prepare_config(dsc_cfg, &dsc20->reg_vals, dsc_optc_cfg);
 	ASSERT(is_config_ok);
+	DC_LOG_DSC("programming DSC Picture Parameter Set (PPS):");
 	dsc_log_pps(dsc, &dsc20->reg_vals.pps);
 	dsc_write_to_registers(dsc, &dsc20->reg_vals);
 }
@@ -250,7 +251,6 @@ static void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_co
 	int i;
 	int bits_per_pixel = pps->bits_per_pixel;
 
-	DC_LOG_DSC("programming DSC Picture Parameter Set (PPS):");
 	DC_LOG_DSC("\tdsc_version_major %d", pps->dsc_version_major);
 	DC_LOG_DSC("\tdsc_version_minor %d", pps->dsc_version_minor);
 	DC_LOG_DSC("\tbits_per_component %d", pps->bits_per_component);
