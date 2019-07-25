@@ -694,6 +694,14 @@ void ceph_destroy_client(struct ceph_client *client)
 }
 EXPORT_SYMBOL(ceph_destroy_client);
 
+void ceph_reset_client_addr(struct ceph_client *client)
+{
+	ceph_messenger_reset_nonce(&client->msgr);
+	ceph_monc_reopen_session(&client->monc);
+	ceph_osdc_reopen_osds(&client->osdc);
+}
+EXPORT_SYMBOL(ceph_reset_client_addr);
+
 /*
  * true if we have the mon map (and have thus joined the cluster)
  */
