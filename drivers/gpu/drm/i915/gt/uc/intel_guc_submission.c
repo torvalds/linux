@@ -941,7 +941,7 @@ static void __guc_client_disable(struct intel_guc_client *client)
 	 * the case, instead of trying (in vain) to communicate with it, let's
 	 * just cleanup the doorbell HW and our internal state.
 	 */
-	if (intel_guc_is_loaded(client->guc))
+	if (intel_guc_is_running(client->guc))
 		destroy_doorbell(client);
 	else
 		__fini_doorbell(client);

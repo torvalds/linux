@@ -230,5 +230,9 @@ static int guc_fw_xfer(struct intel_uc_fw *guc_fw)
  */
 int intel_guc_fw_upload(struct intel_guc *guc)
 {
-	return intel_uc_fw_upload(&guc->fw, guc_fw_xfer);
+	int ret = intel_uc_fw_upload(&guc->fw, guc_fw_xfer);
+	if (!ret)
+		guc->fw.status = INTEL_UC_FIRMWARE_RUNNING;
+
+	return ret;
 }

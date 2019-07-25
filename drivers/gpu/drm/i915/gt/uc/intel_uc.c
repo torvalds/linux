@@ -560,7 +560,7 @@ void intel_uc_fini_hw(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
 
-	if (!intel_guc_is_loaded(guc))
+	if (!intel_guc_is_running(guc))
 		return;
 
 	GEM_BUG_ON(!intel_uc_fw_supported(&guc->fw));
@@ -582,7 +582,7 @@ void intel_uc_reset_prepare(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
 
-	if (!intel_guc_is_loaded(guc))
+	if (!intel_guc_is_running(guc))
 		return;
 
 	guc_stop_communication(guc);
@@ -594,7 +594,7 @@ void intel_uc_runtime_suspend(struct intel_uc *uc)
 	struct intel_guc *guc = &uc->guc;
 	int err;
 
-	if (!intel_guc_is_loaded(guc))
+	if (!intel_guc_is_running(guc))
 		return;
 
 	err = intel_guc_suspend(guc);
@@ -609,7 +609,7 @@ void intel_uc_suspend(struct intel_uc *uc)
 	struct intel_guc *guc = &uc->guc;
 	intel_wakeref_t wakeref;
 
-	if (!intel_guc_is_loaded(guc))
+	if (!intel_guc_is_running(guc))
 		return;
 
 	with_intel_runtime_pm(&uc_to_gt(uc)->i915->runtime_pm, wakeref)
@@ -621,7 +621,7 @@ int intel_uc_resume(struct intel_uc *uc)
 	struct intel_guc *guc = &uc->guc;
 	int err;
 
-	if (!intel_guc_is_loaded(guc))
+	if (!intel_guc_is_running(guc))
 		return 0;
 
 	guc_enable_communication(guc);

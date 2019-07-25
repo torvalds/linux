@@ -117,8 +117,8 @@ int intel_huc_auth(struct intel_huc *huc)
 	struct intel_guc *guc = &gt->uc.guc;
 	int ret;
 
-	if (huc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return -ENOEXEC;
+	GEM_BUG_ON(!intel_uc_fw_is_loaded(&huc->fw));
+	GEM_BUG_ON(intel_huc_is_authenticated(huc));
 
 	ret = intel_guc_auth_huc(guc,
 				 intel_guc_ggtt_offset(guc, huc->rsa_data));
@@ -138,10 +138,12 @@ int intel_huc_auth(struct intel_huc *huc)
 		goto fail;
 	}
 
+	huc->fw.status = INTEL_UC_FIRMWARE_RUNNING;
+
 	return 0;
 
 fail:
-	huc->fw.load_status = INTEL_UC_FIRMWARE_FAIL;
+	huc->fw.status = INTEL_UC_FIRMWARE_FAIL;
 
 	DRM_ERROR("HuC: Authentication failed %d\n", ret);
 	return ret;

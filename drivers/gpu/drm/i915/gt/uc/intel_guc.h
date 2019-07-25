@@ -172,9 +172,9 @@ int intel_guc_suspend(struct intel_guc *guc);
 int intel_guc_resume(struct intel_guc *guc);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
 
-static inline bool intel_guc_is_loaded(struct intel_guc *guc)
+static inline bool intel_guc_is_running(struct intel_guc *guc)
 {
-	return intel_uc_fw_is_loaded(&guc->fw);
+	return intel_uc_fw_is_running(&guc->fw);
 }
 
 static inline int intel_guc_sanitize(struct intel_guc *guc)

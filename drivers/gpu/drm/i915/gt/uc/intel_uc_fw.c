@@ -162,12 +162,11 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 			    struct drm_i915_private *i915)
 {
 	/*
-	 * we use FIRMWARE_UNINITIALIZED to detect checks against fetch_status
+	 * we use FIRMWARE_UNINITIALIZED to detect checks against uc_fw->status
 	 * before we're looked at the HW caps to see if we have uc support
 	 */
 	BUILD_BUG_ON(INTEL_UC_FIRMWARE_UNINITIALIZED);
-	GEM_BUG_ON(uc_fw->fetch_status);
-	GEM_BUG_ON(uc_fw->load_status);
+	GEM_BUG_ON(uc_fw->status);
 	GEM_BUG_ON(uc_fw->path);
 
 	uc_fw->type = type;
@@ -176,13 +175,10 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 		__uc_fw_auto_select(uc_fw, INTEL_INFO(i915)->platform,
 				    INTEL_REVID(i915));
 
-	if (uc_fw->path) {
-		uc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_STARTED;
-		uc_fw->load_status = INTEL_UC_FIRMWARE_NOT_STARTED;
-	} else {
-		uc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_SUPPORTED;
-		uc_fw->load_status = INTEL_UC_FIRMWARE_NOT_SUPPORTED;
-	}
+	if (uc_fw->path)
+		uc_fw->status = INTEL_UC_FIRMWARE_SELECTED;
+	else
+		uc_fw->status = INTEL_UC_FIRMWARE_NOT_SUPPORTED;
 }
 
 /**
@@ -205,20 +201,9 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 
 	GEM_BUG_ON(!intel_uc_fw_supported(uc_fw));
 
-	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
-			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
-
-	uc_fw->fetch_status = INTEL_UC_FIRMWARE_PENDING;
-	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
-			 intel_uc_fw_type_repr(uc_fw->type),
-			 intel_uc_fw_status_repr(uc_fw->fetch_status));
-
 	err = request_firmware(&fw, uc_fw->path, &pdev->dev);
-	if (err) {
-		DRM_DEBUG_DRIVER("%s fw request_firmware err=%d\n",
-				 intel_uc_fw_type_repr(uc_fw->type), err);
+	if (err)
 		goto fail;
-	}
 
 	DRM_DEBUG_DRIVER("%s fw size %zu ptr %p\n",
 			 intel_uc_fw_type_repr(uc_fw->type), fw->size, fw);
@@ -320,19 +305,13 @@ void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 
 	uc_fw->obj = obj;
 	uc_fw->size = fw->size;
-	uc_fw->fetch_status = INTEL_UC_FIRMWARE_SUCCESS;
-	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
-			 intel_uc_fw_type_repr(uc_fw->type),
-			 intel_uc_fw_status_repr(uc_fw->fetch_status));
+	uc_fw->status = INTEL_UC_FIRMWARE_AVAILABLE;
 
 	release_firmware(fw);
 	return;
 
 fail:
-	uc_fw->fetch_status = INTEL_UC_FIRMWARE_FAIL;
-	DRM_DEBUG_DRIVER("%s fw fetch %s\n",
-			 intel_uc_fw_type_repr(uc_fw->type),
-			 intel_uc_fw_status_repr(uc_fw->fetch_status));
+	uc_fw->status = INTEL_UC_FIRMWARE_MISSING;
 
 	DRM_WARN("%s: Failed to fetch firmware %s (error %d)\n",
 		 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
@@ -388,14 +367,11 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 	DRM_DEBUG_DRIVER("%s fw load %s\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
 
-	if (uc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
+	/* make sure the status was cleared the last time we reset the uc */
+	GEM_BUG_ON(intel_uc_fw_is_loaded(uc_fw));
+
+	if (!intel_uc_fw_is_available(uc_fw))
 		return -ENOEXEC;
-
-	uc_fw->load_status = INTEL_UC_FIRMWARE_PENDING;
-	DRM_DEBUG_DRIVER("%s fw load %s\n",
-			 intel_uc_fw_type_repr(uc_fw->type),
-			 intel_uc_fw_status_repr(uc_fw->load_status));
-
 	/* Call custom loader */
 	intel_uc_fw_ggtt_bind(uc_fw);
 	err = xfer(uc_fw);
@@ -403,10 +379,9 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 	if (err)
 		goto fail;
 
-	uc_fw->load_status = INTEL_UC_FIRMWARE_SUCCESS;
-	DRM_DEBUG_DRIVER("%s fw load %s\n",
-			 intel_uc_fw_type_repr(uc_fw->type),
-			 intel_uc_fw_status_repr(uc_fw->load_status));
+	uc_fw->status = INTEL_UC_FIRMWARE_TRANSFERRED;
+	DRM_DEBUG_DRIVER("%s fw xfer completed\n",
+			 intel_uc_fw_type_repr(uc_fw->type));
 
 	DRM_INFO("%s: Loaded firmware %s (version %u.%u)\n",
 		 intel_uc_fw_type_repr(uc_fw->type),
@@ -416,10 +391,9 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 	return 0;
 
 fail:
-	uc_fw->load_status = INTEL_UC_FIRMWARE_FAIL;
-	DRM_DEBUG_DRIVER("%s fw load %s\n",
-			 intel_uc_fw_type_repr(uc_fw->type),
-			 intel_uc_fw_status_repr(uc_fw->load_status));
+	uc_fw->status = INTEL_UC_FIRMWARE_FAIL;
+	DRM_DEBUG_DRIVER("%s fw load failed\n",
+			 intel_uc_fw_type_repr(uc_fw->type));
 
 	DRM_WARN("%s: Failed to load firmware %s (error %d)\n",
 		 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
@@ -431,7 +405,10 @@ int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
 {
 	int err;
 
-	if (uc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
+	/* this should happen before the load! */
+	GEM_BUG_ON(intel_uc_fw_is_loaded(uc_fw));
+
+	if (!intel_uc_fw_is_available(uc_fw))
 		return -ENOEXEC;
 
 	err = i915_gem_object_pin_pages(uc_fw->obj);
@@ -444,7 +421,7 @@ int intel_uc_fw_init(struct intel_uc_fw *uc_fw)
 
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
 {
-	if (uc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
+	if (!intel_uc_fw_is_available(uc_fw))
 		return;
 
 	i915_gem_object_unpin_pages(uc_fw->obj);
@@ -478,7 +455,7 @@ void intel_uc_fw_cleanup_fetch(struct intel_uc_fw *uc_fw)
 	if (obj)
 		i915_gem_object_put(obj);
 
-	uc_fw->fetch_status = INTEL_UC_FIRMWARE_NOT_STARTED;
+	uc_fw->status = INTEL_UC_FIRMWARE_SELECTED;
 }
 
 /**
@@ -492,9 +469,8 @@ void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p)
 {
 	drm_printf(p, "%s firmware: %s\n",
 		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
-	drm_printf(p, "\tstatus: fetch %s, load %s\n",
-		   intel_uc_fw_status_repr(uc_fw->fetch_status),
-		   intel_uc_fw_status_repr(uc_fw->load_status));
+	drm_printf(p, "\tstatus: %s\n",
+		   intel_uc_fw_status_repr(uc_fw->status));
 	drm_printf(p, "\tversion: wanted %u.%u, found %u.%u\n",
 		   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted,
 		   uc_fw->major_ver_found, uc_fw->minor_ver_found);

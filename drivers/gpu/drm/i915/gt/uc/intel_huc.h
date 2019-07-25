@@ -56,4 +56,9 @@ static inline int intel_huc_sanitize(struct intel_huc *huc)
 	return 0;
 }
 
+static inline bool intel_huc_is_authenticated(struct intel_huc *huc)
+{
+	return intel_uc_fw_is_running(&huc->fw);
+}
+
 #endif

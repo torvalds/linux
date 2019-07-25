@@ -35,12 +35,14 @@ struct drm_i915_private;
 #define INTEL_UC_FIRMWARE_URL "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/tree/i915"
 
 enum intel_uc_fw_status {
-	INTEL_UC_FIRMWARE_NOT_SUPPORTED = -2, /* no uc HW */
-	INTEL_UC_FIRMWARE_FAIL = -1,
+	INTEL_UC_FIRMWARE_FAIL = -3, /* failed to xfer or init/auth the fw */
+	INTEL_UC_FIRMWARE_MISSING = -2, /* blob not found on the system */
+	INTEL_UC_FIRMWARE_NOT_SUPPORTED = -1, /* no uc HW */
 	INTEL_UC_FIRMWARE_UNINITIALIZED = 0, /* used to catch checks done too early */
-	INTEL_UC_FIRMWARE_NOT_STARTED = 1,
-	INTEL_UC_FIRMWARE_PENDING,
-	INTEL_UC_FIRMWARE_SUCCESS
+	INTEL_UC_FIRMWARE_SELECTED, /* selected the blob we want to load */
+	INTEL_UC_FIRMWARE_AVAILABLE, /* blob found and copied in mem */
+	INTEL_UC_FIRMWARE_TRANSFERRED, /* dma xfer done */
+	INTEL_UC_FIRMWARE_RUNNING /* init/auth done */
 };
 
 enum intel_uc_fw_type {
@@ -57,8 +59,7 @@ struct intel_uc_fw {
 	const char *path;
 	size_t size;
 	struct drm_i915_gem_object *obj;
-	enum intel_uc_fw_status fetch_status;
-	enum intel_uc_fw_status load_status;
+	enum intel_uc_fw_status status;
 
 	/*
 	 * The firmware build process will generate a version header file with major and
@@ -83,18 +84,22 @@ static inline
 const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status)
 {
 	switch (status) {
-	case INTEL_UC_FIRMWARE_NOT_SUPPORTED:
-		return "N/A - uc HW not available";
 	case INTEL_UC_FIRMWARE_FAIL:
 		return "FAIL";
+	case INTEL_UC_FIRMWARE_MISSING:
+		return "MISSING";
+	case INTEL_UC_FIRMWARE_NOT_SUPPORTED:
+		return "N/A";
 	case INTEL_UC_FIRMWARE_UNINITIALIZED:
 		return "UNINITIALIZED";
-	case INTEL_UC_FIRMWARE_NOT_STARTED:
-		return "NOT_STARTED";
-	case INTEL_UC_FIRMWARE_PENDING:
-		return "PENDING";
-	case INTEL_UC_FIRMWARE_SUCCESS:
-		return "SUCCESS";
+	case INTEL_UC_FIRMWARE_SELECTED:
+		return "SELECTED";
+	case INTEL_UC_FIRMWARE_AVAILABLE:
+		return "AVAILABLE";
+	case INTEL_UC_FIRMWARE_TRANSFERRED:
+		return "TRANSFERRED";
+	case INTEL_UC_FIRMWARE_RUNNING:
+		return "RUNNING";
 	}
 	return "<invalid>";
 }
@@ -110,22 +115,38 @@ static inline const char *intel_uc_fw_type_repr(enum intel_uc_fw_type type)
 	return "uC";
 }
 
+static inline enum intel_uc_fw_status
+__intel_uc_fw_status(struct intel_uc_fw *uc_fw)
+{
+	/* shouldn't call this before checking hw/blob availability */
+	GEM_BUG_ON(uc_fw->status == INTEL_UC_FIRMWARE_UNINITIALIZED);
+	return uc_fw->status;
+}
+
+static inline bool intel_uc_fw_is_available(struct intel_uc_fw *uc_fw)
+{
+	return __intel_uc_fw_status(uc_fw) >= INTEL_UC_FIRMWARE_AVAILABLE;
+}
+
 static inline bool intel_uc_fw_is_loaded(struct intel_uc_fw *uc_fw)
 {
-	return uc_fw->load_status == INTEL_UC_FIRMWARE_SUCCESS;
+	return __intel_uc_fw_status(uc_fw) >= INTEL_UC_FIRMWARE_TRANSFERRED;
+}
+
+static inline bool intel_uc_fw_is_running(struct intel_uc_fw *uc_fw)
+{
+	return __intel_uc_fw_status(uc_fw) == INTEL_UC_FIRMWARE_RUNNING;
 }
 
 static inline bool intel_uc_fw_supported(struct intel_uc_fw *uc_fw)
 {
-	/* shouldn't call this before checking hw/blob availability */
-	GEM_BUG_ON(uc_fw->fetch_status == INTEL_UC_FIRMWARE_UNINITIALIZED);
-	return uc_fw->fetch_status != INTEL_UC_FIRMWARE_NOT_SUPPORTED;
+	return __intel_uc_fw_status(uc_fw) != INTEL_UC_FIRMWARE_NOT_SUPPORTED;
 }
 
 static inline void intel_uc_fw_sanitize(struct intel_uc_fw *uc_fw)
 {
 	if (intel_uc_fw_is_loaded(uc_fw))
-		uc_fw->load_status = INTEL_UC_FIRMWARE_PENDING;
+		uc_fw->status = INTEL_UC_FIRMWARE_AVAILABLE;
 }
 
 /**
@@ -138,7 +159,7 @@ static inline void intel_uc_fw_sanitize(struct intel_uc_fw *uc_fw)
  */
 static inline u32 intel_uc_fw_get_upload_size(struct intel_uc_fw *uc_fw)
 {
-	if (uc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
+	if (!intel_uc_fw_is_available(uc_fw))
 		return 0;
 
 	return uc_fw->header_size + uc_fw->ucode_size;
