@@ -798,44 +798,6 @@ static int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 	return ret;
 }
 
-static int smu_v11_0_update_feature_enable_state(struct smu_context *smu, uint32_t feature_id, bool enabled)
-{
-	uint32_t feature_low = 0, feature_high = 0;
-	int ret = 0;
-
-	if (!smu->pm_enabled)
-		return ret;
-	if (feature_id >= 0 && feature_id < 31)
-		feature_low = (1 << feature_id);
-	else if (feature_id > 31 && feature_id < 63)
-		feature_high = (1 << feature_id);
-	else
-		return -EINVAL;
-
-	if (enabled) {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesLow,
-						  feature_low);
-		if (ret)
-			return ret;
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesHigh,
-						  feature_high);
-		if (ret)
-			return ret;
-
-	} else {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesLow,
-						  feature_low);
-		if (ret)
-			return ret;
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesHigh,
-						  feature_high);
-		if (ret)
-			return ret;
-
-	}
-
-	return ret;
-}
 
 static int smu_v11_0_set_allowed_mask(struct smu_context *smu)
 {
@@ -1783,7 +1745,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
 	.system_features_control = smu_v11_0_system_features_control,
-	.update_feature_enable_state = smu_v11_0_update_feature_enable_state,
 	.notify_display_change = smu_v11_0_notify_display_change,
 	.get_power_limit = smu_v11_0_get_power_limit,
 	.set_power_limit = smu_v11_0_set_power_limit,

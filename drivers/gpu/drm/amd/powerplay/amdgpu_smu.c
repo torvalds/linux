@@ -509,6 +509,41 @@ int smu_feature_init_dpm(struct smu_context *smu)
 
 	return ret;
 }
+int smu_feature_update_enable_state(struct smu_context *smu, uint64_t feature_mask, bool enabled)
+{
+	uint32_t feature_low = 0, feature_high = 0;
+	int ret = 0;
+
+	if (!smu->pm_enabled)
+		return ret;
+
+	feature_low = (feature_mask >> 0 ) & 0xffffffff;
+	feature_high = (feature_mask >> 32) & 0xffffffff;
+
+	if (enabled) {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesLow,
+						  feature_low);
+		if (ret)
+			return ret;
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesHigh,
+						  feature_high);
+		if (ret)
+			return ret;
+
+	} else {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesLow,
+						  feature_low);
+		if (ret)
+			return ret;
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesHigh,
+						  feature_high);
+		if (ret)
+			return ret;
+
+	}
+
+	return ret;
+}
 
 int smu_feature_is_enabled(struct smu_context *smu, enum smu_feature_mask mask)
 {
@@ -534,6 +569,7 @@ int smu_feature_set_enabled(struct smu_context *smu, enum smu_feature_mask mask,
 {
 	struct smu_feature *feature = &smu->smu_feature;
 	int feature_id;
+	uint64_t feature_mask = 0;
 	int ret = 0;
 
 	feature_id = smu_feature_get_index(smu, mask);
@@ -542,8 +578,10 @@ int smu_feature_set_enabled(struct smu_context *smu, enum smu_feature_mask mask,
 
 	WARN_ON(feature_id > feature->feature_num);
 
+	feature_mask = 1ULL << feature_id;
+
 	mutex_lock(&feature->mutex);
-	ret = smu_feature_update_enable_state(smu, feature_id, enable);
+	ret = smu_feature_update_enable_state(smu, feature_mask, enable);
 	if (ret)
 		goto failed;
 

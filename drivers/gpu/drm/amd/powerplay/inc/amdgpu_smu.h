@@ -479,7 +479,6 @@ struct smu_funcs
 	int (*init_display_count)(struct smu_context *smu, uint32_t count);
 	int (*set_allowed_mask)(struct smu_context *smu);
 	int (*get_enabled_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
-	int (*update_feature_enable_state)(struct smu_context *smu, uint32_t feature_id, bool enabled);
 	int (*notify_display_change)(struct smu_context *smu);
 	int (*get_power_limit)(struct smu_context *smu, uint32_t *limit, bool def);
 	int (*set_power_limit)(struct smu_context *smu, uint32_t n);
@@ -595,8 +594,6 @@ struct smu_funcs
 	((smu)->funcs->get_enabled_mask? (smu)->funcs->get_enabled_mask((smu), (mask), (num)) : 0)
 #define smu_is_dpm_running(smu) \
 	((smu)->ppt_funcs->is_dpm_running ? (smu)->ppt_funcs->is_dpm_running((smu)) : 0)
-#define smu_feature_update_enable_state(smu, feature_id, enabled) \
-	((smu)->funcs->update_feature_enable_state? (smu)->funcs->update_feature_enable_state((smu), (feature_id), (enabled)) : 0)
 #define smu_notify_display_change(smu) \
 	((smu)->funcs->notify_display_change? (smu)->funcs->notify_display_change((smu)) : 0)
 #define smu_store_powerplay_table(smu) \
@@ -804,6 +801,7 @@ enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu);
 int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level);
 int smu_set_display_count(struct smu_context *smu, uint32_t count);
 bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type);
+int smu_feature_update_enable_state(struct smu_context *smu, uint64_t feature_mask, bool enabled);
 const char *smu_get_message_name(struct smu_context *smu, enum smu_message_type type);
 const char *smu_get_feature_name(struct smu_context *smu, enum smu_feature_mask feature);
 
