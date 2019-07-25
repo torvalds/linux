@@ -36,11 +36,11 @@ static char *const ce_name[] = {
 	"WLAN_CE_11",
 };
 
-static struct ath10k_vreg_info vreg_cfg[] = {
-	{NULL, "vdd-0.8-cx-mx", 0, 0, false},
-	{NULL, "vdd-1.8-xo", 0, 0, false},
-	{NULL, "vdd-1.3-rfa", 0, 0, false},
-	{NULL, "vdd-3.3-ch0", 0, 0, false},
+static const char * const ath10k_regulators[] = {
+	"vdd-0.8-cx-mx",
+	"vdd-1.8-xo",
+	"vdd-1.3-rfa",
+	"vdd-3.3-ch0",
 };
 
 static struct ath10k_clk_info clk_cfg[] = {
@@ -1346,43 +1346,6 @@ static void ath10k_snoc_release_resource(struct ath10k *ar)
 		ath10k_ce_free_pipe(ar, i);
 }
 
-static int ath10k_get_vreg_info(struct ath10k *ar, struct device *dev,
-				struct ath10k_vreg_info *vreg_info)
-{
-	struct regulator *reg;
-	int ret = 0;
-
-	reg = devm_regulator_get_optional(dev, vreg_info->name);
-
-	if (IS_ERR(reg)) {
-		ret = PTR_ERR(reg);
-
-		if (ret  == -EPROBE_DEFER) {
-			ath10k_err(ar, "EPROBE_DEFER for regulator: %s\n",
-				   vreg_info->name);
-			return ret;
-		}
-		if (vreg_info->required) {
-			ath10k_err(ar, "Regulator %s doesn't exist: %d\n",
-				   vreg_info->name, ret);
-			return ret;
-		}
-		ath10k_dbg(ar, ATH10K_DBG_SNOC,
-			   "Optional regulator %s doesn't exist: %d\n",
-			   vreg_info->name, ret);
-		goto done;
-	}
-
-	vreg_info->reg = reg;
-
-done:
-	ath10k_dbg(ar, ATH10K_DBG_SNOC,
-		   "snog vreg %s load_ua %u settle_delay %lu\n",
-		   vreg_info->name, vreg_info->load_ua, vreg_info->settle_delay);
-
-	return 0;
-}
-
 static int ath10k_get_clk_info(struct ath10k *ar, struct device *dev,
 			       struct ath10k_clk_info *clk_info)
 {
@@ -1407,114 +1370,6 @@ static int ath10k_get_clk_info(struct ath10k *ar, struct device *dev,
 		   clk_info->name, clk_info->freq);
 
 	clk_info->handle = handle;
-
-	return ret;
-}
-
-static int __ath10k_snoc_vreg_on(struct ath10k *ar,
-				 struct ath10k_vreg_info *vreg_info)
-{
-	int ret;
-
-	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc regulator %s being enabled\n",
-		   vreg_info->name);
-
-	if (vreg_info->load_ua) {
-		ret = regulator_set_load(vreg_info->reg, vreg_info->load_ua);
-		if (ret < 0) {
-			ath10k_err(ar, "failed to set regulator %s load: %d\n",
-				   vreg_info->name, vreg_info->load_ua);
-			goto err_set_load;
-		}
-	}
-
-	ret = regulator_enable(vreg_info->reg);
-	if (ret) {
-		ath10k_err(ar, "failed to enable regulator %s\n",
-			   vreg_info->name);
-		goto err_enable;
-	}
-
-	if (vreg_info->settle_delay)
-		udelay(vreg_info->settle_delay);
-
-	return 0;
-
-err_enable:
-	regulator_set_load(vreg_info->reg, 0);
-err_set_load:
-
-	return ret;
-}
-
-static int __ath10k_snoc_vreg_off(struct ath10k *ar,
-				  struct ath10k_vreg_info *vreg_info)
-{
-	int ret;
-
-	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc regulator %s being disabled\n",
-		   vreg_info->name);
-
-	ret = regulator_disable(vreg_info->reg);
-	if (ret)
-		ath10k_err(ar, "failed to disable regulator %s\n",
-			   vreg_info->name);
-
-	ret = regulator_set_load(vreg_info->reg, 0);
-	if (ret < 0)
-		ath10k_err(ar, "failed to set load %s\n", vreg_info->name);
-
-	return ret;
-}
-
-static int ath10k_snoc_vreg_on(struct ath10k *ar)
-{
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_vreg_info *vreg_info;
-	int ret = 0;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(vreg_cfg); i++) {
-		vreg_info = &ar_snoc->vreg[i];
-
-		if (!vreg_info->reg)
-			continue;
-
-		ret = __ath10k_snoc_vreg_on(ar, vreg_info);
-		if (ret)
-			goto err_reg_config;
-	}
-
-	return 0;
-
-err_reg_config:
-	for (i = i - 1; i >= 0; i--) {
-		vreg_info = &ar_snoc->vreg[i];
-
-		if (!vreg_info->reg)
-			continue;
-
-		__ath10k_snoc_vreg_off(ar, vreg_info);
-	}
-
-	return ret;
-}
-
-static int ath10k_snoc_vreg_off(struct ath10k *ar)
-{
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	struct ath10k_vreg_info *vreg_info;
-	int ret = 0;
-	int i;
-
-	for (i = ARRAY_SIZE(vreg_cfg) - 1; i >= 0; i--) {
-		vreg_info = &ar_snoc->vreg[i];
-
-		if (!vreg_info->reg)
-			continue;
-
-		ret = __ath10k_snoc_vreg_off(ar, vreg_info);
-	}
 
 	return ret;
 }
@@ -1591,11 +1446,12 @@ static int ath10k_snoc_clk_deinit(struct ath10k *ar)
 
 static int ath10k_hw_power_on(struct ath10k *ar)
 {
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 	int ret;
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "soc power on\n");
 
-	ret = ath10k_snoc_vreg_on(ar);
+	ret = regulator_bulk_enable(ar_snoc->num_vregs, ar_snoc->vregs);
 	if (ret)
 		return ret;
 
@@ -1606,21 +1462,19 @@ static int ath10k_hw_power_on(struct ath10k *ar)
 	return ret;
 
 vreg_off:
-	ath10k_snoc_vreg_off(ar);
+	regulator_bulk_disable(ar_snoc->num_vregs, ar_snoc->vregs);
 	return ret;
 }
 
 static int ath10k_hw_power_off(struct ath10k *ar)
 {
-	int ret;
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "soc power off\n");
 
 	ath10k_snoc_clk_deinit(ar);
 
-	ret = ath10k_snoc_vreg_off(ar);
-
-	return ret;
+	return regulator_bulk_disable(ar_snoc->num_vregs, ar_snoc->vregs);
 }
 
 static const struct of_device_id ath10k_snoc_dt_match[] = {
@@ -1691,12 +1545,20 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 		goto err_release_resource;
 	}
 
-	ar_snoc->vreg = vreg_cfg;
-	for (i = 0; i < ARRAY_SIZE(vreg_cfg); i++) {
-		ret = ath10k_get_vreg_info(ar, dev, &ar_snoc->vreg[i]);
-		if (ret)
-			goto err_free_irq;
+	ar_snoc->num_vregs = ARRAY_SIZE(ath10k_regulators);
+	ar_snoc->vregs = devm_kcalloc(&pdev->dev, ar_snoc->num_vregs,
+				      sizeof(*ar_snoc->vregs), GFP_KERNEL);
+	if (!ar_snoc->vregs) {
+		ret = -ENOMEM;
+		goto err_free_irq;
 	}
+	for (i = 0; i < ar_snoc->num_vregs; i++)
+		ar_snoc->vregs[i].supply = ath10k_regulators[i];
+
+	ret = devm_regulator_bulk_get(&pdev->dev, ar_snoc->num_vregs,
+				      ar_snoc->vregs);
+	if (ret < 0)
+		goto err_free_irq;
 
 	ar_snoc->clk = clk_cfg;
 	for (i = 0; i < ARRAY_SIZE(clk_cfg); i++) {
