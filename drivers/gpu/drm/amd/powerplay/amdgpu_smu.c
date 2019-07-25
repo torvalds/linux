@@ -43,6 +43,19 @@ const char *smu_get_message_name(struct smu_context *smu, enum smu_message_type 
 	return __smu_message_names[type];
 }
 
+#undef __SMU_DUMMY_MAP
+#define __SMU_DUMMY_MAP(fea)	#fea
+static const char* __smu_feature_names[] = {
+	SMU_FEATURE_MASKS
+};
+
+const char *smu_get_feature_name(struct smu_context *smu, enum smu_feature_mask feature)
+{
+	if (feature < 0 || feature > SMU_FEATURE_COUNT)
+		return "unknow smu feature";
+	return __smu_feature_names[feature];
+}
+
 int smu_get_smc_version(struct smu_context *smu, uint32_t *if_version, uint32_t *smu_version)
 {
 	int ret = 0;

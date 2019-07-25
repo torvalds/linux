@@ -154,59 +154,64 @@ enum smu_clk_type {
 	SMU_CLK_COUNT,
 };
 
+#define SMU_FEATURE_MASKS				\
+       __SMU_DUMMY_MAP(DPM_PREFETCHER),			\
+       __SMU_DUMMY_MAP(DPM_GFXCLK),                    	\
+       __SMU_DUMMY_MAP(DPM_UCLK),                      	\
+       __SMU_DUMMY_MAP(DPM_SOCCLK),                    	\
+       __SMU_DUMMY_MAP(DPM_UVD),                       	\
+       __SMU_DUMMY_MAP(DPM_VCE),                       	\
+       __SMU_DUMMY_MAP(ULV),                           	\
+       __SMU_DUMMY_MAP(DPM_MP0CLK),                    	\
+       __SMU_DUMMY_MAP(DPM_LINK),                      	\
+       __SMU_DUMMY_MAP(DPM_DCEFCLK),                   	\
+       __SMU_DUMMY_MAP(DS_GFXCLK),                     	\
+       __SMU_DUMMY_MAP(DS_SOCCLK),                     	\
+       __SMU_DUMMY_MAP(DS_LCLK),                       	\
+       __SMU_DUMMY_MAP(PPT),                           	\
+       __SMU_DUMMY_MAP(TDC),                           	\
+       __SMU_DUMMY_MAP(THERMAL),                       	\
+       __SMU_DUMMY_MAP(GFX_PER_CU_CG),                 	\
+       __SMU_DUMMY_MAP(RM),                            	\
+       __SMU_DUMMY_MAP(DS_DCEFCLK),                    	\
+       __SMU_DUMMY_MAP(ACDC),                          	\
+       __SMU_DUMMY_MAP(VR0HOT),                        	\
+       __SMU_DUMMY_MAP(VR1HOT),                        	\
+       __SMU_DUMMY_MAP(FW_CTF),                        	\
+       __SMU_DUMMY_MAP(LED_DISPLAY),                   	\
+       __SMU_DUMMY_MAP(FAN_CONTROL),                   	\
+       __SMU_DUMMY_MAP(GFX_EDC),                       	\
+       __SMU_DUMMY_MAP(GFXOFF),                        	\
+       __SMU_DUMMY_MAP(CG),                            	\
+       __SMU_DUMMY_MAP(DPM_FCLK),                      	\
+       __SMU_DUMMY_MAP(DS_FCLK),                       	\
+       __SMU_DUMMY_MAP(DS_MP1CLK),                     	\
+       __SMU_DUMMY_MAP(DS_MP0CLK),                     	\
+       __SMU_DUMMY_MAP(XGMI),                          	\
+       __SMU_DUMMY_MAP(DPM_GFX_PACE),                  	\
+       __SMU_DUMMY_MAP(MEM_VDDCI_SCALING),             	\
+       __SMU_DUMMY_MAP(MEM_MVDD_SCALING),              	\
+       __SMU_DUMMY_MAP(DS_UCLK),                       	\
+       __SMU_DUMMY_MAP(GFX_ULV),                       	\
+       __SMU_DUMMY_MAP(FW_DSTATE),                     	\
+       __SMU_DUMMY_MAP(BACO),                          	\
+       __SMU_DUMMY_MAP(VCN_PG),                        	\
+       __SMU_DUMMY_MAP(JPEG_PG),                       	\
+       __SMU_DUMMY_MAP(USB_PG),                        	\
+       __SMU_DUMMY_MAP(RSMU_SMN_CG),                   	\
+       __SMU_DUMMY_MAP(APCC_PLUS),                     	\
+       __SMU_DUMMY_MAP(GTHR),                          	\
+       __SMU_DUMMY_MAP(GFX_DCS),                       	\
+       __SMU_DUMMY_MAP(GFX_SS),                        	\
+       __SMU_DUMMY_MAP(OUT_OF_BAND_MONITOR),           	\
+       __SMU_DUMMY_MAP(TEMP_DEPENDENT_VMIN),           	\
+       __SMU_DUMMY_MAP(MMHUB_PG),                      	\
+       __SMU_DUMMY_MAP(ATHUB_PG),                      	\
+
+#undef __SMU_DUMMY_MAP
+#define __SMU_DUMMY_MAP(feature)	SMU_FEATURE_##feature##_BIT
 enum smu_feature_mask {
-	SMU_FEATURE_DPM_PREFETCHER_BIT,
-	SMU_FEATURE_DPM_GFXCLK_BIT,
-	SMU_FEATURE_DPM_UCLK_BIT,
-	SMU_FEATURE_DPM_SOCCLK_BIT,
-	SMU_FEATURE_DPM_UVD_BIT,
-	SMU_FEATURE_DPM_VCE_BIT,
-	SMU_FEATURE_ULV_BIT,
-	SMU_FEATURE_DPM_MP0CLK_BIT,
-	SMU_FEATURE_DPM_LINK_BIT,
-	SMU_FEATURE_DPM_DCEFCLK_BIT,
-	SMU_FEATURE_DS_GFXCLK_BIT,
-	SMU_FEATURE_DS_SOCCLK_BIT,
-	SMU_FEATURE_DS_LCLK_BIT,
-	SMU_FEATURE_PPT_BIT,
-	SMU_FEATURE_TDC_BIT,
-	SMU_FEATURE_THERMAL_BIT,
-	SMU_FEATURE_GFX_PER_CU_CG_BIT,
-	SMU_FEATURE_RM_BIT,
-	SMU_FEATURE_DS_DCEFCLK_BIT,
-	SMU_FEATURE_ACDC_BIT,
-	SMU_FEATURE_VR0HOT_BIT,
-	SMU_FEATURE_VR1HOT_BIT,
-	SMU_FEATURE_FW_CTF_BIT,
-	SMU_FEATURE_LED_DISPLAY_BIT,
-	SMU_FEATURE_FAN_CONTROL_BIT,
-	SMU_FEATURE_GFX_EDC_BIT,
-	SMU_FEATURE_GFXOFF_BIT,
-	SMU_FEATURE_CG_BIT,
-	SMU_FEATURE_DPM_FCLK_BIT,
-	SMU_FEATURE_DS_FCLK_BIT,
-	SMU_FEATURE_DS_MP1CLK_BIT,
-	SMU_FEATURE_DS_MP0CLK_BIT,
-	SMU_FEATURE_XGMI_BIT,
-	SMU_FEATURE_DPM_GFX_PACE_BIT,
-	SMU_FEATURE_MEM_VDDCI_SCALING_BIT,
-	SMU_FEATURE_MEM_MVDD_SCALING_BIT,
-	SMU_FEATURE_DS_UCLK_BIT,
-	SMU_FEATURE_GFX_ULV_BIT,
-	SMU_FEATURE_FW_DSTATE_BIT,
-	SMU_FEATURE_BACO_BIT,
-	SMU_FEATURE_VCN_PG_BIT,
-	SMU_FEATURE_JPEG_PG_BIT,
-	SMU_FEATURE_USB_PG_BIT,
-	SMU_FEATURE_RSMU_SMN_CG_BIT,
-	SMU_FEATURE_APCC_PLUS_BIT,
-	SMU_FEATURE_GTHR_BIT,
-	SMU_FEATURE_GFX_DCS_BIT,
-	SMU_FEATURE_GFX_SS_BIT,
-	SMU_FEATURE_OUT_OF_BAND_MONITOR_BIT,
-	SMU_FEATURE_TEMP_DEPENDENT_VMIN_BIT,
-	SMU_FEATURE_MMHUB_PG_BIT,
-	SMU_FEATURE_ATHUB_PG_BIT,
+	SMU_FEATURE_MASKS
 	SMU_FEATURE_COUNT,
 };
 

@@ -805,5 +805,6 @@ int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_lev
 int smu_set_display_count(struct smu_context *smu, uint32_t count);
 bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type);
 const char *smu_get_message_name(struct smu_context *smu, enum smu_message_type type);
+const char *smu_get_feature_name(struct smu_context *smu, enum smu_feature_mask feature);
 
 #endif
