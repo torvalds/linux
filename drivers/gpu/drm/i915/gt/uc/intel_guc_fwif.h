@@ -122,23 +122,20 @@
 #define GUC_CTL_MAX_DWORDS		(SOFT_SCRATCH_COUNT - 2) /* [1..14] */
 
 /**
- * DOC: GuC Firmware Layout
+ * DOC: Firmware Layout
  *
- * The GuC firmware layout looks like this:
+ * The GuC/HuC firmware layout looks like this::
  *
- *     +-------------------------------+
- *     |         uc_css_header         |
- *     |                               |
- *     | contains major/minor version  |
- *     +-------------------------------+
- *     |             uCode             |
- *     +-------------------------------+
- *     |         RSA signature         |
- *     +-------------------------------+
- *     |          modulus key          |
- *     +-------------------------------+
- *     |          exponent val         |
- *     +-------------------------------+
+ *      +======================================================================+
+ *      |  Firmware blob                                                       |
+ *      +===============+===============+============+============+============+
+ *      |  CSS header   |     uCode     |  RSA key   |  modulus   |  exponent  |
+ *      +===============+===============+============+============+============+
+ *       <-header size->                 <---header size continued ----------->
+ *       <--- size ----------------------------------------------------------->
+ *                                       <-key size->
+ *                                                    <-mod size->
+ *                                                                 <-exp size->
  *
  * The firmware may or may not have modulus key and exponent data. The header,
  * uCode and RSA signature are must-have components that will be used by driver.
@@ -155,8 +152,8 @@
  * 4. Modulus and exponent key are not required by driver. They may not appear
  *    in fw. So driver will load a truncated firmware in this case.
  *
- * HuC firmware layout is same as GuC firmware.
- * Only HuC version information is saved in a different way.
+ * The only difference between GuC and HuC firmwares is how the version
+ * information is saved.
  */
 
 struct uc_css_header {
