@@ -321,13 +321,24 @@ fail:
 	release_firmware(fw);		/* OK even if fw is NULL */
 }
 
+static u32 uc_fw_ggtt_offset(struct intel_uc_fw *uc_fw, struct i915_ggtt *ggtt)
+{
+	struct drm_mm_node *node = &ggtt->uc_fw;
+
+	GEM_BUG_ON(!node->allocated);
+	GEM_BUG_ON(upper_32_bits(node->start));
+	GEM_BUG_ON(upper_32_bits(node->start + node->size - 1));
+
+	return lower_32_bits(node->start);
+}
+
 static void intel_uc_fw_ggtt_bind(struct intel_uc_fw *uc_fw,
 				  struct intel_gt *gt)
 {
 	struct drm_i915_gem_object *obj = uc_fw->obj;
 	struct i915_ggtt *ggtt = gt->ggtt;
 	struct i915_vma dummy = {
-		.node.start = intel_uc_fw_ggtt_offset(uc_fw, ggtt),
+		.node.start = uc_fw_ggtt_offset(uc_fw, ggtt),
 		.node.size = obj->base.size,
 		.pages = obj->mm.pages,
 		.vm = &ggtt->vm,
@@ -347,23 +358,69 @@ static void intel_uc_fw_ggtt_unbind(struct intel_uc_fw *uc_fw,
 {
 	struct drm_i915_gem_object *obj = uc_fw->obj;
 	struct i915_ggtt *ggtt = gt->ggtt;
-	u64 start = intel_uc_fw_ggtt_offset(uc_fw, ggtt);
+	u64 start = uc_fw_ggtt_offset(uc_fw, ggtt);
 
 	ggtt->vm.clear_range(&ggtt->vm, start, obj->base.size);
+}
+
+static int uc_fw_xfer(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
+		      u32 wopcm_offset, u32 dma_flags)
+{
+	struct intel_uncore *uncore = gt->uncore;
+	u64 offset;
+	int ret;
+
+	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
+
+	/* Set the source address for the uCode */
+	offset = uc_fw_ggtt_offset(uc_fw, gt->ggtt) + uc_fw->header_offset;
+	GEM_BUG_ON(upper_32_bits(offset) & 0xFFFF0000);
+	intel_uncore_write_fw(uncore, DMA_ADDR_0_LOW, lower_32_bits(offset));
+	intel_uncore_write_fw(uncore, DMA_ADDR_0_HIGH, upper_32_bits(offset));
+
+	/* Set the DMA destination */
+	intel_uncore_write_fw(uncore, DMA_ADDR_1_LOW, wopcm_offset);
+	intel_uncore_write_fw(uncore, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
+
+	/*
+	 * Set the transfer size. The header plus uCode will be copied to WOPCM
+	 * via DMA, excluding any other components
+	 */
+	intel_uncore_write_fw(uncore, DMA_COPY_SIZE,
+			      uc_fw->header_size + uc_fw->ucode_size);
+
+	/* Start the DMA */
+	intel_uncore_write_fw(uncore, DMA_CTRL,
+			      _MASKED_BIT_ENABLE(dma_flags | START_DMA));
+
+	/* Wait for DMA to finish */
+	ret = intel_wait_for_register_fw(uncore, DMA_CTRL, START_DMA, 0, 100);
+	if (ret)
+		dev_err(gt->i915->drm.dev, "DMA for %s fw failed, DMA_CTRL=%u\n",
+			intel_uc_fw_type_repr(uc_fw->type),
+			intel_uncore_read_fw(uncore, DMA_CTRL));
+
+	/* Disable the bits once DMA is over */
+	intel_uncore_write_fw(uncore, DMA_CTRL, _MASKED_BIT_DISABLE(dma_flags));
+
+	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
+
+	return ret;
 }
 
 /**
  * intel_uc_fw_upload - load uC firmware using custom loader
  * @uc_fw: uC firmware
  * @gt: the intel_gt structure
- * @xfer: custom uC firmware loader function
+ * @wopcm_offset: destination offset in wopcm
+ * @dma_flags: flags for flags for dma ctrl
  *
- * Loads uC firmware using custom loader and updates internal flags.
+ * Loads uC firmware and updates internal flags.
  *
  * Return: 0 on success, non-zero on failure.
  */
 int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
-		       int (*xfer)(struct intel_uc_fw *uc_fw, struct intel_gt *gt))
+		       u32 wopcm_offset, u32 dma_flags)
 {
 	int err;
 
@@ -377,7 +434,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 		return -ENOEXEC;
 	/* Call custom loader */
 	intel_uc_fw_ggtt_bind(uc_fw, gt);
-	err = xfer(uc_fw, gt);
+	err = uc_fw_xfer(uc_fw, gt, wopcm_offset, dma_flags);
 	intel_uc_fw_ggtt_unbind(uc_fw, gt);
 	if (err)
 		goto fail;
@@ -428,17 +485,6 @@ void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
 		return;
 
 	i915_gem_object_unpin_pages(uc_fw->obj);
-}
-
-u32 intel_uc_fw_ggtt_offset(struct intel_uc_fw *uc_fw, struct i915_ggtt *ggtt)
-{
-	struct drm_mm_node *node = &ggtt->uc_fw;
-
-	GEM_BUG_ON(!node->allocated);
-	GEM_BUG_ON(upper_32_bits(node->start));
-	GEM_BUG_ON(upper_32_bits(node->start + node->size - 1));
-
-	return lower_32_bits(node->start);
 }
 
 /**

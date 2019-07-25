@@ -35,60 +35,6 @@ void intel_huc_fw_init_early(struct intel_huc *huc)
 }
 
 /**
- * huc_fw_xfer() - DMA's the firmware
- * @huc_fw: the firmware descriptor
- *
- * Transfer the firmware image to RAM for execution by the microcontroller.
- *
- * Return: 0 on success, non-zero on failure
- */
-static int huc_fw_xfer(struct intel_uc_fw *huc_fw, struct intel_gt *gt)
-{
-	struct intel_uncore *uncore = gt->uncore;
-	unsigned long offset = 0;
-	u32 size;
-	int ret;
-
-	GEM_BUG_ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
-
-	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
-
-	/* Set the source address for the uCode */
-	offset = intel_uc_fw_ggtt_offset(huc_fw, gt->ggtt) +
-		 huc_fw->header_offset;
-	intel_uncore_write(uncore, DMA_ADDR_0_LOW,
-			   lower_32_bits(offset));
-	intel_uncore_write(uncore, DMA_ADDR_0_HIGH,
-			   upper_32_bits(offset) & 0xFFFF);
-
-	/*
-	 * Hardware doesn't look at destination address for HuC. Set it to 0,
-	 * but still program the correct address space.
-	 */
-	intel_uncore_write(uncore, DMA_ADDR_1_LOW, 0);
-	intel_uncore_write(uncore, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
-
-	size = huc_fw->header_size + huc_fw->ucode_size;
-	intel_uncore_write(uncore, DMA_COPY_SIZE, size);
-
-	/* Start the DMA */
-	intel_uncore_write(uncore, DMA_CTRL,
-			   _MASKED_BIT_ENABLE(HUC_UKERNEL | START_DMA));
-
-	/* Wait for DMA to finish */
-	ret = intel_wait_for_register_fw(uncore, DMA_CTRL, START_DMA, 0, 100);
-
-	DRM_DEBUG_DRIVER("HuC DMA transfer wait over with ret %d\n", ret);
-
-	/* Disable the bits once DMA is over */
-	intel_uncore_write(uncore, DMA_CTRL, _MASKED_BIT_DISABLE(HUC_UKERNEL));
-
-	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
-
-	return ret;
-}
-
-/**
  * intel_huc_fw_upload() - load HuC uCode to device
  * @huc: intel_huc structure
  *
@@ -102,5 +48,6 @@ static int huc_fw_xfer(struct intel_uc_fw *huc_fw, struct intel_gt *gt)
  */
 int intel_huc_fw_upload(struct intel_huc *huc)
 {
-	return intel_uc_fw_upload(&huc->fw, huc_to_gt(huc), huc_fw_xfer);
+	/* HW doesn't look at destination address for HuC, so set it to 0 */
+	return intel_uc_fw_upload(&huc->fw, huc_to_gt(huc), 0, HUC_UKERNEL);
 }

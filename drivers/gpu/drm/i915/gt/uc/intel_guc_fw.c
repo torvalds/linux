@@ -84,13 +84,6 @@ static void guc_xfer_rsa(struct intel_uc_fw *guc_fw,
 		intel_uncore_write(uncore, UOS_RSA_SCRATCH(i), rsa[i]);
 }
 
-static bool guc_xfer_completed(struct intel_uncore *uncore, u32 *status)
-{
-	/* Did we complete the xfer? */
-	*status = intel_uncore_read(uncore, DMA_CTRL);
-	return !(*status & START_DMA);
-}
-
 /*
  * Read the GuC status register (GUC_STATUS) and store it in the
  * specified location; then return a boolean indicating whether
@@ -137,78 +130,6 @@ static int guc_wait_ucode(struct intel_uncore *uncore)
 		ret = -ENXIO;
 	}
 
-	if (ret == 0 && !guc_xfer_completed(uncore, &status)) {
-		DRM_ERROR("GuC is ready, but the xfer %08x is incomplete\n",
-			  status);
-		ret = -ENXIO;
-	}
-
-	return ret;
-}
-
-/*
- * Transfer the firmware image to RAM for execution by the microcontroller.
- *
- * Architecturally, the DMA engine is bidirectional, and can potentially even
- * transfer between GTT locations. This functionality is left out of the API
- * for now as there is no need for it.
- */
-static int guc_xfer_ucode(struct intel_uc_fw *guc_fw,
-			  struct intel_gt *gt)
-{
-	struct intel_uncore *uncore = gt->uncore;
-	unsigned long offset;
-
-	/*
-	 * The header plus uCode will be copied to WOPCM via DMA, excluding any
-	 * other components
-	 */
-	intel_uncore_write(uncore, DMA_COPY_SIZE,
-			   guc_fw->header_size + guc_fw->ucode_size);
-
-	/* Set the source address for the new blob */
-	offset = intel_uc_fw_ggtt_offset(guc_fw, gt->ggtt) + guc_fw->header_offset;
-	intel_uncore_write(uncore, DMA_ADDR_0_LOW, lower_32_bits(offset));
-	intel_uncore_write(uncore, DMA_ADDR_0_HIGH, upper_32_bits(offset) & 0xFFFF);
-
-	/*
-	 * Set the DMA destination. Current uCode expects the code to be
-	 * loaded at 8k; locations below this are used for the stack.
-	 */
-	intel_uncore_write(uncore, DMA_ADDR_1_LOW, 0x2000);
-	intel_uncore_write(uncore, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
-
-	/* Finally start the DMA */
-	intel_uncore_write(uncore, DMA_CTRL,
-			   _MASKED_BIT_ENABLE(UOS_MOVE | START_DMA));
-
-	return guc_wait_ucode(uncore);
-}
-/*
- * Load the GuC firmware blob into the MinuteIA.
- */
-static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct intel_gt *gt)
-{
-	struct intel_uncore *uncore = gt->uncore;
-	int ret;
-
-	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
-
-	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
-
-	guc_prepare_xfer(uncore);
-
-	/*
-	 * Note that GuC needs the CSS header plus uKernel code to be copied
-	 * by the DMA engine in one operation, whereas the RSA signature is
-	 * loaded via MMIO.
-	 */
-	guc_xfer_rsa(guc_fw, uncore);
-
-	ret = guc_xfer_ucode(guc_fw, gt);
-
-	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
-
 	return ret;
 }
 
@@ -226,9 +147,35 @@ static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct intel_gt *gt)
  */
 int intel_guc_fw_upload(struct intel_guc *guc)
 {
-	int ret = intel_uc_fw_upload(&guc->fw, guc_to_gt(guc), guc_fw_xfer);
-	if (!ret)
-		guc->fw.status = INTEL_UC_FIRMWARE_RUNNING;
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct intel_uncore *uncore = gt->uncore;
+	int ret;
 
+	guc_prepare_xfer(uncore);
+
+	/*
+	 * Note that GuC needs the CSS header plus uKernel code to be copied
+	 * by the DMA engine in one operation, whereas the RSA signature is
+	 * loaded via MMIO.
+	 */
+	guc_xfer_rsa(&guc->fw, uncore);
+
+	/*
+	 * Current uCode expects the code to be loaded at 8k; locations below
+	 * this are used for the stack.
+	 */
+	ret = intel_uc_fw_upload(&guc->fw, gt, 0x2000, UOS_MOVE);
+	if (ret)
+		goto out;
+
+	ret = guc_wait_ucode(uncore);
+	if (ret)
+		goto out;
+
+	guc->fw.status = INTEL_UC_FIRMWARE_RUNNING;
+	return 0;
+
+out:
+	guc->fw.status = INTEL_UC_FIRMWARE_FAIL;
 	return ret;
 }
