@@ -1705,7 +1705,7 @@ static int sdma_v4_0_late_init(void *handle)
 resume:
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		r = amdgpu_irq_get(adev, &adev->sdma.ecc_irq,
-			sdma_v4_0_seq_to_irq_id(i));
+				   AMDGPU_SDMA_IRQ_INSTANCE0 + i);
 		if (r)
 			goto irq;
 	}
@@ -1849,7 +1849,7 @@ static int sdma_v4_0_hw_fini(void *handle)
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		amdgpu_irq_put(adev, &adev->sdma.ecc_irq,
-			sdma_v4_0_seq_to_irq_id(i));
+			       AMDGPU_SDMA_IRQ_INSTANCE0 + i);
 	}
 
 	sdma_v4_0_ctx_switch_enable(adev, false);
