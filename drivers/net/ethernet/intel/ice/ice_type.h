@@ -13,9 +13,9 @@
 #define ICE_BYTES_PER_WORD	2
 #define ICE_BYTES_PER_DWORD	4
 
-static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
+static inline bool ice_is_tc_ena(unsigned long bitmap, u8 tc)
 {
-	return test_bit(tc, (unsigned long *)&bitmap);
+	return test_bit(tc, &bitmap);
 }
 
 /* Driver always calls main vsi_handle first */
