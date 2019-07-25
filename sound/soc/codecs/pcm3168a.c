@@ -599,6 +599,10 @@ static int pcm3168a_startup(struct snd_pcm_substream *substream,
 				     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
 				     sample_min, 32);
 
+	/* Allow all channels in multi DIN/DOUT mode */
+	if (pcm3168a->tdm_slots == 2)
+		channel_max = channel_maxs[tx];
+
 	snd_pcm_hw_constraint_minmax(substream->runtime,
 				     SNDRV_PCM_HW_PARAM_CHANNELS,
 				     2, channel_max);
