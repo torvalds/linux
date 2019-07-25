@@ -63,7 +63,8 @@ int smu_get_power_num_states(struct smu_context *smu,
 
 	/* not support power state */
 	memset(state_info, 0, sizeof(struct pp_states_info));
-	state_info->nums = 0;
+	state_info->nums = 1;
+	state_info->states[0] = POWER_STATE_TYPE_DEFAULT;
 
 	return 0;
 }
