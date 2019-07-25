@@ -1056,12 +1056,8 @@ static void handle_scan_timer(struct work_struct *work)
 static void handle_scan_complete(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc *wilc = msg->vif->wilc;
 
 	del_timer(&msg->vif->hif_drv->scan_timer);
-
-	if (!wilc_wlan_get_num_conn_ifcs(wilc))
-		wilc_chip_sleep_manually(wilc);
 
 	handle_scan_done(msg->vif, SCAN_EVENT_DONE);
 

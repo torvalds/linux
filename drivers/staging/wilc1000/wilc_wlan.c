@@ -455,20 +455,6 @@ void chip_wakeup(struct wilc *wilc)
 }
 EXPORT_SYMBOL_GPL(chip_wakeup);
 
-void wilc_chip_sleep_manually(struct wilc *wilc)
-{
-	if (wilc->chip_ps_state != WILC_CHIP_WAKEDUP)
-		return;
-	acquire_bus(wilc, WILC_BUS_ACQUIRE_ONLY);
-
-	chip_allow_sleep(wilc);
-	wilc->hif_func->hif_write_reg(wilc, 0x10a8, 1);
-
-	wilc->chip_ps_state = WILC_CHIP_SLEEPING_MANUAL;
-	release_bus(wilc, WILC_BUS_RELEASE_ONLY);
-}
-EXPORT_SYMBOL_GPL(wilc_chip_sleep_manually);
-
 void host_wakeup_notify(struct wilc *wilc)
 {
 	acquire_bus(wilc, WILC_BUS_ACQUIRE_ONLY);

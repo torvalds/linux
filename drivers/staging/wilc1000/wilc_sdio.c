@@ -193,9 +193,7 @@ static int wilc_sdio_suspend(struct device *dev)
 	dev_info(dev, "sdio suspend\n");
 	chip_wakeup(wilc);
 
-	if (!wilc->suspend_event) {
-		wilc_chip_sleep_manually(wilc);
-	} else {
+	if (wilc->suspend_event) {
 		host_sleep_notify(wilc);
 		chip_allow_sleep(wilc);
 	}
