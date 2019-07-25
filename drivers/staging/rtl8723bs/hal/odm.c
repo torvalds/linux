@@ -342,8 +342,6 @@ void odm_RateAdaptiveMaskInit(PDM_ODM_T pDM_Odm);
 
 void odm_TXPowerTrackingInit(PDM_ODM_T pDM_Odm);
 
-void odm_TXPowerTrackingCheckCE(PDM_ODM_T pDM_Odm);
-
 /* Remove Edca by Yu Chen */
 
 
@@ -1390,13 +1388,7 @@ void odm_TXPowerTrackingInit(PDM_ODM_T pDM_Odm)
 
 }
 
-
 void ODM_TXPowerTrackingCheck(PDM_ODM_T pDM_Odm)
-{
-	odm_TXPowerTrackingCheckCE(pDM_Odm);
-}
-
-void odm_TXPowerTrackingCheckCE(PDM_ODM_T pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
 
