@@ -616,18 +616,6 @@ struct drm_driver {
 	struct sg_table *(*gem_prime_get_sg_table)(struct drm_gem_object *obj);
 
 	/**
-	 * @gem_prime_res_obj:
-	 *
-	 * Optional hook to look up the &reservation_object for an buffer when
-	 * exporting it.
-	 *
-	 * FIXME: This hook is deprecated. Users of this hook should be replaced
-	 * by setting &drm_gem_object.resv instead.
-	 */
-	struct reservation_object * (*gem_prime_res_obj)(
-				struct drm_gem_object *obj);
-
-	/**
 	 * @gem_prime_import_sg_table:
 	 *
 	 * Optional hook used by the PRIME helper functions

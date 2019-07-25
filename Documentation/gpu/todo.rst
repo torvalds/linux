@@ -196,15 +196,6 @@ Might be good to also have some igt testcases for this.
 
 Contact: Daniel Vetter, Noralf Tronnes
 
-Remove the ->gem_prime_res_obj callback
---------------------------------------------
-
-The ->gem_prime_res_obj callback can be removed from drivers by using the
-reservation_object in the drm_gem_object. It may also be possible to use the
-generic drm_gem_reservation_object_wait helper for waiting for a bo.
-
-Contact: Daniel Vetter
-
 idr_init_base()
 ---------------
 

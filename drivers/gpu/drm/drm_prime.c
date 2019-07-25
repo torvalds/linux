@@ -836,9 +836,6 @@ struct dma_buf *drm_gem_prime_export(struct drm_gem_object *obj,
 		.resv = obj->resv,
 	};
 
-	if (dev->driver->gem_prime_res_obj)
-		exp_info.resv = dev->driver->gem_prime_res_obj(obj);
-
 	return drm_gem_dmabuf_export(dev, &exp_info);
 }
 EXPORT_SYMBOL(drm_gem_prime_export);
