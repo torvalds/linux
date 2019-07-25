@@ -45,8 +45,6 @@ struct ath10k_snoc_ce_irq {
 struct ath10k_vreg_info {
 	struct regulator *reg;
 	const char *name;
-	u32 min_v;
-	u32 max_v;
 	u32 load_ua;
 	unsigned long settle_delay;
 	bool required;

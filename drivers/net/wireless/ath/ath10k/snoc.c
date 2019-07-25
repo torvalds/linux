@@ -37,10 +37,10 @@ static char *const ce_name[] = {
 };
 
 static struct ath10k_vreg_info vreg_cfg[] = {
-	{NULL, "vdd-0.8-cx-mx", 800000, 850000, 0, 0, false},
-	{NULL, "vdd-1.8-xo", 1800000, 1850000, 0, 0, false},
-	{NULL, "vdd-1.3-rfa", 1300000, 1350000, 0, 0, false},
-	{NULL, "vdd-3.3-ch0", 3300000, 3350000, 0, 0, false},
+	{NULL, "vdd-0.8-cx-mx", 0, 0, false},
+	{NULL, "vdd-1.8-xo", 0, 0, false},
+	{NULL, "vdd-1.3-rfa", 0, 0, false},
+	{NULL, "vdd-3.3-ch0", 0, 0, false},
 };
 
 static struct ath10k_clk_info clk_cfg[] = {
@@ -1377,9 +1377,8 @@ static int ath10k_get_vreg_info(struct ath10k *ar, struct device *dev,
 
 done:
 	ath10k_dbg(ar, ATH10K_DBG_SNOC,
-		   "snog vreg %s min_v %u max_v %u load_ua %u settle_delay %lu\n",
-		   vreg_info->name, vreg_info->min_v, vreg_info->max_v,
-		   vreg_info->load_ua, vreg_info->settle_delay);
+		   "snog vreg %s load_ua %u settle_delay %lu\n",
+		   vreg_info->name, vreg_info->load_ua, vreg_info->settle_delay);
 
 	return 0;
 }
@@ -1420,15 +1419,6 @@ static int __ath10k_snoc_vreg_on(struct ath10k *ar,
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc regulator %s being enabled\n",
 		   vreg_info->name);
 
-	ret = regulator_set_voltage(vreg_info->reg, vreg_info->min_v,
-				    vreg_info->max_v);
-	if (ret) {
-		ath10k_err(ar,
-			   "failed to set regulator %s voltage-min: %d voltage-max: %d\n",
-			   vreg_info->name, vreg_info->min_v, vreg_info->max_v);
-		return ret;
-	}
-
 	if (vreg_info->load_ua) {
 		ret = regulator_set_load(vreg_info->reg, vreg_info->load_ua);
 		if (ret < 0) {
@@ -1453,7 +1443,6 @@ static int __ath10k_snoc_vreg_on(struct ath10k *ar,
 err_enable:
 	regulator_set_load(vreg_info->reg, 0);
 err_set_load:
-	regulator_set_voltage(vreg_info->reg, 0, vreg_info->max_v);
 
 	return ret;
 }
@@ -1474,10 +1463,6 @@ static int __ath10k_snoc_vreg_off(struct ath10k *ar,
 	ret = regulator_set_load(vreg_info->reg, 0);
 	if (ret < 0)
 		ath10k_err(ar, "failed to set load %s\n", vreg_info->name);
-
-	ret = regulator_set_voltage(vreg_info->reg, 0, vreg_info->max_v);
-	if (ret)
-		ath10k_err(ar, "failed to set voltage %s\n", vreg_info->name);
 
 	return ret;
 }
