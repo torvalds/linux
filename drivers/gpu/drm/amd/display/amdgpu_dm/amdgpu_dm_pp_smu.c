@@ -151,18 +151,31 @@ static void get_default_clock_levels(
 static enum smu_clk_type dc_to_smu_clock_type(
 		enum dm_pp_clock_type dm_pp_clk_type)
 {
-#define DCCLK_MAP_SMUCLK(dcclk, smuclk) \
-	[dcclk] = smuclk
+	enum smu_clk_type smu_clk_type = SMU_CLK_COUNT;
 
-	static int dc_clk_type_map[] = {
-		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_DISPLAY_CLK,	SMU_DISPCLK),
-		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_ENGINE_CLK,	SMU_GFXCLK),
-		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_MEMORY_CLK,	SMU_MCLK),
-		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_DCEFCLK,	SMU_DCEFCLK),
-		DCCLK_MAP_SMUCLK(DM_PP_CLOCK_TYPE_SOCCLK,	SMU_SOCCLK),
-	};
+	switch (dm_pp_clk_type) {
+	case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
+		smu_clk_type = SMU_DISPCLK;
+		break;
+	case DM_PP_CLOCK_TYPE_ENGINE_CLK:
+		smu_clk_type = SMU_GFXCLK;
+		break;
+	case DM_PP_CLOCK_TYPE_MEMORY_CLK:
+		smu_clk_type = SMU_MCLK;
+		break;
+	case DM_PP_CLOCK_TYPE_DCEFCLK:
+		smu_clk_type = SMU_DCEFCLK;
+		break;
+	case DM_PP_CLOCK_TYPE_SOCCLK:
+		smu_clk_type = SMU_SOCCLK;
+		break;
+	default:
+		DRM_ERROR("DM_PPLIB: invalid clock type: %d!\n",
+			  dm_pp_clk_type);
+		break;
+	}
 
-	return dc_clk_type_map[dm_pp_clk_type];
+	return smu_clk_type;
 }
 
 static enum amd_pp_clock_type dc_to_pp_clock_type(
