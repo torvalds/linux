@@ -268,20 +268,6 @@ error:
 }
 
 /**
- * amdgpu_gem_prime_res_obj - &drm_driver.gem_prime_res_obj implementation
- * @obj: GEM BO
- *
- * Returns:
- * The BO's reservation object.
- */
-struct reservation_object *amdgpu_gem_prime_res_obj(struct drm_gem_object *obj)
-{
-	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
-
-	return bo->tbo.resv;
-}
-
-/**
  * amdgpu_dma_buf_begin_cpu_access - &dma_buf_ops.begin_cpu_access implementation
  * @dma_buf: Shared DMA buffer
  * @direction: Direction of DMA transfer
@@ -339,8 +325,7 @@ const struct dma_buf_ops amdgpu_dmabuf_ops = {
  * @gobj: GEM BO
  * @flags: Flags such as DRM_CLOEXEC and DRM_RDWR.
  *
- * The main work is done by the &drm_gem_prime_export helper, which in turn
- * uses &amdgpu_gem_prime_res_obj.
+ * The main work is done by the &drm_gem_prime_export helper.
  *
  * Returns:
  * Shared DMA buffer representing the GEM BO from the given device.

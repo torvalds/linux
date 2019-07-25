@@ -34,7 +34,6 @@ struct dma_buf *amdgpu_gem_prime_export(struct drm_gem_object *gobj,
 					int flags);
 struct drm_gem_object *amdgpu_gem_prime_import(struct drm_device *dev,
 					    struct dma_buf *dma_buf);
-struct reservation_object *amdgpu_gem_prime_res_obj(struct drm_gem_object *);
 void *amdgpu_gem_prime_vmap(struct drm_gem_object *obj);
 void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 int amdgpu_gem_prime_mmap(struct drm_gem_object *obj,

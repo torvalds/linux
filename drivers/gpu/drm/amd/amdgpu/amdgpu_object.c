@@ -509,6 +509,8 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	if (unlikely(r != 0))
 		return r;
 
+	bo->gem_base.resv = bo->tbo.resv;
+
 	if (!amdgpu_gmc_vram_full_visible(&adev->gmc) &&
 	    bo->tbo.mem.mem_type == TTM_PL_VRAM &&
 	    bo->tbo.mem.start < adev->gmc.visible_vram_size >> PAGE_SHIFT)
