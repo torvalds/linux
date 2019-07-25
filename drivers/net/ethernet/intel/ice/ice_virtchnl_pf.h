@@ -15,8 +15,8 @@
 #define ICE_MAX_MACADDR_PER_VF		12
 
 /* Malicious Driver Detection */
-#define ICE_DFLT_NUM_MDD_EVENTS_ALLOWED		3
 #define ICE_DFLT_NUM_INVAL_MSGS_ALLOWED		10
+#define ICE_MDD_EVENTS_THRESHOLD		30
 
 /* Static VF transaction/status register def */
 #define VF_DEVICE_STATUS		0xAA

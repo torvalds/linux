@@ -1315,8 +1315,10 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 
 		if (vf_mdd_detected) {
 			vf->num_mdd_events++;
-			if (vf->num_mdd_events > 1)
-				dev_info(&pf->pdev->dev, "VF %d has had %llu MDD events since last boot\n",
+			if (vf->num_mdd_events &&
+			    vf->num_mdd_events <= ICE_MDD_EVENTS_THRESHOLD)
+				dev_info(&pf->pdev->dev,
+					 "VF %d has had %llu MDD events since last boot, Admin might need to reload AVF driver with this number of events\n",
 					 i, vf->num_mdd_events);
 		}
 	}
