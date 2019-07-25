@@ -74,23 +74,6 @@ static int __get_platform_enable_guc(struct intel_uc *uc)
 	return enable_guc;
 }
 
-static int __get_default_guc_log_level(struct intel_uc *uc)
-{
-	int guc_log_level;
-
-	if (!intel_uc_fw_supported(&uc->guc.fw) || !intel_uc_is_using_guc(uc))
-		guc_log_level = GUC_LOG_LEVEL_DISABLED;
-	else if (IS_ENABLED(CONFIG_DRM_I915_DEBUG) ||
-		 IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
-		guc_log_level = GUC_LOG_LEVEL_MAX;
-	else
-		guc_log_level = GUC_LOG_LEVEL_NON_VERBOSE;
-
-	/* Any platform specific fine-tuning can be done here */
-
-	return guc_log_level;
-}
-
 /**
  * sanitize_options_early - sanitize uC related modparam options
  * @uc: the intel_uc structure
@@ -100,13 +83,6 @@ static int __get_default_guc_log_level(struct intel_uc *uc)
  * modparam varies between platforms and it is hardcoded in driver code.
  * Any other modparam value is only monitored against availability of the
  * related hardware or firmware definitions.
- *
- * In case of "guc_log_level" option this function will attempt to modify
- * it only if it was initially set to "auto(-1)" or if initial value was
- * "enable(1..4)" on platforms without the GuC. Default value for this
- * modparam varies between platforms and is usually set to "disable(0)"
- * unless GuC is enabled on given platform and the driver is compiled with
- * debug config when this modparam will default to "enable(1..4)".
  */
 static void sanitize_options_early(struct intel_uc *uc)
 {
@@ -149,34 +125,8 @@ static void sanitize_options_early(struct intel_uc *uc)
 		i915_modparams.enable_guc &= ~ENABLE_GUC_SUBMISSION;
 	}
 
-	/* A negative value means "use platform/config default" */
-	if (i915_modparams.guc_log_level < 0)
-		i915_modparams.guc_log_level =
-			__get_default_guc_log_level(uc);
-
-	if (i915_modparams.guc_log_level > 0 && !intel_uc_is_using_guc(uc)) {
-		DRM_WARN("Incompatible option detected: guc_log_level=%d, "
-			 "but GuC is not enabled!\n",
-			 i915_modparams.guc_log_level);
-		i915_modparams.guc_log_level = 0;
-	}
-
-	if (i915_modparams.guc_log_level > GUC_LOG_LEVEL_MAX) {
-		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
-			 "guc_log_level", i915_modparams.guc_log_level,
-			 "verbosity too high");
-		i915_modparams.guc_log_level = GUC_LOG_LEVEL_MAX;
-	}
-
-	DRM_DEBUG_DRIVER("guc_log_level=%d (enabled:%s, verbose:%s, verbosity:%d)\n",
-			 i915_modparams.guc_log_level,
-			 yesno(i915_modparams.guc_log_level),
-			 yesno(GUC_LOG_LEVEL_IS_VERBOSE(i915_modparams.guc_log_level)),
-			 GUC_LOG_LEVEL_TO_VERBOSITY(i915_modparams.guc_log_level));
-
 	/* Make sure that sanitization was done */
 	GEM_BUG_ON(i915_modparams.enable_guc < 0);
-	GEM_BUG_ON(i915_modparams.guc_log_level < 0);
 }
 
 void intel_uc_init_early(struct intel_uc *uc)

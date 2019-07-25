@@ -443,6 +443,29 @@ static void guc_log_capture_logs(struct intel_guc_log *log)
 		guc_action_flush_log_complete(guc);
 }
 
+static u32 __get_default_log_level(struct intel_guc_log *log)
+{
+	/* A negative value means "use platform/config default" */
+	if (i915_modparams.guc_log_level < 0) {
+		return (IS_ENABLED(CONFIG_DRM_I915_DEBUG) ||
+			IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)) ?
+			GUC_LOG_LEVEL_MAX : GUC_LOG_LEVEL_NON_VERBOSE;
+	}
+
+	if (i915_modparams.guc_log_level > GUC_LOG_LEVEL_MAX) {
+		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
+			 "guc_log_level", i915_modparams.guc_log_level,
+			 "verbosity too high");
+		return (IS_ENABLED(CONFIG_DRM_I915_DEBUG) ||
+			IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)) ?
+			GUC_LOG_LEVEL_MAX : GUC_LOG_LEVEL_DISABLED;
+	}
+
+	GEM_BUG_ON(i915_modparams.guc_log_level < GUC_LOG_LEVEL_DISABLED);
+	GEM_BUG_ON(i915_modparams.guc_log_level > GUC_LOG_LEVEL_MAX);
+	return i915_modparams.guc_log_level;
+}
+
 int intel_guc_log_create(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
@@ -482,7 +505,11 @@ int intel_guc_log_create(struct intel_guc_log *log)
 
 	log->vma = vma;
 
-	log->level = i915_modparams.guc_log_level;
+	log->level = __get_default_log_level(log);
+	DRM_DEBUG_DRIVER("guc_log_level=%d (%s, verbose:%s, verbosity:%d)\n",
+			 log->level, enableddisabled(log->level),
+			 yesno(GUC_LOG_LEVEL_IS_VERBOSE(log->level)),
+			 GUC_LOG_LEVEL_TO_VERBOSITY(log->level));
 
 	return 0;
 
