@@ -519,7 +519,7 @@ struct rga2_req
     u8 dst_a_global_val;    /* dst global alpha value        */
 
 
-    u8  rop_mode;
+    u8  rop_mode;	    /* rop mode select 0 : rop2 1 : rop3 2 : rop4 */
     u16 rop_code;           /* rop2/3/4 code */
 
     u8 palette_mode;        /* (enum) color palatte  0/1bpp, 1/2bpp 2/4bpp 3/8bpp*/

@@ -1090,7 +1090,7 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
     req->src_a_global_val = req_rga->alpha_global_value;
     req->dst_a_global_val = req_rga->alpha_global_value;
     req->rop_code = req_rga->rop_code;
-    req->rop_mode = 0;
+    req->rop_mode = req_rga->alpha_rop_mode;
 
     req->color_fill_mode = req_rga->color_fill_mode;
     req->color_key_min   = req_rga->color_key_min;
@@ -1300,7 +1300,7 @@ void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
     req->src_a_global_val = req_rga->alpha_global_value;
     req->dst_a_global_val = req_rga->alpha_global_value;
     req->rop_code = req_rga->rop_code;
-    req->rop_mode = 0;
+    req->rop_mode = req_rga->alpha_rop_mode;
     req->color_fill_mode = req_rga->color_fill_mode;
     req->color_key_min   = req_rga->color_key_min;
     req->color_key_max   = req_rga->color_key_max;
