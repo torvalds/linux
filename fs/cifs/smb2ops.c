@@ -1369,7 +1369,10 @@ smb2_ioctl_query_info(const unsigned int xid,
 	struct cifs_fid fid;
 	struct kvec qi_iov[1];
 	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
+	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
 	struct kvec close_iov[1];
+	unsigned int size[2];
+	void *data[2];
 
 	memset(rqst, 0, sizeof(rqst));
 	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
@@ -1404,7 +1407,6 @@ smb2_ioctl_query_info(const unsigned int xid,
 
 	memset(&oparms, 0, sizeof(oparms));
 	oparms.tcon = tcon;
-	oparms.desired_access = FILE_READ_ATTRIBUTES | READ_CONTROL;
 	oparms.disposition = FILE_OPEN;
 	if (is_dir)
 		oparms.create_options = CREATE_NOT_FILE;
@@ -1413,9 +1415,6 @@ smb2_ioctl_query_info(const unsigned int xid,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	/*
-	 * FSCTL codes encode the special access they need in the fsctl code.
-	 */
 	if (qi.flags & PASSTHRU_FSCTL) {
 		switch (qi.info_type & FSCTL_DEVICE_ACCESS_MASK) {
 		case FSCTL_DEVICE_ACCESS_FILE_READ_WRITE_ACCESS:
@@ -1431,6 +1430,10 @@ smb2_ioctl_query_info(const unsigned int xid,
 			oparms.desired_access = GENERIC_WRITE;
 			break;
 		}
+	} else if (qi.flags & PASSTHRU_SET_INFO) {
+		oparms.desired_access = GENERIC_WRITE;
+	} else {
+		oparms.desired_access = FILE_READ_ATTRIBUTES | READ_CONTROL;
 	}
 
 	rc = SMB2_open_init(tcon, &rqst[0], &oplock, &oparms, path);
@@ -1453,6 +1456,24 @@ smb2_ioctl_query_info(const unsigned int xid,
 					     qi.info_type, true, buffer,
 					     qi.output_buffer_length,
 					     CIFSMaxBufSize);
+		}
+	} else if (qi.flags == PASSTHRU_SET_INFO) {
+		/* Can eventually relax perm check since server enforces too */
+		if (!capable(CAP_SYS_ADMIN))
+			rc = -EPERM;
+		else  {
+			memset(&si_iov, 0, sizeof(si_iov));
+			rqst[1].rq_iov = si_iov;
+			rqst[1].rq_nvec = 1;
+
+			size[0] = 8;
+			data[0] = buffer;
+
+			rc = SMB2_set_info_init(tcon, &rqst[1],
+					COMPOUND_FID, COMPOUND_FID,
+					current->tgid,
+					FILE_END_OF_FILE_INFORMATION,
+					SMB2_O_INFO_FILE, 0, data, size);
 		}
 	} else if (qi.flags == PASSTHRU_QUERY_INFO) {
 		memset(&qi_iov, 0, sizeof(qi_iov));
