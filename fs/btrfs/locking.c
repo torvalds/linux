@@ -119,42 +119,6 @@ void btrfs_set_lock_blocking_write(struct extent_buffer *eb)
 	}
 }
 
-void btrfs_clear_lock_blocking_read(struct extent_buffer *eb)
-{
-	trace_btrfs_clear_lock_blocking_read(eb);
-	/*
-	 * No lock is required.  The lock owner may change if we have a read
-	 * lock, but it won't change to or away from us.  If we have the write
-	 * lock, we are the owner and it'll never change.
-	 */
-	if (eb->lock_nested && current->pid == eb->lock_owner)
-		return;
-	BUG_ON(atomic_read(&eb->blocking_readers) == 0);
-	read_lock(&eb->lock);
-	btrfs_assert_spinning_readers_get(eb);
-	/* atomic_dec_and_test implies a barrier */
-	if (atomic_dec_and_test(&eb->blocking_readers))
-		cond_wake_up_nomb(&eb->read_lock_wq);
-}
-
-void btrfs_clear_lock_blocking_write(struct extent_buffer *eb)
-{
-	trace_btrfs_clear_lock_blocking_write(eb);
-	/*
-	 * no lock is required.  The lock owner may change if
-	 * we have a read lock, but it won't change to or away
-	 * from us.  If we have the write lock, we are the owner
-	 * and it'll never change.
-	 */
-	if (eb->lock_nested && current->pid == eb->lock_owner)
-		return;
-	write_lock(&eb->lock);
-	BUG_ON(eb->blocking_writers != 1);
-	btrfs_assert_spinning_writers_get(eb);
-	if (--eb->blocking_writers == 0)
-		cond_wake_up(&eb->write_lock_wq);
-}
-
 /*
  * take a spinning read lock.  This will wait for any blocking
  * writers
