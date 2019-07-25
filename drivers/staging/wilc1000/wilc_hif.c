@@ -248,7 +248,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 		goto error;
 	}
 
-	if (vif->obtaining_ip || vif->connecting) {
+	if (vif->connecting) {
 		netdev_err(vif->ndev, "Don't do obss scan\n");
 		result = -EBUSY;
 		goto error;
@@ -682,8 +682,6 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 		wilc_set_power_mgmt(vif, 0, 0);
 
 		hif_drv->hif_state = HOST_IF_CONNECTED;
-
-		vif->obtaining_ip = true;
 	} else {
 		hif_drv->hif_state = HOST_IF_IDLE;
 	}
@@ -707,7 +705,6 @@ static inline void host_int_handle_disconnect(struct wilc_vif *vif)
 	}
 
 	if (hif_drv->conn_info.conn_result) {
-		vif->obtaining_ip = false;
 		wilc_set_power_mgmt(vif, 0, 0);
 
 		hif_drv->conn_info.conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
@@ -770,7 +767,6 @@ int wilc_disconnect(struct wilc_vif *vif)
 	wid.val = (s8 *)&dummy_reason_code;
 	wid.size = sizeof(char);
 
-	vif->obtaining_ip = false;
 	wilc_set_power_mgmt(vif, 0, 0);
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
@@ -922,7 +918,7 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 	if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP)
 		return -EBUSY;
 
-	if (vif->obtaining_ip || vif->connecting)
+	if (vif->connecting)
 		return -EBUSY;
 
 	remain_on_chan_flag = true;
@@ -1608,7 +1604,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	*hif_drv_handler = hif_drv;
 
 	vif->hif_drv = hif_drv;
-	vif->obtaining_ip = false;
 
 	if (wilc->clients_count == 0)
 		mutex_init(&wilc->deinit_lock);

@@ -167,7 +167,6 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
 	} else if (conn_disconn_evt == CONN_DISCONN_EVENT_DISCONN_NOTIF) {
 		u16 reason = 0;
 
-		vif->obtaining_ip = false;
 		priv->p2p.local_random = 0x01;
 		priv->p2p.recv_random = 0x00;
 		priv->p2p.is_wilc_ie = false;
@@ -1411,7 +1410,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	priv->p2p.local_random = 0x01;
 	priv->p2p.recv_random = 0x00;
 	priv->p2p.is_wilc_ie = false;
-	vif->obtaining_ip = false;
 
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
@@ -1458,7 +1456,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		break;
 
 	case NL80211_IFTYPE_P2P_GO:
-		vif->obtaining_ip = true;
 		wilc_set_operation_mode(vif, WILC_AP_MODE);
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev.iftype = type;

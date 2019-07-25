@@ -203,7 +203,6 @@ struct wilc_vif {
 	struct net_device *ndev;
 	u8 mode;
 	struct timer_list during_ip_timer;
-	bool obtaining_ip;
 	struct timer_list periodic_rssi;
 	struct rf_info periodic_stat;
 	struct tcp_ack_filter ack_filter;
