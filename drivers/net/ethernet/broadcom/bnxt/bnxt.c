@@ -2136,7 +2136,7 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 		}
 	}
 	if (bp->flags & BNXT_FLAG_DIM) {
-		struct dim_sample dim_sample;
+		struct dim_sample dim_sample = {};
 
 		dim_update_sample(cpr->event_ctr,
 				  cpr->rx_packets,
