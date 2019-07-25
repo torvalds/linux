@@ -2663,9 +2663,16 @@ static void tegra_sor_dp_disable(struct drm_encoder *encoder)
 	if (output->panel)
 		drm_panel_disable(output->panel);
 
-	err = drm_dp_link_power_down(sor->aux, &sor->link);
-	if (err < 0)
-		dev_err(sor->dev, "failed to power down link: %d\n", err);
+	/*
+	 * Do not attempt to power down a DP link if we're not connected since
+	 * the AUX transactions would just be timing out.
+	 */
+	if (output->connector.status != connector_status_disconnected) {
+		err = drm_dp_link_power_down(sor->aux, &sor->link);
+		if (err < 0)
+			dev_err(sor->dev, "failed to power down link: %d\n",
+				err);
+	}
 
 	err = tegra_sor_detach(sor);
 	if (err < 0)
