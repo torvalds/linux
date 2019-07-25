@@ -2594,7 +2594,7 @@ static const struct ieee80211_sband_iftype_data he_capa_5ghz = {
 	},
 };
 
-static void mac80211_hswim_he_capab(struct ieee80211_supported_band *sband)
+static void mac80211_hwsim_he_capab(struct ieee80211_supported_band *sband)
 {
 	if (sband->band == NL80211_BAND_2GHZ)
 		sband->iftype_data =
@@ -2897,7 +2897,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		sband->ht_cap.mcs.rx_mask[1] = 0xff;
 		sband->ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 
-		mac80211_hswim_he_capab(sband);
+		mac80211_hwsim_he_capab(sband);
 
 		hw->wiphy->bands[band] = sband;
 	}
