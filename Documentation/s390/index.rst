@@ -7,7 +7,6 @@ s390 Architecture
 
     cds
     3270
-    debugging390
     driver-model
     monreader
     qeth
