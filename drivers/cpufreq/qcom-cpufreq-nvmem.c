@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
 #include <linux/soc/qcom/smem.h>
@@ -49,10 +50,12 @@ struct qcom_cpufreq_match_data {
 	int (*get_version)(struct device *cpu_dev,
 			   struct nvmem_cell *speedbin_nvmem,
 			   struct qcom_cpufreq_drv *drv);
+	const char **genpd_names;
 };
 
 struct qcom_cpufreq_drv {
 	struct opp_table **opp_tables;
+	struct opp_table **genpd_opp_tables;
 	u32 versions;
 	const struct qcom_cpufreq_match_data *data;
 };
@@ -126,6 +129,12 @@ static const struct qcom_cpufreq_match_data match_data_kryo = {
 	.get_version = qcom_cpufreq_kryo_name_version,
 };
 
+static const char *qcs404_genpd_names[] = { "cpr", NULL };
+
+static const struct qcom_cpufreq_match_data match_data_qcs404 = {
+	.genpd_names = qcs404_genpd_names,
+};
+
 static int qcom_cpufreq_probe(struct platform_device *pdev)
 {
 	struct qcom_cpufreq_drv *drv;
@@ -188,11 +197,19 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 		goto free_drv;
 	}
 
+	drv->genpd_opp_tables = kcalloc(num_possible_cpus(),
+					sizeof(*drv->genpd_opp_tables),
+					GFP_KERNEL);
+	if (!drv->genpd_opp_tables) {
+		ret = -ENOMEM;
+		goto free_opp;
+	}
+
 	for_each_possible_cpu(cpu) {
 		cpu_dev = get_cpu_device(cpu);
 		if (NULL == cpu_dev) {
 			ret = -ENODEV;
-			goto free_opp;
+			goto free_genpd_opp;
 		}
 
 		if (drv->data->get_version) {
@@ -203,7 +220,22 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 				ret = PTR_ERR(drv->opp_tables[cpu]);
 				dev_err(cpu_dev,
 					"Failed to set supported hardware\n");
-				goto free_opp;
+				goto free_genpd_opp;
+			}
+		}
+
+		if (drv->data->genpd_names) {
+			drv->genpd_opp_tables[cpu] =
+				dev_pm_opp_attach_genpd(cpu_dev,
+							drv->data->genpd_names,
+							NULL);
+			if (IS_ERR(drv->genpd_opp_tables[cpu])) {
+				ret = PTR_ERR(drv->genpd_opp_tables[cpu]);
+				if (ret != -EPROBE_DEFER)
+					dev_err(cpu_dev,
+						"Could not attach to pm_domain: %d\n",
+						ret);
+				goto free_genpd_opp;
 			}
 		}
 	}
@@ -218,6 +250,13 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 	ret = PTR_ERR(cpufreq_dt_pdev);
 	dev_err(cpu_dev, "Failed to register platform device\n");
 
+free_genpd_opp:
+	for_each_possible_cpu(cpu) {
+		if (IS_ERR_OR_NULL(drv->genpd_opp_tables[cpu]))
+			break;
+		dev_pm_opp_detach_genpd(drv->genpd_opp_tables[cpu]);
+	}
+	kfree(drv->genpd_opp_tables);
 free_opp:
 	for_each_possible_cpu(cpu) {
 		if (IS_ERR_OR_NULL(drv->opp_tables[cpu]))
@@ -238,11 +277,15 @@ static int qcom_cpufreq_remove(struct platform_device *pdev)
 
 	platform_device_unregister(cpufreq_dt_pdev);
 
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu(cpu) {
 		if (drv->opp_tables[cpu])
 			dev_pm_opp_put_supported_hw(drv->opp_tables[cpu]);
+		if (drv->genpd_opp_tables[cpu])
+			dev_pm_opp_detach_genpd(drv->genpd_opp_tables[cpu]);
+	}
 
 	kfree(drv->opp_tables);
+	kfree(drv->genpd_opp_tables);
 	kfree(drv);
 
 	return 0;
@@ -259,6 +302,7 @@ static struct platform_driver qcom_cpufreq_driver = {
 static const struct of_device_id qcom_cpufreq_match_list[] __initconst = {
 	{ .compatible = "qcom,apq8096", .data = &match_data_kryo },
 	{ .compatible = "qcom,msm8996", .data = &match_data_kryo },
+	{ .compatible = "qcom,qcs404", .data = &match_data_qcs404 },
 	{},
 };
 
