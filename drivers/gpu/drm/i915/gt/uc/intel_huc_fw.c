@@ -34,10 +34,17 @@ void intel_huc_fw_init_early(struct intel_huc *huc)
 	intel_uc_fw_init_early(&huc->fw, INTEL_UC_FW_TYPE_HUC, huc_to_gt(huc)->i915);
 }
 
-static int huc_xfer_ucode(struct intel_huc *huc)
+/**
+ * huc_fw_xfer() - DMA's the firmware
+ * @huc_fw: the firmware descriptor
+ *
+ * Transfer the firmware image to RAM for execution by the microcontroller.
+ *
+ * Return: 0 on success, non-zero on failure
+ */
+static int huc_fw_xfer(struct intel_uc_fw *huc_fw, struct intel_gt *gt)
 {
-	struct intel_uc_fw *huc_fw = &huc->fw;
-	struct intel_uncore *uncore = huc_to_gt(huc)->uncore;
+	struct intel_uncore *uncore = gt->uncore;
 	unsigned long offset = 0;
 	u32 size;
 	int ret;
@@ -47,7 +54,7 @@ static int huc_xfer_ucode(struct intel_huc *huc)
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
 	/* Set the source address for the uCode */
-	offset = intel_uc_fw_ggtt_offset(huc_fw) +
+	offset = intel_uc_fw_ggtt_offset(huc_fw, gt->ggtt) +
 		 huc_fw->header_offset;
 	intel_uncore_write(uncore, DMA_ADDR_0_LOW,
 			   lower_32_bits(offset));
@@ -82,21 +89,6 @@ static int huc_xfer_ucode(struct intel_huc *huc)
 }
 
 /**
- * huc_fw_xfer() - DMA's the firmware
- * @huc_fw: the firmware descriptor
- *
- * Transfer the firmware image to RAM for execution by the microcontroller.
- *
- * Return: 0 on success, non-zero on failure
- */
-static int huc_fw_xfer(struct intel_uc_fw *huc_fw)
-{
-	struct intel_huc *huc = container_of(huc_fw, struct intel_huc, fw);
-
-	return huc_xfer_ucode(huc);
-}
-
-/**
  * intel_huc_fw_upload() - load HuC uCode to device
  * @huc: intel_huc structure
  *
@@ -110,5 +102,5 @@ static int huc_fw_xfer(struct intel_uc_fw *huc_fw)
  */
 int intel_huc_fw_upload(struct intel_huc *huc)
 {
-	return intel_uc_fw_upload(&huc->fw, huc_fw_xfer);
+	return intel_uc_fw_upload(&huc->fw, huc_to_gt(huc), huc_fw_xfer);
 }

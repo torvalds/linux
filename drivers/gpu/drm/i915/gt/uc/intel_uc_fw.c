@@ -321,12 +321,13 @@ fail:
 	release_firmware(fw);		/* OK even if fw is NULL */
 }
 
-static void intel_uc_fw_ggtt_bind(struct intel_uc_fw *uc_fw)
+static void intel_uc_fw_ggtt_bind(struct intel_uc_fw *uc_fw,
+				  struct intel_gt *gt)
 {
 	struct drm_i915_gem_object *obj = uc_fw->obj;
-	struct i915_ggtt *ggtt = &to_i915(obj->base.dev)->ggtt;
+	struct i915_ggtt *ggtt = gt->ggtt;
 	struct i915_vma dummy = {
-		.node.start = intel_uc_fw_ggtt_offset(uc_fw),
+		.node.start = intel_uc_fw_ggtt_offset(uc_fw, ggtt),
 		.node.size = obj->base.size,
 		.pages = obj->mm.pages,
 		.vm = &ggtt->vm,
@@ -341,11 +342,12 @@ static void intel_uc_fw_ggtt_bind(struct intel_uc_fw *uc_fw)
 	ggtt->vm.insert_entries(&ggtt->vm, &dummy, I915_CACHE_NONE, 0);
 }
 
-static void intel_uc_fw_ggtt_unbind(struct intel_uc_fw *uc_fw)
+static void intel_uc_fw_ggtt_unbind(struct intel_uc_fw *uc_fw,
+				    struct intel_gt *gt)
 {
 	struct drm_i915_gem_object *obj = uc_fw->obj;
-	struct i915_ggtt *ggtt = &to_i915(obj->base.dev)->ggtt;
-	u64 start = intel_uc_fw_ggtt_offset(uc_fw);
+	struct i915_ggtt *ggtt = gt->ggtt;
+	u64 start = intel_uc_fw_ggtt_offset(uc_fw, ggtt);
 
 	ggtt->vm.clear_range(&ggtt->vm, start, obj->base.size);
 }
@@ -353,14 +355,15 @@ static void intel_uc_fw_ggtt_unbind(struct intel_uc_fw *uc_fw)
 /**
  * intel_uc_fw_upload - load uC firmware using custom loader
  * @uc_fw: uC firmware
+ * @gt: the intel_gt structure
  * @xfer: custom uC firmware loader function
  *
  * Loads uC firmware using custom loader and updates internal flags.
  *
  * Return: 0 on success, non-zero on failure.
  */
-int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
-		       int (*xfer)(struct intel_uc_fw *uc_fw))
+int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
+		       int (*xfer)(struct intel_uc_fw *uc_fw, struct intel_gt *gt))
 {
 	int err;
 
@@ -373,9 +376,9 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 	if (!intel_uc_fw_is_available(uc_fw))
 		return -ENOEXEC;
 	/* Call custom loader */
-	intel_uc_fw_ggtt_bind(uc_fw);
-	err = xfer(uc_fw);
-	intel_uc_fw_ggtt_unbind(uc_fw);
+	intel_uc_fw_ggtt_bind(uc_fw, gt);
+	err = xfer(uc_fw, gt);
+	intel_uc_fw_ggtt_unbind(uc_fw, gt);
 	if (err)
 		goto fail;
 
@@ -427,10 +430,8 @@ void intel_uc_fw_fini(struct intel_uc_fw *uc_fw)
 	i915_gem_object_unpin_pages(uc_fw->obj);
 }
 
-u32 intel_uc_fw_ggtt_offset(struct intel_uc_fw *uc_fw)
+u32 intel_uc_fw_ggtt_offset(struct intel_uc_fw *uc_fw, struct i915_ggtt *ggtt)
 {
-	struct drm_i915_private *i915 = to_i915(uc_fw->obj->base.dev);
-	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct drm_mm_node *node = &ggtt->uc_fw;
 
 	GEM_BUG_ON(!node->allocated);

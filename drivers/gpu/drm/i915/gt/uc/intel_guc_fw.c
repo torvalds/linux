@@ -42,10 +42,8 @@ void intel_guc_fw_init_early(struct intel_guc *guc)
 	intel_uc_fw_init_early(&guc->fw, INTEL_UC_FW_TYPE_GUC, guc_to_gt(guc)->i915);
 }
 
-static void guc_prepare_xfer(struct intel_guc *guc)
+static void guc_prepare_xfer(struct intel_uncore *uncore)
 {
-	struct intel_gt *gt = guc_to_gt(guc);
-	struct intel_uncore *uncore = gt->uncore;
 	u32 shim_flags = GUC_DISABLE_SRAM_INIT_TO_ZEROES |
 			 GUC_ENABLE_READ_CACHE_LOGIC |
 			 GUC_ENABLE_MIA_CACHING |
@@ -56,12 +54,12 @@ static void guc_prepare_xfer(struct intel_guc *guc)
 	/* Must program this register before loading the ucode with DMA */
 	intel_uncore_write(uncore, GUC_SHIM_CONTROL, shim_flags);
 
-	if (IS_GEN9_LP(gt->i915))
+	if (IS_GEN9_LP(uncore->i915))
 		intel_uncore_write(uncore, GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 	else
 		intel_uncore_write(uncore, GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 
-	if (IS_GEN(gt->i915, 9)) {
+	if (IS_GEN(uncore->i915, 9)) {
 		/* DOP Clock Gating Enable for GuC clocks */
 		intel_uncore_rmw(uncore, GEN7_MISCCPCTL,
 				 0, GEN8_DOP_CLOCK_GATE_GUC_ENABLE);
@@ -72,14 +70,14 @@ static void guc_prepare_xfer(struct intel_guc *guc)
 }
 
 /* Copy RSA signature from the fw image to HW for verification */
-static void guc_xfer_rsa(struct intel_guc *guc)
+static void guc_xfer_rsa(struct intel_uc_fw *guc_fw,
+			 struct intel_uncore *uncore)
 {
-	struct intel_uncore *uncore = guc_to_gt(guc)->uncore;
 	u32 rsa[UOS_RSA_SCRATCH_COUNT];
 	size_t copied;
 	int i;
 
-	copied = intel_uc_fw_copy_rsa(&guc->fw, rsa, sizeof(rsa));
+	copied = intel_uc_fw_copy_rsa(guc_fw, rsa, sizeof(rsa));
 	GEM_BUG_ON(copied < sizeof(rsa));
 
 	for (i = 0; i < UOS_RSA_SCRATCH_COUNT; i++)
@@ -155,10 +153,10 @@ static int guc_wait_ucode(struct intel_uncore *uncore)
  * transfer between GTT locations. This functionality is left out of the API
  * for now as there is no need for it.
  */
-static int guc_xfer_ucode(struct intel_guc *guc)
+static int guc_xfer_ucode(struct intel_uc_fw *guc_fw,
+			  struct intel_gt *gt)
 {
-	struct intel_uncore *uncore = guc_to_gt(guc)->uncore;
-	struct intel_uc_fw *guc_fw = &guc->fw;
+	struct intel_uncore *uncore = gt->uncore;
 	unsigned long offset;
 
 	/*
@@ -169,7 +167,7 @@ static int guc_xfer_ucode(struct intel_guc *guc)
 			   guc_fw->header_size + guc_fw->ucode_size);
 
 	/* Set the source address for the new blob */
-	offset = intel_uc_fw_ggtt_offset(guc_fw) + guc_fw->header_offset;
+	offset = intel_uc_fw_ggtt_offset(guc_fw, gt->ggtt) + guc_fw->header_offset;
 	intel_uncore_write(uncore, DMA_ADDR_0_LOW, lower_32_bits(offset));
 	intel_uncore_write(uncore, DMA_ADDR_0_HIGH, upper_32_bits(offset) & 0xFFFF);
 
@@ -189,26 +187,25 @@ static int guc_xfer_ucode(struct intel_guc *guc)
 /*
  * Load the GuC firmware blob into the MinuteIA.
  */
-static int guc_fw_xfer(struct intel_uc_fw *guc_fw)
+static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct intel_gt *gt)
 {
-	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
-	struct intel_uncore *uncore = guc_to_gt(guc)->uncore;
+	struct intel_uncore *uncore = gt->uncore;
 	int ret;
 
 	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
 
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
-	guc_prepare_xfer(guc);
+	guc_prepare_xfer(uncore);
 
 	/*
 	 * Note that GuC needs the CSS header plus uKernel code to be copied
 	 * by the DMA engine in one operation, whereas the RSA signature is
 	 * loaded via MMIO.
 	 */
-	guc_xfer_rsa(guc);
+	guc_xfer_rsa(guc_fw, uncore);
 
-	ret = guc_xfer_ucode(guc);
+	ret = guc_xfer_ucode(guc_fw, gt);
 
 	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 
@@ -229,7 +226,7 @@ static int guc_fw_xfer(struct intel_uc_fw *guc_fw)
  */
 int intel_guc_fw_upload(struct intel_guc *guc)
 {
-	int ret = intel_uc_fw_upload(&guc->fw, guc_fw_xfer);
+	int ret = intel_uc_fw_upload(&guc->fw, guc_to_gt(guc), guc_fw_xfer);
 	if (!ret)
 		guc->fw.status = INTEL_UC_FIRMWARE_RUNNING;
 

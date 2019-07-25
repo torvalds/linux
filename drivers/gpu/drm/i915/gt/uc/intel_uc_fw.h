@@ -30,6 +30,8 @@
 
 struct drm_printer;
 struct drm_i915_private;
+struct intel_gt;
+struct i915_ggtt;
 
 /* Home of GuC, HuC and DMC firmwares */
 #define INTEL_UC_FIRMWARE_URL "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/tree/i915"
@@ -171,11 +173,11 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 void intel_uc_fw_fetch(struct drm_i915_private *i915,
 		       struct intel_uc_fw *uc_fw);
 void intel_uc_fw_cleanup_fetch(struct intel_uc_fw *uc_fw);
-int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
-		       int (*xfer)(struct intel_uc_fw *uc_fw));
+int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
+		       int (*xfer)(struct intel_uc_fw *uc_fw, struct intel_gt *gt));
 int intel_uc_fw_init(struct intel_uc_fw *uc_fw);
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw);
-u32 intel_uc_fw_ggtt_offset(struct intel_uc_fw *uc_fw);
+u32 intel_uc_fw_ggtt_offset(struct intel_uc_fw *uc_fw, struct i915_ggtt *ggtt);
 size_t intel_uc_fw_copy_rsa(struct intel_uc_fw *uc_fw, void *dst, u32 max_len);
 void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p);
 
