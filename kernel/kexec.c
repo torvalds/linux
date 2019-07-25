@@ -3139,6 +3139,9 @@ void efi_setup_configuration_tables( efi_system_table_t *systab )
         efi_remap_ram_used_by_tables();
 }
 
+CHAR16 fw_vendor_wchar[256];
+char *fw_vendor = "U-ROOT_Fake_Firmware";
+
 static void hook_boot_services( efi_system_table_t *systab )
 
 {
@@ -3159,6 +3162,13 @@ static void hook_boot_services( efi_system_table_t *systab )
                 systab_blob += 1;
         }
 
+        efi_set_wstring_from_ascii( fw_vendor_wchar, fw_vendor,
+                                    sizeof(fw_vendor_wchar) );
+
+        systab->fw_vendor      =
+                        (unsigned long)efi_map_11_and_register_allocation(
+                                                fw_vendor_wchar,
+                                                sizeof(fw_vendor_wchar));
         systab->con_in_handle  = CON_IN_HANDLE;
         systab->con_in         = 0xdeadbeefcafe0001;
         systab->con_out_handle = 0xdeadbeefcafebabe;
