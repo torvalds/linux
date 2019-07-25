@@ -846,7 +846,8 @@ static inline int default_congestion_kb(void)
 }
 
 
-
+/* super.c */
+extern int ceph_force_reconnect(struct super_block *sb);
 /* snap.c */
 struct ceph_snap_realm *ceph_lookup_snap_realm(struct ceph_mds_client *mdsc,
 					       u64 ino);

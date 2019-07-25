@@ -829,7 +829,6 @@ static void ceph_umount_begin(struct super_block *sb)
 	fsc->mount_state = CEPH_MOUNT_SHUTDOWN;
 	ceph_osdc_abort_requests(&fsc->client->osdc, -EIO);
 	ceph_mdsc_force_umount(fsc->mdsc);
-	return;
 }
 
 static int ceph_remount(struct super_block *sb, int *flags, char *data)
@@ -1151,6 +1150,31 @@ static struct file_system_type ceph_fs_type = {
 	.fs_flags	= FS_RENAME_DOES_D_MOVE,
 };
 MODULE_ALIAS_FS("ceph");
+
+int ceph_force_reconnect(struct super_block *sb)
+{
+	struct ceph_fs_client *fsc = ceph_sb_to_client(sb);
+	int err = 0;
+
+	ceph_umount_begin(sb);
+
+	/* Make sure all page caches get invalidated.
+	 * see remove_session_caps_cb() */
+	flush_workqueue(fsc->inode_wq);
+
+	/* In case that we were blacklisted. This also reset
+	 * all mon/osd connections */
+	ceph_reset_client_addr(fsc->client);
+
+	ceph_osdc_clear_abort_err(&fsc->client->osdc);
+	fsc->mount_state = CEPH_MOUNT_MOUNTED;
+
+	if (sb->s_root) {
+		err = __ceph_do_getattr(d_inode(sb->s_root), NULL,
+					CEPH_STAT_CAP_INODE, true);
+	}
+	return err;
+}
 
 static int __init init_ceph(void)
 {
