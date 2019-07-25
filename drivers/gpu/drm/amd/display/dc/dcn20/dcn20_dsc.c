@@ -175,11 +175,13 @@ static bool dsc2_validate_stream(struct display_stream_compressor *dsc, const st
 
 static void dsc_config_log(struct display_stream_compressor *dsc, const struct dsc_config *config)
 {
-	DC_LOG_DSC("\n\tnum_slices_h %d\n\tnum_slices_v %d\n\tbits_per_pixel %d\n\tcolor_depth %d",
-		config->dc_dsc_cfg.num_slices_h,
-		config->dc_dsc_cfg.num_slices_v,
+	DC_LOG_DSC("\tnum_slices_h %d", config->dc_dsc_cfg.num_slices_h);
+	DC_LOG_DSC("\tnum_slices_v %d", config->dc_dsc_cfg.num_slices_v);
+	DC_LOG_DSC("\tbits_per_pixel %d (%d.%04d)",
 		config->dc_dsc_cfg.bits_per_pixel,
-		config->color_depth);
+		config->dc_dsc_cfg.bits_per_pixel / 16,
+		((config->dc_dsc_cfg.bits_per_pixel % 16) * 10000) / 16);
+	DC_LOG_DSC("\tcolor_depth %d", config->color_depth);
 }
 
 static void dsc2_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
@@ -188,6 +190,7 @@ static void dsc2_set_config(struct display_stream_compressor *dsc, const struct 
 	bool is_config_ok;
 	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
 
+	DC_LOG_DSC(" ");
 	DC_LOG_DSC("Setting DSC Config at DSC inst %d", dsc->inst);
 	dsc_config_log(dsc, dsc_cfg);
 	is_config_ok = dsc_prepare_config(dsc_cfg, &dsc20->reg_vals, dsc_optc_cfg);
@@ -204,8 +207,9 @@ static bool dsc2_get_packed_pps(struct display_stream_compressor *dsc, const str
 	struct dsc_reg_values dsc_reg_vals;
 	struct dsc_optc_config dsc_optc_cfg;
 
-	DC_LOG_DSC("Packed DSC PPS for DSC Config:");
+	DC_LOG_DSC("Getting packed DSC PPS for DSC Config:");
 	dsc_config_log(dsc, dsc_cfg);
+	DC_LOG_DSC("DSC Picture Parameter Set (PPS):");
 	is_config_ok = dsc_prepare_config(dsc_cfg, &dsc_reg_vals, &dsc_optc_cfg);
 	ASSERT(is_config_ok);
 	drm_dsc_pps_payload_pack((struct drm_dsc_picture_parameter_set *)dsc_packed_pps, &dsc_reg_vals.pps);

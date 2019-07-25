@@ -342,10 +342,22 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 static void dsc_optc_config_log(struct display_stream_compressor *dsc,
 		struct dsc_optc_config *config)
 {
-	DC_LOG_DSC("Setting optc DSC config at DSC inst %d", dsc->inst);
-	DC_LOG_DSC("\n\tbytes_per_pixel %d\n\tis_pixel_format_444 %d\n\tslice_width %d",
-			config->bytes_per_pixel,
-			config->is_pixel_format_444, config->slice_width);
+	uint32_t precision = 1 << 28;
+	uint32_t bytes_per_pixel_int = config->bytes_per_pixel / precision;
+	uint32_t bytes_per_pixel_mod = config->bytes_per_pixel % precision;
+	uint64_t ll_bytes_per_pix_fraq = bytes_per_pixel_mod;
+
+	/* 7 fractional digits decimal precision for bytes per pixel is enough because DSC
+	 * bits per pixel precision is 1/16th of a pixel, which means bytes per pixel precision is
+	 * 1/16/8 = 1/128 of a byte, or 0.0078125 decimal
+	 */
+	ll_bytes_per_pix_fraq *= 10000000;
+	ll_bytes_per_pix_fraq /= precision;
+
+	DC_LOG_DSC("\tbytes_per_pixel 0x%08x (%d.%07d)",
+			config->bytes_per_pixel, bytes_per_pixel_int, (uint32_t)ll_bytes_per_pix_fraq);
+	DC_LOG_DSC("\tis_pixel_format_444 %d", config->is_pixel_format_444);
+	DC_LOG_DSC("\tslice_width %d", config->slice_width);
 }
 
 static bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable)
@@ -400,17 +412,21 @@ void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 
 		optc_dsc_mode = dsc_optc_cfg.is_pixel_format_444 ? OPTC_DSC_ENABLED_444 : OPTC_DSC_ENABLED_NATIVE_SUBSAMPLED;
 
-		dsc_optc_config_log(dsc, &dsc_optc_cfg);
 		/* Enable DSC in encoder */
-		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment))
+		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+			DC_LOG_DSC("Setting stream encoder DSC config for engine %d:", (int)pipe_ctx->stream_res.stream_enc->id);
+			dsc_optc_config_log(dsc, &dsc_optc_cfg);
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(pipe_ctx->stream_res.stream_enc,
 									optc_dsc_mode,
 									dsc_optc_cfg.bytes_per_pixel,
 									dsc_optc_cfg.slice_width);
 
 			/* PPS SDP is set elsewhere because it has to be done after DIG FE is connected to DIG BE */
+		}
 
 		/* Enable DSC in OPTC */
+		DC_LOG_DSC("Setting optc DSC config for tg instance %d:", pipe_ctx->stream_res.tg->inst);
+		dsc_optc_config_log(dsc, &dsc_optc_cfg);
 		pipe_ctx->stream_res.tg->funcs->set_dsc_config(pipe_ctx->stream_res.tg,
 							optc_dsc_mode,
 							dsc_optc_cfg.bytes_per_pixel,
@@ -482,13 +498,15 @@ bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable)
 		dsc_cfg.color_depth = stream->timing.display_color_depth;
 		dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
 
+		DC_LOG_DSC(" ");
 		dsc->funcs->dsc_get_packed_pps(dsc, &dsc_cfg, &dsc_packed_pps[0]);
-		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment))
+		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+			DC_LOG_DSC("Setting stream encoder DSC PPS SDP for engine %d\n", (int)pipe_ctx->stream_res.stream_enc->id);
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
 									pipe_ctx->stream_res.stream_enc,
 									true,
 									&dsc_packed_pps[0]);
-
+		}
 	} else {
 		/* disable DSC PPS in stream encoder */
 		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
