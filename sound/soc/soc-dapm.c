@@ -684,8 +684,8 @@ int snd_soc_dapm_force_bias_level(struct snd_soc_dapm_context *dapm,
 {
 	int ret = 0;
 
-	if (dapm->set_bias_level)
-		ret = dapm->set_bias_level(dapm, level);
+	if (dapm->component)
+		ret = snd_soc_component_set_bias_level(dapm->component, level);
 
 	if (ret == 0)
 		dapm->bias_level = level;

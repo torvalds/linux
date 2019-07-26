@@ -285,6 +285,8 @@ void snd_soc_component_seq_notifier(struct snd_soc_component *component,
 				    enum snd_soc_dapm_type type, int subseq);
 int snd_soc_component_stream_event(struct snd_soc_component *component,
 				   int event);
+int snd_soc_component_set_bias_level(struct snd_soc_component *component,
+				     enum snd_soc_bias_level level);
 
 #ifdef CONFIG_REGMAP
 void snd_soc_component_init_regmap(struct snd_soc_component *component,

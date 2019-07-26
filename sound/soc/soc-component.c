@@ -68,6 +68,15 @@ int snd_soc_component_stream_event(struct snd_soc_component *component,
 	return 0;
 }
 
+int snd_soc_component_set_bias_level(struct snd_soc_component *component,
+				     enum snd_soc_bias_level level)
+{
+	if (component->driver->set_bias_level)
+		return component->driver->set_bias_level(component, level);
+
+	return 0;
+}
+
 int snd_soc_component_enable_pin(struct snd_soc_component *component,
 				 const char *pin)
 {
