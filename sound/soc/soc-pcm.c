@@ -2818,30 +2818,6 @@ static void soc_pcm_private_free(struct snd_pcm *pcm)
 	}
 }
 
-static struct page *soc_rtdcom_page(struct snd_pcm_substream *substream,
-				    unsigned long offset)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_component *component;
-	struct page *page;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->page)
-			continue;
-
-		/* FIXME. it returns 1st page now */
-		page = component->driver->ops->page(substream, offset);
-		if (page)
-			return page;
-	}
-
-	return NULL;
-}
-
 static int soc_rtdcom_mmap(struct snd_pcm_substream *substream,
 			   struct vm_area_struct *vma)
 {
@@ -2990,7 +2966,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		if (ops->copy_user)
 			rtd->ops.copy_user	= snd_soc_pcm_component_copy_user;
 		if (ops->page)
-			rtd->ops.page		= soc_rtdcom_page;
+			rtd->ops.page		= snd_soc_pcm_component_page;
 		if (ops->mmap)
 			rtd->ops.mmap		= soc_rtdcom_mmap;
 	}

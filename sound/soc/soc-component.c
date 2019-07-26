@@ -483,3 +483,26 @@ int snd_soc_pcm_component_copy_user(struct snd_pcm_substream *substream,
 
 	return -EINVAL;
 }
+
+struct page *snd_soc_pcm_component_page(struct snd_pcm_substream *substream,
+					unsigned long offset)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *component;
+	struct page *page;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		/* FIXME. it returns 1st page now */
+		if (component->driver->ops &&
+		    component->driver->ops->page) {
+			page = component->driver->ops->page(substream, offset);
+			if (page)
+				return page;
+		}
+	}
+
+	return NULL;
+}

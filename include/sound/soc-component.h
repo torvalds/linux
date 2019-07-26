@@ -377,5 +377,7 @@ int snd_soc_pcm_component_ioctl(struct snd_pcm_substream *substream,
 int snd_soc_pcm_component_copy_user(struct snd_pcm_substream *substream,
 				    int channel, unsigned long pos,
 				    void __user *buf, unsigned long bytes);
+struct page *snd_soc_pcm_component_page(struct snd_pcm_substream *substream,
+					unsigned long offset);
 
 #endif /* __SOC_COMPONENT_H */
