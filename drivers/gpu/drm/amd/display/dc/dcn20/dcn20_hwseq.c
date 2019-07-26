@@ -630,9 +630,11 @@ static void dcn20_init_hw(struct dc *dc)
 		}
 	}
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	/* Power gate DSCs */
 	for (i = 0; i < res_pool->res_cap->num_dsc; i++)
 		dcn20_dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
+#endif
 
 	/* Blank pixel data with OPP DPG */
 	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
