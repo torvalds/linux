@@ -164,7 +164,6 @@ enum hmm_pfn_value_e {
  */
 struct hmm_range {
 	struct hmm		*hmm;
-	struct vm_area_struct	*vma;
 	struct list_head	list;
 	unsigned long		start;
 	unsigned long		end;

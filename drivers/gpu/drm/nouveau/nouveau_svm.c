@@ -496,12 +496,12 @@ nouveau_range_fault(struct hmm_mirror *mirror, struct hmm_range *range)
 				 range->start, range->end,
 				 PAGE_SHIFT);
 	if (ret) {
-		up_read(&range->vma->vm_mm->mmap_sem);
+		up_read(&range->hmm->mm->mmap_sem);
 		return (int)ret;
 	}
 
 	if (!hmm_range_wait_until_valid(range, HMM_RANGE_DEFAULT_TIMEOUT)) {
-		up_read(&range->vma->vm_mm->mmap_sem);
+		up_read(&range->hmm->mm->mmap_sem);
 		return -EBUSY;
 	}
 
@@ -509,7 +509,7 @@ nouveau_range_fault(struct hmm_mirror *mirror, struct hmm_range *range)
 	if (ret <= 0) {
 		if (ret == 0)
 			ret = -EBUSY;
-		up_read(&range->vma->vm_mm->mmap_sem);
+		up_read(&range->hmm->mm->mmap_sem);
 		hmm_range_unregister(range);
 		return ret;
 	}
@@ -682,7 +682,6 @@ nouveau_svm_fault(struct nvif_notify *notify)
 			 args.i.p.addr + args.i.p.size, fn - fi);
 
 		/* Have HMM fault pages within the fault window to the GPU. */
-		range.vma = vma;
 		range.start = args.i.p.addr;
 		range.end = args.i.p.addr + args.i.p.size;
 		range.pfns = args.phys;
