@@ -525,3 +525,23 @@ int snd_soc_pcm_component_mmap(struct snd_pcm_substream *substream,
 
 	return -EINVAL;
 }
+
+int snd_soc_pcm_component_new(struct snd_pcm *pcm)
+{
+	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
+	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *component;
+	int ret;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		if (component->driver->pcm_new) {
+			ret = component->driver->pcm_new(rtd);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
+}

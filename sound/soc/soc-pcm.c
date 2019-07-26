@@ -2823,7 +2823,6 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 {
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_pcm *pcm;
 	char new_name[64];
@@ -2956,19 +2955,10 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	if (capture)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &rtd->ops);
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->pcm_new)
-			continue;
-
-		ret = component->driver->pcm_new(rtd);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"ASoC: pcm constructor failed: %d\n",
-				ret);
-			return ret;
-		}
+	ret = snd_soc_pcm_component_new(pcm);
+	if (ret < 0) {
+		dev_err(rtd->dev, "ASoC: pcm constructor failed: %d\n", ret);
+		return ret;
 	}
 
 	pcm->private_free = soc_pcm_private_free;
