@@ -1792,6 +1792,38 @@ static int gen8_modify_self(struct intel_context *ce,
 	return err;
 }
 
+static int gen8_configure_context(struct i915_gem_context *ctx,
+				  struct flex *flex, unsigned int count)
+{
+	struct i915_gem_engines_iter it;
+	struct intel_context *ce;
+	int err = 0;
+
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		GEM_BUG_ON(ce == ce->engine->kernel_context);
+
+		if (ce->engine->class != RENDER_CLASS)
+			continue;
+
+		err = intel_context_lock_pinned(ce);
+		if (err)
+			break;
+
+		flex->value = intel_sseu_make_rpcs(ctx->i915, &ce->sseu);
+
+		/* Otherwise OA settings will be set upon first use */
+		if (intel_context_is_pinned(ce))
+			err = gen8_modify_context(ce, flex, count);
+
+		intel_context_unlock_pinned(ce);
+		if (err)
+			break;
+	}
+	i915_gem_context_unlock_engines(ctx);
+
+	return err;
+}
+
 /*
  * Manages updating the per-context aspects of the OA stream
  * configuration across all contexts.
@@ -1846,7 +1878,6 @@ static int gen8_configure_all_contexts(struct drm_i915_private *i915,
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
-	int err;
 	int i;
 
 	for (i = 2; i < ARRAY_SIZE(regs); i++)
@@ -1871,35 +1902,12 @@ static int gen8_configure_all_contexts(struct drm_i915_private *i915,
 	 * trapped behind the barrier.
 	 */
 	list_for_each_entry(ctx, &i915->contexts.list, link) {
-		struct i915_gem_engines_iter it;
-		struct intel_context *ce;
+		int err;
 
 		if (ctx == i915->kernel_context)
 			continue;
 
-		for_each_gem_engine(ce,
-				    i915_gem_context_lock_engines(ctx),
-				    it) {
-			GEM_BUG_ON(ce == ce->engine->kernel_context);
-
-			if (ce->engine->class != RENDER_CLASS)
-				continue;
-
-			err = intel_context_lock_pinned(ce);
-			if (err)
-				break;
-
-			regs[0].value = intel_sseu_make_rpcs(i915, &ce->sseu);
-
-			/* Otherwise OA settings will be set upon first use */
-			if (intel_context_is_pinned(ce))
-				err = gen8_modify_context(ce, regs, ARRAY_SIZE(regs));
-
-			intel_context_unlock_pinned(ce);
-			if (err)
-				break;
-		}
-		i915_gem_context_unlock_engines(ctx);
+		err = gen8_configure_context(ctx, regs, ARRAY_SIZE(regs));
 		if (err)
 			return err;
 	}
@@ -1911,6 +1919,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *i915,
 	 */
 	for_each_engine(engine, i915, id) {
 		struct intel_context *ce = engine->kernel_context;
+		int err;
 
 		if (engine->class != RENDER_CLASS)
 			continue;
