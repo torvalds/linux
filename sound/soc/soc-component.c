@@ -52,6 +52,13 @@ int snd_soc_component_set_pll(struct snd_soc_component *component, int pll_id,
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_set_pll);
 
+void snd_soc_component_seq_notifier(struct snd_soc_component *component,
+				    enum snd_soc_dapm_type type, int subseq)
+{
+	if (component->driver->seq_notifier)
+		component->driver->seq_notifier(component, type, subseq);
+}
+
 int snd_soc_component_enable_pin(struct snd_soc_component *component,
 				 const char *pin)
 {

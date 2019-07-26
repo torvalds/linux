@@ -281,6 +281,9 @@ int snd_soc_component_set_pll(struct snd_soc_component *component, int pll_id,
 int snd_soc_component_set_jack(struct snd_soc_component *component,
 			       struct snd_soc_jack *jack, void *data);
 
+void snd_soc_component_seq_notifier(struct snd_soc_component *component,
+				    enum snd_soc_dapm_type type, int subseq);
+
 #ifdef CONFIG_REGMAP
 void snd_soc_component_init_regmap(struct snd_soc_component *component,
 				   struct regmap *regmap);

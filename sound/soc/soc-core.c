@@ -2646,14 +2646,6 @@ int snd_soc_register_dai(struct snd_soc_component *component,
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_dai);
 
-static void snd_soc_component_seq_notifier(struct snd_soc_dapm_context *dapm,
-	enum snd_soc_dapm_type type, int subseq)
-{
-	struct snd_soc_component *component = dapm->component;
-
-	component->driver->seq_notifier(component, type, subseq);
-}
-
 static int snd_soc_component_stream_event(struct snd_soc_dapm_context *dapm,
 	int event)
 {
@@ -2690,8 +2682,6 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	dapm->bias_level = SND_SOC_BIAS_OFF;
 	dapm->idle_bias_off = !driver->idle_bias_on;
 	dapm->suspend_bias_off = driver->suspend_bias_off;
-	if (driver->seq_notifier)
-		dapm->seq_notifier = snd_soc_component_seq_notifier;
 	if (driver->stream_event)
 		dapm->stream_event = snd_soc_component_stream_event;
 	if (driver->set_bias_level)
