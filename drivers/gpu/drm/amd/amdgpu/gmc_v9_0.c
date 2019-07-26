@@ -607,6 +607,9 @@ static uint64_t gmc_v9_0_get_vm_pte_flags(struct amdgpu_device *adev,
 	case AMDGPU_VM_MTYPE_WC:
 		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_WC);
 		break;
+	case AMDGPU_VM_MTYPE_RW:
+		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_RW);
+		break;
 	case AMDGPU_VM_MTYPE_CC:
 		pte_flag |= AMDGPU_PTE_MTYPE_VG10(MTYPE_CC);
 		break;
