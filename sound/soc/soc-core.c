@@ -503,7 +503,7 @@ int snd_soc_suspend(struct device *dev)
 		 * If there are paths active then the COMPONENT will be held
 		 * with bias _ON and should not be suspended.
 		 */
-		if (!component->suspended) {
+		if (!snd_soc_component_is_suspended(component)) {
 			switch (snd_soc_dapm_get_bias_level(dapm)) {
 			case SND_SOC_BIAS_STANDBY:
 				/*
@@ -592,9 +592,8 @@ static void soc_resume_deferred(struct work_struct *work)
 	}
 
 	for_each_card_components(card, component) {
-		if (component->suspended) {
+		if (snd_soc_component_is_suspended(component))
 			snd_soc_component_resume(component);
-		}
 	}
 
 	for_each_card_rtds(card, rtd) {
