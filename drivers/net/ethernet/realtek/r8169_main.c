@@ -569,6 +569,11 @@ enum rtl_rx_desc_bit {
 
 #define RsvdMask	0x3fffc000
 
+#define RTL_GSO_MAX_SIZE_V1	32000
+#define RTL_GSO_MAX_SEGS_V1	24
+#define RTL_GSO_MAX_SIZE_V2	64000
+#define RTL_GSO_MAX_SEGS_V2	64
+
 struct TxDesc {
 	__le32 opts1;
 	__le32 opts2;
@@ -6919,8 +6924,14 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/* Disallow toggling */
 		dev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_RX;
 
-	if (rtl_chip_supports_csum_v2(tp))
+	if (rtl_chip_supports_csum_v2(tp)) {
 		dev->hw_features |= NETIF_F_IPV6_CSUM | NETIF_F_TSO6;
+		dev->gso_max_size = RTL_GSO_MAX_SIZE_V2;
+		dev->gso_max_segs = RTL_GSO_MAX_SEGS_V2;
+	} else {
+		dev->gso_max_size = RTL_GSO_MAX_SIZE_V1;
+		dev->gso_max_segs = RTL_GSO_MAX_SEGS_V1;
+	}
 
 	dev->hw_features |= NETIF_F_RXALL;
 	dev->hw_features |= NETIF_F_RXFCS;
