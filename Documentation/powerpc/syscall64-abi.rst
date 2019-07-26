@@ -5,12 +5,12 @@ Power Architecture 64-bit Linux system call ABI
 syscall
 =======
 
-syscall calling sequence[*] matches the Power Architecture 64-bit ELF ABI
+syscall calling sequence\ [1]_ matches the Power Architecture 64-bit ELF ABI
 specification C function calling sequence, including register preservation
 rules, with the following differences.
 
-[*] Some syscalls (typically low-level management functions) may have
-    different calling sequences (e.g., rt_sigreturn).
+.. [1] Some syscalls (typically low-level management functions) may have
+       different calling sequences (e.g., rt_sigreturn).
 
 Parameters and return value
 ---------------------------
@@ -33,12 +33,14 @@ Register preservation rules
 Register preservation rules match the ELF ABI calling sequence with the
 following differences:
 
-r0:         Volatile.   (System call number.)
-r3:         Volatile.   (Parameter 1, and return value.)
-r4-r8:      Volatile.   (Parameters 2-6.)
-cr0:        Volatile    (cr0.SO is the return error condition)
-cr1, cr5-7: Nonvolatile.
-lr:         Nonvolatile.
+=========== ============= ========================================
+r0          Volatile      (System call number.)
+r3          Volatile      (Parameter 1, and return value.)
+r4-r8       Volatile      (Parameters 2-6.)
+cr0         Volatile      (cr0.SO is the return error condition)
+cr1, cr5-7  Nonvolatile
+lr          Nonvolatile
+=========== ============= ========================================
 
 All floating point and vector data registers as well as control and status
 registers are nonvolatile.
@@ -90,9 +92,12 @@ The vsyscall may or may not use the caller's stack frame save areas.
 
 Register preservation rules
 ---------------------------
-r0: Volatile.
-cr1, cr5-7: Volatile.
-lr: Volatile.
+
+=========== ========
+r0          Volatile
+cr1, cr5-7  Volatile
+lr          Volatile
+=========== ========
 
 Invocation
 ----------

@@ -1,5 +1,6 @@
-			DSCR (Data Stream Control Register)
-		================================================
+===================================
+DSCR (Data Stream Control Register)
+===================================
 
 DSCR register in powerpc allows user to have some control of prefetch of data
 stream in the processor. Please refer to the ISA documents or related manual
@@ -10,14 +11,17 @@ user interface.
 
 (A) Data Structures:
 
-	(1) thread_struct:
+	(1) thread_struct::
+
 		dscr		/* Thread DSCR value */
 		dscr_inherit	/* Thread has changed default DSCR */
 
-	(2) PACA:
+	(2) PACA::
+
 		dscr_default	/* per-CPU DSCR default value */
 
-	(3) sysfs.c:
+	(3) sysfs.c::
+
 		dscr_default	/* System DSCR default value */
 
 (B) Scheduler Changes:
@@ -35,8 +39,8 @@ user interface.
 
 (C) SYSFS Interface:
 
-	Global DSCR default:		/sys/devices/system/cpu/dscr_default
-	CPU specific DSCR default:	/sys/devices/system/cpu/cpuN/dscr
+	- Global DSCR default:		/sys/devices/system/cpu/dscr_default
+	- CPU specific DSCR default:	/sys/devices/system/cpu/cpuN/dscr
 
 	Changing the global DSCR default in the sysfs will change all the CPU
 	specific DSCR defaults immediately in their PACA structures. Again if

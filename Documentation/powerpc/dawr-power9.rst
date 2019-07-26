@@ -1,10 +1,11 @@
+=====================
 DAWR issues on POWER9
-============================
+=====================
 
 On POWER9 the Data Address Watchpoint Register (DAWR) can cause a checkstop
 if it points to cache inhibited (CI) memory. Currently Linux has no way to
 disinguish CI memory when configuring the DAWR, so (for now) the DAWR is
-disabled by this commit:
+disabled by this commit::
 
     commit 9654153158d3e0684a1bdb76dbababdb7111d5a0
     Author: Michael Neuling <mikey@neuling.org>
@@ -12,7 +13,7 @@ disabled by this commit:
     powerpc: Disable DAWR in the base POWER9 CPU features
 
 Technical Details:
-============================
+==================
 
 DAWR has 6 different ways of being set.
 1) ptrace
@@ -37,7 +38,7 @@ DAWR on the migration.
 For xmon, the 'bd' command will return an error on P9.
 
 Consequences for users
-============================
+======================
 
 For GDB watchpoints (ie 'watch' command) on POWER9 bare metal , GDB
 will accept the command. Unfortunately since there is no hardware
@@ -57,8 +58,8 @@ trapped in GDB. The watchpoint is remembered, so if the guest is
 migrated back to the POWER8 host, it will start working again.
 
 Force enabling the DAWR
-=============================
-Kernels (since ~v5.2) have an option to force enable the DAWR via:
+=======================
+Kernels (since ~v5.2) have an option to force enable the DAWR via::
 
   echo Y > /sys/kernel/debug/powerpc/dawr_enable_dangerous
 
@@ -86,5 +87,7 @@ dawr_enable_dangerous file will fail if the hypervisor doesn't support
 writing the DAWR.
 
 To double check the DAWR is working, run this kernel selftest:
+
   tools/testing/selftests/powerpc/ptrace/ptrace-hwbreak.c
+
 Any errors/failures/skips mean something is wrong.

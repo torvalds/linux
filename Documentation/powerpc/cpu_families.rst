@@ -1,3 +1,4 @@
+============
 CPU Families
 ============
 
@@ -8,8 +9,8 @@ and are supported by arch/powerpc.
 Book3S (aka sPAPR)
 ------------------
 
- - Hash MMU
- - Mix of 32 & 64 bit
+- Hash MMU
+- Mix of 32 & 64 bit::
 
    +--------------+                 +----------------+
    |  Old POWER   | --------------> | RS64 (threads) |
@@ -108,8 +109,8 @@ Book3S (aka sPAPR)
 IBM BookE
 ---------
 
- - Software loaded TLB.
- - All 32 bit
+- Software loaded TLB.
+- All 32 bit::
 
    +--------------+
    |     401      |
@@ -155,8 +156,8 @@ IBM BookE
 Motorola/Freescale 8xx
 ----------------------
 
- - Software loaded with hardware assist.
- - All 32 bit
+- Software loaded with hardware assist.
+- All 32 bit::
 
    +-------------+
    | MPC8xx Core |
@@ -166,9 +167,9 @@ Motorola/Freescale 8xx
 Freescale BookE
 ---------------
 
- - Software loaded TLB.
- - e6500 adds HW loaded indirect TLB entries.
- - Mix of 32 & 64 bit
+- Software loaded TLB.
+- e6500 adds HW loaded indirect TLB entries.
+- Mix of 32 & 64 bit::
 
    +--------------+
    |     e200     |
@@ -207,8 +208,8 @@ Freescale BookE
 IBM A2 core
 -----------
 
- - Book3E, software loaded TLB + HW loaded indirect TLB entries.
- - 64 bit
+- Book3E, software loaded TLB + HW loaded indirect TLB entries.
+- 64 bit::
 
    +--------------+     +----------------+
    |   A2 core    | --> |      WSP       |

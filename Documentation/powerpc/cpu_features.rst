@@ -1,3 +1,7 @@
+============
+CPU Features
+============
+
 Hollis Blanchard <hollis@austin.ibm.com>
 5 Jun 2002
 
@@ -32,7 +36,7 @@ anyways).
 After detecting the processor type, the kernel patches out sections of code
 that shouldn't be used by writing nop's over it. Using cpufeatures requires
 just 2 macros (found in arch/powerpc/include/asm/cputable.h), as seen in head.S
-transfer_to_handler:
+transfer_to_handler::
 
 	#ifdef CONFIG_ALTIVEC
 	BEGIN_FTR_SECTION

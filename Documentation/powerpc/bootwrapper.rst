@@ -1,5 +1,7 @@
+========================
 The PowerPC boot wrapper
-------------------------
+========================
+
 Copyright (C) Secret Lab Technologies Ltd.
 
 PowerPC image targets compresses and wraps the kernel image (vmlinux) with
@@ -21,6 +23,7 @@ it uses the wrapper script (arch/powerpc/boot/wrapper) to generate target
 image.  The details of the build system is discussed in the next section.
 Currently, the following image format targets exist:
 
+   ==================== ========================================================
    cuImage.%:		Backwards compatible uImage for older version of
 			U-Boot (for versions that don't understand the device
 			tree).  This image embeds a device tree blob inside
@@ -29,31 +32,36 @@ Currently, the following image format targets exist:
 			with boot wrapper code that extracts data from the old
 			bd_info structure and loads the data into the device
 			tree before jumping into the kernel.
-			  Because of the series of #ifdefs found in the
+
+			Because of the series of #ifdefs found in the
 			bd_info structure used in the old U-Boot interfaces,
 			cuImages are platform specific.  Each specific
 			U-Boot platform has a different platform init file
 			which populates the embedded device tree with data
 			from the platform specific bd_info file.  The platform
 			specific cuImage platform init code can be found in
-			arch/powerpc/boot/cuboot.*.c.  Selection of the correct
+			`arch/powerpc/boot/cuboot.*.c`. Selection of the correct
 			cuImage init code for a specific board can be found in
 			the wrapper structure.
+
    dtbImage.%:		Similar to zImage, except device tree blob is embedded
 			inside the image instead of provided by firmware.  The
 			output image file can be either an elf file or a flat
 			binary depending on the platform.
-			  dtbImages are used on systems which do not have an
+
+			dtbImages are used on systems which do not have an
 			interface for passing a device tree directly.
 			dtbImages are similar to simpleImages except that
 			dtbImages have platform specific code for extracting
 			data from the board firmware, but simpleImages do not
 			talk to the firmware at all.
-			  PlayStation 3 support uses dtbImage.  So do Embedded
+
+			PlayStation 3 support uses dtbImage.  So do Embedded
 			Planet boards using the PlanetCore firmware.  Board
 			specific initialization code is typically found in a
 			file named arch/powerpc/boot/<platform>.c; but this
 			can be overridden by the wrapper script.
+
    simpleImage.%:	Firmware independent compressed image that does not
 			depend on any particular firmware interface and embeds
 			a device tree blob.  This image is a flat binary that
@@ -61,14 +69,16 @@ Currently, the following image format targets exist:
 			Firmware cannot pass any configuration data to the
 			kernel with this image type and it depends entirely on
 			the embedded device tree for all information.
-			  The simpleImage is useful for booting systems with
+
+			The simpleImage is useful for booting systems with
 			an unknown firmware interface or for booting from
 			a debugger when no firmware is present (such as on
 			the Xilinx Virtex platform).  The only assumption that
 			simpleImage makes is that RAM is correctly initialized
 			and that the MMU is either off or has RAM mapped to
 			base address 0.
-			  simpleImage also supports inserting special platform
+
+			simpleImage also supports inserting special platform
 			specific initialization code to the start of the bootup
 			sequence.  The virtex405 platform uses this feature to
 			ensure that the cache is invalidated before caching
@@ -81,9 +91,11 @@ Currently, the following image format targets exist:
 			named (virtex405-<board>.dts).  Search the wrapper
 			script for 'virtex405' and see the file
 			arch/powerpc/boot/virtex405-head.S for details.
+
    treeImage.%;		Image format for used with OpenBIOS firmware found
 			on some ppc4xx hardware.  This image embeds a device
 			tree blob inside the image.
+
    uImage:		Native image format used by U-Boot.  The uImage target
 			does not add any boot code.  It just wraps a compressed
 			vmlinux in the uImage data structure.  This image
@@ -91,12 +103,14 @@ Currently, the following image format targets exist:
 			a device tree to the kernel at boot.  If using an older
 			version of U-Boot, then you need to use a cuImage
 			instead.
+
    zImage.%:		Image format which does not embed a device tree.
 			Used by OpenFirmware and other firmware interfaces
 			which are able to supply a device tree.  This image
 			expects firmware to provide the device tree at boot.
 			Typically, if you have general purpose PowerPC
 			hardware then you want this image format.
+   ==================== ========================================================
 
 Image types which embed a device tree blob (simpleImage, dtbImage, treeImage,
 and cuImage) all generate the device tree blob from a file in the

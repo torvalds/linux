@@ -1,6 +1,13 @@
+===================================================
+PCI Express I/O Virtualization Resource on Powerenv
+===================================================
+
 Wei Yang <weiyang@linux.vnet.ibm.com>
+
 Benjamin Herrenschmidt <benh@au1.ibm.com>
+
 Bjorn Helgaas <bhelgaas@google.com>
+
 26 Aug 2014
 
 This document describes the requirement from hardware for PCI MMIO resource
@@ -10,6 +17,7 @@ Endpoints and the implementation on P8 (IODA2). The next two sections talks
 about considerations on enabling SRIOV on IODA2.
 
 1. Introduction to Partitionable Endpoints
+==========================================
 
 A Partitionable Endpoint (PE) is a way to group the various resources
 associated with a device or a set of devices to provide isolation between
@@ -35,6 +43,7 @@ is a completely separate HW entity that replicates the entire logic, so has
 its own set of PEs, etc.
 
 2. Implementation of Partitionable Endpoints on P8 (IODA2)
+==========================================================
 
 P8 supports up to 256 Partitionable Endpoints per PHB.
 
@@ -149,6 +158,7 @@ P8 supports up to 256 Partitionable Endpoints per PHB.
     sense, but we haven't done it yet.
 
 3. Considerations for SR-IOV on PowerKVM
+========================================
 
   * SR-IOV Background
 
@@ -224,7 +234,7 @@ P8 supports up to 256 Partitionable Endpoints per PHB.
   IODA supports 256 PEs, so segmented windows contain 256 segments, so if
   total_VFs is less than 256, we have the situation in Figure 1.0, where
   segments [total_VFs, 255] of the M64 window may map to some MMIO range on
-  other devices:
+  other devices::
 
      0      1                     total_VFs - 1
      +------+------+-     -+------+------+
@@ -243,7 +253,7 @@ P8 supports up to 256 Partitionable Endpoints per PHB.
 		Figure 1.0 Direct map VF(n) BAR space
 
   Our current solution is to allocate 256 segments even if the VF(n) BAR
-  space doesn't need that much, as shown in Figure 1.1:
+  space doesn't need that much, as shown in Figure 1.1::
 
      0      1                     total_VFs - 1                255
      +------+------+-     -+------+------+-      -+------+------+
@@ -269,6 +279,7 @@ P8 supports up to 256 Partitionable Endpoints per PHB.
   responds to segments [total_VFs, 255].
 
 4. Implications for the Generic PCI Code
+========================================
 
 The PCIe SR-IOV spec requires that the base of the VF(n) BAR space be
 aligned to the size of an individual VF BAR.

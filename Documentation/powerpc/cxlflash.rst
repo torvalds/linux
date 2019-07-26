@@ -1,3 +1,7 @@
+================================
+Coherent Accelerator (CXL) Flash
+================================
+
 Introduction
 ============
 
@@ -28,7 +32,7 @@ Introduction
     responsible for the initialization of the adapter, setting up the
     special path for user space access, and performing error recovery. It
     communicates directly the Flash Accelerator Functional Unit (AFU)
-    as described in Documentation/powerpc/cxl.txt.
+    as described in Documentation/powerpc/cxl.rst.
 
     The cxlflash driver supports two, mutually exclusive, modes of
     operation at the device (LUN) level:
@@ -58,7 +62,7 @@ Overview
 
     The CXL Flash Adapter Driver establishes a master context with the
     AFU. It uses memory mapped I/O (MMIO) for this control and setup. The
-    Adapter Problem Space Memory Map looks like this:
+    Adapter Problem Space Memory Map looks like this::
 
                      +-------------------------------+
                      |    512 * 64 KB User MMIO      |
@@ -375,7 +379,7 @@ CXL Flash Driver Host IOCTLs
     Each host adapter instance that is supported by the cxlflash driver
     has a special character device associated with it to enable a set of
     host management function. These character devices are hosted in a
-    class dedicated for cxlflash and can be accessed via /dev/cxlflash/*.
+    class dedicated for cxlflash and can be accessed via `/dev/cxlflash/*`.
 
     Applications can be written to perform various functions using the
     host ioctl APIs below.

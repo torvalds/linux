@@ -1,10 +1,10 @@
+==========================
+PCI Bus EEH Error Recovery
+==========================
 
+Linas Vepstas <linas@austin.ibm.com>
 
-                      PCI Bus EEH Error Recovery
-                      --------------------------
-                           Linas Vepstas
-                       <linas@austin.ibm.com>
-                          12 January 2005
+12 January 2005
 
 
 Overview:
@@ -143,17 +143,17 @@ seen in /proc/ppc64/eeh (subject to change).  Normally, almost
 all of these occur during boot, when the PCI bus is scanned, where
 a large number of 0xff reads are part of the bus scan procedure.
 
-If a frozen slot is detected, code in 
-arch/powerpc/platforms/pseries/eeh.c will print a stack trace to 
-syslog (/var/log/messages).  This stack trace has proven to be very 
-useful to device-driver authors for finding out at what point the EEH 
-error was detected, as the error itself usually occurs slightly 
+If a frozen slot is detected, code in
+arch/powerpc/platforms/pseries/eeh.c will print a stack trace to
+syslog (/var/log/messages).  This stack trace has proven to be very
+useful to device-driver authors for finding out at what point the EEH
+error was detected, as the error itself usually occurs slightly
 beforehand.
 
 Next, it uses the Linux kernel notifier chain/work queue mechanism to
 allow any interested parties to find out about the failure.  Device
 drivers, or other parts of the kernel, can use
-eeh_register_notifier(struct notifier_block *) to find out about EEH
+`eeh_register_notifier(struct notifier_block *)` to find out about EEH
 events.  The event will include a pointer to the pci device, the
 device node and some state info.  Receivers of the event can "do as
 they wish"; the default handler will be described further in this
@@ -162,10 +162,13 @@ section.
 To assist in the recovery of the device, eeh.c exports the
 following functions:
 
-rtas_set_slot_reset() -- assert the  PCI #RST line for 1/8th of a second
-rtas_configure_bridge() -- ask firmware to configure any PCI bridges
+rtas_set_slot_reset()
+   assert the  PCI #RST line for 1/8th of a second
+rtas_configure_bridge()
+   ask firmware to configure any PCI bridges
    located topologically under the pci slot.
-eeh_save_bars() and eeh_restore_bars(): save and restore the PCI
+eeh_save_bars() and eeh_restore_bars():
+   save and restore the PCI
    config-space info for a device and any devices under it.
 
 
@@ -191,7 +194,7 @@ events get delivered to user-space scripts.
 
 Following is an example sequence of events that cause a device driver
 close function to be called during the first phase of an EEH reset.
-The following sequence is an example of the pcnet32 device driver.
+The following sequence is an example of the pcnet32 device driver::
 
     rpa_php_unconfig_pci_adapter (struct slot *)  // in rpaphp_pci.c
     {
@@ -241,53 +244,54 @@ The following sequence is an example of the pcnet32 device driver.
      }}}}}}
 
 
-    in drivers/pci/pci_driver.c,
-    struct device_driver->remove() is just pci_device_remove()
-    which calls struct pci_driver->remove() which is pcnet32_remove_one()
-    which calls unregister_netdev()  (in net/core/dev.c)
-    which calls dev_close()  (in net/core/dev.c)
-    which calls dev->stop() which is pcnet32_close()
-    which then does the appropriate shutdown.
+in drivers/pci/pci_driver.c,
+struct device_driver->remove() is just pci_device_remove()
+which calls struct pci_driver->remove() which is pcnet32_remove_one()
+which calls unregister_netdev()  (in net/core/dev.c)
+which calls dev_close()  (in net/core/dev.c)
+which calls dev->stop() which is pcnet32_close()
+which then does the appropriate shutdown.
 
 ---
-Following is the analogous stack trace for events sent to user-space
-when the pci device is unconfigured.
 
-rpa_php_unconfig_pci_adapter() {             // in rpaphp_pci.c
-  calls
-  pci_remove_bus_device (struct pci_dev *) { // in /drivers/pci/remove.c
+Following is the analogous stack trace for events sent to user-space
+when the pci device is unconfigured::
+
+  rpa_php_unconfig_pci_adapter() {             // in rpaphp_pci.c
     calls
-    pci_destroy_dev (struct pci_dev *) {
+    pci_remove_bus_device (struct pci_dev *) { // in /drivers/pci/remove.c
       calls
-      device_unregister (&dev->dev) {        // in /drivers/base/core.c
+      pci_destroy_dev (struct pci_dev *) {
         calls
-        device_del(struct device * dev) {    // in /drivers/base/core.c
+        device_unregister (&dev->dev) {        // in /drivers/base/core.c
           calls
-          kobject_del() {                    //in /libs/kobject.c
+          device_del(struct device * dev) {    // in /drivers/base/core.c
             calls
-            kobject_uevent() {               // in /libs/kobject.c
+            kobject_del() {                    //in /libs/kobject.c
               calls
-              kset_uevent() {                // in /lib/kobject.c
+              kobject_uevent() {               // in /libs/kobject.c
                 calls
-                kset->uevent_ops->uevent()   // which is really just
-                a call to
-                dev_uevent() {               // in /drivers/base/core.c
+                kset_uevent() {                // in /lib/kobject.c
                   calls
-                  dev->bus->uevent() which is really just a call to
-                  pci_uevent () {            // in drivers/pci/hotplug.c
-                    which prints device name, etc....
+                  kset->uevent_ops->uevent()   // which is really just
+                  a call to
+                  dev_uevent() {               // in /drivers/base/core.c
+                    calls
+                    dev->bus->uevent() which is really just a call to
+                    pci_uevent () {            // in drivers/pci/hotplug.c
+                      which prints device name, etc....
+                   }
                  }
-               }
-               then kobject_uevent() sends a netlink uevent to userspace
-               --> userspace uevent
-               (during early boot, nobody listens to netlink events and
-               kobject_uevent() executes uevent_helper[], which runs the
-               event process /sbin/hotplug)
+                 then kobject_uevent() sends a netlink uevent to userspace
+                 --> userspace uevent
+                 (during early boot, nobody listens to netlink events and
+                 kobject_uevent() executes uevent_helper[], which runs the
+                 event process /sbin/hotplug)
+             }
            }
-         }
-         kobject_del() then calls sysfs_remove_dir(), which would
-         trigger any user-space daemon that was watching /sysfs,
-         and notice the delete event.
+           kobject_del() then calls sysfs_remove_dir(), which would
+           trigger any user-space daemon that was watching /sysfs,
+           and notice the delete event.
 
 
 Pro's and Con's of the Current Design
@@ -299,12 +303,12 @@ individual device drivers, so that the current design throws a wide net.
 The biggest negative of the design is that it potentially disturbs
 network daemons and file systems that didn't need to be disturbed.
 
--- A minor complaint is that resetting the network card causes
+-  A minor complaint is that resetting the network card causes
    user-space back-to-back ifdown/ifup burps that potentially disturb
    network daemons, that didn't need to even know that the pci
    card was being rebooted.
 
--- A more serious concern is that the same reset, for SCSI devices,
+-  A more serious concern is that the same reset, for SCSI devices,
    causes havoc to mounted file systems.  Scripts cannot post-facto
    unmount a file system without flushing pending buffers, but this
    is impossible, because I/O has already been stopped.  Thus,
@@ -322,7 +326,7 @@ network daemons and file systems that didn't need to be disturbed.
    from the block layer.  It would be very natural to add an EEH
    reset into this chain of events.
 
--- If a SCSI error occurs for the root device, all is lost unless
+-  If a SCSI error occurs for the root device, all is lost unless
    the sysadmin had the foresight to run /bin, /sbin, /etc, /var
    and so on, out of ramdisk/tmpfs.
 
@@ -330,5 +334,3 @@ network daemons and file systems that didn't need to be disturbed.
 Conclusions
 -----------
 There's forward progress ...
-
-

@@ -9,3 +9,4 @@ KVM
 
    amd-memory-encryption
    cpuid
+   vcpu-requests

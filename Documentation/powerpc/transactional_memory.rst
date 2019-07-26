@@ -1,3 +1,4 @@
+============================
 Transactional Memory support
 ============================
 
@@ -17,29 +18,29 @@ instructions are presented to delimit transactions; transactions are
 guaranteed to either complete atomically or roll back and undo any partial
 changes.
 
-A simple transaction looks like this:
+A simple transaction looks like this::
 
-begin_move_money:
-  tbegin
-  beq   abort_handler
+  begin_move_money:
+    tbegin
+    beq   abort_handler
 
-  ld    r4, SAVINGS_ACCT(r3)
-  ld    r5, CURRENT_ACCT(r3)
-  subi  r5, r5, 1
-  addi  r4, r4, 1
-  std   r4, SAVINGS_ACCT(r3)
-  std   r5, CURRENT_ACCT(r3)
+    ld    r4, SAVINGS_ACCT(r3)
+    ld    r5, CURRENT_ACCT(r3)
+    subi  r5, r5, 1
+    addi  r4, r4, 1
+    std   r4, SAVINGS_ACCT(r3)
+    std   r5, CURRENT_ACCT(r3)
 
-  tend
+    tend
 
-  b     continue
+    b     continue
 
-abort_handler:
-  ... test for odd failures ...
+  abort_handler:
+    ... test for odd failures ...
 
-  /* Retry the transaction if it failed because it conflicted with
-   * someone else: */
-  b     begin_move_money
+    /* Retry the transaction if it failed because it conflicted with
+     * someone else: */
+    b     begin_move_money
 
 
 The 'tbegin' instruction denotes the start point, and 'tend' the end point.
@@ -123,7 +124,7 @@ Transaction-aware signal handlers can read the transactional register state
 from the second ucontext.  This will be necessary for crash handlers to
 determine, for example, the address of the instruction causing the SIGSEGV.
 
-Example signal handler:
+Example signal handler::
 
     void crash_handler(int sig, siginfo_t *si, void *uc)
     {
@@ -133,9 +134,9 @@ Example signal handler:
       if (ucp_link) {
         u64 msr = ucp->uc_mcontext.regs->msr;
         /* May have transactional ucontext! */
-#ifndef __powerpc64__
+  #ifndef __powerpc64__
         msr |= ((u64)transactional_ucp->uc_mcontext.regs->msr) << 32;
-#endif
+  #endif
         if (MSR_TM_ACTIVE(msr)) {
            /* Yes, we crashed during a transaction.  Oops. */
    fprintf(stderr, "Transaction to be restarted at 0x%llx, but "
@@ -176,6 +177,7 @@ Failure cause codes used by kernel
 These are defined in <asm/reg.h>, and distinguish different reasons why the
 kernel aborted a transaction:
 
+ ====================== ================================
  TM_CAUSE_RESCHED       Thread was rescheduled.
  TM_CAUSE_TLBI          Software TLB invalid.
  TM_CAUSE_FAC_UNAV      FP/VEC/VSX unavailable trap.
@@ -184,6 +186,7 @@ kernel aborted a transaction:
  TM_CAUSE_MISC          Currently unused.
  TM_CAUSE_ALIGNMENT     Alignment fault.
  TM_CAUSE_EMULATE       Emulation that touched memory.
+ ====================== ================================
 
 These can be checked by the user program's abort handler as TEXASR[0:7].  If
 bit 7 is set, it indicates that the error is consider persistent.  For example
@@ -203,7 +206,7 @@ POWER9
 ======
 
 TM on POWER9 has issues with storing the complete register state. This
-is described in this commit:
+is described in this commit::
 
     commit 4bb3c7a0208fc13ca70598efd109901a7cd45ae7
     Author: Paul Mackerras <paulus@ozlabs.org>
