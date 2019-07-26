@@ -333,6 +333,9 @@ static void *tegra_eqos_probe(struct platform_device *pdev,
 	usleep_range(2000, 4000);
 	gpiod_set_value(eqos->reset, 0);
 
+	/* MDIO bus was already reset just above */
+	data->mdio_bus_data->needs_reset = false;
+
 	eqos->rst = devm_reset_control_get(&pdev->dev, "eqos");
 	if (IS_ERR(eqos->rst)) {
 		err = PTR_ERR(eqos->rst);

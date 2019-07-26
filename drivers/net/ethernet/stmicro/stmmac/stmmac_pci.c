@@ -63,6 +63,7 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 	plat->has_gmac = 1;
 	plat->force_sf_dma_mode = 1;
 
+	plat->mdio_bus_data->needs_reset = true;
 	plat->mdio_bus_data->phy_mask = 0;
 
 	/* Set default value for multicast hash bins */
