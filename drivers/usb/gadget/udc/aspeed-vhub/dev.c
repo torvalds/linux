@@ -458,7 +458,7 @@ static const struct usb_gadget_ops ast_vhub_udc_ops = {
 void ast_vhub_dev_suspend(struct ast_vhub_dev *d)
 {
 	d->suspended = true;
-	if (d->driver) {
+	if (d->driver && d->driver->suspend) {
 		spin_unlock(&d->vhub->lock);
 		d->driver->suspend(&d->gadget);
 		spin_lock(&d->vhub->lock);
@@ -468,7 +468,7 @@ void ast_vhub_dev_suspend(struct ast_vhub_dev *d)
 void ast_vhub_dev_resume(struct ast_vhub_dev *d)
 {
 	d->suspended = false;
-	if (d->driver) {
+	if (d->driver && d->driver->resume) {
 		spin_unlock(&d->vhub->lock);
 		d->driver->resume(&d->gadget);
 		spin_lock(&d->vhub->lock);
