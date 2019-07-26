@@ -147,6 +147,7 @@ implementation.
    ia64/index
    m68k/index
    powerpc/index
+   parisc/index
    riscv/index
    s390/index
    sh/index

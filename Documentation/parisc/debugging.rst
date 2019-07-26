@@ -1,8 +1,13 @@
+=================
+PA-RISC Debugging
+=================
+
 okay, here are some hints for debugging the lower-level parts of
 linux/parisc.
 
 
 1. Absolute addresses
+=====================
 
 A lot of the assembly code currently runs in real mode, which means
 absolute addresses are used instead of virtual addresses as in the
@@ -12,6 +17,7 @@ currently).
 
 
 2. HPMCs
+========
 
 When real-mode code tries to access non-existent memory, you'll get
 an HPMC instead of a kernel oops.  To debug an HPMC, try to find
@@ -27,6 +33,7 @@ access it.
 
 
 3. Q bit fun
+============
 
 Certain, very critical code has to clear the Q bit in the PSW.  What
 happens when the Q bit is cleared is the CPU does not update the
