@@ -1776,7 +1776,7 @@ static const struct reg_whitelist {
 } reg_read_whitelist[] = { {
 	.offset_ldw = RING_TIMESTAMP(RENDER_RING_BASE),
 	.offset_udw = RING_TIMESTAMP_UDW(RENDER_RING_BASE),
-	.gen_mask = INTEL_GEN_MASK(4, 11),
+	.gen_mask = INTEL_GEN_MASK(4, 12),
 	.size = 8
 } };
 
