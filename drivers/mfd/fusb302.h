@@ -555,6 +555,7 @@ struct fusb30x_chip {
 	bool try_role_complete;
 	enum role_mode try_role;
 	struct input_dev *input;
+	bool suspended;
 };
 
 #endif /* FUSB302_H */
