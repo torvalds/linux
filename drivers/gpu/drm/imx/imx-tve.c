@@ -484,8 +484,10 @@ static int imx_tve_register(struct drm_device *drm, struct imx_tve *tve)
 
 	drm_connector_helper_add(&tve->connector,
 			&imx_tve_connector_helper_funcs);
-	drm_connector_init(drm, &tve->connector, &imx_tve_connector_funcs,
-			   DRM_MODE_CONNECTOR_VGA);
+	drm_connector_init_with_ddc(drm, &tve->connector,
+				    &imx_tve_connector_funcs,
+				    DRM_MODE_CONNECTOR_VGA,
+				    tve->ddc);
 
 	drm_connector_attach_encoder(&tve->connector, &tve->encoder);
 
