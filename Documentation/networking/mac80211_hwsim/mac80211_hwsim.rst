@@ -1,5 +1,13 @@
+:orphan:
+
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
+===================================================================
 mac80211_hwsim - software simulator of 802.11 radio(s) for mac80211
-Copyright (c) 2008, Jouni Malinen <j@w1.fi>
+===================================================================
+
+:Copyright: |copy| 2008, Jouni Malinen <j@w1.fi>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 as
@@ -7,6 +15,7 @@ published by the Free Software Foundation.
 
 
 Introduction
+============
 
 mac80211_hwsim is a Linux kernel module that can be used to simulate
 arbitrary number of IEEE 802.11 radios for mac80211. It can be used to
@@ -43,6 +52,7 @@ regardless of channel.
 
 
 Simple example
+==============
 
 This example shows how to use mac80211_hwsim to simulate two radios:
 one to act as an access point and the other as a station that
@@ -50,17 +60,19 @@ associates with the AP. hostapd and wpa_supplicant are used to take
 care of WPA2-PSK authentication. In addition, hostapd is also
 processing access point side of association.
 
+::
 
-# Build mac80211_hwsim as part of kernel configuration
 
-# Load the module
-modprobe mac80211_hwsim
+    # Build mac80211_hwsim as part of kernel configuration
 
-# Run hostapd (AP) for wlan0
-hostapd hostapd.conf
+    # Load the module
+    modprobe mac80211_hwsim
 
-# Run wpa_supplicant (station) for wlan1
-wpa_supplicant -Dnl80211 -iwlan1 -c wpa_supplicant.conf
+    # Run hostapd (AP) for wlan0
+    hostapd hostapd.conf
+
+    # Run wpa_supplicant (station) for wlan1
+    wpa_supplicant -Dnl80211 -iwlan1 -c wpa_supplicant.conf
 
 
 More test cases are available in hostap.git:

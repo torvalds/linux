@@ -1,18 +1,31 @@
-Copyright (C) ST-Ericsson AB 2010
-Author: Sjur Brendeland/ sjur.brandeland@stericsson.com
-License terms: GNU General Public License (GPL) version 2
----------------------------------------------------------
+:orphan:
 
-=== Start ===
-If you have compiled CAIF for modules do:
-
-$modprobe crc_ccitt
-$modprobe caif
-$modprobe caif_socket
-$modprobe chnl_net
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
 
 
-=== Preparing the setup with a STE modem ===
+================
+Using Linux CAIF
+================
+
+
+:Copyright: |copy| ST-Ericsson AB 2010
+
+:Author: Sjur Brendeland/ sjur.brandeland@stericsson.com
+
+Start
+=====
+
+If you have compiled CAIF for modules do::
+
+    $modprobe crc_ccitt
+    $modprobe caif
+    $modprobe caif_socket
+    $modprobe chnl_net
+
+
+Preparing the setup with a STE modem
+====================================
 
 If you are working on integration of CAIF you should make sure
 that the kernel is built with module support.
@@ -32,24 +45,30 @@ module parameter "ser_use_stx".
 Normally Frame Checksum is always used on UART, but this is also provided as a
 module parameter "ser_use_fcs".
 
-$ modprobe caif_serial ser_ttyname=/dev/ttyS0 ser_use_stx=yes
-$ ifconfig caif_ttyS0 up
+::
 
-PLEASE NOTE: 	There is a limitation in Android shell.
+    $ modprobe caif_serial ser_ttyname=/dev/ttyS0 ser_use_stx=yes
+    $ ifconfig caif_ttyS0 up
+
+PLEASE NOTE:
+		There is a limitation in Android shell.
 		It only accepts one argument to insmod/modprobe!
 
-=== Trouble shooting ===
+Trouble shooting
+================
 
 There are debugfs parameters provided for serial communication.
 /sys/kernel/debug/caif_serial/<tty-name>/
 
 * ser_state:   Prints the bit-mask status where
+
   - 0x02 means SENDING, this is a transient state.
   - 0x10 means FLOW_OFF_SENT, i.e. the previous frame has not been sent
-	and is blocking further send operation. Flow OFF has been propagated
-	to all CAIF Channels using this TTY.
+    and is blocking further send operation. Flow OFF has been propagated
+    to all CAIF Channels using this TTY.
 
 * tty_status: Prints the bit-mask tty status information
+
   - 0x01 - tty->warned is on.
   - 0x02 - tty->low_latency is on.
   - 0x04 - tty->packed is on.
@@ -58,13 +77,17 @@ There are debugfs parameters provided for serial communication.
   - 0x20 - tty->stopped is on.
 
 * last_tx_msg: Binary blob Prints the last transmitted frame.
-	This can be printed with
-	$od --format=x1 /sys/kernel/debug/caif_serial/<tty>/last_rx_msg.
-	The first two tx messages sent look like this. Note: The initial
-	byte 02 is start of frame extension (STX) used for re-syncing
-	upon errors.
 
-  - Enumeration:
+  This can be printed with::
+
+	$od --format=x1 /sys/kernel/debug/caif_serial/<tty>/last_rx_msg.
+
+  The first two tx messages sent look like this. Note: The initial
+  byte 02 is start of frame extension (STX) used for re-syncing
+  upon errors.
+
+  - Enumeration::
+
         0000000  02 05 00 00 03 01 d2 02
                  |  |     |  |  |  |
                  STX(1)   |  |  |  |
@@ -73,7 +96,9 @@ There are debugfs parameters provided for serial communication.
                              Command:Enumeration(1)
                                 Link-ID(1)
                                     Checksum(2)
-  - Channel Setup:
+
+  - Channel Setup::
+
         0000000  02 07 00 00 00 21 a1 00 48 df
                  |  |     |  |  |  |  |  |
                  STX(1)   |  |  |  |  |  |
@@ -86,13 +111,18 @@ There are debugfs parameters provided for serial communication.
 					  Checksum(2)
 
 * last_rx_msg: Prints the last transmitted frame.
-	The RX messages for LinkSetup look almost identical but they have the
-	bit 0x20 set in the command bit, and Channel Setup has added one byte
-	before Checksum containing Channel ID.
-	NOTE: Several CAIF Messages might be concatenated. The maximum debug
+
+  The RX messages for LinkSetup look almost identical but they have the
+  bit 0x20 set in the command bit, and Channel Setup has added one byte
+  before Checksum containing Channel ID.
+
+  NOTE:
+	Several CAIF Messages might be concatenated. The maximum debug
 	buffer size is 128 bytes.
 
-== Error Scenarios:
+Error Scenarios
+===============
+
 - last_tx_msg contains channel setup message and last_rx_msg is empty ->
   The host seems to be able to send over the UART, at least the CAIF ldisc get
   notified that sending is completed.
@@ -103,7 +133,9 @@ There are debugfs parameters provided for serial communication.
 
 - if /sys/kernel/debug/caif_serial/<tty>/tty_status is non-zero there
   might be problems transmitting over UART.
+
   E.g. host and modem wiring is not correct you will typically see
   tty_status = 0x10 (hw_stopped) and ser_state = 0x10 (FLOW_OFF_SENT).
+
   You will probably see the enumeration message in last_tx_message
   and empty last_rx_message.
