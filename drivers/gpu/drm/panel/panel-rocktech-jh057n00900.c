@@ -127,7 +127,7 @@ static int jh057n_init_sequence(struct jh057n *ctx)
 
 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "Failed to exit sleep mode\n");
+		DRM_DEV_ERROR(dev, "Failed to exit sleep mode: %d\n", ret);
 		return ret;
 	}
 	/* Panel is operational 120 msec after reset */
@@ -351,7 +351,9 @@ static int jh057n_probe(struct mipi_dsi_device *dsi)
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "mipi_dsi_attach failed. Is host ready?\n");
+		DRM_DEV_ERROR(dev,
+			      "mipi_dsi_attach failed (%d). Is host ready?\n",
+			      ret);
 		drm_panel_remove(&ctx->panel);
 		return ret;
 	}
