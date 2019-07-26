@@ -2896,28 +2896,6 @@ static int soc_rtdcom_copy_user(struct snd_pcm_substream *substream, int channel
 	return -EINVAL;
 }
 
-static int soc_rtdcom_copy_kernel(struct snd_pcm_substream *substream, int channel,
-				  unsigned long pos, void *buf, unsigned long bytes)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_component *component;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->copy_kernel)
-			continue;
-
-		/* FIXME. it returns 1st copy now */
-		return component->driver->ops->copy_kernel(substream, channel,
-							   pos, buf, bytes);
-	}
-
-	return -EINVAL;
-}
-
 static int soc_rtdcom_fill_silence(struct snd_pcm_substream *substream, int channel,
 				   unsigned long pos, unsigned long bytes)
 {
@@ -3111,8 +3089,6 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 
 		if (ops->copy_user)
 			rtd->ops.copy_user	= soc_rtdcom_copy_user;
-		if (ops->copy_kernel)
-			rtd->ops.copy_kernel	= soc_rtdcom_copy_kernel;
 		if (ops->fill_silence)
 			rtd->ops.fill_silence	= soc_rtdcom_fill_silence;
 		if (ops->page)
