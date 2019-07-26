@@ -462,9 +462,10 @@ static int imx_ldb_register(struct drm_device *drm,
 		 */
 		drm_connector_helper_add(&imx_ldb_ch->connector,
 				&imx_ldb_connector_helper_funcs);
-		drm_connector_init(drm, &imx_ldb_ch->connector,
-				&imx_ldb_connector_funcs,
-				DRM_MODE_CONNECTOR_LVDS);
+		drm_connector_init_with_ddc(drm, &imx_ldb_ch->connector,
+					    &imx_ldb_connector_funcs,
+					    DRM_MODE_CONNECTOR_LVDS,
+					    imx_ldb_ch->ddc);
 		drm_connector_attach_encoder(&imx_ldb_ch->connector, encoder);
 	}
 
