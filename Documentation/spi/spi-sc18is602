@@ -17,7 +17,7 @@ kernel's SPI core subsystem.
 
 The driver does not probe for supported chips, since the SI18IS602/603 does not
 support Chip ID registers. You will have to instantiate the devices explicitly.
-Please see Documentation/i2c/instantiating-devices for details.
+Please see Documentation/i2c/instantiating-devices.rst for details.
 
 
 Usage Notes

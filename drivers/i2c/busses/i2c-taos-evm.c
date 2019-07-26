@@ -125,7 +125,7 @@ static int taos_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 			/*
 			 * Voluntarily dropping error code of kstrtou8 since all
 			 * error code that it could return are invalid according
-			 * to Documentation/i2c/fault-codes.
+			 * to Documentation/i2c/fault-codes.rst.
 			 */
 			if (kstrtou8(p + 1, 16, &data->byte))
 				return -EPROTO;

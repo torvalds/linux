@@ -104,6 +104,7 @@ needed).
    fb/index
    fpga/index
    hid/index
+   i2c/index
    iio/index
    infiniband/index
    leds/index

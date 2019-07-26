@@ -693,7 +693,7 @@ static int iio_dummy_remove(struct iio_sw_device *swd)
  * Varies depending on bus type of the device. As there is no device
  * here, call probe directly. For information on device registration
  * i2c:
- * Documentation/i2c/writing-clients
+ * Documentation/i2c/writing-clients.rst
  * spi:
  * Documentation/spi/spi-summary
  */

@@ -36,7 +36,7 @@ humidity is expressed as a percentage. Driver can be used as well for SHTW1
 chip, which has the same electrical interface.
 
 The device communicates with the I2C protocol. All sensors are set to I2C
-address 0x70. See Documentation/i2c/instantiating-devices for methods to
+address 0x70. See Documentation/i2c/instantiating-devices.rst for methods to
 instantiate the device.
 
 There are two options configurable by means of shtc1_platform_data:
