@@ -2345,50 +2345,6 @@ int snd_soc_add_dai_controls(struct snd_soc_dai *dai,
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_dai_controls);
 
-/**
- * snd_soc_component_set_sysclk - configure COMPONENT system or master clock.
- * @component: COMPONENT
- * @clk_id: DAI specific clock ID
- * @source: Source for the clock
- * @freq: new clock frequency in Hz
- * @dir: new clock direction - input/output.
- *
- * Configures the CODEC master (MCLK) or system (SYSCLK) clocking.
- */
-int snd_soc_component_set_sysclk(struct snd_soc_component *component,
-				 int clk_id, int source, unsigned int freq,
-				 int dir)
-{
-	if (component->driver->set_sysclk)
-		return component->driver->set_sysclk(component, clk_id, source,
-						 freq, dir);
-
-	return -ENOTSUPP;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_set_sysclk);
-
-/*
- * snd_soc_component_set_pll - configure component PLL.
- * @component: COMPONENT
- * @pll_id: DAI specific PLL ID
- * @source: DAI specific source for the PLL
- * @freq_in: PLL input clock frequency in Hz
- * @freq_out: requested PLL output clock frequency in Hz
- *
- * Configures and enables PLL to generate output clock based on input clock.
- */
-int snd_soc_component_set_pll(struct snd_soc_component *component, int pll_id,
-			      int source, unsigned int freq_in,
-			      unsigned int freq_out)
-{
-	if (component->driver->set_pll)
-		return component->driver->set_pll(component, pll_id, source,
-						  freq_in, freq_out);
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_set_pll);
-
 static int snd_soc_bind_card(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
