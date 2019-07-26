@@ -92,6 +92,7 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 		break;
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
+	case CHIP_NAVI12:
 		kfd2kgd = amdgpu_amdkfd_gfx_10_0_get_functions();
 		break;
 	default:
