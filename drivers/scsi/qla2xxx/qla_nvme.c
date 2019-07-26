@@ -653,7 +653,9 @@ void qla_nvme_unregister_remote_port(struct fc_port *fcport)
 	    "%s: unregister remoteport on %p %8phN\n",
 	    __func__, fcport, fcport->port_name);
 
-	nvme_fc_set_remoteport_devloss(fcport->nvme_remote_port, 0);
+	if (test_bit(PFLG_DRIVER_REMOVING, &fcport->vha->pci_flags))
+		nvme_fc_set_remoteport_devloss(fcport->nvme_remote_port, 0);
+
 	init_completion(&fcport->nvme_del_done);
 	ret = nvme_fc_unregister_remoteport(fcport->nvme_remote_port);
 	if (ret)
