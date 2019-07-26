@@ -545,3 +545,17 @@ int snd_soc_pcm_component_new(struct snd_pcm *pcm)
 
 	return 0;
 }
+
+void snd_soc_pcm_component_free(struct snd_pcm *pcm)
+{
+	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
+	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *component;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		if (component->driver->pcm_free)
+			component->driver->pcm_free(pcm);
+	}
+}

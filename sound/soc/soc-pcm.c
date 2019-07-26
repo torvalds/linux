@@ -2805,17 +2805,10 @@ static int dpcm_fe_dai_close(struct snd_pcm_substream *fe_substream)
 static void soc_pcm_private_free(struct snd_pcm *pcm)
 {
 	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
-	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_component *component;
 
 	/* need to sync the delayed work before releasing resources */
 	flush_delayed_work(&rtd->delayed_work);
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (component->driver->pcm_free)
-			component->driver->pcm_free(pcm);
-	}
+	snd_soc_pcm_component_free(pcm);
 }
 
 /* create a new pcm */
