@@ -505,7 +505,7 @@ nouveau_range_fault(struct hmm_mirror *mirror, struct hmm_range *range)
 		return -EBUSY;
 	}
 
-	ret = hmm_range_fault(range, true);
+	ret = hmm_range_fault(range, 0);
 	if (ret <= 0) {
 		if (ret == 0)
 			ret = -EBUSY;

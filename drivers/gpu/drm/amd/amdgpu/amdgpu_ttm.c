@@ -832,7 +832,7 @@ retry:
 
 	down_read(&mm->mmap_sem);
 
-	r = hmm_range_fault(range, true);
+	r = hmm_range_fault(range, 0);
 	if (unlikely(r < 0)) {
 		if (likely(r == -EAGAIN)) {
 			/*

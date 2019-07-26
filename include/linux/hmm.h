@@ -407,12 +407,19 @@ int hmm_range_register(struct hmm_range *range,
 		       unsigned long end,
 		       unsigned page_shift);
 void hmm_range_unregister(struct hmm_range *range);
+
+/*
+ * Retry fault if non-blocking, drop mmap_sem and return -EAGAIN in that case.
+ */
+#define HMM_FAULT_ALLOW_RETRY		(1 << 0)
+
 long hmm_range_snapshot(struct hmm_range *range);
-long hmm_range_fault(struct hmm_range *range, bool block);
+long hmm_range_fault(struct hmm_range *range, unsigned int flags);
+
 long hmm_range_dma_map(struct hmm_range *range,
 		       struct device *device,
 		       dma_addr_t *daddrs,
-		       bool block);
+		       unsigned int flags);
 long hmm_range_dma_unmap(struct hmm_range *range,
 			 struct vm_area_struct *vma,
 			 struct device *device,

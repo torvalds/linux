@@ -281,7 +281,7 @@ struct hmm_vma_walk {
 	struct dev_pagemap	*pgmap;
 	unsigned long		last;
 	bool			fault;
-	bool			block;
+	unsigned int		flags;
 };
 
 static int hmm_vma_do_fault(struct mm_walk *walk, unsigned long addr,
@@ -293,8 +293,11 @@ static int hmm_vma_do_fault(struct mm_walk *walk, unsigned long addr,
 	struct vm_area_struct *vma = walk->vma;
 	vm_fault_t ret;
 
-	flags |= hmm_vma_walk->block ? 0 : FAULT_FLAG_ALLOW_RETRY;
-	flags |= write_fault ? FAULT_FLAG_WRITE : 0;
+	if (hmm_vma_walk->flags & HMM_FAULT_ALLOW_RETRY)
+		flags |= FAULT_FLAG_ALLOW_RETRY;
+	if (write_fault)
+		flags |= FAULT_FLAG_WRITE;
+
 	ret = handle_mm_fault(vma, addr, flags);
 	if (ret & VM_FAULT_RETRY) {
 		/* Note, handle_mm_fault did up_read(&mm->mmap_sem)) */
@@ -1012,26 +1015,26 @@ long hmm_range_snapshot(struct hmm_range *range)
 }
 EXPORT_SYMBOL(hmm_range_snapshot);
 
-/*
- * hmm_range_fault() - try to fault some address in a virtual address range
- * @range: range being faulted
- * @block: allow blocking on fault (if true it sleeps and do not drop mmap_sem)
- * Return: number of valid pages in range->pfns[] (from range start
- *          address). This may be zero. If the return value is negative,
- *          then one of the following values may be returned:
+/**
+ * hmm_range_fault - try to fault some address in a virtual address range
+ * @range:	range being faulted
+ * @flags:	HMM_FAULT_* flags
  *
- *           -EINVAL  invalid arguments or mm or virtual address are in an
- *                    invalid vma (for instance device file vma).
- *           -ENOMEM: Out of memory.
- *           -EPERM:  Invalid permission (for instance asking for write and
- *                    range is read only).
- *           -EAGAIN: If you need to retry and mmap_sem was drop. This can only
- *                    happens if block argument is false.
- *           -EBUSY:  If the the range is being invalidated and you should wait
- *                    for invalidation to finish.
- *           -EFAULT: Invalid (ie either no valid vma or it is illegal to access
- *                    that range), number of valid pages in range->pfns[] (from
- *                    range start address).
+ * Return: the number of valid pages in range->pfns[] (from range start
+ * address), which may be zero.  On error one of the following status codes
+ * can be returned:
+ *
+ * -EINVAL:	Invalid arguments or mm or virtual address is in an invalid vma
+ *		(e.g., device file vma).
+ * -ENOMEM:	Out of memory.
+ * -EPERM:	Invalid permission (e.g., asking for write and range is read
+ *		only).
+ * -EAGAIN:	A page fault needs to be retried and mmap_sem was dropped.
+ * -EBUSY:	The range has been invalidated and the caller needs to wait for
+ *		the invalidation to finish.
+ * -EFAULT:	Invalid (i.e., either no valid vma or it is illegal to access
+ *		that range) number of valid pages in range->pfns[] (from
+ *              range start address).
  *
  * This is similar to a regular CPU page fault except that it will not trigger
  * any memory migration if the memory being faulted is not accessible by CPUs
@@ -1040,7 +1043,7 @@ EXPORT_SYMBOL(hmm_range_snapshot);
  * On error, for one virtual address in the range, the function will mark the
  * corresponding HMM pfn entry with an error flag.
  */
-long hmm_range_fault(struct hmm_range *range, bool block)
+long hmm_range_fault(struct hmm_range *range, unsigned int flags)
 {
 	const unsigned long device_vma = VM_IO | VM_PFNMAP | VM_MIXEDMAP;
 	unsigned long start = range->start, end;
@@ -1086,7 +1089,7 @@ long hmm_range_fault(struct hmm_range *range, bool block)
 		hmm_vma_walk.pgmap = NULL;
 		hmm_vma_walk.last = start;
 		hmm_vma_walk.fault = true;
-		hmm_vma_walk.block = block;
+		hmm_vma_walk.flags = flags;
 		hmm_vma_walk.range = range;
 		mm_walk.private = &hmm_vma_walk;
 		end = min(range->end, vma->vm_end);
@@ -1125,25 +1128,22 @@ long hmm_range_fault(struct hmm_range *range, bool block)
 EXPORT_SYMBOL(hmm_range_fault);
 
 /**
- * hmm_range_dma_map() - hmm_range_fault() and dma map page all in one.
- * @range: range being faulted
- * @device: device against to dma map page to
- * @daddrs: dma address of mapped pages
- * @block: allow blocking on fault (if true it sleeps and do not drop mmap_sem)
- * Return: number of pages mapped on success, -EAGAIN if mmap_sem have been
- *          drop and you need to try again, some other error value otherwise
+ * hmm_range_dma_map - hmm_range_fault() and dma map page all in one.
+ * @range:	range being faulted
+ * @device:	device to map page to
+ * @daddrs:	array of dma addresses for the mapped pages
+ * @flags:	HMM_FAULT_*
  *
- * Note same usage pattern as hmm_range_fault().
+ * Return: the number of pages mapped on success (including zero), or any
+ * status return from hmm_range_fault() otherwise.
  */
-long hmm_range_dma_map(struct hmm_range *range,
-		       struct device *device,
-		       dma_addr_t *daddrs,
-		       bool block)
+long hmm_range_dma_map(struct hmm_range *range, struct device *device,
+		dma_addr_t *daddrs, unsigned int flags)
 {
 	unsigned long i, npages, mapped;
 	long ret;
 
-	ret = hmm_range_fault(range, block);
+	ret = hmm_range_fault(range, flags);
 	if (ret <= 0)
 		return ret ? ret : -EBUSY;
 
