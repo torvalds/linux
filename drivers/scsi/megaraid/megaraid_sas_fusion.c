@@ -323,9 +323,6 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 {
 	u16 cur_max_fw_cmds = 0;
 	u16 ldio_threshold = 0;
-	struct megasas_register_set __iomem *reg_set;
-
-	reg_set = instance->reg_set;
 
 	/* ventura FW does not fill outbound_scratch_pad_2 with queue depth */
 	if (instance->adapter_type < VENTURA_SERIES)
