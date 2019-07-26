@@ -1676,6 +1676,16 @@ static enum hrtimer_restart hrtimer_wakeup(struct hrtimer *timer)
 void hrtimer_sleeper_start_expires(struct hrtimer_sleeper *sl,
 				   enum hrtimer_mode mode)
 {
+	/*
+	 * Make the enqueue delivery mode check work on RT. If the sleeper
+	 * was initialized for hard interrupt delivery, force the mode bit.
+	 * This is a special case for hrtimer_sleepers because
+	 * hrtimer_init_sleeper() determines the delivery mode on RT so the
+	 * fiddling with this decision is avoided at the call sites.
+	 */
+	if (IS_ENABLED(CONFIG_PREEMPT_RT) && sl->timer.is_hard)
+		mode |= HRTIMER_MODE_HARD;
+
 	hrtimer_start_expires(&sl->timer, mode);
 }
 EXPORT_SYMBOL_GPL(hrtimer_sleeper_start_expires);
@@ -1683,6 +1693,30 @@ EXPORT_SYMBOL_GPL(hrtimer_sleeper_start_expires);
 static void __hrtimer_init_sleeper(struct hrtimer_sleeper *sl,
 				   clockid_t clock_id, enum hrtimer_mode mode)
 {
+	/*
+	 * On PREEMPT_RT enabled kernels hrtimers which are not explicitely
+	 * marked for hard interrupt expiry mode are moved into soft
+	 * interrupt context either for latency reasons or because the
+	 * hrtimer callback takes regular spinlocks or invokes other
+	 * functions which are not suitable for hard interrupt context on
+	 * PREEMPT_RT.
+	 *
+	 * The hrtimer_sleeper callback is RT compatible in hard interrupt
+	 * context, but there is a latency concern: Untrusted userspace can
+	 * spawn many threads which arm timers for the same expiry time on
+	 * the same CPU. That causes a latency spike due to the wakeup of
+	 * a gazillion threads.
+	 *
+	 * OTOH, priviledged real-time user space applications rely on the
+	 * low latency of hard interrupt wakeups. If the current task is in
+	 * a real-time scheduling class, mark the mode for hard interrupt
+	 * expiry.
+	 */
+	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+		if (task_is_realtime(current) && !(mode & HRTIMER_MODE_SOFT))
+			mode |= HRTIMER_MODE_HARD;
+	}
+
 	__hrtimer_init(&sl->timer, clock_id, mode);
 	sl->timer.function = hrtimer_wakeup;
 	sl->task = current;
