@@ -2001,6 +2001,85 @@ void cfg80211_bss_iter(struct wiphy *wiphy,
 }
 EXPORT_SYMBOL(cfg80211_bss_iter);
 
+void cfg80211_update_assoc_bss_entry(struct wireless_dev *wdev,
+				     struct ieee80211_channel *chan)
+{
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	struct cfg80211_internal_bss *cbss = wdev->current_bss;
+	struct cfg80211_internal_bss *new = NULL;
+	struct cfg80211_internal_bss *bss;
+	struct cfg80211_bss *nontrans_bss;
+	struct cfg80211_bss *tmp;
+
+	spin_lock_bh(&rdev->bss_lock);
+
+	if (WARN_ON(cbss->pub.channel == chan))
+		goto done;
+
+	/* use transmitting bss */
+	if (cbss->pub.transmitted_bss)
+		cbss = container_of(cbss->pub.transmitted_bss,
+				    struct cfg80211_internal_bss,
+				    pub);
+
+	cbss->pub.channel = chan;
+
+	list_for_each_entry(bss, &rdev->bss_list, list) {
+		if (!cfg80211_bss_type_match(bss->pub.capability,
+					     bss->pub.channel->band,
+					     wdev->conn_bss_type))
+			continue;
+
+		if (bss == cbss)
+			continue;
+
+		if (!cmp_bss(&bss->pub, &cbss->pub, BSS_CMP_REGULAR)) {
+			new = bss;
+			break;
+		}
+	}
+
+	if (new) {
+		/* to save time, update IEs for transmitting bss only */
+		if (cfg80211_update_known_bss(rdev, cbss, new, false)) {
+			new->pub.proberesp_ies = NULL;
+			new->pub.beacon_ies = NULL;
+		}
+
+		list_for_each_entry_safe(nontrans_bss, tmp,
+					 &new->pub.nontrans_list,
+					 nontrans_list) {
+			bss = container_of(nontrans_bss,
+					   struct cfg80211_internal_bss, pub);
+			if (__cfg80211_unlink_bss(rdev, bss))
+				rdev->bss_generation++;
+		}
+
+		WARN_ON(atomic_read(&new->hold));
+		if (!WARN_ON(!__cfg80211_unlink_bss(rdev, new)))
+			rdev->bss_generation++;
+	}
+
+	rb_erase(&cbss->rbn, &rdev->bss_tree);
+	rb_insert_bss(rdev, cbss);
+	rdev->bss_generation++;
+
+	list_for_each_entry_safe(nontrans_bss, tmp,
+				 &cbss->pub.nontrans_list,
+				 nontrans_list) {
+		bss = container_of(nontrans_bss,
+				   struct cfg80211_internal_bss, pub);
+		bss->pub.channel = chan;
+		rb_erase(&bss->rbn, &rdev->bss_tree);
+		rb_insert_bss(rdev, bss);
+		rdev->bss_generation++;
+	}
+
+done:
+	spin_unlock_bh(&rdev->bss_lock);
+}
+
 #ifdef CONFIG_CFG80211_WEXT
 static struct cfg80211_registered_device *
 cfg80211_get_dev_from_ifindex(struct net *net, int ifindex)

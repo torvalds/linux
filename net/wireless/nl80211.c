@@ -16116,7 +16116,7 @@ void cfg80211_ch_switch_notify(struct net_device *dev,
 
 	if (wdev->iftype == NL80211_IFTYPE_STATION &&
 	    !WARN_ON(!wdev->current_bss))
-		wdev->current_bss->pub.channel = chandef->chan;
+		cfg80211_update_assoc_bss_entry(wdev, chandef->chan);
 
 	nl80211_ch_switch_notify(rdev, dev, chandef, GFP_KERNEL,
 				 NL80211_CMD_CH_SWITCH_NOTIFY, 0);
