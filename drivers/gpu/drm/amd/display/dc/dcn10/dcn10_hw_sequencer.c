@@ -2987,7 +2987,7 @@ static void dcn10_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.hubp->funcs->set_cursor_attributes(
 			pipe_ctx->plane_res.hubp, attributes);
 	pipe_ctx->plane_res.dpp->funcs->set_cursor_attributes(
-		pipe_ctx->plane_res.dpp, attributes->color_format);
+		pipe_ctx->plane_res.dpp, attributes);
 }
 
 static void dcn10_set_cursor_sdr_white_level(struct pipe_ctx *pipe_ctx)

@@ -676,7 +676,7 @@ void dscl2_calc_lb_num_partitions(
 
 void dpp2_set_cursor_attributes(
 		struct dpp *dpp_base,
-		enum dc_cursor_color_format color_format);
+		struct dc_cursor_attributes *cursor_attributes);
 
 void dpp2_dummy_program_input_lut(
 			struct dpp *dpp_base,

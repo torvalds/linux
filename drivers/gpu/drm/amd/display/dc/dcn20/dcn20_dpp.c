@@ -342,14 +342,18 @@ void dpp2_cnv_set_alpha_keyer(
 
 void dpp2_set_cursor_attributes(
 		struct dpp *dpp_base,
-		enum dc_cursor_color_format color_format)
+		struct dc_cursor_attributes *cursor_attributes)
 {
+	enum dc_cursor_color_format color_format = cursor_attributes->color_format;
 	struct dcn20_dpp *dpp = TO_DCN20_DPP(dpp_base);
 	int cur_rom_en = 0;
 
 	if (color_format == CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA ||
-		color_format == CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA)
-		cur_rom_en = 1;
+		color_format == CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA) {
+		if (cursor_attributes->attribute_flags.bits.ENABLE_CURSOR_DEGAMMA) {
+			cur_rom_en = 1;
+		}
+	}
 
 	REG_UPDATE_3(CURSOR0_CONTROL,
 			CUR0_MODE, color_format,

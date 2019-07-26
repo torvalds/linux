@@ -426,8 +426,9 @@ void dpp1_cnv_setup (
 
 void dpp1_set_cursor_attributes(
 		struct dpp *dpp_base,
-		enum dc_cursor_color_format color_format)
+		struct dc_cursor_attributes *cursor_attributes)
 {
+	enum dc_cursor_color_format color_format = cursor_attributes->color_format;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	REG_UPDATE_2(CURSOR0_CONTROL,

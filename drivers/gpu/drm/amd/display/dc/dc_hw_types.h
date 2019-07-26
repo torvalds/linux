@@ -516,7 +516,8 @@ union dc_cursor_attribute_flags {
 		uint32_t INVERT_PIXEL_DATA:1;
 		uint32_t ZERO_EXPANSION:1;
 		uint32_t MIN_MAX_INVERT:1;
-		uint32_t RESERVED:25;
+		uint32_t ENABLE_CURSOR_DEGAMMA:1;
+		uint32_t RESERVED:24;
 	} bits;
 	uint32_t value;
 };
