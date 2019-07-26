@@ -3514,6 +3514,33 @@ void* efi_map_11_and_register_allocation(void* virt_kernel_addr, size_t size)
         return (void*)physical_address;
 }
 
+void efi_mark_reserved_areas(void)
+{
+        struct e820_table* map = e820_table;
+        int i;
+
+        for (i = 0; i < map->nr_entries; i++) {
+                struct e820_entry *entry   = &map->entries[i];
+                EFI_MEMORY_TYPE   efi_type = EfiReservedMemoryType;
+
+                if (entry->type == E820_TYPE_RESERVED)
+                        efi_type = EfiReservedMemoryType;
+                else if (entry->type == E820_TYPE_ACPI)
+                        efi_type = EfiACPIReclaimMemory;
+                else if (entry->type == E820_TYPE_NVS)
+                        efi_type = EfiACPIMemoryNVS;
+                else if (entry->type == E820_TYPE_UNUSABLE)
+                        efi_type = EfiUnusableMemory;
+                else
+                        continue;
+
+                efi_register_phys_mem_allocation( efi_type,
+                                                  NUM_PAGES( entry->size ),
+                                                  entry->addr );
+        }
+
+}
+
 void launch_efi_app(EFI_APP_ENTRY efiApp, efi_system_table_t *systab)
 {
         /* Fake handle */
@@ -3530,6 +3557,7 @@ void launch_efi_app(EFI_APP_ENTRY efiApp, efi_system_table_t *systab)
                                 pool_pages, &pool );
 
         efi_register_ram_as_available();
+        efi_mark_reserved_areas();
 
         /* The system table must be accessible via physical addressing. We
          * therefore create 1:1 mapping of the location of it. */
