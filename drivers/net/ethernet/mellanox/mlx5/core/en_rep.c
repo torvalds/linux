@@ -389,24 +389,17 @@ static const struct ethtool_ops mlx5e_uplink_rep_ethtool_ops = {
 	.set_pauseparam    = mlx5e_uplink_rep_set_pauseparam,
 };
 
-static int mlx5e_rep_get_port_parent_id(struct net_device *dev,
-					struct netdev_phys_item_id *ppid)
+static void mlx5e_rep_get_port_parent_id(struct net_device *dev,
+					 struct netdev_phys_item_id *ppid)
 {
-	struct mlx5_eswitch *esw;
 	struct mlx5e_priv *priv;
 	u64 parent_id;
 
 	priv = netdev_priv(dev);
-	esw = priv->mdev->priv.eswitch;
-
-	if (esw->mode == MLX5_ESWITCH_NONE)
-		return -EOPNOTSUPP;
 
 	parent_id = mlx5_query_nic_system_image_guid(priv->mdev);
 	ppid->id_len = sizeof(parent_id);
 	memcpy(ppid->id, &parent_id, sizeof(parent_id));
-
-	return 0;
 }
 
 static void mlx5e_sqs2vport_stop(struct mlx5_eswitch *esw,
@@ -1759,14 +1752,11 @@ static int register_devlink_port(struct mlx5_core_dev *dev,
 	struct devlink *devlink = priv_to_devlink(dev);
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
 	struct netdev_phys_item_id ppid = {};
-	int ret;
 
 	if (!is_devlink_port_supported(dev, rpriv))
 		return 0;
 
-	ret = mlx5e_rep_get_port_parent_id(rpriv->netdev, &ppid);
-	if (ret)
-		return ret;
+	mlx5e_rep_get_port_parent_id(rpriv->netdev, &ppid);
 
 	if (rep->vport == MLX5_VPORT_UPLINK)
 		devlink_port_attrs_set(&rpriv->dl_port,
