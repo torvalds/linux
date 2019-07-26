@@ -1393,10 +1393,9 @@ void esw_offloads_cleanup_reps(struct mlx5_eswitch *esw)
 int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 {
 	int total_vports = esw->total_vports;
-	struct mlx5_core_dev *dev = esw->dev;
 	struct mlx5_eswitch_rep *rep;
-	u8 hw_id[ETH_ALEN], rep_type;
 	int vport_index;
+	u8 rep_type;
 
 	esw->offloads.vport_reps = kcalloc(total_vports,
 					   sizeof(struct mlx5_eswitch_rep),
@@ -1404,12 +1403,9 @@ int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 	if (!esw->offloads.vport_reps)
 		return -ENOMEM;
 
-	mlx5_query_mac_address(dev, hw_id);
-
 	mlx5_esw_for_all_reps(esw, vport_index, rep) {
 		rep->vport = mlx5_eswitch_index_to_vport_num(esw, vport_index);
 		rep->vport_index = vport_index;
-		ether_addr_copy(rep->hw_id, hw_id);
 
 		for (rep_type = 0; rep_type < NUM_REP_TYPES; rep_type++)
 			atomic_set(&rep->rep_data[rep_type].state,
