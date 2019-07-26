@@ -130,6 +130,7 @@ Hardware Monitoring Kernel Drivers
    pcf8591
    pmbus
    powr1220
+   pxe1610
    pwm-fan
    raspberrypi-hwmon
    sch5627
