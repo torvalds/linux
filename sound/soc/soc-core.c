@@ -3358,11 +3358,8 @@ int snd_soc_get_dai_name(struct of_phandle_args *args,
 		if (component_of_node != args->np)
 			continue;
 
-		if (pos->driver->of_xlate_dai_name) {
-			ret = pos->driver->of_xlate_dai_name(pos,
-							     args,
-							     dai_name);
-		} else {
+		ret = snd_soc_component_of_xlate_dai_name(pos, args, dai_name);
+		if (ret == -ENOTSUPP) {
 			struct snd_soc_dai *dai;
 			int id = -1;
 

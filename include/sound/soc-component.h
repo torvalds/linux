@@ -360,5 +360,8 @@ int snd_soc_component_probe(struct snd_soc_component *component);
 void snd_soc_component_remove(struct snd_soc_component *component);
 int snd_soc_component_of_xlate_dai_id(struct snd_soc_component *component,
 				      struct device_node *ep);
+int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
+					struct of_phandle_args *args,
+					const char **dai_name);
 
 #endif /* __SOC_COMPONENT_H */
