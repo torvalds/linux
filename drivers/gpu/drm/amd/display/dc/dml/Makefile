@@ -45,6 +45,10 @@ CFLAGS_display_rq_dlg_calc_20.o := $(dml_ccflags)
 CFLAGS_display_mode_vba_20v2.o := $(dml_ccflags)
 CFLAGS_display_rq_dlg_calc_20v2.o := $(dml_ccflags)
 endif
+ifdef CONFIG_DRM_AMD_DC_DCN2_1
+CFLAGS_display_mode_vba_21.o := $(dml_ccflags)
+CFLAGS_display_rq_dlg_calc_21.o := $(dml_ccflags)
+endif
 ifdef CONFIG_DRM_AMD_DCN3AG
 CFLAGS_display_mode_vba_3ag.o := $(dml_ccflags)
 endif

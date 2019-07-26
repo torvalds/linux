@@ -38,6 +38,9 @@ enum dml_project {
 	DML_PROJECT_NAVI10,
 	DML_PROJECT_NAVI10v2,
 #endif
+#ifdef CONFIG_DRM_AMD_DC_DCN2_1
+	DML_PROJECT_DCN21,
+#endif
 };
 
 struct display_mode_lib;
