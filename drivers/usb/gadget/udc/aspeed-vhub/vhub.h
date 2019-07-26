@@ -257,6 +257,7 @@ enum ep0_state {
 	ep0_state_token,
 	ep0_state_data,
 	ep0_state_status,
+	ep0_state_stall,
 };
 
 /*
