@@ -11,7 +11,7 @@
 	compatible = "nvidia,p2972-0000", "nvidia,tegra194";
 
 	cbb@0 {
-		aconnect {
+		aconnect@2900000 {
 			status = "okay";
 
 			dma-controller@2930000 {

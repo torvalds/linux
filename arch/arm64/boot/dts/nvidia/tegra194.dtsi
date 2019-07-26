@@ -60,7 +60,7 @@
 			snps,rxpbl = <8>;
 		};
 
-		aconnect {
+		aconnect@2900000 {
 			compatible = "nvidia,tegra194-aconnect",
 				     "nvidia,tegra210-aconnect";
 			clocks = <&bpmp TEGRA194_CLK_APE>,
