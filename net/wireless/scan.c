@@ -1091,6 +1091,93 @@ struct cfg80211_non_tx_bss {
 	u8 bssid_index;
 };
 
+static bool
+cfg80211_update_known_bss(struct cfg80211_registered_device *rdev,
+			  struct cfg80211_internal_bss *known,
+			  struct cfg80211_internal_bss *new,
+			  bool signal_valid)
+{
+	lockdep_assert_held(&rdev->bss_lock);
+
+	/* Update IEs */
+	if (rcu_access_pointer(new->pub.proberesp_ies)) {
+		const struct cfg80211_bss_ies *old;
+
+		old = rcu_access_pointer(known->pub.proberesp_ies);
+
+		rcu_assign_pointer(known->pub.proberesp_ies,
+				   new->pub.proberesp_ies);
+		/* Override possible earlier Beacon frame IEs */
+		rcu_assign_pointer(known->pub.ies,
+				   new->pub.proberesp_ies);
+		if (old)
+			kfree_rcu((struct cfg80211_bss_ies *)old, rcu_head);
+	} else if (rcu_access_pointer(new->pub.beacon_ies)) {
+		const struct cfg80211_bss_ies *old;
+		struct cfg80211_internal_bss *bss;
+
+		if (known->pub.hidden_beacon_bss &&
+		    !list_empty(&known->hidden_list)) {
+			const struct cfg80211_bss_ies *f;
+
+			/* The known BSS struct is one of the probe
+			 * response members of a group, but we're
+			 * receiving a beacon (beacon_ies in the new
+			 * bss is used). This can only mean that the
+			 * AP changed its beacon from not having an
+			 * SSID to showing it, which is confusing so
+			 * drop this information.
+			 */
+
+			f = rcu_access_pointer(new->pub.beacon_ies);
+			kfree_rcu((struct cfg80211_bss_ies *)f, rcu_head);
+			return false;
+		}
+
+		old = rcu_access_pointer(known->pub.beacon_ies);
+
+		rcu_assign_pointer(known->pub.beacon_ies, new->pub.beacon_ies);
+
+		/* Override IEs if they were from a beacon before */
+		if (old == rcu_access_pointer(known->pub.ies))
+			rcu_assign_pointer(known->pub.ies, new->pub.beacon_ies);
+
+		/* Assign beacon IEs to all sub entries */
+		list_for_each_entry(bss, &known->hidden_list, hidden_list) {
+			const struct cfg80211_bss_ies *ies;
+
+			ies = rcu_access_pointer(bss->pub.beacon_ies);
+			WARN_ON(ies != old);
+
+			rcu_assign_pointer(bss->pub.beacon_ies,
+					   new->pub.beacon_ies);
+		}
+
+		if (old)
+			kfree_rcu((struct cfg80211_bss_ies *)old, rcu_head);
+	}
+
+	known->pub.beacon_interval = new->pub.beacon_interval;
+
+	/* don't update the signal if beacon was heard on
+	 * adjacent channel.
+	 */
+	if (signal_valid)
+		known->pub.signal = new->pub.signal;
+	known->pub.capability = new->pub.capability;
+	known->ts = new->ts;
+	known->ts_boottime = new->ts_boottime;
+	known->parent_tsf = new->parent_tsf;
+	known->pub.chains = new->pub.chains;
+	memcpy(known->pub.chain_signal, new->pub.chain_signal,
+	       IEEE80211_MAX_CHAINS);
+	ether_addr_copy(known->parent_bssid, new->parent_bssid);
+	known->pub.max_bssid_indicator = new->pub.max_bssid_indicator;
+	known->pub.bssid_index = new->pub.bssid_index;
+
+	return true;
+}
+
 /* Returned bss is reference counted and must be cleaned up appropriately. */
 struct cfg80211_internal_bss *
 cfg80211_bss_update(struct cfg80211_registered_device *rdev,
@@ -1114,88 +1201,8 @@ cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 	found = rb_find_bss(rdev, tmp, BSS_CMP_REGULAR);
 
 	if (found) {
-		/* Update IEs */
-		if (rcu_access_pointer(tmp->pub.proberesp_ies)) {
-			const struct cfg80211_bss_ies *old;
-
-			old = rcu_access_pointer(found->pub.proberesp_ies);
-
-			rcu_assign_pointer(found->pub.proberesp_ies,
-					   tmp->pub.proberesp_ies);
-			/* Override possible earlier Beacon frame IEs */
-			rcu_assign_pointer(found->pub.ies,
-					   tmp->pub.proberesp_ies);
-			if (old)
-				kfree_rcu((struct cfg80211_bss_ies *)old,
-					  rcu_head);
-		} else if (rcu_access_pointer(tmp->pub.beacon_ies)) {
-			const struct cfg80211_bss_ies *old;
-			struct cfg80211_internal_bss *bss;
-
-			if (found->pub.hidden_beacon_bss &&
-			    !list_empty(&found->hidden_list)) {
-				const struct cfg80211_bss_ies *f;
-
-				/*
-				 * The found BSS struct is one of the probe
-				 * response members of a group, but we're
-				 * receiving a beacon (beacon_ies in the tmp
-				 * bss is used). This can only mean that the
-				 * AP changed its beacon from not having an
-				 * SSID to showing it, which is confusing so
-				 * drop this information.
-				 */
-
-				f = rcu_access_pointer(tmp->pub.beacon_ies);
-				kfree_rcu((struct cfg80211_bss_ies *)f,
-					  rcu_head);
-				goto drop;
-			}
-
-			old = rcu_access_pointer(found->pub.beacon_ies);
-
-			rcu_assign_pointer(found->pub.beacon_ies,
-					   tmp->pub.beacon_ies);
-
-			/* Override IEs if they were from a beacon before */
-			if (old == rcu_access_pointer(found->pub.ies))
-				rcu_assign_pointer(found->pub.ies,
-						   tmp->pub.beacon_ies);
-
-			/* Assign beacon IEs to all sub entries */
-			list_for_each_entry(bss, &found->hidden_list,
-					    hidden_list) {
-				const struct cfg80211_bss_ies *ies;
-
-				ies = rcu_access_pointer(bss->pub.beacon_ies);
-				WARN_ON(ies != old);
-
-				rcu_assign_pointer(bss->pub.beacon_ies,
-						   tmp->pub.beacon_ies);
-			}
-
-			if (old)
-				kfree_rcu((struct cfg80211_bss_ies *)old,
-					  rcu_head);
-		}
-
-		found->pub.beacon_interval = tmp->pub.beacon_interval;
-		/*
-		 * don't update the signal if beacon was heard on
-		 * adjacent channel.
-		 */
-		if (signal_valid)
-			found->pub.signal = tmp->pub.signal;
-		found->pub.capability = tmp->pub.capability;
-		found->ts = tmp->ts;
-		found->ts_boottime = tmp->ts_boottime;
-		found->parent_tsf = tmp->parent_tsf;
-		found->pub.chains = tmp->pub.chains;
-		memcpy(found->pub.chain_signal, tmp->pub.chain_signal,
-		       IEEE80211_MAX_CHAINS);
-		ether_addr_copy(found->parent_bssid, tmp->parent_bssid);
-		found->pub.max_bssid_indicator = tmp->pub.max_bssid_indicator;
-		found->pub.bssid_index = tmp->pub.bssid_index;
+		if (!cfg80211_update_known_bss(rdev, found, tmp, signal_valid))
+			goto drop;
 	} else {
 		struct cfg80211_internal_bss *new;
 		struct cfg80211_internal_bss *hidden;
