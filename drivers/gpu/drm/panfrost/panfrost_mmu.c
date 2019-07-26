@@ -305,11 +305,19 @@ static const char *access_type_name(struct panfrost_device *pfdev,
 static irqreturn_t panfrost_mmu_irq_handler(int irq, void *data)
 {
 	struct panfrost_device *pfdev = data;
-	u32 status = mmu_read(pfdev, MMU_INT_STAT);
-	int i;
 
-	if (!status)
+	if (!mmu_read(pfdev, MMU_INT_STAT))
 		return IRQ_NONE;
+
+	mmu_write(pfdev, MMU_INT_MASK, 0);
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t panfrost_mmu_irq_handler_thread(int irq, void *data)
+{
+	struct panfrost_device *pfdev = data;
+	u32 status = mmu_read(pfdev, MMU_INT_RAWSTAT);
+	int i;
 
 	dev_err(pfdev->dev, "mmu irq status=%x\n", status);
 
@@ -355,6 +363,7 @@ static irqreturn_t panfrost_mmu_irq_handler(int irq, void *data)
 		status &= ~mask;
 	}
 
+	mmu_write(pfdev, MMU_INT_MASK, ~0);
 	return IRQ_HANDLED;
 };
 
@@ -373,8 +382,9 @@ int panfrost_mmu_init(struct panfrost_device *pfdev)
 	if (irq <= 0)
 		return -ENODEV;
 
-	err = devm_request_irq(pfdev->dev, irq, panfrost_mmu_irq_handler,
-			       IRQF_SHARED, "mmu", pfdev);
+	err = devm_request_threaded_irq(pfdev->dev, irq, panfrost_mmu_irq_handler,
+					panfrost_mmu_irq_handler_thread,
+					IRQF_SHARED, "mmu", pfdev);
 
 	if (err) {
 		dev_err(pfdev->dev, "failed to request mmu irq");
