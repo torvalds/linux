@@ -106,6 +106,7 @@ needed).
    hid/index
    i2c/index
    iio/index
+   isdn/index
    infiniband/index
    leds/index
    media/index

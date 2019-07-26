@@ -1,7 +1,9 @@
+=========================================
 Kernel CAPI Interface to Hardware Drivers
------------------------------------------
+=========================================
 
 1. Overview
+===========
 
 From the CAPI 2.0 specification:
 COMMON-ISDN-API (CAPI) is an application programming interface standard used
@@ -22,6 +24,7 @@ This standard is freely available from https://www.capi.org.
 
 
 2. Driver and Device Registration
+=================================
 
 CAPI drivers optionally register themselves with Kernel CAPI by calling the
 Kernel CAPI function register_capi_driver() with a pointer to a struct
@@ -50,6 +53,7 @@ callback functions by Kernel CAPI.
 
 
 3. Application Registration and Communication
+=============================================
 
 Kernel CAPI forwards registration requests from applications (calls to CAPI
 operation CAPI_REGISTER) to an appropriate hardware driver by calling its
@@ -71,23 +75,26 @@ messages for that application may be passed to or from the device anymore.
 
 
 4. Data Structures
+==================
 
 4.1 struct capi_driver
+----------------------
 
 This structure describes a Kernel CAPI driver itself. It is used in the
 register_capi_driver() and unregister_capi_driver() functions, and contains
 the following non-private fields, all to be set by the driver before calling
 register_capi_driver():
 
-char name[32]
+``char name[32]``
 	the name of the driver, as a zero-terminated ASCII string
-char revision[32]
+``char revision[32]``
 	the revision number of the driver, as a zero-terminated ASCII string
-int (*add_card)(struct capi_driver *driver, capicardparams *data)
+``int (*add_card)(struct capi_driver *driver, capicardparams *data)``
 	a callback function pointer (may be NULL)
 
 
 4.2 struct capi_ctr
+-------------------
 
 This structure describes an ISDN device (controller) handled by a Kernel CAPI
 driver. After registration via the attach_capi_ctr() function it is passed to
@@ -96,88 +103,109 @@ identify the controller to operate on.
 
 It contains the following non-private fields:
 
-- to be set by the driver before calling attach_capi_ctr():
+to be set by the driver before calling attach_capi_ctr():
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-struct module *owner
+``struct module *owner``
 	pointer to the driver module owning the device
 
-void *driverdata
+``void *driverdata``
 	an opaque pointer to driver specific data, not touched by Kernel CAPI
 
-char name[32]
+``char name[32]``
 	the name of the controller, as a zero-terminated ASCII string
 
-char *driver_name
+``char *driver_name``
 	the name of the driver, as a zero-terminated ASCII string
 
-int (*load_firmware)(struct capi_ctr *ctrlr, capiloaddata *ldata)
+``int (*load_firmware)(struct capi_ctr *ctrlr, capiloaddata *ldata)``
 	(optional) pointer to a callback function for sending firmware and
 	configuration data to the device
+
 	The function may return before the operation has completed.
+
 	Completion must be signalled by a call to capi_ctr_ready().
+
 	Return value: 0 on success, error code on error
 	Called in process context.
 
-void (*reset_ctr)(struct capi_ctr *ctrlr)
+``void (*reset_ctr)(struct capi_ctr *ctrlr)``
 	(optional) pointer to a callback function for stopping the device,
 	releasing all registered applications
+
 	The function may return before the operation has completed.
+
 	Completion must be signalled by a call to capi_ctr_down().
+
 	Called in process context.
 
-void (*register_appl)(struct capi_ctr *ctrlr, u16 applid,
-			capi_register_params *rparam)
-void (*release_appl)(struct capi_ctr *ctrlr, u16 applid)
-	pointers to callback functions for registration and deregistration of
+``void (*register_appl)(struct capi_ctr *ctrlr, u16 applid, capi_register_params *rparam)``
+	pointers to callback function for registration of
 	applications with the device
+
 	Calls to these functions are serialized by Kernel CAPI so that only
 	one call to any of them is active at any time.
 
-u16  (*send_message)(struct capi_ctr *ctrlr, struct sk_buff *skb)
+``void (*release_appl)(struct capi_ctr *ctrlr, u16 applid)``
+	pointers to callback functions deregistration of
+	applications with the device
+
+	Calls to these functions are serialized by Kernel CAPI so that only
+	one call to any of them is active at any time.
+
+``u16  (*send_message)(struct capi_ctr *ctrlr, struct sk_buff *skb)``
 	pointer to a callback function for sending a CAPI message to the
 	device
+
 	Return value: CAPI error code
+
 	If the method returns 0 (CAPI_NOERROR) the driver has taken ownership
 	of the skb and the caller may no longer access it. If it returns a
 	non-zero (error) value then ownership of the skb returns to the caller
 	who may reuse or free it.
+
 	The return value should only be used to signal problems with respect
 	to accepting or queueing the message. Errors occurring during the
 	actual processing of the message should be signaled with an
 	appropriate reply message.
+
 	May be called in process or interrupt context.
+
 	Calls to this function are not serialized by Kernel CAPI, ie. it must
 	be prepared to be re-entered.
 
-char *(*procinfo)(struct capi_ctr *ctrlr)
+``char *(*procinfo)(struct capi_ctr *ctrlr)``
 	pointer to a callback function returning the entry for the device in
 	the CAPI controller info table, /proc/capi/controller
 
-const struct file_operations *proc_fops
+``const struct file_operations *proc_fops``
 	pointers to callback functions for the device's proc file
 	system entry, /proc/capi/controllers/<n>; pointer to the device's
 	capi_ctr structure is available from struct proc_dir_entry::data
 	which is available from struct inode.
 
-Note: Callback functions except send_message() are never called in interrupt
-context.
+Note:
+  Callback functions except send_message() are never called in interrupt
+  context.
 
-- to be filled in before calling capi_ctr_ready():
+to be filled in before calling capi_ctr_ready():
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-u8 manu[CAPI_MANUFACTURER_LEN]
+``u8 manu[CAPI_MANUFACTURER_LEN]``
 	value to return for CAPI_GET_MANUFACTURER
 
-capi_version version
+``capi_version version``
 	value to return for CAPI_GET_VERSION
 
-capi_profile profile
+``capi_profile profile``
 	value to return for CAPI_GET_PROFILE
 
-u8 serial[CAPI_SERIAL_LEN]
+``u8 serial[CAPI_SERIAL_LEN]``
 	value to return for CAPI_GET_SERIAL
 
 
 4.3 SKBs
+--------
 
 CAPI messages are passed between Kernel CAPI and the driver via send_message()
 and capi_ctr_handle_message(), stored in the data portion of a socket buffer
@@ -192,6 +220,7 @@ instead of 30.
 
 
 4.4 The _cmsg Structure
+-----------------------
 
 (declared in <linux/isdn/capiutil.h>)
 
@@ -216,6 +245,7 @@ Members are named after the CAPI 2.0 standard names of the parameters they
 represent. See <linux/isdn/capiutil.h> for the exact spelling. Member data
 types are:
 
+=========== =================================================================
 u8          for CAPI parameters of type 'byte'
 
 u16         for CAPI parameters of type 'word'
@@ -235,6 +265,7 @@ _cmstruct   alternative representation for CAPI parameters of type 'struct'
 	    CAPI_COMPOSE: The parameter is present.
 	    Subparameter values are stored individually in the corresponding
 	    _cmsg structure members.
+=========== =================================================================
 
 Functions capi_cmsg2message() and capi_message2cmsg() are provided to convert
 messages between their transport encoding described in the CAPI 2.0 standard
@@ -244,51 +275,71 @@ sure it is big enough to accommodate the resulting CAPI message.
 
 
 5. Lower Layer Interface Functions
+==================================
 
 (declared in <linux/isdn/capilli.h>)
 
-void register_capi_driver(struct capi_driver *drvr)
-void unregister_capi_driver(struct capi_driver *drvr)
-	register/unregister a driver with Kernel CAPI
+::
 
-int attach_capi_ctr(struct capi_ctr *ctrlr)
-int detach_capi_ctr(struct capi_ctr *ctrlr)
-	register/unregister a device (controller) with Kernel CAPI
+  void register_capi_driver(struct capi_driver *drvr)
+  void unregister_capi_driver(struct capi_driver *drvr)
 
-void capi_ctr_ready(struct capi_ctr *ctrlr)
-void capi_ctr_down(struct capi_ctr *ctrlr)
-	signal controller ready/not ready
+register/unregister a driver with Kernel CAPI
 
-void capi_ctr_suspend_output(struct capi_ctr *ctrlr)
-void capi_ctr_resume_output(struct capi_ctr *ctrlr)
-	signal suspend/resume
+::
 
-void capi_ctr_handle_message(struct capi_ctr * ctrlr, u16 applid,
-				struct sk_buff *skb)
-	pass a received CAPI message to Kernel CAPI
-	for forwarding to the specified application
+  int attach_capi_ctr(struct capi_ctr *ctrlr)
+  int detach_capi_ctr(struct capi_ctr *ctrlr)
+
+register/unregister a device (controller) with Kernel CAPI
+
+::
+
+  void capi_ctr_ready(struct capi_ctr *ctrlr)
+  void capi_ctr_down(struct capi_ctr *ctrlr)
+
+signal controller ready/not ready
+
+::
+
+  void capi_ctr_suspend_output(struct capi_ctr *ctrlr)
+  void capi_ctr_resume_output(struct capi_ctr *ctrlr)
+
+signal suspend/resume
+
+::
+
+  void capi_ctr_handle_message(struct capi_ctr * ctrlr, u16 applid,
+			       struct sk_buff *skb)
+
+pass a received CAPI message to Kernel CAPI
+for forwarding to the specified application
 
 
 6. Helper Functions and Macros
+==============================
 
 Library functions (from <linux/isdn/capilli.h>):
 
-void capilib_new_ncci(struct list_head *head, u16 applid,
+::
+
+  void capilib_new_ncci(struct list_head *head, u16 applid,
 			u32 ncci, u32 winsize)
-void capilib_free_ncci(struct list_head *head, u16 applid, u32 ncci)
-void capilib_release_appl(struct list_head *head, u16 applid)
-void capilib_release(struct list_head *head)
-void capilib_data_b3_conf(struct list_head *head, u16 applid,
+  void capilib_free_ncci(struct list_head *head, u16 applid, u32 ncci)
+  void capilib_release_appl(struct list_head *head, u16 applid)
+  void capilib_release(struct list_head *head)
+  void capilib_data_b3_conf(struct list_head *head, u16 applid,
 			u32 ncci, u16 msgid)
-u16  capilib_data_b3_req(struct list_head *head, u16 applid,
+  u16  capilib_data_b3_req(struct list_head *head, u16 applid,
 			u32 ncci, u16 msgid)
 
 
 Macros to extract/set element values from/in a CAPI message header
 (from <linux/isdn/capiutil.h>):
 
+======================  =============================   ====================
 Get Macro		Set Macro			Element (Type)
-
+======================  =============================   ====================
 CAPIMSG_LEN(m)		CAPIMSG_SETLEN(m, len)		Total Length (u16)
 CAPIMSG_APPID(m)	CAPIMSG_SETAPPID(m, applid)	ApplID (u16)
 CAPIMSG_COMMAND(m)	CAPIMSG_SETCOMMAND(m,cmd)	Command (u8)
@@ -300,31 +351,31 @@ CAPIMSG_MSGID(m)	CAPIMSG_SETMSGID(m, msgid)	Message Number (u16)
 CAPIMSG_CONTROL(m)	CAPIMSG_SETCONTROL(m, contr)	Controller/PLCI/NCCI
 							(u32)
 CAPIMSG_DATALEN(m)	CAPIMSG_SETDATALEN(m, len)	Data Length (u16)
+======================  =============================   ====================
 
 
 Library functions for working with _cmsg structures
 (from <linux/isdn/capiutil.h>):
 
-unsigned capi_cmsg2message(_cmsg *cmsg, u8 *msg)
-	Assembles a CAPI 2.0 message from the parameters in *cmsg, storing the
-	result in *msg.
+``unsigned capi_cmsg2message(_cmsg *cmsg, u8 *msg)``
+	Assembles a CAPI 2.0 message from the parameters in ``*cmsg``,
+	storing the result in ``*msg``.
 
-unsigned capi_message2cmsg(_cmsg *cmsg, u8 *msg)
-	Disassembles the CAPI 2.0 message in *msg, storing the parameters in
-	*cmsg.
+``unsigned capi_message2cmsg(_cmsg *cmsg, u8 *msg)``
+	Disassembles the CAPI 2.0 message in ``*msg``, storing the parameters
+	in ``*cmsg``.
 
-unsigned capi_cmsg_header(_cmsg *cmsg, u16 ApplId, u8 Command, u8 Subcommand,
-			  u16 Messagenumber, u32 Controller)
-	Fills the header part and address field of the _cmsg structure *cmsg
+``unsigned capi_cmsg_header(_cmsg *cmsg, u16 ApplId, u8 Command, u8 Subcommand, u16 Messagenumber, u32 Controller)``
+	Fills the header part and address field of the _cmsg structure ``*cmsg``
 	with the given values, zeroing the remainder of the structure so only
 	parameters with non-default values need to be changed before sending
 	the message.
 
-void capi_cmsg_answer(_cmsg *cmsg)
-	Sets the low bit of the Subcommand field in *cmsg, thereby converting
-	_REQ to _CONF and _IND to _RESP.
+``void capi_cmsg_answer(_cmsg *cmsg)``
+	Sets the low bit of the Subcommand field in ``*cmsg``, thereby
+	converting ``_REQ`` to ``_CONF`` and ``_IND`` to ``_RESP``.
 
-char *capi_cmd2str(u8 Command, u8 Subcommand)
+``char *capi_cmd2str(u8 Command, u8 Subcommand)``
 	Returns the CAPI 2.0 message name corresponding to the given command
 	and subcommand values, as a static ASCII string. The return value may
 	be NULL if the command/subcommand is not one of those defined in the
@@ -332,6 +383,7 @@ char *capi_cmd2str(u8 Command, u8 Subcommand)
 
 
 7. Debugging
+============
 
 The module kernelcapi has a module parameter showcapimsgs controlling some
 debugging output produced by the module. It can only be set when the module is

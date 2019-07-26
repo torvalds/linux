@@ -1,3 +1,7 @@
+=======
+Credits
+=======
+
 
 I want to thank all who contributed to this project and especially to:
 (in alphabetical order)
@@ -19,7 +23,7 @@ Matthias Hessler (hessler@isdn4linux.de)
   For creating and maintaining the FAQ.
 
 Bernhard Hailer (Bernhard.Hailer@lrz.uni-muenchen.de)
-  For creating the FAQ, and the leafsite HOWTO. 
+  For creating the FAQ, and the leafsite HOWTO.
 
 Michael 'Ghandi' Herold (michael@abadonna.franken.de)
   For contribution of the vbox answering machine.
@@ -67,4 +71,3 @@ Gerhard 'Fido' Schneider (fido@wuff.mayn.de)
 Thomas Uhl (uhl@think.de)
   For distributing the cards.
   For pushing me to work ;-)
-
