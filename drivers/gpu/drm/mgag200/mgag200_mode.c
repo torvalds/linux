@@ -1678,17 +1678,18 @@ static struct drm_connector *mga_vga_init(struct drm_device *dev)
 		return NULL;
 
 	connector = &mga_connector->base;
+	mga_connector->i2c = mgag200_i2c_create(dev);
+	if (!mga_connector->i2c)
+		DRM_ERROR("failed to add ddc bus\n");
 
-	drm_connector_init(dev, connector,
-			   &mga_vga_connector_funcs, DRM_MODE_CONNECTOR_VGA);
+	drm_connector_init_with_ddc(dev, connector,
+				    &mga_vga_connector_funcs,
+				    DRM_MODE_CONNECTOR_VGA,
+				    &mga_connector->i2c->adapter);
 
 	drm_connector_helper_add(connector, &mga_vga_connector_helper_funcs);
 
 	drm_connector_register(connector);
-
-	mga_connector->i2c = mgag200_i2c_create(dev);
-	if (!mga_connector->i2c)
-		DRM_ERROR("failed to add ddc bus\n");
 
 	return connector;
 }
