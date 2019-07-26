@@ -520,9 +520,7 @@ int snd_soc_suspend(struct device *dev)
 				/* fall through */
 
 			case SND_SOC_BIAS_OFF:
-				if (component->driver->suspend)
-					component->driver->suspend(component);
-				component->suspended = 1;
+				snd_soc_component_suspend(component);
 				if (component->regmap)
 					regcache_mark_dirty(component->regmap);
 				/* deactivate pins to sleep state */

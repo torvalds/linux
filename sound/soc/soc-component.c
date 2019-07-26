@@ -347,3 +347,10 @@ int snd_soc_component_trigger(struct snd_soc_component *component,
 
 	return 0;
 }
+
+void snd_soc_component_suspend(struct snd_soc_component *component)
+{
+	if (component->driver->suspend)
+		component->driver->suspend(component);
+	component->suspended = 1;
+}

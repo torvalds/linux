@@ -353,5 +353,6 @@ int snd_soc_component_hw_free(struct snd_soc_component *component,
 int snd_soc_component_trigger(struct snd_soc_component *component,
 			      struct snd_pcm_substream *substream,
 			      int cmd);
+void snd_soc_component_suspend(struct snd_soc_component *component);
 
 #endif /* __SOC_COMPONENT_H */
