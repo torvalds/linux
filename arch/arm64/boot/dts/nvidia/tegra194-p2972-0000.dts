@@ -10,7 +10,7 @@
 	model = "NVIDIA Jetson AGX Xavier Developer Kit";
 	compatible = "nvidia,p2972-0000", "nvidia,tegra194";
 
-	cbb {
+	cbb@0 {
 		aconnect {
 			status = "okay";
 

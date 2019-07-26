@@ -15,7 +15,7 @@
 	#size-cells = <2>;
 
 	/* control backbone */
-	cbb {
+	cbb@0 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;

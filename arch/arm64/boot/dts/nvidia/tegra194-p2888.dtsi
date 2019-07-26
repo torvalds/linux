@@ -8,17 +8,17 @@
 	compatible = "nvidia,p2888", "nvidia,tegra194";
 
 	aliases {
-		sdhci0 = "/cbb/sdhci@3460000";
-		sdhci1 = "/cbb/sdhci@3400000";
+		sdhci0 = "/cbb@0/sdhci@3460000";
+		sdhci1 = "/cbb@0/sdhci@3400000";
 		serial0 = &tcu;
 		i2c0 = "/bpmp/i2c";
-		i2c1 = "/cbb/i2c@3160000";
-		i2c2 = "/cbb/i2c@c240000";
-		i2c3 = "/cbb/i2c@3180000";
-		i2c4 = "/cbb/i2c@3190000";
-		i2c5 = "/cbb/i2c@31c0000";
-		i2c6 = "/cbb/i2c@c250000";
-		i2c7 = "/cbb/i2c@31e0000";
+		i2c1 = "/cbb@0/i2c@3160000";
+		i2c2 = "/cbb@0/i2c@c240000";
+		i2c3 = "/cbb@0/i2c@3180000";
+		i2c4 = "/cbb@0/i2c@3190000";
+		i2c5 = "/cbb@0/i2c@31c0000";
+		i2c6 = "/cbb@0/i2c@c250000";
+		i2c7 = "/cbb@0/i2c@31e0000";
 	};
 
 	chosen {
@@ -26,7 +26,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	cbb {
+	cbb@0 {
 		ethernet@2490000 {
 			status = "okay";
 
