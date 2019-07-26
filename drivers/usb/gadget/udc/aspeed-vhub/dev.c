@@ -204,13 +204,18 @@ int ast_vhub_std_dev_request(struct ast_vhub_ep *ep,
 	u16 wValue, wIndex;
 
 	/* No driver, we shouldn't be enabled ... */
-	if (!d->driver || !d->enabled || d->suspended) {
+	if (!d->driver || !d->enabled) {
 		EPDBG(ep,
-		      "Device is wrong state driver=%p enabled=%d"
-		      " suspended=%d\n",
-		      d->driver, d->enabled, d->suspended);
+		      "Device is wrong state driver=%p enabled=%d\n",
+		      d->driver, d->enabled);
 		return std_req_stall;
 	}
+
+	/*
+	 * Note: we used to reject/stall requests while suspended,
+	 * we don't do that anymore as we seem to have cases of
+	 * mass storage getting very upset.
+	 */
 
 	/* First packet, grab speed */
 	if (d->gadget.speed == USB_SPEED_UNKNOWN) {

@@ -379,7 +379,7 @@ static int ast_vhub_ep0_queue(struct usb_ep* u_ep, struct usb_request *u_req,
 		return -EINVAL;
 
 	/* Disabled device */
-	if (ep->dev && (!ep->dev->enabled || ep->dev->suspended))
+	if (ep->dev && !ep->dev->enabled)
 		return -ESHUTDOWN;
 
 	/* Data, no buffer and not internal ? */
