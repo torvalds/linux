@@ -3525,6 +3525,7 @@ bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 		case CHIP_VEGA20:
 		case CHIP_VEGA10:
 		case CHIP_VEGA12:
+		case CHIP_RAVEN:
 			break;
 		default:
 			goto disabled;

@@ -509,6 +509,15 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int soc15_mode2_reset(struct amdgpu_device *adev)
+{
+	if (!adev->powerplay.pp_funcs ||
+	    !adev->powerplay.pp_funcs->asic_reset_mode_2)
+		return -ENOENT;
+
+	return adev->powerplay.pp_funcs->asic_reset_mode_2(adev->powerplay.pp_handle);
+}
+
 static enum amd_reset_method
 soc15_asic_reset_method(struct amdgpu_device *adev)
 {
@@ -547,14 +556,14 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 
 static int soc15_asic_reset(struct amdgpu_device *adev)
 {
-	int ret;
-
-	if (soc15_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)
-		ret = soc15_asic_baco_reset(adev);
-	else
-		ret = soc15_asic_mode1_reset(adev);
-
-	return ret;
+	switch (soc15_asic_reset_method(adev)) {
+		case AMD_RESET_METHOD_BACO:
+			return soc15_asic_baco_reset(adev);
+		case AMD_RESET_METHOD_MODE2:
+			return soc15_mode2_reset(adev);
+		default:
+			return soc15_asic_mode1_reset(adev);
+	}
 }
 
 /*static int soc15_set_uvd_clock(struct amdgpu_device *adev, u32 clock,
