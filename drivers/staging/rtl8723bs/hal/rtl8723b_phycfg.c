@@ -431,14 +431,12 @@ static int phy_BB8723b_Config_ParaFile(struct adapter *Adapter)
 	u8 sz8723BBRegFile[] = RTL8723B_PHY_REG;
 	u8 sz8723AGCTableFile[] = RTL8723B_AGC_TAB;
 	u8 sz8723BBBRegPgFile[] = RTL8723B_PHY_REG_PG;
-	u8 sz8723BBRegMpFile[] = RTL8723B_PHY_REG_MP;
 	u8 sz8723BRFTxPwrLmtFile[] = RTL8723B_TXPWR_LMT;
-	u8 *pszBBRegFile = NULL, *pszAGCTableFile = NULL, *pszBBRegPgFile = NULL, *pszBBRegMpFile = NULL, *pszRFTxPwrLmtFile = NULL;
+	u8 *pszBBRegFile = NULL, *pszAGCTableFile = NULL, *pszBBRegPgFile = NULL, *pszRFTxPwrLmtFile = NULL;
 
 	pszBBRegFile = sz8723BBRegFile;
 	pszAGCTableFile = sz8723AGCTableFile;
 	pszBBRegPgFile = sz8723BBBRegPgFile;
-	pszBBRegMpFile = sz8723BBRegMpFile;
 	pszRFTxPwrLmtFile = sz8723BRFTxPwrLmtFile;
 
 	/*  Read Tx Power Limit File */
