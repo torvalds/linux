@@ -105,7 +105,8 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 		break;
 
 	case RDMA_CM_EVENT_ESTABLISHED:
-		trans->cm_connect_complete(conn, event);
+		if (conn)
+			trans->cm_connect_complete(conn, event);
 		break;
 
 	case RDMA_CM_EVENT_REJECTED:
@@ -137,6 +138,8 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 		break;
 
 	case RDMA_CM_EVENT_DISCONNECTED:
+		if (!conn)
+			break;
 		rdsdebug("DISCONNECT event - dropping connection "
 			 "%pI6c->%pI6c\n", &conn->c_laddr,
 			 &conn->c_faddr);
