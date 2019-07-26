@@ -23,6 +23,7 @@
 
 #include "pp_debug.h"
 #include <linux/firmware.h>
+#include <linux/pci.h>
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
 #include "atomfirmware.h"
@@ -1573,7 +1574,7 @@ static int navi10_set_peak_clock_by_device(struct smu_context *smu)
 	uint32_t sclk_freq = 0, uclk_freq = 0;
 	uint32_t uclk_level = 0;
 
-	switch (adev->rev_id) {
+	switch (adev->pdev->revision) {
 	case 0xf0: /* XTX */
 	case 0xc0:
 		sclk_freq = NAVI10_PEAK_SCLK_XTX;
