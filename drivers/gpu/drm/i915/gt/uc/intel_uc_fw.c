@@ -218,21 +218,18 @@ void intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 
 	css = (struct uc_css_header *)fw->data;
 
-	/* Firmware bits always start from header */
-	uc_fw->header_offset = 0;
-	uc_fw->header_size = (css->header_size_dw - css->modulus_size_dw -
-			      css->key_size_dw - css->exponent_size_dw) *
-			     sizeof(u32);
-
-	if (uc_fw->header_size != sizeof(struct uc_css_header)) {
+	/* Check integrity of size values inside CSS header */
+	size = (css->header_size_dw - css->key_size_dw - css->modulus_size_dw -
+		css->exponent_size_dw) * sizeof(u32);
+	if (size != sizeof(struct uc_css_header)) {
 		DRM_WARN("%s: Mismatched firmware header definition\n",
 			 intel_uc_fw_type_repr(uc_fw->type));
 		err = -ENOEXEC;
 		goto fail;
 	}
 
-	/* then, uCode */
-	uc_fw->ucode_offset = uc_fw->header_offset + uc_fw->header_size;
+	/* uCode size must calculated from other sizes */
+	uc_fw->ucode_offset = sizeof(struct uc_css_header);
 	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
 
 	/* now RSA */
@@ -246,7 +243,7 @@ void intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 	uc_fw->rsa_size = css->key_size_dw * sizeof(u32);
 
 	/* At least, it should have header, uCode and RSA. Size of all three. */
-	size = uc_fw->header_size + uc_fw->ucode_size + uc_fw->rsa_size;
+	size = sizeof(struct uc_css_header) + uc_fw->ucode_size + uc_fw->rsa_size;
 	if (fw->size < size) {
 		DRM_WARN("%s: Truncated firmware (%zu, expected %zu)\n",
 			 intel_uc_fw_type_repr(uc_fw->type), fw->size, size);
@@ -371,7 +368,7 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
 	/* Set the source address for the uCode */
-	offset = uc_fw_ggtt_offset(uc_fw, gt->ggtt) + uc_fw->header_offset;
+	offset = uc_fw_ggtt_offset(uc_fw, gt->ggtt);
 	GEM_BUG_ON(upper_32_bits(offset) & 0xFFFF0000);
 	intel_uncore_write_fw(uncore, DMA_ADDR_0_LOW, lower_32_bits(offset));
 	intel_uncore_write_fw(uncore, DMA_ADDR_0_HIGH, upper_32_bits(offset));
@@ -385,7 +382,7 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 	 * via DMA, excluding any other components
 	 */
 	intel_uncore_write_fw(uncore, DMA_COPY_SIZE,
-			      uc_fw->header_size + uc_fw->ucode_size);
+			      sizeof(struct uc_css_header) + uc_fw->ucode_size);
 
 	/* Start the DMA */
 	intel_uncore_write_fw(uncore, DMA_CTRL,
@@ -539,8 +536,6 @@ void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p)
 	drm_printf(p, "\tversion: wanted %u.%u, found %u.%u\n",
 		   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted,
 		   uc_fw->major_ver_found, uc_fw->minor_ver_found);
-	drm_printf(p, "\theader: offset %u, size %u\n",
-		   uc_fw->header_offset, uc_fw->header_size);
 	drm_printf(p, "\tuCode: offset %u, size %u\n",
 		   uc_fw->ucode_offset, uc_fw->ucode_size);
 	drm_printf(p, "\tRSA: offset %u, size %u\n",

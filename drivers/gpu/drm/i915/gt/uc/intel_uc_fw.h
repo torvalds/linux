@@ -26,6 +26,7 @@
 #define _INTEL_UC_FW_H_
 
 #include <linux/types.h>
+#include "intel_uc_fw_abi.h"
 #include "i915_gem.h"
 
 struct drm_printer;
@@ -57,10 +58,11 @@ enum intel_uc_fw_type {
  * of fetching, caching, and loading the firmware image into the uC.
  */
 struct intel_uc_fw {
+	enum intel_uc_fw_type type;
+	enum intel_uc_fw_status status;
 	const char *path;
 	size_t size;
 	struct drm_i915_gem_object *obj;
-	enum intel_uc_fw_status status;
 
 	/*
 	 * The firmware build process will generate a version header file with major and
@@ -72,9 +74,6 @@ struct intel_uc_fw {
 	u16 major_ver_found;
 	u16 minor_ver_found;
 
-	enum intel_uc_fw_type type;
-	u32 header_size;
-	u32 header_offset;
 	u32 rsa_size;
 	u32 rsa_offset;
 	u32 ucode_size;
@@ -163,7 +162,7 @@ static inline u32 intel_uc_fw_get_upload_size(struct intel_uc_fw *uc_fw)
 	if (!intel_uc_fw_is_available(uc_fw))
 		return 0;
 
-	return uc_fw->header_size + uc_fw->ucode_size;
+	return sizeof(struct uc_css_header) + uc_fw->ucode_size;
 }
 
 void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
