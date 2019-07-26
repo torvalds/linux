@@ -462,3 +462,24 @@ int snd_soc_pcm_component_ioctl(struct snd_pcm_substream *substream,
 
 	return snd_pcm_lib_ioctl(substream, cmd, arg);
 }
+
+int snd_soc_pcm_component_copy_user(struct snd_pcm_substream *substream,
+				    int channel, unsigned long pos,
+				    void __user *buf, unsigned long bytes)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *component;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		/* FIXME. it returns 1st copy now */
+		if (component->driver->ops &&
+		    component->driver->ops->copy_user)
+			return component->driver->ops->copy_user(
+				substream, channel, pos, buf, bytes);
+	}
+
+	return -EINVAL;
+}
