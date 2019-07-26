@@ -379,5 +379,7 @@ int snd_soc_pcm_component_copy_user(struct snd_pcm_substream *substream,
 				    void __user *buf, unsigned long bytes);
 struct page *snd_soc_pcm_component_page(struct snd_pcm_substream *substream,
 					unsigned long offset);
+int snd_soc_pcm_component_mmap(struct snd_pcm_substream *substream,
+			       struct vm_area_struct *vma);
 
 #endif /* __SOC_COMPONENT_H */

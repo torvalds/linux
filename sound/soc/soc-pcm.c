@@ -2818,27 +2818,6 @@ static void soc_pcm_private_free(struct snd_pcm *pcm)
 	}
 }
 
-static int soc_rtdcom_mmap(struct snd_pcm_substream *substream,
-			   struct vm_area_struct *vma)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_rtdcom_list *rtdcom;
-	struct snd_soc_component *component;
-
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
-		if (!component->driver->ops ||
-		    !component->driver->ops->mmap)
-			continue;
-
-		/* FIXME. it returns 1st mmap now */
-		return component->driver->ops->mmap(substream, vma);
-	}
-
-	return -EINVAL;
-}
-
 /* create a new pcm */
 int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 {
@@ -2968,7 +2947,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		if (ops->page)
 			rtd->ops.page		= snd_soc_pcm_component_page;
 		if (ops->mmap)
-			rtd->ops.mmap		= soc_rtdcom_mmap;
+			rtd->ops.mmap		= snd_soc_pcm_component_mmap;
 	}
 
 	if (playback)
