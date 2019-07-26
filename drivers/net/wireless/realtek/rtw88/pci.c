@@ -990,7 +990,6 @@ static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 	u16 cut;
 	u16 value;
 	u16 offset;
-	u16 ip_sel;
 	int i;
 
 	cut = BIT(0) << rtwdev->hal.cut_version;
@@ -1003,7 +1002,6 @@ static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 			break;
 		offset = para->offset;
 		value = para->value;
-		ip_sel = para->ip_sel;
 		if (para->ip_sel == RTW_IP_SEL_PHY)
 			rtw_mdio_write(rtwdev, offset, value, true);
 		else
@@ -1018,7 +1016,6 @@ static void rtw_pci_phy_cfg(struct rtw_dev *rtwdev)
 			break;
 		offset = para->offset;
 		value = para->value;
-		ip_sel = para->ip_sel;
 		if (para->ip_sel == RTW_IP_SEL_PHY)
 			rtw_mdio_write(rtwdev, offset, value, false);
 		else
