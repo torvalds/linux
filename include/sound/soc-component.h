@@ -343,5 +343,7 @@ int snd_soc_component_open(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream);
 int snd_soc_component_close(struct snd_soc_component *component,
 			    struct snd_pcm_substream *substream);
+int snd_soc_component_prepare(struct snd_soc_component *component,
+			      struct snd_pcm_substream *substream);
 
 #endif /* __SOC_COMPONENT_H */

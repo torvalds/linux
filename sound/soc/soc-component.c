@@ -305,3 +305,13 @@ int snd_soc_component_close(struct snd_soc_component *component,
 
 	return 0;
 }
+
+int snd_soc_component_prepare(struct snd_soc_component *component,
+			      struct snd_pcm_substream *substream)
+{
+	if (component->driver->ops &&
+	    component->driver->ops->prepare)
+		return component->driver->ops->prepare(substream);
+
+	return 0;
+}
