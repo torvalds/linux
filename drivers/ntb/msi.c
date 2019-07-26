@@ -6,11 +6,6 @@
 #include <linux/msi.h>
 #include <linux/pci.h>
 
-MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION("0.1");
-MODULE_AUTHOR("Logan Gunthorpe <logang@deltatee.com>");
-MODULE_DESCRIPTION("NTB MSI Interrupt Library");
-
 struct ntb_msi {
 	u64 base_addr;
 	u64 end_addr;
