@@ -424,3 +424,21 @@ int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
 						     args, dai_name);
 	return -ENOTSUPP;
 }
+
+int snd_soc_pcm_component_pointer(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *component;
+	struct snd_soc_rtdcom_list *rtdcom;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		/* FIXME: use 1st pointer */
+		if (component->driver->ops &&
+		    component->driver->ops->pointer)
+			return component->driver->ops->pointer(substream);
+	}
+
+	return 0;
+}

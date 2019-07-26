@@ -371,4 +371,6 @@ int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
 					struct of_phandle_args *args,
 					const char **dai_name);
 
+int snd_soc_pcm_component_pointer(struct snd_pcm_substream *substream);
+
 #endif /* __SOC_COMPONENT_H */
