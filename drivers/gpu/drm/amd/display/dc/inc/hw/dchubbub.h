@@ -61,8 +61,8 @@ enum dcn_hubbub_page_table_depth {
 };
 
 enum dcn_hubbub_page_table_block_size {
-	DCN_PAGE_TABLE_BLOCK_SIZE_4KB,
-	DCN_PAGE_TABLE_BLOCK_SIZE_64KB
+	DCN_PAGE_TABLE_BLOCK_SIZE_4KB = 0,
+	DCN_PAGE_TABLE_BLOCK_SIZE_64KB = 4,
 };
 
 struct dcn_hubbub_phys_addr_config {
