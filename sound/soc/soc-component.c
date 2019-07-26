@@ -380,3 +380,12 @@ void snd_soc_component_remove(struct snd_soc_component *component)
 	if (component->driver->remove)
 		component->driver->remove(component);
 }
+
+int snd_soc_component_of_xlate_dai_id(struct snd_soc_component *component,
+				      struct device_node *ep)
+{
+	if (component->driver->of_xlate_dai_id)
+		return component->driver->of_xlate_dai_id(component, ep);
+
+	return -ENOTSUPP;
+}

@@ -3334,9 +3334,8 @@ int snd_soc_get_dai_id(struct device_node *ep)
 	ret = -ENOTSUPP;
 	mutex_lock(&client_mutex);
 	component = soc_find_component(&dlc);
-	if (component &&
-	    component->driver->of_xlate_dai_id)
-		ret = component->driver->of_xlate_dai_id(component, ep);
+	if (component)
+		ret = snd_soc_component_of_xlate_dai_id(component, ep);
 	mutex_unlock(&client_mutex);
 
 	of_node_put(dlc.of_node);
