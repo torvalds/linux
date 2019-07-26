@@ -442,3 +442,23 @@ int snd_soc_pcm_component_pointer(struct snd_pcm_substream *substream)
 
 	return 0;
 }
+
+int snd_soc_pcm_component_ioctl(struct snd_pcm_substream *substream,
+				unsigned int cmd, void *arg)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *component;
+	struct snd_soc_rtdcom_list *rtdcom;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		/* FIXME: use 1st ioctl */
+		if (component->driver->ops &&
+		    component->driver->ops->ioctl)
+			return component->driver->ops->ioctl(substream,
+							     cmd, arg);
+	}
+
+	return snd_pcm_lib_ioctl(substream, cmd, arg);
+}
