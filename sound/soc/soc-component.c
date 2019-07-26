@@ -374,3 +374,9 @@ int snd_soc_component_probe(struct snd_soc_component *component)
 
 	return 0;
 }
+
+void snd_soc_component_remove(struct snd_soc_component *component)
+{
+	if (component->driver->remove)
+		component->driver->remove(component);
+}

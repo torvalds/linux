@@ -929,8 +929,7 @@ static void soc_remove_component(struct snd_soc_component *component)
 	if (!component->card)
 		return;
 
-	if (component->driver->remove)
-		component->driver->remove(component);
+	snd_soc_component_remove(component);
 
 	soc_cleanup_component(component);
 }
