@@ -640,9 +640,10 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 
 	drm_connector_helper_add(&hdmi->connector,
 				 &sun4i_hdmi_connector_helper_funcs);
-	ret = drm_connector_init(drm, &hdmi->connector,
-				 &sun4i_hdmi_connector_funcs,
-				 DRM_MODE_CONNECTOR_HDMIA);
+	ret = drm_connector_init_with_ddc(drm, &hdmi->connector,
+					  &sun4i_hdmi_connector_funcs,
+					  DRM_MODE_CONNECTOR_HDMIA,
+					  hdmi->ddc_i2c);
 	if (ret) {
 		dev_err(dev,
 			"Couldn't initialise the HDMI connector\n");
