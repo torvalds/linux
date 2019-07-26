@@ -124,7 +124,7 @@ int rn_vbios_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int reque
 {
 	int actual_dcfclk_set_mhz = -1;
 
-	if (clk_mgr->smu_ver < 0xFFFFFFFF)
+	if (clk_mgr->smu_ver < 0x370c00)
 		return actual_dcfclk_set_mhz;
 
 	actual_dcfclk_set_mhz = rn_vbios_smu_send_msg_with_param(
@@ -139,7 +139,7 @@ int rn_vbios_smu_set_min_deep_sleep_dcfclk(struct clk_mgr_internal *clk_mgr, int
 {
 	int actual_min_ds_dcfclk_mhz = -1;
 
-	if (clk_mgr->smu_ver < 0xFFFFFFFF)
+	if (clk_mgr->smu_ver < 0x370c00)
 		return actual_min_ds_dcfclk_mhz;
 
 	actual_min_ds_dcfclk_mhz = rn_vbios_smu_send_msg_with_param(
