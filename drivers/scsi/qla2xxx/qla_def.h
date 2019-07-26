@@ -537,6 +537,7 @@ typedef struct srb {
 	wait_queue_head_t nvme_ls_waitq;
 	struct fc_port *fcport;
 	struct scsi_qla_host *vha;
+	unsigned int start_timer:1;
 	uint32_t handle;
 	uint16_t flags;
 	uint16_t type;
