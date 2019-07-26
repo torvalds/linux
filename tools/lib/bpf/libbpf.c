@@ -182,7 +182,6 @@ struct bpf_program {
 	bpf_program_clear_priv_t clear_priv;
 
 	enum bpf_attach_type expected_attach_type;
-	int btf_fd;
 	void *func_info;
 	__u32 func_info_rec_size;
 	__u32 func_info_cnt;
@@ -313,7 +312,6 @@ void bpf_program__unload(struct bpf_program *prog)
 	prog->instances.nr = -1;
 	zfree(&prog->instances.fds);
 
-	zclose(prog->btf_fd);
 	zfree(&prog->func_info);
 	zfree(&prog->line_info);
 }
@@ -392,7 +390,6 @@ bpf_program__init(void *data, size_t size, char *section_name, int idx,
 	prog->instances.fds = NULL;
 	prog->instances.nr = -1;
 	prog->type = BPF_PROG_TYPE_UNSPEC;
-	prog->btf_fd = -1;
 
 	return 0;
 errout:
@@ -2288,9 +2285,6 @@ bpf_program_reloc_btf_ext(struct bpf_program *prog, struct bpf_object *obj,
 		prog->line_info_rec_size = btf_ext__line_info_rec_size(obj->btf_ext);
 	}
 
-	if (!insn_offset)
-		prog->btf_fd = btf__fd(obj->btf);
-
 	return 0;
 }
 
@@ -2463,7 +2457,7 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	char *cp, errmsg[STRERR_BUFSIZE];
 	int log_buf_size = BPF_LOG_BUF_SIZE;
 	char *log_buf;
-	int ret;
+	int btf_fd, ret;
 
 	if (!insns || !insns_cnt)
 		return -EINVAL;
@@ -2478,7 +2472,8 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	load_attr.license = license;
 	load_attr.kern_version = kern_version;
 	load_attr.prog_ifindex = prog->prog_ifindex;
-	load_attr.prog_btf_fd = prog->btf_fd >= 0 ? prog->btf_fd : 0;
+	btf_fd = bpf_object__btf_fd(prog->obj);
+	load_attr.prog_btf_fd = btf_fd >= 0 ? btf_fd : 0;
 	load_attr.func_info = prog->func_info;
 	load_attr.func_info_rec_size = prog->func_info_rec_size;
 	load_attr.func_info_cnt = prog->func_info_cnt;
