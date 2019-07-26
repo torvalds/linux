@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 /* Copyright (c) 2018 Facebook */
 
+#include <endian.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -419,9 +420,9 @@ done:
 
 static bool btf_check_endianness(const GElf_Ehdr *ehdr)
 {
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 	return ehdr->e_ident[EI_DATA] == ELFDATA2LSB;
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#elif __BYTE_ORDER == __BIG_ENDIAN
 	return ehdr->e_ident[EI_DATA] == ELFDATA2MSB;
 #else
 # error "Unrecognized __BYTE_ORDER__"
