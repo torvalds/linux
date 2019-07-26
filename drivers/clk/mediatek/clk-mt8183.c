@@ -17,6 +17,9 @@
 
 #include <dt-bindings/clock/mt8183-clk.h>
 
+/* Infra global controller reset set register */
+#define INFRA_RST0_SET_OFFSET		0x120
+
 static DEFINE_SPINLOCK(mt8183_clk_lock);
 
 static const struct mtk_fixed_clk top_fixed_clks[] = {
@@ -1185,13 +1188,24 @@ static int clk_mt8183_infra_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
 	struct device_node *node = pdev->dev.of_node;
+	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
 
 	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks),
 		clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	if (r) {
+		dev_err(&pdev->dev,
+			"%s(): could not register clock provider: %d\n",
+			__func__, r);
+		return r;
+	}
+
+	mtk_register_reset_controller_set_clr(node, 4, INFRA_RST0_SET_OFFSET);
+
+	return r;
 }
 
 static int clk_mt8183_mcu_probe(struct platform_device *pdev)
