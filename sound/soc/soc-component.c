@@ -366,3 +366,11 @@ int snd_soc_component_is_suspended(struct snd_soc_component *component)
 {
 	return component->suspended;
 }
+
+int snd_soc_component_probe(struct snd_soc_component *component)
+{
+	if (component->driver->probe)
+		return component->driver->probe(component);
+
+	return 0;
+}
