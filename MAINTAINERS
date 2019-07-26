@@ -1194,7 +1194,7 @@ F:	include/uapi/linux/if_arcnet.h
 
 ARM ARCHITECTED TIMER DRIVER
 M:	Mark Rutland <mark.rutland@arm.com>
-M:	Marc Zyngier <marc.zyngier@arm.com>
+M:	Marc Zyngier <maz@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/include/asm/arch_timer.h
@@ -8490,7 +8490,7 @@ S:	Obsolete
 F:	include/uapi/linux/ipx.h
 
 IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
-M:	Marc Zyngier <marc.zyngier@arm.com>
+M:	Marc Zyngier <maz@kernel.org>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
 F:	Documentation/IRQ-domain.txt
@@ -8508,7 +8508,7 @@ F:	kernel/irq/
 IRQCHIP DRIVERS
 M:	Thomas Gleixner <tglx@linutronix.de>
 M:	Jason Cooper <jason@lakedaemon.net>
-M:	Marc Zyngier <marc.zyngier@arm.com>
+M:	Marc Zyngier <maz@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
@@ -8828,10 +8828,10 @@ F:	arch/x86/include/asm/svm.h
 F:	arch/x86/kvm/svm.c
 
 KERNEL VIRTUAL MACHINE FOR ARM/ARM64 (KVM/arm, KVM/arm64)
-M:	Marc Zyngier <marc.zyngier@arm.com>
+M:	Marc Zyngier <maz@kernel.org>
 R:	James Morse <james.morse@arm.com>
-R:	Julien Thierry <julien.thierry@arm.com>
-R:	Suzuki K Pouloze <suzuki.poulose@arm.com>
+R:	Julien Thierry <julien.thierry.kdev@gmail.com>
+R:	Suzuki K Poulose <suzuki.poulose@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	kvmarm@lists.cs.columbia.edu
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvmarm/kvmarm.git
@@ -17124,7 +17124,7 @@ F:	drivers/virtio/virtio_input.c
 F:	include/uapi/linux/virtio_input.h
 
 VIRTIO IOMMU DRIVER
-M:	Jean-Philippe Brucker <jean-philippe.brucker@arm.com>
+M:	Jean-Philippe Brucker <jean-philippe@linaro.org>
 L:	virtualization@lists.linux-foundation.org
 S:	Maintained
 F:	drivers/iommu/virtio-iommu.c
