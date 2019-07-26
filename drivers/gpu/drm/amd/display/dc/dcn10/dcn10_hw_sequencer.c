@@ -1905,6 +1905,36 @@ static void dcn10_program_gamut_remap(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.dpp->funcs->dpp_set_gamut_remap(pipe_ctx->plane_res.dpp, &adjust);
 }
 
+
+static bool dcn10_is_rear_mpo_fix_required(struct pipe_ctx *pipe_ctx, enum dc_color_space colorspace)
+{
+	if (pipe_ctx->plane_state && pipe_ctx->plane_state->layer_index > 0 && is_rgb_cspace(colorspace)) {
+		if (pipe_ctx->top_pipe) {
+			struct pipe_ctx *top = pipe_ctx->top_pipe;
+
+			while (top->top_pipe)
+				top = top->top_pipe; // Traverse to top pipe_ctx
+			if (top->plane_state && top->plane_state->layer_index == 0)
+				return true; // Front MPO plane not hidden
+		}
+	}
+	return false;
+}
+
+static void dcn10_set_csc_adjustment_rgb_mpo_fix(struct pipe_ctx *pipe_ctx, uint16_t *matrix)
+{
+	// Override rear plane RGB bias to fix MPO brightness
+	uint16_t rgb_bias = matrix[3];
+
+	matrix[3] = 0;
+	matrix[7] = 0;
+	matrix[11] = 0;
+	pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment(pipe_ctx->plane_res.dpp, matrix);
+	matrix[3] = rgb_bias;
+	matrix[7] = rgb_bias;
+	matrix[11] = rgb_bias;
+}
+
 static void dcn10_program_output_csc(struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		enum dc_color_space colorspace,
@@ -1912,8 +1942,25 @@ static void dcn10_program_output_csc(struct dc *dc,
 		int opp_id)
 {
 	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
-		if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment != NULL)
-			pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment(pipe_ctx->plane_res.dpp, matrix);
+		if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment != NULL) {
+
+			/* MPO is broken with RGB colorspaces when OCSC matrix
+			 * brightness offset >= 0 on DCN1 due to OCSC before MPC
+			 * Blending adds offsets from front + rear to rear plane
+			 *
+			 * Fix is to set RGB bias to 0 on rear plane, top plane
+			 * black value pixels add offset instead of rear + front
+			 */
+
+			int16_t rgb_bias = matrix[3];
+			// matrix[3/7/11] are all the same offset value
+
+			if (rgb_bias > 0 && dcn10_is_rear_mpo_fix_required(pipe_ctx, colorspace)) {
+				dcn10_set_csc_adjustment_rgb_mpo_fix(pipe_ctx, matrix);
+			} else {
+				pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment(pipe_ctx->plane_res.dpp, matrix);
+			}
+		}
 	} else {
 		if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default != NULL)
 			pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default(pipe_ctx->plane_res.dpp, colorspace);

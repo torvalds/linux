@@ -1692,6 +1692,8 @@ static void copy_surface_update_to_plane(
 				srf_update->plane_info->dcc;
 		surface->sdr_white_level =
 				srf_update->plane_info->sdr_white_level;
+		surface->layer_index =
+				srf_update->plane_info->layer_index;
 	}
 
 	if (srf_update->gamma &&
