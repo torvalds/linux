@@ -2045,6 +2045,8 @@ MemoryAllocation* efi_mem_allocation_build_chunk(
         return mem_alloc;
 }
 
+void efi_maybe_coalesce_chunks( MemoryAllocation *mem_alloc );
+
 /* Register new mem allocation. The allocation is brand new and there is no
  * region in &efi_memory_mappings, which overlaps with it */
 void efi_register_new_phys_mem_allocation( EFI_MEMORY_TYPE       MemoryType,
@@ -2079,7 +2081,7 @@ void efi_register_new_phys_mem_allocation( EFI_MEMORY_TYPE       MemoryType,
 
         if (list_empty(&efi_memory_mappings)) {
                 list_add_tail( &cur_alloc->list, &efi_memory_mappings);
-                return;
+                goto out;
         }
 
         /* Assuming the list is already sorted, we need to find the proper
@@ -2091,7 +2093,7 @@ void efi_register_new_phys_mem_allocation( EFI_MEMORY_TYPE       MemoryType,
                 mem_map       = &next_alloc->mem_descriptor;
                 if (mem_map->phys_addr > phys_addr ) {
                         list_add( &cur_alloc->list, next_alloc->list.prev );
-                        return;
+                        goto out;
                 }
         }
 
@@ -2099,6 +2101,9 @@ void efi_register_new_phys_mem_allocation( EFI_MEMORY_TYPE       MemoryType,
          * existing chunks in the list. We therefore add the new chunk at the
          * end of the list. */
         list_add_tail( &cur_alloc->list, &efi_memory_mappings);
+
+out:
+        efi_maybe_coalesce_chunks( cur_alloc );
 }
 
 void efi_register_phys_mem_allocation_inside_existing(
@@ -2166,6 +2171,8 @@ void efi_register_phys_mem_allocation_inside_existing(
 
         if (next_chunk != NULL)
                 list_add( &next_chunk->list, &mem_alloc->list );
+
+        efi_maybe_coalesce_chunks( mem_alloc );
 }
 
 void efi_print_memory_map(void);
@@ -2199,6 +2206,7 @@ void efi_register_phys_mem_allocation( EFI_MEMORY_TYPE       MemoryType,
                 /* BUG_ON( mem_map->type != MemoryType ); */
 
                 mem_map->type = MemoryType;
+                efi_maybe_coalesce_chunks( mem_alloc );
 
                 DebugMSG( "Same allocation detected"  );
                 /* This is exactly the same allocation. Nothing to be done */
@@ -2209,7 +2217,7 @@ void efi_register_phys_mem_allocation( EFI_MEMORY_TYPE       MemoryType,
                                                           NumberOfPages,
                                                           phys_addr,
                                                           mem_alloc );
-        efi_print_memory_map();
+        /* efi_print_memory_map(); */
 }
 
 
@@ -2231,6 +2239,7 @@ void efi_register_mem_allocation(  EFI_MEMORY_TYPE       MemoryType,
 MemoryAllocation* efi_coalesce_2_chunks( MemoryAllocation *first_alloc,
                                          MemoryAllocation *second_alloc )
 {
+        efi_print_memory_map();
         DebugMSG( "Coalescing chunk starting at 0x%llx with "
                   " chunk starting at 0x%llx",
                   first_alloc->mem_descriptor.phys_addr,
@@ -2253,7 +2262,7 @@ void efi_maybe_coalesce_chunks( MemoryAllocation *mem_alloc )
         MemoryAllocation *new_alloc    = mem_alloc;
         unsigned long    end_of_region = 0;
 
-        BUG_ON( mem_map->type != EfiConventionalMemory );
+        /* BUG_ON( mem_map->type != EfiConventionalMemory ); */
 
         /* If we are not the first item on the list, get the previous one */
         if (list_first_entry( &efi_memory_mappings, MemoryAllocation ,list )
@@ -2270,7 +2279,7 @@ void efi_maybe_coalesce_chunks( MemoryAllocation *mem_alloc )
 
                 /* If regions are adjacent, and both free - coalesce! */
                 if (end_of_region  == mem_map->phys_addr &&
-                    prev_map->type == EfiConventionalMemory )
+                    prev_map->type == mem_map->type )
                         new_alloc = efi_coalesce_2_chunks( prev_alloc,
                                                            mem_alloc );
         }
@@ -2284,7 +2293,7 @@ void efi_maybe_coalesce_chunks( MemoryAllocation *mem_alloc )
                 /* new_alloc is either the original mem_map or the amalgamation
                  * of prev and the original mem_map */
                 if (end_of_region  == next_map->phys_addr &&
-                    next_map->type == EfiConventionalMemory )
+                    next_map->type == mem_map->type )
                         efi_coalesce_2_chunks( new_alloc, next_alloc );
         }
 }
