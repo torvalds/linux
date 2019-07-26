@@ -25,6 +25,7 @@ Core utilities
    librs
    genalloc
    errseq
+   packing
    printk-formats
    circular-buffers
    generic-radix-tree
