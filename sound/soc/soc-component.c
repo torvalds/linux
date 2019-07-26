@@ -59,6 +59,15 @@ void snd_soc_component_seq_notifier(struct snd_soc_component *component,
 		component->driver->seq_notifier(component, type, subseq);
 }
 
+int snd_soc_component_stream_event(struct snd_soc_component *component,
+				   int event)
+{
+	if (component->driver->stream_event)
+		return component->driver->stream_event(component, event);
+
+	return 0;
+}
+
 int snd_soc_component_enable_pin(struct snd_soc_component *component,
 				 const char *pin)
 {
