@@ -158,19 +158,19 @@ static int jh057n_enable(struct drm_panel *panel)
 static int jh057n_disable(struct drm_panel *panel)
 {
 	struct jh057n *ctx = panel_to_jh057n(panel);
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 
-	return backlight_disable(ctx->backlight);
+	backlight_disable(ctx->backlight);
+	return mipi_dsi_dcs_set_display_off(dsi);
 }
 
 static int jh057n_unprepare(struct drm_panel *panel)
 {
 	struct jh057n *ctx = panel_to_jh057n(panel);
-	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 
 	if (!ctx->prepared)
 		return 0;
 
-	mipi_dsi_dcs_set_display_off(dsi);
 	regulator_disable(ctx->iovcc);
 	regulator_disable(ctx->vcc);
 	ctx->prepared = false;
