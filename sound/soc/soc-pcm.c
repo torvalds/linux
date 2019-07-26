@@ -447,11 +447,7 @@ static int soc_pcm_components_open(struct snd_pcm_substream *substream,
 			return ret;
 		}
 
-		if (!component->driver->ops ||
-		    !component->driver->ops->open)
-			continue;
-
-		ret = component->driver->ops->open(substream);
+		ret = snd_soc_component_open(component, substream);
 		if (ret < 0) {
 			dev_err(component->dev,
 				"ASoC: can't open component %s: %d\n",

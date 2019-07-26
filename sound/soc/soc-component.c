@@ -285,3 +285,13 @@ void snd_soc_component_module_put(struct snd_soc_component *component,
 	if (component->driver->module_get_upon_open == !!upon_open)
 		module_put(component->dev->driver->owner);
 }
+
+int snd_soc_component_open(struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream)
+{
+	if (component->driver->ops &&
+	    component->driver->ops->open)
+		return component->driver->ops->open(substream);
+
+	return 0;
+}
