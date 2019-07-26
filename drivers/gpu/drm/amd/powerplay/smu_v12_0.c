@@ -36,12 +36,10 @@
 
 #define smnMP1_FIRMWARE_FLAGS                                0x3010024
 
-#define mmPWR_MISC_CNTL_STATUS					0x0183
-#define mmPWR_MISC_CNTL_STATUS_BASE_IDX				0
-#define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN__SHIFT	0x0
-#define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS__SHIFT		0x1
-#define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN_MASK		0x00000001L
-#define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS_MASK		0x00000006L
+#define mmSMUIO_GFX_MISC_CNTL                                0x00c8
+#define mmSMUIO_GFX_MISC_CNTL_BASE_IDX                       0
+#define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS_MASK          0x00000006L
+#define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS__SHIFT        0x1
 
 static int smu_v12_0_send_msg_without_waiting(struct smu_context *smu,
 					      uint16_t msg)
@@ -214,30 +212,52 @@ static int smu_v12_0_set_gfx_cgpg(struct smu_context *smu, bool enable)
 		SMU_MSG_SetGfxCGPG, enable ? 1 : 0);
 }
 
-static bool smu_v12_0_is_gfx_on(struct smu_context *smu)
+/**
+ * smu_v12_0_get_gfxoff_status - get gfxoff status
+ *
+ * @smu: amdgpu_device pointer
+ *
+ * This function will be used to get gfxoff status
+ *
+ * Returns 0=GFXOFF(default).
+ * Returns 1=Transition out of GFX State.
+ * Returns 2=Not in GFXOFF.
+ * Returns 3=Transition into GFXOFF.
+ */
+static uint32_t smu_v12_0_get_gfxoff_status(struct smu_context *smu)
 {
 	uint32_t reg;
+	uint32_t gfxOff_Status = 0;
 	struct amdgpu_device *adev = smu->adev;
 
-	reg = RREG32_SOC15(PWR, 0, mmPWR_MISC_CNTL_STATUS);
-	if ((reg & PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS_MASK) ==
-	    (0x2 << PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS__SHIFT))
-		return true;
+	reg = RREG32_SOC15(SMUIO, 0, mmSMUIO_GFX_MISC_CNTL);
+	gfxOff_Status = (reg & SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS_MASK)
+		>> SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS__SHIFT;
 
-	return false;
+	return gfxOff_Status;
 }
 
 static int smu_v12_0_gfx_off_control(struct smu_context *smu, bool enable)
 {
-	int ret = 0, timeout = 10;
+	int ret = 0, timeout = 500;
 
 	if (enable) {
 		ret = smu_send_smc_msg(smu, SMU_MSG_AllowGfxOff);
+
+		/* confirm gfx is back to "off" state, timeout is 5 seconds */
+		while (!(smu_v12_0_get_gfxoff_status(smu) == 0)) {
+			msleep(10);
+			timeout--;
+			if (timeout == 0) {
+				DRM_ERROR("enable gfxoff timeout and failed!\n");
+				break;
+			}
+		}
 	} else {
 		ret = smu_send_smc_msg(smu, SMU_MSG_DisallowGfxOff);
 
-		/* confirm gfx is back to "on" state */
-		while (!smu_v12_0_is_gfx_on(smu)) {
+		/* confirm gfx is back to "on" state, timeout is 0.5 second */
+		while (!(smu_v12_0_get_gfxoff_status(smu) == 2)) {
 			msleep(1);
 			timeout--;
 			if (timeout == 0) {
