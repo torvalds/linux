@@ -143,6 +143,14 @@ static int jh057n_init_sequence(struct jh057n *ctx)
 static int jh057n_enable(struct drm_panel *panel)
 {
 	struct jh057n *ctx = panel_to_jh057n(panel);
+	int ret;
+
+	ret = jh057n_init_sequence(ctx);
+	if (ret < 0) {
+		DRM_DEV_ERROR(ctx->dev, "Panel init sequence failed: %d\n",
+			      ret);
+		return ret;
+	}
 
 	return backlight_enable(ctx->backlight);
 }
@@ -196,13 +204,6 @@ static int jh057n_prepare(struct drm_panel *panel)
 	usleep_range(20, 40);
 	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
 	msleep(20);
-
-	ret = jh057n_init_sequence(ctx);
-	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->dev, "Panel init sequence failed: %d\n",
-			      ret);
-		return ret;
-	}
 
 	ctx->prepared = true;
 
