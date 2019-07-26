@@ -1287,8 +1287,10 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	drm_connector->polled = DRM_CONNECTOR_POLL_HPD;
 
-	drm_connector_init(drm_dev, drm_connector,
-			&sti_hdmi_connector_funcs, DRM_MODE_CONNECTOR_HDMIA);
+	drm_connector_init_with_ddc(drm_dev, drm_connector,
+				    &sti_hdmi_connector_funcs,
+				    DRM_MODE_CONNECTOR_HDMIA,
+				    hdmi->ddc_adapt);
 	drm_connector_helper_add(drm_connector,
 			&sti_hdmi_connector_helper_funcs);
 
