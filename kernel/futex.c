@@ -490,7 +490,7 @@ futex_setup_timer(ktime_t *time, struct hrtimer_sleeper *timeout,
 	hrtimer_init_on_stack(&timeout->timer, (flags & FLAGS_CLOCKRT) ?
 			      CLOCK_REALTIME : CLOCK_MONOTONIC,
 			      HRTIMER_MODE_ABS);
-	hrtimer_init_sleeper(timeout, current);
+	hrtimer_init_sleeper(timeout);
 
 	/*
 	 * If range_ns is 0, calling hrtimer_set_expires_range_ns() is

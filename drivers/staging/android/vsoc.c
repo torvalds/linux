@@ -442,7 +442,7 @@ static int handle_vsoc_cond_wait(struct file *filp, struct vsoc_cond_wait *arg)
 		hrtimer_set_expires_range_ns(&to->timer, wake_time,
 					     current->timer_slack_ns);
 
-		hrtimer_init_sleeper(to, current);
+		hrtimer_init_sleeper(to);
 	}
 
 	while (1) {

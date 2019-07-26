@@ -1639,10 +1639,10 @@ static enum hrtimer_restart hrtimer_wakeup(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-void hrtimer_init_sleeper(struct hrtimer_sleeper *sl, struct task_struct *task)
+void hrtimer_init_sleeper(struct hrtimer_sleeper *sl)
 {
 	sl->timer.function = hrtimer_wakeup;
-	sl->task = task;
+	sl->task = current;
 }
 EXPORT_SYMBOL_GPL(hrtimer_init_sleeper);
 
@@ -1669,7 +1669,7 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 {
 	struct restart_block *restart;
 
-	hrtimer_init_sleeper(t, current);
+	hrtimer_init_sleeper(t);
 
 	do {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -1930,7 +1930,7 @@ schedule_hrtimeout_range_clock(ktime_t *expires, u64 delta,
 	hrtimer_init_on_stack(&t.timer, clock_id, mode);
 	hrtimer_set_expires_range_ns(&t.timer, *expires, delta);
 
-	hrtimer_init_sleeper(&t, current);
+	hrtimer_init_sleeper(&t);
 
 	hrtimer_start_expires(&t.timer, mode);
 
