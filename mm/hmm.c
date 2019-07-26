@@ -165,7 +165,6 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
 {
 	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
 	struct hmm_mirror *mirror;
-	struct hmm_update update;
 	struct hmm_range *range;
 	unsigned long flags;
 	int ret = 0;
@@ -173,15 +172,10 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
 	if (!kref_get_unless_zero(&hmm->kref))
 		return 0;
 
-	update.start = nrange->start;
-	update.end = nrange->end;
-	update.event = HMM_UPDATE_INVALIDATE;
-	update.blockable = mmu_notifier_range_blockable(nrange);
-
 	spin_lock_irqsave(&hmm->ranges_lock, flags);
 	hmm->notifiers++;
 	list_for_each_entry(range, &hmm->ranges, list) {
-		if (update.end < range->start || update.start >= range->end)
+		if (nrange->end < range->start || nrange->start >= range->end)
 			continue;
 
 		range->valid = false;
@@ -198,9 +192,10 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
 	list_for_each_entry(mirror, &hmm->mirrors, list) {
 		int rc;
 
-		rc = mirror->ops->sync_cpu_device_pagetables(mirror, &update);
+		rc = mirror->ops->sync_cpu_device_pagetables(mirror, nrange);
 		if (rc) {
-			if (WARN_ON(update.blockable || rc != -EAGAIN))
+			if (WARN_ON(mmu_notifier_range_blockable(nrange) ||
+			    rc != -EAGAIN))
 				continue;
 			ret = -EAGAIN;
 			break;

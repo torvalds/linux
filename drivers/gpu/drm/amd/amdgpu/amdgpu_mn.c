@@ -195,13 +195,14 @@ static void amdgpu_mn_invalidate_node(struct amdgpu_mn_node *node,
  * Block for operations on BOs to finish and mark pages as accessed and
  * potentially dirty.
  */
-static int amdgpu_mn_sync_pagetables_gfx(struct hmm_mirror *mirror,
-			const struct hmm_update *update)
+static int
+amdgpu_mn_sync_pagetables_gfx(struct hmm_mirror *mirror,
+			      const struct mmu_notifier_range *update)
 {
 	struct amdgpu_mn *amn = container_of(mirror, struct amdgpu_mn, mirror);
 	unsigned long start = update->start;
 	unsigned long end = update->end;
-	bool blockable = update->blockable;
+	bool blockable = mmu_notifier_range_blockable(update);
 	struct interval_tree_node *it;
 
 	/* notification is exclusive, but interval is inclusive */
@@ -243,13 +244,14 @@ static int amdgpu_mn_sync_pagetables_gfx(struct hmm_mirror *mirror,
  * necessitates evicting all user-mode queues of the process. The BOs
  * are restorted in amdgpu_mn_invalidate_range_end_hsa.
  */
-static int amdgpu_mn_sync_pagetables_hsa(struct hmm_mirror *mirror,
-			const struct hmm_update *update)
+static int
+amdgpu_mn_sync_pagetables_hsa(struct hmm_mirror *mirror,
+			      const struct mmu_notifier_range *update)
 {
 	struct amdgpu_mn *amn = container_of(mirror, struct amdgpu_mn, mirror);
 	unsigned long start = update->start;
 	unsigned long end = update->end;
-	bool blockable = update->blockable;
+	bool blockable = mmu_notifier_range_blockable(update);
 	struct interval_tree_node *it;
 
 	/* notification is exclusive, but interval is inclusive */

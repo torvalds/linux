@@ -252,13 +252,13 @@ nouveau_svmm_invalidate(struct nouveau_svmm *svmm, u64 start, u64 limit)
 
 static int
 nouveau_svmm_sync_cpu_device_pagetables(struct hmm_mirror *mirror,
-					const struct hmm_update *update)
+					const struct mmu_notifier_range *update)
 {
 	struct nouveau_svmm *svmm = container_of(mirror, typeof(*svmm), mirror);
 	unsigned long start = update->start;
 	unsigned long limit = update->end;
 
-	if (!update->blockable)
+	if (!mmu_notifier_range_blockable(update))
 		return -EAGAIN;
 
 	SVMM_DBG(svmm, "invalidate %016lx-%016lx", start, limit);
