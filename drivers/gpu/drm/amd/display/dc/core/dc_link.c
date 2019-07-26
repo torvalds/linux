@@ -854,16 +854,9 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 					dc_sink_release(prev_sink);
 				} else {
 					/* Empty dongle plug in */
-					for (i = 0; i < LINK_TRAINING_MAX_VERIFY_RETRY; i++) {
-						int fail_count = 0;
-
-						dp_verify_link_cap(link,
-								  &link->reported_link_cap,
-								  &fail_count);
-
-						if (fail_count == 0)
-							break;
-					}
+					dp_verify_link_cap_with_retries(link,
+							&link->reported_link_cap,
+							LINK_TRAINING_MAX_VERIFY_RETRY);
 				}
 				return true;
 			}
@@ -967,17 +960,9 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			 */
 
 			/* deal with non-mst cases */
-			for (i = 0; i < LINK_TRAINING_MAX_VERIFY_RETRY; i++) {
-				int fail_count = 0;
-
-				dp_verify_link_cap(link,
-						  &link->reported_link_cap,
-						  &fail_count);
-
-				if (fail_count == 0)
-					break;
-			}
-
+			dp_verify_link_cap_with_retries(link,
+					&link->reported_link_cap,
+					LINK_TRAINING_MAX_VERIFY_RETRY);
 		} else {
 			// If edid is the same, then discard new sink and revert back to original sink
 			if (same_edid) {

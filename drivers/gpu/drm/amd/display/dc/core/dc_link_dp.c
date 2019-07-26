@@ -1643,6 +1643,33 @@ bool dp_verify_link_cap(
 	return success;
 }
 
+bool dp_verify_link_cap_with_retries(
+	struct dc_link *link,
+	struct dc_link_settings *known_limit_link_setting,
+	int attempts)
+{
+	uint8_t i = 0;
+	bool success = false;
+
+	for (i = 0; i < attempts; i++) {
+		int fail_count = 0;
+		enum dc_connection_type type;
+
+		memset(&link->verified_link_cap, 0,
+				sizeof(struct dc_link_settings));
+		if (!dc_link_detect_sink(link, &type)) {
+			break;
+		} else if (dp_verify_link_cap(link,
+				&link->reported_link_cap,
+				&fail_count) && fail_count == 0) {
+			success = true;
+			break;
+		}
+		msleep(10);
+	}
+	return success;
+}
+
 static struct dc_link_settings get_common_supported_link_settings(
 		struct dc_link_settings link_setting_a,
 		struct dc_link_settings link_setting_b)
