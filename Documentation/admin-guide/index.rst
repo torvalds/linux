@@ -100,6 +100,7 @@ configure specific aspects of kernel behavior to your liking.
    iostats
    kernel-per-CPU-kthreads
    laptops/index
+   auxdisplay/index
    lcd-panel-cgram
    ldm
    lockup-watchdogs
