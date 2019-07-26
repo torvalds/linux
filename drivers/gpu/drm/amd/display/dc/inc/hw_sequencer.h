@@ -48,6 +48,7 @@ struct dce_hwseq_wa {
 	bool DEGVIDCN10_253;
 	bool false_optc_underflow;
 	bool DEGVIDCN10_254;
+	bool DEGVIDCN21;
 };
 
 struct hwseq_wa_state {

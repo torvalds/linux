@@ -386,6 +386,9 @@ struct dc_debug_options {
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	bool disable_fec;
 #endif
+#ifdef CONFIG_DRM_AMD_DC_DCN2_1
+	bool disable_48mhz_pwrdwn;
+#endif
 	/* This forces a hard min on the DCFCLK requested to SMU/PP
 	 * watermarks are not affected.
 	 */

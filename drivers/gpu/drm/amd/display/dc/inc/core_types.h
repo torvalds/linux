@@ -87,6 +87,9 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 struct resource_pool;
 struct dc_state;
 struct resource_context;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+struct clk_bw_params;
+#endif
 
 struct resource_funcs {
 	void (*destroy)(struct resource_pool **pool);
