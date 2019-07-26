@@ -4947,7 +4947,9 @@ M:	Jonathan Corbet <corbet@lwn.net>
 L:	linux-doc@vger.kernel.org
 S:	Maintained
 F:	Documentation/
+F:	scripts/documentation-file-ref-check
 F:	scripts/kernel-doc
+F:	scripts/sphinx-pre-install
 X:	Documentation/ABI/
 X:	Documentation/firmware-guide/acpi/
 X:	Documentation/devicetree/
@@ -4962,6 +4964,14 @@ M:	Federico Vaga <federico.vaga@vaga.pv.it>
 L:	linux-doc@vger.kernel.org
 S:	Maintained
 F:	Documentation/translations/it_IT
+
+DOCUMENTATION SCRIPTS
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
+L:	linux-doc@vger.kernel.org
+S:	Maintained
+F:	scripts/documentation-file-ref-check
+F:	scripts/sphinx-pre-install
+F:	Documentation/sphinx/parse-headers.pl
 
 DONGWOON DW9714 LENS VOICE COIL DRIVER
 M:	Sakari Ailus <sakari.ailus@linux.intel.com>
