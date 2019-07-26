@@ -5508,39 +5508,6 @@ static bool rtl_test_hw_pad_bug(struct rtl8169_private *tp, struct sk_buff *skb)
 	return skb->len < ETH_ZLEN && tp->mac_version == RTL_GIGA_MAC_VER_34;
 }
 
-static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
-				      struct net_device *dev);
-/* r8169_csum_workaround()
- * The hw limites the value the transport offset. When the offset is out of the
- * range, calculate the checksum by sw.
- */
-static void r8169_csum_workaround(struct rtl8169_private *tp,
-				  struct sk_buff *skb)
-{
-	if (skb_is_gso(skb)) {
-		netdev_features_t features = tp->dev->features;
-		struct sk_buff *segs, *nskb;
-
-		features &= ~(NETIF_F_SG | NETIF_F_IPV6_CSUM | NETIF_F_TSO6);
-		segs = skb_gso_segment(skb, features);
-		if (IS_ERR(segs) || !segs)
-			goto drop;
-
-		do {
-			nskb = segs;
-			segs = segs->next;
-			nskb->next = NULL;
-			rtl8169_start_xmit(nskb, tp->dev);
-		} while (segs);
-
-		dev_consume_skb_any(skb);
-	} else {
-drop:
-		tp->dev->stats.tx_dropped++;
-		dev_kfree_skb_any(skb);
-	}
-}
-
 /* msdn_giant_send_check()
  * According to the document of microsoft, the TCP Pseudo Header excludes the
  * packet length for IPv6 TCP large packets.
@@ -5688,10 +5655,8 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	opts[0] = DescOwn;
 
 	if (rtl_chip_supports_csum_v2(tp)) {
-		if (!rtl8169_tso_csum_v2(tp, skb, opts)) {
-			r8169_csum_workaround(tp, skb);
-			return NETDEV_TX_OK;
-		}
+		if (!rtl8169_tso_csum_v2(tp, skb, opts))
+			goto err_dma_0;
 	} else {
 		rtl8169_tso_csum_v1(skb, opts);
 	}
