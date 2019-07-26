@@ -4454,7 +4454,7 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	}
 
 	if (plane->type != DRM_PLANE_TYPE_CURSOR)
-		domain = amdgpu_display_supported_domains(adev);
+		domain = amdgpu_display_supported_domains(adev, rbo->flags);
 	else
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
 
