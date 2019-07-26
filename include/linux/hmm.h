@@ -413,7 +413,9 @@ void hmm_range_unregister(struct hmm_range *range);
  */
 #define HMM_FAULT_ALLOW_RETRY		(1 << 0)
 
-long hmm_range_snapshot(struct hmm_range *range);
+/* Don't fault in missing PTEs, just snapshot the current state. */
+#define HMM_FAULT_SNAPSHOT		(1 << 1)
+
 long hmm_range_fault(struct hmm_range *range, unsigned int flags);
 
 long hmm_range_dma_map(struct hmm_range *range,

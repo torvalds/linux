@@ -192,15 +192,14 @@ read only, or fully unmap, etc.). The device must complete the update before
 the driver callback returns.
 
 When the device driver wants to populate a range of virtual addresses, it can
-use either::
+use::
 
-  long hmm_range_snapshot(struct hmm_range *range);
-  long hmm_range_fault(struct hmm_range *range, bool block);
+  long hmm_range_fault(struct hmm_range *range, unsigned int flags);
 
-The first one (hmm_range_snapshot()) will only fetch present CPU page table
+With the HMM_RANGE_SNAPSHOT flag, it will only fetch present CPU page table
 entries and will not trigger a page fault on missing or non-present entries.
-The second one does trigger a page fault on missing or read-only entries if
-write access is requested (see below). Page faults use the generic mm page
+Without that flag, it does trigger a page fault on missing or read-only entries
+if write access is requested (see below). Page faults use the generic mm page
 fault code path just like a CPU page fault.
 
 Both functions copy CPU page table entries into their pfns array argument. Each
@@ -227,20 +226,20 @@ The usage pattern is::
 
       /*
        * Just wait for range to be valid, safe to ignore return value as we
-       * will use the return value of hmm_range_snapshot() below under the
+       * will use the return value of hmm_range_fault() below under the
        * mmap_sem to ascertain the validity of the range.
        */
       hmm_range_wait_until_valid(&range, TIMEOUT_IN_MSEC);
 
  again:
       down_read(&mm->mmap_sem);
-      ret = hmm_range_snapshot(&range);
+      ret = hmm_range_fault(&range, HMM_RANGE_SNAPSHOT);
       if (ret) {
           up_read(&mm->mmap_sem);
           if (ret == -EBUSY) {
             /*
              * No need to check hmm_range_wait_until_valid() return value
-             * on retry we will get proper error with hmm_range_snapshot()
+             * on retry we will get proper error with hmm_range_fault()
              */
             hmm_range_wait_until_valid(&range, TIMEOUT_IN_MSEC);
             goto again;

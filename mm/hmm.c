@@ -280,7 +280,6 @@ struct hmm_vma_walk {
 	struct hmm_range	*range;
 	struct dev_pagemap	*pgmap;
 	unsigned long		last;
-	bool			fault;
 	unsigned int		flags;
 };
 
@@ -373,7 +372,7 @@ static inline void hmm_pte_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
 {
 	struct hmm_range *range = hmm_vma_walk->range;
 
-	if (!hmm_vma_walk->fault)
+	if (hmm_vma_walk->flags & HMM_FAULT_SNAPSHOT)
 		return;
 
 	/*
@@ -418,7 +417,7 @@ static void hmm_range_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
 {
 	unsigned long i;
 
-	if (!hmm_vma_walk->fault) {
+	if (hmm_vma_walk->flags & HMM_FAULT_SNAPSHOT) {
 		*fault = *write_fault = false;
 		return;
 	}
@@ -936,85 +935,6 @@ void hmm_range_unregister(struct hmm_range *range)
 }
 EXPORT_SYMBOL(hmm_range_unregister);
 
-/*
- * hmm_range_snapshot() - snapshot CPU page table for a range
- * @range: range
- * Return: -EINVAL if invalid argument, -ENOMEM out of memory, -EPERM invalid
- *          permission (for instance asking for write and range is read only),
- *          -EBUSY if you need to retry, -EFAULT invalid (ie either no valid
- *          vma or it is illegal to access that range), number of valid pages
- *          in range->pfns[] (from range start address).
- *
- * This snapshots the CPU page table for a range of virtual addresses. Snapshot
- * validity is tracked by range struct. See in include/linux/hmm.h for example
- * on how to use.
- */
-long hmm_range_snapshot(struct hmm_range *range)
-{
-	const unsigned long device_vma = VM_IO | VM_PFNMAP | VM_MIXEDMAP;
-	unsigned long start = range->start, end;
-	struct hmm_vma_walk hmm_vma_walk;
-	struct hmm *hmm = range->hmm;
-	struct vm_area_struct *vma;
-	struct mm_walk mm_walk;
-
-	lockdep_assert_held(&hmm->mm->mmap_sem);
-	do {
-		/* If range is no longer valid force retry. */
-		if (!range->valid)
-			return -EBUSY;
-
-		vma = find_vma(hmm->mm, start);
-		if (vma == NULL || (vma->vm_flags & device_vma))
-			return -EFAULT;
-
-		if (is_vm_hugetlb_page(vma)) {
-			if (huge_page_shift(hstate_vma(vma)) !=
-				    range->page_shift &&
-			    range->page_shift != PAGE_SHIFT)
-				return -EINVAL;
-		} else {
-			if (range->page_shift != PAGE_SHIFT)
-				return -EINVAL;
-		}
-
-		if (!(vma->vm_flags & VM_READ)) {
-			/*
-			 * If vma do not allow read access, then assume that it
-			 * does not allow write access, either. HMM does not
-			 * support architecture that allow write without read.
-			 */
-			hmm_pfns_clear(range, range->pfns,
-				range->start, range->end);
-			return -EPERM;
-		}
-
-		range->vma = vma;
-		hmm_vma_walk.pgmap = NULL;
-		hmm_vma_walk.last = start;
-		hmm_vma_walk.fault = false;
-		hmm_vma_walk.range = range;
-		mm_walk.private = &hmm_vma_walk;
-		end = min(range->end, vma->vm_end);
-
-		mm_walk.vma = vma;
-		mm_walk.mm = vma->vm_mm;
-		mm_walk.pte_entry = NULL;
-		mm_walk.test_walk = NULL;
-		mm_walk.hugetlb_entry = NULL;
-		mm_walk.pud_entry = hmm_vma_walk_pud;
-		mm_walk.pmd_entry = hmm_vma_walk_pmd;
-		mm_walk.pte_hole = hmm_vma_walk_hole;
-		mm_walk.hugetlb_entry = hmm_vma_walk_hugetlb_entry;
-
-		walk_page_range(start, end, &mm_walk);
-		start = end;
-	} while (start < range->end);
-
-	return (hmm_vma_walk.last - range->start) >> PAGE_SHIFT;
-}
-EXPORT_SYMBOL(hmm_range_snapshot);
-
 /**
  * hmm_range_fault - try to fault some address in a virtual address range
  * @range:	range being faulted
@@ -1088,7 +1008,6 @@ long hmm_range_fault(struct hmm_range *range, unsigned int flags)
 		range->vma = vma;
 		hmm_vma_walk.pgmap = NULL;
 		hmm_vma_walk.last = start;
-		hmm_vma_walk.fault = true;
 		hmm_vma_walk.flags = flags;
 		hmm_vma_walk.range = range;
 		mm_walk.private = &hmm_vma_walk;
