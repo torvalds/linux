@@ -1371,23 +1371,6 @@ static int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 	return ret;
 }
 
-static int smu_v11_0_get_current_rpm(struct smu_context *smu,
-				     uint32_t *current_rpm)
-{
-	int ret;
-
-	ret = smu_send_smc_msg(smu, SMU_MSG_GetCurrentRpm);
-
-	if (ret) {
-		pr_err("Attempt to get current RPM from SMC Failed!\n");
-		return ret;
-	}
-
-	smu_read_smc_arg(smu, current_rpm);
-
-	return 0;
-}
-
 static uint32_t
 smu_v11_0_get_fan_control_mode(struct smu_context *smu)
 {
@@ -1773,7 +1756,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.set_deep_sleep_dcefclk = smu_v11_0_set_deep_sleep_dcefclk,
 	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,
 	.set_watermarks_for_clock_ranges = smu_v11_0_set_watermarks_for_clock_ranges,
-	.get_current_rpm = smu_v11_0_get_current_rpm,
 	.get_fan_control_mode = smu_v11_0_get_fan_control_mode,
 	.set_fan_control_mode = smu_v11_0_set_fan_control_mode,
 	.set_fan_speed_percent = smu_v11_0_set_fan_speed_percent,
