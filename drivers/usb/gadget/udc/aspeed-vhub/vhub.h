@@ -354,7 +354,6 @@ struct ast_vhub_dev {
 	struct usb_gadget_driver	*driver;
 	bool				registered : 1;
 	bool				wakeup_en : 1;
-	bool				suspended : 1;
 	bool				enabled : 1;
 
 	/* Endpoint structures */

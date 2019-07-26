@@ -89,7 +89,6 @@ static void ast_vhub_dev_enable(struct ast_vhub_dev *d)
 
 	/* Additional cleanups */
 	d->wakeup_en = false;
-	d->suspended = false;
 	d->enabled = true;
 }
 
@@ -110,7 +109,6 @@ static void ast_vhub_dev_disable(struct ast_vhub_dev *d)
 	writel(0, d->regs + AST_VHUB_DEV_EN_CTRL);
 	d->gadget.speed = USB_SPEED_UNKNOWN;
 	d->enabled = false;
-	d->suspended = false;
 }
 
 static int ast_vhub_dev_feature(struct ast_vhub_dev *d,
@@ -471,7 +469,6 @@ static const struct usb_gadget_ops ast_vhub_udc_ops = {
 
 void ast_vhub_dev_suspend(struct ast_vhub_dev *d)
 {
-	d->suspended = true;
 	if (d->driver && d->driver->suspend) {
 		spin_unlock(&d->vhub->lock);
 		d->driver->suspend(&d->gadget);
@@ -481,7 +478,6 @@ void ast_vhub_dev_suspend(struct ast_vhub_dev *d)
 
 void ast_vhub_dev_resume(struct ast_vhub_dev *d)
 {
-	d->suspended = false;
 	if (d->driver && d->driver->resume) {
 		spin_unlock(&d->vhub->lock);
 		d->driver->resume(&d->gadget);
