@@ -20,6 +20,8 @@ algorithms work.
    path-lookup
    api-summary
    splice
+   locking
+   directory-locking
 
 Filesystem support layers
 =========================

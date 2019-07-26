@@ -1,3 +1,4 @@
+:orphan:
 
 Making Filesystems Exportable
 =============================
@@ -42,9 +43,9 @@ filehandle fragment, there is no automatic creation of a path prefix
 for the object.  This leads to two related but distinct features of
 the dcache that are not needed for normal filesystem access.
 
-1/ The dcache must sometimes contain objects that are not part of the
+1. The dcache must sometimes contain objects that are not part of the
    proper prefix. i.e that are not connected to the root.
-2/ The dcache must be prepared for a newly found (via ->lookup) directory
+2. The dcache must be prepared for a newly found (via ->lookup) directory
    to already have a (non-connected) dentry, and must be able to move
    that dentry into place (based on the parent and name in the
    ->lookup).   This is particularly needed for directories as
@@ -52,7 +53,7 @@ the dcache that are not needed for normal filesystem access.
 
 To implement these features, the dcache has:
 
-a/ A dentry flag DCACHE_DISCONNECTED which is set on
+a. A dentry flag DCACHE_DISCONNECTED which is set on
    any dentry that might not be part of the proper prefix.
    This is set when anonymous dentries are created, and cleared when a
    dentry is noticed to be a child of a dentry which is in the proper
@@ -71,48 +72,52 @@ a/ A dentry flag DCACHE_DISCONNECTED which is set on
    dentries.  That guarantees that we won't need to hunt them down upon
    umount.
 
-b/ A primitive for creation of secondary roots - d_obtain_root(inode).
+b. A primitive for creation of secondary roots - d_obtain_root(inode).
    Those do _not_ bear DCACHE_DISCONNECTED.  They are placed on the
    per-superblock list (->s_roots), so they can be located at umount
    time for eviction purposes.
 
-c/ Helper routines to allocate anonymous dentries, and to help attach
+c. Helper routines to allocate anonymous dentries, and to help attach
    loose directory dentries at lookup time. They are:
+
     d_obtain_alias(inode) will return a dentry for the given inode.
       If the inode already has a dentry, one of those is returned.
+
       If it doesn't, a new anonymous (IS_ROOT and
-        DCACHE_DISCONNECTED) dentry is allocated and attached.
+      DCACHE_DISCONNECTED) dentry is allocated and attached.
+
       In the case of a directory, care is taken that only one dentry
       can ever be attached.
+
     d_splice_alias(inode, dentry) will introduce a new dentry into the tree;
       either the passed-in dentry or a preexisting alias for the given inode
       (such as an anonymous one created by d_obtain_alias), if appropriate.
       It returns NULL when the passed-in dentry is used, following the calling
       convention of ->lookup.
- 
+
 Filesystem Issues
 -----------------
 
 For a filesystem to be exportable it must:
- 
-   1/ provide the filehandle fragment routines described below.
-   2/ make sure that d_splice_alias is used rather than d_add
+
+   1. provide the filehandle fragment routines described below.
+   2. make sure that d_splice_alias is used rather than d_add
       when ->lookup finds an inode for a given parent and name.
 
-      If inode is NULL, d_splice_alias(inode, dentry) is equivalent to
+      If inode is NULL, d_splice_alias(inode, dentry) is equivalent to::
 
 		d_add(dentry, inode), NULL
 
       Similarly, d_splice_alias(ERR_PTR(err), dentry) = ERR_PTR(err)
 
-      Typically the ->lookup routine will simply end with a:
+      Typically the ->lookup routine will simply end with a::
 
 		return d_splice_alias(inode, dentry);
 	}
 
 
 
-  A file system implementation declares that instances of the filesystem
+A file system implementation declares that instances of the filesystem
 are exportable by setting the s_export_op field in the struct
 super_block.  This field must point to a "struct export_operations"
 struct which has the following members:

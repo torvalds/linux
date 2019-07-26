@@ -1,14 +1,22 @@
-	The text below describes the locking rules for VFS-related methods.
+=======
+Locking
+=======
+
+The text below describes the locking rules for VFS-related methods.
 It is (believed to be) up-to-date. *Please*, if you change anything in
 prototypes or locking protocols - update this file. And update the relevant
 instances in the tree, don't leave that to maintainers of filesystems/devices/
 etc. At the very least, put the list of dubious cases in the end of this file.
 Don't turn it into log - maintainers of out-of-the-tree code are supposed to
 be able to use diff(1).
-	Thing currently missing here: socket operations. Alexey?
 
---------------------------- dentry_operations --------------------------
-prototypes:
+Thing currently missing here: socket operations. Alexey?
+
+dentry_operations
+=================
+
+prototypes::
+
 	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_weak_revalidate)(struct dentry *, unsigned int);
 	int (*d_hash)(const struct dentry *, struct qstr *);
@@ -24,23 +32,30 @@ prototypes:
 	struct dentry *(*d_real)(struct dentry *, const struct inode *);
 
 locking rules:
-		rename_lock	->d_lock	may block	rcu-walk
-d_revalidate:	no		no		yes (ref-walk)	maybe
-d_weak_revalidate:no		no		yes	 	no
-d_hash		no		no		no		maybe
-d_compare:	yes		no		no		maybe
-d_delete:	no		yes		no		no
-d_init:	no		no		yes		no
-d_release:	no		no		yes		no
-d_prune:        no              yes             no              no
-d_iput:		no		no		yes		no
-d_dname:	no		no		no		no
-d_automount:	no		no		yes		no
-d_manage:	no		no		yes (ref-walk)	maybe
-d_real		no		no		yes 		no
 
---------------------------- inode_operations --------------------------- 
-prototypes:
+================== ===========	========	==============	========
+ops		   rename_lock	->d_lock	may block	rcu-walk
+================== ===========	========	==============	========
+d_revalidate:	   no		no		yes (ref-walk)	maybe
+d_weak_revalidate: no		no		yes	 	no
+d_hash		   no		no		no		maybe
+d_compare:	   yes		no		no		maybe
+d_delete:	   no		yes		no		no
+d_init:		   no		no		yes		no
+d_release:	   no		no		yes		no
+d_prune:           no		yes		no		no
+d_iput:		   no		no		yes		no
+d_dname:	   no		no		no		no
+d_automount:	   no		no		yes		no
+d_manage:	   no		no		yes (ref-walk)	maybe
+d_real		   no		no		yes 		no
+================== ===========	========	==============	========
+
+inode_operations
+================
+
+prototypes::
+
 	int (*create) (struct inode *,struct dentry *,umode_t, bool);
 	struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 	int (*link) (struct dentry *,struct inode *,struct dentry *);
@@ -68,7 +83,10 @@ prototypes:
 
 locking rules:
 	all may block
-		i_rwsem(inode)
+
+============	=============================================
+ops		i_rwsem(inode)
+============	=============================================
 lookup:		shared
 create:		exclusive
 link:		exclusive (both)
@@ -89,17 +107,21 @@ fiemap:		no
 update_time:	no
 atomic_open:	exclusive
 tmpfile:	no
+============	=============================================
 
 
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_rwsem
 	exclusive on victim.
 	cross-directory ->rename() has (per-superblock) ->s_vfs_rename_sem.
 
-See Documentation/filesystems/directory-locking for more detailed discussion
+See Documentation/filesystems/directory-locking.rst for more detailed discussion
 of the locking scheme for directory operations.
 
------------------------ xattr_handler operations -----------------------
-prototypes:
+xattr_handler operations
+========================
+
+prototypes::
+
 	bool (*list)(struct dentry *dentry);
 	int (*get)(const struct xattr_handler *handler, struct dentry *dentry,
 		   struct inode *inode, const char *name, void *buffer,
@@ -110,13 +132,20 @@ prototypes:
 
 locking rules:
 	all may block
-		i_rwsem(inode)
+
+=====		==============
+ops		i_rwsem(inode)
+=====		==============
 list:		no
 get:		no
 set:		exclusive
+=====		==============
 
---------------------------- super_operations ---------------------------
-prototypes:
+super_operations
+================
+
+prototypes::
+
 	struct inode *(*alloc_inode)(struct super_block *sb);
 	void (*free_inode)(struct inode *);
 	void (*destroy_inode)(struct inode *);
@@ -138,7 +167,10 @@ prototypes:
 
 locking rules:
 	All may block [not true, see below]
-			s_umount
+
+======================	============	========================
+ops			s_umount	note
+======================	============	========================
 alloc_inode:
 free_inode:				called from RCU callback
 destroy_inode:
@@ -157,6 +189,7 @@ show_options:		no		(namespace_sem)
 quota_read:		no		(see below)
 quota_write:		no		(see below)
 bdev_try_to_free_page:	no		(see below)
+======================	============	========================
 
 ->statfs() has s_umount (shared) when called by ustat(2) (native or
 compat), but that's an accident of bad API; s_umount is used to pin
@@ -164,31 +197,44 @@ the superblock down when we only have dev_t given us by userland to
 identify the superblock.  Everything else (statfs(), fstatfs(), etc.)
 doesn't hold it when calling ->statfs() - superblock is pinned down
 by resolving the pathname passed to syscall.
+
 ->quota_read() and ->quota_write() functions are both guaranteed to
 be the only ones operating on the quota file by the quota code (via
 dqio_sem) (unless an admin really wants to screw up something and
 writes to quota files with quotas on). For other details about locking
 see also dquot_operations section.
+
 ->bdev_try_to_free_page is called from the ->releasepage handler of
 the block device inode.  See there for more details.
 
---------------------------- file_system_type ---------------------------
-prototypes:
+file_system_type
+================
+
+prototypes::
+
 	struct dentry *(*mount) (struct file_system_type *, int,
 		       const char *, void *);
 	void (*kill_sb) (struct super_block *);
+
 locking rules:
-		may block
+
+=======		=========
+ops		may block
+=======		=========
 mount		yes
 kill_sb		yes
+=======		=========
 
 ->mount() returns ERR_PTR or the root dentry; its superblock should be locked
 on return.
+
 ->kill_sb() takes a write-locked superblock, does all shutdown work on it,
 unlocks and drops the reference.
 
---------------------------- address_space_operations --------------------------
-prototypes:
+address_space_operations
+========================
+prototypes::
+
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
 	int (*readpage)(struct file *, struct page *);
 	int (*writepages)(struct address_space *, struct writeback_control *);
@@ -218,14 +264,16 @@ prototypes:
 locking rules:
 	All except set_page_dirty and freepage may block
 
-			PageLocked(page)	i_rwsem
+======================	======================== =========
+ops			PageLocked(page)	 i_rwsem
+======================	======================== =========
 writepage:		yes, unlocks (see below)
 readpage:		yes, unlocks
 writepages:
 set_page_dirty		no
 readpages:
-write_begin:		locks the page		exclusive
-write_end:		yes, unlocks		exclusive
+write_begin:		locks the page		 exclusive
+write_end:		yes, unlocks		 exclusive
 bmap:
 invalidatepage:		yes
 releasepage:		yes
@@ -239,17 +287,18 @@ is_partially_uptodate:	yes
 error_remove_page:	yes
 swap_activate:		no
 swap_deactivate:	no
+======================	======================== =========
 
-	->write_begin(), ->write_end() and ->readpage() may be called from
+->write_begin(), ->write_end() and ->readpage() may be called from
 the request handler (/dev/loop).
 
-	->readpage() unlocks the page, either synchronously or via I/O
+->readpage() unlocks the page, either synchronously or via I/O
 completion.
 
-	->readpages() populates the pagecache with the passed pages and starts
+->readpages() populates the pagecache with the passed pages and starts
 I/O against them.  They come unlocked upon I/O completion.
 
-	->writepage() is used for two purposes: for "memory cleansing" and for
+->writepage() is used for two purposes: for "memory cleansing" and for
 "sync".  These are quite different operations and the behaviour may differ
 depending upon the mode.
 
@@ -297,70 +346,81 @@ will leave the page itself marked clean but it will be tagged as dirty in the
 radix tree.  This incoherency can lead to all sorts of hard-to-debug problems
 in the filesystem like having dirty inodes at umount and losing written data.
 
-	->writepages() is used for periodic writeback and for syscall-initiated
+->writepages() is used for periodic writeback and for syscall-initiated
 sync operations.  The address_space should start I/O against at least
-*nr_to_write pages.  *nr_to_write must be decremented for each page which is
-written.  The address_space implementation may write more (or less) pages
-than *nr_to_write asks for, but it should try to be reasonably close.  If
-nr_to_write is NULL, all dirty pages must be written.
+``*nr_to_write`` pages.  ``*nr_to_write`` must be decremented for each page
+which is written.  The address_space implementation may write more (or less)
+pages than ``*nr_to_write`` asks for, but it should try to be reasonably close.
+If nr_to_write is NULL, all dirty pages must be written.
 
 writepages should _only_ write pages which are present on
 mapping->io_pages.
 
-	->set_page_dirty() is called from various places in the kernel
+->set_page_dirty() is called from various places in the kernel
 when the target page is marked as needing writeback.  It may be called
 under spinlock (it cannot block) and is sometimes called with the page
 not locked.
 
-	->bmap() is currently used by legacy ioctl() (FIBMAP) provided by some
+->bmap() is currently used by legacy ioctl() (FIBMAP) provided by some
 filesystems and by the swapper. The latter will eventually go away.  Please,
 keep it that way and don't breed new callers.
 
-	->invalidatepage() is called when the filesystem must attempt to drop
+->invalidatepage() is called when the filesystem must attempt to drop
 some or all of the buffers from the page when it is being truncated. It
 returns zero on success. If ->invalidatepage is zero, the kernel uses
 block_invalidatepage() instead.
 
-	->releasepage() is called when the kernel is about to try to drop the
+->releasepage() is called when the kernel is about to try to drop the
 buffers from the page in preparation for freeing it.  It returns zero to
 indicate that the buffers are (or may be) freeable.  If ->releasepage is zero,
 the kernel assumes that the fs has no private interest in the buffers.
 
-	->freepage() is called when the kernel is done dropping the page
+->freepage() is called when the kernel is done dropping the page
 from the page cache.
 
-	->launder_page() may be called prior to releasing a page if
+->launder_page() may be called prior to releasing a page if
 it is still found to be dirty. It returns zero if the page was successfully
 cleaned, or an error value if not. Note that in order to prevent the page
 getting mapped back in and redirtied, it needs to be kept locked
 across the entire operation.
 
-	->swap_activate will be called with a non-zero argument on
+->swap_activate will be called with a non-zero argument on
 files backing (non block device backed) swapfiles. A return value
 of zero indicates success, in which case this file can be used for
 backing swapspace. The swapspace operations will be proxied to the
 address space operations.
 
-	->swap_deactivate() will be called in the sys_swapoff()
+->swap_deactivate() will be called in the sys_swapoff()
 path after ->swap_activate() returned success.
 
------------------------ file_lock_operations ------------------------------
-prototypes:
+file_lock_operations
+====================
+
+prototypes::
+
 	void (*fl_copy_lock)(struct file_lock *, struct file_lock *);
 	void (*fl_release_private)(struct file_lock *);
 
 
 locking rules:
-			inode->i_lock	may block
+
+===================	=============	=========
+ops			inode->i_lock	may block
+===================	=============	=========
 fl_copy_lock:		yes		no
-fl_release_private:	maybe		maybe[1]
+fl_release_private:	maybe		maybe[1]_
+===================	=============	=========
 
-[1]:	->fl_release_private for flock or POSIX locks is currently allowed
-to block. Leases however can still be freed while the i_lock is held and
-so fl_release_private called on a lease should not block.
+.. [1]:
+   ->fl_release_private for flock or POSIX locks is currently allowed
+   to block. Leases however can still be freed while the i_lock is held and
+   so fl_release_private called on a lease should not block.
 
------------------------ lock_manager_operations ---------------------------
-prototypes:
+lock_manager_operations
+=======================
+
+prototypes::
+
 	void (*lm_notify)(struct file_lock *);  /* unblock callback */
 	int (*lm_grant)(struct file_lock *, struct file_lock *, int);
 	void (*lm_break)(struct file_lock *); /* break_lease callback */
@@ -368,24 +428,33 @@ prototypes:
 
 locking rules:
 
-			inode->i_lock	blocked_lock_lock	may block
+==========		=============	=================	=========
+ops			inode->i_lock	blocked_lock_lock	may block
+==========		=============	=================	=========
 lm_notify:		yes		yes			no
 lm_grant:		no		no			no
 lm_break:		yes		no			no
 lm_change		yes		no			no
+==========		=============	=================	=========
 
---------------------------- buffer_head -----------------------------------
-prototypes:
+buffer_head
+===========
+
+prototypes::
+
 	void (*b_end_io)(struct buffer_head *bh, int uptodate);
 
 locking rules:
-	called from interrupts. In other words, extreme care is needed here.
+
+called from interrupts. In other words, extreme care is needed here.
 bh is locked, but that's all warranties we have here. Currently only RAID1,
 highmem, fs/buffer.c, and fs/ntfs/aops.c are providing these. Block devices
 call this method upon the IO completion.
 
---------------------------- block_device_operations -----------------------
-prototypes:
+block_device_operations
+=======================
+prototypes::
+
 	int (*open) (struct block_device *, fmode_t);
 	int (*release) (struct gendisk *, fmode_t);
 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
@@ -399,7 +468,10 @@ prototypes:
 	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
 
 locking rules:
-			bd_mutex
+
+======================= ===================
+ops			bd_mutex
+======================= ===================
 open:			yes
 release:		yes
 ioctl:			no
@@ -410,6 +482,7 @@ unlock_native_capacity:	no
 revalidate_disk:	no
 getgeo:			no
 swap_slot_free_notify:	no	(see below)
+======================= ===================
 
 media_changed, unlock_native_capacity and revalidate_disk are called only from
 check_disk_change().
@@ -418,8 +491,11 @@ swap_slot_free_notify is called with swap_lock and sometimes the page lock
 held.
 
 
---------------------------- file_operations -------------------------------
-prototypes:
+file_operations
+===============
+
+prototypes::
+
 	loff_t (*llseek) (struct file *, loff_t, int);
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
@@ -455,7 +531,6 @@ prototypes:
 			size_t, unsigned int);
 	int (*setlease)(struct file *, long, struct file_lock **, void **);
 	long (*fallocate)(struct file *, int, loff_t, loff_t);
-};
 
 locking rules:
 	All may block.
@@ -490,8 +565,11 @@ in sys_read() and friends.
 the lease within the individual filesystem to record the result of the
 operation
 
---------------------------- dquot_operations -------------------------------
-prototypes:
+dquot_operations
+================
+
+prototypes::
+
 	int (*write_dquot) (struct dquot *);
 	int (*acquire_dquot) (struct dquot *);
 	int (*release_dquot) (struct dquot *);
@@ -503,20 +581,26 @@ a proper locking wrt the filesystem and call the generic quota operations.
 
 What filesystem should expect from the generic quota functions:
 
-		FS recursion	Held locks when called
+==============	============	=========================
+ops		FS recursion	Held locks when called
+==============	============	=========================
 write_dquot:	yes		dqonoff_sem or dqptr_sem
 acquire_dquot:	yes		dqonoff_sem or dqptr_sem
 release_dquot:	yes		dqonoff_sem or dqptr_sem
 mark_dirty:	no		-
 write_info:	yes		dqonoff_sem
+==============	============	=========================
 
 FS recursion means calling ->quota_read() and ->quota_write() from superblock
 operations.
 
 More details about quota locking can be found in fs/dquot.c.
 
---------------------------- vm_operations_struct -----------------------------
-prototypes:
+vm_operations_struct
+====================
+
+prototypes::
+
 	void (*open)(struct vm_area_struct*);
 	void (*close)(struct vm_area_struct*);
 	vm_fault_t (*fault)(struct vm_area_struct*, struct vm_fault *);
@@ -525,7 +609,10 @@ prototypes:
 	int (*access)(struct vm_area_struct *, unsigned long, void*, int, int);
 
 locking rules:
-		mmap_sem	PageLocked(page)
+
+=============	========	===========================
+ops		mmap_sem	PageLocked(page)
+=============	========	===========================
 open:		yes
 close:		yes
 fault:		yes		can return with page locked
@@ -533,8 +620,9 @@ map_pages:	yes
 page_mkwrite:	yes		can return with page locked
 pfn_mkwrite:	yes
 access:		yes
+=============	========	===========================
 
-	->fault() is called when a previously not present pte is about
+->fault() is called when a previously not present pte is about
 to be faulted in. The filesystem must find and return the page associated
 with the passed in "pgoff" in the vm_fault structure. If it is possible that
 the page may be truncated and/or invalidated, then the filesystem must lock
@@ -542,7 +630,7 @@ the page, then ensure it is not already truncated (the page lock will block
 subsequent truncate), and then return with VM_FAULT_LOCKED, and the page
 locked. The VM will unlock the page.
 
-	->map_pages() is called when VM asks to map easy accessible pages.
+->map_pages() is called when VM asks to map easy accessible pages.
 Filesystem should find and map pages associated with offsets from "start_pgoff"
 till "end_pgoff". ->map_pages() is called with page table locked and must
 not block.  If it's not possible to reach a page without blocking,
@@ -551,25 +639,26 @@ page table entry. Pointer to entry associated with the page is passed in
 "pte" field in vm_fault structure. Pointers to entries for other offsets
 should be calculated relative to "pte".
 
-	->page_mkwrite() is called when a previously read-only pte is
+->page_mkwrite() is called when a previously read-only pte is
 about to become writeable. The filesystem again must ensure that there are
 no truncate/invalidate races, and then return with the page locked. If
 the page has been truncated, the filesystem should not look up a new page
 like the ->fault() handler, but simply return with VM_FAULT_NOPAGE, which
 will cause the VM to retry the fault.
 
-	->pfn_mkwrite() is the same as page_mkwrite but when the pte is
+->pfn_mkwrite() is the same as page_mkwrite but when the pte is
 VM_PFNMAP or VM_MIXEDMAP with a page-less entry. Expected return is
 VM_FAULT_NOPAGE. Or one of the VM_FAULT_ERROR types. The default behavior
 after this call is to make the pte read-write, unless pfn_mkwrite returns
 an error.
 
-	->access() is called when get_user_pages() fails in
+->access() is called when get_user_pages() fails in
 access_process_vm(), typically used to debug a process through
 /proc/pid/mem or ptrace.  This function is needed only for
 VM_IO | VM_PFNMAP VMAs.
 
-================================================================================
+--------------------------------------------------------------------------------
+
 			Dubious stuff
 
 (if you break something or notice that it is broken and do not fix it yourself
