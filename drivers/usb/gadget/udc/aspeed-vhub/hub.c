@@ -449,8 +449,15 @@ static void ast_vhub_change_port_stat(struct ast_vhub *vhub,
 		       USB_PORT_STAT_C_OVERCURRENT |
 		       USB_PORT_STAT_C_RESET |
 		       USB_PORT_STAT_C_L1;
-		p->change |= chg;
 
+		/*
+		 * We only set USB_PORT_STAT_C_ENABLE if we are disabling
+		 * the port as per USB spec, otherwise MacOS gets upset
+		 */
+		if (p->status & USB_PORT_STAT_ENABLE)
+			chg &= ~USB_PORT_STAT_C_ENABLE;
+
+		p->change = chg;
 		ast_vhub_update_hub_ep1(vhub, port);
 	}
 }
