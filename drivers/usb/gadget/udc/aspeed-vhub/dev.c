@@ -55,6 +55,9 @@ static void ast_vhub_dev_enable(struct ast_vhub_dev *d)
 	if (d->enabled)
 		return;
 
+	/* Cleanup EP0 state */
+	ast_vhub_reset_ep0(d);
+
 	/* Enable device and its EP0 interrupts */
 	reg = VHUB_DEV_EN_ENABLE_PORT |
 		VHUB_DEV_EN_EP0_IN_ACK_IRQEN |
