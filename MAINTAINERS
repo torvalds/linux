@@ -6822,13 +6822,6 @@ F:	Documentation/filesystems/gfs2*.txt
 F:	fs/gfs2/
 F:	include/uapi/linux/gfs2_ondisk.h
 
-GIGASET ISDN DRIVERS
-M:	Paul Bolle <pebolle@tiscali.nl>
-L:	gigaset307x-common@lists.sourceforge.net
-W:	http://gigaset307x.sourceforge.net/
-S:	Odd Fixes
-F:	drivers/staging/isdn/gigaset/
-
 GNSS SUBSYSTEM
 M:	Johan Hovold <johan@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/johan/gnss.git
