@@ -364,7 +364,8 @@ static void ti_hecc_start(struct net_device *ndev)
 	/* put HECC in initialization mode and set btc */
 	ti_hecc_reset(ndev);
 
-	priv->tx_head = priv->tx_tail = HECC_TX_MASK;
+	priv->tx_head = HECC_TX_MASK;
+	priv->tx_tail = HECC_TX_MASK;
 
 	/* Enable local and global acceptance mask registers */
 	hecc_write(priv, HECC_CANGAM, HECC_SET_REG);
