@@ -38,6 +38,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
@@ -166,10 +168,10 @@ static struct rtnl_link_ops vcan_link_ops __read_mostly = {
 
 static __init int vcan_init_module(void)
 {
-	pr_info("vcan: Virtual CAN interface driver\n");
+	pr_info("Virtual CAN interface driver\n");
 
 	if (echo)
-		printk(KERN_INFO "vcan: enabled echo on driver level.\n");
+		pr_info("enabled echo on driver level.\n");
 
 	return rtnl_link_register(&vcan_link_ops);
 }
