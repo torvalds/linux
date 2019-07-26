@@ -1809,8 +1809,13 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 	int que;
 	struct qla_hw_data *ha = vha->hw;
 
+	/* Continue only if initialization complete. */
+	if (!ha->base_qpair)
+		return;
 	__qla2x00_abort_all_cmds(ha->base_qpair, res);
 
+	if (!ha->queue_pair_map)
+		return;
 	for (que = 0; que < ha->max_qpairs; que++) {
 		if (!ha->queue_pair_map[que])
 			continue;
@@ -3163,6 +3168,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ql_log(ql_log_fatal, base_vha, 0x003d,
 		    "Failed to allocate memory for queue pointers..."
 		    "aborting.\n");
+		ret = -ENODEV;
 		goto probe_failed;
 	}
 
@@ -4717,7 +4723,7 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	mempool_destroy(ha->ctx_mempool);
 	ha->ctx_mempool = NULL;
 
-	if (ql2xenabledif) {
+	if (ql2xenabledif && ha->dif_bundl_pool) {
 		struct dsd_dma *dsd, *nxt;
 
 		list_for_each_entry_safe(dsd, nxt, &ha->pool.unusable.head,
@@ -4812,7 +4818,7 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 	if (!vha->gnl.l) {
 		ql_log(ql_log_fatal, vha, 0xd04a,
 		    "Alloc failed for name list.\n");
-		scsi_remove_host(vha->host);
+		scsi_host_put(vha->host);
 		return NULL;
 	}
 
@@ -4824,7 +4830,7 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 		    "Alloc failed for scan database.\n");
 		dma_free_coherent(&ha->pdev->dev, vha->gnl.size,
 		    vha->gnl.l, vha->gnl.ldma);
-		scsi_remove_host(vha->host);
+		scsi_host_put(vha->host);
 		return NULL;
 	}
 	INIT_DELAYED_WORK(&vha->scan.scan_work, qla_scan_work_fn);

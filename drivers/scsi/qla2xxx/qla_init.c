@@ -2293,6 +2293,10 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	if (qla_ini_mode_enabled(vha) || qla_dual_mode_enabled(vha))
 		rval = qla2x00_init_rings(vha);
 
+	/* No point in continuing if firmware initialization failed. */
+	if (rval != QLA_SUCCESS)
+		return rval;
+
 	ha->flags.chip_reset_done = 1;
 
 	if (rval == QLA_SUCCESS && IS_QLA84XX(ha)) {
