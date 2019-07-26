@@ -77,7 +77,6 @@ struct intel_uc_fw {
 	u32 rsa_size;
 	u32 rsa_offset;
 	u32 ucode_size;
-	u32 ucode_offset;
 };
 
 static inline

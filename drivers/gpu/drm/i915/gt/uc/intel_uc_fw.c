@@ -229,7 +229,6 @@ void intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 	}
 
 	/* uCode size must calculated from other sizes */
-	uc_fw->ucode_offset = sizeof(struct uc_css_header);
 	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
 
 	/* now RSA */
@@ -239,7 +238,7 @@ void intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 		err = -ENOEXEC;
 		goto fail;
 	}
-	uc_fw->rsa_offset = uc_fw->ucode_offset + uc_fw->ucode_size;
+	uc_fw->rsa_offset = sizeof(struct uc_css_header) + uc_fw->ucode_size;
 	uc_fw->rsa_size = css->key_size_dw * sizeof(u32);
 
 	/* At least, it should have header, uCode and RSA. Size of all three. */
@@ -536,8 +535,7 @@ void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p)
 	drm_printf(p, "\tversion: wanted %u.%u, found %u.%u\n",
 		   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted,
 		   uc_fw->major_ver_found, uc_fw->minor_ver_found);
-	drm_printf(p, "\tuCode: offset %u, size %u\n",
-		   uc_fw->ucode_offset, uc_fw->ucode_size);
+	drm_printf(p, "\tuCode: %u bytes\n", uc_fw->ucode_size);
 	drm_printf(p, "\tRSA: offset %u, size %u\n",
 		   uc_fw->rsa_offset, uc_fw->rsa_size);
 }
