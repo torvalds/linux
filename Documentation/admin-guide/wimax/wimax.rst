@@ -1,12 +1,16 @@
+.. include:: <isonum.txt>
 
-   Linux kernel WiMAX stack
+========================
+Linux kernel WiMAX stack
+========================
 
-   (C) 2008 Intel Corporation < linux-wimax@intel.com >
+:Copyright: |copy| 2008 Intel Corporation < linux-wimax@intel.com >
 
    This provides a basic Linux kernel WiMAX stack to provide a common
    control API for WiMAX devices, usable from kernel and user space.
 
 1. Design
+=========
 
    The WiMAX stack is designed to provide for common WiMAX control
    services to current and future WiMAX devices from any vendor.
@@ -31,6 +35,7 @@
    include/linux/wimax.h.
 
 2. Usage
+========
 
    For usage in a driver (registration, API, etc) please refer to the
    instructions in the header file include/linux/wimax.h.
@@ -40,6 +45,7 @@
    control.
 
 2.1. Obtaining debug information: debugfs entries
+-------------------------------------------------
 
    The WiMAX stack is compiled, by default, with debug messages that can
    be used to diagnose issues. By default, said messages are disabled.
@@ -52,20 +58,22 @@
    create more subentries below it.
 
 2.1.1. Increasing debug output
+------------------------------
 
    The files named *dl_* indicate knobs for controlling the debug output
-   of different submodules of the WiMAX stack:
-     *
-# find /sys/kernel/debug/wimax\:wmx0 -name \*dl_\*
-/sys/kernel/debug/wimax:wmx0/wimax_dl_stack
-/sys/kernel/debug/wimax:wmx0/wimax_dl_op_rfkill
-/sys/kernel/debug/wimax:wmx0/wimax_dl_op_reset
-/sys/kernel/debug/wimax:wmx0/wimax_dl_op_msg
-/sys/kernel/debug/wimax:wmx0/wimax_dl_id_table
-/sys/kernel/debug/wimax:wmx0/wimax_dl_debugfs
-/sys/kernel/debug/wimax:wmx0/.... # other driver specific files
+   of different submodules of the WiMAX stack::
 
-       NOTE: Of course, if debugfs is mounted in a directory other than
+	# find /sys/kernel/debug/wimax\:wmx0 -name \*dl_\*
+	/sys/kernel/debug/wimax:wmx0/wimax_dl_stack
+	/sys/kernel/debug/wimax:wmx0/wimax_dl_op_rfkill
+	/sys/kernel/debug/wimax:wmx0/wimax_dl_op_reset
+	/sys/kernel/debug/wimax:wmx0/wimax_dl_op_msg
+	/sys/kernel/debug/wimax:wmx0/wimax_dl_id_table
+	/sys/kernel/debug/wimax:wmx0/wimax_dl_debugfs
+	/sys/kernel/debug/wimax:wmx0/.... # other driver specific files
+
+   NOTE:
+       Of course, if debugfs is mounted in a directory other than
        /sys/kernel/debug, those paths will change.
 
    By reading the file you can obtain the current value of said debug
@@ -74,7 +82,7 @@
    To increase the debug level of, for example, the id-table submodule,
    just write:
 
-$ echo 3 > /sys/kernel/debug/wimax:wmx0/wimax_dl_id_table
+	$ echo 3 > /sys/kernel/debug/wimax:wmx0/wimax_dl_id_table
 
    Increasing numbers yield increasing debug information; for details of
    what is printed and the available levels, check the source. The code

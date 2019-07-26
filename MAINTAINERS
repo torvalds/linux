@@ -8356,7 +8356,7 @@ M:	linux-wimax@intel.com
 L:	wimax@linuxwimax.org (subscribers-only)
 S:	Supported
 W:	http://linuxwimax.org
-F:	Documentation/wimax/README.i2400m
+F:	Documentation/admin-guide/wimax/i2400m.rst
 F:	drivers/net/wimax/i2400m/
 F:	include/uapi/linux/wimax/i2400m.h
 
@@ -17358,7 +17358,7 @@ M:	linux-wimax@intel.com
 L:	wimax@linuxwimax.org (subscribers-only)
 S:	Supported
 W:	http://linuxwimax.org
-F:	Documentation/wimax/README.wimax
+F:	Documentation/admin-guide/wimax/wimax.rst
 F:	include/linux/wimax/debug.h
 F:	include/net/wimax.h
 F:	include/uapi/linux/wimax.h

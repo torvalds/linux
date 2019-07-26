@@ -108,6 +108,7 @@ configure specific aspects of kernel behavior to your liking.
    pnp
    rtc
    svga
+   wimax/index
    video-output
 
 .. only::  subproject and html
