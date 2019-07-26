@@ -951,11 +951,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	for_each_rtdcom(rtd, rtdcom) {
 		component = rtdcom->component;
 
-		if (!component->driver->ops ||
-		    !component->driver->ops->hw_params)
-			continue;
-
-		ret = component->driver->ops->hw_params(substream, params);
+		ret = snd_soc_component_hw_params(component, substream, params);
 		if (ret < 0) {
 			dev_err(component->dev,
 				"ASoC: %s hw params failed: %d\n",

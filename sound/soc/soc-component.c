@@ -315,3 +315,14 @@ int snd_soc_component_prepare(struct snd_soc_component *component,
 
 	return 0;
 }
+
+int snd_soc_component_hw_params(struct snd_soc_component *component,
+				struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params)
+{
+	if (component->driver->ops &&
+	    component->driver->ops->hw_params)
+		return component->driver->ops->hw_params(substream, params);
+
+	return 0;
+}
