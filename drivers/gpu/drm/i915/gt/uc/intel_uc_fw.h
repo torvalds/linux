@@ -75,7 +75,6 @@ struct intel_uc_fw {
 	u16 minor_ver_found;
 
 	u32 rsa_size;
-	u32 rsa_offset;
 	u32 ucode_size;
 };
 

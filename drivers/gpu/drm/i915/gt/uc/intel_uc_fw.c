@@ -238,7 +238,6 @@ void intel_uc_fw_fetch(struct intel_uc_fw *uc_fw, struct drm_i915_private *i915)
 		err = -ENOEXEC;
 		goto fail;
 	}
-	uc_fw->rsa_offset = sizeof(struct uc_css_header) + uc_fw->ucode_size;
 	uc_fw->rsa_size = css->key_size_dw * sizeof(u32);
 
 	/* At least, it should have header, uCode and RSA. Size of all three. */
@@ -512,11 +511,11 @@ size_t intel_uc_fw_copy_rsa(struct intel_uc_fw *uc_fw, void *dst, u32 max_len)
 {
 	struct sg_table *pages = uc_fw->obj->mm.pages;
 	u32 size = min_t(u32, uc_fw->rsa_size, max_len);
+	u32 offset = sizeof(struct uc_css_header) + uc_fw->ucode_size;
 
 	GEM_BUG_ON(!intel_uc_fw_is_available(uc_fw));
 
-	return sg_pcopy_to_buffer(pages->sgl, pages->nents,
-				  dst, size, uc_fw->rsa_offset);
+	return sg_pcopy_to_buffer(pages->sgl, pages->nents, dst, size, offset);
 }
 
 /**
@@ -536,6 +535,5 @@ void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p)
 		   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted,
 		   uc_fw->major_ver_found, uc_fw->minor_ver_found);
 	drm_printf(p, "\tuCode: %u bytes\n", uc_fw->ucode_size);
-	drm_printf(p, "\tRSA: offset %u, size %u\n",
-		   uc_fw->rsa_offset, uc_fw->rsa_size);
+	drm_printf(p, "\tRSA: %u bytes\n", uc_fw->rsa_size);
 }
