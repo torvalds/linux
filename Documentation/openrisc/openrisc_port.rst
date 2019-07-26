@@ -1,3 +1,4 @@
+==============
 OpenRISC Linux
 ==============
 
@@ -6,8 +7,10 @@ target architecture, specifically, is the 32-bit OpenRISC 1000 family (or1k).
 
 For information about OpenRISC processors and ongoing development:
 
+	=======		=============================
 	website		http://openrisc.io
 	email		openrisc@lists.librecores.org
+	=======		=============================
 
 ---------------------------------------------------------------------
 
@@ -24,13 +27,15 @@ Toolchain binaries can be obtained from openrisc.io or our github releases page.
 Instructions for building the different toolchains can be found on openrisc.io
 or Stafford's toolchain build and release scripts.
 
+	==========	=================================================
 	binaries	https://github.com/openrisc/or1k-gcc/releases
 	toolchains	https://openrisc.io/software
 	building	https://github.com/stffrdhrn/or1k-toolchain-build
+	==========	=================================================
 
 2) Building
 
-Build the Linux kernel as usual
+Build the Linux kernel as usual::
 
 	make ARCH=openrisc defconfig
 	make ARCH=openrisc
@@ -42,6 +47,8 @@ an SoC into an FPGA.  The below is an example of programming a De0 Nano
 development board with the OpenRISC SoC.  During the build FPGA RTL is code
 downloaded from the FuseSoC IP cores repository and built using the FPGA vendor
 tools.  Binaries are loaded onto the board with openocd.
+
+::
 
 	git clone https://github.com/olofk/fusesoc
 	cd fusesoc
@@ -65,7 +72,9 @@ platform.  Please follow the OpenRISC instructions on the QEMU website to get
 Linux running on QEMU.  You can build QEMU yourself, but your Linux distribution
 likely provides binary packages to support OpenRISC.
 
+	=============	======================================================
 	qemu openrisc	https://wiki.qemu.org/Documentation/Platforms/OpenRISC
+	=============	======================================================
 
 ---------------------------------------------------------------------
 
@@ -75,36 +84,38 @@ Terminology
 In the code, the following particles are used on symbols to limit the scope
 to more or less specific processor implementations:
 
+========= =======================================
 openrisc: the OpenRISC class of processors
 or1k:     the OpenRISC 1000 family of processors
 or1200:   the OpenRISC 1200 processor
+========= =======================================
 
 ---------------------------------------------------------------------
 
 History
 ========
 
-18. 11. 2003	Matjaz Breskvar (phoenix@bsemi.com)
+18-11-2003	Matjaz Breskvar (phoenix@bsemi.com)
 	initial port of linux to OpenRISC/or32 architecture.
         all the core stuff is implemented and seams usable.
 
-08. 12. 2003	Matjaz Breskvar (phoenix@bsemi.com)
+08-12-2003	Matjaz Breskvar (phoenix@bsemi.com)
 	complete change of TLB miss handling.
 	rewrite of exceptions handling.
 	fully functional sash-3.6 in default initrd.
 	a much improved version with changes all around.
 
-10. 04. 2004	Matjaz Breskvar (phoenix@bsemi.com)
+10-04-2004	Matjaz Breskvar (phoenix@bsemi.com)
 	alot of bugfixes all over.
 	ethernet support, functional http and telnet servers.
 	running many standard linux apps.
 
-26. 06. 2004	Matjaz Breskvar (phoenix@bsemi.com)
+26-06-2004	Matjaz Breskvar (phoenix@bsemi.com)
 	port to 2.6.x
 
-30. 11. 2004	Matjaz Breskvar (phoenix@bsemi.com)
+30-11-2004	Matjaz Breskvar (phoenix@bsemi.com)
 	lots of bugfixes and enhancments.
 	added opencores framebuffer driver.
 
-09. 10. 2010    Jonas Bonn (jonas@southpole.se)
+09-10-2010    Jonas Bonn (jonas@southpole.se)
 	major rewrite to bring up to par with upstream Linux 2.6.36
