@@ -372,12 +372,12 @@ static void jh057n_shutdown(struct mipi_dsi_device *dsi)
 	struct jh057n *ctx = mipi_dsi_get_drvdata(dsi);
 	int ret;
 
-	ret = jh057n_unprepare(&ctx->panel);
+	ret = drm_panel_unprepare(&ctx->panel);
 	if (ret < 0)
 		DRM_DEV_ERROR(&dsi->dev, "Failed to unprepare panel: %d\n",
 			      ret);
 
-	ret = jh057n_disable(&ctx->panel);
+	ret = drm_panel_disable(&ctx->panel);
 	if (ret < 0)
 		DRM_DEV_ERROR(&dsi->dev, "Failed to disable panel: %d\n",
 			      ret);
