@@ -1910,12 +1910,17 @@ void efi_setup_11_mapping_physical_addr( unsigned long start, unsigned long end 
                                 vma->vm_flags & pfn_remapping_flags;
                 BUG_ON( ! memory_is_pfn_remapped );
 
-                /* end must be smaller than the vma end: */
-                BUG_ON( vma->vm_end < end );
+                if ( vma->vm_end >= end ) {
+                        /* We already mapped these addresses as 1:1 */
+                        DebugMSG( "These addresses should already be 1:1 mapped. Skipping." );
+                        return;
+                }
 
-                /* We already mapped these addresses as 1:1 */
-                DebugMSG( "These addresses should already be 1:1 mapped. Skipping." );
-                return;
+                /* If we got here, it means that vma->vm_end < end. We need to
+                 * extend the vma */
+                start = vma->vm_end;
+                /* end must be smaller than the vma end: */
+                /* BUG_ON( vma->vm_end < end ); */
         }
 
         /* TODO: should we make sure size of a multiple of PAGE_SIZE? */
@@ -1984,25 +1989,47 @@ typedef struct {
 LIST_HEAD( efi_memory_mappings );
 uint64_t efi_mem_map_epoch = 0;
 
-void efi_register_phys_mem_allocation( EFI_MEMORY_TYPE       MemoryType,
-                                       UINTN                 NumberOfPages,
-                                       unsigned long         phys_addr )
-
+MemoryAllocation* efi_find_mem_allocation( unsigned long phys_addr )
 {
-        EFI_MEMORY_DESCRIPTOR *mem_map   = NULL;
-        MemoryAllocation      *mem_alloc = kmalloc( sizeof(MemoryAllocation),
-                                                    GFP_KERNEL );
-        if(!mem_alloc) {
-                DebugMSG( "ERROR: OUT OF MEMORY!" );
-                return;
+        EFI_MEMORY_DESCRIPTOR *mem_map      = NULL;
+        MemoryAllocation      *mem_alloc    = NULL;
+        unsigned long         end_of_region = 0;
+
+        list_for_each_entry( mem_alloc, &efi_memory_mappings, list ) {
+                mem_map       = &mem_alloc->mem_descriptor;
+                end_of_region = mem_map->phys_addr +
+                                mem_map->num_pages * PAGE_SIZE;
+
+                if (phys_addr < mem_map->phys_addr ||
+                    phys_addr >= end_of_region)
+                        continue;
+
+                DebugMSG( "Located mapping phys->virt: 0x%llx->0x%llx "
+                          "(%lld pages)",
+                          mem_map->phys_addr, mem_map->virt_addr,
+                          mem_map->num_pages);
+
+                return mem_alloc;
         }
 
-        DebugMSG( "Registering %lld pages of type %s @ 0x%lx",
+        DebugMSG( "Couldn't find mapping." );
+        return NULL;
+}
+
+MemoryAllocation* efi_mem_allocation_build_chunk(
+                                       EFI_MEMORY_TYPE       MemoryType,
+                                       unsigned long         phys_addr,
+                                       UINTN                 NumberOfPages )
+{
+        MemoryAllocation *mem_alloc    =
+                        kmalloc( sizeof(MemoryAllocation), GFP_KERNEL );
+        EFI_MEMORY_DESCRIPTOR *mem_map = NULL;
+
+        BUG_ON( mem_alloc == NULL );
+
+        DebugMSG( "Creating chunk of %lld pages of type %s @ 0x%lx",
                    NumberOfPages, get_efi_mem_type_str( MemoryType ),
                    phys_addr );
-
-        /* TODO: Search if the memory address already exists in
-         * &efi_memory_mappings. If so, use that mapping. */
 
         mem_map = &mem_alloc->mem_descriptor;
         INIT_LIST_HEAD( &mem_alloc->list );
@@ -2015,8 +2042,176 @@ void efi_register_phys_mem_allocation( EFI_MEMORY_TYPE       MemoryType,
         mem_map->num_pages = NumberOfPages;
         mem_map->attribute = EFI_DEFAULT_MEM_ATTRIBUTES;
 
-        list_add_tail( &mem_alloc->list, &efi_memory_mappings);
+        return mem_alloc;
 }
+
+/* Register new mem allocation. The allocation is brand new and there is no
+ * region in &efi_memory_mappings, which overlaps with it */
+void efi_register_new_phys_mem_allocation( EFI_MEMORY_TYPE       MemoryType,
+                                           UINTN                 NumberOfPages,
+                                           unsigned long         phys_addr )
+{
+        MemoryAllocation *cur_alloc    = efi_mem_allocation_build_chunk(
+                                         MemoryType, phys_addr, NumberOfPages );
+        MemoryAllocation *next_alloc   = NULL;
+        EFI_MEMORY_DESCRIPTOR *mem_map = NULL;
+
+/*         EFI_MEMORY_DESCRIPTOR *mem_map   = NULL; */
+/*         MemoryAllocation      *mem_alloc = NULL; */
+
+/*         mem_alloc = kmalloc( sizeof(MemoryAllocation), */
+/*                                                     GFP_KERNEL ); */
+/*         BUG_ON( mem_alloc == NULL ); */
+
+/*         /1* TODO: Search if the memory address already exists in */
+/*          * &efi_memory_mappings. If so, use that mapping. *1/ */
+
+/*         mem_map = &mem_alloc->mem_descriptor; */
+/*         INIT_LIST_HEAD( &mem_alloc->list ); */
+
+/*         memset( mem_map, 0, sizeof( *mem_map ) ); */
+/*         mem_map->type      = MemoryType; */
+/*         mem_map->pad       = 0; */
+/*         mem_map->phys_addr = phys_addr; */
+/*         mem_map->virt_addr = 0;  // Similar to EDK-II code */
+/*         mem_map->num_pages = NumberOfPages; */
+/*         mem_map->attribute = EFI_DEFAULT_MEM_ATTRIBUTES; */
+
+        if (list_empty(&efi_memory_mappings)) {
+                list_add_tail( &cur_alloc->list, &efi_memory_mappings);
+                return;
+        }
+
+        /* Assuming the list is already sorted, we need to find the proper
+         * location to insert the new chunk to keep the list sorted. We know
+         * that the new allocating is not inside an existing one. Therefore, we
+         * just need to find a chunk with start addr bigger than the new
+         * allocation. */
+        list_for_each_entry( next_alloc, &efi_memory_mappings, list ) {
+                mem_map       = &next_alloc->mem_descriptor;
+                if (mem_map->phys_addr > phys_addr ) {
+                        list_add( &cur_alloc->list, next_alloc->list.prev );
+                        return;
+                }
+        }
+
+        /* If we got her, it means that mem_map->phys_addr is bigger than all
+         * existing chunks in the list. We therefore add the new chunk at the
+         * end of the list. */
+        list_add_tail( &cur_alloc->list, &efi_memory_mappings);
+}
+
+void efi_register_phys_mem_allocation_inside_existing(
+                                       EFI_MEMORY_TYPE       MemoryType,
+                                       UINTN                 NumberOfPages,
+                                       unsigned long         phys_addr,
+                                       MemoryAllocation*     mem_alloc )
+{
+        EFI_MEMORY_DESCRIPTOR *mem_map        = &mem_alloc->mem_descriptor;
+        unsigned long end_of_requested_region = phys_addr +
+                                                NumberOfPages * PAGE_SIZE;
+        unsigned long end_of_existing_region  = mem_map->phys_addr +
+                                                mem_map->num_pages * PAGE_SIZE;
+        MemoryAllocation *prev_chunk          = NULL;
+        MemoryAllocation *next_chunk          = NULL;
+
+        BUG_ON( end_of_requested_region > end_of_existing_region );
+
+        /* We need to split the allocation we found into up to 3 pieces:
+         * prev, new, next chunks. We will reuse the existing chunk for the new
+         * requested allocation. prev & next are the residues of the preexisting
+         * block. */
+        DebugMSG( "phys_addr = 0x%lx, mem_map->phys_addr = 0x%llx, "
+                  "end_of_existing_region = 0x%lx, "
+                  "end_of_requested_region = 0x%lx",
+                  phys_addr, mem_map->phys_addr,
+                  end_of_existing_region, end_of_requested_region);
+        if (phys_addr > mem_map->phys_addr) {
+                size_t prev_chunk_size = phys_addr - mem_map->phys_addr;
+                BUG_ON( prev_chunk_size % PAGE_SIZE != 0 );
+                prev_chunk = efi_mem_allocation_build_chunk(
+                                mem_map->type,
+                                mem_map->phys_addr,
+                                NUM_PAGES(prev_chunk_size));
+
+                mem_map->num_pages = mem_map->num_pages -
+                                     NUM_PAGES(prev_chunk_size);
+                DebugMSG( "Reduced num_pages to %lld", mem_map->num_pages );
+        }
+
+        if (end_of_requested_region < end_of_existing_region) {
+                size_t next_chunk_size = end_of_existing_region -
+                                         end_of_requested_region;
+                BUG_ON( next_chunk_size % PAGE_SIZE != 0 );
+                next_chunk = efi_mem_allocation_build_chunk(
+                                mem_map->type,
+                                end_of_requested_region, /* start of next cunk */
+                                NUM_PAGES(next_chunk_size)) ;
+
+                mem_map->num_pages = mem_map->num_pages -
+                                     NUM_PAGES(next_chunk_size);
+                DebugMSG( "Reduced num_pages to %lld", mem_map->num_pages );
+        }
+
+        /* After all the arithmetics the middle chunk should be exactly the size
+         * of the requested allocation */
+        BUG_ON( mem_map->num_pages != NumberOfPages );
+
+        /* Set the middle chunk with the type of the new region and addr */
+        mem_map->type      = MemoryType;
+        mem_map->phys_addr = phys_addr;
+
+        if (prev_chunk != NULL)
+                list_add( &prev_chunk->list, mem_alloc->list.prev );
+
+        if (next_chunk != NULL)
+                list_add( &next_chunk->list, &mem_alloc->list );
+}
+
+void efi_print_memory_map(void);
+void efi_register_phys_mem_allocation( EFI_MEMORY_TYPE       MemoryType,
+                                       UINTN                 NumberOfPages,
+                                       unsigned long         phys_addr )
+
+{
+        EFI_MEMORY_DESCRIPTOR *mem_map   = NULL;
+        MemoryAllocation      *mem_alloc = NULL;
+
+        DebugMSG( "Registering %lld pages of type %s @ 0x%lx",
+                   NumberOfPages, get_efi_mem_type_str( MemoryType ),
+                   phys_addr );
+
+        mem_alloc = efi_find_mem_allocation( phys_addr );
+
+        if (mem_alloc == NULL) {
+                /* This is a brand new allocation. No overlapping with existing
+                 * allocation */
+                efi_register_new_phys_mem_allocation( MemoryType, NumberOfPages,
+                                                      phys_addr );
+                return;
+        }
+
+        /* If we got here, it means this allocation request is overlapping with
+         * and existing one */
+        mem_map = &mem_alloc->mem_descriptor;
+        if (mem_map->phys_addr == phys_addr &&
+            mem_map->num_pages == NumberOfPages) {
+                /* BUG_ON( mem_map->type != MemoryType ); */
+
+                mem_map->type = MemoryType;
+
+                DebugMSG( "Same allocation detected"  );
+                /* This is exactly the same allocation. Nothing to be done */
+                return;
+        }
+
+        efi_register_phys_mem_allocation_inside_existing( MemoryType,
+                                                          NumberOfPages,
+                                                          phys_addr,
+                                                          mem_alloc );
+        efi_print_memory_map();
+}
+
 
 void efi_register_mem_allocation(  EFI_MEMORY_TYPE       MemoryType,
                                    UINTN                 NumberOfPages,
@@ -2029,6 +2224,69 @@ void efi_register_mem_allocation(  EFI_MEMORY_TYPE       MemoryType,
         efi_register_phys_mem_allocation( MemoryType,
                                           NumberOfPages,
                                           virt_to_phys( allocation ) );
+}
+
+/* Coalesce two chunks of EfiConventionalMemory. They are assumed to be
+ * consecutive in the mappings list, and both represent the same memory time. */
+MemoryAllocation* efi_coalesce_2_chunks( MemoryAllocation *first_alloc,
+                                         MemoryAllocation *second_alloc )
+{
+        DebugMSG( "Coalescing chunk starting at 0x%llx with "
+                  " chunk starting at 0x%llx",
+                  first_alloc->mem_descriptor.phys_addr,
+                  second_alloc->mem_descriptor.phys_addr );
+
+        first_alloc->mem_descriptor.num_pages +=
+                        second_alloc->mem_descriptor.num_pages;
+
+        list_del( &second_alloc->list );
+
+        return first_alloc;
+}
+
+/* Check if we can coalesce unused memory chunks in memory map */
+void efi_maybe_coalesce_chunks( MemoryAllocation *mem_alloc )
+{
+        EFI_MEMORY_DESCRIPTOR *mem_map = &mem_alloc->mem_descriptor;
+        MemoryAllocation *prev_alloc   = NULL;
+        MemoryAllocation *next_alloc   = NULL;
+        MemoryAllocation *new_alloc    = mem_alloc;
+        unsigned long    end_of_region = 0;
+
+        BUG_ON( mem_map->type != EfiConventionalMemory );
+
+        /* If we are not the first item on the list, get the previous one */
+        if (list_first_entry( &efi_memory_mappings, MemoryAllocation ,list )
+            != mem_alloc)
+                prev_alloc = list_prev_entry( mem_alloc, list );
+
+        if (! list_is_last( &mem_alloc->list, &efi_memory_mappings))
+                next_alloc = list_next_entry( mem_alloc, list );
+
+        if (prev_alloc != NULL) {
+                EFI_MEMORY_DESCRIPTOR *prev_map = &prev_alloc->mem_descriptor;
+                end_of_region = prev_map->phys_addr +
+                                prev_map->num_pages * PAGE_SIZE;
+
+                /* If regions are adjacent, and both free - coalesce! */
+                if (end_of_region  == mem_map->phys_addr &&
+                    prev_map->type == EfiConventionalMemory )
+                        new_alloc = efi_coalesce_2_chunks( prev_alloc,
+                                                           mem_alloc );
+        }
+
+        if (next_alloc != NULL) {
+                EFI_MEMORY_DESCRIPTOR *next_map = &next_alloc->mem_descriptor;
+                end_of_region = mem_map->phys_addr +
+                                mem_map->num_pages * PAGE_SIZE;
+
+                /* If regions are adjacent, and both free - coalesce! */
+                /* new_alloc is either the original mem_map or the amalgamation
+                 * of prev and the original mem_map */
+                if (end_of_region  == next_map->phys_addr &&
+                    next_map->type == EfiConventionalMemory )
+                        efi_coalesce_2_chunks( new_alloc, next_alloc );
+        }
 }
 
 
@@ -2065,6 +2323,7 @@ efi_status_t efi_unregister_allocation( efi_physical_addr_t PhysicalAddress,
                 }
 
                 mem_map->type = EfiConventionalMemory; /* Memory is free now */
+                efi_maybe_coalesce_chunks( mem_alloc );
 
                 return EFI_SUCCESS;
         }
@@ -2092,10 +2351,14 @@ __attribute__((ms_abi)) efi_status_t efi_hook_FreePages(
                                           efi_physical_addr_t PhysicalAddress,
                                           UINTN               NumberOfPages )
 {
+        efi_status_t status = EFI_SUCCESS;
+
         DebugMSG( "Physical address = 0x%llx, NumberOfPages = %lld",
                    PhysicalAddress, NumberOfPages );
 
-        return efi_unregister_allocation( PhysicalAddress, NumberOfPages );
+        status = efi_unregister_allocation( PhysicalAddress, NumberOfPages );
+        efi_print_memory_map();
+        return status;
 }
 
 size_t efi_get_mem_map_size(void)
@@ -2461,9 +2724,9 @@ __attribute__((ms_abi)) efi_status_t efi_hook_UnloadImage(void)
 
 __attribute__((ms_abi)) efi_status_t efi_hook_ExitBootServices(void)
 {
-         DebugMSG( "BOOT SERVICE #26 called" );
-
-         return EFI_UNSUPPORTED;
+         DebugMSG( "Returning SUCCESS" );
+        while(1) {}
+         return EFI_SUCCESS;
 }
 
 __attribute__((ms_abi)) efi_status_t efi_hook_GetNextMonotonicCount(void)
@@ -3231,6 +3494,9 @@ void* efi_map_11_and_register_allocation(void* virt_kernel_addr, size_t size)
 
         unsigned long physical_address = virt_to_phys(virt_kernel_addr);
 
+        unsigned long start = ALIGN_DOWN(physical_address, PAGE_SIZE);
+        unsigned long end   = ALIGN(physical_address + size, PAGE_SIZE);
+
         /* Create the mapping. efi_setup_11_mapping will handle the case that
          * the mapping already exists. */
         efi_setup_11_mapping(virt_kernel_addr, size);
@@ -3242,8 +3508,8 @@ void* efi_map_11_and_register_allocation(void* virt_kernel_addr, size_t size)
          * now the mapping will be added, even if it already exists. */
         efi_register_phys_mem_allocation(
                 EfiBootServicesData,
-                NUM_PAGES(sizeof( size )),
-                physical_address);
+                NUM_PAGES(end - start),
+                start);
 
         return (void*)physical_address;
 }
