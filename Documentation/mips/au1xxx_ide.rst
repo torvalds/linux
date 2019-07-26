@@ -1,7 +1,14 @@
-README for MIPS AU1XXX IDE driver - Released 2005-07-15
+.. include:: <isonum.txt>
 
-ABOUT
------
+======================
+MIPS AU1XXX IDE driver
+======================
+
+Released 2005-07-15
+
+About
+=====
+
 This file describes the 'drivers/ide/au1xxx-ide.c', related files and the
 services they provide.
 
@@ -10,17 +17,17 @@ the white or black list, go to the 'ADD NEW HARD DISC TO WHITE OR BLACK LIST'
 section.
 
 
-LICENSE
--------
+License
+=======
 
-Copyright (c) 2003-2005 AMD, Personal Connectivity Solutions
+:Copyright: |copy| 2003-2005 AMD, Personal Connectivity Solutions
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
 Foundation; either version 2 of the License, or (at your option) any later
 version.
 
-THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+THIS SOFTWARE IS PROVIDED ``AS IS`` AND ANY EXPRESS OR IMPLIED WARRANTIES,
 INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
 FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
@@ -35,31 +42,35 @@ You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
 675 Mass Ave, Cambridge, MA 02139, USA.
 
-Note: for more information, please refer "AMD Alchemy Au1200/Au1550 IDE
+Note:
+      for more information, please refer "AMD Alchemy Au1200/Au1550 IDE
       Interface and Linux Device Driver" Application Note.
 
 
-FILES, CONFIGS AND COMPATIBILITY
---------------------------------
+Files, Configs and Compatibility
+================================
 
 Two files are introduced:
 
   a) 'arch/mips/include/asm/mach-au1x00/au1xxx_ide.h'
      contains : struct _auide_hwif
-                 timing parameters for PIO mode 0/1/2/3/4
-                 timing parameters for MWDMA 0/1/2
+
+                - timing parameters for PIO mode 0/1/2/3/4
+                - timing parameters for MWDMA 0/1/2
 
   b) 'drivers/ide/mips/au1xxx-ide.c'
      contains the functionality of the AU1XXX IDE driver
 
 Following extra configs variables are introduced:
 
-  CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA    - enable the PIO+DBDMA mode
-  CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA  - enable the MWDMA mode
+  CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA
+	- enable the PIO+DBDMA mode
+  CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
+	- enable the MWDMA mode
 
 
-SUPPORTED IDE MODES
--------------------
+Supported IDE Modes
+===================
 
 The AU1XXX IDE driver supported all PIO modes - PIO mode 0/1/2/3/4 - and all
 MWDMA modes - MWDMA 0/1/2 -. There is no support for SWDMA and UDMA mode.
@@ -69,20 +80,21 @@ To change the PIO mode use the program hdparm with option -p, e.g.
 -X, e.g. 'hdparm -X32 [device]' for MWDMA mode 0.
 
 
-PERFORMANCE CONFIGURATIONS
---------------------------
+Performance Configurations
+==========================
 
-If the used system doesn't need USB support enable the following kernel configs:
+If the used system doesn't need USB support enable the following kernel
+configs::
 
-CONFIG_IDE=y
-CONFIG_BLK_DEV_IDE=y
-CONFIG_IDE_GENERIC=y
-CONFIG_BLK_DEV_IDEPCI=y
-CONFIG_BLK_DEV_GENERIC=y
-CONFIG_BLK_DEV_IDEDMA_PCI=y
-CONFIG_BLK_DEV_IDE_AU1XXX=y
-CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA=y
-CONFIG_BLK_DEV_IDEDMA=y
+    CONFIG_IDE=y
+    CONFIG_BLK_DEV_IDE=y
+    CONFIG_IDE_GENERIC=y
+    CONFIG_BLK_DEV_IDEPCI=y
+    CONFIG_BLK_DEV_GENERIC=y
+    CONFIG_BLK_DEV_IDEDMA_PCI=y
+    CONFIG_BLK_DEV_IDE_AU1XXX=y
+    CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA=y
+    CONFIG_BLK_DEV_IDEDMA=y
 
 Also define 'IDE_AU1XXX_BURSTMODE' in 'drivers/ide/mips/au1xxx-ide.c' to enable
 the burst support on DBDMA controller.
@@ -90,20 +102,22 @@ the burst support on DBDMA controller.
 If the used system need the USB support enable the following kernel configs for
 high IDE to USB throughput.
 
-CONFIG_IDE_GENERIC=y
-CONFIG_BLK_DEV_IDEPCI=y
-CONFIG_BLK_DEV_GENERIC=y
-CONFIG_BLK_DEV_IDEDMA_PCI=y
-CONFIG_BLK_DEV_IDE_AU1XXX=y
-CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA=y
-CONFIG_BLK_DEV_IDEDMA=y
+::
+
+    CONFIG_IDE_GENERIC=y
+    CONFIG_BLK_DEV_IDEPCI=y
+    CONFIG_BLK_DEV_GENERIC=y
+    CONFIG_BLK_DEV_IDEDMA_PCI=y
+    CONFIG_BLK_DEV_IDE_AU1XXX=y
+    CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA=y
+    CONFIG_BLK_DEV_IDEDMA=y
 
 Also undefine 'IDE_AU1XXX_BURSTMODE' in 'drivers/ide/mips/au1xxx-ide.c' to
 disable the burst support on DBDMA controller.
 
 
-ACKNOWLEDGMENTS
----------------
+Acknowledgments
+===============
 
 These drivers wouldn't have been done without the base of kernel 2.4.x AU1XXX
 IDE driver from AMD.
@@ -112,4 +126,5 @@ Additional input also from:
 Matthias Lenk <matthias.lenk@amd.com>
 
 Happy hacking!
+
 Enrico Walther <enrico.walther@amd.com>

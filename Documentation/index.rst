@@ -148,6 +148,7 @@ implementation.
    ia64/index
    m68k/index
    powerpc/index
+   mips/index
    openrisc/index
    parisc/index
    riscv/index
