@@ -5,6 +5,7 @@
 // Copyright (C) 2019 Renesas Electronics Corp.
 // Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 //
+#include <linux/module.h>
 #include <sound/soc.h>
 
 /**
@@ -267,3 +268,20 @@ int snd_soc_component_set_jack(struct snd_soc_component *component,
 	return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_set_jack);
+
+int snd_soc_component_module_get(struct snd_soc_component *component,
+				 int upon_open)
+{
+	if (component->driver->module_get_upon_open == !!upon_open &&
+	    !try_module_get(component->dev->driver->owner))
+		return -ENODEV;
+
+	return 0;
+}
+
+void snd_soc_component_module_put(struct snd_soc_component *component,
+				  int upon_open)
+{
+	if (component->driver->module_get_upon_open == !!upon_open)
+		module_put(component->dev->driver->owner);
+}

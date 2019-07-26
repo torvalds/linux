@@ -926,8 +926,7 @@ static void soc_cleanup_component(struct snd_soc_component *component)
 	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
 	soc_cleanup_component_debugfs(component);
 	component->card = NULL;
-	if (!component->driver->module_get_upon_open)
-		module_put(component->dev->driver->owner);
+	snd_soc_component_module_put_when_close(component);
 }
 
 static void soc_remove_component(struct snd_soc_component *component)
@@ -1255,9 +1254,9 @@ static int soc_probe_component(struct snd_soc_card *card,
 		return 0;
 	}
 
-	if (!component->driver->module_get_upon_open &&
-	    !try_module_get(component->dev->driver->owner))
-		return -ENODEV;
+	ret = snd_soc_component_module_get_when_probe(component);
+	if (ret < 0)
+		return ret;
 
 	component->card = card;
 	dapm->card = card;

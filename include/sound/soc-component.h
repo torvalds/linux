@@ -287,6 +287,19 @@ void snd_soc_component_init_regmap(struct snd_soc_component *component,
 void snd_soc_component_exit_regmap(struct snd_soc_component *component);
 #endif
 
+#define snd_soc_component_module_get_when_probe(component)\
+	snd_soc_component_module_get(component, 0)
+#define snd_soc_component_module_get_when_open(component)	\
+	snd_soc_component_module_get(component, 1)
+int snd_soc_component_module_get(struct snd_soc_component *component,
+				 int upon_open);
+#define snd_soc_component_module_put_when_remove(component)	\
+	snd_soc_component_module_put(component, 0)
+#define snd_soc_component_module_put_when_close(component)	\
+	snd_soc_component_module_put(component, 1)
+void snd_soc_component_module_put(struct snd_soc_component *component,
+				  int upon_open);
+
 static inline void snd_soc_component_set_drvdata(struct snd_soc_component *c,
 						 void *data)
 {

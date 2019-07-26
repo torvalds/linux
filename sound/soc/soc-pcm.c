@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/export.h>
@@ -440,12 +439,12 @@ static int soc_pcm_components_open(struct snd_pcm_substream *substream,
 		component = rtdcom->component;
 		*last = component;
 
-		if (component->driver->module_get_upon_open &&
-		    !try_module_get(component->dev->driver->owner)) {
+		ret = snd_soc_component_module_get_when_open(component);
+		if (ret < 0) {
 			dev_err(component->dev,
 				"ASoC: can't get module %s\n",
 				component->name);
-			return -ENODEV;
+			return ret;
 		}
 
 		if (!component->driver->ops ||
@@ -481,8 +480,7 @@ static int soc_pcm_components_close(struct snd_pcm_substream *substream,
 		    component->driver->ops->close)
 			component->driver->ops->close(substream);
 
-		if (component->driver->module_get_upon_open)
-			module_put(component->dev->driver->owner);
+		snd_soc_component_module_put_when_close(component);
 	}
 
 	return 0;
