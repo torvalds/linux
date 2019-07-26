@@ -10,8 +10,6 @@
   The hard part is handling when more address spaces are needed than what
   the h/w provides.
 
-- Support pinning pages on demand (GPU page faults).
-
 - Support userspace controlled GPU virtual addresses. Needed for Vulkan. (Tomeu)
 
 - Compute job support. So called 'compute only' jobs need to be plumbed up to

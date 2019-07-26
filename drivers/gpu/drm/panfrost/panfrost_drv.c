@@ -82,7 +82,12 @@ static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 	struct drm_panfrost_create_bo *args = data;
 
 	if (!args->size || args->pad ||
-	    (args->flags & ~PANFROST_BO_NOEXEC))
+	    (args->flags & ~(PANFROST_BO_NOEXEC | PANFROST_BO_HEAP)))
+		return -EINVAL;
+
+	/* Heaps should never be executable */
+	if ((args->flags & PANFROST_BO_HEAP) &&
+	    !(args->flags & PANFROST_BO_NOEXEC))
 		return -EINVAL;
 
 	bo = panfrost_gem_create_with_handle(file, dev, args->size, args->flags,
@@ -296,6 +301,10 @@ static int panfrost_ioctl_mmap_bo(struct drm_device *dev, void *data,
 		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
+
+	/* Don't allow mmapping of heap objects as pages are not pinned. */
+	if (to_panfrost_bo(gem_obj)->is_heap)
+		return -EINVAL;
 
 	ret = drm_gem_create_mmap_offset(gem_obj);
 	if (ret == 0)

@@ -19,6 +19,20 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
 	struct panfrost_device *pfdev = obj->dev->dev_private;
 
+	if (bo->sgts) {
+		int i;
+		int n_sgt = bo->base.base.size / SZ_2M;
+
+		for (i = 0; i < n_sgt; i++) {
+			if (bo->sgts[i].sgl) {
+				dma_unmap_sg(pfdev->dev, bo->sgts[i].sgl,
+					     bo->sgts[i].nents, DMA_BIDIRECTIONAL);
+				sg_free_table(&bo->sgts[i]);
+			}
+		}
+		kfree(bo->sgts);
+	}
+
 	mutex_lock(&pfdev->shrinker_lock);
 	if (!list_empty(&bo->base.madv_list))
 		list_del(&bo->base.madv_list);
@@ -53,10 +67,11 @@ static int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_p
 	if (ret)
 		goto out;
 
-	ret = panfrost_mmu_map(bo);
-	if (ret)
-		drm_mm_remove_node(&bo->node);
-
+	if (!bo->is_heap) {
+		ret = panfrost_mmu_map(bo);
+		if (ret)
+			drm_mm_remove_node(&bo->node);
+	}
 out:
 	spin_unlock(&pfdev->mm_lock);
 	return ret;
@@ -76,12 +91,20 @@ static void panfrost_gem_close(struct drm_gem_object *obj, struct drm_file *file
 	spin_unlock(&pfdev->mm_lock);
 }
 
+static int panfrost_gem_pin(struct drm_gem_object *obj)
+{
+	if (to_panfrost_bo(obj)->is_heap)
+		return -EINVAL;
+
+	return drm_gem_shmem_pin(obj);
+}
+
 static const struct drm_gem_object_funcs panfrost_gem_funcs = {
 	.free = panfrost_gem_free_object,
 	.open = panfrost_gem_open,
 	.close = panfrost_gem_close,
 	.print_info = drm_gem_shmem_print_info,
-	.pin = drm_gem_shmem_pin,
+	.pin = panfrost_gem_pin,
 	.unpin = drm_gem_shmem_unpin,
 	.get_sg_table = drm_gem_shmem_get_sg_table,
 	.vmap = drm_gem_shmem_vmap,
@@ -120,12 +143,17 @@ panfrost_gem_create_with_handle(struct drm_file *file_priv,
 	struct drm_gem_shmem_object *shmem;
 	struct panfrost_gem_object *bo;
 
+	/* Round up heap allocations to 2MB to keep fault handling simple */
+	if (flags & PANFROST_BO_HEAP)
+		size = roundup(size, SZ_2M);
+
 	shmem = drm_gem_shmem_create(dev, size);
 	if (IS_ERR(shmem))
 		return ERR_CAST(shmem);
 
 	bo = to_panfrost_bo(&shmem->base);
 	bo->noexec = !!(flags & PANFROST_BO_NOEXEC);
+	bo->is_heap = !!(flags & PANFROST_BO_HEAP);
 
 	/*
 	 * Allocate an id of idr table where the obj is registered

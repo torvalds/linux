@@ -9,16 +9,24 @@
 
 struct panfrost_gem_object {
 	struct drm_gem_shmem_object base;
+	struct sg_table *sgts;
 
 	struct drm_mm_node node;
 	bool is_mapped		:1;
 	bool noexec		:1;
+	bool is_heap		:1;
 };
 
 static inline
 struct  panfrost_gem_object *to_panfrost_bo(struct drm_gem_object *obj)
 {
 	return container_of(to_drm_gem_shmem_obj(obj), struct panfrost_gem_object, base);
+}
+
+static inline
+struct  panfrost_gem_object *drm_mm_node_to_panfrost_bo(struct drm_mm_node *node)
+{
+	return container_of(node, struct panfrost_gem_object, node);
 }
 
 struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t size);
