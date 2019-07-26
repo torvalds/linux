@@ -149,6 +149,7 @@ implementation.
    m68k/index
    powerpc/index
    mips/index
+   nios2/nios2
    openrisc/index
    parisc/index
    riscv/index
