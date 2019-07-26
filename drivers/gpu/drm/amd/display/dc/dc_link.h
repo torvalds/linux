@@ -94,6 +94,7 @@ struct dc_link {
 	struct dc_lane_settings cur_lane_setting;
 	struct dc_link_settings preferred_link_setting;
 	struct dc_link_training_overrides preferred_training_settings;
+	struct dp_audio_test_data audio_test_data;
 
 	uint8_t ddc_hw_inst;
 

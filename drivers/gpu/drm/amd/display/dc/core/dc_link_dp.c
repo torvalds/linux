@@ -2546,6 +2546,92 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 			0);
 }
 
+static void dp_test_get_audio_test_data(struct dc_link *link, bool disable_video)
+{
+	union audio_test_mode            dpcd_test_mode = {0};
+	struct audio_test_pattern_type   dpcd_pattern_type = {0};
+	union audio_test_pattern_period  dpcd_pattern_period[AUDIO_CHANNELS_COUNT] = {0};
+	enum dp_test_pattern test_pattern = DP_TEST_PATTERN_AUDIO_OPERATOR_DEFINED;
+
+	struct pipe_ctx *pipes = link->dc->current_state->res_ctx.pipe_ctx;
+	struct pipe_ctx *pipe_ctx = &pipes[0];
+	unsigned int channel_count;
+	unsigned int channel = 0;
+	unsigned int modes = 0;
+	unsigned int sampling_rate_in_hz = 0;
+
+	// get audio test mode and test pattern parameters
+	core_link_read_dpcd(
+		link,
+		DP_TEST_AUDIO_MODE,
+		&dpcd_test_mode.raw,
+		sizeof(dpcd_test_mode));
+
+	core_link_read_dpcd(
+		link,
+		DP_TEST_AUDIO_PATTERN_TYPE,
+		&dpcd_pattern_type.value,
+		sizeof(dpcd_pattern_type));
+
+	channel_count = dpcd_test_mode.bits.channel_count + 1;
+
+	// read pattern periods for requested channels when sawTooth pattern is requested
+	if (dpcd_pattern_type.value == AUDIO_TEST_PATTERN_SAWTOOTH ||
+			dpcd_pattern_type.value == AUDIO_TEST_PATTERN_OPERATOR_DEFINED) {
+
+		test_pattern = (dpcd_pattern_type.value == AUDIO_TEST_PATTERN_SAWTOOTH) ?
+				DP_TEST_PATTERN_AUDIO_SAWTOOTH : DP_TEST_PATTERN_AUDIO_OPERATOR_DEFINED;
+		// read period for each channel
+		for (channel = 0; channel < channel_count; channel++) {
+			core_link_read_dpcd(
+							link,
+							DP_TEST_AUDIO_PERIOD_CH1 + channel,
+							&dpcd_pattern_period[channel].raw,
+							sizeof(dpcd_pattern_period[channel]));
+		}
+	}
+
+	// translate sampling rate
+	switch (dpcd_test_mode.bits.sampling_rate) {
+	case AUDIO_SAMPLING_RATE_32KHZ:
+		sampling_rate_in_hz = 32000;
+		break;
+	case AUDIO_SAMPLING_RATE_44_1KHZ:
+		sampling_rate_in_hz = 44100;
+		break;
+	case AUDIO_SAMPLING_RATE_48KHZ:
+		sampling_rate_in_hz = 48000;
+		break;
+	case AUDIO_SAMPLING_RATE_88_2KHZ:
+		sampling_rate_in_hz = 88200;
+		break;
+	case AUDIO_SAMPLING_RATE_96KHZ:
+		sampling_rate_in_hz = 96000;
+		break;
+	case AUDIO_SAMPLING_RATE_176_4KHZ:
+		sampling_rate_in_hz = 176400;
+		break;
+	case AUDIO_SAMPLING_RATE_192KHZ:
+		sampling_rate_in_hz = 192000;
+		break;
+	default:
+		sampling_rate_in_hz = 0;
+		break;
+	}
+
+	link->audio_test_data.flags.test_requested = 1;
+	link->audio_test_data.flags.disable_video = disable_video;
+	link->audio_test_data.sampling_rate = sampling_rate_in_hz;
+	link->audio_test_data.channel_count = channel_count;
+	link->audio_test_data.pattern_type = test_pattern;
+
+	if (test_pattern == DP_TEST_PATTERN_AUDIO_SAWTOOTH) {
+		for (modes = 0; modes < pipe_ctx->stream->audio_info.mode_count; modes++) {
+			link->audio_test_data.pattern_period[modes] = dpcd_pattern_period[modes].bits.pattern_period;
+		}
+	}
+}
+
 static void handle_automated_test(struct dc_link *link)
 {
 	union test_request test_request;
@@ -2575,6 +2661,12 @@ static void handle_automated_test(struct dc_link *link)
 		dp_test_send_link_test_pattern(link);
 		test_response.bits.ACK = 1;
 	}
+
+	if (test_request.bits.AUDIO_TEST_PATTERN) {
+		dp_test_get_audio_test_data(link, test_request.bits.TEST_AUDIO_DISABLED_VIDEO);
+		test_response.bits.ACK = 1;
+	}
+
 	if (test_request.bits.PHY_TEST_PATTERN) {
 		dp_test_send_phy_test_pattern(link);
 		test_response.bits.ACK = 1;
