@@ -45,10 +45,6 @@
 #include "dpcd_defs.h"
 #include "dmcu.h"
 #include "hw/clk_mgr.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-#include "resource.h"
-#endif
-#include "hw/clk_mgr.h"
 
 #define DC_LOGGER_INIT(logger)
 
