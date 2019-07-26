@@ -1319,6 +1319,8 @@ struct drm_connector {
 	 * this field, then an appropriate symbolic link is created in connector
 	 * sysfs directory to make it easy for the user to tell which i2c
 	 * adapter is for a particular display.
+	 *
+	 * The field should be set by calling drm_connector_init_with_ddc().
 	 */
 	struct i2c_adapter *ddc;
 
@@ -1410,6 +1412,11 @@ int drm_connector_init(struct drm_device *dev,
 		       struct drm_connector *connector,
 		       const struct drm_connector_funcs *funcs,
 		       int connector_type);
+int drm_connector_init_with_ddc(struct drm_device *dev,
+				struct drm_connector *connector,
+				const struct drm_connector_funcs *funcs,
+				int connector_type,
+				struct i2c_adapter *ddc);
 void drm_connector_attach_edid_property(struct drm_connector *connector);
 int drm_connector_register(struct drm_connector *connector);
 void drm_connector_unregister(struct drm_connector *connector);
