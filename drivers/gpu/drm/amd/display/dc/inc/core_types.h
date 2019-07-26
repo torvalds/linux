@@ -142,6 +142,11 @@ struct resource_funcs {
 			display_e2e_pipe_params_st *pipes,
 			int pipe_cnt);
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+	void (*update_bw_bounding_box)(
+			struct dc *dc,
+			struct clk_bw_params *bw_params);
+#endif
 
 };
 
