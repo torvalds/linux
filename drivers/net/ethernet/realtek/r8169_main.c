@@ -539,11 +539,11 @@ enum rtl_tx_desc_bit_1 {
 	TD1_GTSENV4	= (1 << 26),		/* Giant Send for IPv4 */
 	TD1_GTSENV6	= (1 << 25),		/* Giant Send for IPv6 */
 #define GTTCPHO_SHIFT			18
-#define GTTCPHO_MAX			0x7fU
+#define GTTCPHO_MAX			0x7f
 
 	/* Second doubleword. */
 #define TCPHO_SHIFT			18
-#define TCPHO_MAX			0x3ffU
+#define TCPHO_MAX			0x3ff
 #define TD1_MSS_SHIFT			18	/* MSS position (11 bits) */
 	TD1_IPv6_CS	= (1 << 28),		/* Calculate IPv6 checksum */
 	TD1_IPv4_CS	= (1 << 29),		/* Calculate IPv4 checksum */
@@ -5534,11 +5534,6 @@ static void r8169_csum_workaround(struct rtl8169_private *tp,
 		} while (segs);
 
 		dev_consume_skb_any(skb);
-	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		if (skb_checksum_help(skb) < 0)
-			goto drop;
-
-		rtl8169_start_xmit(skb, tp->dev);
 	} else {
 drop:
 		tp->dev->stats.tx_dropped++;
@@ -5595,13 +5590,6 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 	u32 mss = skb_shinfo(skb)->gso_size;
 
 	if (mss) {
-		if (transport_offset > GTTCPHO_MAX) {
-			netif_warn(tp, tx_err, tp->dev,
-				   "Invalid transport offset 0x%x for TSO\n",
-				   transport_offset);
-			return false;
-		}
-
 		switch (vlan_get_protocol(skb)) {
 		case htons(ETH_P_IP):
 			opts[0] |= TD1_GTSENV4;
@@ -5623,16 +5611,6 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 		opts[1] |= min(mss, TD_MSS_MAX) << TD1_MSS_SHIFT;
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		u8 ip_protocol;
-
-		if (unlikely(rtl_test_hw_pad_bug(tp, skb)))
-			return !(skb_checksum_help(skb) || eth_skb_pad(skb));
-
-		if (transport_offset > TCPHO_MAX) {
-			netif_warn(tp, tx_err, tp->dev,
-				   "Invalid transport offset 0x%x\n",
-				   transport_offset);
-			return false;
-		}
 
 		switch (vlan_get_protocol(skb)) {
 		case htons(ETH_P_IP):
@@ -5788,6 +5766,39 @@ err_stop_0:
 	netif_stop_queue(dev);
 	dev->stats.tx_dropped++;
 	return NETDEV_TX_BUSY;
+}
+
+static netdev_features_t rtl8169_features_check(struct sk_buff *skb,
+						struct net_device *dev,
+						netdev_features_t features)
+{
+	int transport_offset = skb_transport_offset(skb);
+	struct rtl8169_private *tp = netdev_priv(dev);
+
+	if (skb_is_gso(skb)) {
+		if (transport_offset > GTTCPHO_MAX &&
+		    rtl_chip_supports_csum_v2(tp))
+			features &= ~NETIF_F_ALL_TSO;
+	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		if (skb->len < ETH_ZLEN) {
+			switch (tp->mac_version) {
+			case RTL_GIGA_MAC_VER_11:
+			case RTL_GIGA_MAC_VER_12:
+			case RTL_GIGA_MAC_VER_17:
+			case RTL_GIGA_MAC_VER_34:
+				features &= ~NETIF_F_CSUM_MASK;
+				break;
+			default:
+				break;
+			}
+		}
+
+		if (transport_offset > TCPHO_MAX &&
+		    rtl_chip_supports_csum_v2(tp))
+			features &= ~NETIF_F_CSUM_MASK;
+	}
+
+	return vlan_features_check(skb, features);
 }
 
 static void rtl8169_pcierr_interrupt(struct net_device *dev)
@@ -6546,6 +6557,7 @@ static const struct net_device_ops rtl_netdev_ops = {
 	.ndo_stop		= rtl8169_close,
 	.ndo_get_stats64	= rtl8169_get_stats64,
 	.ndo_start_xmit		= rtl8169_start_xmit,
+	.ndo_features_check	= rtl8169_features_check,
 	.ndo_tx_timeout		= rtl8169_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= rtl8169_change_mtu,
