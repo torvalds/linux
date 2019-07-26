@@ -326,3 +326,13 @@ int snd_soc_component_hw_params(struct snd_soc_component *component,
 
 	return 0;
 }
+
+int snd_soc_component_hw_free(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream)
+{
+	if (component->driver->ops &&
+	    component->driver->ops->hw_free)
+		return component->driver->ops->hw_free(substream);
+
+	return 0;
+}
