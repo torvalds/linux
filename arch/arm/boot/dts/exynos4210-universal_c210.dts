@@ -204,9 +204,8 @@
 
 &ehci {
 	status = "okay";
-	port@0 {
-		status = "okay";
-	};
+	phys = <&exynos_usbphy 1>;
+	phy-names = "host";
 };
 
 &exynos_usbphy {
@@ -520,9 +519,6 @@
 
 &ohci {
 	status = "okay";
-	port@0 {
-		status = "okay";
-	};
 };
 
 &pinctrl_1 {
