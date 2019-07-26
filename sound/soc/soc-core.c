@@ -593,9 +593,7 @@ static void soc_resume_deferred(struct work_struct *work)
 
 	for_each_card_components(card, component) {
 		if (component->suspended) {
-			if (component->driver->resume)
-				component->driver->resume(component);
-			component->suspended = 0;
+			snd_soc_component_resume(component);
 		}
 	}
 
