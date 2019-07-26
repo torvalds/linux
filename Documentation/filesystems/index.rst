@@ -23,6 +23,8 @@ algorithms work.
    locking
    directory-locking
 
+   porting
+
 Filesystem support layers
 =========================
 
