@@ -284,7 +284,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 
 			hw_buffer.s.addr =
 				XKPHYS_TO_PHYS((u64)skb_frag_address(fs));
-			hw_buffer.s.size = skb_drag_size(fs);
+			hw_buffer.s.size = skb_frag_size(fs);
 			CVM_OCT_SKB_CB(skb)[i + 1] = hw_buffer.u64;
 		}
 		hw_buffer.s.addr = XKPHYS_TO_PHYS((u64)CVM_OCT_SKB_CB(skb));
