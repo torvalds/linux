@@ -267,6 +267,12 @@ static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
 
 	flow_rule_match_tcp(rule, &match);
 
+	if (match.mask->flags & htons(0x0E00)) {
+		NL_SET_ERR_MSG_MOD(f->common.extack, "TCP flags match not supported on reserved bits");
+		dev_err(mlxsw_sp->bus_info->dev, "TCP flags match not supported on reserved bits\n");
+		return -EINVAL;
+	}
+
 	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_TCP_FLAGS,
 				       ntohs(match.key->flags),
 				       ntohs(match.mask->flags));
