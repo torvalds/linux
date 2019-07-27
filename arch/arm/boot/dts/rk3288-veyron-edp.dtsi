@@ -86,7 +86,7 @@
 	};
 
 	panel: panel {
-		compatible ="innolux,n116bge", "simple-panel";
+		compatible = "innolux,n116bge", "simple-panel";
 		status = "okay";
 		power-supply = <&panel_regulator>;
 		backlight = <&backlight>;
