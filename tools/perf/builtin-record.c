@@ -261,7 +261,7 @@ static int record__aio_pushfn(struct mmap *map, void *to, void *buf, size_t size
 	struct record_aio *aio = to;
 
 	/*
-	 * map->base data pointed by buf is copied into free map->aio.data[] buffer
+	 * map->core.base data pointed by buf is copied into free map->aio.data[] buffer
 	 * to release space in the kernel buffer as fast as possible, calling
 	 * perf_mmap__consume() from perf_mmap__push() function.
 	 *
@@ -360,7 +360,7 @@ static void record__aio_mmap_read_sync(struct record *rec)
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		struct mmap *map = &maps[i];
 
-		if (map->base)
+		if (map->core.base)
 			record__aio_sync(map, true);
 	}
 }
@@ -970,7 +970,7 @@ static int record__mmap_read_evlist(struct record *rec, struct evlist *evlist,
 		u64 flush = 0;
 		struct mmap *map = &maps[i];
 
-		if (map->base) {
+		if (map->core.base) {
 			record__adjust_affinity(rec, map);
 			if (synch) {
 				flush = map->flush;
@@ -1198,10 +1198,10 @@ static const struct perf_event_mmap_page *
 perf_evlist__pick_pc(struct evlist *evlist)
 {
 	if (evlist) {
-		if (evlist->mmap && evlist->mmap[0].base)
-			return evlist->mmap[0].base;
-		if (evlist->overwrite_mmap && evlist->overwrite_mmap[0].base)
-			return evlist->overwrite_mmap[0].base;
+		if (evlist->mmap && evlist->mmap[0].core.base)
+			return evlist->mmap[0].core.base;
+		if (evlist->overwrite_mmap && evlist->overwrite_mmap[0].core.base)
+			return evlist->overwrite_mmap[0].core.base;
 	}
 	return NULL;
 }

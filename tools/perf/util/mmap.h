@@ -1,6 +1,7 @@
 #ifndef __PERF_MMAP_H
 #define __PERF_MMAP_H 1
 
+#include <internal/mmap.h>
 #include <linux/compiler.h>
 #include <linux/refcount.h>
 #include <linux/types.h>
@@ -20,7 +21,7 @@ struct aiocb;
  * @refcnt - e.g. code using PERF_EVENT_IOC_SET_OUTPUT to share this
  */
 struct mmap {
-	void		 *base;
+	struct perf_mmap	core;
 	int		 mask;
 	int		 fd;
 	int		 cpu;
@@ -60,12 +61,12 @@ void perf_mmap__consume(struct mmap *map);
 
 static inline u64 perf_mmap__read_head(struct mmap *mm)
 {
-	return ring_buffer_read_head(mm->base);
+	return ring_buffer_read_head(mm->core.base);
 }
 
 static inline void perf_mmap__write_tail(struct mmap *md, u64 tail)
 {
-	ring_buffer_write_tail(md->base, tail);
+	ring_buffer_write_tail(md->core.base, tail);
 }
 
 union perf_event *perf_mmap__read_forward(struct mmap *map);

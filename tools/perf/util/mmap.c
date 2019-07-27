@@ -31,7 +31,7 @@ size_t perf_mmap__mmap_len(struct mmap *map)
 static union perf_event *perf_mmap__read(struct mmap *map,
 					 u64 *startp, u64 end)
 {
-	unsigned char *data = map->base + page_size;
+	unsigned char *data = map->core.base + page_size;
 	union perf_event *event = NULL;
 	int diff = end - *startp;
 
@@ -116,7 +116,7 @@ void perf_mmap__get(struct mmap *map)
 
 void perf_mmap__put(struct mmap *map)
 {
-	BUG_ON(map->base && refcount_read(&map->refcnt) == 0);
+	BUG_ON(map->core.base && refcount_read(&map->refcnt) == 0);
 
 	if (refcount_dec_and_test(&map->refcnt))
 		perf_mmap__munmap(map);
@@ -317,9 +317,9 @@ void perf_mmap__munmap(struct mmap *map)
 		munmap(map->data, perf_mmap__mmap_len(map));
 		map->data = NULL;
 	}
-	if (map->base != NULL) {
-		munmap(map->base, perf_mmap__mmap_len(map));
-		map->base = NULL;
+	if (map->core.base != NULL) {
+		munmap(map->core.base, perf_mmap__mmap_len(map));
+		map->core.base = NULL;
 		map->fd = -1;
 		refcount_set(&map->refcnt, 0);
 	}
@@ -370,12 +370,12 @@ int perf_mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu)
 	refcount_set(&map->refcnt, 2);
 	map->prev = 0;
 	map->mask = mp->mask;
-	map->base = mmap(NULL, perf_mmap__mmap_len(map), mp->prot,
+	map->core.base = mmap(NULL, perf_mmap__mmap_len(map), mp->prot,
 			 MAP_SHARED, fd, 0);
-	if (map->base == MAP_FAILED) {
+	if (map->core.base == MAP_FAILED) {
 		pr_debug2("failed to mmap perf event ring buffer, error %d\n",
 			  errno);
-		map->base = NULL;
+		map->core.base = NULL;
 		return -1;
 	}
 	map->fd = fd;
@@ -399,7 +399,7 @@ int perf_mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu)
 	}
 
 	if (auxtrace_mmap__mmap(&map->auxtrace_mmap,
-				&mp->auxtrace_mp, map->base, fd))
+				&mp->auxtrace_mp, map->core.base, fd))
 		return -1;
 
 	return perf_mmap__aio_mmap(map, mp);
@@ -444,7 +444,7 @@ static int __perf_mmap__read_init(struct mmap *md)
 {
 	u64 head = perf_mmap__read_head(md);
 	u64 old = md->prev;
-	unsigned char *data = md->base + page_size;
+	unsigned char *data = md->core.base + page_size;
 	unsigned long size;
 
 	md->start = md->overwrite ? head : old;
@@ -489,7 +489,7 @@ int perf_mmap__push(struct mmap *md, void *to,
 		    int push(struct mmap *map, void *to, void *buf, size_t size))
 {
 	u64 head = perf_mmap__read_head(md);
-	unsigned char *data = md->base + page_size;
+	unsigned char *data = md->core.base + page_size;
 	unsigned long size;
 	void *buf;
 	int rc = 0;

@@ -355,7 +355,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	if (!session->evlist->nr_mmaps)
 		return -EINVAL;
 
-	pc = session->evlist->mmap[0].base;
+	pc = session->evlist->mmap[0].core.base;
 	if (pc) {
 		err = perf_read_tsc_conversion(pc, &tc);
 		if (err) {
