@@ -504,21 +504,22 @@ static struct dentry *autofs_lookup(struct inode *dir,
 		if (!autofs_oz_mode(sbi) && !IS_ROOT(dentry->d_parent))
 			return ERR_PTR(-ENOENT);
 
-		/* Mark entries in the root as mount triggers */
-		if (IS_ROOT(dentry->d_parent) &&
-		    autofs_type_indirect(sbi->type))
-			__managed_dentry_set_managed(dentry);
-
 		ino = autofs_new_ino(sbi);
 		if (!ino)
 			return ERR_PTR(-ENOMEM);
 
+		spin_lock(&sbi->lookup_lock);
+		spin_lock(&dentry->d_lock);
+		/* Mark entries in the root as mount triggers */
+		if (IS_ROOT(dentry->d_parent) &&
+		    autofs_type_indirect(sbi->type))
+			__managed_dentry_set_managed(dentry);
 		dentry->d_fsdata = ino;
 		ino->dentry = dentry;
 
-		spin_lock(&sbi->lookup_lock);
 		list_add(&ino->active, &sbi->active_list);
 		spin_unlock(&sbi->lookup_lock);
+		spin_unlock(&dentry->d_lock);
 	}
 	return NULL;
 }
