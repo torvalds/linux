@@ -83,6 +83,11 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 				return -EOPNOTSUPP;
 			}
 
+			/* Forbid block with this rulei to be bound
+			 * to egress in future.
+			 */
+			rulei->egress_bind_blocker = 1;
+
 			fid = mlxsw_sp_acl_dummy_fid(mlxsw_sp);
 			fid_index = mlxsw_sp_fid_index(fid);
 			err = mlxsw_sp_acl_rulei_act_fid_set(mlxsw_sp, rulei,
@@ -395,6 +400,12 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 			NL_SET_ERR_MSG_MOD(f->common.extack, "vlan_id key is not supported on egress");
 			return -EOPNOTSUPP;
 		}
+
+		/* Forbid block with this rulei to be bound
+		 * to egress in future.
+		 */
+		rulei->egress_bind_blocker = 1;
+
 		if (match.mask->vlan_id != 0)
 			mlxsw_sp_acl_rulei_keymask_u32(rulei,
 						       MLXSW_AFK_ELEMENT_VID,

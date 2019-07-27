@@ -1625,7 +1625,7 @@ mlxsw_sp_setup_tc_block_flower_bind(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 	flow_block_cb_incref(block_cb);
 	err = mlxsw_sp_acl_block_bind(mlxsw_sp, acl_block,
-				      mlxsw_sp_port, ingress);
+				      mlxsw_sp_port, ingress, f->extack);
 	if (err)
 		goto err_block_bind;
 
