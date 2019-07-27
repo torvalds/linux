@@ -623,7 +623,8 @@ struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;
 	struct mlxsw_afk_element_values values;
 	struct mlxsw_afa_block *act_block;
-	u8 action_created:1;
+	u8 action_created:1,
+	   egress_bind_blocker:1;
 	unsigned int counter_index;
 };
 
@@ -642,6 +643,7 @@ struct mlxsw_sp_acl_block {
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned int rule_count;
 	unsigned int disable_count;
+	unsigned int egress_blocker_rule_count;
 	struct net *net;
 };
 
@@ -657,7 +659,8 @@ void mlxsw_sp_acl_block_destroy(struct mlxsw_sp_acl_block *block);
 int mlxsw_sp_acl_block_bind(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_block *block,
 			    struct mlxsw_sp_port *mlxsw_sp_port,
-			    bool ingress);
+			    bool ingress,
+			    struct netlink_ext_ack *extack);
 int mlxsw_sp_acl_block_unbind(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_acl_block *block,
 			      struct mlxsw_sp_port *mlxsw_sp_port,
