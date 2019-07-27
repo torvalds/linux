@@ -51,7 +51,7 @@ static union perf_event *perf_mmap__read(struct mmap *map,
 		if ((*startp & map->core.mask) + size != ((*startp + size) & map->core.mask)) {
 			unsigned int offset = *startp;
 			unsigned int len = min(sizeof(*event), size), cpy;
-			void *dst = map->event_copy;
+			void *dst = map->core.event_copy;
 
 			do {
 				cpy = min(map->core.mask + 1 - (offset & map->core.mask), len);
@@ -61,7 +61,7 @@ static union perf_event *perf_mmap__read(struct mmap *map,
 				len -= cpy;
 			} while (len);
 
-			event = (union perf_event *)map->event_copy;
+			event = (union perf_event *)map->core.event_copy;
 		}
 
 		*startp += size;
