@@ -719,7 +719,7 @@ static struct mmap *evlist__alloc_mmap(struct evlist *evlist,
 		 * Each PERF_EVENT_IOC_SET_OUTPUT points to this mmap and
 		 * thus does perf_mmap__get() on it.
 		 */
-		refcount_set(&map[i].refcnt, 0);
+		refcount_set(&map[i].core.refcnt, 0);
 	}
 	return map;
 }

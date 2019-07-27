@@ -89,7 +89,7 @@ union perf_event *perf_mmap__read_event(struct mmap *map)
 	/*
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
 	 */
-	if (!refcount_read(&map->refcnt))
+	if (!refcount_read(&map->core.refcnt))
 		return NULL;
 
 	/* non-overwirte doesn't pause the ringbuffer */
@@ -111,14 +111,14 @@ static bool perf_mmap__empty(struct mmap *map)
 
 void perf_mmap__get(struct mmap *map)
 {
-	refcount_inc(&map->refcnt);
+	refcount_inc(&map->core.refcnt);
 }
 
 void perf_mmap__put(struct mmap *map)
 {
-	BUG_ON(map->core.base && refcount_read(&map->refcnt) == 0);
+	BUG_ON(map->core.base && refcount_read(&map->core.refcnt) == 0);
 
-	if (refcount_dec_and_test(&map->refcnt))
+	if (refcount_dec_and_test(&map->core.refcnt))
 		perf_mmap__munmap(map);
 }
 
@@ -130,7 +130,7 @@ void perf_mmap__consume(struct mmap *map)
 		perf_mmap__write_tail(map, old);
 	}
 
-	if (refcount_read(&map->refcnt) == 1 && perf_mmap__empty(map))
+	if (refcount_read(&map->core.refcnt) == 1 && perf_mmap__empty(map))
 		perf_mmap__put(map);
 }
 
@@ -321,7 +321,7 @@ void perf_mmap__munmap(struct mmap *map)
 		munmap(map->core.base, perf_mmap__mmap_len(map));
 		map->core.base = NULL;
 		map->core.fd = -1;
-		refcount_set(&map->refcnt, 0);
+		refcount_set(&map->core.refcnt, 0);
 	}
 	auxtrace_mmap__munmap(&map->auxtrace_mmap);
 }
@@ -367,7 +367,7 @@ int perf_mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu)
 	 * evlist layer can't just drop it when filtering events in
 	 * perf_evlist__filter_pollfd().
 	 */
-	refcount_set(&map->refcnt, 2);
+	refcount_set(&map->core.refcnt, 2);
 	map->prev = 0;
 	map->core.mask = mp->mask;
 	map->core.base = mmap(NULL, perf_mmap__mmap_len(map), mp->prot,
@@ -479,7 +479,7 @@ int perf_mmap__read_init(struct mmap *map)
 	/*
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
 	 */
-	if (!refcount_read(&map->refcnt))
+	if (!refcount_read(&map->core.refcnt))
 		return -ENOENT;
 
 	return __perf_mmap__read_init(map);
@@ -537,7 +537,7 @@ void perf_mmap__read_done(struct mmap *map)
 	/*
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
 	 */
-	if (!refcount_read(&map->refcnt))
+	if (!refcount_read(&map->core.refcnt))
 		return;
 
 	map->prev = perf_mmap__read_head(map);

@@ -22,7 +22,6 @@ struct aiocb;
  */
 struct mmap {
 	struct perf_mmap	core;
-	refcount_t	 refcnt;
 	u64		 prev;
 	u64		 start;
 	u64		 end;
