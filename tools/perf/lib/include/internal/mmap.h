@@ -3,6 +3,7 @@
 #define __LIBPERF_INTERNAL_MMAP_H
 
 #include <linux/refcount.h>
+#include <linux/types.h>
 
 /**
  * struct perf_mmap - perf's ring buffer mmap details
@@ -15,6 +16,9 @@ struct perf_mmap {
 	int		 fd;
 	int		 cpu;
 	refcount_t	 refcnt;
+	u64		 prev;
+	u64		 start;
+	u64		 end;
 };
 
 #endif /* __LIBPERF_INTERNAL_MMAP_H */
