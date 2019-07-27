@@ -185,8 +185,8 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 /**
  * intel_uc_fw_fetch - fetch uC firmware
  *
- * @dev_priv: device private
  * @uc_fw: uC firmware
+ * @i915: device private
  *
  * Fetch uC firmware into GEM obj.
  */
