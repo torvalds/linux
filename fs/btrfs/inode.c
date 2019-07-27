@@ -176,6 +176,9 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	size_t cur_size = size;
 	unsigned long offset;
 
+	ASSERT((compressed_size > 0 && compressed_pages) ||
+	       (compressed_size == 0 && !compressed_pages));
+
 	if (compressed_size && compressed_pages)
 		cur_size = compressed_size;
 
