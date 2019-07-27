@@ -652,7 +652,7 @@ static int perf_evlist__set_paused(struct evlist *evlist, bool value)
 		return 0;
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
-		int fd = evlist->overwrite_mmap[i].fd;
+		int fd = evlist->overwrite_mmap[i].core.fd;
 		int err;
 
 		if (fd < 0)
@@ -708,7 +708,7 @@ static struct mmap *evlist__alloc_mmap(struct evlist *evlist,
 		return NULL;
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
-		map[i].fd = -1;
+		map[i].core.fd = -1;
 		map[i].overwrite = overwrite;
 		/*
 		 * When the perf_mmap() call is made we grab one refcount, plus

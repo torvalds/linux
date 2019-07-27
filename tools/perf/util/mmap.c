@@ -320,7 +320,7 @@ void perf_mmap__munmap(struct mmap *map)
 	if (map->core.base != NULL) {
 		munmap(map->core.base, perf_mmap__mmap_len(map));
 		map->core.base = NULL;
-		map->fd = -1;
+		map->core.fd = -1;
 		refcount_set(&map->refcnt, 0);
 	}
 	auxtrace_mmap__munmap(&map->auxtrace_mmap);
@@ -378,7 +378,7 @@ int perf_mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu)
 		map->core.base = NULL;
 		return -1;
 	}
-	map->fd = fd;
+	map->core.fd = fd;
 	map->cpu = cpu;
 
 	perf_mmap__setup_affinity_mask(map, mp);
