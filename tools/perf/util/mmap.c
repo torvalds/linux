@@ -24,7 +24,7 @@
 
 size_t perf_mmap__mmap_len(struct mmap *map)
 {
-	return map->mask + 1 + page_size;
+	return map->core.mask + 1 + page_size;
 }
 
 /* When check_messup is true, 'end' must points to a good entry */
@@ -38,7 +38,7 @@ static union perf_event *perf_mmap__read(struct mmap *map,
 	if (diff >= (int)sizeof(event->header)) {
 		size_t size;
 
-		event = (union perf_event *)&data[*startp & map->mask];
+		event = (union perf_event *)&data[*startp & map->core.mask];
 		size = event->header.size;
 
 		if (size < sizeof(event->header) || diff < (int)size)
@@ -48,14 +48,14 @@ static union perf_event *perf_mmap__read(struct mmap *map,
 		 * Event straddles the mmap boundary -- header should always
 		 * be inside due to u64 alignment of output.
 		 */
-		if ((*startp & map->mask) + size != ((*startp + size) & map->mask)) {
+		if ((*startp & map->core.mask) + size != ((*startp + size) & map->core.mask)) {
 			unsigned int offset = *startp;
 			unsigned int len = min(sizeof(*event), size), cpy;
 			void *dst = map->event_copy;
 
 			do {
-				cpy = min(map->mask + 1 - (offset & map->mask), len);
-				memcpy(dst, &data[offset & map->mask], cpy);
+				cpy = min(map->core.mask + 1 - (offset & map->core.mask), len);
+				memcpy(dst, &data[offset & map->core.mask], cpy);
 				offset += cpy;
 				dst += cpy;
 				len -= cpy;
@@ -369,7 +369,7 @@ int perf_mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu)
 	 */
 	refcount_set(&map->refcnt, 2);
 	map->prev = 0;
-	map->mask = mp->mask;
+	map->core.mask = mp->mask;
 	map->core.base = mmap(NULL, perf_mmap__mmap_len(map), mp->prot,
 			 MAP_SHARED, fd, 0);
 	if (map->core.base == MAP_FAILED) {
@@ -454,7 +454,7 @@ static int __perf_mmap__read_init(struct mmap *md)
 		return -EAGAIN;
 
 	size = md->end - md->start;
-	if (size > (unsigned long)(md->mask) + 1) {
+	if (size > (unsigned long)(md->core.mask) + 1) {
 		if (!md->overwrite) {
 			WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
 
@@ -467,7 +467,7 @@ static int __perf_mmap__read_init(struct mmap *md)
 		 * Backward ring buffer is full. We still have a chance to read
 		 * most of data from it.
 		 */
-		if (overwrite_rb_find_range(data, md->mask, &md->start, &md->end))
+		if (overwrite_rb_find_range(data, md->core.mask, &md->start, &md->end))
 			return -EINVAL;
 	}
 
@@ -500,9 +500,9 @@ int perf_mmap__push(struct mmap *md, void *to,
 
 	size = md->end - md->start;
 
-	if ((md->start & md->mask) + size != (md->end & md->mask)) {
-		buf = &data[md->start & md->mask];
-		size = md->mask + 1 - (md->start & md->mask);
+	if ((md->start & md->core.mask) + size != (md->end & md->core.mask)) {
+		buf = &data[md->start & md->core.mask];
+		size = md->core.mask + 1 - (md->start & md->core.mask);
 		md->start += size;
 
 		if (push(md, to, buf, size) < 0) {
@@ -511,7 +511,7 @@ int perf_mmap__push(struct mmap *md, void *to,
 		}
 	}
 
-	buf = &data[md->start & md->mask];
+	buf = &data[md->start & md->core.mask];
 	size = md->end - md->start;
 	md->start += size;
 

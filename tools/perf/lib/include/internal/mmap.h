@@ -9,6 +9,7 @@
  */
 struct perf_mmap {
 	void		*base;
+	int		 mask;
 };
 
 #endif /* __LIBPERF_INTERNAL_MMAP_H */
