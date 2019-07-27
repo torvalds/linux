@@ -991,7 +991,7 @@ static struct mmap *get_md(struct evlist *evlist, int cpu)
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		struct mmap *md = &evlist->mmap[i];
 
-		if (md->cpu == cpu)
+		if (md->core.cpu == cpu)
 			return md;
 	}
 

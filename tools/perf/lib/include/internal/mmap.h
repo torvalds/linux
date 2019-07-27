@@ -11,6 +11,7 @@ struct perf_mmap {
 	void		*base;
 	int		 mask;
 	int		 fd;
+	int		 cpu;
 };
 
 #endif /* __LIBPERF_INTERNAL_MMAP_H */

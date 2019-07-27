@@ -256,7 +256,7 @@ static int perf_mmap__aio_mmap(struct mmap *map, struct mmap_params *mp)
 				pr_debug2("failed to allocate data buffer area, error %m");
 				return -1;
 			}
-			ret = perf_mmap__aio_bind(map, i, map->cpu, mp->affinity);
+			ret = perf_mmap__aio_bind(map, i, map->core.cpu, mp->affinity);
 			if (ret == -1)
 				return -1;
 			/*
@@ -347,9 +347,9 @@ static void perf_mmap__setup_affinity_mask(struct mmap *map, struct mmap_params 
 {
 	CPU_ZERO(&map->affinity_mask);
 	if (mp->affinity == PERF_AFFINITY_NODE && cpu__max_node() > 1)
-		build_node_mask(cpu__get_node(map->cpu), &map->affinity_mask);
+		build_node_mask(cpu__get_node(map->core.cpu), &map->affinity_mask);
 	else if (mp->affinity == PERF_AFFINITY_CPU)
-		CPU_SET(map->cpu, &map->affinity_mask);
+		CPU_SET(map->core.cpu, &map->affinity_mask);
 }
 
 int perf_mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu)
@@ -379,7 +379,7 @@ int perf_mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu)
 		return -1;
 	}
 	map->core.fd = fd;
-	map->cpu = cpu;
+	map->core.cpu = cpu;
 
 	perf_mmap__setup_affinity_mask(map, mp);
 
