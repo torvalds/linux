@@ -119,7 +119,7 @@ static bool switch_output_time(struct record *rec)
 	       trigger_is_ready(&switch_output_trigger);
 }
 
-static int record__write(struct record *rec, struct perf_mmap *map __maybe_unused,
+static int record__write(struct record *rec, struct mmap *map __maybe_unused,
 			 void *bf, size_t size)
 {
 	struct perf_data_file *file = &rec->session->data->file;
@@ -168,7 +168,7 @@ static int record__aio_write(struct aiocb *cblock, int trace_fd,
 	return rc;
 }
 
-static int record__aio_complete(struct perf_mmap *md, struct aiocb *cblock)
+static int record__aio_complete(struct mmap *md, struct aiocb *cblock)
 {
 	void *rem_buf;
 	off_t rem_off;
@@ -214,7 +214,7 @@ static int record__aio_complete(struct perf_mmap *md, struct aiocb *cblock)
 	return rc;
 }
 
-static int record__aio_sync(struct perf_mmap *md, bool sync_all)
+static int record__aio_sync(struct mmap *md, bool sync_all)
 {
 	struct aiocb **aiocb = md->aio.aiocb;
 	struct aiocb *cblocks = md->aio.cblocks;
@@ -255,7 +255,7 @@ struct record_aio {
 	size_t		size;
 };
 
-static int record__aio_pushfn(struct perf_mmap *map, void *to, void *buf, size_t size)
+static int record__aio_pushfn(struct mmap *map, void *to, void *buf, size_t size)
 {
 	struct record_aio *aio = to;
 
@@ -300,7 +300,7 @@ static int record__aio_pushfn(struct perf_mmap *map, void *to, void *buf, size_t
 	return size;
 }
 
-static int record__aio_push(struct record *rec, struct perf_mmap *map, off_t *off)
+static int record__aio_push(struct record *rec, struct mmap *map, off_t *off)
 {
 	int ret, idx;
 	int trace_fd = rec->session->data->file.fd;
@@ -351,13 +351,13 @@ static void record__aio_mmap_read_sync(struct record *rec)
 {
 	int i;
 	struct evlist *evlist = rec->evlist;
-	struct perf_mmap *maps = evlist->mmap;
+	struct mmap *maps = evlist->mmap;
 
 	if (!record__aio_enabled(rec))
 		return;
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
-		struct perf_mmap *map = &maps[i];
+		struct mmap *map = &maps[i];
 
 		if (map->base)
 			record__aio_sync(map, true);
@@ -387,7 +387,7 @@ static int record__aio_parse(const struct option *opt,
 #else /* HAVE_AIO_SUPPORT */
 static int nr_cblocks_max = 0;
 
-static int record__aio_push(struct record *rec __maybe_unused, struct perf_mmap *map __maybe_unused,
+static int record__aio_push(struct record *rec __maybe_unused, struct mmap *map __maybe_unused,
 			    off_t *off __maybe_unused)
 {
 	return -1;
@@ -482,7 +482,7 @@ static int process_synthesized_event(struct perf_tool *tool,
 	return record__write(rec, NULL, event, event->header.size);
 }
 
-static int record__pushfn(struct perf_mmap *map, void *to, void *bf, size_t size)
+static int record__pushfn(struct mmap *map, void *to, void *bf, size_t size)
 {
 	struct record *rec = to;
 
@@ -527,7 +527,7 @@ static void record__sig_exit(void)
 #ifdef HAVE_AUXTRACE_SUPPORT
 
 static int record__process_auxtrace(struct perf_tool *tool,
-				    struct perf_mmap *map,
+				    struct mmap *map,
 				    union perf_event *event, void *data1,
 				    size_t len1, void *data2, size_t len2)
 {
@@ -565,7 +565,7 @@ static int record__process_auxtrace(struct perf_tool *tool,
 }
 
 static int record__auxtrace_mmap_read(struct record *rec,
-				      struct perf_mmap *map)
+				      struct mmap *map)
 {
 	int ret;
 
@@ -581,7 +581,7 @@ static int record__auxtrace_mmap_read(struct record *rec,
 }
 
 static int record__auxtrace_mmap_read_snapshot(struct record *rec,
-					       struct perf_mmap *map)
+					       struct mmap *map)
 {
 	int ret;
 
@@ -603,7 +603,7 @@ static int record__auxtrace_read_snapshot_all(struct record *rec)
 	int rc = 0;
 
 	for (i = 0; i < rec->evlist->nr_mmaps; i++) {
-		struct perf_mmap *map = &rec->evlist->mmap[i];
+		struct mmap *map = &rec->evlist->mmap[i];
 
 		if (!map->auxtrace_mmap.base)
 			continue;
@@ -668,7 +668,7 @@ static int record__auxtrace_init(struct record *rec)
 
 static inline
 int record__auxtrace_mmap_read(struct record *rec __maybe_unused,
-			       struct perf_mmap *map __maybe_unused)
+			       struct mmap *map __maybe_unused)
 {
 	return 0;
 }
@@ -901,7 +901,7 @@ static struct perf_event_header finished_round_event = {
 	.type = PERF_RECORD_FINISHED_ROUND,
 };
 
-static void record__adjust_affinity(struct record *rec, struct perf_mmap *map)
+static void record__adjust_affinity(struct record *rec, struct mmap *map)
 {
 	if (rec->opts.affinity != PERF_AFFINITY_SYS &&
 	    !CPU_EQUAL(&rec->affinity_mask, &map->affinity_mask)) {
@@ -948,7 +948,7 @@ static int record__mmap_read_evlist(struct record *rec, struct evlist *evlist,
 	u64 bytes_written = rec->bytes_written;
 	int i;
 	int rc = 0;
-	struct perf_mmap *maps;
+	struct mmap *maps;
 	int trace_fd = rec->data.file.fd;
 	off_t off = 0;
 
@@ -967,7 +967,7 @@ static int record__mmap_read_evlist(struct record *rec, struct evlist *evlist,
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		u64 flush = 0;
-		struct perf_mmap *map = &maps[i];
+		struct mmap *map = &maps[i];
 
 		if (map->base) {
 			record__adjust_affinity(rec, map);

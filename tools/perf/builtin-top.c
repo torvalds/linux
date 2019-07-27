@@ -863,7 +863,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 {
 	struct record_opts *opts = &top->record_opts;
 	struct evlist *evlist = top->evlist;
-	struct perf_mmap *md;
+	struct mmap *md;
 	union perf_event *event;
 
 	md = opts->overwrite ? &evlist->overwrite_mmap[idx] : &evlist->mmap[idx];

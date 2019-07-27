@@ -15,11 +15,11 @@
 
 struct aiocb;
 /**
- * struct perf_mmap - perf's ring buffer mmap details
+ * struct mmap - perf's ring buffer mmap details
  *
  * @refcnt - e.g. code using PERF_EVENT_IOC_SET_OUTPUT to share this
  */
-struct perf_mmap {
+struct mmap {
 	void		 *base;
 	int		 mask;
 	int		 fd;
@@ -78,33 +78,33 @@ struct mmap_params {
 	struct auxtrace_mmap_params auxtrace_mp;
 };
 
-int perf_mmap__mmap(struct perf_mmap *map, struct mmap_params *mp, int fd, int cpu);
-void perf_mmap__munmap(struct perf_mmap *map);
+int perf_mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu);
+void perf_mmap__munmap(struct mmap *map);
 
-void perf_mmap__get(struct perf_mmap *map);
-void perf_mmap__put(struct perf_mmap *map);
+void perf_mmap__get(struct mmap *map);
+void perf_mmap__put(struct mmap *map);
 
-void perf_mmap__consume(struct perf_mmap *map);
+void perf_mmap__consume(struct mmap *map);
 
-static inline u64 perf_mmap__read_head(struct perf_mmap *mm)
+static inline u64 perf_mmap__read_head(struct mmap *mm)
 {
 	return ring_buffer_read_head(mm->base);
 }
 
-static inline void perf_mmap__write_tail(struct perf_mmap *md, u64 tail)
+static inline void perf_mmap__write_tail(struct mmap *md, u64 tail)
 {
 	ring_buffer_write_tail(md->base, tail);
 }
 
-union perf_event *perf_mmap__read_forward(struct perf_mmap *map);
+union perf_event *perf_mmap__read_forward(struct mmap *map);
 
-union perf_event *perf_mmap__read_event(struct perf_mmap *map);
+union perf_event *perf_mmap__read_event(struct mmap *map);
 
-int perf_mmap__push(struct perf_mmap *md, void *to,
-		    int push(struct perf_mmap *map, void *to, void *buf, size_t size));
+int perf_mmap__push(struct mmap *md, void *to,
+		    int push(struct mmap *map, void *to, void *buf, size_t size));
 
-size_t perf_mmap__mmap_len(struct perf_mmap *map);
+size_t perf_mmap__mmap_len(struct mmap *map);
 
-int perf_mmap__read_init(struct perf_mmap *md);
-void perf_mmap__read_done(struct perf_mmap *map);
+int perf_mmap__read_init(struct mmap *md);
+void perf_mmap__read_done(struct mmap *map);
 #endif /*__PERF_MMAP_H */

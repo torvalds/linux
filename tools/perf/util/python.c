@@ -984,12 +984,12 @@ static PyObject *pyrf_evlist__add(struct pyrf_evlist *pevlist,
 	return Py_BuildValue("i", evlist->core.nr_entries);
 }
 
-static struct perf_mmap *get_md(struct evlist *evlist, int cpu)
+static struct mmap *get_md(struct evlist *evlist, int cpu)
 {
 	int i;
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
-		struct perf_mmap *md = &evlist->mmap[i];
+		struct mmap *md = &evlist->mmap[i];
 
 		if (md->cpu == cpu)
 			return md;
@@ -1005,7 +1005,7 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 	union perf_event *event;
 	int sample_id_all = 1, cpu;
 	static char *kwlist[] = { "cpu", "sample_id_all", NULL };
-	struct perf_mmap *md;
+	struct mmap *md;
 	int err;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i|i", kwlist,

@@ -1228,7 +1228,7 @@ int perf_event__process_auxtrace_error(struct perf_session *session,
 	return 0;
 }
 
-static int __auxtrace_mmap__read(struct perf_mmap *map,
+static int __auxtrace_mmap__read(struct mmap *map,
 				 struct auxtrace_record *itr,
 				 struct perf_tool *tool, process_auxtrace_t fn,
 				 bool snapshot, size_t snapshot_size)
@@ -1339,13 +1339,13 @@ static int __auxtrace_mmap__read(struct perf_mmap *map,
 	return 1;
 }
 
-int auxtrace_mmap__read(struct perf_mmap *map, struct auxtrace_record *itr,
+int auxtrace_mmap__read(struct mmap *map, struct auxtrace_record *itr,
 			struct perf_tool *tool, process_auxtrace_t fn)
 {
 	return __auxtrace_mmap__read(map, itr, tool, fn, false, 0);
 }
 
-int auxtrace_mmap__read_snapshot(struct perf_mmap *map,
+int auxtrace_mmap__read_snapshot(struct mmap *map,
 				 struct auxtrace_record *itr,
 				 struct perf_tool *tool, process_auxtrace_t fn,
 				 size_t snapshot_size)

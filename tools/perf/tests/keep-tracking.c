@@ -31,7 +31,7 @@
 static int find_comm(struct evlist *evlist, const char *comm)
 {
 	union perf_event *event;
-	struct perf_mmap *md;
+	struct mmap *md;
 	int i, found;
 
 	found = 0;

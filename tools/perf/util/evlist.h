@@ -39,8 +39,8 @@ struct evlist {
 		pid_t	pid;
 	} workload;
 	struct fdarray	 pollfd;
-	struct perf_mmap *mmap;
-	struct perf_mmap *overwrite_mmap;
+	struct mmap *mmap;
+	struct mmap *overwrite_mmap;
 	struct evsel *selected;
 	struct events_stats stats;
 	struct perf_env	*env;

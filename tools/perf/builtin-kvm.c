@@ -750,7 +750,7 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 {
 	struct evlist *evlist = kvm->evlist;
 	union perf_event *event;
-	struct perf_mmap *md;
+	struct mmap *md;
 	u64 timestamp;
 	s64 n = 0;
 	int err;

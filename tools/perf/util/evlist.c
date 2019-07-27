@@ -423,7 +423,7 @@ int perf_evlist__alloc_pollfd(struct evlist *evlist)
 }
 
 static int __perf_evlist__add_pollfd(struct evlist *evlist, int fd,
-				     struct perf_mmap *map, short revent)
+				     struct mmap *map, short revent)
 {
 	int pos = fdarray__add(&evlist->pollfd, fd, revent | POLLERR | POLLHUP);
 	/*
@@ -447,7 +447,7 @@ int perf_evlist__add_pollfd(struct evlist *evlist, int fd)
 static void perf_evlist__munmap_filtered(struct fdarray *fda, int fd,
 					 void *arg __maybe_unused)
 {
-	struct perf_mmap *map = fda->priv[fd].ptr;
+	struct mmap *map = fda->priv[fd].ptr;
 
 	if (map)
 		perf_mmap__put(map);
@@ -693,16 +693,16 @@ void perf_evlist__munmap(struct evlist *evlist)
 	zfree(&evlist->overwrite_mmap);
 }
 
-static struct perf_mmap *perf_evlist__alloc_mmap(struct evlist *evlist,
+static struct mmap *perf_evlist__alloc_mmap(struct evlist *evlist,
 						 bool overwrite)
 {
 	int i;
-	struct perf_mmap *map;
+	struct mmap *map;
 
 	evlist->nr_mmaps = perf_cpu_map__nr(evlist->core.cpus);
 	if (perf_cpu_map__empty(evlist->core.cpus))
 		evlist->nr_mmaps = perf_thread_map__nr(evlist->core.threads);
-	map = zalloc(evlist->nr_mmaps * sizeof(struct perf_mmap));
+	map = zalloc(evlist->nr_mmaps * sizeof(struct mmap));
 	if (!map)
 		return NULL;
 
@@ -741,7 +741,7 @@ static int perf_evlist__mmap_per_evsel(struct evlist *evlist, int idx,
 	int evlist_cpu = cpu_map__cpu(evlist->core.cpus, cpu_idx);
 
 	evlist__for_each_entry(evlist, evsel) {
-		struct perf_mmap *maps = evlist->mmap;
+		struct mmap *maps = evlist->mmap;
 		int *output = _output;
 		int fd;
 		int cpu;
@@ -1847,7 +1847,7 @@ static void *perf_evlist__poll_thread(void *arg)
 			perf_evlist__poll(evlist, 1000);
 
 		for (i = 0; i < evlist->nr_mmaps; i++) {
-			struct perf_mmap *map = &evlist->mmap[i];
+			struct mmap *map = &evlist->mmap[i];
 			union perf_event *event;
 
 			if (perf_mmap__read_init(map))

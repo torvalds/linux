@@ -33,7 +33,7 @@ static int count_samples(struct evlist *evlist, int *sample_count,
 	int i;
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
-		struct perf_mmap *map = &evlist->overwrite_mmap[i];
+		struct mmap *map = &evlist->overwrite_mmap[i];
 		union perf_event *event;
 
 		perf_mmap__read_init(map);

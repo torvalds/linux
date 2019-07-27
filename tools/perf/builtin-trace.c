@@ -3444,7 +3444,7 @@ again:
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		union perf_event *event;
-		struct perf_mmap *md;
+		struct mmap *md;
 
 		md = &evlist->mmap[i];
 		if (perf_mmap__read_init(md) < 0)

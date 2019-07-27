@@ -22,7 +22,7 @@ union perf_event;
 struct perf_session;
 struct evlist;
 struct perf_tool;
-struct perf_mmap;
+struct mmap;
 struct perf_sample;
 struct option;
 struct record_opts;
@@ -445,14 +445,14 @@ void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 				   bool per_cpu);
 
 typedef int (*process_auxtrace_t)(struct perf_tool *tool,
-				  struct perf_mmap *map,
+				  struct mmap *map,
 				  union perf_event *event, void *data1,
 				  size_t len1, void *data2, size_t len2);
 
-int auxtrace_mmap__read(struct perf_mmap *map, struct auxtrace_record *itr,
+int auxtrace_mmap__read(struct mmap *map, struct auxtrace_record *itr,
 			struct perf_tool *tool, process_auxtrace_t fn);
 
-int auxtrace_mmap__read_snapshot(struct perf_mmap *map,
+int auxtrace_mmap__read_snapshot(struct mmap *map,
 				 struct auxtrace_record *itr,
 				 struct perf_tool *tool, process_auxtrace_t fn,
 				 size_t snapshot_size);

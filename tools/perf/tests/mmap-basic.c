@@ -42,7 +42,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		     expected_nr_events[nsyscalls], i, j;
 	struct evsel *evsels[nsyscalls], *evsel;
 	char sbuf[STRERR_BUFSIZE];
-	struct perf_mmap *md;
+	struct mmap *md;
 
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	if (threads == NULL) {

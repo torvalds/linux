@@ -22,13 +22,13 @@
 #include "../perf.h"
 #include "util.h" /* page_size */
 
-size_t perf_mmap__mmap_len(struct perf_mmap *map)
+size_t perf_mmap__mmap_len(struct mmap *map)
 {
 	return map->mask + 1 + page_size;
 }
 
 /* When check_messup is true, 'end' must points to a good entry */
-static union perf_event *perf_mmap__read(struct perf_mmap *map,
+static union perf_event *perf_mmap__read(struct mmap *map,
 					 u64 *startp, u64 end)
 {
 	unsigned char *data = map->base + page_size;
@@ -82,7 +82,7 @@ static union perf_event *perf_mmap__read(struct perf_mmap *map,
  * }
  * perf_mmap__read_done()
  */
-union perf_event *perf_mmap__read_event(struct perf_mmap *map)
+union perf_event *perf_mmap__read_event(struct mmap *map)
 {
 	union perf_event *event;
 
@@ -104,17 +104,17 @@ union perf_event *perf_mmap__read_event(struct perf_mmap *map)
 	return event;
 }
 
-static bool perf_mmap__empty(struct perf_mmap *map)
+static bool perf_mmap__empty(struct mmap *map)
 {
 	return perf_mmap__read_head(map) == map->prev && !map->auxtrace_mmap.base;
 }
 
-void perf_mmap__get(struct perf_mmap *map)
+void perf_mmap__get(struct mmap *map)
 {
 	refcount_inc(&map->refcnt);
 }
 
-void perf_mmap__put(struct perf_mmap *map)
+void perf_mmap__put(struct mmap *map)
 {
 	BUG_ON(map->base && refcount_read(&map->refcnt) == 0);
 
@@ -122,7 +122,7 @@ void perf_mmap__put(struct perf_mmap *map)
 		perf_mmap__munmap(map);
 }
 
-void perf_mmap__consume(struct perf_mmap *map)
+void perf_mmap__consume(struct mmap *map)
 {
 	if (!map->overwrite) {
 		u64 old = map->prev;
@@ -161,13 +161,13 @@ void __weak auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp __mayb
 }
 
 #ifdef HAVE_AIO_SUPPORT
-static int perf_mmap__aio_enabled(struct perf_mmap *map)
+static int perf_mmap__aio_enabled(struct mmap *map)
 {
 	return map->aio.nr_cblocks > 0;
 }
 
 #ifdef HAVE_LIBNUMA_SUPPORT
-static int perf_mmap__aio_alloc(struct perf_mmap *map, int idx)
+static int perf_mmap__aio_alloc(struct mmap *map, int idx)
 {
 	map->aio.data[idx] = mmap(NULL, perf_mmap__mmap_len(map), PROT_READ|PROT_WRITE,
 				  MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
@@ -179,7 +179,7 @@ static int perf_mmap__aio_alloc(struct perf_mmap *map, int idx)
 	return 0;
 }
 
-static void perf_mmap__aio_free(struct perf_mmap *map, int idx)
+static void perf_mmap__aio_free(struct mmap *map, int idx)
 {
 	if (map->aio.data[idx]) {
 		munmap(map->aio.data[idx], perf_mmap__mmap_len(map));
@@ -187,7 +187,7 @@ static void perf_mmap__aio_free(struct perf_mmap *map, int idx)
 	}
 }
 
-static int perf_mmap__aio_bind(struct perf_mmap *map, int idx, int cpu, int affinity)
+static int perf_mmap__aio_bind(struct mmap *map, int idx, int cpu, int affinity)
 {
 	void *data;
 	size_t mmap_len;
@@ -207,7 +207,7 @@ static int perf_mmap__aio_bind(struct perf_mmap *map, int idx, int cpu, int affi
 	return 0;
 }
 #else /* !HAVE_LIBNUMA_SUPPORT */
-static int perf_mmap__aio_alloc(struct perf_mmap *map, int idx)
+static int perf_mmap__aio_alloc(struct mmap *map, int idx)
 {
 	map->aio.data[idx] = malloc(perf_mmap__mmap_len(map));
 	if (map->aio.data[idx] == NULL)
@@ -216,19 +216,19 @@ static int perf_mmap__aio_alloc(struct perf_mmap *map, int idx)
 	return 0;
 }
 
-static void perf_mmap__aio_free(struct perf_mmap *map, int idx)
+static void perf_mmap__aio_free(struct mmap *map, int idx)
 {
 	zfree(&(map->aio.data[idx]));
 }
 
-static int perf_mmap__aio_bind(struct perf_mmap *map __maybe_unused, int idx __maybe_unused,
+static int perf_mmap__aio_bind(struct mmap *map __maybe_unused, int idx __maybe_unused,
 		int cpu __maybe_unused, int affinity __maybe_unused)
 {
 	return 0;
 }
 #endif
 
-static int perf_mmap__aio_mmap(struct perf_mmap *map, struct mmap_params *mp)
+static int perf_mmap__aio_mmap(struct mmap *map, struct mmap_params *mp)
 {
 	int delta_max, i, prio, ret;
 
@@ -282,7 +282,7 @@ static int perf_mmap__aio_mmap(struct perf_mmap *map, struct mmap_params *mp)
 	return 0;
 }
 
-static void perf_mmap__aio_munmap(struct perf_mmap *map)
+static void perf_mmap__aio_munmap(struct mmap *map)
 {
 	int i;
 
@@ -294,23 +294,23 @@ static void perf_mmap__aio_munmap(struct perf_mmap *map)
 	zfree(&map->aio.aiocb);
 }
 #else /* !HAVE_AIO_SUPPORT */
-static int perf_mmap__aio_enabled(struct perf_mmap *map __maybe_unused)
+static int perf_mmap__aio_enabled(struct mmap *map __maybe_unused)
 {
 	return 0;
 }
 
-static int perf_mmap__aio_mmap(struct perf_mmap *map __maybe_unused,
+static int perf_mmap__aio_mmap(struct mmap *map __maybe_unused,
 			       struct mmap_params *mp __maybe_unused)
 {
 	return 0;
 }
 
-static void perf_mmap__aio_munmap(struct perf_mmap *map __maybe_unused)
+static void perf_mmap__aio_munmap(struct mmap *map __maybe_unused)
 {
 }
 #endif
 
-void perf_mmap__munmap(struct perf_mmap *map)
+void perf_mmap__munmap(struct mmap *map)
 {
 	perf_mmap__aio_munmap(map);
 	if (map->data != NULL) {
@@ -343,7 +343,7 @@ static void build_node_mask(int node, cpu_set_t *mask)
 	}
 }
 
-static void perf_mmap__setup_affinity_mask(struct perf_mmap *map, struct mmap_params *mp)
+static void perf_mmap__setup_affinity_mask(struct mmap *map, struct mmap_params *mp)
 {
 	CPU_ZERO(&map->affinity_mask);
 	if (mp->affinity == PERF_AFFINITY_NODE && cpu__max_node() > 1)
@@ -352,7 +352,7 @@ static void perf_mmap__setup_affinity_mask(struct perf_mmap *map, struct mmap_pa
 		CPU_SET(map->cpu, &map->affinity_mask);
 }
 
-int perf_mmap__mmap(struct perf_mmap *map, struct mmap_params *mp, int fd, int cpu)
+int perf_mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu)
 {
 	/*
 	 * The last one will be done at perf_mmap__consume(), so that we
@@ -440,7 +440,7 @@ static int overwrite_rb_find_range(void *buf, int mask, u64 *start, u64 *end)
 /*
  * Report the start and end of the available data in ringbuffer
  */
-static int __perf_mmap__read_init(struct perf_mmap *md)
+static int __perf_mmap__read_init(struct mmap *md)
 {
 	u64 head = perf_mmap__read_head(md);
 	u64 old = md->prev;
@@ -474,7 +474,7 @@ static int __perf_mmap__read_init(struct perf_mmap *md)
 	return 0;
 }
 
-int perf_mmap__read_init(struct perf_mmap *map)
+int perf_mmap__read_init(struct mmap *map)
 {
 	/*
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
@@ -485,8 +485,8 @@ int perf_mmap__read_init(struct perf_mmap *map)
 	return __perf_mmap__read_init(map);
 }
 
-int perf_mmap__push(struct perf_mmap *md, void *to,
-		    int push(struct perf_mmap *map, void *to, void *buf, size_t size))
+int perf_mmap__push(struct mmap *md, void *to,
+		    int push(struct mmap *map, void *to, void *buf, size_t size))
 {
 	u64 head = perf_mmap__read_head(md);
 	unsigned char *data = md->base + page_size;
@@ -532,7 +532,7 @@ out:
  * The last perf_mmap__read() will set tail to map->prev.
  * Need to correct the map->prev to head which is the end of next read.
  */
-void perf_mmap__read_done(struct perf_mmap *map)
+void perf_mmap__read_done(struct mmap *map)
 {
 	/*
 	 * Check if event was unmapped due to a POLLHUP/POLLERR.
