@@ -1,2 +1,3 @@
 pidfd_open_test
 pidfd_test
+pidfd_wait
