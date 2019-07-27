@@ -78,6 +78,11 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			struct mlxsw_sp_fid *fid;
 			u16 fid_index;
 
+			if (mlxsw_sp_acl_block_is_egress_bound(block)) {
+				NL_SET_ERR_MSG_MOD(extack, "Redirect action is not supported on egress");
+				return -EOPNOTSUPP;
+			}
+
 			fid = mlxsw_sp_acl_dummy_fid(mlxsw_sp);
 			fid_index = mlxsw_sp_fid_index(fid);
 			err = mlxsw_sp_acl_rulei_act_fid_set(mlxsw_sp, rulei,
