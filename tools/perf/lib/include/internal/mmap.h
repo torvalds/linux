@@ -4,6 +4,7 @@
 
 #include <linux/refcount.h>
 #include <linux/types.h>
+#include <stdbool.h>
 
 /**
  * struct perf_mmap - perf's ring buffer mmap details
@@ -19,6 +20,7 @@ struct perf_mmap {
 	u64		 prev;
 	u64		 start;
 	u64		 end;
+	bool		 overwrite;
 };
 
 #endif /* __LIBPERF_INTERNAL_MMAP_H */

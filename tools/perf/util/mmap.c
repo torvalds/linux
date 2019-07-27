@@ -93,12 +93,12 @@ union perf_event *perf_mmap__read_event(struct mmap *map)
 		return NULL;
 
 	/* non-overwirte doesn't pause the ringbuffer */
-	if (!map->overwrite)
+	if (!map->core.overwrite)
 		map->core.end = perf_mmap__read_head(map);
 
 	event = perf_mmap__read(map, &map->core.start, map->core.end);
 
-	if (!map->overwrite)
+	if (!map->core.overwrite)
 		map->core.prev = map->core.start;
 
 	return event;
@@ -124,7 +124,7 @@ void perf_mmap__put(struct mmap *map)
 
 void perf_mmap__consume(struct mmap *map)
 {
-	if (!map->overwrite) {
+	if (!map->core.overwrite) {
 		u64 old = map->core.prev;
 
 		perf_mmap__write_tail(map, old);
@@ -447,15 +447,15 @@ static int __perf_mmap__read_init(struct mmap *md)
 	unsigned char *data = md->core.base + page_size;
 	unsigned long size;
 
-	md->core.start = md->overwrite ? head : old;
-	md->core.end = md->overwrite ? old : head;
+	md->core.start = md->core.overwrite ? head : old;
+	md->core.end = md->core.overwrite ? old : head;
 
 	if ((md->core.end - md->core.start) < md->flush)
 		return -EAGAIN;
 
 	size = md->core.end - md->core.start;
 	if (size > (unsigned long)(md->core.mask) + 1) {
-		if (!md->overwrite) {
+		if (!md->core.overwrite) {
 			WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
 
 			md->core.prev = head;

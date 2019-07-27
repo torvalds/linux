@@ -709,7 +709,7 @@ static struct mmap *evlist__alloc_mmap(struct evlist *evlist,
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		map[i].core.fd = -1;
-		map[i].overwrite = overwrite;
+		map[i].core.overwrite = overwrite;
 		/*
 		 * When the perf_mmap() call is made we grab one refcount, plus
 		 * one extra to let perf_mmap__consume() get the last
