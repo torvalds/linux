@@ -229,12 +229,12 @@
 			clocks = <&scg1 IMX7ULP_CLK_NIC1_BUS_DIV>,
 				 <&scg1 IMX7ULP_CLK_NIC1_DIV>,
 				 <&pcc2 IMX7ULP_CLK_USDHC0>;
-			clock-names ="ipg", "ahb", "per";
+			clock-names = "ipg", "ahb", "per";
 			assigned-clocks = <&pcc2 IMX7ULP_CLK_USDHC0>;
 			assigned-clock-parents = <&scg1 IMX7ULP_CLK_NIC1_DIV>;
 			bus-width = <4>;
 			fsl,tuning-start-tap = <20>;
-			fsl,tuning-step= <2>;
+			fsl,tuning-step = <2>;
 			status = "disabled";
 		};
 
@@ -245,12 +245,12 @@
 			clocks = <&scg1 IMX7ULP_CLK_NIC1_BUS_DIV>,
 				 <&scg1 IMX7ULP_CLK_NIC1_DIV>,
 				 <&pcc2 IMX7ULP_CLK_USDHC1>;
-			clock-names ="ipg", "ahb", "per";
+			clock-names = "ipg", "ahb", "per";
 			assigned-clocks = <&pcc2 IMX7ULP_CLK_USDHC1>;
 			assigned-clock-parents = <&scg1 IMX7ULP_CLK_NIC1_DIV>;
 			bus-width = <4>;
 			fsl,tuning-start-tap = <20>;
-			fsl,tuning-step= <2>;
+			fsl,tuning-step = <2>;
 			status = "disabled";
 		};
 

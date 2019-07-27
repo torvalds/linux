@@ -69,7 +69,7 @@
 
 &i2c1 {
 	pinctrl-names = "default";
-	pinctrl-0 =<&pinctrl_i2c1>;
+	pinctrl-0 = <&pinctrl_i2c1>;
 	clock-frequency = <100000>;
 	status = "okay";
 
