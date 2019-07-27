@@ -60,38 +60,15 @@ const struct dentry_operations autofs_dentry_operations = {
 	.d_release	= autofs_dentry_release,
 };
 
-static void autofs_add_active(struct dentry *dentry)
-{
-	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
-	struct autofs_info *ino;
-
-	ino = autofs_dentry_ino(dentry);
-	if (ino) {
-		spin_lock(&sbi->lookup_lock);
-		if (!ino->active_count) {
-			if (list_empty(&ino->active))
-				list_add(&ino->active, &sbi->active_list);
-		}
-		ino->active_count++;
-		spin_unlock(&sbi->lookup_lock);
-	}
-}
-
 static void autofs_del_active(struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
 	struct autofs_info *ino;
 
 	ino = autofs_dentry_ino(dentry);
-	if (ino) {
-		spin_lock(&sbi->lookup_lock);
-		ino->active_count--;
-		if (!ino->active_count) {
-			if (!list_empty(&ino->active))
-				list_del_init(&ino->active);
-		}
-		spin_unlock(&sbi->lookup_lock);
-	}
+	spin_lock(&sbi->lookup_lock);
+	list_del_init(&ino->active);
+	spin_unlock(&sbi->lookup_lock);
 }
 
 static int autofs_dir_open(struct inode *inode, struct file *file)
@@ -539,7 +516,9 @@ static struct dentry *autofs_lookup(struct inode *dir,
 		dentry->d_fsdata = ino;
 		ino->dentry = dentry;
 
-		autofs_add_active(dentry);
+		spin_lock(&sbi->lookup_lock);
+		list_add(&ino->active, &sbi->active_list);
+		spin_unlock(&sbi->lookup_lock);
 	}
 	return NULL;
 }
