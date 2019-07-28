@@ -23,7 +23,7 @@
 #   Version magic (see include/linux/vermagic.h for full details)
 #     - Kernel release
 #     - SMP is CONFIG_SMP
-#     - PREEMPT is CONFIG_PREEMPT
+#     - PREEMPT is CONFIG_PREEMPT[_RT]
 #     - GCC Version
 #   Module info
 #     - Module version (MODULE_VERSION)
