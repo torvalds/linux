@@ -855,11 +855,10 @@ u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct ieee80211_tx_info *info,
 				    struct ieee80211_vif *vif)
 {
 	u8 rate;
-
-	if (info->band == NL80211_BAND_5GHZ || vif->p2p)
-		rate = IWL_FIRST_OFDM_RATE;
-	else
+	if (info->band == NL80211_BAND_2GHZ && !vif->p2p)
 		rate = IWL_FIRST_CCK_RATE;
+	else
+		rate = IWL_FIRST_OFDM_RATE;
 
 	return rate;
 }
