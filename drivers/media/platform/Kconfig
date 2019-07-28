@@ -16,7 +16,7 @@ source "drivers/media/platform/marvell-ccic/Kconfig"
 config VIDEO_VIA_CAMERA
 	tristate "VIAFB camera controller support"
 	depends on FB_VIA
-	select VIDEOBUF_DMA_SG
+	select VIDEOBUF2_DMA_SG
 	select VIDEO_OV7670
 	help
 	   Driver support for the integrated camera controller in VIA
