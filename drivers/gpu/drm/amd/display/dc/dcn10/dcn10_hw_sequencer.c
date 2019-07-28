@@ -1291,8 +1291,6 @@ static void dcn10_init_hw(struct dc *dc)
 	}
 
 	dc->hwss.enable_power_gating_plane(dc->hwseq, true);
-
-	memset(&dc->clk_mgr->clks, 0, sizeof(dc->clk_mgr->clks));
 }
 
 static void dcn10_reset_hw_ctx_wrap(
