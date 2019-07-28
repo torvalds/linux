@@ -40,9 +40,15 @@ typedef __u16 __sum16;
 
 struct prog_test_def;
 
+struct test_selector {
+	const char *name;
+	bool *num_set;
+	int num_set_len;
+};
+
 struct test_env {
-	int test_num_selector;
-	const char *test_name_selector;
+	struct test_selector test_selector;
+	struct test_selector subtest_selector;
 	bool verifier_stats;
 	bool verbose;
 	bool very_verbose;
@@ -54,8 +60,9 @@ struct test_env {
 	size_t log_cnt;
 	size_t log_cap;
 
-	int succ_cnt;
-	int fail_cnt;
+	int succ_cnt; /* successful tests */
+	int sub_succ_cnt; /* successful sub-tests */
+	int fail_cnt; /* total failed tests + sub-tests */
 };
 
 extern int error_cnt;
@@ -65,6 +72,7 @@ extern struct test_env env;
 extern void test__printf(const char *fmt, ...);
 extern void test__vprintf(const char *fmt, va_list args);
 extern void test__force_log();
+extern bool test__start_subtest(const char *name);
 
 #define MAGIC_BYTES 123
 

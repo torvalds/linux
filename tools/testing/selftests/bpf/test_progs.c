@@ -7,9 +7,7 @@
 #include <string.h>
 
 /* defined in test_progs.h */
-struct test_env env = {
-	.test_num_selector = -1,
-};
+struct test_env env;
 int error_cnt, pass_cnt;
 
 struct prog_test_def {
@@ -20,7 +18,81 @@ struct prog_test_def {
 	int pass_cnt;
 	int error_cnt;
 	bool tested;
+
+	const char *subtest_name;
+	int subtest_num;
+
+	/* store counts before subtest started */
+	int old_pass_cnt;
+	int old_error_cnt;
 };
+
+static bool should_run(struct test_selector *sel, int num, const char *name)
+{
+	if (sel->name && sel->name[0] && !strstr(name, sel->name))
+		return false;
+
+	if (!sel->num_set)
+		return true;
+
+	return num < sel->num_set_len && sel->num_set[num];
+}
+
+static void dump_test_log(const struct prog_test_def *test, bool failed)
+{
+	if (env.verbose || test->force_log || failed) {
+		if (env.log_cnt) {
+			fprintf(stdout, "%s", env.log_buf);
+			if (env.log_buf[env.log_cnt - 1] != '\n')
+				fprintf(stdout, "\n");
+		}
+		env.log_cnt = 0;
+	}
+}
+
+void test__end_subtest()
+{
+	struct prog_test_def *test = env.test;
+	int sub_error_cnt = error_cnt - test->old_error_cnt;
+
+	if (sub_error_cnt)
+		env.fail_cnt++;
+	else
+		env.sub_succ_cnt++;
+
+	dump_test_log(test, sub_error_cnt);
+
+	printf("#%d/%d %s:%s\n",
+	       test->test_num, test->subtest_num,
+	       test->subtest_name, sub_error_cnt ? "FAIL" : "OK");
+}
+
+bool test__start_subtest(const char *name)
+{
+	struct prog_test_def *test = env.test;
+
+	if (test->subtest_name) {
+		test__end_subtest();
+		test->subtest_name = NULL;
+	}
+
+	test->subtest_num++;
+
+	if (!name || !name[0]) {
+		fprintf(stderr, "Subtest #%d didn't provide sub-test name!\n",
+			test->subtest_num);
+		return false;
+	}
+
+	if (!should_run(&env.subtest_selector, test->subtest_num, name))
+		return false;
+
+	test->subtest_name = name;
+	env.test->old_pass_cnt = pass_cnt;
+	env.test->old_error_cnt = error_cnt;
+
+	return true;
+}
 
 void test__force_log() {
 	env.test->force_log = true;
@@ -281,24 +353,103 @@ static int libbpf_print_fn(enum libbpf_print_level level,
 	return 0;
 }
 
+int parse_num_list(const char *s, struct test_selector *sel)
+{
+	int i, set_len = 0, num, start = 0, end = -1;
+	bool *set = NULL, *tmp, parsing_end = false;
+	char *next;
+
+	while (s[0]) {
+		errno = 0;
+		num = strtol(s, &next, 10);
+		if (errno)
+			return -errno;
+
+		if (parsing_end)
+			end = num;
+		else
+			start = num;
+
+		if (!parsing_end && *next == '-') {
+			s = next + 1;
+			parsing_end = true;
+			continue;
+		} else if (*next == ',') {
+			parsing_end = false;
+			s = next + 1;
+			end = num;
+		} else if (*next == '\0') {
+			parsing_end = false;
+			s = next;
+			end = num;
+		} else {
+			return -EINVAL;
+		}
+
+		if (start > end)
+			return -EINVAL;
+
+		if (end + 1 > set_len) {
+			set_len = end + 1;
+			tmp = realloc(set, set_len);
+			if (!tmp) {
+				free(set);
+				return -ENOMEM;
+			}
+			set = tmp;
+		}
+		for (i = start; i <= end; i++) {
+			set[i] = true;
+		}
+
+	}
+
+	if (!set)
+		return -EINVAL;
+
+	sel->num_set = set;
+	sel->num_set_len = set_len;
+
+	return 0;
+}
+
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
 	struct test_env *env = state->input;
 
 	switch (key) {
 	case ARG_TEST_NUM: {
-		int test_num;
+		char *subtest_str = strchr(arg, '/');
 
-		errno = 0;
-		test_num = strtol(arg, NULL, 10);
-		if (errno)
-			return -errno;
-		env->test_num_selector = test_num;
+		if (subtest_str) {
+			*subtest_str = '\0';
+			if (parse_num_list(subtest_str + 1,
+					   &env->subtest_selector)) {
+				fprintf(stderr,
+					"Failed to parse subtest numbers.\n");
+				return -EINVAL;
+			}
+		}
+		if (parse_num_list(arg, &env->test_selector)) {
+			fprintf(stderr, "Failed to parse test numbers.\n");
+			return -EINVAL;
+		}
 		break;
 	}
-	case ARG_TEST_NAME:
-		env->test_name_selector = arg;
+	case ARG_TEST_NAME: {
+		char *subtest_str = strchr(arg, '/');
+
+		if (subtest_str) {
+			*subtest_str = '\0';
+			env->subtest_selector.name = strdup(subtest_str + 1);
+			if (!env->subtest_selector.name)
+				return -ENOMEM;
+		}
+		env->test_selector.name = strdup(arg);
+		if (!env->test_selector.name)
+			return -ENOMEM;
 		break;
+	}
 	case ARG_VERIFIER_STATS:
 		env->verifier_stats = true;
 		break;
@@ -353,14 +504,15 @@ int main(int argc, char **argv)
 		env.test = test;
 		test->test_num = i + 1;
 
-		if (env.test_num_selector >= 0 &&
-		    test->test_num != env.test_num_selector)
-			continue;
-		if (env.test_name_selector &&
-		    !strstr(test->test_name, env.test_name_selector))
+		if (!should_run(&env.test_selector,
+				test->test_num, test->test_name))
 			continue;
 
 		test->run_test();
+		/* ensure last sub-test is finalized properly */
+		if (test->subtest_name)
+			test__end_subtest();
+
 		test->tested = true;
 		test->pass_cnt = pass_cnt - old_pass_cnt;
 		test->error_cnt = error_cnt - old_error_cnt;
@@ -369,21 +521,17 @@ int main(int argc, char **argv)
 		else
 			env.succ_cnt++;
 
-		if (env.verbose || test->force_log || test->error_cnt) {
-			if (env.log_cnt) {
-				fprintf(stdout, "%s", env.log_buf);
-				if (env.log_buf[env.log_cnt - 1] != '\n')
-					fprintf(stdout, "\n");
-			}
-		}
-		env.log_cnt = 0;
+		dump_test_log(test, test->error_cnt);
 
 		printf("#%d %s:%s\n", test->test_num, test->test_name,
 		       test->error_cnt ? "FAIL" : "OK");
 	}
-	printf("Summary: %d PASSED, %d FAILED\n", env.succ_cnt, env.fail_cnt);
+	printf("Summary: %d/%d PASSED, %d FAILED\n",
+	       env.succ_cnt, env.sub_succ_cnt, env.fail_cnt);
 
 	free(env.log_buf);
+	free(env.test_selector.num_set);
+	free(env.subtest_selector.num_set);
 
 	return error_cnt ? EXIT_FAILURE : EXIT_SUCCESS;
 }
