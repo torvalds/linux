@@ -4,12 +4,15 @@
 static int libbpf_debug_print(enum libbpf_print_level level,
 			      const char *format, va_list args)
 {
-	if (level != LIBBPF_DEBUG)
-		return vfprintf(stderr, format, args);
+	if (level != LIBBPF_DEBUG) {
+		test__vprintf(format, args);
+		return 0;
+	}
 
 	if (!strstr(format, "verifier log"))
 		return 0;
-	return vfprintf(stderr, "%s", args);
+	test__vprintf("%s", args);
+	return 0;
 }
 
 static int check_load(const char *file, enum bpf_prog_type type)
@@ -30,14 +33,25 @@ static int check_load(const char *file, enum bpf_prog_type type)
 	return err;
 }
 
+struct scale_test_def {
+	const char *file;
+	enum bpf_prog_type attach_type;
+	bool fails;
+};
+
 void test_bpf_verif_scale(void)
 {
-	const char *sched_cls[] = {
-		"./test_verif_scale1.o", "./test_verif_scale2.o", "./test_verif_scale3.o",
-	};
-	const char *raw_tp[] = {
+	struct scale_test_def tests[] = {
+		{ "loop3.o", BPF_PROG_TYPE_RAW_TRACEPOINT, true /* fails */ },
+
+		{ "test_verif_scale1.o", BPF_PROG_TYPE_SCHED_CLS },
+		{ "test_verif_scale2.o", BPF_PROG_TYPE_SCHED_CLS },
+		{ "test_verif_scale3.o", BPF_PROG_TYPE_SCHED_CLS },
+
 		/* full unroll by llvm */
-		"./pyperf50.o",	"./pyperf100.o", "./pyperf180.o",
+		{ "pyperf50.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
+		{ "pyperf100.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
+		{ "pyperf180.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 
 		/* partial unroll. llvm will unroll loop ~150 times.
 		 * C loop count -> 600.
@@ -45,7 +59,7 @@ void test_bpf_verif_scale(void)
 		 * 16k insns in loop body.
 		 * Total of 5 such loops. Total program size ~82k insns.
 		 */
-		"./pyperf600.o",
+		{ "pyperf600.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 
 		/* no unroll at all.
 		 * C loop count -> 600.
@@ -53,48 +67,50 @@ void test_bpf_verif_scale(void)
 		 * ~110 insns in loop body.
 		 * Total of 5 such loops. Total program size ~1500 insns.
 		 */
-		"./pyperf600_nounroll.o",
+		{ "pyperf600_nounroll.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 
-		"./loop1.o", "./loop2.o",
+		{ "loop1.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
+		{ "loop2.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 
 		/* partial unroll. 19k insn in a loop.
 		 * Total program size 20.8k insn.
 		 * ~350k processed_insns
 		 */
-		"./strobemeta.o",
+		{ "strobemeta.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 
 		/* no unroll, tiny loops */
-		"./strobemeta_nounroll1.o",
-		"./strobemeta_nounroll2.o",
+		{ "strobemeta_nounroll1.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
+		{ "strobemeta_nounroll2.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
+
+		{ "test_sysctl_loop1.o", BPF_PROG_TYPE_CGROUP_SYSCTL },
+		{ "test_sysctl_loop2.o", BPF_PROG_TYPE_CGROUP_SYSCTL },
+
+		{ "test_xdp_loop.o", BPF_PROG_TYPE_XDP },
+		{ "test_seg6_loop.o", BPF_PROG_TYPE_LWT_SEG6LOCAL },
 	};
-	const char *cg_sysctl[] = {
-		"./test_sysctl_loop1.o", "./test_sysctl_loop2.o",
-	};
+	libbpf_print_fn_t old_print_fn = NULL;
 	int err, i;
 
-	if (verifier_stats)
-		libbpf_set_print(libbpf_debug_print);
-
-	err = check_load("./loop3.o", BPF_PROG_TYPE_RAW_TRACEPOINT);
-	printf("test_scale:loop3:%s\n", err ? (error_cnt--, "OK") : "FAIL");
-
-	for (i = 0; i < ARRAY_SIZE(sched_cls); i++) {
-		err = check_load(sched_cls[i], BPF_PROG_TYPE_SCHED_CLS);
-		printf("test_scale:%s:%s\n", sched_cls[i], err ? "FAIL" : "OK");
+	if (env.verifier_stats) {
+		test__force_log();
+		old_print_fn = libbpf_set_print(libbpf_debug_print);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(raw_tp); i++) {
-		err = check_load(raw_tp[i], BPF_PROG_TYPE_RAW_TRACEPOINT);
-		printf("test_scale:%s:%s\n", raw_tp[i], err ? "FAIL" : "OK");
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
+		const struct scale_test_def *test = &tests[i];
+
+		if (!test__start_subtest(test->file))
+			continue;
+
+		err = check_load(test->file, test->attach_type);
+		if (test->fails) { /* expected to fail */
+			if (err)
+				error_cnt--;
+			else
+				error_cnt++;
+		}
 	}
 
-	for (i = 0; i < ARRAY_SIZE(cg_sysctl); i++) {
-		err = check_load(cg_sysctl[i], BPF_PROG_TYPE_CGROUP_SYSCTL);
-		printf("test_scale:%s:%s\n", cg_sysctl[i], err ? "FAIL" : "OK");
-	}
-	err = check_load("./test_xdp_loop.o", BPF_PROG_TYPE_XDP);
-	printf("test_scale:test_xdp_loop:%s\n", err ? "FAIL" : "OK");
-
-	err = check_load("./test_seg6_loop.o", BPF_PROG_TYPE_LWT_SEG6LOCAL);
-	printf("test_scale:test_seg6_loop:%s\n", err ? "FAIL" : "OK");
+	if (env.verifier_stats)
+		libbpf_set_print(old_print_fn);
 }

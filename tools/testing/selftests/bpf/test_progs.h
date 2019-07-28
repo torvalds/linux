@@ -38,9 +38,41 @@ typedef __u16 __sum16;
 #include "trace_helpers.h"
 #include "flow_dissector_load.h"
 
-extern int error_cnt, pass_cnt;
-extern bool jit_enabled;
-extern bool verifier_stats;
+struct prog_test_def;
+
+struct test_selector {
+	const char *name;
+	bool *num_set;
+	int num_set_len;
+};
+
+struct test_env {
+	struct test_selector test_selector;
+	struct test_selector subtest_selector;
+	bool verifier_stats;
+	bool verbose;
+	bool very_verbose;
+
+	bool jit_enabled;
+
+	struct prog_test_def *test;
+	char *log_buf;
+	size_t log_cnt;
+	size_t log_cap;
+
+	int succ_cnt; /* successful tests */
+	int sub_succ_cnt; /* successful sub-tests */
+	int fail_cnt; /* total failed tests + sub-tests */
+};
+
+extern int error_cnt;
+extern int pass_cnt;
+extern struct test_env env;
+
+extern void test__printf(const char *fmt, ...);
+extern void test__vprintf(const char *fmt, va_list args);
+extern void test__force_log();
+extern bool test__start_subtest(const char *name);
 
 #define MAGIC_BYTES 123
 
@@ -64,11 +96,12 @@ extern struct ipv6_packet pkt_v6;
 	int __ret = !!(condition);					\
 	if (__ret) {							\
 		error_cnt++;						\
-		printf("%s:FAIL:%s ", __func__, tag);			\
-		printf(format);						\
+		test__printf("%s:FAIL:%s ", __func__, tag);		\
+		test__printf(format);					\
 	} else {							\
 		pass_cnt++;						\
-		printf("%s:PASS:%s %d nsec\n", __func__, tag, duration);\
+		test__printf("%s:PASS:%s %d nsec\n",			\
+			      __func__, tag, duration);			\
 	}								\
 	__ret;								\
 })

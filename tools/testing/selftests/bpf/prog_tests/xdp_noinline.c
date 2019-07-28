@@ -75,7 +75,8 @@ void test_xdp_noinline(void)
 	}
 	if (bytes != MAGIC_BYTES * NUM_ITER * 2 || pkts != NUM_ITER * 2) {
 		error_cnt++;
-		printf("test_xdp_noinline:FAIL:stats %lld %lld\n", bytes, pkts);
+		test__printf("test_xdp_noinline:FAIL:stats %lld %lld\n",
+			     bytes, pkts);
 	}
 out:
 	bpf_object__close(obj);
