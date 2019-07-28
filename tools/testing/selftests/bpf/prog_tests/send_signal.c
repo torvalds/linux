@@ -219,7 +219,10 @@ void test_send_signal(void)
 {
 	int ret = 0;
 
-	ret |= test_send_signal_tracepoint();
-	ret |= test_send_signal_perf();
-	ret |= test_send_signal_nmi();
+	if (test__start_subtest("send_signal_tracepoint"))
+		ret |= test_send_signal_tracepoint();
+	if (test__start_subtest("send_signal_perf"))
+		ret |= test_send_signal_perf();
+	if (test__start_subtest("send_signal_nmi"))
+		ret |= test_send_signal_nmi();
 }
