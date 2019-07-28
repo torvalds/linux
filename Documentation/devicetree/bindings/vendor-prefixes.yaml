@@ -27,6 +27,8 @@ patternProperties:
     description: Abilis Systems
   "^abracon,.*":
     description: Abracon Corporation
+  "^acme,.*":
+    description: Acme Systems srl
   "^actions,.*":
     description: Actions Semiconductor Co., Ltd.
   "^active-semi,.*":
