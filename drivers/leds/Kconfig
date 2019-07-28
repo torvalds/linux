@@ -590,6 +590,7 @@ config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
 	depends on LEDS_CLASS
 	depends on MACH_KIRKWOOD
+	depends on OF_GPIO
 	default y
 	help
 	  This option enables support for LEDs found on the LaCie 2Big
