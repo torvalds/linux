@@ -87,7 +87,7 @@ var S_SAVE_PC_HI_FIRST_REPLAY_MASK		= 0x02000000
 var S_SAVE_PC_HI_REPLAY_W64H_SHIFT		= 24
 var S_SAVE_PC_HI_REPLAY_W64H_MASK		= 0x01000000
 
-var s_sgpr_save_num				= 106
+var s_sgpr_save_num				= 108
 
 var s_save_spi_init_lo				= exec_lo
 var s_save_spi_init_hi				= exec_hi
@@ -357,13 +357,14 @@ L_SAVE_SGPR_LOOP:
 	s_cmp_lt_u32	m0, 96							//scc = (m0 < first 96 SGPR) ? 1 : 0
 	s_cbranch_scc1	L_SAVE_SGPR_LOOP					//first 96 SGPR save is complete?
 
-	//save the rest 10 SGPR
+	//save the rest 12 SGPR
 	s_movrels_b64	s0, s0							//s0 = s[0+m0], s1 = s[1+m0]
 	s_movrels_b64	s2, s2							//s2 = s[2+m0], s3 = s[3+m0]
 	s_movrels_b64	s4, s4							//s4 = s[4+m0], s5 = s[5+m0]
 	s_movrels_b64	s6, s6							//s6 = s[6+m0], s7 = s[7+m0]
 	s_movrels_b64	s8, s8							//s8 = s[8+m0], s9 = s[9+m0]
-	write_10sgpr_to_mem(s0, s_save_buf_rsrc0, s_save_mem_offset)
+	s_movrels_b64	s10, s10						//s10 = s[10+m0], s11 = s[11+m0]
+	write_12sgpr_to_mem(s0, s_save_buf_rsrc0, s_save_mem_offset)
 
 	// restore s_save_buf_rsrc0,1
 	s_mov_b32	s_save_buf_rsrc0, s_save_xnack_mask
@@ -766,26 +767,25 @@ L_RESTORE_SGPR:
 	get_svgpr_size_bytes(s_restore_tmp)
 	s_add_u32	s_restore_mem_offset, s_restore_mem_offset, s_restore_tmp
 	s_add_u32	s_restore_mem_offset, s_restore_mem_offset, get_sgpr_size_bytes()
-	s_sub_u32	s_restore_mem_offset, s_restore_mem_offset, 22*4	//s106~s127 is not saved
-	s_sub_u32	s_restore_mem_offset, s_restore_mem_offset, 2*4		// restore SGPR from S[n] to S[0], by 2 sgprs group
+	s_sub_u32	s_restore_mem_offset, s_restore_mem_offset, 20*4	//s108~s127 is not saved
 
 	s_mov_b32	s_restore_buf_rsrc2, 0x1000000				//NUM_RECORDS in bytes
 
 	s_mov_b32	m0, s_sgpr_save_num
 
-	read_2sgpr_from_mem(s0, s_restore_buf_rsrc0, s_restore_mem_offset)
-
+	read_4sgpr_from_mem(s0, s_restore_buf_rsrc0, s_restore_mem_offset)
 	s_waitcnt	lgkmcnt(0)
 
-	s_sub_u32	m0, m0, 2						// Restore from S[n] to S[0]
+	s_sub_u32	m0, m0, 4						// Restore from S[0] to S[104]
 	s_nop		0							// hazard SALU M0=> S_MOVREL
 
 	s_movreld_b64	s0, s0							//s[0+m0] = s0
+	s_movreld_b64	s2, s2
 
 	read_8sgpr_from_mem(s0, s_restore_buf_rsrc0, s_restore_mem_offset)
 	s_waitcnt	lgkmcnt(0)
 
-	s_sub_u32	m0, m0, 8						// Restore from S[n] to S[0]
+	s_sub_u32	m0, m0, 8						// Restore from S[0] to S[96]
 	s_nop		0							// hazard SALU M0=> S_MOVREL
 
 	s_movreld_b64	s0, s0							//s[0+m0] = s0
@@ -903,11 +903,11 @@ function write_16sgpr_to_mem(s, s_rsrc, s_mem_offset)
 	s_addc_u32	s_rsrc[1], s_rsrc[1], 0x0
 end
 
-function write_10sgpr_to_mem(s, s_rsrc, s_mem_offset)
+function write_12sgpr_to_mem(s, s_rsrc, s_mem_offset)
 	s_buffer_store_dwordx4	s[0], s_rsrc, 0 glc:1
 	s_buffer_store_dwordx4	s[4], s_rsrc, 16 glc:1
-	s_buffer_store_dwordx2	s[8], s_rsrc, 32 glc:1
-	s_add_u32	s_rsrc[0], s_rsrc[0], 4*16
+	s_buffer_store_dwordx4	s[8], s_rsrc, 32 glc:1
+	s_add_u32	s_rsrc[0], s_rsrc[0], 4*12
 	s_addc_u32	s_rsrc[1], s_rsrc[1], 0x0
 end
 
@@ -918,18 +918,18 @@ function read_hwreg_from_mem(s, s_rsrc, s_mem_offset)
 end
 
 function read_16sgpr_from_mem(s, s_rsrc, s_mem_offset)
-	s_buffer_load_dwordx16	s, s_rsrc, s_mem_offset glc:1
 	s_sub_u32	s_mem_offset, s_mem_offset, 4*16
+	s_buffer_load_dwordx16	s, s_rsrc, s_mem_offset glc:1
 end
 
 function read_8sgpr_from_mem(s, s_rsrc, s_mem_offset)
+	s_sub_u32	s_mem_offset, s_mem_offset, 4*8
 	s_buffer_load_dwordx8	s, s_rsrc, s_mem_offset glc:1
-	s_sub_u32	s_mem_offset, s_mem_offset, 4*16
 end
 
-function read_2sgpr_from_mem(s, s_rsrc, s_mem_offset)
-	s_buffer_load_dwordx2 s, s_rsrc, s_mem_offset glc:1
-	s_sub_u32	s_mem_offset, s_mem_offset, 4*8
+function read_4sgpr_from_mem(s, s_rsrc, s_mem_offset)
+	s_sub_u32	s_mem_offset, s_mem_offset, 4*4
+	s_buffer_load_dwordx4	s, s_rsrc, s_mem_offset glc:1
 end
 
 
