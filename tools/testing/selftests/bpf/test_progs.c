@@ -6,9 +6,85 @@
 #include <argp.h>
 #include <string.h>
 
+/* defined in test_progs.h */
+struct test_env env = {
+	.test_num_selector = -1,
+};
 int error_cnt, pass_cnt;
-bool jit_enabled;
-bool verifier_stats = false;
+
+struct prog_test_def {
+	const char *test_name;
+	int test_num;
+	void (*run_test)(void);
+	bool force_log;
+	int pass_cnt;
+	int error_cnt;
+	bool tested;
+};
+
+void test__force_log() {
+	env.test->force_log = true;
+}
+
+void test__vprintf(const char *fmt, va_list args)
+{
+	size_t rem_sz;
+	int ret = 0;
+
+	if (env.verbose || (env.test && env.test->force_log)) {
+		vfprintf(stderr, fmt, args);
+		return;
+	}
+
+try_again:
+	rem_sz = env.log_cap - env.log_cnt;
+	if (rem_sz) {
+		va_list ap;
+
+		va_copy(ap, args);
+		/* we reserved extra byte for \0 at the end */
+		ret = vsnprintf(env.log_buf + env.log_cnt, rem_sz + 1, fmt, ap);
+		va_end(ap);
+
+		if (ret < 0) {
+			env.log_buf[env.log_cnt] = '\0';
+			fprintf(stderr, "failed to log w/ fmt '%s'\n", fmt);
+			return;
+		}
+	}
+
+	if (!rem_sz || ret > rem_sz) {
+		size_t new_sz = env.log_cap * 3 / 2;
+		char *new_buf;
+
+		if (new_sz < 4096)
+			new_sz = 4096;
+		if (new_sz < ret + env.log_cnt)
+			new_sz = ret + env.log_cnt;
+
+		/* +1 for guaranteed space for terminating \0 */
+		new_buf = realloc(env.log_buf, new_sz + 1);
+		if (!new_buf) {
+			fprintf(stderr, "failed to realloc log buffer: %d\n",
+				errno);
+			return;
+		}
+		env.log_buf = new_buf;
+		env.log_cap = new_sz;
+		goto try_again;
+	}
+
+	env.log_cnt += ret;
+}
+
+void test__printf(const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	test__vprintf(fmt, args);
+	va_end(args);
+}
 
 struct ipv4_packet pkt_v4 = {
 	.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
@@ -163,20 +239,15 @@ void *spin_lock_thread(void *arg)
 #include <prog_tests/tests.h>
 #undef DEFINE_TEST
 
-struct prog_test_def {
-	const char *test_name;
-	int test_num;
-	void (*run_test)(void);
-};
-
 static struct prog_test_def prog_test_defs[] = {
-#define DEFINE_TEST(name) {	      \
-	.test_name = #name,	      \
-	.run_test = &test_##name,   \
+#define DEFINE_TEST(name) {		\
+	.test_name = #name,		\
+	.run_test = &test_##name,	\
 },
 #include <prog_tests/tests.h>
 #undef DEFINE_TEST
 };
+const int prog_test_cnt = ARRAY_SIZE(prog_test_defs);
 
 const char *argp_program_version = "test_progs 0.1";
 const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
@@ -186,7 +257,6 @@ enum ARG_KEYS {
 	ARG_TEST_NUM = 'n',
 	ARG_TEST_NAME = 't',
 	ARG_VERIFIER_STATS = 's',
-
 	ARG_VERBOSE = 'v',
 };
 	
@@ -202,24 +272,13 @@ static const struct argp_option opts[] = {
 	{},
 };
 
-struct test_env {
-	int test_num_selector;
-	const char *test_name_selector;
-	bool verifier_stats;
-	bool verbose;
-	bool very_verbose;
-};
-
-static struct test_env env = {
-	.test_num_selector = -1,
-};
-
 static int libbpf_print_fn(enum libbpf_print_level level,
 			   const char *format, va_list args)
 {
 	if (!env.very_verbose && level == LIBBPF_DEBUG)
 		return 0;
-	return vfprintf(stderr, format, args);
+	test__vprintf(format, args);
+	return 0;
 }
 
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
@@ -267,7 +326,6 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	return 0;
 }
 
-
 int main(int argc, char **argv)
 {
 	static const struct argp argp = {
@@ -275,7 +333,6 @@ int main(int argc, char **argv)
 		.parser = parse_arg,
 		.doc = argp_program_doc,
 	};
-	struct prog_test_def *test;
 	int err, i;
 
 	err = argp_parse(&argp, argc, argv, 0, NULL, &env);
@@ -286,13 +343,14 @@ int main(int argc, char **argv)
 
 	srand(time(NULL));
 
-	jit_enabled = is_jit_enabled();
+	env.jit_enabled = is_jit_enabled();
 
-	verifier_stats = env.verifier_stats;
+	for (i = 0; i < prog_test_cnt; i++) {
+		struct prog_test_def *test = &prog_test_defs[i];
+		int old_pass_cnt = pass_cnt;
+		int old_error_cnt = error_cnt;
 
-	for (i = 0; i < ARRAY_SIZE(prog_test_defs); i++) {
-		test = &prog_test_defs[i];
-
+		env.test = test;
 		test->test_num = i + 1;
 
 		if (env.test_num_selector >= 0 &&
@@ -303,8 +361,29 @@ int main(int argc, char **argv)
 			continue;
 
 		test->run_test();
-	}
+		test->tested = true;
+		test->pass_cnt = pass_cnt - old_pass_cnt;
+		test->error_cnt = error_cnt - old_error_cnt;
+		if (test->error_cnt)
+			env.fail_cnt++;
+		else
+			env.succ_cnt++;
 
-	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, error_cnt);
+		if (env.verbose || test->force_log || test->error_cnt) {
+			if (env.log_cnt) {
+				fprintf(stdout, "%s", env.log_buf);
+				if (env.log_buf[env.log_cnt - 1] != '\n')
+					fprintf(stdout, "\n");
+			}
+		}
+		env.log_cnt = 0;
+
+		printf("#%d %s:%s\n", test->test_num, test->test_name,
+		       test->error_cnt ? "FAIL" : "OK");
+	}
+	printf("Summary: %d PASSED, %d FAILED\n", env.succ_cnt, env.fail_cnt);
+
+	free(env.log_buf);
+
 	return error_cnt ? EXIT_FAILURE : EXIT_SUCCESS;
 }

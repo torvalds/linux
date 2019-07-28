@@ -106,8 +106,8 @@ void test_bpf_obj_id(void)
 		if (CHECK(err ||
 			  prog_infos[i].type != BPF_PROG_TYPE_SOCKET_FILTER ||
 			  info_len != sizeof(struct bpf_prog_info) ||
-			  (jit_enabled && !prog_infos[i].jited_prog_len) ||
-			  (jit_enabled &&
+			  (env.jit_enabled && !prog_infos[i].jited_prog_len) ||
+			  (env.jit_enabled &&
 			   !memcmp(jited_insns, zeros, sizeof(zeros))) ||
 			  !prog_infos[i].xlated_prog_len ||
 			  !memcmp(xlated_insns, zeros, sizeof(zeros)) ||
@@ -121,7 +121,7 @@ void test_bpf_obj_id(void)
 			  err, errno, i,
 			  prog_infos[i].type, BPF_PROG_TYPE_SOCKET_FILTER,
 			  info_len, sizeof(struct bpf_prog_info),
-			  jit_enabled,
+			  env.jit_enabled,
 			  prog_infos[i].jited_prog_len,
 			  prog_infos[i].xlated_prog_len,
 			  !!memcmp(jited_insns, zeros, sizeof(zeros)),

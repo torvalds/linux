@@ -41,7 +41,7 @@ static void get_stack_print_output(void *ctx, int cpu, void *data, __u32 size)
 		 * just assume it is good if the stack is not empty.
 		 * This could be improved in the future.
 		 */
-		if (jit_enabled) {
+		if (env.jit_enabled) {
 			found = num_stack > 0;
 		} else {
 			for (i = 0; i < num_stack; i++) {
@@ -58,7 +58,7 @@ static void get_stack_print_output(void *ctx, int cpu, void *data, __u32 size)
 		}
 	} else {
 		num_stack = e->kern_stack_size / sizeof(__u64);
-		if (jit_enabled) {
+		if (env.jit_enabled) {
 			good_kern_stack = num_stack > 0;
 		} else {
 			for (i = 0; i < num_stack; i++) {

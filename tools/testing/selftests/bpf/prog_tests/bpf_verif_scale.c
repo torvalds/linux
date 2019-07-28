@@ -4,12 +4,15 @@
 static int libbpf_debug_print(enum libbpf_print_level level,
 			      const char *format, va_list args)
 {
-	if (level != LIBBPF_DEBUG)
-		return vfprintf(stderr, format, args);
+	if (level != LIBBPF_DEBUG) {
+		test__vprintf(format, args);
+		return 0;
+	}
 
 	if (!strstr(format, "verifier log"))
 		return 0;
-	return vfprintf(stderr, "%s", args);
+	test__vprintf("%s", args);
+	return 0;
 }
 
 static int check_load(const char *file, enum bpf_prog_type type)
@@ -73,32 +76,38 @@ void test_bpf_verif_scale(void)
 	libbpf_print_fn_t old_print_fn = NULL;
 	int err, i;
 
-	if (verifier_stats)
+	if (env.verifier_stats) {
+		test__force_log();
 		old_print_fn = libbpf_set_print(libbpf_debug_print);
+	}
 
 	err = check_load("./loop3.o", BPF_PROG_TYPE_RAW_TRACEPOINT);
-	printf("test_scale:loop3:%s\n", err ? (error_cnt--, "OK") : "FAIL");
+	test__printf("test_scale:loop3:%s\n",
+		     err ? (error_cnt--, "OK") : "FAIL");
 
 	for (i = 0; i < ARRAY_SIZE(sched_cls); i++) {
 		err = check_load(sched_cls[i], BPF_PROG_TYPE_SCHED_CLS);
-		printf("test_scale:%s:%s\n", sched_cls[i], err ? "FAIL" : "OK");
+		test__printf("test_scale:%s:%s\n", sched_cls[i],
+			     err ? "FAIL" : "OK");
 	}
 
 	for (i = 0; i < ARRAY_SIZE(raw_tp); i++) {
 		err = check_load(raw_tp[i], BPF_PROG_TYPE_RAW_TRACEPOINT);
-		printf("test_scale:%s:%s\n", raw_tp[i], err ? "FAIL" : "OK");
+		test__printf("test_scale:%s:%s\n", raw_tp[i],
+			     err ? "FAIL" : "OK");
 	}
 
 	for (i = 0; i < ARRAY_SIZE(cg_sysctl); i++) {
 		err = check_load(cg_sysctl[i], BPF_PROG_TYPE_CGROUP_SYSCTL);
-		printf("test_scale:%s:%s\n", cg_sysctl[i], err ? "FAIL" : "OK");
+		test__printf("test_scale:%s:%s\n", cg_sysctl[i],
+			     err ? "FAIL" : "OK");
 	}
 	err = check_load("./test_xdp_loop.o", BPF_PROG_TYPE_XDP);
-	printf("test_scale:test_xdp_loop:%s\n", err ? "FAIL" : "OK");
+	test__printf("test_scale:test_xdp_loop:%s\n", err ? "FAIL" : "OK");
 
 	err = check_load("./test_seg6_loop.o", BPF_PROG_TYPE_LWT_SEG6LOCAL);
-	printf("test_scale:test_seg6_loop:%s\n", err ? "FAIL" : "OK");
+	test__printf("test_scale:test_seg6_loop:%s\n", err ? "FAIL" : "OK");
 
-	if (verifier_stats)
+	if (env.verifier_stats)
 		libbpf_set_print(old_print_fn);
 }

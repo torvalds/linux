@@ -109,8 +109,8 @@ retry:
 	if (build_id_matches < 1 && retry--) {
 		bpf_link__destroy(link);
 		bpf_object__close(obj);
-		printf("%s:WARN:Didn't find expected build ID from the map, retrying\n",
-		       __func__);
+		test__printf("%s:WARN:Didn't find expected build ID from the map, retrying\n",
+			     __func__);
 		goto retry;
 	}
 

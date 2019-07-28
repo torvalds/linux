@@ -202,8 +202,8 @@ static int test_send_signal_nmi(void)
 			 -1 /* cpu */, -1 /* group_fd */, 0 /* flags */);
 	if (pmu_fd == -1) {
 		if (errno == ENOENT) {
-			printf("%s:SKIP:no PERF_COUNT_HW_CPU_CYCLES\n",
-				__func__);
+			test__printf("%s:SKIP:no PERF_COUNT_HW_CPU_CYCLES\n",
+				     __func__);
 			return 0;
 		}
 		/* Let the test fail with a more informative message */
@@ -222,8 +222,4 @@ void test_send_signal(void)
 	ret |= test_send_signal_tracepoint();
 	ret |= test_send_signal_perf();
 	ret |= test_send_signal_nmi();
-	if (!ret)
-		printf("test_send_signal:OK\n");
-	else
-		printf("test_send_signal:FAIL\n");
 }
