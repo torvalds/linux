@@ -33,6 +33,9 @@
 #define MT7615_EEPROM_SIZE		1024
 #define MT7615_TOKEN_SIZE		4096
 
+#define MT_FRAC_SCALE		12
+#define MT_FRAC(val, div)	(((val) << MT_FRAC_SCALE) / (div))
+
 struct mt7615_vif;
 struct mt7615_sta;
 
@@ -86,6 +89,13 @@ struct mt7615_dev {
 	} radar_pattern;
 	u32 hw_pattern;
 	int dfs_state;
+
+	int false_cca_ofdm, false_cca_cck;
+	unsigned long last_cca_adj;
+	u8 mac_work_count;
+	s8 ofdm_sensitivity;
+	s8 cck_sensitivity;
+	bool scs_en;
 
 	spinlock_t token_lock;
 	struct idr token;
@@ -192,6 +202,11 @@ int mt7615_dfs_start_radar_detector(struct mt7615_dev *dev);
 int mt7615_dfs_stop_radar_detector(struct mt7615_dev *dev);
 int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev);
 
+static inline bool is_mt7622(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7622;
+}
+
 static inline void mt7615_dfs_check_channel(struct mt7615_dev *dev)
 {
 	enum nl80211_chan_width width = dev->mt76.chandef.width;
@@ -213,6 +228,8 @@ static inline void mt7615_irq_disable(struct mt7615_dev *dev, u32 mask)
 	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
+void mt7615_mac_cca_stats_reset(struct mt7615_dev *dev);
+void mt7615_mac_set_scs(struct mt7615_dev *dev, bool enable);
 int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 			  struct sk_buff *skb, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta, int pid,
