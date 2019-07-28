@@ -186,6 +186,8 @@ enum ARG_KEYS {
 	ARG_TEST_NUM = 'n',
 	ARG_TEST_NAME = 't',
 	ARG_VERIFIER_STATS = 's',
+
+	ARG_VERBOSE = 'v',
 };
 	
 static const struct argp_option opts[] = {
@@ -195,6 +197,8 @@ static const struct argp_option opts[] = {
 	  "Run tests with names containing NAME" },
 	{ "verifier-stats", ARG_VERIFIER_STATS, NULL, 0,
 	  "Output verifier statistics", },
+	{ "verbose", ARG_VERBOSE, "LEVEL", OPTION_ARG_OPTIONAL,
+	  "Verbose output (use -vv for extra verbose output)" },
 	{},
 };
 
@@ -202,11 +206,21 @@ struct test_env {
 	int test_num_selector;
 	const char *test_name_selector;
 	bool verifier_stats;
+	bool verbose;
+	bool very_verbose;
 };
 
 static struct test_env env = {
 	.test_num_selector = -1,
 };
+
+static int libbpf_print_fn(enum libbpf_print_level level,
+			   const char *format, va_list args)
+{
+	if (!env.very_verbose && level == LIBBPF_DEBUG)
+		return 0;
+	return vfprintf(stderr, format, args);
+}
 
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
@@ -228,6 +242,19 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		break;
 	case ARG_VERIFIER_STATS:
 		env->verifier_stats = true;
+		break;
+	case ARG_VERBOSE:
+		if (arg) {
+			if (strcmp(arg, "v") == 0) {
+				env->very_verbose = true;
+			} else {
+				fprintf(stderr,
+					"Unrecognized verbosity setting ('%s'), only -v and -vv are supported\n",
+					arg);
+				return -EINVAL;
+			}
+		}
+		env->verbose = true;
 		break;
 	case ARGP_KEY_ARG:
 		argp_usage(state);
@@ -254,6 +281,8 @@ int main(int argc, char **argv)
 	err = argp_parse(&argp, argc, argv, 0, NULL, &env);
 	if (err)
 		return err;
+
+	libbpf_set_print(libbpf_print_fn);
 
 	srand(time(NULL));
 

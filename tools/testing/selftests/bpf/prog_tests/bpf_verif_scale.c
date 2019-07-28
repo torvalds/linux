@@ -70,10 +70,11 @@ void test_bpf_verif_scale(void)
 	const char *cg_sysctl[] = {
 		"./test_sysctl_loop1.o", "./test_sysctl_loop2.o",
 	};
+	libbpf_print_fn_t old_print_fn = NULL;
 	int err, i;
 
 	if (verifier_stats)
-		libbpf_set_print(libbpf_debug_print);
+		old_print_fn = libbpf_set_print(libbpf_debug_print);
 
 	err = check_load("./loop3.o", BPF_PROG_TYPE_RAW_TRACEPOINT);
 	printf("test_scale:loop3:%s\n", err ? (error_cnt--, "OK") : "FAIL");
@@ -97,4 +98,7 @@ void test_bpf_verif_scale(void)
 
 	err = check_load("./test_seg6_loop.o", BPF_PROG_TYPE_LWT_SEG6LOCAL);
 	printf("test_scale:test_seg6_loop:%s\n", err ? "FAIL" : "OK");
+
+	if (verifier_stats)
+		libbpf_set_print(old_print_fn);
 }
