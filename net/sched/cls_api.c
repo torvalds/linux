@@ -1325,6 +1325,9 @@ replay:
 			tcf_chain_tp_insert(chain, &chain_info, tp);
 		tfilter_notify(net, skb, n, tp, block, q, parent, fh,
 			       RTM_NEWTFILTER, false);
+		/* q pointer is NULL for shared blocks */
+		if (q)
+			q->flags &= ~TCQ_F_CAN_BYPASS;
 	} else {
 		if (tp_created)
 			tcf_proto_destroy(tp, NULL);
