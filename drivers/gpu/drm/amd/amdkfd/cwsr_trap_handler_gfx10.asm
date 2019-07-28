@@ -132,6 +132,7 @@ var s_restore_tmp				= ttmp6
 var s_restore_mem_offset_save			= s_restore_tmp
 var s_restore_m0				= s_restore_alloc_size
 var s_restore_mode				= ttmp7
+var s_restore_flat_scratch			= ttmp2
 var s_restore_pc_lo				= ttmp0
 var s_restore_pc_hi				= ttmp1
 var s_restore_exec_lo				= ttmp14
@@ -311,6 +312,12 @@ L_SAVE_HWREG:
 	write_hwreg_to_mem(s_save_xnack_mask, s_save_buf_rsrc0, s_save_mem_offset)
 
 	s_getreg_b32	s_save_m0, hwreg(HW_REG_MODE)
+	write_hwreg_to_mem(s_save_m0, s_save_buf_rsrc0, s_save_mem_offset)
+
+	s_getreg_b32	s_save_m0, hwreg(HW_REG_SHADER_FLAT_SCRATCH_LO)
+	write_hwreg_to_mem(s_save_m0, s_save_buf_rsrc0, s_save_mem_offset)
+
+	s_getreg_b32	s_save_m0, hwreg(HW_REG_SHADER_FLAT_SCRATCH_HI)
 	write_hwreg_to_mem(s_save_m0, s_save_buf_rsrc0, s_save_mem_offset)
 
 	/* the first wave in the threadgroup */
@@ -824,8 +831,15 @@ L_RESTORE_HWREG:
 	read_hwreg_from_mem(s_restore_trapsts, s_restore_buf_rsrc0, s_restore_mem_offset)
 	read_hwreg_from_mem(s_restore_xnack_mask, s_restore_buf_rsrc0, s_restore_mem_offset)
 	read_hwreg_from_mem(s_restore_mode, s_restore_buf_rsrc0, s_restore_mem_offset)
+	read_hwreg_from_mem(s_restore_flat_scratch, s_restore_buf_rsrc0, s_restore_mem_offset)
+	s_waitcnt	lgkmcnt(0)
 
+	s_setreg_b32	hwreg(HW_REG_SHADER_FLAT_SCRATCH_LO), s_restore_flat_scratch
+
+	read_hwreg_from_mem(s_restore_flat_scratch, s_restore_buf_rsrc0, s_restore_mem_offset)
 	s_waitcnt	lgkmcnt(0)						//from now on, it is safe to restore STATUS and IB_STS
+
+	s_setreg_b32	hwreg(HW_REG_SHADER_FLAT_SCRATCH_HI), s_restore_flat_scratch
 
 	s_mov_b32	s_restore_tmp, s_restore_pc_hi
 	s_and_b32	s_restore_pc_hi, s_restore_tmp, 0x0000ffff		//pc[47:32] //Do it here in order not to affect STATUS
