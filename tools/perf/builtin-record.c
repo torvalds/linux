@@ -439,7 +439,7 @@ static int record__mmap_flush_parse(const struct option *opt,
 	if (!opts->mmap_flush)
 		opts->mmap_flush = MMAP_FLUSH_DEFAULT;
 
-	flush_max = perf_evlist__mmap_size(opts->mmap_pages);
+	flush_max = evlist__mmap_size(opts->mmap_pages);
 	flush_max /= 4;
 	if (opts->mmap_flush > flush_max)
 		opts->mmap_flush = flush_max;
@@ -707,7 +707,7 @@ static int record__mmap_evlist(struct record *rec,
 	if (opts->affinity != PERF_AFFINITY_SYS)
 		cpu__setup_cpunode_map();
 
-	if (perf_evlist__mmap_ex(evlist, opts->mmap_pages,
+	if (evlist__mmap_ex(evlist, opts->mmap_pages,
 				 opts->auxtrace_mmap_pages,
 				 opts->auxtrace_snapshot_mode,
 				 opts->nr_cblocks, opts->affinity,
@@ -1980,7 +1980,7 @@ out_free:
 
 static void switch_output_size_warn(struct record *rec)
 {
-	u64 wakeup_size = perf_evlist__mmap_size(rec->opts.mmap_pages);
+	u64 wakeup_size = evlist__mmap_size(rec->opts.mmap_pages);
 	struct switch_output *s = &rec->switch_output;
 
 	wakeup_size /= 2;

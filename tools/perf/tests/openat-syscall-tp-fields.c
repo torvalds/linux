@@ -69,9 +69,9 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 		goto out_delete_evlist;
 	}
 
-	err = perf_evlist__mmap(evlist, UINT_MAX);
+	err = evlist__mmap(evlist, UINT_MAX);
 	if (err < 0) {
-		pr_debug("perf_evlist__mmap: %s\n",
+		pr_debug("evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}

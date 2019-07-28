@@ -460,9 +460,9 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		goto out;
 	}
 
-	err = perf_evlist__mmap(evlist, UINT_MAX);
+	err = evlist__mmap(evlist, UINT_MAX);
 	if (err) {
-		pr_debug("perf_evlist__mmap failed!\n");
+		pr_debug("evlist__mmap failed!\n");
 		goto out_err;
 	}
 

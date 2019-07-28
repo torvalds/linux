@@ -732,7 +732,7 @@ perf_evlist__should_poll(struct evlist *evlist __maybe_unused,
 	return true;
 }
 
-static int perf_evlist__mmap_per_evsel(struct evlist *evlist, int idx,
+static int evlist__mmap_per_evsel(struct evlist *evlist, int idx,
 				       struct mmap_params *mp, int cpu_idx,
 				       int thread, int *_output, int *_output_overwrite)
 {
@@ -810,7 +810,7 @@ static int perf_evlist__mmap_per_evsel(struct evlist *evlist, int idx,
 	return 0;
 }
 
-static int perf_evlist__mmap_per_cpu(struct evlist *evlist,
+static int evlist__mmap_per_cpu(struct evlist *evlist,
 				     struct mmap_params *mp)
 {
 	int cpu, thread;
@@ -826,7 +826,7 @@ static int perf_evlist__mmap_per_cpu(struct evlist *evlist,
 					      true);
 
 		for (thread = 0; thread < nr_threads; thread++) {
-			if (perf_evlist__mmap_per_evsel(evlist, cpu, mp, cpu,
+			if (evlist__mmap_per_evsel(evlist, cpu, mp, cpu,
 							thread, &output, &output_overwrite))
 				goto out_unmap;
 		}
@@ -839,7 +839,7 @@ out_unmap:
 	return -1;
 }
 
-static int perf_evlist__mmap_per_thread(struct evlist *evlist,
+static int evlist__mmap_per_thread(struct evlist *evlist,
 					struct mmap_params *mp)
 {
 	int thread;
@@ -853,7 +853,7 @@ static int perf_evlist__mmap_per_thread(struct evlist *evlist,
 		auxtrace_mmap_params__set_idx(&mp->auxtrace_mp, evlist, thread,
 					      false);
 
-		if (perf_evlist__mmap_per_evsel(evlist, thread, mp, 0, thread,
+		if (evlist__mmap_per_evsel(evlist, thread, mp, 0, thread,
 						&output, &output_overwrite))
 			goto out_unmap;
 	}
@@ -888,7 +888,7 @@ unsigned long perf_event_mlock_kb_in_pages(void)
 	return pages;
 }
 
-size_t perf_evlist__mmap_size(unsigned long pages)
+size_t evlist__mmap_size(unsigned long pages)
 {
 	if (pages == UINT_MAX)
 		pages = perf_event_mlock_kb_in_pages();
@@ -971,7 +971,7 @@ int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
 }
 
 /**
- * perf_evlist__mmap_ex - Create mmaps to receive events.
+ * evlist__mmap_ex - Create mmaps to receive events.
  * @evlist: list of events
  * @pages: map length in pages
  * @overwrite: overwrite older events?
@@ -979,7 +979,7 @@ int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
  * @auxtrace_overwrite - overwrite older auxtrace data?
  *
  * If @overwrite is %false the user needs to signal event consumption using
- * perf_mmap__write_tail().  Using perf_evlist__mmap_read() does this
+ * perf_mmap__write_tail().  Using evlist__mmap_read() does this
  * automatically.
  *
  * Similarly, if @auxtrace_overwrite is %false the user needs to signal data
@@ -987,7 +987,7 @@ int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
  *
  * Return: %0 on success, negative error code otherwise.
  */
-int perf_evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
+int evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
 			 unsigned int auxtrace_pages,
 			 bool auxtrace_overwrite, int nr_cblocks, int affinity, int flush,
 			 int comp_level)
@@ -1011,7 +1011,7 @@ int perf_evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
 	if (evlist->pollfd.entries == NULL && perf_evlist__alloc_pollfd(evlist) < 0)
 		return -ENOMEM;
 
-	evlist->mmap_len = perf_evlist__mmap_size(pages);
+	evlist->mmap_len = evlist__mmap_size(pages);
 	pr_debug("mmap size %zuB\n", evlist->mmap_len);
 	mp.mask = evlist->mmap_len - page_size - 1;
 
@@ -1026,14 +1026,14 @@ int perf_evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
 	}
 
 	if (perf_cpu_map__empty(cpus))
-		return perf_evlist__mmap_per_thread(evlist, &mp);
+		return evlist__mmap_per_thread(evlist, &mp);
 
-	return perf_evlist__mmap_per_cpu(evlist, &mp);
+	return evlist__mmap_per_cpu(evlist, &mp);
 }
 
-int perf_evlist__mmap(struct evlist *evlist, unsigned int pages)
+int evlist__mmap(struct evlist *evlist, unsigned int pages)
 {
-	return perf_evlist__mmap_ex(evlist, pages, 0, false, 0, PERF_AFFINITY_SYS, 1, 0);
+	return evlist__mmap_ex(evlist, pages, 0, false, 0, PERF_AFFINITY_SYS, 1, 0);
 }
 
 int perf_evlist__create_maps(struct evlist *evlist, struct target *target)
@@ -1889,7 +1889,7 @@ int perf_evlist__start_sb_thread(struct evlist *evlist,
 			goto out_delete_evlist;
 	}
 
-	if (perf_evlist__mmap(evlist, UINT_MAX))
+	if (evlist__mmap(evlist, UINT_MAX))
 		goto out_delete_evlist;
 
 	evlist__for_each_entry(evlist, counter) {

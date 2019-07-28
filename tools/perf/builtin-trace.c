@@ -3409,7 +3409,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (trace->dump.map)
 		bpf_map__fprintf(trace->dump.map, trace->output);
 
-	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages);
+	err = evlist__mmap(evlist, trace->opts.mmap_pages);
 	if (err < 0)
 		goto out_error_mmap;
 

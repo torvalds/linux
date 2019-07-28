@@ -1060,7 +1060,7 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 		goto out;
 	}
 
-	if (perf_evlist__mmap(evlist, kvm->opts.mmap_pages) < 0) {
+	if (evlist__mmap(evlist, kvm->opts.mmap_pages) < 0) {
 		ui__error("Failed to mmap the events: %s\n",
 			  str_error_r(errno, sbuf, sizeof(sbuf)));
 		evlist__close(evlist);

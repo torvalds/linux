@@ -139,7 +139,7 @@ struct perf_sample_id *perf_evlist__id2sid(struct evlist *evlist, u64 id);
 
 void perf_evlist__toggle_bkw_mmap(struct evlist *evlist, enum bkw_mmap_state state);
 
-void perf_evlist__mmap_consume(struct evlist *evlist, int idx);
+void evlist__mmap_consume(struct evlist *evlist, int idx);
 
 int evlist__open(struct evlist *evlist);
 void evlist__close(struct evlist *evlist);
@@ -170,14 +170,14 @@ int perf_evlist__parse_mmap_pages(const struct option *opt,
 
 unsigned long perf_event_mlock_kb_in_pages(void);
 
-int perf_evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
+int evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
 			 unsigned int auxtrace_pages,
 			 bool auxtrace_overwrite, int nr_cblocks,
 			 int affinity, int flush, int comp_level);
-int perf_evlist__mmap(struct evlist *evlist, unsigned int pages);
+int evlist__mmap(struct evlist *evlist, unsigned int pages);
 void perf_evlist__munmap(struct evlist *evlist);
 
-size_t perf_evlist__mmap_size(unsigned long pages);
+size_t evlist__mmap_size(unsigned long pages);
 
 void evlist__disable(struct evlist *evlist);
 void evlist__enable(struct evlist *evlist);
