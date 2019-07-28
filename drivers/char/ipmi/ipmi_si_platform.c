@@ -19,6 +19,7 @@
 #include "ipmi_si.h"
 #include "ipmi_dmi.h"
 
+static bool platform_registered;
 static bool si_tryplatform = true;
 #ifdef CONFIG_ACPI
 static bool          si_tryacpi = true;
@@ -426,7 +427,7 @@ static int ipmi_remove(struct platform_device *pdev)
 	return ipmi_si_remove_by_dev(&pdev->dev);
 }
 
-static int pdev_match_name(struct device *dev, void *data)
+static int pdev_match_name(struct device *dev, const void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	const char *name = data;
@@ -443,6 +444,7 @@ void ipmi_remove_platform_device_by_name(char *name)
 		struct platform_device *pdev = to_platform_device(dev);
 
 		platform_device_unregister(pdev);
+		put_device(dev);
 	}
 }
 
@@ -469,9 +471,12 @@ void ipmi_si_platform_init(void)
 	int rv = platform_driver_register(&ipmi_platform_driver);
 	if (rv)
 		pr_err("Unable to register driver: %d\n", rv);
+	else
+		platform_registered = true;
 }
 
 void ipmi_si_platform_shutdown(void)
 {
-	platform_driver_unregister(&ipmi_platform_driver);
+	if (platform_registered)
+		platform_driver_unregister(&ipmi_platform_driver);
 }

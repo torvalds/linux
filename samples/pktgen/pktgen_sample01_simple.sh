@@ -22,6 +22,10 @@ fi
 # Example enforce param "-m" for dst_mac
 [ -z "$DST_MAC" ] && usage && err 2 "Must specify -m dst_mac"
 [ -z "$COUNT" ]   && COUNT="100000" # Zero means indefinitely
+if [ -n "$DST_PORT" ]; then
+    read -r DST_MIN DST_MAX <<< $(parse_ports $DST_PORT)
+    validate_ports $DST_MIN $DST_MAX
+fi
 
 # Base Config
 DELAY="0"        # Zero means max speed
@@ -58,6 +62,13 @@ pg_set $DEV "flag NO_TIMESTAMP"
 # Destination
 pg_set $DEV "dst_mac $DST_MAC"
 pg_set $DEV "dst$IP6 $DEST_IP"
+
+if [ -n "$DST_PORT" ]; then
+    # Single destination port or random port range
+    pg_set $DEV "flag UDPDST_RND"
+    pg_set $DEV "udp_dst_min $DST_MIN"
+    pg_set $DEV "udp_dst_max $DST_MAX"
+fi
 
 # Setup random UDP port src range
 pg_set $DEV "flag UDPSRC_RND"

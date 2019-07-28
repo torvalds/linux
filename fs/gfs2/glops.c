@@ -461,10 +461,12 @@ static int inode_go_lock(struct gfs2_holder *gh)
  * inode_go_dump - print information about an inode
  * @seq: The iterator
  * @ip: the inode
+ * @fs_id_buf: file system id (may be empty)
  *
  */
 
-static void inode_go_dump(struct seq_file *seq, struct gfs2_glock *gl)
+static void inode_go_dump(struct seq_file *seq, struct gfs2_glock *gl,
+			  const char *fs_id_buf)
 {
 	struct gfs2_inode *ip = gl->gl_object;
 	struct inode *inode = &ip->i_inode;
@@ -477,7 +479,8 @@ static void inode_go_dump(struct seq_file *seq, struct gfs2_glock *gl)
 	nrpages = inode->i_data.nrpages;
 	xa_unlock_irq(&inode->i_data.i_pages);
 
-	gfs2_print_dbg(seq, " I: n:%llu/%llu t:%u f:0x%02lx d:0x%08x s:%llu p:%lu\n",
+	gfs2_print_dbg(seq, "%s I: n:%llu/%llu t:%u f:0x%02lx d:0x%08x s:%llu "
+		       "p:%lu\n", fs_id_buf,
 		  (unsigned long long)ip->i_no_formal_ino,
 		  (unsigned long long)ip->i_no_addr,
 		  IF2DT(ip->i_inode.i_mode), ip->i_flags,
@@ -503,7 +506,8 @@ static void freeze_go_sync(struct gfs2_glock *gl)
 		atomic_set(&sdp->sd_freeze_state, SFS_STARTING_FREEZE);
 		error = freeze_super(sdp->sd_vfs);
 		if (error) {
-			printk(KERN_INFO "GFS2: couldn't freeze filesystem: %d\n", error);
+			fs_info(sdp, "GFS2: couldn't freeze filesystem: %d\n",
+				error);
 			gfs2_assert_withdraw(sdp, 0);
 		}
 		queue_work(gfs2_freeze_wq, &sdp->sd_freeze_work);
@@ -536,7 +540,7 @@ static int freeze_go_xmote_bh(struct gfs2_glock *gl, struct gfs2_holder *gh)
 			gfs2_consist(sdp);
 
 		/*  Initialize some head of the log stuff  */
-		if (!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)) {
+		if (!test_bit(SDF_WITHDRAWN, &sdp->sd_flags)) {
 			sdp->sd_log_sequence = head.lh_sequence + 1;
 			gfs2_log_pointers_init(sdp, head.lh_blkno);
 		}

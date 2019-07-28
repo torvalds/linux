@@ -75,6 +75,20 @@ struct amdgpu_dpm_thermal {
 	int                min_temp;
 	/* high temperature threshold */
 	int                max_temp;
+	/* edge max emergency(shutdown) temp */
+	int                max_edge_emergency_temp;
+	/* hotspot low temperature threshold */
+	int                min_hotspot_temp;
+	/* hotspot high temperature critical threshold */
+	int                max_hotspot_crit_temp;
+	/* hotspot max emergency(shutdown) temp */
+	int                max_hotspot_emergency_temp;
+	/* memory low temperature threshold */
+	int                min_mem_temp;
+	/* memory high temperature critical threshold */
+	int                max_mem_crit_temp;
+	/* memory max emergency(shutdown) temp */
+	int                max_mem_emergency_temp;
 	/* was last interrupt low to high or high to low */
 	bool               high_to_low;
 	/* interrupt source */
@@ -341,10 +355,6 @@ enum amdgpu_pcie_gen {
 		((adev)->powerplay.pp_funcs->set_clockgating_by_smu(\
 			(adev)->powerplay.pp_handle, msg_id))
 
-#define amdgpu_dpm_set_powergating_by_smu(adev, block_type, gate) \
-		((adev)->powerplay.pp_funcs->set_powergating_by_smu(\
-			(adev)->powerplay.pp_handle, block_type, gate))
-
 #define amdgpu_dpm_get_power_profile_mode(adev, buf) \
 		((adev)->powerplay.pp_funcs->get_power_profile_mode(\
 			(adev)->powerplay.pp_handle, buf))
@@ -505,6 +515,9 @@ enum amdgpu_pcie_gen amdgpu_get_pcie_gen_support(struct amdgpu_device *adev,
 
 struct amd_vce_state*
 amdgpu_get_vce_clock_state(void *handle, u32 idx);
+
+int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev,
+				      uint32_t block_type, bool gate);
 
 extern int amdgpu_dpm_get_sclk(struct amdgpu_device *adev, bool low);
 

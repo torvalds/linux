@@ -890,8 +890,10 @@ static int __init pci_base_init(void)
 	if (!test_facility(69) || !test_facility(71))
 		return 0;
 
-	if (test_facility(153) && !s390_pci_no_mio)
+	if (test_facility(153) && !s390_pci_no_mio) {
 		static_branch_enable(&have_mio);
+		ctl_set_bit(2, 5);
+	}
 
 	rc = zpci_debug_init();
 	if (rc)

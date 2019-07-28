@@ -54,6 +54,9 @@
             "actions",
             "bpf"
         ],
+        "plugins": {
+                "requires": "buildebpfPlugin"
+        },
         "setup": [
             [
                 "$TC action flush action bpf",
@@ -78,6 +81,9 @@
             "actions",
             "bpf"
         ],
+        "plugins": {
+                "requires": "buildebpfPlugin"
+        },
         "setup": [
             [
                 "$TC action flush action bpf",

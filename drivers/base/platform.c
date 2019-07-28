@@ -5,7 +5,7 @@
  * Copyright (c) 2002-3 Patrick Mochel
  * Copyright (c) 2002-3 Open Source Development Labs
  *
- * Please see Documentation/driver-model/platform.txt for more
+ * Please see Documentation/driver-api/driver-model/platform.rst for more
  * information.
  */
 

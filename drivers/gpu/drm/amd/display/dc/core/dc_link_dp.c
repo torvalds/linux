@@ -4,6 +4,12 @@
 #include "dc_link_dp.h"
 #include "dm_helpers.h"
 #include "opp.h"
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+#include "dsc.h"
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#include "resource.h"
+#endif
 
 #include "inc/core_types.h"
 #include "link_hwss.h"
@@ -89,6 +95,29 @@ static void dpcd_set_training_pattern(
 		dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
 }
 
+static enum hw_dp_training_pattern get_supported_tp(struct dc_link *link)
+{
+	enum hw_dp_training_pattern highest_tp = HW_DP_TRAINING_PATTERN_2;
+	struct encoder_feature_support *features = &link->link_enc->features;
+	struct dpcd_caps *dpcd_caps = &link->dpcd_caps;
+
+	if (features->flags.bits.IS_TPS3_CAPABLE)
+		highest_tp = HW_DP_TRAINING_PATTERN_3;
+
+	if (features->flags.bits.IS_TPS4_CAPABLE)
+		highest_tp = HW_DP_TRAINING_PATTERN_4;
+
+	if (dpcd_caps->max_down_spread.bits.TPS4_SUPPORTED &&
+		highest_tp >= HW_DP_TRAINING_PATTERN_4)
+		return HW_DP_TRAINING_PATTERN_4;
+
+	if (dpcd_caps->max_ln_count.bits.TPS3_SUPPORTED &&
+		highest_tp >= HW_DP_TRAINING_PATTERN_3)
+		return HW_DP_TRAINING_PATTERN_3;
+
+	return HW_DP_TRAINING_PATTERN_2;
+}
+
 static void dpcd_set_link_settings(
 	struct dc_link *link,
 	const struct link_training_settings *lt_settings)
@@ -97,6 +126,7 @@ static void dpcd_set_link_settings(
 
 	union down_spread_ctrl downspread = { {0} };
 	union lane_count_set lane_count_set = { {0} };
+	enum hw_dp_training_pattern hw_tr_pattern;
 
 	downspread.raw = (uint8_t)
 	(lt_settings->link_settings.link_spread);
@@ -106,8 +136,13 @@ static void dpcd_set_link_settings(
 
 	lane_count_set.bits.ENHANCED_FRAMING = 1;
 
-	lane_count_set.bits.POST_LT_ADJ_REQ_GRANTED =
-		link->dpcd_caps.max_ln_count.bits.POST_LT_ADJ_REQ_SUPPORTED;
+	lane_count_set.bits.POST_LT_ADJ_REQ_GRANTED = 0;
+
+	hw_tr_pattern = get_supported_tp(link);
+	if (hw_tr_pattern != HW_DP_TRAINING_PATTERN_4) {
+		lane_count_set.bits.POST_LT_ADJ_REQ_GRANTED =
+				link->dpcd_caps.max_ln_count.bits.POST_LT_ADJ_REQ_SUPPORTED;
+	}
 
 	core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
 	&downspread.raw, sizeof(downspread));
@@ -696,29 +731,6 @@ static bool perform_post_lt_adj_req_sequence(
 	ASSERT(0);
 	return true;
 
-}
-
-static enum hw_dp_training_pattern get_supported_tp(struct dc_link *link)
-{
-	enum hw_dp_training_pattern highest_tp = HW_DP_TRAINING_PATTERN_2;
-	struct encoder_feature_support *features = &link->link_enc->features;
-	struct dpcd_caps *dpcd_caps = &link->dpcd_caps;
-
-	if (features->flags.bits.IS_TPS3_CAPABLE)
-		highest_tp = HW_DP_TRAINING_PATTERN_3;
-
-	if (features->flags.bits.IS_TPS4_CAPABLE)
-		highest_tp = HW_DP_TRAINING_PATTERN_4;
-
-	if (dpcd_caps->max_down_spread.bits.TPS4_SUPPORTED &&
-		highest_tp >= HW_DP_TRAINING_PATTERN_4)
-		return HW_DP_TRAINING_PATTERN_4;
-
-	if (dpcd_caps->max_ln_count.bits.TPS3_SUPPORTED &&
-		highest_tp >= HW_DP_TRAINING_PATTERN_3)
-		return HW_DP_TRAINING_PATTERN_3;
-
-	return HW_DP_TRAINING_PATTERN_2;
 }
 
 static enum link_training_result get_cr_failure(enum dc_lane_count ln_count,
@@ -1624,8 +1636,7 @@ static bool decide_edp_link_settings(struct dc_link *link, struct dc_link_settin
 	uint32_t link_bw;
 
 	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_14 ||
-			link->dpcd_caps.edp_supported_link_rates_count == 0 ||
-			link->dc->config.optimize_edp_link_rate == false) {
+			link->dpcd_caps.edp_supported_link_rates_count == 0) {
 		*link_setting = link->verified_link_cap;
 		return true;
 	}
@@ -2219,18 +2230,25 @@ static void get_active_converter_info(
 		link->dpcd_caps.dongle_type = DISPLAY_DONGLE_NONE;
 		ddc_service_set_dongle_type(link->ddc,
 				link->dpcd_caps.dongle_type);
+		link->dpcd_caps.is_branch_dev = false;
 		return;
 	}
 
 	/* DPCD 0x5 bit 0 = 1, it indicate it's branch device */
-	link->dpcd_caps.is_branch_dev = ds_port.fields.PORT_PRESENT;
+	if (ds_port.fields.PORT_TYPE == DOWNSTREAM_DP) {
+		link->dpcd_caps.is_branch_dev = false;
+	}
+
+	else {
+		link->dpcd_caps.is_branch_dev = ds_port.fields.PORT_PRESENT;
+	}
 
 	switch (ds_port.fields.PORT_TYPE) {
 	case DOWNSTREAM_VGA:
 		link->dpcd_caps.dongle_type = DISPLAY_DONGLE_DP_VGA_CONVERTER;
 		break;
-	case DOWNSTREAM_DVI_HDMI:
-		/* At this point we don't know is it DVI or HDMI,
+	case DOWNSTREAM_DVI_HDMI_DP_PLUS_PLUS:
+		/* At this point we don't know is it DVI or HDMI or DP++,
 		 * assume DVI.*/
 		link->dpcd_caps.dongle_type = DISPLAY_DONGLE_DP_DVI_CONVERTER;
 		break;
@@ -2247,6 +2265,10 @@ static void get_active_converter_info(
 				det_caps, sizeof(det_caps));
 
 		switch (port_caps->bits.DWN_STRM_PORTX_TYPE) {
+		/*Handle DP case as DONGLE_NONE*/
+		case DOWN_STREAM_DETAILED_DP:
+			link->dpcd_caps.dongle_type = DISPLAY_DONGLE_NONE;
+			break;
 		case DOWN_STREAM_DETAILED_VGA:
 			link->dpcd_caps.dongle_type =
 				DISPLAY_DONGLE_DP_VGA_CONVERTER;
@@ -2256,6 +2278,8 @@ static void get_active_converter_info(
 				DISPLAY_DONGLE_DP_DVI_CONVERTER;
 			break;
 		case DOWN_STREAM_DETAILED_HDMI:
+		case DOWN_STREAM_DETAILED_DP_PLUS_PLUS:
+			/*Handle DP++ active converter case, process DP++ case as HDMI case according DP1.4 spec*/
 			link->dpcd_caps.dongle_type =
 				DISPLAY_DONGLE_DP_HDMI_CONVERTER;
 
@@ -2271,14 +2295,18 @@ static void get_active_converter_info(
 
 				link->dpcd_caps.dongle_caps.is_dp_hdmi_s3d_converter =
 					hdmi_caps.bits.FRAME_SEQ_TO_FRAME_PACK;
-				link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr422_pass_through =
-					hdmi_caps.bits.YCrCr422_PASS_THROUGH;
-				link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr420_pass_through =
-					hdmi_caps.bits.YCrCr420_PASS_THROUGH;
-				link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr422_converter =
-					hdmi_caps.bits.YCrCr422_CONVERSION;
-				link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr420_converter =
-					hdmi_caps.bits.YCrCr420_CONVERSION;
+				/*YCBCR capability only for HDMI case*/
+				if (port_caps->bits.DWN_STRM_PORTX_TYPE
+						== DOWN_STREAM_DETAILED_HDMI) {
+					link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr422_pass_through =
+							hdmi_caps.bits.YCrCr422_PASS_THROUGH;
+					link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr420_pass_through =
+							hdmi_caps.bits.YCrCr420_PASS_THROUGH;
+					link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr422_converter =
+							hdmi_caps.bits.YCrCr422_CONVERSION;
+					link->dpcd_caps.dongle_caps.is_dp_hdmi_ycbcr420_converter =
+							hdmi_caps.bits.YCrCr420_CONVERSION;
+				}
 
 				link->dpcd_caps.dongle_caps.dp_hdmi_max_bpc =
 					translate_dpcd_max_bpc(
@@ -2361,6 +2389,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	/*Only need to read 1 byte starting from DP_DPRX_FEATURE_ENUMERATION_LIST.
 	 */
 	uint8_t dpcd_dprx_data = '\0';
+	uint8_t dpcd_power_state = '\0';
 
 	struct dp_device_vendor_id sink_id;
 	union down_stream_port_count down_strm_port_count;
@@ -2376,6 +2405,17 @@ static bool retrieve_link_cap(struct dc_link *link)
 		'\0', sizeof(union down_stream_port_count));
 	memset(&edp_config_cap, '\0',
 		sizeof(union edp_configuration_cap));
+
+	status = core_link_read_dpcd(link, DP_SET_POWER,
+				&dpcd_power_state, sizeof(dpcd_power_state));
+
+	/* Delay 1 ms if AUX CH is in power down state. Based on spec
+	 * section 2.3.1.2, if AUX CH may be powered down due to
+	 * write to DPCD 600h = 2. Sink AUX CH is monitoring differential
+	 * signal and may need up to 1 ms before being able to reply.
+	 */
+	if (status != DC_OK || dpcd_power_state == DP_SET_POWER_D3)
+		udelay(1000);
 
 	for (i = 0; i < read_dpcd_retry_cnt; i++) {
 		status = core_link_read_dpcd(
@@ -2530,6 +2570,30 @@ static bool retrieve_link_cap(struct dc_link *link)
 		dp_hw_fw_revision.ieee_fw_rev,
 		sizeof(dp_hw_fw_revision.ieee_fw_rev));
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	memset(&link->dpcd_caps.dsc_caps, '\0',
+			sizeof(link->dpcd_caps.dsc_caps));
+	memset(&link->dpcd_caps.fec_cap, '\0', sizeof(link->dpcd_caps.fec_cap));
+	/* Read DSC and FEC sink capabilities if DP revision is 1.4 and up */
+	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14) {
+		status = core_link_read_dpcd(
+				link,
+				DP_FEC_CAPABILITY,
+				&link->dpcd_caps.fec_cap.raw,
+				sizeof(link->dpcd_caps.fec_cap.raw));
+		status = core_link_read_dpcd(
+				link,
+				DP_DSC_SUPPORT,
+				link->dpcd_caps.dsc_caps.dsc_basic_caps.raw,
+				sizeof(link->dpcd_caps.dsc_caps.dsc_basic_caps.raw));
+		status = core_link_read_dpcd(
+				link,
+				DP_DSC_BRANCH_OVERALL_THROUGHPUT_0,
+				link->dpcd_caps.dsc_caps.dsc_ext_caps.raw,
+				sizeof(link->dpcd_caps.dsc_caps.dsc_ext_caps.raw));
+	}
+#endif
+
 	/* Connectivity log: detection */
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
 
@@ -2597,7 +2661,8 @@ void detect_edp_sink_caps(struct dc_link *link)
 	memset(supported_link_rates, 0, sizeof(supported_link_rates));
 
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
-			link->dc->config.optimize_edp_link_rate) {
+			(link->dc->config.optimize_edp_link_rate ||
+			link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)) {
 		// Read DPCD 00010h - 0001Fh 16 bytes at one shot
 		core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
 							supported_link_rates, sizeof(supported_link_rates));
@@ -2612,6 +2677,9 @@ void detect_edp_sink_caps(struct dc_link *link)
 				link_rate = linkRateInKHzToLinkRateMultiplier(link_rate_in_khz);
 				link->dpcd_caps.edp_supported_link_rates[link->dpcd_caps.edp_supported_link_rates_count] = link_rate;
 				link->dpcd_caps.edp_supported_link_rates_count++;
+
+				if (link->reported_link_cap.link_rate < link_rate)
+					link->reported_link_cap.link_rate = link_rate;
 			}
 		}
 	}
@@ -2653,6 +2721,14 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		stream->timing.display_color_depth;
 	struct bit_depth_reduction_params params;
 	struct output_pixel_processor *opp = pipe_ctx->stream_res.opp;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	int width = pipe_ctx->stream->timing.h_addressable +
+		pipe_ctx->stream->timing.h_border_left +
+		pipe_ctx->stream->timing.h_border_right;
+	int height = pipe_ctx->stream->timing.v_addressable +
+		pipe_ctx->stream->timing.v_border_bottom +
+		pipe_ctx->stream->timing.v_border_top;
+#endif
 
 	memset(&params, 0, sizeof(params));
 
@@ -2696,6 +2772,30 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
 			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				controller_test_pattern, color_depth);
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+		else if (opp->funcs->opp_set_disp_pattern_generator) {
+			struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+
+			if (bot_odm_pipe) {
+				struct output_pixel_processor *bot_opp = bot_odm_pipe->stream_res.opp;
+
+				bot_opp->funcs->opp_program_bit_depth_reduction(bot_opp, &params);
+				width /= 2;
+				bot_opp->funcs->opp_set_disp_pattern_generator(bot_opp,
+					controller_test_pattern,
+					color_depth,
+					NULL,
+					width,
+					height);
+			}
+			opp->funcs->opp_set_disp_pattern_generator(opp,
+				controller_test_pattern,
+				color_depth,
+				NULL,
+				width,
+				height);
+		}
+#endif
 	}
 	break;
 	case DP_TEST_PATTERN_VIDEO_MODE:
@@ -2708,6 +2808,30 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 				color_depth);
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+		else if (opp->funcs->opp_set_disp_pattern_generator) {
+			struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+
+			if (bot_odm_pipe) {
+				struct output_pixel_processor *bot_opp = bot_odm_pipe->stream_res.opp;
+
+				bot_opp->funcs->opp_program_bit_depth_reduction(bot_opp, &params);
+				width /= 2;
+				bot_opp->funcs->opp_set_disp_pattern_generator(bot_opp,
+					CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
+					color_depth,
+					NULL,
+					width,
+					height);
+			}
+			opp->funcs->opp_set_disp_pattern_generator(opp,
+				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
+				color_depth,
+				NULL,
+				width,
+				height);
+		}
+#endif
 	}
 	break;
 
@@ -2882,3 +3006,67 @@ void dp_enable_mst_on_sink(struct dc_link *link, bool enable)
 
 	core_link_write_dpcd(link, DP_MSTM_CTRL, &mstmCntl, 1);
 }
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+void dp_set_fec_ready(struct dc_link *link, bool ready)
+{
+	/* FEC has to be "set ready" before the link training.
+	 * The policy is to always train with FEC
+	 * if the sink supports it and leave it enabled on link.
+	 * If FEC is not supported, disable it.
+	 */
+	struct link_encoder *link_enc = link->link_enc;
+	uint8_t fec_config = 0;
+
+	if (link->dc->debug.disable_fec ||
+			IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment))
+		return;
+
+	if (link_enc->funcs->fec_set_ready &&
+			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
+		if (link->fec_state == dc_link_fec_not_ready && ready) {
+			fec_config = 1;
+			if (core_link_write_dpcd(link,
+					DP_FEC_CONFIGURATION,
+					&fec_config,
+					sizeof(fec_config)) == DC_OK) {
+				link_enc->funcs->fec_set_ready(link_enc, true);
+				link->fec_state = dc_link_fec_ready;
+			} else {
+				dm_error("dpcd write failed to set fec_ready");
+			}
+		} else if (link->fec_state == dc_link_fec_ready && !ready) {
+			fec_config = 0;
+			core_link_write_dpcd(link,
+					DP_FEC_CONFIGURATION,
+					&fec_config,
+					sizeof(fec_config));
+			link->link_enc->funcs->fec_set_ready(
+					link->link_enc, false);
+			link->fec_state = dc_link_fec_not_ready;
+		}
+	}
+}
+
+void dp_set_fec_enable(struct dc_link *link, bool enable)
+{
+	struct link_encoder *link_enc = link->link_enc;
+
+	if (link->dc->debug.disable_fec ||
+			IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment))
+		return;
+
+	if (link_enc->funcs->fec_set_enable &&
+			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
+		if (link->fec_state == dc_link_fec_ready && enable) {
+			msleep(1);
+			link_enc->funcs->fec_set_enable(link_enc, true);
+			link->fec_state = dc_link_fec_enabled;
+		} else if (link->fec_state == dc_link_fec_enabled && !enable) {
+			link_enc->funcs->fec_set_enable(link_enc, false);
+			link->fec_state = dc_link_fec_ready;
+		}
+	}
+}
+#endif
+

@@ -115,7 +115,7 @@ Some additional variants exist for more specialized cases:
 		void ktime_get_coarse_clocktai_ts64( struct timespec64 * )
 
 	These are quicker than the non-coarse versions, but less accurate,
-	corresponding to CLOCK_MONONOTNIC_COARSE and CLOCK_REALTIME_COARSE
+	corresponding to CLOCK_MONOTONIC_COARSE and CLOCK_REALTIME_COARSE
 	in user space, along with the equivalent boottime/tai/raw
 	timebase not available in user space.
 

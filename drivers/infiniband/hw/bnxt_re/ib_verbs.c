@@ -805,10 +805,8 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 		rdev->sqp_ah = NULL;
 	}
 
-	if (!IS_ERR_OR_NULL(qp->rumem))
-		ib_umem_release(qp->rumem);
-	if (!IS_ERR_OR_NULL(qp->sumem))
-		ib_umem_release(qp->sumem);
+	ib_umem_release(qp->rumem);
+	ib_umem_release(qp->sumem);
 
 	mutex_lock(&rdev->qp_lock);
 	list_del(&qp->list);
@@ -1201,12 +1199,8 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 qp_destroy:
 	bnxt_qplib_destroy_qp(&rdev->qplib_res, &qp->qplib_qp);
 free_umem:
-	if (udata) {
-		if (qp->rumem)
-			ib_umem_release(qp->rumem);
-		if (qp->sumem)
-			ib_umem_release(qp->sumem);
-	}
+	ib_umem_release(qp->rumem);
+	ib_umem_release(qp->sumem);
 fail:
 	kfree(qp);
 	return ERR_PTR(rc);
@@ -1302,8 +1296,7 @@ void bnxt_re_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata)
 	if (qplib_srq->cq)
 		nq = qplib_srq->cq->nq;
 	bnxt_qplib_destroy_srq(&rdev->qplib_res, qplib_srq);
-	if (srq->umem)
-		ib_umem_release(srq->umem);
+	ib_umem_release(srq->umem);
 	atomic_dec(&rdev->srq_count);
 	if (nq)
 		nq->budget--;
@@ -1412,8 +1405,7 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 	return 0;
 
 fail:
-	if (srq->umem)
-		ib_umem_release(srq->umem);
+	ib_umem_release(srq->umem);
 exit:
 	return rc;
 }
@@ -2517,9 +2509,8 @@ int bnxt_re_post_recv(struct ib_qp *ib_qp, const struct ib_recv_wr *wr,
 }
 
 /* Completion Queues */
-int bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
+void bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
-	int rc;
 	struct bnxt_re_cq *cq;
 	struct bnxt_qplib_nq *nq;
 	struct bnxt_re_dev *rdev;
@@ -2528,29 +2519,20 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	rdev = cq->rdev;
 	nq = cq->qplib_cq.nq;
 
-	rc = bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
-	if (rc) {
-		dev_err(rdev_to_dev(rdev), "Failed to destroy HW CQ");
-		return rc;
-	}
-	if (!IS_ERR_OR_NULL(cq->umem))
-		ib_umem_release(cq->umem);
+	bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
+	ib_umem_release(cq->umem);
 
 	atomic_dec(&rdev->cq_count);
 	nq->budget--;
 	kfree(cq->cql);
-	kfree(cq);
-
-	return 0;
 }
 
-struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
-				const struct ib_cq_init_attr *attr,
-				struct ib_udata *udata)
+int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		      struct ib_udata *udata)
 {
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibcq->device, ibdev);
 	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
-	struct bnxt_re_cq *cq = NULL;
+	struct bnxt_re_cq *cq = container_of(ibcq, struct bnxt_re_cq, ib_cq);
 	int rc, entries;
 	int cqe = attr->cqe;
 	struct bnxt_qplib_nq *nq = NULL;
@@ -2559,11 +2541,8 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	/* Validate CQ fields */
 	if (cqe < 1 || cqe > dev_attr->max_cq_wqes) {
 		dev_err(rdev_to_dev(rdev), "Failed to create CQ -max exceeded");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq)
-		return ERR_PTR(-ENOMEM);
 
 	cq->rdev = rdev;
 	cq->qplib_cq.cq_handle = (u64)(unsigned long)(&cq->qplib_cq);
@@ -2641,15 +2620,13 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 		}
 	}
 
-	return &cq->ib_cq;
+	return 0;
 
 c2fail:
-	if (udata)
-		ib_umem_release(cq->umem);
+	ib_umem_release(cq->umem);
 fail:
 	kfree(cq->cql);
-	kfree(cq);
-	return ERR_PTR(rc);
+	return rc;
 }
 
 static u8 __req_to_ib_wc_status(u8 qstatus)
@@ -3353,8 +3330,7 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 		mr->npages = 0;
 		mr->pages = NULL;
 	}
-	if (!IS_ERR_OR_NULL(mr->ib_umem))
-		ib_umem_release(mr->ib_umem);
+	ib_umem_release(mr->ib_umem);
 
 	kfree(mr);
 	atomic_dec(&rdev->mr_count);
@@ -3630,10 +3606,10 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
 	u32 chip_met_rev_num = 0;
 	int rc;
 
-	dev_dbg(rdev_to_dev(rdev), "ABI version requested %d",
-		ibdev->uverbs_abi_ver);
+	dev_dbg(rdev_to_dev(rdev), "ABI version requested %u",
+		ibdev->ops.uverbs_abi_ver);
 
-	if (ibdev->uverbs_abi_ver != BNXT_RE_ABI_VERSION) {
+	if (ibdev->ops.uverbs_abi_ver != BNXT_RE_ABI_VERSION) {
 		dev_dbg(rdev_to_dev(rdev), " is different from the device %d ",
 			BNXT_RE_ABI_VERSION);
 		return -EPERM;

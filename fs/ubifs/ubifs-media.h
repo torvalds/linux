@@ -275,6 +275,8 @@ enum {
 #define UBIFS_CS_NODE_SZ   sizeof(struct ubifs_cs_node)
 #define UBIFS_ORPH_NODE_SZ sizeof(struct ubifs_orph_node)
 #define UBIFS_AUTH_NODE_SZ sizeof(struct ubifs_auth_node)
+#define UBIFS_SIG_NODE_SZ  sizeof(struct ubifs_sig_node)
+
 /* Extended attribute entry nodes are identical to directory entry nodes */
 #define UBIFS_XENT_NODE_SZ UBIFS_DENT_NODE_SZ
 /* Only this does not have to be multiple of 8 bytes */
@@ -301,6 +303,8 @@ enum {
  */
 #define UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT "c"
 
+/* Type field in ubifs_sig_node */
+#define UBIFS_SIGNATURE_TYPE_PKCS7	1
 
 /*
  * On-flash inode flags.
@@ -336,12 +340,14 @@ enum {
  * UBIFS_COMPR_NONE: no compression
  * UBIFS_COMPR_LZO: LZO compression
  * UBIFS_COMPR_ZLIB: ZLIB compression
+ * UBIFS_COMPR_ZSTD: ZSTD compression
  * UBIFS_COMPR_TYPES_CNT: count of supported compression types
  */
 enum {
 	UBIFS_COMPR_NONE,
 	UBIFS_COMPR_LZO,
 	UBIFS_COMPR_ZLIB,
+	UBIFS_COMPR_ZSTD,
 	UBIFS_COMPR_TYPES_CNT,
 };
 
@@ -361,6 +367,7 @@ enum {
  * UBIFS_CS_NODE: commit start node
  * UBIFS_ORPH_NODE: orphan node
  * UBIFS_AUTH_NODE: authentication node
+ * UBIFS_SIG_NODE: signature node
  * UBIFS_NODE_TYPES_CNT: count of supported node types
  *
  * Note, we index arrays by these numbers, so keep them low and contiguous.
@@ -381,6 +388,7 @@ enum {
 	UBIFS_CS_NODE,
 	UBIFS_ORPH_NODE,
 	UBIFS_AUTH_NODE,
+	UBIFS_SIG_NODE,
 	UBIFS_NODE_TYPES_CNT,
 };
 
@@ -638,6 +646,8 @@ struct ubifs_pad_node {
  * @hmac_wkm: HMAC of a well known message (the string "UBIFS") as a convenience
  *            to the user to check if the correct key is passed.
  * @hash_algo: The hash algo used for this filesystem (one of enum hash_algo)
+ * @hash_mst: hash of the master node, only valid for signed images in which the
+ *            master node does not contain a hmac
  */
 struct ubifs_sb_node {
 	struct ubifs_ch ch;
@@ -668,7 +678,8 @@ struct ubifs_sb_node {
 	__u8 hmac[UBIFS_MAX_HMAC_LEN];
 	__u8 hmac_wkm[UBIFS_MAX_HMAC_LEN];
 	__le16 hash_algo;
-	__u8 padding2[3838];
+	__u8 hash_mst[UBIFS_MAX_HASH_LEN];
+	__u8 padding2[3774];
 } __packed;
 
 /**
@@ -768,6 +779,23 @@ struct ubifs_ref_node {
 struct ubifs_auth_node {
 	struct ubifs_ch ch;
 	__u8 hmac[];
+} __packed;
+
+/**
+ * struct ubifs_sig_node - node for signing other nodes
+ * @ch: common header
+ * @type: type of the signature, currently only UBIFS_SIGNATURE_TYPE_PKCS7
+ * supported
+ * @len: The length of the signature data
+ * @padding: reserved for future, zeroes
+ * @sig: The signature data
+ */
+struct ubifs_sig_node {
+	struct ubifs_ch ch;
+	__le32 type;
+	__le32 len;
+	__u8 padding[32];
+	__u8 sig[];
 } __packed;
 
 /**

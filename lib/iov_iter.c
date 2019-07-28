@@ -1634,9 +1634,9 @@ EXPORT_SYMBOL(dup_iter);
  * on-stack array was used or not (and regardless of whether this function
  * returns an error or not).
  *
- * Return: 0 on success or negative error code on error.
+ * Return: Negative error code on error, bytes imported on success
  */
-int import_iovec(int type, const struct iovec __user * uvector,
+ssize_t import_iovec(int type, const struct iovec __user * uvector,
 		 unsigned nr_segs, unsigned fast_segs,
 		 struct iovec **iov, struct iov_iter *i)
 {
@@ -1652,16 +1652,17 @@ int import_iovec(int type, const struct iovec __user * uvector,
 	}
 	iov_iter_init(i, type, p, nr_segs, n);
 	*iov = p == *iov ? NULL : p;
-	return 0;
+	return n;
 }
 EXPORT_SYMBOL(import_iovec);
 
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 
-int compat_import_iovec(int type, const struct compat_iovec __user * uvector,
-		 unsigned nr_segs, unsigned fast_segs,
-		 struct iovec **iov, struct iov_iter *i)
+ssize_t compat_import_iovec(int type,
+		const struct compat_iovec __user * uvector,
+		unsigned nr_segs, unsigned fast_segs,
+		struct iovec **iov, struct iov_iter *i)
 {
 	ssize_t n;
 	struct iovec *p;
@@ -1675,7 +1676,7 @@ int compat_import_iovec(int type, const struct compat_iovec __user * uvector,
 	}
 	iov_iter_init(i, type, p, nr_segs, n);
 	*iov = p == *iov ? NULL : p;
-	return 0;
+	return n;
 }
 #endif
 

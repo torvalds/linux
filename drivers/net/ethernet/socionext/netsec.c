@@ -9,8 +9,12 @@
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/netlink.h>
+#include <linux/bpf.h>
+#include <linux/bpf_trace.h>
 
 #include <net/tcp.h>
+#include <net/page_pool.h>
 #include <net/ip6_checksum.h>
 
 #define NETSEC_REG_SOFT_RST			0x104
@@ -235,22 +239,41 @@
 #define DESC_NUM	256
 
 #define NETSEC_SKB_PAD (NET_SKB_PAD + NET_IP_ALIGN)
-#define NETSEC_RX_BUF_SZ 1536
+#define NETSEC_RXBUF_HEADROOM (max(XDP_PACKET_HEADROOM, NET_SKB_PAD) + \
+			       NET_IP_ALIGN)
+#define NETSEC_RX_BUF_NON_DATA (NETSEC_RXBUF_HEADROOM + \
+				SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 
 #define DESC_SZ	sizeof(struct netsec_de)
 
 #define NETSEC_F_NETSEC_VER_MAJOR_NUM(x)	((x) & 0xffff0000)
+
+#define NETSEC_XDP_PASS          0
+#define NETSEC_XDP_CONSUMED      BIT(0)
+#define NETSEC_XDP_TX            BIT(1)
+#define NETSEC_XDP_REDIR         BIT(2)
+#define NETSEC_XDP_RX_OK (NETSEC_XDP_PASS | NETSEC_XDP_TX | NETSEC_XDP_REDIR)
 
 enum ring_id {
 	NETSEC_RING_TX = 0,
 	NETSEC_RING_RX
 };
 
+enum buf_type {
+	TYPE_NETSEC_SKB = 0,
+	TYPE_NETSEC_XDP_TX,
+	TYPE_NETSEC_XDP_NDO,
+};
+
 struct netsec_desc {
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		struct xdp_frame *xdpf;
+	};
 	dma_addr_t dma_addr;
 	void *addr;
 	u16 len;
+	u8 buf_type;
 };
 
 struct netsec_desc_ring {
@@ -258,11 +281,17 @@ struct netsec_desc_ring {
 	struct netsec_desc *desc;
 	void *vaddr;
 	u16 head, tail;
+	u16 xdp_xmit; /* netsec_xdp_xmit packets */
+	bool is_xdp;
+	struct page_pool *page_pool;
+	struct xdp_rxq_info xdp_rxq;
+	spinlock_t lock; /* XDP tx queue locking */
 };
 
 struct netsec_priv {
 	struct netsec_desc_ring desc_ring[NETSEC_RING_MAX];
 	struct ethtool_coalesce et_coalesce;
+	struct bpf_prog *xdp_prog;
 	spinlock_t reglock; /* protect reg access */
 	struct napi_struct napi;
 	phy_interface_t phy_interface;
@@ -600,12 +629,14 @@ static void netsec_set_rx_de(struct netsec_priv *priv,
 static bool netsec_clean_tx_dring(struct netsec_priv *priv)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_TX];
-	unsigned int pkts, bytes;
 	struct netsec_de *entry;
 	int tail = dring->tail;
+	unsigned int bytes;
 	int cnt = 0;
 
-	pkts = 0;
+	if (dring->is_xdp)
+		spin_lock(&dring->lock);
+
 	bytes = 0;
 	entry = dring->vaddr + DESC_SZ * tail;
 
@@ -618,13 +649,23 @@ static bool netsec_clean_tx_dring(struct netsec_priv *priv)
 		eop = (entry->attr >> NETSEC_TX_LAST) & 1;
 		dma_rmb();
 
-		dma_unmap_single(priv->dev, desc->dma_addr, desc->len,
-				 DMA_TO_DEVICE);
-		if (eop) {
-			pkts++;
+		/* if buf_type is either TYPE_NETSEC_SKB or
+		 * TYPE_NETSEC_XDP_NDO we mapped it
+		 */
+		if (desc->buf_type != TYPE_NETSEC_XDP_TX)
+			dma_unmap_single(priv->dev, desc->dma_addr, desc->len,
+					 DMA_TO_DEVICE);
+
+		if (!eop)
+			goto next;
+
+		if (desc->buf_type == TYPE_NETSEC_SKB) {
 			bytes += desc->skb->len;
 			dev_kfree_skb(desc->skb);
+		} else {
+			xdp_return_frame(desc->xdpf);
 		}
+next:
 		/* clean up so netsec_uninit_pkt_dring() won't free the skb
 		 * again
 		 */
@@ -641,6 +682,8 @@ static bool netsec_clean_tx_dring(struct netsec_priv *priv)
 		entry = dring->vaddr + DESC_SZ * tail;
 		cnt++;
 	}
+	if (dring->is_xdp)
+		spin_unlock(&dring->lock);
 
 	if (!cnt)
 		return false;
@@ -673,33 +716,31 @@ static void netsec_process_tx(struct netsec_priv *priv)
 }
 
 static void *netsec_alloc_rx_data(struct netsec_priv *priv,
-				  dma_addr_t *dma_handle, u16 *desc_len,
-				  bool napi)
+				  dma_addr_t *dma_handle, u16 *desc_len)
+
 {
-	size_t total_len = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-	size_t payload_len = NETSEC_RX_BUF_SZ;
-	dma_addr_t mapping;
-	void *buf;
 
-	total_len += SKB_DATA_ALIGN(payload_len + NETSEC_SKB_PAD);
+	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
+	enum dma_data_direction dma_dir;
+	struct page *page;
 
-	buf = napi ? napi_alloc_frag(total_len) : netdev_alloc_frag(total_len);
-	if (!buf)
+	page = page_pool_dev_alloc_pages(dring->page_pool);
+	if (!page)
 		return NULL;
 
-	mapping = dma_map_single(priv->dev, buf + NETSEC_SKB_PAD, payload_len,
-				 DMA_FROM_DEVICE);
-	if (unlikely(dma_mapping_error(priv->dev, mapping)))
-		goto err_out;
+	/* We allocate the same buffer length for XDP and non-XDP cases.
+	 * page_pool API will map the whole page, skip what's needed for
+	 * network payloads and/or XDP
+	 */
+	*dma_handle = page_pool_get_dma_addr(page) + NETSEC_RXBUF_HEADROOM;
+	/* Make sure the incoming payload fits in the page for XDP and non-XDP
+	 * cases and reserve enough space for headroom + skb_shared_info
+	 */
+	*desc_len = PAGE_SIZE - NETSEC_RX_BUF_NON_DATA;
+	dma_dir = page_pool_get_dma_dir(dring->page_pool);
+	dma_sync_single_for_device(priv->dev, *dma_handle, *desc_len, dma_dir);
 
-	*dma_handle = mapping;
-	*desc_len = payload_len;
-
-	return buf;
-
-err_out:
-	skb_free_frag(buf);
-	return NULL;
+	return page_address(page);
 }
 
 static void netsec_rx_fill(struct netsec_priv *priv, u16 from, u16 num)
@@ -716,22 +757,201 @@ static void netsec_rx_fill(struct netsec_priv *priv, u16 from, u16 num)
 	}
 }
 
+static void netsec_xdp_ring_tx_db(struct netsec_priv *priv, u16 pkts)
+{
+	if (likely(pkts))
+		netsec_write(priv, NETSEC_REG_NRM_TX_PKTCNT, pkts);
+}
+
+static void netsec_finalize_xdp_rx(struct netsec_priv *priv, u32 xdp_res,
+				   u16 pkts)
+{
+	if (xdp_res & NETSEC_XDP_REDIR)
+		xdp_do_flush_map();
+
+	if (xdp_res & NETSEC_XDP_TX)
+		netsec_xdp_ring_tx_db(priv, pkts);
+}
+
+static void netsec_set_tx_de(struct netsec_priv *priv,
+			     struct netsec_desc_ring *dring,
+			     const struct netsec_tx_pkt_ctrl *tx_ctrl,
+			     const struct netsec_desc *desc, void *buf)
+{
+	int idx = dring->head;
+	struct netsec_de *de;
+	u32 attr;
+
+	de = dring->vaddr + (DESC_SZ * idx);
+
+	attr = (1 << NETSEC_TX_SHIFT_OWN_FIELD) |
+	       (1 << NETSEC_TX_SHIFT_PT_FIELD) |
+	       (NETSEC_RING_GMAC << NETSEC_TX_SHIFT_TDRID_FIELD) |
+	       (1 << NETSEC_TX_SHIFT_FS_FIELD) |
+	       (1 << NETSEC_TX_LAST) |
+	       (tx_ctrl->cksum_offload_flag << NETSEC_TX_SHIFT_CO) |
+	       (tx_ctrl->tcp_seg_offload_flag << NETSEC_TX_SHIFT_SO) |
+	       (1 << NETSEC_TX_SHIFT_TRS_FIELD);
+	if (idx == DESC_NUM - 1)
+		attr |= (1 << NETSEC_TX_SHIFT_LD_FIELD);
+
+	de->data_buf_addr_up = upper_32_bits(desc->dma_addr);
+	de->data_buf_addr_lw = lower_32_bits(desc->dma_addr);
+	de->buf_len_info = (tx_ctrl->tcp_seg_len << 16) | desc->len;
+	de->attr = attr;
+	/* under spin_lock if using XDP */
+	if (!dring->is_xdp)
+		dma_wmb();
+
+	dring->desc[idx] = *desc;
+	if (desc->buf_type == TYPE_NETSEC_SKB)
+		dring->desc[idx].skb = buf;
+	else if (desc->buf_type == TYPE_NETSEC_XDP_TX ||
+		 desc->buf_type == TYPE_NETSEC_XDP_NDO)
+		dring->desc[idx].xdpf = buf;
+
+	/* move head ahead */
+	dring->head = (dring->head + 1) % DESC_NUM;
+}
+
+/* The current driver only supports 1 Txq, this should run under spin_lock() */
+static u32 netsec_xdp_queue_one(struct netsec_priv *priv,
+				struct xdp_frame *xdpf, bool is_ndo)
+
+{
+	struct netsec_desc_ring *tx_ring = &priv->desc_ring[NETSEC_RING_TX];
+	struct page *page = virt_to_page(xdpf->data);
+	struct netsec_tx_pkt_ctrl tx_ctrl = {};
+	struct netsec_desc tx_desc;
+	dma_addr_t dma_handle;
+	u16 filled;
+
+	if (tx_ring->head >= tx_ring->tail)
+		filled = tx_ring->head - tx_ring->tail;
+	else
+		filled = tx_ring->head + DESC_NUM - tx_ring->tail;
+
+	if (DESC_NUM - filled <= 1)
+		return NETSEC_XDP_CONSUMED;
+
+	if (is_ndo) {
+		/* this is for ndo_xdp_xmit, the buffer needs mapping before
+		 * sending
+		 */
+		dma_handle = dma_map_single(priv->dev, xdpf->data, xdpf->len,
+					    DMA_TO_DEVICE);
+		if (dma_mapping_error(priv->dev, dma_handle))
+			return NETSEC_XDP_CONSUMED;
+		tx_desc.buf_type = TYPE_NETSEC_XDP_NDO;
+	} else {
+		/* This is the device Rx buffer from page_pool. No need to remap
+		 * just sync and send it
+		 */
+		struct netsec_desc_ring *rx_ring =
+			&priv->desc_ring[NETSEC_RING_RX];
+		enum dma_data_direction dma_dir =
+			page_pool_get_dma_dir(rx_ring->page_pool);
+
+		dma_handle = page_pool_get_dma_addr(page) +
+			NETSEC_RXBUF_HEADROOM;
+		dma_sync_single_for_device(priv->dev, dma_handle, xdpf->len,
+					   dma_dir);
+		tx_desc.buf_type = TYPE_NETSEC_XDP_TX;
+	}
+
+	tx_desc.dma_addr = dma_handle;
+	tx_desc.addr = xdpf->data;
+	tx_desc.len = xdpf->len;
+
+	netsec_set_tx_de(priv, tx_ring, &tx_ctrl, &tx_desc, xdpf);
+
+	return NETSEC_XDP_TX;
+}
+
+static u32 netsec_xdp_xmit_back(struct netsec_priv *priv, struct xdp_buff *xdp)
+{
+	struct netsec_desc_ring *tx_ring = &priv->desc_ring[NETSEC_RING_TX];
+	struct xdp_frame *xdpf = convert_to_xdp_frame(xdp);
+	u32 ret;
+
+	if (unlikely(!xdpf))
+		return NETSEC_XDP_CONSUMED;
+
+	spin_lock(&tx_ring->lock);
+	ret = netsec_xdp_queue_one(priv, xdpf, false);
+	spin_unlock(&tx_ring->lock);
+
+	return ret;
+}
+
+static u32 netsec_run_xdp(struct netsec_priv *priv, struct bpf_prog *prog,
+			  struct xdp_buff *xdp)
+{
+	u32 ret = NETSEC_XDP_PASS;
+	int err;
+	u32 act;
+
+	act = bpf_prog_run_xdp(prog, xdp);
+
+	switch (act) {
+	case XDP_PASS:
+		ret = NETSEC_XDP_PASS;
+		break;
+	case XDP_TX:
+		ret = netsec_xdp_xmit_back(priv, xdp);
+		if (ret != NETSEC_XDP_TX)
+			xdp_return_buff(xdp);
+		break;
+	case XDP_REDIRECT:
+		err = xdp_do_redirect(priv->ndev, xdp, prog);
+		if (!err) {
+			ret = NETSEC_XDP_REDIR;
+		} else {
+			ret = NETSEC_XDP_CONSUMED;
+			xdp_return_buff(xdp);
+		}
+		break;
+	default:
+		bpf_warn_invalid_xdp_action(act);
+		/* fall through */
+	case XDP_ABORTED:
+		trace_xdp_exception(priv->ndev, prog, act);
+		/* fall through -- handle aborts by dropping packet */
+	case XDP_DROP:
+		ret = NETSEC_XDP_CONSUMED;
+		xdp_return_buff(xdp);
+		break;
+	}
+
+	return ret;
+}
+
 static int netsec_process_rx(struct netsec_priv *priv, int budget)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
 	struct net_device *ndev = priv->ndev;
 	struct netsec_rx_pkt_info rx_info;
-	struct sk_buff *skb;
+	enum dma_data_direction dma_dir;
+	struct bpf_prog *xdp_prog;
+	struct sk_buff *skb = NULL;
+	u16 xdp_xmit = 0;
+	u32 xdp_act = 0;
 	int done = 0;
+
+	rcu_read_lock();
+	xdp_prog = READ_ONCE(priv->xdp_prog);
+	dma_dir = page_pool_get_dma_dir(dring->page_pool);
 
 	while (done < budget) {
 		u16 idx = dring->tail;
 		struct netsec_de *de = dring->vaddr + (DESC_SZ * idx);
 		struct netsec_desc *desc = &dring->desc[idx];
+		struct page *page = virt_to_page(desc->addr);
+		u32 xdp_result = XDP_PASS;
 		u16 pkt_len, desc_len;
 		dma_addr_t dma_handle;
+		struct xdp_buff xdp;
 		void *buf_addr;
-		u32 truesize;
 
 		if (de->attr & (1U << NETSEC_RX_PKT_OWN_FIELD)) {
 			/* reading the register clears the irq */
@@ -766,53 +986,71 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 		/* allocate a fresh buffer and map it to the hardware.
 		 * This will eventually replace the old buffer in the hardware
 		 */
-		buf_addr = netsec_alloc_rx_data(priv, &dma_handle, &desc_len,
-						true);
+		buf_addr = netsec_alloc_rx_data(priv, &dma_handle, &desc_len);
+
 		if (unlikely(!buf_addr))
 			break;
 
 		dma_sync_single_for_cpu(priv->dev, desc->dma_addr, pkt_len,
-					DMA_FROM_DEVICE);
+					dma_dir);
 		prefetch(desc->addr);
 
-		truesize = SKB_DATA_ALIGN(desc->len + NETSEC_SKB_PAD) +
-			SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-		skb = build_skb(desc->addr, truesize);
+		xdp.data_hard_start = desc->addr;
+		xdp.data = desc->addr + NETSEC_RXBUF_HEADROOM;
+		xdp_set_data_meta_invalid(&xdp);
+		xdp.data_end = xdp.data + pkt_len;
+		xdp.rxq = &dring->xdp_rxq;
+
+		if (xdp_prog) {
+			xdp_result = netsec_run_xdp(priv, xdp_prog, &xdp);
+			if (xdp_result != NETSEC_XDP_PASS) {
+				xdp_act |= xdp_result;
+				if (xdp_result == NETSEC_XDP_TX)
+					xdp_xmit++;
+				goto next;
+			}
+		}
+		skb = build_skb(desc->addr, desc->len + NETSEC_RX_BUF_NON_DATA);
+
 		if (unlikely(!skb)) {
-			/* free the newly allocated buffer, we are not going to
-			 * use it
+			/* If skb fails recycle_direct will either unmap and
+			 * free the page or refill the cache depending on the
+			 * cache state. Since we paid the allocation cost if
+			 * building an skb fails try to put the page into cache
 			 */
-			dma_unmap_single(priv->dev, dma_handle, desc_len,
-					 DMA_FROM_DEVICE);
-			skb_free_frag(buf_addr);
+			page_pool_recycle_direct(dring->page_pool, page);
 			netif_err(priv, drv, priv->ndev,
 				  "rx failed to build skb\n");
 			break;
 		}
-		dma_unmap_single_attrs(priv->dev, desc->dma_addr, desc->len,
-				       DMA_FROM_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+		page_pool_release_page(dring->page_pool, page);
 
-		/* Update the descriptor with the new buffer we allocated */
-		desc->len = desc_len;
-		desc->dma_addr = dma_handle;
-		desc->addr = buf_addr;
-
-		skb_reserve(skb, NETSEC_SKB_PAD);
-		skb_put(skb, pkt_len);
+		skb_reserve(skb, xdp.data - xdp.data_hard_start);
+		skb_put(skb, xdp.data_end - xdp.data);
 		skb->protocol = eth_type_trans(skb, priv->ndev);
 
 		if (priv->rx_cksum_offload_flag &&
 		    rx_info.rx_cksum_result == NETSEC_RX_CKSUM_OK)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-		if (napi_gro_receive(&priv->napi, skb) != GRO_DROP) {
+next:
+		if ((skb && napi_gro_receive(&priv->napi, skb) != GRO_DROP) ||
+		    xdp_result & NETSEC_XDP_RX_OK) {
 			ndev->stats.rx_packets++;
-			ndev->stats.rx_bytes += pkt_len;
+			ndev->stats.rx_bytes += xdp.data_end - xdp.data;
 		}
+
+		/* Update the descriptor with fresh buffers */
+		desc->len = desc_len;
+		desc->dma_addr = dma_handle;
+		desc->addr = buf_addr;
 
 		netsec_rx_fill(priv, idx, 1);
 		dring->tail = (dring->tail + 1) % DESC_NUM;
 	}
+	netsec_finalize_xdp_rx(priv, xdp_act, xdp_xmit);
+
+	rcu_read_unlock();
 
 	return done;
 }
@@ -820,19 +1058,12 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 static int netsec_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct netsec_priv *priv;
-	int rx, done, todo;
+	int done;
 
 	priv = container_of(napi, struct netsec_priv, napi);
 
 	netsec_process_tx(priv);
-
-	todo = budget;
-	do {
-		rx = netsec_process_rx(priv, todo);
-		todo -= rx;
-	} while (rx);
-
-	done = budget - todo;
+	done = netsec_process_rx(priv, budget);
 
 	if (done < budget && napi_complete_done(napi, done)) {
 		unsigned long flags;
@@ -846,41 +1077,6 @@ static int netsec_napi_poll(struct napi_struct *napi, int budget)
 	return done;
 }
 
-static void netsec_set_tx_de(struct netsec_priv *priv,
-			     struct netsec_desc_ring *dring,
-			     const struct netsec_tx_pkt_ctrl *tx_ctrl,
-			     const struct netsec_desc *desc,
-			     struct sk_buff *skb)
-{
-	int idx = dring->head;
-	struct netsec_de *de;
-	u32 attr;
-
-	de = dring->vaddr + (DESC_SZ * idx);
-
-	attr = (1 << NETSEC_TX_SHIFT_OWN_FIELD) |
-	       (1 << NETSEC_TX_SHIFT_PT_FIELD) |
-	       (NETSEC_RING_GMAC << NETSEC_TX_SHIFT_TDRID_FIELD) |
-	       (1 << NETSEC_TX_SHIFT_FS_FIELD) |
-	       (1 << NETSEC_TX_LAST) |
-	       (tx_ctrl->cksum_offload_flag << NETSEC_TX_SHIFT_CO) |
-	       (tx_ctrl->tcp_seg_offload_flag << NETSEC_TX_SHIFT_SO) |
-	       (1 << NETSEC_TX_SHIFT_TRS_FIELD);
-	if (idx == DESC_NUM - 1)
-		attr |= (1 << NETSEC_TX_SHIFT_LD_FIELD);
-
-	de->data_buf_addr_up = upper_32_bits(desc->dma_addr);
-	de->data_buf_addr_lw = lower_32_bits(desc->dma_addr);
-	de->buf_len_info = (tx_ctrl->tcp_seg_len << 16) | desc->len;
-	de->attr = attr;
-	dma_wmb();
-
-	dring->desc[idx] = *desc;
-	dring->desc[idx].skb = skb;
-
-	/* move head ahead */
-	dring->head = (dring->head + 1) % DESC_NUM;
-}
 
 static int netsec_desc_used(struct netsec_desc_ring *dring)
 {
@@ -927,8 +1123,12 @@ static netdev_tx_t netsec_netdev_start_xmit(struct sk_buff *skb,
 	u16 tso_seg_len = 0;
 	int filled;
 
+	if (dring->is_xdp)
+		spin_lock_bh(&dring->lock);
 	filled = netsec_desc_used(dring);
 	if (netsec_check_stop_tx(priv, filled)) {
+		if (dring->is_xdp)
+			spin_unlock_bh(&dring->lock);
 		net_warn_ratelimited("%s %s Tx queue full\n",
 				     dev_name(priv->dev), ndev->name);
 		return NETDEV_TX_BUSY;
@@ -961,6 +1161,8 @@ static netdev_tx_t netsec_netdev_start_xmit(struct sk_buff *skb,
 	tx_desc.dma_addr = dma_map_single(priv->dev, skb->data,
 					  skb_headlen(skb), DMA_TO_DEVICE);
 	if (dma_mapping_error(priv->dev, tx_desc.dma_addr)) {
+		if (dring->is_xdp)
+			spin_unlock_bh(&dring->lock);
 		netif_err(priv, drv, priv->ndev,
 			  "%s: DMA mapping failed\n", __func__);
 		ndev->stats.tx_dropped++;
@@ -969,11 +1171,14 @@ static netdev_tx_t netsec_netdev_start_xmit(struct sk_buff *skb,
 	}
 	tx_desc.addr = skb->data;
 	tx_desc.len = skb_headlen(skb);
+	tx_desc.buf_type = TYPE_NETSEC_SKB;
 
 	skb_tx_timestamp(skb);
 	netdev_sent_queue(priv->ndev, skb->len);
 
 	netsec_set_tx_de(priv, dring, &tx_ctrl, &tx_desc, skb);
+	if (dring->is_xdp)
+		spin_unlock_bh(&dring->lock);
 	netsec_write(priv, NETSEC_REG_NRM_TX_PKTCNT, 1); /* submit another tx */
 
 	return NETDEV_TX_OK;
@@ -987,19 +1192,27 @@ static void netsec_uninit_pkt_dring(struct netsec_priv *priv, int id)
 
 	if (!dring->vaddr || !dring->desc)
 		return;
-
 	for (idx = 0; idx < DESC_NUM; idx++) {
 		desc = &dring->desc[idx];
 		if (!desc->addr)
 			continue;
 
-		dma_unmap_single(priv->dev, desc->dma_addr, desc->len,
-				 id == NETSEC_RING_RX ? DMA_FROM_DEVICE :
-							      DMA_TO_DEVICE);
-		if (id == NETSEC_RING_RX)
-			skb_free_frag(desc->addr);
-		else if (id == NETSEC_RING_TX)
+		if (id == NETSEC_RING_RX) {
+			struct page *page = virt_to_page(desc->addr);
+
+			page_pool_put_page(dring->page_pool, page, false);
+		} else if (id == NETSEC_RING_TX) {
+			dma_unmap_single(priv->dev, desc->dma_addr, desc->len,
+					 DMA_TO_DEVICE);
 			dev_kfree_skb(desc->skb);
+		}
+	}
+
+	/* Rx is currently using page_pool */
+	if (id == NETSEC_RING_RX) {
+		if (xdp_rxq_info_is_reg(&dring->xdp_rxq))
+			xdp_rxq_info_unreg(&dring->xdp_rxq);
+		page_pool_destroy(dring->page_pool);
 	}
 
 	memset(dring->desc, 0, sizeof(struct netsec_desc) * DESC_NUM);
@@ -1029,7 +1242,6 @@ static void netsec_free_dring(struct netsec_priv *priv, int id)
 static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[id];
-	int i;
 
 	dring->vaddr = dma_alloc_coherent(priv->dev, DESC_SZ * DESC_NUM,
 					  &dring->desc_dma, GFP_KERNEL);
@@ -1040,19 +1252,6 @@ static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 	if (!dring->desc)
 		goto err;
 
-	if (id == NETSEC_RING_TX) {
-		for (i = 0; i < DESC_NUM; i++) {
-			struct netsec_de *de;
-
-			de = dring->vaddr + (DESC_SZ * i);
-			/* de->attr is not going to be accessed by the NIC
-			 * until netsec_set_tx_de() is called.
-			 * No need for a dma_wmb() here
-			 */
-			de->attr = 1U << NETSEC_TX_SHIFT_OWN_FIELD;
-		}
-	}
-
 	return 0;
 err:
 	netsec_free_dring(priv, id);
@@ -1060,10 +1259,60 @@ err:
 	return -ENOMEM;
 }
 
+static void netsec_setup_tx_dring(struct netsec_priv *priv)
+{
+	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_TX];
+	struct bpf_prog *xdp_prog = READ_ONCE(priv->xdp_prog);
+	int i;
+
+	for (i = 0; i < DESC_NUM; i++) {
+		struct netsec_de *de;
+
+		de = dring->vaddr + (DESC_SZ * i);
+		/* de->attr is not going to be accessed by the NIC
+		 * until netsec_set_tx_de() is called.
+		 * No need for a dma_wmb() here
+		 */
+		de->attr = 1U << NETSEC_TX_SHIFT_OWN_FIELD;
+	}
+
+	if (xdp_prog)
+		dring->is_xdp = true;
+	else
+		dring->is_xdp = false;
+
+}
+
 static int netsec_setup_rx_dring(struct netsec_priv *priv)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
-	int i;
+	struct bpf_prog *xdp_prog = READ_ONCE(priv->xdp_prog);
+	struct page_pool_params pp_params = { 0 };
+	int i, err;
+
+	pp_params.order = 0;
+	/* internal DMA mapping in page_pool */
+	pp_params.flags = PP_FLAG_DMA_MAP;
+	pp_params.pool_size = DESC_NUM;
+	pp_params.nid = cpu_to_node(0);
+	pp_params.dev = priv->dev;
+	pp_params.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
+
+	dring->page_pool = page_pool_create(&pp_params);
+	if (IS_ERR(dring->page_pool)) {
+		err = PTR_ERR(dring->page_pool);
+		dring->page_pool = NULL;
+		goto err_out;
+	}
+
+	err = xdp_rxq_info_reg(&dring->xdp_rxq, priv->ndev, 0);
+	if (err)
+		goto err_out;
+
+	err = xdp_rxq_info_reg_mem_model(&dring->xdp_rxq, MEM_TYPE_PAGE_POOL,
+					 dring->page_pool);
+	if (err)
+		goto err_out;
 
 	for (i = 0; i < DESC_NUM; i++) {
 		struct netsec_desc *desc = &dring->desc[i];
@@ -1071,10 +1320,10 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 		void *buf;
 		u16 len;
 
-		buf = netsec_alloc_rx_data(priv, &dma_handle, &len,
-					   false);
+		buf = netsec_alloc_rx_data(priv, &dma_handle, &len);
+
 		if (!buf) {
-			netsec_uninit_pkt_dring(priv, NETSEC_RING_RX);
+			err = -ENOMEM;
 			goto err_out;
 		}
 		desc->dma_addr = dma_handle;
@@ -1087,7 +1336,8 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 	return 0;
 
 err_out:
-	return -ENOMEM;
+	netsec_uninit_pkt_dring(priv, NETSEC_RING_RX);
+	return err;
 }
 
 static int netsec_netdev_load_ucode_region(struct netsec_priv *priv, u32 reg,
@@ -1361,6 +1611,7 @@ static int netsec_netdev_open(struct net_device *ndev)
 
 	pm_runtime_get_sync(priv->dev);
 
+	netsec_setup_tx_dring(priv);
 	ret = netsec_setup_rx_dring(priv);
 	if (ret) {
 		netif_err(priv, probe, priv->ndev,
@@ -1466,6 +1717,9 @@ static int netsec_netdev_init(struct net_device *ndev)
 	if (ret)
 		goto err2;
 
+	spin_lock_init(&priv->desc_ring[NETSEC_RING_TX].lock);
+	spin_lock_init(&priv->desc_ring[NETSEC_RING_RX].lock);
+
 	return 0;
 err2:
 	netsec_free_dring(priv, NETSEC_RING_RX);
@@ -1498,6 +1752,81 @@ static int netsec_netdev_ioctl(struct net_device *ndev, struct ifreq *ifr,
 	return phy_mii_ioctl(ndev->phydev, ifr, cmd);
 }
 
+static int netsec_xdp_xmit(struct net_device *ndev, int n,
+			   struct xdp_frame **frames, u32 flags)
+{
+	struct netsec_priv *priv = netdev_priv(ndev);
+	struct netsec_desc_ring *tx_ring = &priv->desc_ring[NETSEC_RING_TX];
+	int drops = 0;
+	int i;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	spin_lock(&tx_ring->lock);
+	for (i = 0; i < n; i++) {
+		struct xdp_frame *xdpf = frames[i];
+		int err;
+
+		err = netsec_xdp_queue_one(priv, xdpf, true);
+		if (err != NETSEC_XDP_TX) {
+			xdp_return_frame_rx_napi(xdpf);
+			drops++;
+		} else {
+			tx_ring->xdp_xmit++;
+		}
+	}
+	spin_unlock(&tx_ring->lock);
+
+	if (unlikely(flags & XDP_XMIT_FLUSH)) {
+		netsec_xdp_ring_tx_db(priv, tx_ring->xdp_xmit);
+		tx_ring->xdp_xmit = 0;
+	}
+
+	return n - drops;
+}
+
+static int netsec_xdp_setup(struct netsec_priv *priv, struct bpf_prog *prog,
+			    struct netlink_ext_ack *extack)
+{
+	struct net_device *dev = priv->ndev;
+	struct bpf_prog *old_prog;
+
+	/* For now just support only the usual MTU sized frames */
+	if (prog && dev->mtu > 1500) {
+		NL_SET_ERR_MSG_MOD(extack, "Jumbo frames not supported on XDP");
+		return -EOPNOTSUPP;
+	}
+
+	if (netif_running(dev))
+		netsec_netdev_stop(dev);
+
+	/* Detach old prog, if any */
+	old_prog = xchg(&priv->xdp_prog, prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	if (netif_running(dev))
+		netsec_netdev_open(dev);
+
+	return 0;
+}
+
+static int netsec_xdp(struct net_device *ndev, struct netdev_bpf *xdp)
+{
+	struct netsec_priv *priv = netdev_priv(ndev);
+
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return netsec_xdp_setup(priv, xdp->prog, xdp->extack);
+	case XDP_QUERY_PROG:
+		xdp->prog_id = priv->xdp_prog ? priv->xdp_prog->aux->id : 0;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct net_device_ops netsec_netdev_ops = {
 	.ndo_init		= netsec_netdev_init,
 	.ndo_uninit		= netsec_netdev_uninit,
@@ -1508,6 +1837,8 @@ static const struct net_device_ops netsec_netdev_ops = {
 	.ndo_set_mac_address    = eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= netsec_netdev_ioctl,
+	.ndo_xdp_xmit		= netsec_xdp_xmit,
+	.ndo_bpf		= netsec_xdp,
 };
 
 static int netsec_of_probe(struct platform_device *pdev,

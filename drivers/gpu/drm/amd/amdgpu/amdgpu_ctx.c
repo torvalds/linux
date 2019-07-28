@@ -22,7 +22,6 @@
  * Authors: monk liu <monk.liu@amd.com>
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_auth.h>
 #include "amdgpu.h"
 #include "amdgpu_sched.h"

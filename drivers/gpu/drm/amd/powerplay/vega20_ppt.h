@@ -36,6 +36,50 @@
 #define AVFS_CURVE 0
 #define OD8_HOTCURVE_TEMPERATURE 85
 
+#define SMU_FEATURES_LOW_MASK        0x00000000FFFFFFFF
+#define SMU_FEATURES_LOW_SHIFT       0
+#define SMU_FEATURES_HIGH_MASK       0xFFFFFFFF00000000
+#define SMU_FEATURES_HIGH_SHIFT      32
+
+enum {
+	GNLD_DPM_PREFETCHER = 0,
+	GNLD_DPM_GFXCLK,
+	GNLD_DPM_UCLK,
+	GNLD_DPM_SOCCLK,
+	GNLD_DPM_UVD,
+	GNLD_DPM_VCE,
+	GNLD_ULV,
+	GNLD_DPM_MP0CLK,
+	GNLD_DPM_LINK,
+	GNLD_DPM_DCEFCLK,
+	GNLD_DS_GFXCLK,
+	GNLD_DS_SOCCLK,
+	GNLD_DS_LCLK,
+	GNLD_PPT,
+	GNLD_TDC,
+	GNLD_THERMAL,
+	GNLD_GFX_PER_CU_CG,
+	GNLD_RM,
+	GNLD_DS_DCEFCLK,
+	GNLD_ACDC,
+	GNLD_VR0HOT,
+	GNLD_VR1HOT,
+	GNLD_FW_CTF,
+	GNLD_LED_DISPLAY,
+	GNLD_FAN_CONTROL,
+	GNLD_DIDT,
+	GNLD_GFXOFF,
+	GNLD_CG,
+	GNLD_DPM_FCLK,
+	GNLD_DS_FCLK,
+	GNLD_DS_MP1CLK,
+	GNLD_DS_MP0CLK,
+	GNLD_XGMI,
+	GNLD_ECC,
+
+	GNLD_FEATURES_MAX
+};
+
 struct vega20_dpm_level {
         bool            enabled;
         uint32_t        value;
@@ -122,6 +166,12 @@ struct vega20_od8_single_setting {
 
 struct vega20_od8_settings {
 	struct vega20_od8_single_setting	od8_settings_array[OD8_SETTING_COUNT];
+	uint8_t				*od_feature_capabilities;
+	uint32_t			*od_settings_max;
+	uint32_t			*od_settings_min;
+	void				*od8_settings;
+	bool				od_gfxclk_update;
+	bool				od_memclk_update;
 };
 
 extern void vega20_set_ppt_funcs(struct smu_context *smu);

@@ -429,7 +429,7 @@ uint oid_rt_pro_rf_write_registry_hdl(struct oid_par_priv*
 		return RNDIS_STATUS_NOT_ACCEPTED;
 	if (poid_par_priv->information_buf_len ==
 	   (sizeof(unsigned long) * 3)) {
-		if (!r8712_setrfreg_cmd(Adapter,
+		if (r8712_setrfreg_cmd(Adapter,
 			*(unsigned char *)poid_par_priv->information_buf,
 			(unsigned long)(*((unsigned long *)
 					poid_par_priv->information_buf + 2))))
@@ -467,7 +467,7 @@ uint oid_rt_pro_rf_read_registry_hdl(struct oid_par_priv *poid_par_priv)
 		 * RegDataWidth = *((unsigned long *)InformationBuffer+1);
 		 * RegDataValue =  *((unsigned long *)InformationBuffer+2);
 		 */
-			if (!r8712_getrfreg_cmd(Adapter,
+			if (r8712_getrfreg_cmd(Adapter,
 			    *(unsigned char *)poid_par_priv->information_buf,
 			    (unsigned char *)&Adapter->mppriv.workparam.io_value
 			    ))

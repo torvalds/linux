@@ -1103,12 +1103,14 @@ static int logi_dj_recv_send_report(struct dj_receiver_dev *djrcv_dev,
 
 static int logi_dj_recv_query_hidpp_devices(struct dj_receiver_dev *djrcv_dev)
 {
-	const u8 template[] = {REPORT_ID_HIDPP_SHORT,
-			       HIDPP_RECEIVER_INDEX,
-			       HIDPP_SET_REGISTER,
-			       HIDPP_REG_CONNECTION_STATE,
-			       HIDPP_FAKE_DEVICE_ARRIVAL,
-			       0x00, 0x00};
+	static const u8 template[] = {
+		REPORT_ID_HIDPP_SHORT,
+		HIDPP_RECEIVER_INDEX,
+		HIDPP_SET_REGISTER,
+		HIDPP_REG_CONNECTION_STATE,
+		HIDPP_FAKE_DEVICE_ARRIVAL,
+		0x00, 0x00
+	};
 	u8 *hidpp_report;
 	int retval;
 
@@ -1123,7 +1125,7 @@ static int logi_dj_recv_query_hidpp_devices(struct dj_receiver_dev *djrcv_dev)
 				    HID_REQ_SET_REPORT);
 
 	kfree(hidpp_report);
-	return 0;
+	return retval;
 }
 
 static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
@@ -1834,6 +1836,9 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_GAMING),
 	 .driver_data = recvr_type_gaming_hidpp},
+	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc513) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER),
+	 .driver_data = recvr_type_27mhz},
 	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc517) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_S510_RECEIVER_2),

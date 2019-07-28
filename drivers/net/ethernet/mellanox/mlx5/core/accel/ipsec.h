@@ -37,7 +37,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/accel.h>
 
-#ifdef CONFIG_MLX5_ACCEL
+#ifdef CONFIG_MLX5_FPGA_IPSEC
 
 #define MLX5_IPSEC_DEV(mdev) (mlx5_accel_ipsec_device_caps(mdev) & \
 			      MLX5_ACCEL_IPSEC_CAP_DEVICE)
@@ -54,6 +54,7 @@ void *mlx5_accel_esp_create_hw_context(struct mlx5_core_dev *mdev,
 void mlx5_accel_esp_free_hw_context(void *context);
 
 int mlx5_accel_ipsec_init(struct mlx5_core_dev *mdev);
+void mlx5_accel_ipsec_build_fs_cmds(void);
 void mlx5_accel_ipsec_cleanup(struct mlx5_core_dev *mdev);
 
 #else
@@ -77,6 +78,10 @@ static inline void mlx5_accel_esp_free_hw_context(void *context)
 static inline int mlx5_accel_ipsec_init(struct mlx5_core_dev *mdev)
 {
 	return 0;
+}
+
+static inline void mlx5_accel_ipsec_build_fs_cmds(void)
+{
 }
 
 static inline void mlx5_accel_ipsec_cleanup(struct mlx5_core_dev *mdev)

@@ -12,9 +12,10 @@
 #include "strlist.h"
 #include <string.h>
 #include <api/fs/fs.h>
+#include <linux/string.h>
+#include <linux/zalloc.h>
 #include "asm/bug.h"
 #include "thread_map.h"
-#include "util.h"
 #include "debug.h"
 #include "event.h"
 
@@ -392,7 +393,7 @@ static int get_comm(char **comm, pid_t pid)
 		 * mark the end of the string.
 		 */
 		(*comm)[size] = 0;
-		rtrim(*comm);
+		strim(*comm);
 	}
 
 	free(path);
@@ -479,7 +480,7 @@ int thread_map__remove(struct thread_map *threads, int idx)
 	/*
 	 * Free the 'idx' item and shift the rest up.
 	 */
-	free(threads->map[idx].comm);
+	zfree(&threads->map[idx].comm);
 
 	for (i = idx; i < threads->nr - 1; i++)
 		threads->map[i] = threads->map[i + 1];

@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 
 #include "ObjectID.h"
@@ -1313,6 +1315,8 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 			ATOM_ENCODER_CAP_RECORD_HBR3_EN) ? 1 : 0;
 	info->HDMI_6GB_EN = (record->encodercaps &
 			ATOM_ENCODER_CAP_RECORD_HDMI6Gbps_EN) ? 1 : 0;
+	info->DP_IS_USB_C = (record->encodercaps &
+			ATOM_ENCODER_CAP_RECORD_USB_C_TYPE) ? 1 : 0;
 
 	return BP_RESULT_OK;
 }
@@ -1398,6 +1402,10 @@ static enum bp_result get_integrated_info_v11(
 	info->ma_channel_number = info_v11->umachannelnumber;
 	info->lvds_ss_percentage =
 	le16_to_cpu(info_v11->lvds_ss_percentage);
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	info->dp_ss_control =
+	le16_to_cpu(info_v11->reserved1);
+#endif
 	info->lvds_sspread_rate_in_10hz =
 	le16_to_cpu(info_v11->lvds_ss_rate_10hz);
 	info->hdmi_ss_percentage =

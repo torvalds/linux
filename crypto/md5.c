@@ -228,9 +228,10 @@ static struct shash_alg alg = {
 	.descsize	=	sizeof(struct md5_state),
 	.statesize	=	sizeof(struct md5_state),
 	.base		=	{
-		.cra_name	=	"md5",
-		.cra_blocksize	=	MD5_HMAC_BLOCK_SIZE,
-		.cra_module	=	THIS_MODULE,
+		.cra_name	 =	"md5",
+		.cra_driver_name =	"md5-generic",
+		.cra_blocksize	 =	MD5_HMAC_BLOCK_SIZE,
+		.cra_module	 =	THIS_MODULE,
 	}
 };
 

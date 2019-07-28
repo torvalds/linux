@@ -310,8 +310,6 @@ void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
 	int i, j;
 
 	entry = debugfs_create_dir("vbif", debugfs_root);
-	if (IS_ERR_OR_NULL(entry))
-		return;
 
 	for (i = 0; i < dpu_kms->catalog->vbif_count; i++) {
 		struct dpu_vbif_cfg *vbif = &dpu_kms->catalog->vbif[i];
@@ -319,8 +317,6 @@ void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
 		snprintf(vbif_name, sizeof(vbif_name), "%d", vbif->id);
 
 		debugfs_vbif = debugfs_create_dir(vbif_name, entry);
-		if (IS_ERR_OR_NULL(debugfs_vbif))
-			continue;
 
 		debugfs_create_u32("features", 0600, debugfs_vbif,
 			(u32 *)&vbif->features);

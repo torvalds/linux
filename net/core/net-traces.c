@@ -43,6 +43,10 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(fdb_delete);
 EXPORT_TRACEPOINT_SYMBOL_GPL(br_fdb_update);
 #endif
 
+#if IS_ENABLED(CONFIG_PAGE_POOL)
+#include <trace/events/page_pool.h>
+#endif
+
 #include <trace/events/neigh.h>
 EXPORT_TRACEPOINT_SYMBOL_GPL(neigh_update);
 EXPORT_TRACEPOINT_SYMBOL_GPL(neigh_update_done);

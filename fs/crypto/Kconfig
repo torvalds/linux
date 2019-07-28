@@ -7,7 +7,6 @@ config FS_ENCRYPTION
 	select CRYPTO_ECB
 	select CRYPTO_XTS
 	select CRYPTO_CTS
-	select CRYPTO_SHA256
 	select KEYS
 	help
 	  Enable encryption of files and directories.  This

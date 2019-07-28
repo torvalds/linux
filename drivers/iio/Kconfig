@@ -28,7 +28,7 @@ config IIO_CONFIGFS
 	help
 	  This allows configuring various IIO bits through configfs
 	  (e.g. software triggers). For more info see
-	  Documentation/iio/iio_configfs.txt.
+	  Documentation/iio/iio_configfs.rst.
 
 config IIO_TRIGGER
 	bool "Enable triggered sampling support"

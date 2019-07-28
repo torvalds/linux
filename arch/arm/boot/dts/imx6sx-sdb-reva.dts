@@ -154,3 +154,19 @@
 	enable-active-high;
 	vin-supply = <&reg_can_en>;
 };
+
+&reg_vdd1p1 {
+	vin-supply = <&vgen6_reg>;
+};
+
+&reg_vdd3p0 {
+	vin-supply = <&sw2_reg>;
+};
+
+&reg_vdd2p5 {
+	vin-supply = <&vgen6_reg>;
+};
+
+&snvs_pwrkey {
+	status = "okay";
+};

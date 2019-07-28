@@ -12,6 +12,12 @@
 #include "bmi.h"
 #include "debug.h"
 
+/* Types of fw logging mode */
+enum ath_dbg_mode {
+	ATH10K_ENABLE_FW_LOG_DIAG,
+	ATH10K_ENABLE_FW_LOG_CE,
+};
+
 struct ath10k_hif_sg_item {
 	u16 transfer_id;
 	void *transfer_context; /* NULL = tx completion callback not called */
@@ -88,6 +94,7 @@ struct ath10k_hif_ops {
 
 	int (*get_target_info)(struct ath10k *ar,
 			       struct bmi_target_info *target_info);
+	int (*set_target_log_mode)(struct ath10k *ar, u8 fw_log_mode);
 };
 
 static inline int ath10k_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
@@ -230,4 +237,12 @@ static inline int ath10k_hif_get_target_info(struct ath10k *ar,
 	return ar->hif.ops->get_target_info(ar, tgt_info);
 }
 
+static inline int ath10k_hif_set_target_log_mode(struct ath10k *ar,
+						 u8 fw_log_mode)
+{
+	if (!ar->hif.ops->set_target_log_mode)
+		return -EOPNOTSUPP;
+
+	return ar->hif.ops->set_target_log_mode(ar, fw_log_mode);
+}
 #endif /* _HIF_H_ */

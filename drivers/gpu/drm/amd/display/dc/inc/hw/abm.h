@@ -37,7 +37,7 @@ struct abm_backlight_registers {
 struct abm {
 	struct dc_context *ctx;
 	const struct abm_funcs *funcs;
-
+	bool dmcu_is_running;
 	/* registers setting needs to be saved and restored at InitBacklight */
 	struct abm_backlight_registers stored_backlight_registers;
 };

@@ -329,7 +329,7 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 		       "process: %d\n", task_tgid_vnr(current));
 		/* We are under mmap_sem, release it such that current can terminate */
 		up_write(&current->mm->mmap_sem);
-		force_sig(SIGKILL, current);
+		force_sig(SIGKILL);
 		do_signal(&current->thread.regs);
 	}
 }
@@ -487,7 +487,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
 
 kill:
 	printk(KERN_ERR "Failed to flush page for address 0x%lx\n", address);
-	force_sig(SIGKILL, current);
+	force_sig(SIGKILL);
 }
 
 pgd_t *pgd_offset_proc(struct mm_struct *mm, unsigned long address)

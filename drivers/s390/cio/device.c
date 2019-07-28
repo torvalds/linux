@@ -643,10 +643,10 @@ static int ccw_device_add(struct ccw_device *cdev)
 	return device_add(dev);
 }
 
-static int match_dev_id(struct device *dev, void *data)
+static int match_dev_id(struct device *dev, const void *data)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
-	struct ccw_dev_id *dev_id = data;
+	struct ccw_dev_id *dev_id = (void *)data;
 
 	return ccw_dev_id_is_equal(&cdev->private->dev_id, dev_id);
 }
@@ -1699,11 +1699,9 @@ EXPORT_SYMBOL_GPL(ccw_device_force_console);
  * get ccw_device matching the busid, but only if owned by cdrv
  */
 static int
-__ccwdev_check_busid(struct device *dev, void *id)
+__ccwdev_check_busid(struct device *dev, const void *id)
 {
-	char *bus_id;
-
-	bus_id = id;
+	const char *bus_id = id;
 
 	return (strcmp(bus_id, dev_name(dev)) == 0);
 }

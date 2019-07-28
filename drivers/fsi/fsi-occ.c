@@ -412,6 +412,7 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 		msecs_to_jiffies(OCC_CMD_IN_PRG_WAIT_MS);
 	struct occ *occ = dev_get_drvdata(dev);
 	struct occ_response *resp = response;
+	u8 seq_no;
 	u16 resp_data_length;
 	unsigned long start;
 	int rc;
@@ -426,6 +427,8 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 
 	mutex_lock(&occ->occ_lock);
 
+	/* Extract the seq_no from the command (first byte) */
+	seq_no = *(const u8 *)request;
 	rc = occ_putsram(occ, OCC_SRAM_CMD_ADDR, request, req_len);
 	if (rc)
 		goto done;
@@ -441,11 +444,17 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 		if (rc)
 			goto done;
 
-		if (resp->return_status == OCC_RESP_CMD_IN_PRG) {
+		if (resp->return_status == OCC_RESP_CMD_IN_PRG ||
+		    resp->seq_no != seq_no) {
 			rc = -ETIMEDOUT;
 
-			if (time_after(jiffies, start + timeout))
-				break;
+			if (time_after(jiffies, start + timeout)) {
+				dev_err(occ->dev, "resp timeout status=%02x "
+					"resp seq_no=%d our seq_no=%d\n",
+					resp->return_status, resp->seq_no,
+					seq_no);
+				goto done;
+			}
 
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			schedule_timeout(wait_time);

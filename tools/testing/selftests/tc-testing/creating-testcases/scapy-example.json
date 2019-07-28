@@ -1,0 +1,98 @@
+[
+    {
+        "id": "b1e9",
+        "name": "Test matching of source IP",
+        "category": [
+            "actions",
+            "scapy"
+        ],
+        "plugins": {
+            "requires": [
+                "nsPlugin",
+                "scapyPlugin"
+            ]
+        },
+        "setup": [
+            [
+                "$TC qdisc del dev $DEV1 ingress",
+                0,
+                1,
+                2,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 ingress"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: prio 3 protocol ip flower src_ip 16.61.16.61 flowid 1:1 action ok",
+        "scapy": {
+            "iface": "$DEV0",
+            "count": 1,
+            "packet": "Ether(type=0x800)/IP(src='16.61.16.61')/ICMP()"
+        },
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s -j filter ls dev $DEV1 ingress prio 3",
+        "matchJSON": [
+            {
+                "path": [
+                    1,
+                    "options",
+                    "actions",
+                    0,
+                    "stats",
+                    "packets"
+                ],
+                "value": 1
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
+    },
+    {
+        "id": "e9c4",
+        "name": "Test matching of source IP with wrong count",
+        "category": [
+            "actions",
+            "scapy"
+        ],
+        "plugins": {
+            "requires": [
+                "nsPlugin",
+                "scapyPlugin"
+            ]
+        },
+        "setup": [
+            [
+                "$TC qdisc del dev $DEV1 ingress",
+                0,
+                1,
+                2,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 ingress"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: prio 3 protocol ip flower src_ip 16.61.16.61 flowid 1:1 action ok",
+        "scapy": {
+            "iface": "$DEV0",
+            "count": 3,
+            "packet": "Ether(type=0x800)/IP(src='16.61.16.61')/ICMP()"
+        },
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s -j filter ls dev $DEV1 parent ffff:",
+        "matchJSON": [
+            {
+                "path": [
+                    1,
+                    "options",
+                    "actions",
+                    0,
+                    "stats",
+                    "packets"
+                ],
+                "value": 1
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress"
+        ]
+    }
+]

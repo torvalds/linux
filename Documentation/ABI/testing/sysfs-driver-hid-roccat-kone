@@ -5,7 +5,7 @@ Description:	It is possible to switch the dpi setting of the mouse with the
 		press of a button.
 		When read, this file returns the raw number of the actual dpi
 		setting reported by the mouse. This number has to be further
-		processed to receive the real dpi value.
+		processed to receive the real dpi value:
 
 		VALUE DPI
 		1     800

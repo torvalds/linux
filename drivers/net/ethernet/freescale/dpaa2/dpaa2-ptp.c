@@ -5,114 +5,58 @@
  */
 
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/ptp_clock_kernel.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/msi.h>
 #include <linux/fsl/mc.h>
+#include <linux/fsl/ptp_qoriq.h>
 
 #include "dpaa2-ptp.h"
 
-struct ptp_dpaa2_priv {
-	struct fsl_mc_device *ptp_mc_dev;
-	struct ptp_clock *clock;
-	struct ptp_clock_info caps;
-	u32 freq_comp;
-};
-
-/* PTP clock operations */
-static int ptp_dpaa2_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
+static int dpaa2_ptp_enable(struct ptp_clock_info *ptp,
+			    struct ptp_clock_request *rq, int on)
 {
-	struct ptp_dpaa2_priv *ptp_dpaa2 =
-		container_of(ptp, struct ptp_dpaa2_priv, caps);
-	struct fsl_mc_device *mc_dev = ptp_dpaa2->ptp_mc_dev;
-	struct device *dev = &mc_dev->dev;
-	u64 adj;
-	u32 diff, tmr_add;
-	int neg_adj = 0;
-	int err = 0;
+	struct ptp_qoriq *ptp_qoriq = container_of(ptp, struct ptp_qoriq, caps);
+	struct fsl_mc_device *mc_dev;
+	struct device *dev;
+	u32 mask = 0;
+	u32 bit;
+	int err;
 
-	if (ppb < 0) {
-		neg_adj = 1;
-		ppb = -ppb;
+	dev = ptp_qoriq->dev;
+	mc_dev = to_fsl_mc_device(dev);
+
+	switch (rq->type) {
+	case PTP_CLK_REQ_PPS:
+		bit = DPRTC_EVENT_PPS;
+		break;
+	default:
+		return -EOPNOTSUPP;
 	}
 
-	tmr_add = ptp_dpaa2->freq_comp;
-	adj = tmr_add;
-	adj *= ppb;
-	diff = div_u64(adj, 1000000000ULL);
-
-	tmr_add = neg_adj ? tmr_add - diff : tmr_add + diff;
-
-	err = dprtc_set_freq_compensation(mc_dev->mc_io, 0,
-					  mc_dev->mc_handle, tmr_add);
-	if (err)
-		dev_err(dev, "dprtc_set_freq_compensation err %d\n", err);
-	return err;
-}
-
-static int ptp_dpaa2_adjtime(struct ptp_clock_info *ptp, s64 delta)
-{
-	struct ptp_dpaa2_priv *ptp_dpaa2 =
-		container_of(ptp, struct ptp_dpaa2_priv, caps);
-	struct fsl_mc_device *mc_dev = ptp_dpaa2->ptp_mc_dev;
-	struct device *dev = &mc_dev->dev;
-	s64 now;
-	int err = 0;
-
-	err = dprtc_get_time(mc_dev->mc_io, 0, mc_dev->mc_handle, &now);
-	if (err) {
-		dev_err(dev, "dprtc_get_time err %d\n", err);
+	err = dprtc_get_irq_mask(mc_dev->mc_io, 0, mc_dev->mc_handle,
+				 DPRTC_IRQ_INDEX, &mask);
+	if (err < 0) {
+		dev_err(dev, "dprtc_get_irq_mask(): %d\n", err);
 		return err;
 	}
 
-	now += delta;
+	if (on)
+		mask |= bit;
+	else
+		mask &= ~bit;
 
-	err = dprtc_set_time(mc_dev->mc_io, 0, mc_dev->mc_handle, now);
-	if (err)
-		dev_err(dev, "dprtc_set_time err %d\n", err);
-	return err;
-}
-
-static int ptp_dpaa2_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
-{
-	struct ptp_dpaa2_priv *ptp_dpaa2 =
-		container_of(ptp, struct ptp_dpaa2_priv, caps);
-	struct fsl_mc_device *mc_dev = ptp_dpaa2->ptp_mc_dev;
-	struct device *dev = &mc_dev->dev;
-	u64 ns;
-	u32 remainder;
-	int err = 0;
-
-	err = dprtc_get_time(mc_dev->mc_io, 0, mc_dev->mc_handle, &ns);
-	if (err) {
-		dev_err(dev, "dprtc_get_time err %d\n", err);
+	err = dprtc_set_irq_mask(mc_dev->mc_io, 0, mc_dev->mc_handle,
+				 DPRTC_IRQ_INDEX, mask);
+	if (err < 0) {
+		dev_err(dev, "dprtc_set_irq_mask(): %d\n", err);
 		return err;
 	}
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000, &remainder);
-	ts->tv_nsec = remainder;
-	return err;
+	return 0;
 }
 
-static int ptp_dpaa2_settime(struct ptp_clock_info *ptp,
-			     const struct timespec64 *ts)
-{
-	struct ptp_dpaa2_priv *ptp_dpaa2 =
-		container_of(ptp, struct ptp_dpaa2_priv, caps);
-	struct fsl_mc_device *mc_dev = ptp_dpaa2->ptp_mc_dev;
-	struct device *dev = &mc_dev->dev;
-	u64 ns;
-	int err = 0;
-
-	ns = ts->tv_sec * 1000000000ULL;
-	ns += ts->tv_nsec;
-
-	err = dprtc_set_time(mc_dev->mc_io, 0, mc_dev->mc_handle, ns);
-	if (err)
-		dev_err(dev, "dprtc_set_time err %d\n", err);
-	return err;
-}
-
-static const struct ptp_clock_info ptp_dpaa2_caps = {
+static const struct ptp_clock_info dpaa2_ptp_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "DPAA2 PTP Clock",
 	.max_adj	= 512000,
@@ -121,21 +65,58 @@ static const struct ptp_clock_info ptp_dpaa2_caps = {
 	.n_per_out	= 3,
 	.n_pins		= 0,
 	.pps		= 1,
-	.adjfreq	= ptp_dpaa2_adjfreq,
-	.adjtime	= ptp_dpaa2_adjtime,
-	.gettime64	= ptp_dpaa2_gettime,
-	.settime64	= ptp_dpaa2_settime,
+	.adjfine	= ptp_qoriq_adjfine,
+	.adjtime	= ptp_qoriq_adjtime,
+	.gettime64	= ptp_qoriq_gettime,
+	.settime64	= ptp_qoriq_settime,
+	.enable		= dpaa2_ptp_enable,
 };
+
+static irqreturn_t dpaa2_ptp_irq_handler_thread(int irq, void *priv)
+{
+	struct ptp_qoriq *ptp_qoriq = priv;
+	struct ptp_clock_event event;
+	struct fsl_mc_device *mc_dev;
+	struct device *dev;
+	u32 status = 0;
+	int err;
+
+	dev = ptp_qoriq->dev;
+	mc_dev = to_fsl_mc_device(dev);
+
+	err = dprtc_get_irq_status(mc_dev->mc_io, 0, mc_dev->mc_handle,
+				   DPRTC_IRQ_INDEX, &status);
+	if (unlikely(err)) {
+		dev_err(dev, "dprtc_get_irq_status err %d\n", err);
+		return IRQ_NONE;
+	}
+
+	if (status & DPRTC_EVENT_PPS) {
+		event.type = PTP_CLOCK_PPS;
+		ptp_clock_event(ptp_qoriq->clock, &event);
+	}
+
+	err = dprtc_clear_irq_status(mc_dev->mc_io, 0, mc_dev->mc_handle,
+				     DPRTC_IRQ_INDEX, status);
+	if (unlikely(err)) {
+		dev_err(dev, "dprtc_clear_irq_status err %d\n", err);
+		return IRQ_NONE;
+	}
+
+	return IRQ_HANDLED;
+}
 
 static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 {
 	struct device *dev = &mc_dev->dev;
-	struct ptp_dpaa2_priv *ptp_dpaa2;
-	u32 tmr_add = 0;
+	struct fsl_mc_device_irq *irq;
+	struct ptp_qoriq *ptp_qoriq;
+	struct device_node *node;
+	void __iomem *base;
 	int err;
 
-	ptp_dpaa2 = devm_kzalloc(dev, sizeof(*ptp_dpaa2), GFP_KERNEL);
-	if (!ptp_dpaa2)
+	ptp_qoriq = devm_kzalloc(dev, sizeof(*ptp_qoriq), GFP_KERNEL);
+	if (!ptp_qoriq)
 		return -ENOMEM;
 
 	err = fsl_mc_portal_allocate(mc_dev, 0, &mc_dev->mc_io);
@@ -154,30 +135,60 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 		goto err_free_mcp;
 	}
 
-	ptp_dpaa2->ptp_mc_dev = mc_dev;
+	ptp_qoriq->dev = dev;
 
-	err = dprtc_get_freq_compensation(mc_dev->mc_io, 0,
-					  mc_dev->mc_handle, &tmr_add);
+	node = of_find_compatible_node(NULL, NULL, "fsl,dpaa2-ptp");
+	if (!node) {
+		err = -ENODEV;
+		goto err_close;
+	}
+
+	dev->of_node = node;
+
+	base = of_iomap(node, 0);
+	if (!base) {
+		err = -ENOMEM;
+		goto err_close;
+	}
+
+	err = fsl_mc_allocate_irqs(mc_dev);
 	if (err) {
-		dev_err(dev, "dprtc_get_freq_compensation err %d\n", err);
-		goto err_close;
+		dev_err(dev, "MC irqs allocation failed\n");
+		goto err_unmap;
 	}
 
-	ptp_dpaa2->freq_comp = tmr_add;
-	ptp_dpaa2->caps = ptp_dpaa2_caps;
+	irq = mc_dev->irqs[0];
+	ptp_qoriq->irq = irq->msi_desc->irq;
 
-	ptp_dpaa2->clock = ptp_clock_register(&ptp_dpaa2->caps, dev);
-	if (IS_ERR(ptp_dpaa2->clock)) {
-		err = PTR_ERR(ptp_dpaa2->clock);
-		goto err_close;
+	err = devm_request_threaded_irq(dev, ptp_qoriq->irq, NULL,
+					dpaa2_ptp_irq_handler_thread,
+					IRQF_NO_SUSPEND | IRQF_ONESHOT,
+					dev_name(dev), ptp_qoriq);
+	if (err < 0) {
+		dev_err(dev, "devm_request_threaded_irq(): %d\n", err);
+		goto err_free_mc_irq;
 	}
 
-	dpaa2_phc_index = ptp_clock_index(ptp_dpaa2->clock);
+	err = dprtc_set_irq_enable(mc_dev->mc_io, 0, mc_dev->mc_handle,
+				   DPRTC_IRQ_INDEX, 1);
+	if (err < 0) {
+		dev_err(dev, "dprtc_set_irq_enable(): %d\n", err);
+		goto err_free_mc_irq;
+	}
 
-	dev_set_drvdata(dev, ptp_dpaa2);
+	err = ptp_qoriq_init(ptp_qoriq, base, &dpaa2_ptp_caps);
+	if (err)
+		goto err_free_mc_irq;
+
+	dpaa2_phc_index = ptp_qoriq->phc_index;
+	dev_set_drvdata(dev, ptp_qoriq);
 
 	return 0;
 
+err_free_mc_irq:
+	fsl_mc_free_irqs(mc_dev);
+err_unmap:
+	iounmap(base);
 err_close:
 	dprtc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 err_free_mcp:
@@ -188,12 +199,15 @@ err_exit:
 
 static int dpaa2_ptp_remove(struct fsl_mc_device *mc_dev)
 {
-	struct ptp_dpaa2_priv *ptp_dpaa2;
 	struct device *dev = &mc_dev->dev;
+	struct ptp_qoriq *ptp_qoriq;
 
-	ptp_dpaa2 = dev_get_drvdata(dev);
-	ptp_clock_unregister(ptp_dpaa2->clock);
+	ptp_qoriq = dev_get_drvdata(dev);
 
+	dpaa2_phc_index = -1;
+	ptp_qoriq_free(ptp_qoriq);
+
+	fsl_mc_free_irqs(mc_dev);
 	dprtc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 	fsl_mc_portal_free(mc_dev->mc_io);
 

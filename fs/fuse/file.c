@@ -3112,9 +3112,9 @@ out:
 	return err;
 }
 
-static ssize_t fuse_copy_file_range(struct file *file_in, loff_t pos_in,
-				    struct file *file_out, loff_t pos_out,
-				    size_t len, unsigned int flags)
+static ssize_t __fuse_copy_file_range(struct file *file_in, loff_t pos_in,
+				      struct file *file_out, loff_t pos_out,
+				      size_t len, unsigned int flags)
 {
 	struct fuse_file *ff_in = file_in->private_data;
 	struct fuse_file *ff_out = file_out->private_data;
@@ -3142,6 +3142,9 @@ static ssize_t fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 	if (fc->no_copy_file_range)
 		return -EOPNOTSUPP;
 
+	if (file_inode(file_in)->i_sb != file_inode(file_out)->i_sb)
+		return -EXDEV;
+
 	if (fc->writeback_cache) {
 		inode_lock(inode_in);
 		err = fuse_writeback_range(inode_in, pos_in, pos_in + len);
@@ -3151,6 +3154,10 @@ static ssize_t fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 	}
 
 	inode_lock(inode_out);
+
+	err = file_modified(file_out);
+	if (err)
+		goto out;
 
 	if (fc->writeback_cache) {
 		err = fuse_writeback_range(inode_out, pos_out, pos_out + len);
@@ -3190,8 +3197,24 @@ out:
 		clear_bit(FUSE_I_SIZE_UNSTABLE, &fi_out->state);
 
 	inode_unlock(inode_out);
+	file_accessed(file_in);
 
 	return err;
+}
+
+static ssize_t fuse_copy_file_range(struct file *src_file, loff_t src_off,
+				    struct file *dst_file, loff_t dst_off,
+				    size_t len, unsigned int flags)
+{
+	ssize_t ret;
+
+	ret = __fuse_copy_file_range(src_file, src_off, dst_file, dst_off,
+				     len, flags);
+
+	if (ret == -EOPNOTSUPP || ret == -EXDEV)
+		ret = generic_copy_file_range(src_file, src_off, dst_file,
+					      dst_off, len, flags);
+	return ret;
 }
 
 static const struct file_operations fuse_file_operations = {

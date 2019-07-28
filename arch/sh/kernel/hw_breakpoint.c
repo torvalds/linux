@@ -338,7 +338,7 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 		/* Deliver the signal to userspace */
 		if (!arch_check_bp_in_kernelspace(&bp->hw.info)) {
 			force_sig_fault(SIGTRAP, TRAP_HWBKPT,
-					(void __user *)NULL, current);
+					(void __user *)NULL);
 		}
 
 		rcu_read_unlock();

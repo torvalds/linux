@@ -97,75 +97,31 @@ static int latter_switch_fetching_mode(struct snd_ff *ff, bool enable)
 				  LATTER_FETCH_MODE, &reg, sizeof(reg), 0);
 }
 
-static int keep_resources(struct snd_ff *ff, unsigned int rate)
+static int latter_allocate_resources(struct snd_ff *ff, unsigned int rate)
 {
 	enum snd_ff_stream_mode mode;
-	int i;
-	int err;
-
-	// Check whether the given value is supported or not.
-	for (i = 0; i < CIP_SFC_COUNT; i++) {
-		if (amdtp_rate_table[i] == rate)
-			break;
-	}
-	if (i >= CIP_SFC_COUNT)
-		return -EINVAL;
-
-	err = snd_ff_stream_get_multiplier_mode(i, &mode);
-	if (err < 0)
-		return err;
-
-	/* Keep resources for in-stream. */
-	ff->tx_resources.channels_mask = 0x00000000000000ffuLL;
-	err = fw_iso_resources_allocate(&ff->tx_resources,
-			amdtp_stream_get_max_payload(&ff->tx_stream),
-			fw_parent_device(ff->unit)->max_speed);
-	if (err < 0)
-		return err;
-
-	/* Keep resources for out-stream. */
-	ff->rx_resources.channels_mask = 0x00000000000000ffuLL;
-	err = fw_iso_resources_allocate(&ff->rx_resources,
-			amdtp_stream_get_max_payload(&ff->rx_stream),
-			fw_parent_device(ff->unit)->max_speed);
-	if (err < 0)
-		fw_iso_resources_free(&ff->tx_resources);
-
-	return err;
-}
-
-static int latter_begin_session(struct snd_ff *ff, unsigned int rate)
-{
-	static const struct {
-		unsigned int stf;
-		unsigned int code;
-		unsigned int flag;
-	} *entry, rate_table[] = {
-		{ 32000,  0x00, 0x92, },
-		{ 44100,  0x02, 0x92, },
-		{ 48000,  0x04, 0x92, },
-		{ 64000,  0x08, 0x8e, },
-		{ 88200,  0x0a, 0x8e, },
-		{ 96000,  0x0c, 0x8e, },
-		{ 128000, 0x10, 0x8c, },
-		{ 176400, 0x12, 0x8c, },
-		{ 192000, 0x14, 0x8c, },
-	};
-	u32 data;
+	unsigned int code;
 	__le32 reg;
 	unsigned int count;
 	int i;
 	int err;
 
-	for (i = 0; i < ARRAY_SIZE(rate_table); ++i) {
-		entry = rate_table + i;
-		if (entry->stf == rate)
-			break;
-	}
-	if (i == ARRAY_SIZE(rate_table))
+	// Set the number of data blocks transferred in a second.
+	if (rate % 32000 == 0)
+		code = 0x00;
+	else if (rate % 44100 == 0)
+		code = 0x02;
+	else if (rate % 48000 == 0)
+		code = 0x04;
+	else
 		return -EINVAL;
 
-	reg = cpu_to_le32(entry->code);
+	if (rate >= 64000 && rate < 128000)
+		code |= 0x08;
+	else if (rate >= 128000 && rate < 192000)
+		code |= 0x10;
+
+	reg = cpu_to_le32(code);
 	err = snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
 				 LATTER_STF, &reg, sizeof(reg), 0);
 	if (err < 0)
@@ -187,9 +143,62 @@ static int latter_begin_session(struct snd_ff *ff, unsigned int rate)
 	if (count == 10)
 		return -ETIMEDOUT;
 
-	err = keep_resources(ff, rate);
+	for (i = 0; i < ARRAY_SIZE(amdtp_rate_table); ++i) {
+		if (rate == amdtp_rate_table[i])
+			break;
+	}
+	if (i == ARRAY_SIZE(amdtp_rate_table))
+		return -EINVAL;
+
+	err = snd_ff_stream_get_multiplier_mode(i, &mode);
 	if (err < 0)
 		return err;
+
+	// Keep resources for in-stream.
+	ff->tx_resources.channels_mask = 0x00000000000000ffuLL;
+	err = fw_iso_resources_allocate(&ff->tx_resources,
+			amdtp_stream_get_max_payload(&ff->tx_stream),
+			fw_parent_device(ff->unit)->max_speed);
+	if (err < 0)
+		return err;
+
+	// Keep resources for out-stream.
+	ff->rx_resources.channels_mask = 0x00000000000000ffuLL;
+	err = fw_iso_resources_allocate(&ff->rx_resources,
+			amdtp_stream_get_max_payload(&ff->rx_stream),
+			fw_parent_device(ff->unit)->max_speed);
+	if (err < 0)
+		fw_iso_resources_free(&ff->tx_resources);
+
+	return err;
+}
+
+static int latter_begin_session(struct snd_ff *ff, unsigned int rate)
+{
+	unsigned int generation = ff->rx_resources.generation;
+	unsigned int flag;
+	u32 data;
+	__le32 reg;
+	int err;
+
+	if (rate >= 32000 && rate <= 48000)
+		flag = 0x92;
+	else if (rate >= 64000 && rate <= 96000)
+		flag = 0x8e;
+	else if (rate >= 128000 && rate <= 192000)
+		flag = 0x8c;
+	else
+		return -EINVAL;
+
+	if (generation != fw_parent_device(ff->unit)->card->generation) {
+		err = fw_iso_resources_update(&ff->tx_resources);
+		if (err < 0)
+			return err;
+
+		err = fw_iso_resources_update(&ff->rx_resources);
+		if (err < 0)
+			return err;
+	}
 
 	data = (ff->tx_resources.channel << 8) | ff->rx_resources.channel;
 	reg = cpu_to_le32(data);
@@ -200,7 +209,7 @@ static int latter_begin_session(struct snd_ff *ff, unsigned int rate)
 
 	// Always use the maximum number of data channels in data block of
 	// packet.
-	reg = cpu_to_le32(entry->flag);
+	reg = cpu_to_le32(flag);
 	return snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
 				  LATTER_ISOC_START, &reg, sizeof(reg), 0);
 }
@@ -424,6 +433,7 @@ const struct snd_ff_protocol snd_ff_protocol_latter = {
 	.fill_midi_msg		= latter_fill_midi_msg,
 	.get_clock		= latter_get_clock,
 	.switch_fetching_mode	= latter_switch_fetching_mode,
+	.allocate_resources	= latter_allocate_resources,
 	.begin_session		= latter_begin_session,
 	.finish_session		= latter_finish_session,
 	.dump_status		= latter_dump_status,

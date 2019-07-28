@@ -62,6 +62,7 @@
 
 /* System */
 #define TC_IDREG		0x0500
+#define SYSSTAT			0x0508
 #define SYSCTRL			0x0510
 #define DP0_AUDSRC_NO_INPUT		(0 << 3)
 #define DP0_AUDSRC_I2S_RX		(1 << 3)
@@ -69,6 +70,19 @@
 #define DP0_VIDSRC_DSI_RX		(1 << 0)
 #define DP0_VIDSRC_DPI_RX		(2 << 0)
 #define DP0_VIDSRC_COLOR_BAR		(3 << 0)
+#define GPIOM			0x0540
+#define GPIOC			0x0544
+#define GPIOO			0x0548
+#define GPIOI			0x054c
+#define INTCTL_G		0x0560
+#define INTSTS_G		0x0564
+
+#define INT_SYSERR		BIT(16)
+#define INT_GPIO_H(x)		(1 << (x == 0 ? 2 : 10))
+#define INT_GPIO_LC(x)		(1 << (x == 0 ? 3 : 11))
+
+#define INT_GP0_LCNT		0x0584
+#define INT_GP1_LCNT		0x0588
 
 /* Control */
 #define DP0CTL			0x0600
@@ -177,11 +191,8 @@ module_param_named(test, tc_test_pattern, bool, 0644);
 struct tc_edp_link {
 	struct drm_dp_link	base;
 	u8			assr;
-	int			scrambler_dis;
-	int			spread;
-	int			coding8b10b;
-	u8			swing;
-	u8			preemp;
+	bool			scrambler_dis;
+	bool			spread;
 };
 
 struct tc_data {
@@ -199,7 +210,7 @@ struct tc_data {
 	/* display edid */
 	struct edid		*edid;
 	/* current mode */
-	const struct drm_display_mode	*mode;
+	struct drm_display_mode	mode;
 
 	u32			rev;
 	u8			assr;
@@ -207,6 +218,12 @@ struct tc_data {
 	struct gpio_desc	*sd_gpio;
 	struct gpio_desc	*reset_gpio;
 	struct clk		*refclk;
+
+	/* do we have IRQ */
+	bool			have_irq;
+
+	/* HPD pin number (0 or 1) or -ENODEV */
+	int			hpd_pin;
 };
 
 static inline struct tc_data *aux_to_tc(struct drm_dp_aux *a)
@@ -277,12 +294,15 @@ static int tc_aux_get_status(struct tc_data *tc, u8 *reply)
 	ret = regmap_read(tc->regmap, DP0_AUXSTATUS, &value);
 	if (ret < 0)
 		return ret;
+
 	if (value & AUX_BUSY) {
-		if (value & AUX_TIMEOUT) {
-			dev_err(tc->dev, "i2c access timeout!\n");
-			return -ETIMEDOUT;
-		}
+		dev_err(tc->dev, "aux busy!\n");
 		return -EBUSY;
+	}
+
+	if (value & AUX_TIMEOUT) {
+		dev_err(tc->dev, "aux access timeout!\n");
+		return -ETIMEDOUT;
 	}
 
 	*reply = (value & AUX_STATUS_MASK) >> AUX_STATUS_SHIFT;
@@ -378,13 +398,10 @@ static u32 tc_srcctrl(struct tc_data *tc)
 	 * No training pattern, skew lane 1 data by two LSCLK cycles with
 	 * respect to lane 0 data, AutoCorrect Mode = 0
 	 */
-	u32 reg = DP0_SRCCTRL_NOTP | DP0_SRCCTRL_LANESKEW;
+	u32 reg = DP0_SRCCTRL_NOTP | DP0_SRCCTRL_LANESKEW | DP0_SRCCTRL_EN810B;
 
 	if (tc->link.scrambler_dis)
 		reg |= DP0_SRCCTRL_SCRMBLDIS;	/* Scrambler Disabled */
-	if (tc->link.coding8b10b)
-		/* Enable 8/10B Encoder (TxData[19:16] not used) */
-		reg |= DP0_SRCCTRL_EN810B;
 	if (tc->link.spread)
 		reg |= DP0_SRCCTRL_SSCG;	/* Spread Spectrum Enable */
 	if (tc->link.base.num_lanes == 2)
@@ -536,7 +553,6 @@ static int tc_aux_link_setup(struct tc_data *tc)
 	unsigned long rate;
 	u32 value;
 	int ret;
-	u32 dp_phy_ctrl;
 
 	rate = clk_get_rate(tc->refclk);
 	switch (rate) {
@@ -561,10 +577,7 @@ static int tc_aux_link_setup(struct tc_data *tc)
 	value |= SYSCLK_SEL_LSCLK | LSCLK_DIV_2;
 	tc_write(SYS_PLLPARAM, value);
 
-	dp_phy_ctrl = BGREN | PWR_SW_EN | PHY_A0_EN;
-	if (tc->link.base.num_lanes == 2)
-		dp_phy_ctrl |= PHY_2LANE;
-	tc_write(DP_PHY_CTRL, dp_phy_ctrl);
+	tc_write(DP_PHY_CTRL, BGREN | PWR_SW_EN | PHY_A0_EN);
 
 	/*
 	 * Initially PLLs are in bypass. Force PLL parameter update,
@@ -581,8 +594,9 @@ static int tc_aux_link_setup(struct tc_data *tc)
 	if (ret == -ETIMEDOUT) {
 		dev_err(tc->dev, "Timeout waiting for PHY to become ready");
 		return ret;
-	} else if (ret)
+	} else if (ret) {
 		goto err;
+	}
 
 	/* Setup AUX link */
 	tc_write(DP0_AUXCFG1, AUX_RX_FILTER_EN |
@@ -618,13 +632,13 @@ static int tc_get_display_props(struct tc_data *tc)
 	ret = drm_dp_dpcd_readb(&tc->aux, DP_MAX_DOWNSPREAD, tmp);
 	if (ret < 0)
 		goto err_dpcd_read;
-	tc->link.spread = tmp[0] & BIT(0); /* 0.5% down spread */
+	tc->link.spread = tmp[0] & DP_MAX_DOWNSPREAD_0_5;
 
 	ret = drm_dp_dpcd_readb(&tc->aux, DP_MAIN_LINK_CHANNEL_CODING, tmp);
 	if (ret < 0)
 		goto err_dpcd_read;
-	tc->link.coding8b10b = tmp[0] & BIT(0);
-	tc->link.scrambler_dis = 0;
+
+	tc->link.scrambler_dis = false;
 	/* read assr */
 	ret = drm_dp_dpcd_readb(&tc->aux, DP_EDP_CONFIGURATION_SET, tmp);
 	if (ret < 0)
@@ -637,7 +651,9 @@ static int tc_get_display_props(struct tc_data *tc)
 		tc->link.base.num_lanes,
 		(tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING) ?
 		"enhanced" : "non-enhanced");
-	dev_dbg(tc->dev, "ANSI 8B/10B: %d\n", tc->link.coding8b10b);
+	dev_dbg(tc->dev, "Downspread: %s, scrambler: %s\n",
+		tc->link.spread ? "0.5%" : "0.0%",
+		tc->link.scrambler_dis ? "disabled" : "enabled");
 	dev_dbg(tc->dev, "Display ASSR: %d, TC358767 ASSR: %d\n",
 		tc->link.assr, tc->assr);
 
@@ -735,89 +751,29 @@ err:
 	return ret;
 }
 
-static int tc_link_training(struct tc_data *tc, int pattern)
+static int tc_wait_link_training(struct tc_data *tc)
 {
-	const char * const *errors;
-	u32 srcctrl = tc_srcctrl(tc) | DP0_SRCCTRL_SCRMBLDIS |
-		      DP0_SRCCTRL_AUTOCORRECT;
-	int timeout;
-	int retry;
+	u32 timeout = 1000;
 	u32 value;
 	int ret;
 
-	if (pattern == DP_TRAINING_PATTERN_1) {
-		srcctrl |= DP0_SRCCTRL_TP1;
-		errors = training_pattern1_errors;
-	} else {
-		srcctrl |= DP0_SRCCTRL_TP2;
-		errors = training_pattern2_errors;
-	}
-
-	/* Set DPCD 0x102 for Training Part 1 or 2 */
-	tc_write(DP0_SNKLTCTRL, DP_LINK_SCRAMBLING_DISABLE | pattern);
-
-	tc_write(DP0_LTLOOPCTRL,
-		 (0x0f << 28) |	/* Defer Iteration Count */
-		 (0x0f << 24) |	/* Loop Iteration Count */
-		 (0x0d << 0));	/* Loop Timer Delay */
-
-	retry = 5;
 	do {
-		/* Set DP0 Training Pattern */
-		tc_write(DP0_SRCCTRL, srcctrl);
+		udelay(1);
+		tc_read(DP0_LTSTAT, &value);
+	} while ((!(value & LT_LOOPDONE)) && (--timeout));
 
-		/* Enable DP0 to start Link Training */
-		tc_write(DP0CTL, DP_EN);
-
-		/* wait */
-		timeout = 1000;
-		do {
-			tc_read(DP0_LTSTAT, &value);
-			udelay(1);
-		} while ((!(value & LT_LOOPDONE)) && (--timeout));
-		if (timeout == 0) {
-			dev_err(tc->dev, "Link training timeout!\n");
-		} else {
-			int pattern = (value >> 11) & 0x3;
-			int error = (value >> 8) & 0x7;
-
-			dev_dbg(tc->dev,
-				"Link training phase %d done after %d uS: %s\n",
-				pattern, 1000 - timeout, errors[error]);
-			if (pattern == DP_TRAINING_PATTERN_1 && error == 0)
-				break;
-			if (pattern == DP_TRAINING_PATTERN_2) {
-				value &= LT_CHANNEL1_EQ_BITS |
-					 LT_INTERLANE_ALIGN_DONE |
-					 LT_CHANNEL0_EQ_BITS;
-				/* in case of two lanes */
-				if ((tc->link.base.num_lanes == 2) &&
-				    (value == (LT_CHANNEL1_EQ_BITS |
-					       LT_INTERLANE_ALIGN_DONE |
-					       LT_CHANNEL0_EQ_BITS)))
-					break;
-				/* in case of one line */
-				if ((tc->link.base.num_lanes == 1) &&
-				    (value == (LT_INTERLANE_ALIGN_DONE |
-					       LT_CHANNEL0_EQ_BITS)))
-					break;
-			}
-		}
-		/* restart */
-		tc_write(DP0CTL, 0);
-		usleep_range(10, 20);
-	} while (--retry);
-	if (retry == 0) {
-		dev_err(tc->dev, "Failed to finish training phase %d\n",
-			pattern);
+	if (timeout == 0) {
+		dev_err(tc->dev, "Link training timeout waiting for LT_LOOPDONE!\n");
+		return -ETIMEDOUT;
 	}
 
-	return 0;
+	return (value >> 8) & 0x7;
+
 err:
 	return ret;
 }
 
-static int tc_main_link_setup(struct tc_data *tc)
+static int tc_main_link_enable(struct tc_data *tc)
 {
 	struct drm_dp_aux *aux = &tc->aux;
 	struct device *dev = tc->dev;
@@ -828,9 +784,11 @@ static int tc_main_link_setup(struct tc_data *tc)
 	int ret;
 	u8 tmp[8];
 
-	/* display mode should be set at this point */
-	if (!tc->mode)
-		return -EINVAL;
+	dev_dbg(tc->dev, "link enable\n");
+
+	tc_read(DP0CTL, &value);
+	if (WARN_ON(value & DP_EN))
+		tc_write(DP0CTL, 0);
 
 	tc_write(DP0_SRCCTRL, tc_srcctrl(tc));
 	/* SSCG and BW27 on DP1 must be set to the same as on DP0 */
@@ -863,7 +821,6 @@ static int tc_main_link_setup(struct tc_data *tc)
 	if (tc->link.base.num_lanes == 2)
 		dp_phy_ctrl |= PHY_2LANE;
 	tc_write(DP_PHY_CTRL, dp_phy_ctrl);
-	msleep(100);
 
 	/* PLL setup */
 	tc_write(DP0_PLLCTRL, PLLUPDATE | PLLEN);
@@ -871,14 +828,6 @@ static int tc_main_link_setup(struct tc_data *tc)
 
 	tc_write(DP1_PLLCTRL, PLLUPDATE | PLLEN);
 	tc_wait_pll_lock(tc);
-
-	/* PXL PLL setup */
-	if (tc_test_pattern) {
-		ret = tc_pxl_pll_en(tc, clk_get_rate(tc->refclk),
-				    1000 * tc->mode->clock);
-		if (ret)
-			goto err;
-	}
 
 	/* Reset/Enable Main Links */
 	dp_phy_ctrl |= DP_PHY_RST | PHY_M1_RST | PHY_M0_RST;
@@ -925,9 +874,9 @@ static int tc_main_link_setup(struct tc_data *tc)
 
 		if (tmp[0] != tc->assr) {
 			dev_dbg(dev, "Failed to switch display ASSR to %d, falling back to unscrambled mode\n",
-				 tc->assr);
+				tc->assr);
 			/* trying with disabled scrambler */
-			tc->link.scrambler_dis = 1;
+			tc->link.scrambler_dis = true;
 		}
 	}
 
@@ -939,18 +888,81 @@ static int tc_main_link_setup(struct tc_data *tc)
 	/* DOWNSPREAD_CTRL */
 	tmp[0] = tc->link.spread ? DP_SPREAD_AMP_0_5 : 0x00;
 	/* MAIN_LINK_CHANNEL_CODING_SET */
-	tmp[1] =  tc->link.coding8b10b ? DP_SET_ANSI_8B10B : 0x00;
+	tmp[1] =  DP_SET_ANSI_8B10B;
 	ret = drm_dp_dpcd_write(aux, DP_DOWNSPREAD_CTRL, tmp, 2);
 	if (ret < 0)
 		goto err_dpcd_write;
 
-	ret = tc_link_training(tc, DP_TRAINING_PATTERN_1);
-	if (ret)
+	/* Reset voltage-swing & pre-emphasis */
+	tmp[0] = tmp[1] = DP_TRAIN_VOLTAGE_SWING_LEVEL_0 |
+			  DP_TRAIN_PRE_EMPH_LEVEL_0;
+	ret = drm_dp_dpcd_write(aux, DP_TRAINING_LANE0_SET, tmp, 2);
+	if (ret < 0)
+		goto err_dpcd_write;
+
+	/* Clock-Recovery */
+
+	/* Set DPCD 0x102 for Training Pattern 1 */
+	tc_write(DP0_SNKLTCTRL, DP_LINK_SCRAMBLING_DISABLE |
+		 DP_TRAINING_PATTERN_1);
+
+	tc_write(DP0_LTLOOPCTRL,
+		 (15 << 28) |	/* Defer Iteration Count */
+		 (15 << 24) |	/* Loop Iteration Count */
+		 (0xd << 0));	/* Loop Timer Delay */
+
+	tc_write(DP0_SRCCTRL, tc_srcctrl(tc) | DP0_SRCCTRL_SCRMBLDIS |
+		 DP0_SRCCTRL_AUTOCORRECT | DP0_SRCCTRL_TP1);
+
+	/* Enable DP0 to start Link Training */
+	tc_write(DP0CTL,
+		 ((tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING) ? EF_EN : 0) |
+		 DP_EN);
+
+	/* wait */
+	ret = tc_wait_link_training(tc);
+	if (ret < 0)
 		goto err;
 
-	ret = tc_link_training(tc, DP_TRAINING_PATTERN_2);
-	if (ret)
+	if (ret) {
+		dev_err(tc->dev, "Link training phase 1 failed: %s\n",
+			training_pattern1_errors[ret]);
+		ret = -ENODEV;
 		goto err;
+	}
+
+	/* Channel Equalization */
+
+	/* Set DPCD 0x102 for Training Pattern 2 */
+	tc_write(DP0_SNKLTCTRL, DP_LINK_SCRAMBLING_DISABLE |
+		 DP_TRAINING_PATTERN_2);
+
+	tc_write(DP0_SRCCTRL, tc_srcctrl(tc) | DP0_SRCCTRL_SCRMBLDIS |
+		 DP0_SRCCTRL_AUTOCORRECT | DP0_SRCCTRL_TP2);
+
+	/* wait */
+	ret = tc_wait_link_training(tc);
+	if (ret < 0)
+		goto err;
+
+	if (ret) {
+		dev_err(tc->dev, "Link training phase 2 failed: %s\n",
+			training_pattern2_errors[ret]);
+		ret = -ENODEV;
+		goto err;
+	}
+
+	/*
+	 * Toshiba's documentation suggests to first clear DPCD 0x102, then
+	 * clear the training pattern bit in DP0_SRCCTRL. Testing shows
+	 * that the link sometimes drops if those steps are done in that order,
+	 * but if the steps are done in reverse order, the link stays up.
+	 *
+	 * So we do the steps differently than documented here.
+	 */
+
+	/* Clear Training Pattern, set AutoCorrect Mode = 1 */
+	tc_write(DP0_SRCCTRL, tc_srcctrl(tc) | DP0_SRCCTRL_AUTOCORRECT);
 
 	/* Clear DPCD 0x102 */
 	/* Note: Can Not use DP0_SNKLTCTRL (0x06E4) short cut */
@@ -959,47 +971,43 @@ static int tc_main_link_setup(struct tc_data *tc)
 	if (ret < 0)
 		goto err_dpcd_write;
 
-	/* Clear Training Pattern, set AutoCorrect Mode = 1 */
-	tc_write(DP0_SRCCTRL, tc_srcctrl(tc) | DP0_SRCCTRL_AUTOCORRECT);
+	/* Check link status */
+	ret = drm_dp_dpcd_read_link_status(aux, tmp);
+	if (ret < 0)
+		goto err_dpcd_read;
 
-	/* Wait */
-	timeout = 100;
-	do {
-		udelay(1);
-		/* Read DPCD 0x202-0x207 */
-		ret = drm_dp_dpcd_read_link_status(aux, tmp + 2);
-		if (ret < 0)
-			goto err_dpcd_read;
-	} while ((--timeout) &&
-		 !(drm_dp_channel_eq_ok(tmp + 2,  tc->link.base.num_lanes)));
+	ret = 0;
 
-	if (timeout == 0) {
-		/* Read DPCD 0x200-0x201 */
-		ret = drm_dp_dpcd_read(aux, DP_SINK_COUNT, tmp, 2);
-		if (ret < 0)
-			goto err_dpcd_read;
-		dev_err(dev, "channel(s) EQ not ok\n");
-		dev_info(dev, "0x0200 SINK_COUNT: 0x%02x\n", tmp[0]);
-		dev_info(dev, "0x0201 DEVICE_SERVICE_IRQ_VECTOR: 0x%02x\n",
-			 tmp[1]);
-		dev_info(dev, "0x0202 LANE0_1_STATUS: 0x%02x\n", tmp[2]);
-		dev_info(dev, "0x0204 LANE_ALIGN_STATUS_UPDATED: 0x%02x\n",
-			 tmp[4]);
-		dev_info(dev, "0x0205 SINK_STATUS: 0x%02x\n", tmp[5]);
-		dev_info(dev, "0x0206 ADJUST_REQUEST_LANE0_1: 0x%02x\n",
-			 tmp[6]);
+	value = tmp[0] & DP_CHANNEL_EQ_BITS;
 
-		return -EAGAIN;
+	if (value != DP_CHANNEL_EQ_BITS) {
+		dev_err(tc->dev, "Lane 0 failed: %x\n", value);
+		ret = -ENODEV;
 	}
 
-	ret = tc_set_video_mode(tc, tc->mode);
-	if (ret)
-		goto err;
+	if (tc->link.base.num_lanes == 2) {
+		value = (tmp[0] >> 4) & DP_CHANNEL_EQ_BITS;
 
-	/* Set M/N */
-	ret = tc_stream_clock_calc(tc);
-	if (ret)
+		if (value != DP_CHANNEL_EQ_BITS) {
+			dev_err(tc->dev, "Lane 1 failed: %x\n", value);
+			ret = -ENODEV;
+		}
+
+		if (!(tmp[2] & DP_INTERLANE_ALIGN_DONE)) {
+			dev_err(tc->dev, "Interlane align failed\n");
+			ret = -ENODEV;
+		}
+	}
+
+	if (ret) {
+		dev_err(dev, "0x0202 LANE0_1_STATUS:            0x%02x\n", tmp[0]);
+		dev_err(dev, "0x0203 LANE2_3_STATUS             0x%02x\n", tmp[1]);
+		dev_err(dev, "0x0204 LANE_ALIGN_STATUS_UPDATED: 0x%02x\n", tmp[2]);
+		dev_err(dev, "0x0205 SINK_STATUS:               0x%02x\n", tmp[3]);
+		dev_err(dev, "0x0206 ADJUST_REQUEST_LANE0_1:    0x%02x\n", tmp[4]);
+		dev_err(dev, "0x0207 ADJUST_REQUEST_LANE2_3:    0x%02x\n", tmp[5]);
 		goto err;
+	}
 
 	return 0;
 err_dpcd_read:
@@ -1011,38 +1019,83 @@ err:
 	return ret;
 }
 
-static int tc_main_link_stream(struct tc_data *tc, int state)
+static int tc_main_link_disable(struct tc_data *tc)
+{
+	int ret;
+
+	dev_dbg(tc->dev, "link disable\n");
+
+	tc_write(DP0_SRCCTRL, 0);
+	tc_write(DP0CTL, 0);
+
+	return 0;
+err:
+	return ret;
+}
+
+static int tc_stream_enable(struct tc_data *tc)
 {
 	int ret;
 	u32 value;
 
-	dev_dbg(tc->dev, "stream: %d\n", state);
+	dev_dbg(tc->dev, "enable video stream\n");
 
-	if (state) {
-		value = VID_MN_GEN | DP_EN;
-		if (tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
-			value |= EF_EN;
-		tc_write(DP0CTL, value);
-		/*
-		 * VID_EN assertion should be delayed by at least N * LSCLK
-		 * cycles from the time VID_MN_GEN is enabled in order to
-		 * generate stable values for VID_M. LSCLK is 270 MHz or
-		 * 162 MHz, VID_N is set to 32768 in  tc_stream_clock_calc(),
-		 * so a delay of at least 203 us should suffice.
-		 */
-		usleep_range(500, 1000);
-		value |= VID_EN;
-		tc_write(DP0CTL, value);
-		/* Set input interface */
-		value = DP0_AUDSRC_NO_INPUT;
-		if (tc_test_pattern)
-			value |= DP0_VIDSRC_COLOR_BAR;
-		else
-			value |= DP0_VIDSRC_DPI_RX;
-		tc_write(SYSCTRL, value);
-	} else {
-		tc_write(DP0CTL, 0);
+	/* PXL PLL setup */
+	if (tc_test_pattern) {
+		ret = tc_pxl_pll_en(tc, clk_get_rate(tc->refclk),
+				    1000 * tc->mode.clock);
+		if (ret)
+			goto err;
 	}
+
+	ret = tc_set_video_mode(tc, &tc->mode);
+	if (ret)
+		return ret;
+
+	/* Set M/N */
+	ret = tc_stream_clock_calc(tc);
+	if (ret)
+		return ret;
+
+	value = VID_MN_GEN | DP_EN;
+	if (tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
+		value |= EF_EN;
+	tc_write(DP0CTL, value);
+	/*
+	 * VID_EN assertion should be delayed by at least N * LSCLK
+	 * cycles from the time VID_MN_GEN is enabled in order to
+	 * generate stable values for VID_M. LSCLK is 270 MHz or
+	 * 162 MHz, VID_N is set to 32768 in  tc_stream_clock_calc(),
+	 * so a delay of at least 203 us should suffice.
+	 */
+	usleep_range(500, 1000);
+	value |= VID_EN;
+	tc_write(DP0CTL, value);
+	/* Set input interface */
+	value = DP0_AUDSRC_NO_INPUT;
+	if (tc_test_pattern)
+		value |= DP0_VIDSRC_COLOR_BAR;
+	else
+		value |= DP0_VIDSRC_DPI_RX;
+	tc_write(SYSCTRL, value);
+
+	return 0;
+err:
+	return ret;
+}
+
+static int tc_stream_disable(struct tc_data *tc)
+{
+	int ret;
+	u32 val;
+
+	dev_dbg(tc->dev, "disable video stream\n");
+
+	tc_read(DP0CTL, &val);
+	val &= ~VID_EN;
+	tc_write(DP0CTL, val);
+
+	tc_pxl_pll_dis(tc);
 
 	return 0;
 err:
@@ -1061,15 +1114,22 @@ static void tc_bridge_enable(struct drm_bridge *bridge)
 	struct tc_data *tc = bridge_to_tc(bridge);
 	int ret;
 
-	ret = tc_main_link_setup(tc);
+	ret = tc_get_display_props(tc);
 	if (ret < 0) {
-		dev_err(tc->dev, "main link setup error: %d\n", ret);
+		dev_err(tc->dev, "failed to read display props: %d\n", ret);
 		return;
 	}
 
-	ret = tc_main_link_stream(tc, 1);
+	ret = tc_main_link_enable(tc);
+	if (ret < 0) {
+		dev_err(tc->dev, "main link enable error: %d\n", ret);
+		return;
+	}
+
+	ret = tc_stream_enable(tc);
 	if (ret < 0) {
 		dev_err(tc->dev, "main link stream start error: %d\n", ret);
+		tc_main_link_disable(tc);
 		return;
 	}
 
@@ -1083,9 +1143,13 @@ static void tc_bridge_disable(struct drm_bridge *bridge)
 
 	drm_panel_disable(tc->panel);
 
-	ret = tc_main_link_stream(tc, 0);
+	ret = tc_stream_disable(tc);
 	if (ret < 0)
 		dev_err(tc->dev, "main link stream stop error: %d\n", ret);
+
+	ret = tc_main_link_disable(tc);
+	if (ret < 0)
+		dev_err(tc->dev, "main link disable error: %d\n", ret);
 }
 
 static void tc_bridge_post_disable(struct drm_bridge *bridge)
@@ -1107,10 +1171,10 @@ static bool tc_bridge_mode_fixup(struct drm_bridge *bridge,
 	return true;
 }
 
-static enum drm_mode_status tc_connector_mode_valid(struct drm_connector *connector,
-				   struct drm_display_mode *mode)
+static enum drm_mode_status tc_mode_valid(struct drm_bridge *bridge,
+					  const struct drm_display_mode *mode)
 {
-	struct tc_data *tc = connector_to_tc(connector);
+	struct tc_data *tc = bridge_to_tc(bridge);
 	u32 req, avail;
 	u32 bits_per_pixel = 24;
 
@@ -1133,7 +1197,7 @@ static void tc_bridge_mode_set(struct drm_bridge *bridge,
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 
-	tc->mode = mode;
+	tc->mode = *mode;
 }
 
 static int tc_connector_get_modes(struct drm_connector *connector)
@@ -1141,6 +1205,13 @@ static int tc_connector_get_modes(struct drm_connector *connector)
 	struct tc_data *tc = connector_to_tc(connector);
 	struct edid *edid;
 	unsigned int count;
+	int ret;
+
+	ret = tc_get_display_props(tc);
+	if (ret < 0) {
+		dev_err(tc->dev, "failed to read display props: %d\n", ret);
+		return 0;
+	}
 
 	if (tc->panel && tc->panel->funcs && tc->panel->funcs->get_modes) {
 		count = tc->panel->funcs->get_modes(tc->panel);
@@ -1161,29 +1232,40 @@ static int tc_connector_get_modes(struct drm_connector *connector)
 	return count;
 }
 
-static void tc_connector_set_polling(struct tc_data *tc,
-				     struct drm_connector *connector)
-{
-	/* TODO: add support for HPD */
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-			    DRM_CONNECTOR_POLL_DISCONNECT;
-}
-
-static struct drm_encoder *
-tc_connector_best_encoder(struct drm_connector *connector)
-{
-	struct tc_data *tc = connector_to_tc(connector);
-
-	return tc->bridge.encoder;
-}
-
 static const struct drm_connector_helper_funcs tc_connector_helper_funcs = {
 	.get_modes = tc_connector_get_modes,
-	.mode_valid = tc_connector_mode_valid,
-	.best_encoder = tc_connector_best_encoder,
 };
 
+static enum drm_connector_status tc_connector_detect(struct drm_connector *connector,
+						     bool force)
+{
+	struct tc_data *tc = connector_to_tc(connector);
+	bool conn;
+	u32 val;
+	int ret;
+
+	if (tc->hpd_pin < 0) {
+		if (tc->panel)
+			return connector_status_connected;
+		else
+			return connector_status_unknown;
+	}
+
+	tc_read(GPIOI, &val);
+
+	conn = val & BIT(tc->hpd_pin);
+
+	if (conn)
+		return connector_status_connected;
+	else
+		return connector_status_disconnected;
+
+err:
+	return connector_status_unknown;
+}
+
 static const struct drm_connector_funcs tc_connector_funcs = {
+	.detect = tc_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
@@ -1198,13 +1280,22 @@ static int tc_bridge_attach(struct drm_bridge *bridge)
 	struct drm_device *drm = bridge->dev;
 	int ret;
 
-	/* Create eDP connector */
+	/* Create DP/eDP connector */
 	drm_connector_helper_add(&tc->connector, &tc_connector_helper_funcs);
 	ret = drm_connector_init(drm, &tc->connector, &tc_connector_funcs,
 				 tc->panel ? DRM_MODE_CONNECTOR_eDP :
 				 DRM_MODE_CONNECTOR_DisplayPort);
 	if (ret)
 		return ret;
+
+	/* Don't poll if don't have HPD connected */
+	if (tc->hpd_pin >= 0) {
+		if (tc->have_irq)
+			tc->connector.polled = DRM_CONNECTOR_POLL_HPD;
+		else
+			tc->connector.polled = DRM_CONNECTOR_POLL_CONNECT |
+					       DRM_CONNECTOR_POLL_DISCONNECT;
+	}
 
 	if (tc->panel)
 		drm_panel_attach(tc->panel, &tc->connector);
@@ -1222,6 +1313,7 @@ static int tc_bridge_attach(struct drm_bridge *bridge)
 
 static const struct drm_bridge_funcs tc_bridge_funcs = {
 	.attach = tc_bridge_attach,
+	.mode_valid = tc_mode_valid,
 	.mode_set = tc_bridge_mode_set,
 	.pre_enable = tc_bridge_pre_enable,
 	.enable = tc_bridge_enable,
@@ -1241,6 +1333,8 @@ static const struct regmap_range tc_volatile_ranges[] = {
 	regmap_reg_range(DP_PHY_CTRL, DP_PHY_CTRL),
 	regmap_reg_range(DP0_PLLCTRL, PXL_PLLCTRL),
 	regmap_reg_range(VFUEN0, VFUEN0),
+	regmap_reg_range(INTSTS_G, INTSTS_G),
+	regmap_reg_range(GPIOI, GPIOI),
 };
 
 static const struct regmap_access_table tc_volatile_table = {
@@ -1268,6 +1362,49 @@ static const struct regmap_config tc_regmap_config = {
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
+
+static irqreturn_t tc_irq_handler(int irq, void *arg)
+{
+	struct tc_data *tc = arg;
+	u32 val;
+	int r;
+
+	r = regmap_read(tc->regmap, INTSTS_G, &val);
+	if (r)
+		return IRQ_NONE;
+
+	if (!val)
+		return IRQ_NONE;
+
+	if (val & INT_SYSERR) {
+		u32 stat = 0;
+
+		regmap_read(tc->regmap, SYSSTAT, &stat);
+
+		dev_err(tc->dev, "syserr %x\n", stat);
+	}
+
+	if (tc->hpd_pin >= 0 && tc->bridge.dev) {
+		/*
+		 * H is triggered when the GPIO goes high.
+		 *
+		 * LC is triggered when the GPIO goes low and stays low for
+		 * the duration of LCNT
+		 */
+		bool h = val & INT_GPIO_H(tc->hpd_pin);
+		bool lc = val & INT_GPIO_LC(tc->hpd_pin);
+
+		dev_dbg(tc->dev, "GPIO%d: %s %s\n", tc->hpd_pin,
+			h ? "H" : "", lc ? "LC" : "");
+
+		if (h || lc)
+			drm_kms_helper_hotplug_event(tc->bridge.dev);
+	}
+
+	regmap_write(tc->regmap, INTSTS_G, val);
+
+	return IRQ_HANDLED;
+}
 
 static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -1320,6 +1457,33 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return ret;
 	}
 
+	ret = of_property_read_u32(dev->of_node, "toshiba,hpd-pin",
+				   &tc->hpd_pin);
+	if (ret) {
+		tc->hpd_pin = -ENODEV;
+	} else {
+		if (tc->hpd_pin < 0 || tc->hpd_pin > 1) {
+			dev_err(dev, "failed to parse HPD number\n");
+			return ret;
+		}
+	}
+
+	if (client->irq > 0) {
+		/* enable SysErr */
+		regmap_write(tc->regmap, INTCTL_G, INT_SYSERR);
+
+		ret = devm_request_threaded_irq(dev, client->irq,
+						NULL, tc_irq_handler,
+						IRQF_ONESHOT,
+						"tc358767-irq", tc);
+		if (ret) {
+			dev_err(dev, "failed to register dp interrupt\n");
+			return ret;
+		}
+
+		tc->have_irq = true;
+	}
+
 	ret = regmap_read(tc->regmap, TC_IDREG, &tc->rev);
 	if (ret) {
 		dev_err(tc->dev, "can not read device ID: %d\n", ret);
@@ -1333,6 +1497,22 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	tc->assr = (tc->rev == 0x6601); /* Enable ASSR for eDP panels */
 
+	if (tc->hpd_pin >= 0) {
+		u32 lcnt_reg = tc->hpd_pin == 0 ? INT_GP0_LCNT : INT_GP1_LCNT;
+		u32 h_lc = INT_GPIO_H(tc->hpd_pin) | INT_GPIO_LC(tc->hpd_pin);
+
+		/* Set LCNT to 2ms */
+		regmap_write(tc->regmap, lcnt_reg,
+			     clk_get_rate(tc->refclk) * 2 / 1000);
+		/* We need the "alternate" mode for HPD */
+		regmap_write(tc->regmap, GPIOM, BIT(tc->hpd_pin));
+
+		if (tc->have_irq) {
+			/* enable H & LC */
+			regmap_update_bits(tc->regmap, INTCTL_G, h_lc, h_lc);
+		}
+	}
+
 	ret = tc_aux_link_setup(tc);
 	if (ret)
 		return ret;
@@ -1345,12 +1525,6 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (ret)
 		return ret;
 
-	ret = tc_get_display_props(tc);
-	if (ret)
-		goto err_unregister_aux;
-
-	tc_connector_set_polling(tc, &tc->connector);
-
 	tc->bridge.funcs = &tc_bridge_funcs;
 	tc->bridge.of_node = dev->of_node;
 	drm_bridge_add(&tc->bridge);
@@ -1358,9 +1532,6 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	i2c_set_clientdata(client, tc);
 
 	return 0;
-err_unregister_aux:
-	drm_dp_aux_unregister(&tc->aux);
-	return ret;
 }
 
 static int tc_remove(struct i2c_client *client)
@@ -1369,8 +1540,6 @@ static int tc_remove(struct i2c_client *client)
 
 	drm_bridge_remove(&tc->bridge);
 	drm_dp_aux_unregister(&tc->aux);
-
-	tc_pxl_pll_dis(tc);
 
 	return 0;
 }

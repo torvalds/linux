@@ -247,8 +247,11 @@ static int host1x_probe(struct platform_device *pdev)
 
 	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
-		dev_err(&pdev->dev, "failed to get clock\n");
 		err = PTR_ERR(host->clk);
+
+		if (err != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get clock: %d\n", err);
+
 		return err;
 	}
 

@@ -29,6 +29,7 @@ PROG COMMANDS
 |	**bpftool** **prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
 |	**bpftool** **prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
 |	**bpftool** **prog tracelog**
+|	**bpftool** **prog run** *PROG* **data_in** *FILE* [**data_out** *FILE* [**data_size_out** *L*]] [**ctx_in** *FILE* [**ctx_out** *FILE* [**ctx_size_out** *M*]]] [**repeat** *N*]
 |	**bpftool** **prog help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
@@ -40,7 +41,8 @@ PROG COMMANDS
 |		**lwt_seg6local** | **sockops** | **sk_skb** | **sk_msg** | **lirc_mode2** |
 |		**cgroup/bind4** | **cgroup/bind6** | **cgroup/post_bind4** | **cgroup/post_bind6** |
 |		**cgroup/connect4** | **cgroup/connect6** | **cgroup/sendmsg4** | **cgroup/sendmsg6** |
-|		**cgroup/recvmsg4** | **cgroup/recvmsg6** | **cgroup/sysctl**
+|		**cgroup/recvmsg4** | **cgroup/recvmsg6** | **cgroup/sysctl** |
+|		**cgroup/getsockopt** | **cgroup/setsockopt**
 |	}
 |       *ATTACH_TYPE* := {
 |		**msg_verdict** | **stream_verdict** | **stream_parser** | **flow_dissector**
@@ -145,6 +147,39 @@ DESCRIPTION
 		  streaming data from BPF programs to user space, one can use
 		  perf events (see also **bpftool-map**\ (8)).
 
+	**bpftool prog run** *PROG* **data_in** *FILE* [**data_out** *FILE* [**data_size_out** *L*]] [**ctx_in** *FILE* [**ctx_out** *FILE* [**ctx_size_out** *M*]]] [**repeat** *N*]
+		  Run BPF program *PROG* in the kernel testing infrastructure
+		  for BPF, meaning that the program works on the data and
+		  context provided by the user, and not on actual packets or
+		  monitored functions etc. Return value and duration for the
+		  test run are printed out to the console.
+
+		  Input data is read from the *FILE* passed with **data_in**.
+		  If this *FILE* is "**-**", input data is read from standard
+		  input. Input context, if any, is read from *FILE* passed with
+		  **ctx_in**. Again, "**-**" can be used to read from standard
+		  input, but only if standard input is not already in use for
+		  input data. If a *FILE* is passed with **data_out**, output
+		  data is written to that file. Similarly, output context is
+		  written to the *FILE* passed with **ctx_out**. For both
+		  output flows, "**-**" can be used to print to the standard
+		  output (as plain text, or JSON if relevant option was
+		  passed). If output keywords are omitted, output data and
+		  context are discarded. Keywords **data_size_out** and
+		  **ctx_size_out** are used to pass the size (in bytes) for the
+		  output buffers to the kernel, although the default of 32 kB
+		  should be more than enough for most cases.
+
+		  Keyword **repeat** is used to indicate the number of
+		  consecutive runs to perform. Note that output data and
+		  context printed to files correspond to the last of those
+		  runs. The duration printed out at the end of the runs is an
+		  average over all runs performed by the command.
+
+		  Not all program types support test run. Among those which do,
+		  not all of them can take the **ctx_in**/**ctx_out**
+		  arguments. bpftool does not perform checks on program types.
+
 	**bpftool prog help**
 		  Print short help message.
 
@@ -173,6 +208,11 @@ OPTIONS
 	-n, --nomount
 		  Do not automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
+
+	-d, --debug
+		  Print all logs available, even debug-level information. This
+		  includes logs from libbpf as well as from the verifier, when
+		  attempting to load programs.
 
 EXAMPLES
 ========

@@ -3879,10 +3879,8 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	 */
 	spin_lock(&lpfc_cmd->buf_lock);
 	lpfc_cmd->cur_iocbq.iocb_flag &= ~LPFC_DRIVER_ABORTED;
-	if (lpfc_cmd->waitq) {
+	if (lpfc_cmd->waitq)
 		wake_up(lpfc_cmd->waitq);
-		lpfc_cmd->waitq = NULL;
-	}
 	spin_unlock(&lpfc_cmd->buf_lock);
 
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
@@ -4718,6 +4716,9 @@ wait_for_cmpl:
 				 iocb->sli4_xritag, ret,
 				 cmnd->device->id, cmnd->device->lun);
 	}
+
+	lpfc_cmd->waitq = NULL;
+
 	spin_unlock(&lpfc_cmd->buf_lock);
 	goto out;
 
@@ -4797,7 +4798,12 @@ lpfc_check_fcp_rsp(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd)
 				 rsp_info,
 				 rsp_len, rsp_info_code);
 
-		if ((fcprsp->rspStatus2&RSP_LEN_VALID) && (rsp_len == 8)) {
+		/* If FCP_RSP_LEN_VALID bit is one, then the FCP_RSP_LEN
+		 * field specifies the number of valid bytes of FCP_RSP_INFO.
+		 * The FCP_RSP_LEN field shall be set to 0x04 or 0x08
+		 */
+		if ((fcprsp->rspStatus2 & RSP_LEN_VALID) &&
+		    ((rsp_len == 8) || (rsp_len == 4))) {
 			switch (rsp_info_code) {
 			case RSP_NO_FAILURE:
 				lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
@@ -5741,7 +5747,7 @@ lpfc_enable_oas_lun(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 
 	/* Create an lun info structure and add to list of luns */
 	lun_info = lpfc_create_device_data(phba, vport_wwpn, target_wwpn, lun,
-					   pri, false);
+					   pri, true);
 	if (lun_info) {
 		lun_info->oas_enabled = true;
 		lun_info->priority = pri;

@@ -184,6 +184,18 @@ config SECCOMP
 
 	  If unsure, say Y.
 
+config UML_TIME_TRAVEL_SUPPORT
+	bool
+	prompt "Support time-travel mode (e.g. for test execution)"
+	help
+	  Enable this option to support time travel inside the UML instance.
+
+	  After enabling this option, two modes are accessible at runtime
+	  (selected by the kernel command line), see the kernel's command-
+	  line help for more details.
+
+	  It is safe to say Y, but you probably don't need this.
+
 endmenu
 
 source "arch/um/drivers/Kconfig"

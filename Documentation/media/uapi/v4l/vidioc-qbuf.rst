@@ -139,6 +139,14 @@ may continue as normal, but should be aware that data in the dequeued
 buffer might be corrupted. When using the multi-planar API, the planes
 array must be passed in as well.
 
+If the application sets the ``memory`` field to ``V4L2_MEMORY_DMABUF`` to
+dequeue a :ref:`DMABUF <dmabuf>` buffer, the driver fills the ``m.fd`` field
+with a file descriptor numerically the same as the one given to ``VIDIOC_QBUF``
+when the buffer was enqueued. No new file descriptor is created at dequeue time
+and the value is only for the application convenience. When the multi-planar
+API is used the ``m.fd`` fields of the passed array of struct
+:c:type:`v4l2_plane` are filled instead.
+
 By default ``VIDIOC_DQBUF`` blocks when no buffer is in the outgoing
 queue. When the ``O_NONBLOCK`` flag was given to the
 :ref:`open() <func-open>` function, ``VIDIOC_DQBUF`` returns

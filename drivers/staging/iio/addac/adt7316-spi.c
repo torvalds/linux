@@ -126,9 +126,22 @@ static const struct spi_device_id adt7316_spi_id[] = {
 
 MODULE_DEVICE_TABLE(spi, adt7316_spi_id);
 
+static const struct of_device_id adt7316_of_spi_match[] = {
+	{ .compatible = "adi,adt7316" },
+	{ .compatible = "adi,adt7317" },
+	{ .compatible = "adi,adt7318" },
+	{ .compatible = "adi,adt7516" },
+	{ .compatible = "adi,adt7517" },
+	{ .compatible = "adi,adt7519" },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, adt7316_of_spi_match);
+
 static struct spi_driver adt7316_driver = {
 	.driver = {
 		.name = "adt7316",
+		.of_match_table = adt7316_of_spi_match,
 		.pm = ADT7316_PM_OPS,
 	},
 	.probe = adt7316_spi_probe,

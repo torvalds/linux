@@ -20,6 +20,10 @@
  * When ADDR is non-zero, the chip uses Multi-chip Addressing Mode, allowing
  * multiple devices to share the SMI interface. In this mode it responds to only
  * 2 registers, used to indirectly access the internal SMI devices.
+ *
+ * Some chips use a different scheme: Only the ADDR4 pin is used for
+ * configuration, and the device responds to 16 of the 32 SMI
+ * addresses, allowing two to coexist on the same SMI interface.
  */
 
 static int mv88e6xxx_smi_direct_read(struct mv88e6xxx_chip *chip,
@@ -70,6 +74,23 @@ static int mv88e6xxx_smi_direct_wait(struct mv88e6xxx_chip *chip,
 static const struct mv88e6xxx_bus_ops mv88e6xxx_smi_direct_ops = {
 	.read = mv88e6xxx_smi_direct_read,
 	.write = mv88e6xxx_smi_direct_write,
+};
+
+static int mv88e6xxx_smi_dual_direct_read(struct mv88e6xxx_chip *chip,
+					  int dev, int reg, u16 *data)
+{
+	return mv88e6xxx_smi_direct_read(chip, chip->sw_addr + dev, reg, data);
+}
+
+static int mv88e6xxx_smi_dual_direct_write(struct mv88e6xxx_chip *chip,
+					   int dev, int reg, u16 data)
+{
+	return mv88e6xxx_smi_direct_write(chip, chip->sw_addr + dev, reg, data);
+}
+
+static const struct mv88e6xxx_bus_ops mv88e6xxx_smi_dual_direct_ops = {
+	.read = mv88e6xxx_smi_dual_direct_read,
+	.write = mv88e6xxx_smi_dual_direct_write,
 };
 
 /* Offset 0x00: SMI Command Register
@@ -140,7 +161,9 @@ static const struct mv88e6xxx_bus_ops mv88e6xxx_smi_indirect_ops = {
 int mv88e6xxx_smi_init(struct mv88e6xxx_chip *chip,
 		       struct mii_bus *bus, int sw_addr)
 {
-	if (sw_addr == 0)
+	if (chip->info->dual_chip)
+		chip->smi_ops = &mv88e6xxx_smi_dual_direct_ops;
+	else if (sw_addr == 0)
 		chip->smi_ops = &mv88e6xxx_smi_direct_ops;
 	else if (chip->info->multi_chip)
 		chip->smi_ops = &mv88e6xxx_smi_indirect_ops;

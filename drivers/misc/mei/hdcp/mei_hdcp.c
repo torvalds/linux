@@ -2,7 +2,7 @@
 /*
  * Copyright © 2019 Intel Corporation
  *
- * Mei_hdcp.c: HDCP client driver for mei bus
+ * mei_hdcp.c: HDCP client driver for mei bus
  *
  * Author:
  * Ramalingam C <ramalingam.c@intel.com>
@@ -11,12 +11,9 @@
 /**
  * DOC: MEI_HDCP Client Driver
  *
- * This is a client driver to the mei_bus to make the HDCP2.2 services of
- * ME FW available for the interested consumers like I915.
- *
- * This module will act as a translation layer between HDCP protocol
- * implementor(I915) and ME FW by translating HDCP2.2 authentication
- * messages to ME FW command payloads and vice versa.
+ * The mei_hdcp driver acts as a translation layer between HDCP 2.2
+ * protocol  implementer (I915) and ME FW by translating HDCP2.2
+ * negotiation messages to ME FW command payloads and vice versa.
  */
 
 #include <linux/module.h>
@@ -576,7 +573,7 @@ static int mei_hdcp_verify_mprime(struct device *dev,
 
 	memcpy(verify_mprime_in.m_prime, stream_ready->m_prime,
 	       HDCP_2_2_MPRIME_LEN);
-	drm_hdcp2_u32_to_seq_num(verify_mprime_in.seq_num_m, data->seq_num_m);
+	drm_hdcp_cpu_to_be24(verify_mprime_in.seq_num_m, data->seq_num_m);
 	memcpy(verify_mprime_in.streams, data->streams,
 	       (data->k * sizeof(struct hdcp2_streamid_type)));
 

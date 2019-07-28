@@ -5,7 +5,7 @@
 #define __SDW_INTEL_LOCAL_H
 
 /**
- * struct sdw_intel_res - Soundwire link resources
+ * struct sdw_intel_link_res - Soundwire link resources
  * @registers: Link IO registers base
  * @shim: Audio shim pointer
  * @alh: ALH (Audio Link Hub) pointer

@@ -511,7 +511,7 @@ int isci_task_abort_task(struct sas_task *task)
 		 "%s: dev = %p (%s%s), task = %p, old_request == %p\n",
 		 __func__, idev,
 		 (dev_is_sata(task->dev) ? "STP/SATA"
-					 : ((dev_is_expander(task->dev))
+					 : ((dev_is_expander(task->dev->dev_type))
 						? "SMP"
 						: "SSP")),
 		 ((idev) ? ((test_bit(IDEV_GONE, &idev->flags))

@@ -3558,7 +3558,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		 * v1.5.0+:
 		 *
 		 * Sync action:
-		 *   See Documentation/device-mapper/dm-raid.txt for
+		 *   See Documentation/admin-guide/device-mapper/dm-raid.rst for
 		 *   information on each of these states.
 		 */
 		DMEMIT(" %s", sync_action);

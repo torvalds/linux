@@ -72,27 +72,19 @@ struct atmel_pcm_dma_params {
 
 #if IS_ENABLED(CONFIG_SND_ATMEL_SOC_PDC)
 int atmel_pcm_pdc_platform_register(struct device *dev);
-void atmel_pcm_pdc_platform_unregister(struct device *dev);
 #else
 static inline int atmel_pcm_pdc_platform_register(struct device *dev)
 {
 	return 0;
 }
-static inline void atmel_pcm_pdc_platform_unregister(struct device *dev)
-{
-}
 #endif
 
 #if IS_ENABLED(CONFIG_SND_ATMEL_SOC_DMA)
 int atmel_pcm_dma_platform_register(struct device *dev);
-void atmel_pcm_dma_platform_unregister(struct device *dev);
 #else
 static inline int atmel_pcm_dma_platform_register(struct device *dev)
 {
 	return 0;
-}
-static inline void atmel_pcm_dma_platform_unregister(struct device *dev)
-{
 }
 #endif
 

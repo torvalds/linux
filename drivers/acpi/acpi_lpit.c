@@ -129,7 +129,7 @@ static void lpit_update_residency(struct lpit_residency_info *info,
 
 static void lpit_process(u64 begin, u64 end)
 {
-	while (begin + sizeof(struct acpi_lpit_native) < end) {
+	while (begin + sizeof(struct acpi_lpit_native) <= end) {
 		struct acpi_lpit_native *lpit_native = (struct acpi_lpit_native *)begin;
 
 		if (!lpit_native->header.type && !lpit_native->header.flags) {
@@ -148,7 +148,6 @@ static void lpit_process(u64 begin, u64 end)
 void acpi_init_lpit(void)
 {
 	acpi_status status;
-	u64 lpit_begin;
 	struct acpi_table_lpit *lpit;
 
 	status = acpi_get_table(ACPI_SIG_LPIT, 0, (struct acpi_table_header **)&lpit);
@@ -156,6 +155,6 @@ void acpi_init_lpit(void)
 	if (ACPI_FAILURE(status))
 		return;
 
-	lpit_begin = (u64)lpit + sizeof(*lpit);
-	lpit_process(lpit_begin, lpit_begin + lpit->header.length);
+	lpit_process((u64)lpit + sizeof(*lpit),
+		     (u64)lpit + lpit->header.length);
 }

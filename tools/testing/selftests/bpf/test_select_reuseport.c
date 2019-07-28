@@ -523,6 +523,58 @@ static void test_pass_on_err(int type, sa_family_t family)
 	printf("OK\n");
 }
 
+static void test_detach_bpf(int type, sa_family_t family)
+{
+#ifdef SO_DETACH_REUSEPORT_BPF
+	__u32 nr_run_before = 0, nr_run_after = 0, tmp, i;
+	struct epoll_event ev;
+	int cli_fd, err, nev;
+	struct cmd cmd = {};
+	int optvalue = 0;
+
+	printf("%s: ", __func__);
+	err = setsockopt(sk_fds[0], SOL_SOCKET, SO_DETACH_REUSEPORT_BPF,
+			 &optvalue, sizeof(optvalue));
+	CHECK(err == -1, "setsockopt(SO_DETACH_REUSEPORT_BPF)",
+	      "err:%d errno:%d\n", err, errno);
+
+	err = setsockopt(sk_fds[1], SOL_SOCKET, SO_DETACH_REUSEPORT_BPF,
+			 &optvalue, sizeof(optvalue));
+	CHECK(err == 0 || errno != ENOENT, "setsockopt(SO_DETACH_REUSEPORT_BPF)",
+	      "err:%d errno:%d\n", err, errno);
+
+	for (i = 0; i < NR_RESULTS; i++) {
+		err = bpf_map_lookup_elem(result_map, &i, &tmp);
+		CHECK(err == -1, "lookup_elem(result_map)",
+		      "i:%u err:%d errno:%d\n", i, err, errno);
+		nr_run_before += tmp;
+	}
+
+	cli_fd = send_data(type, family, &cmd, sizeof(cmd), PASS);
+	nev = epoll_wait(epfd, &ev, 1, 5);
+	CHECK(nev <= 0, "nev <= 0",
+	      "nev:%d expected:1 type:%d family:%d data:(0, 0)\n",
+	      nev,  type, family);
+
+	for (i = 0; i < NR_RESULTS; i++) {
+		err = bpf_map_lookup_elem(result_map, &i, &tmp);
+		CHECK(err == -1, "lookup_elem(result_map)",
+		      "i:%u err:%d errno:%d\n", i, err, errno);
+		nr_run_after += tmp;
+	}
+
+	CHECK(nr_run_before != nr_run_after,
+	      "nr_run_before != nr_run_after",
+	      "nr_run_before:%u nr_run_after:%u\n",
+	      nr_run_before, nr_run_after);
+
+	printf("OK\n");
+	close(cli_fd);
+#else
+	printf("%s: SKIP\n", __func__);
+#endif
+}
+
 static void prepare_sk_fds(int type, sa_family_t family, bool inany)
 {
 	const int first = REUSEPORT_ARRAY_SIZE - 1;
@@ -664,6 +716,8 @@ static void test_all(void)
 			test_pass(type, family);
 			test_syncookie(type, family);
 			test_pass_on_err(type, family);
+			/* Must be the last test */
+			test_detach_bpf(type, family);
 
 			cleanup_per_test();
 			printf("\n");

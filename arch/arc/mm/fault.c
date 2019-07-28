@@ -63,24 +63,19 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 	struct vm_area_struct *vma = NULL;
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
-	int si_code = SEGV_MAPERR;
-	int ret;
-	vm_fault_t fault;
-	int write = regs->ecr_cause & ECR_C_PROTV_STORE;  /* ST/EX */
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	int sig, si_code = SEGV_MAPERR;
+	unsigned int write = 0, exec = 0, mask;
+	vm_fault_t fault = VM_FAULT_SIGSEGV;	/* handle_mm_fault() output */
+	unsigned int flags;			/* handle_mm_fault() input */
 
 	/*
-	 * We fault-in kernel-space virtual memory on-demand. The
-	 * 'reference' page table is init_mm.pgd.
-	 *
 	 * NOTE! We MUST NOT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
 	 * nothing more.
 	 */
 	if (address >= VMALLOC_START && !user_mode(regs)) {
-		ret = handle_kernel_vaddr_fault(address);
-		if (unlikely(ret))
+		if (unlikely(handle_kernel_vaddr_fault(address)))
 			goto no_context;
 		else
 			return;
@@ -93,143 +88,117 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 	if (faulthandler_disabled() || !mm)
 		goto no_context;
 
+	if (regs->ecr_cause & ECR_C_PROTV_STORE)	/* ST/EX */
+		write = 1;
+	else if ((regs->ecr_vec == ECR_V_PROTV) &&
+	         (regs->ecr_cause == ECR_C_PROTV_INST_FETCH))
+		exec = 1;
+
+	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
+	if (write)
+		flags |= FAULT_FLAG_WRITE;
+
 retry:
 	down_read(&mm->mmap_sem);
+
 	vma = find_vma(mm, address);
 	if (!vma)
 		goto bad_area;
-	if (vma->vm_start <= address)
-		goto good_area;
-	if (!(vma->vm_flags & VM_GROWSDOWN))
-		goto bad_area;
-	if (expand_stack(vma, address))
-		goto bad_area;
-
-	/*
-	 * Ok, we have a good vm_area for this memory access, so
-	 * we can handle it..
-	 */
-good_area:
-	si_code = SEGV_ACCERR;
-
-	/* Handle protection violation, execute on heap or stack */
-
-	if ((regs->ecr_vec == ECR_V_PROTV) &&
-	    (regs->ecr_cause == ECR_C_PROTV_INST_FETCH))
-		goto bad_area;
-
-	if (write) {
-		if (!(vma->vm_flags & VM_WRITE))
-			goto bad_area;
-		flags |= FAULT_FLAG_WRITE;
-	} else {
-		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
+	if (unlikely(address < vma->vm_start)) {
+		if (!(vma->vm_flags & VM_GROWSDOWN) || expand_stack(vma, address))
 			goto bad_area;
 	}
 
 	/*
-	 * If for any reason at all we couldn't handle the fault,
-	 * make sure we exit gracefully rather than endlessly redo
-	 * the fault.
+	 * vm_area is good, now check permissions for this memory access
 	 */
+	mask = VM_READ;
+	if (write)
+		mask = VM_WRITE;
+	if (exec)
+		mask = VM_EXEC;
+
+	if (!(vma->vm_flags & mask)) {
+		si_code = SEGV_ACCERR;
+		goto bad_area;
+	}
+
 	fault = handle_mm_fault(vma, address, flags);
 
-	if (fatal_signal_pending(current)) {
+	/*
+	 * Fault retry nuances
+	 */
+	if (unlikely(fault & VM_FAULT_RETRY)) {
 
 		/*
-		 * if fault retry, mmap_sem already relinquished by core mm
-		 * so OK to return to user mode (with signal handled first)
+		 * If fault needs to be retried, handle any pending signals
+		 * first (by returning to user mode).
+		 * mmap_sem already relinquished by core mm for RETRY case
 		 */
-		if (fault & VM_FAULT_RETRY) {
+		if (fatal_signal_pending(current)) {
 			if (!user_mode(regs))
 				goto no_context;
 			return;
 		}
-	}
-
-	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
-
-	if (likely(!(fault & VM_FAULT_ERROR))) {
+		/*
+		 * retry state machine
+		 */
 		if (flags & FAULT_FLAG_ALLOW_RETRY) {
-			/* To avoid updating stats twice for retry case */
-			if (fault & VM_FAULT_MAJOR) {
-				tsk->maj_flt++;
-				perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
-					      regs, address);
-			} else {
-				tsk->min_flt++;
-				perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
-					      regs, address);
-			}
-
-			if (fault & VM_FAULT_RETRY) {
-				flags &= ~FAULT_FLAG_ALLOW_RETRY;
-				flags |= FAULT_FLAG_TRIED;
-				goto retry;
-			}
+			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			flags |= FAULT_FLAG_TRIED;
+			goto retry;
 		}
-
-		/* Fault Handled Gracefully */
-		up_read(&mm->mmap_sem);
-		return;
 	}
 
-	if (fault & VM_FAULT_OOM)
-		goto out_of_memory;
-	else if (fault & VM_FAULT_SIGSEGV)
-		goto bad_area;
-	else if (fault & VM_FAULT_SIGBUS)
-		goto do_sigbus;
-
-	/* no man's land */
-	BUG();
-
-	/*
-	 * Something tried to access memory that isn't in our memory map..
-	 * Fix it, but check if it's kernel or user first..
-	 */
 bad_area:
 	up_read(&mm->mmap_sem);
 
-	/* User mode accesses just cause a SIGSEGV */
-	if (user_mode(regs)) {
-		tsk->thread.fault_address = address;
-		force_sig_fault(SIGSEGV, si_code, (void __user *)address, tsk);
-		return;
-	}
-
-no_context:
-	/* Are we prepared to handle this kernel fault?
-	 *
-	 * (The kernel has valid exception-points in the source
-	 *  when it accesses user-memory. When it fails in one
-	 *  of those points, we find it in a table and do a jump
-	 *  to some fixup code that loads an appropriate error
-	 *  code)
+	/*
+	 * Major/minor page fault accounting
+	 * (in case of retry we only land here once)
 	 */
-	if (fixup_exception(regs))
-		return;
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
-	die("Oops", regs, address);
+	if (likely(!(fault & VM_FAULT_ERROR))) {
+		if (fault & VM_FAULT_MAJOR) {
+			tsk->maj_flt++;
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
+				      regs, address);
+		} else {
+			tsk->min_flt++;
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
+				      regs, address);
+		}
 
-out_of_memory:
-	up_read(&mm->mmap_sem);
-
-	if (user_mode(regs)) {
-		pagefault_out_of_memory();
+		/* Normal return path: fault Handled Gracefully */
 		return;
 	}
-
-	goto no_context;
-
-do_sigbus:
-	up_read(&mm->mmap_sem);
 
 	if (!user_mode(regs))
 		goto no_context;
 
+	if (fault & VM_FAULT_OOM) {
+		pagefault_out_of_memory();
+		return;
+	}
+
+	if (fault & VM_FAULT_SIGBUS) {
+		sig = SIGBUS;
+		si_code = BUS_ADRERR;
+	}
+	else {
+		sig = SIGSEGV;
+	}
+
 	tsk->thread.fault_address = address;
-	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address, tsk);
+	force_sig_fault(sig, si_code, (void __user *)address);
+	return;
+
+no_context:
+	if (fixup_exception(regs))
+		return;
+
+	die("Oops", regs, address);
 }

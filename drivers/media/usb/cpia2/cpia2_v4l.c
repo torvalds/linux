@@ -250,13 +250,6 @@ static int cpia2_querycap(struct file *file, void *fh, struct v4l2_capability *v
 
 	if (usb_make_path(cam->dev, vc->bus_info, sizeof(vc->bus_info)) <0)
 		memset(vc->bus_info,0, sizeof(vc->bus_info));
-
-	vc->device_caps = V4L2_CAP_VIDEO_CAPTURE |
-			   V4L2_CAP_READWRITE |
-			   V4L2_CAP_STREAMING;
-	vc->capabilities = vc->device_caps |
-			   V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -1152,6 +1145,8 @@ int cpia2_register_camera(struct camera_data *cam)
 	cam->vdev.lock = &cam->v4l2_lock;
 	cam->vdev.ctrl_handler = hdl;
 	cam->vdev.v4l2_dev = &cam->v4l2_dev;
+	cam->vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+				V4L2_CAP_STREAMING;
 
 	reset_camera_struct_v4l(cam);
 

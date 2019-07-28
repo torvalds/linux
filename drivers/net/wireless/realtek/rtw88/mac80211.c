@@ -85,30 +85,35 @@ static const struct rtw_vif_port rtw_vif_port[] = {
 		.bssid		= {.addr = 0x0618},
 		.net_type	= {.addr = 0x0100, .mask = 0x30000},
 		.aid		= {.addr = 0x06a8, .mask = 0x7ff},
+		.bcn_ctrl	= {.addr = 0x0550, .mask = 0xff},
 	},
 	[1] = {
 		.mac_addr	= {.addr = 0x0700},
 		.bssid		= {.addr = 0x0708},
 		.net_type	= {.addr = 0x0100, .mask = 0xc0000},
 		.aid		= {.addr = 0x0710, .mask = 0x7ff},
+		.bcn_ctrl	= {.addr = 0x0551, .mask = 0xff},
 	},
 	[2] = {
 		.mac_addr	= {.addr = 0x1620},
 		.bssid		= {.addr = 0x1628},
 		.net_type	= {.addr = 0x1100, .mask = 0x3},
 		.aid		= {.addr = 0x1600, .mask = 0x7ff},
+		.bcn_ctrl	= {.addr = 0x0578, .mask = 0xff},
 	},
 	[3] = {
 		.mac_addr	= {.addr = 0x1630},
 		.bssid		= {.addr = 0x1638},
 		.net_type	= {.addr = 0x1100, .mask = 0xc},
 		.aid		= {.addr = 0x1604, .mask = 0x7ff},
+		.bcn_ctrl	= {.addr = 0x0579, .mask = 0xff},
 	},
 	[4] = {
 		.mac_addr	= {.addr = 0x1640},
 		.bssid		= {.addr = 0x1648},
 		.net_type	= {.addr = 0x1100, .mask = 0x30},
 		.aid		= {.addr = 0x1608, .mask = 0x7ff},
+		.bcn_ctrl	= {.addr = 0x057a, .mask = 0xff},
 	},
 };
 
@@ -120,6 +125,7 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	enum rtw_net_type net_type;
 	u32 config = 0;
 	u8 port = 0;
+	u8 bcn_ctrl = 0;
 
 	rtwvif->port = port;
 	rtwvif->vif = vif;
@@ -136,13 +142,16 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
 		net_type = RTW_NET_AP_MODE;
+		bcn_ctrl = BIT_EN_BCN_FUNCTION | BIT_DIS_TSF_UDT;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		net_type = RTW_NET_AD_HOC;
+		bcn_ctrl = BIT_EN_BCN_FUNCTION | BIT_DIS_TSF_UDT;
 		break;
 	case NL80211_IFTYPE_STATION:
 	default:
 		net_type = RTW_NET_NO_LINK;
+		bcn_ctrl = BIT_EN_BCN_FUNCTION;
 		break;
 	}
 
@@ -150,6 +159,8 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	config |= PORT_SET_MAC_ADDR;
 	rtwvif->net_type = net_type;
 	config |= PORT_SET_NET_TYPE;
+	rtwvif->bcn_ctrl = bcn_ctrl;
+	config |= PORT_SET_BCN_CTRL;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 
 	mutex_unlock(&rtwdev->mutex);
@@ -173,6 +184,8 @@ static void rtw_ops_remove_interface(struct ieee80211_hw *hw,
 	config |= PORT_SET_MAC_ADDR;
 	rtwvif->net_type = RTW_NET_NO_LINK;
 	config |= PORT_SET_NET_TYPE;
+	rtwvif->bcn_ctrl = 0;
+	config |= PORT_SET_BCN_CTRL;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 
 	mutex_unlock(&rtwdev->mutex);
@@ -446,20 +459,39 @@ static void rtw_ops_sw_scan_start(struct ieee80211_hw *hw,
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
+	u32 config = 0;
 
 	rtw_leave_lps(rtwdev, rtwvif);
 
+	mutex_lock(&rtwdev->mutex);
+
+	ether_addr_copy(rtwvif->mac_addr, mac_addr);
+	config |= PORT_SET_MAC_ADDR;
+	rtw_vif_port_config(rtwdev, rtwvif, config);
+
 	rtw_flag_set(rtwdev, RTW_FLAG_DIG_DISABLE);
 	rtw_flag_set(rtwdev, RTW_FLAG_SCANNING);
+
+	mutex_unlock(&rtwdev->mutex);
 }
 
 static void rtw_ops_sw_scan_complete(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
 	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
+	u32 config = 0;
+
+	mutex_lock(&rtwdev->mutex);
 
 	rtw_flag_clear(rtwdev, RTW_FLAG_SCANNING);
 	rtw_flag_clear(rtwdev, RTW_FLAG_DIG_DISABLE);
+
+	ether_addr_copy(rtwvif->mac_addr, vif->addr);
+	config |= PORT_SET_MAC_ADDR;
+	rtw_vif_port_config(rtwdev, rtwvif, config);
+
+	mutex_unlock(&rtwdev->mutex);
 }
 
 const struct ieee80211_ops rtw_ops = {

@@ -24,7 +24,9 @@
 #include <net/devlink.h>
 #include <net/dst_metadata.h>
 #include <net/xdp.h>
-#include <linux/net_dim.h>
+#include <linux/dim.h>
+
+struct page_pool;
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
@@ -587,15 +589,21 @@ struct nqe_cn {
 #define BNXT_HWRM_CHNL_CHIMP	0
 #define BNXT_HWRM_CHNL_KONG	1
 
-#define BNXT_RX_EVENT	1
-#define BNXT_AGG_EVENT	2
-#define BNXT_TX_EVENT	4
+#define BNXT_RX_EVENT		1
+#define BNXT_AGG_EVENT		2
+#define BNXT_TX_EVENT		4
+#define BNXT_REDIRECT_EVENT	8
 
 struct bnxt_sw_tx_bd {
-	struct sk_buff		*skb;
+	union {
+		struct sk_buff		*skb;
+		struct xdp_frame	*xdpf;
+	};
 	DEFINE_DMA_UNMAP_ADDR(mapping);
+	DEFINE_DMA_UNMAP_LEN(len);
 	u8			is_gso;
 	u8			is_push;
+	u8			action;
 	union {
 		unsigned short		nr_frags;
 		u16			rx_prod;
@@ -793,6 +801,7 @@ struct bnxt_rx_ring_info {
 	struct bnxt_ring_struct	rx_ring_struct;
 	struct bnxt_ring_struct	rx_agg_ring_struct;
 	struct xdp_rxq_info	xdp_rxq;
+	struct page_pool	*page_pool;
 };
 
 struct bnxt_cp_ring_info {
@@ -810,7 +819,7 @@ struct bnxt_cp_ring_info {
 	u64			rx_bytes;
 	u64			event_ctr;
 
-	struct net_dim		dim;
+	struct dim		dim;
 
 	union {
 		struct tx_cmp	*cp_desc_ring[MAX_CP_PAGES];

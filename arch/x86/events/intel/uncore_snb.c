@@ -3,27 +3,29 @@
 #include "uncore.h"
 
 /* Uncore IMC PCI IDs */
-#define PCI_DEVICE_ID_INTEL_SNB_IMC	0x0100
-#define PCI_DEVICE_ID_INTEL_IVB_IMC	0x0154
-#define PCI_DEVICE_ID_INTEL_IVB_E3_IMC	0x0150
-#define PCI_DEVICE_ID_INTEL_HSW_IMC	0x0c00
-#define PCI_DEVICE_ID_INTEL_HSW_U_IMC	0x0a04
-#define PCI_DEVICE_ID_INTEL_BDW_IMC	0x1604
-#define PCI_DEVICE_ID_INTEL_SKL_U_IMC	0x1904
-#define PCI_DEVICE_ID_INTEL_SKL_Y_IMC	0x190c
-#define PCI_DEVICE_ID_INTEL_SKL_HD_IMC	0x1900
-#define PCI_DEVICE_ID_INTEL_SKL_HQ_IMC	0x1910
-#define PCI_DEVICE_ID_INTEL_SKL_SD_IMC	0x190f
-#define PCI_DEVICE_ID_INTEL_SKL_SQ_IMC	0x191f
-#define PCI_DEVICE_ID_INTEL_KBL_Y_IMC	0x590c
-#define PCI_DEVICE_ID_INTEL_KBL_U_IMC	0x5904
-#define PCI_DEVICE_ID_INTEL_KBL_UQ_IMC	0x5914
-#define PCI_DEVICE_ID_INTEL_KBL_SD_IMC	0x590f
-#define PCI_DEVICE_ID_INTEL_KBL_SQ_IMC	0x591f
-#define PCI_DEVICE_ID_INTEL_CFL_2U_IMC	0x3ecc
-#define PCI_DEVICE_ID_INTEL_CFL_4U_IMC	0x3ed0
-#define PCI_DEVICE_ID_INTEL_CFL_4H_IMC	0x3e10
-#define PCI_DEVICE_ID_INTEL_CFL_6H_IMC	0x3ec4
+#define PCI_DEVICE_ID_INTEL_SNB_IMC		0x0100
+#define PCI_DEVICE_ID_INTEL_IVB_IMC		0x0154
+#define PCI_DEVICE_ID_INTEL_IVB_E3_IMC		0x0150
+#define PCI_DEVICE_ID_INTEL_HSW_IMC		0x0c00
+#define PCI_DEVICE_ID_INTEL_HSW_U_IMC		0x0a04
+#define PCI_DEVICE_ID_INTEL_BDW_IMC		0x1604
+#define PCI_DEVICE_ID_INTEL_SKL_U_IMC		0x1904
+#define PCI_DEVICE_ID_INTEL_SKL_Y_IMC		0x190c
+#define PCI_DEVICE_ID_INTEL_SKL_HD_IMC		0x1900
+#define PCI_DEVICE_ID_INTEL_SKL_HQ_IMC		0x1910
+#define PCI_DEVICE_ID_INTEL_SKL_SD_IMC		0x190f
+#define PCI_DEVICE_ID_INTEL_SKL_SQ_IMC		0x191f
+#define PCI_DEVICE_ID_INTEL_KBL_Y_IMC		0x590c
+#define PCI_DEVICE_ID_INTEL_KBL_U_IMC		0x5904
+#define PCI_DEVICE_ID_INTEL_KBL_UQ_IMC		0x5914
+#define PCI_DEVICE_ID_INTEL_KBL_SD_IMC		0x590f
+#define PCI_DEVICE_ID_INTEL_KBL_SQ_IMC		0x591f
+#define PCI_DEVICE_ID_INTEL_KBL_HQ_IMC		0x5910
+#define PCI_DEVICE_ID_INTEL_KBL_WQ_IMC		0x5918
+#define PCI_DEVICE_ID_INTEL_CFL_2U_IMC		0x3ecc
+#define PCI_DEVICE_ID_INTEL_CFL_4U_IMC		0x3ed0
+#define PCI_DEVICE_ID_INTEL_CFL_4H_IMC		0x3e10
+#define PCI_DEVICE_ID_INTEL_CFL_6H_IMC		0x3ec4
 #define PCI_DEVICE_ID_INTEL_CFL_2S_D_IMC	0x3e0f
 #define PCI_DEVICE_ID_INTEL_CFL_4S_D_IMC	0x3e1f
 #define PCI_DEVICE_ID_INTEL_CFL_6S_D_IMC	0x3ec2
@@ -34,8 +36,14 @@
 #define PCI_DEVICE_ID_INTEL_CFL_4S_S_IMC	0x3e33
 #define PCI_DEVICE_ID_INTEL_CFL_6S_S_IMC	0x3eca
 #define PCI_DEVICE_ID_INTEL_CFL_8S_S_IMC	0x3e32
+#define PCI_DEVICE_ID_INTEL_AML_YD_IMC		0x590c
+#define PCI_DEVICE_ID_INTEL_AML_YQ_IMC		0x590d
+#define PCI_DEVICE_ID_INTEL_WHL_UQ_IMC		0x3ed0
+#define PCI_DEVICE_ID_INTEL_WHL_4_UQ_IMC	0x3e34
+#define PCI_DEVICE_ID_INTEL_WHL_UD_IMC		0x3e35
 #define PCI_DEVICE_ID_INTEL_ICL_U_IMC		0x8a02
 #define PCI_DEVICE_ID_INTEL_ICL_U2_IMC		0x8a12
+
 
 /* SNB event control */
 #define SNB_UNC_CTL_EV_SEL_MASK			0x000000ff
@@ -420,11 +428,6 @@ static void snb_uncore_imc_init_box(struct intel_uncore_box *box)
 	box->hrtimer_duration = UNCORE_SNB_IMC_HRTIMER_INTERVAL;
 }
 
-static void snb_uncore_imc_exit_box(struct intel_uncore_box *box)
-{
-	iounmap(box->io_addr);
-}
-
 static void snb_uncore_imc_enable_box(struct intel_uncore_box *box)
 {}
 
@@ -436,13 +439,6 @@ static void snb_uncore_imc_enable_event(struct intel_uncore_box *box, struct per
 
 static void snb_uncore_imc_disable_event(struct intel_uncore_box *box, struct perf_event *event)
 {}
-
-static u64 snb_uncore_imc_read_counter(struct intel_uncore_box *box, struct perf_event *event)
-{
-	struct hw_perf_event *hwc = &event->hw;
-
-	return (u64)*(unsigned int *)(box->io_addr + hwc->event_base);
-}
 
 /*
  * Keep the custom event_init() function compatible with old event
@@ -570,13 +566,13 @@ static struct pmu snb_uncore_imc_pmu = {
 
 static struct intel_uncore_ops snb_uncore_imc_ops = {
 	.init_box	= snb_uncore_imc_init_box,
-	.exit_box	= snb_uncore_imc_exit_box,
+	.exit_box	= uncore_mmio_exit_box,
 	.enable_box	= snb_uncore_imc_enable_box,
 	.disable_box	= snb_uncore_imc_disable_box,
 	.disable_event	= snb_uncore_imc_disable_event,
 	.enable_event	= snb_uncore_imc_enable_event,
 	.hw_config	= snb_uncore_imc_hw_config,
-	.read_counter	= snb_uncore_imc_read_counter,
+	.read_counter	= uncore_mmio_read_counter,
 };
 
 static struct intel_uncore_type snb_uncore_imc = {
@@ -682,6 +678,14 @@ static const struct pci_device_id skl_uncore_pci_ids[] = {
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
 	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_KBL_HQ_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_KBL_WQ_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CFL_2U_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
@@ -735,6 +739,26 @@ static const struct pci_device_id skl_uncore_pci_ids[] = {
 	},
 	{ /* IMC */
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CFL_8S_S_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_AML_YD_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_AML_YQ_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WHL_UQ_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WHL_4_UQ_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_WHL_UD_IMC),
 		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
 	},
 	{ /* end: all zeroes */ },
@@ -807,6 +831,8 @@ static const struct imc_uncore_pci_dev desktop_imc_pci_ids[] = {
 	IMC_DEV(KBL_UQ_IMC, &skl_uncore_pci_driver),  /* 7th Gen Core U Quad Core */
 	IMC_DEV(KBL_SD_IMC, &skl_uncore_pci_driver),  /* 7th Gen Core S Dual Core */
 	IMC_DEV(KBL_SQ_IMC, &skl_uncore_pci_driver),  /* 7th Gen Core S Quad Core */
+	IMC_DEV(KBL_HQ_IMC, &skl_uncore_pci_driver),  /* 7th Gen Core H Quad Core */
+	IMC_DEV(KBL_WQ_IMC, &skl_uncore_pci_driver),  /* 7th Gen Core S 4 cores Work Station */
 	IMC_DEV(CFL_2U_IMC, &skl_uncore_pci_driver),  /* 8th Gen Core U 2 Cores */
 	IMC_DEV(CFL_4U_IMC, &skl_uncore_pci_driver),  /* 8th Gen Core U 4 Cores */
 	IMC_DEV(CFL_4H_IMC, &skl_uncore_pci_driver),  /* 8th Gen Core H 4 Cores */
@@ -821,6 +847,11 @@ static const struct imc_uncore_pci_dev desktop_imc_pci_ids[] = {
 	IMC_DEV(CFL_4S_S_IMC, &skl_uncore_pci_driver),  /* 8th Gen Core S 4 Cores Server */
 	IMC_DEV(CFL_6S_S_IMC, &skl_uncore_pci_driver),  /* 8th Gen Core S 6 Cores Server */
 	IMC_DEV(CFL_8S_S_IMC, &skl_uncore_pci_driver),  /* 8th Gen Core S 8 Cores Server */
+	IMC_DEV(AML_YD_IMC, &skl_uncore_pci_driver),	/* 8th Gen Core Y Mobile Dual Core */
+	IMC_DEV(AML_YQ_IMC, &skl_uncore_pci_driver),	/* 8th Gen Core Y Mobile Quad Core */
+	IMC_DEV(WHL_UQ_IMC, &skl_uncore_pci_driver),	/* 8th Gen Core U Mobile Quad Core */
+	IMC_DEV(WHL_4_UQ_IMC, &skl_uncore_pci_driver),	/* 8th Gen Core U Mobile Quad Core */
+	IMC_DEV(WHL_UD_IMC, &skl_uncore_pci_driver),	/* 8th Gen Core U Mobile Dual Core */
 	IMC_DEV(ICL_U_IMC, &icl_uncore_pci_driver),	/* 10th Gen Core Mobile */
 	IMC_DEV(ICL_U2_IMC, &icl_uncore_pci_driver),	/* 10th Gen Core Mobile */
 	{  /* end marker */ }

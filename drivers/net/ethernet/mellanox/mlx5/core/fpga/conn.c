@@ -414,7 +414,8 @@ static void mlx5_fpga_conn_cq_tasklet(unsigned long data)
 	mlx5_fpga_conn_cqes(conn, MLX5_FPGA_CQ_BUDGET);
 }
 
-static void mlx5_fpga_conn_cq_complete(struct mlx5_core_cq *mcq)
+static void mlx5_fpga_conn_cq_complete(struct mlx5_core_cq *mcq,
+				       struct mlx5_eqe *eqe)
 {
 	struct mlx5_fpga_conn *conn;
 
@@ -429,6 +430,7 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	struct mlx5_fpga_device *fdev = conn->fdev;
 	struct mlx5_core_dev *mdev = fdev->mdev;
 	u32 temp_cqc[MLX5_ST_SZ_DW(cqc)] = {0};
+	u32 out[MLX5_ST_SZ_DW(create_cq_out)];
 	struct mlx5_wq_param wqp;
 	struct mlx5_cqe64 *cqe;
 	int inlen, err, eqn;
@@ -476,7 +478,7 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	pas = (__be64 *)MLX5_ADDR_OF(create_cq_in, in, pas);
 	mlx5_fill_page_frag_array(&conn->cq.wq_ctrl.buf, pas);
 
-	err = mlx5_core_create_cq(mdev, &conn->cq.mcq, in, inlen);
+	err = mlx5_core_create_cq(mdev, &conn->cq.mcq, in, inlen, out, sizeof(out));
 	kvfree(in);
 
 	if (err)
@@ -867,7 +869,7 @@ struct mlx5_fpga_conn *mlx5_fpga_conn_create(struct mlx5_fpga_device *fdev,
 	conn->cb_arg = attr->cb_arg;
 
 	remote_mac = MLX5_ADDR_OF(fpga_qpc, conn->fpga_qpc, remote_mac_47_32);
-	err = mlx5_query_nic_vport_mac_address(fdev->mdev, 0, remote_mac);
+	err = mlx5_query_mac_address(fdev->mdev, remote_mac);
 	if (err) {
 		mlx5_fpga_err(fdev, "Failed to query local MAC: %d\n", err);
 		ret = ERR_PTR(err);

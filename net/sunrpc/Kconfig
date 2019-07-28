@@ -35,7 +35,7 @@ config RPCSEC_GSS_KRB5
 
 	  If unsure, say Y.
 
-config CONFIG_SUNRPC_DISABLE_INSECURE_ENCTYPES
+config SUNRPC_DISABLE_INSECURE_ENCTYPES
 	bool "Secure RPC: Disable insecure Kerberos encryption types"
 	depends on RPCSEC_GSS_KRB5
 	default n

@@ -90,7 +90,7 @@ static int mv88e6xxx_g1_atu_op(struct mv88e6xxx_chip *chip, u16 fid, u16 op)
 		if (err)
 			return err;
 	} else {
-		if (mv88e6xxx_num_databases(chip) > 16) {
+		if (mv88e6xxx_num_databases(chip) > 64) {
 			/* ATU DBNum[7:4] are located in ATU Control 15:12 */
 			err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_ATU_CTL,
 						&val);
@@ -102,6 +102,9 @@ static int mv88e6xxx_g1_atu_op(struct mv88e6xxx_chip *chip, u16 fid, u16 op)
 						 val);
 			if (err)
 				return err;
+		} else if (mv88e6xxx_num_databases(chip) > 16) {
+			/* ATU DBNum[5:4] are located in ATU Operation 9:8 */
+			op |= (fid & 0x30) << 4;
 		}
 
 		/* ATU DBNum[3:0] are located in ATU Operation 3:0 */
@@ -314,7 +317,7 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 	int err;
 	u16 val;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	err = mv88e6xxx_g1_atu_op(chip, 0,
 				  MV88E6XXX_G1_ATU_OP_GET_CLR_VIOLATION);
@@ -361,12 +364,12 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 				    entry.mac, entry.portvec, spid);
 		chip->ports[spid].atu_full_violation++;
 	}
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	return IRQ_HANDLED;
 
 out:
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	dev_err(chip->dev, "ATU problem: error %d while handling interrupt\n",
 		err);

@@ -1952,6 +1952,11 @@ void dce110_tg_set_overscan_color(struct timing_generator *tg,
 
 void dce110_tg_program_timing(struct timing_generator *tg,
 	const struct dc_crtc_timing *timing,
+	int vready_offset,
+	int vstartup_start,
+	int vupdate_offset,
+	int vupdate_width,
+	const enum signal_type signal,
 	bool use_vbios)
 {
 	if (use_vbios)

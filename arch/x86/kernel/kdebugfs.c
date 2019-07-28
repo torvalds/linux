@@ -67,33 +67,18 @@ static const struct file_operations fops_setup_data = {
 	.llseek		= default_llseek,
 };
 
-static int __init
+static void __init
 create_setup_data_node(struct dentry *parent, int no,
 		       struct setup_data_node *node)
 {
-	struct dentry *d, *type, *data;
+	struct dentry *d;
 	char buf[16];
 
 	sprintf(buf, "%d", no);
 	d = debugfs_create_dir(buf, parent);
-	if (!d)
-		return -ENOMEM;
 
-	type = debugfs_create_x32("type", S_IRUGO, d, &node->type);
-	if (!type)
-		goto err_dir;
-
-	data = debugfs_create_file("data", S_IRUGO, d, node, &fops_setup_data);
-	if (!data)
-		goto err_type;
-
-	return 0;
-
-err_type:
-	debugfs_remove(type);
-err_dir:
-	debugfs_remove(d);
-	return -ENOMEM;
+	debugfs_create_x32("type", S_IRUGO, d, &node->type);
+	debugfs_create_file("data", S_IRUGO, d, node, &fops_setup_data);
 }
 
 static int __init create_setup_data_nodes(struct dentry *parent)
@@ -106,8 +91,6 @@ static int __init create_setup_data_nodes(struct dentry *parent)
 	int no = 0;
 
 	d = debugfs_create_dir("setup_data", parent);
-	if (!d)
-		return -ENOMEM;
 
 	pa_data = boot_params.hdr.setup_data;
 
@@ -128,19 +111,17 @@ static int __init create_setup_data_nodes(struct dentry *parent)
 		node->paddr = pa_data;
 		node->type = data->type;
 		node->len = data->len;
-		error = create_setup_data_node(d, no, node);
+		create_setup_data_node(d, no, node);
 		pa_data = data->next;
 
 		memunmap(data);
-		if (error)
-			goto err_dir;
 		no++;
 	}
 
 	return 0;
 
 err_dir:
-	debugfs_remove(d);
+	debugfs_remove_recursive(d);
 	return error;
 }
 
@@ -151,35 +132,18 @@ static struct debugfs_blob_wrapper boot_params_blob = {
 
 static int __init boot_params_kdebugfs_init(void)
 {
-	struct dentry *dbp, *version, *data;
-	int error = -ENOMEM;
+	struct dentry *dbp;
+	int error;
 
 	dbp = debugfs_create_dir("boot_params", arch_debugfs_dir);
-	if (!dbp)
-		return -ENOMEM;
 
-	version = debugfs_create_x16("version", S_IRUGO, dbp,
-				     &boot_params.hdr.version);
-	if (!version)
-		goto err_dir;
-
-	data = debugfs_create_blob("data", S_IRUGO, dbp,
-				   &boot_params_blob);
-	if (!data)
-		goto err_version;
+	debugfs_create_x16("version", S_IRUGO, dbp, &boot_params.hdr.version);
+	debugfs_create_blob("data", S_IRUGO, dbp, &boot_params_blob);
 
 	error = create_setup_data_nodes(dbp);
 	if (error)
-		goto err_data;
+		debugfs_remove_recursive(dbp);
 
-	return 0;
-
-err_data:
-	debugfs_remove(data);
-err_version:
-	debugfs_remove(version);
-err_dir:
-	debugfs_remove(dbp);
 	return error;
 }
 #endif /* CONFIG_DEBUG_BOOT_PARAMS */
@@ -189,8 +153,6 @@ static int __init arch_kdebugfs_init(void)
 	int error = 0;
 
 	arch_debugfs_dir = debugfs_create_dir("x86", NULL);
-	if (!arch_debugfs_dir)
-		return -ENOMEM;
 
 #ifdef CONFIG_DEBUG_BOOT_PARAMS
 	error = boot_params_kdebugfs_init();

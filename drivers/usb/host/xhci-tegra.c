@@ -354,29 +354,6 @@ enum tegra_xusb_mbox_cmd {
 	MBOX_CMD_NAK
 };
 
-static const char * const mbox_cmd_name[] = {
-	[  1] = "MSG_ENABLE",
-	[  2] = "INC_FALCON_CLOCK",
-	[  3] = "DEC_FALCON_CLOCK",
-	[  4] = "INC_SSPI_CLOCK",
-	[  5] = "DEC_SSPI_CLOCK",
-	[  6] = "SET_BW",
-	[  7] = "SET_SS_PWR_GATING",
-	[  8] = "SET_SS_PWR_UNGATING",
-	[  9] = "SAVE_DFE_CTLE_CTX",
-	[ 10] = "AIRPLANE_MODE_ENABLED",
-	[ 11] = "AIRPLANE_MODE_DISABLED",
-	[ 12] = "START_HSIC_IDLE",
-	[ 13] = "STOP_HSIC_IDLE",
-	[ 14] = "DBC_WAKE_STACK",
-	[ 15] = "HSIC_PRETEND_CONNECT",
-	[ 16] = "RESET_SSPI",
-	[ 17] = "DISABLE_SS_LFPS_DETECTION",
-	[ 18] = "ENABLE_SS_LFPS_DETECTION",
-	[128] = "ACK",
-	[129] = "NAK",
-};
-
 struct tegra_xusb_mbox_msg {
 	u32 cmd;
 	u32 data;

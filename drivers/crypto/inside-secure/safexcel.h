@@ -118,6 +118,7 @@
 #define EIP197_PE_ICE_SCRATCH_CTRL(n)		(0x0d04 + (0x2000 * (n)))
 #define EIP197_PE_ICE_FPP_CTRL(n)		(0x0d80 + (0x2000 * (n)))
 #define EIP197_PE_ICE_RAM_CTRL(n)		(0x0ff0 + (0x2000 * (n)))
+#define EIP197_PE_EIP96_TOKEN_CTRL(n)		(0x1000 + (0x2000 * (n)))
 #define EIP197_PE_EIP96_FUNCTION_EN(n)		(0x1004 + (0x2000 * (n)))
 #define EIP197_PE_EIP96_CONTEXT_CTRL(n)		(0x1008 + (0x2000 * (n)))
 #define EIP197_PE_EIP96_CONTEXT_STAT(n)		(0x100c + (0x2000 * (n)))
@@ -249,6 +250,11 @@
 #define EIP197_PE_ICE_RAM_CTRL_PUE_PROG_EN	BIT(0)
 #define EIP197_PE_ICE_RAM_CTRL_FPP_PROG_EN	BIT(1)
 
+/* EIP197_PE_EIP96_TOKEN_CTRL */
+#define EIP197_PE_EIP96_TOKEN_CTRL_CTX_UPDATES		BIT(16)
+#define EIP197_PE_EIP96_TOKEN_CTRL_REUSE_CTX		BIT(19)
+#define EIP197_PE_EIP96_TOKEN_CTRL_POST_REUSE_CTX	BIT(20)
+
 /* EIP197_PE_EIP96_FUNCTION_EN */
 #define EIP197_FUNCTION_RSVD			(BIT(6) | BIT(15) | BIT(20) | BIT(23))
 #define EIP197_PROTOCOL_HASH_ONLY		BIT(0)
@@ -333,6 +339,7 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_IV3			BIT(8)
 #define CONTEXT_CONTROL_DIGEST_CNT		BIT(9)
 #define CONTEXT_CONTROL_COUNTER_MODE		BIT(10)
+#define CONTEXT_CONTROL_CRYPTO_STORE		BIT(12)
 #define CONTEXT_CONTROL_HASH_STORE		BIT(19)
 
 /* The hash counter given to the engine in the context has a granularity of
@@ -425,6 +432,10 @@ struct safexcel_token {
 
 #define EIP197_TOKEN_HASH_RESULT_VERIFY		BIT(16)
 
+#define EIP197_TOKEN_CTX_OFFSET(x)		(x)
+#define EIP197_TOKEN_DIRECTION_EXTERNAL		BIT(11)
+#define EIP197_TOKEN_EXEC_IF_SUCCESSFUL		(0x1 << 12)
+
 #define EIP197_TOKEN_STAT_LAST_HASH		BIT(0)
 #define EIP197_TOKEN_STAT_LAST_PACKET		BIT(1)
 #define EIP197_TOKEN_OPCODE_DIRECTION		0x0
@@ -432,6 +443,7 @@ struct safexcel_token {
 #define EIP197_TOKEN_OPCODE_NOOP		EIP197_TOKEN_OPCODE_INSERT
 #define EIP197_TOKEN_OPCODE_RETRIEVE		0x4
 #define EIP197_TOKEN_OPCODE_VERIFY		0xd
+#define EIP197_TOKEN_OPCODE_CTX_ACCESS		0xe
 #define EIP197_TOKEN_OPCODE_BYPASS		GENMASK(3, 0)
 
 static inline void eip197_noop_token(struct safexcel_token *token)
@@ -442,6 +454,8 @@ static inline void eip197_noop_token(struct safexcel_token *token)
 
 /* Instructions */
 #define EIP197_TOKEN_INS_INSERT_HASH_DIGEST	0x1c
+#define EIP197_TOKEN_INS_ORIGIN_IV0		0x14
+#define EIP197_TOKEN_INS_ORIGIN_LEN(x)		((x) << 5)
 #define EIP197_TOKEN_INS_TYPE_OUTPUT		BIT(5)
 #define EIP197_TOKEN_INS_TYPE_HASH		BIT(6)
 #define EIP197_TOKEN_INS_TYPE_CRYTO		BIT(7)
@@ -468,6 +482,7 @@ struct safexcel_control_data_desc {
 
 #define EIP197_OPTION_MAGIC_VALUE	BIT(0)
 #define EIP197_OPTION_64BIT_CTX		BIT(1)
+#define EIP197_OPTION_RC_AUTO		(0x2 << 3)
 #define EIP197_OPTION_CTX_CTRL_IN_CMD	BIT(8)
 #define EIP197_OPTION_2_TOKEN_IV_CMD	GENMASK(11, 10)
 #define EIP197_OPTION_4_TOKEN_IV_CMD	GENMASK(11, 9)
@@ -629,7 +644,7 @@ struct safexcel_ahash_export_state {
 	u32 digest;
 
 	u32 state[SHA512_DIGEST_SIZE / sizeof(u32)];
-	u8 cache[SHA512_BLOCK_SIZE];
+	u8 cache[SHA512_BLOCK_SIZE << 1];
 };
 
 /*

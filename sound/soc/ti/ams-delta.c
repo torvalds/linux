@@ -504,17 +504,19 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* DAI glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(cx20442,
+	DAILINK_COMP_ARRAY(COMP_CPU("omap-mcbsp.1")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("cx20442-codec", "cx20442-voice")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("omap-mcbsp.1")));
+
 static struct snd_soc_dai_link ams_delta_dai_link = {
 	.name = "CX20442",
 	.stream_name = "CX20442",
-	.cpu_dai_name = "omap-mcbsp.1",
-	.codec_dai_name = "cx20442-voice",
 	.init = ams_delta_cx20442_init,
-	.platform_name = "omap-mcbsp.1",
-	.codec_name = "cx20442-codec",
 	.ops = &ams_delta_ops,
 	.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBM_CFM,
+	SND_SOC_DAILINK_REG(cx20442),
 };
 
 /* Audio card driver */

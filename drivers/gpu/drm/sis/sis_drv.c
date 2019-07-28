@@ -27,11 +27,13 @@
 
 #include <linux/module.h>
 
-#include <drm/drmP.h>
-#include <drm/sis_drm.h>
-#include "sis_drv.h"
-
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_pci.h>
 #include <drm/drm_pciids.h>
+#include <drm/sis_drm.h>
+
+#include "sis_drv.h"
 
 static struct pci_device_id pciidlist[] = {
 	sisdrv_PCI_IDS

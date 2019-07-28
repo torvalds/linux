@@ -117,6 +117,20 @@ static inline u32 xskq_nb_free(struct xsk_queue *q, u32 producer, u32 dcnt)
 	return q->nentries - (producer - q->cons_tail);
 }
 
+static inline bool xskq_has_addrs(struct xsk_queue *q, u32 cnt)
+{
+	u32 entries = q->prod_tail - q->cons_tail;
+
+	if (entries >= cnt)
+		return true;
+
+	/* Refresh the local pointer. */
+	q->prod_tail = READ_ONCE(q->ring->producer);
+	entries = q->prod_tail - q->cons_tail;
+
+	return entries >= cnt;
+}
+
 /* UMEM queue */
 
 static inline bool xskq_is_valid_addr(struct xsk_queue *q, u64 addr)
@@ -288,7 +302,7 @@ static inline void xskq_produce_flush_desc(struct xsk_queue *q)
 	/* Order producer and data */
 	smp_wmb(); /* B, matches C */
 
-	q->prod_tail = q->prod_head,
+	q->prod_tail = q->prod_head;
 	WRITE_ONCE(q->ring->producer, q->prod_tail);
 }
 

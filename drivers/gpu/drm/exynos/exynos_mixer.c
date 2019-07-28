@@ -9,33 +9,32 @@
  * Based on drivers/media/video/s5p-tv/mixer_reg.c
  */
 
-#include <drm/drmP.h>
-
-#include "regs-mixer.h"
-#include "regs-vp.h"
-
-#include <linux/kernel.h>
-#include <linux/ktime.h>
-#include <linux/spinlock.h>
-#include <linux/wait.h>
+#include <linux/clk.h>
+#include <linux/component.h>
+#include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/delay.h>
-#include <linux/pm_runtime.h>
-#include <linux/clk.h>
-#include <linux/regulator/consumer.h>
+#include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/component.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
+#include <linux/spinlock.h>
+#include <linux/wait.h>
 
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
 #include <drm/exynos_drm.h>
 
-#include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
+#include "regs-mixer.h"
+#include "regs-vp.h"
 
 #define MIXER_WIN_NR		3
 #define VP_DEFAULT_WIN		2

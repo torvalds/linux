@@ -20,6 +20,7 @@
 #include "inode-map.h"
 #include "qgroup.h"
 #include "print-tree.h"
+#include "delalloc-space.h"
 
 /*
  * backref_node, mapping_node and tree_block start with this

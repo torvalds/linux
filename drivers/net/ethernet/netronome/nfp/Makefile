@@ -16,6 +16,7 @@ nfp-objs := \
 	    nfpcore/nfp_rtsym.o \
 	    nfpcore/nfp_target.o \
 	    ccm.o \
+	    ccm_mbox.o \
 	    nfp_asm.o \
 	    nfp_app.o \
 	    nfp_app_nic.o \
@@ -33,6 +34,11 @@ nfp-objs := \
 	    nfp_port.o \
 	    nfp_shared_buf.o \
 	    nic/main.o
+
+ifeq ($(CONFIG_TLS_DEVICE),y)
+nfp-objs += \
+	    crypto/tls.o
+endif
 
 ifeq ($(CONFIG_NFP_APP_FLOWER),y)
 nfp-objs += \

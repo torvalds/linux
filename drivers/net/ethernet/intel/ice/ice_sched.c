@@ -683,10 +683,10 @@ ice_sched_add_elems(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 	u16 i, num_groups_added = 0;
 	enum ice_status status = 0;
 	struct ice_hw *hw = pi->hw;
-	u16 buf_size;
+	size_t buf_size;
 	u32 teid;
 
-	buf_size = sizeof(*buf) + sizeof(*buf->generic) * (num_nodes - 1);
+	buf_size = struct_size(buf, generic, num_nodes - 1);
 	buf = devm_kzalloc(ice_hw_to_dev(hw), buf_size, GFP_KERNEL);
 	if (!buf)
 		return ICE_ERR_NO_MEMORY;

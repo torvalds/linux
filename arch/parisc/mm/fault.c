@@ -403,13 +403,13 @@ bad_area:
 				lsb = PAGE_SHIFT;
 
 			force_sig_mceerr(BUS_MCEERR_AR, (void __user *) address,
-					 lsb, current);
+					 lsb);
 			return;
 		}
 #endif
 		show_signal_msg(regs, code, address, tsk, vma);
 
-		force_sig_fault(signo, si_code, (void __user *) address, current);
+		force_sig_fault(signo, si_code, (void __user *) address);
 		return;
 	}
 

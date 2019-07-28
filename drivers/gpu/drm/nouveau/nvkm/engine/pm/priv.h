@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_PM_PRIV_H__
 #define __NVKM_PM_PRIV_H__
 #define nvkm_pm(p) container_of((p), struct nvkm_pm, engine)

@@ -18,7 +18,7 @@
 static void vivid_sliced_vbi_cap_fill(struct vivid_dev *dev, unsigned seqnr)
 {
 	struct vivid_vbi_gen_data *vbi_gen = &dev->vbi_gen;
-	bool is_60hz = dev->std_cap & V4L2_STD_525_60;
+	bool is_60hz = dev->std_cap[dev->input] & V4L2_STD_525_60;
 
 	vivid_vbi_gen_sliced(vbi_gen, is_60hz, seqnr);
 
@@ -65,7 +65,7 @@ static void vivid_sliced_vbi_cap_fill(struct vivid_dev *dev, unsigned seqnr)
 
 static void vivid_g_fmt_vbi_cap(struct vivid_dev *dev, struct v4l2_vbi_format *vbi)
 {
-	bool is_60hz = dev->std_cap & V4L2_STD_525_60;
+	bool is_60hz = dev->std_cap[dev->input] & V4L2_STD_525_60;
 
 	vbi->sampling_rate = 27000000;
 	vbi->offset = 24;
@@ -93,7 +93,7 @@ void vivid_raw_vbi_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
 
 	memset(vbuf, 0x10, vb2_plane_size(&buf->vb.vb2_buf, 0));
 
-	if (!VIVID_INVALID_SIGNAL(dev->std_signal_mode))
+	if (!VIVID_INVALID_SIGNAL(dev->std_signal_mode[dev->input]))
 		vivid_vbi_gen_raw(&dev->vbi_gen, &vbi, vbuf);
 }
 
@@ -111,7 +111,7 @@ void vivid_sliced_vbi_cap_process(struct vivid_dev *dev,
 	vivid_sliced_vbi_cap_fill(dev, buf->vb.sequence);
 
 	memset(vbuf, 0, vb2_plane_size(&buf->vb.vb2_buf, 0));
-	if (!VIVID_INVALID_SIGNAL(dev->std_signal_mode)) {
+	if (!VIVID_INVALID_SIGNAL(dev->std_signal_mode[dev->input])) {
 		unsigned i;
 
 		for (i = 0; i < 25; i++)
@@ -124,7 +124,7 @@ static int vbi_cap_queue_setup(struct vb2_queue *vq,
 		       unsigned sizes[], struct device *alloc_devs[])
 {
 	struct vivid_dev *dev = vb2_get_drv_priv(vq);
-	bool is_60hz = dev->std_cap & V4L2_STD_525_60;
+	bool is_60hz = dev->std_cap[dev->input] & V4L2_STD_525_60;
 	unsigned size = vq->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE ?
 		36 * sizeof(struct v4l2_sliced_vbi_data) :
 		1440 * 2 * (is_60hz ? 12 : 18);
@@ -144,7 +144,7 @@ static int vbi_cap_queue_setup(struct vb2_queue *vq,
 static int vbi_cap_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	bool is_60hz = dev->std_cap & V4L2_STD_525_60;
+	bool is_60hz = dev->std_cap[dev->input] & V4L2_STD_525_60;
 	unsigned size = vb->vb2_queue->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE ?
 		36 * sizeof(struct v4l2_sliced_vbi_data) :
 		1440 * 2 * (is_60hz ? 12 : 18);
@@ -302,7 +302,7 @@ int vidioc_try_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_forma
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	struct v4l2_sliced_vbi_format *vbi = &fmt->fmt.sliced;
-	bool is_60hz = dev->std_cap & V4L2_STD_525_60;
+	bool is_60hz = dev->std_cap[dev->input] & V4L2_STD_525_60;
 	u32 service_set = vbi->service_set;
 
 	if (!vivid_is_sdtv_cap(dev) || !dev->has_sliced_vbi_cap)
@@ -337,7 +337,7 @@ int vidioc_g_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_sliced_vbi_
 	bool is_60hz;
 
 	if (vdev->vfl_dir == VFL_DIR_RX) {
-		is_60hz = dev->std_cap & V4L2_STD_525_60;
+		is_60hz = dev->std_cap[dev->input] & V4L2_STD_525_60;
 		if (!vivid_is_sdtv_cap(dev) || !dev->has_sliced_vbi_cap ||
 		    cap->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
 			return -EINVAL;

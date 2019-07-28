@@ -308,7 +308,7 @@ static inline unchar *msg_data(struct tipc_msg *m)
 	return ((unchar *)m) + msg_hdr_sz(m);
 }
 
-static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
+static inline struct tipc_msg *msg_inner_hdr(struct tipc_msg *m)
 {
 	return (struct tipc_msg *)msg_data(m);
 }
@@ -486,7 +486,7 @@ static inline void msg_set_prevnode(struct tipc_msg *m, u32 a)
 static inline u32 msg_origport(struct tipc_msg *m)
 {
 	if (msg_user(m) == MSG_FRAGMENTER)
-		m = msg_get_wrapped(m);
+		m = msg_inner_hdr(m);
 	return msg_word(m, 4);
 }
 

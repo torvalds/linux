@@ -29,8 +29,9 @@
  */
 #include <linux/compat.h>
 
-#include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
+#include <drm/drm_ioctl.h>
+
 #include "amdgpu_drv.h"
 
 long amdgpu_kms_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)

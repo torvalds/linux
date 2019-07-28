@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dce_clk_mgr.h"
 
 #include "reg_helper.h"

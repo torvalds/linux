@@ -10,25 +10,6 @@ graphics subsystem useful as newbie projects. Or for slow rainy days.
 Subsystem-wide refactorings
 ===========================
 
-De-midlayer drivers
--------------------
-
-With the recent ``drm_bus`` cleanup patches for 3.17 it is no longer required
-to have a ``drm_bus`` structure set up. Drivers can directly set up the
-``drm_device`` structure instead of relying on bus methods in ``drm_usb.c``
-and ``drm_pci.c``. The goal is to get rid of the driver's ``->load`` /
-``->unload`` callbacks and open-code the load/unload sequence properly, using
-the new two-stage ``drm_device`` setup/teardown.
-
-Once all existing drivers are converted we can also remove those bus support
-files for USB and platform devices.
-
-All you need is a GPU for a non-converted driver (currently almost all of
-them, but also all the virtual ones used by KVM, so everyone qualifies).
-
-Contact: Daniel Vetter, Thierry Reding, respective driver maintainers
-
-
 Remove custom dumb_map_offset implementations
 ---------------------------------------------
 
@@ -247,6 +228,12 @@ struct drm_gem_object_funcs
 GEM objects can now have a function table instead of having the callbacks on the
 DRM driver struct. This is now the preferred way and drivers can be moved over.
 
+DRM_GEM_CMA_VMAP_DRIVER_OPS, DRM_GEM_SHMEM_DRIVER_OPS already support this, but
+DRM_GEM_VRAM_DRIVER_PRIME does not yet and needs to be aligned with the previous
+two. We also need a 2nd version of the CMA define that doesn't require the
+vmapping to be present (different hook for prime importing). Plus this needs to
+be rolled out to all drivers using their own implementations, too.
+
 Use DRM_MODESET_LOCK_ALL_* helpers instead of boilerplate
 ---------------------------------------------------------
 
@@ -299,6 +286,21 @@ in the future. If there is any debug code using drm_display_mode.hsync, convert
 it to use drm_mode_hsync() instead.
 
 Contact: Sean Paul
+
+drm_fb_helper tasks
+-------------------
+
+- drm_fb_helper_restore_fbdev_mode_unlocked() should call restore_fbdev_mode()
+  not the _force variant so it can bail out if there is a master. But first
+  these igt tests need to be fixed: kms_fbcon_fbt@psr and
+  kms_fbcon_fbt@psr-suspend.
+
+- The max connector argument for drm_fb_helper_init() and
+  drm_fb_helper_fbdev_setup() isn't used anymore and can be removed.
+
+- The helper doesn't keep an array of connectors anymore so these can be
+  removed: drm_fb_helper_single_add_all_connectors(),
+  drm_fb_helper_add_one_connector() and drm_fb_helper_remove_one_connector().
 
 Core refactorings
 =================
@@ -487,6 +489,21 @@ i915
 - Our early/late pm callbacks could be removed in favour of using
   device_link_add to model the dependency between i915 and snd_had. See
   https://dri.freedesktop.org/docs/drm/driver-api/device_link.html
+
+Bootsplash
+==========
+
+There is support in place now for writing internal DRM clients making it
+possible to pick up the bootsplash work that was rejected because it was written
+for fbdev.
+
+- [v6,8/8] drm/client: Hack: Add bootsplash example
+  https://patchwork.freedesktop.org/patch/306579/
+
+- [RFC PATCH v2 00/13] Kernel based bootsplash
+  https://lkml.org/lkml/2017/12/13/764
+
+Contact: Sam Ravnborg
 
 Outside DRM
 ===========

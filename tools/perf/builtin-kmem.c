@@ -4,7 +4,6 @@
 
 #include "util/evlist.h"
 #include "util/evsel.h"
-#include "util/util.h"
 #include "util/config.h"
 #include "util/map.h"
 #include "util/symbol.h"
@@ -21,16 +20,18 @@
 #include "util/cpumap.h"
 
 #include "util/debug.h"
+#include "util/string2.h"
 
 #include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <locale.h>
 #include <regex.h>
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 static int	kmem_slab;
 static int	kmem_page;

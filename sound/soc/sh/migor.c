@@ -123,16 +123,18 @@ static const struct snd_soc_dapm_route audio_map[] = {
 };
 
 /* migor digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(wm8978,
+	DAILINK_COMP_ARRAY(COMP_CPU("siu-pcm-audio")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8978.0-001a", "wm8978-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("siu-pcm-audio")));
+
 static struct snd_soc_dai_link migor_dai = {
 	.name = "wm8978",
 	.stream_name = "WM8978",
-	.cpu_dai_name = "siu-pcm-audio",
-	.codec_dai_name = "wm8978-hifi",
-	.platform_name = "siu-pcm-audio",
-	.codec_name = "wm8978.0-001a",
 	.dai_fmt = SND_SOC_DAIFMT_NB_IF | SND_SOC_DAIFMT_I2S |
 		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &migor_dai_ops,
+	SND_SOC_DAILINK_REG(wm8978),
 };
 
 /* migor audio machine driver */

@@ -38,7 +38,7 @@ Linux内核补丁提交清单
    违规行为。
 
 6) 任何新的或修改过的 ``CONFIG`` 选项都不会弄脏配置菜单，并默认为关闭，除非
-   它们符合 ``Documentation/kbuild/kconfig-language.txt`` 中记录的异常条件,
+   它们符合 ``Documentation/kbuild/kconfig-language.rst`` 中记录的异常条件,
    菜单属性：默认值.
 
 7) 所有新的 ``kconfig`` 选项都有帮助文本。
@@ -97,7 +97,7 @@ Linux内核补丁提交清单
 24) 所有内存屏障例如 ``barrier()``, ``rmb()``, ``wmb()`` 都需要源代码中的注
     释来解释它们正在执行的操作及其原因的逻辑。
 
-25) 如果补丁添加了任何ioctl，那么也要更新 ``Documentation/ioctl/ioctl-number.txt``
+25) 如果补丁添加了任何ioctl，那么也要更新 ``Documentation/ioctl/ioctl-number.rst``
 
 26) 如果修改后的源代码依赖或使用与以下 ``Kconfig`` 符号相关的任何内核API或
     功能，则在禁用相关 ``Kconfig`` 符号和/或 ``=m`` （如果该选项可用）的情况

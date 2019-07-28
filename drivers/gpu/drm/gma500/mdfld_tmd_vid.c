@@ -27,6 +27,8 @@
  * Scott Rowe <scott.m.rowe@intel.com>
  */
 
+#include <linux/delay.h>
+
 #include "mdfld_dsi_dpi.h"
 #include "mdfld_dsi_pkg_sender.h"
 

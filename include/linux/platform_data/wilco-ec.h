@@ -13,12 +13,9 @@
 
 /* Message flags for using the mailbox() interface */
 #define WILCO_EC_FLAG_NO_RESPONSE	BIT(0) /* EC does not respond */
-#define WILCO_EC_FLAG_EXTENDED_DATA	BIT(1) /* EC returns 256 data bytes */
 
 /* Normal commands have a maximum 32 bytes of data */
 #define EC_MAILBOX_DATA_SIZE		32
-/* Extended commands have 256 bytes of response data */
-#define EC_MAILBOX_DATA_SIZE_EXTENDED	256
 
 /**
  * struct wilco_ec_device - Wilco Embedded Controller handle.
@@ -32,6 +29,7 @@
  * @data_size: Size of the data buffer used for EC communication.
  * @debugfs_pdev: The child platform_device used by the debugfs sub-driver.
  * @rtc_pdev: The child platform_device used by the RTC sub-driver.
+ * @telem_pdev: The child platform_device used by the telemetry sub-driver.
  */
 struct wilco_ec_device {
 	struct device *dev;
@@ -43,6 +41,7 @@ struct wilco_ec_device {
 	size_t data_size;
 	struct platform_device *debugfs_pdev;
 	struct platform_device *rtc_pdev;
+	struct platform_device *telem_pdev;
 };
 
 /**
@@ -85,14 +84,12 @@ struct wilco_ec_response {
  * enum wilco_ec_msg_type - Message type to select a set of command codes.
  * @WILCO_EC_MSG_LEGACY: Legacy EC messages for standard EC behavior.
  * @WILCO_EC_MSG_PROPERTY: Get/Set/Sync EC controlled NVRAM property.
- * @WILCO_EC_MSG_TELEMETRY_SHORT: 32 bytes of telemetry data provided by the EC.
- * @WILCO_EC_MSG_TELEMETRY_LONG: 256 bytes of telemetry data provided by the EC.
+ * @WILCO_EC_MSG_TELEMETRY: Request telemetry data from the EC.
  */
 enum wilco_ec_msg_type {
 	WILCO_EC_MSG_LEGACY = 0x00f0,
 	WILCO_EC_MSG_PROPERTY = 0x00f2,
-	WILCO_EC_MSG_TELEMETRY_SHORT = 0x00f5,
-	WILCO_EC_MSG_TELEMETRY_LONG = 0x00f6,
+	WILCO_EC_MSG_TELEMETRY = 0x00f5,
 };
 
 /**
@@ -122,5 +119,88 @@ struct wilco_ec_message {
  * Return: Number of bytes received or negative error code on failure.
  */
 int wilco_ec_mailbox(struct wilco_ec_device *ec, struct wilco_ec_message *msg);
+
+/*
+ * A Property is typically a data item that is stored to NVRAM
+ * by the EC. Each of these data items has an index associated
+ * with it, known as the Property ID (PID). Properties may have
+ * variable lengths, up to a max of WILCO_EC_PROPERTY_MAX_SIZE
+ * bytes. Properties can be simple integers, or they may be more
+ * complex binary data.
+ */
+
+#define WILCO_EC_PROPERTY_MAX_SIZE	4
+
+/**
+ * struct ec_property_set_msg - Message to get or set a property.
+ * @property_id: Which property to get or set.
+ * @length: Number of bytes of |data| that are used.
+ * @data: Actual property data.
+ */
+struct wilco_ec_property_msg {
+	u32 property_id;
+	int length;
+	u8 data[WILCO_EC_PROPERTY_MAX_SIZE];
+};
+
+/**
+ * wilco_ec_get_property() - Retrieve a property from the EC.
+ * @ec: Embedded Controller device.
+ * @prop_msg: Message for request and response.
+ *
+ * The property_id field of |prop_msg| should be filled before calling this
+ * function. The result will be stored in the data and length fields.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int wilco_ec_get_property(struct wilco_ec_device *ec,
+			  struct wilco_ec_property_msg *prop_msg);
+
+/**
+ * wilco_ec_set_property() - Store a property on the EC.
+ * @ec: Embedded Controller device.
+ * @prop_msg: Message for request and response.
+ *
+ * The property_id, length, and data fields of |prop_msg| should be
+ * filled before calling this function.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int wilco_ec_set_property(struct wilco_ec_device *ec,
+			  struct wilco_ec_property_msg *prop_msg);
+
+/**
+ * wilco_ec_get_byte_property() - Retrieve a byte-size property from the EC.
+ * @ec: Embedded Controller device.
+ * @property_id: Which property to retrieve.
+ * @val: The result value, will be filled by this function.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int wilco_ec_get_byte_property(struct wilco_ec_device *ec, u32 property_id,
+			       u8 *val);
+
+/**
+ * wilco_ec_get_byte_property() - Store a byte-size property on the EC.
+ * @ec: Embedded Controller device.
+ * @property_id: Which property to store.
+ * @val: Value to store.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int wilco_ec_set_byte_property(struct wilco_ec_device *ec, u32 property_id,
+			       u8 val);
+
+/**
+ * wilco_ec_add_sysfs() - Create sysfs entries
+ * @ec: Wilco EC device
+ *
+ * wilco_ec_remove_sysfs() needs to be called afterwards
+ * to perform the necessary cleanup.
+ *
+ * Return: 0 on success or negative error code on failure.
+ */
+int wilco_ec_add_sysfs(struct wilco_ec_device *ec);
+void wilco_ec_remove_sysfs(struct wilco_ec_device *ec);
 
 #endif /* WILCO_EC_H */

@@ -21,7 +21,9 @@
 #include <subcmd/parse-options.h>
 #include "string2.h"
 #include "symbol.h"
+#include "util/rlimit.h"
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <subcmd/exec-cmd.h>
 
 static bool dont_fork;
@@ -290,6 +292,14 @@ static struct test generic_tests[] = {
 		.func = test__mem2node,
 	},
 	{
+		.desc = "time utils",
+		.func = test__time_utils,
+	},
+	{
+		.desc = "map_groups__merge_in",
+		.func = test__map_groups__merge_in,
+	},
+	{
 		.func = NULL,
 	},
 };
@@ -430,7 +440,7 @@ static const char *shell_test__description(char *description, size_t size,
 	description = fgets(description, size, fp);
 	fclose(fp);
 
-	return description ? trim(description + 1) : NULL;
+	return description ? strim(description + 1) : NULL;
 }
 
 #define for_each_shell_test(dir, base, ent)	\
@@ -718,6 +728,11 @@ int cmd_test(int argc, const char **argv)
 
 	if (skip != NULL)
 		skiplist = intlist__new(skip);
+	/*
+	 * Tests that create BPF maps, for instance, need more than the 64K
+	 * default:
+	 */
+	rlimit__bump_memlock();
 
 	return __cmd_test(argc, argv, skiplist);
 }

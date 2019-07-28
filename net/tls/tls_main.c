@@ -251,7 +251,7 @@ static void tls_write_space(struct sock *sk)
 	ctx->sk_write_space(sk);
 }
 
-static void tls_ctx_free(struct tls_context *ctx)
+void tls_ctx_free(struct tls_context *ctx)
 {
 	if (!ctx)
 		return;
@@ -643,7 +643,7 @@ static void tls_hw_sk_destruct(struct sock *sk)
 
 	ctx->sk_destruct(sk);
 	/* Free ctx */
-	kfree(ctx);
+	tls_ctx_free(ctx);
 	icsk->icsk_ulp_data = NULL;
 }
 

@@ -15,7 +15,7 @@
  *
  * Debugfs support added by Simon Kagstrom <simon.kagstrom@netinsight.net>
  *
- * See Documentation/fault-injection/provoke-crashes.txt for instructions
+ * See Documentation/fault-injection/provoke-crashes.rst for instructions
  */
 #include "lkdtm.h"
 #include <linux/fs.h>
@@ -114,12 +114,16 @@ static const struct crashtype crashtypes[] = {
 	CRASHTYPE(CORRUPT_USER_DS),
 	CRASHTYPE(STACK_GUARD_PAGE_LEADING),
 	CRASHTYPE(STACK_GUARD_PAGE_TRAILING),
+	CRASHTYPE(UNSET_SMEP),
 	CRASHTYPE(UNALIGNED_LOAD_STORE_WRITE),
 	CRASHTYPE(OVERWRITE_ALLOCATION),
 	CRASHTYPE(WRITE_AFTER_FREE),
 	CRASHTYPE(READ_AFTER_FREE),
 	CRASHTYPE(WRITE_BUDDY_AFTER_FREE),
 	CRASHTYPE(READ_BUDDY_AFTER_FREE),
+	CRASHTYPE(SLAB_FREE_DOUBLE),
+	CRASHTYPE(SLAB_FREE_CROSS),
+	CRASHTYPE(SLAB_FREE_PAGE),
 	CRASHTYPE(SOFTLOCKUP),
 	CRASHTYPE(HARDLOCKUP),
 	CRASHTYPE(SPINLOCKUP),
@@ -387,7 +391,7 @@ static int __init lkdtm_module_init(void)
 {
 	struct crashpoint *crashpoint = NULL;
 	const struct crashtype *crashtype = NULL;
-	int ret = -EINVAL;
+	int ret;
 	int i;
 
 	/* Neither or both of these need to be set */
@@ -426,25 +430,17 @@ static int __init lkdtm_module_init(void)
 	lkdtm_bugs_init(&recur_count);
 	lkdtm_perms_init();
 	lkdtm_usercopy_init();
+	lkdtm_heap_init();
 
 	/* Register debugfs interface */
 	lkdtm_debugfs_root = debugfs_create_dir("provoke-crash", NULL);
-	if (!lkdtm_debugfs_root) {
-		pr_err("creating root dir failed\n");
-		return -ENODEV;
-	}
 
 	/* Install debugfs trigger files. */
 	for (i = 0; i < ARRAY_SIZE(crashpoints); i++) {
 		struct crashpoint *cur = &crashpoints[i];
-		struct dentry *de;
 
-		de = debugfs_create_file(cur->name, 0644, lkdtm_debugfs_root,
-					 cur, &cur->fops);
-		if (de == NULL) {
-			pr_err("could not create crashpoint %s\n", cur->name);
-			goto out_err;
-		}
+		debugfs_create_file(cur->name, 0644, lkdtm_debugfs_root, cur,
+				    &cur->fops);
 	}
 
 	/* Install crashpoint if one was selected. */
@@ -472,6 +468,7 @@ static void __exit lkdtm_module_exit(void)
 	debugfs_remove_recursive(lkdtm_debugfs_root);
 
 	/* Handle test-specific clean-up. */
+	lkdtm_heap_exit();
 	lkdtm_usercopy_exit();
 
 	if (lkdtm_kprobe != NULL)

@@ -37,6 +37,13 @@ struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
 
+/* Keep the same order as in fs/proc/proc_sysctl.c */
+#define SYSCTL_ZERO	((void *)&sysctl_vals[0])
+#define SYSCTL_ONE	((void *)&sysctl_vals[1])
+#define SYSCTL_INT_MAX	((void *)&sysctl_vals[2])
+
+extern const int sysctl_vals[];
+
 typedef int proc_handler (struct ctl_table *ctl, int write,
 			  void __user *buffer, size_t *lenp, loff_t *ppos);
 

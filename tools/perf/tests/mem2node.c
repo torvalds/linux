@@ -1,5 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 #include <linux/bitmap.h>
+#include <linux/zalloc.h>
 #include "cpumap.h"
 #include "mem2node.h"
 #include "tests.h"
@@ -66,7 +68,7 @@ int test__mem2node(struct test *t __maybe_unused, int subtest __maybe_unused)
 	T("failed: mem2node__node", -1 == mem2node__node(&map, 0x1050));
 
 	for (i = 0; i < ARRAY_SIZE(nodes); i++)
-		free(nodes[i].set);
+		zfree(&nodes[i].set);
 
 	mem2node__exit(&map);
 	return 0;

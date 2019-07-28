@@ -85,6 +85,11 @@
 	};
 };
 
+&adc {
+	vdd-supply = <&ldo10_reg>;
+	status = "okay";
+};
+
 &audi2s0 {
 	status = "okay";
 };

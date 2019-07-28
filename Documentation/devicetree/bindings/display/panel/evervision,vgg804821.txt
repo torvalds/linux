@@ -1,0 +1,12 @@
+Evervision Electronics Co. Ltd. VGG804821 5.0" WVGA TFT LCD Panel
+
+Required properties:
+- compatible: should be "evervision,vgg804821"
+- power-supply: See simple-panel.txt
+
+Optional properties:
+- backlight: See simple-panel.txt
+- enable-gpios: See simple-panel.txt
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

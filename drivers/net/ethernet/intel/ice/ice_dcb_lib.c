@@ -120,12 +120,14 @@ static void ice_pf_dcb_recfg(struct ice_pf *pf)
 			tc_map = ICE_DFLT_TRAFFIC_CLASS;
 
 		ret = ice_vsi_cfg_tc(pf->vsi[v], tc_map);
-		if (ret)
+		if (ret) {
 			dev_err(&pf->pdev->dev,
 				"Failed to config TC for VSI index: %d\n",
 				pf->vsi[v]->idx);
-		else
-			ice_vsi_map_rings_to_vectors(pf->vsi[v]);
+			continue;
+		}
+
+		ice_vsi_map_rings_to_vectors(pf->vsi[v]);
 	}
 }
 
@@ -133,8 +135,10 @@ static void ice_pf_dcb_recfg(struct ice_pf *pf)
  * ice_pf_dcb_cfg - Apply new DCB configuration
  * @pf: pointer to the PF struct
  * @new_cfg: DCBX config to apply
+ * @locked: is the RTNL held
  */
-static int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg)
+static
+int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked)
 {
 	struct ice_dcbx_cfg *old_cfg, *curr_cfg;
 	struct ice_aqc_port_ets_elem buf = { 0 };
@@ -163,7 +167,8 @@ static int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg)
 	/* avoid race conditions by holding the lock while disabling and
 	 * re-enabling the VSI
 	 */
-	rtnl_lock();
+	if (!locked)
+		rtnl_lock();
 	ice_pf_dis_all_vsi(pf, true);
 
 	memcpy(curr_cfg, new_cfg, sizeof(*curr_cfg));
@@ -192,7 +197,8 @@ static int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg)
 
 out:
 	ice_pf_ena_all_vsi(pf, true);
-	rtnl_unlock();
+	if (!locked)
+		rtnl_unlock();
 	devm_kfree(&pf->pdev->dev, old_cfg);
 	return ret;
 }
@@ -271,15 +277,16 @@ dcb_error:
 	prev_cfg->etscfg.tcbwtable[0] = ICE_TC_MAX_BW;
 	prev_cfg->etscfg.tsatable[0] = ICE_IEEE_TSA_ETS;
 	memcpy(&prev_cfg->etsrec, &prev_cfg->etscfg, sizeof(prev_cfg->etsrec));
-	ice_pf_dcb_cfg(pf, prev_cfg);
+	ice_pf_dcb_cfg(pf, prev_cfg, false);
 	devm_kfree(&pf->pdev->dev, prev_cfg);
 }
 
 /**
  * ice_dcb_init_cfg - set the initial DCB config in SW
- * @pf: pf to apply config to
+ * @pf: PF to apply config to
+ * @locked: Is the RTNL held
  */
-static int ice_dcb_init_cfg(struct ice_pf *pf)
+static int ice_dcb_init_cfg(struct ice_pf *pf, bool locked)
 {
 	struct ice_dcbx_cfg *newcfg;
 	struct ice_port_info *pi;
@@ -294,7 +301,7 @@ static int ice_dcb_init_cfg(struct ice_pf *pf)
 	memset(&pi->local_dcbx_cfg, 0, sizeof(*newcfg));
 
 	dev_info(&pf->pdev->dev, "Configuring initial DCB values\n");
-	if (ice_pf_dcb_cfg(pf, newcfg))
+	if (ice_pf_dcb_cfg(pf, newcfg, locked))
 		ret = -EINVAL;
 
 	devm_kfree(&pf->pdev->dev, newcfg);
@@ -304,9 +311,10 @@ static int ice_dcb_init_cfg(struct ice_pf *pf)
 
 /**
  * ice_dcb_sw_default_config - Apply a default DCB config
- * @pf: pf to apply config to
+ * @pf: PF to apply config to
+ * @locked: was this function called with RTNL held
  */
-static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf)
+static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf, bool locked)
 {
 	struct ice_aqc_port_ets_elem buf = { 0 };
 	struct ice_dcbx_cfg *dcbcfg;
@@ -338,7 +346,7 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf)
 	dcbcfg->app[0].priority = 3;
 	dcbcfg->app[0].prot_id = ICE_APP_PROT_ID_FCOE;
 
-	ret = ice_pf_dcb_cfg(pf, dcbcfg);
+	ret = ice_pf_dcb_cfg(pf, dcbcfg, locked);
 	devm_kfree(&pf->pdev->dev, dcbcfg);
 	if (ret)
 		return ret;
@@ -348,9 +356,10 @@ static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf)
 
 /**
  * ice_init_pf_dcb - initialize DCB for a PF
- * @pf: pf to initiialize DCB for
+ * @pf: PF to initialize DCB for
+ * @locked: Was function called with RTNL held
  */
-int ice_init_pf_dcb(struct ice_pf *pf)
+int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 {
 	struct device *dev = &pf->pdev->dev;
 	struct ice_port_info *port_info;
@@ -360,33 +369,10 @@ int ice_init_pf_dcb(struct ice_pf *pf)
 
 	port_info = hw->port_info;
 
-	/* check if device is DCB capable */
-	if (!hw->func_caps.common_cap.dcb) {
-		dev_dbg(dev, "DCB not supported\n");
-		return -EOPNOTSUPP;
-	}
-
-	/* Best effort to put DCBx and LLDP into a good state */
-	port_info->dcbx_status = ice_get_dcbx_status(hw);
-	if (port_info->dcbx_status != ICE_DCBX_STATUS_DONE &&
-	    port_info->dcbx_status != ICE_DCBX_STATUS_IN_PROGRESS) {
-		bool dcbx_status;
-
-		/* Attempt to start LLDP engine. Ignore errors
-		 * as this will error if it is already started
-		 */
-		ice_aq_start_lldp(hw, NULL);
-
-		/* Attempt to start DCBX. Ignore errors as this
-		 * will error if it is already started
-		 */
-		ice_aq_start_stop_dcbx(hw, true, &dcbx_status, NULL);
-	}
-
 	err = ice_init_dcb(hw);
 	if (err) {
-		/* FW LLDP not in usable state, default to SW DCBx/LLDP */
-		dev_info(&pf->pdev->dev, "FW LLDP not in usable state\n");
+		/* FW LLDP is not active, default to SW DCBX/LLDP */
+		dev_info(&pf->pdev->dev, "FW LLDP is not active\n");
 		hw->port_info->dcbx_status = ICE_DCBX_STATUS_NOT_STARTED;
 		hw->port_info->is_sw_lldp = true;
 	}
@@ -398,15 +384,16 @@ int ice_init_pf_dcb(struct ice_pf *pf)
 	if (port_info->is_sw_lldp) {
 		sw_default = 1;
 		dev_info(&pf->pdev->dev, "DCBx/LLDP in SW mode.\n");
+		clear_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags);
+	} else {
+		set_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags);
 	}
 
-	if (port_info->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED) {
-		sw_default = 1;
+	if (port_info->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED)
 		dev_info(&pf->pdev->dev, "DCBX not started\n");
-	}
 
 	if (sw_default) {
-		err = ice_dcb_sw_dflt_cfg(pf);
+		err = ice_dcb_sw_dflt_cfg(pf, locked);
 		if (err) {
 			dev_err(&pf->pdev->dev,
 				"Failed to set local DCB config %d\n", err);
@@ -425,7 +412,7 @@ int ice_init_pf_dcb(struct ice_pf *pf)
 
 	set_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
 
-	err = ice_dcb_init_cfg(pf);
+	err = ice_dcb_init_cfg(pf, locked);
 	if (err)
 		goto dcb_init_err;
 
@@ -515,6 +502,55 @@ ice_tx_prepare_vlan_flags_dcb(struct ice_ring *tx_ring,
 }
 
 /**
+ * ice_dcb_need_recfg - Check if DCB needs reconfig
+ * @pf: board private structure
+ * @old_cfg: current DCB config
+ * @new_cfg: new DCB config
+ */
+static bool ice_dcb_need_recfg(struct ice_pf *pf, struct ice_dcbx_cfg *old_cfg,
+			       struct ice_dcbx_cfg *new_cfg)
+{
+	bool need_reconfig = false;
+
+	/* Check if ETS configuration has changed */
+	if (memcmp(&new_cfg->etscfg, &old_cfg->etscfg,
+		   sizeof(new_cfg->etscfg))) {
+		/* If Priority Table has changed reconfig is needed */
+		if (memcmp(&new_cfg->etscfg.prio_table,
+			   &old_cfg->etscfg.prio_table,
+			   sizeof(new_cfg->etscfg.prio_table))) {
+			need_reconfig = true;
+			dev_dbg(&pf->pdev->dev, "ETS UP2TC changed.\n");
+		}
+
+		if (memcmp(&new_cfg->etscfg.tcbwtable,
+			   &old_cfg->etscfg.tcbwtable,
+			   sizeof(new_cfg->etscfg.tcbwtable)))
+			dev_dbg(&pf->pdev->dev, "ETS TC BW Table changed.\n");
+
+		if (memcmp(&new_cfg->etscfg.tsatable,
+			   &old_cfg->etscfg.tsatable,
+			   sizeof(new_cfg->etscfg.tsatable)))
+			dev_dbg(&pf->pdev->dev, "ETS TSA Table changed.\n");
+	}
+
+	/* Check if PFC configuration has changed */
+	if (memcmp(&new_cfg->pfc, &old_cfg->pfc, sizeof(new_cfg->pfc))) {
+		need_reconfig = true;
+		dev_dbg(&pf->pdev->dev, "PFC config change detected.\n");
+	}
+
+	/* Check if APP Table has changed */
+	if (memcmp(&new_cfg->app, &old_cfg->app, sizeof(new_cfg->app))) {
+		need_reconfig = true;
+		dev_dbg(&pf->pdev->dev, "APP Table change detected.\n");
+	}
+
+	dev_dbg(&pf->pdev->dev, "dcb need_reconfig=%d\n", need_reconfig);
+	return need_reconfig;
+}
+
+/**
  * ice_dcb_process_lldp_set_mib_change - Process MIB change
  * @pf: ptr to ice_pf
  * @event: pointer to the admin queue receive event
@@ -523,29 +559,95 @@ void
 ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 				    struct ice_rq_event_info *event)
 {
-	if (pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED) {
-		struct ice_dcbx_cfg *dcbcfg, *prev_cfg;
-		int err;
+	struct ice_aqc_port_ets_elem buf = { 0 };
+	struct ice_aqc_lldp_get_mib *mib;
+	struct ice_dcbx_cfg tmp_dcbx_cfg;
+	bool need_reconfig = false;
+	struct ice_port_info *pi;
+	u8 type;
+	int ret;
 
-		prev_cfg = &pf->hw.port_info->local_dcbx_cfg;
-		dcbcfg = devm_kmemdup(&pf->pdev->dev, prev_cfg,
-				      sizeof(*dcbcfg), GFP_KERNEL);
-		if (!dcbcfg)
-			return;
+	/* Not DCB capable or capability disabled */
+	if (!(test_bit(ICE_FLAG_DCB_CAPABLE, pf->flags)))
+		return;
 
-		err = ice_lldp_to_dcb_cfg(event->msg_buf, dcbcfg);
-		if (!err)
-			ice_pf_dcb_cfg(pf, dcbcfg);
-
-		devm_kfree(&pf->pdev->dev, dcbcfg);
-
-		/* Get updated DCBx data from firmware */
-		err = ice_get_dcb_cfg(pf->hw.port_info);
-		if (err)
-			dev_err(&pf->pdev->dev,
-				"Failed to get DCB config\n");
-	} else {
+	if (pf->dcbx_cap & DCB_CAP_DCBX_HOST) {
 		dev_dbg(&pf->pdev->dev,
 			"MIB Change Event in HOST mode\n");
+		return;
 	}
+
+	pi = pf->hw.port_info;
+	mib = (struct ice_aqc_lldp_get_mib *)&event->desc.params.raw;
+	/* Ignore if event is not for Nearest Bridge */
+	type = ((mib->type >> ICE_AQ_LLDP_BRID_TYPE_S) &
+		ICE_AQ_LLDP_BRID_TYPE_M);
+	dev_dbg(&pf->pdev->dev, "LLDP event MIB bridge type 0x%x\n", type);
+	if (type != ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID)
+		return;
+
+	/* Check MIB Type and return if event for Remote MIB update */
+	type = mib->type & ICE_AQ_LLDP_MIB_TYPE_M;
+	dev_dbg(&pf->pdev->dev,
+		"LLDP event mib type %s\n", type ? "remote" : "local");
+	if (type == ICE_AQ_LLDP_MIB_REMOTE) {
+		/* Update the remote cached instance and return */
+		ret = ice_aq_get_dcb_cfg(pi->hw, ICE_AQ_LLDP_MIB_REMOTE,
+					 ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID,
+					 &pi->remote_dcbx_cfg);
+		if (ret) {
+			dev_err(&pf->pdev->dev, "Failed to get remote DCB config\n");
+			return;
+		}
+	}
+
+	/* store the old configuration */
+	tmp_dcbx_cfg = pf->hw.port_info->local_dcbx_cfg;
+
+	/* Reset the old DCBX configuration data */
+	memset(&pi->local_dcbx_cfg, 0, sizeof(pi->local_dcbx_cfg));
+
+	/* Get updated DCBX data from firmware */
+	ret = ice_get_dcb_cfg(pf->hw.port_info);
+	if (ret) {
+		dev_err(&pf->pdev->dev, "Failed to get DCB config\n");
+		return;
+	}
+
+	/* No change detected in DCBX configs */
+	if (!memcmp(&tmp_dcbx_cfg, &pi->local_dcbx_cfg, sizeof(tmp_dcbx_cfg))) {
+		dev_dbg(&pf->pdev->dev,
+			"No change detected in DCBX configuration.\n");
+		return;
+	}
+
+	need_reconfig = ice_dcb_need_recfg(pf, &tmp_dcbx_cfg,
+					   &pi->local_dcbx_cfg);
+	if (!need_reconfig)
+		return;
+
+	/* Enable DCB tagging only when more than one TC */
+	if (ice_dcb_get_num_tc(&pi->local_dcbx_cfg) > 1) {
+		dev_dbg(&pf->pdev->dev, "DCB tagging enabled (num TC > 1)\n");
+		set_bit(ICE_FLAG_DCB_ENA, pf->flags);
+	} else {
+		dev_dbg(&pf->pdev->dev, "DCB tagging disabled (num TC = 1)\n");
+		clear_bit(ICE_FLAG_DCB_ENA, pf->flags);
+	}
+
+	rtnl_lock();
+	ice_pf_dis_all_vsi(pf, true);
+
+	ret = ice_query_port_ets(pf->hw.port_info, &buf, sizeof(buf), NULL);
+	if (ret) {
+		dev_err(&pf->pdev->dev, "Query Port ETS failed\n");
+		rtnl_unlock();
+		return;
+	}
+
+	/* changes in configuration update VSI */
+	ice_pf_dcb_recfg(pf);
+
+	ice_pf_ena_all_vsi(pf, true);
+	rtnl_unlock();
 }

@@ -100,18 +100,17 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		return;
 
 	if (tsk == current) {
-		frame.fp = (unsigned long)__builtin_frame_address(0);
-		frame.pc = (unsigned long)dump_backtrace;
+		start_backtrace(&frame,
+				(unsigned long)__builtin_frame_address(0),
+				(unsigned long)dump_backtrace);
 	} else {
 		/*
 		 * task blocked in __switch_to
 		 */
-		frame.fp = thread_saved_fp(tsk);
-		frame.pc = thread_saved_pc(tsk);
+		start_backtrace(&frame,
+				thread_saved_fp(tsk),
+				thread_saved_pc(tsk));
 	}
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame.graph = 0;
-#endif
 
 	printk("Call trace:\n");
 	do {
@@ -233,16 +232,16 @@ void arm64_force_sig_fault(int signo, int code, void __user *addr,
 {
 	arm64_show_signal(signo, str);
 	if (signo == SIGKILL)
-		force_sig(SIGKILL, current);
+		force_sig(SIGKILL);
 	else
-		force_sig_fault(signo, code, addr, current);
+		force_sig_fault(signo, code, addr);
 }
 
 void arm64_force_sig_mceerr(int code, void __user *addr, short lsb,
 			    const char *str)
 {
 	arm64_show_signal(SIGBUS, str);
-	force_sig_mceerr(code, addr, lsb, current);
+	force_sig_mceerr(code, addr, lsb);
 }
 
 void arm64_force_sig_ptrace_errno_trap(int errno, void __user *addr,
@@ -871,6 +870,10 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr)
 		/*
 		 * The CPU can't make progress. The exception may have
 		 * been imprecise.
+		 *
+		 * Neoverse-N1 #1349291 means a non-KVM SError reported as
+		 * Unrecoverable should be treated as Uncontainable. We
+		 * call arm64_serror_panic() in both cases.
 		 */
 		return true;
 

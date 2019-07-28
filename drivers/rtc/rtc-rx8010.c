@@ -433,7 +433,7 @@ static struct rtc_class_ops rx8010_rtc_ops = {
 static int rx8010_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct rx8010_data *rx8010;
 	int err = 0;
 

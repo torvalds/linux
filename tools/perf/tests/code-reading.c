@@ -22,7 +22,7 @@
 
 #include "tests.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 #define BUFSZ	1024
 #define READLEN	128

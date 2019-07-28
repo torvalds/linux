@@ -470,9 +470,7 @@ static int __maybe_unused rt5514_suspend(struct device *dev)
 
 static int __maybe_unused rt5514_resume(struct device *dev)
 {
-	struct snd_soc_component *component = snd_soc_lookup_component(dev, DRV_NAME);
-	struct rt5514_dsp *rt5514_dsp =
-		snd_soc_component_get_drvdata(component);
+	struct rt5514_dsp *rt5514_dsp = dev_get_drvdata(dev);
 	int irq = to_spi_device(dev)->irq;
 	u8 buf[8];
 

@@ -12,7 +12,6 @@
  */
 
 #include <linux/scatterlist.h>
-#include <linux/ratelimit.h>
 #include <crypto/skcipher.h>
 #include "fscrypt_private.h"
 

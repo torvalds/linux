@@ -8,6 +8,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 
@@ -26,7 +27,7 @@ struct cbmem_cons {
 #define CURSOR_MASK ((1 << 28) - 1)
 #define OVERFLOW (1 << 31)
 
-static struct cbmem_cons __iomem *cbmem_console;
+static struct cbmem_cons *cbmem_console;
 static u32 cbmem_console_size;
 
 /*
@@ -67,7 +68,7 @@ static ssize_t memconsole_coreboot_read(char *buf, loff_t pos, size_t count)
 
 static int memconsole_probe(struct coreboot_device *dev)
 {
-	struct cbmem_cons __iomem *tmp_cbmc;
+	struct cbmem_cons *tmp_cbmc;
 
 	tmp_cbmc = memremap(dev->cbmem_ref.cbmem_addr,
 			    sizeof(*tmp_cbmc), MEMREMAP_WB);
@@ -77,13 +78,13 @@ static int memconsole_probe(struct coreboot_device *dev)
 
 	/* Read size only once to prevent overrun attack through /dev/mem. */
 	cbmem_console_size = tmp_cbmc->size_dont_access_after_boot;
-	cbmem_console = memremap(dev->cbmem_ref.cbmem_addr,
+	cbmem_console = devm_memremap(&dev->dev, dev->cbmem_ref.cbmem_addr,
 				 cbmem_console_size + sizeof(*cbmem_console),
 				 MEMREMAP_WB);
 	memunmap(tmp_cbmc);
 
-	if (!cbmem_console)
-		return -ENOMEM;
+	if (IS_ERR(cbmem_console))
+		return PTR_ERR(cbmem_console);
 
 	memconsole_setup(memconsole_coreboot_read);
 
@@ -93,9 +94,6 @@ static int memconsole_probe(struct coreboot_device *dev)
 static int memconsole_remove(struct coreboot_device *dev)
 {
 	memconsole_exit();
-
-	if (cbmem_console)
-		memunmap(cbmem_console);
 
 	return 0;
 }
@@ -108,19 +106,7 @@ static struct coreboot_driver memconsole_driver = {
 	},
 	.tag = CB_TAG_CBMEM_CONSOLE,
 };
-
-static void coreboot_memconsole_exit(void)
-{
-	coreboot_driver_unregister(&memconsole_driver);
-}
-
-static int __init coreboot_memconsole_init(void)
-{
-	return coreboot_driver_register(&memconsole_driver);
-}
-
-module_exit(coreboot_memconsole_exit);
-module_init(coreboot_memconsole_init);
+module_coreboot_driver(memconsole_driver);
 
 MODULE_AUTHOR("Google, Inc.");
 MODULE_LICENSE("GPL");

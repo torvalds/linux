@@ -7,7 +7,7 @@
  *
  * Original driver for 2.2.x by anonymous
  *
- * See Documentation/usb/usb-serial.txt for more information on using this
+ * See Documentation/usb/usb-serial.rst for more information on using this
  * driver
  */
 

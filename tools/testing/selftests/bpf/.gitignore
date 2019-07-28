@@ -22,6 +22,7 @@ test_lirc_mode2_user
 get_cgroup_id_user
 test_skb_cgroup_id_user
 test_socket_cookie
+test_cgroup_attach
 test_cgroup_storage
 test_select_reuseport
 test_flow_dissector
@@ -35,3 +36,10 @@ test_sysctl
 alu32
 libbpf.pc
 libbpf.so.*
+test_hashmap
+test_btf_dump
+xdping
+test_sockopt
+test_sockopt_sk
+test_sockopt_multi
+test_tcp_rtt

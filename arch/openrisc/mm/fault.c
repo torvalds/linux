@@ -209,7 +209,7 @@ bad_area_nosemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 
 	if (user_mode(regs)) {
-		force_sig_fault(SIGSEGV, si_code, (void __user *)address, tsk);
+		force_sig_fault(SIGSEGV, si_code, (void __user *)address);
 		return;
 	}
 
@@ -274,7 +274,7 @@ do_sigbus:
 	 * Send a sigbus, regardless of whether we were in kernel
 	 * or user mode.
 	 */
-	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address, tsk);
+	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address);
 
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs))

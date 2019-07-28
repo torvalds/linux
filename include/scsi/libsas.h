@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * SAS host prototypes and structures header file
  *
@@ -207,8 +207,7 @@ struct sas_work {
 	struct work_struct work;
 };
 
-/* Lots of code duplicates this in the SCSI tree, which can be factored out */
-static inline bool sas_dev_type_is_expander(enum sas_device_type type)
+static inline bool dev_is_expander(enum sas_device_type type)
 {
 	return type == SAS_EDGE_EXPANDER_DEVICE ||
 	       type == SAS_FANOUT_EXPANDER_DEVICE;

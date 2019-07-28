@@ -27,6 +27,9 @@ pvr2_device_desc structures.
 #include "tda18271.h"
 #include "tda8290.h"
 #include "tuner-simple.h"
+#include "si2157.h"
+#include "lgdt3306a.h"
+#include "si2168.h"
 #endif
 
 
@@ -178,10 +181,10 @@ static struct lgdt330x_config pvr2_lgdt3303_config = {
 
 static int pvr2_lgdt3303_attach(struct pvr2_dvb_adapter *adap)
 {
-	adap->fe = dvb_attach(lgdt330x_attach, &pvr2_lgdt3303_config,
-			      0x0e,
-			      &adap->channel.hdw->i2c_adap);
-	if (adap->fe)
+	adap->fe[0] = dvb_attach(lgdt330x_attach, &pvr2_lgdt3303_config,
+				 0x0e,
+				 &adap->channel.hdw->i2c_adap);
+	if (adap->fe[0])
 		return 0;
 
 	return -EIO;
@@ -189,7 +192,7 @@ static int pvr2_lgdt3303_attach(struct pvr2_dvb_adapter *adap)
 
 static int pvr2_lgh06xf_attach(struct pvr2_dvb_adapter *adap)
 {
-	dvb_attach(simple_tuner_attach, adap->fe,
+	dvb_attach(simple_tuner_attach, adap->fe[0],
 		   &adap->channel.hdw->i2c_adap, 0x61,
 		   TUNER_LG_TDVS_H06XF);
 
@@ -238,10 +241,10 @@ static struct lgdt330x_config pvr2_lgdt3302_config = {
 
 static int pvr2_lgdt3302_attach(struct pvr2_dvb_adapter *adap)
 {
-	adap->fe = dvb_attach(lgdt330x_attach, &pvr2_lgdt3302_config,
-			      0x0e,
-			      &adap->channel.hdw->i2c_adap);
-	if (adap->fe)
+	adap->fe[0] = dvb_attach(lgdt330x_attach, &pvr2_lgdt3302_config,
+				 0x0e,
+				 &adap->channel.hdw->i2c_adap);
+	if (adap->fe[0])
 		return 0;
 
 	return -EIO;
@@ -249,7 +252,7 @@ static int pvr2_lgdt3302_attach(struct pvr2_dvb_adapter *adap)
 
 static int pvr2_fcv1236d_attach(struct pvr2_dvb_adapter *adap)
 {
-	dvb_attach(simple_tuner_attach, adap->fe,
+	dvb_attach(simple_tuner_attach, adap->fe[0],
 		   &adap->channel.hdw->i2c_adap, 0x61,
 		   TUNER_PHILIPS_FCV1236D);
 
@@ -325,9 +328,9 @@ static struct tda18271_config hauppauge_tda18271_dvb_config = {
 
 static int pvr2_tda10048_attach(struct pvr2_dvb_adapter *adap)
 {
-	adap->fe = dvb_attach(tda10048_attach, &hauppauge_tda10048_config,
-			      &adap->channel.hdw->i2c_adap);
-	if (adap->fe)
+	adap->fe[0] = dvb_attach(tda10048_attach, &hauppauge_tda10048_config,
+				 &adap->channel.hdw->i2c_adap);
+	if (adap->fe[0])
 		return 0;
 
 	return -EIO;
@@ -335,10 +338,10 @@ static int pvr2_tda10048_attach(struct pvr2_dvb_adapter *adap)
 
 static int pvr2_73xxx_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
 {
-	dvb_attach(tda829x_attach, adap->fe,
+	dvb_attach(tda829x_attach, adap->fe[0],
 		   &adap->channel.hdw->i2c_adap, 0x42,
 		   &tda829x_no_probe);
-	dvb_attach(tda18271_attach, adap->fe, 0x60,
+	dvb_attach(tda18271_attach, adap->fe[0], 0x60,
 		   &adap->channel.hdw->i2c_adap,
 		   &hauppauge_tda18271_dvb_config);
 
@@ -423,9 +426,9 @@ static struct tda18271_config hauppauge_tda18271_config = {
 
 static int pvr2_s5h1409_attach(struct pvr2_dvb_adapter *adap)
 {
-	adap->fe = dvb_attach(s5h1409_attach, &pvr2_s5h1409_config,
-			      &adap->channel.hdw->i2c_adap);
-	if (adap->fe)
+	adap->fe[0] = dvb_attach(s5h1409_attach, &pvr2_s5h1409_config,
+				 &adap->channel.hdw->i2c_adap);
+	if (adap->fe[0])
 		return 0;
 
 	return -EIO;
@@ -433,9 +436,9 @@ static int pvr2_s5h1409_attach(struct pvr2_dvb_adapter *adap)
 
 static int pvr2_s5h1411_attach(struct pvr2_dvb_adapter *adap)
 {
-	adap->fe = dvb_attach(s5h1411_attach, &pvr2_s5h1411_config,
-			      &adap->channel.hdw->i2c_adap);
-	if (adap->fe)
+	adap->fe[0] = dvb_attach(s5h1411_attach, &pvr2_s5h1411_config,
+				 &adap->channel.hdw->i2c_adap);
+	if (adap->fe[0])
 		return 0;
 
 	return -EIO;
@@ -443,10 +446,10 @@ static int pvr2_s5h1411_attach(struct pvr2_dvb_adapter *adap)
 
 static int pvr2_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
 {
-	dvb_attach(tda829x_attach, adap->fe,
+	dvb_attach(tda829x_attach, adap->fe[0],
 		   &adap->channel.hdw->i2c_adap, 0x42,
 		   &tda829x_no_probe);
-	dvb_attach(tda18271_attach, adap->fe, 0x60,
+	dvb_attach(tda18271_attach, adap->fe[0], 0x60,
 		   &adap->channel.hdw->i2c_adap,
 		   &hauppauge_tda18271_config);
 
@@ -515,7 +518,166 @@ static const struct pvr2_device_desc pvr2_device_751xx = {
 #endif
 };
 
+/*------------------------------------------------------------------------*/
+/*    Hauppauge PVR-USB2 Model 160000 / 160111 -- HVR-1955 / HVR-1975     */
 
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+static int pvr2_si2157_attach(struct pvr2_dvb_adapter *adap);
+static int pvr2_si2168_attach(struct pvr2_dvb_adapter *adap);
+static int pvr2_dual_fe_attach(struct pvr2_dvb_adapter *adap);
+static int pvr2_lgdt3306a_attach(struct pvr2_dvb_adapter *adap);
+
+static const struct pvr2_dvb_props pvr2_160000_dvb_props = {
+	.frontend_attach = pvr2_dual_fe_attach,
+	.tuner_attach    = pvr2_si2157_attach,
+};
+
+static const struct pvr2_dvb_props pvr2_160111_dvb_props = {
+	.frontend_attach = pvr2_lgdt3306a_attach,
+	.tuner_attach    = pvr2_si2157_attach,
+};
+
+static int pvr2_si2157_attach(struct pvr2_dvb_adapter *adap)
+{
+	struct si2157_config si2157_config = {};
+
+	si2157_config.inversion = 1;
+	si2157_config.fe = adap->fe[0];
+
+	adap->i2c_client_tuner = dvb_module_probe("si2157", "si2177",
+						  &adap->channel.hdw->i2c_adap,
+						  0x60, &si2157_config);
+
+	if (!adap->i2c_client_tuner)
+		return -ENODEV;
+
+	return 0;
+}
+
+static int pvr2_si2168_attach(struct pvr2_dvb_adapter *adap)
+{
+	struct si2168_config si2168_config = {};
+	struct i2c_adapter *adapter;
+
+	pr_debug("%s()\n", __func__);
+
+	si2168_config.fe = &adap->fe[1];
+	si2168_config.i2c_adapter = &adapter;
+	si2168_config.ts_mode = SI2168_TS_PARALLEL; /*2, 1-serial, 2-parallel.*/
+	si2168_config.ts_clock_gapped = 1; /*0-disabled, 1-enabled.*/
+	si2168_config.ts_clock_inv = 0; /*0-not-invert, 1-invert*/
+	si2168_config.spectral_inversion = 1; /*0-not-invert, 1-invert*/
+
+	adap->i2c_client_demod[1] = dvb_module_probe("si2168", NULL,
+						     &adap->channel.hdw->i2c_adap,
+						     0x64, &si2168_config);
+
+	if (!adap->i2c_client_demod[1])
+		return -ENODEV;
+
+	return 0;
+}
+
+static int pvr2_lgdt3306a_attach(struct pvr2_dvb_adapter *adap)
+{
+	struct lgdt3306a_config lgdt3306a_config;
+	struct i2c_adapter *adapter;
+
+	pr_debug("%s()\n", __func__);
+
+	lgdt3306a_config.fe = &adap->fe[0];
+	lgdt3306a_config.i2c_adapter = &adapter;
+	lgdt3306a_config.deny_i2c_rptr = 1;
+	lgdt3306a_config.spectral_inversion = 1;
+	lgdt3306a_config.qam_if_khz = 4000;
+	lgdt3306a_config.vsb_if_khz = 3250;
+	lgdt3306a_config.mpeg_mode = LGDT3306A_MPEG_PARALLEL;
+	lgdt3306a_config.tpclk_edge = LGDT3306A_TPCLK_FALLING_EDGE;
+	lgdt3306a_config.tpvalid_polarity = LGDT3306A_TP_VALID_LOW;
+	lgdt3306a_config.xtalMHz = 25, /* demod clock MHz; 24/25 supported */
+
+	adap->i2c_client_demod[0] = dvb_module_probe("lgdt3306a", NULL,
+						     &adap->channel.hdw->i2c_adap,
+						     0x59, &lgdt3306a_config);
+
+	if (!adap->i2c_client_demod[0])
+		return -ENODEV;
+
+	return 0;
+}
+
+static int pvr2_dual_fe_attach(struct pvr2_dvb_adapter *adap)
+{
+	pr_debug("%s()\n", __func__);
+
+	if (pvr2_lgdt3306a_attach(adap) != 0)
+		return -ENODEV;
+
+	if (pvr2_si2168_attach(adap) != 0) {
+		dvb_module_release(adap->i2c_client_demod[0]);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+#endif
+
+#define PVR2_FIRMWARE_160xxx "v4l-pvrusb2-160xxx-01.fw"
+static const char *pvr2_fw1_names_160xxx[] = {
+		PVR2_FIRMWARE_160xxx,
+};
+
+static const struct pvr2_device_client_desc pvr2_cli_160xxx[] = {
+	{ .module_id = PVR2_CLIENT_ID_CX25840 },
+};
+
+static const struct pvr2_device_desc pvr2_device_160000 = {
+		.description = "WinTV HVR-1975 Model 160000",
+		.shortname = "160000",
+		.client_table.lst = pvr2_cli_160xxx,
+		.client_table.cnt = ARRAY_SIZE(pvr2_cli_160xxx),
+		.fx2_firmware.lst = pvr2_fw1_names_160xxx,
+		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_160xxx),
+		.default_tuner_type = TUNER_ABSENT,
+		.flag_has_cx25840 = 1,
+		.flag_has_hauppauge_rom = 1,
+		.flag_has_analogtuner = 1,
+		.flag_has_composite = 1,
+		.flag_has_svideo = 1,
+		.flag_fx2_16kb = 1,
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
+		.default_std_mask = V4L2_STD_NTSC_M,
+		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+		.ir_scheme = PVR2_IR_SCHEME_ZILOG,
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+		.dvb_props = &pvr2_160000_dvb_props,
+#endif
+};
+
+static const struct pvr2_device_desc pvr2_device_160111 = {
+		.description = "WinTV HVR-1955 Model 160111",
+		.shortname = "160111",
+		.client_table.lst = pvr2_cli_160xxx,
+		.client_table.cnt = ARRAY_SIZE(pvr2_cli_160xxx),
+		.fx2_firmware.lst = pvr2_fw1_names_160xxx,
+		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_160xxx),
+		.default_tuner_type = TUNER_ABSENT,
+		.flag_has_cx25840 = 1,
+		.flag_has_hauppauge_rom = 1,
+		.flag_has_analogtuner = 1,
+		.flag_has_composite = 1,
+		.flag_has_svideo = 1,
+		.flag_fx2_16kb = 1,
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
+		.default_std_mask = V4L2_STD_NTSC_M,
+		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+		.ir_scheme = PVR2_IR_SCHEME_ZILOG,
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+		.dvb_props = &pvr2_160111_dvb_props,
+#endif
+};
 
 /*------------------------------------------------------------------------*/
 
@@ -542,6 +704,10 @@ struct usb_device_id pvr2_device_table[] = {
 	  .driver_info = (kernel_ulong_t)&pvr2_device_751xx},
 	{ USB_DEVICE(0x0ccd, 0x0039),
 	  .driver_info = (kernel_ulong_t)&pvr2_device_av400},
+	{ USB_DEVICE(0x2040, 0x7502),
+	  .driver_info = (kernel_ulong_t)&pvr2_device_160111},
+	{ USB_DEVICE(0x2040, 0x7510),
+	  .driver_info = (kernel_ulong_t)&pvr2_device_160000},
 	{ }
 };
 

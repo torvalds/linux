@@ -1384,7 +1384,6 @@ MODULE_DEVICE_TABLE(of, sahara_dt_ids);
 static int sahara_probe(struct platform_device *pdev)
 {
 	struct sahara_dev *dev;
-	struct resource *res;
 	u32 version;
 	int irq;
 	int err;
@@ -1398,8 +1397,7 @@ static int sahara_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 
 	/* Get the base address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->regs_base = devm_ioremap_resource(&pdev->dev, res);
+	dev->regs_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->regs_base))
 		return PTR_ERR(dev->regs_base);
 

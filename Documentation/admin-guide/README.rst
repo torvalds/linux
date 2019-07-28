@@ -227,7 +227,7 @@ Configuring the kernel
      "make tinyconfig"  Configure the tiniest possible kernel.
 
    You can find more information on using the Linux kernel config tools
-   in Documentation/kbuild/kconfig.txt.
+   in Documentation/kbuild/kconfig.rst.
 
  - NOTES on ``make config``:
 

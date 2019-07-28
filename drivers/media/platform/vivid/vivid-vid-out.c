@@ -1094,6 +1094,12 @@ int vidioc_s_output(struct file *file, void *priv, unsigned o)
 
 	dev->vbi_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
 	vivid_update_format_out(dev);
+
+	v4l2_ctrl_activate(dev->ctrl_display_present, vivid_is_hdmi_out(dev));
+	if (vivid_is_hdmi_out(dev))
+		v4l2_ctrl_s_ctrl(dev->ctrl_display_present,
+				 dev->display_present[dev->output]);
+
 	return 0;
 }
 

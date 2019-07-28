@@ -19,7 +19,8 @@ struct hbm_vqueue {
 struct hbm_queue_stats {
 	unsigned long rate;		/* in Mbps*/
 	unsigned long stats:1,		/* get HBM stats (marked, dropped,..) */
-		loopback:1;		/* also limit flows using loopback */
+		loopback:1,		/* also limit flows using loopback */
+		no_cn:1;		/* do not use cn flags */
 	unsigned long long pkts_marked;
 	unsigned long long bytes_marked;
 	unsigned long long pkts_dropped;
@@ -28,4 +29,10 @@ struct hbm_queue_stats {
 	unsigned long long bytes_total;
 	unsigned long long firstPacketTime;
 	unsigned long long lastPacketTime;
+	unsigned long long pkts_ecn_ce;
+	unsigned long long returnValCount[4];
+	unsigned long long sum_cwnd;
+	unsigned long long sum_rtt;
+	unsigned long long sum_cwnd_cnt;
+	long long sum_credit;
 };

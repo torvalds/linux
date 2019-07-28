@@ -1006,7 +1006,6 @@ static int ov6650_probe(struct i2c_client *client,
 	priv->colorspace  = V4L2_COLORSPACE_JPEG;
 
 	priv->subdev.internal_ops = &ov6650_internal_ops;
-	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	ret = v4l2_async_register_subdev(&priv->subdev);
 	if (ret)

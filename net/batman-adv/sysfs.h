@@ -9,11 +9,10 @@
 
 #include "main.h"
 
+#include <linux/kobject.h>
+#include <linux/netdevice.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
-
-struct kobject;
-struct net_device;
 
 #define BATADV_SYSFS_IF_MESH_SUBDIR "mesh"
 #define BATADV_SYSFS_IF_BAT_SUBDIR "batman_adv"

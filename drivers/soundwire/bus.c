@@ -87,7 +87,7 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 
 	/*
 	 * Initialize clock values based on Master properties. The max
-	 * frequency is read from max_freq property. Current assumption
+	 * frequency is read from max_clk_freq property. Current assumption
 	 * is that the bus will start at highest clock frequency when
 	 * powered on.
 	 *
@@ -95,7 +95,7 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 	 * to start with bank 0 (Table 40 of Spec)
 	 */
 	prop = &bus->prop;
-	bus->params.max_dr_freq = prop->max_freq * SDW_DOUBLE_RATE_FACTOR;
+	bus->params.max_dr_freq = prop->max_clk_freq * SDW_DOUBLE_RATE_FACTOR;
 	bus->params.curr_dr_freq = bus->params.max_dr_freq;
 	bus->params.curr_bank = SDW_BANK0;
 	bus->params.next_bank = SDW_BANK1;
@@ -648,7 +648,7 @@ static int sdw_initialize_slave(struct sdw_slave *slave)
 		return 0;
 
 	/* Enable DP0 interrupts */
-	val = prop->dp0_prop->device_interrupts;
+	val = prop->dp0_prop->imp_def_interrupts;
 	val |= SDW_DP0_INT_PORT_READY | SDW_DP0_INT_BRA_FAILURE;
 
 	ret = sdw_update(slave, SDW_DP0_INTMASK, val, val);

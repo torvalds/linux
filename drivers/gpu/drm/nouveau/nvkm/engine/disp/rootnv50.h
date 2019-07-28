@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NV50_DISP_ROOT_H__
 #define __NV50_DISP_ROOT_H__
 #define nv50_disp_root(p) container_of((p), struct nv50_disp_root, object)

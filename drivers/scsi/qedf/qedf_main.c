@@ -2215,16 +2215,21 @@ static void qedf_simd_int_handler(void *cookie)
 static void qedf_sync_free_irqs(struct qedf_ctx *qedf)
 {
 	int i;
+	u16 vector_idx = 0;
+	u32 vector;
 
 	if (qedf->int_info.msix_cnt) {
 		for (i = 0; i < qedf->int_info.used_cnt; i++) {
-			synchronize_irq(qedf->int_info.msix[i].vector);
-			irq_set_affinity_hint(qedf->int_info.msix[i].vector,
-			    NULL);
-			irq_set_affinity_notifier(qedf->int_info.msix[i].vector,
-			    NULL);
-			free_irq(qedf->int_info.msix[i].vector,
-			    &qedf->fp_array[i]);
+			vector_idx = i * qedf->dev_info.common.num_hwfns +
+				qed_ops->common->get_affin_hwfn_idx(qedf->cdev);
+			QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
+				  "Freeing IRQ #%d vector_idx=%d.\n",
+				  i, vector_idx);
+			vector = qedf->int_info.msix[vector_idx].vector;
+			synchronize_irq(vector);
+			irq_set_affinity_hint(vector, NULL);
+			irq_set_affinity_notifier(vector, NULL);
+			free_irq(vector, &qedf->fp_array[i]);
 		}
 	} else
 		qed_ops->common->simd_handler_clean(qedf->cdev,
@@ -2237,11 +2242,19 @@ static void qedf_sync_free_irqs(struct qedf_ctx *qedf)
 static int qedf_request_msix_irq(struct qedf_ctx *qedf)
 {
 	int i, rc, cpu;
+	u16 vector_idx = 0;
+	u32 vector;
 
 	cpu = cpumask_first(cpu_online_mask);
 	for (i = 0; i < qedf->num_queues; i++) {
-		rc = request_irq(qedf->int_info.msix[i].vector,
-		    qedf_msix_handler, 0, "qedf", &qedf->fp_array[i]);
+		vector_idx = i * qedf->dev_info.common.num_hwfns +
+			qed_ops->common->get_affin_hwfn_idx(qedf->cdev);
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
+			  "Requesting IRQ #%d vector_idx=%d.\n",
+			  i, vector_idx);
+		vector = qedf->int_info.msix[vector_idx].vector;
+		rc = request_irq(vector, qedf_msix_handler, 0, "qedf",
+				 &qedf->fp_array[i]);
 
 		if (rc) {
 			QEDF_WARN(&(qedf->dbg_ctx), "request_irq failed.\n");
@@ -2250,8 +2263,7 @@ static int qedf_request_msix_irq(struct qedf_ctx *qedf)
 		}
 
 		qedf->int_info.used_cnt++;
-		rc = irq_set_affinity_hint(qedf->int_info.msix[i].vector,
-		    get_cpu_mask(cpu));
+		rc = irq_set_affinity_hint(vector, get_cpu_mask(cpu));
 		cpu = cpumask_next(cpu, cpu_online_mask);
 	}
 
@@ -3207,6 +3219,11 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		QEDF_ERR(&(qedf->dbg_ctx), "Failed to dev info.\n");
 		goto err1;
 	}
+
+	QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
+		  "dev_info: num_hwfns=%d affin_hwfn_idx=%d.\n",
+		  qedf->dev_info.common.num_hwfns,
+		  qed_ops->common->get_affin_hwfn_idx(qedf->cdev));
 
 	/* queue allocation code should come here
 	 * order should be

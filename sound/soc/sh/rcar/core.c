@@ -1176,6 +1176,65 @@ of_node_compatible:
 	return ret;
 }
 
+
+#define PREALLOC_BUFFER		(32 * 1024)
+#define PREALLOC_BUFFER_MAX	(32 * 1024)
+
+static int rsnd_preallocate_pages(struct snd_soc_pcm_runtime *rtd,
+				  struct rsnd_dai_stream *io,
+				  int stream)
+{
+	struct rsnd_priv *priv = rsnd_io_to_priv(io);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct snd_pcm_substream *substream;
+
+	/*
+	 * use Audio-DMAC dev if we can use IPMMU
+	 * see
+	 *	rsnd_dmaen_attach()
+	 */
+	if (io->dmac_dev)
+		dev = io->dmac_dev;
+
+	for (substream = rtd->pcm->streams[stream].substream;
+	     substream;
+	     substream = substream->next) {
+		snd_pcm_lib_preallocate_pages(substream,
+					      SNDRV_DMA_TYPE_DEV,
+					      dev,
+					      PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
+	}
+
+	return 0;
+}
+
+static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd,
+			struct snd_soc_dai *dai)
+{
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	int ret;
+
+	ret = rsnd_dai_call(pcm_new, &rdai->playback, rtd);
+	if (ret)
+		return ret;
+
+	ret = rsnd_dai_call(pcm_new, &rdai->capture, rtd);
+	if (ret)
+		return ret;
+
+	ret = rsnd_preallocate_pages(rtd, &rdai->playback,
+				     SNDRV_PCM_STREAM_PLAYBACK);
+	if (ret)
+		return ret;
+
+	ret = rsnd_preallocate_pages(rtd, &rdai->capture,
+				     SNDRV_PCM_STREAM_CAPTURE);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static void __rsnd_dai_probe(struct rsnd_priv *priv,
 			     struct device_node *dai_np,
 			     int dai_i)
@@ -1198,6 +1257,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	rdai->priv	= priv;
 	drv->name	= rdai->name;
 	drv->ops	= &rsnd_soc_dai_ops;
+	drv->pcm_new	= rsnd_pcm_new;
 
 	snprintf(io_playback->name, RSND_DAI_NAME_SIZE,
 		 "DAI%d Playback", dai_i);
@@ -1572,68 +1632,8 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 /*
  *		snd_soc_component
  */
-
-#define PREALLOC_BUFFER		(32 * 1024)
-#define PREALLOC_BUFFER_MAX	(32 * 1024)
-
-static int rsnd_preallocate_pages(struct snd_soc_pcm_runtime *rtd,
-				  struct rsnd_dai_stream *io,
-				  int stream)
-{
-	struct rsnd_priv *priv = rsnd_io_to_priv(io);
-	struct device *dev = rsnd_priv_to_dev(priv);
-	struct snd_pcm_substream *substream;
-
-	/*
-	 * use Audio-DMAC dev if we can use IPMMU
-	 * see
-	 *	rsnd_dmaen_attach()
-	 */
-	if (io->dmac_dev)
-		dev = io->dmac_dev;
-
-	for (substream = rtd->pcm->streams[stream].substream;
-	     substream;
-	     substream = substream->next) {
-		snd_pcm_lib_preallocate_pages(substream,
-					SNDRV_DMA_TYPE_DEV,
-					dev,
-					PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
-	}
-
-	return 0;
-}
-
-static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_dai *dai = rtd->cpu_dai;
-	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
-	int ret;
-
-	ret = rsnd_dai_call(pcm_new, &rdai->playback, rtd);
-	if (ret)
-		return ret;
-
-	ret = rsnd_dai_call(pcm_new, &rdai->capture, rtd);
-	if (ret)
-		return ret;
-
-	ret = rsnd_preallocate_pages(rtd, &rdai->playback,
-				     SNDRV_PCM_STREAM_PLAYBACK);
-	if (ret)
-		return ret;
-
-	ret = rsnd_preallocate_pages(rtd, &rdai->capture,
-				     SNDRV_PCM_STREAM_CAPTURE);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static const struct snd_soc_component_driver rsnd_soc_component = {
 	.ops		= &rsnd_pcm_ops,
-	.pcm_new	= rsnd_pcm_new,
 	.name		= "rsnd",
 };
 

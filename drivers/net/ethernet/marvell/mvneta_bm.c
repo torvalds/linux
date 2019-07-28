@@ -190,7 +190,7 @@ struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,
 			SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 		hwbm_pool->construct = mvneta_bm_construct;
 		hwbm_pool->priv = new_pool;
-		spin_lock_init(&hwbm_pool->lock);
+		mutex_init(&hwbm_pool->buf_lock);
 
 		/* Create new pool */
 		err = mvneta_bm_pool_create(priv, new_pool);
@@ -201,7 +201,7 @@ struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,
 		}
 
 		/* Allocate buffers for this pool */
-		num = hwbm_pool_add(hwbm_pool, hwbm_pool->size, GFP_ATOMIC);
+		num = hwbm_pool_add(hwbm_pool, hwbm_pool->size);
 		if (num != hwbm_pool->size) {
 			WARN(1, "pool %d: %d of %d allocated\n",
 			     new_pool->id, num, hwbm_pool->size);

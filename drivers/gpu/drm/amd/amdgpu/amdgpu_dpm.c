@@ -22,7 +22,6 @@
  * Authors: Alex Deucher
  */
 
-#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_i2c.h"
@@ -907,16 +906,63 @@ amdgpu_get_vce_clock_state(void *handle, u32 idx)
 
 int amdgpu_dpm_get_sclk(struct amdgpu_device *adev, bool low)
 {
-	if (is_support_sw_smu(adev))
-		return smu_get_sclk(&adev->smu, low);
-	else
+	uint32_t clk_freq;
+	int ret = 0;
+	if (is_support_sw_smu(adev)) {
+		ret = smu_get_dpm_freq_range(&adev->smu, SMU_GFXCLK,
+					     low ? &clk_freq : NULL,
+					     !low ? &clk_freq : NULL);
+		if (ret)
+			return 0;
+		return clk_freq * 100;
+
+	} else {
 		return (adev)->powerplay.pp_funcs->get_sclk((adev)->powerplay.pp_handle, (low));
+	}
 }
 
 int amdgpu_dpm_get_mclk(struct amdgpu_device *adev, bool low)
 {
-	if (is_support_sw_smu(adev))
-		return smu_get_mclk(&adev->smu, low);
-	else
+	uint32_t clk_freq;
+	int ret = 0;
+	if (is_support_sw_smu(adev)) {
+		ret = smu_get_dpm_freq_range(&adev->smu, SMU_UCLK,
+					     low ? &clk_freq : NULL,
+					     !low ? &clk_freq : NULL);
+		if (ret)
+			return 0;
+		return clk_freq * 100;
+
+	} else {
 		return (adev)->powerplay.pp_funcs->get_mclk((adev)->powerplay.pp_handle, (low));
+	}
+}
+
+int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block_type, bool gate)
+{
+	int ret = 0;
+	bool swsmu = is_support_sw_smu(adev);
+
+	switch (block_type) {
+	case AMD_IP_BLOCK_TYPE_GFX:
+	case AMD_IP_BLOCK_TYPE_UVD:
+	case AMD_IP_BLOCK_TYPE_VCN:
+	case AMD_IP_BLOCK_TYPE_VCE:
+		if (swsmu)
+			ret = smu_dpm_set_power_gate(&adev->smu, block_type, gate);
+		else
+			ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+				(adev)->powerplay.pp_handle, block_type, gate));
+		break;
+	case AMD_IP_BLOCK_TYPE_GMC:
+	case AMD_IP_BLOCK_TYPE_ACP:
+	case AMD_IP_BLOCK_TYPE_SDMA:
+		ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+				(adev)->powerplay.pp_handle, block_type, gate));
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }

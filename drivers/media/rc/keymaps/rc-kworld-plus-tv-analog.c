@@ -17,16 +17,20 @@ static struct rc_map_table kworld_plus_tv_analog[] = {
 	{ 0x16, KEY_CLOSECD },		/* -> ) */
 	{ 0x1d, KEY_POWER2 },
 
-	{ 0x00, KEY_1 },
-	{ 0x01, KEY_2 },
-	{ 0x02, KEY_3 },		/* Two keys have the same code: 3 and left */
-	{ 0x03, KEY_4 },		/* Two keys have the same code: 3 and right */
-	{ 0x04, KEY_5 },
-	{ 0x05, KEY_6 },
-	{ 0x06, KEY_7 },
-	{ 0x07, KEY_8 },
-	{ 0x08, KEY_9 },
-	{ 0x0a, KEY_0 },
+	{ 0x00, KEY_NUMERIC_1 },
+	{ 0x01, KEY_NUMERIC_2 },
+
+	/* Two keys have the same code: 3 and left */
+	{ 0x02, KEY_NUMERIC_3 },
+
+	/* Two keys have the same code: 4 and right */
+	{ 0x03, KEY_NUMERIC_4 },
+	{ 0x04, KEY_NUMERIC_5 },
+	{ 0x05, KEY_NUMERIC_6 },
+	{ 0x06, KEY_NUMERIC_7 },
+	{ 0x07, KEY_NUMERIC_8 },
+	{ 0x08, KEY_NUMERIC_9 },
+	{ 0x0a, KEY_NUMERIC_0 },
 
 	{ 0x09, KEY_AGAIN },
 	{ 0x14, KEY_MUTE },

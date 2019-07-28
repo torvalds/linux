@@ -178,7 +178,6 @@ ACPI_GLOBAL(u8, acpi_gbl_verbose_leak_dump);
 ACPI_GLOBAL(struct acpi_namespace_node, acpi_gbl_root_node_struct);
 ACPI_GLOBAL(struct acpi_namespace_node *, acpi_gbl_root_node);
 ACPI_GLOBAL(struct acpi_namespace_node *, acpi_gbl_fadt_gpe_device);
-ACPI_GLOBAL(union acpi_operand_object *, acpi_gbl_module_code_list);
 
 extern const u8 acpi_gbl_ns_properties[ACPI_NUM_NS_TYPES];
 extern const struct acpi_predefined_names

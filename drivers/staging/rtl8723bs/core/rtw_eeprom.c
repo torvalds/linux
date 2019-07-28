@@ -118,25 +118,6 @@ _func_enter_;
 _func_exit_;
 }
 
-u16 wait_eeprom_cmd_done(_adapter *padapter)
-{
-	u8 x;
-	u16 i, res = false;
-_func_enter_;
-	standby(padapter);
-	for (i = 0; i < 200; i++) {
-		x = rtw_read8(padapter, EE_9346CR);
-		if (x & _EEDO) {
-			res = true;
-			goto exit;
-			}
-		udelay(CLOCK_RATE);
-	}
-exit:
-_func_exit_;
-	return res;
-}
-
 void eeprom_clean(_adapter *padapter)
 {
 	u16 x;
@@ -164,68 +145,6 @@ _func_enter_;
 	down_clk(padapter, &x);
 out:
 _func_exit_;
-}
-
-void eeprom_write16(_adapter *padapter, u16 reg, u16 data)
-{
-	u8 x;
-
-_func_enter_;
-
-	x = rtw_read8(padapter, EE_9346CR);
-
-	x &= ~(_EEDI | _EEDO | _EESK | _EEM0);
-	x |= _EEM1 | _EECS;
-	rtw_write8(padapter, EE_9346CR, x);
-
-	shift_out_bits(padapter, EEPROM_EWEN_OPCODE, 5);
-
-	if (padapter->EepromAddressSize == 8)	/*CF+ and SDIO*/
-		shift_out_bits(padapter, 0, 6);
-	else									/*USB*/
-		shift_out_bits(padapter, 0, 4);
-
-	standby(padapter);
-
-/* Commented out by rcnjko, 2004.0
-*	 Erase this particular word.  Write the erase opcode and register
-*	 number in that order. The opcode is 3bits in length; reg is 6 bits long.
-*	shift_out_bits(Adapter, EEPROM_ERASE_OPCODE, 3);
-*	shift_out_bits(Adapter, reg, Adapter->EepromAddressSize);
-*
-*	if (wait_eeprom_cmd_done(Adapter ) == false)
-*	{
-*		return;
-*	}
-*/
-
-	standby(padapter);
-
-	/* write the new word to the EEPROM*/
-
-	/* send the write opcode the EEPORM*/
-	shift_out_bits(padapter, EEPROM_WRITE_OPCODE, 3);
-
-	/* select which word in the EEPROM that we are writing to.*/
-	shift_out_bits(padapter, reg, padapter->EepromAddressSize);
-
-	/* write the data to the selected EEPROM word.*/
-	shift_out_bits(padapter, data, 16);
-
-	if (wait_eeprom_cmd_done(padapter) == false) {
-
-		goto exit;
-	}
-
-	standby(padapter);
-
-	shift_out_bits(padapter, EEPROM_EWDS_OPCODE, 5);
-	shift_out_bits(padapter, reg, 4);
-
-	eeprom_clean(padapter);
-exit:
-_func_exit_;
-	return;
 }
 
 u16 eeprom_read16(_adapter *padapter, u16 reg) /*ReadEEprom*/
@@ -268,53 +187,6 @@ _func_exit_;
 
 }
 
-
-
-
-/*From even offset*/
-void eeprom_read_sz(_adapter *padapter, u16 reg, u8 *data, u32 sz)
-{
-
-	u16 x, data16;
-	u32 i;
-_func_enter_;
-	if (padapter->bSurpriseRemoved == true) {
-		RT_TRACE(_module_rtl871x_eeprom_c_, _drv_err_, ("padapter->bSurpriseRemoved==true"));
-		goto out;
-	}
-	/* select EEPROM, reset bits, set _EECS*/
-	x = rtw_read8(padapter, EE_9346CR);
-
-	if (padapter->bSurpriseRemoved == true) {
-		RT_TRACE(_module_rtl871x_eeprom_c_, _drv_err_, ("padapter->bSurpriseRemoved==true"));
-		goto out;
-	}
-
-	x &= ~(_EEDI | _EEDO | _EESK | _EEM0);
-	x |= _EEM1 | _EECS;
-	rtw_write8(padapter, EE_9346CR, (unsigned char)x);
-
-	/* write the read opcode and register number in that order*/
-	/* The opcode is 3bits in length, reg is 6 bits long*/
-	shift_out_bits(padapter, EEPROM_READ_OPCODE, 3);
-	shift_out_bits(padapter, reg, padapter->EepromAddressSize);
-
-
-	for (i = 0; i < sz; i += 2) {
-		data16 = shift_in_bits(padapter);
-		data[i] = data16 & 0xff;
-		data[i+1] = data16 >> 8;
-	}
-
-	eeprom_clean(padapter);
-out:
-_func_exit_;
-
-
-
-}
-
-
 /*addr_off : address offset of the entry in eeprom (not the tuple number of eeprom (reg); that is addr_off !=reg)*/
 u8 eeprom_read(_adapter *padapter, u32 addr_off, u8 sz, u8 *rbuf)
 {
@@ -347,15 +219,4 @@ _func_enter_;
 	}
 _func_exit_;
 	return true;
-}
-
-
-
-void read_eeprom_content(_adapter *padapter)
-{
-
-_func_enter_;
-
-
-_func_exit_;
 }
