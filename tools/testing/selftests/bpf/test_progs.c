@@ -3,6 +3,7 @@
  */
 #include "test_progs.h"
 #include "bpf_rlimit.h"
+#include <argp.h>
 
 int error_cnt, pass_cnt;
 bool jit_enabled;
@@ -156,22 +157,89 @@ void *spin_lock_thread(void *arg)
 	pthread_exit(arg);
 }
 
-#define DECLARE
+/* extern declarations for test funcs */
+#define DEFINE_TEST(name) extern void test_##name();
 #include <prog_tests/tests.h>
-#undef DECLARE
+#undef DEFINE_TEST
 
-int main(int ac, char **av)
+struct prog_test_def {
+	const char *test_name;
+	void (*run_test)(void);
+};
+
+static struct prog_test_def prog_test_defs[] = {
+#define DEFINE_TEST(name) {	      \
+	.test_name = #name,	      \
+	.run_test = &test_##name,   \
+},
+#include <prog_tests/tests.h>
+#undef DEFINE_TEST
+};
+
+const char *argp_program_version = "test_progs 0.1";
+const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
+const char argp_program_doc[] = "BPF selftests test runner";
+
+enum ARG_KEYS {
+	ARG_VERIFIER_STATS = 's',
+};
+	
+static const struct argp_option opts[] = {
+	{ "verifier-stats", ARG_VERIFIER_STATS, NULL, 0,
+	  "Output verifier statistics", },
+	{},
+};
+
+struct test_env {
+	bool verifier_stats;
+};
+
+static struct test_env env = {};
+
+static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
+	struct test_env *env = state->input;
+
+	switch (key) {
+	case ARG_VERIFIER_STATS:
+		env->verifier_stats = true;
+		break;
+	case ARGP_KEY_ARG:
+		argp_usage(state);
+		break;
+	case ARGP_KEY_END:
+		break;
+	default:
+		return ARGP_ERR_UNKNOWN;
+	}
+	return 0;
+}
+
+
+int main(int argc, char **argv)
+{
+	static const struct argp argp = {
+		.options = opts,
+		.parser = parse_arg,
+		.doc = argp_program_doc,
+	};
+	const struct prog_test_def *def;
+	int err, i;
+
+	err = argp_parse(&argp, argc, argv, 0, NULL, &env);
+	if (err)
+		return err;
+
 	srand(time(NULL));
 
 	jit_enabled = is_jit_enabled();
 
-	if (ac == 2 && strcmp(av[1], "-s") == 0)
-		verifier_stats = true;
+	verifier_stats = env.verifier_stats;
 
-#define CALL
-#include <prog_tests/tests.h>
-#undef CALL
+	for (i = 0; i < ARRAY_SIZE(prog_test_defs); i++) {
+		def = &prog_test_defs[i];
+		def->run_test();
+	}
 
 	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, error_cnt);
 	return error_cnt ? EXIT_FAILURE : EXIT_SUCCESS;
