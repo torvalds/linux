@@ -4,6 +4,7 @@
 #include "test_progs.h"
 #include "bpf_rlimit.h"
 #include <argp.h>
+#include <string.h>
 
 int error_cnt, pass_cnt;
 bool jit_enabled;
@@ -164,6 +165,7 @@ void *spin_lock_thread(void *arg)
 
 struct prog_test_def {
 	const char *test_name;
+	int test_num;
 	void (*run_test)(void);
 };
 
@@ -181,26 +183,49 @@ const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
 const char argp_program_doc[] = "BPF selftests test runner";
 
 enum ARG_KEYS {
+	ARG_TEST_NUM = 'n',
+	ARG_TEST_NAME = 't',
 	ARG_VERIFIER_STATS = 's',
 };
 	
 static const struct argp_option opts[] = {
+	{ "num", ARG_TEST_NUM, "NUM", 0,
+	  "Run test number NUM only " },
+	{ "name", ARG_TEST_NAME, "NAME", 0,
+	  "Run tests with names containing NAME" },
 	{ "verifier-stats", ARG_VERIFIER_STATS, NULL, 0,
 	  "Output verifier statistics", },
 	{},
 };
 
 struct test_env {
+	int test_num_selector;
+	const char *test_name_selector;
 	bool verifier_stats;
 };
 
-static struct test_env env = {};
+static struct test_env env = {
+	.test_num_selector = -1,
+};
 
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
 	struct test_env *env = state->input;
 
 	switch (key) {
+	case ARG_TEST_NUM: {
+		int test_num;
+
+		errno = 0;
+		test_num = strtol(arg, NULL, 10);
+		if (errno)
+			return -errno;
+		env->test_num_selector = test_num;
+		break;
+	}
+	case ARG_TEST_NAME:
+		env->test_name_selector = arg;
+		break;
 	case ARG_VERIFIER_STATS:
 		env->verifier_stats = true;
 		break;
@@ -223,7 +248,7 @@ int main(int argc, char **argv)
 		.parser = parse_arg,
 		.doc = argp_program_doc,
 	};
-	const struct prog_test_def *def;
+	struct prog_test_def *test;
 	int err, i;
 
 	err = argp_parse(&argp, argc, argv, 0, NULL, &env);
@@ -237,8 +262,18 @@ int main(int argc, char **argv)
 	verifier_stats = env.verifier_stats;
 
 	for (i = 0; i < ARRAY_SIZE(prog_test_defs); i++) {
-		def = &prog_test_defs[i];
-		def->run_test();
+		test = &prog_test_defs[i];
+
+		test->test_num = i + 1;
+
+		if (env.test_num_selector >= 0 &&
+		    test->test_num != env.test_num_selector)
+			continue;
+		if (env.test_name_selector &&
+		    !strstr(test->test_name, env.test_name_selector))
+			continue;
+
+		test->run_test();
 	}
 
 	printf("Summary: %d PASSED, %d FAILED\n", pass_cnt, error_cnt);
