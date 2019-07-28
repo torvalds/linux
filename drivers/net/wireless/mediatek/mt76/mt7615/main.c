@@ -135,6 +135,8 @@ static int mt7615_set_channel(struct mt7615_dev *dev)
 	int ret;
 
 	cancel_delayed_work_sync(&dev->mt76.mac_work);
+
+	mutex_lock(&dev->mt76.mutex);
 	set_bit(MT76_RESET, &dev->mt76.state);
 
 	mt7615_dfs_check_channel(dev);
@@ -143,18 +145,18 @@ static int mt7615_set_channel(struct mt7615_dev *dev)
 
 	ret = mt7615_mcu_set_channel(dev);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = mt7615_dfs_init_radar_detector(dev);
-	if (ret < 0)
-		return ret;
 
+out:
 	clear_bit(MT76_RESET, &dev->mt76.state);
+	mutex_unlock(&dev->mt76.mutex);
 
 	mt76_txq_schedule_all(&dev->mt76);
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     MT7615_WATCHDOG_TIME);
-	return 0;
+	return ret;
 }
 
 static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -210,13 +212,13 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 	struct mt7615_dev *dev = hw->priv;
 	int ret = 0;
 
-	mutex_lock(&dev->mt76.mutex);
-
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		ieee80211_stop_queues(hw);
 		ret = mt7615_set_channel(dev);
 		ieee80211_wake_queues(hw);
 	}
+
+	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		ret = mt7615_mcu_set_tx_power(dev);
