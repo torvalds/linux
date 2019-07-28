@@ -811,6 +811,26 @@ static int mvpp2_swf_bm_pool_init(struct mvpp2_port *port)
 	return 0;
 }
 
+static void mvpp2_set_hw_csum(struct mvpp2_port *port,
+			      enum mvpp2_bm_pool_log_num new_long_pool)
+{
+	const netdev_features_t csums = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+
+	/* Update L4 checksum when jumbo enable/disable on port.
+	 * Only port 0 supports hardware checksum offload due to
+	 * the Tx FIFO size limitation.
+	 * Also, don't set NETIF_F_HW_CSUM because L3_offset in TX descriptor
+	 * has 7 bits, so the maximum L3 offset is 128.
+	 */
+	if (new_long_pool == MVPP2_BM_JUMBO && port->id != 0) {
+		port->dev->features &= ~csums;
+		port->dev->hw_features &= ~csums;
+	} else {
+		port->dev->features |= csums;
+		port->dev->hw_features |= csums;
+	}
+}
+
 static int mvpp2_bm_update_mtu(struct net_device *dev, int mtu)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
@@ -843,15 +863,7 @@ static int mvpp2_bm_update_mtu(struct net_device *dev, int mtu)
 		/* Add port to new short & long pool */
 		mvpp2_swf_bm_pool_init(port);
 
-		/* Update L4 checksum when jumbo enable/disable on port */
-		if (new_long_pool == MVPP2_BM_JUMBO && port->id != 0) {
-			dev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-			dev->hw_features &= ~(NETIF_F_IP_CSUM |
-					      NETIF_F_IPV6_CSUM);
-		} else {
-			dev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-			dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-		}
+		mvpp2_set_hw_csum(port, new_long_pool);
 	}
 
 	dev->mtu = mtu;
@@ -5193,10 +5205,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		dev->features |= NETIF_F_NTUPLE;
 	}
 
-	if (port->pool_long->id == MVPP2_BM_JUMBO && port->id != 0) {
-		dev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-		dev->hw_features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-	}
+	mvpp2_set_hw_csum(port, port->pool_long->id);
 
 	dev->vlan_features |= features;
 	dev->gso_max_segs = MVPP2_MAX_TSO_SEGS;
