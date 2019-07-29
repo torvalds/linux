@@ -325,7 +325,7 @@ MODULE_DEVICE_TABLE(i2c, nxp_nci_i2c_id_table);
 
 static const struct of_device_id of_nxp_nci_i2c_match[] = {
 	{ .compatible = "nxp,nxp-nci-i2c", },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(of, of_nxp_nci_i2c_match);
 
@@ -333,7 +333,7 @@ MODULE_DEVICE_TABLE(of, of_nxp_nci_i2c_match);
 static const struct acpi_device_id acpi_id[] = {
 	{ "NXP1001" },
 	{ "NXP7471" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, acpi_id);
 #endif
