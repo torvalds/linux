@@ -65,6 +65,8 @@ MODULE_LICENSE("GPL");
 #define ASUS_FAN_MFUN			0x13
 #define ASUS_FAN_SFUN_READ		0x06
 #define ASUS_FAN_SFUN_WRITE		0x07
+
+/* Based on standard hwmon pwmX_enable values */
 #define ASUS_FAN_CTRL_MANUAL		1
 #define ASUS_FAN_CTRL_AUTO		2
 
@@ -120,7 +122,7 @@ struct agfn_args {
 } __packed;
 
 /* struct used for calling fan read and write methods */
-struct fan_args {
+struct agfn_fan_args {
 	struct agfn_args agfn;	/* common fields */
 	u8 fan;			/* fan number: 0: set auto mode 1: 1st fan */
 	u32 speed;		/* read: RPM/100 - write: 0-255 */
@@ -146,6 +148,11 @@ struct asus_rfkill {
 	struct asus_wmi *asus;
 	struct rfkill *rfkill;
 	u32 dev_id;
+};
+
+enum fan_type {
+	FAN_TYPE_NONE = 0,
+	FAN_TYPE_AGFN,		/* deprecated on newer platforms */
 };
 
 struct asus_wmi {
@@ -178,9 +185,9 @@ struct asus_wmi {
 	struct asus_rfkill gps;
 	struct asus_rfkill uwb;
 
-	bool asus_hwmon_fan_manual_mode;
-	int asus_hwmon_num_fans;
-	int asus_hwmon_pwm;
+	enum fan_type fan_type;
+	int fan_pwm_mode;
+	int agfn_pwm;
 
 	bool fan_boost_mode_available;
 	u8 fan_boost_mode_mask;
@@ -1125,10 +1132,10 @@ static void asus_wmi_set_als(void)
 
 /* Hwmon device ***************************************************************/
 
-static int asus_hwmon_agfn_fan_speed_read(struct asus_wmi *asus, int fan,
+static int asus_agfn_fan_speed_read(struct asus_wmi *asus, int fan,
 					  int *speed)
 {
-	struct fan_args args = {
+	struct agfn_fan_args args = {
 		.agfn.len = sizeof(args),
 		.agfn.mfun = ASUS_FAN_MFUN,
 		.agfn.sfun = ASUS_FAN_SFUN_READ,
@@ -1152,10 +1159,10 @@ static int asus_hwmon_agfn_fan_speed_read(struct asus_wmi *asus, int fan,
 	return 0;
 }
 
-static int asus_hwmon_agfn_fan_speed_write(struct asus_wmi *asus, int fan,
+static int asus_agfn_fan_speed_write(struct asus_wmi *asus, int fan,
 				     int *speed)
 {
-	struct fan_args args = {
+	struct agfn_fan_args args = {
 		.agfn.len = sizeof(args),
 		.agfn.mfun = ASUS_FAN_MFUN,
 		.agfn.sfun = ASUS_FAN_SFUN_WRITE,
@@ -1175,7 +1182,7 @@ static int asus_hwmon_agfn_fan_speed_write(struct asus_wmi *asus, int fan,
 		return -ENXIO;
 
 	if (speed && fan == 1)
-		asus->asus_hwmon_pwm = *speed;
+		asus->agfn_pwm = *speed;
 
 	return 0;
 }
@@ -1184,77 +1191,41 @@ static int asus_hwmon_agfn_fan_speed_write(struct asus_wmi *asus, int fan,
  * Check if we can read the speed of one fan. If true we assume we can also
  * control it.
  */
-static int asus_hwmon_get_fan_number(struct asus_wmi *asus, int *num_fans)
+static bool asus_wmi_has_agfn_fan(struct asus_wmi *asus)
 {
 	int status;
-	int speed = 0;
+	int speed;
+	u32 value;
 
-	*num_fans = 0;
+	status = asus_agfn_fan_speed_read(asus, 1, &speed);
+	if (status != 0)
+		return false;
 
-	status = asus_hwmon_agfn_fan_speed_read(asus, 1, &speed);
-	if (!status)
-		*num_fans = 1;
+	status = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_FAN_CTRL, &value);
+	if (status != 0)
+		return false;
 
-	return 0;
+	/*
+	 * We need to find a better way, probably using sfun,
+	 * bits or spec ...
+	 * Currently we disable it if:
+	 * - ASUS_WMI_UNSUPPORTED_METHOD is returned
+	 * - reverved bits are non-zero
+	 * - sfun and presence bit are not set
+	 */
+	return !(value == ASUS_WMI_UNSUPPORTED_METHOD || value & 0xFFF80000
+		 || (!asus->sfun && !(value & ASUS_WMI_DSTS_PRESENCE_BIT)));
 }
 
-static int asus_hwmon_fan_set_auto(struct asus_wmi *asus)
+static int asus_fan_set_auto(struct asus_wmi *asus)
 {
 	int status;
 
-	status = asus_hwmon_agfn_fan_speed_write(asus, 0, NULL);
+	status = asus_agfn_fan_speed_write(asus, 0, NULL);
 	if (status)
 		return -ENXIO;
 
-	asus->asus_hwmon_fan_manual_mode = false;
-
 	return 0;
-}
-
-static int asus_hwmon_fan_rpm_show(struct device *dev, int fan)
-{
-	struct asus_wmi *asus = dev_get_drvdata(dev);
-	int value;
-	int ret;
-
-	/* no speed readable on manual mode */
-	if (asus->asus_hwmon_fan_manual_mode)
-		return -ENXIO;
-
-	ret = asus_hwmon_agfn_fan_speed_read(asus, fan+1, &value);
-	if (ret) {
-		pr_warn("reading fan speed failed: %d\n", ret);
-		return -ENXIO;
-	}
-
-	return value;
-}
-
-static void asus_hwmon_pwm_show(struct asus_wmi *asus, int fan, int *value)
-{
-	int err;
-
-	if (asus->asus_hwmon_pwm >= 0) {
-		*value = asus->asus_hwmon_pwm;
-		return;
-	}
-
-	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_FAN_CTRL, value);
-	if (err < 0)
-		return;
-
-	*value &= 0xFF;
-
-	if (*value == 1) /* Low Speed */
-		*value = 85;
-	else if (*value == 2)
-		*value = 170;
-	else if (*value == 3)
-		*value = 255;
-	else if (*value) {
-		pr_err("Unknown fan speed %#x\n", *value);
-		*value = -1;
-	}
 }
 
 static ssize_t pwm1_show(struct device *dev,
@@ -1262,9 +1233,33 @@ static ssize_t pwm1_show(struct device *dev,
 			       char *buf)
 {
 	struct asus_wmi *asus = dev_get_drvdata(dev);
+	int err;
 	int value;
 
-	asus_hwmon_pwm_show(asus, 0, &value);
+	/* If we already set a value then just return it */
+	if (asus->agfn_pwm >= 0)
+		return sprintf(buf, "%d\n", asus->agfn_pwm);
+
+	/*
+	 * If we haven't set already set a value through the AGFN interface,
+	 * we read a current value through the (now-deprecated) FAN_CTRL device.
+	 */
+	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_FAN_CTRL, &value);
+	if (err < 0)
+		return err;
+
+	value &= 0xFF;
+
+	if (value == 1) /* Low Speed */
+		value = 85;
+	else if (value == 2)
+		value = 170;
+	else if (value == 3)
+		value = 255;
+	else if (value) {
+		pr_err("Unknown fan speed %#x\n", value);
+		value = -1;
+	}
 
 	return sprintf(buf, "%d\n", value);
 }
@@ -1284,11 +1279,11 @@ static ssize_t pwm1_store(struct device *dev,
 
 	value = clamp(value, 0, 255);
 
-	state = asus_hwmon_agfn_fan_speed_write(asus, 1, &value);
+	state = asus_agfn_fan_speed_write(asus, 1, &value);
 	if (state)
 		pr_warn("Setting fan speed failed: %d\n", state);
 	else
-		asus->asus_hwmon_fan_manual_mode = true;
+		asus->fan_pwm_mode = ASUS_FAN_CTRL_MANUAL;
 
 	return count;
 }
@@ -1297,10 +1292,21 @@ static ssize_t fan1_input_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	int value = asus_hwmon_fan_rpm_show(dev, 0);
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+	int value;
+	int ret;
+
+	/* no speed readable on manual mode */
+	if (asus->fan_pwm_mode == ASUS_FAN_CTRL_MANUAL)
+		return -ENXIO;
+
+	ret = asus_agfn_fan_speed_read(asus, 1, &value);
+	if (ret) {
+		pr_warn("reading fan speed failed: %d\n", ret);
+		return -ENXIO;
+	}
 
 	return sprintf(buf, "%d\n", value < 0 ? -1 : value*100);
-
 }
 
 static ssize_t pwm1_enable_show(struct device *dev,
@@ -1309,10 +1315,7 @@ static ssize_t pwm1_enable_show(struct device *dev,
 {
 	struct asus_wmi *asus = dev_get_drvdata(dev);
 
-	if (asus->asus_hwmon_fan_manual_mode)
-		return sprintf(buf, "%d\n", ASUS_FAN_CTRL_MANUAL);
-
-	return sprintf(buf, "%d\n", ASUS_FAN_CTRL_AUTO);
+	return sprintf(buf, "%d\n", asus->fan_pwm_mode);
 }
 
 static ssize_t pwm1_enable_store(struct device *dev,
@@ -1329,14 +1332,21 @@ static ssize_t pwm1_enable_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (state == ASUS_FAN_CTRL_MANUAL)
-		asus->asus_hwmon_fan_manual_mode = true;
-	else
-		status = asus_hwmon_fan_set_auto(asus);
+	switch (state) {
+	case ASUS_FAN_CTRL_MANUAL:
+		break;
 
-	if (status)
-		return status;
+	case ASUS_FAN_CTRL_AUTO:
+		status = asus_fan_set_auto(asus);
+		if (status)
+			return status;
+		break;
 
+	default:
+		return -EINVAL;
+	}
+
+	asus->fan_pwm_mode = state;
 	return count;
 }
 
@@ -1389,59 +1399,31 @@ static umode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct asus_wmi *asus = dev_get_drvdata(dev->parent);
-	int dev_id = -1;
-	int fan_attr = -1;
 	u32 value = ASUS_WMI_UNSUPPORTED_METHOD;
-	bool ok = true;
-
-	if (attr == &dev_attr_pwm1.attr)
-		dev_id = ASUS_WMI_DEVID_FAN_CTRL;
-	else if (attr == &dev_attr_temp1_input.attr)
-		dev_id = ASUS_WMI_DEVID_THERMAL_CTRL;
-
 
 	if (attr == &dev_attr_fan1_input.attr
 	    || attr == &dev_attr_fan1_label.attr
 	    || attr == &dev_attr_pwm1.attr
 	    || attr == &dev_attr_pwm1_enable.attr) {
-		fan_attr = 1;
-	}
+		if (asus->fan_type == FAN_TYPE_NONE)
+			return 0;
+	} else if (attr == &dev_attr_temp1_input.attr) {
+		int err = asus_wmi_get_devstate(asus,
+						ASUS_WMI_DEVID_THERMAL_CTRL,
+						&value);
 
-	if (dev_id != -1) {
-		int err = asus_wmi_get_devstate(asus, dev_id, &value);
-
-		if (err < 0 && fan_attr == -1)
+		if (err < 0)
 			return 0; /* can't return negative here */
-	}
 
-	if (dev_id == ASUS_WMI_DEVID_FAN_CTRL) {
-		/*
-		 * We need to find a better way, probably using sfun,
-		 * bits or spec ...
-		 * Currently we disable it if:
-		 * - ASUS_WMI_UNSUPPORTED_METHOD is returned
-		 * - reverved bits are non-zero
-		 * - sfun and presence bit are not set
-		 */
-		if (value == ASUS_WMI_UNSUPPORTED_METHOD || value & 0xFFF80000
-		    || (!asus->sfun && !(value & ASUS_WMI_DSTS_PRESENCE_BIT)))
-			ok = false;
-		else
-			ok = fan_attr <= asus->asus_hwmon_num_fans;
-	} else if (dev_id == ASUS_WMI_DEVID_THERMAL_CTRL) {
 		/*
 		 * If the temperature value in deci-Kelvin is near the absolute
 		 * zero temperature, something is clearly wrong
 		 */
 		if (value == 0 || value == 1)
-			ok = false;
-	} else if (fan_attr <= asus->asus_hwmon_num_fans && fan_attr != -1) {
-		ok = true;
-	} else {
-		ok = false;
+			return 0;
 	}
 
-	return ok ? attr->mode : 0;
+	return attr->mode;
 }
 
 static const struct attribute_group hwmon_attribute_group = {
@@ -1467,21 +1449,16 @@ static int asus_wmi_hwmon_init(struct asus_wmi *asus)
 
 static int asus_wmi_fan_init(struct asus_wmi *asus)
 {
-	int status;
+	asus->fan_type = FAN_TYPE_NONE;
+	asus->agfn_pwm = -1;
 
-	asus->asus_hwmon_pwm = -1;
-	asus->asus_hwmon_num_fans = -1;
-	asus->asus_hwmon_fan_manual_mode = false;
-
-	status = asus_hwmon_get_fan_number(asus, &asus->asus_hwmon_num_fans);
-	if (status) {
-		asus->asus_hwmon_num_fans = 0;
-		pr_warn("Could not determine number of fans: %d\n", status);
-		return -ENXIO;
+	if (asus_wmi_has_agfn_fan(asus)) {
+		asus->fan_type = FAN_TYPE_AGFN;
+		asus_fan_set_auto(asus);
+		asus->fan_pwm_mode = ASUS_FAN_CTRL_AUTO;
 	}
 
-	pr_info("Number of fans: %d\n", asus->asus_hwmon_num_fans);
-	return 0;
+	return asus->fan_type != FAN_TYPE_NONE;
 }
 
 /* Fan mode *******************************************************************/
@@ -2333,7 +2310,6 @@ static int asus_wmi_add(struct platform_device *pdev)
 		goto fail_input;
 
 	err = asus_wmi_fan_init(asus); /* probably no problems on error */
-	asus_hwmon_fan_set_auto(asus);
 
 	err = asus_wmi_hwmon_init(asus);
 	if (err)
@@ -2425,7 +2401,7 @@ static int asus_wmi_remove(struct platform_device *device)
 	asus_wmi_rfkill_exit(asus);
 	asus_wmi_debugfs_exit(asus);
 	asus_wmi_sysfs_exit(asus->platform_device);
-	asus_hwmon_fan_set_auto(asus);
+	asus_fan_set_auto(asus);
 
 	kfree(asus);
 	return 0;
