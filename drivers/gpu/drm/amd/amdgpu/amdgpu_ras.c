@@ -1049,12 +1049,12 @@ static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 			 * the error.
 			 */
 			if (ret == AMDGPU_RAS_UE) {
+				/* these counts could be left as 0 if
+				 * some blocks do not count error number
+				 */
 				obj->err_data.ue_count += err_data.ue_count;
+				obj->err_data.ce_count += err_data.ce_count;
 			}
-			/* Might need get ce count by register, but not all IP
-			 * saves ce count, some IP just use one bit or two bits
-			 * to indicate ce happened.
-			 */
 		}
 	}
 }
@@ -1550,6 +1550,10 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 
 	if (amdgpu_ras_fs_init(adev))
 		goto fs_out;
+
+	/* ras init for each ras block */
+	if (adev->umc.funcs->ras_init)
+		adev->umc.funcs->ras_init(adev);
 
 	DRM_INFO("RAS INFO: ras initialized successfully, "
 			"hardware ability[%x] ras_mask[%x]\n",
