@@ -334,8 +334,10 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 	devm_kfree(&pf->pdev->dev, prev_cfg);
 
 	/* Set the local desired config */
-	memset(&pf->hw.port_info->local_dcbx_cfg, 0, sizeof(*local_dcbx_cfg));
-	memcpy(local_dcbx_cfg, desired_dcbx_cfg, sizeof(*local_dcbx_cfg));
+	if (local_dcbx_cfg->dcbx_mode == ICE_DCBX_MODE_CEE)
+		memcpy(local_dcbx_cfg, desired_dcbx_cfg,
+		       sizeof(*local_dcbx_cfg));
+
 	ice_cfg_etsrec_defaults(pf->hw.port_info);
 	ret = ice_set_dcb_cfg(pf->hw.port_info);
 	if (ret) {
