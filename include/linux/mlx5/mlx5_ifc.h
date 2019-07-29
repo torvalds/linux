@@ -2782,7 +2782,7 @@ struct mlx5_ifc_traffic_counter_bits {
 struct mlx5_ifc_tisc_bits {
 	u8         strict_lag_tx_port_affinity[0x1];
 	u8         tls_en[0x1];
-	u8         reserved_at_1[0x2];
+	u8         reserved_at_2[0x2];
 	u8         lag_tx_port_affinity[0x04];
 
 	u8         reserved_at_8[0x4];
