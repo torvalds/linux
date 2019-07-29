@@ -311,6 +311,8 @@ static void hns3_self_test(struct net_device *ndev,
 	if (eth_test->flags != ETH_TEST_FL_OFFLINE)
 		return;
 
+	netif_dbg(h, drv, ndev, "self test start");
+
 	st_param[HNAE3_LOOP_APP][0] = HNAE3_LOOP_APP;
 	st_param[HNAE3_LOOP_APP][1] =
 			h->flags & HNAE3_SUPPORT_APP_LOOPBACK;
@@ -374,6 +376,8 @@ static void hns3_self_test(struct net_device *ndev,
 
 	if (if_running)
 		ndev->netdev_ops->ndo_open(ndev);
+
+	netif_dbg(h, drv, ndev, "self test end\n");
 }
 
 static int hns3_get_sset_count(struct net_device *netdev, int stringset)
@@ -604,6 +608,10 @@ static int hns3_set_pauseparam(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
+	netif_dbg(h, drv, netdev,
+		  "set pauseparam: autoneg=%u, rx:%u, tx:%u\n",
+		  param->autoneg, param->rx_pause, param->tx_pause);
+
 	if (h->ae_algo->ops->set_pauseparam)
 		return h->ae_algo->ops->set_pauseparam(h, param->autoneg,
 						       param->rx_pause,
@@ -742,6 +750,11 @@ static int hns3_set_link_ksettings(struct net_device *netdev,
 	/* Chip don't support this mode. */
 	if (cmd->base.speed == SPEED_1000 && cmd->base.duplex == DUPLEX_HALF)
 		return -EINVAL;
+
+	netif_dbg(handle, drv, netdev,
+		  "set link(%s): autoneg=%u, speed=%u, duplex=%u\n",
+		  netdev->phydev ? "phy" : "mac",
+		  cmd->base.autoneg, cmd->base.speed, cmd->base.duplex);
 
 	/* Only support ksettings_set for netdev with phy attached for now */
 	if (netdev->phydev)
@@ -983,6 +996,9 @@ static int hns3_nway_reset(struct net_device *netdev)
 			   "Autoneg is off, don't support to restart it\n");
 		return -EINVAL;
 	}
+
+	netif_dbg(handle, drv, netdev,
+		  "nway reset (using %s)\n", phy ? "phy" : "mac");
 
 	if (phy)
 		return genphy_restart_aneg(phy);
@@ -1308,6 +1324,9 @@ static int hns3_set_fecparam(struct net_device *netdev,
 	if (!ops->set_fec)
 		return -EOPNOTSUPP;
 	fec_mode = eth_to_loc_fec(fec->fec);
+
+	netif_dbg(handle, drv, netdev, "set fecparam: mode=%u\n", fec_mode);
+
 	return ops->set_fec(handle, fec_mode);
 }
 

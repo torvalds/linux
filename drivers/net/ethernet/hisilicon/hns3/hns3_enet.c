@@ -459,6 +459,9 @@ static int hns3_nic_net_open(struct net_device *netdev)
 		h->ae_algo->ops->set_timer_task(priv->ae_handle, true);
 
 	hns3_config_xps(priv);
+
+	netif_dbg(h, drv, netdev, "net open\n");
+
 	return 0;
 }
 
@@ -518,6 +521,8 @@ static int hns3_nic_net_stop(struct net_device *netdev)
 
 	if (test_and_set_bit(HNS3_NIC_STATE_DOWN, &priv->state))
 		return 0;
+
+	netif_dbg(h, drv, netdev, "net stop\n");
 
 	if (h->ae_algo->ops->set_timer_task)
 		h->ae_algo->ops->set_timer_task(priv->ae_handle, false);
@@ -1550,6 +1555,8 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 	h = hns3_get_handle(netdev);
 	kinfo = &h->kinfo;
 
+	netif_dbg(h, drv, netdev, "setup tc: num_tc=%u\n", tc);
+
 	return (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
 		kinfo->dcb_ops->setup_tc(h, tc, prio_tc) : -EOPNOTSUPP;
 }
@@ -1593,6 +1600,10 @@ static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	int ret = -EIO;
 
+	netif_dbg(h, drv, netdev,
+		  "set vf vlan: vf=%d, vlan=%u, qos=%u, vlan_proto=%u\n",
+		  vf, vlan, qos, vlan_proto);
+
 	if (h->ae_algo->ops->set_vf_vlan_filter)
 		ret = h->ae_algo->ops->set_vf_vlan_filter(h, vf, vlan,
 							  qos, vlan_proto);
@@ -1610,6 +1621,9 @@ static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 
 	if (!h->ae_algo->ops->set_mtu)
 		return -EOPNOTSUPP;
+
+	netif_dbg(h, drv, netdev,
+		  "change mtu from %u to %d\n", netdev->mtu, new_mtu);
 
 	ret = h->ae_algo->ops->set_mtu(h, new_mtu);
 	if (ret)
@@ -4394,6 +4408,10 @@ int hns3_set_channels(struct net_device *netdev,
 
 	if (kinfo->rss_size == new_tqp_num)
 		return 0;
+
+	netif_dbg(h, drv, netdev,
+		  "set channels: tqp_num=%u, rxfh=%d\n",
+		  new_tqp_num, rxfh_configured);
 
 	ret = hns3_reset_notify(h, HNAE3_DOWN_CLIENT);
 	if (ret)
