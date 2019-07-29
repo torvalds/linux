@@ -175,6 +175,14 @@
 		reg = <0>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
+		/*
+		 * TX clock internal delay mode is required for reliable
+		 * 1Gbps communication using the KSZ9031RNX phy present on
+		 * the Draak board, however, TX clock internal delay mode
+		 * isn't supported on r8a77995.  Thus, limit speed to
+		 * 100Mbps for reliable communication.
+		 */
+		max-speed = <100>;
 	};
 };
 
