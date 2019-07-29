@@ -1517,6 +1517,17 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 	return skb;
 }
 
+static void bnxt_tpa_agg(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
+			 struct rx_agg_cmp *rx_agg)
+{
+	u16 agg_id = TPA_AGG_AGG_ID(rx_agg);
+	struct bnxt_tpa_info *tpa_info;
+
+	tpa_info = &rxr->rx_tpa[agg_id];
+	BUG_ON(tpa_info->agg_count >= MAX_SKB_FRAGS);
+	tpa_info->agg_arr[tpa_info->agg_count++] = *rx_agg;
+}
+
 static void bnxt_deliver_skb(struct bnxt *bp, struct bnxt_napi *bnapi,
 			     struct sk_buff *skb)
 {
@@ -1558,6 +1569,13 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	rxcmp = (struct rx_cmp *)
 			&cpr->cp_desc_ring[CP_RING(cp_cons)][CP_IDX(cp_cons)];
 
+	cmp_type = RX_CMP_TYPE(rxcmp);
+
+	if (cmp_type == CMP_TYPE_RX_TPA_AGG_CMP) {
+		bnxt_tpa_agg(bp, rxr, (struct rx_agg_cmp *)rxcmp);
+		goto next_rx_no_prod_no_len;
+	}
+
 	tmp_raw_cons = NEXT_RAW_CMP(tmp_raw_cons);
 	cp_cons = RING_CMP(tmp_raw_cons);
 	rxcmp1 = (struct rx_cmp_ext *)
@@ -1565,8 +1583,6 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 
 	if (!RX_CMP_VALID(rxcmp1, tmp_raw_cons))
 		return -EBUSY;
-
-	cmp_type = RX_CMP_TYPE(rxcmp);
 
 	prod = rxr->rx_prod;
 
