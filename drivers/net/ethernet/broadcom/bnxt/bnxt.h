@@ -1362,7 +1362,9 @@ struct bnxt {
 
 #define CHIP_NUM_5745X		0xd730
 
-#define CHIP_NUM_57500		0x1750
+#define CHIP_NUM_57508		0x1750
+#define CHIP_NUM_57504		0x1751
+#define CHIP_NUM_57502		0x1752
 
 #define CHIP_NUM_58802		0xd802
 #define CHIP_NUM_58804		0xd804
@@ -1464,7 +1466,9 @@ struct bnxt {
 
 /* Chip class phase 5 */
 #define BNXT_CHIP_P5(bp)			\
-	((bp)->chip_num == CHIP_NUM_57500)
+	((bp)->chip_num == CHIP_NUM_57508 ||	\
+	 (bp)->chip_num == CHIP_NUM_57504 ||	\
+	 (bp)->chip_num == CHIP_NUM_57502)
 
 /* Chip class phase 4.x */
 #define BNXT_CHIP_P4(bp)			\
