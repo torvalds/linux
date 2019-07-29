@@ -2957,6 +2957,13 @@ enum {
 	SCHEDULING_CONTEXT_ELEMENT_TYPE_PARA_VPORT_TC = 0x3,
 };
 
+enum {
+	ELEMENT_TYPE_CAP_MASK_TASR		= 1 << 0,
+	ELEMENT_TYPE_CAP_MASK_VPORT		= 1 << 1,
+	ELEMENT_TYPE_CAP_MASK_VPORT_TC		= 1 << 2,
+	ELEMENT_TYPE_CAP_MASK_PARA_VPORT_TC	= 1 << 3,
+};
+
 struct mlx5_ifc_scheduling_context_bits {
 	u8         element_type[0x8];
 	u8         reserved_at_8[0x18];
