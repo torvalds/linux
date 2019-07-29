@@ -75,37 +75,6 @@ enum dpsw_component_type {
 	DPSW_COMPONENT_TYPE_S_VLAN
 };
 
-/**
- * struct dpsw_cfg - DPSW configuration
- * @num_ifs: Number of external and internal interfaces
- * @adv: Advanced parameters; default is all zeros;
- *	 use this structure to change default settings
- * @adv.options: Enable/Disable DPSW features (bitmap)
- * @adv.max_vlans: Maximum Number of VLAN's; 0 - indicates default 16
- * @adv.max_meters_per_if: Number of meters per interface
- * @adv.max_fdbs: Maximum Number of FDB's; 0 - indicates default 16
- * @adv.max_fdb_entries: Number of FDB entries for default FDB table;
- *	0 - indicates default 1024 entries.
- * @adv.fdb_aging_time: Default FDB aging time for default FDB table;
- *	0 - indicates default 300 seconds
- * @adv.max_fdb_mc_groups: Number of multicast groups in each FDB table;
- *	0 - indicates default 32
- * @adv.component_type: Indicates the component type of this bridge
- */
-struct dpsw_cfg {
-	u16 num_ifs;
-	struct {
-		u64 options;
-		u16 max_vlans;
-		u8 max_meters_per_if;
-		u8 max_fdbs;
-		u16 max_fdb_entries;
-		u16 fdb_aging_time;
-		u16 max_fdb_mc_groups;
-		enum dpsw_component_type component_type;
-	} adv;
-};
-
 int dpsw_enable(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
