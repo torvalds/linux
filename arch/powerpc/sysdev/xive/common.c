@@ -479,7 +479,7 @@ static int xive_find_target_in_mask(const struct cpumask *mask,
 	 * Now go through the entire mask until we find a valid
 	 * target.
 	 */
-	for (;;) {
+	do {
 		/*
 		 * We re-check online as the fallback case passes us
 		 * an untested affinity mask
@@ -487,12 +487,11 @@ static int xive_find_target_in_mask(const struct cpumask *mask,
 		if (cpu_online(cpu) && xive_try_pick_target(cpu))
 			return cpu;
 		cpu = cpumask_next(cpu, mask);
-		if (cpu == first)
-			break;
 		/* Wrap around */
 		if (cpu >= nr_cpu_ids)
 			cpu = cpumask_first(mask);
-	}
+	} while (cpu != first);
+
 	return -1;
 }
 

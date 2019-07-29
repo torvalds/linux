@@ -162,9 +162,9 @@ static inline void print_tbl_walk(struct seq_file *m)
 			   (u64)0, (u64)0, (u64)0);
 	else
 		seq_printf(m, "%-6d\t0x%016llx:0x%016llx:0x%016llx\n",
-			   tbl_wlk->pasid, tbl_wlk->pasid_tbl_entry->val[0],
+			   tbl_wlk->pasid, tbl_wlk->pasid_tbl_entry->val[2],
 			   tbl_wlk->pasid_tbl_entry->val[1],
-			   tbl_wlk->pasid_tbl_entry->val[2]);
+			   tbl_wlk->pasid_tbl_entry->val[0]);
 }
 
 static void pasid_tbl_walk(struct seq_file *m, struct pasid_entry *tbl_entry,

@@ -626,11 +626,26 @@ static int navi10_get_current_clk_freq_by_table(struct smu_context *smu,
 	return ret;
 }
 
+static bool navi10_is_support_fine_grained_dpm(struct smu_context *smu, enum smu_clk_type clk_type)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+	DpmDescriptor_t *dpm_desc = NULL;
+	uint32_t clk_index = 0;
+
+	clk_index = smu_clk_get_index(smu, clk_type);
+	dpm_desc = &pptable->DpmDescriptor[clk_index];
+
+	/* 0 - Fine grained DPM, 1 - Discrete DPM */
+	return dpm_desc->SnapToDiscrete == 0 ? true : false;
+}
+
 static int navi10_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
 	int i, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
+	uint32_t freq_values[3] = {0};
+	uint32_t mark_index = 0;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
@@ -643,22 +658,42 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 		ret = smu_get_current_clk_freq(smu, clk_type, &cur_value);
 		if (ret)
 			return size;
+
 		/* 10KHz -> MHz */
 		cur_value = cur_value / 100;
-
-		size += sprintf(buf, "current clk: %uMhz\n", cur_value);
 
 		ret = smu_get_dpm_level_count(smu, clk_type, &count);
 		if (ret)
 			return size;
 
-		for (i = 0; i < count; i++) {
-			ret = smu_get_dpm_freq_by_index(smu, clk_type, i, &value);
+		if (!navi10_is_support_fine_grained_dpm(smu, clk_type)) {
+			for (i = 0; i < count; i++) {
+				ret = smu_get_dpm_freq_by_index(smu, clk_type, i, &value);
+				if (ret)
+					return size;
+
+				size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
+						cur_value == value ? "*" : "");
+			}
+		} else {
+			ret = smu_get_dpm_freq_by_index(smu, clk_type, 0, &freq_values[0]);
+			if (ret)
+				return size;
+			ret = smu_get_dpm_freq_by_index(smu, clk_type, count - 1, &freq_values[2]);
 			if (ret)
 				return size;
 
-			size += sprintf(buf + size, "%d: %uMhz %s\n", i, value,
-					cur_value == value ? "*" : "");
+			freq_values[1] = cur_value;
+			mark_index = cur_value == freq_values[0] ? 0 :
+				     cur_value == freq_values[2] ? 2 : 1;
+			if (mark_index != 1)
+				freq_values[1] = (freq_values[0] + freq_values[2]) / 2;
+
+			for (i = 0; i < 3; i++) {
+				size += sprintf(buf + size, "%d: %uMhz %s\n", i, freq_values[i],
+						i == mark_index ? "*" : "");
+			}
+
 		}
 		break;
 	default:
@@ -919,12 +954,13 @@ static bool navi10_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
-static int navi10_get_fan_speed(struct smu_context *smu, uint16_t *value)
+static int navi10_get_fan_speed_rpm(struct smu_context *smu,
+				    uint32_t *speed)
 {
 	SmuMetrics_t metrics;
 	int ret = 0;
 
-	if (!value)
+	if (!speed)
 		return -EINVAL;
 
 	memset(&metrics, 0, sizeof(metrics));
@@ -934,7 +970,7 @@ static int navi10_get_fan_speed(struct smu_context *smu, uint16_t *value)
 	if (ret)
 		return ret;
 
-	*value = metrics.CurrFanSpeed;
+	*speed = metrics.CurrFanSpeed;
 
 	return ret;
 }
@@ -944,10 +980,10 @@ static int navi10_get_fan_speed_percent(struct smu_context *smu,
 {
 	int ret = 0;
 	uint32_t percent = 0;
-	uint16_t current_rpm;
+	uint32_t current_rpm;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
-	ret = navi10_get_fan_speed(smu, &current_rpm);
+	ret = navi10_get_fan_speed_rpm(smu, &current_rpm);
 	if (ret)
 		return ret;
 
@@ -1530,6 +1566,60 @@ static int navi10_set_ppfeature_status(struct smu_context *smu,
 	return 0;
 }
 
+static int navi10_set_peak_clock_by_device(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+	uint32_t sclk_freq = 0, uclk_freq = 0;
+	uint32_t uclk_level = 0;
+
+	switch (adev->rev_id) {
+	case 0xf0: /* XTX */
+	case 0xc0:
+		sclk_freq = NAVI10_PEAK_SCLK_XTX;
+		break;
+	case 0xf1: /* XT */
+	case 0xc1:
+		sclk_freq = NAVI10_PEAK_SCLK_XT;
+		break;
+	default: /* XL */
+		sclk_freq = NAVI10_PEAK_SCLK_XL;
+		break;
+	}
+
+	ret = smu_get_dpm_level_count(smu, SMU_UCLK, &uclk_level);
+	if (ret)
+		return ret;
+	ret = smu_get_dpm_freq_by_index(smu, SMU_UCLK, uclk_level - 1, &uclk_freq);
+	if (ret)
+		return ret;
+
+	ret = smu_set_soft_freq_range(smu, SMU_SCLK, sclk_freq, sclk_freq);
+	if (ret)
+		return ret;
+	ret = smu_set_soft_freq_range(smu, SMU_UCLK, uclk_freq, uclk_freq);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
+static int navi10_set_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
+{
+	int ret = 0;
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		ret = navi10_set_peak_clock_by_device(smu);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -1557,6 +1647,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.unforce_dpm_levels = navi10_unforce_dpm_levels,
 	.is_dpm_running = navi10_is_dpm_running,
 	.get_fan_speed_percent = navi10_get_fan_speed_percent,
+	.get_fan_speed_rpm = navi10_get_fan_speed_rpm,
 	.get_power_profile_mode = navi10_get_power_profile_mode,
 	.set_power_profile_mode = navi10_set_power_profile_mode,
 	.get_profiling_clk_mask = navi10_get_profiling_clk_mask,
@@ -1565,6 +1656,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_uclk_dpm_states = navi10_get_uclk_dpm_states,
 	.get_ppfeature_status = navi10_get_ppfeature_status,
 	.set_ppfeature_status = navi10_set_ppfeature_status,
+	.set_performance_level = navi10_set_performance_level,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

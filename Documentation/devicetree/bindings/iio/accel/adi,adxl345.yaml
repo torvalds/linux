@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/iio/accelerometers/adi,adxl345.yaml#
+$id: http://devicetree.org/schemas/iio/accel/adi,adxl345.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Analog Devices ADXL345/ADXL375 3-Axis Digital Accelerometers
