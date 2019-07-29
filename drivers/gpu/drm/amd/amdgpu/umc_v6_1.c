@@ -98,9 +98,10 @@ static void umc_v6_1_query_correctable_error_count(struct amdgpu_device *adev,
 	WREG32(ecc_err_cnt_sel_addr + umc_reg_offset, ecc_err_cnt_sel);
 	ecc_err_cnt = RREG32(ecc_err_cnt_addr + umc_reg_offset);
 	*error_count +=
-		REG_GET_FIELD(ecc_err_cnt, UMCCH0_0_EccErrCnt, EccErrCnt);
+		(REG_GET_FIELD(ecc_err_cnt, UMCCH0_0_EccErrCnt, EccErrCnt) -
+		 UMC_V6_1_CE_CNT_INIT);
 	/* clear the lower chip err count */
-	WREG32(ecc_err_cnt_addr + umc_reg_offset, 0);
+	WREG32(ecc_err_cnt_addr + umc_reg_offset, UMC_V6_1_CE_CNT_INIT);
 
 	/* select the higher chip and check the err counter */
 	ecc_err_cnt_sel = REG_SET_FIELD(ecc_err_cnt_sel, UMCCH0_0_EccErrCntSel,
@@ -108,9 +109,10 @@ static void umc_v6_1_query_correctable_error_count(struct amdgpu_device *adev,
 	WREG32(ecc_err_cnt_sel_addr + umc_reg_offset, ecc_err_cnt_sel);
 	ecc_err_cnt = RREG32(ecc_err_cnt_addr + umc_reg_offset);
 	*error_count +=
-		REG_GET_FIELD(ecc_err_cnt, UMCCH0_0_EccErrCnt, EccErrCnt);
+		(REG_GET_FIELD(ecc_err_cnt, UMCCH0_0_EccErrCnt, EccErrCnt) -
+		 UMC_V6_1_CE_CNT_INIT);
 	/* clear the higher chip err count */
-	WREG32(ecc_err_cnt_addr + umc_reg_offset, 0);
+	WREG32(ecc_err_cnt_addr + umc_reg_offset, UMC_V6_1_CE_CNT_INIT);
 
 	/* check for SRAM correctable error
 	  MCUMC_STATUS is a 64 bit register */
