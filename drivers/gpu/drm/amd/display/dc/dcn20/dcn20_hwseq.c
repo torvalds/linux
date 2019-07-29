@@ -142,8 +142,7 @@ void dcn20_display_init(struct dc *dc)
 	/* DCCG */
 	dcn20_dccg_init(hws);
 
-	/* Disable all memory low power mode. All memories are enabled. */
-	REG_UPDATE(DC_MEM_GLOBAL_PWR_REQ_CNTL, DC_MEM_GLOBAL_PWR_REQ_DIS, 1);
+	REG_UPDATE(DC_MEM_GLOBAL_PWR_REQ_CNTL, DC_MEM_GLOBAL_PWR_REQ_DIS, 0);
 
 	/* DCHUB/MMHUBBUB
 	 * set global timer refclk divider
