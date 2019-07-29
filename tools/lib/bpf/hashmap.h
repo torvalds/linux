@@ -10,6 +10,11 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#ifdef __GLIBC__
+#include <bits/wordsize.h>
+#else
+#include <bits/reg.h>
+#endif
 #include "libbpf_internal.h"
 
 static inline size_t hash_bits(size_t h, int bits)
