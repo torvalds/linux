@@ -37,7 +37,6 @@
 #include "i915_trace.h"
 #include "intel_context.h"
 #include "intel_gt.h"
-#include "intel_renderstate.h"
 #include "intel_reset.h"
 #include "intel_workarounds.h"
 
@@ -847,21 +846,6 @@ static void reset_ring(struct intel_engine_cs *engine, bool stalled)
 
 static void reset_finish(struct intel_engine_cs *engine)
 {
-}
-
-static int intel_rcs_ctx_init(struct i915_request *rq)
-{
-	int ret;
-
-	ret = intel_engine_emit_ctx_wa(rq);
-	if (ret != 0)
-		return ret;
-
-	ret = intel_renderstate_emit(rq);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 static int rcs_resume(struct intel_engine_cs *engine)
@@ -2227,11 +2211,9 @@ static void setup_rcs(struct intel_engine_cs *engine)
 	engine->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 
 	if (INTEL_GEN(i915) >= 7) {
-		engine->init_context = intel_rcs_ctx_init;
 		engine->emit_flush = gen7_render_ring_flush;
 		engine->emit_fini_breadcrumb = gen7_rcs_emit_breadcrumb;
 	} else if (IS_GEN(i915, 6)) {
-		engine->init_context = intel_rcs_ctx_init;
 		engine->emit_flush = gen6_render_ring_flush;
 		engine->emit_fini_breadcrumb = gen6_rcs_emit_breadcrumb;
 	} else if (IS_GEN(i915, 5)) {

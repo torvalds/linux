@@ -568,10 +568,13 @@ void intel_mocs_init_l3cc_table(struct intel_gt *gt)
  *
  * Return: 0 on success, otherwise the error status.
  */
-int intel_rcs_context_init_mocs(struct i915_request *rq)
+int intel_mocs_emit(struct i915_request *rq)
 {
 	struct drm_i915_mocs_table t;
 	int ret;
+
+	if (rq->engine->class != RENDER_CLASS)
+		return 0;
 
 	if (get_mocs_settings(rq->engine->gt, &t)) {
 		/* Program the RCS control registers */

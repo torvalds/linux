@@ -41,7 +41,7 @@ struct intel_renderstate {
 static const struct intel_renderstate_rodata *
 render_state_get_rodata(const struct intel_engine_cs *engine)
 {
-	if (engine->id != RCS0)
+	if (engine->class != RENDER_CLASS)
 		return NULL;
 
 	switch (INTEL_GEN(engine->i915)) {

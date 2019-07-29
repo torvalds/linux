@@ -50,6 +50,7 @@
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_mocs.h"
 #include "gt/intel_reset.h"
+#include "gt/intel_renderstate.h"
 #include "gt/intel_workarounds.h"
 
 #include "i915_drv.h"
@@ -1294,10 +1295,24 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 			goto err_active;
 		}
 
-		err = 0;
-		if (rq->engine->init_context)
-			err = rq->engine->init_context(rq);
+		err = intel_engine_emit_ctx_wa(rq);
+		if (err)
+			goto err_rq;
 
+		/*
+		 * Failing to program the MOCS is non-fatal.The system will not
+		 * run at peak performance. So warn the user and carry on.
+		 */
+		err = intel_mocs_emit(rq);
+		if (err)
+			dev_notice(i915->drm.dev,
+				   "Failed to program MOCS registers; expect performance issues.\n");
+
+		err = intel_renderstate_emit(rq);
+		if (err)
+			goto err_rq;
+
+err_rq:
 		i915_request_add(rq);
 		if (err)
 			goto err_active;

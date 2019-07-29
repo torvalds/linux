@@ -383,7 +383,6 @@ struct intel_engine_cs {
 	const struct intel_context_ops *cops;
 
 	int		(*request_alloc)(struct i915_request *rq);
-	int		(*init_context)(struct i915_request *rq);
 
 	int		(*emit_flush)(struct i915_request *request, u32 mode);
 #define EMIT_INVALIDATE	BIT(0)

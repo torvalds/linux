@@ -54,8 +54,9 @@ struct i915_request;
 struct intel_engine_cs;
 struct intel_gt;
 
-int intel_rcs_context_init_mocs(struct i915_request *rq);
 void intel_mocs_init_l3cc_table(struct intel_gt *gt);
 void intel_mocs_init_engine(struct intel_engine_cs *engine);
+
+int intel_mocs_emit(struct i915_request *rq);
 
 #endif

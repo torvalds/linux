@@ -141,7 +141,6 @@
 #include "intel_gt.h"
 #include "intel_lrc_reg.h"
 #include "intel_mocs.h"
-#include "intel_renderstate.h"
 #include "intel_reset.h"
 #include "intel_workarounds.h"
 
@@ -2727,25 +2726,6 @@ static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 	return gen8_emit_wa_tail(request, cs);
 }
 
-static int gen8_init_rcs_context(struct i915_request *rq)
-{
-	int ret;
-
-	ret = intel_engine_emit_ctx_wa(rq);
-	if (ret)
-		return ret;
-
-	ret = intel_rcs_context_init_mocs(rq);
-	/*
-	 * Failing to program the MOCS is non-fatal.The system will not
-	 * run at peak performance. So generate an error and carry on.
-	 */
-	if (ret)
-		DRM_ERROR("MOCS failed to program: expect performance issues.\n");
-
-	return intel_renderstate_emit(rq);
-}
-
 static void execlists_park(struct intel_engine_cs *engine)
 {
 	del_timer_sync(&engine->execlists.timer);
@@ -2853,7 +2833,6 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 	logical_ring_default_irqs(engine);
 
 	if (engine->class == RENDER_CLASS) {
-		engine->init_context = gen8_init_rcs_context;
 		engine->emit_flush = gen8_emit_flush_render;
 		engine->emit_fini_breadcrumb = gen8_emit_fini_breadcrumb_rcs;
 	}
