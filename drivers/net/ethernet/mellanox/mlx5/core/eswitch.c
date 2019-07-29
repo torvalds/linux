@@ -1415,7 +1415,7 @@ static bool element_type_supported(struct mlx5_eswitch *esw, int type)
 }
 
 /* Vport QoS management */
-static int esw_create_tsar(struct mlx5_eswitch *esw)
+static void esw_create_tsar(struct mlx5_eswitch *esw)
 {
 	u32 tsar_ctx[MLX5_ST_SZ_DW(scheduling_context)] = {0};
 	struct mlx5_core_dev *dev = esw->dev;
@@ -1423,13 +1423,13 @@ static int esw_create_tsar(struct mlx5_eswitch *esw)
 	int err;
 
 	if (!MLX5_CAP_GEN(dev, qos) || !MLX5_CAP_QOS(dev, esw_scheduling))
-		return 0;
+		return;
 
 	if (!element_type_supported(esw, SCHEDULING_CONTEXT_ELEMENT_TYPE_TSAR))
-		return 0;
+		return;
 
 	if (esw->qos.enabled)
-		return -EEXIST;
+		return;
 
 	MLX5_SET(scheduling_context, tsar_ctx, element_type,
 		 SCHEDULING_CONTEXT_ELEMENT_TYPE_TSAR);
@@ -1443,11 +1443,10 @@ static int esw_create_tsar(struct mlx5_eswitch *esw)
 						 &esw->qos.root_tsar_id);
 	if (err) {
 		esw_warn(esw->dev, "E-Switch create TSAR failed (%d)\n", err);
-		return err;
+		return;
 	}
 
 	esw->qos.enabled = true;
-	return 0;
 }
 
 static void esw_destroy_tsar(struct mlx5_eswitch *esw)
@@ -1819,6 +1818,8 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
 	if (!MLX5_CAP_ESW_EGRESS_ACL(esw->dev, ft_support))
 		esw_warn(esw->dev, "engress ACL is not supported by FW\n");
 
+	esw_create_tsar(esw);
+
 	esw->mode = mode;
 
 	mlx5_lag_update(esw->dev);
@@ -1835,10 +1836,6 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
 
 	if (err)
 		goto abort;
-
-	err = esw_create_tsar(esw);
-	if (err)
-		esw_warn(esw->dev, "Failed to create eswitch TSAR");
 
 	enabled_events = (mode == MLX5_ESWITCH_LEGACY) ? SRIOV_VPORT_EVENTS :
 		UC_ADDR_CHANGE;
@@ -1899,12 +1896,12 @@ void mlx5_eswitch_disable(struct mlx5_eswitch *esw)
 	if (mc_promisc && mc_promisc->uplink_rule)
 		mlx5_del_flow_rules(mc_promisc->uplink_rule);
 
-	esw_destroy_tsar(esw);
-
 	if (esw->mode == MLX5_ESWITCH_LEGACY)
 		esw_destroy_legacy_table(esw);
 	else if (esw->mode == MLX5_ESWITCH_OFFLOADS)
 		esw_offloads_cleanup(esw);
+
+	esw_destroy_tsar(esw);
 
 	old_mode = esw->mode;
 	esw->mode = MLX5_ESWITCH_NONE;
