@@ -2106,6 +2106,7 @@ static netdev_tx_t
 ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 {
 	struct ice_tx_offload_params offload = { 0 };
+	struct ice_vsi *vsi = tx_ring->vsi;
 	struct ice_tx_buf *first;
 	unsigned int count;
 	int tso, csum;
@@ -2153,7 +2154,15 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 	if (csum < 0)
 		goto out_drop;
 
-	if (tso || offload.cd_tunnel_params) {
+	/* allow CONTROL frames egress from main VSI if FW LLDP disabled */
+	if (unlikely(skb->priority == TC_PRIO_CONTROL &&
+		     vsi->type == ICE_VSI_PF &&
+		     vsi->port_info->is_sw_lldp))
+		offload.cd_qw1 |= (u64)(ICE_TX_DESC_DTYPE_CTX |
+					ICE_TX_CTX_DESC_SWTCH_UPLINK <<
+					ICE_TXD_CTX_QW1_CMD_S);
+
+	if (offload.cd_qw1 & ICE_TX_DESC_DTYPE_CTX) {
 		struct ice_tx_ctx_desc *cdesc;
 		int i = tx_ring->next_to_use;
 
