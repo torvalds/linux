@@ -396,6 +396,7 @@ MODULE_DEVICE_TABLE(of, of_nxp_nci_i2c_match);
 
 #ifdef CONFIG_ACPI
 static struct acpi_device_id acpi_id[] = {
+	{ "NXP1001" },
 	{ "NXP7471" },
 	{ },
 };
