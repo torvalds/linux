@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR CDDL-1.0) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR CDDL-1.0) */
 /*
  * Virtual Device for Guest <-> VMM/Host communication, type definitions
  * which are also used for the vboxguest ioctl interface / by vboxsf

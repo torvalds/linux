@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 
 #ifndef __ASM_CSKY_CACHECTL_H
 #define __ASM_CSKY_CACHECTL_H

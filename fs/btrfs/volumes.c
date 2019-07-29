@@ -5941,6 +5941,7 @@ int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	u64 stripe_len;
 	u64 raid56_full_stripe_start = (u64)-1;
 	int data_stripes;
+	int ret = 0;
 
 	ASSERT(op != BTRFS_MAP_DISCARD);
 
@@ -5961,8 +5962,8 @@ int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		btrfs_crit(fs_info,
 "stripe math has gone wrong, stripe_offset=%llu offset=%llu start=%llu logical=%llu stripe_len=%llu",
 			stripe_offset, offset, em->start, logical, stripe_len);
-		free_extent_map(em);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	/* stripe_offset is the offset of this block in its stripe */
@@ -6009,7 +6010,10 @@ int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	io_geom->stripe_offset = stripe_offset;
 	io_geom->raid56_stripe_offset = raid56_full_stripe_start;
 
-	return 0;
+out:
+	/* once for us */
+	free_extent_map(em);
+	return ret;
 }
 
 static int __btrfs_map_block(struct btrfs_fs_info *fs_info,

@@ -666,7 +666,11 @@ static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem,
 	preempt_disable();
 	rcu_read_lock();
 	owner = rwsem_owner_flags(sem, &flags);
-	if ((flags & nonspinnable) || (owner && !owner_on_cpu(owner)))
+	/*
+	 * Don't check the read-owner as the entry may be stale.
+	 */
+	if ((flags & nonspinnable) ||
+	    (owner && !(flags & RWSEM_READER_OWNED) && !owner_on_cpu(owner)))
 		ret = false;
 	rcu_read_unlock();
 	preempt_enable();
@@ -1000,6 +1004,7 @@ rwsem_down_read_slowpath(struct rw_semaphore *sem, int state)
 	atomic_long_add(-RWSEM_READER_BIAS, &sem->count);
 	adjustment = 0;
 	if (rwsem_optimistic_spin(sem, false)) {
+		/* rwsem_optimistic_spin() implies ACQUIRE on success */
 		/*
 		 * Wake up other readers in the wait list if the front
 		 * waiter is a reader.
@@ -1014,6 +1019,7 @@ rwsem_down_read_slowpath(struct rw_semaphore *sem, int state)
 		}
 		return sem;
 	} else if (rwsem_reader_phase_trylock(sem, waiter.last_rowner)) {
+		/* rwsem_reader_phase_trylock() implies ACQUIRE on success */
 		return sem;
 	}
 
@@ -1032,6 +1038,8 @@ queue:
 		 */
 		if (adjustment && !(atomic_long_read(&sem->count) &
 		     (RWSEM_WRITER_MASK | RWSEM_FLAG_HANDOFF))) {
+			/* Provide lock ACQUIRE */
+			smp_acquire__after_ctrl_dep();
 			raw_spin_unlock_irq(&sem->wait_lock);
 			rwsem_set_reader_owned(sem);
 			lockevent_inc(rwsem_rlock_fast);
@@ -1065,15 +1073,18 @@ queue:
 	wake_up_q(&wake_q);
 
 	/* wait to be given the lock */
-	while (true) {
+	for (;;) {
 		set_current_state(state);
-		if (!waiter.task)
+		if (!smp_load_acquire(&waiter.task)) {
+			/* Matches rwsem_mark_wake()'s smp_store_release(). */
 			break;
+		}
 		if (signal_pending_state(state, current)) {
 			raw_spin_lock_irq(&sem->wait_lock);
 			if (waiter.task)
 				goto out_nolock;
 			raw_spin_unlock_irq(&sem->wait_lock);
+			/* Ordered by sem->wait_lock against rwsem_mark_wake(). */
 			break;
 		}
 		schedule();
@@ -1083,6 +1094,7 @@ queue:
 	__set_current_state(TASK_RUNNING);
 	lockevent_inc(rwsem_rlock);
 	return sem;
+
 out_nolock:
 	list_del(&waiter.list);
 	if (list_empty(&sem->wait_list)) {
@@ -1123,8 +1135,10 @@ rwsem_down_write_slowpath(struct rw_semaphore *sem, int state)
 
 	/* do optimistic spinning and steal lock if possible */
 	if (rwsem_can_spin_on_owner(sem, RWSEM_WR_NONSPINNABLE) &&
-	    rwsem_optimistic_spin(sem, true))
+	    rwsem_optimistic_spin(sem, true)) {
+		/* rwsem_optimistic_spin() implies ACQUIRE on success */
 		return sem;
+	}
 
 	/*
 	 * Disable reader optimistic spinning for this rwsem after
@@ -1184,9 +1198,11 @@ rwsem_down_write_slowpath(struct rw_semaphore *sem, int state)
 wait:
 	/* wait until we successfully acquire the lock */
 	set_current_state(state);
-	while (true) {
-		if (rwsem_try_write_lock(sem, wstate))
+	for (;;) {
+		if (rwsem_try_write_lock(sem, wstate)) {
+			/* rwsem_try_write_lock() implies ACQUIRE on success */
 			break;
+		}
 
 		raw_spin_unlock_irq(&sem->wait_lock);
 
