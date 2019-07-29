@@ -37,6 +37,13 @@
 /* UMC regiser per channel offset */
 #define UMC_V6_1_PER_CHANNEL_OFFSET		0x800
 
+/* EccErrCnt max value */
+#define UMC_V6_1_CE_CNT_MAX		0xffff
+/* umc ce interrupt threshold */
+#define UMC_V6_1_CE_INT_THRESHOLD	0xffff
+/* umc ce count initial value */
+#define UMC_V6_1_CE_CNT_INIT	(UMC_V6_1_CE_CNT_MAX - UMC_V6_1_CE_INT_THRESHOLD)
+
 extern const struct amdgpu_umc_funcs umc_v6_1_funcs;
 extern const uint32_t
 	umc_v6_1_channel_idx_tbl[UMC_V6_1_UMC_INSTANCE_NUM][UMC_V6_1_CHANNEL_INSTANCE_NUM];
