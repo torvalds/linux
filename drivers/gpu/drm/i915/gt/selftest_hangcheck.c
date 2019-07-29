@@ -272,9 +272,7 @@ static u32 hws_seqno(const struct hang *h, const struct i915_request *rq)
 static void hang_fini(struct hang *h)
 {
 	*h->batch = MI_BATCH_BUFFER_END;
-
-	if (h->gt)
-		intel_gt_chipset_flush(h->gt);
+	intel_gt_chipset_flush(h->gt);
 
 	i915_gem_object_unpin_map(h->obj);
 	i915_gem_object_put(h->obj);
