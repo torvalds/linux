@@ -22,15 +22,28 @@
 #define __AMDGPU_UMC_H__
 
 struct amdgpu_umc_funcs {
+	void (*ras_init)(struct amdgpu_device *adev);
 	void (*query_ras_error_count)(struct amdgpu_device *adev,
 					void *ras_error_status);
 	void (*query_ras_error_address)(struct amdgpu_device *adev,
 					void *ras_error_status);
+	void (*enable_umc_index_mode)(struct amdgpu_device *adev,
+					uint32_t umc_instance);
+	void (*disable_umc_index_mode)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_umc {
 	/* max error count in one ras query call */
 	uint32_t max_ras_err_cnt_per_query;
+	/* number of umc channel instance with memory map register access */
+	uint32_t channel_inst_num;
+	/* number of umc instance with memory map register access */
+	uint32_t umc_inst_num;
+	/* UMC regiser per channel offset */
+	uint32_t channel_offs;
+	/* channel index table of interleaved memory */
+	const uint32_t *channel_idx_tbl;
+
 	const struct amdgpu_umc_funcs *funcs;
 };
 
