@@ -65,7 +65,6 @@
 #define INSN_LDI_R25_1	 0x34190002 /* ldi  1,%r25 (in_syscall=1) */
 #define INSN_LDI_R20	 0x3414015a /* ldi  __NR_rt_sigreturn,%r20 */
 #define INSN_BLE_SR2_R0  0xe4008200 /* be,l 0x100(%sr2,%r0),%sr0,%r31 */
-#define INSN_NOP	 0x08000240 /* nop */
 /* For debugging */
 #define INSN_DIE_HORRIBLY 0x68000ccc /* stw %r0,0x666(%sr0,%r0) */
 

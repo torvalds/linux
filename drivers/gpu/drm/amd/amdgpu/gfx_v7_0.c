@@ -1886,14 +1886,14 @@ static void gfx_v7_0_config_init(struct amdgpu_device *adev)
 }
 
 /**
- * gfx_v7_0_gpu_init - setup the 3D engine
+ * gfx_v7_0_constants_init - setup the 3D engine
  *
  * @adev: amdgpu_device pointer
  *
- * Configures the 3D engine and tiling configuration
- * registers so that the 3D engine is usable.
+ * init the gfx constants such as the 3D engine, tiling configuration
+ * registers, maximum number of quad pipes, render backends...
  */
-static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
+static void gfx_v7_0_constants_init(struct amdgpu_device *adev)
 {
 	u32 sh_mem_cfg, sh_static_mem_cfg, sh_mem_base;
 	u32 tmp;
@@ -4170,15 +4170,6 @@ static void gfx_v7_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
 					  uint32_t gws_base, uint32_t gws_size,
 					  uint32_t oa_base, uint32_t oa_size)
 {
-	gds_base = gds_base >> AMDGPU_GDS_SHIFT;
-	gds_size = gds_size >> AMDGPU_GDS_SHIFT;
-
-	gws_base = gws_base >> AMDGPU_GWS_SHIFT;
-	gws_size = gws_size >> AMDGPU_GWS_SHIFT;
-
-	oa_base = oa_base >> AMDGPU_OA_SHIFT;
-	oa_size = oa_size >> AMDGPU_OA_SHIFT;
-
 	/* GDS Base */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
@@ -4210,6 +4201,18 @@ static void gfx_v7_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, amdgpu_gds_reg_offset[vmid].oa);
 	amdgpu_ring_write(ring, 0);
 	amdgpu_ring_write(ring, (1 << (oa_size + oa_base)) - (1 << oa_base));
+}
+
+static void gfx_v7_0_ring_soft_recovery(struct amdgpu_ring *ring, unsigned vmid)
+{
+	struct amdgpu_device *adev = ring->adev;
+	uint32_t value = 0;
+
+	value = REG_SET_FIELD(value, SQ_CMD, CMD, 0x03);
+	value = REG_SET_FIELD(value, SQ_CMD, MODE, 0x01);
+	value = REG_SET_FIELD(value, SQ_CMD, CHECK_VMID, 1);
+	value = REG_SET_FIELD(value, SQ_CMD, VM_ID, vmid);
+	WREG32(mmSQ_CMD, value);
 }
 
 static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t address)
@@ -4513,18 +4516,18 @@ static int gfx_v7_0_sw_init(void *handle)
 	adev->gfx.mec.num_queue_per_pipe = 8;
 
 	/* EOP Event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);
 	if (r)
 		return r;
 
 	/* Privileged reg */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 184,
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 184,
 			      &adev->gfx.priv_reg_irq);
 	if (r)
 		return r;
 
 	/* Privileged inst */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 185,
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 185,
 			      &adev->gfx.priv_inst_irq);
 	if (r)
 		return r;
@@ -4579,25 +4582,6 @@ static int gfx_v7_0_sw_init(void *handle)
 		}
 	}
 
-	/* reserve GDS, GWS and OA resource for gfx */
-	r = amdgpu_bo_create_kernel(adev, adev->gds.mem.gfx_partition_size,
-				    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GDS,
-				    &adev->gds.gds_gfx_bo, NULL, NULL);
-	if (r)
-		return r;
-
-	r = amdgpu_bo_create_kernel(adev, adev->gds.gws.gfx_partition_size,
-				    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GWS,
-				    &adev->gds.gws_gfx_bo, NULL, NULL);
-	if (r)
-		return r;
-
-	r = amdgpu_bo_create_kernel(adev, adev->gds.oa.gfx_partition_size,
-				    PAGE_SIZE, AMDGPU_GEM_DOMAIN_OA,
-				    &adev->gds.oa_gfx_bo, NULL, NULL);
-	if (r)
-		return r;
-
 	adev->gfx.ce_ram_size = 0x8000;
 
 	gfx_v7_0_gpu_early_init(adev);
@@ -4640,7 +4624,7 @@ static int gfx_v7_0_hw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gfx_v7_0_gpu_init(adev);
+	gfx_v7_0_constants_init(adev);
 
 	/* init rlc */
 	r = gfx_v7_0_rlc_resume(adev);
@@ -5088,6 +5072,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.emit_cntxcntl = gfx_v7_ring_emit_cntxcntl,
 	.emit_wreg = gfx_v7_0_ring_emit_wreg,
+	.soft_recovery = gfx_v7_0_ring_soft_recovery,
 };
 
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {

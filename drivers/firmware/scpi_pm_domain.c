@@ -121,7 +121,7 @@ static int scpi_pm_domain_probe(struct platform_device *pdev)
 
 		scpi_pd->domain = i;
 		scpi_pd->ops = scpi_ops;
-		sprintf(scpi_pd->name, "%s.%d", np->name, i);
+		sprintf(scpi_pd->name, "%pOFn.%d", np, i);
 		scpi_pd->genpd.name = scpi_pd->name;
 		scpi_pd->genpd.power_off = scpi_pd_power_off;
 		scpi_pd->genpd.power_on = scpi_pd_power_on;

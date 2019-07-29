@@ -127,7 +127,7 @@ static int cirrus_crtc_do_set_base(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	if (&cdev->mode_info.gfbdev->gfb == crtc->primary->fb) {
+	if (cdev->mode_info.gfbdev->gfb == crtc->primary->fb) {
 		/* if pushing console in kmap it */
 		ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
 		if (ret)
@@ -512,7 +512,7 @@ int cirrus_modeset_init(struct cirrus_device *cdev)
 	cdev->dev->mode_config.max_height = CIRRUS_MAX_FB_HEIGHT;
 
 	cdev->dev->mode_config.fb_base = cdev->mc.vram_base;
-	cdev->dev->mode_config.preferred_depth = 24;
+	cdev->dev->mode_config.preferred_depth = cirrus_bpp;
 	/* don't prefer a shadow on virt GPU */
 	cdev->dev->mode_config.prefer_shadow = 0;
 

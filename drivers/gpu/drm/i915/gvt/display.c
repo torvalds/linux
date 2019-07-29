@@ -462,6 +462,7 @@ void intel_vgpu_clean_display(struct intel_vgpu *vgpu)
 /**
  * intel_vgpu_init_display- initialize vGPU virtual display emulation
  * @vgpu: a vGPU
+ * @resolution: resolution index for intel_vgpu_edid
  *
  * This function is used to initialize vGPU virtual display emulation stuffs
  *

@@ -64,8 +64,6 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 u8 *_rtw_malloc(u32 sz);
 #define rtw_malloc(sz)			_rtw_malloc((sz))
 
-void *rtw_malloc2d(int h, int w, int size);
-
 void _rtw_init_queue(struct __queue *pqueue);
 
 struct rtw_netdev_priv_indicator {

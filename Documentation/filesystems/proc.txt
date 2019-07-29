@@ -858,6 +858,7 @@ Writeback:           0 kB
 AnonPages:      861800 kB
 Mapped:         280372 kB
 Shmem:             644 kB
+KReclaimable:   168048 kB
 Slab:           284364 kB
 SReclaimable:   159856 kB
 SUnreclaim:     124508 kB
@@ -925,6 +926,9 @@ AnonHugePages: Non-file backed huge pages mapped into userspace page tables
 ShmemHugePages: Memory used by shared memory (shmem) and tmpfs allocated
               with huge pages
 ShmemPmdMapped: Shared memory mapped into userspace with huge pages
+KReclaimable: Kernel allocations that the kernel will attempt to reclaim
+              under memory pressure. Includes SReclaimable (below), and other
+              direct allocations with a shrinker.
         Slab: in-kernel data structures cache
 SReclaimable: Part of Slab, that might be reclaimed, such as caches
   SUnreclaim: Part of Slab, that cannot be reclaimed on memory pressure

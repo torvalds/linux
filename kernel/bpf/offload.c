@@ -172,6 +172,24 @@ int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 	return ret;
 }
 
+int bpf_prog_offload_finalize(struct bpf_verifier_env *env)
+{
+	struct bpf_prog_offload *offload;
+	int ret = -ENODEV;
+
+	down_read(&bpf_devs_lock);
+	offload = env->prog->aux->offload;
+	if (offload) {
+		if (offload->dev_ops->finalize)
+			ret = offload->dev_ops->finalize(env);
+		else
+			ret = 0;
+	}
+	up_read(&bpf_devs_lock);
+
+	return ret;
+}
+
 static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
 {
 	struct bpf_prog_offload *offload = prog->aux->offload;

@@ -216,8 +216,8 @@ static int smp_85xx_start_cpu(int cpu)
 
 	/* Map the spin table */
 	if (ioremappable)
-		spin_table = ioremap_prot(*cpu_rel_addr,
-			sizeof(struct epapr_spin_table), _PAGE_COHERENT);
+		spin_table = ioremap_coherent(*cpu_rel_addr,
+					      sizeof(struct epapr_spin_table));
 	else
 		spin_table = phys_to_virt(*cpu_rel_addr);
 

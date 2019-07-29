@@ -72,7 +72,7 @@ W6692_new_ph(struct IsdnCardState *cs)
 	case (W_L1CMD_RST):
 		ph_command(cs, W_L1CMD_DRC);
 		l1_msg(cs, HW_RESET | INDICATION, NULL);
-		/* fallthru */
+		/* fall through */
 	case (W_L1IND_CD):
 		l1_msg(cs, HW_DEACTIVATE | CONFIRM, NULL);
 		break;
@@ -624,7 +624,7 @@ W6692_l1hw(struct PStack *st, int pr, void *arg)
 		break;
 	case (HW_RESET | REQUEST):
 		spin_lock_irqsave(&cs->lock, flags);
-		if ((cs->dc.w6692.ph_state == W_L1IND_DRD)) {
+		if (cs->dc.w6692.ph_state == W_L1IND_DRD) {
 			ph_command(cs, W_L1CMD_ECK);
 			spin_unlock_irqrestore(&cs->lock, flags);
 		} else {

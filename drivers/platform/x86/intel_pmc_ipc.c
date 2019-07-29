@@ -1,39 +1,34 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * intel_pmc_ipc.c: Driver for the Intel PMC IPC mechanism
+ * Driver for the Intel PMC IPC mechanism
  *
  * (C) Copyright 2014-2015 Intel Corporation
  *
- * This driver is based on Intel SCU IPC driver(intel_scu_opc.c) by
+ * This driver is based on Intel SCU IPC driver(intel_scu_ipc.c) by
  *     Sreedhara DS <sreedhara.ds@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  *
  * PMC running in ARC processor communicates with other entity running in IA
  * core through IPC mechanism which in turn messaging between IA core ad PMC.
  */
 
-#include <linux/module.h>
+#include <linux/acpi.h>
+#include <linux/atomic.h>
+#include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/device.h>
-#include <linux/pm.h>
+#include <linux/errno.h>
+#include <linux/interrupt.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
-#include <linux/interrupt.h>
+#include <linux/pm.h>
 #include <linux/pm_qos.h>
-#include <linux/kernel.h>
-#include <linux/bitops.h>
 #include <linux/sched.h>
-#include <linux/atomic.h>
-#include <linux/notifier.h>
-#include <linux/suspend.h>
-#include <linux/acpi.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/spinlock.h>
+#include <linux/suspend.h>
 
 #include <asm/intel_pmc_ipc.h>
 
@@ -1029,7 +1024,7 @@ static void __exit intel_pmc_ipc_exit(void)
 
 MODULE_AUTHOR("Zha Qipeng <qipeng.zha@intel.com>");
 MODULE_DESCRIPTION("Intel PMC IPC driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 /* Some modules are dependent on this, so init earlier */
 fs_initcall(intel_pmc_ipc_init);

@@ -306,6 +306,34 @@ static inline struct crypto_aead *crypto_aead_reqtfm(struct aead_request *req)
 	return __crypto_aead_cast(req->base.tfm);
 }
 
+static inline void crypto_stat_aead_encrypt(struct aead_request *req, int ret)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+
+	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
+		atomic_inc(&tfm->base.__crt_alg->aead_err_cnt);
+	} else {
+		atomic_inc(&tfm->base.__crt_alg->encrypt_cnt);
+		atomic64_add(req->cryptlen, &tfm->base.__crt_alg->encrypt_tlen);
+	}
+#endif
+}
+
+static inline void crypto_stat_aead_decrypt(struct aead_request *req, int ret)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+
+	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
+		atomic_inc(&tfm->base.__crt_alg->aead_err_cnt);
+	} else {
+		atomic_inc(&tfm->base.__crt_alg->decrypt_cnt);
+		atomic64_add(req->cryptlen, &tfm->base.__crt_alg->decrypt_tlen);
+	}
+#endif
+}
+
 /**
  * crypto_aead_encrypt() - encrypt plaintext
  * @req: reference to the aead_request handle that holds all information
@@ -328,11 +356,14 @@ static inline struct crypto_aead *crypto_aead_reqtfm(struct aead_request *req)
 static inline int crypto_aead_encrypt(struct aead_request *req)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	int ret;
 
 	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
-
-	return crypto_aead_alg(aead)->encrypt(req);
+		ret = -ENOKEY;
+	else
+		ret = crypto_aead_alg(aead)->encrypt(req);
+	crypto_stat_aead_encrypt(req, ret);
+	return ret;
 }
 
 /**
@@ -360,14 +391,16 @@ static inline int crypto_aead_encrypt(struct aead_request *req)
 static inline int crypto_aead_decrypt(struct aead_request *req)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	int ret;
 
 	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
-
-	if (req->cryptlen < crypto_aead_authsize(aead))
-		return -EINVAL;
-
-	return crypto_aead_alg(aead)->decrypt(req);
+		ret = -ENOKEY;
+	else if (req->cryptlen < crypto_aead_authsize(aead))
+		ret = -EINVAL;
+	else
+		ret = crypto_aead_alg(aead)->decrypt(req);
+	crypto_stat_aead_decrypt(req, ret);
+	return ret;
 }
 
 /**

@@ -38,9 +38,6 @@ static struct mce_log_buffer mcelog = {
 
 static DECLARE_WAIT_QUEUE_HEAD(mce_chrdev_wait);
 
-/* User mode helper program triggered by machine check event */
-extern char			mce_helper[128];
-
 static int dev_mce_log(struct notifier_block *nb, unsigned long val,
 				void *data)
 {

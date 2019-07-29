@@ -494,10 +494,8 @@ static int wmt_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	u32 val;
 
 	val = readl_relaxed(data->base + reg_dir);
-	if (val & BIT(bit))
-		return GPIOF_DIR_OUT;
-	else
-		return GPIOF_DIR_IN;
+	/* Return 0 == output, 1 == input */
+	return !(val & BIT(bit));
 }
 
 static int wmt_gpio_get_value(struct gpio_chip *chip, unsigned offset)

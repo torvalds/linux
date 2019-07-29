@@ -71,8 +71,7 @@ struct usnic_uiom_reg {
 	int				writable;
 	struct list_head		chunk_list;
 	struct work_struct		work;
-	struct mm_struct		*mm;
-	unsigned long			diff;
+	struct mm_struct		*owning_mm;
 };
 
 struct usnic_uiom_chunk {

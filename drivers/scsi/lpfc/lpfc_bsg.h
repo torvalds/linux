@@ -38,6 +38,10 @@
 #define LPFC_BSG_VENDOR_DIAG_MODE_END		10
 #define LPFC_BSG_VENDOR_LINK_DIAG_TEST		11
 #define LPFC_BSG_VENDOR_FORCED_LINK_SPEED	14
+#define LPFC_BSG_VENDOR_RAS_GET_LWPD		16
+#define LPFC_BSG_VENDOR_RAS_GET_FWLOG		17
+#define LPFC_BSG_VENDOR_RAS_GET_CONFIG		18
+#define LPFC_BSG_VENDOR_RAS_SET_CONFIG		19
 
 struct set_ct_event {
 	uint32_t command;
@@ -295,6 +299,38 @@ struct get_forced_link_speed_support {
 struct forced_link_speed_support_reply {
 	uint8_t supported;
 };
+
+struct lpfc_bsg_ras_req {
+	uint32_t command;
+};
+
+struct lpfc_bsg_get_fwlog_req {
+	uint32_t command;
+	uint32_t read_size;
+	uint32_t read_offset;
+};
+
+struct lpfc_bsg_get_ras_lwpd {
+	uint32_t offset;
+	uint32_t wrap_count;
+};
+
+struct lpfc_bsg_set_ras_config_req {
+	uint32_t command;
+	uint8_t action;
+#define LPFC_RASACTION_STOP_LOGGING     0x00
+#define LPFC_RASACTION_START_LOGGING    0x01
+	uint8_t log_level;
+};
+
+struct lpfc_bsg_get_ras_config_reply {
+	uint8_t state;
+#define LPFC_RASLOG_STATE_STOPPED 0x00
+#define LPFC_RASLOG_STATE_RUNNING 0x01
+	uint8_t log_level;
+	uint32_t log_buff_sz;
+};
+
 
 /* driver only */
 #define SLI_CONFIG_NOT_HANDLED		0

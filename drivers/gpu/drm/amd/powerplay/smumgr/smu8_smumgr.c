@@ -71,7 +71,11 @@ static int smu8_send_msg_to_smc_async(struct pp_hwmgr *hwmgr, uint16_t msg)
 	result = PHM_WAIT_FIELD_UNEQUAL(hwmgr,
 					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
 	if (result != 0) {
+		/* Read the last message to SMU, to report actual cause */
+		uint32_t val = cgs_read_register(hwmgr->device,
+						 mmSMU_MP1_SRBM2P_MSG_0);
 		pr_err("smu8_send_msg_to_smc_async (0x%04x) failed\n", msg);
+		pr_err("SMU still servicing msg (0x%04x)\n", val);
 		return result;
 	}
 
@@ -658,11 +662,10 @@ static int smu8_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 {
 	struct smu8_smumgr *smu8_smu = hwmgr->smu_backend;
 	uint32_t smc_address;
+	uint32_t fw_to_check = 0;
+	int ret;
 
-	if (!hwmgr->reload_fw) {
-		pr_info("skip reloading...\n");
-		return 0;
-	}
+	amdgpu_ucode_init_bo(hwmgr->adev);
 
 	smu8_smu_populate_firmware_entries(hwmgr);
 
@@ -689,15 +692,39 @@ static int smu8_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	smu8_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
 				smu8_smu->toc_entry_power_profiling_index);
 
-	return smu8_send_msg_to_smc_with_parameter(hwmgr,
+	smu8_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_ExecuteJob,
 					smu8_smu->toc_entry_initialize_index);
+
+	fw_to_check = UCODE_ID_RLC_G_MASK |
+			UCODE_ID_SDMA0_MASK |
+			UCODE_ID_SDMA1_MASK |
+			UCODE_ID_CP_CE_MASK |
+			UCODE_ID_CP_ME_MASK |
+			UCODE_ID_CP_PFP_MASK |
+			UCODE_ID_CP_MEC_JT1_MASK |
+			UCODE_ID_CP_MEC_JT2_MASK;
+
+	if (hwmgr->chip_id == CHIP_STONEY)
+		fw_to_check &= ~(UCODE_ID_SDMA1_MASK | UCODE_ID_CP_MEC_JT2_MASK);
+
+	ret = smu8_check_fw_load_finish(hwmgr, fw_to_check);
+	if (ret) {
+		pr_err("SMU firmware load failed\n");
+		return ret;
+	}
+
+	ret = smu8_load_mec_firmware(hwmgr);
+	if (ret) {
+		pr_err("Mec Firmware load failed\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static int smu8_start_smu(struct pp_hwmgr *hwmgr)
 {
-	int ret = 0;
-	uint32_t fw_to_check = 0;
 	struct amdgpu_device *adev = hwmgr->adev;
 
 	uint32_t index = SMN_MP1_SRAM_START_ADDR +
@@ -712,29 +739,7 @@ static int smu8_start_smu(struct pp_hwmgr *hwmgr)
 	hwmgr->smu_version = cgs_read_register(hwmgr->device, mmMP0PUB_IND_DATA);
 	adev->pm.fw_version = hwmgr->smu_version >> 8;
 
-	fw_to_check = UCODE_ID_RLC_G_MASK |
-			UCODE_ID_SDMA0_MASK |
-			UCODE_ID_SDMA1_MASK |
-			UCODE_ID_CP_CE_MASK |
-			UCODE_ID_CP_ME_MASK |
-			UCODE_ID_CP_PFP_MASK |
-			UCODE_ID_CP_MEC_JT1_MASK |
-			UCODE_ID_CP_MEC_JT2_MASK;
-
-	if (hwmgr->chip_id == CHIP_STONEY)
-		fw_to_check &= ~(UCODE_ID_SDMA1_MASK | UCODE_ID_CP_MEC_JT2_MASK);
-
-	ret = smu8_request_smu_load_fw(hwmgr);
-	if (ret)
-		pr_err("SMU firmware load failed\n");
-
-	smu8_check_fw_load_finish(hwmgr, fw_to_check);
-
-	ret = smu8_load_mec_firmware(hwmgr);
-	if (ret)
-		pr_err("Mec Firmware load failed\n");
-
-	return ret;
+	return smu8_request_smu_load_fw(hwmgr);
 }
 
 static int smu8_smu_init(struct pp_hwmgr *hwmgr)

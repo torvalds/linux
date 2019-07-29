@@ -1132,8 +1132,12 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in)
 	if (IS_ERR(realdn)) {
 		pr_err("splice_dentry error %ld %p inode %p ino %llx.%llx\n",
 		       PTR_ERR(realdn), dn, in, ceph_vinop(in));
-		dput(dn);
-		dn = realdn; /* note realdn contains the error */
+		dn = realdn;
+		/*
+		 * Caller should release 'dn' in the case of error.
+		 * If 'req->r_dentry' is passed to this function,
+		 * caller should leave 'req->r_dentry' untouched.
+		 */
 		goto out;
 	} else if (realdn) {
 		dout("dn %p (%d) spliced with %p (%d) "
@@ -1196,7 +1200,9 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req)
 			WARN_ON_ONCE(1);
 		}
 
-		if (dir && req->r_op == CEPH_MDS_OP_LOOKUPNAME) {
+		if (dir && req->r_op == CEPH_MDS_OP_LOOKUPNAME &&
+		    test_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags) &&
+		    !test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags)) {
 			struct qstr dname;
 			struct dentry *dn, *parent;
 
@@ -1677,7 +1683,6 @@ retry_lookup:
 			if (IS_ERR(realdn)) {
 				err = PTR_ERR(realdn);
 				d_drop(dn);
-				dn = NULL;
 				goto next_item;
 			}
 			dn = realdn;

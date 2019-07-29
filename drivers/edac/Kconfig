@@ -234,6 +234,7 @@ config EDAC_SKX
 	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG
 	depends on ACPI_NFIT || !ACPI_NFIT # if ACPI_NFIT=m, EDAC_SKX can't be y
 	select DMI
+	select ACPI_ADXL if ACPI
 	help
 	  Support for error detection and correction the Intel
 	  Skylake server Integrated Memory Controllers. If your
@@ -459,5 +460,19 @@ config EDAC_TI
 	help
 	  Support for error detection and correction on the
           TI SoCs.
+
+config EDAC_QCOM
+	tristate "QCOM EDAC Controller"
+	depends on ARCH_QCOM && QCOM_LLCC
+	help
+	  Support for error detection and correction on the
+	  Qualcomm Technologies, Inc. SoCs.
+
+	  This driver reports Single Bit Errors (SBEs) and Double Bit Errors (DBEs).
+	  As of now, it supports error reporting for Last Level Cache Controller (LLCC)
+	  of Tag RAM and Data RAM.
+
+	  For debugging issues having to do with stability and overall system
+	  health, you should probably say 'Y' here.
 
 endif # EDAC

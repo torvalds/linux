@@ -21,7 +21,7 @@
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/memory.h>
 #include <linux/pfn.h>
 #include <linux/poison.h>
@@ -29,7 +29,6 @@
 #include <linux/export.h>
 #include <linux/cma.h>
 #include <linux/gfp.h>
-#include <linux/memblock.h>
 #include <asm/processor.h>
 #include <linux/uaccess.h>
 #include <asm/pgtable.h>
@@ -42,6 +41,7 @@
 #include <asm/ctl_reg.h>
 #include <asm/sclp.h>
 #include <asm/set_memory.h>
+#include <asm/kasan.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __section(.bss..swapper_pg_dir);
 
@@ -98,8 +98,9 @@ void __init paging_init(void)
 	S390_lowcore.user_asce = S390_lowcore.kernel_asce;
 	crst_table_init((unsigned long *) init_mm.pgd, pgd_type);
 	vmem_map_init();
+	kasan_copy_shadow(init_mm.pgd);
 
-        /* enable virtual mapping in kernel mode */
+	/* enable virtual mapping in kernel mode */
 	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
 	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
@@ -107,6 +108,7 @@ void __init paging_init(void)
 	psw_bits(psw).dat = 1;
 	psw_bits(psw).as = PSW_BITS_AS_HOME;
 	__load_psw_mask(psw.mask);
+	kasan_free_early_identity();
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
@@ -136,7 +138,7 @@ void __init mem_init(void)
 	cmma_init();
 
 	/* this will put all low memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 	setup_zero_pages();	/* Setup zeroed pages. */
 
 	cmma_init_nodat();

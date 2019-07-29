@@ -180,7 +180,8 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 		}
 	}
 
-	br = fpga_bridge_create(dev, priv->name, &altera_hps2fpga_br_ops, priv);
+	br = devm_fpga_bridge_create(dev, priv->name,
+				     &altera_hps2fpga_br_ops, priv);
 	if (!br) {
 		ret = -ENOMEM;
 		goto err;
@@ -190,12 +191,10 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 
 	ret = fpga_bridge_register(br);
 	if (ret)
-		goto err_free;
+		goto err;
 
 	return 0;
 
-err_free:
-	fpga_bridge_free(br);
 err:
 	clk_disable_unprepare(priv->clk);
 

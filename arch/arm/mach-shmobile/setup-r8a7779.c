@@ -7,9 +7,7 @@
  * Copyright (C) 2013  Cogent Embedded, Inc.
  */
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/irqchip.h>
-#include <linux/irqchip/arm-gic.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

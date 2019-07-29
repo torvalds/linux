@@ -16,8 +16,6 @@
 #include <dt-bindings/clock/qcom,rpmcc.h>
 
 / {
-	model = "Qualcomm Technologies, Inc. MSM8996";
-
 	interrupt-parent = <&intc>;
 
 	#address-cells = <2>;
@@ -407,11 +405,6 @@
 			reg = <0x09bc0000 0x10000>,
 			      <0x09c00000 0x100000>;
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
-		};
-
-		apcs: syscon@9820000 {
-			compatible = "syscon";
-			reg = <0x9820000 0x1000>;
 		};
 
 		apcs_glb: mailbox@9820000 {
@@ -1140,7 +1133,7 @@
 			interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING>;
 
 			label = "lpass";
-			qcom,ipc = <&apcs 16 8>;
+			mboxes = <&apcs_glb 8>;
 			qcom,smd-edge = <1>;
 			qcom,remote-pid = <2>;
 		};
@@ -1152,7 +1145,7 @@
 
 		interrupts = <0 158 IRQ_TYPE_EDGE_RISING>;
 
-		qcom,ipc = <&apcs 16 10>;
+		mboxes = <&apcs_glb 10>;
 
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <2>;
@@ -1176,7 +1169,7 @@
 
 		interrupts = <GIC_SPI 451 IRQ_TYPE_EDGE_RISING>;
 
-		qcom,ipc = <&apcs 16 14>;
+		mboxes = <&apcs_glb 14>;
 
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <1>;
@@ -1200,7 +1193,7 @@
 
 		interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 
-		qcom,ipc = <&apcs 16 26>;
+		mboxes = <&apcs_glb 26>;
 
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <3>;

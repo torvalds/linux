@@ -53,13 +53,17 @@ on the Qualcomm Hexagon core.
 	Definition: reference to the reset-controller for the modem sub-system
 		    reference to the list of 3 reset-controllers for the
 		    wcss sub-system
+		    reference to the list of 2 reset-controllers for the modem
+		    sub-system on SDM845 SoCs
 
 - reset-names:
 	Usage: required
 	Value type: <stringlist>
 	Definition: must be "mss_restart" for the modem sub-system
-	Definition: must be "wcss_aon_reset", "wcss_reset", "wcss_q6_reset"
-		    for the wcss syb-system
+		    must be "wcss_aon_reset", "wcss_reset", "wcss_q6_reset"
+		    for the wcss sub-system
+		    must be "mss_restart", "pdc_reset" for the modem
+		    sub-system on SDM845 SoCs
 
 - cx-supply:
 - mss-supply:

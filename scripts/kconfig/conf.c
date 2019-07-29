@@ -460,12 +460,6 @@ static struct option long_opts[] = {
 	{"randconfig",      no_argument,       NULL, randconfig},
 	{"listnewconfig",   no_argument,       NULL, listnewconfig},
 	{"olddefconfig",    no_argument,       NULL, olddefconfig},
-	/*
-	 * oldnoconfig is an alias of olddefconfig, because people already
-	 * are dependent on its behavior(sets new symbols to their default
-	 * value but not 'n') with the counter-intuitive name.
-	 */
-	{"oldnoconfig",     no_argument,       NULL, olddefconfig},
 	{NULL, 0, NULL, 0}
 };
 
@@ -480,7 +474,6 @@ static void conf_usage(const char *progname)
 	printf("  --syncconfig            Similar to oldconfig but generates configuration in\n"
 	       "                          include/{generated/,config/}\n");
 	printf("  --olddefconfig          Same as oldconfig but sets new symbols to their default value\n");
-	printf("  --oldnoconfig           An alias of olddefconfig\n");
 	printf("  --defconfig <file>      New config with default defined in <file>\n");
 	printf("  --savedefconfig <file>  Save the minimal current configuration to <file>\n");
 	printf("  --allnoconfig           New config where all options are answered with no\n");

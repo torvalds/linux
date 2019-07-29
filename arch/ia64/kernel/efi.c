@@ -23,7 +23,7 @@
  *	Skip non-WB memory and ignore empty memory ranges.
  */
 #include <linux/module.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/crash_dump.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -842,7 +842,6 @@ kern_mem_attribute (unsigned long phys_addr, unsigned long size)
 	} while (md);
 	return 0;	/* never reached */
 }
-EXPORT_SYMBOL(kern_mem_attribute);
 
 int
 valid_phys_addr_range (phys_addr_t phys_addr, unsigned long size)

@@ -348,7 +348,8 @@ void __init sa11x0_init_late(void)
 
 int __init sa11x0_register_fixed_regulator(int n,
 	struct fixed_voltage_config *cfg,
-	struct regulator_consumer_supply *supplies, unsigned num_supplies)
+	struct regulator_consumer_supply *supplies, unsigned num_supplies,
+	bool uses_gpio)
 {
 	struct regulator_init_data *id;
 
@@ -356,7 +357,7 @@ int __init sa11x0_register_fixed_regulator(int n,
 	if (!cfg->init_data)
 		return -ENOMEM;
 
-	if (cfg->gpio < 0)
+	if (!uses_gpio)
 		id->constraints.always_on = 1;
 	id->constraints.name = cfg->supply_name;
 	id->constraints.min_uV = cfg->microvolts;

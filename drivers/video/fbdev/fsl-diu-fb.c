@@ -1925,7 +1925,7 @@ static int __init fsl_diu_init(void)
 	pr_info("Freescale Display Interface Unit (DIU) framebuffer driver\n");
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
-	np = of_find_node_by_type(NULL, "cpu");
+	np = of_get_cpu_node(0, NULL);
 	if (!np) {
 		pr_err("fsl-diu-fb: can't find 'cpu' device node\n");
 		return -ENODEV;

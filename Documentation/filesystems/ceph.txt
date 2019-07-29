@@ -151,6 +151,11 @@ Mount Options
         Report overall filesystem usage in statfs instead of using the root
         directory quota.
 
+  nocopyfrom
+        Don't use the RADOS 'copy-from' operation to perform remote object
+        copies.  Currently, it's only used in copy_file_range, which will revert
+        to the default VFS implementation if this option is used.
+
 More Information
 ================
 

@@ -655,7 +655,7 @@ static void __do_notify(struct mqueue_inode_info *info)
 	 * synchronously. */
 	if (info->notify_owner &&
 	    info->attr.mq_curmsgs == 1) {
-		struct siginfo sig_i;
+		struct kernel_siginfo sig_i;
 		switch (info->notify.sigev_notify) {
 		case SIGEV_NONE:
 			break;
@@ -1461,10 +1461,10 @@ COMPAT_SYSCALL_DEFINE3(mq_getsetattr, mqd_t, mqdes,
 #endif
 
 #ifdef CONFIG_COMPAT_32BIT_TIME
-static int compat_prepare_timeout(const struct compat_timespec __user *p,
+static int compat_prepare_timeout(const struct old_timespec32 __user *p,
 				   struct timespec64 *ts)
 {
-	if (compat_get_timespec64(ts, p))
+	if (get_old_timespec32(ts, p))
 		return -EFAULT;
 	if (!timespec64_valid(ts))
 		return -EINVAL;
@@ -1474,7 +1474,7 @@ static int compat_prepare_timeout(const struct compat_timespec __user *p,
 COMPAT_SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes,
 		       const char __user *, u_msg_ptr,
 		       compat_size_t, msg_len, unsigned int, msg_prio,
-		       const struct compat_timespec __user *, u_abs_timeout)
+		       const struct old_timespec32 __user *, u_abs_timeout)
 {
 	struct timespec64 ts, *p = NULL;
 	if (u_abs_timeout) {
@@ -1489,7 +1489,7 @@ COMPAT_SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes,
 COMPAT_SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes,
 		       char __user *, u_msg_ptr,
 		       compat_size_t, msg_len, unsigned int __user *, u_msg_prio,
-		       const struct compat_timespec __user *, u_abs_timeout)
+		       const struct old_timespec32 __user *, u_abs_timeout)
 {
 	struct timespec64 ts, *p = NULL;
 	if (u_abs_timeout) {

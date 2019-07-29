@@ -284,7 +284,7 @@ static int beiscsi_exec_nemb_cmd(struct beiscsi_hba *phba,
 		return rc;
 
 free_cmd:
-	pci_free_consistent(ctrl->pdev, nonemb_cmd->size,
+	dma_free_coherent(&ctrl->pdev->dev, nonemb_cmd->size,
 			    nonemb_cmd->va, nonemb_cmd->dma);
 	return rc;
 }
@@ -293,7 +293,8 @@ static int beiscsi_prep_nemb_cmd(struct beiscsi_hba *phba,
 				 struct be_dma_mem *cmd,
 				 u8 subsystem, u8 opcode, u32 size)
 {
-	cmd->va = pci_zalloc_consistent(phba->ctrl.pdev, size, &cmd->dma);
+	cmd->va = dma_zalloc_coherent(&phba->ctrl.pdev->dev, size, &cmd->dma,
+			GFP_KERNEL);
 	if (!cmd->va) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BG_%d : Failed to allocate memory for if info\n");
@@ -315,7 +316,7 @@ static void __beiscsi_eq_delay_compl(struct beiscsi_hba *phba, unsigned int tag)
 	__beiscsi_mcc_compl_status(phba, tag, NULL, NULL);
 	tag_mem = &phba->ctrl.ptag_state[tag].tag_mem_state;
 	if (tag_mem->size) {
-		pci_free_consistent(phba->pcidev, tag_mem->size,
+		dma_free_coherent(&phba->pcidev->dev, tag_mem->size,
 				    tag_mem->va, tag_mem->dma);
 		tag_mem->size = 0;
 	}
@@ -761,7 +762,7 @@ int beiscsi_if_get_info(struct beiscsi_hba *phba, int ip_type,
 				    "BG_%d : Memory Allocation Failure\n");
 
 				/* Free the DMA memory for the IOCTL issuing */
-				pci_free_consistent(phba->ctrl.pdev,
+				dma_free_coherent(&phba->ctrl.pdev->dev,
 						    nonemb_cmd.size,
 						    nonemb_cmd.va,
 						    nonemb_cmd.dma);
@@ -780,7 +781,7 @@ int beiscsi_if_get_info(struct beiscsi_hba *phba, int ip_type,
 			ioctl_size += sizeof(struct be_cmd_req_hdr);
 
 			/* Free the previous allocated DMA memory */
-			pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+			dma_free_coherent(&phba->ctrl.pdev->dev, nonemb_cmd.size,
 					    nonemb_cmd.va,
 					    nonemb_cmd.dma);
 
@@ -869,7 +870,7 @@ static void beiscsi_boot_process_compl(struct beiscsi_hba *phba,
 				      status);
 			boot_work = 0;
 		}
-		pci_free_consistent(phba->ctrl.pdev, bs->nonemb_cmd.size,
+		dma_free_coherent(&phba->ctrl.pdev->dev, bs->nonemb_cmd.size,
 				    bs->nonemb_cmd.va, bs->nonemb_cmd.dma);
 		bs->nonemb_cmd.va = NULL;
 		break;
@@ -1012,9 +1013,10 @@ unsigned int beiscsi_boot_get_sinfo(struct beiscsi_hba *phba)
 
 	nonemb_cmd = &phba->boot_struct.nonemb_cmd;
 	nonemb_cmd->size = sizeof(struct be_cmd_get_session_resp);
-	nonemb_cmd->va = pci_alloc_consistent(phba->ctrl.pdev,
+	nonemb_cmd->va = dma_alloc_coherent(&phba->ctrl.pdev->dev,
 					      nonemb_cmd->size,
-					      &nonemb_cmd->dma);
+					      &nonemb_cmd->dma,
+					      GFP_KERNEL);
 	if (!nonemb_cmd->va) {
 		mutex_unlock(&ctrl->mbox_lock);
 		return 0;
@@ -1508,9 +1510,10 @@ int beiscsi_mgmt_invalidate_icds(struct beiscsi_hba *phba,
 		return -EINVAL;
 
 	nonemb_cmd.size = sizeof(union be_invldt_cmds_params);
-	nonemb_cmd.va = pci_zalloc_consistent(phba->ctrl.pdev,
+	nonemb_cmd.va = dma_zalloc_coherent(&phba->ctrl.pdev->dev,
 					      nonemb_cmd.size,
-					      &nonemb_cmd.dma);
+					      &nonemb_cmd.dma,
+					      GFP_KERNEL);
 	if (!nonemb_cmd.va) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_EH,
 			    "BM_%d : invldt_cmds_params alloc failed\n");
@@ -1521,7 +1524,7 @@ int beiscsi_mgmt_invalidate_icds(struct beiscsi_hba *phba,
 	wrb = alloc_mcc_wrb(phba, &tag);
 	if (!wrb) {
 		mutex_unlock(&ctrl->mbox_lock);
-		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+		dma_free_coherent(&phba->ctrl.pdev->dev, nonemb_cmd.size,
 				    nonemb_cmd.va, nonemb_cmd.dma);
 		return -ENOMEM;
 	}
@@ -1548,7 +1551,7 @@ int beiscsi_mgmt_invalidate_icds(struct beiscsi_hba *phba,
 
 	rc = beiscsi_mccq_compl_wait(phba, tag, NULL, &nonemb_cmd);
 	if (rc != -EBUSY)
-		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+		dma_free_coherent(&phba->ctrl.pdev->dev, nonemb_cmd.size,
 				    nonemb_cmd.va, nonemb_cmd.dma);
 	return rc;
 }

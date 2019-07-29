@@ -161,6 +161,7 @@ static inline int devmem_is_allowed(unsigned long pfn)
 
 #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
 #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
+#define pfn_to_kaddr(pfn)	pfn_to_virt(pfn)
 
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define page_to_virt(page)	pfn_to_virt(page_to_pfn(page))

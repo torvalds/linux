@@ -438,7 +438,7 @@ static int pseries_eeh_get_pe_addr(struct eeh_pe *pe)
 /**
  * pseries_eeh_get_state - Retrieve PE state
  * @pe: EEH PE
- * @state: return value
+ * @delay: suggested time to wait if state is unavailable
  *
  * Retrieve the state of the specified PE. On RTAS compliant
  * pseries platform, there already has one dedicated RTAS function
@@ -448,7 +448,7 @@ static int pseries_eeh_get_pe_addr(struct eeh_pe *pe)
  * RTAS calls for the purpose, we need to try the new one and back
  * to the old one if the new one couldn't work properly.
  */
-static int pseries_eeh_get_state(struct eeh_pe *pe, int *state)
+static int pseries_eeh_get_state(struct eeh_pe *pe, int *delay)
 {
 	int config_addr;
 	int ret;
@@ -499,7 +499,8 @@ static int pseries_eeh_get_state(struct eeh_pe *pe, int *state)
 		break;
 	case 5:
 		if (rets[2]) {
-			if (state) *state = rets[2];
+			if (delay)
+				*delay = rets[2];
 			result = EEH_STATE_UNAVAILABLE;
 		} else {
 			result = EEH_STATE_NOT_SUPPORT;
@@ -551,64 +552,6 @@ static int pseries_eeh_reset(struct eeh_pe *pe, int option)
 		msleep(EEH_PE_RST_SETTLE_TIME);
 
 	return ret;
-}
-
-/**
- * pseries_eeh_wait_state - Wait for PE state
- * @pe: EEH PE
- * @max_wait: maximal period in millisecond
- *
- * Wait for the state of associated PE. It might take some time
- * to retrieve the PE's state.
- */
-static int pseries_eeh_wait_state(struct eeh_pe *pe, int max_wait)
-{
-	int ret;
-	int mwait;
-
-	/*
-	 * According to PAPR, the state of PE might be temporarily
-	 * unavailable. Under the circumstance, we have to wait
-	 * for indicated time determined by firmware. The maximal
-	 * wait time is 5 minutes, which is acquired from the original
-	 * EEH implementation. Also, the original implementation
-	 * also defined the minimal wait time as 1 second.
-	 */
-#define EEH_STATE_MIN_WAIT_TIME	(1000)
-#define EEH_STATE_MAX_WAIT_TIME	(300 * 1000)
-
-	while (1) {
-		ret = pseries_eeh_get_state(pe, &mwait);
-
-		/*
-		 * If the PE's state is temporarily unavailable,
-		 * we have to wait for the specified time. Otherwise,
-		 * the PE's state will be returned immediately.
-		 */
-		if (ret != EEH_STATE_UNAVAILABLE)
-			return ret;
-
-		if (max_wait <= 0) {
-			pr_warn("%s: Timeout when getting PE's state (%d)\n",
-				__func__, max_wait);
-			return EEH_STATE_NOT_SUPPORT;
-		}
-
-		if (mwait <= 0) {
-			pr_warn("%s: Firmware returned bad wait value %d\n",
-				__func__, mwait);
-			mwait = EEH_STATE_MIN_WAIT_TIME;
-		} else if (mwait > EEH_STATE_MAX_WAIT_TIME) {
-			pr_warn("%s: Firmware returned too long wait value %d\n",
-				__func__, mwait);
-			mwait = EEH_STATE_MAX_WAIT_TIME;
-		}
-
-		max_wait -= mwait;
-		msleep(mwait);
-	}
-
-	return EEH_STATE_NOT_SUPPORT;
 }
 
 /**
@@ -849,7 +792,6 @@ static struct eeh_ops pseries_eeh_ops = {
 	.get_pe_addr		= pseries_eeh_get_pe_addr,
 	.get_state		= pseries_eeh_get_state,
 	.reset			= pseries_eeh_reset,
-	.wait_state		= pseries_eeh_wait_state,
 	.get_log		= pseries_eeh_get_log,
 	.configure_bridge       = pseries_eeh_configure_bridge,
 	.err_inject		= NULL,

@@ -17,7 +17,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -203,7 +203,7 @@ typedef unsigned long pin_cfg_t;
 
 #define GPIO_BLOCK_SHIFT 5
 #define NMK_GPIO_PER_CHIP (1 << GPIO_BLOCK_SHIFT)
-#define NMK_MAX_BANKS DIV_ROUND_UP(ARCH_NR_GPIOS, NMK_GPIO_PER_CHIP)
+#define NMK_MAX_BANKS DIV_ROUND_UP(512, NMK_GPIO_PER_CHIP)
 
 /* Register in the logic block */
 #define NMK_GPIO_DAT	0x00
@@ -971,7 +971,7 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 			   data_out ? "hi" : "lo",
 			   (mode < 0) ? "unknown" : modes[mode]);
 	} else {
-		int irq = gpio_to_irq(gpio);
+		int irq = chip->to_irq(chip, offset);
 		struct irq_desc	*desc = irq_to_desc(irq);
 		int pullidx = 0;
 		int val;
@@ -1051,7 +1051,7 @@ static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 
 	gpio_pdev = of_find_device_by_node(np);
 	if (!gpio_pdev) {
-		pr_err("populate \"%s\": device not found\n", np->name);
+		pr_err("populate \"%pOFn\": device not found\n", np);
 		return ERR_PTR(-ENODEV);
 	}
 	if (of_property_read_u32(np, "gpio-bank", &id)) {
@@ -1904,8 +1904,8 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 		gpio_np = of_parse_phandle(np, "nomadik-gpio-chips", i);
 		if (gpio_np) {
 			dev_info(&pdev->dev,
-				 "populate NMK GPIO %d \"%s\"\n",
-				 i, gpio_np->name);
+				 "populate NMK GPIO %d \"%pOFn\"\n",
+				 i, gpio_np);
 			nmk_chip = nmk_gpio_populate_chip(gpio_np, pdev);
 			if (IS_ERR(nmk_chip))
 				dev_err(&pdev->dev,

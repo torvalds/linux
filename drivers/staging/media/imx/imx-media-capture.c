@@ -73,8 +73,8 @@ static int vidioc_querycap(struct file *file, void *fh,
 {
 	struct capture_priv *priv = video_drvdata(file);
 
-	strlcpy(cap->driver, "imx-media-capture", sizeof(cap->driver));
-	strlcpy(cap->card, "imx-media-capture", sizeof(cap->card));
+	strscpy(cap->driver, "imx-media-capture", sizeof(cap->driver));
+	strscpy(cap->card, "imx-media-capture", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "platform:%s", priv->src_sd->name);
 

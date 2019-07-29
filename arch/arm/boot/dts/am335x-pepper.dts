@@ -265,13 +265,13 @@
 /* Ethernet */
 &cpsw_emac0 {
 	status = "okay";
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii";
 };
 
 &cpsw_emac1 {
 	status = "okay";
-	phy_id = <&davinci_mdio>, <1>;
+	phy-handle = <&ethphy1>;
 	phy-mode = "rgmii";
 };
 
@@ -279,6 +279,14 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio_pins>;
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &mac {

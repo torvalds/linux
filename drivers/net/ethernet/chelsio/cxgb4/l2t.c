@@ -433,10 +433,12 @@ struct l2t_entry *cxgb4_l2t_get(struct l2t_data *d, struct neighbour *neigh,
 	else
 		lport = netdev2pinfo(physdev)->lport;
 
-	if (is_vlan_dev(neigh->dev))
+	if (is_vlan_dev(neigh->dev)) {
 		vlan = vlan_dev_vlan_id(neigh->dev);
-	else
+		vlan |= vlan_dev_get_egress_qos_mask(neigh->dev, priority);
+	} else {
 		vlan = VLAN_NONE;
+	}
 
 	write_lock_bh(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next)

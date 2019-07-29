@@ -854,10 +854,10 @@ static int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	if (error && !test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
 		return error;
 
+	flush_workqueue(gfs2_delete_workqueue);
 	kthread_stop(sdp->sd_quotad_process);
 	kthread_stop(sdp->sd_logd_process);
 
-	flush_workqueue(gfs2_delete_workqueue);
 	gfs2_quota_sync(sdp->sd_vfs, 0);
 	gfs2_statfs_sync(sdp->sd_vfs, 0);
 
@@ -971,7 +971,7 @@ void gfs2_freeze_func(struct work_struct *work)
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, 0,
 				   &freeze_gh);
 	if (error) {
-		printk(KERN_INFO "GFS2: couln't get freeze lock : %d\n", error);
+		printk(KERN_INFO "GFS2: couldn't get freeze lock : %d\n", error);
 		gfs2_assert_withdraw(sdp, 0);
 	}
 	else {

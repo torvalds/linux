@@ -156,11 +156,40 @@ struct media_link {
 };
 
 /**
+ * enum media_pad_signal_type - type of the signal inside a media pad
+ *
+ * @PAD_SIGNAL_DEFAULT:
+ *	Default signal. Use this when all inputs or all outputs are
+ *	uniquely identified by the pad number.
+ * @PAD_SIGNAL_ANALOG:
+ *	The pad contains an analog signal. It can be Radio Frequency,
+ *	Intermediate Frequency, a baseband signal or sub-cariers.
+ *	Tuner inputs, IF-PLL demodulators, composite and s-video signals
+ *	should use it.
+ * @PAD_SIGNAL_DV:
+ *	Contains a digital video signal, with can be a bitstream of samples
+ *	taken from an analog TV video source. On such case, it usually
+ *	contains the VBI data on it.
+ * @PAD_SIGNAL_AUDIO:
+ *	Contains an Intermediate Frequency analog signal from an audio
+ *	sub-carrier or an audio bitstream. IF signals are provided by tuners
+ *	and consumed by	audio AM/FM decoders. Bitstream audio is provided by
+ *	an audio decoder.
+ */
+enum media_pad_signal_type {
+	PAD_SIGNAL_DEFAULT = 0,
+	PAD_SIGNAL_ANALOG,
+	PAD_SIGNAL_DV,
+	PAD_SIGNAL_AUDIO,
+};
+
+/**
  * struct media_pad - A media pad graph object.
  *
  * @graph_obj:	Embedded structure containing the media object common data
  * @entity:	Entity this pad belongs to
  * @index:	Pad index in the entity pads array, numbered from 0 to n
+ * @sig_type:	Type of the signal inside a media pad
  * @flags:	Pad flags, as defined in
  *		:ref:`include/uapi/linux/media.h <media_header>`
  *		(seek for ``MEDIA_PAD_FL_*``)
@@ -169,6 +198,7 @@ struct media_pad {
 	struct media_gobj graph_obj;	/* must be first field in struct */
 	struct media_entity *entity;
 	u16 index;
+	enum media_pad_signal_type sig_type;
 	unsigned long flags;
 };
 
@@ -639,6 +669,24 @@ static inline void media_entity_cleanup(struct media_entity *entity) {}
 #else
 #define media_entity_cleanup(entity) do { } while (false)
 #endif
+
+/**
+ * media_get_pad_index() - retrieves a pad index from an entity
+ *
+ * @entity:	entity where the pads belong
+ * @is_sink:	true if the pad is a sink, false if it is a source
+ * @sig_type:	type of signal of the pad to be search
+ *
+ * This helper function finds the first pad index inside an entity that
+ * satisfies both @is_sink and @sig_type conditions.
+ *
+ * Return:
+ *
+ * On success, return the pad number. If the pad was not found or the media
+ * entity is a NULL pointer, return -EINVAL.
+ */
+int media_get_pad_index(struct media_entity *entity, bool is_sink,
+			enum media_pad_signal_type sig_type);
 
 /**
  * media_create_pad_link() - creates a link between two entities.

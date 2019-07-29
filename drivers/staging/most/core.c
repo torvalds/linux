@@ -351,7 +351,7 @@ static ssize_t set_datatype_show(struct device *dev,
 
 	for (i = 0; i < ARRAY_SIZE(ch_data_type); i++) {
 		if (c->cfg.data_type & ch_data_type[i].most_ch_data_type)
-			return snprintf(buf, PAGE_SIZE, ch_data_type[i].name);
+			return snprintf(buf, PAGE_SIZE, "%s", ch_data_type[i].name);
 	}
 	return snprintf(buf, PAGE_SIZE, "unconfigured\n");
 }
@@ -442,6 +442,24 @@ static ssize_t set_dbr_size_store(struct device *dev,
 	return count;
 }
 
+#define to_dev_attr(a) container_of(a, struct device_attribute, attr)
+static umode_t channel_attr_is_visible(struct kobject *kobj,
+				       struct attribute *attr, int index)
+{
+	struct device_attribute *dev_attr = to_dev_attr(attr);
+	struct device *dev = kobj_to_dev(kobj);
+	struct most_channel *c = to_channel(dev);
+
+	if (!strcmp(dev_attr->attr.name, "set_dbr_size") &&
+	    (c->iface->interface != ITYPE_MEDIALB_DIM2))
+		return 0;
+	if (!strcmp(dev_attr->attr.name, "set_packets_per_xact") &&
+	    (c->iface->interface != ITYPE_USB))
+		return 0;
+
+	return attr->mode;
+}
+
 #define DEV_ATTR(_name)  (&dev_attr_##_name.attr)
 
 static DEVICE_ATTR_RO(available_directions);
@@ -479,6 +497,7 @@ static struct attribute *channel_attrs[] = {
 
 static struct attribute_group channel_attr_group = {
 	.attrs = channel_attrs,
+	.is_visible = channel_attr_is_visible,
 };
 
 static const struct attribute_group *channel_attr_groups[] = {
@@ -1216,7 +1235,7 @@ int most_start_channel(struct most_interface *iface, int id,
 	if (c->iface->configure(c->iface, c->channel_id, &c->cfg)) {
 		pr_info("channel configuration failed. Go check settings...\n");
 		ret = -EINVAL;
-		goto error;
+		goto err_put_module;
 	}
 
 	init_waitqueue_head(&c->hdm_fifo_wq);
@@ -1229,12 +1248,12 @@ int most_start_channel(struct most_interface *iface, int id,
 					   most_write_completion);
 	if (unlikely(!num_buffer)) {
 		ret = -ENOMEM;
-		goto error;
+		goto err_put_module;
 	}
 
 	ret = run_enqueue_thread(c, id);
 	if (ret)
-		goto error;
+		goto err_put_module;
 
 	c->is_starving = 0;
 	c->pipe0.num_buffers = c->cfg.num_buffers / 2;
@@ -1249,7 +1268,7 @@ out:
 	mutex_unlock(&c->start_mutex);
 	return 0;
 
-error:
+err_put_module:
 	module_put(iface->mod);
 	mutex_unlock(&c->start_mutex);
 	return ret;
@@ -1430,7 +1449,7 @@ int most_register_interface(struct most_interface *iface)
 
 		c = kzalloc(sizeof(*c), GFP_KERNEL);
 		if (!c)
-			goto free_instance;
+			goto err_free_resources;
 		if (!name_suffix)
 			snprintf(c->name, STRING_SIZE, "ch%d", i);
 		else
@@ -1439,10 +1458,6 @@ int most_register_interface(struct most_interface *iface)
 		c->dev.parent = &iface->dev;
 		c->dev.groups = channel_attr_groups;
 		c->dev.release = release_channel;
-		if (device_register(&c->dev)) {
-			pr_err("registering c->dev failed\n");
-			goto free_instance_nodev;
-		}
 		iface->p->channel[i] = c;
 		c->is_starving = 0;
 		c->iface = iface;
@@ -1465,15 +1480,19 @@ int most_register_interface(struct most_interface *iface)
 		mutex_init(&c->start_mutex);
 		mutex_init(&c->nq_mutex);
 		list_add_tail(&c->list, &iface->p->channel_list);
+		if (device_register(&c->dev)) {
+			pr_err("registering c->dev failed\n");
+			goto err_free_most_channel;
+		}
 	}
 	pr_info("registered new device mdev%d (%s)\n",
 		id, iface->description);
 	return 0;
 
-free_instance_nodev:
+err_free_most_channel:
 	kfree(c);
 
-free_instance:
+err_free_resources:
 	while (i > 0) {
 		c = iface->p->channel[--i];
 		device_unregister(&c->dev);
@@ -1594,20 +1613,20 @@ static int __init most_init(void)
 	err = driver_register(&mc.drv);
 	if (err) {
 		pr_info("Cannot register core driver\n");
-		goto exit_bus;
+		goto err_unregister_bus;
 	}
 	mc.dev.init_name = "most_bus";
 	mc.dev.release = release_most_sub;
 	if (device_register(&mc.dev)) {
 		err = -ENOMEM;
-		goto exit_driver;
+		goto err_unregister_driver;
 	}
 
 	return 0;
 
-exit_driver:
+err_unregister_driver:
 	driver_unregister(&mc.drv);
-exit_bus:
+err_unregister_bus:
 	bus_unregister(&mc.bus);
 	return err;
 }

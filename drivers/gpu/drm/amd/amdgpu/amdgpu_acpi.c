@@ -31,6 +31,7 @@
 #include <drm/drm_crtc_helper.h>
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
+#include "amdgpu_display.h"
 #include "amd_acpi.h"
 #include "atom.h"
 
@@ -358,7 +359,9 @@ out:
  *
  * Checks the acpi event and if it matches an atif event,
  * handles it.
- * Returns NOTIFY code
+ *
+ * Returns:
+ * NOTIFY_BAD or NOTIFY_DONE, depending on the event.
  */
 static int amdgpu_atif_handler(struct amdgpu_device *adev,
 			       struct acpi_bus_event *event)
@@ -372,11 +375,16 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 	if (strcmp(event->device_class, ACPI_VIDEO_CLASS) != 0)
 		return NOTIFY_DONE;
 
+	/* Is this actually our event? */
 	if (!atif ||
 	    !atif->notification_cfg.enabled ||
-	    event->type != atif->notification_cfg.command_code)
-		/* Not our event */
-		return NOTIFY_DONE;
+	    event->type != atif->notification_cfg.command_code) {
+		/* These events will generate keypresses otherwise */
+		if (event->type == ACPI_VIDEO_NOTIFY_PROBE)
+			return NOTIFY_BAD;
+		else
+			return NOTIFY_DONE;
+	}
 
 	if (atif->functions.sbios_requests) {
 		struct atif_sbios_requests req;
@@ -385,7 +393,7 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 		count = amdgpu_atif_get_sbios_requests(atif, &req);
 
 		if (count <= 0)
-			return NOTIFY_DONE;
+			return NOTIFY_BAD;
 
 		DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
 

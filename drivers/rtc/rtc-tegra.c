@@ -322,9 +322,13 @@ static int __init tegra_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(info->rtc_base))
 		return PTR_ERR(info->rtc_base);
 
-	info->tegra_rtc_irq = platform_get_irq(pdev, 0);
-	if (info->tegra_rtc_irq <= 0)
-		return -EBUSY;
+	ret = platform_get_irq(pdev, 0);
+	if (ret <= 0) {
+		dev_err(&pdev->dev, "failed to get platform IRQ: %d\n", ret);
+		return ret;
+	}
+
+	info->tegra_rtc_irq = ret;
 
 	info->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(info->clk))

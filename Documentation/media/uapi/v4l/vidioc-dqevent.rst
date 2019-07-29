@@ -379,7 +379,17 @@ call.
       - 0x0001
       - This event gets triggered when a resolution change is detected at
 	an input. This can come from an input connector or from a video
-	decoder.
+	decoder. Applications will have to query the new resolution (if
+	any, the signal may also have been lost).
+
+	*Important*: even if the new video timings appear identical to the old
+	ones, receiving this event indicates that there was an issue with the
+	video signal and you must stop and restart streaming
+	(:ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
+	followed by :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`). The reason is
+	that many devices are not able to recover from a temporary loss of
+	signal and so restarting streaming I/O is required in order for the
+	hardware to synchronize to the video signal.
 
 
 Return Value

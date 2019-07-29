@@ -1842,10 +1842,30 @@ static void cpumsf_pmu_del(struct perf_event *event, int flags)
 CPUMF_EVENT_ATTR(SF, SF_CYCLES_BASIC, PERF_EVENT_CPUM_SF);
 CPUMF_EVENT_ATTR(SF, SF_CYCLES_BASIC_DIAG, PERF_EVENT_CPUM_SF_DIAG);
 
-static struct attribute *cpumsf_pmu_events_attr[] = {
-	CPUMF_EVENT_PTR(SF, SF_CYCLES_BASIC),
-	NULL,
-	NULL,
+/* Attribute list for CPU_SF.
+ *
+ * The availablitiy depends on the CPU_MF sampling facility authorization
+ * for basic + diagnositic samples. This is determined at initialization
+ * time by the sampling facility device driver.
+ * If the authorization for basic samples is turned off, it should be
+ * also turned off for diagnostic sampling.
+ *
+ * During initialization of the device driver, check the authorization
+ * level for diagnostic sampling and installs the attribute
+ * file for diagnostic sampling if necessary.
+ *
+ * For now install a placeholder to reference all possible attributes:
+ * SF_CYCLES_BASIC and SF_CYCLES_BASIC_DIAG.
+ * Add another entry for the final NULL pointer.
+ */
+enum {
+	SF_CYCLES_BASIC_ATTR_IDX = 0,
+	SF_CYCLES_BASIC_DIAG_ATTR_IDX,
+	SF_CYCLES_ATTR_MAX
+};
+
+static struct attribute *cpumsf_pmu_events_attr[SF_CYCLES_ATTR_MAX + 1] = {
+	[SF_CYCLES_BASIC_ATTR_IDX] = CPUMF_EVENT_PTR(SF, SF_CYCLES_BASIC)
 };
 
 PMU_FORMAT_ATTR(event, "config:0-63");
@@ -2040,19 +2060,25 @@ static int __init init_cpum_sampling_pmu(void)
 
 	if (si.ad) {
 		sfb_set_limits(CPUM_SF_MIN_SDB, CPUM_SF_MAX_SDB);
-		cpumsf_pmu_events_attr[1] =
+		/* Sampling of diagnostic data authorized,
+		 * install event into attribute list of PMU device.
+		 */
+		cpumsf_pmu_events_attr[SF_CYCLES_BASIC_DIAG_ATTR_IDX] =
 			CPUMF_EVENT_PTR(SF, SF_CYCLES_BASIC_DIAG);
 	}
 
 	sfdbg = debug_register(KMSG_COMPONENT, 2, 1, 80);
-	if (!sfdbg)
+	if (!sfdbg) {
 		pr_err("Registering for s390dbf failed\n");
+		return -ENOMEM;
+	}
 	debug_register_view(sfdbg, &debug_sprintf_view);
 
 	err = register_external_irq(EXT_IRQ_MEASURE_ALERT,
 				    cpumf_measurement_alert);
 	if (err) {
 		pr_cpumsf_err(RS_INIT_FAILURE_ALRT);
+		debug_unregister(sfdbg);
 		goto out;
 	}
 
@@ -2061,6 +2087,7 @@ static int __init init_cpum_sampling_pmu(void)
 		pr_cpumsf_err(RS_INIT_FAILURE_PERF);
 		unregister_external_irq(EXT_IRQ_MEASURE_ALERT,
 					cpumf_measurement_alert);
+		debug_unregister(sfdbg);
 		goto out;
 	}
 

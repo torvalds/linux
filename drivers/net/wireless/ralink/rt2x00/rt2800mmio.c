@@ -175,161 +175,6 @@ static void rt2800mmio_wakeup(struct rt2x00_dev *rt2x00dev)
 	rt2800_config(rt2x00dev, &libconf, IEEE80211_CONF_CHANGE_PS);
 }
 
-static bool rt2800mmio_txdone_entry_check(struct queue_entry *entry, u32 status)
-{
-	__le32 *txwi;
-	u32 word;
-	int wcid, tx_wcid;
-
-	wcid = rt2x00_get_field32(status, TX_STA_FIFO_WCID);
-
-	txwi = rt2800_drv_get_txwi(entry);
-	word = rt2x00_desc_read(txwi, 1);
-	tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
-
-	return (tx_wcid == wcid);
-}
-
-static bool rt2800mmio_txdone_find_entry(struct queue_entry *entry, void *data)
-{
-	u32 status = *(u32 *)data;
-
-	/*
-	 * rt2800pci hardware might reorder frames when exchanging traffic
-	 * with multiple BA enabled STAs.
-	 *
-	 * For example, a tx queue
-	 *    [ STA1 | STA2 | STA1 | STA2 ]
-	 * can result in tx status reports
-	 *    [ STA1 | STA1 | STA2 | STA2 ]
-	 * when the hw decides to aggregate the frames for STA1 into one AMPDU.
-	 *
-	 * To mitigate this effect, associate the tx status to the first frame
-	 * in the tx queue with a matching wcid.
-	 */
-	if (rt2800mmio_txdone_entry_check(entry, status) &&
-	    !test_bit(ENTRY_DATA_STATUS_SET, &entry->flags)) {
-		/*
-		 * Got a matching frame, associate the tx status with
-		 * the frame
-		 */
-		entry->status = status;
-		set_bit(ENTRY_DATA_STATUS_SET, &entry->flags);
-		return true;
-	}
-
-	/* Check the next frame */
-	return false;
-}
-
-static bool rt2800mmio_txdone_match_first(struct queue_entry *entry, void *data)
-{
-	u32 status = *(u32 *)data;
-
-	/*
-	 * Find the first frame without tx status and assign this status to it
-	 * regardless if it matches or not.
-	 */
-	if (!test_bit(ENTRY_DATA_STATUS_SET, &entry->flags)) {
-		/*
-		 * Got a matching frame, associate the tx status with
-		 * the frame
-		 */
-		entry->status = status;
-		set_bit(ENTRY_DATA_STATUS_SET, &entry->flags);
-		return true;
-	}
-
-	/* Check the next frame */
-	return false;
-}
-static bool rt2800mmio_txdone_release_entries(struct queue_entry *entry,
-					      void *data)
-{
-	if (test_bit(ENTRY_DATA_STATUS_SET, &entry->flags)) {
-		rt2800_txdone_entry(entry, entry->status,
-				    rt2800mmio_get_txwi(entry), true);
-		return false;
-	}
-
-	/* No more frames to release */
-	return true;
-}
-
-static bool rt2800mmio_txdone(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-	u32 status;
-	u8 qid;
-	int max_tx_done = 16;
-
-	while (kfifo_get(&rt2x00dev->txstatus_fifo, &status)) {
-		qid = rt2x00_get_field32(status, TX_STA_FIFO_PID_QUEUE);
-		if (unlikely(qid >= QID_RX)) {
-			/*
-			 * Unknown queue, this shouldn't happen. Just drop
-			 * this tx status.
-			 */
-			rt2x00_warn(rt2x00dev, "Got TX status report with unexpected pid %u, dropping\n",
-				    qid);
-			break;
-		}
-
-		queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
-		if (unlikely(queue == NULL)) {
-			/*
-			 * The queue is NULL, this shouldn't happen. Stop
-			 * processing here and drop the tx status
-			 */
-			rt2x00_warn(rt2x00dev, "Got TX status for an unavailable queue %u, dropping\n",
-				    qid);
-			break;
-		}
-
-		if (unlikely(rt2x00queue_empty(queue))) {
-			/*
-			 * The queue is empty. Stop processing here
-			 * and drop the tx status.
-			 */
-			rt2x00_warn(rt2x00dev, "Got TX status for an empty queue %u, dropping\n",
-				    qid);
-			break;
-		}
-
-		/*
-		 * Let's associate this tx status with the first
-		 * matching frame.
-		 */
-		if (!rt2x00queue_for_each_entry(queue, Q_INDEX_DONE,
-						Q_INDEX, &status,
-						rt2800mmio_txdone_find_entry)) {
-			/*
-			 * We cannot match the tx status to any frame, so just
-			 * use the first one.
-			 */
-			if (!rt2x00queue_for_each_entry(queue, Q_INDEX_DONE,
-							Q_INDEX, &status,
-							rt2800mmio_txdone_match_first)) {
-				rt2x00_warn(rt2x00dev, "No frame found for TX status on queue %u, dropping\n",
-					    qid);
-				break;
-			}
-		}
-
-		/*
-		 * Release all frames with a valid tx status.
-		 */
-		rt2x00queue_for_each_entry(queue, Q_INDEX_DONE,
-					   Q_INDEX, NULL,
-					   rt2800mmio_txdone_release_entries);
-
-		if (--max_tx_done == 0)
-			break;
-	}
-
-	return !max_tx_done;
-}
-
 static inline void rt2800mmio_enable_interrupt(struct rt2x00_dev *rt2x00dev,
 					       struct rt2x00_field32 irq_field)
 {
@@ -345,20 +190,6 @@ static inline void rt2800mmio_enable_interrupt(struct rt2x00_dev *rt2x00dev,
 	rt2x00mmio_register_write(rt2x00dev, INT_MASK_CSR, reg);
 	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
-
-void rt2800mmio_txstatus_tasklet(unsigned long data)
-{
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
-	if (rt2800mmio_txdone(rt2x00dev))
-		tasklet_schedule(&rt2x00dev->txstatus_tasklet);
-
-	/*
-	 * No need to enable the tx status interrupt here as we always
-	 * leave it enabled to minimize the possibility of a tx status
-	 * register overflow. See comment in interrupt handler.
-	 */
-}
-EXPORT_SYMBOL_GPL(rt2800mmio_txstatus_tasklet);
 
 void rt2800mmio_pretbtt_tasklet(unsigned long data)
 {
@@ -424,12 +255,26 @@ void rt2800mmio_autowake_tasklet(unsigned long data)
 }
 EXPORT_SYMBOL_GPL(rt2800mmio_autowake_tasklet);
 
-static void rt2800mmio_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
+static void rt2800mmio_txdone(struct rt2x00_dev *rt2x00dev)
+{
+	bool timeout = false;
+
+	while (!kfifo_is_empty(&rt2x00dev->txstatus_fifo) ||
+	       (timeout = rt2800_txstatus_timeout(rt2x00dev))) {
+
+		rt2800_txdone(rt2x00dev);
+
+		if (timeout)
+			rt2800_txdone_nostatus(rt2x00dev);
+	}
+}
+
+static bool rt2800mmio_fetch_txstatus(struct rt2x00_dev *rt2x00dev)
 {
 	u32 status;
-	int i;
+	bool more = false;
 
-	/*
+	/* FIXEME: rewrite this comment
 	 * The TX_FIFO_STATUS interrupt needs special care. We should
 	 * read TX_STA_FIFO but we should do it immediately as otherwise
 	 * the register can overflow and we would lose status reports.
@@ -440,28 +285,36 @@ static void rt2800mmio_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
 	 * because we can schedule the tasklet multiple times (when the
 	 * interrupt fires again during tx status processing).
 	 *
-	 * Furthermore we don't disable the TX_FIFO_STATUS
-	 * interrupt here but leave it enabled so that the TX_STA_FIFO
-	 * can also be read while the tx status tasklet gets executed.
-	 *
-	 * Since we have only one producer and one consumer we don't
+	 * txstatus tasklet is called with INT_SOURCE_CSR_TX_FIFO_STATUS
+	 * disabled so have only one producer and one consumer - we don't
 	 * need to lock the kfifo.
 	 */
-	for (i = 0; i < rt2x00dev->tx->limit; i++) {
+	while (!kfifo_is_full(&rt2x00dev->txstatus_fifo)) {
 		status = rt2x00mmio_register_read(rt2x00dev, TX_STA_FIFO);
-
 		if (!rt2x00_get_field32(status, TX_STA_FIFO_VALID))
 			break;
 
-		if (!kfifo_put(&rt2x00dev->txstatus_fifo, status)) {
-			rt2x00_warn(rt2x00dev, "TX status FIFO overrun, drop tx status report\n");
-			break;
-		}
+		kfifo_put(&rt2x00dev->txstatus_fifo, status);
+		more = true;
 	}
 
-	/* Schedule the tasklet for processing the tx status. */
-	tasklet_schedule(&rt2x00dev->txstatus_tasklet);
+	return more;
 }
+
+void rt2800mmio_txstatus_tasklet(unsigned long data)
+{
+	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+
+	do {
+		rt2800mmio_txdone(rt2x00dev);
+
+	} while (rt2800mmio_fetch_txstatus(rt2x00dev));
+
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		rt2800mmio_enable_interrupt(rt2x00dev,
+					    INT_SOURCE_CSR_TX_FIFO_STATUS);
+}
+EXPORT_SYMBOL_GPL(rt2800mmio_txstatus_tasklet);
 
 irqreturn_t rt2800mmio_interrupt(int irq, void *dev_instance)
 {
@@ -486,11 +339,8 @@ irqreturn_t rt2800mmio_interrupt(int irq, void *dev_instance)
 	mask = ~reg;
 
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS)) {
-		rt2800mmio_txstatus_interrupt(rt2x00dev);
-		/*
-		 * Never disable the TX_FIFO_STATUS interrupt.
-		 */
-		rt2x00_set_field32(&mask, INT_MASK_CSR_TX_FIFO_STATUS, 1);
+		rt2800mmio_fetch_txstatus(rt2x00dev);
+		tasklet_schedule(&rt2x00dev->txstatus_tasklet);
 	}
 
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_PRE_TBTT))
@@ -615,6 +465,53 @@ void rt2800mmio_kick_queue(struct data_queue *queue)
 	}
 }
 EXPORT_SYMBOL_GPL(rt2800mmio_kick_queue);
+
+void rt2800mmio_flush_queue(struct data_queue *queue, bool drop)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	bool tx_queue = false;
+	unsigned int i;
+
+	switch (queue->qid) {
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_AC_BE:
+	case QID_AC_BK:
+		tx_queue = true;
+		break;
+	case QID_RX:
+		break;
+	default:
+		return;
+	}
+
+	for (i = 0; i < 5; i++) {
+		/*
+		 * Check if the driver is already done, otherwise we
+		 * have to sleep a little while to give the driver/hw
+		 * the oppurtunity to complete interrupt process itself.
+		 */
+		if (rt2x00queue_empty(queue))
+			break;
+
+		/*
+		 * For TX queues schedule completion tasklet to catch
+		 * tx status timeouts, othewise just wait.
+		 */
+		if (tx_queue) {
+			tasklet_disable(&rt2x00dev->txstatus_tasklet);
+			rt2800mmio_txdone(rt2x00dev);
+			tasklet_enable(&rt2x00dev->txstatus_tasklet);
+		}
+
+		/*
+		 * Wait for a little while to give the driver
+		 * the oppurtunity to recover itself.
+		 */
+		msleep(50);
+	}
+}
+EXPORT_SYMBOL_GPL(rt2800mmio_flush_queue);
 
 void rt2800mmio_stop_queue(struct data_queue *queue)
 {

@@ -21,6 +21,7 @@
  *  - master mode *NOT* supported
  */
 
+#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -41,6 +42,7 @@ enum master_slave_mode {
 
 struct cs42l51_private {
 	unsigned int mclk;
+	struct clk *mclk_handle;
 	unsigned int audio_mode;	/* The mode (I2S or left-justified) */
 	enum master_slave_mode func;
 };
@@ -235,6 +237,10 @@ static const struct snd_soc_dapm_widget cs42l51_dapm_widgets[] = {
 		&cs42l51_adcl_mux_controls),
 	SND_SOC_DAPM_MUX("PGA-ADC Mux Right", SND_SOC_NOPM, 0, 0,
 		&cs42l51_adcr_mux_controls),
+};
+
+static const struct snd_soc_dapm_widget cs42l51_dapm_mclk_widgets[] = {
+	SND_SOC_DAPM_CLOCK_SUPPLY("MCLK")
 };
 
 static const struct snd_soc_dapm_route cs42l51_routes[] = {
@@ -487,6 +493,14 @@ static struct snd_soc_dai_driver cs42l51_dai = {
 static int cs42l51_component_probe(struct snd_soc_component *component)
 {
 	int ret, reg;
+	struct snd_soc_dapm_context *dapm;
+	struct cs42l51_private *cs42l51;
+
+	cs42l51 = snd_soc_component_get_drvdata(component);
+	dapm = snd_soc_component_get_dapm(component);
+
+	if (cs42l51->mclk_handle)
+		snd_soc_dapm_new_controls(dapm, cs42l51_dapm_mclk_widgets, 1);
 
 	/*
 	 * DAC configuration
@@ -539,6 +553,13 @@ int cs42l51_probe(struct device *dev, struct regmap *regmap)
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, cs42l51);
+
+	cs42l51->mclk_handle = devm_clk_get(dev, "MCLK");
+	if (IS_ERR(cs42l51->mclk_handle)) {
+		if (PTR_ERR(cs42l51->mclk_handle) != -ENOENT)
+			return PTR_ERR(cs42l51->mclk_handle);
+		cs42l51->mclk_handle = NULL;
+	}
 
 	/* Verify that we have a CS42L51 */
 	ret = regmap_read(regmap, CS42L51_CHIP_REV_ID, &val);

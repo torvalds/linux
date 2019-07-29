@@ -14,7 +14,6 @@
 
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/delay.h>
@@ -494,12 +493,8 @@ static void __init map_pages(unsigned long start_vaddr,
 						pte = pte_mkhuge(pte);
 				}
 
-				if (address >= end_paddr) {
-					if (force)
-						break;
-					else
-						pte_val(pte) = 0;
-				}
+				if (address >= end_paddr)
+					break;
 
 				set_pte(pg_table, pte);
 
@@ -513,6 +508,19 @@ static void __init map_pages(unsigned long start_vaddr,
 		}
 		start_pmd = 0;
 	}
+}
+
+void __init set_kernel_text_rw(int enable_read_write)
+{
+	unsigned long start = (unsigned long)__init_begin;
+	unsigned long end   = (unsigned long)_etext;
+
+	map_pages(start, __pa(start), end-start,
+		PAGE_KERNEL_RWX, enable_read_write ? 1:0);
+
+	/* force the kernel to see the new page table entries */
+	flush_cache_all();
+	flush_tlb_all();
 }
 
 void __ref free_initmem(void)
@@ -612,7 +620,7 @@ void __init mem_init(void)
 
 	high_memory = __va((max_pfn << PAGE_SHIFT));
 	set_max_mapnr(page_to_pfn(virt_to_page(high_memory - 1)) + 1);
-	free_all_bootmem();
+	memblock_free_all();
 
 #ifdef CONFIG_PA11
 	if (boot_cpu_data.cpu_type == pcxl2 || boot_cpu_data.cpu_type == pcxl) {

@@ -998,7 +998,9 @@ next_chunk:
 			if (!inet_diag_bc_sk(bc, sk))
 				goto next_normal;
 
-			sock_hold(sk);
+			if (!refcount_inc_not_zero(&sk->sk_refcnt))
+				goto next_normal;
+
 			num_arr[accum] = num;
 			sk_arr[accum] = sk;
 			if (++accum == SKARR_SZ)

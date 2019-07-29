@@ -40,6 +40,7 @@
 #include <asm/sclp.h>
 #include <asm/cpacf.h>
 #include <asm/timex.h>
+#include <asm/ap.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -844,20 +845,24 @@ void kvm_s390_vcpu_crypto_reset_all(struct kvm *kvm)
 
 	kvm_s390_vcpu_block_all(kvm);
 
-	kvm_for_each_vcpu(i, vcpu, kvm)
+	kvm_for_each_vcpu(i, vcpu, kvm) {
 		kvm_s390_vcpu_crypto_setup(vcpu);
+		/* recreate the shadow crycb by leaving the VSIE handler */
+		kvm_s390_sync_request(KVM_REQ_VSIE_RESTART, vcpu);
+	}
 
 	kvm_s390_vcpu_unblock_all(kvm);
 }
 
 static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
 {
-	if (!test_kvm_facility(kvm, 76))
-		return -EINVAL;
-
 	mutex_lock(&kvm->lock);
 	switch (attr->attr) {
 	case KVM_S390_VM_CRYPTO_ENABLE_AES_KW:
+		if (!test_kvm_facility(kvm, 76)) {
+			mutex_unlock(&kvm->lock);
+			return -EINVAL;
+		}
 		get_random_bytes(
 			kvm->arch.crypto.crycb->aes_wrapping_key_mask,
 			sizeof(kvm->arch.crypto.crycb->aes_wrapping_key_mask));
@@ -865,6 +870,10 @@ static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
 		VM_EVENT(kvm, 3, "%s", "ENABLE: AES keywrapping support");
 		break;
 	case KVM_S390_VM_CRYPTO_ENABLE_DEA_KW:
+		if (!test_kvm_facility(kvm, 76)) {
+			mutex_unlock(&kvm->lock);
+			return -EINVAL;
+		}
 		get_random_bytes(
 			kvm->arch.crypto.crycb->dea_wrapping_key_mask,
 			sizeof(kvm->arch.crypto.crycb->dea_wrapping_key_mask));
@@ -872,16 +881,38 @@ static int kvm_s390_vm_set_crypto(struct kvm *kvm, struct kvm_device_attr *attr)
 		VM_EVENT(kvm, 3, "%s", "ENABLE: DEA keywrapping support");
 		break;
 	case KVM_S390_VM_CRYPTO_DISABLE_AES_KW:
+		if (!test_kvm_facility(kvm, 76)) {
+			mutex_unlock(&kvm->lock);
+			return -EINVAL;
+		}
 		kvm->arch.crypto.aes_kw = 0;
 		memset(kvm->arch.crypto.crycb->aes_wrapping_key_mask, 0,
 			sizeof(kvm->arch.crypto.crycb->aes_wrapping_key_mask));
 		VM_EVENT(kvm, 3, "%s", "DISABLE: AES keywrapping support");
 		break;
 	case KVM_S390_VM_CRYPTO_DISABLE_DEA_KW:
+		if (!test_kvm_facility(kvm, 76)) {
+			mutex_unlock(&kvm->lock);
+			return -EINVAL;
+		}
 		kvm->arch.crypto.dea_kw = 0;
 		memset(kvm->arch.crypto.crycb->dea_wrapping_key_mask, 0,
 			sizeof(kvm->arch.crypto.crycb->dea_wrapping_key_mask));
 		VM_EVENT(kvm, 3, "%s", "DISABLE: DEA keywrapping support");
+		break;
+	case KVM_S390_VM_CRYPTO_ENABLE_APIE:
+		if (!ap_instructions_available()) {
+			mutex_unlock(&kvm->lock);
+			return -EOPNOTSUPP;
+		}
+		kvm->arch.crypto.apie = 1;
+		break;
+	case KVM_S390_VM_CRYPTO_DISABLE_APIE:
+		if (!ap_instructions_available()) {
+			mutex_unlock(&kvm->lock);
+			return -EOPNOTSUPP;
+		}
+		kvm->arch.crypto.apie = 0;
 		break;
 	default:
 		mutex_unlock(&kvm->lock);
@@ -1491,6 +1522,10 @@ static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 		case KVM_S390_VM_CRYPTO_DISABLE_DEA_KW:
 			ret = 0;
 			break;
+		case KVM_S390_VM_CRYPTO_ENABLE_APIE:
+		case KVM_S390_VM_CRYPTO_DISABLE_APIE:
+			ret = ap_instructions_available() ? 0 : -ENXIO;
+			break;
 		default:
 			ret = -ENXIO;
 			break;
@@ -1992,54 +2027,100 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	return r;
 }
 
-static int kvm_s390_query_ap_config(u8 *config)
-{
-	u32 fcn_code = 0x04000000UL;
-	u32 cc = 0;
-
-	memset(config, 0, 128);
-	asm volatile(
-		"lgr 0,%1\n"
-		"lgr 2,%2\n"
-		".long 0xb2af0000\n"		/* PQAP(QCI) */
-		"0: ipm %0\n"
-		"srl %0,28\n"
-		"1:\n"
-		EX_TABLE(0b, 1b)
-		: "+r" (cc)
-		: "r" (fcn_code), "r" (config)
-		: "cc", "0", "2", "memory"
-	);
-
-	return cc;
-}
-
 static int kvm_s390_apxa_installed(void)
 {
-	u8 config[128];
-	int cc;
+	struct ap_config_info info;
 
-	if (test_facility(12)) {
-		cc = kvm_s390_query_ap_config(config);
-
-		if (cc)
-			pr_err("PQAP(QCI) failed with cc=%d", cc);
-		else
-			return config[0] & 0x40;
+	if (ap_instructions_available()) {
+		if (ap_qci(&info) == 0)
+			return info.apxa;
 	}
 
 	return 0;
 }
 
+/*
+ * The format of the crypto control block (CRYCB) is specified in the 3 low
+ * order bits of the CRYCB designation (CRYCBD) field as follows:
+ * Format 0: Neither the message security assist extension 3 (MSAX3) nor the
+ *	     AP extended addressing (APXA) facility are installed.
+ * Format 1: The APXA facility is not installed but the MSAX3 facility is.
+ * Format 2: Both the APXA and MSAX3 facilities are installed
+ */
 static void kvm_s390_set_crycb_format(struct kvm *kvm)
 {
 	kvm->arch.crypto.crycbd = (__u32)(unsigned long) kvm->arch.crypto.crycb;
+
+	/* Clear the CRYCB format bits - i.e., set format 0 by default */
+	kvm->arch.crypto.crycbd &= ~(CRYCB_FORMAT_MASK);
+
+	/* Check whether MSAX3 is installed */
+	if (!test_kvm_facility(kvm, 76))
+		return;
 
 	if (kvm_s390_apxa_installed())
 		kvm->arch.crypto.crycbd |= CRYCB_FORMAT2;
 	else
 		kvm->arch.crypto.crycbd |= CRYCB_FORMAT1;
 }
+
+void kvm_arch_crypto_set_masks(struct kvm *kvm, unsigned long *apm,
+			       unsigned long *aqm, unsigned long *adm)
+{
+	struct kvm_s390_crypto_cb *crycb = kvm->arch.crypto.crycb;
+
+	mutex_lock(&kvm->lock);
+	kvm_s390_vcpu_block_all(kvm);
+
+	switch (kvm->arch.crypto.crycbd & CRYCB_FORMAT_MASK) {
+	case CRYCB_FORMAT2: /* APCB1 use 256 bits */
+		memcpy(crycb->apcb1.apm, apm, 32);
+		VM_EVENT(kvm, 3, "SET CRYCB: apm %016lx %016lx %016lx %016lx",
+			 apm[0], apm[1], apm[2], apm[3]);
+		memcpy(crycb->apcb1.aqm, aqm, 32);
+		VM_EVENT(kvm, 3, "SET CRYCB: aqm %016lx %016lx %016lx %016lx",
+			 aqm[0], aqm[1], aqm[2], aqm[3]);
+		memcpy(crycb->apcb1.adm, adm, 32);
+		VM_EVENT(kvm, 3, "SET CRYCB: adm %016lx %016lx %016lx %016lx",
+			 adm[0], adm[1], adm[2], adm[3]);
+		break;
+	case CRYCB_FORMAT1:
+	case CRYCB_FORMAT0: /* Fall through both use APCB0 */
+		memcpy(crycb->apcb0.apm, apm, 8);
+		memcpy(crycb->apcb0.aqm, aqm, 2);
+		memcpy(crycb->apcb0.adm, adm, 2);
+		VM_EVENT(kvm, 3, "SET CRYCB: apm %016lx aqm %04x adm %04x",
+			 apm[0], *((unsigned short *)aqm),
+			 *((unsigned short *)adm));
+		break;
+	default:	/* Can not happen */
+		break;
+	}
+
+	/* recreate the shadow crycb for each vcpu */
+	kvm_s390_sync_request_broadcast(kvm, KVM_REQ_VSIE_RESTART);
+	kvm_s390_vcpu_unblock_all(kvm);
+	mutex_unlock(&kvm->lock);
+}
+EXPORT_SYMBOL_GPL(kvm_arch_crypto_set_masks);
+
+void kvm_arch_crypto_clear_masks(struct kvm *kvm)
+{
+	mutex_lock(&kvm->lock);
+	kvm_s390_vcpu_block_all(kvm);
+
+	memset(&kvm->arch.crypto.crycb->apcb0, 0,
+	       sizeof(kvm->arch.crypto.crycb->apcb0));
+	memset(&kvm->arch.crypto.crycb->apcb1, 0,
+	       sizeof(kvm->arch.crypto.crycb->apcb1));
+
+	VM_EVENT(kvm, 3, "%s", "CLR CRYCB:");
+	/* recreate the shadow crycb for each vcpu */
+	kvm_s390_sync_request_broadcast(kvm, KVM_REQ_VSIE_RESTART);
+	kvm_s390_vcpu_unblock_all(kvm);
+	mutex_unlock(&kvm->lock);
+}
+EXPORT_SYMBOL_GPL(kvm_arch_crypto_clear_masks);
 
 static u64 kvm_s390_get_initial_cpuid(void)
 {
@@ -2052,11 +2133,11 @@ static u64 kvm_s390_get_initial_cpuid(void)
 
 static void kvm_s390_crypto_init(struct kvm *kvm)
 {
-	if (!test_kvm_facility(kvm, 76))
-		return;
-
 	kvm->arch.crypto.crycb = &kvm->arch.sie_page2->crycb;
 	kvm_s390_set_crycb_format(kvm);
+
+	if (!test_kvm_facility(kvm, 76))
+		return;
 
 	/* Enable AES/DEA protected key functions by default */
 	kvm->arch.crypto.aes_kw = 1;
@@ -2583,17 +2664,25 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
 {
-	if (!test_kvm_facility(vcpu->kvm, 76))
+	/*
+	 * If the AP instructions are not being interpreted and the MSAX3
+	 * facility is not configured for the guest, there is nothing to set up.
+	 */
+	if (!vcpu->kvm->arch.crypto.apie && !test_kvm_facility(vcpu->kvm, 76))
 		return;
 
+	vcpu->arch.sie_block->crycbd = vcpu->kvm->arch.crypto.crycbd;
 	vcpu->arch.sie_block->ecb3 &= ~(ECB3_AES | ECB3_DEA);
+	vcpu->arch.sie_block->eca &= ~ECA_APIE;
 
+	if (vcpu->kvm->arch.crypto.apie)
+		vcpu->arch.sie_block->eca |= ECA_APIE;
+
+	/* Set up protected key support */
 	if (vcpu->kvm->arch.crypto.aes_kw)
 		vcpu->arch.sie_block->ecb3 |= ECB3_AES;
 	if (vcpu->kvm->arch.crypto.dea_kw)
 		vcpu->arch.sie_block->ecb3 |= ECB3_DEA;
-
-	vcpu->arch.sie_block->crycbd = vcpu->kvm->arch.crypto.crycbd;
 }
 
 void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu)
@@ -2685,6 +2774,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	vcpu->arch.ckc_timer.function = kvm_s390_idle_wakeup;
 
+	vcpu->arch.sie_block->hpid = HPID_KVM;
+
 	kvm_s390_vcpu_crypto_setup(vcpu);
 
 	return rc;
@@ -2768,18 +2859,25 @@ static void kvm_s390_vcpu_request(struct kvm_vcpu *vcpu)
 	exit_sie(vcpu);
 }
 
+bool kvm_s390_vcpu_sie_inhibited(struct kvm_vcpu *vcpu)
+{
+	return atomic_read(&vcpu->arch.sie_block->prog20) &
+	       (PROG_BLOCK_SIE | PROG_REQUEST);
+}
+
 static void kvm_s390_vcpu_request_handled(struct kvm_vcpu *vcpu)
 {
 	atomic_andnot(PROG_REQUEST, &vcpu->arch.sie_block->prog20);
 }
 
 /*
- * Kick a guest cpu out of SIE and wait until SIE is not running.
+ * Kick a guest cpu out of (v)SIE and wait until (v)SIE is not running.
  * If the CPU is not running (e.g. waiting as idle) the function will
  * return immediately. */
 void exit_sie(struct kvm_vcpu *vcpu)
 {
 	kvm_s390_set_cpuflags(vcpu, CPUSTAT_STOP_INT);
+	kvm_s390_vsie_kick(vcpu);
 	while (vcpu->arch.sie_block->prog0c & PROG_IN_SIE)
 		cpu_relax();
 }
@@ -3196,6 +3294,8 @@ retry:
 
 	/* nothing to do, just clear the request */
 	kvm_clear_request(KVM_REQ_UNHALT, vcpu);
+	/* we left the vsie handler, nothing to do, just clear the request */
+	kvm_clear_request(KVM_REQ_VSIE_RESTART, vcpu);
 
 	return 0;
 }

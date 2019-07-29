@@ -589,7 +589,6 @@ static int rj54n1_get_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-	case V4L2_SEL_TGT_CROP_DEFAULT:
 		sel->r.left = RJ54N1_COLUMN_SKIP;
 		sel->r.top = RJ54N1_ROW_SKIP;
 		sel->r.width = RJ54N1_MAX_WIDTH;

@@ -128,7 +128,7 @@
 			i2c2: i2c@f8024000 {
 				status = "okay";
 
-				rtc1: rtc@64 {
+				rtc1: rtc@32 {
 					compatible = "epson,rx8900";
 					reg = <0x32>;
 				};

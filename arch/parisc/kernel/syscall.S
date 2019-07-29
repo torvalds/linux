@@ -2,7 +2,7 @@
  * Linux/PA-RISC Project (http://www.parisc-linux.org/)
  * 
  * System call entry code / Linux gateway page
- * Copyright (c) Matthew Wilcox 1999 <willy@bofh.ai>
+ * Copyright (c) Matthew Wilcox 1999 <willy@infradead.org>
  * Licensed under the GNU GPL.
  * thanks to Philipp Rumpf, Mike Shaver and various others
  * sorry about the wall, puffin..

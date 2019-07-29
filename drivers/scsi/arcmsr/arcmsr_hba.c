@@ -1317,13 +1317,10 @@ static void arcmsr_report_ccb_state(struct AdapterControlBlock *acb,
 
 static void arcmsr_drain_donequeue(struct AdapterControlBlock *acb, struct CommandControlBlock *pCCB, bool error)
 {
-	int id, lun;
 	if ((pCCB->acb != acb) || (pCCB->startdone != ARCMSR_CCB_START)) {
 		if (pCCB->startdone == ARCMSR_CCB_ABORTED) {
 			struct scsi_cmnd *abortcmd = pCCB->pcmd;
 			if (abortcmd) {
-				id = abortcmd->device->id;
-				lun = abortcmd->device->lun;				
 				abortcmd->result |= DID_ABORT << 16;
 				arcmsr_ccb_complete(pCCB);
 				printk(KERN_NOTICE "arcmsr%d: pCCB ='0x%p' isr got aborted command \n",
@@ -1798,7 +1795,7 @@ static void arcmsr_hbaA_stop_bgrb(struct AdapterControlBlock *acb)
 	writel(ARCMSR_INBOUND_MESG0_STOP_BGRB, &reg->inbound_msgaddr0);
 	if (!arcmsr_hbaA_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE
-			"arcmsr%d: wait 'stop adapter background rebulid' timeout\n"
+			"arcmsr%d: wait 'stop adapter background rebuild' timeout\n"
 			, acb->host->host_no);
 	}
 }
@@ -1811,7 +1808,7 @@ static void arcmsr_hbaB_stop_bgrb(struct AdapterControlBlock *acb)
 
 	if (!arcmsr_hbaB_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE
-			"arcmsr%d: wait 'stop adapter background rebulid' timeout\n"
+			"arcmsr%d: wait 'stop adapter background rebuild' timeout\n"
 			, acb->host->host_no);
 	}
 }
@@ -1824,7 +1821,7 @@ static void arcmsr_hbaC_stop_bgrb(struct AdapterControlBlock *pACB)
 	writel(ARCMSR_HBCMU_DRV2IOP_MESSAGE_CMD_DONE, &reg->inbound_doorbell);
 	if (!arcmsr_hbaC_wait_msgint_ready(pACB)) {
 		printk(KERN_NOTICE
-			"arcmsr%d: wait 'stop adapter background rebulid' timeout\n"
+			"arcmsr%d: wait 'stop adapter background rebuild' timeout\n"
 			, pACB->host->host_no);
 	}
 	return;
@@ -1837,7 +1834,7 @@ static void arcmsr_hbaD_stop_bgrb(struct AdapterControlBlock *pACB)
 	pACB->acb_flags &= ~ACB_F_MSG_START_BGRB;
 	writel(ARCMSR_INBOUND_MESG0_STOP_BGRB, reg->inbound_msgaddr0);
 	if (!arcmsr_hbaD_wait_msgint_ready(pACB))
-		pr_notice("arcmsr%d: wait 'stop adapter background rebulid' "
+		pr_notice("arcmsr%d: wait 'stop adapter background rebuild' "
 			"timeout\n", pACB->host->host_no);
 }
 
@@ -1850,7 +1847,7 @@ static void arcmsr_hbaE_stop_bgrb(struct AdapterControlBlock *pACB)
 	pACB->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
 	writel(pACB->out_doorbell, &reg->iobound_doorbell);
 	if (!arcmsr_hbaE_wait_msgint_ready(pACB)) {
-		pr_notice("arcmsr%d: wait 'stop adapter background rebulid' "
+		pr_notice("arcmsr%d: wait 'stop adapter background rebuild' "
 			"timeout\n", pACB->host->host_no);
 	}
 }
@@ -3927,7 +3924,7 @@ static void arcmsr_hbaA_start_bgrb(struct AdapterControlBlock *acb)
 	writel(ARCMSR_INBOUND_MESG0_START_BGRB, &reg->inbound_msgaddr0);
 	if (!arcmsr_hbaA_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE "arcmsr%d: wait 'start adapter background \
-				rebulid' timeout \n", acb->host->host_no);
+				rebuild' timeout \n", acb->host->host_no);
 	}
 }
 
@@ -3938,7 +3935,7 @@ static void arcmsr_hbaB_start_bgrb(struct AdapterControlBlock *acb)
 	writel(ARCMSR_MESSAGE_START_BGRB, reg->drv2iop_doorbell);
 	if (!arcmsr_hbaB_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE "arcmsr%d: wait 'start adapter background \
-				rebulid' timeout \n",acb->host->host_no);
+				rebuild' timeout \n",acb->host->host_no);
 	}
 }
 
@@ -3950,7 +3947,7 @@ static void arcmsr_hbaC_start_bgrb(struct AdapterControlBlock *pACB)
 	writel(ARCMSR_HBCMU_DRV2IOP_MESSAGE_CMD_DONE, &phbcmu->inbound_doorbell);
 	if (!arcmsr_hbaC_wait_msgint_ready(pACB)) {
 		printk(KERN_NOTICE "arcmsr%d: wait 'start adapter background \
-				rebulid' timeout \n", pACB->host->host_no);
+				rebuild' timeout \n", pACB->host->host_no);
 	}
 	return;
 }
@@ -3963,7 +3960,7 @@ static void arcmsr_hbaD_start_bgrb(struct AdapterControlBlock *pACB)
 	writel(ARCMSR_INBOUND_MESG0_START_BGRB, pmu->inbound_msgaddr0);
 	if (!arcmsr_hbaD_wait_msgint_ready(pACB)) {
 		pr_notice("arcmsr%d: wait 'start adapter "
-			"background rebulid' timeout\n", pACB->host->host_no);
+			"background rebuild' timeout\n", pACB->host->host_no);
 	}
 }
 
@@ -3977,7 +3974,7 @@ static void arcmsr_hbaE_start_bgrb(struct AdapterControlBlock *pACB)
 	writel(pACB->out_doorbell, &pmu->iobound_doorbell);
 	if (!arcmsr_hbaE_wait_msgint_ready(pACB)) {
 		pr_notice("arcmsr%d: wait 'start adapter "
-			"background rebulid' timeout \n", pACB->host->host_no);
+			"background rebuild' timeout \n", pACB->host->host_no);
 	}
 }
 
@@ -4135,9 +4132,9 @@ static void arcmsr_hardware_reset(struct AdapterControlBlock *acb)
 		pci_read_config_byte(acb->pdev, i, &value[i]);
 	}
 	/* hardware reset signal */
-	if ((acb->dev_id == 0x1680)) {
+	if (acb->dev_id == 0x1680) {
 		writel(ARCMSR_ARC1680_BUS_RESET, &pmuA->reserved1[0]);
-	} else if ((acb->dev_id == 0x1880)) {
+	} else if (acb->dev_id == 0x1880) {
 		do {
 			count++;
 			writel(0xF, &pmuC->write_sequence);
@@ -4161,7 +4158,7 @@ static void arcmsr_hardware_reset(struct AdapterControlBlock *acb)
 		} while (((readl(&pmuE->host_diagnostic_3xxx) &
 			ARCMSR_ARC1884_DiagWrite_ENABLE) == 0) && (count < 5));
 		writel(ARCMSR_ARC188X_RESET_ADAPTER, &pmuE->host_diagnostic_3xxx);
-	} else if ((acb->dev_id == 0x1214)) {
+	} else if (acb->dev_id == 0x1214) {
 		writel(0x20, pmuD->reset_request);
 	} else {
 		pci_write_config_byte(acb->pdev, 0x84, 0x20);

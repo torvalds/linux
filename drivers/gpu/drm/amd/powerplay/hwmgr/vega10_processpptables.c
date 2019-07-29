@@ -451,23 +451,23 @@ static int get_tdp_table(
 					le16_to_cpu(power_tune_table_v2->usLoadLineResistance);
 	} else {
 		power_tune_table_v3 = (ATOM_Vega10_PowerTune_Table_V3 *)table;
-		tdp_table->usMaximumPowerDeliveryLimit   = power_tune_table_v3->usSocketPowerLimit;
-		tdp_table->usTDC                         = power_tune_table_v3->usTdcLimit;
-		tdp_table->usEDCLimit                    = power_tune_table_v3->usEdcLimit;
-		tdp_table->usSoftwareShutdownTemp        = power_tune_table_v3->usSoftwareShutdownTemp;
-		tdp_table->usTemperatureLimitTedge       = power_tune_table_v3->usTemperatureLimitTedge;
-		tdp_table->usTemperatureLimitHotspot     = power_tune_table_v3->usTemperatureLimitHotSpot;
-		tdp_table->usTemperatureLimitLiquid1     = power_tune_table_v3->usTemperatureLimitLiquid1;
-		tdp_table->usTemperatureLimitLiquid2     = power_tune_table_v3->usTemperatureLimitLiquid2;
-		tdp_table->usTemperatureLimitHBM         = power_tune_table_v3->usTemperatureLimitHBM;
-		tdp_table->usTemperatureLimitVrVddc      = power_tune_table_v3->usTemperatureLimitVrSoc;
-		tdp_table->usTemperatureLimitVrMvdd      = power_tune_table_v3->usTemperatureLimitVrMem;
-		tdp_table->usTemperatureLimitPlx         = power_tune_table_v3->usTemperatureLimitPlx;
+		tdp_table->usMaximumPowerDeliveryLimit   = le16_to_cpu(power_tune_table_v3->usSocketPowerLimit);
+		tdp_table->usTDC                         = le16_to_cpu(power_tune_table_v3->usTdcLimit);
+		tdp_table->usEDCLimit                    = le16_to_cpu(power_tune_table_v3->usEdcLimit);
+		tdp_table->usSoftwareShutdownTemp        = le16_to_cpu(power_tune_table_v3->usSoftwareShutdownTemp);
+		tdp_table->usTemperatureLimitTedge       = le16_to_cpu(power_tune_table_v3->usTemperatureLimitTedge);
+		tdp_table->usTemperatureLimitHotspot     = le16_to_cpu(power_tune_table_v3->usTemperatureLimitHotSpot);
+		tdp_table->usTemperatureLimitLiquid1     = le16_to_cpu(power_tune_table_v3->usTemperatureLimitLiquid1);
+		tdp_table->usTemperatureLimitLiquid2     = le16_to_cpu(power_tune_table_v3->usTemperatureLimitLiquid2);
+		tdp_table->usTemperatureLimitHBM         = le16_to_cpu(power_tune_table_v3->usTemperatureLimitHBM);
+		tdp_table->usTemperatureLimitVrVddc      = le16_to_cpu(power_tune_table_v3->usTemperatureLimitVrSoc);
+		tdp_table->usTemperatureLimitVrMvdd      = le16_to_cpu(power_tune_table_v3->usTemperatureLimitVrMem);
+		tdp_table->usTemperatureLimitPlx         = le16_to_cpu(power_tune_table_v3->usTemperatureLimitPlx);
 		tdp_table->ucLiquid1_I2C_address         = power_tune_table_v3->ucLiquid1_I2C_address;
 		tdp_table->ucLiquid2_I2C_address         = power_tune_table_v3->ucLiquid2_I2C_address;
-		tdp_table->usBoostStartTemperature       = power_tune_table_v3->usBoostStartTemperature;
-		tdp_table->usBoostStopTemperature        = power_tune_table_v3->usBoostStopTemperature;
-		tdp_table->ulBoostClock                  = power_tune_table_v3->ulBoostClock;
+		tdp_table->usBoostStartTemperature       = le16_to_cpu(power_tune_table_v3->usBoostStartTemperature);
+		tdp_table->usBoostStopTemperature        = le16_to_cpu(power_tune_table_v3->usBoostStopTemperature);
+		tdp_table->ulBoostClock                  = le32_to_cpu(power_tune_table_v3->ulBoostClock);
 
 		get_scl_sda_value(power_tune_table_v3->ucLiquid_I2C_Line, &scl, &sda);
 

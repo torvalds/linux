@@ -12,7 +12,6 @@
 struct ice_sched_agg_vsi_info {
 	struct list_head list_entry;
 	DECLARE_BITMAP(tc_bitmap, ICE_MAX_TRAFFIC_CLASS);
-	u16 vsi_id;
 };
 
 struct ice_sched_agg_info {
@@ -35,9 +34,9 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 void ice_free_sched_node(struct ice_port_info *pi, struct ice_sched_node *node);
 struct ice_sched_node *ice_sched_get_tc_node(struct ice_port_info *pi, u8 tc);
 struct ice_sched_node *
-ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_id, u8 tc,
+ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 			   u8 owner);
 enum ice_status
-ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_id, u8 tc, u16 maxqs,
+ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 		  u8 owner, bool enable);
 #endif /* _ICE_SCHED_H_ */

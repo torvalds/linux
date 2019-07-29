@@ -23,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/export.h>
+#include <asm/pgtable.h>
 #include <sound/memalloc.h>
 
 
@@ -43,6 +44,8 @@ int snd_free_sgbuf_pages(struct snd_dma_buffer *dmab)
 	dmab->area = NULL;
 
 	tmpb.dev.type = SNDRV_DMA_TYPE_DEV;
+	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_UC_SG)
+		tmpb.dev.type = SNDRV_DMA_TYPE_DEV_UC;
 	tmpb.dev.dev = sgbuf->dev;
 	for (i = 0; i < sgbuf->pages; i++) {
 		if (!(sgbuf->table[i].addr & ~PAGE_MASK))
@@ -72,12 +75,20 @@ void *snd_malloc_sgbuf_pages(struct device *device,
 	struct snd_dma_buffer tmpb;
 	struct snd_sg_page *table;
 	struct page **pgtable;
+	int type = SNDRV_DMA_TYPE_DEV;
+	pgprot_t prot = PAGE_KERNEL;
 
 	dmab->area = NULL;
 	dmab->addr = 0;
 	dmab->private_data = sgbuf = kzalloc(sizeof(*sgbuf), GFP_KERNEL);
 	if (! sgbuf)
 		return NULL;
+	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_UC_SG) {
+		type = SNDRV_DMA_TYPE_DEV_UC;
+#ifdef pgprot_noncached
+		prot = pgprot_noncached(PAGE_KERNEL);
+#endif
+	}
 	sgbuf->dev = device;
 	pages = snd_sgbuf_aligned_pages(size);
 	sgbuf->tblsize = sgbuf_align_table(pages);
@@ -98,7 +109,7 @@ void *snd_malloc_sgbuf_pages(struct device *device,
 		if (chunk > maxpages)
 			chunk = maxpages;
 		chunk <<= PAGE_SHIFT;
-		if (snd_dma_alloc_pages_fallback(SNDRV_DMA_TYPE_DEV, device,
+		if (snd_dma_alloc_pages_fallback(type, device,
 						 chunk, &tmpb) < 0) {
 			if (!sgbuf->pages)
 				goto _failed;
@@ -125,7 +136,7 @@ void *snd_malloc_sgbuf_pages(struct device *device,
 	}
 
 	sgbuf->size = size;
-	dmab->area = vmap(sgbuf->page_table, sgbuf->pages, VM_MAP, PAGE_KERNEL);
+	dmab->area = vmap(sgbuf->page_table, sgbuf->pages, VM_MAP, prot);
 	if (! dmab->area)
 		goto _failed;
 	if (res_size)

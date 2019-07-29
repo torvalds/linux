@@ -76,6 +76,47 @@ const struct bpf_func_proto bpf_map_delete_elem_proto = {
 	.arg2_type	= ARG_PTR_TO_MAP_KEY,
 };
 
+BPF_CALL_3(bpf_map_push_elem, struct bpf_map *, map, void *, value, u64, flags)
+{
+	return map->ops->map_push_elem(map, value, flags);
+}
+
+const struct bpf_func_proto bpf_map_push_elem_proto = {
+	.func		= bpf_map_push_elem,
+	.gpl_only	= false,
+	.pkt_access	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_CONST_MAP_PTR,
+	.arg2_type	= ARG_PTR_TO_MAP_VALUE,
+	.arg3_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_2(bpf_map_pop_elem, struct bpf_map *, map, void *, value)
+{
+	return map->ops->map_pop_elem(map, value);
+}
+
+const struct bpf_func_proto bpf_map_pop_elem_proto = {
+	.func		= bpf_map_pop_elem,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_CONST_MAP_PTR,
+	.arg2_type	= ARG_PTR_TO_UNINIT_MAP_VALUE,
+};
+
+BPF_CALL_2(bpf_map_peek_elem, struct bpf_map *, map, void *, value)
+{
+	return map->ops->map_peek_elem(map, value);
+}
+
+const struct bpf_func_proto bpf_map_peek_elem_proto = {
+	.func		= bpf_map_pop_elem,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_CONST_MAP_PTR,
+	.arg2_type	= ARG_PTR_TO_UNINIT_MAP_VALUE,
+};
+
 const struct bpf_func_proto bpf_get_prandom_u32_proto = {
 	.func		= bpf_user_rnd_u32,
 	.gpl_only	= false,
@@ -194,16 +235,28 @@ const struct bpf_func_proto bpf_get_current_cgroup_id_proto = {
 	.ret_type	= RET_INTEGER,
 };
 
-DECLARE_PER_CPU(void*, bpf_cgroup_storage);
+#ifdef CONFIG_CGROUP_BPF
+DECLARE_PER_CPU(struct bpf_cgroup_storage*,
+		bpf_cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE]);
 
 BPF_CALL_2(bpf_get_local_storage, struct bpf_map *, map, u64, flags)
 {
-	/* map and flags arguments are not used now,
-	 * but provide an ability to extend the API
-	 * for other types of local storages.
-	 * verifier checks that their values are correct.
+	/* flags argument is not used now,
+	 * but provides an ability to extend the API.
+	 * verifier checks that its value is correct.
 	 */
-	return (unsigned long) this_cpu_read(bpf_cgroup_storage);
+	enum bpf_cgroup_storage_type stype = cgroup_storage_type(map);
+	struct bpf_cgroup_storage *storage;
+	void *ptr;
+
+	storage = this_cpu_read(bpf_cgroup_storage[stype]);
+
+	if (stype == BPF_CGROUP_STORAGE_SHARED)
+		ptr = &READ_ONCE(storage->buf)->data[0];
+	else
+		ptr = this_cpu_ptr(storage->percpu_buf);
+
+	return (unsigned long)ptr;
 }
 
 const struct bpf_func_proto bpf_get_local_storage_proto = {
@@ -213,4 +266,5 @@ const struct bpf_func_proto bpf_get_local_storage_proto = {
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_ANYTHING,
 };
+#endif
 #endif

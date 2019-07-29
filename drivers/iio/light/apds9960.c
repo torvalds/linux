@@ -206,7 +206,8 @@ static const struct regmap_config apds9960_regmap_config = {
 	.name = APDS9960_REGMAP_NAME,
 	.reg_bits = 8,
 	.val_bits = 8,
-	.use_single_rw = 1,
+	.use_single_read = true,
+	.use_single_write = true,
 
 	.volatile_table = &apds9960_volatile_table,
 	.precious_table = &apds9960_precious_table,

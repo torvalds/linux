@@ -16,7 +16,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/ctype.h>
 #include <linux/ioport.h>
 #include <asm/diag.h>

@@ -314,7 +314,6 @@ config DEBUG_NMI_SELFTEST
 
 config DEBUG_IMR_SELFTEST
 	bool "Isolated Memory Region self test"
-	default n
 	depends on INTEL_IMR
 	---help---
 	  This option enables automated sanity testing of the IMR code.

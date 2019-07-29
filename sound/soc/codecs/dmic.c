@@ -148,6 +148,7 @@ static const struct of_device_id dmic_dev_match[] = {
 	{.compatible = "dmic-codec"},
 	{}
 };
+MODULE_DEVICE_TABLE(of, dmic_dev_match);
 
 static struct platform_driver dmic_driver = {
 	.driver = {

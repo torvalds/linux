@@ -778,14 +778,6 @@ static int bcm2835_dma_slave_config(struct dma_chan *chan,
 {
 	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
 
-	if ((cfg->direction == DMA_DEV_TO_MEM &&
-	     cfg->src_addr_width != DMA_SLAVE_BUSWIDTH_4_BYTES) ||
-	    (cfg->direction == DMA_MEM_TO_DEV &&
-	     cfg->dst_addr_width != DMA_SLAVE_BUSWIDTH_4_BYTES) ||
-	    !is_slave_direction(cfg->direction)) {
-		return -EINVAL;
-	}
-
 	c->cfg = *cfg;
 
 	return 0;

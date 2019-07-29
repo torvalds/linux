@@ -11,7 +11,7 @@
 
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
 #include <linux/kdebug.h>
@@ -303,13 +303,13 @@ static void __init srmmu_nocache_init(void)
 
 	bitmap_bits = srmmu_nocache_size >> SRMMU_NOCACHE_BITMAP_SHIFT;
 
-	srmmu_nocache_pool = __alloc_bootmem(srmmu_nocache_size,
-		SRMMU_NOCACHE_ALIGN_MAX, 0UL);
+	srmmu_nocache_pool = memblock_alloc_from(srmmu_nocache_size,
+						 SRMMU_NOCACHE_ALIGN_MAX, 0UL);
 	memset(srmmu_nocache_pool, 0, srmmu_nocache_size);
 
 	srmmu_nocache_bitmap =
-		__alloc_bootmem(BITS_TO_LONGS(bitmap_bits) * sizeof(long),
-				SMP_CACHE_BYTES, 0UL);
+		memblock_alloc_from(BITS_TO_LONGS(bitmap_bits) * sizeof(long),
+				    SMP_CACHE_BYTES, 0UL);
 	bit_map_init(&srmmu_nocache_map, srmmu_nocache_bitmap, bitmap_bits);
 
 	srmmu_swapper_pg_dir = __srmmu_get_nocache(SRMMU_PGD_TABLE_SIZE, SRMMU_PGD_TABLE_SIZE);
@@ -467,7 +467,7 @@ static void __init sparc_context_init(int numctx)
 	unsigned long size;
 
 	size = numctx * sizeof(struct ctx_list);
-	ctx_list_pool = __alloc_bootmem(size, SMP_CACHE_BYTES, 0UL);
+	ctx_list_pool = memblock_alloc_from(size, SMP_CACHE_BYTES, 0UL);
 
 	for (ctx = 0; ctx < numctx; ctx++) {
 		struct ctx_list *clist;

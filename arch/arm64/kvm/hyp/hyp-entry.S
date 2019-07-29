@@ -162,6 +162,20 @@ el1_error:
 	mov	x0, #ARM_EXCEPTION_EL1_SERROR
 	b	__guest_exit
 
+el2_sync:
+	/* Check for illegal exception return, otherwise panic */
+	mrs	x0, spsr_el2
+
+	/* if this was something else, then panic! */
+	tst	x0, #PSR_IL_BIT
+	b.eq	__hyp_panic
+
+	/* Let's attempt a recovery from the illegal exception return */
+	get_vcpu_ptr	x1, x0
+	mov	x0, #ARM_EXCEPTION_IL
+	b	__guest_exit
+
+
 el2_error:
 	ldp	x0, x1, [sp], #16
 
@@ -240,7 +254,7 @@ ENTRY(__kvm_hyp_vector)
 	invalid_vect	el2t_fiq_invalid	// FIQ EL2t
 	invalid_vect	el2t_error_invalid	// Error EL2t
 
-	invalid_vect	el2h_sync_invalid	// Synchronous EL2h
+	valid_vect	el2_sync		// Synchronous EL2h
 	invalid_vect	el2h_irq_invalid	// IRQ EL2h
 	invalid_vect	el2h_fiq_invalid	// FIQ EL2h
 	valid_vect	el2_error		// Error EL2h

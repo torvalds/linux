@@ -56,7 +56,7 @@ struct kcov {
 	struct task_struct	*t;
 };
 
-static bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
+static notrace bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
 {
 	unsigned int mode;
 
@@ -78,7 +78,7 @@ static bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
 	return mode == needed_mode;
 }
 
-static unsigned long canonicalize_ip(unsigned long ip)
+static notrace unsigned long canonicalize_ip(unsigned long ip)
 {
 #ifdef CONFIG_RANDOMIZE_BASE
 	ip -= kaslr_offset();

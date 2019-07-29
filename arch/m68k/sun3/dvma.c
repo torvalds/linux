@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/list.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>

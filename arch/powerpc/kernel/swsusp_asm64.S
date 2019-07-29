@@ -262,7 +262,7 @@ END_FW_FTR_SECTION_IFCLR(FW_FEATURE_LPAR)
 
 	addi	r1,r1,-128
 #ifdef CONFIG_PPC_BOOK3S_64
-	bl	slb_flush_and_rebolt
+	bl	slb_flush_and_restore_bolted
 #endif
 	bl	do_after_copyback
 	addi	r1,r1,128

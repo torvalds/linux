@@ -24,6 +24,7 @@
  */
 
 #include "dm_services.h"
+#include "dm_event_log.h"
 
 /*
  * Pre-requisites: headers required by header of this unit

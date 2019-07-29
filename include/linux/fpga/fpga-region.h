@@ -44,4 +44,8 @@ void fpga_region_free(struct fpga_region *region);
 int fpga_region_register(struct fpga_region *region);
 void fpga_region_unregister(struct fpga_region *region);
 
+struct fpga_region
+*devm_fpga_region_create(struct device *dev, struct fpga_manager *mgr,
+			int (*get_bridges)(struct fpga_region *));
+
 #endif /* _FPGA_REGION_H */

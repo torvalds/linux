@@ -44,10 +44,3 @@ void __iomem *__pci_ioport_map(struct pci_dev *dev,
 }
 
 #endif /* CONFIG_PCI_DRIVERS_LEGACY */
-
-void pci_iounmap(struct pci_dev *dev, void __iomem * addr)
-{
-	iounmap(addr);
-}
-
-EXPORT_SYMBOL(pci_iounmap);

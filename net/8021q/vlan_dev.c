@@ -756,8 +756,7 @@ static void vlan_dev_netpoll_cleanup(struct net_device *dev)
 		return;
 
 	vlan->netpoll = NULL;
-
-	__netpoll_free_async(netpoll);
+	__netpoll_free(netpoll);
 }
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 

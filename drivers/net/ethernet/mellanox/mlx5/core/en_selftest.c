@@ -98,17 +98,16 @@ static int mlx5e_test_link_speed(struct mlx5e_priv *priv)
 	return 1;
 }
 
-#ifdef CONFIG_INET
-/* loopback test */
-#define MLX5E_TEST_PKT_SIZE (MLX5E_RX_MAX_HEAD - NET_IP_ALIGN)
-static const char mlx5e_test_text[ETH_GSTRING_LEN] = "MLX5E SELF TEST";
-#define MLX5E_TEST_MAGIC 0x5AEED15C001ULL
-
 struct mlx5ehdr {
 	__be32 version;
 	__be64 magic;
-	char   text[ETH_GSTRING_LEN];
 };
+
+#ifdef CONFIG_INET
+/* loopback test */
+#define MLX5E_TEST_PKT_SIZE (sizeof(struct ethhdr) + sizeof(struct iphdr) +\
+			     sizeof(struct udphdr) + sizeof(struct mlx5ehdr))
+#define MLX5E_TEST_MAGIC 0x5AEED15C001ULL
 
 static struct sk_buff *mlx5e_test_get_udp_skb(struct mlx5e_priv *priv)
 {
@@ -117,10 +116,7 @@ static struct sk_buff *mlx5e_test_get_udp_skb(struct mlx5e_priv *priv)
 	struct ethhdr *ethh;
 	struct udphdr *udph;
 	struct iphdr *iph;
-	int datalen, iplen;
-
-	datalen = MLX5E_TEST_PKT_SIZE -
-		  (sizeof(*ethh) + sizeof(*iph) + sizeof(*udph));
+	int    iplen;
 
 	skb = netdev_alloc_skb(priv->netdev, MLX5E_TEST_PKT_SIZE);
 	if (!skb) {
@@ -149,7 +145,7 @@ static struct sk_buff *mlx5e_test_get_udp_skb(struct mlx5e_priv *priv)
 	/* Fill UDP header */
 	udph->source = htons(9);
 	udph->dest = htons(9); /* Discard Protocol */
-	udph->len = htons(datalen + sizeof(struct udphdr));
+	udph->len = htons(sizeof(struct mlx5ehdr) + sizeof(struct udphdr));
 	udph->check = 0;
 
 	/* Fill IP header */
@@ -157,7 +153,8 @@ static struct sk_buff *mlx5e_test_get_udp_skb(struct mlx5e_priv *priv)
 	iph->ttl = 32;
 	iph->version = 4;
 	iph->protocol = IPPROTO_UDP;
-	iplen = sizeof(struct iphdr) + sizeof(struct udphdr) + datalen;
+	iplen = sizeof(struct iphdr) + sizeof(struct udphdr) +
+		sizeof(struct mlx5ehdr);
 	iph->tot_len = htons(iplen);
 	iph->frag_off = 0;
 	iph->saddr = 0;
@@ -170,9 +167,6 @@ static struct sk_buff *mlx5e_test_get_udp_skb(struct mlx5e_priv *priv)
 	mlxh = skb_put(skb, sizeof(*mlxh));
 	mlxh->version = 0;
 	mlxh->magic = cpu_to_be64(MLX5E_TEST_MAGIC);
-	strlcpy(mlxh->text, mlx5e_test_text, sizeof(mlxh->text));
-	datalen -= sizeof(*mlxh);
-	skb_put_zero(skb, datalen);
 
 	skb->csum = 0;
 	skb->ip_summed = CHECKSUM_PARTIAL;

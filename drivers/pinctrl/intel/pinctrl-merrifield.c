@@ -476,6 +476,34 @@ static void __iomem *mrfld_get_bufcfg(struct mrfld_pinctrl *mp, unsigned int pin
 	return family->regs + BUFCFG_OFFSET + bufno * 4;
 }
 
+static int mrfld_read_bufcfg(struct mrfld_pinctrl *mp, unsigned int pin, u32 *value)
+{
+	void __iomem *bufcfg;
+
+	if (!mrfld_buf_available(mp, pin))
+		return -EBUSY;
+
+	bufcfg = mrfld_get_bufcfg(mp, pin);
+	*value = readl(bufcfg);
+
+	return 0;
+}
+
+static void mrfld_update_bufcfg(struct mrfld_pinctrl *mp, unsigned int pin,
+				u32 bits, u32 mask)
+{
+	void __iomem *bufcfg;
+	u32 value;
+
+	bufcfg = mrfld_get_bufcfg(mp, pin);
+	value = readl(bufcfg);
+
+	value &= ~mask;
+	value |= bits & mask;
+
+	writel(value, bufcfg);
+}
+
 static int mrfld_get_groups_count(struct pinctrl_dev *pctldev)
 {
 	struct mrfld_pinctrl *mp = pinctrl_dev_get_drvdata(pctldev);
@@ -505,16 +533,14 @@ static void mrfld_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 			       unsigned int pin)
 {
 	struct mrfld_pinctrl *mp = pinctrl_dev_get_drvdata(pctldev);
-	void __iomem *bufcfg;
 	u32 value, mode;
+	int ret;
 
-	if (!mrfld_buf_available(mp, pin)) {
+	ret = mrfld_read_bufcfg(mp, pin, &value);
+	if (ret) {
 		seq_puts(s, "not available");
 		return;
 	}
-
-	bufcfg = mrfld_get_bufcfg(mp, pin);
-	value = readl(bufcfg);
 
 	mode = (value & BUFCFG_PINMODE_MASK) >> BUFCFG_PINMODE_SHIFT;
 	if (!mode)
@@ -557,21 +583,6 @@ static int mrfld_get_function_groups(struct pinctrl_dev *pctldev,
 	*groups = mp->functions[function].groups;
 	*ngroups = mp->functions[function].ngroups;
 	return 0;
-}
-
-static void mrfld_update_bufcfg(struct mrfld_pinctrl *mp, unsigned int pin,
-				u32 bits, u32 mask)
-{
-	void __iomem *bufcfg;
-	u32 value;
-
-	bufcfg = mrfld_get_bufcfg(mp, pin);
-	value = readl(bufcfg);
-
-	value &= ~mask;
-	value |= bits & mask;
-
-	writel(value, bufcfg);
 }
 
 static int mrfld_pinmux_set_mux(struct pinctrl_dev *pctldev,
@@ -637,11 +648,12 @@ static int mrfld_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	enum pin_config_param param = pinconf_to_config_param(*config);
 	u32 value, term;
 	u16 arg = 0;
+	int ret;
 
-	if (!mrfld_buf_available(mp, pin))
+	ret = mrfld_read_bufcfg(mp, pin, &value);
+	if (ret)
 		return -ENOTSUPP;
 
-	value = readl(mrfld_get_bufcfg(mp, pin));
 	term = (value & BUFCFG_PUPD_VAL_MASK) >> BUFCFG_PUPD_VAL_SHIFT;
 
 	switch (param) {

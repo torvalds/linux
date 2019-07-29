@@ -102,7 +102,7 @@ void __init dma_ops_init(void)
 	case pcxl: /* falls through */
 	case pcxs:
 	case pcxt:
-		hppa_dma_ops = &dma_noncoherent_ops;
+		hppa_dma_ops = &dma_direct_ops;
 		break;
 	default:
 		break;
@@ -305,6 +305,86 @@ static int __init parisc_init_resources(void)
 	return 0;
 }
 
+static int no_alternatives __initdata;
+static int __init setup_no_alternatives(char *str)
+{
+	no_alternatives = 1;
+	return 1;
+}
+__setup("no-alternatives", setup_no_alternatives);
+
+static void __init apply_alternatives_all(void)
+{
+	struct alt_instr *entry;
+	int index = 0, applied = 0;
+
+
+	pr_info("alternatives: %spatching kernel code\n",
+		no_alternatives ? "NOT " : "");
+	if (no_alternatives)
+		return;
+
+	set_kernel_text_rw(1);
+
+	for (entry = (struct alt_instr *) &__alt_instructions;
+		entry < (struct alt_instr *) &__alt_instructions_end;
+		entry++, index++) {
+
+		u32 *from, len, cond, replacement;
+
+		from = (u32 *)((ulong)&entry->orig_offset + entry->orig_offset);
+		len = entry->len;
+		cond = entry->cond;
+		replacement = entry->replacement;
+
+		WARN_ON(!cond);
+		pr_debug("Check %d: Cond 0x%x, Replace %02d instructions @ 0x%px with 0x%08x\n",
+			index, cond, len, from, replacement);
+
+		if ((cond & ALT_COND_NO_SMP) && (num_online_cpus() != 1))
+			continue;
+		if ((cond & ALT_COND_NO_DCACHE) && (cache_info.dc_size != 0))
+			continue;
+		if ((cond & ALT_COND_NO_ICACHE) && (cache_info.ic_size != 0))
+			continue;
+
+		/*
+		 * If the PDC_MODEL capabilities has Non-coherent IO-PDIR bit
+		 * set (bit #61, big endian), we have to flush and sync every
+		 * time IO-PDIR is changed in Ike/Astro.
+		 */
+		if ((cond & ALT_COND_NO_IOC_FDC) &&
+			(boot_cpu_data.pdc.capabilities & PDC_MODEL_IOPDIR_FDC))
+			continue;
+
+		/* Want to replace pdtlb by a pdtlb,l instruction? */
+		if (replacement == INSN_PxTLB) {
+			replacement = *from;
+			if (boot_cpu_data.cpu_type >= pcxu) /* >= pa2.0 ? */
+				replacement |= (1 << 10); /* set el bit */
+		}
+
+		/*
+		 * Replace instruction with NOPs?
+		 * For long distance insert a branch instruction instead.
+		 */
+		if (replacement == INSN_NOP && len > 1)
+			replacement = 0xe8000002 + (len-2)*8; /* "b,n .+8" */
+
+		pr_debug("Do    %d: Cond 0x%x, Replace %02d instructions @ 0x%px with 0x%08x\n",
+			index, cond, len, from, replacement);
+
+		/* Replace instruction */
+		*from = replacement;
+		applied++;
+	}
+
+	pr_info("alternatives: applied %d out of %d patches\n", applied, index);
+
+	set_kernel_text_rw(0);
+}
+
+
 extern void gsc_init(void);
 extern void processor_init(void);
 extern void ccio_init(void);
@@ -346,6 +426,7 @@ static int __init parisc_init(void)
 			boot_cpu_data.cpu_hz / 1000000,
 			boot_cpu_data.cpu_hz % 1000000	);
 
+	apply_alternatives_all();
 	parisc_setup_cache_timing();
 
 	/* These are in a non-obvious order, will fix when we have an iotree */

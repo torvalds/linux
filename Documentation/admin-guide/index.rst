@@ -71,6 +71,7 @@ configure specific aspects of kernel behavior to your liking.
    java
    ras
    bcache
+   ext4
    pm/index
    thunderbolt
    LSM/index

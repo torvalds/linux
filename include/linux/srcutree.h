@@ -105,12 +105,13 @@ struct srcu_struct {
 #define SRCU_STATE_SCAN2	2
 
 #define __SRCU_STRUCT_INIT(name, pcpu_name)				\
-	{								\
-		.sda = &pcpu_name,					\
-		.lock = __SPIN_LOCK_UNLOCKED(name.lock),		\
-		.srcu_gp_seq_needed = 0 - 1,				\
-		__SRCU_DEP_MAP_INIT(name)				\
-	}
+{									\
+	.sda = &pcpu_name,						\
+	.lock = __SPIN_LOCK_UNLOCKED(name.lock),			\
+	.srcu_gp_seq_needed = -1UL,					\
+	.work = __DELAYED_WORK_INITIALIZER(name.work, NULL, 0),		\
+	__SRCU_DEP_MAP_INIT(name)					\
+}
 
 /*
  * Define and initialize a srcu struct at build time.

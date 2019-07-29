@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0+
 
+#define pr_fmt(fmt) "ipmi_hardcode: " fmt
+
 #include <linux/moduleparam.h>
 #include "ipmi_si.h"
 
-#define PFX "ipmi_hardcode: "
 /*
  * There can be 4 IO ports passed in (with or without IRQs), 4 addresses,
  * a default IO port, and 1 ACPI/SPMI address.  That sets SI_MAX_DRIVERS.
@@ -100,7 +101,7 @@ int ipmi_si_hardcode_find_bmc(void)
 			continue;
 
 		io.addr_source = SI_HARDCODED;
-		pr_info(PFX "probing via hardcoded address\n");
+		pr_info("probing via hardcoded address\n");
 
 		if (!si_type[i] || strcmp(si_type[i], "kcs") == 0) {
 			io.si_type = SI_KCS;
@@ -109,7 +110,7 @@ int ipmi_si_hardcode_find_bmc(void)
 		} else if (strcmp(si_type[i], "bt") == 0) {
 			io.si_type = SI_BT;
 		} else {
-			pr_warn(PFX "Interface type specified for interface %d, was invalid: %s\n",
+			pr_warn("Interface type specified for interface %d, was invalid: %s\n",
 				i, si_type[i]);
 			continue;
 		}
@@ -123,7 +124,7 @@ int ipmi_si_hardcode_find_bmc(void)
 			io.addr_data = addrs[i];
 			io.addr_type = IPMI_MEM_ADDR_SPACE;
 		} else {
-			pr_warn(PFX "Interface type specified for interface %d, but port and address were not set or set to zero.\n",
+			pr_warn("Interface type specified for interface %d, but port and address were not set or set to zero\n",
 				i);
 			continue;
 		}

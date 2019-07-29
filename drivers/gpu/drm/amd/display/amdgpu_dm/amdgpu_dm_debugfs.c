@@ -705,7 +705,8 @@ int connector_debugfs_init(struct amdgpu_dm_connector *connector)
 	int i;
 	struct dentry *ent, *dir = connector->base.debugfs_entry;
 
-	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) {
 		for (i = 0; i < ARRAY_SIZE(dp_debugfs_entries); i++) {
 			ent = debugfs_create_file(dp_debugfs_entries[i].name,
 						  0644,
@@ -720,3 +721,86 @@ int connector_debugfs_init(struct amdgpu_dm_connector *connector)
 	return 0;
 }
 
+/*
+ * Writes DTN log state to the user supplied buffer.
+ * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dtn_log
+ */
+static ssize_t dtn_log_read(
+	struct file *f,
+	char __user *buf,
+	size_t size,
+	loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct dc *dc = adev->dm.dc;
+	struct dc_log_buffer_ctx log_ctx = { 0 };
+	ssize_t result = 0;
+
+	if (!buf || !size)
+		return -EINVAL;
+
+	if (!dc->hwss.log_hw_state)
+		return 0;
+
+	dc->hwss.log_hw_state(dc, &log_ctx);
+
+	if (*pos < log_ctx.pos) {
+		size_t to_copy = log_ctx.pos - *pos;
+
+		to_copy = min(to_copy, size);
+
+		if (!copy_to_user(buf, log_ctx.buf + *pos, to_copy)) {
+			*pos += to_copy;
+			result = to_copy;
+		}
+	}
+
+	kfree(log_ctx.buf);
+
+	return result;
+}
+
+/*
+ * Writes DTN log state to dmesg when triggered via a write.
+ * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_dtn_log
+ */
+static ssize_t dtn_log_write(
+	struct file *f,
+	const char __user *buf,
+	size_t size,
+	loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct dc *dc = adev->dm.dc;
+
+	/* Write triggers log output via dmesg. */
+	if (size == 0)
+		return 0;
+
+	if (dc->hwss.log_hw_state)
+		dc->hwss.log_hw_state(dc, NULL);
+
+	return size;
+}
+
+int dtn_debugfs_init(struct amdgpu_device *adev)
+{
+	static const struct file_operations dtn_log_fops = {
+		.owner = THIS_MODULE,
+		.read = dtn_log_read,
+		.write = dtn_log_write,
+		.llseek = default_llseek
+	};
+
+	struct drm_minor *minor = adev->ddev->primary;
+	struct dentry *root = minor->debugfs_root;
+
+	struct dentry *ent = debugfs_create_file(
+		"amdgpu_dm_dtn_log",
+		0644,
+		root,
+		adev,
+		&dtn_log_fops);
+
+	return PTR_ERR_OR_ZERO(ent);
+}

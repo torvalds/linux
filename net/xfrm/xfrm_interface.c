@@ -472,9 +472,9 @@ static int xfrmi4_err(struct sk_buff *skb, u32 info)
 	}
 
 	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH)
-		ipv4_update_pmtu(skb, net, info, 0, 0, protocol, 0);
+		ipv4_update_pmtu(skb, net, info, 0, protocol);
 	else
-		ipv4_redirect(skb, net, 0, 0, protocol, 0);
+		ipv4_redirect(skb, net, 0, protocol);
 	xfrm_state_put(x);
 
 	return 0;
@@ -563,9 +563,6 @@ static void xfrmi_get_stats64(struct net_device *dev,
 			       struct rtnl_link_stats64 *s)
 {
 	int cpu;
-
-	if (!dev->tstats)
-		return;
 
 	for_each_possible_cpu(cpu) {
 		struct pcpu_sw_netstats *stats;
@@ -745,7 +742,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-struct net *xfrmi_get_link_net(const struct net_device *dev)
+static struct net *xfrmi_get_link_net(const struct net_device *dev)
 {
 	struct xfrm_if *xi = netdev_priv(dev);
 

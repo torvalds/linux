@@ -4934,17 +4934,6 @@ sub process {
 		while ($line =~ m{($Constant|$Lval)}g) {
 			my $var = $1;
 
-#gcc binary extension
-			if ($var =~ /^$Binary$/) {
-				if (WARN("GCC_BINARY_CONSTANT",
-					 "Avoid gcc v4.3+ binary constant extension: <$var>\n" . $herecurr) &&
-				    $fix) {
-					my $hexval = sprintf("0x%x", oct($var));
-					$fixed[$fixlinenr] =~
-					    s/\b$var\b/$hexval/;
-				}
-			}
-
 #CamelCase
 			if ($var !~ /^$Constant$/ &&
 			    $var =~ /[A-Z][a-z]|[a-z][A-Z]/ &&

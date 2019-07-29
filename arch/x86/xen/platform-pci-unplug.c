@@ -1,28 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0
+
 /******************************************************************************
  * platform-pci-unplug.c
  *
  * Xen platform PCI device driver
  * Copyright (c) 2010, Citrix
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
- *
  */
 
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/export.h>
 
+#include <xen/xen.h>
 #include <xen/platform_pci.h>
 #include "xen-ops.h"
 
@@ -30,7 +19,6 @@
 #define XEN_PLATFORM_ERR_PROTOCOL -2
 #define XEN_PLATFORM_ERR_BLACKLIST -3
 
-#ifdef CONFIG_XEN_PVHVM
 /* store the value of xen_emul_unplug after the unplug is done */
 static int xen_platform_pci_unplug;
 static int xen_emul_unplug;
@@ -146,6 +134,10 @@ void xen_unplug_emulated_devices(void)
 {
 	int r;
 
+	/* PVH guests don't have emulated devices. */
+	if (xen_pvh_domain())
+		return;
+
 	/* user explicitly requested no unplug */
 	if (xen_emul_unplug & XEN_UNPLUG_NEVER)
 		return;
@@ -214,4 +206,3 @@ static int __init parse_xen_emul_unplug(char *arg)
 	return 0;
 }
 early_param("xen_emul_unplug", parse_xen_emul_unplug);
-#endif

@@ -43,7 +43,7 @@ static chcr_handler_func work_handlers[NUM_CPL_CMDS] = {
 static struct cxgb4_uld_info chcr_uld_info = {
 	.name = DRV_MODULE_NAME,
 	.nrxq = MAX_ULD_QSETS,
-	.ntxq = MAX_ULD_QSETS,
+	/* Max ntxq will be derived from fw config file*/
 	.rxq_size = 1024,
 	.add = chcr_uld_add,
 	.state_change = chcr_uld_state_change,
@@ -237,9 +237,7 @@ static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 
 static int __init chcr_crypto_init(void)
 {
-	if (cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info))
-		pr_err("ULD register fail: No chcr crypto support in cxgb4\n");
-
+	cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info);
 	return 0;
 }
 

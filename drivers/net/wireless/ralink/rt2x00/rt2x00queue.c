@@ -113,6 +113,7 @@ int rt2x00queue_map_txskb(struct queue_entry *entry)
 		return -ENOMEM;
 
 	skbdesc->flags |= SKBDESC_DMA_MAPPED_TX;
+	rt2x00lib_dmadone(entry);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_map_txskb);
@@ -1038,6 +1039,7 @@ void rt2x00queue_start_queues(struct rt2x00_dev *rt2x00dev)
 	 */
 	tx_queue_for_each(rt2x00dev, queue)
 		rt2x00queue_start_queue(queue);
+	rt2x00dev->last_nostatus_check = jiffies;
 
 	rt2x00queue_start_queue(rt2x00dev->rx);
 }

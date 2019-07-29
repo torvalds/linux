@@ -89,6 +89,7 @@ show up in /proc/sys/kernel:
 - shmmni
 - softlockup_all_cpu_backtrace
 - soft_watchdog
+- stack_erasing
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/admin-guide/sysrq.rst
 - sysctl_writes_strict
@@ -984,6 +985,23 @@ from running. The mechanism depends on the CPUs ability to respond to timer
 interrupts which are needed for the 'watchdog/N' threads to be woken up by
 the watchdog timer function, otherwise the NMI watchdog - if enabled - can
 detect a hard lockup condition.
+
+==============================================================
+
+stack_erasing
+
+This parameter can be used to control kernel stack erasing at the end
+of syscalls for kernels built with CONFIG_GCC_PLUGIN_STACKLEAK.
+
+That erasing reduces the information which kernel stack leak bugs
+can reveal and blocks some uninitialized stack variable attacks.
+The tradeoff is the performance impact: on a single CPU system kernel
+compilation sees a 1% slowdown, other systems and workloads may vary.
+
+  0: kernel stack erasing is disabled, STACKLEAK_METRICS are not updated.
+
+  1: kernel stack erasing is enabled (default), it is performed before
+     returning to the userspace at the end of syscalls.
 
 ==============================================================
 

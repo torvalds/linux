@@ -594,6 +594,7 @@ struct node *get_node_by_ref(struct node *tree, const char *ref)
 cell_t get_node_phandle(struct node *root, struct node *node)
 {
 	static cell_t phandle = 1; /* FIXME: ick, static local */
+	struct data d = empty_data;
 
 	if ((node->phandle != 0) && (node->phandle != -1))
 		return node->phandle;
@@ -603,17 +604,16 @@ cell_t get_node_phandle(struct node *root, struct node *node)
 
 	node->phandle = phandle;
 
+	d = data_add_marker(d, TYPE_UINT32, NULL);
+	d = data_append_cell(d, phandle);
+
 	if (!get_property(node, "linux,phandle")
 	    && (phandle_format & PHANDLE_LEGACY))
-		add_property(node,
-			     build_property("linux,phandle",
-					    data_append_cell(empty_data, phandle)));
+		add_property(node, build_property("linux,phandle", d));
 
 	if (!get_property(node, "phandle")
 	    && (phandle_format & PHANDLE_EPAPR))
-		add_property(node,
-			     build_property("phandle",
-					    data_append_cell(empty_data, phandle)));
+		add_property(node, build_property("phandle", d));
 
 	/* If the node *does* have a phandle property, we must
 	 * be dealing with a self-referencing phandle, which will be

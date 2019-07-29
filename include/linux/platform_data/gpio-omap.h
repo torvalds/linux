@@ -24,8 +24,10 @@
 #ifndef __ASM_ARCH_OMAP_GPIO_H
 #define __ASM_ARCH_OMAP_GPIO_H
 
+#ifndef __ASSEMBLER__
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#endif
 
 #define OMAP1_MPUIO_BASE			0xfffb5000
 
@@ -157,6 +159,7 @@
 #define OMAP_MPUIO(nr)		(OMAP_MAX_GPIO_LINES + (nr))
 #define OMAP_GPIO_IS_MPUIO(nr)	((nr) >= OMAP_MAX_GPIO_LINES)
 
+#ifndef __ASSEMBLER__
 struct omap_gpio_reg_offs {
 	u16 revision;
 	u16 direction;
@@ -197,23 +200,14 @@ struct omap_gpio_platform_data {
 	bool is_mpuio;		/* whether the bank is of type MPUIO */
 	u32 non_wakeup_gpios;
 
+	u32 quirks;		/* Version specific quirks mask */
+
 	struct omap_gpio_reg_offs *regs;
 
 	/* Return context loss count due to PM states changing */
 	int (*get_context_loss_count)(struct device *dev);
 };
 
-#if IS_BUILTIN(CONFIG_GPIO_OMAP)
-extern void omap2_gpio_prepare_for_idle(int off_mode);
-extern void omap2_gpio_resume_after_idle(void);
-#else
-static inline void omap2_gpio_prepare_for_idle(int off_mode)
-{
-}
-
-static inline void omap2_gpio_resume_after_idle(void)
-{
-}
-#endif
+#endif /* __ASSEMBLER__ */
 
 #endif

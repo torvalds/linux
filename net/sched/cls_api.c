@@ -242,8 +242,8 @@ static void tcf_chain_destroy(struct tcf_chain *chain)
 	if (!chain->index)
 		block->chain0.chain = NULL;
 	kfree(chain);
-	if (list_empty(&block->chain_list) && block->refcnt == 0)
-		kfree(block);
+	if (list_empty(&block->chain_list) && !refcount_read(&block->refcnt))
+		kfree_rcu(block, rcu);
 }
 
 static void tcf_chain_hold(struct tcf_chain *chain)
@@ -475,6 +475,7 @@ tcf_chain0_head_change_cb_del(struct tcf_block *block,
 }
 
 struct tcf_net {
+	spinlock_t idr_lock; /* Protects idr */
 	struct idr idr;
 };
 
@@ -484,16 +485,25 @@ static int tcf_block_insert(struct tcf_block *block, struct net *net,
 			    struct netlink_ext_ack *extack)
 {
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
+	int err;
 
-	return idr_alloc_u32(&tn->idr, block, &block->index, block->index,
-			     GFP_KERNEL);
+	idr_preload(GFP_KERNEL);
+	spin_lock(&tn->idr_lock);
+	err = idr_alloc_u32(&tn->idr, block, &block->index, block->index,
+			    GFP_NOWAIT);
+	spin_unlock(&tn->idr_lock);
+	idr_preload_end();
+
+	return err;
 }
 
 static void tcf_block_remove(struct tcf_block *block, struct net *net)
 {
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
 
+	spin_lock(&tn->idr_lock);
 	idr_remove(&tn->idr, block->index);
+	spin_unlock(&tn->idr_lock);
 }
 
 static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
@@ -512,7 +522,7 @@ static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
 	INIT_LIST_HEAD(&block->owner_list);
 	INIT_LIST_HEAD(&block->chain0.filter_chain_list);
 
-	block->refcnt = 1;
+	refcount_set(&block->refcnt, 1);
 	block->net = net;
 	block->index = block_index;
 
@@ -529,6 +539,78 @@ static struct tcf_block *tcf_block_lookup(struct net *net, u32 block_index)
 	return idr_find(&tn->idr, block_index);
 }
 
+static struct tcf_block *tcf_block_refcnt_get(struct net *net, u32 block_index)
+{
+	struct tcf_block *block;
+
+	rcu_read_lock();
+	block = tcf_block_lookup(net, block_index);
+	if (block && !refcount_inc_not_zero(&block->refcnt))
+		block = NULL;
+	rcu_read_unlock();
+
+	return block;
+}
+
+static void tcf_block_flush_all_chains(struct tcf_block *block)
+{
+	struct tcf_chain *chain;
+
+	/* Hold a refcnt for all chains, so that they don't disappear
+	 * while we are iterating.
+	 */
+	list_for_each_entry(chain, &block->chain_list, list)
+		tcf_chain_hold(chain);
+
+	list_for_each_entry(chain, &block->chain_list, list)
+		tcf_chain_flush(chain);
+}
+
+static void tcf_block_put_all_chains(struct tcf_block *block)
+{
+	struct tcf_chain *chain, *tmp;
+
+	/* At this point, all the chains should have refcnt >= 1. */
+	list_for_each_entry_safe(chain, tmp, &block->chain_list, list) {
+		tcf_chain_put_explicitly_created(chain);
+		tcf_chain_put(chain);
+	}
+}
+
+static void __tcf_block_put(struct tcf_block *block, struct Qdisc *q,
+			    struct tcf_block_ext_info *ei)
+{
+	if (refcount_dec_and_test(&block->refcnt)) {
+		/* Flushing/putting all chains will cause the block to be
+		 * deallocated when last chain is freed. However, if chain_list
+		 * is empty, block has to be manually deallocated. After block
+		 * reference counter reached 0, it is no longer possible to
+		 * increment it or add new chains to block.
+		 */
+		bool free_block = list_empty(&block->chain_list);
+
+		if (tcf_block_shared(block))
+			tcf_block_remove(block, block->net);
+		if (!free_block)
+			tcf_block_flush_all_chains(block);
+
+		if (q)
+			tcf_block_offload_unbind(block, q, ei);
+
+		if (free_block)
+			kfree_rcu(block, rcu);
+		else
+			tcf_block_put_all_chains(block);
+	} else if (q) {
+		tcf_block_offload_unbind(block, q, ei);
+	}
+}
+
+static void tcf_block_refcnt_put(struct tcf_block *block)
+{
+	__tcf_block_put(block, NULL, NULL);
+}
+
 /* Find tcf block.
  * Set q, parent, cl when appropriate.
  */
@@ -539,9 +621,10 @@ static struct tcf_block *tcf_block_find(struct net *net, struct Qdisc **q,
 					struct netlink_ext_ack *extack)
 {
 	struct tcf_block *block;
+	int err = 0;
 
 	if (ifindex == TCM_IFINDEX_MAGIC_BLOCK) {
-		block = tcf_block_lookup(net, block_index);
+		block = tcf_block_refcnt_get(net, block_index);
 		if (!block) {
 			NL_SET_ERR_MSG(extack, "Block of given index was not found");
 			return ERR_PTR(-EINVAL);
@@ -550,55 +633,106 @@ static struct tcf_block *tcf_block_find(struct net *net, struct Qdisc **q,
 		const struct Qdisc_class_ops *cops;
 		struct net_device *dev;
 
+		rcu_read_lock();
+
 		/* Find link */
-		dev = __dev_get_by_index(net, ifindex);
-		if (!dev)
+		dev = dev_get_by_index_rcu(net, ifindex);
+		if (!dev) {
+			rcu_read_unlock();
 			return ERR_PTR(-ENODEV);
+		}
 
 		/* Find qdisc */
 		if (!*parent) {
 			*q = dev->qdisc;
 			*parent = (*q)->handle;
 		} else {
-			*q = qdisc_lookup(dev, TC_H_MAJ(*parent));
+			*q = qdisc_lookup_rcu(dev, TC_H_MAJ(*parent));
 			if (!*q) {
 				NL_SET_ERR_MSG(extack, "Parent Qdisc doesn't exists");
-				return ERR_PTR(-EINVAL);
+				err = -EINVAL;
+				goto errout_rcu;
 			}
+		}
+
+		*q = qdisc_refcount_inc_nz(*q);
+		if (!*q) {
+			NL_SET_ERR_MSG(extack, "Parent Qdisc doesn't exists");
+			err = -EINVAL;
+			goto errout_rcu;
 		}
 
 		/* Is it classful? */
 		cops = (*q)->ops->cl_ops;
 		if (!cops) {
 			NL_SET_ERR_MSG(extack, "Qdisc not classful");
-			return ERR_PTR(-EINVAL);
+			err = -EINVAL;
+			goto errout_rcu;
 		}
 
 		if (!cops->tcf_block) {
 			NL_SET_ERR_MSG(extack, "Class doesn't support blocks");
-			return ERR_PTR(-EOPNOTSUPP);
+			err = -EOPNOTSUPP;
+			goto errout_rcu;
 		}
+
+		/* At this point we know that qdisc is not noop_qdisc,
+		 * which means that qdisc holds a reference to net_device
+		 * and we hold a reference to qdisc, so it is safe to release
+		 * rcu read lock.
+		 */
+		rcu_read_unlock();
 
 		/* Do we search for filter, attached to class? */
 		if (TC_H_MIN(*parent)) {
 			*cl = cops->find(*q, *parent);
 			if (*cl == 0) {
 				NL_SET_ERR_MSG(extack, "Specified class doesn't exist");
-				return ERR_PTR(-ENOENT);
+				err = -ENOENT;
+				goto errout_qdisc;
 			}
 		}
 
 		/* And the last stroke */
 		block = cops->tcf_block(*q, *cl, extack);
-		if (!block)
-			return ERR_PTR(-EINVAL);
+		if (!block) {
+			err = -EINVAL;
+			goto errout_qdisc;
+		}
 		if (tcf_block_shared(block)) {
 			NL_SET_ERR_MSG(extack, "This filter block is shared. Please use the block index to manipulate the filters");
-			return ERR_PTR(-EOPNOTSUPP);
+			err = -EOPNOTSUPP;
+			goto errout_qdisc;
 		}
+
+		/* Always take reference to block in order to support execution
+		 * of rules update path of cls API without rtnl lock. Caller
+		 * must release block when it is finished using it. 'if' block
+		 * of this conditional obtain reference to block by calling
+		 * tcf_block_refcnt_get().
+		 */
+		refcount_inc(&block->refcnt);
 	}
 
 	return block;
+
+errout_rcu:
+	rcu_read_unlock();
+errout_qdisc:
+	if (*q) {
+		qdisc_put(*q);
+		*q = NULL;
+	}
+	return ERR_PTR(err);
+}
+
+static void tcf_block_release(struct Qdisc *q, struct tcf_block *block)
+{
+	if (!IS_ERR_OR_NULL(block))
+		tcf_block_refcnt_put(block);
+
+	if (q)
+		qdisc_put(q);
 }
 
 struct tcf_block_owner_item {
@@ -666,21 +800,16 @@ int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 {
 	struct net *net = qdisc_net(q);
 	struct tcf_block *block = NULL;
-	bool created = false;
 	int err;
 
-	if (ei->block_index) {
+	if (ei->block_index)
 		/* block_index not 0 means the shared block is requested */
-		block = tcf_block_lookup(net, ei->block_index);
-		if (block)
-			block->refcnt++;
-	}
+		block = tcf_block_refcnt_get(net, ei->block_index);
 
 	if (!block) {
 		block = tcf_block_create(net, q, ei->block_index, extack);
 		if (IS_ERR(block))
 			return PTR_ERR(block);
-		created = true;
 		if (tcf_block_shared(block)) {
 			err = tcf_block_insert(block, net, extack);
 			if (err)
@@ -710,14 +839,8 @@ err_block_offload_bind:
 err_chain0_head_change_cb_add:
 	tcf_block_owner_del(block, q, ei->binder_type);
 err_block_owner_add:
-	if (created) {
-		if (tcf_block_shared(block))
-			tcf_block_remove(block, net);
 err_block_insert:
-		kfree(block);
-	} else {
-		block->refcnt--;
-	}
+	tcf_block_refcnt_put(block);
 	return err;
 }
 EXPORT_SYMBOL(tcf_block_get_ext);
@@ -749,42 +872,12 @@ EXPORT_SYMBOL(tcf_block_get);
 void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 		       struct tcf_block_ext_info *ei)
 {
-	struct tcf_chain *chain, *tmp;
-
 	if (!block)
 		return;
 	tcf_chain0_head_change_cb_del(block, ei);
 	tcf_block_owner_del(block, q, ei->binder_type);
 
-	if (block->refcnt == 1) {
-		if (tcf_block_shared(block))
-			tcf_block_remove(block, block->net);
-
-		/* Hold a refcnt for all chains, so that they don't disappear
-		 * while we are iterating.
-		 */
-		list_for_each_entry(chain, &block->chain_list, list)
-			tcf_chain_hold(chain);
-
-		list_for_each_entry(chain, &block->chain_list, list)
-			tcf_chain_flush(chain);
-	}
-
-	tcf_block_offload_unbind(block, q, ei);
-
-	if (block->refcnt == 1) {
-		/* At this point, all the chains should have refcnt >= 1. */
-		list_for_each_entry_safe(chain, tmp, &block->chain_list, list) {
-			tcf_chain_put_explicitly_created(chain);
-			tcf_chain_put(chain);
-		}
-
-		block->refcnt--;
-		if (list_empty(&block->chain_list))
-			kfree(block);
-	} else {
-		block->refcnt--;
-	}
+	__tcf_block_put(block, q, ei);
 }
 EXPORT_SYMBOL(tcf_block_put_ext);
 
@@ -1334,6 +1427,7 @@ replay:
 errout:
 	if (chain)
 		tcf_chain_put(chain);
+	tcf_block_release(q, block);
 	if (err == -EAGAIN)
 		/* Replay the request. */
 		goto replay;
@@ -1455,6 +1549,7 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 errout:
 	if (chain)
 		tcf_chain_put(chain);
+	tcf_block_release(q, block);
 	return err;
 }
 
@@ -1540,6 +1635,7 @@ static int tc_get_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 errout:
 	if (chain)
 		tcf_chain_put(chain);
+	tcf_block_release(q, block);
 	return err;
 }
 
@@ -1633,12 +1729,13 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	if (nlmsg_len(cb->nlh) < sizeof(*tcm))
 		return skb->len;
 
-	err = nlmsg_parse(cb->nlh, sizeof(*tcm), tca, TCA_MAX, NULL, NULL);
+	err = nlmsg_parse(cb->nlh, sizeof(*tcm), tca, TCA_MAX, NULL,
+			  cb->extack);
 	if (err)
 		return err;
 
 	if (tcm->tcm_ifindex == TCM_IFINDEX_MAGIC_BLOCK) {
-		block = tcf_block_lookup(net, tcm->tcm_block_index);
+		block = tcf_block_refcnt_get(net, tcm->tcm_block_index);
 		if (!block)
 			goto out;
 		/* If we work with block index, q is NULL and parent value
@@ -1697,6 +1794,8 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 		}
 	}
 
+	if (tcm->tcm_ifindex == TCM_IFINDEX_MAGIC_BLOCK)
+		tcf_block_refcnt_put(block);
 	cb->args[0] = index;
 
 out:
@@ -1856,7 +1955,8 @@ replay:
 	chain_index = tca[TCA_CHAIN] ? nla_get_u32(tca[TCA_CHAIN]) : 0;
 	if (chain_index > TC_ACT_EXT_VAL_MASK) {
 		NL_SET_ERR_MSG(extack, "Specified chain index exceeds upper limit");
-		return -EINVAL;
+		err = -EINVAL;
+		goto errout_block;
 	}
 	chain = tcf_chain_lookup(block, chain_index);
 	if (n->nlmsg_type == RTM_NEWCHAIN) {
@@ -1868,23 +1968,27 @@ replay:
 				tcf_chain_hold(chain);
 			} else {
 				NL_SET_ERR_MSG(extack, "Filter chain already exists");
-				return -EEXIST;
+				err = -EEXIST;
+				goto errout_block;
 			}
 		} else {
 			if (!(n->nlmsg_flags & NLM_F_CREATE)) {
 				NL_SET_ERR_MSG(extack, "Need both RTM_NEWCHAIN and NLM_F_CREATE to create a new chain");
-				return -ENOENT;
+				err = -ENOENT;
+				goto errout_block;
 			}
 			chain = tcf_chain_create(block, chain_index);
 			if (!chain) {
 				NL_SET_ERR_MSG(extack, "Failed to create filter chain");
-				return -ENOMEM;
+				err = -ENOMEM;
+				goto errout_block;
 			}
 		}
 	} else {
 		if (!chain || tcf_chain_held_by_acts_only(chain)) {
 			NL_SET_ERR_MSG(extack, "Cannot find specified filter chain");
-			return -EINVAL;
+			err = -EINVAL;
+			goto errout_block;
 		}
 		tcf_chain_hold(chain);
 	}
@@ -1928,6 +2032,8 @@ replay:
 
 errout:
 	tcf_chain_put(chain);
+errout_block:
+	tcf_block_release(q, block);
 	if (err == -EAGAIN)
 		/* Replay the request. */
 		goto replay;
@@ -1952,12 +2058,12 @@ static int tc_dump_chain(struct sk_buff *skb, struct netlink_callback *cb)
 		return skb->len;
 
 	err = nlmsg_parse(cb->nlh, sizeof(*tcm), tca, TCA_MAX, rtm_tca_policy,
-			  NULL);
+			  cb->extack);
 	if (err)
 		return err;
 
 	if (tcm->tcm_ifindex == TCM_IFINDEX_MAGIC_BLOCK) {
-		block = tcf_block_lookup(net, tcm->tcm_block_index);
+		block = tcf_block_refcnt_get(net, tcm->tcm_block_index);
 		if (!block)
 			goto out;
 		/* If we work with block index, q is NULL and parent value
@@ -2024,6 +2130,8 @@ static int tc_dump_chain(struct sk_buff *skb, struct netlink_callback *cb)
 		index++;
 	}
 
+	if (tcm->tcm_ifindex == TCM_IFINDEX_MAGIC_BLOCK)
+		tcf_block_refcnt_put(block);
 	cb->args[0] = index;
 
 out:
@@ -2216,6 +2324,7 @@ static __net_init int tcf_net_init(struct net *net)
 {
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
 
+	spin_lock_init(&tn->idr_lock);
 	idr_init(&tn->idr);
 	return 0;
 }

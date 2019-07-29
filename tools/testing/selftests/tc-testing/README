@@ -232,6 +232,8 @@ directory:
       and the other is a test whether the command leaked memory or not.
       (This one is a preliminary version, it may not work quite right yet,
       but the overall template is there and it should only need tweaks.)
+  - buildebpfPlugin.py:
+      builds all programs in $EBPFDIR.
 
 
 ACKNOWLEDGEMENTS

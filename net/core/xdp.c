@@ -94,10 +94,20 @@ static void __xdp_mem_allocator_rcu_free(struct rcu_head *rcu)
 	kfree(xa);
 }
 
-static void __xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
+void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
 {
 	struct xdp_mem_allocator *xa;
 	int id = xdp_rxq->mem.id;
+
+	if (xdp_rxq->reg_state != REG_STATE_REGISTERED) {
+		WARN(1, "Missing register, driver bug");
+		return;
+	}
+
+	if (xdp_rxq->mem.type != MEM_TYPE_PAGE_POOL &&
+	    xdp_rxq->mem.type != MEM_TYPE_ZERO_COPY) {
+		return;
+	}
 
 	if (id == 0)
 		return;
@@ -110,6 +120,7 @@ static void __xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
 
 	mutex_unlock(&mem_id_lock);
 }
+EXPORT_SYMBOL_GPL(xdp_rxq_info_unreg_mem_model);
 
 void xdp_rxq_info_unreg(struct xdp_rxq_info *xdp_rxq)
 {
@@ -119,7 +130,7 @@ void xdp_rxq_info_unreg(struct xdp_rxq_info *xdp_rxq)
 
 	WARN(!(xdp_rxq->reg_state == REG_STATE_REGISTERED), "Driver BUG");
 
-	__xdp_rxq_info_unreg_mem_model(xdp_rxq);
+	xdp_rxq_info_unreg_mem_model(xdp_rxq);
 
 	xdp_rxq->reg_state = REG_STATE_UNREGISTERED;
 	xdp_rxq->dev = NULL;
@@ -398,3 +409,41 @@ void xdp_attachment_setup(struct xdp_attachment_info *info,
 	info->flags = bpf->flags;
 }
 EXPORT_SYMBOL_GPL(xdp_attachment_setup);
+
+struct xdp_frame *xdp_convert_zc_to_xdp_frame(struct xdp_buff *xdp)
+{
+	unsigned int metasize, totsize;
+	void *addr, *data_to_copy;
+	struct xdp_frame *xdpf;
+	struct page *page;
+
+	/* Clone into a MEM_TYPE_PAGE_ORDER0 xdp_frame. */
+	metasize = xdp_data_meta_unsupported(xdp) ? 0 :
+		   xdp->data - xdp->data_meta;
+	totsize = xdp->data_end - xdp->data + metasize;
+
+	if (sizeof(*xdpf) + totsize > PAGE_SIZE)
+		return NULL;
+
+	page = dev_alloc_page();
+	if (!page)
+		return NULL;
+
+	addr = page_to_virt(page);
+	xdpf = addr;
+	memset(xdpf, 0, sizeof(*xdpf));
+
+	addr += sizeof(*xdpf);
+	data_to_copy = metasize ? xdp->data_meta : xdp->data;
+	memcpy(addr, data_to_copy, totsize);
+
+	xdpf->data = addr + metasize;
+	xdpf->len = totsize - metasize;
+	xdpf->headroom = 0;
+	xdpf->metasize = metasize;
+	xdpf->mem.type = MEM_TYPE_PAGE_ORDER0;
+
+	xdp_return_buff(xdp);
+	return xdpf;
+}
+EXPORT_SYMBOL_GPL(xdp_convert_zc_to_xdp_frame);

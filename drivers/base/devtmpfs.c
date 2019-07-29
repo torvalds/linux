@@ -252,7 +252,7 @@ static int dev_rmdir(const char *name)
 
 static int delete_path(const char *nodepath)
 {
-	const char *path;
+	char *path;
 	int err = 0;
 
 	path = kstrdup(nodepath, GFP_KERNEL);

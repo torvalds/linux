@@ -34,7 +34,6 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/initrd.h>
-#include <linux/bootmem.h>
 #include <linux/root_dev.h>
 #include <linux/console.h>
 #include <linux/kernel_stat.h>
@@ -49,6 +48,7 @@
 #include <linux/crash_dump.h>
 #include <linux/memory.h>
 #include <linux/compat.h>
+#include <linux/start_kernel.h>
 
 #include <asm/ipl.h>
 #include <asm/facility.h>
@@ -69,6 +69,7 @@
 #include <asm/numa.h>
 #include <asm/alternative.h>
 #include <asm/nospec-branch.h>
+#include <asm/mem_detect.h>
 #include "entry.h"
 
 /*
@@ -88,9 +89,11 @@ char elf_platform[ELF_PLATFORM_SIZE];
 
 unsigned long int_hwcap = 0;
 
-int __initdata memory_end_set;
-unsigned long __initdata memory_end;
-unsigned long __initdata max_physmem_end;
+int __bootdata(noexec_disabled);
+int __bootdata(memory_end_set);
+unsigned long __bootdata(memory_end);
+unsigned long __bootdata(max_physmem_end);
+struct mem_detect_info __bootdata(mem_detect);
 
 unsigned long VMALLOC_START;
 EXPORT_SYMBOL(VMALLOC_START);
@@ -283,15 +286,6 @@ void machine_power_off(void)
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL_GPL(pm_power_off);
 
-static int __init early_parse_mem(char *p)
-{
-	memory_end = memparse(p, &p);
-	memory_end &= PAGE_MASK;
-	memory_end_set = 1;
-	return 0;
-}
-early_param("mem", early_parse_mem);
-
 static int __init parse_vmalloc(char *arg)
 {
 	if (!arg)
@@ -303,6 +297,78 @@ early_param("vmalloc", parse_vmalloc);
 
 void *restart_stack __section(.data);
 
+unsigned long stack_alloc(void)
+{
+#ifdef CONFIG_VMAP_STACK
+	return (unsigned long)
+		__vmalloc_node_range(THREAD_SIZE, THREAD_SIZE,
+				     VMALLOC_START, VMALLOC_END,
+				     THREADINFO_GFP,
+				     PAGE_KERNEL, 0, NUMA_NO_NODE,
+				     __builtin_return_address(0));
+#else
+	return __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
+#endif
+}
+
+void stack_free(unsigned long stack)
+{
+#ifdef CONFIG_VMAP_STACK
+	vfree((void *) stack);
+#else
+	free_pages(stack, THREAD_SIZE_ORDER);
+#endif
+}
+
+int __init arch_early_irq_init(void)
+{
+	unsigned long stack;
+
+	stack = __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
+	if (!stack)
+		panic("Couldn't allocate async stack");
+	S390_lowcore.async_stack = stack + STACK_INIT_OFFSET;
+	return 0;
+}
+
+static int __init async_stack_realloc(void)
+{
+	unsigned long old, new;
+
+	old = S390_lowcore.async_stack - STACK_INIT_OFFSET;
+	new = stack_alloc();
+	if (!new)
+		panic("Couldn't allocate async stack");
+	S390_lowcore.async_stack = new + STACK_INIT_OFFSET;
+	free_pages(old, THREAD_SIZE_ORDER);
+	return 0;
+}
+early_initcall(async_stack_realloc);
+
+void __init arch_call_rest_init(void)
+{
+	struct stack_frame *frame;
+	unsigned long stack;
+
+	stack = stack_alloc();
+	if (!stack)
+		panic("Couldn't allocate kernel stack");
+	current->stack = (void *) stack;
+#ifdef CONFIG_VMAP_STACK
+	current->stack_vm_area = (void *) stack;
+#endif
+	set_task_stack_end_magic(current);
+	stack += STACK_INIT_OFFSET;
+	S390_lowcore.kernel_stack = stack;
+	frame = (struct stack_frame *) stack;
+	memset(frame, 0, sizeof(*frame));
+	/* Branch to rest_init on the new stack, never returns */
+	asm volatile(
+		"	la	15,0(%[_frame])\n"
+		"	jg	rest_init\n"
+		: : [_frame] "a" (frame));
+}
+
 static void __init setup_lowcore(void)
 {
 	struct lowcore *lc;
@@ -311,7 +377,7 @@ static void __init setup_lowcore(void)
 	 * Setup lowcore for boot cpu
 	 */
 	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * PAGE_SIZE);
-	lc = memblock_virt_alloc_low(sizeof(*lc), sizeof(*lc));
+	lc = memblock_alloc_low(sizeof(*lc), sizeof(*lc));
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
 	lc->restart_psw.addr = (unsigned long) restart_int_handler;
 	lc->external_new_psw.mask = PSW_KERNEL_BITS |
@@ -329,14 +395,8 @@ static void __init setup_lowcore(void)
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
-	lc->kernel_stack = ((unsigned long) &init_thread_union)
+	lc->nodat_stack = ((unsigned long) &init_thread_union)
 		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
-	lc->async_stack = (unsigned long)
-		memblock_virt_alloc(ASYNC_SIZE, ASYNC_SIZE)
-		+ ASYNC_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
-	lc->panic_stack = (unsigned long)
-		memblock_virt_alloc(PAGE_SIZE, PAGE_SIZE)
-		+ PAGE_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->current_task = (unsigned long)&init_task;
 	lc->lpp = LPP_MAGIC;
 	lc->machine_flags = S390_lowcore.machine_flags;
@@ -357,8 +417,12 @@ static void __init setup_lowcore(void)
 	lc->last_update_timer = S390_lowcore.last_update_timer;
 	lc->last_update_clock = S390_lowcore.last_update_clock;
 
-	restart_stack = memblock_virt_alloc(ASYNC_SIZE, ASYNC_SIZE);
-	restart_stack += ASYNC_SIZE;
+	/*
+	 * Allocate the global restart stack which is the same for
+	 * all CPUs in cast *one* of them does a PSW restart.
+	 */
+	restart_stack = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
+	restart_stack += STACK_INIT_OFFSET;
 
 	/*
 	 * Set up PSW restart to call ipl.c:do_restart(). Copy the relevant
@@ -423,7 +487,7 @@ static void __init setup_resources(void)
 	bss_resource.end = (unsigned long) __bss_stop - 1;
 
 	for_each_memblock(memory, reg) {
-		res = memblock_virt_alloc(sizeof(*res), 8);
+		res = memblock_alloc(sizeof(*res), 8);
 		res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
 
 		res->name = "System RAM";
@@ -437,7 +501,7 @@ static void __init setup_resources(void)
 			    std_res->start > res->end)
 				continue;
 			if (std_res->end > res->end) {
-				sub_res = memblock_virt_alloc(sizeof(*sub_res), 8);
+				sub_res = memblock_alloc(sizeof(*sub_res), 8);
 				*sub_res = *std_res;
 				sub_res->end = res->end;
 				std_res->start = res->end + 1;
@@ -467,19 +531,26 @@ static void __init setup_memory_end(void)
 {
 	unsigned long vmax, vmalloc_size, tmp;
 
-	/* Choose kernel address space layout: 2, 3, or 4 levels. */
+	/* Choose kernel address space layout: 3 or 4 levels. */
 	vmalloc_size = VMALLOC_END ?: (128UL << 30) - MODULES_LEN;
-	tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
-	tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
-	if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
-		vmax = _REGION2_SIZE; /* 3-level kernel page table */
-	else
-		vmax = _REGION1_SIZE; /* 4-level kernel page table */
+	if (IS_ENABLED(CONFIG_KASAN)) {
+		vmax = IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)
+			   ? _REGION1_SIZE
+			   : _REGION2_SIZE;
+	} else {
+		tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
+		tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
+		if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
+			vmax = _REGION2_SIZE; /* 3-level kernel page table */
+		else
+			vmax = _REGION1_SIZE; /* 4-level kernel page table */
+	}
+
 	/* module area is at the end of the kernel address space. */
 	MODULES_END = vmax;
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
-	VMALLOC_START = vmax - vmalloc_size;
+	VMALLOC_START = VMALLOC_END - vmalloc_size;
 
 	/* Split remaining virtual space between 1:1 mapping & vmemmap array */
 	tmp = VMALLOC_START / (PAGE_SIZE + sizeof(struct page));
@@ -491,7 +562,12 @@ static void __init setup_memory_end(void)
 	vmemmap = (struct page *) tmp;
 
 	/* Take care that memory_end is set and <= vmemmap */
-	memory_end = min(memory_end ?: max_physmem_end, tmp);
+	memory_end = min(memory_end ?: max_physmem_end, (unsigned long)vmemmap);
+#ifdef CONFIG_KASAN
+	/* fit in kasan shadow memory region between 1:1 and vmemmap */
+	memory_end = min(memory_end, KASAN_SHADOW_START);
+	vmemmap = max(vmemmap, (struct page *)KASAN_SHADOW_END);
+#endif
 	max_pfn = max_low_pfn = PFN_DOWN(memory_end);
 	memblock_remove(memory_end, ULONG_MAX);
 
@@ -532,17 +608,8 @@ static struct notifier_block kdump_mem_nb = {
  */
 static void reserve_memory_end(void)
 {
-#ifdef CONFIG_CRASH_DUMP
-	if (ipl_info.type == IPL_TYPE_FCP_DUMP &&
-	    !OLDMEM_BASE && sclp.hsa_size) {
-		memory_end = sclp.hsa_size;
-		memory_end &= PAGE_MASK;
-		memory_end_set = 1;
-	}
-#endif
-	if (!memory_end_set)
-		return;
-	memblock_reserve(memory_end, ULONG_MAX);
+	if (memory_end_set)
+		memblock_reserve(memory_end, ULONG_MAX);
 }
 
 /*
@@ -647,6 +714,62 @@ static void __init reserve_initrd(void)
 	initrd_end = initrd_start + INITRD_SIZE;
 	memblock_reserve(INITRD_START, INITRD_SIZE);
 #endif
+}
+
+static void __init reserve_mem_detect_info(void)
+{
+	unsigned long start, size;
+
+	get_mem_detect_reserved(&start, &size);
+	if (size)
+		memblock_reserve(start, size);
+}
+
+static void __init free_mem_detect_info(void)
+{
+	unsigned long start, size;
+
+	get_mem_detect_reserved(&start, &size);
+	if (size)
+		memblock_free(start, size);
+}
+
+static void __init memblock_physmem_add(phys_addr_t start, phys_addr_t size)
+{
+	memblock_dbg("memblock_physmem_add: [%#016llx-%#016llx]\n",
+		     start, start + size - 1);
+	memblock_add_range(&memblock.memory, start, size, 0, 0);
+	memblock_add_range(&memblock.physmem, start, size, 0, 0);
+}
+
+static const char * __init get_mem_info_source(void)
+{
+	switch (mem_detect.info_source) {
+	case MEM_DETECT_SCLP_STOR_INFO:
+		return "sclp storage info";
+	case MEM_DETECT_DIAG260:
+		return "diag260";
+	case MEM_DETECT_SCLP_READ_INFO:
+		return "sclp read info";
+	case MEM_DETECT_BIN_SEARCH:
+		return "binary search";
+	}
+	return "none";
+}
+
+static void __init memblock_add_mem_detect_info(void)
+{
+	unsigned long start, end;
+	int i;
+
+	memblock_dbg("physmem info source: %s (%hhd)\n",
+		     get_mem_info_source(), mem_detect.info_source);
+	/* keep memblock lists close to the kernel */
+	memblock_set_bottom_up(true);
+	for_each_mem_detect_block(i, &start, &end)
+		memblock_physmem_add(start, end - start);
+	memblock_set_bottom_up(false);
+	memblock_dump_all();
 }
 
 /*
@@ -843,7 +966,8 @@ static void __init setup_randomness(void)
 {
 	struct sysinfo_3_2_2 *vmms;
 
-	vmms = (struct sysinfo_3_2_2 *) memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+	vmms = (struct sysinfo_3_2_2 *) memblock_phys_alloc(PAGE_SIZE,
+							    PAGE_SIZE);
 	if (stsi(vmms, 3, 2, 2) == 0 && vmms->count)
 		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
 	memblock_free((unsigned long) vmms, PAGE_SIZE);
@@ -913,11 +1037,13 @@ void __init setup_arch(char **cmdline_p)
 	reserve_oldmem();
 	reserve_kernel();
 	reserve_initrd();
+	reserve_mem_detect_info();
 	memblock_allow_resize();
 
 	/* Get information about *all* installed memory */
-	detect_memory_memblock();
+	memblock_add_mem_detect_info();
 
+	free_mem_detect_info();
 	remove_oldmem();
 
 	/*

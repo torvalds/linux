@@ -44,6 +44,7 @@
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
+#include "dc_link_dp.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -58,9 +59,11 @@
 
 /*print is 17 wide, first two characters are spaces*/
 #define DTN_INFO_MICRO_SEC(ref_cycle) \
-	print_microsec(dc_ctx, ref_cycle)
+	print_microsec(dc_ctx, log_ctx, ref_cycle)
 
-void print_microsec(struct dc_context *dc_ctx, uint32_t ref_cycle)
+void print_microsec(struct dc_context *dc_ctx,
+	struct dc_log_buffer_ctx *log_ctx,
+	uint32_t ref_cycle)
 {
 	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clock_inKhz / 1000;
 	static const unsigned int frac = 1000;
@@ -71,8 +74,8 @@ void print_microsec(struct dc_context *dc_ctx, uint32_t ref_cycle)
 			us_x10 % frac);
 }
 
-
-static void log_mpc_crc(struct dc *dc)
+static void log_mpc_crc(struct dc *dc,
+	struct dc_log_buffer_ctx *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dce_hwseq *hws = dc->hwseq;
@@ -85,10 +88,10 @@ static void log_mpc_crc(struct dc *dc)
 		REG_READ(DPP_TOP0_DPP_CRC_VAL_B_A), REG_READ(DPP_TOP0_DPP_CRC_VAL_R_G));
 }
 
-void dcn10_log_hubbub_state(struct dc *dc)
+void dcn10_log_hubbub_state(struct dc *dc, struct dc_log_buffer_ctx *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
-	struct dcn_hubbub_wm wm;
+	struct dcn_hubbub_wm wm = {0};
 	int i;
 
 	hubbub1_wm_read_state(dc->res_pool->hubbub, &wm);
@@ -112,7 +115,7 @@ void dcn10_log_hubbub_state(struct dc *dc)
 	DTN_INFO("\n");
 }
 
-static void dcn10_log_hubp_states(struct dc *dc)
+static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
@@ -227,7 +230,8 @@ static void dcn10_log_hubp_states(struct dc *dc)
 	DTN_INFO("\n");
 }
 
-void dcn10_log_hw_state(struct dc *dc)
+void dcn10_log_hw_state(struct dc *dc,
+	struct dc_log_buffer_ctx *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
@@ -235,18 +239,21 @@ void dcn10_log_hw_state(struct dc *dc)
 
 	DTN_INFO_BEGIN();
 
-	dcn10_log_hubbub_state(dc);
+	dcn10_log_hubbub_state(dc, log_ctx);
 
-	dcn10_log_hubp_states(dc);
+	dcn10_log_hubp_states(dc, log_ctx);
 
 	DTN_INFO("DPP:    IGAM format  IGAM mode    DGAM mode    RGAM mode"
 			"  GAMUT mode  C11 C12   C13 C14   C21 C22   C23 C24   "
 			"C31 C32   C33 C34\n");
 	for (i = 0; i < pool->pipe_count; i++) {
 		struct dpp *dpp = pool->dpps[i];
-		struct dcn_dpp_state s;
+		struct dcn_dpp_state s = {0};
 
 		dpp->funcs->dpp_read_state(dpp, &s);
+
+		if (!s.is_enabled)
+			continue;
 
 		DTN_INFO("[%2d]:  %11xh  %-11s  %-11s  %-11s"
 				"%8x    %08xh %08xh %08xh %08xh %08xh %08xh",
@@ -345,7 +352,7 @@ void dcn10_log_hw_state(struct dc *dc)
 			dc->current_state->bw.dcn.clk.fclk_khz,
 			dc->current_state->bw.dcn.clk.socclk_khz);
 
-	log_mpc_crc(dc);
+	log_mpc_crc(dc, log_ctx);
 
 	DTN_INFO_END();
 }
@@ -628,6 +635,8 @@ static enum dc_status dcn10_enable_stream_timing(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
+	struct drr_params params = {0};
+	unsigned int event_triggers = 0;
 
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
@@ -694,6 +703,19 @@ static enum dc_status dcn10_enable_stream_timing(
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;
 	}
+
+	params.vertical_total_min = stream->adjust.v_total_min;
+	params.vertical_total_max = stream->adjust.v_total_max;
+	if (pipe_ctx->stream_res.tg->funcs->set_drr)
+		pipe_ctx->stream_res.tg->funcs->set_drr(
+			pipe_ctx->stream_res.tg, &params);
+
+	// DRR should set trigger event to monitor surface update event
+	if (stream->adjust.v_total_min != 0 && stream->adjust.v_total_max != 0)
+		event_triggers = 0x80;
+	if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
+		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
+				pipe_ctx->stream_res.tg, event_triggers);
 
 	/* TODO program crtc source select for non-virtual signal*/
 	/* TODO program FMT */
@@ -840,7 +862,7 @@ void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 
 	if (!hubbub1_verify_allow_pstate_change_high(dc->res_pool->hubbub)) {
 		if (should_log_hw_state) {
-			dcn10_log_hw_state(dc);
+			dcn10_log_hw_state(dc, NULL);
 		}
 		BREAK_TO_DEBUGGER();
 		if (dcn10_hw_wa_force_recovery(dc)) {
@@ -975,7 +997,21 @@ static void dcn10_init_hw(struct dc *dc)
 	} else {
 
 		if (!dcb->funcs->is_accelerated_mode(dcb)) {
+			bool allow_self_fresh_force_enable =
+					hububu1_is_allow_self_refresh_enabled(dc->res_pool->hubbub);
+
 			bios_golden_init(dc);
+
+			/* WA for making DF sleep when idle after resume from S0i3.
+			 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE is set to 1 by
+			 * command table, if DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 0
+			 * before calling command table and it changed to 1 after,
+			 * it should be set back to 0.
+			 */
+			if (allow_self_fresh_force_enable == false &&
+					hububu1_is_allow_self_refresh_enabled(dc->res_pool->hubbub))
+				hubbub1_disable_allow_self_refresh(dc->res_pool->hubbub);
+
 			disable_vga(dc->hwseq);
 		}
 
@@ -1900,7 +1936,7 @@ static void update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state)
 static void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
-	struct mpcc_blnd_cfg blnd_cfg = {0};
+	struct mpcc_blnd_cfg blnd_cfg = {{0}};
 	bool per_pixel_alpha = pipe_ctx->plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
 	int mpcc_id;
 	struct mpcc *new_mpcc;
@@ -1929,8 +1965,12 @@ static void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA;
 
 	blnd_cfg.overlap_only = false;
-	blnd_cfg.global_alpha = 0xff;
 	blnd_cfg.global_gain = 0xff;
+
+	if (pipe_ctx->plane_state->global_alpha)
+		blnd_cfg.global_alpha = pipe_ctx->plane_state->global_alpha_value;
+	else
+		blnd_cfg.global_alpha = 0xff;
 
 	/* DCN1.0 has output CM before MPC which seems to screw with
 	 * pre-multiplied alpha.
@@ -2004,6 +2044,7 @@ static void update_dchubp_dpp(
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	union plane_size size = plane_state->plane_size;
+	unsigned int compat_level = 0;
 
 	/* depends on DML calculation, DPP clock value may change dynamically */
 	/* If request max dpp clk is lower than current dispclk, no need to
@@ -2045,11 +2086,13 @@ static void update_dchubp_dpp(
 		update_dpp(dpp, plane_state);
 
 	if (plane_state->update_flags.bits.full_update ||
-		plane_state->update_flags.bits.per_pixel_alpha_change)
+		plane_state->update_flags.bits.per_pixel_alpha_change ||
+		plane_state->update_flags.bits.global_alpha_change)
 		dc->hwss.update_mpcc(dc, pipe_ctx);
 
 	if (plane_state->update_flags.bits.full_update ||
 		plane_state->update_flags.bits.per_pixel_alpha_change ||
+		plane_state->update_flags.bits.global_alpha_change ||
 		plane_state->update_flags.bits.scaling_change ||
 		plane_state->update_flags.bits.position_change) {
 		update_scaler(pipe_ctx);
@@ -2095,7 +2138,8 @@ static void update_dchubp_dpp(
 			&size,
 			plane_state->rotation,
 			&plane_state->dcc,
-			plane_state->horizontal_mirror);
+			plane_state->horizontal_mirror,
+			compat_level);
 	}
 
 	hubp->power_gated = false;
@@ -2388,15 +2432,23 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 {
 	int i = 0;
 	struct drr_params params = {0};
+	// DRR should set trigger event to monitor surface update event
+	unsigned int event_triggers = 0x80;
 
 	params.vertical_total_max = vmax;
 	params.vertical_total_min = vmin;
 
 	/* TODO: If multiple pipes are to be supported, you need
-	 * some GSL stuff
+	 * some GSL stuff. Static screen triggers may be programmed differently
+	 * as well.
 	 */
 	for (i = 0; i < num_pipes; i++) {
-		pipe_ctx[i]->stream_res.tg->funcs->set_drr(pipe_ctx[i]->stream_res.tg, &params);
+		pipe_ctx[i]->stream_res.tg->funcs->set_drr(
+			pipe_ctx[i]->stream_res.tg, &params);
+		if (vmax != 0 && vmin != 0)
+			pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
+					pipe_ctx[i]->stream_res.tg,
+					event_triggers);
 	}
 }
 
@@ -2592,15 +2644,15 @@ static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		.mirror = pipe_ctx->plane_state->horizontal_mirror
 	};
 
+	pos_cpy.x -= pipe_ctx->plane_state->dst_rect.x;
+	pos_cpy.y -= pipe_ctx->plane_state->dst_rect.y;
+
 	if (pipe_ctx->plane_state->address.type
 			== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
 		pos_cpy.enable = false;
 
-	if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
-		pos_cpy.enable = false;
-
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
-	dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width);
+	dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width, hubp->curs_attr.height);
 }
 
 static void dcn10_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
@@ -2678,6 +2730,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.setup_stereo = dcn10_setup_stereo,
 	.set_avmute = dce110_set_avmute,
 	.log_hw_state = dcn10_log_hw_state,
+	.get_hw_state = dcn10_get_hw_state,
 	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect,
 	.ready_shared_resources = ready_shared_resources,
 	.optimize_shared_resources = optimize_shared_resources,

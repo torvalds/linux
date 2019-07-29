@@ -64,8 +64,8 @@ The sysctl settings (writable only with ``CAP_SYS_PTRACE``) are:
     Using ``PTRACE_TRACEME`` is unchanged.
 
 2 - admin-only attach:
-    only processes with ``CAP_SYS_PTRACE`` may use ptrace
-    with ``PTRACE_ATTACH``, or through children calling ``PTRACE_TRACEME``.
+    only processes with ``CAP_SYS_PTRACE`` may use ptrace, either with
+    ``PTRACE_ATTACH`` or through children calling ``PTRACE_TRACEME``.
 
 3 - no attach:
     no processes may use ptrace with ``PTRACE_ATTACH`` nor via

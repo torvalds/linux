@@ -14,6 +14,16 @@ Contents:
    dpaa2/index
    e100
    e1000
+   e1000e
+   fm10k
+   igb
+   igbvf
+   ixgb
+   ixgbe
+   ixgbevf
+   i40e
+   iavf
+   ice
    kapi
    z8530book
    msg_zerocopy

@@ -30,7 +30,6 @@ static void __hot prepare_ftrace_return(unsigned long *parent,
 					unsigned long self_addr)
 {
 	unsigned long old;
-	struct ftrace_graph_ent trace;
 	extern int parisc_return_to_handler;
 
 	if (unlikely(ftrace_graph_is_dead()))
@@ -41,19 +40,9 @@ static void __hot prepare_ftrace_return(unsigned long *parent,
 
 	old = *parent;
 
-	trace.func = self_addr;
-	trace.depth = current->curr_ret_stack + 1;
-
-	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace))
-		return;
-
-        if (ftrace_push_return_trace(old, self_addr, &trace.depth,
-				     0, NULL) == -EBUSY)
-                return;
-
-	/* activate parisc_return_to_handler() as return point */
-	*parent = (unsigned long) &parisc_return_to_handler;
+	if (!function_graph_enter(old, self_addr, 0, NULL))
+		/* activate parisc_return_to_handler() as return point */
+		*parent = (unsigned long) &parisc_return_to_handler;
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 

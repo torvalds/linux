@@ -17,9 +17,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program.
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -776,7 +773,7 @@ err:
 	return -ENOMEM;
 }
 
-static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
+int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rb_allocator *rba = &trans_pcie->rba;
@@ -1002,7 +999,7 @@ int iwl_pcie_dummy_napi_poll(struct napi_struct *napi, int budget)
 	return 0;
 }
 
-static int _iwl_pcie_rx_init(struct iwl_trans *trans)
+int _iwl_pcie_rx_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rxq *def_rxq;
@@ -1107,6 +1104,9 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 
 int iwl_pcie_gen2_rx_init(struct iwl_trans *trans)
 {
+	/* Set interrupt coalescing timer to default (2048 usecs) */
+	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
+
 	/*
 	 * We don't configure the RFH.
 	 * Restock will be done at alive, after firmware configured the RFH.
@@ -1144,6 +1144,14 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 	kfree(trans_pcie->rxq);
 }
 
+static void iwl_pcie_rx_move_to_allocator(struct iwl_rxq *rxq,
+					  struct iwl_rb_allocator *rba)
+{
+	spin_lock(&rba->lock);
+	list_splice_tail_init(&rxq->rx_used, &rba->rbd_empty);
+	spin_unlock(&rba->lock);
+}
+
 /*
  * iwl_pcie_rx_reuse_rbd - Recycle used RBDs
  *
@@ -1175,9 +1183,7 @@ static void iwl_pcie_rx_reuse_rbd(struct iwl_trans *trans,
 	if ((rxq->used_count % RX_CLAIM_REQ_ALLOC) == RX_POST_REQ_ALLOC) {
 		/* Move the 2 RBDs to the allocator ownership.
 		 Allocator has another 6 from pool for the request completion*/
-		spin_lock(&rba->lock);
-		list_splice_tail_init(&rxq->rx_used, &rba->rbd_empty);
-		spin_unlock(&rba->lock);
+		iwl_pcie_rx_move_to_allocator(rxq, rba);
 
 		atomic_inc(&rba->req_pending);
 		queue_work(rba->alloc_wq, &rba->rx_alloc);
@@ -1187,7 +1193,8 @@ static void iwl_pcie_rx_reuse_rbd(struct iwl_trans *trans,
 static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 				struct iwl_rxq *rxq,
 				struct iwl_rx_mem_buffer *rxb,
-				bool emergency)
+				bool emergency,
+				int i)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans_pcie->txq[trans_pcie->cmd_queue];
@@ -1212,6 +1219,9 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 			._page_stolen = false,
 			.truesize = max_len,
 		};
+
+		if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+			rxcb.status = rxq->cd[i].status;
 
 		pkt = rxb_addr(&rxcb);
 
@@ -1267,7 +1277,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		index = SEQ_TO_INDEX(sequence);
 		cmd_index = iwl_pcie_get_cmd_index(txq, index);
 
-		if (rxq->id == 0)
+		if (rxq->id == trans_pcie->def_rx_queue)
 			iwl_op_mode_rx(trans->op_mode, &rxq->napi,
 				       &rxcb);
 		else
@@ -1396,17 +1406,25 @@ restart:
 		IWL_DEBUG_RX(trans, "Q %d: HW = SW = %d\n", rxq->id, r);
 
 	while (i != r) {
+		struct iwl_rb_allocator *rba = &trans_pcie->rba;
 		struct iwl_rx_mem_buffer *rxb;
+		/* number of RBDs still waiting for page allocation */
+		u32 rb_pending_alloc =
+			atomic_read(&trans_pcie->rba.req_pending) *
+			RX_CLAIM_REQ_ALLOC;
 
-		if (unlikely(rxq->used_count == rxq->queue_size / 2))
+		if (unlikely(rb_pending_alloc >= rxq->queue_size / 2 &&
+			     !emergency)) {
+			iwl_pcie_rx_move_to_allocator(rxq, rba);
 			emergency = true;
+		}
 
 		rxb = iwl_pcie_get_rxb(trans, rxq, i);
 		if (!rxb)
 			goto out;
 
 		IWL_DEBUG_RX(trans, "Q %d: HW = %d, SW = %d\n", rxq->id, r, i);
-		iwl_pcie_rx_handle_rb(trans, rxq, rxb, emergency);
+		iwl_pcie_rx_handle_rb(trans, rxq, rxb, emergency, i);
 
 		i = (i + 1) & (rxq->queue_size - 1);
 
@@ -1421,17 +1439,13 @@ restart:
 			iwl_pcie_rx_allocator_get(trans, rxq);
 
 		if (rxq->used_count % RX_CLAIM_REQ_ALLOC == 0 && !emergency) {
-			struct iwl_rb_allocator *rba = &trans_pcie->rba;
-
 			/* Add the remaining empty RBDs for allocator use */
-			spin_lock(&rba->lock);
-			list_splice_tail_init(&rxq->rx_used, &rba->rbd_empty);
-			spin_unlock(&rba->lock);
+			iwl_pcie_rx_move_to_allocator(rxq, rba);
 		} else if (emergency) {
 			count++;
 			if (count == 8) {
 				count = 0;
-				if (rxq->used_count < rxq->queue_size / 3)
+				if (rb_pending_alloc < rxq->queue_size / 3)
 					emergency = false;
 
 				rxq->read = i;

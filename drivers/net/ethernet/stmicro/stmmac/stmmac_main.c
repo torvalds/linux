@@ -991,17 +991,20 @@ static int stmmac_init_phy(struct net_device *dev)
 	if ((interface == PHY_INTERFACE_MODE_MII) ||
 	    (interface == PHY_INTERFACE_MODE_RMII) ||
 		(max_speed < 1000 && max_speed > 0))
-		phydev->advertising &= ~(SUPPORTED_1000baseT_Half |
-					 SUPPORTED_1000baseT_Full);
+		phy_set_max_speed(phydev, SPEED_100);
 
 	/*
 	 * Half-duplex mode not supported with multiqueue
 	 * half-duplex can only works with single queue
 	 */
-	if (tx_cnt > 1)
-		phydev->supported &= ~(SUPPORTED_1000baseT_Half |
-				       SUPPORTED_100baseT_Half |
-				       SUPPORTED_10baseT_Half);
+	if (tx_cnt > 1) {
+		phy_remove_link_mode(phydev,
+				     ETHTOOL_LINK_MODE_10baseT_Half_BIT);
+		phy_remove_link_mode(phydev,
+				     ETHTOOL_LINK_MODE_100baseT_Half_BIT);
+		phy_remove_link_mode(phydev,
+				     ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
+	}
 
 	/*
 	 * Broken HW is sometimes missing the pull-up resistor on the
@@ -2547,12 +2550,6 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 			netdev_warn(priv->dev, "PTP init failed\n");
 	}
 
-#ifdef CONFIG_DEBUG_FS
-	ret = stmmac_init_fs(dev);
-	if (ret < 0)
-		netdev_warn(priv->dev, "%s: failed debugFS registration\n",
-			    __func__);
-#endif
 	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS;
 
 	if (priv->use_riwt) {
@@ -2752,10 +2749,6 @@ static int stmmac_release(struct net_device *dev)
 	stmmac_mac_set(priv, priv->ioaddr, false);
 
 	netif_carrier_off(dev);
-
-#ifdef CONFIG_DEBUG_FS
-	stmmac_exit_fs(dev);
-#endif
 
 	stmmac_release_ptp(priv);
 
@@ -3896,6 +3889,9 @@ static int stmmac_sysfs_ring_read(struct seq_file *seq, void *v)
 	u32 tx_count = priv->plat->tx_queues_to_use;
 	u32 queue;
 
+	if ((dev->flags & IFF_UP) == 0)
+		return 0;
+
 	for (queue = 0; queue < rx_count; queue++) {
 		struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
 
@@ -4254,6 +4250,7 @@ int stmmac_dvr_probe(struct device *device,
 	priv->wq = create_singlethread_workqueue("stmmac_wq");
 	if (!priv->wq) {
 		dev_err(priv->device, "failed to create workqueue\n");
+		ret = -ENOMEM;
 		goto error_wq;
 	}
 
@@ -4394,6 +4391,13 @@ int stmmac_dvr_probe(struct device *device,
 		goto error_netdev_register;
 	}
 
+#ifdef CONFIG_DEBUG_FS
+	ret = stmmac_init_fs(ndev);
+	if (ret < 0)
+		netdev_warn(priv->dev, "%s: failed debugFS registration\n",
+			    __func__);
+#endif
+
 	return ret;
 
 error_netdev_register:
@@ -4429,6 +4433,9 @@ int stmmac_dvr_remove(struct device *dev)
 
 	netdev_info(priv->dev, "%s: removing driver", __func__);
 
+#ifdef CONFIG_DEBUG_FS
+	stmmac_exit_fs(ndev);
+#endif
 	stmmac_stop_all_dma(priv);
 
 	stmmac_mac_set(priv, priv->ioaddr, false);

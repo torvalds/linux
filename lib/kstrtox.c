@@ -175,7 +175,7 @@ int _kstrtoul(const char *s, unsigned int base, unsigned long *res)
 	rv = kstrtoull(s, base, &tmp);
 	if (rv < 0)
 		return rv;
-	if (tmp != (unsigned long long)(unsigned long)tmp)
+	if (tmp != (unsigned long)tmp)
 		return -ERANGE;
 	*res = tmp;
 	return 0;
@@ -191,7 +191,7 @@ int _kstrtol(const char *s, unsigned int base, long *res)
 	rv = kstrtoll(s, base, &tmp);
 	if (rv < 0)
 		return rv;
-	if (tmp != (long long)(long)tmp)
+	if (tmp != (long)tmp)
 		return -ERANGE;
 	*res = tmp;
 	return 0;
@@ -222,7 +222,7 @@ int kstrtouint(const char *s, unsigned int base, unsigned int *res)
 	rv = kstrtoull(s, base, &tmp);
 	if (rv < 0)
 		return rv;
-	if (tmp != (unsigned long long)(unsigned int)tmp)
+	if (tmp != (unsigned int)tmp)
 		return -ERANGE;
 	*res = tmp;
 	return 0;
@@ -253,7 +253,7 @@ int kstrtoint(const char *s, unsigned int base, int *res)
 	rv = kstrtoll(s, base, &tmp);
 	if (rv < 0)
 		return rv;
-	if (tmp != (long long)(int)tmp)
+	if (tmp != (int)tmp)
 		return -ERANGE;
 	*res = tmp;
 	return 0;
@@ -268,7 +268,7 @@ int kstrtou16(const char *s, unsigned int base, u16 *res)
 	rv = kstrtoull(s, base, &tmp);
 	if (rv < 0)
 		return rv;
-	if (tmp != (unsigned long long)(u16)tmp)
+	if (tmp != (u16)tmp)
 		return -ERANGE;
 	*res = tmp;
 	return 0;
@@ -283,7 +283,7 @@ int kstrtos16(const char *s, unsigned int base, s16 *res)
 	rv = kstrtoll(s, base, &tmp);
 	if (rv < 0)
 		return rv;
-	if (tmp != (long long)(s16)tmp)
+	if (tmp != (s16)tmp)
 		return -ERANGE;
 	*res = tmp;
 	return 0;
@@ -298,7 +298,7 @@ int kstrtou8(const char *s, unsigned int base, u8 *res)
 	rv = kstrtoull(s, base, &tmp);
 	if (rv < 0)
 		return rv;
-	if (tmp != (unsigned long long)(u8)tmp)
+	if (tmp != (u8)tmp)
 		return -ERANGE;
 	*res = tmp;
 	return 0;
@@ -313,7 +313,7 @@ int kstrtos8(const char *s, unsigned int base, s8 *res)
 	rv = kstrtoll(s, base, &tmp);
 	if (rv < 0)
 		return rv;
-	if (tmp != (long long)(s8)tmp)
+	if (tmp != (s8)tmp)
 		return -ERANGE;
 	*res = tmp;
 	return 0;

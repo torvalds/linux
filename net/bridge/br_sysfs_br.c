@@ -303,7 +303,7 @@ static ssize_t group_addr_store(struct device *d,
 	ether_addr_copy(br->group_addr, new_addr);
 	spin_unlock_bh(&br->lock);
 
-	br->group_addr_set = true;
+	br_opt_toggle(br, BROPT_GROUP_ADDR_SET, true);
 	br_recalculate_fwd_mask(br);
 	netdev_state_change(br->dev);
 
@@ -349,7 +349,7 @@ static ssize_t multicast_snooping_show(struct device *d,
 				       char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%d\n", !br->multicast_disabled);
+	return sprintf(buf, "%d\n", br_opt_get(br, BROPT_MULTICAST_ENABLED));
 }
 
 static ssize_t multicast_snooping_store(struct device *d,
@@ -365,12 +365,13 @@ static ssize_t multicast_query_use_ifaddr_show(struct device *d,
 					       char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%d\n", br->multicast_query_use_ifaddr);
+	return sprintf(buf, "%d\n",
+		       br_opt_get(br, BROPT_MULTICAST_QUERY_USE_IFADDR));
 }
 
 static int set_query_use_ifaddr(struct net_bridge *br, unsigned long val)
 {
-	br->multicast_query_use_ifaddr = !!val;
+	br_opt_toggle(br, BROPT_MULTICAST_QUERY_USE_IFADDR, !!val);
 	return 0;
 }
 
@@ -388,7 +389,7 @@ static ssize_t multicast_querier_show(struct device *d,
 				      char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%d\n", br->multicast_querier);
+	return sprintf(buf, "%d\n", br_opt_get(br, BROPT_MULTICAST_QUERIER));
 }
 
 static ssize_t multicast_querier_store(struct device *d,
@@ -636,12 +637,13 @@ static ssize_t multicast_stats_enabled_show(struct device *d,
 {
 	struct net_bridge *br = to_bridge(d);
 
-	return sprintf(buf, "%u\n", br->multicast_stats_enabled);
+	return sprintf(buf, "%d\n",
+		       br_opt_get(br, BROPT_MULTICAST_STATS_ENABLED));
 }
 
 static int set_stats_enabled(struct net_bridge *br, unsigned long val)
 {
-	br->multicast_stats_enabled = !!val;
+	br_opt_toggle(br, BROPT_MULTICAST_STATS_ENABLED, !!val);
 	return 0;
 }
 
@@ -678,12 +680,12 @@ static ssize_t nf_call_iptables_show(
 	struct device *d, struct device_attribute *attr, char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%u\n", br->nf_call_iptables);
+	return sprintf(buf, "%u\n", br_opt_get(br, BROPT_NF_CALL_IPTABLES));
 }
 
 static int set_nf_call_iptables(struct net_bridge *br, unsigned long val)
 {
-	br->nf_call_iptables = val ? true : false;
+	br_opt_toggle(br, BROPT_NF_CALL_IPTABLES, !!val);
 	return 0;
 }
 
@@ -699,12 +701,12 @@ static ssize_t nf_call_ip6tables_show(
 	struct device *d, struct device_attribute *attr, char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%u\n", br->nf_call_ip6tables);
+	return sprintf(buf, "%u\n", br_opt_get(br, BROPT_NF_CALL_IP6TABLES));
 }
 
 static int set_nf_call_ip6tables(struct net_bridge *br, unsigned long val)
 {
-	br->nf_call_ip6tables = val ? true : false;
+	br_opt_toggle(br, BROPT_NF_CALL_IP6TABLES, !!val);
 	return 0;
 }
 
@@ -720,12 +722,12 @@ static ssize_t nf_call_arptables_show(
 	struct device *d, struct device_attribute *attr, char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%u\n", br->nf_call_arptables);
+	return sprintf(buf, "%u\n", br_opt_get(br, BROPT_NF_CALL_ARPTABLES));
 }
 
 static int set_nf_call_arptables(struct net_bridge *br, unsigned long val)
 {
-	br->nf_call_arptables = val ? true : false;
+	br_opt_toggle(br, BROPT_NF_CALL_ARPTABLES, !!val);
 	return 0;
 }
 
@@ -743,7 +745,7 @@ static ssize_t vlan_filtering_show(struct device *d,
 				   char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%d\n", br->vlan_enabled);
+	return sprintf(buf, "%d\n", br_opt_get(br, BROPT_VLAN_ENABLED));
 }
 
 static ssize_t vlan_filtering_store(struct device *d,
@@ -791,7 +793,7 @@ static ssize_t vlan_stats_enabled_show(struct device *d,
 				       char *buf)
 {
 	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%u\n", br->vlan_stats_enabled);
+	return sprintf(buf, "%u\n", br_opt_get(br, BROPT_VLAN_STATS_ENABLED));
 }
 
 static ssize_t vlan_stats_enabled_store(struct device *d,
@@ -801,6 +803,22 @@ static ssize_t vlan_stats_enabled_store(struct device *d,
 	return store_bridge_parm(d, buf, len, br_vlan_set_stats);
 }
 static DEVICE_ATTR_RW(vlan_stats_enabled);
+
+static ssize_t vlan_stats_per_port_show(struct device *d,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%u\n", br_opt_get(br, BROPT_VLAN_STATS_PER_PORT));
+}
+
+static ssize_t vlan_stats_per_port_store(struct device *d,
+					 struct device_attribute *attr,
+					 const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, br_vlan_set_stats_per_port);
+}
+static DEVICE_ATTR_RW(vlan_stats_per_port);
 #endif
 
 static struct attribute *bridge_attrs[] = {
@@ -854,6 +872,7 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_vlan_protocol.attr,
 	&dev_attr_default_pvid.attr,
 	&dev_attr_vlan_stats_enabled.attr,
+	&dev_attr_vlan_stats_per_port.attr,
 #endif
 	NULL
 };

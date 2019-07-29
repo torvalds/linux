@@ -127,20 +127,17 @@ mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 		return;
 
 	if (ioc->mfg_pg10_hide_flag ==  MFG_PAGE10_EXPOSE_ALL_DISKS) {
-		pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is disabled "
-		    "globally as drives are exposed\n", ioc->name);
+		ioc_info(ioc, "WarpDrive : Direct IO is disabled globally as drives are exposed\n");
 		return;
 	}
 	if (mpt3sas_get_num_volumes(ioc) > 1) {
 		_warpdrive_disable_ddio(ioc);
-		pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is disabled "
-		    "globally as number of drives > 1\n", ioc->name);
+		ioc_info(ioc, "WarpDrive : Direct IO is disabled globally as number of drives > 1\n");
 		return;
 	}
 	if ((mpt3sas_config_get_number_pds(ioc, raid_device->handle,
 	    &num_pds)) || !num_pds) {
-		pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is disabled "
-		    "Failure in computing number of drives\n", ioc->name);
+		ioc_info(ioc, "WarpDrive : Direct IO is disabled Failure in computing number of drives\n");
 		return;
 	}
 
@@ -148,15 +145,13 @@ mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 	    sizeof(Mpi2RaidVol0PhysDisk_t));
 	vol_pg0 = kzalloc(sz, GFP_KERNEL);
 	if (!vol_pg0) {
-		pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is disabled "
-		    "Memory allocation failure for RVPG0\n", ioc->name);
+		ioc_info(ioc, "WarpDrive : Direct IO is disabled Memory allocation failure for RVPG0\n");
 		return;
 	}
 
 	if ((mpt3sas_config_get_raid_volume_pg0(ioc, &mpi_reply, vol_pg0,
 	     MPI2_RAID_VOLUME_PGAD_FORM_HANDLE, raid_device->handle, sz))) {
-		pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is disabled "
-		    "Failure in retrieving RVPG0\n", ioc->name);
+		ioc_info(ioc, "WarpDrive : Direct IO is disabled Failure in retrieving RVPG0\n");
 		kfree(vol_pg0);
 		return;
 	}
@@ -166,10 +161,8 @@ mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 	 * assumed for WARPDRIVE, disable direct I/O
 	 */
 	if (num_pds > MPT_MAX_WARPDRIVE_PDS) {
-		pr_warn(MPT3SAS_FMT "WarpDrive : Direct IO is disabled "
-		    "for the drive with handle(0x%04x): num_mem=%d, "
-		    "max_mem_allowed=%d\n", ioc->name, raid_device->handle,
-		    num_pds, MPT_MAX_WARPDRIVE_PDS);
+		ioc_warn(ioc, "WarpDrive : Direct IO is disabled for the drive with handle(0x%04x): num_mem=%d, max_mem_allowed=%d\n",
+			 raid_device->handle, num_pds, MPT_MAX_WARPDRIVE_PDS);
 		kfree(vol_pg0);
 		return;
 	}
@@ -179,22 +172,18 @@ mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 		    vol_pg0->PhysDisk[count].PhysDiskNum) ||
 		    le16_to_cpu(pd_pg0.DevHandle) ==
 		    MPT3SAS_INVALID_DEVICE_HANDLE) {
-			pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is "
-			    "disabled for the drive with handle(0x%04x) member"
-			    "handle retrieval failed for member number=%d\n",
-			    ioc->name, raid_device->handle,
-			    vol_pg0->PhysDisk[count].PhysDiskNum);
+			ioc_info(ioc, "WarpDrive : Direct IO is disabled for the drive with handle(0x%04x) member handle retrieval failed for member number=%d\n",
+				 raid_device->handle,
+				 vol_pg0->PhysDisk[count].PhysDiskNum);
 			goto out_error;
 		}
 		/* Disable direct I/O if member drive lba exceeds 4 bytes */
 		dev_max_lba = le64_to_cpu(pd_pg0.DeviceMaxLBA);
 		if (dev_max_lba >> 32) {
-			pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is "
-			    "disabled for the drive with handle(0x%04x) member"
-			    " handle (0x%04x) unsupported max lba 0x%016llx\n",
-			    ioc->name, raid_device->handle,
-			    le16_to_cpu(pd_pg0.DevHandle),
-			    (unsigned long long)dev_max_lba);
+			ioc_info(ioc, "WarpDrive : Direct IO is disabled for the drive with handle(0x%04x) member handle (0x%04x) unsupported max lba 0x%016llx\n",
+				 raid_device->handle,
+				 le16_to_cpu(pd_pg0.DevHandle),
+				 (u64)dev_max_lba);
 			goto out_error;
 		}
 
@@ -206,41 +195,36 @@ mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 	 * not RAID0
 	 */
 	if (raid_device->volume_type != MPI2_RAID_VOL_TYPE_RAID0) {
-		pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is disabled "
-		    "for the drive with handle(0x%04x): type=%d, "
-		    "s_sz=%uK, blk_size=%u\n", ioc->name,
-		    raid_device->handle, raid_device->volume_type,
-		    (le32_to_cpu(vol_pg0->StripeSize) *
-		    le16_to_cpu(vol_pg0->BlockSize)) / 1024,
-		    le16_to_cpu(vol_pg0->BlockSize));
+		ioc_info(ioc, "WarpDrive : Direct IO is disabled for the drive with handle(0x%04x): type=%d, s_sz=%uK, blk_size=%u\n",
+			 raid_device->handle, raid_device->volume_type,
+			 (le32_to_cpu(vol_pg0->StripeSize) *
+			  le16_to_cpu(vol_pg0->BlockSize)) / 1024,
+			 le16_to_cpu(vol_pg0->BlockSize));
 		goto out_error;
 	}
 
 	stripe_sz = le32_to_cpu(vol_pg0->StripeSize);
 	stripe_exp = find_first_bit(&stripe_sz, 32);
 	if (stripe_exp == 32) {
-		pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is disabled "
-		"for the drive with handle(0x%04x) invalid stripe sz %uK\n",
-		    ioc->name, raid_device->handle,
-		    (le32_to_cpu(vol_pg0->StripeSize) *
-		    le16_to_cpu(vol_pg0->BlockSize)) / 1024);
+		ioc_info(ioc, "WarpDrive : Direct IO is disabled for the drive with handle(0x%04x) invalid stripe sz %uK\n",
+			 raid_device->handle,
+			 (le32_to_cpu(vol_pg0->StripeSize) *
+			  le16_to_cpu(vol_pg0->BlockSize)) / 1024);
 		goto out_error;
 	}
 	raid_device->stripe_exponent = stripe_exp;
 	block_sz = le16_to_cpu(vol_pg0->BlockSize);
 	block_exp = find_first_bit(&block_sz, 16);
 	if (block_exp == 16) {
-		pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is disabled "
-		    "for the drive with handle(0x%04x) invalid block sz %u\n",
-		    ioc->name, raid_device->handle,
-		    le16_to_cpu(vol_pg0->BlockSize));
+		ioc_info(ioc, "WarpDrive : Direct IO is disabled for the drive with handle(0x%04x) invalid block sz %u\n",
+			 raid_device->handle, le16_to_cpu(vol_pg0->BlockSize));
 		goto out_error;
 	}
 	raid_device->block_exponent = block_exp;
 	raid_device->direct_io_enabled = 1;
 
-	pr_info(MPT3SAS_FMT "WarpDrive : Direct IO is Enabled for the drive"
-	    " with handle(0x%04x)\n", ioc->name, raid_device->handle);
+	ioc_info(ioc, "WarpDrive : Direct IO is Enabled for the drive with handle(0x%04x)\n",
+		 raid_device->handle);
 	/*
 	 * WARPDRIVE: Though the following fields are not used for direct IO,
 	 * stored for future purpose:

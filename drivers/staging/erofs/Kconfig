@@ -78,6 +78,15 @@ config EROFS_FAULT_INJECTION
 	  Test EROFS to inject faults such as ENOMEM, EIO, and so on.
 	  If unsure, say N.
 
+config EROFS_FS_IO_MAX_RETRIES
+	int "EROFS IO Maximum Retries"
+	depends on EROFS_FS
+	default "5"
+	help
+	  Maximum retry count of IO Errors.
+
+	  If unsure, leave the default value (5 retries, 6 IOs at most).
+
 config EROFS_FS_ZIP
 	bool "EROFS Data Compresssion Support"
 	depends on EROFS_FS

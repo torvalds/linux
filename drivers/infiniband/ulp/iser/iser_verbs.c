@@ -55,7 +55,7 @@ static void iser_event_handler(struct ib_event_handler *handler,
 {
 	iser_err("async event %s (%d) on device %s port %d\n",
 		 ib_event_msg(event->event), event->event,
-		 event->device->name, event->element.port_num);
+		dev_name(&event->device->dev), event->element.port_num);
 }
 
 /**
@@ -85,7 +85,7 @@ static int iser_create_device_ib_res(struct iser_device *device)
 	max_cqe = min(ISER_MAX_CQ_LEN, ib_dev->attrs.max_cqe);
 
 	iser_info("using %d CQs, device %s supports %d vectors max_cqe %d\n",
-		  device->comps_used, ib_dev->name,
+		  device->comps_used, dev_name(&ib_dev->dev),
 		  ib_dev->num_comp_vectors, max_cqe);
 
 	device->pd = ib_alloc_pd(ib_dev,
@@ -468,7 +468,8 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 			iser_conn->max_cmds =
 				ISER_GET_MAX_XMIT_CMDS(ib_dev->attrs.max_qp_wr);
 			iser_dbg("device %s supports max_send_wr %d\n",
-				 device->ib_device->name, ib_dev->attrs.max_qp_wr);
+				 dev_name(&device->ib_device->dev),
+				 ib_dev->attrs.max_qp_wr);
 		}
 	}
 
@@ -764,7 +765,7 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 		      IB_DEVICE_SIGNATURE_HANDOVER)) {
 			iser_warn("T10-PI requested but not supported on %s, "
 				  "continue without T10-PI\n",
-				  ib_conn->device->ib_device->name);
+				  dev_name(&ib_conn->device->ib_device->dev));
 			ib_conn->pi_support = false;
 		} else {
 			ib_conn->pi_support = true;
@@ -1123,7 +1124,9 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 					 IB_MR_CHECK_SIG_STATUS, &mr_status);
 		if (ret) {
 			pr_err("ib_check_mr_status failed, ret %d\n", ret);
-			goto err;
+			/* Not a lot we can do, return ambiguous guard error */
+			*sector = 0;
+			return 0x1;
 		}
 
 		if (mr_status.fail_status & IB_MR_CHECK_SIG_STATUS) {
@@ -1151,9 +1154,6 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 	}
 
 	return 0;
-err:
-	/* Not alot we can do here, return ambiguous guard error */
-	return 0x1;
 }
 
 void iser_err_comp(struct ib_wc *wc, const char *type)

@@ -121,7 +121,22 @@ What:		/sys/fs/f2fs/<disk>/idle_interval
 Date:		January 2016
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:
-		 Controls the idle timing.
+		 Controls the idle timing for all paths other than
+		 discard and gc path.
+
+What:		/sys/fs/f2fs/<disk>/discard_idle_interval
+Date:		September 2018
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Contact:	"Sahitya Tummala" <stummala@codeaurora.org>
+Description:
+		 Controls the idle timing for discard path.
+
+What:		/sys/fs/f2fs/<disk>/gc_idle_interval
+Date:		September 2018
+Contact:	"Chao Yu" <yuchao0@huawei.com>
+Contact:	"Sahitya Tummala" <stummala@codeaurora.org>
+Description:
+		 Controls the idle timing for gc path.
 
 What:		/sys/fs/f2fs/<disk>/iostat_enable
 Date:		August 2017

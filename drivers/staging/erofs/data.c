@@ -25,7 +25,7 @@ static inline void read_endio(struct bio *bio)
 		struct page *page = bvec->bv_page;
 
 		/* page is already locked */
-		BUG_ON(PageUptodate(page));
+		DBG_BUGON(PageUptodate(page));
 
 		if (unlikely(err))
 			SetPageError(page);
@@ -39,38 +39,50 @@ static inline void read_endio(struct bio *bio)
 }
 
 /* prio -- true is used for dir */
-struct page *erofs_get_meta_page(struct super_block *sb,
-	erofs_blk_t blkaddr, bool prio)
+struct page *__erofs_get_meta_page(struct super_block *sb,
+	erofs_blk_t blkaddr, bool prio, bool nofail)
 {
-	struct inode *bd_inode = sb->s_bdev->bd_inode;
-	struct address_space *mapping = bd_inode->i_mapping;
+	struct inode *const bd_inode = sb->s_bdev->bd_inode;
+	struct address_space *const mapping = bd_inode->i_mapping;
+	/* prefer retrying in the allocator to blindly looping below */
+	const gfp_t gfp = mapping_gfp_constraint(mapping, ~__GFP_FS) |
+		(nofail ? __GFP_NOFAIL : 0);
+	unsigned int io_retries = nofail ? EROFS_IO_MAX_RETRIES_NOFAIL : 0;
 	struct page *page;
+	int err;
 
 repeat:
-	page = find_or_create_page(mapping, blkaddr,
-	/*
-	 * Prefer looping in the allocator rather than here,
-	 * at least that code knows what it's doing.
-	 */
-		mapping_gfp_constraint(mapping, ~__GFP_FS) | __GFP_NOFAIL);
-
-	BUG_ON(!page || !PageLocked(page));
+	page = find_or_create_page(mapping, blkaddr, gfp);
+	if (unlikely(page == NULL)) {
+		DBG_BUGON(nofail);
+		return ERR_PTR(-ENOMEM);
+	}
+	DBG_BUGON(!PageLocked(page));
 
 	if (!PageUptodate(page)) {
 		struct bio *bio;
-		int err;
 
-		bio = prepare_bio(sb, blkaddr, 1, read_endio);
+		bio = erofs_grab_bio(sb, blkaddr, 1, read_endio, nofail);
+		if (IS_ERR(bio)) {
+			DBG_BUGON(nofail);
+			err = PTR_ERR(bio);
+			goto err_out;
+		}
+
 		err = bio_add_page(bio, page, PAGE_SIZE, 0);
-		BUG_ON(err != PAGE_SIZE);
+		if (unlikely(err != PAGE_SIZE)) {
+			err = -EFAULT;
+			goto err_out;
+		}
 
 		__submit_bio(bio, REQ_OP_READ,
 			REQ_META | (prio ? REQ_PRIO : 0));
 
 		lock_page(page);
 
-		/* the page has been truncated by others? */
+		/* this page has been truncated by others */
 		if (unlikely(page->mapping != mapping)) {
+unlock_repeat:
 			unlock_page(page);
 			put_page(page);
 			goto repeat;
@@ -78,25 +90,32 @@ repeat:
 
 		/* more likely a read error */
 		if (unlikely(!PageUptodate(page))) {
-			unlock_page(page);
-			put_page(page);
-
-			page = ERR_PTR(-EIO);
+			if (io_retries) {
+				--io_retries;
+				goto unlock_repeat;
+			}
+			err = -EIO;
+			goto err_out;
 		}
 	}
 	return page;
+
+err_out:
+	unlock_page(page);
+	put_page(page);
+	return ERR_PTR(err);
 }
 
 static int erofs_map_blocks_flatmode(struct inode *inode,
 	struct erofs_map_blocks *map,
 	int flags)
 {
+	int err = 0;
 	erofs_blk_t nblocks, lastblk;
 	u64 offset = map->m_la;
 	struct erofs_vnode *vi = EROFS_V(inode);
 
 	trace_erofs_map_blocks_flatmode_enter(inode, map, flags);
-	BUG_ON(is_inode_layout_compression(inode));
 
 	nblocks = DIV_ROUND_UP(inode->i_size, PAGE_SIZE);
 	lastblk = nblocks - is_inode_layout_inline(inode);
@@ -123,18 +142,27 @@ static int erofs_map_blocks_flatmode(struct inode *inode,
 		map->m_plen = inode->i_size - offset;
 
 		/* inline data should locate in one meta block */
-		BUG_ON(erofs_blkoff(map->m_pa) + map->m_plen > PAGE_SIZE);
+		if (erofs_blkoff(map->m_pa) + map->m_plen > PAGE_SIZE) {
+			DBG_BUGON(1);
+			err = -EIO;
+			goto err_out;
+		}
+
 		map->m_flags |= EROFS_MAP_META;
 	} else {
 		errln("internal error @ nid: %llu (size %llu), m_la 0x%llx",
 			vi->nid, inode->i_size, map->m_la);
-		BUG();
+		DBG_BUGON(1);
+		err = -EIO;
+		goto err_out;
 	}
 
 out:
 	map->m_llen = map->m_plen;
+
+err_out:
 	trace_erofs_map_blocks_flatmode_exit(inode, map, flags, 0);
-	return 0;
+	return err;
 }
 
 #ifdef CONFIG_EROFS_FS_ZIP
@@ -183,14 +211,14 @@ static inline struct bio *erofs_read_raw_page(
 	struct address_space *mapping,
 	struct page *page,
 	erofs_off_t *last_block,
-	unsigned nblocks,
+	unsigned int nblocks,
 	bool ra)
 {
 	struct inode *inode = mapping->host;
 	erofs_off_t current_block = (erofs_off_t)page->index;
 	int err;
 
-	BUG_ON(!nblocks);
+	DBG_BUGON(!nblocks);
 
 	if (PageUptodate(page)) {
 		err = 0;
@@ -217,7 +245,7 @@ submit_bio_retry:
 			.m_la = blknr_to_addr(current_block),
 		};
 		erofs_blk_t blknr;
-		unsigned blkoff;
+		unsigned int blkoff;
 
 		err = erofs_map_blocks(inode, &map, EROFS_GET_BLOCKS_RAW);
 		if (unlikely(err))
@@ -233,7 +261,7 @@ submit_bio_retry:
 		}
 
 		/* for RAW access mode, m_plen must be equal to m_llen */
-		BUG_ON(map.m_plen != map.m_llen);
+		DBG_BUGON(map.m_plen != map.m_llen);
 
 		blknr = erofs_blknr(map.m_pa);
 		blkoff = erofs_blkoff(map.m_pa);
@@ -243,7 +271,7 @@ submit_bio_retry:
 			void *vsrc, *vto;
 			struct page *ipage;
 
-			BUG_ON(map.m_plen > PAGE_SIZE);
+			DBG_BUGON(map.m_plen > PAGE_SIZE);
 
 			ipage = erofs_get_meta_page(inode->i_sb, blknr, 0);
 
@@ -270,7 +298,7 @@ submit_bio_retry:
 		}
 
 		/* pa must be block-aligned for raw reading */
-		BUG_ON(erofs_blkoff(map.m_pa) != 0);
+		DBG_BUGON(erofs_blkoff(map.m_pa));
 
 		/* max # of continuous pages */
 		if (nblocks > DIV_ROUND_UP(map.m_plen, PAGE_SIZE))
@@ -278,7 +306,14 @@ submit_bio_retry:
 		if (nblocks > BIO_MAX_PAGES)
 			nblocks = BIO_MAX_PAGES;
 
-		bio = prepare_bio(inode->i_sb, blknr, nblocks, read_endio);
+		bio = erofs_grab_bio(inode->i_sb,
+			blknr, nblocks, read_endio, false);
+
+		if (IS_ERR(bio)) {
+			err = PTR_ERR(bio);
+			bio = NULL;
+			goto err_out;
+		}
 	}
 
 	err = bio_add_page(bio, page, PAGE_SIZE, 0);
@@ -331,13 +366,13 @@ static int erofs_raw_access_readpage(struct file *file, struct page *page)
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	BUG_ON(bio != NULL);	/* since we have only one bio -- must be NULL */
+	DBG_BUGON(bio);	/* since we have only one bio -- must be NULL */
 	return 0;
 }
 
 static int erofs_raw_access_readpages(struct file *filp,
 	struct address_space *mapping,
-	struct list_head *pages, unsigned nr_pages)
+	struct list_head *pages, unsigned int nr_pages)
 {
 	erofs_off_t last_block;
 	struct bio *bio = NULL;
@@ -369,7 +404,7 @@ static int erofs_raw_access_readpages(struct file *filp,
 		/* pages could still be locked */
 		put_page(page);
 	}
-	BUG_ON(!list_empty(pages));
+	DBG_BUGON(!list_empty(pages));
 
 	/* the rare case (end in gaps) */
 	if (unlikely(bio != NULL))

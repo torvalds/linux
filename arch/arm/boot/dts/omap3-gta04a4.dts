@@ -9,5 +9,5 @@
 #include "omap3-gta04.dtsi"
 
 / {
-	model = "Goldelico GTA04A4";
+	model = "Goldelico GTA04A4/Letux 2804";
 };

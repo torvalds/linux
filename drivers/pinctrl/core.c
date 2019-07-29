@@ -627,7 +627,7 @@ static int pinctrl_generic_group_name_to_selector(struct pinctrl_dev *pctldev,
 	while (selector < ngroups) {
 		const char *gname = ops->get_group_name(pctldev, selector);
 
-		if (!strcmp(function, gname))
+		if (gname && !strcmp(function, gname))
 			return selector;
 
 		selector++;
@@ -743,7 +743,7 @@ int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 	while (group_selector < ngroups) {
 		const char *gname = pctlops->get_group_name(pctldev,
 							    group_selector);
-		if (!strcmp(gname, pin_group)) {
+		if (gname && !strcmp(gname, pin_group)) {
 			dev_dbg(pctldev->dev,
 				"found group selector %u for %s\n",
 				group_selector,

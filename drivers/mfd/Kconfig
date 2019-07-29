@@ -99,6 +99,15 @@ config MFD_AAT2870_CORE
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
+config MFD_AT91_USART
+	tristate "AT91 USART Driver"
+	select MFD_CORE
+	help
+	  Select this to get support for AT91 USART IP. This is a wrapper
+	  over at91-usart-serial driver and usart-spi-driver. Only one function
+	  can be used at a time. The choice is done at boot time by the probe
+	  function of this MFD driver according to a device tree property.
+
 config MFD_ATMEL_FLEXCOM
 	tristate "Atmel Flexcom (Flexible Serial Communication Unit)"
 	select MFD_CORE
@@ -1023,16 +1032,23 @@ config MFD_RN5T618
 	  functionality of the device.
 
 config MFD_SEC_CORE
-	bool "SAMSUNG Electronics PMIC Series Support"
+	tristate "SAMSUNG Electronics PMIC Series Support"
 	depends on I2C=y
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	help
-	 Support for the Samsung Electronics MFD series.
-	 This driver provides common support for accessing the device,
-	 additional drivers must be enabled in order to use the functionality
-	 of the device
+	  Support for the Samsung Electronics PMIC devices coming
+	  usually along with Samsung Exynos SoC chipset.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sec-core.
+	  Have in mind that important core drivers (like regulators) depend
+	  on this driver so building this as a module might require proper
+	  initial ramdisk or might not boot up as well in certain scenarios.
 
 config MFD_SI476X_CORE
 	tristate "Silicon Laboratories 4761/64/68 AM/FM radio."

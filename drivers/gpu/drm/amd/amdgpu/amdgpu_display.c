@@ -626,6 +626,13 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 					 "dither",
 					 amdgpu_dither_enum_list, sz);
 
+	if (amdgpu_device_has_dc_support(adev)) {
+		adev->mode_info.max_bpc_property =
+			drm_property_create_range(adev->ddev, 0, "max bpc", 8, 16);
+		if (!adev->mode_info.max_bpc_property)
+			return -ENOMEM;
+	}
+
 	return 0;
 }
 

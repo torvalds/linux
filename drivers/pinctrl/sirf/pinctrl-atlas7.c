@@ -19,14 +19,13 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_irq.h>
-#include <linux/of_gpio.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinconf-generic.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 /* Definition of Pad&Mux Properties */
 #define N 0
@@ -5540,14 +5539,10 @@ static int atlas7_pinmux_resume_noirq(struct device *dev)
 {
 	struct atlas7_pmx *pmx = dev_get_drvdata(dev);
 	struct atlas7_pad_status *status;
-	struct atlas7_pad_config *conf;
 	int idx;
-	u32 bank;
 
 	for (idx = 0; idx < pmx->pctl_desc.npins; idx++) {
 		/* Get this Pad's descriptor from PINCTRL */
-		conf = &pmx->pctl_data->confs[idx];
-		bank = atlas7_pin_to_bank(idx);
 		status = &pmx->sleep_data[idx];
 
 		/* Restore Function selector */
@@ -6058,8 +6053,8 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 	ret = gpiochip_add_data(chip, a7gc);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"%s: error in probe function with status %d\n",
-			np->name, ret);
+			"%pOF: error in probe function with status %d\n",
+			np, ret);
 		goto failed;
 	}
 

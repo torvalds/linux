@@ -58,6 +58,8 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_GET_GLOBAL_QPN   = 102,
 
+	HINIC_PORT_CMD_SET_TSO          = 112,
+
 	HINIC_PORT_CMD_GET_CAP          = 170,
 };
 

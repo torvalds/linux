@@ -23,6 +23,7 @@
 
 #include "hwmgr.h"
 #include "vega10_hwmgr.h"
+#include "vega10_smumgr.h"
 #include "vega10_powertune.h"
 #include "vega10_ppsmc.h"
 #include "vega10_inc.h"

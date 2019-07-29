@@ -765,7 +765,7 @@ static int sst_soc_prepare(struct device *dev)
 	snd_soc_poweroff(drv->soc_card->dev);
 
 	/* set the SSPs to idle */
-	list_for_each_entry(rtd, &drv->soc_card->rtd_list, list) {
+	for_each_card_rtds(drv->soc_card, rtd) {
 		struct snd_soc_dai *dai = rtd->cpu_dai;
 
 		if (dai->active) {
@@ -786,7 +786,7 @@ static void sst_soc_complete(struct device *dev)
 		return;
 
 	/* restart SSPs */
-	list_for_each_entry(rtd, &drv->soc_card->rtd_list, list) {
+	for_each_card_rtds(drv->soc_card, rtd) {
 		struct snd_soc_dai *dai = rtd->cpu_dai;
 
 		if (dai->active) {

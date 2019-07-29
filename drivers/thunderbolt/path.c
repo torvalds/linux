@@ -13,19 +13,19 @@
 
 static void tb_dump_hop(struct tb_port *port, struct tb_regs_hop *hop)
 {
-	tb_port_info(port, " Hop through port %d to hop %d (%s)\n",
-		     hop->out_port, hop->next_hop,
-		     hop->enable ? "enabled" : "disabled");
-	tb_port_info(port, "  Weight: %d Priority: %d Credits: %d Drop: %d\n",
-		     hop->weight, hop->priority,
-		     hop->initial_credits, hop->drop_packages);
-	tb_port_info(port, "   Counter enabled: %d Counter index: %d\n",
-		     hop->counter_enable, hop->counter);
-	tb_port_info(port, "  Flow Control (In/Eg): %d/%d Shared Buffer (In/Eg): %d/%d\n",
-		     hop->ingress_fc, hop->egress_fc,
-		     hop->ingress_shared_buffer, hop->egress_shared_buffer);
-	tb_port_info(port, "  Unknown1: %#x Unknown2: %#x Unknown3: %#x\n",
-		     hop->unknown1, hop->unknown2, hop->unknown3);
+	tb_port_dbg(port, " Hop through port %d to hop %d (%s)\n",
+		    hop->out_port, hop->next_hop,
+		    hop->enable ? "enabled" : "disabled");
+	tb_port_dbg(port, "  Weight: %d Priority: %d Credits: %d Drop: %d\n",
+		    hop->weight, hop->priority,
+		    hop->initial_credits, hop->drop_packages);
+	tb_port_dbg(port, "   Counter enabled: %d Counter index: %d\n",
+		    hop->counter_enable, hop->counter);
+	tb_port_dbg(port, "  Flow Control (In/Eg): %d/%d Shared Buffer (In/Eg): %d/%d\n",
+		    hop->ingress_fc, hop->egress_fc,
+		    hop->ingress_shared_buffer, hop->egress_shared_buffer);
+	tb_port_dbg(port, "  Unknown1: %#x Unknown2: %#x Unknown3: %#x\n",
+		    hop->unknown1, hop->unknown2, hop->unknown3);
 }
 
 /**

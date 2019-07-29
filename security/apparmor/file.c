@@ -496,7 +496,7 @@ static void update_file_ctx(struct aa_file_ctx *fctx, struct aa_label *label,
 	/* update caching of label on file_ctx */
 	spin_lock(&fctx->lock);
 	old = rcu_dereference_protected(fctx->label,
-					spin_is_locked(&fctx->lock));
+					lockdep_is_held(&fctx->lock));
 	l = aa_label_merge(old, label, GFP_ATOMIC);
 	if (l) {
 		if (l != old) {

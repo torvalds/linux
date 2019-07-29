@@ -35,7 +35,7 @@
 #include <sound/core.h>
 #include <sound/initval.h>
 
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include "hda_controller.h"
 
 /* Defines for Nvidia Tegra HDA support */
@@ -97,19 +97,6 @@ static int dma_alloc_pages(struct hdac_bus *bus, int type, size_t size,
 static void dma_free_pages(struct hdac_bus *bus, struct snd_dma_buffer *buf)
 {
 	snd_dma_free_pages(buf);
-}
-
-static int substream_alloc_pages(struct azx *chip,
-				 struct snd_pcm_substream *substream,
-				 size_t size)
-{
-	return snd_pcm_lib_malloc_pages(substream, size);
-}
-
-static int substream_free_pages(struct azx *chip,
-				struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 /*
@@ -180,10 +167,7 @@ static const struct hdac_io_ops hda_tegra_io_ops = {
 	.dma_free_pages = dma_free_pages,
 };
 
-static const struct hda_controller_ops hda_tegra_ops = {
-	.substream_alloc_pages = substream_alloc_pages,
-	.substream_free_pages = substream_free_pages,
-};
+static const struct hda_controller_ops hda_tegra_ops; /* nothing special */
 
 static void hda_tegra_init(struct hda_tegra *hda)
 {

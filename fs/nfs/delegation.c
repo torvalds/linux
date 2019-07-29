@@ -93,7 +93,7 @@ int nfs4_check_delegation(struct inode *inode, fmode_t flags)
 	return nfs4_do_check_delegation(inode, flags, false);
 }
 
-static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_state *state, const nfs4_stateid *stateid)
+static int nfs_delegation_claim_locks(struct nfs4_state *state, const nfs4_stateid *stateid)
 {
 	struct inode *inode = state->inode;
 	struct file_lock *fl;
@@ -108,7 +108,7 @@ static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_
 	spin_lock(&flctx->flc_lock);
 restart:
 	list_for_each_entry(fl, list, fl_list) {
-		if (nfs_file_open_context(fl->fl_file) != ctx)
+		if (nfs_file_open_context(fl->fl_file)->state != state)
 			continue;
 		spin_unlock(&flctx->flc_lock);
 		status = nfs4_lock_delegation_recall(fl, state, stateid);
@@ -136,8 +136,8 @@ static int nfs_delegation_claim_opens(struct inode *inode,
 	int err;
 
 again:
-	spin_lock(&inode->i_lock);
-	list_for_each_entry(ctx, &nfsi->open_files, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(ctx, &nfsi->open_files, list) {
 		state = ctx->state;
 		if (state == NULL)
 			continue;
@@ -147,15 +147,16 @@ again:
 			continue;
 		if (!nfs4_stateid_match(&state->stateid, stateid))
 			continue;
-		get_nfs_open_context(ctx);
-		spin_unlock(&inode->i_lock);
+		if (!get_nfs_open_context(ctx))
+			continue;
+		rcu_read_unlock();
 		sp = state->owner;
 		/* Block nfs4_proc_unlck */
 		mutex_lock(&sp->so_delegreturn_mutex);
 		seq = raw_seqcount_begin(&sp->so_reclaim_seqcount);
 		err = nfs4_open_delegation_recall(ctx, state, stateid, type);
 		if (!err)
-			err = nfs_delegation_claim_locks(ctx, state, stateid);
+			err = nfs_delegation_claim_locks(state, stateid);
 		if (!err && read_seqcount_retry(&sp->so_reclaim_seqcount, seq))
 			err = -EAGAIN;
 		mutex_unlock(&sp->so_delegreturn_mutex);
@@ -164,7 +165,7 @@ again:
 			return err;
 		goto again;
 	}
-	spin_unlock(&inode->i_lock);
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -849,16 +850,23 @@ nfs_delegation_find_inode_server(struct nfs_server *server,
 				 const struct nfs_fh *fhandle)
 {
 	struct nfs_delegation *delegation;
-	struct inode *res = NULL;
+	struct inode *freeme, *res = NULL;
 
 	list_for_each_entry_rcu(delegation, &server->delegations, super_list) {
 		spin_lock(&delegation->lock);
 		if (delegation->inode != NULL &&
 		    nfs_compare_fh(fhandle, &NFS_I(delegation->inode)->fh) == 0) {
-			res = igrab(delegation->inode);
+			freeme = igrab(delegation->inode);
+			if (freeme && nfs_sb_active(freeme->i_sb))
+				res = freeme;
 			spin_unlock(&delegation->lock);
 			if (res != NULL)
 				return res;
+			if (freeme) {
+				rcu_read_unlock();
+				iput(freeme);
+				rcu_read_lock();
+			}
 			return ERR_PTR(-EAGAIN);
 		}
 		spin_unlock(&delegation->lock);

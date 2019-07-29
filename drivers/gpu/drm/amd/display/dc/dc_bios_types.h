@@ -41,37 +41,16 @@
 struct dc_vbios_funcs {
 	uint8_t (*get_connectors_number)(struct dc_bios *bios);
 
-	struct graphics_object_id (*get_encoder_id)(
-		struct dc_bios *bios,
-		uint32_t i);
 	struct graphics_object_id (*get_connector_id)(
 		struct dc_bios *bios,
 		uint8_t connector_index);
-	uint32_t (*get_dst_number)(
-		struct dc_bios *bios,
-		struct graphics_object_id id);
-
 	enum bp_result (*get_src_obj)(
 		struct dc_bios *bios,
 		struct graphics_object_id object_id, uint32_t index,
 		struct graphics_object_id *src_object_id);
-	enum bp_result (*get_dst_obj)(
-		struct dc_bios *bios,
-		struct graphics_object_id object_id, uint32_t index,
-		struct graphics_object_id *dest_object_id);
-
 	enum bp_result (*get_i2c_info)(
 		struct dc_bios *dcb,
 		struct graphics_object_id id,
-		struct graphics_object_i2c_info *info);
-
-	enum bp_result (*get_voltage_ddc_info)(
-		struct dc_bios *bios,
-		uint32_t index,
-		struct graphics_object_i2c_info *info);
-	enum bp_result (*get_thermal_ddc_info)(
-		struct dc_bios *bios,
-		uint32_t i2c_channel_id,
 		struct graphics_object_i2c_info *info);
 	enum bp_result (*get_hpd_info)(
 		struct dc_bios *bios,
@@ -105,35 +84,8 @@ struct dc_vbios_funcs {
 		struct graphics_object_id object_id,
 		struct bp_encoder_cap_info *info);
 
-	bool (*is_lid_status_changed)(
-		struct dc_bios *bios);
-	bool (*is_display_config_changed)(
-		struct dc_bios *bios);
 	bool (*is_accelerated_mode)(
 		struct dc_bios *bios);
-	uint32_t (*get_vga_enabled_displays)(
-		struct dc_bios *bios);
-	void (*get_bios_event_info)(
-		struct dc_bios *bios,
-		struct bios_event_info *info);
-	void (*update_requested_backlight_level)(
-		struct dc_bios *bios,
-		uint32_t backlight_8bit);
-	uint32_t (*get_requested_backlight_level)(
-		struct dc_bios *bios);
-	void (*take_backlight_control)(
-		struct dc_bios *bios,
-		bool cntl);
-
-	bool (*is_active_display)(
-		struct dc_bios *bios,
-		enum signal_type signal,
-		const struct connector_device_tag_info *device_tag);
-	enum controller_id (*get_embedded_display_controller_id)(
-		struct dc_bios *bios);
-	uint32_t (*get_embedded_display_refresh_rate)(
-		struct dc_bios *bios);
-
 	void (*set_scratch_critical_state)(
 		struct dc_bios *bios,
 		bool state);
@@ -149,11 +101,6 @@ struct dc_vbios_funcs {
 	enum bp_result (*transmitter_control)(
 		struct dc_bios *bios,
 		struct bp_transmitter_control *cntl);
-	enum bp_result (*crt_control)(
-		struct dc_bios *bios,
-		enum engine_id engine_id,
-		bool enable,
-		uint32_t pixel_clock);
 	enum bp_result (*enable_crtc)(
 		struct dc_bios *bios,
 		enum controller_id id,
@@ -167,8 +114,6 @@ struct dc_vbios_funcs {
 	enum bp_result (*set_dce_clock)(
 		struct dc_bios *bios,
 		struct bp_set_dce_clock_parameters *bp_params);
-	unsigned int (*get_smu_clock_info)(
-		struct dc_bios *bios);
 	enum bp_result (*enable_spread_spectrum_on_ppll)(
 		struct dc_bios *bios,
 		struct bp_spread_spectrum_parameters *bp_params,
@@ -183,19 +128,10 @@ struct dc_vbios_funcs {
 	enum bp_result (*program_display_engine_pll)(
 		struct dc_bios *bios,
 		struct bp_pixel_clock_parameters *bp_params);
-
-	enum signal_type (*dac_load_detect)(
-		struct dc_bios *bios,
-		struct graphics_object_id encoder,
-		struct graphics_object_id connector,
-		enum signal_type display_signal);
-
 	enum bp_result (*enable_disp_power_gating)(
 		struct dc_bios *bios,
 		enum controller_id controller_id,
 		enum bp_pipe_control_action action);
-
-	void (*post_init)(struct dc_bios *bios);
 
 	void (*bios_parser_destroy)(struct dc_bios **dcb);
 

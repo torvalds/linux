@@ -2201,6 +2201,26 @@
 #       define EVERGREEN_GRPH_ENDIAN_8IN16              1
 #       define EVERGREEN_GRPH_ENDIAN_8IN32              2
 #       define EVERGREEN_GRPH_ENDIAN_8IN64              3
+#define EVERGREEN_GRPH_RED_CROSSBAR(x)           (((x) & 0x3) << 4)
+#       define EVERGREEN_GRPH_RED_SEL_R                 0
+#       define EVERGREEN_GRPH_RED_SEL_G                 1
+#       define EVERGREEN_GRPH_RED_SEL_B                 2
+#       define EVERGREEN_GRPH_RED_SEL_A                 3
+#define EVERGREEN_GRPH_GREEN_CROSSBAR(x)         (((x) & 0x3) << 6)
+#       define EVERGREEN_GRPH_GREEN_SEL_G               0
+#       define EVERGREEN_GRPH_GREEN_SEL_B               1
+#       define EVERGREEN_GRPH_GREEN_SEL_A               2
+#       define EVERGREEN_GRPH_GREEN_SEL_R               3
+#define EVERGREEN_GRPH_BLUE_CROSSBAR(x)          (((x) & 0x3) << 8)
+#       define EVERGREEN_GRPH_BLUE_SEL_B                0
+#       define EVERGREEN_GRPH_BLUE_SEL_A                1
+#       define EVERGREEN_GRPH_BLUE_SEL_R                2
+#       define EVERGREEN_GRPH_BLUE_SEL_G                3
+#define EVERGREEN_GRPH_ALPHA_CROSSBAR(x)         (((x) & 0x3) << 10)
+#       define EVERGREEN_GRPH_ALPHA_SEL_A               0
+#       define EVERGREEN_GRPH_ALPHA_SEL_R               1
+#       define EVERGREEN_GRPH_ALPHA_SEL_G               2
+#       define EVERGREEN_GRPH_ALPHA_SEL_B               3
 
 #define EVERGREEN_D3VGA_CONTROL                         0xf8
 #define EVERGREEN_D4VGA_CONTROL                         0xf9

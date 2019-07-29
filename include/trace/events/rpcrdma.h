@@ -263,7 +263,7 @@ DECLARE_EVENT_CLASS(xprtrdma_mr,
 );
 
 #define DEFINE_MR_EVENT(name) \
-		DEFINE_EVENT(xprtrdma_mr, name, \
+		DEFINE_EVENT(xprtrdma_mr, xprtrdma_mr_##name, \
 				TP_PROTO( \
 					const struct rpcrdma_mr *mr \
 				), \
@@ -306,7 +306,7 @@ DECLARE_EVENT_CLASS(xprtrdma_cb_event,
  ** Connection events
  **/
 
-TRACE_EVENT(xprtrdma_conn_upcall,
+TRACE_EVENT(xprtrdma_cm_event,
 	TP_PROTO(
 		const struct rpcrdma_xprt *r_xprt,
 		struct rdma_cm_event *event
@@ -377,7 +377,7 @@ DEFINE_RXPRT_EVENT(xprtrdma_reinsert);
 DEFINE_RXPRT_EVENT(xprtrdma_reconnect);
 DEFINE_RXPRT_EVENT(xprtrdma_inject_dsc);
 
-TRACE_EVENT(xprtrdma_qp_error,
+TRACE_EVENT(xprtrdma_qp_event,
 	TP_PROTO(
 		const struct rpcrdma_xprt *r_xprt,
 		const struct ib_event *event
@@ -509,7 +509,7 @@ TRACE_EVENT(xprtrdma_post_send,
 	TP_STRUCT__entry(
 		__field(const void *, req)
 		__field(int, num_sge)
-		__field(bool, signaled)
+		__field(int, signaled)
 		__field(int, status)
 	),
 
@@ -651,11 +651,11 @@ DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_fastreg);
 DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li);
 DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li_wake);
 
-DEFINE_MR_EVENT(xprtrdma_localinv);
-DEFINE_MR_EVENT(xprtrdma_dma_map);
-DEFINE_MR_EVENT(xprtrdma_dma_unmap);
-DEFINE_MR_EVENT(xprtrdma_remoteinv);
-DEFINE_MR_EVENT(xprtrdma_recover_mr);
+DEFINE_MR_EVENT(localinv);
+DEFINE_MR_EVENT(map);
+DEFINE_MR_EVENT(unmap);
+DEFINE_MR_EVENT(remoteinv);
+DEFINE_MR_EVENT(recycle);
 
 /**
  ** Reply events

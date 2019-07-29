@@ -14,7 +14,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mfd/tmio.h>
-#include <linux/mtd/rawnand.h>
+#include <linux/mtd/platnand.h>
 #include <linux/i2c.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -165,23 +165,21 @@ static struct mtd_partition migor_nand_flash_partitions[] = {
 	},
 };
 
-static void migor_nand_flash_cmd_ctl(struct mtd_info *mtd, int cmd,
+static void migor_nand_flash_cmd_ctl(struct nand_chip *chip, int cmd,
 				     unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-
 	if (cmd == NAND_CMD_NONE)
 		return;
 
 	if (ctrl & NAND_CLE)
-		writeb(cmd, chip->IO_ADDR_W + 0x00400000);
+		writeb(cmd, chip->legacy.IO_ADDR_W + 0x00400000);
 	else if (ctrl & NAND_ALE)
-		writeb(cmd, chip->IO_ADDR_W + 0x00800000);
+		writeb(cmd, chip->legacy.IO_ADDR_W + 0x00800000);
 	else
-		writeb(cmd, chip->IO_ADDR_W);
+		writeb(cmd, chip->legacy.IO_ADDR_W);
 }
 
-static int migor_nand_flash_ready(struct mtd_info *mtd)
+static int migor_nand_flash_ready(struct nand_chip *chip)
 {
 	return gpio_get_value(GPIO_PTA1); /* NAND_RBn */
 }

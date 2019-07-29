@@ -2,25 +2,24 @@
 // Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
 // Copyright (c) 2018, Linaro Limited
 
-#include <linux/slab.h>
-#include <linux/wait.h>
-#include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/module.h>
-#include <linux/sched.h>
 #include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/kref.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/kref.h>
-#include <linux/wait.h>
-#include <linux/soc/qcom/apr.h>
 #include <linux/platform_device.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/soc/qcom/apr.h>
+#include <linux/wait.h>
 #include <sound/asound.h>
 #include "q6adm.h"
 #include "q6afe.h"
 #include "q6core.h"
-#include "q6dsp-errno.h"
 #include "q6dsp-common.h"
+#include "q6dsp-errno.h"
 
 #define ADM_CMD_DEVICE_OPEN_V5		0x00010326
 #define ADM_CMDRSP_DEVICE_OPEN_V5	0x00010329

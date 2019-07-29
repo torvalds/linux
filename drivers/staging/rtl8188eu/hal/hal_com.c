@@ -45,9 +45,8 @@ void dump_chip_info(struct HAL_VERSION	chip_vers)
 #define	CHAN_PLAN_HW	0x80
 
 /* return the final channel plan decision */
-u8 hal_com_get_channel_plan(struct adapter *padapter, u8 hw_channel_plan,
-			    u8 sw_channel_plan, u8 def_channel_plan,
-			    bool load_fail)
+u8 hal_com_get_channel_plan(u8 hw_channel_plan, u8 sw_channel_plan,
+			    u8 def_channel_plan, bool load_fail)
 {
 	u8 sw_cfg;
 	u8 chnlplan;
@@ -119,7 +118,7 @@ u8 MRateToHwRate(u8 rate)
 	return ret;
 }
 
-void HalSetBrateCfg(struct adapter *adapt, u8 *brates, u16 *rate_cfg)
+void hal_set_brate_cfg(u8 *brates, u16 *rate_cfg)
 {
 	u8 i, is_brate, brate;
 
@@ -263,10 +262,10 @@ static void three_out_pipe(struct adapter *adapter, bool wifi_cfg)
 	}
 }
 
-bool Hal_MappingOutPipe(struct adapter *adapter, u8 numoutpipe)
+bool hal_mapping_out_pipe(struct adapter *adapter, u8 numoutpipe)
 {
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
-	bool  wifi_cfg = (pregistrypriv->wifi_spec) ? true : false;
+	bool wifi_cfg = (pregistrypriv->wifi_spec) ? true : false;
 	bool result = true;
 
 	switch (numoutpipe) {

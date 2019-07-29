@@ -447,7 +447,6 @@ struct usb_usbvision {
 	unsigned long isoc_skip_count;			/* How many empty ISO packets received */
 	unsigned long isoc_err_count;			/* How many bad ISO packets received */
 	unsigned long isoc_packet_count;		/* How many packets we totally got */
-	unsigned long time_in_irq;			/* How long do we need for interrupt */
 	int isoc_measure_bandwidth_count;
 	int frame_num;					/* How many video frames we send to user */
 	int max_strip_len;				/* How big is the biggest strip */

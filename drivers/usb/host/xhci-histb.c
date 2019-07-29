@@ -325,14 +325,16 @@ static int xhci_histb_remove(struct platform_device *dev)
 	struct xhci_hcd_histb *histb = platform_get_drvdata(dev);
 	struct usb_hcd *hcd = histb->hcd;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	struct usb_hcd *shared_hcd = xhci->shared_hcd;
 
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
 
-	usb_remove_hcd(xhci->shared_hcd);
+	usb_remove_hcd(shared_hcd);
+	xhci->shared_hcd = NULL;
 	device_wakeup_disable(&dev->dev);
 
 	usb_remove_hcd(hcd);
-	usb_put_hcd(xhci->shared_hcd);
+	usb_put_hcd(shared_hcd);
 
 	xhci_histb_host_disable(histb);
 	usb_put_hcd(hcd);

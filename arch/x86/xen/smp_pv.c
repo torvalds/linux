@@ -22,6 +22,7 @@
 #include <linux/tick.h>
 #include <linux/nmi.h>
 #include <linux/cpuhotplug.h>
+#include <linux/stackprotector.h>
 
 #include <asm/paravirt.h>
 #include <asm/desc.h>
@@ -88,6 +89,7 @@ static void cpu_bringup(void)
 asmlinkage __visible void cpu_bringup_and_idle(void)
 {
 	cpu_bringup();
+	boot_init_stack_canary();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 

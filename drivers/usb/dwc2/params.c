@@ -81,6 +81,7 @@ static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
 	p->host_perio_tx_fifo_size = 256;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
 		GAHBCFG_HBSTLEN_SHIFT;
+	p->power_down = 0;
 }
 
 static void dwc2_set_ltq_params(struct dwc2_hsotg *hsotg)
@@ -299,9 +300,12 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	p->hird_threshold_en = true;
 	p->hird_threshold = 4;
 	p->ipg_isoc_en = false;
+	p->service_interval = false;
 	p->max_packet_count = hw->max_packet_count;
 	p->max_transfer_size = hw->max_transfer_size;
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR << GAHBCFG_HBSTLEN_SHIFT;
+	p->ref_clk_per = 33333;
+	p->sof_cnt_wkup_alert = 100;
 
 	if ((hsotg->dr_mode == USB_DR_MODE_HOST) ||
 	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
@@ -592,6 +596,7 @@ static void dwc2_check_params(struct dwc2_hsotg *hsotg)
 	CHECK_BOOL(besl, (hsotg->hw_params.snpsid >= DWC2_CORE_REV_3_00a));
 	CHECK_BOOL(hird_threshold_en, hsotg->params.lpm);
 	CHECK_RANGE(hird_threshold, 0, hsotg->params.besl ? 12 : 7, 0);
+	CHECK_BOOL(service_interval, hw->service_interval_mode);
 	CHECK_RANGE(max_packet_count,
 		    15, hw->max_packet_count,
 		    hw->max_packet_count);
@@ -780,6 +785,8 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 				  GHWCFG4_UTMI_PHY_DATA_WIDTH_SHIFT;
 	hw->acg_enable = !!(hwcfg4 & GHWCFG4_ACG_SUPPORTED);
 	hw->ipg_isoc_en = !!(hwcfg4 & GHWCFG4_IPG_ISOC_SUPPORTED);
+	hw->service_interval_mode = !!(hwcfg4 &
+				       GHWCFG4_SERVICE_INTERVAL_SUPPORTED);
 
 	/* fifo sizes */
 	hw->rx_fifo_size = (grxfsiz & GRXFSIZ_DEPTH_MASK) >>

@@ -1660,8 +1660,7 @@ module_init(netback_init);
 static void __exit netback_fini(void)
 {
 #ifdef CONFIG_DEBUG_FS
-	if (!IS_ERR_OR_NULL(xen_netback_dbg_root))
-		debugfs_remove_recursive(xen_netback_dbg_root);
+	debugfs_remove_recursive(xen_netback_dbg_root);
 #endif /* CONFIG_DEBUG_FS */
 	xenvif_xenbus_fini();
 }

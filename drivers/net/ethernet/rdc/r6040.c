@@ -1024,16 +1024,8 @@ static int r6040_mii_probe(struct net_device *dev)
 		return PTR_ERR(phydev);
 	}
 
-	/* mask with MAC supported features */
-	phydev->supported &= (SUPPORTED_10baseT_Half
-				| SUPPORTED_10baseT_Full
-				| SUPPORTED_100baseT_Half
-				| SUPPORTED_100baseT_Full
-				| SUPPORTED_Autoneg
-				| SUPPORTED_MII
-				| SUPPORTED_TP);
+	phy_set_max_speed(phydev, SPEED_100);
 
-	phydev->advertising = phydev->supported;
 	lp->old_link = 0;
 	lp->old_duplex = -1;
 

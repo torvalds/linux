@@ -227,26 +227,6 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 	  load time (assuming you build diskonchip as a module) with the module
 	  parameter "inftl_bbt_write=1".
 
-config MTD_NAND_DOCG4
-	tristate "Support for DiskOnChip G4"
-	depends on HAS_IOMEM
-	select BCH
-	select BITREVERSE
-	help
-	  Support for diskonchip G4 nand flash, found in various smartphones and
-	  PDAs, among them the Palm Treo680, HTC Prophet and Wizard, Toshiba
-	  Portege G900, Asus P526, and O2 XDA Zinc.
-
-	  With this driver you will be able to use UBI and create a ubifs on the
-	  device, so you may wish to consider enabling UBI and UBIFS as well.
-
-	  These devices ship with the Mys/Sandisk SAFTL formatting, for which
-	  there is currently no mtd parser, so you may want to use command line
-	  partitioning to segregate write-protected blocks. On the Treo680, the
-	  first five erase blocks (256KiB each) are write-protected, followed
-	  by the block containing the saftl partition table.  This is probably
-	  typical.
-
 config MTD_NAND_SHARPSL
 	tristate "Support for NAND Flash on Sharp SL Series (C7xx + others)"
 	depends on ARCH_PXA || COMPILE_TEST

@@ -3,7 +3,6 @@ config ZRAM
 	tristate "Compressed RAM block device support"
 	depends on BLOCK && SYSFS && ZSMALLOC && CRYPTO
 	select CRYPTO_LZO
-	default n
 	help
 	  Creates virtual block devices called /dev/zramX (X = 0, 1, ...).
 	  Pages written to these disks are compressed and stored in memory
@@ -18,7 +17,6 @@ config ZRAM
 config ZRAM_WRITEBACK
        bool "Write back incompressible page to backing device"
        depends on ZRAM
-       default n
        help
 	 With incompressible page, there is no memory saving to keep it
 	 in memory. Instead, write it out to backing device.

@@ -13,6 +13,7 @@
  ******************************************************************************/
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 
@@ -807,7 +808,7 @@ __vxge_hw_vpath_fw_ver_get(struct __vxge_hw_virtualpath *vpath,
 	struct vxge_hw_device_date *fw_date = &hw_info->fw_date;
 	struct vxge_hw_device_version *flash_version = &hw_info->flash_version;
 	struct vxge_hw_device_date *flash_date = &hw_info->flash_date;
-	u64 data0, data1 = 0, steer_ctrl = 0;
+	u64 data0 = 0, data1 = 0, steer_ctrl = 0;
 	enum vxge_hw_status status;
 
 	status = vxge_hw_vpath_fw_api(vpath,

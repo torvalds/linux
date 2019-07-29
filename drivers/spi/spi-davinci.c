@@ -208,13 +208,11 @@ static inline void clear_io_bits(void __iomem *addr, u32 bits)
 static void davinci_spi_chipselect(struct spi_device *spi, int value)
 {
 	struct davinci_spi *dspi;
-	struct davinci_spi_platform_data *pdata;
 	struct davinci_spi_config *spicfg = spi->controller_data;
 	u8 chip_sel = spi->chip_select;
 	u16 spidat1 = CS_DEFAULT;
 
 	dspi = spi_master_get_devdata(spi->master);
-	pdata = &dspi->pdata;
 
 	/* program delay transfers if tx_delay is non zero */
 	if (spicfg && spicfg->wdelay)
@@ -232,7 +230,8 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 				!(spi->mode & SPI_CS_HIGH));
 	} else {
 		if (value == BITBANG_CS_ACTIVE) {
-			spidat1 |= SPIDAT1_CSHOLD_MASK;
+			if (!(spi->mode & SPI_CS_WORD))
+				spidat1 |= SPIDAT1_CSHOLD_MASK;
 			spidat1 &= ~(0x1 << chip_sel);
 		}
 	}
@@ -421,23 +420,14 @@ static int davinci_spi_setup(struct spi_device *spi)
 {
 	int retval = 0;
 	struct davinci_spi *dspi;
-	struct davinci_spi_platform_data *pdata;
 	struct spi_master *master = spi->master;
 	struct device_node *np = spi->dev.of_node;
 	bool internal_cs = true;
 
 	dspi = spi_master_get_devdata(spi->master);
-	pdata = &dspi->pdata;
 
 	if (!(spi->mode & SPI_NO_CS)) {
 		if (np && (master->cs_gpios != NULL) && (spi->cs_gpio >= 0)) {
-			retval = gpio_direction_output(
-				      spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
-			internal_cs = false;
-		} else if (pdata->chip_sel &&
-			   spi->chip_select < pdata->num_chipselect &&
-			   pdata->chip_sel[spi->chip_select] != SPI_INTERN_CS) {
-			spi->cs_gpio = pdata->chip_sel[spi->chip_select];
 			retval = gpio_direction_output(
 				      spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 			internal_cs = false;
@@ -449,8 +439,9 @@ static int davinci_spi_setup(struct spi_device *spi)
 			return retval;
 		}
 
-		if (internal_cs)
+		if (internal_cs) {
 			set_io_bits(dspi->base + SPIPC0, 1 << spi->chip_select);
+		}
 	}
 
 	if (spi->mode & SPI_READY)
@@ -985,7 +976,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	dspi->prescaler_limit = pdata->prescaler_limit;
 	dspi->version = pdata->version;
 
-	dspi->bitbang.flags = SPI_NO_CS | SPI_LSB_FIRST | SPI_LOOP;
+	dspi->bitbang.flags = SPI_NO_CS | SPI_LSB_FIRST | SPI_LOOP | SPI_CS_WORD;
 	if (dspi->version == SPI_VERSION_2)
 		dspi->bitbang.flags |= SPI_READY;
 

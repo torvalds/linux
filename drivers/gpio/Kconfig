@@ -200,6 +200,7 @@ config GPIO_EP93XX
 	def_bool y
 	depends on ARCH_EP93XX
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 
 config GPIO_EXAR
 	tristate "Support for GPIO pins on XR17V352/354/358"
@@ -264,17 +265,6 @@ config GPIO_ICH
 	  ICH-based chipsets.  Currently supported devices: ICH6, ICH7, ICH8
 	  ICH9, ICH10, Series 5/3400 (eg Ibex Peak), Series 6/C200 (eg
 	  Cougar Point), NM10 (Tiger Point), and 3100 (Whitmore Lake).
-
-	  If unsure, say N.
-
-config GPIO_INGENIC
-	tristate "Ingenic JZ47xx SoCs GPIO support"
-	depends on OF
-	depends on MACH_INGENIC || COMPILE_TEST
-	select GPIOLIB_IRQCHIP
-	help
-	  Say yes here to support the GPIO functionality present on the
-	  JZ4740 and JZ4780 SoCs from Ingenic.
 
 	  If unsure, say N.
 
@@ -439,6 +429,24 @@ config GPIO_REG
 	  A 32-bit single register GPIO fixed in/out implementation.  This
 	  can be used to represent any register as a set of GPIO signals.
 
+config GPIO_SIOX
+	tristate "SIOX GPIO support"
+	depends on SIOX
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support SIOX I/O devices. These are units connected
+	  via a SIOX bus and have a number of fixed-direction I/O lines.
+
+config GPIO_SNPS_CREG
+	bool "Synopsys GPIO via CREG (Control REGisters) driver"
+	depends on ARC || COMPILE_TEST
+	depends on OF_GPIO
+	help
+	  This driver supports GPIOs via CREG on various Synopsys SoCs.
+	  This is a single-register MMIO GPIO driver for complex cases
+	  where only several fields in register belong to GPIO lines and
+	  each GPIO line owns a field with different length and on/off value.
+
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
 	depends on PLAT_SPEAR
@@ -480,6 +488,7 @@ config GPIO_SYSCON
 
 config GPIO_TB10X
 	bool
+	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 	select OF_GPIO
 

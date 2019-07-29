@@ -39,6 +39,7 @@
 #include "state.h"
 #include "netns.h"
 #include "xdr4cb.h"
+#include "xdr4.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -105,6 +106,7 @@ enum nfs_cb_opnum4 {
 	OP_CB_WANTS_CANCELLED		= 12,
 	OP_CB_NOTIFY_LOCK		= 13,
 	OP_CB_NOTIFY_DEVICEID		= 14,
+	OP_CB_OFFLOAD			= 15,
 	OP_CB_ILLEGAL			= 10044
 };
 
@@ -683,6 +685,101 @@ static int nfs4_xdr_dec_cb_notify_lock(struct rpc_rqst *rqstp,
 }
 
 /*
+ * struct write_response4 {
+ *	stateid4	wr_callback_id<1>;
+ *	length4		wr_count;
+ *	stable_how4	wr_committed;
+ *	verifier4	wr_writeverf;
+ * };
+ * union offload_info4 switch (nfsstat4 coa_status) {
+ *	case NFS4_OK:
+ *		write_response4	coa_resok4;
+ *	default:
+ *	length4		coa_bytes_copied;
+ * };
+ * struct CB_OFFLOAD4args {
+ *	nfs_fh4		coa_fh;
+ *	stateid4	coa_stateid;
+ *	offload_info4	coa_offload_info;
+ * };
+ */
+static void encode_offload_info4(struct xdr_stream *xdr,
+				 __be32 nfserr,
+				 const struct nfsd4_copy *cp)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, 4);
+	*p++ = nfserr;
+	if (!nfserr) {
+		p = xdr_reserve_space(xdr, 4 + 8 + 4 + NFS4_VERIFIER_SIZE);
+		p = xdr_encode_empty_array(p);
+		p = xdr_encode_hyper(p, cp->cp_res.wr_bytes_written);
+		*p++ = cpu_to_be32(cp->cp_res.wr_stable_how);
+		p = xdr_encode_opaque_fixed(p, cp->cp_res.wr_verifier.data,
+					    NFS4_VERIFIER_SIZE);
+	} else {
+		p = xdr_reserve_space(xdr, 8);
+		/* We always return success if bytes were written */
+		p = xdr_encode_hyper(p, 0);
+	}
+}
+
+static void encode_cb_offload4args(struct xdr_stream *xdr,
+				   __be32 nfserr,
+				   const struct knfsd_fh *fh,
+				   const struct nfsd4_copy *cp,
+				   struct nfs4_cb_compound_hdr *hdr)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, 4);
+	*p++ = cpu_to_be32(OP_CB_OFFLOAD);
+	encode_nfs_fh4(xdr, fh);
+	encode_stateid4(xdr, &cp->cp_res.cb_stateid);
+	encode_offload_info4(xdr, nfserr, cp);
+
+	hdr->nops++;
+}
+
+static void nfs4_xdr_enc_cb_offload(struct rpc_rqst *req,
+				    struct xdr_stream *xdr,
+				    const void *data)
+{
+	const struct nfsd4_callback *cb = data;
+	const struct nfsd4_copy *cp =
+		container_of(cb, struct nfsd4_copy, cp_cb);
+	struct nfs4_cb_compound_hdr hdr = {
+		.ident = 0,
+		.minorversion = cb->cb_clp->cl_minorversion,
+	};
+
+	encode_cb_compound4args(xdr, &hdr);
+	encode_cb_sequence4args(xdr, cb, &hdr);
+	encode_cb_offload4args(xdr, cp->nfserr, &cp->fh, cp, &hdr);
+	encode_cb_nops(&hdr);
+}
+
+static int nfs4_xdr_dec_cb_offload(struct rpc_rqst *rqstp,
+				   struct xdr_stream *xdr,
+				   void *data)
+{
+	struct nfsd4_callback *cb = data;
+	struct nfs4_cb_compound_hdr hdr;
+	int status;
+
+	status = decode_cb_compound4res(xdr, &hdr);
+	if (unlikely(status))
+		return status;
+
+	if (cb) {
+		status = decode_cb_sequence4res(xdr, cb);
+		if (unlikely(status || cb->cb_seq_status))
+			return status;
+	}
+	return decode_cb_op_status(xdr, OP_CB_OFFLOAD, &cb->cb_status);
+}
+/*
  * RPC procedure tables
  */
 #define PROC(proc, call, argtype, restype)				\
@@ -703,6 +800,7 @@ static const struct rpc_procinfo nfs4_cb_procedures[] = {
 	PROC(CB_LAYOUT,	COMPOUND,	cb_layout,	cb_layout),
 #endif
 	PROC(CB_NOTIFY_LOCK,	COMPOUND,	cb_notify_lock,	cb_notify_lock),
+	PROC(CB_OFFLOAD,	COMPOUND,	cb_offload,	cb_offload),
 };
 
 static unsigned int nfs4_cb_counts[ARRAY_SIZE(nfs4_cb_procedures)];

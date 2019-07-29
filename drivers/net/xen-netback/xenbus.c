@@ -254,8 +254,7 @@ static void xenvif_debugfs_delif(struct xenvif *vif)
 	if (IS_ERR_OR_NULL(xen_netback_dbg_root))
 		return;
 
-	if (!IS_ERR_OR_NULL(vif->xenvif_dbg_root))
-		debugfs_remove_recursive(vif->xenvif_dbg_root);
+	debugfs_remove_recursive(vif->xenvif_dbg_root);
 	vif->xenvif_dbg_root = NULL;
 }
 #endif /* CONFIG_DEBUG_FS */

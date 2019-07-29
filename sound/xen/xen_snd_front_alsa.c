@@ -637,31 +637,31 @@ static int alsa_pb_fill_silence(struct snd_pcm_substream *substream,
  * to know when the buffer can be transferred to the backend.
  */
 
-static struct snd_pcm_ops snd_drv_alsa_playback_ops = {
-	.open = alsa_open,
-	.close = alsa_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = alsa_hw_params,
-	.hw_free = alsa_hw_free,
-	.prepare = alsa_prepare,
-	.trigger = alsa_trigger,
-	.pointer = alsa_pointer,
-	.copy_user = alsa_pb_copy_user,
-	.copy_kernel = alsa_pb_copy_kernel,
-	.fill_silence = alsa_pb_fill_silence,
+static const struct snd_pcm_ops snd_drv_alsa_playback_ops = {
+	.open		= alsa_open,
+	.close		= alsa_close,
+	.ioctl		= snd_pcm_lib_ioctl,
+	.hw_params	= alsa_hw_params,
+	.hw_free	= alsa_hw_free,
+	.prepare	= alsa_prepare,
+	.trigger	= alsa_trigger,
+	.pointer	= alsa_pointer,
+	.copy_user	= alsa_pb_copy_user,
+	.copy_kernel	= alsa_pb_copy_kernel,
+	.fill_silence	= alsa_pb_fill_silence,
 };
 
-static struct snd_pcm_ops snd_drv_alsa_capture_ops = {
-	.open = alsa_open,
-	.close = alsa_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = alsa_hw_params,
-	.hw_free = alsa_hw_free,
-	.prepare = alsa_prepare,
-	.trigger = alsa_trigger,
-	.pointer = alsa_pointer,
-	.copy_user = alsa_cap_copy_user,
-	.copy_kernel = alsa_cap_copy_kernel,
+static const struct snd_pcm_ops snd_drv_alsa_capture_ops = {
+	.open		= alsa_open,
+	.close		= alsa_close,
+	.ioctl		= snd_pcm_lib_ioctl,
+	.hw_params	= alsa_hw_params,
+	.hw_free	= alsa_hw_free,
+	.prepare	= alsa_prepare,
+	.trigger	= alsa_trigger,
+	.pointer	= alsa_pointer,
+	.copy_user	= alsa_cap_copy_user,
+	.copy_kernel	= alsa_cap_copy_kernel,
 };
 
 static int new_pcm_instance(struct xen_snd_front_card_info *card_info,

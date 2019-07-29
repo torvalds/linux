@@ -852,7 +852,7 @@ static int aspeed_create_pwm_cooling(struct device *dev,
 		dev_err(dev, "Property 'cooling-levels' cannot be read.\n");
 		return ret;
 	}
-	snprintf(cdev->name, MAX_CDEV_NAME_LEN, "%s%d", child->name, pwm_port);
+	snprintf(cdev->name, MAX_CDEV_NAME_LEN, "%pOFn%d", child, pwm_port);
 
 	cdev->tcdev = thermal_of_cooling_device_register(child,
 							 cdev->name,

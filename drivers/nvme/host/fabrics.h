@@ -166,6 +166,8 @@ blk_status_t nvmf_fail_nonready_command(struct nvme_ctrl *ctrl,
 		struct request *rq);
 bool __nvmf_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
 		bool queue_live);
+bool nvmf_ip_options_match(struct nvme_ctrl *ctrl,
+		struct nvmf_ctrl_options *opts);
 
 static inline bool nvmf_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
 		bool queue_live)

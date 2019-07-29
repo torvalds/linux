@@ -348,9 +348,9 @@ static void mv_xor_tasklet(unsigned long data)
 {
 	struct mv_xor_chan *chan = (struct mv_xor_chan *) data;
 
-	spin_lock_bh(&chan->lock);
+	spin_lock(&chan->lock);
 	mv_chan_slot_cleanup(chan);
-	spin_unlock_bh(&chan->lock);
+	spin_unlock(&chan->lock);
 }
 
 static struct mv_xor_desc_slot *

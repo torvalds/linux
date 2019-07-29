@@ -1106,7 +1106,7 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 	{
 		V4L2_CID_POWER_LINE_FREQUENCY, MMAL_CONTROL_TYPE_STD_MENU,
 		0, ARRAY_SIZE(mains_freq_qmenu) - 1,
-		1, 1, NULL,
+		1, 1, mains_freq_qmenu,
 		MMAL_PARAMETER_FLICKER_AVOID,
 		&ctrl_set_flicker_avoidance,
 		false

@@ -65,32 +65,36 @@ static struct workqueue_struct *event_wq;
 static int pvrdma_add_gid(const struct ib_gid_attr *attr, void **context);
 static int pvrdma_del_gid(const struct ib_gid_attr *attr, void **context);
 
-static ssize_t show_hca(struct device *device, struct device_attribute *attr,
-			char *buf)
+static ssize_t hca_type_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "VMW_PVRDMA-%s\n", DRV_VERSION);
 }
+static DEVICE_ATTR_RO(hca_type);
 
-static ssize_t show_rev(struct device *device, struct device_attribute *attr,
-			char *buf)
+static ssize_t hw_rev_show(struct device *device,
+			   struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", PVRDMA_REV_ID);
 }
+static DEVICE_ATTR_RO(hw_rev);
 
-static ssize_t show_board(struct device *device, struct device_attribute *attr,
-			  char *buf)
+static ssize_t board_id_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", PVRDMA_BOARD_ID);
 }
+static DEVICE_ATTR_RO(board_id);
 
-static DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,	   NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, show_hca,	   NULL);
-static DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
+static struct attribute *pvrdma_class_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	&dev_attr_board_id.attr,
+	NULL,
+};
 
-static struct device_attribute *pvrdma_class_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type,
-	&dev_attr_board_id
+static const struct attribute_group pvrdma_attr_group = {
+	.attrs = pvrdma_class_attributes,
 };
 
 static void pvrdma_get_fw_ver_str(struct ib_device *device, char *str)
@@ -160,9 +164,7 @@ static struct net_device *pvrdma_get_netdev(struct ib_device *ibdev,
 static int pvrdma_register_device(struct pvrdma_dev *dev)
 {
 	int ret = -1;
-	int i = 0;
 
-	strlcpy(dev->ib_dev.name, "vmw_pvrdma%d", IB_DEVICE_NAME_MAX);
 	dev->ib_dev.node_guid = dev->dsr->caps.node_guid;
 	dev->sys_image_guid = dev->dsr->caps.sys_image_guid;
 	dev->flags = 0;
@@ -266,24 +268,16 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	}
 	dev->ib_dev.driver_id = RDMA_DRIVER_VMW_PVRDMA;
 	spin_lock_init(&dev->srq_tbl_lock);
+	rdma_set_device_sysfs_group(&dev->ib_dev, &pvrdma_attr_group);
 
-	ret = ib_register_device(&dev->ib_dev, NULL);
+	ret = ib_register_device(&dev->ib_dev, "vmw_pvrdma%d", NULL);
 	if (ret)
 		goto err_srq_free;
-
-	for (i = 0; i < ARRAY_SIZE(pvrdma_class_attributes); ++i) {
-		ret = device_create_file(&dev->ib_dev.dev,
-					 pvrdma_class_attributes[i]);
-		if (ret)
-			goto err_class;
-	}
 
 	dev->ib_active = true;
 
 	return 0;
 
-err_class:
-	ib_unregister_device(&dev->ib_dev);
 err_srq_free:
 	kfree(dev->srq_tbl);
 err_qp_free:
@@ -735,7 +729,7 @@ static void pvrdma_netdevice_event_handle(struct pvrdma_dev *dev,
 
 	default:
 		dev_dbg(&dev->pdev->dev, "ignore netdevice event %ld on %s\n",
-			event, dev->ib_dev.name);
+			event, dev_name(&dev->ib_dev.dev));
 		break;
 	}
 }

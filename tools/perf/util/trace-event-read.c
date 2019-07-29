@@ -102,7 +102,7 @@ static unsigned int read4(struct tep_handle *pevent)
 
 	if (do_read(&data, 4) < 0)
 		return 0;
-	return __data2host4(pevent, data);
+	return __tep_data2host4(pevent, data);
 }
 
 static unsigned long long read8(struct tep_handle *pevent)
@@ -111,7 +111,7 @@ static unsigned long long read8(struct tep_handle *pevent)
 
 	if (do_read(&data, 8) < 0)
 		return 0;
-	return __data2host8(pevent, data);
+	return __tep_data2host8(pevent, data);
 }
 
 static char *read_string(void)
@@ -241,7 +241,7 @@ static int read_header_files(struct tep_handle *pevent)
 		 * The commit field in the page is of type long,
 		 * use that instead, since it represents the kernel.
 		 */
-		tep_set_long_size(pevent, pevent->header_page_size_size);
+		tep_set_long_size(pevent, tep_get_header_page_size(pevent));
 	}
 	free(header_page);
 
@@ -297,10 +297,8 @@ static int read_event_file(struct tep_handle *pevent, char *sys,
 	}
 
 	ret = do_read(buf, size);
-	if (ret < 0) {
-		free(buf);
+	if (ret < 0)
 		goto out;
-	}
 
 	ret = parse_event_file(pevent, buf, size, sys);
 	if (ret < 0)
@@ -349,9 +347,12 @@ static int read_event_files(struct tep_handle *pevent)
 		for (x=0; x < count; x++) {
 			size = read8(pevent);
 			ret = read_event_file(pevent, sys, size);
-			if (ret)
+			if (ret) {
+				free(sys);
 				return ret;
+			}
 		}
+		free(sys);
 	}
 	return 0;
 }

@@ -1390,13 +1390,13 @@ static inline u32 qib_get_hdrqtail(const struct qib_ctxtdata *rcd)
  */
 
 extern const char ib_qib_version[];
+extern const struct attribute_group qib_attr_group;
 
 int qib_device_create(struct qib_devdata *);
 void qib_device_remove(struct qib_devdata *);
 
 int qib_create_port_files(struct ib_device *ibdev, u8 port_num,
 			  struct kobject *kobj);
-int qib_verbs_register_sysfs(struct qib_devdata *);
 void qib_verbs_unregister_sysfs(struct qib_devdata *);
 /* Hook for sysfs read of QSFP */
 extern int qib_qsfp_dump(struct qib_pportdata *ppd, char *buf, int len);

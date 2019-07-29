@@ -89,6 +89,7 @@ enum hclgevf_opcode_type {
 	HCLGEVF_OPC_CFG_COM_TQP_QUEUE	= 0x0B20,
 	/* RSS cmd */
 	HCLGEVF_OPC_RSS_GENERIC_CONFIG	= 0x0D01,
+	HCLGEVF_OPC_RSS_INPUT_TUPLE     = 0x0D02,
 	HCLGEVF_OPC_RSS_INDIR_TABLE	= 0x0D07,
 	HCLGEVF_OPC_RSS_TC_MODE		= 0x0D08,
 	/* Mailbox cmd */
@@ -148,7 +149,8 @@ struct hclgevf_query_res_cmd {
 	__le16 rsv[7];
 };
 
-#define HCLGEVF_RSS_HASH_KEY_OFFSET	4
+#define HCLGEVF_RSS_DEFAULT_OUTPORT_B	4
+#define HCLGEVF_RSS_HASH_KEY_OFFSET_B	4
 #define HCLGEVF_RSS_HASH_KEY_NUM	16
 struct hclgevf_rss_config_cmd {
 	u8 hash_config;
@@ -159,11 +161,11 @@ struct hclgevf_rss_config_cmd {
 struct hclgevf_rss_input_tuple_cmd {
 	u8 ipv4_tcp_en;
 	u8 ipv4_udp_en;
-	u8 ipv4_stcp_en;
+	u8 ipv4_sctp_en;
 	u8 ipv4_fragment_en;
 	u8 ipv6_tcp_en;
 	u8 ipv6_udp_en;
-	u8 ipv6_stcp_en;
+	u8 ipv6_sctp_en;
 	u8 ipv6_fragment_en;
 	u8 rsv[16];
 };

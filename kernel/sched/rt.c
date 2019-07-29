@@ -1561,7 +1561,7 @@ pick_next_task_rt(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 
 	/*
 	 * We may dequeue prev's rt_rq in put_prev_task().
-	 * So, we update time before rt_nr_running check.
+	 * So, we update time before rt_queued check.
 	 */
 	if (prev->sched_class == &rt_sched_class)
 		update_curr_rt(rq);

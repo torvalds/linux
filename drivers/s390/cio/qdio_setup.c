@@ -27,7 +27,6 @@ struct qaob *qdio_allocate_aob(void)
 {
 	return kmem_cache_zalloc(qdio_aob_cache, GFP_ATOMIC);
 }
-EXPORT_SYMBOL_GPL(qdio_allocate_aob);
 
 void qdio_release_aob(struct qaob *aob)
 {

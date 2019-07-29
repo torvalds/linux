@@ -246,8 +246,8 @@ static void carl9170_release_dev_space(struct ar9170 *ar, struct sk_buff *skb)
 	 *    of available memory blocks, so the number can
 	 *    never execeed the mem_blocks count.
 	 */
-	if (unlikely(WARN_ON_ONCE(cookie == 0) ||
-	    WARN_ON_ONCE(cookie > ar->fw.mem_blocks)))
+	if (WARN_ON_ONCE(cookie == 0) ||
+	    WARN_ON_ONCE(cookie > ar->fw.mem_blocks))
 		return;
 
 	atomic_add(DIV_ROUND_UP(skb->len, ar->fw.mem_block_size),

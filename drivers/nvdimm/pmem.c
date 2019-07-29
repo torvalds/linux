@@ -421,9 +421,11 @@ static int pmem_attach_disk(struct device *dev,
 		addr = devm_memremap_pages(dev, &pmem->pgmap);
 		pmem->pfn_flags |= PFN_MAP;
 		memcpy(&bb_res, &pmem->pgmap.res, sizeof(bb_res));
-	} else
+	} else {
 		addr = devm_memremap(dev, pmem->phys_addr,
 				pmem->size, ARCH_MEMREMAP_PMEM);
+		memcpy(&bb_res, &nsio->res, sizeof(bb_res));
+	}
 
 	/*
 	 * At release time the queue must be frozen before
@@ -474,7 +476,7 @@ static int pmem_attach_disk(struct device *dev,
 	gendev = disk_to_dev(disk);
 	gendev->groups = pmem_attribute_groups;
 
-	device_add_disk(dev, disk);
+	device_add_disk(dev, disk, NULL);
 	if (devm_add_action_or_reset(dev, pmem_release_disk, pmem))
 		return -ENOMEM;
 

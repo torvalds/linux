@@ -41,7 +41,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -191,8 +191,9 @@ static int meson_pinconf_set(struct pinctrl_dev *pcdev, unsigned int pin,
 		case PIN_CONFIG_BIAS_DISABLE:
 			dev_dbg(pc->dev, "pin %u: disable bias\n", pin);
 
-			meson_calc_reg_and_bit(bank, pin, REG_PULL, &reg, &bit);
-			ret = regmap_update_bits(pc->reg_pull, reg,
+			meson_calc_reg_and_bit(bank, pin, REG_PULLEN, &reg,
+					       &bit);
+			ret = regmap_update_bits(pc->reg_pullen, reg,
 						 BIT(bit), 0);
 			if (ret)
 				return ret;
@@ -451,7 +452,7 @@ static struct regmap *meson_map_resource(struct meson_pinctrl *pc,
 
 	meson_regmap_config.max_register = resource_size(&res) - 4;
 	meson_regmap_config.name = devm_kasprintf(pc->dev, GFP_KERNEL,
-						  "%s-%s", node->name,
+						  "%pOFn-%s", node,
 						  name);
 	if (!meson_regmap_config.name)
 		return ERR_PTR(-ENOMEM);

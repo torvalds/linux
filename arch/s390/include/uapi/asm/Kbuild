@@ -18,3 +18,4 @@ generic-y += shmbuf.h
 generic-y += sockios.h
 generic-y += swab.h
 generic-y += termbits.h
+generic-y += siginfo.h

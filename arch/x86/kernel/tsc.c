@@ -247,7 +247,7 @@ unsigned long long sched_clock(void)
 
 bool using_native_sched_clock(void)
 {
-	return pv_time_ops.sched_clock == native_sched_clock;
+	return pv_ops.time.sched_clock == native_sched_clock;
 }
 #else
 unsigned long long
@@ -636,7 +636,7 @@ unsigned long native_calibrate_tsc(void)
 		case INTEL_FAM6_KABYLAKE_DESKTOP:
 			crystal_khz = 24000;	/* 24.0 MHz */
 			break;
-		case INTEL_FAM6_ATOM_DENVERTON:
+		case INTEL_FAM6_ATOM_GOLDMONT_X:
 			crystal_khz = 25000;	/* 25.0 MHz */
 			break;
 		case INTEL_FAM6_ATOM_GOLDMONT:

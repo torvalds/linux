@@ -173,16 +173,10 @@ int rdma_restrack_put(struct rdma_restrack_entry *res);
 /**
  * rdma_restrack_set_task() - set the task for this resource
  * @res:  resource entry
- * @task: task struct
+ * @caller: kernel name, the current task will be used if the caller is NULL.
  */
-static inline void rdma_restrack_set_task(struct rdma_restrack_entry *res,
-					  struct task_struct *task)
-{
-	if (res->task)
-		put_task_struct(res->task);
-	get_task_struct(task);
-	res->task = task;
-}
+void rdma_restrack_set_task(struct rdma_restrack_entry *res,
+			    const char *caller);
 
 /*
  * Helper functions for rdma drivers when filling out

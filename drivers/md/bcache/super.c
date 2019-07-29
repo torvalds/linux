@@ -418,6 +418,7 @@ static int __uuid_write(struct cache_set *c)
 {
 	BKEY_PADDED(key) k;
 	struct closure cl;
+	struct cache *ca;
 
 	closure_init_stack(&cl);
 	lockdep_assert_held(&bch_register_lock);
@@ -428,6 +429,10 @@ static int __uuid_write(struct cache_set *c)
 	SET_KEY_SIZE(&k.key, c->sb.bucket_size);
 	uuid_io(c, REQ_OP_WRITE, 0, &k.key, &cl);
 	closure_sync(&cl);
+
+	/* Only one bucket used for uuid write */
+	ca = PTR_CACHE(c, &k.key, 0);
+	atomic_long_add(ca->sb.bucket_size, &ca->meta_sectors_written);
 
 	bkey_copy(&c->uuid_bucket, &k.key);
 	bkey_put(c, &k.key);
@@ -643,10 +648,6 @@ static int ioctl_dev(struct block_device *b, fmode_t mode,
 		     unsigned int cmd, unsigned long arg)
 {
 	struct bcache_device *d = b->bd_disk->private_data;
-	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
-
-	if (dc->io_disable)
-		return -EIO;
 
 	return d->ioctl(d, mode, cmd, arg);
 }
@@ -1008,6 +1009,7 @@ static void cached_dev_detach_finish(struct work_struct *w)
 	bch_write_bdev_super(dc, &cl);
 	closure_sync(&cl);
 
+	calc_cached_dev_sectors(dc->disk.c);
 	bcache_device_detach(&dc->disk);
 	list_move(&dc->list, &uncached_devices);
 
@@ -1152,10 +1154,11 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c,
 	}
 
 	if (BDEV_STATE(&dc->sb) == BDEV_STATE_DIRTY) {
-		bch_sectors_dirty_init(&dc->disk);
 		atomic_set(&dc->has_dirty, 1);
 		bch_writeback_queue(dc);
 	}
+
+	bch_sectors_dirty_init(&dc->disk);
 
 	bch_cached_dev_run(dc);
 	bcache_device_link(&dc->disk, c, "bdev");
@@ -2049,6 +2052,8 @@ static int cache_alloc(struct cache *ca)
 	size_t free;
 	size_t btree_buckets;
 	struct bucket *b;
+	int ret = -ENOMEM;
+	const char *err = NULL;
 
 	__module_get(THIS_MODULE);
 	kobject_init(&ca->kobj, &bch_cache_ktype);
@@ -2066,27 +2071,93 @@ static int cache_alloc(struct cache *ca)
 	 */
 	btree_buckets = ca->sb.njournal_buckets ?: 8;
 	free = roundup_pow_of_two(ca->sb.nbuckets) >> 10;
+	if (!free) {
+		ret = -EPERM;
+		err = "ca->sb.nbuckets is too small";
+		goto err_free;
+	}
 
-	if (!init_fifo(&ca->free[RESERVE_BTREE], btree_buckets, GFP_KERNEL) ||
-	    !init_fifo_exact(&ca->free[RESERVE_PRIO], prio_buckets(ca), GFP_KERNEL) ||
-	    !init_fifo(&ca->free[RESERVE_MOVINGGC], free, GFP_KERNEL) ||
-	    !init_fifo(&ca->free[RESERVE_NONE], free, GFP_KERNEL) ||
-	    !init_fifo(&ca->free_inc,	free << 2, GFP_KERNEL) ||
-	    !init_heap(&ca->heap,	free << 3, GFP_KERNEL) ||
-	    !(ca->buckets	= vzalloc(array_size(sizeof(struct bucket),
-						     ca->sb.nbuckets))) ||
-	    !(ca->prio_buckets	= kzalloc(array3_size(sizeof(uint64_t),
-						      prio_buckets(ca), 2),
-					  GFP_KERNEL)) ||
-	    !(ca->disk_buckets	= alloc_bucket_pages(GFP_KERNEL, ca)))
-		return -ENOMEM;
+	if (!init_fifo(&ca->free[RESERVE_BTREE], btree_buckets,
+						GFP_KERNEL)) {
+		err = "ca->free[RESERVE_BTREE] alloc failed";
+		goto err_btree_alloc;
+	}
+
+	if (!init_fifo_exact(&ca->free[RESERVE_PRIO], prio_buckets(ca),
+							GFP_KERNEL)) {
+		err = "ca->free[RESERVE_PRIO] alloc failed";
+		goto err_prio_alloc;
+	}
+
+	if (!init_fifo(&ca->free[RESERVE_MOVINGGC], free, GFP_KERNEL)) {
+		err = "ca->free[RESERVE_MOVINGGC] alloc failed";
+		goto err_movinggc_alloc;
+	}
+
+	if (!init_fifo(&ca->free[RESERVE_NONE], free, GFP_KERNEL)) {
+		err = "ca->free[RESERVE_NONE] alloc failed";
+		goto err_none_alloc;
+	}
+
+	if (!init_fifo(&ca->free_inc, free << 2, GFP_KERNEL)) {
+		err = "ca->free_inc alloc failed";
+		goto err_free_inc_alloc;
+	}
+
+	if (!init_heap(&ca->heap, free << 3, GFP_KERNEL)) {
+		err = "ca->heap alloc failed";
+		goto err_heap_alloc;
+	}
+
+	ca->buckets = vzalloc(array_size(sizeof(struct bucket),
+			      ca->sb.nbuckets));
+	if (!ca->buckets) {
+		err = "ca->buckets alloc failed";
+		goto err_buckets_alloc;
+	}
+
+	ca->prio_buckets = kzalloc(array3_size(sizeof(uint64_t),
+				   prio_buckets(ca), 2),
+				   GFP_KERNEL);
+	if (!ca->prio_buckets) {
+		err = "ca->prio_buckets alloc failed";
+		goto err_prio_buckets_alloc;
+	}
+
+	ca->disk_buckets = alloc_bucket_pages(GFP_KERNEL, ca);
+	if (!ca->disk_buckets) {
+		err = "ca->disk_buckets alloc failed";
+		goto err_disk_buckets_alloc;
+	}
 
 	ca->prio_last_buckets = ca->prio_buckets + prio_buckets(ca);
 
 	for_each_bucket(b, ca)
 		atomic_set(&b->pin, 0);
-
 	return 0;
+
+err_disk_buckets_alloc:
+	kfree(ca->prio_buckets);
+err_prio_buckets_alloc:
+	vfree(ca->buckets);
+err_buckets_alloc:
+	free_heap(&ca->heap);
+err_heap_alloc:
+	free_fifo(&ca->free_inc);
+err_free_inc_alloc:
+	free_fifo(&ca->free[RESERVE_NONE]);
+err_none_alloc:
+	free_fifo(&ca->free[RESERVE_MOVINGGC]);
+err_movinggc_alloc:
+	free_fifo(&ca->free[RESERVE_PRIO]);
+err_prio_alloc:
+	free_fifo(&ca->free[RESERVE_BTREE]);
+err_btree_alloc:
+err_free:
+	module_put(THIS_MODULE);
+	if (err)
+		pr_notice("error %s: %s", ca->cache_dev_name, err);
+	return ret;
 }
 
 static int register_cache(struct cache_sb *sb, struct page *sb_page,
@@ -2112,6 +2183,8 @@ static int register_cache(struct cache_sb *sb, struct page *sb_page,
 		blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 		if (ret == -ENOMEM)
 			err = "cache_alloc(): -ENOMEM";
+		else if (ret == -EPERM)
+			err = "cache_alloc(): cache device is too small";
 		else
 			err = "cache_alloc(): unknown error";
 		goto err;
@@ -2386,7 +2459,7 @@ static int __init bcache_init(void)
 	    sysfs_create_files(bcache_kobj, files))
 		goto err;
 
-	bch_debug_init(bcache_kobj);
+	bch_debug_init();
 	closure_debug_init();
 
 	return 0;

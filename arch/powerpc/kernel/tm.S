@@ -92,13 +92,14 @@ _GLOBAL(tm_abort)
 	blr
 EXPORT_SYMBOL_GPL(tm_abort);
 
-/* void tm_reclaim(struct thread_struct *thread,
+/*
+ * void tm_reclaim(struct thread_struct *thread,
  *		   uint8_t cause)
  *
  *	- Performs a full reclaim.  This destroys outstanding
- *	  transactions and updates thread->regs.tm_ckpt_* with the
- *	  original checkpointed state.  Note that thread->regs is
- *	  unchanged.
+ *	  transactions and updates thread.ckpt_regs, thread.ckfp_state and
+ *	  thread.ckvr_state with the original checkpointed state.  Note that
+ *	  thread->regs is unchanged.
  *
  * Purpose is to both abort transactions of, and preserve the state of,
  * a transactions at a context switch. We preserve/restore both sets of process
@@ -163,15 +164,16 @@ _GLOBAL(tm_reclaim)
 	 */
 	TRECLAIM(R4)				/* Cause in r4 */
 
-	/* ******************** GPRs ******************** */
-	/* Stash the checkpointed r13 away in the scratch SPR and get the real
-	 *  paca
+	/*
+	 * ******************** GPRs ********************
+	 * Stash the checkpointed r13 in the scratch SPR and get the real paca.
 	 */
 	SET_SCRATCH0(r13)
 	GET_PACA(r13)
 
-	/* Stash the checkpointed r1 away in paca tm_scratch and get the real
-	 * stack pointer back
+	/*
+	 * Stash the checkpointed r1 away in paca->tm_scratch and get the real
+	 * stack pointer back into r1.
 	 */
 	std	r1, PACATMSCRATCH(r13)
 	ld	r1, PACAR1(r13)
@@ -209,14 +211,15 @@ _GLOBAL(tm_reclaim)
 
 	addi	r7, r12, PT_CKPT_REGS		/* Thread's ckpt_regs */
 
-	/* Make r7 look like an exception frame so that we
-	 * can use the neat GPRx(n) macros.  r7 is NOT a pt_regs ptr!
+	/*
+	 * Make r7 look like an exception frame so that we can use the neat
+	 * GPRx(n) macros. r7 is NOT a pt_regs ptr!
 	 */
 	subi	r7, r7, STACK_FRAME_OVERHEAD
 
 	/* Sync the userland GPRs 2-12, 14-31 to thread->regs: */
 	SAVE_GPR(0, r7)				/* user r0 */
-	SAVE_GPR(2, r7)			/* user r2 */
+	SAVE_GPR(2, r7)				/* user r2 */
 	SAVE_4GPRS(3, r7)			/* user r3-r6 */
 	SAVE_GPR(8, r7)				/* user r8 */
 	SAVE_GPR(9, r7)				/* user r9 */
@@ -237,7 +240,8 @@ _GLOBAL(tm_reclaim)
 	/* ******************** NIP ******************** */
 	mfspr	r3, SPRN_TFHAR
 	std	r3, _NIP(r7)			/* Returns to failhandler */
-	/* The checkpointed NIP is ignored when rescheduling/rechkpting,
+	/*
+	 * The checkpointed NIP is ignored when rescheduling/rechkpting,
 	 * but is used in signal return to 'wind back' to the abort handler.
 	 */
 
@@ -260,12 +264,13 @@ _GLOBAL(tm_reclaim)
 	std	r3, THREAD_TM_TAR(r12)
 	std	r4, THREAD_TM_DSCR(r12)
 
-	/* MSR and flags:  We don't change CRs, and we don't need to alter
-	 * MSR.
+	/*
+	 * MSR and flags: We don't change CRs, and we don't need to alter MSR.
 	 */
 
 
-	/* ******************** FPR/VR/VSRs ************
+	/*
+	 * ******************** FPR/VR/VSRs ************
 	 * After reclaiming, capture the checkpointed FPRs/VRs.
 	 *
 	 * We enabled VEC/FP/VSX in the msr above, so we can execute these
@@ -275,7 +280,7 @@ _GLOBAL(tm_reclaim)
 
 	/* Altivec (VEC/VMX/VR)*/
 	addi	r7, r3, THREAD_CKVRSTATE
-	SAVE_32VRS(0, r6, r7)	/* r6 scratch, r7 transact vr state */
+	SAVE_32VRS(0, r6, r7)	/* r6 scratch, r7 ckvr_state */
 	mfvscr	v0
 	li	r6, VRSTATE_VSCR
 	stvx	v0, r7, r6
@@ -286,12 +291,13 @@ _GLOBAL(tm_reclaim)
 
 	/* Floating Point (FP) */
 	addi	r7, r3, THREAD_CKFPSTATE
-	SAVE_32FPRS_VSRS(0, R6, R7)	/* r6 scratch, r7 transact fp state */
+	SAVE_32FPRS_VSRS(0, R6, R7)	/* r6 scratch, r7 ckfp_state */
 	mffs    fr0
 	stfd    fr0,FPSTATE_FPSCR(r7)
 
 
-	/* TM regs, incl TEXASR -- these live in thread_struct.  Note they've
+	/*
+	 * TM regs, incl TEXASR -- these live in thread_struct.  Note they've
 	 * been updated by the treclaim, to explain to userland the failure
 	 * cause (aborted).
 	 */
@@ -327,7 +333,7 @@ _GLOBAL(tm_reclaim)
 	blr
 
 
-       /*
+	/*
 	 * void __tm_recheckpoint(struct thread_struct *thread)
 	 *	- Restore the checkpointed register state saved by tm_reclaim
 	 *	  when we switch_to a process.
@@ -343,7 +349,8 @@ _GLOBAL(__tm_recheckpoint)
 	std	r2, STK_GOT(r1)
 	stdu	r1, -TM_FRAME_SIZE(r1)
 
-	/* We've a struct pt_regs at [r1+STACK_FRAME_OVERHEAD].
+	/*
+	 * We've a struct pt_regs at [r1+STACK_FRAME_OVERHEAD].
 	 * This is used for backing up the NVGPRs:
 	 */
 	SAVE_NVGPRS(r1)
@@ -352,8 +359,9 @@ _GLOBAL(__tm_recheckpoint)
 
 	addi	r7, r3, PT_CKPT_REGS		/* Thread's ckpt_regs */
 
-	/* Make r7 look like an exception frame so that we
-	 * can use the neat GPRx(n) macros.  r7 is now NOT a pt_regs ptr!
+	/*
+	 * Make r7 look like an exception frame so that we can use the neat
+	 * GPRx(n) macros. r7 is now NOT a pt_regs ptr!
 	 */
 	subi	r7, r7, STACK_FRAME_OVERHEAD
 
@@ -421,14 +429,15 @@ restore_gprs:
 
 	REST_NVGPRS(r7)				/* GPR14-31 */
 
-	/* Load up PPR and DSCR here so we don't run with user values for long
-	 */
+	/* Load up PPR and DSCR here so we don't run with user values for long */
 	mtspr	SPRN_DSCR, r5
 	mtspr	SPRN_PPR, r6
 
-	/* Do final sanity check on TEXASR to make sure FS is set.  Do this
+	/*
+	 * Do final sanity check on TEXASR to make sure FS is set. Do this
 	 * here before we load up the userspace r1 so any bugs we hit will get
-	 * a call chain */
+	 * a call chain.
+	 */
 	mfspr	r5, SPRN_TEXASR
 	srdi	r5, r5, 16
 	li	r6, (TEXASR_FS)@h
@@ -436,8 +445,9 @@ restore_gprs:
 1:	tdeqi	r6, 0
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0
 
-	/* Do final sanity check on MSR to make sure we are not transactional
-	 * or suspended
+	/*
+	 * Do final sanity check on MSR to make sure we are not transactional
+	 * or suspended.
 	 */
 	mfmsr   r6
 	li	r5, (MSR_TS_MASK)@higher
@@ -453,8 +463,8 @@ restore_gprs:
 	REST_GPR(6, r7)
 
 	/*
-	 * Store r1 and r5 on the stack so that we can access them
-	 * after we clear MSR RI.
+	 * Store r1 and r5 on the stack so that we can access them after we
+	 * clear MSR RI.
 	 */
 
 	REST_GPR(5, r7)
@@ -484,7 +494,8 @@ restore_gprs:
 
 	HMT_MEDIUM
 
-	/* Our transactional state has now changed.
+	/*
+	 * Our transactional state has now changed.
 	 *
 	 * Now just get out of here.  Transactional (current) state will be
 	 * updated once restore is called on the return path in the _switch-ed

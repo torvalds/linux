@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 config PPC_CELL
 	bool
-	default n
 
 config PPC_CELL_COMMON
 	bool
@@ -22,7 +21,6 @@ config PPC_CELL_NATIVE
 	select IBM_EMAC_RGMII if IBM_EMAC
 	select IBM_EMAC_ZMII if IBM_EMAC #test only
 	select IBM_EMAC_TAH if IBM_EMAC  #test only
-	default n
 
 config PPC_IBM_CELL_BLADE
 	bool "IBM Cell Blade"
@@ -54,7 +52,6 @@ config SPU_FS
 
 config SPU_BASE
 	bool
-	default n
 	select PPC_COPRO_BASE
 
 config CBE_RAS

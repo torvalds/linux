@@ -547,6 +547,12 @@ struct saa7134_mpeg_ops {
 						  unsigned long status);
 };
 
+enum saa7134_pads {
+	SAA7134_PAD_IF_INPUT,
+	SAA7134_PAD_VID_OUT,
+	SAA7134_NUM_PADS
+};
+
 /* global device status */
 struct saa7134_dev {
 	struct list_head           devlist;
@@ -674,7 +680,7 @@ struct saa7134_dev {
 	struct media_pad input_pad[SAA7134_INPUT_MAX + 1];
 
 	struct media_entity demod;
-	struct media_pad demod_pad[DEMOD_NUM_PADS];
+	struct media_pad demod_pad[SAA7134_NUM_PADS];
 
 	struct media_pad video_pad, vbi_pad;
 	struct media_entity *decoder;

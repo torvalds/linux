@@ -439,6 +439,7 @@ static bool drm_dp_sideband_parse_remote_dpcd_read(struct drm_dp_sideband_msg_rx
 	if (idx > raw->curlen)
 		goto fail_len;
 	repmsg->u.remote_dpcd_read_ack.num_bytes = raw->msg[idx];
+	idx++;
 	if (idx > raw->curlen)
 		goto fail_len;
 
@@ -1273,6 +1274,9 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 
 	mutex_lock(&mgr->lock);
 	mstb = mgr->mst_primary;
+
+	if (!mstb)
+		goto out;
 
 	for (i = 0; i < lct - 1; i++) {
 		int shift = (i % 2) ? 0 : 4;

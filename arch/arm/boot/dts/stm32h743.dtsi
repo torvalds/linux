@@ -472,7 +472,7 @@
 			interrupt-parent = <&exti>;
 			interrupts = <17 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "alarm";
-			st,syscfg = <&pwrcfg>;
+			st,syscfg = <&pwrcfg 0x00 0x100>;
 			status = "disabled";
 		};
 

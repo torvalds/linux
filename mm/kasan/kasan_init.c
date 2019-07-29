@@ -10,11 +10,10 @@
  *
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/kasan.h>
 #include <linux/kernel.h>
-#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/pfn.h>
 #include <linux/slab.h>
@@ -83,8 +82,8 @@ static inline bool kasan_zero_page_entry(pte_t pte)
 
 static __init void *early_alloc(size_t size, int node)
 {
-	return memblock_virt_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
-					BOOTMEM_ALLOC_ACCESSIBLE, node);
+	return memblock_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
+					MEMBLOCK_ALLOC_ACCESSIBLE, node);
 }
 
 static void __ref zero_pte_populate(pmd_t *pmd, unsigned long addr,

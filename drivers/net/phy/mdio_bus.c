@@ -38,7 +38,6 @@
 #include <linux/phy.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <linux/gpio/consumer.h>
 
 #include <asm/irq.h>
 

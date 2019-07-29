@@ -9,7 +9,7 @@
  */
 
 #include <linux/version.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/inetdevice.h>
@@ -1118,16 +1118,11 @@ static int vector_net_close(struct net_device *dev)
 		os_close_file(vp->fds->tx_fd);
 		vp->fds->tx_fd = -1;
 	}
-	if (vp->bpf != NULL)
-		kfree(vp->bpf);
-	if (vp->fds->remote_addr != NULL)
-		kfree(vp->fds->remote_addr);
-	if (vp->transport_data != NULL)
-		kfree(vp->transport_data);
-	if (vp->header_rxbuffer != NULL)
-		kfree(vp->header_rxbuffer);
-	if (vp->header_txbuffer != NULL)
-		kfree(vp->header_txbuffer);
+	kfree(vp->bpf);
+	kfree(vp->fds->remote_addr);
+	kfree(vp->transport_data);
+	kfree(vp->header_rxbuffer);
+	kfree(vp->header_txbuffer);
 	if (vp->rx_queue != NULL)
 		destroy_queue(vp->rx_queue);
 	if (vp->tx_queue != NULL)
@@ -1580,7 +1575,7 @@ static int __init vector_setup(char *str)
 				 str, error);
 		return 1;
 	}
-	new = alloc_bootmem(sizeof(*new));
+	new = memblock_alloc(sizeof(*new), SMP_CACHE_BYTES);
 	INIT_LIST_HEAD(&new->list);
 	new->unit = n;
 	new->arguments = str;

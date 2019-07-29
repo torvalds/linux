@@ -2042,6 +2042,61 @@ static const struct file_operations fops_btcoex = {
 	.open = simple_open
 };
 
+static ssize_t ath10k_write_enable_extd_tx_stats(struct file *file,
+						 const char __user *ubuf,
+						 size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u32 filter;
+	int ret;
+
+	if (kstrtouint_from_user(ubuf, count, 0, &filter))
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON) {
+		ar->debug.enable_extd_tx_stats = filter;
+		ret = count;
+		goto out;
+	}
+
+	if (filter == ar->debug.enable_extd_tx_stats) {
+		ret = count;
+		goto out;
+	}
+
+	ar->debug.enable_extd_tx_stats = filter;
+	ret = count;
+
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static ssize_t ath10k_read_enable_extd_tx_stats(struct file *file,
+						char __user *ubuf,
+						size_t count, loff_t *ppos)
+
+{
+	char buf[32];
+	struct ath10k *ar = file->private_data;
+	int len = 0;
+
+	mutex_lock(&ar->conf_mutex);
+	len = scnprintf(buf, sizeof(buf) - len, "%08x\n",
+			ar->debug.enable_extd_tx_stats);
+	mutex_unlock(&ar->conf_mutex);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_enable_extd_tx_stats = {
+	.read = ath10k_read_enable_extd_tx_stats,
+	.write = ath10k_write_enable_extd_tx_stats,
+	.open = simple_open
+};
+
 static ssize_t ath10k_write_peer_stats(struct file *file,
 				       const char __user *ubuf,
 				       size_t count, loff_t *ppos)
@@ -2343,6 +2398,85 @@ static const struct file_operations fops_warm_hw_reset = {
 	.llseek = default_llseek,
 };
 
+static void ath10k_peer_ps_state_disable(void *data,
+					 struct ieee80211_sta *sta)
+{
+	struct ath10k *ar = data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+
+	spin_lock_bh(&ar->data_lock);
+	arsta->peer_ps_state = WMI_PEER_PS_STATE_DISABLED;
+	spin_unlock_bh(&ar->data_lock);
+}
+
+static ssize_t ath10k_write_ps_state_enable(struct file *file,
+					    const char __user *user_buf,
+					    size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	int ret;
+	u32 param;
+	u8 ps_state_enable;
+
+	if (kstrtou8_from_user(user_buf, count, 0, &ps_state_enable))
+		return -EINVAL;
+
+	if (ps_state_enable > 1)
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->ps_state_enable == ps_state_enable) {
+		ret = count;
+		goto exit;
+	}
+
+	param = ar->wmi.pdev_param->peer_sta_ps_statechg_enable;
+	ret = ath10k_wmi_pdev_set_param(ar, param, ps_state_enable);
+	if (ret) {
+		ath10k_warn(ar, "failed to enable ps_state_enable: %d\n",
+			    ret);
+		goto exit;
+	}
+	ar->ps_state_enable = ps_state_enable;
+
+	if (!ar->ps_state_enable)
+		ieee80211_iterate_stations_atomic(ar->hw,
+						  ath10k_peer_ps_state_disable,
+						  ar);
+
+	ret = count;
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static ssize_t ath10k_read_ps_state_enable(struct file *file,
+					   char __user *user_buf,
+					   size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	int len = 0;
+	char buf[32];
+
+	mutex_lock(&ar->conf_mutex);
+	len = scnprintf(buf, sizeof(buf) - len, "%d\n",
+			ar->ps_state_enable);
+	mutex_unlock(&ar->conf_mutex);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_ps_state_enable = {
+	.read = ath10k_read_ps_state_enable,
+	.write = ath10k_write_ps_state_enable,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath10k_debug_create(struct ath10k *ar)
 {
 	ar->debug.cal_data = vzalloc(ATH10K_DEBUG_CAL_DATA_LEN);
@@ -2444,8 +2578,9 @@ int ath10k_debug_register(struct ath10k *ar)
 	debugfs_create_file("pktlog_filter", 0644, ar->debug.debugfs_phy, ar,
 			    &fops_pktlog_filter);
 
-	debugfs_create_file("quiet_period", 0644, ar->debug.debugfs_phy, ar,
-			    &fops_quiet_period);
+	if (test_bit(WMI_SERVICE_THERM_THROT, ar->wmi.svc_map))
+		debugfs_create_file("quiet_period", 0644, ar->debug.debugfs_phy, ar,
+				    &fops_quiet_period);
 
 	debugfs_create_file("tpc_stats", 0400, ar->debug.debugfs_phy, ar,
 			    &fops_tpc_stats);
@@ -2454,9 +2589,14 @@ int ath10k_debug_register(struct ath10k *ar)
 		debugfs_create_file("btcoex", 0644, ar->debug.debugfs_phy, ar,
 				    &fops_btcoex);
 
-	if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map))
+	if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map)) {
 		debugfs_create_file("peer_stats", 0644, ar->debug.debugfs_phy, ar,
 				    &fops_peer_stats);
+
+		debugfs_create_file("enable_extd_tx_stats", 0644,
+				    ar->debug.debugfs_phy, ar,
+				    &fops_enable_extd_tx_stats);
+	}
 
 	debugfs_create_file("fw_checksums", 0400, ar->debug.debugfs_phy, ar,
 			    &fops_fw_checksums);
@@ -2473,6 +2613,9 @@ int ath10k_debug_register(struct ath10k *ar)
 
 	debugfs_create_file("warm_hw_reset", 0600, ar->debug.debugfs_phy, ar,
 			    &fops_warm_hw_reset);
+
+	debugfs_create_file("ps_state_enable", 0600, ar->debug.debugfs_phy, ar,
+			    &fops_ps_state_enable);
 
 	return 0;
 }

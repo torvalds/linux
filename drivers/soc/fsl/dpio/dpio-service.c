@@ -310,6 +310,37 @@ int dpaa2_io_service_rearm(struct dpaa2_io *d,
 EXPORT_SYMBOL_GPL(dpaa2_io_service_rearm);
 
 /**
+ * dpaa2_io_service_pull_fq() - pull dequeue functions from a fq.
+ * @d: the given DPIO service.
+ * @fqid: the given frame queue id.
+ * @s: the dpaa2_io_store object for the result.
+ *
+ * Return 0 for success, or error code for failure.
+ */
+int dpaa2_io_service_pull_fq(struct dpaa2_io *d, u32 fqid,
+			     struct dpaa2_io_store *s)
+{
+	struct qbman_pull_desc pd;
+	int err;
+
+	qbman_pull_desc_clear(&pd);
+	qbman_pull_desc_set_storage(&pd, s->vaddr, s->paddr, 1);
+	qbman_pull_desc_set_numframes(&pd, (u8)s->max);
+	qbman_pull_desc_set_fq(&pd, fqid);
+
+	d = service_select(d);
+	if (!d)
+		return -ENODEV;
+	s->swp = d->swp;
+	err = qbman_swp_pull(d->swp, &pd);
+	if (err)
+		s->swp = NULL;
+
+	return err;
+}
+EXPORT_SYMBOL(dpaa2_io_service_pull_fq);
+
+/**
  * dpaa2_io_service_pull_channel() - pull dequeue functions from a channel.
  * @d: the given DPIO service.
  * @channelid: the given channel id.
@@ -340,6 +371,33 @@ int dpaa2_io_service_pull_channel(struct dpaa2_io *d, u32 channelid,
 	return err;
 }
 EXPORT_SYMBOL_GPL(dpaa2_io_service_pull_channel);
+
+/**
+ * dpaa2_io_service_enqueue_fq() - Enqueue a frame to a frame queue.
+ * @d: the given DPIO service.
+ * @fqid: the given frame queue id.
+ * @fd: the frame descriptor which is enqueued.
+ *
+ * Return 0 for successful enqueue, -EBUSY if the enqueue ring is not ready,
+ * or -ENODEV if there is no dpio service.
+ */
+int dpaa2_io_service_enqueue_fq(struct dpaa2_io *d,
+				u32 fqid,
+				const struct dpaa2_fd *fd)
+{
+	struct qbman_eq_desc ed;
+
+	d = service_select(d);
+	if (!d)
+		return -ENODEV;
+
+	qbman_eq_desc_clear(&ed);
+	qbman_eq_desc_set_no_orp(&ed, 0);
+	qbman_eq_desc_set_fq(&ed, fqid);
+
+	return qbman_swp_enqueue(d->swp, &ed, fd);
+}
+EXPORT_SYMBOL(dpaa2_io_service_enqueue_fq);
 
 /**
  * dpaa2_io_service_enqueue_qd() - Enqueue a frame to a QD.

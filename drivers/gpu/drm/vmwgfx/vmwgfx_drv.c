@@ -30,9 +30,9 @@
 #include <drm/drmP.h>
 #include "vmwgfx_drv.h"
 #include "vmwgfx_binding.h"
+#include "ttm_object.h"
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_object.h>
 #include <drm/ttm/ttm_module.h>
 #include <linux/dma_remapping.h>
 
@@ -48,6 +48,8 @@
 #endif
 
 #define VMWGFX_REPO "In Tree"
+
+#define VMWGFX_VALIDATION_MEM_GRAN (16*PAGE_SIZE)
 
 
 /**
@@ -667,8 +669,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&dev_priv->binding_mutex);
 	mutex_init(&dev_priv->requested_layout_mutex);
 	mutex_init(&dev_priv->global_kms_state_mutex);
-	rwlock_init(&dev_priv->resource_lock);
 	ttm_lock_init(&dev_priv->reservation_sem);
+	spin_lock_init(&dev_priv->resource_lock);
 	spin_lock_init(&dev_priv->hw_lock);
 	spin_lock_init(&dev_priv->waiter_lock);
 	spin_lock_init(&dev_priv->cap_lock);
@@ -918,7 +920,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		spin_unlock(&dev_priv->cap_lock);
 	}
 
-
+	vmw_validation_mem_init_ttm(dev_priv, VMWGFX_VALIDATION_MEM_GRAN);
 	ret = vmw_kms_init(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_no_kms;

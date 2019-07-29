@@ -15,6 +15,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
 #include <linux/libnvdimm.h>
+#include <linux/genalloc.h>
 #include <linux/vmalloc.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -24,6 +25,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <nd-core.h>
+#include <intel.h>
 #include <nfit.h>
 #include <nd.h>
 #include "nfit_test.h"
@@ -139,8 +141,8 @@ static u32 handle[] = {
 	[6] = NFIT_DIMM_HANDLE(1, 0, 0, 0, 1),
 };
 
-static unsigned long dimm_fail_cmd_flags[NUM_DCR];
-static int dimm_fail_cmd_code[NUM_DCR];
+static unsigned long dimm_fail_cmd_flags[ARRAY_SIZE(handle)];
+static int dimm_fail_cmd_code[ARRAY_SIZE(handle)];
 
 static const struct nd_intel_smart smart_def = {
 	.flags = ND_INTEL_SMART_HEALTH_VALID
@@ -148,6 +150,7 @@ static const struct nd_intel_smart smart_def = {
 		| ND_INTEL_SMART_ALARM_VALID
 		| ND_INTEL_SMART_USED_VALID
 		| ND_INTEL_SMART_SHUTDOWN_VALID
+		| ND_INTEL_SMART_SHUTDOWN_COUNT_VALID
 		| ND_INTEL_SMART_MTEMP_VALID
 		| ND_INTEL_SMART_CTEMP_VALID,
 	.health = ND_INTEL_SMART_NON_CRITICAL_HEALTH,
@@ -160,8 +163,8 @@ static const struct nd_intel_smart smart_def = {
 	.ait_status = 1,
 	.life_used = 5,
 	.shutdown_state = 0,
+	.shutdown_count = 42,
 	.vendor_size = 0,
-	.shutdown_count = 100,
 };
 
 struct nfit_test_fw {
@@ -203,7 +206,7 @@ struct nfit_test {
 		unsigned long deadline;
 		spinlock_t lock;
 	} ars_state;
-	struct device *dimm_dev[NUM_DCR];
+	struct device *dimm_dev[ARRAY_SIZE(handle)];
 	struct nd_intel_smart *smart;
 	struct nd_intel_smart_threshold *smart_threshold;
 	struct badrange badrange;
@@ -212,6 +215,8 @@ struct nfit_test {
 };
 
 static struct workqueue_struct *nfit_wq;
+
+static struct gen_pool *nfit_pool;
 
 static struct nfit_test *to_nfit_test(struct device *dev)
 {
@@ -1130,6 +1135,9 @@ static void release_nfit_res(void *data)
 	list_del(&nfit_res->list);
 	spin_unlock(&nfit_test_lock);
 
+	if (resource_size(&nfit_res->res) >= DIMM_SIZE)
+		gen_pool_free(nfit_pool, nfit_res->res.start,
+				resource_size(&nfit_res->res));
 	vfree(nfit_res->buf);
 	kfree(nfit_res);
 }
@@ -1142,7 +1150,7 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
 			GFP_KERNEL);
 	int rc;
 
-	if (!buf || !nfit_res)
+	if (!buf || !nfit_res || !*dma)
 		goto err;
 	rc = devm_add_action(dev, release_nfit_res, nfit_res);
 	if (rc)
@@ -1162,6 +1170,8 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
 
 	return nfit_res->buf;
  err:
+	if (*dma && size >= DIMM_SIZE)
+		gen_pool_free(nfit_pool, *dma, size);
 	if (buf)
 		vfree(buf);
 	kfree(nfit_res);
@@ -1170,9 +1180,16 @@ static void *__test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma,
 
 static void *test_alloc(struct nfit_test *t, size_t size, dma_addr_t *dma)
 {
+	struct genpool_data_align data = {
+		.align = SZ_128M,
+	};
 	void *buf = vmalloc(size);
 
-	*dma = (unsigned long) buf;
+	if (size >= DIMM_SIZE)
+		*dma = gen_pool_alloc_algo(nfit_pool, size,
+				gen_pool_first_fit_align, &data);
+	else
+		*dma = (unsigned long) buf;
 	return __test_alloc(t, size, dma, buf);
 }
 
@@ -2678,7 +2695,7 @@ static int nfit_test_probe(struct platform_device *pdev)
 		u32 nfit_handle = __to_nfit_memdev(nfit_mem)->device_handle;
 		int i;
 
-		for (i = 0; i < NUM_DCR; i++)
+		for (i = 0; i < ARRAY_SIZE(handle); i++)
 			if (nfit_handle == handle[i])
 				dev_set_drvdata(nfit_test->dimm_dev[i],
 						nfit_mem);
@@ -2837,6 +2854,17 @@ static __init int nfit_test_init(void)
 		goto err_register;
 	}
 
+	nfit_pool = gen_pool_create(ilog2(SZ_4M), NUMA_NO_NODE);
+	if (!nfit_pool) {
+		rc = -ENOMEM;
+		goto err_register;
+	}
+
+	if (gen_pool_add(nfit_pool, SZ_4G, SZ_4G, NUMA_NO_NODE)) {
+		rc = -ENOMEM;
+		goto err_register;
+	}
+
 	for (i = 0; i < NUM_NFITS; i++) {
 		struct nfit_test *nfit_test;
 		struct platform_device *pdev;
@@ -2892,6 +2920,9 @@ static __init int nfit_test_init(void)
 	return 0;
 
  err_register:
+	if (nfit_pool)
+		gen_pool_destroy(nfit_pool);
+
 	destroy_workqueue(nfit_wq);
 	for (i = 0; i < NUM_NFITS; i++)
 		if (instances[i])
@@ -2914,6 +2945,8 @@ static __exit void nfit_test_exit(void)
 		platform_device_unregister(&instances[i]->pdev);
 	platform_driver_unregister(&nfit_test_driver);
 	nfit_test_teardown();
+
+	gen_pool_destroy(nfit_pool);
 
 	for (i = 0; i < NUM_NFITS; i++)
 		put_device(&instances[i]->pdev.dev);

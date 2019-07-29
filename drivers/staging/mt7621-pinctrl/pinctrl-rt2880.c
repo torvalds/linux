@@ -82,7 +82,7 @@ static int rt2880_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrldev,
 	struct property *prop;
 	const char *function_name, *group_name;
 	int ret;
-	int ngroups;
+	int ngroups = 0;
 	unsigned int reserved_maps = 0;
 
 	for_each_node_with_property(np_config, "group")

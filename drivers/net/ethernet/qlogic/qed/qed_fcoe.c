@@ -147,7 +147,8 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 		       "Cannot satisfy CQ amount. CQs requested %d, CQs available %d. Aborting function start\n",
 		       fcoe_pf_params->num_cqs,
 		       p_hwfn->hw_info.feat_num[QED_FCOE_CQ]);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err;
 	}
 
 	p_data->mtu = cpu_to_le16(fcoe_pf_params->mtu);
@@ -156,14 +157,14 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 
 	rc = qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_FCOE, &dummy_cid);
 	if (rc)
-		return rc;
+		goto err;
 
 	cxt_info.iid = dummy_cid;
 	rc = qed_cxt_get_cid_info(p_hwfn, &cxt_info);
 	if (rc) {
 		DP_NOTICE(p_hwfn, "Cannot find context info for dummy cid=%d\n",
 			  dummy_cid);
-		return rc;
+		goto err;
 	}
 	p_cxt = cxt_info.p_cxt;
 	SET_FIELD(p_cxt->tstorm_ag_context.flags3,
@@ -239,6 +240,10 @@ qed_sp_fcoe_func_start(struct qed_hwfn *p_hwfn,
 
 	rc = qed_spq_post(p_hwfn, p_ent, NULL);
 
+	return rc;
+
+err:
+	qed_sp_destroy_request(p_hwfn, p_ent);
 	return rc;
 }
 

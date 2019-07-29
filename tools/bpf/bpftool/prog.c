@@ -74,7 +74,28 @@ static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_RAW_TRACEPOINT]	= "raw_tracepoint",
 	[BPF_PROG_TYPE_CGROUP_SOCK_ADDR] = "cgroup_sock_addr",
 	[BPF_PROG_TYPE_LIRC_MODE2]	= "lirc_mode2",
+	[BPF_PROG_TYPE_FLOW_DISSECTOR]	= "flow_dissector",
 };
+
+static const char * const attach_type_strings[] = {
+	[BPF_SK_SKB_STREAM_PARSER] = "stream_parser",
+	[BPF_SK_SKB_STREAM_VERDICT] = "stream_verdict",
+	[BPF_SK_MSG_VERDICT] = "msg_verdict",
+	[__MAX_BPF_ATTACH_TYPE] = NULL,
+};
+
+enum bpf_attach_type parse_attach_type(const char *str)
+{
+	enum bpf_attach_type type;
+
+	for (type = 0; type < __MAX_BPF_ATTACH_TYPE; type++) {
+		if (attach_type_strings[type] &&
+		    is_prefix(str, attach_type_strings[type]))
+			return type;
+	}
+
+	return __MAX_BPF_ATTACH_TYPE;
+}
 
 static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
 {
@@ -336,10 +357,9 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	if (!hash_empty(prog_table.table)) {
 		struct pinned_obj *obj;
 
-		printf("\n");
 		hash_for_each_possible(prog_table.table, obj, hash, info->id) {
 			if (obj->id == info->id)
-				printf("\tpinned %s\n", obj->path);
+				printf("\n\tpinned %s", obj->path);
 		}
 	}
 
@@ -428,6 +448,7 @@ static int do_dump(int argc, char **argv)
 	unsigned long *func_ksyms = NULL;
 	struct bpf_prog_info info = {};
 	unsigned int *func_lens = NULL;
+	const char *disasm_opt = NULL;
 	unsigned int nr_func_ksyms;
 	unsigned int nr_func_lens;
 	struct dump_data dd = {};
@@ -586,9 +607,10 @@ static int do_dump(int argc, char **argv)
 		const char *name = NULL;
 
 		if (info.ifindex) {
-			name = ifindex_to_bfd_name_ns(info.ifindex,
-						      info.netns_dev,
-						      info.netns_ino);
+			name = ifindex_to_bfd_params(info.ifindex,
+						     info.netns_dev,
+						     info.netns_ino,
+						     &disasm_opt);
 			if (!name)
 				goto err_free;
 		}
@@ -630,7 +652,8 @@ static int do_dump(int argc, char **argv)
 					printf("%s:\n", sym_name);
 				}
 
-				disasm_print_insn(img, lens[i], opcodes, name);
+				disasm_print_insn(img, lens[i], opcodes, name,
+						  disasm_opt);
 				img += lens[i];
 
 				if (json_output)
@@ -642,7 +665,8 @@ static int do_dump(int argc, char **argv)
 			if (json_output)
 				jsonw_end_array(json_wtr);
 		} else {
-			disasm_print_insn(buf, *member_len, opcodes, name);
+			disasm_print_insn(buf, *member_len, opcodes, name,
+					  disasm_opt);
 		}
 	} else if (visual) {
 		if (json_output)
@@ -696,6 +720,77 @@ int map_replace_compar(const void *p1, const void *p2)
 	return a->idx - b->idx;
 }
 
+static int do_attach(int argc, char **argv)
+{
+	enum bpf_attach_type attach_type;
+	int err, mapfd, progfd;
+
+	if (!REQ_ARGS(5)) {
+		p_err("too few parameters for map attach");
+		return -EINVAL;
+	}
+
+	progfd = prog_parse_fd(&argc, &argv);
+	if (progfd < 0)
+		return progfd;
+
+	attach_type = parse_attach_type(*argv);
+	if (attach_type == __MAX_BPF_ATTACH_TYPE) {
+		p_err("invalid attach type");
+		return -EINVAL;
+	}
+	NEXT_ARG();
+
+	mapfd = map_parse_fd(&argc, &argv);
+	if (mapfd < 0)
+		return mapfd;
+
+	err = bpf_prog_attach(progfd, mapfd, attach_type, 0);
+	if (err) {
+		p_err("failed prog attach to map");
+		return -EINVAL;
+	}
+
+	if (json_output)
+		jsonw_null(json_wtr);
+	return 0;
+}
+
+static int do_detach(int argc, char **argv)
+{
+	enum bpf_attach_type attach_type;
+	int err, mapfd, progfd;
+
+	if (!REQ_ARGS(5)) {
+		p_err("too few parameters for map detach");
+		return -EINVAL;
+	}
+
+	progfd = prog_parse_fd(&argc, &argv);
+	if (progfd < 0)
+		return progfd;
+
+	attach_type = parse_attach_type(*argv);
+	if (attach_type == __MAX_BPF_ATTACH_TYPE) {
+		p_err("invalid attach type");
+		return -EINVAL;
+	}
+	NEXT_ARG();
+
+	mapfd = map_parse_fd(&argc, &argv);
+	if (mapfd < 0)
+		return mapfd;
+
+	err = bpf_prog_detach2(progfd, mapfd, attach_type);
+	if (err) {
+		p_err("failed prog detach from map");
+		return -EINVAL;
+	}
+
+	if (json_output)
+		jsonw_null(json_wtr);
+	return 0;
+}
 static int do_load(int argc, char **argv)
 {
 	enum bpf_attach_type expected_attach_type;
@@ -749,6 +844,7 @@ static int do_load(int argc, char **argv)
 			}
 			NEXT_ARG();
 		} else if (is_prefix(*argv, "map")) {
+			void *new_map_replace;
 			char *endptr, *name;
 			int fd;
 
@@ -782,12 +878,15 @@ static int do_load(int argc, char **argv)
 			if (fd < 0)
 				goto err_free_reuse_maps;
 
-			map_replace = reallocarray(map_replace, old_map_fds + 1,
-						   sizeof(*map_replace));
-			if (!map_replace) {
+			new_map_replace = reallocarray(map_replace,
+						       old_map_fds + 1,
+						       sizeof(*map_replace));
+			if (!new_map_replace) {
 				p_err("mem alloc failed");
 				goto err_free_reuse_maps;
 			}
+			map_replace = new_map_replace;
+
 			map_replace[old_map_fds].idx = idx;
 			map_replace[old_map_fds].name = name;
 			map_replace[old_map_fds].fd = fd;
@@ -816,7 +915,7 @@ static int do_load(int argc, char **argv)
 		}
 	}
 
-	obj = bpf_object__open_xattr(&attr);
+	obj = __bpf_object__open_xattr(&attr, bpf_flags);
 	if (IS_ERR_OR_NULL(obj)) {
 		p_err("failed to open object file");
 		goto err_free_reuse_maps;
@@ -941,6 +1040,8 @@ static int do_help(int argc, char **argv)
 		"       %s %s pin   PROG FILE\n"
 		"       %s %s load  OBJ  FILE [type TYPE] [dev NAME] \\\n"
 		"                         [map { idx IDX | name NAME } MAP]\n"
+		"       %s %s attach PROG ATTACH_TYPE MAP\n"
+		"       %s %s detach PROG ATTACH_TYPE MAP\n"
 		"       %s %s help\n"
 		"\n"
 		"       " HELP_SPEC_MAP "\n"
@@ -952,10 +1053,12 @@ static int do_help(int argc, char **argv)
 		"                 cgroup/bind4 | cgroup/bind6 | cgroup/post_bind4 |\n"
 		"                 cgroup/post_bind6 | cgroup/connect4 | cgroup/connect6 |\n"
 		"                 cgroup/sendmsg4 | cgroup/sendmsg6 }\n"
+		"       ATTACH_TYPE := { msg_verdict | skb_verdict | skb_parse }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
+		bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }
@@ -967,6 +1070,8 @@ static const struct cmd cmds[] = {
 	{ "dump",	do_dump },
 	{ "pin",	do_pin },
 	{ "load",	do_load },
+	{ "attach",	do_attach },
+	{ "detach",	do_detach },
 	{ 0 }
 };
 

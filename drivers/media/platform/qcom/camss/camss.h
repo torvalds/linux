@@ -17,7 +17,6 @@
 #include <media/v4l2-subdev.h>
 #include <media/media-device.h>
 #include <media/media-entity.h>
-#include <linux/device.h>
 
 #include "camss-csid.h"
 #include "camss-csiphy.h"
@@ -92,8 +91,8 @@ struct camss_camera_interface {
 };
 
 struct camss_async_subdev {
+	struct v4l2_async_subdev asd; /* must be first */
 	struct camss_camera_interface interface;
-	struct v4l2_async_subdev asd;
 };
 
 struct camss_clock {

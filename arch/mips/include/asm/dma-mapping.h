@@ -12,8 +12,6 @@ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 	return &jazz_dma_ops;
 #elif defined(CONFIG_SWIOTLB)
 	return &swiotlb_dma_ops;
-#elif defined(CONFIG_DMA_NONCOHERENT_OPS)
-	return &dma_noncoherent_ops;
 #else
 	return &dma_direct_ops;
 #endif
@@ -25,7 +23,7 @@ static inline void arch_setup_dma_ops(struct device *dev, u64 dma_base,
 				      bool coherent)
 {
 #ifdef CONFIG_DMA_PERDEV_COHERENT
-	dev->archdata.dma_coherent = coherent;
+	dev->dma_coherent = coherent;
 #endif
 }
 

@@ -552,8 +552,11 @@ blk_status_t nvmf_fail_nonready_command(struct nvme_ctrl *ctrl,
 	    ctrl->state != NVME_CTRL_DEAD &&
 	    !blk_noretry_request(rq) && !(rq->cmd_flags & REQ_NVME_MPATH))
 		return BLK_STS_RESOURCE;
-	nvme_req(rq)->status = NVME_SC_ABORT_REQ;
-	return BLK_STS_IOERR;
+
+	nvme_req(rq)->status = NVME_SC_HOST_PATH_ERROR;
+	blk_mq_start_request(rq);
+	nvme_complete_rq(rq);
+	return BLK_STS_OK;
 }
 EXPORT_SYMBOL_GPL(nvmf_fail_nonready_command);
 
@@ -864,6 +867,36 @@ static int nvmf_check_required_opts(struct nvmf_ctrl_options *opts,
 
 	return 0;
 }
+
+bool nvmf_ip_options_match(struct nvme_ctrl *ctrl,
+		struct nvmf_ctrl_options *opts)
+{
+	if (!nvmf_ctlr_matches_baseopts(ctrl, opts) ||
+	    strcmp(opts->traddr, ctrl->opts->traddr) ||
+	    strcmp(opts->trsvcid, ctrl->opts->trsvcid))
+		return false;
+
+	/*
+	 * Checking the local address is rough. In most cases, none is specified
+	 * and the host port is selected by the stack.
+	 *
+	 * Assume no match if:
+	 * -  local address is specified and address is not the same
+	 * -  local address is not specified but remote is, or vice versa
+	 *    (admin using specific host_traddr when it matters).
+	 */
+	if ((opts->mask & NVMF_OPT_HOST_TRADDR) &&
+	    (ctrl->opts->mask & NVMF_OPT_HOST_TRADDR)) {
+		if (strcmp(opts->host_traddr, ctrl->opts->host_traddr))
+			return false;
+	} else if ((opts->mask & NVMF_OPT_HOST_TRADDR) ||
+		   (ctrl->opts->mask & NVMF_OPT_HOST_TRADDR)) {
+		return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(nvmf_ip_options_match);
 
 static int nvmf_check_allowed_opts(struct nvmf_ctrl_options *opts,
 		unsigned int allowed_opts)

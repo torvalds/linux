@@ -27,6 +27,8 @@
 #include <linux/ctype.h>
 #include <drm/drm_mode_object.h>
 
+#include <uapi/drm/drm_mode.h>
+
 /**
  * struct drm_property_enum - symbolic values for enumerations
  * @value: numeric property value for this enum entry

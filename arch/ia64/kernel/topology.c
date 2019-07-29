@@ -19,7 +19,7 @@
 #include <linux/node.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/nodemask.h>
 #include <linux/notifier.h>
 #include <linux/export.h>

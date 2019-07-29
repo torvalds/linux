@@ -99,8 +99,11 @@ static int aq_ndev_set_features(struct net_device *ndev,
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	struct aq_nic_cfg_s *aq_cfg = aq_nic_get_cfg(aq_nic);
 	bool is_lro = false;
+	int err = 0;
 
-	if (aq_cfg->hw_features & NETIF_F_LRO) {
+	aq_cfg->features = features;
+
+	if (aq_cfg->aq_hw_caps->hw_features & NETIF_F_LRO) {
 		is_lro = features & NETIF_F_LRO;
 
 		if (aq_cfg->is_lro != is_lro) {
@@ -112,8 +115,11 @@ static int aq_ndev_set_features(struct net_device *ndev,
 			}
 		}
 	}
+	if ((aq_nic->ndev->features ^ features) & NETIF_F_RXCSUM)
+		err = aq_nic->aq_hw_ops->hw_set_offload(aq_nic->aq_hw,
+							aq_cfg);
 
-	return 0;
+	return err;
 }
 
 static int aq_ndev_set_mac_address(struct net_device *ndev, void *addr)

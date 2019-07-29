@@ -987,7 +987,7 @@ static void dma_do_tasklet(unsigned long data)
 
 	chan_dbg(chan, "tasklet entry\n");
 
-	spin_lock_bh(&chan->desc_lock);
+	spin_lock(&chan->desc_lock);
 
 	/* the hardware is now idle and ready for more */
 	chan->idle = true;
@@ -995,7 +995,7 @@ static void dma_do_tasklet(unsigned long data)
 	/* Run all cleanup for descriptors which have been completed */
 	fsldma_cleanup_descriptors(chan);
 
-	spin_unlock_bh(&chan->desc_lock);
+	spin_unlock(&chan->desc_lock);
 
 	chan_dbg(chan, "tasklet exit\n");
 }

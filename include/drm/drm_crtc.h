@@ -744,8 +744,45 @@ struct drm_crtc_funcs {
 	 *
 	 * 0 on success or a negative error code on failure.
 	 */
-	int (*set_crc_source)(struct drm_crtc *crtc, const char *source,
-			      size_t *values_cnt);
+	int (*set_crc_source)(struct drm_crtc *crtc, const char *source);
+	/**
+	 * @verify_crc_source:
+	 *
+	 * verifies the source of CRC checksums of frames before setting the
+	 * source for CRC and during crc open. Source parameter can be NULL
+	 * while disabling crc source.
+	 *
+	 * This callback is optional if the driver does not support any CRC
+	 * generation functionality.
+	 *
+	 * RETURNS:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
+	int (*verify_crc_source)(struct drm_crtc *crtc, const char *source,
+				 size_t *values_cnt);
+	/**
+	 * @get_crc_sources:
+	 *
+	 * Driver callback for getting a list of all the available sources for
+	 * CRC generation. This callback depends upon verify_crc_source, So
+	 * verify_crc_source callback should be implemented before implementing
+	 * this. Driver can pass full list of available crc sources, this
+	 * callback does the verification on each crc-source before passing it
+	 * to userspace.
+	 *
+	 * This callback is optional if the driver does not support exporting of
+	 * possible CRC sources list.
+	 *
+	 * RETURNS:
+	 *
+	 * a constant character pointer to the list of all the available CRC
+	 * sources. On failure driver should return NULL. count should be
+	 * updated with number of sources in list. if zero we don't process any
+	 * source from the list.
+	 */
+	const char *const *(*get_crc_sources)(struct drm_crtc *crtc,
+					      size_t *count);
 
 	/**
 	 * @atomic_print_state:

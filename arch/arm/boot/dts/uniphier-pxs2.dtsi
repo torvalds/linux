@@ -167,6 +167,28 @@
 			cache-level = <2>;
 		};
 
+		spi0: spi@54006000 {
+			compatible = "socionext,uniphier-scssi";
+			status = "disabled";
+			reg = <0x54006000 0x100>;
+			interrupts = <0 39 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi0>;
+			clocks = <&peri_clk 11>;
+			resets = <&peri_rst 11>;
+		};
+
+		spi1: spi@54006100 {
+			compatible = "socionext,uniphier-scssi";
+			status = "disabled";
+			reg = <0x54006100 0x100>;
+			interrupts = <0 216 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_spi1>;
+			clocks = <&peri_clk 11>;
+			resets = <&peri_rst 11>;
+		};
+
 		serial0: serial@54006800 {
 			compatible = "socionext,uniphier-uart";
 			status = "disabled";
@@ -422,6 +444,40 @@
 			};
 		};
 
+		emmc: sdhc@5a000000 {
+			compatible = "socionext,uniphier-sd-v3.1.1";
+			status = "disabled";
+			reg = <0x5a000000 0x800>;
+			interrupts = <0 78 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_emmc>;
+			clocks = <&sd_clk 1>;
+			reset-names = "host", "hw";
+			resets = <&sd_rst 1>, <&sd_rst 6>;
+			bus-width = <8>;
+			cap-mmc-highspeed;
+			cap-mmc-hw-reset;
+			non-removable;
+		};
+
+		sd: sdhc@5a400000 {
+			compatible = "socionext,uniphier-sd-v3.1.1";
+			status = "disabled";
+			reg = <0x5a400000 0x800>;
+			interrupts = <0 76 4>;
+			pinctrl-names = "default", "uhs";
+			pinctrl-0 = <&pinctrl_sd>;
+			pinctrl-1 = <&pinctrl_sd_uhs>;
+			clocks = <&sd_clk 0>;
+			reset-names = "host";
+			resets = <&sd_rst 0>;
+			bus-width = <4>;
+			cap-sd-highspeed;
+			sd-uhs-sdr12;
+			sd-uhs-sdr25;
+			sd-uhs-sdr50;
+		};
+
 		soc_glue: soc-glue@5f800000 {
 			compatible = "socionext,uniphier-pxs2-soc-glue",
 				     "simple-mfd", "syscon";
@@ -523,6 +579,186 @@
 			};
 		};
 
+		usb0: usb@65a00000 {
+			compatible = "socionext,uniphier-dwc3", "snps,dwc3";
+			status = "disabled";
+			reg = <0x65a00000 0xcd00>;
+			interrupt-names = "host", "peripheral";
+			interrupts = <0 134 4>, <0 135 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb0>, <&pinctrl_usb2>;
+			clock-names = "ref", "bus_early", "suspend";
+			clocks = <&sys_clk 14>, <&sys_clk 14>, <&sys_clk 14>;
+			resets = <&usb0_rst 15>;
+			phys = <&usb0_hsphy0>, <&usb0_hsphy1>,
+			       <&usb0_ssphy0>, <&usb0_ssphy1>;
+			dr_mode = "host";
+		};
+
+		usb-glue@65b00000 {
+			compatible = "socionext,uniphier-pxs2-dwc3-glue",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x65b00000 0x400>;
+
+			usb0_rst: reset@0 {
+				compatible = "socionext,uniphier-pxs2-usb3-reset";
+				reg = <0x0 0x4>;
+				#reset-cells = <1>;
+				clock-names = "link";
+				clocks = <&sys_clk 14>;
+				reset-names = "link";
+				resets = <&sys_rst 14>;
+			};
+
+			usb0_vbus0: regulator@100 {
+				compatible = "socionext,uniphier-pxs2-usb3-regulator";
+				reg = <0x100 0x10>;
+				clock-names = "link";
+				clocks = <&sys_clk 14>;
+				reset-names = "link";
+				resets = <&sys_rst 14>;
+			};
+
+			usb0_vbus1: regulator@110 {
+				compatible = "socionext,uniphier-pxs2-usb3-regulator";
+				reg = <0x110 0x10>;
+				clock-names = "link";
+				clocks = <&sys_clk 14>;
+				reset-names = "link";
+				resets = <&sys_rst 14>;
+			};
+
+			usb0_hsphy0: hs-phy@200 {
+				compatible = "socionext,uniphier-pxs2-usb3-hsphy";
+				reg = <0x200 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy";
+				clocks = <&sys_clk 14>, <&sys_clk 16>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 14>, <&sys_rst 16>;
+				vbus-supply = <&usb0_vbus0>;
+			};
+
+			usb0_hsphy1: hs-phy@210 {
+				compatible = "socionext,uniphier-pxs2-usb3-hsphy";
+				reg = <0x210 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy";
+				clocks = <&sys_clk 14>, <&sys_clk 16>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 14>, <&sys_rst 16>;
+				vbus-supply = <&usb0_vbus1>;
+			};
+
+			usb0_ssphy0: ss-phy@300 {
+				compatible = "socionext,uniphier-pxs2-usb3-ssphy";
+				reg = <0x300 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy";
+				clocks = <&sys_clk 14>, <&sys_clk 17>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 14>, <&sys_rst 17>;
+				vbus-supply = <&usb0_vbus0>;
+			};
+
+			usb0_ssphy1: ss-phy@310 {
+				compatible = "socionext,uniphier-pxs2-usb3-ssphy";
+				reg = <0x310 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy";
+				clocks = <&sys_clk 14>, <&sys_clk 18>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 14>, <&sys_rst 18>;
+				vbus-supply = <&usb0_vbus1>;
+			};
+		};
+
+		usb1: usb@65c00000 {
+			compatible = "socionext,uniphier-dwc3", "snps,dwc3";
+			status = "disabled";
+			reg = <0x65c00000 0xcd00>;
+			interrupt-names = "host", "peripheral";
+			interrupts = <0 137 4>, <0 138 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb1>, <&pinctrl_usb3>;
+			clock-names = "ref", "bus_early", "suspend";
+			clocks = <&sys_clk 15>, <&sys_clk 15>, <&sys_clk 15>;
+			resets = <&usb1_rst 15>;
+			phys = <&usb1_hsphy0>, <&usb1_hsphy1>, <&usb1_ssphy0>;
+			dr_mode = "host";
+		};
+
+		usb-glue@65d00000 {
+			compatible = "socionext,uniphier-pxs2-dwc3-glue",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x65d00000 0x400>;
+
+			usb1_rst: reset@0 {
+				compatible = "socionext,uniphier-pxs2-usb3-reset";
+				reg = <0x0 0x4>;
+				#reset-cells = <1>;
+				clock-names = "link";
+				clocks = <&sys_clk 15>;
+				reset-names = "link";
+				resets = <&sys_rst 15>;
+			};
+
+			usb1_vbus0: regulator@100 {
+				compatible = "socionext,uniphier-pxs2-usb3-regulator";
+				reg = <0x100 0x10>;
+				clock-names = "link";
+				clocks = <&sys_clk 15>;
+				reset-names = "link";
+				resets = <&sys_rst 15>;
+			};
+
+			usb1_vbus1: regulator@110 {
+				compatible = "socionext,uniphier-pxs2-usb3-regulator";
+				reg = <0x110 0x10>;
+				clock-names = "link";
+				clocks = <&sys_clk 15>;
+				reset-names = "link";
+				resets = <&sys_rst 15>;
+			};
+
+			usb1_hsphy0: hs-phy@200 {
+				compatible = "socionext,uniphier-pxs2-usb3-hsphy";
+				reg = <0x200 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy";
+				clocks = <&sys_clk 15>, <&sys_clk 20>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 15>, <&sys_rst 20>;
+				vbus-supply = <&usb1_vbus0>;
+			};
+
+			usb1_hsphy1: hs-phy@210 {
+				compatible = "socionext,uniphier-pxs2-usb3-hsphy";
+				reg = <0x210 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy";
+				clocks = <&sys_clk 15>, <&sys_clk 20>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 15>, <&sys_rst 20>;
+				vbus-supply = <&usb1_vbus1>;
+			};
+
+			usb1_ssphy0: ss-phy@300 {
+				compatible = "socionext,uniphier-pxs2-usb3-ssphy";
+				reg = <0x300 0x10>;
+				#phy-cells = <0>;
+				clock-names = "link", "phy";
+				clocks = <&sys_clk 15>, <&sys_clk 21>;
+				reset-names = "link", "phy";
+				resets = <&sys_rst 15>, <&sys_rst 21>;
+				vbus-supply = <&usb1_vbus0>;
+			};
+		};
+
 		nand: nand@68000000 {
 			compatible = "socionext,uniphier-denali-nand-v5b";
 			status = "disabled";
@@ -531,7 +767,8 @@
 			interrupts = <0 65 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_nand2cs>;
-			clocks = <&sys_clk 2>;
+			clock-names = "nand", "nand_x", "ecc";
+			clocks = <&sys_clk 2>, <&sys_clk 3>, <&sys_clk 3>;
 			resets = <&sys_rst 2>;
 		};
 	};

@@ -32,6 +32,11 @@ static struct snd_soc_acpi_codecs kbl_7219_98357_codecs = {
 	.codecs = {"MX98357A"}
 };
 
+static struct snd_soc_acpi_codecs kbl_7219_98927_codecs = {
+	.num_codecs = 1,
+	.codecs = {"MX98927"}
+};
+
 struct snd_soc_acpi_mach snd_soc_acpi_intel_kbl_machines[] = {
 	{
 		.id = "INT343A",
@@ -82,6 +87,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_kbl_machines[] = {
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &kbl_7219_98357_codecs,
 		.pdata = &skl_dmic_data,
+	},
+	{
+		.id = "DLGS7219",
+		.drv_name = "kbl_da7219_max98927",
+		.fw_filename = "intel/dsp_fw_kbl.bin",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &kbl_7219_98927_codecs,
+		.pdata = &skl_dmic_data
 	},
 	{},
 };

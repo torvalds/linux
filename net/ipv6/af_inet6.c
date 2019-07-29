@@ -209,6 +209,7 @@ lookup_protocol:
 	np->hop_limit	= -1;
 	np->mcast_hops	= IPV6_DEFAULT_MCASTHOPS;
 	np->mc_loop	= 1;
+	np->mc_all	= 1;
 	np->pmtudisc	= IPV6_PMTUDISC_WANT;
 	np->repflow	= net->ipv6.sysctl.flowlabel_reflect;
 	sk->sk_ipv6only	= net->ipv6.sysctl.bindv6only;
@@ -467,12 +468,10 @@ void inet6_destroy_sock(struct sock *sk)
 	/* Release rx options */
 
 	skb = xchg(&np->pktoptions, NULL);
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 
 	skb = xchg(&np->rxpmtu, NULL);
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 
 	/* Free flowlabels */
 	fl6_free_socklist(sk);
@@ -902,6 +901,7 @@ static const struct ipv6_stub ipv6_stub_impl = {
 
 static const struct ipv6_bpf_stub ipv6_bpf_stub_impl = {
 	.inet6_bind = __inet6_bind,
+	.udp6_lib_lookup = __udp6_lib_lookup,
 };
 
 static int __init inet6_init(void)
@@ -1001,6 +1001,9 @@ static int __init inet6_init(void)
 	err = ip6_flowlabel_init();
 	if (err)
 		goto ip6_flowlabel_fail;
+	err = ipv6_anycast_init();
+	if (err)
+		goto ipv6_anycast_fail;
 	err = addrconf_init();
 	if (err)
 		goto addrconf_fail;
@@ -1091,6 +1094,8 @@ ipv6_frag_fail:
 ipv6_exthdrs_fail:
 	addrconf_cleanup();
 addrconf_fail:
+	ipv6_anycast_cleanup();
+ipv6_anycast_fail:
 	ip6_flowlabel_cleanup();
 ip6_flowlabel_fail:
 	ndisc_late_cleanup();

@@ -44,10 +44,12 @@ static inline int cpu_is_pxa910(void)
 #define cpu_is_pxa910()	(0)
 #endif
 
-#ifdef CONFIG_CPU_MMP2
+#if defined(CONFIG_CPU_MMP2) || defined(CONFIG_MACH_MMP2_DT)
 static inline int cpu_is_mmp2(void)
 {
-	return (((read_cpuid_id() >> 8) & 0xff) == 0x58);
+	return (((read_cpuid_id() >> 8) & 0xff) == 0x58) &&
+		(((mmp_chip_id & 0xfff) == 0x410) ||
+		 ((mmp_chip_id & 0xfff) == 0x610));
 }
 #else
 #define cpu_is_mmp2()	(0)

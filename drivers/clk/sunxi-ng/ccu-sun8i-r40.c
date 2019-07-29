@@ -65,19 +65,19 @@ static SUNXI_CCU_NM_WITH_GATE_LOCK(pll_audio_base_clk, "pll-audio-base",
 				   BIT(28),	/* lock */
 				   CLK_SET_RATE_UNGATE);
 
-/* TODO: The result of N/M is required to be in [8, 25] range. */
-static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK_MIN(pll_video0_clk, "pll-video0",
-					    "osc24M", 0x0010,
-					    192000000,	/* Minimum rate */
-					    8, 7,	/* N */
-					    0, 4,	/* M */
-					    BIT(24),	/* frac enable */
-					    BIT(25),	/* frac select */
-					    270000000,	/* frac rate 0 */
-					    297000000,	/* frac rate 1 */
-					    BIT(31),	/* gate */
-					    BIT(28),	/* lock */
-					    CLK_SET_RATE_UNGATE);
+static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK_MIN_MAX(pll_video0_clk, "pll-video0",
+						"osc24M", 0x0010,
+						192000000,  /* Minimum rate */
+						1008000000, /* Maximum rate */
+						8, 7,       /* N */
+						0, 4,       /* M */
+						BIT(24),    /* frac enable */
+						BIT(25),    /* frac select */
+						270000000,  /* frac rate 0 */
+						297000000,  /* frac rate 1 */
+						BIT(31),    /* gate */
+						BIT(28),    /* lock */
+						CLK_SET_RATE_UNGATE);
 
 /* TODO: The result of N/M is required to be in [8, 25] range. */
 static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_ve_clk, "pll-ve",
@@ -152,19 +152,19 @@ static struct ccu_nk pll_periph1_clk = {
 	},
 };
 
-/* TODO: The result of N/M is required to be in [8, 25] range. */
-static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK_MIN(pll_video1_clk, "pll-video1",
-					    "osc24M", 0x030,
-					    192000000,	/* Minimum rate */
-					    8, 7,	/* N */
-					    0, 4,	/* M */
-					    BIT(24),	/* frac enable */
-					    BIT(25),	/* frac select */
-					    270000000,	/* frac rate 0 */
-					    297000000,	/* frac rate 1 */
-					    BIT(31),	/* gate */
-					    BIT(28),	/* lock */
-					    CLK_SET_RATE_UNGATE);
+static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK_MIN_MAX(pll_video1_clk, "pll-video1",
+						"osc24M", 0x030,
+						192000000,  /* Minimum rate */
+						1008000000, /* Maximum rate */
+						8, 7,       /* N */
+						0, 4,       /* M */
+						BIT(24),    /* frac enable */
+						BIT(25),    /* frac select */
+						270000000,  /* frac rate 0 */
+						297000000,  /* frac rate 1 */
+						BIT(31),    /* gate */
+						BIT(28),    /* lock */
+						CLK_SET_RATE_UNGATE);
 
 static struct ccu_nkm pll_sata_clk = {
 	.enable		= BIT(31),

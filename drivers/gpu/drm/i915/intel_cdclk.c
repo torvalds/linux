@@ -2138,16 +2138,8 @@ void intel_set_cdclk(struct drm_i915_private *dev_priv,
 static int intel_pixel_rate_to_cdclk(struct drm_i915_private *dev_priv,
 				     int pixel_rate)
 {
-	if (INTEL_GEN(dev_priv) >= 10)
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		return DIV_ROUND_UP(pixel_rate, 2);
-	else if (IS_GEMINILAKE(dev_priv))
-		/*
-		 * FIXME: Avoid using a pixel clock that is more than 99% of the cdclk
-		 * as a temporary workaround. Use a higher cdclk instead. (Note that
-		 * intel_compute_max_dotclk() limits the max pixel clock to 99% of max
-		 * cdclk.)
-		 */
-		return DIV_ROUND_UP(pixel_rate * 100, 2 * 99);
 	else if (IS_GEN9(dev_priv) ||
 		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 		return pixel_rate;
@@ -2543,14 +2535,8 @@ static int intel_compute_max_dotclk(struct drm_i915_private *dev_priv)
 {
 	int max_cdclk_freq = dev_priv->max_cdclk_freq;
 
-	if (INTEL_GEN(dev_priv) >= 10)
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		return 2 * max_cdclk_freq;
-	else if (IS_GEMINILAKE(dev_priv))
-		/*
-		 * FIXME: Limiting to 99% as a temporary workaround. See
-		 * intel_min_cdclk() for details.
-		 */
-		return 2 * max_cdclk_freq * 99 / 100;
 	else if (IS_GEN9(dev_priv) ||
 		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
 		return max_cdclk_freq;

@@ -672,7 +672,7 @@
  *	Return 0 if permission is granted.
  * @task_kill:
  *	Check permission before sending signal @sig to @p.  @info can be NULL,
- *	the constant 1, or a pointer to a siginfo structure.  If @info is 1 or
+ *	the constant 1, or a pointer to a kernel_siginfo structure.  If @info is 1 or
  *	SI_FROMKERNEL(info) is true, then the signal should be viewed as coming
  *	from the kernel and should typically be permitted.
  *	SIGIO signals are handled separately by the send_sigiotask hook in
@@ -1606,7 +1606,7 @@ union security_list_options {
 	int (*task_setscheduler)(struct task_struct *p);
 	int (*task_getscheduler)(struct task_struct *p);
 	int (*task_movememory)(struct task_struct *p);
-	int (*task_kill)(struct task_struct *p, struct siginfo *info,
+	int (*task_kill)(struct task_struct *p, struct kernel_siginfo *info,
 				int sig, const struct cred *cred);
 	int (*task_prctl)(int option, unsigned long arg2, unsigned long arg3,
 				unsigned long arg4, unsigned long arg5);
@@ -2038,6 +2038,18 @@ extern char *lsm_names;
 
 extern void security_add_hooks(struct security_hook_list *hooks, int count,
 				char *lsm);
+
+struct lsm_info {
+	const char *name;	/* Required. */
+	int (*init)(void);	/* Required. */
+};
+
+extern struct lsm_info __start_lsm_info[], __end_lsm_info[];
+
+#define DEFINE_LSM(lsm)							\
+	static struct lsm_info __lsm_##lsm				\
+		__used __section(.lsm_info.init)			\
+		__aligned(sizeof(unsigned long))
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 /*

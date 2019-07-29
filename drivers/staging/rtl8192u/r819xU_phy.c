@@ -511,7 +511,8 @@ void rtl8192_phy_configmac(struct net_device *dev)
  * notice:    BB parameters may change all the time, so please make
  *            sure it has been synced with the newest.
  *****************************************************************************/
-void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
+static void rtl8192_phyConfigBB(struct net_device *dev,
+				enum baseband_config_type ConfigType)
 {
 	u32 i;
 
@@ -525,7 +526,7 @@ void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 		Rtl8190AGCTAB_Array_Table = Rtl819XAGCTAB_ArrayDTM;
 	}
 #endif
-	if (ConfigType == BaseBand_Config_PHY_REG) {
+	if (ConfigType == BASEBAND_CONFIG_PHY_REG) {
 		for (i = 0; i < PHY_REG_1T2RArrayLength; i += 2) {
 			rtl8192_setBBreg(dev, Rtl8192UsbPHY_REG_1T2RArray[i],
 					 bMaskDWord,
@@ -535,7 +536,7 @@ void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType)
 				 i, Rtl8192UsbPHY_REG_1T2RArray[i],
 				 Rtl8192UsbPHY_REG_1T2RArray[i+1]);
 		}
-	} else if (ConfigType == BaseBand_Config_AGC_TAB) {
+	} else if (ConfigType == BASEBAND_CONFIG_AGC_TAB) {
 		for (i = 0; i < AGCTAB_ArrayLength; i += 2) {
 			rtl8192_setBBreg(dev, Rtl8192UsbAGCTAB_Array[i],
 					 bMaskDWord, Rtl8192UsbAGCTAB_Array[i+1]);
@@ -793,7 +794,7 @@ static void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 						  (enum rf90_radio_path_e)0);
 		if (status != 0) {
 			RT_TRACE((COMP_ERR | COMP_PHY),
-				 "PHY_RF8256_Config(): Check PHY%d Fail!!\n",
+				 "phy_rf8256_config(): Check PHY%d Fail!!\n",
 				 eCheckItem-1);
 			return;
 		}
@@ -802,7 +803,7 @@ static void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	rtl8192_setBBreg(dev, rFPGA0_RFMOD, bCCKEn|bOFDMEn, 0x0);
 	/* ----BB Register Initilazation---- */
 	/* ==m==>Set PHY REG From Header<==m== */
-	rtl8192_phyConfigBB(dev, BaseBand_Config_PHY_REG);
+	rtl8192_phyConfigBB(dev, BASEBAND_CONFIG_PHY_REG);
 
 	/* ----Set BB reset de-Active---- */
 	read_nic_dword(dev, CPU_GEN, &reg_u32);
@@ -810,11 +811,11 @@ static void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 
 	/* ----BB AGC table Initialization---- */
 	/* ==m==>Set PHY REG From Header<==m== */
-	rtl8192_phyConfigBB(dev, BaseBand_Config_AGC_TAB);
+	rtl8192_phyConfigBB(dev, BASEBAND_CONFIG_AGC_TAB);
 
 	/* ----Enable XSTAL ---- */
 	write_nic_byte_E(dev, 0x5e, 0x00);
-	if (priv->card_8192_version == (u8)VERSION_819xU_A) {
+	if (priv->card_8192_version == VERSION_819XU_A) {
 		/* Antenna gain offset from B/C/D to A */
 		reg_u32 = priv->AntennaTxPwDiff[1]<<4 |
 			   priv->AntennaTxPwDiff[0];
@@ -917,8 +918,8 @@ void rtl8192_phy_setTxPower(struct net_device *dev, u8 channel)
 	switch (priv->rf_chip) {
 	case RF_8256:
 		/* need further implement */
-		PHY_SetRF8256CCKTxPower(dev, powerlevel);
-		PHY_SetRF8256OFDMTxPower(dev, powerlevelOFDM24G);
+		phy_set_rf8256_cck_tx_power(dev, powerlevel);
+		phy_set_rf8256_ofdm_tx_power(dev, powerlevelOFDM24G);
 		break;
 	default:
 		RT_TRACE((COMP_PHY|COMP_ERR),
@@ -940,7 +941,7 @@ void rtl8192_phy_RFConfig(struct net_device *dev)
 
 	switch (priv->rf_chip) {
 	case RF_8256:
-		PHY_RF8256_Config(dev);
+		phy_rf8256_config(dev);
 		break;
 	default:
 		RT_TRACE(COMP_ERR, "error chip id\n");
@@ -1065,8 +1066,8 @@ static void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 		break;
 
 	case RF_8256:
-		PHY_SetRF8256CCKTxPower(dev, powerlevel);
-		PHY_SetRF8256OFDMTxPower(dev, powerlevelOFDM24G);
+		phy_set_rf8256_cck_tx_power(dev, powerlevel);
+		phy_set_rf8256_ofdm_tx_power(dev, powerlevelOFDM24G);
 		break;
 
 	case RF_8258:
@@ -1271,7 +1272,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 
 	RT_TRACE(COMP_CH, "%s() stage: %d, step: %d, channel: %d\n",
 		 __func__, *stage, *step, channel);
-	if (!IsLegalChannel(priv->ieee80211, channel)) {
+	if (!is_legal_channel(priv->ieee80211, channel)) {
 		RT_TRACE(COMP_ERR, "set to illegal channel: %d\n", channel);
 		/* return true to tell upper caller function this channel
 		 * setting is finished! Or it will in while loop.
@@ -1367,7 +1368,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 
 		switch (CurrentCmd->cmd_id) {
 		case CMD_ID_SET_TX_PWR_LEVEL:
-			if (priv->card_8192_version == (u8)VERSION_819xU_A)
+			if (priv->card_8192_version == VERSION_819XU_A)
 				/* consider it later! */
 				rtl8192_SetTxPowerLevel(dev, channel);
 			break;
@@ -1633,7 +1634,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 		break;
 
 	case RF_8256:
-		PHY_SetRF8256Bandwidth(dev, priv->CurrentChannelBW);
+		phy_set_rf8256_bandwidth(dev, priv->CurrentChannelBW);
 		break;
 
 	case RF_8258:

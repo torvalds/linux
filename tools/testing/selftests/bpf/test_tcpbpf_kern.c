@@ -5,6 +5,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/tcp.h>
@@ -17,6 +18,13 @@ struct bpf_map_def SEC("maps") global_map = {
 	.type = BPF_MAP_TYPE_ARRAY,
 	.key_size = sizeof(__u32),
 	.value_size = sizeof(struct tcpbpf_globals),
+	.max_entries = 4,
+};
+
+struct bpf_map_def SEC("maps") sockopt_results = {
+	.type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(__u32),
+	.value_size = sizeof(int),
 	.max_entries = 2,
 };
 
@@ -45,11 +53,14 @@ int _version SEC("version") = 1;
 SEC("sockops")
 int bpf_testcb(struct bpf_sock_ops *skops)
 {
-	int rv = -1;
-	int bad_call_rv = 0;
+	char header[sizeof(struct ipv6hdr) + sizeof(struct tcphdr)];
+	struct tcphdr *thdr;
 	int good_call_rv = 0;
-	int op;
+	int bad_call_rv = 0;
+	int save_syn = 1;
+	int rv = -1;
 	int v = 0;
+	int op;
 
 	op = (int) skops->op;
 
@@ -82,6 +93,21 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 		v = 0xff;
 		rv = bpf_setsockopt(skops, SOL_IPV6, IPV6_TCLASS, &v,
 				    sizeof(v));
+		if (skops->family == AF_INET6) {
+			v = bpf_getsockopt(skops, IPPROTO_TCP, TCP_SAVED_SYN,
+					   header, (sizeof(struct ipv6hdr) +
+						    sizeof(struct tcphdr)));
+			if (!v) {
+				int offset = sizeof(struct ipv6hdr);
+
+				thdr = (struct tcphdr *)(header + offset);
+				v = thdr->syn;
+				__u32 key = 1;
+
+				bpf_map_update_elem(&sockopt_results, &key, &v,
+						    BPF_ANY);
+			}
+		}
 		break;
 	case BPF_SOCK_OPS_RTO_CB:
 		break;
@@ -111,6 +137,12 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 		break;
 	case BPF_SOCK_OPS_TCP_LISTEN_CB:
 		bpf_sock_ops_cb_flags_set(skops, BPF_SOCK_OPS_STATE_CB_FLAG);
+		v = bpf_setsockopt(skops, IPPROTO_TCP, TCP_SAVE_SYN,
+				   &save_syn, sizeof(save_syn));
+		/* Update global map w/ result of setsock opt */
+		__u32 key = 0;
+
+		bpf_map_update_elem(&sockopt_results, &key, &v, BPF_ANY);
 		break;
 	default:
 		rv = -1;

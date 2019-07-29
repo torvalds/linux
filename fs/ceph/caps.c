@@ -519,9 +519,9 @@ static void __cap_set_timeouts(struct ceph_mds_client *mdsc,
  *    -> we take mdsc->cap_delay_lock
  */
 static void __cap_delay_requeue(struct ceph_mds_client *mdsc,
-				struct ceph_inode_info *ci)
+				struct ceph_inode_info *ci,
+				bool set_timeout)
 {
-	__cap_set_timeouts(mdsc, ci);
 	dout("__cap_delay_requeue %p flags %d at %lu\n", &ci->vfs_inode,
 	     ci->i_ceph_flags, ci->i_hold_caps_max);
 	if (!mdsc->stopping) {
@@ -531,6 +531,8 @@ static void __cap_delay_requeue(struct ceph_mds_client *mdsc,
 				goto no_change;
 			list_del_init(&ci->i_cap_delay_list);
 		}
+		if (set_timeout)
+			__cap_set_timeouts(mdsc, ci);
 		list_add_tail(&ci->i_cap_delay_list, &mdsc->cap_delay_list);
 no_change:
 		spin_unlock(&mdsc->cap_delay_lock);
@@ -720,7 +722,7 @@ void ceph_add_cap(struct inode *inode,
 		dout(" issued %s, mds wanted %s, actual %s, queueing\n",
 		     ceph_cap_string(issued), ceph_cap_string(wanted),
 		     ceph_cap_string(actual_wanted));
-		__cap_delay_requeue(mdsc, ci);
+		__cap_delay_requeue(mdsc, ci, true);
 	}
 
 	if (flags & CEPH_CAP_FLAG_AUTH) {
@@ -1647,7 +1649,7 @@ int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask,
 	if (((was | ci->i_flushing_caps) & CEPH_CAP_FILE_BUFFER) &&
 	    (mask & CEPH_CAP_FILE_BUFFER))
 		dirty |= I_DIRTY_DATASYNC;
-	__cap_delay_requeue(mdsc, ci);
+	__cap_delay_requeue(mdsc, ci, true);
 	return dirty;
 }
 
@@ -2065,7 +2067,7 @@ ack:
 
 	/* Reschedule delayed caps release if we delayed anything */
 	if (delayed)
-		__cap_delay_requeue(mdsc, ci);
+		__cap_delay_requeue(mdsc, ci, false);
 
 	spin_unlock(&ci->i_ceph_lock);
 
@@ -2125,7 +2127,7 @@ retry:
 
 		if (delayed) {
 			spin_lock(&ci->i_ceph_lock);
-			__cap_delay_requeue(mdsc, ci);
+			__cap_delay_requeue(mdsc, ci, true);
 			spin_unlock(&ci->i_ceph_lock);
 		}
 	} else {
@@ -2671,17 +2673,18 @@ static void check_max_size(struct inode *inode, loff_t endoff)
 		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
 }
 
-int ceph_try_get_caps(struct ceph_inode_info *ci, int need, int want, int *got)
+int ceph_try_get_caps(struct ceph_inode_info *ci, int need, int want,
+		      bool nonblock, int *got)
 {
 	int ret, err = 0;
 
 	BUG_ON(need & ~CEPH_CAP_FILE_RD);
-	BUG_ON(want & ~(CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO));
+	BUG_ON(want & ~(CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO|CEPH_CAP_FILE_SHARED));
 	ret = ceph_pool_perm_check(ci, need);
 	if (ret < 0)
 		return ret;
 
-	ret = try_get_cap_refs(ci, need, want, 0, true, got, &err);
+	ret = try_get_cap_refs(ci, need, want, 0, nonblock, got, &err);
 	if (ret) {
 		if (err == -EAGAIN) {
 			ret = 0;

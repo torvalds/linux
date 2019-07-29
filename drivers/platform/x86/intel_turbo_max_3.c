@@ -1,28 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Turbo Boost Max Technology 3.0 legacy (non HWP) enumeration driver
  * Copyright (c) 2017, Intel Corporation.
  * All rights reserved.
  *
  * Author: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
+#include <linux/cpufeature.h>
+#include <linux/cpuhotplug.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/topology.h>
 #include <linux/workqueue.h>
-#include <linux/cpuhotplug.h>
-#include <linux/cpufeature.h>
+
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 

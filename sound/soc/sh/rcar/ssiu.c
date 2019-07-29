@@ -10,9 +10,12 @@
 
 struct rsnd_ssiu {
 	struct rsnd_mod mod;
+	u32 busif_status[8]; /* for BUSIF0 - BUSIF7 */
+	unsigned int usrcnt;
 };
 
 #define rsnd_ssiu_nr(priv) ((priv)->ssiu_nr)
+#define rsnd_mod_to_ssiu(_mod) container_of((_mod), struct rsnd_ssiu, mod)
 #define for_each_rsnd_ssiu(pos, priv, i)				\
 	for (i = 0;							\
 	     (i < rsnd_ssiu_nr(priv)) &&				\
@@ -120,6 +123,7 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai_stream *io,
 			       struct rsnd_priv *priv)
 {
+	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
 	int hdmi = rsnd_ssi_hdmi_port(io);
 	int ret;
 	u32 mode = 0;
@@ -127,6 +131,8 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 	ret = rsnd_ssiu_init(mod, io, priv);
 	if (ret < 0)
 		return ret;
+
+	ssiu->usrcnt++;
 
 	if (rsnd_runtime_is_ssi_tdm(io)) {
 		/*
@@ -140,15 +146,59 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 	rsnd_mod_write(mod, SSI_MODE, mode);
 
 	if (rsnd_ssi_use_busif(io)) {
-		rsnd_mod_write(mod, SSI_BUSIF_ADINR,
-			       rsnd_get_adinr_bit(mod, io) |
-			       (rsnd_io_is_play(io) ?
-				rsnd_runtime_channel_after_ctu(io) :
-				rsnd_runtime_channel_original(io)));
-		rsnd_mod_write(mod, SSI_BUSIF_MODE,
-			       rsnd_get_busif_shift(io, mod) | 1);
-		rsnd_mod_write(mod, SSI_BUSIF_DALIGN,
-			       rsnd_get_dalign(mod, io));
+		int id = rsnd_mod_id(mod);
+		int busif = rsnd_ssi_get_busif(io);
+
+		/*
+		 * FIXME
+		 *
+		 * We can't support SSI9-4/5/6/7, because its address is
+		 * out of calculation rule
+		 */
+		if ((id == 9) && (busif >= 4)) {
+			struct device *dev = rsnd_priv_to_dev(priv);
+
+			dev_err(dev, "This driver doesn't support SSI%d-%d, so far",
+				id, busif);
+		}
+
+#define RSND_WRITE_BUSIF(i)						\
+		rsnd_mod_write(mod, SSI_BUSIF##i##_ADINR,		\
+			       rsnd_get_adinr_bit(mod, io) |		\
+			       (rsnd_io_is_play(io) ?			\
+				rsnd_runtime_channel_after_ctu(io) :	\
+				rsnd_runtime_channel_original(io)));	\
+		rsnd_mod_write(mod, SSI_BUSIF##i##_MODE,		\
+			       rsnd_get_busif_shift(io, mod) | 1);	\
+		rsnd_mod_write(mod, SSI_BUSIF##i##_DALIGN,		\
+			       rsnd_get_dalign(mod, io))
+
+		switch (busif) {
+		case 0:
+			RSND_WRITE_BUSIF(0);
+			break;
+		case 1:
+			RSND_WRITE_BUSIF(1);
+			break;
+		case 2:
+			RSND_WRITE_BUSIF(2);
+			break;
+		case 3:
+			RSND_WRITE_BUSIF(3);
+			break;
+		case 4:
+			RSND_WRITE_BUSIF(4);
+			break;
+		case 5:
+			RSND_WRITE_BUSIF(5);
+			break;
+		case 6:
+			RSND_WRITE_BUSIF(6);
+			break;
+		case 7:
+			RSND_WRITE_BUSIF(7);
+			break;
+		}
 	}
 
 	if (hdmi) {
@@ -194,10 +244,12 @@ static int rsnd_ssiu_start_gen2(struct rsnd_mod *mod,
 				struct rsnd_dai_stream *io,
 				struct rsnd_priv *priv)
 {
+	int busif = rsnd_ssi_get_busif(io);
+
 	if (!rsnd_ssi_use_busif(io))
 		return 0;
 
-	rsnd_mod_write(mod, SSI_CTRL, 0x1);
+	rsnd_mod_bset(mod, SSI_CTRL, 1 << (busif * 4), 1 << (busif * 4));
 
 	if (rsnd_ssi_multi_slaves_runtime(io))
 		rsnd_mod_write(mod, SSI_CONTROL, 0x1);
@@ -209,10 +261,16 @@ static int rsnd_ssiu_stop_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai_stream *io,
 			       struct rsnd_priv *priv)
 {
+	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
+	int busif = rsnd_ssi_get_busif(io);
+
 	if (!rsnd_ssi_use_busif(io))
 		return 0;
 
-	rsnd_mod_write(mod, SSI_CTRL, 0);
+	rsnd_mod_bset(mod, SSI_CTRL, 1 << (busif * 4), 0);
+
+	if (--ssiu->usrcnt)
+		return 0;
 
 	if (rsnd_ssi_multi_slaves_runtime(io))
 		rsnd_mod_write(mod, SSI_CONTROL, 0);
@@ -246,6 +304,16 @@ int rsnd_ssiu_attach(struct rsnd_dai_stream *io,
 	return rsnd_dai_connect(mod, io, mod->type);
 }
 
+static u32 *rsnd_ssiu_get_status(struct rsnd_dai_stream *io,
+				 struct rsnd_mod *mod,
+				 enum rsnd_mod_type type)
+{
+	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
+	int busif = rsnd_ssi_get_busif(io);
+
+	return &ssiu->busif_status[busif];
+}
+
 int rsnd_ssiu_probe(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
@@ -269,7 +337,7 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 
 	for_each_rsnd_ssiu(ssiu, priv, i) {
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ssiu),
-				    ops, NULL, rsnd_mod_get_status,
+				    ops, NULL, rsnd_ssiu_get_status,
 				    RSND_MOD_SSIU, i);
 		if (ret)
 			return ret;

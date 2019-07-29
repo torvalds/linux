@@ -190,7 +190,7 @@ out:
 static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 {
 	int rc = 0;
-	unsigned long start, data_comp_to;
+	unsigned long data_comp_to;
 
 	wil_dbg_pm(wil, "suspend keep radio on\n");
 
@@ -232,7 +232,6 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 	}
 
 	/* Wait for completion of the pending RX packets */
-	start = jiffies;
 	data_comp_to = jiffies + msecs_to_jiffies(WIL_DATA_COMPLETION_TO_MS);
 	if (test_bit(wil_status_napi_en, wil->status)) {
 		while (!wil->txrx_ops.is_rx_idle(wil)) {

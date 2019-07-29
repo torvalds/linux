@@ -247,8 +247,6 @@ static void oops_end(unsigned long flags, struct pt_regs *regs,
 		mdelay(MSEC_PER_SEC);
 	}
 
-	if (in_interrupt())
-		panic("Fatal exception in interrupt");
 	if (panic_on_oops)
 		panic("Fatal exception");
 	do_exit(signr);
@@ -307,12 +305,9 @@ void die(const char *str, struct pt_regs *regs, long err)
 }
 NOKPROBE_SYMBOL(die);
 
-void user_single_step_siginfo(struct task_struct *tsk,
-				struct pt_regs *regs, siginfo_t *info)
+void user_single_step_report(struct pt_regs *regs)
 {
-	info->si_signo = SIGTRAP;
-	info->si_code = TRAP_TRACE;
-	info->si_addr = (void __user *)regs->nip;
+	force_sig_fault(SIGTRAP, TRAP_TRACE, (void __user *)regs->nip, current);
 }
 
 static void show_signal_msg(int signr, struct pt_regs *regs, int code,
@@ -341,14 +336,12 @@ static void show_signal_msg(int signr, struct pt_regs *regs, int code,
 	show_user_instructions(regs);
 }
 
-void _exception_pkey(int signr, struct pt_regs *regs, int code,
-		     unsigned long addr, int key)
+static bool exception_common(int signr, struct pt_regs *regs, int code,
+			      unsigned long addr)
 {
-	siginfo_t info;
-
 	if (!user_mode(regs)) {
 		die("Exception in kernel mode", regs, signr);
-		return;
+		return false;
 	}
 
 	show_signal_msg(signr, regs, code, addr);
@@ -364,18 +357,23 @@ void _exception_pkey(int signr, struct pt_regs *regs, int code,
 	 */
 	thread_pkey_regs_save(&current->thread);
 
-	clear_siginfo(&info);
-	info.si_signo = signr;
-	info.si_code = code;
-	info.si_addr = (void __user *) addr;
-	info.si_pkey = key;
+	return true;
+}
 
-	force_sig_info(signr, &info, current);
+void _exception_pkey(struct pt_regs *regs, unsigned long addr, int key)
+{
+	if (!exception_common(SIGSEGV, regs, SEGV_PKUERR, addr))
+		return;
+
+	force_sig_pkuerr((void __user *) addr, key);
 }
 
 void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 {
-	_exception_pkey(signr, regs, code, addr, 0);
+	if (!exception_common(signr, regs, code, addr))
+		return;
+
+	force_sig_fault(signr, code, (void __user *)addr, current);
 }
 
 void system_reset_exception(struct pt_regs *regs)
@@ -535,10 +533,10 @@ int machine_check_e500mc(struct pt_regs *regs)
 	printk("Caused by (from MCSR=%lx): ", reason);
 
 	if (reason & MCSR_MCP)
-		printk("Machine Check Signal\n");
+		pr_cont("Machine Check Signal\n");
 
 	if (reason & MCSR_ICPERR) {
-		printk("Instruction Cache Parity Error\n");
+		pr_cont("Instruction Cache Parity Error\n");
 
 		/*
 		 * This is recoverable by invalidating the i-cache.
@@ -556,7 +554,7 @@ int machine_check_e500mc(struct pt_regs *regs)
 	}
 
 	if (reason & MCSR_DCPERR_MC) {
-		printk("Data Cache Parity Error\n");
+		pr_cont("Data Cache Parity Error\n");
 
 		/*
 		 * In write shadow mode we auto-recover from the error, but it
@@ -575,38 +573,38 @@ int machine_check_e500mc(struct pt_regs *regs)
 	}
 
 	if (reason & MCSR_L2MMU_MHIT) {
-		printk("Hit on multiple TLB entries\n");
+		pr_cont("Hit on multiple TLB entries\n");
 		recoverable = 0;
 	}
 
 	if (reason & MCSR_NMI)
-		printk("Non-maskable interrupt\n");
+		pr_cont("Non-maskable interrupt\n");
 
 	if (reason & MCSR_IF) {
-		printk("Instruction Fetch Error Report\n");
+		pr_cont("Instruction Fetch Error Report\n");
 		recoverable = 0;
 	}
 
 	if (reason & MCSR_LD) {
-		printk("Load Error Report\n");
+		pr_cont("Load Error Report\n");
 		recoverable = 0;
 	}
 
 	if (reason & MCSR_ST) {
-		printk("Store Error Report\n");
+		pr_cont("Store Error Report\n");
 		recoverable = 0;
 	}
 
 	if (reason & MCSR_LDG) {
-		printk("Guarded Load Error Report\n");
+		pr_cont("Guarded Load Error Report\n");
 		recoverable = 0;
 	}
 
 	if (reason & MCSR_TLBSYNC)
-		printk("Simultaneous tlbsync operations\n");
+		pr_cont("Simultaneous tlbsync operations\n");
 
 	if (reason & MCSR_BSL2_ERR) {
-		printk("Level 2 Cache Error\n");
+		pr_cont("Level 2 Cache Error\n");
 		recoverable = 0;
 	}
 
@@ -616,7 +614,7 @@ int machine_check_e500mc(struct pt_regs *regs)
 		addr = mfspr(SPRN_MCAR);
 		addr |= (u64)mfspr(SPRN_MCARU) << 32;
 
-		printk("Machine Check %s Address: %#llx\n",
+		pr_cont("Machine Check %s Address: %#llx\n",
 		       reason & MCSR_MEA ? "Effective" : "Physical", addr);
 	}
 
@@ -640,29 +638,29 @@ int machine_check_e500(struct pt_regs *regs)
 	printk("Caused by (from MCSR=%lx): ", reason);
 
 	if (reason & MCSR_MCP)
-		printk("Machine Check Signal\n");
+		pr_cont("Machine Check Signal\n");
 	if (reason & MCSR_ICPERR)
-		printk("Instruction Cache Parity Error\n");
+		pr_cont("Instruction Cache Parity Error\n");
 	if (reason & MCSR_DCP_PERR)
-		printk("Data Cache Push Parity Error\n");
+		pr_cont("Data Cache Push Parity Error\n");
 	if (reason & MCSR_DCPERR)
-		printk("Data Cache Parity Error\n");
+		pr_cont("Data Cache Parity Error\n");
 	if (reason & MCSR_BUS_IAERR)
-		printk("Bus - Instruction Address Error\n");
+		pr_cont("Bus - Instruction Address Error\n");
 	if (reason & MCSR_BUS_RAERR)
-		printk("Bus - Read Address Error\n");
+		pr_cont("Bus - Read Address Error\n");
 	if (reason & MCSR_BUS_WAERR)
-		printk("Bus - Write Address Error\n");
+		pr_cont("Bus - Write Address Error\n");
 	if (reason & MCSR_BUS_IBERR)
-		printk("Bus - Instruction Data Error\n");
+		pr_cont("Bus - Instruction Data Error\n");
 	if (reason & MCSR_BUS_RBERR)
-		printk("Bus - Read Data Bus Error\n");
+		pr_cont("Bus - Read Data Bus Error\n");
 	if (reason & MCSR_BUS_WBERR)
-		printk("Bus - Write Data Bus Error\n");
+		pr_cont("Bus - Write Data Bus Error\n");
 	if (reason & MCSR_BUS_IPERR)
-		printk("Bus - Instruction Parity Error\n");
+		pr_cont("Bus - Instruction Parity Error\n");
 	if (reason & MCSR_BUS_RPERR)
-		printk("Bus - Read Parity Error\n");
+		pr_cont("Bus - Read Parity Error\n");
 
 	return 0;
 }
@@ -680,19 +678,19 @@ int machine_check_e200(struct pt_regs *regs)
 	printk("Caused by (from MCSR=%lx): ", reason);
 
 	if (reason & MCSR_MCP)
-		printk("Machine Check Signal\n");
+		pr_cont("Machine Check Signal\n");
 	if (reason & MCSR_CP_PERR)
-		printk("Cache Push Parity Error\n");
+		pr_cont("Cache Push Parity Error\n");
 	if (reason & MCSR_CPERR)
-		printk("Cache Parity Error\n");
+		pr_cont("Cache Parity Error\n");
 	if (reason & MCSR_EXCP_ERR)
-		printk("ISI, ITLB, or Bus Error on first instruction fetch for an exception handler\n");
+		pr_cont("ISI, ITLB, or Bus Error on first instruction fetch for an exception handler\n");
 	if (reason & MCSR_BUS_IRERR)
-		printk("Bus - Read Bus Error on instruction fetch\n");
+		pr_cont("Bus - Read Bus Error on instruction fetch\n");
 	if (reason & MCSR_BUS_DRERR)
-		printk("Bus - Read Bus Error on data load\n");
+		pr_cont("Bus - Read Bus Error on data load\n");
 	if (reason & MCSR_BUS_WRERR)
-		printk("Bus - Write Bus Error on buffered store or cache line push\n");
+		pr_cont("Bus - Write Bus Error on buffered store or cache line push\n");
 
 	return 0;
 }
@@ -705,30 +703,30 @@ int machine_check_generic(struct pt_regs *regs)
 	printk("Caused by (from SRR1=%lx): ", reason);
 	switch (reason & 0x601F0000) {
 	case 0x80000:
-		printk("Machine check signal\n");
+		pr_cont("Machine check signal\n");
 		break;
 	case 0:		/* for 601 */
 	case 0x40000:
 	case 0x140000:	/* 7450 MSS error and TEA */
-		printk("Transfer error ack signal\n");
+		pr_cont("Transfer error ack signal\n");
 		break;
 	case 0x20000:
-		printk("Data parity error signal\n");
+		pr_cont("Data parity error signal\n");
 		break;
 	case 0x10000:
-		printk("Address parity error signal\n");
+		pr_cont("Address parity error signal\n");
 		break;
 	case 0x20000000:
-		printk("L1 Data Cache error\n");
+		pr_cont("L1 Data Cache error\n");
 		break;
 	case 0x40000000:
-		printk("L1 Instruction Cache error\n");
+		pr_cont("L1 Instruction Cache error\n");
 		break;
 	case 0x00100000:
-		printk("L2 data cache parity error\n");
+		pr_cont("L2 data cache parity error\n");
 		break;
 	default:
-		printk("Unknown values in msr\n");
+		pr_cont("Unknown values in msr\n");
 	}
 	return 0;
 }
@@ -741,9 +739,7 @@ void machine_check_exception(struct pt_regs *regs)
 	if (!nested)
 		nmi_enter();
 
-	/* 64s accounts the mce in machine_check_early when in HVMODE */
-	if (!IS_ENABLED(CONFIG_PPC_BOOK3S_64) || !cpu_has_feature(CPU_FTR_HVMODE))
-		__this_cpu_inc(irq_stat.mce_exceptions);
+	__this_cpu_inc(irq_stat.mce_exceptions);
 
 	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 
@@ -767,11 +763,16 @@ void machine_check_exception(struct pt_regs *regs)
 	if (check_io_access(regs))
 		goto bail;
 
-	die("Machine check", regs, SIGBUS);
-
 	/* Must die if the interrupt is not recoverable */
 	if (!(regs->msr & MSR_RI))
 		nmi_panic(regs, "Unrecoverable Machine check");
+
+	if (!nested)
+		nmi_exit();
+
+	die("Machine check", regs, SIGBUS);
+
+	return;
 
 bail:
 	if (!nested)
@@ -1433,7 +1434,7 @@ void program_check_exception(struct pt_regs *regs)
 			goto bail;
 		} else {
 			printk(KERN_EMERG "Unexpected TM Bad Thing exception "
-			       "at %lx (msr 0x%x)\n", regs->nip, reason);
+			       "at %lx (msr 0x%lx)\n", regs->nip, regs->msr);
 			die("Unrecoverable exception", regs, SIGABRT);
 		}
 	}
@@ -1545,14 +1546,6 @@ void StackOverflow(struct pt_regs *regs)
 	debugger(regs);
 	show_regs(regs);
 	panic("kernel stack overflow");
-}
-
-void nonrecoverable_exception(struct pt_regs *regs)
-{
-	printk(KERN_ERR "Non-recoverable exception at PC=%lx MSR=%lx\n",
-	       regs->nip, regs->msr);
-	debugger(regs);
-	die("nonrecoverable exception", regs, SIGKILL);
 }
 
 void kernel_fp_unavailable_exception(struct pt_regs *regs)
@@ -1750,16 +1743,20 @@ void fp_unavailable_tm(struct pt_regs *regs)
          * checkpointed FP registers need to be loaded.
 	 */
 	tm_reclaim_current(TM_CAUSE_FAC_UNAV);
-	/* Reclaim didn't save out any FPRs to transact_fprs. */
+
+	/*
+	 * Reclaim initially saved out bogus (lazy) FPRs to ckfp_state, and
+	 * then it was overwrite by the thr->fp_state by tm_reclaim_thread().
+	 *
+	 * At this point, ck{fp,vr}_state contains the exact values we want to
+	 * recheckpoint.
+	 */
 
 	/* Enable FP for the task: */
 	current->thread.load_fp = 1;
 
-	/* This loads and recheckpoints the FP registers from
-	 * thread.fpr[].  They will remain in registers after the
-	 * checkpoint so we don't need to reload them after.
-	 * If VMX is in use, the VRs now hold checkpointed values,
-	 * so we don't want to load the VRs from the thread_struct.
+	/*
+	 * Recheckpoint all the checkpointed ckpt, ck{fp, vr}_state registers.
 	 */
 	tm_recheckpoint(&current->thread);
 }
@@ -2086,8 +2083,8 @@ void SPEFloatingPointRoundException(struct pt_regs *regs)
  */
 void unrecoverable_exception(struct pt_regs *regs)
 {
-	printk(KERN_EMERG "Unrecoverable exception %lx at %lx\n",
-	       regs->trap, regs->nip);
+	pr_emerg("Unrecoverable exception %lx at %lx (msr=%lx)\n",
+		 regs->trap, regs->nip, regs->msr);
 	die("Unrecoverable exception", regs, SIGABRT);
 }
 NOKPROBE_SYMBOL(unrecoverable_exception);

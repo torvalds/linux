@@ -5,6 +5,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "vamrs,ficus", "rockchip,rk3399";
 
+- 96boards RK3399 Rock960 (ROCK960 Consumer Edition)
+    Required root node properties:
+      - compatible = "vamrs,rock960", "rockchip,rk3399";
+
 - Amarula Vyasa RK3288 board
     Required root node properties:
       - compatible = "amarula,vyasa-rk3288", "rockchip,rk3288";
@@ -12,6 +16,10 @@ Rockchip platforms device tree bindings
 - Asus Tinker board
     Required root node properties:
       - compatible = "asus,rk3288-tinker", "rockchip,rk3288";
+
+- Asus Tinker board S
+    Required root node properties:
+      - compatible = "asus,rk3288-tinker-s", "rockchip,rk3288";
 
 - Kylin RK3036 board:
     Required root node properties:
@@ -58,6 +66,10 @@ Rockchip platforms device tree bindings
 - Firefly roc-rk3328-cc board:
     Required root node properties:
       - compatible = "firefly,roc-rk3328-cc", "rockchip,rk3328";
+
+- Firefly ROC-RK3399-PC board:
+    Required root node properties:
+      - compatible = "firefly,roc-rk3399-pc", "rockchip,rk3399";
 
 - ChipSPARK PopMetal-RK3288 board:
     Required root node properties:
@@ -160,6 +172,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
     - compatible = "pine64,rock64", "rockchip,rk3328";
 
+- Pine64 RockPro64 board:
+    Required root node properties:
+    - compatible = "pine64,rockpro64", "rockchip,rk3399";
+
 - Rockchip PX3 Evaluation board:
     Required root node properties:
       - compatible = "rockchip,px3-evb", "rockchip,px3", "rockchip,rk3188";
@@ -167,6 +183,10 @@ Rockchip platforms device tree bindings
 - Rockchip PX5 Evaluation board:
     Required root node properties:
       - compatible = "rockchip,px5-evb", "rockchip,px5", "rockchip,rk3368";
+
+- Rockchip PX30 Evaluation board:
+    Required root node properties:
+      - compatible = "rockchip,px30-evb", "rockchip,px30";
 
 - Rockchip RV1108 Evaluation board
     Required root node properties:

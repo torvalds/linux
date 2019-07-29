@@ -26,10 +26,10 @@ void sms_ir_event(struct smscore_device_t *coredev, const char *buf, int len)
 	const s32 *samples = (const void *)buf;
 
 	for (i = 0; i < len >> 2; i++) {
-		DEFINE_IR_RAW_EVENT(ev);
-
-		ev.duration = abs(samples[i]) * 1000; /* Convert to ns */
-		ev.pulse = (samples[i] > 0) ? false : true;
+		struct ir_raw_event ev = {
+			.duration = abs(samples[i]) * 1000, /* Convert to ns */
+			.pulse = (samples[i] > 0) ? false : true
+		};
 
 		ir_raw_event_store(coredev->ir.dev, &ev);
 	}
@@ -55,7 +55,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	snprintf(coredev->ir.name, sizeof(coredev->ir.name),
 		 "SMS IR (%s)", sms_get_board(board_id)->name);
 
-	strlcpy(coredev->ir.phys, coredev->devpath, sizeof(coredev->ir.phys));
+	strscpy(coredev->ir.phys, coredev->devpath, sizeof(coredev->ir.phys));
 	strlcat(coredev->ir.phys, "/ir0", sizeof(coredev->ir.phys));
 
 	dev->device_name = coredev->ir.name;

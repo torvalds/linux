@@ -531,11 +531,7 @@ static void ip_sublist_rcv_finish(struct list_head *head)
 	struct sk_buff *skb, *next;
 
 	list_for_each_entry_safe(skb, next, head, list) {
-		list_del(&skb->list);
-		/* Handle ip{6}_forward case, as sch_direct_xmit have
-		 * another kind of SKB-list usage (see validate_xmit_skb_list)
-		 */
-		skb->next = NULL;
+		skb_list_del_init(skb);
 		dst_input(skb);
 	}
 }
@@ -551,7 +547,7 @@ static void ip_list_rcv_finish(struct net *net, struct sock *sk,
 	list_for_each_entry_safe(skb, next, head, list) {
 		struct dst_entry *dst;
 
-		list_del(&skb->list);
+		skb_list_del_init(skb);
 		/* if ingress device is enslaved to an L3 master device pass the
 		 * skb to its handler for processing
 		 */
@@ -598,7 +594,7 @@ void ip_list_rcv(struct list_head *head, struct packet_type *pt,
 		struct net_device *dev = skb->dev;
 		struct net *net = dev_net(dev);
 
-		list_del(&skb->list);
+		skb_list_del_init(skb);
 		skb = ip_rcv_core(skb, net);
 		if (skb == NULL)
 			continue;

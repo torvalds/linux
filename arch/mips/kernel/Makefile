@@ -113,22 +113,4 @@ obj-$(CONFIG_MIPS_CPC)		+= mips-cpc.o
 obj-$(CONFIG_CPU_PM)		+= pm.o
 obj-$(CONFIG_MIPS_CPS_PM)	+= pm-cps.o
 
-#
-# DSP ASE supported for MIPS32 or MIPS64 Release 2 cores only. It is not
-# safe to unconditionnaly use the assembler -mdsp / -mdspr2 switches
-# here because the compiler may use DSP ASE instructions (such as lwx) in
-# code paths where we cannot check that the CPU we are running on supports it.
-# Proper abstraction using HAVE_AS_DSP and macros is done in
-# arch/mips/include/asm/mipsregs.h.
-#
-ifeq ($(CONFIG_CPU_MIPSR2), y)
-CFLAGS_DSP 			= -DHAVE_AS_DSP
-
-CFLAGS_signal.o			= $(CFLAGS_DSP)
-CFLAGS_signal32.o		= $(CFLAGS_DSP)
-CFLAGS_process.o		= $(CFLAGS_DSP)
-CFLAGS_branch.o			= $(CFLAGS_DSP)
-CFLAGS_ptrace.o			= $(CFLAGS_DSP)
-endif
-
 CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)

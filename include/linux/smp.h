@@ -53,6 +53,10 @@ void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),
 		smp_call_func_t func, void *info, bool wait,
 		gfp_t gfp_flags);
 
+void on_each_cpu_cond_mask(bool (*cond_func)(int cpu, void *info),
+		smp_call_func_t func, void *info, bool wait,
+		gfp_t gfp_flags, const struct cpumask *mask);
+
 int smp_call_function_single_async(int cpu, call_single_data_t *csd);
 
 #ifdef CONFIG_SMP

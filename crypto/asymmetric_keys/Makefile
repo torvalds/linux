@@ -11,6 +11,7 @@ asymmetric_keys-y := \
 	signature.o
 
 obj-$(CONFIG_ASYMMETRIC_PUBLIC_KEY_SUBTYPE) += public_key.o
+obj-$(CONFIG_ASYMMETRIC_TPM_KEY_SUBTYPE) += asym_tpm.o
 
 #
 # X.509 Certificate handling
@@ -28,6 +29,19 @@ $(obj)/x509_cert_parser.o: \
 
 $(obj)/x509.asn1.o: $(obj)/x509.asn1.c $(obj)/x509.asn1.h
 $(obj)/x509_akid.asn1.o: $(obj)/x509_akid.asn1.c $(obj)/x509_akid.asn1.h
+
+#
+# PKCS#8 private key handling
+#
+obj-$(CONFIG_PKCS8_PRIVATE_KEY_PARSER) += pkcs8_key_parser.o
+pkcs8_key_parser-y := \
+	pkcs8.asn1.o \
+	pkcs8_parser.o
+
+$(obj)/pkcs8_parser.o: $(obj)/pkcs8.asn1.h
+$(obj)/pkcs8-asn1.o: $(obj)/pkcs8.asn1.c $(obj)/pkcs8.asn1.h
+
+clean-files	+= pkcs8.asn1.c pkcs8.asn1.h
 
 #
 # PKCS#7 message handling
@@ -61,3 +75,14 @@ verify_signed_pefile-y := \
 
 $(obj)/mscode_parser.o: $(obj)/mscode.asn1.h $(obj)/mscode.asn1.h
 $(obj)/mscode.asn1.o: $(obj)/mscode.asn1.c $(obj)/mscode.asn1.h
+
+#
+# TPM private key parsing
+#
+obj-$(CONFIG_TPM_KEY_PARSER) += tpm_key_parser.o
+tpm_key_parser-y := \
+	tpm.asn1.o \
+	tpm_parser.o
+
+$(obj)/tpm_parser.o: $(obj)/tpm.asn1.h
+$(obj)/tpm.asn1.o: $(obj)/tpm.asn1.c $(obj)/tpm.asn1.h

@@ -127,6 +127,8 @@ static int smc_release(struct socket *sock)
 	smc = smc_sk(sk);
 
 	/* cleanup for a dangling non-blocking connect */
+	if (smc->connect_info && sk->sk_state == SMC_INIT)
+		tcp_abort(smc->clcsock->sk, ECONNABORTED);
 	flush_work(&smc->connect_work);
 	kfree(smc->connect_info);
 	smc->connect_info = NULL;
@@ -145,8 +147,14 @@ static int smc_release(struct socket *sock)
 		sk->sk_shutdown |= SHUTDOWN_MASK;
 	}
 	if (smc->clcsock) {
+		if (smc->use_fallback && sk->sk_state == SMC_LISTEN) {
+			/* wake up clcsock accept */
+			rc = kernel_sock_shutdown(smc->clcsock, SHUT_RDWR);
+		}
+		mutex_lock(&smc->clcsock_release_lock);
 		sock_release(smc->clcsock);
 		smc->clcsock = NULL;
+		mutex_unlock(&smc->clcsock_release_lock);
 	}
 	if (smc->use_fallback) {
 		if (sk->sk_state != SMC_LISTEN && sk->sk_state != SMC_INIT)
@@ -203,6 +211,7 @@ static struct sock *smc_sock_alloc(struct net *net, struct socket *sock,
 	spin_lock_init(&smc->conn.send_lock);
 	sk->sk_prot->hash(sk);
 	sk_refcnt_debug_inc(sk);
+	mutex_init(&smc->clcsock_release_lock);
 
 	return sk;
 }
@@ -547,7 +556,8 @@ static int smc_connect_rdma(struct smc_sock *smc,
 
 	mutex_lock(&smc_create_lgr_pending);
 	local_contact = smc_conn_create(smc, false, aclc->hdr.flag, ibdev,
-					ibport, &aclc->lcl, NULL, 0);
+					ibport, ntoh24(aclc->qpn), &aclc->lcl,
+					NULL, 0);
 	if (local_contact < 0) {
 		if (local_contact == -ENOMEM)
 			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
@@ -618,7 +628,7 @@ static int smc_connect_ism(struct smc_sock *smc,
 	int rc = 0;
 
 	mutex_lock(&smc_create_lgr_pending);
-	local_contact = smc_conn_create(smc, true, aclc->hdr.flag, NULL, 0,
+	local_contact = smc_conn_create(smc, true, aclc->hdr.flag, NULL, 0, 0,
 					NULL, ismdev, aclc->gid);
 	if (local_contact < 0)
 		return smc_connect_abort(smc, SMC_CLC_DECL_MEM, 0);
@@ -818,7 +828,7 @@ static int smc_clcsock_accept(struct smc_sock *lsmc, struct smc_sock **new_smc)
 	struct socket *new_clcsock = NULL;
 	struct sock *lsk = &lsmc->sk;
 	struct sock *new_sk;
-	int rc;
+	int rc = -EINVAL;
 
 	release_sock(lsk);
 	new_sk = smc_sock_alloc(sock_net(lsk), NULL, lsk->sk_protocol);
@@ -831,7 +841,10 @@ static int smc_clcsock_accept(struct smc_sock *lsmc, struct smc_sock **new_smc)
 	}
 	*new_smc = smc_sk(new_sk);
 
-	rc = kernel_accept(lsmc->clcsock, &new_clcsock, 0);
+	mutex_lock(&lsmc->clcsock_release_lock);
+	if (lsmc->clcsock)
+		rc = kernel_accept(lsmc->clcsock, &new_clcsock, 0);
+	mutex_unlock(&lsmc->clcsock_release_lock);
 	lock_sock(lsk);
 	if  (rc < 0)
 		lsk->sk_err = -rc;
@@ -1083,7 +1096,7 @@ static int smc_listen_rdma_init(struct smc_sock *new_smc,
 				int *local_contact)
 {
 	/* allocate connection / link group */
-	*local_contact = smc_conn_create(new_smc, false, 0, ibdev, ibport,
+	*local_contact = smc_conn_create(new_smc, false, 0, ibdev, ibport, 0,
 					 &pclc->lcl, NULL, 0);
 	if (*local_contact < 0) {
 		if (*local_contact == -ENOMEM)
@@ -1107,7 +1120,7 @@ static int smc_listen_ism_init(struct smc_sock *new_smc,
 	struct smc_clc_msg_smcd *pclc_smcd;
 
 	pclc_smcd = smc_get_clc_msg_smcd(pclc);
-	*local_contact = smc_conn_create(new_smc, true, 0, NULL, 0, NULL,
+	*local_contact = smc_conn_create(new_smc, true, 0, NULL, 0, 0, NULL,
 					 ismdev, pclc_smcd->gid);
 	if (*local_contact < 0) {
 		if (*local_contact == -ENOMEM)
@@ -1543,7 +1556,7 @@ static __poll_t smc_poll(struct file *file, struct socket *sock,
 			mask |= EPOLLERR;
 	} else {
 		if (sk->sk_state != SMC_CLOSED)
-			sock_poll_wait(file, wait);
+			sock_poll_wait(file, sock, wait);
 		if (sk->sk_err)
 			mask |= EPOLLERR;
 		if ((sk->sk_shutdown == SHUTDOWN_MASK) ||

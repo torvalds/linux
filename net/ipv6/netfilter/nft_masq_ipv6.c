@@ -70,7 +70,9 @@ static int __init nft_masq_ipv6_module_init(void)
 	if (ret < 0)
 		return ret;
 
-	nf_nat_masquerade_ipv6_register_notifier();
+	ret = nf_nat_masquerade_ipv6_register_notifier();
+	if (ret)
+		nft_unregister_expr(&nft_masq_ipv6_type);
 
 	return ret;
 }

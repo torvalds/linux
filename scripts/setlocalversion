@@ -74,7 +74,7 @@ scm_version()
 		fi
 
 		# Check for uncommitted changes
-		if git status -uno --porcelain | grep -qv '^.. scripts/package'; then
+		if git diff-index --name-only HEAD | grep -qv "^scripts/package"; then
 			printf '%s' -dirty
 		fi
 

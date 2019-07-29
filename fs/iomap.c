@@ -30,7 +30,6 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/dax.h>
 #include <linux/sched/signal.h>
-#include <linux/swap.h>
 
 #include "internal.h"
 
@@ -143,13 +142,14 @@ static void
 iomap_adjust_read_range(struct inode *inode, struct iomap_page *iop,
 		loff_t *pos, loff_t length, unsigned *offp, unsigned *lenp)
 {
+	loff_t orig_pos = *pos;
+	loff_t isize = i_size_read(inode);
 	unsigned block_bits = inode->i_blkbits;
 	unsigned block_size = (1 << block_bits);
 	unsigned poff = offset_in_page(*pos);
 	unsigned plen = min_t(loff_t, PAGE_SIZE - poff, length);
 	unsigned first = poff >> block_bits;
 	unsigned last = (poff + plen - 1) >> block_bits;
-	unsigned end = offset_in_page(i_size_read(inode)) >> block_bits;
 
 	/*
 	 * If the block size is smaller than the page size we need to check the
@@ -184,8 +184,12 @@ iomap_adjust_read_range(struct inode *inode, struct iomap_page *iop,
 	 * handle both halves separately so that we properly zero data in the
 	 * page cache for blocks that are entirely outside of i_size.
 	 */
-	if (first <= end && last > end)
-		plen -= (last - end) * block_size;
+	if (orig_pos <= isize && orig_pos + length > isize) {
+		unsigned end = offset_in_page(isize - 1) >> block_bits;
+
+		if (first <= end && last > end)
+			plen -= (last - end) * block_size;
+	}
 
 	*offp = poff;
 	*lenp = plen;
@@ -1057,7 +1061,7 @@ iomap_page_mkwrite_actor(struct inode *inode, loff_t pos, loff_t length,
 	return length;
 }
 
-int iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops)
+vm_fault_t iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops)
 {
 	struct page *page = vmf->page;
 	struct inode *inode = file_inode(vmf->vma->vm_file);
@@ -1581,7 +1585,7 @@ iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
 	struct bio *bio;
 	bool need_zeroout = false;
 	bool use_fua = false;
-	int nr_pages, ret;
+	int nr_pages, ret = 0;
 	size_t copied = 0;
 
 	if ((pos | length | align) & ((1 << blkbits) - 1))
@@ -1597,12 +1601,13 @@ iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
 
 	if (iomap->flags & IOMAP_F_NEW) {
 		need_zeroout = true;
-	} else {
+	} else if (iomap->type == IOMAP_MAPPED) {
 		/*
-		 * Use a FUA write if we need datasync semantics, this
-		 * is a pure data IO that doesn't require any metadata
-		 * updates and the underlying device supports FUA. This
-		 * allows us to avoid cache flushes on IO completion.
+		 * Use a FUA write if we need datasync semantics, this is a pure
+		 * data IO that doesn't require any metadata updates (including
+		 * after IO completion such as unwritten extent conversion) and
+		 * the underlying device supports FUA. This allows us to avoid
+		 * cache flushes on IO completion.
 		 */
 		if (!(iomap->flags & (IOMAP_F_SHARED|IOMAP_F_DIRTY)) &&
 		    (dio->flags & IOMAP_DIO_WRITE_FUA) &&
@@ -1645,8 +1650,14 @@ iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
 
 		ret = bio_iov_iter_get_pages(bio, &iter);
 		if (unlikely(ret)) {
+			/*
+			 * We have to stop part way through an IO. We must fall
+			 * through to the sub-block tail zeroing here, otherwise
+			 * this short IO may expose stale data in the tail of
+			 * the block we haven't written data to.
+			 */
 			bio_put(bio);
-			return copied ? copied : ret;
+			goto zero_tail;
 		}
 
 		n = bio->bi_iter.bi_size;
@@ -1677,13 +1688,21 @@ iomap_dio_bio_actor(struct inode *inode, loff_t pos, loff_t length,
 		dio->submit.cookie = submit_bio(bio);
 	} while (nr_pages);
 
-	if (need_zeroout) {
+	/*
+	 * We need to zeroout the tail of a sub-block write if the extent type
+	 * requires zeroing or the write extends beyond EOF. If we don't zero
+	 * the block tail in the latter case, we can expose stale data via mmap
+	 * reads of the EOF block.
+	 */
+zero_tail:
+	if (need_zeroout ||
+	    ((dio->flags & IOMAP_DIO_WRITE) && pos >= i_size_read(inode))) {
 		/* zero out from the end of the write to the end of the block */
 		pad = pos & (fs_block_size - 1);
 		if (pad)
 			iomap_dio_zero(dio, iomap, pos, fs_block_size - pad);
 	}
-	return copied;
+	return copied ? copied : ret;
 }
 
 static loff_t
@@ -1795,7 +1814,7 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		if (pos >= dio->i_size)
 			goto out_free_dio;
 
-		if (iter->type == ITER_IOVEC)
+		if (iter_is_iovec(iter) && iov_iter_rw(iter) == READ)
 			dio->flags |= IOMAP_DIO_DIRTY;
 	} else {
 		flags |= IOMAP_WRITE;

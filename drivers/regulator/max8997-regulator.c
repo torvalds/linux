@@ -929,8 +929,8 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 				break;
 
 		if (i == ARRAY_SIZE(regulators)) {
-			dev_warn(&pdev->dev, "don't know how to configure regulator %s\n",
-				 reg_np->name);
+			dev_warn(&pdev->dev, "don't know how to configure regulator %pOFn\n",
+				 reg_np);
 			continue;
 		}
 

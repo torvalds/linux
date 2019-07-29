@@ -101,7 +101,7 @@ struct rpcrdma_ep {
 	wait_queue_head_t 	rep_connect_wait;
 	struct rpcrdma_connect_private	rep_cm_private;
 	struct rdma_conn_param	rep_remote_cma;
-	struct delayed_work	rep_connect_worker;
+	struct delayed_work	rep_disconnect_worker;
 };
 
 /* Pre-allocate extra Work Requests for handling backward receives
@@ -280,6 +280,7 @@ struct rpcrdma_mr {
 	u32			mr_handle;
 	u32			mr_length;
 	u64			mr_offset;
+	struct work_struct	mr_recycle;
 	struct list_head	mr_all;
 };
 
@@ -411,9 +412,6 @@ struct rpcrdma_buffer {
 
 	u32			rb_bc_max_requests;
 
-	spinlock_t		rb_recovery_lock; /* protect rb_stale_mrs */
-	struct list_head	rb_stale_mrs;
-	struct delayed_work	rb_recovery_worker;
 	struct delayed_work	rb_refresh_worker;
 };
 #define rdmab_to_ia(b) (&container_of((b), struct rpcrdma_xprt, rx_buf)->rx_ia)
@@ -452,7 +450,7 @@ struct rpcrdma_stats {
 	unsigned long		hardway_register_count;
 	unsigned long		failed_marshal_count;
 	unsigned long		bad_reply_count;
-	unsigned long		mrs_recovered;
+	unsigned long		mrs_recycled;
 	unsigned long		mrs_orphaned;
 	unsigned long		mrs_allocated;
 	unsigned long		empty_sendctx_q;
@@ -481,7 +479,6 @@ struct rpcrdma_memreg_ops {
 				     struct list_head *mrs);
 	void		(*ro_unmap_sync)(struct rpcrdma_xprt *,
 					 struct list_head *);
-	void		(*ro_recover_mr)(struct rpcrdma_mr *mr);
 	int		(*ro_open)(struct rpcrdma_ia *,
 				   struct rpcrdma_ep *,
 				   struct rpcrdma_create_data_internal *);
@@ -559,7 +556,6 @@ int rpcrdma_ep_create(struct rpcrdma_ep *, struct rpcrdma_ia *,
 				struct rpcrdma_create_data_internal *);
 void rpcrdma_ep_destroy(struct rpcrdma_ep *, struct rpcrdma_ia *);
 int rpcrdma_ep_connect(struct rpcrdma_ep *, struct rpcrdma_ia *);
-void rpcrdma_conn_func(struct rpcrdma_ep *ep);
 void rpcrdma_ep_disconnect(struct rpcrdma_ep *, struct rpcrdma_ia *);
 
 int rpcrdma_ep_post(struct rpcrdma_ia *, struct rpcrdma_ep *,
@@ -578,7 +574,12 @@ struct rpcrdma_sendctx *rpcrdma_sendctx_get_locked(struct rpcrdma_buffer *buf);
 struct rpcrdma_mr *rpcrdma_mr_get(struct rpcrdma_xprt *r_xprt);
 void rpcrdma_mr_put(struct rpcrdma_mr *mr);
 void rpcrdma_mr_unmap_and_put(struct rpcrdma_mr *mr);
-void rpcrdma_mr_defer_recovery(struct rpcrdma_mr *mr);
+
+static inline void
+rpcrdma_mr_recycle(struct rpcrdma_mr *mr)
+{
+	schedule_work(&mr->mr_recycle);
+}
 
 struct rpcrdma_req *rpcrdma_buffer_get(struct rpcrdma_buffer *);
 void rpcrdma_buffer_put(struct rpcrdma_req *);
@@ -652,7 +653,6 @@ static inline void rpcrdma_set_xdrlen(struct xdr_buf *xdr, size_t len)
 extern unsigned int xprt_rdma_max_inline_read;
 void xprt_rdma_format_addresses(struct rpc_xprt *xprt, struct sockaddr *sap);
 void xprt_rdma_free_addresses(struct rpc_xprt *xprt);
-void rpcrdma_connect_worker(struct work_struct *work);
 void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq);
 int xprt_rdma_init(void);
 void xprt_rdma_cleanup(void);

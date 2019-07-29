@@ -25,7 +25,7 @@
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/module.h>
 
 #include <uapi/linux/magic.h>

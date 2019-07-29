@@ -43,8 +43,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 {
 	mtsp(mm->context, 1);
 	pdtlb(addr);
-	if (unlikely(split_tlb))
-		pitlb(addr);
+	pitlb(addr);
 }
 
 /* Certain architectures need to do special things when PTEs
@@ -56,19 +55,14 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
                 *(pteptr) = (pteval);                           \
         } while(0)
 
-#define pte_inserted(x)						\
-	((pte_val(x) & (_PAGE_PRESENT|_PAGE_ACCESSED))		\
-	 == (_PAGE_PRESENT|_PAGE_ACCESSED))
-
 #define set_pte_at(mm, addr, ptep, pteval)			\
 	do {							\
 		pte_t old_pte;					\
 		unsigned long flags;				\
 		spin_lock_irqsave(&pa_tlb_lock, flags);		\
 		old_pte = *ptep;				\
-		if (pte_inserted(old_pte))			\
-			purge_tlb_entries(mm, addr);		\
 		set_pte(ptep, pteval);				\
+		purge_tlb_entries(mm, addr);			\
 		spin_unlock_irqrestore(&pa_tlb_lock, flags);	\
 	} while (0)
 
@@ -117,7 +111,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #if CONFIG_PGTABLE_LEVELS == 3
 #define BITS_PER_PMD	(PAGE_SHIFT + PMD_ORDER - BITS_PER_PMD_ENTRY)
 #else
-#define __PAGETABLE_PMD_FOLDED
+#define __PAGETABLE_PMD_FOLDED 1
 #define BITS_PER_PMD	0
 #endif
 #define PTRS_PER_PMD    (1UL << BITS_PER_PMD)
@@ -202,7 +196,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define _PAGE_HUGE     (1 << xlate_pabit(_PAGE_HPAGE_BIT))
 #define _PAGE_USER     (1 << xlate_pabit(_PAGE_USER_BIT))
 
-#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |  _PAGE_DIRTY | _PAGE_ACCESSED)
+#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | _PAGE_DIRTY | _PAGE_ACCESSED)
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 #define _PAGE_KERNEL_RO	(_PAGE_PRESENT | _PAGE_READ | _PAGE_DIRTY | _PAGE_ACCESSED)
 #define _PAGE_KERNEL_EXEC	(_PAGE_KERNEL_RO | _PAGE_EXEC)
@@ -227,22 +221,22 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 
 #ifndef __ASSEMBLY__
 
-#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED)
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_WRITE | _PAGE_ACCESSED)
+#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_USER)
+#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_WRITE)
 /* Others seem to make this executable, I don't know if that's correct
    or not.  The stack is mapped this way though so this is necessary
    in the short term - dhd@linuxcare.com, 2000-08-08 */
-#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_ACCESSED)
-#define PAGE_WRITEONLY  __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_WRITE | _PAGE_ACCESSED)
-#define PAGE_EXECREAD   __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_EXEC |_PAGE_ACCESSED)
+#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ)
+#define PAGE_WRITEONLY  __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_WRITE)
+#define PAGE_EXECREAD   __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_EXEC)
 #define PAGE_COPY       PAGE_EXECREAD
-#define PAGE_RWX        __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_WRITE | _PAGE_EXEC |_PAGE_ACCESSED)
+#define PAGE_RWX        __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_WRITE | _PAGE_EXEC)
 #define PAGE_KERNEL	__pgprot(_PAGE_KERNEL)
 #define PAGE_KERNEL_EXEC	__pgprot(_PAGE_KERNEL_EXEC)
 #define PAGE_KERNEL_RWX	__pgprot(_PAGE_KERNEL_RWX)
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_KERNEL_RO)
 #define PAGE_KERNEL_UNC	__pgprot(_PAGE_KERNEL | _PAGE_NO_CACHE)
-#define PAGE_GATEWAY    __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED | _PAGE_GATEWAY| _PAGE_READ)
+#define PAGE_GATEWAY    __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_GATEWAY| _PAGE_READ)
 
 
 /*
@@ -479,8 +473,8 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned
 		spin_unlock_irqrestore(&pa_tlb_lock, flags);
 		return 0;
 	}
-	purge_tlb_entries(vma->vm_mm, addr);
 	set_pte(ptep, pte_mkold(pte));
+	purge_tlb_entries(vma->vm_mm, addr);
 	spin_unlock_irqrestore(&pa_tlb_lock, flags);
 	return 1;
 }
@@ -493,9 +487,8 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 
 	spin_lock_irqsave(&pa_tlb_lock, flags);
 	old_pte = *ptep;
-	if (pte_inserted(old_pte))
-		purge_tlb_entries(mm, addr);
 	set_pte(ptep, __pte(0));
+	purge_tlb_entries(mm, addr);
 	spin_unlock_irqrestore(&pa_tlb_lock, flags);
 
 	return old_pte;
@@ -505,8 +498,8 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 {
 	unsigned long flags;
 	spin_lock_irqsave(&pa_tlb_lock, flags);
-	purge_tlb_entries(mm, addr);
 	set_pte(ptep, pte_wrprotect(*ptep));
+	purge_tlb_entries(mm, addr);
 	spin_unlock_irqrestore(&pa_tlb_lock, flags);
 }
 

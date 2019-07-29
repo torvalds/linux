@@ -171,11 +171,17 @@ void v9fs_put_trans(struct p9_trans_module *m)
  */
 static int __init init_p9(void)
 {
+	int ret;
+
+	ret = p9_client_init();
+	if (ret)
+		return ret;
+
 	p9_error_init();
 	pr_info("Installing 9P2000 support\n");
 	p9_trans_fd_init();
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -188,6 +194,7 @@ static void __exit exit_p9(void)
 	pr_info("Unloading 9P2000 support\n");
 
 	p9_trans_fd_exit();
+	p9_client_exit();
 }
 
 module_init(init_p9)

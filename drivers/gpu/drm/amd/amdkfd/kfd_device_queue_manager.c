@@ -109,7 +109,7 @@ static unsigned int get_num_sdma_engines(struct device_queue_manager *dqm)
 unsigned int get_num_sdma_queues(struct device_queue_manager *dqm)
 {
 	return dqm->dev->device_info->num_sdma_engines
-			* KFD_SDMA_QUEUES_PER_ENGINE;
+			* dqm->dev->device_info->num_sdma_queues_per_engine;
 }
 
 void program_sh_mem_settings(struct device_queue_manager *dqm,
@@ -667,7 +667,7 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 	struct queue *q;
 	struct mqd_manager *mqd_mgr;
 	struct kfd_process_device *pdd;
-	uint32_t pd_base;
+	uint64_t pd_base;
 	int retval = 0;
 
 	pdd = qpd_to_pdd(qpd);
@@ -687,7 +687,7 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 
 	/* Update PD Base in QPD */
 	qpd->page_table_base = pd_base;
-	pr_debug("Updated PD address to 0x%08x\n", pd_base);
+	pr_debug("Updated PD address to 0x%llx\n", pd_base);
 
 	if (!list_empty(&qpd->queues_list)) {
 		dqm->dev->kfd2kgd->set_vm_context_page_table_base(
@@ -738,7 +738,7 @@ static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
 {
 	struct queue *q;
 	struct kfd_process_device *pdd;
-	uint32_t pd_base;
+	uint64_t pd_base;
 	int retval = 0;
 
 	pdd = qpd_to_pdd(qpd);
@@ -758,7 +758,7 @@ static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
 
 	/* Update PD Base in QPD */
 	qpd->page_table_base = pd_base;
-	pr_debug("Updated PD address to 0x%08x\n", pd_base);
+	pr_debug("Updated PD address to 0x%llx\n", pd_base);
 
 	/* activate all active queues on the qpd */
 	list_for_each_entry(q, &qpd->queues_list, list) {
@@ -782,7 +782,7 @@ static int register_process(struct device_queue_manager *dqm,
 {
 	struct device_process_node *n;
 	struct kfd_process_device *pdd;
-	uint32_t pd_base;
+	uint64_t pd_base;
 	int retval;
 
 	n = kzalloc(sizeof(*n), GFP_KERNEL);
@@ -800,6 +800,7 @@ static int register_process(struct device_queue_manager *dqm,
 
 	/* Update PD Base in QPD */
 	qpd->page_table_base = pd_base;
+	pr_debug("Updated PD address to 0x%llx\n", pd_base);
 
 	retval = dqm->asic_ops.update_qpd(dqm, qpd);
 
@@ -1363,9 +1364,6 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 {
 	int retval;
 	struct mqd_manager *mqd_mgr;
-	bool preempt_all_queues;
-
-	preempt_all_queues = false;
 
 	retval = 0;
 
@@ -1549,6 +1547,41 @@ static int process_termination_nocpsch(struct device_queue_manager *dqm,
 	return retval;
 }
 
+static int get_wave_state(struct device_queue_manager *dqm,
+			  struct queue *q,
+			  void __user *ctl_stack,
+			  u32 *ctl_stack_used_size,
+			  u32 *save_area_used_size)
+{
+	struct mqd_manager *mqd;
+	int r;
+
+	dqm_lock(dqm);
+
+	if (q->properties.type != KFD_QUEUE_TYPE_COMPUTE ||
+	    q->properties.is_active || !q->device->cwsr_enabled) {
+		r = -EINVAL;
+		goto dqm_unlock;
+	}
+
+	mqd = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
+	if (!mqd) {
+		r = -ENOMEM;
+		goto dqm_unlock;
+	}
+
+	if (!mqd->get_wave_state) {
+		r = -EINVAL;
+		goto dqm_unlock;
+	}
+
+	r = mqd->get_wave_state(mqd, q->mqd, ctl_stack, ctl_stack_used_size,
+				save_area_used_size);
+
+dqm_unlock:
+	dqm_unlock(dqm);
+	return r;
+}
 
 static int process_termination_cpsch(struct device_queue_manager *dqm,
 		struct qcm_process_device *qpd)
@@ -1670,6 +1703,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.process_termination = process_termination_cpsch;
 		dqm->ops.evict_process_queues = evict_process_queues_cpsch;
 		dqm->ops.restore_process_queues = restore_process_queues_cpsch;
+		dqm->ops.get_wave_state = get_wave_state;
 		break;
 	case KFD_SCHED_POLICY_NO_HWS:
 		/* initialize dqm for no cp scheduling */
@@ -1689,6 +1723,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.evict_process_queues = evict_process_queues_nocpsch;
 		dqm->ops.restore_process_queues =
 			restore_process_queues_nocpsch;
+		dqm->ops.get_wave_state = get_wave_state;
 		break;
 	default:
 		pr_err("Invalid scheduling policy %d\n", dqm->sched_policy);
@@ -1716,6 +1751,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		break;
 
 	case CHIP_VEGA10:
+	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		device_queue_manager_init_v9(&dqm->asic_ops);
 		break;
@@ -1827,7 +1863,9 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 	}
 
 	for (pipe = 0; pipe < get_num_sdma_engines(dqm); pipe++) {
-		for (queue = 0; queue < KFD_SDMA_QUEUES_PER_ENGINE; queue++) {
+		for (queue = 0;
+		     queue < dqm->dev->device_info->num_sdma_queues_per_engine;
+		     queue++) {
 			r = dqm->dev->kfd2kgd->hqd_sdma_dump(
 				dqm->dev->kgd, pipe, queue, &dump, &n_regs);
 			if (r)

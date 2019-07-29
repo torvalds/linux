@@ -40,12 +40,11 @@
 		 <&cpg CPG_MOD 723>,
 		 <&cpg CPG_MOD 722>,
 		 <&cpg CPG_MOD 721>,
-		 <&cpg CPG_MOD 727>,
 		 <&versaclock6 1>,
 		 <&x21_clk>,
 		 <&x22_clk>,
 		 <&versaclock6 2>;
-	clock-names = "du.0", "du.1", "du.2", "du.3", "lvds.0",
+	clock-names = "du.0", "du.1", "du.2", "du.3",
 		      "dclkin.0", "dclkin.1", "dclkin.2", "dclkin.3";
 };
 
@@ -152,6 +151,15 @@
 	};
 };
 
+&pca9654 {
+	pcie_sata_switch {
+		gpio-hog;
+		gpios = <7 GPIO_ACTIVE_HIGH>;
+		output-low; /* enable SATA by default */
+		line-name = "PCIE/SATA switch";
+	};
+};
+
 &pfc {
 	usb2_pins: usb2 {
 		groups = "usb2";
@@ -174,6 +182,11 @@
 		groups = "usb2_ch3";
 		function = "usb2_ch3";
 	};
+};
+
+/* SW12-7 must be set 'Off' (MD12 set to 1) which is not the default! */
+&sata {
+	status = "okay";
 };
 
 &usb2_phy2 {

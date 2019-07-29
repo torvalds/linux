@@ -1332,6 +1332,7 @@ enum fw_params_param_dev_phyfw {
 enum fw_params_param_dev_diag {
 	FW_PARAM_DEV_DIAG_TMP		= 0x00,
 	FW_PARAM_DEV_DIAG_VDD		= 0x01,
+	FW_PARAM_DEV_DIAG_MAXTMPTHRESH	= 0x02,
 };
 
 enum fw_params_param_dev_fwcache {
@@ -2464,6 +2465,7 @@ struct fw_acl_vlan_cmd {
 
 #define FW_ACL_VLAN_CMD_DROPNOVLAN_S	7
 #define FW_ACL_VLAN_CMD_DROPNOVLAN_V(x)	((x) << FW_ACL_VLAN_CMD_DROPNOVLAN_S)
+#define FW_ACL_VLAN_CMD_DROPNOVLAN_F    FW_ACL_VLAN_CMD_DROPNOVLAN_V(1U)
 
 #define FW_ACL_VLAN_CMD_FM_S		6
 #define FW_ACL_VLAN_CMD_FM_M		0x1

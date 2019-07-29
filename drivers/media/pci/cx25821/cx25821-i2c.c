@@ -306,7 +306,7 @@ int cx25821_i2c_register(struct cx25821_i2c *bus)
 	bus->i2c_client = cx25821_i2c_client_template;
 	bus->i2c_adap.dev.parent = &dev->pci->dev;
 
-	strlcpy(bus->i2c_adap.name, bus->dev->name, sizeof(bus->i2c_adap.name));
+	strscpy(bus->i2c_adap.name, bus->dev->name, sizeof(bus->i2c_adap.name));
 
 	bus->i2c_adap.algo_data = bus;
 	i2c_set_adapdata(&bus->i2c_adap, &dev->v4l2_dev);

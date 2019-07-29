@@ -56,6 +56,12 @@ config PCI_QUIRKS
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
+config KASAN_SHADOW_OFFSET
+	hex
+	depends on KASAN
+	default 0x18000000000000 if KASAN_S390_4_LEVEL_PAGING
+	default 0x30000000000
+
 config S390
 	def_bool y
 	select ARCH_BINFMT_ELF_STATE
@@ -120,11 +126,14 @@ config S390
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_ARCH_JUMP_LABEL_RELATIVE
+	select HAVE_ARCH_KASAN
 	select CPU_NO_EFFICIENT_FFS if !HAVE_MARCH_Z9_109_FEATURES
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_SOFT_DIRTY
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_ARCH_VMAP_STACK
 	select HAVE_EBPF_JIT if PACK_STACK && HAVE_MARCH_Z196_FEATURES
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
@@ -154,7 +163,6 @@ config S390
 	select HAVE_LIVEPATCH
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
-	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MEMBLOCK_PHYS_MAP
 	select HAVE_MOD_ARCH_SPECIFIC
@@ -166,7 +174,6 @@ config S390
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select MODULES_USE_ELF_RELA
-	select NO_BOOTMEM
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
 	select SPARSE_IRQ
@@ -649,6 +656,7 @@ config PACK_STACK
 
 config CHECK_STACK
 	def_bool y
+	depends on !VMAP_STACK
 	prompt "Detect kernel stack overflow"
 	help
 	  This option enables the compiler option -mstack-guard and
@@ -772,6 +780,17 @@ config VFIO_CCW
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vfio_ccw.
+
+config VFIO_AP
+	def_tristate n
+	prompt "VFIO support for AP devices"
+	depends on S390_AP_IOMMU && VFIO_MDEV_DEVICE && KVM
+	help
+		This driver grants access to Adjunct Processor (AP) devices
+		via the VFIO mediated device interface.
+
+		To compile this driver as a module, choose M here: the module
+		will be called vfio_ap.
 
 endmenu
 

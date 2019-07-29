@@ -25,7 +25,7 @@
 int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
 		      phys_addr_t addr, phys_addr_t alignment)
 {
-	if (addr & ~KVM_PHYS_MASK)
+	if (addr & ~kvm_phys_mask(kvm))
 		return -E2BIG;
 
 	if (!IS_ALIGNED(addr, alignment))

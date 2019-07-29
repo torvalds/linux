@@ -32,7 +32,7 @@ static void btf_dumper_ptr(const void *data, json_writer_t *jw,
 }
 
 static int btf_dumper_modifier(const struct btf_dumper *d, __u32 type_id,
-			       const void *data)
+			       __u8 bit_offset, const void *data)
 {
 	int actual_type_id;
 
@@ -40,7 +40,7 @@ static int btf_dumper_modifier(const struct btf_dumper *d, __u32 type_id,
 	if (actual_type_id < 0)
 		return actual_type_id;
 
-	return btf_dumper_do_type(d, actual_type_id, 0, data);
+	return btf_dumper_do_type(d, actual_type_id, bit_offset, data);
 }
 
 static void btf_dumper_enum(const void *data, json_writer_t *jw)
@@ -237,7 +237,7 @@ static int btf_dumper_do_type(const struct btf_dumper *d, __u32 type_id,
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_CONST:
 	case BTF_KIND_RESTRICT:
-		return btf_dumper_modifier(d, type_id, data);
+		return btf_dumper_modifier(d, type_id, bit_offset, data);
 	default:
 		jsonw_printf(d->jw, "(unsupported-kind");
 		return -EINVAL;

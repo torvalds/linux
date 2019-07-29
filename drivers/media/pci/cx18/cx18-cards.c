@@ -602,8 +602,8 @@ int cx18_get_input(struct cx18 *cx, u16 index, struct v4l2_input *input)
 	if (index >= cx->nof_inputs)
 		return -EINVAL;
 	input->index = index;
-	strlcpy(input->name, input_strs[card_input->video_type - 1],
-			sizeof(input->name));
+	strscpy(input->name, input_strs[card_input->video_type - 1],
+		sizeof(input->name));
 	input->type = (card_input->video_type == CX18_CARD_INPUT_VID_TUNER ?
 			V4L2_INPUT_TYPE_TUNER : V4L2_INPUT_TYPE_CAMERA);
 	input->audioset = (1 << cx->nof_audio_inputs) - 1;
@@ -625,8 +625,8 @@ int cx18_get_audio_input(struct cx18 *cx, u16 index, struct v4l2_audio *audio)
 	memset(audio, 0, sizeof(*audio));
 	if (index >= cx->nof_audio_inputs)
 		return -EINVAL;
-	strlcpy(audio->name, input_strs[aud_input->audio_type - 1],
-			sizeof(audio->name));
+	strscpy(audio->name, input_strs[aud_input->audio_type - 1],
+		sizeof(audio->name));
 	audio->index = index;
 	audio->capability = V4L2_AUDCAP_STEREO;
 	return 0;

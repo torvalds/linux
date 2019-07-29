@@ -32,6 +32,7 @@ void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 			   unsigned long len, unsigned int psize);
 
 void slice_init_new_context_exec(struct mm_struct *mm);
+void slice_setup_new_exec(void);
 
 #endif /* __ASSEMBLY__ */
 

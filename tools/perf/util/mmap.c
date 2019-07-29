@@ -281,7 +281,7 @@ int perf_mmap__read_init(struct perf_mmap *map)
 }
 
 int perf_mmap__push(struct perf_mmap *md, void *to,
-		    int push(void *to, void *buf, size_t size))
+		    int push(struct perf_mmap *map, void *to, void *buf, size_t size))
 {
 	u64 head = perf_mmap__read_head(md);
 	unsigned char *data = md->base + page_size;
@@ -300,7 +300,7 @@ int perf_mmap__push(struct perf_mmap *md, void *to,
 		size = md->mask + 1 - (md->start & md->mask);
 		md->start += size;
 
-		if (push(to, buf, size) < 0) {
+		if (push(md, to, buf, size) < 0) {
 			rc = -1;
 			goto out;
 		}
@@ -310,7 +310,7 @@ int perf_mmap__push(struct perf_mmap *md, void *to,
 	size = md->end - md->start;
 	md->start += size;
 
-	if (push(to, buf, size) < 0) {
+	if (push(md, to, buf, size) < 0) {
 		rc = -1;
 		goto out;
 	}

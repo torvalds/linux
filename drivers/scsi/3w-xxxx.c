@@ -834,15 +834,17 @@ static int tw_allocate_memory(TW_Device_Extension *tw_dev, int size, int which)
 
 	dprintk(KERN_NOTICE "3w-xxxx: tw_allocate_memory()\n");
 
-	cpu_addr = pci_alloc_consistent(tw_dev->tw_pci_dev, size*TW_Q_LENGTH, &dma_handle);
+	cpu_addr = dma_alloc_coherent(&tw_dev->tw_pci_dev->dev,
+			size * TW_Q_LENGTH, &dma_handle, GFP_KERNEL);
 	if (cpu_addr == NULL) {
-		printk(KERN_WARNING "3w-xxxx: pci_alloc_consistent() failed.\n");
+		printk(KERN_WARNING "3w-xxxx: dma_alloc_coherent() failed.\n");
 		return 1;
 	}
 
 	if ((unsigned long)cpu_addr % (tw_dev->tw_pci_dev->device == TW_DEVICE_ID ? TW_ALIGNMENT_6000 : TW_ALIGNMENT_7000)) {
 		printk(KERN_WARNING "3w-xxxx: Couldn't allocate correctly aligned memory.\n");
-		pci_free_consistent(tw_dev->tw_pci_dev, size*TW_Q_LENGTH, cpu_addr, dma_handle);
+		dma_free_coherent(&tw_dev->tw_pci_dev->dev, size * TW_Q_LENGTH,
+				cpu_addr, dma_handle);
 		return 1;
 	}
 
@@ -1062,10 +1064,16 @@ static void tw_free_device_extension(TW_Device_Extension *tw_dev)
 
 	/* Free command packet and generic buffer memory */
 	if (tw_dev->command_packet_virtual_address[0])
-		pci_free_consistent(tw_dev->tw_pci_dev, sizeof(TW_Command)*TW_Q_LENGTH, tw_dev->command_packet_virtual_address[0], tw_dev->command_packet_physical_address[0]);
+		dma_free_coherent(&tw_dev->tw_pci_dev->dev,
+				sizeof(TW_Command) * TW_Q_LENGTH,
+				tw_dev->command_packet_virtual_address[0],
+				tw_dev->command_packet_physical_address[0]);
 
 	if (tw_dev->alignment_virtual_address[0])
-		pci_free_consistent(tw_dev->tw_pci_dev, sizeof(TW_Sector)*TW_Q_LENGTH, tw_dev->alignment_virtual_address[0], tw_dev->alignment_physical_address[0]);
+		dma_free_coherent(&tw_dev->tw_pci_dev->dev,
+				sizeof(TW_Sector) * TW_Q_LENGTH,
+				tw_dev->alignment_virtual_address[0],
+				tw_dev->alignment_physical_address[0]);
 } /* End tw_free_device_extension() */
 
 /* This function will send an initconnection command to controller */
@@ -2260,7 +2268,7 @@ static int tw_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 
 	pci_set_master(pdev);
 
-	retval = pci_set_dma_mask(pdev, TW_DMA_MASK);
+	retval = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (retval) {
 		printk(KERN_WARNING "3w-xxxx: Failed to set dma mask.");
 		goto out_disable_device;

@@ -622,7 +622,7 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 	}
 
 	/* driver constants */
-	strcpy(tuner->name, "FM");
+	strscpy(tuner->name, "FM", sizeof(tuner->name));
 	tuner->type = V4L2_TUNER_RADIO;
 	tuner->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 			    V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO |

@@ -217,6 +217,15 @@ int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
 void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 		void (*free)(struct ipc_namespace *, struct kern_ipc_perm *));
 
+static inline int sem_check_semmni(struct ipc_namespace *ns) {
+	/*
+	 * Check semmni range [0, IPCMNI]
+	 * semmni is the last element of sem_ctls[4] array
+	 */
+	return ((ns->sem_ctls[3] < 0) || (ns->sem_ctls[3] > IPCMNI))
+		? -ERANGE : 0;
+}
+
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 struct compat_ipc_perm {
@@ -266,7 +275,7 @@ long ksys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf);
 /* for CONFIG_ARCH_WANT_OLD_COMPAT_IPC */
 long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
 			    unsigned int nsops,
-			    const struct compat_timespec __user *timeout);
+			    const struct old_timespec32 __user *timeout);
 #ifdef CONFIG_COMPAT
 long compat_ksys_semctl(int semid, int semnum, int cmd, int arg);
 long compat_ksys_msgctl(int msqid, int cmd, void __user *uptr);

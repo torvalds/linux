@@ -578,7 +578,7 @@ int iscsi_login_post_auth_non_zero_tsih(
 	}
 
 	/*
-	 * Check for any connection recovery entires containing CID.
+	 * Check for any connection recovery entries containing CID.
 	 * We use the original ExpStatSN sent in the first login request
 	 * to acknowledge commands for the failed connection.
 	 *

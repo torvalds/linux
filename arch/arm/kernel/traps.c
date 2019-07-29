@@ -365,13 +365,14 @@ void die(const char *str, struct pt_regs *regs, int err)
 }
 
 void arm_notify_die(const char *str, struct pt_regs *regs,
-		struct siginfo *info, unsigned long err, unsigned long trap)
+		int signo, int si_code, void __user *addr,
+		unsigned long err, unsigned long trap)
 {
 	if (user_mode(regs)) {
 		current->thread.error_code = err;
 		current->thread.trap_no = trap;
 
-		force_sig_info(info->si_signo, info, current);
+		force_sig_fault(signo, si_code, addr, current);
 	} else {
 		die(str, regs, err);
 	}
@@ -438,10 +439,8 @@ int call_undef_hook(struct pt_regs *regs, unsigned int instr)
 asmlinkage void do_undefinstr(struct pt_regs *regs)
 {
 	unsigned int instr;
-	siginfo_t info;
 	void __user *pc;
 
-	clear_siginfo(&info);
 	pc = (void __user *)instruction_pointer(regs);
 
 	if (processor_mode(regs) == SVC_MODE) {
@@ -485,13 +484,8 @@ die_sig:
 		dump_instr(KERN_INFO, regs);
 	}
 #endif
-
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code  = ILL_ILLOPC;
-	info.si_addr  = pc;
-
-	arm_notify_die("Oops - undefined instruction", regs, &info, 0, 6);
+	arm_notify_die("Oops - undefined instruction", regs,
+		       SIGILL, ILL_ILLOPC, pc, 0, 6);
 }
 NOKPROBE_SYMBOL(do_undefinstr)
 
@@ -539,9 +533,6 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason)
 
 static int bad_syscall(int n, struct pt_regs *regs)
 {
-	siginfo_t info;
-
-	clear_siginfo(&info);
 	if ((current->personality & PER_MASK) != PER_LINUX) {
 		send_sig(SIGSEGV, current, 1);
 		return regs->ARM_r0;
@@ -555,13 +546,10 @@ static int bad_syscall(int n, struct pt_regs *regs)
 	}
 #endif
 
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code  = ILL_ILLTRP;
-	info.si_addr  = (void __user *)instruction_pointer(regs) -
-			 (thumb_mode(regs) ? 2 : 4);
-
-	arm_notify_die("Oops - bad syscall", regs, &info, n, 0);
+	arm_notify_die("Oops - bad syscall", regs, SIGILL, ILL_ILLTRP,
+		       (void __user *)instruction_pointer(regs) -
+			 (thumb_mode(regs) ? 2 : 4),
+		       n, 0);
 
 	return regs->ARM_r0;
 }
@@ -607,20 +595,13 @@ do_cache_op(unsigned long start, unsigned long end, int flags)
 #define NR(x) ((__ARM_NR_##x) - __ARM_NR_BASE)
 asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 {
-	siginfo_t info;
-
-	clear_siginfo(&info);
 	if ((no >> 16) != (__ARM_NR_BASE>> 16))
 		return bad_syscall(no, regs);
 
 	switch (no & 0xffff) {
 	case 0: /* branch through 0 */
-		info.si_signo = SIGSEGV;
-		info.si_errno = 0;
-		info.si_code  = SEGV_MAPERR;
-		info.si_addr  = NULL;
-
-		arm_notify_die("branch through zero", regs, &info, 0, 0);
+		arm_notify_die("branch through zero", regs,
+			       SIGSEGV, SEGV_MAPERR, NULL, 0, 0);
 		return 0;
 
 	case NR(breakpoint): /* SWI BREAK_POINT */
@@ -688,13 +669,10 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		}
 	}
 #endif
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code  = ILL_ILLTRP;
-	info.si_addr  = (void __user *)instruction_pointer(regs) -
-			 (thumb_mode(regs) ? 2 : 4);
-
-	arm_notify_die("Oops - bad syscall(2)", regs, &info, no, 0);
+	arm_notify_die("Oops - bad syscall(2)", regs, SIGILL, ILL_ILLTRP,
+		       (void __user *)instruction_pointer(regs) -
+			 (thumb_mode(regs) ? 2 : 4),
+		       no, 0);
 	return 0;
 }
 
@@ -744,9 +722,6 @@ asmlinkage void
 baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 {
 	unsigned long addr = instruction_pointer(regs);
-	siginfo_t info;
-
-	clear_siginfo(&info);
 
 #ifdef CONFIG_DEBUG_USER
 	if (user_debug & UDBG_BADABORT) {
@@ -757,12 +732,8 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 	}
 #endif
 
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code  = ILL_ILLOPC;
-	info.si_addr  = (void __user *)addr;
-
-	arm_notify_die("unknown data abort code", regs, &info, instr, 0);
+	arm_notify_die("unknown data abort code", regs,
+		       SIGILL, ILL_ILLOPC, (void __user *)addr, instr, 0);
 }
 
 void __readwrite_bug(const char *fn)

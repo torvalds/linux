@@ -292,7 +292,7 @@ int tm6000_i2c_register(struct tm6000_core *dev)
 	dev->i2c_adap.owner = THIS_MODULE;
 	dev->i2c_adap.algo = &tm6000_algo;
 	dev->i2c_adap.dev.parent = &dev->udev->dev;
-	strlcpy(dev->i2c_adap.name, dev->name, sizeof(dev->i2c_adap.name));
+	strscpy(dev->i2c_adap.name, dev->name, sizeof(dev->i2c_adap.name));
 	dev->i2c_adap.algo_data = dev;
 	i2c_set_adapdata(&dev->i2c_adap, &dev->v4l2_dev);
 	rc = i2c_add_adapter(&dev->i2c_adap);
@@ -300,7 +300,7 @@ int tm6000_i2c_register(struct tm6000_core *dev)
 		return rc;
 
 	dev->i2c_client.adapter = &dev->i2c_adap;
-	strlcpy(dev->i2c_client.name, "tm6000 internal", I2C_NAME_SIZE);
+	strscpy(dev->i2c_client.name, "tm6000 internal", I2C_NAME_SIZE);
 	tm6000_i2c_eeprom(dev);
 
 	return 0;

@@ -221,6 +221,6 @@ void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
 void ib_mark_mad_done(struct ib_mad_send_wr_private *mad_send_wr);
 
 void ib_reset_mad_timeout(struct ib_mad_send_wr_private *mad_send_wr,
-			  int timeout_ms);
+			  unsigned long timeout_ms);
 
 #endif	/* __IB_MAD_PRIV_H__ */

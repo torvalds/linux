@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * TI OMAP4 ISS V4L2 Driver
  *
  * Copyright (C) 2012, Texas Instruments
  *
  * Author: Sergio Aguirre <sergio.a.aguirre@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -989,7 +985,7 @@ static int iss_register_entities(struct iss_device *iss)
 	int ret;
 
 	iss->media_dev.dev = iss->dev;
-	strlcpy(iss->media_dev.model, "TI OMAP4 ISS",
+	strscpy(iss->media_dev.model, "TI OMAP4 ISS",
 		sizeof(iss->media_dev.model));
 	iss->media_dev.hw_revision = iss->revision;
 	iss->media_dev.ops = &iss_media_ops;

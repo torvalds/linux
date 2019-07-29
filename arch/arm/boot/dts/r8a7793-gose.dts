@@ -596,6 +596,10 @@
 	status = "okay";
 };
 
+&cpu0 {
+	cpu0-supply = <&vdd_dvfs>;
+};
+
 &rwdt {
 	timeout-sec = <60>;
 	status = "okay";
@@ -724,6 +728,18 @@
 		wdt {
 			compatible = "dlg,da9063-watchdog";
 		};
+	};
+
+	vdd_dvfs: regulator@68 {
+		compatible = "dlg,da9210";
+		reg = <0x68>;
+		interrupt-parent = <&irqc0>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 };
 

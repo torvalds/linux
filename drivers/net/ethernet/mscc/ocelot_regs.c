@@ -5,6 +5,7 @@
  * Copyright (c) 2017 Microsemi Corporation
  */
 #include "ocelot.h"
+#include <soc/mscc/ocelot_hsio.h>
 
 static const u32 ocelot_ana_regmap[] = {
 	REG(ANA_ADVLEARN,                  0x009000),
@@ -100,82 +101,6 @@ static const u32 ocelot_qs_regmap[] = {
 	REG(QS_INJ_STATUS,                 0x00003c),
 	REG(QS_INJ_ERR,                    0x000040),
 	REG(QS_INH_DBG,                    0x000048),
-};
-
-static const u32 ocelot_hsio_regmap[] = {
-	REG(HSIO_PLL5G_CFG0,               0x000000),
-	REG(HSIO_PLL5G_CFG1,               0x000004),
-	REG(HSIO_PLL5G_CFG2,               0x000008),
-	REG(HSIO_PLL5G_CFG3,               0x00000c),
-	REG(HSIO_PLL5G_CFG4,               0x000010),
-	REG(HSIO_PLL5G_CFG5,               0x000014),
-	REG(HSIO_PLL5G_CFG6,               0x000018),
-	REG(HSIO_PLL5G_STATUS0,            0x00001c),
-	REG(HSIO_PLL5G_STATUS1,            0x000020),
-	REG(HSIO_PLL5G_BIST_CFG0,          0x000024),
-	REG(HSIO_PLL5G_BIST_CFG1,          0x000028),
-	REG(HSIO_PLL5G_BIST_CFG2,          0x00002c),
-	REG(HSIO_PLL5G_BIST_STAT0,         0x000030),
-	REG(HSIO_PLL5G_BIST_STAT1,         0x000034),
-	REG(HSIO_RCOMP_CFG0,               0x000038),
-	REG(HSIO_RCOMP_STATUS,             0x00003c),
-	REG(HSIO_SYNC_ETH_CFG,             0x000040),
-	REG(HSIO_SYNC_ETH_PLL_CFG,         0x000048),
-	REG(HSIO_S1G_DES_CFG,              0x00004c),
-	REG(HSIO_S1G_IB_CFG,               0x000050),
-	REG(HSIO_S1G_OB_CFG,               0x000054),
-	REG(HSIO_S1G_SER_CFG,              0x000058),
-	REG(HSIO_S1G_COMMON_CFG,           0x00005c),
-	REG(HSIO_S1G_PLL_CFG,              0x000060),
-	REG(HSIO_S1G_PLL_STATUS,           0x000064),
-	REG(HSIO_S1G_DFT_CFG0,             0x000068),
-	REG(HSIO_S1G_DFT_CFG1,             0x00006c),
-	REG(HSIO_S1G_DFT_CFG2,             0x000070),
-	REG(HSIO_S1G_TP_CFG,               0x000074),
-	REG(HSIO_S1G_RC_PLL_BIST_CFG,      0x000078),
-	REG(HSIO_S1G_MISC_CFG,             0x00007c),
-	REG(HSIO_S1G_DFT_STATUS,           0x000080),
-	REG(HSIO_S1G_MISC_STATUS,          0x000084),
-	REG(HSIO_MCB_S1G_ADDR_CFG,         0x000088),
-	REG(HSIO_S6G_DIG_CFG,              0x00008c),
-	REG(HSIO_S6G_DFT_CFG0,             0x000090),
-	REG(HSIO_S6G_DFT_CFG1,             0x000094),
-	REG(HSIO_S6G_DFT_CFG2,             0x000098),
-	REG(HSIO_S6G_TP_CFG0,              0x00009c),
-	REG(HSIO_S6G_TP_CFG1,              0x0000a0),
-	REG(HSIO_S6G_RC_PLL_BIST_CFG,      0x0000a4),
-	REG(HSIO_S6G_MISC_CFG,             0x0000a8),
-	REG(HSIO_S6G_OB_ANEG_CFG,          0x0000ac),
-	REG(HSIO_S6G_DFT_STATUS,           0x0000b0),
-	REG(HSIO_S6G_ERR_CNT,              0x0000b4),
-	REG(HSIO_S6G_MISC_STATUS,          0x0000b8),
-	REG(HSIO_S6G_DES_CFG,              0x0000bc),
-	REG(HSIO_S6G_IB_CFG,               0x0000c0),
-	REG(HSIO_S6G_IB_CFG1,              0x0000c4),
-	REG(HSIO_S6G_IB_CFG2,              0x0000c8),
-	REG(HSIO_S6G_IB_CFG3,              0x0000cc),
-	REG(HSIO_S6G_IB_CFG4,              0x0000d0),
-	REG(HSIO_S6G_IB_CFG5,              0x0000d4),
-	REG(HSIO_S6G_OB_CFG,               0x0000d8),
-	REG(HSIO_S6G_OB_CFG1,              0x0000dc),
-	REG(HSIO_S6G_SER_CFG,              0x0000e0),
-	REG(HSIO_S6G_COMMON_CFG,           0x0000e4),
-	REG(HSIO_S6G_PLL_CFG,              0x0000e8),
-	REG(HSIO_S6G_ACJTAG_CFG,           0x0000ec),
-	REG(HSIO_S6G_GP_CFG,               0x0000f0),
-	REG(HSIO_S6G_IB_STATUS0,           0x0000f4),
-	REG(HSIO_S6G_IB_STATUS1,           0x0000f8),
-	REG(HSIO_S6G_ACJTAG_STATUS,        0x0000fc),
-	REG(HSIO_S6G_PLL_STATUS,           0x000100),
-	REG(HSIO_S6G_REVID,                0x000104),
-	REG(HSIO_MCB_S6G_ADDR_CFG,         0x000108),
-	REG(HSIO_HW_CFG,                   0x00010c),
-	REG(HSIO_HW_QSGMII_CFG,            0x000110),
-	REG(HSIO_HW_QSGMII_STAT,           0x000114),
-	REG(HSIO_CLK_CFG,                  0x000118),
-	REG(HSIO_TEMP_SENSOR_CTRL,         0x00011c),
-	REG(HSIO_TEMP_SENSOR_CFG,          0x000120),
-	REG(HSIO_TEMP_SENSOR_STAT,         0x000124),
 };
 
 static const u32 ocelot_qsys_regmap[] = {
@@ -302,7 +227,6 @@ static const u32 ocelot_sys_regmap[] = {
 static const u32 *ocelot_regmap[] = {
 	[ANA] = ocelot_ana_regmap,
 	[QS] = ocelot_qs_regmap,
-	[HSIO] = ocelot_hsio_regmap,
 	[QSYS] = ocelot_qsys_regmap,
 	[REW] = ocelot_rew_regmap,
 	[SYS] = ocelot_sys_regmap,
@@ -453,9 +377,11 @@ static void ocelot_pll5_init(struct ocelot *ocelot)
 	/* Configure PLL5. This will need a proper CCF driver
 	 * The values are coming from the VTSS API for Ocelot
 	 */
-	ocelot_write(ocelot, HSIO_PLL5G_CFG4_IB_CTRL(0x7600) |
-		     HSIO_PLL5G_CFG4_IB_BIAS_CTRL(0x8), HSIO_PLL5G_CFG4);
-	ocelot_write(ocelot, HSIO_PLL5G_CFG0_CORE_CLK_DIV(0x11) |
+	regmap_write(ocelot->targets[HSIO], HSIO_PLL5G_CFG4,
+		     HSIO_PLL5G_CFG4_IB_CTRL(0x7600) |
+		     HSIO_PLL5G_CFG4_IB_BIAS_CTRL(0x8));
+	regmap_write(ocelot->targets[HSIO], HSIO_PLL5G_CFG0,
+		     HSIO_PLL5G_CFG0_CORE_CLK_DIV(0x11) |
 		     HSIO_PLL5G_CFG0_CPU_CLK_DIV(2) |
 		     HSIO_PLL5G_CFG0_ENA_BIAS |
 		     HSIO_PLL5G_CFG0_ENA_VCO_BUF |
@@ -465,13 +391,14 @@ static void ocelot_pll5_init(struct ocelot *ocelot)
 		     HSIO_PLL5G_CFG0_SELBGV820(4) |
 		     HSIO_PLL5G_CFG0_DIV4 |
 		     HSIO_PLL5G_CFG0_ENA_CLKTREE |
-		     HSIO_PLL5G_CFG0_ENA_LANE, HSIO_PLL5G_CFG0);
-	ocelot_write(ocelot, HSIO_PLL5G_CFG2_EN_RESET_FRQ_DET |
+		     HSIO_PLL5G_CFG0_ENA_LANE);
+	regmap_write(ocelot->targets[HSIO], HSIO_PLL5G_CFG2,
+		     HSIO_PLL5G_CFG2_EN_RESET_FRQ_DET |
 		     HSIO_PLL5G_CFG2_EN_RESET_OVERRUN |
 		     HSIO_PLL5G_CFG2_GAIN_TEST(0x8) |
 		     HSIO_PLL5G_CFG2_ENA_AMPCTRL |
 		     HSIO_PLL5G_CFG2_PWD_AMPCTRL_N |
-		     HSIO_PLL5G_CFG2_AMPC_SEL(0x10), HSIO_PLL5G_CFG2);
+		     HSIO_PLL5G_CFG2_AMPC_SEL(0x10));
 }
 
 int ocelot_chip_init(struct ocelot *ocelot)

@@ -503,7 +503,7 @@ unsigned int soc_mbus_config_compatible(const struct v4l2_mbus_config *cfg,
 		mode = common_flags & (V4L2_MBUS_MASTER | V4L2_MBUS_SLAVE);
 		return (!hsync || !vsync || !pclk || !data || !mode) ?
 			0 : common_flags;
-	case V4L2_MBUS_CSI2:
+	case V4L2_MBUS_CSI2_DPHY:
 		mipi_lanes = common_flags & V4L2_MBUS_CSI2_LANES;
 		mipi_clock = common_flags & (V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK |
 					     V4L2_MBUS_CSI2_CONTINUOUS_CLOCK);

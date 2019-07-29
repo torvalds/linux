@@ -1279,9 +1279,9 @@ static int ov7251_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (ov7251->ep.bus_type != V4L2_MBUS_CSI2) {
+	if (ov7251->ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(dev, "invalid bus type (%u), must be CSI2 (%u)\n",
-			ov7251->ep.bus_type, V4L2_MBUS_CSI2);
+			ov7251->ep.bus_type, V4L2_MBUS_CSI2_DPHY);
 		return -EINVAL;
 	}
 

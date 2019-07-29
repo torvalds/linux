@@ -153,7 +153,7 @@ static int brx_set_format(struct v4l2_subdev *subdev,
 	format = vsp1_entity_get_pad_format(&brx->entity, config, fmt->pad);
 	*format = fmt->format;
 
-	/* Reset the compose rectangle */
+	/* Reset the compose rectangle. */
 	if (fmt->pad != brx->entity.source_pad) {
 		struct v4l2_rect *compose;
 
@@ -164,7 +164,7 @@ static int brx_set_format(struct v4l2_subdev *subdev,
 		compose->height = format->height;
 	}
 
-	/* Propagate the format code to all pads */
+	/* Propagate the format code to all pads. */
 	if (fmt->pad == BRX_PAD_SINK(0)) {
 		unsigned int i;
 

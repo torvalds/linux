@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2009-2010 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
  *
  * Authors:
  *	Jesse Barnes <jbarnes@virtuousgeek.org>
@@ -1697,6 +1686,6 @@ static struct pci_driver ips_pci_driver = {
 
 module_pci_driver(ips_pci_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jesse Barnes <jbarnes@virtuousgeek.org>");
 MODULE_DESCRIPTION("Intelligent Power Sharing Driver");

@@ -637,7 +637,7 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 	if (ack->mask & RXE_ATMACK_MASK)
 		atmack_set_orig(ack, qp->resp.atomic_orig);
 
-	err = rxe_prepare(rxe, ack, skb, &crc);
+	err = rxe_prepare(ack, skb, &crc);
 	if (err) {
 		kfree_skb(skb);
 		return NULL;
@@ -682,6 +682,7 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 		rxe_advance_resp_resource(qp);
 
 		res->type		= RXE_READ_MASK;
+		res->replay		= 0;
 
 		res->read.va		= qp->resp.va;
 		res->read.va_org	= qp->resp.va;
@@ -752,7 +753,8 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 		state = RESPST_DONE;
 	} else {
 		qp->resp.res = NULL;
-		qp->resp.opcode = -1;
+		if (!res->replay)
+			qp->resp.opcode = -1;
 		if (psn_compare(res->cur_psn, qp->resp.psn) >= 0)
 			qp->resp.psn = res->cur_psn;
 		state = RESPST_CLEANUP;
@@ -814,6 +816,7 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 
 	/* next expected psn, read handles this separately */
 	qp->resp.psn = (pkt->psn + 1) & BTH_PSN_MASK;
+	qp->resp.ack_psn = qp->resp.psn;
 
 	qp->resp.opcode = pkt->opcode;
 	qp->resp.status = IB_WC_SUCCESS;
@@ -1065,7 +1068,7 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 					  struct rxe_pkt_info *pkt)
 {
 	enum resp_states rc;
-	u32 prev_psn = (qp->resp.psn - 1) & BTH_PSN_MASK;
+	u32 prev_psn = (qp->resp.ack_psn - 1) & BTH_PSN_MASK;
 
 	if (pkt->mask & RXE_SEND_MASK ||
 	    pkt->mask & RXE_WRITE_MASK) {
@@ -1108,6 +1111,7 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 			res->state = (pkt->psn == res->first_psn) ?
 					rdatm_res_state_new :
 					rdatm_res_state_replay;
+			res->replay = 1;
 
 			/* Reset the resource, except length. */
 			res->read.va_org = iova;

@@ -19,13 +19,16 @@
 #include <linux/acpi_iort.h>
 #include <linux/bitmap.h>
 #include <linux/cpu.h>
+#include <linux/crash_dump.h>
 #include <linux/delay.h>
 #include <linux/dma-iommu.h>
+#include <linux/efi.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/log2.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/msi.h>
 #include <linux/of.h>
@@ -52,6 +55,7 @@
 #define ITS_FLAGS_SAVE_SUSPEND_STATE		(1ULL << 3)
 
 #define RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING	(1 << 0)
+#define RDIST_FLAGS_RD_TABLES_PREALLOCATED	(1 << 1)
 
 static u32 lpi_id_bits;
 
@@ -64,7 +68,7 @@ static u32 lpi_id_bits;
 #define LPI_PROPBASE_SZ		ALIGN(BIT(LPI_NRBITS), SZ_64K)
 #define LPI_PENDBASE_SZ		ALIGN(BIT(LPI_NRBITS) / 8, SZ_64K)
 
-#define LPI_PROP_DEFAULT_PRIO	0xa0
+#define LPI_PROP_DEFAULT_PRIO	GICD_INT_DEF_PRI
 
 /*
  * Collection structure - just an ID, and a redistributor address to
@@ -173,6 +177,7 @@ static DEFINE_RAW_SPINLOCK(vmovp_lock);
 static DEFINE_IDA(its_vpeid_ida);
 
 #define gic_data_rdist()		(raw_cpu_ptr(gic_rdists->rdist))
+#define gic_data_rdist_cpu(cpu)		(per_cpu_ptr(gic_rdists->rdist, cpu))
 #define gic_data_rdist_rd_base()	(gic_data_rdist()->rd_base)
 #define gic_data_rdist_vlpi_base()	(gic_data_rdist_rd_base() + SZ_128K)
 
@@ -1028,7 +1033,7 @@ static inline u32 its_get_event_id(struct irq_data *d)
 static void lpi_write_config(struct irq_data *d, u8 clr, u8 set)
 {
 	irq_hw_number_t hwirq;
-	struct page *prop_page;
+	void *va;
 	u8 *cfg;
 
 	if (irqd_is_forwarded_to_vcpu(d)) {
@@ -1036,7 +1041,7 @@ static void lpi_write_config(struct irq_data *d, u8 clr, u8 set)
 		u32 event = its_get_event_id(d);
 		struct its_vlpi_map *map;
 
-		prop_page = its_dev->event_map.vm->vprop_page;
+		va = page_address(its_dev->event_map.vm->vprop_page);
 		map = &its_dev->event_map.vlpi_maps[event];
 		hwirq = map->vintid;
 
@@ -1044,11 +1049,11 @@ static void lpi_write_config(struct irq_data *d, u8 clr, u8 set)
 		map->properties &= ~clr;
 		map->properties |= set | LPI_PROP_GROUP1;
 	} else {
-		prop_page = gic_rdists->prop_page;
+		va = gic_rdists->prop_table_va;
 		hwirq = d->hwirq;
 	}
 
-	cfg = page_address(prop_page) + hwirq - 8192;
+	cfg = va + hwirq - 8192;
 	*cfg &= ~clr;
 	*cfg |= set | LPI_PROP_GROUP1;
 
@@ -1597,6 +1602,15 @@ static void its_lpi_free(unsigned long *bitmap, u32 base, u32 nr_ids)
 	kfree(bitmap);
 }
 
+static void gic_reset_prop_table(void *va)
+{
+	/* Priority 0xa0, Group-1, disabled */
+	memset(va, LPI_PROP_DEFAULT_PRIO | LPI_PROP_GROUP1, LPI_PROPBASE_SZ);
+
+	/* Make sure the GIC will observe the written configuration */
+	gic_flush_dcache_to_poc(va, LPI_PROPBASE_SZ);
+}
+
 static struct page *its_allocate_prop_table(gfp_t gfp_flags)
 {
 	struct page *prop_page;
@@ -1605,13 +1619,7 @@ static struct page *its_allocate_prop_table(gfp_t gfp_flags)
 	if (!prop_page)
 		return NULL;
 
-	/* Priority 0xa0, Group-1, disabled */
-	memset(page_address(prop_page),
-	       LPI_PROP_DEFAULT_PRIO | LPI_PROP_GROUP1,
-	       LPI_PROPBASE_SZ);
-
-	/* Make sure the GIC will observe the written configuration */
-	gic_flush_dcache_to_poc(page_address(prop_page), LPI_PROPBASE_SZ);
+	gic_reset_prop_table(page_address(prop_page));
 
 	return prop_page;
 }
@@ -1622,20 +1630,74 @@ static void its_free_prop_table(struct page *prop_page)
 		   get_order(LPI_PROPBASE_SZ));
 }
 
-static int __init its_alloc_lpi_tables(void)
+static bool gic_check_reserved_range(phys_addr_t addr, unsigned long size)
 {
-	phys_addr_t paddr;
+	phys_addr_t start, end, addr_end;
+	u64 i;
 
-	lpi_id_bits = min_t(u32, GICD_TYPER_ID_BITS(gic_rdists->gicd_typer),
-				ITS_MAX_LPI_NRBITS);
-	gic_rdists->prop_page = its_allocate_prop_table(GFP_NOWAIT);
-	if (!gic_rdists->prop_page) {
-		pr_err("Failed to allocate PROPBASE\n");
-		return -ENOMEM;
+	/*
+	 * We don't bother checking for a kdump kernel as by
+	 * construction, the LPI tables are out of this kernel's
+	 * memory map.
+	 */
+	if (is_kdump_kernel())
+		return true;
+
+	addr_end = addr + size - 1;
+
+	for_each_reserved_mem_region(i, &start, &end) {
+		if (addr >= start && addr_end <= end)
+			return true;
 	}
 
-	paddr = page_to_phys(gic_rdists->prop_page);
-	pr_info("GIC: using LPI property table @%pa\n", &paddr);
+	/* Not found, not a good sign... */
+	pr_warn("GICv3: Expected reserved range [%pa:%pa], not found\n",
+		&addr, &addr_end);
+	add_taint(TAINT_CRAP, LOCKDEP_STILL_OK);
+	return false;
+}
+
+static int gic_reserve_range(phys_addr_t addr, unsigned long size)
+{
+	if (efi_enabled(EFI_CONFIG_TABLES))
+		return efi_mem_reserve_persistent(addr, size);
+
+	return 0;
+}
+
+static int __init its_setup_lpi_prop_table(void)
+{
+	if (gic_rdists->flags & RDIST_FLAGS_RD_TABLES_PREALLOCATED) {
+		u64 val;
+
+		val = gicr_read_propbaser(gic_data_rdist_rd_base() + GICR_PROPBASER);
+		lpi_id_bits = (val & GICR_PROPBASER_IDBITS_MASK) + 1;
+
+		gic_rdists->prop_table_pa = val & GENMASK_ULL(51, 12);
+		gic_rdists->prop_table_va = memremap(gic_rdists->prop_table_pa,
+						     LPI_PROPBASE_SZ,
+						     MEMREMAP_WB);
+		gic_reset_prop_table(gic_rdists->prop_table_va);
+	} else {
+		struct page *page;
+
+		lpi_id_bits = min_t(u32,
+				    GICD_TYPER_ID_BITS(gic_rdists->gicd_typer),
+				    ITS_MAX_LPI_NRBITS);
+		page = its_allocate_prop_table(GFP_NOWAIT);
+		if (!page) {
+			pr_err("Failed to allocate PROPBASE\n");
+			return -ENOMEM;
+		}
+
+		gic_rdists->prop_table_pa = page_to_phys(page);
+		gic_rdists->prop_table_va = page_address(page);
+		WARN_ON(gic_reserve_range(gic_rdists->prop_table_pa,
+					  LPI_PROPBASE_SZ));
+	}
+
+	pr_info("GICv3: using LPI property table @%pa\n",
+		&gic_rdists->prop_table_pa);
 
 	return its_lpi_init(lpi_id_bits);
 }
@@ -1924,12 +1986,9 @@ static int its_alloc_collections(struct its_node *its)
 static struct page *its_allocate_pending_table(gfp_t gfp_flags)
 {
 	struct page *pend_page;
-	/*
-	 * The pending pages have to be at least 64kB aligned,
-	 * hence the 'max(LPI_PENDBASE_SZ, SZ_64K)' below.
-	 */
+
 	pend_page = alloc_pages(gfp_flags | __GFP_ZERO,
-				get_order(max_t(u32, LPI_PENDBASE_SZ, SZ_64K)));
+				get_order(LPI_PENDBASE_SZ));
 	if (!pend_page)
 		return NULL;
 
@@ -1941,36 +2000,103 @@ static struct page *its_allocate_pending_table(gfp_t gfp_flags)
 
 static void its_free_pending_table(struct page *pt)
 {
-	free_pages((unsigned long)page_address(pt),
-		   get_order(max_t(u32, LPI_PENDBASE_SZ, SZ_64K)));
+	free_pages((unsigned long)page_address(pt), get_order(LPI_PENDBASE_SZ));
+}
+
+/*
+ * Booting with kdump and LPIs enabled is generally fine. Any other
+ * case is wrong in the absence of firmware/EFI support.
+ */
+static bool enabled_lpis_allowed(void)
+{
+	phys_addr_t addr;
+	u64 val;
+
+	/* Check whether the property table is in a reserved region */
+	val = gicr_read_propbaser(gic_data_rdist_rd_base() + GICR_PROPBASER);
+	addr = val & GENMASK_ULL(51, 12);
+
+	return gic_check_reserved_range(addr, LPI_PROPBASE_SZ);
+}
+
+static int __init allocate_lpi_tables(void)
+{
+	u64 val;
+	int err, cpu;
+
+	/*
+	 * If LPIs are enabled while we run this from the boot CPU,
+	 * flag the RD tables as pre-allocated if the stars do align.
+	 */
+	val = readl_relaxed(gic_data_rdist_rd_base() + GICR_CTLR);
+	if ((val & GICR_CTLR_ENABLE_LPIS) && enabled_lpis_allowed()) {
+		gic_rdists->flags |= (RDIST_FLAGS_RD_TABLES_PREALLOCATED |
+				      RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING);
+		pr_info("GICv3: Using preallocated redistributor tables\n");
+	}
+
+	err = its_setup_lpi_prop_table();
+	if (err)
+		return err;
+
+	/*
+	 * We allocate all the pending tables anyway, as we may have a
+	 * mix of RDs that have had LPIs enabled, and some that
+	 * don't. We'll free the unused ones as each CPU comes online.
+	 */
+	for_each_possible_cpu(cpu) {
+		struct page *pend_page;
+
+		pend_page = its_allocate_pending_table(GFP_NOWAIT);
+		if (!pend_page) {
+			pr_err("Failed to allocate PENDBASE for CPU%d\n", cpu);
+			return -ENOMEM;
+		}
+
+		gic_data_rdist_cpu(cpu)->pend_page = pend_page;
+	}
+
+	return 0;
 }
 
 static void its_cpu_init_lpis(void)
 {
 	void __iomem *rbase = gic_data_rdist_rd_base();
 	struct page *pend_page;
+	phys_addr_t paddr;
 	u64 val, tmp;
 
-	/* If we didn't allocate the pending table yet, do it now */
-	pend_page = gic_data_rdist()->pend_page;
-	if (!pend_page) {
-		phys_addr_t paddr;
+	if (gic_data_rdist()->lpi_enabled)
+		return;
 
-		pend_page = its_allocate_pending_table(GFP_NOWAIT);
-		if (!pend_page) {
-			pr_err("Failed to allocate PENDBASE for CPU%d\n",
-			       smp_processor_id());
-			return;
-		}
+	val = readl_relaxed(rbase + GICR_CTLR);
+	if ((gic_rdists->flags & RDIST_FLAGS_RD_TABLES_PREALLOCATED) &&
+	    (val & GICR_CTLR_ENABLE_LPIS)) {
+		/*
+		 * Check that we get the same property table on all
+		 * RDs. If we don't, this is hopeless.
+		 */
+		paddr = gicr_read_propbaser(rbase + GICR_PROPBASER);
+		paddr &= GENMASK_ULL(51, 12);
+		if (WARN_ON(gic_rdists->prop_table_pa != paddr))
+			add_taint(TAINT_CRAP, LOCKDEP_STILL_OK);
 
-		paddr = page_to_phys(pend_page);
-		pr_info("CPU%d: using LPI pending table @%pa\n",
-			smp_processor_id(), &paddr);
-		gic_data_rdist()->pend_page = pend_page;
+		paddr = gicr_read_pendbaser(rbase + GICR_PENDBASER);
+		paddr &= GENMASK_ULL(51, 16);
+
+		WARN_ON(!gic_check_reserved_range(paddr, LPI_PENDBASE_SZ));
+		its_free_pending_table(gic_data_rdist()->pend_page);
+		gic_data_rdist()->pend_page = NULL;
+
+		goto out;
 	}
 
+	pend_page = gic_data_rdist()->pend_page;
+	paddr = page_to_phys(pend_page);
+	WARN_ON(gic_reserve_range(paddr, LPI_PENDBASE_SZ));
+
 	/* set PROPBASE */
-	val = (page_to_phys(gic_rdists->prop_page) |
+	val = (gic_rdists->prop_table_pa |
 	       GICR_PROPBASER_InnerShareable |
 	       GICR_PROPBASER_RaWaWb |
 	       ((LPI_NRBITS - 1) & GICR_PROPBASER_IDBITS_MASK));
@@ -2020,6 +2146,12 @@ static void its_cpu_init_lpis(void)
 
 	/* Make sure the GIC has seen the above */
 	dsb(sy);
+out:
+	gic_data_rdist()->lpi_enabled = true;
+	pr_info("GICv3: CPU%d: using %s LPI pending table @%pa\n",
+		smp_processor_id(),
+		gic_data_rdist()->pend_page ? "allocated" : "reserved",
+		&paddr);
 }
 
 static void its_cpu_init_collection(struct its_node *its)
@@ -3498,16 +3630,6 @@ static int redist_disable_lpis(void)
 	u64 timeout = USEC_PER_SEC;
 	u64 val;
 
-	/*
-	 * If coming via a CPU hotplug event, we don't need to disable
-	 * LPIs before trying to re-enable them. They are already
-	 * configured and all is well in the world. Detect this case
-	 * by checking the allocation of the pending table for the
-	 * current CPU.
-	 */
-	if (gic_data_rdist()->pend_page)
-		return 0;
-
 	if (!gic_rdists_supports_plpis()) {
 		pr_info("CPU%d: LPIs not supported\n", smp_processor_id());
 		return -ENXIO;
@@ -3517,7 +3639,21 @@ static int redist_disable_lpis(void)
 	if (!(val & GICR_CTLR_ENABLE_LPIS))
 		return 0;
 
-	pr_warn("CPU%d: Booted with LPIs enabled, memory probably corrupted\n",
+	/*
+	 * If coming via a CPU hotplug event, we don't need to disable
+	 * LPIs before trying to re-enable them. They are already
+	 * configured and all is well in the world.
+	 *
+	 * If running with preallocated tables, there is nothing to do.
+	 */
+	if (gic_data_rdist()->lpi_enabled ||
+	    (gic_rdists->flags & RDIST_FLAGS_RD_TABLES_PREALLOCATED))
+		return 0;
+
+	/*
+	 * From that point on, we only try to do some damage control.
+	 */
+	pr_warn("GICv3: CPU%d: Booted with LPIs enabled, memory probably corrupted\n",
 		smp_processor_id());
 	add_taint(TAINT_CRAP, LOCKDEP_STILL_OK);
 
@@ -3773,7 +3909,8 @@ int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
 	}
 
 	gic_rdists = rdists;
-	err = its_alloc_lpi_tables();
+
+	err = allocate_lpi_tables();
 	if (err)
 		return err;
 

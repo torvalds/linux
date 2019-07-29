@@ -2987,6 +2987,9 @@ The following commands are supported:
   command, it only prints out the contents of the ring buffer for the
   CPU that executed the function that triggered the dump.
 
+- stacktrace:
+  When the function is hit, a stack trace is recorded.
+
 trace_pipe
 ----------
 

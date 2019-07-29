@@ -146,8 +146,7 @@ static void _fill_dmx_buffer(struct vb2_buffer *vb, void *pb)
 	dprintk(3, "[%s]\n", ctx->name);
 }
 
-static int _fill_vb2_buffer(struct vb2_buffer *vb,
-			    const void *pb, struct vb2_plane *planes)
+static int _fill_vb2_buffer(struct vb2_buffer *vb, struct vb2_plane *planes)
 {
 	struct dvb_vb2_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 
@@ -194,7 +193,7 @@ int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int nonblocking)
 	spin_lock_init(&ctx->slock);
 	INIT_LIST_HEAD(&ctx->dvb_q);
 
-	strlcpy(ctx->name, name, DVB_VB2_NAME_MAX);
+	strscpy(ctx->name, name, DVB_VB2_NAME_MAX);
 	ctx->nonblocking = nonblocking;
 	ctx->state = DVB_VB2_STATE_INIT;
 
@@ -385,7 +384,7 @@ int dvb_vb2_qbuf(struct dvb_vb2_ctx *ctx, struct dmx_buffer *b)
 {
 	int ret;
 
-	ret = vb2_core_qbuf(&ctx->vb_q, b->index, b);
+	ret = vb2_core_qbuf(&ctx->vb_q, b->index, b, NULL);
 	if (ret) {
 		dprintk(1, "[%s] index=%d errno=%d\n", ctx->name,
 			b->index, ret);

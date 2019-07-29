@@ -459,3 +459,26 @@ int ath10k_bmi_fast_download(struct ath10k *ar,
 
 	return ret;
 }
+
+int ath10k_bmi_set_start(struct ath10k *ar, u32 address)
+{
+	struct bmi_cmd cmd;
+	u32 cmdlen = sizeof(cmd.id) + sizeof(cmd.set_app_start);
+	int ret;
+
+	if (ar->bmi.done_sent) {
+		ath10k_warn(ar, "bmi set start command disallowed\n");
+		return -EBUSY;
+	}
+
+	cmd.id = __cpu_to_le32(BMI_SET_APP_START);
+	cmd.set_app_start.addr = __cpu_to_le32(address);
+
+	ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen, NULL, NULL);
+	if (ret) {
+		ath10k_warn(ar, "unable to set start to the device:%d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}

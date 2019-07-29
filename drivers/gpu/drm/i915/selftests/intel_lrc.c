@@ -221,6 +221,7 @@ static int live_sanitycheck(void *arg)
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
 
 	if (spinner_init(&spin, i915))
 		goto err_unlock;
@@ -261,6 +262,7 @@ err_spin:
 	spinner_fini(&spin);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -278,6 +280,7 @@ static int live_preempt(void *arg)
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
 
 	if (spinner_init(&spin_hi, i915))
 		goto err_unlock;
@@ -350,6 +353,7 @@ err_spin_hi:
 	spinner_fini(&spin_hi);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -368,6 +372,7 @@ static int live_late_preempt(void *arg)
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
 
 	if (spinner_init(&spin_hi, i915))
 		goto err_unlock;
@@ -440,6 +445,7 @@ err_spin_hi:
 	spinner_fini(&spin_hi);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 
@@ -467,6 +473,7 @@ static int live_preempt_hang(void *arg)
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
 
 	if (spinner_init(&spin_hi, i915))
 		goto err_unlock;
@@ -561,6 +568,7 @@ err_spin_hi:
 	spinner_fini(&spin_hi);
 err_unlock:
 	igt_flush_test(i915, I915_WAIT_LOCKED);
+	intel_runtime_pm_put(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }

@@ -553,16 +553,17 @@ static void enable_status_frames(struct phy_device *phydev, bool on)
 	mutex_unlock(&clock->extreg_lock);
 
 	if (!phydev->attached_dev) {
-		pr_warn("expected to find an attached netdevice\n");
+		phydev_warn(phydev,
+			    "expected to find an attached netdevice\n");
 		return;
 	}
 
 	if (on) {
 		if (dev_mc_add(phydev->attached_dev, status_frame_dst))
-			pr_warn("failed to add mc address\n");
+			phydev_warn(phydev, "failed to add mc address\n");
 	} else {
 		if (dev_mc_del(phydev->attached_dev, status_frame_dst))
-			pr_warn("failed to delete mc address\n");
+			phydev_warn(phydev, "failed to delete mc address\n");
 	}
 }
 
@@ -686,9 +687,9 @@ static void recalibrate(struct dp83640_clock *clock)
 	 * read out and correct offsets
 	 */
 	val = ext_read(master, PAGE4, PTP_STS);
-	pr_info("master PTP_STS  0x%04hx\n", val);
+	phydev_info(master, "master PTP_STS  0x%04hx\n", val);
 	val = ext_read(master, PAGE4, PTP_ESTS);
-	pr_info("master PTP_ESTS 0x%04hx\n", val);
+	phydev_info(master, "master PTP_ESTS 0x%04hx\n", val);
 	event_ts.ns_lo  = ext_read(master, PAGE4, PTP_EDATA);
 	event_ts.ns_hi  = ext_read(master, PAGE4, PTP_EDATA);
 	event_ts.sec_lo = ext_read(master, PAGE4, PTP_EDATA);
@@ -698,15 +699,16 @@ static void recalibrate(struct dp83640_clock *clock)
 	list_for_each(this, &clock->phylist) {
 		tmp = list_entry(this, struct dp83640_private, list);
 		val = ext_read(tmp->phydev, PAGE4, PTP_STS);
-		pr_info("slave  PTP_STS  0x%04hx\n", val);
+		phydev_info(tmp->phydev, "slave  PTP_STS  0x%04hx\n", val);
 		val = ext_read(tmp->phydev, PAGE4, PTP_ESTS);
-		pr_info("slave  PTP_ESTS 0x%04hx\n", val);
+		phydev_info(tmp->phydev, "slave  PTP_ESTS 0x%04hx\n", val);
 		event_ts.ns_lo  = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
 		event_ts.ns_hi  = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
 		event_ts.sec_lo = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
 		event_ts.sec_hi = ext_read(tmp->phydev, PAGE4, PTP_EDATA);
 		diff = now - (s64) phy2txts(&event_ts);
-		pr_info("slave offset %lld nanoseconds\n", diff);
+		phydev_info(tmp->phydev, "slave offset %lld nanoseconds\n",
+			    diff);
 		diff += ADJTIME_FIX;
 		ts = ns_to_timespec64(diff);
 		tdr_write(0, tmp->phydev, &ts, PTP_STEP_CLK);

@@ -818,10 +818,13 @@ static int mtk_dsi_create_conn_enc(struct drm_device *drm, struct mtk_dsi *dsi)
 	dsi->encoder.possible_crtcs = 1;
 
 	/* If there's a bridge, attach to it and let it create the connector */
-	ret = drm_bridge_attach(&dsi->encoder, dsi->bridge, NULL);
-	if (ret) {
-		DRM_ERROR("Failed to attach bridge to drm\n");
-
+	if (dsi->bridge) {
+		ret = drm_bridge_attach(&dsi->encoder, dsi->bridge, NULL);
+		if (ret) {
+			DRM_ERROR("Failed to attach bridge to drm\n");
+			goto err_encoder_cleanup;
+		}
+	} else {
 		/* Otherwise create our own connector and attach to a panel */
 		ret = mtk_dsi_create_connector(drm, dsi);
 		if (ret)

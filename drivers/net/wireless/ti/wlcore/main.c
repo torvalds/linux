@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_wakeirq.h>
 
 #include "wlcore.h"
 #include "debug.h"
@@ -956,6 +957,8 @@ static void wl1271_recovery_work(struct work_struct *work)
 
 	BUG_ON(wl->conf.recovery.bug_on_recovery &&
 	       !test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags));
+
+	clear_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags);
 
 	if (wl->conf.recovery.no_recovery) {
 		wl1271_info("No recovery (chosen on module load). Fw will remain stuck.");
@@ -6625,12 +6628,24 @@ static void wlcore_nvs_cb(const struct firmware *fw, void *context)
 	}
 
 #ifdef CONFIG_PM
+	device_init_wakeup(wl->dev, true);
+
 	ret = enable_irq_wake(wl->irq);
 	if (!ret) {
 		wl->irq_wake_enabled = true;
-		device_init_wakeup(wl->dev, 1);
 		if (pdev_data->pwr_in_suspend)
 			wl->hw->wiphy->wowlan = &wlcore_wowlan_support;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
+	if (res) {
+		wl->wakeirq = res->start;
+		wl->wakeirq_flags = res->flags & IRQF_TRIGGER_MASK;
+		ret = dev_pm_set_dedicated_wake_irq(wl->dev, wl->wakeirq);
+		if (ret)
+			wl->wakeirq = -ENODEV;
+	} else {
+		wl->wakeirq = -ENODEV;
 	}
 #endif
 	disable_irq(wl->irq);
@@ -6659,6 +6674,9 @@ out_unreg:
 	wl1271_unregister_hw(wl);
 
 out_irq:
+	if (wl->wakeirq >= 0)
+		dev_pm_clear_wake_irq(wl->dev);
+	device_init_wakeup(wl->dev, false);
 	free_irq(wl->irq, wl);
 
 out_free_nvs:
@@ -6710,6 +6728,7 @@ static int __maybe_unused wlcore_runtime_resume(struct device *dev)
 	int ret;
 	unsigned long start_time = jiffies;
 	bool pending = false;
+	bool recovery = false;
 
 	/* Nothing to do if no ELP mode requested */
 	if (!test_bit(WL1271_FLAG_IN_ELP, &wl->flags))
@@ -6726,7 +6745,7 @@ static int __maybe_unused wlcore_runtime_resume(struct device *dev)
 
 	ret = wlcore_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG, ELPCTRL_WAKE_UP);
 	if (ret < 0) {
-		wl12xx_queue_recovery_work(wl);
+		recovery = true;
 		goto err;
 	}
 
@@ -6734,11 +6753,12 @@ static int __maybe_unused wlcore_runtime_resume(struct device *dev)
 		ret = wait_for_completion_timeout(&compl,
 			msecs_to_jiffies(WL1271_WAKEUP_TIMEOUT));
 		if (ret == 0) {
-			wl1271_error("ELP wakeup timeout!");
-			wl12xx_queue_recovery_work(wl);
+			wl1271_warning("ELP wakeup timeout!");
 
 			/* Return no error for runtime PM for recovery */
-			return 0;
+			ret = 0;
+			recovery = true;
+			goto err;
 		}
 	}
 
@@ -6753,6 +6773,12 @@ err:
 	spin_lock_irqsave(&wl->wl_lock, flags);
 	wl->elp_compl = NULL;
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	if (recovery) {
+		set_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags);
+		wl12xx_queue_recovery_work(wl);
+	}
+
 	return ret;
 }
 
@@ -6815,10 +6841,16 @@ int wlcore_remove(struct platform_device *pdev)
 	if (!wl->initialized)
 		return 0;
 
-	if (wl->irq_wake_enabled) {
-		device_init_wakeup(wl->dev, 0);
-		disable_irq_wake(wl->irq);
+	if (wl->wakeirq >= 0) {
+		dev_pm_clear_wake_irq(wl->dev);
+		wl->wakeirq = -ENODEV;
 	}
+
+	device_init_wakeup(wl->dev, false);
+
+	if (wl->irq_wake_enabled)
+		disable_irq_wake(wl->irq);
+
 	wl1271_unregister_hw(wl);
 
 	pm_runtime_put_sync(wl->dev);

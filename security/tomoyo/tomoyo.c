@@ -550,4 +550,7 @@ static int __init tomoyo_init(void)
 	return 0;
 }
 
-security_initcall(tomoyo_init);
+DEFINE_LSM(tomoyo) = {
+	.name = "tomoyo",
+	.init = tomoyo_init,
+};

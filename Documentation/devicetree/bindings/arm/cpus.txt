@@ -276,7 +276,7 @@ described below.
 		Usage: optional
 		Value type: <prop-encoded-array>
 		Definition: A u32 value that represents the running time dynamic
-			    power coefficient in units of mW/MHz/uV^2. The
+			    power coefficient in units of uW/MHz/V^2. The
 			    coefficient can either be calculated from power
 			    measurements or derived by analysis.
 
@@ -287,7 +287,7 @@ described below.
 
 			    Pdyn = dynamic-power-coefficient * V^2 * f
 
-			    where voltage is in uV, frequency is in MHz.
+			    where voltage is in V, frequency is in MHz.
 
 Example 1 (dual-cluster big.LITTLE system 32-bit):
 

@@ -1210,10 +1210,8 @@ static int atk_register_hwmon(struct atk_data *data)
 	data->hwmon_dev = hwmon_device_register_with_groups(dev, "atk0110",
 							    data,
 							    data->attr_groups);
-	if (IS_ERR(data->hwmon_dev))
-		return PTR_ERR(data->hwmon_dev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(data->hwmon_dev);
 }
 
 static int atk_probe_if(struct atk_data *data)

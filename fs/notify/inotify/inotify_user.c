@@ -815,7 +815,7 @@ static int __init inotify_user_setup(void)
 	BUILD_BUG_ON(IN_ISDIR != FS_ISDIR);
 	BUILD_BUG_ON(IN_ONESHOT != FS_IN_ONESHOT);
 
-	BUG_ON(hweight32(ALL_INOTIFY_BITS) != 22);
+	BUILD_BUG_ON(HWEIGHT32(ALL_INOTIFY_BITS) != 22);
 
 	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark,
 					       SLAB_PANIC|SLAB_ACCOUNT);

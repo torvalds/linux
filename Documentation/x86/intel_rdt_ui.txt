@@ -520,18 +520,24 @@ the pseudo-locked region:
 2) Cache hit and miss measurements using model specific precision counters if
    available. Depending on the levels of cache on the system the pseudo_lock_l2
    and pseudo_lock_l3 tracepoints are available.
-   WARNING: triggering this  measurement uses from two (for just L2
-   measurements) to four (for L2 and L3 measurements) precision counters on
-   the system, if any other measurements are in progress the counters and
-   their corresponding event registers will be clobbered.
 
 When a pseudo-locked region is created a new debugfs directory is created for
 it in debugfs as /sys/kernel/debug/resctrl/<newdir>. A single
 write-only file, pseudo_lock_measure, is present in this directory. The
-measurement on the pseudo-locked region depends on the number, 1 or 2,
-written to this debugfs file. Since the measurements are recorded with the
-tracing infrastructure the relevant tracepoints need to be enabled before the
-measurement is triggered.
+measurement of the pseudo-locked region depends on the number written to this
+debugfs file:
+1 -  writing "1" to the pseudo_lock_measure file will trigger the latency
+     measurement captured in the pseudo_lock_mem_latency tracepoint. See
+     example below.
+2 -  writing "2" to the pseudo_lock_measure file will trigger the L2 cache
+     residency (cache hits and misses) measurement captured in the
+     pseudo_lock_l2 tracepoint. See example below.
+3 -  writing "3" to the pseudo_lock_measure file will trigger the L3 cache
+     residency (cache hits and misses) measurement captured in the
+     pseudo_lock_l3 tracepoint.
+
+All measurements are recorded with the tracing infrastructure. This requires
+the relevant tracepoints to be enabled before the measurement is triggered.
 
 Example of latency debugging interface:
 In this example a pseudo-locked region named "newlock" was created. Here is

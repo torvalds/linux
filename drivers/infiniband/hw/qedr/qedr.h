@@ -43,7 +43,7 @@
 #include "qedr_hsi_rdma.h"
 
 #define QEDR_NODE_DESC "QLogic 579xx RoCE HCA"
-#define DP_NAME(dev) ((dev)->ibdev.name)
+#define DP_NAME(_dev) dev_name(&(_dev)->ibdev.dev)
 #define IS_IWARP(_dev) ((_dev)->rdma_type == QED_RDMA_TYPE_IWARP)
 #define IS_ROCE(_dev) ((_dev)->rdma_type == QED_RDMA_TYPE_ROCE)
 

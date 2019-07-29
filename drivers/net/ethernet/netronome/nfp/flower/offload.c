@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <linux/skbuff.h>
 #include <net/devlink.h>
@@ -375,13 +345,29 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		    !(tcp_flags & (TCPHDR_FIN | TCPHDR_SYN | TCPHDR_RST)))
 			return -EOPNOTSUPP;
 
-		/* We need to store TCP flags in the IPv4 key space, thus
-		 * we need to ensure we include a IPv4 key layer if we have
-		 * not done so already.
+		/* We need to store TCP flags in the either the IPv4 or IPv6 key
+		 * space, thus we need to ensure we include a IPv4/IPv6 key
+		 * layer if we have not done so already.
 		 */
-		if (!(key_layer & NFP_FLOWER_LAYER_IPV4)) {
-			key_layer |= NFP_FLOWER_LAYER_IPV4;
-			key_size += sizeof(struct nfp_flower_ipv4);
+		if (!key_basic)
+			return -EOPNOTSUPP;
+
+		if (!(key_layer & NFP_FLOWER_LAYER_IPV4) &&
+		    !(key_layer & NFP_FLOWER_LAYER_IPV6)) {
+			switch (key_basic->n_proto) {
+			case cpu_to_be16(ETH_P_IP):
+				key_layer |= NFP_FLOWER_LAYER_IPV4;
+				key_size += sizeof(struct nfp_flower_ipv4);
+				break;
+
+			case cpu_to_be16(ETH_P_IPV6):
+				key_layer |= NFP_FLOWER_LAYER_IPV6;
+				key_size += sizeof(struct nfp_flower_ipv6);
+				break;
+
+			default:
+				return -EOPNOTSUPP;
+			}
 		}
 	}
 
@@ -428,8 +414,6 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer, bool egress)
 
 	flow_pay->nfp_tun_ipv4_addr = 0;
 	flow_pay->meta.flags = 0;
-	spin_lock_init(&flow_pay->lock);
-
 	flow_pay->ingress_offload = !egress;
 
 	return flow_pay;
@@ -508,14 +492,17 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (err)
 		goto err_destroy_flow;
 
+	flow_pay->tc_flower_cookie = flow->cookie;
+	err = rhashtable_insert_fast(&priv->flow_table, &flow_pay->fl_node,
+				     nfp_flower_table_params);
+	if (err)
+		goto err_release_metadata;
+
 	err = nfp_flower_xmit_flow(netdev, flow_pay,
 				   NFP_FLOWER_CMSG_TYPE_FLOW_ADD);
 	if (err)
-		goto err_destroy_flow;
+		goto err_remove_rhash;
 
-	INIT_HLIST_NODE(&flow_pay->link);
-	flow_pay->tc_flower_cookie = flow->cookie;
-	hash_add_rcu(priv->flow_table, &flow_pay->link, flow->cookie);
 	port->tc_offload_cnt++;
 
 	/* Deallocate flow payload when flower rule has been destroyed. */
@@ -523,6 +510,12 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 
 	return 0;
 
+err_remove_rhash:
+	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
+					    &flow_pay->fl_node,
+					    nfp_flower_table_params));
+err_release_metadata:
+	nfp_modify_flow_metadata(app, flow_pay);
 err_destroy_flow:
 	kfree(flow_pay->action_data);
 	kfree(flow_pay->mask_data);
@@ -550,6 +543,7 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 		       struct tc_cls_flower_offload *flow, bool egress)
 {
 	struct nfp_port *port = nfp_port_from_netdev(netdev);
+	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *nfp_flow;
 	struct net_device *ingr_dev;
 	int err;
@@ -573,11 +567,13 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_free_flow;
 
 err_free_flow:
-	hash_del_rcu(&nfp_flow->link);
 	port->tc_offload_cnt--;
 	kfree(nfp_flow->action_data);
 	kfree(nfp_flow->mask_data);
 	kfree(nfp_flow->unmasked_data);
+	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
+					    &nfp_flow->fl_node,
+					    nfp_flower_table_params));
 	kfree_rcu(nfp_flow, rcu);
 	return err;
 }
@@ -598,8 +594,10 @@ static int
 nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 		     struct tc_cls_flower_offload *flow, bool egress)
 {
+	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *nfp_flow;
 	struct net_device *ingr_dev;
+	u32 ctx_id;
 
 	ingr_dev = egress ? NULL : netdev;
 	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, ingr_dev,
@@ -610,13 +608,16 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 	if (nfp_flow->ingress_offload && egress)
 		return 0;
 
-	spin_lock_bh(&nfp_flow->lock);
-	tcf_exts_stats_update(flow->exts, nfp_flow->stats.bytes,
-			      nfp_flow->stats.pkts, nfp_flow->stats.used);
+	ctx_id = be32_to_cpu(nfp_flow->meta.host_ctx_id);
 
-	nfp_flow->stats.pkts = 0;
-	nfp_flow->stats.bytes = 0;
-	spin_unlock_bh(&nfp_flow->lock);
+	spin_lock_bh(&priv->stats_lock);
+	tcf_exts_stats_update(flow->exts, priv->stats[ctx_id].bytes,
+			      priv->stats[ctx_id].pkts,
+			      priv->stats[ctx_id].used);
+
+	priv->stats[ctx_id].pkts = 0;
+	priv->stats[ctx_id].bytes = 0;
+	spin_unlock_bh(&priv->stats_lock);
 
 	return 0;
 }

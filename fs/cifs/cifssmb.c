@@ -1607,6 +1607,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	struct smb_rqst rqst = { .rq_iov = rdata->iov,
 				 .rq_nvec = 2,
 				 .rq_pages = rdata->pages,
+				 .rq_offset = rdata->page_offset,
 				 .rq_npages = rdata->nr_pages,
 				 .rq_pagesz = rdata->pagesz,
 				 .rq_tailsz = rdata->tailsz };
@@ -2210,6 +2211,7 @@ cifs_async_writev(struct cifs_writedata *wdata,
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = 2;
 	rqst.rq_pages = wdata->pages;
+	rqst.rq_offset = wdata->page_offset;
 	rqst.rq_npages = wdata->nr_pages;
 	rqst.rq_pagesz = wdata->pagesz;
 	rqst.rq_tailsz = wdata->tailsz;
@@ -5027,6 +5029,13 @@ oldQFSInfoRetry:
 				le16_to_cpu(response_data->BytesPerSector) *
 				le32_to_cpu(response_data->
 					SectorsPerAllocationUnit);
+			/*
+			 * much prefer larger but if server doesn't report
+			 * a valid size than 4K is a reasonable minimum
+			 */
+			if (FSData->f_bsize < 512)
+				FSData->f_bsize = 4096;
+
 			FSData->f_blocks =
 			       le32_to_cpu(response_data->TotalAllocationUnits);
 			FSData->f_bfree = FSData->f_bavail =
@@ -5107,6 +5116,13 @@ QFSInfoRetry:
 			    le32_to_cpu(response_data->BytesPerSector) *
 			    le32_to_cpu(response_data->
 					SectorsPerAllocationUnit);
+			/*
+			 * much prefer larger but if server doesn't report
+			 * a valid size than 4K is a reasonable minimum
+			 */
+			if (FSData->f_bsize < 512)
+				FSData->f_bsize = 4096;
+
 			FSData->f_blocks =
 			    le64_to_cpu(response_data->TotalAllocationUnits);
 			FSData->f_bfree = FSData->f_bavail =
@@ -5470,6 +5486,13 @@ QFSPosixRetry:
 				 data_offset);
 			FSData->f_bsize =
 					le32_to_cpu(response_data->BlockSize);
+			/*
+			 * much prefer larger but if server doesn't report
+			 * a valid size than 4K is a reasonable minimum
+			 */
+			if (FSData->f_bsize < 512)
+				FSData->f_bsize = 4096;
+
 			FSData->f_blocks =
 					le64_to_cpu(response_data->TotalBlocks);
 			FSData->f_bfree =

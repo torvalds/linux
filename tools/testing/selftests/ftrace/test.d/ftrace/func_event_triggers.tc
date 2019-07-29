@@ -25,14 +25,11 @@ do_reset() {
 }
 
 fail() { # mesg
-    do_reset
     echo $1
     exit_fail
 }
 
 SLEEP_TIME=".1"
-
-do_reset
 
 echo "Testing function probes with events:"
 

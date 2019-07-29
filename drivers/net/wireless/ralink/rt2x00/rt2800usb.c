@@ -116,35 +116,6 @@ static bool rt2800usb_txstatus_pending(struct rt2x00_dev *rt2x00dev)
 	return false;
 }
 
-static inline bool rt2800usb_entry_txstatus_timeout(struct queue_entry *entry)
-{
-	bool tout;
-
-	if (!test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
-		return false;
-
-	tout = time_after(jiffies, entry->last_action + msecs_to_jiffies(500));
-	if (unlikely(tout))
-		rt2x00_dbg(entry->queue->rt2x00dev,
-			   "TX status timeout for entry %d in queue %d\n",
-			   entry->entry_idx, entry->queue->qid);
-	return tout;
-
-}
-
-static bool rt2800usb_txstatus_timeout(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-	struct queue_entry *entry;
-
-	tx_queue_for_each(rt2x00dev, queue) {
-		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-		if (rt2800usb_entry_txstatus_timeout(entry))
-			return true;
-	}
-	return false;
-}
-
 #define TXSTATUS_READ_INTERVAL 1000000
 
 static bool rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
@@ -171,7 +142,7 @@ static bool rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 	}
 
 	/* Check if there is any entry that timedout waiting on TX status */
-	if (rt2800usb_txstatus_timeout(rt2x00dev))
+	if (rt2800_txstatus_timeout(rt2x00dev))
 		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
 
 	if (rt2800usb_txstatus_pending(rt2x00dev)) {
@@ -501,123 +472,17 @@ static int rt2800usb_get_tx_data_len(struct queue_entry *entry)
 /*
  * TX control handlers
  */
-static bool rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
-{
-	__le32 *txwi;
-	u32 word;
-	int wcid, ack, pid;
-	int tx_wcid, tx_ack, tx_pid, is_agg;
-
-	/*
-	 * This frames has returned with an IO error,
-	 * so the status report is not intended for this
-	 * frame.
-	 */
-	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
-		return false;
-
-	wcid	= rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
-	ack	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
-	pid	= rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
-	is_agg	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_AGGRE);
-
-	/*
-	 * Validate if this TX status report is intended for
-	 * this entry by comparing the WCID/ACK/PID fields.
-	 */
-	txwi = rt2800usb_get_txwi(entry);
-
-	word = rt2x00_desc_read(txwi, 1);
-	tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
-	tx_ack  = rt2x00_get_field32(word, TXWI_W1_ACK);
-	tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
-
-	if (wcid != tx_wcid || ack != tx_ack || (!is_agg && pid != tx_pid)) {
-		rt2x00_dbg(entry->queue->rt2x00dev,
-			   "TX status report missed for queue %d entry %d\n",
-			   entry->queue->qid, entry->entry_idx);
-		return false;
-	}
-
-	return true;
-}
-
-static void rt2800usb_txdone(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-	struct queue_entry *entry;
-	u32 reg;
-	u8 qid;
-	bool match;
-
-	while (kfifo_get(&rt2x00dev->txstatus_fifo, &reg)) {
-		/*
-		 * TX_STA_FIFO_PID_QUEUE is a 2-bit field, thus qid is
-		 * guaranteed to be one of the TX QIDs .
-		 */
-		qid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_QUEUE);
-		queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
-
-		if (unlikely(rt2x00queue_empty(queue))) {
-			rt2x00_dbg(rt2x00dev, "Got TX status for an empty queue %u, dropping\n",
-				   qid);
-			break;
-		}
-
-		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-
-		if (unlikely(test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
-			     !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))) {
-			rt2x00_warn(rt2x00dev, "Data pending for entry %u in queue %u\n",
-				    entry->entry_idx, qid);
-			break;
-		}
-
-		match = rt2800usb_txdone_entry_check(entry, reg);
-		rt2800_txdone_entry(entry, reg, rt2800usb_get_txwi(entry), match);
-	}
-}
-
-static void rt2800usb_txdone_nostatus(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-	struct queue_entry *entry;
-
-	/*
-	 * Process any trailing TX status reports for IO failures,
-	 * we loop until we find the first non-IO error entry. This
-	 * can either be a frame which is free, is being uploaded,
-	 * or has completed the upload but didn't have an entry
-	 * in the TX_STAT_FIFO register yet.
-	 */
-	tx_queue_for_each(rt2x00dev, queue) {
-		while (!rt2x00queue_empty(queue)) {
-			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-
-			if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
-			    !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
-				break;
-
-			if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags) ||
-			    rt2800usb_entry_txstatus_timeout(entry))
-				rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
-			else
-				break;
-		}
-	}
-}
-
 static void rt2800usb_work_txdone(struct work_struct *work)
 {
 	struct rt2x00_dev *rt2x00dev =
 	    container_of(work, struct rt2x00_dev, txdone_work);
 
 	while (!kfifo_is_empty(&rt2x00dev->txstatus_fifo) ||
-	       rt2800usb_txstatus_timeout(rt2x00dev)) {
+	       rt2800_txstatus_timeout(rt2x00dev)) {
 
-		rt2800usb_txdone(rt2x00dev);
+		rt2800_txdone(rt2x00dev);
 
-		rt2800usb_txdone_nostatus(rt2x00dev);
+		rt2800_txdone_nostatus(rt2x00dev);
 
 		/*
 		 * The hw may delay sending the packet after DMA complete

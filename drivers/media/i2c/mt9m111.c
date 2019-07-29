@@ -445,7 +445,6 @@ static int mt9m111_get_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-	case V4L2_SEL_TGT_CROP_DEFAULT:
 		sel->r.left = MT9M111_MIN_DARK_COLS;
 		sel->r.top = MT9M111_MIN_DARK_ROWS;
 		sel->r.width = MT9M111_MAX_WIDTH;

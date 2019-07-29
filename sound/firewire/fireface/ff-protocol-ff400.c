@@ -30,7 +30,7 @@ static int ff400_get_clock(struct snd_ff *ff, unsigned int *rate,
 	int err;
 
 	err = snd_fw_transaction(ff->unit, TCODE_READ_QUADLET_REQUEST,
-				 FF400_SYNC_STATUS, &reg, sizeof(reg), 0);
+				 FF400_CLOCK_CONFIG, &reg, sizeof(reg), 0);
 	if (err < 0)
 		return err;
 	data = le32_to_cpu(reg);

@@ -245,12 +245,12 @@ ehci_urb_done(struct ehci_hcd *ehci, struct urb *urb, int status)
 	}
 
 	if (unlikely(urb->unlinked)) {
-		COUNT(ehci->stats.unlink);
+		INCR(ehci->stats.unlink);
 	} else {
 		/* report non-error and short read status as zero */
 		if (status == -EINPROGRESS || status == -EREMOTEIO)
 			status = 0;
-		COUNT(ehci->stats.complete);
+		INCR(ehci->stats.complete);
 	}
 
 #ifdef EHCI_URB_TRACE

@@ -14,7 +14,6 @@
 #include <linux/v4l2-mediabus.h>
 #include <linux/bitops.h>
 
-
 /* Parallel flags */
 /*
  * Can the client run in master or in slave mode. By "Master mode" an operation
@@ -63,26 +62,34 @@
 #define V4L2_MBUS_CSI2_CONTINUOUS_CLOCK		BIT(8)
 #define V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK	BIT(9)
 
-#define V4L2_MBUS_CSI2_LANES		(V4L2_MBUS_CSI2_1_LANE | V4L2_MBUS_CSI2_2_LANE | \
-					 V4L2_MBUS_CSI2_3_LANE | V4L2_MBUS_CSI2_4_LANE)
-#define V4L2_MBUS_CSI2_CHANNELS		(V4L2_MBUS_CSI2_CHANNEL_0 | V4L2_MBUS_CSI2_CHANNEL_1 | \
-					 V4L2_MBUS_CSI2_CHANNEL_2 | V4L2_MBUS_CSI2_CHANNEL_3)
+#define V4L2_MBUS_CSI2_LANES		(V4L2_MBUS_CSI2_1_LANE | \
+					 V4L2_MBUS_CSI2_2_LANE | \
+					 V4L2_MBUS_CSI2_3_LANE | \
+					 V4L2_MBUS_CSI2_4_LANE)
+#define V4L2_MBUS_CSI2_CHANNELS		(V4L2_MBUS_CSI2_CHANNEL_0 | \
+					 V4L2_MBUS_CSI2_CHANNEL_1 | \
+					 V4L2_MBUS_CSI2_CHANNEL_2 | \
+					 V4L2_MBUS_CSI2_CHANNEL_3)
 
 /**
  * enum v4l2_mbus_type - media bus type
+ * @V4L2_MBUS_UNKNOWN:	unknown bus type, no V4L2 mediabus configuration
  * @V4L2_MBUS_PARALLEL:	parallel interface with hsync and vsync
  * @V4L2_MBUS_BT656:	parallel interface with embedded synchronisation, can
  *			also be used for BT.1120
  * @V4L2_MBUS_CSI1:	MIPI CSI-1 serial interface
  * @V4L2_MBUS_CCP2:	CCP2 (Compact Camera Port 2)
- * @V4L2_MBUS_CSI2:	MIPI CSI-2 serial interface
+ * @V4L2_MBUS_CSI2_DPHY: MIPI CSI-2 serial interface, with D-PHY
+ * @V4L2_MBUS_CSI2_CPHY: MIPI CSI-2 serial interface, with C-PHY
  */
 enum v4l2_mbus_type {
+	V4L2_MBUS_UNKNOWN,
 	V4L2_MBUS_PARALLEL,
 	V4L2_MBUS_BT656,
 	V4L2_MBUS_CSI1,
 	V4L2_MBUS_CCP2,
-	V4L2_MBUS_CSI2,
+	V4L2_MBUS_CSI2_DPHY,
+	V4L2_MBUS_CSI2_CPHY,
 };
 
 /**
@@ -102,8 +109,9 @@ struct v4l2_mbus_config {
  * @pix_fmt:	pointer to &struct v4l2_pix_format to be filled
  * @mbus_fmt:	pointer to &struct v4l2_mbus_framefmt to be used as model
  */
-static inline void v4l2_fill_pix_format(struct v4l2_pix_format *pix_fmt,
-				const struct v4l2_mbus_framefmt *mbus_fmt)
+static inline void
+v4l2_fill_pix_format(struct v4l2_pix_format *pix_fmt,
+		     const struct v4l2_mbus_framefmt *mbus_fmt)
 {
 	pix_fmt->width = mbus_fmt->width;
 	pix_fmt->height = mbus_fmt->height;
@@ -124,7 +132,7 @@ static inline void v4l2_fill_pix_format(struct v4l2_pix_format *pix_fmt,
  * @code:	data format code (from &enum v4l2_mbus_pixelcode)
  */
 static inline void v4l2_fill_mbus_format(struct v4l2_mbus_framefmt *mbus_fmt,
-			   const struct v4l2_pix_format *pix_fmt,
+					 const struct v4l2_pix_format *pix_fmt,
 			   u32 code)
 {
 	mbus_fmt->width = pix_fmt->width;
@@ -144,9 +152,9 @@ static inline void v4l2_fill_mbus_format(struct v4l2_mbus_framefmt *mbus_fmt,
  * @pix_mp_fmt:	pointer to &struct v4l2_pix_format_mplane to be filled
  * @mbus_fmt:	pointer to &struct v4l2_mbus_framefmt to be used as model
  */
-static inline void v4l2_fill_pix_format_mplane(
-				struct v4l2_pix_format_mplane *pix_mp_fmt,
-				const struct v4l2_mbus_framefmt *mbus_fmt)
+static inline void
+v4l2_fill_pix_format_mplane(struct v4l2_pix_format_mplane *pix_mp_fmt,
+			    const struct v4l2_mbus_framefmt *mbus_fmt)
 {
 	pix_mp_fmt->width = mbus_fmt->width;
 	pix_mp_fmt->height = mbus_fmt->height;
@@ -164,9 +172,9 @@ static inline void v4l2_fill_pix_format_mplane(
  * @mbus_fmt:	pointer to &struct v4l2_mbus_framefmt to be filled
  * @pix_mp_fmt:	pointer to &struct v4l2_pix_format_mplane to be used as model
  */
-static inline void v4l2_fill_mbus_format_mplane(
-				struct v4l2_mbus_framefmt *mbus_fmt,
-				const struct v4l2_pix_format_mplane *pix_mp_fmt)
+static inline void
+v4l2_fill_mbus_format_mplane(struct v4l2_mbus_framefmt *mbus_fmt,
+			     const struct v4l2_pix_format_mplane *pix_mp_fmt)
 {
 	mbus_fmt->width = pix_mp_fmt->width;
 	mbus_fmt->height = pix_mp_fmt->height;

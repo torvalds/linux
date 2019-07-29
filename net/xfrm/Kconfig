@@ -8,7 +8,6 @@ config XFRM
 
 config XFRM_OFFLOAD
        bool
-       depends on XFRM
 
 config XFRM_ALGO
 	tristate

@@ -26,7 +26,7 @@
 #include <linux/moduleloader.h>
 #include <linux/interrupt.h>
 #include <linux/poll.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/cacheflush.h>

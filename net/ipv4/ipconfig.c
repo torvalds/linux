@@ -429,6 +429,8 @@ static int __init ic_defaults(void)
 			ic_netmask = htonl(IN_CLASSB_NET);
 		else if (IN_CLASSC(ntohl(ic_myaddr)))
 			ic_netmask = htonl(IN_CLASSC_NET);
+		else if (IN_CLASSE(ntohl(ic_myaddr)))
+			ic_netmask = htonl(IN_CLASSE_NET);
 		else {
 			pr_err("IP-Config: Unable to guess netmask for address %pI4\n",
 			       &ic_myaddr);

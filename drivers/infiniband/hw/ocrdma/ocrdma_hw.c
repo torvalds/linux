@@ -792,7 +792,7 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 						     qp->srq->ibsrq.
 						     srq_context);
 	} else if (dev_event) {
-		pr_err("%s: Fatal event received\n", dev->ibdev.name);
+		dev_err(&dev->ibdev.dev, "Fatal event received\n");
 		ib_dispatch_event(&ib_evt);
 	}
 

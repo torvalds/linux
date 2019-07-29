@@ -385,8 +385,8 @@ static int delta_querycap(struct file *file, void *priv,
 	struct delta_ctx *ctx = to_ctx(file->private_data);
 	struct delta_dev *delta = ctx->dev;
 
-	strlcpy(cap->driver, DELTA_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, delta->vdev->name, sizeof(cap->card));
+	strscpy(cap->driver, DELTA_NAME, sizeof(cap->driver));
+	strscpy(cap->card, delta->vdev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 delta->pdev->name);
 

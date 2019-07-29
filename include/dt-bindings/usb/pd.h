@@ -59,4 +59,30 @@
 	(PDO_TYPE(PDO_TYPE_VAR) | PDO_VAR_MIN_VOLT(min_mv) |	\
 	 PDO_VAR_MAX_VOLT(max_mv) | PDO_VAR_MAX_CURR(max_ma))
 
+#define APDO_TYPE_PPS		0
+
+#define PDO_APDO_TYPE_SHIFT	28	/* Only valid value currently is 0x0 - PPS */
+#define PDO_APDO_TYPE_MASK	0x3
+
+#define PDO_APDO_TYPE(t)	((t) << PDO_APDO_TYPE_SHIFT)
+
+#define PDO_PPS_APDO_MAX_VOLT_SHIFT	17	/* 100mV units */
+#define PDO_PPS_APDO_MIN_VOLT_SHIFT	8	/* 100mV units */
+#define PDO_PPS_APDO_MAX_CURR_SHIFT	0	/* 50mA units */
+
+#define PDO_PPS_APDO_VOLT_MASK	0xff
+#define PDO_PPS_APDO_CURR_MASK	0x7f
+
+#define PDO_PPS_APDO_MIN_VOLT(mv)	\
+	((((mv) / 100) & PDO_PPS_APDO_VOLT_MASK) << PDO_PPS_APDO_MIN_VOLT_SHIFT)
+#define PDO_PPS_APDO_MAX_VOLT(mv)	\
+	((((mv) / 100) & PDO_PPS_APDO_VOLT_MASK) << PDO_PPS_APDO_MAX_VOLT_SHIFT)
+#define PDO_PPS_APDO_MAX_CURR(ma)	\
+	((((ma) / 50) & PDO_PPS_APDO_CURR_MASK) << PDO_PPS_APDO_MAX_CURR_SHIFT)
+
+#define PDO_PPS_APDO(min_mv, max_mv, max_ma)					\
+	(PDO_TYPE(PDO_TYPE_APDO) | PDO_APDO_TYPE(APDO_TYPE_PPS) |		\
+	 PDO_PPS_APDO_MIN_VOLT(min_mv) | PDO_PPS_APDO_MAX_VOLT(max_mv) |	\
+	 PDO_PPS_APDO_MAX_CURR(max_ma))
+
  #endif /* __DT_POWER_DELIVERY_H */

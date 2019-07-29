@@ -43,7 +43,6 @@ struct pci_dn;
 #define EEH_VALID_PE_ZERO	0x10	/* PE#0 is valid		     */
 #define EEH_ENABLE_IO_FOR_LOG	0x20	/* Enable IO for log		     */
 #define EEH_EARLY_DUMP_LOG	0x40	/* Dump log immediately		     */
-#define EEH_POSTPONED_PROBE	0x80    /* Powernv may postpone device probe */
 
 /*
  * Delay for PE reset, all in ms
@@ -99,13 +98,13 @@ struct eeh_pe {
 	atomic_t pass_dev_cnt;		/* Count of passed through devs	*/
 	struct eeh_pe *parent;		/* Parent PE			*/
 	void *data;			/* PE auxillary data		*/
-	struct list_head child_list;	/* Link PE to the child list	*/
-	struct list_head edevs;		/* Link list of EEH devices	*/
-	struct list_head child;		/* Child PEs			*/
+	struct list_head child_list;	/* List of PEs below this PE	*/
+	struct list_head child;		/* Memb. child_list/eeh_phb_pe	*/
+	struct list_head edevs;		/* List of eeh_dev in this PE	*/
 };
 
 #define eeh_pe_for_each_dev(pe, edev, tmp) \
-		list_for_each_entry_safe(edev, tmp, &pe->edevs, list)
+		list_for_each_entry_safe(edev, tmp, &pe->edevs, entry)
 
 #define eeh_for_each_pe(root, pe) \
 	for (pe = root; pe; pe = eeh_pe_next(pe, root))
@@ -142,13 +141,12 @@ struct eeh_dev {
 	int aer_cap;			/* Saved AER capability		*/
 	int af_cap;			/* Saved AF capability		*/
 	struct eeh_pe *pe;		/* Associated PE		*/
-	struct list_head list;		/* Form link list in the PE	*/
-	struct list_head rmv_list;	/* Record the removed edevs	*/
+	struct list_head entry;		/* Membership in eeh_pe.edevs	*/
+	struct list_head rmv_entry;	/* Membership in rmv_list	*/
 	struct pci_dn *pdn;		/* Associated PCI device node	*/
 	struct pci_dev *pdev;		/* Associated PCI device	*/
 	bool in_error;			/* Error flag for edev		*/
 	struct pci_dev *physfn;		/* Associated SRIOV PF		*/
-	struct pci_bus *bus;		/* PCI bus for partial hotplug	*/
 };
 
 static inline struct pci_dn *eeh_dev_to_pdn(struct eeh_dev *edev)
@@ -207,9 +205,8 @@ struct eeh_ops {
 	void* (*probe)(struct pci_dn *pdn, void *data);
 	int (*set_option)(struct eeh_pe *pe, int option);
 	int (*get_pe_addr)(struct eeh_pe *pe);
-	int (*get_state)(struct eeh_pe *pe, int *state);
+	int (*get_state)(struct eeh_pe *pe, int *delay);
 	int (*reset)(struct eeh_pe *pe, int option);
-	int (*wait_state)(struct eeh_pe *pe, int max_wait);
 	int (*get_log)(struct eeh_pe *pe, int severity, char *drv_log, unsigned long len);
 	int (*configure_bridge)(struct eeh_pe *pe);
 	int (*err_inject)(struct eeh_pe *pe, int type, int func,
@@ -243,11 +240,7 @@ static inline bool eeh_has_flag(int flag)
 
 static inline bool eeh_enabled(void)
 {
-	if (eeh_has_flag(EEH_FORCE_DISABLED) ||
-	    !eeh_has_flag(EEH_ENABLED))
-		return false;
-
-	return true;
+	return eeh_has_flag(EEH_ENABLED) && !eeh_has_flag(EEH_FORCE_DISABLED);
 }
 
 static inline void eeh_serialize_lock(unsigned long *flags)
@@ -270,6 +263,7 @@ typedef void *(*eeh_edev_traverse_func)(struct eeh_dev *edev, void *flag);
 typedef void *(*eeh_pe_traverse_func)(struct eeh_pe *pe, void *flag);
 void eeh_set_pe_aux_size(int size);
 int eeh_phb_pe_create(struct pci_controller *phb);
+int eeh_wait_state(struct eeh_pe *pe, int max_wait);
 struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb);
 struct eeh_pe *eeh_pe_next(struct eeh_pe *pe, struct eeh_pe *root);
 struct eeh_pe *eeh_pe_get(struct pci_controller *phb,

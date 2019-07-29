@@ -2002,6 +2002,8 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &cik_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v7_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &cik_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v7_2_ip_block);
+		amdgpu_device_ip_block_add(adev, &cik_sdma_ip_block);
 		if (amdgpu_dpm == -1)
 			amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		else
@@ -2014,8 +2016,6 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v8_2_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v7_2_ip_block);
-		amdgpu_device_ip_block_add(adev, &cik_sdma_ip_block);
 		amdgpu_device_ip_block_add(adev, &uvd_v4_2_ip_block);
 		amdgpu_device_ip_block_add(adev, &vce_v2_0_ip_block);
 		break;
@@ -2023,6 +2023,8 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &cik_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v7_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &cik_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v7_3_ip_block);
+		amdgpu_device_ip_block_add(adev, &cik_sdma_ip_block);
 		if (amdgpu_dpm == -1)
 			amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		else
@@ -2035,8 +2037,6 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v8_5_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v7_3_ip_block);
-		amdgpu_device_ip_block_add(adev, &cik_sdma_ip_block);
 		amdgpu_device_ip_block_add(adev, &uvd_v4_2_ip_block);
 		amdgpu_device_ip_block_add(adev, &vce_v2_0_ip_block);
 		break;
@@ -2044,6 +2044,8 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &cik_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v7_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &cik_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v7_1_ip_block);
+		amdgpu_device_ip_block_add(adev, &cik_sdma_ip_block);
 		amdgpu_device_ip_block_add(adev, &kv_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
@@ -2053,8 +2055,7 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v8_1_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v7_1_ip_block);
-		amdgpu_device_ip_block_add(adev, &cik_sdma_ip_block);
+
 		amdgpu_device_ip_block_add(adev, &uvd_v4_2_ip_block);
 		amdgpu_device_ip_block_add(adev, &vce_v2_0_ip_block);
 		break;
@@ -2063,6 +2064,8 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &cik_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v7_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &cik_ih_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v7_2_ip_block);
+		amdgpu_device_ip_block_add(adev, &cik_sdma_ip_block);
 		amdgpu_device_ip_block_add(adev, &kv_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
@@ -2072,8 +2075,6 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 #endif
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v8_3_ip_block);
-		amdgpu_device_ip_block_add(adev, &gfx_v7_2_ip_block);
-		amdgpu_device_ip_block_add(adev, &cik_sdma_ip_block);
 		amdgpu_device_ip_block_add(adev, &uvd_v4_2_ip_block);
 		amdgpu_device_ip_block_add(adev, &vce_v2_0_ip_block);
 		break;

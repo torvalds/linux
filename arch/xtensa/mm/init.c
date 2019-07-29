@@ -18,7 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/swap.h>
@@ -71,7 +71,7 @@ void __init zones_init(void)
 {
 	/* All pages are DMA-able, so we put them all in the DMA zone. */
 	unsigned long zones_size[MAX_NR_ZONES] = {
-		[ZONE_DMA] = max_low_pfn - ARCH_PFN_OFFSET,
+		[ZONE_NORMAL] = max_low_pfn - ARCH_PFN_OFFSET,
 #ifdef CONFIG_HIGHMEM
 		[ZONE_HIGHMEM] = max_pfn - max_low_pfn,
 #endif
@@ -152,7 +152,7 @@ void __init mem_init(void)
 	max_mapnr = max_pfn - ARCH_PFN_OFFSET;
 	high_memory = (void *)__va(max_low_pfn << PAGE_SHIFT);
 
-	free_all_bootmem();
+	memblock_free_all();
 
 	mem_init_print_info(NULL);
 	pr_info("virtual kernel memory layout:\n"

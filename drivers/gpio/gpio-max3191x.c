@@ -313,18 +313,21 @@ static int max3191x_set_config(struct gpio_chip *gpio, unsigned int offset,
 
 static void gpiod_set_array_single_value_cansleep(unsigned int ndescs,
 						  struct gpio_desc **desc,
+						  struct gpio_array *info,
 						  int value)
 {
-	int i, *values;
+	unsigned long *values;
 
-	values = kmalloc_array(ndescs, sizeof(*values), GFP_KERNEL);
+	values = bitmap_alloc(ndescs, GFP_KERNEL);
 	if (!values)
 		return;
 
-	for (i = 0; i < ndescs; i++)
-		values[i] = value;
+	if (value)
+		bitmap_fill(values, ndescs);
+	else
+		bitmap_zero(values, ndescs);
 
-	gpiod_set_array_value_cansleep(ndescs, desc, values);
+	gpiod_set_array_value_cansleep(ndescs, desc, info, values);
 	kfree(values);
 }
 
@@ -397,7 +400,8 @@ static int max3191x_probe(struct spi_device *spi)
 	if (max3191x->modesel_pins)
 		gpiod_set_array_single_value_cansleep(
 				 max3191x->modesel_pins->ndescs,
-				 max3191x->modesel_pins->desc, max3191x->mode);
+				 max3191x->modesel_pins->desc,
+				 max3191x->modesel_pins->info, max3191x->mode);
 
 	max3191x->ignore_uv = device_property_read_bool(dev,
 						  "maxim,ignore-undervoltage");

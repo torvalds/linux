@@ -91,10 +91,4 @@ int coreboot_driver_register(struct coreboot_driver *driver);
 /* Unregister a driver that uses the data from a coreboot table. */
 void coreboot_driver_unregister(struct coreboot_driver *driver);
 
-/* Initialize coreboot table module given a pointer to iomem */
-int coreboot_table_init(struct device *dev, void __iomem *ptr);
-
-/* Cleanup coreboot table module */
-int coreboot_table_exit(void);
-
 #endif /* __COREBOOT_TABLE_H */

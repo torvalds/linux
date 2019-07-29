@@ -688,8 +688,8 @@ static int bdisp_querycap(struct file *file, void *fh,
 	struct bdisp_ctx *ctx = fh_to_ctx(fh);
 	struct bdisp_dev *bdisp = ctx->bdisp_dev;
 
-	strlcpy(cap->driver, bdisp->pdev->name, sizeof(cap->driver));
-	strlcpy(cap->card, bdisp->pdev->name, sizeof(cap->card));
+	strscpy(cap->driver, bdisp->pdev->name, sizeof(cap->driver));
+	strscpy(cap->card, bdisp->pdev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s%d",
 		 BDISP_NAME, bdisp->id);
 

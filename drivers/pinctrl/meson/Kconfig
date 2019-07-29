@@ -47,4 +47,10 @@ config PINCTRL_MESON_AXG
 config PINCTRL_MESON_AXG_PMX
 	bool
 
+config PINCTRL_MESON_G12A
+	bool "Meson g12a Soc pinctrl driver"
+	depends on ARM64
+	select PINCTRL_MESON_AXG_PMX
+	default y
+
 endif

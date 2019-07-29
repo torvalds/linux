@@ -106,6 +106,7 @@ static int write_classid(struct cgroup_subsys_state *css, struct cftype *cft,
 		iterate_fd(p->files, 0, update_classid_sock,
 			   (void *)(unsigned long)cs->classid);
 		task_unlock(p);
+		cond_resched();
 	}
 	css_task_iter_end(&it);
 

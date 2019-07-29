@@ -59,13 +59,6 @@
 #define AMS_DELTA_LATCH2_GPIO_BASE	AMS_DELTA_GPIO_PIN_LCD_VBLEN
 #define AMS_DELTA_LATCH2_NGPIO		16
 
-#ifndef __ASSEMBLY__
-void ams_delta_latch_write(int base, int ngpio, u16 mask, u16 value);
-#define ams_delta_latch2_write(mask, value) \
-	ams_delta_latch_write(AMS_DELTA_LATCH2_GPIO_BASE, \
-			AMS_DELTA_LATCH2_NGPIO, (mask), (value))
-#endif
-
 #endif /* CONFIG_MACH_AMS_DELTA */
 
 #endif /* __ASM_ARCH_OMAP_AMS_DELTA_H */

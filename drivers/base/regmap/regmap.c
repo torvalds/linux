@@ -35,6 +35,16 @@
  */
 #undef LOG_DEVICE
 
+#ifdef LOG_DEVICE
+static inline bool regmap_should_log(struct regmap *map)
+{
+	return (map->dev && strcmp(dev_name(map->dev), LOG_DEVICE) == 0);
+}
+#else
+static inline bool regmap_should_log(struct regmap *map) { return false; }
+#endif
+
+
 static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 			       unsigned int mask, unsigned int val,
 			       bool *change, bool force_write);
@@ -166,6 +176,17 @@ bool regmap_precious(struct regmap *map, unsigned int reg)
 		return regmap_check_range_table(map, reg, map->precious_table);
 
 	return false;
+}
+
+bool regmap_writeable_noinc(struct regmap *map, unsigned int reg)
+{
+	if (map->writeable_noinc_reg)
+		return map->writeable_noinc_reg(map->dev, reg);
+
+	if (map->wr_noinc_table)
+		return regmap_check_range_table(map, reg, map->wr_noinc_table);
+
+	return true;
 }
 
 bool regmap_readable_noinc(struct regmap *map, unsigned int reg)
@@ -762,8 +783,8 @@ struct regmap *__regmap_init(struct device *dev,
 		map->reg_stride_order = ilog2(map->reg_stride);
 	else
 		map->reg_stride_order = -1;
-	map->use_single_read = config->use_single_rw || !bus || !bus->read;
-	map->use_single_write = config->use_single_rw || !bus || !bus->write;
+	map->use_single_read = config->use_single_read || !bus || !bus->read;
+	map->use_single_write = config->use_single_write || !bus || !bus->write;
 	map->can_multi_write = config->can_multi_write && bus && bus->write;
 	if (bus) {
 		map->max_raw_read = bus->max_raw_read;
@@ -777,11 +798,13 @@ struct regmap *__regmap_init(struct device *dev,
 	map->rd_table = config->rd_table;
 	map->volatile_table = config->volatile_table;
 	map->precious_table = config->precious_table;
+	map->wr_noinc_table = config->wr_noinc_table;
 	map->rd_noinc_table = config->rd_noinc_table;
 	map->writeable_reg = config->writeable_reg;
 	map->readable_reg = config->readable_reg;
 	map->volatile_reg = config->volatile_reg;
 	map->precious_reg = config->precious_reg;
+	map->writeable_noinc_reg = config->writeable_noinc_reg;
 	map->readable_noinc_reg = config->readable_noinc_reg;
 	map->cache_type = config->cache_type;
 
@@ -1298,6 +1321,7 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 	map->readable_reg = config->readable_reg;
 	map->volatile_reg = config->volatile_reg;
 	map->precious_reg = config->precious_reg;
+	map->writeable_noinc_reg = config->writeable_noinc_reg;
 	map->readable_noinc_reg = config->readable_noinc_reg;
 	map->cache_type = config->cache_type;
 
@@ -1755,10 +1779,8 @@ int _regmap_write(struct regmap *map, unsigned int reg,
 		}
 	}
 
-#ifdef LOG_DEVICE
-	if (map->dev && strcmp(dev_name(map->dev), LOG_DEVICE) == 0)
+	if (regmap_should_log(map))
 		dev_info(map->dev, "%x <= %x\n", reg, val);
-#endif
 
 	trace_regmap_reg_write(map, reg, val);
 
@@ -1896,6 +1918,69 @@ int regmap_raw_write(struct regmap *map, unsigned int reg,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_raw_write);
+
+/**
+ * regmap_noinc_write(): Write data from a register without incrementing the
+ *			register number
+ *
+ * @map: Register map to write to
+ * @reg: Register to write to
+ * @val: Pointer to data buffer
+ * @val_len: Length of output buffer in bytes.
+ *
+ * The regmap API usually assumes that bulk bus write operations will write a
+ * range of registers. Some devices have certain registers for which a write
+ * operation can write to an internal FIFO.
+ *
+ * The target register must be volatile but registers after it can be
+ * completely unrelated cacheable registers.
+ *
+ * This will attempt multiple writes as required to write val_len bytes.
+ *
+ * A value of zero will be returned on success, a negative errno will be
+ * returned in error cases.
+ */
+int regmap_noinc_write(struct regmap *map, unsigned int reg,
+		      const void *val, size_t val_len)
+{
+	size_t write_len;
+	int ret;
+
+	if (!map->bus)
+		return -EINVAL;
+	if (!map->bus->write)
+		return -ENOTSUPP;
+	if (val_len % map->format.val_bytes)
+		return -EINVAL;
+	if (!IS_ALIGNED(reg, map->reg_stride))
+		return -EINVAL;
+	if (val_len == 0)
+		return -EINVAL;
+
+	map->lock(map->lock_arg);
+
+	if (!regmap_volatile(map, reg) || !regmap_writeable_noinc(map, reg)) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	while (val_len) {
+		if (map->max_raw_write && map->max_raw_write < val_len)
+			write_len = map->max_raw_write;
+		else
+			write_len = val_len;
+		ret = _regmap_raw_write(map, reg, val, write_len);
+		if (ret)
+			goto out_unlock;
+		val = ((u8 *)val) + write_len;
+		val_len -= write_len;
+	}
+
+out_unlock:
+	map->unlock(map->lock_arg);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regmap_noinc_write);
 
 /**
  * regmap_field_update_bits_base() - Perform a read/modify/write cycle a
@@ -2450,10 +2535,8 @@ static int _regmap_read(struct regmap *map, unsigned int reg,
 
 	ret = map->reg_read(context, reg, val);
 	if (ret == 0) {
-#ifdef LOG_DEVICE
-		if (map->dev && strcmp(dev_name(map->dev), LOG_DEVICE) == 0)
+		if (regmap_should_log(map))
 			dev_info(map->dev, "%x => %x\n", reg, *val);
-#endif
 
 		trace_regmap_reg_read(map, reg, *val);
 

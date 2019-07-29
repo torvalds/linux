@@ -28,7 +28,8 @@ Explanation of the Linux-Kernel Memory Consistency Model
   20. THE HAPPENS-BEFORE RELATION: hb
   21. THE PROPAGATES-BEFORE RELATION: pb
   22. RCU RELATIONS: rcu-link, gp, rscs, rcu-fence, and rb
-  23. ODDS AND ENDS
+  23. LOCKING
+  24. ODDS AND ENDS
 
 
 
@@ -1067,28 +1068,6 @@ allowing out-of-order writes like this to occur.  The model avoided
 violating the write-write coherence rule by requiring the CPU not to
 send the W write to the memory subsystem at all!)
 
-There is one last example of preserved program order in the LKMM: when
-a load-acquire reads from an earlier store-release.  For example:
-
-	smp_store_release(&x, 123);
-	r1 = smp_load_acquire(&x);
-
-If the smp_load_acquire() ends up obtaining the 123 value that was
-stored by the smp_store_release(), the LKMM says that the load must be
-executed after the store; the store cannot be forwarded to the load.
-This requirement does not arise from the operational model, but it
-yields correct predictions on all architectures supported by the Linux
-kernel, although for differing reasons.
-
-On some architectures, including x86 and ARMv8, it is true that the
-store cannot be forwarded to the load.  On others, including PowerPC
-and ARMv7, smp_store_release() generates object code that starts with
-a fence and smp_load_acquire() generates object code that ends with a
-fence.  The upshot is that even though the store may be forwarded to
-the load, it is still true that any instruction preceding the store
-will be executed before the load or any following instructions, and
-the store will be executed before any instruction following the load.
-
 
 AND THEN THERE WAS ALPHA
 ------------------------
@@ -1766,6 +1745,147 @@ before it does, and the critical section in P2 both starts after P1's
 grace period does and ends after it does.
 
 
+LOCKING
+-------
+
+The LKMM includes locking.  In fact, there is special code for locking
+in the formal model, added in order to make tools run faster.
+However, this special code is intended to be more or less equivalent
+to concepts we have already covered.  A spinlock_t variable is treated
+the same as an int, and spin_lock(&s) is treated almost the same as:
+
+	while (cmpxchg_acquire(&s, 0, 1) != 0)
+		cpu_relax();
+
+This waits until s is equal to 0 and then atomically sets it to 1,
+and the read part of the cmpxchg operation acts as an acquire fence.
+An alternate way to express the same thing would be:
+
+	r = xchg_acquire(&s, 1);
+
+along with a requirement that at the end, r = 0.  Similarly,
+spin_trylock(&s) is treated almost the same as:
+
+	return !cmpxchg_acquire(&s, 0, 1);
+
+which atomically sets s to 1 if it is currently equal to 0 and returns
+true if it succeeds (the read part of the cmpxchg operation acts as an
+acquire fence only if the operation is successful).  spin_unlock(&s)
+is treated almost the same as:
+
+	smp_store_release(&s, 0);
+
+The "almost" qualifiers above need some explanation.  In the LKMM, the
+store-release in a spin_unlock() and the load-acquire which forms the
+first half of the atomic rmw update in a spin_lock() or a successful
+spin_trylock() -- we can call these things lock-releases and
+lock-acquires -- have two properties beyond those of ordinary releases
+and acquires.
+
+First, when a lock-acquire reads from a lock-release, the LKMM
+requires that every instruction po-before the lock-release must
+execute before any instruction po-after the lock-acquire.  This would
+naturally hold if the release and acquire operations were on different
+CPUs, but the LKMM says it holds even when they are on the same CPU.
+For example:
+
+	int x, y;
+	spinlock_t s;
+
+	P0()
+	{
+		int r1, r2;
+
+		spin_lock(&s);
+		r1 = READ_ONCE(x);
+		spin_unlock(&s);
+		spin_lock(&s);
+		r2 = READ_ONCE(y);
+		spin_unlock(&s);
+	}
+
+	P1()
+	{
+		WRITE_ONCE(y, 1);
+		smp_wmb();
+		WRITE_ONCE(x, 1);
+	}
+
+Here the second spin_lock() reads from the first spin_unlock(), and
+therefore the load of x must execute before the load of y.  Thus we
+cannot have r1 = 1 and r2 = 0 at the end (this is an instance of the
+MP pattern).
+
+This requirement does not apply to ordinary release and acquire
+fences, only to lock-related operations.  For instance, suppose P0()
+in the example had been written as:
+
+	P0()
+	{
+		int r1, r2, r3;
+
+		r1 = READ_ONCE(x);
+		smp_store_release(&s, 1);
+		r3 = smp_load_acquire(&s);
+		r2 = READ_ONCE(y);
+	}
+
+Then the CPU would be allowed to forward the s = 1 value from the
+smp_store_release() to the smp_load_acquire(), executing the
+instructions in the following order:
+
+		r3 = smp_load_acquire(&s);	// Obtains r3 = 1
+		r2 = READ_ONCE(y);
+		r1 = READ_ONCE(x);
+		smp_store_release(&s, 1);	// Value is forwarded
+
+and thus it could load y before x, obtaining r2 = 0 and r1 = 1.
+
+Second, when a lock-acquire reads from a lock-release, and some other
+stores W and W' occur po-before the lock-release and po-after the
+lock-acquire respectively, the LKMM requires that W must propagate to
+each CPU before W' does.  For example, consider:
+
+	int x, y;
+	spinlock_t x;
+
+	P0()
+	{
+		spin_lock(&s);
+		WRITE_ONCE(x, 1);
+		spin_unlock(&s);
+	}
+
+	P1()
+	{
+		int r1;
+
+		spin_lock(&s);
+		r1 = READ_ONCE(x);
+		WRITE_ONCE(y, 1);
+		spin_unlock(&s);
+	}
+
+	P2()
+	{
+		int r2, r3;
+
+		r2 = READ_ONCE(y);
+		smp_rmb();
+		r3 = READ_ONCE(x);
+	}
+
+If r1 = 1 at the end then the spin_lock() in P1 must have read from
+the spin_unlock() in P0.  Hence the store to x must propagate to P2
+before the store to y does, so we cannot have r2 = 1 and r3 = 0.
+
+These two special requirements for lock-release and lock-acquire do
+not arise from the operational model.  Nevertheless, kernel developers
+have come to expect and rely on them because they do hold on all
+architectures supported by the Linux kernel, albeit for various
+differing reasons.
+
+
 ODDS AND ENDS
 -------------
 
@@ -1830,26 +1950,6 @@ they behave as follows:
 	smp_mb_after_spinlock() orders po-earlier lock acquisition
 	events and the events preceding them against all po-later
 	events.
-
-The LKMM includes locking.  In fact, there is special code for locking
-in the formal model, added in order to make tools run faster.
-However, this special code is intended to be exactly equivalent to
-concepts we have already covered.  A spinlock_t variable is treated
-the same as an int, and spin_lock(&s) is treated the same as:
-
-	while (cmpxchg_acquire(&s, 0, 1) != 0)
-		cpu_relax();
-
-which waits until s is equal to 0 and then atomically sets it to 1,
-and where the read part of the atomic update is also an acquire fence.
-An alternate way to express the same thing would be:
-
-	r = xchg_acquire(&s, 1);
-
-along with a requirement that at the end, r = 0.  spin_unlock(&s) is
-treated the same as:
-
-	smp_store_release(&s, 0);
 
 Interestingly, RCU and locking each introduce the possibility of
 deadlock.  When faced with code sequences such as:

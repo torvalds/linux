@@ -5949,7 +5949,6 @@ static void adv_async_callback(ADV_DVC_VAR *adv_dvc_varp, uchar code)
 static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
 {
 	struct asc_board *boardp = adv_dvc_varp->drv_ptr;
-	u32 srb_tag;
 	adv_req_t *reqp;
 	adv_sgblk_t *sgblkp;
 	struct scsi_cmnd *scp;
@@ -5965,7 +5964,6 @@ static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
 	 * completed. The adv_req_t structure actually contains the
 	 * completed ADV_SCSI_REQ_Q structure.
 	 */
-	srb_tag = le32_to_cpu(scsiqp->srb_tag);
 	scp = scsi_host_find_tag(boardp->shost, scsiqp->srb_tag);
 
 	ASC_DBG(1, "scp 0x%p\n", scp);
@@ -6448,7 +6446,7 @@ static void AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 				sdtr_data =
 				    AscCalSDTRData(asc_dvc, ext_msg.xfer_period,
 						   ext_msg.req_ack_offset);
-				if ((sdtr_data == 0xFF)) {
+				if (sdtr_data == 0xFF) {
 
 					q_cntl |= QC_MSG_OUT;
 					asc_dvc->init_sdtr &= ~target_id;

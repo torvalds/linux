@@ -111,6 +111,7 @@ static int gyro_3d_read_raw(struct iio_dev *indio_dev,
 	int report_id = -1;
 	u32 address;
 	int ret_type;
+	s32 min;
 
 	*val = 0;
 	*val2 = 0;
@@ -118,13 +119,15 @@ static int gyro_3d_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		hid_sensor_power_state(&gyro_state->common_attributes, true);
 		report_id = gyro_state->gyro[chan->scan_index].report_id;
+		min = gyro_state->gyro[chan->scan_index].logical_minimum;
 		address = gyro_3d_addresses[chan->scan_index];
 		if (report_id >= 0)
 			*val = sensor_hub_input_attr_get_raw_value(
 					gyro_state->common_attributes.hsdev,
 					HID_USAGE_SENSOR_GYRO_3D, address,
 					report_id,
-					SENSOR_HUB_SYNC);
+					SENSOR_HUB_SYNC,
+					min < 0);
 		else {
 			*val = 0;
 			hid_sensor_power_state(&gyro_state->common_attributes,

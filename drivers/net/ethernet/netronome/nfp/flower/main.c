@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <linux/etherdevice.h>
 #include <linux/lockdep.h>
@@ -518,8 +488,8 @@ err_clear_nn:
 static int nfp_flower_init(struct nfp_app *app)
 {
 	const struct nfp_pf *pf = app->pf;
+	u64 version, features, ctx_count;
 	struct nfp_flower_priv *app_priv;
-	u64 version, features;
 	int err;
 
 	if (!pf->eth_tbl) {
@@ -543,6 +513,16 @@ static int nfp_flower_init(struct nfp_app *app)
 		return err;
 	}
 
+	ctx_count = nfp_rtsym_read_le(app->pf->rtbl, "CONFIG_FC_HOST_CTX_COUNT",
+				      &err);
+	if (err) {
+		nfp_warn(app->cpp,
+			 "FlowerNIC: unsupported host context count: %d\n",
+			 err);
+		err = 0;
+		ctx_count = BIT(17);
+	}
+
 	/* We need to ensure hardware has enough flower capabilities. */
 	if (version != NFP_FLOWER_ALLOWED_VER) {
 		nfp_warn(app->cpp, "FlowerNIC: unsupported firmware version\n");
@@ -553,6 +533,7 @@ static int nfp_flower_init(struct nfp_app *app)
 	if (!app_priv)
 		return -ENOMEM;
 
+	app_priv->stats_ring_size = roundup_pow_of_two(ctx_count);
 	app->priv = app_priv;
 	app_priv->app = app;
 	skb_queue_head_init(&app_priv->cmsg_skbs_high);
@@ -563,7 +544,7 @@ static int nfp_flower_init(struct nfp_app *app)
 	init_waitqueue_head(&app_priv->mtu_conf.wait_q);
 	spin_lock_init(&app_priv->mtu_conf.lock);
 
-	err = nfp_flower_metadata_init(app);
+	err = nfp_flower_metadata_init(app, ctx_count);
 	if (err)
 		goto err_free_app_priv;
 

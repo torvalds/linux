@@ -1066,46 +1066,43 @@ static const struct idle_cpu idle_cpu_dnv = {
 	.disable_promotion_to_c1e = true,
 };
 
-#define ICPU(model, cpu) \
-	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&cpu }
-
 static const struct x86_cpu_id intel_idle_ids[] __initconst = {
-	ICPU(INTEL_FAM6_NEHALEM_EP,		idle_cpu_nehalem),
-	ICPU(INTEL_FAM6_NEHALEM,		idle_cpu_nehalem),
-	ICPU(INTEL_FAM6_NEHALEM_G,		idle_cpu_nehalem),
-	ICPU(INTEL_FAM6_WESTMERE,		idle_cpu_nehalem),
-	ICPU(INTEL_FAM6_WESTMERE_EP,		idle_cpu_nehalem),
-	ICPU(INTEL_FAM6_NEHALEM_EX,		idle_cpu_nehalem),
-	ICPU(INTEL_FAM6_ATOM_PINEVIEW,		idle_cpu_atom),
-	ICPU(INTEL_FAM6_ATOM_LINCROFT,		idle_cpu_lincroft),
-	ICPU(INTEL_FAM6_WESTMERE_EX,		idle_cpu_nehalem),
-	ICPU(INTEL_FAM6_SANDYBRIDGE,		idle_cpu_snb),
-	ICPU(INTEL_FAM6_SANDYBRIDGE_X,		idle_cpu_snb),
-	ICPU(INTEL_FAM6_ATOM_CEDARVIEW,		idle_cpu_atom),
-	ICPU(INTEL_FAM6_ATOM_SILVERMONT1,	idle_cpu_byt),
-	ICPU(INTEL_FAM6_ATOM_MERRIFIELD,	idle_cpu_tangier),
-	ICPU(INTEL_FAM6_ATOM_AIRMONT,		idle_cpu_cht),
-	ICPU(INTEL_FAM6_IVYBRIDGE,		idle_cpu_ivb),
-	ICPU(INTEL_FAM6_IVYBRIDGE_X,		idle_cpu_ivt),
-	ICPU(INTEL_FAM6_HASWELL_CORE,		idle_cpu_hsw),
-	ICPU(INTEL_FAM6_HASWELL_X,		idle_cpu_hsw),
-	ICPU(INTEL_FAM6_HASWELL_ULT,		idle_cpu_hsw),
-	ICPU(INTEL_FAM6_HASWELL_GT3E,		idle_cpu_hsw),
-	ICPU(INTEL_FAM6_ATOM_SILVERMONT2,	idle_cpu_avn),
-	ICPU(INTEL_FAM6_BROADWELL_CORE,		idle_cpu_bdw),
-	ICPU(INTEL_FAM6_BROADWELL_GT3E,		idle_cpu_bdw),
-	ICPU(INTEL_FAM6_BROADWELL_X,		idle_cpu_bdw),
-	ICPU(INTEL_FAM6_BROADWELL_XEON_D,	idle_cpu_bdw),
-	ICPU(INTEL_FAM6_SKYLAKE_MOBILE,		idle_cpu_skl),
-	ICPU(INTEL_FAM6_SKYLAKE_DESKTOP,	idle_cpu_skl),
-	ICPU(INTEL_FAM6_KABYLAKE_MOBILE,	idle_cpu_skl),
-	ICPU(INTEL_FAM6_KABYLAKE_DESKTOP,	idle_cpu_skl),
-	ICPU(INTEL_FAM6_SKYLAKE_X,		idle_cpu_skx),
-	ICPU(INTEL_FAM6_XEON_PHI_KNL,		idle_cpu_knl),
-	ICPU(INTEL_FAM6_XEON_PHI_KNM,		idle_cpu_knl),
-	ICPU(INTEL_FAM6_ATOM_GOLDMONT,		idle_cpu_bxt),
-	ICPU(INTEL_FAM6_ATOM_GEMINI_LAKE,	idle_cpu_bxt),
-	ICPU(INTEL_FAM6_ATOM_DENVERTON,		idle_cpu_dnv),
+	INTEL_CPU_FAM6(NEHALEM_EP,		idle_cpu_nehalem),
+	INTEL_CPU_FAM6(NEHALEM,			idle_cpu_nehalem),
+	INTEL_CPU_FAM6(NEHALEM_G,		idle_cpu_nehalem),
+	INTEL_CPU_FAM6(WESTMERE,		idle_cpu_nehalem),
+	INTEL_CPU_FAM6(WESTMERE_EP,		idle_cpu_nehalem),
+	INTEL_CPU_FAM6(NEHALEM_EX,		idle_cpu_nehalem),
+	INTEL_CPU_FAM6(ATOM_BONNELL,		idle_cpu_atom),
+	INTEL_CPU_FAM6(ATOM_BONNELL_MID,	idle_cpu_lincroft),
+	INTEL_CPU_FAM6(WESTMERE_EX,		idle_cpu_nehalem),
+	INTEL_CPU_FAM6(SANDYBRIDGE,		idle_cpu_snb),
+	INTEL_CPU_FAM6(SANDYBRIDGE_X,		idle_cpu_snb),
+	INTEL_CPU_FAM6(ATOM_SALTWELL,		idle_cpu_atom),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT,		idle_cpu_byt),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT_MID,	idle_cpu_tangier),
+	INTEL_CPU_FAM6(ATOM_AIRMONT,		idle_cpu_cht),
+	INTEL_CPU_FAM6(IVYBRIDGE,		idle_cpu_ivb),
+	INTEL_CPU_FAM6(IVYBRIDGE_X,		idle_cpu_ivt),
+	INTEL_CPU_FAM6(HASWELL_CORE,		idle_cpu_hsw),
+	INTEL_CPU_FAM6(HASWELL_X,		idle_cpu_hsw),
+	INTEL_CPU_FAM6(HASWELL_ULT,		idle_cpu_hsw),
+	INTEL_CPU_FAM6(HASWELL_GT3E,		idle_cpu_hsw),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT_X,	idle_cpu_avn),
+	INTEL_CPU_FAM6(BROADWELL_CORE,		idle_cpu_bdw),
+	INTEL_CPU_FAM6(BROADWELL_GT3E,		idle_cpu_bdw),
+	INTEL_CPU_FAM6(BROADWELL_X,		idle_cpu_bdw),
+	INTEL_CPU_FAM6(BROADWELL_XEON_D,	idle_cpu_bdw),
+	INTEL_CPU_FAM6(SKYLAKE_MOBILE,		idle_cpu_skl),
+	INTEL_CPU_FAM6(SKYLAKE_DESKTOP,		idle_cpu_skl),
+	INTEL_CPU_FAM6(KABYLAKE_MOBILE,		idle_cpu_skl),
+	INTEL_CPU_FAM6(KABYLAKE_DESKTOP,	idle_cpu_skl),
+	INTEL_CPU_FAM6(SKYLAKE_X,		idle_cpu_skx),
+	INTEL_CPU_FAM6(XEON_PHI_KNL,		idle_cpu_knl),
+	INTEL_CPU_FAM6(XEON_PHI_KNM,		idle_cpu_knl),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT,		idle_cpu_bxt),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS,	idle_cpu_bxt),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT_X,		idle_cpu_dnv),
 	{}
 };
 
@@ -1322,7 +1319,7 @@ static void intel_idle_state_table_update(void)
 		ivt_idle_state_table_update();
 		break;
 	case INTEL_FAM6_ATOM_GOLDMONT:
-	case INTEL_FAM6_ATOM_GEMINI_LAKE:
+	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
 		bxt_idle_state_table_update();
 		break;
 	case INTEL_FAM6_SKYLAKE_DESKTOP:

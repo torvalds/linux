@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-config ZONE_DMA
-	def_bool y
-
 config XTENSA
 	def_bool y
 	select ARCH_HAS_SG_CHAIN
@@ -13,7 +10,7 @@ config XTENSA
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	select COMMON_CLK
-	select DMA_NONCOHERENT_OPS
+	select DMA_DIRECT_OPS
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_SHOW
@@ -28,13 +25,11 @@ config XTENSA
 	select HAVE_FUTEX_CMPXCHG if !MMU
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
 	select HAVE_IRQ_TIME_ACCOUNTING
-	select HAVE_MEMBLOCK
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select HAVE_STACKPROTECTOR
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
-	select NO_BOOTMEM
 	select PERF_USE_VMALLOC
 	select VIRT_TO_BUS
 	help

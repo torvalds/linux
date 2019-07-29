@@ -3,7 +3,6 @@ Proper Locking Under a Preemptible Kernel: Keeping Kernel Code Preempt-Safe
 ===========================================================================
 
 :Author: Robert Love <rml@tech9.net>
-:Last Updated: 28 Aug 2002
 
 
 Introduction
@@ -92,11 +91,12 @@ any locks or interrupts are disabled, since preemption is implicitly disabled
 in those cases.
 
 But keep in mind that 'irqs disabled' is a fundamentally unsafe way of
-disabling preemption - any spin_unlock() decreasing the preemption count
-to 0 might trigger a reschedule. A simple printk() might trigger a reschedule.
-So use this implicit preemption-disabling property only if you know that the
-affected codepath does not do any of this. Best policy is to use this only for
-small, atomic code that you wrote and which calls no complex functions.
+disabling preemption - any cond_resched() or cond_resched_lock() might trigger
+a reschedule if the preempt count is 0. A simple printk() might trigger a
+reschedule. So use this implicit preemption-disabling property only if you
+know that the affected codepath does not do any of this. Best policy is to use
+this only for small, atomic code that you wrote and which calls no complex
+functions.
 
 Example::
 

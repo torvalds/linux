@@ -4,7 +4,7 @@
 #include <linux/bitops.h>
 #include <linux/cpumask.h>
 #include <linux/export.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 /**
  * cpumask_next - get the next cpu in a cpumask
@@ -163,7 +163,7 @@ EXPORT_SYMBOL(zalloc_cpumask_var);
  */
 void __init alloc_bootmem_cpumask_var(cpumask_var_t *mask)
 {
-	*mask = memblock_virt_alloc(cpumask_size(), 0);
+	*mask = memblock_alloc(cpumask_size(), SMP_CACHE_BYTES);
 }
 
 /**

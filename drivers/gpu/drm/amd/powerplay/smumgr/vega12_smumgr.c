@@ -37,8 +37,8 @@
  * @param   hwmgr    the address of the HW manager
  * @param   table_id    the driver's table ID to copy from
  */
-int vega12_copy_table_from_smc(struct pp_hwmgr *hwmgr,
-		uint8_t *table, int16_t table_id)
+static int vega12_copy_table_from_smc(struct pp_hwmgr *hwmgr,
+				      uint8_t *table, int16_t table_id)
 {
 	struct vega12_smumgr *priv =
 			(struct vega12_smumgr *)(hwmgr->smu_backend);
@@ -75,8 +75,8 @@ int vega12_copy_table_from_smc(struct pp_hwmgr *hwmgr,
  * @param   hwmgr    the address of the HW manager
  * @param   table_id    the table to copy from
  */
-int vega12_copy_table_to_smc(struct pp_hwmgr *hwmgr,
-		uint8_t *table, int16_t table_id)
+static int vega12_copy_table_to_smc(struct pp_hwmgr *hwmgr,
+				    uint8_t *table, int16_t table_id)
 {
 	struct vega12_smumgr *priv =
 			(struct vega12_smumgr *)(hwmgr->smu_backend);
@@ -351,6 +351,19 @@ static int vega12_start_smu(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int vega12_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table,
+				    uint16_t table_id, bool rw)
+{
+	int ret;
+
+	if (rw)
+		ret = vega12_copy_table_from_smc(hwmgr, table, table_id);
+	else
+		ret = vega12_copy_table_to_smc(hwmgr, table, table_id);
+
+	return ret;
+}
+
 const struct pp_smumgr_func vega12_smu_funcs = {
 	.smu_init = &vega12_smu_init,
 	.smu_fini = &vega12_smu_fini,
@@ -362,4 +375,5 @@ const struct pp_smumgr_func vega12_smu_funcs = {
 	.upload_pptable_settings = NULL,
 	.is_dpm_running = vega12_is_dpm_running,
 	.get_argument = smu9_get_argument,
+	.smc_table_manager = vega12_smc_table_manager,
 };

@@ -194,6 +194,9 @@
 #define GPLL4							184
 #define GCC_CPUSS_DVM_BUS_CLK					185
 #define GCC_CPUSS_GNOC_CLK					186
+#define GCC_QSPI_CORE_CLK_SRC					187
+#define GCC_QSPI_CORE_CLK					188
+#define GCC_QSPI_CNOC_PERIPH_AHB_CLK				189
 
 /* GCC Resets */
 #define GCC_MMSS_BCR						0

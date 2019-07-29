@@ -25,29 +25,12 @@
 
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/io.h>
 
 #include <asm/sections.h>
-
-void __init early_init_dt_add_memory_arch(u64 base, u64 size)
-{
-	u64 kernel_start = (u64)virt_to_phys(_text);
-
-	if (!memory_size &&
-	    (kernel_start >= base) && (kernel_start < (base + size)))
-		memory_size = size;
-
-}
-
-int __init early_init_dt_reserve_memory_arch(phys_addr_t base, phys_addr_t size,
-					     bool nomap)
-{
-	reserve_bootmem(base, size, BOOTMEM_DEFAULT);
-	return 0;
-}
 
 void __init early_init_devtree(void *params)
 {

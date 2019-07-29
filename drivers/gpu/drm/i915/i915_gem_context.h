@@ -117,15 +117,20 @@ struct i915_gem_context {
 	struct rcu_head rcu;
 
 	/**
+	 * @user_flags: small set of booleans controlled by the user
+	 */
+	unsigned long user_flags;
+#define UCONTEXT_NO_ZEROMAP		0
+#define UCONTEXT_NO_ERROR_CAPTURE	1
+#define UCONTEXT_BANNABLE		2
+
+	/**
 	 * @flags: small set of booleans
 	 */
 	unsigned long flags;
-#define CONTEXT_NO_ZEROMAP		BIT(0)
-#define CONTEXT_NO_ERROR_CAPTURE	1
-#define CONTEXT_CLOSED			2
-#define CONTEXT_BANNABLE		3
-#define CONTEXT_BANNED			4
-#define CONTEXT_FORCE_SINGLE_SUBMISSION	5
+#define CONTEXT_BANNED			0
+#define CONTEXT_CLOSED			1
+#define CONTEXT_FORCE_SINGLE_SUBMISSION	2
 
 	/**
 	 * @hw_id: - unique identifier for the context
@@ -134,8 +139,16 @@ struct i915_gem_context {
 	 * functions like fault reporting, PASID, scheduling. The
 	 * &drm_i915_private.context_hw_ida is used to assign a unqiue
 	 * id for the lifetime of the context.
+	 *
+	 * @hw_id_pin_count: - number of times this context had been pinned
+	 * for use (should be, at most, once per engine).
+	 *
+	 * @hw_id_link: - all contexts with an assigned id are tracked
+	 * for possible repossession.
 	 */
 	unsigned int hw_id;
+	atomic_t hw_id_pin_count;
+	struct list_head hw_id_link;
 
 	/**
 	 * @user_handle: userspace identifier
@@ -146,9 +159,6 @@ struct i915_gem_context {
 	u32 user_handle;
 
 	struct i915_sched_attr sched;
-
-	/** ggtt_offset_bias: placement restriction for context objects */
-	u32 ggtt_offset_bias;
 
 	/** engine: per-engine logical HW state */
 	struct intel_context {
@@ -204,37 +214,37 @@ static inline bool i915_gem_context_is_closed(const struct i915_gem_context *ctx
 static inline void i915_gem_context_set_closed(struct i915_gem_context *ctx)
 {
 	GEM_BUG_ON(i915_gem_context_is_closed(ctx));
-	__set_bit(CONTEXT_CLOSED, &ctx->flags);
+	set_bit(CONTEXT_CLOSED, &ctx->flags);
 }
 
 static inline bool i915_gem_context_no_error_capture(const struct i915_gem_context *ctx)
 {
-	return test_bit(CONTEXT_NO_ERROR_CAPTURE, &ctx->flags);
+	return test_bit(UCONTEXT_NO_ERROR_CAPTURE, &ctx->user_flags);
 }
 
 static inline void i915_gem_context_set_no_error_capture(struct i915_gem_context *ctx)
 {
-	__set_bit(CONTEXT_NO_ERROR_CAPTURE, &ctx->flags);
+	set_bit(UCONTEXT_NO_ERROR_CAPTURE, &ctx->user_flags);
 }
 
 static inline void i915_gem_context_clear_no_error_capture(struct i915_gem_context *ctx)
 {
-	__clear_bit(CONTEXT_NO_ERROR_CAPTURE, &ctx->flags);
+	clear_bit(UCONTEXT_NO_ERROR_CAPTURE, &ctx->user_flags);
 }
 
 static inline bool i915_gem_context_is_bannable(const struct i915_gem_context *ctx)
 {
-	return test_bit(CONTEXT_BANNABLE, &ctx->flags);
+	return test_bit(UCONTEXT_BANNABLE, &ctx->user_flags);
 }
 
 static inline void i915_gem_context_set_bannable(struct i915_gem_context *ctx)
 {
-	__set_bit(CONTEXT_BANNABLE, &ctx->flags);
+	set_bit(UCONTEXT_BANNABLE, &ctx->user_flags);
 }
 
 static inline void i915_gem_context_clear_bannable(struct i915_gem_context *ctx)
 {
-	__clear_bit(CONTEXT_BANNABLE, &ctx->flags);
+	clear_bit(UCONTEXT_BANNABLE, &ctx->user_flags);
 }
 
 static inline bool i915_gem_context_is_banned(const struct i915_gem_context *ctx)
@@ -244,7 +254,7 @@ static inline bool i915_gem_context_is_banned(const struct i915_gem_context *ctx
 
 static inline void i915_gem_context_set_banned(struct i915_gem_context *ctx)
 {
-	__set_bit(CONTEXT_BANNED, &ctx->flags);
+	set_bit(CONTEXT_BANNED, &ctx->flags);
 }
 
 static inline bool i915_gem_context_force_single_submission(const struct i915_gem_context *ctx)
@@ -255,6 +265,21 @@ static inline bool i915_gem_context_force_single_submission(const struct i915_ge
 static inline void i915_gem_context_set_force_single_submission(struct i915_gem_context *ctx)
 {
 	__set_bit(CONTEXT_FORCE_SINGLE_SUBMISSION, &ctx->flags);
+}
+
+int __i915_gem_context_pin_hw_id(struct i915_gem_context *ctx);
+static inline int i915_gem_context_pin_hw_id(struct i915_gem_context *ctx)
+{
+	if (atomic_inc_not_zero(&ctx->hw_id_pin_count))
+		return 0;
+
+	return __i915_gem_context_pin_hw_id(ctx);
+}
+
+static inline void i915_gem_context_unpin_hw_id(struct i915_gem_context *ctx)
+{
+	GEM_BUG_ON(atomic_read(&ctx->hw_id_pin_count) == 0u);
+	atomic_dec(&ctx->hw_id_pin_count);
 }
 
 static inline bool i915_gem_context_is_default(const struct i915_gem_context *c)

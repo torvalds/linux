@@ -122,7 +122,7 @@
 #define RALINK_PCIE_CLK_EN		BIT(21)
 
 #define MEMORY_BASE 0x0
-static int pcie_link_status = 0;
+static int pcie_link_status;
 
 /**
  * struct mt7621_pcie_port - PCIe port information
@@ -214,7 +214,7 @@ write_config(struct mt7621_pcie *pcie, unsigned int dev, u32 reg, u32 val)
 	pcie_write(pcie, val, RALINK_PCI_CONFIG_DATA);
 }
 
-void
+static void
 set_pcie_phy(struct mt7621_pcie *pcie, u32 offset,
 	     int start_b, int bits, int val)
 {
@@ -225,7 +225,7 @@ set_pcie_phy(struct mt7621_pcie *pcie, u32 offset,
 	pcie_write(pcie, reg, offset);
 }
 
-void
+static void
 bypass_pipe_rst(struct mt7621_pcie *pcie)
 {
 	/* PCIe Port 0 */
@@ -239,7 +239,7 @@ bypass_pipe_rst(struct mt7621_pcie *pcie)
 	set_pcie_phy(pcie, (RALINK_PCIEPHY_P2_CTL_OFFSET + 0x02c),  4, 1, 0x01);	// rg_pe1_pipe_cmd_frc[4]
 }
 
-void
+static void
 set_phy_for_ssc(struct mt7621_pcie *pcie)
 {
 	unsigned long reg = rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG0);
@@ -387,14 +387,7 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node;
 	struct resource regs;
-	const char *type;
 	int err;
-
-	type = of_get_property(node, "device_type", NULL);
-	if (!type || strcmp(type, "pci") != 0) {
-		dev_err(dev, "invalid \"device_type\" %s\n", type);
-		return -EINVAL;
-	}
 
 	err = of_address_to_resource(node, 0, &regs);
 	if (err) {
@@ -481,12 +474,12 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 
 	ASSERT_SYSRST_PCIE(RALINK_PCIE0_RST | RALINK_PCIE1_RST | RALINK_PCIE2_RST);
 
-	*(unsigned int *)(0xbe000060) &= ~(0x3<<10 | 0x3<<3);
-	*(unsigned int *)(0xbe000060) |= 0x1<<10 | 0x1<<3;
+	*(unsigned int *)(0xbe000060) &= ~(0x3 << 10 | 0x3 << 3);
+	*(unsigned int *)(0xbe000060) |=  BIT(10) | BIT(3);
 	mdelay(100);
-	*(unsigned int *)(0xbe000600) |= 0x1<<19 | 0x1<<8 | 0x1<<7; // use GPIO19/GPIO8/GPIO7 (PERST_N/UART_RXD3/UART_TXD3)
+	*(unsigned int *)(0xbe000600) |= BIT(19) | BIT(8) | BIT(7); // use GPIO19/GPIO8/GPIO7 (PERST_N/UART_RXD3/UART_TXD3)
 	mdelay(100);
-	*(unsigned int *)(0xbe000620) &= ~(0x1<<19 | 0x1<<8 | 0x1<<7);		// clear DATA
+	*(unsigned int *)(0xbe000620) &= ~(BIT(19) | BIT(8) | BIT(7));		// clear DATA
 
 	mdelay(100);
 
@@ -496,18 +489,15 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 
 	DEASSERT_SYSRST_PCIE(val);
 
-	if ((*(unsigned int *)(0xbe00000c)&0xFFFF) == 0x0101) // MT7621 E2
+	if ((*(unsigned int *)(0xbe00000c) & 0xFFFF) == 0x0101) // MT7621 E2
 		bypass_pipe_rst(pcie);
 	set_phy_for_ssc(pcie);
 
-	val = read_config(pcie, 0, 0x70c);
-	printk("Port 0 N_FTS = %x\n", (unsigned int)val);
-
-	val = read_config(pcie, 1, 0x70c);
-	printk("Port 1 N_FTS = %x\n", (unsigned int)val);
-
-	val = read_config(pcie, 2, 0x70c);
-	printk("Port 2 N_FTS = %x\n", (unsigned int)val);
+	list_for_each_entry_safe(port, tmp, &pcie->ports, list) {
+		u32 slot = port->slot;
+		val = read_config(pcie, slot, 0x70c);
+		dev_info(dev, "Port %d N_FTS = %x\n", (unsigned int)val, slot);
+	}
 
 	rt_sysc_m32(0, RALINK_PCIE_RST, RALINK_RSTCTRL);
 	rt_sysc_m32(0x30, 2 << 4, SYSC_REG_SYSTEM_CONFIG1);
@@ -520,18 +510,18 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	rt_sysc_m32(RALINK_PCIE_RST, 0, RALINK_RSTCTRL);
 
 	/* Use GPIO control instead of PERST_N */
-	*(unsigned int *)(0xbe000620) |= 0x1<<19 | 0x1<<8 | 0x1<<7;		// set DATA
+	*(unsigned int *)(0xbe000620) |= BIT(19) | BIT(8) | BIT(7);		// set DATA
 	mdelay(1000);
 
 	if ((pcie_read(pcie, RT6855_PCIE0_OFFSET + RALINK_PCI_STATUS) & 0x1) == 0) {
 		printk("PCIE0 no card, disable it(RST&CLK)\n");
 		ASSERT_SYSRST_PCIE(RALINK_PCIE0_RST);
 		rt_sysc_m32(RALINK_PCIE0_CLK_EN, 0, RALINK_CLKCFG1);
-		pcie_link_status &= ~(1<<0);
+		pcie_link_status &= ~(BIT(0));
 	} else {
-		pcie_link_status |= 1<<0;
+		pcie_link_status |=  BIT(0);
 		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
-		val |= (1<<20); // enable pcie1 interrupt
+		val |= BIT(20); // enable pcie1 interrupt
 		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
 	}
 
@@ -539,11 +529,11 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		printk("PCIE1 no card, disable it(RST&CLK)\n");
 		ASSERT_SYSRST_PCIE(RALINK_PCIE1_RST);
 		rt_sysc_m32(RALINK_PCIE1_CLK_EN, 0, RALINK_CLKCFG1);
-		pcie_link_status &= ~(1<<1);
+		pcie_link_status &= ~(BIT(1));
 	} else {
-		pcie_link_status |= 1<<1;
+		pcie_link_status |= BIT(1);
 		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
-		val |= (1<<21); // enable pcie1 interrupt
+		val |= BIT(21); // enable pcie1 interrupt
 		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
 	}
 
@@ -551,11 +541,11 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		printk("PCIE2 no card, disable it(RST&CLK)\n");
 		ASSERT_SYSRST_PCIE(RALINK_PCIE2_RST);
 		rt_sysc_m32(RALINK_PCIE2_CLK_EN, 0, RALINK_CLKCFG1);
-		pcie_link_status &= ~(1<<2);
+		pcie_link_status &= ~(BIT(2));
 	} else {
-		pcie_link_status |= 1<<2;
+		pcie_link_status |=  BIT(2);
 		val = pcie_read(pcie, RALINK_PCI_PCIMSK_ADDR);
-		val |= (1<<22); // enable pcie2 interrupt
+		val |= BIT(22); // enable pcie2 interrupt
 		pcie_write(pcie, val, RALINK_PCI_PCIMSK_ADDR);
 	}
 
@@ -654,26 +644,26 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 	switch (pcie_link_status) {
 	case 7:
 		val = read_config(pcie, 2, 0x4);
-		write_config(pcie, 2, 0x4, val|0x4);
+		write_config(pcie, 2, 0x4, val | 0x4);
 		val = read_config(pcie, 2, 0x70c);
-		val &= ~(0xff)<<8;
-		val |= 0x50<<8;
+		val &= ~(0xff) << 8;
+		val |= 0x50 << 8;
 		write_config(pcie, 2, 0x70c, val);
 	case 3:
 	case 5:
 	case 6:
 		val = read_config(pcie, 1, 0x4);
-		write_config(pcie, 1, 0x4, val|0x4);
+		write_config(pcie, 1, 0x4, val | 0x4);
 		val = read_config(pcie, 1, 0x70c);
-		val &= ~(0xff)<<8;
-		val |= 0x50<<8;
+		val &= ~(0xff) << 8;
+		val |= 0x50 << 8;
 		write_config(pcie, 1, 0x70c, val);
 	default:
 		val = read_config(pcie, 0, 0x4);
-		write_config(pcie, 0, 0x4, val|0x4); //bus master enable
+		write_config(pcie, 0, 0x4, val | 0x4); //bus master enable
 		val = read_config(pcie, 0, 0x70c);
-		val &= ~(0xff)<<8;
-		val |= 0x50<<8;
+		val &= ~(0xff) << 8;
+		val |= 0x50 << 8;
 		write_config(pcie, 0, 0x70c, val);
 	}
 

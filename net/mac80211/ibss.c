@@ -1070,7 +1070,9 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 			struct ieee80211_vht_cap cap_ie;
 			struct ieee80211_sta_vht_cap cap = sta->sta.vht_cap;
 
-			ieee80211_chandef_vht_oper(elems->vht_operation,
+			ieee80211_chandef_vht_oper(&local->hw,
+						   elems->vht_operation,
+						   elems->ht_operation,
 						   &chandef);
 			memcpy(&cap_ie, elems->vht_cap_elem, sizeof(cap_ie));
 			ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,

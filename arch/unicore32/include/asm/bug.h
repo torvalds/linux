@@ -17,6 +17,7 @@ struct siginfo;
 
 extern void die(const char *msg, struct pt_regs *regs, int err);
 extern void uc32_notify_die(const char *str, struct pt_regs *regs,
-		struct siginfo *info, unsigned long err, unsigned long trap);
+		int sig, int code, void __user *addr,
+		unsigned long err, unsigned long trap);
 
 #endif /* __UNICORE_BUG_H__ */

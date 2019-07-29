@@ -226,6 +226,7 @@ static inline void *init_ppi_data(struct rndis_message *msg,
 
 	ppi->size = ppi_size;
 	ppi->type = pkt_type;
+	ppi->internal = 0;
 	ppi->ppi_offset = sizeof(struct rndis_per_packet_info);
 
 	rndis_pkt->per_pkt_info_len += ppi_size;
@@ -744,14 +745,16 @@ void netvsc_linkstatus_callback(struct net_device *net,
 }
 
 static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
-					     struct napi_struct *napi,
-					     const struct ndis_tcp_ip_checksum_info *csum_info,
-					     const struct ndis_pkt_8021q_info *vlan,
-					     void *data, u32 buflen)
+					     struct netvsc_channel *nvchan)
 {
+	struct napi_struct *napi = &nvchan->napi;
+	const struct ndis_pkt_8021q_info *vlan = nvchan->rsc.vlan;
+	const struct ndis_tcp_ip_checksum_info *csum_info =
+						nvchan->rsc.csum_info;
 	struct sk_buff *skb;
+	int i;
 
-	skb = napi_alloc_skb(napi, buflen);
+	skb = napi_alloc_skb(napi, nvchan->rsc.pktlen);
 	if (!skb)
 		return skb;
 
@@ -759,7 +762,8 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	 * Copy to skb. This copy is needed here since the memory pointed by
 	 * hv_netvsc_packet cannot be deallocated
 	 */
-	skb_put_data(skb, data, buflen);
+	for (i = 0; i < nvchan->rsc.cnt; i++)
+		skb_put_data(skb, nvchan->rsc.data[i], nvchan->rsc.len[i]);
 
 	skb->protocol = eth_type_trans(skb, net);
 
@@ -792,14 +796,11 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
  */
 int netvsc_recv_callback(struct net_device *net,
 			 struct netvsc_device *net_device,
-			 struct vmbus_channel *channel,
-			 void  *data, u32 len,
-			 const struct ndis_tcp_ip_checksum_info *csum_info,
-			 const struct ndis_pkt_8021q_info *vlan)
+			 struct netvsc_channel *nvchan)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
+	struct vmbus_channel *channel = nvchan->channel;
 	u16 q_idx = channel->offermsg.offer.sub_channel_index;
-	struct netvsc_channel *nvchan = &net_device->chan_table[q_idx];
 	struct sk_buff *skb;
 	struct netvsc_stats *rx_stats;
 
@@ -807,8 +808,8 @@ int netvsc_recv_callback(struct net_device *net,
 		return NVSP_STAT_FAIL;
 
 	/* Allocate a skb - TODO direct I/O to pages? */
-	skb = netvsc_alloc_recv_skb(net, &nvchan->napi,
-				    csum_info, vlan, data, len);
+	skb = netvsc_alloc_recv_skb(net, nvchan);
+
 	if (unlikely(!skb)) {
 		++net_device_ctx->eth_stats.rx_no_memory;
 		rcu_read_unlock();
@@ -825,7 +826,7 @@ int netvsc_recv_callback(struct net_device *net,
 	rx_stats = &nvchan->rx_stats;
 	u64_stats_update_begin(&rx_stats->syncp);
 	rx_stats->packets++;
-	rx_stats->bytes += len;
+	rx_stats->bytes += nvchan->rsc.pktlen;
 
 	if (skb->pkt_type == PACKET_BROADCAST)
 		++rx_stats->broadcast;
@@ -1006,6 +1007,8 @@ static void netvsc_init_settings(struct net_device *dev)
 
 	ndc->speed = SPEED_UNKNOWN;
 	ndc->duplex = DUPLEX_FULL;
+
+	dev->features = NETIF_F_LRO;
 }
 
 static int netvsc_get_link_ksettings(struct net_device *dev,
@@ -1562,26 +1565,6 @@ netvsc_set_rxnfc(struct net_device *ndev, struct ethtool_rxnfc *info)
 	return -EOPNOTSUPP;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void netvsc_poll_controller(struct net_device *dev)
-{
-	struct net_device_context *ndc = netdev_priv(dev);
-	struct netvsc_device *ndev;
-	int i;
-
-	rcu_read_lock();
-	ndev = rcu_dereference(ndc->nvdev);
-	if (ndev) {
-		for (i = 0; i < ndev->num_chn; i++) {
-			struct netvsc_channel *nvchan = &ndev->chan_table[i];
-
-			napi_schedule(&nvchan->napi);
-		}
-	}
-	rcu_read_unlock();
-}
-#endif
-
 static u32 netvsc_get_rxfh_key_size(struct net_device *dev)
 {
 	return NETVSC_HASH_KEYLEN;
@@ -1733,6 +1716,33 @@ static int netvsc_set_ringparam(struct net_device *ndev,
 	return ret;
 }
 
+static int netvsc_set_features(struct net_device *ndev,
+			       netdev_features_t features)
+{
+	netdev_features_t change = features ^ ndev->features;
+	struct net_device_context *ndevctx = netdev_priv(ndev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndevctx->nvdev);
+	struct ndis_offload_params offloads;
+
+	if (!nvdev || nvdev->destroy)
+		return -ENODEV;
+
+	if (!(change & NETIF_F_LRO))
+		return 0;
+
+	memset(&offloads, 0, sizeof(struct ndis_offload_params));
+
+	if (features & NETIF_F_LRO) {
+		offloads.rsc_ip_v4 = NDIS_OFFLOAD_PARAMETERS_RSC_ENABLED;
+		offloads.rsc_ip_v6 = NDIS_OFFLOAD_PARAMETERS_RSC_ENABLED;
+	} else {
+		offloads.rsc_ip_v4 = NDIS_OFFLOAD_PARAMETERS_RSC_DISABLED;
+		offloads.rsc_ip_v6 = NDIS_OFFLOAD_PARAMETERS_RSC_DISABLED;
+	}
+
+	return rndis_filter_set_offload_params(ndev, nvdev, &offloads);
+}
+
 static u32 netvsc_get_msglevel(struct net_device *ndev)
 {
 	struct net_device_context *ndev_ctx = netdev_priv(ndev);
@@ -1776,14 +1786,12 @@ static const struct net_device_ops device_ops = {
 	.ndo_start_xmit =		netvsc_start_xmit,
 	.ndo_change_rx_flags =		netvsc_change_rx_flags,
 	.ndo_set_rx_mode =		netvsc_set_rx_mode,
+	.ndo_set_features =		netvsc_set_features,
 	.ndo_change_mtu =		netvsc_change_mtu,
 	.ndo_validate_addr =		eth_validate_addr,
 	.ndo_set_mac_address =		netvsc_set_mac_addr,
 	.ndo_select_queue =		netvsc_select_queue,
 	.ndo_get_stats64 =		netvsc_get_stats64,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller =		netvsc_poll_controller,
-#endif
 };
 
 /*
@@ -2022,14 +2030,15 @@ static void netvsc_vf_setup(struct work_struct *w)
 	rtnl_unlock();
 }
 
-/* Find netvsc by VMBus serial number.
- * The PCI hyperv controller records the serial number as the slot.
+/* Find netvsc by VF serial number.
+ * The PCI hyperv controller records the serial number as the slot kobj name.
  */
 static struct net_device *get_netvsc_byslot(const struct net_device *vf_netdev)
 {
 	struct device *parent = vf_netdev->dev.parent;
 	struct net_device_context *ndev_ctx;
 	struct pci_dev *pdev;
+	u32 serial;
 
 	if (!parent || !dev_is_pci(parent))
 		return NULL; /* not a PCI device */
@@ -2040,16 +2049,22 @@ static struct net_device *get_netvsc_byslot(const struct net_device *vf_netdev)
 		return NULL;
 	}
 
+	if (kstrtou32(pci_slot_name(pdev->slot), 10, &serial)) {
+		netdev_notice(vf_netdev, "Invalid vf serial:%s\n",
+			      pci_slot_name(pdev->slot));
+		return NULL;
+	}
+
 	list_for_each_entry(ndev_ctx, &netvsc_dev_list, list) {
 		if (!ndev_ctx->vf_alloc)
 			continue;
 
-		if (ndev_ctx->vf_serial == pdev->slot->number)
+		if (ndev_ctx->vf_serial == serial)
 			return hv_get_drvdata(ndev_ctx->device_ctx);
 	}
 
 	netdev_notice(vf_netdev,
-		      "no netdev found for slot %u\n", pdev->slot->number);
+		      "no netdev found for vf serial:%u\n", serial);
 	return NULL;
 }
 

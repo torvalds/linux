@@ -357,7 +357,7 @@ static int at803x_aneg_done(struct phy_device *phydev)
 
 	/* check if the SGMII link is OK. */
 	if (!(phy_read(phydev, AT803X_PSSR) & AT803X_PSSR_MR_AN_COMPLETE)) {
-		pr_warn("803x_aneg_done: SGMII link is not ok\n");
+		phydev_warn(phydev, "803x_aneg_done: SGMII link is not ok\n");
 		aneg_done = 0;
 	}
 	/* switch back to copper page */

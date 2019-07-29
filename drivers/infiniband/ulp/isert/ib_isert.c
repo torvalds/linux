@@ -262,7 +262,7 @@ isert_alloc_comps(struct isert_device *device)
 
 	isert_info("Using %d CQs, %s supports %d vectors support "
 		   "pi_capable %d\n",
-		   device->comps_used, device->ib_device->name,
+		   device->comps_used, dev_name(&device->ib_device->dev),
 		   device->ib_device->num_comp_vectors,
 		   device->pi_capable);
 

@@ -84,6 +84,7 @@ void gro_cells_destroy(struct gro_cells *gcells)
 	for_each_possible_cpu(i) {
 		struct gro_cell *cell = per_cpu_ptr(gcells->cells, i);
 
+		napi_disable(&cell->napi);
 		netif_napi_del(&cell->napi);
 		__skb_queue_purge(&cell->napi_skbs);
 	}

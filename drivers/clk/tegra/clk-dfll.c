@@ -1609,8 +1609,12 @@ int tegra_dfll_register(struct platform_device *pdev,
 
 	td->vdd_reg = devm_regulator_get(td->dev, "vdd-cpu");
 	if (IS_ERR(td->vdd_reg)) {
-		dev_err(td->dev, "couldn't get vdd_cpu regulator\n");
-		return PTR_ERR(td->vdd_reg);
+		ret = PTR_ERR(td->vdd_reg);
+		if (ret != -EPROBE_DEFER)
+			dev_err(td->dev, "couldn't get vdd_cpu regulator: %d\n",
+				ret);
+
+		return ret;
 	}
 
 	td->dvco_rst = devm_reset_control_get(td->dev, "dvco");

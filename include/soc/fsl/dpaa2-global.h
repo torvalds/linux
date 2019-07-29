@@ -174,4 +174,19 @@ static inline const struct dpaa2_fd *dpaa2_dq_fd(const struct dpaa2_dq *dq)
 	return (const struct dpaa2_fd *)&dq->dq.fd[0];
 }
 
+#define DPAA2_CSCN_SIZE		sizeof(struct dpaa2_dq)
+#define DPAA2_CSCN_ALIGN	16
+#define DPAA2_CSCN_STATE_CG	BIT(0)
+
+/**
+ * dpaa2_cscn_state_congested() - Check congestion state
+ * @cscn: congestion SCN (delivered to WQ or memory)
+ *
+i * Return true is congested.
+ */
+static inline bool dpaa2_cscn_state_congested(struct dpaa2_dq *cscn)
+{
+	return !!(cscn->scn.state & DPAA2_CSCN_STATE_CG);
+}
+
 #endif /* __FSL_DPAA2_GLOBAL_H */

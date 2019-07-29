@@ -32,15 +32,9 @@
 /**
  * Encoder functions and data types
  * @intfs:	Interfaces this encoder is using, INTF_MODE_NONE if unused
- * @needs_cdm:	Encoder requests a CDM based on pixel format conversion needs
- * @display_num_of_h_tiles: Number of horizontal tiles in case of split
- *                          interface
- * @topology:   Topology of the display
  */
 struct dpu_encoder_hw_resources {
 	enum dpu_intf_mode intfs[INTF_MAX];
-	bool needs_cdm;
-	u32 display_num_of_h_tiles;
 };
 
 /**
@@ -56,11 +50,9 @@ struct dpu_encoder_kickoff_params {
  * dpu_encoder_get_hw_resources - Populate table of required hardware resources
  * @encoder:	encoder pointer
  * @hw_res:	resource table to populate with encoder required resources
- * @conn_state:	report hw reqs based on this proposed connector state
  */
 void dpu_encoder_get_hw_resources(struct drm_encoder *encoder,
-		struct dpu_encoder_hw_resources *hw_res,
-		struct drm_connector_state *conn_state);
+				  struct dpu_encoder_hw_resources *hw_res);
 
 /**
  * dpu_encoder_register_vblank_callback - provide callback to encoder that

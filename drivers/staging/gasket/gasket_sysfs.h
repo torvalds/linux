@@ -152,8 +152,8 @@ void gasket_sysfs_put_device_data(struct device *device,
  * Returns the Gasket sysfs attribute associated with the kernel device
  * attribute and device structure itself. Upon success, this call will take a
  * reference to internal sysfs data that must be released with a call to
- * gasket_sysfs_get_device_data. While this reference is held, the underlying
- * device sysfs information/structure will remain valid/will not be deleted.
+ * gasket_sysfs_put_attr. While this reference is held, the underlying device
+ * sysfs information/structure will remain valid/will not be deleted.
  */
 struct gasket_sysfs_attribute *
 gasket_sysfs_get_attr(struct device *device, struct device_attribute *attr);

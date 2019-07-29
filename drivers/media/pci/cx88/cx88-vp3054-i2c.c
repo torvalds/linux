@@ -114,7 +114,7 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 	vp3054_i2c->algo = vp3054_i2c_algo_template;
 
 	vp3054_i2c->adap.dev.parent = &dev->pci->dev;
-	strlcpy(vp3054_i2c->adap.name, core->name,
+	strscpy(vp3054_i2c->adap.name, core->name,
 		sizeof(vp3054_i2c->adap.name));
 	vp3054_i2c->adap.owner = THIS_MODULE;
 	vp3054_i2c->algo.data = dev;

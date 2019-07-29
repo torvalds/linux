@@ -20,6 +20,8 @@ struct simple_card_data {
 	struct simple_dai_props {
 		struct asoc_simple_dai cpu_dai;
 		struct asoc_simple_dai codec_dai;
+		struct snd_soc_dai_link_component codecs; /* single codec */
+		struct snd_soc_dai_link_component platform;
 		unsigned int mclk_fs;
 	} *dai_props;
 	unsigned int mclk_fs;
@@ -234,7 +236,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	ret = asoc_simple_card_set_dailink_name(dev, dai_link,
 						"%s-%s",
 						dai_link->cpu_dai_name,
-						dai_link->codec_dai_name);
+						dai_link->codecs->dai_name);
 	if (ret < 0)
 		goto dai_link_of_err;
 
@@ -363,7 +365,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct snd_soc_card *card;
-	int num, ret;
+	int num, ret, i;
 
 	/* Get the number of DAI links */
 	if (np && of_get_child_by_name(np, PREFIX "dai-link"))
@@ -380,6 +382,18 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	dai_link  = devm_kcalloc(dev, num, sizeof(*dai_link), GFP_KERNEL);
 	if (!dai_props || !dai_link)
 		return -ENOMEM;
+
+	/*
+	 * Use snd_soc_dai_link_component instead of legacy style
+	 * It is codec only. but cpu/platform will be supported in the future.
+	 * see
+	 *	soc-core.c :: snd_soc_init_multicodec()
+	 */
+	for (i = 0; i < num; i++) {
+		dai_link[i].codecs	= &dai_props[i].codecs;
+		dai_link[i].num_codecs	= 1;
+		dai_link[i].platform	= &dai_props[i].platform;
+	}
 
 	priv->dai_props			= dai_props;
 	priv->dai_link			= dai_link;
@@ -403,6 +417,8 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 
 	} else {
 		struct asoc_simple_card_info *cinfo;
+		struct snd_soc_dai_link_component *codecs;
+		struct snd_soc_dai_link_component *platform;
 
 		cinfo = dev->platform_data;
 		if (!cinfo) {
@@ -419,13 +435,17 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
+		codecs			= dai_link->codecs;
+		codecs->name		= cinfo->codec;
+		codecs->dai_name	= cinfo->codec_dai.name;
+
+		platform		= dai_link->platform;
+		platform->name		= cinfo->platform;
+
 		card->name		= (cinfo->card) ? cinfo->card : cinfo->name;
 		dai_link->name		= cinfo->name;
 		dai_link->stream_name	= cinfo->name;
-		dai_link->platform_name	= cinfo->platform;
-		dai_link->codec_name	= cinfo->codec;
 		dai_link->cpu_dai_name	= cinfo->cpu_dai.name;
-		dai_link->codec_dai_name = cinfo->codec_dai.name;
 		dai_link->dai_fmt	= cinfo->daifmt;
 		dai_link->init		= asoc_simple_card_dai_init;
 		memcpy(&priv->dai_props->cpu_dai, &cinfo->cpu_dai,

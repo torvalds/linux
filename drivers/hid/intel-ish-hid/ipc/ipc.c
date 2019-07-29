@@ -280,14 +280,14 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 	 * if tx send list is empty - return 0;
 	 * may happen, as RX_COMPLETE handler doesn't check list emptiness.
 	 */
-	if (list_empty(&dev->wr_processing_list_head.link)) {
+	if (list_empty(&dev->wr_processing_list)) {
 		spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
 		out_ipc_locked = 0;
 		return	0;
 	}
 
-	ipc_link = list_entry(dev->wr_processing_list_head.link.next,
-			      struct wr_msg_ctl_info, link);
+	ipc_link = list_first_entry(&dev->wr_processing_list,
+				    struct wr_msg_ctl_info, link);
 	/* first 4 bytes of the data is the doorbell value (IPC header) */
 	length = ipc_link->length - sizeof(uint32_t);
 	doorbell_val = *(uint32_t *)ipc_link->inline_data;
@@ -338,7 +338,7 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 	ipc_send_compl = ipc_link->ipc_send_compl;
 	ipc_send_compl_prm = ipc_link->ipc_send_compl_prm;
 	list_del_init(&ipc_link->link);
-	list_add_tail(&ipc_link->link, &dev->wr_free_list_head.link);
+	list_add(&ipc_link->link, &dev->wr_free_list);
 	spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
 
 	/*
@@ -372,18 +372,18 @@ static int write_ipc_to_queue(struct ishtp_device *dev,
 	unsigned char *msg, int length)
 {
 	struct wr_msg_ctl_info *ipc_link;
-	unsigned long	flags;
+	unsigned long flags;
 
 	if (length > IPC_FULL_MSG_SIZE)
 		return -EMSGSIZE;
 
 	spin_lock_irqsave(&dev->wr_processing_spinlock, flags);
-	if (list_empty(&dev->wr_free_list_head.link)) {
+	if (list_empty(&dev->wr_free_list)) {
 		spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
 		return -ENOMEM;
 	}
-	ipc_link = list_entry(dev->wr_free_list_head.link.next,
-		struct wr_msg_ctl_info, link);
+	ipc_link = list_first_entry(&dev->wr_free_list,
+				    struct wr_msg_ctl_info, link);
 	list_del_init(&ipc_link->link);
 
 	ipc_link->ipc_send_compl = ipc_send_compl;
@@ -391,7 +391,7 @@ static int write_ipc_to_queue(struct ishtp_device *dev,
 	ipc_link->length = length;
 	memcpy(ipc_link->inline_data, msg, length);
 
-	list_add_tail(&ipc_link->link, &dev->wr_processing_list_head.link);
+	list_add_tail(&ipc_link->link, &dev->wr_processing_list);
 	spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
 
 	write_ipc_from_queue(dev);
@@ -487,17 +487,13 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 {
 	uint32_t	reset_id;
 	unsigned long	flags;
-	struct wr_msg_ctl_info *processing, *next;
 
 	/* Read reset ID */
 	reset_id = ish_reg_read(dev, IPC_REG_ISH2HOST_MSG) & 0xFFFF;
 
 	/* Clear IPC output queue */
 	spin_lock_irqsave(&dev->wr_processing_spinlock, flags);
-	list_for_each_entry_safe(processing, next,
-			&dev->wr_processing_list_head.link, link) {
-		list_move_tail(&processing->link, &dev->wr_free_list_head.link);
-	}
+	list_splice_init(&dev->wr_processing_list, &dev->wr_free_list);
 	spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
 
 	/* ISHTP notification in IPC_RESET */
@@ -921,9 +917,9 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 	spin_lock_init(&dev->out_ipc_spinlock);
 
 	/* Init IPC processing and free lists */
-	INIT_LIST_HEAD(&dev->wr_processing_list_head.link);
-	INIT_LIST_HEAD(&dev->wr_free_list_head.link);
-	for (i = 0; i < IPC_TX_FIFO_SIZE; ++i) {
+	INIT_LIST_HEAD(&dev->wr_processing_list);
+	INIT_LIST_HEAD(&dev->wr_free_list);
+	for (i = 0; i < IPC_TX_FIFO_SIZE; i++) {
 		struct wr_msg_ctl_info	*tx_buf;
 
 		tx_buf = devm_kzalloc(&pdev->dev,
@@ -939,7 +935,7 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 				i);
 			break;
 		}
-		list_add_tail(&tx_buf->link, &dev->wr_free_list_head.link);
+		list_add_tail(&tx_buf->link, &dev->wr_free_list);
 	}
 
 	dev->ops = &ish_hw_ops;

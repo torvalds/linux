@@ -9,7 +9,7 @@
 
 #include <linux/init.h>
 #include <linux/bitops.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/clk-provider.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -153,8 +153,6 @@ void __init plat_time_init(void)
 	mips_hpt_frequency = freq;
 }
 
-extern const char __appended_dtb;
-
 void __init plat_mem_setup(void)
 {
 	void *dtb;
@@ -164,15 +162,10 @@ void __init plat_mem_setup(void)
 	ioport_resource.start = 0;
 	ioport_resource.end = ~0;
 
-#ifdef CONFIG_MIPS_ELF_APPENDED_DTB
-	if (!fdt_check_header(&__appended_dtb))
-		dtb = (void *)&__appended_dtb;
-	else
-#endif
 	/* intended to somewhat resemble ARM; see Documentation/arm/Booting */
 	if (fw_arg0 == 0 && fw_arg1 == 0xffffffff)
 		dtb = phys_to_virt(fw_arg2);
-	else if (fw_passed_dtb) /* UHI interface */
+	else if (fw_passed_dtb) /* UHI interface or appended dtb */
 		dtb = (void *)fw_passed_dtb;
 	else if (__dtb_start != __dtb_end)
 		dtb = (void *)__dtb_start;

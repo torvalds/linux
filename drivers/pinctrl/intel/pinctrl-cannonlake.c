@@ -7,10 +7,10 @@
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
-#include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/pm.h>
+
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-intel.h"
@@ -835,21 +835,10 @@ MODULE_DEVICE_TABLE(acpi, cnl_pinctrl_acpi_match);
 
 static int cnl_pinctrl_probe(struct platform_device *pdev)
 {
-	const struct intel_pinctrl_soc_data *soc_data;
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(cnl_pinctrl_acpi_match, &pdev->dev);
-	if (!id || !id->driver_data)
-		return -ENODEV;
-
-	soc_data = (const struct intel_pinctrl_soc_data *)id->driver_data;
-	return intel_pinctrl_probe(pdev, soc_data);
+	return intel_pinctrl_probe_by_hid(pdev);
 }
 
-static const struct dev_pm_ops cnl_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend,
-				     intel_pinctrl_resume)
-};
+static INTEL_PINCTRL_PM_OPS(cnl_pinctrl_pm_ops);
 
 static struct platform_driver cnl_pinctrl_driver = {
 	.probe = cnl_pinctrl_probe,

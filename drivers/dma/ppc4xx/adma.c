@@ -4360,7 +4360,7 @@ static ssize_t enable_store(struct device_driver *dev, const char *buf,
 }
 static DRIVER_ATTR_RW(enable);
 
-static ssize_t poly_store(struct device_driver *dev, char *buf)
+static ssize_t poly_show(struct device_driver *dev, char *buf)
 {
 	ssize_t size = 0;
 	u32 reg;

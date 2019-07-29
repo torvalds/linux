@@ -72,6 +72,11 @@ enum hinic_speed {
 	HINIC_SPEED_UNKNOWN = 0xFF,
 };
 
+enum hinic_tso_state {
+	HINIC_TSO_DISABLE = 0,
+	HINIC_TSO_ENABLE  = 1,
+};
+
 struct hinic_port_mac_cmd {
 	u8              status;
 	u8              version;
@@ -167,6 +172,17 @@ struct hinic_port_cap {
 	u8      rsvd2[3];
 };
 
+struct hinic_tso_config {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	rsvd1;
+	u8	tso_en;
+	u8	resv2[3];
+};
+
 int hinic_port_add_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		       u16 vlan_id);
 
@@ -194,5 +210,7 @@ int hinic_port_set_func_state(struct hinic_dev *nic_dev,
 
 int hinic_port_get_cap(struct hinic_dev *nic_dev,
 		       struct hinic_port_cap *port_cap);
+
+int hinic_port_set_tso(struct hinic_dev *nic_dev, enum hinic_tso_state state);
 
 #endif

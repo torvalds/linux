@@ -8,6 +8,7 @@ Required properties:
      "brcm,iproc-nsp-sata-phy"
      "brcm,phy-sata3"
      "brcm,iproc-sr-sata-phy"
+     "brcm,bcm63138-sata-phy"
 - address-cells: should be 1
 - size-cells: should be 0
 - reg: register ranges for the PHY PCB interface

@@ -190,9 +190,9 @@ release_unlock:
 static int fm_v4l2_vidioc_querycap(struct file *file, void *priv,
 		struct v4l2_capability *capability)
 {
-	strlcpy(capability->driver, FM_DRV_NAME, sizeof(capability->driver));
-	strlcpy(capability->card, FM_DRV_CARD_SHORT_NAME,
-			sizeof(capability->card));
+	strscpy(capability->driver, FM_DRV_NAME, sizeof(capability->driver));
+	strscpy(capability->card, FM_DRV_CARD_SHORT_NAME,
+		sizeof(capability->card));
 	sprintf(capability->bus_info, "UART");
 	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_TUNER |
 		V4L2_CAP_RADIO | V4L2_CAP_MODULATOR |
@@ -249,7 +249,7 @@ static int fm_v4l2_vidioc_g_audio(struct file *file, void *priv,
 		struct v4l2_audio *audio)
 {
 	memset(audio, 0, sizeof(*audio));
-	strcpy(audio->name, "Radio");
+	strscpy(audio->name, "Radio", sizeof(audio->name));
 	audio->capability = V4L2_AUDCAP_STEREO;
 
 	return 0;
@@ -293,7 +293,7 @@ static int fm_v4l2_vidioc_g_tuner(struct file *file, void *priv,
 	if (ret != 0)
 		return ret;
 
-	strcpy(tuner->name, "FM");
+	strscpy(tuner->name, "FM", sizeof(tuner->name));
 	tuner->type = V4L2_TUNER_RADIO;
 	/* Store rangelow and rangehigh freq in unit of 62.5 Hz */
 	tuner->rangelow = bottom_freq * 16;
@@ -531,7 +531,8 @@ int fm_v4l2_init_video_device(struct fmdev *fmdev, int radio_nr)
 	struct v4l2_ctrl *ctrl;
 	int ret;
 
-	strlcpy(fmdev->v4l2_dev.name, FM_DRV_NAME, sizeof(fmdev->v4l2_dev.name));
+	strscpy(fmdev->v4l2_dev.name, FM_DRV_NAME,
+		sizeof(fmdev->v4l2_dev.name));
 	ret = v4l2_device_register(NULL, &fmdev->v4l2_dev);
 	if (ret < 0)
 		return ret;

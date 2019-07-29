@@ -16,6 +16,8 @@
 #include <linux/linkage.h>
 #include <linux/random.h>
 #include <linux/elf.h>
+#include <asm/cacheflush.h>
+#include <asm/spitfire.h>
 #include <asm/vdso.h>
 #include <asm/vvar.h>
 #include <asm/page.h>
@@ -40,20 +42,221 @@ static struct vm_special_mapping vdso_mapping32 = {
 
 struct vvar_data *vvar_data;
 
-#define	SAVE_INSTR_SIZE	4
+struct vdso_elfinfo32 {
+	Elf32_Ehdr	*hdr;
+	Elf32_Sym	*dynsym;
+	unsigned long	dynsymsize;
+	const char	*dynstr;
+	unsigned long	text;
+};
+
+struct vdso_elfinfo64 {
+	Elf64_Ehdr	*hdr;
+	Elf64_Sym	*dynsym;
+	unsigned long	dynsymsize;
+	const char	*dynstr;
+	unsigned long	text;
+};
+
+struct vdso_elfinfo {
+	union {
+		struct vdso_elfinfo32 elf32;
+		struct vdso_elfinfo64 elf64;
+	} u;
+};
+
+static void *one_section64(struct vdso_elfinfo64 *e, const char *name,
+			   unsigned long *size)
+{
+	const char *snames;
+	Elf64_Shdr *shdrs;
+	unsigned int i;
+
+	shdrs = (void *)e->hdr + e->hdr->e_shoff;
+	snames = (void *)e->hdr + shdrs[e->hdr->e_shstrndx].sh_offset;
+	for (i = 1; i < e->hdr->e_shnum; i++) {
+		if (!strcmp(snames+shdrs[i].sh_name, name)) {
+			if (size)
+				*size = shdrs[i].sh_size;
+			return (void *)e->hdr + shdrs[i].sh_offset;
+		}
+	}
+	return NULL;
+}
+
+static int find_sections64(const struct vdso_image *image, struct vdso_elfinfo *_e)
+{
+	struct vdso_elfinfo64 *e = &_e->u.elf64;
+
+	e->hdr = image->data;
+	e->dynsym = one_section64(e, ".dynsym", &e->dynsymsize);
+	e->dynstr = one_section64(e, ".dynstr", NULL);
+
+	if (!e->dynsym || !e->dynstr) {
+		pr_err("VDSO64: Missing symbol sections.\n");
+		return -ENODEV;
+	}
+	return 0;
+}
+
+static Elf64_Sym *find_sym64(const struct vdso_elfinfo64 *e, const char *name)
+{
+	unsigned int i;
+
+	for (i = 0; i < (e->dynsymsize / sizeof(Elf64_Sym)); i++) {
+		Elf64_Sym *s = &e->dynsym[i];
+		if (s->st_name == 0)
+			continue;
+		if (!strcmp(e->dynstr + s->st_name, name))
+			return s;
+	}
+	return NULL;
+}
+
+static int patchsym64(struct vdso_elfinfo *_e, const char *orig,
+		      const char *new)
+{
+	struct vdso_elfinfo64 *e = &_e->u.elf64;
+	Elf64_Sym *osym = find_sym64(e, orig);
+	Elf64_Sym *nsym = find_sym64(e, new);
+
+	if (!nsym || !osym) {
+		pr_err("VDSO64: Missing symbols.\n");
+		return -ENODEV;
+	}
+	osym->st_value = nsym->st_value;
+	osym->st_size = nsym->st_size;
+	osym->st_info = nsym->st_info;
+	osym->st_other = nsym->st_other;
+	osym->st_shndx = nsym->st_shndx;
+
+	return 0;
+}
+
+static void *one_section32(struct vdso_elfinfo32 *e, const char *name,
+			   unsigned long *size)
+{
+	const char *snames;
+	Elf32_Shdr *shdrs;
+	unsigned int i;
+
+	shdrs = (void *)e->hdr + e->hdr->e_shoff;
+	snames = (void *)e->hdr + shdrs[e->hdr->e_shstrndx].sh_offset;
+	for (i = 1; i < e->hdr->e_shnum; i++) {
+		if (!strcmp(snames+shdrs[i].sh_name, name)) {
+			if (size)
+				*size = shdrs[i].sh_size;
+			return (void *)e->hdr + shdrs[i].sh_offset;
+		}
+	}
+	return NULL;
+}
+
+static int find_sections32(const struct vdso_image *image, struct vdso_elfinfo *_e)
+{
+	struct vdso_elfinfo32 *e = &_e->u.elf32;
+
+	e->hdr = image->data;
+	e->dynsym = one_section32(e, ".dynsym", &e->dynsymsize);
+	e->dynstr = one_section32(e, ".dynstr", NULL);
+
+	if (!e->dynsym || !e->dynstr) {
+		pr_err("VDSO32: Missing symbol sections.\n");
+		return -ENODEV;
+	}
+	return 0;
+}
+
+static Elf32_Sym *find_sym32(const struct vdso_elfinfo32 *e, const char *name)
+{
+	unsigned int i;
+
+	for (i = 0; i < (e->dynsymsize / sizeof(Elf32_Sym)); i++) {
+		Elf32_Sym *s = &e->dynsym[i];
+		if (s->st_name == 0)
+			continue;
+		if (!strcmp(e->dynstr + s->st_name, name))
+			return s;
+	}
+	return NULL;
+}
+
+static int patchsym32(struct vdso_elfinfo *_e, const char *orig,
+		      const char *new)
+{
+	struct vdso_elfinfo32 *e = &_e->u.elf32;
+	Elf32_Sym *osym = find_sym32(e, orig);
+	Elf32_Sym *nsym = find_sym32(e, new);
+
+	if (!nsym || !osym) {
+		pr_err("VDSO32: Missing symbols.\n");
+		return -ENODEV;
+	}
+	osym->st_value = nsym->st_value;
+	osym->st_size = nsym->st_size;
+	osym->st_info = nsym->st_info;
+	osym->st_other = nsym->st_other;
+	osym->st_shndx = nsym->st_shndx;
+
+	return 0;
+}
+
+static int find_sections(const struct vdso_image *image, struct vdso_elfinfo *e,
+			 bool elf64)
+{
+	if (elf64)
+		return find_sections64(image, e);
+	else
+		return find_sections32(image, e);
+}
+
+static int patch_one_symbol(struct vdso_elfinfo *e, const char *orig,
+			    const char *new_target, bool elf64)
+{
+	if (elf64)
+		return patchsym64(e, orig, new_target);
+	else
+		return patchsym32(e, orig, new_target);
+}
+
+static int stick_patch(const struct vdso_image *image, struct vdso_elfinfo *e, bool elf64)
+{
+	int err;
+
+	err = find_sections(image, e, elf64);
+	if (err)
+		return err;
+
+	err = patch_one_symbol(e,
+			       "__vdso_gettimeofday",
+			       "__vdso_gettimeofday_stick", elf64);
+	if (err)
+		return err;
+
+	return patch_one_symbol(e,
+				"__vdso_clock_gettime",
+				"__vdso_clock_gettime_stick", elf64);
+	return 0;
+}
 
 /*
  * Allocate pages for the vdso and vvar, and copy in the vdso text from the
  * kernel image.
  */
 int __init init_vdso_image(const struct vdso_image *image,
-		struct vm_special_mapping *vdso_mapping)
+			   struct vm_special_mapping *vdso_mapping, bool elf64)
 {
-	int i;
-	struct page *dp, **dpp = NULL;
-	int dnpages = 0;
-	struct page *cp, **cpp = NULL;
 	int cnpages = (image->size) / PAGE_SIZE;
+	struct page *dp, **dpp = NULL;
+	struct page *cp, **cpp = NULL;
+	struct vdso_elfinfo ei;
+	int i, dnpages = 0;
+
+	if (tlb_type != spitfire) {
+		int err = stick_patch(image, &ei, elf64);
+		if (err)
+			return err;
+	}
 
 	/*
 	 * First, the vdso text.  This is initialied data, an integral number of
@@ -67,22 +270,6 @@ int __init init_vdso_image(const struct vdso_image *image,
 
 	if (!cpp)
 		goto oom;
-
-	if (vdso_fix_stick) {
-		/*
-		 * If the system uses %tick instead of %stick, patch the VDSO
-		 * with instruction reading %tick instead of %stick.
-		 */
-		unsigned int j, k = SAVE_INSTR_SIZE;
-		unsigned char *data = image->data;
-
-		for (j = image->sym_vread_tick_patch_start;
-		     j < image->sym_vread_tick_patch_end; j++) {
-
-			data[image->sym_vread_tick + k] = data[j];
-			k++;
-		}
-	}
 
 	for (i = 0; i < cnpages; i++) {
 		cp = alloc_page(GFP_KERNEL);
@@ -146,13 +333,13 @@ static int __init init_vdso(void)
 {
 	int err = 0;
 #ifdef CONFIG_SPARC64
-	err = init_vdso_image(&vdso_image_64_builtin, &vdso_mapping64);
+	err = init_vdso_image(&vdso_image_64_builtin, &vdso_mapping64, true);
 	if (err)
 		return err;
 #endif
 
 #ifdef CONFIG_COMPAT
-	err = init_vdso_image(&vdso_image_32_builtin, &vdso_mapping32);
+	err = init_vdso_image(&vdso_image_32_builtin, &vdso_mapping32, false);
 #endif
 	return err;
 

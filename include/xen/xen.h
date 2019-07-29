@@ -39,4 +39,8 @@ extern uint32_t xen_start_flags;
 #define xen_initial_domain()	(0)
 #endif	/* CONFIG_XEN_DOM0 */
 
+struct bio_vec;
+bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
+		const struct bio_vec *vec2);
+
 #endif	/* _XEN_XEN_H */

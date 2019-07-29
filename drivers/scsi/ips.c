@@ -208,7 +208,7 @@ module_param(ips, charp, 0);
 
 #define IPS_DMA_DIR(scb) ((!scb->scsi_cmd || ips_is_passthru(scb->scsi_cmd) || \
                          DMA_NONE == scb->scsi_cmd->sc_data_direction) ? \
-                         PCI_DMA_BIDIRECTIONAL : \
+                         DMA_BIDIRECTIONAL : \
                          scb->scsi_cmd->sc_data_direction)
 
 #ifdef IPS_DEBUG
@@ -1529,11 +1529,12 @@ ips_alloc_passthru_buffer(ips_ha_t * ha, int length)
 	if (ha->ioctl_data && length <= ha->ioctl_len)
 		return 0;
 	/* there is no buffer or it's not big enough, allocate a new one */
-	bigger_buf = pci_alloc_consistent(ha->pcidev, length, &dma_busaddr);
+	bigger_buf = dma_alloc_coherent(&ha->pcidev->dev, length, &dma_busaddr,
+			GFP_KERNEL);
 	if (bigger_buf) {
 		/* free the old memory */
-		pci_free_consistent(ha->pcidev, ha->ioctl_len, ha->ioctl_data,
-				    ha->ioctl_busaddr);
+		dma_free_coherent(&ha->pcidev->dev, ha->ioctl_len,
+				  ha->ioctl_data, ha->ioctl_busaddr);
 		/* use the new memory */
 		ha->ioctl_data = (char *) bigger_buf;
 		ha->ioctl_len = length;
@@ -1678,9 +1679,8 @@ ips_flash_copperhead(ips_ha_t * ha, ips_passthru_t * pt, ips_scb_t * scb)
 		} else if (!ha->flash_data) {
 			datasize = pt->CoppCP.cmd.flashfw.total_packets *
 			    pt->CoppCP.cmd.flashfw.count;
-			ha->flash_data = pci_alloc_consistent(ha->pcidev,
-					                      datasize,
-							      &ha->flash_busaddr);
+			ha->flash_data = dma_alloc_coherent(&ha->pcidev->dev,
+					datasize, &ha->flash_busaddr, GFP_KERNEL);
 			if (!ha->flash_data){
 				printk(KERN_WARNING "Unable to allocate a flash buffer\n");
 				return IPS_FAILURE;
@@ -1858,7 +1858,7 @@ ips_flash_firmware(ips_ha_t * ha, ips_passthru_t * pt, ips_scb_t * scb)
 
 	scb->data_len = ha->flash_datasize;
 	scb->data_busaddr =
-	    pci_map_single(ha->pcidev, ha->flash_data, scb->data_len,
+	    dma_map_single(&ha->pcidev->dev, ha->flash_data, scb->data_len,
 			   IPS_DMA_DIR(scb));
 	scb->flags |= IPS_SCB_MAP_SINGLE;
 	scb->cmd.flashfw.command_id = IPS_COMMAND_ID(ha, scb);
@@ -1880,8 +1880,8 @@ ips_free_flash_copperhead(ips_ha_t * ha)
 	if (ha->flash_data == ips_FlashData)
 		test_and_clear_bit(0, &ips_FlashDataInUse);
 	else if (ha->flash_data)
-		pci_free_consistent(ha->pcidev, ha->flash_len, ha->flash_data,
-				    ha->flash_busaddr);
+		dma_free_coherent(&ha->pcidev->dev, ha->flash_len,
+				  ha->flash_data, ha->flash_busaddr);
 	ha->flash_data = NULL;
 }
 
@@ -3485,6 +3485,7 @@ ips_send_cmd(ips_ha_t * ha, ips_scb_t * scb)
 
 		case START_STOP:
 			scb->scsi_cmd->result = DID_OK << 16;
+			break;
 
 		case TEST_UNIT_READY:
 		case INQUIRY:
@@ -4212,7 +4213,7 @@ ips_free(ips_ha_t * ha)
 
 	if (ha) {
 		if (ha->enq) {
-			pci_free_consistent(ha->pcidev, sizeof(IPS_ENQ),
+			dma_free_coherent(&ha->pcidev->dev, sizeof(IPS_ENQ),
 					    ha->enq, ha->enq_busaddr);
 			ha->enq = NULL;
 		}
@@ -4221,7 +4222,7 @@ ips_free(ips_ha_t * ha)
 		ha->conf = NULL;
 
 		if (ha->adapt) {
-			pci_free_consistent(ha->pcidev,
+			dma_free_coherent(&ha->pcidev->dev,
 					    sizeof (IPS_ADAPTER) +
 					    sizeof (IPS_IO_CMD), ha->adapt,
 					    ha->adapt->hw_status_start);
@@ -4229,7 +4230,7 @@ ips_free(ips_ha_t * ha)
 		}
 
 		if (ha->logical_drive_info) {
-			pci_free_consistent(ha->pcidev,
+			dma_free_coherent(&ha->pcidev->dev,
 					    sizeof (IPS_LD_INFO),
 					    ha->logical_drive_info,
 					    ha->logical_drive_info_dma_addr);
@@ -4243,7 +4244,7 @@ ips_free(ips_ha_t * ha)
 		ha->subsys = NULL;
 
 		if (ha->ioctl_data) {
-			pci_free_consistent(ha->pcidev, ha->ioctl_len,
+			dma_free_coherent(&ha->pcidev->dev, ha->ioctl_len,
 					    ha->ioctl_data, ha->ioctl_busaddr);
 			ha->ioctl_data = NULL;
 			ha->ioctl_datasize = 0;
@@ -4276,11 +4277,11 @@ static int
 ips_deallocatescbs(ips_ha_t * ha, int cmds)
 {
 	if (ha->scbs) {
-		pci_free_consistent(ha->pcidev,
+		dma_free_coherent(&ha->pcidev->dev,
 				    IPS_SGLIST_SIZE(ha) * IPS_MAX_SG * cmds,
 				    ha->scbs->sg_list.list,
 				    ha->scbs->sg_busaddr);
-		pci_free_consistent(ha->pcidev, sizeof (ips_scb_t) * cmds,
+		dma_free_coherent(&ha->pcidev->dev, sizeof (ips_scb_t) * cmds,
 				    ha->scbs, ha->scbs->scb_busaddr);
 		ha->scbs = NULL;
 	}			/* end if */
@@ -4307,17 +4308,16 @@ ips_allocatescbs(ips_ha_t * ha)
 	METHOD_TRACE("ips_allocatescbs", 1);
 
 	/* Allocate memory for the SCBs */
-	ha->scbs =
-	    pci_alloc_consistent(ha->pcidev, ha->max_cmds * sizeof (ips_scb_t),
-				 &command_dma);
+	ha->scbs = dma_alloc_coherent(&ha->pcidev->dev,
+			ha->max_cmds * sizeof (ips_scb_t),
+			&command_dma, GFP_KERNEL);
 	if (ha->scbs == NULL)
 		return 0;
-	ips_sg.list =
-	    pci_alloc_consistent(ha->pcidev,
-				 IPS_SGLIST_SIZE(ha) * IPS_MAX_SG *
-				 ha->max_cmds, &sg_dma);
+	ips_sg.list = dma_alloc_coherent(&ha->pcidev->dev,
+			IPS_SGLIST_SIZE(ha) * IPS_MAX_SG * ha->max_cmds,
+			&sg_dma, GFP_KERNEL);
 	if (ips_sg.list == NULL) {
-		pci_free_consistent(ha->pcidev,
+		dma_free_coherent(&ha->pcidev->dev,
 				    ha->max_cmds * sizeof (ips_scb_t), ha->scbs,
 				    command_dma);
 		return 0;
@@ -4446,8 +4446,8 @@ ips_freescb(ips_ha_t * ha, ips_scb_t * scb)
 	if (scb->flags & IPS_SCB_MAP_SG)
                 scsi_dma_unmap(scb->scsi_cmd);
 	else if (scb->flags & IPS_SCB_MAP_SINGLE)
-		pci_unmap_single(ha->pcidev, scb->data_busaddr, scb->data_len,
-				 IPS_DMA_DIR(scb));
+		dma_unmap_single(&ha->pcidev->dev, scb->data_busaddr,
+				 scb->data_len, IPS_DMA_DIR(scb));
 
 	/* check to make sure this is not our "special" scb */
 	if (IPS_COMMAND_ID(ha, scb) < (ha->max_cmds - 1)) {
@@ -4559,7 +4559,8 @@ ips_flush_and_reset(ips_ha_t *ha)
 	dma_addr_t command_dma;
 
 	/* Create a usuable SCB */
-	scb = pci_alloc_consistent(ha->pcidev, sizeof(ips_scb_t), &command_dma);
+	scb = dma_alloc_coherent(&ha->pcidev->dev, sizeof(ips_scb_t),
+			&command_dma, GFP_KERNEL);
 	if (scb) {
 	    memset(scb, 0, sizeof(ips_scb_t));
 	    ips_init_scb(ha, scb);
@@ -4594,7 +4595,7 @@ ips_flush_and_reset(ips_ha_t *ha)
 	/* Now RESET and INIT the adapter */
 	(*ha->func.reset) (ha);
 
-	pci_free_consistent(ha->pcidev, sizeof(ips_scb_t), scb, command_dma);
+	dma_free_coherent(&ha->pcidev->dev, sizeof(ips_scb_t), scb, command_dma);
 	return;
 }
 
@@ -6926,29 +6927,30 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	 * are guaranteed to be < 4G.
 	 */
 	if (IPS_ENABLE_DMA64 && IPS_HAS_ENH_SGLIST(ha) &&
-	    !pci_set_dma_mask(ha->pcidev, DMA_BIT_MASK(64))) {
+	    !dma_set_mask(&ha->pcidev->dev, DMA_BIT_MASK(64))) {
 		(ha)->flags |= IPS_HA_ENH_SG;
 	} else {
-		if (pci_set_dma_mask(ha->pcidev, DMA_BIT_MASK(32)) != 0) {
+		if (dma_set_mask(&ha->pcidev->dev, DMA_BIT_MASK(32)) != 0) {
 			printk(KERN_WARNING "Unable to set DMA Mask\n");
 			return ips_abort_init(ha, index);
 		}
 	}
 	if(ips_cd_boot && !ips_FlashData){
-		ips_FlashData = pci_alloc_consistent(pci_dev, PAGE_SIZE << 7,
-						     &ips_flashbusaddr);
+		ips_FlashData = dma_alloc_coherent(&pci_dev->dev,
+				PAGE_SIZE << 7, &ips_flashbusaddr, GFP_KERNEL);
 	}
 
-	ha->enq = pci_alloc_consistent(pci_dev, sizeof (IPS_ENQ),
-				       &ha->enq_busaddr);
+	ha->enq = dma_alloc_coherent(&pci_dev->dev, sizeof (IPS_ENQ),
+			&ha->enq_busaddr, GFP_KERNEL);
 	if (!ha->enq) {
 		IPS_PRINTK(KERN_WARNING, pci_dev,
 			   "Unable to allocate host inquiry structure\n");
 		return ips_abort_init(ha, index);
 	}
 
-	ha->adapt = pci_alloc_consistent(pci_dev, sizeof (IPS_ADAPTER) +
-					 sizeof (IPS_IO_CMD), &dma_address);
+	ha->adapt = dma_alloc_coherent(&pci_dev->dev,
+			sizeof (IPS_ADAPTER) + sizeof (IPS_IO_CMD),
+			&dma_address, GFP_KERNEL);
 	if (!ha->adapt) {
 		IPS_PRINTK(KERN_WARNING, pci_dev,
 			   "Unable to allocate host adapt & dummy structures\n");
@@ -6959,7 +6961,8 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 
 
 
-	ha->logical_drive_info = pci_alloc_consistent(pci_dev, sizeof (IPS_LD_INFO), &dma_address);
+	ha->logical_drive_info = dma_alloc_coherent(&pci_dev->dev,
+			sizeof (IPS_LD_INFO), &dma_address, GFP_KERNEL);
 	if (!ha->logical_drive_info) {
 		IPS_PRINTK(KERN_WARNING, pci_dev,
 			   "Unable to allocate logical drive info structure\n");
@@ -6997,8 +7000,8 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	if (ips_ioctlsize < PAGE_SIZE)
 		ips_ioctlsize = PAGE_SIZE;
 
-	ha->ioctl_data = pci_alloc_consistent(pci_dev, ips_ioctlsize,
-					      &ha->ioctl_busaddr);
+	ha->ioctl_data = dma_alloc_coherent(&pci_dev->dev, ips_ioctlsize,
+			&ha->ioctl_busaddr, GFP_KERNEL);
 	ha->ioctl_len = ips_ioctlsize;
 	if (!ha->ioctl_data) {
 		IPS_PRINTK(KERN_WARNING, pci_dev,

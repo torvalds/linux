@@ -16,7 +16,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
@@ -197,7 +197,6 @@ enum {
 	FL_NON_RAID		= FW_VER_NON_RAID,
 	FL_4PORT		= FW_VER_4PORT,
 	FL_FW_VER_MASK		= (FW_VER_NON_RAID | FW_VER_4PORT),
-	FL_DAC			= (1 << 16),
 	FL_DYN_MAJOR		= (1 << 17),
 };
 
@@ -244,6 +243,7 @@ struct carm_port {
 	unsigned int			port_no;
 	struct gendisk			*disk;
 	struct carm_host		*host;
+	struct blk_mq_tag_set		tag_set;
 
 	/* attached device characteristics */
 	u64				capacity;
@@ -279,6 +279,7 @@ struct carm_host {
 	unsigned int			state;
 	u32				fw_ver;
 
+	struct blk_mq_tag_set		tag_set;
 	struct request_queue		*oob_q;
 	unsigned int			n_oob;
 
@@ -750,7 +751,7 @@ static inline void carm_end_request_queued(struct carm_host *host,
 	struct request *req = crq->rq;
 	int rc;
 
-	__blk_end_request_all(req, error);
+	blk_mq_end_request(req, error);
 
 	rc = carm_put_request(host, crq);
 	assert(rc == 0);
@@ -760,7 +761,7 @@ static inline void carm_push_q (struct carm_host *host, struct request_queue *q)
 {
 	unsigned int idx = host->wait_q_prod % CARM_MAX_WAIT_Q;
 
-	blk_stop_queue(q);
+	blk_mq_stop_hw_queues(q);
 	VPRINTK("STOPPED QUEUE %p\n", q);
 
 	host->wait_q[idx] = q;
@@ -785,7 +786,7 @@ static inline void carm_round_robin(struct carm_host *host)
 {
 	struct request_queue *q = carm_pop_q(host);
 	if (q) {
-		blk_start_queue(q);
+		blk_mq_start_hw_queues(q);
 		VPRINTK("STARTED QUEUE %p\n", q);
 	}
 }
@@ -802,82 +803,86 @@ static inline void carm_end_rq(struct carm_host *host, struct carm_request *crq,
 	}
 }
 
-static void carm_oob_rq_fn(struct request_queue *q)
+static blk_status_t carm_oob_queue_rq(struct blk_mq_hw_ctx *hctx,
+				      const struct blk_mq_queue_data *bd)
 {
+	struct request_queue *q = hctx->queue;
 	struct carm_host *host = q->queuedata;
 	struct carm_request *crq;
-	struct request *rq;
 	int rc;
 
-	while (1) {
-		DPRINTK("get req\n");
-		rq = blk_fetch_request(q);
-		if (!rq)
-			break;
+	blk_mq_start_request(bd->rq);
 
-		crq = rq->special;
-		assert(crq != NULL);
-		assert(crq->rq == rq);
+	spin_lock_irq(&host->lock);
 
-		crq->n_elem = 0;
+	crq = bd->rq->special;
+	assert(crq != NULL);
+	assert(crq->rq == bd->rq);
 
-		DPRINTK("send req\n");
-		rc = carm_send_msg(host, crq);
-		if (rc) {
-			blk_requeue_request(q, rq);
-			carm_push_q(host, q);
-			return;		/* call us again later, eventually */
-		}
+	crq->n_elem = 0;
+
+	DPRINTK("send req\n");
+	rc = carm_send_msg(host, crq);
+	if (rc) {
+		carm_push_q(host, q);
+		spin_unlock_irq(&host->lock);
+		return BLK_STS_DEV_RESOURCE;
 	}
+
+	spin_unlock_irq(&host->lock);
+	return BLK_STS_OK;
 }
 
-static void carm_rq_fn(struct request_queue *q)
+static blk_status_t carm_queue_rq(struct blk_mq_hw_ctx *hctx,
+				  const struct blk_mq_queue_data *bd)
 {
+	struct request_queue *q = hctx->queue;
 	struct carm_port *port = q->queuedata;
 	struct carm_host *host = port->host;
 	struct carm_msg_rw *msg;
 	struct carm_request *crq;
-	struct request *rq;
+	struct request *rq = bd->rq;
 	struct scatterlist *sg;
 	int writing = 0, pci_dir, i, n_elem, rc;
 	u32 tmp;
 	unsigned int msg_size;
 
-queue_one_request:
-	VPRINTK("get req\n");
-	rq = blk_peek_request(q);
-	if (!rq)
-		return;
+	blk_mq_start_request(rq);
+
+	spin_lock_irq(&host->lock);
 
 	crq = carm_get_request(host);
 	if (!crq) {
 		carm_push_q(host, q);
-		return;		/* call us again later, eventually */
+		spin_unlock_irq(&host->lock);
+		return BLK_STS_DEV_RESOURCE;
 	}
 	crq->rq = rq;
 
-	blk_start_request(rq);
-
 	if (rq_data_dir(rq) == WRITE) {
 		writing = 1;
-		pci_dir = PCI_DMA_TODEVICE;
+		pci_dir = DMA_TO_DEVICE;
 	} else {
-		pci_dir = PCI_DMA_FROMDEVICE;
+		pci_dir = DMA_FROM_DEVICE;
 	}
 
 	/* get scatterlist from block layer */
 	sg = &crq->sg[0];
 	n_elem = blk_rq_map_sg(q, rq, sg);
 	if (n_elem <= 0) {
+		/* request with no s/g entries? */
 		carm_end_rq(host, crq, BLK_STS_IOERR);
-		return;		/* request with no s/g entries? */
+		spin_unlock_irq(&host->lock);
+		return BLK_STS_IOERR;
 	}
 
 	/* map scatterlist to PCI bus addresses */
-	n_elem = pci_map_sg(host->pdev, sg, n_elem, pci_dir);
+	n_elem = dma_map_sg(&host->pdev->dev, sg, n_elem, pci_dir);
 	if (n_elem <= 0) {
+		/* request with no s/g entries? */
 		carm_end_rq(host, crq, BLK_STS_IOERR);
-		return;		/* request with no s/g entries? */
+		spin_unlock_irq(&host->lock);
+		return BLK_STS_IOERR;
 	}
 	crq->n_elem = n_elem;
 	crq->port = port;
@@ -927,12 +932,13 @@ queue_one_request:
 	rc = carm_send_msg(host, crq);
 	if (rc) {
 		carm_put_request(host, crq);
-		blk_requeue_request(q, rq);
 		carm_push_q(host, q);
-		return;		/* call us again later, eventually */
+		spin_unlock_irq(&host->lock);
+		return BLK_STS_DEV_RESOURCE;
 	}
 
-	goto queue_one_request;
+	spin_unlock_irq(&host->lock);
+	return BLK_STS_OK;
 }
 
 static void carm_handle_array_info(struct carm_host *host,
@@ -1052,11 +1058,11 @@ static inline void carm_handle_rw(struct carm_host *host,
 	VPRINTK("ENTER\n");
 
 	if (rq_data_dir(crq->rq) == WRITE)
-		pci_dir = PCI_DMA_TODEVICE;
+		pci_dir = DMA_TO_DEVICE;
 	else
-		pci_dir = PCI_DMA_FROMDEVICE;
+		pci_dir = DMA_FROM_DEVICE;
 
-	pci_unmap_sg(host->pdev, &crq->sg[0], crq->n_elem, pci_dir);
+	dma_unmap_sg(&host->pdev->dev, &crq->sg[0], crq->n_elem, pci_dir);
 
 	carm_end_rq(host, crq, error);
 }
@@ -1485,6 +1491,14 @@ static int carm_init_host(struct carm_host *host)
 	return 0;
 }
 
+static const struct blk_mq_ops carm_oob_mq_ops = {
+	.queue_rq	= carm_oob_queue_rq,
+};
+
+static const struct blk_mq_ops carm_mq_ops = {
+	.queue_rq	= carm_queue_rq,
+};
+
 static int carm_init_disks(struct carm_host *host)
 {
 	unsigned int i;
@@ -1513,9 +1527,10 @@ static int carm_init_disks(struct carm_host *host)
 		disk->fops = &carm_bd_ops;
 		disk->private_data = port;
 
-		q = blk_init_queue(carm_rq_fn, &host->lock);
-		if (!q) {
-			rc = -ENOMEM;
+		q = blk_mq_init_sq_queue(&port->tag_set, &carm_mq_ops,
+					 max_queue, BLK_MQ_F_SHOULD_MERGE);
+		if (IS_ERR(q)) {
+			rc = PTR_ERR(q);
 			break;
 		}
 		disk->queue = q;
@@ -1533,14 +1548,18 @@ static void carm_free_disks(struct carm_host *host)
 	unsigned int i;
 
 	for (i = 0; i < CARM_MAX_PORTS; i++) {
-		struct gendisk *disk = host->port[i].disk;
+		struct carm_port *port = &host->port[i];
+		struct gendisk *disk = port->disk;
+
 		if (disk) {
 			struct request_queue *q = disk->queue;
 
 			if (disk->flags & GENHD_FL_UP)
 				del_gendisk(disk);
-			if (q)
+			if (q) {
+				blk_mq_free_tag_set(&port->tag_set);
 				blk_cleanup_queue(q);
+			}
 			put_disk(disk);
 		}
 	}
@@ -1548,8 +1567,8 @@ static void carm_free_disks(struct carm_host *host)
 
 static int carm_init_shm(struct carm_host *host)
 {
-	host->shm = pci_alloc_consistent(host->pdev, CARM_SHM_SIZE,
-					 &host->shm_dma);
+	host->shm = dma_alloc_coherent(&host->pdev->dev, CARM_SHM_SIZE,
+				       &host->shm_dma, GFP_KERNEL);
 	if (!host->shm)
 		return -ENOMEM;
 
@@ -1565,7 +1584,6 @@ static int carm_init_shm(struct carm_host *host)
 static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct carm_host *host;
-	unsigned int pci_dac;
 	int rc;
 	struct request_queue *q;
 	unsigned int i;
@@ -1580,28 +1598,12 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto err_out;
 
-#ifdef IF_64BIT_DMA_IS_POSSIBLE /* grrrr... */
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (!rc) {
-		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-		if (rc) {
-			printk(KERN_ERR DRV_NAME "(%s): consistent DMA mask failure\n",
-				pci_name(pdev));
-			goto err_out_regions;
-		}
-		pci_dac = 1;
-	} else {
-#endif
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc) {
-			printk(KERN_ERR DRV_NAME "(%s): DMA mask failure\n",
-				pci_name(pdev));
-			goto err_out_regions;
-		}
-		pci_dac = 0;
-#ifdef IF_64BIT_DMA_IS_POSSIBLE /* grrrr... */
+	rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (rc) {
+		printk(KERN_ERR DRV_NAME "(%s): DMA mask failure\n",
+			pci_name(pdev));
+		goto err_out_regions;
 	}
-#endif
 
 	host = kzalloc(sizeof(*host), GFP_KERNEL);
 	if (!host) {
@@ -1612,7 +1614,6 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	host->pdev = pdev;
-	host->flags = pci_dac ? FL_DAC : 0;
 	spin_lock_init(&host->lock);
 	INIT_WORK(&host->fsm_task, carm_fsm_task);
 	init_completion(&host->probe_comp);
@@ -1636,12 +1637,13 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_iounmap;
 	}
 
-	q = blk_init_queue(carm_oob_rq_fn, &host->lock);
-	if (!q) {
+	q = blk_mq_init_sq_queue(&host->tag_set, &carm_oob_mq_ops, 1,
+					BLK_MQ_F_NO_SCHED);
+	if (IS_ERR(q)) {
 		printk(KERN_ERR DRV_NAME "(%s): OOB queue alloc failure\n",
 		       pci_name(pdev));
-		rc = -ENOMEM;
-		goto err_out_pci_free;
+		rc = PTR_ERR(q);
+		goto err_out_dma_free;
 	}
 	host->oob_q = q;
 	q->queuedata = host;
@@ -1705,8 +1707,9 @@ err_out_free_majors:
 	else if (host->major == 161)
 		clear_bit(1, &carm_major_alloc);
 	blk_cleanup_queue(host->oob_q);
-err_out_pci_free:
-	pci_free_consistent(pdev, CARM_SHM_SIZE, host->shm, host->shm_dma);
+	blk_mq_free_tag_set(&host->tag_set);
+err_out_dma_free:
+	dma_free_coherent(&pdev->dev, CARM_SHM_SIZE, host->shm, host->shm_dma);
 err_out_iounmap:
 	iounmap(host->mmio);
 err_out_kfree:
@@ -1736,7 +1739,8 @@ static void carm_remove_one (struct pci_dev *pdev)
 	else if (host->major == 161)
 		clear_bit(1, &carm_major_alloc);
 	blk_cleanup_queue(host->oob_q);
-	pci_free_consistent(pdev, CARM_SHM_SIZE, host->shm, host->shm_dma);
+	blk_mq_free_tag_set(&host->tag_set);
+	dma_free_coherent(&pdev->dev, CARM_SHM_SIZE, host->shm, host->shm_dma);
 	iounmap(host->mmio);
 	kfree(host);
 	pci_release_regions(pdev);

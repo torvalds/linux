@@ -11,12 +11,12 @@
 
 TRACE_EVENT(mpx_bounds_register_exception,
 
-	TP_PROTO(void *addr_referenced,
+	TP_PROTO(void __user *addr_referenced,
 		 const struct mpx_bndreg *bndreg),
 	TP_ARGS(addr_referenced, bndreg),
 
 	TP_STRUCT__entry(
-		__field(void *, addr_referenced)
+		__field(void __user *, addr_referenced)
 		__field(u64, lower_bound)
 		__field(u64, upper_bound)
 	),

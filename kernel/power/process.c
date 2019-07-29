@@ -96,7 +96,7 @@ static int try_to_freeze_tasks(bool user_only)
 		if (wq_busy)
 			show_workqueue_state();
 
-		if (!wakeup) {
+		if (!wakeup || pm_debug_messages_on) {
 			read_lock(&tasklist_lock);
 			for_each_process_thread(g, p) {
 				if (p != current && !freezer_should_skip(p)

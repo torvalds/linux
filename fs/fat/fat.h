@@ -416,6 +416,10 @@ extern void fat_time_fat2unix(struct msdos_sb_info *sbi, struct timespec64 *ts,
 			      __le16 __time, __le16 __date, u8 time_cs);
 extern void fat_time_unix2fat(struct msdos_sb_info *sbi, struct timespec64 *ts,
 			      __le16 *time, __le16 *date, u8 *time_cs);
+extern int fat_truncate_time(struct inode *inode, struct timespec64 *now,
+			     int flags);
+extern int fat_update_time(struct inode *inode, struct timespec64 *now,
+			   int flags);
 extern int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs);
 
 int fat_cache_init(void);

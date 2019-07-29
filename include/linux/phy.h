@@ -19,6 +19,7 @@
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
+#include <linux/linkmode.h>
 #include <linux/mdio.h>
 #include <linux/mii.h>
 #include <linux/module.h>
@@ -41,13 +42,21 @@
 #define PHY_1000BT_FEATURES	(SUPPORTED_1000baseT_Half | \
 				 SUPPORTED_1000baseT_Full)
 
-#define PHY_BASIC_FEATURES	(PHY_10BT_FEATURES | \
-				 PHY_100BT_FEATURES | \
-				 PHY_DEFAULT_FEATURES)
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_basic_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_basic_t1_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_fibre_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_all_ports_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_init;
 
-#define PHY_GBIT_FEATURES	(PHY_BASIC_FEATURES | \
-				 PHY_1000BT_FEATURES)
-
+#define PHY_BASIC_FEATURES ((unsigned long *)&phy_basic_features)
+#define PHY_BASIC_T1_FEATURES ((unsigned long *)&phy_basic_t1_features)
+#define PHY_GBIT_FEATURES ((unsigned long *)&phy_gbit_features)
+#define PHY_GBIT_FIBRE_FEATURES ((unsigned long *)&phy_gbit_fibre_features)
+#define PHY_GBIT_ALL_PORTS_FEATURES ((unsigned long *)&phy_gbit_all_ports_features)
+#define PHY_10GBIT_FEATURES ((unsigned long *)&phy_10gbit_features)
+#define PHY_10GBIT_FULL_FEATURES ((unsigned long *)&phy_10gbit_full_features)
 
 /*
  * Set phydev->irq to PHY_POLL if interrupts are not supported,
@@ -509,7 +518,7 @@ struct phy_driver {
 	u32 phy_id;
 	char *name;
 	u32 phy_id_mask;
-	u32 features;
+	const unsigned long * const features;
 	u32 flags;
 	const void *driver_data;
 
@@ -967,6 +976,12 @@ static inline void phy_device_reset(struct phy_device *phydev, int value)
 #define phydev_err(_phydev, format, args...)	\
 	dev_err(&_phydev->mdio.dev, format, ##args)
 
+#define phydev_info(_phydev, format, args...)	\
+	dev_info(&_phydev->mdio.dev, format, ##args)
+
+#define phydev_warn(_phydev, format, args...)	\
+	dev_warn(&_phydev->mdio.dev, format, ##args)
+
 #define phydev_dbg(_phydev, format, args...)	\
 	dev_dbg(&_phydev->mdio.dev, format, ##args)
 
@@ -1039,7 +1054,7 @@ void phy_change_work(struct work_struct *work);
 void phy_mac_interrupt(struct phy_device *phydev);
 void phy_start_machine(struct phy_device *phydev);
 void phy_stop_machine(struct phy_device *phydev);
-void phy_trigger_machine(struct phy_device *phydev, bool sync);
+void phy_trigger_machine(struct phy_device *phydev);
 int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 void phy_ethtool_ksettings_get(struct phy_device *phydev,
 			       struct ethtool_link_ksettings *cmd);
@@ -1049,6 +1064,14 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd);
 int phy_start_interrupts(struct phy_device *phydev);
 void phy_print_status(struct phy_device *phydev);
 int phy_set_max_speed(struct phy_device *phydev, u32 max_speed);
+void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode);
+void phy_support_sym_pause(struct phy_device *phydev);
+void phy_support_asym_pause(struct phy_device *phydev);
+void phy_set_sym_pause(struct phy_device *phydev, bool rx, bool tx,
+		       bool autoneg);
+void phy_set_asym_pause(struct phy_device *phydev, bool rx, bool tx);
+bool phy_validate_pause(struct phy_device *phydev,
+			struct ethtool_pauseparam *pp);
 
 int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
 		       int (*run)(struct phy_device *));

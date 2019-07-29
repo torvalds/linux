@@ -7,7 +7,7 @@
  */
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/highmem.h>
 #include <asm/fixmap.h>
 #include <asm/pgtable.h>

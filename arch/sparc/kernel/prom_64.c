@@ -34,7 +34,7 @@
 
 void * __init prom_early_alloc(unsigned long size)
 {
-	unsigned long paddr = memblock_alloc(size, SMP_CACHE_BYTES);
+	unsigned long paddr = memblock_phys_alloc(size, SMP_CACHE_BYTES);
 	void *ret;
 
 	if (!paddr) {

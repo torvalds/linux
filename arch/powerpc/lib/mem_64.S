@@ -40,7 +40,7 @@ _GLOBAL(memset)
 .Lms:	PPC_MTOCRF(1,r0)
 	mr	r6,r3
 	blt	cr1,8f
-	beq+	3f			/* if already 8-byte aligned */
+	beq	3f			/* if already 8-byte aligned */
 	subf	r5,r0,r5
 	bf	31,1f
 	stb	r4,0(r6)
@@ -85,7 +85,7 @@ _GLOBAL(memset)
 	addi	r6,r6,8
 8:	cmpwi	r5,0
 	PPC_MTOCRF(1,r5)
-	beqlr+
+	beqlr
 	bf	29,9f
 	stw	r4,0(r6)
 	addi	r6,r6,4

@@ -1447,7 +1447,6 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 	u64 pbl_base_addr, phy_prod_pair_addr;
 	struct ib_ucontext *ib_ctx = NULL;
 	struct qedr_srq_hwq_info *hw_srq;
-	struct qedr_ucontext *ctx = NULL;
 	u32 page_cnt, page_size;
 	struct qedr_srq *srq;
 	int rc = 0;
@@ -1473,7 +1472,6 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 
 	if (udata && ibpd->uobject && ibpd->uobject->context) {
 		ib_ctx = ibpd->uobject->context;
-		ctx = get_qedr_ucontext(ib_ctx);
 
 		if (ib_copy_from_udata(&ureq, udata, sizeof(ureq))) {
 			DP_ERR(dev,
@@ -2240,8 +2238,7 @@ int qedr_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (rdma_protocol_roce(&dev->ibdev, 1)) {
 		if (!ib_modify_qp_is_ok(old_qp_state, new_qp_state,
-					ibqp->qp_type, attr_mask,
-					IB_LINK_LAYER_ETHERNET)) {
+					ibqp->qp_type, attr_mask)) {
 			DP_ERR(dev,
 			       "modify qp: invalid attribute mask=0x%x specified for\n"
 			       "qpn=0x%x of type=0x%x old_qp_state=0x%x, new_qp_state=0x%x\n",

@@ -21,8 +21,9 @@
 #include <net/rsi_91x.h>
 #include <net/genetlink.h>
 
-#define RSI_HEADROOM_FOR_BT_HAL	16
+#define RSI_DMA_ALIGN	8
 #define RSI_FRAME_DESC_SIZE	16
+#define RSI_HEADROOM_FOR_BT_HAL	(RSI_FRAME_DESC_SIZE + RSI_DMA_ALIGN)
 
 struct rsi_hci_adapter {
 	void *priv;
@@ -70,6 +71,16 @@ static int rsi_hci_send_pkt(struct hci_dev *hdev, struct sk_buff *skb)
 		bt_cb(new_skb)->pkt_type = hci_skb_pkt_type(skb);
 		kfree_skb(skb);
 		skb = new_skb;
+		if (!IS_ALIGNED((unsigned long)skb->data, RSI_DMA_ALIGN)) {
+			u8 *skb_data = skb->data;
+			int skb_len = skb->len;
+
+			skb_push(skb, RSI_DMA_ALIGN);
+			skb_pull(skb, PTR_ALIGN(skb->data,
+						RSI_DMA_ALIGN) - skb->data);
+			memmove(skb->data, skb_data, skb_len);
+			skb_trim(skb, skb_len);
+		}
 	}
 
 	return h_adapter->proto_ops->coex_send_pkt(h_adapter->priv, skb,

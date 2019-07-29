@@ -720,8 +720,12 @@ void rt2x00mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return;
 
+	set_bit(DEVICE_STATE_FLUSHING, &rt2x00dev->flags);
+
 	tx_queue_for_each(rt2x00dev, queue)
 		rt2x00queue_flush_queue(queue, drop);
+
+	clear_bit(DEVICE_STATE_FLUSHING, &rt2x00dev->flags);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_flush);
 

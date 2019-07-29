@@ -1,6 +1,8 @@
-cr4_cpuid_sync_test
-platform_info_test
-set_sregs_test
-sync_regs_test
-vmx_tsc_adjust_test
-state_test
+/x86_64/cr4_cpuid_sync_test
+/x86_64/evmcs_test
+/x86_64/platform_info_test
+/x86_64/set_sregs_test
+/x86_64/sync_regs_test
+/x86_64/vmx_tsc_adjust_test
+/x86_64/state_test
+/dirty_log_test

@@ -258,11 +258,16 @@ struct sunxi_mmc_cfg {
 	/* Does DATA0 needs to be masked while the clock is updated */
 	bool mask_data0;
 
-	/* hardware only supports new timing mode */
+	/*
+	 * hardware only supports new timing mode, either due to lack of
+	 * a mode switch in the clock controller, or the mmc controller
+	 * is permanently configured in the new timing mode, without the
+	 * NTSR mode switch.
+	 */
 	bool needs_new_timings;
 
-	/* hardware can switch between old and new timing modes */
-	bool has_timings_switch;
+	/* clock hardware can switch between old and new timing modes */
+	bool ccu_has_timings_switch;
 };
 
 struct sunxi_mmc_host {
@@ -787,7 +792,7 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 		clock <<= 1;
 	}
 
-	if (host->use_new_timings && host->cfg->has_timings_switch) {
+	if (host->use_new_timings && host->cfg->ccu_has_timings_switch) {
 		ret = sunxi_ccu_set_mmc_timing_mode(host->clk_mmc, true);
 		if (ret) {
 			dev_err(mmc_dev(mmc),
@@ -822,6 +827,12 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	/* update card clock rate to account for internal divider */
 	rate /= div;
 
+	/*
+	 * Configure the controller to use the new timing mode if needed.
+	 * On controllers that only support the new timing mode, such as
+	 * the eMMC controller on the A64, this register does not exist,
+	 * and any writes to it are ignored.
+	 */
 	if (host->use_new_timings) {
 		/* Don't touch the delay bits */
 		rval = mmc_readl(host, REG_SD_NTSR);
@@ -1145,7 +1156,7 @@ static const struct sunxi_mmc_cfg sun8i_a83t_emmc_cfg = {
 	.idma_des_size_bits = 16,
 	.clk_delays = sunxi_mmc_clk_delays,
 	.can_calibrate = false,
-	.has_timings_switch = true,
+	.ccu_has_timings_switch = true,
 };
 
 static const struct sunxi_mmc_cfg sun9i_a80_cfg = {
@@ -1166,6 +1177,7 @@ static const struct sunxi_mmc_cfg sun50i_a64_emmc_cfg = {
 	.idma_des_size_bits = 13,
 	.clk_delays = NULL,
 	.can_calibrate = true,
+	.needs_new_timings = true,
 };
 
 static const struct of_device_id sunxi_mmc_of_match[] = {
@@ -1351,7 +1363,7 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 		goto error_free_host;
 	}
 
-	if (host->cfg->has_timings_switch) {
+	if (host->cfg->ccu_has_timings_switch) {
 		/*
 		 * Supports both old and new timing modes.
 		 * Try setting the clk to new timing mode.

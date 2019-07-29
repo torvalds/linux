@@ -122,7 +122,7 @@ struct hidp_connlist_req {
 	struct hidp_conninfo __user *ci;
 };
 
-int hidp_connection_add(struct hidp_connadd_req *req, struct socket *ctrl_sock, struct socket *intr_sock);
+int hidp_connection_add(const struct hidp_connadd_req *req, struct socket *ctrl_sock, struct socket *intr_sock);
 int hidp_connection_del(struct hidp_conndel_req *req);
 int hidp_get_connlist(struct hidp_connlist_req *req);
 int hidp_get_conninfo(struct hidp_conninfo *ci);

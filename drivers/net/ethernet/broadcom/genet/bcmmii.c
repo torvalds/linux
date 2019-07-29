@@ -214,7 +214,7 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 
 	case PHY_INTERFACE_MODE_MII:
 		phy_name = "external MII";
-		phydev->supported &= PHY_BASIC_FEATURES;
+		phy_set_max_speed(phydev, SPEED_100);
 		bcmgenet_sys_writel(priv,
 				    PORT_MODE_EXT_EPHY, SYS_PORT_CTRL);
 		break;
@@ -226,11 +226,10 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 		 * capabilities, use that knowledge to also configure the
 		 * Reverse MII interface correctly.
 		 */
-		if ((dev->phydev->supported & PHY_BASIC_FEATURES) ==
-				PHY_BASIC_FEATURES)
-			port_ctrl = PORT_MODE_EXT_RVMII_25;
-		else
+		if (dev->phydev->supported & PHY_1000BT_FEATURES)
 			port_ctrl = PORT_MODE_EXT_RVMII_50;
+		else
+			port_ctrl = PORT_MODE_EXT_RVMII_25;
 		bcmgenet_sys_writel(priv, port_ctrl, SYS_PORT_CTRL);
 		break;
 
@@ -342,7 +341,7 @@ static struct device_node *bcmgenet_mii_of_find_mdio(struct bcmgenet_priv *priv)
 	if (!compat)
 		return NULL;
 
-	priv->mdio_dn = of_find_compatible_node(dn, NULL, compat);
+	priv->mdio_dn = of_get_compatible_child(dn, compat);
 	kfree(compat);
 	if (!priv->mdio_dn) {
 		dev_err(kdev, "unable to find MDIO bus node\n");

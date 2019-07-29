@@ -232,7 +232,7 @@ static int mbus_code_to_bus_cfg(struct ipu_csi_bus_config *cfg, u32 mbus_code,
 	case MEDIA_BUS_FMT_BGR565_2X8_LE:
 	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 	case MEDIA_BUS_FMT_RGB565_2X8_LE:
-		if (mbus_type == V4L2_MBUS_CSI2)
+		if (mbus_type == V4L2_MBUS_CSI2_DPHY)
 			cfg->data_fmt = CSI_SENS_CONF_DATA_FMT_RGB565;
 		else
 			cfg->data_fmt = CSI_SENS_CONF_DATA_FMT_BAYER;
@@ -359,7 +359,7 @@ static int fill_csi_bus_cfg(struct ipu_csi_bus_config *csicfg,
 		else
 			csicfg->clk_mode = IPU_CSI_CLK_MODE_CCIR656_PROGRESSIVE;
 		break;
-	case V4L2_MBUS_CSI2:
+	case V4L2_MBUS_CSI2_DPHY:
 		/*
 		 * MIPI CSI-2 requires non gated clock mode, all other
 		 * parameters are not applicable for MIPI CSI-2 bus.
@@ -611,7 +611,7 @@ int ipu_csi_set_mipi_datatype(struct ipu_csi *csi, u32 vc,
 	if (vc > 3)
 		return -EINVAL;
 
-	ret = mbus_code_to_bus_cfg(&cfg, mbus_fmt->code, V4L2_MBUS_CSI2);
+	ret = mbus_code_to_bus_cfg(&cfg, mbus_fmt->code, V4L2_MBUS_CSI2_DPHY);
 	if (ret < 0)
 		return ret;
 

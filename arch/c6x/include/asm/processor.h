@@ -18,17 +18,6 @@
 #include <asm/current.h>
 
 /*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr()			\
-({						\
-	void *__pc;				\
-	asm("mvc .S2 pce1,%0\n" : "=b"(__pc));	\
-	__pc;					\
-})
-
-/*
  * User space process size. This is mostly meaningless for NOMMU
  * but some C6X processors may have RAM addresses up to 0xFFFFFFFF.
  * Since calls like mmap() can return an address or an error, we

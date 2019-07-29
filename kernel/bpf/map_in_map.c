@@ -24,7 +24,8 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 	 * in the verifier is not enough.
 	 */
 	if (inner_map->map_type == BPF_MAP_TYPE_PROG_ARRAY ||
-	    inner_map->map_type == BPF_MAP_TYPE_CGROUP_STORAGE) {
+	    inner_map->map_type == BPF_MAP_TYPE_CGROUP_STORAGE ||
+	    inner_map->map_type == BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE) {
 		fdput(f);
 		return ERR_PTR(-ENOTSUPP);
 	}

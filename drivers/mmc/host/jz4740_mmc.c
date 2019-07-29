@@ -115,7 +115,7 @@
 
 enum jz4740_mmc_version {
 	JZ_MMC_JZ4740,
-	JZ_MMC_JZ4750,
+	JZ_MMC_JZ4725B,
 	JZ_MMC_JZ4780,
 };
 
@@ -176,7 +176,7 @@ struct jz4740_mmc_host {
 static void jz4740_mmc_write_irq_mask(struct jz4740_mmc_host *host,
 				      uint32_t val)
 {
-	if (host->version >= JZ_MMC_JZ4750)
+	if (host->version >= JZ_MMC_JZ4725B)
 		return writel(val, host->base + JZ_REG_MMC_IMASK);
 	else
 		return writew(val, host->base + JZ_REG_MMC_IMASK);
@@ -1012,6 +1012,7 @@ static void jz4740_mmc_free_gpios(struct platform_device *pdev)
 
 static const struct of_device_id jz4740_mmc_of_match[] = {
 	{ .compatible = "ingenic,jz4740-mmc", .data = (void *) JZ_MMC_JZ4740 },
+	{ .compatible = "ingenic,jz4725b-mmc", .data = (void *)JZ_MMC_JZ4725B },
 	{ .compatible = "ingenic,jz4780-mmc", .data = (void *) JZ_MMC_JZ4780 },
 	{},
 };

@@ -279,9 +279,6 @@ static void wil_move_all_rx_buff_to_free_list(struct wil6210_priv *wil,
 		u16 buff_id;
 
 		*d = *_d;
-		pa = wil_rx_desc_get_addr_edma(&d->dma);
-		dmalen = le16_to_cpu(d->dma.length);
-		dma_unmap_single(dev, pa, dmalen, DMA_FROM_DEVICE);
 
 		/* Extract the SKB from the rx_buff management array */
 		buff_id = __le16_to_cpu(d->mac.buff_id);
@@ -291,10 +288,15 @@ static void wil_move_all_rx_buff_to_free_list(struct wil6210_priv *wil,
 		}
 		skb = wil->rx_buff_mgmt.buff_arr[buff_id].skb;
 		wil->rx_buff_mgmt.buff_arr[buff_id].skb = NULL;
-		if (unlikely(!skb))
+		if (unlikely(!skb)) {
 			wil_err(wil, "No Rx skb at buff_id %d\n", buff_id);
-		else
+		} else {
+			pa = wil_rx_desc_get_addr_edma(&d->dma);
+			dmalen = le16_to_cpu(d->dma.length);
+			dma_unmap_single(dev, pa, dmalen, DMA_FROM_DEVICE);
+
 			kfree_skb(skb);
+		}
 
 		/* Move the buffer from the active to the free list */
 		list_move(&wil->rx_buff_mgmt.buff_arr[buff_id].list,
@@ -745,6 +747,16 @@ static int wil_ring_init_tx_edma(struct wil6210_vif *vif, int ring_id,
 	return rc;
 }
 
+static int wil_tx_ring_modify_edma(struct wil6210_vif *vif, int ring_id,
+				   int cid, int tid)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+
+	wil_err(wil, "ring modify is not supported for EDMA\n");
+
+	return -EOPNOTSUPP;
+}
+
 /* This function is used only for RX SW reorder */
 static int wil_check_bar(struct wil6210_priv *wil, void *msg, int cid,
 			 struct sk_buff *skb, struct wil_net_stats *stats)
@@ -906,6 +918,9 @@ again:
 	wil->rx_buff_mgmt.buff_arr[buff_id].skb = NULL;
 	if (!skb) {
 		wil_err(wil, "No Rx skb at buff_id %d\n", buff_id);
+		/* Move the buffer from the active list to the free list */
+		list_move(&wil->rx_buff_mgmt.buff_arr[buff_id].list,
+			  &wil->rx_buff_mgmt.free);
 		goto again;
 	}
 
@@ -1595,6 +1610,7 @@ void wil_init_txrx_ops_edma(struct wil6210_priv *wil)
 	wil->txrx_ops.tx_desc_map = wil_tx_desc_map_edma;
 	wil->txrx_ops.tx_desc_unmap = wil_tx_desc_unmap_edma;
 	wil->txrx_ops.tx_ring_tso = __wil_tx_ring_tso_edma;
+	wil->txrx_ops.tx_ring_modify = wil_tx_ring_modify_edma;
 	/* RX ops */
 	wil->txrx_ops.rx_init = wil_rx_init_edma;
 	wil->txrx_ops.wmi_addba_rx_resp = wmi_addba_rx_resp_edma;

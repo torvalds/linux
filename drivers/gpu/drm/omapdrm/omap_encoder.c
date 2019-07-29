@@ -36,15 +36,9 @@
  */
 struct omap_encoder {
 	struct drm_encoder base;
-	struct omap_dss_device *dssdev;
+	struct omap_dss_device *output;
+	struct omap_dss_device *display;
 };
-
-struct omap_dss_device *omap_encoder_get_dssdev(struct drm_encoder *encoder)
-{
-	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-
-	return omap_encoder->dssdev;
-}
 
 static void omap_encoder_destroy(struct drm_encoder *encoder)
 {
@@ -58,16 +52,14 @@ static const struct drm_encoder_funcs omap_encoder_funcs = {
 	.destroy = omap_encoder_destroy,
 };
 
-static void omap_encoder_mode_set(struct drm_encoder *encoder,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
+static void omap_encoder_hdmi_mode_set(struct drm_encoder *encoder,
+				       struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->dssdev;
+	struct omap_dss_device *dssdev = omap_encoder->output;
 	struct drm_connector *connector;
 	bool hdmi_mode;
-	int r;
 
 	hdmi_mode = false;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -77,73 +69,95 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 		}
 	}
 
-	if (dssdev->driver->set_hdmi_mode)
-		dssdev->driver->set_hdmi_mode(dssdev, hdmi_mode);
+	if (dssdev->ops->hdmi.set_hdmi_mode)
+		dssdev->ops->hdmi.set_hdmi_mode(dssdev, hdmi_mode);
 
-	if (hdmi_mode && dssdev->driver->set_hdmi_infoframe) {
+	if (hdmi_mode && dssdev->ops->hdmi.set_infoframe) {
 		struct hdmi_avi_infoframe avi;
+		int r;
 
 		r = drm_hdmi_avi_infoframe_from_display_mode(&avi, adjusted_mode,
 							     false);
 		if (r == 0)
-			dssdev->driver->set_hdmi_infoframe(dssdev, &avi);
+			dssdev->ops->hdmi.set_infoframe(dssdev, &avi);
 	}
+}
+
+static void omap_encoder_mode_set(struct drm_encoder *encoder,
+				  struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode)
+{
+	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+	struct omap_dss_device *dssdev;
+	struct videomode vm = { 0 };
+
+	drm_display_mode_to_videomode(adjusted_mode, &vm);
+
+	/*
+	 * HACK: This fixes the vm flags.
+	 * struct drm_display_mode does not contain the VSYNC/HSYNC/DE flags and
+	 * they get lost when converting back and forth between struct
+	 * drm_display_mode and struct videomode. The hack below goes and
+	 * fetches the missing flags.
+	 *
+	 * A better solution is to use DRM's bus-flags through the whole driver.
+	 */
+	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
+		unsigned long bus_flags = dssdev->bus_flags;
+
+		if (!(vm.flags & (DISPLAY_FLAGS_DE_LOW |
+				  DISPLAY_FLAGS_DE_HIGH))) {
+			if (bus_flags & DRM_BUS_FLAG_DE_LOW)
+				vm.flags |= DISPLAY_FLAGS_DE_LOW;
+			else if (bus_flags & DRM_BUS_FLAG_DE_HIGH)
+				vm.flags |= DISPLAY_FLAGS_DE_HIGH;
+		}
+
+		if (!(vm.flags & (DISPLAY_FLAGS_PIXDATA_POSEDGE |
+				  DISPLAY_FLAGS_PIXDATA_NEGEDGE))) {
+			if (bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
+				vm.flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+			else if (bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+				vm.flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+		}
+
+		if (!(vm.flags & (DISPLAY_FLAGS_SYNC_POSEDGE |
+				  DISPLAY_FLAGS_SYNC_NEGEDGE))) {
+			if (bus_flags & DRM_BUS_FLAG_SYNC_POSEDGE)
+				vm.flags |= DISPLAY_FLAGS_SYNC_POSEDGE;
+			else if (bus_flags & DRM_BUS_FLAG_SYNC_NEGEDGE)
+				vm.flags |= DISPLAY_FLAGS_SYNC_NEGEDGE;
+		}
+	}
+
+	/* Set timings for all devices in the display pipeline. */
+	dss_mgr_set_timings(omap_encoder->output, &vm);
+
+	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
+		if (dssdev->ops->set_timings)
+			dssdev->ops->set_timings(dssdev, &vm);
+	}
+
+	/* Set the HDMI mode and HDMI infoframe if applicable. */
+	if (omap_encoder->output->output_type == OMAP_DISPLAY_TYPE_HDMI)
+		omap_encoder_hdmi_mode_set(encoder, adjusted_mode);
 }
 
 static void omap_encoder_disable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
+	struct omap_dss_device *dssdev = omap_encoder->display;
 
-	dssdrv->disable(dssdev);
-}
-
-static int omap_encoder_update(struct drm_encoder *encoder,
-			       enum omap_channel channel,
-			       struct videomode *vm)
-{
-	struct drm_device *dev = encoder->dev;
-	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
-	int ret;
-
-	if (dssdrv->check_timings) {
-		ret = dssdrv->check_timings(dssdev, vm);
-	} else {
-		struct videomode t = {0};
-
-		dssdrv->get_timings(dssdev, &t);
-
-		if (memcmp(vm, &t, sizeof(*vm)))
-			ret = -EINVAL;
-		else
-			ret = 0;
-	}
-
-	if (ret) {
-		dev_err(dev->dev, "could not set timings: %d\n", ret);
-		return ret;
-	}
-
-	if (dssdrv->set_timings)
-		dssdrv->set_timings(dssdev, vm);
-
-	return 0;
+	dssdev->ops->disable(dssdev);
 }
 
 static void omap_encoder_enable(struct drm_encoder *encoder)
 {
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct omap_dss_device *dssdev = omap_encoder->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
+	struct omap_dss_device *dssdev = omap_encoder->display;
 	int r;
 
-	omap_encoder_update(encoder, omap_crtc_channel(encoder->crtc),
-			    omap_crtc_timings(encoder->crtc));
-
-	r = dssdrv->enable(dssdev);
+	r = dssdev->ops->enable(dssdev);
 	if (r)
 		dev_err(encoder->dev->dev,
 			"Failed to enable display '%s': %d\n",
@@ -154,7 +168,36 @@ static int omap_encoder_atomic_check(struct drm_encoder *encoder,
 				     struct drm_crtc_state *crtc_state,
 				     struct drm_connector_state *conn_state)
 {
-	return 0;
+	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+	enum omap_channel channel = omap_encoder->output->dispc_channel;
+	struct drm_device *dev = encoder->dev;
+	struct omap_drm_private *priv = dev->dev_private;
+	struct omap_dss_device *dssdev;
+	struct videomode vm = { 0 };
+	int ret;
+
+	drm_display_mode_to_videomode(&crtc_state->mode, &vm);
+
+	ret = priv->dispc_ops->mgr_check_timings(priv->dispc, channel, &vm);
+	if (ret)
+		goto done;
+
+	for (dssdev = omap_encoder->output; dssdev; dssdev = dssdev->next) {
+		if (!dssdev->ops->check_timings)
+			continue;
+
+		ret = dssdev->ops->check_timings(dssdev, &vm);
+		if (ret)
+			goto done;
+	}
+
+	drm_display_mode_from_videomode(&vm, &crtc_state->adjusted_mode);
+
+done:
+	if (ret)
+		dev_err(dev->dev, "invalid timings: %d\n", ret);
+
+	return ret;
 }
 
 static const struct drm_encoder_helper_funcs omap_encoder_helper_funcs = {
@@ -166,7 +209,8 @@ static const struct drm_encoder_helper_funcs omap_encoder_helper_funcs = {
 
 /* initialize encoder */
 struct drm_encoder *omap_encoder_init(struct drm_device *dev,
-		struct omap_dss_device *dssdev)
+				      struct omap_dss_device *output,
+				      struct omap_dss_device *display)
 {
 	struct drm_encoder *encoder = NULL;
 	struct omap_encoder *omap_encoder;
@@ -175,7 +219,8 @@ struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 	if (!omap_encoder)
 		goto fail;
 
-	omap_encoder->dssdev = dssdev;
+	omap_encoder->output = output;
+	omap_encoder->display = display;
 
 	encoder = &omap_encoder->base;
 

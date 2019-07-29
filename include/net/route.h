@@ -201,10 +201,9 @@ static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 }
 
 void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu, int oif,
-		      u32 mark, u8 protocol, int flow_flags);
+		      u8 protocol);
 void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu);
-void ipv4_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
-		   u8 protocol, int flow_flags);
+void ipv4_redirect(struct sk_buff *skb, struct net *net, int oif, u8 protocol);
 void ipv4_sk_redirect(struct sk_buff *skb, struct sock *sk);
 void ip_rt_send_redirect(struct sk_buff *skb);
 

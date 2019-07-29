@@ -1148,18 +1148,21 @@ static ssize_t parent_show(struct device *device,
 
 static DEVICE_ATTR_RO(parent);
 
-static struct device_attribute *rxe_dev_attributes[] = {
-	&dev_attr_parent,
+static struct attribute *rxe_dev_attributes[] = {
+	&dev_attr_parent.attr,
+	NULL
+};
+
+static const struct attribute_group rxe_attr_group = {
+	.attrs = rxe_dev_attributes,
 };
 
 int rxe_register_device(struct rxe_dev *rxe)
 {
 	int err;
-	int i;
 	struct ib_device *dev = &rxe->ib_dev;
 	struct crypto_shash *tfm;
 
-	strlcpy(dev->name, "rxe%d", IB_DEVICE_NAME_MAX);
 	strlcpy(dev->node_desc, "rxe", sizeof(dev->node_desc));
 
 	dev->owner = THIS_MODULE;
@@ -1260,26 +1263,16 @@ int rxe_register_device(struct rxe_dev *rxe)
 	}
 	rxe->tfm = tfm;
 
+	rdma_set_device_sysfs_group(dev, &rxe_attr_group);
 	dev->driver_id = RDMA_DRIVER_RXE;
-	err = ib_register_device(dev, NULL);
+	err = ib_register_device(dev, "rxe%d", NULL);
 	if (err) {
 		pr_warn("%s failed with error %d\n", __func__, err);
 		goto err1;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(rxe_dev_attributes); ++i) {
-		err = device_create_file(&dev->dev, rxe_dev_attributes[i]);
-		if (err) {
-			pr_warn("%s failed with error %d for attr number %d\n",
-				__func__, err, i);
-			goto err2;
-		}
-	}
-
 	return 0;
 
-err2:
-	ib_unregister_device(dev);
 err1:
 	crypto_free_shash(rxe->tfm);
 
@@ -1288,11 +1281,7 @@ err1:
 
 int rxe_unregister_device(struct rxe_dev *rxe)
 {
-	int i;
 	struct ib_device *dev = &rxe->ib_dev;
-
-	for (i = 0; i < ARRAY_SIZE(rxe_dev_attributes); ++i)
-		device_remove_file(&dev->dev, rxe_dev_attributes[i]);
 
 	ib_unregister_device(dev);
 

@@ -619,8 +619,8 @@ static int airspy_querycap(struct file *file, void *fh,
 {
 	struct airspy *s = video_drvdata(file);
 
-	strlcpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
-	strlcpy(cap->card, s->vdev.name, sizeof(cap->card));
+	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
+	strscpy(cap->card, s->vdev.name, sizeof(cap->card));
 	usb_make_path(s->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_SDR_CAPTURE | V4L2_CAP_STREAMING |
 			V4L2_CAP_READWRITE | V4L2_CAP_TUNER;
@@ -635,7 +635,7 @@ static int airspy_enum_fmt_sdr_cap(struct file *file, void *priv,
 	if (f->index >= NUM_FORMATS)
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name, sizeof(f->description));
+	strscpy(f->description, formats[f->index].name, sizeof(f->description));
 	f->pixelformat = formats[f->index].pixelformat;
 
 	return 0;
@@ -720,14 +720,14 @@ static int airspy_g_tuner(struct file *file, void *priv, struct v4l2_tuner *v)
 	int ret;
 
 	if (v->index == 0) {
-		strlcpy(v->name, "AirSpy ADC", sizeof(v->name));
+		strscpy(v->name, "AirSpy ADC", sizeof(v->name));
 		v->type = V4L2_TUNER_ADC;
 		v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 		v->rangelow  = bands[0].rangelow;
 		v->rangehigh = bands[0].rangehigh;
 		ret = 0;
 	} else if (v->index == 1) {
-		strlcpy(v->name, "AirSpy RF", sizeof(v->name));
+		strscpy(v->name, "AirSpy RF", sizeof(v->name));
 		v->type = V4L2_TUNER_RF;
 		v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 		v->rangelow  = bands_rf[0].rangelow;

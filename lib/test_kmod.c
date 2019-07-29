@@ -1214,7 +1214,6 @@ void unregister_test_dev_kmod(struct kmod_test_device *test_dev)
 
 	dev_info(test_dev->dev, "removing interface\n");
 	misc_deregister(&test_dev->misc_dev);
-	kfree(&test_dev->misc_dev.name);
 
 	mutex_unlock(&test_dev->config_mutex);
 	mutex_unlock(&test_dev->trigger_mutex);

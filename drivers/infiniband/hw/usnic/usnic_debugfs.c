@@ -165,6 +165,5 @@ void usnic_debugfs_flow_add(struct usnic_ib_qp_grp_flow *qp_flow)
 
 void usnic_debugfs_flow_remove(struct usnic_ib_qp_grp_flow *qp_flow)
 {
-	if (!IS_ERR_OR_NULL(qp_flow->dbgfs_dentry))
-		debugfs_remove(qp_flow->dbgfs_dentry);
+	debugfs_remove(qp_flow->dbgfs_dentry);
 }

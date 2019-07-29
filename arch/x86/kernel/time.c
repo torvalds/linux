@@ -10,6 +10,7 @@
  *
  */
 
+#include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -104,4 +105,25 @@ static __init void x86_late_time_init(void)
 void __init time_init(void)
 {
 	late_time_init = x86_late_time_init;
+}
+
+/*
+ * Sanity check the vdso related archdata content.
+ */
+void clocksource_arch_init(struct clocksource *cs)
+{
+	if (cs->archdata.vclock_mode == VCLOCK_NONE)
+		return;
+
+	if (cs->archdata.vclock_mode > VCLOCK_MAX) {
+		pr_warn("clocksource %s registered with invalid vclock_mode %d. Disabling vclock.\n",
+			cs->name, cs->archdata.vclock_mode);
+		cs->archdata.vclock_mode = VCLOCK_NONE;
+	}
+
+	if (cs->mask != CLOCKSOURCE_MASK(64)) {
+		pr_warn("clocksource %s registered with invalid mask %016llx. Disabling vclock.\n",
+			cs->name, cs->mask);
+		cs->archdata.vclock_mode = VCLOCK_NONE;
+	}
 }

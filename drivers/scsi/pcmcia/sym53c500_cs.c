@@ -880,18 +880,4 @@ static struct pcmcia_driver sym53c500_cs_driver = {
 	.id_table       = sym53c500_ids,
 	.resume		= sym53c500_resume,
 };
-
-static int __init
-init_sym53c500_cs(void)
-{
-	return pcmcia_register_driver(&sym53c500_cs_driver);
-}
-
-static void __exit
-exit_sym53c500_cs(void)
-{
-	pcmcia_unregister_driver(&sym53c500_cs_driver);
-}
-
-module_init(init_sym53c500_cs);
-module_exit(exit_sym53c500_cs);
+module_pcmcia_driver(sym53c500_cs_driver);

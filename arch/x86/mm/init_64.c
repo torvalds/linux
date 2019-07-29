@@ -20,7 +20,6 @@
 #include <linux/init.h>
 #include <linux/initrd.h>
 #include <linux/pagemap.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/proc_fs.h>
 #include <linux/pci.h>
@@ -197,7 +196,7 @@ static __ref void *spp_getpage(void)
 	if (after_bootmem)
 		ptr = (void *) get_zeroed_page(GFP_ATOMIC);
 	else
-		ptr = alloc_bootmem_pages(PAGE_SIZE);
+		ptr = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 
 	if (!ptr || ((unsigned long)ptr & ~PAGE_MASK)) {
 		panic("set_pte_phys: cannot allocate page data %s\n",
@@ -1188,14 +1187,14 @@ void __init mem_init(void)
 	/* clear_bss() already clear the empty_zero_page */
 
 	/* this will put all memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 	after_bootmem = 1;
 	x86_init.hyper.init_after_bootmem();
 
 	/*
 	 * Must be done after boot memory is put on freelist, because here we
 	 * might set fields in deferred struct pages that have not yet been
-	 * initialized, and free_all_bootmem() initializes all the reserved
+	 * initialized, and memblock_free_all() initializes all the reserved
 	 * deferred pages for us.
 	 */
 	register_page_bootmem_info();

@@ -103,7 +103,6 @@ setup_fail:
 
 static const struct drm_mode_config_funcs hdlcd_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -233,7 +232,6 @@ static struct drm_driver hdlcd_driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM |
 			   DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
-	.lastclose = drm_fb_helper_lastclose,
 	.irq_handler = hdlcd_irq,
 	.irq_preinstall = hdlcd_irq_preinstall,
 	.irq_postinstall = hdlcd_irq_postinstall,
@@ -308,19 +306,15 @@ static int hdlcd_drm_bind(struct device *dev)
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);
 
-	ret = drm_fb_cma_fbdev_init(drm, 32, 0);
-	if (ret)
-		goto err_fbdev;
-
 	ret = drm_dev_register(drm, 0);
 	if (ret)
 		goto err_register;
 
+	drm_fbdev_generic_setup(drm, 32);
+
 	return 0;
 
 err_register:
-	drm_fb_cma_fbdev_fini(drm);
-err_fbdev:
 	drm_kms_helper_poll_fini(drm);
 err_vblank:
 	pm_runtime_disable(drm->dev);
@@ -346,7 +340,6 @@ static void hdlcd_drm_unbind(struct device *dev)
 	struct hdlcd_drm_private *hdlcd = drm->dev_private;
 
 	drm_dev_unregister(drm);
-	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 	component_unbind_all(dev, drm);
 	of_node_put(hdlcd->crtc.port);

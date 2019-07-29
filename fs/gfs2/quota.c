@@ -1183,7 +1183,7 @@ static int print_message(struct gfs2_quota_data *qd, char *type)
  *
  * Returns: 0 on success.
  *                  min_req = ap->min_target ? ap->min_target : ap->target;
- *                  quota must allow atleast min_req blks for success and
+ *                  quota must allow at least min_req blks for success and
  *                  ap->allowed is set to the number of blocks allowed
  *
  *          -EDQUOT otherwise, quota violation. ap->allowed is set to number

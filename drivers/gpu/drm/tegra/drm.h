@@ -60,8 +60,6 @@ struct tegra_drm {
 	unsigned int pitch_align;
 
 	struct tegra_display_hub *hub;
-
-	struct drm_atomic_state *state;
 };
 
 struct tegra_drm_client;
@@ -186,8 +184,6 @@ int tegra_drm_fb_prepare(struct drm_device *drm);
 void tegra_drm_fb_free(struct drm_device *drm);
 int tegra_drm_fb_init(struct drm_device *drm);
 void tegra_drm_fb_exit(struct drm_device *drm);
-void tegra_drm_fb_suspend(struct drm_device *drm);
-void tegra_drm_fb_resume(struct drm_device *drm);
 
 extern struct platform_driver tegra_display_hub_driver;
 extern struct platform_driver tegra_dc_driver;

@@ -50,7 +50,7 @@ struct crypto_rfc4543_instance_ctx {
 
 struct crypto_rfc4543_ctx {
 	struct crypto_aead *child;
-	struct crypto_skcipher *null;
+	struct crypto_sync_skcipher *null;
 	u8 nonce[4];
 };
 
@@ -1067,9 +1067,9 @@ static int crypto_rfc4543_copy_src_to_dst(struct aead_request *req, bool enc)
 	unsigned int authsize = crypto_aead_authsize(aead);
 	unsigned int nbytes = req->assoclen + req->cryptlen -
 			      (enc ? 0 : authsize);
-	SKCIPHER_REQUEST_ON_STACK(nreq, ctx->null);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(nreq, ctx->null);
 
-	skcipher_request_set_tfm(nreq, ctx->null);
+	skcipher_request_set_sync_tfm(nreq, ctx->null);
 	skcipher_request_set_callback(nreq, req->base.flags, NULL, NULL);
 	skcipher_request_set_crypt(nreq, req->src, req->dst, nbytes, NULL);
 
@@ -1093,7 +1093,7 @@ static int crypto_rfc4543_init_tfm(struct crypto_aead *tfm)
 	struct crypto_aead_spawn *spawn = &ictx->aead;
 	struct crypto_rfc4543_ctx *ctx = crypto_aead_ctx(tfm);
 	struct crypto_aead *aead;
-	struct crypto_skcipher *null;
+	struct crypto_sync_skcipher *null;
 	unsigned long align;
 	int err = 0;
 

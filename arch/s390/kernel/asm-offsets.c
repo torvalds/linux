@@ -159,7 +159,7 @@ int main(void)
 	OFFSET(__LC_CURRENT, lowcore, current_task);
 	OFFSET(__LC_KERNEL_STACK, lowcore, kernel_stack);
 	OFFSET(__LC_ASYNC_STACK, lowcore, async_stack);
-	OFFSET(__LC_PANIC_STACK, lowcore, panic_stack);
+	OFFSET(__LC_NODAT_STACK, lowcore, nodat_stack);
 	OFFSET(__LC_RESTART_STACK, lowcore, restart_stack);
 	OFFSET(__LC_RESTART_FN, lowcore, restart_fn);
 	OFFSET(__LC_RESTART_DATA, lowcore, restart_data);

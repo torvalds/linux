@@ -297,29 +297,29 @@ static void rs_unthrottle(struct tty_struct * tty)
 	printk(KERN_INFO "simrs_unthrottle called\n");
 }
 
+static int rs_setserial(struct tty_struct *tty, struct serial_struct *ss)
+{
+	return 0;
+}
+
+static int rs_getserial(struct tty_struct *tty, struct serial_struct *ss)
+{
+	return 0;
+}
+
 static int rs_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 {
-	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
-	    (cmd != TIOCSERCONFIG) && (cmd != TIOCSERGSTRUCT) &&
-	    (cmd != TIOCMIWAIT)) {
+	if ((cmd != TIOCSERCONFIG) && (cmd != TIOCMIWAIT)) {
 		if (tty_io_error(tty))
 		    return -EIO;
 	}
 
 	switch (cmd) {
-	case TIOCGSERIAL:
-	case TIOCSSERIAL:
-	case TIOCSERGSTRUCT:
 	case TIOCMIWAIT:
 		return 0;
 	case TIOCSERCONFIG:
 	case TIOCSERGETLSR: /* Get line status register */
 		return -EINVAL;
-	case TIOCSERGWILD:
-	case TIOCSERSWILD:
-		/* "setserial -W" is called in Debian boot */
-		printk (KERN_INFO "TIOCSER?WILD ioctl obsolete, ignored.\n");
-		return 0;
 	}
 	return -ENOIOCTLCMD;
 }
@@ -448,6 +448,8 @@ static const struct tty_operations hp_ops = {
 	.throttle = rs_throttle,
 	.unthrottle = rs_unthrottle,
 	.send_xchar = rs_send_xchar,
+	.set_serial = rs_setserial,
+	.get_serial = rs_getserial,
 	.hangup = rs_hangup,
 	.proc_show = rs_proc_show,
 };

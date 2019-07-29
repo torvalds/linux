@@ -1625,11 +1625,11 @@ void dispclkdppclkdcfclk_deep_sleep_prefetch_parameters_watermarks_and_performan
 				else {
 					v->dsty_after_scaler = 0.0;
 				}
-				v->v_update_offset_pix =dcn_bw_ceil2(v->htotal[k] / 4.0, 1.0);
+				v->v_update_offset_pix[k] = dcn_bw_ceil2(v->htotal[k] / 4.0, 1.0);
 				v->total_repeater_delay_time = v->max_inter_dcn_tile_repeaters * (2.0 / v->dppclk + 3.0 / v->dispclk);
-				v->v_update_width_pix = (14.0 / v->dcf_clk_deep_sleep + 12.0 / v->dppclk + v->total_repeater_delay_time) * v->pixel_clock[k];
-				v->v_ready_offset_pix =dcn_bw_max2(150.0 / v->dppclk, v->total_repeater_delay_time + 20.0 / v->dcf_clk_deep_sleep + 10.0 / v->dppclk) * v->pixel_clock[k];
-				v->t_setup = (v->v_update_offset_pix + v->v_update_width_pix + v->v_ready_offset_pix) / v->pixel_clock[k];
+				v->v_update_width_pix[k] = (14.0 / v->dcf_clk_deep_sleep + 12.0 / v->dppclk + v->total_repeater_delay_time) * v->pixel_clock[k];
+				v->v_ready_offset_pix[k] = dcn_bw_max2(150.0 / v->dppclk, v->total_repeater_delay_time + 20.0 / v->dcf_clk_deep_sleep + 10.0 / v->dppclk) * v->pixel_clock[k];
+				v->t_setup = (v->v_update_offset_pix[k] + v->v_update_width_pix[k] + v->v_ready_offset_pix[k]) / v->pixel_clock[k];
 				v->v_startup[k] =dcn_bw_min2(v->v_startup_lines, v->max_vstartup_lines[k]);
 				if (v->prefetch_mode == 0.0) {
 					v->t_wait =dcn_bw_max3(v->dram_clock_change_latency + v->urgent_latency, v->sr_enter_plus_exit_time, v->urgent_latency);

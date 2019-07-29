@@ -254,16 +254,13 @@ static void iwl_mvm_te_check_trigger(struct iwl_mvm *mvm,
 	struct iwl_fw_dbg_trigger_time_event *te_trig;
 	int i;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TIME_EVENT))
+	trig = iwl_fw_dbg_trigger_on(&mvm->fwrt,
+				     ieee80211_vif_to_wdev(te_data->vif),
+				     FW_DBG_TRIGGER_TIME_EVENT);
+	if (!trig)
 		return;
 
-	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TIME_EVENT);
 	te_trig = (void *)trig->data;
-
-	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
-					   ieee80211_vif_to_wdev(te_data->vif),
-					   trig))
-		return;
 
 	for (i = 0; i < ARRAY_SIZE(te_trig->time_events); i++) {
 		u32 trig_te_id = le32_to_cpu(te_trig->time_events[i].id);

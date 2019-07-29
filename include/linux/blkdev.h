@@ -108,7 +108,7 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_QUIET		((__force req_flags_t)(1 << 11))
 /* elevator private data attached */
 #define RQF_ELVPRIV		((__force req_flags_t)(1 << 12))
-/* account I/O stat */
+/* account into disk and partition IO statistics */
 #define RQF_IO_STAT		((__force req_flags_t)(1 << 13))
 /* request came from our alloc pool */
 #define RQF_ALLOCED		((__force req_flags_t)(1 << 14))
@@ -116,7 +116,7 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_PM			((__force req_flags_t)(1 << 15))
 /* on IO scheduler merge hash */
 #define RQF_HASHED		((__force req_flags_t)(1 << 16))
-/* IO stats tracking on */
+/* track IO completion time */
 #define RQF_STATS		((__force req_flags_t)(1 << 17))
 /* Look at ->special_vec for the actual data payload instead of the
    bio chain. */
@@ -396,16 +396,13 @@ struct queue_limits {
 
 #ifdef CONFIG_BLK_DEV_ZONED
 
-struct blk_zone_report_hdr {
-	unsigned int	nr_zones;
-	u8		padding[60];
-};
-
+extern unsigned int blkdev_nr_zones(struct block_device *bdev);
 extern int blkdev_report_zones(struct block_device *bdev,
 			       sector_t sector, struct blk_zone *zones,
 			       unsigned int *nr_zones, gfp_t gfp_mask);
 extern int blkdev_reset_zones(struct block_device *bdev, sector_t sectors,
 			      sector_t nr_sectors, gfp_t gfp_mask);
+extern int blk_revalidate_disk_zones(struct gendisk *disk);
 
 extern int blkdev_report_zones_ioctl(struct block_device *bdev, fmode_t mode,
 				     unsigned int cmd, unsigned long arg);
@@ -413,6 +410,16 @@ extern int blkdev_reset_zones_ioctl(struct block_device *bdev, fmode_t mode,
 				    unsigned int cmd, unsigned long arg);
 
 #else /* CONFIG_BLK_DEV_ZONED */
+
+static inline unsigned int blkdev_nr_zones(struct block_device *bdev)
+{
+	return 0;
+}
+
+static inline int blk_revalidate_disk_zones(struct gendisk *disk)
+{
+	return 0;
+}
 
 static inline int blkdev_report_zones_ioctl(struct block_device *bdev,
 					    fmode_t mode, unsigned int cmd,
@@ -504,6 +511,12 @@ struct request_queue {
 	 * various queue flags, see QUEUE_* below
 	 */
 	unsigned long		queue_flags;
+	/*
+	 * Number of contexts that have called blk_set_pm_only(). If this
+	 * counter is above zero then only RQF_PM and RQF_PREEMPT requests are
+	 * processed.
+	 */
+	atomic_t		pm_only;
 
 	/*
 	 * ida allocated id for this queue.  Used to index queues from
@@ -679,7 +692,7 @@ struct request_queue {
 #define QUEUE_FLAG_FAIL_IO	7	/* fake timeout */
 #define QUEUE_FLAG_NONROT	9	/* non-rotational device (SSD) */
 #define QUEUE_FLAG_VIRT        QUEUE_FLAG_NONROT /* paravirt device */
-#define QUEUE_FLAG_IO_STAT     10	/* do IO stats */
+#define QUEUE_FLAG_IO_STAT     10	/* do disk/partitions IO accounting */
 #define QUEUE_FLAG_DISCARD     11	/* supports DISCARD */
 #define QUEUE_FLAG_NOXMERGES   12	/* No extended merges */
 #define QUEUE_FLAG_ADD_RANDOM  13	/* Contributes to random pool */
@@ -693,12 +706,12 @@ struct request_queue {
 #define QUEUE_FLAG_FUA	       21	/* device supports FUA writes */
 #define QUEUE_FLAG_FLUSH_NQ    22	/* flush not queueuable */
 #define QUEUE_FLAG_DAX         23	/* device supports DAX */
-#define QUEUE_FLAG_STATS       24	/* track rq completion times */
+#define QUEUE_FLAG_STATS       24	/* track IO start and completion times */
 #define QUEUE_FLAG_POLL_STATS  25	/* collecting stats for hybrid polling */
 #define QUEUE_FLAG_REGISTERED  26	/* queue has been registered to a disk */
 #define QUEUE_FLAG_SCSI_PASSTHROUGH 27	/* queue supports SCSI commands */
 #define QUEUE_FLAG_QUIESCED    28	/* queue has been quiesced */
-#define QUEUE_FLAG_PREEMPT_ONLY	29	/* only process REQ_PREEMPT requests */
+#define QUEUE_FLAG_PCI_P2PDMA  29	/* device supports PCI p2p requests */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_SAME_COMP)	|	\
@@ -731,17 +744,18 @@ bool blk_queue_flag_test_and_clear(unsigned int flag, struct request_queue *q);
 #define blk_queue_dax(q)	test_bit(QUEUE_FLAG_DAX, &(q)->queue_flags)
 #define blk_queue_scsi_passthrough(q)	\
 	test_bit(QUEUE_FLAG_SCSI_PASSTHROUGH, &(q)->queue_flags)
+#define blk_queue_pci_p2pdma(q)	\
+	test_bit(QUEUE_FLAG_PCI_P2PDMA, &(q)->queue_flags)
 
 #define blk_noretry_request(rq) \
 	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
 			     REQ_FAILFAST_DRIVER))
 #define blk_queue_quiesced(q)	test_bit(QUEUE_FLAG_QUIESCED, &(q)->queue_flags)
-#define blk_queue_preempt_only(q)				\
-	test_bit(QUEUE_FLAG_PREEMPT_ONLY, &(q)->queue_flags)
+#define blk_queue_pm_only(q)	atomic_read(&(q)->pm_only)
 #define blk_queue_fua(q)	test_bit(QUEUE_FLAG_FUA, &(q)->queue_flags)
 
-extern int blk_set_preempt_only(struct request_queue *q);
-extern void blk_clear_preempt_only(struct request_queue *q);
+extern void blk_set_pm_only(struct request_queue *q);
+extern void blk_clear_pm_only(struct request_queue *q);
 
 static inline int queue_in_flight(struct request_queue *q)
 {
@@ -799,6 +813,11 @@ static inline unsigned int blk_queue_zone_sectors(struct request_queue *q)
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
+static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
+{
+	return blk_queue_is_zoned(q) ? q->nr_zones : 0;
+}
+
 static inline unsigned int blk_queue_zone_no(struct request_queue *q,
 					     sector_t sector)
 {
@@ -813,6 +832,11 @@ static inline bool blk_queue_zone_is_seq(struct request_queue *q,
 	if (!blk_queue_is_zoned(q) || !q->seq_zones_bitmap)
 		return false;
 	return test_bit(blk_queue_zone_no(q, sector), q->seq_zones_bitmap);
+}
+#else /* CONFIG_BLK_DEV_ZONED */
+static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
+{
+	return 0;
 }
 #endif /* CONFIG_BLK_DEV_ZONED */
 
@@ -1281,29 +1305,6 @@ extern void blk_put_queue(struct request_queue *);
 extern void blk_set_queue_dying(struct request_queue *);
 
 /*
- * block layer runtime pm functions
- */
-#ifdef CONFIG_PM
-extern void blk_pm_runtime_init(struct request_queue *q, struct device *dev);
-extern int blk_pre_runtime_suspend(struct request_queue *q);
-extern void blk_post_runtime_suspend(struct request_queue *q, int err);
-extern void blk_pre_runtime_resume(struct request_queue *q);
-extern void blk_post_runtime_resume(struct request_queue *q, int err);
-extern void blk_set_runtime_active(struct request_queue *q);
-#else
-static inline void blk_pm_runtime_init(struct request_queue *q,
-	struct device *dev) {}
-static inline int blk_pre_runtime_suspend(struct request_queue *q)
-{
-	return -ENOSYS;
-}
-static inline void blk_post_runtime_suspend(struct request_queue *q, int err) {}
-static inline void blk_pre_runtime_resume(struct request_queue *q) {}
-static inline void blk_post_runtime_resume(struct request_queue *q, int err) {}
-static inline void blk_set_runtime_active(struct request_queue *q) {}
-#endif
-
-/*
  * blk_plug permits building a queue of related requests by holding the I/O
  * fragments for a short period. This allows merging of sequential requests
  * into single larger request. As the requests are moved from a per-task list to
@@ -1676,94 +1677,6 @@ static inline void put_dev_sector(Sector p)
 	put_page(p.v);
 }
 
-static inline bool __bvec_gap_to_prev(struct request_queue *q,
-				struct bio_vec *bprv, unsigned int offset)
-{
-	return offset ||
-		((bprv->bv_offset + bprv->bv_len) & queue_virt_boundary(q));
-}
-
-/*
- * Check if adding a bio_vec after bprv with offset would create a gap in
- * the SG list. Most drivers don't care about this, but some do.
- */
-static inline bool bvec_gap_to_prev(struct request_queue *q,
-				struct bio_vec *bprv, unsigned int offset)
-{
-	if (!queue_virt_boundary(q))
-		return false;
-	return __bvec_gap_to_prev(q, bprv, offset);
-}
-
-/*
- * Check if the two bvecs from two bios can be merged to one segment.
- * If yes, no need to check gap between the two bios since the 1st bio
- * and the 1st bvec in the 2nd bio can be handled in one segment.
- */
-static inline bool bios_segs_mergeable(struct request_queue *q,
-		struct bio *prev, struct bio_vec *prev_last_bv,
-		struct bio_vec *next_first_bv)
-{
-	if (!BIOVEC_PHYS_MERGEABLE(prev_last_bv, next_first_bv))
-		return false;
-	if (!BIOVEC_SEG_BOUNDARY(q, prev_last_bv, next_first_bv))
-		return false;
-	if (prev->bi_seg_back_size + next_first_bv->bv_len >
-			queue_max_segment_size(q))
-		return false;
-	return true;
-}
-
-static inline bool bio_will_gap(struct request_queue *q,
-				struct request *prev_rq,
-				struct bio *prev,
-				struct bio *next)
-{
-	if (bio_has_data(prev) && queue_virt_boundary(q)) {
-		struct bio_vec pb, nb;
-
-		/*
-		 * don't merge if the 1st bio starts with non-zero
-		 * offset, otherwise it is quite difficult to respect
-		 * sg gap limit. We work hard to merge a huge number of small
-		 * single bios in case of mkfs.
-		 */
-		if (prev_rq)
-			bio_get_first_bvec(prev_rq->bio, &pb);
-		else
-			bio_get_first_bvec(prev, &pb);
-		if (pb.bv_offset)
-			return true;
-
-		/*
-		 * We don't need to worry about the situation that the
-		 * merged segment ends in unaligned virt boundary:
-		 *
-		 * - if 'pb' ends aligned, the merged segment ends aligned
-		 * - if 'pb' ends unaligned, the next bio must include
-		 *   one single bvec of 'nb', otherwise the 'nb' can't
-		 *   merge with 'pb'
-		 */
-		bio_get_last_bvec(prev, &pb);
-		bio_get_first_bvec(next, &nb);
-
-		if (!bios_segs_mergeable(q, prev, &pb, &nb))
-			return __bvec_gap_to_prev(q, &pb, nb.bv_offset);
-	}
-
-	return false;
-}
-
-static inline bool req_gap_back_merge(struct request *req, struct bio *bio)
-{
-	return bio_will_gap(req->q, req, req->biotail, bio);
-}
-
-static inline bool req_gap_front_merge(struct request *req, struct bio *bio)
-{
-	return bio_will_gap(req->q, NULL, bio, req->bio);
-}
-
 int kblockd_schedule_work(struct work_struct *work);
 int kblockd_schedule_work_on(int cpu, struct work_struct *work);
 int kblockd_mod_delayed_work_on(int cpu, struct delayed_work *dwork, unsigned long delay);
@@ -1841,26 +1754,6 @@ static inline unsigned short
 queue_max_integrity_segments(struct request_queue *q)
 {
 	return q->limits.max_integrity_segments;
-}
-
-static inline bool integrity_req_gap_back_merge(struct request *req,
-						struct bio *next)
-{
-	struct bio_integrity_payload *bip = bio_integrity(req->bio);
-	struct bio_integrity_payload *bip_next = bio_integrity(next);
-
-	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
-				bip_next->bip_vec[0].bv_offset);
-}
-
-static inline bool integrity_req_gap_front_merge(struct request *req,
-						 struct bio *bio)
-{
-	struct bio_integrity_payload *bip = bio_integrity(bio);
-	struct bio_integrity_payload *bip_next = bio_integrity(req->bio);
-
-	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
-				bip_next->bip_vec[0].bv_offset);
 }
 
 /**
@@ -1947,17 +1840,6 @@ static inline bool blk_integrity_merge_bio(struct request_queue *rq,
 	return true;
 }
 
-static inline bool integrity_req_gap_back_merge(struct request *req,
-						struct bio *next)
-{
-	return false;
-}
-static inline bool integrity_req_gap_front_merge(struct request *req,
-						 struct bio *bio)
-{
-	return false;
-}
-
 static inline unsigned int bio_integrity_intervals(struct blk_integrity *bi,
 						   unsigned int sectors)
 {
@@ -1987,6 +1869,9 @@ struct block_device_operations {
 	int (*getgeo)(struct block_device *, struct hd_geometry *);
 	/* this callback is with swap_lock and sometimes page table lock held */
 	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
+	int (*report_zones)(struct gendisk *, sector_t sector,
+			    struct blk_zone *zones, unsigned int *nr_zones,
+			    gfp_t gfp_mask);
 	struct module *owner;
 	const struct pr_ops *pr_ops;
 };

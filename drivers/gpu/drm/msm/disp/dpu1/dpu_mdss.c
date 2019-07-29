@@ -158,6 +158,8 @@ static void dpu_mdss_destroy(struct drm_device *dev)
 
 	_dpu_mdss_irq_domain_fini(dpu_mdss);
 
+	free_irq(platform_get_irq(pdev, 0), dpu_mdss);
+
 	msm_dss_put_clk(mp->clk_config, mp->num_clk);
 	devm_kfree(&pdev->dev, mp->clk_config);
 
@@ -215,7 +217,7 @@ int dpu_mdss_init(struct drm_device *dev)
 	if (ret)
 		goto irq_domain_error;
 
-	ret = devm_request_irq(dev->dev, platform_get_irq(pdev, 0),
+	ret = request_irq(platform_get_irq(pdev, 0),
 			dpu_mdss_irq, 0, "dpu_mdss_isr", dpu_mdss);
 	if (ret) {
 		DPU_ERROR("failed to init irq: %d\n", ret);

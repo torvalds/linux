@@ -449,7 +449,6 @@ static int ov6650_get_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-	case V4L2_SEL_TGT_CROP_DEFAULT:
 		sel->r.left = DEF_HSTRT << 1;
 		sel->r.top = DEF_VSTRT << 1;
 		sel->r.width = W_CIF;

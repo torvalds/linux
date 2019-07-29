@@ -120,6 +120,9 @@ struct resource_funcs {
 				struct dc *dc,
 				struct dc_state *new_ctx,
 				struct dc_stream_state *stream);
+	enum dc_status (*get_default_swizzle_mode)(
+			struct dc_plane_state *plane_state);
+
 };
 
 struct audio_support{
@@ -139,11 +142,14 @@ struct resource_pool {
 	struct output_pixel_processor *opps[MAX_PIPES];
 	struct timing_generator *timing_generators[MAX_PIPES];
 	struct stream_encoder *stream_enc[MAX_PIPES * 2];
-	struct aux_engine *engines[MAX_PIPES];
 	struct hubbub *hubbub;
 	struct mpc *mpc;
 	struct pp_smu_funcs_rv *pp_smu;
 	struct pp_smu_display_requirement_rv pp_smu_req;
+	struct aux_engine *engines[MAX_PIPES];
+	struct dce_i2c_hw *hw_i2cs[MAX_PIPES];
+	struct dce_i2c_sw *sw_i2cs[MAX_PIPES];
+	bool i2c_hw_buffer_in_use;
 
 	unsigned int pipe_count;
 	unsigned int underlay_pipe_index;

@@ -312,7 +312,7 @@ static void process_channel_reply(
 
 	/* in case HPD is LOW, exit AUX transaction */
 	if ((sw_status & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK)) {
-		reply->status = AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON;
+		reply->status = AUX_TRANSACTION_REPLY_HPD_DISCON;
 		return;
 	}
 

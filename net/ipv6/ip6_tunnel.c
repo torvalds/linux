@@ -901,6 +901,7 @@ static int ipxip6_rcv(struct sk_buff *skb, u8 ipproto,
 			goto drop;
 		if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb))
 			goto drop;
+		ipv6h = ipv6_hdr(skb);
 		if (!ip6_tnl_rcv_ctl(t, &ipv6h->daddr, &ipv6h->saddr))
 			goto drop;
 		if (iptunnel_pull_header(skb, 0, tpi->proto, false))

@@ -92,7 +92,8 @@
 	 */
 	clock-frequency = <400000>;
 
-	touchscreen: touchscreen {
+	touchscreen: touchscreen@40 {
+		reg = <0x40>;
 		interrupt-parent = <&pio>;
 		interrupts = <6 11 IRQ_TYPE_EDGE_FALLING>; /* EINT11 (PG11) */
 		pinctrl-names = "default";

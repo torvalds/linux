@@ -144,6 +144,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				wide_bw_chansw_ie->new_center_freq_seg1,
 			/* .basic_mcs_set doesn't matter */
 		};
+		struct ieee80211_ht_operation ht_oper = {};
 
 		/* default, for the case of IEEE80211_VHT_CHANWIDTH_USE_HT,
 		 * to the previously parsed chandef
@@ -151,7 +152,9 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		new_vht_chandef = csa_ie->chandef;
 
 		/* ignore if parsing fails */
-		if (!ieee80211_chandef_vht_oper(&vht_oper, &new_vht_chandef))
+		if (!ieee80211_chandef_vht_oper(&sdata->local->hw,
+						&vht_oper, &ht_oper,
+						&new_vht_chandef))
 			new_vht_chandef.chan = NULL;
 
 		if (sta_flags & IEEE80211_STA_DISABLE_80P80MHZ &&

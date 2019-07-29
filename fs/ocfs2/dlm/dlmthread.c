@@ -531,7 +531,7 @@ void __dlm_dirty_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 	assert_spin_locked(&res->spinlock);
 
 	/* don't shuffle secondary queues */
-	if ((res->owner == dlm->node_num)) {
+	if (res->owner == dlm->node_num) {
 		if (res->state & (DLM_LOCK_RES_MIGRATING |
 				  DLM_LOCK_RES_BLOCK_DIRTY))
 		    return;

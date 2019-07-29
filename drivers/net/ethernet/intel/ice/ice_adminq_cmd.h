@@ -87,6 +87,8 @@ struct ice_aqc_list_caps {
 /* Device/Function buffer entry, repeated per reported capability */
 struct ice_aqc_list_caps_elem {
 	__le16 cap;
+#define ICE_AQC_CAPS_SRIOV				0x0012
+#define ICE_AQC_CAPS_VF					0x0013
 #define ICE_AQC_CAPS_VSI				0x0017
 #define ICE_AQC_CAPS_RSS				0x0040
 #define ICE_AQC_CAPS_RXQS				0x0041
@@ -443,6 +445,8 @@ struct ice_aqc_vsi_props {
 	u8 reserved[24];
 };
 
+#define ICE_MAX_NUM_RECIPES 64
+
 /* Add/Update/Remove/Get switch rules (indirect 0x02A0, 0x02A1, 0x02A2, 0x02A3)
  */
 struct ice_aqc_sw_rules {
@@ -734,6 +738,10 @@ struct ice_aqc_add_elem {
 	struct ice_aqc_txsched_elem_data generic[1];
 };
 
+struct ice_aqc_get_elem {
+	struct ice_aqc_txsched_elem_data generic[1];
+};
+
 struct ice_aqc_get_topo_elem {
 	struct ice_aqc_txsched_topo_grp_info_hdr hdr;
 	struct ice_aqc_txsched_elem_data
@@ -771,9 +779,8 @@ struct ice_aqc_layer_props {
 	u8 chunk_size;
 	__le16 max_device_nodes;
 	__le16 max_pf_nodes;
-	u8 rsvd0[2];
-	__le16 max_shared_rate_lmtr;
-	__le16 max_children;
+	u8 rsvd0[4];
+	__le16 max_sibl_grp_sz;
 	__le16 max_cir_rl_profiles;
 	__le16 max_eir_rl_profiles;
 	__le16 max_srl_profiles;
@@ -919,9 +926,11 @@ struct ice_aqc_set_phy_cfg_data {
 	u8 caps;
 #define ICE_AQ_PHY_ENA_TX_PAUSE_ABILITY		BIT(0)
 #define ICE_AQ_PHY_ENA_RX_PAUSE_ABILITY		BIT(1)
-#define ICE_AQ_PHY_ENA_LOW_POWER		BIT(2)
-#define ICE_AQ_PHY_ENA_LINK			BIT(3)
-#define ICE_AQ_PHY_ENA_ATOMIC_LINK		BIT(5)
+#define ICE_AQ_PHY_ENA_LOW_POWER	BIT(2)
+#define ICE_AQ_PHY_ENA_LINK		BIT(3)
+#define ICE_AQ_PHY_ENA_AUTO_LINK_UPDT	BIT(5)
+#define ICE_AQ_PHY_ENA_LESM		BIT(6)
+#define ICE_AQ_PHY_ENA_AUTO_FEC		BIT(7)
 	u8 low_power_ctrl;
 	__le16 eee_cap; /* Value from ice_aqc_get_phy_caps */
 	__le16 eeer_value;
@@ -1068,6 +1077,19 @@ struct ice_aqc_nvm {
 	__le32 addr_low;
 };
 
+/**
+ * Send to PF command (indirect 0x0801) id is only used by PF
+ *
+ * Send to VF command (indirect 0x0802) id is only used by PF
+ *
+ */
+struct ice_aqc_pf_vf_msg {
+	__le32 id;
+	u32 reserved;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
 /* Get/Set RSS key (indirect 0x0B04/0x0B02) */
 struct ice_aqc_get_set_rss_key {
 #define ICE_AQC_GSET_RSS_KEY_VSI_VALID	BIT(15)
@@ -1203,6 +1225,84 @@ struct ice_aqc_dis_txq {
 	struct ice_aqc_dis_txq_item qgrps[1];
 };
 
+/* Configure Firmware Logging Command (indirect 0xFF09)
+ * Logging Information Read Response (indirect 0xFF10)
+ * Note: The 0xFF10 command has no input parameters.
+ */
+struct ice_aqc_fw_logging {
+	u8 log_ctrl;
+#define ICE_AQC_FW_LOG_AQ_EN		BIT(0)
+#define ICE_AQC_FW_LOG_UART_EN		BIT(1)
+	u8 rsvd0;
+	u8 log_ctrl_valid; /* Not used by 0xFF10 Response */
+#define ICE_AQC_FW_LOG_AQ_VALID		BIT(0)
+#define ICE_AQC_FW_LOG_UART_VALID	BIT(1)
+	u8 rsvd1[5];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+enum ice_aqc_fw_logging_mod {
+	ICE_AQC_FW_LOG_ID_GENERAL = 0,
+	ICE_AQC_FW_LOG_ID_CTRL,
+	ICE_AQC_FW_LOG_ID_LINK,
+	ICE_AQC_FW_LOG_ID_LINK_TOPO,
+	ICE_AQC_FW_LOG_ID_DNL,
+	ICE_AQC_FW_LOG_ID_I2C,
+	ICE_AQC_FW_LOG_ID_SDP,
+	ICE_AQC_FW_LOG_ID_MDIO,
+	ICE_AQC_FW_LOG_ID_ADMINQ,
+	ICE_AQC_FW_LOG_ID_HDMA,
+	ICE_AQC_FW_LOG_ID_LLDP,
+	ICE_AQC_FW_LOG_ID_DCBX,
+	ICE_AQC_FW_LOG_ID_DCB,
+	ICE_AQC_FW_LOG_ID_NETPROXY,
+	ICE_AQC_FW_LOG_ID_NVM,
+	ICE_AQC_FW_LOG_ID_AUTH,
+	ICE_AQC_FW_LOG_ID_VPD,
+	ICE_AQC_FW_LOG_ID_IOSF,
+	ICE_AQC_FW_LOG_ID_PARSER,
+	ICE_AQC_FW_LOG_ID_SW,
+	ICE_AQC_FW_LOG_ID_SCHEDULER,
+	ICE_AQC_FW_LOG_ID_TXQ,
+	ICE_AQC_FW_LOG_ID_RSVD,
+	ICE_AQC_FW_LOG_ID_POST,
+	ICE_AQC_FW_LOG_ID_WATCHDOG,
+	ICE_AQC_FW_LOG_ID_TASK_DISPATCH,
+	ICE_AQC_FW_LOG_ID_MNG,
+	ICE_AQC_FW_LOG_ID_MAX,
+};
+
+/* This is the buffer for both of the logging commands.
+ * The entry array size depends on the datalen parameter in the descriptor.
+ * There will be a total of datalen / 2 entries.
+ */
+struct ice_aqc_fw_logging_data {
+	__le16 entry[1];
+#define ICE_AQC_FW_LOG_ID_S		0
+#define ICE_AQC_FW_LOG_ID_M		(0xFFF << ICE_AQC_FW_LOG_ID_S)
+
+#define ICE_AQC_FW_LOG_CONF_SUCCESS	0	/* Used by response */
+#define ICE_AQC_FW_LOG_CONF_BAD_INDX	BIT(12)	/* Used by response */
+
+#define ICE_AQC_FW_LOG_EN_S		12
+#define ICE_AQC_FW_LOG_EN_M		(0xF << ICE_AQC_FW_LOG_EN_S)
+#define ICE_AQC_FW_LOG_INFO_EN		BIT(12)	/* Used by command */
+#define ICE_AQC_FW_LOG_INIT_EN		BIT(13)	/* Used by command */
+#define ICE_AQC_FW_LOG_FLOW_EN		BIT(14)	/* Used by command */
+#define ICE_AQC_FW_LOG_ERR_EN		BIT(15)	/* Used by command */
+};
+
+/* Get/Clear FW Log (indirect 0xFF11) */
+struct ice_aqc_get_clear_fw_log {
+	u8 flags;
+#define ICE_AQC_FW_LOG_CLEAR		BIT(0)
+#define ICE_AQC_FW_LOG_MORE_DATA_AVAIL	BIT(1)
+	u8 rsvd1[7];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
 /**
  * struct ice_aq_desc - Admin Queue (AQ) descriptor
  * @flags: ICE_AQ_FLAG_* flags
@@ -1247,11 +1347,15 @@ struct ice_aq_desc {
 		struct ice_aqc_query_txsched_res query_sched_res;
 		struct ice_aqc_add_move_delete_elem add_move_delete_elem;
 		struct ice_aqc_nvm nvm;
+		struct ice_aqc_pf_vf_msg virt;
 		struct ice_aqc_get_set_rss_lut get_set_rss_lut;
 		struct ice_aqc_get_set_rss_key get_set_rss_key;
 		struct ice_aqc_add_txqs add_txqs;
 		struct ice_aqc_dis_txqs dis_txqs;
 		struct ice_aqc_add_get_update_free_vsi vsi_cmd;
+		struct ice_aqc_add_update_free_vsi_resp add_update_free_vsi_res;
+		struct ice_aqc_fw_logging fw_logging;
+		struct ice_aqc_get_clear_fw_log get_clear_fw_log;
 		struct ice_aqc_alloc_free_res_cmd sw_res_ctrl;
 		struct ice_aqc_set_event_mask set_event_mask;
 		struct ice_aqc_get_link_status get_link_status;
@@ -1325,6 +1429,7 @@ enum ice_adminq_opc {
 	/* transmit scheduler commands */
 	ice_aqc_opc_get_dflt_topo			= 0x0400,
 	ice_aqc_opc_add_sched_elems			= 0x0401,
+	ice_aqc_opc_get_sched_elems			= 0x0404,
 	ice_aqc_opc_suspend_sched_elems			= 0x0409,
 	ice_aqc_opc_resume_sched_elems			= 0x040A,
 	ice_aqc_opc_delete_sched_elems			= 0x040F,
@@ -1340,6 +1445,10 @@ enum ice_adminq_opc {
 	/* NVM commands */
 	ice_aqc_opc_nvm_read				= 0x0701,
 
+	/* PF/VF mailbox commands */
+	ice_mbx_opc_send_msg_to_pf			= 0x0801,
+	ice_mbx_opc_send_msg_to_vf			= 0x0802,
+
 	/* RSS commands */
 	ice_aqc_opc_set_rss_key				= 0x0B02,
 	ice_aqc_opc_set_rss_lut				= 0x0B03,
@@ -1349,6 +1458,9 @@ enum ice_adminq_opc {
 	/* TX queue handling commands/events */
 	ice_aqc_opc_add_txqs				= 0x0C30,
 	ice_aqc_opc_dis_txqs				= 0x0C31,
+
+	/* debug commands */
+	ice_aqc_opc_fw_logging				= 0xFF09,
 };
 
 #endif /* _ICE_ADMINQ_CMD_H_ */

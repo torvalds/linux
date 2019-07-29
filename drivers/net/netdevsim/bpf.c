@@ -86,8 +86,14 @@ nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
 	return 0;
 }
 
+static int nsim_bpf_finalize(struct bpf_verifier_env *env)
+{
+	return 0;
+}
+
 static const struct bpf_prog_offload_ops nsim_bpf_analyzer_ops = {
-	.insn_hook = nsim_bpf_verify_insn,
+	.insn_hook	= nsim_bpf_verify_insn,
+	.finalize	= nsim_bpf_finalize,
 };
 
 static bool nsim_xdp_offload_active(struct netdevsim *ns)

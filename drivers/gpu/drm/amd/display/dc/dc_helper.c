@@ -219,12 +219,6 @@ uint32_t generic_reg_wait(const struct dc_context *ctx,
 	/* something is terribly wrong if time out is > 200ms. (5Hz) */
 	ASSERT(delay_between_poll_us * time_out_num_tries <= 200000);
 
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
-		/* 35 seconds */
-		delay_between_poll_us = 35000;
-		time_out_num_tries = 1000;
-	}
-
 	for (i = 0; i <= time_out_num_tries; i++) {
 		if (i) {
 			if (delay_between_poll_us >= 1000)
@@ -238,7 +232,8 @@ uint32_t generic_reg_wait(const struct dc_context *ctx,
 		field_value = get_reg_field_value_ex(reg_val, mask, shift);
 
 		if (field_value == condition_value) {
-			if (i * delay_between_poll_us > 1000)
+			if (i * delay_between_poll_us > 1000 &&
+					!IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
 				dm_output_to_console("REG_WAIT taking a while: %dms in %s line:%d\n",
 						delay_between_poll_us * i / 1000,
 						func_name, line);

@@ -1,4 +1,5 @@
-==============================================================
+.. SPDX-License-Identifier: GPL-2.0+
+
 Linux* Base Driver for the Intel(R) PRO/100 Family of Adapters
 ==============================================================
 

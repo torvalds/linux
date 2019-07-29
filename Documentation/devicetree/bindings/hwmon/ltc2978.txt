@@ -15,6 +15,7 @@ Required properties:
   * "lltc,ltm2987"
   * "lltc,ltm4675"
   * "lltc,ltm4676"
+  * "lltc,ltm4686"
 - reg: I2C slave address
 
 Optional properties:
@@ -30,6 +31,7 @@ Valid names of regulators depend on number of supplies supported per device:
   * ltc3880, ltc3882, ltc3886 : vout0 - vout1
   * ltc3883 : vout0
   * ltm4676 : vout0 - vout1
+  * ltm4686 : vout0 - vout1
 
 Example:
 ltc2978@5e {

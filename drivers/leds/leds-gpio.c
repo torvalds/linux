@@ -81,35 +81,6 @@ static int create_gpio_led(const struct gpio_led *template,
 {
 	int ret, state;
 
-	led_dat->gpiod = template->gpiod;
-	if (!led_dat->gpiod) {
-		/*
-		 * This is the legacy code path for platform code that
-		 * still uses GPIO numbers. Ultimately we would like to get
-		 * rid of this block completely.
-		 */
-		unsigned long flags = GPIOF_OUT_INIT_LOW;
-
-		/* skip leds that aren't available */
-		if (!gpio_is_valid(template->gpio)) {
-			dev_info(parent, "Skipping unavailable LED gpio %d (%s)\n",
-					template->gpio, template->name);
-			return 0;
-		}
-
-		if (template->active_low)
-			flags |= GPIOF_ACTIVE_LOW;
-
-		ret = devm_gpio_request_one(parent, template->gpio, flags,
-					    template->name);
-		if (ret < 0)
-			return ret;
-
-		led_dat->gpiod = gpio_to_desc(template->gpio);
-		if (!led_dat->gpiod)
-			return -EINVAL;
-	}
-
 	led_dat->cdev.name = template->name;
 	led_dat->cdev.default_trigger = template->default_trigger;
 	led_dat->can_sleep = gpiod_cansleep(led_dat->gpiod);
@@ -192,6 +163,8 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 			return ERR_CAST(led.gpiod);
 		}
 
+		led_dat->gpiod = led.gpiod;
+
 		fwnode_property_read_string(child, "linux,default-trigger",
 					    &led.default_trigger);
 
@@ -231,6 +204,52 @@ static const struct of_device_id of_gpio_leds_match[] = {
 
 MODULE_DEVICE_TABLE(of, of_gpio_leds_match);
 
+static struct gpio_desc *gpio_led_get_gpiod(struct device *dev, int idx,
+					    const struct gpio_led *template)
+{
+	struct gpio_desc *gpiod;
+	unsigned long flags = GPIOF_OUT_INIT_LOW;
+	int ret;
+
+	/*
+	 * This means the LED does not come from the device tree
+	 * or ACPI, so let's try just getting it by index from the
+	 * device, this will hit the board file, if any and get
+	 * the GPIO from there.
+	 */
+	gpiod = devm_gpiod_get_index(dev, NULL, idx, flags);
+	if (!IS_ERR(gpiod)) {
+		gpiod_set_consumer_name(gpiod, template->name);
+		return gpiod;
+	}
+	if (PTR_ERR(gpiod) != -ENOENT)
+		return gpiod;
+
+	/*
+	 * This is the legacy code path for platform code that
+	 * still uses GPIO numbers. Ultimately we would like to get
+	 * rid of this block completely.
+	 */
+
+	/* skip leds that aren't available */
+	if (!gpio_is_valid(template->gpio))
+		return ERR_PTR(-ENOENT);
+
+	if (template->active_low)
+		flags |= GPIOF_ACTIVE_LOW;
+
+	ret = devm_gpio_request_one(dev, template->gpio, flags,
+				    template->name);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	gpiod = gpio_to_desc(template->gpio);
+	if (!gpiod)
+		return ERR_PTR(-EINVAL);
+
+	return gpiod;
+}
+
 static int gpio_led_probe(struct platform_device *pdev)
 {
 	struct gpio_led_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -246,7 +265,22 @@ static int gpio_led_probe(struct platform_device *pdev)
 
 		priv->num_leds = pdata->num_leds;
 		for (i = 0; i < priv->num_leds; i++) {
-			ret = create_gpio_led(&pdata->leds[i], &priv->leds[i],
+			const struct gpio_led *template = &pdata->leds[i];
+			struct gpio_led_data *led_dat = &priv->leds[i];
+
+			if (template->gpiod)
+				led_dat->gpiod = template->gpiod;
+			else
+				led_dat->gpiod =
+					gpio_led_get_gpiod(&pdev->dev,
+							   i, template);
+			if (IS_ERR(led_dat->gpiod)) {
+				dev_info(&pdev->dev, "Skipping unavailable LED gpio %d (%s)\n",
+					 template->gpio, template->name);
+				continue;
+			}
+
+			ret = create_gpio_led(template, led_dat,
 					      &pdev->dev, NULL,
 					      pdata->gpio_blink_set);
 			if (ret < 0)

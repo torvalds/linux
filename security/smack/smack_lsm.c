@@ -421,6 +421,7 @@ static int smk_ptrace_rule_check(struct task_struct *tracer,
 	struct smk_audit_info ad, *saip = NULL;
 	struct task_smack *tsp;
 	struct smack_known *tracer_known;
+	const struct cred *tracercred;
 
 	if ((mode & PTRACE_MODE_NOAUDIT) == 0) {
 		smk_ad_init(&ad, func, LSM_AUDIT_DATA_TASK);
@@ -429,7 +430,8 @@ static int smk_ptrace_rule_check(struct task_struct *tracer,
 	}
 
 	rcu_read_lock();
-	tsp = __task_cred(tracer)->security;
+	tracercred = __task_cred(tracer);
+	tsp = tracercred->security;
 	tracer_known = smk_of_task(tsp);
 
 	if ((mode & PTRACE_MODE_ATTACH) &&
@@ -439,7 +441,7 @@ static int smk_ptrace_rule_check(struct task_struct *tracer,
 			rc = 0;
 		else if (smack_ptrace_rule == SMACK_PTRACE_DRACONIAN)
 			rc = -EACCES;
-		else if (capable(CAP_SYS_PTRACE))
+		else if (smack_privileged_cred(CAP_SYS_PTRACE, tracercred))
 			rc = 0;
 		else
 			rc = -EACCES;
@@ -1841,6 +1843,7 @@ static int smack_file_send_sigiotask(struct task_struct *tsk,
 {
 	struct smack_known *skp;
 	struct smack_known *tkp = smk_of_task(tsk->cred->security);
+	const struct cred *tcred;
 	struct file *file;
 	int rc;
 	struct smk_audit_info ad;
@@ -1854,8 +1857,12 @@ static int smack_file_send_sigiotask(struct task_struct *tsk,
 	skp = file->f_security;
 	rc = smk_access(skp, tkp, MAY_DELIVER, NULL);
 	rc = smk_bu_note("sigiotask", skp, tkp, MAY_DELIVER, rc);
-	if (rc != 0 && has_capability(tsk, CAP_MAC_OVERRIDE))
+
+	rcu_read_lock();
+	tcred = __task_cred(tsk);
+	if (rc != 0 && smack_privileged_cred(CAP_MAC_OVERRIDE, tcred))
 		rc = 0;
+	rcu_read_unlock();
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_TASK);
 	smk_ad_setfield_u_tsk(&ad, tsk);
@@ -2251,7 +2258,7 @@ static int smack_task_movememory(struct task_struct *p)
  * Return 0 if write access is permitted
  *
  */
-static int smack_task_kill(struct task_struct *p, struct siginfo *info,
+static int smack_task_kill(struct task_struct *p, struct kernel_siginfo *info,
 			   int sig, const struct cred *cred)
 {
 	struct smk_audit_info ad;
@@ -3467,7 +3474,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		 */
 		final = &smack_known_star;
 		/*
-		 * No break.
+		 * Fall through.
 		 *
 		 * If a smack value has been set we want to use it,
 		 * but since tmpfs isn't giving us the opportunity
@@ -4882,4 +4889,7 @@ static __init int smack_init(void)
  * Smack requires early initialization in order to label
  * all processes and objects when they are created.
  */
-security_initcall(smack_init);
+DEFINE_LSM(smack) = {
+	.name = "smack",
+	.init = smack_init,
+};

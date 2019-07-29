@@ -384,7 +384,7 @@ struct cxgb4_uld_info {
 	int (*tx_handler)(struct sk_buff *skb, struct net_device *dev);
 };
 
-int cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
+void cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
 int cxgb4_immdata_send(struct net_device *dev, unsigned int idx,

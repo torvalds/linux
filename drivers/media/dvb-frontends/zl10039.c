@@ -288,8 +288,9 @@ struct dvb_frontend *zl10039_attach(struct dvb_frontend *fe,
 	state->id = state->id & 0x0f;
 	switch (state->id) {
 	case ID_ZL10039:
-		strcpy(fe->ops.tuner_ops.info.name,
-			"Zarlink ZL10039 DVB-S tuner");
+		strscpy(fe->ops.tuner_ops.info.name,
+			"Zarlink ZL10039 DVB-S tuner",
+			sizeof(fe->ops.tuner_ops.info.name));
 		break;
 	default:
 		dprintk("Chip ID=%x does not match a known type\n", state->id);

@@ -49,18 +49,14 @@ probe function calls fpga_mgr_register(), such as::
 		 * them in priv
 		 */
 
-		mgr = fpga_mgr_create(dev, "Altera SOCFPGA FPGA Manager",
-				      &socfpga_fpga_ops, priv);
+		mgr = devm_fpga_mgr_create(dev, "Altera SOCFPGA FPGA Manager",
+					   &socfpga_fpga_ops, priv);
 		if (!mgr)
 			return -ENOMEM;
 
 		platform_set_drvdata(pdev, mgr);
 
-		ret = fpga_mgr_register(mgr);
-		if (ret)
-			fpga_mgr_free(mgr);
-
-		return ret;
+		return fpga_mgr_register(mgr);
 	}
 
 	static int socfpga_fpga_remove(struct platform_device *pdev)
@@ -102,66 +98,18 @@ The ops include a .state function which will determine the state the FPGA is in
 and return a code of type enum fpga_mgr_states.  It doesn't result in a change
 in state.
 
-How to write an image buffer to a supported FPGA
-------------------------------------------------
-
-Some sample code::
-
-	#include <linux/fpga/fpga-mgr.h>
-
-	struct fpga_manager *mgr;
-	struct fpga_image_info *info;
-	int ret;
-
-	/*
-	 * Get a reference to FPGA manager.  The manager is not locked, so you can
-	 * hold onto this reference without it preventing programming.
-	 *
-	 * This example uses the device node of the manager.  Alternatively, use
-	 * fpga_mgr_get(dev) instead if you have the device.
-	 */
-	mgr = of_fpga_mgr_get(mgr_node);
-
-	/* struct with information about the FPGA image to program. */
-	info = fpga_image_info_alloc(dev);
-
-	/* flags indicates whether to do full or partial reconfiguration */
-	info->flags = FPGA_MGR_PARTIAL_RECONFIG;
-
-	/*
-	 * At this point, indicate where the image is. This is pseudo-code; you're
-	 * going to use one of these three.
-	 */
-	if (image is in a scatter gather table) {
-
-		info->sgt = [your scatter gather table]
-
-	} else if (image is in a buffer) {
-
-		info->buf = [your image buffer]
-		info->count = [image buffer size]
-
-	} else if (image is in a firmware file) {
-
-		info->firmware_name = devm_kstrdup(dev, firmware_name, GFP_KERNEL);
-
-	}
-
-	/* Get exclusive control of FPGA manager */
-	ret = fpga_mgr_lock(mgr);
-
-	/* Load the buffer to the FPGA */
-	ret = fpga_mgr_buf_load(mgr, &info, buf, count);
-
-	/* Release the FPGA manager */
-	fpga_mgr_unlock(mgr);
-	fpga_mgr_put(mgr);
-
-	/* Deallocate the image info if you're done with it */
-	fpga_image_info_free(info);
-
 API for implementing a new FPGA Manager driver
 ----------------------------------------------
+
+* ``fpga_mgr_states`` —  Values for :c:member:`fpga_manager->state`.
+* struct :c:type:`fpga_manager` —  the FPGA manager struct
+* struct :c:type:`fpga_manager_ops` —  Low level FPGA manager driver ops
+* :c:func:`devm_fpga_mgr_create` —  Allocate and init a manager struct
+* :c:func:`fpga_mgr_register` —  Register an FPGA manager
+* :c:func:`fpga_mgr_unregister` —  Unregister an FPGA manager
+
+.. kernel-doc:: include/linux/fpga/fpga-mgr.h
+   :functions: fpga_mgr_states
 
 .. kernel-doc:: include/linux/fpga/fpga-mgr.h
    :functions: fpga_manager
@@ -170,56 +118,10 @@ API for implementing a new FPGA Manager driver
    :functions: fpga_manager_ops
 
 .. kernel-doc:: drivers/fpga/fpga-mgr.c
-   :functions: fpga_mgr_create
-
-.. kernel-doc:: drivers/fpga/fpga-mgr.c
-   :functions: fpga_mgr_free
+   :functions: devm_fpga_mgr_create
 
 .. kernel-doc:: drivers/fpga/fpga-mgr.c
    :functions: fpga_mgr_register
 
 .. kernel-doc:: drivers/fpga/fpga-mgr.c
    :functions: fpga_mgr_unregister
-
-API for programming an FPGA
----------------------------
-
-FPGA Manager flags
-
-.. kernel-doc:: include/linux/fpga/fpga-mgr.h
-   :doc: FPGA Manager flags
-
-.. kernel-doc:: include/linux/fpga/fpga-mgr.h
-   :functions: fpga_image_info
-
-.. kernel-doc:: include/linux/fpga/fpga-mgr.h
-   :functions: fpga_mgr_states
-
-.. kernel-doc:: drivers/fpga/fpga-mgr.c
-   :functions: fpga_image_info_alloc
-
-.. kernel-doc:: drivers/fpga/fpga-mgr.c
-   :functions: fpga_image_info_free
-
-.. kernel-doc:: drivers/fpga/fpga-mgr.c
-   :functions: of_fpga_mgr_get
-
-.. kernel-doc:: drivers/fpga/fpga-mgr.c
-   :functions: fpga_mgr_get
-
-.. kernel-doc:: drivers/fpga/fpga-mgr.c
-   :functions: fpga_mgr_put
-
-.. kernel-doc:: drivers/fpga/fpga-mgr.c
-   :functions: fpga_mgr_lock
-
-.. kernel-doc:: drivers/fpga/fpga-mgr.c
-   :functions: fpga_mgr_unlock
-
-.. kernel-doc:: include/linux/fpga/fpga-mgr.h
-   :functions: fpga_mgr_states
-
-Note - use :c:func:`fpga_region_program_fpga()` instead of :c:func:`fpga_mgr_load()`
-
-.. kernel-doc:: drivers/fpga/fpga-mgr.c
-   :functions: fpga_mgr_load

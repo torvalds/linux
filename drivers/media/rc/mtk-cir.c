@@ -212,7 +212,7 @@ static irqreturn_t mtk_ir_irq(int irqno, void *dev_id)
 	struct mtk_ir *ir = dev_id;
 	u8  wid = 0;
 	u32 i, j, val;
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 
 	/*
 	 * Reset decoder state machine explicitly is required

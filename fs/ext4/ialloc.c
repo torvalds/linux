@@ -1216,7 +1216,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 	bit = (ino - 1) % EXT4_INODES_PER_GROUP(sb);
 	bitmap_bh = ext4_read_inode_bitmap(sb, block_group);
 	if (IS_ERR(bitmap_bh))
-		return (struct inode *) bitmap_bh;
+		return ERR_CAST(bitmap_bh);
 
 	/* Having the inode bit set should be a 100% indicator that this
 	 * is a valid orphan (no e2fsck run on fs).  Orphans also include

@@ -63,7 +63,7 @@ static void mdio_dir(struct mdiobb_ctrl *ctrl, int dir)
 		 * assume the pin serves as pull-up. If direction is
 		 * output, the default value is high.
 		 */
-		gpiod_set_value(bitbang->mdo, 1);
+		gpiod_set_value_cansleep(bitbang->mdo, 1);
 		return;
 	}
 
@@ -78,7 +78,7 @@ static int mdio_get(struct mdiobb_ctrl *ctrl)
 	struct mdio_gpio_info *bitbang =
 		container_of(ctrl, struct mdio_gpio_info, ctrl);
 
-	return gpiod_get_value(bitbang->mdio);
+	return gpiod_get_value_cansleep(bitbang->mdio);
 }
 
 static void mdio_set(struct mdiobb_ctrl *ctrl, int what)
@@ -87,9 +87,9 @@ static void mdio_set(struct mdiobb_ctrl *ctrl, int what)
 		container_of(ctrl, struct mdio_gpio_info, ctrl);
 
 	if (bitbang->mdo)
-		gpiod_set_value(bitbang->mdo, what);
+		gpiod_set_value_cansleep(bitbang->mdo, what);
 	else
-		gpiod_set_value(bitbang->mdio, what);
+		gpiod_set_value_cansleep(bitbang->mdio, what);
 }
 
 static void mdc_set(struct mdiobb_ctrl *ctrl, int what)
@@ -97,7 +97,7 @@ static void mdc_set(struct mdiobb_ctrl *ctrl, int what)
 	struct mdio_gpio_info *bitbang =
 		container_of(ctrl, struct mdio_gpio_info, ctrl);
 
-	gpiod_set_value(bitbang->mdc, what);
+	gpiod_set_value_cansleep(bitbang->mdc, what);
 }
 
 static const struct mdiobb_ops mdio_gpio_ops = {

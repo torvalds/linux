@@ -40,8 +40,8 @@ EXPORT_SYMBOL(fimc_find_remote_sensor);
 void __fimc_vidioc_querycap(struct device *dev, struct v4l2_capability *cap,
 						unsigned int caps)
 {
-	strlcpy(cap->driver, dev->driver->name, sizeof(cap->driver));
-	strlcpy(cap->card, dev->driver->name, sizeof(cap->card));
+	strscpy(cap->driver, dev->driver->name, sizeof(cap->driver));
+	strscpy(cap->card, dev->driver->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 				"platform:%s", dev_name(dev));
 	cap->device_caps = caps;

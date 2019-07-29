@@ -22,7 +22,10 @@
 
 #define CRC_T10DIF_PMULL_CHUNK_SIZE	16U
 
-asmlinkage u16 crc_t10dif_pmull(u16 init_crc, const u8 buf[], u64 len);
+asmlinkage u16 crc_t10dif_pmull_p64(u16 init_crc, const u8 buf[], u64 len);
+asmlinkage u16 crc_t10dif_pmull_p8(u16 init_crc, const u8 buf[], u64 len);
+
+static u16 (*crc_t10dif_pmull)(u16 init_crc, const u8 buf[], u64 len);
 
 static int crct10dif_init(struct shash_desc *desc)
 {
@@ -85,6 +88,11 @@ static struct shash_alg crc_t10dif_alg = {
 
 static int __init crc_t10dif_mod_init(void)
 {
+	if (elf_hwcap & HWCAP_PMULL)
+		crc_t10dif_pmull = crc_t10dif_pmull_p64;
+	else
+		crc_t10dif_pmull = crc_t10dif_pmull_p8;
+
 	return crypto_register_shash(&crc_t10dif_alg);
 }
 
@@ -93,8 +101,10 @@ static void __exit crc_t10dif_mod_exit(void)
 	crypto_unregister_shash(&crc_t10dif_alg);
 }
 
-module_cpu_feature_match(PMULL, crc_t10dif_mod_init);
+module_cpu_feature_match(ASIMD, crc_t10dif_mod_init);
 module_exit(crc_t10dif_mod_exit);
 
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS_CRYPTO("crct10dif");
+MODULE_ALIAS_CRYPTO("crct10dif-arm64-ce");

@@ -101,7 +101,7 @@ static int __init assabet_init_gpio(void __iomem *reg, u32 def_val)
 
 	assabet_bcr_gc = gc;
 
-	return gc->base;
+	return 0;
 }
 
 /*
@@ -471,6 +471,14 @@ static struct fixed_voltage_config assabet_cf_vcc_pdata __initdata = {
 	.enable_high = 1,
 };
 
+static struct gpiod_lookup_table assabet_cf_vcc_gpio_table = {
+	.dev_id = "reg-fixed-voltage.0",
+	.table = {
+		GPIO_LOOKUP("assabet", 0, NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static void __init assabet_init(void)
 {
 	/*
@@ -517,9 +525,11 @@ static void __init assabet_init(void)
 			neponset_resources, ARRAY_SIZE(neponset_resources));
 #endif
 	} else {
+		gpiod_add_lookup_table(&assabet_cf_vcc_gpio_table);
 		sa11x0_register_fixed_regulator(0, &assabet_cf_vcc_pdata,
-					 assabet_cf_vcc_consumers,
-					 ARRAY_SIZE(assabet_cf_vcc_consumers));
+					assabet_cf_vcc_consumers,
+					ARRAY_SIZE(assabet_cf_vcc_consumers),
+					true);
 
 	}
 
@@ -802,7 +812,6 @@ fs_initcall(assabet_leds_init);
 
 void __init assabet_init_irq(void)
 {
-	unsigned int assabet_gpio_base;
 	u32 def_val;
 
 	sa1100_init_irq();
@@ -817,9 +826,7 @@ void __init assabet_init_irq(void)
 	 *
 	 * This must precede any driver calls to BCR_set() or BCR_clear().
 	 */
-	assabet_gpio_base = assabet_init_gpio((void *)&ASSABET_BCR, def_val);
-
-	assabet_cf_vcc_pdata.gpio = assabet_gpio_base + 0;
+	assabet_init_gpio((void *)&ASSABET_BCR, def_val);
 }
 
 MACHINE_START(ASSABET, "Intel-Assabet")

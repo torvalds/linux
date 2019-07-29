@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * f2fs shrinker support
  *   the basic infra was copied from fs/ubifs/shrinker.c
  *
  * Copyright (c) 2015 Motorola Mobility
  * Copyright (c) 2015 Jaegeuk Kim <jaegeuk@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/fs.h>
 #include <linux/f2fs_fs.h>

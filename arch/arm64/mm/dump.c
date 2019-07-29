@@ -36,8 +36,8 @@ static const struct addr_marker address_markers[] = {
 #endif
 	{ MODULES_VADDR,		"Modules start" },
 	{ MODULES_END,			"Modules end" },
-	{ VMALLOC_START,		"vmalloc() Area" },
-	{ VMALLOC_END,			"vmalloc() End" },
+	{ VMALLOC_START,		"vmalloc() area" },
+	{ VMALLOC_END,			"vmalloc() end" },
 	{ FIXADDR_START,		"Fixmap start" },
 	{ FIXADDR_TOP,			"Fixmap end" },
 	{ PCI_IO_START,			"PCI I/O start" },
@@ -46,7 +46,7 @@ static const struct addr_marker address_markers[] = {
 	{ VMEMMAP_START,		"vmemmap start" },
 	{ VMEMMAP_START + VMEMMAP_SIZE,	"vmemmap end" },
 #endif
-	{ PAGE_OFFSET,			"Linear Mapping" },
+	{ PAGE_OFFSET,			"Linear mapping" },
 	{ -1,				NULL },
 };
 

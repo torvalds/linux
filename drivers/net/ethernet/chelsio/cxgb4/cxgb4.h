@@ -52,6 +52,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/ptp_classify.h>
 #include <linux/crash_dump.h>
+#include <linux/thermal.h>
 #include <asm/io.h>
 #include "t4_chip_type.h"
 #include "cxgb4_uld.h"
@@ -533,6 +534,13 @@ enum {
 };
 
 enum {
+	MAX_TXQ_DESC_SIZE      = 64,
+	MAX_RXQ_DESC_SIZE      = 128,
+	MAX_FL_DESC_SIZE       = 8,
+	MAX_CTRL_TXQ_DESC_SIZE = 64,
+};
+
+enum {
 	INGQ_EXTRAS = 2,        /* firmware event queue and */
 				/*   forwarded interrupts */
 	MAX_INGQ = MAX_ETH_QSETS + INGQ_EXTRAS,
@@ -685,6 +693,7 @@ struct sge_eth_stats {              /* Ethernet queue statistics */
 	unsigned long rx_cso;       /* # of Rx checksum offloads */
 	unsigned long vlan_ex;      /* # of Rx VLAN extractions */
 	unsigned long rx_drops;     /* # of packets dropped due to no mem */
+	unsigned long bad_rx_pkts;  /* # of packets with err_vec!=0 */
 };
 
 struct sge_eth_rxq {                /* SW Ethernet Rx queue */
@@ -882,6 +891,14 @@ struct mps_encap_entry {
 	atomic_t refcnt;
 };
 
+#if IS_ENABLED(CONFIG_THERMAL)
+struct ch_thermal {
+	struct thermal_zone_device *tzdev;
+	int trip_temp;
+	int trip_type;
+};
+#endif
+
 struct adapter {
 	void __iomem *regs;
 	void __iomem *bar2;
@@ -1000,6 +1017,9 @@ struct adapter {
 
 	/* Dump buffer for collecting logs in kdump kernel */
 	struct vmcoredd_data vmcoredd;
+#if IS_ENABLED(CONFIG_THERMAL)
+	struct ch_thermal ch_thermal;
+#endif
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
@@ -1854,4 +1874,8 @@ void cxgb4_ring_tx_db(struct adapter *adap, struct sge_txq *q, int n);
 int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
 		    u16 vlan);
 int cxgb4_dcb_enabled(const struct net_device *dev);
+
+int cxgb4_thermal_init(struct adapter *adap);
+int cxgb4_thermal_remove(struct adapter *adap);
+
 #endif /* __CXGB4_H__ */

@@ -205,6 +205,16 @@ struct bnxt_qplib_roce_stats {
 	/* res_tx_pci_err is 64 b */
 	u64 res_rx_pci_err;
 	/* res_rx_pci_err is 64 b */
+	u64 res_oos_drop_count;
+	/* res_oos_drop_count */
+	u64     active_qp_count_p0;
+	/* port 0 active qps */
+	u64     active_qp_count_p1;
+	/* port 1 active qps */
+	u64     active_qp_count_p2;
+	/* port 2 active qps */
+	u64     active_qp_count_p3;
+	/* port 3 active qps */
 };
 
 int bnxt_qplib_get_sgid(struct bnxt_qplib_res *res,

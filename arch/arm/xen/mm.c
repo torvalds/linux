@@ -1,6 +1,5 @@
 #include <linux/cpu.h>
 #include <linux/dma-mapping.h>
-#include <linux/bootmem.h>
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/export.h>

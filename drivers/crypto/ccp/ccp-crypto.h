@@ -88,7 +88,7 @@ static inline struct ccp_crypto_ahash_alg *
 /***** AES related defines *****/
 struct ccp_aes_ctx {
 	/* Fallback cipher for XTS with unsupported unit sizes */
-	struct crypto_skcipher *tfm_skcipher;
+	struct crypto_sync_skcipher *tfm_skcipher;
 
 	/* Cipher used to generate CMAC K1/K2 keys */
 	struct crypto_cipher *tfm_cipher;

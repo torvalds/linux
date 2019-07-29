@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 - 2017 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012 - 2018 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -223,8 +223,8 @@ static inline int qib_send_ok(struct rvt_qp *qp)
 		 !(qp->s_flags & RVT_S_ANY_WAIT_SEND));
 }
 
-void _qib_schedule_send(struct rvt_qp *qp);
-void qib_schedule_send(struct rvt_qp *qp);
+bool _qib_schedule_send(struct rvt_qp *qp);
+bool qib_schedule_send(struct rvt_qp *qp);
 
 static inline int qib_pkey_ok(u16 pkey1, u16 pkey2)
 {
@@ -292,9 +292,6 @@ void qib_put_txreq(struct qib_verbs_txreq *tx);
 int qib_verbs_send(struct rvt_qp *qp, struct ib_header *hdr,
 		   u32 hdrwords, struct rvt_sge_state *ss, u32 len);
 
-void qib_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
-		  int release);
-
 void qib_uc_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 		int has_grh, void *data, u32 tlen, struct rvt_qp *qp);
 
@@ -303,7 +300,8 @@ void qib_rc_rcv(struct qib_ctxtdata *rcd, struct ib_header *hdr,
 
 int qib_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr);
 
-int qib_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
+int qib_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe,
+		       bool *call_send);
 
 struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid);
 
@@ -332,9 +330,6 @@ void qib_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 void _qib_do_send(struct work_struct *work);
 
 void qib_do_send(struct rvt_qp *qp);
-
-void qib_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
-		       enum ib_wc_status status);
 
 void qib_send_rc_ack(struct rvt_qp *qp);
 

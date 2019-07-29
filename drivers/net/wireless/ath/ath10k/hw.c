@@ -16,6 +16,7 @@
 
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include "core.h"
 #include "hw.h"
 #include "hif.h"
@@ -916,6 +917,196 @@ static int ath10k_hw_qca6174_enable_pll_clock(struct ath10k *ar)
 		return -EINVAL;
 
 	return 0;
+}
+
+/* Program CPU_ADDR_MSB to allow different memory
+ * region access.
+ */
+static void ath10k_hw_map_target_mem(struct ath10k *ar, u32 msb)
+{
+	u32 address = SOC_CORE_BASE_ADDRESS + FW_RAM_CONFIG_ADDRESS;
+
+	ath10k_hif_write32(ar, address, msb);
+}
+
+/* 1. Write to memory region of target, such as IRAM adn DRAM.
+ * 2. Target address( 0 ~ 00100000 & 0x00400000~0x00500000)
+ *    can be written directly. See ath10k_pci_targ_cpu_to_ce_addr() too.
+ * 3. In order to access the region other than the above,
+ *    we need to set the value of register CPU_ADDR_MSB.
+ * 4. Target memory access space is limited to 1M size. If the size is larger
+ *    than 1M, need to split it and program CPU_ADDR_MSB accordingly.
+ */
+static int ath10k_hw_diag_segment_msb_download(struct ath10k *ar,
+					       const void *buffer,
+					       u32 address,
+					       u32 length)
+{
+	u32 addr = address & REGION_ACCESS_SIZE_MASK;
+	int ret, remain_size, size;
+	const u8 *buf;
+
+	ath10k_hw_map_target_mem(ar, CPU_ADDR_MSB_REGION_VAL(address));
+
+	if (addr + length > REGION_ACCESS_SIZE_LIMIT) {
+		size = REGION_ACCESS_SIZE_LIMIT - addr;
+		remain_size = length - size;
+
+		ret = ath10k_hif_diag_write(ar, address, buffer, size);
+		if (ret) {
+			ath10k_warn(ar,
+				    "failed to download the first %d bytes segment to address:0x%x: %d\n",
+				    size, address, ret);
+			goto done;
+		}
+
+		/* Change msb to the next memory region*/
+		ath10k_hw_map_target_mem(ar,
+					 CPU_ADDR_MSB_REGION_VAL(address) + 1);
+		buf = buffer +  size;
+		ret = ath10k_hif_diag_write(ar,
+					    address & ~REGION_ACCESS_SIZE_MASK,
+					    buf, remain_size);
+		if (ret) {
+			ath10k_warn(ar,
+				    "failed to download the second %d bytes segment to address:0x%x: %d\n",
+				    remain_size,
+				    address & ~REGION_ACCESS_SIZE_MASK,
+				    ret);
+			goto done;
+		}
+	} else {
+		ret = ath10k_hif_diag_write(ar, address, buffer, length);
+		if (ret) {
+			ath10k_warn(ar,
+				    "failed to download the only %d bytes segment to address:0x%x: %d\n",
+				    length, address, ret);
+			goto done;
+		}
+	}
+
+done:
+	/* Change msb to DRAM */
+	ath10k_hw_map_target_mem(ar,
+				 CPU_ADDR_MSB_REGION_VAL(DRAM_BASE_ADDRESS));
+	return ret;
+}
+
+static int ath10k_hw_diag_segment_download(struct ath10k *ar,
+					   const void *buffer,
+					   u32 address,
+					   u32 length)
+{
+	if (address >= DRAM_BASE_ADDRESS + REGION_ACCESS_SIZE_LIMIT)
+		/* Needs to change MSB for memory write */
+		return ath10k_hw_diag_segment_msb_download(ar, buffer,
+							   address, length);
+	else
+		return ath10k_hif_diag_write(ar, address, buffer, length);
+}
+
+int ath10k_hw_diag_fast_download(struct ath10k *ar,
+				 u32 address,
+				 const void *buffer,
+				 u32 length)
+{
+	const u8 *buf = buffer;
+	bool sgmt_end = false;
+	u32 base_addr = 0;
+	u32 base_len = 0;
+	u32 left = 0;
+	struct bmi_segmented_file_header *hdr;
+	struct bmi_segmented_metadata *metadata;
+	int ret = 0;
+
+	if (length < sizeof(*hdr))
+		return -EINVAL;
+
+	/* check firmware header. If it has no correct magic number
+	 * or it's compressed, returns error.
+	 */
+	hdr = (struct bmi_segmented_file_header *)buf;
+	if (__le32_to_cpu(hdr->magic_num) != BMI_SGMTFILE_MAGIC_NUM) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "Not a supported firmware, magic_num:0x%x\n",
+			   hdr->magic_num);
+		return -EINVAL;
+	}
+
+	if (hdr->file_flags != 0) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "Not a supported firmware, file_flags:0x%x\n",
+			   hdr->file_flags);
+		return -EINVAL;
+	}
+
+	metadata = (struct bmi_segmented_metadata *)hdr->data;
+	left = length - sizeof(*hdr);
+
+	while (left > 0) {
+		if (left < sizeof(*metadata)) {
+			ath10k_warn(ar, "firmware segment is truncated: %d\n",
+				    left);
+			ret = -EINVAL;
+			break;
+		}
+		base_addr = __le32_to_cpu(metadata->addr);
+		base_len = __le32_to_cpu(metadata->length);
+		buf = metadata->data;
+		left -= sizeof(*metadata);
+
+		switch (base_len) {
+		case BMI_SGMTFILE_BEGINADDR:
+			/* base_addr is the start address to run */
+			ret = ath10k_bmi_set_start(ar, base_addr);
+			base_len = 0;
+			break;
+		case BMI_SGMTFILE_DONE:
+			/* no more segment */
+			base_len = 0;
+			sgmt_end = true;
+			ret = 0;
+			break;
+		case BMI_SGMTFILE_BDDATA:
+		case BMI_SGMTFILE_EXEC:
+			ath10k_warn(ar,
+				    "firmware has unsupported segment:%d\n",
+				    base_len);
+			ret = -EINVAL;
+			break;
+		default:
+			if (base_len > left) {
+				/* sanity check */
+				ath10k_warn(ar,
+					    "firmware has invalid segment length, %d > %d\n",
+					    base_len, left);
+				ret = -EINVAL;
+				break;
+			}
+
+			ret = ath10k_hw_diag_segment_download(ar,
+							      buf,
+							      base_addr,
+							      base_len);
+
+			if (ret)
+				ath10k_warn(ar,
+					    "failed to download firmware via diag interface:%d\n",
+					    ret);
+			break;
+		}
+
+		if (ret || sgmt_end)
+			break;
+
+		metadata = (struct bmi_segmented_metadata *)(buf + base_len);
+		left -= base_len;
+	}
+
+	if (ret == 0)
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "boot firmware fast diag download successfully.\n");
+	return ret;
 }
 
 const struct ath10k_hw_ops qca988x_ops = {

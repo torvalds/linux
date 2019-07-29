@@ -44,11 +44,7 @@
 
 #include <sys/types.h>
 
-#ifdef __linux__
 #include "aicdb.h"
-#else
-#include <db.h>
-#endif
 #include <fcntl.h>
 #include <inttypes.h>
 #include <regex.h>

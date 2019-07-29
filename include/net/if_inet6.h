@@ -146,10 +146,12 @@ struct ifacaddr6 {
 	struct in6_addr		aca_addr;
 	struct fib6_info	*aca_rt;
 	struct ifacaddr6	*aca_next;
+	struct hlist_node	aca_addr_lst;
 	int			aca_users;
 	refcount_t		aca_refcnt;
 	unsigned long		aca_cstamp;
 	unsigned long		aca_tstamp;
+	struct rcu_head		rcu;
 };
 
 #define	IFA_HOST	IPV6_ADDR_LOOPBACK

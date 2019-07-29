@@ -587,9 +587,16 @@ static int ramoops_init_przs(const char *name,
 		goto fail;
 
 	for (i = 0; i < *cnt; i++) {
+		char *label;
+
+		if (*cnt == 1)
+			label = kasprintf(GFP_KERNEL, "ramoops:%s", name);
+		else
+			label = kasprintf(GFP_KERNEL, "ramoops:%s(%d/%d)",
+					  name, i, *cnt - 1);
 		prz_ar[i] = persistent_ram_new(*paddr, zone_sz, sig,
-						  &cxt->ecc_info,
-						  cxt->memtype, flags);
+					       &cxt->ecc_info,
+					       cxt->memtype, flags, label);
 		if (IS_ERR(prz_ar[i])) {
 			err = PTR_ERR(prz_ar[i]);
 			dev_err(dev, "failed to request %s mem region (0x%zx@0x%llx): %d\n",
@@ -619,6 +626,8 @@ static int ramoops_init_prz(const char *name,
 			    struct persistent_ram_zone **prz,
 			    phys_addr_t *paddr, size_t sz, u32 sig)
 {
+	char *label;
+
 	if (!sz)
 		return 0;
 
@@ -629,8 +638,9 @@ static int ramoops_init_prz(const char *name,
 		return -ENOMEM;
 	}
 
+	label = kasprintf(GFP_KERNEL, "ramoops:%s", name);
 	*prz = persistent_ram_new(*paddr, sz, sig, &cxt->ecc_info,
-				  cxt->memtype, 0);
+				  cxt->memtype, 0, label);
 	if (IS_ERR(*prz)) {
 		int err = PTR_ERR(*prz);
 
@@ -806,17 +816,14 @@ static int ramoops_probe(struct platform_device *pdev)
 
 	cxt->pstore.data = cxt;
 	/*
-	 * Console can handle any buffer size, so prefer LOG_LINE_MAX. If we
-	 * have to handle dumps, we must have at least record_size buffer. And
-	 * for ftrace, bufsize is irrelevant (if bufsize is 0, buf will be
-	 * ZERO_SIZE_PTR).
+	 * Since bufsize is only used for dmesg crash dumps, it
+	 * must match the size of the dprz record (after PRZ header
+	 * and ECC bytes have been accounted for).
 	 */
-	if (cxt->console_size)
-		cxt->pstore.bufsize = 1024; /* LOG_LINE_MAX */
-	cxt->pstore.bufsize = max(cxt->record_size, cxt->pstore.bufsize);
-	cxt->pstore.buf = kmalloc(cxt->pstore.bufsize, GFP_KERNEL);
+	cxt->pstore.bufsize = cxt->dprzs[0]->buffer_size;
+	cxt->pstore.buf = kzalloc(cxt->pstore.bufsize, GFP_KERNEL);
 	if (!cxt->pstore.buf) {
-		pr_err("cannot allocate pstore buffer\n");
+		pr_err("cannot allocate pstore crash dump buffer\n");
 		err = -ENOMEM;
 		goto fail_clear;
 	}
@@ -962,7 +969,7 @@ static int __init ramoops_init(void)
 
 	return ret;
 }
-late_initcall(ramoops_init);
+postcore_initcall(ramoops_init);
 
 static void __exit ramoops_exit(void)
 {

@@ -8,6 +8,7 @@
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -336,6 +338,9 @@ struct iwl_dbg_mem_access_rsp {
 #define CONT_REC_COMMAND_SIZE	80
 #define ENABLE_CONT_RECORDING	0x15
 #define DISABLE_CONT_RECORDING	0x16
+#define BUFFER_ALLOCATION	0x27
+#define START_DEBUG_RECORDING	0x29
+#define STOP_DEBUG_RECORDING	0x2A
 
 /*
  * struct iwl_continuous_record_mode - recording mode
@@ -352,5 +357,32 @@ struct iwl_continuous_record_cmd {
 	u8 pad[CONT_REC_COMMAND_SIZE -
 		sizeof(struct iwl_continuous_record_mode)];
 } __packed;
+
+/* maximum fragments to be allocated per target of allocationId */
+#define IWL_BUFFER_LOCATION_MAX_FRAGS	2
+
+/**
+ * struct iwl_fragment_data single fragment structure
+ * @address: 64bit start address
+ * @size: size in bytes
+ */
+struct iwl_fragment_data {
+	__le64 address;
+	__le32 size;
+} __packed; /* FRAGMENT_STRUCTURE_API_S_VER_1 */
+
+/**
+ * struct iwl_buffer_allocation_cmd - buffer allocation command structure
+ * @allocation_id: id of the allocation
+ * @buffer_location: location of the buffer
+ * @num_frags: number of fragments
+ * @fragments: memory fragments
+ */
+struct iwl_buffer_allocation_cmd {
+	__le32 allocation_id;
+	__le32 buffer_location;
+	__le32 num_frags;
+	struct iwl_fragment_data fragments[IWL_BUFFER_LOCATION_MAX_FRAGS];
+} __packed; /* BUFFER_ALLOCATION_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_debug_h__ */

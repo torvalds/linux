@@ -102,13 +102,19 @@ void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 				       unsigned int num_rects)
 {
 	struct vbox_private *vbox = fb->dev->dev_private;
+	struct drm_display_mode *mode;
 	struct drm_crtc *crtc;
+	int crtc_x, crtc_y;
 	unsigned int i;
 
 	mutex_lock(&vbox->hw_mutex);
 	list_for_each_entry(crtc, &fb->dev->mode_config.crtc_list, head) {
-		if (CRTC_FB(crtc) != fb)
+		if (crtc->primary->state->fb != fb)
 			continue;
+
+		mode = &crtc->state->mode;
+		crtc_x = crtc->primary->state->src_x >> 16;
+		crtc_y = crtc->primary->state->src_y >> 16;
 
 		vbox_enable_accel(vbox);
 
@@ -116,10 +122,10 @@ void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 			struct vbva_cmd_hdr cmd_hdr;
 			unsigned int crtc_id = to_vbox_crtc(crtc)->crtc_id;
 
-			if ((rects[i].x1 > crtc->x + crtc->hwmode.hdisplay) ||
-			    (rects[i].y1 > crtc->y + crtc->hwmode.vdisplay) ||
-			    (rects[i].x2 < crtc->x) ||
-			    (rects[i].y2 < crtc->y))
+			if ((rects[i].x1 > crtc_x + mode->hdisplay) ||
+			    (rects[i].y1 > crtc_y + mode->vdisplay) ||
+			    (rects[i].x2 < crtc_x) ||
+			    (rects[i].y2 < crtc_y))
 				continue;
 
 			cmd_hdr.x = (s16)rects[i].x1;
@@ -155,16 +161,16 @@ static const struct drm_framebuffer_funcs vbox_fb_funcs = {
 	.dirty = vbox_user_framebuffer_dirty,
 };
 
-int vbox_framebuffer_init(struct drm_device *dev,
+int vbox_framebuffer_init(struct vbox_private *vbox,
 			  struct vbox_framebuffer *vbox_fb,
 			  const struct DRM_MODE_FB_CMD *mode_cmd,
 			  struct drm_gem_object *obj)
 {
 	int ret;
 
-	drm_helper_mode_fill_fb_struct(dev, &vbox_fb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(&vbox->ddev, &vbox_fb->base, mode_cmd);
 	vbox_fb->obj = obj;
-	ret = drm_framebuffer_init(dev, &vbox_fb->base, &vbox_fb_funcs);
+	ret = drm_framebuffer_init(&vbox->ddev, &vbox_fb->base, &vbox_fb_funcs);
 	if (ret) {
 		DRM_ERROR("framebuffer init failed %d\n", ret);
 		return ret;
@@ -173,45 +179,11 @@ int vbox_framebuffer_init(struct drm_device *dev,
 	return 0;
 }
 
-static struct drm_framebuffer *vbox_user_framebuffer_create(
-		struct drm_device *dev,
-		struct drm_file *filp,
-		const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	struct drm_gem_object *obj;
-	struct vbox_framebuffer *vbox_fb;
-	int ret = -ENOMEM;
-
-	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
-	if (!obj)
-		return ERR_PTR(-ENOENT);
-
-	vbox_fb = kzalloc(sizeof(*vbox_fb), GFP_KERNEL);
-	if (!vbox_fb)
-		goto err_unref_obj;
-
-	ret = vbox_framebuffer_init(dev, vbox_fb, mode_cmd, obj);
-	if (ret)
-		goto err_free_vbox_fb;
-
-	return &vbox_fb->base;
-
-err_free_vbox_fb:
-	kfree(vbox_fb);
-err_unref_obj:
-	drm_gem_object_put_unlocked(obj);
-	return ERR_PTR(ret);
-}
-
-static const struct drm_mode_config_funcs vbox_mode_funcs = {
-	.fb_create = vbox_user_framebuffer_create,
-};
-
 static int vbox_accel_init(struct vbox_private *vbox)
 {
 	unsigned int i;
 
-	vbox->vbva_info = devm_kcalloc(vbox->dev->dev, vbox->num_crtcs,
+	vbox->vbva_info = devm_kcalloc(vbox->ddev.dev, vbox->num_crtcs,
 				       sizeof(*vbox->vbva_info), GFP_KERNEL);
 	if (!vbox->vbva_info)
 		return -ENOMEM;
@@ -219,7 +191,7 @@ static int vbox_accel_init(struct vbox_private *vbox)
 	/* Take a command buffer for each screen from the end of usable VRAM. */
 	vbox->available_vram_size -= vbox->num_crtcs * VBVA_MIN_BUFFER_SIZE;
 
-	vbox->vbva_buffers = pci_iomap_range(vbox->dev->pdev, 0,
+	vbox->vbva_buffers = pci_iomap_range(vbox->ddev.pdev, 0,
 					     vbox->available_vram_size,
 					     vbox->num_crtcs *
 					     VBVA_MIN_BUFFER_SIZE);
@@ -238,7 +210,7 @@ static int vbox_accel_init(struct vbox_private *vbox)
 static void vbox_accel_fini(struct vbox_private *vbox)
 {
 	vbox_disable_accel(vbox);
-	pci_iounmap(vbox->dev->pdev, vbox->vbva_buffers);
+	pci_iounmap(vbox->ddev.pdev, vbox->vbva_buffers);
 }
 
 /** Do we support the 4.3 plus mode hint reporting interface? */
@@ -262,7 +234,7 @@ static bool have_hgsmi_mode_hints(struct vbox_private *vbox)
 	return have_hints == VINF_SUCCESS && have_cursor == VINF_SUCCESS;
 }
 
-static bool vbox_check_supported(u16 id)
+bool vbox_check_supported(u16 id)
 {
 	u16 dispi_id;
 
@@ -276,7 +248,7 @@ static bool vbox_check_supported(u16 id)
  * Set up our heaps and data exchange buffers in VRAM before handing the rest
  * to the memory manager.
  */
-static int vbox_hw_init(struct vbox_private *vbox)
+int vbox_hw_init(struct vbox_private *vbox)
 {
 	int ret = -ENOMEM;
 
@@ -287,7 +259,7 @@ static int vbox_hw_init(struct vbox_private *vbox)
 
 	/* Map guest-heap at end of vram */
 	vbox->guest_heap =
-	    pci_iomap_range(vbox->dev->pdev, 0, GUEST_HEAP_OFFSET(vbox),
+	    pci_iomap_range(vbox->ddev.pdev, 0, GUEST_HEAP_OFFSET(vbox),
 			    GUEST_HEAP_SIZE);
 	if (!vbox->guest_heap)
 		return -ENOMEM;
@@ -322,7 +294,7 @@ static int vbox_hw_init(struct vbox_private *vbox)
 		goto err_destroy_guest_pool;
 	}
 
-	vbox->last_mode_hints = devm_kcalloc(vbox->dev->dev, vbox->num_crtcs,
+	vbox->last_mode_hints = devm_kcalloc(vbox->ddev.dev, vbox->num_crtcs,
 					     sizeof(struct vbva_modehint),
 					     GFP_KERNEL);
 	if (!vbox->last_mode_hints) {
@@ -339,102 +311,18 @@ static int vbox_hw_init(struct vbox_private *vbox)
 err_destroy_guest_pool:
 	gen_pool_destroy(vbox->guest_pool);
 err_unmap_guest_heap:
-	pci_iounmap(vbox->dev->pdev, vbox->guest_heap);
+	pci_iounmap(vbox->ddev.pdev, vbox->guest_heap);
 	return ret;
 }
 
-static void vbox_hw_fini(struct vbox_private *vbox)
+void vbox_hw_fini(struct vbox_private *vbox)
 {
 	vbox_accel_fini(vbox);
 	gen_pool_destroy(vbox->guest_pool);
-	pci_iounmap(vbox->dev->pdev, vbox->guest_heap);
+	pci_iounmap(vbox->ddev.pdev, vbox->guest_heap);
 }
 
-int vbox_driver_load(struct drm_device *dev)
-{
-	struct vbox_private *vbox;
-	int ret = 0;
-
-	if (!vbox_check_supported(VBE_DISPI_ID_HGSMI))
-		return -ENODEV;
-
-	vbox = devm_kzalloc(dev->dev, sizeof(*vbox), GFP_KERNEL);
-	if (!vbox)
-		return -ENOMEM;
-
-	dev->dev_private = vbox;
-	vbox->dev = dev;
-
-	mutex_init(&vbox->hw_mutex);
-
-	ret = vbox_hw_init(vbox);
-	if (ret)
-		return ret;
-
-	ret = vbox_mm_init(vbox);
-	if (ret)
-		goto err_hw_fini;
-
-	drm_mode_config_init(dev);
-
-	dev->mode_config.funcs = (void *)&vbox_mode_funcs;
-	dev->mode_config.min_width = 64;
-	dev->mode_config.min_height = 64;
-	dev->mode_config.preferred_depth = 24;
-	dev->mode_config.max_width = VBE_DISPI_MAX_XRES;
-	dev->mode_config.max_height = VBE_DISPI_MAX_YRES;
-
-	ret = vbox_mode_init(dev);
-	if (ret)
-		goto err_drm_mode_cleanup;
-
-	ret = vbox_irq_init(vbox);
-	if (ret)
-		goto err_mode_fini;
-
-	ret = vbox_fbdev_init(dev);
-	if (ret)
-		goto err_irq_fini;
-
-	return 0;
-
-err_irq_fini:
-	vbox_irq_fini(vbox);
-err_mode_fini:
-	vbox_mode_fini(dev);
-err_drm_mode_cleanup:
-	drm_mode_config_cleanup(dev);
-	vbox_mm_fini(vbox);
-err_hw_fini:
-	vbox_hw_fini(vbox);
-	return ret;
-}
-
-void vbox_driver_unload(struct drm_device *dev)
-{
-	struct vbox_private *vbox = dev->dev_private;
-
-	vbox_fbdev_fini(dev);
-	vbox_irq_fini(vbox);
-	vbox_mode_fini(dev);
-	drm_mode_config_cleanup(dev);
-	vbox_mm_fini(vbox);
-	vbox_hw_fini(vbox);
-}
-
-/**
- * @note this is described in the DRM framework documentation.  AST does not
- * have it, but we get an oops on driver unload if it is not present.
- */
-void vbox_driver_lastclose(struct drm_device *dev)
-{
-	struct vbox_private *vbox = dev->dev_private;
-
-	if (vbox->fbdev)
-		drm_fb_helper_restore_fbdev_mode_unlocked(&vbox->fbdev->helper);
-}
-
-int vbox_gem_create(struct drm_device *dev,
+int vbox_gem_create(struct vbox_private *vbox,
 		    u32 size, bool iskernel, struct drm_gem_object **obj)
 {
 	struct vbox_bo *vboxbo;
@@ -446,7 +334,7 @@ int vbox_gem_create(struct drm_device *dev,
 	if (size == 0)
 		return -EINVAL;
 
-	ret = vbox_bo_create(dev, size, 0, 0, &vboxbo);
+	ret = vbox_bo_create(vbox, size, 0, 0, &vboxbo);
 	if (ret) {
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("failed to allocate GEM object\n");
@@ -461,14 +349,16 @@ int vbox_gem_create(struct drm_device *dev,
 int vbox_dumb_create(struct drm_file *file,
 		     struct drm_device *dev, struct drm_mode_create_dumb *args)
 {
-	int ret;
+	struct vbox_private *vbox =
+		container_of(dev, struct vbox_private, ddev);
 	struct drm_gem_object *gobj;
 	u32 handle;
+	int ret;
 
 	args->pitch = args->width * ((args->bpp + 7) / 8);
 	args->size = args->pitch * args->height;
 
-	ret = vbox_gem_create(dev, args->size, false, &gobj);
+	ret = vbox_gem_create(vbox, args->size, false, &gobj);
 	if (ret)
 		return ret;
 
@@ -482,24 +372,11 @@ int vbox_dumb_create(struct drm_file *file,
 	return 0;
 }
 
-static void vbox_bo_unref(struct vbox_bo **bo)
-{
-	struct ttm_buffer_object *tbo;
-
-	if ((*bo) == NULL)
-		return;
-
-	tbo = &((*bo)->bo);
-	ttm_bo_unref(&tbo);
-	if (!tbo)
-		*bo = NULL;
-}
-
 void vbox_gem_free_object(struct drm_gem_object *obj)
 {
 	struct vbox_bo *vbox_bo = gem_to_vbox_bo(obj);
 
-	vbox_bo_unref(&vbox_bo);
+	ttm_bo_put(&vbox_bo->bo);
 }
 
 static inline u64 vbox_bo_mmap_offset(struct vbox_bo *bo)

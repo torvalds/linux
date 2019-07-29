@@ -273,11 +273,11 @@ unsigned int csum_partial_copy_generic (const char *src, char *dst,
 
 #define SRC(y...)			\
 	9999: y;			\
-	_ASM_EXTABLE(9999b, 6001f)
+	_ASM_EXTABLE_UA(9999b, 6001f)
 
 #define DST(y...)			\
 	9999: y;			\
-	_ASM_EXTABLE(9999b, 6002f)
+	_ASM_EXTABLE_UA(9999b, 6002f)
 
 #ifndef CONFIG_X86_USE_PPRO_CHECKSUM
 

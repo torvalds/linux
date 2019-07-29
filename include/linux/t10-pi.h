@@ -39,12 +39,13 @@ struct t10_pi_tuple {
 
 static inline u32 t10_pi_ref_tag(struct request *rq)
 {
+	unsigned int shift = ilog2(queue_logical_block_size(rq->q));
+
 #ifdef CONFIG_BLK_DEV_INTEGRITY
-	return blk_rq_pos(rq) >>
-		(rq->q->integrity.interval_exp - 9) & 0xffffffff;
-#else
-	return -1U;
+	if (rq->q->integrity.interval_exp)
+		shift = rq->q->integrity.interval_exp;
 #endif
+	return blk_rq_pos(rq) >> (shift - SECTOR_SHIFT) & 0xffffffff;
 }
 
 extern const struct blk_integrity_profile t10_pi_type1_crc;

@@ -5,5 +5,6 @@
 void regression1_test(void);
 void regression2_test(void);
 void regression3_test(void);
+void regression4_test(void);
 
 #endif

@@ -829,7 +829,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	 * Discard zero-length packets and packets smaller than an ACK
 	 */
 	if (rx_stats->rs_datalen < 10) {
-		RX_STAT_INC(rx_len_err);
+		RX_STAT_INC(sc, rx_len_err);
 		goto corrupt;
 	}
 
@@ -839,7 +839,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	 * those frames.
 	 */
 	if (rx_stats->rs_datalen > (common->rx_bufsize - ah->caps.rx_status_len)) {
-		RX_STAT_INC(rx_len_err);
+		RX_STAT_INC(sc, rx_len_err);
 		goto corrupt;
 	}
 
@@ -880,7 +880,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		} else if (sc->spec_priv.spectral_mode != SPECTRAL_DISABLED &&
 			   ath_cmn_process_fft(&sc->spec_priv, hdr, rx_stats,
 					       rx_status->mactime)) {
-			RX_STAT_INC(rx_spectral);
+			RX_STAT_INC(sc, rx_spectral);
 		}
 		return -EINVAL;
 	}
@@ -898,7 +898,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	spin_unlock_bh(&sc->chan_lock);
 
 	if (ath_is_mybeacon(common, hdr)) {
-		RX_STAT_INC(rx_beacons);
+		RX_STAT_INC(sc, rx_beacons);
 		rx_stats->is_mybeacon = true;
 	}
 
@@ -915,7 +915,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		 */
 		ath_dbg(common, ANY, "unsupported hw bitrate detected 0x%02x using 1 Mbit\n",
 			rx_stats->rs_rate);
-		RX_STAT_INC(rx_rate_err);
+		RX_STAT_INC(sc, rx_rate_err);
 		return -EINVAL;
 	}
 
@@ -1136,7 +1136,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		 * skb and put it at the tail of the sc->rx.rxbuf list for
 		 * processing. */
 		if (!requeue_skb) {
-			RX_STAT_INC(rx_oom_err);
+			RX_STAT_INC(sc, rx_oom_err);
 			goto requeue_drop_frag;
 		}
 
@@ -1164,7 +1164,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 						     rxs, decrypt_error);
 
 		if (rs.rs_more) {
-			RX_STAT_INC(rx_frags);
+			RX_STAT_INC(sc, rx_frags);
 			/*
 			 * rs_more indicates chained descriptors which can be
 			 * used to link buffers together for a sort of
@@ -1174,7 +1174,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 				/* too many fragments - cannot handle frame */
 				dev_kfree_skb_any(sc->rx.frag);
 				dev_kfree_skb_any(skb);
-				RX_STAT_INC(rx_too_many_frags_err);
+				RX_STAT_INC(sc, rx_too_many_frags_err);
 				skb = NULL;
 			}
 			sc->rx.frag = skb;
@@ -1186,7 +1186,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 			if (pskb_expand_head(hdr_skb, 0, space, GFP_ATOMIC) < 0) {
 				dev_kfree_skb(skb);
-				RX_STAT_INC(rx_oom_err);
+				RX_STAT_INC(sc, rx_oom_err);
 				goto requeue_drop_frag;
 			}
 

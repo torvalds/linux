@@ -229,8 +229,8 @@ static int si470x_fops_release(struct file *file)
 static int si470x_vidioc_querycap(struct file *file, void *priv,
 				  struct v4l2_capability *capability)
 {
-	strlcpy(capability->driver, DRIVER_NAME, sizeof(capability->driver));
-	strlcpy(capability->card, DRIVER_CARD, sizeof(capability->card));
+	strscpy(capability->driver, DRIVER_NAME, sizeof(capability->driver));
+	strscpy(capability->card, DRIVER_CARD, sizeof(capability->card));
 	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_READWRITE |
 		V4L2_CAP_TUNER | V4L2_CAP_RADIO | V4L2_CAP_RDS_CAPTURE;
 	capability->capabilities = capability->device_caps | V4L2_CAP_DEVICE_CAPS;

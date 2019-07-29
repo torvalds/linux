@@ -26,6 +26,7 @@
 #include <linux/bitmap.h>
 #include <linux/math64.h>
 #include <linux/mod_devicetable.h>
+#include <linux/adxl.h>
 #include <acpi/nfit.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
@@ -35,6 +36,7 @@
 #include "edac_module.h"
 
 #define EDAC_MOD_STR    "skx_edac"
+#define MSG_SIZE	1024
 
 /*
  * Debug macros
@@ -54,6 +56,29 @@
 static LIST_HEAD(skx_edac_list);
 
 static u64 skx_tolm, skx_tohm;
+static char *skx_msg;
+static unsigned int nvdimm_count;
+
+enum {
+	INDEX_SOCKET,
+	INDEX_MEMCTRL,
+	INDEX_CHANNEL,
+	INDEX_DIMM,
+	INDEX_MAX
+};
+
+static const char * const component_names[] = {
+	[INDEX_SOCKET]	= "ProcessorSocketId",
+	[INDEX_MEMCTRL]	= "MemoryControllerId",
+	[INDEX_CHANNEL]	= "ChannelId",
+	[INDEX_DIMM]	= "DimmSlotId",
+};
+
+static int component_indices[ARRAY_SIZE(component_names)];
+static int adxl_component_count;
+static const char * const *adxl_component_names;
+static u64 *adxl_values;
+static char *adxl_msg;
 
 #define NUM_IMC			2	/* memory controllers per socket */
 #define NUM_CHANNELS		3	/* channels per memory controller */
@@ -364,7 +389,7 @@ static int get_dimm_info(u32 mtr, u32 amap, struct dimm_info *dimm,
 	size = ((1ull << (rows + cols + ranks)) * banks) >> (20 - 3);
 	npages = MiB_TO_PAGES(size);
 
-	edac_dbg(0, "mc#%d: channel %d, dimm %d, %lld Mb (%d pages) bank: %d, rank: %d, row: %#x, col: %#x\n",
+	edac_dbg(0, "mc#%d: channel %d, dimm %d, %lld MiB (%d pages) bank: %d, rank: %d, row: %#x, col: %#x\n",
 		 imc->mc, chan, dimmno, size, npages,
 		 banks, 1 << ranks, rows, cols);
 
@@ -392,6 +417,8 @@ static int get_nvdimm_info(struct dimm_info *dimm, struct skx_imc *imc,
 	u32 dev_handle;
 	u16 flags;
 	u64 size = 0;
+
+	nvdimm_count++;
 
 	dev_handle = ACPI_NFIT_BUILD_DEVICE_HANDLE(dimmno, chan, imc->lmc,
 						   imc->src_id, 0);
@@ -424,7 +451,7 @@ unknown_size:
 	dimm->mtype = MEM_NVDIMM;
 	dimm->edac_mode = EDAC_SECDED; /* likely better than this */
 
-	edac_dbg(0, "mc#%d: channel %d, dimm %d, %llu Mb (%u pages)\n",
+	edac_dbg(0, "mc#%d: channel %d, dimm %d, %llu MiB (%u pages)\n",
 		 imc->mc, chan, dimmno, size >> 20, dimm->nr_pages);
 
 	snprintf(dimm->label, sizeof(dimm->label), "CPU_SrcID#%u_MC#%u_Chan#%u_DIMM#%u",
@@ -668,7 +695,7 @@ sad_found:
 			break;
 		case 2:
 			lchan = (addr >> shift) % 2;
-			lchan = (lchan << 1) | ~lchan;
+			lchan = (lchan << 1) | !lchan;
 			break;
 		case 3:
 			lchan = ((addr >> shift) % 2) << 1;
@@ -941,12 +968,46 @@ static void teardown_skx_debug(void)
 }
 #endif /*CONFIG_EDAC_DEBUG*/
 
+static bool skx_adxl_decode(struct decoded_addr *res)
+
+{
+	int i, len = 0;
+
+	if (res->addr >= skx_tohm || (res->addr >= skx_tolm &&
+				      res->addr < BIT_ULL(32))) {
+		edac_dbg(0, "Address 0x%llx out of range\n", res->addr);
+		return false;
+	}
+
+	if (adxl_decode(res->addr, adxl_values)) {
+		edac_dbg(0, "Failed to decode 0x%llx\n", res->addr);
+		return false;
+	}
+
+	res->socket  = (int)adxl_values[component_indices[INDEX_SOCKET]];
+	res->imc     = (int)adxl_values[component_indices[INDEX_MEMCTRL]];
+	res->channel = (int)adxl_values[component_indices[INDEX_CHANNEL]];
+	res->dimm    = (int)adxl_values[component_indices[INDEX_DIMM]];
+
+	for (i = 0; i < adxl_component_count; i++) {
+		if (adxl_values[i] == ~0x0ull)
+			continue;
+
+		len += snprintf(adxl_msg + len, MSG_SIZE - len, " %s:0x%llx",
+				adxl_component_names[i], adxl_values[i]);
+		if (MSG_SIZE - len <= 0)
+			break;
+	}
+
+	return true;
+}
+
 static void skx_mce_output_error(struct mem_ctl_info *mci,
 				 const struct mce *m,
 				 struct decoded_addr *res)
 {
 	enum hw_event_mc_err_type tp_event;
-	char *type, *optype, msg[256];
+	char *type, *optype;
 	bool ripv = GET_BITFIELD(m->mcgstatus, 0, 0);
 	bool overflow = GET_BITFIELD(m->status, 62, 62);
 	bool uncorrected_error = GET_BITFIELD(m->status, 61, 61);
@@ -959,6 +1020,7 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 	recoverable = GET_BITFIELD(m->status, 56, 56);
 
 	if (uncorrected_error) {
+		core_err_cnt = 1;
 		if (ripv) {
 			type = "FATAL";
 			tp_event = HW_EVENT_ERR_FATAL;
@@ -1006,22 +1068,47 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 			break;
 		}
 	}
+	if (adxl_component_count) {
+		snprintf(skx_msg, MSG_SIZE, "%s%s err_code:%04x:%04x %s",
+			 overflow ? " OVERFLOW" : "",
+			 (uncorrected_error && recoverable) ? " recoverable" : "",
+			 mscod, errcode, adxl_msg);
+	} else {
+		snprintf(skx_msg, MSG_SIZE,
+			 "%s%s err_code:%04x:%04x socket:%d imc:%d rank:%d bg:%d ba:%d row:%x col:%x",
+			 overflow ? " OVERFLOW" : "",
+			 (uncorrected_error && recoverable) ? " recoverable" : "",
+			 mscod, errcode,
+			 res->socket, res->imc, res->rank,
+			 res->bank_group, res->bank_address, res->row, res->column);
+	}
 
-	snprintf(msg, sizeof(msg),
-		 "%s%s err_code:%04x:%04x socket:%d imc:%d rank:%d bg:%d ba:%d row:%x col:%x",
-		 overflow ? " OVERFLOW" : "",
-		 (uncorrected_error && recoverable) ? " recoverable" : "",
-		 mscod, errcode,
-		 res->socket, res->imc, res->rank,
-		 res->bank_group, res->bank_address, res->row, res->column);
-
-	edac_dbg(0, "%s\n", msg);
+	edac_dbg(0, "%s\n", skx_msg);
 
 	/* Call the helper to output message */
 	edac_mc_handle_error(tp_event, mci, core_err_cnt,
 			     m->addr >> PAGE_SHIFT, m->addr & ~PAGE_MASK, 0,
 			     res->channel, res->dimm, -1,
-			     optype, msg);
+			     optype, skx_msg);
+}
+
+static struct mem_ctl_info *get_mci(int src_id, int lmc)
+{
+	struct skx_dev *d;
+
+	if (lmc > NUM_IMC - 1) {
+		skx_printk(KERN_ERR, "Bad lmc %d\n", lmc);
+		return NULL;
+	}
+
+	list_for_each_entry(d, &skx_edac_list, list) {
+		if (d->imc[0].src_id == src_id)
+			return d->imc[lmc].mci;
+	}
+
+	skx_printk(KERN_ERR, "No mci for src_id %d lmc %d\n", src_id, lmc);
+
+	return NULL;
 }
 
 static int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
@@ -1039,10 +1126,23 @@ static int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	if ((mce->status & 0xefff) >> 7 != 1 || !(mce->status & MCI_STATUS_ADDRV))
 		return NOTIFY_DONE;
 
+	memset(&res, 0, sizeof(res));
 	res.addr = mce->addr;
-	if (!skx_decode(&res))
+
+	if (adxl_component_count) {
+		if (!skx_adxl_decode(&res))
+			return NOTIFY_DONE;
+
+		mci = get_mci(res.socket, res.imc);
+	} else {
+		if (!skx_decode(&res))
+			return NOTIFY_DONE;
+
+		mci = res.dev->imc[res.imc].mci;
+	}
+
+	if (!mci)
 		return NOTIFY_DONE;
-	mci = res.dev->imc[res.imc].mci;
 
 	if (mce->mcgstatus & MCG_STATUS_MCIP)
 		type = "Exception";
@@ -1091,6 +1191,62 @@ static void skx_remove(void)
 
 		kfree(d);
 	}
+}
+
+static void __init skx_adxl_get(void)
+{
+	const char * const *names;
+	int i, j;
+
+	names = adxl_get_component_names();
+	if (!names) {
+		skx_printk(KERN_NOTICE, "No firmware support for address translation.");
+		skx_printk(KERN_CONT, " Only decoding DDR4 address!\n");
+		return;
+	}
+
+	for (i = 0; i < INDEX_MAX; i++) {
+		for (j = 0; names[j]; j++) {
+			if (!strcmp(component_names[i], names[j])) {
+				component_indices[i] = j;
+				break;
+			}
+		}
+
+		if (!names[j])
+			goto err;
+	}
+
+	adxl_component_names = names;
+	while (*names++)
+		adxl_component_count++;
+
+	adxl_values = kcalloc(adxl_component_count, sizeof(*adxl_values),
+			      GFP_KERNEL);
+	if (!adxl_values) {
+		adxl_component_count = 0;
+		return;
+	}
+
+	adxl_msg = kzalloc(MSG_SIZE, GFP_KERNEL);
+	if (!adxl_msg) {
+		adxl_component_count = 0;
+		kfree(adxl_values);
+	}
+
+	return;
+err:
+	skx_printk(KERN_ERR, "'%s' is not matched from DSM parameters: ",
+		   component_names[i]);
+	for (j = 0; names[j]; j++)
+		skx_printk(KERN_CONT, "%s ", names[j]);
+	skx_printk(KERN_CONT, "\n");
+}
+
+static void __exit skx_adxl_put(void)
+{
+	kfree(adxl_values);
+	kfree(adxl_msg);
 }
 
 /*
@@ -1157,6 +1313,15 @@ static int __init skx_init(void)
 		}
 	}
 
+	skx_msg = kzalloc(MSG_SIZE, GFP_KERNEL);
+	if (!skx_msg) {
+		rc = -ENOMEM;
+		goto fail;
+	}
+
+	if (nvdimm_count)
+		skx_adxl_get();
+
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
 
@@ -1175,6 +1340,9 @@ static void __exit skx_exit(void)
 	edac_dbg(2, "\n");
 	mce_unregister_decode_chain(&skx_mce_dec);
 	skx_remove();
+	if (nvdimm_count)
+		skx_adxl_put();
+	kfree(skx_msg);
 	teardown_skx_debug();
 }
 

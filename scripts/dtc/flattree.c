@@ -393,7 +393,7 @@ void dt_to_blob(FILE *f, struct dt_info *dti, int version)
 			padlen = 0;
 			if (quiet < 1)
 				fprintf(stderr,
-					"Warning: blob size %d >= minimum size %d\n",
+					"Warning: blob size %"PRIu32" >= minimum size %d\n",
 					fdt32_to_cpu(fdt.totalsize), minsize);
 		}
 	}

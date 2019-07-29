@@ -41,8 +41,12 @@
 #define R_L_S	0x0800	/* last */
 #define R_F_S	0x0400	/* first */
 #define R_CM_S	0x0200	/* continuous mode */
+#define R_LG_S  0x0020  /* frame length */
+#define R_NO_S  0x0010  /* nonoctet */
+#define R_AB_S  0x0008  /* abort */
 #define R_CR_S	0x0004	/* crc */
-#define R_OV_S	0x0002	/* crc */
+#define R_OV_S	0x0002	/* overrun */
+#define R_CD_S  0x0001  /* carrier detect */
 
 /* transmit BD's status */
 #define T_R_S	0x8000	/* ready bit */
@@ -51,6 +55,8 @@
 #define T_L_S	0x0800	/* last */
 #define T_TC_S	0x0400	/* crc */
 #define T_TM_S	0x0200	/* continuous mode */
+#define T_UN_S  0x0002  /* hdlc underrun */
+#define T_CT_S  0x0001  /* hdlc carrier lost */
 
 /* Rx Data buffer must be 4 bytes aligned in most cases */
 #define UCC_FAST_RX_ALIGN			4

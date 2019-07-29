@@ -321,7 +321,8 @@ static const struct regmap_config ltc3676_regmap_config = {
 	.readable_reg = ltc3676_readable_reg,
 	.volatile_reg = ltc3676_volatile_reg,
 	.max_register = LTC3676_CLIRQ,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.cache_type = REGCACHE_RBTREE,
 };
 

@@ -127,7 +127,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x71>;
-		reset-gpios= <&gpio3 15 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
 	};
 };
 

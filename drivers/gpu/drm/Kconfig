@@ -110,6 +110,26 @@ config DRM_FBDEV_OVERALLOC
 	  is 100. Typical values for double buffering will be 200,
 	  triple buffering 300.
 
+config DRM_FBDEV_LEAK_PHYS_SMEM
+	bool "Shamelessly allow leaking of fbdev physical address (DANGEROUS)"
+	depends on DRM_FBDEV_EMULATION && EXPERT
+	default n
+	help
+	  In order to keep user-space compatibility, we want in certain
+	  use-cases to keep leaking the fbdev physical address to the
+	  user-space program handling the fbdev buffer.
+	  This affects, not only, Amlogic, Allwinner or Rockchip devices
+	  with ARM Mali GPUs using an userspace Blob.
+	  This option is not supported by upstream developers and should be
+	  removed as soon as possible and be considered as a broken and
+	  legacy behaviour from a modern fbdev device driver.
+
+	  Please send any bug reports when using this to your proprietary
+	  software vendor that requires this.
+
+	  If in doubt, say "N" or spread the word to your closed source
+	  library vendor.
+
 config DRM_LOAD_EDID_FIRMWARE
 	bool "Allow to specify an EDID data set instead of probing for it"
 	depends on DRM
@@ -284,8 +304,6 @@ source "drivers/gpu/drm/panel/Kconfig"
 source "drivers/gpu/drm/bridge/Kconfig"
 
 source "drivers/gpu/drm/sti/Kconfig"
-
-source "drivers/gpu/drm/amd/amdkfd/Kconfig"
 
 source "drivers/gpu/drm/imx/Kconfig"
 

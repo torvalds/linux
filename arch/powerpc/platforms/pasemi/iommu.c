@@ -213,7 +213,7 @@ static int __init iob_init(struct device_node *dn)
 	pr_info("IOBMAP L2 allocated at: %p\n", iob_l2_base);
 
 	/* Allocate a spare page to map all invalid IOTLB pages. */
-	tmp = memblock_alloc(IOBMAP_PAGE_SIZE, IOBMAP_PAGE_SIZE);
+	tmp = memblock_phys_alloc(IOBMAP_PAGE_SIZE, IOBMAP_PAGE_SIZE);
 	if (!tmp)
 		panic("IOBMAP: Cannot allocate spare page!");
 	/* Empty l1 is marked invalid */

@@ -20,13 +20,12 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/sort.h>
 #include <linux/slab.h>
+#include <linux/memblock.h>
 
 #define MAX_RESERVED_REGIONS	32
 static struct reserved_mem reserved_mem[MAX_RESERVED_REGIONS];
 static int reserved_mem_count;
 
-#if defined(CONFIG_HAVE_MEMBLOCK)
-#include <linux/memblock.h>
 int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
 	phys_addr_t align, phys_addr_t start, phys_addr_t end, bool nomap,
 	phys_addr_t *res_base)
@@ -37,6 +36,7 @@ int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
 	 * panic()s on allocation failure.
 	 */
 	end = !end ? MEMBLOCK_ALLOC_ANYWHERE : end;
+	align = !align ? SMP_CACHE_BYTES : align;
 	base = __memblock_alloc_base(size, align, end);
 	if (!base)
 		return -ENOMEM;
@@ -54,16 +54,6 @@ int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
 		return memblock_remove(base, size);
 	return 0;
 }
-#else
-int __init __weak early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
-	phys_addr_t align, phys_addr_t start, phys_addr_t end, bool nomap,
-	phys_addr_t *res_base)
-{
-	pr_err("Reserved memory not supported, ignoring region 0x%llx%s\n",
-		  size, nomap ? " (nomap)" : "");
-	return -ENOSYS;
-}
-#endif
 
 /**
  * res_mem_save_node() - save fdt node for second pass initialization

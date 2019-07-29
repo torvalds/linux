@@ -214,9 +214,9 @@ void __init opal_sensor_groups_init(void)
 		}
 
 		if (!of_property_read_u32(node, "ibm,chip-id", &chipid))
-			sprintf(sgs[i].name, "%s%d", node->name, chipid);
+			sprintf(sgs[i].name, "%pOFn%d", node, chipid);
 		else
-			sprintf(sgs[i].name, "%s", node->name);
+			sprintf(sgs[i].name, "%pOFn", node);
 
 		sgs[i].sg.name = sgs[i].name;
 		if (add_attr_group(ops, len, &sgs[i], sgid)) {

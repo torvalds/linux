@@ -190,6 +190,20 @@ int vmbus_connect(void)
 		goto cleanup;
 	}
 
+	vmbus_connection.handle_primary_chan_wq =
+		create_workqueue("hv_pri_chan");
+	if (!vmbus_connection.handle_primary_chan_wq) {
+		ret = -ENOMEM;
+		goto cleanup;
+	}
+
+	vmbus_connection.handle_sub_chan_wq =
+		create_workqueue("hv_sub_chan");
+	if (!vmbus_connection.handle_sub_chan_wq) {
+		ret = -ENOMEM;
+		goto cleanup;
+	}
+
 	INIT_LIST_HEAD(&vmbus_connection.chn_msg_list);
 	spin_lock_init(&vmbus_connection.channelmsg_lock);
 
@@ -280,10 +294,14 @@ void vmbus_disconnect(void)
 	 */
 	vmbus_initiate_unload(false);
 
-	if (vmbus_connection.work_queue) {
-		drain_workqueue(vmbus_connection.work_queue);
+	if (vmbus_connection.handle_sub_chan_wq)
+		destroy_workqueue(vmbus_connection.handle_sub_chan_wq);
+
+	if (vmbus_connection.handle_primary_chan_wq)
+		destroy_workqueue(vmbus_connection.handle_primary_chan_wq);
+
+	if (vmbus_connection.work_queue)
 		destroy_workqueue(vmbus_connection.work_queue);
-	}
 
 	if (vmbus_connection.int_page) {
 		free_pages((unsigned long)vmbus_connection.int_page, 0);

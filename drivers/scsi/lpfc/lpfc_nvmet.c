@@ -1339,15 +1339,14 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 			idx = 0;
 	}
 
-	infop = phba->sli4_hba.nvmet_ctx_info;
-	for (j = 0; j < phba->cfg_nvmet_mrq; j++) {
-		for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+	for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+		for (j = 0; j < phba->cfg_nvmet_mrq; j++) {
+			infop = lpfc_get_ctx_list(phba, i, j);
 			lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_INIT,
 					"6408 TOTAL NVMET ctx for CPU %d "
 					"MRQ %d: cnt %d nextcpu %p\n",
 					i, j, infop->nvmet_ctx_list_cnt,
 					infop->nvmet_ctx_next_cpu);
-			infop++;
 		}
 	}
 	return 0;
@@ -1373,17 +1372,10 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 	pinfo.port_name = wwn_to_u64(vport->fc_portname.u.wwn);
 	pinfo.port_id = vport->fc_myDID;
 
-	/* Limit to LPFC_MAX_NVME_SEG_CNT.
-	 * For now need + 1 to get around NVME transport logic.
+	/* We need to tell the transport layer + 1 because it takes page
+	 * alignment into account. When space for the SGL is allocated we
+	 * allocate + 3, one for cmd, one for rsp and one for this alignment
 	 */
-	if (phba->cfg_sg_seg_cnt > LPFC_MAX_NVME_SEG_CNT) {
-		lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_INIT,
-				"6400 Reducing sg segment cnt to %d\n",
-				LPFC_MAX_NVME_SEG_CNT);
-		phba->cfg_nvme_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
-	} else {
-		phba->cfg_nvme_seg_cnt = phba->cfg_sg_seg_cnt;
-	}
 	lpfc_tgttemplate.max_sgl_segments = phba->cfg_nvme_seg_cnt + 1;
 	lpfc_tgttemplate.max_hw_queues = phba->cfg_nvme_io_channel;
 	lpfc_tgttemplate.target_features = NVMET_FCTGTFEAT_READDATA_RSP;

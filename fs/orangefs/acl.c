@@ -167,12 +167,16 @@ int orangefs_init_acl(struct inode *inode, struct inode *dir)
 		error = __orangefs_set_acl(inode, default_acl,
 					   ACL_TYPE_DEFAULT);
 		posix_acl_release(default_acl);
+	} else {
+		inode->i_default_acl = NULL;
 	}
 
 	if (acl) {
 		if (!error)
 			error = __orangefs_set_acl(inode, acl, ACL_TYPE_ACCESS);
 		posix_acl_release(acl);
+	} else {
+		inode->i_acl = NULL;
 	}
 
 	/* If mode of the inode was changed, then do a forcible ->setattr */

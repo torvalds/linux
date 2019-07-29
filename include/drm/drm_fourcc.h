@@ -25,6 +25,28 @@
 #include <linux/types.h>
 #include <uapi/drm/drm_fourcc.h>
 
+/*
+ * DRM formats are little endian.  Define host endian variants for the
+ * most common formats here, to reduce the #ifdefs needed in drivers.
+ *
+ * Note that the DRM_FORMAT_BIG_ENDIAN flag should only be used in
+ * case the format can't be specified otherwise, so we don't end up
+ * with two values describing the same format.
+ */
+#ifdef __BIG_ENDIAN
+# define DRM_FORMAT_HOST_XRGB1555     (DRM_FORMAT_XRGB1555         |	\
+				       DRM_FORMAT_BIG_ENDIAN)
+# define DRM_FORMAT_HOST_RGB565       (DRM_FORMAT_RGB565           |	\
+				       DRM_FORMAT_BIG_ENDIAN)
+# define DRM_FORMAT_HOST_XRGB8888     DRM_FORMAT_BGRX8888
+# define DRM_FORMAT_HOST_ARGB8888     DRM_FORMAT_BGRA8888
+#else
+# define DRM_FORMAT_HOST_XRGB1555     DRM_FORMAT_XRGB1555
+# define DRM_FORMAT_HOST_RGB565       DRM_FORMAT_RGB565
+# define DRM_FORMAT_HOST_XRGB8888     DRM_FORMAT_XRGB8888
+# define DRM_FORMAT_HOST_ARGB8888     DRM_FORMAT_ARGB8888
+#endif
+
 struct drm_device;
 struct drm_mode_fb_cmd2;
 
@@ -66,6 +88,8 @@ const struct drm_format_info *
 drm_get_format_info(struct drm_device *dev,
 		    const struct drm_mode_fb_cmd2 *mode_cmd);
 uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth);
+uint32_t drm_driver_legacy_fb_format(struct drm_device *dev,
+				     uint32_t bpp, uint32_t depth);
 int drm_format_num_planes(uint32_t format);
 int drm_format_plane_cpp(uint32_t format, int plane);
 int drm_format_horz_chroma_subsampling(uint32_t format);

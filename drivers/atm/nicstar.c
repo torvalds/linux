@@ -2689,11 +2689,10 @@ static void ns_poll(struct timer_list *unused)
 	PRINTK("nicstar: Entering ns_poll().\n");
 	for (i = 0; i < num_cards; i++) {
 		card = cards[i];
-		if (spin_is_locked(&card->int_lock)) {
+		if (!spin_trylock_irqsave(&card->int_lock, flags)) {
 			/* Probably it isn't worth spinning */
 			continue;
 		}
-		spin_lock_irqsave(&card->int_lock, flags);
 
 		stat_w = 0;
 		stat_r = readl(card->membase + STAT);

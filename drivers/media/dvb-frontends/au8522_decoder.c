@@ -718,10 +718,12 @@ static int au8522_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(sd, client, &au8522_ops);
 #if defined(CONFIG_MEDIA_CONTROLLER)
 
-	state->pads[DEMOD_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
-	state->pads[DEMOD_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
-	state->pads[DEMOD_PAD_VBI_OUT].flags = MEDIA_PAD_FL_SOURCE;
-	state->pads[DEMOD_PAD_AUDIO_OUT].flags = MEDIA_PAD_FL_SOURCE;
+	state->pads[AU8522_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
+	state->pads[AU8522_PAD_IF_INPUT].sig_type = PAD_SIGNAL_ANALOG;
+	state->pads[AU8522_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
+	state->pads[AU8522_PAD_VID_OUT].sig_type = PAD_SIGNAL_DV;
+	state->pads[AU8522_PAD_AUDIO_OUT].flags = MEDIA_PAD_FL_SOURCE;
+	state->pads[AU8522_PAD_AUDIO_OUT].sig_type = PAD_SIGNAL_AUDIO;
 	sd->entity.function = MEDIA_ENT_F_ATV_DECODER;
 
 	ret = media_entity_pads_init(&sd->entity, ARRAY_SIZE(state->pads),

@@ -53,20 +53,8 @@ Required properties:
 - clocks:		Serial engine core clock needed by the device.
 
 Qualcomm Technologies Inc. GENI Serial Engine based SPI Controller
-
-Required properties:
-- compatible:		Must contain "qcom,geni-spi".
-- reg:			Must contain SPI register location and length.
-- interrupts:		Must contain SPI controller interrupts.
-- clock-names:		Must contain "se".
-- clocks:		Serial engine core clock needed by the device.
-- spi-max-frequency:	Specifies maximum SPI clock frequency, units - Hz.
-- #address-cells:	Must be <1> to define a chip select address on
-			the SPI bus.
-- #size-cells:		Must be <0>.
-
-SPI slave nodes must be children of the SPI master node and conform to SPI bus
-binding as described in Documentation/devicetree/bindings/spi/spi-bus.txt.
+node binding is described in
+Documentation/devicetree/bindings/spi/qcom,spi-geni-qcom.txt.
 
 Example:
 	geniqup@8c0000 {
@@ -103,17 +91,4 @@ Example:
 			pinctrl-1 = <&qup_1_uart_3_sleep>;
 		};
 
-		spi0: spi@a84000 {
-			compatible = "qcom,geni-spi";
-			reg = <0xa84000 0x4000>;
-			interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
-			clock-names = "se";
-			clocks = <&clock_gcc GCC_QUPV3_WRAP0_S0_CLK>;
-			pinctrl-names = "default", "sleep";
-			pinctrl-0 = <&qup_1_spi_2_active>;
-			pinctrl-1 = <&qup_1_spi_2_sleep>;
-			spi-max-frequency = <19200000>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
 	}

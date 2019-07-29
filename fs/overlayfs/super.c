@@ -472,6 +472,7 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 {
 	char *p;
 	int err;
+	bool metacopy_opt = false, redirect_opt = false;
 
 	config->redirect_mode = kstrdup(ovl_redirect_mode_def(), GFP_KERNEL);
 	if (!config->redirect_mode)
@@ -516,6 +517,7 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 			config->redirect_mode = match_strdup(&args[0]);
 			if (!config->redirect_mode)
 				return -ENOMEM;
+			redirect_opt = true;
 			break;
 
 		case OPT_INDEX_ON:
@@ -548,6 +550,7 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 		case OPT_METACOPY_ON:
 			config->metacopy = true;
+			metacopy_opt = true;
 			break;
 
 		case OPT_METACOPY_OFF:
@@ -572,13 +575,32 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 	if (err)
 		return err;
 
-	/* metacopy feature with upper requires redirect_dir=on */
-	if (config->upperdir && config->metacopy && !config->redirect_dir) {
-		pr_warn("overlayfs: metadata only copy up requires \"redirect_dir=on\", falling back to metacopy=off.\n");
-		config->metacopy = false;
-	} else if (config->metacopy && !config->redirect_follow) {
-		pr_warn("overlayfs: metadata only copy up requires \"redirect_dir=follow\" on non-upper mount, falling back to metacopy=off.\n");
-		config->metacopy = false;
+	/*
+	 * This is to make the logic below simpler.  It doesn't make any other
+	 * difference, since config->redirect_dir is only used for upper.
+	 */
+	if (!config->upperdir && config->redirect_follow)
+		config->redirect_dir = true;
+
+	/* Resolve metacopy -> redirect_dir dependency */
+	if (config->metacopy && !config->redirect_dir) {
+		if (metacopy_opt && redirect_opt) {
+			pr_err("overlayfs: conflicting options: metacopy=on,redirect_dir=%s\n",
+			       config->redirect_mode);
+			return -EINVAL;
+		}
+		if (redirect_opt) {
+			/*
+			 * There was an explicit redirect_dir=... that resulted
+			 * in this conflict.
+			 */
+			pr_info("overlayfs: disabling metacopy due to redirect_dir=%s\n",
+				config->redirect_mode);
+			config->metacopy = false;
+		} else {
+			/* Automatically enable redirect otherwise. */
+			config->redirect_follow = config->redirect_dir = true;
+		}
 	}
 
 	return 0;
@@ -1175,9 +1197,29 @@ out:
 	return err;
 }
 
-/* Get a unique fsid for the layer */
-static int ovl_get_fsid(struct ovl_fs *ofs, struct super_block *sb)
+static bool ovl_lower_uuid_ok(struct ovl_fs *ofs, const uuid_t *uuid)
 {
+	unsigned int i;
+
+	if (!ofs->config.nfs_export && !(ofs->config.index && ofs->upper_mnt))
+		return true;
+
+	for (i = 0; i < ofs->numlowerfs; i++) {
+		/*
+		 * We use uuid to associate an overlay lower file handle with a
+		 * lower layer, so we can accept lower fs with null uuid as long
+		 * as all lower layers with null uuid are on the same fs.
+		 */
+		if (uuid_equal(&ofs->lower_fs[i].sb->s_uuid, uuid))
+			return false;
+	}
+	return true;
+}
+
+/* Get a unique fsid for the layer */
+static int ovl_get_fsid(struct ovl_fs *ofs, const struct path *path)
+{
+	struct super_block *sb = path->mnt->mnt_sb;
 	unsigned int i;
 	dev_t dev;
 	int err;
@@ -1189,6 +1231,14 @@ static int ovl_get_fsid(struct ovl_fs *ofs, struct super_block *sb)
 	for (i = 0; i < ofs->numlowerfs; i++) {
 		if (ofs->lower_fs[i].sb == sb)
 			return i + 1;
+	}
+
+	if (!ovl_lower_uuid_ok(ofs, &sb->s_uuid)) {
+		ofs->config.index = false;
+		ofs->config.nfs_export = false;
+		pr_warn("overlayfs: %s uuid detected in lower fs '%pd2', falling back to index=off,nfs_export=off.\n",
+			uuid_is_null(&sb->s_uuid) ? "null" : "conflicting",
+			path->dentry);
 	}
 
 	err = get_anon_bdev(&dev);
@@ -1225,7 +1275,7 @@ static int ovl_get_lower_layers(struct ovl_fs *ofs, struct path *stack,
 		struct vfsmount *mnt;
 		int fsid;
 
-		err = fsid = ovl_get_fsid(ofs, stack[i].mnt->mnt_sb);
+		err = fsid = ovl_get_fsid(ofs, &stack[i]);
 		if (err < 0)
 			goto out;
 

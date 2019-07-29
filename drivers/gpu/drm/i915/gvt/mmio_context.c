@@ -37,19 +37,6 @@
 #include "gvt.h"
 #include "trace.h"
 
-/**
- * Defined in Intel Open Source PRM.
- * Ref: https://01.org/linuxgraphics/documentation/hardware-specification-prms
- */
-#define TRVATTL3PTRDW(i)	_MMIO(0x4de0 + (i)*4)
-#define TRNULLDETCT		_MMIO(0x4de8)
-#define TRINVTILEDETCT		_MMIO(0x4dec)
-#define TRVADR			_MMIO(0x4df0)
-#define TRTTE			_MMIO(0x4df4)
-#define RING_EXCC(base)		_MMIO((base) + 0x28)
-#define RING_GFX_MODE(base)	_MMIO((base) + 0x29c)
-#define VF_GUARDBAND		_MMIO(0x83a4)
-
 #define GEN9_MOCS_SIZE		64
 
 /* Raw offset is appened to each line for convenience. */
@@ -144,7 +131,7 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{RCS, GAMT_CHKN_BIT_REG, 0x0, false}, /* 0x4ab8 */
 
 	{RCS, GEN9_GAMT_ECO_REG_RW_IA, 0x0, false}, /* 0x4ab0 */
-	{RCS, GEN9_CSFE_CHICKEN1_RCS, 0x0, false}, /* 0x20d4 */
+	{RCS, GEN9_CSFE_CHICKEN1_RCS, 0xffff, false}, /* 0x20d4 */
 
 	{RCS, GEN8_GARBCNTL, 0x0, false}, /* 0xb004 */
 	{RCS, GEN7_FF_THREAD_MODE, 0x0, false}, /* 0x20a0 */
@@ -171,6 +158,8 @@ static void load_render_mocs(struct drm_i915_private *dev_priv)
 	int ring_id, i;
 
 	for (ring_id = 0; ring_id < ARRAY_SIZE(regs); ring_id++) {
+		if (!HAS_ENGINE(dev_priv, ring_id))
+			continue;
 		offset.reg = regs[ring_id];
 		for (i = 0; i < GEN9_MOCS_SIZE; i++) {
 			gen9_render_mocs.control_table[ring_id][i] =

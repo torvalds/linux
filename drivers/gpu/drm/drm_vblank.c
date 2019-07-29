@@ -873,8 +873,8 @@ static void send_vblank_event(struct drm_device *dev,
  * handler by calling drm_crtc_send_vblank_event() and make sure that there's no
  * possible race with the hardware committing the atomic update.
  *
- * Caller must hold a vblank reference for the event @e, which will be dropped
- * when the next vblank arrives.
+ * Caller must hold a vblank reference for the event @e acquired by a
+ * drm_crtc_vblank_get(), which will be dropped when the next vblank arrives.
  */
 void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
 			       struct drm_pending_vblank_event *e)
@@ -1541,7 +1541,7 @@ int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
 	if (vblwait->request.type &
 	    ~(_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK |
 	      _DRM_VBLANK_HIGH_CRTC_MASK)) {
-		DRM_ERROR("Unsupported type value 0x%x, supported mask 0x%x\n",
+		DRM_DEBUG("Unsupported type value 0x%x, supported mask 0x%x\n",
 			  vblwait->request.type,
 			  (_DRM_VBLANK_TYPES_MASK | _DRM_VBLANK_FLAGS_MASK |
 			   _DRM_VBLANK_HIGH_CRTC_MASK));
@@ -1771,7 +1771,7 @@ int drm_crtc_get_sequence_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dev->irq_enabled)
 		return -EINVAL;
@@ -1829,7 +1829,7 @@ int drm_crtc_queue_sequence_ioctl(struct drm_device *dev, void *data,
 	unsigned long spin_flags;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (!dev->irq_enabled)
 		return -EINVAL;

@@ -63,6 +63,7 @@ struct perf_env {
 	struct numa_node	*numa_nodes;
 	struct memory_node	*memory_nodes;
 	unsigned long long	 memory_bsize;
+	u64                     clockid_res_ns;
 };
 
 extern struct perf_env perf_env;

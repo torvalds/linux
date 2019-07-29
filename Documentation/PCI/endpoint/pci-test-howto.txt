@@ -99,17 +99,20 @@ Note that the devices listed here correspond to the value populated in 1.4 above
 2.2 Using Endpoint Test function Device
 
 pcitest.sh added in tools/pci/ can be used to run all the default PCI endpoint
-tests. Before pcitest.sh can be used pcitest.c should be compiled using the
-following commands.
+tests. To compile this tool the following commands should be used:
 
-	cd <kernel-dir>
-	make headers_install ARCH=arm
-	arm-linux-gnueabihf-gcc -Iusr/include tools/pci/pcitest.c -o pcitest
-	cp pcitest  <rootfs>/usr/sbin/
-	cp tools/pci/pcitest.sh <rootfs>
+	# cd <kernel-dir>
+	# make -C tools/pci
+
+or if you desire to compile and install in your system:
+
+	# cd <kernel-dir>
+	# make -C tools/pci install
+
+The tool and script will be located in <rootfs>/usr/bin/
 
 2.2.1 pcitest.sh Output
-	# ./pcitest.sh
+	# pcitest.sh
 	BAR tests
 
 	BAR0:           OKAY

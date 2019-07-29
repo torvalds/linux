@@ -731,7 +731,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	cq_init_attr.comp_vector	= 0;
 	cq = hns_roce_ib_create_cq(&hr_dev->ib_dev, &cq_init_attr, NULL, NULL);
 	if (IS_ERR(cq)) {
-		dev_err(dev, "Create cq for reseved loop qp failed!");
+		dev_err(dev, "Create cq for reserved loop qp failed!");
 		return -ENOMEM;
 	}
 	free_mr->mr_free_cq = to_hr_cq(cq);
@@ -744,7 +744,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 
 	pd = hns_roce_alloc_pd(&hr_dev->ib_dev, NULL, NULL);
 	if (IS_ERR(pd)) {
-		dev_err(dev, "Create pd for reseved loop qp failed!");
+		dev_err(dev, "Create pd for reserved loop qp failed!");
 		ret = -ENOMEM;
 		goto alloc_pd_failed;
 	}

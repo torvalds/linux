@@ -40,6 +40,8 @@ config LKL
        select IP_ADVANCED_ROUTER
        select IPV6_ADVANCED_ROUTER
        select ARCH_NO_COHERENT_DMA_MMAP
+       select HAVE_MEMBLOCK
+       select NO_BOOTMEM
 
 config OUTPUT_FORMAT
        string "Output format"

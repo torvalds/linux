@@ -924,6 +924,9 @@ struct ixgbe_nvm_version {
 /* Firmware Semaphore Register */
 #define IXGBE_FWSM_MODE_MASK	0xE
 #define IXGBE_FWSM_FW_MODE_PT	0x4
+#define IXGBE_FWSM_FW_NVM_RECOVERY_MODE	BIT(5)
+#define IXGBE_FWSM_EXT_ERR_IND_MASK	0x01F80000
+#define IXGBE_FWSM_FW_VAL_BIT	BIT(15)
 
 /* ARC Subsystem registers */
 #define IXGBE_HICR      0x15F00
@@ -3461,6 +3464,7 @@ struct ixgbe_mac_operations {
 			      const char *);
 	s32 (*get_thermal_sensor_data)(struct ixgbe_hw *);
 	s32 (*init_thermal_sensor_thresh)(struct ixgbe_hw *hw);
+	bool (*fw_recovery_mode)(struct ixgbe_hw *hw);
 	void (*disable_rx)(struct ixgbe_hw *hw);
 	void (*enable_rx)(struct ixgbe_hw *hw);
 	void (*set_source_address_pruning)(struct ixgbe_hw *, bool,

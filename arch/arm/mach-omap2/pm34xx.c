@@ -18,19 +18,18 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/cpu_pm.h>
 #include <linux/pm.h>
 #include <linux/suspend.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/omap-dma.h>
 #include <linux/omap-gpmc.h>
-#include <linux/platform_data/gpio-omap.h>
 
 #include <trace/events/power.h>
 
@@ -197,7 +196,6 @@ void omap_sram_idle(void)
 	int mpu_next_state = PWRDM_POWER_ON;
 	int per_next_state = PWRDM_POWER_ON;
 	int core_next_state = PWRDM_POWER_ON;
-	int per_going_off;
 	u32 sdrc_pwr = 0;
 
 	mpu_next_state = pwrdm_read_next_pwrst(mpu_pwrdm);
@@ -227,10 +225,8 @@ void omap_sram_idle(void)
 	pwrdm_pre_transition(NULL);
 
 	/* PER */
-	if (per_next_state < PWRDM_POWER_ON) {
-		per_going_off = (per_next_state == PWRDM_POWER_OFF) ? 1 : 0;
-		omap2_gpio_prepare_for_idle(per_going_off);
-	}
+	if (per_next_state == PWRDM_POWER_OFF)
+		cpu_cluster_pm_enter();
 
 	/* CORE */
 	if (core_next_state < PWRDM_POWER_ON) {
@@ -295,8 +291,8 @@ void omap_sram_idle(void)
 	pwrdm_post_transition(NULL);
 
 	/* PER */
-	if (per_next_state < PWRDM_POWER_ON)
-		omap2_gpio_resume_after_idle();
+	if (per_next_state == PWRDM_POWER_OFF)
+		cpu_cluster_pm_exit();
 }
 
 static void omap3_pm_idle(void)

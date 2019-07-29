@@ -986,7 +986,8 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 		goto err_free_dev;
 	}
 
-	if (mthca_cmd_init(mdev)) {
+	err = mthca_cmd_init(mdev);
+	if (err) {
 		mthca_err(mdev, "Failed to init command interface, aborting.\n");
 		goto err_free_dev;
 	}
@@ -1014,8 +1015,7 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 
 	err = mthca_setup_hca(mdev);
 	if (err == -EBUSY && (mdev->mthca_flags & MTHCA_FLAG_MSI_X)) {
-		if (mdev->mthca_flags & MTHCA_FLAG_MSI_X)
-			pci_free_irq_vectors(pdev);
+		pci_free_irq_vectors(pdev);
 		mdev->mthca_flags &= ~MTHCA_FLAG_MSI_X;
 
 		err = mthca_setup_hca(mdev);

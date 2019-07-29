@@ -780,9 +780,9 @@ static int rsxx_pci_probe(struct pci_dev *dev,
 		goto failed_enable;
 
 	pci_set_master(dev);
-	pci_set_dma_max_seg_size(dev, RSXX_HW_BLK_SIZE);
+	dma_set_max_seg_size(&dev->dev, RSXX_HW_BLK_SIZE);
 
-	st = pci_set_dma_mask(dev, DMA_BIT_MASK(64));
+	st = dma_set_mask(&dev->dev, DMA_BIT_MASK(64));
 	if (st) {
 		dev_err(CARD_TO_DEV(card),
 			"No usable DMA configuration,aborting\n");

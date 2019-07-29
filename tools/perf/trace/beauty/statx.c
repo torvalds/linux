@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  * trace/beauty/statx.c
  *
  *  Copyright (C) 2017, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 
 #include "trace/beauty/beauty.h"

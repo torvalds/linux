@@ -82,5 +82,9 @@ void lkdtm_USERCOPY_STACK_FRAME_TO(void);
 void lkdtm_USERCOPY_STACK_FRAME_FROM(void);
 void lkdtm_USERCOPY_STACK_BEYOND(void);
 void lkdtm_USERCOPY_KERNEL(void);
+void lkdtm_USERCOPY_KERNEL_DS(void);
+
+/* lkdtm_stackleak.c */
+void lkdtm_STACKLEAK_ERASING(void);
 
 #endif

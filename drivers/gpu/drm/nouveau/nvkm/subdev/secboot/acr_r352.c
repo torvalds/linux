@@ -801,6 +801,7 @@ acr_r352_load(struct nvkm_acr *_acr, struct nvkm_falcon *falcon,
 		bl = acr->hsbl_unload_blob;
 	} else {
 		nvkm_error(_acr->subdev, "invalid secure boot blob!\n");
+		kfree(bl_desc);
 		return -EINVAL;
 	}
 

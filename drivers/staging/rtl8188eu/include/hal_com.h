@@ -139,18 +139,14 @@ void dump_chip_info(struct HAL_VERSION	ChipVersion);
 
 
 /* return the final channel plan decision */
-u8 hal_com_get_channel_plan(struct adapter *padapter,
-			    u8 hw_channel_plan,
-			    u8 sw_channel_plan,
-			    u8 def_channel_plan,
-			    bool AutoLoadFail
-);
+u8 hal_com_get_channel_plan(u8 hw_channel_plan, u8 sw_channel_plan,
+			    u8 def_channel_plan, bool load_fail);
 
 u8 MRateToHwRate(u8 rate);
 
-void HalSetBrateCfg(struct adapter *Adapter, u8 *mBratesOS, u16 *pBrateCfg);
+void hal_set_brate_cfg(u8 *brates, u16 *rate_cfg);
 
-bool Hal_MappingOutPipe(struct adapter *pAdapter, u8 NumOutPipe);
+bool hal_mapping_out_pipe(struct adapter *adapter, u8 numoutpipe);
 
 void hal_init_macaddr(struct adapter *adapter);
 #endif /* __HAL_COMMON_H__ */

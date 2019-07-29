@@ -177,14 +177,14 @@ static void gdlm_bast(void *arg, int mode)
 		gfs2_glock_cb(gl, LM_ST_SHARED);
 		break;
 	default:
-		pr_err("unknown bast mode %d\n", mode);
+		fs_err(gl->gl_name.ln_sbd, "unknown bast mode %d\n", mode);
 		BUG();
 	}
 }
 
 /* convert gfs lock-state to dlm lock-mode */
 
-static int make_mode(const unsigned int lmstate)
+static int make_mode(struct gfs2_sbd *sdp, const unsigned int lmstate)
 {
 	switch (lmstate) {
 	case LM_ST_UNLOCKED:
@@ -196,7 +196,7 @@ static int make_mode(const unsigned int lmstate)
 	case LM_ST_SHARED:
 		return DLM_LOCK_PR;
 	}
-	pr_err("unknown LM state %d\n", lmstate);
+	fs_err(sdp, "unknown LM state %d\n", lmstate);
 	BUG();
 	return -1;
 }
@@ -257,7 +257,7 @@ static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 	u32 lkf;
 	char strname[GDLM_STRNAME_BYTES] = "";
 
-	req = make_mode(req_state);
+	req = make_mode(gl->gl_name.ln_sbd, req_state);
 	lkf = make_flags(gl, flags, req);
 	gfs2_glstats_inc(gl, GFS2_LKS_DCOUNT);
 	gfs2_sbstats_inc(gl, GFS2_LKS_DCOUNT);
@@ -309,7 +309,7 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 	error = dlm_unlock(ls->ls_dlm, gl->gl_lksb.sb_lkid, DLM_LKF_VALBLK,
 			   NULL, gl);
 	if (error) {
-		pr_err("gdlm_unlock %x,%llx err=%d\n",
+		fs_err(sdp, "gdlm_unlock %x,%llx err=%d\n",
 		       gl->gl_name.ln_type,
 		       (unsigned long long)gl->gl_name.ln_number, error);
 		return;

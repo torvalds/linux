@@ -358,7 +358,7 @@ void perf_evlist__disable(struct perf_evlist *evlist)
 	struct perf_evsel *pos;
 
 	evlist__for_each_entry(evlist, pos) {
-		if (!perf_evsel__is_group_leader(pos) || !pos->fd)
+		if (pos->disabled || !perf_evsel__is_group_leader(pos) || !pos->fd)
 			continue;
 		perf_evsel__disable(pos);
 	}
@@ -1809,4 +1809,31 @@ void perf_evlist__force_leader(struct perf_evlist *evlist)
 		perf_evlist__set_leader(evlist);
 		leader->forced_leader = true;
 	}
+}
+
+struct perf_evsel *perf_evlist__reset_weak_group(struct perf_evlist *evsel_list,
+						 struct perf_evsel *evsel)
+{
+	struct perf_evsel *c2, *leader;
+	bool is_open = true;
+
+	leader = evsel->leader;
+	pr_debug("Weak group for %s/%d failed\n",
+			leader->name, leader->nr_members);
+
+	/*
+	 * for_each_group_member doesn't work here because it doesn't
+	 * include the first entry.
+	 */
+	evlist__for_each_entry(evsel_list, c2) {
+		if (c2 == evsel)
+			is_open = false;
+		if (c2->leader == leader) {
+			if (is_open)
+				perf_evsel__close(c2);
+			c2->leader = c2;
+			c2->nr_members = 0;
+		}
+	}
+	return leader;
 }

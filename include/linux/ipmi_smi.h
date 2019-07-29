@@ -28,7 +28,7 @@ struct device;
  */
 
 /* Structure for the low-level drivers. */
-typedef struct ipmi_smi *ipmi_smi_t;
+struct ipmi_smi;
 
 /*
  * Messages to/from the lower layer.  The smi interface will take one

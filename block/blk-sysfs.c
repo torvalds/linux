@@ -300,6 +300,11 @@ static ssize_t queue_zoned_show(struct request_queue *q, char *page)
 	}
 }
 
+static ssize_t queue_nr_zones_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(blk_queue_nr_zones(q), page);
+}
+
 static ssize_t queue_nomerges_show(struct request_queue *q, char *page)
 {
 	return queue_var_show((blk_queue_nomerges(q) << 1) |
@@ -637,6 +642,11 @@ static struct queue_sysfs_entry queue_zoned_entry = {
 	.show = queue_zoned_show,
 };
 
+static struct queue_sysfs_entry queue_nr_zones_entry = {
+	.attr = {.name = "nr_zones", .mode = 0444 },
+	.show = queue_nr_zones_show,
+};
+
 static struct queue_sysfs_entry queue_nomerges_entry = {
 	.attr = {.name = "nomerges", .mode = 0644 },
 	.show = queue_nomerges_show,
@@ -727,6 +737,7 @@ static struct attribute *default_attrs[] = {
 	&queue_write_zeroes_max_entry.attr,
 	&queue_nonrot_entry.attr,
 	&queue_zoned_entry.attr,
+	&queue_nr_zones_entry.attr,
 	&queue_nomerges_entry.attr,
 	&queue_rq_affinity_entry.attr,
 	&queue_iostats_entry.attr,
@@ -840,6 +851,8 @@ static void __blk_release_queue(struct work_struct *work)
 
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
+
+	blk_queue_free_zone_bitmaps(q);
 
 	if (!q->mq_ops) {
 		if (q->exit_rq_fn)
@@ -993,8 +1006,6 @@ void blk_unregister_queue(struct gendisk *disk)
 	kobject_uevent(&q->kobj, KOBJ_REMOVE);
 	kobject_del(&q->kobj);
 	blk_trace_remove_sysfs(disk_to_dev(disk));
-
-	rq_qos_exit(q);
 
 	mutex_lock(&q->sysfs_lock);
 	if (q->request_fn || (q->mq_ops && q->elevator))

@@ -945,8 +945,8 @@ static void __init core_mux_init(struct device_node *np)
 
 	rc = of_clk_add_provider(np, of_clk_src_simple_get, clk);
 	if (rc) {
-		pr_err("%s: Couldn't register clk provider for node %s: %d\n",
-		       __func__, np->name, rc);
+		pr_err("%s: Couldn't register clk provider for node %pOFn: %d\n",
+		       __func__, np, rc);
 		return;
 	}
 }
@@ -1199,8 +1199,8 @@ static void __init legacy_pll_init(struct device_node *np, int idx)
 
 	rc = of_clk_add_provider(np, of_clk_src_onecell_get, onecell_data);
 	if (rc) {
-		pr_err("%s: Couldn't register clk provider for node %s: %d\n",
-		       __func__, np->name, rc);
+		pr_err("%s: Couldn't register clk provider for node %pOFn: %d\n",
+		       __func__, np, rc);
 		goto err_cell;
 	}
 
@@ -1360,7 +1360,7 @@ static void __init clockgen_init(struct device_node *np)
 		is_old_ls1021a = true;
 	}
 	if (!clockgen.regs) {
-		pr_err("%s(): %s: of_iomap() failed\n", __func__, np->name);
+		pr_err("%s(): %pOFn: of_iomap() failed\n", __func__, np);
 		return;
 	}
 
@@ -1406,8 +1406,8 @@ static void __init clockgen_init(struct device_node *np)
 
 	ret = of_clk_add_provider(np, clockgen_clk_get, &clockgen);
 	if (ret) {
-		pr_err("%s: Couldn't register clk provider for node %s: %d\n",
-		       __func__, np->name, ret);
+		pr_err("%s: Couldn't register clk provider for node %pOFn: %d\n",
+		       __func__, np, ret);
 	}
 
 	return;

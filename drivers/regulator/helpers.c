@@ -103,6 +103,128 @@ int regulator_disable_regmap(struct regulator_dev *rdev)
 }
 EXPORT_SYMBOL_GPL(regulator_disable_regmap);
 
+static int regulator_range_selector_to_index(struct regulator_dev *rdev,
+					     unsigned int rval)
+{
+	int i;
+
+	if (!rdev->desc->linear_range_selectors)
+		return -EINVAL;
+
+	rval &= rdev->desc->vsel_range_mask;
+
+	for (i = 0; i < rdev->desc->n_linear_ranges; i++) {
+		if (rdev->desc->linear_range_selectors[i] == rval)
+			return i;
+	}
+	return -EINVAL;
+}
+
+/**
+ * regulator_get_voltage_sel_pickable_regmap - pickable range get_voltage_sel
+ *
+ * @rdev: regulator to operate on
+ *
+ * Regulators that use regmap for their register I/O and use pickable
+ * ranges can set the vsel_reg, vsel_mask, vsel_range_reg and vsel_range_mask
+ * fields in their descriptor and then use this as their get_voltage_vsel
+ * operation, saving some code.
+ */
+int regulator_get_voltage_sel_pickable_regmap(struct regulator_dev *rdev)
+{
+	unsigned int r_val;
+	int range;
+	unsigned int val;
+	int ret, i;
+	unsigned int voltages_in_range = 0;
+
+	if (!rdev->desc->linear_ranges)
+		return -EINVAL;
+
+	ret = regmap_read(rdev->regmap, rdev->desc->vsel_reg, &val);
+	if (ret != 0)
+		return ret;
+
+	ret = regmap_read(rdev->regmap, rdev->desc->vsel_range_reg, &r_val);
+	if (ret != 0)
+		return ret;
+
+	val &= rdev->desc->vsel_mask;
+	val >>= ffs(rdev->desc->vsel_mask) - 1;
+
+	range = regulator_range_selector_to_index(rdev, r_val);
+	if (range < 0)
+		return -EINVAL;
+
+	for (i = 0; i < range; i++)
+		voltages_in_range += (rdev->desc->linear_ranges[i].max_sel -
+				     rdev->desc->linear_ranges[i].min_sel) + 1;
+
+	return val + voltages_in_range;
+}
+EXPORT_SYMBOL_GPL(regulator_get_voltage_sel_pickable_regmap);
+
+/**
+ * regulator_set_voltage_sel_pickable_regmap - pickable range set_voltage_sel
+ *
+ * @rdev: regulator to operate on
+ * @sel: Selector to set
+ *
+ * Regulators that use regmap for their register I/O and use pickable
+ * ranges can set the vsel_reg, vsel_mask, vsel_range_reg and vsel_range_mask
+ * fields in their descriptor and then use this as their set_voltage_vsel
+ * operation, saving some code.
+ */
+int regulator_set_voltage_sel_pickable_regmap(struct regulator_dev *rdev,
+					      unsigned int sel)
+{
+	unsigned int range;
+	int ret, i;
+	unsigned int voltages_in_range = 0;
+
+	for (i = 0; i < rdev->desc->n_linear_ranges; i++) {
+		voltages_in_range = (rdev->desc->linear_ranges[i].max_sel -
+				     rdev->desc->linear_ranges[i].min_sel) + 1;
+		if (sel < voltages_in_range)
+			break;
+		sel -= voltages_in_range;
+	}
+
+	if (i == rdev->desc->n_linear_ranges)
+		return -EINVAL;
+
+	sel <<= ffs(rdev->desc->vsel_mask) - 1;
+	sel += rdev->desc->linear_ranges[i].min_sel;
+
+	range = rdev->desc->linear_range_selectors[i];
+
+	if (rdev->desc->vsel_reg == rdev->desc->vsel_range_reg) {
+		ret = regmap_update_bits(rdev->regmap,
+					 rdev->desc->vsel_reg,
+					 rdev->desc->vsel_range_mask |
+					 rdev->desc->vsel_mask, sel | range);
+	} else {
+		ret = regmap_update_bits(rdev->regmap,
+					 rdev->desc->vsel_range_reg,
+					 rdev->desc->vsel_range_mask, range);
+		if (ret)
+			return ret;
+
+		ret = regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
+				  rdev->desc->vsel_mask, sel);
+	}
+
+	if (ret)
+		return ret;
+
+	if (rdev->desc->apply_bit)
+		ret = regmap_update_bits(rdev->regmap, rdev->desc->apply_reg,
+					 rdev->desc->apply_bit,
+					 rdev->desc->apply_bit);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regulator_set_voltage_sel_pickable_regmap);
+
 /**
  * regulator_get_voltage_sel_regmap - standard get_voltage_sel for regmap users
  *
@@ -321,20 +443,91 @@ int regulator_map_voltage_linear_range(struct regulator_dev *rdev,
 
 		ret += range->min_sel;
 
-		break;
+		/*
+		 * Map back into a voltage to verify we're still in bounds.
+		 * If we are not, then continue checking rest of the ranges.
+		 */
+		voltage = rdev->desc->ops->list_voltage(rdev, ret);
+		if (voltage >= min_uV && voltage <= max_uV)
+			break;
 	}
 
 	if (i == rdev->desc->n_linear_ranges)
 		return -EINVAL;
 
-	/* Map back into a voltage to verify we're still in bounds */
-	voltage = rdev->desc->ops->list_voltage(rdev, ret);
-	if (voltage < min_uV || voltage > max_uV)
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regulator_map_voltage_linear_range);
+
+/**
+ * regulator_map_voltage_pickable_linear_range - map_voltage, pickable ranges
+ *
+ * @rdev: Regulator to operate on
+ * @min_uV: Lower bound for voltage
+ * @max_uV: Upper bound for voltage
+ *
+ * Drivers providing pickable linear_ranges in their descriptor can use
+ * this as their map_voltage() callback.
+ */
+int regulator_map_voltage_pickable_linear_range(struct regulator_dev *rdev,
+						int min_uV, int max_uV)
+{
+	const struct regulator_linear_range *range;
+	int ret = -EINVAL;
+	int voltage, i;
+	unsigned int selector = 0;
+
+	if (!rdev->desc->n_linear_ranges) {
+		BUG_ON(!rdev->desc->n_linear_ranges);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < rdev->desc->n_linear_ranges; i++) {
+		int linear_max_uV;
+
+		range = &rdev->desc->linear_ranges[i];
+		linear_max_uV = range->min_uV +
+			(range->max_sel - range->min_sel) * range->uV_step;
+
+		if (!(min_uV <= linear_max_uV && max_uV >= range->min_uV)) {
+			selector += (range->max_sel - range->min_sel + 1);
+			continue;
+		}
+
+		if (min_uV <= range->min_uV)
+			min_uV = range->min_uV;
+
+		/* range->uV_step == 0 means fixed voltage range */
+		if (range->uV_step == 0) {
+			ret = 0;
+		} else {
+			ret = DIV_ROUND_UP(min_uV - range->min_uV,
+					   range->uV_step);
+			if (ret < 0)
+				return ret;
+		}
+
+		ret += selector;
+
+		voltage = rdev->desc->ops->list_voltage(rdev, ret);
+
+		/*
+		 * Map back into a voltage to verify we're still in bounds.
+		 * We may have overlapping voltage ranges. Hence we don't
+		 * exit but retry until we have checked all ranges.
+		 */
+		if (voltage < min_uV || voltage > max_uV)
+			selector += (range->max_sel - range->min_sel + 1);
+		else
+			break;
+	}
+
+	if (i == rdev->desc->n_linear_ranges)
 		return -EINVAL;
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(regulator_map_voltage_linear_range);
+EXPORT_SYMBOL_GPL(regulator_map_voltage_pickable_linear_range);
 
 /**
  * regulator_list_voltage_linear - List voltages with simple calculation
@@ -359,6 +552,46 @@ int regulator_list_voltage_linear(struct regulator_dev *rdev,
 	return rdev->desc->min_uV + (rdev->desc->uV_step * selector);
 }
 EXPORT_SYMBOL_GPL(regulator_list_voltage_linear);
+
+/**
+ * regulator_list_voltage_pickable_linear_range - pickable range list voltages
+ *
+ * @rdev: Regulator device
+ * @selector: Selector to convert into a voltage
+ *
+ * list_voltage() operation, intended to be used by drivers utilizing pickable
+ * ranges helpers.
+ */
+int regulator_list_voltage_pickable_linear_range(struct regulator_dev *rdev,
+						 unsigned int selector)
+{
+	const struct regulator_linear_range *range;
+	int i;
+	unsigned int all_sels = 0;
+
+	if (!rdev->desc->n_linear_ranges) {
+		BUG_ON(!rdev->desc->n_linear_ranges);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < rdev->desc->n_linear_ranges; i++) {
+		unsigned int sels_in_range;
+
+		range = &rdev->desc->linear_ranges[i];
+
+		sels_in_range = range->max_sel - range->min_sel;
+
+		if (all_sels + sels_in_range >= selector) {
+			selector -= all_sels;
+			return range->min_uV + (range->uV_step * selector);
+		}
+
+		all_sels += (sels_in_range + 1);
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(regulator_list_voltage_pickable_linear_range);
 
 /**
  * regulator_list_voltage_linear_range - List voltages for linear ranges

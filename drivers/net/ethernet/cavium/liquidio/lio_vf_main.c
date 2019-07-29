@@ -40,14 +40,6 @@ MODULE_PARM_DESC(debug, "NETIF_MSG debug bits");
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
-struct liquidio_rx_ctl_context {
-	int octeon_id;
-
-	wait_queue_head_t wc;
-
-	int cond;
-};
-
 struct oct_timestamp_resp {
 	u64 rh;
 	u64 timestamp;
@@ -452,6 +444,8 @@ static void octeon_pci_flr(struct octeon_device *oct)
  */
 static void octeon_destroy_resources(struct octeon_device *oct)
 {
+	struct octeon_device_priv *oct_priv =
+		(struct octeon_device_priv *)oct->priv;
 	struct msix_entry *msix_entries;
 	int i;
 
@@ -471,11 +465,11 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 	case OCT_DEV_HOST_OK:
 		/* fallthrough */
 	case OCT_DEV_IO_QUEUES_DONE:
-		if (wait_for_pending_requests(oct))
-			dev_err(&oct->pci_dev->dev, "There were pending requests\n");
-
 		if (lio_wait_for_instr_fetch(oct))
 			dev_err(&oct->pci_dev->dev, "IQ had pending instructions\n");
+
+		if (wait_for_pending_requests(oct))
+			dev_err(&oct->pci_dev->dev, "There were pending requests\n");
 
 		/* Disable the input and output queues now. No more packets will
 		 * arrive from Octeon, but we should wait for all packet
@@ -485,7 +479,33 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		if (lio_wait_for_oq_pkts(oct))
 			dev_err(&oct->pci_dev->dev, "OQ had pending packets\n");
-		/* fall through */
+
+		/* Force all requests waiting to be fetched by OCTEON to
+		 * complete.
+		 */
+		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
+			struct octeon_instr_queue *iq;
+
+			if (!(oct->io_qmask.iq & BIT_ULL(i)))
+				continue;
+			iq = oct->instr_queue[i];
+
+			if (atomic_read(&iq->instr_pending)) {
+				spin_lock_bh(&iq->lock);
+				iq->fill_cnt = 0;
+				iq->octeon_read_index = iq->host_write_index;
+				iq->stats.instr_processed +=
+					atomic_read(&iq->instr_pending);
+				lio_process_iq_request_list(oct, iq, 0);
+				spin_unlock_bh(&iq->lock);
+			}
+		}
+
+		lio_process_ordered_list(oct, 1);
+		octeon_free_sc_done_list(oct);
+		octeon_free_sc_zombie_list(oct);
+
+	/* fall through */
 	case OCT_DEV_INTR_SET_DONE:
 		/* Disable interrupts  */
 		oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
@@ -569,33 +589,8 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 		/* Nothing to be done here either */
 		break;
 	}
-}
 
-/**
- * \brief Callback for rx ctrl
- * @param status status of request
- * @param buf pointer to resp structure
- */
-static void rx_ctl_callback(struct octeon_device *oct,
-			    u32 status, void *buf)
-{
-	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
-	struct liquidio_rx_ctl_context *ctx;
-
-	ctx  = (struct liquidio_rx_ctl_context *)sc->ctxptr;
-
-	oct = lio_get_device(ctx->octeon_id);
-	if (status)
-		dev_err(&oct->pci_dev->dev, "rx ctl instruction failed. Status: %llx\n",
-			CVM_CAST64(status));
-	WRITE_ONCE(ctx->cond, 1);
-
-	/* This barrier is required to be sure that the response has been
-	 * written fully before waking up the handler
-	 */
-	wmb();
-
-	wake_up_interruptible(&ctx->wc);
+	tasklet_kill(&oct_priv->droq_tasklet);
 }
 
 /**
@@ -606,8 +601,6 @@ static void rx_ctl_callback(struct octeon_device *oct,
 static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 {
 	struct octeon_device *oct = (struct octeon_device *)lio->oct_dev;
-	int ctx_size = sizeof(struct liquidio_rx_ctl_context);
-	struct liquidio_rx_ctl_context *ctx;
 	struct octeon_soft_command *sc;
 	union octnet_cmd *ncmd;
 	int retval;
@@ -617,14 +610,9 @@ static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 
 	sc = (struct octeon_soft_command *)
 		octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE,
-					  16, ctx_size);
+					  16, 0);
 
 	ncmd = (union octnet_cmd *)sc->virtdptr;
-	ctx  = (struct liquidio_rx_ctl_context *)sc->ctxptr;
-
-	WRITE_ONCE(ctx->cond, 0);
-	ctx->octeon_id = lio_get_device_id(oct);
-	init_waitqueue_head(&ctx->wc);
 
 	ncmd->u64 = 0;
 	ncmd->s.cmd = OCTNET_CMD_RX_CTL;
@@ -637,23 +625,24 @@ static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
 				    OPCODE_NIC_CMD, 0, 0, 0);
 
-	sc->callback = rx_ctl_callback;
-	sc->callback_arg = sc;
-	sc->wait_time = 5000;
+	init_completion(&sc->complete);
+	sc->sc_status = OCTEON_REQUEST_PENDING;
 
 	retval = octeon_send_soft_command(oct, sc);
 	if (retval == IQ_SEND_FAILED) {
 		netif_info(lio, rx_err, lio->netdev, "Failed to send RX Control message\n");
+		octeon_free_soft_command(oct, sc);
 	} else {
 		/* Sleep on a wait queue till the cond flag indicates that the
 		 * response arrived or timed-out.
 		 */
-		if (sleep_cond(&ctx->wc, &ctx->cond) == -EINTR)
+		retval = wait_for_sc_completion_timeout(oct, sc, 0);
+		if (retval)
 			return;
-		oct->props[lio->ifidx].rx_on = start_stop;
-	}
 
-	octeon_free_soft_command(oct, sc);
+		oct->props[lio->ifidx].rx_on = start_stop;
+		WRITE_ONCE(sc->caller_is_done, true);
+	}
 }
 
 /**
@@ -667,6 +656,8 @@ static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 {
 	struct net_device *netdev = oct->props[ifidx].netdev;
+	struct octeon_device_priv *oct_priv =
+		(struct octeon_device_priv *)oct->priv;
 	struct napi_struct *napi, *n;
 	struct lio *lio;
 
@@ -695,6 +686,8 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 	/* Delete NAPI */
 	list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
 		netif_napi_del(napi);
+
+	tasklet_enable(&oct_priv->droq_tasklet);
 
 	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_REGISTERED)
 		unregister_netdev(netdev);
@@ -913,9 +906,13 @@ static int liquidio_open(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
+	struct octeon_device_priv *oct_priv =
+		(struct octeon_device_priv *)oct->priv;
 	struct napi_struct *napi, *n;
 
 	if (!oct->props[lio->ifidx].napi_enabled) {
+		tasklet_disable(&oct_priv->droq_tasklet);
+
 		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
 			napi_enable(napi);
 
@@ -931,6 +928,11 @@ static int liquidio_open(struct net_device *netdev)
 
 	netif_info(lio, ifup, lio->netdev, "Interface Open, ready for traffic\n");
 	start_txqs(netdev);
+
+	INIT_DELAYED_WORK(&lio->stats_wk.work, lio_fetch_stats);
+	lio->stats_wk.ctxptr = lio;
+	schedule_delayed_work(&lio->stats_wk.work, msecs_to_jiffies
+					(LIQUIDIO_NDEV_STATS_POLL_TIME_MS));
 
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);
@@ -948,6 +950,8 @@ static int liquidio_stop(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
+	struct octeon_device_priv *oct_priv =
+		(struct octeon_device_priv *)oct->priv;
 	struct napi_struct *napi, *n;
 
 	/* tell Octeon to stop forwarding packets to host */
@@ -977,7 +981,11 @@ static int liquidio_stop(struct net_device *netdev)
 		oct->props[lio->ifidx].napi_enabled = 0;
 
 		oct->droq[0]->ops.poll_mode = 0;
+
+		tasklet_enable(&oct_priv->droq_tasklet);
 	}
+
+	cancel_delayed_work_sync(&lio->stats_wk.work);
 
 	dev_info(&oct->pci_dev->dev, "%s interface is stopped\n", netdev->name);
 
@@ -1093,10 +1101,9 @@ static void liquidio_set_mcast_list(struct net_device *netdev)
 	/* Apparently, any activity in this call from the kernel has to
 	 * be atomic. So we won't wait for response.
 	 */
-	nctrl.wait_time = 0;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "DEVFLAGS change failed in core (ret: 0x%x)\n",
 			ret);
 	}
@@ -1133,8 +1140,6 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 	nctrl.ncmd.s.more = 1;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
 	nctrl.netpndev = (u64)netdev;
-	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
-	nctrl.wait_time = 100;
 
 	nctrl.udd[0] = 0;
 	/* The MAC Address is presented in network byte order. */
@@ -1145,6 +1150,13 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 		dev_err(&oct->pci_dev->dev, "MAC Address change failed\n");
 		return -ENOMEM;
 	}
+
+	if (nctrl.sc_status ==
+	    FIRMWARE_STATUS_CODE(OCTEON_REQUEST_NO_PERMISSION)) {
+		dev_err(&oct->pci_dev->dev, "MAC Address change failed: no permission\n");
+		return -EPERM;
+	}
+
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	ether_addr_copy(((u8 *)&lio->linfo.hw_addr) + 2, addr->sa_data);
 
@@ -1198,7 +1210,6 @@ liquidio_get_stats64(struct net_device *netdev,
 	lstats->rx_packets = pkts;
 	lstats->rx_dropped = drop;
 
-	octnet_get_link_stats(netdev);
 	lstats->multicast = oct->link_stats.fromwire.fw_total_mcast;
 
 	/* detailed rx_errors: */
@@ -1390,7 +1401,7 @@ static int send_nic_timestamp_pkt(struct octeon_device *oct,
  * @returns whether the packet was transmitted to the device okay or not
  *             (NETDEV_TX_OK or NETDEV_TX_BUSY)
  */
-static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct octnet_buf_free_info *finfo;
 	union octnic_cmd_setup cmdsetup;
@@ -1638,8 +1649,6 @@ liquidio_vlan_rx_add_vid(struct net_device *netdev,
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	struct octnic_ctrl_pkt nctrl;
-	struct completion compl;
-	u16 response_code;
 	int ret = 0;
 
 	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
@@ -1648,26 +1657,15 @@ liquidio_vlan_rx_add_vid(struct net_device *netdev,
 	nctrl.ncmd.s.cmd = OCTNET_CMD_ADD_VLAN_FILTER;
 	nctrl.ncmd.s.param1 = vid;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
-	init_completion(&compl);
-	nctrl.completion = &compl;
-	nctrl.response_code = &response_code;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "Add VLAN filter failed in core (ret: 0x%x)\n",
 			ret);
-		return -EIO;
+		return -EPERM;
 	}
-
-	if (!wait_for_completion_timeout(&compl,
-					 msecs_to_jiffies(nctrl.wait_time)))
-		return -EPERM;
-
-	if (READ_ONCE(response_code))
-		return -EPERM;
 
 	return 0;
 }
@@ -1687,14 +1685,15 @@ liquidio_vlan_rx_kill_vid(struct net_device *netdev,
 	nctrl.ncmd.s.cmd = OCTNET_CMD_DEL_VLAN_FILTER;
 	nctrl.ncmd.s.param1 = vid;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "Del VLAN filter failed in core (ret: 0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }
@@ -1720,14 +1719,15 @@ static int liquidio_set_rxcsum_command(struct net_device *netdev, int command,
 	nctrl.ncmd.s.cmd = command;
 	nctrl.ncmd.s.param1 = rx_cmd;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "DEVFLAGS RXCSUM change failed in core (ret:0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }
@@ -1755,15 +1755,16 @@ static int liquidio_vxlan_port_command(struct net_device *netdev, int command,
 	nctrl.ncmd.s.more = vxlan_cmd_bit;
 	nctrl.ncmd.s.param1 = vxlan_port;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev,
 			"DEVFLAGS VxLAN port add/delete failed in core (ret : 0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }
@@ -1924,8 +1925,7 @@ nic_info_err:
 static int setup_nic_devices(struct octeon_device *octeon_dev)
 {
 	int retval, num_iqueues, num_oqueues;
-	struct liquidio_if_cfg_context *ctx;
-	u32 resp_size, ctx_size, data_size;
+	u32 resp_size, data_size;
 	struct liquidio_if_cfg_resp *resp;
 	struct octeon_soft_command *sc;
 	union oct_nic_if_cfg if_cfg;
@@ -1956,23 +1956,17 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 	for (i = 0; i < octeon_dev->ifcount; i++) {
 		resp_size = sizeof(struct liquidio_if_cfg_resp);
-		ctx_size = sizeof(struct liquidio_if_cfg_context);
 		data_size = sizeof(struct lio_version);
 		sc = (struct octeon_soft_command *)
 			octeon_alloc_soft_command(octeon_dev, data_size,
-						  resp_size, ctx_size);
+						  resp_size, 0);
 		resp = (struct liquidio_if_cfg_resp *)sc->virtrptr;
-		ctx  = (struct liquidio_if_cfg_context *)sc->ctxptr;
 		vdata = (struct lio_version *)sc->virtdptr;
 
 		*((u64 *)vdata) = 0;
 		vdata->major = cpu_to_be16(LIQUIDIO_BASE_MAJOR_VERSION);
 		vdata->minor = cpu_to_be16(LIQUIDIO_BASE_MINOR_VERSION);
 		vdata->micro = cpu_to_be16(LIQUIDIO_BASE_MICRO_VERSION);
-
-		WRITE_ONCE(ctx->cond, 0);
-		ctx->octeon_id = lio_get_device_id(octeon_dev);
-		init_waitqueue_head(&ctx->wc);
 
 		if_cfg.u64 = 0;
 
@@ -1986,31 +1980,36 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 					    OPCODE_NIC_IF_CFG, 0, if_cfg.u64,
 					    0);
 
-		sc->callback = lio_if_cfg_callback;
-		sc->callback_arg = sc;
-		sc->wait_time = 5000;
+		init_completion(&sc->complete);
+		sc->sc_status = OCTEON_REQUEST_PENDING;
 
 		retval = octeon_send_soft_command(octeon_dev, sc);
 		if (retval == IQ_SEND_FAILED) {
 			dev_err(&octeon_dev->pci_dev->dev,
 				"iq/oq config failed status: %x\n", retval);
 			/* Soft instr is freed by driver in case of failure. */
-			goto setup_nic_dev_fail;
+			octeon_free_soft_command(octeon_dev, sc);
+			return(-EIO);
 		}
 
 		/* Sleep on a wait queue till the cond flag indicates that the
 		 * response arrived or timed-out.
 		 */
-		if (sleep_cond(&ctx->wc, &ctx->cond) == -EINTR) {
-			dev_err(&octeon_dev->pci_dev->dev, "Wait interrupted\n");
-			goto setup_nic_wait_intr;
-		}
+		retval = wait_for_sc_completion_timeout(octeon_dev, sc, 0);
+		if (retval)
+			return retval;
 
 		retval = resp->status;
 		if (retval) {
-			dev_err(&octeon_dev->pci_dev->dev, "iq/oq config failed\n");
-			goto setup_nic_dev_fail;
+			dev_err(&octeon_dev->pci_dev->dev,
+				"iq/oq config failed, retval = %d\n", retval);
+			WRITE_ONCE(sc->caller_is_done, true);
+			return -EIO;
 		}
+
+		snprintf(octeon_dev->fw_info.liquidio_firmware_version,
+			 32, "%s",
+			 resp->cfg_info.liquidio_firmware_version);
 
 		octeon_swap_8B_data((u64 *)(&resp->cfg_info),
 				    (sizeof(struct liquidio_if_cfg_info)) >> 3);
@@ -2022,7 +2021,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 			dev_err(&octeon_dev->pci_dev->dev,
 				"Got bad iqueues (%016llx) or oqueues (%016llx) from firmware.\n",
 				resp->cfg_info.iqmask, resp->cfg_info.oqmask);
-			goto setup_nic_dev_fail;
+			WRITE_ONCE(sc->caller_is_done, true);
+			goto setup_nic_dev_done;
 		}
 		dev_dbg(&octeon_dev->pci_dev->dev,
 			"interface %d, iqmask %016llx, oqmask %016llx, numiqueues %d, numoqueues %d\n",
@@ -2033,7 +2033,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 		if (!netdev) {
 			dev_err(&octeon_dev->pci_dev->dev, "Device allocation failed\n");
-			goto setup_nic_dev_fail;
+			WRITE_ONCE(sc->caller_is_done, true);
+			goto setup_nic_dev_done;
 		}
 
 		SET_NETDEV_DEV(netdev, &octeon_dev->pci_dev->dev);
@@ -2070,6 +2071,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		lio->linfo.link.u64 = resp->cfg_info.linfo.link.u64;
 		lio->linfo.macaddr_is_admin_asgnd =
 			resp->cfg_info.linfo.macaddr_is_admin_asgnd;
+		lio->linfo.macaddr_spoofchk =
+			resp->cfg_info.linfo.macaddr_spoofchk;
 
 		lio->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
@@ -2109,6 +2112,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		netdev->min_mtu = LIO_MIN_MTU_SIZE;
 		netdev->max_mtu = LIO_MAX_MTU_SIZE;
 
+		WRITE_ONCE(sc->caller_is_done, true);
+
 		/* Point to the  properties for octeon device to which this
 		 * interface belongs.
 		 */
@@ -2132,7 +2137,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 					     lio->linfo.num_txpciq,
 					     lio->linfo.num_rxpciq)) {
 			dev_err(&octeon_dev->pci_dev->dev, "I/O queues creation failed\n");
-			goto setup_nic_dev_fail;
+			goto setup_nic_dev_free;
 		}
 
 		ifstate_set(lio, LIO_IFSTATE_DROQ_OPS);
@@ -2155,7 +2160,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		if (lio_setup_glists(octeon_dev, lio, num_iqueues)) {
 			dev_err(&octeon_dev->pci_dev->dev,
 				"Gather list allocation failed\n");
-			goto setup_nic_dev_fail;
+			goto setup_nic_dev_free;
 		}
 
 		/* Register ethtool support */
@@ -2170,15 +2175,15 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 					     OCTNIC_LROIPV4 | OCTNIC_LROIPV6);
 
 		if (setup_link_status_change_wq(netdev))
-			goto setup_nic_dev_fail;
+			goto setup_nic_dev_free;
 
 		if (setup_rx_oom_poll_fn(netdev))
-			goto setup_nic_dev_fail;
+			goto setup_nic_dev_free;
 
 		/* Register the network device with the OS */
 		if (register_netdev(netdev)) {
 			dev_err(&octeon_dev->pci_dev->dev, "Device registration failed\n");
-			goto setup_nic_dev_fail;
+			goto setup_nic_dev_free;
 		}
 
 		dev_dbg(&octeon_dev->pci_dev->dev,
@@ -2201,24 +2206,21 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		dev_dbg(&octeon_dev->pci_dev->dev,
 			"NIC ifidx:%d Setup successful\n", i);
 
-		octeon_free_soft_command(octeon_dev, sc);
-
 		octeon_dev->no_speed_setting = 1;
 	}
 
 	return 0;
 
-setup_nic_dev_fail:
-
-	octeon_free_soft_command(octeon_dev, sc);
-
-setup_nic_wait_intr:
+setup_nic_dev_free:
 
 	while (i--) {
 		dev_err(&octeon_dev->pci_dev->dev,
 			"NIC ifidx:%d Setup failed\n", i);
 		liquidio_destroy_nic_device(octeon_dev, i);
 	}
+
+setup_nic_dev_done:
+
 	return -ENODEV;
 }
 

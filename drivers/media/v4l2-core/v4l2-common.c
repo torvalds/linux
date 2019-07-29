@@ -100,7 +100,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 _min, s32 _max, s32 _
 	qctrl->step = step;
 	qctrl->default_value = def;
 	qctrl->reserved[0] = qctrl->reserved[1] = 0;
-	strlcpy(qctrl->name, name, sizeof(qctrl->name));
+	strscpy(qctrl->name, name, sizeof(qctrl->name));
 	return 0;
 }
 EXPORT_SYMBOL(v4l2_ctrl_query_fill);
@@ -108,6 +108,19 @@ EXPORT_SYMBOL(v4l2_ctrl_query_fill);
 /* I2C Helper functions */
 
 #if IS_ENABLED(CONFIG_I2C)
+
+void v4l2_i2c_subdev_set_name(struct v4l2_subdev *sd, struct i2c_client *client,
+			      const char *devname, const char *postfix)
+{
+	if (!devname)
+		devname = client->dev.driver->name;
+	if (!postfix)
+		postfix = "";
+
+	snprintf(sd->name, sizeof(sd->name), "%s%s %d-%04x", devname, postfix,
+		 i2c_adapter_id(client->adapter), client->addr);
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_set_name);
 
 void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		const struct v4l2_subdev_ops *ops)
@@ -120,10 +133,7 @@ void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 	/* i2c_client and v4l2_subdev point to one another */
 	v4l2_set_subdevdata(sd, client);
 	i2c_set_clientdata(client, sd);
-	/* initialize name */
-	snprintf(sd->name, sizeof(sd->name), "%s %d-%04x",
-		client->dev.driver->name, i2c_adapter_id(client->adapter),
-		client->addr);
+	v4l2_i2c_subdev_set_name(sd, client, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_init);
 
@@ -186,7 +196,7 @@ struct v4l2_subdev *v4l2_i2c_new_subdev(struct v4l2_device *v4l2_dev,
 	/* Setup the i2c board info with the device type and
 	   the device address. */
 	memset(&info, 0, sizeof(info));
-	strlcpy(info.type, client_type, sizeof(info.type));
+	strscpy(info.type, client_type, sizeof(info.type));
 	info.addr = addr;
 
 	return v4l2_i2c_new_subdev_board(v4l2_dev, adapter, &info, probe_addrs);
@@ -255,7 +265,8 @@ void v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
 	v4l2_set_subdevdata(sd, spi);
 	spi_set_drvdata(spi, sd);
 	/* initialize name */
-	strlcpy(sd->name, spi->dev.driver->name, sizeof(sd->name));
+	snprintf(sd->name, sizeof(sd->name), "%s %s",
+		spi->dev.driver->name, dev_name(&spi->dev));
 }
 EXPORT_SYMBOL_GPL(v4l2_spi_subdev_init);
 

@@ -786,6 +786,11 @@ struct i40e_vsi {
 
 	/* VSI specific handlers */
 	irqreturn_t (*irq_handler)(int irq, void *data);
+
+	/* AF_XDP zero-copy */
+	struct xdp_umem **xsk_umems;
+	u16 num_xsk_umems_used;
+	u16 num_xsk_umems;
 } ____cacheline_internodealigned_in_smp;
 
 struct i40e_netdev_priv {
@@ -1088,6 +1093,20 @@ void i40e_print_link_message(struct i40e_vsi *vsi, bool isup);
 static inline bool i40e_enabled_xdp_vsi(struct i40e_vsi *vsi)
 {
 	return !!vsi->xdp_prog;
+}
+
+static inline struct xdp_umem *i40e_xsk_umem(struct i40e_ring *ring)
+{
+	bool xdp_on = i40e_enabled_xdp_vsi(ring->vsi);
+	int qid = ring->queue_index;
+
+	if (ring_is_xdp(ring))
+		qid -= ring->vsi->alloc_queue_pairs;
+
+	if (!ring->vsi->xsk_umems || !ring->vsi->xsk_umems[qid] || !xdp_on)
+		return NULL;
+
+	return ring->vsi->xsk_umems[qid];
 }
 
 int i40e_create_queue_channel(struct i40e_vsi *vsi, struct i40e_channel *ch);

@@ -362,6 +362,9 @@ enum devlink_param_generic_id {
 	DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
 	DEVLINK_PARAM_GENERIC_ID_ENABLE_SRIOV,
 	DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
+	DEVLINK_PARAM_GENERIC_ID_IGNORE_ARI,
+	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MAX,
+	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN,
 
 	/* add new param generic ids above here*/
 	__DEVLINK_PARAM_GENERIC_ID_MAX,
@@ -379,6 +382,15 @@ enum devlink_param_generic_id {
 
 #define DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_NAME "region_snapshot_enable"
 #define DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_IGNORE_ARI_NAME "ignore_ari"
+#define DEVLINK_PARAM_GENERIC_IGNORE_ARI_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MAX_NAME "msix_vec_per_pf_max"
+#define DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MAX_TYPE DEVLINK_PARAM_TYPE_U32
+
+#define DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MIN_NAME "msix_vec_per_pf_min"
+#define DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MIN_TYPE DEVLINK_PARAM_TYPE_U32
 
 #define DEVLINK_PARAM_GENERIC(_id, _cmodes, _get, _set, _validate)	\
 {									\
@@ -451,11 +463,14 @@ struct devlink_ops {
 				       u32 *p_cur, u32 *p_max);
 
 	int (*eswitch_mode_get)(struct devlink *devlink, u16 *p_mode);
-	int (*eswitch_mode_set)(struct devlink *devlink, u16 mode);
+	int (*eswitch_mode_set)(struct devlink *devlink, u16 mode,
+				struct netlink_ext_ack *extack);
 	int (*eswitch_inline_mode_get)(struct devlink *devlink, u8 *p_inline_mode);
-	int (*eswitch_inline_mode_set)(struct devlink *devlink, u8 inline_mode);
+	int (*eswitch_inline_mode_set)(struct devlink *devlink, u8 inline_mode,
+				       struct netlink_ext_ack *extack);
 	int (*eswitch_encap_mode_get)(struct devlink *devlink, u8 *p_encap_mode);
-	int (*eswitch_encap_mode_set)(struct devlink *devlink, u8 encap_mode);
+	int (*eswitch_encap_mode_set)(struct devlink *devlink, u8 encap_mode,
+				      struct netlink_ext_ack *extack);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)

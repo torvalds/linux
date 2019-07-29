@@ -1,11 +1,10 @@
 C ISA2+pooncelock+pooncelock+pombonce
 
 (*
- * Result: Sometimes
+ * Result: Never
  *
- * This test shows that the ordering provided by a lock-protected S
- * litmus test (P0() and P1()) are not visible to external process P2().
- * This is likely to change soon.
+ * This test shows that write-write ordering provided by locks
+ * (in P0() and P1()) is visible to external process P2().
  *)
 
 {}

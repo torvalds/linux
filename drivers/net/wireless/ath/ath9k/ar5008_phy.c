@@ -37,10 +37,6 @@
 #define AR5008_11NG_HT_SS_SHIFT		12
 #define AR5008_11NG_HT_DS_SHIFT		20
 
-static const int firstep_table[] =
-/* level:  0   1   2   3   4   5   6   7   8  */
-	{ -4, -2,  0,  2,  4,  6,  8, 10, 12 }; /* lvl 0-8, default 2 */
-
 /*
  * register values to turn OFDM weak signal detection OFF
  */

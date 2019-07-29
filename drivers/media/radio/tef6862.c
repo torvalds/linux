@@ -79,7 +79,7 @@ static int tef6862_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *v)
 		return -EINVAL;
 
 	/* only support FM for now */
-	strlcpy(v->name, "FM", sizeof(v->name));
+	strscpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = TEF6862_LO_FREQ;
 	v->rangehigh = TEF6862_HI_FREQ;

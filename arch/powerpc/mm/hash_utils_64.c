@@ -1001,9 +1001,9 @@ void __init hash__early_init_mmu(void)
 	 * 4k use hugepd format, so for hash set then to
 	 * zero
 	 */
-	__pmd_val_bits = 0;
-	__pud_val_bits = 0;
-	__pgd_val_bits = 0;
+	__pmd_val_bits = HASH_PMD_VAL_BITS;
+	__pud_val_bits = HASH_PUD_VAL_BITS;
+	__pgd_val_bits = HASH_PGD_VAL_BITS;
 
 	__kernel_virt_start = H_KERN_VIRT_START;
 	__kernel_virt_size = H_KERN_VIRT_SIZE;
@@ -1125,7 +1125,7 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 	if ((get_paca_psize(addr) != MMU_PAGE_4K) && (current->mm == mm)) {
 
 		copy_mm_to_paca(mm);
-		slb_flush_and_rebolt();
+		slb_flush_and_restore_bolted();
 	}
 }
 #endif /* CONFIG_PPC_64K_PAGES */
@@ -1197,7 +1197,7 @@ static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
 	if (user_region) {
 		if (psize != get_paca_psize(ea)) {
 			copy_mm_to_paca(mm);
-			slb_flush_and_rebolt();
+			slb_flush_and_restore_bolted();
 		}
 	} else if (get_paca()->vmalloc_sllp !=
 		   mmu_psize_defs[mmu_vmalloc_psize].sllp) {
@@ -1482,7 +1482,7 @@ static bool should_hash_preload(struct mm_struct *mm, unsigned long ea)
 #endif
 
 void hash_preload(struct mm_struct *mm, unsigned long ea,
-		  unsigned long access, unsigned long trap)
+		  bool is_exec, unsigned long trap)
 {
 	int hugepage_shift;
 	unsigned long vsid;
@@ -1490,6 +1490,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	pte_t *ptep;
 	unsigned long flags;
 	int rc, ssize, update_flags = 0;
+	unsigned long access = _PAGE_PRESENT | _PAGE_READ | (is_exec ? _PAGE_EXEC : 0);
 
 	BUG_ON(REGION_ID(ea) != USER_REGION_ID);
 

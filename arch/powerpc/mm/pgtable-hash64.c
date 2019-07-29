@@ -142,7 +142,7 @@ void hash__vmemmap_remove_mapping(unsigned long start,
  * map_kernel_page adds an entry to the ioremap page table
  * and adds an entry to the HPT, possibly bolting it
  */
-int hash__map_kernel_page(unsigned long ea, unsigned long pa, unsigned long flags)
+int hash__map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 {
 	pgd_t *pgdp;
 	pud_t *pudp;
@@ -161,8 +161,7 @@ int hash__map_kernel_page(unsigned long ea, unsigned long pa, unsigned long flag
 		ptep = pte_alloc_kernel(pmdp, ea);
 		if (!ptep)
 			return -ENOMEM;
-		set_pte_at(&init_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT,
-							  __pgprot(flags)));
+		set_pte_at(&init_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT, prot));
 	} else {
 		/*
 		 * If the mm subsystem is not fully up, we cannot create a
@@ -170,7 +169,7 @@ int hash__map_kernel_page(unsigned long ea, unsigned long pa, unsigned long flag
 		 * entry in the hardware page table.
 		 *
 		 */
-		if (htab_bolt_mapping(ea, ea + PAGE_SIZE, pa, flags,
+		if (htab_bolt_mapping(ea, ea + PAGE_SIZE, pa, pgprot_val(prot),
 				      mmu_io_psize, mmu_kernel_ssize)) {
 			printk(KERN_ERR "Failed to do bolted mapping IO "
 			       "memory at %016lx !\n", pa);

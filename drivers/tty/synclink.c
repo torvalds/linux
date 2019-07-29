@@ -2959,8 +2959,7 @@ static int mgsl_ioctl(struct tty_struct *tty,
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_ioctl"))
 		return -ENODEV;
 
-	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
-	    (cmd != TIOCMIWAIT)) {
+	if (cmd != TIOCMIWAIT) {
 		if (tty_io_error(tty))
 		    return -EIO;
 	}

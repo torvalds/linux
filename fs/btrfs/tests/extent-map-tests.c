@@ -12,8 +12,8 @@ static void free_extent_map_tree(struct extent_map_tree *em_tree)
 	struct extent_map *em;
 	struct rb_node *node;
 
-	while (!RB_EMPTY_ROOT(&em_tree->map)) {
-		node = rb_first(&em_tree->map);
+	while (!RB_EMPTY_ROOT(&em_tree->map.rb_root)) {
+		node = rb_first_cached(&em_tree->map);
 		em = rb_entry(node, struct extent_map, rb_node);
 		remove_extent_mapping(em_tree, em);
 

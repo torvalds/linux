@@ -219,17 +219,6 @@ static void gta02_udc_vbus_draw(unsigned int ma)
 #define gta02_udc_vbus_draw		NULL
 #endif
 
-/*
- * This is called when pc50633 is probed, unfortunately quite late in the
- * day since it is an I2C bus device. Here we can belatedly define some
- * platform devices with the advantage that we can mark the pcf50633 as the
- * parent. This makes them get suspended and resumed with their parent
- * the pcf50633 still around.
- */
-
-static void gta02_pmu_attach_child_devices(struct pcf50633 *pcf);
-
-
 static char *gta02_batteries[] = {
 	"battery",
 };
@@ -355,7 +344,6 @@ static struct pcf50633_platform_data gta02_pcf_pdata = {
 		},
 
 	},
-	.probe_done = gta02_pmu_attach_child_devices,
 	.mbc_event_callback = gta02_pmu_event_callback,
 };
 
@@ -511,36 +499,6 @@ static struct platform_device *gta02_devices[] __initdata = {
 	&s3c_device_adc,
 	&s3c_device_ts,
 };
-
-/* These guys DO need to be children of PMU. */
-
-static struct platform_device *gta02_devices_pmu_children[] = {
-};
-
-
-/*
- * This is called when pc50633 is probed, quite late in the day since it is an
- * I2C bus device.  Here we can define platform devices with the advantage that
- * we can mark the pcf50633 as the parent.  This makes them get suspended and
- * resumed with their parent the pcf50633 still around.  All devices whose
- * operation depends on something from pcf50633 must have this relationship
- * made explicit like this, or suspend and resume will become an unreliable
- * hellworld.
- */
-
-static void gta02_pmu_attach_child_devices(struct pcf50633 *pcf)
-{
-	int n;
-
-	/* Grab a copy of the now probed PMU pointer. */
-	gta02_pcf = pcf;
-
-	for (n = 0; n < ARRAY_SIZE(gta02_devices_pmu_children); n++)
-		gta02_devices_pmu_children[n]->dev.parent = pcf->dev;
-
-	platform_add_devices(gta02_devices_pmu_children,
-			     ARRAY_SIZE(gta02_devices_pmu_children));
-}
 
 static void gta02_poweroff(void)
 {

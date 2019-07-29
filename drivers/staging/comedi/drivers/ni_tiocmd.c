@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include "ni_tio_internal.h"
 #include "mite.h"
+#include "ni_routes.h"
 
 static void ni_tio_configure_dma(struct ni_gpct *counter,
 				 bool enable, bool read)
@@ -100,6 +101,8 @@ static int ni_tio_input_cmd(struct comedi_subdevice *s)
 {
 	struct ni_gpct *counter = s->private;
 	struct ni_gpct_device *counter_dev = counter->counter_dev;
+	const struct ni_route_tables *routing_tables =
+		counter_dev->routing_tables;
 	unsigned int cidx = counter->counter_index;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -128,8 +131,19 @@ static int ni_tio_input_cmd(struct comedi_subdevice *s)
 
 		if (cmd->start_src == TRIG_NOW)
 			ret = ni_tio_arm(counter, true, NI_GPCT_ARM_IMMEDIATE);
-		else if (cmd->start_src == TRIG_EXT)
-			ret = ni_tio_arm(counter, true, cmd->start_arg);
+		else if (cmd->start_src == TRIG_EXT) {
+			int reg = CR_CHAN(cmd->start_arg);
+
+			if (reg >= NI_NAMES_BASE) {
+				/* using a device-global name. lookup reg */
+				reg = ni_get_reg_value(reg,
+						       NI_CtrArmStartTrigger(cidx),
+						       routing_tables);
+				/* mark this as a raw register value */
+				reg |= NI_GPCT_HW_ARM;
+			}
+			ret = ni_tio_arm(counter, true, reg);
+		}
 	}
 	return ret;
 }
@@ -148,6 +162,8 @@ static int ni_tio_cmd_setup(struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct ni_gpct *counter = s->private;
 	unsigned int cidx = counter->counter_index;
+	const struct ni_route_tables *routing_tables =
+		counter->counter_dev->routing_tables;
 	int set_gate_source = 0;
 	unsigned int gate_source;
 	int retval = 0;
@@ -159,8 +175,24 @@ static int ni_tio_cmd_setup(struct comedi_subdevice *s)
 		set_gate_source = 1;
 		gate_source = cmd->convert_arg;
 	}
-	if (set_gate_source)
-		retval = ni_tio_set_gate_src(counter, 0, gate_source);
+	if (set_gate_source) {
+		if (CR_CHAN(gate_source) >= NI_NAMES_BASE) {
+			/* Lookup and use the real register values */
+			int reg = ni_get_reg_value(CR_CHAN(gate_source),
+						   NI_CtrGate(cidx),
+						   routing_tables);
+			if (reg < 0)
+				return -EINVAL;
+			retval = ni_tio_set_gate_src_raw(counter, 0, reg);
+		} else {
+			/*
+			 * This function must be used separately since it does
+			 * not expect real register values and attempts to
+			 * convert these to real register values.
+			 */
+			retval = ni_tio_set_gate_src(counter, 0, gate_source);
+		}
+	}
 	if (cmd->flags & CMDF_WAKE_EOS) {
 		ni_tio_set_bits(counter, NITIO_INT_ENA_REG(cidx),
 				GI_GATE_INTERRUPT_ENABLE(cidx),
@@ -203,6 +235,9 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 		   struct comedi_cmd *cmd)
 {
 	struct ni_gpct *counter = s->private;
+	unsigned int cidx = counter->counter_index;
+	const struct ni_route_tables *routing_tables =
+		counter->counter_dev->routing_tables;
 	int err = 0;
 	unsigned int sources;
 
@@ -247,14 +282,37 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 		break;
 	case TRIG_EXT:
 		/* start_arg is the start_trigger passed to ni_tio_arm() */
+		/*
+		 * This should be done, but we don't yet know the actual
+		 * register values.  These should be tested and then documented
+		 * in the ni_route_values/ni_*.csv files, with indication of
+		 * who/when/which/how these these were tested.
+		 * When at least a e/m/660x series have been tested, this code
+		 * should be uncommented:
+		 *
+		 * err |= ni_check_trigger_arg(CR_CHAN(cmd->start_arg),
+		 *			    NI_CtrArmStartTrigger(cidx),
+		 *			    routing_tables);
+		 */
 		break;
 	}
 
+	/*
+	 * It seems that convention is to allow either scan_begin_arg or
+	 * convert_arg to specify the Gate source, with scan_begin_arg taking
+	 * precedence.
+	 */
 	if (cmd->scan_begin_src != TRIG_EXT)
 		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	else
+		err |= ni_check_trigger_arg(CR_CHAN(cmd->scan_begin_arg),
+					    NI_CtrGate(cidx), routing_tables);
 
 	if (cmd->convert_src != TRIG_EXT)
 		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
+	else
+		err |= ni_check_trigger_arg(CR_CHAN(cmd->convert_arg),
+					    NI_CtrGate(cidx), routing_tables);
 
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);

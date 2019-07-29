@@ -214,7 +214,6 @@ static void virt_vbt_generation(struct vbt *v)
 /**
  * intel_vgpu_init_opregion - initialize the stuff used to emulate opregion
  * @vgpu: a vGPU
- * @gpa: guest physical address of opregion
  *
  * Returns:
  * Zero on success, negative error code if failed.

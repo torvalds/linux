@@ -542,6 +542,30 @@ static long efi_runtime_get_nexthighmonocount(unsigned long arg)
 	return 0;
 }
 
+static long efi_runtime_reset_system(unsigned long arg)
+{
+	struct efi_resetsystem __user *resetsystem_user;
+	struct efi_resetsystem resetsystem;
+	void *data = NULL;
+
+	resetsystem_user = (struct efi_resetsystem __user *)arg;
+	if (copy_from_user(&resetsystem, resetsystem_user,
+						sizeof(resetsystem)))
+		return -EFAULT;
+	if (resetsystem.data_size != 0) {
+		data = memdup_user((void *)resetsystem.data,
+						resetsystem.data_size);
+		if (IS_ERR(data))
+			return PTR_ERR(data);
+	}
+
+	efi.reset_system(resetsystem.reset_type, resetsystem.status,
+				resetsystem.data_size, (efi_char16_t *)data);
+
+	kfree(data);
+	return 0;
+}
+
 static long efi_runtime_query_variableinfo(unsigned long arg)
 {
 	struct efi_queryvariableinfo __user *queryvariableinfo_user;
@@ -682,6 +706,9 @@ static long efi_test_ioctl(struct file *file, unsigned int cmd,
 
 	case EFI_RUNTIME_QUERY_CAPSULECAPABILITIES:
 		return efi_runtime_query_capsulecaps(arg);
+
+	case EFI_RUNTIME_RESET_SYSTEM:
+		return efi_runtime_reset_system(arg);
 	}
 
 	return -ENOTTY;

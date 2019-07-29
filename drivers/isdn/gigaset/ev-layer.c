@@ -1036,7 +1036,7 @@ static void handle_icall(struct cardstate *cs, struct bc_state *bcs,
 		break;
 	default:
 		dev_err(cs->dev, "internal error: disposition=%d\n", retval);
-		/* --v-- fall through --v-- */
+		/* fall through */
 	case ICALL_IGNORE:
 	case ICALL_REJECT:
 		/* hang up actively
@@ -1319,7 +1319,7 @@ static void do_action(int action, struct cardstate *cs,
 			cs->commands_pending = 1;
 			break;
 		}
-		/* bad cid: fall through */
+		/* fall through - bad cid */
 	case ACT_FAILCID:
 		cs->cur_at_seq = SEQ_NONE;
 		channel = cs->curchannel;

@@ -46,6 +46,7 @@ config FSI_MASTER_AST_CF
 	tristate "FSI master based on Aspeed ColdFire coprocessor"
 	depends on GPIOLIB
 	depends on GPIO_ASPEED
+	select GENERIC_ALLOCATOR
 	---help---
 	This option enables a FSI master using the AST2400 and AST2500 GPIO
 	lines driven by the internal ColdFire coprocessor. This requires

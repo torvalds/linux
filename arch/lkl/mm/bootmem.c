@@ -1,4 +1,5 @@
-#include <linux/bootmem.h>
+// SPDX-License-Identifier: GPL-2.0
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
 
@@ -9,8 +10,6 @@ void *empty_zero_page;
 
 void __init bootmem_init(unsigned long mem_sz)
 {
-	unsigned long bootmap_size;
-
 	mem_size = mem_sz;
 
 	_memory_start = (unsigned long)lkl_ops->mem_alloc(mem_size);
@@ -23,7 +22,7 @@ void __init bootmem_init(unsigned long mem_sz)
 		memory_start = PAGE_ALIGN(memory_start);
 		mem_size = (mem_size / PAGE_SIZE) * PAGE_SIZE;
 	}
-	pr_info("bootmem address range: 0x%lx - 0x%lx\n", memory_start,
+	pr_info("memblock address range: 0x%lx - 0x%lx\n", memory_start,
 		memory_start+mem_size);
 	/*
 	 * Give all the memory to the bootmap allocator, tell it to put the
@@ -31,17 +30,9 @@ void __init bootmem_init(unsigned long mem_sz)
 	 */
 	max_low_pfn = virt_to_pfn(memory_end);
 	min_low_pfn = virt_to_pfn(memory_start);
-	bootmap_size = init_bootmem_node(NODE_DATA(0), min_low_pfn, min_low_pfn,
-					 max_low_pfn);
+	memblock_add(memory_start, mem_size);
 
-	/*
-	 * Free the usable memory, we have to make sure we do not free
-	 * the bootmem bitmap so we then reserve it after freeing it :-)
-	 */
-	free_bootmem(memory_start, mem_size);
-	reserve_bootmem(memory_start, bootmap_size, BOOTMEM_DEFAULT);
-
-	empty_zero_page = alloc_bootmem_pages(PAGE_SIZE);
+	empty_zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 	memset((void *)empty_zero_page, 0, PAGE_SIZE);
 
 	{
@@ -56,7 +47,7 @@ void __init mem_init(void)
 {
 	max_mapnr = (((unsigned long)high_memory) - PAGE_OFFSET) >> PAGE_SHIFT;
 	/* this will put all memory onto the freelists */
-	totalram_pages = free_all_bootmem();
+	totalram_pages = memblock_free_all();
 	pr_info("Memory available: %luk/%luk RAM\n",
 		(nr_free_pages() << PAGE_SHIFT) >> 10, mem_size >> 10);
 }

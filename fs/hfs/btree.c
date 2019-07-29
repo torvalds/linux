@@ -220,6 +220,30 @@ static struct hfs_bnode *hfs_bmap_new_bmap(struct hfs_bnode *prev, u32 idx)
 	return node;
 }
 
+/* Make sure @tree has enough space for the @rsvd_nodes */
+int hfs_bmap_reserve(struct hfs_btree *tree, int rsvd_nodes)
+{
+	struct inode *inode = tree->inode;
+	u32 count;
+	int res;
+
+	while (tree->free_nodes < rsvd_nodes) {
+		res = hfs_extend_file(inode);
+		if (res)
+			return res;
+		HFS_I(inode)->phys_size = inode->i_size =
+				(loff_t)HFS_I(inode)->alloc_blocks *
+				HFS_SB(tree->sb)->alloc_blksz;
+		HFS_I(inode)->fs_blocks = inode->i_size >>
+					  tree->sb->s_blocksize_bits;
+		inode_set_bytes(inode, inode->i_size);
+		count = inode->i_size >> tree->node_size_shift;
+		tree->free_nodes += count - tree->node_count;
+		tree->node_count = count;
+	}
+	return 0;
+}
+
 struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 {
 	struct hfs_bnode *node, *next_node;
@@ -229,26 +253,11 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 	u16 off16;
 	u16 len;
 	u8 *data, byte, m;
-	int i;
+	int i, res;
 
-	while (!tree->free_nodes) {
-		struct inode *inode = tree->inode;
-		u32 count;
-		int res;
-
-		res = hfs_extend_file(inode);
-		if (res)
-			return ERR_PTR(res);
-		HFS_I(inode)->phys_size = inode->i_size =
-				(loff_t)HFS_I(inode)->alloc_blocks *
-				HFS_SB(tree->sb)->alloc_blksz;
-		HFS_I(inode)->fs_blocks = inode->i_size >>
-					  tree->sb->s_blocksize_bits;
-		inode_set_bytes(inode, inode->i_size);
-		count = inode->i_size >> tree->node_size_shift;
-		tree->free_nodes = count - tree->node_count;
-		tree->node_count = count;
-	}
+	res = hfs_bmap_reserve(tree, 1);
+	if (res)
+		return ERR_PTR(res);
 
 	nidx = 0;
 	node = hfs_bnode_find(tree, nidx);
@@ -329,13 +338,14 @@ void hfs_bmap_free(struct hfs_bnode *node)
 
 		nidx -= len * 8;
 		i = node->next;
-		hfs_bnode_put(node);
 		if (!i) {
 			/* panic */;
 			pr_crit("unable to free bnode %u. bmap not found!\n",
 				node->this);
+			hfs_bnode_put(node);
 			return;
 		}
+		hfs_bnode_put(node);
 		node = hfs_bnode_find(tree, i);
 		if (IS_ERR(node))
 			return;

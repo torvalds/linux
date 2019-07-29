@@ -781,7 +781,7 @@ static int tc90522_probe(struct i2c_client *client,
 	adap->owner = THIS_MODULE;
 	adap->algo = &tc90522_tuner_i2c_algo;
 	adap->dev.parent = &client->dev;
-	strlcpy(adap->name, "tc90522_sub", sizeof(adap->name));
+	strscpy(adap->name, "tc90522_sub", sizeof(adap->name));
 	i2c_set_adapdata(adap, state);
 	ret = i2c_add_adapter(adap);
 	if (ret < 0)

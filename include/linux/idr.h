@@ -214,8 +214,7 @@ static inline void idr_preload_end(void)
 	     ++id, (entry) = idr_get_next((idr), &(id)))
 
 /*
- * IDA - IDR based id allocator, use when translation from id to
- * pointer isn't necessary.
+ * IDA - ID Allocator, use when translation from id to pointer isn't necessary.
  */
 #define IDA_CHUNK_SIZE		128	/* 128 bytes per chunk */
 #define IDA_BITMAP_LONGS	(IDA_CHUNK_SIZE / sizeof(long))
@@ -225,14 +224,14 @@ struct ida_bitmap {
 	unsigned long		bitmap[IDA_BITMAP_LONGS];
 };
 
-DECLARE_PER_CPU(struct ida_bitmap *, ida_bitmap);
-
 struct ida {
-	struct radix_tree_root	ida_rt;
+	struct xarray xa;
 };
 
+#define IDA_INIT_FLAGS	(XA_FLAGS_LOCK_IRQ | XA_FLAGS_ALLOC)
+
 #define IDA_INIT(name)	{						\
-	.ida_rt = RADIX_TREE_INIT(name, IDR_RT_MARKER | GFP_NOWAIT),	\
+	.xa = XARRAY_INIT(name, IDA_INIT_FLAGS)				\
 }
 #define DEFINE_IDA(name)	struct ida name = IDA_INIT(name)
 
@@ -292,7 +291,7 @@ static inline int ida_alloc_max(struct ida *ida, unsigned int max, gfp_t gfp)
 
 static inline void ida_init(struct ida *ida)
 {
-	INIT_RADIX_TREE(&ida->ida_rt, IDR_RT_MARKER | GFP_NOWAIT);
+	xa_init_flags(&ida->xa, IDA_INIT_FLAGS);
 }
 
 #define ida_simple_get(ida, start, end, gfp)	\
@@ -301,9 +300,6 @@ static inline void ida_init(struct ida *ida)
 
 static inline bool ida_is_empty(const struct ida *ida)
 {
-	return radix_tree_empty(&ida->ida_rt);
+	return xa_empty(&ida->xa);
 }
-
-/* in lib/radix-tree.c */
-int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
 #endif /* __IDR_H__ */

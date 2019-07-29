@@ -11,7 +11,7 @@ config QTNFMAC_PEARL_PCIE
 	select QTNFMAC
 	select FW_LOADER
 	select CRC32
-	---help---
+	help
 	  This option adds support for wireless adapters based on Quantenna
 	  802.11ac QSR10g (aka Pearl) FullMAC chipset running over PCIe.
 

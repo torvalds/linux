@@ -4,8 +4,10 @@ Required Properties:
 
   - compatible: should contain one or more of the following:
     - "renesas,gpio-r8a7743": for R8A7743 (RZ/G1M) compatible GPIO controller.
+    - "renesas,gpio-r8a7744": for R8A7744 (RZ/G1N) compatible GPIO controller.
     - "renesas,gpio-r8a7745": for R8A7745 (RZ/G1E) compatible GPIO controller.
     - "renesas,gpio-r8a77470": for R8A77470 (RZ/G1C) compatible GPIO controller.
+    - "renesas,gpio-r8a774a1": for R8A774A1 (RZ/G2M) compatible GPIO controller.
     - "renesas,gpio-r8a7778": for R8A7778 (R-Car M1) compatible GPIO controller.
     - "renesas,gpio-r8a7779": for R8A7779 (R-Car H1) compatible GPIO controller.
     - "renesas,gpio-r8a7790": for R8A7790 (R-Car H2) compatible GPIO controller.
@@ -22,7 +24,7 @@ Required Properties:
     - "renesas,gpio-r8a77995": for R8A77995 (R-Car D3) compatible GPIO controller.
     - "renesas,rcar-gen1-gpio": for a generic R-Car Gen1 GPIO controller.
     - "renesas,rcar-gen2-gpio": for a generic R-Car Gen2 or RZ/G1 GPIO controller.
-    - "renesas,rcar-gen3-gpio": for a generic R-Car Gen3 GPIO controller.
+    - "renesas,rcar-gen3-gpio": for a generic R-Car Gen3 or RZ/G2 GPIO controller.
     - "renesas,gpio-rcar": deprecated.
 
     When compatible with the generic version nodes must list the
@@ -38,7 +40,7 @@ Required Properties:
   - #gpio-cells: Should be 2. The first cell is the GPIO number and the second
     cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>. Only the
     GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.
-  - gpio-ranges: Range of pins managed by the GPIO controller.
+  - gpio-ranges: See gpio.txt.
 
 Optional properties:
 
@@ -46,35 +48,44 @@ Optional properties:
     mandatory if the hardware implements a controllable functional clock for
     the GPIO instance.
 
-Please refer to gpio.txt in this directory for details of gpio-ranges property
-and the common GPIO bindings used by client devices.
+  - gpio-reserved-ranges: See gpio.txt.
+
+Please refer to gpio.txt in this directory for the common GPIO bindings used by
+client devices.
 
 The GPIO controller also acts as an interrupt controller. It uses the default
 two cells specifier as described in Documentation/devicetree/bindings/
 interrupt-controller/interrupts.txt.
 
-Example: R8A7779 (R-Car H1) GPIO controller nodes
+Example: R8A77470 (RZ/G1C) GPIO controller nodes
 
-	gpio0: gpio@ffc40000 {
-		compatible = "renesas,gpio-r8a7779", "renesas,rcar-gen1-gpio";
-		reg = <0xffc40000 0x2c>;
-		interrupt-parent = <&gic>;
-		interrupts = <0 141 0x4>;
-		#gpio-cells = <2>;
-		gpio-controller;
-		gpio-ranges = <&pfc 0 0 32>;
-		interrupt-controller;
-		#interrupt-cells = <2>;
-	};
+       gpio0: gpio@e6050000 {
+                compatible = "renesas,gpio-r8a77470",
+                             "renesas,rcar-gen2-gpio";
+                reg = <0 0xe6050000 0 0x50>;
+                interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+                #gpio-cells = <2>;
+                gpio-controller;
+                gpio-ranges = <&pfc 0 0 23>;
+                #interrupt-cells = <2>;
+                interrupt-controller;
+                clocks = <&cpg CPG_MOD 912>;
+                power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
+                resets = <&cpg 912>;
+        };
 	...
-	gpio6: gpio@ffc46000 {
-		compatible = "renesas,gpio-r8a7779", "renesas,rcar-gen1-gpio";
-		reg = <0xffc46000 0x2c>;
-		interrupt-parent = <&gic>;
-		interrupts = <0 147 0x4>;
-		#gpio-cells = <2>;
-		gpio-controller;
-		gpio-ranges = <&pfc 0 192 9>;
-		interrupt-controller;
-		#interrupt-cells = <2>;
-	};
+       gpio3: gpio@e6053000 {
+                compatible = "renesas,gpio-r8a77470",
+                             "renesas,rcar-gen2-gpio";
+                reg = <0 0xe6053000 0 0x50>;
+                interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+                #gpio-cells = <2>;
+                gpio-controller;
+                gpio-ranges = <&pfc 0 96 30>;
+                gpio-reserved-ranges = <17 10>;
+                #interrupt-cells = <2>;
+                interrupt-controller;
+                clocks = <&cpg CPG_MOD 909>;
+                power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
+                resets = <&cpg 909>;
+        };

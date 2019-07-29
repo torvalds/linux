@@ -994,7 +994,6 @@ void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 {
 	unsigned long old;
 	int faulted;
-	struct ftrace_graph_ent trace;
 	unsigned long return_hooker = (unsigned long)
 				&return_to_handler;
 
@@ -1046,19 +1045,7 @@ void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 		return;
 	}
 
-	trace.func = self_addr;
-	trace.depth = current->curr_ret_stack + 1;
-
-	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace)) {
+	if (function_graph_enter(old, self_addr, frame_pointer, parent))
 		*parent = old;
-		return;
-	}
-
-	if (ftrace_push_return_trace(old, self_addr, &trace.depth,
-				     frame_pointer, parent) == -EBUSY) {
-		*parent = old;
-		return;
-	}
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */

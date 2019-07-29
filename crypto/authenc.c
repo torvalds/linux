@@ -33,7 +33,7 @@ struct authenc_instance_ctx {
 struct crypto_authenc_ctx {
 	struct crypto_ahash *auth;
 	struct crypto_skcipher *enc;
-	struct crypto_skcipher *null;
+	struct crypto_sync_skcipher *null;
 };
 
 struct authenc_request_ctx {
@@ -185,9 +185,9 @@ static int crypto_authenc_copy_assoc(struct aead_request *req)
 {
 	struct crypto_aead *authenc = crypto_aead_reqtfm(req);
 	struct crypto_authenc_ctx *ctx = crypto_aead_ctx(authenc);
-	SKCIPHER_REQUEST_ON_STACK(skreq, ctx->null);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(skreq, ctx->null);
 
-	skcipher_request_set_tfm(skreq, ctx->null);
+	skcipher_request_set_sync_tfm(skreq, ctx->null);
 	skcipher_request_set_callback(skreq, aead_request_flags(req),
 				      NULL, NULL);
 	skcipher_request_set_crypt(skreq, req->src, req->dst, req->assoclen,
@@ -318,7 +318,7 @@ static int crypto_authenc_init_tfm(struct crypto_aead *tfm)
 	struct crypto_authenc_ctx *ctx = crypto_aead_ctx(tfm);
 	struct crypto_ahash *auth;
 	struct crypto_skcipher *enc;
-	struct crypto_skcipher *null;
+	struct crypto_sync_skcipher *null;
 	int err;
 
 	auth = crypto_spawn_ahash(&ictx->auth);

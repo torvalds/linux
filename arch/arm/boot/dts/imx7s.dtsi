@@ -54,6 +54,19 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		idle-states {
+			entry-method = "psci";
+
+			cpu_sleep_wait: cpu-sleep-wait {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0010000>;
+				local-timer-stop;
+				entry-latency-us = <100>;
+				exit-latency-us = <50>;
+				min-residency-us = <1000>;
+			};
+		};
+
 		cpu0: cpu@0 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
@@ -61,6 +74,7 @@
 			clock-frequency = <792000000>;
 			clock-latency = <61036>; /* two CLK32 periods */
 			clocks = <&clks IMX7D_CLK_ARM>;
+			cpu-idle-states = <&cpu_sleep_wait>;
 		};
 	};
 
@@ -106,7 +120,7 @@
 		 */
 		compatible = "arm,coresight-replicator";
 
-		ports {
+		out-ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 				/* replicator output ports */
@@ -123,12 +137,11 @@
 					remote-endpoint = <&etr_in_port>;
 				};
 			};
+		};
 
-			/* replicator input port */
-			port@2 {
-				reg = <0>;
+		in-ports {
+			port {
 				replicator_in_port0: endpoint {
-					slave-mode;
 					remote-endpoint = <&etf_out_port>;
 				};
 			};
@@ -168,28 +181,23 @@
 			clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
 			clock-names = "apb_pclk";
 
-			ca_funnel_ports: ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				/* funnel input ports */
-				port@0 {
-					reg = <0>;
+			ca_funnel_in_ports: in-ports {
+				port {
 					ca_funnel_in_port0: endpoint {
-						slave-mode;
 						remote-endpoint = <&etm0_out_port>;
 					};
 				};
 
-				/* funnel output port */
-				port@2 {
-					reg = <0>;
+				/* the other input ports are not connect to anything */
+			};
+
+			out-ports {
+				port {
 					ca_funnel_out_port0: endpoint {
 						remote-endpoint = <&hugo_funnel_in_port0>;
 					};
 				};
 
-				/* the other input ports are not connect to anything */
 			};
 		};
 
@@ -200,9 +208,11 @@
 			clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
 			clock-names = "apb_pclk";
 
-			port {
-				etm0_out_port: endpoint {
-					remote-endpoint = <&ca_funnel_in_port0>;
+			out-ports {
+				port {
+					etm0_out_port: endpoint {
+						remote-endpoint = <&ca_funnel_in_port0>;
+					};
 				};
 			};
 		};
@@ -213,15 +223,13 @@
 			clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
 			clock-names = "apb_pclk";
 
-			ports {
+			in-ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				/* funnel input ports */
 				port@0 {
 					reg = <0>;
 					hugo_funnel_in_port0: endpoint {
-						slave-mode;
 						remote-endpoint = <&ca_funnel_out_port0>;
 					};
 				};
@@ -229,18 +237,18 @@
 				port@1 {
 					reg = <1>;
 					hugo_funnel_in_port1: endpoint {
-						slave-mode; /* M4 input */
+						/* M4 input */
 					};
 				};
+				/* the other input ports are not connect to anything */
+			};
 
-				port@2 {
-					reg = <0>;
+			out-ports {
+				port {
 					hugo_funnel_out_port0: endpoint {
 						remote-endpoint = <&etf_in_port>;
 					};
 				};
-
-				/* the other input ports are not connect to anything */
 			};
 		};
 
@@ -250,20 +258,16 @@
 			clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
 			clock-names = "apb_pclk";
 
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
+			in-ports {
+				port {
 					etf_in_port: endpoint {
-						slave-mode;
 						remote-endpoint = <&hugo_funnel_out_port0>;
 					};
 				};
+			};
 
-				port@1 {
-					reg = <0>;
+			out-ports {
+				port {
 					etf_out_port: endpoint {
 						remote-endpoint = <&replicator_in_port0>;
 					};
@@ -277,10 +281,11 @@
 			clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
 			clock-names = "apb_pclk";
 
-			port {
-				etr_in_port: endpoint {
-					slave-mode;
-					remote-endpoint = <&replicator_out_port1>;
+			in-ports {
+				port {
+					etr_in_port: endpoint {
+						remote-endpoint = <&replicator_out_port1>;
+					};
 				};
 			};
 		};
@@ -291,10 +296,11 @@
 			clocks = <&clks IMX7D_MAIN_AXI_ROOT_CLK>;
 			clock-names = "apb_pclk";
 
-			port {
-				tpiu_in_port: endpoint {
-					slave-mode;
-					remote-endpoint = <&replicator_out_port0>;
+			in-ports {
+				port {
+					tpiu_in_port: endpoint {
+						remote-endpoint = <&replicator_out_port0>;
+					};
 				};
 			};
 		};
@@ -563,14 +569,6 @@
 					clock-names = "snvs-rtc";
 				};
 
-				snvs_poweroff: snvs-poweroff {
-					compatible = "syscon-poweroff";
-					regmap = <&snvs>;
-					offset = <0x38>;
-					value = <0x60>;
-					mask = <0x60>;
-				};
-
 				snvs_pwrkey: snvs-powerkey {
 					compatible = "fsl,sec-v4.0-pwrkey";
 					regmap = <&snvs>;
@@ -644,7 +642,7 @@
 				status = "disabled";
 			};
 
-			ecspi4: ecspi@30630000 {
+			ecspi4: spi@30630000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx7d-ecspi", "fsl,imx51-ecspi";
@@ -725,7 +723,7 @@
 				reg = <0x30800000 0x100000>;
 				ranges;
 
-				ecspi1: ecspi@30820000 {
+				ecspi1: spi@30820000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx7d-ecspi", "fsl,imx51-ecspi";
@@ -737,7 +735,7 @@
 					status = "disabled";
 				};
 
-				ecspi2: ecspi@30830000 {
+				ecspi2: spi@30830000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx7d-ecspi", "fsl,imx51-ecspi";
@@ -749,7 +747,7 @@
 					status = "disabled";
 				};
 
-				ecspi3: ecspi@30840000 {
+				ecspi3: spi@30840000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx7d-ecspi", "fsl,imx51-ecspi";
@@ -971,6 +969,25 @@
 				clocks = <&clks IMX7D_UART7_ROOT_CLK>,
 					<&clks IMX7D_UART7_ROOT_CLK>;
 				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			mu0a: mailbox@30aa0000 {
+				compatible = "fsl,imx7s-mu", "fsl,imx6sx-mu";
+				reg = <0x30aa0000 0x10000>;
+				interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_MU_ROOT_CLK>;
+				#mbox-cells = <2>;
+				status = "disabled";
+			};
+
+			mu0b: mailbox@30ab0000 {
+				compatible = "fsl,imx7s-mu", "fsl,imx6sx-mu";
+				reg = <0x30ab0000 0x10000>;
+				interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_MU_ROOT_CLK>;
+				#mbox-cells = <2>;
+				fsl,mu-side-b;
 				status = "disabled";
 			};
 

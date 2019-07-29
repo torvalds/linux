@@ -27,8 +27,11 @@
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "STI-B2120";
 		status = "okay";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		simple-audio-card,dai-link0 {
+		simple-audio-card,dai-link@0 {
+			reg = <0>;
 			/* HDMI */
 			format = "i2s";
 			mclk-fs = <128>;
@@ -41,7 +44,8 @@
 			};
 		};
 
-		simple-audio-card,dai-link1 {
+		simple-audio-card,dai-link@1 {
+			reg = <1>;
 			/* DAC */
 			format = "i2s";
 			mclk-fs = <256>;
@@ -55,7 +59,8 @@
 			};
 		};
 
-		simple-audio-card,dai-link2 {
+		simple-audio-card,dai-link@2 {
+			reg = <2>;
 			/* SPDIF */
 			format = "left_j";
 			mclk-fs = <128>;

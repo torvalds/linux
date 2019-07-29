@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Analog Devices ADV748X HDMI receiver with AFE
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Authors:
  *	Koji Matsuoka <koji.matsuoka.xm@renesas.com>
@@ -285,18 +281,23 @@ static const struct adv748x_reg_value adv748x_power_down_txb_1lane[] = {
 
 	{ADV748X_PAGE_TXB, 0x31, 0x82},	/* ADI Required Write */
 	{ADV748X_PAGE_TXB, 0x1e, 0x00},	/* ADI Required Write */
-	{ADV748X_PAGE_TXB, 0x00, 0x81},	/* Enable 4-lane MIPI */
+	{ADV748X_PAGE_TXB, 0x00, 0x81},	/* Enable 1-lane MIPI */
 	{ADV748X_PAGE_TXB, 0xda, 0x01},	/* i2c_mipi_pll_en - 1'b1 */
 	{ADV748X_PAGE_TXB, 0xc1, 0x3b},	/* ADI Required Write */
 
 	{ADV748X_PAGE_EOR, 0xff, 0xff}	/* End of register table */
 };
 
-int adv748x_txa_power(struct adv748x_state *state, bool on)
+int adv748x_tx_power(struct adv748x_csi2 *tx, bool on)
 {
+	struct adv748x_state *state = tx->state;
+	const struct adv748x_reg_value *reglist;
 	int val;
 
-	val = txa_read(state, ADV748X_CSI_FS_AS_LS);
+	if (!is_tx_enabled(tx))
+		return 0;
+
+	val = tx_read(tx, ADV748X_CSI_FS_AS_LS);
 	if (val < 0)
 		return val;
 
@@ -309,31 +310,13 @@ int adv748x_txa_power(struct adv748x_state *state, bool on)
 			"Enabling with unknown bit set");
 
 	if (on)
-		return adv748x_write_regs(state, adv748x_power_up_txa_4lane);
+		reglist = is_txa(tx) ? adv748x_power_up_txa_4lane :
+				       adv748x_power_up_txb_1lane;
+	else
+		reglist = is_txa(tx) ? adv748x_power_down_txa_4lane :
+				       adv748x_power_down_txb_1lane;
 
-	return adv748x_write_regs(state, adv748x_power_down_txa_4lane);
-}
-
-int adv748x_txb_power(struct adv748x_state *state, bool on)
-{
-	int val;
-
-	val = txb_read(state, ADV748X_CSI_FS_AS_LS);
-	if (val < 0)
-		return val;
-
-	/*
-	 * This test against BIT(6) is not documented by the datasheet, but was
-	 * specified in the downstream driver.
-	 * Track with a WARN_ONCE to determine if it is ever set by HW.
-	 */
-	WARN_ONCE((on && val & ADV748X_CSI_FS_AS_LS_UNKNOWN),
-			"Enabling with unknown bit set");
-
-	if (on)
-		return adv748x_write_regs(state, adv748x_power_up_txb_1lane);
-
-	return adv748x_write_regs(state, adv748x_power_down_txb_1lane);
+	return adv748x_write_regs(state, reglist);
 }
 
 /* -----------------------------------------------------------------------------
@@ -399,8 +382,6 @@ static const struct adv748x_reg_value adv748x_init_txa_4lane[] = {
 
 	{ADV748X_PAGE_IO, 0x0c, 0xe0},	/* Enable LLC_DLL & Double LLC Timing */
 	{ADV748X_PAGE_IO, 0x0e, 0xdd},	/* LLC/PIX/SPI PINS TRISTATED AUD */
-	/* Outputs Enabled */
-	{ADV748X_PAGE_IO, 0x10, 0xa0},	/* Enable 4-lane CSI Tx & Pixel Port */
 
 	{ADV748X_PAGE_TXA, 0x00, 0x84},	/* Enable 4-lane MIPI */
 	{ADV748X_PAGE_TXA, 0x00, 0xa4},	/* Set Auto DPHY Timing */
@@ -454,10 +435,6 @@ static const struct adv748x_reg_value adv748x_init_txb_1lane[] = {
 	{ADV748X_PAGE_SDP, 0x31, 0x12},	/* ADI Required Write */
 	{ADV748X_PAGE_SDP, 0xe6, 0x4f},  /* V bit end pos manually in NTSC */
 
-	/* Enable 1-Lane MIPI Tx, */
-	/* enable pixel output and route SD through Pixel port */
-	{ADV748X_PAGE_IO, 0x10, 0x70},
-
 	{ADV748X_PAGE_TXB, 0x00, 0x81},	/* Enable 1-lane MIPI */
 	{ADV748X_PAGE_TXB, 0x00, 0xa1},	/* Set Auto DPHY Timing */
 	{ADV748X_PAGE_TXB, 0xd2, 0x40},	/* ADI Required Write */
@@ -482,6 +459,7 @@ static const struct adv748x_reg_value adv748x_init_txb_1lane[] = {
 static int adv748x_reset(struct adv748x_state *state)
 {
 	int ret;
+	u8 regval = 0;
 
 	ret = adv748x_write_regs(state, adv748x_sw_reset);
 	if (ret < 0)
@@ -496,22 +474,24 @@ static int adv748x_reset(struct adv748x_state *state)
 	if (ret)
 		return ret;
 
-	adv748x_txa_power(state, 0);
+	adv748x_tx_power(&state->txa, 0);
 
 	/* Init and power down TXB */
 	ret = adv748x_write_regs(state, adv748x_init_txb_1lane);
 	if (ret)
 		return ret;
 
-	adv748x_txb_power(state, 0);
+	adv748x_tx_power(&state->txb, 0);
 
 	/* Disable chip powerdown & Enable HDMI Rx block */
 	io_write(state, ADV748X_IO_PD, ADV748X_IO_PD_RX_EN);
 
-	/* Enable 4-lane CSI Tx & Pixel Port */
-	io_write(state, ADV748X_IO_10, ADV748X_IO_10_CSI4_EN |
-				       ADV748X_IO_10_CSI1_EN |
-				       ADV748X_IO_10_PIX_OUT_EN);
+	/* Conditionally enable TXa and TXb. */
+	if (is_tx_enabled(&state->txa))
+		regval |= ADV748X_IO_10_CSI4_EN;
+	if (is_tx_enabled(&state->txb))
+		regval |= ADV748X_IO_10_CSI1_EN;
+	io_write(state, ADV748X_IO_10, regval);
 
 	/* Use vid_std and v_freq as freerun resolution for CP */
 	cp_clrset(state, ADV748X_CP_CLMP_POS, ADV748X_CP_CLMP_POS_DIS_AUTO,
@@ -569,7 +549,8 @@ static int adv748x_parse_dt(struct adv748x_state *state)
 {
 	struct device_node *ep_np = NULL;
 	struct of_endpoint ep;
-	bool found = false;
+	bool out_found = false;
+	bool in_found = false;
 
 	for_each_endpoint_of_node(state->dev->of_node, ep_np) {
 		of_graph_parse_endpoint(ep_np, &ep);
@@ -592,10 +573,17 @@ static int adv748x_parse_dt(struct adv748x_state *state)
 		of_node_get(ep_np);
 		state->endpoints[ep.port] = ep_np;
 
-		found = true;
+		/*
+		 * At least one input endpoint and one output endpoint shall
+		 * be defined.
+		 */
+		if (ep.port < ADV748X_PORT_TXA)
+			in_found = true;
+		else
+			out_found = true;
 	}
 
-	return found ? 0 : -ENODEV;
+	return in_found && out_found ? 0 : -ENODEV;
 }
 
 static void adv748x_dt_cleanup(struct adv748x_state *state)
@@ -626,6 +614,17 @@ static int adv748x_probe(struct i2c_client *client,
 	state->client = client;
 	state->i2c_clients[ADV748X_PAGE_IO] = client;
 	i2c_set_clientdata(client, state);
+
+	/*
+	 * We can not use container_of to get back to the state with two TXs;
+	 * Initialize the TXs's fields unconditionally on the endpoint
+	 * presence to access them later.
+	 */
+	state->txa.state = state->txb.state = state;
+	state->txa.page = ADV748X_PAGE_TXA;
+	state->txb.page = ADV748X_PAGE_TXB;
+	state->txa.port = ADV748X_PORT_TXA;
+	state->txb.port = ADV748X_PORT_TXB;
 
 	/* Discover and process ports declared by the Device tree endpoints */
 	ret = adv748x_parse_dt(state);
@@ -755,4 +754,4 @@ module_i2c_driver(adv748x_driver);
 
 MODULE_AUTHOR("Kieran Bingham <kieran.bingham@ideasonboard.com>");
 MODULE_DESCRIPTION("ADV748X video decoder");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

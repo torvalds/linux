@@ -1,3 +1,7 @@
+config KRAIT_CLOCKS
+       bool
+       select KRAIT_L2_ACCESSORS
+
 config QCOM_GDSC
 	bool
 	select PM_GENERIC_DOMAINS if PM
@@ -235,6 +239,31 @@ config MSM_GCC_8998
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, UFS, SD/eMMC, PCIe, etc.
 
+config QCS_GCC_404
+	tristate "QCS404 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on QCS404 devices.
+	  Say Y if you want to use multimedia devices or peripheral
+	  devices such as UART, SPI, I2C, USB, SD/eMMC, PCIe etc.
+
+config SDM_CAMCC_845
+	tristate "SDM845 Camera Clock Controller"
+	depends on COMMON_CLK_QCOM
+	select SDM_GCC_845
+	help
+	  Support for the camera clock controller on SDM845 devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
+config SDM_GCC_660
+	tristate "SDM660 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SDM660 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2C, USB, UFS, SDDC, PCIe, etc.
+
 config SDM_GCC_845
 	tristate "SDM845 Global Clock Controller"
 	select QCOM_GDSC
@@ -272,3 +301,27 @@ config SPMI_PMIC_CLKDIV
 	  Technologies, Inc. SPMI PMIC. It configures the frequency of
 	  clkdiv outputs of the PMIC. These clocks are typically wired
 	  through alternate functions on GPIO pins.
+
+config QCOM_HFPLL
+	tristate "High-Frequency PLL (HFPLL) Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the high-frequency PLLs present on Qualcomm devices.
+	  Say Y if you want to support CPU frequency scaling on devices
+	  such as MSM8974, APQ8084, etc.
+
+config KPSS_XCC
+	tristate "KPSS Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the Krait ACC and GCC clock controllers. Say Y
+	  if you want to support CPU frequency scaling on devices such
+	  as MSM8960, APQ8064, etc.
+
+config KRAITCC
+	tristate "Krait Clock Controller"
+	depends on COMMON_CLK_QCOM && ARM
+	select KRAIT_CLOCKS
+	help
+	  Support for the Krait CPU clocks on Qualcomm devices.
+	  Say Y if you want to support CPU frequency scaling.

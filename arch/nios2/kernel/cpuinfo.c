@@ -47,7 +47,7 @@ void __init setup_cpuinfo(void)
 	const char *str;
 	int len;
 
-	cpu = of_find_node_by_type(NULL, "cpu");
+	cpu = of_get_cpu_node(0, NULL);
 	if (!cpu)
 		panic("%s: No CPU found in devicetree!\n", __func__);
 
@@ -120,6 +120,8 @@ void __init setup_cpuinfo(void)
 	cpuinfo.reset_addr = fcpu(cpu, "altr,reset-addr");
 	cpuinfo.exception_addr = fcpu(cpu, "altr,exception-addr");
 	cpuinfo.fast_tlb_miss_exc_addr = fcpu(cpu, "altr,fast-tlb-miss-addr");
+
+	of_node_put(cpu);
 }
 
 #ifdef CONFIG_PROC_FS

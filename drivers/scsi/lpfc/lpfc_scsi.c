@@ -202,8 +202,8 @@ lpfc_sli4_set_rsp_sgl_last(struct lpfc_hba *phba,
 static void
 lpfc_update_stats(struct lpfc_hba *phba, struct  lpfc_scsi_buf *lpfc_cmd)
 {
-	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
-	struct lpfc_nodelist *pnode = rdata->pnode;
+	struct lpfc_rport_data *rdata;
+	struct lpfc_nodelist *pnode;
 	struct scsi_cmnd *cmd = lpfc_cmd->pCmd;
 	unsigned long flags;
 	struct Scsi_Host  *shost = cmd->device->host;
@@ -211,17 +211,19 @@ lpfc_update_stats(struct lpfc_hba *phba, struct  lpfc_scsi_buf *lpfc_cmd)
 	unsigned long latency;
 	int i;
 
-	if (cmd->result)
+	if (!vport->stat_data_enabled ||
+	    vport->stat_data_blocked ||
+	    (cmd->result))
 		return;
 
 	latency = jiffies_to_msecs((long)jiffies - (long)lpfc_cmd->start_time);
+	rdata = lpfc_cmd->rdata;
+	pnode = rdata->pnode;
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	if (!vport->stat_data_enabled ||
-		vport->stat_data_blocked ||
-		!pnode ||
-		!pnode->lat_data ||
-		(phba->bucket_type == LPFC_NO_BUCKET)) {
+	if (!pnode ||
+	    !pnode->lat_data ||
+	    (phba->bucket_type == LPFC_NO_BUCKET)) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		return;
 	}
@@ -1050,7 +1052,7 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	if (!found)
 		return NULL;
 
-	if (lpfc_ndlp_check_qdepth(phba, ndlp) && lpfc_cmd) {
+	if (lpfc_ndlp_check_qdepth(phba, ndlp)) {
 		atomic_inc(&ndlp->cmd_pending);
 		lpfc_cmd->flags |= LPFC_SBUF_BUMP_QDEPTH;
 	}
@@ -4158,9 +4160,17 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	}
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 
-	spin_lock_irqsave(&phba->hbalock, flags);
-	lpfc_cmd->pCmd = NULL;
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	/* If pCmd was set to NULL from abort path, do not call scsi_done */
+	if (xchg(&lpfc_cmd->pCmd, NULL) == NULL) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+				 "0711 FCP cmd already NULL, sid: 0x%06x, "
+				 "did: 0x%06x, oxid: 0x%04x\n",
+				 vport->fc_myDID,
+				 (pnode) ? pnode->nlp_DID : 0,
+				 phba->sli_rev == LPFC_SLI_REV4 ?
+				 lpfc_cmd->cur_iocbq.sli4_xritag : 0xffff);
+		return;
+	}
 
 	/* The sdev is not guaranteed to be valid post scsi_done upcall. */
 	cmd->scsi_done(cmd);

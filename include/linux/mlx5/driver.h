@@ -97,14 +97,15 @@ enum {
 };
 
 enum {
-	MLX5_ATOMIC_MODE_IB_COMP	= 1 << 16,
-	MLX5_ATOMIC_MODE_CX		= 2 << 16,
-	MLX5_ATOMIC_MODE_8B		= 3 << 16,
-	MLX5_ATOMIC_MODE_16B		= 4 << 16,
-	MLX5_ATOMIC_MODE_32B		= 5 << 16,
-	MLX5_ATOMIC_MODE_64B		= 6 << 16,
-	MLX5_ATOMIC_MODE_128B		= 7 << 16,
-	MLX5_ATOMIC_MODE_256B		= 8 << 16,
+	MLX5_ATOMIC_MODE_OFFSET = 16,
+	MLX5_ATOMIC_MODE_IB_COMP = 1,
+	MLX5_ATOMIC_MODE_CX = 2,
+	MLX5_ATOMIC_MODE_8B = 3,
+	MLX5_ATOMIC_MODE_16B = 4,
+	MLX5_ATOMIC_MODE_32B = 5,
+	MLX5_ATOMIC_MODE_64B = 6,
+	MLX5_ATOMIC_MODE_128B = 7,
+	MLX5_ATOMIC_MODE_256B = 8,
 };
 
 enum {
@@ -133,6 +134,7 @@ enum {
 	MLX5_REG_PVLC		 = 0x500f,
 	MLX5_REG_PCMR		 = 0x5041,
 	MLX5_REG_PMLP		 = 0x5002,
+	MLX5_REG_PPLM		 = 0x5023,
 	MLX5_REG_PCAM		 = 0x507f,
 	MLX5_REG_NODE_DESC	 = 0x6001,
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
@@ -162,16 +164,11 @@ enum mlx5_dcbx_oper_mode {
 	MLX5E_DCBX_PARAM_VER_OPER_AUTO  = 0x3,
 };
 
-enum mlx5_dct_atomic_mode {
-	MLX5_ATOMIC_MODE_DCT_OFF        = 20,
-	MLX5_ATOMIC_MODE_DCT_NONE       = 0 << MLX5_ATOMIC_MODE_DCT_OFF,
-	MLX5_ATOMIC_MODE_DCT_IB_COMP    = 1 << MLX5_ATOMIC_MODE_DCT_OFF,
-	MLX5_ATOMIC_MODE_DCT_CX         = 2 << MLX5_ATOMIC_MODE_DCT_OFF,
-};
-
 enum {
 	MLX5_ATOMIC_OPS_CMP_SWAP	= 1 << 0,
 	MLX5_ATOMIC_OPS_FETCH_ADD	= 1 << 1,
+	MLX5_ATOMIC_OPS_EXTENDED_CMP_SWAP = 1 << 2,
+	MLX5_ATOMIC_OPS_EXTENDED_FETCH_ADD = 1 << 3,
 };
 
 enum mlx5_page_fault_resume_flags {
@@ -360,7 +357,7 @@ struct mlx5_frag_buf {
 };
 
 struct mlx5_frag_buf_ctrl {
-	struct mlx5_frag_buf	frag_buf;
+	struct mlx5_buf_list   *frags;
 	u32			sz_m1;
 	u16			frag_sz_m1;
 	u16			strides_offset;
@@ -477,6 +474,7 @@ struct mlx5_core_srq {
 
 	atomic_t		refcount;
 	struct completion	free;
+	u16		uid;
 };
 
 struct mlx5_eq_table {
@@ -583,10 +581,11 @@ struct mlx5_irq_info {
 };
 
 struct mlx5_fc_stats {
-	struct rb_root counters;
-	struct list_head addlist;
-	/* protect addlist add/splice operations */
-	spinlock_t addlist_lock;
+	spinlock_t counters_idr_lock; /* protects counters_idr */
+	struct idr counters_idr;
+	struct list_head counters;
+	struct llist_head addlist;
+	struct llist_head dellist;
 
 	struct workqueue_struct *wq;
 	struct delayed_work work;
@@ -804,7 +803,7 @@ struct mlx5_pps {
 };
 
 struct mlx5_clock {
-	rwlock_t                   lock;
+	seqlock_t                  lock;
 	struct cyclecounter        cycles;
 	struct timecounter         tc;
 	struct hwtstamp_config     hwtstamp_config;
@@ -837,6 +836,7 @@ struct mlx5_core_dev {
 		u32 fpga[MLX5_ST_SZ_DW(fpga_cap)];
 		u32 qcam[MLX5_ST_SZ_DW(qcam_reg)];
 	} caps;
+	u64			sys_image_guid;
 	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
 	enum mlx5_device_state	state;
@@ -994,10 +994,12 @@ static inline u32 mlx5_base_mkey(const u32 key)
 	return key & 0xffffff00u;
 }
 
-static inline void mlx5_fill_fbc_offset(u8 log_stride, u8 log_sz,
+static inline void mlx5_init_fbc_offset(struct mlx5_buf_list *frags,
+					u8 log_stride, u8 log_sz,
 					u16 strides_offset,
 					struct mlx5_frag_buf_ctrl *fbc)
 {
+	fbc->frags      = frags;
 	fbc->log_stride = log_stride;
 	fbc->log_sz     = log_sz;
 	fbc->sz_m1	= (1 << fbc->log_sz) - 1;
@@ -1006,18 +1008,11 @@ static inline void mlx5_fill_fbc_offset(u8 log_stride, u8 log_sz,
 	fbc->strides_offset = strides_offset;
 }
 
-static inline void mlx5_fill_fbc(u8 log_stride, u8 log_sz,
+static inline void mlx5_init_fbc(struct mlx5_buf_list *frags,
+				 u8 log_stride, u8 log_sz,
 				 struct mlx5_frag_buf_ctrl *fbc)
 {
-	mlx5_fill_fbc_offset(log_stride, log_sz, 0, fbc);
-}
-
-static inline void mlx5_core_init_cq_frag_buf(struct mlx5_frag_buf_ctrl *fbc,
-					      void *cqc)
-{
-	mlx5_fill_fbc(6 + MLX5_GET(cqc, cqc, cqe_sz),
-		      MLX5_GET(cqc, cqc, log_cq_size),
-		      fbc);
+	mlx5_init_fbc_offset(frags, log_stride, log_sz, 0, fbc);
 }
 
 static inline void *mlx5_frag_buf_get_wqe(struct mlx5_frag_buf_ctrl *fbc,
@@ -1028,8 +1023,7 @@ static inline void *mlx5_frag_buf_get_wqe(struct mlx5_frag_buf_ctrl *fbc,
 	ix  += fbc->strides_offset;
 	frag = ix >> fbc->log_frag_strides;
 
-	return fbc->frag_buf.frags[frag].buf +
-		((fbc->frag_sz_m1 & ix) << fbc->log_stride);
+	return fbc->frags[frag].buf + ((fbc->frag_sz_m1 & ix) << fbc->log_stride);
 }
 
 static inline u32
@@ -1234,21 +1228,15 @@ int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev);
 void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up);
 
-#ifndef CONFIG_MLX5_CORE_IPOIB
-static inline
-struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
-					  struct ib_device *ibdev,
-					  const char *name,
-					  void (*setup)(struct net_device *))
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
-#else
+#ifdef CONFIG_MLX5_CORE_IPOIB
 struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 					  struct ib_device *ibdev,
 					  const char *name,
 					  void (*setup)(struct net_device *));
 #endif /* CONFIG_MLX5_CORE_IPOIB */
+int mlx5_rdma_rn_get_params(struct mlx5_core_dev *mdev,
+			    struct ib_device *device,
+			    struct rdma_netdev_alloc_params *params);
 
 struct mlx5_profile {
 	u64	mask;

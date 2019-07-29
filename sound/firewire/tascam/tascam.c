@@ -85,20 +85,12 @@ static int identify_model(struct snd_tscm *tscm)
 	return 0;
 }
 
-static void tscm_free(struct snd_tscm *tscm)
-{
-	snd_tscm_transaction_unregister(tscm);
-	snd_tscm_stream_destroy_duplex(tscm);
-
-	fw_unit_put(tscm->unit);
-
-	mutex_destroy(&tscm->mutex);
-	kfree(tscm);
-}
-
 static void tscm_card_free(struct snd_card *card)
 {
-	tscm_free(card->private_data);
+	struct snd_tscm *tscm = card->private_data;
+
+	snd_tscm_transaction_unregister(tscm);
+	snd_tscm_stream_destroy_duplex(tscm);
 }
 
 static void do_registration(struct work_struct *work)
@@ -110,6 +102,8 @@ static void do_registration(struct work_struct *work)
 			   &tscm->card);
 	if (err < 0)
 		return;
+	tscm->card->private_free = tscm_card_free;
+	tscm->card->private_data = tscm;
 
 	err = identify_model(tscm);
 	if (err < 0)
@@ -141,18 +135,10 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	/*
-	 * After registered, tscm instance can be released corresponding to
-	 * releasing the sound card instance.
-	 */
-	tscm->card->private_free = tscm_card_free;
-	tscm->card->private_data = tscm;
 	tscm->registered = true;
 
 	return;
 error:
-	snd_tscm_transaction_unregister(tscm);
-	snd_tscm_stream_destroy_duplex(tscm);
 	snd_card_free(tscm->card);
 	dev_info(&tscm->unit->device,
 		 "Sound card registration failed: %d\n", err);
@@ -164,11 +150,9 @@ static int snd_tscm_probe(struct fw_unit *unit,
 	struct snd_tscm *tscm;
 
 	/* Allocate this independent of sound card instance. */
-	tscm = kzalloc(sizeof(struct snd_tscm), GFP_KERNEL);
-	if (tscm == NULL)
+	tscm = devm_kzalloc(&unit->device, sizeof(struct snd_tscm), GFP_KERNEL);
+	if (!tscm)
 		return -ENOMEM;
-
-	/* initialize myself */
 	tscm->unit = fw_unit_get(unit);
 	dev_set_drvdata(&unit->device, tscm);
 
@@ -216,12 +200,12 @@ static void snd_tscm_remove(struct fw_unit *unit)
 	cancel_delayed_work_sync(&tscm->dwork);
 
 	if (tscm->registered) {
-		/* No need to wait for releasing card object in this context. */
-		snd_card_free_when_closed(tscm->card);
-	} else {
-		/* Don't forget this case. */
-		tscm_free(tscm);
+		// Block till all of ALSA character devices are released.
+		snd_card_free(tscm->card);
 	}
+
+	mutex_destroy(&tscm->mutex);
+	fw_unit_put(tscm->unit);
 }
 
 static const struct ieee1394_device_id snd_tscm_id_table[] = {

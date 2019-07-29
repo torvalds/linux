@@ -2,9 +2,8 @@
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #include <linux/cpu.h>
-#include <linux/bootmem.h>
-#include <linux/seq_file.h>
 #include <linux/memblock.h>
+#include <linux/seq_file.h>
 #include <linux/console.h>
 #include <linux/screen_info.h>
 #include <linux/delay.h>

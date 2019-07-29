@@ -196,6 +196,7 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 
 	memset(props, 0, sizeof(*props));
 
+	props->fw_ver = hr_dev->caps.fw_ver;
 	props->sys_image_guid = cpu_to_be64(hr_dev->sys_image_guid);
 	props->max_mr_size = (u64)(~(0ULL));
 	props->page_size_cap = hr_dev->caps.page_size_cap;
@@ -215,7 +216,8 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 	props->max_pd = hr_dev->caps.num_pds;
 	props->max_qp_rd_atom = hr_dev->caps.max_qp_dest_rdma;
 	props->max_qp_init_rd_atom = hr_dev->caps.max_qp_init_rdma;
-	props->atomic_cap = IB_ATOMIC_NONE;
+	props->atomic_cap = hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_ATOMIC ?
+			    IB_ATOMIC_HCA : IB_ATOMIC_NONE;
 	props->max_pkeys = 1;
 	props->local_ca_ack_delay = hr_dev->caps.local_ca_ack_delay;
 
@@ -344,8 +346,6 @@ static struct ib_ucontext *hns_roce_alloc_ucontext(struct ib_device *ib_dev,
 	if (ret)
 		goto error_fail_uar_alloc;
 
-	INIT_LIST_HEAD(&context->vma_list);
-	mutex_init(&context->vma_list_mutex);
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) {
 		INIT_LIST_HEAD(&context->page_list);
 		mutex_init(&context->page_mutex);
@@ -376,76 +376,34 @@ static int hns_roce_dealloc_ucontext(struct ib_ucontext *ibcontext)
 	return 0;
 }
 
-static void hns_roce_vma_open(struct vm_area_struct *vma)
-{
-	vma->vm_ops = NULL;
-}
-
-static void hns_roce_vma_close(struct vm_area_struct *vma)
-{
-	struct hns_roce_vma_data *vma_data;
-
-	vma_data = (struct hns_roce_vma_data *)vma->vm_private_data;
-	vma_data->vma = NULL;
-	mutex_lock(vma_data->vma_list_mutex);
-	list_del(&vma_data->list);
-	mutex_unlock(vma_data->vma_list_mutex);
-	kfree(vma_data);
-}
-
-static const struct vm_operations_struct hns_roce_vm_ops = {
-	.open = hns_roce_vma_open,
-	.close = hns_roce_vma_close,
-};
-
-static int hns_roce_set_vma_data(struct vm_area_struct *vma,
-				 struct hns_roce_ucontext *context)
-{
-	struct list_head *vma_head = &context->vma_list;
-	struct hns_roce_vma_data *vma_data;
-
-	vma_data = kzalloc(sizeof(*vma_data), GFP_KERNEL);
-	if (!vma_data)
-		return -ENOMEM;
-
-	vma_data->vma = vma;
-	vma_data->vma_list_mutex = &context->vma_list_mutex;
-	vma->vm_private_data = vma_data;
-	vma->vm_ops = &hns_roce_vm_ops;
-
-	mutex_lock(&context->vma_list_mutex);
-	list_add(&vma_data->list, vma_head);
-	mutex_unlock(&context->vma_list_mutex);
-
-	return 0;
-}
-
 static int hns_roce_mmap(struct ib_ucontext *context,
 			 struct vm_area_struct *vma)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(context->device);
 
-	if (((vma->vm_end - vma->vm_start) % PAGE_SIZE) != 0)
-		return -EINVAL;
+	switch (vma->vm_pgoff) {
+	case 0:
+		return rdma_user_mmap_io(context, vma,
+					 to_hr_ucontext(context)->uar.pfn,
+					 PAGE_SIZE,
+					 pgprot_noncached(vma->vm_page_prot));
 
-	if (vma->vm_pgoff == 0) {
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		if (io_remap_pfn_range(vma, vma->vm_start,
-				       to_hr_ucontext(context)->uar.pfn,
-				       PAGE_SIZE, vma->vm_page_prot))
-			return -EAGAIN;
-	} else if (vma->vm_pgoff == 1 && hr_dev->tptr_dma_addr &&
-		   hr_dev->tptr_size) {
-		/* vm_pgoff: 1 -- TPTR */
-		if (io_remap_pfn_range(vma, vma->vm_start,
-				       hr_dev->tptr_dma_addr >> PAGE_SHIFT,
-				       hr_dev->tptr_size,
-				       vma->vm_page_prot))
-			return -EAGAIN;
-	} else
-		return -EINVAL;
+	/* vm_pgoff: 1 -- TPTR */
+	case 1:
+		if (!hr_dev->tptr_dma_addr || !hr_dev->tptr_size)
+			return -EINVAL;
+		/*
+		 * FIXME: using io_remap_pfn_range on the dma address returned
+		 * by dma_alloc_coherent is totally wrong.
+		 */
+		return rdma_user_mmap_io(context, vma,
+					 hr_dev->tptr_dma_addr >> PAGE_SHIFT,
+					 hr_dev->tptr_size,
+					 vma->vm_page_prot);
 
-	return hns_roce_set_vma_data(vma, to_hr_ucontext(context));
+	default:
+		return -EINVAL;
+	}
 }
 
 static int hns_roce_port_immutable(struct ib_device *ib_dev, u8 port_num,
@@ -471,21 +429,6 @@ static int hns_roce_port_immutable(struct ib_device *ib_dev, u8 port_num,
 
 static void hns_roce_disassociate_ucontext(struct ib_ucontext *ibcontext)
 {
-	struct hns_roce_ucontext *context = to_hr_ucontext(ibcontext);
-	struct hns_roce_vma_data *vma_data, *n;
-	struct vm_area_struct *vma;
-
-	mutex_lock(&context->vma_list_mutex);
-	list_for_each_entry_safe(vma_data, n, &context->vma_list, list) {
-		vma = vma_data->vma;
-		zap_vma_ptes(vma, vma->vm_start, PAGE_SIZE);
-
-		vma->vm_flags &= ~(VM_SHARED | VM_MAYSHARE);
-		vma->vm_ops = NULL;
-		list_del(&vma_data->list);
-		kfree(vma_data);
-	}
-	mutex_unlock(&context->vma_list_mutex);
 }
 
 static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
@@ -508,7 +451,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	spin_lock_init(&iboe->lock);
 
 	ib_dev = &hr_dev->ib_dev;
-	strlcpy(ib_dev->name, "hns_%d", IB_DEVICE_NAME_MAX);
 
 	ib_dev->owner			= THIS_MODULE;
 	ib_dev->node_type		= RDMA_NODE_IB_CA;
@@ -584,12 +526,27 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		ib_dev->uverbs_cmd_mask |= (1ULL << IB_USER_VERBS_CMD_REREG_MR);
 	}
 
+	/* MW */
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_MW) {
+		ib_dev->alloc_mw = hns_roce_alloc_mw;
+		ib_dev->dealloc_mw = hns_roce_dealloc_mw;
+		ib_dev->uverbs_cmd_mask |=
+					(1ULL << IB_USER_VERBS_CMD_ALLOC_MW) |
+					(1ULL << IB_USER_VERBS_CMD_DEALLOC_MW);
+	}
+
+	/* FRMR */
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_FRMR) {
+		ib_dev->alloc_mr		= hns_roce_alloc_mr;
+		ib_dev->map_mr_sg		= hns_roce_map_mr_sg;
+	}
+
 	/* OTHERS */
 	ib_dev->get_port_immutable	= hns_roce_port_immutable;
 	ib_dev->disassociate_ucontext	= hns_roce_disassociate_ucontext;
 
 	ib_dev->driver_id = RDMA_DRIVER_HNS;
-	ret = ib_register_device(ib_dev, NULL);
+	ret = ib_register_device(ib_dev, "hns_%d", NULL);
 	if (ret) {
 		dev_err(dev, "ib_register_device failed!\n");
 		return ret;

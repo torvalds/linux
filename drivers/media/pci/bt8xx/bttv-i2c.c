@@ -347,13 +347,13 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 /* init + register i2c adapter */
 int init_bttv_i2c(struct bttv *btv)
 {
-	strlcpy(btv->i2c_client.name, "bttv internal", I2C_NAME_SIZE);
+	strscpy(btv->i2c_client.name, "bttv internal", I2C_NAME_SIZE);
 
 	if (i2c_hw)
 		btv->use_i2c_hw = 1;
 	if (btv->use_i2c_hw) {
 		/* bt878 */
-		strlcpy(btv->c.i2c_adap.name, "bt878",
+		strscpy(btv->c.i2c_adap.name, "bt878",
 			sizeof(btv->c.i2c_adap.name));
 		btv->c.i2c_adap.algo = &bttv_algo;
 	} else {
@@ -362,7 +362,7 @@ int init_bttv_i2c(struct bttv *btv)
 		if (i2c_udelay<5)
 			i2c_udelay=5;
 
-		strlcpy(btv->c.i2c_adap.name, "bttv",
+		strscpy(btv->c.i2c_adap.name, "bttv",
 			sizeof(btv->c.i2c_adap.name));
 		btv->i2c_algo = bttv_i2c_algo_bit_template;
 		btv->i2c_algo.udelay = i2c_udelay;

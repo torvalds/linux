@@ -166,11 +166,13 @@ struct hfi1_qp_priv {
  * This structure is used to hold commonly lookedup and computed values during
  * the send engine progress.
  */
+struct iowait_work;
 struct hfi1_pkt_state {
 	struct hfi1_ibdev *dev;
 	struct hfi1_ibport *ibp;
 	struct hfi1_pportdata *ppd;
 	struct verbs_txreq *s_txreq;
+	struct iowait_work *wait;
 	unsigned long flags;
 	unsigned long timeout;
 	unsigned long timeout_int;
@@ -247,7 +249,7 @@ static inline struct hfi1_ibdev *to_idev(struct ib_device *ibdev)
 	return container_of(rdi, struct hfi1_ibdev, rdi);
 }
 
-static inline struct rvt_qp *iowait_to_qp(struct  iowait *s_iowait)
+static inline struct rvt_qp *iowait_to_qp(struct iowait *s_iowait)
 {
 	struct hfi1_qp_priv *priv;
 
@@ -313,9 +315,6 @@ void hfi1_put_txreq(struct verbs_txreq *tx);
 
 int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
-void hfi1_copy_sge(struct rvt_sge_state *ss, void *data, u32 length,
-		   bool release, bool copy_last);
-
 void hfi1_cnp_rcv(struct hfi1_packet *packet);
 
 void hfi1_uc_rcv(struct hfi1_packet *packet);
@@ -343,7 +342,8 @@ int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_udata *udata);
 void hfi1_restart_rc(struct rvt_qp *qp, u32 psn, int wait);
-int hfi1_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
+int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe,
+		   bool *call_send);
 
 extern const u32 rc_only_opcode;
 extern const u32 uc_only_opcode;
@@ -362,9 +362,6 @@ void _hfi1_do_send(struct work_struct *work);
 void hfi1_do_send_from_rvt(struct rvt_qp *qp);
 
 void hfi1_do_send(struct rvt_qp *qp, bool in_thread);
-
-void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
-			enum ib_wc_status status);
 
 void hfi1_send_rc_ack(struct hfi1_packet *packet, bool is_fecn);
 
@@ -389,28 +386,6 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			u64 pbc);
-
-int hfi1_wss_init(void);
-void hfi1_wss_exit(void);
-
-/* platform specific: return the lowest level cache (llc) size, in KiB */
-static inline int wss_llc_size(void)
-{
-	/* assume that the boot CPU value is universal for all CPUs */
-	return boot_cpu_data.x86_cache_size;
-}
-
-/* platform specific: cacheless copy */
-static inline void cacheless_memcpy(void *dst, void *src, size_t n)
-{
-	/*
-	 * Use the only available X64 cacheless copy.  Add a __user cast
-	 * to quiet sparse.  The src agument is already in the kernel so
-	 * there are no security issues.  The extra fault recovery machinery
-	 * is not invoked.
-	 */
-	__copy_user_nocache(dst, (void __user *)src, n, 0);
-}
 
 static inline bool opa_bth_is_migration(struct ib_other_headers *ohdr)
 {

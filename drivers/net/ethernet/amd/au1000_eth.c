@@ -564,17 +564,7 @@ static int au1000_mii_probe(struct net_device *dev)
 		return PTR_ERR(phydev);
 	}
 
-	/* mask with MAC supported features */
-	phydev->supported &= (SUPPORTED_10baseT_Half
-			      | SUPPORTED_10baseT_Full
-			      | SUPPORTED_100baseT_Half
-			      | SUPPORTED_100baseT_Full
-			      | SUPPORTED_Autoneg
-			      /* | SUPPORTED_Pause | SUPPORTED_Asym_Pause */
-			      | SUPPORTED_MII
-			      | SUPPORTED_TP);
-
-	phydev->advertising = phydev->supported;
+	phy_set_max_speed(phydev, SPEED_100);
 
 	aup->old_link = 0;
 	aup->old_speed = 0;

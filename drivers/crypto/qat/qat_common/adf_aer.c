@@ -198,7 +198,6 @@ static pci_ers_result_t adf_slot_reset(struct pci_dev *pdev)
 		pr_err("QAT: Can't find acceleration device\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	if (adf_dev_aer_schedule_reset(accel_dev, ADF_DEV_RESET_SYNC))
 		return PCI_ERS_RESULT_DISCONNECT;
 

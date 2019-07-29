@@ -484,7 +484,7 @@ int __bch_bucket_alloc_set(struct cache_set *c, unsigned int reserve,
 	int i;
 
 	lockdep_assert_held(&c->bucket_lock);
-	BUG_ON(!n || n > c->caches_loaded || n > 8);
+	BUG_ON(!n || n > c->caches_loaded || n > MAX_CACHES_PER_SET);
 
 	bkey_init(k);
 

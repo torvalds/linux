@@ -112,7 +112,7 @@ static int snd_cx18_card_set_names(struct snd_cx18_card *cxsc)
 	struct snd_card *sc = cxsc->sc;
 
 	/* sc->driver is used by alsa-lib's configurator: simple, unique */
-	strlcpy(sc->driver, "CX23418", sizeof(sc->driver));
+	strscpy(sc->driver, "CX23418", sizeof(sc->driver));
 
 	/* sc->shortname is a symlink in /proc/asound: CX18-M -> cardN */
 	snprintf(sc->shortname,  sizeof(sc->shortname), "CX18-%d",

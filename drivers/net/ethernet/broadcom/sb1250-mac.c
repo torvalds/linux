@@ -156,7 +156,7 @@ enum sbmac_state {
 			  (d)->sbdma_dscrtable : (d)->f+1)
 
 
-#define NUMCACHEBLKS(x) (((x)+SMP_CACHE_BYTES-1)/SMP_CACHE_BYTES)
+#define NUMCACHEBLKS(x) DIV_ROUND_UP(x, SMP_CACHE_BYTES)
 
 #define SBMAC_MAX_TXDESCR	256
 #define SBMAC_MAX_RXDESCR	256
@@ -299,7 +299,7 @@ static enum sbmac_state sbmac_set_channel_state(struct sbmac_softc *,
 static void sbmac_promiscuous_mode(struct sbmac_softc *sc, int onoff);
 static uint64_t sbmac_addr2reg(unsigned char *ptr);
 static irqreturn_t sbmac_intr(int irq, void *dev_instance);
-static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t sbmac_start_tx(struct sk_buff *skb, struct net_device *dev);
 static void sbmac_setmulti(struct sbmac_softc *sc);
 static int sbmac_init(struct platform_device *pldev, long long base);
 static int sbmac_set_speed(struct sbmac_softc *s, enum sbmac_speed speed);
@@ -2028,7 +2028,7 @@ static irqreturn_t sbmac_intr(int irq,void *dev_instance)
  *  Return value:
  *  	   nothing
  ********************************************************************* */
-static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
 	unsigned long flags;
@@ -2357,20 +2357,10 @@ static int sbmac_mii_probe(struct net_device *dev)
 	}
 
 	/* Remove any features not supported by the controller */
-	phy_dev->supported &= SUPPORTED_10baseT_Half |
-			      SUPPORTED_10baseT_Full |
-			      SUPPORTED_100baseT_Half |
-			      SUPPORTED_100baseT_Full |
-			      SUPPORTED_1000baseT_Half |
-			      SUPPORTED_1000baseT_Full |
-			      SUPPORTED_Autoneg |
-			      SUPPORTED_MII |
-			      SUPPORTED_Pause |
-			      SUPPORTED_Asym_Pause;
+	phy_set_max_speed(phy_dev, SPEED_1000);
+	phy_support_asym_pause(phy_dev);
 
 	phy_attached_info(phy_dev);
-
-	phy_dev->advertising = phy_dev->supported;
 
 	sc->phy_dev = phy_dev;
 

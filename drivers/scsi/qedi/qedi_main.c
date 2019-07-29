@@ -806,11 +806,11 @@ static int qedi_set_iscsi_pf_param(struct qedi_ctx *qedi)
 	memset(&qedi->pf_params.iscsi_pf_params, 0,
 	       sizeof(qedi->pf_params.iscsi_pf_params));
 
-	qedi->p_cpuq = pci_alloc_consistent(qedi->pdev,
+	qedi->p_cpuq = dma_alloc_coherent(&qedi->pdev->dev,
 			qedi->num_queues * sizeof(struct qedi_glbl_q_params),
-			&qedi->hw_p_cpuq);
+			&qedi->hw_p_cpuq, GFP_KERNEL);
 	if (!qedi->p_cpuq) {
-		QEDI_ERR(&qedi->dbg_ctx, "pci_alloc_consistent fail\n");
+		QEDI_ERR(&qedi->dbg_ctx, "dma_alloc_coherent fail\n");
 		rval = -1;
 		goto err_alloc_mem;
 	}
@@ -871,7 +871,7 @@ static void qedi_free_iscsi_pf_param(struct qedi_ctx *qedi)
 
 	if (qedi->p_cpuq) {
 		size = qedi->num_queues * sizeof(struct qedi_glbl_q_params);
-		pci_free_consistent(qedi->pdev, size, qedi->p_cpuq,
+		dma_free_coherent(&qedi->pdev->dev, size, qedi->p_cpuq,
 				    qedi->hw_p_cpuq);
 	}
 

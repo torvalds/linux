@@ -208,13 +208,12 @@ static int txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	return snd_soc_register_component(&pdev->dev, &txx9aclc_ac97_component,
+	return devm_snd_soc_register_component(&pdev->dev, &txx9aclc_ac97_component,
 					  &txx9aclc_ac97_dai, 1);
 }
 
 static int txx9aclc_ac97_dev_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_component(&pdev->dev);
 	snd_soc_set_ac97_ops(NULL);
 	return 0;
 }

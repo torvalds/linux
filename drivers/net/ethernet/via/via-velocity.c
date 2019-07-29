@@ -3605,7 +3605,7 @@ static const char velocity_gstrings[][ETH_GSTRING_LEN] = {
 	"tx_jumbo",
 	"rx_mac_control_frames",
 	"tx_mac_control_frames",
-	"rx_frame_alignement_errors",
+	"rx_frame_alignment_errors",
 	"rx_long_ok",
 	"rx_long_err",
 	"tx_sqe_errors",

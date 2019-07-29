@@ -454,6 +454,33 @@ struct compress_alg {
  * @cra_refcnt: internally used
  * @cra_destroy: internally used
  *
+ * All following statistics are for this crypto_alg
+ * @encrypt_cnt:	number of encrypt requests
+ * @decrypt_cnt:	number of decrypt requests
+ * @compress_cnt:	number of compress requests
+ * @decompress_cnt:	number of decompress requests
+ * @generate_cnt:	number of RNG generate requests
+ * @seed_cnt:		number of times the rng was seeded
+ * @hash_cnt:		number of hash requests
+ * @sign_cnt:		number of sign requests
+ * @setsecret_cnt:	number of setsecrey operation
+ * @generate_public_key_cnt:	number of generate_public_key operation
+ * @verify_cnt:			number of verify operation
+ * @compute_shared_secret_cnt:	number of compute_shared_secret operation
+ * @encrypt_tlen:	total data size handled by encrypt requests
+ * @decrypt_tlen:	total data size handled by decrypt requests
+ * @compress_tlen:	total data size handled by compress requests
+ * @decompress_tlen:	total data size handled by decompress requests
+ * @generate_tlen:	total data size of generated data by the RNG
+ * @hash_tlen:		total data size hashed
+ * @akcipher_err_cnt:	number of error for akcipher requests
+ * @cipher_err_cnt:	number of error for akcipher requests
+ * @compress_err_cnt:	number of error for akcipher requests
+ * @aead_err_cnt:	number of error for akcipher requests
+ * @hash_err_cnt:	number of error for akcipher requests
+ * @rng_err_cnt:	number of error for akcipher requests
+ * @kpp_err_cnt:	number of error for akcipher requests
+ *
  * The struct crypto_alg describes a generic Crypto API algorithm and is common
  * for all of the transformations. Any variable not documented here shall not
  * be used by a cipher implementation as it is internal to the Crypto API.
@@ -487,6 +514,45 @@ struct crypto_alg {
 	void (*cra_destroy)(struct crypto_alg *alg);
 	
 	struct module *cra_module;
+
+	union {
+		atomic_t encrypt_cnt;
+		atomic_t compress_cnt;
+		atomic_t generate_cnt;
+		atomic_t hash_cnt;
+		atomic_t setsecret_cnt;
+	};
+	union {
+		atomic64_t encrypt_tlen;
+		atomic64_t compress_tlen;
+		atomic64_t generate_tlen;
+		atomic64_t hash_tlen;
+	};
+	union {
+		atomic_t akcipher_err_cnt;
+		atomic_t cipher_err_cnt;
+		atomic_t compress_err_cnt;
+		atomic_t aead_err_cnt;
+		atomic_t hash_err_cnt;
+		atomic_t rng_err_cnt;
+		atomic_t kpp_err_cnt;
+	};
+	union {
+		atomic_t decrypt_cnt;
+		atomic_t decompress_cnt;
+		atomic_t seed_cnt;
+		atomic_t generate_public_key_cnt;
+	};
+	union {
+		atomic64_t decrypt_tlen;
+		atomic64_t decompress_tlen;
+	};
+	union {
+		atomic_t verify_cnt;
+		atomic_t compute_shared_secret_cnt;
+	};
+	atomic_t sign_cnt;
+
 } CRYPTO_MINALIGN_ATTR;
 
 /*
@@ -907,6 +973,38 @@ static inline struct crypto_ablkcipher *crypto_ablkcipher_reqtfm(
 	return __crypto_ablkcipher_cast(req->base.tfm);
 }
 
+static inline void crypto_stat_ablkcipher_encrypt(struct ablkcipher_request *req,
+						  int ret)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	struct ablkcipher_tfm *crt =
+		crypto_ablkcipher_crt(crypto_ablkcipher_reqtfm(req));
+
+	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
+		atomic_inc(&crt->base->base.__crt_alg->cipher_err_cnt);
+	} else {
+		atomic_inc(&crt->base->base.__crt_alg->encrypt_cnt);
+		atomic64_add(req->nbytes, &crt->base->base.__crt_alg->encrypt_tlen);
+	}
+#endif
+}
+
+static inline void crypto_stat_ablkcipher_decrypt(struct ablkcipher_request *req,
+						  int ret)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	struct ablkcipher_tfm *crt =
+		crypto_ablkcipher_crt(crypto_ablkcipher_reqtfm(req));
+
+	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
+		atomic_inc(&crt->base->base.__crt_alg->cipher_err_cnt);
+	} else {
+		atomic_inc(&crt->base->base.__crt_alg->decrypt_cnt);
+		atomic64_add(req->nbytes, &crt->base->base.__crt_alg->decrypt_tlen);
+	}
+#endif
+}
+
 /**
  * crypto_ablkcipher_encrypt() - encrypt plaintext
  * @req: reference to the ablkcipher_request handle that holds all information
@@ -922,7 +1020,11 @@ static inline int crypto_ablkcipher_encrypt(struct ablkcipher_request *req)
 {
 	struct ablkcipher_tfm *crt =
 		crypto_ablkcipher_crt(crypto_ablkcipher_reqtfm(req));
-	return crt->encrypt(req);
+	int ret;
+
+	ret = crt->encrypt(req);
+	crypto_stat_ablkcipher_encrypt(req, ret);
+	return ret;
 }
 
 /**
@@ -940,7 +1042,11 @@ static inline int crypto_ablkcipher_decrypt(struct ablkcipher_request *req)
 {
 	struct ablkcipher_tfm *crt =
 		crypto_ablkcipher_crt(crypto_ablkcipher_reqtfm(req));
-	return crt->decrypt(req);
+	int ret;
+
+	ret = crt->decrypt(req);
+	crypto_stat_ablkcipher_decrypt(req, ret);
+	return ret;
 }
 
 /**

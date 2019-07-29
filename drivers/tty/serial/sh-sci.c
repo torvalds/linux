@@ -1516,7 +1516,7 @@ static struct dma_chan *sci_request_dma_chan(struct uart_port *port,
 	chan = dma_request_slave_channel(port->dev,
 					 dir == DMA_MEM_TO_DEV ? "tx" : "rx");
 	if (!chan) {
-		dev_warn(port->dev, "dma_request_slave_channel failed\n");
+		dev_dbg(port->dev, "dma_request_slave_channel failed\n");
 		return NULL;
 	}
 
@@ -1614,10 +1614,10 @@ static void sci_request_dma(struct uart_port *port)
 		hrtimer_init(&s->rx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		s->rx_timer.function = rx_timer_fn;
 
+		s->chan_rx_saved = s->chan_rx = chan;
+
 		if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
 			sci_submit_rx(s);
-
-		s->chan_rx_saved = s->chan_rx = chan;
 	}
 }
 
@@ -3102,6 +3102,7 @@ static struct uart_driver sci_uart_driver = {
 static int sci_remove(struct platform_device *dev)
 {
 	struct sci_port *port = platform_get_drvdata(dev);
+	unsigned int type = port->port.type;	/* uart_remove_... clears it */
 
 	sci_ports_in_use &= ~BIT(port->port.line);
 	uart_remove_one_port(&sci_uart_driver, &port->port);
@@ -3112,8 +3113,7 @@ static int sci_remove(struct platform_device *dev)
 		sysfs_remove_file(&dev->dev.kobj,
 				  &dev_attr_rx_fifo_trigger.attr);
 	}
-	if (port->port.type == PORT_SCIFA || port->port.type == PORT_SCIFB ||
-	    port->port.type == PORT_HSCIF) {
+	if (type == PORT_SCIFA || type == PORT_SCIFB || type == PORT_HSCIF) {
 		sysfs_remove_file(&dev->dev.kobj,
 				  &dev_attr_rx_fifo_timeout.attr);
 	}
@@ -3414,6 +3414,12 @@ static int __init scif_early_console_setup(struct earlycon_device *device,
 {
 	return early_console_setup(device, PORT_SCIF);
 }
+static int __init rzscifa_early_console_setup(struct earlycon_device *device,
+					  const char *opt)
+{
+	port_cfg.regtype = SCIx_RZ_SCIFA_REGTYPE;
+	return early_console_setup(device, PORT_SCIF);
+}
 static int __init scifa_early_console_setup(struct earlycon_device *device,
 					  const char *opt)
 {
@@ -3432,6 +3438,7 @@ static int __init hscif_early_console_setup(struct earlycon_device *device,
 
 OF_EARLYCON_DECLARE(sci, "renesas,sci", sci_early_console_setup);
 OF_EARLYCON_DECLARE(scif, "renesas,scif", scif_early_console_setup);
+OF_EARLYCON_DECLARE(scif, "renesas,scif-r7s9210", rzscifa_early_console_setup);
 OF_EARLYCON_DECLARE(scifa, "renesas,scifa", scifa_early_console_setup);
 OF_EARLYCON_DECLARE(scifb, "renesas,scifb", scifb_early_console_setup);
 OF_EARLYCON_DECLARE(hscif, "renesas,hscif", hscif_early_console_setup);

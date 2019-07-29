@@ -125,7 +125,7 @@ struct iscsi_conn_recovery *iscsit_get_inactive_connection_recovery_entry(
 	return NULL;
 }
 
-void iscsit_free_connection_recovery_entires(struct iscsi_session *sess)
+void iscsit_free_connection_recovery_entries(struct iscsi_session *sess)
 {
 	struct iscsi_cmd *cmd, *cmd_tmp;
 	struct iscsi_conn_recovery *cr, *cr_tmp;

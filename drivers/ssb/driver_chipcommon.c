@@ -425,7 +425,7 @@ void ssb_chipco_get_clockcontrol(struct ssb_chipcommon *cc,
 			*m = chipco_read32(cc, SSB_CHIPCO_CLOCK_M2);
 			break;
 		}
-		/* Fallthough */
+		/* Fall through */
 	default:
 		*m = chipco_read32(cc, SSB_CHIPCO_CLOCK_SB);
 	}

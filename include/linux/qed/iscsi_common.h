@@ -896,7 +896,7 @@ struct e4_ustorm_iscsi_task_ag_ctx {
 	__le32 exp_cont_len;
 	__le32 total_data_acked;
 	__le32 exp_data_acked;
-	u8 next_tid_valid;
+	u8 byte2;
 	u8 byte3;
 	__le16 word1;
 	__le16 next_tid;

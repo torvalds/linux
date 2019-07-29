@@ -7,7 +7,7 @@
 #include <linux/ata.h>
 #include <linux/slab.h>
 #include <linux/hdreg.h>
-#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/genhd.h>
@@ -813,7 +813,7 @@ rexmit_timer(struct timer_list *timer)
 out:
 	if ((d->flags & DEVFL_KICKME) && d->blkq) {
 		d->flags &= ~DEVFL_KICKME;
-		d->blkq->request_fn(d->blkq);
+		blk_mq_run_hw_queues(d->blkq, true);
 	}
 
 	d->timer.expires = jiffies + TIMERTICK;
@@ -857,10 +857,12 @@ nextbuf(struct aoedev *d)
 		return d->ip.buf;
 	rq = d->ip.rq;
 	if (rq == NULL) {
-		rq = blk_peek_request(q);
+		rq = list_first_entry_or_null(&d->rq_list, struct request,
+						queuelist);
 		if (rq == NULL)
 			return NULL;
-		blk_start_request(rq);
+		list_del_init(&rq->queuelist);
+		blk_mq_start_request(rq);
 		d->ip.rq = rq;
 		d->ip.nxbio = rq->bio;
 		rq->special = (void *) rqbiocnt(rq);
@@ -1045,6 +1047,7 @@ aoe_end_request(struct aoedev *d, struct request *rq, int fastfail)
 	struct bio *bio;
 	int bok;
 	struct request_queue *q;
+	blk_status_t err = BLK_STS_OK;
 
 	q = d->blkq;
 	if (rq == d->ip.rq)
@@ -1052,11 +1055,15 @@ aoe_end_request(struct aoedev *d, struct request *rq, int fastfail)
 	do {
 		bio = rq->bio;
 		bok = !fastfail && !bio->bi_status;
-	} while (__blk_end_request(rq, bok ? BLK_STS_OK : BLK_STS_IOERR, bio->bi_iter.bi_size));
+		if (!bok)
+			err = BLK_STS_IOERR;
+	} while (blk_update_request(rq, bok ? BLK_STS_OK : BLK_STS_IOERR, bio->bi_iter.bi_size));
+
+	__blk_mq_end_request(rq, err);
 
 	/* cf. http://lkml.org/lkml/2006/10/31/28 */
 	if (!fastfail)
-		__blk_run_queue(q);
+		blk_mq_run_hw_queues(q, true);
 }
 
 static void

@@ -111,7 +111,7 @@ check_stack(unsigned long ip, unsigned long *stack)
 	stack_trace_max_size = this_size;
 
 	stack_trace_max.nr_entries = 0;
-	stack_trace_max.skip = 3;
+	stack_trace_max.skip = 0;
 
 	save_stack_trace(&stack_trace_max);
 

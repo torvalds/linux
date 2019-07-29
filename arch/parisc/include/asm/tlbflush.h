@@ -85,8 +85,7 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
 	purge_tlb_start(flags);
 	mtsp(sid, 1);
 	pdtlb(addr);
-	if (unlikely(split_tlb))
-		pitlb(addr);
+	pitlb(addr);
 	purge_tlb_end(flags);
 }
 #endif

@@ -1259,8 +1259,7 @@ static int ioctl(struct tty_struct *tty,
 	if (sanity_check(info, tty->name, "ioctl"))
 		return -ENODEV;
 
-	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
-	    (cmd != TIOCMIWAIT)) {
+	if (cmd != TIOCMIWAIT) {
 		if (tty_io_error(tty))
 		    return -EIO;
 	}

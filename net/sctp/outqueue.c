@@ -212,7 +212,7 @@ void sctp_outq_init(struct sctp_association *asoc, struct sctp_outq *q)
 	INIT_LIST_HEAD(&q->retransmit);
 	INIT_LIST_HEAD(&q->sacked);
 	INIT_LIST_HEAD(&q->abandoned);
-	sctp_sched_set_sched(asoc, SCTP_SS_FCFS);
+	sctp_sched_set_sched(asoc, SCTP_SS_DEFAULT);
 }
 
 /* Free the outqueue structure and any related pending chunks.
@@ -385,9 +385,7 @@ static int sctp_prsctp_prune_sent(struct sctp_association *asoc,
 			asoc->outqueue.outstanding_bytes -= sctp_data_size(chk);
 		}
 
-		msg_len -= SCTP_DATA_SNDSIZE(chk) +
-			   sizeof(struct sk_buff) +
-			   sizeof(struct sctp_chunk);
+		msg_len -= chk->skb->truesize + sizeof(struct sctp_chunk);
 		if (msg_len <= 0)
 			break;
 	}
@@ -421,9 +419,7 @@ static int sctp_prsctp_prune_unsent(struct sctp_association *asoc,
 			streamout->ext->abandoned_unsent[SCTP_PR_INDEX(PRIO)]++;
 		}
 
-		msg_len -= SCTP_DATA_SNDSIZE(chk) +
-			   sizeof(struct sk_buff) +
-			   sizeof(struct sctp_chunk);
+		msg_len -= chk->skb->truesize + sizeof(struct sctp_chunk);
 		sctp_chunk_free(chk);
 		if (msg_len <= 0)
 			break;

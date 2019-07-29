@@ -15,8 +15,8 @@
  * even in the case where most bits are set.
  */
 
-#ifndef _TEST_SPARSEBIT_H_
-#define _TEST_SPARSEBIT_H_
+#ifndef SELFTEST_KVM_SPARSEBIT_H
+#define SELFTEST_KVM_SPARSEBIT_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -72,4 +72,4 @@ void sparsebit_validate_internal(struct sparsebit *sbit);
 }
 #endif
 
-#endif /* _TEST_SPARSEBIT_H_ */
+#endif /* SELFTEST_KVM_SPARSEBIT_H */

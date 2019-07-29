@@ -926,7 +926,7 @@ static int ov2680_mode_init(struct ov2680_dev *sensor)
 	return 0;
 }
 
-static int ov2680_v4l2_init(struct ov2680_dev *sensor)
+static int ov2680_v4l2_register(struct ov2680_dev *sensor)
 {
 	const struct v4l2_ctrl_ops *ops = &ov2680_ctrl_ops;
 	struct ov2680_ctrls *ctrls = &sensor->ctrls;
@@ -1088,26 +1088,20 @@ static int ov2680_probe(struct i2c_client *client)
 
 	mutex_init(&sensor->lock);
 
-	ret = ov2680_v4l2_init(sensor);
+	ret = ov2680_check_id(sensor);
 	if (ret < 0)
 		goto lock_destroy;
 
-	ret = ov2680_check_id(sensor);
+	ret = ov2680_v4l2_register(sensor);
 	if (ret < 0)
-		goto error_cleanup;
+		goto lock_destroy;
 
 	dev_info(dev, "ov2680 init correctly\n");
 
 	return 0;
 
-error_cleanup:
-	dev_err(dev, "ov2680 init fail: %d\n", ret);
-
-	media_entity_cleanup(&sensor->sd.entity);
-	v4l2_async_unregister_subdev(&sensor->sd);
-	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
-
 lock_destroy:
+	dev_err(dev, "ov2680 init fail: %d\n", ret);
 	mutex_destroy(&sensor->lock);
 
 	return ret;

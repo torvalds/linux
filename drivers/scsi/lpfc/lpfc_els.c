@@ -7673,8 +7673,11 @@ void
 lpfc_els_flush_all_cmd(struct lpfc_hba  *phba)
 {
 	struct lpfc_vport *vport;
+
+	spin_lock_irq(&phba->port_list_lock);
 	list_for_each_entry(vport, &phba->port_list, listentry)
 		lpfc_els_flush_cmd(vport);
+	spin_unlock_irq(&phba->port_list_lock);
 
 	return;
 }

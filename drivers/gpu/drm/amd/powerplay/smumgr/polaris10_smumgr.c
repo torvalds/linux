@@ -1103,6 +1103,7 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	mem_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
 
 	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
+	data->display_timing.vrefresh = hwmgr->display_config->vrefresh;
 
 	if (mclk_stutter_mode_threshold &&
 		(clock <= mclk_stutter_mode_threshold) &&
@@ -1983,6 +1984,12 @@ int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 			PPSMC_MSG_SetGBDroopSettings, data->avfs_vdroop_override_setting);
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs);
+
+	/* Apply avfs cks-off voltages to avoid the overshoot
+	 * when switching to the highest sclk frequency
+	 */
+	if (data->apply_avfs_cks_off_voltage)
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ApplyAvfsCksOffVoltage);
 
 	return 0;
 }

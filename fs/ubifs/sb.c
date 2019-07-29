@@ -63,6 +63,17 @@
 /* Default time granularity in nanoseconds */
 #define DEFAULT_TIME_GRAN 1000000000
 
+static int get_default_compressor(struct ubifs_info *c)
+{
+	if (ubifs_compr_present(c, UBIFS_COMPR_LZO))
+		return UBIFS_COMPR_LZO;
+
+	if (ubifs_compr_present(c, UBIFS_COMPR_ZLIB))
+		return UBIFS_COMPR_ZLIB;
+
+	return UBIFS_COMPR_NONE;
+}
+
 /**
  * create_default_filesystem - format empty UBI volume.
  * @c: UBIFS file-system description object
@@ -82,10 +93,13 @@ static int create_default_filesystem(struct ubifs_info *c)
 	int err, tmp, jnl_lebs, log_lebs, max_buds, main_lebs, main_first;
 	int lpt_lebs, lpt_first, orph_lebs, big_lpt, ino_waste, sup_flags = 0;
 	int min_leb_cnt = UBIFS_MIN_LEB_CNT;
+	int idx_node_size;
 	long long tmp64, main_bytes;
 	__le64 tmp_le64;
 	__le32 tmp_le32;
 	struct timespec64 ts;
+	u8 hash[UBIFS_HASH_ARR_SZ];
+	u8 hash_lpt[UBIFS_HASH_ARR_SZ];
 
 	/* Some functions called from here depend on the @c->key_len filed */
 	c->key_len = UBIFS_SK_LEN;
@@ -147,7 +161,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	c->lsave_cnt = DEFAULT_LSAVE_CNT;
 	c->max_leb_cnt = c->leb_cnt;
 	err = ubifs_create_dflt_lpt(c, &main_lebs, lpt_first, &lpt_lebs,
-				    &big_lpt);
+				    &big_lpt, hash_lpt);
 	if (err)
 		return err;
 
@@ -156,16 +170,34 @@ static int create_default_filesystem(struct ubifs_info *c)
 
 	main_first = c->leb_cnt - main_lebs;
 
+	sup = kzalloc(ALIGN(UBIFS_SB_NODE_SZ, c->min_io_size), GFP_KERNEL);
+	mst = kzalloc(c->mst_node_alsz, GFP_KERNEL);
+	idx_node_size = ubifs_idx_node_sz(c, 1);
+	idx = kzalloc(ALIGN(tmp, c->min_io_size), GFP_KERNEL);
+	ino = kzalloc(ALIGN(UBIFS_INO_NODE_SZ, c->min_io_size), GFP_KERNEL);
+	cs = kzalloc(ALIGN(UBIFS_CS_NODE_SZ, c->min_io_size), GFP_KERNEL);
+
+	if (!sup || !mst || !idx || !ino || !cs) {
+		err = -ENOMEM;
+		goto out;
+	}
+
 	/* Create default superblock */
-	tmp = ALIGN(UBIFS_SB_NODE_SZ, c->min_io_size);
-	sup = kzalloc(tmp, GFP_KERNEL);
-	if (!sup)
-		return -ENOMEM;
 
 	tmp64 = (long long)max_buds * c->leb_size;
 	if (big_lpt)
 		sup_flags |= UBIFS_FLG_BIGLPT;
 	sup_flags |= UBIFS_FLG_DOUBLE_HASH;
+
+	if (ubifs_authenticated(c)) {
+		sup_flags |= UBIFS_FLG_AUTHENTICATION;
+		sup->hash_algo = cpu_to_le16(c->auth_hash_algo);
+		err = ubifs_hmac_wkm(c, sup->hmac_wkm);
+		if (err)
+			goto out;
+	} else {
+		sup->hash_algo = 0xffff;
+	}
 
 	sup->ch.node_type  = UBIFS_SB_NODE;
 	sup->key_hash      = UBIFS_KEY_HASH_R5;
@@ -186,7 +218,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	if (c->mount_opts.override_compr)
 		sup->default_compr = cpu_to_le16(c->mount_opts.compr_type);
 	else
-		sup->default_compr = cpu_to_le16(UBIFS_COMPR_LZO);
+		sup->default_compr = cpu_to_le16(get_default_compressor(c));
 
 	generate_random_uuid(sup->uuid);
 
@@ -197,17 +229,9 @@ static int create_default_filesystem(struct ubifs_info *c)
 	sup->rp_size = cpu_to_le64(tmp64);
 	sup->ro_compat_version = cpu_to_le32(UBIFS_RO_COMPAT_VERSION);
 
-	err = ubifs_write_node(c, sup, UBIFS_SB_NODE_SZ, 0, 0);
-	kfree(sup);
-	if (err)
-		return err;
-
 	dbg_gen("default superblock created at LEB 0:0");
 
 	/* Create default master node */
-	mst = kzalloc(c->mst_node_alsz, GFP_KERNEL);
-	if (!mst)
-		return -ENOMEM;
 
 	mst->ch.node_type = UBIFS_MST_NODE;
 	mst->log_lnum     = cpu_to_le32(UBIFS_LOG_LNUM);
@@ -233,6 +257,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	mst->empty_lebs   = cpu_to_le32(main_lebs - 2);
 	mst->idx_lebs     = cpu_to_le32(1);
 	mst->leb_cnt      = cpu_to_le32(c->leb_cnt);
+	ubifs_copy_hash(c, hash_lpt, mst->hash_lpt);
 
 	/* Calculate lprops statistics */
 	tmp64 = main_bytes;
@@ -253,24 +278,9 @@ static int create_default_filesystem(struct ubifs_info *c)
 
 	mst->total_used = cpu_to_le64(UBIFS_INO_NODE_SZ);
 
-	err = ubifs_write_node(c, mst, UBIFS_MST_NODE_SZ, UBIFS_MST_LNUM, 0);
-	if (err) {
-		kfree(mst);
-		return err;
-	}
-	err = ubifs_write_node(c, mst, UBIFS_MST_NODE_SZ, UBIFS_MST_LNUM + 1,
-			       0);
-	kfree(mst);
-	if (err)
-		return err;
-
 	dbg_gen("default master node created at LEB %d:0", UBIFS_MST_LNUM);
 
 	/* Create the root indexing node */
-	tmp = ubifs_idx_node_sz(c, 1);
-	idx = kzalloc(ALIGN(tmp, c->min_io_size), GFP_KERNEL);
-	if (!idx)
-		return -ENOMEM;
 
 	c->key_fmt = UBIFS_SIMPLE_KEY_FMT;
 	c->key_hash = key_r5_hash;
@@ -282,19 +292,11 @@ static int create_default_filesystem(struct ubifs_info *c)
 	key_write_idx(c, &key, &br->key);
 	br->lnum = cpu_to_le32(main_first + DEFAULT_DATA_LEB);
 	br->len  = cpu_to_le32(UBIFS_INO_NODE_SZ);
-	err = ubifs_write_node(c, idx, tmp, main_first + DEFAULT_IDX_LEB, 0);
-	kfree(idx);
-	if (err)
-		return err;
 
 	dbg_gen("default root indexing node created LEB %d:0",
 		main_first + DEFAULT_IDX_LEB);
 
 	/* Create default root inode */
-	tmp = ALIGN(UBIFS_INO_NODE_SZ, c->min_io_size);
-	ino = kzalloc(tmp, GFP_KERNEL);
-	if (!ino)
-		return -ENOMEM;
 
 	ino_key_init_flash(c, &ino->key, UBIFS_ROOT_INO);
 	ino->ch.node_type = UBIFS_INO_NODE;
@@ -317,12 +319,6 @@ static int create_default_filesystem(struct ubifs_info *c)
 	/* Set compression enabled by default */
 	ino->flags = cpu_to_le32(UBIFS_COMPR_FL);
 
-	err = ubifs_write_node(c, ino, UBIFS_INO_NODE_SZ,
-			       main_first + DEFAULT_DATA_LEB, 0);
-	kfree(ino);
-	if (err)
-		return err;
-
 	dbg_gen("root inode created at LEB %d:0",
 		main_first + DEFAULT_DATA_LEB);
 
@@ -331,19 +327,54 @@ static int create_default_filesystem(struct ubifs_info *c)
 	 * always the case during normal file-system operation. Write a fake
 	 * commit start node to the log.
 	 */
-	tmp = ALIGN(UBIFS_CS_NODE_SZ, c->min_io_size);
-	cs = kzalloc(tmp, GFP_KERNEL);
-	if (!cs)
-		return -ENOMEM;
 
 	cs->ch.node_type = UBIFS_CS_NODE;
-	err = ubifs_write_node(c, cs, UBIFS_CS_NODE_SZ, UBIFS_LOG_LNUM, 0);
-	kfree(cs);
+
+	err = ubifs_write_node_hmac(c, sup, UBIFS_SB_NODE_SZ, 0, 0,
+				    offsetof(struct ubifs_sb_node, hmac));
 	if (err)
-		return err;
+		goto out;
+
+	err = ubifs_write_node(c, ino, UBIFS_INO_NODE_SZ,
+			       main_first + DEFAULT_DATA_LEB, 0);
+	if (err)
+		goto out;
+
+	ubifs_node_calc_hash(c, ino, hash);
+	ubifs_copy_hash(c, hash, ubifs_branch_hash(c, br));
+
+	err = ubifs_write_node(c, idx, idx_node_size, main_first + DEFAULT_IDX_LEB, 0);
+	if (err)
+		goto out;
+
+	ubifs_node_calc_hash(c, idx, hash);
+	ubifs_copy_hash(c, hash, mst->hash_root_idx);
+
+	err = ubifs_write_node_hmac(c, mst, UBIFS_MST_NODE_SZ, UBIFS_MST_LNUM, 0,
+		offsetof(struct ubifs_mst_node, hmac));
+	if (err)
+		goto out;
+
+	err = ubifs_write_node_hmac(c, mst, UBIFS_MST_NODE_SZ, UBIFS_MST_LNUM + 1,
+			       0, offsetof(struct ubifs_mst_node, hmac));
+	if (err)
+		goto out;
+
+	err = ubifs_write_node(c, cs, UBIFS_CS_NODE_SZ, UBIFS_LOG_LNUM, 0);
+	if (err)
+		goto out;
 
 	ubifs_msg(c, "default file-system created");
-	return 0;
+
+	err = 0;
+out:
+	kfree(sup);
+	kfree(mst);
+	kfree(idx);
+	kfree(ino);
+	kfree(cs);
+
+	return err;
 }
 
 /**
@@ -498,7 +529,7 @@ failed:
  * code. Note, the user of this function is responsible of kfree()'ing the
  * returned superblock buffer.
  */
-struct ubifs_sb_node *ubifs_read_sb_node(struct ubifs_info *c)
+static struct ubifs_sb_node *ubifs_read_sb_node(struct ubifs_info *c)
 {
 	struct ubifs_sb_node *sup;
 	int err;
@@ -517,6 +548,65 @@ struct ubifs_sb_node *ubifs_read_sb_node(struct ubifs_info *c)
 	return sup;
 }
 
+static int authenticate_sb_node(struct ubifs_info *c,
+				const struct ubifs_sb_node *sup)
+{
+	unsigned int sup_flags = le32_to_cpu(sup->flags);
+	u8 hmac_wkm[UBIFS_HMAC_ARR_SZ];
+	int authenticated = !!(sup_flags & UBIFS_FLG_AUTHENTICATION);
+	int hash_algo;
+	int err;
+
+	if (c->authenticated && !authenticated) {
+		ubifs_err(c, "authenticated FS forced, but found FS without authentication");
+		return -EINVAL;
+	}
+
+	if (!c->authenticated && authenticated) {
+		ubifs_err(c, "authenticated FS found, but no key given");
+		return -EINVAL;
+	}
+
+	ubifs_msg(c, "Mounting in %sauthenticated mode",
+		  c->authenticated ? "" : "un");
+
+	if (!c->authenticated)
+		return 0;
+
+	if (!IS_ENABLED(CONFIG_UBIFS_FS_AUTHENTICATION))
+		return -EOPNOTSUPP;
+
+	hash_algo = le16_to_cpu(sup->hash_algo);
+	if (hash_algo >= HASH_ALGO__LAST) {
+		ubifs_err(c, "superblock uses unknown hash algo %d",
+			  hash_algo);
+		return -EINVAL;
+	}
+
+	if (strcmp(hash_algo_name[hash_algo], c->auth_hash_name)) {
+		ubifs_err(c, "This filesystem uses %s for hashing,"
+			     " but %s is specified", hash_algo_name[hash_algo],
+			     c->auth_hash_name);
+		return -EINVAL;
+	}
+
+	err = ubifs_hmac_wkm(c, hmac_wkm);
+	if (err)
+		return err;
+
+	if (ubifs_check_hmac(c, hmac_wkm, sup->hmac_wkm)) {
+		ubifs_err(c, "provided key does not fit");
+		return -ENOKEY;
+	}
+
+	err = ubifs_node_verify_hmac(c, sup, sizeof(*sup),
+				     offsetof(struct ubifs_sb_node, hmac));
+	if (err)
+		ubifs_err(c, "Failed to authenticate superblock: %d", err);
+
+	return err;
+}
+
 /**
  * ubifs_write_sb_node - write superblock node.
  * @c: UBIFS file-system description object
@@ -527,8 +617,13 @@ struct ubifs_sb_node *ubifs_read_sb_node(struct ubifs_info *c)
 int ubifs_write_sb_node(struct ubifs_info *c, struct ubifs_sb_node *sup)
 {
 	int len = ALIGN(UBIFS_SB_NODE_SZ, c->min_io_size);
+	int err;
 
-	ubifs_prepare_node(c, sup, UBIFS_SB_NODE_SZ, 1);
+	err = ubifs_prepare_node_hmac(c, sup, UBIFS_SB_NODE_SZ,
+				      offsetof(struct ubifs_sb_node, hmac), 1);
+	if (err)
+		return err;
+
 	return ubifs_leb_change(c, UBIFS_SB_LNUM, sup, len);
 }
 
@@ -554,6 +649,8 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	sup = ubifs_read_sb_node(c);
 	if (IS_ERR(sup))
 		return PTR_ERR(sup);
+
+	c->sup_node = sup;
 
 	c->fmt_version = le32_to_cpu(sup->fmt_version);
 	c->ro_compat_version = le32_to_cpu(sup->ro_compat_version);
@@ -603,7 +700,7 @@ int ubifs_read_superblock(struct ubifs_info *c)
 		c->key_hash = key_test_hash;
 		c->key_hash_type = UBIFS_KEY_HASH_TEST;
 		break;
-	};
+	}
 
 	c->key_fmt = sup->key_fmt;
 
@@ -639,6 +736,10 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	c->space_fixup = !!(sup_flags & UBIFS_FLG_SPACE_FIXUP);
 	c->double_hash = !!(sup_flags & UBIFS_FLG_DOUBLE_HASH);
 	c->encrypted = !!(sup_flags & UBIFS_FLG_ENCRYPTION);
+
+	err = authenticate_sb_node(c, sup);
+	if (err)
+		goto out;
 
 	if ((sup_flags & ~UBIFS_FLG_MASK) != 0) {
 		ubifs_err(c, "Unknown feature flags found: %#x",
@@ -686,7 +787,6 @@ int ubifs_read_superblock(struct ubifs_info *c)
 
 	err = validate_sb(c, sup);
 out:
-	kfree(sup);
 	return err;
 }
 
@@ -815,7 +915,7 @@ out:
 int ubifs_fixup_free_space(struct ubifs_info *c)
 {
 	int err;
-	struct ubifs_sb_node *sup;
+	struct ubifs_sb_node *sup = c->sup_node;
 
 	ubifs_assert(c, c->space_fixup);
 	ubifs_assert(c, !c->ro_mount);
@@ -826,16 +926,11 @@ int ubifs_fixup_free_space(struct ubifs_info *c)
 	if (err)
 		return err;
 
-	sup = ubifs_read_sb_node(c);
-	if (IS_ERR(sup))
-		return PTR_ERR(sup);
-
 	/* Free-space fixup is no longer required */
 	c->space_fixup = 0;
 	sup->flags &= cpu_to_le32(~UBIFS_FLG_SPACE_FIXUP);
 
 	err = ubifs_write_sb_node(c, sup);
-	kfree(sup);
 	if (err)
 		return err;
 
@@ -846,7 +941,7 @@ int ubifs_fixup_free_space(struct ubifs_info *c)
 int ubifs_enable_encryption(struct ubifs_info *c)
 {
 	int err;
-	struct ubifs_sb_node *sup;
+	struct ubifs_sb_node *sup = c->sup_node;
 
 	if (c->encrypted)
 		return 0;
@@ -859,16 +954,11 @@ int ubifs_enable_encryption(struct ubifs_info *c)
 		return -EINVAL;
 	}
 
-	sup = ubifs_read_sb_node(c);
-	if (IS_ERR(sup))
-		return PTR_ERR(sup);
-
 	sup->flags |= cpu_to_le32(UBIFS_FLG_ENCRYPTION);
 
 	err = ubifs_write_sb_node(c, sup);
 	if (!err)
 		c->encrypted = 1;
-	kfree(sup);
 
 	return err;
 }

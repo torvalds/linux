@@ -67,11 +67,13 @@ struct slot {
 	u32 number;
 	u8 is_a_board;
 	u8 state;
+	u8 attention_save;
 	u8 presence_save;
+	u8 latch_save;
 	u8 pwr_save;
 	struct controller *ctrl;
 	const struct hpc_ops *hpc_ops;
-	struct hotplug_slot *hotplug_slot;
+	struct hotplug_slot hotplug_slot;
 	struct list_head	slot_list;
 	struct delayed_work work;	/* work for button event */
 	struct mutex lock;
@@ -169,7 +171,7 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev);
 
 static inline const char *slot_name(struct slot *slot)
 {
-	return hotplug_slot_name(slot->hotplug_slot);
+	return hotplug_slot_name(&slot->hotplug_slot);
 }
 
 struct ctrl_reg {
@@ -207,7 +209,7 @@ enum ctrl_offsets {
 
 static inline struct slot *get_slot(struct hotplug_slot *hotplug_slot)
 {
-	return hotplug_slot->private;
+	return container_of(hotplug_slot, struct slot, hotplug_slot);
 }
 
 static inline struct slot *shpchp_find_slot(struct controller *ctrl, u8 device)

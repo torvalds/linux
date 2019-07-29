@@ -88,7 +88,7 @@ static const struct imx_media_pixfmt rgb_formats[] = {
 		.cs     = IPUV3_COLORSPACE_RGB,
 		.bpp    = 24,
 	}, {
-		.fourcc	= V4L2_PIX_FMT_RGB32,
+		.fourcc	= V4L2_PIX_FMT_XRGB32,
 		.codes  = {MEDIA_BUS_FMT_ARGB8888_1X32},
 		.cs     = IPUV3_COLORSPACE_RGB,
 		.bpp    = 32,
@@ -212,7 +212,7 @@ static const struct imx_media_pixfmt ipu_yuv_formats[] = {
 
 static const struct imx_media_pixfmt ipu_rgb_formats[] = {
 	{
-		.fourcc	= V4L2_PIX_FMT_RGB32,
+		.fourcc	= V4L2_PIX_FMT_XRGB32,
 		.codes  = {MEDIA_BUS_FMT_ARGB8888_1X32},
 		.cs     = IPUV3_COLORSPACE_RGB,
 		.bpp    = 32,

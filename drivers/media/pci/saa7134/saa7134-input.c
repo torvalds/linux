@@ -953,7 +953,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	memset(&dev->init_data, 0, sizeof(dev->init_data));
-	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+	strscpy(info.type, "ir_video", I2C_NAME_SIZE);
 
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:

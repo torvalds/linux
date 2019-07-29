@@ -720,9 +720,7 @@ void vmw_du_plane_reset(struct drm_plane *plane)
 		return;
 	}
 
-	plane->state = &vps->base;
-	plane->state->plane = plane;
-	plane->state->rotation = DRM_MODE_ROTATE_0;
+	__drm_atomic_helper_plane_reset(plane, &vps->base);
 }
 
 
@@ -2577,88 +2575,31 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_kms_helper_buffer_prepare - Reserve and validate a buffer object before
- * command submission.
- *
- * @dev_priv. Pointer to a device private structure.
- * @buf: The buffer object
- * @interruptible: Whether to perform waits as interruptible.
- * @validate_as_mob: Whether the buffer should be validated as a MOB. If false,
- * The buffer will be validated as a GMR. Already pinned buffers will not be
- * validated.
- *
- * Returns 0 on success, negative error code on failure, -ERESTARTSYS if
- * interrupted by a signal.
+ * vmw_kms_helper_validation_finish - Helper for post KMS command submission
+ * cleanup and fencing
+ * @dev_priv: Pointer to the device-private struct
+ * @file_priv: Pointer identifying the client when user-space fencing is used
+ * @ctx: Pointer to the validation context
+ * @out_fence: If non-NULL, returned refcounted fence-pointer
+ * @user_fence_rep: If non-NULL, pointer to user-space address area
+ * in which to copy user-space fence info
  */
-int vmw_kms_helper_buffer_prepare(struct vmw_private *dev_priv,
-				  struct vmw_buffer_object *buf,
-				  bool interruptible,
-				  bool validate_as_mob,
-				  bool for_cpu_blit)
+void vmw_kms_helper_validation_finish(struct vmw_private *dev_priv,
+				      struct drm_file *file_priv,
+				      struct vmw_validation_context *ctx,
+				      struct vmw_fence_obj **out_fence,
+				      struct drm_vmw_fence_rep __user *
+				      user_fence_rep)
 {
-	struct ttm_operation_ctx ctx = {
-		.interruptible = interruptible,
-		.no_wait_gpu = false};
-	struct ttm_buffer_object *bo = &buf->base;
-	int ret;
-
-	ttm_bo_reserve(bo, false, false, NULL);
-	if (for_cpu_blit)
-		ret = ttm_bo_validate(bo, &vmw_nonfixed_placement, &ctx);
-	else
-		ret = vmw_validate_single_buffer(dev_priv, bo, interruptible,
-						 validate_as_mob);
-	if (ret)
-		ttm_bo_unreserve(bo);
-
-	return ret;
-}
-
-/**
- * vmw_kms_helper_buffer_revert - Undo the actions of
- * vmw_kms_helper_buffer_prepare.
- *
- * @res: Pointer to the buffer object.
- *
- * Helper to be used if an error forces the caller to undo the actions of
- * vmw_kms_helper_buffer_prepare.
- */
-void vmw_kms_helper_buffer_revert(struct vmw_buffer_object *buf)
-{
-	if (buf)
-		ttm_bo_unreserve(&buf->base);
-}
-
-/**
- * vmw_kms_helper_buffer_finish - Unreserve and fence a buffer object after
- * kms command submission.
- *
- * @dev_priv: Pointer to a device private structure.
- * @file_priv: Pointer to a struct drm_file representing the caller's
- * connection. Must be set to NULL if @user_fence_rep is NULL, and conversely
- * if non-NULL, @user_fence_rep must be non-NULL.
- * @buf: The buffer object.
- * @out_fence:  Optional pointer to a fence pointer. If non-NULL, a
- * ref-counted fence pointer is returned here.
- * @user_fence_rep: Optional pointer to a user-space provided struct
- * drm_vmw_fence_rep. If provided, @file_priv must also be provided and the
- * function copies fence data to user-space in a fail-safe manner.
- */
-void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
-				  struct drm_file *file_priv,
-				  struct vmw_buffer_object *buf,
-				  struct vmw_fence_obj **out_fence,
-				  struct drm_vmw_fence_rep __user *
-				  user_fence_rep)
-{
-	struct vmw_fence_obj *fence;
+	struct vmw_fence_obj *fence = NULL;
 	uint32_t handle;
 	int ret;
 
-	ret = vmw_execbuf_fence_commands(file_priv, dev_priv, &fence,
-					 file_priv ? &handle : NULL);
-	if (buf)
-		vmw_bo_fence_single(&buf->base, fence);
+	if (file_priv || user_fence_rep || vmw_validation_has_bos(ctx) ||
+	    out_fence)
+		ret = vmw_execbuf_fence_commands(file_priv, dev_priv, &fence,
+						 file_priv ? &handle : NULL);
+	vmw_validation_done(ctx, fence);
 	if (file_priv)
 		vmw_execbuf_copy_fence_user(dev_priv, vmw_fpriv(file_priv),
 					    ret, user_fence_rep, fence,
@@ -2667,106 +2608,6 @@ void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
 		*out_fence = fence;
 	else
 		vmw_fence_obj_unreference(&fence);
-
-	vmw_kms_helper_buffer_revert(buf);
-}
-
-
-/**
- * vmw_kms_helper_resource_revert - Undo the actions of
- * vmw_kms_helper_resource_prepare.
- *
- * @res: Pointer to the resource. Typically a surface.
- *
- * Helper to be used if an error forces the caller to undo the actions of
- * vmw_kms_helper_resource_prepare.
- */
-void vmw_kms_helper_resource_revert(struct vmw_validation_ctx *ctx)
-{
-	struct vmw_resource *res = ctx->res;
-
-	vmw_kms_helper_buffer_revert(ctx->buf);
-	vmw_bo_unreference(&ctx->buf);
-	vmw_resource_unreserve(res, false, NULL, 0);
-	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
-}
-
-/**
- * vmw_kms_helper_resource_prepare - Reserve and validate a resource before
- * command submission.
- *
- * @res: Pointer to the resource. Typically a surface.
- * @interruptible: Whether to perform waits as interruptible.
- *
- * Reserves and validates also the backup buffer if a guest-backed resource.
- * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
- * interrupted by a signal.
- */
-int vmw_kms_helper_resource_prepare(struct vmw_resource *res,
-				    bool interruptible,
-				    struct vmw_validation_ctx *ctx)
-{
-	int ret = 0;
-
-	ctx->buf = NULL;
-	ctx->res = res;
-
-	if (interruptible)
-		ret = mutex_lock_interruptible(&res->dev_priv->cmdbuf_mutex);
-	else
-		mutex_lock(&res->dev_priv->cmdbuf_mutex);
-
-	if (unlikely(ret != 0))
-		return -ERESTARTSYS;
-
-	ret = vmw_resource_reserve(res, interruptible, false);
-	if (ret)
-		goto out_unlock;
-
-	if (res->backup) {
-		ret = vmw_kms_helper_buffer_prepare(res->dev_priv, res->backup,
-						    interruptible,
-						    res->dev_priv->has_mob,
-						    false);
-		if (ret)
-			goto out_unreserve;
-
-		ctx->buf = vmw_bo_reference(res->backup);
-	}
-	ret = vmw_resource_validate(res);
-	if (ret)
-		goto out_revert;
-	return 0;
-
-out_revert:
-	vmw_kms_helper_buffer_revert(ctx->buf);
-out_unreserve:
-	vmw_resource_unreserve(res, false, NULL, 0);
-out_unlock:
-	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
-	return ret;
-}
-
-/**
- * vmw_kms_helper_resource_finish - Unreserve and fence a resource after
- * kms command submission.
- *
- * @res: Pointer to the resource. Typically a surface.
- * @out_fence: Optional pointer to a fence pointer. If non-NULL, a
- * ref-counted fence pointer is returned here.
- */
-void vmw_kms_helper_resource_finish(struct vmw_validation_ctx *ctx,
-				    struct vmw_fence_obj **out_fence)
-{
-	struct vmw_resource *res = ctx->res;
-
-	if (ctx->buf || out_fence)
-		vmw_kms_helper_buffer_finish(res->dev_priv, NULL, ctx->buf,
-					     out_fence, NULL);
-
-	vmw_bo_unreference(&ctx->buf);
-	vmw_resource_unreserve(res, false, NULL, 0);
-	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 }
 
 /**

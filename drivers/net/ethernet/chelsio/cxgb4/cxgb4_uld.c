@@ -520,10 +520,20 @@ setup_sge_txq_uld(struct adapter *adap, unsigned int uld_type,
 	txq_info = kzalloc(sizeof(*txq_info), GFP_KERNEL);
 	if (!txq_info)
 		return -ENOMEM;
+	if (uld_type == CXGB4_ULD_CRYPTO) {
+		i = min_t(int, adap->vres.ncrypto_fc,
+			  num_online_cpus());
+		txq_info->ntxq = rounddown(i, adap->params.nports);
+		if (txq_info->ntxq <= 0) {
+			dev_warn(adap->pdev_dev, "Crypto Tx Queues can't be zero\n");
+			kfree(txq_info);
+			return -EINVAL;
+		}
 
-	i = min_t(int, uld_info->ntxq, num_online_cpus());
-	txq_info->ntxq = roundup(i, adap->params.nports);
-
+	} else {
+		i = min_t(int, uld_info->ntxq, num_online_cpus());
+		txq_info->ntxq = roundup(i, adap->params.nports);
+	}
 	txq_info->uldtxq = kcalloc(txq_info->ntxq, sizeof(struct sge_uld_txq),
 				   GFP_KERNEL);
 	if (!txq_info->uldtxq) {
@@ -546,11 +556,14 @@ static void uld_queue_init(struct adapter *adap, unsigned int uld_type,
 			   struct cxgb4_lld_info *lli)
 {
 	struct sge_uld_rxq_info *rxq_info = adap->sge.uld_rxq_info[uld_type];
+	int tx_uld_type = TX_ULD(uld_type);
+	struct sge_uld_txq_info *txq_info = adap->sge.uld_txq_info[tx_uld_type];
 
 	lli->rxq_ids = rxq_info->rspq_id;
 	lli->nrxq = rxq_info->nrxq;
 	lli->ciq_ids = rxq_info->rspq_id + rxq_info->nrxq;
 	lli->nciq = rxq_info->nciq;
+	lli->ntxq = txq_info->ntxq;
 }
 
 int t4_uld_mem_alloc(struct adapter *adap)
@@ -634,7 +647,6 @@ static void uld_init(struct adapter *adap, struct cxgb4_lld_info *lld)
 	lld->ports = adap->port;
 	lld->vr = &adap->vres;
 	lld->mtus = adap->params.mtus;
-	lld->ntxq = adap->sge.ofldqsets;
 	lld->nchan = adap->params.nports;
 	lld->nports = adap->params.nports;
 	lld->wr_cred = adap->params.ofldq_wr_cred;
@@ -702,15 +714,14 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
  *	about any presently available devices that support its type.  Returns
  *	%-EBUSY if a ULD of the same type is already registered.
  */
-int cxgb4_register_uld(enum cxgb4_uld type,
-		       const struct cxgb4_uld_info *p)
+void cxgb4_register_uld(enum cxgb4_uld type,
+			const struct cxgb4_uld_info *p)
 {
 	int ret = 0;
-	unsigned int adap_idx = 0;
 	struct adapter *adap;
 
 	if (type >= CXGB4_ULD_MAX)
-		return -EINVAL;
+		return;
 
 	mutex_lock(&uld_mutex);
 	list_for_each_entry(adap, &adapter_list, list_node) {
@@ -733,52 +744,29 @@ int cxgb4_register_uld(enum cxgb4_uld type,
 		}
 		if (adap->flags & FULL_INIT_DONE)
 			enable_rx_uld(adap, type);
-		if (adap->uld[type].add) {
-			ret = -EBUSY;
+		if (adap->uld[type].add)
 			goto free_irq;
-		}
 		ret = setup_sge_txq_uld(adap, type, p);
 		if (ret)
 			goto free_irq;
 		adap->uld[type] = *p;
 		uld_attach(adap, type);
-		adap_idx++;
-	}
-	mutex_unlock(&uld_mutex);
-	return 0;
-
+		continue;
 free_irq:
-	if (adap->flags & FULL_INIT_DONE)
-		quiesce_rx_uld(adap, type);
-	if (adap->flags & USING_MSIX)
-		free_msix_queue_irqs_uld(adap, type);
-free_rxq:
-	free_sge_queues_uld(adap, type);
-free_queues:
-	free_queues_uld(adap, type);
-out:
-
-	list_for_each_entry(adap, &adapter_list, list_node) {
-		if ((type == CXGB4_ULD_CRYPTO && !is_pci_uld(adap)) ||
-		    (type != CXGB4_ULD_CRYPTO && !is_offload(adap)))
-			continue;
-		if (type == CXGB4_ULD_ISCSIT && is_t4(adap->params.chip))
-			continue;
-		if (!adap_idx)
-			break;
-		adap->uld[type].handle = NULL;
-		adap->uld[type].add = NULL;
-		release_sge_txq_uld(adap, type);
 		if (adap->flags & FULL_INIT_DONE)
 			quiesce_rx_uld(adap, type);
 		if (adap->flags & USING_MSIX)
 			free_msix_queue_irqs_uld(adap, type);
+free_rxq:
 		free_sge_queues_uld(adap, type);
+free_queues:
 		free_queues_uld(adap, type);
-		adap_idx--;
+out:
+		dev_warn(adap->pdev_dev,
+			 "ULD registration failed for uld type %d\n", type);
 	}
 	mutex_unlock(&uld_mutex);
-	return ret;
+	return;
 }
 EXPORT_SYMBOL(cxgb4_register_uld);
 

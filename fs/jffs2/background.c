@@ -125,7 +125,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 			if (try_to_freeze())
 				goto again;
 
-			signr = kernel_dequeue_signal(NULL);
+			signr = kernel_dequeue_signal();
 
 			switch(signr) {
 			case SIGSTOP:

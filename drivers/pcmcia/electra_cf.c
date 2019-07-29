@@ -230,7 +230,7 @@ static int electra_cf_probe(struct platform_device *ofdev)
 
 	if (!cf->mem_base || !cf->io_virt || !cf->gpio_base ||
 	    (__ioremap_at(io.start, cf->io_virt, cf->io_size,
-		  pgprot_val(pgprot_noncached(__pgprot(0)))) == NULL)) {
+			  pgprot_noncached(PAGE_KERNEL)) == NULL)) {
 		dev_err(device, "can't ioremap ranges\n");
 		status = -ENOMEM;
 		goto fail1;

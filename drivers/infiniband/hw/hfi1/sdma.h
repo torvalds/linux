@@ -1,7 +1,7 @@
 #ifndef _HFI1_SDMA_H
 #define _HFI1_SDMA_H
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -61,16 +61,6 @@
 #define MAX_DESC 64
 /* Hardware limit for SDMA packet size */
 #define MAX_SDMA_PKT_SIZE ((16 * 1024) - 1)
-
-#define SDMA_TXREQ_S_OK        0
-#define SDMA_TXREQ_S_SENDERROR 1
-#define SDMA_TXREQ_S_ABORTED   2
-#define SDMA_TXREQ_S_SHUTDOWN  3
-
-/* flags bits */
-#define SDMA_TXREQ_F_URGENT       0x0001
-#define SDMA_TXREQ_F_AHG_COPY     0x0002
-#define SDMA_TXREQ_F_USE_AHG      0x0004
 
 #define SDMA_MAP_NONE          0
 #define SDMA_MAP_SINGLE        1
@@ -415,6 +405,7 @@ struct sdma_engine {
 	struct list_head flushlist;
 	struct cpumask cpu_mask;
 	struct kobject kobj;
+	u32 msix_intr;
 };
 
 int sdma_init(struct hfi1_devdata *dd, u8 port);
@@ -849,16 +840,16 @@ static inline int sdma_txadd_kvaddr(
 			dd, SDMA_MAP_SINGLE, tx, addr, len);
 }
 
-struct iowait;
+struct iowait_work;
 
 int sdma_send_txreq(struct sdma_engine *sde,
-		    struct iowait *wait,
+		    struct iowait_work *wait,
 		    struct sdma_txreq *tx,
 		    bool pkts_sent);
 int sdma_send_txlist(struct sdma_engine *sde,
-		     struct iowait *wait,
+		     struct iowait_work *wait,
 		     struct list_head *tx_list,
-		     u32 *count);
+		     u16 *count_out);
 
 int sdma_ahg_alloc(struct sdma_engine *sde);
 void sdma_ahg_free(struct sdma_engine *sde, int ahg_index);

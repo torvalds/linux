@@ -136,8 +136,7 @@ static int vr41xx_rtc_set_time(struct device *dev, struct rtc_time *time)
 	time64_t epoch_sec, current_sec;
 
 	epoch_sec = mktime64(epoch, 1, 1, 0, 0, 0);
-	current_sec = mktime64(time->tm_year + 1900, time->tm_mon + 1, time->tm_mday,
-			     time->tm_hour, time->tm_min, time->tm_sec);
+	current_sec = rtc_tm_to_time64(time);
 
 	write_elapsed_second(current_sec - epoch_sec);
 
@@ -158,7 +157,7 @@ static int vr41xx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 
 	spin_unlock_irq(&rtc_lock);
 
-	rtc_time_to_tm((high << 17) | (mid << 1) | (low >> 15), time);
+	rtc_time64_to_tm((high << 17) | (mid << 1) | (low >> 15), time);
 
 	return 0;
 }
@@ -166,10 +165,8 @@ static int vr41xx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 static int vr41xx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 {
 	time64_t alarm_sec;
-	struct rtc_time *time = &wkalrm->time;
 
-	alarm_sec = mktime64(time->tm_year + 1900, time->tm_mon + 1, time->tm_mday,
-			     time->tm_hour, time->tm_min, time->tm_sec);
+	alarm_sec = rtc_tm_to_time64(&wkalrm->time);
 
 	spin_lock_irq(&rtc_lock);
 

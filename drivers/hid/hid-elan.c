@@ -497,7 +497,7 @@ static int elan_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return 0;
 
 	if (!drvdata->input) {
-		hid_err(hdev, "Input device is not registred\n");
+		hid_err(hdev, "Input device is not registered\n");
 		ret = -ENAVAIL;
 		goto err;
 	}

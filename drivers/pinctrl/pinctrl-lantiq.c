@@ -80,14 +80,14 @@ static void ltq_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	int ret, i;
 
 	if (!pins && !groups) {
-		dev_err(pctldev->dev, "%s defines neither pins nor groups\n",
-			np->name);
+		dev_err(pctldev->dev, "%pOFn defines neither pins nor groups\n",
+			np);
 		return;
 	}
 
 	if (pins && groups) {
-		dev_err(pctldev->dev, "%s defines both pins and groups\n",
-			np->name);
+		dev_err(pctldev->dev, "%pOFn defines both pins and groups\n",
+			np);
 		return;
 	}
 

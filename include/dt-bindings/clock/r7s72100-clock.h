@@ -1,10 +1,7 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * Copyright (C) 2014 Renesas Solutions Corp.
  * Copyright (C) 2014 Wolfram Sang, Sang Engineering <wsa@sang-engineering.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #ifndef __DT_BINDINGS_CLOCK_R7S72100_H__

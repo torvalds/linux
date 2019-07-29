@@ -68,33 +68,6 @@ struct phylink {
 	struct sfp_bus *sfp_bus;
 };
 
-static inline void linkmode_zero(unsigned long *dst)
-{
-	bitmap_zero(dst, __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
-static inline void linkmode_copy(unsigned long *dst, const unsigned long *src)
-{
-	bitmap_copy(dst, src, __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
-static inline void linkmode_and(unsigned long *dst, const unsigned long *a,
-				const unsigned long *b)
-{
-	bitmap_and(dst, a, b, __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
-static inline void linkmode_or(unsigned long *dst, const unsigned long *a,
-				const unsigned long *b)
-{
-	bitmap_or(dst, a, b, __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
-static inline bool linkmode_empty(const unsigned long *src)
-{
-	return bitmap_empty(src, __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
 /**
  * phylink_set_port_modes() - set the port type modes in the ethtool mask
  * @mask: ethtool link mode mask
@@ -906,6 +879,9 @@ void phylink_start(struct phylink *pl)
 	netdev_info(pl->netdev, "configuring for %s/%s link mode\n",
 		    phylink_an_mode_str(pl->link_an_mode),
 		    phy_modes(pl->link_config.interface));
+
+	/* Always set the carrier off */
+	netif_carrier_off(pl->netdev);
 
 	/* Apply the link configuration to the MAC when starting. This allows
 	 * a fixed-link to start with the correct parameters, and also

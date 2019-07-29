@@ -758,10 +758,12 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	hub->clk_dsc = devm_clk_get(&pdev->dev, "dsc");
-	if (IS_ERR(hub->clk_dsc)) {
-		err = PTR_ERR(hub->clk_dsc);
-		return err;
+	if (hub->soc->supports_dsc) {
+		hub->clk_dsc = devm_clk_get(&pdev->dev, "dsc");
+		if (IS_ERR(hub->clk_dsc)) {
+			err = PTR_ERR(hub->clk_dsc);
+			return err;
+		}
 	}
 
 	hub->clk_hub = devm_clk_get(&pdev->dev, "hub");
@@ -890,10 +892,19 @@ static const struct dev_pm_ops tegra_display_hub_pm_ops = {
 
 static const struct tegra_display_hub_soc tegra186_display_hub = {
 	.num_wgrps = 6,
+	.supports_dsc = true,
+};
+
+static const struct tegra_display_hub_soc tegra194_display_hub = {
+	.num_wgrps = 6,
+	.supports_dsc = false,
 };
 
 static const struct of_device_id tegra_display_hub_of_match[] = {
 	{
+		.compatible = "nvidia,tegra194-display",
+		.data = &tegra194_display_hub
+	}, {
 		.compatible = "nvidia,tegra186-display",
 		.data = &tegra186_display_hub
 	}, {

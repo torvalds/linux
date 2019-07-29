@@ -989,7 +989,7 @@ static struct mt9v032_platform_data *
 mt9v032_get_pdata(struct i2c_client *client)
 {
 	struct mt9v032_platform_data *pdata = NULL;
-	struct v4l2_fwnode_endpoint endpoint;
+	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
 	struct device_node *np;
 	struct property *prop;
 

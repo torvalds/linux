@@ -687,7 +687,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 	}
 
 	nes_debug(NES_DBG_PD, "Allocating PD (%p) for ib device %s\n",
-			nespd, nesvnic->nesibdev->ibdev.name);
+			nespd, dev_name(&nesvnic->nesibdev->ibdev.dev));
 
 	nespd->pd_id = (pd_num << (PAGE_SHIFT-12)) + nesadapter->base_pd;
 
@@ -2556,8 +2556,8 @@ static int nes_dereg_mr(struct ib_mr *ib_mr)
 /**
  * show_rev
  */
-static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t hw_rev_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct nes_ib_device *nesibdev =
 			container_of(dev, struct nes_ib_device, ibdev.dev);
@@ -2566,40 +2566,40 @@ static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "%x\n", nesvnic->nesdev->nesadapter->hw_rev);
 }
-
+static DEVICE_ATTR_RO(hw_rev);
 
 /**
  * show_hca
  */
-static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
-		        char *buf)
+static ssize_t hca_type_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "NES020\n");
 }
-
+static DEVICE_ATTR_RO(hca_type);
 
 /**
  * show_board
  */
-static ssize_t show_board(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t board_id_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	nes_debug(NES_DBG_INIT, "\n");
 	return sprintf(buf, "%.*s\n", 32, "NES020 Board ID");
 }
+static DEVICE_ATTR_RO(board_id);
 
-
-static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
-static DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
-
-static struct device_attribute *nes_dev_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type,
-	&dev_attr_board_id
+static struct attribute *nes_dev_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	&dev_attr_board_id.attr,
+	NULL
 };
 
+static const struct attribute_group nes_attr_group = {
+	.attrs = nes_dev_attributes,
+};
 
 /**
  * nes_query_qp
@@ -3640,7 +3640,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	if (nesibdev == NULL) {
 		return NULL;
 	}
-	strlcpy(nesibdev->ibdev.name, "nes%d", IB_DEVICE_NAME_MAX);
 	nesibdev->ibdev.owner = THIS_MODULE;
 
 	nesibdev->ibdev.node_type = RDMA_NODE_RNIC;
@@ -3795,10 +3794,11 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
-	int i, ret;
+	int ret;
 
+	rdma_set_device_sysfs_group(&nesvnic->nesibdev->ibdev, &nes_attr_group);
 	nesvnic->nesibdev->ibdev.driver_id = RDMA_DRIVER_NES;
-	ret = ib_register_device(&nesvnic->nesibdev->ibdev, NULL);
+	ret = ib_register_device(&nesvnic->nesibdev->ibdev, "nes%d", NULL);
 	if (ret) {
 		return ret;
 	}
@@ -3808,19 +3808,6 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 	nesibdev->max_mr = nesadapter->max_mr / nesadapter->port_count;
 	nesibdev->max_qp = (nesadapter->max_qp-NES_FIRST_QPN) / nesadapter->port_count;
 	nesibdev->max_pd = nesadapter->max_pd / nesadapter->port_count;
-
-	for (i = 0; i < ARRAY_SIZE(nes_dev_attributes); ++i) {
-		ret = device_create_file(&nesibdev->ibdev.dev, nes_dev_attributes[i]);
-		if (ret) {
-			while (i > 0) {
-				i--;
-				device_remove_file(&nesibdev->ibdev.dev,
-						   nes_dev_attributes[i]);
-			}
-			ib_unregister_device(&nesibdev->ibdev);
-			return ret;
-		}
-	}
 
 	nesvnic->of_device_registered = 1;
 
@@ -3834,15 +3821,9 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 static void nes_unregister_ofa_device(struct nes_ib_device *nesibdev)
 {
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nes_dev_attributes); ++i) {
-		device_remove_file(&nesibdev->ibdev.dev, nes_dev_attributes[i]);
-	}
-
-	if (nesvnic->of_device_registered) {
+	if (nesvnic->of_device_registered)
 		ib_unregister_device(&nesibdev->ibdev);
-	}
 
 	nesvnic->of_device_registered = 0;
 }

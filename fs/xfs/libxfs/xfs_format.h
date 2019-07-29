@@ -287,6 +287,8 @@ static inline bool xfs_sb_good_v4_features(struct xfs_sb *sbp)
 {
 	if (!(sbp->sb_versionnum & XFS_SB_VERSION_DIRV2BIT))
 		return false;
+	if (!(sbp->sb_versionnum & XFS_SB_VERSION_EXTFLGBIT))
+		return false;
 
 	/* check for unknown features in the fs */
 	if ((sbp->sb_versionnum & ~XFS_SB_VERSION_OKBITS) ||
@@ -355,12 +357,6 @@ static inline bool xfs_sb_version_haslogv2(struct xfs_sb *sbp)
 {
 	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
 	       (sbp->sb_versionnum & XFS_SB_VERSION_LOGV2BIT);
-}
-
-static inline bool xfs_sb_version_hasextflgbit(struct xfs_sb *sbp)
-{
-	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
-	       (sbp->sb_versionnum & XFS_SB_VERSION_EXTFLGBIT);
 }
 
 static inline bool xfs_sb_version_hassector(struct xfs_sb *sbp)

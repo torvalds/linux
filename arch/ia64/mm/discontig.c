@@ -19,7 +19,6 @@
 #include <linux/mm.h>
 #include <linux/nmi.h>
 #include <linux/swap.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/acpi.h>
 #include <linux/efi.h>
@@ -451,8 +450,10 @@ static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize)
 	if (bestnode == -1)
 		bestnode = anynode;
 
-	ptr = __alloc_bootmem_node(pgdat_list[bestnode], pernodesize,
-		PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+	ptr = memblock_alloc_try_nid(pernodesize, PERCPU_PAGE_SIZE,
+				     __pa(MAX_DMA_ADDRESS),
+				     MEMBLOCK_ALLOC_ACCESSIBLE,
+				     bestnode);
 
 	return ptr;
 }

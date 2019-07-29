@@ -34,6 +34,8 @@
 
 #include "ubifs.h"
 #include <linux/list_sort.h>
+#include <crypto/hash.h>
+#include <crypto/algapi.h>
 
 /**
  * struct replay_entry - replay list entry.
@@ -56,6 +58,7 @@ struct replay_entry {
 	int lnum;
 	int offs;
 	int len;
+	u8 hash[UBIFS_HASH_ARR_SZ];
 	unsigned int deletion:1;
 	unsigned long long sqnum;
 	struct list_head list;
@@ -210,6 +213,38 @@ static int trun_remove_range(struct ubifs_info *c, struct replay_entry *r)
 }
 
 /**
+ * inode_still_linked - check whether inode in question will be re-linked.
+ * @c: UBIFS file-system description object
+ * @rino: replay entry to test
+ *
+ * O_TMPFILE files can be re-linked, this means link count goes from 0 to 1.
+ * This case needs special care, otherwise all references to the inode will
+ * be removed upon the first replay entry of an inode with link count 0
+ * is found.
+ */
+static bool inode_still_linked(struct ubifs_info *c, struct replay_entry *rino)
+{
+	struct replay_entry *r;
+
+	ubifs_assert(c, rino->deletion);
+	ubifs_assert(c, key_type(c, &rino->key) == UBIFS_INO_KEY);
+
+	/*
+	 * Find the most recent entry for the inode behind @rino and check
+	 * whether it is a deletion.
+	 */
+	list_for_each_entry_reverse(r, &c->replay_list, list) {
+		ubifs_assert(c, r->sqnum >= rino->sqnum);
+		if (key_inum(c, &r->key) == key_inum(c, &rino->key))
+			return r->deletion == 0;
+
+	}
+
+	ubifs_assert(c, 0);
+	return false;
+}
+
+/**
  * apply_replay_entry - apply a replay entry to the TNC.
  * @c: UBIFS file-system description object
  * @r: replay entry to apply
@@ -228,13 +263,18 @@ static int apply_replay_entry(struct ubifs_info *c, struct replay_entry *r)
 			err = ubifs_tnc_remove_nm(c, &r->key, &r->nm);
 		else
 			err = ubifs_tnc_add_nm(c, &r->key, r->lnum, r->offs,
-					       r->len, &r->nm);
+					       r->len, r->hash, &r->nm);
 	} else {
 		if (r->deletion)
 			switch (key_type(c, &r->key)) {
 			case UBIFS_INO_KEY:
 			{
 				ino_t inum = key_inum(c, &r->key);
+
+				if (inode_still_linked(c, r)) {
+					err = 0;
+					break;
+				}
 
 				err = ubifs_tnc_remove_ino(c, inum);
 				break;
@@ -248,7 +288,7 @@ static int apply_replay_entry(struct ubifs_info *c, struct replay_entry *r)
 			}
 		else
 			err = ubifs_tnc_add(c, &r->key, r->lnum, r->offs,
-					    r->len);
+					    r->len, r->hash);
 		if (err)
 			return err;
 
@@ -352,9 +392,9 @@ static void destroy_replay_list(struct ubifs_info *c)
  * in case of success and a negative error code in case of failure.
  */
 static int insert_node(struct ubifs_info *c, int lnum, int offs, int len,
-		       union ubifs_key *key, unsigned long long sqnum,
-		       int deletion, int *used, loff_t old_size,
-		       loff_t new_size)
+		       const u8 *hash, union ubifs_key *key,
+		       unsigned long long sqnum, int deletion, int *used,
+		       loff_t old_size, loff_t new_size)
 {
 	struct replay_entry *r;
 
@@ -372,6 +412,7 @@ static int insert_node(struct ubifs_info *c, int lnum, int offs, int len,
 	r->lnum = lnum;
 	r->offs = offs;
 	r->len = len;
+	ubifs_copy_hash(c, hash, r->hash);
 	r->deletion = !!deletion;
 	r->sqnum = sqnum;
 	key_copy(c, key, &r->key);
@@ -400,8 +441,9 @@ static int insert_node(struct ubifs_info *c, int lnum, int offs, int len,
  * negative error code in case of failure.
  */
 static int insert_dent(struct ubifs_info *c, int lnum, int offs, int len,
-		       union ubifs_key *key, const char *name, int nlen,
-		       unsigned long long sqnum, int deletion, int *used)
+		       const u8 *hash, union ubifs_key *key,
+		       const char *name, int nlen, unsigned long long sqnum,
+		       int deletion, int *used)
 {
 	struct replay_entry *r;
 	char *nbuf;
@@ -425,6 +467,7 @@ static int insert_dent(struct ubifs_info *c, int lnum, int offs, int len,
 	r->lnum = lnum;
 	r->offs = offs;
 	r->len = len;
+	ubifs_copy_hash(c, hash, r->hash);
 	r->deletion = !!deletion;
 	r->sqnum = sqnum;
 	key_copy(c, key, &r->key);
@@ -527,6 +570,118 @@ static int is_last_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 	return data == 0xFFFFFFFF;
 }
 
+/* authenticate_sleb_hash and authenticate_sleb_hmac are split out for stack usage */
+static int authenticate_sleb_hash(struct ubifs_info *c, struct shash_desc *log_hash, u8 *hash)
+{
+	SHASH_DESC_ON_STACK(hash_desc, c->hash_tfm);
+
+	hash_desc->tfm = c->hash_tfm;
+	hash_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	ubifs_shash_copy_state(c, log_hash, hash_desc);
+	return crypto_shash_final(hash_desc, hash);
+}
+
+static int authenticate_sleb_hmac(struct ubifs_info *c, u8 *hash, u8 *hmac)
+{
+	SHASH_DESC_ON_STACK(hmac_desc, c->hmac_tfm);
+
+	hmac_desc->tfm = c->hmac_tfm;
+	hmac_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	return crypto_shash_digest(hmac_desc, hash, c->hash_len, hmac);
+}
+
+/**
+ * authenticate_sleb - authenticate one scan LEB
+ * @c: UBIFS file-system description object
+ * @sleb: the scan LEB to authenticate
+ * @log_hash:
+ * @is_last: if true, this is is the last LEB
+ *
+ * This function iterates over the buds of a single LEB authenticating all buds
+ * with the authentication nodes on this LEB. Authentication nodes are written
+ * after some buds and contain a HMAC covering the authentication node itself
+ * and the buds between the last authentication node and the current
+ * authentication node. It can happen that the last buds cannot be authenticated
+ * because a powercut happened when some nodes were written but not the
+ * corresponding authentication node. This function returns the number of nodes
+ * that could be authenticated or a negative error code.
+ */
+static int authenticate_sleb(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
+			     struct shash_desc *log_hash, int is_last)
+{
+	int n_not_auth = 0;
+	struct ubifs_scan_node *snod;
+	int n_nodes = 0;
+	int err;
+	u8 *hash, *hmac;
+
+	if (!ubifs_authenticated(c))
+		return sleb->nodes_cnt;
+
+	hash = kmalloc(crypto_shash_descsize(c->hash_tfm), GFP_NOFS);
+	hmac = kmalloc(c->hmac_desc_len, GFP_NOFS);
+	if (!hash || !hmac) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	list_for_each_entry(snod, &sleb->nodes, list) {
+
+		n_nodes++;
+
+		if (snod->type == UBIFS_AUTH_NODE) {
+			struct ubifs_auth_node *auth = snod->node;
+
+			err = authenticate_sleb_hash(c, log_hash, hash);
+			if (err)
+				goto out;
+
+			err = authenticate_sleb_hmac(c, hash, hmac);
+			if (err)
+				goto out;
+
+			err = ubifs_check_hmac(c, auth->hmac, hmac);
+			if (err) {
+				err = -EPERM;
+				goto out;
+			}
+			n_not_auth = 0;
+		} else {
+			err = crypto_shash_update(log_hash, snod->node,
+						  snod->len);
+			if (err)
+				goto out;
+			n_not_auth++;
+		}
+	}
+
+	/*
+	 * A powercut can happen when some nodes were written, but not yet
+	 * the corresponding authentication node. This may only happen on
+	 * the last bud though.
+	 */
+	if (n_not_auth) {
+		if (is_last) {
+			dbg_mnt("%d unauthenticated nodes found on LEB %d, Ignoring them",
+				n_not_auth, sleb->lnum);
+			err = 0;
+		} else {
+			dbg_mnt("%d unauthenticated nodes found on non-last LEB %d",
+				n_not_auth, sleb->lnum);
+			err = -EPERM;
+		}
+	} else {
+		err = 0;
+	}
+out:
+	kfree(hash);
+	kfree(hmac);
+
+	return err ? err : n_nodes - n_not_auth;
+}
+
 /**
  * replay_bud - replay a bud logical eraseblock.
  * @c: UBIFS file-system description object
@@ -540,6 +695,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 {
 	int is_last = is_last_bud(c, b->bud);
 	int err = 0, used = 0, lnum = b->bud->lnum, offs = b->bud->start;
+	int n_nodes, n = 0;
 	struct ubifs_scan_leb *sleb;
 	struct ubifs_scan_node *snod;
 
@@ -558,6 +714,15 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 		sleb = ubifs_scan(c, lnum, offs, c->sbuf, 0);
 	if (IS_ERR(sleb))
 		return PTR_ERR(sleb);
+
+	n_nodes = authenticate_sleb(c, sleb, b->bud->log_hash, is_last);
+	if (n_nodes < 0) {
+		err = n_nodes;
+		goto out;
+	}
+
+	ubifs_shash_copy_state(c, b->bud->log_hash,
+			       c->jheads[b->bud->jhead].log_hash);
 
 	/*
 	 * The bud does not have to start from offset zero - the beginning of
@@ -582,6 +747,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 	 */
 
 	list_for_each_entry(snod, &sleb->nodes, list) {
+		u8 hash[UBIFS_HASH_ARR_SZ];
 		int deletion = 0;
 
 		cond_resched();
@@ -590,6 +756,8 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 			ubifs_err(c, "file system's life ended");
 			goto out_dump;
 		}
+
+		ubifs_node_calc_hash(c, snod->node, hash);
 
 		if (snod->sqnum > c->max_sqnum)
 			c->max_sqnum = snod->sqnum;
@@ -602,7 +770,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 
 			if (le32_to_cpu(ino->nlink) == 0)
 				deletion = 1;
-			err = insert_node(c, lnum, snod->offs, snod->len,
+			err = insert_node(c, lnum, snod->offs, snod->len, hash,
 					  &snod->key, snod->sqnum, deletion,
 					  &used, 0, new_size);
 			break;
@@ -614,7 +782,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 					  key_block(c, &snod->key) *
 					  UBIFS_BLOCK_SIZE;
 
-			err = insert_node(c, lnum, snod->offs, snod->len,
+			err = insert_node(c, lnum, snod->offs, snod->len, hash,
 					  &snod->key, snod->sqnum, deletion,
 					  &used, 0, new_size);
 			break;
@@ -628,7 +796,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 			if (err)
 				goto out_dump;
 
-			err = insert_dent(c, lnum, snod->offs, snod->len,
+			err = insert_dent(c, lnum, snod->offs, snod->len, hash,
 					  &snod->key, dent->name,
 					  le16_to_cpu(dent->nlen), snod->sqnum,
 					  !le64_to_cpu(dent->inum), &used);
@@ -654,11 +822,13 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 			 * functions which expect nodes to have keys.
 			 */
 			trun_key_init(c, &key, le32_to_cpu(trun->inum));
-			err = insert_node(c, lnum, snod->offs, snod->len,
+			err = insert_node(c, lnum, snod->offs, snod->len, hash,
 					  &key, snod->sqnum, 1, &used,
 					  old_size, new_size);
 			break;
 		}
+		case UBIFS_AUTH_NODE:
+			break;
 		default:
 			ubifs_err(c, "unexpected node type %d in bud LEB %d:%d",
 				  snod->type, lnum, snod->offs);
@@ -667,6 +837,10 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 		}
 		if (err)
 			goto out;
+
+		n++;
+		if (n == n_nodes)
+			break;
 	}
 
 	ubifs_assert(c, ubifs_search_bud(c, lnum));
@@ -745,6 +919,7 @@ static int add_replay_bud(struct ubifs_info *c, int lnum, int offs, int jhead,
 {
 	struct ubifs_bud *bud;
 	struct bud_entry *b;
+	int err;
 
 	dbg_mnt("add replay bud LEB %d:%d, head %d", lnum, offs, jhead);
 
@@ -754,13 +929,21 @@ static int add_replay_bud(struct ubifs_info *c, int lnum, int offs, int jhead,
 
 	b = kmalloc(sizeof(struct bud_entry), GFP_KERNEL);
 	if (!b) {
-		kfree(bud);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out;
 	}
 
 	bud->lnum = lnum;
 	bud->start = offs;
 	bud->jhead = jhead;
+	bud->log_hash = ubifs_hash_get_desc(c);
+	if (IS_ERR(bud->log_hash)) {
+		err = PTR_ERR(bud->log_hash);
+		goto out;
+	}
+
+	ubifs_shash_copy_state(c, c->log_hash, bud->log_hash);
+
 	ubifs_add_bud(c, bud);
 
 	b->bud = bud;
@@ -768,6 +951,11 @@ static int add_replay_bud(struct ubifs_info *c, int lnum, int offs, int jhead,
 	list_add_tail(&b->list, &c->replay_buds);
 
 	return 0;
+out:
+	kfree(bud);
+	kfree(b);
+
+	return err;
 }
 
 /**
@@ -873,6 +1061,14 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 
 		c->cs_sqnum = le64_to_cpu(node->ch.sqnum);
 		dbg_mnt("commit start sqnum %llu", c->cs_sqnum);
+
+		err = ubifs_shash_init(c, c->log_hash);
+		if (err)
+			goto out;
+
+		err = ubifs_shash_update(c, c->log_hash, node, UBIFS_CS_NODE_SZ);
+		if (err < 0)
+			goto out;
 	}
 
 	if (snod->sqnum < c->cs_sqnum) {
@@ -919,6 +1115,11 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 				break; /* Already have this bud */
 			if (err)
 				goto out_dump;
+
+			err = ubifs_shash_update(c, c->log_hash, ref,
+						 UBIFS_REF_NODE_SZ);
+			if (err)
+				goto out;
 
 			err = add_replay_bud(c, le32_to_cpu(ref->lnum),
 					     le32_to_cpu(ref->offs),

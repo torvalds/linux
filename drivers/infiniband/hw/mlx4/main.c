@@ -1140,144 +1140,50 @@ static int mlx4_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 	return 0;
 }
 
-static void  mlx4_ib_vma_open(struct vm_area_struct *area)
-{
-	/* vma_open is called when a new VMA is created on top of our VMA.
-	 * This is done through either mremap flow or split_vma (usually due
-	 * to mlock, madvise, munmap, etc.). We do not support a clone of the
-	 * vma, as this VMA is strongly hardware related. Therefore we set the
-	 * vm_ops of the newly created/cloned VMA to NULL, to prevent it from
-	 * calling us again and trying to do incorrect actions. We assume that
-	 * the original vma size is exactly a single page that there will be no
-	 * "splitting" operations on.
-	 */
-	area->vm_ops = NULL;
-}
-
-static void  mlx4_ib_vma_close(struct vm_area_struct *area)
-{
-	struct mlx4_ib_vma_private_data *mlx4_ib_vma_priv_data;
-
-	/* It's guaranteed that all VMAs opened on a FD are closed before the
-	 * file itself is closed, therefore no sync is needed with the regular
-	 * closing flow. (e.g. mlx4_ib_dealloc_ucontext) However need a sync
-	 * with accessing the vma as part of mlx4_ib_disassociate_ucontext.
-	 * The close operation is usually called under mm->mmap_sem except when
-	 * process is exiting.  The exiting case is handled explicitly as part
-	 * of mlx4_ib_disassociate_ucontext.
-	 */
-	mlx4_ib_vma_priv_data = (struct mlx4_ib_vma_private_data *)
-				area->vm_private_data;
-
-	/* set the vma context pointer to null in the mlx4_ib driver's private
-	 * data to protect against a race condition in mlx4_ib_dissassociate_ucontext().
-	 */
-	mlx4_ib_vma_priv_data->vma = NULL;
-}
-
-static const struct vm_operations_struct mlx4_ib_vm_ops = {
-	.open = mlx4_ib_vma_open,
-	.close = mlx4_ib_vma_close
-};
-
 static void mlx4_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
 {
-	int i;
-	struct vm_area_struct *vma;
-	struct mlx4_ib_ucontext *context = to_mucontext(ibcontext);
-
-	/* need to protect from a race on closing the vma as part of
-	 * mlx4_ib_vma_close().
-	 */
-	for (i = 0; i < HW_BAR_COUNT; i++) {
-		vma = context->hw_bar_info[i].vma;
-		if (!vma)
-			continue;
-
-		zap_vma_ptes(context->hw_bar_info[i].vma,
-			     context->hw_bar_info[i].vma->vm_start, PAGE_SIZE);
-
-		context->hw_bar_info[i].vma->vm_flags &=
-			~(VM_SHARED | VM_MAYSHARE);
-		/* context going to be destroyed, should not access ops any more */
-		context->hw_bar_info[i].vma->vm_ops = NULL;
-	}
-}
-
-static void mlx4_ib_set_vma_data(struct vm_area_struct *vma,
-				 struct mlx4_ib_vma_private_data *vma_private_data)
-{
-	vma_private_data->vma = vma;
-	vma->vm_private_data = vma_private_data;
-	vma->vm_ops =  &mlx4_ib_vm_ops;
 }
 
 static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
 	struct mlx4_ib_dev *dev = to_mdev(context->device);
-	struct mlx4_ib_ucontext *mucontext = to_mucontext(context);
 
-	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
-		return -EINVAL;
+	switch (vma->vm_pgoff) {
+	case 0:
+		return rdma_user_mmap_io(context, vma,
+					 to_mucontext(context)->uar.pfn,
+					 PAGE_SIZE,
+					 pgprot_noncached(vma->vm_page_prot));
 
-	if (vma->vm_pgoff == 0) {
-		/* We prevent double mmaping on same context */
-		if (mucontext->hw_bar_info[HW_BAR_DB].vma)
+	case 1:
+		if (dev->dev->caps.bf_reg_size == 0)
 			return -EINVAL;
+		return rdma_user_mmap_io(
+			context, vma,
+			to_mucontext(context)->uar.pfn +
+				dev->dev->caps.num_uars,
+			PAGE_SIZE, pgprot_writecombine(vma->vm_page_prot));
 
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-		if (io_remap_pfn_range(vma, vma->vm_start,
-				       to_mucontext(context)->uar.pfn,
-				       PAGE_SIZE, vma->vm_page_prot))
-			return -EAGAIN;
-
-		mlx4_ib_set_vma_data(vma, &mucontext->hw_bar_info[HW_BAR_DB]);
-
-	} else if (vma->vm_pgoff == 1 && dev->dev->caps.bf_reg_size != 0) {
-		/* We prevent double mmaping on same context */
-		if (mucontext->hw_bar_info[HW_BAR_BF].vma)
-			return -EINVAL;
-
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-
-		if (io_remap_pfn_range(vma, vma->vm_start,
-				       to_mucontext(context)->uar.pfn +
-				       dev->dev->caps.num_uars,
-				       PAGE_SIZE, vma->vm_page_prot))
-			return -EAGAIN;
-
-		mlx4_ib_set_vma_data(vma, &mucontext->hw_bar_info[HW_BAR_BF]);
-
-	} else if (vma->vm_pgoff == 3) {
+	case 3: {
 		struct mlx4_clock_params params;
 		int ret;
 
-		/* We prevent double mmaping on same context */
-		if (mucontext->hw_bar_info[HW_BAR_CLOCK].vma)
-			return -EINVAL;
-
 		ret = mlx4_get_internal_clock_params(dev->dev, &params);
-
 		if (ret)
 			return ret;
 
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		if (io_remap_pfn_range(vma, vma->vm_start,
-				       (pci_resource_start(dev->dev->persist->pdev,
-							   params.bar) +
-					params.offset)
-				       >> PAGE_SHIFT,
-				       PAGE_SIZE, vma->vm_page_prot))
-			return -EAGAIN;
-
-		mlx4_ib_set_vma_data(vma,
-				     &mucontext->hw_bar_info[HW_BAR_CLOCK]);
-	} else {
-		return -EINVAL;
+		return rdma_user_mmap_io(
+			context, vma,
+			(pci_resource_start(dev->dev->persist->pdev,
+					    params.bar) +
+			 params.offset) >>
+				PAGE_SHIFT,
+			PAGE_SIZE, pgprot_noncached(vma->vm_page_prot));
 	}
 
-	return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static struct ib_pd *mlx4_ib_alloc_pd(struct ib_device *ibdev,
@@ -2133,39 +2039,43 @@ out:
 	return err;
 }
 
-static ssize_t show_hca(struct device *device, struct device_attribute *attr,
-			char *buf)
+static ssize_t hca_type_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
 {
 	struct mlx4_ib_dev *dev =
 		container_of(device, struct mlx4_ib_dev, ib_dev.dev);
 	return sprintf(buf, "MT%d\n", dev->dev->persist->pdev->device);
 }
+static DEVICE_ATTR_RO(hca_type);
 
-static ssize_t show_rev(struct device *device, struct device_attribute *attr,
-			char *buf)
+static ssize_t hw_rev_show(struct device *device,
+			   struct device_attribute *attr, char *buf)
 {
 	struct mlx4_ib_dev *dev =
 		container_of(device, struct mlx4_ib_dev, ib_dev.dev);
 	return sprintf(buf, "%x\n", dev->dev->rev_id);
 }
+static DEVICE_ATTR_RO(hw_rev);
 
-static ssize_t show_board(struct device *device, struct device_attribute *attr,
-			  char *buf)
+static ssize_t board_id_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
 {
 	struct mlx4_ib_dev *dev =
 		container_of(device, struct mlx4_ib_dev, ib_dev.dev);
 	return sprintf(buf, "%.*s\n", MLX4_BOARD_ID_LEN,
 		       dev->dev->board_id);
 }
+static DEVICE_ATTR_RO(board_id);
 
-static DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
-static DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
+static struct attribute *mlx4_class_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	&dev_attr_board_id.attr,
+	NULL
+};
 
-static struct device_attribute *mlx4_class_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type,
-	&dev_attr_board_id
+static const struct attribute_group mlx4_attr_group = {
+	.attrs = mlx4_class_attributes,
 };
 
 struct diag_counter {
@@ -2636,7 +2546,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->dev = dev;
 	ibdev->bond_next_port	= 0;
 
-	strlcpy(ibdev->ib_dev.name, "mlx4_%d", IB_DEVICE_NAME_MAX);
 	ibdev->ib_dev.owner		= THIS_MODULE;
 	ibdev->ib_dev.node_type		= RDMA_NODE_IB_CA;
 	ibdev->ib_dev.local_dma_lkey	= dev->caps.reserved_lkey;
@@ -2898,8 +2807,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (mlx4_ib_alloc_diag_counters(ibdev))
 		goto err_steer_free_bitmap;
 
+	rdma_set_device_sysfs_group(&ibdev->ib_dev, &mlx4_attr_group);
 	ibdev->ib_dev.driver_id = RDMA_DRIVER_MLX4;
-	if (ib_register_device(&ibdev->ib_dev, NULL))
+	if (ib_register_device(&ibdev->ib_dev, "mlx4_%d", NULL))
 		goto err_diag_counters;
 
 	if (mlx4_ib_mad_init(ibdev))
@@ -2919,12 +2829,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2) {
 		err = mlx4_config_roce_v2_port(dev, ROCE_V2_UDP_DPORT);
 		if (err)
-			goto err_notif;
-	}
-
-	for (j = 0; j < ARRAY_SIZE(mlx4_class_attributes); ++j) {
-		if (device_create_file(&ibdev->ib_dev.dev,
-				       mlx4_class_attributes[j]))
 			goto err_notif;
 	}
 

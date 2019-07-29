@@ -326,11 +326,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE)(
 	if (IS_ERR(action))
 		return PTR_ERR(action);
 
-	atomic_set(&action->usecnt, 0);
-	action->device = ib_dev;
-	action->type = IB_FLOW_ACTION_ESP;
-	action->uobject = uobj;
-	uobj->object = action;
+	uverbs_flow_action_fill_action(action, uobj, ib_dev,
+				       IB_FLOW_ACTION_ESP);
 
 	return 0;
 }

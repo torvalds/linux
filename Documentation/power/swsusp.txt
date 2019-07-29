@@ -56,7 +56,7 @@ If you want to limit the suspend image size to N bytes, do
 
 echo N > /sys/power/image_size
 
-before suspend (it is limited to 500 MB by default).
+before suspend (it is limited to around 2/5 of available RAM by default).
 
 . The resume process checks for the presence of the resume device,
 if found, it then checks the contents for the hibernation image signature.

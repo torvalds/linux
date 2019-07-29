@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
+#include <xen/xen.h>
 #include <xen/interface/version.h>
 #include <xen/xen-ops.h>
 #include <asm/xen/hypercall.h>

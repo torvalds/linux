@@ -86,6 +86,11 @@ bool dal_hw_factory_init(
 		dal_hw_factory_dcn10_init(factory);
 		return true;
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	case DCN_VERSION_1_01:
+		dal_hw_factory_dcn10_init(factory);
+		return true;
+#endif
 
 	default:
 		ASSERT_CRITICAL(false);

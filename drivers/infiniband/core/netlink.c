@@ -47,9 +47,9 @@ static struct {
 	const struct rdma_nl_cbs   *cb_table;
 } rdma_nl_types[RDMA_NL_NUM_CLIENTS];
 
-int rdma_nl_chk_listeners(unsigned int group)
+bool rdma_nl_chk_listeners(unsigned int group)
 {
-	return (netlink_has_listeners(nls, group)) ? 0 : -1;
+	return netlink_has_listeners(nls, group);
 }
 EXPORT_SYMBOL(rdma_nl_chk_listeners);
 

@@ -69,32 +69,9 @@ void regression3_test(void)
 			continue;
 		}
 	}
-	radix_tree_delete(&root, 1);
-
-	first = true;
-	radix_tree_for_each_contig(slot, &root, &iter, 0) {
-		printv(2, "contig %ld %p\n", iter.index, *slot);
-		if (first) {
-			radix_tree_insert(&root, 1, ptr);
-			first = false;
-		}
-		if (radix_tree_deref_retry(*slot)) {
-			printv(2, "retry at %ld\n", iter.index);
-			slot = radix_tree_iter_retry(&iter);
-			continue;
-		}
-	}
 
 	radix_tree_for_each_slot(slot, &root, &iter, 0) {
 		printv(2, "slot %ld %p\n", iter.index, *slot);
-		if (!iter.index) {
-			printv(2, "next at %ld\n", iter.index);
-			slot = radix_tree_iter_resume(slot, &iter);
-		}
-	}
-
-	radix_tree_for_each_contig(slot, &root, &iter, 0) {
-		printv(2, "contig %ld %p\n", iter.index, *slot);
 		if (!iter.index) {
 			printv(2, "next at %ld\n", iter.index);
 			slot = radix_tree_iter_resume(slot, &iter);

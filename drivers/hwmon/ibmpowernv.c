@@ -181,7 +181,7 @@ static ssize_t show_label(struct device *dev, struct device_attribute *devattr,
 	return sprintf(buf, "%s\n", sdata->label);
 }
 
-static int __init get_logical_cpu(int hwcpu)
+static int get_logical_cpu(int hwcpu)
 {
 	int cpu;
 
@@ -192,9 +192,8 @@ static int __init get_logical_cpu(int hwcpu)
 	return -ENOENT;
 }
 
-static void __init make_sensor_label(struct device_node *np,
-				     struct sensor_data *sdata,
-				     const char *label)
+static void make_sensor_label(struct device_node *np,
+			      struct sensor_data *sdata, const char *label)
 {
 	u32 id;
 	size_t n;
@@ -458,9 +457,6 @@ static int populate_attr_groups(struct platform_device *pdev)
 	for_each_child_of_node(opal, np) {
 		const char *label;
 
-		if (np->name == NULL)
-			continue;
-
 		type = get_sensor_type(np);
 		if (type == MAX_SENSOR_TYPE)
 			continue;
@@ -589,9 +585,6 @@ static int create_device_attrs(struct platform_device *pdev)
 		const char *label;
 		enum sensors type;
 
-		if (np->name == NULL)
-			continue;
-
 		type = get_sensor_type(np);
 		if (type == MAX_SENSOR_TYPE)
 			continue;
@@ -603,8 +596,8 @@ static int create_device_attrs(struct platform_device *pdev)
 		if (of_property_read_u32(np, "sensor-id", &sensor_id) &&
 		    of_property_read_u32(np, "sensor-data", &sensor_id)) {
 			dev_info(&pdev->dev,
-				 "'sensor-id' missing in the node '%s'\n",
-				 np->name);
+				 "'sensor-id' missing in the node '%pOFn'\n",
+				 np);
 			continue;
 		}
 

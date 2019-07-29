@@ -382,7 +382,7 @@ ilr_again:
 		DBG(KERN_DEBUG "%s(%d, %p) mask 0x%x\n",
 			__func__, irq, intr_dev, mask);
 		generic_handle_irq(irq);
-		mask &= ~(1 << local_irq);
+		mask &= ~DINO_MASK_IRQ(local_irq);
 	} while (mask);
 
 	/* Support for level triggered IRQ lines.
@@ -396,9 +396,8 @@ ilr_again:
 	if (mask) {
 		if (--ilr_loop > 0)
 			goto ilr_again;
-		printk(KERN_ERR "Dino 0x%px: stuck interrupt %d\n",
+		pr_warn_ratelimited("Dino 0x%px: stuck interrupt %d\n",
 		       dino_dev->hba.base_addr, mask);
-		return IRQ_NONE;
 	}
 	return IRQ_HANDLED;
 }

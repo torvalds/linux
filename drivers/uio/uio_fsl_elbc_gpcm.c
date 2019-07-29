@@ -382,8 +382,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	}
 
 	/* set all UIO data */
-	if (node->name)
-		info->mem[0].name = kstrdup(node->name, GFP_KERNEL);
+	info->mem[0].name = kasprintf(GFP_KERNEL, "%pOFn", node);
 	info->mem[0].addr = res.start;
 	info->mem[0].size = resource_size(&res);
 	info->mem[0].memtype = UIO_MEM_PHYS;

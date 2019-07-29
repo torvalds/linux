@@ -24,7 +24,6 @@
 
 #include <uapi/linux/psci.h>
 
-#include <asm/compiler.h>
 #include <asm/cpu_ops.h>
 #include <asm/errno.h>
 #include <asm/smp_plat.h>

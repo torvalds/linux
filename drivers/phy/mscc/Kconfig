@@ -1,0 +1,11 @@
+#
+# Phy drivers for Microsemi devices
+#
+
+config PHY_OCELOT_SERDES
+	tristate "SerDes PHY driver for Microsemi Ocelot"
+	select GENERIC_PHY
+	depends on OF
+	depends on MFD_SYSCON
+	help
+	  Enable this for supporting SerDes muxing with Microsemi Ocelot.

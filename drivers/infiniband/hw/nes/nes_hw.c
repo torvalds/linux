@@ -1443,7 +1443,7 @@ static int nes_init_2025_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_inde
 		mdelay(1);
 		nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7ee);
 		temp_phy_data2 = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
-	} while ((temp_phy_data2 == temp_phy_data));
+	} while (temp_phy_data2 == temp_phy_data);
 
 	/* wait for tracking */
 	counter = 0;

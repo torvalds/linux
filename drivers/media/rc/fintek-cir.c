@@ -282,7 +282,7 @@ static int fintek_cmdsize(u8 cmd, u8 subcmd)
 /* process ir data stored in driver buffer */
 static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 {
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 	u8 sample;
 	bool event = false;
 	int i;
@@ -314,7 +314,6 @@ static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 			break;
 		case PARSE_IRDATA:
 			fintek->rem--;
-			init_ir_raw_event(&rawir);
 			rawir.pulse = ((sample & BUF_PULSE_BIT) != 0);
 			rawir.duration = US_TO_NS((sample & BUF_SAMPLE_MASK)
 					  * CIR_SAMPLE_PERIOD);

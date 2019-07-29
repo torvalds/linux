@@ -451,8 +451,8 @@ static int vidioc_querycap(struct file *file, void *fh, struct v4l2_capability *
 	struct video_device *vdev = video_devdata(file);
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 
-	strcpy((char *)cap->driver, "saa7146 v4l2");
-	strlcpy((char *)cap->card, dev->ext->name, sizeof(cap->card));
+	strscpy((char *)cap->driver, "saa7146 v4l2", sizeof(cap->driver));
+	strscpy((char *)cap->card, dev->ext->name, sizeof(cap->card));
 	sprintf((char *)cap->bus_info, "PCI:%s", pci_name(dev->pci));
 	cap->device_caps =
 		V4L2_CAP_VIDEO_CAPTURE |
@@ -525,8 +525,8 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtd
 {
 	if (f->index >= ARRAY_SIZE(formats))
 		return -EINVAL;
-	strlcpy((char *)f->description, formats[f->index].name,
-			sizeof(f->description));
+	strscpy((char *)f->description, formats[f->index].name,
+		sizeof(f->description));
 	f->pixelformat = formats[f->index].pixelformat;
 	return 0;
 }

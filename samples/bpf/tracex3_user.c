@@ -17,8 +17,6 @@
 #include "bpf_load.h"
 #include "bpf_util.h"
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
-
 #define SLOTS 100
 
 static void clear_stats(int fd)

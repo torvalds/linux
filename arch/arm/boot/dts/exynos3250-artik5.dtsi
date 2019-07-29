@@ -69,6 +69,8 @@
 		compatible = "samsung,s2mps14-pmic";
 		interrupt-parent = <&gpx3>;
 		interrupts = <5 IRQ_TYPE_NONE>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&s2mps14_irq>;
 		reg = <0x66>;
 
 		s2mps14_osc: clocks {
@@ -349,6 +351,11 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV3>;
 		samsung,pin-val = <1>;
+	};
+
+	s2mps14_irq: s2mps14-irq {
+		samsung,pins = "gpx3-5";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 };
 

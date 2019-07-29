@@ -219,6 +219,9 @@ static int __init qcom_cpuidle_init(struct device_node *cpu_node, int cpu)
 	cpumask_t mask;
 	bool use_scm_power_down = false;
 
+	if (!qcom_scm_is_available())
+		return -EPROBE_DEFER;
+
 	for (i = 0; ; i++) {
 		state_node = of_parse_phandle(cpu_node, "cpu-idle-states", i);
 		if (!state_node)

@@ -117,7 +117,7 @@
 				status = "disabled";
 			};
 
-			ssp0: ssp@80010000 {
+			ssp0: spi@80010000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x80010000 0x2000>;
@@ -128,7 +128,7 @@
 				status = "disabled";
 			};
 
-			ssp1: ssp@80012000 {
+			ssp1: spi@80012000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x80012000 0x2000>;
@@ -139,7 +139,7 @@
 				status = "disabled";
 			};
 
-			ssp2: ssp@80014000 {
+			ssp2: spi@80014000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x80014000 0x2000>;
@@ -150,7 +150,7 @@
 				status = "disabled";
 			};
 
-			ssp3: ssp@80016000 {
+			ssp3: spi@80016000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x80016000 0x2000>;

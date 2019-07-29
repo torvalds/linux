@@ -57,9 +57,9 @@ static bool hdcp_key_loadable(struct drm_i915_private *dev_priv)
 
 	/* PG1 (power well #1) needs to be enabled */
 	for_each_power_well(dev_priv, power_well) {
-		if (power_well->id == id) {
-			enabled = power_well->ops->is_enabled(dev_priv,
-							      power_well);
+		if (power_well->desc->id == id) {
+			enabled = power_well->desc->ops->is_enabled(dev_priv,
+								    power_well);
 			break;
 		}
 	}

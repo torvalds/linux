@@ -1063,13 +1063,47 @@ skip:
 	return err;
 }
 
+static int fib_valid_dumprule_req(const struct nlmsghdr *nlh,
+				   struct netlink_ext_ack *extack)
+{
+	struct fib_rule_hdr *frh;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*frh))) {
+		NL_SET_ERR_MSG(extack, "Invalid header for fib rule dump request");
+		return -EINVAL;
+	}
+
+	frh = nlmsg_data(nlh);
+	if (frh->dst_len || frh->src_len || frh->tos || frh->table ||
+	    frh->res1 || frh->res2 || frh->action || frh->flags) {
+		NL_SET_ERR_MSG(extack,
+			       "Invalid values in header for fib rule dump request");
+		return -EINVAL;
+	}
+
+	if (nlmsg_attrlen(nlh, sizeof(*frh))) {
+		NL_SET_ERR_MSG(extack, "Invalid data after header in fib rule dump request");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int fib_nl_dumprule(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
 	struct fib_rules_ops *ops;
 	int idx = 0, family;
 
-	family = rtnl_msg_family(cb->nlh);
+	if (cb->strict_check) {
+		int err = fib_valid_dumprule_req(nlh, cb->extack);
+
+		if (err < 0)
+			return err;
+	}
+
+	family = rtnl_msg_family(nlh);
 	if (family != AF_UNSPEC) {
 		/* Protocol specific dump request */
 		ops = lookup_rules_ops(net, family);

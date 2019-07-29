@@ -40,7 +40,7 @@
 };
 
 &i2c3 {
-	ak8975@0f {
+	ak8975@f {
 		compatible = "asahi-kasei,ak8975";
 		reg = <0x0f>;
 	};

@@ -97,8 +97,8 @@ static void __init nomadik_src_init(void)
 	}
 	src_base = of_iomap(np, 0);
 	if (!src_base) {
-		pr_err("%s: must have src parent node with REGS (%s)\n",
-		       __func__, np->name);
+		pr_err("%s: must have src parent node with REGS (%pOFn)\n",
+		       __func__, np);
 		return;
 	}
 

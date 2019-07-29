@@ -304,8 +304,6 @@ static int iTCO_wdt_ping(struct watchdog_device *wd_dev)
 
 	spin_lock(&p->io_lock);
 
-	iTCO_vendor_pre_keepalive(p->smi_res, wd_dev->timeout);
-
 	/* Reload the timer by writing to the TCO Timer Counter register */
 	if (p->iTCO_version >= 2) {
 		outw(0x01, TCO_RLD(p));
@@ -341,8 +339,6 @@ static int iTCO_wdt_set_timeout(struct watchdog_device *wd_dev, unsigned int t)
 	if ((p->iTCO_version >= 2 && tmrval > 0x3ff) ||
 	    (p->iTCO_version == 1 && tmrval > 0x03f))
 		return -EINVAL;
-
-	iTCO_vendor_pre_set_heartbeat(tmrval);
 
 	/* Write new heartbeat to watchdog */
 	if (p->iTCO_version >= 2) {

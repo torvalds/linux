@@ -7,7 +7,7 @@ limitations.
 Current Binding
 ---------------
 
-Switches are true Linux devices and can be probes by any means. Once
+Switches are true Linux devices and can be probed by any means. Once
 probed, they register to the DSA framework, passing a node
 pointer. This node is expected to fulfil the following binding, and
 may contain additional properties as required by the device it is

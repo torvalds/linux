@@ -11,7 +11,6 @@
 #include <linux/clk-provider.h>
 #include <linux/init.h>
 #include <linux/of_address.h>
-#include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
@@ -22,66 +21,27 @@
 
 static DEFINE_SPINLOCK(meson_clk_lock);
 
-static void __iomem *clk_base;
-
 struct meson8b_clk_reset {
 	struct reset_controller_dev reset;
-	void __iomem *base;
+	struct regmap *regmap;
 };
 
-static const struct pll_rate_table sys_pll_rate_table[] = {
-	PLL_RATE(312000000, 52, 1, 2),
-	PLL_RATE(336000000, 56, 1, 2),
-	PLL_RATE(360000000, 60, 1, 2),
-	PLL_RATE(384000000, 64, 1, 2),
-	PLL_RATE(408000000, 68, 1, 2),
-	PLL_RATE(432000000, 72, 1, 2),
-	PLL_RATE(456000000, 76, 1, 2),
-	PLL_RATE(480000000, 80, 1, 2),
-	PLL_RATE(504000000, 84, 1, 2),
-	PLL_RATE(528000000, 88, 1, 2),
-	PLL_RATE(552000000, 92, 1, 2),
-	PLL_RATE(576000000, 96, 1, 2),
-	PLL_RATE(600000000, 50, 1, 1),
-	PLL_RATE(624000000, 52, 1, 1),
-	PLL_RATE(648000000, 54, 1, 1),
-	PLL_RATE(672000000, 56, 1, 1),
-	PLL_RATE(696000000, 58, 1, 1),
-	PLL_RATE(720000000, 60, 1, 1),
-	PLL_RATE(744000000, 62, 1, 1),
-	PLL_RATE(768000000, 64, 1, 1),
-	PLL_RATE(792000000, 66, 1, 1),
-	PLL_RATE(816000000, 68, 1, 1),
-	PLL_RATE(840000000, 70, 1, 1),
-	PLL_RATE(864000000, 72, 1, 1),
-	PLL_RATE(888000000, 74, 1, 1),
-	PLL_RATE(912000000, 76, 1, 1),
-	PLL_RATE(936000000, 78, 1, 1),
-	PLL_RATE(960000000, 80, 1, 1),
-	PLL_RATE(984000000, 82, 1, 1),
-	PLL_RATE(1008000000, 84, 1, 1),
-	PLL_RATE(1032000000, 86, 1, 1),
-	PLL_RATE(1056000000, 88, 1, 1),
-	PLL_RATE(1080000000, 90, 1, 1),
-	PLL_RATE(1104000000, 92, 1, 1),
-	PLL_RATE(1128000000, 94, 1, 1),
-	PLL_RATE(1152000000, 96, 1, 1),
-	PLL_RATE(1176000000, 98, 1, 1),
-	PLL_RATE(1200000000, 50, 1, 0),
-	PLL_RATE(1224000000, 51, 1, 0),
-	PLL_RATE(1248000000, 52, 1, 0),
-	PLL_RATE(1272000000, 53, 1, 0),
-	PLL_RATE(1296000000, 54, 1, 0),
-	PLL_RATE(1320000000, 55, 1, 0),
-	PLL_RATE(1344000000, 56, 1, 0),
-	PLL_RATE(1368000000, 57, 1, 0),
-	PLL_RATE(1392000000, 58, 1, 0),
-	PLL_RATE(1416000000, 59, 1, 0),
-	PLL_RATE(1440000000, 60, 1, 0),
-	PLL_RATE(1464000000, 61, 1, 0),
-	PLL_RATE(1488000000, 62, 1, 0),
-	PLL_RATE(1512000000, 63, 1, 0),
-	PLL_RATE(1536000000, 64, 1, 0),
+static const struct pll_params_table sys_pll_params_table[] = {
+	PLL_PARAMS(50, 1),
+	PLL_PARAMS(51, 1),
+	PLL_PARAMS(52, 1),
+	PLL_PARAMS(53, 1),
+	PLL_PARAMS(54, 1),
+	PLL_PARAMS(55, 1),
+	PLL_PARAMS(56, 1),
+	PLL_PARAMS(57, 1),
+	PLL_PARAMS(58, 1),
+	PLL_PARAMS(59, 1),
+	PLL_PARAMS(60, 1),
+	PLL_PARAMS(61, 1),
+	PLL_PARAMS(62, 1),
+	PLL_PARAMS(63, 1),
+	PLL_PARAMS(64, 1),
 	{ /* sentinel */ },
 };
 
@@ -94,8 +54,13 @@ static struct clk_fixed_rate meson8b_xtal = {
 	},
 };
 
-static struct clk_regmap meson8b_fixed_pll = {
+static struct clk_regmap meson8b_fixed_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
+		.en = {
+			.reg_off = HHI_MPLL_CNTL,
+			.shift   = 30,
+			.width   = 1,
+		},
 		.m = {
 			.reg_off = HHI_MPLL_CNTL,
 			.shift   = 0,
@@ -105,11 +70,6 @@ static struct clk_regmap meson8b_fixed_pll = {
 			.reg_off = HHI_MPLL_CNTL,
 			.shift   = 9,
 			.width   = 5,
-		},
-		.od = {
-			.reg_off = HHI_MPLL_CNTL,
-			.shift   = 16,
-			.width   = 2,
 		},
 		.frac = {
 			.reg_off = HHI_MPLL_CNTL2,
@@ -128,86 +88,134 @@ static struct clk_regmap meson8b_fixed_pll = {
 		},
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "fixed_pll",
+		.name = "fixed_pll_dco",
 		.ops = &meson_clk_pll_ro_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap meson8b_fixed_pll = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_MPLL_CNTL,
+		.shift = 16,
+		.width = 2,
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "fixed_pll",
+		.ops = &clk_regmap_divider_ro_ops,
+		.parent_names = (const char *[]){ "fixed_pll_dco" },
+		.num_parents = 1,
+		/*
+		 * This clock won't ever change at runtime so
+		 * CLK_SET_RATE_PARENT is not required
+		 */
+	},
+};
+
+static struct clk_regmap meson8b_vid_pll_dco = {
+	.data = &(struct meson_clk_pll_data){
+		.en = {
+			.reg_off = HHI_VID_PLL_CNTL,
+			.shift   = 30,
+			.width   = 1,
+		},
+		.m = {
+			.reg_off = HHI_VID_PLL_CNTL,
+			.shift   = 0,
+			.width   = 9,
+		},
+		.n = {
+			.reg_off = HHI_VID_PLL_CNTL,
+			.shift   = 9,
+			.width   = 5,
+		},
+		.l = {
+			.reg_off = HHI_VID_PLL_CNTL,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = HHI_VID_PLL_CNTL,
+			.shift   = 29,
+			.width   = 1,
+		},
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vid_pll_dco",
+		.ops = &meson_clk_pll_ro_ops,
+		.parent_names = (const char *[]){ "xtal" },
+		.num_parents = 1,
 	},
 };
 
 static struct clk_regmap meson8b_vid_pll = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VID_PLL_CNTL,
+		.shift = 16,
+		.width = 2,
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vid_pll",
+		.ops = &clk_regmap_divider_ro_ops,
+		.parent_names = (const char *[]){ "vid_pll_dco" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_sys_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
+		.en = {
+			.reg_off = HHI_SYS_PLL_CNTL,
+			.shift   = 30,
+			.width   = 1,
+		},
 		.m = {
-			.reg_off = HHI_VID_PLL_CNTL,
+			.reg_off = HHI_SYS_PLL_CNTL,
 			.shift   = 0,
 			.width   = 9,
 		},
 		.n = {
-			.reg_off = HHI_VID_PLL_CNTL,
+			.reg_off = HHI_SYS_PLL_CNTL,
 			.shift   = 9,
 			.width   = 5,
 		},
-		.od = {
-			.reg_off = HHI_VID_PLL_CNTL,
-			.shift   = 16,
-			.width   = 2,
-		},
 		.l = {
-			.reg_off = HHI_VID_PLL_CNTL,
+			.reg_off = HHI_SYS_PLL_CNTL,
 			.shift   = 31,
 			.width   = 1,
 		},
 		.rst = {
-			.reg_off = HHI_VID_PLL_CNTL,
+			.reg_off = HHI_SYS_PLL_CNTL,
 			.shift   = 29,
 			.width   = 1,
 		},
+		.table = sys_pll_params_table,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "vid_pll",
+		.name = "sys_pll_dco",
 		.ops = &meson_clk_pll_ro_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
 static struct clk_regmap meson8b_sys_pll = {
-	.data = &(struct meson_clk_pll_data){
-		.m = {
-			.reg_off = HHI_SYS_PLL_CNTL,
-			.shift   = 0,
-			.width   = 9,
-		},
-		.n = {
-			.reg_off = HHI_SYS_PLL_CNTL,
-			.shift   = 9,
-			.width   = 5,
-		},
-		.od = {
-			.reg_off = HHI_SYS_PLL_CNTL,
-			.shift   = 16,
-			.width   = 2,
-		},
-		.l = {
-			.reg_off = HHI_SYS_PLL_CNTL,
-			.shift   = 31,
-			.width   = 1,
-		},
-		.rst = {
-			.reg_off = HHI_SYS_PLL_CNTL,
-			.shift   = 29,
-			.width   = 1,
-		},
-		.table = sys_pll_rate_table,
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_SYS_PLL_CNTL,
+		.shift = 16,
+		.width = 2,
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll",
-		.ops = &meson_clk_pll_ro_ops,
-		.parent_names = (const char *[]){ "xtal" },
+		.ops = &clk_regmap_divider_ro_ops,
+		.parent_names = (const char *[]){ "sys_pll_dco" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -879,6 +887,9 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_NAND_SEL]	    = &meson8b_nand_clk_sel.hw,
 		[CLKID_NAND_DIV]	    = &meson8b_nand_clk_div.hw,
 		[CLKID_NAND_CLK]	    = &meson8b_nand_clk_gate.hw,
+		[CLKID_PLL_FIXED_DCO]	    = &meson8b_fixed_pll_dco.hw,
+		[CLKID_PLL_VID_DCO]	    = &meson8b_vid_pll_dco.hw,
+		[CLKID_PLL_SYS_DCO]	    = &meson8b_sys_pll_dco.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -987,6 +998,9 @@ static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_nand_clk_sel,
 	&meson8b_nand_clk_div,
 	&meson8b_nand_clk_gate,
+	&meson8b_fixed_pll_dco,
+	&meson8b_vid_pll_dco,
+	&meson8b_sys_pll_dco,
 };
 
 static const struct meson8b_clk_reset_line {
@@ -1050,7 +1064,6 @@ static int meson8b_clk_reset_update(struct reset_controller_dev *rcdev,
 		container_of(rcdev, struct meson8b_clk_reset, reset);
 	unsigned long flags;
 	const struct meson8b_clk_reset_line *reset;
-	u32 val;
 
 	if (id >= ARRAY_SIZE(meson8b_clk_reset_bits))
 		return -EINVAL;
@@ -1059,12 +1072,12 @@ static int meson8b_clk_reset_update(struct reset_controller_dev *rcdev,
 
 	spin_lock_irqsave(&meson_clk_lock, flags);
 
-	val = readl(meson8b_clk_reset->base + reset->reg);
 	if (assert)
-		val |= BIT(reset->bit_idx);
+		regmap_update_bits(meson8b_clk_reset->regmap, reset->reg,
+				   BIT(reset->bit_idx), BIT(reset->bit_idx));
 	else
-		val &= ~BIT(reset->bit_idx);
-	writel(val, meson8b_clk_reset->base + reset->reg);
+		regmap_update_bits(meson8b_clk_reset->regmap, reset->reg,
+				   BIT(reset->bit_idx), 0);
 
 	spin_unlock_irqrestore(&meson_clk_lock, flags);
 
@@ -1094,18 +1107,39 @@ static const struct regmap_config clkc_regmap_config = {
 	.reg_stride     = 4,
 };
 
-static int meson8b_clkc_probe(struct platform_device *pdev)
+static void __init meson8b_clkc_init(struct device_node *np)
 {
-	int ret, i;
-	struct device *dev = &pdev->dev;
+	struct meson8b_clk_reset *rstc;
+	void __iomem *clk_base;
 	struct regmap *map;
+	int i, ret;
 
-	if (!clk_base)
-		return -ENXIO;
+	/* Generic clocks, PLLs and some of the reset-bits */
+	clk_base = of_iomap(np, 1);
+	if (!clk_base) {
+		pr_err("%s: Unable to map clk base\n", __func__);
+		return;
+	}
 
-	map = devm_regmap_init_mmio(dev, clk_base, &clkc_regmap_config);
+	map = regmap_init_mmio(NULL, clk_base, &clkc_regmap_config);
 	if (IS_ERR(map))
-		return PTR_ERR(map);
+		return;
+
+	rstc = kzalloc(sizeof(*rstc), GFP_KERNEL);
+	if (!rstc)
+		return;
+
+	/* Reset Controller */
+	rstc->regmap = map;
+	rstc->reset.ops = &meson8b_clk_reset_ops;
+	rstc->reset.nr_resets = ARRAY_SIZE(meson8b_clk_reset_bits);
+	rstc->reset.of_node = np;
+	ret = reset_controller_register(&rstc->reset);
+	if (ret) {
+		pr_err("%s: Failed to register clkc reset controller: %d\n",
+		       __func__, ret);
+		return;
+	}
 
 	/* Populate regmap for the regmap backed clocks */
 	for (i = 0; i < ARRAY_SIZE(meson8b_clk_regmaps); i++)
@@ -1120,64 +1154,20 @@ static int meson8b_clkc_probe(struct platform_device *pdev)
 		if (!meson8b_hw_onecell_data.hws[i])
 			continue;
 
-		ret = devm_clk_hw_register(dev, meson8b_hw_onecell_data.hws[i]);
+		ret = clk_hw_register(NULL, meson8b_hw_onecell_data.hws[i]);
 		if (ret)
-			return ret;
+			return;
 	}
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
-					   &meson8b_hw_onecell_data);
-}
-
-static const struct of_device_id meson8b_clkc_match_table[] = {
-	{ .compatible = "amlogic,meson8-clkc" },
-	{ .compatible = "amlogic,meson8b-clkc" },
-	{ .compatible = "amlogic,meson8m2-clkc" },
-	{ }
-};
-
-static struct platform_driver meson8b_driver = {
-	.probe		= meson8b_clkc_probe,
-	.driver		= {
-		.name	= "meson8b-clkc",
-		.of_match_table = meson8b_clkc_match_table,
-	},
-};
-
-builtin_platform_driver(meson8b_driver);
-
-static void __init meson8b_clkc_reset_init(struct device_node *np)
-{
-	struct meson8b_clk_reset *rstc;
-	int ret;
-
-	/* Generic clocks, PLLs and some of the reset-bits */
-	clk_base = of_iomap(np, 1);
-	if (!clk_base) {
-		pr_err("%s: Unable to map clk base\n", __func__);
-		return;
-	}
-
-	rstc = kzalloc(sizeof(*rstc), GFP_KERNEL);
-	if (!rstc)
-		return;
-
-	/* Reset Controller */
-	rstc->base = clk_base;
-	rstc->reset.ops = &meson8b_clk_reset_ops;
-	rstc->reset.nr_resets = ARRAY_SIZE(meson8b_clk_reset_bits);
-	rstc->reset.of_node = np;
-	ret = reset_controller_register(&rstc->reset);
-	if (ret) {
-		pr_err("%s: Failed to register clkc reset controller: %d\n",
-		       __func__, ret);
-		return;
-	}
+	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
+				     &meson8b_hw_onecell_data);
+	if (ret)
+		pr_err("%s: failed to register clock provider\n", __func__);
 }
 
 CLK_OF_DECLARE_DRIVER(meson8_clkc, "amlogic,meson8-clkc",
-		      meson8b_clkc_reset_init);
+		      meson8b_clkc_init);
 CLK_OF_DECLARE_DRIVER(meson8b_clkc, "amlogic,meson8b-clkc",
-		      meson8b_clkc_reset_init);
+		      meson8b_clkc_init);
 CLK_OF_DECLARE_DRIVER(meson8m2_clkc, "amlogic,meson8m2-clkc",
-		      meson8b_clkc_reset_init);
+		      meson8b_clkc_init);

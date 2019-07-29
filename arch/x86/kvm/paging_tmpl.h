@@ -158,14 +158,15 @@ static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
 				  struct kvm_mmu_page *sp, u64 *spte,
 				  u64 gpte)
 {
-	if (is_rsvd_bits_set(&vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
+	if (is_rsvd_bits_set(vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
 		goto no_present;
 
 	if (!FNAME(is_present_gpte)(gpte))
 		goto no_present;
 
 	/* if accessed bit is not supported prefetch non accessed gpte */
-	if (PT_HAVE_ACCESSED_DIRTY(&vcpu->arch.mmu) && !(gpte & PT_GUEST_ACCESSED_MASK))
+	if (PT_HAVE_ACCESSED_DIRTY(vcpu->arch.mmu) &&
+	    !(gpte & PT_GUEST_ACCESSED_MASK))
 		goto no_present;
 
 	return false;
@@ -480,7 +481,7 @@ error:
 static int FNAME(walk_addr)(struct guest_walker *walker,
 			    struct kvm_vcpu *vcpu, gva_t addr, u32 access)
 {
-	return FNAME(walk_addr_generic)(walker, vcpu, &vcpu->arch.mmu, addr,
+	return FNAME(walk_addr_generic)(walker, vcpu, vcpu->arch.mmu, addr,
 					access);
 }
 
@@ -509,7 +510,7 @@ FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 
 	gfn = gpte_to_gfn(gpte);
 	pte_access = sp->role.access & FNAME(gpte_access)(gpte);
-	FNAME(protect_clean_gpte)(&vcpu->arch.mmu, &pte_access, gpte);
+	FNAME(protect_clean_gpte)(vcpu->arch.mmu, &pte_access, gpte);
 	pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
 			no_dirty_log && (pte_access & ACC_WRITE_MASK));
 	if (is_error_pfn(pfn))
@@ -604,7 +605,7 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 
 	direct_access = gw->pte_access;
 
-	top_level = vcpu->arch.mmu.root_level;
+	top_level = vcpu->arch.mmu->root_level;
 	if (top_level == PT32E_ROOT_LEVEL)
 		top_level = PT32_ROOT_LEVEL;
 	/*
@@ -616,7 +617,7 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	if (FNAME(gpte_changed)(vcpu, gw, top_level))
 		goto out_gpte_changed;
 
-	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
+	if (!VALID_PAGE(vcpu->arch.mmu->root_hpa))
 		goto out_gpte_changed;
 
 	for (shadow_walk_init(&it, vcpu, addr);
@@ -1004,7 +1005,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		gfn = gpte_to_gfn(gpte);
 		pte_access = sp->role.access;
 		pte_access &= FNAME(gpte_access)(gpte);
-		FNAME(protect_clean_gpte)(&vcpu->arch.mmu, &pte_access, gpte);
+		FNAME(protect_clean_gpte)(vcpu->arch.mmu, &pte_access, gpte);
 
 		if (sync_mmio_spte(vcpu, &sp->spt[i], gfn, pte_access,
 		      &nr_present))

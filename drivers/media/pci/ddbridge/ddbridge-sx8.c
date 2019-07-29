@@ -398,9 +398,7 @@ static int set_parameters(struct dvb_frontend *fe)
 		}
 		stat = start(fe, 3, mask, ts_config);
 	} else {
-		u32 flags = (iq_mode == 2) ? 1 : 0;
-
-		stat = start_iq(fe, flags, 4, ts_config);
+		stat = start_iq(fe, 0, 4, ts_config);
 	}
 	if (!stat) {
 		state->started = 1;

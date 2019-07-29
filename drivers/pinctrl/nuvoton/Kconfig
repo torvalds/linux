@@ -1,0 +1,12 @@
+config PINCTRL_NPCM7XX
+	bool "Pinctrl and GPIO driver for Nuvoton NPCM7XX"
+	depends on (ARCH_NPCM7XX || COMPILE_TEST) && OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y here to enable pin controller and GPIO support
+	  for Nuvoton NPCM750/730/715/705 SoCs.

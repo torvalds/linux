@@ -101,6 +101,7 @@ static int qed_sp_vf_start(struct qed_hwfn *p_hwfn, struct qed_vf_info *p_vf)
 	default:
 		DP_NOTICE(p_hwfn, "Unknown VF personality %d\n",
 			  p_hwfn->hw_info.personality);
+		qed_sp_destroy_request(p_hwfn, p_ent);
 		return -EINVAL;
 	}
 

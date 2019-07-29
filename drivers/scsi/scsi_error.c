@@ -338,9 +338,6 @@ int scsi_block_when_processing_errors(struct scsi_device *sdev)
 
 	online = scsi_device_online(sdev);
 
-	SCSI_LOG_ERROR_RECOVERY(5, sdev_printk(KERN_INFO, sdev,
-		"%s: rtn: %d\n", __func__, online));
-
 	return online;
 }
 EXPORT_SYMBOL(scsi_block_when_processing_errors);

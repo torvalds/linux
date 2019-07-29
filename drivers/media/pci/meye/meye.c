@@ -1019,8 +1019,8 @@ static int meyeioc_stilljcapt(int *len)
 static int vidioc_querycap(struct file *file, void *fh,
 				struct v4l2_capability *cap)
 {
-	strcpy(cap->driver, "meye");
-	strcpy(cap->card, "meye");
+	strscpy(cap->driver, "meye", sizeof(cap->driver));
+	strscpy(cap->card, "meye", sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(meye.mchip_dev));
 
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
@@ -1035,7 +1035,7 @@ static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 	if (i->index != 0)
 		return -EINVAL;
 
-	strcpy(i->name, "Camera");
+	strscpy(i->name, "Camera", sizeof(i->name));
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 
 	return 0;
@@ -1118,12 +1118,12 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh,
 	if (f->index == 0) {
 		/* standard YUV 422 capture */
 		f->flags = 0;
-		strcpy(f->description, "YUV422");
+		strscpy(f->description, "YUV422", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_YUYV;
 	} else {
 		/* compressed MJPEG capture */
 		f->flags = V4L2_FMT_FLAG_COMPRESSED;
-		strcpy(f->description, "MJPEG");
+		strscpy(f->description, "MJPEG", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_MJPEG;
 	}
 
@@ -1460,7 +1460,7 @@ static int meye_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long page, pos;
 
 	mutex_lock(&meye.lock);
-	if (size > gbuffers * gbufsize) {
+	if (size > gbuffers * gbufsize || offset > gbuffers * gbufsize - size) {
 		mutex_unlock(&meye.lock);
 		return -EINVAL;
 	}

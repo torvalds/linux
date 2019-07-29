@@ -17,6 +17,8 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/ctype.h>
+#include <linux/pci.h>
+#include <linux/pci-p2pdma.h>
 
 #include "nvmet.h"
 
@@ -340,6 +342,48 @@ out_unlock:
 
 CONFIGFS_ATTR(nvmet_ns_, device_path);
 
+#ifdef CONFIG_PCI_P2PDMA
+static ssize_t nvmet_ns_p2pmem_show(struct config_item *item, char *page)
+{
+	struct nvmet_ns *ns = to_nvmet_ns(item);
+
+	return pci_p2pdma_enable_show(page, ns->p2p_dev, ns->use_p2pmem);
+}
+
+static ssize_t nvmet_ns_p2pmem_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct nvmet_ns *ns = to_nvmet_ns(item);
+	struct pci_dev *p2p_dev = NULL;
+	bool use_p2pmem;
+	int ret = count;
+	int error;
+
+	mutex_lock(&ns->subsys->lock);
+	if (ns->enabled) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
+	error = pci_p2pdma_enable_store(page, &p2p_dev, &use_p2pmem);
+	if (error) {
+		ret = error;
+		goto out_unlock;
+	}
+
+	ns->use_p2pmem = use_p2pmem;
+	pci_dev_put(ns->p2p_dev);
+	ns->p2p_dev = p2p_dev;
+
+out_unlock:
+	mutex_unlock(&ns->subsys->lock);
+
+	return ret;
+}
+
+CONFIGFS_ATTR(nvmet_ns_, p2pmem);
+#endif /* CONFIG_PCI_P2PDMA */
+
 static ssize_t nvmet_ns_device_uuid_show(struct config_item *item, char *page)
 {
 	return sprintf(page, "%pUb\n", &to_nvmet_ns(item)->uuid);
@@ -509,6 +553,9 @@ static struct configfs_attribute *nvmet_ns_attrs[] = {
 	&nvmet_ns_attr_ana_grpid,
 	&nvmet_ns_attr_enable,
 	&nvmet_ns_attr_buffered_io,
+#ifdef CONFIG_PCI_P2PDMA
+	&nvmet_ns_attr_p2pmem,
+#endif
 	NULL,
 };
 

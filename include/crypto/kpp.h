@@ -268,6 +268,42 @@ struct kpp_secret {
 	unsigned short len;
 };
 
+static inline void crypto_stat_kpp_set_secret(struct crypto_kpp *tfm, int ret)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	if (ret)
+		atomic_inc(&tfm->base.__crt_alg->kpp_err_cnt);
+	else
+		atomic_inc(&tfm->base.__crt_alg->setsecret_cnt);
+#endif
+}
+
+static inline void crypto_stat_kpp_generate_public_key(struct kpp_request *req,
+						       int ret)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
+
+	if (ret)
+		atomic_inc(&tfm->base.__crt_alg->kpp_err_cnt);
+	else
+		atomic_inc(&tfm->base.__crt_alg->generate_public_key_cnt);
+#endif
+}
+
+static inline void crypto_stat_kpp_compute_shared_secret(struct kpp_request *req,
+							 int ret)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
+
+	if (ret)
+		atomic_inc(&tfm->base.__crt_alg->kpp_err_cnt);
+	else
+		atomic_inc(&tfm->base.__crt_alg->compute_shared_secret_cnt);
+#endif
+}
+
 /**
  * crypto_kpp_set_secret() - Invoke kpp operation
  *
@@ -287,8 +323,11 @@ static inline int crypto_kpp_set_secret(struct crypto_kpp *tfm,
 					const void *buffer, unsigned int len)
 {
 	struct kpp_alg *alg = crypto_kpp_alg(tfm);
+	int ret;
 
-	return alg->set_secret(tfm, buffer, len);
+	ret = alg->set_secret(tfm, buffer, len);
+	crypto_stat_kpp_set_secret(tfm, ret);
+	return ret;
 }
 
 /**
@@ -308,8 +347,11 @@ static inline int crypto_kpp_generate_public_key(struct kpp_request *req)
 {
 	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
 	struct kpp_alg *alg = crypto_kpp_alg(tfm);
+	int ret;
 
-	return alg->generate_public_key(req);
+	ret = alg->generate_public_key(req);
+	crypto_stat_kpp_generate_public_key(req, ret);
+	return ret;
 }
 
 /**
@@ -326,8 +368,11 @@ static inline int crypto_kpp_compute_shared_secret(struct kpp_request *req)
 {
 	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
 	struct kpp_alg *alg = crypto_kpp_alg(tfm);
+	int ret;
 
-	return alg->compute_shared_secret(req);
+	ret = alg->compute_shared_secret(req);
+	crypto_stat_kpp_compute_shared_secret(req, ret);
+	return ret;
 }
 
 /**

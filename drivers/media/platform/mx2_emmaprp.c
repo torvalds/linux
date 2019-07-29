@@ -413,7 +413,7 @@ static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 	if (i < NUM_FORMATS) {
 		/* Format found */
 		fmt = &formats[i];
-		strlcpy(f->description, fmt->name, sizeof(f->description) - 1);
+		strscpy(f->description, fmt->name, sizeof(f->description) - 1);
 		f->pixelformat = fmt->fourcc;
 		return 0;
 	}

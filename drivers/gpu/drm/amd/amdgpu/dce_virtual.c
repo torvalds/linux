@@ -372,7 +372,7 @@ static int dce_virtual_sw_init(void *handle)
 	int r, i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_SMU_DISP_TIMER2_TRIGGER, &adev->crtc_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_SMU_DISP_TIMER2_TRIGGER, &adev->crtc_irq);
 	if (r)
 		return r;
 
@@ -649,8 +649,7 @@ static const struct amdgpu_display_funcs dce_virtual_display_funcs = {
 
 static void dce_virtual_set_display_funcs(struct amdgpu_device *adev)
 {
-	if (adev->mode_info.funcs == NULL)
-		adev->mode_info.funcs = &dce_virtual_display_funcs;
+	adev->mode_info.funcs = &dce_virtual_display_funcs;
 }
 
 static int dce_virtual_pageflip(struct amdgpu_device *adev,

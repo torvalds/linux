@@ -238,8 +238,8 @@ static int rvin_querycap(struct file *file, void *priv,
 {
 	struct rvin_dev *vin = video_drvdata(file);
 
-	strlcpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
-	strlcpy(cap->card, "R_Car_VIN", sizeof(cap->card));
+	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
+	strscpy(cap->card, "R_Car_VIN", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(vin->dev));
 	return 0;
@@ -440,7 +440,7 @@ static int rvin_enum_input(struct file *file, void *priv,
 		i->std = vin->vdev.tvnorms;
 	}
 
-	strlcpy(i->name, "Camera", sizeof(i->name));
+	strscpy(i->name, "Camera", sizeof(i->name));
 
 	return 0;
 }
@@ -714,7 +714,7 @@ static int rvin_mc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
-	strlcpy(i->name, "Camera", sizeof(i->name));
+	strscpy(i->name, "Camera", sizeof(i->name));
 
 	return 0;
 }

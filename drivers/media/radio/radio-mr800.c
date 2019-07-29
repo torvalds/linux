@@ -266,8 +266,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	struct amradio_device *radio = video_drvdata(file);
 
-	strlcpy(v->driver, "radio-mr800", sizeof(v->driver));
-	strlcpy(v->card, "AverMedia MR 800 USB FM Radio", sizeof(v->card));
+	strscpy(v->driver, "radio-mr800", sizeof(v->driver));
+	strscpy(v->card, "AverMedia MR 800 USB FM Radio", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
 	v->device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER |
 					V4L2_CAP_HW_FREQ_SEEK;
@@ -291,7 +291,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (retval)
 		return retval;
 
-	strcpy(v->name, "FM");
+	strscpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = FREQ_MIN * FREQ_MUL;
 	v->rangehigh = FREQ_MAX * FREQ_MUL;
@@ -547,7 +547,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 
 	radio->v4l2_dev.ctrl_handler = &radio->hdl;
 	radio->v4l2_dev.release = usb_amradio_release;
-	strlcpy(radio->vdev.name, radio->v4l2_dev.name,
+	strscpy(radio->vdev.name, radio->v4l2_dev.name,
 		sizeof(radio->vdev.name));
 	radio->vdev.v4l2_dev = &radio->v4l2_dev;
 	radio->vdev.fops = &usb_amradio_fops;

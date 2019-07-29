@@ -77,7 +77,7 @@ static int fprintf_json(void *out, const char *fmt, ...)
 }
 
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
-		       const char *arch)
+		       const char *arch, const char *disassembler_options)
 {
 	disassembler_ftype disassemble;
 	struct disassemble_info info;
@@ -116,6 +116,8 @@ void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 
 	info.arch = bfd_get_arch(bfdf);
 	info.mach = bfd_get_mach(bfdf);
+	if (disassembler_options)
+		info.disassembler_options = disassembler_options;
 	info.buffer = image;
 	info.buffer_length = len;
 

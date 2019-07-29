@@ -19,8 +19,7 @@ struct dmz_bioctx {
 	struct dmz_target	*target;
 	struct dm_zone		*zone;
 	struct bio		*bio;
-	atomic_t		ref;
-	blk_status_t		status;
+	refcount_t		ref;
 };
 
 /*
@@ -28,7 +27,7 @@ struct dmz_bioctx {
  */
 struct dm_chunk_work {
 	struct work_struct	work;
-	atomic_t		refcount;
+	refcount_t		refcount;
 	struct dmz_target	*target;
 	unsigned int		chunk;
 	struct bio_list		bio_list;
@@ -78,64 +77,65 @@ static inline void dmz_bio_endio(struct bio *bio, blk_status_t status)
 {
 	struct dmz_bioctx *bioctx = dm_per_bio_data(bio, sizeof(struct dmz_bioctx));
 
-	if (bioctx->status == BLK_STS_OK && status != BLK_STS_OK)
-		bioctx->status = status;
-	bio_endio(bio);
+	if (status != BLK_STS_OK && bio->bi_status == BLK_STS_OK)
+		bio->bi_status = status;
+
+	if (refcount_dec_and_test(&bioctx->ref)) {
+		struct dm_zone *zone = bioctx->zone;
+
+		if (zone) {
+			if (bio->bi_status != BLK_STS_OK &&
+			    bio_op(bio) == REQ_OP_WRITE &&
+			    dmz_is_seq(zone))
+				set_bit(DMZ_SEQ_WRITE_ERR, &zone->flags);
+			dmz_deactivate_zone(zone);
+		}
+		bio_endio(bio);
+	}
 }
 
 /*
- * Partial clone read BIO completion callback. This terminates the
+ * Completion callback for an internally cloned target BIO. This terminates the
  * target BIO when there are no more references to its context.
  */
-static void dmz_read_bio_end_io(struct bio *bio)
+static void dmz_clone_endio(struct bio *clone)
 {
-	struct dmz_bioctx *bioctx = bio->bi_private;
-	blk_status_t status = bio->bi_status;
+	struct dmz_bioctx *bioctx = clone->bi_private;
+	blk_status_t status = clone->bi_status;
 
-	bio_put(bio);
+	bio_put(clone);
 	dmz_bio_endio(bioctx->bio, status);
 }
 
 /*
- * Issue a BIO to a zone. The BIO may only partially process the
+ * Issue a clone of a target BIO. The clone may only partially process the
  * original target BIO.
  */
-static int dmz_submit_read_bio(struct dmz_target *dmz, struct dm_zone *zone,
-			       struct bio *bio, sector_t chunk_block,
-			       unsigned int nr_blocks)
+static int dmz_submit_bio(struct dmz_target *dmz, struct dm_zone *zone,
+			  struct bio *bio, sector_t chunk_block,
+			  unsigned int nr_blocks)
 {
 	struct dmz_bioctx *bioctx = dm_per_bio_data(bio, sizeof(struct dmz_bioctx));
-	sector_t sector;
 	struct bio *clone;
 
-	/* BIO remap sector */
-	sector = dmz_start_sect(dmz->metadata, zone) + dmz_blk2sect(chunk_block);
-
-	/* If the read is not partial, there is no need to clone the BIO */
-	if (nr_blocks == dmz_bio_blocks(bio)) {
-		/* Setup and submit the BIO */
-		bio->bi_iter.bi_sector = sector;
-		atomic_inc(&bioctx->ref);
-		generic_make_request(bio);
-		return 0;
-	}
-
-	/* Partial BIO: we need to clone the BIO */
 	clone = bio_clone_fast(bio, GFP_NOIO, &dmz->bio_set);
 	if (!clone)
 		return -ENOMEM;
 
-	/* Setup the clone */
-	clone->bi_iter.bi_sector = sector;
+	bio_set_dev(clone, dmz->dev->bdev);
+	clone->bi_iter.bi_sector =
+		dmz_start_sect(dmz->metadata, zone) + dmz_blk2sect(chunk_block);
 	clone->bi_iter.bi_size = dmz_blk2sect(nr_blocks) << SECTOR_SHIFT;
-	clone->bi_end_io = dmz_read_bio_end_io;
+	clone->bi_end_io = dmz_clone_endio;
 	clone->bi_private = bioctx;
 
 	bio_advance(bio, clone->bi_iter.bi_size);
 
-	/* Submit the clone */
-	atomic_inc(&bioctx->ref);
+	refcount_inc(&bioctx->ref);
 	generic_make_request(clone);
+
+	if (bio_op(bio) == REQ_OP_WRITE && dmz_is_seq(zone))
+		zone->wp_block += nr_blocks;
 
 	return 0;
 }
@@ -214,7 +214,7 @@ static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 		if (nr_blocks) {
 			/* Valid blocks found: read them */
 			nr_blocks = min_t(unsigned int, nr_blocks, end_block - chunk_block);
-			ret = dmz_submit_read_bio(dmz, rzone, bio, chunk_block, nr_blocks);
+			ret = dmz_submit_bio(dmz, rzone, bio, chunk_block, nr_blocks);
 			if (ret)
 				return ret;
 			chunk_block += nr_blocks;
@@ -226,25 +226,6 @@ static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 	}
 
 	return 0;
-}
-
-/*
- * Issue a write BIO to a zone.
- */
-static void dmz_submit_write_bio(struct dmz_target *dmz, struct dm_zone *zone,
-				 struct bio *bio, sector_t chunk_block,
-				 unsigned int nr_blocks)
-{
-	struct dmz_bioctx *bioctx = dm_per_bio_data(bio, sizeof(struct dmz_bioctx));
-
-	/* Setup and submit the BIO */
-	bio_set_dev(bio, dmz->dev->bdev);
-	bio->bi_iter.bi_sector = dmz_start_sect(dmz->metadata, zone) + dmz_blk2sect(chunk_block);
-	atomic_inc(&bioctx->ref);
-	generic_make_request(bio);
-
-	if (dmz_is_seq(zone))
-		zone->wp_block += nr_blocks;
 }
 
 /*
@@ -265,7 +246,9 @@ static int dmz_handle_direct_write(struct dmz_target *dmz,
 		return -EROFS;
 
 	/* Submit write */
-	dmz_submit_write_bio(dmz, zone, bio, chunk_block, nr_blocks);
+	ret = dmz_submit_bio(dmz, zone, bio, chunk_block, nr_blocks);
+	if (ret)
+		return ret;
 
 	/*
 	 * Validate the blocks in the data zone and invalidate
@@ -301,7 +284,9 @@ static int dmz_handle_buffered_write(struct dmz_target *dmz,
 		return -EROFS;
 
 	/* Submit write */
-	dmz_submit_write_bio(dmz, bzone, bio, chunk_block, nr_blocks);
+	ret = dmz_submit_bio(dmz, bzone, bio, chunk_block, nr_blocks);
+	if (ret)
+		return ret;
 
 	/*
 	 * Validate the blocks in the buffer zone
@@ -456,7 +441,7 @@ out:
  */
 static inline void dmz_get_chunk_work(struct dm_chunk_work *cw)
 {
-	atomic_inc(&cw->refcount);
+	refcount_inc(&cw->refcount);
 }
 
 /*
@@ -465,7 +450,7 @@ static inline void dmz_get_chunk_work(struct dm_chunk_work *cw)
  */
 static void dmz_put_chunk_work(struct dm_chunk_work *cw)
 {
-	if (atomic_dec_and_test(&cw->refcount)) {
+	if (refcount_dec_and_test(&cw->refcount)) {
 		WARN_ON(!bio_list_empty(&cw->bio_list));
 		radix_tree_delete(&cw->target->chunk_rxtree, cw->chunk);
 		kfree(cw);
@@ -546,7 +531,7 @@ static void dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 			goto out;
 
 		INIT_WORK(&cw->work, dmz_chunk_work);
-		atomic_set(&cw->refcount, 0);
+		refcount_set(&cw->refcount, 0);
 		cw->target = dmz;
 		cw->chunk = chunk;
 		bio_list_init(&cw->bio_list);
@@ -599,8 +584,7 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 	bioctx->target = dmz;
 	bioctx->zone = NULL;
 	bioctx->bio = bio;
-	atomic_set(&bioctx->ref, 1);
-	bioctx->status = BLK_STS_OK;
+	refcount_set(&bioctx->ref, 1);
 
 	/* Set the BIO pending in the flush list */
 	if (!nr_sectors && bio_op(bio) == REQ_OP_WRITE) {
@@ -621,35 +605,6 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 	dmz_queue_chunk_work(dmz, bio);
 
 	return DM_MAPIO_SUBMITTED;
-}
-
-/*
- * Completed target BIO processing.
- */
-static int dmz_end_io(struct dm_target *ti, struct bio *bio, blk_status_t *error)
-{
-	struct dmz_bioctx *bioctx = dm_per_bio_data(bio, sizeof(struct dmz_bioctx));
-
-	if (bioctx->status == BLK_STS_OK && *error)
-		bioctx->status = *error;
-
-	if (!atomic_dec_and_test(&bioctx->ref))
-		return DM_ENDIO_INCOMPLETE;
-
-	/* Done */
-	bio->bi_status = bioctx->status;
-
-	if (bioctx->zone) {
-		struct dm_zone *zone = bioctx->zone;
-
-		if (*error && bio_op(bio) == REQ_OP_WRITE) {
-			if (dmz_is_seq(zone))
-				set_bit(DMZ_SEQ_WRITE_ERR, &zone->flags);
-		}
-		dmz_deactivate_zone(zone);
-	}
-
-	return DM_ENDIO_DONE;
 }
 
 /*
@@ -702,8 +657,7 @@ static int dmz_get_zoned_device(struct dm_target *ti, char *path)
 	dev->zone_nr_blocks = dmz_sect2blk(dev->zone_nr_sectors);
 	dev->zone_nr_blocks_shift = ilog2(dev->zone_nr_blocks);
 
-	dev->nr_zones = (dev->capacity + dev->zone_nr_sectors - 1)
-		>> dev->zone_nr_sectors_shift;
+	dev->nr_zones = blkdev_nr_zones(dev->bdev);
 
 	dmz->dev = dev;
 
@@ -947,7 +901,6 @@ static struct target_type dmz_type = {
 	.ctr		 = dmz_ctr,
 	.dtr		 = dmz_dtr,
 	.map		 = dmz_map,
-	.end_io		 = dmz_end_io,
 	.io_hints	 = dmz_io_hints,
 	.prepare_ioctl	 = dmz_prepare_ioctl,
 	.postsuspend	 = dmz_suspend,

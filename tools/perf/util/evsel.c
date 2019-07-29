@@ -232,6 +232,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->leader	   = evsel;
 	evsel->unit	   = "";
 	evsel->scale	   = 1.0;
+	evsel->max_events  = ULONG_MAX;
 	evsel->evlist	   = NULL;
 	evsel->bpf_fd	   = -1;
 	INIT_LIST_HEAD(&evsel->node);
@@ -793,6 +794,9 @@ static void apply_config_terms(struct perf_evsel *evsel,
 		case PERF_EVSEL__CONFIG_TERM_MAX_STACK:
 			max_stack = term->val.max_stack;
 			break;
+		case PERF_EVSEL__CONFIG_TERM_MAX_EVENTS:
+			evsel->max_events = term->val.max_events;
+			break;
 		case PERF_EVSEL__CONFIG_TERM_INHERIT:
 			/*
 			 * attr->inherit should has already been set by
@@ -952,7 +956,6 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 		attr->sample_freq    = 0;
 		attr->sample_period  = 0;
 		attr->write_backward = 0;
-		attr->sample_id_all  = 0;
 	}
 
 	if (opts->no_samples)
@@ -1089,7 +1092,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 		attr->exclude_user   = 1;
 	}
 
-	if (evsel->own_cpus)
+	if (evsel->own_cpus || evsel->unit)
 		evsel->attr.read_format |= PERF_FORMAT_ID;
 
 	/*
@@ -1203,16 +1206,27 @@ int perf_evsel__append_addr_filter(struct perf_evsel *evsel, const char *filter)
 
 int perf_evsel__enable(struct perf_evsel *evsel)
 {
-	return perf_evsel__run_ioctl(evsel,
-				     PERF_EVENT_IOC_ENABLE,
-				     0);
+	int err = perf_evsel__run_ioctl(evsel, PERF_EVENT_IOC_ENABLE, 0);
+
+	if (!err)
+		evsel->disabled = false;
+
+	return err;
 }
 
 int perf_evsel__disable(struct perf_evsel *evsel)
 {
-	return perf_evsel__run_ioctl(evsel,
-				     PERF_EVENT_IOC_DISABLE,
-				     0);
+	int err = perf_evsel__run_ioctl(evsel, PERF_EVENT_IOC_DISABLE, 0);
+	/*
+	 * We mark it disabled here so that tools that disable a event can
+	 * ignore events after they disable it. I.e. the ring buffer may have
+	 * already a few more events queued up before the kernel got the stop
+	 * request.
+	 */
+	if (!err)
+		evsel->disabled = true;
+
+	return err;
 }
 
 int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -2685,7 +2699,7 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 	return 0;
 }
 
-struct format_field *perf_evsel__field(struct perf_evsel *evsel, const char *name)
+struct tep_format_field *perf_evsel__field(struct perf_evsel *evsel, const char *name)
 {
 	return tep_find_field(evsel->tp_format, name);
 }
@@ -2693,7 +2707,7 @@ struct format_field *perf_evsel__field(struct perf_evsel *evsel, const char *nam
 void *perf_evsel__rawptr(struct perf_evsel *evsel, struct perf_sample *sample,
 			 const char *name)
 {
-	struct format_field *field = perf_evsel__field(evsel, name);
+	struct tep_format_field *field = perf_evsel__field(evsel, name);
 	int offset;
 
 	if (!field)
@@ -2701,7 +2715,7 @@ void *perf_evsel__rawptr(struct perf_evsel *evsel, struct perf_sample *sample,
 
 	offset = field->offset;
 
-	if (field->flags & FIELD_IS_DYNAMIC) {
+	if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 		offset = *(int *)(sample->raw_data + field->offset);
 		offset &= 0xffff;
 	}
@@ -2709,7 +2723,7 @@ void *perf_evsel__rawptr(struct perf_evsel *evsel, struct perf_sample *sample,
 	return sample->raw_data + offset;
 }
 
-u64 format_field__intval(struct format_field *field, struct perf_sample *sample,
+u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sample,
 			 bool needs_swap)
 {
 	u64 value;
@@ -2751,7 +2765,7 @@ u64 format_field__intval(struct format_field *field, struct perf_sample *sample,
 u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
 		       const char *name)
 {
-	struct format_field *field = perf_evsel__field(evsel, name);
+	struct tep_format_field *field = perf_evsel__field(evsel, name);
 
 	if (!field)
 		return 0;
@@ -2942,4 +2956,33 @@ struct perf_env *perf_evsel__env(struct perf_evsel *evsel)
 	if (evsel && evsel->evlist)
 		return evsel->evlist->env;
 	return NULL;
+}
+
+static int store_evsel_ids(struct perf_evsel *evsel, struct perf_evlist *evlist)
+{
+	int cpu, thread;
+
+	for (cpu = 0; cpu < xyarray__max_x(evsel->fd); cpu++) {
+		for (thread = 0; thread < xyarray__max_y(evsel->fd);
+		     thread++) {
+			int fd = FD(evsel, cpu, thread);
+
+			if (perf_evlist__id_add_fd(evlist, evsel,
+						   cpu, thread, fd) < 0)
+				return -1;
+		}
+	}
+
+	return 0;
+}
+
+int perf_evsel__store_ids(struct perf_evsel *evsel, struct perf_evlist *evlist)
+{
+	struct cpu_map *cpus = evsel->cpus;
+	struct thread_map *threads = evsel->threads;
+
+	if (perf_evsel__alloc_id(evsel, cpus->nr, threads->nr))
+		return -ENOMEM;
+
+	return store_evsel_ids(evsel, evlist);
 }

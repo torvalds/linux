@@ -7,3 +7,4 @@ generic-y += kvm_para.h
 generic-y += param.h
 generic-y += poll.h
 generic-y += resource.h
+generic-y += siginfo.h

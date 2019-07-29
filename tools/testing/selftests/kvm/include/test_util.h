@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef TEST_UTIL_H
-#define TEST_UTIL_H 1
+#ifndef SELFTEST_KVM_TEST_UTIL_H
+#define SELFTEST_KVM_TEST_UTIL_H
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -41,4 +41,4 @@ void test_assert(bool exp, const char *exp_str,
 		    #a, #b, #a, (unsigned long) __a, #b, (unsigned long) __b); \
 } while (0)
 
-#endif /* TEST_UTIL_H */
+#endif /* SELFTEST_KVM_TEST_UTIL_H */

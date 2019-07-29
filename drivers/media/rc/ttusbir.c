@@ -117,11 +117,9 @@ static void ttusbir_bulk_complete(struct urb *urb)
  */
 static void ttusbir_process_ir_data(struct ttusbir *tt, uint8_t *buf)
 {
-	struct ir_raw_event rawir;
+	struct ir_raw_event rawir = {};
 	unsigned i, v, b;
 	bool event = false;
-
-	init_ir_raw_event(&rawir);
 
 	for (i = 0; i < 128; i++) {
 		v = buf[i] & 0xfe;

@@ -266,11 +266,13 @@ static void au0828_media_graph_notify(struct media_entity *new,
 
 create_link:
 	if (decoder && mixer) {
-		ret = media_create_pad_link(decoder,
-					    DEMOD_PAD_AUDIO_OUT,
-					    mixer, 0,
-					    MEDIA_LNK_FL_ENABLED);
-		if (ret)
+		ret = media_get_pad_index(decoder, false,
+					  PAD_SIGNAL_AUDIO);
+		if (ret >= 0)
+			ret = media_create_pad_link(decoder, ret,
+						    mixer, 0,
+						    MEDIA_LNK_FL_ENABLED);
+		if (ret < 0)
 			dev_err(&dev->usbdev->dev,
 				"Mixer Pad Link Create Error: %d\n", ret);
 	}
@@ -626,17 +628,16 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	/* Analog TV */
 	retval = au0828_analog_register(dev, interface);
 	if (retval) {
-		pr_err("%s() au0282_dev_register failed to register on V4L2\n",
+		pr_err("%s() au0828_analog_register failed to register on V4L2\n",
 			__func__);
 		mutex_unlock(&dev->lock);
-		kfree(dev);
 		goto done;
 	}
 
 	/* Digital TV */
 	retval = au0828_dvb_register(dev);
 	if (retval)
-		pr_err("%s() au0282_dev_register failed\n",
+		pr_err("%s() au0828_dvb_register failed\n",
 		       __func__);
 
 	/* Remote controller */

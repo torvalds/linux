@@ -27,6 +27,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
@@ -307,6 +308,26 @@ update_connector_routing(struct drm_atomic_state *state,
 		return 0;
 	}
 
+	crtc_state = drm_atomic_get_new_crtc_state(state,
+						   new_connector_state->crtc);
+	/*
+	 * For compatibility with legacy users, we want to make sure that
+	 * we allow DPMS On->Off modesets on unregistered connectors. Modesets
+	 * which would result in anything else must be considered invalid, to
+	 * avoid turning on new displays on dead connectors.
+	 *
+	 * Since the connector can be unregistered at any point during an
+	 * atomic check or commit, this is racy. But that's OK: all we care
+	 * about is ensuring that userspace can't do anything but shut off the
+	 * display on a connector that was destroyed after its been notified,
+	 * not before.
+	 */
+	if (drm_connector_is_unregistered(connector) && crtc_state->active) {
+		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] is not registered\n",
+				 connector->base.id, connector->name);
+		return -EINVAL;
+	}
+
 	funcs = connector->helper_private;
 
 	if (funcs->atomic_best_encoder)
@@ -351,7 +372,6 @@ update_connector_routing(struct drm_atomic_state *state,
 
 	set_best_encoder(state, new_connector_state, new_encoder);
 
-	crtc_state = drm_atomic_get_new_crtc_state(state, new_connector_state->crtc);
 	crtc_state->connectors_changed = true;
 
 	DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] using [ENCODER:%d:%s] on [CRTC:%d:%s]\n",
@@ -3559,6 +3579,27 @@ void drm_atomic_helper_crtc_destroy_state(struct drm_crtc *crtc,
 EXPORT_SYMBOL(drm_atomic_helper_crtc_destroy_state);
 
 /**
+ * __drm_atomic_helper_plane_reset - resets planes state to default values
+ * @plane: plane object, must not be NULL
+ * @state: atomic plane state, must not be NULL
+ *
+ * Initializes plane state to default. This is useful for drivers that subclass
+ * the plane state.
+ */
+void __drm_atomic_helper_plane_reset(struct drm_plane *plane,
+				     struct drm_plane_state *state)
+{
+	state->plane = plane;
+	state->rotation = DRM_MODE_ROTATE_0;
+
+	state->alpha = DRM_BLEND_ALPHA_OPAQUE;
+	state->pixel_blend_mode = DRM_MODE_BLEND_PREMULTI;
+
+	plane->state = state;
+}
+EXPORT_SYMBOL(__drm_atomic_helper_plane_reset);
+
+/**
  * drm_atomic_helper_plane_reset - default &drm_plane_funcs.reset hook for planes
  * @plane: drm plane
  *
@@ -3572,15 +3613,8 @@ void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 
 	kfree(plane->state);
 	plane->state = kzalloc(sizeof(*plane->state), GFP_KERNEL);
-
-	if (plane->state) {
-		plane->state->plane = plane;
-		plane->state->rotation = DRM_MODE_ROTATE_0;
-
-		/* Reset the alpha value to fully opaque if it matters */
-		if (plane->alpha_property)
-			plane->state->alpha = plane->alpha_property->values[1];
-	}
+	if (plane->state)
+		__drm_atomic_helper_plane_reset(plane, plane->state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_reset);
 

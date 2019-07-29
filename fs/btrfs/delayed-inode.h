@@ -50,8 +50,8 @@ struct btrfs_delayed_node {
 	 * is waiting to be dealt with by the async worker.
 	 */
 	struct list_head p_list;
-	struct rb_root ins_root;
-	struct rb_root del_root;
+	struct rb_root_cached ins_root;
+	struct rb_root_cached del_root;
 	struct mutex mutex;
 	struct btrfs_inode_item inode_item;
 	refcount_t refs;

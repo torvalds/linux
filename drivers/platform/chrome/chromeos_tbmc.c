@@ -99,7 +99,7 @@ static const struct acpi_device_id chromeos_tbmc_acpi_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, chromeos_tbmc_acpi_device_ids);
 
-static const SIMPLE_DEV_PM_OPS(chromeos_tbmc_pm_ops, NULL,
+static SIMPLE_DEV_PM_OPS(chromeos_tbmc_pm_ops, NULL,
 		chromeos_tbmc_resume);
 
 static struct acpi_driver chromeos_tbmc_driver = {

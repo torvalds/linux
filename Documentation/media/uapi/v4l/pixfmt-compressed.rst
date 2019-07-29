@@ -60,6 +60,22 @@ Compressed Formats
       - ``V4L2_PIX_FMT_MPEG2``
       - 'MPG2'
       - MPEG2 video elementary stream.
+    * .. _V4L2-PIX-FMT-MPEG2-SLICE:
+
+      - ``V4L2_PIX_FMT_MPEG2_SLICE``
+      - 'MG2S'
+      - MPEG-2 parsed slice data, as extracted from the MPEG-2 bitstream.
+	This format is adapted for stateless video decoders that implement a
+	MPEG-2 pipeline (using the :ref:`codec` and :ref:`media-request-api`).
+	Metadata associated with the frame to decode is required to be passed
+	through the ``V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS`` control and
+	quantization matrices can optionally be specified through the
+	``V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION`` control.
+	See the :ref:`associated Codec Control IDs <v4l2-mpeg-mpeg2>`.
+	Exactly one output and one capture buffer must be provided for use with
+	this pixel format. The output buffer must contain the appropriate number
+	of macroblocks to decode a full corresponding frame to the matching
+	capture buffer.
     * .. _V4L2-PIX-FMT-MPEG4:
 
       - ``V4L2_PIX_FMT_MPEG4``
@@ -101,4 +117,4 @@ Compressed Formats
       - 'FWHT'
       - Video elementary stream using a codec based on the Fast Walsh Hadamard
         Transform. This codec is implemented by the vicodec ('Virtual Codec')
-	driver. See the vicodec-codec.h header for more details.
+	driver. See the codec-fwht.h header for more details.

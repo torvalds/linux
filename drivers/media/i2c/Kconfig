@@ -614,6 +614,28 @@ config VIDEO_IMX274
 	  This is a V4L2 sensor driver for the Sony IMX274
 	  CMOS image sensor.
 
+config VIDEO_IMX319
+	tristate "Sony IMX319 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX319 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx319.
+
+config VIDEO_IMX355
+	tristate "Sony IMX355 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX355 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx355.
+
 config VIDEO_OV2640
 	tristate "OmniVision OV2640 sensor support"
 	depends on VIDEO_V4L2 && I2C
@@ -747,6 +769,7 @@ config VIDEO_OV772X
 	tristate "OmniVision OV772x sensor support"
 	depends on I2C && VIDEO_V4L2
 	depends on MEDIA_CAMERA_SUPPORT
+	select REGMAP_SCCB
 	---help---
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV772x camera.
@@ -786,6 +809,7 @@ config VIDEO_OV7740
 config VIDEO_OV9650
 	tristate "OmniVision OV9650/OV9652 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	select REGMAP_SCCB
 	---help---
 	  This is a V4L2 sensor driver for the Omnivision
 	  OV9650 and OV9652 camera sensors.

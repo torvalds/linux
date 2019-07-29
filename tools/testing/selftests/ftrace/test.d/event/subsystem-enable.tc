@@ -9,22 +9,14 @@ do_reset() {
 }
 
 fail() { #msg
-    do_reset
     echo $1
     exit_fail
-}
-
-yield() {
-    ping localhost -c 1 || sleep .001 || usleep 1 || sleep 1
 }
 
 if [ ! -f set_event -o ! -d events/sched ]; then
     echo "event tracing is not supported"
     exit_unsupported
 fi
-
-reset_tracer
-do_reset
 
 echo 'sched:*' > set_event
 
@@ -56,7 +48,5 @@ count=`cat trace | grep -v ^# | awk '{ print $5 }' | sort -u | wc -l`
 if [ $count -ne 0 ]; then
     fail "any of scheduler events should not be recorded"
 fi
-
-do_reset
 
 exit 0

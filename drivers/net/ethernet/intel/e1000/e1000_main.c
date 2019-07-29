@@ -195,7 +195,7 @@ static struct pci_driver e1000_driver = {
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) PRO/1000 Network Driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
@@ -2433,7 +2433,6 @@ static void e1000_watchdog(struct work_struct *work)
 	if (link) {
 		if (!netif_carrier_ok(netdev)) {
 			u32 ctrl;
-			bool txb2b = true;
 			/* update snapshot of PHY registers on LSC */
 			e1000_get_speed_and_duplex(hw,
 						   &adapter->link_speed,
@@ -2455,11 +2454,9 @@ static void e1000_watchdog(struct work_struct *work)
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
 			case SPEED_10:
-				txb2b = false;
 				adapter->tx_timeout_factor = 16;
 				break;
 			case SPEED_100:
-				txb2b = false;
 				/* maybe add some timeout factor ? */
 				break;
 			}

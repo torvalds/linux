@@ -1438,11 +1438,15 @@ static void ipoib_cm_skb_reap(struct work_struct *work)
 		spin_unlock_irqrestore(&priv->lock, flags);
 		netif_tx_unlock_bh(dev);
 
-		if (skb->protocol == htons(ETH_P_IP))
+		if (skb->protocol == htons(ETH_P_IP)) {
+			memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED, htonl(mtu));
+		}
 #if IS_ENABLED(CONFIG_IPV6)
-		else if (skb->protocol == htons(ETH_P_IPV6))
+		else if (skb->protocol == htons(ETH_P_IPV6)) {
+			memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
 			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+		}
 #endif
 		dev_kfree_skb_any(skb);
 

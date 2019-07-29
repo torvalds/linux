@@ -329,7 +329,9 @@ int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 			&buf.data[TPM_HEADER_SIZE];
 		recd = min_t(u32, be16_to_cpu(out->size), num_bytes);
 		if (tpm_buf_length(&buf) <
-		    offsetof(struct tpm2_get_random_out, buffer) + recd) {
+		    TPM_HEADER_SIZE +
+		    offsetof(struct tpm2_get_random_out, buffer) +
+		    recd) {
 			err = -EFAULT;
 			goto out;
 		}

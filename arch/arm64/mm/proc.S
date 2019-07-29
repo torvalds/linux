@@ -160,6 +160,12 @@ ENTRY(cpu_do_switch_mm)
 	mrs	x2, ttbr1_el1
 	mmid	x1, x1				// get mm->context.id
 	phys_to_ttbr x3, x0
+
+alternative_if ARM64_HAS_CNP
+	cbz     x1, 1f                          // skip CNP for reserved ASID
+	orr     x3, x3, #TTBR_CNP_BIT
+1:
+alternative_else_nop_endif
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	bfi	x3, x1, #48, #16		// set the ASID field in TTBR0
 #endif
@@ -184,7 +190,7 @@ ENDPROC(cpu_do_switch_mm)
 .endm
 
 /*
- * void idmap_cpu_replace_ttbr1(phys_addr_t new_pgd)
+ * void idmap_cpu_replace_ttbr1(phys_addr_t ttbr1)
  *
  * This is the low-level counterpart to cpu_replace_ttbr1, and should not be
  * called by anything else. It can only be executed from a TTBR0 mapping.
@@ -194,8 +200,7 @@ ENTRY(idmap_cpu_replace_ttbr1)
 
 	__idmap_cpu_set_reserved_ttbr1 x1, x3
 
-	phys_to_ttbr x3, x0
-	msr	ttbr1_el1, x3
+	msr	ttbr1_el1, x0
 	isb
 
 	restore_daif x2

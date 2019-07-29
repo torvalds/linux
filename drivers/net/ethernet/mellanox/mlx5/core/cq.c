@@ -109,6 +109,7 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	cq->cons_index = 0;
 	cq->arm_sn     = 0;
 	cq->eq         = eq;
+	cq->uid = MLX5_GET(create_cq_in, in, uid);
 	refcount_set(&cq->refcount, 1);
 	init_completion(&cq->free);
 	if (!cq->comp)
@@ -144,6 +145,7 @@ err_cmd:
 	memset(dout, 0, sizeof(dout));
 	MLX5_SET(destroy_cq_in, din, opcode, MLX5_CMD_OP_DESTROY_CQ);
 	MLX5_SET(destroy_cq_in, din, cqn, cq->cqn);
+	MLX5_SET(destroy_cq_in, din, uid, cq->uid);
 	mlx5_cmd_exec(dev, din, sizeof(din), dout, sizeof(dout));
 	return err;
 }
@@ -165,6 +167,7 @@ int mlx5_core_destroy_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 
 	MLX5_SET(destroy_cq_in, in, opcode, MLX5_CMD_OP_DESTROY_CQ);
 	MLX5_SET(destroy_cq_in, in, cqn, cq->cqn);
+	MLX5_SET(destroy_cq_in, in, uid, cq->uid);
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (err)
 		return err;
@@ -196,6 +199,7 @@ int mlx5_core_modify_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	u32 out[MLX5_ST_SZ_DW(modify_cq_out)] = {0};
 
 	MLX5_SET(modify_cq_in, in, opcode, MLX5_CMD_OP_MODIFY_CQ);
+	MLX5_SET(modify_cq_in, in, uid, cq->uid);
 	return mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 }
 EXPORT_SYMBOL(mlx5_core_modify_cq);

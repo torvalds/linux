@@ -613,6 +613,109 @@ char *string(char *buf, char *end, const char *s, struct printf_spec spec)
 }
 
 static noinline_for_stack
+char *pointer_string(char *buf, char *end, const void *ptr,
+		     struct printf_spec spec)
+{
+	spec.base = 16;
+	spec.flags |= SMALL;
+	if (spec.field_width == -1) {
+		spec.field_width = 2 * sizeof(ptr);
+		spec.flags |= ZEROPAD;
+	}
+
+	return number(buf, end, (unsigned long int)ptr, spec);
+}
+
+/* Make pointers available for printing early in the boot sequence. */
+static int debug_boot_weak_hash __ro_after_init;
+
+static int __init debug_boot_weak_hash_enable(char *str)
+{
+	debug_boot_weak_hash = 1;
+	pr_info("debug_boot_weak_hash enabled\n");
+	return 0;
+}
+early_param("debug_boot_weak_hash", debug_boot_weak_hash_enable);
+
+static DEFINE_STATIC_KEY_TRUE(not_filled_random_ptr_key);
+static siphash_key_t ptr_key __read_mostly;
+
+static void enable_ptr_key_workfn(struct work_struct *work)
+{
+	get_random_bytes(&ptr_key, sizeof(ptr_key));
+	/* Needs to run from preemptible context */
+	static_branch_disable(&not_filled_random_ptr_key);
+}
+
+static DECLARE_WORK(enable_ptr_key_work, enable_ptr_key_workfn);
+
+static void fill_random_ptr_key(struct random_ready_callback *unused)
+{
+	/* This may be in an interrupt handler. */
+	queue_work(system_unbound_wq, &enable_ptr_key_work);
+}
+
+static struct random_ready_callback random_ready = {
+	.func = fill_random_ptr_key
+};
+
+static int __init initialize_ptr_random(void)
+{
+	int key_size = sizeof(ptr_key);
+	int ret;
+
+	/* Use hw RNG if available. */
+	if (get_random_bytes_arch(&ptr_key, key_size) == key_size) {
+		static_branch_disable(&not_filled_random_ptr_key);
+		return 0;
+	}
+
+	ret = add_random_ready_callback(&random_ready);
+	if (!ret) {
+		return 0;
+	} else if (ret == -EALREADY) {
+		/* This is in preemptible context */
+		enable_ptr_key_workfn(&enable_ptr_key_work);
+		return 0;
+	}
+
+	return ret;
+}
+early_initcall(initialize_ptr_random);
+
+/* Maps a pointer to a 32 bit unique identifier. */
+static char *ptr_to_id(char *buf, char *end, const void *ptr,
+		       struct printf_spec spec)
+{
+	const char *str = sizeof(ptr) == 8 ? "(____ptrval____)" : "(ptrval)";
+	unsigned long hashval;
+
+	/* When debugging early boot use non-cryptographically secure hash. */
+	if (unlikely(debug_boot_weak_hash)) {
+		hashval = hash_long((unsigned long)ptr, 32);
+		return pointer_string(buf, end, (const void *)hashval, spec);
+	}
+
+	if (static_branch_unlikely(&not_filled_random_ptr_key)) {
+		spec.field_width = 2 * sizeof(ptr);
+		/* string length must be less than default_width */
+		return string(buf, end, str, spec);
+	}
+
+#ifdef CONFIG_64BIT
+	hashval = (unsigned long)siphash_1u64((u64)ptr, &ptr_key);
+	/*
+	 * Mask off the first 32 bits, this makes explicit that we have
+	 * modified the address (and 32 bits is plenty for a unique ID).
+	 */
+	hashval = hashval & 0xffffffff;
+#else
+	hashval = (unsigned long)siphash_1u32((u32)ptr, &ptr_key);
+#endif
+	return pointer_string(buf, end, (const void *)hashval, spec);
+}
+
+static noinline_for_stack
 char *dentry_name(char *buf, char *end, const struct dentry *d, struct printf_spec spec,
 		  const char *fmt)
 {
@@ -1357,20 +1460,6 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 	return string(buf, end, uuid, spec);
 }
 
-static noinline_for_stack
-char *pointer_string(char *buf, char *end, const void *ptr,
-		     struct printf_spec spec)
-{
-	spec.base = 16;
-	spec.flags |= SMALL;
-	if (spec.field_width == -1) {
-		spec.field_width = 2 * sizeof(ptr);
-		spec.flags |= ZEROPAD;
-	}
-
-	return number(buf, end, (unsigned long int)ptr, spec);
-}
-
 int kptr_restrict __read_mostly;
 
 static noinline_for_stack
@@ -1421,7 +1510,8 @@ char *restricted_pointer(char *buf, char *end, const void *ptr,
 }
 
 static noinline_for_stack
-char *netdev_bits(char *buf, char *end, const void *addr, const char *fmt)
+char *netdev_bits(char *buf, char *end, const void *addr,
+		  struct printf_spec spec,  const char *fmt)
 {
 	unsigned long long num;
 	int size;
@@ -1432,9 +1522,7 @@ char *netdev_bits(char *buf, char *end, const void *addr, const char *fmt)
 		size = sizeof(netdev_features_t);
 		break;
 	default:
-		num = (unsigned long)addr;
-		size = sizeof(unsigned long);
-		break;
+		return ptr_to_id(buf, end, addr, spec);
 	}
 
 	return special_hex_number(buf, end, num, size);
@@ -1474,7 +1562,7 @@ char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
 #ifdef CONFIG_COMMON_CLK
 		return string(buf, end, __clk_get_name(clk), spec);
 #else
-		return special_hex_number(buf, end, (unsigned long)clk, sizeof(unsigned long));
+		return ptr_to_id(buf, end, clk, spec);
 #endif
 	}
 }
@@ -1596,6 +1684,7 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 		fmt = "f";
 
 	for (pass = false; strspn(fmt,"fnpPFcC"); fmt++, pass = true) {
+		int precision;
 		if (pass) {
 			if (buf < end)
 				*buf = ':';
@@ -1607,7 +1696,11 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 			buf = device_node_gen_full_name(dn, buf, end);
 			break;
 		case 'n':	/* name */
-			buf = string(buf, end, dn->name, str_spec);
+			p = kbasename(of_node_full_name(dn));
+			precision = str_spec.precision;
+			str_spec.precision = strchrnul(p, '@') - p;
+			buf = string(buf, end, p, str_spec);
+			str_spec.precision = precision;
 			break;
 		case 'p':	/* phandle */
 			buf = number(buf, end, (unsigned int)dn->phandle, num_spec);
@@ -1649,94 +1742,6 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 	}
 
 	return widen_string(buf, buf - buf_start, end, spec);
-}
-
-/* Make pointers available for printing early in the boot sequence. */
-static int debug_boot_weak_hash __ro_after_init;
-
-static int __init debug_boot_weak_hash_enable(char *str)
-{
-	debug_boot_weak_hash = 1;
-	pr_info("debug_boot_weak_hash enabled\n");
-	return 0;
-}
-early_param("debug_boot_weak_hash", debug_boot_weak_hash_enable);
-
-static DEFINE_STATIC_KEY_TRUE(not_filled_random_ptr_key);
-static siphash_key_t ptr_key __read_mostly;
-
-static void enable_ptr_key_workfn(struct work_struct *work)
-{
-	get_random_bytes(&ptr_key, sizeof(ptr_key));
-	/* Needs to run from preemptible context */
-	static_branch_disable(&not_filled_random_ptr_key);
-}
-
-static DECLARE_WORK(enable_ptr_key_work, enable_ptr_key_workfn);
-
-static void fill_random_ptr_key(struct random_ready_callback *unused)
-{
-	/* This may be in an interrupt handler. */
-	queue_work(system_unbound_wq, &enable_ptr_key_work);
-}
-
-static struct random_ready_callback random_ready = {
-	.func = fill_random_ptr_key
-};
-
-static int __init initialize_ptr_random(void)
-{
-	int key_size = sizeof(ptr_key);
-	int ret;
-
-	/* Use hw RNG if available. */
-	if (get_random_bytes_arch(&ptr_key, key_size) == key_size) {
-		static_branch_disable(&not_filled_random_ptr_key);
-		return 0;
-	}
-
-	ret = add_random_ready_callback(&random_ready);
-	if (!ret) {
-		return 0;
-	} else if (ret == -EALREADY) {
-		/* This is in preemptible context */
-		enable_ptr_key_workfn(&enable_ptr_key_work);
-		return 0;
-	}
-
-	return ret;
-}
-early_initcall(initialize_ptr_random);
-
-/* Maps a pointer to a 32 bit unique identifier. */
-static char *ptr_to_id(char *buf, char *end, void *ptr, struct printf_spec spec)
-{
-	const char *str = sizeof(ptr) == 8 ? "(____ptrval____)" : "(ptrval)";
-	unsigned long hashval;
-
-	/* When debugging early boot use non-cryptographically secure hash. */
-	if (unlikely(debug_boot_weak_hash)) {
-		hashval = hash_long((unsigned long)ptr, 32);
-		return pointer_string(buf, end, (const void *)hashval, spec);
-	}
-
-	if (static_branch_unlikely(&not_filled_random_ptr_key)) {
-		spec.field_width = 2 * sizeof(ptr);
-		/* string length must be less than default_width */
-		return string(buf, end, str, spec);
-	}
-
-#ifdef CONFIG_64BIT
-	hashval = (unsigned long)siphash_1u64((u64)ptr, &ptr_key);
-	/*
-	 * Mask off the first 32 bits, this makes explicit that we have
-	 * modified the address (and 32 bits is plenty for a unique ID).
-	 */
-	hashval = hashval & 0xffffffff;
-#else
-	hashval = (unsigned long)siphash_1u32((u32)ptr, &ptr_key);
-#endif
-	return pointer_string(buf, end, (const void *)hashval, spec);
 }
 
 /*
@@ -1833,17 +1838,15 @@ static char *ptr_to_id(char *buf, char *end, void *ptr, struct printf_spec spec)
  *       p page flags (see struct page) given as pointer to unsigned long
  *       g gfp flags (GFP_* and __GFP_*) given as pointer to gfp_t
  *       v vma flags (VM_*) given as pointer to unsigned long
- * - 'O' For a kobject based struct. Must be one of the following:
- *       - 'OF[fnpPcCF]'  For a device tree object
- *                        Without any optional arguments prints the full_name
- *                        f device node full_name
- *                        n device node name
- *                        p device node phandle
- *                        P device node path spec (name + @unit)
- *                        F device node flags
- *                        c major compatible string
- *                        C full compatible string
- *
+ * - 'OF[fnpPcCF]'  For a device tree object
+ *                  Without any optional arguments prints the full_name
+ *                  f device node full_name
+ *                  n device node name
+ *                  p device node phandle
+ *                  P device node path spec (name + @unit)
+ *                  F device node flags
+ *                  c major compatible string
+ *                  C full compatible string
  * - 'x' For printing the address. Equivalent to "%lx".
  *
  * ** When making changes please also update:
@@ -1944,7 +1947,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 			break;
 		return restricted_pointer(buf, end, ptr, spec);
 	case 'N':
-		return netdev_bits(buf, end, ptr, fmt);
+		return netdev_bits(buf, end, ptr, spec, fmt);
 	case 'a':
 		return address_val(buf, end, ptr, fmt);
 	case 'd':

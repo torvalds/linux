@@ -11,7 +11,6 @@
  */
 
 #define pr_fmt(fmt) "kasan: " fmt
-#include <linux/bootmem.h>
 #include <linux/kasan.h>
 #include <linux/kernel.h>
 #include <linux/sched/task.h>
@@ -38,7 +37,7 @@ static pgd_t tmp_pg_dir[PTRS_PER_PGD] __initdata __aligned(PGD_SIZE);
 
 static phys_addr_t __init kasan_alloc_zeroed_page(int node)
 {
-	void *p = memblock_virt_alloc_try_nid(PAGE_SIZE, PAGE_SIZE,
+	void *p = memblock_alloc_try_nid(PAGE_SIZE, PAGE_SIZE,
 					      __pa(MAX_DMA_ADDRESS),
 					      MEMBLOCK_ALLOC_ACCESSIBLE, node);
 	return __pa(p);
@@ -192,7 +191,7 @@ void __init kasan_init(void)
 
 	/*
 	 * We are going to perform proper setup of shadow memory.
-	 * At first we should unmap early shadow (clear_pgds() call bellow).
+	 * At first we should unmap early shadow (clear_pgds() call below).
 	 * However, instrumented code couldn't execute without shadow memory.
 	 * tmp_pg_dir used to keep early shadow mapped until full shadow
 	 * setup will be finished.

@@ -351,6 +351,11 @@ try_again:
 	return u_len;
 }
 
+/*
+ * Convert CS0 dstring to output charset. Warning: This function may truncate
+ * input string if it is too long as it is used for informational strings only
+ * and it is better to truncate the string than to refuse mounting a media.
+ */
 int udf_dstrCS0toChar(struct super_block *sb, uint8_t *utf_o, int o_len,
 		      const uint8_t *ocu_i, int i_len)
 {
@@ -359,9 +364,12 @@ int udf_dstrCS0toChar(struct super_block *sb, uint8_t *utf_o, int o_len,
 	if (i_len > 0) {
 		s_len = ocu_i[i_len - 1];
 		if (s_len >= i_len) {
-			pr_err("incorrect dstring lengths (%d/%d)\n",
-			       s_len, i_len);
-			return -EINVAL;
+			pr_warn("incorrect dstring lengths (%d/%d),"
+				" truncating\n", s_len, i_len);
+			s_len = i_len - 1;
+			/* 2-byte encoding? Need to round properly... */
+			if (ocu_i[0] == 16)
+				s_len -= (s_len - 1) & 2;
 		}
 	}
 

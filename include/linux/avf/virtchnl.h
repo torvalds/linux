@@ -62,12 +62,18 @@
 /* Error Codes */
 enum virtchnl_status_code {
 	VIRTCHNL_STATUS_SUCCESS				= 0,
-	VIRTCHNL_ERR_PARAM				= -5,
+	VIRTCHNL_STATUS_ERR_PARAM			= -5,
+	VIRTCHNL_STATUS_ERR_NO_MEMORY			= -18,
 	VIRTCHNL_STATUS_ERR_OPCODE_MISMATCH		= -38,
 	VIRTCHNL_STATUS_ERR_CQP_COMPL_ERROR		= -39,
 	VIRTCHNL_STATUS_ERR_INVALID_VF_ID		= -40,
-	VIRTCHNL_STATUS_NOT_SUPPORTED			= -64,
+	VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR		= -53,
+	VIRTCHNL_STATUS_ERR_NOT_SUPPORTED		= -64,
 };
+
+/* Backward compatibility */
+#define VIRTCHNL_ERR_PARAM VIRTCHNL_STATUS_ERR_PARAM
+#define VIRTCHNL_STATUS_NOT_SUPPORTED VIRTCHNL_STATUS_ERR_NOT_SUPPORTED
 
 #define VIRTCHNL_LINK_SPEED_100MB_SHIFT		0x1
 #define VIRTCHNL_LINK_SPEED_1000MB_SHIFT	0x2
@@ -252,6 +258,8 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vsi_resource);
 #define VIRTCHNL_VF_OFFLOAD_RX_ENCAP_CSUM	0X00400000
 #define VIRTCHNL_VF_OFFLOAD_ADQ			0X00800000
 
+/* Define below the capability flags that are not offloads */
+#define VIRTCHNL_VF_CAP_ADV_LINK_SPEED		0x00000080
 #define VF_BASE_MODE_OFFLOADS (VIRTCHNL_VF_OFFLOAD_L2 | \
 			       VIRTCHNL_VF_OFFLOAD_VLAN | \
 			       VIRTCHNL_VF_OFFLOAD_RSS_PF)
@@ -573,7 +581,7 @@ struct virtchnl_filter {
 	enum	virtchnl_flow_type flow_type;
 	enum	virtchnl_action action;
 	u32	action_meta;
-	__u8	field_flags;
+	u8	field_flags;
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(272, virtchnl_filter);
@@ -596,10 +604,23 @@ enum virtchnl_event_codes {
 struct virtchnl_pf_event {
 	enum virtchnl_event_codes event;
 	union {
+		/* If the PF driver does not support the new speed reporting
+		 * capabilities then use link_event else use link_event_adv to
+		 * get the speed and link information. The ability to understand
+		 * new speeds is indicated by setting the capability flag
+		 * VIRTCHNL_VF_CAP_ADV_LINK_SPEED in vf_cap_flags parameter
+		 * in virtchnl_vf_resource struct and can be used to determine
+		 * which link event struct to use below.
+		 */
 		struct {
 			enum virtchnl_link_speed link_speed;
 			bool link_status;
 		} link_event;
+		struct {
+			/* link_speed provided in Mbps */
+			u32 link_speed;
+			u8 link_status;
+		} link_event_adv;
 	} event_data;
 
 	int severity;
@@ -816,7 +837,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 	case VIRTCHNL_OP_EVENT:
 	case VIRTCHNL_OP_UNKNOWN:
 	default:
-		return VIRTCHNL_ERR_PARAM;
+		return VIRTCHNL_STATUS_ERR_PARAM;
 	}
 	/* few more checks */
 	if (err_msg_format || valid_len != msglen)

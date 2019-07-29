@@ -149,7 +149,7 @@ enum ieee80211_channel_flags {
  */
 struct ieee80211_channel {
 	enum nl80211_band band;
-	u16 center_freq;
+	u32 center_freq;
 	u16 hw_value;
 	u32 flags;
 	int max_antenna_gain;
@@ -775,6 +775,12 @@ struct cfg80211_crypto_settings {
  * @assocresp_ies_len: length of assocresp_ies in octets
  * @probe_resp_len: length of probe response template (@probe_resp)
  * @probe_resp: probe response template (AP mode only)
+ * @ftm_responder: enable FTM responder functionality; -1 for no change
+ *	(which also implies no change in LCI/civic location data)
+ * @lci: LCI subelement content
+ * @civicloc: Civic location subelement content
+ * @lci_len: LCI data length
+ * @civicloc_len: Civic location data length
  */
 struct cfg80211_beacon_data {
 	const u8 *head, *tail;
@@ -782,12 +788,17 @@ struct cfg80211_beacon_data {
 	const u8 *proberesp_ies;
 	const u8 *assocresp_ies;
 	const u8 *probe_resp;
+	const u8 *lci;
+	const u8 *civicloc;
+	s8 ftm_responder;
 
 	size_t head_len, tail_len;
 	size_t beacon_ies_len;
 	size_t proberesp_ies_len;
 	size_t assocresp_ies_len;
 	size_t probe_resp_len;
+	size_t lci_len;
+	size_t civicloc_len;
 };
 
 struct mac_address {
@@ -849,6 +860,7 @@ struct cfg80211_bitrate_mask {
  * @beacon_rate: bitrate to be used for beacons
  * @ht_cap: HT capabilities (or %NULL if HT isn't enabled)
  * @vht_cap: VHT capabilities (or %NULL if VHT isn't enabled)
+ * @he_cap: HE capabilities (or %NULL if HE isn't enabled)
  * @ht_required: stations must support HT
  * @vht_required: stations must support VHT
  */
@@ -874,6 +886,7 @@ struct cfg80211_ap_settings {
 
 	const struct ieee80211_ht_cap *ht_cap;
 	const struct ieee80211_vht_cap *vht_cap;
+	const struct ieee80211_he_cap_elem *he_cap;
 	bool ht_required, vht_required;
 };
 
@@ -1290,6 +1303,10 @@ struct cfg80211_tid_stats {
  * @ack_signal: signal strength (in dBm) of the last ACK frame.
  * @avg_ack_signal: average rssi value of ack packet for the no of msdu's has
  *	been sent.
+ * @rx_mpdu_count: number of MPDUs received from this station
+ * @fcs_err_count: number of packets (MPDUs) received from this station with
+ *	an FCS error. This counter should be incremented only when TA of the
+ *	received packet with an FCS error matches the peer MAC address.
  */
 struct station_info {
 	u64 filled;
@@ -1336,6 +1353,9 @@ struct station_info {
 	struct cfg80211_tid_stats *pertid;
 	s8 ack_signal;
 	s8 avg_ack_signal;
+
+	u32 rx_mpdu_count;
+	u32 fcs_err_count;
 };
 
 #if IS_ENABLED(CONFIG_CFG80211)
@@ -2795,6 +2815,40 @@ struct cfg80211_external_auth_params {
 };
 
 /**
+ * cfg80211_ftm_responder_stats - FTM responder statistics
+ *
+ * @filled: bitflag of flags using the bits of &enum nl80211_ftm_stats to
+ *	indicate the relevant values in this struct for them
+ * @success_num: number of FTM sessions in which all frames were successfully
+ *	answered
+ * @partial_num: number of FTM sessions in which part of frames were
+ *	successfully answered
+ * @failed_num: number of failed FTM sessions
+ * @asap_num: number of ASAP FTM sessions
+ * @non_asap_num: number of  non-ASAP FTM sessions
+ * @total_duration_ms: total sessions durations - gives an indication
+ *	of how much time the responder was busy
+ * @unknown_triggers_num: number of unknown FTM triggers - triggers from
+ *	initiators that didn't finish successfully the negotiation phase with
+ *	the responder
+ * @reschedule_requests_num: number of FTM reschedule requests - initiator asks
+ *	for a new scheduling although it already has scheduled FTM slot
+ * @out_of_window_triggers_num: total FTM triggers out of scheduled window
+ */
+struct cfg80211_ftm_responder_stats {
+	u32 filled;
+	u32 success_num;
+	u32 partial_num;
+	u32 failed_num;
+	u32 asap_num;
+	u32 non_asap_num;
+	u64 total_duration_ms;
+	u32 unknown_triggers_num;
+	u32 reschedule_requests_num;
+	u32 out_of_window_triggers_num;
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -3126,6 +3180,9 @@ struct cfg80211_external_auth_params {
  *
  * @tx_control_port: TX a control port frame (EAPoL).  The noencrypt parameter
  *	tells the driver that the frame should not be encrypted.
+ *
+ * @get_ftm_responder_stats: Retrieve FTM responder statistics, if available.
+ *	Statistics should be cumulative, currently no way to reset is provided.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -3431,6 +3488,10 @@ struct cfg80211_ops {
 				   const u8 *buf, size_t len,
 				   const u8 *dest, const __be16 proto,
 				   const bool noencrypt);
+
+	int	(*get_ftm_responder_stats)(struct wiphy *wiphy,
+				struct net_device *dev,
+				struct cfg80211_ftm_responder_stats *ftm_stats);
 };
 
 /*
@@ -3958,7 +4019,6 @@ struct wiphy_iftype_ext_capab {
  *	by the driver in the .connect() callback. The bit position maps to the
  *	attribute indices defined in &enum nl80211_bss_select_attr.
  *
- * @cookie_counter: unique generic cookie counter, used to identify objects.
  * @nan_supported_bands: bands supported by the device in NAN mode, a
  *	bitmap of &enum nl80211_band values.  For instance, for
  *	NL80211_BAND_2GHZ, bit 0 would be set
@@ -4096,8 +4156,6 @@ struct wiphy {
 	u8 max_adj_channel_rssi_comp;
 
 	u32 bss_select_support;
-
-	u64 cookie_counter;
 
 	u8 nan_supported_bands;
 
@@ -4731,6 +4789,17 @@ static inline const u8 *cfg80211_find_ext_ie(u8 ext_eid, const u8 *ies, int len)
  */
 const u8 *cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
 				  const u8 *ies, int len);
+
+/**
+ * cfg80211_send_layer2_update - send layer 2 update frame
+ *
+ * @dev: network device
+ * @addr: STA MAC address
+ *
+ * Wireless drivers can use this function to update forwarding tables in bridge
+ * devices upon STA association.
+ */
+void cfg80211_send_layer2_update(struct net_device *dev, const u8 *addr);
 
 /**
  * DOC: Regulatory enforcement infrastructure

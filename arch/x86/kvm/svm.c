@@ -809,6 +809,8 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu)
 	    nested_svm_check_exception(svm, nr, has_error_code, error_code))
 		return;
 
+	kvm_deliver_exception_payload(&svm->vcpu);
+
 	if (nr == BP_VECTOR && !static_cpu_has(X86_FEATURE_NRIPS)) {
 		unsigned long rip, old_rip = kvm_rip_read(&svm->vcpu);
 
@@ -1444,7 +1446,7 @@ static u64 svm_read_l1_tsc_offset(struct kvm_vcpu *vcpu)
 	return vcpu->arch.tsc_offset;
 }
 
-static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
+static u64 svm_write_l1_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u64 g_tsc_offset = 0;
@@ -1462,6 +1464,7 @@ static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 	svm->vmcb->control.tsc_offset = offset + g_tsc_offset;
 
 	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
+	return svm->vmcb->control.tsc_offset;
 }
 
 static void avic_init_vmcb(struct vcpu_svm *svm)
@@ -1662,20 +1665,23 @@ static u64 *avic_get_physical_id_entry(struct kvm_vcpu *vcpu,
 static int avic_init_access_page(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
-	int ret;
+	int ret = 0;
 
+	mutex_lock(&kvm->slots_lock);
 	if (kvm->arch.apic_access_page_done)
-		return 0;
+		goto out;
 
-	ret = x86_set_memory_region(kvm,
-				    APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
-				    APIC_DEFAULT_PHYS_BASE,
-				    PAGE_SIZE);
+	ret = __x86_set_memory_region(kvm,
+				      APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
+				      APIC_DEFAULT_PHYS_BASE,
+				      PAGE_SIZE);
 	if (ret)
-		return ret;
+		goto out;
 
 	kvm->arch.apic_access_page_done = true;
-	return 0;
+out:
+	mutex_unlock(&kvm->slots_lock);
+	return ret;
 }
 
 static int avic_init_backing_page(struct kvm_vcpu *vcpu)
@@ -2187,9 +2193,24 @@ out:
 	return ERR_PTR(err);
 }
 
+static void svm_clear_current_vmcb(struct vmcb *vmcb)
+{
+	int i;
+
+	for_each_online_cpu(i)
+		cmpxchg(&per_cpu(svm_data, i)->current_vmcb, vmcb, NULL);
+}
+
 static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+
+	/*
+	 * The vmcb page can be recycled, causing a false negative in
+	 * svm_vcpu_load(). So, ensure that no logical CPU has this
+	 * vmcb page recorded as its current vmcb.
+	 */
+	svm_clear_current_vmcb(svm->vmcb);
 
 	__free_page(pfn_to_page(__sme_clr(svm->vmcb_pa) >> PAGE_SHIFT));
 	__free_pages(virt_to_page(svm->msrpm), MSRPM_ALLOC_ORDER);
@@ -2197,11 +2218,6 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 	__free_pages(virt_to_page(svm->nested.msrpm), MSRPM_ALLOC_ORDER);
 	kvm_vcpu_uninit(vcpu);
 	kmem_cache_free(kvm_vcpu_cache, svm);
-	/*
-	 * The vmcb page can be recycled, causing a false negative in
-	 * svm_vcpu_load(). So do a full IBPB now.
-	 */
-	indirect_branch_prediction_barrier();
 }
 
 static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -2921,19 +2937,22 @@ static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu,
 static void nested_svm_init_mmu_context(struct kvm_vcpu *vcpu)
 {
 	WARN_ON(mmu_is_nested(vcpu));
+
+	vcpu->arch.mmu = &vcpu->arch.guest_mmu;
 	kvm_init_shadow_mmu(vcpu);
-	vcpu->arch.mmu.set_cr3           = nested_svm_set_tdp_cr3;
-	vcpu->arch.mmu.get_cr3           = nested_svm_get_tdp_cr3;
-	vcpu->arch.mmu.get_pdptr         = nested_svm_get_tdp_pdptr;
-	vcpu->arch.mmu.inject_page_fault = nested_svm_inject_npf_exit;
-	vcpu->arch.mmu.shadow_root_level = get_npt_level(vcpu);
-	reset_shadow_zero_bits_mask(vcpu, &vcpu->arch.mmu);
+	vcpu->arch.mmu->set_cr3           = nested_svm_set_tdp_cr3;
+	vcpu->arch.mmu->get_cr3           = nested_svm_get_tdp_cr3;
+	vcpu->arch.mmu->get_pdptr         = nested_svm_get_tdp_pdptr;
+	vcpu->arch.mmu->inject_page_fault = nested_svm_inject_npf_exit;
+	vcpu->arch.mmu->shadow_root_level = get_npt_level(vcpu);
+	reset_shadow_zero_bits_mask(vcpu, vcpu->arch.mmu);
 	vcpu->arch.walk_mmu              = &vcpu->arch.nested_mmu;
 }
 
 static void nested_svm_uninit_mmu_context(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.walk_mmu = &vcpu->arch.mmu;
+	vcpu->arch.mmu = &vcpu->arch.root_mmu;
+	vcpu->arch.walk_mmu = &vcpu->arch.root_mmu;
 }
 
 static int nested_svm_check_permissions(struct vcpu_svm *svm)
@@ -2969,16 +2988,13 @@ static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 	svm->vmcb->control.exit_info_1 = error_code;
 
 	/*
-	 * FIXME: we should not write CR2 when L1 intercepts an L2 #PF exception.
-	 * The fix is to add the ancillary datum (CR2 or DR6) to structs
-	 * kvm_queued_exception and kvm_vcpu_events, so that CR2 and DR6 can be
-	 * written only when inject_pending_event runs (DR6 would written here
-	 * too).  This should be conditional on a new capability---if the
-	 * capability is disabled, kvm_multiple_exception would write the
-	 * ancillary information to CR2 or DR6, for backwards ABI-compatibility.
+	 * EXITINFO2 is undefined for all exception intercepts other
+	 * than #PF.
 	 */
 	if (svm->vcpu.arch.exception.nested_apf)
 		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.apf.nested_apf_token;
+	else if (svm->vcpu.arch.exception.has_payload)
+		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.exception.payload;
 	else
 		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.cr2;
 
@@ -3445,7 +3461,6 @@ static void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 		svm->vcpu.arch.hflags &= ~HF_HIF_MASK;
 
 	if (nested_vmcb->control.nested_ctl & SVM_NESTED_CTL_NP_ENABLE) {
-		kvm_mmu_unload(&svm->vcpu);
 		svm->nested.nested_cr3 = nested_vmcb->control.nested_cr3;
 		nested_svm_init_mmu_context(&svm->vcpu);
 	}
@@ -5642,26 +5657,24 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 		"mov %%r13, %c[r13](%[svm]) \n\t"
 		"mov %%r14, %c[r14](%[svm]) \n\t"
 		"mov %%r15, %c[r15](%[svm]) \n\t"
-#endif
 		/*
 		* Clear host registers marked as clobbered to prevent
 		* speculative use.
 		*/
-		"xor %%" _ASM_BX ", %%" _ASM_BX " \n\t"
-		"xor %%" _ASM_CX ", %%" _ASM_CX " \n\t"
-		"xor %%" _ASM_DX ", %%" _ASM_DX " \n\t"
-		"xor %%" _ASM_SI ", %%" _ASM_SI " \n\t"
-		"xor %%" _ASM_DI ", %%" _ASM_DI " \n\t"
-#ifdef CONFIG_X86_64
-		"xor %%r8, %%r8 \n\t"
-		"xor %%r9, %%r9 \n\t"
-		"xor %%r10, %%r10 \n\t"
-		"xor %%r11, %%r11 \n\t"
-		"xor %%r12, %%r12 \n\t"
-		"xor %%r13, %%r13 \n\t"
-		"xor %%r14, %%r14 \n\t"
-		"xor %%r15, %%r15 \n\t"
+		"xor %%r8d, %%r8d \n\t"
+		"xor %%r9d, %%r9d \n\t"
+		"xor %%r10d, %%r10d \n\t"
+		"xor %%r11d, %%r11d \n\t"
+		"xor %%r12d, %%r12d \n\t"
+		"xor %%r13d, %%r13d \n\t"
+		"xor %%r14d, %%r14d \n\t"
+		"xor %%r15d, %%r15d \n\t"
 #endif
+		"xor %%ebx, %%ebx \n\t"
+		"xor %%ecx, %%ecx \n\t"
+		"xor %%edx, %%edx \n\t"
+		"xor %%esi, %%esi \n\t"
+		"xor %%edi, %%edi \n\t"
 		"pop %%" _ASM_BP
 		:
 		: [svm]"a"(svm),
@@ -7040,6 +7053,13 @@ failed:
 	return ret;
 }
 
+static int nested_enable_evmcs(struct kvm_vcpu *vcpu,
+				   uint16_t *vmcs_version)
+{
+	/* Intel-only feature */
+	return -ENODEV;
+}
+
 static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -7145,7 +7165,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.has_wbinvd_exit = svm_has_wbinvd_exit,
 
 	.read_l1_tsc_offset = svm_read_l1_tsc_offset,
-	.write_tsc_offset = svm_write_tsc_offset,
+	.write_l1_tsc_offset = svm_write_l1_tsc_offset,
 
 	.set_tdp_cr3 = set_tdp_cr3,
 
@@ -7169,6 +7189,8 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.mem_enc_op = svm_mem_enc_op,
 	.mem_enc_reg_region = svm_register_enc_region,
 	.mem_enc_unreg_region = svm_unregister_enc_region,
+
+	.nested_enable_evmcs = nested_enable_evmcs,
 };
 
 static int __init svm_init(void)

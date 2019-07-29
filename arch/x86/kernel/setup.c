@@ -30,7 +30,6 @@
 #include <linux/sfi.h>
 #include <linux/apm_bios.h>
 #include <linux/initrd.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/seq_file.h>
 #include <linux/console.h>
@@ -1251,7 +1250,7 @@ void __init setup_arch(char **cmdline_p)
 	x86_init.hyper.guest_late_init();
 
 	e820__reserve_resources();
-	e820__register_nosave_regions(max_low_pfn);
+	e820__register_nosave_regions(max_pfn);
 
 	x86_init.resources.reserve_resources();
 

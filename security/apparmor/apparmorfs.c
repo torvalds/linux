@@ -1742,7 +1742,7 @@ static int ns_rmdir_op(struct inode *dir, struct dentry *dentry)
 	if (error)
 		return error;
 
-	 parent = aa_get_ns(dir->i_private);
+	parent = aa_get_ns(dir->i_private);
 	/* rmdir calls the generic securityfs functions to remove files
 	 * from the apparmor dir. It is up to the apparmor ns locking
 	 * to avoid races.

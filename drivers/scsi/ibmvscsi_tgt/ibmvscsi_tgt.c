@@ -2266,7 +2266,6 @@ static int ibmvscsis_drop_nexus(struct ibmvscsis_tport *tport)
 	/*
 	 * Release the SCSI I_T Nexus to the emulated ibmvscsis Target Port
 	 */
-	target_wait_for_sess_cmds(se_sess);
 	target_remove_session(se_sess);
 	tport->ibmv_nexus = NULL;
 	kfree(nexus);

@@ -61,10 +61,12 @@ static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)
 	}
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
+	mmio_hw_access_pre(dev_priv);
 	ret = i915_gem_gtt_insert(&dev_priv->ggtt.vm, node,
 				  size, I915_GTT_PAGE_SIZE,
 				  I915_COLOR_UNEVICTABLE,
 				  start, end, flags);
+	mmio_hw_access_post(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	if (ret)
 		gvt_err("fail to alloc %s gm space from host\n",

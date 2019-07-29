@@ -2437,45 +2437,26 @@ static int edge_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static int get_serial_info(struct edgeport_port *edge_port,
-				struct serial_struct __user *retinfo)
+static int get_serial_info(struct tty_struct *tty,
+				struct serial_struct *ss)
 {
-	struct serial_struct tmp;
+	struct usb_serial_port *port = tty->driver_data;
+	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	unsigned cwait;
 
 	cwait = edge_port->port->port.closing_wait;
 	if (cwait != ASYNC_CLOSING_WAIT_NONE)
 		cwait = jiffies_to_msecs(cwait) / 10;
 
-	memset(&tmp, 0, sizeof(tmp));
-
-	tmp.type		= PORT_16550A;
-	tmp.line		= edge_port->port->minor;
-	tmp.port		= edge_port->port->port_number;
-	tmp.irq			= 0;
-	tmp.xmit_fifo_size	= edge_port->port->bulk_out_size;
-	tmp.baud_base		= 9600;
-	tmp.close_delay		= 5*HZ;
-	tmp.closing_wait	= cwait;
-
-	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return -EFAULT;
+	ss->type		= PORT_16550A;
+	ss->line		= edge_port->port->minor;
+	ss->port		= edge_port->port->port_number;
+	ss->irq			= 0;
+	ss->xmit_fifo_size	= edge_port->port->bulk_out_size;
+	ss->baud_base		= 9600;
+	ss->close_delay		= 5*HZ;
+	ss->closing_wait	= cwait;
 	return 0;
-}
-
-static int edge_ioctl(struct tty_struct *tty,
-					unsigned int cmd, unsigned long arg)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
-
-	switch (cmd) {
-	case TIOCGSERIAL:
-		dev_dbg(&port->dev, "%s - TIOCGSERIAL\n", __func__);
-		return get_serial_info(edge_port,
-				(struct serial_struct __user *) arg);
-	}
-	return -ENOIOCTLCMD;
 }
 
 static void edge_break(struct tty_struct *tty, int break_state)
@@ -2738,7 +2719,7 @@ static struct usb_serial_driver edgeport_1port_device = {
 	.release		= edge_release,
 	.port_probe		= edge_port_probe,
 	.port_remove		= edge_port_remove,
-	.ioctl			= edge_ioctl,
+	.get_serial		= get_serial_info,
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
 	.tiocmset		= edge_tiocmset,
@@ -2777,7 +2758,7 @@ static struct usb_serial_driver edgeport_2port_device = {
 	.release		= edge_release,
 	.port_probe		= edge_port_probe,
 	.port_remove		= edge_port_remove,
-	.ioctl			= edge_ioctl,
+	.get_serial		= get_serial_info,
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
 	.tiocmset		= edge_tiocmset,

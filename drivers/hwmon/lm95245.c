@@ -541,7 +541,8 @@ static const struct regmap_config lm95245_regmap_config = {
 	.writeable_reg = lm95245_is_writeable_reg,
 	.volatile_reg = lm95245_is_volatile_reg,
 	.cache_type = REGCACHE_RBTREE,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static const u32 lm95245_chip_config[] = {

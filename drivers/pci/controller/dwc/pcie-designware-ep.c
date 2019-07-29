@@ -440,7 +440,6 @@ int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
 	tbl_offset = dw_pcie_readl_dbi(pci, reg);
 	bir = (tbl_offset & PCI_MSIX_TABLE_BIR);
 	tbl_offset &= PCI_MSIX_TABLE_OFFSET;
-	tbl_offset >>= 3;
 
 	reg = PCI_BASE_ADDRESS_0 + (4 * bir);
 	bar_addr_upper = 0;

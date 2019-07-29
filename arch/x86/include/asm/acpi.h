@@ -142,6 +142,8 @@ static inline u64 acpi_arch_get_root_pointer(void)
 
 void acpi_generic_reduced_hw_init(void);
 
+u64 x86_default_get_root_pointer(void);
+
 #else /* !CONFIG_ACPI */
 
 #define acpi_lapic 0
@@ -152,6 +154,11 @@ static inline void acpi_disable_pci(void) { }
 static inline void disable_acpi(void) { }
 
 static inline void acpi_generic_reduced_hw_init(void) { }
+
+static inline u64 x86_default_get_root_pointer(void)
+{
+	return 0;
+}
 
 #endif /* !CONFIG_ACPI */
 

@@ -83,7 +83,18 @@ is passed to bzImage.efi.
 The "dtb=" option
 -----------------
 
-For the ARM and arm64 architectures, we also need to be able to provide a
-device tree to the kernel. This is done with the "dtb=" command line option,
-and is processed in the same manner as the "initrd=" option that is
+For the ARM and arm64 architectures, a device tree must be provided to
+the kernel. Normally firmware shall supply the device tree via the
+EFI CONFIGURATION TABLE. However, the "dtb=" command line option can
+be used to override the firmware supplied device tree, or to supply
+one when firmware is unable to.
+
+Please note: Firmware adds runtime configuration information to the
+device tree before booting the kernel. If dtb= is used to override
+the device tree, then any runtime data provided by firmware will be
+lost. The dtb= option should only be used either as a debug tool, or
+as a last resort when a device tree is not provided in the EFI
+CONFIGURATION TABLE.
+
+"dtb=" is processed in the same manner as the "initrd=" option that is
 described above.

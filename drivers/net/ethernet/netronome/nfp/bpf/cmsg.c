@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017-2018 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <linux/bpf.h>
 #include <linux/bitops.h>
@@ -89,15 +59,32 @@ nfp_bpf_cmsg_alloc(struct nfp_app_bpf *bpf, unsigned int size)
 	return skb;
 }
 
-static struct sk_buff *
-nfp_bpf_cmsg_map_req_alloc(struct nfp_app_bpf *bpf, unsigned int n)
+static unsigned int
+nfp_bpf_cmsg_map_req_size(struct nfp_app_bpf *bpf, unsigned int n)
 {
 	unsigned int size;
 
 	size = sizeof(struct cmsg_req_map_op);
-	size += sizeof(struct cmsg_key_value_pair) * n;
+	size += (bpf->cmsg_key_sz + bpf->cmsg_val_sz) * n;
 
-	return nfp_bpf_cmsg_alloc(bpf, size);
+	return size;
+}
+
+static struct sk_buff *
+nfp_bpf_cmsg_map_req_alloc(struct nfp_app_bpf *bpf, unsigned int n)
+{
+	return nfp_bpf_cmsg_alloc(bpf, nfp_bpf_cmsg_map_req_size(bpf, n));
+}
+
+static unsigned int
+nfp_bpf_cmsg_map_reply_size(struct nfp_app_bpf *bpf, unsigned int n)
+{
+	unsigned int size;
+
+	size = sizeof(struct cmsg_reply_map_op);
+	size += (bpf->cmsg_key_sz + bpf->cmsg_val_sz) * n;
+
+	return size;
 }
 
 static u8 nfp_bpf_cmsg_get_type(struct sk_buff *skb)
@@ -338,6 +325,34 @@ void nfp_bpf_ctrl_free_map(struct nfp_app_bpf *bpf, struct nfp_bpf_map *nfp_map)
 	dev_consume_skb_any(skb);
 }
 
+static void *
+nfp_bpf_ctrl_req_key(struct nfp_app_bpf *bpf, struct cmsg_req_map_op *req,
+		     unsigned int n)
+{
+	return &req->data[bpf->cmsg_key_sz * n + bpf->cmsg_val_sz * n];
+}
+
+static void *
+nfp_bpf_ctrl_req_val(struct nfp_app_bpf *bpf, struct cmsg_req_map_op *req,
+		     unsigned int n)
+{
+	return &req->data[bpf->cmsg_key_sz * (n + 1) + bpf->cmsg_val_sz * n];
+}
+
+static void *
+nfp_bpf_ctrl_reply_key(struct nfp_app_bpf *bpf, struct cmsg_reply_map_op *reply,
+		       unsigned int n)
+{
+	return &reply->data[bpf->cmsg_key_sz * n + bpf->cmsg_val_sz * n];
+}
+
+static void *
+nfp_bpf_ctrl_reply_val(struct nfp_app_bpf *bpf, struct cmsg_reply_map_op *reply,
+		       unsigned int n)
+{
+	return &reply->data[bpf->cmsg_key_sz * (n + 1) + bpf->cmsg_val_sz * n];
+}
+
 static int
 nfp_bpf_ctrl_entry_op(struct bpf_offloaded_map *offmap,
 		      enum nfp_bpf_cmsg_type op,
@@ -366,12 +381,13 @@ nfp_bpf_ctrl_entry_op(struct bpf_offloaded_map *offmap,
 
 	/* Copy inputs */
 	if (key)
-		memcpy(&req->elem[0].key, key, map->key_size);
+		memcpy(nfp_bpf_ctrl_req_key(bpf, req, 0), key, map->key_size);
 	if (value)
-		memcpy(&req->elem[0].value, value, map->value_size);
+		memcpy(nfp_bpf_ctrl_req_val(bpf, req, 0), value,
+		       map->value_size);
 
 	skb = nfp_bpf_cmsg_communicate(bpf, skb, op,
-				       sizeof(*reply) + sizeof(*reply->elem));
+				       nfp_bpf_cmsg_map_reply_size(bpf, 1));
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
@@ -382,9 +398,11 @@ nfp_bpf_ctrl_entry_op(struct bpf_offloaded_map *offmap,
 
 	/* Copy outputs */
 	if (out_key)
-		memcpy(out_key, &reply->elem[0].key, map->key_size);
+		memcpy(out_key, nfp_bpf_ctrl_reply_key(bpf, reply, 0),
+		       map->key_size);
 	if (out_value)
-		memcpy(out_value, &reply->elem[0].value, map->value_size);
+		memcpy(out_value, nfp_bpf_ctrl_reply_val(bpf, reply, 0),
+		       map->value_size);
 
 	dev_consume_skb_any(skb);
 
@@ -426,6 +444,13 @@ int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
 {
 	return nfp_bpf_ctrl_entry_op(offmap, CMSG_TYPE_MAP_GETNEXT,
 				     key, NULL, 0, next_key, NULL);
+}
+
+unsigned int nfp_bpf_ctrl_cmsg_mtu(struct nfp_app_bpf *bpf)
+{
+	return max3((unsigned int)NFP_NET_DEFAULT_MTU,
+		    nfp_bpf_cmsg_map_req_size(bpf, 1),
+		    nfp_bpf_cmsg_map_reply_size(bpf, 1));
 }
 
 void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb)

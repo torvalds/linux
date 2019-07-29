@@ -185,8 +185,8 @@
 				 NETIF_MSG_TX_ERR)
 
 /* Parameter for descriptor */
-#define AVE_NR_TXDESC		32	/* Tx descriptor */
-#define AVE_NR_RXDESC		64	/* Rx descriptor */
+#define AVE_NR_TXDESC		64	/* Tx descriptor */
+#define AVE_NR_RXDESC		256	/* Rx descriptor */
 
 #define AVE_DESC_OFS_CMDSTS	0
 #define AVE_DESC_OFS_ADDRL	4
@@ -194,6 +194,7 @@
 
 /* Parameter for ethernet frame */
 #define AVE_MAX_ETHFRAME	1518
+#define AVE_FRAME_HEADROOM	2
 
 /* Parameter for interrupt */
 #define AVE_INTM_COUNT		20
@@ -461,16 +462,7 @@ static int ave_ethtool_set_pauseparam(struct net_device *ndev,
 	priv->pause_rx   = pause->rx_pause;
 	priv->pause_tx   = pause->tx_pause;
 
-	phydev->advertising &= ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
-	if (pause->rx_pause)
-		phydev->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
-	if (pause->tx_pause)
-		phydev->advertising ^= ADVERTISED_Asym_Pause;
-
-	if (pause->autoneg) {
-		if (netif_running(ndev))
-			phy_start_aneg(phydev);
-	}
+	phy_set_asym_pause(phydev, pause->rx_pause, pause->tx_pause);
 
 	return 0;
 }
@@ -585,12 +577,13 @@ static int ave_rxdesc_prepare(struct net_device *ndev, int entry)
 
 	skb = priv->rx.desc[entry].skbs;
 	if (!skb) {
-		skb = netdev_alloc_skb_ip_align(ndev,
-						AVE_MAX_ETHFRAME);
+		skb = netdev_alloc_skb(ndev, AVE_MAX_ETHFRAME);
 		if (!skb) {
 			netdev_err(ndev, "can't allocate skb for Rx\n");
 			return -ENOMEM;
 		}
+		skb->data += AVE_FRAME_HEADROOM;
+		skb->tail += AVE_FRAME_HEADROOM;
 	}
 
 	/* set disable to cmdsts */
@@ -603,12 +596,12 @@ static int ave_rxdesc_prepare(struct net_device *ndev, int entry)
 	 * - Rx buffer begins with 2 byte headroom, and data will be put from
 	 *   (buffer + 2).
 	 * To satisfy this, specify the address to put back the buffer
-	 * pointer advanced by NET_IP_ALIGN by netdev_alloc_skb_ip_align(),
-	 * and expand the map size by NET_IP_ALIGN.
+	 * pointer advanced by AVE_FRAME_HEADROOM, and expand the map size
+	 * by AVE_FRAME_HEADROOM.
 	 */
 	ret = ave_dma_map(ndev, &priv->rx.desc[entry],
-			  skb->data - NET_IP_ALIGN,
-			  AVE_MAX_ETHFRAME + NET_IP_ALIGN,
+			  skb->data - AVE_FRAME_HEADROOM,
+			  AVE_MAX_ETHFRAME + AVE_FRAME_HEADROOM,
 			  DMA_FROM_DEVICE, &paddr);
 	if (ret) {
 		netdev_err(ndev, "can't map skb for Rx\n");
@@ -904,11 +897,11 @@ static void ave_rxfifo_reset(struct net_device *ndev)
 
 	/* assert reset */
 	writel(AVE_GRR_RXFFR, priv->base + AVE_GRR);
-	usleep_range(40, 50);
+	udelay(50);
 
 	/* negate reset */
 	writel(0, priv->base + AVE_GRR);
-	usleep_range(10, 20);
+	udelay(20);
 
 	/* negate interrupt status */
 	writel(AVE_GI_RXOVF, priv->base + AVE_GISR);
@@ -1125,11 +1118,8 @@ static void ave_phy_adjust_link(struct net_device *ndev)
 			rmt_adv |= LPA_PAUSE_CAP;
 		if (phydev->asym_pause)
 			rmt_adv |= LPA_PAUSE_ASYM;
-		if (phydev->advertising & ADVERTISED_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_CAP;
-		if (phydev->advertising & ADVERTISED_Asym_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_ASYM;
 
+		lcl_adv = ethtool_adv_to_lcl_adv_t(phydev->advertising);
 		cap = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
 		if (cap & FLOW_CTRL_TX)
 			txcr |= AVE_TXCR_FLOCTR;
@@ -1223,11 +1213,10 @@ static int ave_init(struct net_device *ndev)
 	phy_ethtool_get_wol(phydev, &wol);
 	device_set_wakeup_capable(&ndev->dev, !!wol.supported);
 
-	if (!phy_interface_is_rgmii(phydev)) {
-		phydev->supported &= ~PHY_GBIT_FEATURES;
-		phydev->supported |= PHY_BASIC_FEATURES;
-	}
-	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	if (!phy_interface_is_rgmii(phydev))
+		phy_set_max_speed(phydev, SPEED_100);
+
+	phy_support_asym_pause(phydev);
 
 	phy_attached_info(phydev);
 
@@ -1702,9 +1691,10 @@ static int ave_probe(struct platform_device *pdev)
 		 pdev->name, pdev->id);
 
 	/* Register as a NAPI supported driver */
-	netif_napi_add(ndev, &priv->napi_rx, ave_napi_poll_rx, priv->rx.ndesc);
+	netif_napi_add(ndev, &priv->napi_rx, ave_napi_poll_rx,
+		       NAPI_POLL_WEIGHT);
 	netif_tx_napi_add(ndev, &priv->napi_tx, ave_napi_poll_tx,
-			  priv->tx.ndesc);
+			  NAPI_POLL_WEIGHT);
 
 	platform_set_drvdata(pdev, ndev);
 
@@ -1926,5 +1916,6 @@ static struct platform_driver ave_driver = {
 };
 module_platform_driver(ave_driver);
 
+MODULE_AUTHOR("Kunihiko Hayashi <hayashi.kunihiko@socionext.com>");
 MODULE_DESCRIPTION("Socionext UniPhier AVE ethernet driver");
 MODULE_LICENSE("GPL v2");

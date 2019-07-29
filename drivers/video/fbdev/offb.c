@@ -419,9 +419,13 @@ static void __init offb_init_fb(const char *name,
 	var = &info->var;
 	info->par = par;
 
-	strcpy(fix->id, "OFfb ");
-	strncat(fix->id, name, sizeof(fix->id) - sizeof("OFfb "));
-	fix->id[sizeof(fix->id) - 1] = '\0';
+	if (name) {
+		strcpy(fix->id, "OFfb ");
+		strncat(fix->id, name, sizeof(fix->id) - sizeof("OFfb "));
+		fix->id[sizeof(fix->id) - 1] = '\0';
+	} else
+		snprintf(fix->id, sizeof(fix->id), "OFfb %pOFn", dp);
+
 
 	var->xres = var->xres_virtual = width;
 	var->yres = var->yres_virtual = height;
@@ -644,7 +648,7 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 		/* kludge for valkyrie */
 		if (strcmp(dp->name, "valkyrie") == 0)
 			address += 0x1000;
-		offb_init_fb(no_real_node ? "bootx" : dp->name,
+		offb_init_fb(no_real_node ? "bootx" : NULL,
 			     width, height, depth, pitch, address,
 			     foreign_endian, no_real_node ? NULL : dp);
 	}

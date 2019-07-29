@@ -170,10 +170,9 @@ static void bcm47xxnflash_ops_bcm4706_write(struct mtd_info *mtd,
  * NAND chip ops
  **************************************************/
 
-static void bcm47xxnflash_ops_bcm4706_cmd_ctrl(struct mtd_info *mtd, int cmd,
-					       unsigned int ctrl)
+static void bcm47xxnflash_ops_bcm4706_cmd_ctrl(struct nand_chip *nand_chip,
+					       int cmd, unsigned int ctrl)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 	u32 code = 0;
 
@@ -191,15 +190,14 @@ static void bcm47xxnflash_ops_bcm4706_cmd_ctrl(struct mtd_info *mtd, int cmd,
 }
 
 /* Default nand_select_chip calls cmd_ctrl, which is not used in BCM4706 */
-static void bcm47xxnflash_ops_bcm4706_select_chip(struct mtd_info *mtd,
-						  int chip)
+static void bcm47xxnflash_ops_bcm4706_select_chip(struct nand_chip *chip,
+						  int cs)
 {
 	return;
 }
 
-static int bcm47xxnflash_ops_bcm4706_dev_ready(struct mtd_info *mtd)
+static int bcm47xxnflash_ops_bcm4706_dev_ready(struct nand_chip *nand_chip)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 
 	return !!(bcma_cc_read32(b47n->cc, BCMA_CC_NFLASH_CTL) & NCTL_READY);
@@ -212,11 +210,11 @@ static int bcm47xxnflash_ops_bcm4706_dev_ready(struct mtd_info *mtd)
  * registers of ChipCommon core. Hacking cmd_ctrl to understand and convert
  * standard commands would be much more complicated.
  */
-static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct mtd_info *mtd,
+static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct nand_chip *nand_chip,
 					      unsigned command, int column,
 					      int page_addr)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand_chip);
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 	struct bcma_drv_cc *cc = b47n->cc;
 	u32 ctlcode;
@@ -229,10 +227,10 @@ static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct mtd_info *mtd,
 
 	switch (command) {
 	case NAND_CMD_RESET:
-		nand_chip->cmd_ctrl(mtd, command, NAND_CTRL_CLE);
+		nand_chip->legacy.cmd_ctrl(nand_chip, command, NAND_CTRL_CLE);
 
 		ndelay(100);
-		nand_wait_ready(mtd);
+		nand_wait_ready(nand_chip);
 		break;
 	case NAND_CMD_READID:
 		ctlcode = NCTL_CSA | 0x01000000 | NCTL_CMD1W | NCTL_CMD0;
@@ -310,9 +308,9 @@ static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct mtd_info *mtd,
 	b47n->curr_command = command;
 }
 
-static u8 bcm47xxnflash_ops_bcm4706_read_byte(struct mtd_info *mtd)
+static u8 bcm47xxnflash_ops_bcm4706_read_byte(struct nand_chip *nand_chip)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand_chip);
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 	struct bcma_drv_cc *cc = b47n->cc;
 	u32 tmp = 0;
@@ -338,31 +336,31 @@ static u8 bcm47xxnflash_ops_bcm4706_read_byte(struct mtd_info *mtd)
 	return 0;
 }
 
-static void bcm47xxnflash_ops_bcm4706_read_buf(struct mtd_info *mtd,
+static void bcm47xxnflash_ops_bcm4706_read_buf(struct nand_chip *nand_chip,
 					       uint8_t *buf, int len)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 
 	switch (b47n->curr_command) {
 	case NAND_CMD_READ0:
 	case NAND_CMD_READOOB:
-		bcm47xxnflash_ops_bcm4706_read(mtd, buf, len);
+		bcm47xxnflash_ops_bcm4706_read(nand_to_mtd(nand_chip), buf,
+					       len);
 		return;
 	}
 
 	pr_err("Invalid command for buf read: 0x%X\n", b47n->curr_command);
 }
 
-static void bcm47xxnflash_ops_bcm4706_write_buf(struct mtd_info *mtd,
+static void bcm47xxnflash_ops_bcm4706_write_buf(struct nand_chip *nand_chip,
 						const uint8_t *buf, int len)
 {
-	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct bcm47xxnflash *b47n = nand_get_controller_data(nand_chip);
 
 	switch (b47n->curr_command) {
 	case NAND_CMD_SEQIN:
-		bcm47xxnflash_ops_bcm4706_write(mtd, buf, len);
+		bcm47xxnflash_ops_bcm4706_write(nand_to_mtd(nand_chip), buf,
+						len);
 		return;
 	}
 
@@ -386,16 +384,16 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 	u32 val;
 
 	b47n->nand_chip.select_chip = bcm47xxnflash_ops_bcm4706_select_chip;
-	nand_chip->cmd_ctrl = bcm47xxnflash_ops_bcm4706_cmd_ctrl;
-	nand_chip->dev_ready = bcm47xxnflash_ops_bcm4706_dev_ready;
-	b47n->nand_chip.cmdfunc = bcm47xxnflash_ops_bcm4706_cmdfunc;
-	b47n->nand_chip.read_byte = bcm47xxnflash_ops_bcm4706_read_byte;
-	b47n->nand_chip.read_buf = bcm47xxnflash_ops_bcm4706_read_buf;
-	b47n->nand_chip.write_buf = bcm47xxnflash_ops_bcm4706_write_buf;
-	b47n->nand_chip.set_features = nand_get_set_features_notsupp;
-	b47n->nand_chip.get_features = nand_get_set_features_notsupp;
+	nand_chip->legacy.cmd_ctrl = bcm47xxnflash_ops_bcm4706_cmd_ctrl;
+	nand_chip->legacy.dev_ready = bcm47xxnflash_ops_bcm4706_dev_ready;
+	b47n->nand_chip.legacy.cmdfunc = bcm47xxnflash_ops_bcm4706_cmdfunc;
+	b47n->nand_chip.legacy.read_byte = bcm47xxnflash_ops_bcm4706_read_byte;
+	b47n->nand_chip.legacy.read_buf = bcm47xxnflash_ops_bcm4706_read_buf;
+	b47n->nand_chip.legacy.write_buf = bcm47xxnflash_ops_bcm4706_write_buf;
+	b47n->nand_chip.legacy.set_features = nand_get_set_features_notsupp;
+	b47n->nand_chip.legacy.get_features = nand_get_set_features_notsupp;
 
-	nand_chip->chip_delay = 50;
+	nand_chip->legacy.chip_delay = 50;
 	b47n->nand_chip.bbt_options = NAND_BBT_USE_FLASH;
 	b47n->nand_chip.ecc.mode = NAND_ECC_NONE; /* TODO: implement ECC */
 
@@ -423,7 +421,7 @@ int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n)
 			(w4 << 24 | w3 << 18 | w2 << 12 | w1 << 6 | w0));
 
 	/* Scan NAND */
-	err = nand_scan(nand_to_mtd(&b47n->nand_chip), 1);
+	err = nand_scan(&b47n->nand_chip, 1);
 	if (err) {
 		pr_err("Could not scan NAND flash: %d\n", err);
 		goto exit;

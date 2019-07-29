@@ -260,6 +260,6 @@ static struct spi_driver ad7780_driver = {
 };
 module_spi_driver(ad7780_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7780 and similar ADCs");
 MODULE_LICENSE("GPL v2");

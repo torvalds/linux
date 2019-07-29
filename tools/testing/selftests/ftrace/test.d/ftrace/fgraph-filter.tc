@@ -9,14 +9,7 @@ if ! grep -q function_graph available_tracers; then
     exit_unsupported
 fi
 
-do_reset() {
-    reset_tracer
-    enable_tracing
-    clear_trace
-}
-
 fail() { # msg
-    do_reset
     echo $1
     exit_fail
 }
@@ -47,7 +40,5 @@ count=`cat trace | grep 'schedule()' | wc -l`
 if [ $count -eq 0 ]; then
     fail "No schedule traces found?"
 fi
-
-do_reset
 
 exit 0

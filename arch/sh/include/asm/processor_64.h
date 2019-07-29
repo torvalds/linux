@@ -19,21 +19,6 @@
 #include <asm/types.h>
 #include <cpu/registers.h>
 
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ \
-void *pc; \
-unsigned long long __dummy = 0; \
-__asm__("gettr	tr0, %1\n\t" \
-	"pta	4, tr0\n\t" \
-	"gettr	tr0, %0\n\t" \
-	"ptabs	%1, tr0\n\t"	\
-	:"=r" (pc), "=r" (__dummy) \
-	: "1" (__dummy)); \
-pc; })
-
 #endif
 
 /*

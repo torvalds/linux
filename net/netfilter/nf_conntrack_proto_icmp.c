@@ -25,11 +25,6 @@
 
 static const unsigned int nf_ct_icmp_timeout = 30*HZ;
 
-static inline struct nf_icmp_net *icmp_pernet(struct net *net)
-{
-	return &net->ct.nf_ct_proto.icmp;
-}
-
 static bool icmp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
 			      struct net *net, struct nf_conntrack_tuple *tuple)
 {
@@ -72,34 +67,17 @@ static bool icmp_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-static unsigned int *icmp_get_timeouts(struct net *net)
-{
-	return &icmp_pernet(net)->timeout;
-}
-
 /* Returns verdict for packet, or -1 for invalid. */
 static int icmp_packet(struct nf_conn *ct,
-		       const struct sk_buff *skb,
+		       struct sk_buff *skb,
 		       unsigned int dataoff,
-		       enum ip_conntrack_info ctinfo)
+		       enum ip_conntrack_info ctinfo,
+		       const struct nf_hook_state *state)
 {
 	/* Do not immediately delete the connection after the first
 	   successful reply to avoid excessive conntrackd traffic
 	   and also to handle correctly ICMP echo reply duplicates. */
 	unsigned int *timeout = nf_ct_timeout_lookup(ct);
-
-	if (!timeout)
-		timeout = icmp_get_timeouts(nf_ct_net(ct));
-
-	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
-
-	return NF_ACCEPT;
-}
-
-/* Called when a new connection for this protocol found. */
-static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		     unsigned int dataoff)
-{
 	static const u_int8_t valid_new[] = {
 		[ICMP_ECHO] = 1,
 		[ICMP_TIMESTAMP] = 1,
@@ -107,21 +85,29 @@ static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		[ICMP_ADDRESS] = 1
 	};
 
+	if (state->pf != NFPROTO_IPV4)
+		return -NF_ACCEPT;
+
 	if (ct->tuplehash[0].tuple.dst.u.icmp.type >= sizeof(valid_new) ||
 	    !valid_new[ct->tuplehash[0].tuple.dst.u.icmp.type]) {
 		/* Can't create a new ICMP `conn' with this. */
 		pr_debug("icmp: can't create new conn with type %u\n",
 			 ct->tuplehash[0].tuple.dst.u.icmp.type);
 		nf_ct_dump_tuple_ip(&ct->tuplehash[0].tuple);
-		return false;
+		return -NF_ACCEPT;
 	}
-	return true;
+
+	if (!timeout)
+		timeout = &nf_icmp_pernet(nf_ct_net(ct))->timeout;
+
+	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
+	return NF_ACCEPT;
 }
 
 /* Returns conntrack if it dealt with ICMP, and filled in skb fields */
 static int
-icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
-		 unsigned int hooknum)
+icmp_error_message(struct nf_conn *tmpl, struct sk_buff *skb,
+		   const struct nf_hook_state *state)
 {
 	struct nf_conntrack_tuple innertuple, origtuple;
 	const struct nf_conntrack_l4proto *innerproto;
@@ -137,13 +123,13 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 	if (!nf_ct_get_tuplepr(skb,
 			       skb_network_offset(skb) + ip_hdrlen(skb)
 						       + sizeof(struct icmphdr),
-			       PF_INET, net, &origtuple)) {
+			       PF_INET, state->net, &origtuple)) {
 		pr_debug("icmp_error_message: failed to get tuple\n");
 		return -NF_ACCEPT;
 	}
 
 	/* rcu_read_lock()ed by nf_hook_thresh */
-	innerproto = __nf_ct_l4proto_find(PF_INET, origtuple.dst.protonum);
+	innerproto = __nf_ct_l4proto_find(origtuple.dst.protonum);
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
 	   been preserved inside the ICMP. */
@@ -154,7 +140,7 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 
 	ctinfo = IP_CT_RELATED;
 
-	h = nf_conntrack_find_get(net, zone, &innertuple);
+	h = nf_conntrack_find_get(state->net, zone, &innertuple);
 	if (!h) {
 		pr_debug("icmp_error_message: no match\n");
 		return -NF_ACCEPT;
@@ -168,17 +154,18 @@ icmp_error_message(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
-static void icmp_error_log(const struct sk_buff *skb, struct net *net,
-			   u8 pf, const char *msg)
+static void icmp_error_log(const struct sk_buff *skb,
+			   const struct nf_hook_state *state,
+			   const char *msg)
 {
-	nf_l4proto_log_invalid(skb, net, pf, IPPROTO_ICMP, "%s", msg);
+	nf_l4proto_log_invalid(skb, state->net, state->pf,
+			       IPPROTO_ICMP, "%s", msg);
 }
 
 /* Small and modified version of icmp_rcv */
-static int
-icmp_error(struct net *net, struct nf_conn *tmpl,
-	   struct sk_buff *skb, unsigned int dataoff,
-	   u8 pf, unsigned int hooknum)
+int nf_conntrack_icmpv4_error(struct nf_conn *tmpl,
+			      struct sk_buff *skb, unsigned int dataoff,
+			      const struct nf_hook_state *state)
 {
 	const struct icmphdr *icmph;
 	struct icmphdr _ih;
@@ -186,14 +173,15 @@ icmp_error(struct net *net, struct nf_conn *tmpl,
 	/* Not enough header? */
 	icmph = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_ih), &_ih);
 	if (icmph == NULL) {
-		icmp_error_log(skb, net, pf, "short packet");
+		icmp_error_log(skb, state, "short packet");
 		return -NF_ACCEPT;
 	}
 
 	/* See ip_conntrack_proto_tcp.c */
-	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
-	    nf_ip_checksum(skb, hooknum, dataoff, 0)) {
-		icmp_error_log(skb, net, pf, "bad hw icmp checksum");
+	if (state->net->ct.sysctl_checksum &&
+	    state->hook == NF_INET_PRE_ROUTING &&
+	    nf_ip_checksum(skb, state->hook, dataoff, 0)) {
+		icmp_error_log(skb, state, "bad hw icmp checksum");
 		return -NF_ACCEPT;
 	}
 
@@ -204,7 +192,7 @@ icmp_error(struct net *net, struct nf_conn *tmpl,
 	 *		  discarded.
 	 */
 	if (icmph->type > NR_ICMP_TYPES) {
-		icmp_error_log(skb, net, pf, "invalid icmp type");
+		icmp_error_log(skb, state, "invalid icmp type");
 		return -NF_ACCEPT;
 	}
 
@@ -216,7 +204,7 @@ icmp_error(struct net *net, struct nf_conn *tmpl,
 	    icmph->type != ICMP_REDIRECT)
 		return NF_ACCEPT;
 
-	return icmp_error_message(net, tmpl, skb, hooknum);
+	return icmp_error_message(tmpl, skb, state);
 }
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -282,7 +270,7 @@ static int icmp_timeout_nlattr_to_obj(struct nlattr *tb[],
 				      struct net *net, void *data)
 {
 	unsigned int *timeout = data;
-	struct nf_icmp_net *in = icmp_pernet(net);
+	struct nf_icmp_net *in = nf_icmp_pernet(net);
 
 	if (tb[CTA_TIMEOUT_ICMP_TIMEOUT]) {
 		if (!timeout)
@@ -342,9 +330,9 @@ static int icmp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	return 0;
 }
 
-static int icmp_init_net(struct net *net, u_int16_t proto)
+static int icmp_init_net(struct net *net)
 {
-	struct nf_icmp_net *in = icmp_pernet(net);
+	struct nf_icmp_net *in = nf_icmp_pernet(net);
 	struct nf_proto_net *pn = &in->pn;
 
 	in->timeout = nf_ct_icmp_timeout;
@@ -359,13 +347,10 @@ static struct nf_proto_net *icmp_get_net_proto(struct net *net)
 
 const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 {
-	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_ICMP,
 	.pkt_to_tuple		= icmp_pkt_to_tuple,
 	.invert_tuple		= icmp_invert_tuple,
 	.packet			= icmp_packet,
-	.new			= icmp_new,
-	.error			= icmp_error,
 	.destroy		= NULL,
 	.me			= NULL,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

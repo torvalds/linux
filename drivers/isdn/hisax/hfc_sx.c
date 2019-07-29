@@ -381,7 +381,7 @@ reset_hfcsx(struct IsdnCardState *cs)
 	Write_hfc(cs, HFCSX_INT_M1, cs->hw.hfcsx.int_m1);
 
 	/* Clear already pending ints */
-	if (Read_hfc(cs, HFCSX_INT_S1));
+	Read_hfc(cs, HFCSX_INT_S1);
 
 	Write_hfc(cs, HFCSX_STATES, HFCSX_LOAD_STATE | 2);	/* HFC ST 2 */
 	udelay(10);
@@ -411,7 +411,7 @@ reset_hfcsx(struct IsdnCardState *cs)
 	/* Finally enable IRQ output */
 	cs->hw.hfcsx.int_m2 = HFCSX_IRQ_ENABLE;
 	Write_hfc(cs, HFCSX_INT_M2, cs->hw.hfcsx.int_m2);
-	if (Read_hfc(cs, HFCSX_INT_S2));
+	Read_hfc(cs, HFCSX_INT_S2);
 }
 
 /***************************************************/
@@ -1288,7 +1288,7 @@ hfcsx_bh(struct work_struct *work)
 					cs->hw.hfcsx.int_m1 &= ~HFCSX_INTS_TIMER;
 					Write_hfc(cs, HFCSX_INT_M1, cs->hw.hfcsx.int_m1);
 					/* Clear already pending ints */
-					if (Read_hfc(cs, HFCSX_INT_S1));
+					Read_hfc(cs, HFCSX_INT_S1);
 
 					Write_hfc(cs, HFCSX_STATES, 4 | HFCSX_LOAD_STATE);
 					udelay(10);

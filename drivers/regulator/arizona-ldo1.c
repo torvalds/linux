@@ -260,7 +260,7 @@ static int arizona_ldo1_common_init(struct platform_device *pdev,
 	 * so clean up would happen at the wrong time
 	 */
 	config.ena_gpiod = gpiod_get_optional(parent_dev, "wlf,ldoena",
-					      GPIOD_OUT_LOW);
+				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
 	if (IS_ERR(config.ena_gpiod))
 		return PTR_ERR(config.ena_gpiod);
 

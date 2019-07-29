@@ -131,7 +131,7 @@ int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
 
 	pdev = of_find_device_by_node(np2);
 	if (!pdev) {
-		pr_err("%s: failed to lookup pdev\n", np2->name);
+		pr_err("%pOFn: failed to lookup pdev\n", np2);
 		of_node_put(np2);
 		return -EINVAL;
 	}
@@ -153,7 +153,7 @@ int ucc_of_parse_tdm(struct device_node *np, struct ucc_tdm *utdm,
 	pdev = of_find_device_by_node(np2);
 	if (!pdev) {
 		ret = -EINVAL;
-		pr_err("%s: failed to lookup pdev\n", np2->name);
+		pr_err("%pOFn: failed to lookup pdev\n", np2);
 		of_node_put(np2);
 		goto err_miss_siram_property;
 	}

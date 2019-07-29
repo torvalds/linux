@@ -4,6 +4,7 @@
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/err.h>
+#include <linux/kernel.h>
 #include <bpf/bpf.h>
 #include <sys/resource.h>
 #include <libelf.h>
@@ -45,7 +46,6 @@ static int count_result(int err)
 	return err;
 }
 
-#define min(a, b) ((a) < (b) ? (a) : (b))
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
 __printf(1, 2)
@@ -130,6 +130,7 @@ struct btf_raw_test {
 	bool map_create_err;
 	bool ordered_map;
 	bool lossless_map;
+	bool percpu_map;
 	int hdr_len_delta;
 	int type_off_delta;
 	int str_off_delta;
@@ -431,11 +432,11 @@ static struct btf_raw_test raw_tests[] = {
 		/* const void* */	/* [3] */
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 2),
 		/* typedef const void * const_void_ptr */
-		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 3),
-		/* struct A { */	/* [4] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 3),	/* [4] */
+		/* struct A { */	/* [5] */
 		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 1), sizeof(void *)),
 		/* const_void_ptr m; */
-		BTF_MEMBER_ENC(NAME_TBD, 3, 0),
+		BTF_MEMBER_ENC(NAME_TBD, 4, 0),
 		/* } */
 		BTF_END_RAW,
 	},
@@ -493,10 +494,10 @@ static struct btf_raw_test raw_tests[] = {
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), 0),
 		/* const void* */	/* [3] */
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 2),
-		/* typedef const void * const_void_ptr */	/* [4] */
-		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 3),
-		/* const_void_ptr[4] */	/* [5] */
-		BTF_TYPE_ARRAY_ENC(3, 1, 4),
+		/* typedef const void * const_void_ptr */
+		BTF_TYPEDEF_ENC(NAME_TBD, 3),	/* [4] */
+		/* const_void_ptr[4] */
+		BTF_TYPE_ARRAY_ENC(4, 1, 4),	/* [5] */
 		BTF_END_RAW,
 	},
 	.str_sec = "\0const_void_ptr",
@@ -1291,6 +1292,367 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "type != 0",
 },
 
+{
+	.descr = "typedef (invalid name, name_off = 0)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPEDEF_ENC(0, 1),				/* [2] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0__int",
+	.str_sec_size = sizeof("\0__int"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "typedef_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "typedef (invalid name, invalid identifier)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 1),			/* [2] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0__!int",
+	.str_sec_size = sizeof("\0__!int"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "typedef_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "ptr type (invalid name, name_off <> 0)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 1),	/* [2] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0__int",
+	.str_sec_size = sizeof("\0__int"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "ptr_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "volatile type (invalid name, name_off <> 0)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_VOLATILE, 0, 0), 1),	/* [2] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0__int",
+	.str_sec_size = sizeof("\0__int"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "volatile_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "const type (invalid name, name_off <> 0)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), 1),	/* [2] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0__int",
+	.str_sec_size = sizeof("\0__int"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "const_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "restrict type (invalid name, name_off <> 0)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 1),	/* [2] */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_RESTRICT, 0, 0), 2),	/* [3] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0__int",
+	.str_sec_size = sizeof("\0__int"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "restrict_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "fwd type (invalid name, name_off = 0)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_FWD, 0, 0), 0),	/* [2] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0__skb",
+	.str_sec_size = sizeof("\0__skb"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "fwd_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "fwd type (invalid name, invalid identifier)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_FWD, 0, 0), 0),	/* [2] */
+		BTF_END_RAW,
+	},
+	.str_sec = "\0__!skb",
+	.str_sec_size = sizeof("\0__!skb"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "fwd_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "array type (invalid name, name_off <> 0)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_ARRAY, 0, 0), 0),	/* [2] */
+		BTF_ARRAY_ENC(1, 1, 4),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0__skb",
+	.str_sec_size = sizeof("\0__skb"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "struct type (name_off = 0)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0,
+			     BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 1), 4),	/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A",
+	.str_sec_size = sizeof("\0A"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "struct type (invalid name, invalid identifier)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 1), 4),	/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A!\0B",
+	.str_sec_size = sizeof("\0A!\0B"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "struct member (name_off = 0)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0,
+			     BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 1), 4),	/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A",
+	.str_sec_size = sizeof("\0A"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "struct member (invalid name, invalid identifier)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 1), 4),	/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0B*",
+	.str_sec_size = sizeof("\0A\0B*"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "enum type (name_off = 0)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0,
+			     BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1),
+			     sizeof(int)),				/* [2] */
+		BTF_ENUM_ENC(NAME_TBD, 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A\0B",
+	.str_sec_size = sizeof("\0A\0B"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "enum_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "enum type (invalid name, invalid identifier)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1),
+			     sizeof(int)),				/* [2] */
+		BTF_ENUM_ENC(NAME_TBD, 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A!\0B",
+	.str_sec_size = sizeof("\0A!\0B"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "enum_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "enum member (invalid name, name_off = 0)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0,
+			     BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1),
+			     sizeof(int)),				/* [2] */
+		BTF_ENUM_ENC(0, 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "",
+	.str_sec_size = sizeof(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "enum_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
+
+{
+	.descr = "enum member (invalid name, invalid identifier)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0,
+			     BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1),
+			     sizeof(int)),				/* [2] */
+		BTF_ENUM_ENC(NAME_TBD, 0),
+		BTF_END_RAW,
+	},
+	.str_sec = "\0A!",
+	.str_sec_size = sizeof("\0A!"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "enum_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid name",
+},
 {
 	.descr = "arraymap invalid btf key (a bit field)",
 	.raw_types = {
@@ -2157,6 +2519,7 @@ static struct btf_pprint_test_meta {
 	const char *map_name;
 	bool ordered_map;
 	bool lossless_map;
+	bool percpu_map;
 } pprint_tests_meta[] = {
 {
 	.descr = "BTF pretty print array",
@@ -2164,6 +2527,7 @@ static struct btf_pprint_test_meta {
 	.map_name = "pprint_test_array",
 	.ordered_map = true,
 	.lossless_map = true,
+	.percpu_map = false,
 },
 
 {
@@ -2172,6 +2536,7 @@ static struct btf_pprint_test_meta {
 	.map_name = "pprint_test_hash",
 	.ordered_map = false,
 	.lossless_map = true,
+	.percpu_map = false,
 },
 
 {
@@ -2180,30 +2545,83 @@ static struct btf_pprint_test_meta {
 	.map_name = "pprint_test_lru_hash",
 	.ordered_map = false,
 	.lossless_map = false,
+	.percpu_map = false,
+},
+
+{
+	.descr = "BTF pretty print percpu array",
+	.map_type = BPF_MAP_TYPE_PERCPU_ARRAY,
+	.map_name = "pprint_test_percpu_array",
+	.ordered_map = true,
+	.lossless_map = true,
+	.percpu_map = true,
+},
+
+{
+	.descr = "BTF pretty print percpu hash",
+	.map_type = BPF_MAP_TYPE_PERCPU_HASH,
+	.map_name = "pprint_test_percpu_hash",
+	.ordered_map = false,
+	.lossless_map = true,
+	.percpu_map = true,
+},
+
+{
+	.descr = "BTF pretty print lru percpu hash",
+	.map_type = BPF_MAP_TYPE_LRU_PERCPU_HASH,
+	.map_name = "pprint_test_lru_percpu_hash",
+	.ordered_map = false,
+	.lossless_map = false,
+	.percpu_map = true,
 },
 
 };
 
 
-static void set_pprint_mapv(struct pprint_mapv *v, uint32_t i)
+static void set_pprint_mapv(struct pprint_mapv *v, uint32_t i,
+			    int num_cpus, int rounded_value_size)
 {
-	v->ui32 = i;
-	v->si32 = -i;
-	v->unused_bits2a = 3;
-	v->bits28 = i;
-	v->unused_bits2b = 3;
-	v->ui64 = i;
-	v->aenum = i & 0x03;
+	int cpu;
+
+	for (cpu = 0; cpu < num_cpus; cpu++) {
+		v->ui32 = i + cpu;
+		v->si32 = -i;
+		v->unused_bits2a = 3;
+		v->bits28 = i;
+		v->unused_bits2b = 3;
+		v->ui64 = i;
+		v->aenum = i & 0x03;
+		v = (void *)v + rounded_value_size;
+	}
 }
+
+static int check_line(const char *expected_line, int nexpected_line,
+		      int expected_line_len, const char *line)
+{
+	if (CHECK(nexpected_line == expected_line_len,
+		  "expected_line is too long"))
+		return -1;
+
+	if (strcmp(expected_line, line)) {
+		fprintf(stderr, "unexpected pprint output\n");
+		fprintf(stderr, "expected: %s", expected_line);
+		fprintf(stderr, "    read: %s", line);
+		return -1;
+	}
+
+	return 0;
+}
+
 
 static int do_test_pprint(void)
 {
 	const struct btf_raw_test *test = &pprint_test_template;
 	struct bpf_create_map_attr create_attr = {};
+	bool ordered_map, lossless_map, percpu_map;
+	int err, ret, num_cpus, rounded_value_size;
+	struct pprint_mapv *mapv = NULL;
 	unsigned int key, nr_read_elems;
-	bool ordered_map, lossless_map;
 	int map_fd = -1, btf_fd = -1;
-	struct pprint_mapv mapv = {};
 	unsigned int raw_btf_size;
 	char expected_line[255];
 	FILE *pin_file = NULL;
@@ -2212,7 +2630,6 @@ static int do_test_pprint(void)
 	char *line = NULL;
 	uint8_t *raw_btf;
 	ssize_t nread;
-	int err, ret;
 
 	fprintf(stderr, "%s......", test->descr);
 	raw_btf = btf_raw_create(&hdr_tmpl, test->raw_types,
@@ -2261,9 +2678,18 @@ static int do_test_pprint(void)
 	if (CHECK(err, "bpf_obj_pin(%s): errno:%d.", pin_path, errno))
 		goto done;
 
+	percpu_map = test->percpu_map;
+	num_cpus = percpu_map ? bpf_num_possible_cpus() : 1;
+	rounded_value_size = round_up(sizeof(struct pprint_mapv), 8);
+	mapv = calloc(num_cpus, rounded_value_size);
+	if (CHECK(!mapv, "mapv allocation failure")) {
+		err = -1;
+		goto done;
+	}
+
 	for (key = 0; key < test->max_entries; key++) {
-		set_pprint_mapv(&mapv, key);
-		bpf_map_update_elem(map_fd, &key, &mapv, 0);
+		set_pprint_mapv(mapv, key, num_cpus, rounded_value_size);
+		bpf_map_update_elem(map_fd, &key, mapv, 0);
 	}
 
 	pin_file = fopen(pin_path, "r");
@@ -2286,33 +2712,74 @@ static int do_test_pprint(void)
 	ordered_map = test->ordered_map;
 	lossless_map = test->lossless_map;
 	do {
+		struct pprint_mapv *cmapv;
 		ssize_t nexpected_line;
 		unsigned int next_key;
+		int cpu;
 
 		next_key = ordered_map ? nr_read_elems : atoi(line);
-		set_pprint_mapv(&mapv, next_key);
-		nexpected_line = snprintf(expected_line, sizeof(expected_line),
-					  "%u: {%u,0,%d,0x%x,0x%x,0x%x,{%lu|[%u,%u,%u,%u,%u,%u,%u,%u]},%s}\n",
-					  next_key,
-					  mapv.ui32, mapv.si32,
-					  mapv.unused_bits2a, mapv.bits28, mapv.unused_bits2b,
-					  mapv.ui64,
-					  mapv.ui8a[0], mapv.ui8a[1], mapv.ui8a[2], mapv.ui8a[3],
-					  mapv.ui8a[4], mapv.ui8a[5], mapv.ui8a[6], mapv.ui8a[7],
-					  pprint_enum_str[mapv.aenum]);
+		set_pprint_mapv(mapv, next_key, num_cpus, rounded_value_size);
+		cmapv = mapv;
 
-		if (CHECK(nexpected_line == sizeof(expected_line),
-			  "expected_line is too long")) {
-			err = -1;
-			goto done;
+		for (cpu = 0; cpu < num_cpus; cpu++) {
+			if (percpu_map) {
+				/* for percpu map, the format looks like:
+				 * <key>: {
+				 *	cpu0: <value_on_cpu0>
+				 *	cpu1: <value_on_cpu1>
+				 *	...
+				 *	cpun: <value_on_cpun>
+				 * }
+				 *
+				 * let us verify the line containing the key here.
+				 */
+				if (cpu == 0) {
+					nexpected_line = snprintf(expected_line,
+								  sizeof(expected_line),
+								  "%u: {\n",
+								  next_key);
+
+					err = check_line(expected_line, nexpected_line,
+							 sizeof(expected_line), line);
+					if (err == -1)
+						goto done;
+				}
+
+				/* read value@cpu */
+				nread = getline(&line, &line_len, pin_file);
+				if (nread < 0)
+					break;
+			}
+
+			nexpected_line = snprintf(expected_line, sizeof(expected_line),
+						  "%s%u: {%u,0,%d,0x%x,0x%x,0x%x,"
+						  "{%lu|[%u,%u,%u,%u,%u,%u,%u,%u]},%s}\n",
+						  percpu_map ? "\tcpu" : "",
+						  percpu_map ? cpu : next_key,
+						  cmapv->ui32, cmapv->si32,
+						  cmapv->unused_bits2a,
+						  cmapv->bits28,
+						  cmapv->unused_bits2b,
+						  cmapv->ui64,
+						  cmapv->ui8a[0], cmapv->ui8a[1],
+						  cmapv->ui8a[2], cmapv->ui8a[3],
+						  cmapv->ui8a[4], cmapv->ui8a[5],
+						  cmapv->ui8a[6], cmapv->ui8a[7],
+						  pprint_enum_str[cmapv->aenum]);
+
+			err = check_line(expected_line, nexpected_line,
+					 sizeof(expected_line), line);
+			if (err == -1)
+				goto done;
+
+			cmapv = (void *)cmapv + rounded_value_size;
 		}
 
-		if (strcmp(expected_line, line)) {
-			err = -1;
-			fprintf(stderr, "unexpected pprint output\n");
-			fprintf(stderr, "expected: %s", expected_line);
-			fprintf(stderr, "    read: %s", line);
-			goto done;
+		if (percpu_map) {
+			/* skip the last bracket for the percpu map */
+			nread = getline(&line, &line_len, pin_file);
+			if (nread < 0)
+				break;
 		}
 
 		nread = getline(&line, &line_len, pin_file);
@@ -2334,6 +2801,8 @@ static int do_test_pprint(void)
 	err = 0;
 
 done:
+	if (mapv)
+		free(mapv);
 	if (!err)
 		fprintf(stderr, "OK");
 	if (*btf_log_buf && (err || args.always_log))
@@ -2361,6 +2830,7 @@ static int test_pprint(void)
 		pprint_test_template.map_name = pprint_tests_meta[i].map_name;
 		pprint_test_template.ordered_map = pprint_tests_meta[i].ordered_map;
 		pprint_test_template.lossless_map = pprint_tests_meta[i].lossless_map;
+		pprint_test_template.percpu_map = pprint_tests_meta[i].percpu_map;
 
 		err |= count_result(do_test_pprint());
 	}

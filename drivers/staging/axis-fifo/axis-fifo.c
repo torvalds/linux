@@ -27,8 +27,6 @@
 #include <linux/interrupt.h>
 #include <linux/param.h>
 #include <linux/fs.h>
-#include <linux/device.h>
-#include <linux/cdev.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/jiffies.h>
@@ -364,11 +362,11 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 		 * if nothing is currently available
 		 */
 		spin_lock_irq(&fifo->read_queue_lock);
-		ret = wait_event_interruptible_lock_irq_timeout(
-			fifo->read_queue,
-			ioread32(fifo->base_addr + XLLF_RDFO_OFFSET),
-			fifo->read_queue_lock,
-			(read_timeout >= 0) ? msecs_to_jiffies(read_timeout) :
+		ret = wait_event_interruptible_lock_irq_timeout
+			(fifo->read_queue,
+			 ioread32(fifo->base_addr + XLLF_RDFO_OFFSET),
+			 fifo->read_queue_lock,
+			 (read_timeout >= 0) ? msecs_to_jiffies(read_timeout) :
 				MAX_SCHEDULE_TIMEOUT);
 		spin_unlock_irq(&fifo->read_queue_lock);
 
@@ -482,12 +480,12 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 		 * currently enough room in the fifo
 		 */
 		spin_lock_irq(&fifo->write_queue_lock);
-		ret = wait_event_interruptible_lock_irq_timeout(
-			fifo->write_queue,
-			ioread32(fifo->base_addr + XLLF_TDFV_OFFSET)
+		ret = wait_event_interruptible_lock_irq_timeout
+			(fifo->write_queue,
+			 ioread32(fifo->base_addr + XLLF_TDFV_OFFSET)
 				>= words_to_write,
-			fifo->write_queue_lock,
-			(write_timeout >= 0) ? msecs_to_jiffies(write_timeout) :
+			 fifo->write_queue_lock,
+			 (write_timeout >= 0) ? msecs_to_jiffies(write_timeout) :
 				MAX_SCHEDULE_TIMEOUT);
 		spin_unlock_irq(&fifo->write_queue_lock);
 
@@ -1089,6 +1087,8 @@ static int __init axis_fifo_init(void)
 	pr_info("axis-fifo driver loaded with parameters read_timeout = %i, write_timeout = %i\n",
 		read_timeout, write_timeout);
 	axis_fifo_driver_class = class_create(THIS_MODULE, DRIVER_NAME);
+	if (IS_ERR(axis_fifo_driver_class))
+		return PTR_ERR(axis_fifo_driver_class);
 	return platform_driver_register(&axis_fifo_driver);
 }
 

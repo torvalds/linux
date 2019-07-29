@@ -50,6 +50,7 @@ nvkm-y += nvkm/engine/disp/hdmig84.o
 nvkm-y += nvkm/engine/disp/hdmigt215.o
 nvkm-y += nvkm/engine/disp/hdmigf119.o
 nvkm-y += nvkm/engine/disp/hdmigk104.o
+nvkm-y += nvkm/engine/disp/hdmigm200.o
 nvkm-y += nvkm/engine/disp/hdmigv100.o
 
 nvkm-y += nvkm/engine/disp/conn.o

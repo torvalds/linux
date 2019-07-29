@@ -81,6 +81,18 @@ static void ghes_edac_count_dimms(const struct dmi_header *dh, void *arg)
 		(*num_dimm)++;
 }
 
+static int get_dimm_smbios_index(u16 handle)
+{
+	struct mem_ctl_info *mci = ghes_pvt->mci;
+	int i;
+
+	for (i = 0; i < mci->tot_dimms; i++) {
+		if (mci->dimms[i]->smbios_handle == handle)
+			return i;
+	}
+	return -1;
+}
+
 static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 {
 	struct ghes_edac_dimm_fill *dimm_fill = arg;
@@ -176,6 +188,8 @@ static void ghes_edac_dmidecode(const struct dmi_header *dh, void *arg)
 				entry->memory_type, entry->type_detail,
 				entry->total_width, entry->data_width);
 		}
+
+		dimm->smbios_handle = entry->handle;
 
 		dimm_fill->count++;
 	}
@@ -327,12 +341,21 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 		p += sprintf(p, "bit_pos:%d ", mem_err->bit_pos);
 	if (mem_err->validation_bits & CPER_MEM_VALID_MODULE_HANDLE) {
 		const char *bank = NULL, *device = NULL;
+		int index = -1;
+
 		dmi_memdev_name(mem_err->mem_dev_handle, &bank, &device);
 		if (bank != NULL && device != NULL)
 			p += sprintf(p, "DIMM location:%s %s ", bank, device);
 		else
 			p += sprintf(p, "DIMM DMI handle: 0x%.4x ",
 				     mem_err->mem_dev_handle);
+
+		index = get_dimm_smbios_index(mem_err->mem_dev_handle);
+		if (index >= 0) {
+			e->top_layer = index;
+			e->enable_per_layer_report = true;
+		}
+
 	}
 	if (p > e->location)
 		*(p - 1) = '\0';

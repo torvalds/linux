@@ -105,7 +105,7 @@ static int rxe_param_set_add(const char *val, const struct kernel_param *kp)
 	}
 
 	rxe_set_port_state(ndev);
-	pr_info("added %s to %s\n", rxe->ib_dev.name, intf);
+	dev_info(&rxe->ib_dev.dev, "added %s\n", intf);
 err:
 	if (ndev)
 		dev_put(ndev);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016 CNEX Labs
  * Initial release: Javier Gonzalez <javier@cnexlabs.com>
@@ -79,7 +80,7 @@ static int pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 		}
 	}
 
-	pblk_down_rq(pblk, ppa_list, nr_secs, lun_bitmap);
+	pblk_down_rq(pblk, ppa_list[0], lun_bitmap);
 	return 0;
 }
 
@@ -88,13 +89,14 @@ void pblk_map_rq(struct pblk *pblk, struct nvm_rq *rqd, unsigned int sentry,
 		 unsigned int off)
 {
 	struct pblk_sec_meta *meta_list = rqd->meta_list;
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	unsigned int map_secs;
 	int min = pblk->min_write_pgs;
 	int i;
 
 	for (i = off; i < rqd->nr_ppas; i += min) {
 		map_secs = (i + min > valid_secs) ? (valid_secs % min) : min;
-		if (pblk_map_page_data(pblk, sentry + i, &rqd->ppa_list[i],
+		if (pblk_map_page_data(pblk, sentry + i, &ppa_list[i],
 					lun_bitmap, &meta_list[i], map_secs)) {
 			bio_put(rqd->bio);
 			pblk_free_rqd(pblk, rqd, PBLK_WRITE);
@@ -112,6 +114,7 @@ void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 	struct nvm_geo *geo = &dev->geo;
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_sec_meta *meta_list = rqd->meta_list;
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	struct pblk_line *e_line, *d_line;
 	unsigned int map_secs;
 	int min = pblk->min_write_pgs;
@@ -119,14 +122,14 @@ void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 
 	for (i = 0; i < rqd->nr_ppas; i += min) {
 		map_secs = (i + min > valid_secs) ? (valid_secs % min) : min;
-		if (pblk_map_page_data(pblk, sentry + i, &rqd->ppa_list[i],
+		if (pblk_map_page_data(pblk, sentry + i, &ppa_list[i],
 					lun_bitmap, &meta_list[i], map_secs)) {
 			bio_put(rqd->bio);
 			pblk_free_rqd(pblk, rqd, PBLK_WRITE);
 			pblk_pipeline_stop(pblk);
 		}
 
-		erase_lun = pblk_ppa_to_pos(geo, rqd->ppa_list[i]);
+		erase_lun = pblk_ppa_to_pos(geo, ppa_list[i]);
 
 		/* line can change after page map. We might also be writing the
 		 * last line.
@@ -141,7 +144,7 @@ void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 			set_bit(erase_lun, e_line->erase_bitmap);
 			atomic_dec(&e_line->left_eblks);
 
-			*erase_ppa = rqd->ppa_list[i];
+			*erase_ppa = ppa_list[i];
 			erase_ppa->a.blk = e_line->id;
 
 			spin_unlock(&e_line->lock);

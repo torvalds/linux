@@ -35,6 +35,11 @@ static unsigned int dbg_level;
 
 #include "../libcxgbi.h"
 
+#ifdef CONFIG_CHELSIO_T4_DCB
+#include <net/dcbevent.h>
+#include "cxgb4_dcb.h"
+#endif
+
 #define	DRV_MODULE_NAME		"cxgb4i"
 #define DRV_MODULE_DESC		"Chelsio T4-T6 iSCSI Driver"
 #define	DRV_MODULE_VERSION	"0.9.5-ko"
@@ -154,6 +159,15 @@ static struct iscsi_transport cxgb4i_iscsi_transport = {
 	/* Error recovery timeout call */
 	.session_recovery_timedout = iscsi_session_recovery_timedout,
 };
+
+#ifdef CONFIG_CHELSIO_T4_DCB
+static int
+cxgb4_dcb_change_notify(struct notifier_block *, unsigned long, void *);
+
+static struct notifier_block cxgb4_dcb_change = {
+	.notifier_call = cxgb4_dcb_change_notify,
+};
+#endif
 
 static struct scsi_transport_template *cxgb4i_stt;
 
@@ -574,6 +588,9 @@ static inline int tx_flowc_wr_credits(int *nparamsp, int *flowclenp)
 	int nparams, flowclen16, flowclen;
 
 	nparams = FLOWC_WR_NPARAMS_MIN;
+#ifdef CONFIG_CHELSIO_T4_DCB
+	nparams++;
+#endif
 	flowclen = offsetof(struct fw_flowc_wr, mnemval[nparams]);
 	flowclen16 = DIV_ROUND_UP(flowclen, 16);
 	flowclen = flowclen16 * 16;
@@ -595,6 +612,9 @@ static inline int send_tx_flowc_wr(struct cxgbi_sock *csk)
 	struct fw_flowc_wr *flowc;
 	int nparams, flowclen16, flowclen;
 
+#ifdef CONFIG_CHELSIO_T4_DCB
+	u16 vlan = ((struct l2t_entry *)csk->l2t)->vlan;
+#endif
 	flowclen16 = tx_flowc_wr_credits(&nparams, &flowclen);
 	skb = alloc_wr(flowclen, 0, GFP_ATOMIC);
 	flowc = (struct fw_flowc_wr *)skb->head;
@@ -622,6 +642,17 @@ static inline int send_tx_flowc_wr(struct cxgbi_sock *csk)
 	flowc->mnemval[8].val = 0;
 	flowc->mnemval[8].mnemonic = FW_FLOWC_MNEM_TXDATAPLEN_MAX;
 	flowc->mnemval[8].val = 16384;
+#ifdef CONFIG_CHELSIO_T4_DCB
+	flowc->mnemval[9].mnemonic = FW_FLOWC_MNEM_DCBPRIO;
+	if (vlan == CPL_L2T_VLAN_NONE) {
+		pr_warn_ratelimited("csk %u without VLAN Tag on DCB Link\n",
+				    csk->tid);
+		flowc->mnemval[9].val = cpu_to_be32(0);
+	} else {
+		flowc->mnemval[9].val = cpu_to_be32((vlan & VLAN_PRIO_MASK) >>
+					VLAN_PRIO_SHIFT);
+	}
+#endif
 
 	set_wr_txq(skb, CPL_PRIORITY_DATA, csk->port_id);
 
@@ -1600,6 +1631,46 @@ static void release_offload_resources(struct cxgbi_sock *csk)
 	csk->dst = NULL;
 }
 
+#ifdef CONFIG_CHELSIO_T4_DCB
+static inline u8 get_iscsi_dcb_state(struct net_device *ndev)
+{
+	return ndev->dcbnl_ops->getstate(ndev);
+}
+
+static int select_priority(int pri_mask)
+{
+	if (!pri_mask)
+		return 0;
+	return (ffs(pri_mask) - 1);
+}
+
+static u8 get_iscsi_dcb_priority(struct net_device *ndev)
+{
+	int rv;
+	u8 caps;
+
+	struct dcb_app iscsi_dcb_app = {
+		.protocol = 3260
+	};
+
+	rv = (int)ndev->dcbnl_ops->getcap(ndev, DCB_CAP_ATTR_DCBX, &caps);
+	if (rv)
+		return 0;
+
+	if (caps & DCB_CAP_DCBX_VER_IEEE) {
+		iscsi_dcb_app.selector = IEEE_8021QAZ_APP_SEL_ANY;
+		rv = dcb_ieee_getapp_mask(ndev, &iscsi_dcb_app);
+	} else if (caps & DCB_CAP_DCBX_VER_CEE) {
+		iscsi_dcb_app.selector = DCB_APP_IDTYPE_PORTNUM;
+		rv = dcb_getapp(ndev, &iscsi_dcb_app);
+	}
+
+	log_debug(1 << CXGBI_DBG_ISCSI,
+		  "iSCSI priority is set to %u\n", select_priority(rv));
+	return select_priority(rv);
+}
+#endif
+
 static int init_act_open(struct cxgbi_sock *csk)
 {
 	struct cxgbi_device *cdev = csk->cdev;
@@ -1613,7 +1684,9 @@ static int init_act_open(struct cxgbi_sock *csk)
 	unsigned int size, size6;
 	unsigned int linkspeed;
 	unsigned int rcv_winf, snd_winf;
-
+#ifdef CONFIG_CHELSIO_T4_DCB
+	u8 priority = 0;
+#endif
 	log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,
 		"csk 0x%p,%u,0x%lx,%u.\n",
 		csk, csk->state, csk->flags, csk->tid);
@@ -1647,7 +1720,15 @@ static int init_act_open(struct cxgbi_sock *csk)
 	cxgbi_sock_set_flag(csk, CTPF_HAS_ATID);
 	cxgbi_sock_get(csk);
 
+#ifdef CONFIG_CHELSIO_T4_DCB
+	if (get_iscsi_dcb_state(ndev))
+		priority = get_iscsi_dcb_priority(ndev);
+
+	csk->dcb_priority = priority;
+	csk->l2t = cxgb4_l2t_get(lldi->l2t, n, ndev, priority);
+#else
 	csk->l2t = cxgb4_l2t_get(lldi->l2t, n, ndev, 0);
+#endif
 	if (!csk->l2t) {
 		pr_err("%s, cannot alloc l2t.\n", ndev->name);
 		goto rel_resource_without_clip;
@@ -2146,6 +2227,70 @@ static int t4_uld_state_change(void *handle, enum cxgb4_state state)
 	return 0;
 }
 
+#ifdef CONFIG_CHELSIO_T4_DCB
+static int
+cxgb4_dcb_change_notify(struct notifier_block *self, unsigned long val,
+			void *data)
+{
+	int i, port = 0xFF;
+	struct net_device *ndev;
+	struct cxgbi_device *cdev = NULL;
+	struct dcb_app_type *iscsi_app = data;
+	struct cxgbi_ports_map *pmap;
+	u8 priority;
+
+	if (iscsi_app->dcbx & DCB_CAP_DCBX_VER_IEEE) {
+		if (iscsi_app->app.selector != IEEE_8021QAZ_APP_SEL_ANY)
+			return NOTIFY_DONE;
+
+		priority = iscsi_app->app.priority;
+	} else if (iscsi_app->dcbx & DCB_CAP_DCBX_VER_CEE) {
+		if (iscsi_app->app.selector != DCB_APP_IDTYPE_PORTNUM)
+			return NOTIFY_DONE;
+
+		if (!iscsi_app->app.priority)
+			return NOTIFY_DONE;
+
+		priority = ffs(iscsi_app->app.priority) - 1;
+	} else {
+		return NOTIFY_DONE;
+	}
+
+	if (iscsi_app->app.protocol != 3260)
+		return NOTIFY_DONE;
+
+	log_debug(1 << CXGBI_DBG_ISCSI, "iSCSI priority for ifid %d is %u\n",
+		  iscsi_app->ifindex, priority);
+
+	ndev = dev_get_by_index(&init_net, iscsi_app->ifindex);
+	if (!ndev)
+		return NOTIFY_DONE;
+
+	cdev = cxgbi_device_find_by_netdev_rcu(ndev, &port);
+
+	dev_put(ndev);
+	if (!cdev)
+		return NOTIFY_DONE;
+
+	pmap = &cdev->pmap;
+
+	for (i = 0; i < pmap->used; i++) {
+		if (pmap->port_csk[i]) {
+			struct cxgbi_sock *csk = pmap->port_csk[i];
+
+			if (csk->dcb_priority != priority) {
+				iscsi_conn_failure(csk->user_data,
+						   ISCSI_ERR_CONN_FAILED);
+				pr_info("Restarting iSCSI connection %p with "
+					"priority %u->%u.\n", csk,
+					csk->dcb_priority, priority);
+			}
+		}
+	}
+	return NOTIFY_OK;
+}
+#endif
+
 static int __init cxgb4i_init_module(void)
 {
 	int rc;
@@ -2157,11 +2302,18 @@ static int __init cxgb4i_init_module(void)
 		return rc;
 	cxgb4_register_uld(CXGB4_ULD_ISCSI, &cxgb4i_uld_info);
 
+#ifdef CONFIG_CHELSIO_T4_DCB
+	pr_info("%s dcb enabled.\n", DRV_MODULE_NAME);
+	register_dcbevent_notifier(&cxgb4_dcb_change);
+#endif
 	return 0;
 }
 
 static void __exit cxgb4i_exit_module(void)
 {
+#ifdef CONFIG_CHELSIO_T4_DCB
+	unregister_dcbevent_notifier(&cxgb4_dcb_change);
+#endif
 	cxgb4_unregister_uld(CXGB4_ULD_ISCSI);
 	cxgbi_device_unregister_all(CXGBI_FLAG_DEV_T4);
 	cxgbi_iscsi_cleanup(&cxgb4i_iscsi_transport, &cxgb4i_stt);

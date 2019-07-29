@@ -113,17 +113,12 @@ unsigned long ioremap_bot = IOREMAP_BASE;
  * __ioremap_at - Low level function to establish the page tables
  *                for an IO mapping
  */
-void __iomem * __ioremap_at(phys_addr_t pa, void *ea, unsigned long size,
-			    unsigned long flags)
+void __iomem *__ioremap_at(phys_addr_t pa, void *ea, unsigned long size, pgprot_t prot)
 {
 	unsigned long i;
 
-	/* Make sure we have the base flags */
-	if ((flags & _PAGE_PRESENT) == 0)
-		flags |= pgprot_val(PAGE_KERNEL);
-
 	/* We don't support the 4K PFN hack with ioremap */
-	if (flags & H_PAGE_4K_PFN)
+	if (pgprot_val(prot) & H_PAGE_4K_PFN)
 		return NULL;
 
 	WARN_ON(pa & ~PAGE_MASK);
@@ -131,7 +126,7 @@ void __iomem * __ioremap_at(phys_addr_t pa, void *ea, unsigned long size,
 	WARN_ON(size & ~PAGE_MASK);
 
 	for (i = 0; i < size; i += PAGE_SIZE)
-		if (map_kernel_page((unsigned long)ea+i, pa+i, flags))
+		if (map_kernel_page((unsigned long)ea + i, pa + i, prot))
 			return NULL;
 
 	return (void __iomem *)ea;
@@ -152,7 +147,7 @@ void __iounmap_at(void *ea, unsigned long size)
 }
 
 void __iomem * __ioremap_caller(phys_addr_t addr, unsigned long size,
-				unsigned long flags, void *caller)
+				pgprot_t prot, void *caller)
 {
 	phys_addr_t paligned;
 	void __iomem *ret;
@@ -182,11 +177,11 @@ void __iomem * __ioremap_caller(phys_addr_t addr, unsigned long size,
 			return NULL;
 
 		area->phys_addr = paligned;
-		ret = __ioremap_at(paligned, area->addr, size, flags);
+		ret = __ioremap_at(paligned, area->addr, size, prot);
 		if (!ret)
 			vunmap(area->addr);
 	} else {
-		ret = __ioremap_at(paligned, (void *)ioremap_bot, size, flags);
+		ret = __ioremap_at(paligned, (void *)ioremap_bot, size, prot);
 		if (ret)
 			ioremap_bot += size;
 	}
@@ -199,49 +194,59 @@ void __iomem * __ioremap_caller(phys_addr_t addr, unsigned long size,
 void __iomem * __ioremap(phys_addr_t addr, unsigned long size,
 			 unsigned long flags)
 {
-	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
+	return __ioremap_caller(addr, size, __pgprot(flags), __builtin_return_address(0));
 }
 
 void __iomem * ioremap(phys_addr_t addr, unsigned long size)
 {
-	unsigned long flags = pgprot_val(pgprot_noncached(__pgprot(0)));
+	pgprot_t prot = pgprot_noncached(PAGE_KERNEL);
 	void *caller = __builtin_return_address(0);
 
 	if (ppc_md.ioremap)
-		return ppc_md.ioremap(addr, size, flags, caller);
-	return __ioremap_caller(addr, size, flags, caller);
+		return ppc_md.ioremap(addr, size, prot, caller);
+	return __ioremap_caller(addr, size, prot, caller);
 }
 
 void __iomem * ioremap_wc(phys_addr_t addr, unsigned long size)
 {
-	unsigned long flags = pgprot_val(pgprot_noncached_wc(__pgprot(0)));
+	pgprot_t prot = pgprot_noncached_wc(PAGE_KERNEL);
 	void *caller = __builtin_return_address(0);
 
 	if (ppc_md.ioremap)
-		return ppc_md.ioremap(addr, size, flags, caller);
-	return __ioremap_caller(addr, size, flags, caller);
+		return ppc_md.ioremap(addr, size, prot, caller);
+	return __ioremap_caller(addr, size, prot, caller);
+}
+
+void __iomem *ioremap_coherent(phys_addr_t addr, unsigned long size)
+{
+	pgprot_t prot = pgprot_cached(PAGE_KERNEL);
+	void *caller = __builtin_return_address(0);
+
+	if (ppc_md.ioremap)
+		return ppc_md.ioremap(addr, size, prot, caller);
+	return __ioremap_caller(addr, size, prot, caller);
 }
 
 void __iomem * ioremap_prot(phys_addr_t addr, unsigned long size,
 			     unsigned long flags)
 {
+	pte_t pte = __pte(flags);
 	void *caller = __builtin_return_address(0);
 
 	/* writeable implies dirty for kernel addresses */
-	if (flags & _PAGE_WRITE)
-		flags |= _PAGE_DIRTY;
+	if (pte_write(pte))
+		pte = pte_mkdirty(pte);
 
 	/* we don't want to let _PAGE_EXEC leak out */
-	flags &= ~_PAGE_EXEC;
+	pte = pte_exprotect(pte);
 	/*
 	 * Force kernel mapping.
 	 */
-	flags &= ~_PAGE_USER;
-	flags |= _PAGE_PRIVILEGED;
+	pte = pte_mkprivileged(pte);
 
 	if (ppc_md.ioremap)
-		return ppc_md.ioremap(addr, size, flags, caller);
-	return __ioremap_caller(addr, size, flags, caller);
+		return ppc_md.ioremap(addr, size, pte_pgprot(pte), caller);
+	return __ioremap_caller(addr, size, pte_pgprot(pte), caller);
 }
 
 
@@ -306,7 +311,7 @@ struct page *pud_page(pud_t pud)
  */
 struct page *pmd_page(pmd_t pmd)
 {
-	if (pmd_trans_huge(pmd) || pmd_huge(pmd) || pmd_devmap(pmd))
+	if (pmd_large(pmd) || pmd_huge(pmd) || pmd_devmap(pmd))
 		return pte_page(pmd_pte(pmd));
 	return virt_to_page(pmd_page_vaddr(pmd));
 }

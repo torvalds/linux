@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -388,6 +383,8 @@ struct iwl_csr_params {
  * @gen2: 22000 and on transport operation
  * @cdb: CDB support
  * @nvm_type: see &enum iwl_nvm_type
+ * @d3_debug_data_base_addr: base address where D3 debug data is stored
+ * @d3_debug_data_length: length of the D3 debug data
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -452,6 +449,8 @@ struct iwl_cfg {
 	u8 ucode_api_min;
 	u32 min_umac_error_event_table;
 	u32 extra_phy_cfg_flags;
+	u32 d3_debug_data_base_addr;
+	u32 d3_debug_data_length;
 };
 
 static const struct iwl_csr_params iwl_csr_v1 = {
@@ -574,11 +573,18 @@ extern const struct iwl_cfg iwl22000_2ac_cfg_hr;
 extern const struct iwl_cfg iwl22000_2ac_cfg_hr_cdb;
 extern const struct iwl_cfg iwl22000_2ac_cfg_jf;
 extern const struct iwl_cfg iwl22000_2ax_cfg_hr;
+extern const struct iwl_cfg iwl9461_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg iwl9462_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg iwl9560_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg killer1550i_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg killer1550s_2ac_cfg_qu_b0_jf_b0;
+extern const struct iwl_cfg iwl22000_2ax_cfg_jf;
 extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0_f0;
+extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0_f0;
 extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0;
 extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_jf_b0;
 extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_a0;
 extern const struct iwl_cfg iwl22560_2ax_cfg_su_cdb;
-#endif /* CONFIG_IWLMVM */
+#endif /* CPTCFG_IWLMVM || CPTCFG_IWLFMAC */
 
 #endif /* __IWL_CONFIG_H__ */
