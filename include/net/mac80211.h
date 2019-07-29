@@ -600,6 +600,7 @@ struct ieee80211_ftm_responder_params {
  *	nontransmitted BSSIDs
  * @profile_periodicity: the least number of beacon frames need to be received
  *	in order to discover all the nontransmitted BSSIDs in the set.
+ * @he_operation: HE operation information of the AP we are connected to
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -661,6 +662,7 @@ struct ieee80211_bss_conf {
 	u8 bssid_indicator;
 	bool ema_ap;
 	u8 profile_periodicity;
+	struct ieee80211_he_operation he_operation;
 };
 
 /**
