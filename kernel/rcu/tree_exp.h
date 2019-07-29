@@ -781,7 +781,7 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp)
  * other hand, if the CPU is not in an RCU read-side critical section,
  * the IPI handler reports the quiescent state immediately.
  *
- * Although this is a greate improvement over previous expedited
+ * Although this is a great improvement over previous expedited
  * implementations, it is still unfriendly to real-time workloads, so is
  * thus not recommended for any sort of common-case code.  In fact, if
  * you are using synchronize_rcu_expedited() in a loop, please restructure
