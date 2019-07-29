@@ -35,6 +35,7 @@
 
 #include <linux/typecheck.h>
 #include <linux/compiler.h>
+#include <linux/types.h>
 #include <asm/atomic_ops.h>
 #include <asm/barrier.h>
 
@@ -55,7 +56,7 @@ __bitops_byte(unsigned long nr, volatile unsigned long *ptr)
 	return ((unsigned char *)ptr) + ((nr ^ (BITS_PER_LONG - 8)) >> 3);
 }
 
-static inline void set_bit(unsigned long nr, volatile unsigned long *ptr)
+static inline void arch_set_bit(unsigned long nr, volatile unsigned long *ptr)
 {
 	unsigned long *addr = __bitops_word(nr, ptr);
 	unsigned long mask;
@@ -76,7 +77,7 @@ static inline void set_bit(unsigned long nr, volatile unsigned long *ptr)
 	__atomic64_or(mask, (long *)addr);
 }
 
-static inline void clear_bit(unsigned long nr, volatile unsigned long *ptr)
+static inline void arch_clear_bit(unsigned long nr, volatile unsigned long *ptr)
 {
 	unsigned long *addr = __bitops_word(nr, ptr);
 	unsigned long mask;
@@ -97,7 +98,8 @@ static inline void clear_bit(unsigned long nr, volatile unsigned long *ptr)
 	__atomic64_and(mask, (long *)addr);
 }
 
-static inline void change_bit(unsigned long nr, volatile unsigned long *ptr)
+static inline void arch_change_bit(unsigned long nr,
+				   volatile unsigned long *ptr)
 {
 	unsigned long *addr = __bitops_word(nr, ptr);
 	unsigned long mask;
@@ -118,8 +120,8 @@ static inline void change_bit(unsigned long nr, volatile unsigned long *ptr)
 	__atomic64_xor(mask, (long *)addr);
 }
 
-static inline int
-test_and_set_bit(unsigned long nr, volatile unsigned long *ptr)
+static inline bool arch_test_and_set_bit(unsigned long nr,
+					 volatile unsigned long *ptr)
 {
 	unsigned long *addr = __bitops_word(nr, ptr);
 	unsigned long old, mask;
@@ -129,8 +131,8 @@ test_and_set_bit(unsigned long nr, volatile unsigned long *ptr)
 	return (old & mask) != 0;
 }
 
-static inline int
-test_and_clear_bit(unsigned long nr, volatile unsigned long *ptr)
+static inline bool arch_test_and_clear_bit(unsigned long nr,
+					   volatile unsigned long *ptr)
 {
 	unsigned long *addr = __bitops_word(nr, ptr);
 	unsigned long old, mask;
@@ -140,8 +142,8 @@ test_and_clear_bit(unsigned long nr, volatile unsigned long *ptr)
 	return (old & ~mask) != 0;
 }
 
-static inline int
-test_and_change_bit(unsigned long nr, volatile unsigned long *ptr)
+static inline bool arch_test_and_change_bit(unsigned long nr,
+					    volatile unsigned long *ptr)
 {
 	unsigned long *addr = __bitops_word(nr, ptr);
 	unsigned long old, mask;
@@ -151,30 +153,31 @@ test_and_change_bit(unsigned long nr, volatile unsigned long *ptr)
 	return (old & mask) != 0;
 }
 
-static inline void __set_bit(unsigned long nr, volatile unsigned long *ptr)
+static inline void arch___set_bit(unsigned long nr, volatile unsigned long *ptr)
 {
 	unsigned char *addr = __bitops_byte(nr, ptr);
 
 	*addr |= 1 << (nr & 7);
 }
 
-static inline void 
-__clear_bit(unsigned long nr, volatile unsigned long *ptr)
+static inline void arch___clear_bit(unsigned long nr,
+				    volatile unsigned long *ptr)
 {
 	unsigned char *addr = __bitops_byte(nr, ptr);
 
 	*addr &= ~(1 << (nr & 7));
 }
 
-static inline void __change_bit(unsigned long nr, volatile unsigned long *ptr)
+static inline void arch___change_bit(unsigned long nr,
+				     volatile unsigned long *ptr)
 {
 	unsigned char *addr = __bitops_byte(nr, ptr);
 
 	*addr ^= 1 << (nr & 7);
 }
 
-static inline int
-__test_and_set_bit(unsigned long nr, volatile unsigned long *ptr)
+static inline bool arch___test_and_set_bit(unsigned long nr,
+					   volatile unsigned long *ptr)
 {
 	unsigned char *addr = __bitops_byte(nr, ptr);
 	unsigned char ch;
@@ -184,8 +187,8 @@ __test_and_set_bit(unsigned long nr, volatile unsigned long *ptr)
 	return (ch >> (nr & 7)) & 1;
 }
 
-static inline int
-__test_and_clear_bit(unsigned long nr, volatile unsigned long *ptr)
+static inline bool arch___test_and_clear_bit(unsigned long nr,
+					     volatile unsigned long *ptr)
 {
 	unsigned char *addr = __bitops_byte(nr, ptr);
 	unsigned char ch;
@@ -195,8 +198,8 @@ __test_and_clear_bit(unsigned long nr, volatile unsigned long *ptr)
 	return (ch >> (nr & 7)) & 1;
 }
 
-static inline int
-__test_and_change_bit(unsigned long nr, volatile unsigned long *ptr)
+static inline bool arch___test_and_change_bit(unsigned long nr,
+					      volatile unsigned long *ptr)
 {
 	unsigned char *addr = __bitops_byte(nr, ptr);
 	unsigned char ch;
@@ -206,7 +209,8 @@ __test_and_change_bit(unsigned long nr, volatile unsigned long *ptr)
 	return (ch >> (nr & 7)) & 1;
 }
 
-static inline int test_bit(unsigned long nr, const volatile unsigned long *ptr)
+static inline bool arch_test_bit(unsigned long nr,
+				 const volatile unsigned long *ptr)
 {
 	const volatile unsigned char *addr;
 
@@ -215,27 +219,29 @@ static inline int test_bit(unsigned long nr, const volatile unsigned long *ptr)
 	return (*addr >> (nr & 7)) & 1;
 }
 
-static inline int test_and_set_bit_lock(unsigned long nr,
-					volatile unsigned long *ptr)
+static inline bool arch_test_and_set_bit_lock(unsigned long nr,
+					      volatile unsigned long *ptr)
 {
-	if (test_bit(nr, ptr))
+	if (arch_test_bit(nr, ptr))
 		return 1;
-	return test_and_set_bit(nr, ptr);
+	return arch_test_and_set_bit(nr, ptr);
 }
 
-static inline void clear_bit_unlock(unsigned long nr,
-				    volatile unsigned long *ptr)
+static inline void arch_clear_bit_unlock(unsigned long nr,
+					 volatile unsigned long *ptr)
 {
 	smp_mb__before_atomic();
-	clear_bit(nr, ptr);
+	arch_clear_bit(nr, ptr);
 }
 
-static inline void __clear_bit_unlock(unsigned long nr,
-				      volatile unsigned long *ptr)
+static inline void arch___clear_bit_unlock(unsigned long nr,
+					   volatile unsigned long *ptr)
 {
 	smp_mb();
-	__clear_bit(nr, ptr);
+	arch___clear_bit(nr, ptr);
 }
+
+#include <asm-generic/bitops-instrumented.h>
 
 /*
  * Functions which use MSB0 bit numbering.
@@ -261,7 +267,8 @@ static inline void clear_bit_inv(unsigned long nr, volatile unsigned long *ptr)
 	return clear_bit(nr ^ (BITS_PER_LONG - 1), ptr);
 }
 
-static inline int test_and_clear_bit_inv(unsigned long nr, volatile unsigned long *ptr)
+static inline bool test_and_clear_bit_inv(unsigned long nr,
+					  volatile unsigned long *ptr)
 {
 	return test_and_clear_bit(nr ^ (BITS_PER_LONG - 1), ptr);
 }
@@ -276,8 +283,8 @@ static inline void __clear_bit_inv(unsigned long nr, volatile unsigned long *ptr
 	return __clear_bit(nr ^ (BITS_PER_LONG - 1), ptr);
 }
 
-static inline int test_bit_inv(unsigned long nr,
-			       const volatile unsigned long *ptr)
+static inline bool test_bit_inv(unsigned long nr,
+				const volatile unsigned long *ptr)
 {
 	return test_bit(nr ^ (BITS_PER_LONG - 1), ptr);
 }

@@ -101,10 +101,6 @@ ifeq ($(SRCARCH),riscv)
 header-test- += linux/bpf_perf_event.h
 endif
 
-ifeq ($(SRCARCH),s390)
-header-test- += asm/zcrypt.h
-endif
-
 ifeq ($(SRCARCH),sparc)
 header-test- += asm/stat.h
 header-test- += asm/uctx.h

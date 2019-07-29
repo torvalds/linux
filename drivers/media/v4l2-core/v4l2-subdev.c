@@ -124,7 +124,7 @@ static inline int check_which(__u32 which)
 static inline int check_pad(struct v4l2_subdev *sd, __u32 pad)
 {
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	if (sd->entity.graph_obj.mdev) {
+	if (sd->entity.num_pads) {
 		if (pad >= sd->entity.num_pads)
 			return -EINVAL;
 		return 0;

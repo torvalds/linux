@@ -38,12 +38,9 @@ void *return_address(unsigned int level)
 	data.level = level + 2;
 	data.addr = NULL;
 
-	frame.fp = (unsigned long)__builtin_frame_address(0);
-	frame.pc = (unsigned long)return_address; /* dummy */
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame.graph = 0;
-#endif
-
+	start_backtrace(&frame,
+			(unsigned long)__builtin_frame_address(0),
+			(unsigned long)return_address);
 	walk_stackframe(current, &frame, save_return_addr, &data);
 
 	if (!data.level)

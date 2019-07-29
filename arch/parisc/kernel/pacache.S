@@ -63,7 +63,7 @@ ENTRY_CFI(flush_tlb_all_local)
 
 	/* Flush Instruction Tlb */
 
-	LDREG		ITLB_SID_BASE(%r1), %r20
+88:	LDREG		ITLB_SID_BASE(%r1), %r20
 	LDREG		ITLB_SID_STRIDE(%r1), %r21
 	LDREG		ITLB_SID_COUNT(%r1), %r22
 	LDREG		ITLB_OFF_BASE(%r1), %arg0
@@ -103,6 +103,7 @@ fitonemiddle:					/* Loop if LOOP = 1 */
 	add		%r21, %r20, %r20		/* increment space */
 
 fitdone:
+	ALTERNATIVE(88b, fitdone, ALT_COND_NO_SPLIT_TLB, INSN_NOP)
 
 	/* Flush Data Tlb */
 
