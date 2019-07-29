@@ -459,6 +459,9 @@ static int hns3_nic_net_open(struct net_device *netdev)
 		h->ae_algo->ops->set_timer_task(priv->ae_handle, true);
 
 	hns3_config_xps(priv);
+
+	netif_dbg(h, drv, netdev, "net open\n");
+
 	return 0;
 }
 
@@ -518,6 +521,8 @@ static int hns3_nic_net_stop(struct net_device *netdev)
 
 	if (test_and_set_bit(HNS3_NIC_STATE_DOWN, &priv->state))
 		return 0;
+
+	netif_dbg(h, drv, netdev, "net stop\n");
 
 	if (h->ae_algo->ops->set_timer_task)
 		h->ae_algo->ops->set_timer_task(priv->ae_handle, false);
@@ -1550,6 +1555,8 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 	h = hns3_get_handle(netdev);
 	kinfo = &h->kinfo;
 
+	netif_dbg(h, drv, netdev, "setup tc: num_tc=%u\n", tc);
+
 	return (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
 		kinfo->dcb_ops->setup_tc(h, tc, prio_tc) : -EOPNOTSUPP;
 }
@@ -1593,6 +1600,10 @@ static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	int ret = -EIO;
 
+	netif_dbg(h, drv, netdev,
+		  "set vf vlan: vf=%d, vlan=%u, qos=%u, vlan_proto=%u\n",
+		  vf, vlan, qos, vlan_proto);
+
 	if (h->ae_algo->ops->set_vf_vlan_filter)
 		ret = h->ae_algo->ops->set_vf_vlan_filter(h, vf, vlan,
 							  qos, vlan_proto);
@@ -1610,6 +1621,9 @@ static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
 
 	if (!h->ae_algo->ops->set_mtu)
 		return -EOPNOTSUPP;
+
+	netif_dbg(h, drv, netdev,
+		  "change mtu from %u to %d\n", netdev->mtu, new_mtu);
 
 	ret = h->ae_algo->ops->set_mtu(h, new_mtu);
 	if (ret)
@@ -1963,7 +1977,7 @@ static pci_ers_result_t hns3_slot_reset(struct pci_dev *pdev)
 
 	ops = ae_dev->ops;
 	/* request the reset */
-	if (ops->reset_event) {
+	if (ops->reset_event && ops->get_reset_level) {
 		if (ae_dev->hw_err_reset_req) {
 			reset_type = ops->get_reset_level(ae_dev,
 						&ae_dev->hw_err_reset_req);
@@ -2067,7 +2081,7 @@ static void hns3_set_default_feature(struct net_device *netdev)
 static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
 			     struct hns3_desc_cb *cb)
 {
-	unsigned int order = hnae3_page_order(ring);
+	unsigned int order = hns3_page_order(ring);
 	struct page *p;
 
 	p = dev_alloc_pages(order);
@@ -2078,7 +2092,7 @@ static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
 	cb->page_offset = 0;
 	cb->reuse_flag = 0;
 	cb->buf  = page_address(p);
-	cb->length = hnae3_page_size(ring);
+	cb->length = hns3_page_size(ring);
 	cb->type = DESC_TYPE_PAGE;
 
 	return 0;
@@ -2381,7 +2395,7 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 {
 	struct hns3_desc *desc = &ring->desc[ring->next_to_clean];
 	int size = le16_to_cpu(desc->rx.size);
-	u32 truesize = hnae3_buf_size(ring);
+	u32 truesize = hns3_buf_size(ring);
 
 	skb_add_rx_frag(skb, i, desc_cb->priv, desc_cb->page_offset + pull_len,
 			size - pull_len, truesize);
@@ -2396,7 +2410,7 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 	/* Move offset up to the next cache line */
 	desc_cb->page_offset += truesize;
 
-	if (desc_cb->page_offset + truesize <= hnae3_page_size(ring)) {
+	if (desc_cb->page_offset + truesize <= hns3_page_size(ring)) {
 		desc_cb->reuse_flag = 1;
 		/* Bump ref count on page before it is given */
 		get_page(desc_cb->priv);
@@ -2678,7 +2692,7 @@ static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
 		}
 
 		if (ring->tail_skb) {
-			head_skb->truesize += hnae3_buf_size(ring);
+			head_skb->truesize += hns3_buf_size(ring);
 			head_skb->data_len += le16_to_cpu(desc->rx.size);
 			head_skb->len += le16_to_cpu(desc->rx.size);
 			skb = ring->tail_skb;
@@ -4378,6 +4392,9 @@ int hns3_set_channels(struct net_device *netdev,
 	u16 org_tqp_num;
 	int ret;
 
+	if (hns3_nic_resetting(netdev))
+		return -EBUSY;
+
 	if (ch->rx_count || ch->tx_count)
 		return -EINVAL;
 
@@ -4391,6 +4408,10 @@ int hns3_set_channels(struct net_device *netdev,
 
 	if (kinfo->rss_size == new_tqp_num)
 		return 0;
+
+	netif_dbg(h, drv, netdev,
+		  "set channels: tqp_num=%u, rxfh=%d\n",
+		  new_tqp_num, rxfh_configured);
 
 	ret = hns3_reset_notify(h, HNAE3_DOWN_CLIENT);
 	if (ret)
