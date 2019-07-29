@@ -121,7 +121,7 @@
        __SMU_DUMMY_MAP(GetVoltageByDpm),              \
        __SMU_DUMMY_MAP(GetVoltageByDpmOverdrive),     \
        __SMU_DUMMY_MAP(PowerUpVcn0),                  \
-       __SMU_DUMMY_MAP(PowerDownVcn01),               \
+       __SMU_DUMMY_MAP(PowerDownVcn0),               \
        __SMU_DUMMY_MAP(PowerUpVcn1),                  \
        __SMU_DUMMY_MAP(PowerDownVcn1),                \
 
