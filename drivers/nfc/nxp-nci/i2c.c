@@ -23,7 +23,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
-#include <linux/platform_data/nxp-nci.h>
 #include <asm/unaligned.h>
 
 #include <net/nfc/nfc.h>
@@ -304,7 +303,6 @@ static int nxp_nci_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
 	struct nxp_nci_i2c_phy *phy;
-	struct nxp_nci_nfc_platform_data *pdata;
 	int r;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -323,17 +321,12 @@ static int nxp_nci_i2c_probe(struct i2c_client *client,
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);
 
-	pdata = client->dev.platform_data;
-
-	if (!pdata && client->dev.of_node) {
+	if (client->dev.of_node) {
 		r = nxp_nci_i2c_parse_devtree(client);
 		if (r < 0) {
 			nfc_err(&client->dev, "Failed to get DT data\n");
 			goto probe_exit;
 		}
-	} else if (pdata) {
-		phy->gpio_en = pdata->gpio_en;
-		phy->gpio_fw = pdata->gpio_fw;
 	} else if (ACPI_HANDLE(&client->dev)) {
 		r = nxp_nci_i2c_acpi_config(phy);
 		if (r < 0)

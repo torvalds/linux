@@ -14,7 +14,6 @@
 #include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/nfc.h>
-#include <linux/platform_data/nxp-nci.h>
 
 #include <net/nfc/nci_core.h>
 
