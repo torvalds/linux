@@ -380,9 +380,9 @@ static const char consumer_descriptor[] = {
 	0x75, 0x10,		/* REPORT_SIZE (16)                    */
 	0x95, 0x02,		/* REPORT_COUNT (2)                    */
 	0x15, 0x01,		/* LOGICAL_MIN (1)                     */
-	0x26, 0x8C, 0x02,	/* LOGICAL_MAX (652)                   */
+	0x26, 0xFF, 0x02,	/* LOGICAL_MAX (767)                   */
 	0x19, 0x01,		/* USAGE_MIN (1)                       */
-	0x2A, 0x8C, 0x02,	/* USAGE_MAX (652)                     */
+	0x2A, 0xFF, 0x02,	/* USAGE_MAX (767)                     */
 	0x81, 0x00,		/* INPUT (Data Ary Abs)                */
 	0xC0,			/* END_COLLECTION                      */
 };				/*                                     */
