@@ -22,4 +22,4 @@ config NFC_NXP_NCI_I2C
 
 	  To compile this driver as a module, choose m here. The module will
 	  be called nxp_nci_i2c.
-	  Say Y if unsure.
+	  Say N if unsure.
