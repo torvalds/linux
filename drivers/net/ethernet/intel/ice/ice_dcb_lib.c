@@ -319,6 +319,11 @@ void ice_dcb_rebuild(struct ice_pf *pf)
 	}
 
 	ice_init_dcb(&pf->hw);
+	if (pf->hw.port_info->dcbx_status == ICE_DCBX_STATUS_DIS)
+		pf->hw.port_info->is_sw_lldp = true;
+	else
+		pf->hw.port_info->is_sw_lldp = false;
+
 	if (ice_dcb_need_recfg(pf, prev_cfg, local_dcbx_cfg)) {
 		/* difference in cfg detected - disable DCB till next MIB */
 		dev_err(&pf->pdev->dev, "Set local MIB not accurate\n");
@@ -440,35 +445,17 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 	struct device *dev = &pf->pdev->dev;
 	struct ice_port_info *port_info;
 	struct ice_hw *hw = &pf->hw;
-	int sw_default = 0;
 	int err;
 
 	port_info = hw->port_info;
 
 	err = ice_init_dcb(hw);
 	if (err) {
-		/* FW LLDP is not active, default to SW DCBX/LLDP */
-		dev_info(&pf->pdev->dev, "FW LLDP is not active\n");
-		hw->port_info->dcbx_status = ICE_DCBX_STATUS_NOT_STARTED;
-		hw->port_info->is_sw_lldp = true;
-	}
-
-	if (port_info->dcbx_status == ICE_DCBX_STATUS_DIS)
-		dev_info(&pf->pdev->dev, "DCBX disabled\n");
-
-	/* LLDP disabled in FW */
-	if (port_info->is_sw_lldp) {
-		sw_default = 1;
-		dev_info(&pf->pdev->dev, "DCBx/LLDP in SW mode.\n");
+		/* FW LLDP is disabled, activate SW DCBX/LLDP mode */
+		dev_info(&pf->pdev->dev,
+			 "FW LLDP is disabled, DCBx/LLDP in SW mode.\n");
+		port_info->is_sw_lldp = true;
 		clear_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags);
-	} else {
-		set_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags);
-	}
-
-	if (port_info->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED)
-		dev_info(&pf->pdev->dev, "DCBX not started\n");
-
-	if (sw_default) {
 		err = ice_dcb_sw_dflt_cfg(pf, locked);
 		if (err) {
 			dev_err(&pf->pdev->dev,
@@ -482,6 +469,9 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 		set_bit(ICE_FLAG_DCB_ENA, pf->flags);
 		return 0;
 	}
+
+	port_info->is_sw_lldp = false;
+	set_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags);
 
 	/* DCBX in FW and LLDP enabled in FW */
 	pf->dcbx_cap = DCB_CAP_DCBX_LLD_MANAGED | DCB_CAP_DCBX_VER_IEEE;
