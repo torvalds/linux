@@ -840,6 +840,15 @@ static struct rx_agg_cmp *bnxt_get_agg(struct bnxt *bp,
 	return agg;
 }
 
+static struct rx_agg_cmp *bnxt_get_tpa_agg_p5(struct bnxt *bp,
+					      struct bnxt_rx_ring_info *rxr,
+					      u16 agg_id, u16 curr)
+{
+	struct bnxt_tpa_info *tpa_info = &rxr->rx_tpa[agg_id];
+
+	return &tpa_info->agg_arr[curr];
+}
+
 static void bnxt_reuse_rx_agg_bufs(struct bnxt_cp_ring_info *cpr, u16 idx,
 				   u16 start, u32 agg_bufs, bool tpa)
 {
@@ -848,7 +857,11 @@ static void bnxt_reuse_rx_agg_bufs(struct bnxt_cp_ring_info *cpr, u16 idx,
 	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
 	u16 prod = rxr->rx_agg_prod;
 	u16 sw_prod = rxr->rx_sw_agg_prod;
+	bool p5_tpa = false;
 	u32 i;
+
+	if ((bp->flags & BNXT_FLAG_CHIP_P5) && tpa)
+		p5_tpa = true;
 
 	for (i = 0; i < agg_bufs; i++) {
 		u16 cons;
@@ -857,7 +870,10 @@ static void bnxt_reuse_rx_agg_bufs(struct bnxt_cp_ring_info *cpr, u16 idx,
 		struct rx_bd *prod_bd;
 		struct page *page;
 
-		agg = bnxt_get_agg(bp, cpr, idx, start + i);
+		if (p5_tpa)
+			agg = bnxt_get_tpa_agg_p5(bp, rxr, idx, start + i);
+		else
+			agg = bnxt_get_agg(bp, cpr, idx, start + i);
 		cons = agg->rx_agg_cmp_opaque;
 		__clear_bit(cons, rxr->rx_agg_bmap);
 
@@ -974,7 +990,11 @@ static struct sk_buff *bnxt_rx_pages(struct bnxt *bp,
 	struct pci_dev *pdev = bp->pdev;
 	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
 	u16 prod = rxr->rx_agg_prod;
+	bool p5_tpa = false;
 	u32 i;
+
+	if ((bp->flags & BNXT_FLAG_CHIP_P5) && tpa)
+		p5_tpa = true;
 
 	for (i = 0; i < agg_bufs; i++) {
 		u16 cons, frag_len;
@@ -983,7 +1003,10 @@ static struct sk_buff *bnxt_rx_pages(struct bnxt *bp,
 		struct page *page;
 		dma_addr_t mapping;
 
-		agg = bnxt_get_agg(bp, cpr, idx, i);
+		if (p5_tpa)
+			agg = bnxt_get_tpa_agg_p5(bp, rxr, idx, i);
+		else
+			agg = bnxt_get_agg(bp, cpr, idx, i);
 		cons = agg->rx_agg_cmp_opaque;
 		frag_len = (le32_to_cpu(agg->rx_agg_cmp_len_flags_type) &
 			    RX_AGG_CMP_LEN) >> RX_AGG_CMP_LEN_SHIFT;
@@ -1089,6 +1112,9 @@ static int bnxt_discard_rx(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	} else if (cmp_type == CMP_TYPE_RX_L2_TPA_END_CMP) {
 		struct rx_tpa_end_cmp *tpa_end = cmp;
 
+		if (bp->flags & BNXT_FLAG_CHIP_P5)
+			return 0;
+
 		agg_bufs = TPA_END_AGG_BUFS(tpa_end);
 	}
 
@@ -1130,22 +1156,27 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 			   struct rx_tpa_start_cmp *tpa_start,
 			   struct rx_tpa_start_cmp_ext *tpa_start1)
 {
-	u8 agg_id = TPA_START_AGG_ID(tpa_start);
-	u16 cons, prod;
-	struct bnxt_tpa_info *tpa_info;
 	struct bnxt_sw_rx_bd *cons_rx_buf, *prod_rx_buf;
+	struct bnxt_tpa_info *tpa_info;
+	u16 cons, prod, agg_id;
 	struct rx_bd *prod_bd;
 	dma_addr_t mapping;
 
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		agg_id = TPA_START_AGG_ID_P5(tpa_start);
+	else
+		agg_id = TPA_START_AGG_ID(tpa_start);
 	cons = tpa_start->rx_tpa_start_cmp_opaque;
 	prod = rxr->rx_prod;
 	cons_rx_buf = &rxr->rx_buf_ring[cons];
 	prod_rx_buf = &rxr->rx_buf_ring[prod];
 	tpa_info = &rxr->rx_tpa[agg_id];
 
-	if (unlikely(cons != rxr->rx_next_cons)) {
-		netdev_warn(bp->dev, "TPA cons %x != expected cons %x\n",
-			    cons, rxr->rx_next_cons);
+	if (unlikely(cons != rxr->rx_next_cons ||
+		     TPA_START_ERROR(tpa_start))) {
+		netdev_warn(bp->dev, "TPA cons %x, expected cons %x, error code %x\n",
+			    cons, rxr->rx_next_cons,
+			    TPA_START_ERROR_CODE(tpa_start1));
 		bnxt_sched_reset(bp, rxr);
 		return;
 	}
@@ -1190,6 +1221,7 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	tpa_info->flags2 = le32_to_cpu(tpa_start1->rx_tpa_start_cmp_flags2);
 	tpa_info->metadata = le32_to_cpu(tpa_start1->rx_tpa_start_cmp_metadata);
 	tpa_info->hdr_info = le32_to_cpu(tpa_start1->rx_tpa_start_cmp_hdr_info);
+	tpa_info->agg_count = 0;
 
 	rxr->rx_prod = NEXT_RX(prod);
 	cons = NEXT_RX(cons);
@@ -1363,7 +1395,10 @@ static inline struct sk_buff *bnxt_gro_skb(struct bnxt *bp,
 	skb_shinfo(skb)->gso_size =
 		le32_to_cpu(tpa_end1->rx_tpa_end_cmp_seg_len);
 	skb_shinfo(skb)->gso_type = tpa_info->gso_type;
-	payload_off = TPA_END_PAYLOAD_OFF(tpa_end);
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		payload_off = TPA_END_PAYLOAD_OFF_P5(tpa_end1);
+	else
+		payload_off = TPA_END_PAYLOAD_OFF(tpa_end);
 	skb = bp->gro_func(tpa_info, payload_off, TPA_END_GRO_TS(tpa_end), skb);
 	if (likely(skb))
 		tcp_gro_complete(skb);
@@ -1391,14 +1426,14 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 {
 	struct bnxt_napi *bnapi = cpr->bnapi;
 	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
-	u8 agg_id = TPA_END_AGG_ID(tpa_end);
 	u8 *data_ptr, agg_bufs;
 	unsigned int len;
 	struct bnxt_tpa_info *tpa_info;
 	dma_addr_t mapping;
 	struct sk_buff *skb;
-	u16 idx = 0;
+	u16 idx = 0, agg_id;
 	void *data;
+	bool gro;
 
 	if (unlikely(bnapi->in_reset)) {
 		int rc = bnxt_discard_rx(bp, cpr, raw_cons, tpa_end);
@@ -1408,23 +1443,38 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 		return NULL;
 	}
 
-	tpa_info = &rxr->rx_tpa[agg_id];
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		agg_id = TPA_END_AGG_ID_P5(tpa_end);
+		agg_bufs = TPA_END_AGG_BUFS_P5(tpa_end1);
+		tpa_info = &rxr->rx_tpa[agg_id];
+		if (unlikely(agg_bufs != tpa_info->agg_count)) {
+			netdev_warn(bp->dev, "TPA end agg_buf %d != expected agg_bufs %d\n",
+				    agg_bufs, tpa_info->agg_count);
+			agg_bufs = tpa_info->agg_count;
+		}
+		tpa_info->agg_count = 0;
+		*event |= BNXT_AGG_EVENT;
+		idx = agg_id;
+		gro = !!(bp->flags & BNXT_FLAG_GRO);
+	} else {
+		agg_id = TPA_END_AGG_ID(tpa_end);
+		agg_bufs = TPA_END_AGG_BUFS(tpa_end);
+		tpa_info = &rxr->rx_tpa[agg_id];
+		idx = RING_CMP(*raw_cons);
+		if (agg_bufs) {
+			if (!bnxt_agg_bufs_valid(bp, cpr, agg_bufs, raw_cons))
+				return ERR_PTR(-EBUSY);
+
+			*event |= BNXT_AGG_EVENT;
+			idx = NEXT_CMP(idx);
+		}
+		gro = !!TPA_END_GRO(tpa_end);
+	}
 	data = tpa_info->data;
 	data_ptr = tpa_info->data_ptr;
 	prefetch(data_ptr);
 	len = tpa_info->len;
 	mapping = tpa_info->mapping;
-
-	agg_bufs = TPA_END_AGG_BUFS(tpa_end);
-
-	if (agg_bufs) {
-		idx = RING_CMP(*raw_cons);
-		if (!bnxt_agg_bufs_valid(bp, cpr, agg_bufs, raw_cons))
-			return ERR_PTR(-EBUSY);
-
-		*event |= BNXT_AGG_EVENT;
-		idx = NEXT_CMP(idx);
-	}
 
 	if (unlikely(agg_bufs > MAX_SKB_FRAGS || TPA_END_ERRORS(tpa_end1))) {
 		bnxt_abort_tpa(cpr, idx, agg_bufs);
@@ -1498,7 +1548,7 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 			(tpa_info->flags2 & RX_CMP_FLAGS2_T_L4_CS_CALC) >> 3;
 	}
 
-	if (TPA_END_GRO(tpa_end))
+	if (gro)
 		skb = bnxt_gro_skb(bp, tpa_info, tpa_end, tpa_end1, skb);
 
 	return skb;
@@ -10785,7 +10835,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 	if (BNXT_SUPPORTS_TPA(bp)) {
 		bp->gro_func = bnxt_gro_func_5730x;
-		if (BNXT_CHIP_P4(bp))
+		if (BNXT_CHIP_P4_PLUS(bp))
 			bp->gro_func = bnxt_gro_func_5731x;
 	}
 	if (!BNXT_CHIP_P4_PLUS(bp))
