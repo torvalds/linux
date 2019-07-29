@@ -22,7 +22,7 @@ static struct workqueue_struct *ethsw_owq;
 
 /* Minimal supported DPSW version */
 #define DPSW_MIN_VER_MAJOR		8
-#define DPSW_MIN_VER_MINOR		0
+#define DPSW_MIN_VER_MINOR		1
 
 #define DEFAULT_VLAN_ID			1
 
@@ -529,6 +529,138 @@ static int port_get_phys_name(struct net_device *netdev, char *name,
 	return 0;
 }
 
+struct ethsw_dump_ctx {
+	struct net_device *dev;
+	struct sk_buff *skb;
+	struct netlink_callback *cb;
+	int idx;
+};
+
+static int ethsw_fdb_do_dump(struct fdb_dump_entry *entry,
+			     struct ethsw_dump_ctx *dump)
+{
+	int is_dynamic = entry->type & DPSW_FDB_ENTRY_DINAMIC;
+	u32 portid = NETLINK_CB(dump->cb->skb).portid;
+	u32 seq = dump->cb->nlh->nlmsg_seq;
+	struct nlmsghdr *nlh;
+	struct ndmsg *ndm;
+
+	if (dump->idx < dump->cb->args[2])
+		goto skip;
+
+	nlh = nlmsg_put(dump->skb, portid, seq, RTM_NEWNEIGH,
+			sizeof(*ndm), NLM_F_MULTI);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	ndm = nlmsg_data(nlh);
+	ndm->ndm_family  = AF_BRIDGE;
+	ndm->ndm_pad1    = 0;
+	ndm->ndm_pad2    = 0;
+	ndm->ndm_flags   = NTF_SELF;
+	ndm->ndm_type    = 0;
+	ndm->ndm_ifindex = dump->dev->ifindex;
+	ndm->ndm_state   = is_dynamic ? NUD_REACHABLE : NUD_NOARP;
+
+	if (nla_put(dump->skb, NDA_LLADDR, ETH_ALEN, entry->mac_addr))
+		goto nla_put_failure;
+
+	nlmsg_end(dump->skb, nlh);
+
+skip:
+	dump->idx++;
+	return 0;
+
+nla_put_failure:
+	nlmsg_cancel(dump->skb, nlh);
+	return -EMSGSIZE;
+}
+
+static int port_fdb_valid_entry(struct fdb_dump_entry *entry,
+				struct ethsw_port_priv *port_priv)
+{
+	int idx = port_priv->idx;
+	int valid;
+
+	if (entry->type & DPSW_FDB_ENTRY_TYPE_UNICAST)
+		valid = entry->if_info == port_priv->idx;
+	else
+		valid = entry->if_mask[idx / 8] & BIT(idx % 8);
+
+	return valid;
+}
+
+static int port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
+			 struct net_device *net_dev,
+			 struct net_device *filter_dev, int *idx)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(net_dev);
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct device *dev = net_dev->dev.parent;
+	struct fdb_dump_entry *fdb_entries;
+	struct fdb_dump_entry fdb_entry;
+	struct ethsw_dump_ctx dump = {
+		.dev = net_dev,
+		.skb = skb,
+		.cb = cb,
+		.idx = *idx,
+	};
+	dma_addr_t fdb_dump_iova;
+	u16 num_fdb_entries;
+	u32 fdb_dump_size;
+	int err = 0, i;
+	u8 *dma_mem;
+
+	fdb_dump_size = ethsw->sw_attr.max_fdb_entries * sizeof(fdb_entry);
+	dma_mem = kzalloc(fdb_dump_size, GFP_KERNEL);
+	if (!dma_mem)
+		return -ENOMEM;
+
+	memset(dma_mem, 0, fdb_dump_size);
+
+	fdb_dump_iova = dma_map_single(dev, dma_mem, fdb_dump_size,
+				       DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, fdb_dump_iova)) {
+		netdev_err(net_dev, "dma_map_single() failed\n");
+		err = -ENOMEM;
+		goto err_map;
+	}
+
+	err = dpsw_fdb_dump(ethsw->mc_io, 0, ethsw->dpsw_handle, 0,
+			    fdb_dump_iova, fdb_dump_size, &num_fdb_entries);
+	if (err) {
+		netdev_err(net_dev, "dpsw_fdb_dump() = %d\n", err);
+		goto err_dump;
+	}
+
+	dma_unmap_single(dev, fdb_dump_iova, fdb_dump_size, DMA_FROM_DEVICE);
+
+	fdb_entries = (struct fdb_dump_entry *)dma_mem;
+	for (i = 0; i < num_fdb_entries; i++) {
+		fdb_entry = fdb_entries[i];
+
+		if (!port_fdb_valid_entry(&fdb_entry, port_priv))
+			continue;
+
+		err = ethsw_fdb_do_dump(&fdb_entry, &dump);
+		if (err)
+			goto end;
+	}
+
+end:
+	*idx = dump.idx;
+
+	kfree(dma_mem);
+
+	return 0;
+
+err_dump:
+	dma_unmap_single(dev, fdb_dump_iova, fdb_dump_size, DMA_TO_DEVICE);
+err_map:
+	kfree(dma_mem);
+	return err;
+}
+
 static const struct net_device_ops ethsw_port_ops = {
 	.ndo_open		= port_open,
 	.ndo_stop		= port_stop,
@@ -538,6 +670,7 @@ static const struct net_device_ops ethsw_port_ops = {
 	.ndo_change_mtu		= port_change_mtu,
 	.ndo_has_offload_stats	= port_has_offload_stats,
 	.ndo_get_offload_stats	= port_get_offload_stats,
+	.ndo_fdb_dump		= port_fdb_dump,
 
 	.ndo_start_xmit		= port_dropframe,
 	.ndo_get_port_parent_id	= swdev_get_port_parent_id,

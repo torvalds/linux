@@ -465,6 +465,31 @@ int dpsw_fdb_remove_unicast(struct fsl_mc_io *mc_io,
 			    u16 fdb_id,
 			    const struct dpsw_fdb_unicast_cfg *cfg);
 
+#define DPSW_FDB_ENTRY_TYPE_DYNAMIC  BIT(0)
+#define DPSW_FDB_ENTRY_TYPE_UNICAST  BIT(1)
+
+/**
+ * struct fdb_dump_entry - fdb snapshot entry
+ * @mac_addr: MAC address
+ * @type: bit0 - DINAMIC(1)/STATIC(0), bit1 - UNICAST(1)/MULTICAST(0)
+ * @if_info: unicast - egress interface, multicast - number of egress interfaces
+ * @if_mask: multicast - egress interface mask
+ */
+struct fdb_dump_entry {
+	u8 mac_addr[6];
+	u8 type;
+	u8 if_info;
+	u8 if_mask[8];
+};
+
+int dpsw_fdb_dump(struct fsl_mc_io *mc_io,
+		  u32 cmd_flags,
+		  u16 token,
+		  u16 fdb_id,
+		  u64 iova_addr,
+		  u32 iova_size,
+		  u16 *num_entries);
+
 /**
  * struct dpsw_fdb_multicast_cfg - Multi-cast entry configuration
  * @type: Select static or dynamic entry
