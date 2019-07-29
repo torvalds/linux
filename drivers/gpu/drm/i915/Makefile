@@ -33,7 +33,7 @@ subdir-ccflags-y += \
 	$(call as-instr,movntdqa (%eax)$(comma)%xmm0,-DCONFIG_AS_MOVNTDQA)
 
 # Extra header tests
-include $(src)/Makefile.header-test
+header-test-pattern-$(CONFIG_DRM_I915_WERROR) := *.h
 
 subdir-ccflags-y += -I$(srctree)/$(src)
 

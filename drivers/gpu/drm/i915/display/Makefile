@@ -2,4 +2,5 @@
 subdir-ccflags-y += -I$(srctree)/$(src)/..
 
 # Extra header tests
-include $(src)/Makefile.header-test
+header-test-pattern-$(CONFIG_DRM_I915_WERROR) := *.h
+header-test- := intel_vbt_defs.h

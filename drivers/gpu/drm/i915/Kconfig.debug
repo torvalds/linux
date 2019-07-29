@@ -7,6 +7,7 @@ config DRM_I915_WERROR
         # We use the dependency on !COMPILE_TEST to not be enabled in
         # allmodconfig or allyesconfig configurations
         depends on !COMPILE_TEST
+	select HEADER_TEST
         default n
         help
           Add -Werror to the build flags for (and only for) i915.ko.
