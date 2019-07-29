@@ -611,6 +611,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	switch (pdata->max_width) {
 	case 8:
 		host->mmc->caps |= MMC_CAP_8_BIT_DATA;
+		/* Fall through */
 	case 4:
 		host->mmc->caps |= MMC_CAP_4_BIT_DATA;
 		break;
