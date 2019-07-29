@@ -1371,6 +1371,78 @@ static int arcturus_get_power_limit(struct smu_context *smu,
 	return 0;
 }
 
+static int arcturus_get_power_profile_mode(struct smu_context *smu,
+					   char *buf)
+{
+	static const char *profile_name[] = {
+					"BOOTUP_DEFAULT",
+					"3D_FULL_SCREEN",
+					"POWER_SAVING",
+					"VIDEO",
+					"VR",
+					"COMPUTE",
+					"CUSTOM"};
+	uint32_t i, size = 0;
+	int16_t workload_type = 0;
+
+	if (!smu->pm_enabled || !buf)
+		return -EINVAL;
+
+	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
+		/*
+		 * Conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT
+		 * Not all profile modes are supported on arcturus.
+		 */
+		workload_type = smu_workload_get_type(smu, i);
+		if (workload_type < 0)
+			continue;
+
+		size += sprintf(buf + size, "%2d %14s%s\n",
+			i, profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
+	}
+
+	return size;
+}
+
+static int arcturus_set_power_profile_mode(struct smu_context *smu,
+					   long *input,
+					   uint32_t size)
+{
+	int workload_type = 0;
+	uint32_t profile_mode = input[size];
+	int ret = 0;
+
+	if (!smu->pm_enabled)
+		return -EINVAL;
+
+	if (profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		pr_err("Invalid power profile mode %d\n", profile_mode);
+		return -EINVAL;
+	}
+
+	/*
+	 * Conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT
+	 * Not all profile modes are supported on arcturus.
+	 */
+	workload_type = smu_workload_get_type(smu, profile_mode);
+	if (workload_type < 0) {
+		pr_err("Unsupported power profile mode %d on arcturus\n", profile_mode);
+		return -EINVAL;
+	}
+
+	ret = smu_send_smc_msg_with_param(smu,
+					  SMU_MSG_SetWorkloadMask,
+					  1 << workload_type);
+	if (ret) {
+		pr_err("Fail to set workload type %d\n", workload_type);
+		return ret;
+	}
+
+	smu->power_profile_mode = profile_mode;
+
+	return 0;
+}
+
 static void arcturus_dump_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
@@ -1834,6 +1906,8 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.force_dpm_limit_value = arcturus_force_dpm_limit_value,
 	.unforce_dpm_levels = arcturus_unforce_dpm_levels,
 	.get_profiling_clk_mask = arcturus_get_profiling_clk_mask,
+	.get_power_profile_mode = arcturus_get_power_profile_mode,
+	.set_power_profile_mode = arcturus_set_power_profile_mode,
 	/* debug (internal used) */
 	.dump_pptable = arcturus_dump_pptable,
 	.get_power_limit = arcturus_get_power_limit,
