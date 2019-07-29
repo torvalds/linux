@@ -587,12 +587,15 @@ void mlx5_eswitch_del_send_to_vport_rule(struct mlx5_flow_handle *rule)
 	mlx5_del_flow_rules(rule);
 }
 
-static int mlx5_eswitch_enable_passing_vport_metadata(struct mlx5_eswitch *esw)
+static int esw_set_passing_vport_metadata(struct mlx5_eswitch *esw, bool enable)
 {
 	u32 out[MLX5_ST_SZ_DW(query_esw_vport_context_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(modify_esw_vport_context_in)] = {};
 	u8 fdb_to_vport_reg_c_id;
 	int err;
+
+	if (!mlx5_eswitch_vport_match_metadata_enabled(esw))
+		return 0;
 
 	err = mlx5_eswitch_query_esw_vport_context(esw, esw->manager_vport,
 						   out, sizeof(out));
@@ -602,33 +605,10 @@ static int mlx5_eswitch_enable_passing_vport_metadata(struct mlx5_eswitch *esw)
 	fdb_to_vport_reg_c_id = MLX5_GET(query_esw_vport_context_out, out,
 					 esw_vport_context.fdb_to_vport_reg_c_id);
 
-	fdb_to_vport_reg_c_id |= MLX5_FDB_TO_VPORT_REG_C_0;
-	MLX5_SET(modify_esw_vport_context_in, in,
-		 esw_vport_context.fdb_to_vport_reg_c_id, fdb_to_vport_reg_c_id);
-
-	MLX5_SET(modify_esw_vport_context_in, in,
-		 field_select.fdb_to_vport_reg_c_id, 1);
-
-	return mlx5_eswitch_modify_esw_vport_context(esw, esw->manager_vport,
-						     in, sizeof(in));
-}
-
-static int mlx5_eswitch_disable_passing_vport_metadata(struct mlx5_eswitch *esw)
-{
-	u32 out[MLX5_ST_SZ_DW(query_esw_vport_context_out)] = {};
-	u32 in[MLX5_ST_SZ_DW(modify_esw_vport_context_in)] = {};
-	u8 fdb_to_vport_reg_c_id;
-	int err;
-
-	err = mlx5_eswitch_query_esw_vport_context(esw, esw->manager_vport,
-						   out, sizeof(out));
-	if (err)
-		return err;
-
-	fdb_to_vport_reg_c_id = MLX5_GET(query_esw_vport_context_out, out,
-					 esw_vport_context.fdb_to_vport_reg_c_id);
-
-	fdb_to_vport_reg_c_id &= ~MLX5_FDB_TO_VPORT_REG_C_0;
+	if (enable)
+		fdb_to_vport_reg_c_id |= MLX5_FDB_TO_VPORT_REG_C_0;
+	else
+		fdb_to_vport_reg_c_id &= ~MLX5_FDB_TO_VPORT_REG_C_0;
 
 	MLX5_SET(modify_esw_vport_context_in, in,
 		 esw_vport_context.fdb_to_vport_reg_c_id, fdb_to_vport_reg_c_id);
@@ -2138,11 +2118,9 @@ int esw_offloads_init(struct mlx5_eswitch *esw)
 	if (err)
 		return err;
 
-	if (mlx5_eswitch_vport_match_metadata_enabled(esw)) {
-		err = mlx5_eswitch_enable_passing_vport_metadata(esw);
-		if (err)
-			goto err_vport_metadata;
-	}
+	err = esw_set_passing_vport_metadata(esw, true);
+	if (err)
+		goto err_vport_metadata;
 
 	err = esw_offloads_load_all_reps(esw);
 	if (err)
@@ -2156,8 +2134,7 @@ int esw_offloads_init(struct mlx5_eswitch *esw)
 	return 0;
 
 err_reps:
-	if (mlx5_eswitch_vport_match_metadata_enabled(esw))
-		mlx5_eswitch_disable_passing_vport_metadata(esw);
+	esw_set_passing_vport_metadata(esw, false);
 err_vport_metadata:
 	esw_offloads_steering_cleanup(esw);
 	return err;
@@ -2187,8 +2164,7 @@ void esw_offloads_cleanup(struct mlx5_eswitch *esw)
 	mlx5_rdma_disable_roce(esw->dev);
 	esw_offloads_devcom_cleanup(esw);
 	esw_offloads_unload_all_reps(esw);
-	if (mlx5_eswitch_vport_match_metadata_enabled(esw))
-		mlx5_eswitch_disable_passing_vport_metadata(esw);
+	esw_set_passing_vport_metadata(esw, false);
 	esw_offloads_steering_cleanup(esw);
 	esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
 }
