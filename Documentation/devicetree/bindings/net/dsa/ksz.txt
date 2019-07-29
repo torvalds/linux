@@ -5,6 +5,9 @@ Required properties:
 
 - compatible: For external switch chips, compatible string must be exactly one
   of the following:
+  - "microchip,ksz8765"
+  - "microchip,ksz8794"
+  - "microchip,ksz8795"
   - "microchip,ksz9477"
   - "microchip,ksz9897"
   - "microchip,ksz9896"
