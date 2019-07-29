@@ -2721,6 +2721,9 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 
 	ggtt->vm.closed = true;
 
+	rcu_barrier(); /* flush the RCU'ed__i915_vm_release */
+	flush_workqueue(i915->wq);
+
 	mutex_lock(&i915->drm.struct_mutex);
 
 	list_for_each_entry_safe(vma, vn, &ggtt->vm.bound_list, vm_link)
