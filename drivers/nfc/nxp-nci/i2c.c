@@ -265,16 +265,13 @@ static int nxp_nci_i2c_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		nfc_err(&client->dev, "Need I2C_FUNC_I2C\n");
-		r = -ENODEV;
-		goto probe_exit;
+		return -ENODEV;
 	}
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct nxp_nci_i2c_phy),
 			   GFP_KERNEL);
-	if (!phy) {
-		r = -ENOMEM;
-		goto probe_exit;
-	}
+	if (!phy)
+		return -ENOMEM;
 
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);
@@ -298,7 +295,7 @@ static int nxp_nci_i2c_probe(struct i2c_client *client,
 	r = nxp_nci_probe(phy, &client->dev, &i2c_phy_ops,
 			  NXP_NCI_I2C_MAX_PAYLOAD, &phy->ndev);
 	if (r < 0)
-		goto probe_exit;
+		return r;
 
 	r = request_threaded_irq(client->irq, NULL,
 				 nxp_nci_i2c_irq_thread_fn,
@@ -307,7 +304,6 @@ static int nxp_nci_i2c_probe(struct i2c_client *client,
 	if (r < 0)
 		nfc_err(&client->dev, "Unable to register IRQ handler\n");
 
-probe_exit:
 	return r;
 }
 
