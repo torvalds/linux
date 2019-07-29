@@ -101,6 +101,7 @@
 &dsi {
 	#address-cells = <1>;
 	#size-cells = <0>;
+	phy-dsi-supply = <&reg18>;
 	status = "okay";
 
 	ports {
