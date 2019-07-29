@@ -2104,7 +2104,7 @@ int mlx5_esw_funcs_changed_handler(struct notifier_block *nb, unsigned long type
 	return NOTIFY_OK;
 }
 
-int esw_offloads_init(struct mlx5_eswitch *esw)
+int esw_offloads_enable(struct mlx5_eswitch *esw)
 {
 	int err;
 
@@ -2122,6 +2122,8 @@ int esw_offloads_init(struct mlx5_eswitch *esw)
 	if (err)
 		goto err_vport_metadata;
 
+	mlx5_eswitch_enable_pf_vf_vports(esw, MLX5_VPORT_UC_ADDR_CHANGE);
+
 	err = esw_offloads_load_all_reps(esw);
 	if (err)
 		goto err_reps;
@@ -2134,6 +2136,7 @@ int esw_offloads_init(struct mlx5_eswitch *esw)
 	return 0;
 
 err_reps:
+	mlx5_eswitch_disable_pf_vf_vports(esw);
 	esw_set_passing_vport_metadata(esw, false);
 err_vport_metadata:
 	esw_offloads_steering_cleanup(esw);
@@ -2159,11 +2162,12 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 	return err;
 }
 
-void esw_offloads_cleanup(struct mlx5_eswitch *esw)
+void esw_offloads_disable(struct mlx5_eswitch *esw)
 {
 	mlx5_rdma_disable_roce(esw->dev);
 	esw_offloads_devcom_cleanup(esw);
 	esw_offloads_unload_all_reps(esw);
+	mlx5_eswitch_disable_pf_vf_vports(esw);
 	esw_set_passing_vport_metadata(esw, false);
 	esw_offloads_steering_cleanup(esw);
 	esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;

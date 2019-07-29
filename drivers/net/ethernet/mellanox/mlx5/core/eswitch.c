@@ -452,11 +452,40 @@ static int esw_create_legacy_table(struct mlx5_eswitch *esw)
 	return err;
 }
 
+#define MLX5_LEGACY_SRIOV_VPORT_EVENTS (MLX5_VPORT_UC_ADDR_CHANGE | \
+					MLX5_VPORT_MC_ADDR_CHANGE | \
+					MLX5_VPORT_PROMISC_CHANGE)
+
+static int esw_legacy_enable(struct mlx5_eswitch *esw)
+{
+	int ret;
+
+	ret = esw_create_legacy_table(esw);
+	if (ret)
+		return ret;
+
+	mlx5_eswitch_enable_pf_vf_vports(esw, MLX5_LEGACY_SRIOV_VPORT_EVENTS);
+	return 0;
+}
+
 static void esw_destroy_legacy_table(struct mlx5_eswitch *esw)
 {
 	esw_cleanup_vepa_rules(esw);
 	esw_destroy_legacy_fdb_table(esw);
 	esw_destroy_legacy_vepa_table(esw);
+}
+
+static void esw_legacy_disable(struct mlx5_eswitch *esw)
+{
+	struct esw_mc_addr *mc_promisc;
+
+	mlx5_eswitch_disable_pf_vf_vports(esw);
+
+	mc_promisc = &esw->mc_promisc;
+	if (mc_promisc->uplink_rule)
+		mlx5_del_flow_rules(mc_promisc->uplink_rule);
+
+	esw_destroy_legacy_table(esw);
 }
 
 /* E-Switch vport UC/MC lists management */
@@ -1826,13 +1855,8 @@ void mlx5_eswitch_disable_pf_vf_vports(struct mlx5_eswitch *esw)
 		esw_disable_vport(esw, vport);
 }
 
-#define MLX5_LEGACY_SRIOV_VPORT_EVENTS (MLX5_VPORT_UC_ADDR_CHANGE | \
-					MLX5_VPORT_MC_ADDR_CHANGE | \
-					MLX5_VPORT_PROMISC_CHANGE)
-
 int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
 {
-	int enabled_events;
 	int err;
 
 	if (!ESW_ALLOWED(esw) ||
@@ -1854,20 +1878,15 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
 	mlx5_lag_update(esw->dev);
 
 	if (mode == MLX5_ESWITCH_LEGACY) {
-		err = esw_create_legacy_table(esw);
+		err = esw_legacy_enable(esw);
 	} else {
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_ETH);
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
-		err = esw_offloads_init(esw);
+		err = esw_offloads_enable(esw);
 	}
 
 	if (err)
 		goto abort;
-
-	enabled_events = (mode == MLX5_ESWITCH_LEGACY) ? MLX5_LEGACY_SRIOV_VPORT_EVENTS :
-		MLX5_VPORT_UC_ADDR_CHANGE;
-
-	mlx5_eswitch_enable_pf_vf_vports(esw, enabled_events);
 
 	mlx5_eswitch_event_handlers_register(esw);
 
@@ -1890,7 +1909,6 @@ abort:
 
 void mlx5_eswitch_disable(struct mlx5_eswitch *esw)
 {
-	struct esw_mc_addr *mc_promisc;
 	int old_mode;
 
 	if (!ESW_ALLOWED(esw) || esw->mode == MLX5_ESWITCH_NONE)
@@ -1902,16 +1920,10 @@ void mlx5_eswitch_disable(struct mlx5_eswitch *esw)
 
 	mlx5_eswitch_event_handlers_unregister(esw);
 
-	mlx5_eswitch_disable_pf_vf_vports(esw);
-
-	mc_promisc = &esw->mc_promisc;
-	if (mc_promisc->uplink_rule)
-		mlx5_del_flow_rules(mc_promisc->uplink_rule);
-
 	if (esw->mode == MLX5_ESWITCH_LEGACY)
-		esw_destroy_legacy_table(esw);
+		esw_legacy_disable(esw);
 	else if (esw->mode == MLX5_ESWITCH_OFFLOADS)
-		esw_offloads_cleanup(esw);
+		esw_offloads_disable(esw);
 
 	esw_destroy_tsar(esw);
 
