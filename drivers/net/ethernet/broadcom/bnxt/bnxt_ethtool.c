@@ -207,6 +207,20 @@ reset_coalesce:
 	BNXT_TX_STATS_EXT_COS_ENTRY(6),				\
 	BNXT_TX_STATS_EXT_COS_ENTRY(7)				\
 
+#define BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(n)			\
+	BNXT_RX_STATS_EXT_ENTRY(rx_discard_bytes_cos##n),	\
+	BNXT_RX_STATS_EXT_ENTRY(rx_discard_packets_cos##n)
+
+#define BNXT_RX_STATS_EXT_DISCARD_COS_ENTRIES				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(0),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(1),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(2),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(3),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(4),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(5),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(6),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(7)
+
 #define BNXT_RX_STATS_PRI_ENTRY(counter, n)		\
 	{ BNXT_RX_STATS_EXT_OFFSET(counter##_cos0),	\
 	  __stringify(counter##_pri##n) }
@@ -352,6 +366,7 @@ static const struct {
 	BNXT_RX_STATS_EXT_ENTRY(rx_buffer_passed_threshold),
 	BNXT_RX_STATS_EXT_ENTRY(rx_pcs_symbol_err),
 	BNXT_RX_STATS_EXT_ENTRY(rx_corrected_bits),
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRIES,
 };
 
 static const struct {
