@@ -253,6 +253,34 @@ out_free_cq:
 EXPORT_SYMBOL(__ib_alloc_cq_user);
 
 /**
+ * __ib_alloc_cq_any - allocate a completion queue
+ * @dev:		device to allocate the CQ for
+ * @private:		driver private data, accessible from cq->cq_context
+ * @nr_cqe:		number of CQEs to allocate
+ * @poll_ctx:		context to poll the CQ from
+ * @caller:		module owner name
+ *
+ * Attempt to spread ULP Completion Queues over each device's interrupt
+ * vectors. A simple best-effort mechanism is used.
+ */
+struct ib_cq *__ib_alloc_cq_any(struct ib_device *dev, void *private,
+				int nr_cqe, enum ib_poll_context poll_ctx,
+				const char *caller)
+{
+	static atomic_t counter;
+	int comp_vector = 0;
+
+	if (dev->num_comp_vectors > 1)
+		comp_vector =
+			atomic_inc_return(&counter) %
+			min_t(int, dev->num_comp_vectors, num_online_cpus());
+
+	return __ib_alloc_cq_user(dev, private, nr_cqe, comp_vector, poll_ctx,
+				  caller, NULL);
+}
+EXPORT_SYMBOL(__ib_alloc_cq_any);
+
+/**
  * ib_free_cq_user - free a completion queue
  * @cq:		completion queue to free.
  * @udata:	User data or NULL for kernel object

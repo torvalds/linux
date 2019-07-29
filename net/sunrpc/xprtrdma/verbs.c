@@ -521,18 +521,17 @@ int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 	init_waitqueue_head(&ep->rep_connect_wait);
 	ep->rep_receive_count = 0;
 
-	sendcq = ib_alloc_cq(ia->ri_id->device, NULL,
-			     ep->rep_attr.cap.max_send_wr + 1,
-			     ia->ri_id->device->num_comp_vectors > 1 ? 1 : 0,
-			     IB_POLL_WORKQUEUE);
+	sendcq = ib_alloc_cq_any(ia->ri_id->device, NULL,
+				 ep->rep_attr.cap.max_send_wr + 1,
+				 IB_POLL_WORKQUEUE);
 	if (IS_ERR(sendcq)) {
 		rc = PTR_ERR(sendcq);
 		goto out1;
 	}
 
-	recvcq = ib_alloc_cq(ia->ri_id->device, NULL,
-			     ep->rep_attr.cap.max_recv_wr + 1,
-			     0, IB_POLL_WORKQUEUE);
+	recvcq = ib_alloc_cq_any(ia->ri_id->device, NULL,
+				 ep->rep_attr.cap.max_recv_wr + 1,
+				 IB_POLL_WORKQUEUE);
 	if (IS_ERR(recvcq)) {
 		rc = PTR_ERR(recvcq);
 		goto out2;
