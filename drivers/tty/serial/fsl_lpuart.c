@@ -1655,8 +1655,7 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 	else
 		modem &= ~(UARTMODEM_RXRTSE | UARTMODEM_TXCTSE);
 
-	if (termios->c_cflag & CSTOPB)
-		termios->c_cflag &= ~CSTOPB;
+	termios->c_cflag &= ~CSTOPB;
 
 	/* parity must be enabled when CS7 to match 8-bits format */
 	if ((termios->c_cflag & CSIZE) == CS7)
