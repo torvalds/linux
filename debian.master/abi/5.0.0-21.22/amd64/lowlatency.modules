@@ -670,6 +670,7 @@ cdc_subset
 cdns-csi2rx
 cdns-csi2tx
 cdns-pltfrm
+cec-gpio
 ceph
 cfag12864b
 cfag12864bfb
@@ -3797,6 +3798,8 @@ rtsx_pci_sdmmc
 rtsx_usb
 rtsx_usb_ms
 rtsx_usb_sdmmc
+rtw88
+rtwpci
 rx51_battery
 rxrpc
 s1d13xxxfb

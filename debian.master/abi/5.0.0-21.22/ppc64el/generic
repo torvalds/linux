@@ -3215,6 +3215,19 @@ EXPORT_SYMBOL drivers/net/wireless/realtek/rtlwifi/rtlwifi 0x00000000	rtl_send_s
 EXPORT_SYMBOL drivers/net/wireless/realtek/rtlwifi/rtlwifi 0x00000000	rtl_signal_scale_mapping
 EXPORT_SYMBOL drivers/net/wireless/realtek/rtlwifi/rtlwifi 0x00000000	rtl_wowlan_fw_cb
 EXPORT_SYMBOL drivers/net/wireless/realtek/rtlwifi/rtlwifi 0x00000000	rtlwifi_rate_mapping
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	__rtw_dbg
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	rtw8822b_hw_spec
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	rtw8822c_hw_spec
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	rtw_chip_info_setup
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	rtw_core_deinit
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	rtw_core_init
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	rtw_debug_mask
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	rtw_ops
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	rtw_register_hw
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	rtw_rx_stats
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	rtw_tx_fill_tx_desc
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	rtw_tx_report_enqueue
+EXPORT_SYMBOL drivers/net/wireless/realtek/rtw88/rtw88 0x00000000	rtw_unregister_hw
 EXPORT_SYMBOL drivers/net/wireless/rsi/rsi_91x 0x00000000	rsi_config_wowlan
 EXPORT_SYMBOL drivers/net/wireless/ti/wlcore/wlcore 0x00000000	wl1271_free_tx_id
 EXPORT_SYMBOL drivers/net/wireless/ti/wlcore/wlcore 0x00000000	wl12xx_is_dummy_packet
@@ -9521,6 +9534,7 @@ EXPORT_SYMBOL vmlinux 0x00000000	strchrnul
 EXPORT_SYMBOL vmlinux 0x00000000	strcmp
 EXPORT_SYMBOL vmlinux 0x00000000	strcpy
 EXPORT_SYMBOL vmlinux 0x00000000	strcspn
+EXPORT_SYMBOL vmlinux 0x00000000	stream_open
 EXPORT_SYMBOL vmlinux 0x00000000	strict_msr_control
 EXPORT_SYMBOL vmlinux 0x00000000	strim
 EXPORT_SYMBOL vmlinux 0x00000000	string_escape_mem
@@ -13359,6 +13373,7 @@ EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_delete_ctrl_sync
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_delete_wq
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_disable_ctrl
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_enable_ctrl
+EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_get_features
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_init_ctrl
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_init_identify
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_io_timeout
@@ -13368,6 +13383,7 @@ EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_reset_ctrl
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_reset_ctrl_sync
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_reset_wq
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_sec_submit
+EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_set_features
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_set_queue_count
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_setup_cmd
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_shutdown_ctrl
@@ -13378,6 +13394,7 @@ EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_stop_ctrl
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_stop_keep_alive
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_stop_queues
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_submit_sync_cmd
+EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_sync_queues
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_trace_disk_name
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_unfreeze
 EXPORT_SYMBOL_GPL drivers/nvme/host/nvme-core 0x00000000	nvme_uninit_ctrl
@@ -15369,6 +15386,7 @@ EXPORT_SYMBOL_GPL net/netfilter/nf_synproxy_core 0x00000000	synproxy_parse_optio
 EXPORT_SYMBOL_GPL net/netfilter/nf_synproxy_core 0x00000000	synproxy_tstamp_adjust
 EXPORT_SYMBOL_GPL net/netfilter/nf_tables 0x00000000	__nft_release_basechain
 EXPORT_SYMBOL_GPL net/netfilter/nf_tables 0x00000000	nf_tables_bind_set
+EXPORT_SYMBOL_GPL net/netfilter/nf_tables 0x00000000	nf_tables_deactivate_set
 EXPORT_SYMBOL_GPL net/netfilter/nf_tables 0x00000000	nf_tables_destroy_set
 EXPORT_SYMBOL_GPL net/netfilter/nf_tables 0x00000000	nf_tables_unbind_set
 EXPORT_SYMBOL_GPL net/netfilter/nf_tables 0x00000000	nft_chain_validate
@@ -17008,6 +17026,7 @@ EXPORT_SYMBOL_GPL vmlinux 0x00000000	blk_insert_cloned_request
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	blk_lld_busy
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	blk_mq_alloc_request_hctx
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	blk_mq_bio_list_merge
+EXPORT_SYMBOL_GPL vmlinux 0x00000000	blk_mq_complete_request_sync
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	blk_mq_debugfs_rq_show
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	blk_mq_flush_busy_ctxs
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	blk_mq_free_request
