@@ -31,6 +31,15 @@
 
 #include <trace/events/writeback.h>
 
+static inline bool bio_full(struct bio *bio, unsigned len)
+{
+	if (bio->bi_vcnt >= bio->bi_max_vecs)
+		return true;
+	if (bio->bi_iter.bi_size > UINT_MAX - len)
+		return true;
+	return false;
+}
+
 struct quota_res {
 	u64				sectors;
 };
@@ -517,6 +526,7 @@ struct bch_page_sector {
 };
 
 struct bch_page_state {
+	atomic_t		write_count;
 	struct bch_page_sector	s[PAGE_SECTORS];
 };
 
@@ -835,31 +845,6 @@ bool bch2_release_folio(struct folio *folio, gfp_t gfp_mask)
 	return true;
 }
 
-/* readpages/writepages: */
-
-static bool bio_can_add_page_contig(struct bio *bio, struct page *page)
-{
-	sector_t offset = (sector_t) page->index << PAGE_SECTOR_SHIFT;
-
-	return bio->bi_vcnt < bio->bi_max_vecs &&
-		bio_end_sector(bio) == offset;
-}
-
-static int bio_add_page_contig(struct bio *bio, struct page *page)
-{
-	sector_t offset = (sector_t) page->index << PAGE_SECTOR_SHIFT;
-
-	EBUG_ON(!bio->bi_max_vecs);
-
-	if (!bio->bi_vcnt)
-		bio->bi_iter.bi_sector = offset;
-	else if (!bio_can_add_page_contig(bio, page))
-		return -1;
-
-	BUG_ON(!bio_add_page(bio, page, PAGE_SIZE, 0));
-	return 0;
-}
-
 /* readpage(s): */
 
 static void bch2_readpages_end_io(struct bio *bio)
@@ -1132,7 +1117,9 @@ static void __bchfs_readpage(struct bch_fs *c, struct bch_read_bio *rbio,
 	bch2_page_state_create(page, __GFP_NOFAIL);
 
 	rbio->bio.bi_opf = REQ_OP_READ|REQ_SYNC;
-	bio_add_page_contig(&rbio->bio, page);
+	rbio->bio.bi_iter.bi_sector =
+		(sector_t) page->index << PAGE_SECTOR_SHIFT;
+	BUG_ON(!bio_add_page(&rbio->bio, page, PAGE_SIZE, 0));
 
 	bch2_trans_init(&trans, c, 0, 0);
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, POS_MIN,
@@ -1243,8 +1230,12 @@ static void bch2_writepage_io_done(struct closure *cl)
 		i_sectors_acct(c, io->op.inode, NULL,
 			       io->op.sectors_added - (s64) io->new_sectors);
 
-	bio_for_each_segment_all(bvec, bio, iter)
-		end_page_writeback(bvec->bv_page);
+	bio_for_each_segment_all(bvec, bio, iter) {
+		struct bch_page_state *s = __bch2_page_state(bvec->bv_page);
+
+		if (atomic_dec_and_test(&s->write_count))
+			end_page_writeback(bvec->bv_page);
+	}
 
 	closure_return_with_destructor(&io->cl, bch2_writepage_io_free);
 }
@@ -1265,11 +1256,10 @@ static void bch2_writepage_do_io(struct bch_writepage_state *w)
 static void bch2_writepage_io_alloc(struct bch_fs *c,
 				    struct bch_writepage_state *w,
 				    struct bch_inode_info *inode,
-				    struct page *page,
+				    u64 sector,
 				    unsigned nr_replicas)
 {
 	struct bch_write_op *op;
-	u64 offset = (u64) page->index << PAGE_SECTOR_SHIFT;
 
 	w->io = container_of(bio_alloc_bioset(NULL, BIO_MAX_VECS,
 					      REQ_OP_WRITE,
@@ -1284,8 +1274,8 @@ static void bch2_writepage_io_alloc(struct bch_fs *c,
 	op->nr_replicas		= nr_replicas;
 	op->res.nr_replicas	= nr_replicas;
 	op->write_point		= writepoint_hashed(inode->ei_last_dirtied);
-	op->pos			= POS(inode->v.i_ino, offset);
-	op->wbio.bio.bi_iter.bi_sector = offset;
+	op->pos			= POS(inode->v.i_ino, sector);
+	op->wbio.bio.bi_iter.bi_sector = sector;
 }
 
 static int __bch2_writepage(struct folio *folio,
@@ -1296,12 +1286,10 @@ static int __bch2_writepage(struct folio *folio,
 	struct bch_inode_info *inode = to_bch_ei(page->mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_writepage_state *w = data;
-	struct bch_page_state *s;
-	unsigned offset, nr_replicas_this_write = U32_MAX;
-	unsigned dirty_sectors = 0, reserved_sectors = 0;
+	struct bch_page_state *s, orig;
+	unsigned i, offset, nr_replicas_this_write = U32_MAX;
 	loff_t i_size = i_size_read(&inode->v);
 	pgoff_t end_index = i_size >> PAGE_SHIFT;
-	unsigned i;
 	int ret;
 
 	EBUG_ON(!PageUptodate(page));
@@ -1336,48 +1324,90 @@ do_io:
 		return 0;
 	}
 
-	for (i = 0; i < PAGE_SECTORS; i++)
+	/* Before unlocking the page, get copy of reservations: */
+	orig = *s;
+
+	for (i = 0; i < PAGE_SECTORS; i++) {
+		if (s->s[i].state == SECTOR_UNALLOCATED)
+			continue;
+
 		nr_replicas_this_write =
 			min_t(unsigned, nr_replicas_this_write,
 			      s->s[i].nr_replicas +
 			      s->s[i].replicas_reserved);
-
-	/* Before unlocking the page, transfer reservation to w->io: */
+	}
 
 	for (i = 0; i < PAGE_SECTORS; i++) {
+		if (s->s[i].state == SECTOR_UNALLOCATED)
+			continue;
+
 		s->s[i].nr_replicas = w->opts.compression
 			? 0 : nr_replicas_this_write;
 
-		reserved_sectors += s->s[i].replicas_reserved;
 		s->s[i].replicas_reserved = 0;
-
-		dirty_sectors += s->s[i].state == SECTOR_DIRTY;
 		s->s[i].state = SECTOR_ALLOCATED;
 	}
 
+	BUG_ON(atomic_read(&s->write_count));
+	atomic_set(&s->write_count, 1);
+
 	BUG_ON(PageWriteback(page));
 	set_page_writeback(page);
+
 	unlock_page(page);
 
-	if (w->io &&
-	    (w->io->op.op.res.nr_replicas != nr_replicas_this_write ||
-	     !bio_can_add_page_contig(&w->io->op.op.wbio.bio, page)))
-		bch2_writepage_do_io(w);
+	offset = 0;
+	while (1) {
+		unsigned sectors = 1, dirty_sectors = 0, reserved_sectors = 0;
+		u64 sector;
 
-	if (!w->io)
-		bch2_writepage_io_alloc(c, w, inode, page,
-					nr_replicas_this_write);
+		while (offset < PAGE_SECTORS &&
+		       orig.s[offset].state == SECTOR_UNALLOCATED)
+			offset++;
 
-	w->io->new_sectors += dirty_sectors;
+		if (offset == PAGE_SECTORS)
+			break;
 
-	BUG_ON(inode != w->io->op.inode);
-	BUG_ON(bio_add_page_contig(&w->io->op.op.wbio.bio, page));
+		sector = ((u64) page->index << PAGE_SECTOR_SHIFT) + offset;
 
-	w->io->op.op.res.sectors += reserved_sectors;
-	w->io->op.new_i_size = i_size;
+		while (offset + sectors < PAGE_SECTORS &&
+		       orig.s[offset + sectors].state != SECTOR_UNALLOCATED)
+			sectors++;
 
-	if (wbc->sync_mode == WB_SYNC_ALL)
-		w->io->op.op.wbio.bio.bi_opf |= REQ_SYNC;
+		for (i = offset; i < offset + sectors; i++) {
+			reserved_sectors += orig.s[i].replicas_reserved;
+			dirty_sectors += orig.s[i].state == SECTOR_DIRTY;
+		}
+
+		if (w->io &&
+		    (w->io->op.op.res.nr_replicas != nr_replicas_this_write ||
+		     bio_full(&w->io->op.op.wbio.bio, PAGE_SIZE) ||
+		     bio_end_sector(&w->io->op.op.wbio.bio) != sector))
+			bch2_writepage_do_io(w);
+
+		if (!w->io)
+			bch2_writepage_io_alloc(c, w, inode, sector,
+						nr_replicas_this_write);
+
+		w->io->new_sectors += dirty_sectors;
+
+		atomic_inc(&s->write_count);
+
+		BUG_ON(inode != w->io->op.inode);
+		BUG_ON(!bio_add_page(&w->io->op.op.wbio.bio, page,
+				     sectors << 9, offset << 9));
+
+		w->io->op.op.res.sectors += reserved_sectors;
+		w->io->op.new_i_size = i_size;
+
+		if (wbc->sync_mode == WB_SYNC_ALL)
+			w->io->op.op.wbio.bio.bi_opf |= REQ_SYNC;
+
+		offset += sectors;
+	}
+
+	if (atomic_dec_and_test(&s->write_count))
+		end_page_writeback(page);
 
 	return 0;
 }
