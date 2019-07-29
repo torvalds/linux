@@ -799,7 +799,7 @@ out:
 static irqreturn_t lpuart_rxint(int irq, void *dev_id)
 {
 	struct lpuart_port *sport = dev_id;
-	unsigned int flg, ignored = 0;
+	unsigned int flg, ignored = 0, overrun = 0;
 	struct tty_port *port = &sport->port.state->port;
 	unsigned long flags;
 	unsigned char rx, sr;
@@ -826,7 +826,7 @@ static irqreturn_t lpuart_rxint(int irq, void *dev_id)
 				sport->port.icount.frame++;
 
 			if (sr & UARTSR1_OR)
-				sport->port.icount.overrun++;
+				overrun++;
 
 			if (sr & sport->port.ignore_status_mask) {
 				if (++ignored > 100)
@@ -853,6 +853,17 @@ static irqreturn_t lpuart_rxint(int irq, void *dev_id)
 	}
 
 out:
+	if (overrun) {
+		sport->port.icount.overrun += overrun;
+
+		/*
+		 * Overruns cause FIFO pointers to become missaligned.
+		 * Flushing the receive FIFO reinitializes the pointers.
+		 */
+		writeb(UARTCFIFO_RXFLUSH, sport->port.membase + UARTCFIFO);
+		writeb(UARTSFIFO_RXOF, sport->port.membase + UARTSFIFO);
+	}
+
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 
 	tty_flip_buffer_push(port);
