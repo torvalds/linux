@@ -1650,12 +1650,10 @@ lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (sport->port.rs485.flags & SER_RS485_ENABLED)
 		termios->c_cflag &= ~CRTSCTS;
 
-	if (termios->c_cflag & CRTSCTS) {
+	if (termios->c_cflag & CRTSCTS)
 		modem |= (UARTMODEM_RXRTSE | UARTMODEM_TXCTSE);
-	} else {
-		termios->c_cflag &= ~CRTSCTS;
+	else
 		modem &= ~(UARTMODEM_RXRTSE | UARTMODEM_TXCTSE);
-	}
 
 	if (termios->c_cflag & CSTOPB)
 		termios->c_cflag &= ~CSTOPB;
