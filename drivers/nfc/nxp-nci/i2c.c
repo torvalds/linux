@@ -256,48 +256,10 @@ static const struct acpi_gpio_mapping acpi_nxp_nci_gpios[] = {
 	{ }
 };
 
-static int nxp_nci_i2c_parse_devtree(struct i2c_client *client)
-{
-	struct nxp_nci_i2c_phy *phy = i2c_get_clientdata(client);
-
-	phy->gpiod_en = devm_gpiod_get(&client->dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(phy->gpiod_en)) {
-		nfc_err(&client->dev, "Failed to get EN gpio\n");
-		return PTR_ERR(phy->gpiod_en);
-	}
-
-	phy->gpiod_fw = devm_gpiod_get(&client->dev, "firmware", GPIOD_OUT_LOW);
-	if (IS_ERR(phy->gpiod_fw)) {
-		nfc_err(&client->dev, "Failed to get FW gpio\n");
-		return PTR_ERR(phy->gpiod_fw);
-	}
-
-	return 0;
-}
-
-static int nxp_nci_i2c_acpi_config(struct nxp_nci_i2c_phy *phy)
-{
-	struct i2c_client *client = phy->i2c_dev;
-	int r;
-
-	r = devm_acpi_dev_add_driver_gpios(&client->dev, acpi_nxp_nci_gpios);
-	if (r)
-		return r;
-
-	phy->gpiod_en = devm_gpiod_get(&client->dev, "enable", GPIOD_OUT_LOW);
-	phy->gpiod_fw = devm_gpiod_get(&client->dev, "firmware", GPIOD_OUT_LOW);
-
-	if (IS_ERR(phy->gpiod_en) || IS_ERR(phy->gpiod_fw)) {
-		nfc_err(&client->dev, "No GPIOs\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int nxp_nci_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct nxp_nci_i2c_phy *phy;
 	int r;
 
@@ -317,20 +279,20 @@ static int nxp_nci_i2c_probe(struct i2c_client *client,
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);
 
-	if (client->dev.of_node) {
-		r = nxp_nci_i2c_parse_devtree(client);
-		if (r < 0) {
-			nfc_err(&client->dev, "Failed to get DT data\n");
-			goto probe_exit;
-		}
-	} else if (ACPI_HANDLE(&client->dev)) {
-		r = nxp_nci_i2c_acpi_config(phy);
-		if (r < 0)
-			goto probe_exit;
-	} else {
-		nfc_err(&client->dev, "No platform data\n");
-		r = -EINVAL;
-		goto probe_exit;
+	r = devm_acpi_dev_add_driver_gpios(dev, acpi_nxp_nci_gpios);
+	if (r)
+		return r;
+
+	phy->gpiod_en = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
+	if (IS_ERR(phy->gpiod_en)) {
+		nfc_err(dev, "Failed to get EN gpio\n");
+		return PTR_ERR(phy->gpiod_en);
+	}
+
+	phy->gpiod_fw = devm_gpiod_get(dev, "firmware", GPIOD_OUT_LOW);
+	if (IS_ERR(phy->gpiod_fw)) {
+		nfc_err(dev, "Failed to get FW gpio\n");
+		return PTR_ERR(phy->gpiod_fw);
 	}
 
 	r = nxp_nci_probe(phy, &client->dev, &i2c_phy_ops,
