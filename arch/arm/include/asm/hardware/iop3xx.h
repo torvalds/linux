@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/include/asm/hardware/iop3xx.h
  *
@@ -6,10 +7,6 @@
  * Author: Rory Bolt <rorybolt@pacbell.net>
  * Copyright (C) 2002 Rory Bolt
  * Copyright (C) 2004 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __IOP3XX_H
@@ -305,6 +302,8 @@ extern struct platform_device iop3xx_dma_1_channel;
 extern struct platform_device iop3xx_aau_channel;
 extern struct platform_device iop3xx_i2c0_device;
 extern struct platform_device iop3xx_i2c1_device;
+extern struct gpiod_lookup_table iop3xx_i2c0_gpio_lookup;
+extern struct gpiod_lookup_table iop3xx_i2c1_gpio_lookup;
 
 #endif
 

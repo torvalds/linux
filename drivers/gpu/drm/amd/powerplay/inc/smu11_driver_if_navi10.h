@@ -26,7 +26,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x32
+#define SMU11_DRIVER_IF_VERSION 0x33
 
 #define PPTABLE_NV10_SMU_VERSION 8
 
@@ -813,8 +813,8 @@ typedef struct {
   uint16_t     UclkAverageLpfTau;
   uint16_t     GfxActivityLpfTau;
   uint16_t     UclkActivityLpfTau;
+  uint16_t     SocketPowerLpfTau;
 
-  uint16_t     Padding;  
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use
 } DriverSmuConfig_t;
@@ -853,7 +853,7 @@ typedef struct {
   uint8_t  CurrGfxVoltageOffset  ;
   uint8_t  CurrMemVidOffset      ;
   uint8_t  Padding8              ;
-  uint16_t CurrSocketPower       ;
+  uint16_t AverageSocketPower    ;
   uint16_t TemperatureEdge       ;
   uint16_t TemperatureHotspot    ;
   uint16_t TemperatureMem        ;

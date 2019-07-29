@@ -334,15 +334,14 @@ void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
 {
 	struct tx_status_event *tx_status = (void *)priv->adapter->event_body;
 	struct sk_buff *ack_skb;
-	unsigned long flags;
 	struct mwifiex_txinfo *tx_info;
 
 	if (!tx_status->tx_token_id)
 		return;
 
-	spin_lock_irqsave(&priv->ack_status_lock, flags);
+	spin_lock_bh(&priv->ack_status_lock);
 	ack_skb = idr_remove(&priv->ack_status_frames, tx_status->tx_token_id);
-	spin_unlock_irqrestore(&priv->ack_status_lock, flags);
+	spin_unlock_bh(&priv->ack_status_lock);
 
 	if (ack_skb) {
 		tx_info = MWIFIEX_SKB_TXCB(ack_skb);

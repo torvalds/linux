@@ -1502,7 +1502,7 @@ static ssize_t store_wakeup_protocols(struct device *device,
 				      const char *buf, size_t len)
 {
 	struct rc_dev *dev = to_rc_dev(device);
-	enum rc_proto protocol;
+	enum rc_proto protocol = RC_PROTO_UNKNOWN;
 	ssize_t rc;
 	u64 allowed;
 	int i;
@@ -1511,9 +1511,7 @@ static ssize_t store_wakeup_protocols(struct device *device,
 
 	allowed = dev->allowed_wakeup_protocols;
 
-	if (sysfs_streq(buf, "none")) {
-		protocol = RC_PROTO_UNKNOWN;
-	} else {
+	if (!sysfs_streq(buf, "none")) {
 		for (i = 0; i < ARRAY_SIZE(protocols); i++) {
 			if ((allowed & (1ULL << i)) &&
 			    sysfs_streq(buf, protocols[i].name)) {

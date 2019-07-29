@@ -16,8 +16,6 @@
 #ifndef _CEDRUS_HW_H_
 #define _CEDRUS_HW_H_
 
-#define CEDRUS_CLOCK_RATE_DEFAULT	320000000
-
 int cedrus_engine_enable(struct cedrus_dev *dev, enum cedrus_codec codec);
 void cedrus_engine_disable(struct cedrus_dev *dev);
 

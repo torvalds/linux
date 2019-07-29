@@ -52,7 +52,7 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
 	struct orangefs_kernel_op_s *new_op = NULL;
-	int buffer_index = -1;
+	int buffer_index;
 	ssize_t ret;
 	size_t copy_amount;
 
@@ -134,7 +134,6 @@ populate_shared_memory:
 	 */
 	if (ret == -EAGAIN && op_state_purged(new_op)) {
 		orangefs_bufmap_put(buffer_index);
-		buffer_index = -1;
 		if (type == ORANGEFS_IO_WRITE)
 			iov_iter_revert(iter, total_size);
 		gossip_debug(GOSSIP_FILE_DEBUG,
@@ -262,7 +261,6 @@ out:
 				"%s(%pU): PUT buffer_index %d\n",
 				__func__, handle, buffer_index);
 		}
-		buffer_index = -1;
 	}
 	op_release(new_op);
 	return ret;
@@ -357,11 +355,28 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb,
 	return ret;
 }
 
+static int orangefs_getflags(struct inode *inode, unsigned long *uval)
+{
+	__u64 val = 0;
+	int ret;
+
+	ret = orangefs_inode_getxattr(inode,
+				      "user.pvfs2.meta_hint",
+				      &val, sizeof(val));
+	if (ret < 0 && ret != -ENODATA)
+		return ret;
+	else if (ret == -ENODATA)
+		val = 0;
+	*uval = val;
+	return 0;
+}
+
 /*
  * Perform a miscellaneous operation on a file.
  */
 static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = file_inode(file);
 	int ret = -ENOTTY;
 	__u64 val = 0;
 	unsigned long uval;
@@ -375,20 +390,16 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	 * and append flags
 	 */
 	if (cmd == FS_IOC_GETFLAGS) {
-		val = 0;
-		ret = orangefs_inode_getxattr(file_inode(file),
-					      "user.pvfs2.meta_hint",
-					      &val, sizeof(val));
-		if (ret < 0 && ret != -ENODATA)
+		ret = orangefs_getflags(inode, &uval);
+		if (ret)
 			return ret;
-		else if (ret == -ENODATA)
-			val = 0;
-		uval = val;
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "orangefs_ioctl: FS_IOC_GETFLAGS: %llu\n",
 			     (unsigned long long)uval);
 		return put_user(uval, (int __user *)arg);
 	} else if (cmd == FS_IOC_SETFLAGS) {
+		unsigned long old_uval;
+
 		ret = 0;
 		if (get_user(uval, (int __user *)arg))
 			return -EFAULT;
@@ -404,11 +415,17 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 			gossip_err("orangefs_ioctl: the FS_IOC_SETFLAGS only supports setting one of FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NOATIME_FL\n");
 			return -EINVAL;
 		}
+		ret = orangefs_getflags(inode, &old_uval);
+		if (ret)
+			return ret;
+		ret = vfs_ioc_setflags_prepare(inode, old_uval, uval);
+		if (ret)
+			return ret;
 		val = uval;
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "orangefs_ioctl: FS_IOC_SETFLAGS: %llu\n",
 			     (unsigned long long)val);
-		ret = orangefs_inode_setxattr(file_inode(file),
+		ret = orangefs_inode_setxattr(inode,
 					      "user.pvfs2.meta_hint",
 					      &val, sizeof(val), 0);
 	}

@@ -1339,7 +1339,7 @@ static int ceu_enum_frameintervals(struct file *file, void *fh,
 static const struct v4l2_ioctl_ops ceu_ioctl_ops = {
 	.vidioc_querycap		= ceu_querycap,
 
-	.vidioc_enum_fmt_vid_cap_mplane	= ceu_enum_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_cap	= ceu_enum_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap_mplane	= ceu_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap_mplane	= ceu_s_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap_mplane	= ceu_g_fmt_vid_cap,

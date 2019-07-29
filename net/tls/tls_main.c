@@ -251,7 +251,7 @@ static void tls_write_space(struct sock *sk)
 	ctx->sk_write_space(sk);
 }
 
-static void tls_ctx_free(struct tls_context *ctx)
+void tls_ctx_free(struct tls_context *ctx)
 {
 	if (!ctx)
 		return;
@@ -279,7 +279,8 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 		goto skip_tx_cleanup;
 	}
 
-	if (!tls_complete_pending_work(sk, ctx, 0, &timeo))
+	if (unlikely(sk->sk_write_pending) &&
+	    !wait_on_pending_writer(sk, &timeo))
 		tls_handle_open_record(sk, 0);
 
 	/* We need these for tls_sw_fallback handling of other packets */
@@ -642,7 +643,7 @@ static void tls_hw_sk_destruct(struct sock *sk)
 
 	ctx->sk_destruct(sk);
 	/* Free ctx */
-	kfree(ctx);
+	tls_ctx_free(ctx);
 	icsk->icsk_ulp_data = NULL;
 }
 

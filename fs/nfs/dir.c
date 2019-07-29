@@ -80,6 +80,10 @@ static struct nfs_open_dir_context *alloc_nfs_open_dir_context(struct inode *dir
 		ctx->dup_cookie = 0;
 		ctx->cred = get_cred(cred);
 		spin_lock(&dir->i_lock);
+		if (list_empty(&nfsi->open_files) &&
+		    (nfsi->cache_validity & NFS_INO_DATA_INVAL_DEFER))
+			nfsi->cache_validity |= NFS_INO_INVALID_DATA |
+				NFS_INO_REVAL_FORCED;
 		list_add(&ctx->list, &nfsi->open_files);
 		spin_unlock(&dir->i_lock);
 		return ctx;
@@ -140,19 +144,12 @@ struct nfs_cache_array {
 	struct nfs_cache_array_entry array[0];
 };
 
-struct readdirvec {
-	unsigned long nr;
-	unsigned long index;
-	struct page *pages[NFS_MAX_READDIR_RAPAGES];
-};
-
 typedef int (*decode_dirent_t)(struct xdr_stream *, struct nfs_entry *, bool);
 typedef struct {
 	struct file	*file;
 	struct page	*page;
 	struct dir_context *ctx;
 	unsigned long	page_index;
-	struct readdirvec pvec;
 	u64		*dir_cookie;
 	u64		last_cookie;
 	loff_t		current_index;
@@ -532,10 +529,6 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 	struct nfs_cache_array *array;
 	unsigned int count = 0;
 	int status;
-	int max_rapages = NFS_MAX_READDIR_RAPAGES;
-
-	desc->pvec.index = desc->page_index;
-	desc->pvec.nr = 0;
 
 	scratch = alloc_page(GFP_KERNEL);
 	if (scratch == NULL)
@@ -560,40 +553,20 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 		if (desc->plus)
 			nfs_prime_dcache(file_dentry(desc->file), entry);
 
-		status = nfs_readdir_add_to_array(entry, desc->pvec.pages[desc->pvec.nr]);
-		if (status == -ENOSPC) {
-			desc->pvec.nr++;
-			if (desc->pvec.nr == max_rapages)
-				break;
-			status = nfs_readdir_add_to_array(entry, desc->pvec.pages[desc->pvec.nr]);
-		}
+		status = nfs_readdir_add_to_array(entry, page);
 		if (status != 0)
 			break;
 	} while (!entry->eof);
 
-	/*
-	 * page and desc->pvec.pages[0] are valid, don't need to check
-	 * whether or not to be NULL.
-	 */
-	copy_highpage(page, desc->pvec.pages[0]);
-
 out_nopages:
 	if (count == 0 || (status == -EBADCOOKIE && entry->eof != 0)) {
-		array = kmap_atomic(desc->pvec.pages[desc->pvec.nr]);
+		array = kmap(page);
 		array->eof_index = array->size;
 		status = 0;
-		kunmap_atomic(array);
+		kunmap(page);
 	}
 
 	put_page(scratch);
-
-	/*
-	 * desc->pvec.nr > 0 means at least one page was completely filled,
-	 * we should return -ENOSPC. Otherwise function
-	 * nfs_readdir_xdr_to_array will enter infinite loop.
-	 */
-	if (desc->pvec.nr > 0)
-		return -ENOSPC;
 	return status;
 }
 
@@ -627,24 +600,6 @@ out_freepages:
 	return -ENOMEM;
 }
 
-/*
- * nfs_readdir_rapages_init initialize rapages by nfs_cache_array structure.
- */
-static
-void nfs_readdir_rapages_init(nfs_readdir_descriptor_t *desc)
-{
-	struct nfs_cache_array *array;
-	int max_rapages = NFS_MAX_READDIR_RAPAGES;
-	int index;
-
-	for (index = 0; index < max_rapages; index++) {
-		array = kmap_atomic(desc->pvec.pages[index]);
-		memset(array, 0, sizeof(struct nfs_cache_array));
-		array->eof_index = -1;
-		kunmap_atomic(array);
-	}
-}
-
 static
 int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, struct inode *inode)
 {
@@ -654,12 +609,6 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 	struct nfs_cache_array *array;
 	int status = -ENOMEM;
 	unsigned int array_size = ARRAY_SIZE(pages);
-
-	/*
-	 * This means we hit readdir rdpages miss, the preallocated rdpages
-	 * are useless, the preallocate rdpages should be reinitialized.
-	 */
-	nfs_readdir_rapages_init(desc);
 
 	entry.prev_cookie = 0;
 	entry.cookie = desc->last_cookie;
@@ -721,24 +670,9 @@ int nfs_readdir_filler(void *data, struct page* page)
 	struct inode	*inode = file_inode(desc->file);
 	int ret;
 
-	/*
-	 * If desc->page_index in range desc->pvec.index and
-	 * desc->pvec.index + desc->pvec.nr, we get readdir cache hit.
-	 */
-	if (desc->page_index >= desc->pvec.index &&
-		desc->page_index < (desc->pvec.index + desc->pvec.nr)) {
-		/*
-		 * page and desc->pvec.pages[x] are valid, don't need to check
-		 * whether or not to be NULL.
-		 */
-		copy_highpage(page, desc->pvec.pages[desc->page_index - desc->pvec.index]);
-		ret = 0;
-	} else {
-		ret = nfs_readdir_xdr_to_array(desc, page, inode);
-		if (ret < 0)
-			goto error;
-	}
-
+	ret = nfs_readdir_xdr_to_array(desc, page, inode);
+	if (ret < 0)
+		goto error;
 	SetPageUptodate(page);
 
 	if (invalidate_inode_pages2_range(inode->i_mapping, page->index + 1, -1) < 0) {
@@ -903,7 +837,6 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 			*desc = &my_desc;
 	struct nfs_open_dir_context *dir_ctx = file->private_data;
 	int res = 0;
-	int max_rapages = NFS_MAX_READDIR_RAPAGES;
 
 	dfprintk(FILE, "NFS: readdir(%pD2) starting at cookie %llu\n",
 			file, (long long)ctx->pos);
@@ -922,12 +855,6 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	desc->dir_cookie = &dir_ctx->dir_cookie;
 	desc->decode = NFS_PROTO(inode)->decode_dirent;
 	desc->plus = nfs_use_readdirplus(inode, ctx);
-
-	res = nfs_readdir_alloc_pages(desc->pvec.pages, max_rapages);
-	if (res < 0)
-		return -ENOMEM;
-
-	nfs_readdir_rapages_init(desc);
 
 	if (ctx->pos == 0 || nfs_attribute_cache_expired(inode))
 		res = nfs_revalidate_mapping(inode, file->f_mapping);
@@ -964,7 +891,6 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 			break;
 	} while (!desc->eof);
 out:
-	nfs_readdir_free_pages(desc->pvec.pages, max_rapages);
 	if (res > 0)
 		res = 0;
 	dfprintk(FILE, "NFS: readdir(%pD2) returns %d\n", file, res);

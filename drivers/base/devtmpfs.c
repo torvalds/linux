@@ -357,8 +357,7 @@ int devtmpfs_mount(const char *mntdir)
 	if (!thread)
 		return 0;
 
-	err = ksys_mount("devtmpfs", (char *)mntdir, "devtmpfs", MS_SILENT,
-			 NULL);
+	err = ksys_mount("devtmpfs", mntdir, "devtmpfs", MS_SILENT, NULL);
 	if (err)
 		printk(KERN_INFO "devtmpfs: error mounting %i\n", err);
 	else

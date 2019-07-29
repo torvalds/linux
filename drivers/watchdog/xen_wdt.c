@@ -138,10 +138,8 @@ static int xen_wdt_probe(struct platform_device *pdev)
 	watchdog_stop_on_unregister(&xen_wdt_dev);
 
 	ret = devm_watchdog_register_device(dev, &xen_wdt_dev);
-	if (ret) {
-		dev_err(dev, "cannot register watchdog device (%d)\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	dev_info(dev, "initialized (timeout=%ds, nowayout=%d)\n",
 		 xen_wdt_dev.timeout, nowayout);

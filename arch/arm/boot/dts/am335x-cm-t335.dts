@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * am335x-cm-t335.dts - Device Tree file for Compulab CM-T335
  *
  * Copyright (C) 2014 - 2015 CompuLab Ltd. - http://www.compulab.co.il/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /dts-v1/;

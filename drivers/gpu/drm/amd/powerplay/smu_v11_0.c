@@ -40,6 +40,7 @@
 #include "asic_reg/mp/mp_11_0_offset.h"
 #include "asic_reg/mp/mp_11_0_sh_mask.h"
 #include "asic_reg/nbio/nbio_7_4_offset.h"
+#include "asic_reg/nbio/nbio_7_4_sh_mask.h"
 #include "asic_reg/smuio/smuio_11_0_0_offset.h"
 #include "asic_reg/smuio/smuio_11_0_0_sh_mask.h"
 
@@ -67,9 +68,9 @@ static int smu_v11_0_read_arg(struct smu_context *smu, uint32_t *arg)
 static int smu_v11_0_wait_for_response(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint32_t cur_value, i;
+	uint32_t cur_value, i, timeout = adev->usec_timeout * 10;
 
-	for (i = 0; i < adev->usec_timeout; i++) {
+	for (i = 0; i < timeout; i++) {
 		cur_value = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
 		if ((cur_value & MP1_C2PMSG_90__CONTENT_MASK) != 0)
 			break;
@@ -77,7 +78,7 @@ static int smu_v11_0_wait_for_response(struct smu_context *smu)
 	}
 
 	/* timeout means wrong logic */
-	if (i == adev->usec_timeout)
+	if (i == timeout)
 		return -ETIME;
 
 	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90) == 0x1 ? 0 : -EIO;
@@ -260,14 +261,20 @@ static int smu_v11_0_check_fw_version(struct smu_context *smu)
 	smu_minor = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 
-
+	/*
+	 * 1. if_version mismatch is not critical as our fw is designed
+	 * to be backward compatible.
+	 * 2. New fw usually brings some optimizations. But that's visible
+	 * only on the paired driver.
+	 * Considering above, we just leave user a warning message instead
+	 * of halt driver loading.
+	 */
 	if (if_version != smu->smc_if_version) {
 		pr_info("smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
 			"smu fw version = 0x%08x (%d.%d.%d)\n",
 			smu->smc_if_version, if_version,
 			smu_version, smu_major, smu_minor, smu_debug);
-		pr_err("SMU driver if version not matched\n");
-		ret = -EINVAL;
+		pr_warn("SMU driver if version not matched\n");
 	}
 
 	return ret;
@@ -702,7 +709,7 @@ static int smu_v11_0_write_pptable(struct smu_context *smu)
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret = 0;
 
-	ret = smu_update_table(smu, SMU_TABLE_PPTABLE,
+	ret = smu_update_table(smu, SMU_TABLE_PPTABLE, 0,
 			       table_context->driver_pptable, true);
 
 	return ret;
@@ -721,7 +728,7 @@ static int smu_v11_0_write_watermarks_table(struct smu_context *smu)
 	if (!table->cpu_addr)
 		return -EINVAL;
 
-	ret = smu_update_table(smu, SMU_TABLE_WATERMARKS, table->cpu_addr,
+	ret = smu_update_table(smu, SMU_TABLE_WATERMARKS, 0, table->cpu_addr,
 				true);
 
 	return ret;
@@ -1088,7 +1095,7 @@ static int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
 					  uint32_t *value)
 {
 	int ret = 0;
-	uint32_t freq;
+	uint32_t freq = 0;
 
 	if (clk_id >= SMU_CLK_COUNT || !value)
 		return -EINVAL;
@@ -1642,6 +1649,92 @@ static int smu_v11_0_set_azalia_d3_pme(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_baco_set_armd3_sequence(struct smu_context *smu, enum smu_v11_0_baco_seq baco_seq)
+{
+	return smu_send_smc_msg_with_param(smu, SMU_MSG_ArmD3, baco_seq);
+}
+
+static bool smu_v11_0_baco_is_support(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
+	uint32_t val;
+	bool baco_support;
+
+	mutex_lock(&smu_baco->mutex);
+	baco_support = smu_baco->platform_support;
+	mutex_unlock(&smu_baco->mutex);
+
+	if (!baco_support)
+		return false;
+
+	if (!smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
+		return false;
+
+	val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
+	if (val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK)
+		return true;
+
+	return false;
+}
+
+static enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
+{
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
+	enum smu_baco_state baco_state = SMU_BACO_STATE_EXIT;
+
+	mutex_lock(&smu_baco->mutex);
+	baco_state = smu_baco->state;
+	mutex_unlock(&smu_baco->mutex);
+
+	return baco_state;
+}
+
+static int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
+{
+
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
+	int ret = 0;
+
+	if (smu_v11_0_baco_get_state(smu) == state)
+		return 0;
+
+	mutex_lock(&smu_baco->mutex);
+
+	if (state == SMU_BACO_STATE_ENTER)
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, BACO_SEQ_BACO);
+	else
+		ret = smu_send_smc_msg(smu, SMU_MSG_ExitBaco);
+	if (ret)
+		goto out;
+
+	smu_baco->state = state;
+out:
+	mutex_unlock(&smu_baco->mutex);
+	return ret;
+}
+
+static int smu_v11_0_baco_reset(struct smu_context *smu)
+{
+	int ret = 0;
+
+	ret = smu_v11_0_baco_set_armd3_sequence(smu, BACO_SEQ_BACO);
+	if (ret)
+		return ret;
+
+	ret = smu_v11_0_baco_set_state(smu, SMU_BACO_STATE_ENTER);
+	if (ret)
+		return ret;
+
+	msleep(10);
+
+	ret = smu_v11_0_baco_set_state(smu, SMU_BACO_STATE_EXIT);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1690,6 +1783,10 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.set_azalia_d3_pme = smu_v11_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v11_0_get_max_sustainable_clocks_by_dc,
+	.baco_is_support = smu_v11_0_baco_is_support,
+	.baco_get_state = smu_v11_0_baco_get_state,
+	.baco_set_state = smu_v11_0_baco_set_state,
+	.baco_reset = smu_v11_0_baco_reset,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

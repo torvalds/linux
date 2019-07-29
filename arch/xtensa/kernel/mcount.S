@@ -11,6 +11,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/asmmacro.h>
 #include <asm/ftrace.h>
 
 /*
@@ -21,13 +22,13 @@
 
 ENTRY(_mcount)
 
-	entry	a1, 16
+	abi_entry_default
 
 	movi	a4, ftrace_trace_function
 	l32i	a4, a4, 0
 	movi	a3, ftrace_stub
 	bne	a3, a4, 1f
-	retw
+	abi_ret_default
 
 1: 	xor	a7, a2, a1
 	movi	a3, 0x3fffffff
@@ -40,11 +41,11 @@ ENTRY(_mcount)
 	addi	a6, a6, -MCOUNT_INSN_SIZE
 	callx4	a4
 
-	retw
+	abi_ret_default
 
 ENDPROC(_mcount)
 
 ENTRY(ftrace_stub)
-	entry	a1, 16
-	retw
+	abi_entry_default
+	abi_ret_default
 ENDPROC(ftrace_stub)

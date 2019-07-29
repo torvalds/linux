@@ -92,5 +92,6 @@
 #define BALLOON_KVM_MAGIC	0x13661366
 #define ZSMALLOC_MAGIC		0x58295829
 #define DMA_BUF_MAGIC		0x444d4142	/* "DMAB" */
+#define Z3FOLD_MAGIC		0x33
 
 #endif /* __LINUX_MAGIC_H__ */

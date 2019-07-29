@@ -372,13 +372,8 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 
-	if (!test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	if (!test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
-
-	/*
-	 * Report the frame as DMA done
-	 */
-	rt2x00lib_dmadone(entry);
 
 	/*
 	 * Check if the received data is simply too small
@@ -387,6 +382,11 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 */
 	if (urb->actual_length < entry->queue->desc_size || urb->status)
 		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+
+	/*
+	 * Report the frame as DMA done
+	 */
+	rt2x00lib_dmadone(entry);
 
 	/*
 	 * Schedule the delayed work for reading the RX status

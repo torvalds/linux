@@ -531,7 +531,7 @@ Bridge VLAN filtering
   a software implementation.
 
 .. note:: VLAN ID 0 corresponds to the port private database, which, in the context
-        of DSA, would be the its port-based VLAN, used by the associated bridge device.
+        of DSA, would be its port-based VLAN, used by the associated bridge device.
 
 - ``port_fdb_del``: bridge layer function invoked when the bridge wants to remove a
   Forwarding Database entry, the switch hardware should be programmed to delete
@@ -554,7 +554,7 @@ Bridge VLAN filtering
   associated with this VLAN ID.
 
 .. note:: VLAN ID 0 corresponds to the port private database, which, in the context
-        of DSA, would be the its port-based VLAN, used by the associated bridge device.
+        of DSA, would be its port-based VLAN, used by the associated bridge device.
 
 - ``port_mdb_del``: bridge layer function invoked when the bridge wants to remove a
   multicast database entry, the switch hardware should be programmed to delete

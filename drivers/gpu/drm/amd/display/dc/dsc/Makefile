@@ -1,10 +1,18 @@
 #
 # Makefile for the 'dsc' sub-component of DAL.
 
-CFLAGS_rc_calc.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_rc_calc_dpi.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_codec_main_amd.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_dc_dsc.o := -mhard-float -msse -mpreferred-stack-boundary=4
+ifneq ($(call cc-option, -mpreferred-stack-boundary=4),)
+	cc_stack_align := -mpreferred-stack-boundary=4
+else ifneq ($(call cc-option, -mstack-alignment=16),)
+	cc_stack_align := -mstack-alignment=16
+endif
+
+dsc_ccflags := -mhard-float -msse $(cc_stack_align)
+
+CFLAGS_rc_calc.o := $(dsc_ccflags)
+CFLAGS_rc_calc_dpi.o := $(dsc_ccflags)
+CFLAGS_codec_main_amd.o := $(dsc_ccflags)
+CFLAGS_dc_dsc.o := $(dsc_ccflags)
 
 DSC = dc_dsc.o rc_calc.o rc_calc_dpi.o
 

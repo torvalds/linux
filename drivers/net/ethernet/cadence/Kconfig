@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Atmel device configuration
+# Cadence device configuration
 #
 
 config NET_VENDOR_CADENCE
@@ -13,15 +13,15 @@ config NET_VENDOR_CADENCE
 	  If unsure, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the remaining Atmel network card questions. If you say Y, you will be
+	  kernel: saying N will just cause the configurator to skip all the
+	  remaining Cadence network card questions. If you say Y, you will be
 	  asked for your specific card in the following questions.
 
 if NET_VENDOR_CADENCE
 
 config MACB
 	tristate "Cadence MACB/GEM support"
-	depends on HAS_DMA
+	depends on HAS_DMA && COMMON_CLK
 	select PHYLIB
 	---help---
 	  The Cadence MACB ethernet interface is found on many Atmel AT32 and
@@ -42,7 +42,7 @@ config MACB_USE_HWSTAMP
 
 config MACB_PCI
 	tristate "Cadence PCI MACB/GEM support"
-	depends on MACB && PCI && COMMON_CLK
+	depends on MACB && PCI
 	---help---
 	  This is PCI wrapper for MACB driver.
 

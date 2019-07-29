@@ -4,6 +4,7 @@
 #ifndef __LIBBPF_BTF_H
 #define __LIBBPF_BTF_H
 
+#include <stdarg.h>
 #include <linux/types.h>
 
 #ifdef __cplusplus
@@ -16,6 +17,7 @@ extern "C" {
 
 #define BTF_ELF_SEC ".BTF"
 #define BTF_EXT_ELF_SEC ".BTF.ext"
+#define MAPS_ELF_SEC ".maps"
 
 struct btf;
 struct btf_ext;
@@ -59,6 +61,8 @@ struct btf_ext_header {
 
 LIBBPF_API void btf__free(struct btf *btf);
 LIBBPF_API struct btf *btf__new(__u8 *data, __u32 size);
+LIBBPF_API struct btf *btf__parse_elf(const char *path,
+				      struct btf_ext **btf_ext);
 LIBBPF_API int btf__finalize_data(struct bpf_object *obj, struct btf *btf);
 LIBBPF_API int btf__load(struct btf *btf);
 LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
@@ -99,6 +103,22 @@ struct btf_dedup_opts {
 
 LIBBPF_API int btf__dedup(struct btf *btf, struct btf_ext *btf_ext,
 			  const struct btf_dedup_opts *opts);
+
+struct btf_dump;
+
+struct btf_dump_opts {
+	void *ctx;
+};
+
+typedef void (*btf_dump_printf_fn_t)(void *ctx, const char *fmt, va_list args);
+
+LIBBPF_API struct btf_dump *btf_dump__new(const struct btf *btf,
+					  const struct btf_ext *btf_ext,
+					  const struct btf_dump_opts *opts,
+					  btf_dump_printf_fn_t printf_fn);
+LIBBPF_API void btf_dump__free(struct btf_dump *d);
+
+LIBBPF_API int btf_dump__dump_type(struct btf_dump *d, __u32 id);
 
 #ifdef __cplusplus
 } /* extern "C" */

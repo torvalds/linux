@@ -158,6 +158,9 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 	int interlace;
 	u64 tmp;
 
+	if (!hdisplay || !vdisplay)
+		return NULL;
+
 	/* allocate the drm_display_mode structure. If failure, we will
 	 * return directly
 	 */
@@ -391,6 +394,9 @@ drm_gtf_mode_complex(struct drm_device *dev, int hdisplay, int vdisplay,
 	unsigned int hblank, total_pixels, pixel_freq;
 	int hsync, hfront_porch, vodd_front_porch_lines;
 	unsigned int tmp1, tmp2;
+
+	if (!hdisplay || !vdisplay)
+		return NULL;
 
 	drm_mode = drm_mode_create(dev);
 	if (!drm_mode)
@@ -1448,7 +1454,7 @@ static int drm_mode_parse_cmdline_refresh(const char *str, char **end_ptr,
 }
 
 static int drm_mode_parse_cmdline_extra(const char *str, int length,
-					struct drm_connector *connector,
+					const struct drm_connector *connector,
 					struct drm_cmdline_mode *mode)
 {
 	int i;
@@ -1493,7 +1499,7 @@ static int drm_mode_parse_cmdline_extra(const char *str, int length,
 
 static int drm_mode_parse_cmdline_res_mode(const char *str, unsigned int length,
 					   bool extras,
-					   struct drm_connector *connector,
+					   const struct drm_connector *connector,
 					   struct drm_cmdline_mode *mode)
 {
 	const char *str_start = str;
@@ -1555,7 +1561,7 @@ static int drm_mode_parse_cmdline_res_mode(const char *str, unsigned int length,
 }
 
 static int drm_mode_parse_cmdline_options(char *str, size_t len,
-					  struct drm_connector *connector,
+					  const struct drm_connector *connector,
 					  struct drm_cmdline_mode *mode)
 {
 	unsigned int rotation = 0;
@@ -1689,7 +1695,7 @@ static int drm_mode_parse_cmdline_options(char *str, size_t len,
  * True if a valid modeline has been parsed, false otherwise.
  */
 bool drm_mode_parse_command_line_for_connector(const char *mode_option,
-					       struct drm_connector *connector,
+					       const struct drm_connector *connector,
 					       struct drm_cmdline_mode *mode)
 {
 	const char *name;

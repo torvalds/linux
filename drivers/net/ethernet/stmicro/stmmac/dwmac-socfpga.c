@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright Altera Corporation (C) 2014. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Adopted from dwmac-sti.c
  */
@@ -38,15 +27,23 @@
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_WIDTH 2
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_MASK 0x00000003
 #define SYSMGR_EMACGRP_CTRL_PTP_REF_CLK_MASK 0x00000010
+#define SYSMGR_GEN10_EMACGRP_CTRL_PTP_REF_CLK_MASK 0x00000100
 
 #define SYSMGR_FPGAGRP_MODULE_REG  0x00000028
 #define SYSMGR_FPGAGRP_MODULE_EMAC 0x00000004
+#define SYSMGR_FPGAINTF_EMAC_REG	0x00000070
+#define SYSMGR_FPGAINTF_EMAC_BIT	0x1
 
 #define EMAC_SPLITTER_CTRL_REG			0x0
 #define EMAC_SPLITTER_CTRL_SPEED_MASK		0x3
 #define EMAC_SPLITTER_CTRL_SPEED_10		0x2
 #define EMAC_SPLITTER_CTRL_SPEED_100		0x3
 #define EMAC_SPLITTER_CTRL_SPEED_1000		0x0
+
+struct socfpga_dwmac;
+struct socfpga_dwmac_ops {
+	int (*set_phy_mode)(struct socfpga_dwmac *dwmac_priv);
+};
 
 struct socfpga_dwmac {
 	int	interface;
@@ -59,6 +56,7 @@ struct socfpga_dwmac {
 	void __iomem *splitter_base;
 	bool f2h_ptp_ref_clk;
 	struct tse_pcs pcs;
+	const struct socfpga_dwmac_ops *ops;
 };
 
 static void socfpga_dwmac_fix_mac_speed(void *priv, unsigned int speed)
@@ -233,7 +231,28 @@ err_node_put:
 	return ret;
 }
 
-static int socfpga_dwmac_set_phy_mode(struct socfpga_dwmac *dwmac)
+static int socfpga_set_phy_mode_common(int phymode, u32 *val)
+{
+	switch (phymode) {
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		*val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RGMII;
+		break;
+	case PHY_INTERFACE_MODE_MII:
+	case PHY_INTERFACE_MODE_GMII:
+	case PHY_INTERFACE_MODE_SGMII:
+		*val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII;
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+		*val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RMII;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int socfpga_gen5_set_phy_mode(struct socfpga_dwmac *dwmac)
 {
 	struct regmap *sys_mgr_base_addr = dwmac->sys_mgr_base_addr;
 	int phymode = dwmac->interface;
@@ -241,17 +260,7 @@ static int socfpga_dwmac_set_phy_mode(struct socfpga_dwmac *dwmac)
 	u32 reg_shift = dwmac->reg_shift;
 	u32 ctrl, val, module;
 
-	switch (phymode) {
-	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
-		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RGMII;
-		break;
-	case PHY_INTERFACE_MODE_MII:
-	case PHY_INTERFACE_MODE_GMII:
-	case PHY_INTERFACE_MODE_SGMII:
-		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII;
-		break;
-	default:
+	if (socfpga_set_phy_mode_common(phymode, &val)) {
 		dev_err(dwmac->dev, "bad phy mode %d\n", phymode);
 		return -EINVAL;
 	}
@@ -302,6 +311,62 @@ static int socfpga_dwmac_set_phy_mode(struct socfpga_dwmac *dwmac)
 	return 0;
 }
 
+static int socfpga_gen10_set_phy_mode(struct socfpga_dwmac *dwmac)
+{
+	struct regmap *sys_mgr_base_addr = dwmac->sys_mgr_base_addr;
+	int phymode = dwmac->interface;
+	u32 reg_offset = dwmac->reg_offset;
+	u32 reg_shift = dwmac->reg_shift;
+	u32 ctrl, val, module;
+
+	if (socfpga_set_phy_mode_common(phymode, &val))
+		return -EINVAL;
+
+	/* Overwrite val to GMII if splitter core is enabled. The phymode here
+	 * is the actual phy mode on phy hardware, but phy interface from
+	 * EMAC core is GMII.
+	 */
+	if (dwmac->splitter_base)
+		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII;
+
+	/* Assert reset to the enet controller before changing the phy mode */
+	reset_control_assert(dwmac->stmmac_ocp_rst);
+	reset_control_assert(dwmac->stmmac_rst);
+
+	regmap_read(sys_mgr_base_addr, reg_offset, &ctrl);
+	ctrl &= ~(SYSMGR_EMACGRP_CTRL_PHYSEL_MASK);
+	ctrl |= val;
+
+	if (dwmac->f2h_ptp_ref_clk ||
+	    phymode == PHY_INTERFACE_MODE_MII ||
+	    phymode == PHY_INTERFACE_MODE_GMII ||
+	    phymode == PHY_INTERFACE_MODE_SGMII) {
+		ctrl |= SYSMGR_GEN10_EMACGRP_CTRL_PTP_REF_CLK_MASK;
+		regmap_read(sys_mgr_base_addr, SYSMGR_FPGAINTF_EMAC_REG,
+			    &module);
+		module |= (SYSMGR_FPGAINTF_EMAC_BIT << reg_shift);
+		regmap_write(sys_mgr_base_addr, SYSMGR_FPGAINTF_EMAC_REG,
+			     module);
+	} else {
+		ctrl &= ~SYSMGR_GEN10_EMACGRP_CTRL_PTP_REF_CLK_MASK;
+	}
+
+	regmap_write(sys_mgr_base_addr, reg_offset, ctrl);
+
+	/* Deassert reset for the phy configuration to be sampled by
+	 * the enet controller, and operation to start in requested mode
+	 */
+	reset_control_deassert(dwmac->stmmac_ocp_rst);
+	reset_control_deassert(dwmac->stmmac_rst);
+	if (phymode == PHY_INTERFACE_MODE_SGMII) {
+		if (tse_pcs_init(dwmac->pcs.tse_pcs_base, &dwmac->pcs) != 0) {
+			dev_err(dwmac->dev, "Unable to initialize TSE PCS");
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 static int socfpga_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -311,6 +376,13 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	struct socfpga_dwmac	*dwmac;
 	struct net_device	*ndev;
 	struct stmmac_priv	*stpriv;
+	const struct socfpga_dwmac_ops *ops;
+
+	ops = device_get_match_data(&pdev->dev);
+	if (!ops) {
+		dev_err(&pdev->dev, "no of match data provided\n");
+		return -EINVAL;
+	}
 
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
 	if (ret)
@@ -341,6 +413,7 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 		goto err_remove_config_dt;
 	}
 
+	dwmac->ops = ops;
 	plat_dat->bsp_priv = dwmac;
 	plat_dat->fix_mac_speed = socfpga_dwmac_fix_mac_speed;
 
@@ -357,7 +430,7 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	 */
 	dwmac->stmmac_rst = stpriv->plat->stmmac_rst;
 
-	ret = socfpga_dwmac_set_phy_mode(dwmac);
+	ret = ops->set_phy_mode(dwmac);
 	if (ret)
 		goto err_dvr_remove;
 
@@ -376,8 +449,9 @@ static int socfpga_dwmac_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct socfpga_dwmac *dwmac_priv = get_stmmac_bsp_priv(dev);
 
-	socfpga_dwmac_set_phy_mode(priv->plat->bsp_priv);
+	dwmac_priv->ops->set_phy_mode(priv->plat->bsp_priv);
 
 	/* Before the enet controller is suspended, the phy is suspended.
 	 * This causes the phy clock to be gated. The enet controller is
@@ -404,8 +478,17 @@ static int socfpga_dwmac_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(socfpga_dwmac_pm_ops, stmmac_suspend,
 					       socfpga_dwmac_resume);
 
+static const struct socfpga_dwmac_ops socfpga_gen5_ops = {
+	.set_phy_mode = socfpga_gen5_set_phy_mode,
+};
+
+static const struct socfpga_dwmac_ops socfpga_gen10_ops = {
+	.set_phy_mode = socfpga_gen10_set_phy_mode,
+};
+
 static const struct of_device_id socfpga_dwmac_match[] = {
-	{ .compatible = "altr,socfpga-stmmac" },
+	{ .compatible = "altr,socfpga-stmmac", .data = &socfpga_gen5_ops },
+	{ .compatible = "altr,socfpga-stmmac-a10-s10", .data = &socfpga_gen10_ops },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, socfpga_dwmac_match);

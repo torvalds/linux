@@ -3072,8 +3072,8 @@ uint32_t dc_link_bandwidth_kbps(
 		 * but the difference is minimal and is in a safe direction,
 		 * which all works well around potential ambiguity of DP 1.4a spec.
 		 */
-		long long fec_link_bw_kbps = link_bw_kbps * 970LL;
-		link_bw_kbps = (uint32_t)(fec_link_bw_kbps / 1000LL);
+		link_bw_kbps = mul_u64_u32_shr(BIT_ULL(32) * 970LL / 1000,
+					       link_bw_kbps, 32);
 	}
 #endif
 

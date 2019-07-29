@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PXA930 track ball mouse driver
  *
  * Copyright (C) 2007 Marvell International Ltd.
  * 2008-02-28: Yong Yao <yaoyong@marvell.com>
  *             initial version
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/input.h>

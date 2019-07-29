@@ -157,7 +157,7 @@ extern int ignore_crat;
 /*
  * Set sh_mem_config.retry_disable on Vega10
  */
-extern int noretry;
+extern int amdgpu_noretry;
 
 /*
  * Halt if HWS hang is detected
@@ -937,6 +937,7 @@ struct packet_manager {
 	bool allocated;
 	struct kfd_mem_obj *ib_buffer_obj;
 	unsigned int ib_size_bytes;
+	bool is_over_subscription;
 
 	const struct packet_manager_funcs *pmf;
 };

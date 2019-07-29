@@ -16,14 +16,14 @@
 
 #define DRV_NAME "wilco-ec-debugfs"
 
-/* The 256 raw bytes will take up more space when represented as a hex string */
-#define FORMATTED_BUFFER_SIZE (EC_MAILBOX_DATA_SIZE_EXTENDED * 4)
+/* The raw bytes will take up more space when represented as a hex string */
+#define FORMATTED_BUFFER_SIZE (EC_MAILBOX_DATA_SIZE * 4)
 
 struct wilco_ec_debugfs {
 	struct wilco_ec_device *ec;
 	struct dentry *dir;
 	size_t response_size;
-	u8 raw_data[EC_MAILBOX_DATA_SIZE_EXTENDED];
+	u8 raw_data[EC_MAILBOX_DATA_SIZE];
 	u8 formatted_data[FORMATTED_BUFFER_SIZE];
 };
 static struct wilco_ec_debugfs *debug_info;
@@ -123,12 +123,6 @@ static ssize_t raw_write(struct file *file, const char __user *user_buf,
 	memset(debug_info->raw_data, 0, sizeof(debug_info->raw_data));
 	msg.response_data = debug_info->raw_data;
 	msg.response_size = EC_MAILBOX_DATA_SIZE;
-
-	/* Telemetry commands use extended response data */
-	if (msg.type == WILCO_EC_MSG_TELEMETRY_LONG) {
-		msg.flags |= WILCO_EC_FLAG_EXTENDED_DATA;
-		msg.response_size = EC_MAILBOX_DATA_SIZE_EXTENDED;
-	}
 
 	ret = wilco_ec_mailbox(debug_info->ec, &msg);
 	if (ret < 0)

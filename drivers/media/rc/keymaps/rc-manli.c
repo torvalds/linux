@@ -35,22 +35,22 @@ static struct rc_map_table manli[] = {
 	 *  0x07    0x08    0x09  *
 	 *   7       8       9    *
 	 *                        */
-	{ 0x01, KEY_1 },
-	{ 0x02, KEY_2 },
-	{ 0x03, KEY_3 },
-	{ 0x04, KEY_4 },
-	{ 0x05, KEY_5 },
-	{ 0x06, KEY_6 },
-	{ 0x07, KEY_7 },
-	{ 0x08, KEY_8 },
-	{ 0x09, KEY_9 },
+	{ 0x01, KEY_NUMERIC_1 },
+	{ 0x02, KEY_NUMERIC_2 },
+	{ 0x03, KEY_NUMERIC_3 },
+	{ 0x04, KEY_NUMERIC_4 },
+	{ 0x05, KEY_NUMERIC_5 },
+	{ 0x06, KEY_NUMERIC_6 },
+	{ 0x07, KEY_NUMERIC_7 },
+	{ 0x08, KEY_NUMERIC_8 },
+	{ 0x09, KEY_NUMERIC_9 },
 
 	/*  0x0a    0x00    0x17  *
 	 * RECALL    0      +100  *
 	 *                  PLUS  *
 	 *                        */
 	{ 0x0a, KEY_AGAIN },	/*XXX KEY_REWIND? */
-	{ 0x00, KEY_0 },
+	{ 0x00, KEY_NUMERIC_0 },
 	{ 0x17, KEY_DIGITS },	/*XXX*/
 
 	/*  0x14            0x10  *

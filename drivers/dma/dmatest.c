@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DMA Engine test module
  *
  * Copyright (C) 2007 Atmel Corporation
  * Copyright (C) 2013 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -65,7 +62,7 @@ MODULE_PARM_DESC(pq_sources,
 static int timeout = 3000;
 module_param(timeout, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), "
-		 "Pass -1 for infinite timeout");
+		 "Pass 0xFFFFFFFF (4294967295) for maximum timeout");
 
 static bool noverify;
 module_param(noverify, bool, S_IRUGO | S_IWUSR);
@@ -97,7 +94,7 @@ MODULE_PARM_DESC(transfer_size, "Optional custom transfer size in bytes (default
  * @iterations:		iterations before stopping test
  * @xor_sources:	number of xor source buffers
  * @pq_sources:		number of p+q source buffers
- * @timeout:		transfer timeout in msec, -1 for infinite timeout
+ * @timeout:		transfer timeout in msec, 0 - 0xFFFFFFFF (4294967295)
  */
 struct dmatest_params {
 	unsigned int	buf_size;
@@ -108,7 +105,7 @@ struct dmatest_params {
 	unsigned int	iterations;
 	unsigned int	xor_sources;
 	unsigned int	pq_sources;
-	int		timeout;
+	unsigned int	timeout;
 	bool		noverify;
 	bool		norandom;
 	int		alignment;

@@ -174,10 +174,6 @@ void vop_init_debugfs(struct vop_info *vi)
 
 	snprintf(name, sizeof(name), "%s%d", KBUILD_MODNAME, vi->vpdev->dnode);
 	vi->dbg = debugfs_create_dir(name, NULL);
-	if (!vi->dbg) {
-		pr_err("can't create debugfs dir vop\n");
-		return;
-	}
 	debugfs_create_file("dp", 0444, vi->dbg, vi, &vop_dp_fops);
 	debugfs_create_file("vdev_info", 0444, vi->dbg, vi, &vop_vdev_info_fops);
 }

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014-2017 Phytec Messtechnik GmbH
  * Author: Wadim Egorov <w.egorov@phytec.de>
  *	   Teresa Remmet <t.remmet@phytec.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <dt-bindings/input/input.h>
@@ -39,15 +36,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&user_leds_pins>;
 
-		green {
-			label = "green:user";
+		user-led0 {
 			gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "gpio";
 			default-state = "on";
 		};
 
-		yellow {
-			label = "yellow:user";
+		user-led1 {
 			gpios = <&gpio1 31 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "gpio";
 			default-state = "on";
@@ -138,22 +133,6 @@
 &davinci_mdio {
 	phy1: ethernet-phy@2 {
 		reg = <2>;
-
-		/* Register 260 (104h) – RGMII Clock and Control Pad Skew */
-		rxc-skew-ps = <1400>;
-		rxdv-skew-ps = <0>;
-		txc-skew-ps = <1400>;
-		txen-skew-ps = <0>;
-		/* Register 261 (105h) – RGMII RX Data Pad Skew */
-		rxd3-skew-ps = <0>;
-		rxd2-skew-ps = <0>;
-		rxd1-skew-ps = <0>;
-		rxd0-skew-ps = <0>;
-		/* Register 262 (106h) – RGMII TX Data Pad Skew */
-		txd3-skew-ps = <0>;
-		txd2-skew-ps = <0>;
-		txd1-skew-ps = <0>;
-		txd0-skew-ps = <0>;
 	};
 };
 
@@ -197,7 +176,7 @@
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
-	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

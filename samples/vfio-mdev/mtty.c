@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Mediated virtual PCI serial host device driver
  *
@@ -5,13 +6,8 @@
  *     Author: Neo Jia <cjia@nvidia.com>
  *             Kirti Wankhede <kwankhede@nvidia.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Sample driver that creates mdev device that simulates serial port over PCI
  * card.
- *
  */
 
 #include <linux/init.h>
@@ -72,7 +68,7 @@
  * Global Structures
  */
 
-struct mtty_dev {
+static struct mtty_dev {
 	dev_t		vd_devt;
 	struct class	*vd_class;
 	struct cdev	vd_cdev;
@@ -88,7 +84,7 @@ struct mdev_region_info {
 };
 
 #if defined(DEBUG_REGS)
-const char *wr_reg[] = {
+static const char *wr_reg[] = {
 	"TX",
 	"IER",
 	"FCR",
@@ -99,7 +95,7 @@ const char *wr_reg[] = {
 	"SCR"
 };
 
-const char *rd_reg[] = {
+static const char *rd_reg[] = {
 	"RX",
 	"IER",
 	"IIR",
@@ -147,8 +143,8 @@ struct mdev_state {
 	int nr_ports;
 };
 
-struct mutex mdev_list_lock;
-struct list_head mdev_devices_list;
+static struct mutex mdev_list_lock;
+static struct list_head mdev_devices_list;
 
 static const struct file_operations vd_fops = {
 	.owner          = THIS_MODULE,
@@ -171,7 +167,7 @@ static struct mdev_state *find_mdev_state_by_uuid(const guid_t *uuid)
 	return NULL;
 }
 
-void dump_buffer(u8 *buf, uint32_t count)
+static void dump_buffer(u8 *buf, uint32_t count)
 {
 #if defined(DEBUG)
 	int i;
@@ -727,7 +723,7 @@ accessfailed:
 	return ret;
 }
 
-int mtty_create(struct kobject *kobj, struct mdev_device *mdev)
+static int mtty_create(struct kobject *kobj, struct mdev_device *mdev)
 {
 	struct mdev_state *mdev_state;
 	char name[MTTY_STRING_LEN];
@@ -777,7 +773,7 @@ int mtty_create(struct kobject *kobj, struct mdev_device *mdev)
 	return 0;
 }
 
-int mtty_remove(struct mdev_device *mdev)
+static int mtty_remove(struct mdev_device *mdev)
 {
 	struct mdev_state *mds, *tmp_mds;
 	struct mdev_state *mdev_state = mdev_get_drvdata(mdev);
@@ -799,7 +795,7 @@ int mtty_remove(struct mdev_device *mdev)
 	return ret;
 }
 
-int mtty_reset(struct mdev_device *mdev)
+static int mtty_reset(struct mdev_device *mdev)
 {
 	struct mdev_state *mdev_state;
 
@@ -815,8 +811,8 @@ int mtty_reset(struct mdev_device *mdev)
 	return 0;
 }
 
-ssize_t mtty_read(struct mdev_device *mdev, char __user *buf, size_t count,
-		  loff_t *ppos)
+static ssize_t mtty_read(struct mdev_device *mdev, char __user *buf,
+			 size_t count, loff_t *ppos)
 {
 	unsigned int done = 0;
 	int ret;
@@ -874,7 +870,7 @@ read_err:
 	return -EFAULT;
 }
 
-ssize_t mtty_write(struct mdev_device *mdev, const char __user *buf,
+static ssize_t mtty_write(struct mdev_device *mdev, const char __user *buf,
 		   size_t count, loff_t *ppos)
 {
 	unsigned int done = 0;
@@ -1067,7 +1063,7 @@ static int mtty_trigger_interrupt(const guid_t *uuid)
 	return ret;
 }
 
-int mtty_get_region_info(struct mdev_device *mdev,
+static int mtty_get_region_info(struct mdev_device *mdev,
 			 struct vfio_region_info *region_info,
 			 u16 *cap_type_id, void **cap_type)
 {
@@ -1116,7 +1112,8 @@ int mtty_get_region_info(struct mdev_device *mdev,
 	return 0;
 }
 
-int mtty_get_irq_info(struct mdev_device *mdev, struct vfio_irq_info *irq_info)
+static int mtty_get_irq_info(struct mdev_device *mdev,
+			     struct vfio_irq_info *irq_info)
 {
 	switch (irq_info->index) {
 	case VFIO_PCI_INTX_IRQ_INDEX:
@@ -1140,7 +1137,7 @@ int mtty_get_irq_info(struct mdev_device *mdev, struct vfio_irq_info *irq_info)
 	return 0;
 }
 
-int mtty_get_device_info(struct mdev_device *mdev,
+static int mtty_get_device_info(struct mdev_device *mdev,
 			 struct vfio_device_info *dev_info)
 {
 	dev_info->flags = VFIO_DEVICE_FLAGS_PCI;
@@ -1272,13 +1269,13 @@ static long mtty_ioctl(struct mdev_device *mdev, unsigned int cmd,
 	return -ENOTTY;
 }
 
-int mtty_open(struct mdev_device *mdev)
+static int mtty_open(struct mdev_device *mdev)
 {
 	pr_info("%s\n", __func__);
 	return 0;
 }
 
-void mtty_close(struct mdev_device *mdev)
+static void mtty_close(struct mdev_device *mdev)
 {
 	pr_info("%s\n", __func__);
 }
@@ -1302,7 +1299,7 @@ static const struct attribute_group mtty_dev_group = {
 	.attrs = mtty_dev_attrs,
 };
 
-const struct attribute_group *mtty_dev_groups[] = {
+static const struct attribute_group *mtty_dev_groups[] = {
 	&mtty_dev_group,
 	NULL,
 };
@@ -1329,7 +1326,7 @@ static const struct attribute_group mdev_dev_group = {
 	.attrs = mdev_dev_attrs,
 };
 
-const struct attribute_group *mdev_dev_groups[] = {
+static const struct attribute_group *mdev_dev_groups[] = {
 	&mdev_dev_group,
 	NULL,
 };
@@ -1351,7 +1348,7 @@ name_show(struct kobject *kobj, struct device *dev, char *buf)
 	return -EINVAL;
 }
 
-MDEV_TYPE_ATTR_RO(name);
+static MDEV_TYPE_ATTR_RO(name);
 
 static ssize_t
 available_instances_show(struct kobject *kobj, struct device *dev, char *buf)
@@ -1379,7 +1376,7 @@ available_instances_show(struct kobject *kobj, struct device *dev, char *buf)
 	return sprintf(buf, "%d\n", (MAX_MTTYS - used)/ports);
 }
 
-MDEV_TYPE_ATTR_RO(available_instances);
+static MDEV_TYPE_ATTR_RO(available_instances);
 
 
 static ssize_t device_api_show(struct kobject *kobj, struct device *dev,
@@ -1388,7 +1385,7 @@ static ssize_t device_api_show(struct kobject *kobj, struct device *dev,
 	return sprintf(buf, "%s\n", VFIO_DEVICE_API_PCI_STRING);
 }
 
-MDEV_TYPE_ATTR_RO(device_api);
+static MDEV_TYPE_ATTR_RO(device_api);
 
 static struct attribute *mdev_types_attrs[] = {
 	&mdev_type_attr_name.attr,
@@ -1407,7 +1404,7 @@ static struct attribute_group mdev_type_group2 = {
 	.attrs = mdev_types_attrs,
 };
 
-struct attribute_group *mdev_type_groups[] = {
+static struct attribute_group *mdev_type_groups[] = {
 	&mdev_type_group1,
 	&mdev_type_group2,
 	NULL,

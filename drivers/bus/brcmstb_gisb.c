@@ -399,8 +399,8 @@ static int __init brcmstb_gisb_arb_probe(struct platform_device *pdev)
 					       &gisb_panic_notifier);
 	}
 
-	dev_info(&pdev->dev, "registered mem: %p, irqs: %d, %d\n",
-			gdev->base, timeout_irq, tea_irq);
+	dev_info(&pdev->dev, "registered irqs: %d, %d\n",
+		 timeout_irq, tea_irq);
 
 	return 0;
 }

@@ -120,7 +120,7 @@ struct pm4_mes_runlist {
 			uint32_t ib_size:20;
 			uint32_t chain:1;
 			uint32_t offload_polling:1;
-			uint32_t reserved2:1;
+			uint32_t chained_runlist_idle_disable:1;
 			uint32_t valid:1;
 			uint32_t process_cnt:4;
 			uint32_t reserved3:4;

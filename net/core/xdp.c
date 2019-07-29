@@ -14,6 +14,8 @@
 #include <net/page_pool.h>
 
 #include <net/xdp.h>
+#include <net/xdp_priv.h> /* struct xdp_mem_allocator */
+#include <trace/events/xdp.h>
 
 #define REG_STATE_NEW		0x0
 #define REG_STATE_REGISTERED	0x1
@@ -28,17 +30,6 @@ static int mem_id_next = MEM_ID_MIN;
 
 static bool mem_id_init; /* false */
 static struct rhashtable *mem_id_ht;
-
-struct xdp_mem_allocator {
-	struct xdp_mem_info mem;
-	union {
-		void *allocator;
-		struct page_pool *page_pool;
-		struct zero_copy_allocator *zc_alloc;
-	};
-	struct rhash_head node;
-	struct rcu_head rcu;
-};
 
 static u32 xdp_mem_id_hashfn(const void *data, u32 len, u32 seed)
 {
@@ -79,12 +70,12 @@ static void __xdp_mem_allocator_rcu_free(struct rcu_head *rcu)
 
 	xa = container_of(rcu, struct xdp_mem_allocator, rcu);
 
+	/* Allocator have indicated safe to remove before this is called */
+	if (xa->mem.type == MEM_TYPE_PAGE_POOL)
+		page_pool_free(xa->page_pool);
+
 	/* Allow this ID to be reused */
 	ida_simple_remove(&mem_id_pool, xa->mem.id);
-
-	/* Notice, driver is expected to free the *allocator,
-	 * e.g. page_pool, and MUST also use RCU free.
-	 */
 
 	/* Poison memory */
 	xa->mem.id = 0xFFFF;
@@ -92,6 +83,64 @@ static void __xdp_mem_allocator_rcu_free(struct rcu_head *rcu)
 	xa->allocator = (void *)0xDEAD9001;
 
 	kfree(xa);
+}
+
+static bool __mem_id_disconnect(int id, bool force)
+{
+	struct xdp_mem_allocator *xa;
+	bool safe_to_remove = true;
+
+	mutex_lock(&mem_id_lock);
+
+	xa = rhashtable_lookup_fast(mem_id_ht, &id, mem_id_rht_params);
+	if (!xa) {
+		mutex_unlock(&mem_id_lock);
+		WARN(1, "Request remove non-existing id(%d), driver bug?", id);
+		return true;
+	}
+	xa->disconnect_cnt++;
+
+	/* Detects in-flight packet-pages for page_pool */
+	if (xa->mem.type == MEM_TYPE_PAGE_POOL)
+		safe_to_remove = page_pool_request_shutdown(xa->page_pool);
+
+	trace_mem_disconnect(xa, safe_to_remove, force);
+
+	if ((safe_to_remove || force) &&
+	    !rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
+		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
+
+	mutex_unlock(&mem_id_lock);
+	return (safe_to_remove|force);
+}
+
+#define DEFER_TIME (msecs_to_jiffies(1000))
+#define DEFER_WARN_INTERVAL (30 * HZ)
+#define DEFER_MAX_RETRIES 120
+
+static void mem_id_disconnect_defer_retry(struct work_struct *wq)
+{
+	struct delayed_work *dwq = to_delayed_work(wq);
+	struct xdp_mem_allocator *xa = container_of(dwq, typeof(*xa), defer_wq);
+	bool force = false;
+
+	if (xa->disconnect_cnt > DEFER_MAX_RETRIES)
+		force = true;
+
+	if (__mem_id_disconnect(xa->mem.id, force))
+		return;
+
+	/* Periodic warning */
+	if (time_after_eq(jiffies, xa->defer_warn)) {
+		int sec = (s32)((u32)jiffies - (u32)xa->defer_start) / HZ;
+
+		pr_warn("%s() stalled mem.id=%u shutdown %d attempts %d sec\n",
+			__func__, xa->mem.id, xa->disconnect_cnt, sec);
+		xa->defer_warn = jiffies + DEFER_WARN_INTERVAL;
+	}
+
+	/* Still not ready to be disconnected, retry later */
+	schedule_delayed_work(&xa->defer_wq, DEFER_TIME);
 }
 
 void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
@@ -112,16 +161,30 @@ void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
 	if (id == 0)
 		return;
 
+	if (__mem_id_disconnect(id, false))
+		return;
+
+	/* Could not disconnect, defer new disconnect attempt to later */
 	mutex_lock(&mem_id_lock);
 
 	xa = rhashtable_lookup_fast(mem_id_ht, &id, mem_id_rht_params);
-	if (xa && !rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
-		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
+	if (!xa) {
+		mutex_unlock(&mem_id_lock);
+		return;
+	}
+	xa->defer_start = jiffies;
+	xa->defer_warn  = jiffies + DEFER_WARN_INTERVAL;
 
+	INIT_DELAYED_WORK(&xa->defer_wq, mem_id_disconnect_defer_retry);
 	mutex_unlock(&mem_id_lock);
+	schedule_delayed_work(&xa->defer_wq, DEFER_TIME);
 }
 EXPORT_SYMBOL_GPL(xdp_rxq_info_unreg_mem_model);
 
+/* This unregister operation will also cleanup and destroy the
+ * allocator. The page_pool_free() operation is first called when it's
+ * safe to remove, possibly deferred to a workqueue.
+ */
 void xdp_rxq_info_unreg(struct xdp_rxq_info *xdp_rxq)
 {
 	/* Simplify driver cleanup code paths, allow unreg "unused" */
@@ -301,12 +364,18 @@ int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 	/* Insert allocator into ID lookup table */
 	ptr = rhashtable_insert_slow(mem_id_ht, &id, &xdp_alloc->node);
 	if (IS_ERR(ptr)) {
+		ida_simple_remove(&mem_id_pool, xdp_rxq->mem.id);
+		xdp_rxq->mem.id = 0;
 		errno = PTR_ERR(ptr);
 		goto err;
 	}
 
+	if (type == MEM_TYPE_PAGE_POOL)
+		page_pool_get(xdp_alloc->page_pool);
+
 	mutex_unlock(&mem_id_lock);
 
+	trace_mem_connect(xdp_alloc, xdp_rxq);
 	return 0;
 err:
 	mutex_unlock(&mem_id_lock);
@@ -333,10 +402,13 @@ static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
 		/* mem->id is valid, checked in xdp_rxq_info_reg_mem_model() */
 		xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
 		page = virt_to_head_page(data);
-		if (xa) {
+		if (likely(xa)) {
 			napi_direct &= !xdp_return_frame_no_direct();
 			page_pool_put_page(xa->page_pool, page, napi_direct);
 		} else {
+			/* Hopefully stack show who to blame for late return */
+			WARN_ONCE(1, "page_pool gone mem.id=%d", mem->id);
+			trace_mem_return_failed(mem, page);
 			put_page(page);
 		}
 		rcu_read_unlock();
@@ -378,6 +450,21 @@ void xdp_return_buff(struct xdp_buff *xdp)
 	__xdp_return(xdp->data, &xdp->rxq->mem, true, xdp->handle);
 }
 EXPORT_SYMBOL_GPL(xdp_return_buff);
+
+/* Only called for MEM_TYPE_PAGE_POOL see xdp.h */
+void __xdp_release_frame(void *data, struct xdp_mem_info *mem)
+{
+	struct xdp_mem_allocator *xa;
+	struct page *page;
+
+	rcu_read_lock();
+	xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
+	page = virt_to_head_page(data);
+	if (xa)
+		page_pool_release_page(xa->page_pool, page);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(__xdp_release_frame);
 
 int xdp_attachment_query(struct xdp_attachment_info *info,
 			 struct netdev_bpf *bpf)

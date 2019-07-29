@@ -180,7 +180,8 @@ again:
 
 create_mode:
 	mode = drm_mode_create_from_cmdline_mode(connector->dev, cmdline_mode);
-	list_add(&mode->head, &connector->modes);
+	if (mode)
+		list_add(&mode->head, &connector->modes);
 
 	return mode;
 }

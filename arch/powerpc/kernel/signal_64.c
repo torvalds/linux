@@ -808,7 +808,7 @@ badframe:
 				   current->comm, current->pid, "rt_sigreturn",
 				   (long)uc, regs->nip, regs->link);
 
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 

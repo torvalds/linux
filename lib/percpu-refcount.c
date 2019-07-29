@@ -70,11 +70,14 @@ int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release,
 		return -ENOMEM;
 
 	ref->force_atomic = flags & PERCPU_REF_INIT_ATOMIC;
+	ref->allow_reinit = flags & PERCPU_REF_ALLOW_REINIT;
 
-	if (flags & (PERCPU_REF_INIT_ATOMIC | PERCPU_REF_INIT_DEAD))
+	if (flags & (PERCPU_REF_INIT_ATOMIC | PERCPU_REF_INIT_DEAD)) {
 		ref->percpu_count_ptr |= __PERCPU_REF_ATOMIC;
-	else
+		ref->allow_reinit = true;
+	} else {
 		start_count += PERCPU_COUNT_BIAS;
+	}
 
 	if (flags & PERCPU_REF_INIT_DEAD)
 		ref->percpu_count_ptr |= __PERCPU_REF_DEAD;
@@ -119,6 +122,9 @@ static void percpu_ref_call_confirm_rcu(struct rcu_head *rcu)
 	ref->confirm_switch(ref);
 	ref->confirm_switch = NULL;
 	wake_up_all(&percpu_ref_switch_waitq);
+
+	if (!ref->allow_reinit)
+		percpu_ref_exit(ref);
 
 	/* drop ref from percpu_ref_switch_to_atomic() */
 	percpu_ref_put(ref);
@@ -193,6 +199,9 @@ static void __percpu_ref_switch_to_percpu(struct percpu_ref *ref)
 	BUG_ON(!percpu_count);
 
 	if (!(ref->percpu_count_ptr & __PERCPU_REF_ATOMIC))
+		return;
+
+	if (WARN_ON_ONCE(!ref->allow_reinit))
 		return;
 
 	atomic_long_add(PERCPU_COUNT_BIAS, &ref->count);

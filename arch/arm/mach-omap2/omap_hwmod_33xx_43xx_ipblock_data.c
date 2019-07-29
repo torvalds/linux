@@ -529,7 +529,7 @@ static struct omap_hwmod_class_sysconfig am33xx_gpio_sysc = {
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
-struct omap_hwmod_class am33xx_gpio_hwmod_class = {
+static struct omap_hwmod_class am33xx_gpio_hwmod_class = {
 	.name		= "gpio",
 	.sysc		= &am33xx_gpio_sysc,
 };
@@ -539,7 +539,7 @@ static struct omap_hwmod_opt_clk gpio1_opt_clks[] = {
 	{ .role = "dbclk", .clk = "gpio1_dbclk" },
 };
 
-struct omap_hwmod am33xx_gpio1_hwmod = {
+static struct omap_hwmod am33xx_gpio1_hwmod = {
 	.name		= "gpio2",
 	.class		= &am33xx_gpio_hwmod_class,
 	.clkdm_name	= "l4ls_clkdm",
@@ -559,7 +559,7 @@ static struct omap_hwmod_opt_clk gpio2_opt_clks[] = {
 	{ .role = "dbclk", .clk = "gpio2_dbclk" },
 };
 
-struct omap_hwmod am33xx_gpio2_hwmod = {
+static struct omap_hwmod am33xx_gpio2_hwmod = {
 	.name		= "gpio3",
 	.class		= &am33xx_gpio_hwmod_class,
 	.clkdm_name	= "l4ls_clkdm",
@@ -579,7 +579,7 @@ static struct omap_hwmod_opt_clk gpio3_opt_clks[] = {
 	{ .role = "dbclk", .clk = "gpio3_dbclk" },
 };
 
-struct omap_hwmod am33xx_gpio3_hwmod = {
+static struct omap_hwmod am33xx_gpio3_hwmod = {
 	.name		= "gpio4",
 	.class		= &am33xx_gpio_hwmod_class,
 	.clkdm_name	= "l4ls_clkdm",

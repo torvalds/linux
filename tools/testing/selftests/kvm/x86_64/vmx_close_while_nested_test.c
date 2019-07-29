@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vmx_close_while_nested
  *
  * Copyright (C) 2019, Red Hat, Inc.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Verify that nothing bad happens if a KVM user exits with open
  * file descriptors while executing a nested guest.

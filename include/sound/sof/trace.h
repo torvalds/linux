@@ -19,10 +19,20 @@
 #define SOF_TRACE_FILENAME_SIZE		32
 
 /* DMA for Trace params info - SOF_IPC_DEBUG_DMA_PARAMS */
+/* Deprecated - use sof_ipc_dma_trace_params_ext */
 struct sof_ipc_dma_trace_params {
 	struct sof_ipc_cmd_hdr hdr;
 	struct sof_ipc_host_buffer buffer;
 	uint32_t stream_tag;
+}  __packed;
+
+/* DMA for Trace params info - SOF_IPC_DEBUG_DMA_PARAMS_EXT */
+struct sof_ipc_dma_trace_params_ext {
+	struct sof_ipc_cmd_hdr hdr;
+	struct sof_ipc_host_buffer buffer;
+	uint32_t stream_tag;
+	uint64_t timestamp_ns; /* in nanosecond */
+	uint32_t reserved[8];
 }  __packed;
 
 /* DMA for Trace params info - SOF_IPC_DEBUG_DMA_PARAMS */
@@ -56,7 +66,9 @@ struct sof_ipc_dma_trace_posn {
 #define SOF_IPC_PANIC_WFI			(SOF_IPC_PANIC_MAGIC | 0xa)
 #define SOF_IPC_PANIC_ASSERT			(SOF_IPC_PANIC_MAGIC | 0xb)
 
-/* panic info include filename and line number */
+/* panic info include filename and line number
+ * filename array will not include null terminator if fully filled
+ */
 struct sof_ipc_panic_info {
 	struct sof_ipc_hdr hdr;
 	uint32_t code;			/* SOF_IPC_PANIC_ */

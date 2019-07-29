@@ -684,10 +684,8 @@ static void __init htab_init_page_sizes(void)
 	if (mmu_psize_defs[MMU_PAGE_16M].shift &&
 	    memblock_phys_mem_size() >= 0x40000000)
 		mmu_vmemmap_psize = MMU_PAGE_16M;
-	else if (mmu_psize_defs[MMU_PAGE_64K].shift)
-		mmu_vmemmap_psize = MMU_PAGE_64K;
 	else
-		mmu_vmemmap_psize = MMU_PAGE_4K;
+		mmu_vmemmap_psize = mmu_virtual_psize;
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
 	printk(KERN_DEBUG "Page orders: linear mapping = %d, "
@@ -981,7 +979,7 @@ void __init hash__early_init_devtree(void)
 	htab_scan_page_sizes();
 }
 
-struct hash_mm_context init_hash_mm_context;
+static struct hash_mm_context init_hash_mm_context;
 void __init hash__early_init_mmu(void)
 {
 #ifndef CONFIG_PPC_64K_PAGES

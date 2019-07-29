@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Windfarm PowerMac thermal control. Generic PID helpers
  *
  * (c) Copyright 2005 Benjamin Herrenschmidt, IBM Corp.
  *                    <benh@kernel.crashing.org>
- *
- * Released under the term of the GNU GPL v2.
  *
  * This is a pair of generic PID helpers that can be used by
  * control loops. One is the basic PID implementation, the

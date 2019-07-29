@@ -281,7 +281,7 @@ unregister:
 EXPORT_SYMBOL(of_mdiobus_register);
 
 /* Helper function for of_phy_find_device */
-static int of_phy_match(struct device *dev, void *phy_np)
+static int of_phy_match(struct device *dev, const void *phy_np)
 {
 	return dev->of_node == phy_np;
 }

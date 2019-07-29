@@ -70,7 +70,7 @@ define RUN_TESTS
 endef
 
 run_tests: all
-ifneq ($(KBUILD_SRC),)
+ifdef building_out_of_srctree
 	@if [ "X$(TEST_PROGS) $(TEST_PROGS_EXTENDED) $(TEST_FILES)" != "X" ]; then
 		@rsync -aq $(TEST_PROGS) $(TEST_PROGS_EXTENDED) $(TEST_FILES) $(OUTPUT)
 	fi
@@ -125,7 +125,7 @@ clean:
 # When make O= with kselftest target from main level
 # the following aren't defined.
 #
-ifneq ($(KBUILD_SRC),)
+ifdef building_out_of_srctree
 LINK.c = $(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(TARGET_ARCH)
 COMPILE.S = $(CC) $(ASFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
 LINK.S = $(CC) $(ASFLAGS) $(CPPFLAGS) $(LDFLAGS) $(TARGET_ARCH)

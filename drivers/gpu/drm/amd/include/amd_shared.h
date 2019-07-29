@@ -26,7 +26,7 @@
 #include <drm/amd_asic_type.h>
 
 
-#define AMD_MAX_USEC_TIMEOUT		200000  /* 200 ms */
+#define AMD_MAX_USEC_TIMEOUT		1000000  /* 1000 ms */
 
 /*
  * Chip flags

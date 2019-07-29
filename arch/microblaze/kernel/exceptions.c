@@ -63,7 +63,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 	if (kernel_mode(regs))
 		die("Exception in kernel mode", regs, signr);
 
-	force_sig_fault(signr, code, (void __user *)addr, current);
+	force_sig_fault(signr, code, (void __user *)addr);
 }
 
 asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,

@@ -1317,16 +1317,6 @@ static ssize_t fuse_dev_do_read(struct fuse_dev *fud, struct file *file,
 	unsigned reqsize;
 	unsigned int hash;
 
-	/*
-	 * Require sane minimum read buffer - that has capacity for fixed part
-	 * of any request header + negotated max_write room for data. If the
-	 * requirement is not satisfied return EINVAL to the filesystem server
-	 * to indicate that it is not following FUSE server/client contract.
-	 * Don't dequeue / abort any request.
-	 */
-	if (nbytes < max_t(size_t, FUSE_MIN_READ_BUFFER, 4096 + fc->max_write))
-		return -EINVAL;
-
  restart:
 	spin_lock(&fiq->waitq.lock);
 	err = -EAGAIN;

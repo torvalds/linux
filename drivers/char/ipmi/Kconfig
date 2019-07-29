@@ -132,3 +132,12 @@ config ASPEED_BT_IPMI_BMC
 	  Provides a driver for the BT (Block Transfer) IPMI interface
 	  found on Aspeed SOCs (AST2400 and AST2500). The driver
 	  implements the BMC side of the BT interface.
+
+config IPMB_DEVICE_INTERFACE
+	tristate 'IPMB Interface handler'
+	depends on I2C
+	depends on I2C_SLAVE
+	help
+	  Provides a driver for a device (Satellite MC) to
+	  receive requests and send responses back to the BMC via
+	  the IPMB interface. This module requires I2C support.

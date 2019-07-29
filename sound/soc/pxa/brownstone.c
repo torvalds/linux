@@ -73,17 +73,19 @@ static const struct snd_soc_ops brownstone_ops = {
 	.hw_params = brownstone_wm8994_hw_params,
 };
 
+SND_SOC_DAILINK_DEFS(wm8994,
+	DAILINK_COMP_ARRAY(COMP_CPU("mmp-sspa-dai.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8994-codec", "wm8994-aif1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("mmp-pcm-audio")));
+
 static struct snd_soc_dai_link brownstone_wm8994_dai[] = {
 {
 	.name		= "WM8994",
 	.stream_name	= "WM8994 HiFi",
-	.cpu_dai_name	= "mmp-sspa-dai.0",
-	.codec_dai_name	= "wm8994-aif1",
-	.platform_name	= "mmp-pcm-audio",
-	.codec_name	= "wm8994-codec",
 	.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				SND_SOC_DAIFMT_CBS_CFS,
 	.ops		= &brownstone_ops,
+	SND_SOC_DAILINK_REG(wm8994),
 },
 };
 

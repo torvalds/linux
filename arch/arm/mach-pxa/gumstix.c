@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/gumstix.c
  *
@@ -6,10 +7,6 @@
  *  Original Author:	Craig Hughes
  *  Created:	Feb 14, 2008
  *  Copyright:	Craig Hughes
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  *
  *  Implemented based on lubbock.c by Nicolas Pitre and code from Craig
  *  Hughes

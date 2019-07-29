@@ -54,13 +54,13 @@ mt76x2_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	int ret;
 
 	cancel_delayed_work_sync(&dev->cal_work);
+	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
+	tasklet_disable(&dev->dfs_pd.dfs_tasklet);
 
+	mutex_lock(&dev->mt76.mutex);
 	set_bit(MT76_RESET, &dev->mt76.state);
 
 	mt76_set_channel(&dev->mt76);
-
-	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
-	tasklet_disable(&dev->dfs_pd.dfs_tasklet);
 
 	mt76x2_mac_stop(dev, true);
 	ret = mt76x2_phy_set_channel(dev, chandef);
@@ -72,10 +72,12 @@ mt76x2_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	mt76x02_dfs_init_params(dev);
 
 	mt76x2_mac_resume(dev);
-	tasklet_enable(&dev->dfs_pd.dfs_tasklet);
-	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
 	clear_bit(MT76_RESET, &dev->mt76.state);
+	mutex_unlock(&dev->mt76.mutex);
+
+	tasklet_enable(&dev->dfs_pd.dfs_tasklet);
+	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
 	mt76_txq_schedule_all(&dev->mt76);
 
@@ -111,13 +113,13 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
+	mutex_unlock(&dev->mt76.mutex);
+
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		ieee80211_stop_queues(hw);
 		ret = mt76x2_set_channel(dev, &hw->conf.chandef);
 		ieee80211_wake_queues(hw);
 	}
-
-	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;
 }

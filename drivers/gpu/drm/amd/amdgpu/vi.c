@@ -59,7 +59,6 @@
 
 #include "vid.h"
 #include "vi.h"
-#include "vi_dpm.h"
 #include "gmc_v8_0.h"
 #include "gmc_v7_0.h"
 #include "gfx_v8_0.h"

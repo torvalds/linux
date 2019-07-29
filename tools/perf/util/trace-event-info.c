@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 
 #include "../perf.h"
 #include "trace-event.h"

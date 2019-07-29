@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Sunrisepoint LPSS core support.
  *
@@ -7,10 +8,6 @@
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  *          Heikki Krogerus <heikki.krogerus@linux.intel.com>
  *          Jarkko Nikula <jarkko.nikula@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -546,6 +543,7 @@ module_init(intel_lpss_init);
 
 static void __exit intel_lpss_exit(void)
 {
+	ida_destroy(&intel_lpss_devid_ida);
 	debugfs_remove(intel_lpss_debugfs);
 }
 module_exit(intel_lpss_exit);

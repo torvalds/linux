@@ -125,12 +125,6 @@ Description:
                 The EUI-48 of this device in colon separated hex
                 octets.
 
-What:           /sys/class/uwb_rc/uwbN/<EUI-48>/BPST
-Date:           July 2008
-KernelVersion:  2.6.27
-Contact:        linux-usb@vger.kernel.org
-Description:
-
 What:           /sys/class/uwb_rc/uwbN/<EUI-48>/IEs
 Date:           July 2008
 KernelVersion:  2.6.27

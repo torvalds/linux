@@ -15,10 +15,10 @@ config ARM_GIC_PM
 	bool
 	depends on PM
 	select ARM_GIC
-	select PM_CLK
 
 config ARM_GIC_MAX_NR
 	int
+	depends on ARM_GIC
 	default 2 if ARCH_REALVIEW
 	default 1
 
@@ -86,6 +86,14 @@ config ALPINE_MSI
 	depends on PCI
 	select PCI_MSI
 	select GENERIC_IRQ_CHIP
+
+config AL_FIC
+	bool "Amazon's Annapurna Labs Fabric Interrupt Controller"
+	depends on OF || COMPILE_TEST
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	help
+	  Support Amazon's Annapurna Labs Fabric Interrupt Controller.
 
 config ATMEL_AIC_IRQ
 	bool
@@ -217,13 +225,26 @@ config RDA_INTC
 	select IRQ_DOMAIN
 
 config RENESAS_INTC_IRQPIN
-	bool
+	bool "Renesas INTC External IRQ Pin Support" if COMPILE_TEST
 	select IRQ_DOMAIN
+	help
+	  Enable support for the Renesas Interrupt Controller for external
+	  interrupt pins, as found on SH/R-Mobile and R-Car Gen1 SoCs.
 
 config RENESAS_IRQC
-	bool
+	bool "Renesas R-Mobile APE6 and R-Car IRQC support" if COMPILE_TEST
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
+	help
+	  Enable support for the Renesas Interrupt Controller for external
+	  devices, as found on R-Mobile APE6, R-Car Gen2, and R-Car Gen3 SoCs.
+
+config RENESAS_RZA1_IRQC
+	bool "Renesas RZ/A1 IRQC support" if COMPILE_TEST
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Enable support for the Renesas RZ/A1 Interrupt Controller, to use up
+	  to 8 external interrupts with configurable sense select.
 
 config ST_IRQCHIP
 	bool
@@ -299,8 +320,11 @@ config RENESAS_H8300H_INTC
 	select IRQ_DOMAIN
 
 config RENESAS_H8S_INTC
-        bool
+	bool "Renesas H8S Interrupt Controller Support" if COMPILE_TEST
 	select IRQ_DOMAIN
+	help
+	  Enable support for the Renesas H8/300 Interrupt Controller, as found
+	  on Renesas H8S SoCs.
 
 config IMX_GPCV2
 	bool

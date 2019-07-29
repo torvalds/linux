@@ -87,27 +87,29 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	struct netdev_bpf bpf;
 	int err = 0;
 
+	ASSERT_RTNL();
+
 	force_zc = flags & XDP_ZEROCOPY;
 	force_copy = flags & XDP_COPY;
 
 	if (force_zc && force_copy)
 		return -EINVAL;
 
-	rtnl_lock();
-	if (xdp_get_umem_from_qid(dev, queue_id)) {
-		err = -EBUSY;
-		goto out_rtnl_unlock;
-	}
+	if (xdp_get_umem_from_qid(dev, queue_id))
+		return -EBUSY;
 
 	err = xdp_reg_umem_at_qid(dev, umem, queue_id);
 	if (err)
-		goto out_rtnl_unlock;
+		return err;
 
 	umem->dev = dev;
 	umem->queue_id = queue_id;
+
+	dev_hold(dev);
+
 	if (force_copy)
 		/* For copy-mode, we are done. */
-		goto out_rtnl_unlock;
+		return 0;
 
 	if (!dev->netdev_ops->ndo_bpf ||
 	    !dev->netdev_ops->ndo_xsk_async_xmit) {
@@ -122,9 +124,7 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	err = dev->netdev_ops->ndo_bpf(dev, &bpf);
 	if (err)
 		goto err_unreg_umem;
-	rtnl_unlock();
 
-	dev_hold(dev);
 	umem->zc = true;
 	return 0;
 
@@ -133,39 +133,35 @@ err_unreg_umem:
 		err = 0; /* fallback to copy mode */
 	if (err)
 		xdp_clear_umem_at_qid(dev, queue_id);
-out_rtnl_unlock:
-	rtnl_unlock();
 	return err;
 }
 
-static void xdp_umem_clear_dev(struct xdp_umem *umem)
+void xdp_umem_clear_dev(struct xdp_umem *umem)
 {
 	struct netdev_bpf bpf;
 	int err;
+
+	ASSERT_RTNL();
+
+	if (!umem->dev)
+		return;
 
 	if (umem->zc) {
 		bpf.command = XDP_SETUP_XSK_UMEM;
 		bpf.xsk.umem = NULL;
 		bpf.xsk.queue_id = umem->queue_id;
 
-		rtnl_lock();
 		err = umem->dev->netdev_ops->ndo_bpf(umem->dev, &bpf);
-		rtnl_unlock();
 
 		if (err)
 			WARN(1, "failed to disable umem!\n");
 	}
 
-	if (umem->dev) {
-		rtnl_lock();
-		xdp_clear_umem_at_qid(umem->dev, umem->queue_id);
-		rtnl_unlock();
-	}
+	xdp_clear_umem_at_qid(umem->dev, umem->queue_id);
 
-	if (umem->zc) {
-		dev_put(umem->dev);
-		umem->zc = false;
-	}
+	dev_put(umem->dev);
+	umem->dev = NULL;
+	umem->zc = false;
 }
 
 static void xdp_umem_unpin_pages(struct xdp_umem *umem)
@@ -193,7 +189,9 @@ static void xdp_umem_unaccount_pages(struct xdp_umem *umem)
 
 static void xdp_umem_release(struct xdp_umem *umem)
 {
+	rtnl_lock();
 	xdp_umem_clear_dev(umem);
+	rtnl_unlock();
 
 	ida_simple_remove(&umem_ida, umem->id);
 

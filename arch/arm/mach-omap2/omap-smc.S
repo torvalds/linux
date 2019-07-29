@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP34xx and OMAP44xx secure APIs file.
  *
@@ -6,10 +7,6 @@
  *
  * Copyright (C) 2012 Ivaylo Dimitrov <freemangordon@abv.bg>
  * Copyright (C) 2013 Pali Rohár <pali.rohar@gmail.com>
- *
- * This program is free software,you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
@@ -23,7 +20,8 @@
  * link register "lr".
  * Function signature : void omap_smc1(u32 fn, u32 arg)
  */
-
+	.arch armv7-a
+	.arch_extension sec
 ENTRY(omap_smc1)
 	stmfd   sp!, {r2-r12, lr}
 	mov	r12, r0

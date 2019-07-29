@@ -537,7 +537,8 @@ void komeda_pipeline_disable(struct komeda_pipeline *pipe,
 void komeda_pipeline_update(struct komeda_pipeline *pipe,
 			    struct drm_atomic_state *old_state);
 
-void komeda_complete_data_flow_cfg(struct komeda_data_flow_cfg *dflow,
+void komeda_complete_data_flow_cfg(struct komeda_layer *layer,
+				   struct komeda_data_flow_cfg *dflow,
 				   struct drm_framebuffer *fb);
 
 #endif /* _KOMEDA_PIPELINE_H_*/

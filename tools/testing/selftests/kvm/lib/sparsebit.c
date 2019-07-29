@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Sparse bit array
  *
  * Copyright (C) 2018, Google LLC.
  * Copyright (C) 2018, Red Hat, Inc. (code style cleanup and fuzzing driver)
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * This library provides functions to support a memory efficient bit array,
  * with an index size of 2^64.  A sparsebit array is allocated through

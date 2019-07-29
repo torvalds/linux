@@ -144,6 +144,28 @@ struct amdgpu_display_manager {
 	struct mutex dc_lock;
 
 	/**
+	 * @audio_lock:
+	 *
+	 * Guards access to audio instance changes.
+	 */
+	struct mutex audio_lock;
+
+	/**
+	 * @audio_component:
+	 *
+	 * Used to notify ELD changes to sound driver.
+	 */
+	struct drm_audio_component *audio_component;
+
+	/**
+	 * @audio_registered:
+	 *
+	 * True if the audio component has been registered
+	 * successfully, false otherwise.
+	 */
+	bool audio_registered;
+
+	/**
 	 * @irq_handler_list_low_tab:
 	 *
 	 * Low priority IRQ handler table.
@@ -253,6 +275,9 @@ struct amdgpu_dm_connector {
 	int min_vfreq ;
 	int max_vfreq ;
 	int pixel_clock_mhz;
+
+	/* Audio instance - protected by audio_lock. */
+	int audio_inst;
 
 	struct mutex hpd_lock;
 

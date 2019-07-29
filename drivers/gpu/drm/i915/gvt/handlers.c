@@ -1254,18 +1254,15 @@ static int send_display_ready_uevent(struct intel_vgpu *vgpu, int ready)
 static int pvinfo_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	u32 data;
-	int ret;
-
-	write_vreg(vgpu, offset, p_data, bytes);
-	data = vgpu_vreg(vgpu, offset);
+	u32 data = *(u32 *)p_data;
+	bool invalid_write = false;
 
 	switch (offset) {
 	case _vgtif_reg(display_ready):
 		send_display_ready_uevent(vgpu, data ? 1 : 0);
 		break;
 	case _vgtif_reg(g2v_notify):
-		ret = handle_g2v_notification(vgpu, data);
+		handle_g2v_notification(vgpu, data);
 		break;
 	/* add xhot and yhot to handled list to avoid error log */
 	case _vgtif_reg(cursor_x_hot):
@@ -1282,13 +1279,19 @@ static int pvinfo_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	case _vgtif_reg(execlist_context_descriptor_hi):
 		break;
 	case _vgtif_reg(rsv5[0])..._vgtif_reg(rsv5[3]):
+		invalid_write = true;
 		enter_failsafe_mode(vgpu, GVT_FAILSAFE_INSUFFICIENT_RESOURCE);
 		break;
 	default:
+		invalid_write = true;
 		gvt_vgpu_err("invalid pvinfo write offset %x bytes %x data %x\n",
 				offset, bytes, data);
 		break;
 	}
+
+	if (!invalid_write)
+		write_vreg(vgpu, offset, p_data, bytes);
+
 	return 0;
 }
 

@@ -24,15 +24,51 @@
 #ifndef __AMDGPU_MN_H__
 #define __AMDGPU_MN_H__
 
-/*
- * HMM mirror
- */
-struct amdgpu_mn;
-struct hmm_range;
+#include <linux/types.h>
+#include <linux/hmm.h>
+#include <linux/rwsem.h>
+#include <linux/workqueue.h>
+#include <linux/interval_tree.h>
 
 enum amdgpu_mn_type {
 	AMDGPU_MN_TYPE_GFX,
 	AMDGPU_MN_TYPE_HSA,
+};
+
+/**
+ * struct amdgpu_mn
+ *
+ * @adev: amdgpu device pointer
+ * @mm: process address space
+ * @type: type of MMU notifier
+ * @work: destruction work item
+ * @node: hash table node to find structure by adev and mn
+ * @lock: rw semaphore protecting the notifier nodes
+ * @objects: interval tree containing amdgpu_mn_nodes
+ * @mirror: HMM mirror function support
+ *
+ * Data for each amdgpu device and process address space.
+ */
+struct amdgpu_mn {
+	/* constant after initialisation */
+	struct amdgpu_device	*adev;
+	struct mm_struct	*mm;
+	enum amdgpu_mn_type	type;
+
+	/* only used on destruction */
+	struct work_struct	work;
+
+	/* protected by adev->mn_lock */
+	struct hlist_node	node;
+
+	/* objects protected by lock */
+	struct rw_semaphore	lock;
+	struct rb_root_cached	objects;
+
+#ifdef CONFIG_HMM_MIRROR
+	/* HMM mirror */
+	struct hmm_mirror	mirror;
+#endif
 };
 
 #if defined(CONFIG_HMM_MIRROR)

@@ -8,7 +8,6 @@
  */
 #include "builtin.h"
 
-#include "util/util.h"
 #include "util/config.h"
 
 #include "util/annotate.h"
@@ -16,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <linux/err.h>
+#include <linux/zalloc.h>
 #include "util/map.h"
 #include "util/symbol.h"
 #include "util/callchain.h"
@@ -47,7 +47,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <regex.h>
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 #include <signal.h>
 #include <linux/bitmap.h>
 #include <linux/stringify.h>
@@ -298,7 +298,7 @@ static int process_read_event(struct perf_tool *tool,
 	struct report *rep = container_of(tool, struct report, tool);
 
 	if (rep->show_threads) {
-		const char *name = evsel ? perf_evsel__name(evsel) : "unknown";
+		const char *name = perf_evsel__name(evsel);
 		int err = perf_read_values_add_value(&rep->show_threads_values,
 					   event->read.pid, event->read.tid,
 					   evsel->idx,
@@ -941,8 +941,7 @@ parse_time_quantum(const struct option *opt, const char *arg,
 		pr_err("time quantum cannot be 0");
 		return -1;
 	}
-	while (isspace(*end))
-		end++;
+	end = skip_spaces(end);
 	if (*end == 0)
 		return 0;
 	if (!strcmp(end, "s")) {
@@ -1428,6 +1427,10 @@ repeat:
 						  &report.range_num);
 		if (ret < 0)
 			goto error;
+
+		itrace_synth_opts__set_time_range(&itrace_synth_opts,
+						  report.ptime_range,
+						  report.range_num);
 	}
 
 	if (session->tevent.pevent &&
@@ -1449,8 +1452,10 @@ repeat:
 		ret = 0;
 
 error:
-	if (report.ptime_range)
+	if (report.ptime_range) {
+		itrace_synth_opts__clear_time_range(&itrace_synth_opts);
 		zfree(&report.ptime_range);
+	}
 	zstd_fini(&(session->zstd_data));
 	perf_session__delete(session);
 	return ret;

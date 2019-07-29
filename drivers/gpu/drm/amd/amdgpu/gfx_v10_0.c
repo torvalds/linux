@@ -109,6 +109,13 @@ static const struct soc15_reg_golden golden_settings_gc_10_0_nv10[] =
 	/* Pending on emulation bring up */
 };
 
+#define DEFAULT_SH_MEM_CONFIG \
+	((SH_MEM_ADDRESS_MODE_64 << SH_MEM_CONFIG__ADDRESS_MODE__SHIFT) | \
+	 (SH_MEM_ALIGNMENT_MODE_UNALIGNED << SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT) | \
+	 (SH_MEM_RETRY_MODE_ALL << SH_MEM_CONFIG__RETRY_MODE__SHIFT) | \
+	 (3 << SH_MEM_CONFIG__INITIAL_INST_PREFETCH__SHIFT))
+
+
 static void gfx_v10_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v10_0_set_irq_funcs(struct amdgpu_device *adev);
 static void gfx_v10_0_set_gds_init(struct amdgpu_device *adev);
@@ -995,6 +1002,12 @@ static void gfx_v10_0_read_wave_vgprs(struct amdgpu_device *adev, uint32_t simd,
 		start + SQIND_WAVE_VGPRS_OFFSET, size, dst);
 }
 
+static void gfx_v10_0_select_me_pipe_q(struct amdgpu_device *adev,
+									  u32 me, u32 pipe, u32 q, u32 vm)
+ {
+       nv_grbm_select(adev, me, pipe, q, vm);
+ }
+
 
 static const struct amdgpu_gfx_funcs gfx_v10_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v10_0_get_gpu_clock_counter,
@@ -1002,6 +1015,7 @@ static const struct amdgpu_gfx_funcs gfx_v10_0_gfx_funcs = {
 	.read_wave_data = &gfx_v10_0_read_wave_data,
 	.read_wave_sgprs = &gfx_v10_0_read_wave_sgprs,
 	.read_wave_vgprs = &gfx_v10_0_read_wave_vgprs,
+	.select_me_pipe_q = &gfx_v10_0_select_me_pipe_q,
 };
 
 static void gfx_v10_0_gpu_early_init(struct amdgpu_device *adev)
@@ -1408,7 +1422,6 @@ static u32 gfx_v10_0_init_pa_sc_tile_steering_override(struct amdgpu_device *ade
 static void gfx_v10_0_init_compute_vmid(struct amdgpu_device *adev)
 {
 	int i;
-	uint32_t sh_mem_config;
 	uint32_t sh_mem_bases;
 
 	/*
@@ -1419,15 +1432,11 @@ static void gfx_v10_0_init_compute_vmid(struct amdgpu_device *adev)
 	 */
 	sh_mem_bases = DEFAULT_SH_MEM_BASES | (DEFAULT_SH_MEM_BASES << 16);
 
-	sh_mem_config = SH_MEM_ADDRESS_MODE_64 |
-			SH_MEM_ALIGNMENT_MODE_UNALIGNED <<
-			SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT;
-
 	mutex_lock(&adev->srbm_mutex);
 	for (i = FIRST_COMPUTE_VMID; i < LAST_COMPUTE_VMID; i++) {
 		nv_grbm_select(adev, 0, 0, 0, i);
 		/* CP and shaders */
-		WREG32_SOC15(GC, 0, mmSH_MEM_CONFIG, sh_mem_config);
+		WREG32_SOC15(GC, 0, mmSH_MEM_CONFIG, DEFAULT_SH_MEM_CONFIG);
 		WREG32_SOC15(GC, 0, mmSH_MEM_BASES, sh_mem_bases);
 	}
 	nv_grbm_select(adev, 0, 0, 0, 0);
@@ -1520,17 +1529,8 @@ static void gfx_v10_0_constants_init(struct amdgpu_device *adev)
 	for (i = 0; i < adev->vm_manager.id_mgr[AMDGPU_GFXHUB].num_ids; i++) {
 		nv_grbm_select(adev, 0, 0, 0, i);
 		/* CP and shaders */
-		if (i == 0) {
-			tmp = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE,
-					    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
-			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, RETRY_MODE, 0);
-			WREG32_SOC15(GC, 0, mmSH_MEM_CONFIG, tmp);
-			WREG32_SOC15(GC, 0, mmSH_MEM_BASES, 0);
-		} else {
-			tmp = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE,
-					    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
-			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, RETRY_MODE, 0);
-			WREG32_SOC15(GC, 0, mmSH_MEM_CONFIG, tmp);
+		WREG32_SOC15(GC, 0, mmSH_MEM_CONFIG, DEFAULT_SH_MEM_CONFIG);
+		if (i != 0) {
 			tmp = REG_SET_FIELD(0, SH_MEM_BASES, PRIVATE_BASE,
 				(adev->gmc.private_aperture_start >> 48));
 			tmp = REG_SET_FIELD(tmp, SH_MEM_BASES, SHARED_BASE,
@@ -1544,24 +1544,6 @@ static void gfx_v10_0_constants_init(struct amdgpu_device *adev)
 
 	gfx_v10_0_init_compute_vmid(adev);
 
-	mutex_lock(&adev->grbm_idx_mutex);
-	/*
-	 * making sure that the following register writes will be broadcasted
-	 * to all the shaders
-	 */
-	gfx_v10_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
-
-	tmp = REG_SET_FIELD(0, PA_SC_FIFO_SIZE, SC_FRONTEND_PRIM_FIFO_SIZE,
-			    adev->gfx.config.sc_prim_fifo_size_frontend);
-	tmp = REG_SET_FIELD(tmp, PA_SC_FIFO_SIZE, SC_BACKEND_PRIM_FIFO_SIZE,
-			    adev->gfx.config.sc_prim_fifo_size_backend);
-	tmp = REG_SET_FIELD(tmp, PA_SC_FIFO_SIZE, SC_HIZ_TILE_FIFO_SIZE,
-			    adev->gfx.config.sc_hiz_tile_fifo_size);
-	tmp = REG_SET_FIELD(tmp, PA_SC_FIFO_SIZE, SC_EARLYZ_TILE_FIFO_SIZE,
-			    adev->gfx.config.sc_earlyz_tile_fifo_size);
-	WREG32_SOC15(GC, 0, mmPA_SC_FIFO_SIZE, tmp);
-
-	mutex_unlock(&adev->grbm_idx_mutex);
 }
 
 static void gfx_v10_0_enable_gui_idle_interrupt(struct amdgpu_device *adev,
@@ -4215,6 +4197,15 @@ static void gfx_v10_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	u32 header, control = 0;
 
+	/* Prevent a hw deadlock due to a wave ID mismatch between ME and GDS.
+	 * This resets the wave ID counters. (needed by transform feedback)
+	 * TODO: This might only be needed on a VMID switch when we change
+	 *       the GDS OA mapping, not sure.
+	 */
+	amdgpu_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+	amdgpu_ring_write(ring, mmVGT_GS_MAX_WAVE_ID);
+	amdgpu_ring_write(ring, ring->adev->gds.vgt_gs_max_wave_id);
+
 	if (ib->flags & AMDGPU_IB_FLAG_CE)
 		header = PACKET3(PACKET3_INDIRECT_BUFFER_CNST, 2);
 	else
@@ -4252,6 +4243,22 @@ static void gfx_v10_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	u32 control = INDIRECT_BUFFER_VALID | ib->length_dw | (vmid << 24);
 
+	/* Currently, there is a high possibility to get wave ID mismatch
+	 * between ME and GDS, leading to a hw deadlock, because ME generates
+	 * different wave IDs than the GDS expects. This situation happens
+	 * randomly when at least 5 compute pipes use GDS ordered append.
+	 * The wave IDs generated by ME are also wrong after suspend/resume.
+	 * Those are probably bugs somewhere else in the kernel driver.
+	 *
+	 * Writing GDS_COMPUTE_MAX_WAVE_ID resets wave ID counters in ME and
+	 * GDS to 0 for this ring (me/pipe).
+	 */
+	if (ib->flags & AMDGPU_IB_FLAG_RESET_GDS_MAX_WAVE_ID) {
+		amdgpu_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		amdgpu_ring_write(ring, mmGDS_COMPUTE_MAX_WAVE_ID);
+		amdgpu_ring_write(ring, ring->adev->gds.gds_compute_max_wave_id);
+	}
+
 	amdgpu_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 	BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
 	amdgpu_ring_write(ring,
@@ -4278,11 +4285,7 @@ static void gfx_v10_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 	amdgpu_ring_write(ring, PACKET3(PACKET3_RELEASE_MEM, 6));
 	amdgpu_ring_write(ring, (PACKET3_RELEASE_MEM_GCR_SEQ |
 				 PACKET3_RELEASE_MEM_GCR_GL2_WB |
-				 PACKET3_RELEASE_MEM_GCR_GL2_INV |
-				 PACKET3_RELEASE_MEM_GCR_GL2_US |
-				 PACKET3_RELEASE_MEM_GCR_GL1_INV |
-				 PACKET3_RELEASE_MEM_GCR_GLV_INV |
-				 PACKET3_RELEASE_MEM_GCR_GLM_INV |
+				 PACKET3_RELEASE_MEM_GCR_GLM_INV | /* must be set with GLM_WB */
 				 PACKET3_RELEASE_MEM_GCR_GLM_WB |
 				 PACKET3_RELEASE_MEM_CACHE_POLICY(3) |
 				 PACKET3_RELEASE_MEM_EVENT_TYPE(CACHE_FLUSH_AND_INV_TS_EVENT) |
@@ -4948,7 +4951,7 @@ static const struct amdgpu_ring_funcs gfx_v10_0_ring_funcs_gfx = {
 		5 + /* HDP_INVL */
 		8 + 8 + /* FENCE x2 */
 		2, /* SWITCH_BUFFER */
-	.emit_ib_size =	4, /* gfx_v10_0_ring_emit_ib_gfx */
+	.emit_ib_size =	7, /* gfx_v10_0_ring_emit_ib_gfx */
 	.emit_ib = gfx_v10_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v10_0_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v10_0_ring_emit_pipeline_sync,
@@ -4987,7 +4990,7 @@ static const struct amdgpu_ring_funcs gfx_v10_0_ring_funcs_compute = {
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 7 +
 		2 + /* gfx_v10_0_ring_emit_vm_flush */
 		8 + 8 + 8, /* gfx_v10_0_ring_emit_fence x3 for user fence, vm fence */
-	.emit_ib_size =	4, /* gfx_v10_0_ring_emit_ib_compute */
+	.emit_ib_size =	7, /* gfx_v10_0_ring_emit_ib_compute */
 	.emit_ib = gfx_v10_0_ring_emit_ib_compute,
 	.emit_fence = gfx_v10_0_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v10_0_ring_emit_pipeline_sync,
@@ -5020,7 +5023,7 @@ static const struct amdgpu_ring_funcs gfx_v10_0_ring_funcs_kiq = {
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 7 +
 		2 + /* gfx_v10_0_ring_emit_vm_flush */
 		8 + 8 + 8, /* gfx_v10_0_ring_emit_fence_kiq x3 for user fence, vm fence */
-	.emit_ib_size =	4, /* gfx_v10_0_ring_emit_ib_compute */
+	.emit_ib_size =	7, /* gfx_v10_0_ring_emit_ib_compute */
 	.emit_ib = gfx_v10_0_ring_emit_ib_compute,
 	.emit_fence = gfx_v10_0_ring_emit_fence_kiq,
 	.test_ring = gfx_v10_0_ring_test_ring,
@@ -5096,10 +5099,10 @@ static void gfx_v10_0_set_gds_init(struct amdgpu_device *adev)
 	/* init asic gds info */
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
-		adev->gds.gds_size = 0x10000;
-		break;
 	default:
 		adev->gds.gds_size = 0x10000;
+		adev->gds.gds_compute_max_wave_id = 0x4ff;
+		adev->gds.vgt_gs_max_wave_id = 0x3ff;
 		break;
 	}
 

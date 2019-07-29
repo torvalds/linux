@@ -118,23 +118,23 @@ edac_debugfs_create_file(const char *name, umode_t mode, struct dentry *parent,
 EXPORT_SYMBOL_GPL(edac_debugfs_create_file);
 
 /* Wrapper for debugfs_create_x8() */
-struct dentry *edac_debugfs_create_x8(const char *name, umode_t mode,
-				       struct dentry *parent, u8 *value)
+void edac_debugfs_create_x8(const char *name, umode_t mode,
+			    struct dentry *parent, u8 *value)
 {
 	if (!parent)
 		parent = edac_debugfs;
 
-	return debugfs_create_x8(name, mode, parent, value);
+	debugfs_create_x8(name, mode, parent, value);
 }
 EXPORT_SYMBOL_GPL(edac_debugfs_create_x8);
 
 /* Wrapper for debugfs_create_x16() */
-struct dentry *edac_debugfs_create_x16(const char *name, umode_t mode,
-				       struct dentry *parent, u16 *value)
+void edac_debugfs_create_x16(const char *name, umode_t mode,
+			     struct dentry *parent, u16 *value)
 {
 	if (!parent)
 		parent = edac_debugfs;
 
-	return debugfs_create_x16(name, mode, parent, value);
+	debugfs_create_x16(name, mode, parent, value);
 }
 EXPORT_SYMBOL_GPL(edac_debugfs_create_x16);

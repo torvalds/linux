@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_FB_RAM_PRIV_H__
 #define __NVKM_FB_RAM_PRIV_H__
 #include "priv.h"

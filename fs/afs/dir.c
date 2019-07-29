@@ -238,8 +238,7 @@ retry:
 	if (nr_inline > (PAGE_SIZE - sizeof(*req)) / sizeof(struct page *))
 		nr_inline = 0;
 
-	req = kzalloc(sizeof(*req) + sizeof(struct page *) * nr_inline,
-		      GFP_KERNEL);
+	req = kzalloc(struct_size(req, array, nr_inline), GFP_KERNEL);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
 
@@ -1363,12 +1362,12 @@ static int afs_dir_remove_link(struct afs_vnode *dvnode, struct dentry *dentry,
 			drop_nlink(&vnode->vfs_inode);
 			if (vnode->vfs_inode.i_nlink == 0) {
 				set_bit(AFS_VNODE_DELETED, &vnode->flags);
-				__afs_break_callback(vnode);
+				__afs_break_callback(vnode, afs_cb_break_for_unlink);
 			}
 			write_sequnlock(&vnode->cb_lock);
 			ret = 0;
 		} else {
-			afs_break_callback(vnode);
+			afs_break_callback(vnode, afs_cb_break_for_unlink);
 
 			if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
 				kdebug("AFS_VNODE_DELETED");
@@ -1390,7 +1389,8 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
-	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode = NULL;
+	struct afs_vnode *dvnode = AFS_FS_I(dir);
+	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 	struct key *key;
 	bool need_rehash = false;
 	int ret;
@@ -1413,15 +1413,12 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 	}
 
 	/* Try to make sure we have a callback promise on the victim. */
-	if (d_really_is_positive(dentry)) {
-		vnode = AFS_FS_I(d_inode(dentry));
-		ret = afs_validate(vnode, key);
-		if (ret < 0)
-			goto error_key;
-	}
+	ret = afs_validate(vnode, key);
+	if (ret < 0)
+		goto error_key;
 
 	spin_lock(&dentry->d_lock);
-	if (vnode && d_count(dentry) > 1) {
+	if (d_count(dentry) > 1) {
 		spin_unlock(&dentry->d_lock);
 		/* Start asynchronous writeout of the inode */
 		write_inode_now(d_inode(dentry), 0);

@@ -14,6 +14,7 @@
  * Authorisation record for request_key().
  */
 struct request_key_auth {
+	struct rcu_head		rcu;
 	struct key		*target_key;
 	struct key		*dest_keyring;
 	const struct cred	*cred;

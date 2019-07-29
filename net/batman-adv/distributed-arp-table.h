@@ -11,14 +11,13 @@
 
 #include <linux/compiler.h>
 #include <linux/netdevice.h>
+#include <linux/netlink.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
 #include <linux/types.h>
 #include <uapi/linux/batadv_packet.h>
 
 #include "originator.h"
-
-struct netlink_callback;
-struct seq_file;
-struct sk_buff;
 
 #ifdef CONFIG_BATMAN_ADV_DAT
 

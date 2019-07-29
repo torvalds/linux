@@ -14,7 +14,7 @@
 #include <linux/if_arp.h>
 #include <linux/gpio/consumer.h>
 
-#include "host_interface.h"
+#include "wilc_hif.h"
 #include "wilc_wlan.h"
 #include "wilc_wlan_cfg.h"
 
@@ -129,7 +129,7 @@ static struct ieee80211_rate wilc_bitrates[] = {
 };
 
 struct wilc_priv {
-	struct wireless_dev *wdev;
+	struct wireless_dev wdev;
 	struct cfg80211_scan_request *scan_req;
 
 	struct wilc_wfi_p2p_listen_params remain_on_ch_params;
@@ -156,10 +156,6 @@ struct wilc_priv {
 	int scanned_cnt;
 	struct wilc_p2p_var p2p;
 
-	struct ieee80211_channel channels[ARRAY_SIZE(wilc_2ghz_channels)];
-	struct ieee80211_rate bitrates[ARRAY_SIZE(wilc_bitrates)];
-	struct ieee80211_supported_band band;
-	u32 cipher_suites[ARRAY_SIZE(wilc_cipher_suites)];
 	u64 inc_roc_cookie;
 };
 
@@ -202,21 +198,21 @@ struct wilc_vif {
 	struct frame_reg frame_reg[NUM_REG_FRAME];
 	struct net_device_stats netstats;
 	struct wilc *wilc;
-	u8 src_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	struct host_if_drv *hif_drv;
 	struct net_device *ndev;
 	u8 mode;
-	u8 ifc_id;
 	struct timer_list during_ip_timer;
 	bool obtaining_ip;
 	struct timer_list periodic_rssi;
 	struct rf_info periodic_stat;
 	struct tcp_ack_filter ack_filter;
 	bool connecting;
+	struct wilc_priv priv;
 };
 
 struct wilc {
+	struct wiphy *wiphy;
 	const struct wilc_hif_func *hif_func;
 	int io_type;
 	s8 mac_status;
@@ -226,6 +222,8 @@ struct wilc {
 	int close;
 	u8 vif_num;
 	struct wilc_vif *vif[WILC_NUM_CONCURRENT_IFC];
+	/*protect vif list*/
+	struct mutex vif_mutex;
 	u8 open_ifcs;
 	/*protect head of transmit queue*/
 	struct mutex txq_add_to_head_cs;
@@ -275,6 +273,10 @@ struct wilc {
 	struct mutex deinit_lock;
 	u8 sta_ch;
 	u8 op_ch;
+	struct ieee80211_channel channels[ARRAY_SIZE(wilc_2ghz_channels)];
+	struct ieee80211_rate bitrates[ARRAY_SIZE(wilc_bitrates)];
+	struct ieee80211_supported_band band;
+	u32 cipher_suites[ARRAY_SIZE(wilc_cipher_suites)];
 };
 
 struct wilc_wfi_mon_priv {
@@ -284,9 +286,9 @@ struct wilc_wfi_mon_priv {
 void wilc_frmw_to_host(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
 void wilc_mac_indicate(struct wilc *wilc);
 void wilc_netdev_cleanup(struct wilc *wilc);
-int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
-		     const struct wilc_hif_func *ops);
 void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
 void wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode);
-
+struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
+				      int vif_type, enum nl80211_iftype type,
+				      bool rtnl_locked);
 #endif

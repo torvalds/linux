@@ -121,24 +121,6 @@ struct amd_nb {
 	 (1ULL << PERF_REG_X86_R14)   | \
 	 (1ULL << PERF_REG_X86_R15))
 
-#define PEBS_XMM_REGS                   \
-	((1ULL << PERF_REG_X86_XMM0)  | \
-	 (1ULL << PERF_REG_X86_XMM1)  | \
-	 (1ULL << PERF_REG_X86_XMM2)  | \
-	 (1ULL << PERF_REG_X86_XMM3)  | \
-	 (1ULL << PERF_REG_X86_XMM4)  | \
-	 (1ULL << PERF_REG_X86_XMM5)  | \
-	 (1ULL << PERF_REG_X86_XMM6)  | \
-	 (1ULL << PERF_REG_X86_XMM7)  | \
-	 (1ULL << PERF_REG_X86_XMM8)  | \
-	 (1ULL << PERF_REG_X86_XMM9)  | \
-	 (1ULL << PERF_REG_X86_XMM10) | \
-	 (1ULL << PERF_REG_X86_XMM11) | \
-	 (1ULL << PERF_REG_X86_XMM12) | \
-	 (1ULL << PERF_REG_X86_XMM13) | \
-	 (1ULL << PERF_REG_X86_XMM14) | \
-	 (1ULL << PERF_REG_X86_XMM15))
-
 /*
  * Per register state.
  */
@@ -631,14 +613,11 @@ struct x86_pmu {
 	int		attr_rdpmc_broken;
 	int		attr_rdpmc;
 	struct attribute **format_attrs;
-	struct attribute **event_attrs;
-	struct attribute **caps_attrs;
 
 	ssize_t		(*events_sysfs_show)(char *page, u64 config);
-	struct attribute **cpu_events;
+	const struct attribute_group **attr_update;
 
 	unsigned long	attr_freeze_on_smi;
-	struct attribute **attrs;
 
 	/*
 	 * CPU Hotplug hooks
@@ -668,8 +647,7 @@ struct x86_pmu {
 			pebs_broken		:1,
 			pebs_prec_dist		:1,
 			pebs_no_tlb		:1,
-			pebs_no_isolation	:1,
-			pebs_no_xmm_regs	:1;
+			pebs_no_isolation	:1;
 	int		pebs_record_size;
 	int		pebs_buffer_size;
 	int		max_pebs_events;
@@ -904,8 +882,6 @@ static inline void set_linear_ip(struct pt_regs *regs, unsigned long ip)
 
 ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event);
 ssize_t intel_event_sysfs_show(char *page, u64 config);
-
-struct attribute **merge_attr(struct attribute **a, struct attribute **b);
 
 ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
 			  char *page);

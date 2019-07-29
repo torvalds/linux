@@ -390,7 +390,8 @@ static uint32_t parse_clk(char *buf, bool min)
                 if (!ptr)
                         break;
                 ptr+=2;
-                clk = simple_strtoul(ptr, NULL, 10);
+		if (kstrtou32(ptr, 10, &clk))
+			return 0;
         } while (!min);
 
         return clk * 100;

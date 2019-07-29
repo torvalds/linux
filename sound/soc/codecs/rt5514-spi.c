@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rt5514-spi.c  --  RT5514 SPI driver
  *
  * Copyright 2015 Realtek Semiconductor Corp.
  * Author: Oder Chiou <oder_chiou@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -473,9 +470,7 @@ static int __maybe_unused rt5514_suspend(struct device *dev)
 
 static int __maybe_unused rt5514_resume(struct device *dev)
 {
-	struct snd_soc_component *component = snd_soc_lookup_component(dev, DRV_NAME);
-	struct rt5514_dsp *rt5514_dsp =
-		snd_soc_component_get_drvdata(component);
+	struct rt5514_dsp *rt5514_dsp = dev_get_drvdata(dev);
 	int irq = to_spi_device(dev)->irq;
 	u8 buf[8];
 

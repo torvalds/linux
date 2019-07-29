@@ -633,7 +633,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 			return -ENOMEM;
 		}
 
-		r = amdgpu_ttm_tt_get_user_pages(bo->tbo.ttm, e->user_pages);
+		r = amdgpu_ttm_tt_get_user_pages(bo, e->user_pages);
 		if (r) {
 			kvfree(e->user_pages);
 			e->user_pages = NULL;

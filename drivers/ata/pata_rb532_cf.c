@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  A low-level PATA driver to handle a Compact Flash connected on the
  *  Mikrotik's RouterBoard 532 board.
@@ -12,11 +13,6 @@
  *  Also was based on the driver for Linux 2.4.xx published by Mikrotik for
  *  their RouterBoard 1xx and 5xx series devices. The original Mikrotik code
  *  seems not to have a license.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  */
 
 #include <linux/gfp.h>

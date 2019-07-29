@@ -273,3 +273,12 @@ MSR_KVM_EOI_EN: 0x4b564d04
 	guest must both read the least significant bit in the memory area and
 	clear it using a single CPU instruction, such as test and clear, or
 	compare and exchange.
+
+MSR_KVM_POLL_CONTROL: 0x4b564d05
+	Control host-side polling.
+
+	data: Bit 0 enables (1) or disables (0) host-side HLT polling logic.
+
+	KVM guests can request the host not to poll on HLT, for example if
+	they are performing polling themselves.
+

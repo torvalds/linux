@@ -35,6 +35,9 @@ struct aq_nic_cfg_s {
 	u32 flow_control;
 	u32 link_speed_msk;
 	u32 wol;
+	u8 is_vlan_rx_strip;
+	u8 is_vlan_tx_insert;
+	bool is_vlan_force_promisc;
 	u16 is_mc_list_enabled;
 	u16 mc_list_count;
 	bool is_autoneg;

@@ -2,9 +2,9 @@
 #include <errno.h>
 #include <string.h>
 #include <regex.h>
+#include <linux/zalloc.h>
 
 #include "../../perf.h"
-#include "../../util/util.h"
 #include "../../util/perf_regs.h"
 #include "../../util/debug.h"
 
@@ -277,7 +277,7 @@ uint64_t arch__intr_reg_mask(void)
 		.type			= PERF_TYPE_HARDWARE,
 		.config			= PERF_COUNT_HW_CPU_CYCLES,
 		.sample_type		= PERF_SAMPLE_REGS_INTR,
-		.sample_regs_intr	= PERF_XMM_REGS_MASK,
+		.sample_regs_intr	= PERF_REG_EXTENDED_MASK,
 		.precise_ip		= 1,
 		.disabled 		= 1,
 		.exclude_kernel		= 1,
@@ -293,7 +293,7 @@ uint64_t arch__intr_reg_mask(void)
 	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
 	if (fd != -1) {
 		close(fd);
-		return (PERF_XMM_REGS_MASK | PERF_REGS_MASK);
+		return (PERF_REG_EXTENDED_MASK | PERF_REGS_MASK);
 	}
 
 	return PERF_REGS_MASK;

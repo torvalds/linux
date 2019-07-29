@@ -10,23 +10,17 @@
 #define REFRESH_TIME_NS	100000000
 #define NS_PER_SEC	1000000000
 
-struct bpf_map_def SEC("maps") percpu_netcnt = {
-	.type = BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE,
-	.key_size = sizeof(struct bpf_cgroup_storage_key),
-	.value_size = sizeof(struct percpu_net_cnt),
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE);
+	__type(key, struct bpf_cgroup_storage_key);
+	__type(value, struct percpu_net_cnt);
+} percpu_netcnt SEC(".maps");
 
-BPF_ANNOTATE_KV_PAIR(percpu_netcnt, struct bpf_cgroup_storage_key,
-		     struct percpu_net_cnt);
-
-struct bpf_map_def SEC("maps") netcnt = {
-	.type = BPF_MAP_TYPE_CGROUP_STORAGE,
-	.key_size = sizeof(struct bpf_cgroup_storage_key),
-	.value_size = sizeof(struct net_cnt),
-};
-
-BPF_ANNOTATE_KV_PAIR(netcnt, struct bpf_cgroup_storage_key,
-		     struct net_cnt);
+struct {
+	__uint(type, BPF_MAP_TYPE_CGROUP_STORAGE);
+	__type(key, struct bpf_cgroup_storage_key);
+	__type(value, struct net_cnt);
+} netcnt SEC(".maps");
 
 SEC("cgroup/skb")
 int bpf_nextcnt(struct __sk_buff *skb)

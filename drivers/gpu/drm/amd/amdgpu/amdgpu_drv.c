@@ -140,8 +140,9 @@ uint amdgpu_smu_memory_pool_size = 0;
 uint amdgpu_dc_feature_mask = 0;
 int amdgpu_async_gfx_ring = 1;
 int amdgpu_mcbp = 0;
-int amdgpu_discovery = 0;
+int amdgpu_discovery = -1;
 int amdgpu_mes = 0;
+int amdgpu_noretry;
 
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
@@ -247,7 +248,8 @@ module_param_named(msi, amdgpu_msi, int, 0444);
  * By default(with no lockup_timeout settings), the timeout for all non-compute(GFX, SDMA and Video)
  * jobs is 10000. And there is no timeout enforced on compute jobs.
  */
-MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (default: 10000 for non-compute jobs and no timeout for compute jobs), "
+MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (default: 10000 for non-compute jobs and infinity timeout for compute jobs."
+		" 0: keep default value. negative: infinity timeout), "
 		"format is [Non-Compute] or [GFX,Compute,SDMA,Video]");
 module_param_string(lockup_timeout, amdgpu_lockup_timeout, sizeof(amdgpu_lockup_timeout), 0444);
 
@@ -581,17 +583,35 @@ MODULE_PARM_DESC(async_gfx_ring,
 	"Asynchronous GFX rings that could be configured with either different priorities (HP3D ring and LP3D ring), or equal priorities (0 = disabled, 1 = enabled (default))");
 module_param_named(async_gfx_ring, amdgpu_async_gfx_ring, int, 0444);
 
+/**
+ * DOC: mcbp (int)
+ * It is used to enable mid command buffer preemption. (0 = disabled (default), 1 = enabled)
+ */
 MODULE_PARM_DESC(mcbp,
 	"Enable Mid-command buffer preemption (0 = disabled (default), 1 = enabled)");
 module_param_named(mcbp, amdgpu_mcbp, int, 0444);
 
+/**
+ * DOC: discovery (int)
+ * Allow driver to discover hardware IP information from IP Discovery table at the top of VRAM.
+ * (-1 = auto (default), 0 = disabled, 1 = enabled)
+ */
 MODULE_PARM_DESC(discovery,
 	"Allow driver to discover hardware IPs from IP Discovery table at the top of VRAM");
 module_param_named(discovery, amdgpu_discovery, int, 0444);
 
+/**
+ * DOC: mes (int)
+ * Enable Micro Engine Scheduler. This is a new hw scheduling engine for gfx, sdma, and compute.
+ * (0 = disabled (default), 1 = enabled)
+ */
 MODULE_PARM_DESC(mes,
 	"Enable Micro Engine Scheduler (0 = disabled (default), 1 = enabled)");
 module_param_named(mes, amdgpu_mes, int, 0444);
+
+MODULE_PARM_DESC(noretry,
+	"Disable retry faults (0 = retry enabled (default), 1 = retry disabled)");
+module_param_named(noretry, amdgpu_noretry, int, 0644);
 
 #ifdef CONFIG_HSA_AMD
 /**
@@ -667,17 +687,6 @@ int ignore_crat;
 module_param(ignore_crat, int, 0444);
 MODULE_PARM_DESC(ignore_crat,
 	"Ignore CRAT table during KFD initialization (0 = use CRAT (default), 1 = ignore CRAT)");
-
-/**
- * DOC: noretry (int)
- * This parameter sets sh_mem_config.retry_disable. Default value, 0, enables retry.
- * Setting 1 disables retry.
- * Retry is needed for recoverable page faults.
- */
-int noretry;
-module_param(noretry, int, 0644);
-MODULE_PARM_DESC(noretry,
-	"Set sh_mem_config.retry_disable on Vega10 (0 = retry enabled (default), 1 = retry disabled)");
 
 /**
  * DOC: halt_if_hws_hang (int)
@@ -1302,7 +1311,8 @@ int amdgpu_device_get_job_timeout_settings(struct amdgpu_device *adev)
 	 * By default timeout for non compute jobs is 10000.
 	 * And there is no timeout enforced on compute jobs.
 	 */
-	adev->gfx_timeout = adev->sdma_timeout = adev->video_timeout = 10000;
+	adev->gfx_timeout = msecs_to_jiffies(10000);
+	adev->sdma_timeout = adev->video_timeout = adev->gfx_timeout;
 	adev->compute_timeout = MAX_SCHEDULE_TIMEOUT;
 
 	if (strnlen(input, AMDGPU_MAX_TIMEOUT_PARAM_LENTH)) {
@@ -1312,10 +1322,13 @@ int amdgpu_device_get_job_timeout_settings(struct amdgpu_device *adev)
 			if (ret)
 				return ret;
 
-			/* Invalidate 0 and negative values */
-			if (timeout <= 0) {
+			if (timeout == 0) {
 				index++;
 				continue;
+			} else if (timeout < 0) {
+				timeout = MAX_SCHEDULE_TIMEOUT;
+			} else {
+				timeout = msecs_to_jiffies(timeout);
 			}
 
 			switch (index++) {

@@ -147,13 +147,13 @@ static const struct dma_map_ops ibmebus_dma_ops = {
 	.unmap_page         = ibmebus_unmap_page,
 };
 
-static int ibmebus_match_path(struct device *dev, void *data)
+static int ibmebus_match_path(struct device *dev, const void *data)
 {
 	struct device_node *dn = to_platform_device(dev)->dev.of_node;
 	return (of_find_node_by_path(data) == dn);
 }
 
-static int ibmebus_match_node(struct device *dev, void *data)
+static int ibmebus_match_node(struct device *dev, const void *data)
 {
 	return to_platform_device(dev)->dev.of_node == data;
 }

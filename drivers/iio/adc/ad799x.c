@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * iio/adc/ad799x.c
  * Copyright (C) 2010-2011 Michael Hennerich, Analog Devices Inc.
@@ -11,15 +12,10 @@
  * based on linux/drivers/acron/char/pcf8583.c
  * Copyright (C) 2000 Russell King
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * ad799x.c
  *
  * Support for ad7991, ad7995, ad7999, ad7992, ad7993, ad7994, ad7997,
  * ad7998 and similar chips.
- *
  */
 
 #include <linux/interrupt.h>

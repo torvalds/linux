@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  skl-sst-utils.c - SKL sst utils functions
  *
  *  Copyright (C) 2016 Intel Corp
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/device.h>
@@ -21,16 +13,10 @@
 #include "../common/sst-dsp-priv.h"
 #include "skl-sst-ipc.h"
 
-
-#define UUID_STR_SIZE 37
 #define DEFAULT_HASH_SHA256_LEN 32
 
 /* FW Extended Manifest Header id = $AE1 */
 #define SKL_EXT_MANIFEST_HEADER_MAGIC   0x31454124
-
-struct UUID {
-	u8 id[16];
-};
 
 union seg_flags {
 	u32 ul;
@@ -65,7 +51,7 @@ struct module_type {
 struct adsp_module_entry {
 	u32 struct_id;
 	u8  name[8];
-	struct UUID uuid;
+	u8  uuid[16];
 	struct module_type type;
 	u8  hash1[DEFAULT_HASH_SHA256_LEN];
 	u32 entry_point;
@@ -184,13 +170,13 @@ static inline int skl_pvtid_128(struct uuid_module *module)
  * This generates a 128 bit private unique id for a module TYPE so that
  * module instance is unique
  */
-int skl_get_pvt_id(struct skl_sst *ctx, uuid_le *uuid_mod, int instance_id)
+int skl_get_pvt_id(struct skl_sst *ctx, guid_t *uuid_mod, int instance_id)
 {
 	struct uuid_module *module;
 	int pvt_id;
 
 	list_for_each_entry(module, &ctx->uuid_list, list) {
-		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
+		if (guid_equal(uuid_mod, &module->uuid)) {
 
 			pvt_id = skl_pvtid_128(module);
 			if (pvt_id >= 0) {
@@ -214,13 +200,13 @@ EXPORT_SYMBOL_GPL(skl_get_pvt_id);
  *
  * This frees a 128 bit private unique id previously generated
  */
-int skl_put_pvt_id(struct skl_sst *ctx, uuid_le *uuid_mod, int *pvt_id)
+int skl_put_pvt_id(struct skl_sst *ctx, guid_t *uuid_mod, int *pvt_id)
 {
 	int i;
 	struct uuid_module *module;
 
 	list_for_each_entry(module, &ctx->uuid_list, list) {
-		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
+		if (guid_equal(uuid_mod, &module->uuid)) {
 
 			if (*pvt_id != 0)
 				i = (*pvt_id) / 64;
@@ -247,7 +233,6 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 	struct adsp_fw_hdr *adsp_hdr;
 	struct adsp_module_entry *mod_entry;
 	int i, num_entry, size;
-	uuid_le *uuid_bin;
 	const char *buf;
 	struct skl_sst *skl = ctx->thread_context;
 	struct uuid_module *module;
@@ -279,8 +264,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 		return -EINVAL;
 	}
 
-	mod_entry = (struct adsp_module_entry *)
-		(buf + offset + adsp_hdr->len);
+	mod_entry = (struct adsp_module_entry *)(buf + offset + adsp_hdr->len);
 
 	num_entry = adsp_hdr->num_modules;
 
@@ -307,8 +291,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 			goto free_uuid_list;
 		}
 
-		uuid_bin = (uuid_le *)mod_entry->uuid.id;
-		memcpy(&module->uuid, uuid_bin, sizeof(module->uuid));
+		guid_copy(&module->uuid, (guid_t *)&mod_entry->uuid);
 
 		module->id = (i | (index << 12));
 		module->is_loadable = mod_entry->type.load_type;

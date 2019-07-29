@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ASoC driver for TI DAVINCI EVM platform
  *
  * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -143,103 +140,127 @@ static int evm_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* davinci-evm digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(dm6446,
+	DAILINK_COMP_ARRAY(COMP_CPU("davinci-mcbsp")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic3x-codec.1-001b",
+				      "tlv320aic3x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("davinci-mcbsp")));
+
 static struct snd_soc_dai_link dm6446_evm_dai = {
 	.name = "TLV320AIC3X",
 	.stream_name = "AIC3X",
-	.cpu_dai_name = "davinci-mcbsp",
-	.codec_dai_name = "tlv320aic3x-hifi",
-	.codec_name = "tlv320aic3x-codec.1-001b",
-	.platform_name = "davinci-mcbsp",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
 	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
 		   SND_SOC_DAIFMT_IB_NF,
+	SND_SOC_DAILINK_REG(dm6446),
 };
+
+SND_SOC_DAILINK_DEFS(dm355,
+	DAILINK_COMP_ARRAY(COMP_CPU("davinci-mcbsp.1")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic3x-codec.1-001b",
+				      "tlv320aic3x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("davinci-mcbsp.1")));
 
 static struct snd_soc_dai_link dm355_evm_dai = {
 	.name = "TLV320AIC3X",
 	.stream_name = "AIC3X",
-	.cpu_dai_name = "davinci-mcbsp.1",
-	.codec_dai_name = "tlv320aic3x-hifi",
-	.codec_name = "tlv320aic3x-codec.1-001b",
-	.platform_name = "davinci-mcbsp.1",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
 	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
 		   SND_SOC_DAIFMT_IB_NF,
+	SND_SOC_DAILINK_REG(dm355),
 };
+
+#ifdef CONFIG_SND_SOC_DM365_AIC3X_CODEC
+SND_SOC_DAILINK_DEFS(dm365,
+	DAILINK_COMP_ARRAY(COMP_CPU("davinci-mcbsp")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic3x-codec.1-0018",
+				      "tlv320aic3x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("davinci-mcbsp")));
+#elif defined(CONFIG_SND_SOC_DM365_VOICE_CODEC)
+SND_SOC_DAILINK_DEFS(dm365,
+	DAILINK_COMP_ARRAY(COMP_CPU("davinci-vcif")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("cq93vc-codec", "cq93vc-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("davinci-vcif")));
+#endif
 
 static struct snd_soc_dai_link dm365_evm_dai = {
 #ifdef CONFIG_SND_SOC_DM365_AIC3X_CODEC
 	.name = "TLV320AIC3X",
 	.stream_name = "AIC3X",
-	.cpu_dai_name = "davinci-mcbsp",
-	.codec_dai_name = "tlv320aic3x-hifi",
-	.codec_name = "tlv320aic3x-codec.1-0018",
-	.platform_name = "davinci-mcbsp",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
 	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
 		   SND_SOC_DAIFMT_IB_NF,
+	SND_SOC_DAILINK_REG(dm365),
 #elif defined(CONFIG_SND_SOC_DM365_VOICE_CODEC)
 	.name = "Voice Codec - CQ93VC",
 	.stream_name = "CQ93",
-	.cpu_dai_name = "davinci-vcif",
-	.codec_dai_name = "cq93vc-hifi",
-	.codec_name = "cq93vc-codec",
-	.platform_name = "davinci-vcif",
+	SND_SOC_DAILINK_REG(dm365),
 #endif
 };
+
+SND_SOC_DAILINK_DEFS(dm6467_aic3x,
+	DAILINK_COMP_ARRAY(COMP_CPU("davinci-mcasp.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic3x-codec.0-001a",
+				      "tlv320aic3x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("davinci-mcasp.0")));
+
+SND_SOC_DAILINK_DEFS(dm6467_spdif,
+	DAILINK_COMP_ARRAY(COMP_CPU("davinci-mcasp.1")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("spdif_dit", "dit-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("davinci-mcasp.1")));
 
 static struct snd_soc_dai_link dm6467_evm_dai[] = {
 	{
 		.name = "TLV320AIC3X",
 		.stream_name = "AIC3X",
-		.cpu_dai_name= "davinci-mcasp.0",
-		.codec_dai_name = "tlv320aic3x-hifi",
-		.platform_name = "davinci-mcasp.0",
-		.codec_name = "tlv320aic3x-codec.0-001a",
 		.init = evm_aic3x_init,
 		.ops = &evm_ops,
 		.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
 			   SND_SOC_DAIFMT_IB_NF,
+		SND_SOC_DAILINK_REG(dm6467_aic3x),
 	},
 	{
 		.name = "McASP",
 		.stream_name = "spdif",
-		.cpu_dai_name= "davinci-mcasp.1",
-		.codec_dai_name = "dit-hifi",
-		.codec_name = "spdif_dit",
-		.platform_name = "davinci-mcasp.1",
 		.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
 			   SND_SOC_DAIFMT_IB_NF,
+		SND_SOC_DAILINK_REG(dm6467_spdif),
 	},
 };
+
+SND_SOC_DAILINK_DEFS(da830,
+	DAILINK_COMP_ARRAY(COMP_CPU("davinci-mcasp.1")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic3x-codec.1-0018",
+				      "tlv320aic3x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("davinci-mcasp.1")));
 
 static struct snd_soc_dai_link da830_evm_dai = {
 	.name = "TLV320AIC3X",
 	.stream_name = "AIC3X",
-	.cpu_dai_name = "davinci-mcasp.1",
-	.codec_dai_name = "tlv320aic3x-hifi",
-	.codec_name = "tlv320aic3x-codec.1-0018",
-	.platform_name = "davinci-mcasp.1",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
 	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
 		   SND_SOC_DAIFMT_IB_NF,
+	SND_SOC_DAILINK_REG(da830),
 };
+
+SND_SOC_DAILINK_DEFS(da850,
+	DAILINK_COMP_ARRAY(COMP_CPU("davinci-mcasp.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("tlv320aic3x-codec.1-0018",
+				      "tlv320aic3x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("davinci-mcasp.0")));
 
 static struct snd_soc_dai_link da850_evm_dai = {
 	.name = "TLV320AIC3X",
 	.stream_name = "AIC3X",
-	.cpu_dai_name= "davinci-mcasp.0",
-	.codec_dai_name = "tlv320aic3x-hifi",
-	.codec_name = "tlv320aic3x-codec.1-0018",
-	.platform_name = "davinci-mcasp.0",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
 	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
 		   SND_SOC_DAIFMT_IB_NF,
+	SND_SOC_DAILINK_REG(da850),
 };
 
 /* davinci dm6446 evm audio machine driver */
@@ -330,14 +351,19 @@ static struct snd_soc_card da850_snd_soc_card = {
  * The struct is used as place holder. It will be completely
  * filled with data from dt node.
  */
+SND_SOC_DAILINK_DEFS(evm,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "tlv320aic3x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link evm_dai_tlv320aic3x = {
 	.name		= "TLV320AIC3X",
 	.stream_name	= "AIC3X",
-	.codec_dai_name	= "tlv320aic3x-hifi",
 	.ops            = &evm_ops,
 	.init           = evm_aic3x_init,
 	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
 		   SND_SOC_DAIFMT_IB_NF,
+	SND_SOC_DAILINK_REG(evm),
 };
 
 static const struct of_device_id davinci_evm_dt_ids[] = {
@@ -374,15 +400,15 @@ static int davinci_evm_probe(struct platform_device *pdev)
 
 	evm_soc_card.dai_link = dai;
 
-	dai->codec_of_node = of_parse_phandle(np, "ti,audio-codec", 0);
-	if (!dai->codec_of_node)
+	dai->codecs->of_node = of_parse_phandle(np, "ti,audio-codec", 0);
+	if (!dai->codecs->of_node)
 		return -EINVAL;
 
-	dai->cpu_of_node = of_parse_phandle(np, "ti,mcasp-controller", 0);
-	if (!dai->cpu_of_node)
+	dai->cpus->of_node = of_parse_phandle(np, "ti,mcasp-controller", 0);
+	if (!dai->cpus->of_node)
 		return -EINVAL;
 
-	dai->platform_of_node = dai->cpu_of_node;
+	dai->platforms->of_node = dai->cpus->of_node;
 
 	evm_soc_card.dev = &pdev->dev;
 	ret = snd_soc_of_parse_card_name(&evm_soc_card, "ti,model");

@@ -36,7 +36,6 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_bss_prio_node *bss_prio;
 	struct mwifiex_bss_prio_tbl *tbl = adapter->bss_prio_tbl;
-	unsigned long flags;
 
 	bss_prio = kzalloc(sizeof(struct mwifiex_bss_prio_node), GFP_KERNEL);
 	if (!bss_prio)
@@ -45,9 +44,9 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	bss_prio->priv = priv;
 	INIT_LIST_HEAD(&bss_prio->list);
 
-	spin_lock_irqsave(&tbl[priv->bss_priority].bss_prio_lock, flags);
+	spin_lock_bh(&tbl[priv->bss_priority].bss_prio_lock);
 	list_add_tail(&bss_prio->list, &tbl[priv->bss_priority].bss_prio_head);
-	spin_unlock_irqrestore(&tbl[priv->bss_priority].bss_prio_lock, flags);
+	spin_unlock_bh(&tbl[priv->bss_priority].bss_prio_lock);
 
 	return 0;
 }
@@ -344,11 +343,9 @@ void mwifiex_set_trans_start(struct net_device *dev)
 void mwifiex_wake_up_net_dev_queue(struct net_device *netdev,
 					struct mwifiex_adapter *adapter)
 {
-	unsigned long dev_queue_flags;
-
-	spin_lock_irqsave(&adapter->queue_lock, dev_queue_flags);
+	spin_lock_bh(&adapter->queue_lock);
 	netif_tx_wake_all_queues(netdev);
-	spin_unlock_irqrestore(&adapter->queue_lock, dev_queue_flags);
+	spin_unlock_bh(&adapter->queue_lock);
 }
 
 /*
@@ -357,11 +354,9 @@ void mwifiex_wake_up_net_dev_queue(struct net_device *netdev,
 void mwifiex_stop_net_dev_queue(struct net_device *netdev,
 					struct mwifiex_adapter *adapter)
 {
-	unsigned long dev_queue_flags;
-
-	spin_lock_irqsave(&adapter->queue_lock, dev_queue_flags);
+	spin_lock_bh(&adapter->queue_lock);
 	netif_tx_stop_all_queues(netdev);
-	spin_unlock_irqrestore(&adapter->queue_lock, dev_queue_flags);
+	spin_unlock_bh(&adapter->queue_lock);
 }
 
 /*
@@ -506,7 +501,6 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 	struct mwifiex_private *priv;
 	u8 i, first_sta = true;
 	int is_cmd_pend_q_empty;
-	unsigned long flags;
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
 
@@ -547,9 +541,9 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 		}
 	}
 
-	spin_lock_irqsave(&adapter->cmd_pending_q_lock, flags);
+	spin_lock_bh(&adapter->cmd_pending_q_lock);
 	is_cmd_pend_q_empty = list_empty(&adapter->cmd_pending_q);
-	spin_unlock_irqrestore(&adapter->cmd_pending_q_lock, flags);
+	spin_unlock_bh(&adapter->cmd_pending_q_lock);
 	if (!is_cmd_pend_q_empty) {
 		/* Send the first command in queue and return */
 		if (mwifiex_main_process(adapter) != -1)
@@ -574,7 +568,6 @@ static void mwifiex_delete_bss_prio_tbl(struct mwifiex_private *priv)
 	struct mwifiex_bss_prio_node *bssprio_node, *tmp_node;
 	struct list_head *head;
 	spinlock_t *lock; /* bss priority lock */
-	unsigned long flags;
 
 	for (i = 0; i < adapter->priv_num; ++i) {
 		head = &adapter->bss_prio_tbl[i].bss_prio_head;
@@ -586,7 +579,7 @@ static void mwifiex_delete_bss_prio_tbl(struct mwifiex_private *priv)
 			    priv->bss_type, priv->bss_num, i, head);
 
 		{
-			spin_lock_irqsave(lock, flags);
+			spin_lock_bh(lock);
 			list_for_each_entry_safe(bssprio_node, tmp_node, head,
 						 list) {
 				if (bssprio_node->priv == priv) {
@@ -598,7 +591,7 @@ static void mwifiex_delete_bss_prio_tbl(struct mwifiex_private *priv)
 					kfree(bssprio_node);
 				}
 			}
-			spin_unlock_irqrestore(lock, flags);
+			spin_unlock_bh(lock);
 		}
 	}
 }
@@ -630,7 +623,6 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_private *priv;
 	s32 i;
-	unsigned long flags;
 	struct sk_buff *skb;
 
 	/* mwifiex already shutdown */
@@ -665,7 +657,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 	while ((skb = skb_dequeue(&adapter->tx_data_q)))
 		mwifiex_write_data_complete(adapter, skb, 0, 0);
 
-	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
+	spin_lock_bh(&adapter->rx_proc_lock);
 
 	while ((skb = skb_dequeue(&adapter->rx_data_q))) {
 		struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
@@ -678,7 +670,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 		dev_kfree_skb_any(skb);
 	}
 
-	spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+	spin_unlock_bh(&adapter->rx_proc_lock);
 
 	mwifiex_adapter_cleanup(adapter);
 

@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/err.h>
+#include <linux/zalloc.h>
 #include "debug.h"
 #include "llvm-utils.h"
 #include "config.h"
@@ -352,8 +353,7 @@ void llvm__get_kbuild_opts(char **kbuild_dir, char **kbuild_include_opts)
 "     \toption in [llvm] to \"\" to suppress this detection.\n\n",
 			*kbuild_dir);
 
-		free(*kbuild_dir);
-		*kbuild_dir = NULL;
+		zfree(kbuild_dir);
 		goto errout;
 	}
 

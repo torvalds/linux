@@ -1913,7 +1913,7 @@ static int sctp_sendmsg_to_asoc(struct sctp_association *asoc,
 		if (err)
 			goto err;
 
-		if (sp->strm_interleave) {
+		if (asoc->ep->intl_enable) {
 			timeo = sock_sndtimeo(sk, 0);
 			err = sctp_wait_for_connect(asoc, &timeo);
 			if (err) {
@@ -3581,7 +3581,7 @@ static int sctp_setsockopt_fragment_interleave(struct sock *sk,
 	sctp_sk(sk)->frag_interleave = !!val;
 
 	if (!sctp_sk(sk)->frag_interleave)
-		sctp_sk(sk)->strm_interleave = 0;
+		sctp_sk(sk)->ep->intl_enable = 0;
 
 	return 0;
 }
@@ -4226,10 +4226,7 @@ static int sctp_setsockopt_reconfig_supported(struct sock *sk,
 	    sctp_style(sk, UDP))
 		goto out;
 
-	if (asoc)
-		asoc->reconf_enable = !!params.assoc_value;
-	else
-		sctp_sk(sk)->ep->reconf_enable = !!params.assoc_value;
+	sctp_sk(sk)->ep->reconf_enable = !!params.assoc_value;
 
 	retval = 0;
 
@@ -4487,7 +4484,7 @@ static int sctp_setsockopt_interleaving_supported(struct sock *sk,
 		goto out;
 	}
 
-	sp->strm_interleave = !!params.assoc_value;
+	sp->ep->intl_enable = !!params.assoc_value;
 
 	retval = 0;
 
@@ -4816,35 +4813,17 @@ out_nounlock:
 static int sctp_connect(struct sock *sk, struct sockaddr *addr,
 			int addr_len, int flags)
 {
-	struct inet_sock *inet = inet_sk(sk);
 	struct sctp_af *af;
-	int err = 0;
+	int err = -EINVAL;
 
 	lock_sock(sk);
-
 	pr_debug("%s: sk:%p, sockaddr:%p, addr_len:%d\n", __func__, sk,
 		 addr, addr_len);
 
-	/* We may need to bind the socket. */
-	if (!inet->inet_num) {
-		if (sk->sk_prot->get_port(sk, 0)) {
-			release_sock(sk);
-			return -EAGAIN;
-		}
-		inet->inet_sport = htons(inet->inet_num);
-	}
-
 	/* Validate addr_len before calling common connect/connectx routine. */
-	af = addr_len < offsetofend(struct sockaddr, sa_family) ? NULL :
-		sctp_get_af_specific(addr->sa_family);
-	if (!af || addr_len < af->sockaddr_len) {
-		err = -EINVAL;
-	} else {
-		/* Pass correct addr len to common routine (so it knows there
-		 * is only one address being passed.
-		 */
+	af = sctp_get_af_specific(addr->sa_family);
+	if (af && addr_len >= af->sockaddr_len)
 		err = __sctp_connect(sk, addr, af->sockaddr_len, flags, NULL);
-	}
 
 	release_sock(sk);
 	return err;
@@ -7346,7 +7325,7 @@ static int sctp_getsockopt_pr_supported(struct sock *sk, int len,
 		goto out;
 	}
 
-	params.assoc_value = asoc ? asoc->prsctp_enable
+	params.assoc_value = asoc ? asoc->peer.prsctp_capable
 				  : sctp_sk(sk)->ep->prsctp_enable;
 
 	if (put_user(len, optlen))
@@ -7554,7 +7533,7 @@ static int sctp_getsockopt_reconfig_supported(struct sock *sk, int len,
 		goto out;
 	}
 
-	params.assoc_value = asoc ? asoc->reconf_enable
+	params.assoc_value = asoc ? asoc->peer.reconf_capable
 				  : sctp_sk(sk)->ep->reconf_enable;
 
 	if (put_user(len, optlen))
@@ -7713,8 +7692,8 @@ static int sctp_getsockopt_interleaving_supported(struct sock *sk, int len,
 		goto out;
 	}
 
-	params.assoc_value = asoc ? asoc->intl_enable
-				  : sctp_sk(sk)->strm_interleave;
+	params.assoc_value = asoc ? asoc->peer.intl_capable
+				  : sctp_sk(sk)->ep->intl_enable;
 
 	if (put_user(len, optlen))
 		goto out;

@@ -76,12 +76,32 @@ struct ib_umem_odp {
 
 	struct completion	notifier_completion;
 	int			dying;
+	unsigned int		page_shift;
 	struct work_struct	work;
 };
 
 static inline struct ib_umem_odp *to_ib_umem_odp(struct ib_umem *umem)
 {
 	return container_of(umem, struct ib_umem_odp, umem);
+}
+
+/* Returns the first page of an ODP umem. */
+static inline unsigned long ib_umem_start(struct ib_umem_odp *umem_odp)
+{
+	return ALIGN_DOWN(umem_odp->umem.address, 1UL << umem_odp->page_shift);
+}
+
+/* Returns the address of the page after the last one of an ODP umem. */
+static inline unsigned long ib_umem_end(struct ib_umem_odp *umem_odp)
+{
+	return ALIGN(umem_odp->umem.address + umem_odp->umem.length,
+		     1UL << umem_odp->page_shift);
+}
+
+static inline size_t ib_umem_odp_num_pages(struct ib_umem_odp *umem_odp)
+{
+	return (ib_umem_end(umem_odp) - ib_umem_start(umem_odp)) >>
+	       umem_odp->page_shift;
 }
 
 /*

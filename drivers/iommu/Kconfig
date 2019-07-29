@@ -473,4 +473,15 @@ config HYPERV_IOMMU
 	  Stub IOMMU driver to handle IRQs as to allow Hyper-V Linux
 	  guests to run with x2APIC mode enabled.
 
+config VIRTIO_IOMMU
+	bool "Virtio IOMMU driver"
+	depends on VIRTIO=y
+	depends on ARM64
+	select IOMMU_API
+	select INTERVAL_TREE
+	help
+	  Para-virtualised IOMMU driver with virtio.
+
+	  Say Y here if you intend to run this kernel as a guest.
+
 endif # IOMMU_SUPPORT

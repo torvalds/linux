@@ -195,7 +195,7 @@ struct amdgpu_gfx_funcs {
 				uint32_t wave, uint32_t start, uint32_t size,
 				uint32_t *dst);
 	void (*select_me_pipe_q)(struct amdgpu_device *adev, u32 me, u32 pipe,
-				 u32 queue);
+				 u32 queue, u32 vmid);
 };
 
 struct amdgpu_ngg_buf {
@@ -327,7 +327,7 @@ struct amdgpu_gfx {
 
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
 #define amdgpu_gfx_select_se_sh(adev, se, sh, instance) (adev)->gfx.funcs->select_se_sh((adev), (se), (sh), (instance))
-#define amdgpu_gfx_select_me_pipe_q(adev, me, pipe, q) (adev)->gfx.funcs->select_me_pipe_q((adev), (me), (pipe), (q))
+#define amdgpu_gfx_select_me_pipe_q(adev, me, pipe, q, vmid) (adev)->gfx.funcs->select_me_pipe_q((adev), (me), (pipe), (q), (vmid))
 
 /**
  * amdgpu_gfx_create_bitmask - create a bitmask

@@ -218,7 +218,7 @@ static int pcm_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int pcm_capture_hw_params(struct snd_pcm_substream *substream,
+static int pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_efw *efw = substream->private_data;
@@ -230,58 +230,30 @@ static int pcm_capture_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		unsigned int rate = params_rate(hw_params);
+
 		mutex_lock(&efw->mutex);
-		efw->capture_substreams++;
+		err = snd_efw_stream_reserve_duplex(efw, rate);
+		if (err >= 0)
+			++efw->substreams_counter;
 		mutex_unlock(&efw->mutex);
 	}
 
-	return 0;
-}
-static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
-				  struct snd_pcm_hw_params *hw_params)
-{
-	struct snd_efw *efw = substream->private_data;
-	int err;
-
-	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
-					       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
-
-	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
-		mutex_lock(&efw->mutex);
-		efw->playback_substreams++;
-		mutex_unlock(&efw->mutex);
-	}
-
-	return 0;
+	return err;
 }
 
-static int pcm_capture_hw_free(struct snd_pcm_substream *substream)
+static int pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_efw *efw = substream->private_data;
 
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
-		mutex_lock(&efw->mutex);
-		efw->capture_substreams--;
-		mutex_unlock(&efw->mutex);
-	}
+	mutex_lock(&efw->mutex);
+
+	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
+		--efw->substreams_counter;
 
 	snd_efw_stream_stop_duplex(efw);
 
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
-}
-static int pcm_playback_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_efw *efw = substream->private_data;
-
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
-		mutex_lock(&efw->mutex);
-		efw->playback_substreams--;
-		mutex_unlock(&efw->mutex);
-	}
-
-	snd_efw_stream_stop_duplex(efw);
+	mutex_unlock(&efw->mutex);
 
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
 }
@@ -289,10 +261,9 @@ static int pcm_playback_hw_free(struct snd_pcm_substream *substream)
 static int pcm_capture_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_efw *efw = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	err = snd_efw_stream_start_duplex(efw, runtime->rate);
+	err = snd_efw_stream_start_duplex(efw);
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(&efw->tx_stream);
 
@@ -301,10 +272,9 @@ static int pcm_capture_prepare(struct snd_pcm_substream *substream)
 static int pcm_playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_efw *efw = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	err = snd_efw_stream_start_duplex(efw, runtime->rate);
+	err = snd_efw_stream_start_duplex(efw);
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(&efw->rx_stream);
 
@@ -377,8 +347,8 @@ int snd_efw_create_pcm_devices(struct snd_efw *efw)
 		.open		= pcm_open,
 		.close		= pcm_close,
 		.ioctl		= snd_pcm_lib_ioctl,
-		.hw_params	= pcm_capture_hw_params,
-		.hw_free	= pcm_capture_hw_free,
+		.hw_params	= pcm_hw_params,
+		.hw_free	= pcm_hw_free,
 		.prepare	= pcm_capture_prepare,
 		.trigger	= pcm_capture_trigger,
 		.pointer	= pcm_capture_pointer,
@@ -389,8 +359,8 @@ int snd_efw_create_pcm_devices(struct snd_efw *efw)
 		.open		= pcm_open,
 		.close		= pcm_close,
 		.ioctl		= snd_pcm_lib_ioctl,
-		.hw_params	= pcm_playback_hw_params,
-		.hw_free	= pcm_playback_hw_free,
+		.hw_params	= pcm_hw_params,
+		.hw_free	= pcm_hw_free,
 		.prepare	= pcm_playback_prepare,
 		.trigger	= pcm_playback_trigger,
 		.pointer	= pcm_playback_pointer,

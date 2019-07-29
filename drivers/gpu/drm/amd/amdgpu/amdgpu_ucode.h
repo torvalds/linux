@@ -85,6 +85,9 @@ struct psp_firmware_header_v1_1 {
 	uint32_t toc_header_version;
 	uint32_t toc_offset_bytes;
 	uint32_t toc_size_bytes;
+	uint32_t kdb_header_version;
+	uint32_t kdb_offset_bytes;
+	uint32_t kdb_size_bytes;
 };
 
 /* version_major=1, version_minor=0 */

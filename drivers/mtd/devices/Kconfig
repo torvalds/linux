@@ -48,7 +48,7 @@ config MTD_MS02NV
 
 	  If you want to compile this driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.rst>.
 	  The module will be called ms02-nv.
 
 config MTD_DATAFLASH

@@ -24,14 +24,19 @@ static int dvb_usb_v2_generic_io(struct dvb_usb_device *d,
 	ret = usb_bulk_msg(d->udev, usb_sndbulkpipe(d->udev,
 			d->props->generic_bulk_ctrl_endpoint), wbuf, wlen,
 			&actual_length, 2000);
-	if (ret < 0)
+	if (ret) {
 		dev_err(&d->udev->dev, "%s: usb_bulk_msg() failed=%d\n",
 				KBUILD_MODNAME, ret);
-	else
-		ret = actual_length != wlen ? -EIO : 0;
+		return ret;
+	}
+	if (actual_length != wlen) {
+		dev_err(&d->udev->dev, "%s: usb_bulk_msg() write length=%d, actual=%d\n",
+			KBUILD_MODNAME, wlen, actual_length);
+		return -EIO;
+	}
 
-	/* an answer is expected, and no error before */
-	if (!ret && rbuf && rlen) {
+	/* an answer is expected */
+	if (rbuf && rlen) {
 		if (d->props->generic_bulk_ctrl_delay)
 			usleep_range(d->props->generic_bulk_ctrl_delay,
 					d->props->generic_bulk_ctrl_delay

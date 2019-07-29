@@ -199,9 +199,7 @@ void die(struct pt_regs *regs, const char *str)
 #ifdef CONFIG_PREEMPT
 	pr_cont("PREEMPT ");
 #endif
-#ifdef CONFIG_SMP
 	pr_cont("SMP ");
-#endif
 	if (debug_pagealloc_enabled())
 		pr_cont("DEBUG_PAGEALLOC");
 	pr_cont("\n");

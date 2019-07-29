@@ -111,7 +111,7 @@ static void parse_args(int argc, char **argv)
 int main(int argc, char **argv)
 {
 	char line[BUFSIZE], sym[BUFSIZE] = "<unknown>";
-	unsigned char insn_buf[16];
+	unsigned char insn_buff[16];
 	struct insn insn;
 	int insns = 0;
 	int warnings = 0;
@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 		}
 
 		insns++;
-		memset(insn_buf, 0, 16);
+		memset(insn_buff, 0, 16);
 		strcpy(copy, line);
 		tab1 = strchr(copy, '\t');
 		if (!tab1)
@@ -143,13 +143,13 @@ int main(int argc, char **argv)
 		*tab2 = '\0';	/* Characters beyond tab2 aren't examined */
 		while (s < tab2) {
 			if (sscanf(s, "%x", &b) == 1) {
-				insn_buf[nb++] = (unsigned char) b;
+				insn_buff[nb++] = (unsigned char) b;
 				s += 3;
 			} else
 				break;
 		}
 		/* Decode an instruction */
-		insn_init(&insn, insn_buf, sizeof(insn_buf), x86_64);
+		insn_init(&insn, insn_buff, sizeof(insn_buff), x86_64);
 		insn_get_length(&insn);
 		if (insn.length != nb) {
 			warnings++;

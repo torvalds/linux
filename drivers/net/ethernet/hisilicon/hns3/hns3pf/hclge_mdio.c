@@ -55,9 +55,9 @@ static int hclge_mdio_write(struct mii_bus *bus, int phyid, int regnum,
 	mdio_cmd = (struct hclge_mdio_cfg_cmd *)desc.data;
 
 	hnae3_set_field(mdio_cmd->phyid, HCLGE_MDIO_PHYID_M,
-			HCLGE_MDIO_PHYID_S, phyid);
+			HCLGE_MDIO_PHYID_S, (u32)phyid);
 	hnae3_set_field(mdio_cmd->phyad, HCLGE_MDIO_PHYREG_M,
-			HCLGE_MDIO_PHYREG_S, regnum);
+			HCLGE_MDIO_PHYREG_S, (u32)regnum);
 
 	hnae3_set_bit(mdio_cmd->ctrl_bit, HCLGE_MDIO_CTRL_START_B, 1);
 	hnae3_set_field(mdio_cmd->ctrl_bit, HCLGE_MDIO_CTRL_ST_M,
@@ -93,9 +93,9 @@ static int hclge_mdio_read(struct mii_bus *bus, int phyid, int regnum)
 	mdio_cmd = (struct hclge_mdio_cfg_cmd *)desc.data;
 
 	hnae3_set_field(mdio_cmd->phyid, HCLGE_MDIO_PHYID_M,
-			HCLGE_MDIO_PHYID_S, phyid);
+			HCLGE_MDIO_PHYID_S, (u32)phyid);
 	hnae3_set_field(mdio_cmd->phyad, HCLGE_MDIO_PHYREG_M,
-			HCLGE_MDIO_PHYREG_S, regnum);
+			HCLGE_MDIO_PHYREG_S, (u32)regnum);
 
 	hnae3_set_bit(mdio_cmd->ctrl_bit, HCLGE_MDIO_CTRL_START_B, 1);
 	hnae3_set_field(mdio_cmd->ctrl_bit, HCLGE_MDIO_CTRL_ST_M,
@@ -223,6 +223,13 @@ int hclge_mac_connect_phy(struct hnae3_handle *handle)
 	linkmode_copy(mask, hdev->hw.mac.supported);
 	linkmode_and(phydev->supported, phydev->supported, mask);
 	linkmode_copy(phydev->advertising, phydev->supported);
+
+	/* supported flag is Pause and Asym Pause, but default advertising
+	 * should be rx on, tx on, so need clear Asym Pause in advertising
+	 * flag
+	 */
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+			   phydev->advertising);
 
 	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ti-dac5571.c - Texas Instruments 8/10/12-bit 1/4-channel DAC driver
  *
@@ -12,10 +13,6 @@
  * http://www.ti.com/lit/ds/symlink/dac5573.pdf
  * http://www.ti.com/lit/ds/symlink/dac6573.pdf
  * http://www.ti.com/lit/ds/symlink/dac7573.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2) as
- * published by the Free Software Foundation.
  */
 
 #include <linux/iio/iio.h>

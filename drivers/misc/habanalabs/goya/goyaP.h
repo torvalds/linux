@@ -126,6 +126,12 @@
 #define VA_DDR_SPACE_SIZE	(VA_DDR_SPACE_END - \
 					VA_DDR_SPACE_START)	/* 128GB */
 
+#if (HL_CPU_ACCESSIBLE_MEM_SIZE != SZ_2M)
+#error "HL_CPU_ACCESSIBLE_MEM_SIZE must be exactly 2MB to enable MMU mapping"
+#endif
+
+#define VA_CPU_ACCESSIBLE_MEM_ADDR	0x8000000000ull
+
 #define DMA_MAX_TRANSFER_SIZE	U32_MAX
 
 #define HW_CAP_PLL		0x00000001
@@ -157,6 +163,7 @@ struct goya_device {
 	u64		ddr_bar_cur_addr;
 	u32		events_stat[GOYA_ASYNC_EVENT_ID_SIZE];
 	u32		hw_cap_initialized;
+	u8		device_cpu_mmu_mappings_done;
 };
 
 void goya_get_fixed_properties(struct hl_device *hdev);
@@ -204,18 +211,14 @@ int goya_armcp_info_get(struct hl_device *hdev);
 int goya_debug_coresight(struct hl_device *hdev, void *data);
 void goya_halt_coresight(struct hl_device *hdev);
 
-void goya_mmu_prepare(struct hl_device *hdev, u32 asid);
-int goya_mmu_clear_pgt_range(struct hl_device *hdev);
-int goya_mmu_set_dram_default_page(struct hl_device *hdev);
-
 int goya_suspend(struct hl_device *hdev);
 int goya_resume(struct hl_device *hdev);
 
 void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry);
 void *goya_get_events_stat(struct hl_device *hdev, u32 *size);
 
-void goya_add_end_of_cb_packets(u64 kernel_address, u32 len, u64 cq_addr,
-				u32 cq_val, u32 msix_vec);
+void goya_add_end_of_cb_packets(struct hl_device *hdev, u64 kernel_address,
+				u32 len, u64 cq_addr, u32 cq_val, u32 msix_vec);
 int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser);
 void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
 				dma_addr_t *dma_handle,	u16 *queue_len);
@@ -225,5 +228,6 @@ void *goya_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle);
 void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 					void *vaddr);
+void goya_mmu_remove_device_cpu_mappings(struct hl_device *hdev);
 
 #endif /* GOYAP_H_ */

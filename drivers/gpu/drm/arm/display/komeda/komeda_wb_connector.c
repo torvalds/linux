@@ -13,7 +13,6 @@ komeda_wb_init_data_flow(struct komeda_layer *wb_layer,
 			 struct komeda_crtc_state *kcrtc_st,
 			 struct komeda_data_flow_cfg *dflow)
 {
-	struct komeda_scaler *scaler = wb_layer->base.pipeline->scalers[0];
 	struct drm_framebuffer *fb = conn_st->writeback_job->fb;
 
 	memset(dflow, 0, sizeof(*dflow));
@@ -28,14 +27,7 @@ komeda_wb_init_data_flow(struct komeda_layer *wb_layer,
 	dflow->pixel_blend_mode = DRM_MODE_BLEND_PIXEL_NONE;
 	dflow->rot = DRM_MODE_ROTATE_0;
 
-	komeda_complete_data_flow_cfg(dflow, fb);
-
-	/* if scaling exceed the acceptable scaler input/output range, try to
-	 * enable split.
-	 */
-	if (dflow->en_scaling && scaler)
-		dflow->en_split = !in_range(&scaler->hsize, dflow->in_w) ||
-				  !in_range(&scaler->hsize, dflow->out_w);
+	komeda_complete_data_flow_cfg(wb_layer, dflow, fb);
 
 	return 0;
 }

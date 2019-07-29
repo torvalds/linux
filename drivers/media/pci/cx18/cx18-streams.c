@@ -411,6 +411,7 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 		return 0;
 
 	num = s->video_dev.num;
+	s->video_dev.device_caps = s->v4l2_dev_caps;	/* device capabilities */
 	/* card number + user defined offset + device offset */
 	if (type != CX18_ENC_STREAM_TYPE_MPG) {
 		struct cx18_stream *s_mpg = &cx->streams[CX18_ENC_STREAM_TYPE_MPG];

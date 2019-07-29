@@ -45,47 +45,10 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <linux/hmm.h>
-#include <linux/interval_tree.h>
-
 #include <drm/drm.h>
 
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
-
-/**
- * struct amdgpu_mn
- *
- * @adev: amdgpu device pointer
- * @mm: process address space
- * @type: type of MMU notifier
- * @work: destruction work item
- * @node: hash table node to find structure by adev and mn
- * @lock: rw semaphore protecting the notifier nodes
- * @objects: interval tree containing amdgpu_mn_nodes
- * @mirror: HMM mirror function support
- *
- * Data for each amdgpu device and process address space.
- */
-struct amdgpu_mn {
-	/* constant after initialisation */
-	struct amdgpu_device	*adev;
-	struct mm_struct	*mm;
-	enum amdgpu_mn_type	type;
-
-	/* only used on destruction */
-	struct work_struct	work;
-
-	/* protected by adev->mn_lock */
-	struct hlist_node	node;
-
-	/* objects protected by lock */
-	struct rw_semaphore	lock;
-	struct rb_root_cached	objects;
-
-	/* HMM mirror */
-	struct hmm_mirror	mirror;
-};
 
 /**
  * struct amdgpu_mn_node

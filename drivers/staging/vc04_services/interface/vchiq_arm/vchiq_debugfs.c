@@ -86,7 +86,7 @@ static ssize_t debugfs_log_write(struct file *file,
 	if (count >= DEBUGFS_WRITE_BUF_SIZE)
 		count = DEBUGFS_WRITE_BUF_SIZE;
 
-	if (copy_from_user(kbuf, buffer, count) != 0)
+	if (copy_from_user(kbuf, buffer, count))
 		return -EFAULT;
 	kbuf[count - 1] = 0;
 
@@ -151,7 +151,7 @@ static ssize_t debugfs_trace_write(struct file *file,
 	VCHIQ_INSTANCE_T instance = f->private;
 	char firstchar;
 
-	if (copy_from_user(&firstchar, buffer, 1) != 0)
+	if (copy_from_user(&firstchar, buffer, 1))
 		return -EFAULT;
 
 	switch (firstchar) {

@@ -301,8 +301,7 @@ struct xfs_buf *				/* buffer for fsbno */
 xfs_btree_get_bufl(
 	struct xfs_mount	*mp,	/* file system mount point */
 	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_fsblock_t		fsbno,	/* file system block number */
-	uint			lock);	/* lock flags for get_buf */
+	xfs_fsblock_t		fsbno);	/* file system block number */
 
 /*
  * Get a buffer for the block, return it with no data read.
@@ -313,8 +312,7 @@ xfs_btree_get_bufs(
 	struct xfs_mount	*mp,	/* file system mount point */
 	struct xfs_trans	*tp,	/* transaction pointer */
 	xfs_agnumber_t		agno,	/* allocation group number */
-	xfs_agblock_t		agbno,	/* allocation group block number */
-	uint			lock);	/* lock flags for get_buf */
+	xfs_agblock_t		agbno);	/* allocation group block number */
 
 /*
  * Check for the cursor referring to the last block at the given level.
@@ -345,7 +343,6 @@ xfs_btree_read_bufl(
 	struct xfs_mount	*mp,	/* file system mount point */
 	struct xfs_trans	*tp,	/* transaction pointer */
 	xfs_fsblock_t		fsbno,	/* file system block number */
-	uint			lock,	/* lock flags for read_buf */
 	struct xfs_buf		**bpp,	/* buffer for fsbno */
 	int			refval,	/* ref count value for buffer */
 	const struct xfs_buf_ops *ops);
@@ -383,8 +380,7 @@ xfs_btree_init_block(
 	xfs_btnum_t	btnum,
 	__u16		level,
 	__u16		numrecs,
-	__u64		owner,
-	unsigned int	flags);
+	__u64		owner);
 
 void
 xfs_btree_init_block_int(
@@ -469,8 +465,8 @@ uint xfs_btree_compute_maxlevels(uint *limits, unsigned long len);
 unsigned long long xfs_btree_calc_size(uint *limits, unsigned long long len);
 
 /* return codes */
-#define XFS_BTREE_QUERY_RANGE_CONTINUE	0	/* keep iterating */
-#define XFS_BTREE_QUERY_RANGE_ABORT	1	/* stop iterating */
+#define XFS_BTREE_QUERY_RANGE_CONTINUE	(XFS_ITER_CONTINUE) /* keep iterating */
+#define XFS_BTREE_QUERY_RANGE_ABORT	(XFS_ITER_ABORT)    /* stop iterating */
 typedef int (*xfs_btree_query_range_fn)(struct xfs_btree_cur *cur,
 		union xfs_btree_rec *rec, void *priv);
 

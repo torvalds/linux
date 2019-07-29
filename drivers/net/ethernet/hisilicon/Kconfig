@@ -46,6 +46,16 @@ config HIP04_ETH
 	  If you wish to compile a kernel for a hardware with hisilicon p04 SoC and
 	  want to use the internal ethernet then you should answer Y to this.
 
+config HI13X1_GMAC
+	bool "Hisilicon HI13X1 Network Device Support"
+	depends on HIP04_ETH
+	help
+	  If you wish to compile a kernel for a hardware with hisilicon hi13x1_gamc
+	  then you should answer Y to this. This makes this driver suitable for use
+	  on certain boards such as the HI13X1.
+
+	  If you are unsure, say N.
+
 config HNS_MDIO
 	tristate
 	select PHYLIB

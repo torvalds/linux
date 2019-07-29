@@ -649,8 +649,6 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 #if defined(CONFIG_DRM_AMD_DC)
 		else if (amdgpu_device_has_dc_support(adev))
 			amdgpu_device_ip_block_add(adev, &dm_ip_block);
-#else
-#	warning "Enable CONFIG_DRM_AMD_DC for display support on SOC15."
 #endif
 		if (!(adev->asic_type == CHIP_VEGA20 && amdgpu_sriov_vf(adev))) {
 			amdgpu_device_ip_block_add(adev, &uvd_v7_0_ip_block);
@@ -671,8 +669,6 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 #if defined(CONFIG_DRM_AMD_DC)
 		else if (amdgpu_device_has_dc_support(adev))
 			amdgpu_device_ip_block_add(adev, &dm_ip_block);
-#else
-#	warning "Enable CONFIG_DRM_AMD_DC for display support on SOC15."
 #endif
 		amdgpu_device_ip_block_add(adev, &vcn_v1_0_ip_block);
 		break;
@@ -717,9 +713,15 @@ static void soc15_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 		return;
 
 	/* Set the 2 events that we wish to watch, defined above */
-	/* Reg 40 is # received msgs, Reg 104 is # of posted requests sent */
+	/* Reg 40 is # received msgs */
 	perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK, EVENT0_SEL, 40);
-	perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK, EVENT1_SEL, 104);
+	/* Pre-VG20, Reg 104 is # of posted requests sent. On VG20 it's 108 */
+	if (adev->asic_type == CHIP_VEGA20)
+		perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK,
+					EVENT1_SEL, 108);
+	else
+		perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK,
+					EVENT1_SEL, 104);
 
 	/* Write to enable desired perf counters */
 	WREG32_PCIE(smnPCIE_PERF_CNTL_TXCLK, perfctr);

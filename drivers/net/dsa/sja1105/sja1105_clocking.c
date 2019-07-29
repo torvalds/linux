@@ -19,6 +19,17 @@ struct sja1105_cfg_pad_mii_tx {
 	u64 clk_ipud;
 };
 
+struct sja1105_cfg_pad_mii_id {
+	u64 rxc_stable_ovr;
+	u64 rxc_delay;
+	u64 rxc_bypass;
+	u64 rxc_pd;
+	u64 txc_stable_ovr;
+	u64 txc_delay;
+	u64 txc_bypass;
+	u64 txc_pd;
+};
+
 /* UM10944 Table 82.
  * IDIV_0_C to IDIV_4_C control registers
  * (addr. 10000Bh to 10000Fh)
@@ -373,11 +384,88 @@ static int sja1105_rgmii_cfg_pad_tx_config(struct sja1105_private *priv,
 	sja1105_cfg_pad_mii_tx_packing(packed_buf, &pad_mii_tx, PACK);
 
 	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					   regs->rgmii_pad_mii_tx[port],
+					   regs->pad_mii_tx[port],
 					   packed_buf, SJA1105_SIZE_CGU_CMD);
 }
 
-static int sja1105_rgmii_clocking_setup(struct sja1105_private *priv, int port)
+static void
+sja1105_cfg_pad_mii_id_packing(void *buf, struct sja1105_cfg_pad_mii_id *cmd,
+			       enum packing_op op)
+{
+	const int size = SJA1105_SIZE_CGU_CMD;
+
+	sja1105_packing(buf, &cmd->rxc_stable_ovr, 15, 15, size, op);
+	sja1105_packing(buf, &cmd->rxc_delay,      14, 10, size, op);
+	sja1105_packing(buf, &cmd->rxc_bypass,      9,  9, size, op);
+	sja1105_packing(buf, &cmd->rxc_pd,          8,  8, size, op);
+	sja1105_packing(buf, &cmd->txc_stable_ovr,  7,  7, size, op);
+	sja1105_packing(buf, &cmd->txc_delay,       6,  2, size, op);
+	sja1105_packing(buf, &cmd->txc_bypass,      1,  1, size, op);
+	sja1105_packing(buf, &cmd->txc_pd,          0,  0, size, op);
+}
+
+/* Valid range in degrees is an integer between 73.8 and 101.7 */
+static inline u64 sja1105_rgmii_delay(u64 phase)
+{
+	/* UM11040.pdf: The delay in degree phase is 73.8 + delay_tune * 0.9.
+	 * To avoid floating point operations we'll multiply by 10
+	 * and get 1 decimal point precision.
+	 */
+	phase *= 10;
+	return (phase - 738) / 9;
+}
+
+/* The RGMII delay setup procedure is 2-step and gets called upon each
+ * .phylink_mac_config. Both are strategic.
+ * The reason is that the RX Tunable Delay Line of the SJA1105 MAC has issues
+ * with recovering from a frequency change of the link partner's RGMII clock.
+ * The easiest way to recover from this is to temporarily power down the TDL,
+ * as it will re-lock at the new frequency afterwards.
+ */
+int sja1105pqrs_setup_rgmii_delay(const void *ctx, int port)
+{
+	const struct sja1105_private *priv = ctx;
+	const struct sja1105_regs *regs = priv->info->regs;
+	struct sja1105_cfg_pad_mii_id pad_mii_id = {0};
+	u8 packed_buf[SJA1105_SIZE_CGU_CMD] = {0};
+	int rc;
+
+	if (priv->rgmii_rx_delay[port])
+		pad_mii_id.rxc_delay = sja1105_rgmii_delay(90);
+	if (priv->rgmii_tx_delay[port])
+		pad_mii_id.txc_delay = sja1105_rgmii_delay(90);
+
+	/* Stage 1: Turn the RGMII delay lines off. */
+	pad_mii_id.rxc_bypass = 1;
+	pad_mii_id.rxc_pd = 1;
+	pad_mii_id.txc_bypass = 1;
+	pad_mii_id.txc_pd = 1;
+	sja1105_cfg_pad_mii_id_packing(packed_buf, &pad_mii_id, PACK);
+
+	rc = sja1105_spi_send_packed_buf(priv, SPI_WRITE,
+					 regs->pad_mii_id[port],
+					 packed_buf, SJA1105_SIZE_CGU_CMD);
+	if (rc < 0)
+		return rc;
+
+	/* Stage 2: Turn the RGMII delay lines on. */
+	if (priv->rgmii_rx_delay[port]) {
+		pad_mii_id.rxc_bypass = 0;
+		pad_mii_id.rxc_pd = 0;
+	}
+	if (priv->rgmii_tx_delay[port]) {
+		pad_mii_id.txc_bypass = 0;
+		pad_mii_id.txc_pd = 0;
+	}
+	sja1105_cfg_pad_mii_id_packing(packed_buf, &pad_mii_id, PACK);
+
+	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
+					   regs->pad_mii_id[port],
+					   packed_buf, SJA1105_SIZE_CGU_CMD);
+}
+
+static int sja1105_rgmii_clocking_setup(struct sja1105_private *priv, int port,
+					sja1105_mii_role_t role)
 {
 	struct device *dev = priv->ds->dev;
 	struct sja1105_mac_config_entry *mac;
@@ -428,6 +516,12 @@ static int sja1105_rgmii_clocking_setup(struct sja1105_private *priv, int port)
 		return rc;
 	}
 	if (!priv->info->setup_rgmii_delay)
+		return 0;
+	/* The role has no hardware effect for RGMII. However we use it as
+	 * a proxy for this interface being a MAC-to-MAC connection, with
+	 * the RGMII internal delays needing to be applied by us.
+	 */
+	if (role == XMII_MAC)
 		return 0;
 
 	return priv->info->setup_rgmii_delay(priv, port);
@@ -575,7 +669,7 @@ int sja1105_clocking_setup_port(struct sja1105_private *priv, int port)
 		rc = sja1105_rmii_clocking_setup(priv, port, role);
 		break;
 	case XMII_MODE_RGMII:
-		rc = sja1105_rgmii_clocking_setup(priv, port);
+		rc = sja1105_rgmii_clocking_setup(priv, port, role);
 		break;
 	default:
 		dev_err(dev, "Invalid interface mode specified: %d\n",

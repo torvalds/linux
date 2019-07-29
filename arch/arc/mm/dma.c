@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/dma-noncoherent.h>
@@ -11,51 +8,15 @@
 #include <asm/cacheflush.h>
 
 /*
- * ARCH specific callbacks for generic noncoherent DMA ops (dma/noncoherent.c)
+ * ARCH specific callbacks for generic noncoherent DMA ops
  *  - hardware IOC not available (or "dma-coherent" not set for device in DT)
  *  - But still handle both coherent and non-coherent requests from caller
  *
  * For DMA coherent hardware (IOC) generic code suffices
  */
-void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		gfp_t gfp, unsigned long attrs)
+
+void arch_dma_prep_coherent(struct page *page, size_t size)
 {
-	unsigned long order = get_order(size);
-	struct page *page;
-	phys_addr_t paddr;
-	void *kvaddr;
-	bool need_coh = !(attrs & DMA_ATTR_NON_CONSISTENT);
-
-	/*
-	 * __GFP_HIGHMEM flag is cleared by upper layer functions
-	 * (in include/linux/dma-mapping.h) so we should never get a
-	 * __GFP_HIGHMEM here.
-	 */
-	BUG_ON(gfp & __GFP_HIGHMEM);
-
-	page = alloc_pages(gfp | __GFP_ZERO, order);
-	if (!page)
-		return NULL;
-
-	/* This is linear addr (0x8000_0000 based) */
-	paddr = page_to_phys(page);
-
-	*dma_handle = paddr;
-
-	/*
-	 * A coherent buffer needs MMU mapping to enforce non-cachability.
-	 * kvaddr is kernel Virtual address (0x7000_0000 based).
-	 */
-	if (need_coh) {
-		kvaddr = ioremap_nocache(paddr, size);
-		if (kvaddr == NULL) {
-			__free_pages(page, order);
-			return NULL;
-		}
-	} else {
-		kvaddr = (void *)(u32)paddr;
-	}
-
 	/*
 	 * Evict any existing L1 and/or L2 lines for the backing page
 	 * in case it was used earlier as a normal "cached" page.
@@ -66,28 +27,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	 * Currently flush_cache_vmap nukes the L1 cache completely which
 	 * will be optimized as a separate commit
 	 */
-	if (need_coh)
-		dma_cache_wback_inv(paddr, size);
-
-	return kvaddr;
-}
-
-void arch_dma_free(struct device *dev, size_t size, void *vaddr,
-		dma_addr_t dma_handle, unsigned long attrs)
-{
-	phys_addr_t paddr = dma_handle;
-	struct page *page = virt_to_page(paddr);
-
-	if (!(attrs & DMA_ATTR_NON_CONSISTENT))
-		iounmap((void __force __iomem *)vaddr);
-
-	__free_pages(page, get_order(size));
-}
-
-long arch_dma_coherent_to_pfn(struct device *dev, void *cpu_addr,
-		dma_addr_t dma_addr)
-{
-	return __phys_to_pfn(dma_addr);
+	dma_cache_wback_inv(page_to_phys(page), size);
 }
 
 /*
@@ -164,3 +104,9 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	dev_info(dev, "use %sncoherent DMA ops\n",
 		 dev->dma_coherent ? "" : "non");
 }
+
+static int __init atomic_pool_init(void)
+{
+	return dma_atomic_pool_init(GFP_KERNEL, pgprot_noncached(PAGE_KERNEL));
+}
+postcore_initcall(atomic_pool_init);

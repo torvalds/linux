@@ -322,8 +322,13 @@ nv50_outp_atomic_check_view(struct drm_encoder *encoder,
 		switch (connector->connector_type) {
 		case DRM_MODE_CONNECTOR_LVDS:
 		case DRM_MODE_CONNECTOR_eDP:
-			/* Force use of scaler for non-EDID modes. */
-			if (adjusted_mode->type & DRM_MODE_TYPE_DRIVER)
+			/* Don't force scaler for EDID modes with
+			 * same size as the native one (e.g. different
+			 * refresh rate)
+			 */
+			if (adjusted_mode->hdisplay == native_mode->hdisplay &&
+			    adjusted_mode->vdisplay == native_mode->vdisplay &&
+			    adjusted_mode->type & DRM_MODE_TYPE_DRIVER)
 				break;
 			mode = native_mode;
 			asyc->scaler.full = true;

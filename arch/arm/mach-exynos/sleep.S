@@ -44,7 +44,8 @@ ENTRY(exynos_cpu_resume)
 ENDPROC(exynos_cpu_resume)
 
 	.align
-
+	.arch armv7-a
+	.arch_extension sec
 ENTRY(exynos_cpu_resume_ns)
 	mrc	p15, 0, r0, c0, c0, 0
 	ldr	r1, =CPU_MASK

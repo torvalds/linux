@@ -35,54 +35,11 @@
 #include <net/geneve.h>
 #include <net/dsfield.h>
 #include "en.h"
+#include "en/txrx.h"
 #include "ipoib/ipoib.h"
 #include "en_accel/en_accel.h"
+#include "en_accel/ktls.h"
 #include "lib/clock.h"
-
-#define MLX5E_SQ_NOPS_ROOM  MLX5_SEND_WQE_MAX_WQEBBS
-
-#ifndef CONFIG_MLX5_EN_TLS
-#define MLX5E_SQ_STOP_ROOM (MLX5_SEND_WQE_MAX_WQEBBS +\
-			    MLX5E_SQ_NOPS_ROOM)
-#else
-/* TLS offload requires MLX5E_SQ_STOP_ROOM to have
- * enough room for a resync SKB, a normal SKB and a NOP
- */
-#define MLX5E_SQ_STOP_ROOM (2 * MLX5_SEND_WQE_MAX_WQEBBS +\
-			    MLX5E_SQ_NOPS_ROOM)
-#endif
-
-static inline void mlx5e_tx_dma_unmap(struct device *pdev,
-				      struct mlx5e_sq_dma *dma)
-{
-	switch (dma->type) {
-	case MLX5E_DMA_MAP_SINGLE:
-		dma_unmap_single(pdev, dma->addr, dma->size, DMA_TO_DEVICE);
-		break;
-	case MLX5E_DMA_MAP_PAGE:
-		dma_unmap_page(pdev, dma->addr, dma->size, DMA_TO_DEVICE);
-		break;
-	default:
-		WARN_ONCE(true, "mlx5e_tx_dma_unmap unknown DMA type!\n");
-	}
-}
-
-static inline struct mlx5e_sq_dma *mlx5e_dma_get(struct mlx5e_txqsq *sq, u32 i)
-{
-	return &sq->db.dma_fifo[i & sq->dma_fifo_mask];
-}
-
-static inline void mlx5e_dma_push(struct mlx5e_txqsq *sq,
-				  dma_addr_t addr,
-				  u32 size,
-				  enum mlx5e_dma_map_type map_type)
-{
-	struct mlx5e_sq_dma *dma = mlx5e_dma_get(sq, sq->dma_fifo_pc++);
-
-	dma->addr = addr;
-	dma->size = size;
-	dma->type = map_type;
-}
 
 static void mlx5e_dma_unmap_wqe_err(struct mlx5e_txqsq *sq, u8 num_dma)
 {
@@ -113,13 +70,13 @@ static inline int mlx5e_get_dscp_up(struct mlx5e_priv *priv, struct sk_buff *skb
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       struct net_device *sb_dev)
 {
-	int channel_ix = netdev_pick_tx(dev, skb, NULL);
+	int txq_ix = netdev_pick_tx(dev, skb, NULL);
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	u16 num_channels;
 	int up = 0;
 
 	if (!netdev_get_num_tc(dev))
-		return channel_ix;
+		return txq_ix;
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	if (priv->dcbx_dp.trust_state == MLX5_QPTS_TRUST_DSCP)
@@ -129,14 +86,14 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		if (skb_vlan_tag_present(skb))
 			up = skb_vlan_tag_get_prio(skb);
 
-	/* channel_ix can be larger than num_channels since
+	/* txq_ix can be larger than num_channels since
 	 * dev->num_real_tx_queues = num_channels * num_tc
 	 */
 	num_channels = priv->channels.params.num_channels;
-	if (channel_ix >= num_channels)
-		channel_ix = reciprocal_scale(channel_ix, num_channels);
+	if (txq_ix >= num_channels)
+		txq_ix = priv->txq2sq[txq_ix]->ch_ix;
 
-	return priv->channel_tc2txq[channel_ix][up];
+	return priv->channel_tc2txq[txq_ix][up];
 }
 
 static inline int mlx5e_skb_l2_header_offset(struct sk_buff *skb)
@@ -277,23 +234,6 @@ dma_unmap_wqe_err:
 	return -ENOMEM;
 }
 
-static inline void mlx5e_fill_sq_frag_edge(struct mlx5e_txqsq *sq,
-					   struct mlx5_wq_cyc *wq,
-					   u16 pi, u16 nnops)
-{
-	struct mlx5e_tx_wqe_info *edge_wi, *wi = &sq->db.wqe_info[pi];
-
-	edge_wi = wi + nnops;
-
-	/* fill sq frag edge with nops to avoid wqe wrapping two pages */
-	for (; wi < edge_wi; wi++) {
-		wi->skb        = NULL;
-		wi->num_wqebbs = 1;
-		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
-	}
-	sq->stats->nop += nnops;
-}
-
 static inline void
 mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		     u8 opcode, u16 ds_cnt, u8 num_wqebbs, u32 num_bytes, u8 num_dma,
@@ -301,6 +241,7 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		     bool xmit_more)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
+	bool send_doorbell;
 
 	wi->num_bytes = num_bytes;
 	wi->num_dma = num_dma;
@@ -310,22 +251,20 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | opcode);
 	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | ds_cnt);
 
-	netdev_tx_sent_queue(sq->txq, num_bytes);
-
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
 	sq->pc += wi->num_wqebbs;
-	if (unlikely(!mlx5e_wqc_has_room_for(wq, sq->cc, sq->pc, MLX5E_SQ_STOP_ROOM))) {
+	if (unlikely(!mlx5e_wqc_has_room_for(wq, sq->cc, sq->pc, sq->stop_room))) {
 		netif_tx_stop_queue(sq->txq);
 		sq->stats->stopped++;
 	}
 
-	if (!xmit_more || netif_xmit_stopped(sq->txq))
+	send_doorbell = __netdev_tx_sent_queue(sq->txq, num_bytes,
+					       xmit_more);
+	if (send_doorbell)
 		mlx5e_notify_hw(wq, sq->pc, sq->uar_map, cseg);
 }
-
-#define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
 
 netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5e_tx_wqe *wqe, u16 pi, bool xmit_more)
@@ -353,9 +292,12 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		num_bytes = skb->len + (skb_shinfo(skb)->gso_segs - 1) * ihs;
 		stats->packets += skb_shinfo(skb)->gso_segs;
 	} else {
+		u8 mode = mlx5e_transport_inline_tx_wqe(wqe) ?
+			MLX5_INLINE_MODE_TCP_UDP : sq->min_inline_mode;
+
 		opcode    = MLX5_OPCODE_SEND;
 		mss       = 0;
-		ihs       = mlx5e_calc_min_inline(sq->min_inline_mode, skb);
+		ihs       = mlx5e_calc_min_inline(mode, skb);
 		num_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
 		stats->packets++;
 	}
@@ -380,10 +322,16 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 #ifdef CONFIG_MLX5_EN_IPSEC
 		struct mlx5_wqe_eth_seg cur_eth = wqe->eth;
 #endif
+#ifdef CONFIG_MLX5_EN_TLS
+		struct mlx5_wqe_ctrl_seg cur_ctrl = wqe->ctrl;
+#endif
 		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
-		mlx5e_sq_fetch_wqe(sq, &wqe, &pi);
+		wqe = mlx5e_sq_fetch_wqe(sq, sizeof(*wqe), &pi);
 #ifdef CONFIG_MLX5_EN_IPSEC
 		wqe->eth = cur_eth;
+#endif
+#ifdef CONFIG_MLX5_EN_TLS
+		wqe->ctrl = cur_ctrl;
 #endif
 	}
 
@@ -443,7 +391,7 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 pi;
 
 	sq = priv->txq2sq[skb_get_queue_mapping(skb)];
-	mlx5e_sq_fetch_wqe(sq, &wqe, &pi);
+	wqe = mlx5e_sq_fetch_wqe(sq, sizeof(*wqe), &pi);
 
 	/* might send skbs and update wqe and pi */
 	skb = mlx5e_accel_handle_tx(skb, sq, dev, &wqe, &pi);
@@ -531,8 +479,16 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 			wi = &sq->db.wqe_info[ci];
 			skb = wi->skb;
 
-			if (unlikely(!skb)) { /* nop */
-				sqcc++;
+			if (unlikely(!skb)) {
+#ifdef CONFIG_MLX5_EN_TLS
+				if (wi->resync_dump_frag) {
+					struct mlx5e_sq_dma *dma =
+						mlx5e_dma_get(sq, dma_fifo_cc++);
+
+					mlx5e_ktls_tx_handle_resync_dump_comp(sq, wi, dma);
+				}
+#endif
+				sqcc += wi->num_wqebbs;
 				continue;
 			}
 
@@ -574,8 +530,7 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 	netdev_tx_completed_queue(sq->txq, npkts, nbytes);
 
 	if (netif_tx_queue_stopped(sq->txq) &&
-	    mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc,
-				   MLX5E_SQ_STOP_ROOM) &&
+	    mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, sq->stop_room) &&
 	    !test_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state)) {
 		netif_tx_wake_queue(sq->txq);
 		stats->wake++;

@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __ASM_HWCAP_H
 #define __ASM_HWCAP_H
@@ -95,6 +84,8 @@
 #define KERNEL_HWCAP_SVEBITPERM		__khwcap2_feature(SVEBITPERM)
 #define KERNEL_HWCAP_SVESHA3		__khwcap2_feature(SVESHA3)
 #define KERNEL_HWCAP_SVESM4		__khwcap2_feature(SVESM4)
+#define KERNEL_HWCAP_FLAGM2		__khwcap2_feature(FLAGM2)
+#define KERNEL_HWCAP_FRINT		__khwcap2_feature(FRINT)
 
 /*
  * This yields a mask that user programs can use to figure out what

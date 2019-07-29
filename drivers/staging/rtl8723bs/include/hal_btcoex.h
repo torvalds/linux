@@ -23,7 +23,7 @@ void DBG_BT_INFO(u8 *dbgmsg);
 
 void hal_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist);
 u8 hal_btcoex_IsBtExist(struct adapter *padapter);
-u8 hal_btcoex_IsBtDisabled(struct adapter *);
+bool hal_btcoex_IsBtDisabled(struct adapter *);
 void hal_btcoex_SetChipType(struct adapter *padapter, u8 chipType);
 void hal_btcoex_SetPgAntNum(struct adapter *padapter, u8 antNum);
 void hal_btcoex_SetSingleAntPath(struct adapter *padapter, u8 singleAntPath);
@@ -43,7 +43,7 @@ void hal_btcoex_BtInfoNotify(struct adapter *padapter, u8 length, u8 *tmpBuf);
 void hal_btcoex_SuspendNotify(struct adapter *padapter, u8 state);
 void hal_btcoex_HaltNotify(struct adapter *padapter);
 
-void hal_btcoex_Hanlder(struct adapter *padapter);
+void hal_btcoex_Handler(struct adapter *padapter);
 
 s32 hal_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter);
 void hal_btcoex_SetManualControl(struct adapter *padapter, u8 bmanual);

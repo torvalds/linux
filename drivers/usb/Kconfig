@@ -45,6 +45,7 @@ config USB_ARCH_HAS_HCD
 config USB
 	tristate "Support for Host-side USB"
 	depends on USB_ARCH_HAS_HCD
+	select GENERIC_ALLOCATOR
 	select USB_COMMON
 	select NLS  # for UTF-8 strings
 	---help---
@@ -74,7 +75,7 @@ config USB
 	  After choosing your HCD, then select drivers for the USB peripherals
 	  you'll be using.  You may want to check out the information provided
 	  in <file:Documentation/usb/> and especially the links given in
-	  <file:Documentation/usb/usb-help.txt>.
+	  <file:Documentation/usb/usb-help.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbcore.

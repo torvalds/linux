@@ -160,7 +160,7 @@ it with special cases.
    of the kernel image. That entry point supports two calling
    conventions.  A summary of the interface is described here.  A full
    description of the boot requirements is documented in
-   Documentation/arm/Booting
+   Documentation/arm/booting.rst
 
         a) ATAGS interface.  Minimal information is passed from firmware
         to the kernel with a tagged list of predefined parameters.
@@ -174,7 +174,7 @@ it with special cases.
         b) Entry with a flattened device-tree block.  Firmware loads the
         physical address of the flattened device tree block (dtb) into r2,
         r1 is not used, but it is considered good practice to use a valid
-        machine number as described in Documentation/arm/Booting.
+        machine number as described in Documentation/arm/booting.rst.
 
                 r0 : 0
 
@@ -277,7 +277,7 @@ it with special cases.
   the decompressor (the real mode entry point goes to the same  32bit
   entry point once it switched into protected mode). That entry point
   supports one calling convention which is documented in
-  Documentation/x86/boot.txt
+  Documentation/x86/boot.rst
   The physical pointer to the device-tree block (defined in chapter II)
   is passed via setup_data which requires at least boot protocol 2.09.
   The type filed is defined as

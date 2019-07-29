@@ -175,7 +175,6 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 	struct platform_device *plat_ci;
 	struct clk *clk;
 	struct reset_control *reset;
-	struct resource *res;
 	int ret;
 	struct device_node *ulpi_node, *phy_node;
 
@@ -209,8 +208,7 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	ci->base = devm_ioremap_resource(&pdev->dev, res);
+	ci->base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(ci->base))
 		return PTR_ERR(ci->base);
 

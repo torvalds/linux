@@ -76,7 +76,7 @@ static struct bus_type nvmem_bus_type = {
 	.name		= "nvmem",
 };
 
-static int of_nvmem_match(struct device *dev, void *nvmem_np)
+static int of_nvmem_match(struct device *dev, const void *nvmem_np)
 {
 	return dev->of_node == nvmem_np;
 }

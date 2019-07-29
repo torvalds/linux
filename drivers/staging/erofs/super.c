@@ -71,6 +71,22 @@ static void free_inode(struct inode *inode)
 	kmem_cache_free(erofs_inode_cachep, vi);
 }
 
+static bool check_layout_compatibility(struct super_block *sb,
+				       struct erofs_super_block *layout)
+{
+	const unsigned int requirements = le32_to_cpu(layout->requirements);
+
+	EROFS_SB(sb)->requirements = requirements;
+
+	/* check if current kernel meets all mandatory requirements */
+	if (requirements & (~EROFS_ALL_REQUIREMENTS)) {
+		errln("unidentified requirements %x, please upgrade kernel version",
+		      requirements & ~EROFS_ALL_REQUIREMENTS);
+		return false;
+	}
+	return true;
+}
+
 static int superblock_read(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi;
@@ -103,6 +119,9 @@ static int superblock_read(struct super_block *sb)
 		      1 << blkszbits);
 		goto out;
 	}
+
+	if (!check_layout_compatibility(sb, layout))
+		goto out;
 
 	sbi->blocks = le32_to_cpu(layout->blocks);
 	sbi->meta_blkaddr = le32_to_cpu(layout->meta_blkaddr);
@@ -364,7 +383,7 @@ static int erofs_read_super(struct super_block *sb,
 		goto err;
 	}
 
-	sbi = kzalloc(sizeof(struct erofs_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (unlikely(!sbi)) {
 		err = -ENOMEM;
 		goto err;

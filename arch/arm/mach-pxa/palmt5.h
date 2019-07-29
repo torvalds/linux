@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * GPIOs and interrupts for Palm Tungsten|T5 Handheld Computer
  *
@@ -5,11 +6,6 @@
  *		Marek Vasut <marek.vasut@gmail.com>
  *		Justin Kendrick <twilightsentry@gmail.com>
  *		RichardT5 <richard_t5@users.sourceforge.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef _INCLUDE_PALMT5_H_

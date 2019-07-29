@@ -89,40 +89,7 @@ config MEDIA_CEC_SUPPORT
 
 source "drivers/media/cec/Kconfig"
 
-#
-# Media controller
-#	Selectable only for webcam/grabbers, as other drivers don't use it
-#
-
-config MEDIA_CONTROLLER
-	bool "Media Controller API"
-	depends on MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT
-	help
-	  Enable the media controller API used to query media devices internal
-	  topology and configure it dynamically.
-
-	  This API is mostly used by camera interfaces in embedded platforms.
-
-config MEDIA_CONTROLLER_DVB
-	bool "Enable Media controller for DVB (EXPERIMENTAL)"
-	depends on MEDIA_CONTROLLER && DVB_CORE
-	help
-	  Enable the media controller API support for DVB.
-
-	  This is currently experimental.
-
-config MEDIA_CONTROLLER_REQUEST_API
-	bool "Enable Media controller Request API (EXPERIMENTAL)"
-	depends on MEDIA_CONTROLLER && STAGING_MEDIA
-	default n
-	help
-	  DO NOT ENABLE THIS OPTION UNLESS YOU KNOW WHAT YOU'RE DOING.
-
-	  This option enables the Request API for the Media controller and V4L2
-	  interfaces. It is currently needed by a few stateless codec drivers.
-
-	  There is currently no intention to provide API or ABI stability for
-	  this new API as of yet.
+source "drivers/media/mc/Kconfig"
 
 #
 # Video4Linux support
@@ -164,7 +131,6 @@ config DVB_MMAP
 	depends on DVB_CORE
 	depends on VIDEO_V4L2=y || VIDEO_V4L2=DVB_CORE
 	select VIDEOBUF2_VMALLOC
-	default n
 	help
 	  This option enables DVB experimental memory-mapped API, which
 	  reduces the number of context switches to read DVB buffers, as
@@ -190,7 +156,6 @@ config DVB_NET
 config TTPCI_EEPROM
 	tristate
 	depends on I2C
-	default n
 
 source "drivers/media/dvb-core/Kconfig"
 

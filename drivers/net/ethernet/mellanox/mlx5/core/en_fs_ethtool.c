@@ -32,6 +32,8 @@
 
 #include <linux/mlx5/fs.h>
 #include "en.h"
+#include "en/params.h"
+#include "en/xsk/umem.h"
 
 struct mlx5e_ethtool_rule {
 	struct list_head             list;
@@ -414,6 +416,14 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	if (fs->ring_cookie == RX_CLS_FLOW_DISC) {
 		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 	} else {
+		struct mlx5e_params *params = &priv->channels.params;
+		enum mlx5e_rq_group group;
+		struct mlx5e_tir *tir;
+		u16 ix;
+
+		mlx5e_qid_get_ch_and_group(params, fs->ring_cookie, &ix, &group);
+		tir = group == MLX5E_RQ_GROUP_XSK ? priv->xsk_tir : priv->direct_tir;
+
 		dst = kzalloc(sizeof(*dst), GFP_KERNEL);
 		if (!dst) {
 			err = -ENOMEM;
@@ -421,12 +431,12 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 		}
 
 		dst->type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-		dst->tir_num = priv->direct_tir[fs->ring_cookie].tirn;
+		dst->tir_num = tir[ix].tirn;
 		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	}
 
 	spec->match_criteria_enable = (!outer_header_zero(spec->match_criteria));
-	flow_act.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
+	spec->flow_context.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG;
 	rule = mlx5_add_flow_rules(ft, spec, &flow_act, dst, dst ? 1 : 0);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -600,9 +610,9 @@ static int validate_flow(struct mlx5e_priv *priv,
 	if (fs->location >= MAX_NUM_OF_ETHTOOL_RULES)
 		return -ENOSPC;
 
-	if (fs->ring_cookie >= priv->channels.params.num_channels &&
-	    fs->ring_cookie != RX_CLS_FLOW_DISC)
-		return -EINVAL;
+	if (fs->ring_cookie != RX_CLS_FLOW_DISC)
+		if (!mlx5e_qid_validate(&priv->channels.params, fs->ring_cookie))
+			return -EINVAL;
 
 	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
 	case ETHER_FLOW:

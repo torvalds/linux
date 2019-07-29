@@ -155,6 +155,12 @@ COMPAT_SYSCALL_DEFINE5(keyctl, u32, option,
 		return keyctl_pkey_verify(compat_ptr(arg2), compat_ptr(arg3),
 					  compat_ptr(arg4), compat_ptr(arg5));
 
+	case KEYCTL_MOVE:
+		return keyctl_keyring_move(arg2, arg3, arg4, arg5);
+
+	case KEYCTL_CAPABILITIES:
+		return keyctl_capabilities(compat_ptr(arg2), arg3);
+
 	default:
 		return -EOPNOTSUPP;
 	}

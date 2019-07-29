@@ -431,7 +431,7 @@ static void delete_filter_func(struct list_head *head)
 	struct filter_entry *pos, *tmp;
 
 	list_for_each_entry_safe(pos, tmp, head, list) {
-		list_del(&pos->list);
+		list_del_init(&pos->list);
 		free(pos);
 	}
 }

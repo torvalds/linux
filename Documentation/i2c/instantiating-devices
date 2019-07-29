@@ -85,7 +85,7 @@ Method 1c: Declare the I2C devices via ACPI
 -------------------------------------------
 
 ACPI can also describe I2C devices. There is special documentation for this
-which is currently located at Documentation/acpi/enumeration.txt.
+which is currently located at Documentation/firmware-guide/acpi/enumeration.rst.
 
 
 Method 2: Instantiate the devices explicitly
@@ -137,7 +137,7 @@ static int usb_hcd_nxp_probe(struct platform_device *pdev)
 	(...)
 	i2c_adap = i2c_get_adapter(2);
 	memset(&i2c_info, 0, sizeof(struct i2c_board_info));
-	strlcpy(i2c_info.type, "isp1301_nxp", I2C_NAME_SIZE);
+	strscpy(i2c_info.type, "isp1301_nxp", sizeof(i2c_info.type));
 	isp1301_i2c_client = i2c_new_probed_device(i2c_adap, &i2c_info,
 						   normal_i2c, NULL);
 	i2c_put_adapter(i2c_adap);

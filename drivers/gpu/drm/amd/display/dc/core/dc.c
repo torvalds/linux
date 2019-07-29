@@ -1190,13 +1190,11 @@ struct dc_state *dc_create_state(struct dc *dc)
 struct dc_state *dc_copy_state(struct dc_state *src_ctx)
 {
 	int i, j;
-	struct dc_state *new_ctx = kzalloc(sizeof(struct dc_state),
-					   GFP_KERNEL);
+	struct dc_state *new_ctx = kmemdup(src_ctx,
+			sizeof(struct dc_state), GFP_KERNEL);
 
 	if (!new_ctx)
 		return NULL;
-
-	memcpy(new_ctx, src_ctx, sizeof(struct dc_state));
 
 	for (i = 0; i < MAX_PIPES; i++) {
 			struct pipe_ctx *cur_pipe = &new_ctx->res_ctx.pipe_ctx[i];

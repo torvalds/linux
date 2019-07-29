@@ -134,6 +134,7 @@ static int pm_runlist_v9(struct packet_manager *pm, uint32_t *buffer,
 	packet->bitfields4.ib_size = ib_size_in_dwords;
 	packet->bitfields4.chain = chain ? 1 : 0;
 	packet->bitfields4.offload_polling = 0;
+	packet->bitfields4.chained_runlist_idle_disable = chain ? 1 : 0;
 	packet->bitfields4.valid = 1;
 	packet->bitfields4.process_cnt = concurrent_proc_cnt;
 	packet->ordinal2 = lower_32_bits(ib);

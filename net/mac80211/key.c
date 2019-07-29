@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005-2006, Devicescape Software, Inc.
@@ -5,10 +6,6 @@
  * Copyright 2007-2008	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/if_ether.h>
@@ -268,56 +265,65 @@ int ieee80211_set_tx_key(struct ieee80211_key *key)
 {
 	struct sta_info *sta = key->sta;
 	struct ieee80211_local *local = key->local;
-	struct ieee80211_key *old;
 
 	assert_key_lock(local);
 
-	old = key_mtx_dereference(local, sta->ptk[sta->ptk_idx]);
 	sta->ptk_idx = key->conf.keyidx;
+
+	if (ieee80211_hw_check(&local->hw, NO_AMPDU_KEYBORDER_SUPPORT))
+		clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 	ieee80211_check_fast_xmit(sta);
 
 	return 0;
 }
 
-static int ieee80211_hw_key_replace(struct ieee80211_key *old_key,
-				    struct ieee80211_key *new_key,
-				    bool pairwise)
+static void ieee80211_pairwise_rekey(struct ieee80211_key *old,
+				     struct ieee80211_key *new)
 {
-	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_local *local;
-	struct sta_info *sta;
-	int ret;
+	struct ieee80211_local *local = new->local;
+	struct sta_info *sta = new->sta;
+	int i;
 
-	/* Aggregation sessions are OK when running on SW crypto.
-	 * A broken remote STA may cause issues not observed with HW
-	 * crypto, though.
-	 */
-	if (!(old_key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
-		return 0;
+	assert_key_lock(local);
 
-	assert_key_lock(old_key->local);
-	sta = old_key->sta;
+	if (new->conf.flags & IEEE80211_KEY_FLAG_NO_AUTO_TX) {
+		/* Extended Key ID key install, initial one or rekey */
 
-	/* Unicast rekey without Extended Key ID needs special handling */
-	if (new_key && sta && pairwise &&
-	    rcu_access_pointer(sta->ptk[sta->ptk_idx]) == old_key) {
-		local = old_key->local;
-		sdata = old_key->sdata;
-
-		/* Stop TX till we are on the new key */
-		old_key->flags |= KEY_FLAG_TAINTED;
-		ieee80211_clear_fast_xmit(sta);
-
-		/* Aggregation sessions during rekey are complicated due to the
-		 * reorder buffer and retransmits. Side step that by blocking
-		 * aggregation during rekey and tear down running sessions.
+		if (sta->ptk_idx != INVALID_PTK_KEYIDX &&
+		    ieee80211_hw_check(&local->hw,
+				       NO_AMPDU_KEYBORDER_SUPPORT)) {
+			/* Aggregation Sessions with Extended Key ID must not
+			 * mix MPDUs with different keyIDs within one A-MPDU.
+			 * Tear down any running Tx aggregation and all new
+			 * Rx/Tx aggregation request during rekey if the driver
+			 * asks us to do so. (Blocking Tx only would be
+			 * sufficient but WLAN_STA_BLOCK_BA gets the job done
+			 * for the few ms we need it.)
+			 */
+			set_sta_flag(sta, WLAN_STA_BLOCK_BA);
+			mutex_lock(&sta->ampdu_mlme.mtx);
+			for (i = 0; i <  IEEE80211_NUM_TIDS; i++)
+				___ieee80211_stop_tx_ba_session(sta, i,
+								AGG_STOP_LOCAL_REQUEST);
+			mutex_unlock(&sta->ampdu_mlme.mtx);
+		}
+	} else if (old) {
+		/* Rekey without Extended Key ID.
+		 * Aggregation sessions are OK when running on SW crypto.
+		 * A broken remote STA may cause issues not observed with HW
+		 * crypto, though.
 		 */
+		if (!(old->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
+			return;
+
+		/* Stop Tx till we are on the new key */
+		old->flags |= KEY_FLAG_TAINTED;
+		ieee80211_clear_fast_xmit(sta);
 		if (ieee80211_hw_check(&local->hw, AMPDU_AGGREGATION)) {
 			set_sta_flag(sta, WLAN_STA_BLOCK_BA);
 			ieee80211_sta_tear_down_BA_sessions(sta,
 							    AGG_STOP_LOCAL_REQUEST);
 		}
-
 		if (!wiphy_ext_feature_isset(local->hw.wiphy,
 					     NL80211_EXT_FEATURE_CAN_REPLACE_PTK0)) {
 			pr_warn_ratelimited("Rekeying PTK for STA %pM but driver can't safely do that.",
@@ -325,18 +331,9 @@ static int ieee80211_hw_key_replace(struct ieee80211_key *old_key,
 			/* Flushing the driver queues *may* help prevent
 			 * the clear text leaks and freezes.
 			 */
-			ieee80211_flush_queues(local, sdata, false);
+			ieee80211_flush_queues(local, old->sdata, false);
 		}
 	}
-
-	ieee80211_key_disable_hw_accel(old_key);
-
-	if (new_key)
-		ret = ieee80211_key_enable_hw_accel(new_key);
-	else
-		ret = 0;
-
-	return ret;
 }
 
 static void __ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata,
@@ -394,7 +391,6 @@ void ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&sdata->local->key_mtx);
 }
 
-
 static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 				  struct sta_info *sta,
 				  bool pairwise,
@@ -402,7 +398,7 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_key *new)
 {
 	int idx;
-	int ret;
+	int ret = 0;
 	bool defunikey, defmultikey, defmgmtkey;
 
 	/* caller must provide at least one old/new */
@@ -414,16 +410,27 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 
 	WARN_ON(new && old && new->conf.keyidx != old->conf.keyidx);
 
+	if (new && sta && pairwise) {
+		/* Unicast rekey needs special handling. With Extended Key ID
+		 * old is still NULL for the first rekey.
+		 */
+		ieee80211_pairwise_rekey(old, new);
+	}
+
 	if (old) {
 		idx = old->conf.keyidx;
-		ret = ieee80211_hw_key_replace(old, new, pairwise);
+
+		if (old->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
+			ieee80211_key_disable_hw_accel(old);
+
+			if (new)
+				ret = ieee80211_key_enable_hw_accel(new);
+		}
 	} else {
 		/* new must be provided in case old is not */
 		idx = new->conf.keyidx;
 		if (!new->local->wowlan)
 			ret = ieee80211_key_enable_hw_accel(new);
-		else
-			ret = 0;
 	}
 
 	if (ret)

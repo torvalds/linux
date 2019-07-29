@@ -31,14 +31,12 @@ extern unsigned char IPA_PDU_HEADER[];
 
 #define QETH_CLEAR_CHANNEL_PARM	-10
 #define QETH_HALT_CHANNEL_PARM	-11
-#define QETH_RCD_PARM -12
 
 static inline bool qeth_intparm_is_iob(unsigned long intparm)
 {
 	switch (intparm) {
 	case QETH_CLEAR_CHANNEL_PARM:
 	case QETH_HALT_CHANNEL_PARM:
-	case QETH_RCD_PARM:
 	case 0:
 		return false;
 	}
@@ -381,9 +379,7 @@ struct qeth_ipacmd_layer2setdelvlan {
 	__u16 vlan_id;
 } __attribute__ ((packed));
 
-
 struct qeth_ipacmd_setassparms_hdr {
-	__u32 assist_no;
 	__u16 length;
 	__u16 command_code;
 	__u16 return_code;
@@ -428,6 +424,7 @@ struct qeth_tso_start_data {
 
 /* SETASSPARMS IPA Command: */
 struct qeth_ipacmd_setassparms {
+	u32 assist_no;
 	struct qeth_ipacmd_setassparms_hdr hdr;
 	union {
 		__u32 flags_32bit;
@@ -439,6 +436,8 @@ struct qeth_ipacmd_setassparms {
 	} data;
 } __attribute__ ((packed));
 
+#define SETASS_DATA_SIZEOF(field) FIELD_SIZEOF(struct qeth_ipacmd_setassparms,\
+					       data.field)
 
 /* SETRTG IPA Command:    ****************************************************/
 struct qeth_set_routing {
@@ -526,8 +525,6 @@ struct qeth_query_switch_attributes {
 #define QETH_SETADP_FLAGS_VIRTUAL_MAC	0x80	/* for CHANGE_ADDR_READ_MAC */
 
 struct qeth_ipacmd_setadpparms_hdr {
-	u32 supp_hw_cmds;
-	u32 reserved1;
 	u16 cmdlength;
 	u16 reserved2;
 	u32 command_code;
@@ -539,6 +536,7 @@ struct qeth_ipacmd_setadpparms_hdr {
 };
 
 struct qeth_ipacmd_setadpparms {
+	struct qeth_ipa_caps hw_cmds;
 	struct qeth_ipacmd_setadpparms_hdr hdr;
 	union {
 		struct qeth_query_cmds_supp query_cmds_supp;
@@ -551,6 +549,9 @@ struct qeth_ipacmd_setadpparms {
 		__u32 mode;
 	} data;
 } __attribute__ ((packed));
+
+#define SETADP_DATA_SIZEOF(field) FIELD_SIZEOF(struct qeth_ipacmd_setadpparms,\
+					       data.field)
 
 /* CREATE_ADDR IPA Command:    ***********************************************/
 struct qeth_create_destroy_address {
@@ -598,6 +599,11 @@ struct qeth_ipacmd_diagass {
 	__u8   cdata[64];
 } __attribute__ ((packed));
 
+#define DIAG_HDR_LEN		offsetofend(struct qeth_ipacmd_diagass, ext)
+#define DIAG_SUB_HDR_LEN	(offsetofend(struct qeth_ipacmd_diagass, ext) -\
+				 offsetof(struct qeth_ipacmd_diagass, \
+					  subcmd_len))
+
 /* VNIC Characteristics IPA Command: *****************************************/
 /* IPA commands/sub commands for VNICC */
 #define IPA_VNICC_QUERY_CHARS		0x00000000L
@@ -624,12 +630,6 @@ struct qeth_ipacmd_diagass {
 
 /* VNICC header */
 struct qeth_ipacmd_vnicc_hdr {
-	u32 sup;
-	u32 cur;
-};
-
-/* VNICC sub command header */
-struct qeth_vnicc_sub_hdr {
 	u16 data_length;
 	u16 reserved;
 	u32 sub_command;
@@ -654,14 +654,17 @@ struct qeth_vnicc_getset_timeout {
 
 /* complete VNICC IPA command message */
 struct qeth_ipacmd_vnicc {
+	struct qeth_ipa_caps vnicc_cmds;
 	struct qeth_ipacmd_vnicc_hdr hdr;
-	struct qeth_vnicc_sub_hdr sub_hdr;
 	union {
 		struct qeth_vnicc_query_cmds query_cmds;
 		struct qeth_vnicc_set_char set_char;
 		struct qeth_vnicc_getset_timeout getset_timeout;
-	};
+	} data;
 };
+
+#define VNICC_DATA_SIZEOF(field)	FIELD_SIZEOF(struct qeth_ipacmd_vnicc,\
+						     data.field)
 
 /* SETBRIDGEPORT IPA Command:	 *********************************************/
 enum qeth_ipa_sbp_cmd {
@@ -688,8 +691,6 @@ struct mac_addr_lnid {
 } __packed;
 
 struct qeth_ipacmd_sbp_hdr {
-	__u32 supported_sbp_cmds;
-	__u32 enabled_sbp_cmds;
 	__u16 cmdlength;
 	__u16 reserved1;
 	__u32 command_code;
@@ -704,14 +705,8 @@ struct qeth_sbp_query_cmds_supp {
 	__u32 reserved;
 } __packed;
 
-struct qeth_sbp_reset_role {
-} __packed;
-
 struct qeth_sbp_set_primary {
 	struct net_if_token token;
-} __packed;
-
-struct qeth_sbp_set_secondary {
 } __packed;
 
 struct qeth_sbp_port_entry {
@@ -739,16 +734,18 @@ struct qeth_sbp_state_change {
 } __packed;
 
 struct qeth_ipacmd_setbridgeport {
+	struct qeth_ipa_caps sbp_cmds;
 	struct qeth_ipacmd_sbp_hdr hdr;
 	union {
 		struct qeth_sbp_query_cmds_supp query_cmds_supp;
-		struct qeth_sbp_reset_role reset_role;
 		struct qeth_sbp_set_primary set_primary;
-		struct qeth_sbp_set_secondary set_secondary;
 		struct qeth_sbp_query_ports query_ports;
 		struct qeth_sbp_state_change state_change;
 	} data;
 } __packed;
+
+#define SBP_DATA_SIZEOF(field)	FIELD_SIZEOF(struct qeth_ipacmd_setbridgeport,\
+					     data.field)
 
 /* ADDRESS_CHANGE_NOTIFICATION adapter-initiated "command" *******************/
 /* Bitmask for entry->change_code. Both bits may be raised.		     */
@@ -808,6 +805,8 @@ struct qeth_ipa_cmd {
 	} data;
 } __attribute__ ((packed));
 
+#define IPA_DATA_SIZEOF(field)	FIELD_SIZEOF(struct qeth_ipa_cmd, data.field)
+
 /*
  * special command for ARP processing.
  * this is not included in setassparms command before, because we get
@@ -824,10 +823,6 @@ enum qeth_ipa_arp_return_codes {
 
 extern const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
 extern const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
-
-#define QETH_SETADP_BASE_LEN (sizeof(struct qeth_ipacmd_hdr) + \
-			      sizeof(struct qeth_ipacmd_setadpparms_hdr))
-#define QETH_SNMP_SETADP_CMDLENGTH 16
 
 /* Helper functions */
 #define IS_IPA_REPLY(cmd) ((cmd->hdr.initiator == IPA_CMD_INITIATOR_HOST) || \

@@ -312,9 +312,7 @@ static struct hfi1_ctxtdata *qp_to_rcd(struct rvt_dev_info *rdi,
 	if (qp->ibqp.qp_num == 0)
 		ctxt = 0;
 	else
-		ctxt = ((qp->ibqp.qp_num >> dd->qos_shift) %
-			(dd->n_krcv_queues - 1)) + 1;
-
+		ctxt = hfi1_get_qp_map(dd, qp->ibqp.qp_num >> dd->qos_shift);
 	return dd->rcd[ctxt];
 }
 
@@ -477,7 +475,7 @@ static struct rvt_qp *first_qp(struct hfi1_ctxtdata *rcd,
  * Must hold the qp s_lock and the exp_lock.
  *
  * Return:
- * false if either of the conditions below are statisfied:
+ * false if either of the conditions below are satisfied:
  * 1. The list is empty or
  * 2. The indicated qp is at the head of the list and the
  *    HFI1_S_WAIT_TID_SPACE bit is set in qp->s_flags.
@@ -2026,7 +2024,6 @@ static int tid_rdma_rcv_error(struct hfi1_packet *packet,
 	trace_hfi1_tid_req_rcv_err(qp, 0, e->opcode, e->psn, e->lpsn, req);
 	if (e->opcode == TID_OP(READ_REQ)) {
 		struct ib_reth *reth;
-		u32 offset;
 		u32 len;
 		u32 rkey;
 		u64 vaddr;
@@ -2038,7 +2035,6 @@ static int tid_rdma_rcv_error(struct hfi1_packet *packet,
 		 * The requester always restarts from the start of the original
 		 * request.
 		 */
-		offset = delta_psn(psn, e->psn) * qp->pmtu;
 		len = be32_to_cpu(reth->length);
 		if (psn != e->psn || len != req->total_len)
 			goto unlock;
@@ -4552,7 +4548,7 @@ void hfi1_rc_rcv_tid_rdma_ack(struct hfi1_packet *packet)
 	struct rvt_swqe *wqe;
 	struct tid_rdma_request *req;
 	struct tid_rdma_flow *flow;
-	u32 aeth, psn, req_psn, ack_psn, fspsn, resync_psn, ack_kpsn;
+	u32 aeth, psn, req_psn, ack_psn, resync_psn, ack_kpsn;
 	unsigned long flags;
 	u16 fidx;
 
@@ -4756,7 +4752,6 @@ done:
 			IB_AETH_CREDIT_MASK) {
 		case 0: /* PSN sequence error */
 			flow = &req->flows[req->acked_tail];
-			fspsn = full_flow_psn(flow, flow->flow_state.spsn);
 			trace_hfi1_tid_flow_rcv_tid_ack(qp, req->acked_tail,
 							flow);
 			req->r_ack_psn = mask_psn(be32_to_cpu(ohdr->bth[2]));

@@ -150,6 +150,9 @@ void pqm_uninit(struct process_queue_manager *pqm)
 	struct process_queue_node *pqn, *next;
 
 	list_for_each_entry_safe(pqn, next, &pqm->queues, process_queue_list) {
+		if (pqn->q && pqn->q->gws)
+			amdgpu_amdkfd_remove_gws_from_process(pqm->process->kgd_process_info,
+				pqn->q->gws);
 		uninit_queue(pqn->q);
 		list_del(&pqn->process_queue_list);
 		kfree(pqn);

@@ -1,12 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core MFD support for Cirrus Logic Madera codecs
  *
  * Copyright (C) 2015-2018 Cirrus Logic
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2.
  */
 
 #include <linux/device.h>
@@ -31,9 +27,11 @@
 
 #include "madera.h"
 
+#define CS47L15_SILICON_ID	0x6370
 #define CS47L35_SILICON_ID	0x6360
 #define CS47L85_SILICON_ID	0x6338
 #define CS47L90_SILICON_ID	0x6364
+#define CS47L92_SILICON_ID	0x6371
 
 #define MADERA_32KZ_MCLK2	1
 
@@ -44,6 +42,28 @@ static const char * const madera_core_supplies[] = {
 
 static const struct mfd_cell madera_ldo1_devs[] = {
 	{ .name = "madera-ldo1" },
+};
+
+static const char * const cs47l15_supplies[] = {
+	"MICVDD",
+	"CPVDD1",
+	"SPKVDD",
+};
+
+static const struct mfd_cell cs47l15_devs[] = {
+	{ .name = "madera-pinctrl", },
+	{ .name = "madera-irq" },
+	{ .name = "madera-gpio" },
+	{
+		.name = "madera-extcon",
+		.parent_supplies = cs47l15_supplies,
+		.num_parent_supplies = 1, /* We only need MICVDD */
+	},
+	{
+		.name = "cs47l15-codec",
+		.parent_supplies = cs47l15_supplies,
+		.num_parent_supplies = ARRAY_SIZE(cs47l15_supplies),
+	},
 };
 
 static const char * const cs47l35_supplies[] = {
@@ -59,7 +79,11 @@ static const struct mfd_cell cs47l35_devs[] = {
 	{ .name = "madera-irq", },
 	{ .name = "madera-micsupp", },
 	{ .name = "madera-gpio", },
-	{ .name = "madera-extcon", },
+	{
+		.name = "madera-extcon",
+		.parent_supplies = cs47l35_supplies,
+		.num_parent_supplies = 1, /* We only need MICVDD */
+	},
 	{
 		.name = "cs47l35-codec",
 		.parent_supplies = cs47l35_supplies,
@@ -83,7 +107,11 @@ static const struct mfd_cell cs47l85_devs[] = {
 	{ .name = "madera-irq", },
 	{ .name = "madera-micsupp" },
 	{ .name = "madera-gpio", },
-	{ .name = "madera-extcon", },
+	{
+		.name = "madera-extcon",
+		.parent_supplies = cs47l85_supplies,
+		.num_parent_supplies = 1, /* We only need MICVDD */
+	},
 	{
 		.name = "cs47l85-codec",
 		.parent_supplies = cs47l85_supplies,
@@ -105,7 +133,11 @@ static const struct mfd_cell cs47l90_devs[] = {
 	{ .name = "madera-irq", },
 	{ .name = "madera-micsupp", },
 	{ .name = "madera-gpio", },
-	{ .name = "madera-extcon", },
+	{
+		.name = "madera-extcon",
+		.parent_supplies = cs47l90_supplies,
+		.num_parent_supplies = 1, /* We only need MICVDD */
+	},
 	{
 		.name = "cs47l90-codec",
 		.parent_supplies = cs47l90_supplies,
@@ -113,10 +145,35 @@ static const struct mfd_cell cs47l90_devs[] = {
 	},
 };
 
+static const char * const cs47l92_supplies[] = {
+	"MICVDD",
+	"CPVDD1",
+	"CPVDD2",
+};
+
+static const struct mfd_cell cs47l92_devs[] = {
+	{ .name = "madera-pinctrl" },
+	{ .name = "madera-irq", },
+	{ .name = "madera-micsupp", },
+	{ .name = "madera-gpio" },
+	{
+		.name = "madera-extcon",
+		.parent_supplies = cs47l92_supplies,
+		.num_parent_supplies = 1, /* We only need MICVDD */
+	},
+	{
+		.name = "cs47l92-codec",
+		.parent_supplies = cs47l92_supplies,
+		.num_parent_supplies = ARRAY_SIZE(cs47l92_supplies),
+	},
+};
+
 /* Used by madera-i2c and madera-spi drivers */
 const char *madera_name_from_type(enum madera_type type)
 {
 	switch (type) {
+	case CS47L15:
+		return "CS47L15";
 	case CS47L35:
 		return "CS47L35";
 	case CS47L85:
@@ -125,6 +182,12 @@ const char *madera_name_from_type(enum madera_type type)
 		return "CS47L90";
 	case CS47L91:
 		return "CS47L91";
+	case CS42L92:
+		return "CS42L92";
+	case CS47L92:
+		return "CS47L92";
+	case CS47L93:
+		return "CS47L93";
 	case WM1840:
 		return "WM1840";
 	default:
@@ -139,7 +202,7 @@ EXPORT_SYMBOL_GPL(madera_name_from_type);
 static int madera_wait_for_boot(struct madera *madera)
 {
 	ktime_t timeout;
-	unsigned int val;
+	unsigned int val = 0;
 	int ret = 0;
 
 	/*
@@ -279,13 +342,18 @@ const struct dev_pm_ops madera_pm_ops = {
 EXPORT_SYMBOL_GPL(madera_pm_ops);
 
 const struct of_device_id madera_of_match[] = {
+	{ .compatible = "cirrus,cs47l15", .data = (void *)CS47L15 },
 	{ .compatible = "cirrus,cs47l35", .data = (void *)CS47L35 },
 	{ .compatible = "cirrus,cs47l85", .data = (void *)CS47L85 },
 	{ .compatible = "cirrus,cs47l90", .data = (void *)CS47L90 },
 	{ .compatible = "cirrus,cs47l91", .data = (void *)CS47L91 },
+	{ .compatible = "cirrus,cs42l92", .data = (void *)CS42L92 },
+	{ .compatible = "cirrus,cs47l92", .data = (void *)CS47L92 },
+	{ .compatible = "cirrus,cs47l93", .data = (void *)CS47L93 },
 	{ .compatible = "cirrus,wm1840", .data = (void *)WM1840 },
 	{}
 };
+MODULE_DEVICE_TABLE(of, madera_of_match);
 EXPORT_SYMBOL_GPL(madera_of_match);
 
 static int madera_get_reset_gpio(struct madera *madera)
@@ -326,6 +394,10 @@ static void madera_set_micbias_info(struct madera *madera)
 	 * childbiases for each micbias. Unspecified values default to 0.
 	 */
 	switch (madera->type) {
+	case CS47L15:
+		madera->num_micbias = 1;
+		madera->num_childbias[0] = 3;
+		return;
 	case CS47L35:
 		madera->num_micbias = 2;
 		madera->num_childbias[0] = 2;
@@ -341,6 +413,13 @@ static void madera_set_micbias_info(struct madera *madera)
 		madera->num_micbias = 2;
 		madera->num_childbias[0] = 4;
 		madera->num_childbias[1] = 4;
+		return;
+	case CS42L92:
+	case CS47L92:
+	case CS47L93:
+		madera->num_micbias = 2;
+		madera->num_childbias[0] = 4;
+		madera->num_childbias[1] = 2;
 		return;
 	default:
 		return;
@@ -389,9 +468,13 @@ int madera_dev_init(struct madera *madera)
 	 * No devm_ because we need to control shutdown order of children.
 	 */
 	switch (madera->type) {
+	case CS47L15:
 	case CS47L35:
 	case CS47L90:
 	case CS47L91:
+	case CS42L92:
+	case CS47L92:
+	case CS47L93:
 		break;
 	case CS47L85:
 	case WM1840:
@@ -458,6 +541,19 @@ int madera_dev_init(struct madera *madera)
 	}
 
 	switch (hwid) {
+	case CS47L15_SILICON_ID:
+		if (IS_ENABLED(CONFIG_MFD_CS47L15)) {
+			switch (madera->type) {
+			case CS47L15:
+				patch_fn = &cs47l15_patch;
+				mfd_devs = cs47l15_devs;
+				n_devs = ARRAY_SIZE(cs47l15_devs);
+				break;
+			default:
+				break;
+			}
+		}
+		break;
 	case CS47L35_SILICON_ID:
 		if (IS_ENABLED(CONFIG_MFD_CS47L35)) {
 			switch (madera->type) {
@@ -493,6 +589,21 @@ int madera_dev_init(struct madera *madera)
 				patch_fn = cs47l90_patch;
 				mfd_devs = cs47l90_devs;
 				n_devs = ARRAY_SIZE(cs47l90_devs);
+				break;
+			default:
+				break;
+			}
+		}
+		break;
+	case CS47L92_SILICON_ID:
+		if (IS_ENABLED(CONFIG_MFD_CS47L92)) {
+			switch (madera->type) {
+			case CS42L92:
+			case CS47L92:
+			case CS47L93:
+				patch_fn = cs47l92_patch;
+				mfd_devs = cs47l92_devs;
+				n_devs = ARRAY_SIZE(cs47l92_devs);
 				break;
 			default:
 				break;

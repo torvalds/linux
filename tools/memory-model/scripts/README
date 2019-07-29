@@ -22,7 +22,7 @@ checklitmushist.sh
 
 	Run all litmus tests having .litmus.out files from previous
 	initlitmushist.sh or newlitmushist.sh runs, comparing the
-	herd output to that of the original runs.
+	herd7 output to that of the original runs.
 
 checklitmus.sh
 
@@ -43,7 +43,7 @@ initlitmushist.sh
 
 judgelitmus.sh
 
-	Given a .litmus file and its .litmus.out herd output, check the
+	Given a .litmus file and its .litmus.out herd7 output, check the
 	.litmus.out file against the .litmus file's "Result:" comment to
 	judge whether the test ran correctly.  Not normally run manually,
 	provided instead for use by other scripts.

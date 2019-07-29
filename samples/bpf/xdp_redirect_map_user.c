@@ -10,13 +10,14 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <net/if.h>
 #include <unistd.h>
 #include <libgen.h>
 #include <sys/resource.h>
 
 #include "bpf_util.h"
 #include <bpf/bpf.h>
-#include "bpf/libbpf.h"
+#include "libbpf.h"
 
 static int ifindex_in;
 static int ifindex_out;
@@ -85,7 +86,7 @@ static void poll_stats(int interval, int ifindex)
 static void usage(const char *prog)
 {
 	fprintf(stderr,
-		"usage: %s [OPTS] IFINDEX_IN IFINDEX_OUT\n\n"
+		"usage: %s [OPTS] <IFNAME|IFINDEX>_IN <IFNAME|IFINDEX>_OUT\n\n"
 		"OPTS:\n"
 		"    -S    use skb-mode\n"
 		"    -N    enforce native mode\n"
@@ -127,7 +128,7 @@ int main(int argc, char **argv)
 	}
 
 	if (optind == argc) {
-		printf("usage: %s IFINDEX_IN IFINDEX_OUT\n", argv[0]);
+		printf("usage: %s <IFNAME|IFINDEX>_IN <IFNAME|IFINDEX>_OUT\n", argv[0]);
 		return 1;
 	}
 
@@ -136,8 +137,14 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	ifindex_in = strtoul(argv[optind], NULL, 0);
-	ifindex_out = strtoul(argv[optind + 1], NULL, 0);
+	ifindex_in = if_nametoindex(argv[optind]);
+	if (!ifindex_in)
+		ifindex_in = strtoul(argv[optind], NULL, 0);
+
+	ifindex_out = if_nametoindex(argv[optind + 1]);
+	if (!ifindex_out)
+		ifindex_out = strtoul(argv[optind + 1], NULL, 0);
+
 	printf("input: %d output: %d\n", ifindex_in, ifindex_out);
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);

@@ -12,7 +12,7 @@
 #ifndef __ASM_S390_PROCESSOR_H
 #define __ASM_S390_PROCESSOR_H
 
-#include <linux/const.h>
+#include <linux/bits.h>
 
 #define CIF_MCCK_PENDING	0	/* machine check handling is pending */
 #define CIF_ASCE_PRIMARY	1	/* primary asce needs fixup / uaccess */
@@ -24,18 +24,19 @@
 #define CIF_MCCK_GUEST		7	/* machine check happening in guest */
 #define CIF_DEDICATED_CPU	8	/* this CPU is dedicated */
 
-#define _CIF_MCCK_PENDING	_BITUL(CIF_MCCK_PENDING)
-#define _CIF_ASCE_PRIMARY	_BITUL(CIF_ASCE_PRIMARY)
-#define _CIF_ASCE_SECONDARY	_BITUL(CIF_ASCE_SECONDARY)
-#define _CIF_NOHZ_DELAY		_BITUL(CIF_NOHZ_DELAY)
-#define _CIF_FPU		_BITUL(CIF_FPU)
-#define _CIF_IGNORE_IRQ		_BITUL(CIF_IGNORE_IRQ)
-#define _CIF_ENABLED_WAIT	_BITUL(CIF_ENABLED_WAIT)
-#define _CIF_MCCK_GUEST		_BITUL(CIF_MCCK_GUEST)
-#define _CIF_DEDICATED_CPU	_BITUL(CIF_DEDICATED_CPU)
+#define _CIF_MCCK_PENDING	BIT(CIF_MCCK_PENDING)
+#define _CIF_ASCE_PRIMARY	BIT(CIF_ASCE_PRIMARY)
+#define _CIF_ASCE_SECONDARY	BIT(CIF_ASCE_SECONDARY)
+#define _CIF_NOHZ_DELAY		BIT(CIF_NOHZ_DELAY)
+#define _CIF_FPU		BIT(CIF_FPU)
+#define _CIF_IGNORE_IRQ		BIT(CIF_IGNORE_IRQ)
+#define _CIF_ENABLED_WAIT	BIT(CIF_ENABLED_WAIT)
+#define _CIF_MCCK_GUEST		BIT(CIF_MCCK_GUEST)
+#define _CIF_DEDICATED_CPU	BIT(CIF_DEDICATED_CPU)
 
 #ifndef __ASSEMBLY__
 
+#include <linux/cpumask.h>
 #include <linux/linkage.h>
 #include <linux/irqflags.h>
 #include <asm/cpu.h>
@@ -220,12 +221,6 @@ static __no_kasan_or_inline unsigned short stap(void)
 	asm volatile("stap %0" : "=Q" (cpu_address));
 	return cpu_address;
 }
-
-/*
- * Give up the time slice of the virtual PU.
- */
-#define cpu_relax_yield cpu_relax_yield
-void cpu_relax_yield(void);
 
 #define cpu_relax() barrier()
 

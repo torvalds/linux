@@ -151,7 +151,7 @@ At the runtime you can disable idle states with below methods:
 
 It is possible to disable CPU idle states by way of the PM QoS
 subsystem, more specifically by using the "/dev/cpu_dma_latency"
-interface (see Documentation/power/pm_qos_interface.txt for more
+interface (see Documentation/power/pm_qos_interface.rst for more
 details).  As specified in the PM QoS documentation the requested
 parameter will stay in effect until the file descriptor is released.
 For example:

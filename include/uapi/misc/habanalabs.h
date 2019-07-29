@@ -45,6 +45,30 @@ enum goya_queue_id {
 	GOYA_QUEUE_ID_SIZE
 };
 
+/*
+ * Engine Numbering
+ *
+ * Used in the "busy_engines_mask" field in `struct hl_info_hw_idle'
+ */
+
+enum goya_engine_id {
+	GOYA_ENGINE_ID_DMA_0 = 0,
+	GOYA_ENGINE_ID_DMA_1,
+	GOYA_ENGINE_ID_DMA_2,
+	GOYA_ENGINE_ID_DMA_3,
+	GOYA_ENGINE_ID_DMA_4,
+	GOYA_ENGINE_ID_MME_0,
+	GOYA_ENGINE_ID_TPC_0,
+	GOYA_ENGINE_ID_TPC_1,
+	GOYA_ENGINE_ID_TPC_2,
+	GOYA_ENGINE_ID_TPC_3,
+	GOYA_ENGINE_ID_TPC_4,
+	GOYA_ENGINE_ID_TPC_5,
+	GOYA_ENGINE_ID_TPC_6,
+	GOYA_ENGINE_ID_TPC_7,
+	GOYA_ENGINE_ID_SIZE
+};
+
 enum hl_device_status {
 	HL_DEVICE_STATUS_OPERATIONAL,
 	HL_DEVICE_STATUS_IN_RESET,
@@ -86,7 +110,11 @@ struct hl_info_dram_usage {
 
 struct hl_info_hw_idle {
 	__u32 is_idle;
-	__u32 pad;
+	/*
+	 * Bitmask of busy engines.
+	 * Bits definition is according to `enum <chip>_enging_id'.
+	 */
+	__u32 busy_engines_mask;
 };
 
 struct hl_info_device_status {

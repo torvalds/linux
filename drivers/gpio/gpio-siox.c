@@ -211,20 +211,22 @@ static int gpio_siox_get_direction(struct gpio_chip *chip, unsigned int offset)
 static int gpio_siox_probe(struct siox_device *sdevice)
 {
 	struct gpio_siox_ddata *ddata;
+	struct gpio_irq_chip *girq;
+	struct device *dev = &sdevice->dev;
 	int ret;
 
-	ddata = devm_kzalloc(&sdevice->dev, sizeof(*ddata), GFP_KERNEL);
+	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
 		return -ENOMEM;
 
-	dev_set_drvdata(&sdevice->dev, ddata);
+	dev_set_drvdata(dev, ddata);
 
 	mutex_init(&ddata->lock);
 	spin_lock_init(&ddata->irqlock);
 
 	ddata->gchip.base = -1;
 	ddata->gchip.can_sleep = 1;
-	ddata->gchip.parent = &sdevice->dev;
+	ddata->gchip.parent = dev;
 	ddata->gchip.owner = THIS_MODULE;
 	ddata->gchip.get = gpio_siox_get;
 	ddata->gchip.set = gpio_siox_set;
@@ -239,54 +241,27 @@ static int gpio_siox_probe(struct siox_device *sdevice)
 	ddata->ichip.irq_unmask = gpio_siox_irq_unmask;
 	ddata->ichip.irq_set_type = gpio_siox_irq_set_type;
 
-	ret = gpiochip_add(&ddata->gchip);
-	if (ret) {
-		dev_err(&sdevice->dev,
-			"Failed to register gpio chip (%d)\n", ret);
-		goto err_gpiochip;
-	}
+	girq = &ddata->gchip.irq;
+	girq->chip = &ddata->ichip;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
 
-	ret = gpiochip_irqchip_add(&ddata->gchip, &ddata->ichip,
-				   0, handle_level_irq, IRQ_TYPE_EDGE_RISING);
-	if (ret) {
-		dev_err(&sdevice->dev,
-			"Failed to register irq chip (%d)\n", ret);
-err_gpiochip:
-		gpiochip_remove(&ddata->gchip);
-	}
+	ret = devm_gpiochip_add_data(dev, &ddata->gchip, NULL);
+	if (ret)
+		dev_err(dev, "Failed to register gpio chip (%d)\n", ret);
 
 	return ret;
 }
 
-static int gpio_siox_remove(struct siox_device *sdevice)
-{
-	struct gpio_siox_ddata *ddata = dev_get_drvdata(&sdevice->dev);
-
-	gpiochip_remove(&ddata->gchip);
-	return 0;
-}
-
 static struct siox_driver gpio_siox_driver = {
 	.probe = gpio_siox_probe,
-	.remove = gpio_siox_remove,
 	.set_data = gpio_siox_set_data,
 	.get_data = gpio_siox_get_data,
 	.driver = {
 		.name = "gpio-siox",
 	},
 };
-
-static int __init gpio_siox_init(void)
-{
-	return siox_driver_register(&gpio_siox_driver);
-}
-module_init(gpio_siox_init);
-
-static void __exit gpio_siox_exit(void)
-{
-	siox_driver_unregister(&gpio_siox_driver);
-}
-module_exit(gpio_siox_exit);
+module_siox_driver(gpio_siox_driver);
 
 MODULE_AUTHOR("Uwe Kleine-Koenig <u.kleine-koenig@pengutronix.de>");
 MODULE_DESCRIPTION("SIOX gpio driver");

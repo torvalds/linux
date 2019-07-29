@@ -105,6 +105,14 @@ struct smu_11_0_power_context {
 	enum smu_11_0_power_state power_state;
 };
 
+enum smu_v11_0_baco_seq {
+	BACO_SEQ_BACO = 0,
+	BACO_SEQ_MSR,
+	BACO_SEQ_BAMACO,
+	BACO_SEQ_ULPS,
+	BACO_SEQ_COUNT,
+};
+
 void smu_v11_0_set_smu_funcs(struct smu_context *smu);
 
 #endif

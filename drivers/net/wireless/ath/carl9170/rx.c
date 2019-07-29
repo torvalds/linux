@@ -795,7 +795,7 @@ static void carl9170_rx_untie_data(struct ar9170 *ar, u8 *buf, int len)
 		break;
 
 	default:
-		BUG_ON(1);
+		BUG();
 		break;
 	}
 
