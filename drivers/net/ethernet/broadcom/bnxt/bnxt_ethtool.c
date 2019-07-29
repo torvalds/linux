@@ -137,7 +137,44 @@ reset_coalesce:
 	return rc;
 }
 
-#define BNXT_NUM_STATS	22
+static const char * const bnxt_ring_stats_str[] = {
+	"rx_ucast_packets",
+	"rx_mcast_packets",
+	"rx_bcast_packets",
+	"rx_discards",
+	"rx_drops",
+	"rx_ucast_bytes",
+	"rx_mcast_bytes",
+	"rx_bcast_bytes",
+	"tx_ucast_packets",
+	"tx_mcast_packets",
+	"tx_bcast_packets",
+	"tx_discards",
+	"tx_drops",
+	"tx_ucast_bytes",
+	"tx_mcast_bytes",
+	"tx_bcast_bytes",
+};
+
+static const char * const bnxt_ring_tpa_stats_str[] = {
+	"tpa_packets",
+	"tpa_bytes",
+	"tpa_events",
+	"tpa_aborts",
+};
+
+static const char * const bnxt_ring_tpa2_stats_str[] = {
+	"rx_tpa_eligible_pkt",
+	"rx_tpa_eligible_bytes",
+	"rx_tpa_pkt",
+	"rx_tpa_bytes",
+	"rx_tpa_errors",
+};
+
+static const char * const bnxt_ring_sw_stats_str[] = {
+	"rx_l4_csum_errors",
+	"missed_irqs",
+};
 
 #define BNXT_RX_STATS_ENTRY(counter)	\
 	{ BNXT_RX_STATS_OFFSET(counter), __stringify(counter) }
@@ -206,6 +243,20 @@ reset_coalesce:
 	BNXT_TX_STATS_EXT_COS_ENTRY(5),				\
 	BNXT_TX_STATS_EXT_COS_ENTRY(6),				\
 	BNXT_TX_STATS_EXT_COS_ENTRY(7)				\
+
+#define BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(n)			\
+	BNXT_RX_STATS_EXT_ENTRY(rx_discard_bytes_cos##n),	\
+	BNXT_RX_STATS_EXT_ENTRY(rx_discard_packets_cos##n)
+
+#define BNXT_RX_STATS_EXT_DISCARD_COS_ENTRIES				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(0),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(1),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(2),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(3),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(4),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(5),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(6),				\
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRY(7)
 
 #define BNXT_RX_STATS_PRI_ENTRY(counter, n)		\
 	{ BNXT_RX_STATS_EXT_OFFSET(counter##_cos0),	\
@@ -352,6 +403,7 @@ static const struct {
 	BNXT_RX_STATS_EXT_ENTRY(rx_buffer_passed_threshold),
 	BNXT_RX_STATS_EXT_ENTRY(rx_pcs_symbol_err),
 	BNXT_RX_STATS_EXT_ENTRY(rx_corrected_bits),
+	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRIES,
 };
 
 static const struct {
@@ -417,9 +469,29 @@ static const struct {
 	 ARRAY_SIZE(bnxt_tx_pkts_pri_arr))
 #define BNXT_NUM_PCIE_STATS ARRAY_SIZE(bnxt_pcie_stats_arr)
 
+static int bnxt_get_num_tpa_ring_stats(struct bnxt *bp)
+{
+	if (BNXT_SUPPORTS_TPA(bp)) {
+		if (bp->max_tpa_v2)
+			return ARRAY_SIZE(bnxt_ring_tpa2_stats_str);
+		return ARRAY_SIZE(bnxt_ring_tpa_stats_str);
+	}
+	return 0;
+}
+
+static int bnxt_get_num_ring_stats(struct bnxt *bp)
+{
+	int num_stats;
+
+	num_stats = ARRAY_SIZE(bnxt_ring_stats_str) +
+		    ARRAY_SIZE(bnxt_ring_sw_stats_str) +
+		    bnxt_get_num_tpa_ring_stats(bp);
+	return num_stats * bp->cp_nr_rings;
+}
+
 static int bnxt_get_num_stats(struct bnxt *bp)
 {
-	int num_stats = BNXT_NUM_STATS * bp->cp_nr_rings;
+	int num_stats = bnxt_get_num_ring_stats(bp);
 
 	num_stats += BNXT_NUM_SW_FUNC_STATS;
 
@@ -460,10 +532,11 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 {
 	u32 i, j = 0;
 	struct bnxt *bp = netdev_priv(dev);
-	u32 stat_fields = sizeof(struct ctx_hw_stats) / 8;
+	u32 stat_fields = ARRAY_SIZE(bnxt_ring_stats_str) +
+			  bnxt_get_num_tpa_ring_stats(bp);
 
 	if (!bp->bnapi) {
-		j += BNXT_NUM_STATS * bp->cp_nr_rings + BNXT_NUM_SW_FUNC_STATS;
+		j += bnxt_get_num_ring_stats(bp) + BNXT_NUM_SW_FUNC_STATS;
 		goto skip_ring_stats;
 	}
 
@@ -551,56 +624,39 @@ skip_ring_stats:
 static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	u32 i;
+	static const char * const *str;
+	u32 i, j, num_str;
 
 	switch (stringset) {
-	/* The number of strings must match BNXT_NUM_STATS defined above. */
 	case ETH_SS_STATS:
 		for (i = 0; i < bp->cp_nr_rings; i++) {
-			sprintf(buf, "[%d]: rx_ucast_packets", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: rx_mcast_packets", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: rx_bcast_packets", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: rx_discards", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: rx_drops", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: rx_ucast_bytes", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: rx_mcast_bytes", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: rx_bcast_bytes", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: tx_ucast_packets", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: tx_mcast_packets", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: tx_bcast_packets", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: tx_discards", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: tx_drops", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: tx_ucast_bytes", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: tx_mcast_bytes", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: tx_bcast_bytes", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: tpa_packets", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: tpa_bytes", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: tpa_events", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: tpa_aborts", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: rx_l4_csum_errors", i);
-			buf += ETH_GSTRING_LEN;
-			sprintf(buf, "[%d]: missed_irqs", i);
-			buf += ETH_GSTRING_LEN;
+			num_str = ARRAY_SIZE(bnxt_ring_stats_str);
+			for (j = 0; j < num_str; j++) {
+				sprintf(buf, "[%d]: %s", i,
+					bnxt_ring_stats_str[j]);
+				buf += ETH_GSTRING_LEN;
+			}
+			if (!BNXT_SUPPORTS_TPA(bp))
+				goto skip_tpa_stats;
+
+			if (bp->max_tpa_v2) {
+				num_str = ARRAY_SIZE(bnxt_ring_tpa2_stats_str);
+				str = bnxt_ring_tpa2_stats_str;
+			} else {
+				num_str = ARRAY_SIZE(bnxt_ring_tpa_stats_str);
+				str = bnxt_ring_tpa_stats_str;
+			}
+			for (j = 0; j < num_str; j++) {
+				sprintf(buf, "[%d]: %s", i, str[j]);
+				buf += ETH_GSTRING_LEN;
+			}
+skip_tpa_stats:
+			num_str = ARRAY_SIZE(bnxt_ring_sw_stats_str);
+			for (j = 0; j < num_str; j++) {
+				sprintf(buf, "[%d]: %s", i,
+					bnxt_ring_sw_stats_str[j]);
+				buf += ETH_GSTRING_LEN;
+			}
 		}
 		for (i = 0; i < BNXT_NUM_SW_FUNC_STATS; i++) {
 			strcpy(buf, bnxt_sw_func_stats[i].string);

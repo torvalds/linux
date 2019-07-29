@@ -1,7 +1,8 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
- * Copyright (c) 2016-2019 Broadcom Limited
+ * Copyright (c) 2014-2018 Broadcom Limited
+ * Copyright (c) 2018-2019 Broadcom Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,15 +40,15 @@ struct hwrm_resp_hdr {
 #define TLV_TYPE_ROCE_SP_COMMAND                 0x3UL
 #define TLV_TYPE_QUERY_ROCE_CC_GEN1              0x4UL
 #define TLV_TYPE_MODIFY_ROCE_CC_GEN1             0x5UL
-#define TLV_TYPE_ENGINE_CKV_DEVICE_SERIAL_NUMBER 0x8001UL
-#define TLV_TYPE_ENGINE_CKV_NONCE                0x8002UL
+#define TLV_TYPE_ENGINE_CKV_ALIAS_ECC_PUBLIC_KEY 0x8001UL
 #define TLV_TYPE_ENGINE_CKV_IV                   0x8003UL
 #define TLV_TYPE_ENGINE_CKV_AUTH_TAG             0x8004UL
 #define TLV_TYPE_ENGINE_CKV_CIPHERTEXT           0x8005UL
 #define TLV_TYPE_ENGINE_CKV_ALGORITHMS           0x8006UL
-#define TLV_TYPE_ENGINE_CKV_ECC_PUBLIC_KEY       0x8007UL
+#define TLV_TYPE_ENGINE_CKV_HOST_ECC_PUBLIC_KEY  0x8007UL
 #define TLV_TYPE_ENGINE_CKV_ECDSA_SIGNATURE      0x8008UL
-#define TLV_TYPE_LAST                           TLV_TYPE_ENGINE_CKV_ECDSA_SIGNATURE
+#define TLV_TYPE_ENGINE_CKV_SRT_ECC_PUBLIC_KEY   0x8009UL
+#define TLV_TYPE_LAST                           TLV_TYPE_ENGINE_CKV_SRT_ECC_PUBLIC_KEY
 
 
 /* tlv (size:64b/8B) */
@@ -267,7 +268,6 @@ struct cmd_nums {
 	#define HWRM_CFA_EEM_OP                           0x123UL
 	#define HWRM_CFA_ADV_FLOW_MGNT_QCAPS              0x124UL
 	#define HWRM_CFA_TFLIB                            0x125UL
-	#define HWRM_ENGINE_CKV_HELLO                     0x12dUL
 	#define HWRM_ENGINE_CKV_STATUS                    0x12eUL
 	#define HWRM_ENGINE_CKV_CKEK_ADD                  0x12fUL
 	#define HWRM_ENGINE_CKV_CKEK_DELETE               0x130UL
@@ -313,6 +313,7 @@ struct cmd_nums {
 	#define HWRM_FUNC_BACKING_STORE_QCFG              0x194UL
 	#define HWRM_FUNC_VF_BW_CFG                       0x195UL
 	#define HWRM_FUNC_VF_BW_QCFG                      0x196UL
+	#define HWRM_FUNC_HOST_PF_IDS_QUERY               0x197UL
 	#define HWRM_SELFTEST_QLIST                       0x200UL
 	#define HWRM_SELFTEST_EXEC                        0x201UL
 	#define HWRM_SELFTEST_IRQ                         0x202UL
@@ -410,8 +411,8 @@ struct hwrm_err_output {
 #define HWRM_VERSION_MAJOR 1
 #define HWRM_VERSION_MINOR 10
 #define HWRM_VERSION_UPDATE 0
-#define HWRM_VERSION_RSVD 69
-#define HWRM_VERSION_STR "1.10.0.69"
+#define HWRM_VERSION_RSVD 89
+#define HWRM_VERSION_STR "1.10.0.89"
 
 /* hwrm_ver_get_input (size:192b/24B) */
 struct hwrm_ver_get_input {
@@ -624,6 +625,8 @@ struct hwrm_async_event_cmpl {
 	#define ASYNC_EVENT_CMPL_EVENT_ID_TCP_FLAG_ACTION_CHANGE     0x3aUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_EEM_FLOW_ACTIVE            0x3bUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_EEM_CFG_CHANGE             0x3cUL
+	#define ASYNC_EVENT_CMPL_EVENT_ID_TFLIB_DEFAULT_VNIC_CHANGE  0x3dUL
+	#define ASYNC_EVENT_CMPL_EVENT_ID_TFLIB_LINK_STATUS_CHANGE   0x3eUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_FW_TRACE_MSG               0xfeUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_HWRM_ERROR                 0xffUL
 	#define ASYNC_EVENT_CMPL_EVENT_ID_LAST                      ASYNC_EVENT_CMPL_EVENT_ID_HWRM_ERROR
@@ -1122,6 +1125,7 @@ struct hwrm_func_qcfg_output {
 	#define FUNC_QCFG_RESP_FLAGS_MULTI_HOST                   0x20UL
 	#define FUNC_QCFG_RESP_FLAGS_TRUSTED_VF                   0x40UL
 	#define FUNC_QCFG_RESP_FLAGS_SECURE_MODE_ENABLED          0x80UL
+	#define FUNC_QCFG_RESP_FLAGS_PREBOOT_LEGACY_L2_RINGS      0x100UL
 	u8	mac_address[6];
 	__le16	pci_id;
 	__le16	alloc_rsscos_ctx;
@@ -1241,6 +1245,7 @@ struct hwrm_func_cfg_input {
 	#define FUNC_CFG_REQ_FLAGS_DYNAMIC_TX_RING_ALLOC          0x400000UL
 	#define FUNC_CFG_REQ_FLAGS_NQ_ASSETS_TEST                 0x800000UL
 	#define FUNC_CFG_REQ_FLAGS_TRUSTED_VF_DISABLE             0x1000000UL
+	#define FUNC_CFG_REQ_FLAGS_PREBOOT_LEGACY_L2_RINGS        0x2000000UL
 	__le32	enables;
 	#define FUNC_CFG_REQ_ENABLES_MTU                     0x1UL
 	#define FUNC_CFG_REQ_ENABLES_MRU                     0x2UL
@@ -2916,7 +2921,7 @@ struct tx_port_stats_ext {
 	__le64	pfc_pri7_tx_transitions;
 };
 
-/* rx_port_stats_ext (size:2624b/328B) */
+/* rx_port_stats_ext (size:3648b/456B) */
 struct rx_port_stats_ext {
 	__le64	link_down_events;
 	__le64	continuous_pause_events;
@@ -2959,6 +2964,22 @@ struct rx_port_stats_ext {
 	__le64	rx_buffer_passed_threshold;
 	__le64	rx_pcs_symbol_err;
 	__le64	rx_corrected_bits;
+	__le64	rx_discard_bytes_cos0;
+	__le64	rx_discard_bytes_cos1;
+	__le64	rx_discard_bytes_cos2;
+	__le64	rx_discard_bytes_cos3;
+	__le64	rx_discard_bytes_cos4;
+	__le64	rx_discard_bytes_cos5;
+	__le64	rx_discard_bytes_cos6;
+	__le64	rx_discard_bytes_cos7;
+	__le64	rx_discard_packets_cos0;
+	__le64	rx_discard_packets_cos1;
+	__le64	rx_discard_packets_cos2;
+	__le64	rx_discard_packets_cos3;
+	__le64	rx_discard_packets_cos4;
+	__le64	rx_discard_packets_cos5;
+	__le64	rx_discard_packets_cos6;
+	__le64	rx_discard_packets_cos7;
 };
 
 /* hwrm_port_qstats_ext_input (size:320b/40B) */
@@ -6115,6 +6136,21 @@ struct hwrm_cfa_flow_alloc_output {
 	u8	valid;
 };
 
+/* hwrm_cfa_flow_alloc_cmd_err (size:64b/8B) */
+struct hwrm_cfa_flow_alloc_cmd_err {
+	u8	code;
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_UNKNOWN         0x0UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_L2_CONTEXT_TCAM 0x1UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_ACTION_RECORD   0x2UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_FLOW_COUNTER    0x3UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_WILD_CARD_TCAM  0x4UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_HASH_COLLISION  0x5UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_KEY_EXISTS      0x6UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_FLOW_CTXT_DB    0x7UL
+	#define CFA_FLOW_ALLOC_CMD_ERR_CODE_LAST           CFA_FLOW_ALLOC_CMD_ERR_CODE_FLOW_CTXT_DB
+	u8	unused_0[7];
+};
+
 /* hwrm_cfa_flow_free_input (size:256b/32B) */
 struct hwrm_cfa_flow_free_input {
 	__le16	req_type;
@@ -6305,7 +6341,7 @@ struct hwrm_cfa_eem_qcaps_input {
 	__le32	unused_0;
 };
 
-/* hwrm_cfa_eem_qcaps_output (size:256b/32B) */
+/* hwrm_cfa_eem_qcaps_output (size:320b/40B) */
 struct hwrm_cfa_eem_qcaps_output {
 	__le16	error_code;
 	__le16	req_type;
@@ -6322,15 +6358,17 @@ struct hwrm_cfa_eem_qcaps_output {
 	#define CFA_EEM_QCAPS_RESP_SUPPORTED_KEY1_TABLE                       0x2UL
 	#define CFA_EEM_QCAPS_RESP_SUPPORTED_EXTERNAL_RECORD_TABLE            0x4UL
 	#define CFA_EEM_QCAPS_RESP_SUPPORTED_EXTERNAL_FLOW_COUNTERS_TABLE     0x8UL
+	#define CFA_EEM_QCAPS_RESP_SUPPORTED_FID_TABLE                        0x10UL
 	__le32	max_entries_supported;
 	__le16	key_entry_size;
 	__le16	record_entry_size;
 	__le16	efc_entry_size;
-	u8	unused_1;
+	__le16	fid_entry_size;
+	u8	unused_1[7];
 	u8	valid;
 };
 
-/* hwrm_cfa_eem_cfg_input (size:320b/40B) */
+/* hwrm_cfa_eem_cfg_input (size:384b/48B) */
 struct hwrm_cfa_eem_cfg_input {
 	__le16	req_type;
 	__le16	cmpl_ring;
@@ -6350,6 +6388,9 @@ struct hwrm_cfa_eem_cfg_input {
 	__le16	key1_ctx_id;
 	__le16	record_ctx_id;
 	__le16	efc_ctx_id;
+	__le16	fid_ctx_id;
+	__le16	unused_2;
+	__le32	unused_3;
 };
 
 /* hwrm_cfa_eem_cfg_output (size:128b/16B) */
@@ -6375,7 +6416,7 @@ struct hwrm_cfa_eem_qcfg_input {
 	__le32	unused_0;
 };
 
-/* hwrm_cfa_eem_qcfg_output (size:192b/24B) */
+/* hwrm_cfa_eem_qcfg_output (size:256b/32B) */
 struct hwrm_cfa_eem_qcfg_output {
 	__le16	error_code;
 	__le16	req_type;
@@ -6386,7 +6427,12 @@ struct hwrm_cfa_eem_qcfg_output {
 	#define CFA_EEM_QCFG_RESP_FLAGS_PATH_RX               0x2UL
 	#define CFA_EEM_QCFG_RESP_FLAGS_PREFERRED_OFFLOAD     0x4UL
 	__le32	num_entries;
-	u8	unused_0[7];
+	__le16	key0_ctx_id;
+	__le16	key1_ctx_id;
+	__le16	record_ctx_id;
+	__le16	efc_ctx_id;
+	__le16	fid_ctx_id;
+	u8	unused_2[5];
 	u8	valid;
 };
 
@@ -6567,6 +6613,31 @@ struct ctx_hw_stats {
 	__le64	tpa_aborts;
 };
 
+/* ctx_hw_stats_ext (size:1344b/168B) */
+struct ctx_hw_stats_ext {
+	__le64	rx_ucast_pkts;
+	__le64	rx_mcast_pkts;
+	__le64	rx_bcast_pkts;
+	__le64	rx_discard_pkts;
+	__le64	rx_drop_pkts;
+	__le64	rx_ucast_bytes;
+	__le64	rx_mcast_bytes;
+	__le64	rx_bcast_bytes;
+	__le64	tx_ucast_pkts;
+	__le64	tx_mcast_pkts;
+	__le64	tx_bcast_pkts;
+	__le64	tx_discard_pkts;
+	__le64	tx_drop_pkts;
+	__le64	tx_ucast_bytes;
+	__le64	tx_mcast_bytes;
+	__le64	tx_bcast_bytes;
+	__le64	rx_tpa_eligible_pkt;
+	__le64	rx_tpa_eligible_bytes;
+	__le64	rx_tpa_pkt;
+	__le64	rx_tpa_bytes;
+	__le64	rx_tpa_errors;
+};
+
 /* hwrm_stat_ctx_alloc_input (size:256b/32B) */
 struct hwrm_stat_ctx_alloc_input {
 	__le16	req_type;
@@ -6578,7 +6649,8 @@ struct hwrm_stat_ctx_alloc_input {
 	__le32	update_period_ms;
 	u8	stat_ctx_flags;
 	#define STAT_CTX_ALLOC_REQ_STAT_CTX_FLAGS_ROCE     0x1UL
-	u8	unused_0[3];
+	u8	unused_0;
+	__le16	stats_dma_length;
 };
 
 /* hwrm_stat_ctx_alloc_output (size:128b/16B) */
@@ -7204,7 +7276,9 @@ struct coredump_segment_record {
 	u8	version_hi;
 	u8	version_low;
 	u8	seg_flags;
-	u8	unused_0[7];
+	u8	compress_flags;
+	#define SFLAG_COMPRESSED_ZLIB     0x1UL
+	u8	unused_0[6];
 };
 
 /* hwrm_dbg_coredump_list_input (size:256b/32B) */
@@ -7729,6 +7803,9 @@ struct hwrm_nvm_set_variable_input {
 	#define NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_AES256          (0x2UL << 1)
 	#define NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_HMAC_SHA1_AUTH  (0x3UL << 1)
 	#define NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_LAST           NVM_SET_VARIABLE_REQ_FLAGS_ENCRYPT_MODE_HMAC_SHA1_AUTH
+	#define NVM_SET_VARIABLE_REQ_FLAGS_FLAGS_UNUSED_0_MASK        0x70UL
+	#define NVM_SET_VARIABLE_REQ_FLAGS_FLAGS_UNUSED_0_SFT         4
+	#define NVM_SET_VARIABLE_REQ_FLAGS_FACTORY_DEFAULT            0x80UL
 	u8	unused_0;
 };
 
