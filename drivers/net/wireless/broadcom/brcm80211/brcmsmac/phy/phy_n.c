@@ -20035,7 +20035,7 @@ static void wlc_phy_radio_init_2056(struct brcms_phy *pi)
 			break;
 
 		default:
-			break;
+			return;
 		}
 	}
 
