@@ -590,7 +590,7 @@ static int type_index(void *key, void *datum, void *datap)
 		    || typdatum->bounds > p->p_types.nprim)
 			return -EINVAL;
 		p->sym_val_to_name[SYM_TYPES][typdatum->value - 1] = key;
-		p->type_val_to_struct_array[typdatum->value - 1] = typdatum;
+		p->type_val_to_struct[typdatum->value - 1] = typdatum;
 	}
 
 	return 0;
@@ -732,10 +732,10 @@ static int policydb_index(struct policydb *p)
 	if (!p->user_val_to_struct)
 		return -ENOMEM;
 
-	p->type_val_to_struct_array = kvcalloc(p->p_types.nprim,
-					       sizeof(*p->type_val_to_struct_array),
-					       GFP_KERNEL);
-	if (!p->type_val_to_struct_array)
+	p->type_val_to_struct = kvcalloc(p->p_types.nprim,
+					 sizeof(*p->type_val_to_struct),
+					 GFP_KERNEL);
+	if (!p->type_val_to_struct)
 		return -ENOMEM;
 
 	rc = cond_init_bool_indexes(p);
@@ -781,7 +781,7 @@ void policydb_destroy(struct policydb *p)
 	kfree(p->class_val_to_struct);
 	kfree(p->role_val_to_struct);
 	kfree(p->user_val_to_struct);
-	kvfree(p->type_val_to_struct_array);
+	kvfree(p->type_val_to_struct);
 
 	avtab_destroy(&p->te_avtab);
 
@@ -1726,7 +1726,7 @@ static int type_bounds_sanity_check(void *key, void *datum, void *datap)
 			return -EINVAL;
 		}
 
-		upper = p->type_val_to_struct_array[upper->bounds - 1];
+		upper = p->type_val_to_struct[upper->bounds - 1];
 		BUG_ON(!upper);
 
 		if (upper->attribute) {
