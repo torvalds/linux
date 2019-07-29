@@ -2817,6 +2817,10 @@ void ice_vsi_dis_irq(struct ice_vsi *vsi)
 
 	ice_flush(hw);
 
+	/* don't call synchronize_irq() for VF's from the host */
+	if (vsi->type == ICE_VSI_VF)
+		return;
+
 	ice_for_each_q_vector(vsi, i)
 		synchronize_irq(pf->msix_entries[i + base].vector);
 }
