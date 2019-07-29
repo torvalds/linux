@@ -457,7 +457,7 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 		dev_info(&pf->pdev->dev,
 			 "FW LLDP is disabled, DCBx/LLDP in SW mode.\n");
 		port_info->is_sw_lldp = true;
-		clear_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags);
+		clear_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags);
 		err = ice_dcb_sw_dflt_cfg(pf, locked);
 		if (err) {
 			dev_err(&pf->pdev->dev,
@@ -473,7 +473,7 @@ int ice_init_pf_dcb(struct ice_pf *pf, bool locked)
 	}
 
 	port_info->is_sw_lldp = false;
-	set_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags);
+	set_bit(ICE_FLAG_FW_LLDP_AGENT, pf->flags);
 
 	/* DCBX in FW and LLDP enabled in FW */
 	pf->dcbx_cap = DCB_CAP_DCBX_LLD_MANAGED | DCB_CAP_DCBX_VER_IEEE;
