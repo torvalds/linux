@@ -229,8 +229,6 @@ static void umc_v6_1_query_ras_error_address(struct amdgpu_device *adev,
 
 			/* clear umc status */
 			WREG64(mc_umc_status_addr + umc_reg_offset, 0x0ULL);
-			/* clear error address register */
-			WREG64_PCIE(smnMCA_UMC0_MCUMC_ADDRT0 + umc_reg_offset * 4, 0x0ULL);
 		}
 	}
 
