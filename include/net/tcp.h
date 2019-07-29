@@ -415,6 +415,16 @@ void tcp_parse_options(const struct net *net, const struct sk_buff *skb,
 const u8 *tcp_parse_md5sig_option(const struct tcphdr *th);
 
 /*
+ *	BPF SKB-less helpers
+ */
+u16 tcp_v4_get_syncookie(struct sock *sk, struct iphdr *iph,
+			 struct tcphdr *th, u32 *cookie);
+u16 tcp_v6_get_syncookie(struct sock *sk, struct ipv6hdr *iph,
+			 struct tcphdr *th, u32 *cookie);
+u16 tcp_get_syncookie_mss(struct request_sock_ops *rsk_ops,
+			  const struct tcp_request_sock_ops *af_ops,
+			  struct sock *sk, struct tcphdr *th);
+/*
  *	TCP v4 functions exported for the inet6 API
  */
 
