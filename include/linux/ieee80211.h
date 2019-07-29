@@ -981,6 +981,8 @@ struct ieee80211_mgmt {
 					__le16 capab;
 					__le16 timeout;
 					__le16 start_seq_num;
+					/* followed by BA Extension */
+					u8 variable[0];
 				} __packed addba_req;
 				struct{
 					u8 action_code;
