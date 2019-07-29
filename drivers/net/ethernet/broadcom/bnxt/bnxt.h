@@ -555,6 +555,7 @@ struct nqe_cn {
 
 #define MAX_TPA		64
 #define MAX_TPA_P5	256
+#define MAX_TPA_P5_MASK	(MAX_TPA_P5 - 1)
 #define MAX_TPA_SEGS_P5	0x3f
 
 #if (BNXT_PAGE_SHIFT == 16)
@@ -841,6 +842,13 @@ struct bnxt_tpa_info {
 	struct rx_agg_cmp	*agg_arr;
 };
 
+#define BNXT_AGG_IDX_BMAP_SIZE	(MAX_TPA_P5 / BITS_PER_LONG)
+
+struct bnxt_tpa_idx_map {
+	u16		agg_id_tbl[1024];
+	unsigned long	agg_idx_bmap[BNXT_AGG_IDX_BMAP_SIZE];
+};
+
 struct bnxt_rx_ring_info {
 	struct bnxt_napi	*bnapi;
 	u16			rx_prod;
@@ -868,6 +876,7 @@ struct bnxt_rx_ring_info {
 	dma_addr_t		rx_agg_desc_mapping[MAX_RX_AGG_PAGES];
 
 	struct bnxt_tpa_info	*rx_tpa;
+	struct bnxt_tpa_idx_map *rx_tpa_idx_map;
 
 	struct bnxt_ring_struct	rx_ring_struct;
 	struct bnxt_ring_struct	rx_agg_ring_struct;

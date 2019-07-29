@@ -1152,6 +1152,33 @@ static void bnxt_sched_reset(struct bnxt *bp, struct bnxt_rx_ring_info *rxr)
 	rxr->rx_next_cons = 0xffff;
 }
 
+static u16 bnxt_alloc_agg_idx(struct bnxt_rx_ring_info *rxr, u16 agg_id)
+{
+	struct bnxt_tpa_idx_map *map = rxr->rx_tpa_idx_map;
+	u16 idx = agg_id & MAX_TPA_P5_MASK;
+
+	if (test_bit(idx, map->agg_idx_bmap))
+		idx = find_first_zero_bit(map->agg_idx_bmap,
+					  BNXT_AGG_IDX_BMAP_SIZE);
+	__set_bit(idx, map->agg_idx_bmap);
+	map->agg_id_tbl[agg_id] = idx;
+	return idx;
+}
+
+static void bnxt_free_agg_idx(struct bnxt_rx_ring_info *rxr, u16 idx)
+{
+	struct bnxt_tpa_idx_map *map = rxr->rx_tpa_idx_map;
+
+	__clear_bit(idx, map->agg_idx_bmap);
+}
+
+static u16 bnxt_lookup_agg_idx(struct bnxt_rx_ring_info *rxr, u16 agg_id)
+{
+	struct bnxt_tpa_idx_map *map = rxr->rx_tpa_idx_map;
+
+	return map->agg_id_tbl[agg_id];
+}
+
 static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 			   struct rx_tpa_start_cmp *tpa_start,
 			   struct rx_tpa_start_cmp_ext *tpa_start1)
@@ -1162,10 +1189,12 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	struct rx_bd *prod_bd;
 	dma_addr_t mapping;
 
-	if (bp->flags & BNXT_FLAG_CHIP_P5)
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
 		agg_id = TPA_START_AGG_ID_P5(tpa_start);
-	else
+		agg_id = bnxt_alloc_agg_idx(rxr, agg_id);
+	} else {
 		agg_id = TPA_START_AGG_ID(tpa_start);
+	}
 	cons = tpa_start->rx_tpa_start_cmp_opaque;
 	prod = rxr->rx_prod;
 	cons_rx_buf = &rxr->rx_buf_ring[cons];
@@ -1445,6 +1474,7 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 
 	if (bp->flags & BNXT_FLAG_CHIP_P5) {
 		agg_id = TPA_END_AGG_ID_P5(tpa_end);
+		agg_id = bnxt_lookup_agg_idx(rxr, agg_id);
 		agg_bufs = TPA_END_AGG_BUFS_P5(tpa_end1);
 		tpa_info = &rxr->rx_tpa[agg_id];
 		if (unlikely(agg_bufs != tpa_info->agg_count)) {
@@ -1454,6 +1484,7 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 		}
 		tpa_info->agg_count = 0;
 		*event |= BNXT_AGG_EVENT;
+		bnxt_free_agg_idx(rxr, agg_id);
 		idx = agg_id;
 		gro = !!(bp->flags & BNXT_FLAG_GRO);
 	} else {
@@ -1560,6 +1591,7 @@ static void bnxt_tpa_agg(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	u16 agg_id = TPA_AGG_AGG_ID(rx_agg);
 	struct bnxt_tpa_info *tpa_info;
 
+	agg_id = bnxt_lookup_agg_idx(rxr, agg_id);
 	tpa_info = &rxr->rx_tpa[agg_id];
 	BUG_ON(tpa_info->agg_count >= MAX_SKB_FRAGS);
 	tpa_info->agg_arr[tpa_info->agg_count++] = *rx_agg;
@@ -2383,6 +2415,7 @@ static void bnxt_free_rx_skbs(struct bnxt *bp)
 	max_agg_idx = bp->rx_agg_nr_pages * RX_DESC_CNT;
 	for (i = 0; i < bp->rx_nr_rings; i++) {
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
+		struct bnxt_tpa_idx_map *map;
 		int j;
 
 		if (rxr->rx_tpa) {
@@ -2453,6 +2486,9 @@ static void bnxt_free_rx_skbs(struct bnxt *bp)
 			__free_page(rxr->rx_page);
 			rxr->rx_page = NULL;
 		}
+		map = rxr->rx_tpa_idx_map;
+		if (map)
+			memset(map->agg_idx_bmap, 0, sizeof(map->agg_idx_bmap));
 	}
 }
 
@@ -2548,6 +2584,8 @@ static void bnxt_free_tpa_info(struct bnxt *bp)
 	for (i = 0; i < bp->rx_nr_rings; i++) {
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 
+		kfree(rxr->rx_tpa_idx_map);
+		rxr->rx_tpa_idx_map = NULL;
 		if (rxr->rx_tpa) {
 			kfree(rxr->rx_tpa[0].agg_arr);
 			rxr->rx_tpa[0].agg_arr = NULL;
@@ -2586,6 +2624,10 @@ static int bnxt_alloc_tpa_info(struct bnxt *bp)
 			return -ENOMEM;
 		for (j = 1; j < bp->max_tpa; j++)
 			rxr->rx_tpa[j].agg_arr = agg + j * MAX_SKB_FRAGS;
+		rxr->rx_tpa_idx_map = kzalloc(sizeof(*rxr->rx_tpa_idx_map),
+					      GFP_KERNEL);
+		if (!rxr->rx_tpa_idx_map)
+			return -ENOMEM;
 	}
 	return 0;
 }
