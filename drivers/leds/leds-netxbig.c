@@ -428,12 +428,14 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 	}
 
 	gpio_ext = devm_kzalloc(dev, sizeof(*gpio_ext), GFP_KERNEL);
-	if (!gpio_ext)
+	if (!gpio_ext) {
+		of_node_put(gpio_ext_np);
 		return -ENOMEM;
+	}
 	ret = gpio_ext_get_of_pdata(dev, gpio_ext_np, gpio_ext);
+	of_node_put(gpio_ext_np);
 	if (ret)
 		return ret;
-	of_node_put(gpio_ext_np);
 	pdata->gpio_ext = gpio_ext;
 
 	/* Timers (optional) */
