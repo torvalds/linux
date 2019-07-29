@@ -598,14 +598,14 @@ struct aspeed_pin_desc {
 #define PIN_EXPRS_PTR(pin) (&PIN_EXPRS_SYM(pin)[0])
 #define PIN_SYM(pin) pin_ ## pin
 
-#define MS_PIN_DECL_(pin, ...) \
+#define PIN_DECL_(pin, ...) \
 	static const struct aspeed_sig_expr **PIN_EXPRS_SYM(pin)[] = \
 		{ __VA_ARGS__, NULL }; \
 	static const struct aspeed_pin_desc PIN_SYM(pin) = \
 		{ #pin, PIN_EXPRS_PTR(pin) }
 
 /**
- * Declare a multi-signal pin
+ * Declare a two-signal pin
  *
  * @pin: The pin number
  * @other: Macro name for "other" functionality (subjected to stringification)
@@ -621,11 +621,11 @@ struct aspeed_pin_desc {
  *     SIG_EXPR_LIST_DECL(ROMD8, SIG_EXPR_PTR(ROMD8, ROM16),
  *              SIG_EXPR_PTR(ROMD8, ROM16S));
  *     SIG_EXPR_LIST_DECL_SINGLE(NCTS6, NCTS6, SIG_DESC_SET(SCU90, 7));
- *     MS_PIN_DECL(A8, GPIOH0, ROMD8, NCTS6);
+ *     PIN_DECL_2(A8, GPIOH0, ROMD8, NCTS6);
  */
-#define MS_PIN_DECL(pin, other, high, low) \
+#define PIN_DECL_2(pin, other, high, low) \
 	SIG_EXPR_LIST_DECL_SINGLE(other, other); \
-	MS_PIN_DECL_(pin, \
+	PIN_DECL_(pin, \
 			SIG_EXPR_LIST_PTR(high), \
 			SIG_EXPR_LIST_PTR(low), \
 			SIG_EXPR_LIST_PTR(other))
@@ -647,11 +647,11 @@ struct aspeed_pin_desc {
  *
  *     #define E3 80
  *     SIG_EXPR_LIST_DECL_SINGLE(SCL5, I2C5, I2C5_DESC);
- *     SS_PIN_DECL(E3, GPIOK0, SCL5);
+ *     PIN_DECL_1(E3, GPIOK0, SCL5);
  */
-#define SS_PIN_DECL(pin, other, sig) \
+#define PIN_DECL_1(pin, other, sig) \
 	SIG_EXPR_LIST_DECL_SINGLE(other, other); \
-	MS_PIN_DECL_(pin, SIG_EXPR_LIST_PTR(sig), SIG_EXPR_LIST_PTR(other))
+	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(sig), SIG_EXPR_LIST_PTR(other))
 
 /**
  * Single signal, single function pin declaration
@@ -668,12 +668,12 @@ struct aspeed_pin_desc {
 #define SSSF_PIN_DECL(pin, other, sig, ...) \
 	SIG_EXPR_LIST_DECL_SINGLE(sig, sig, __VA_ARGS__); \
 	SIG_EXPR_LIST_DECL_SINGLE(other, other); \
-	MS_PIN_DECL_(pin, SIG_EXPR_LIST_PTR(sig), SIG_EXPR_LIST_PTR(other)); \
+	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(sig), SIG_EXPR_LIST_PTR(other)); \
 	FUNC_GROUP_DECL(sig, pin)
 
 #define GPIO_PIN_DECL(pin, gpio) \
 	SIG_EXPR_LIST_DECL_SINGLE(gpio, gpio); \
-	MS_PIN_DECL_(pin, SIG_EXPR_LIST_PTR(gpio))
+	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(gpio))
 
 struct aspeed_pin_group {
 	const char *name;
