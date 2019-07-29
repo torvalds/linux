@@ -2513,8 +2513,12 @@ static void hclge_task_schedule(struct hclge_dev *hdev)
 {
 	if (!test_bit(HCLGE_STATE_DOWN, &hdev->state) &&
 	    !test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
-	    !test_and_set_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state))
-		(void)schedule_work(&hdev->service_task);
+	    !test_and_set_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state)) {
+		hdev->hw_stats.stats_timer++;
+		hdev->fd_arfs_expire_timer++;
+		mod_delayed_work(system_wq, &hdev->service_task,
+				 round_jiffies_relative(HZ));
+	}
 }
 
 static int hclge_get_mac_link_status(struct hclge_dev *hdev)
@@ -2727,25 +2731,6 @@ static int hclge_get_status(struct hnae3_handle *handle)
 	hclge_update_link_status(hdev);
 
 	return hdev->hw.mac.link;
-}
-
-static void hclge_service_timer(struct timer_list *t)
-{
-	struct hclge_dev *hdev = from_timer(hdev, t, service_timer);
-
-	mod_timer(&hdev->service_timer, jiffies + HZ);
-	hdev->hw_stats.stats_timer++;
-	hdev->fd_arfs_expire_timer++;
-	hclge_task_schedule(hdev);
-}
-
-static void hclge_service_complete(struct hclge_dev *hdev)
-{
-	WARN_ON(!test_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state));
-
-	/* Flush memory before next watchdog */
-	smp_mb__before_atomic();
-	clear_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state);
 }
 
 static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
@@ -3594,7 +3579,9 @@ static void hclge_update_vport_alive(struct hclge_dev *hdev)
 static void hclge_service_task(struct work_struct *work)
 {
 	struct hclge_dev *hdev =
-		container_of(work, struct hclge_dev, service_task);
+		container_of(work, struct hclge_dev, service_task.work);
+
+	clear_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state);
 
 	if (hdev->hw_stats.stats_timer >= HCLGE_STATS_TIMER_INTERVAL) {
 		hclge_update_stats_for_all(hdev);
@@ -3609,7 +3596,8 @@ static void hclge_service_task(struct work_struct *work)
 		hclge_rfs_filter_expire(hdev);
 		hdev->fd_arfs_expire_timer = 0;
 	}
-	hclge_service_complete(hdev);
+
+	hclge_task_schedule(hdev);
 }
 
 struct hclge_vport *hclge_get_vport(struct hnae3_handle *handle)
@@ -6148,10 +6136,13 @@ static void hclge_set_timer_task(struct hnae3_handle *handle, bool enable)
 	struct hclge_dev *hdev = vport->back;
 
 	if (enable) {
-		mod_timer(&hdev->service_timer, jiffies + HZ);
+		hclge_task_schedule(hdev);
 	} else {
-		del_timer_sync(&hdev->service_timer);
-		cancel_work_sync(&hdev->service_task);
+		/* Set the DOWN flag here to disable the service to be
+		 * scheduled again
+		 */
+		set_bit(HCLGE_STATE_DOWN, &hdev->state);
+		cancel_delayed_work_sync(&hdev->service_task);
 		clear_bit(HCLGE_STATE_SERVICE_SCHED, &hdev->state);
 	}
 }
@@ -8590,12 +8581,10 @@ static void hclge_state_uninit(struct hclge_dev *hdev)
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
 	set_bit(HCLGE_STATE_REMOVING, &hdev->state);
 
-	if (hdev->service_timer.function)
-		del_timer_sync(&hdev->service_timer);
 	if (hdev->reset_timer.function)
 		del_timer_sync(&hdev->reset_timer);
-	if (hdev->service_task.func)
-		cancel_work_sync(&hdev->service_task);
+	if (hdev->service_task.work.func)
+		cancel_delayed_work_sync(&hdev->service_task);
 	if (hdev->rst_service_task.func)
 		cancel_work_sync(&hdev->rst_service_task);
 	if (hdev->mbx_service_task.func)
@@ -8800,9 +8789,8 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	hclge_dcb_ops_set(hdev);
 
-	timer_setup(&hdev->service_timer, hclge_service_timer, 0);
 	timer_setup(&hdev->reset_timer, hclge_reset_timer, 0);
-	INIT_WORK(&hdev->service_task, hclge_service_task);
+	INIT_DELAYED_WORK(&hdev->service_task, hclge_service_task);
 	INIT_WORK(&hdev->rst_service_task, hclge_reset_service_task);
 	INIT_WORK(&hdev->mbx_service_task, hclge_mailbox_service_task);
 

@@ -806,9 +806,8 @@ struct hclge_dev {
 	u16 adminq_work_limit; /* Num of admin receive queue desc to process */
 	unsigned long service_timer_period;
 	unsigned long service_timer_previous;
-	struct timer_list service_timer;
 	struct timer_list reset_timer;
-	struct work_struct service_task;
+	struct delayed_work service_task;
 	struct work_struct rst_service_task;
 	struct work_struct mbx_service_task;
 
