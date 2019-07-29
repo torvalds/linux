@@ -2,7 +2,6 @@
 config NFC_NXP_NCI
 	tristate "NXP-NCI NFC driver"
 	depends on NFC_NCI
-	default n
 	---help---
 	  Generic core driver for NXP NCI chips such as the NPC100
 	  or PN7150 families.
