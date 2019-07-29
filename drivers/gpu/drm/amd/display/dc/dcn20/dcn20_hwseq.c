@@ -1504,6 +1504,7 @@ static int dcn20_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_ph
 	config.gart_config.page_table_start_addr = pa_config->gart_config.page_table_start_addr;
 	config.gart_config.page_table_end_addr = pa_config->gart_config.page_table_end_addr;
 	config.gart_config.page_table_base_addr = pa_config->gart_config.page_table_base_addr;
+	config.page_table_default_page_addr = pa_config->page_table_default_page_addr;
 
 	return dc->res_pool->hubbub->funcs->init_dchub_sys_ctx(dc->res_pool->hubbub, &config);
 }

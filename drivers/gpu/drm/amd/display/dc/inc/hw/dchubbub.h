@@ -80,6 +80,8 @@ struct dcn_hubbub_phys_addr_config {
 		uint64_t page_table_end_addr;
 		uint64_t page_table_base_addr;
 	} gart_config;
+
+	uint64_t page_table_default_page_addr;
 };
 
 struct dcn_hubbub_virt_addr_config {

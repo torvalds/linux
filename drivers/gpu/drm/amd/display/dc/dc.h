@@ -423,6 +423,7 @@ struct dc_phy_addr_space_config {
 	} gart_config;
 
 	bool valid;
+	uint64_t page_table_default_page_addr;
 };
 
 struct dc_virtual_addr_space_config {
