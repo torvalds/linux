@@ -201,6 +201,7 @@ struct st_lsm6dsx_ext_dev_settings {
  * @max_fifo_size: Sensor max fifo length in FIFO words.
  * @id: List of hw id/device name supported by the driver configuration.
  * @odr_table: Hw sensors odr table (Hz + val).
+ * @fs_table: Hw sensors gain table (gain + val).
  * @decimator: List of decimator register info (addr + mask).
  * @batch: List of FIFO batching register info (addr + mask).
  * @fifo_ops: Sensor hw FIFO parameters.
@@ -215,6 +216,7 @@ struct st_lsm6dsx_settings {
 		const char *name;
 	} id[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_odr_table_entry odr_table[2];
+	struct st_lsm6dsx_fs_table_entry fs_table[2];
 	struct st_lsm6dsx_reg decimator[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_reg batch[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_fifo_ops fifo_ops;
