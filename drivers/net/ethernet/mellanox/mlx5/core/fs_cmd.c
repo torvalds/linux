@@ -566,7 +566,9 @@ static int mlx5_cmd_delete_fte(struct mlx5_flow_root_namespace *ns,
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
-int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u32 *id)
+int mlx5_cmd_fc_bulk_alloc(struct mlx5_core_dev *dev,
+			   enum mlx5_fc_bulk_alloc_bitmask alloc_bitmask,
+			   u32 *id)
 {
 	u32 in[MLX5_ST_SZ_DW(alloc_flow_counter_in)]   = {0};
 	u32 out[MLX5_ST_SZ_DW(alloc_flow_counter_out)] = {0};
@@ -574,11 +576,17 @@ int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u32 *id)
 
 	MLX5_SET(alloc_flow_counter_in, in, opcode,
 		 MLX5_CMD_OP_ALLOC_FLOW_COUNTER);
+	MLX5_SET(alloc_flow_counter_in, in, flow_counter_bulk, alloc_bitmask);
 
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (!err)
 		*id = MLX5_GET(alloc_flow_counter_out, out, flow_counter_id);
 	return err;
+}
+
+int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u32 *id)
+{
+	return mlx5_cmd_fc_bulk_alloc(dev, 0, id);
 }
 
 int mlx5_cmd_fc_free(struct mlx5_core_dev *dev, u32 id)
