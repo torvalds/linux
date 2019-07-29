@@ -527,6 +527,7 @@ static void hns3_get_drvinfo(struct net_device *netdev,
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
+	u32 fw_version;
 
 	if (!h->ae_algo->ops->get_fw_version) {
 		netdev_err(netdev, "could not get fw version!\n");
@@ -545,8 +546,18 @@ static void hns3_get_drvinfo(struct net_device *netdev,
 		sizeof(drvinfo->bus_info));
 	drvinfo->bus_info[ETHTOOL_BUSINFO_LEN - 1] = '\0';
 
-	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version), "0x%08x",
-		 priv->ae_handle->ae_algo->ops->get_fw_version(h));
+	fw_version = priv->ae_handle->ae_algo->ops->get_fw_version(h);
+
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
+		 "%lu.%lu.%lu.%lu",
+		 hnae3_get_field(fw_version, HNAE3_FW_VERSION_BYTE3_MASK,
+				 HNAE3_FW_VERSION_BYTE3_SHIFT),
+		 hnae3_get_field(fw_version, HNAE3_FW_VERSION_BYTE2_MASK,
+				 HNAE3_FW_VERSION_BYTE2_SHIFT),
+		 hnae3_get_field(fw_version, HNAE3_FW_VERSION_BYTE1_MASK,
+				 HNAE3_FW_VERSION_BYTE1_SHIFT),
+		 hnae3_get_field(fw_version, HNAE3_FW_VERSION_BYTE0_MASK,
+				 HNAE3_FW_VERSION_BYTE0_SHIFT));
 }
 
 static u32 hns3_get_link(struct net_device *netdev)
