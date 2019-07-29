@@ -458,33 +458,33 @@ static int __get_snap_name(struct dentry *parent, char *name,
 		if (err < 0)
 			goto out;
 
-		 rinfo = &req->r_reply_info;
-		 for (i = 0; i < rinfo->dir_nr; i++) {
-			 rde = rinfo->dir_entries + i;
-			 BUG_ON(!rde->inode.in);
-			 if (ceph_snap(inode) ==
-			     le64_to_cpu(rde->inode.in->snapid)) {
-				 memcpy(name, rde->name, rde->name_len);
-				 name[rde->name_len] = '\0';
-				 err = 0;
-				 goto out;
-			 }
-		 }
+		rinfo = &req->r_reply_info;
+		for (i = 0; i < rinfo->dir_nr; i++) {
+			rde = rinfo->dir_entries + i;
+			BUG_ON(!rde->inode.in);
+			if (ceph_snap(inode) ==
+			    le64_to_cpu(rde->inode.in->snapid)) {
+				memcpy(name, rde->name, rde->name_len);
+				name[rde->name_len] = '\0';
+				err = 0;
+				goto out;
+			}
+		}
 
-		 if (rinfo->dir_end)
-			 break;
+		if (rinfo->dir_end)
+			break;
 
-		 BUG_ON(rinfo->dir_nr <= 0);
-		 rde = rinfo->dir_entries + (rinfo->dir_nr - 1);
-		 next_offset += rinfo->dir_nr;
-		 last_name = kstrndup(rde->name, rde->name_len, GFP_KERNEL);
-		 if (!last_name) {
-			 err = -ENOMEM;
-			 goto out;
-		 }
+		BUG_ON(rinfo->dir_nr <= 0);
+		rde = rinfo->dir_entries + (rinfo->dir_nr - 1);
+		next_offset += rinfo->dir_nr;
+		last_name = kstrndup(rde->name, rde->name_len, GFP_KERNEL);
+		if (!last_name) {
+			err = -ENOMEM;
+			goto out;
+		}
 
-		 ceph_mdsc_put_request(req);
-		 req = NULL;
+		ceph_mdsc_put_request(req);
+		req = NULL;
 	}
 	err = -ENOENT;
 out:
