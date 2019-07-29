@@ -58,19 +58,8 @@ struct vport_addr {
 	bool mc_promisc;
 };
 
-enum {
-	UC_ADDR_CHANGE = BIT(0),
-	MC_ADDR_CHANGE = BIT(1),
-	PROMISC_CHANGE = BIT(3),
-};
-
 static void esw_destroy_legacy_fdb_table(struct mlx5_eswitch *esw);
 static void esw_cleanup_vepa_rules(struct mlx5_eswitch *esw);
-
-/* Vport context events */
-#define SRIOV_VPORT_EVENTS (UC_ADDR_CHANGE | \
-			    MC_ADDR_CHANGE | \
-			    PROMISC_CHANGE)
 
 struct mlx5_vport *__must_check
 mlx5_eswitch_get_vport(struct mlx5_eswitch *esw, u16 vport_num)
@@ -108,13 +97,13 @@ static int arm_vport_context_events_cmd(struct mlx5_core_dev *dev, u16 vport,
 
 	MLX5_SET(nic_vport_context, nic_vport_ctx, arm_change_event, 1);
 
-	if (events_mask & UC_ADDR_CHANGE)
+	if (events_mask & MLX5_VPORT_UC_ADDR_CHANGE)
 		MLX5_SET(nic_vport_context, nic_vport_ctx,
 			 event_on_uc_address_change, 1);
-	if (events_mask & MC_ADDR_CHANGE)
+	if (events_mask & MLX5_VPORT_MC_ADDR_CHANGE)
 		MLX5_SET(nic_vport_context, nic_vport_ctx,
 			 event_on_mc_address_change, 1);
-	if (events_mask & PROMISC_CHANGE)
+	if (events_mask & MLX5_VPORT_PROMISC_CHANGE)
 		MLX5_SET(nic_vport_context, nic_vport_ctx,
 			 event_on_promisc_change, 1);
 
@@ -901,21 +890,21 @@ static void esw_vport_change_handle_locked(struct mlx5_vport *vport)
 	esw_debug(dev, "vport[%d] Context Changed: perm mac: %pM\n",
 		  vport->vport, mac);
 
-	if (vport->enabled_events & UC_ADDR_CHANGE) {
+	if (vport->enabled_events & MLX5_VPORT_UC_ADDR_CHANGE) {
 		esw_update_vport_addr_list(esw, vport, MLX5_NVPRT_LIST_TYPE_UC);
 		esw_apply_vport_addr_list(esw, vport, MLX5_NVPRT_LIST_TYPE_UC);
 	}
 
-	if (vport->enabled_events & MC_ADDR_CHANGE)
+	if (vport->enabled_events & MLX5_VPORT_MC_ADDR_CHANGE)
 		esw_update_vport_addr_list(esw, vport, MLX5_NVPRT_LIST_TYPE_MC);
 
-	if (vport->enabled_events & PROMISC_CHANGE) {
+	if (vport->enabled_events & MLX5_VPORT_PROMISC_CHANGE) {
 		esw_update_vport_rx_mode(esw, vport);
 		if (!IS_ERR_OR_NULL(vport->allmulti_rule))
 			esw_update_vport_mc_promisc(esw, vport);
 	}
 
-	if (vport->enabled_events & (PROMISC_CHANGE | MC_ADDR_CHANGE))
+	if (vport->enabled_events & (MLX5_VPORT_PROMISC_CHANGE | MLX5_VPORT_MC_ADDR_CHANGE))
 		esw_apply_vport_addr_list(esw, vport, MLX5_NVPRT_LIST_TYPE_MC);
 
 	esw_debug(esw->dev, "vport[%d] Context Changed: Done\n", vport->vport);
@@ -1649,7 +1638,7 @@ static void esw_vport_destroy_drop_counters(struct mlx5_vport *vport)
 }
 
 static void esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
-			     int enable_events)
+			     enum mlx5_eswitch_vport_event enabled_events)
 {
 	u16 vport_num = vport->vport;
 
@@ -1671,7 +1660,7 @@ static void esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 		esw_warn(esw->dev, "Failed to attach vport %d to eswitch rate limiter", vport_num);
 
 	/* Sync with current vport context */
-	vport->enabled_events = enable_events;
+	vport->enabled_events = enabled_events;
 	vport->enabled = true;
 
 	/* Esw manager is trusted by default. Host PF (vport 0) is trusted as well
@@ -1800,11 +1789,51 @@ static void mlx5_eswitch_event_handlers_unregister(struct mlx5_eswitch *esw)
 /* Public E-Switch API */
 #define ESW_ALLOWED(esw) ((esw) && MLX5_ESWITCH_MANAGER((esw)->dev))
 
-int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
+/* mlx5_eswitch_enable_pf_vf_vports() enables vports of PF, ECPF and VFs
+ * whichever are present on the eswitch.
+ */
+void
+mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,
+				 enum mlx5_eswitch_vport_event enabled_events)
 {
 	struct mlx5_vport *vport;
+	int i;
+
+	/* Enable PF vport */
+	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_PF);
+	esw_enable_vport(esw, vport, enabled_events);
+
+	/* Enable ECPF vports */
+	if (mlx5_ecpf_vport_exists(esw->dev)) {
+		vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_ECPF);
+		esw_enable_vport(esw, vport, enabled_events);
+	}
+
+	/* Enable VF vports */
+	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->esw_funcs.num_vfs)
+		esw_enable_vport(esw, vport, enabled_events);
+}
+
+/* mlx5_eswitch_disable_pf_vf_vports() disables vports of PF, ECPF and VFs
+ * whichever are previously enabled on the eswitch.
+ */
+void mlx5_eswitch_disable_pf_vf_vports(struct mlx5_eswitch *esw)
+{
+	struct mlx5_vport *vport;
+	int i;
+
+	mlx5_esw_for_all_vports_reverse(esw, i, vport)
+		esw_disable_vport(esw, vport);
+}
+
+#define MLX5_LEGACY_SRIOV_VPORT_EVENTS (MLX5_VPORT_UC_ADDR_CHANGE | \
+					MLX5_VPORT_MC_ADDR_CHANGE | \
+					MLX5_VPORT_PROMISC_CHANGE)
+
+int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
+{
+	int enabled_events;
 	int err;
-	int i, enabled_events;
 
 	if (!ESW_ALLOWED(esw) ||
 	    !MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ft_support)) {
@@ -1837,22 +1866,10 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int mode)
 	if (err)
 		goto abort;
 
-	enabled_events = (mode == MLX5_ESWITCH_LEGACY) ? SRIOV_VPORT_EVENTS :
-		UC_ADDR_CHANGE;
+	enabled_events = (mode == MLX5_ESWITCH_LEGACY) ? MLX5_LEGACY_SRIOV_VPORT_EVENTS :
+		MLX5_VPORT_UC_ADDR_CHANGE;
 
-	/* Enable PF vport */
-	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_PF);
-	esw_enable_vport(esw, vport, enabled_events);
-
-	/* Enable ECPF vports */
-	if (mlx5_ecpf_vport_exists(esw->dev)) {
-		vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_ECPF);
-		esw_enable_vport(esw, vport, enabled_events);
-	}
-
-	/* Enable VF vports */
-	mlx5_esw_for_each_vf_vport(esw, i, vport, esw->esw_funcs.num_vfs)
-		esw_enable_vport(esw, vport, enabled_events);
+	mlx5_eswitch_enable_pf_vf_vports(esw, enabled_events);
 
 	mlx5_eswitch_event_handlers_register(esw);
 
@@ -1876,9 +1893,7 @@ abort:
 void mlx5_eswitch_disable(struct mlx5_eswitch *esw)
 {
 	struct esw_mc_addr *mc_promisc;
-	struct mlx5_vport *vport;
 	int old_mode;
-	int i;
 
 	if (!ESW_ALLOWED(esw) || esw->mode == MLX5_ESWITCH_NONE)
 		return;
@@ -1890,8 +1905,7 @@ void mlx5_eswitch_disable(struct mlx5_eswitch *esw)
 	mc_promisc = &esw->mc_promisc;
 	mlx5_eswitch_event_handlers_unregister(esw);
 
-	mlx5_esw_for_all_vports(esw, i, vport)
-		esw_disable_vport(esw, vport);
+	mlx5_eswitch_disable_pf_vf_vports(esw);
 
 	if (mc_promisc && mc_promisc->uplink_rule)
 		mlx5_del_flow_rules(mc_promisc->uplink_rule);
