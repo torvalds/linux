@@ -1207,6 +1207,31 @@ static void bnxt_abort_tpa(struct bnxt_cp_ring_info *cpr, u16 idx, u32 agg_bufs)
 		bnxt_reuse_rx_agg_bufs(cpr, idx, 0, agg_bufs, true);
 }
 
+#ifdef CONFIG_INET
+static void bnxt_gro_tunnel(struct sk_buff *skb, __be16 ip_proto)
+{
+	struct udphdr *uh = NULL;
+
+	if (ip_proto == htons(ETH_P_IP)) {
+		struct iphdr *iph = (struct iphdr *)skb->data;
+
+		if (iph->protocol == IPPROTO_UDP)
+			uh = (struct udphdr *)(iph + 1);
+	} else {
+		struct ipv6hdr *iph = (struct ipv6hdr *)skb->data;
+
+		if (iph->nexthdr == IPPROTO_UDP)
+			uh = (struct udphdr *)(iph + 1);
+	}
+	if (uh) {
+		if (uh->check)
+			skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL_CSUM;
+		else
+			skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
+	}
+}
+#endif
+
 static struct sk_buff *bnxt_gro_func_5731x(struct bnxt_tpa_info *tpa_info,
 					   int payload_off, int tcp_ts,
 					   struct sk_buff *skb)
@@ -1264,28 +1289,10 @@ static struct sk_buff *bnxt_gro_func_5731x(struct bnxt_tpa_info *tpa_info,
 	}
 
 	if (inner_mac_off) { /* tunnel */
-		struct udphdr *uh = NULL;
 		__be16 proto = *((__be16 *)(skb->data + outer_ip_off -
 					    ETH_HLEN - 2));
 
-		if (proto == htons(ETH_P_IP)) {
-			struct iphdr *iph = (struct iphdr *)skb->data;
-
-			if (iph->protocol == IPPROTO_UDP)
-				uh = (struct udphdr *)(iph + 1);
-		} else {
-			struct ipv6hdr *iph = (struct ipv6hdr *)skb->data;
-
-			if (iph->nexthdr == IPPROTO_UDP)
-				uh = (struct udphdr *)(iph + 1);
-		}
-		if (uh) {
-			if (uh->check)
-				skb_shinfo(skb)->gso_type |=
-					SKB_GSO_UDP_TUNNEL_CSUM;
-			else
-				skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
-		}
+		bnxt_gro_tunnel(skb, proto);
 	}
 #endif
 	return skb;
@@ -1332,28 +1339,8 @@ static struct sk_buff *bnxt_gro_func_5730x(struct bnxt_tpa_info *tpa_info,
 		return NULL;
 	}
 
-	if (nw_off) { /* tunnel */
-		struct udphdr *uh = NULL;
-
-		if (skb->protocol == htons(ETH_P_IP)) {
-			struct iphdr *iph = (struct iphdr *)skb->data;
-
-			if (iph->protocol == IPPROTO_UDP)
-				uh = (struct udphdr *)(iph + 1);
-		} else {
-			struct ipv6hdr *iph = (struct ipv6hdr *)skb->data;
-
-			if (iph->nexthdr == IPPROTO_UDP)
-				uh = (struct udphdr *)(iph + 1);
-		}
-		if (uh) {
-			if (uh->check)
-				skb_shinfo(skb)->gso_type |=
-					SKB_GSO_UDP_TUNNEL_CSUM;
-			else
-				skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
-		}
-	}
+	if (nw_off) /* tunnel */
+		bnxt_gro_tunnel(skb, skb->protocol);
 #endif
 	return skb;
 }
