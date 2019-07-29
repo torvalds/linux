@@ -365,6 +365,8 @@ struct smu_context
 #define WATERMARKS_EXIST	(1 << 0)
 #define WATERMARKS_LOADED	(1 << 1)
 	uint32_t watermarks_bitmap;
+	uint32_t hard_min_uclk_req_from_dal;
+	bool disable_uclk_switch;
 
 	uint32_t workload_mask;
 	uint32_t workload_prority[WORKLOAD_POLICY_MAX];
@@ -446,6 +448,7 @@ struct pptable_funcs {
 	int (*get_uclk_dpm_states)(struct smu_context *smu, uint32_t *clocks_in_khz, uint32_t *num_states);
 	int (*set_default_od_settings)(struct smu_context *smu, bool initialize);
 	int (*set_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
+	int (*display_disable_memory_clock_switch)(struct smu_context *smu, bool disable_memory_clock_switch);
 };
 
 struct smu_funcs
@@ -695,6 +698,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_clock_by_type_with_voltage ? (smu)->ppt_funcs->get_clock_by_type_with_voltage((smu), (type), (clocks)) : 0)
 #define smu_display_clock_voltage_request(smu, clock_req) \
 	((smu)->funcs->display_clock_voltage_request ? (smu)->funcs->display_clock_voltage_request((smu), (clock_req)) : 0)
+#define smu_display_disable_memory_clock_switch(smu, disable_memory_clock_switch) \
+	((smu)->ppt_funcs->display_disable_memory_clock_switch ? (smu)->ppt_funcs->display_disable_memory_clock_switch((smu), (disable_memory_clock_switch)) : -EINVAL)
 #define smu_get_dal_power_level(smu, clocks) \
 	((smu)->funcs->get_dal_power_level ? (smu)->funcs->get_dal_power_level((smu), (clocks)) : 0)
 #define smu_get_perf_level(smu, designation, level) \

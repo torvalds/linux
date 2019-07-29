@@ -1313,16 +1313,23 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 		if (ret)
 			goto failed;
 
+		if (clk_select == SMU_UCLK && smu->disable_uclk_switch)
+			return 0;
+
 		clk_id = smu_clk_get_index(smu, clk_select);
 		if (clk_id < 0) {
 			ret = -EINVAL;
 			goto failed;
 		}
 
+
 		mutex_lock(&smu->mutex);
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinByFreq,
 			(clk_id << 16) | clk_freq);
 		mutex_unlock(&smu->mutex);
+
+		if(clk_select == SMU_UCLK)
+			smu->hard_min_uclk_req_from_dal = clk_freq;
 	}
 
 failed:
