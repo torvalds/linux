@@ -214,8 +214,11 @@ enum {
 struct mlx5_eswitch {
 	struct mlx5_core_dev    *dev;
 	struct mlx5_nb          nb;
+	/* legacy data structures */
 	struct mlx5_eswitch_fdb fdb_table;
 	struct hlist_head       mc_table[MLX5_L2_ADDR_HASH_SIZE];
+	struct esw_mc_addr mc_promisc;
+	/* end of legacy */
 	struct workqueue_struct *work_queue;
 	struct mlx5_vport       *vports;
 	u32 flags;
@@ -225,7 +228,6 @@ struct mlx5_eswitch {
 	 * and async SRIOV admin state changes
 	 */
 	struct mutex            state_lock;
-	struct esw_mc_addr	mc_promisc;
 
 	struct {
 		bool            enabled;

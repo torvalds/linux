@@ -1900,12 +1900,12 @@ void mlx5_eswitch_disable(struct mlx5_eswitch *esw)
 		 esw->mode == MLX5_ESWITCH_LEGACY ? "LEGACY" : "OFFLOADS",
 		 esw->esw_funcs.num_vfs, esw->enabled_vports);
 
-	mc_promisc = &esw->mc_promisc;
 	mlx5_eswitch_event_handlers_unregister(esw);
 
 	mlx5_eswitch_disable_pf_vf_vports(esw);
 
-	if (mc_promisc && mc_promisc->uplink_rule)
+	mc_promisc = &esw->mc_promisc;
+	if (mc_promisc->uplink_rule)
 		mlx5_del_flow_rules(mc_promisc->uplink_rule);
 
 	if (esw->mode == MLX5_ESWITCH_LEGACY)
