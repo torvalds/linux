@@ -125,6 +125,9 @@ static void hci_conn_cleanup(struct hci_conn *conn)
 
 	hci_conn_hash_del(hdev, conn);
 
+	if (conn->cleanup)
+		conn->cleanup(conn);
+
 	if (conn->type == SCO_LINK || conn->type == ESCO_LINK) {
 		switch (conn->setting & SCO_AIRMODE_MASK) {
 		case SCO_AIRMODE_CVSD:
@@ -722,6 +725,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
 		conn->pkt_type = hdev->pkt_type & ACL_PTYPE_MASK;
 		break;
 	case LE_LINK:
+	case ISO_LINK:
 		/* conn->src should reflect the local identity address */
 		hci_copy_identity_address(hdev, &conn->src, &conn->src_type);
 		break;
@@ -1230,6 +1234,442 @@ struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	}
 
 	return sco;
+}
+
+struct iso_list_data {
+	u8  cig;
+	u8  cis;
+	int count;
+	struct {
+		struct hci_cp_le_set_cig_params cp;
+		struct hci_cis_params cis[0x11];
+	} pdu;
+};
+
+static void cis_add(struct iso_list_data *d, struct bt_iso_qos *qos)
+{
+	struct hci_cis_params *cis = &d->pdu.cis[d->pdu.cp.num_cis];
+
+	cis->cis_id = qos->cis;
+	cis->c_sdu  = cpu_to_le16(qos->out.sdu);
+	cis->p_sdu  = cpu_to_le16(qos->in.sdu);
+	cis->c_phy  = qos->out.phy;
+	cis->p_phy  = qos->in.phy;
+	cis->c_rtn  = qos->out.rtn;
+	cis->p_rtn  = qos->in.rtn;
+
+	d->pdu.cp.num_cis++;
+}
+
+static void cis_list(struct hci_conn *conn, void *data)
+{
+	struct iso_list_data *d = data;
+
+	if (d->cig != conn->iso_qos.cig || d->cis == BT_ISO_QOS_CIS_UNSET ||
+	    d->cis != conn->iso_qos.cis)
+		return;
+
+	d->count++;
+
+	if (d->pdu.cp.cig_id == BT_ISO_QOS_CIG_UNSET ||
+	    d->count >= ARRAY_SIZE(d->pdu.cis))
+		return;
+
+	cis_add(d, &conn->iso_qos);
+}
+
+static bool hci_le_set_cig_params(struct hci_conn *conn, struct bt_iso_qos *qos)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct iso_list_data data;
+
+	memset(&data, 0, sizeof(data));
+
+	/* Allocate a CIG if not set */
+	if (qos->cig == BT_ISO_QOS_CIG_UNSET) {
+		for (data.cig = 0x00; data.cig < 0xff; data.cig++) {
+			data.count = 0;
+			data.cis = 0xff;
+
+			hci_conn_hash_list_state(hdev, cis_list, ISO_LINK,
+						 BT_BOUND, &data);
+			if (data.count)
+				continue;
+
+			hci_conn_hash_list_state(hdev, cis_list, ISO_LINK,
+						 BT_CONNECTED, &data);
+			if (!data.count)
+				break;
+		}
+
+		if (data.cig == 0xff)
+			return false;
+
+		/* Update CIG */
+		qos->cig = data.cig;
+	}
+
+	data.pdu.cp.cig_id = qos->cig;
+	hci_cpu_to_le24(qos->out.interval, data.pdu.cp.c_interval);
+	hci_cpu_to_le24(qos->in.interval, data.pdu.cp.p_interval);
+	data.pdu.cp.sca = qos->sca;
+	data.pdu.cp.packing = qos->packing;
+	data.pdu.cp.framing = qos->framing;
+	data.pdu.cp.c_latency = cpu_to_le16(qos->out.latency);
+	data.pdu.cp.p_latency = cpu_to_le16(qos->in.latency);
+
+	if (qos->cis != BT_ISO_QOS_CIS_UNSET) {
+		data.count = 0;
+		data.cig = qos->cig;
+		data.cis = qos->cis;
+
+		hci_conn_hash_list_state(hdev, cis_list, ISO_LINK, BT_BOUND,
+					 &data);
+		if (data.count)
+			return false;
+
+		cis_add(&data, qos);
+	}
+
+	/* Reprogram all CIS(s) with the same CIG */
+	for (data.cig = qos->cig, data.cis = 0x00; data.cis < 0x11;
+	     data.cis++) {
+		data.count = 0;
+
+		hci_conn_hash_list_state(hdev, cis_list, ISO_LINK, BT_BOUND,
+					 &data);
+		if (data.count)
+			continue;
+
+		/* Allocate a CIS if not set */
+		if (qos->cis == BT_ISO_QOS_CIS_UNSET) {
+			/* Update CIS */
+			qos->cis = data.cis;
+			cis_add(&data, qos);
+		}
+	}
+
+	if (qos->cis == BT_ISO_QOS_CIS_UNSET || !data.pdu.cp.num_cis)
+		return false;
+
+	if (hci_send_cmd(hdev, HCI_OP_LE_SET_CIG_PARAMS,
+			 sizeof(data.pdu.cp) +
+			 (data.pdu.cp.num_cis * sizeof(*data.pdu.cis)),
+			 &data.pdu) < 0)
+		return false;
+
+	return true;
+}
+
+static void find_cis(struct hci_conn *conn, void *data)
+{
+	struct iso_list_data *d = data;
+
+	/* Ignore broadcast */
+	if (!bacmp(&conn->dst, BDADDR_ANY))
+		return;
+
+	d->count++;
+}
+
+static int remove_cig_sync(struct hci_dev *hdev, void *data)
+{
+	u8 handle = PTR_ERR(data);
+
+	return hci_le_remove_cig_sync(hdev, handle);
+}
+
+int hci_le_remove_cig(struct hci_dev *hdev, u8 handle)
+{
+	bt_dev_dbg(hdev, "handle 0x%2.2x", handle);
+
+	return hci_cmd_sync_queue(hdev, remove_cig_sync, ERR_PTR(handle), NULL);
+}
+
+static void cis_cleanup(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct iso_list_data d;
+
+	memset(&d, 0, sizeof(d));
+	d.cig = conn->iso_qos.cig;
+
+	/* Check if ISO connection is a CIS and remove CIG if there are
+	 * no other connections using it.
+	 */
+	hci_conn_hash_list_state(hdev, find_cis, ISO_LINK, BT_CONNECTED, &d);
+	if (d.count)
+		return;
+
+	hci_le_remove_cig(hdev, conn->iso_qos.cig);
+}
+
+struct hci_conn *hci_bind_cis(struct hci_dev *hdev, bdaddr_t *dst,
+			      __u8 dst_type, struct bt_iso_qos *qos)
+{
+	struct hci_conn *cis;
+
+	cis = hci_conn_hash_lookup_cis(hdev, dst, dst_type);
+	if (!cis) {
+		cis = hci_conn_add(hdev, ISO_LINK, dst, HCI_ROLE_MASTER);
+		if (!cis)
+			return ERR_PTR(-ENOMEM);
+		cis->cleanup = cis_cleanup;
+	}
+
+	if (cis->state == BT_CONNECTED)
+		return cis;
+
+	/* Check if CIS has been set and the settings matches */
+	if (cis->state == BT_BOUND &&
+	    !memcmp(&cis->iso_qos, qos, sizeof(*qos)))
+		return cis;
+
+	/* Update LINK PHYs according to QoS preference */
+	cis->le_tx_phy = qos->out.phy;
+	cis->le_rx_phy = qos->in.phy;
+
+	/* If output interval is not set use the input interval as it cannot be
+	 * 0x000000.
+	 */
+	if (!qos->out.interval)
+		qos->out.interval = qos->in.interval;
+
+	/* If input interval is not set use the output interval as it cannot be
+	 * 0x000000.
+	 */
+	if (!qos->in.interval)
+		qos->in.interval = qos->out.interval;
+
+	/* If output latency is not set use the input latency as it cannot be
+	 * 0x0000.
+	 */
+	if (!qos->out.latency)
+		qos->out.latency = qos->in.latency;
+
+	/* If input latency is not set use the output latency as it cannot be
+	 * 0x0000.
+	 */
+	if (!qos->in.latency)
+		qos->in.latency = qos->out.latency;
+
+	/* Mirror PHYs that are disabled as SDU will be set to 0 */
+	if (!qos->in.phy)
+		qos->in.phy = qos->out.phy;
+
+	if (!qos->out.phy)
+		qos->out.phy = qos->in.phy;
+
+	if (!hci_le_set_cig_params(cis, qos)) {
+		hci_conn_drop(cis);
+		return ERR_PTR(-EINVAL);
+	}
+
+	cis->iso_qos = *qos;
+	cis->state = BT_BOUND;
+
+	return cis;
+}
+
+bool hci_iso_setup_path(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct hci_cp_le_setup_iso_path cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	if (conn->iso_qos.out.sdu) {
+		cmd.handle = cpu_to_le16(conn->handle);
+		cmd.direction = 0x00; /* Input (Host to Controller) */
+		cmd.path = 0x00; /* HCI path if enabled */
+		cmd.codec = 0x03; /* Transparent Data */
+
+		if (hci_send_cmd(hdev, HCI_OP_LE_SETUP_ISO_PATH, sizeof(cmd),
+				 &cmd) < 0)
+			return false;
+	}
+
+	if (conn->iso_qos.in.sdu) {
+		cmd.handle = cpu_to_le16(conn->handle);
+		cmd.direction = 0x01; /* Output (Controller to Host) */
+		cmd.path = 0x00; /* HCI path if enabled */
+		cmd.codec = 0x03; /* Transparent Data */
+
+		if (hci_send_cmd(hdev, HCI_OP_LE_SETUP_ISO_PATH, sizeof(cmd),
+				 &cmd) < 0)
+			return false;
+	}
+
+	return true;
+}
+
+static int hci_create_cis_sync(struct hci_dev *hdev, void *data)
+{
+	struct {
+		struct hci_cp_le_create_cis cp;
+		struct hci_cis cis[0x1f];
+	} cmd;
+	struct hci_conn *conn = data;
+	u8 cig;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.cis[0].acl_handle = cpu_to_le16(conn->link->handle);
+	cmd.cis[0].cis_handle = cpu_to_le16(conn->handle);
+	cmd.cp.num_cis++;
+	cig = conn->iso_qos.cig;
+
+	hci_dev_lock(hdev);
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(conn, &hdev->conn_hash.list, list) {
+		struct hci_cis *cis = &cmd.cis[cmd.cp.num_cis];
+
+		if (conn == data || conn->type != ISO_LINK ||
+		    conn->state == BT_CONNECTED || conn->iso_qos.cig != cig)
+			continue;
+
+		/* Check if all CIS(s) belonging to a CIG are ready */
+		if (conn->link->state != BT_CONNECTED ||
+		    conn->state != BT_CONNECT) {
+			cmd.cp.num_cis = 0;
+			break;
+		}
+
+		/* Group all CIS with state BT_CONNECT since the spec don't
+		 * allow to send them individually:
+		 *
+		 * BLUETOOTH CORE SPECIFICATION Version 5.3 | Vol 4, Part E
+		 * page 2566:
+		 *
+		 * If the Host issues this command before all the
+		 * HCI_LE_CIS_Established events from the previous use of the
+		 * command have been generated, the Controller shall return the
+		 * error code Command Disallowed (0x0C).
+		 */
+		cis->acl_handle = cpu_to_le16(conn->link->handle);
+		cis->cis_handle = cpu_to_le16(conn->handle);
+		cmd.cp.num_cis++;
+	}
+
+	rcu_read_unlock();
+
+	hci_dev_unlock(hdev);
+
+	if (!cmd.cp.num_cis)
+		return 0;
+
+	return hci_send_cmd(hdev, HCI_OP_LE_CREATE_CIS, sizeof(cmd.cp) +
+			    sizeof(cmd.cis[0]) * cmd.cp.num_cis, &cmd);
+}
+
+int hci_le_create_cis(struct hci_conn *conn)
+{
+	struct hci_conn *cis;
+	struct hci_dev *hdev = conn->hdev;
+	int err;
+
+	switch (conn->type) {
+	case LE_LINK:
+		if (!conn->link || conn->state != BT_CONNECTED)
+			return -EINVAL;
+		cis = conn->link;
+		break;
+	case ISO_LINK:
+		cis = conn;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (cis->state == BT_CONNECT)
+		return 0;
+
+	/* Queue Create CIS */
+	err = hci_cmd_sync_queue(hdev, hci_create_cis_sync, cis, NULL);
+	if (err)
+		return err;
+
+	cis->state = BT_CONNECT;
+
+	return 0;
+}
+
+static void hci_iso_qos_setup(struct hci_dev *hdev, struct hci_conn *conn,
+			      struct bt_iso_io_qos *qos, __u8 phy)
+{
+	/* Only set MTU if PHY is enabled */
+	if (!qos->sdu && qos->phy) {
+		if (hdev->iso_mtu > 0)
+			qos->sdu = hdev->iso_mtu;
+		else if (hdev->le_mtu > 0)
+			qos->sdu = hdev->le_mtu;
+		else
+			qos->sdu = hdev->acl_mtu;
+	}
+
+	/* Use the same PHY as ACL if set to any */
+	if (qos->phy == BT_ISO_PHY_ANY)
+		qos->phy = phy;
+
+	/* Use LE ACL connection interval if not set */
+	if (!qos->interval)
+		/* ACL interval unit in 1.25 ms to us */
+		qos->interval = conn->le_conn_interval * 1250;
+
+	/* Use LE ACL connection latency if not set */
+	if (!qos->latency)
+		qos->latency = conn->le_conn_latency;
+}
+
+struct hci_conn *hci_connect_cis(struct hci_dev *hdev, bdaddr_t *dst,
+				 __u8 dst_type, struct bt_iso_qos *qos)
+{
+	struct hci_conn *le;
+	struct hci_conn *cis;
+
+	/* Convert from ISO socket address type to HCI address type  */
+	if (dst_type == BDADDR_LE_PUBLIC)
+		dst_type = ADDR_LE_DEV_PUBLIC;
+	else
+		dst_type = ADDR_LE_DEV_RANDOM;
+
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
+		le = hci_connect_le(hdev, dst, dst_type, false,
+				    BT_SECURITY_LOW,
+				    HCI_LE_CONN_TIMEOUT,
+				    HCI_ROLE_SLAVE);
+	else
+		le = hci_connect_le_scan(hdev, dst, dst_type,
+					 BT_SECURITY_LOW,
+					 HCI_LE_CONN_TIMEOUT,
+					 CONN_REASON_ISO_CONNECT);
+	if (IS_ERR(le))
+		return le;
+
+	hci_iso_qos_setup(hdev, le, &qos->out,
+			  le->le_tx_phy ? le->le_tx_phy : hdev->le_tx_def_phys);
+	hci_iso_qos_setup(hdev, le, &qos->in,
+			  le->le_rx_phy ? le->le_rx_phy : hdev->le_rx_def_phys);
+
+	cis = hci_bind_cis(hdev, dst, dst_type, qos);
+	if (IS_ERR(cis)) {
+		hci_conn_drop(le);
+		return cis;
+	}
+
+	le->link = cis;
+	cis->link = le;
+
+	hci_conn_hold(cis);
+
+	/* If LE is already connected and CIS handle is already set proceed to
+	 * Create CIS immediately.
+	 */
+	if (le->state == BT_CONNECTED && cis->handle != HCI_CONN_HANDLE_UNSET)
+		hci_le_create_cis(le);
+
+	return cis;
 }
 
 /* Check link security requirement */

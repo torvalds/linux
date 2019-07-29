@@ -2800,6 +2800,12 @@ static const struct hci_init_stage amp_init2[] = {
 /* Read Buffer Size (ACL mtu, max pkt, etc.) */
 static int hci_read_buffer_size_sync(struct hci_dev *hdev)
 {
+	/* Use Read LE Buffer Size V2 if supported */
+	if (hdev->commands[41] & 0x20)
+		return __hci_cmd_sync_status(hdev,
+					     HCI_OP_LE_READ_BUFFER_SIZE_V2,
+					     0, NULL, HCI_CMD_TIMEOUT);
+
 	return __hci_cmd_sync_status(hdev, HCI_OP_READ_BUFFER_SIZE,
 				     0, NULL, HCI_CMD_TIMEOUT);
 }
@@ -3051,6 +3057,10 @@ static int hci_init2_sync(struct hci_dev *hdev)
 	if (hdev->dev_type == HCI_AMP)
 		return hci_init_stage_sync(hdev, amp_init2);
 
+	err = hci_init_stage_sync(hdev, hci_init2);
+	if (err)
+		return err;
+
 	if (lmp_bredr_capable(hdev)) {
 		err = hci_init_stage_sync(hdev, br_init2);
 		if (err)
@@ -3068,7 +3078,7 @@ static int hci_init2_sync(struct hci_dev *hdev)
 			hci_dev_set_flag(hdev, HCI_LE_ENABLED);
 	}
 
-	return hci_init_stage_sync(hdev, hci_init2);
+	return 0;
 }
 
 static int hci_set_event_mask_sync(struct hci_dev *hdev)
@@ -3389,6 +3399,12 @@ static int hci_le_set_event_mask_sync(struct hci_dev *hdev)
 	if (ext_adv_capable(hdev))
 		events[2] |= 0x02;	/* LE Advertising Set Terminated */
 
+	if (cis_capable(hdev)) {
+		events[3] |= 0x01;	/* LE CIS Established */
+		if (cis_peripheral_capable(hdev))
+			events[3] |= 0x02; /* LE CIS Request */
+	}
+
 	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_EVENT_MASK,
 				     sizeof(events), events, HCI_CMD_TIMEOUT);
 }
@@ -3529,6 +3545,24 @@ static int hci_set_le_support_sync(struct hci_dev *hdev)
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
 }
 
+/* LE Set Host Feature */
+static int hci_le_set_host_feature_sync(struct hci_dev *hdev)
+{
+	struct hci_cp_le_set_host_feature cp;
+
+	if (!iso_capable(hdev))
+		return 0;
+
+	memset(&cp, 0, sizeof(cp));
+
+	/* Isochronous Channels (Host Support) */
+	cp.bit_number = 32;
+	cp.bit_value = 1;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_HOST_FEATURE,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
 /* LE Controller init stage 3 command sequence */
 static const struct hci_init_stage le_init3[] = {
 	/* HCI_OP_LE_SET_EVENT_MASK */
@@ -3555,6 +3589,8 @@ static const struct hci_init_stage le_init3[] = {
 	HCI_INIT(hci_le_read_num_support_adv_sets_sync),
 	/* HCI_OP_WRITE_LE_HOST_SUPPORTED */
 	HCI_INIT(hci_set_le_support_sync),
+	/* HCI_OP_LE_SET_HOST_FEATURE */
+	HCI_INIT(hci_le_set_host_feature_sync),
 	{}
 };
 
@@ -5436,4 +5472,15 @@ done:
 	/* Re-enable advertising after the connection attempt is finished. */
 	hci_resume_advertising_sync(hdev);
 	return err;
+}
+
+int hci_le_remove_cig_sync(struct hci_dev *hdev, u8 handle)
+{
+	struct hci_cp_le_remove_cig cp;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.cig_id = handle;
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_LE_REMOVE_CIG, sizeof(cp),
+				     &cp, HCI_CMD_TIMEOUT);
 }

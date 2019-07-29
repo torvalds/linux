@@ -1989,7 +1989,7 @@ struct hci_rp_le_read_iso_tx_sync {
 struct hci_cis_params {
 	__u8    cis_id;
 	__le16  c_sdu;
-	__le16  p_pdu;
+	__le16  p_sdu;
 	__u8    c_phy;
 	__u8    p_phy;
 	__u8    c_rtn;
@@ -2000,7 +2000,7 @@ struct hci_cp_le_set_cig_params {
 	__u8    cig_id;
 	__u8    c_interval[3];
 	__u8    p_interval[3];
-	__u8    wc_sca;
+	__u8    sca;
 	__u8    packing;
 	__u8    framing;
 	__le16  c_latency;
@@ -2041,6 +2041,30 @@ struct hci_cp_le_accept_cis {
 struct hci_cp_le_reject_cis {
 	__le16  handle;
 	__u8    reason;
+} __packed;
+
+#define HCI_OP_LE_SETUP_ISO_PATH		0x206e
+struct hci_cp_le_setup_iso_path {
+	__le16  handle;
+	__u8    direction;
+	__u8    path;
+	__u8    codec;
+	__le16  codec_cid;
+	__le16  codec_vid;
+	__u8    delay[3];
+	__u8    codec_cfg_len;
+	__u8    codec_cfg[0];
+} __packed;
+
+struct hci_rp_le_setup_iso_path {
+	__u8    status;
+	__le16  handle;
+} __packed;
+
+#define HCI_OP_LE_SET_HOST_FEATURE		0x2074
+struct hci_cp_le_set_host_feature {
+	__u8     bit_number;
+	__u8     bit_value;
 } __packed;
 
 /* ---- HCI Events ---- */
