@@ -9345,7 +9345,8 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 	if (changes & BNXT_FLAG_TPA) {
 		update_tpa = true;
 		if ((bp->flags & BNXT_FLAG_TPA) == 0 ||
-		    (flags & BNXT_FLAG_TPA) == 0)
+		    (flags & BNXT_FLAG_TPA) == 0 ||
+		    (bp->flags & BNXT_FLAG_CHIP_P5))
 			re_init = true;
 	}
 
@@ -9355,9 +9356,8 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 	if (flags != bp->flags) {
 		u32 old_flags = bp->flags;
 
-		bp->flags = flags;
-
 		if (!test_bit(BNXT_STATE_OPEN, &bp->state)) {
+			bp->flags = flags;
 			if (update_tpa)
 				bnxt_set_ring_params(bp);
 			return rc;
@@ -9365,12 +9365,14 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 
 		if (re_init) {
 			bnxt_close_nic(bp, false, false);
+			bp->flags = flags;
 			if (update_tpa)
 				bnxt_set_ring_params(bp);
 
 			return bnxt_open_nic(bp, false, false);
 		}
 		if (update_tpa) {
+			bp->flags = flags;
 			rc = bnxt_set_tpa(bp,
 					  (flags & BNXT_FLAG_TPA) ?
 					  true : false);
