@@ -553,14 +553,14 @@ static void lpuart_wait_bit_set(struct uart_port *port, unsigned int offset,
 				u8 bit)
 {
 	while (!(readb(port->membase + offset) & bit))
-		barrier();
+		cpu_relax();
 }
 
 static void lpuart32_wait_bit_set(struct uart_port *port, unsigned int offset,
 				  u32 bit)
 {
 	while (!(lpuart32_read(port, offset) & bit))
-		barrier();
+		cpu_relax();
 }
 
 #if defined(CONFIG_CONSOLE_POLL)
