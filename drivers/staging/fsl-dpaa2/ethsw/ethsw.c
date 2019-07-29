@@ -316,6 +316,31 @@ static int ethsw_port_fdb_del_mc(struct ethsw_port_priv *port_priv,
 	return err;
 }
 
+static int port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+			struct net_device *dev, const unsigned char *addr,
+			u16 vid, u16 flags,
+			struct netlink_ext_ack *extack)
+{
+	if (is_unicast_ether_addr(addr))
+		return ethsw_port_fdb_add_uc(netdev_priv(dev),
+					     addr);
+	else
+		return ethsw_port_fdb_add_mc(netdev_priv(dev),
+					     addr);
+}
+
+static int port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
+			struct net_device *dev,
+			const unsigned char *addr, u16 vid)
+{
+	if (is_unicast_ether_addr(addr))
+		return ethsw_port_fdb_del_uc(netdev_priv(dev),
+					     addr);
+	else
+		return ethsw_port_fdb_del_mc(netdev_priv(dev),
+					     addr);
+}
+
 static void port_get_stats(struct net_device *netdev,
 			   struct rtnl_link_stats64 *stats)
 {
@@ -670,6 +695,8 @@ static const struct net_device_ops ethsw_port_ops = {
 	.ndo_change_mtu		= port_change_mtu,
 	.ndo_has_offload_stats	= port_has_offload_stats,
 	.ndo_get_offload_stats	= port_get_offload_stats,
+	.ndo_fdb_add		= port_fdb_add,
+	.ndo_fdb_del		= port_fdb_del,
 	.ndo_fdb_dump		= port_fdb_dump,
 
 	.ndo_start_xmit		= port_dropframe,
