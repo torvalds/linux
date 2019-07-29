@@ -18,7 +18,6 @@
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsobject")
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_build_internal_object
@@ -299,8 +298,6 @@ acpi_ds_create_node(struct acpi_walk_state *walk_state,
 	return_ACPI_STATUS(status);
 }
 
-#endif				/* ACPI_NO_METHOD_EXECUTION */
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_init_object_from_op
@@ -404,9 +401,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 				/* Truncate value if we are executing from a 32-bit ACPI table */
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 				(void)acpi_ex_truncate_for32bit_table(obj_desc);
-#endif
 				break;
 
 			case AML_REVISION_OP:
@@ -428,7 +423,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 			obj_desc->integer.value = op->common.value.integer;
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 			if (acpi_ex_truncate_for32bit_table(obj_desc)) {
 
 				/* Warn if we found a 64-bit constant in a 32-bit table */
@@ -439,7 +433,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 								 value.integer),
 					      (u32)obj_desc->integer.value));
 			}
-#endif
 			break;
 
 		default:
@@ -477,7 +470,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			    ((u32)opcode) - AML_FIRST_LOCAL_OP;
 			obj_desc->reference.class = ACPI_REFCLASS_LOCAL;
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 			status =
 			    acpi_ds_method_data_get_node(ACPI_REFCLASS_LOCAL,
 							 obj_desc->reference.
@@ -487,7 +479,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 							  acpi_namespace_node,
 							  &obj_desc->reference.
 							  object));
-#endif
 			break;
 
 		case AML_TYPE_METHOD_ARGUMENT:
@@ -498,7 +489,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			    ((u32)opcode) - AML_FIRST_ARG_OP;
 			obj_desc->reference.class = ACPI_REFCLASS_ARG;
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 			status = acpi_ds_method_data_get_node(ACPI_REFCLASS_ARG,
 							      obj_desc->
 							      reference.value,
@@ -509,7 +499,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 							       &obj_desc->
 							       reference.
 							       object));
-#endif
 			break;
 
 		default:	/* Object name or Debug object */

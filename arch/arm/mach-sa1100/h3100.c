@@ -126,6 +126,7 @@ static void __init h3100_mach_init(void)
 {
 	h3xxx_mach_init();
 
+	sa11x0_register_pcmcia(-1, NULL);
 	sa11x0_register_lcd(&h3100_lcd_info);
 	sa11x0_register_irda(&h3100_irda_data);
 }

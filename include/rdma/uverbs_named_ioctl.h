@@ -43,7 +43,7 @@
 #define _UVERBS_NAME(x, y)	_UVERBS_PASTE(x, y)
 #define UVERBS_METHOD(id)	_UVERBS_NAME(UVERBS_MODULE_NAME, _method_##id)
 #define UVERBS_HANDLER(id)	_UVERBS_NAME(UVERBS_MODULE_NAME, _handler_##id)
-#define UVERBS_OBJECT(id)	_UVERBS_NAME(UVERBS_MOUDLE_NAME, _object_##id)
+#define UVERBS_OBJECT(id)	_UVERBS_NAME(UVERBS_MODULE_NAME, _object_##id)
 
 /* These are static so they do not need to be qualified */
 #define UVERBS_METHOD_ATTRS(method_id) _method_attrs_##method_id
@@ -102,18 +102,11 @@
 #define ADD_UVERBS_METHODS(_name, _object_id, ...)                             \
 	static const struct uverbs_method_def *const UVERBS_OBJECT_METHODS(    \
 		_object_id)[] = { __VA_ARGS__ };                               \
-	static const struct uverbs_object_def _name##_struct = {               \
+	static const struct uverbs_object_def _name = {                        \
 		.id = _object_id,                                              \
 		.num_methods = ARRAY_SIZE(UVERBS_OBJECT_METHODS(_object_id)),  \
 		.methods = &UVERBS_OBJECT_METHODS(_object_id)                  \
-	};                                                                     \
-	static const struct uverbs_object_def *const _name##_ptrs[] = {        \
-		&_name##_struct,                                               \
-	};                                                                     \
-	static const struct uverbs_object_tree_def _name = {                   \
-		.num_objects = 1,                                              \
-		.objects = &_name##_ptrs,                                      \
-	}
+	};
 
 /* Used by drivers to declare a complete parsing tree for a single method that
  * differs only in having additional driver specific attributes.

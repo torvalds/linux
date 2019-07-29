@@ -109,7 +109,7 @@ struct rave_sp_reply {
 /**
  * struct rave_sp_checksum - Variant specific checksum implementation details
  *
- * @length:	Caculated checksum length
+ * @length:	Calculated checksum length
  * @subroutine:	Utilized checksum algorithm implementation
  */
 struct rave_sp_checksum {

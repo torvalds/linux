@@ -53,7 +53,7 @@
 int sctp_primitive_ ## name(struct net *net, struct sctp_association *asoc, \
 			    void *arg) { \
 	int error = 0; \
-	enum sctp_event event_type; union sctp_subtype subtype; \
+	enum sctp_event_type event_type; union sctp_subtype subtype; \
 	enum sctp_state state; \
 	struct sctp_endpoint *ep; \
 	\

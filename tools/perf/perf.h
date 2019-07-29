@@ -82,7 +82,7 @@ struct record_opts {
 	bool         use_clockid;
 	clockid_t    clockid;
 	u64          clockid_res_ns;
-	unsigned int proc_map_timeout;
+	int	     nr_cblocks;
 };
 
 struct option;

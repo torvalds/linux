@@ -26,6 +26,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/timer.h>
+#include <linux/hrtimer.h>
 #include <linux/completion.h>
 
 /*
@@ -608,7 +609,7 @@ struct dev_pm_info {
 	unsigned int		should_wakeup:1;
 #endif
 #ifdef CONFIG_PM
-	struct timer_list	suspend_timer;
+	struct hrtimer		suspend_timer;
 	unsigned long		timer_expires;
 	struct work_struct	work;
 	wait_queue_head_t	wait_queue;
@@ -631,7 +632,7 @@ struct dev_pm_info {
 	enum rpm_status		runtime_status;
 	int			runtime_error;
 	int			autosuspend_delay;
-	unsigned long		last_busy;
+	u64			last_busy;
 	unsigned long		active_jiffies;
 	unsigned long		suspended_jiffies;
 	unsigned long		accounting_timestamp;

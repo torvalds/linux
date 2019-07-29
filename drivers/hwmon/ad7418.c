@@ -103,8 +103,8 @@ static struct ad7418_data *ad7418_update_device(struct device *dev)
 	return data;
 }
 
-static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
-			char *buf)
+static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
+			 char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct ad7418_data *data = ad7418_update_device(dev);
@@ -112,7 +112,7 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
 		LM75_TEMP_FROM_REG(data->temp[attr->index]));
 }
 
-static ssize_t show_adc(struct device *dev, struct device_attribute *devattr,
+static ssize_t adc_show(struct device *dev, struct device_attribute *devattr,
 			char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
@@ -122,8 +122,9 @@ static ssize_t show_adc(struct device *dev, struct device_attribute *devattr,
 		((data->in[attr->index] >> 6) * 2500 + 512) / 1024);
 }
 
-static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
-			const char *buf, size_t count)
+static ssize_t temp_store(struct device *dev,
+			  struct device_attribute *devattr, const char *buf,
+			  size_t count)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct ad7418_data *data = dev_get_drvdata(dev);
@@ -143,16 +144,14 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
 	return count;
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IWUSR | S_IRUGO,
-				show_temp, set_temp, 1);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO,
-				show_temp, set_temp, 2);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_max_hyst, temp, 1);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, temp, 2);
 
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, show_adc, NULL, 0);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, show_adc, NULL, 1);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, show_adc, NULL, 2);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, show_adc, NULL, 3);
+static SENSOR_DEVICE_ATTR_RO(in1_input, adc, 0);
+static SENSOR_DEVICE_ATTR_RO(in2_input, adc, 1);
+static SENSOR_DEVICE_ATTR_RO(in3_input, adc, 2);
+static SENSOR_DEVICE_ATTR_RO(in4_input, adc, 3);
 
 static struct attribute *ad7416_attrs[] = {
 	&sensor_dev_attr_temp1_max.dev_attr.attr,

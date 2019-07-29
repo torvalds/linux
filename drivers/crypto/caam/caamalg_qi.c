@@ -2462,7 +2462,7 @@ static int __init caam_qi_algapi_init(void)
 	struct device *ctrldev;
 	struct caam_drv_private *priv;
 	int i = 0, err = 0;
-	u32 cha_vid, cha_inst, des_inst, aes_inst, md_inst;
+	u32 aes_vid, aes_inst, des_inst, md_vid, md_inst;
 	unsigned int md_limit = SHA512_DIGEST_SIZE;
 	bool registered = false;
 
@@ -2497,14 +2497,34 @@ static int __init caam_qi_algapi_init(void)
 	 * Register crypto algorithms the device supports.
 	 * First, detect presence and attributes of DES, AES, and MD blocks.
 	 */
-	cha_vid = rd_reg32(&priv->ctrl->perfmon.cha_id_ls);
-	cha_inst = rd_reg32(&priv->ctrl->perfmon.cha_num_ls);
-	des_inst = (cha_inst & CHA_ID_LS_DES_MASK) >> CHA_ID_LS_DES_SHIFT;
-	aes_inst = (cha_inst & CHA_ID_LS_AES_MASK) >> CHA_ID_LS_AES_SHIFT;
-	md_inst = (cha_inst & CHA_ID_LS_MD_MASK) >> CHA_ID_LS_MD_SHIFT;
+	if (priv->era < 10) {
+		u32 cha_vid, cha_inst;
+
+		cha_vid = rd_reg32(&priv->ctrl->perfmon.cha_id_ls);
+		aes_vid = cha_vid & CHA_ID_LS_AES_MASK;
+		md_vid = (cha_vid & CHA_ID_LS_MD_MASK) >> CHA_ID_LS_MD_SHIFT;
+
+		cha_inst = rd_reg32(&priv->ctrl->perfmon.cha_num_ls);
+		des_inst = (cha_inst & CHA_ID_LS_DES_MASK) >>
+			   CHA_ID_LS_DES_SHIFT;
+		aes_inst = cha_inst & CHA_ID_LS_AES_MASK;
+		md_inst = (cha_inst & CHA_ID_LS_MD_MASK) >> CHA_ID_LS_MD_SHIFT;
+	} else {
+		u32 aesa, mdha;
+
+		aesa = rd_reg32(&priv->ctrl->vreg.aesa);
+		mdha = rd_reg32(&priv->ctrl->vreg.mdha);
+
+		aes_vid = (aesa & CHA_VER_VID_MASK) >> CHA_VER_VID_SHIFT;
+		md_vid = (mdha & CHA_VER_VID_MASK) >> CHA_VER_VID_SHIFT;
+
+		des_inst = rd_reg32(&priv->ctrl->vreg.desa) & CHA_VER_NUM_MASK;
+		aes_inst = aesa & CHA_VER_NUM_MASK;
+		md_inst = mdha & CHA_VER_NUM_MASK;
+	}
 
 	/* If MD is present, limit digest size based on LP256 */
-	if (md_inst && ((cha_vid & CHA_ID_LS_MD_MASK) == CHA_ID_LS_MD_LP256))
+	if (md_inst && md_vid  == CHA_VER_VID_MD_LP256)
 		md_limit = SHA256_DIGEST_SIZE;
 
 	for (i = 0; i < ARRAY_SIZE(driver_algs); i++) {
@@ -2556,8 +2576,7 @@ static int __init caam_qi_algapi_init(void)
 		 * Check support for AES algorithms not available
 		 * on LP devices.
 		 */
-		if (((cha_vid & CHA_ID_LS_AES_MASK) == CHA_ID_LS_AES_LP) &&
-		    (alg_aai == OP_ALG_AAI_GCM))
+		if (aes_vid  == CHA_VER_VID_AES_LP && alg_aai == OP_ALG_AAI_GCM)
 			continue;
 
 		/*

@@ -512,8 +512,8 @@ static void __init map_pages(unsigned long start_vaddr,
 
 void __init set_kernel_text_rw(int enable_read_write)
 {
-	unsigned long start = (unsigned long)__init_begin;
-	unsigned long end   = (unsigned long)_etext;
+	unsigned long start = (unsigned long) _text;
+	unsigned long end   = (unsigned long) &data_start;
 
 	map_pages(start, __pa(start), end-start,
 		PAGE_KERNEL_RWX, enable_read_write ? 1:0);

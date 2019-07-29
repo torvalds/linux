@@ -188,7 +188,7 @@ static void sch311x_gpio_set(struct gpio_chip *chip, unsigned offset,
 	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
 	spin_lock(&block->lock);
-	 __sch311x_gpio_set(block, offset, value);
+	__sch311x_gpio_set(block, offset, value);
 	spin_unlock(&block->lock);
 }
 

@@ -54,7 +54,7 @@ those errors are correctable.
 Types of errors
 ---------------
 
-Most mechanisms used on modern systems use use technologies like Hamming
+Most mechanisms used on modern systems use technologies like Hamming
 Codes that allow error correction when the number of errors on a bit packet
 is below a threshold. If the number of errors is above, those mechanisms
 can indicate with a high degree of confidence that an error happened, but

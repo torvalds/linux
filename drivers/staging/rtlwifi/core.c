@@ -1882,7 +1882,8 @@ bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 				return true;
 			default:
 				WARN_ONCE(true,
-					  "rtlwifi: %s(): Unknown CMD!!\n", __func__);
+					  "rtlwifi: %s(): Unknown CMD!!\n",
+					  __func__);
 				break;
 			}
 		}

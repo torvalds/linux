@@ -245,7 +245,7 @@ void rtl_ips_nic_off_wq_callback(void *data)
 			/* call before RF off */
 			if (rtlpriv->cfg->ops->get_btc_status())
 				rtlpriv->btcoexist.btc_ops->btc_ips_notify(rtlpriv,
-									ppsc->inactive_pwrstate);
+									   ppsc->inactive_pwrstate);
 
 			/*rtl_pci_reset_trx_ring(hw); */
 			_rtl_ps_inactive_ps(hw);
@@ -291,7 +291,7 @@ void rtl_ips_nic_on(struct ieee80211_hw *hw)
 				rtlpriv->phydm.ops->phydm_reset_dm(rtlpriv);
 			if (rtlpriv->cfg->ops->get_btc_status())
 				rtlpriv->btcoexist.btc_ops->btc_ips_notify(rtlpriv,
-									ppsc->inactive_pwrstate);
+									   ppsc->inactive_pwrstate);
 		}
 	}
 	mutex_unlock(&rtlpriv->locks.ips_mutex);

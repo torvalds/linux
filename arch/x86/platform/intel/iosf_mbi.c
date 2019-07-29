@@ -13,7 +13,7 @@
  *
  *
  * The IOSF-SB is a fabric bus available on Atom based SOC's that uses a
- * mailbox interface (MBI) to communicate with mutiple devices. This
+ * mailbox interface (MBI) to communicate with multiple devices. This
  * driver implements access to this interface for those platforms that can
  * enumerate the device using PCI.
  */

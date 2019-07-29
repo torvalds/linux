@@ -87,9 +87,9 @@ static u32 vi_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 	u32 r;
 
 	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	WREG32(mmPCIE_INDEX, reg);
-	(void)RREG32(mmPCIE_INDEX);
-	r = RREG32(mmPCIE_DATA);
+	WREG32_NO_KIQ(mmPCIE_INDEX, reg);
+	(void)RREG32_NO_KIQ(mmPCIE_INDEX);
+	r = RREG32_NO_KIQ(mmPCIE_DATA);
 	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
 	return r;
 }
@@ -99,10 +99,10 @@ static void vi_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	unsigned long flags;
 
 	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	WREG32(mmPCIE_INDEX, reg);
-	(void)RREG32(mmPCIE_INDEX);
-	WREG32(mmPCIE_DATA, v);
-	(void)RREG32(mmPCIE_DATA);
+	WREG32_NO_KIQ(mmPCIE_INDEX, reg);
+	(void)RREG32_NO_KIQ(mmPCIE_INDEX);
+	WREG32_NO_KIQ(mmPCIE_DATA, v);
+	(void)RREG32_NO_KIQ(mmPCIE_DATA);
 	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
 }
 
@@ -123,8 +123,8 @@ static void vi_smc_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	unsigned long flags;
 
 	spin_lock_irqsave(&adev->smc_idx_lock, flags);
-	WREG32(mmSMC_IND_INDEX_11, (reg));
-	WREG32(mmSMC_IND_DATA_11, (v));
+	WREG32_NO_KIQ(mmSMC_IND_INDEX_11, (reg));
+	WREG32_NO_KIQ(mmSMC_IND_DATA_11, (v));
 	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
 }
 
@@ -955,6 +955,7 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.flush_hdp = &vi_flush_hdp,
 	.invalidate_hdp = &vi_invalidate_hdp,
 	.need_full_reset = &vi_need_full_reset,
+	.init_doorbell_index = &legacy_doorbell_index_init,
 };
 
 #define CZ_REV_BRISTOL(rev)	 \
@@ -1711,4 +1712,22 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 	}
 
 	return 0;
+}
+
+void legacy_doorbell_index_init(struct amdgpu_device *adev)
+{
+	adev->doorbell_index.kiq = AMDGPU_DOORBELL_KIQ;
+	adev->doorbell_index.mec_ring0 = AMDGPU_DOORBELL_MEC_RING0;
+	adev->doorbell_index.mec_ring1 = AMDGPU_DOORBELL_MEC_RING1;
+	adev->doorbell_index.mec_ring2 = AMDGPU_DOORBELL_MEC_RING2;
+	adev->doorbell_index.mec_ring3 = AMDGPU_DOORBELL_MEC_RING3;
+	adev->doorbell_index.mec_ring4 = AMDGPU_DOORBELL_MEC_RING4;
+	adev->doorbell_index.mec_ring5 = AMDGPU_DOORBELL_MEC_RING5;
+	adev->doorbell_index.mec_ring6 = AMDGPU_DOORBELL_MEC_RING6;
+	adev->doorbell_index.mec_ring7 = AMDGPU_DOORBELL_MEC_RING7;
+	adev->doorbell_index.gfx_ring0 = AMDGPU_DOORBELL_GFX_RING0;
+	adev->doorbell_index.sdma_engine0 = AMDGPU_DOORBELL_sDMA_ENGINE0;
+	adev->doorbell_index.sdma_engine1 = AMDGPU_DOORBELL_sDMA_ENGINE1;
+	adev->doorbell_index.ih = AMDGPU_DOORBELL_IH;
+	adev->doorbell_index.max_assignment = AMDGPU_DOORBELL_MAX_ASSIGNMENT;
 }

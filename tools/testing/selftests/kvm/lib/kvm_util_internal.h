@@ -44,6 +44,7 @@ struct vcpu {
 
 struct kvm_vm {
 	int mode;
+	unsigned long type;
 	int kvm_fd;
 	int fd;
 	unsigned int pgtable_levels;

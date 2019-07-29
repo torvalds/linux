@@ -22,7 +22,7 @@ Example:
 			#size-cells = <0>;
 
 			eeprom@54 {
-				compatible = "at,24c08";
+				compatible = "atmel,24c08";
 				reg = <0x54>;
 			};
 		};

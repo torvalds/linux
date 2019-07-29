@@ -409,5 +409,37 @@
 			#size-cells = <0>;
 			status = "disabled";
 		};
+
+		usb@68000000 {
+			compatible = "cortina,gemini-usb", "faraday,fotg210";
+			reg = <0x68000000 0x1000>;
+			interrupts = <10 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon GEMINI_RESET_USB0>;
+			clocks = <&syscon GEMINI_CLK_GATE_USB0>;
+			clock-names = "PCLK";
+			/*
+			 * This will claim pins for USB0 and USB1 at the same
+			 * time as they are using some common pins. If you for
+			 * some reason have a system using USB1 at 96000000 but
+			 * NOT using USB0 at 68000000 you wll have to add the
+			 * usb_default_pins to the USB controller at 96000000
+			 * in your .dts for the board.
+			 */
+			pinctrl-names = "default";
+			pinctrl-0 = <&usb_default_pins>;
+			syscon = <&syscon>;
+			status = "disabled";
+		};
+
+		usb@69000000 {
+			compatible = "cortina,gemini-usb", "faraday,fotg210";
+			reg = <0x69000000 0x1000>;
+			interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon GEMINI_RESET_USB1>;
+			clocks = <&syscon GEMINI_CLK_GATE_USB1>;
+			clock-names = "PCLK";
+			syscon = <&syscon>;
+			status = "disabled";
+		};
 	};
 };

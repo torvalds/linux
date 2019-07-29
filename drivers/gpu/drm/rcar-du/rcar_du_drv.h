@@ -20,7 +20,6 @@
 struct clk;
 struct device;
 struct drm_device;
-struct drm_fbdev_cma;
 struct rcar_du_device;
 
 #define RCAR_DU_FEATURE_CRTC_IRQ_CLOCK	BIT(0)	/* Per-CRTC IRQ and clock */
@@ -78,8 +77,6 @@ struct rcar_du_device {
 	void __iomem *mmio;
 
 	struct drm_device *ddev;
-	struct drm_fbdev_cma *fbdev;
-	struct drm_atomic_state *suspend_state;
 
 	struct rcar_du_crtc crtcs[RCAR_DU_MAX_CRTCS];
 	unsigned int num_crtcs;

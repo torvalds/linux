@@ -60,7 +60,7 @@ static int eeh_result_priority(enum pci_ers_result result)
 	}
 };
 
-const char *pci_ers_result_name(enum pci_ers_result result)
+static const char *pci_ers_result_name(enum pci_ers_result result)
 {
 	switch (result) {
 	case PCI_ERS_RESULT_NONE:

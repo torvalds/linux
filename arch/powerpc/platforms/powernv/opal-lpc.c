@@ -192,7 +192,7 @@ static ssize_t lpc_debug_read(struct file *filp, char __user *ubuf,
 	u32 data, pos, len, todo;
 	int rc;
 
-	if (!access_ok(VERIFY_WRITE, ubuf, count))
+	if (!access_ok(ubuf, count))
 		return -EFAULT;
 
 	todo = count;
@@ -283,7 +283,7 @@ static ssize_t lpc_debug_write(struct file *filp, const char __user *ubuf,
 	u32 data, pos, len, todo;
 	int rc;
 
-	if (!access_ok(VERIFY_READ, ubuf, count))
+	if (!access_ok(ubuf, count))
 		return -EFAULT;
 
 	todo = count;

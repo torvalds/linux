@@ -22,7 +22,6 @@ config H8300
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_HASH
 	select CPU_NO_EFFICIENT_FFS
-	select DMA_DIRECT_OPS
 
 config CPU_BIG_ENDIAN
 	def_bool y

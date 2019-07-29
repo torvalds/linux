@@ -116,12 +116,12 @@ int asoc_simple_card_clean_reference(struct snd_soc_card *card);
 
 void asoc_simple_card_convert_fixup(struct asoc_simple_card_data *data,
 				      struct snd_pcm_hw_params *params);
-void asoc_simple_card_parse_convert(struct device *dev, char *prefix,
+void asoc_simple_card_parse_convert(struct device *dev,
+				    struct device_node *np, char *prefix,
 				    struct asoc_simple_card_data *data);
 
 int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
-				      char *prefix,
-				      int optional);
+				      char *prefix);
 int asoc_simple_card_of_parse_widgets(struct snd_soc_card *card,
 				      char *prefix);
 

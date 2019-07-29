@@ -1232,12 +1232,12 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	dout("removing cap %p, ci is %p, inode is %p\n",
 	     cap, ci, &ci->vfs_inode);
 	spin_lock(&ci->i_ceph_lock);
+	if (cap->mds_wanted | cap->issued)
+		ci->i_ceph_flags |= CEPH_I_CAP_DROPPED;
 	__ceph_remove_cap(cap, false);
 	if (!ci->i_auth_cap) {
 		struct ceph_cap_flush *cf;
 		struct ceph_mds_client *mdsc = fsc->mdsc;
-
-		ci->i_ceph_flags |= CEPH_I_CAP_DROPPED;
 
 		if (ci->i_wrbuffer_ref > 0 &&
 		    READ_ONCE(fsc->mount_state) == CEPH_MOUNT_SHUTDOWN)
@@ -1355,6 +1355,12 @@ static void remove_session_caps(struct ceph_mds_session *session)
 	dispose_cap_releases(session->s_mdsc, &dispose);
 }
 
+enum {
+	RECONNECT,
+	RENEWCAPS,
+	FORCE_RO,
+};
+
 /*
  * wake up any threads waiting on this session's caps.  if the cap is
  * old (didn't get renewed on the client reconnect), remove it now.
@@ -1365,23 +1371,34 @@ static int wake_up_session_cb(struct inode *inode, struct ceph_cap *cap,
 			      void *arg)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	unsigned long ev = (unsigned long)arg;
 
-	if (arg) {
+	if (ev == RECONNECT) {
 		spin_lock(&ci->i_ceph_lock);
 		ci->i_wanted_max_size = 0;
 		ci->i_requested_max_size = 0;
 		spin_unlock(&ci->i_ceph_lock);
+	} else if (ev == RENEWCAPS) {
+		if (cap->cap_gen < cap->session->s_cap_gen) {
+			/* mds did not re-issue stale cap */
+			spin_lock(&ci->i_ceph_lock);
+			cap->issued = cap->implemented = CEPH_CAP_PIN;
+			/* make sure mds knows what we want */
+			if (__ceph_caps_file_wanted(ci) & ~cap->mds_wanted)
+				ci->i_ceph_flags |= CEPH_I_CAP_DROPPED;
+			spin_unlock(&ci->i_ceph_lock);
+		}
+	} else if (ev == FORCE_RO) {
 	}
 	wake_up_all(&ci->i_cap_wq);
 	return 0;
 }
 
-static void wake_up_session_caps(struct ceph_mds_session *session,
-				 int reconnect)
+static void wake_up_session_caps(struct ceph_mds_session *session, int ev)
 {
 	dout("wake_up_session_caps %p mds%d\n", session, session->s_mds);
 	iterate_session_caps(session, wake_up_session_cb,
-			     (void *)(unsigned long)reconnect);
+			     (void *)(unsigned long)ev);
 }
 
 /*
@@ -1466,7 +1483,7 @@ static void renewed_caps(struct ceph_mds_client *mdsc,
 	spin_unlock(&session->s_cap_lock);
 
 	if (wake)
-		wake_up_session_caps(session, 0);
+		wake_up_session_caps(session, RENEWCAPS);
 }
 
 /*
@@ -2847,7 +2864,7 @@ static void handle_session(struct ceph_mds_session *session,
 		spin_lock(&session->s_cap_lock);
 		session->s_readonly = true;
 		spin_unlock(&session->s_cap_lock);
-		wake_up_session_caps(session, 0);
+		wake_up_session_caps(session, FORCE_RO);
 		break;
 
 	case CEPH_SESSION_REJECT:
@@ -2943,11 +2960,8 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	struct ceph_inode_info *ci = cap->ci;
 	struct ceph_reconnect_state *recon_state = arg;
 	struct ceph_pagelist *pagelist = recon_state->pagelist;
-	char *path;
-	int pathlen, err;
-	u64 pathbase;
+	int err;
 	u64 snap_follows;
-	struct dentry *dentry;
 
 	dout(" adding %p ino %llx.%llx cap %p %lld %s\n",
 	     inode, ceph_vinop(inode), cap, cap->cap_id,
@@ -2955,19 +2969,6 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	err = ceph_pagelist_encode_64(pagelist, ceph_ino(inode));
 	if (err)
 		return err;
-
-	dentry = d_find_alias(inode);
-	if (dentry) {
-		path = ceph_mdsc_build_path(dentry, &pathlen, &pathbase, 0);
-		if (IS_ERR(path)) {
-			err = PTR_ERR(path);
-			goto out_dput;
-		}
-	} else {
-		path = NULL;
-		pathlen = 0;
-		pathbase = 0;
-	}
 
 	spin_lock(&ci->i_ceph_lock);
 	cap->seq = 0;        /* reset cap seq */
@@ -2980,7 +2981,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		rec.v2.wanted = cpu_to_le32(__ceph_caps_wanted(ci));
 		rec.v2.issued = cpu_to_le32(cap->issued);
 		rec.v2.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
-		rec.v2.pathbase = cpu_to_le64(pathbase);
+		rec.v2.pathbase = 0;
 		rec.v2.flock_len = (__force __le32)
 			((ci->i_ceph_flags & CEPH_I_ERROR_FILELOCK) ? 0 : 1);
 	} else {
@@ -2991,7 +2992,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		ceph_encode_timespec64(&rec.v1.mtime, &inode->i_mtime);
 		ceph_encode_timespec64(&rec.v1.atime, &inode->i_atime);
 		rec.v1.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
-		rec.v1.pathbase = cpu_to_le64(pathbase);
+		rec.v1.pathbase = 0;
 	}
 
 	if (list_empty(&ci->i_cap_snaps)) {
@@ -3023,7 +3024,7 @@ encode_again:
 					       GFP_NOFS);
 			if (!flocks) {
 				err = -ENOMEM;
-				goto out_free;
+				goto out_err;
 			}
 			err = ceph_encode_locks_to_buffer(inode, flocks,
 							  num_fcntl_locks,
@@ -3033,7 +3034,7 @@ encode_again:
 				flocks = NULL;
 				if (err == -ENOSPC)
 					goto encode_again;
-				goto out_free;
+				goto out_err;
 			}
 		} else {
 			kfree(flocks);
@@ -3053,44 +3054,64 @@ encode_again:
 			    sizeof(struct ceph_filelock);
 		rec.v2.flock_len = cpu_to_le32(struct_len);
 
-		struct_len += sizeof(rec.v2);
-		struct_len += sizeof(u32) + pathlen;
+		struct_len += sizeof(u32) + sizeof(rec.v2);
 
 		if (struct_v >= 2)
 			struct_len += sizeof(u64); /* snap_follows */
 
 		total_len += struct_len;
 		err = ceph_pagelist_reserve(pagelist, total_len);
-
-		if (!err) {
-			if (recon_state->msg_version >= 3) {
-				ceph_pagelist_encode_8(pagelist, struct_v);
-				ceph_pagelist_encode_8(pagelist, 1);
-				ceph_pagelist_encode_32(pagelist, struct_len);
-			}
-			ceph_pagelist_encode_string(pagelist, path, pathlen);
-			ceph_pagelist_append(pagelist, &rec, sizeof(rec.v2));
-			ceph_locks_to_pagelist(flocks, pagelist,
-					       num_fcntl_locks,
-					       num_flock_locks);
-			if (struct_v >= 2)
-				ceph_pagelist_encode_64(pagelist, snap_follows);
+		if (err) {
+			kfree(flocks);
+			goto out_err;
 		}
+
+		if (recon_state->msg_version >= 3) {
+			ceph_pagelist_encode_8(pagelist, struct_v);
+			ceph_pagelist_encode_8(pagelist, 1);
+			ceph_pagelist_encode_32(pagelist, struct_len);
+		}
+		ceph_pagelist_encode_string(pagelist, NULL, 0);
+		ceph_pagelist_append(pagelist, &rec, sizeof(rec.v2));
+		ceph_locks_to_pagelist(flocks, pagelist,
+				       num_fcntl_locks, num_flock_locks);
+		if (struct_v >= 2)
+			ceph_pagelist_encode_64(pagelist, snap_follows);
+
 		kfree(flocks);
 	} else {
-		size_t size = sizeof(u32) + pathlen + sizeof(rec.v1);
-		err = ceph_pagelist_reserve(pagelist, size);
-		if (!err) {
-			ceph_pagelist_encode_string(pagelist, path, pathlen);
-			ceph_pagelist_append(pagelist, &rec, sizeof(rec.v1));
+		u64 pathbase = 0;
+		int pathlen = 0;
+		char *path = NULL;
+		struct dentry *dentry;
+
+		dentry = d_find_alias(inode);
+		if (dentry) {
+			path = ceph_mdsc_build_path(dentry,
+						&pathlen, &pathbase, 0);
+			dput(dentry);
+			if (IS_ERR(path)) {
+				err = PTR_ERR(path);
+				goto out_err;
+			}
+			rec.v1.pathbase = cpu_to_le64(pathbase);
 		}
+
+		err = ceph_pagelist_reserve(pagelist,
+				pathlen + sizeof(u32) + sizeof(rec.v1));
+		if (err) {
+			kfree(path);
+			goto out_err;
+		}
+
+		ceph_pagelist_encode_string(pagelist, path, pathlen);
+		ceph_pagelist_append(pagelist, &rec, sizeof(rec.v1));
+
+		kfree(path);
 	}
 
 	recon_state->nr_caps++;
-out_free:
-	kfree(path);
-out_dput:
-	dput(dentry);
+out_err:
 	return err;
 }
 
@@ -3339,7 +3360,7 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 				pr_info("mds%d recovery completed\n", s->s_mds);
 			kick_requests(mdsc, i);
 			ceph_kick_flushing_caps(mdsc, s);
-			wake_up_session_caps(s, 1);
+			wake_up_session_caps(s, RECONNECT);
 		}
 	}
 

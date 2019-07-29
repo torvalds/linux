@@ -83,6 +83,25 @@ void i915_timeline_init(struct drm_i915_private *i915,
 			const char *name);
 void i915_timeline_fini(struct i915_timeline *tl);
 
+static inline void
+i915_timeline_set_subclass(struct i915_timeline *timeline,
+			   unsigned int subclass)
+{
+	lockdep_set_subclass(&timeline->lock, subclass);
+
+	/*
+	 * Due to an interesting quirk in lockdep's internal debug tracking,
+	 * after setting a subclass we must ensure the lock is used. Otherwise,
+	 * nr_unused_locks is incremented once too often.
+	 */
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	local_irq_disable();
+	lock_map_acquire(&timeline->lock.dep_map);
+	lock_map_release(&timeline->lock.dep_map);
+	local_irq_enable();
+#endif
+}
+
 struct i915_timeline *
 i915_timeline_create(struct drm_i915_private *i915, const char *name);
 

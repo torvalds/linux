@@ -148,6 +148,8 @@ static void __init db1300_gpio_config(void)
 
 /**********************************************************************/
 
+static u64 au1300_all_dmamask = DMA_BIT_MASK(32);
+
 static void au1300_nand_cmd_ctrl(struct nand_chip *this, int cmd,
 				 unsigned int ctrl)
 {
@@ -438,6 +440,8 @@ static struct resource db1300_ide_res[] = {
 
 static struct platform_device db1300_ide_dev = {
 	.dev	= {
+		.dma_mask		= &au1300_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data	= &db1300_ide_info,
 	},
 	.name		= "pata_platform",
@@ -560,7 +564,9 @@ static struct resource au1300_sd1_res[] = {
 
 static struct platform_device db1300_sd1_dev = {
 	.dev = {
-		.platform_data	= &db1300_sd1_platdata,
+		.dma_mask		= &au1300_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &db1300_sd1_platdata,
 	},
 	.name		= "au1xxx-mmc",
 	.id		= 1,
@@ -625,7 +631,9 @@ static struct resource au1300_sd0_res[] = {
 
 static struct platform_device db1300_sd0_dev = {
 	.dev = {
-		.platform_data	= &db1300_sd0_platdata,
+		.dma_mask		= &au1300_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &db1300_sd0_platdata,
 	},
 	.name		= "au1xxx-mmc",
 	.id		= 0,
@@ -652,10 +660,18 @@ static struct platform_device db1300_i2sdma_dev = {
 
 static struct platform_device db1300_sndac97_dev = {
 	.name		= "db1300-ac97",
+	.dev = {
+		.dma_mask		= &au1300_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 };
 
 static struct platform_device db1300_sndi2s_dev = {
 	.name		= "db1300-i2s",
+	.dev = {
+		.dma_mask		= &au1300_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 };
 
 /**********************************************************************/
@@ -700,13 +716,12 @@ static struct resource au1300_lcd_res[] = {
 	}
 };
 
-static u64 au1300_lcd_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device db1300_lcd_dev = {
 	.name		= "au1200-lcd",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= &au1300_lcd_dmamask,
+		.dma_mask		= &au1300_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1300fb_pd,
 	},

@@ -2676,7 +2676,6 @@ struct scsi_host_template scsi_esp_template = {
 	.can_queue		= 7,
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.max_sectors		= 0xffff,
 	.skip_settle_delay	= 1,
 };

@@ -94,6 +94,39 @@
 	};
 
 	soc {
+		syscon: system-control@1c00000 {
+			compatible = "allwinner,sun50i-h5-system-control";
+			reg = <0x01c00000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			sram_c1: sram@18000 {
+				compatible = "mmio-sram";
+				reg = <0x00018000 0x1c000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x00018000 0x1c000>;
+
+				ve_sram: sram-section@0 {
+					compatible = "allwinner,sun50i-h5-sram-c1",
+						     "allwinner,sun4i-a10-sram-c1";
+					reg = <0x000000 0x1c000>;
+				};
+			};
+		};
+
+		video-codec@1c0e000 {
+			compatible = "allwinner,sun50i-h5-video-engine";
+			reg = <0x01c0e000 0x1000>;
+			clocks = <&ccu CLK_BUS_VE>, <&ccu CLK_VE>,
+				 <&ccu CLK_DRAM_VE>;
+			clock-names = "ahb", "mod", "ram";
+			resets = <&ccu RST_BUS_VE>;
+			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+			allwinner,sram = <&ve_sram 1>;
+		};
+
 		mali: gpu@1e80000 {
 			compatible = "allwinner,sun50i-h5-mali", "arm,mali-450";
 			reg = <0x01e80000 0x30000>;
@@ -171,4 +204,8 @@
 		     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 	compatible = "allwinner,sun50i-h5-pinctrl";
+};
+
+&rtc {
+	compatible = "allwinner,sun50i-h5-rtc";
 };

@@ -7,7 +7,9 @@
  */
 
 #include <linux/device.h>
+#include <linux/dmar.h>
 #include <linux/idr.h>
+#include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -236,6 +238,20 @@ err_free_str:
 }
 static DEVICE_ATTR_RW(boot_acl);
 
+static ssize_t iommu_dma_protection_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	/*
+	 * Kernel DMA protection is a feature where Thunderbolt security is
+	 * handled natively using IOMMU. It is enabled when IOMMU is
+	 * enabled and ACPI DMAR table has DMAR_PLATFORM_OPT_IN set.
+	 */
+	return sprintf(buf, "%d\n",
+		       iommu_present(&pci_bus_type) && dmar_platform_optin());
+}
+static DEVICE_ATTR_RO(iommu_dma_protection);
+
 static ssize_t security_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
@@ -251,6 +267,7 @@ static DEVICE_ATTR_RO(security);
 
 static struct attribute *domain_attrs[] = {
 	&dev_attr_boot_acl.attr,
+	&dev_attr_iommu_dma_protection.attr,
 	&dev_attr_security.attr,
 	NULL,
 };

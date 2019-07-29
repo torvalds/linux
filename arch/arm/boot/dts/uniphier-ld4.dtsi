@@ -235,6 +235,16 @@
 			};
 		};
 
+		dmac: dma-controller@5a000000 {
+			compatible = "socionext,uniphier-mio-dmac";
+			reg = <0x5a000000 0x1000>;
+			interrupts = <0 68 4>, <0 68 4>, <0 69 4>, <0 70 4>,
+				     <0 71 4>, <0 72 4>, <0 73 4>;
+			clocks = <&mio_clk 7>;
+			resets = <&mio_rst 7>;
+			#dma-cells = <1>;
+		};
+
 		sd: sdhc@5a400000 {
 			compatible = "socionext,uniphier-sd-v2.91";
 			status = "disabled";
@@ -246,6 +256,8 @@
 			clocks = <&mio_clk 0>;
 			reset-names = "host", "bridge";
 			resets = <&mio_rst 0>, <&mio_rst 3>;
+			dma-names = "rx-tx";
+			dmas = <&dmac 4>;
 			bus-width = <4>;
 			cap-sd-highspeed;
 			sd-uhs-sdr12;
@@ -263,6 +275,8 @@
 			clocks = <&mio_clk 1>;
 			reset-names = "host", "bridge", "hw";
 			resets = <&mio_rst 1>, <&mio_rst 4>, <&mio_rst 6>;
+			dma-names = "rx-tx";
+			dmas = <&dmac 6>;
 			bus-width = <8>;
 			cap-mmc-highspeed;
 			cap-mmc-hw-reset;

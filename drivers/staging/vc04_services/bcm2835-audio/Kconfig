@@ -1,6 +1,6 @@
 config SND_BCM2835
         tristate "BCM2835 Audio"
-        depends on ARCH_BCM2835 && SND
+        depends on (ARCH_BCM2835 || COMPILE_TEST) && SND
         select SND_PCM
         select BCM2835_VCHIQ
         help

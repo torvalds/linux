@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/mdio-gpio.h>
 #include <linux/mdio-bitbang.h>
 #include <linux/mdio-gpio.h>
 #include <linux/gpio/consumer.h>
@@ -112,6 +113,7 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 					  struct mdio_gpio_info *bitbang,
 					  int bus_id)
 {
+	struct mdio_gpio_platform_data *pdata = dev_get_platdata(dev);
 	struct mii_bus *new_bus;
 
 	bitbang->ctrl.ops = &mdio_gpio_ops;
@@ -127,6 +129,11 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 		snprintf(new_bus->id, MII_BUS_ID_SIZE, "gpio-%x", bus_id);
 	else
 		strncpy(new_bus->id, "gpio", MII_BUS_ID_SIZE);
+
+	if (pdata) {
+		new_bus->phy_mask = pdata->phy_mask;
+		new_bus->phy_ignore_ta_mask = pdata->phy_ignore_ta_mask;
+	}
 
 	dev_set_drvdata(dev, new_bus);
 

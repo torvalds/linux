@@ -75,11 +75,11 @@ config ATH79_MACH_UBNT_XM
 endmenu
 
 config SOC_AR71XX
-	select HW_HAS_PCI
+	select HAVE_PCI
 	def_bool n
 
 config SOC_AR724X
-	select HW_HAS_PCI
+	select HAVE_PCI
 	select PCI_AR724X if PCI
 	def_bool n
 
@@ -90,12 +90,12 @@ config SOC_AR933X
 	def_bool n
 
 config SOC_AR934X
-	select HW_HAS_PCI
+	select HAVE_PCI
 	select PCI_AR724X if PCI
 	def_bool n
 
 config SOC_QCA955X
-	select HW_HAS_PCI
+	select HAVE_PCI
 	select PCI_AR724X if PCI
 	def_bool n
 

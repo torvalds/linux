@@ -458,7 +458,6 @@ static void init_affinity_node(int cbe)
 	struct device_node *vic_dn, *last_spu_dn;
 	phandle avoid_ph;
 	const phandle *vic_handles;
-	const char *name;
 	int lenp, i, added;
 
 	last_spu = list_first_entry(&cbe_spu_info[cbe].spus, struct spu,
@@ -480,12 +479,7 @@ static void init_affinity_node(int cbe)
 			if (!vic_dn)
 				continue;
 
-			/* a neighbour might be spe, mic-tm, or bif0 */
-			name = of_get_property(vic_dn, "name", NULL);
-			if (!name)
-				continue;
-
-			if (strcmp(name, "spe") == 0) {
+			if (of_node_name_eq(vic_dn, "spe") ) {
 				spu = devnode_spu(cbe, vic_dn);
 				avoid_ph = last_spu_dn->phandle;
 			} else {
@@ -498,7 +492,7 @@ static void init_affinity_node(int cbe)
 				spu = neighbour_spu(cbe, vic_dn, last_spu_dn);
 				if (!spu)
 					continue;
-				if (!strcmp(name, "mic-tm")) {
+				if (of_node_name_eq(vic_dn, "mic-tm")) {
 					last_spu->has_mem_affinity = 1;
 					spu->has_mem_affinity = 1;
 				}

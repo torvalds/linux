@@ -115,7 +115,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 
 	frame = get_sigframe(ksig, regs, sizeof(struct rt_sigframe));
 
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(struct rt_sigframe)))
+	if (!access_ok(frame, sizeof(struct rt_sigframe)))
 		return -EFAULT;
 
 	if (copy_siginfo_to_user(&frame->info, &ksig->info))
@@ -244,7 +244,7 @@ asmlinkage int sys_rt_sigreturn(void)
 	current->restart_block.fn = do_no_restart_syscall;
 
 	frame = (struct rt_sigframe __user *)pt_psp(regs);
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&blocked, &frame->uc.uc_sigmask, sizeof(blocked)))
 		goto badframe;

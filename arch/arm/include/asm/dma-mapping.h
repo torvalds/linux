@@ -18,7 +18,7 @@ extern const struct dma_map_ops arm_coherent_dma_ops;
 
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
-	return IS_ENABLED(CONFIG_MMU) ? &arm_dma_ops : &dma_direct_ops;
+	return IS_ENABLED(CONFIG_MMU) ? &arm_dma_ops : NULL;
 }
 
 #ifdef __arch_page_to_dma

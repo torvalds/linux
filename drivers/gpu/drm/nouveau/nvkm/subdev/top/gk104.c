@@ -86,7 +86,7 @@ gk104_top_oneinit(struct nvkm_top *top)
 		case 0x0000000d: A_(SEC2  ); break;
 		case 0x0000000e: B_(NVENC ); break;
 		case 0x0000000f: A_(NVENC1); break;
-		case 0x00000010: A_(NVDEC ); break;
+		case 0x00000010: B_(NVDEC ); break;
 		case 0x00000013: B_(CE    ); break;
 			break;
 		default:

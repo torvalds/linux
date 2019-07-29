@@ -403,7 +403,7 @@ static struct scsi_host_template mac53c94_template = {
 	.can_queue	= 1,
 	.this_id	= 7,
 	.sg_tablesize	= SG_ALL,
-	.use_clustering	= DISABLE_CLUSTERING,
+	.max_segment_size = 65535,
 };
 
 static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *match)

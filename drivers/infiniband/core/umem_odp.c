@@ -146,15 +146,12 @@ static int invalidate_range_start_trampoline(struct ib_umem_odp *item,
 }
 
 static int ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
-						    struct mm_struct *mm,
-						    unsigned long start,
-						    unsigned long end,
-						    bool blockable)
+				const struct mmu_notifier_range *range)
 {
 	struct ib_ucontext_per_mm *per_mm =
 		container_of(mn, struct ib_ucontext_per_mm, mn);
 
-	if (blockable)
+	if (range->blockable)
 		down_read(&per_mm->umem_rwsem);
 	else if (!down_read_trylock(&per_mm->umem_rwsem))
 		return -EAGAIN;
@@ -169,9 +166,10 @@ static int ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
 		return 0;
 	}
 
-	return rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, start, end,
+	return rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, range->start,
+					     range->end,
 					     invalidate_range_start_trampoline,
-					     blockable, NULL);
+					     range->blockable, NULL);
 }
 
 static int invalidate_range_end_trampoline(struct ib_umem_odp *item, u64 start,
@@ -182,9 +180,7 @@ static int invalidate_range_end_trampoline(struct ib_umem_odp *item, u64 start,
 }
 
 static void ib_umem_notifier_invalidate_range_end(struct mmu_notifier *mn,
-						  struct mm_struct *mm,
-						  unsigned long start,
-						  unsigned long end)
+				const struct mmu_notifier_range *range)
 {
 	struct ib_ucontext_per_mm *per_mm =
 		container_of(mn, struct ib_ucontext_per_mm, mn);
@@ -192,8 +188,8 @@ static void ib_umem_notifier_invalidate_range_end(struct mmu_notifier *mn,
 	if (unlikely(!per_mm->active))
 		return;
 
-	rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, start,
-				      end,
+	rbt_ib_umem_for_each_in_range(&per_mm->umem_tree, range->start,
+				      range->end,
 				      invalidate_range_end_trampoline, true, NULL);
 	up_read(&per_mm->umem_rwsem);
 }
@@ -356,6 +352,8 @@ struct ib_umem_odp *ib_alloc_odp_umem(struct ib_ucontext_per_mm *per_mm,
 	umem->writable   = 1;
 	umem->is_odp = 1;
 	odp_data->per_mm = per_mm;
+	umem->owning_mm  = per_mm->mm;
+	mmgrab(umem->owning_mm);
 
 	mutex_init(&odp_data->umem_mutex);
 	init_completion(&odp_data->notifier_completion);
@@ -388,6 +386,7 @@ struct ib_umem_odp *ib_alloc_odp_umem(struct ib_ucontext_per_mm *per_mm,
 out_page_list:
 	vfree(odp_data->page_list);
 out_odp_data:
+	mmdrop(umem->owning_mm);
 	kfree(odp_data);
 	return ERR_PTR(ret);
 }
@@ -647,8 +646,13 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
 				flags, local_page_list, NULL, NULL);
 		up_read(&owning_mm->mmap_sem);
 
-		if (npages < 0)
+		if (npages < 0) {
+			if (npages != -EAGAIN)
+				pr_warn("fail to get %zu user pages with error %d\n", gup_num_pages, npages);
+			else
+				pr_debug("fail to get %zu user pages with error %d\n", gup_num_pages, npages);
 			break;
+		}
 
 		bcnt -= min_t(size_t, npages << PAGE_SHIFT, bcnt);
 		mutex_lock(&umem_odp->umem_mutex);
@@ -666,8 +670,13 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
 			ret = ib_umem_odp_map_dma_single_page(
 					umem_odp, k, local_page_list[j],
 					access_mask, current_seq);
-			if (ret < 0)
+			if (ret < 0) {
+				if (ret != -EAGAIN)
+					pr_warn("ib_umem_odp_map_dma_single_page failed with error %d\n", ret);
+				else
+					pr_debug("ib_umem_odp_map_dma_single_page failed with error %d\n", ret);
 				break;
+			}
 
 			p = page_to_phys(local_page_list[j]);
 			k++;

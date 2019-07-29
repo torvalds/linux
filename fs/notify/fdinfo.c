@@ -15,6 +15,7 @@
 #include <linux/exportfs.h>
 
 #include "inotify/inotify.h"
+#include "fdinfo.h"
 #include "fsnotify.h"
 
 #if defined(CONFIG_PROC_FS)

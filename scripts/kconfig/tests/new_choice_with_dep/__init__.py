@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 """
 Ask new choice values when they become visible.
 

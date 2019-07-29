@@ -412,6 +412,7 @@ static int mthca_dealloc_pd(struct ib_pd *pd)
 
 static struct ib_ah *mthca_ah_create(struct ib_pd *pd,
 				     struct rdma_ah_attr *ah_attr,
+				     u32 flags,
 				     struct ib_udata *udata)
 
 {
@@ -431,7 +432,7 @@ static struct ib_ah *mthca_ah_create(struct ib_pd *pd,
 	return &ah->ibah;
 }
 
-static int mthca_ah_destroy(struct ib_ah *ah)
+static int mthca_ah_destroy(struct ib_ah *ah, u32 flags)
 {
 	mthca_destroy_ah(to_mdev(ah->device), to_mah(ah));
 	kfree(ah);
@@ -455,7 +456,7 @@ static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 	if (!srq)
 		return ERR_PTR(-ENOMEM);
 
-	if (pd->uobject) {
+	if (udata) {
 		context = to_mucontext(pd->uobject->context);
 
 		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
@@ -475,9 +476,9 @@ static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 	}
 
 	err = mthca_alloc_srq(to_mdev(pd->device), to_mpd(pd),
-			      &init_attr->attr, srq);
+			      &init_attr->attr, srq, udata);
 
-	if (err && pd->uobject)
+	if (err && udata)
 		mthca_unmap_user_db(to_mdev(pd->device), &context->uar,
 				    context->db_tab, ucmd.db_index);
 
@@ -533,11 +534,11 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	{
 		struct mthca_ucontext *context;
 
-		qp = kmalloc(sizeof *qp, GFP_KERNEL);
+		qp = kzalloc(sizeof(*qp), GFP_KERNEL);
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
 
-		if (pd->uobject) {
+		if (udata) {
 			context = to_mucontext(pd->uobject->context);
 
 			if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
@@ -574,9 +575,9 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 				     to_mcq(init_attr->send_cq),
 				     to_mcq(init_attr->recv_cq),
 				     init_attr->qp_type, init_attr->sq_sig_type,
-				     &init_attr->cap, qp);
+				     &init_attr->cap, qp, udata);
 
-		if (err && pd->uobject) {
+		if (err && udata) {
 			context = to_mucontext(pd->uobject->context);
 
 			mthca_unmap_user_db(to_mdev(pd->device),
@@ -596,10 +597,10 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	case IB_QPT_GSI:
 	{
 		/* Don't allow userspace to create special QPs */
-		if (pd->uobject)
+		if (udata)
 			return ERR_PTR(-EINVAL);
 
-		qp = kmalloc(sizeof (struct mthca_sqp), GFP_KERNEL);
+		qp = kzalloc(sizeof(struct mthca_sqp), GFP_KERNEL);
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
 
@@ -610,7 +611,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 				      to_mcq(init_attr->recv_cq),
 				      init_attr->sq_sig_type, &init_attr->cap,
 				      qp->ibqp.qp_num, init_attr->port_num,
-				      to_msqp(qp));
+				      to_msqp(qp), udata);
 		break;
 	}
 	default:
@@ -1193,6 +1194,81 @@ static void get_dev_fw_str(struct ib_device *device, char *str)
 		 (int) dev->fw_ver & 0xffff);
 }
 
+static const struct ib_device_ops mthca_dev_ops = {
+	.alloc_pd = mthca_alloc_pd,
+	.alloc_ucontext = mthca_alloc_ucontext,
+	.attach_mcast = mthca_multicast_attach,
+	.create_ah = mthca_ah_create,
+	.create_cq = mthca_create_cq,
+	.create_qp = mthca_create_qp,
+	.dealloc_pd = mthca_dealloc_pd,
+	.dealloc_ucontext = mthca_dealloc_ucontext,
+	.dereg_mr = mthca_dereg_mr,
+	.destroy_ah = mthca_ah_destroy,
+	.destroy_cq = mthca_destroy_cq,
+	.destroy_qp = mthca_destroy_qp,
+	.detach_mcast = mthca_multicast_detach,
+	.get_dev_fw_str = get_dev_fw_str,
+	.get_dma_mr = mthca_get_dma_mr,
+	.get_port_immutable = mthca_port_immutable,
+	.mmap = mthca_mmap_uar,
+	.modify_device = mthca_modify_device,
+	.modify_port = mthca_modify_port,
+	.modify_qp = mthca_modify_qp,
+	.poll_cq = mthca_poll_cq,
+	.process_mad = mthca_process_mad,
+	.query_ah = mthca_ah_query,
+	.query_device = mthca_query_device,
+	.query_gid = mthca_query_gid,
+	.query_pkey = mthca_query_pkey,
+	.query_port = mthca_query_port,
+	.query_qp = mthca_query_qp,
+	.reg_user_mr = mthca_reg_user_mr,
+	.resize_cq = mthca_resize_cq,
+};
+
+static const struct ib_device_ops mthca_dev_arbel_srq_ops = {
+	.create_srq = mthca_create_srq,
+	.destroy_srq = mthca_destroy_srq,
+	.modify_srq = mthca_modify_srq,
+	.post_srq_recv = mthca_arbel_post_srq_recv,
+	.query_srq = mthca_query_srq,
+};
+
+static const struct ib_device_ops mthca_dev_tavor_srq_ops = {
+	.create_srq = mthca_create_srq,
+	.destroy_srq = mthca_destroy_srq,
+	.modify_srq = mthca_modify_srq,
+	.post_srq_recv = mthca_tavor_post_srq_recv,
+	.query_srq = mthca_query_srq,
+};
+
+static const struct ib_device_ops mthca_dev_arbel_fmr_ops = {
+	.alloc_fmr = mthca_alloc_fmr,
+	.dealloc_fmr = mthca_dealloc_fmr,
+	.map_phys_fmr = mthca_arbel_map_phys_fmr,
+	.unmap_fmr = mthca_unmap_fmr,
+};
+
+static const struct ib_device_ops mthca_dev_tavor_fmr_ops = {
+	.alloc_fmr = mthca_alloc_fmr,
+	.dealloc_fmr = mthca_dealloc_fmr,
+	.map_phys_fmr = mthca_tavor_map_phys_fmr,
+	.unmap_fmr = mthca_unmap_fmr,
+};
+
+static const struct ib_device_ops mthca_dev_arbel_ops = {
+	.post_recv = mthca_arbel_post_receive,
+	.post_send = mthca_arbel_post_send,
+	.req_notify_cq = mthca_arbel_arm_cq,
+};
+
+static const struct ib_device_ops mthca_dev_tavor_ops = {
+	.post_recv = mthca_tavor_post_receive,
+	.post_send = mthca_tavor_post_send,
+	.req_notify_cq = mthca_tavor_arm_cq,
+};
+
 int mthca_register_device(struct mthca_dev *dev)
 {
 	int ret;
@@ -1226,26 +1302,8 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.phys_port_cnt        = dev->limits.num_ports;
 	dev->ib_dev.num_comp_vectors     = 1;
 	dev->ib_dev.dev.parent           = &dev->pdev->dev;
-	dev->ib_dev.query_device         = mthca_query_device;
-	dev->ib_dev.query_port           = mthca_query_port;
-	dev->ib_dev.modify_device        = mthca_modify_device;
-	dev->ib_dev.modify_port          = mthca_modify_port;
-	dev->ib_dev.query_pkey           = mthca_query_pkey;
-	dev->ib_dev.query_gid            = mthca_query_gid;
-	dev->ib_dev.alloc_ucontext       = mthca_alloc_ucontext;
-	dev->ib_dev.dealloc_ucontext     = mthca_dealloc_ucontext;
-	dev->ib_dev.mmap                 = mthca_mmap_uar;
-	dev->ib_dev.alloc_pd             = mthca_alloc_pd;
-	dev->ib_dev.dealloc_pd           = mthca_dealloc_pd;
-	dev->ib_dev.create_ah            = mthca_ah_create;
-	dev->ib_dev.query_ah             = mthca_ah_query;
-	dev->ib_dev.destroy_ah           = mthca_ah_destroy;
 
 	if (dev->mthca_flags & MTHCA_FLAG_SRQ) {
-		dev->ib_dev.create_srq           = mthca_create_srq;
-		dev->ib_dev.modify_srq           = mthca_modify_srq;
-		dev->ib_dev.query_srq            = mthca_query_srq;
-		dev->ib_dev.destroy_srq          = mthca_destroy_srq;
 		dev->ib_dev.uverbs_cmd_mask	|=
 			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
 			(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
@@ -1253,48 +1311,28 @@ int mthca_register_device(struct mthca_dev *dev)
 			(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
 
 		if (mthca_is_memfree(dev))
-			dev->ib_dev.post_srq_recv = mthca_arbel_post_srq_recv;
+			ib_set_device_ops(&dev->ib_dev,
+					  &mthca_dev_arbel_srq_ops);
 		else
-			dev->ib_dev.post_srq_recv = mthca_tavor_post_srq_recv;
+			ib_set_device_ops(&dev->ib_dev,
+					  &mthca_dev_tavor_srq_ops);
 	}
-
-	dev->ib_dev.create_qp            = mthca_create_qp;
-	dev->ib_dev.modify_qp            = mthca_modify_qp;
-	dev->ib_dev.query_qp             = mthca_query_qp;
-	dev->ib_dev.destroy_qp           = mthca_destroy_qp;
-	dev->ib_dev.create_cq            = mthca_create_cq;
-	dev->ib_dev.resize_cq            = mthca_resize_cq;
-	dev->ib_dev.destroy_cq           = mthca_destroy_cq;
-	dev->ib_dev.poll_cq              = mthca_poll_cq;
-	dev->ib_dev.get_dma_mr           = mthca_get_dma_mr;
-	dev->ib_dev.reg_user_mr          = mthca_reg_user_mr;
-	dev->ib_dev.dereg_mr             = mthca_dereg_mr;
-	dev->ib_dev.get_port_immutable   = mthca_port_immutable;
-	dev->ib_dev.get_dev_fw_str       = get_dev_fw_str;
 
 	if (dev->mthca_flags & MTHCA_FLAG_FMR) {
-		dev->ib_dev.alloc_fmr            = mthca_alloc_fmr;
-		dev->ib_dev.unmap_fmr            = mthca_unmap_fmr;
-		dev->ib_dev.dealloc_fmr          = mthca_dealloc_fmr;
 		if (mthca_is_memfree(dev))
-			dev->ib_dev.map_phys_fmr = mthca_arbel_map_phys_fmr;
+			ib_set_device_ops(&dev->ib_dev,
+					  &mthca_dev_arbel_fmr_ops);
 		else
-			dev->ib_dev.map_phys_fmr = mthca_tavor_map_phys_fmr;
+			ib_set_device_ops(&dev->ib_dev,
+					  &mthca_dev_tavor_fmr_ops);
 	}
 
-	dev->ib_dev.attach_mcast         = mthca_multicast_attach;
-	dev->ib_dev.detach_mcast         = mthca_multicast_detach;
-	dev->ib_dev.process_mad          = mthca_process_mad;
+	ib_set_device_ops(&dev->ib_dev, &mthca_dev_ops);
 
-	if (mthca_is_memfree(dev)) {
-		dev->ib_dev.req_notify_cq = mthca_arbel_arm_cq;
-		dev->ib_dev.post_send     = mthca_arbel_post_send;
-		dev->ib_dev.post_recv     = mthca_arbel_post_receive;
-	} else {
-		dev->ib_dev.req_notify_cq = mthca_tavor_arm_cq;
-		dev->ib_dev.post_send     = mthca_tavor_post_send;
-		dev->ib_dev.post_recv     = mthca_tavor_post_receive;
-	}
+	if (mthca_is_memfree(dev))
+		ib_set_device_ops(&dev->ib_dev, &mthca_dev_arbel_ops);
+	else
+		ib_set_device_ops(&dev->ib_dev, &mthca_dev_tavor_ops);
 
 	mutex_init(&dev->cap_mask_mutex);
 

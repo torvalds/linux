@@ -376,7 +376,6 @@ static int qce_ablkcipher_register_one(const struct qce_ablkcipher_def *def,
 	alg->cra_module = THIS_MODULE;
 	alg->cra_init = qce_ablkcipher_init;
 	alg->cra_exit = qce_ablkcipher_exit;
-	INIT_LIST_HEAD(&alg->cra_list);
 
 	INIT_LIST_HEAD(&tmpl->entry);
 	tmpl->crypto_alg_type = CRYPTO_ALG_TYPE_ABLKCIPHER;

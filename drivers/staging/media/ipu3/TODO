@@ -1,0 +1,34 @@
+This is a list of things that need to be done to get this driver out of the
+staging directory.
+
+- Request API conversion. Remove of the dual pipeline and associate buffers
+  as well as formats and the binary used to a request. Remove the
+  opportunistic buffer management. (Sakari)
+
+- Using ENABLED and IMMUTABLE link flags for the links where those are
+  relevant. (Sakari)
+
+- Prefix imgu for all public APIs, i.e. change ipu3_v4l2_register() to
+  imgu_v4l2_register(). (Sakari)
+
+- Use V4L2_CTRL_TYPE_MENU for dual-pipe mode control. (Sakari)
+
+- IPU3 driver documentation (Laurent)
+  Add diagram in driver rst to describe output capability.
+  Comments on configuring v4l2 subdevs for CIO2 and ImgU.
+
+- uAPI documentation:
+  Further clarification on some ambiguities such as data type conversion of
+  IEFD CU inputs. (Sakari)
+  Move acronyms to doc-rst file. (Mauro)
+
+- Switch to yavta from v4l2n in driver docs.
+
+- Elaborate the functionality of different selection rectangles in driver
+  documentation. This may require driver changes as well.
+
+- More detailed documentation on calculating BDS, GCD etc. sizes needed.
+
+- Document different operation modes, and which buffer queues are relevant
+  in each mode. To process an image, which queues require a buffer an in
+  which ones is it optional?

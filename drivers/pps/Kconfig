@@ -37,8 +37,8 @@ config NTP_PPS
 
 	  It doesn't work on tickless systems at the moment.
 
-source drivers/pps/clients/Kconfig
+source "drivers/pps/clients/Kconfig"
 
-source drivers/pps/generators/Kconfig
+source "drivers/pps/generators/Kconfig"
 
 endif # PPS

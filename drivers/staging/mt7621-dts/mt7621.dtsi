@@ -202,15 +202,15 @@
 		state_default: pinctrl0 {
 		};
 
-		i2c_pins: i2c {
-			i2c {
+		i2c_pins: i2c0 {
+			i2c0 {
 				group = "i2c";
 				function = "i2c";
 			};
 		};
 
-		spi_pins: spi {
-			spi {
+		spi_pins: spi0 {
+			spi0 {
 				group = "spi";
 				function = "spi";
 			};
@@ -251,21 +251,21 @@
 			};
 		};
 
-		mdio_pins: mdio {
-			mdio {
+		mdio_pins: mdio0 {
+			mdio0 {
 				group = "mdio";
 				function = "mdio";
 			};
 		};
 
-		pcie_pins: pcie {
-			pcie {
+		pcie_pins: pcie0 {
+			pcie0 {
 				group = "pcie";
 				function = "pcie rst";
 			};
 		};
 
-		nand_pins: nand {
+		nand_pins: nand0 {
 			spi-nand {
 				group = "spi";
 				function = "nand1";
@@ -277,8 +277,8 @@
 			};
 		};
 
-		sdhci_pins: sdhci {
-			sdhci {
+		sdhci_pins: sdhci0 {
+			sdhci0 {
 				group = "sdhci";
 				function = "sdhci";
 			};
@@ -398,7 +398,6 @@
 			0x1e142000 0x100    /* pcie port 0 RC control registers */
 			0x1e143000 0x100    /* pcie port 1 RC control registers */
 			0x1e144000 0x100>;  /* pcie port 2 RC control registers */
-
 		#address-cells = <3>;
 		#size-cells = <2>;
 

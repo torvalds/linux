@@ -52,7 +52,14 @@ extern int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
  *
  * Return: True if an emulation frame was returned from, else false.
  */
+#ifdef CONFIG_MIPS_FP_SUPPORT
 extern bool do_dsemulret(struct pt_regs *xcp);
+#else
+static inline bool do_dsemulret(struct pt_regs *xcp)
+{
+	return false;
+}
+#endif
 
 /**
  * dsemul_thread_cleanup() - Cleanup thread 'emulation' frame
@@ -63,8 +70,14 @@ extern bool do_dsemulret(struct pt_regs *xcp);
  *
  * Return: True if a frame was freed, else false.
  */
+#ifdef CONFIG_MIPS_FP_SUPPORT
 extern bool dsemul_thread_cleanup(struct task_struct *tsk);
-
+#else
+static inline bool dsemul_thread_cleanup(struct task_struct *tsk)
+{
+	return false;
+}
+#endif
 /**
  * dsemul_thread_rollback() - Rollback from an 'emulation' frame
  * @regs:	User thread register context.
@@ -77,7 +90,14 @@ extern bool dsemul_thread_cleanup(struct task_struct *tsk);
  *
  * Return: True if a frame was exited, else false.
  */
+#ifdef CONFIG_MIPS_FP_SUPPORT
 extern bool dsemul_thread_rollback(struct pt_regs *regs);
+#else
+static inline bool dsemul_thread_rollback(struct pt_regs *regs)
+{
+	return false;
+}
+#endif
 
 /**
  * dsemul_mm_cleanup() - Cleanup per-mm delay slot 'emulation' state
@@ -87,6 +107,13 @@ extern bool dsemul_thread_rollback(struct pt_regs *regs);
  * for delay slot 'emulation' book-keeping is freed. This is to be called
  * before @mm is freed in order to avoid memory leaks.
  */
+#ifdef CONFIG_MIPS_FP_SUPPORT
 extern void dsemul_mm_cleanup(struct mm_struct *mm);
+#else
+static inline void dsemul_mm_cleanup(struct mm_struct *mm)
+{
+	/* no-op */
+}
+#endif
 
 #endif /* __MIPS_ASM_DSEMUL_H__ */

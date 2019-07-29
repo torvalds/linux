@@ -243,7 +243,7 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 			cmdpkt_beacontimerinterrupt_819xusb(dev);
 	}
 
-	/* Other informations in interrupt status we need? */
+	/* Other information in interrupt status we need? */
 
 	DMESG("<---- cmpk_handle_interrupt_status()\n");
 }

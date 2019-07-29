@@ -2,108 +2,164 @@
 /*
  * Implementation of the SID table type.
  *
- * Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Original author: Stephen Smalley, <sds@tycho.nsa.gov>
+ * Author: Ondrej Mosnacek, <omosnacek@gmail.com>
+ *
+ * Copyright (C) 2018 Red Hat, Inc.
  */
+#include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/atomic.h>
 #include "flask.h"
 #include "security.h"
 #include "sidtab.h"
 
-#define SIDTAB_HASH(sid) \
-(sid & SIDTAB_HASH_MASK)
-
 int sidtab_init(struct sidtab *s)
 {
-	int i;
+	u32 i;
 
-	s->htable = kmalloc_array(SIDTAB_SIZE, sizeof(*s->htable), GFP_ATOMIC);
-	if (!s->htable)
-		return -ENOMEM;
-	for (i = 0; i < SIDTAB_SIZE; i++)
-		s->htable[i] = NULL;
-	s->nel = 0;
-	s->next_sid = 1;
-	s->shutdown = 0;
+	memset(s->roots, 0, sizeof(s->roots));
+
+	for (i = 0; i < SIDTAB_RCACHE_SIZE; i++)
+		atomic_set(&s->rcache[i], -1);
+
+	for (i = 0; i < SECINITSID_NUM; i++)
+		s->isids[i].set = 0;
+
+	atomic_set(&s->count, 0);
+
+	s->convert = NULL;
+
 	spin_lock_init(&s->lock);
 	return 0;
 }
 
-int sidtab_insert(struct sidtab *s, u32 sid, struct context *context)
+int sidtab_set_initial(struct sidtab *s, u32 sid, struct context *context)
 {
-	int hvalue;
-	struct sidtab_node *prev, *cur, *newnode;
+	struct sidtab_isid_entry *entry;
+	int rc;
 
-	if (!s)
-		return -ENOMEM;
+	if (sid == 0 || sid > SECINITSID_NUM)
+		return -EINVAL;
 
-	hvalue = SIDTAB_HASH(sid);
-	prev = NULL;
-	cur = s->htable[hvalue];
-	while (cur && sid > cur->sid) {
-		prev = cur;
-		cur = cur->next;
-	}
+	entry = &s->isids[sid - 1];
 
-	if (cur && sid == cur->sid)
-		return -EEXIST;
+	rc = context_cpy(&entry->context, context);
+	if (rc)
+		return rc;
 
-	newnode = kmalloc(sizeof(*newnode), GFP_ATOMIC);
-	if (!newnode)
-		return -ENOMEM;
-
-	newnode->sid = sid;
-	if (context_cpy(&newnode->context, context)) {
-		kfree(newnode);
-		return -ENOMEM;
-	}
-
-	if (prev) {
-		newnode->next = prev->next;
-		wmb();
-		prev->next = newnode;
-	} else {
-		newnode->next = s->htable[hvalue];
-		wmb();
-		s->htable[hvalue] = newnode;
-	}
-
-	s->nel++;
-	if (sid >= s->next_sid)
-		s->next_sid = sid + 1;
+	entry->set = 1;
 	return 0;
+}
+
+static u32 sidtab_level_from_count(u32 count)
+{
+	u32 capacity = SIDTAB_LEAF_ENTRIES;
+	u32 level = 0;
+
+	while (count > capacity) {
+		capacity <<= SIDTAB_INNER_SHIFT;
+		++level;
+	}
+	return level;
+}
+
+static int sidtab_alloc_roots(struct sidtab *s, u32 level)
+{
+	u32 l;
+
+	if (!s->roots[0].ptr_leaf) {
+		s->roots[0].ptr_leaf = kzalloc(SIDTAB_NODE_ALLOC_SIZE,
+					       GFP_ATOMIC);
+		if (!s->roots[0].ptr_leaf)
+			return -ENOMEM;
+	}
+	for (l = 1; l <= level; ++l)
+		if (!s->roots[l].ptr_inner) {
+			s->roots[l].ptr_inner = kzalloc(SIDTAB_NODE_ALLOC_SIZE,
+							GFP_ATOMIC);
+			if (!s->roots[l].ptr_inner)
+				return -ENOMEM;
+			s->roots[l].ptr_inner->entries[0] = s->roots[l - 1];
+		}
+	return 0;
+}
+
+static struct context *sidtab_do_lookup(struct sidtab *s, u32 index, int alloc)
+{
+	union sidtab_entry_inner *entry;
+	u32 level, capacity_shift, leaf_index = index / SIDTAB_LEAF_ENTRIES;
+
+	/* find the level of the subtree we need */
+	level = sidtab_level_from_count(index + 1);
+	capacity_shift = level * SIDTAB_INNER_SHIFT;
+
+	/* allocate roots if needed */
+	if (alloc && sidtab_alloc_roots(s, level) != 0)
+		return NULL;
+
+	/* lookup inside the subtree */
+	entry = &s->roots[level];
+	while (level != 0) {
+		capacity_shift -= SIDTAB_INNER_SHIFT;
+		--level;
+
+		entry = &entry->ptr_inner->entries[leaf_index >> capacity_shift];
+		leaf_index &= ((u32)1 << capacity_shift) - 1;
+
+		if (!entry->ptr_inner) {
+			if (alloc)
+				entry->ptr_inner = kzalloc(SIDTAB_NODE_ALLOC_SIZE,
+							   GFP_ATOMIC);
+			if (!entry->ptr_inner)
+				return NULL;
+		}
+	}
+	if (!entry->ptr_leaf) {
+		if (alloc)
+			entry->ptr_leaf = kzalloc(SIDTAB_NODE_ALLOC_SIZE,
+						  GFP_ATOMIC);
+		if (!entry->ptr_leaf)
+			return NULL;
+	}
+	return &entry->ptr_leaf->entries[index % SIDTAB_LEAF_ENTRIES].context;
+}
+
+static struct context *sidtab_lookup(struct sidtab *s, u32 index)
+{
+	u32 count = (u32)atomic_read(&s->count);
+
+	if (index >= count)
+		return NULL;
+
+	/* read entries after reading count */
+	smp_rmb();
+
+	return sidtab_do_lookup(s, index, 0);
+}
+
+static struct context *sidtab_lookup_initial(struct sidtab *s, u32 sid)
+{
+	return s->isids[sid - 1].set ? &s->isids[sid - 1].context : NULL;
 }
 
 static struct context *sidtab_search_core(struct sidtab *s, u32 sid, int force)
 {
-	int hvalue;
-	struct sidtab_node *cur;
+	struct context *context;
 
-	if (!s)
-		return NULL;
-
-	hvalue = SIDTAB_HASH(sid);
-	cur = s->htable[hvalue];
-	while (cur && sid > cur->sid)
-		cur = cur->next;
-
-	if (force && cur && sid == cur->sid && cur->context.len)
-		return &cur->context;
-
-	if (!cur || sid != cur->sid || cur->context.len) {
-		/* Remap invalid SIDs to the unlabeled SID. */
-		sid = SECINITSID_UNLABELED;
-		hvalue = SIDTAB_HASH(sid);
-		cur = s->htable[hvalue];
-		while (cur && sid > cur->sid)
-			cur = cur->next;
-		if (!cur || sid != cur->sid)
-			return NULL;
+	if (sid != 0) {
+		if (sid > SECINITSID_NUM)
+			context = sidtab_lookup(s, sid - (SECINITSID_NUM + 1));
+		else
+			context = sidtab_lookup_initial(s, sid);
+		if (context && (!context->len || force))
+			return context;
 	}
 
-	return &cur->context;
+	return sidtab_lookup_initial(s, SECINITSID_UNLABELED);
 }
 
 struct context *sidtab_search(struct sidtab *s, u32 sid)
@@ -116,191 +172,324 @@ struct context *sidtab_search_force(struct sidtab *s, u32 sid)
 	return sidtab_search_core(s, sid, 1);
 }
 
-int sidtab_map(struct sidtab *s,
-	       int (*apply) (u32 sid,
-			     struct context *context,
-			     void *args),
-	       void *args)
+static int sidtab_find_context(union sidtab_entry_inner entry,
+			       u32 *pos, u32 count, u32 level,
+			       struct context *context, u32 *index)
 {
-	int i, rc = 0;
-	struct sidtab_node *cur;
+	int rc;
+	u32 i;
 
-	if (!s)
-		goto out;
+	if (level != 0) {
+		struct sidtab_node_inner *node = entry.ptr_inner;
 
-	for (i = 0; i < SIDTAB_SIZE; i++) {
-		cur = s->htable[i];
-		while (cur) {
-			rc = apply(cur->sid, &cur->context, args);
-			if (rc)
-				goto out;
-			cur = cur->next;
+		i = 0;
+		while (i < SIDTAB_INNER_ENTRIES && *pos < count) {
+			rc = sidtab_find_context(node->entries[i],
+						 pos, count, level - 1,
+						 context, index);
+			if (rc == 0)
+				return 0;
+			i++;
+		}
+	} else {
+		struct sidtab_node_leaf *node = entry.ptr_leaf;
+
+		i = 0;
+		while (i < SIDTAB_LEAF_ENTRIES && *pos < count) {
+			if (context_cmp(&node->entries[i].context, context)) {
+				*index = *pos;
+				return 0;
+			}
+			(*pos)++;
+			i++;
 		}
 	}
-out:
+	return -ENOENT;
+}
+
+static void sidtab_rcache_update(struct sidtab *s, u32 index, u32 pos)
+{
+	while (pos > 0) {
+		atomic_set(&s->rcache[pos], atomic_read(&s->rcache[pos - 1]));
+		--pos;
+	}
+	atomic_set(&s->rcache[0], (int)index);
+}
+
+static void sidtab_rcache_push(struct sidtab *s, u32 index)
+{
+	sidtab_rcache_update(s, index, SIDTAB_RCACHE_SIZE - 1);
+}
+
+static int sidtab_rcache_search(struct sidtab *s, struct context *context,
+				u32 *index)
+{
+	u32 i;
+
+	for (i = 0; i < SIDTAB_RCACHE_SIZE; i++) {
+		int v = atomic_read(&s->rcache[i]);
+
+		if (v < 0)
+			continue;
+
+		if (context_cmp(sidtab_do_lookup(s, (u32)v, 0), context)) {
+			sidtab_rcache_update(s, (u32)v, i);
+			*index = (u32)v;
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
+static int sidtab_reverse_lookup(struct sidtab *s, struct context *context,
+				 u32 *index)
+{
+	unsigned long flags;
+	u32 count = (u32)atomic_read(&s->count);
+	u32 count_locked, level, pos;
+	struct sidtab_convert_params *convert;
+	struct context *dst, *dst_convert;
+	int rc;
+
+	rc = sidtab_rcache_search(s, context, index);
+	if (rc == 0)
+		return 0;
+
+	level = sidtab_level_from_count(count);
+
+	/* read entries after reading count */
+	smp_rmb();
+
+	pos = 0;
+	rc = sidtab_find_context(s->roots[level], &pos, count, level,
+				 context, index);
+	if (rc == 0) {
+		sidtab_rcache_push(s, *index);
+		return 0;
+	}
+
+	/* lock-free search failed: lock, re-search, and insert if not found */
+	spin_lock_irqsave(&s->lock, flags);
+
+	convert = s->convert;
+	count_locked = (u32)atomic_read(&s->count);
+	level = sidtab_level_from_count(count_locked);
+
+	/* if count has changed before we acquired the lock, then catch up */
+	while (count < count_locked) {
+		if (context_cmp(sidtab_do_lookup(s, count, 0), context)) {
+			sidtab_rcache_push(s, count);
+			*index = count;
+			rc = 0;
+			goto out_unlock;
+		}
+		++count;
+	}
+
+	/* insert context into new entry */
+	rc = -ENOMEM;
+	dst = sidtab_do_lookup(s, count, 1);
+	if (!dst)
+		goto out_unlock;
+
+	rc = context_cpy(dst, context);
+	if (rc)
+		goto out_unlock;
+
+	/*
+	 * if we are building a new sidtab, we need to convert the context
+	 * and insert it there as well
+	 */
+	if (convert) {
+		rc = -ENOMEM;
+		dst_convert = sidtab_do_lookup(convert->target, count, 1);
+		if (!dst_convert) {
+			context_destroy(dst);
+			goto out_unlock;
+		}
+
+		rc = convert->func(context, dst_convert, convert->args);
+		if (rc) {
+			context_destroy(dst);
+			goto out_unlock;
+		}
+
+		/* at this point we know the insert won't fail */
+		atomic_set(&convert->target->count, count + 1);
+	}
+
+	if (context->len)
+		pr_info("SELinux:  Context %s is not valid (left unmapped).\n",
+			context->str);
+
+	sidtab_rcache_push(s, count);
+	*index = count;
+
+	/* write entries before writing new count */
+	smp_wmb();
+
+	atomic_set(&s->count, count + 1);
+
+	rc = 0;
+out_unlock:
+	spin_unlock_irqrestore(&s->lock, flags);
 	return rc;
 }
 
-static void sidtab_update_cache(struct sidtab *s, struct sidtab_node *n, int loc)
+int sidtab_context_to_sid(struct sidtab *s, struct context *context, u32 *sid)
 {
-	BUG_ON(loc >= SIDTAB_CACHE_LEN);
+	int rc;
+	u32 i;
 
-	while (loc > 0) {
-		s->cache[loc] = s->cache[loc - 1];
-		loc--;
-	}
-	s->cache[0] = n;
-}
+	for (i = 0; i < SECINITSID_NUM; i++) {
+		struct sidtab_isid_entry *entry = &s->isids[i];
 
-static inline u32 sidtab_search_context(struct sidtab *s,
-						  struct context *context)
-{
-	int i;
-	struct sidtab_node *cur;
-
-	for (i = 0; i < SIDTAB_SIZE; i++) {
-		cur = s->htable[i];
-		while (cur) {
-			if (context_cmp(&cur->context, context)) {
-				sidtab_update_cache(s, cur, SIDTAB_CACHE_LEN - 1);
-				return cur->sid;
-			}
-			cur = cur->next;
-		}
-	}
-	return 0;
-}
-
-static inline u32 sidtab_search_cache(struct sidtab *s, struct context *context)
-{
-	int i;
-	struct sidtab_node *node;
-
-	for (i = 0; i < SIDTAB_CACHE_LEN; i++) {
-		node = s->cache[i];
-		if (unlikely(!node))
+		if (entry->set && context_cmp(context, &entry->context)) {
+			*sid = i + 1;
 			return 0;
-		if (context_cmp(&node->context, context)) {
-			sidtab_update_cache(s, node, i);
-			return node->sid;
 		}
+	}
+
+	rc = sidtab_reverse_lookup(s, context, sid);
+	if (rc)
+		return rc;
+	*sid += SECINITSID_NUM + 1;
+	return 0;
+}
+
+static int sidtab_convert_tree(union sidtab_entry_inner *edst,
+			       union sidtab_entry_inner *esrc,
+			       u32 *pos, u32 count, u32 level,
+			       struct sidtab_convert_params *convert)
+{
+	int rc;
+	u32 i;
+
+	if (level != 0) {
+		if (!edst->ptr_inner) {
+			edst->ptr_inner = kzalloc(SIDTAB_NODE_ALLOC_SIZE,
+						  GFP_KERNEL);
+			if (!edst->ptr_inner)
+				return -ENOMEM;
+		}
+		i = 0;
+		while (i < SIDTAB_INNER_ENTRIES && *pos < count) {
+			rc = sidtab_convert_tree(&edst->ptr_inner->entries[i],
+						 &esrc->ptr_inner->entries[i],
+						 pos, count, level - 1,
+						 convert);
+			if (rc)
+				return rc;
+			i++;
+		}
+	} else {
+		if (!edst->ptr_leaf) {
+			edst->ptr_leaf = kzalloc(SIDTAB_NODE_ALLOC_SIZE,
+						 GFP_KERNEL);
+			if (!edst->ptr_leaf)
+				return -ENOMEM;
+		}
+		i = 0;
+		while (i < SIDTAB_LEAF_ENTRIES && *pos < count) {
+			rc = convert->func(&esrc->ptr_leaf->entries[i].context,
+					   &edst->ptr_leaf->entries[i].context,
+					   convert->args);
+			if (rc)
+				return rc;
+			(*pos)++;
+			i++;
+		}
+		cond_resched();
 	}
 	return 0;
 }
 
-int sidtab_context_to_sid(struct sidtab *s,
-			  struct context *context,
-			  u32 *out_sid)
+int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 {
-	u32 sid;
-	int ret = 0;
 	unsigned long flags;
+	u32 count, level, pos;
+	int rc;
 
-	*out_sid = SECSID_NULL;
+	spin_lock_irqsave(&s->lock, flags);
 
-	sid  = sidtab_search_cache(s, context);
-	if (!sid)
-		sid = sidtab_search_context(s, context);
-	if (!sid) {
+	/* concurrent policy loads are not allowed */
+	if (s->convert) {
+		spin_unlock_irqrestore(&s->lock, flags);
+		return -EBUSY;
+	}
+
+	count = (u32)atomic_read(&s->count);
+	level = sidtab_level_from_count(count);
+
+	/* allocate last leaf in the new sidtab (to avoid race with
+	 * live convert)
+	 */
+	rc = sidtab_do_lookup(params->target, count - 1, 1) ? 0 : -ENOMEM;
+	if (rc) {
+		spin_unlock_irqrestore(&s->lock, flags);
+		return rc;
+	}
+
+	/* set count in case no new entries are added during conversion */
+	atomic_set(&params->target->count, count);
+
+	/* enable live convert of new entries */
+	s->convert = params;
+
+	/* we can safely do the rest of the conversion outside the lock */
+	spin_unlock_irqrestore(&s->lock, flags);
+
+	pr_info("SELinux:  Converting %u SID table entries...\n", count);
+
+	/* convert all entries not covered by live convert */
+	pos = 0;
+	rc = sidtab_convert_tree(&params->target->roots[level],
+				 &s->roots[level], &pos, count, level, params);
+	if (rc) {
+		/* we need to keep the old table - disable live convert */
 		spin_lock_irqsave(&s->lock, flags);
-		/* Rescan now that we hold the lock. */
-		sid = sidtab_search_context(s, context);
-		if (sid)
-			goto unlock_out;
-		/* No SID exists for the context.  Allocate a new one. */
-		if (s->next_sid == UINT_MAX || s->shutdown) {
-			ret = -ENOMEM;
-			goto unlock_out;
-		}
-		sid = s->next_sid++;
-		if (context->len)
-			pr_info("SELinux:  Context %s is not valid (left unmapped).\n",
-			       context->str);
-		ret = sidtab_insert(s, sid, context);
-		if (ret)
-			s->next_sid--;
-unlock_out:
+		s->convert = NULL;
 		spin_unlock_irqrestore(&s->lock, flags);
 	}
-
-	if (ret)
-		return ret;
-
-	*out_sid = sid;
-	return 0;
+	return rc;
 }
 
-void sidtab_hash_eval(struct sidtab *h, char *tag)
+static void sidtab_destroy_tree(union sidtab_entry_inner entry, u32 level)
 {
-	int i, chain_len, slots_used, max_chain_len;
-	struct sidtab_node *cur;
+	u32 i;
 
-	slots_used = 0;
-	max_chain_len = 0;
-	for (i = 0; i < SIDTAB_SIZE; i++) {
-		cur = h->htable[i];
-		if (cur) {
-			slots_used++;
-			chain_len = 0;
-			while (cur) {
-				chain_len++;
-				cur = cur->next;
-			}
+	if (level != 0) {
+		struct sidtab_node_inner *node = entry.ptr_inner;
 
-			if (chain_len > max_chain_len)
-				max_chain_len = chain_len;
-		}
+		if (!node)
+			return;
+
+		for (i = 0; i < SIDTAB_INNER_ENTRIES; i++)
+			sidtab_destroy_tree(node->entries[i], level - 1);
+		kfree(node);
+	} else {
+		struct sidtab_node_leaf *node = entry.ptr_leaf;
+
+		if (!node)
+			return;
+
+		for (i = 0; i < SIDTAB_LEAF_ENTRIES; i++)
+			context_destroy(&node->entries[i].context);
+		kfree(node);
 	}
-
-	pr_debug("%s:  %d entries and %d/%d buckets used, longest "
-	       "chain length %d\n", tag, h->nel, slots_used, SIDTAB_SIZE,
-	       max_chain_len);
 }
 
 void sidtab_destroy(struct sidtab *s)
 {
-	int i;
-	struct sidtab_node *cur, *temp;
+	u32 i, level;
 
-	if (!s)
-		return;
+	for (i = 0; i < SECINITSID_NUM; i++)
+		if (s->isids[i].set)
+			context_destroy(&s->isids[i].context);
 
-	for (i = 0; i < SIDTAB_SIZE; i++) {
-		cur = s->htable[i];
-		while (cur) {
-			temp = cur;
-			cur = cur->next;
-			context_destroy(&temp->context);
-			kfree(temp);
-		}
-		s->htable[i] = NULL;
-	}
-	kfree(s->htable);
-	s->htable = NULL;
-	s->nel = 0;
-	s->next_sid = 1;
-}
+	level = SIDTAB_MAX_LEVEL;
+	while (level && !s->roots[level].ptr_inner)
+		--level;
 
-void sidtab_set(struct sidtab *dst, struct sidtab *src)
-{
-	unsigned long flags;
-	int i;
-
-	spin_lock_irqsave(&src->lock, flags);
-	dst->htable = src->htable;
-	dst->nel = src->nel;
-	dst->next_sid = src->next_sid;
-	dst->shutdown = 0;
-	for (i = 0; i < SIDTAB_CACHE_LEN; i++)
-		dst->cache[i] = NULL;
-	spin_unlock_irqrestore(&src->lock, flags);
-}
-
-void sidtab_shutdown(struct sidtab *s)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&s->lock, flags);
-	s->shutdown = 1;
-	spin_unlock_irqrestore(&s->lock, flags);
+	sidtab_destroy_tree(s->roots[level], level);
 }

@@ -9,10 +9,9 @@
 #include "greybus.h"
 #include "greybus_trace.h"
 
-
 static ssize_t eject_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t len)
+			   struct device_attribute *attr,
+			   const char *buf, size_t len)
 {
 	struct gb_module *module = to_gb_module(dev);
 	struct gb_interface *intf;
@@ -48,7 +47,7 @@ static ssize_t eject_store(struct device *dev,
 static DEVICE_ATTR_WO(eject);
 
 static ssize_t module_id_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+			      struct device_attribute *attr, char *buf)
 {
 	struct gb_module *module = to_gb_module(dev);
 
@@ -57,7 +56,7 @@ static ssize_t module_id_show(struct device *dev,
 static DEVICE_ATTR_RO(module_id);
 
 static ssize_t num_interfaces_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				   struct device_attribute *attr, char *buf)
 {
 	struct gb_module *module = to_gb_module(dev);
 
@@ -88,7 +87,7 @@ struct device_type greybus_module_type = {
 };
 
 struct gb_module *gb_module_create(struct gb_host_device *hd, u8 module_id,
-					size_t num_interfaces)
+				   size_t num_interfaces)
 {
 	struct gb_interface *intf;
 	struct gb_module *module;
@@ -117,7 +116,7 @@ struct gb_module *gb_module_create(struct gb_host_device *hd, u8 module_id,
 		intf = gb_interface_create(module, module_id + i);
 		if (!intf) {
 			dev_err(&module->dev, "failed to create interface %u\n",
-					module_id + i);
+				module_id + i);
 			goto err_put_interfaces;
 		}
 		module->interfaces[i] = intf;
@@ -149,8 +148,8 @@ static void gb_module_register_interface(struct gb_interface *intf)
 	if (ret) {
 		if (intf->type != GB_INTERFACE_TYPE_DUMMY) {
 			dev_err(&module->dev,
-					"failed to activate interface %u: %d\n",
-					intf_id, ret);
+				"failed to activate interface %u: %d\n",
+				intf_id, ret);
 		}
 
 		gb_interface_add(intf);
@@ -164,7 +163,7 @@ static void gb_module_register_interface(struct gb_interface *intf)
 	ret = gb_interface_enable(intf);
 	if (ret) {
 		dev_err(&module->dev, "failed to enable interface %u: %d\n",
-				intf_id, ret);
+			intf_id, ret);
 		goto err_interface_deactivate;
 	}
 

@@ -493,6 +493,18 @@ config IR_TANGO
 	   The HW decoder supports NEC, RC-5, RC-6 IR protocols.
 	   When compiled as a module, look for tango-ir.
 
+config RC_XBOX_DVD
+	tristate "Xbox DVD Movie Playback Kit"
+	depends on RC_CORE
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	   Say Y here if you want to use the Xbox DVD Movie Playback Kit.
+	   These are IR remotes with USB receivers for the Original Xbox (2001).
+
+	   To compile this driver as a module, choose M here: the module will be
+	   called xbox_remote.
+
 config IR_ZX
 	tristate "ZTE ZX IR remote control"
 	depends on RC_CORE

@@ -60,6 +60,9 @@ void __init bootmem_init(void)
 	max_pfn = PFN_DOWN(memblock_end_of_DRAM());
 	max_low_pfn = min(max_pfn, MAX_LOW_PFN);
 
+	early_memtest((phys_addr_t)min_low_pfn << PAGE_SHIFT,
+		      (phys_addr_t)max_low_pfn << PAGE_SHIFT);
+
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
 

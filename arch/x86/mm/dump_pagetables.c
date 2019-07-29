@@ -377,7 +377,7 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
 
 /*
  * This is an optimization for KASAN=y case. Since all kasan page tables
- * eventually point to the kasan_zero_page we could call note_page()
+ * eventually point to the kasan_early_shadow_page we could call note_page()
  * right away without walking through lower level page tables. This saves
  * us dozens of seconds (minutes for 5-level config) while checking for
  * W+X mapping or reading kernel_page_tables debugfs file.
@@ -385,10 +385,11 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st, pmd_t addr,
 static inline bool kasan_page_table(struct seq_file *m, struct pg_state *st,
 				void *pt)
 {
-	if (__pa(pt) == __pa(kasan_zero_pmd) ||
-	    (pgtable_l5_enabled() && __pa(pt) == __pa(kasan_zero_p4d)) ||
-	    __pa(pt) == __pa(kasan_zero_pud)) {
-		pgprotval_t prot = pte_flags(kasan_zero_pte[0]);
+	if (__pa(pt) == __pa(kasan_early_shadow_pmd) ||
+	    (pgtable_l5_enabled() &&
+			__pa(pt) == __pa(kasan_early_shadow_p4d)) ||
+	    __pa(pt) == __pa(kasan_early_shadow_pud)) {
+		pgprotval_t prot = pte_flags(kasan_early_shadow_pte[0]);
 		note_page(m, st, __pgprot(prot), 0, 5);
 		return true;
 	}

@@ -53,7 +53,7 @@
 extern const struct qed_common_ops qed_common_ops_pass;
 
 #define QED_MAJOR_VERSION		8
-#define QED_MINOR_VERSION		33
+#define QED_MINOR_VERSION		37
 #define QED_REVISION_VERSION		0
 #define QED_ENGINEERING_VERSION		20
 
@@ -296,6 +296,12 @@ enum qed_wol_support {
 	QED_WOL_SUPPORT_PME,
 };
 
+enum qed_db_rec_exec {
+	DB_REC_DRY_RUN,
+	DB_REC_REAL_DEAL,
+	DB_REC_ONCE,
+};
+
 struct qed_hw_info {
 	/* PCI personality */
 	enum qed_pci_personality personality;
@@ -425,6 +431,14 @@ struct qed_qm_info {
 	u8 num_pf_rls;
 };
 
+struct qed_db_recovery_info {
+	struct list_head list;
+
+	/* Lock to protect the doorbell recovery mechanism list */
+	spinlock_t lock;
+	u32 db_recovery_counter;
+};
+
 struct storm_stats {
 	u32     address;
 	u32     len;
@@ -522,6 +536,7 @@ struct qed_simd_fp_handler {
 
 enum qed_slowpath_wq_flag {
 	QED_SLOWPATH_MFW_TLV_REQ,
+	QED_SLOWPATH_PERIODIC_DB_REC,
 };
 
 struct qed_hwfn {
@@ -640,6 +655,9 @@ struct qed_hwfn {
 	/* L2-related */
 	struct qed_l2_info *p_l2_info;
 
+	/* Mechanism for recovering from doorbell drop */
+	struct qed_db_recovery_info db_recovery_info;
+
 	/* Nvm images number and attributes */
 	struct qed_nvm_image_info nvm_info;
 
@@ -652,11 +670,12 @@ struct qed_hwfn {
 	struct delayed_work iov_task;
 	unsigned long iov_task_flags;
 #endif
-
-	struct z_stream_s		*stream;
+	struct z_stream_s *stream;
+	bool slowpath_wq_active;
 	struct workqueue_struct *slowpath_wq;
 	struct delayed_work slowpath_task;
 	unsigned long slowpath_task_flags;
+	u32 periodic_db_rec_count;
 };
 
 struct pci_params {
@@ -897,6 +916,12 @@ u16 qed_get_cm_pq_idx_llt_mtc(struct qed_hwfn *p_hwfn, u8 tc);
 
 #define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
 
+/* doorbell recovery mechanism */
+void qed_db_recovery_dp(struct qed_hwfn *p_hwfn);
+void qed_db_recovery_execute(struct qed_hwfn *p_hwfn,
+			     enum qed_db_rec_exec db_exec);
+bool qed_edpm_enabled(struct qed_hwfn *p_hwfn);
+
 /* Other Linux specific common definitions */
 #define DP_NAME(cdev) ((cdev)->name)
 
@@ -931,4 +956,6 @@ int qed_mfw_fill_tlv_data(struct qed_hwfn *hwfn,
 			  union qed_mfw_tlv_data *tlv_data);
 
 void qed_hw_info_set_offload_tc(struct qed_hw_info *p_info, u8 tc);
+
+void qed_periodic_db_rec_start(struct qed_hwfn *p_hwfn);
 #endif /* _QED_H */

@@ -2,6 +2,7 @@
 #ifndef _SCSI_SCSI_DRIVER_H
 #define _SCSI_SCSI_DRIVER_H
 
+#include <linux/blk_types.h>
 #include <linux/device.h>
 
 struct module;
@@ -13,7 +14,7 @@ struct scsi_driver {
 	struct device_driver	gendrv;
 
 	void (*rescan)(struct device *);
-	int (*init_command)(struct scsi_cmnd *);
+	blk_status_t (*init_command)(struct scsi_cmnd *);
 	void (*uninit_command)(struct scsi_cmnd *);
 	int (*done)(struct scsi_cmnd *);
 	int (*eh_action)(struct scsi_cmnd *, int);

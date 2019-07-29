@@ -18,6 +18,10 @@ current_tracer. Instead of that, add probe points via
 However unlike kprobe-event tracer, the uprobe event interface expects the
 user to calculate the offset of the probepoint in the object.
 
+You can also use /sys/kernel/debug/tracing/dynamic_events instead of
+uprobe_events. That interface will provide unified access to other
+dynamic events too.
+
 Synopsis of uprobe_tracer
 -------------------------
 ::

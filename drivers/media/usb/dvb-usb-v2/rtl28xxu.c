@@ -384,6 +384,7 @@ static int rtl2832u_read_config(struct dvb_usb_device *d)
 	struct rtl28xxu_req req_r828d = {0x0074, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_mn88472 = {0xff38, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_mn88473 = {0xff38, CMD_I2C_RD, 1, buf};
+	struct rtl28xxu_req req_cxd2837er = {0xfdd8, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_si2157 = {0x00c0, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_si2168 = {0x00c8, CMD_I2C_RD, 1, buf};
 
@@ -540,7 +541,18 @@ tuner_found:
 
 	/* probe slave demod */
 	if (dev->tuner == TUNER_RTL2832_R828D) {
-		/* power on MN88472 demod on GPIO0 */
+		/* power off slave demod on GPIO0 to reset CXD2837ER */
+		ret = rtl28xxu_wr_reg_mask(d, SYS_GPIO_OUT_VAL, 0x00, 0x01);
+		if (ret)
+			goto err;
+
+		ret = rtl28xxu_wr_reg_mask(d, SYS_GPIO_OUT_EN, 0x00, 0x01);
+		if (ret)
+			goto err;
+
+		msleep(50);
+
+		/* power on slave demod on GPIO0 */
 		ret = rtl28xxu_wr_reg_mask(d, SYS_GPIO_OUT_VAL, 0x01, 0x01);
 		if (ret)
 			goto err;
@@ -553,7 +565,7 @@ tuner_found:
 		if (ret)
 			goto err;
 
-		/* check MN88472 answers */
+		/* check slave answers */
 		ret = rtl28xxu_ctrl_msg(d, &req_mn88472);
 		if (ret == 0 && buf[0] == 0x02) {
 			dev_dbg(&d->intf->dev, "MN88472 found\n");
@@ -565,6 +577,13 @@ tuner_found:
 		if (ret == 0 && buf[0] == 0x03) {
 			dev_dbg(&d->intf->dev, "MN88473 found\n");
 			dev->slave_demod = SLAVE_DEMOD_MN88473;
+			goto demod_found;
+		}
+
+		ret = rtl28xxu_ctrl_msg(d, &req_cxd2837er);
+		if (ret == 0 && buf[0] == 0xb1) {
+			dev_dbg(&d->intf->dev, "CXD2837ER found\n");
+			dev->slave_demod = SLAVE_DEMOD_CXD2837ER;
 			goto demod_found;
 		}
 	}
@@ -989,6 +1008,23 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			}
 
 			dev->i2c_client_slave_demod = client;
+		} else if (dev->slave_demod == SLAVE_DEMOD_CXD2837ER) {
+			struct cxd2841er_config cxd2837er_config = {};
+
+			cxd2837er_config.i2c_addr = 0xd8;
+			cxd2837er_config.xtal = SONY_XTAL_20500;
+			cxd2837er_config.flags = (CXD2841ER_AUTO_IFHZ |
+				CXD2841ER_NO_AGCNEG | CXD2841ER_TSBITS |
+				CXD2841ER_EARLY_TUNE | CXD2841ER_TS_SERIAL);
+			adap->fe[1] = dvb_attach(cxd2841er_attach_t_c,
+						 &cxd2837er_config,
+						 &d->i2c_adap);
+			if (!adap->fe[1]) {
+				dev->slave_demod = SLAVE_DEMOD_NONE;
+				goto err_slave_demod_failed;
+			}
+			adap->fe[1]->id = 1;
+			dev->i2c_client_slave_demod = NULL;
 		} else {
 			struct si2168_config si2168_config = {};
 			struct i2c_adapter *adapter;

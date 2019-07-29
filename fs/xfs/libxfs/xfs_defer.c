@@ -172,7 +172,13 @@
  * reoccur.
  */
 
-static const struct xfs_defer_op_type *defer_op_types[XFS_DEFER_OPS_TYPE_MAX];
+static const struct xfs_defer_op_type *defer_op_types[] = {
+	[XFS_DEFER_OPS_TYPE_BMAP]	= &xfs_bmap_update_defer_type,
+	[XFS_DEFER_OPS_TYPE_REFCOUNT]	= &xfs_refcount_update_defer_type,
+	[XFS_DEFER_OPS_TYPE_RMAP]	= &xfs_rmap_update_defer_type,
+	[XFS_DEFER_OPS_TYPE_FREE]	= &xfs_extent_free_defer_type,
+	[XFS_DEFER_OPS_TYPE_AGFL_FREE]	= &xfs_agfl_free_defer_type,
+};
 
 /*
  * For each pending item in the intake list, log its intent item and the
@@ -185,15 +191,15 @@ xfs_defer_create_intents(
 {
 	struct list_head		*li;
 	struct xfs_defer_pending	*dfp;
+	const struct xfs_defer_op_type	*ops;
 
 	list_for_each_entry(dfp, &tp->t_dfops, dfp_list) {
-		dfp->dfp_intent = dfp->dfp_type->create_intent(tp,
-				dfp->dfp_count);
+		ops = defer_op_types[dfp->dfp_type];
+		dfp->dfp_intent = ops->create_intent(tp, dfp->dfp_count);
 		trace_xfs_defer_create_intent(tp->t_mountp, dfp);
-		list_sort(tp->t_mountp, &dfp->dfp_work,
-				dfp->dfp_type->diff_items);
+		list_sort(tp->t_mountp, &dfp->dfp_work, ops->diff_items);
 		list_for_each(li, &dfp->dfp_work)
-			dfp->dfp_type->log_item(tp, dfp->dfp_intent, li);
+			ops->log_item(tp, dfp->dfp_intent, li);
 	}
 }
 
@@ -204,14 +210,16 @@ xfs_defer_trans_abort(
 	struct list_head		*dop_pending)
 {
 	struct xfs_defer_pending	*dfp;
+	const struct xfs_defer_op_type	*ops;
 
 	trace_xfs_defer_trans_abort(tp, _RET_IP_);
 
 	/* Abort intent items that don't have a done item. */
 	list_for_each_entry(dfp, dop_pending, dfp_list) {
+		ops = defer_op_types[dfp->dfp_type];
 		trace_xfs_defer_pending_abort(tp->t_mountp, dfp);
 		if (dfp->dfp_intent && !dfp->dfp_done) {
-			dfp->dfp_type->abort_intent(dfp->dfp_intent);
+			ops->abort_intent(dfp->dfp_intent);
 			dfp->dfp_intent = NULL;
 		}
 	}
@@ -315,18 +323,20 @@ xfs_defer_cancel_list(
 	struct xfs_defer_pending	*pli;
 	struct list_head		*pwi;
 	struct list_head		*n;
+	const struct xfs_defer_op_type	*ops;
 
 	/*
 	 * Free the pending items.  Caller should already have arranged
 	 * for the intent items to be released.
 	 */
 	list_for_each_entry_safe(dfp, pli, dop_list, dfp_list) {
+		ops = defer_op_types[dfp->dfp_type];
 		trace_xfs_defer_cancel_list(mp, dfp);
 		list_del(&dfp->dfp_list);
 		list_for_each_safe(pwi, n, &dfp->dfp_work) {
 			list_del(pwi);
 			dfp->dfp_count--;
-			dfp->dfp_type->cancel_item(pwi);
+			ops->cancel_item(pwi);
 		}
 		ASSERT(dfp->dfp_count == 0);
 		kmem_free(dfp);
@@ -350,7 +360,7 @@ xfs_defer_finish_noroll(
 	struct list_head		*n;
 	void				*state;
 	int				error = 0;
-	void				(*cleanup_fn)(struct xfs_trans *, void *, int);
+	const struct xfs_defer_op_type	*ops;
 	LIST_HEAD(dop_pending);
 
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
@@ -373,18 +383,18 @@ xfs_defer_finish_noroll(
 		/* Log an intent-done item for the first pending item. */
 		dfp = list_first_entry(&dop_pending, struct xfs_defer_pending,
 				       dfp_list);
+		ops = defer_op_types[dfp->dfp_type];
 		trace_xfs_defer_pending_finish((*tp)->t_mountp, dfp);
-		dfp->dfp_done = dfp->dfp_type->create_done(*tp, dfp->dfp_intent,
+		dfp->dfp_done = ops->create_done(*tp, dfp->dfp_intent,
 				dfp->dfp_count);
-		cleanup_fn = dfp->dfp_type->finish_cleanup;
 
 		/* Finish the work items. */
 		state = NULL;
 		list_for_each_safe(li, n, &dfp->dfp_work) {
 			list_del(li);
 			dfp->dfp_count--;
-			error = dfp->dfp_type->finish_item(*tp, li,
-					dfp->dfp_done, &state);
+			error = ops->finish_item(*tp, li, dfp->dfp_done,
+					&state);
 			if (error == -EAGAIN) {
 				/*
 				 * Caller wants a fresh transaction;
@@ -400,8 +410,8 @@ xfs_defer_finish_noroll(
 				 * xfs_defer_cancel will take care of freeing
 				 * all these lists and stuff.
 				 */
-				if (cleanup_fn)
-					cleanup_fn(*tp, state, error);
+				if (ops->finish_cleanup)
+					ops->finish_cleanup(*tp, state, error);
 				goto out;
 			}
 		}
@@ -413,20 +423,19 @@ xfs_defer_finish_noroll(
 			 * a Fresh Transaction while Finishing
 			 * Deferred Work" above.
 			 */
-			dfp->dfp_intent = dfp->dfp_type->create_intent(*tp,
+			dfp->dfp_intent = ops->create_intent(*tp,
 					dfp->dfp_count);
 			dfp->dfp_done = NULL;
 			list_for_each(li, &dfp->dfp_work)
-				dfp->dfp_type->log_item(*tp, dfp->dfp_intent,
-						li);
+				ops->log_item(*tp, dfp->dfp_intent, li);
 		} else {
 			/* Done with the dfp, free it. */
 			list_del(&dfp->dfp_list);
 			kmem_free(dfp);
 		}
 
-		if (cleanup_fn)
-			cleanup_fn(*tp, state, error);
+		if (ops->finish_cleanup)
+			ops->finish_cleanup(*tp, state, error);
 	}
 
 out:
@@ -486,8 +495,10 @@ xfs_defer_add(
 	struct list_head		*li)
 {
 	struct xfs_defer_pending	*dfp = NULL;
+	const struct xfs_defer_op_type	*ops;
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
+	BUILD_BUG_ON(ARRAY_SIZE(defer_op_types) != XFS_DEFER_OPS_TYPE_MAX);
 
 	/*
 	 * Add the item to a pending item at the end of the intake list.
@@ -497,15 +508,15 @@ xfs_defer_add(
 	if (!list_empty(&tp->t_dfops)) {
 		dfp = list_last_entry(&tp->t_dfops,
 				struct xfs_defer_pending, dfp_list);
-		if (dfp->dfp_type->type != type ||
-		    (dfp->dfp_type->max_items &&
-		     dfp->dfp_count >= dfp->dfp_type->max_items))
+		ops = defer_op_types[dfp->dfp_type];
+		if (dfp->dfp_type != type ||
+		    (ops->max_items && dfp->dfp_count >= ops->max_items))
 			dfp = NULL;
 	}
 	if (!dfp) {
 		dfp = kmem_alloc(sizeof(struct xfs_defer_pending),
 				KM_SLEEP | KM_NOFS);
-		dfp->dfp_type = defer_op_types[type];
+		dfp->dfp_type = type;
 		dfp->dfp_intent = NULL;
 		dfp->dfp_done = NULL;
 		dfp->dfp_count = 0;
@@ -515,14 +526,6 @@ xfs_defer_add(
 
 	list_add_tail(li, &dfp->dfp_work);
 	dfp->dfp_count++;
-}
-
-/* Initialize a deferred operation list. */
-void
-xfs_defer_init_op_type(
-	const struct xfs_defer_op_type	*type)
-{
-	defer_op_types[type->type] = type;
 }
 
 /*

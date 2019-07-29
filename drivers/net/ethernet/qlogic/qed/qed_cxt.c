@@ -936,9 +936,9 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 		u32 size = min_t(u32, total_size, psz);
 		void **p_virt = &p_mngr->t2[i].p_virt;
 
-		*p_virt = dma_zalloc_coherent(&p_hwfn->cdev->pdev->dev,
-					      size, &p_mngr->t2[i].p_phys,
-					      GFP_KERNEL);
+		*p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev, size,
+					     &p_mngr->t2[i].p_phys,
+					     GFP_KERNEL);
 		if (!p_mngr->t2[i].p_virt) {
 			rc = -ENOMEM;
 			goto t2_fail;
@@ -1054,8 +1054,8 @@ static int qed_ilt_blk_alloc(struct qed_hwfn *p_hwfn,
 		u32 size;
 
 		size = min_t(u32, sz_left, p_blk->real_size_in_page);
-		p_virt = dma_zalloc_coherent(&p_hwfn->cdev->pdev->dev, size,
-					     &p_phys, GFP_KERNEL);
+		p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev, size,
+					    &p_phys, GFP_KERNEL);
 		if (!p_virt)
 			return -ENOMEM;
 
@@ -2306,9 +2306,9 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 		goto out0;
 	}
 
-	p_virt = dma_zalloc_coherent(&p_hwfn->cdev->pdev->dev,
-				     p_blk->real_size_in_page, &p_phys,
-				     GFP_KERNEL);
+	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
+				    p_blk->real_size_in_page, &p_phys,
+				    GFP_KERNEL);
 	if (!p_virt) {
 		rc = -ENOMEM;
 		goto out1;

@@ -1,36 +1,7 @@
 # bpftool(8) bash completion                               -*- shell-script -*-
 #
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 # Copyright (C) 2017-2018 Netronome Systems, Inc.
-#
-# This software is dual licensed under the GNU General License
-# Version 2, June 1991 as shown in the file COPYING in the top-level
-# directory of this source tree or the BSD 2-Clause License provided
-# below.  You have the option to license this software under the
-# complete terms of either license.
-#
-# The BSD 2-Clause License:
-#
-#     Redistribution and use in source and binary forms, with or
-#     without modification, are permitted provided that the following
-#     conditions are met:
-#
-#      1. Redistributions of source code must retain the above
-#         copyright notice, this list of conditions and the following
-#         disclaimer.
-#
-#      2. Redistributions in binary form must reproduce the above
-#         copyright notice, this list of conditions and the following
-#         disclaimer in the documentation and/or other materials
-#         provided with the distribution.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
-# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
-# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
 #
 # Author: Quentin Monnet <quentin.monnet@netronome.com>
 
@@ -191,7 +162,7 @@ _bpftool()
 
     # Deal with simplest keywords
     case $prev in
-        help|hex|opcodes|visual)
+        help|hex|opcodes|visual|linum)
             return 0
             ;;
         tag)
@@ -243,16 +214,20 @@ _bpftool()
     # Completion depends on object and command in use
     case $object in
         prog)
-            if [[ $command != "load" ]]; then
-                case $prev in
-                    id)
-                        _bpftool_get_prog_ids
-                        return 0
-                        ;;
-                esac
-            fi
+            # Complete id, only for subcommands that use prog (but no map) ids
+            case $command in
+                show|list|dump|pin)
+                    case $prev in
+                        id)
+                            _bpftool_get_prog_ids
+                            return 0
+                            ;;
+                    esac
+                    ;;
+            esac
 
             local PROG_TYPE='id pinned tag'
+            local MAP_TYPE='id pinned'
             case $command in
                 show|list)
                     [[ $prev != "$command" ]] && return 0
@@ -274,10 +249,10 @@ _bpftool()
                     *)
                         _bpftool_once_attr 'file'
                         if _bpftool_search_list 'xlated'; then
-                            COMPREPLY+=( $( compgen -W 'opcodes visual' -- \
+                            COMPREPLY+=( $( compgen -W 'opcodes visual linum' -- \
                                 "$cur" ) )
                         else
-                            COMPREPLY+=( $( compgen -W 'opcodes' -- \
+                            COMPREPLY+=( $( compgen -W 'opcodes linum' -- \
                                 "$cur" ) )
                         fi
                         return 0
@@ -293,23 +268,45 @@ _bpftool()
                     return 0
                     ;;
                 attach|detach)
-                    if [[ ${#words[@]} == 7 ]]; then
-                        COMPREPLY=( $( compgen -W "id pinned" -- "$cur" ) )
-                        return 0
-                    fi
-
-                    if [[ ${#words[@]} == 6 ]]; then
-                        COMPREPLY=( $( compgen -W "msg_verdict skb_verdict skb_parse" -- "$cur" ) )
-                        return 0
-                    fi
-
-                    if [[ $prev == "$command" ]]; then
-                        COMPREPLY=( $( compgen -W "id pinned" -- "$cur" ) )
-                        return 0
-                    fi
-                    return 0
+                    case $cword in
+                        3)
+                            COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        4)
+                            case $prev in
+                                id)
+                                    _bpftool_get_prog_ids
+                                    ;;
+                                pinned)
+                                    _filedir
+                                    ;;
+                            esac
+                            return 0
+                            ;;
+                        5)
+                            COMPREPLY=( $( compgen -W 'msg_verdict skb_verdict \
+                                skb_parse flow_dissector' -- "$cur" ) )
+                            return 0
+                            ;;
+                        6)
+                            COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        7)
+                            case $prev in
+                                id)
+                                    _bpftool_get_map_ids
+                                    ;;
+                                pinned)
+                                    _filedir
+                                    ;;
+                            esac
+                            return 0
+                            ;;
+                    esac
                     ;;
-                load)
+                load|loadall)
                     local obj
 
                     if [[ ${#words[@]} -lt 6 ]]; then
@@ -338,7 +335,16 @@ _bpftool()
 
                     case $prev in
                         type)
-                            COMPREPLY=( $( compgen -W "socket kprobe kretprobe classifier action tracepoint raw_tracepoint xdp perf_event cgroup/skb cgroup/sock cgroup/dev lwt_in lwt_out lwt_xmit lwt_seg6local sockops sk_skb sk_msg lirc_mode2 cgroup/bind4 cgroup/bind6 cgroup/connect4 cgroup/connect6 cgroup/sendmsg4 cgroup/sendmsg6 cgroup/post_bind4 cgroup/post_bind6" -- \
+                            COMPREPLY=( $( compgen -W "socket kprobe \
+                                kretprobe classifier flow_dissector \
+                                action tracepoint raw_tracepoint \
+                                xdp perf_event cgroup/skb cgroup/sock \
+                                cgroup/dev lwt_in lwt_out lwt_xmit \
+                                lwt_seg6local sockops sk_skb sk_msg \
+                                lirc_mode2 cgroup/bind4 cgroup/bind6 \
+                                cgroup/connect4 cgroup/connect6 \
+                                cgroup/sendmsg4 cgroup/sendmsg6 \
+                                cgroup/post_bind4 cgroup/post_bind6" -- \
                                                    "$cur" ) )
                             return 0
                             ;;
@@ -346,7 +352,7 @@ _bpftool()
                             _bpftool_get_map_ids
                             return 0
                             ;;
-                        pinned)
+                        pinned|pinmaps)
                             _filedir
                             return 0
                             ;;
@@ -358,14 +364,18 @@ _bpftool()
                             COMPREPLY=( $( compgen -W "map" -- "$cur" ) )
                             _bpftool_once_attr 'type'
                             _bpftool_once_attr 'dev'
+                            _bpftool_once_attr 'pinmaps'
                             return 0
                             ;;
                     esac
                     ;;
+                tracelog)
+                    return 0
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'dump help pin attach detach load \
-                            show list' -- "$cur" ) )
+                            show list tracelog' -- "$cur" ) )
                     ;;
             esac
             ;;
@@ -400,7 +410,7 @@ _bpftool()
                                 lru_percpu_hash lpm_trie array_of_maps \
                                 hash_of_maps devmap sockmap cpumap xskmap \
                                 sockhash cgroup_storage reuseport_sockarray \
-                                percpu_cgroup_storage' -- \
+                                percpu_cgroup_storage queue stack' -- \
                                                    "$cur" ) )
                             return 0
                             ;;

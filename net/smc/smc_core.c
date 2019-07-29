@@ -128,6 +128,8 @@ static void smc_lgr_unregister_conn(struct smc_connection *conn)
 {
 	struct smc_link_group *lgr = conn->lgr;
 
+	if (!lgr)
+		return;
 	write_lock_bh(&lgr->conns_lock);
 	if (conn->alert_token_local) {
 		__smc_lgr_unregister_conn(conn);
@@ -148,6 +150,8 @@ static int smc_link_send_delete(struct smc_link *lnk)
 	}
 	return -ENOTCONN;
 }
+
+static void smc_lgr_free(struct smc_link_group *lgr);
 
 static void smc_lgr_free_work(struct work_struct *work)
 {
@@ -171,8 +175,11 @@ free:
 	spin_unlock_bh(&smc_lgr_list.lock);
 
 	if (!lgr->is_smcd && !lgr->terminating)	{
+		struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
+
 		/* try to send del link msg, on error free lgr immediately */
-		if (!smc_link_send_delete(&lgr->lnk[SMC_SINGLE_LINK])) {
+		if (lnk->state == SMC_LNK_ACTIVE &&
+		    !smc_link_send_delete(lnk)) {
 			/* reschedule in case we never receive a response */
 			smc_lgr_schedule_free_work(lgr);
 			return;
@@ -295,7 +302,12 @@ static void smc_buf_unuse(struct smc_connection *conn,
 		conn->sndbuf_desc->used = 0;
 	if (conn->rmb_desc) {
 		if (!conn->rmb_desc->regerr) {
-			conn->rmb_desc->reused = 1;
+			if (!lgr->is_smcd) {
+				/* unregister rmb with peer */
+				smc_llc_do_delete_rkey(
+						&lgr->lnk[SMC_SINGLE_LINK],
+						conn->rmb_desc);
+			}
 			conn->rmb_desc->used = 0;
 		} else {
 			/* buf registration failed, reuse not possible */
@@ -410,7 +422,7 @@ static void smc_lgr_free_bufs(struct smc_link_group *lgr)
 }
 
 /* remove a link group */
-void smc_lgr_free(struct smc_link_group *lgr)
+static void smc_lgr_free(struct smc_link_group *lgr)
 {
 	smc_lgr_free_bufs(lgr);
 	if (lgr->is_smcd)
@@ -618,6 +630,8 @@ int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
 			local_contact = SMC_REUSE_CONTACT;
 			conn->lgr = lgr;
 			smc_lgr_register_conn(conn); /* add smc conn to lgr */
+			if (delayed_work_pending(&lgr->free_work))
+				cancel_delayed_work(&lgr->free_work);
 			write_unlock_bh(&lgr->conns_lock);
 			break;
 		}

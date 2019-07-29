@@ -375,7 +375,7 @@ static int client_options_show(struct seq_file *s, void *p)
 	struct ceph_client *client = s->private;
 	int ret;
 
-	ret = ceph_print_client_options(s, client);
+	ret = ceph_print_client_options(s, client, true);
 	if (ret)
 		return ret;
 

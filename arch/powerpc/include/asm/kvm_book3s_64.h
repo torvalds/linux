@@ -55,6 +55,7 @@ struct kvm_nested_guest {
 	cpumask_t need_tlb_flush;
 	cpumask_t cpu_in_guest;
 	short prev_cpu[NR_CPUS];
+	u8 radix;			/* is this nested guest radix */
 };
 
 /*
@@ -148,6 +149,18 @@ static inline void svcpu_put(struct kvmppc_book3s_shadow_vcpu *svcpu)
 static inline bool kvm_is_radix(struct kvm *kvm)
 {
 	return kvm->arch.radix;
+}
+
+static inline bool kvmhv_vcpu_is_radix(struct kvm_vcpu *vcpu)
+{
+	bool radix;
+
+	if (vcpu->arch.nested)
+		radix = vcpu->arch.nested->radix;
+	else
+		radix = kvm_is_radix(vcpu->kvm);
+
+	return radix;
 }
 
 #define KVM_DEFAULT_HPT_ORDER	24	/* 16MB HPT by default */
@@ -624,8 +637,11 @@ extern int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 			     unsigned long *rmapp, struct rmap_nested **n_rmap);
 extern void kvmhv_insert_nest_rmap(struct kvm *kvm, unsigned long *rmapp,
 				   struct rmap_nested **n_rmap);
+extern void kvmhv_update_nest_rmap_rc_list(struct kvm *kvm, unsigned long *rmapp,
+					   unsigned long clr, unsigned long set,
+					   unsigned long hpa, unsigned long nbytes);
 extern void kvmhv_remove_nest_rmap_range(struct kvm *kvm,
-				struct kvm_memory_slot *memslot,
+				const struct kvm_memory_slot *memslot,
 				unsigned long gpa, unsigned long hpa,
 				unsigned long nbytes);
 

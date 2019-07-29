@@ -1,12 +1,12 @@
 /*
- * Copyright 2012-2015 Avago Technologies.  All rights reserved.
+ * Copyright 2000-2020 Broadcom Inc. All rights reserved.
  *
  *
  *          Name:  mpi2_pci.h
  *         Title:  MPI PCIe Attached Devices structures and definitions.
  * Creation Date:  October 9, 2012
  *
- * mpi2_pci.h Version:  02.00.02
+ * mpi2_pci.h Version:  02.00.03
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -23,6 +23,7 @@
  *                     Removed SOP support.
  * 07-01-16  02.00.02  Added MPI26_NVME_FLAGS_FORCE_ADMIN_ERR_RESP to
  *                     NVME Encapsulated Request.
+ * 07-22-18  02.00.03  Updted flags field for NVME Encapsulated req
  * --------------------------------------------------------------------------
  */
 
@@ -75,10 +76,10 @@ typedef struct _MPI26_NVME_ENCAPSULATED_REQUEST {
 #define MPI26_NVME_FLAGS_SUBMISSIONQ_ADMIN          (0x0010)
 /*Error Response Address Space */
 #define MPI26_NVME_FLAGS_MASK_ERROR_RSP_ADDR        (0x000C)
+#define MPI26_NVME_FLAGS_MASK_ERROR_RSP_ADDR_MASK   (0x000C)
 #define MPI26_NVME_FLAGS_SYSTEM_RSP_ADDR            (0x0000)
-#define MPI26_NVME_FLAGS_IOCPLB_RSP_ADDR            (0x0008)
-#define MPI26_NVME_FLAGS_IOCPLBNTA_RSP_ADDR         (0x000C)
-/*Data Direction*/
+#define MPI26_NVME_FLAGS_IOCCTL_RSP_ADDR            (0x0008)
+/* Data Direction*/
 #define MPI26_NVME_FLAGS_DATADIRECTION_MASK         (0x0003)
 #define MPI26_NVME_FLAGS_NODATATRANSFER             (0x0000)
 #define MPI26_NVME_FLAGS_WRITE                      (0x0001)

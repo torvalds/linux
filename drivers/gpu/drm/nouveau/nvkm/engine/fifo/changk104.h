@@ -14,6 +14,8 @@ struct gk104_fifo_chan {
 	struct list_head head;
 	bool killed;
 
+	struct nvkm_memory *mthd;
+
 	struct {
 		struct nvkm_gpuobj *inst;
 		struct nvkm_vma *vma;
@@ -35,5 +37,16 @@ int gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *);
 int gk104_fifo_gpfifo_kick_locked(struct gk104_fifo_chan *);
 
 int gv100_fifo_gpfifo_new(struct gk104_fifo *, const struct nvkm_oclass *,
+			  void *data, u32 size, struct nvkm_object **);
+int gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *,
+			   struct gk104_fifo *, u64 *, u16 *, u64, u64, u64,
+			   u64 *, bool, u32 *, const struct nvkm_oclass *,
+			   struct nvkm_object **);
+int gv100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *,
+				  struct nvkm_engine *);
+int gv100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *,
+				  struct nvkm_engine *, bool);
+
+int tu104_fifo_gpfifo_new(struct gk104_fifo *, const struct nvkm_oclass *,
 			  void *data, u32 size, struct nvkm_object **);
 #endif

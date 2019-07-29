@@ -7,7 +7,7 @@
 #ifndef __DENALI_H__
 #define __DENALI_H__
 
-#include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/completion.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/spinlock_types.h>

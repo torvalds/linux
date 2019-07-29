@@ -56,8 +56,10 @@ void riscv_fill_hwcap(void)
 
 	if (of_property_read_string(node, "riscv,isa", &isa)) {
 		pr_warning("Unable to find \"riscv,isa\" devicetree entry");
+		of_node_put(node);
 		return;
 	}
+	of_node_put(node);
 
 	for (i = 0; i < strlen(isa); ++i)
 		elf_hwcap |= isa2hwcap[(unsigned char)(isa[i])];

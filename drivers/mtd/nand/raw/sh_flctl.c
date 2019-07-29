@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SuperH FLCTL nand controller
  *
@@ -5,20 +6,6 @@
  * Copyright (c) 2008 Atom Create Engineering Co., Ltd.
  *
  * Based on fsl_elbc_nand.c, Copyright (c) 2006-2007 Freescale Semiconductor
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/module.h>
@@ -1183,7 +1170,7 @@ static int flctl_probe(struct platform_device *pdev)
 	nand->legacy.read_byte = flctl_read_byte;
 	nand->legacy.write_buf = flctl_write_buf;
 	nand->legacy.read_buf = flctl_read_buf;
-	nand->select_chip = flctl_select_chip;
+	nand->legacy.select_chip = flctl_select_chip;
 	nand->legacy.cmdfunc = flctl_cmdfunc;
 	nand->legacy.set_features = nand_get_set_features_notsupp;
 	nand->legacy.get_features = nand_get_set_features_notsupp;
@@ -1196,7 +1183,7 @@ static int flctl_probe(struct platform_device *pdev)
 
 	flctl_setup_dma(flctl);
 
-	nand->dummy_controller.ops = &flctl_nand_controller_ops;
+	nand->legacy.dummy_controller.ops = &flctl_nand_controller_ops;
 	ret = nand_scan(nand, 1);
 	if (ret)
 		goto err_chip;
@@ -1236,7 +1223,7 @@ static struct platform_driver flctl_driver = {
 
 module_platform_driver_probe(flctl_driver, flctl_probe);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Yoshihiro Shimoda");
 MODULE_DESCRIPTION("SuperH FLCTL driver");
 MODULE_ALIAS("platform:sh_flctl");

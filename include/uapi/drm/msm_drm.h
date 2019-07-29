@@ -105,14 +105,24 @@ struct drm_msm_gem_new {
 	__u32 handle;         /* out */
 };
 
-#define MSM_INFO_IOVA	0x01
-
-#define MSM_INFO_FLAGS (MSM_INFO_IOVA)
+/* Get or set GEM buffer info.  The requested value can be passed
+ * directly in 'value', or for data larger than 64b 'value' is a
+ * pointer to userspace buffer, with 'len' specifying the number of
+ * bytes copied into that buffer.  For info returned by pointer,
+ * calling the GEM_INFO ioctl with null 'value' will return the
+ * required buffer size in 'len'
+ */
+#define MSM_INFO_GET_OFFSET	0x00   /* get mmap() offset, returned by value */
+#define MSM_INFO_GET_IOVA	0x01   /* get iova, returned by value */
+#define MSM_INFO_SET_NAME	0x02   /* set the debug name (by pointer) */
+#define MSM_INFO_GET_NAME	0x03   /* get debug name, returned by pointer */
 
 struct drm_msm_gem_info {
 	__u32 handle;         /* in */
-	__u32 flags;	      /* in - combination of MSM_INFO_* flags */
-	__u64 offset;         /* out, mmap() offset or iova */
+	__u32 info;           /* in - one of MSM_INFO_* */
+	__u64 value;          /* in or out */
+	__u32 len;            /* in or out */
+	__u32 pad;
 };
 
 #define MSM_PREP_READ        0x01
@@ -188,8 +198,11 @@ struct drm_msm_gem_submit_cmd {
  */
 #define MSM_SUBMIT_BO_READ             0x0001
 #define MSM_SUBMIT_BO_WRITE            0x0002
+#define MSM_SUBMIT_BO_DUMP             0x0004
 
-#define MSM_SUBMIT_BO_FLAGS            (MSM_SUBMIT_BO_READ | MSM_SUBMIT_BO_WRITE)
+#define MSM_SUBMIT_BO_FLAGS            (MSM_SUBMIT_BO_READ | \
+					MSM_SUBMIT_BO_WRITE | \
+					MSM_SUBMIT_BO_DUMP)
 
 struct drm_msm_gem_submit_bo {
 	__u32 flags;          /* in, mask of MSM_SUBMIT_BO_x */

@@ -75,11 +75,6 @@ config QCOM_QMI_HELPERS
 	tristate
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on NET
-	help
-	  Helper library for handling QMI encoded messages.  QMI encoded
-	  messages are used in communication between the majority of QRTR
-	  clients and this helpers provide the common functionality needed for
-	  doing this from a kernel driver.
 
 config QCOM_RMTFS_MEM
 	tristate "Qualcomm Remote Filesystem memory driver"

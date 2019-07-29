@@ -1,3 +1,4 @@
+LIST "SPDX-License-Identifier: GPL-2.0"
 LIST "partner-jet-setup.txt - 20090729 Magnus Damm"
 LIST "set up enough of the kfr2r09 hardware to boot the kernel"
 

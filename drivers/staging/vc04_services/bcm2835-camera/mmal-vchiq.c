@@ -139,7 +139,7 @@ struct mmal_msg_context {
 
 		struct {
 			/* message handle to release */
-			VCHI_HELD_MSG_T msg_handle;
+			struct vchi_held_msg msg_handle;
 			/* pointer to received message */
 			struct mmal_msg *msg;
 			/* received message length */
@@ -527,7 +527,7 @@ static void service_callback(void *param,
 	int status;
 	u32 msg_len;
 	struct mmal_msg *msg;
-	VCHI_HELD_MSG_T msg_handle;
+	struct vchi_held_msg msg_handle;
 	struct mmal_msg_context *msg_context;
 
 	if (!instance) {
@@ -625,7 +625,7 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 				     struct mmal_msg *msg,
 				     unsigned int payload_len,
 				     struct mmal_msg **msg_out,
-				     VCHI_HELD_MSG_T *msg_handle_out)
+				     struct vchi_held_msg *msg_handle_out)
 {
 	struct mmal_msg_context *msg_context;
 	int ret;
@@ -751,7 +751,7 @@ static int port_info_set(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	pr_debug("setting port info port %p\n", port);
 	if (!port)
@@ -812,7 +812,7 @@ static int port_info_get(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	/* port info time */
 	m.h.type = MMAL_MSG_TYPE_PORT_INFO_GET;
@@ -908,7 +908,7 @@ static int create_component(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	/* build component create message */
 	m.h.type = MMAL_MSG_TYPE_COMPONENT_CREATE;
@@ -955,7 +955,7 @@ static int destroy_component(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_COMPONENT_DESTROY;
 	m.u.component_destroy.component_handle = component->handle;
@@ -988,7 +988,7 @@ static int enable_component(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_COMPONENT_ENABLE;
 	m.u.component_enable.component_handle = component->handle;
@@ -1020,7 +1020,7 @@ static int disable_component(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_COMPONENT_DISABLE;
 	m.u.component_disable.component_handle = component->handle;
@@ -1053,7 +1053,7 @@ static int get_version(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_GET_VERSION;
 
@@ -1086,7 +1086,7 @@ static int port_action_port(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_PORT_ACTION;
 	m.u.port_action_port.component_handle = port->component->handle;
@@ -1130,7 +1130,7 @@ static int port_action_handle(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_PORT_ACTION;
 
@@ -1175,7 +1175,7 @@ static int port_parameter_set(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_PORT_PARAMETER_SET;
 
@@ -1216,7 +1216,7 @@ static int port_parameter_get(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_PORT_PARAMETER_GET;
 
@@ -1623,8 +1623,11 @@ int vchiq_mmal_component_init(struct vchiq_mmal_instance *instance,
 	component = &instance->component[instance->component_idx];
 
 	ret = create_component(instance, component, name);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_err("%s: failed to create component %d (Not enough GPU mem?)\n",
+		       __func__, ret);
 		goto unlock;
+	}
 
 	/* ports info needs gathering */
 	component->control.type = MMAL_PORT_TYPE_CONTROL;
@@ -1803,7 +1806,7 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 	int status;
 	struct vchiq_mmal_instance *instance;
 	static VCHI_INSTANCE_T vchi_instance;
-	SERVICE_CREATION_T params = {
+	struct service_creation params = {
 		.version		= VCHI_VERSION_EX(VC_MMAL_VER, VC_MMAL_MIN_VER),
 		.service_id		= VC_MMAL_SERVER_NAME,
 		.callback		= service_callback,

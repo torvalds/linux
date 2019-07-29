@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Infrared remote control support in video4linux drivers
 ======================================================
 

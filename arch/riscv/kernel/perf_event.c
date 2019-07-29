@@ -476,6 +476,7 @@ int __init init_hw_perf_events(void)
 
 		if (of_id)
 			riscv_pmu = of_id->data;
+		of_node_put(node);
 	}
 
 	perf_pmu_register(riscv_pmu->pmu, "cpu", PERF_TYPE_RAW);

@@ -5,7 +5,7 @@
 #define _ICE_ADMINQ_CMD_H_
 
 /* This header file defines the Admin Queue commands, error codes and
- * descriptor format.  It is shared between Firmware and Software.
+ * descriptor format. It is shared between Firmware and Software.
  */
 
 #define ICE_MAX_VSI			768
@@ -87,6 +87,7 @@ struct ice_aqc_list_caps {
 /* Device/Function buffer entry, repeated per reported capability */
 struct ice_aqc_list_caps_elem {
 	__le16 cap;
+#define ICE_AQC_CAPS_VALID_FUNCTIONS			0x0005
 #define ICE_AQC_CAPS_SRIOV				0x0012
 #define ICE_AQC_CAPS_VF					0x0013
 #define ICE_AQC_CAPS_VSI				0x0017
@@ -462,7 +463,7 @@ struct ice_aqc_sw_rules {
 };
 
 /* Add/Update/Get/Remove lookup Rx/Tx command/response entry
- * This structures describes the lookup rules and associated actions.  "index"
+ * This structures describes the lookup rules and associated actions. "index"
  * is returned as part of a response to a successful Add command, and can be
  * used to identify the rule for Update/Get/Remove commands.
  */
@@ -1065,10 +1066,10 @@ struct ice_aqc_nvm {
 #define ICE_AQC_NVM_LAST_CMD		BIT(0)
 #define ICE_AQC_NVM_PCIR_REQ		BIT(0)	/* Used by NVM Update reply */
 #define ICE_AQC_NVM_PRESERVATION_S	1
-#define ICE_AQC_NVM_PRESERVATION_M	(3 << CSR_AQ_NVM_PRESERVATION_S)
-#define ICE_AQC_NVM_NO_PRESERVATION	(0 << CSR_AQ_NVM_PRESERVATION_S)
+#define ICE_AQC_NVM_PRESERVATION_M	(3 << ICE_AQC_NVM_PRESERVATION_S)
+#define ICE_AQC_NVM_NO_PRESERVATION	(0 << ICE_AQC_NVM_PRESERVATION_S)
 #define ICE_AQC_NVM_PRESERVE_ALL	BIT(1)
-#define ICE_AQC_NVM_PRESERVE_SELECTED	(3 << CSR_AQ_NVM_PRESERVATION_S)
+#define ICE_AQC_NVM_PRESERVE_SELECTED	(3 << ICE_AQC_NVM_PRESERVATION_S)
 #define ICE_AQC_NVM_FLASH_ONLY		BIT(7)
 	__le16 module_typeid;
 	__le16 length;
@@ -1110,7 +1111,7 @@ struct ice_aqc_get_set_rss_keys {
 };
 
 /* Get/Set RSS LUT (indirect 0x0B05/0x0B03) */
-struct  ice_aqc_get_set_rss_lut {
+struct ice_aqc_get_set_rss_lut {
 #define ICE_AQC_GSET_RSS_LUT_VSI_VALID	BIT(15)
 #define ICE_AQC_GSET_RSS_LUT_VSI_ID_S	0
 #define ICE_AQC_GSET_RSS_LUT_VSI_ID_M	(0x1FF << ICE_AQC_GSET_RSS_LUT_VSI_ID_S)
@@ -1314,10 +1315,10 @@ struct ice_aqc_get_clear_fw_log {
  * @params: command-specific parameters
  *
  * Descriptor format for commands the driver posts on the Admin Transmit Queue
- * (ATQ).  The firmware writes back onto the command descriptor and returns
- * the result of the command.  Asynchronous events that are not an immediate
+ * (ATQ). The firmware writes back onto the command descriptor and returns
+ * the result of the command. Asynchronous events that are not an immediate
  * result of the command are written to the Admin Receive Queue (ARQ) using
- * the same descriptor format.  Descriptors are in little-endian notation with
+ * the same descriptor format. Descriptors are in little-endian notation with
  * 32-bit words.
  */
 struct ice_aq_desc {
@@ -1379,10 +1380,10 @@ struct ice_aq_desc {
 
 /* error codes */
 enum ice_aq_err {
-	ICE_AQ_RC_OK		= 0,  /* success */
+	ICE_AQ_RC_OK		= 0,  /* Success */
 	ICE_AQ_RC_ENOMEM	= 9,  /* Out of memory */
 	ICE_AQ_RC_EBUSY		= 12, /* Device or resource busy */
-	ICE_AQ_RC_EEXIST	= 13, /* object already exists */
+	ICE_AQ_RC_EEXIST	= 13, /* Object already exists */
 	ICE_AQ_RC_ENOSPC	= 16, /* No space left or allocation failure */
 };
 

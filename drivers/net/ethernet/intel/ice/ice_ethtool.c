@@ -62,7 +62,7 @@ static const struct ice_stats ice_gstrings_vsi_stats[] = {
  * The PF_STATs are appended to the netdev stats only when ethtool -S
  * is queried on the base PF netdev.
  */
-static struct ice_stats ice_gstrings_pf_stats[] = {
+static const struct ice_stats ice_gstrings_pf_stats[] = {
 	ICE_PF_STAT("tx_bytes", stats.eth.tx_bytes),
 	ICE_PF_STAT("rx_bytes", stats.eth.rx_bytes),
 	ICE_PF_STAT("tx_unicast", stats.eth.tx_unicast),
@@ -104,7 +104,7 @@ static struct ice_stats ice_gstrings_pf_stats[] = {
 	ICE_PF_STAT("mac_remote_faults", stats.mac_remote_faults),
 };
 
-static u32 ice_regs_dump_list[] = {
+static const u32 ice_regs_dump_list[] = {
 	PFGEN_STATE,
 	PRTGEN_STATUS,
 	QRX_CTRL(0),
@@ -260,10 +260,10 @@ static int ice_get_sset_count(struct net_device *netdev, int sset)
 		 * a private ethtool flag). This is due to the nature of the
 		 * ethtool stats API.
 		 *
-		 * User space programs such as ethtool must make 3 separate
+		 * Userspace programs such as ethtool must make 3 separate
 		 * ioctl requests, one for size, one for the strings, and
 		 * finally one for the stats. Since these cross into
-		 * user space, changes to the number or size could result in
+		 * userspace, changes to the number or size could result in
 		 * undefined memory access or incorrect string<->value
 		 * correlations for statistics.
 		 *
@@ -1392,17 +1392,17 @@ static int ice_nway_reset(struct net_device *netdev)
 {
 	/* restart autonegotiation */
 	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_link_status *hw_link_info;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_port_info *pi;
 	enum ice_status status;
-	bool link_up;
 
 	pi = vsi->port_info;
-	hw_link_info = &pi->phy.link_info;
-	link_up = hw_link_info->link_info & ICE_AQ_LINK_UP;
+	/* If VSI state is up, then restart autoneg with link up */
+	if (!test_bit(__ICE_DOWN, vsi->back->state))
+		status = ice_aq_set_link_restart_an(pi, true, NULL);
+	else
+		status = ice_aq_set_link_restart_an(pi, false, NULL);
 
-	status = ice_aq_set_link_restart_an(pi, link_up, NULL);
 	if (status) {
 		netdev_info(netdev, "link restart failed, err %d aq_err %d\n",
 			    status, pi->hw->adminq.sq_last_status);
@@ -1441,7 +1441,7 @@ ice_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 /**
  * ice_set_pauseparam - Set Flow Control parameter
  * @netdev: network interface device structure
- * @pause: return tx/rx flow control status
+ * @pause: return Tx/Rx flow control status
  */
 static int
 ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
@@ -1543,7 +1543,7 @@ static u32 ice_get_rxfh_key_size(struct net_device __always_unused *netdev)
 }
 
 /**
- * ice_get_rxfh_indir_size - get the rx flow hash indirection table size
+ * ice_get_rxfh_indir_size - get the Rx flow hash indirection table size
  * @netdev: network interface device structure
  *
  * Returns the table size.
@@ -1556,7 +1556,7 @@ static u32 ice_get_rxfh_indir_size(struct net_device *netdev)
 }
 
 /**
- * ice_get_rxfh - get the rx flow hash indirection table
+ * ice_get_rxfh - get the Rx flow hash indirection table
  * @netdev: network interface device structure
  * @indir: indirection table
  * @key: hash key
@@ -1603,7 +1603,7 @@ out:
 }
 
 /**
- * ice_set_rxfh - set the rx flow hash indirection table
+ * ice_set_rxfh - set the Rx flow hash indirection table
  * @netdev: network interface device structure
  * @indir: indirection table
  * @key: hash key

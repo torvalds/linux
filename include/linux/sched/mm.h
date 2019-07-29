@@ -153,7 +153,7 @@ static inline gfp_t current_gfp_context(gfp_t flags)
 {
 	/*
 	 * NOIO implies both NOIO and NOFS and it is a weaker context
-	 * so always make sure it makes precendence
+	 * so always make sure it makes precedence
 	 */
 	if (unlikely(current->flags & PF_MEMALLOC_NOIO))
 		flags &= ~(__GFP_IO | __GFP_FS);

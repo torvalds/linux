@@ -25,7 +25,7 @@
 	 * PF can also be used for the SD card so PB is preferred.
 	 */
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pf_pins>;
 	status = "okay";
 };
 

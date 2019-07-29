@@ -379,7 +379,6 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	err = device_register(&bus->dev);
 	if (err) {
 		pr_err("mii_bus %s failed to register\n", bus->id);
-		put_device(&bus->dev);
 		return -EINVAL;
 	}
 
@@ -390,6 +389,7 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	if (IS_ERR(gpiod)) {
 		dev_err(&bus->dev, "mii_bus %s couldn't get reset GPIO\n",
 			bus->id);
+		device_del(&bus->dev);
 		return PTR_ERR(gpiod);
 	} else	if (gpiod) {
 		bus->reset_gpiod = gpiod;

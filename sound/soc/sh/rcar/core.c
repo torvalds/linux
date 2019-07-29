@@ -123,8 +123,8 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 		struct device *dev = rsnd_priv_to_dev(priv);
 
-		dev_warn(dev, "%s[%d] is not your expected module\n",
-			 rsnd_mod_name(mod), rsnd_mod_id(mod));
+		dev_warn(dev, "%s is not your expected module\n",
+			 rsnd_mod_name(mod));
 	}
 }
 
@@ -137,20 +137,69 @@ struct dma_chan *rsnd_mod_dma_req(struct rsnd_dai_stream *io,
 	return mod->ops->dma_req(io, mod);
 }
 
-u32 *rsnd_mod_get_status(struct rsnd_dai_stream *io,
-			 struct rsnd_mod *mod,
+#define MOD_NAME_NUM   5
+#define MOD_NAME_SIZE 16
+char *rsnd_mod_name(struct rsnd_mod *mod)
+{
+	static char names[MOD_NAME_NUM][MOD_NAME_SIZE];
+	static int num;
+	char *name = names[num];
+
+	num++;
+	if (num >= MOD_NAME_NUM)
+		num = 0;
+
+	/*
+	 * Let's use same char to avoid pointlessness memory
+	 * Thus, rsnd_mod_name() should be used immediately
+	 * Don't keep pointer
+	 */
+	if ((mod)->ops->id_sub) {
+		snprintf(name, MOD_NAME_SIZE, "%s[%d%d]",
+			 mod->ops->name,
+			 rsnd_mod_id(mod),
+			 rsnd_mod_id_sub(mod));
+	} else {
+		snprintf(name, MOD_NAME_SIZE, "%s[%d]",
+			 mod->ops->name,
+			 rsnd_mod_id(mod));
+	}
+
+	return name;
+}
+
+u32 *rsnd_mod_get_status(struct rsnd_mod *mod,
+			 struct rsnd_dai_stream *io,
 			 enum rsnd_mod_type type)
 {
 	return &mod->status;
+}
+
+int rsnd_mod_id_raw(struct rsnd_mod *mod)
+{
+	return mod->id;
+}
+
+int rsnd_mod_id(struct rsnd_mod *mod)
+{
+	if ((mod)->ops->id)
+		return (mod)->ops->id(mod);
+
+	return rsnd_mod_id_raw(mod);
+}
+
+int rsnd_mod_id_sub(struct rsnd_mod *mod)
+{
+	if ((mod)->ops->id_sub)
+		return (mod)->ops->id_sub(mod);
+
+	return 0;
 }
 
 int rsnd_mod_init(struct rsnd_priv *priv,
 		  struct rsnd_mod *mod,
 		  struct rsnd_mod_ops *ops,
 		  struct clk *clk,
-		  u32* (*get_status)(struct rsnd_dai_stream *io,
-				     struct rsnd_mod *mod,
-				     enum rsnd_mod_type type),
 		  enum rsnd_mod_type type,
 		  int id)
 {
@@ -164,7 +213,6 @@ int rsnd_mod_init(struct rsnd_priv *priv,
 	mod->type	= type;
 	mod->clk	= clk;
 	mod->priv	= priv;
-	mod->get_status	= get_status;
 
 	return ret;
 }
@@ -228,7 +276,20 @@ int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
 	struct rsnd_mod *ctu_mod = rsnd_io_to_mod_ctu(io);
 
 	if (ctu_mod) {
-		u32 converted_chan = rsnd_ctu_converted_channel(ctu_mod);
+		u32 converted_chan = rsnd_io_converted_chan(io);
+
+		/*
+		 * !! Note !!
+		 *
+		 * converted_chan will be used for CTU,
+		 * or TDM Split mode.
+		 * User shouldn't use CTU with TDM Split mode.
+		 */
+		if (rsnd_runtime_is_tdm_split(io)) {
+			struct device *dev = rsnd_priv_to_dev(rsnd_io_to_priv(io));
+
+			dev_err(dev, "CTU and TDM Split should be used\n");
+		}
 
 		if (converted_chan)
 			return converted_chan;
@@ -246,7 +307,7 @@ int rsnd_runtime_channel_for_ssi_with_params(struct rsnd_dai_stream *io,
 		rsnd_runtime_channel_original_with_params(io, params);
 
 	/* Use Multi SSI */
-	if (rsnd_runtime_is_ssi_multi(io))
+	if (rsnd_runtime_is_multi_ssi(io))
 		chan /= rsnd_rdai_ssi_lane_get(rdai);
 
 	/* TDM Extend Mode needs 8ch */
@@ -256,7 +317,7 @@ int rsnd_runtime_channel_for_ssi_with_params(struct rsnd_dai_stream *io,
 	return chan;
 }
 
-int rsnd_runtime_is_ssi_multi(struct rsnd_dai_stream *io)
+int rsnd_runtime_is_multi_ssi(struct rsnd_dai_stream *io)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	int lane = rsnd_rdai_ssi_lane_get(rdai);
@@ -267,9 +328,14 @@ int rsnd_runtime_is_ssi_multi(struct rsnd_dai_stream *io)
 	return (chan > 2) && (lane > 1);
 }
 
-int rsnd_runtime_is_ssi_tdm(struct rsnd_dai_stream *io)
+int rsnd_runtime_is_tdm(struct rsnd_dai_stream *io)
 {
 	return rsnd_runtime_channel_for_ssi(io) >= 6;
+}
+
+int rsnd_runtime_is_tdm_split(struct rsnd_dai_stream *io)
+{
+	return !!rsnd_flags_has(io, RSND_STREAM_TDM_SPLIT);
 }
 
 /*
@@ -472,20 +538,19 @@ static int rsnd_status_update(u32 *status,
 	enum rsnd_mod_type *types = rsnd_mod_sequence[is_play];		\
 	for_each_rsnd_mod_arrays(i, mod, io, types, RSND_MOD_MAX) {	\
 		int tmp = 0;						\
-		u32 *status = mod->get_status(io, mod, types[i]);	\
+		u32 *status = mod->ops->get_status(mod, io, types[i]);	\
 		int func_call = rsnd_status_update(status,		\
 						__rsnd_mod_shift_##fn,	\
 						__rsnd_mod_add_##fn,	\
 						__rsnd_mod_call_##fn);	\
-		rsnd_dbg_dai_call(dev, "%s[%d]\t0x%08x %s\n",		\
-			rsnd_mod_name(mod), rsnd_mod_id(mod), *status,	\
+		rsnd_dbg_dai_call(dev, "%s\t0x%08x %s\n",		\
+			rsnd_mod_name(mod), *status,	\
 			(func_call && (mod)->ops->fn) ? #fn : "");	\
 		if (func_call && (mod)->ops->fn)			\
 			tmp = (mod)->ops->fn(mod, io, param);		\
 		if (tmp && (tmp != -EPROBE_DEFER))			\
-			dev_err(dev, "%s[%d] : %s error %d\n",		\
-				rsnd_mod_name(mod), rsnd_mod_id(mod),	\
-						     #fn, tmp);		\
+			dev_err(dev, "%s : %s error %d\n",		\
+				rsnd_mod_name(mod), #fn, tmp);		\
 		ret |= tmp;						\
 	}								\
 	ret;								\
@@ -512,8 +577,8 @@ int rsnd_dai_connect(struct rsnd_mod *mod,
 
 	io->mod[type] = mod;
 
-	dev_dbg(dev, "%s[%d] is connected to io (%s)\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod),
+	dev_dbg(dev, "%s is connected to io (%s)\n",
+		rsnd_mod_name(mod),
 		rsnd_io_is_play(io) ? "Playback" : "Capture");
 
 	return 0;
@@ -750,6 +815,7 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 
 	switch (slots) {
 	case 2:
+		/* TDM Split Mode */
 	case 6:
 	case 8:
 		/* TDM Extend Mode */
@@ -965,6 +1031,82 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.prepare	= rsnd_soc_dai_prepare,
 };
 
+static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
+				      struct device_node *dai_np,
+				      int dai_i, int is_play)
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
+	struct rsnd_dai_stream *io = is_play ?
+		&rdai->playback :
+		&rdai->capture;
+	struct device_node *ssiu_np = rsnd_ssiu_of_node(priv);
+	struct device_node *np;
+	int i, j;
+
+	if (!ssiu_np)
+		return;
+
+	if (!rsnd_io_to_mod_ssi(io))
+		return;
+
+	/*
+	 * This driver assumes that it is TDM Split mode
+	 * if it includes ssiu node
+	 */
+	for (i = 0;; i++) {
+		struct device_node *node = is_play ?
+			of_parse_phandle(dai_np, "playback", i) :
+			of_parse_phandle(dai_np, "capture",  i);
+
+		if (!node)
+			break;
+
+		j = 0;
+		for_each_child_of_node(ssiu_np, np) {
+			if (np == node) {
+				rsnd_flags_set(io, RSND_STREAM_TDM_SPLIT);
+				dev_dbg(dev, "%s is part of TDM Split\n", io->name);
+			}
+			j++;
+		}
+
+	}
+}
+
+static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
+				     struct rsnd_dai_stream *io,
+				     struct device_node *endpoint)
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct device_node *remote_port = of_graph_get_remote_port(endpoint);
+	struct device_node *remote_node = of_graph_get_remote_port_parent(endpoint);
+
+	if (!rsnd_io_to_mod_ssi(io))
+		return;
+
+	/* HDMI0 */
+	if (strstr(remote_node->full_name, "hdmi@fead0000")) {
+		rsnd_flags_set(io, RSND_STREAM_HDMI0);
+		dev_dbg(dev, "%s connected to HDMI0\n", io->name);
+	}
+
+	/* HDMI1 */
+	if (strstr(remote_node->full_name, "hdmi@feae0000")) {
+		rsnd_flags_set(io, RSND_STREAM_HDMI1);
+		dev_dbg(dev, "%s connected to HDMI1\n", io->name);
+	}
+
+	/*
+	 * This driver assumes that it is TDM Split mode
+	 * if remote node has multi endpoint
+	 */
+	if (of_get_child_count(remote_port) > 1) {
+		rsnd_flags_set(io, RSND_STREAM_TDM_SPLIT);
+		dev_dbg(dev, "%s is part of TDM Split\n", io->name);
+	}
+}
+
 void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 		struct rsnd_mod* (*mod_get)(struct rsnd_priv *priv, int id),
 		struct device_node *node,
@@ -1051,24 +1193,24 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	drv->name	= rdai->name;
 	drv->ops	= &rsnd_soc_dai_ops;
 
-	snprintf(rdai->playback.name, RSND_DAI_NAME_SIZE,
+	snprintf(io_playback->name, RSND_DAI_NAME_SIZE,
 		 "DAI%d Playback", dai_i);
 	drv->playback.rates		= RSND_RATES;
 	drv->playback.formats		= RSND_FMTS;
 	drv->playback.channels_min	= 2;
 	drv->playback.channels_max	= 8;
-	drv->playback.stream_name	= rdai->playback.name;
+	drv->playback.stream_name	= io_playback->name;
 
-	snprintf(rdai->capture.name, RSND_DAI_NAME_SIZE,
+	snprintf(io_capture->name, RSND_DAI_NAME_SIZE,
 		 "DAI%d Capture", dai_i);
 	drv->capture.rates		= RSND_RATES;
 	drv->capture.formats		= RSND_FMTS;
 	drv->capture.channels_min	= 2;
 	drv->capture.channels_max	= 8;
-	drv->capture.stream_name	= rdai->capture.name;
+	drv->capture.stream_name	= io_capture->name;
 
-	rdai->playback.rdai		= rdai;
-	rdai->capture.rdai		= rdai;
+	io_playback->rdai		= rdai;
+	io_capture->rdai		= rdai;
 	rsnd_rdai_channels_set(rdai, 2); /* default 2ch */
 	rsnd_rdai_ssi_lane_set(rdai, 1); /* default 1lane */
 	rsnd_rdai_width_set(rdai, 32);   /* default 32bit width */
@@ -1081,6 +1223,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 			break;
 
 		rsnd_parse_connect_ssi(rdai, playback, capture);
+		rsnd_parse_connect_ssiu(rdai, playback, capture);
 		rsnd_parse_connect_src(rdai, playback, capture);
 		rsnd_parse_connect_ctu(rdai, playback, capture);
 		rsnd_parse_connect_mix(rdai, playback, capture);
@@ -1137,12 +1280,23 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	if (is_graph) {
 		for_each_endpoint_of_node(dai_node, dai_np) {
 			__rsnd_dai_probe(priv, dai_np, dai_i);
-			rsnd_ssi_parse_hdmi_connection(priv, dai_np, dai_i);
+			if (rsnd_is_gen3(priv)) {
+				struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
+
+				rsnd_parse_connect_graph(priv, &rdai->playback, dai_np);
+				rsnd_parse_connect_graph(priv, &rdai->capture,  dai_np);
+			}
 			dai_i++;
 		}
 	} else {
-		for_each_child_of_node(dai_node, dai_np)
-			__rsnd_dai_probe(priv, dai_np, dai_i++);
+		for_each_child_of_node(dai_node, dai_np) {
+			__rsnd_dai_probe(priv, dai_np, dai_i);
+			if (rsnd_is_gen3(priv)) {
+				rsnd_parse_connect_simple(priv, dai_np, dai_i, 1);
+				rsnd_parse_connect_simple(priv, dai_np, dai_i, 0);
+			}
+			dai_i++;
+		}
 	}
 
 	return 0;
@@ -1157,7 +1311,39 @@ static int rsnd_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
+	struct snd_soc_pcm_runtime *fe = substream->private_data;
 	int ret;
+
+	/*
+	 * rsnd assumes that it might be used under DPCM if user want to use
+	 * channel / rate convert. Then, rsnd should be FE.
+	 * And then, this function will be called *after* BE settings.
+	 * this means, each BE already has fixuped hw_params.
+	 * see
+	 *	dpcm_fe_dai_hw_params()
+	 *	dpcm_be_dai_hw_params()
+	 */
+	io->converted_rate = 0;
+	io->converted_chan = 0;
+	if (fe->dai_link->dynamic) {
+		struct rsnd_priv *priv = rsnd_io_to_priv(io);
+		struct device *dev = rsnd_priv_to_dev(priv);
+		struct snd_soc_dpcm *dpcm;
+		struct snd_pcm_hw_params *be_params;
+		int stream = substream->stream;
+
+		for_each_dpcm_be(fe, stream, dpcm) {
+			be_params = &dpcm->hw_params;
+			if (params_channels(hw_params) != params_channels(be_params))
+				io->converted_chan = params_channels(be_params);
+			if (params_rate(hw_params) != params_rate(be_params))
+				io->converted_rate = params_rate(be_params);
+		}
+		if (io->converted_chan)
+			dev_dbg(dev, "convert channels = %d\n", io->converted_chan);
+		if (io->converted_rate)
+			dev_dbg(dev, "convert rate     = %d\n", io->converted_rate);
+	}
 
 	ret = rsnd_dai_call(hw_params, io, substream, hw_params);
 	if (ret)
@@ -1338,6 +1524,18 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 		.put		= rsnd_kctrl_put,
 	};
 	int ret;
+
+	/*
+	 * 1) Avoid duplicate register for DVC with MIX case
+	 * 2) Allow duplicate register for MIX
+	 * 3) re-register if card was rebinded
+	 */
+	list_for_each_entry(kctrl, &card->controls, list) {
+		struct rsnd_kctrl_cfg *c = kctrl->private_data;
+
+		if (c == cfg)
+			return 0;
+	}
 
 	if (size > RSND_MAX_CHANNELS)
 		return -EINVAL;

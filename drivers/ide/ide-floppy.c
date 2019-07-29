@@ -276,7 +276,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		switch (ide_req(rq)->type) {
 		case ATA_PRIV_MISC:
 		case ATA_PRIV_SENSE:
-			pc = (struct ide_atapi_pc *)rq->special;
+			pc = (struct ide_atapi_pc *)ide_req(rq)->special;
 			break;
 		default:
 			BUG();

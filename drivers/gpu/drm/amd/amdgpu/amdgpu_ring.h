@@ -29,7 +29,7 @@
 #include <drm/drm_print.h>
 
 /* max number of rings */
-#define AMDGPU_MAX_RINGS		21
+#define AMDGPU_MAX_RINGS		23
 #define AMDGPU_MAX_GFX_RINGS		1
 #define AMDGPU_MAX_COMPUTE_RINGS	8
 #define AMDGPU_MAX_VCE_RINGS		3
@@ -129,8 +129,9 @@ struct amdgpu_ring_funcs {
 	unsigned emit_ib_size;
 	/* command emit functions */
 	void (*emit_ib)(struct amdgpu_ring *ring,
+			struct amdgpu_job *job,
 			struct amdgpu_ib *ib,
-			unsigned vmid, bool ctx_switch);
+			bool ctx_switch);
 	void (*emit_fence)(struct amdgpu_ring *ring, uint64_t addr,
 			   uint64_t seq, unsigned flags);
 	void (*emit_pipeline_sync)(struct amdgpu_ring *ring);
@@ -189,7 +190,6 @@ struct amdgpu_ring {
 	uint64_t		gpu_addr;
 	uint64_t		ptr_mask;
 	uint32_t		buf_mask;
-	bool			ready;
 	u32			idx;
 	u32			me;
 	u32			pipe;
@@ -229,7 +229,7 @@ struct amdgpu_ring {
 #define amdgpu_ring_get_rptr(r) (r)->funcs->get_rptr((r))
 #define amdgpu_ring_get_wptr(r) (r)->funcs->get_wptr((r))
 #define amdgpu_ring_set_wptr(r) (r)->funcs->set_wptr((r))
-#define amdgpu_ring_emit_ib(r, ib, vmid, c) (r)->funcs->emit_ib((r), (ib), (vmid), (c))
+#define amdgpu_ring_emit_ib(r, job, ib, c) ((r)->funcs->emit_ib((r), (job), (ib), (c)))
 #define amdgpu_ring_emit_pipeline_sync(r) (r)->funcs->emit_pipeline_sync((r))
 #define amdgpu_ring_emit_vm_flush(r, vmid, addr) (r)->funcs->emit_vm_flush((r), (vmid), (addr))
 #define amdgpu_ring_emit_fence(r, addr, seq, flags) (r)->funcs->emit_fence((r), (addr), (seq), (flags))
@@ -312,5 +312,7 @@ static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring,
 	ring->wptr &= ring->ptr_mask;
 	ring->count_dw -= count_dw;
 }
+
+int amdgpu_ring_test_helper(struct amdgpu_ring *ring);
 
 #endif

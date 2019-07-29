@@ -20,6 +20,7 @@
 #include "internal.h"
 
 static const char *const regulator_states[PM_SUSPEND_MAX + 1] = {
+	[PM_SUSPEND_STANDBY]	= "regulator-state-standby",
 	[PM_SUSPEND_MEM]	= "regulator-state-mem",
 	[PM_SUSPEND_MAX]	= "regulator-state-disk",
 };
@@ -170,6 +171,10 @@ static void of_get_regulation_constraints(struct device_node *np,
 				  &pval))
 		constraints->max_spread = pval;
 
+	if (!of_property_read_u32(np, "regulator-max-step-microvolt",
+				  &pval))
+		constraints->max_uV_step = pval;
+
 	constraints->over_current_protection = of_property_read_bool(np,
 					"regulator-over-current-protection");
 
@@ -181,9 +186,11 @@ static void of_get_regulation_constraints(struct device_node *np,
 		case PM_SUSPEND_MAX:
 			suspend_state = &constraints->state_disk;
 			break;
+		case PM_SUSPEND_STANDBY:
+			suspend_state = &constraints->state_standby;
+			break;
 		case PM_SUSPEND_ON:
 		case PM_SUSPEND_TO_IDLE:
-		case PM_SUSPEND_STANDBY:
 		default:
 			continue;
 		}
@@ -364,23 +371,24 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 }
 EXPORT_SYMBOL_GPL(of_regulator_match);
 
-struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
-					    const struct regulator_desc *desc,
-					    struct regulator_config *config,
-					    struct device_node **node)
+struct device_node *regulator_of_get_init_node(struct device *dev,
+					       const struct regulator_desc *desc)
 {
 	struct device_node *search, *child;
-	struct regulator_init_data *init_data = NULL;
 	const char *name;
 
 	if (!dev->of_node || !desc->of_match)
 		return NULL;
 
-	if (desc->regulators_node)
+	if (desc->regulators_node) {
 		search = of_get_child_by_name(dev->of_node,
 					      desc->regulators_node);
-	else
+	} else {
 		search = of_node_get(dev->of_node);
+
+		if (!strcmp(desc->of_match, search->name))
+			return search;
+	}
 
 	if (!search) {
 		dev_dbg(dev, "Failed to find regulator container node '%s'\n",
@@ -393,35 +401,48 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		if (!name)
 			name = child->name;
 
-		if (strcmp(desc->of_match, name))
-			continue;
-
-		init_data = of_get_regulator_init_data(dev, child, desc);
-		if (!init_data) {
-			dev_err(dev,
-				"failed to parse DT for regulator %pOFn\n",
-				child);
-			break;
-		}
-
-		if (desc->of_parse_cb) {
-			if (desc->of_parse_cb(child, desc, config)) {
-				dev_err(dev,
-					"driver callback failed to parse DT for regulator %pOFn\n",
-					child);
-				init_data = NULL;
-				break;
-			}
-		}
-
-		of_node_get(child);
-		*node = child;
-		break;
+		if (!strcmp(desc->of_match, name))
+			return of_node_get(child);
 	}
 
 	of_node_put(search);
 
+	return NULL;
+}
+
+struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
+					    const struct regulator_desc *desc,
+					    struct regulator_config *config,
+					    struct device_node **node)
+{
+	struct device_node *child;
+	struct regulator_init_data *init_data = NULL;
+
+	child = regulator_of_get_init_node(dev, desc);
+	if (!child)
+		return NULL;
+
+	init_data = of_get_regulator_init_data(dev, child, desc);
+	if (!init_data) {
+		dev_err(dev, "failed to parse DT for regulator %pOFn\n", child);
+		goto error;
+	}
+
+	if (desc->of_parse_cb && desc->of_parse_cb(child, desc, config)) {
+		dev_err(dev,
+			"driver callback failed to parse DT for regulator %pOFn\n",
+			child);
+		goto error;
+	}
+
+	*node = child;
+
 	return init_data;
+
+error:
+	of_node_put(child);
+
+	return NULL;
 }
 
 static int of_node_match(struct device *dev, const void *data)

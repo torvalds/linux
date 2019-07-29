@@ -457,7 +457,7 @@ static ssize_t __used \
 #define HAS_PPC_PMC_CLASSIC	1
 #define HAS_PPC_PMC_IBM		1
 #define HAS_PPC_PMC_PA6T	1
-#elif defined(CONFIG_6xx)
+#elif defined(CONFIG_PPC_BOOK3S_32)
 #define HAS_PPC_PMC_CLASSIC	1
 #define HAS_PPC_PMC_IBM		1
 #define HAS_PPC_PMC_G4		1

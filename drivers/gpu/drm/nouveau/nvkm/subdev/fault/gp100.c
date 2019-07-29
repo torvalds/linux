@@ -21,7 +21,14 @@
  */
 #include "priv.h"
 
-#include <subdev/mmu.h>
+#include <subdev/mc.h>
+
+static void
+gp100_fault_buffer_intr(struct nvkm_fault_buffer *buffer, bool enable)
+{
+	struct nvkm_device *device = buffer->fault->subdev.device;
+	nvkm_mc_intr_mask(device, NVKM_SUBDEV_FAULT, enable);
+}
 
 static void
 gp100_fault_buffer_fini(struct nvkm_fault_buffer *buffer)
@@ -34,15 +41,17 @@ static void
 gp100_fault_buffer_init(struct nvkm_fault_buffer *buffer)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
-	nvkm_wr32(device, 0x002a74, upper_32_bits(buffer->vma->addr));
-	nvkm_wr32(device, 0x002a70, lower_32_bits(buffer->vma->addr));
+	nvkm_wr32(device, 0x002a74, upper_32_bits(buffer->addr));
+	nvkm_wr32(device, 0x002a70, lower_32_bits(buffer->addr));
 	nvkm_mask(device, 0x002a70, 0x00000001, 0x00000001);
 }
 
-static u32
-gp100_fault_buffer_entries(struct nvkm_fault_buffer *buffer)
+static void
+gp100_fault_buffer_info(struct nvkm_fault_buffer *buffer)
 {
-	return nvkm_rd32(buffer->fault->subdev.device, 0x002a78);
+	buffer->entries = nvkm_rd32(buffer->fault->subdev.device, 0x002a78);
+	buffer->get = 0x002a7c;
+	buffer->put = 0x002a80;
 }
 
 static void
@@ -56,9 +65,10 @@ gp100_fault = {
 	.intr = gp100_fault_intr,
 	.buffer.nr = 1,
 	.buffer.entry_size = 32,
-	.buffer.entries = gp100_fault_buffer_entries,
+	.buffer.info = gp100_fault_buffer_info,
 	.buffer.init = gp100_fault_buffer_init,
 	.buffer.fini = gp100_fault_buffer_fini,
+	.buffer.intr = gp100_fault_buffer_intr,
 };
 
 int

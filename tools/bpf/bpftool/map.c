@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017-2018 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <assert.h>
 #include <errno.h>
@@ -52,28 +22,30 @@
 #include "main.h"
 
 static const char * const map_type_name[] = {
-	[BPF_MAP_TYPE_UNSPEC]		= "unspec",
-	[BPF_MAP_TYPE_HASH]		= "hash",
-	[BPF_MAP_TYPE_ARRAY]		= "array",
-	[BPF_MAP_TYPE_PROG_ARRAY]	= "prog_array",
-	[BPF_MAP_TYPE_PERF_EVENT_ARRAY]	= "perf_event_array",
-	[BPF_MAP_TYPE_PERCPU_HASH]	= "percpu_hash",
-	[BPF_MAP_TYPE_PERCPU_ARRAY]	= "percpu_array",
-	[BPF_MAP_TYPE_STACK_TRACE]	= "stack_trace",
-	[BPF_MAP_TYPE_CGROUP_ARRAY]	= "cgroup_array",
-	[BPF_MAP_TYPE_LRU_HASH]		= "lru_hash",
-	[BPF_MAP_TYPE_LRU_PERCPU_HASH]	= "lru_percpu_hash",
-	[BPF_MAP_TYPE_LPM_TRIE]		= "lpm_trie",
-	[BPF_MAP_TYPE_ARRAY_OF_MAPS]	= "array_of_maps",
-	[BPF_MAP_TYPE_HASH_OF_MAPS]	= "hash_of_maps",
-	[BPF_MAP_TYPE_DEVMAP]		= "devmap",
-	[BPF_MAP_TYPE_SOCKMAP]		= "sockmap",
-	[BPF_MAP_TYPE_CPUMAP]		= "cpumap",
-	[BPF_MAP_TYPE_XSKMAP]           = "xskmap",
-	[BPF_MAP_TYPE_SOCKHASH]		= "sockhash",
-	[BPF_MAP_TYPE_CGROUP_STORAGE]	= "cgroup_storage",
-	[BPF_MAP_TYPE_REUSEPORT_SOCKARRAY] = "reuseport_sockarray",
+	[BPF_MAP_TYPE_UNSPEC]			= "unspec",
+	[BPF_MAP_TYPE_HASH]			= "hash",
+	[BPF_MAP_TYPE_ARRAY]			= "array",
+	[BPF_MAP_TYPE_PROG_ARRAY]		= "prog_array",
+	[BPF_MAP_TYPE_PERF_EVENT_ARRAY]		= "perf_event_array",
+	[BPF_MAP_TYPE_PERCPU_HASH]		= "percpu_hash",
+	[BPF_MAP_TYPE_PERCPU_ARRAY]		= "percpu_array",
+	[BPF_MAP_TYPE_STACK_TRACE]		= "stack_trace",
+	[BPF_MAP_TYPE_CGROUP_ARRAY]		= "cgroup_array",
+	[BPF_MAP_TYPE_LRU_HASH]			= "lru_hash",
+	[BPF_MAP_TYPE_LRU_PERCPU_HASH]		= "lru_percpu_hash",
+	[BPF_MAP_TYPE_LPM_TRIE]			= "lpm_trie",
+	[BPF_MAP_TYPE_ARRAY_OF_MAPS]		= "array_of_maps",
+	[BPF_MAP_TYPE_HASH_OF_MAPS]		= "hash_of_maps",
+	[BPF_MAP_TYPE_DEVMAP]			= "devmap",
+	[BPF_MAP_TYPE_SOCKMAP]			= "sockmap",
+	[BPF_MAP_TYPE_CPUMAP]			= "cpumap",
+	[BPF_MAP_TYPE_XSKMAP]			= "xskmap",
+	[BPF_MAP_TYPE_SOCKHASH]			= "sockhash",
+	[BPF_MAP_TYPE_CGROUP_STORAGE]		= "cgroup_storage",
+	[BPF_MAP_TYPE_REUSEPORT_SOCKARRAY]	= "reuseport_sockarray",
 	[BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE]	= "percpu_cgroup_storage",
+	[BPF_MAP_TYPE_QUEUE]			= "queue",
+	[BPF_MAP_TYPE_STACK]			= "stack",
 };
 
 static bool map_is_per_cpu(__u32 type)
@@ -215,70 +187,6 @@ err_end_obj:
 	return ret;
 }
 
-static int get_btf(struct bpf_map_info *map_info, struct btf **btf)
-{
-	struct bpf_btf_info btf_info = { 0 };
-	__u32 len = sizeof(btf_info);
-	__u32 last_size;
-	int btf_fd;
-	void *ptr;
-	int err;
-
-	err = 0;
-	*btf = NULL;
-	btf_fd = bpf_btf_get_fd_by_id(map_info->btf_id);
-	if (btf_fd < 0)
-		return 0;
-
-	/* we won't know btf_size until we call bpf_obj_get_info_by_fd(). so
-	 * let's start with a sane default - 4KiB here - and resize it only if
-	 * bpf_obj_get_info_by_fd() needs a bigger buffer.
-	 */
-	btf_info.btf_size = 4096;
-	last_size = btf_info.btf_size;
-	ptr = malloc(last_size);
-	if (!ptr) {
-		err = -ENOMEM;
-		goto exit_free;
-	}
-
-	bzero(ptr, last_size);
-	btf_info.btf = ptr_to_u64(ptr);
-	err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
-
-	if (!err && btf_info.btf_size > last_size) {
-		void *temp_ptr;
-
-		last_size = btf_info.btf_size;
-		temp_ptr = realloc(ptr, last_size);
-		if (!temp_ptr) {
-			err = -ENOMEM;
-			goto exit_free;
-		}
-		ptr = temp_ptr;
-		bzero(ptr, last_size);
-		btf_info.btf = ptr_to_u64(ptr);
-		err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
-	}
-
-	if (err || btf_info.btf_size > last_size) {
-		err = errno;
-		goto exit_free;
-	}
-
-	*btf = btf__new((__u8 *)btf_info.btf, btf_info.btf_size, NULL);
-	if (IS_ERR(*btf)) {
-		err = PTR_ERR(*btf);
-		*btf = NULL;
-	}
-
-exit_free:
-	close(btf_fd);
-	free(ptr);
-
-	return err;
-}
-
 static json_writer_t *get_btf_writer(void)
 {
 	json_writer_t *jw = jsonw_new(stdout);
@@ -383,7 +291,10 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 		printf(single_line ? "  " : "\n");
 
 		printf("value:%c", break_names ? '\n' : ' ');
-		fprint_hex(stdout, value, info->value_size, " ");
+		if (value)
+			fprint_hex(stdout, value, info->value_size, " ");
+		else
+			printf("<no entry>");
 
 		printf("\n");
 	} else {
@@ -398,8 +309,11 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 		for (i = 0; i < n; i++) {
 			printf("value (CPU %02d):%c",
 			       i, info->value_size > 16 ? '\n' : ' ');
-			fprint_hex(stdout, value + i * step,
-				   info->value_size, " ");
+			if (value)
+				fprint_hex(stdout, value + i * step,
+					   info->value_size, " ");
+			else
+				printf("<no entry>");
 			printf("\n");
 		}
 	}
@@ -431,6 +345,20 @@ static char **parse_bytes(char **argv, const char *name, unsigned char *val,
 	}
 
 	return argv + i;
+}
+
+/* on per cpu maps we must copy the provided value on all value instances */
+static void fill_per_cpu_value(struct bpf_map_info *info, void *value)
+{
+	unsigned int i, n, step;
+
+	if (!map_is_per_cpu(info->type))
+		return;
+
+	n = get_possible_cpus();
+	step = round_up(info->value_size, 8);
+	for (i = 1; i < n; i++)
+		memcpy(value + i * step, value, info->value_size);
 }
 
 static int parse_elem(char **argv, struct bpf_map_info *info,
@@ -512,6 +440,8 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 			argv = parse_bytes(argv, "value", value, value_size);
 			if (!argv)
 				return -1;
+
+			fill_per_cpu_value(info, value);
 		}
 
 		return parse_elem(argv, info, key, NULL, key_size, value_size,
@@ -543,7 +473,6 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 	char *memlock;
 
 	memlock = get_fdinfo(fd, "memlock");
-	close(fd);
 
 	jsonw_start_object(json_wtr);
 
@@ -570,6 +499,29 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 		jsonw_int_field(json_wtr, "bytes_memlock", atoi(memlock));
 	free(memlock);
 
+	if (info->type == BPF_MAP_TYPE_PROG_ARRAY) {
+		char *owner_prog_type = get_fdinfo(fd, "owner_prog_type");
+		char *owner_jited = get_fdinfo(fd, "owner_jited");
+
+		if (owner_prog_type) {
+			unsigned int prog_type = atoi(owner_prog_type);
+
+			if (prog_type < ARRAY_SIZE(prog_type_name))
+				jsonw_string_field(json_wtr, "owner_prog_type",
+						   prog_type_name[prog_type]);
+			else
+				jsonw_uint_field(json_wtr, "owner_prog_type",
+						 prog_type);
+		}
+		if (owner_jited)
+			jsonw_bool_field(json_wtr, "owner_jited",
+					 !!atoi(owner_jited));
+
+		free(owner_prog_type);
+		free(owner_jited);
+	}
+	close(fd);
+
 	if (!hash_empty(map_table.table)) {
 		struct pinned_obj *obj;
 
@@ -592,7 +544,6 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 	char *memlock;
 
 	memlock = get_fdinfo(fd, "memlock");
-	close(fd);
 
 	printf("%u: ", info->id);
 	if (info->type < ARRAY_SIZE(map_type_name))
@@ -612,6 +563,30 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 	if (memlock)
 		printf("  memlock %sB", memlock);
 	free(memlock);
+
+	if (info->type == BPF_MAP_TYPE_PROG_ARRAY) {
+		char *owner_prog_type = get_fdinfo(fd, "owner_prog_type");
+		char *owner_jited = get_fdinfo(fd, "owner_jited");
+
+		if (owner_prog_type || owner_jited)
+			printf("\n\t");
+		if (owner_prog_type) {
+			unsigned int prog_type = atoi(owner_prog_type);
+
+			if (prog_type < ARRAY_SIZE(prog_type_name))
+				printf("owner_prog_type %s  ",
+				       prog_type_name[prog_type]);
+			else
+				printf("owner_prog_type %d  ", prog_type);
+		}
+		if (owner_jited)
+			printf("owner%s jited",
+			       atoi(owner_jited) ? "" : " not");
+
+		free(owner_prog_type);
+		free(owner_jited);
+	}
+	close(fd);
 
 	printf("\n");
 	if (!hash_empty(map_table.table)) {
@@ -731,7 +706,11 @@ static int dump_map_elem(int fd, void *key, void *value,
 		jsonw_string_field(json_wtr, "error", strerror(lookup_errno));
 		jsonw_end_object(json_wtr);
 	} else {
-		print_entry_error(map_info, key, strerror(lookup_errno));
+		if (errno == ENOENT)
+			print_entry_plain(map_info, key, NULL);
+		else
+			print_entry_error(map_info, key,
+					  strerror(lookup_errno));
 	}
 
 	return 0;
@@ -765,7 +744,7 @@ static int do_dump(int argc, char **argv)
 
 	prev_key = NULL;
 
-	err = get_btf(&info, &btf);
+	err = btf__get_from_id(info.btf_id, &btf);
 	if (err) {
 		p_err("failed to get btf");
 		goto exit_free;
@@ -909,7 +888,7 @@ static int do_lookup(int argc, char **argv)
 	}
 
 	/* here means bpf_map_lookup_elem() succeeded */
-	err = get_btf(&info, &btf);
+	err = btf__get_from_id(info.btf_id, &btf);
 	if (err) {
 		p_err("failed to get btf");
 		goto exit_free;
@@ -1139,6 +1118,8 @@ static int do_create(int argc, char **argv)
 		p_err("map name not specified");
 		return -1;
 	}
+
+	set_max_rlimit();
 
 	fd = bpf_create_map_xattr(&attr);
 	if (fd < 0) {

@@ -95,7 +95,7 @@ static inline void setup_irq_channel(u32 magic, void __iomem *reg_addr)
 
 	/* Setup 64 channel slots */
 	for (i = 0; i < INTC_IRQS; i += 4)
-		writel_relaxed(build_channel_val(i, magic), reg_addr + i);
+		writel(build_channel_val(i, magic), reg_addr + i);
 }
 
 static int __init
@@ -135,16 +135,10 @@ ck_intc_init_comm(struct device_node *node, struct device_node *parent)
 static inline bool handle_irq_perbit(struct pt_regs *regs, u32 hwirq,
 				     u32 irq_base)
 {
-	u32 irq;
-
 	if (hwirq == 0)
 		return 0;
 
-	while (hwirq) {
-		irq = __ffs(hwirq);
-		hwirq &= ~BIT(irq);
-		handle_domain_irq(root_domain, irq_base + irq, regs);
-	}
+	handle_domain_irq(root_domain, irq_base + __fls(hwirq), regs);
 
 	return 1;
 }
@@ -154,12 +148,16 @@ static void gx_irq_handler(struct pt_regs *regs)
 {
 	bool ret;
 
-	do {
-		ret  = handle_irq_perbit(regs,
-				readl_relaxed(reg_base + GX_INTC_PEN31_00), 0);
-		ret |= handle_irq_perbit(regs,
-				readl_relaxed(reg_base + GX_INTC_PEN63_32), 32);
-	} while (ret);
+retry:
+	ret = handle_irq_perbit(regs,
+			readl(reg_base + GX_INTC_PEN63_32), 32);
+	if (ret)
+		goto retry;
+
+	ret = handle_irq_perbit(regs,
+			readl(reg_base + GX_INTC_PEN31_00), 0);
+	if (ret)
+		goto retry;
 }
 
 static int __init
@@ -174,14 +172,14 @@ gx_intc_init(struct device_node *node, struct device_node *parent)
 	/*
 	 * Initial enable reg to disable all interrupts
 	 */
-	writel_relaxed(0x0, reg_base + GX_INTC_NEN31_00);
-	writel_relaxed(0x0, reg_base + GX_INTC_NEN63_32);
+	writel(0x0, reg_base + GX_INTC_NEN31_00);
+	writel(0x0, reg_base + GX_INTC_NEN63_32);
 
 	/*
 	 * Initial mask reg with all unmasked, because we only use enalbe reg
 	 */
-	writel_relaxed(0x0, reg_base + GX_INTC_NMASK31_00);
-	writel_relaxed(0x0, reg_base + GX_INTC_NMASK63_32);
+	writel(0x0, reg_base + GX_INTC_NMASK31_00);
+	writel(0x0, reg_base + GX_INTC_NMASK63_32);
 
 	setup_irq_channel(0x03020100, reg_base + GX_INTC_SOURCE);
 
@@ -204,20 +202,29 @@ static void ck_irq_handler(struct pt_regs *regs)
 	void __iomem *reg_pen_lo = reg_base + CK_INTC_PEN31_00;
 	void __iomem *reg_pen_hi = reg_base + CK_INTC_PEN63_32;
 
-	do {
-		/* handle 0 - 31 irqs */
-		ret  = handle_irq_perbit(regs, readl_relaxed(reg_pen_lo), 0);
-		ret |= handle_irq_perbit(regs, readl_relaxed(reg_pen_hi), 32);
+retry:
+	/* handle 0 - 63 irqs */
+	ret = handle_irq_perbit(regs, readl(reg_pen_hi), 32);
+	if (ret)
+		goto retry;
 
-		if (nr_irq == INTC_IRQS)
-			continue;
+	ret = handle_irq_perbit(regs, readl(reg_pen_lo), 0);
+	if (ret)
+		goto retry;
 
-		/* handle 64 - 127 irqs */
-		ret |= handle_irq_perbit(regs,
-			readl_relaxed(reg_pen_lo + CK_INTC_DUAL_BASE), 64);
-		ret |= handle_irq_perbit(regs,
-			readl_relaxed(reg_pen_hi + CK_INTC_DUAL_BASE), 96);
-	} while (ret);
+	if (nr_irq == INTC_IRQS)
+		return;
+
+	/* handle 64 - 127 irqs */
+	ret = handle_irq_perbit(regs,
+			readl(reg_pen_hi + CK_INTC_DUAL_BASE), 96);
+	if (ret)
+		goto retry;
+
+	ret = handle_irq_perbit(regs,
+			readl(reg_pen_lo + CK_INTC_DUAL_BASE), 64);
+	if (ret)
+		goto retry;
 }
 
 static int __init
@@ -230,11 +237,11 @@ ck_intc_init(struct device_node *node, struct device_node *parent)
 		return ret;
 
 	/* Initial enable reg to disable all interrupts */
-	writel_relaxed(0, reg_base + CK_INTC_NEN31_00);
-	writel_relaxed(0, reg_base + CK_INTC_NEN63_32);
+	writel(0, reg_base + CK_INTC_NEN31_00);
+	writel(0, reg_base + CK_INTC_NEN63_32);
 
 	/* Enable irq intc */
-	writel_relaxed(BIT(31), reg_base + CK_INTC_ICR);
+	writel(BIT(31), reg_base + CK_INTC_ICR);
 
 	ck_set_gc(node, reg_base, CK_INTC_NEN31_00, 0);
 	ck_set_gc(node, reg_base, CK_INTC_NEN63_32, 32);
@@ -260,8 +267,8 @@ ck_dual_intc_init(struct device_node *node, struct device_node *parent)
 		return ret;
 
 	/* Initial enable reg to disable all interrupts */
-	writel_relaxed(0, reg_base + CK_INTC_NEN31_00 + CK_INTC_DUAL_BASE);
-	writel_relaxed(0, reg_base + CK_INTC_NEN63_32 + CK_INTC_DUAL_BASE);
+	writel(0, reg_base + CK_INTC_NEN31_00 + CK_INTC_DUAL_BASE);
+	writel(0, reg_base + CK_INTC_NEN63_32 + CK_INTC_DUAL_BASE);
 
 	ck_set_gc(node, reg_base + CK_INTC_DUAL_BASE, CK_INTC_NEN31_00, 64);
 	ck_set_gc(node, reg_base + CK_INTC_DUAL_BASE, CK_INTC_NEN63_32, 96);

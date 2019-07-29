@@ -26,6 +26,7 @@
 #include <asm/cputype.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_coproc.h>
+#include <asm/kvm_emulate.h>
 
 #include <kvm/arm_arch_timer.h>
 
@@ -68,6 +69,29 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 
 	/* Reset CP15 registers */
 	kvm_reset_coprocs(vcpu);
+
+	/*
+	 * Additional reset state handling that PSCI may have imposed on us.
+	 * Must be done after all the sys_reg reset.
+	 */
+	if (READ_ONCE(vcpu->arch.reset_state.reset)) {
+		unsigned long target_pc = vcpu->arch.reset_state.pc;
+
+		/* Gracefully handle Thumb2 entry point */
+		if (target_pc & 1) {
+			target_pc &= ~1UL;
+			vcpu_set_thumb(vcpu);
+		}
+
+		/* Propagate caller endianness */
+		if (vcpu->arch.reset_state.be)
+			kvm_vcpu_set_be(vcpu);
+
+		*vcpu_pc(vcpu) = target_pc;
+		vcpu_set_reg(vcpu, 0, vcpu->arch.reset_state.r0);
+
+		vcpu->arch.reset_state.reset = false;
+	}
 
 	/* Reset arch_timer context */
 	return kvm_timer_vcpu_reset(vcpu);

@@ -1393,7 +1393,7 @@ static int sunxi_nfc_hw_ecc_write_page_dma(struct nand_chip *chip,
 	sunxi_nfc_randomizer_enable(mtd);
 
 	writel((NAND_CMD_RNDIN << 8) | NAND_CMD_PAGEPROG,
-	       nfc->regs + NFC_REG_RCMD_SET);
+	       nfc->regs + NFC_REG_WCMD_SET);
 
 	dma_async_issue_pending(nfc->dmac);
 
@@ -1847,6 +1847,7 @@ static int sunxi_nand_attach_chip(struct nand_chip *nand)
 
 static const struct nand_controller_ops sunxi_nand_controller_ops = {
 	.attach_chip = sunxi_nand_attach_chip,
+	.setup_data_interface = sunxi_nfc_setup_data_interface,
 };
 
 static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
@@ -1922,12 +1923,11 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 	 */
 	nand->ecc.mode = NAND_ECC_HW;
 	nand_set_flash_node(nand, np);
-	nand->select_chip = sunxi_nfc_select_chip;
+	nand->legacy.select_chip = sunxi_nfc_select_chip;
 	nand->legacy.cmd_ctrl = sunxi_nfc_cmd_ctrl;
 	nand->legacy.read_buf = sunxi_nfc_read_buf;
 	nand->legacy.write_buf = sunxi_nfc_write_buf;
 	nand->legacy.read_byte = sunxi_nfc_read_byte;
-	nand->setup_data_interface = sunxi_nfc_setup_data_interface;
 
 	mtd = nand_to_mtd(nand);
 	mtd->dev.parent = dev;

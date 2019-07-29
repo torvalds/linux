@@ -223,7 +223,6 @@ int dma_alloc_from_dev_coherent(struct device *dev, ssize_t size,
 	 */
 	return mem->flags & DMA_MEMORY_EXCLUSIVE;
 }
-EXPORT_SYMBOL(dma_alloc_from_dev_coherent);
 
 void *dma_alloc_from_global_coherent(ssize_t size, dma_addr_t *dma_handle)
 {
@@ -268,7 +267,6 @@ int dma_release_from_dev_coherent(struct device *dev, int order, void *vaddr)
 
 	return __dma_release_from_coherent(mem, order, vaddr);
 }
-EXPORT_SYMBOL(dma_release_from_dev_coherent);
 
 int dma_release_from_global_coherent(int order, void *vaddr)
 {

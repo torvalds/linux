@@ -425,7 +425,8 @@ static void qusb2_phy_set_tune2_param(struct qusb2_phy *qphy)
 				 HSTX_TRIM_MASK);
 }
 
-static int qusb2_phy_set_mode(struct phy *phy, enum phy_mode mode)
+static int qusb2_phy_set_mode(struct phy *phy,
+			      enum phy_mode mode, int submode)
 {
 	struct qusb2_phy *qphy = phy_get_drvdata(phy);
 

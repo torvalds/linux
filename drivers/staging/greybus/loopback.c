@@ -47,8 +47,6 @@ struct gb_loopback_device {
 
 	/* We need to take a lock in atomic context */
 	spinlock_t lock;
-	struct list_head list;
-	struct list_head list_op_async;
 	wait_queue_head_t wq;
 };
 
@@ -68,7 +66,6 @@ struct gb_loopback {
 	struct kfifo kfifo_lat;
 	struct mutex mutex;
 	struct task_struct *task;
-	struct list_head entry;
 	struct device *dev;
 	wait_queue_head_t wq;
 	wait_queue_head_t wq_completion;
@@ -144,7 +141,7 @@ static ssize_t name##_##field##_show(struct device *dev,	\
 	/* Report 0 for min and max if no transfer successed */		\
 	if (!gb->requests_completed)					\
 		return sprintf(buf, "0\n");				\
-	return sprintf(buf, "%"#type"\n", gb->name.field);	\
+	return sprintf(buf, "%" #type "\n", gb->name.field);		\
 }									\
 static DEVICE_ATTR_RO(name##_##field)
 
@@ -179,7 +176,7 @@ static ssize_t field##_show(struct device *dev,				\
 			    char *buf)					\
 {									\
 	struct gb_loopback *gb = dev_get_drvdata(dev);			\
-	return sprintf(buf, "%"#type"\n", gb->field);			\
+	return sprintf(buf, "%" #type "\n", gb->field);			\
 }									\
 static ssize_t field##_store(struct device *dev,			\
 			    struct device_attribute *attr,		\
@@ -215,7 +212,7 @@ static ssize_t field##_show(struct device *dev,				\
 			    char *buf)					\
 {									\
 	struct gb_loopback *gb = dev_get_drvdata(dev);			\
-	return sprintf(buf, "%"#type"\n", gb->field);			\
+	return sprintf(buf, "%" #type "\n", gb->field);			\
 }									\
 static ssize_t field##_store(struct device *dev,			\
 			    struct device_attribute *attr,		\
@@ -973,50 +970,7 @@ static int gb_loopback_dbgfs_latency_show(struct seq_file *s, void *unused)
 	return gb_loopback_dbgfs_latency_show_common(s, &gb->kfifo_lat,
 						     &gb->mutex);
 }
-
-static int gb_loopback_latency_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, gb_loopback_dbgfs_latency_show,
-			   inode->i_private);
-}
-
-static const struct file_operations gb_loopback_debugfs_latency_ops = {
-	.open		= gb_loopback_latency_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int gb_loopback_bus_id_compare(void *priv, struct list_head *lha,
-				      struct list_head *lhb)
-{
-	struct gb_loopback *a = list_entry(lha, struct gb_loopback, entry);
-	struct gb_loopback *b = list_entry(lhb, struct gb_loopback, entry);
-	struct gb_connection *ca = a->connection;
-	struct gb_connection *cb = b->connection;
-
-	if (ca->bundle->intf->interface_id < cb->bundle->intf->interface_id)
-		return -1;
-	if (cb->bundle->intf->interface_id < ca->bundle->intf->interface_id)
-		return 1;
-	if (ca->bundle->id < cb->bundle->id)
-		return -1;
-	if (cb->bundle->id < ca->bundle->id)
-		return 1;
-	if (ca->intf_cport_id < cb->intf_cport_id)
-		return -1;
-	else if (cb->intf_cport_id < ca->intf_cport_id)
-		return 1;
-
-	return 0;
-}
-
-static void gb_loopback_insert_id(struct gb_loopback *gb)
-{
-	/* perform an insertion sort */
-	list_add_tail(&gb->entry, &gb_dev.list);
-	list_sort(NULL, &gb_dev.list, gb_loopback_bus_id_compare);
-}
+DEFINE_SHOW_ATTRIBUTE(gb_loopback_dbgfs_latency);
 
 #define DEBUGFS_NAMELEN 32
 
@@ -1076,7 +1030,7 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 	snprintf(name, sizeof(name), "raw_latency_%s",
 		 dev_name(&connection->bundle->dev));
 	gb->file = debugfs_create_file(name, S_IFREG | 0444, gb_dev.root, gb,
-				       &gb_loopback_debugfs_latency_ops);
+				       &gb_loopback_dbgfs_latency_fops);
 
 	gb->id = ida_simple_get(&loopback_ida, 0, 0, GFP_KERNEL);
 	if (gb->id < 0) {
@@ -1113,7 +1067,6 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 	}
 
 	spin_lock_irqsave(&gb_dev.lock, flags);
-	gb_loopback_insert_id(gb);
 	gb_dev.count++;
 	spin_unlock_irqrestore(&gb_dev.lock, flags);
 
@@ -1169,7 +1122,6 @@ static void gb_loopback_disconnect(struct gb_bundle *bundle)
 
 	spin_lock_irqsave(&gb_dev.lock, flags);
 	gb_dev.count--;
-	list_del(&gb->entry);
 	spin_unlock_irqrestore(&gb_dev.lock, flags);
 
 	device_unregister(gb->dev);
@@ -1196,8 +1148,6 @@ static int loopback_init(void)
 {
 	int retval;
 
-	INIT_LIST_HEAD(&gb_dev.list);
-	INIT_LIST_HEAD(&gb_dev.list_op_async);
 	spin_lock_init(&gb_dev.lock);
 	gb_dev.root = debugfs_create_dir("gb_loopback", NULL);
 

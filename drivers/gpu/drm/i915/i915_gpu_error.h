@@ -192,6 +192,8 @@ struct i915_gpu_state {
 	} *active_bo[I915_NUM_ENGINES], *pinned_bo;
 	u32 active_bo_count[I915_NUM_ENGINES], pinned_bo_count;
 	struct i915_address_space *active_vm[I915_NUM_ENGINES];
+
+	struct scatterlist *sgl, *fit;
 };
 
 struct i915_gpu_error {
@@ -298,29 +300,20 @@ struct i915_gpu_error {
 
 struct drm_i915_error_state_buf {
 	struct drm_i915_private *i915;
-	unsigned int bytes;
-	unsigned int size;
+	struct scatterlist *sgl, *cur, *end;
+
+	char *buf;
+	size_t bytes;
+	size_t size;
+	loff_t iter;
+
 	int err;
-	u8 *buf;
-	loff_t start;
-	loff_t pos;
 };
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 
 __printf(2, 3)
 void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...);
-int i915_error_state_to_str(struct drm_i915_error_state_buf *estr,
-			    const struct i915_gpu_state *gpu);
-int i915_error_state_buf_init(struct drm_i915_error_state_buf *eb,
-			      struct drm_i915_private *i915,
-			      size_t count, loff_t pos);
-
-static inline void
-i915_error_state_buf_release(struct drm_i915_error_state_buf *eb)
-{
-	kfree(eb->buf);
-}
 
 struct i915_gpu_state *i915_capture_gpu_state(struct drm_i915_private *i915);
 void i915_capture_error_state(struct drm_i915_private *dev_priv,
@@ -333,6 +326,9 @@ i915_gpu_state_get(struct i915_gpu_state *gpu)
 	kref_get(&gpu->ref);
 	return gpu;
 }
+
+ssize_t i915_gpu_state_copy_to_buffer(struct i915_gpu_state *error,
+				      char *buf, loff_t offset, size_t count);
 
 void __i915_gpu_state_free(struct kref *kref);
 static inline void i915_gpu_state_put(struct i915_gpu_state *gpu)

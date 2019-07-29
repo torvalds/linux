@@ -10,13 +10,13 @@ git clone https://github.com/freedreno/envytools.git
 The rules-ng-ng source files this header was generated from are:
 - /home/robclark/src/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-03 19:37:13)
 - /home/robclark/src/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  36805 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  13634 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  42585 bytes, from 2018-10-04 19:06:37)
+- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  42463 bytes, from 2018-11-19 13:44:03)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  14201 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  43052 bytes, from 2018-12-02 17:29:54)
 - /home/robclark/src/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-03 19:37:13)
 - /home/robclark/src/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-10-04 19:06:37)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 139581 bytes, from 2018-10-04 19:06:42)
+- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 140790 bytes, from 2018-12-02 17:29:54)
 - /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-09-14 13:03:07)
 - /home/robclark/src/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-03 19:37:13)
 
@@ -339,6 +339,15 @@ static inline uint32_t AXXX_SCRATCH_UMSK_SWAP(uint32_t val)
 #define REG_AXXX_CP_STATE_DEBUG_DATA				0x000001ed
 
 #define REG_AXXX_CP_INT_CNTL					0x000001f2
+#define AXXX_CP_INT_CNTL_SW_INT_MASK				0x00080000
+#define AXXX_CP_INT_CNTL_T0_PACKET_IN_IB_MASK			0x00800000
+#define AXXX_CP_INT_CNTL_OPCODE_ERROR_MASK			0x01000000
+#define AXXX_CP_INT_CNTL_PROTECTED_MODE_ERROR_MASK		0x02000000
+#define AXXX_CP_INT_CNTL_RESERVED_BIT_ERROR_MASK		0x04000000
+#define AXXX_CP_INT_CNTL_IB_ERROR_MASK				0x08000000
+#define AXXX_CP_INT_CNTL_IB2_INT_MASK				0x20000000
+#define AXXX_CP_INT_CNTL_IB1_INT_MASK				0x40000000
+#define AXXX_CP_INT_CNTL_RB_INT_MASK				0x80000000
 
 #define REG_AXXX_CP_INT_STATUS					0x000001f3
 

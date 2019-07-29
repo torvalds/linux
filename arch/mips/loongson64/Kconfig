@@ -15,7 +15,7 @@ config LEMOTE_FULOONG2E
 	select DMA_NONCOHERENT
 	select BOOT_ELF32
 	select BOARD_SCACHE
-	select HW_HAS_PCI
+	select HAVE_PCI
 	select I8259
 	select ISA
 	select IRQ_MIPS_CPU
@@ -46,7 +46,7 @@ config LEMOTE_MACH2F
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select HAVE_CLK
-	select HW_HAS_PCI
+	select HAVE_PCI
 	select I8259
 	select IRQ_MIPS_CPU
 	select ISA
@@ -74,9 +74,8 @@ config LOONGSON_MACH3X
 	select CSRC_R4K
 	select CEVT_R4K
 	select CPU_HAS_WB
-	select HW_HAS_PCI
+	select FORCE_PCI
 	select ISA
-	select HT_PCI
 	select I8259
 	select IRQ_MIPS_CPU
 	select NR_CPUS_DEFAULT_4

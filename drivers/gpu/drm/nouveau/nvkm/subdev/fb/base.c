@@ -68,10 +68,13 @@ nvkm_fb_bios_memtype(struct nvkm_bios *bios)
 
 	if (nvbios_M0203Em(bios, ramcfg, &ver, &hdr, &M0203E)) {
 		switch (M0203E.type) {
-		case M0203E_TYPE_DDR2 : return NVKM_RAM_TYPE_DDR2;
-		case M0203E_TYPE_DDR3 : return NVKM_RAM_TYPE_DDR3;
-		case M0203E_TYPE_GDDR3: return NVKM_RAM_TYPE_GDDR3;
-		case M0203E_TYPE_GDDR5: return NVKM_RAM_TYPE_GDDR5;
+		case M0203E_TYPE_DDR2  : return NVKM_RAM_TYPE_DDR2;
+		case M0203E_TYPE_DDR3  : return NVKM_RAM_TYPE_DDR3;
+		case M0203E_TYPE_GDDR3 : return NVKM_RAM_TYPE_GDDR3;
+		case M0203E_TYPE_GDDR5 : return NVKM_RAM_TYPE_GDDR5;
+		case M0203E_TYPE_GDDR5X: return NVKM_RAM_TYPE_GDDR5X;
+		case M0203E_TYPE_GDDR6 : return NVKM_RAM_TYPE_GDDR6;
+		case M0203E_TYPE_HBM2  : return NVKM_RAM_TYPE_HBM2;
 		default:
 			nvkm_warn(subdev, "M0203E type %02x\n", M0203E.type);
 			return NVKM_RAM_TYPE_UNKNOWN;

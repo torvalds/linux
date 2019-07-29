@@ -4,7 +4,7 @@
 
 menu "Security options"
 
-source security/keys/Kconfig
+source "security/keys/Kconfig"
 
 config SECURITY_DMESG_RESTRICT
 	bool "Restrict unprivileged access to the kernel syslog"
@@ -230,14 +230,14 @@ config STATIC_USERMODEHELPER_PATH
 	  If you wish for all usermode helper programs to be disabled,
 	  specify an empty string here (i.e. "").
 
-source security/selinux/Kconfig
-source security/smack/Kconfig
-source security/tomoyo/Kconfig
-source security/apparmor/Kconfig
-source security/loadpin/Kconfig
-source security/yama/Kconfig
+source "security/selinux/Kconfig"
+source "security/smack/Kconfig"
+source "security/tomoyo/Kconfig"
+source "security/apparmor/Kconfig"
+source "security/loadpin/Kconfig"
+source "security/yama/Kconfig"
 
-source security/integrity/Kconfig
+source "security/integrity/Kconfig"
 
 choice
 	prompt "Default security module"

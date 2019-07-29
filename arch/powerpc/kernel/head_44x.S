@@ -40,6 +40,7 @@
 #include <asm/ptrace.h>
 #include <asm/synch.h>
 #include <asm/export.h>
+#include <asm/code-patching-asm.h>
 #include "head_booke.h"
 
 
@@ -382,10 +383,9 @@ interrupt_base:
 	/* Increment, rollover, and store TLB index */
 	addi	r13,r13,1
 
+	patch_site 0f, patch__tlb_44x_hwater_D
 	/* Compare with watermark (instruction gets patched) */
-	.globl tlb_44x_patch_hwater_D
-tlb_44x_patch_hwater_D:
-	cmpwi	0,r13,1			/* reserve entries */
+0:	cmpwi	0,r13,1			/* reserve entries */
 	ble	5f
 	li	r13,0
 5:
@@ -478,10 +478,9 @@ tlb_44x_patch_hwater_D:
 	/* Increment, rollover, and store TLB index */
 	addi	r13,r13,1
 
+	patch_site 0f, patch__tlb_44x_hwater_I
 	/* Compare with watermark (instruction gets patched) */
-	.globl tlb_44x_patch_hwater_I
-tlb_44x_patch_hwater_I:
-	cmpwi	0,r13,1			/* reserve entries */
+0:	cmpwi	0,r13,1			/* reserve entries */
 	ble	5f
 	li	r13,0
 5:

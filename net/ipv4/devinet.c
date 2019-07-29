@@ -1101,7 +1101,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr)
 				inet_del_ifa(in_dev, ifap, 1);
 			break;
 		}
-		ret = dev_change_flags(dev, ifr->ifr_flags);
+		ret = dev_change_flags(dev, ifr->ifr_flags, NULL);
 		break;
 
 	case SIOCSIFADDR:	/* Set interface address (and family) */
@@ -1826,7 +1826,7 @@ put_tgt_net:
 	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 
-	return err < 0 ? err : skb->len;
+	return skb->len ? : err;
 }
 
 static void rtmsg_ifa(int event, struct in_ifaddr *ifa, struct nlmsghdr *nlh,

@@ -338,6 +338,7 @@ struct vc4_plane_state {
 	u32 pos0_offset;
 	u32 pos2_offset;
 	u32 ptr0_offset;
+	u32 lbm_offset;
 
 	/* Offset where the plane's dlist was last stored in the
 	 * hardware at vc4_crtc_atomic_flush() time.
@@ -369,6 +370,11 @@ struct vc4_plane_state {
 	 * to enable background color fill.
 	 */
 	bool needs_bg_fill;
+
+	/* Mark the dlist as initialized. Useful to avoid initializing it twice
+	 * when async update is not possible.
+	 */
+	bool dlist_initialized;
 };
 
 static inline struct vc4_plane_state *

@@ -30,6 +30,7 @@ config VIDEO_FIXED_MINOR_RANGES
 config VIDEO_PCI_SKELETON
 	tristate "Skeleton PCI V4L2 driver"
 	depends on PCI
+	depends on SAMPLES
 	depends on VIDEO_V4L2 && VIDEOBUF2_CORE
 	depends on VIDEOBUF2_MEMOPS && VIDEOBUF2_DMA_CONTIG
 	---help---

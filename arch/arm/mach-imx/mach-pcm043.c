@@ -20,6 +20,7 @@
 #include <linux/mtd/plat-ram.h>
 #include <linux/memory.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/smc911x.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -214,8 +215,6 @@ static const iomux_v3_cfg_t pcm043_pads[] __initconst = {
 #define AC97_GPIO_TXFS	IMX_GPIO_NR(2, 31)
 #define AC97_GPIO_TXD	IMX_GPIO_NR(2, 28)
 #define AC97_GPIO_RESET	IMX_GPIO_NR(2, 0)
-#define SD1_GPIO_WP	IMX_GPIO_NR(2, 23)
-#define SD1_GPIO_CD	IMX_GPIO_NR(2, 24)
 
 static void pcm043_ac97_warm_reset(struct snd_ac97 *ac97)
 {
@@ -341,10 +340,19 @@ static int __init pcm043_otg_mode(char *options)
 __setup("otg_mode=", pcm043_otg_mode);
 
 static struct esdhc_platform_data sd1_pdata = {
-	.wp_gpio = SD1_GPIO_WP,
-	.cd_gpio = SD1_GPIO_CD,
 	.wp_type = ESDHC_WP_GPIO,
 	.cd_type = ESDHC_CD_GPIO,
+};
+
+static struct gpiod_lookup_table sd1_gpio_table = {
+	.dev_id = "sdhci-esdhc-imx35.0",
+	.table = {
+		/* Card detect: bank 2 offset 24 */
+		GPIO_LOOKUP("imx35-gpio.2", 24, "cd", GPIO_ACTIVE_LOW),
+		/* Write protect: bank 2 offset 23 */
+		GPIO_LOOKUP("imx35-gpio.2", 23, "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 /*
@@ -391,6 +399,7 @@ static void __init pcm043_late_init(void)
 {
 	imx35_add_imx_ssi(0, &pcm043_ssi_pdata);
 
+	gpiod_add_lookup_table(&sd1_gpio_table);
 	imx35_add_sdhci_esdhc_imx(0, &sd1_pdata);
 }
 

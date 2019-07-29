@@ -8,9 +8,7 @@ kallsyms.exe
 pnmtologo
 unifdef
 unifdef.exe
-ihex2fw
 recordmcount
-check-lc_ctype
 sortextable
 asn1_compiler
 extract-cert

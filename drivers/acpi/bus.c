@@ -1029,6 +1029,9 @@ void __init acpi_early_init(void)
 
 	acpi_permanent_mmap = true;
 
+	/* Initialize debug output. Linux does not use ACPICA defaults */
+	acpi_dbg_level = ACPI_LV_INFO | ACPI_LV_REPAIR;
+
 #ifdef CONFIG_X86
 	/*
 	 * If the machine falls into the DMI check table,
@@ -1053,18 +1056,6 @@ void __init acpi_early_init(void)
 		       "Unable to initialize the ACPI Interpreter\n");
 		goto error0;
 	}
-
-	/*
-	 * ACPI 2.0 requires the EC driver to be loaded and work before
-	 * the EC device is found in the namespace (i.e. before
-	 * acpi_load_tables() is called).
-	 *
-	 * This is accomplished by looking for the ECDT table, and getting
-	 * the EC parameters out of that.
-	 *
-	 * Ignore the result. Not having an ECDT is not fatal.
-	 */
-	status = acpi_ec_ecdt_probe();
 
 #ifdef CONFIG_X86
 	if (!acpi_ioapic) {
@@ -1141,6 +1132,18 @@ static int __init acpi_bus_init(void)
 		       "Unable to load the System Description Tables\n");
 		goto error1;
 	}
+
+	/*
+	 * ACPI 2.0 requires the EC driver to be loaded and work before the EC
+	 * device is found in the namespace.
+	 *
+	 * This is accomplished by looking for the ECDT table and getting the EC
+	 * parameters out of that.
+	 *
+	 * Do that before calling acpi_initialize_objects() which may trigger EC
+	 * address space accesses.
+	 */
+	acpi_ec_ecdt_probe();
 
 	status = acpi_enable_subsystem(ACPI_NO_ACPI_ENABLE);
 	if (ACPI_FAILURE(status)) {
@@ -1237,7 +1240,6 @@ static int __init acpi_init(void)
 		acpi_kobj = NULL;
 	}
 
-	init_acpi_device_notify();
 	result = acpi_bus_init();
 	if (result) {
 		disable_acpi();

@@ -526,11 +526,6 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 	int ext_active_speed;
 	int err = -ENOMEM;
 
-	if (port < 1 || port > dev->num_ports) {
-		mlx5_ib_warn(dev, "invalid port number %d\n", port);
-		return -EINVAL;
-	}
-
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
 	if (!in_mad || !out_mad)
@@ -568,6 +563,14 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 	props->max_vl_num	= out_mad->data[37] >> 4;
 	props->init_type_reply	= out_mad->data[41] >> 4;
 
+	if (props->port_cap_flags & IB_PORT_CAP_MASK2_SUP) {
+		props->port_cap_flags2 =
+			be16_to_cpup((__be16 *)(out_mad->data + 60));
+
+		if (props->port_cap_flags2 & IB_PORT_LINK_WIDTH_2X_SUP)
+			props->active_width = out_mad->data[31] & 0x1f;
+	}
+
 	/* Check if extended speeds (EDR/FDR/...) are supported */
 	if (props->port_cap_flags & IB_PORT_EXTENDED_SPEEDS_SUP) {
 		ext_active_speed = out_mad->data[62] >> 4;
@@ -578,6 +581,11 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 			break;
 		case 2:
 			props->active_speed = 32; /* EDR */
+			break;
+		case 4:
+			if (props->port_cap_flags & IB_PORT_CAP_MASK2_SUP &&
+			    props->port_cap_flags2 & IB_PORT_LINK_SPEED_HDR_SUP)
+				props->active_speed = IB_SPEED_HDR;
 			break;
 		}
 	}

@@ -23,19 +23,15 @@ static inline struct scsi_cmnd *scsi_host_find_tag(struct Scsi_Host *shost,
 		int tag)
 {
 	struct request *req = NULL;
+	u16 hwq;
 
 	if (tag == SCSI_NO_TAG)
 		return NULL;
 
-	if (shost_use_blk_mq(shost)) {
-		u16 hwq = blk_mq_unique_tag_to_hwq(tag);
-
-		if (hwq < shost->tag_set.nr_hw_queues) {
-			req = blk_mq_tag_to_rq(shost->tag_set.tags[hwq],
-				blk_mq_unique_tag_to_tag(tag));
-		}
-	} else {
-		req = blk_map_queue_find_tag(shost->bqt, tag);
+	hwq = blk_mq_unique_tag_to_hwq(tag);
+	if (hwq < shost->tag_set.nr_hw_queues) {
+		req = blk_mq_tag_to_rq(shost->tag_set.tags[hwq],
+					blk_mq_unique_tag_to_tag(tag));
 	}
 
 	if (!req)

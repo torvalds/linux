@@ -30,16 +30,10 @@ static LIST_HEAD(dpu_hw_blk_list);
  * @type: hw block type - enum dpu_hw_blk_type
  * @id: instance id of the hw block
  * @ops: Pointer to block operations
- * return: 0 if success; error code otherwise
  */
-int dpu_hw_blk_init(struct dpu_hw_blk *hw_blk, u32 type, int id,
+void dpu_hw_blk_init(struct dpu_hw_blk *hw_blk, u32 type, int id,
 		struct dpu_hw_blk_ops *ops)
 {
-	if (!hw_blk) {
-		pr_err("invalid parameters\n");
-		return -EINVAL;
-	}
-
 	INIT_LIST_HEAD(&hw_blk->list);
 	hw_blk->type = type;
 	hw_blk->id = id;
@@ -51,8 +45,6 @@ int dpu_hw_blk_init(struct dpu_hw_blk *hw_blk, u32 type, int id,
 	mutex_lock(&dpu_hw_blk_lock);
 	list_add(&hw_blk->list, &dpu_hw_blk_list);
 	mutex_unlock(&dpu_hw_blk_lock);
-
-	return 0;
 }
 
 /**

@@ -5,22 +5,11 @@
 #define _IGC_H_
 
 #include <linux/kobject.h>
-
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
-
 #include <linux/ethtool.h>
-
 #include <linux/sctp.h>
-
-#define IGC_ERR(args...) pr_err("igc: " args)
-
-#define PFX "igc: "
-
-#include <linux/timecounter.h>
-#include <linux/net_tstamp.h>
-#include <linux/ptp_clock_kernel.h>
 
 #include "igc_hw.h"
 

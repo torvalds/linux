@@ -3033,7 +3033,7 @@ static int nes_disconnect(struct nes_qp *nesqp, int abrupt)
 		/* Need to free the Last Streaming Mode Message */
 		if (nesqp->ietf_frame) {
 			if (nesqp->lsmm_mr)
-				nesibdev->ibdev.dereg_mr(nesqp->lsmm_mr);
+				nesibdev->ibdev.ops.dereg_mr(nesqp->lsmm_mr);
 			pci_free_consistent(nesdev->pcidev,
 					    nesqp->private_data_len + nesqp->ietf_frame_size,
 					    nesqp->ietf_frame, nesqp->ietf_frame_pbase);

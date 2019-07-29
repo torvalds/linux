@@ -479,6 +479,21 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 				  "Completed one call to walk loop, %s State=%p\n",
 				  acpi_format_exception(status), walk_state));
 
+		if (walk_state->method_pathname && walk_state->method_is_nested) {
+
+			/* Optional object evaluation log */
+
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+					      "%-26s:  %*s%s\n",
+					      "   Exit nested method",
+					      (walk_state->
+					       method_nesting_depth + 1) * 3,
+					      " ",
+					      &walk_state->method_pathname[1]));
+
+			ACPI_FREE(walk_state->method_pathname);
+			walk_state->method_is_nested = FALSE;
+		}
 		if (status == AE_CTRL_TRANSFER) {
 			/*
 			 * A method call was detected.

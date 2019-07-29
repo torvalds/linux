@@ -346,7 +346,6 @@ static struct phy_driver microchip_phy_driver[] = {
 	.name		= "Microchip LAN88xx",
 
 	.features	= PHY_GBIT_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
 
 	.probe		= lan88xx_probe,
 	.remove		= lan88xx_remove,

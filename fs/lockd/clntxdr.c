@@ -125,24 +125,14 @@ static void encode_netobj(struct xdr_stream *xdr,
 static int decode_netobj(struct xdr_stream *xdr,
 			 struct xdr_netobj *obj)
 {
-	u32 length;
-	__be32 *p;
+	ssize_t ret;
 
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(p == NULL))
-		goto out_overflow;
-	length = be32_to_cpup(p++);
-	if (unlikely(length > XDR_MAX_NETOBJ))
-		goto out_size;
-	obj->len = length;
-	obj->data = (u8 *)p;
+	ret = xdr_stream_decode_opaque_inline(xdr, (void *)&obj->data,
+			XDR_MAX_NETOBJ);
+	if (unlikely(ret < 0))
+		return -EIO;
+	obj->len = ret;
 	return 0;
-out_size:
-	dprintk("NFS: returned netobj was too long: %u\n", length);
-	return -EIO;
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
 }
 
 /*

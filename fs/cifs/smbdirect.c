@@ -1724,7 +1724,7 @@ static struct smbd_connection *_smbd_get_connection(
 		info->responder_resources);
 
 	/* Need to send IRD/ORD in private data for iWARP */
-	info->id->device->get_port_immutable(
+	info->id->device->ops.get_port_immutable(
 		info->id->device, info->id->port_num, &port_immutable);
 	if (port_immutable.core_cap_flags & RDMA_CORE_PORT_IWARP) {
 		ird_ord_hdr[0] = info->responder_resources;

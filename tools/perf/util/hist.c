@@ -1160,7 +1160,7 @@ void hist_entry__delete(struct hist_entry *he)
 
 /*
  * If this is not the last column, then we need to pad it according to the
- * pre-calculated max lenght for this column, otherwise don't bother adding
+ * pre-calculated max length for this column, otherwise don't bother adding
  * spaces because that would break viewing this with, for instance, 'less',
  * that would show tons of trailing spaces when a long C++ demangled method
  * names is sampled.

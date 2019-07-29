@@ -99,7 +99,7 @@ static int wil_sring_alloc(struct wil6210_priv *wil,
 	/* Status messages are allocated and initialized to 0. This is necessary
 	 * since DR bit should be initialized to 0.
 	 */
-	sring->va = dma_zalloc_coherent(dev, sz, &sring->pa, GFP_KERNEL);
+	sring->va = dma_alloc_coherent(dev, sz, &sring->pa, GFP_KERNEL);
 	if (!sring->va)
 		return -ENOMEM;
 
@@ -160,7 +160,7 @@ static int wil_ring_alloc_skb_edma(struct wil6210_priv *wil,
 				   struct wil_ring *ring, u32 i)
 {
 	struct device *dev = wil_to_dev(wil);
-	unsigned int sz = ALIGN(wil->rx_buf_len, 4);
+	unsigned int sz = wil->rx_buf_len;
 	dma_addr_t pa;
 	u16 buff_id;
 	struct list_head *active = &wil->rx_buff_mgmt.active;
@@ -234,9 +234,10 @@ static int wil_rx_refill_edma(struct wil6210_priv *wil)
 	struct wil_ring *ring = &wil->ring_rx;
 	u32 next_head;
 	int rc = 0;
-	u32 swtail = *ring->edma_rx_swtail.va;
+	ring->swtail = *ring->edma_rx_swtail.va;
 
-	for (; next_head = wil_ring_next_head(ring), (next_head != swtail);
+	for (; next_head = wil_ring_next_head(ring),
+	     (next_head != ring->swtail);
 	     ring->swhead = next_head) {
 		rc = wil_ring_alloc_skb_edma(wil, ring, ring->swhead);
 		if (unlikely(rc)) {
@@ -264,43 +265,26 @@ static void wil_move_all_rx_buff_to_free_list(struct wil6210_priv *wil,
 					      struct wil_ring *ring)
 {
 	struct device *dev = wil_to_dev(wil);
-	u32 next_tail;
-	u32 swhead = (ring->swhead + 1) % ring->size;
+	struct list_head *active = &wil->rx_buff_mgmt.active;
 	dma_addr_t pa;
-	u16 dmalen;
 
-	for (; next_tail = wil_ring_next_tail(ring), (next_tail != swhead);
-	     ring->swtail = next_tail) {
-		struct wil_rx_enhanced_desc dd, *d = &dd;
-		struct wil_rx_enhanced_desc *_d =
-			(struct wil_rx_enhanced_desc *)
-			&ring->va[ring->swtail].rx.enhanced;
-		struct sk_buff *skb;
-		u16 buff_id;
+	while (!list_empty(active)) {
+		struct wil_rx_buff *rx_buff =
+			list_first_entry(active, struct wil_rx_buff, list);
+		struct sk_buff *skb = rx_buff->skb;
 
-		*d = *_d;
-
-		/* Extract the SKB from the rx_buff management array */
-		buff_id = __le16_to_cpu(d->mac.buff_id);
-		if (buff_id >= wil->rx_buff_mgmt.size) {
-			wil_err(wil, "invalid buff_id %d\n", buff_id);
-			continue;
-		}
-		skb = wil->rx_buff_mgmt.buff_arr[buff_id].skb;
-		wil->rx_buff_mgmt.buff_arr[buff_id].skb = NULL;
 		if (unlikely(!skb)) {
-			wil_err(wil, "No Rx skb at buff_id %d\n", buff_id);
+			wil_err(wil, "No Rx skb at buff_id %d\n", rx_buff->id);
 		} else {
-			pa = wil_rx_desc_get_addr_edma(&d->dma);
-			dmalen = le16_to_cpu(d->dma.length);
-			dma_unmap_single(dev, pa, dmalen, DMA_FROM_DEVICE);
-
+			rx_buff->skb = NULL;
+			memcpy(&pa, skb->cb, sizeof(pa));
+			dma_unmap_single(dev, pa, wil->rx_buf_len,
+					 DMA_FROM_DEVICE);
 			kfree_skb(skb);
 		}
 
 		/* Move the buffer from the active to the free list */
-		list_move(&wil->rx_buff_mgmt.buff_arr[buff_id].list,
-			  &wil->rx_buff_mgmt.free);
+		list_move(&rx_buff->list, &wil->rx_buff_mgmt.free);
 	}
 }
 
@@ -357,8 +341,8 @@ static int wil_init_rx_sring(struct wil6210_priv *wil,
 	struct wil_status_ring *sring = &wil->srings[ring_id];
 	int rc;
 
-	wil_dbg_misc(wil, "init RX sring: size=%u, ring_id=%u\n", sring->size,
-		     ring_id);
+	wil_dbg_misc(wil, "init RX sring: size=%u, ring_id=%u\n",
+		     status_ring_size, ring_id);
 
 	memset(&sring->rx_data, 0, sizeof(sring->rx_data));
 
@@ -397,15 +381,15 @@ static int wil_ring_alloc_desc_ring(struct wil6210_priv *wil,
 	if (!ring->ctx)
 		goto err;
 
-	ring->va = dma_zalloc_coherent(dev, sz, &ring->pa, GFP_KERNEL);
+	ring->va = dma_alloc_coherent(dev, sz, &ring->pa, GFP_KERNEL);
 	if (!ring->va)
 		goto err_free_ctx;
 
 	if (ring->is_rx) {
 		sz = sizeof(*ring->edma_rx_swtail.va);
 		ring->edma_rx_swtail.va =
-			dma_zalloc_coherent(dev, sz, &ring->edma_rx_swtail.pa,
-					    GFP_KERNEL);
+			dma_alloc_coherent(dev, sz, &ring->edma_rx_swtail.pa,
+					   GFP_KERNEL);
 		if (!ring->edma_rx_swtail.va)
 			goto err_free_va;
 	}
@@ -602,20 +586,20 @@ static bool wil_is_rx_idle_edma(struct wil6210_priv *wil)
 
 static void wil_rx_buf_len_init_edma(struct wil6210_priv *wil)
 {
+	/* RX buffer size must be aligned to 4 bytes */
 	wil->rx_buf_len = rx_large_buf ?
 		WIL_MAX_ETH_MTU : WIL_EDMA_RX_BUF_LEN_DEFAULT;
 }
 
-static int wil_rx_init_edma(struct wil6210_priv *wil, u16 desc_ring_size)
+static int wil_rx_init_edma(struct wil6210_priv *wil, uint desc_ring_order)
 {
-	u16 status_ring_size;
+	u16 status_ring_size, desc_ring_size = 1 << desc_ring_order;
 	struct wil_ring *ring = &wil->ring_rx;
 	int rc;
 	size_t elem_size = wil->use_compressed_rx_status ?
 		sizeof(struct wil_rx_status_compressed) :
 		sizeof(struct wil_rx_status_extended);
 	int i;
-	u16 max_rx_pl_per_desc;
 
 	/* In SW reorder one must use extended status messages */
 	if (wil->use_compressed_rx_status && !wil->use_rx_hw_reordering) {
@@ -623,7 +607,12 @@ static int wil_rx_init_edma(struct wil6210_priv *wil, u16 desc_ring_size)
 			"compressed RX status cannot be used with SW reorder\n");
 		return -EINVAL;
 	}
-
+	if (wil->rx_status_ring_order <= desc_ring_order)
+		/* make sure sring is larger than desc ring */
+		wil->rx_status_ring_order = desc_ring_order + 1;
+	if (wil->rx_buff_id_count <= desc_ring_size)
+		/* make sure we will not run out of buff_ids */
+		wil->rx_buff_id_count = desc_ring_size + 512;
 	if (wil->rx_status_ring_order < WIL_SRING_SIZE_ORDER_MIN ||
 	    wil->rx_status_ring_order > WIL_SRING_SIZE_ORDER_MAX)
 		wil->rx_status_ring_order = WIL_RX_SRING_SIZE_ORDER_DEFAULT;
@@ -636,8 +625,6 @@ static int wil_rx_init_edma(struct wil6210_priv *wil, u16 desc_ring_size)
 
 	wil_rx_buf_len_init_edma(wil);
 
-	max_rx_pl_per_desc = ALIGN(wil->rx_buf_len, 4);
-
 	/* Use debugfs dbg_num_rx_srings if set, reserve one sring for TX */
 	if (wil->num_rx_status_rings > WIL6210_MAX_STATUS_RINGS - 1)
 		wil->num_rx_status_rings = WIL6210_MAX_STATUS_RINGS - 1;
@@ -645,7 +632,7 @@ static int wil_rx_init_edma(struct wil6210_priv *wil, u16 desc_ring_size)
 	wil_dbg_misc(wil, "rx_init: allocate %d status rings\n",
 		     wil->num_rx_status_rings);
 
-	rc = wil_wmi_cfg_def_rx_offload(wil, max_rx_pl_per_desc);
+	rc = wil_wmi_cfg_def_rx_offload(wil, wil->rx_buf_len);
 	if (rc)
 		return rc;
 
@@ -834,23 +821,24 @@ static int wil_rx_error_check_edma(struct wil6210_priv *wil,
 		wil_dbg_txrx(wil, "L2 RX error, l2_rx_status=0x%x\n",
 			     l2_rx_status);
 		/* Due to HW issue, KEY error will trigger a MIC error */
-		if (l2_rx_status & WIL_RX_EDMA_ERROR_MIC) {
-			wil_dbg_txrx(wil,
-				     "L2 MIC/KEY error, dropping packet\n");
+		if (l2_rx_status == WIL_RX_EDMA_ERROR_MIC) {
+			wil_err_ratelimited(wil,
+					    "L2 MIC/KEY error, dropping packet\n");
 			stats->rx_mic_error++;
 		}
-		if (l2_rx_status & WIL_RX_EDMA_ERROR_KEY) {
-			wil_dbg_txrx(wil, "L2 KEY error, dropping packet\n");
+		if (l2_rx_status == WIL_RX_EDMA_ERROR_KEY) {
+			wil_err_ratelimited(wil,
+					    "L2 KEY error, dropping packet\n");
 			stats->rx_key_error++;
 		}
-		if (l2_rx_status & WIL_RX_EDMA_ERROR_REPLAY) {
-			wil_dbg_txrx(wil,
-				     "L2 REPLAY error, dropping packet\n");
+		if (l2_rx_status == WIL_RX_EDMA_ERROR_REPLAY) {
+			wil_err_ratelimited(wil,
+					    "L2 REPLAY error, dropping packet\n");
 			stats->rx_replay++;
 		}
-		if (l2_rx_status & WIL_RX_EDMA_ERROR_AMSDU) {
-			wil_dbg_txrx(wil,
-				     "L2 AMSDU error, dropping packet\n");
+		if (l2_rx_status == WIL_RX_EDMA_ERROR_AMSDU) {
+			wil_err_ratelimited(wil,
+					    "L2 AMSDU error, dropping packet\n");
 			stats->rx_amsdu_error++;
 		}
 		return -EFAULT;
@@ -881,7 +869,7 @@ static struct sk_buff *wil_sring_reap_rx_edma(struct wil6210_priv *wil,
 	struct sk_buff *skb;
 	dma_addr_t pa;
 	struct wil_ring_rx_data *rxdata = &sring->rx_data;
-	unsigned int sz = ALIGN(wil->rx_buf_len, 4);
+	unsigned int sz = wil->rx_buf_len;
 	struct wil_net_stats *stats = NULL;
 	u16 dmalen;
 	int cid;

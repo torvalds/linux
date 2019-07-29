@@ -542,10 +542,12 @@ static int bmi160_chip_init(struct bmi160_data *data, bool use_spi)
 	return 0;
 }
 
-static void bmi160_chip_uninit(struct bmi160_data *data)
+static void bmi160_chip_uninit(void *data)
 {
-	bmi160_set_mode(data, BMI160_GYRO, false);
-	bmi160_set_mode(data, BMI160_ACCEL, false);
+	struct bmi160_data *bmi_data = data;
+
+	bmi160_set_mode(bmi_data, BMI160_GYRO, false);
+	bmi160_set_mode(bmi_data, BMI160_ACCEL, false);
 }
 
 int bmi160_core_probe(struct device *dev, struct regmap *regmap,
@@ -567,6 +569,10 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 	if (ret < 0)
 		return ret;
 
+	ret = devm_add_action_or_reset(dev, bmi160_chip_uninit, data);
+	if (ret < 0)
+		return ret;
+
 	if (!name && ACPI_HANDLE(dev))
 		name = bmi160_match_acpi_device(dev);
 
@@ -577,34 +583,18 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &bmi160_info;
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-					 bmi160_trigger_handler, NULL);
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
+					      bmi160_trigger_handler, NULL);
 	if (ret < 0)
-		goto uninit;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret < 0)
-		goto buffer_cleanup;
+		return ret;
 
 	return 0;
-buffer_cleanup:
-	iio_triggered_buffer_cleanup(indio_dev);
-uninit:
-	bmi160_chip_uninit(data);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(bmi160_core_probe);
-
-void bmi160_core_remove(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct bmi160_data *data = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-	bmi160_chip_uninit(data);
-}
-EXPORT_SYMBOL_GPL(bmi160_core_remove);
 
 MODULE_AUTHOR("Daniel Baluta <daniel.baluta@intel.com");
 MODULE_DESCRIPTION("Bosch BMI160 driver");

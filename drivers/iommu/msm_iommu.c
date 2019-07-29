@@ -1,5 +1,7 @@
 /* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
+ * Author: Stepan Moskovchenko <stepanm@codeaurora.org>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -17,7 +19,7 @@
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/errno.h>
 #include <linux/io.h>
@@ -861,14 +863,5 @@ static int __init msm_iommu_driver_init(void)
 
 	return ret;
 }
-
-static void __exit msm_iommu_driver_exit(void)
-{
-	platform_driver_unregister(&msm_iommu_driver);
-}
-
 subsys_initcall(msm_iommu_driver_init);
-module_exit(msm_iommu_driver_exit);
 
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Stepan Moskovchenko <stepanm@codeaurora.org>");

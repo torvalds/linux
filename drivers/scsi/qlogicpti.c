@@ -1287,7 +1287,6 @@ static struct scsi_host_template qpti_template = {
 	.can_queue		= QLOGICPTI_REQ_QUEUE_LEN,
 	.this_id		= 7,
 	.sg_tablesize		= QLOGICPTI_MAX_SG(QLOGICPTI_REQ_QUEUE_LEN),
-	.use_clustering		= ENABLE_CLUSTERING,
 };
 
 static const struct of_device_id qpti_match[];

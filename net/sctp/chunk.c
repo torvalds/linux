@@ -86,11 +86,10 @@ void sctp_datamsg_free(struct sctp_datamsg *msg)
 /* Final destructruction of datamsg memory. */
 static void sctp_datamsg_destroy(struct sctp_datamsg *msg)
 {
+	struct sctp_association *asoc = NULL;
 	struct list_head *pos, *temp;
 	struct sctp_chunk *chunk;
-	struct sctp_sock *sp;
 	struct sctp_ulpevent *ev;
-	struct sctp_association *asoc = NULL;
 	int error = 0, notify;
 
 	/* If we failed, we may need to notify. */
@@ -108,9 +107,8 @@ static void sctp_datamsg_destroy(struct sctp_datamsg *msg)
 			else
 				error = asoc->outqueue.error;
 
-			sp = sctp_sk(asoc->base.sk);
-			notify = sctp_ulpevent_type_enabled(SCTP_SEND_FAILED,
-							    &sp->subscribe);
+			notify = sctp_ulpevent_type_enabled(asoc->subscribe,
+							    SCTP_SEND_FAILED);
 		}
 
 		/* Generate a SEND FAILED event only if enabled. */
@@ -194,7 +192,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	if (unlikely(!max_data)) {
 		max_data = sctp_min_frag_point(sctp_sk(asoc->base.sk),
 					       sctp_datachk_len(&asoc->stream));
-		pr_warn_ratelimited("%s: asoc:%p frag_point is zero, forcing max_data to default minimum (%Zu)",
+		pr_warn_ratelimited("%s: asoc:%p frag_point is zero, forcing max_data to default minimum (%zu)",
 				    __func__, asoc, max_data);
 	}
 

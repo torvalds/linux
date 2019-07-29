@@ -98,15 +98,28 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 	struct gpio_desc **dr;
 	struct gpio_desc *desc;
 
+	desc = gpiod_get_index(dev, con_id, idx, flags);
+	if (IS_ERR(desc))
+		return desc;
+
+	/*
+	 * For non-exclusive GPIO descriptors, check if this descriptor is
+	 * already under resource management by this device.
+	 */
+	if (flags & GPIOD_FLAGS_BIT_NONEXCLUSIVE) {
+		struct devres *dres;
+
+		dres = devres_find(dev, devm_gpiod_release,
+				   devm_gpiod_match, &desc);
+		if (dres)
+			return desc;
+	}
+
 	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpio_desc *),
 			  GFP_KERNEL);
-	if (!dr)
+	if (!dr) {
+		gpiod_put(desc);
 		return ERR_PTR(-ENOMEM);
-
-	desc = gpiod_get_index(dev, con_id, idx, flags);
-	if (IS_ERR(desc)) {
-		devres_free(dr);
-		return desc;
 	}
 
 	*dr = desc;
@@ -140,15 +153,28 @@ struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
 	struct gpio_desc **dr;
 	struct gpio_desc *desc;
 
+	desc = gpiod_get_from_of_node(node, propname, index, dflags, label);
+	if (IS_ERR(desc))
+		return desc;
+
+	/*
+	 * For non-exclusive GPIO descriptors, check if this descriptor is
+	 * already under resource management by this device.
+	 */
+	if (dflags & GPIOD_FLAGS_BIT_NONEXCLUSIVE) {
+		struct devres *dres;
+
+		dres = devres_find(dev, devm_gpiod_release,
+				   devm_gpiod_match, &desc);
+		if (dres)
+			return desc;
+	}
+
 	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpio_desc *),
 			  GFP_KERNEL);
-	if (!dr)
+	if (!dr) {
+		gpiod_put(desc);
 		return ERR_PTR(-ENOMEM);
-
-	desc = gpiod_get_from_of_node(node, propname, index, dflags, label);
-	if (IS_ERR(desc)) {
-		devres_free(dr);
-		return desc;
 	}
 
 	*dr = desc;
@@ -319,6 +345,36 @@ void devm_gpiod_put(struct device *dev, struct gpio_desc *desc)
 		&desc));
 }
 EXPORT_SYMBOL(devm_gpiod_put);
+
+/**
+ * devm_gpiod_unhinge - Remove resource management from a gpio descriptor
+ * @dev:	GPIO consumer
+ * @desc:	GPIO descriptor to remove resource management from
+ *
+ * Remove resource management from a GPIO descriptor. This is needed when
+ * you want to hand over lifecycle management of a descriptor to another
+ * mechanism.
+ */
+
+void devm_gpiod_unhinge(struct device *dev, struct gpio_desc *desc)
+{
+	int ret;
+
+	if (IS_ERR_OR_NULL(desc))
+		return;
+	ret = devres_destroy(dev, devm_gpiod_release,
+			     devm_gpiod_match, &desc);
+	/*
+	 * If the GPIO descriptor is requested as nonexclusive, we
+	 * may call this function several times on the same descriptor
+	 * so it is OK if devres_destroy() returns -ENOENT.
+	 */
+	if (ret == -ENOENT)
+		return;
+	/* Anything else we should warn about */
+	WARN_ON(ret);
+}
+EXPORT_SYMBOL(devm_gpiod_unhinge);
 
 /**
  * devm_gpiod_put_array - Resource-managed gpiod_put_array()

@@ -138,6 +138,9 @@ static struct lock_list list_entries[MAX_LOCKDEP_ENTRIES];
  * get freed - this significantly simplifies the debugging code.
  */
 unsigned long nr_lock_classes;
+#ifndef CONFIG_DEBUG_LOCKDEP
+static
+#endif
 struct lock_class lock_classes[MAX_LOCKDEP_KEYS];
 
 static inline struct lock_class *hlock_class(struct held_lock *hlock)
@@ -626,7 +629,8 @@ static int static_obj(void *obj)
 
 /*
  * To make lock name printouts unique, we calculate a unique
- * class->name_version generation counter:
+ * class->name_version generation counter. The caller must hold the graph
+ * lock.
  */
 static int count_matching_names(struct lock_class *new_class)
 {
@@ -636,7 +640,7 @@ static int count_matching_names(struct lock_class *new_class)
 	if (!new_class->name)
 		return 0;
 
-	list_for_each_entry_rcu(class, &all_lock_classes, lock_entry) {
+	list_for_each_entry(class, &all_lock_classes, lock_entry) {
 		if (new_class->key - new_class->subclass == class->key)
 			return class->name_version;
 		if (class->name && !strcmp(class->name, new_class->name))
@@ -789,7 +793,6 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	class->key = key;
 	class->name = lock->name;
 	class->subclass = subclass;
-	INIT_LIST_HEAD(&class->lock_entry);
 	INIT_LIST_HEAD(&class->locks_before);
 	INIT_LIST_HEAD(&class->locks_after);
 	class->name_version = count_matching_names(class);
@@ -801,7 +804,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	/*
 	 * Add it to the global list of classes:
 	 */
-	list_add_tail_rcu(&class->lock_entry, &all_lock_classes);
+	list_add_tail(&class->lock_entry, &all_lock_classes);
 
 	if (verbose(class)) {
 		graph_unlock();
@@ -3088,7 +3091,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 /*
  * Initialize a lock instance's lock-class mapping info:
  */
-static void __lockdep_init_map(struct lockdep_map *lock, const char *name,
+void lockdep_init_map(struct lockdep_map *lock, const char *name,
 		      struct lock_class_key *key, int subclass)
 {
 	int i;
@@ -3143,12 +3146,6 @@ static void __lockdep_init_map(struct lockdep_map *lock, const char *name,
 		current->lockdep_recursion = 0;
 		raw_local_irq_restore(flags);
 	}
-}
-
-void lockdep_init_map(struct lockdep_map *lock, const char *name,
-		      struct lock_class_key *key, int subclass)
-{
-	__lockdep_init_map(lock, name, key, subclass);
 }
 EXPORT_SYMBOL_GPL(lockdep_init_map);
 
@@ -4126,6 +4123,9 @@ void lockdep_reset(void)
 	raw_local_irq_restore(flags);
 }
 
+/*
+ * Remove all references to a lock class. The caller must hold the graph lock.
+ */
 static void zap_class(struct lock_class *class)
 {
 	int i;
@@ -4142,7 +4142,7 @@ static void zap_class(struct lock_class *class)
 	 * Unhash the class and remove it from the all_lock_classes list:
 	 */
 	hlist_del_rcu(&class->hash_entry);
-	list_del_rcu(&class->lock_entry);
+	list_del(&class->lock_entry);
 
 	RCU_INIT_POINTER(class->key, NULL);
 	RCU_INIT_POINTER(class->name, NULL);
@@ -4195,7 +4195,7 @@ void lockdep_free_key_range(void *start, unsigned long size)
 	 *
 	 * sync_sched() is sufficient because the read-side is IRQ disable.
 	 */
-	synchronize_sched();
+	synchronize_rcu();
 
 	/*
 	 * XXX at this point we could return the resources to the pool;
@@ -4204,15 +4204,36 @@ void lockdep_free_key_range(void *start, unsigned long size)
 	 */
 }
 
-void lockdep_reset_lock(struct lockdep_map *lock)
+/*
+ * Check whether any element of the @lock->class_cache[] array refers to a
+ * registered lock class. The caller must hold either the graph lock or the
+ * RCU read lock.
+ */
+static bool lock_class_cache_is_registered(struct lockdep_map *lock)
 {
 	struct lock_class *class;
 	struct hlist_head *head;
-	unsigned long flags;
 	int i, j;
-	int locked;
+
+	for (i = 0; i < CLASSHASH_SIZE; i++) {
+		head = classhash_table + i;
+		hlist_for_each_entry_rcu(class, head, hash_entry) {
+			for (j = 0; j < NR_LOCKDEP_CACHING_CLASSES; j++)
+				if (lock->class_cache[j] == class)
+					return true;
+		}
+	}
+	return false;
+}
+
+void lockdep_reset_lock(struct lockdep_map *lock)
+{
+	struct lock_class *class;
+	unsigned long flags;
+	int j, locked;
 
 	raw_local_irq_save(flags);
+	locked = graph_lock();
 
 	/*
 	 * Remove all classes this lock might have:
@@ -4229,25 +4250,14 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 	 * Debug check: in the end all mapped classes should
 	 * be gone.
 	 */
-	locked = graph_lock();
-	for (i = 0; i < CLASSHASH_SIZE; i++) {
-		head = classhash_table + i;
-		hlist_for_each_entry_rcu(class, head, hash_entry) {
-			int match = 0;
-
-			for (j = 0; j < NR_LOCKDEP_CACHING_CLASSES; j++)
-				match |= class == lock->class_cache[j];
-
-			if (unlikely(match)) {
-				if (debug_locks_off_graph_unlock()) {
-					/*
-					 * We all just reset everything, how did it match?
-					 */
-					WARN_ON(1);
-				}
-				goto out_restore;
-			}
+	if (unlikely(lock_class_cache_is_registered(lock))) {
+		if (debug_locks_off_graph_unlock()) {
+			/*
+			 * We all just reset everything, how did it match?
+			 */
+			WARN_ON(1);
 		}
+		goto out_restore;
 	}
 	if (locked)
 		graph_unlock();

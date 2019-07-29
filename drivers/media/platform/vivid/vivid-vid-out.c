@@ -793,26 +793,24 @@ int vivid_vid_out_s_selection(struct file *file, void *fh, struct v4l2_selection
 	return 0;
 }
 
-int vivid_vid_out_cropcap(struct file *file, void *priv,
-			      struct v4l2_cropcap *cap)
+int vivid_vid_out_g_pixelaspect(struct file *file, void *priv,
+				int type, struct v4l2_fract *f)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 
-	if (cap->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+	if (type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		return -EINVAL;
 
 	switch (vivid_get_pixel_aspect(dev)) {
 	case TPG_PIXEL_ASPECT_NTSC:
-		cap->pixelaspect.numerator = 11;
-		cap->pixelaspect.denominator = 10;
+		f->numerator = 11;
+		f->denominator = 10;
 		break;
 	case TPG_PIXEL_ASPECT_PAL:
-		cap->pixelaspect.numerator = 54;
-		cap->pixelaspect.denominator = 59;
+		f->numerator = 54;
+		f->denominator = 59;
 		break;
-	case TPG_PIXEL_ASPECT_SQUARE:
-		cap->pixelaspect.numerator = 1;
-		cap->pixelaspect.denominator = 1;
+	default:
 		break;
 	}
 	return 0;

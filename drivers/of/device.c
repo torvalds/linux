@@ -211,7 +211,7 @@ static ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len
 	/* Name & Type */
 	/* %p eats all alphanum characters, so %c must be used here */
 	csize = snprintf(str, len, "of:N%pOFn%c%s", dev->of_node, 'T',
-			 dev->of_node->type);
+			 of_node_get_device_type(dev->of_node));
 	tsize = csize;
 	len -= csize;
 	if (str)
@@ -281,7 +281,7 @@ EXPORT_SYMBOL_GPL(of_device_modalias);
  */
 void of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	const char *compat;
+	const char *compat, *type;
 	struct alias_prop *app;
 	struct property *p;
 	int seen = 0;
@@ -291,8 +291,9 @@ void of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	add_uevent_var(env, "OF_NAME=%pOFn", dev->of_node);
 	add_uevent_var(env, "OF_FULLNAME=%pOF", dev->of_node);
-	if (dev->of_node->type && strcmp("<NULL>", dev->of_node->type) != 0)
-		add_uevent_var(env, "OF_TYPE=%s", dev->of_node->type);
+	type = of_node_get_device_type(dev->of_node);
+	if (type)
+		add_uevent_var(env, "OF_TYPE=%s", type);
 
 	/* Since the compatible field can contain pretty much anything
 	 * it's not really legal to split it out with commas. We split it

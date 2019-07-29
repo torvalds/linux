@@ -857,7 +857,6 @@ static __poll_t kernfs_fop_poll(struct file *filp, poll_table *wait)
 static void kernfs_notify_workfn(struct work_struct *work)
 {
 	struct kernfs_node *kn;
-	struct kernfs_open_node *on;
 	struct kernfs_super_info *info;
 repeat:
 	/* pop one off the notify_list */
@@ -870,17 +869,6 @@ repeat:
 	kernfs_notify_list = kn->attr.notify_next;
 	kn->attr.notify_next = NULL;
 	spin_unlock_irq(&kernfs_notify_lock);
-
-	/* kick poll */
-	spin_lock_irq(&kernfs_open_node_lock);
-
-	on = kn->attr.open;
-	if (on) {
-		atomic_inc(&on->event);
-		wake_up_interruptible(&on->poll);
-	}
-
-	spin_unlock_irq(&kernfs_open_node_lock);
 
 	/* kick fsnotify */
 	mutex_lock(&kernfs_mutex);
@@ -934,10 +922,21 @@ void kernfs_notify(struct kernfs_node *kn)
 {
 	static DECLARE_WORK(kernfs_notify_work, kernfs_notify_workfn);
 	unsigned long flags;
+	struct kernfs_open_node *on;
 
 	if (WARN_ON(kernfs_type(kn) != KERNFS_FILE))
 		return;
 
+	/* kick poll immediately */
+	spin_lock_irqsave(&kernfs_open_node_lock, flags);
+	on = kn->attr.open;
+	if (on) {
+		atomic_inc(&on->event);
+		wake_up_interruptible(&on->poll);
+	}
+	spin_unlock_irqrestore(&kernfs_open_node_lock, flags);
+
+	/* schedule work to kick fsnotify */
 	spin_lock_irqsave(&kernfs_notify_lock, flags);
 	if (!kn->attr.notify_next) {
 		kernfs_get(kn);

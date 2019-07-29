@@ -73,8 +73,8 @@ bool ocrdma_alloc_stats_resources(struct ocrdma_dev *dev)
 	mem->size = max_t(u32, sizeof(struct ocrdma_rdma_stats_req),
 			sizeof(struct ocrdma_rdma_stats_resp));
 
-	mem->va = dma_zalloc_coherent(&dev->nic_info.pdev->dev, mem->size,
-				      &mem->pa, GFP_KERNEL);
+	mem->va = dma_alloc_coherent(&dev->nic_info.pdev->dev, mem->size,
+				     &mem->pa, GFP_KERNEL);
 	if (!mem->va) {
 		pr_err("%s: stats mbox allocation failed\n", __func__);
 		return false;
@@ -760,12 +760,13 @@ static const struct file_operations ocrdma_dbg_ops = {
 
 void ocrdma_add_port_stats(struct ocrdma_dev *dev)
 {
+	const struct pci_dev *pdev = dev->nic_info.pdev;
+
 	if (!ocrdma_dbgfs_dir)
 		return;
 
 	/* Create post stats base dir */
-	dev->dir =
-		debugfs_create_dir(dev_name(&dev->ibdev.dev), ocrdma_dbgfs_dir);
+	dev->dir = debugfs_create_dir(pci_name(pdev), ocrdma_dbgfs_dir);
 	if (!dev->dir)
 		goto err;
 

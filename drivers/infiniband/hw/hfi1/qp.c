@@ -375,20 +375,18 @@ bool _hfi1_schedule_send(struct rvt_qp *qp)
 
 static void qp_pio_drain(struct rvt_qp *qp)
 {
-	struct hfi1_ibdev *dev;
 	struct hfi1_qp_priv *priv = qp->priv;
 
 	if (!priv->s_sendcontext)
 		return;
-	dev = to_idev(qp->ibqp.device);
 	while (iowait_pio_pending(&priv->s_iowait)) {
-		write_seqlock_irq(&dev->iowait_lock);
+		write_seqlock_irq(&priv->s_sendcontext->waitlock);
 		hfi1_sc_wantpiobuf_intr(priv->s_sendcontext, 1);
-		write_sequnlock_irq(&dev->iowait_lock);
+		write_sequnlock_irq(&priv->s_sendcontext->waitlock);
 		iowait_pio_drain(&priv->s_iowait);
-		write_seqlock_irq(&dev->iowait_lock);
+		write_seqlock_irq(&priv->s_sendcontext->waitlock);
 		hfi1_sc_wantpiobuf_intr(priv->s_sendcontext, 0);
-		write_sequnlock_irq(&dev->iowait_lock);
+		write_sequnlock_irq(&priv->s_sendcontext->waitlock);
 	}
 }
 
@@ -459,7 +457,6 @@ static int iowait_sleep(
 	struct hfi1_qp_priv *priv;
 	unsigned long flags;
 	int ret = 0;
-	struct hfi1_ibdev *dev;
 
 	qp = tx->qp;
 	priv = qp->priv;
@@ -472,9 +469,8 @@ static int iowait_sleep(
 		 * buffer and undoing the side effects of the copy.
 		 */
 		/* Make a common routine? */
-		dev = &sde->dd->verbs_dev;
 		list_add_tail(&stx->list, &wait->tx_head);
-		write_seqlock(&dev->iowait_lock);
+		write_seqlock(&sde->waitlock);
 		if (sdma_progress(sde, seq, stx))
 			goto eagain;
 		if (list_empty(&priv->s_iowait.list)) {
@@ -485,11 +481,11 @@ static int iowait_sleep(
 			qp->s_flags |= RVT_S_WAIT_DMA_DESC;
 			iowait_queue(pkts_sent, &priv->s_iowait,
 				     &sde->dmawait);
-			priv->s_iowait.lock = &dev->iowait_lock;
+			priv->s_iowait.lock = &sde->waitlock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_DMA_DESC);
 			rvt_get_qp(qp);
 		}
-		write_sequnlock(&dev->iowait_lock);
+		write_sequnlock(&sde->waitlock);
 		hfi1_qp_unbusy(qp, wait);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 		ret = -EBUSY;
@@ -499,7 +495,7 @@ static int iowait_sleep(
 	}
 	return ret;
 eagain:
-	write_sequnlock(&dev->iowait_lock);
+	write_sequnlock(&sde->waitlock);
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 	list_del_init(&stx->list);
 	return -EAGAIN;

@@ -73,10 +73,18 @@ struct hw_asic_id {
 	void *atombios_base_address;
 };
 
+struct dc_perf_trace {
+	unsigned long read_count;
+	unsigned long write_count;
+	unsigned long last_entry_read;
+	unsigned long last_entry_write;
+};
+
 struct dc_context {
 	struct dc *dc;
 
 	void *driver_context; /* e.g. amdgpu_device */
+	struct dc_perf_trace *perf_trace;
 	void *cgs_device;
 
 	enum dce_environment dce_environment;
@@ -191,7 +199,6 @@ union display_content_support {
 };
 
 struct dc_panel_patch {
-	unsigned int disconnect_delay;
 	unsigned int dppowerup_delay;
 	unsigned int extra_t12_ms;
 };

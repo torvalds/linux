@@ -197,6 +197,15 @@ static const struct nla_policy tunnel_key_policy[TCA_TUNNEL_KEY_MAX + 1] = {
 	[TCA_TUNNEL_KEY_ENC_TTL]      = { .type = NLA_U8 },
 };
 
+static void tunnel_key_release_params(struct tcf_tunnel_key_params *p)
+{
+	if (!p)
+		return;
+	if (p->tcft_action == TCA_TUNNEL_KEY_ACT_SET)
+		dst_release(&p->tcft_enc_metadata->dst);
+	kfree_rcu(p, rcu);
+}
+
 static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
 			   int ovr, int bind, bool rtnl_held,
@@ -210,9 +219,9 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	struct tcf_tunnel_key *t;
 	bool exists = false;
 	__be16 dst_port = 0;
+	__be64 key_id = 0;
 	int opts_len = 0;
-	__be64 key_id;
-	__be16 flags;
+	__be16 flags = 0;
 	u8 tos, ttl;
 	int ret = 0;
 	int err;
@@ -246,15 +255,15 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	case TCA_TUNNEL_KEY_ACT_RELEASE:
 		break;
 	case TCA_TUNNEL_KEY_ACT_SET:
-		if (!tb[TCA_TUNNEL_KEY_ENC_KEY_ID]) {
-			NL_SET_ERR_MSG(extack, "Missing tunnel key id");
-			ret = -EINVAL;
-			goto err_out;
+		if (tb[TCA_TUNNEL_KEY_ENC_KEY_ID]) {
+			__be32 key32;
+
+			key32 = nla_get_be32(tb[TCA_TUNNEL_KEY_ENC_KEY_ID]);
+			key_id = key32_to_tunnel_id(key32);
+			flags = TUNNEL_KEY;
 		}
 
-		key_id = key32_to_tunnel_id(nla_get_be32(tb[TCA_TUNNEL_KEY_ENC_KEY_ID]));
-
-		flags = TUNNEL_KEY | TUNNEL_CSUM;
+		flags |= TUNNEL_CSUM;
 		if (tb[TCA_TUNNEL_KEY_NO_CSUM] &&
 		    nla_get_u8(tb[TCA_TUNNEL_KEY_NO_CSUM]))
 			flags &= ~TUNNEL_CSUM;
@@ -360,8 +369,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	rcu_swap_protected(t->params, params_new,
 			   lockdep_is_held(&t->tcf_lock));
 	spin_unlock_bh(&t->tcf_lock);
-	if (params_new)
-		kfree_rcu(params_new, rcu);
+	tunnel_key_release_params(params_new);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
@@ -369,7 +377,8 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	return ret;
 
 release_tun_meta:
-	dst_release(&metadata->dst);
+	if (metadata)
+		dst_release(&metadata->dst);
 
 err_out:
 	if (exists)
@@ -385,12 +394,7 @@ static void tunnel_key_release(struct tc_action *a)
 	struct tcf_tunnel_key_params *params;
 
 	params = rcu_dereference_protected(t->params, 1);
-	if (params) {
-		if (params->tcft_action == TCA_TUNNEL_KEY_ACT_SET)
-			dst_release(&params->tcft_enc_metadata->dst);
-
-		kfree_rcu(params, rcu);
-	}
+	tunnel_key_release_params(params);
 }
 
 static int tunnel_key_geneve_opts_dump(struct sk_buff *skb,
@@ -508,10 +512,13 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 		struct ip_tunnel_key *key = &info->key;
 		__be32 key_id = tunnel_id_to_key32(key->tun_id);
 
-		if (nla_put_be32(skb, TCA_TUNNEL_KEY_ENC_KEY_ID, key_id) ||
+		if (((key->tun_flags & TUNNEL_KEY) &&
+		     nla_put_be32(skb, TCA_TUNNEL_KEY_ENC_KEY_ID, key_id)) ||
 		    tunnel_key_dump_addresses(skb,
 					      &params->tcft_enc_metadata->u.tun_info) ||
-		    nla_put_be16(skb, TCA_TUNNEL_KEY_ENC_DST_PORT, key->tp_dst) ||
+		    (key->tp_dst &&
+		      nla_put_be16(skb, TCA_TUNNEL_KEY_ENC_DST_PORT,
+				   key->tp_dst)) ||
 		    nla_put_u8(skb, TCA_TUNNEL_KEY_NO_CSUM,
 			       !(key->tun_flags & TUNNEL_CSUM)) ||
 		    tunnel_key_opts_dump(skb, info))

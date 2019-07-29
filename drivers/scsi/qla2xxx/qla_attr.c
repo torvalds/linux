@@ -2415,8 +2415,8 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	if (qla2x00_chip_is_down(vha))
 		goto done;
 
-	stats = dma_zalloc_coherent(&ha->pdev->dev, sizeof(*stats),
-				    &stats_dma, GFP_KERNEL);
+	stats = dma_alloc_coherent(&ha->pdev->dev, sizeof(*stats), &stats_dma,
+				   GFP_KERNEL);
 	if (!stats) {
 		ql_log(ql_log_warn, vha, 0x707d,
 		    "Failed to allocate memory for stats.\n");
@@ -2711,6 +2711,8 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 	while (test_bit(LOOP_RESYNC_ACTIVE, &vha->dpc_flags) ||
 	    test_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags))
 		msleep(1000);
+
+	qla_nvme_delete(vha);
 
 	qla24xx_disable_vp(vha);
 	qla2x00_wait_for_sess_deletion(vha);

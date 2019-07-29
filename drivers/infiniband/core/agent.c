@@ -137,13 +137,13 @@ void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *
 err2:
 	ib_free_send_mad(send_buf);
 err1:
-	rdma_destroy_ah(ah);
+	rdma_destroy_ah(ah, RDMA_DESTROY_AH_SLEEPABLE);
 }
 
 static void agent_send_handler(struct ib_mad_agent *mad_agent,
 			       struct ib_mad_send_wc *mad_send_wc)
 {
-	rdma_destroy_ah(mad_send_wc->send_buf->ah);
+	rdma_destroy_ah(mad_send_wc->send_buf->ah, RDMA_DESTROY_AH_SLEEPABLE);
 	ib_free_send_mad(mad_send_wc->send_buf);
 }
 

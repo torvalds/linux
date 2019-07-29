@@ -7,6 +7,15 @@ config MESON_CANVAS
 	help
 	  Say yes to support the canvas IP for Amlogic SoCs.
 
+config MESON_CLK_MEASURE
+	bool "Amlogic Meson SoC Clock Measure driver"
+	depends on ARCH_MESON || COMPILE_TEST
+	default ARCH_MESON
+	select REGMAP_MMIO
+	help
+	  Say yes to support of Measuring a set of internal SoC clocks
+	  from the debugfs interface.
+
 config MESON_GX_SOCINFO
 	bool "Amlogic Meson GX SoC Information driver"
 	depends on ARCH_MESON || COMPILE_TEST

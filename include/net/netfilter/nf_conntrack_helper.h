@@ -124,8 +124,7 @@ static inline void *nfct_help_data(const struct nf_conn *ct)
 	return (void *)help->data;
 }
 
-int nf_conntrack_helper_pernet_init(struct net *net);
-void nf_conntrack_helper_pernet_fini(struct net *net);
+void nf_conntrack_helper_pernet_init(struct net *net);
 
 int nf_conntrack_helper_init(void);
 void nf_conntrack_helper_fini(void);

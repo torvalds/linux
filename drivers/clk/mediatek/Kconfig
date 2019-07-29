@@ -178,6 +178,29 @@ config COMMON_CLK_MT7622_AUDSYS
 	  This driver supports MediaTek MT7622 AUDSYS clocks providing
 	  to audio consumers such as I2S and TDM.
 
+config COMMON_CLK_MT7629
+	bool "Clock driver for MediaTek MT7629"
+	depends on (ARCH_MEDIATEK && ARM) || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	default ARCH_MEDIATEK && ARM
+	---help---
+	  This driver supports MediaTek MT7629 basic clocks and clocks
+	  required for various periperals found on MediaTek.
+
+config COMMON_CLK_MT7629_ETHSYS
+	bool "Clock driver for MediaTek MT7629 ETHSYS"
+	depends on COMMON_CLK_MT7629
+	---help---
+	  This driver add support for clocks for Ethernet and SGMII
+	  required on MediaTek MT7629 SoC.
+
+config COMMON_CLK_MT7629_HIFSYS
+	bool "Clock driver for MediaTek MT7629 HIFSYS"
+	depends on COMMON_CLK_MT7629
+	---help---
+	  This driver supports MediaTek MT7629 HIFSYS clocks providing
+	  to PCI-E and USB.
+
 config COMMON_CLK_MT8135
 	bool "Clock driver for MediaTek MT8135"
 	depends on (ARCH_MEDIATEK && ARM) || COMPILE_TEST

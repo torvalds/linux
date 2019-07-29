@@ -39,16 +39,16 @@ void ODM_EdcaTurboInit(void *pDM_VOID)
 	Adapter->recvpriv.bIsAnyNonBEPkts = false;
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
-		     ("Orginial VO PARAM: 0x%x\n",
+		     ("Original VO PARAM: 0x%x\n",
 		      rtw_read32(pDM_Odm->Adapter, ODM_EDCA_VO_PARAM)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
-		     ("Orginial VI PARAM: 0x%x\n",
+		     ("Original VI PARAM: 0x%x\n",
 		      rtw_read32(pDM_Odm->Adapter, ODM_EDCA_VI_PARAM)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
-		     ("Orginial BE PARAM: 0x%x\n",
+		     ("Original BE PARAM: 0x%x\n",
 		      rtw_read32(pDM_Odm->Adapter, ODM_EDCA_BE_PARAM)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
-		     ("Orginial BK PARAM: 0x%x\n",
+		     ("Original BK PARAM: 0x%x\n",
 		      rtw_read32(pDM_Odm->Adapter, ODM_EDCA_BK_PARAM)));
 }	/*  ODM_InitEdcaTurbo */
 

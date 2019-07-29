@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/regulator/machine.h>
@@ -288,11 +289,18 @@ static struct pxamci_platform_data poodle_mci_platform_data = {
 	.init 			= poodle_mci_init,
 	.setpower 		= poodle_mci_setpower,
 	.exit			= poodle_mci_exit,
-	.gpio_card_detect	= POODLE_GPIO_nSD_DETECT,
-	.gpio_card_ro		= POODLE_GPIO_nSD_WP,
-	.gpio_power		= -1,
 };
 
+static struct gpiod_lookup_table poodle_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", POODLE_GPIO_nSD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", POODLE_GPIO_nSD_WP,
+			    "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
 
 /*
  * Irda
@@ -439,6 +447,7 @@ static void __init poodle_init(void)
 
 	pxa_set_fb_info(&poodle_locomo_device.dev, &poodle_fb_info);
 	pxa_set_udc_info(&udc_info);
+	gpiod_add_lookup_table(&poodle_mci_gpio_table);
 	pxa_set_mci_info(&poodle_mci_platform_data);
 	pxa_set_ficp_info(&poodle_ficp_platform_data);
 	pxa_set_i2c_info(NULL);

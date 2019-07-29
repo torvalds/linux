@@ -64,7 +64,7 @@ struct amdgpu_vmhub {
 struct amdgpu_gmc_funcs {
 	/* flush the vm tlb via mmio */
 	void (*flush_gpu_tlb)(struct amdgpu_device *adev,
-			      uint32_t vmid);
+			      uint32_t vmid, uint32_t flush_type);
 	/* flush the vm tlb via ring */
 	uint64_t (*emit_flush_gpu_tlb)(struct amdgpu_ring *ring, unsigned vmid,
 				       uint64_t pd_addr);
@@ -89,7 +89,7 @@ struct amdgpu_gmc_funcs {
 
 struct amdgpu_xgmi {
 	/* from psp */
-	u64 device_id;
+	u64 node_id;
 	u64 hive_id;
 	/* fixed per family */
 	u64 node_segment_size;
@@ -99,6 +99,7 @@ struct amdgpu_xgmi {
 	unsigned num_physical_nodes;
 	/* gpu list in the same hive */
 	struct list_head head;
+	bool supported;
 };
 
 struct amdgpu_gmc {
@@ -151,7 +152,7 @@ struct amdgpu_gmc {
 	struct amdgpu_xgmi xgmi;
 };
 
-#define amdgpu_gmc_flush_gpu_tlb(adev, vmid) (adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid))
+#define amdgpu_gmc_flush_gpu_tlb(adev, vmid, type) (adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (type))
 #define amdgpu_gmc_emit_flush_gpu_tlb(r, vmid, addr) (r)->adev->gmc.gmc_funcs->emit_flush_gpu_tlb((r), (vmid), (addr))
 #define amdgpu_gmc_emit_pasid_mapping(r, vmid, pasid) (r)->adev->gmc.gmc_funcs->emit_pasid_mapping((r), (vmid), (pasid))
 #define amdgpu_gmc_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gmc.gmc_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))

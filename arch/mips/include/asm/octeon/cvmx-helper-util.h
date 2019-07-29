@@ -45,29 +45,6 @@ extern const char
     *cvmx_helper_interface_mode_to_string(cvmx_helper_interface_mode_t mode);
 
 /**
- * Debug routine to dump the packet structure to the console
- *
- * @work:   Work queue entry containing the packet to dump
- * Returns
- */
-extern int cvmx_helper_dump_packet(cvmx_wqe_t *work);
-
-/**
- * Setup Random Early Drop on a specific input queue
- *
- * @queue:  Input queue to setup RED on (0-7)
- * @pass_thresh:
- *		 Packets will begin slowly dropping when there are less than
- *		 this many packet buffers free in FPA 0.
- * @drop_thresh:
- *		 All incoming packets will be dropped when there are less
- *		 than this many free packet buffers in FPA 0.
- * Returns Zero on success. Negative on failure
- */
-extern int cvmx_helper_setup_red_queue(int queue, int pass_thresh,
-				       int drop_thresh);
-
-/**
  * Setup Random Early Drop to automatically begin dropping packets.
  *
  * @pass_thresh:

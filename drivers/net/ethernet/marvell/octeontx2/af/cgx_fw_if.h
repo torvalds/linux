@@ -78,8 +78,8 @@ enum cgx_cmd_id {
 	CGX_CMD_LINK_STATE_CHANGE,
 	CGX_CMD_MODE_CHANGE,		/* hot plug support */
 	CGX_CMD_INTF_SHUTDOWN,
-	CGX_CMD_IRQ_ENABLE,
-	CGX_CMD_IRQ_DISABLE,
+	CGX_CMD_GET_MKEX_PRFL_SIZE,
+	CGX_CMD_GET_MKEX_PRFL_ADDR
 };
 
 /* async event ids */
@@ -138,6 +138,16 @@ enum cgx_cmd_own {
  * CGX_STAT_SUCCESS
  */
 #define RESP_MAC_ADDR		GENMASK_ULL(56, 9)
+
+/* Response to cmd ID as CGX_CMD_GET_MKEX_PRFL_SIZE with cmd status as
+ * CGX_STAT_SUCCESS
+ */
+#define RESP_MKEX_PRFL_SIZE		GENMASK_ULL(63, 9)
+
+/* Response to cmd ID as CGX_CMD_GET_MKEX_PRFL_ADDR with cmd status as
+ * CGX_STAT_SUCCESS
+ */
+#define RESP_MKEX_PRFL_ADDR		GENMASK_ULL(63, 9)
 
 /* Response to cmd ID - CGX_CMD_LINK_BRING_UP/DOWN, event ID CGX_EVT_LINK_CHANGE
  * status can be either CGX_STAT_FAIL or CGX_STAT_SUCCESS

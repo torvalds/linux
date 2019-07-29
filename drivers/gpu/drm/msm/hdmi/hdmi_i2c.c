@@ -66,7 +66,7 @@ static int ddc_clear_irq(struct hdmi_i2c_adapter *hdmi_i2c)
 	} while ((ddc_int_ctrl & HDMI_DDC_INT_CTRL_SW_DONE_INT) && retry);
 
 	if (!retry) {
-		dev_err(dev->dev, "timeout waiting for DDC\n");
+		DRM_DEV_ERROR(dev->dev, "timeout waiting for DDC\n");
 		return -ETIMEDOUT;
 	}
 

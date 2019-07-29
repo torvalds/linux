@@ -35,7 +35,7 @@
 #define GPU_VPU_PUP_REQ		BIT(1)
 #define GPU_VPU_PDN_REQ		BIT(0)
 
-#define GPC_CLK_MAX		6
+#define GPC_CLK_MAX		7
 
 #define PGC_DOMAIN_FLAG_NO_PD		BIT(0)
 

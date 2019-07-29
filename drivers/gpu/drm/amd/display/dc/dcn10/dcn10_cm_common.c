@@ -71,39 +71,39 @@ void cm_helper_program_xfer_func(
 	unsigned int i = 0;
 
 	REG_SET_2(reg->start_cntl_b, 0,
-			exp_region_start, params->arr_points[0].custom_float_x,
+			exp_region_start, params->corner_points[0].blue.custom_float_x,
 			exp_resion_start_segment, 0);
 	REG_SET_2(reg->start_cntl_g, 0,
-			exp_region_start, params->arr_points[0].custom_float_x,
+			exp_region_start, params->corner_points[0].green.custom_float_x,
 			exp_resion_start_segment, 0);
 	REG_SET_2(reg->start_cntl_r, 0,
-			exp_region_start, params->arr_points[0].custom_float_x,
+			exp_region_start, params->corner_points[0].red.custom_float_x,
 			exp_resion_start_segment, 0);
 
 	REG_SET(reg->start_slope_cntl_b, 0,
-			field_region_linear_slope, params->arr_points[0].custom_float_slope);
+			field_region_linear_slope, params->corner_points[0].blue.custom_float_slope);
 	REG_SET(reg->start_slope_cntl_g, 0,
-			field_region_linear_slope, params->arr_points[0].custom_float_slope);
+			field_region_linear_slope, params->corner_points[0].green.custom_float_slope);
 	REG_SET(reg->start_slope_cntl_r, 0,
-			field_region_linear_slope, params->arr_points[0].custom_float_slope);
+			field_region_linear_slope, params->corner_points[0].red.custom_float_slope);
 
 	REG_SET(reg->start_end_cntl1_b, 0,
-			field_region_end, params->arr_points[1].custom_float_x);
+			field_region_end, params->corner_points[1].blue.custom_float_x);
 	REG_SET_2(reg->start_end_cntl2_b, 0,
-			field_region_end_slope, params->arr_points[1].custom_float_slope,
-			field_region_end_base, params->arr_points[1].custom_float_y);
+			field_region_end_slope, params->corner_points[1].blue.custom_float_slope,
+			field_region_end_base, params->corner_points[1].blue.custom_float_y);
 
 	REG_SET(reg->start_end_cntl1_g, 0,
-			field_region_end, params->arr_points[1].custom_float_x);
+			field_region_end, params->corner_points[1].green.custom_float_x);
 	REG_SET_2(reg->start_end_cntl2_g, 0,
-			field_region_end_slope, params->arr_points[1].custom_float_slope,
-		field_region_end_base, params->arr_points[1].custom_float_y);
+			field_region_end_slope, params->corner_points[1].green.custom_float_slope,
+		field_region_end_base, params->corner_points[1].green.custom_float_y);
 
 	REG_SET(reg->start_end_cntl1_r, 0,
-			field_region_end, params->arr_points[1].custom_float_x);
+			field_region_end, params->corner_points[1].red.custom_float_x);
 	REG_SET_2(reg->start_end_cntl2_r, 0,
-			field_region_end_slope, params->arr_points[1].custom_float_slope,
-		field_region_end_base, params->arr_points[1].custom_float_y);
+			field_region_end_slope, params->corner_points[1].red.custom_float_slope,
+		field_region_end_base, params->corner_points[1].red.custom_float_y);
 
 	for (reg_region_cur = reg->region_start;
 			reg_region_cur <= reg->region_end;
@@ -127,7 +127,7 @@ void cm_helper_program_xfer_func(
 
 bool cm_helper_convert_to_custom_float(
 		struct pwl_result_data *rgb_resulted,
-		struct curve_points *arr_points,
+		struct curve_points3 *corner_points,
 		uint32_t hw_points_num,
 		bool fixpoint)
 {
@@ -141,20 +141,53 @@ bool cm_helper_convert_to_custom_float(
 	fmt.mantissa_bits = 12;
 	fmt.sign = false;
 
-	if (!convert_to_custom_float_format(arr_points[0].x, &fmt,
-					    &arr_points[0].custom_float_x)) {
+	/* corner_points[0] - beginning base, slope offset for R,G,B
+	 * corner_points[1] - end base, slope offset for R,G,B
+	 */
+	if (!convert_to_custom_float_format(corner_points[0].red.x, &fmt,
+				&corner_points[0].red.custom_float_x)) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
+	if (!convert_to_custom_float_format(corner_points[0].green.x, &fmt,
+				&corner_points[0].green.custom_float_x)) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
+	if (!convert_to_custom_float_format(corner_points[0].blue.x, &fmt,
+				&corner_points[0].blue.custom_float_x)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(arr_points[0].offset, &fmt,
-					    &arr_points[0].custom_float_offset)) {
+	if (!convert_to_custom_float_format(corner_points[0].red.offset, &fmt,
+				&corner_points[0].red.custom_float_offset)) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
+	if (!convert_to_custom_float_format(corner_points[0].green.offset, &fmt,
+				&corner_points[0].green.custom_float_offset)) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
+	if (!convert_to_custom_float_format(corner_points[0].blue.offset, &fmt,
+				&corner_points[0].blue.custom_float_offset)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(arr_points[0].slope, &fmt,
-					    &arr_points[0].custom_float_slope)) {
+	if (!convert_to_custom_float_format(corner_points[0].red.slope, &fmt,
+				&corner_points[0].red.custom_float_slope)) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
+	if (!convert_to_custom_float_format(corner_points[0].green.slope, &fmt,
+				&corner_points[0].green.custom_float_slope)) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
+	if (!convert_to_custom_float_format(corner_points[0].blue.slope, &fmt,
+				&corner_points[0].blue.custom_float_slope)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
@@ -162,22 +195,59 @@ bool cm_helper_convert_to_custom_float(
 	fmt.mantissa_bits = 10;
 	fmt.sign = false;
 
-	if (!convert_to_custom_float_format(arr_points[1].x, &fmt,
-					    &arr_points[1].custom_float_x)) {
+	if (!convert_to_custom_float_format(corner_points[1].red.x, &fmt,
+				&corner_points[1].red.custom_float_x)) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
+	if (!convert_to_custom_float_format(corner_points[1].green.x, &fmt,
+				&corner_points[1].green.custom_float_x)) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
+	if (!convert_to_custom_float_format(corner_points[1].blue.x, &fmt,
+				&corner_points[1].blue.custom_float_x)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (fixpoint == true)
-		arr_points[1].custom_float_y = dc_fixpt_clamp_u0d14(arr_points[1].y);
-	else if (!convert_to_custom_float_format(arr_points[1].y, &fmt,
-		&arr_points[1].custom_float_y)) {
+	if (fixpoint == true) {
+		corner_points[1].red.custom_float_y =
+				dc_fixpt_clamp_u0d14(corner_points[1].red.y);
+		corner_points[1].green.custom_float_y =
+				dc_fixpt_clamp_u0d14(corner_points[1].green.y);
+		corner_points[1].blue.custom_float_y =
+				dc_fixpt_clamp_u0d14(corner_points[1].blue.y);
+	} else {
+		if (!convert_to_custom_float_format(corner_points[1].red.y,
+				&fmt, &corner_points[1].red.custom_float_y)) {
+			BREAK_TO_DEBUGGER();
+			return false;
+		}
+		if (!convert_to_custom_float_format(corner_points[1].green.y,
+				&fmt, &corner_points[1].green.custom_float_y)) {
+			BREAK_TO_DEBUGGER();
+			return false;
+		}
+		if (!convert_to_custom_float_format(corner_points[1].blue.y,
+				&fmt, &corner_points[1].blue.custom_float_y)) {
+			BREAK_TO_DEBUGGER();
+			return false;
+		}
+	}
+
+	if (!convert_to_custom_float_format(corner_points[1].red.slope, &fmt,
+				&corner_points[1].red.custom_float_slope)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
-
-	if (!convert_to_custom_float_format(arr_points[1].slope, &fmt,
-					    &arr_points[1].custom_float_slope)) {
+	if (!convert_to_custom_float_format(corner_points[1].green.slope, &fmt,
+				&corner_points[1].green.custom_float_slope)) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
+	if (!convert_to_custom_float_format(corner_points[1].blue.slope, &fmt,
+				&corner_points[1].blue.custom_float_slope)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
@@ -242,15 +312,10 @@ bool cm_helper_translate_curve_to_hw_format(
 				const struct dc_transfer_func *output_tf,
 				struct pwl_params *lut_params, bool fixpoint)
 {
-	struct curve_points *arr_points;
+	struct curve_points3 *corner_points;
 	struct pwl_result_data *rgb_resulted;
 	struct pwl_result_data *rgb;
 	struct pwl_result_data *rgb_plus_1;
-	struct fixed31_32 y_r;
-	struct fixed31_32 y_g;
-	struct fixed31_32 y_b;
-	struct fixed31_32 y1_min;
-	struct fixed31_32 y3_max;
 
 	int32_t region_start, region_end;
 	int32_t i;
@@ -259,16 +324,16 @@ bool cm_helper_translate_curve_to_hw_format(
 	if (output_tf == NULL || lut_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;
 
-	PERF_TRACE();
+	PERF_TRACE_CTX(output_tf->ctx);
 
-	arr_points = lut_params->arr_points;
+	corner_points = lut_params->corner_points;
 	rgb_resulted = lut_params->rgb_resulted;
 	hw_points = 0;
 
 	memset(lut_params, 0, sizeof(struct pwl_params));
 	memset(seg_distr, 0, sizeof(seg_distr));
 
-	if (output_tf->tf == TRANSFER_FUNCTION_PQ) {
+	if (output_tf->tf == TRANSFER_FUNCTION_PQ || output_tf->tf == TRANSFER_FUNCTION_GAMMA22) {
 		/* 32 segments
 		 * segments are from 2^-25 to 2^7
 		 */
@@ -327,31 +392,37 @@ bool cm_helper_translate_curve_to_hw_format(
 	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
 	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
 
-	arr_points[0].x = dc_fixpt_pow(dc_fixpt_from_int(2),
+	// All 3 color channels have same x
+	corner_points[0].red.x = dc_fixpt_pow(dc_fixpt_from_int(2),
 					     dc_fixpt_from_int(region_start));
-	arr_points[1].x = dc_fixpt_pow(dc_fixpt_from_int(2),
+	corner_points[0].green.x = corner_points[0].red.x;
+	corner_points[0].blue.x = corner_points[0].red.x;
+
+	corner_points[1].red.x = dc_fixpt_pow(dc_fixpt_from_int(2),
 					     dc_fixpt_from_int(region_end));
+	corner_points[1].green.x = corner_points[1].red.x;
+	corner_points[1].blue.x = corner_points[1].red.x;
 
-	y_r = rgb_resulted[0].red;
-	y_g = rgb_resulted[0].green;
-	y_b = rgb_resulted[0].blue;
+	corner_points[0].red.y = rgb_resulted[0].red;
+	corner_points[0].green.y = rgb_resulted[0].green;
+	corner_points[0].blue.y = rgb_resulted[0].blue;
 
-	y1_min = dc_fixpt_min(y_r, dc_fixpt_min(y_g, y_b));
-
-	arr_points[0].y = y1_min;
-	arr_points[0].slope = dc_fixpt_div(arr_points[0].y, arr_points[0].x);
-	y_r = rgb_resulted[hw_points - 1].red;
-	y_g = rgb_resulted[hw_points - 1].green;
-	y_b = rgb_resulted[hw_points - 1].blue;
+	corner_points[0].red.slope = dc_fixpt_div(corner_points[0].red.y,
+			corner_points[0].red.x);
+	corner_points[0].green.slope = dc_fixpt_div(corner_points[0].green.y,
+			corner_points[0].green.x);
+	corner_points[0].blue.slope = dc_fixpt_div(corner_points[0].blue.y,
+			corner_points[0].blue.x);
 
 	/* see comment above, m_arrPoints[1].y should be the Y value for the
 	 * region end (m_numOfHwPoints), not last HW point(m_numOfHwPoints - 1)
 	 */
-	y3_max = dc_fixpt_max(y_r, dc_fixpt_max(y_g, y_b));
-
-	arr_points[1].y = y3_max;
-
-	arr_points[1].slope = dc_fixpt_zero;
+	corner_points[1].red.y = rgb_resulted[hw_points - 1].red;
+	corner_points[1].green.y = rgb_resulted[hw_points - 1].green;
+	corner_points[1].blue.y = rgb_resulted[hw_points - 1].blue;
+	corner_points[1].red.slope = dc_fixpt_zero;
+	corner_points[1].green.slope = dc_fixpt_zero;
+	corner_points[1].blue.slope = dc_fixpt_zero;
 
 	if (output_tf->tf == TRANSFER_FUNCTION_PQ) {
 		/* for PQ, we want to have a straight line from last HW X point,
@@ -360,9 +431,15 @@ bool cm_helper_translate_curve_to_hw_format(
 		const struct fixed31_32 end_value =
 				dc_fixpt_from_int(125);
 
-		arr_points[1].slope = dc_fixpt_div(
-			dc_fixpt_sub(dc_fixpt_one, arr_points[1].y),
-			dc_fixpt_sub(end_value, arr_points[1].x));
+		corner_points[1].red.slope = dc_fixpt_div(
+			dc_fixpt_sub(dc_fixpt_one, corner_points[1].red.y),
+			dc_fixpt_sub(end_value, corner_points[1].red.x));
+		corner_points[1].green.slope = dc_fixpt_div(
+			dc_fixpt_sub(dc_fixpt_one, corner_points[1].green.y),
+			dc_fixpt_sub(end_value, corner_points[1].green.x));
+		corner_points[1].blue.slope = dc_fixpt_div(
+			dc_fixpt_sub(dc_fixpt_one, corner_points[1].blue.y),
+			dc_fixpt_sub(end_value, corner_points[1].blue.x));
 	}
 
 	lut_params->hw_points_num = hw_points;
@@ -411,7 +488,7 @@ bool cm_helper_translate_curve_to_hw_format(
 		++i;
 	}
 	cm_helper_convert_to_custom_float(rgb_resulted,
-						lut_params->arr_points,
+						lut_params->corner_points,
 						hw_points, fixpoint);
 
 	return true;
@@ -424,15 +501,10 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 				const struct dc_transfer_func *output_tf,
 				struct pwl_params *lut_params)
 {
-	struct curve_points *arr_points;
+	struct curve_points3 *corner_points;
 	struct pwl_result_data *rgb_resulted;
 	struct pwl_result_data *rgb;
 	struct pwl_result_data *rgb_plus_1;
-	struct fixed31_32 y_r;
-	struct fixed31_32 y_g;
-	struct fixed31_32 y_b;
-	struct fixed31_32 y1_min;
-	struct fixed31_32 y3_max;
 
 	int32_t region_start, region_end;
 	int32_t i;
@@ -441,9 +513,9 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 	if (output_tf == NULL || lut_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;
 
-	PERF_TRACE();
+	PERF_TRACE_CTX(output_tf->ctx);
 
-	arr_points = lut_params->arr_points;
+	corner_points = lut_params->corner_points;
 	rgb_resulted = lut_params->rgb_resulted;
 	hw_points = 0;
 
@@ -489,31 +561,28 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
 	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
 
-	arr_points[0].x = dc_fixpt_pow(dc_fixpt_from_int(2),
+	corner_points[0].red.x = dc_fixpt_pow(dc_fixpt_from_int(2),
 					     dc_fixpt_from_int(region_start));
-	arr_points[1].x = dc_fixpt_pow(dc_fixpt_from_int(2),
+	corner_points[0].green.x = corner_points[0].red.x;
+	corner_points[0].blue.x = corner_points[0].red.x;
+	corner_points[1].red.x = dc_fixpt_pow(dc_fixpt_from_int(2),
 					     dc_fixpt_from_int(region_end));
+	corner_points[1].green.x = corner_points[1].red.x;
+	corner_points[1].blue.x = corner_points[1].red.x;
 
-	y_r = rgb_resulted[0].red;
-	y_g = rgb_resulted[0].green;
-	y_b = rgb_resulted[0].blue;
-
-	y1_min = dc_fixpt_min(y_r, dc_fixpt_min(y_g, y_b));
-
-	arr_points[0].y = y1_min;
-	arr_points[0].slope = dc_fixpt_div(arr_points[0].y, arr_points[0].x);
-	y_r = rgb_resulted[hw_points - 1].red;
-	y_g = rgb_resulted[hw_points - 1].green;
-	y_b = rgb_resulted[hw_points - 1].blue;
+	corner_points[0].red.y = rgb_resulted[0].red;
+	corner_points[0].green.y = rgb_resulted[0].green;
+	corner_points[0].blue.y = rgb_resulted[0].blue;
 
 	/* see comment above, m_arrPoints[1].y should be the Y value for the
 	 * region end (m_numOfHwPoints), not last HW point(m_numOfHwPoints - 1)
 	 */
-	y3_max = dc_fixpt_max(y_r, dc_fixpt_max(y_g, y_b));
-
-	arr_points[1].y = y3_max;
-
-	arr_points[1].slope = dc_fixpt_zero;
+	corner_points[1].red.y = rgb_resulted[hw_points - 1].red;
+	corner_points[1].green.y = rgb_resulted[hw_points - 1].green;
+	corner_points[1].blue.y = rgb_resulted[hw_points - 1].blue;
+	corner_points[1].red.slope = dc_fixpt_zero;
+	corner_points[1].green.slope = dc_fixpt_zero;
+	corner_points[1].blue.slope = dc_fixpt_zero;
 
 	if (output_tf->tf == TRANSFER_FUNCTION_PQ) {
 		/* for PQ, we want to have a straight line from last HW X point,
@@ -522,9 +591,15 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 		const struct fixed31_32 end_value =
 				dc_fixpt_from_int(125);
 
-		arr_points[1].slope = dc_fixpt_div(
-			dc_fixpt_sub(dc_fixpt_one, arr_points[1].y),
-			dc_fixpt_sub(end_value, arr_points[1].x));
+		corner_points[1].red.slope = dc_fixpt_div(
+			dc_fixpt_sub(dc_fixpt_one, corner_points[1].red.y),
+			dc_fixpt_sub(end_value, corner_points[1].red.x));
+		corner_points[1].green.slope = dc_fixpt_div(
+			dc_fixpt_sub(dc_fixpt_one, corner_points[1].green.y),
+			dc_fixpt_sub(end_value, corner_points[1].green.x));
+		corner_points[1].blue.slope = dc_fixpt_div(
+			dc_fixpt_sub(dc_fixpt_one, corner_points[1].blue.y),
+			dc_fixpt_sub(end_value, corner_points[1].blue.x));
 	}
 
 	lut_params->hw_points_num = hw_points;
@@ -564,7 +639,7 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 		++i;
 	}
 	cm_helper_convert_to_custom_float(rgb_resulted,
-						lut_params->arr_points,
+						lut_params->corner_points,
 						hw_points, false);
 
 	return true;

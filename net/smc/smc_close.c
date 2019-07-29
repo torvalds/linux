@@ -345,14 +345,7 @@ static void smc_close_passive_work(struct work_struct *work)
 
 	switch (sk->sk_state) {
 	case SMC_INIT:
-		if (atomic_read(&conn->bytes_to_rcv) ||
-		    (rxflags->peer_done_writing &&
-		     !smc_cdc_rxed_any_close(conn))) {
-			sk->sk_state = SMC_APPCLOSEWAIT1;
-		} else {
-			sk->sk_state = SMC_CLOSED;
-			sock_put(sk); /* passive closing */
-		}
+		sk->sk_state = SMC_APPCLOSEWAIT1;
 		break;
 	case SMC_ACTIVE:
 		sk->sk_state = SMC_APPCLOSEWAIT1;

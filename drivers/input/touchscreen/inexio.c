@@ -79,7 +79,7 @@ static void inexio_process_data(struct inexio *pinexio)
 static irqreturn_t inexio_interrupt(struct serio *serio,
 		unsigned char data, unsigned int flags)
 {
-	struct inexio* pinexio = serio_get_drvdata(serio);
+	struct inexio *pinexio = serio_get_drvdata(serio);
 
 	pinexio->data[pinexio->idx] = data;
 
@@ -97,7 +97,7 @@ static irqreturn_t inexio_interrupt(struct serio *serio,
 
 static void inexio_disconnect(struct serio *serio)
 {
-	struct inexio* pinexio = serio_get_drvdata(serio);
+	struct inexio *pinexio = serio_get_drvdata(serio);
 
 	input_get_device(pinexio->dev);
 	input_unregister_device(pinexio->dev);

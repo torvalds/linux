@@ -134,10 +134,9 @@ static inline void emit_a64_mov_i64(const int reg, const u64 val,
 }
 
 /*
- * This is an unoptimized 64 immediate emission used for BPF to BPF call
- * addresses. It will always do a full 64 bit decomposition as otherwise
- * more complexity in the last extra pass is required since we previously
- * reserved 4 instructions for the address.
+ * Kernel addresses in the vmalloc space use at most 48 bits, and the
+ * remaining bits are guaranteed to be 0x1. So we can compose the address
+ * with a fixed length movn/movk/movk sequence.
  */
 static inline void emit_addr_mov_i64(const int reg, const u64 val,
 				     struct jit_ctx *ctx)
@@ -145,8 +144,8 @@ static inline void emit_addr_mov_i64(const int reg, const u64 val,
 	u64 tmp = val;
 	int shift = 0;
 
-	emit(A64_MOVZ(1, reg, tmp & 0xffff, shift), ctx);
-	for (;shift < 48;) {
+	emit(A64_MOVN(1, reg, ~tmp & 0xffff, shift), ctx);
+	while (shift < 32) {
 		tmp >>= 16;
 		shift += 16;
 		emit(A64_MOVK(1, reg, tmp & 0xffff, shift), ctx);
@@ -634,11 +633,7 @@ emit_cond_jmp:
 					    &func_addr, &func_addr_fixed);
 		if (ret < 0)
 			return ret;
-		if (func_addr_fixed)
-			/* We can use optimized emission here. */
-			emit_a64_mov_i64(tmp, func_addr, ctx);
-		else
-			emit_addr_mov_i64(tmp, func_addr, ctx);
+		emit_addr_mov_i64(tmp, func_addr, ctx);
 		emit(A64_BLR(tmp), ctx);
 		emit(A64_MOV(1, r0, A64_R(0)), ctx);
 		break;
@@ -937,6 +932,7 @@ skip_init_ctx:
 	prog->jited_len = image_size;
 
 	if (!prog->is_func || extra_pass) {
+		bpf_prog_fill_jited_linfo(prog, ctx.offset);
 out_off:
 		kfree(ctx.offset);
 		kfree(jit_data);
@@ -947,4 +943,17 @@ out:
 		bpf_jit_prog_release_other(prog, prog == orig_prog ?
 					   tmp : orig_prog);
 	return prog;
+}
+
+void *bpf_jit_alloc_exec(unsigned long size)
+{
+	return __vmalloc_node_range(size, PAGE_SIZE, BPF_JIT_REGION_START,
+				    BPF_JIT_REGION_END, GFP_KERNEL,
+				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+				    __builtin_return_address(0));
+}
+
+void bpf_jit_free_exec(void *addr)
+{
+	return vfree(addr);
 }

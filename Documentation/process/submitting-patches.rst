@@ -510,7 +510,7 @@ tracking your trees, and to people trying to troubleshoot bugs in your
 tree.
 
 
-12) When to use Acked-by:, Cc:, and Co-Developed-by:
+12) When to use Acked-by:, Cc:, and Co-developed-by:
 -------------------------------------------------------
 
 The Signed-off-by: tag indicates that the signer was involved in the
@@ -543,7 +543,7 @@ person it names - but it should indicate that this person was copied on the
 patch.  This tag documents that potentially interested parties
 have been included in the discussion.
 
-A Co-Developed-by: states that the patch was also created by another developer
+A Co-developed-by: states that the patch was also created by another developer
 along with the original author.  This is useful at times when multiple people
 work on a single patch.  Note, this person also needs to have a Signed-off-by:
 line in the patch as well.

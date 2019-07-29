@@ -59,12 +59,6 @@ Implementing Asynchronous Atomic Commit
 .. kernel-doc:: drivers/gpu/drm/drm_atomic_helper.c
    :doc: implementing nonblocking commit
 
-Atomic State Reset and Initialization
--------------------------------------
-
-.. kernel-doc:: drivers/gpu/drm/drm_atomic_helper.c
-   :doc: atomic state reset and initialization
-
 Helper Functions Reference
 --------------------------
 
@@ -72,6 +66,21 @@ Helper Functions Reference
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_atomic_helper.c
+   :export:
+
+Atomic State Reset and Initialization
+-------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic_state_helper.c
+   :doc: atomic state reset and initialization
+
+Atomic State Helper Reference
+-----------------------------
+
+.. kernel-doc:: include/drm/drm_atomic_state_helper.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic_state_helper.c
    :export:
 
 Simple KMS Helper Reference
@@ -221,6 +230,18 @@ MIPI DSI Helper Functions Reference
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_mipi_dsi.c
+   :export:
+
+Display Stream Compression Helper Functions Reference
+=====================================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_dsc.c
+   :doc: dsc helpers
+
+.. kernel-doc:: include/drm/drm_dsc.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_dsc.c
    :export:
 
 Output Probing Helper Functions Reference

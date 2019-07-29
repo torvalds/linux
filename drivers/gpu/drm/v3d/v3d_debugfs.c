@@ -71,10 +71,13 @@ static int v3d_v3d_debugfs_regs(struct seq_file *m, void *unused)
 			   V3D_READ(v3d_hub_reg_defs[i].reg));
 	}
 
-	for (i = 0; i < ARRAY_SIZE(v3d_gca_reg_defs); i++) {
-		seq_printf(m, "%s (0x%04x): 0x%08x\n",
-			   v3d_gca_reg_defs[i].name, v3d_gca_reg_defs[i].reg,
-			   V3D_GCA_READ(v3d_gca_reg_defs[i].reg));
+	if (v3d->ver < 41) {
+		for (i = 0; i < ARRAY_SIZE(v3d_gca_reg_defs); i++) {
+			seq_printf(m, "%s (0x%04x): 0x%08x\n",
+				   v3d_gca_reg_defs[i].name,
+				   v3d_gca_reg_defs[i].reg,
+				   V3D_GCA_READ(v3d_gca_reg_defs[i].reg));
+		}
 	}
 
 	for (core = 0; core < v3d->cores; core++) {
@@ -176,9 +179,44 @@ static int v3d_debugfs_bo_stats(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int v3d_measure_clock(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct v3d_dev *v3d = to_v3d_dev(dev);
+	uint32_t cycles;
+	int core = 0;
+	int measure_ms = 1000;
+
+	if (v3d->ver >= 40) {
+		V3D_CORE_WRITE(core, V3D_V4_PCTR_0_SRC_0_3,
+			       V3D_SET_FIELD(V3D_PCTR_CYCLE_COUNT,
+					     V3D_PCTR_S0));
+		V3D_CORE_WRITE(core, V3D_V4_PCTR_0_CLR, 1);
+		V3D_CORE_WRITE(core, V3D_V4_PCTR_0_EN, 1);
+	} else {
+		V3D_CORE_WRITE(core, V3D_V3_PCTR_0_PCTRS0,
+			       V3D_PCTR_CYCLE_COUNT);
+		V3D_CORE_WRITE(core, V3D_V3_PCTR_0_CLR, 1);
+		V3D_CORE_WRITE(core, V3D_V3_PCTR_0_EN,
+			       V3D_V3_PCTR_0_EN_ENABLE |
+			       1);
+	}
+	msleep(measure_ms);
+	cycles = V3D_CORE_READ(core, V3D_PCTR_0_PCTR0);
+
+	seq_printf(m, "cycles: %d (%d.%d Mhz)\n",
+		   cycles,
+		   cycles / (measure_ms * 1000),
+		   (cycles / (measure_ms * 100)) % 10);
+
+	return 0;
+}
+
 static const struct drm_info_list v3d_debugfs_list[] = {
 	{"v3d_ident", v3d_v3d_debugfs_ident, 0},
 	{"v3d_regs", v3d_v3d_debugfs_regs, 0},
+	{"measure_clock", v3d_measure_clock, 0},
 	{"bo_stats", v3d_debugfs_bo_stats, 0},
 };
 

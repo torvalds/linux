@@ -35,7 +35,7 @@
 #define VCHIQ_UTIL_H
 
 #include <linux/types.h>
-#include <linux/semaphore.h>
+#include <linux/completion.h>
 #include <linux/mutex.h>
 #include <linux/bitops.h>
 #include <linux/kthread.h>
@@ -54,27 +54,28 @@
 
 #include "vchiq_if.h"
 
-typedef struct {
+struct vchiu_queue {
 	int size;
 	int read;
 	int write;
 	int initialized;
 
-	struct semaphore pop;
-	struct semaphore push;
+	struct completion pop;
+	struct completion push;
 
-	VCHIQ_HEADER_T **storage;
-} VCHIU_QUEUE_T;
+	struct vchiq_header **storage;
+};
 
-extern int  vchiu_queue_init(VCHIU_QUEUE_T *queue, int size);
-extern void vchiu_queue_delete(VCHIU_QUEUE_T *queue);
+extern int  vchiu_queue_init(struct vchiu_queue *queue, int size);
+extern void vchiu_queue_delete(struct vchiu_queue *queue);
 
-extern int vchiu_queue_is_empty(VCHIU_QUEUE_T *queue);
-extern int vchiu_queue_is_full(VCHIU_QUEUE_T *queue);
+extern int vchiu_queue_is_empty(struct vchiu_queue *queue);
+extern int vchiu_queue_is_full(struct vchiu_queue *queue);
 
-extern void vchiu_queue_push(VCHIU_QUEUE_T *queue, VCHIQ_HEADER_T *header);
+extern void vchiu_queue_push(struct vchiu_queue *queue,
+			     struct vchiq_header *header);
 
-extern VCHIQ_HEADER_T *vchiu_queue_peek(VCHIU_QUEUE_T *queue);
-extern VCHIQ_HEADER_T *vchiu_queue_pop(VCHIU_QUEUE_T *queue);
+extern struct vchiq_header *vchiu_queue_peek(struct vchiu_queue *queue);
+extern struct vchiq_header *vchiu_queue_pop(struct vchiu_queue *queue);
 
 #endif

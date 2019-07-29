@@ -148,6 +148,14 @@ static bool is_thresh_cmp_valid(u64 event)
 	return true;
 }
 
+static unsigned int dc_ic_rld_quad_l1_sel(u64 event)
+{
+	unsigned int cache;
+
+	cache = (event >> EVENT_CACHE_SEL_SHIFT) & MMCR1_DC_IC_QUAL_MASK;
+	return cache;
+}
+
 static inline u64 isa207_find_source(u64 idx, u32 sub_idx)
 {
 	u64 ret = PERF_MEM_NA;
@@ -226,8 +234,13 @@ void isa207_get_mem_weight(u64 *weight)
 	u64 mmcra = mfspr(SPRN_MMCRA);
 	u64 exp = MMCRA_THR_CTR_EXP(mmcra);
 	u64 mantissa = MMCRA_THR_CTR_MANT(mmcra);
+	u64 sier = mfspr(SPRN_SIER);
+	u64 val = (sier & ISA207_SIER_TYPE_MASK) >> ISA207_SIER_TYPE_SHIFT;
 
-	*weight = mantissa << (2 * exp);
+	if (val == 0 || val == 7)
+		*weight = 0;
+	else
+		*weight = mantissa << (2 * exp);
 }
 
 int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
@@ -274,19 +287,27 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 	}
 
 	if (unit >= 6 && unit <= 9) {
-		/*
-		 * L2/L3 events contain a cache selector field, which is
-		 * supposed to be programmed into MMCRC. However MMCRC is only
-		 * HV writable, and there is no API for guest kernels to modify
-		 * it. The solution is for the hypervisor to initialise the
-		 * field to zeroes, and for us to only ever allow events that
-		 * have a cache selector of zero. The bank selector (bit 3) is
-		 * irrelevant, as long as the rest of the value is 0.
-		 */
-		if (cache & 0x7)
-			return -1;
+		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+			mask  |= CNST_CACHE_GROUP_MASK;
+			value |= CNST_CACHE_GROUP_VAL(event & 0xff);
 
-	} else if (event & EVENT_IS_L1) {
+			mask |= CNST_CACHE_PMC4_MASK;
+			if (pmc == 4)
+				value |= CNST_CACHE_PMC4_VAL;
+		} else if (cache & 0x7) {
+			/*
+			 * L2/L3 events contain a cache selector field, which is
+			 * supposed to be programmed into MMCRC. However MMCRC is only
+			 * HV writable, and there is no API for guest kernels to modify
+			 * it. The solution is for the hypervisor to initialise the
+			 * field to zeroes, and for us to only ever allow events that
+			 * have a cache selector of zero. The bank selector (bit 3) is
+			 * irrelevant, as long as the rest of the value is 0.
+			 */
+			return -1;
+		}
+
+	} else if (cpu_has_feature(CPU_FTR_ARCH_300) || (event & EVENT_IS_L1)) {
 		mask  |= CNST_L1_QUAL_MASK;
 		value |= CNST_L1_QUAL_VAL(cache);
 	}
@@ -389,11 +410,14 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 		/* In continuous sampling mode, update SDAR on TLB miss */
 		mmcra_sdar_mode(event[i], &mmcra);
 
-		if (event[i] & EVENT_IS_L1) {
-			cache = event[i] >> EVENT_CACHE_SEL_SHIFT;
-			mmcr1 |= (cache & 1) << MMCR1_IC_QUAL_SHIFT;
-			cache >>= 1;
-			mmcr1 |= (cache & 1) << MMCR1_DC_QUAL_SHIFT;
+		if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+			cache = dc_ic_rld_quad_l1_sel(event[i]);
+			mmcr1 |= (cache) << MMCR1_DC_IC_QUAL_SHIFT;
+		} else {
+			if (event[i] & EVENT_IS_L1) {
+				cache = dc_ic_rld_quad_l1_sel(event[i]);
+				mmcr1 |= (cache) << MMCR1_DC_IC_QUAL_SHIFT;
+			}
 		}
 
 		if (is_event_marked(event[i])) {

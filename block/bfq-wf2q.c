@@ -1154,15 +1154,14 @@ static void bfq_activate_requeue_entity(struct bfq_entity *entity,
 }
 
 /**
- * __bfq_deactivate_entity - deactivate an entity from its service tree.
- * @entity: the entity to deactivate.
+ * __bfq_deactivate_entity - update sched_data and service trees for
+ * entity, so as to represent entity as inactive
+ * @entity: the entity being deactivated.
  * @ins_into_idle_tree: if false, the entity will not be put into the
  *			idle tree.
  *
- * Deactivates an entity, independently of its previous state.  Must
- * be invoked only if entity is on a service tree. Extracts the entity
- * from that tree, and if necessary and allowed, puts it into the idle
- * tree.
+ * If necessary and allowed, puts entity into the idle tree. NOTE:
+ * entity may be on no tree if in service.
  */
 bool __bfq_deactivate_entity(struct bfq_entity *entity, bool ins_into_idle_tree)
 {

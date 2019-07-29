@@ -283,6 +283,9 @@ enum rdma_nldev_attr {
 
 	/*
 	 * Device and port capabilities
+	 *
+	 * When used for port info, first 32-bits are CapabilityMask followed by
+	 * 16-bit CapabilityMask2.
 	 */
 	RDMA_NLDEV_ATTR_CAP_FLAGS,		/* u64 */
 

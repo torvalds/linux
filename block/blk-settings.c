@@ -20,64 +20,11 @@ EXPORT_SYMBOL(blk_max_low_pfn);
 
 unsigned long blk_max_pfn;
 
-/**
- * blk_queue_prep_rq - set a prepare_request function for queue
- * @q:		queue
- * @pfn:	prepare_request function
- *
- * It's possible for a queue to register a prepare_request callback which
- * is invoked before the request is handed to the request_fn. The goal of
- * the function is to prepare a request for I/O, it can be used to build a
- * cdb from the request data for instance.
- *
- */
-void blk_queue_prep_rq(struct request_queue *q, prep_rq_fn *pfn)
-{
-	q->prep_rq_fn = pfn;
-}
-EXPORT_SYMBOL(blk_queue_prep_rq);
-
-/**
- * blk_queue_unprep_rq - set an unprepare_request function for queue
- * @q:		queue
- * @ufn:	unprepare_request function
- *
- * It's possible for a queue to register an unprepare_request callback
- * which is invoked before the request is finally completed. The goal
- * of the function is to deallocate any data that was allocated in the
- * prepare_request callback.
- *
- */
-void blk_queue_unprep_rq(struct request_queue *q, unprep_rq_fn *ufn)
-{
-	q->unprep_rq_fn = ufn;
-}
-EXPORT_SYMBOL(blk_queue_unprep_rq);
-
-void blk_queue_softirq_done(struct request_queue *q, softirq_done_fn *fn)
-{
-	q->softirq_done_fn = fn;
-}
-EXPORT_SYMBOL(blk_queue_softirq_done);
-
 void blk_queue_rq_timeout(struct request_queue *q, unsigned int timeout)
 {
 	q->rq_timeout = timeout;
 }
 EXPORT_SYMBOL_GPL(blk_queue_rq_timeout);
-
-void blk_queue_rq_timed_out(struct request_queue *q, rq_timed_out_fn *fn)
-{
-	WARN_ON_ONCE(q->mq_ops);
-	q->rq_timed_out_fn = fn;
-}
-EXPORT_SYMBOL_GPL(blk_queue_rq_timed_out);
-
-void blk_queue_lld_busy(struct request_queue *q, lld_busy_fn *fn)
-{
-	q->lld_busy_fn = fn;
-}
-EXPORT_SYMBOL_GPL(blk_queue_lld_busy);
 
 /**
  * blk_set_default_limits - reset limits to default values
@@ -109,7 +56,6 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->alignment_offset = 0;
 	lim->io_opt = 0;
 	lim->misaligned = 0;
-	lim->cluster = 1;
 	lim->zoned = BLK_ZONED_NONE;
 }
 EXPORT_SYMBOL(blk_set_default_limits);
@@ -169,8 +115,6 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 
 	q->make_request_fn = mfn;
 	blk_queue_dma_alignment(q, 511);
-	blk_queue_congestion_threshold(q);
-	q->nr_batching = BLK_BATCH_REQ;
 
 	blk_set_default_limits(&q->limits);
 }
@@ -602,8 +546,6 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	t->io_min = max(t->io_min, b->io_min);
 	t->io_opt = lcm_not_zero(t->io_opt, b->io_opt);
 
-	t->cluster &= b->cluster;
-
 	/* Physical block size a multiple of the logical block size? */
 	if (t->physical_block_size & (t->logical_block_size - 1)) {
 		t->physical_block_size = t->logical_block_size;
@@ -889,16 +831,14 @@ EXPORT_SYMBOL(blk_set_queue_depth);
  */
 void blk_queue_write_cache(struct request_queue *q, bool wc, bool fua)
 {
-	spin_lock_irq(q->queue_lock);
 	if (wc)
-		queue_flag_set(QUEUE_FLAG_WC, q);
+		blk_queue_flag_set(QUEUE_FLAG_WC, q);
 	else
-		queue_flag_clear(QUEUE_FLAG_WC, q);
+		blk_queue_flag_clear(QUEUE_FLAG_WC, q);
 	if (fua)
-		queue_flag_set(QUEUE_FLAG_FUA, q);
+		blk_queue_flag_set(QUEUE_FLAG_FUA, q);
 	else
-		queue_flag_clear(QUEUE_FLAG_FUA, q);
-	spin_unlock_irq(q->queue_lock);
+		blk_queue_flag_clear(QUEUE_FLAG_FUA, q);
 
 	wbt_set_write_cache(q, test_bit(QUEUE_FLAG_WC, &q->queue_flags));
 }

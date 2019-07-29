@@ -545,7 +545,7 @@ ssize_t spk_var_show(struct kobject *kobj, struct kobj_attribute *attr,
 	int rv = 0;
 	struct st_var_header *param;
 	struct var_t *var;
-		char *cp1;
+	char *cp1;
 	char *cp;
 	char ch;
 	unsigned long flags;

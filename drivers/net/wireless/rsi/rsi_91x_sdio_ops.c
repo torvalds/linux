@@ -210,7 +210,7 @@ int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 	}
 
 	/* This tells SDIO FIFO when to start read to host */
-	rsi_dbg(INIT_ZONE, "%s: Initialzing SDIO read start level\n", __func__);
+	rsi_dbg(INIT_ZONE, "%s: Initializing SDIO read start level\n", __func__);
 	byte = 0x24;
 
 	status = rsi_sdio_write_register(adapter,
@@ -223,7 +223,7 @@ int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 		return -1;
 	}
 
-	rsi_dbg(INIT_ZONE, "%s: Initialzing FIFO ctrl registers\n", __func__);
+	rsi_dbg(INIT_ZONE, "%s: Initializing FIFO ctrl registers\n", __func__);
 	byte = (128 - 32);
 
 	status = rsi_sdio_write_register(adapter,

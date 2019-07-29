@@ -1,28 +1,8 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * Copyright (C) 2013-2017 Oracle Corporation
  * This file is based on ast_drv.h
  * Copyright 2012 Red Hat Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
  * Authors: Dave Airlie <airlied@redhat.com>
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
@@ -32,10 +12,10 @@
 
 #include <linux/genalloc.h>
 #include <linux/io.h>
+#include <linux/irqreturn.h>
 #include <linux/string.h>
 #include <linux/version.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
@@ -89,23 +69,21 @@ struct vbox_private {
 	struct vbva_buf_ctx *vbva_info;
 	bool any_pitch;
 	u32 num_crtcs;
-	/** Amount of available VRAM, including space used for buffers. */
+	/* Amount of available VRAM, including space used for buffers. */
 	u32 full_vram_size;
-	/** Amount of available VRAM, not including space used for buffers. */
+	/* Amount of available VRAM, not including space used for buffers. */
 	u32 available_vram_size;
-	/** Array of structures for receiving mode hints. */
+	/* Array of structures for receiving mode hints. */
 	struct vbva_modehint *last_mode_hints;
 
 	int fb_mtrr;
 
 	struct {
-		struct drm_global_reference mem_global_ref;
-		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
 	} ttm;
 
 	struct mutex hw_mutex; /* protects modeset and accel/vbva accesses */
-	/**
+	/*
 	 * We decide whether or not user-space supports display hot-plug
 	 * depending on whether they react to a hot-plug event after the initial
 	 * mode query.
@@ -114,7 +92,7 @@ struct vbox_private {
 	struct work_struct hotplug_work;
 	u32 input_mapping_width;
 	u32 input_mapping_height;
-	/**
+	/*
 	 * Is user-space using an X.Org-style layout of one large frame-buffer
 	 * encompassing all screen ones or is the fbdev console active?
 	 */
@@ -184,10 +162,6 @@ void vbox_hw_fini(struct vbox_private *vbox);
 int vbox_mode_init(struct vbox_private *vbox);
 void vbox_mode_fini(struct vbox_private *vbox);
 
-#define DRM_MODE_FB_CMD drm_mode_fb_cmd2
-
-void vbox_enable_accel(struct vbox_private *vbox);
-void vbox_disable_accel(struct vbox_private *vbox);
 void vbox_report_caps(struct vbox_private *vbox);
 
 void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
@@ -196,7 +170,7 @@ void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 
 int vbox_framebuffer_init(struct vbox_private *vbox,
 			  struct vbox_framebuffer *vbox_fb,
-			  const struct DRM_MODE_FB_CMD *mode_cmd,
+			  const struct drm_mode_fb_cmd2 *mode_cmd,
 			  struct drm_gem_object *obj);
 
 int vboxfb_create(struct drm_fb_helper *helper,

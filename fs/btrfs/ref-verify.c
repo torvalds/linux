@@ -43,7 +43,7 @@ struct ref_entry {
  * back to the delayed ref action.  We hold the ref we are changing in the
  * action so we can account for the history properly, and we record the root we
  * were called with since it could be different from ref_root.  We also store
- * stack traces because thats how I roll.
+ * stack traces because that's how I roll.
  */
 struct ref_action {
 	int action;
@@ -56,7 +56,7 @@ struct ref_action {
 
 /*
  * One of these for every block we reference, it holds the roots and references
- * to it as well as all of the ref actions that have occured to it.  We never
+ * to it as well as all of the ref actions that have occurred to it.  We never
  * free it until we unmount the file system in order to make sure re-allocations
  * are happening properly.
  */
@@ -859,7 +859,7 @@ int btrfs_ref_tree_mod(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 			 * This shouldn't happen because we will add our re
 			 * above when we lookup the be with !parent, but just in
 			 * case catch this case so we don't panic because I
-			 * didn't thik of some other corner case.
+			 * didn't think of some other corner case.
 			 */
 			btrfs_err(fs_info, "failed to find root %llu for %llu",
 				  root->root_key.objectid, be->bytenr);

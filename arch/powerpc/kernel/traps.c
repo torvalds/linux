@@ -837,7 +837,7 @@ static void p9_hmi_special_emu(struct pt_regs *regs)
 	addr = (__force const void __user *)ea;
 
 	/* Check it */
-	if (!access_ok(VERIFY_READ, addr, 16)) {
+	if (!access_ok(addr, 16)) {
 		pr_devel("HMI vec emu: bad access %i:%s[%d] nip=%016lx"
 			 " instr=%08x addr=%016lx\n",
 			 smp_processor_id(), current->comm, current->pid,
@@ -1434,7 +1434,8 @@ void program_check_exception(struct pt_regs *regs)
 			goto bail;
 		} else {
 			printk(KERN_EMERG "Unexpected TM Bad Thing exception "
-			       "at %lx (msr 0x%lx)\n", regs->nip, regs->msr);
+			       "at %lx (msr 0x%lx) tm_scratch=%llx\n",
+			       regs->nip, regs->msr, get_paca()->tm_scratch);
 			die("Unrecoverable exception", regs, SIGABRT);
 		}
 	}

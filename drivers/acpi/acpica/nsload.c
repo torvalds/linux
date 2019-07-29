@@ -24,7 +24,6 @@ acpi_status acpi_ns_unload_namespace(acpi_handle handle);
 static acpi_status acpi_ns_delete_subtree(acpi_handle start_handle);
 #endif
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_load_table
@@ -296,5 +295,4 @@ acpi_status acpi_ns_unload_namespace(acpi_handle handle)
 	status = acpi_ns_delete_subtree(handle);
 	return_ACPI_STATUS(status);
 }
-#endif
 #endif

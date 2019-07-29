@@ -116,7 +116,7 @@ static __always_inline int parse_eth_proto(struct __sk_buff *skb, __be16 proto)
 	return BPF_DROP;
 }
 
-SEC("dissect")
+SEC("flow_dissector")
 int _dissect(struct __sk_buff *skb)
 {
 	if (!skb->vlan_present)

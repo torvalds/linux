@@ -232,7 +232,7 @@ static int pin_rcv_pages(struct hfi1_filedata *fd, struct tid_user_buf *tidbuf)
 	}
 
 	/* Verify that access is OK for the user buffer */
-	if (!access_ok(VERIFY_WRITE, (void __user *)vaddr,
+	if (!access_ok((void __user *)vaddr,
 		       npages * PAGE_SIZE)) {
 		dd_dev_err(dd, "Fail vaddr %p, %u pages, !access_ok\n",
 			   (void *)vaddr, npages);

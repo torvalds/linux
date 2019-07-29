@@ -34,15 +34,15 @@ mlxsw_sp2_acl_ctcam_region_entry_insert(struct mlxsw_sp_acl_ctcam_region *cregio
 {
 	struct mlxsw_sp_acl_atcam_region *aregion;
 	struct mlxsw_sp_acl_atcam_entry *aentry;
-	struct mlxsw_sp_acl_erp *erp;
+	struct mlxsw_sp_acl_erp_mask *erp_mask;
 
 	aregion = mlxsw_sp_acl_tcam_cregion_aregion(cregion);
 	aentry = mlxsw_sp_acl_tcam_centry_aentry(centry);
 
-	erp = mlxsw_sp_acl_erp_get(aregion, mask, true);
-	if (IS_ERR(erp))
-		return PTR_ERR(erp);
-	aentry->erp = erp;
+	erp_mask = mlxsw_sp_acl_erp_mask_get(aregion, mask, true);
+	if (IS_ERR(erp_mask))
+		return PTR_ERR(erp_mask);
+	aentry->erp_mask = erp_mask;
 
 	return 0;
 }
@@ -57,7 +57,7 @@ mlxsw_sp2_acl_ctcam_region_entry_remove(struct mlxsw_sp_acl_ctcam_region *cregio
 	aregion = mlxsw_sp_acl_tcam_cregion_aregion(cregion);
 	aentry = mlxsw_sp_acl_tcam_centry_aentry(centry);
 
-	mlxsw_sp_acl_erp_put(aregion, aentry->erp);
+	mlxsw_sp_acl_erp_mask_put(aregion, aentry->erp_mask);
 }
 
 static const struct mlxsw_sp_acl_ctcam_region_ops
@@ -211,6 +211,23 @@ static void mlxsw_sp2_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
+mlxsw_sp2_acl_tcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
+					void *region_priv, void *chunk_priv,
+					void *entry_priv,
+					struct mlxsw_sp_acl_rule_info *rulei)
+{
+	struct mlxsw_sp2_acl_tcam_region *region = region_priv;
+	struct mlxsw_sp2_acl_tcam_chunk *chunk = chunk_priv;
+	struct mlxsw_sp2_acl_tcam_entry *entry = entry_priv;
+
+	entry->act_block = rulei->act_block;
+	return mlxsw_sp_acl_atcam_entry_action_replace(mlxsw_sp,
+						       &region->aregion,
+						       &chunk->achunk,
+						       &entry->aentry, rulei);
+}
+
+static int
 mlxsw_sp2_acl_tcam_entry_activity_get(struct mlxsw_sp *mlxsw_sp,
 				      void *region_priv, void *entry_priv,
 				      bool *activity)
@@ -235,5 +252,6 @@ const struct mlxsw_sp_acl_tcam_ops mlxsw_sp2_acl_tcam_ops = {
 	.entry_priv_size	= sizeof(struct mlxsw_sp2_acl_tcam_entry),
 	.entry_add		= mlxsw_sp2_acl_tcam_entry_add,
 	.entry_del		= mlxsw_sp2_acl_tcam_entry_del,
+	.entry_action_replace	= mlxsw_sp2_acl_tcam_entry_action_replace,
 	.entry_activity_get	= mlxsw_sp2_acl_tcam_entry_activity_get,
 };

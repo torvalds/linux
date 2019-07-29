@@ -41,16 +41,13 @@ ENDPROC(__put_user_1)
 
 ENTRY(__put_user_2)
 	check_uaccess r0, 2, r1, ip, __put_user_bad
-	mov	ip, r2, lsr #8
-#ifdef CONFIG_THUMB2_KERNEL
-#ifndef __ARMEB__
-2: TUSER(strb)	r2, [r0]
-3: TUSER(strb)	ip, [r0, #1]
+#if __LINUX_ARM_ARCH__ >= 6
+
+2: TUSER(strh)	r2, [r0]
+
 #else
-2: TUSER(strb)	ip, [r0]
-3: TUSER(strb)	r2, [r0, #1]
-#endif
-#else	/* !CONFIG_THUMB2_KERNEL */
+
+	mov	ip, r2, lsr #8
 #ifndef __ARMEB__
 2: TUSER(strb)	r2, [r0], #1
 3: TUSER(strb)	ip, [r0]
@@ -58,7 +55,8 @@ ENTRY(__put_user_2)
 2: TUSER(strb)	ip, [r0], #1
 3: TUSER(strb)	r2, [r0]
 #endif
-#endif	/* CONFIG_THUMB2_KERNEL */
+
+#endif /* __LINUX_ARM_ARCH__ >= 6 */
 	mov	r0, #0
 	ret	lr
 ENDPROC(__put_user_2)
@@ -91,7 +89,9 @@ ENDPROC(__put_user_bad)
 .pushsection __ex_table, "a"
 	.long	1b, __put_user_bad
 	.long	2b, __put_user_bad
+#if __LINUX_ARM_ARCH__ < 6
 	.long	3b, __put_user_bad
+#endif
 	.long	4b, __put_user_bad
 	.long	5b, __put_user_bad
 	.long	6b, __put_user_bad

@@ -58,9 +58,6 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 		       unsigned long *contpc)
 {
 	union mips_instruction insn = (union mips_instruction)dec_insn.insn;
-	int bc_false = 0;
-	unsigned int fcr31;
-	unsigned int bit;
 
 	if (!cpu_has_mmips)
 		return 0;
@@ -139,8 +136,13 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 					dec_insn.pc_inc +
 					dec_insn.next_pc_inc;
 			return 1;
+#ifdef CONFIG_MIPS_FP_SUPPORT
 		case mm_bc2f_op:
-		case mm_bc1f_op:
+		case mm_bc1f_op: {
+			int bc_false = 0;
+			unsigned int fcr31;
+			unsigned int bit;
+
 			bc_false = 1;
 			/* Fall through */
 		case mm_bc2t_op:
@@ -166,6 +168,8 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 				*contpc = regs->cp0_epc +
 					dec_insn.pc_inc + dec_insn.next_pc_inc;
 			return 1;
+		}
+#endif /* CONFIG_MIPS_FP_SUPPORT */
 		}
 		break;
 	case mm_pool16c_op:
@@ -416,8 +420,8 @@ int __MIPS16e_compute_return_epc(struct pt_regs *regs)
 int __compute_return_epc_for_insn(struct pt_regs *regs,
 				   union mips_instruction insn)
 {
-	unsigned int bit, fcr31, dspcontrol, reg;
 	long epc = regs->cp0_epc;
+	unsigned int dspcontrol;
 	int ret = 0;
 
 	switch (insn.i_format.opcode) {
@@ -447,6 +451,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		case bltzl_op:
 			if (NO_R6EMU)
 				goto sigill_r2r6;
+			/* fall through */
 		case bltz_op:
 			if ((long)regs->regs[insn.i_format.rs] < 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
@@ -460,6 +465,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		case bgezl_op:
 			if (NO_R6EMU)
 				goto sigill_r2r6;
+			/* fall through */
 		case bgez_op:
 			if ((long)regs->regs[insn.i_format.rs] >= 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
@@ -555,6 +561,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case jalx_op:
 	case jal_op:
 		regs->regs[31] = regs->cp0_epc + 8;
+		/* fall through */
 	case j_op:
 		epc += 4;
 		epc >>= 28;
@@ -571,6 +578,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case beql_op:
 		if (NO_R6EMU)
 			goto sigill_r2r6;
+		/* fall through */
 	case beq_op:
 		if (regs->regs[insn.i_format.rs] ==
 		    regs->regs[insn.i_format.rt]) {
@@ -585,6 +593,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case bnel_op:
 		if (NO_R6EMU)
 			goto sigill_r2r6;
+		/* fall through */
 	case bne_op:
 		if (regs->regs[insn.i_format.rs] !=
 		    regs->regs[insn.i_format.rt]) {
@@ -599,6 +608,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case blezl_op: /* not really i_format */
 		if (!insn.i_format.rt && NO_R6EMU)
 			goto sigill_r2r6;
+		/* fall through */
 	case blez_op:
 		/*
 		 * Compact branches for R6 for the
@@ -634,6 +644,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	case bgtzl_op:
 		if (!insn.i_format.rt && NO_R6EMU)
 			goto sigill_r2r6;
+		/* fall through */
 	case bgtz_op:
 		/*
 		 * Compact branches for R6 for the
@@ -667,23 +678,18 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		regs->cp0_epc = epc;
 		break;
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
 	/*
 	 * And now the FPA/cp1 branch instructions.
 	 */
-	case cop1_op:
+	case cop1_op: {
+		unsigned int bit, fcr31, reg;
+
 		if (cpu_has_mips_r6 &&
 		    ((insn.i_format.rs == bc1eqz_op) ||
 		     (insn.i_format.rs == bc1nez_op))) {
-			if (!used_math()) { /* First time FPU user */
-				ret = init_fpu();
-				if (ret && NO_R6EMU) {
-					ret = -ret;
-					break;
-				}
-				ret = 0;
-				set_used_math();
-			}
-			lose_fpu(1);    /* Save FPU state for the emulator. */
+			if (!init_fp_ctx(current))
+				lose_fpu(1);
 			reg = insn.i_format.rt;
 			bit = get_fpr32(&current->thread.fpu.fpr[reg], 0) & 0x1;
 			if (insn.i_format.rs == bc1eqz_op)
@@ -736,6 +742,9 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			}
 			break;
 		}
+	}
+#endif /* CONFIG_MIPS_FP_SUPPORT */
+
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	case lwc2_op: /* This is bbit0 on Octeon */
 		if ((regs->regs[insn.i_format.rs] & (1ull<<insn.i_format.rt))

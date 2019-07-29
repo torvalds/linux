@@ -56,7 +56,6 @@ struct gpio_service *dal_gpio_service_create(
 	struct dc_context *ctx)
 {
 	struct gpio_service *service;
-
 	uint32_t index_of_id;
 
 	service = kzalloc(sizeof(struct gpio_service), GFP_KERNEL);
@@ -78,44 +77,33 @@ struct gpio_service *dal_gpio_service_create(
 		goto failure_1;
 	}
 
-	/* allocate and initialize business storage */
+	/* allocate and initialize busyness storage */
 	{
-		const uint32_t bits_per_uint = sizeof(uint32_t) << 3;
-
 		index_of_id = 0;
 		service->ctx = ctx;
 
 		do {
 			uint32_t number_of_bits =
 				service->factory.number_of_pins[index_of_id];
+			uint32_t i = 0;
 
-			uint32_t number_of_uints =
-				(number_of_bits + bits_per_uint - 1) /
-				bits_per_uint;
+			if (number_of_bits)  {
+				service->busyness[index_of_id] =
+					kcalloc(number_of_bits, sizeof(char),
+						GFP_KERNEL);
 
-			uint32_t *slot;
-
-			if (number_of_bits) {
-				uint32_t index_of_uint = 0;
-
-				slot = kcalloc(number_of_uints,
-					       sizeof(uint32_t),
-					       GFP_KERNEL);
-
-				if (!slot) {
+				if (!service->busyness[index_of_id]) {
 					BREAK_TO_DEBUGGER();
 					goto failure_2;
 				}
 
 				do {
-					slot[index_of_uint] = 0;
-
-					++index_of_uint;
-				} while (index_of_uint < number_of_uints);
-			} else
-				slot = NULL;
-
-			service->busyness[index_of_id] = slot;
+					service->busyness[index_of_id][i] = 0;
+					++i;
+				} while (i < number_of_bits);
+			} else {
+				service->busyness[index_of_id] = NULL;
+			}
 
 			++index_of_id;
 		} while (index_of_id < GPIO_ID_COUNT);
@@ -125,13 +113,8 @@ struct gpio_service *dal_gpio_service_create(
 
 failure_2:
 	while (index_of_id) {
-		uint32_t *slot;
-
 		--index_of_id;
-
-		slot = service->busyness[index_of_id];
-
-		kfree(slot);
+		kfree(service->busyness[index_of_id]);
 	}
 
 failure_1:
@@ -169,9 +152,7 @@ void dal_gpio_service_destroy(
 		uint32_t index_of_id = 0;
 
 		do {
-			uint32_t *slot = (*ptr)->busyness[index_of_id];
-
-			kfree(slot);
+			kfree((*ptr)->busyness[index_of_id]);
 
 			++index_of_id;
 		} while (index_of_id < GPIO_ID_COUNT);
@@ -192,11 +173,7 @@ static bool is_pin_busy(
 	enum gpio_id id,
 	uint32_t en)
 {
-	const uint32_t bits_per_uint = sizeof(uint32_t) << 3;
-
-	const uint32_t *slot = service->busyness[id] + (en / bits_per_uint);
-
-	return 0 != (*slot & (1 << (en % bits_per_uint)));
+	return service->busyness[id][en];
 }
 
 static void set_pin_busy(
@@ -204,10 +181,7 @@ static void set_pin_busy(
 	enum gpio_id id,
 	uint32_t en)
 {
-	const uint32_t bits_per_uint = sizeof(uint32_t) << 3;
-
-	service->busyness[id][en / bits_per_uint] |=
-		(1 << (en % bits_per_uint));
+	service->busyness[id][en] = true;
 }
 
 static void set_pin_free(
@@ -215,10 +189,7 @@ static void set_pin_free(
 	enum gpio_id id,
 	uint32_t en)
 {
-	const uint32_t bits_per_uint = sizeof(uint32_t) << 3;
-
-	service->busyness[id][en / bits_per_uint] &=
-		~(1 << (en % bits_per_uint));
+	service->busyness[id][en] = false;
 }
 
 enum gpio_result dal_gpio_service_open(

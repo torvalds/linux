@@ -23,6 +23,7 @@
 #include <linux/smp.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
+#include <linux/delay.h>
 
 #include <asm/sbi.h>
 #include <asm/tlbflush.h>
@@ -31,6 +32,7 @@
 enum ipi_message_type {
 	IPI_RESCHEDULE,
 	IPI_CALL_FUNC,
+	IPI_CPU_STOP,
 	IPI_MAX
 };
 
@@ -66,6 +68,13 @@ int setup_profiling_timer(unsigned int multiplier)
 	return -EINVAL;
 }
 
+static void ipi_stop(void)
+{
+	set_cpu_online(smp_processor_id(), false);
+	while (1)
+		wait_for_interrupt();
+}
+
 void riscv_software_interrupt(void)
 {
 	unsigned long *pending_ipis = &ipi_data[smp_processor_id()].bits;
@@ -92,6 +101,11 @@ void riscv_software_interrupt(void)
 		if (ops & (1 << IPI_CALL_FUNC)) {
 			stats[IPI_CALL_FUNC]++;
 			generic_smp_call_function_interrupt();
+		}
+
+		if (ops & (1 << IPI_CPU_STOP)) {
+			stats[IPI_CPU_STOP]++;
+			ipi_stop();
 		}
 
 		BUG_ON((ops >> IPI_MAX) != 0);
@@ -121,6 +135,7 @@ send_ipi_message(const struct cpumask *to_whom, enum ipi_message_type operation)
 static const char * const ipi_names[] = {
 	[IPI_RESCHEDULE]	= "Rescheduling interrupts",
 	[IPI_CALL_FUNC]		= "Function call interrupts",
+	[IPI_CPU_STOP]		= "CPU stop interrupts",
 };
 
 void show_ipi_stats(struct seq_file *p, int prec)
@@ -146,15 +161,29 @@ void arch_send_call_function_single_ipi(int cpu)
 	send_ipi_message(cpumask_of(cpu), IPI_CALL_FUNC);
 }
 
-static void ipi_stop(void *unused)
-{
-	while (1)
-		wait_for_interrupt();
-}
-
 void smp_send_stop(void)
 {
-	on_each_cpu(ipi_stop, NULL, 1);
+	unsigned long timeout;
+
+	if (num_online_cpus() > 1) {
+		cpumask_t mask;
+
+		cpumask_copy(&mask, cpu_online_mask);
+		cpumask_clear_cpu(smp_processor_id(), &mask);
+
+		if (system_state <= SYSTEM_RUNNING)
+			pr_crit("SMP: stopping secondary CPUs\n");
+		send_ipi_message(&mask, IPI_CPU_STOP);
+	}
+
+	/* Wait up to one second for other CPUs to stop */
+	timeout = USEC_PER_SEC;
+	while (num_online_cpus() > 1 && timeout--)
+		udelay(1);
+
+	if (num_online_cpus() > 1)
+		pr_warn("SMP: failed to stop secondary CPUs %*pbl\n",
+			   cpumask_pr_args(cpu_online_mask));
 }
 
 void smp_send_reschedule(int cpu)

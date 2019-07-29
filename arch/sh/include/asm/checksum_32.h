@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_CHECKSUM_H
 #define __ASM_SH_CHECKSUM_H
 
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  * Copyright (C) 1999 by Kaz Kojima & Niibe Yutaka
  */
 
@@ -200,7 +197,7 @@ static inline __wsum csum_and_copy_to_user(const void *src,
 					   int len, __wsum sum,
 					   int *err_ptr)
 {
-	if (access_ok(VERIFY_WRITE, dst, len))
+	if (access_ok(dst, len))
 		return csum_partial_copy_generic((__force const void *)src,
 						dst, len, sum, NULL, err_ptr);
 

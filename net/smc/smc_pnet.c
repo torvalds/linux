@@ -27,7 +27,7 @@
 static struct nla_policy smc_pnet_policy[SMC_PNETID_MAX + 1] = {
 	[SMC_PNETID_NAME] = {
 		.type = NLA_NUL_STRING,
-		.len = SMC_MAX_PNETID_LEN - 1
+		.len = SMC_MAX_PNETID_LEN
 	},
 	[SMC_PNETID_ETHNAME] = {
 		.type = NLA_NUL_STRING,

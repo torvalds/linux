@@ -177,6 +177,10 @@ bsg_map_hdr(struct request_queue *q, struct sg_io_v4 *hdr, fmode_t mode)
 			goto out;
 		}
 
+		pr_warn_once(
+			"BIDI support in bsg has been deprecated and might be removed. "
+			"Please report your use case to linux-scsi@vger.kernel.org\n");
+
 		next_rq = blk_get_request(q, REQ_OP_SCSI_IN, 0);
 		if (IS_ERR(next_rq)) {
 			ret = PTR_ERR(next_rq);
@@ -471,7 +475,7 @@ int bsg_register_queue(struct request_queue *q, struct device *parent,
 	/*
 	 * we need a proper transport to send commands, not a stacked device
 	 */
-	if (!queue_is_rq_based(q))
+	if (!queue_is_mq(q))
 		return 0;
 
 	bcd = &q->bsg_dev;

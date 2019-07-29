@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
+#include <linux/acpi.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 
@@ -243,12 +244,19 @@ static const struct of_device_id dw_spi_mmio_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dw_spi_mmio_of_match);
 
+static const struct acpi_device_id dw_spi_mmio_acpi_match[] = {
+	{"HISI0173", 0},
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, dw_spi_mmio_acpi_match);
+
 static struct platform_driver dw_spi_mmio_driver = {
 	.probe		= dw_spi_mmio_probe,
 	.remove		= dw_spi_mmio_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = dw_spi_mmio_of_match,
+		.acpi_match_table = ACPI_PTR(dw_spi_mmio_acpi_match),
 	},
 };
 module_platform_driver(dw_spi_mmio_driver);

@@ -1079,8 +1079,7 @@ static struct sock *chtls_recv_sock(struct sock *lsk,
 	csk->txq_idx = (rxq_idx < cdev->lldi->ntxq) ? rxq_idx :
 			port_id * step;
 	csk->sndbuf = newsk->sk_sndbuf;
-	csk->smac_idx = cxgb4_tp_smt_idx(cdev->lldi->adapter_type,
-					 cxgb4_port_viid(ndev));
+	csk->smac_idx = ((struct port_info *)netdev_priv(ndev))->smt_idx;
 	RCV_WSCALE(tp) = select_rcv_wscale(tcp_full_space(newsk),
 					   sock_net(newsk)->
 						ipv4.sysctl_tcp_window_scaling,

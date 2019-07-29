@@ -2591,7 +2591,7 @@ ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 	int idx;
 	if (!head->write)
 		return -ENOSYS;
-	if (!access_ok(VERIFY_READ, buffer, buffer_len))
+	if (!access_ok(buffer, buffer_len))
 		return -EFAULT;
 	if (mutex_lock_interruptible(&head->io_sem))
 		return -EINTR;

@@ -1471,15 +1471,21 @@ struct mei_device *mei_me_dev_init(struct pci_dev *pdev,
 {
 	struct mei_device *dev;
 	struct mei_me_hw *hw;
+	int i;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct mei_device) +
 			   sizeof(struct mei_me_hw), GFP_KERNEL);
 	if (!dev)
 		return NULL;
+
 	hw = to_me_hw(dev);
+
+	for (i = 0; i < DMA_DSCR_NUM; i++)
+		dev->dr_dscr[i].size = cfg->dma_size[i];
 
 	mei_device_init(dev, &pdev->dev, &mei_me_hw_ops);
 	hw->cfg = cfg;
+
 	return dev;
 }
 

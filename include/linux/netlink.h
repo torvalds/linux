@@ -34,8 +34,8 @@ struct netlink_skb_parms {
 #define NETLINK_CREDS(skb)	(&NETLINK_CB((skb)).creds)
 
 
-extern void netlink_table_grab(void);
-extern void netlink_table_ungrab(void);
+void netlink_table_grab(void);
+void netlink_table_ungrab(void);
 
 #define NL_CFG_F_NONROOT_RECV	(1 << 0)
 #define NL_CFG_F_NONROOT_SEND	(1 << 1)
@@ -51,7 +51,7 @@ struct netlink_kernel_cfg {
 	bool		(*compare)(struct net *net, struct sock *sk);
 };
 
-extern struct sock *__netlink_kernel_create(struct net *net, int unit,
+struct sock *__netlink_kernel_create(struct net *net, int unit,
 					    struct module *module,
 					    struct netlink_kernel_cfg *cfg);
 static inline struct sock *
@@ -110,24 +110,33 @@ struct netlink_ext_ack {
 	}						\
 } while (0)
 
-extern void netlink_kernel_release(struct sock *sk);
-extern int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
-extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);
-extern void __netlink_clear_multicast_users(struct sock *sk, unsigned int group);
-extern void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
-			const struct netlink_ext_ack *extack);
-extern int netlink_has_listeners(struct sock *sk, unsigned int group);
+static inline void nl_set_extack_cookie_u64(struct netlink_ext_ack *extack,
+					    u64 cookie)
+{
+	u64 __cookie = cookie;
 
-extern int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 portid, int nonblock);
-extern int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, __u32 portid,
-			     __u32 group, gfp_t allocation);
-extern int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb,
-	__u32 portid, __u32 group, gfp_t allocation,
-	int (*filter)(struct sock *dsk, struct sk_buff *skb, void *data),
-	void *filter_data);
-extern int netlink_set_err(struct sock *ssk, __u32 portid, __u32 group, int code);
-extern int netlink_register_notifier(struct notifier_block *nb);
-extern int netlink_unregister_notifier(struct notifier_block *nb);
+	memcpy(extack->cookie, &__cookie, sizeof(__cookie));
+	extack->cookie_len = sizeof(__cookie);
+}
+
+void netlink_kernel_release(struct sock *sk);
+int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
+int netlink_change_ngroups(struct sock *sk, unsigned int groups);
+void __netlink_clear_multicast_users(struct sock *sk, unsigned int group);
+void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
+		 const struct netlink_ext_ack *extack);
+int netlink_has_listeners(struct sock *sk, unsigned int group);
+
+int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 portid, int nonblock);
+int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, __u32 portid,
+		      __u32 group, gfp_t allocation);
+int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb,
+			       __u32 portid, __u32 group, gfp_t allocation,
+			       int (*filter)(struct sock *dsk, struct sk_buff *skb, void *data),
+			       void *filter_data);
+int netlink_set_err(struct sock *ssk, __u32 portid, __u32 group, int code);
+int netlink_register_notifier(struct notifier_block *nb);
+int netlink_unregister_notifier(struct notifier_block *nb);
 
 /* finegrained unicast helpers: */
 struct sock *netlink_getsockbyfilp(struct file *filp);
@@ -203,7 +212,7 @@ struct netlink_dump_control {
 	u16 min_dump_alloc;
 };
 
-extern int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
+int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 				const struct nlmsghdr *nlh,
 				struct netlink_dump_control *control);
 static inline int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
@@ -222,8 +231,8 @@ struct netlink_tap {
 	struct list_head list;
 };
 
-extern int netlink_add_tap(struct netlink_tap *nt);
-extern int netlink_remove_tap(struct netlink_tap *nt);
+int netlink_add_tap(struct netlink_tap *nt);
+int netlink_remove_tap(struct netlink_tap *nt);
 
 bool __netlink_ns_capable(const struct netlink_skb_parms *nsp,
 			  struct user_namespace *ns, int cap);

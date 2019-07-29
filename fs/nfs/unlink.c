@@ -31,7 +31,7 @@
 static void
 nfs_free_unlinkdata(struct nfs_unlinkdata *data)
 {
-	put_rpccred(data->cred);
+	put_cred(data->cred);
 	kfree(data->args.name.name);
 	kfree(data);
 }
@@ -177,11 +177,7 @@ nfs_async_unlink(struct dentry *dentry, const struct qstr *name)
 		goto out_free;
 	data->args.name.len = name->len;
 
-	data->cred = rpc_lookup_cred();
-	if (IS_ERR(data->cred)) {
-		status = PTR_ERR(data->cred);
-		goto out_free_name;
-	}
+	data->cred = get_current_cred();
 	data->res.dir_attr = &data->dir_attr;
 	init_waitqueue_head(&data->wq);
 
@@ -202,8 +198,7 @@ nfs_async_unlink(struct dentry *dentry, const struct qstr *name)
 	return 0;
 out_unlock:
 	spin_unlock(&dentry->d_lock);
-	put_rpccred(data->cred);
-out_free_name:
+	put_cred(data->cred);
 	kfree(data->args.name.name);
 out_free:
 	kfree(data);
@@ -307,7 +302,7 @@ static void nfs_async_rename_release(void *calldata)
 	iput(data->old_dir);
 	iput(data->new_dir);
 	nfs_sb_deactive(sb);
-	put_rpccred(data->cred);
+	put_cred(data->cred);
 	kfree(data);
 }
 
@@ -352,12 +347,7 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 		return ERR_PTR(-ENOMEM);
 	task_setup_data.callback_data = data;
 
-	data->cred = rpc_lookup_cred();
-	if (IS_ERR(data->cred)) {
-		struct rpc_task *task = ERR_CAST(data->cred);
-		kfree(data);
-		return task;
-	}
+	data->cred = get_current_cred();
 
 	msg.rpc_argp = &data->args;
 	msg.rpc_resp = &data->res;

@@ -921,7 +921,7 @@ static int _dpu_format_populate_addrs_ubwc(
 			+ layout->plane_size[2] + layout->plane_size[3];
 
 		if (!meta)
-			goto done;
+			return 0;
 
 		/* configure Y metadata plane */
 		layout->plane_addr[2] = base_addr;
@@ -952,12 +952,11 @@ static int _dpu_format_populate_addrs_ubwc(
 		layout->plane_addr[1] = 0;
 
 		if (!meta)
-			goto done;
+			return 0;
 
 		layout->plane_addr[2] = base_addr;
 		layout->plane_addr[3] = 0;
 	}
-done:
 	return 0;
 }
 

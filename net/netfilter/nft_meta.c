@@ -229,7 +229,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 	}
 #ifdef CONFIG_XFRM
 	case NFT_META_SECPATH:
-		nft_reg_store8(dest, !!skb->sp);
+		nft_reg_store8(dest, secpath_exists(skb));
 		break;
 #endif
 #ifdef CONFIG_NF_TABLES_BRIDGE

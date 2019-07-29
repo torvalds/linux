@@ -11,6 +11,9 @@
  *               Jason J. Herne <jjherne@us.ibm.com>
  */
 
+#define KMSG_COMPONENT "kvm-s390"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/compiler.h>
 #include <linux/err.h>
 #include <linux/fs.h>
@@ -43,10 +46,6 @@
 #include <asm/ap.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
-
-#define KMSG_COMPONENT "kvm-s390"
-#undef pr_fmt
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -417,19 +416,30 @@ static void kvm_s390_cpu_feat_init(void)
 
 int kvm_arch_init(void *opaque)
 {
+	int rc;
+
 	kvm_s390_dbf = debug_register("kvm-trace", 32, 1, 7 * sizeof(long));
 	if (!kvm_s390_dbf)
 		return -ENOMEM;
 
 	if (debug_register_view(kvm_s390_dbf, &debug_sprintf_view)) {
-		debug_unregister(kvm_s390_dbf);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto out_debug_unreg;
 	}
 
 	kvm_s390_cpu_feat_init();
 
 	/* Register floating interrupt controller interface. */
-	return kvm_register_device_ops(&kvm_flic_ops, KVM_DEV_TYPE_FLIC);
+	rc = kvm_register_device_ops(&kvm_flic_ops, KVM_DEV_TYPE_FLIC);
+	if (rc) {
+		pr_err("Failed to register FLIC rc=%d\n", rc);
+		goto out_debug_unreg;
+	}
+	return 0;
+
+out_debug_unreg:
+	debug_unregister(kvm_s390_dbf);
+	return rc;
 }
 
 void kvm_arch_exit(void)
@@ -464,7 +474,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_CSS_SUPPORT:
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_DEVICE_CTRL:
-	case KVM_CAP_ENABLE_CAP_VM:
 	case KVM_CAP_S390_IRQCHIP:
 	case KVM_CAP_VM_ATTRIBUTES:
 	case KVM_CAP_MP_STATE:
@@ -607,7 +616,7 @@ static void icpt_operexc_on_all_vcpus(struct kvm *kvm)
 	}
 }
 
-static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
+int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 {
 	int r;
 
@@ -1931,14 +1940,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (copy_from_user(&s390int, argp, sizeof(s390int)))
 			break;
 		r = kvm_s390_inject_vm(kvm, &s390int);
-		break;
-	}
-	case KVM_ENABLE_CAP: {
-		struct kvm_enable_cap cap;
-		r = -EFAULT;
-		if (copy_from_user(&cap, argp, sizeof(cap)))
-			break;
-		r = kvm_vm_ioctl_enable_cap(kvm, &cap);
 		break;
 	}
 	case KVM_CREATE_IRQCHIP: {

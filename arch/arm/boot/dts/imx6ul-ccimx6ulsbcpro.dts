@@ -24,6 +24,18 @@
 		status = "okay";
 	};
 
+	panel {
+		compatible = "auo,g101evn010", "simple-panel";
+		power-supply = <&ldo4_ext>;
+		backlight = <&lcd_backlight>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&display_out>;
+			};
+		};
+	};
+
 	reg_usb_otg1_vbus: regulator-usb-otg1 {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_otg1_vbus";
@@ -105,6 +117,19 @@
 	};
 };
 
+&i2c1 {
+	touchscreen@14 {
+		compatible = "goodix,gt911";
+		reg = <0x14>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_goodix_touch>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <2 IRQ_TYPE_EDGE_RISING>;
+		irq-gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
 &lcdif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lcdif_dat0_17
@@ -112,6 +137,12 @@
 		     &pinctrl_lcdif_hvsync>;
 	lcd-supply = <&ldo4_ext>;       /* BU90T82 LVDS bridge power */
 	status = "okay";
+
+	port {
+		display_out: endpoint {
+			remote-endpoint = <&panel_in>;
+		};
+	};
 };
 
 &ldo4_ext {
@@ -269,6 +300,12 @@
 		fsl,pins = <
 			MX6UL_PAD_UART2_CTS_B__FLEXCAN2_TX	0x1b020
 			MX6UL_PAD_UART2_RTS_B__FLEXCAN2_RX	0x1b020
+		>;
+	};
+
+	pinctrl_goodix_touch: goodixgrp{
+		fsl,pins = <
+			MX6UL_PAD_SNVS_TAMPER2__GPIO5_IO02	0x1020
 		>;
 	};
 

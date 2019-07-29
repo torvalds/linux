@@ -317,7 +317,6 @@ config UBOOT
 	help
 	  If you say Y here kernel will try to collect command
 	  line parameters from the initial u-boot stack.
-	default n
 
 config 4KSTACKS
 	bool "Use 4Kb for kernel stacks instead of 8Kb"
@@ -395,7 +394,6 @@ comment "ROM configuration"
 
 config ROM
 	bool "Specify ROM linker regions"
-	default n
 	help
 	  Define a ROM region for the linker script. This creates a kernel
 	  that can be stored in flash, with possibly the text, and data

@@ -20,6 +20,8 @@
 #include <linux/kernel.h>
 #include "core.h"
 
+const char *qtnf_chipid_to_string(unsigned long chip_id);
+
 void qtnf_sta_list_init(struct qtnf_sta_list *list);
 
 struct qtnf_sta_node *qtnf_sta_list_lookup(struct qtnf_sta_list *list,

@@ -68,6 +68,4 @@
 
 #define GRBM_GFX_INDEX					0x30800
 
-#define	ATC_VMID_PASID_MAPPING_VALID			(1U << 31)
-
 #endif

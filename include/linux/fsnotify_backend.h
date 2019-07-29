@@ -38,6 +38,7 @@
 #define FS_DELETE		0x00000200	/* Subfile was deleted */
 #define FS_DELETE_SELF		0x00000400	/* Self was deleted */
 #define FS_MOVE_SELF		0x00000800	/* Self was moved */
+#define FS_OPEN_EXEC		0x00001000	/* File was opened for exec */
 
 #define FS_UNMOUNT		0x00002000	/* inode on umount fs */
 #define FS_Q_OVERFLOW		0x00004000	/* Event queued overflowed */
@@ -45,6 +46,7 @@
 
 #define FS_OPEN_PERM		0x00010000	/* open event in an permission hook */
 #define FS_ACCESS_PERM		0x00020000	/* access event in a permissions hook */
+#define FS_OPEN_EXEC_PERM	0x00040000	/* open/exec event in a permission hook */
 
 #define FS_EXCL_UNLINK		0x04000000	/* do not send events if object is unlinked */
 #define FS_ISDIR		0x40000000	/* event occurred against dir */
@@ -62,11 +64,13 @@
 #define FS_EVENTS_POSS_ON_CHILD   (FS_ACCESS | FS_MODIFY | FS_ATTRIB |\
 				   FS_CLOSE_WRITE | FS_CLOSE_NOWRITE | FS_OPEN |\
 				   FS_MOVED_FROM | FS_MOVED_TO | FS_CREATE |\
-				   FS_DELETE | FS_OPEN_PERM | FS_ACCESS_PERM)
+				   FS_DELETE | FS_OPEN_PERM | FS_ACCESS_PERM | \
+				   FS_OPEN_EXEC | FS_OPEN_EXEC_PERM)
 
 #define FS_MOVE			(FS_MOVED_FROM | FS_MOVED_TO)
 
-#define ALL_FSNOTIFY_PERM_EVENTS (FS_OPEN_PERM | FS_ACCESS_PERM)
+#define ALL_FSNOTIFY_PERM_EVENTS (FS_OPEN_PERM | FS_ACCESS_PERM | \
+				  FS_OPEN_EXEC_PERM)
 
 /* Events that can be reported to backends */
 #define ALL_FSNOTIFY_EVENTS (FS_ACCESS | FS_MODIFY | FS_ATTRIB | \
@@ -74,7 +78,8 @@
 			     FS_MOVED_FROM | FS_MOVED_TO | FS_CREATE | \
 			     FS_DELETE | FS_DELETE_SELF | FS_MOVE_SELF | \
 			     FS_UNMOUNT | FS_Q_OVERFLOW | FS_IN_IGNORED | \
-			     FS_OPEN_PERM | FS_ACCESS_PERM | FS_DN_RENAME)
+			     FS_OPEN_PERM | FS_ACCESS_PERM | FS_DN_RENAME | \
+			     FS_OPEN_EXEC | FS_OPEN_EXEC_PERM)
 
 /* Extra flags that may be reported with event or control handling of events */
 #define ALL_FSNOTIFY_FLAGS  (FS_EXCL_UNLINK | FS_ISDIR | FS_IN_ONESHOT | \

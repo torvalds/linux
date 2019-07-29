@@ -453,17 +453,17 @@ static int mtk_desc_ring_alloc(struct mtk_cryp *cryp)
 		if (!ring[i])
 			goto err_cleanup;
 
-		ring[i]->cmd_base = dma_zalloc_coherent(cryp->dev,
-					   MTK_DESC_RING_SZ,
-					   &ring[i]->cmd_dma,
-					   GFP_KERNEL);
+		ring[i]->cmd_base = dma_alloc_coherent(cryp->dev,
+						       MTK_DESC_RING_SZ,
+						       &ring[i]->cmd_dma,
+						       GFP_KERNEL);
 		if (!ring[i]->cmd_base)
 			goto err_cleanup;
 
-		ring[i]->res_base = dma_zalloc_coherent(cryp->dev,
-					   MTK_DESC_RING_SZ,
-					   &ring[i]->res_dma,
-					   GFP_KERNEL);
+		ring[i]->res_base = dma_alloc_coherent(cryp->dev,
+						       MTK_DESC_RING_SZ,
+						       &ring[i]->res_dma,
+						       GFP_KERNEL);
 		if (!ring[i]->res_base)
 			goto err_cleanup;
 

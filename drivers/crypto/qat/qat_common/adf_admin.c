@@ -244,18 +244,18 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 			     dev_to_node(&GET_DEV(accel_dev)));
 	if (!admin)
 		return -ENOMEM;
-	admin->virt_addr = dma_zalloc_coherent(&GET_DEV(accel_dev), PAGE_SIZE,
-					       &admin->phy_addr, GFP_KERNEL);
+	admin->virt_addr = dma_alloc_coherent(&GET_DEV(accel_dev), PAGE_SIZE,
+					      &admin->phy_addr, GFP_KERNEL);
 	if (!admin->virt_addr) {
 		dev_err(&GET_DEV(accel_dev), "Failed to allocate dma buff\n");
 		kfree(admin);
 		return -ENOMEM;
 	}
 
-	admin->virt_tbl_addr = dma_zalloc_coherent(&GET_DEV(accel_dev),
-						   PAGE_SIZE,
-						   &admin->const_tbl_addr,
-						   GFP_KERNEL);
+	admin->virt_tbl_addr = dma_alloc_coherent(&GET_DEV(accel_dev),
+						  PAGE_SIZE,
+						  &admin->const_tbl_addr,
+						  GFP_KERNEL);
 	if (!admin->virt_tbl_addr) {
 		dev_err(&GET_DEV(accel_dev), "Failed to allocate const_tbl\n");
 		dma_free_coherent(&GET_DEV(accel_dev), PAGE_SIZE,

@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/arch/sh/boards/hp6xx/setup.c
  *
  * Copyright (C) 2002 Andriy Skulysh
  * Copyright (C) 2007 Kristoffer Ericson <Kristoffer_e1@hotmail.com>
- *
- * May be copied or modified under the terms of the GNU General Public
- * License.  See linux/COPYING for more information.
  *
  * Setup code for HP620/HP660/HP680/HP690 (internal peripherials only)
  */

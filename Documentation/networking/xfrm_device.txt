@@ -111,9 +111,10 @@ the stack in xfrm_input().
 		xfrm_state_hold(xs);
 
 	store the state information into the skb
-		skb->sp = secpath_dup(skb->sp);
-		skb->sp->xvec[skb->sp->len++] = xs;
-		skb->sp->olen++;
+		sp = secpath_set(skb);
+		if (!sp) return;
+		sp->xvec[sp->len++] = xs;
+		sp->olen++;
 
 	indicate the success and/or error status of the offload
 		xo = xfrm_offload(skb);

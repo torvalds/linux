@@ -475,6 +475,7 @@ static i915_reg_t force_nonpriv_white_list[] = {
 	_MMIO(0x7704),
 	_MMIO(0x7708),
 	_MMIO(0x770c),
+	_MMIO(0x83a8),
 	_MMIO(0xb110),
 	GEN8_L3SQCREG4,//_MMIO(0xb118)
 	_MMIO(0xe100),
@@ -2798,6 +2799,7 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(_MMIO(0xe2a0), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0xe2b0), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0xe2c0), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
+	MMIO_DFH(_MMIO(0x21f0), D_BDW_PLUS, F_CMD_ACCESS, NULL, NULL);
 	return 0;
 }
 

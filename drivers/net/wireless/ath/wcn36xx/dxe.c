@@ -174,9 +174,8 @@ static int wcn36xx_dxe_init_descs(struct device *dev, struct wcn36xx_dxe_ch *wcn
 	int i;
 
 	size = wcn_ch->desc_num * sizeof(struct wcn36xx_dxe_desc);
-	wcn_ch->cpu_addr = dma_zalloc_coherent(dev, size,
-					       &wcn_ch->dma_addr,
-					       GFP_KERNEL);
+	wcn_ch->cpu_addr = dma_alloc_coherent(dev, size, &wcn_ch->dma_addr,
+					      GFP_KERNEL);
 	if (!wcn_ch->cpu_addr)
 		return -ENOMEM;
 
@@ -627,9 +626,9 @@ int wcn36xx_dxe_allocate_mem_pools(struct wcn36xx *wcn)
 		16 - (WCN36XX_BD_CHUNK_SIZE % 8);
 
 	s = wcn->mgmt_mem_pool.chunk_size * WCN36XX_DXE_CH_DESC_NUMB_TX_H;
-	cpu_addr = dma_zalloc_coherent(wcn->dev, s,
-				       &wcn->mgmt_mem_pool.phy_addr,
-				       GFP_KERNEL);
+	cpu_addr = dma_alloc_coherent(wcn->dev, s,
+				      &wcn->mgmt_mem_pool.phy_addr,
+				      GFP_KERNEL);
 	if (!cpu_addr)
 		goto out_err;
 
@@ -642,9 +641,9 @@ int wcn36xx_dxe_allocate_mem_pools(struct wcn36xx *wcn)
 		16 - (WCN36XX_BD_CHUNK_SIZE % 8);
 
 	s = wcn->data_mem_pool.chunk_size * WCN36XX_DXE_CH_DESC_NUMB_TX_L;
-	cpu_addr = dma_zalloc_coherent(wcn->dev, s,
-				       &wcn->data_mem_pool.phy_addr,
-				       GFP_KERNEL);
+	cpu_addr = dma_alloc_coherent(wcn->dev, s,
+				      &wcn->data_mem_pool.phy_addr,
+				      GFP_KERNEL);
 	if (!cpu_addr)
 		goto out_err;
 

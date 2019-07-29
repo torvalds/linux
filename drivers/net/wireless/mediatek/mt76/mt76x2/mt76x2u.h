@@ -43,11 +43,8 @@ int mt76x2u_mac_stop(struct mt76x02_dev *dev);
 int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 			    struct cfg80211_chan_def *chandef);
 void mt76x2u_phy_calibrate(struct work_struct *work);
-void mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev);
 
 void mt76x2u_mcu_complete_urb(struct urb *urb);
-int mt76x2u_mcu_set_dynamic_vga(struct mt76x02_dev *dev, u8 channel, bool ap,
-				bool ext, int rssi, u32 false_cca);
 int mt76x2u_mcu_init(struct mt76x02_dev *dev);
 int mt76x2u_mcu_fw_init(struct mt76x02_dev *dev);
 

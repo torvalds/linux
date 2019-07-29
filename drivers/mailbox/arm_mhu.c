@@ -152,22 +152,13 @@ static int mhu_probe(struct amba_device *adev, const struct amba_id *id)
 
 	amba_set_drvdata(adev, mhu);
 
-	err = mbox_controller_register(&mhu->mbox);
+	err = devm_mbox_controller_register(dev, &mhu->mbox);
 	if (err) {
 		dev_err(dev, "Failed to register mailboxes %d\n", err);
 		return err;
 	}
 
 	dev_info(dev, "ARM MHU Mailbox registered\n");
-	return 0;
-}
-
-static int mhu_remove(struct amba_device *adev)
-{
-	struct arm_mhu *mhu = amba_get_drvdata(adev);
-
-	mbox_controller_unregister(&mhu->mbox);
-
 	return 0;
 }
 
@@ -186,7 +177,6 @@ static struct amba_driver arm_mhu_driver = {
 	},
 	.id_table	= mhu_ids,
 	.probe		= mhu_probe,
-	.remove		= mhu_remove,
 };
 module_amba_driver(arm_mhu_driver);
 

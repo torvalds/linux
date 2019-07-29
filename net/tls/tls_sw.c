@@ -439,6 +439,8 @@ static int tls_do_encryption(struct sock *sk,
 	struct scatterlist *sge = sk_msg_elem(msg_en, start);
 	int rc;
 
+	memcpy(rec->iv_data, tls_ctx->tx.iv, sizeof(rec->iv_data));
+
 	sge->offset += tls_ctx->tx.prepend_size;
 	sge->length -= tls_ctx->tx.prepend_size;
 
@@ -448,7 +450,7 @@ static int tls_do_encryption(struct sock *sk,
 	aead_request_set_ad(aead_req, TLS_AAD_SPACE_SIZE);
 	aead_request_set_crypt(aead_req, rec->sg_aead_in,
 			       rec->sg_aead_out,
-			       data_len, tls_ctx->tx.iv);
+			       data_len, rec->iv_data);
 
 	aead_request_set_callback(aead_req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				  tls_encrypt_done, sk);
@@ -686,16 +688,24 @@ static int bpf_exec_tx_verdict(struct sk_msg *msg, struct sock *sk,
 	struct sk_psock *psock;
 	struct sock *sk_redir;
 	struct tls_rec *rec;
+	bool enospc, policy;
 	int err = 0, send;
-	bool enospc;
+	u32 delta = 0;
 
+	policy = !(flags & MSG_SENDPAGE_NOPOLICY);
 	psock = sk_psock_get(sk);
-	if (!psock)
+	if (!psock || !policy)
 		return tls_push_record(sk, flags, record_type);
 more_data:
 	enospc = sk_msg_full(msg);
-	if (psock->eval == __SK_NONE)
+	if (psock->eval == __SK_NONE) {
+		delta = msg->sg.size;
 		psock->eval = sk_psock_msg_verdict(sk, psock, msg);
+		if (delta < msg->sg.size)
+			delta -= msg->sg.size;
+		else
+			delta = 0;
+	}
 	if (msg->cork_bytes && msg->cork_bytes > msg->sg.size &&
 	    !enospc && !full_record) {
 		err = -ENOSPC;
@@ -743,7 +753,7 @@ more_data:
 			msg->apply_bytes -= send;
 		if (msg->sg.size == 0)
 			tls_free_open_rec(sk);
-		*copied -= send;
+		*copied -= (send + delta);
 		err = -EACCES;
 	}
 
@@ -1012,8 +1022,8 @@ send_end:
 	return copied ? copied : ret;
 }
 
-int tls_sw_sendpage(struct sock *sk, struct page *page,
-		    int offset, size_t size, int flags)
+int tls_sw_do_sendpage(struct sock *sk, struct page *page,
+		       int offset, size_t size, int flags)
 {
 	long timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
@@ -1028,15 +1038,7 @@ int tls_sw_sendpage(struct sock *sk, struct page *page,
 	int ret = 0;
 	bool eor;
 
-	if (flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL |
-		      MSG_SENDPAGE_NOTLAST))
-		return -ENOTSUPP;
-
-	/* No MSG_EOR from splice, only look at MSG_MORE */
 	eor = !(flags & (MSG_MORE | MSG_SENDPAGE_NOTLAST));
-
-	lock_sock(sk);
-
 	sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 
 	/* Wait till there is any pending write on socket */
@@ -1140,8 +1142,32 @@ wait_for_memory:
 	}
 sendpage_end:
 	ret = sk_stream_error(sk, flags, ret);
-	release_sock(sk);
 	return copied ? copied : ret;
+}
+
+int tls_sw_sendpage_locked(struct sock *sk, struct page *page,
+			   int offset, size_t size, int flags)
+{
+	if (flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL |
+		      MSG_SENDPAGE_NOTLAST | MSG_SENDPAGE_NOPOLICY))
+		return -ENOTSUPP;
+
+	return tls_sw_do_sendpage(sk, page, offset, size, flags);
+}
+
+int tls_sw_sendpage(struct sock *sk, struct page *page,
+		    int offset, size_t size, int flags)
+{
+	int ret;
+
+	if (flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL |
+		      MSG_SENDPAGE_NOTLAST | MSG_SENDPAGE_NOPOLICY))
+		return -ENOTSUPP;
+
+	lock_sock(sk);
+	ret = tls_sw_do_sendpage(sk, page, offset, size, flags);
+	release_sock(sk);
+	return ret;
 }
 
 static struct sk_buff *tls_wait_data(struct sock *sk, struct sk_psock *psock,
@@ -1768,7 +1794,9 @@ void tls_sw_free_resources_tx(struct sock *sk)
 	if (atomic_read(&ctx->encrypt_pending))
 		crypto_wait_req(-EINPROGRESS, &ctx->async_wait);
 
+	release_sock(sk);
 	cancel_delayed_work_sync(&ctx->tx_work.work);
+	lock_sock(sk);
 
 	/* Tx whatever records we can transmit and abandon the rest */
 	tls_tx_records(sk, -1);

@@ -184,7 +184,7 @@ static inline void pm_qos_set_value(struct pm_qos_constraints *c, s32 value)
 	c->target_value = value;
 }
 
-static int pm_qos_dbg_show_requests(struct seq_file *s, void *unused)
+static int pm_qos_debug_show(struct seq_file *s, void *unused)
 {
 	struct pm_qos_object *qos = (struct pm_qos_object *)s->private;
 	struct pm_qos_constraints *c;
@@ -245,18 +245,7 @@ out:
 	return 0;
 }
 
-static int pm_qos_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pm_qos_dbg_show_requests,
-			   inode->i_private);
-}
-
-static const struct file_operations pm_qos_debug_fops = {
-	.open           = pm_qos_dbg_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pm_qos_debug);
 
 /**
  * pm_qos_update_target - manages the constraints list and calls the notifiers

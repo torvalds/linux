@@ -15,6 +15,7 @@
 #include <linux/sched/mm.h>
 
 #include <asm/mmu_context.h>
+#include <asm/pgalloc.h>
 
 #if defined(CONFIG_PPC32)
 static inline void switch_mm_pgdir(struct task_struct *tsk,
@@ -97,3 +98,12 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	switch_mmu_context(prev, next, tsk);
 }
 
+#ifdef CONFIG_PPC32
+void arch_exit_mmap(struct mm_struct *mm)
+{
+	void *frag = pte_frag_get(&mm->context);
+
+	if (frag)
+		pte_frag_destroy(frag);
+}
+#endif

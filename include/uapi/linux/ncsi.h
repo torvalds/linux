@@ -26,6 +26,12 @@
  * @NCSI_CMD_SEND_CMD: send NC-SI command to network card.
  *	Requires NCSI_ATTR_IFINDEX, NCSI_ATTR_PACKAGE_ID
  *	and NCSI_ATTR_CHANNEL_ID.
+ * @NCSI_CMD_SET_PACKAGE_MASK: set a whitelist of allowed packages.
+ *	Requires NCSI_ATTR_IFINDEX and NCSI_ATTR_PACKAGE_MASK.
+ * @NCSI_CMD_SET_CHANNEL_MASK: set a whitelist of allowed channels.
+ *	Requires NCSI_ATTR_IFINDEX, NCSI_ATTR_PACKAGE_ID, and
+ *	NCSI_ATTR_CHANNEL_MASK. If NCSI_ATTR_CHANNEL_ID is present it sets
+ *	the primary channel.
  * @NCSI_CMD_MAX: highest command number
  */
 enum ncsi_nl_commands {
@@ -34,6 +40,8 @@ enum ncsi_nl_commands {
 	NCSI_CMD_SET_INTERFACE,
 	NCSI_CMD_CLEAR_INTERFACE,
 	NCSI_CMD_SEND_CMD,
+	NCSI_CMD_SET_PACKAGE_MASK,
+	NCSI_CMD_SET_CHANNEL_MASK,
 
 	__NCSI_CMD_AFTER_LAST,
 	NCSI_CMD_MAX = __NCSI_CMD_AFTER_LAST - 1
@@ -48,6 +56,10 @@ enum ncsi_nl_commands {
  * @NCSI_ATTR_PACKAGE_ID: package ID
  * @NCSI_ATTR_CHANNEL_ID: channel ID
  * @NCSI_ATTR_DATA: command payload
+ * @NCSI_ATTR_MULTI_FLAG: flag to signal that multi-mode should be enabled with
+ *	NCSI_CMD_SET_PACKAGE_MASK or NCSI_CMD_SET_CHANNEL_MASK.
+ * @NCSI_ATTR_PACKAGE_MASK: 32-bit mask of allowed packages.
+ * @NCSI_ATTR_CHANNEL_MASK: 32-bit mask of allowed channels.
  * @NCSI_ATTR_MAX: highest attribute number
  */
 enum ncsi_nl_attrs {
@@ -57,6 +69,9 @@ enum ncsi_nl_attrs {
 	NCSI_ATTR_PACKAGE_ID,
 	NCSI_ATTR_CHANNEL_ID,
 	NCSI_ATTR_DATA,
+	NCSI_ATTR_MULTI_FLAG,
+	NCSI_ATTR_PACKAGE_MASK,
+	NCSI_ATTR_CHANNEL_MASK,
 
 	__NCSI_ATTR_AFTER_LAST,
 	NCSI_ATTR_MAX = __NCSI_ATTR_AFTER_LAST - 1

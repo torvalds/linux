@@ -309,7 +309,7 @@ void query_edd(void);
 void __attribute__((noreturn)) die(void);
 
 /* memory.c */
-int detect_memory(void);
+void detect_memory(void);
 
 /* pm.c */
 void __attribute__((noreturn)) go_to_protected_mode(void);

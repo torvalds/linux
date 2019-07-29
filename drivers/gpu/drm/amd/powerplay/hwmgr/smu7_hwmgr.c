@@ -77,8 +77,9 @@
 #define PCIE_BUS_CLK                10000
 #define TCLK                        (PCIE_BUS_CLK / 10)
 
-static const struct profile_mode_setting smu7_profiling[6] =
-					{{1, 0, 100, 30, 1, 0, 100, 10},
+static const struct profile_mode_setting smu7_profiling[7] =
+					{{0, 0, 0, 0, 0, 0, 0, 0},
+					 {1, 0, 100, 30, 1, 0, 100, 10},
 					 {1, 10, 0, 30, 0, 0, 0, 0},
 					 {0, 0, 0, 0, 1, 10, 16, 31},
 					 {1, 0, 11, 50, 1, 0, 100, 10},
@@ -269,7 +270,7 @@ static int smu7_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 					hwmgr->dyn_state.mvdd_dependency_on_mclk);
 
 		PP_ASSERT_WITH_CODE((0 == result),
-				"Failed to retrieve SVI2 MVDD table from dependancy table.",
+				"Failed to retrieve SVI2 MVDD table from dependency table.",
 				return result;);
 	}
 
@@ -288,7 +289,7 @@ static int smu7_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 			result = phm_get_svi2_voltage_table_v0(&(data->vddci_voltage_table),
 					hwmgr->dyn_state.vddci_dependency_on_mclk);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"Failed to retrieve SVI2 VDDCI table from dependancy table.",
+				"Failed to retrieve SVI2 VDDCI table from dependency table.",
 				return result);
 	}
 
@@ -317,7 +318,7 @@ static int smu7_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 				table_info->vddc_lookup_table);
 
 		PP_ASSERT_WITH_CODE((0 == result),
-			"Failed to retrieve SVI2 VDDC table from dependancy table.", return result;);
+			"Failed to retrieve SVI2 VDDC table from dependency table.", return result;);
 	}
 
 	tmp = smum_get_mac_definition(hwmgr, SMU_MAX_LEVELS_VDDC);
@@ -2859,7 +2860,10 @@ static int smu7_vblank_too_short(struct pp_hwmgr *hwmgr,
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
-		switch_limit_us = data->is_memory_gddr5 ? 190 : 150;
+		if (hwmgr->is_kicker)
+			switch_limit_us = data->is_memory_gddr5 ? 450 : 150;
+		else
+			switch_limit_us = data->is_memory_gddr5 ? 190 : 150;
 		break;
 	case CHIP_VEGAM:
 		switch_limit_us = 30;
@@ -4223,9 +4227,17 @@ static int smu7_check_mc_firmware(struct pp_hwmgr *hwmgr)
 	if (tmp & (1 << 23)) {
 		data->mem_latency_high = MEM_LATENCY_HIGH;
 		data->mem_latency_low = MEM_LATENCY_LOW;
+		if ((hwmgr->chip_id == CHIP_POLARIS10) ||
+		    (hwmgr->chip_id == CHIP_POLARIS11) ||
+		    (hwmgr->chip_id == CHIP_POLARIS12))
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableFFC);
 	} else {
 		data->mem_latency_high = 330;
 		data->mem_latency_low = 330;
+		if ((hwmgr->chip_id == CHIP_POLARIS10) ||
+		    (hwmgr->chip_id == CHIP_POLARIS11) ||
+		    (hwmgr->chip_id == CHIP_POLARIS12))
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DisableFFC);
 	}
 
 	return 0;
@@ -4878,7 +4890,8 @@ static int smu7_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 	uint32_t i, size = 0;
 	uint32_t len;
 
-	static const char *profile_name[6] = {"3D_FULL_SCREEN",
+	static const char *profile_name[7] = {"BOOTUP_DEFAULT",
+					"3D_FULL_SCREEN",
 					"POWER_SAVING",
 					"VIDEO",
 					"VR",

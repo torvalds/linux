@@ -1310,7 +1310,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 						dev->stats.tx_aborted_errors++;
 				}
 
-				dev_kfree_skb_irq(skb);
+				dev_consume_skb_irq(skb);
 
 				tx_cmd->cmd.command = 0; /* Mark free */
 				break;

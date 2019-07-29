@@ -243,7 +243,7 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 		if (dev->phydev->asym_pause)
 			rmt_adv |= LPA_PAUSE_ASYM;
 
-		lcl_adv = ethtool_adv_to_lcl_adv_t(dev->phydev->advertising);
+		lcl_adv = linkmode_adv_to_lcl_adv_t(dev->phydev->advertising);
 		flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
 
 		if (flowctrl & FLOW_CTRL_TX)
@@ -257,11 +257,6 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 	}
 
 	mtk_w32(mac->hw, mcr, MTK_MAC_MCR(mac->id));
-
-	if (dev->phydev->link)
-		netif_carrier_on(dev);
-	else
-		netif_carrier_off(dev);
 
 	if (!of_phy_is_fixed_link(mac->of_node))
 		phy_print_status(dev->phydev);
@@ -346,16 +341,6 @@ static int mtk_phy_connect(struct net_device *dev)
 	/* couple phydev to net_device */
 	if (mtk_phy_connect_node(eth, mac, np))
 		goto err_phy;
-
-	dev->phydev->autoneg = AUTONEG_ENABLE;
-	dev->phydev->speed = 0;
-	dev->phydev->duplex = 0;
-
-	phy_set_max_speed(dev->phydev, SPEED_1000);
-	phy_support_asym_pause(dev->phydev);
-	dev->phydev->advertising = dev->phydev->supported |
-				    ADVERTISED_Autoneg;
-	phy_start_aneg(dev->phydev);
 
 	of_node_put(np);
 
@@ -597,10 +582,10 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	dma_addr_t dma_addr;
 	int i;
 
-	eth->scratch_ring = dma_zalloc_coherent(eth->dev,
-						cnt * sizeof(struct mtk_tx_dma),
-						&eth->phy_scratch_ring,
-						GFP_ATOMIC);
+	eth->scratch_ring = dma_alloc_coherent(eth->dev,
+					       cnt * sizeof(struct mtk_tx_dma),
+					       &eth->phy_scratch_ring,
+					       GFP_ATOMIC);
 	if (unlikely(!eth->scratch_ring))
 		return -ENOMEM;
 
@@ -1212,8 +1197,8 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	if (!ring->buf)
 		goto no_tx_mem;
 
-	ring->dma = dma_zalloc_coherent(eth->dev, MTK_DMA_SIZE * sz,
-					&ring->phys, GFP_ATOMIC);
+	ring->dma = dma_alloc_coherent(eth->dev, MTK_DMA_SIZE * sz,
+				       &ring->phys, GFP_ATOMIC);
 	if (!ring->dma)
 		goto no_tx_mem;
 
@@ -1309,9 +1294,9 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 			return -ENOMEM;
 	}
 
-	ring->dma = dma_zalloc_coherent(eth->dev,
-					rx_dma_size * sizeof(*ring->dma),
-					&ring->phys, GFP_ATOMIC);
+	ring->dma = dma_alloc_coherent(eth->dev,
+				       rx_dma_size * sizeof(*ring->dma),
+				       &ring->phys, GFP_ATOMIC);
 	if (!ring->dma)
 		return -ENOMEM;
 

@@ -16,11 +16,17 @@ struct bpf_map_def SEC("maps") percpu_netcnt = {
 	.value_size = sizeof(struct percpu_net_cnt),
 };
 
+BPF_ANNOTATE_KV_PAIR(percpu_netcnt, struct bpf_cgroup_storage_key,
+		     struct percpu_net_cnt);
+
 struct bpf_map_def SEC("maps") netcnt = {
 	.type = BPF_MAP_TYPE_CGROUP_STORAGE,
 	.key_size = sizeof(struct bpf_cgroup_storage_key),
 	.value_size = sizeof(struct net_cnt),
 };
+
+BPF_ANNOTATE_KV_PAIR(netcnt, struct bpf_cgroup_storage_key,
+		     struct net_cnt);
 
 SEC("cgroup/skb")
 int bpf_nextcnt(struct __sk_buff *skb)

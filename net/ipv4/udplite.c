@@ -25,9 +25,9 @@ static int udplite_rcv(struct sk_buff *skb)
 	return __udp4_lib_rcv(skb, &udplite_table, IPPROTO_UDPLITE);
 }
 
-static void udplite_err(struct sk_buff *skb, u32 info)
+static int udplite_err(struct sk_buff *skb, u32 info)
 {
-	__udp4_lib_err(skb, info, &udplite_table);
+	return __udp4_lib_err(skb, info, &udplite_table);
 }
 
 static const struct net_protocol udplite_protocol = {
@@ -53,6 +53,7 @@ struct proto 	udplite_prot = {
 	.sendpage	   = udp_sendpage,
 	.hash		   = udp_lib_hash,
 	.unhash		   = udp_lib_unhash,
+	.rehash		   = udp_v4_rehash,
 	.get_port	   = udp_v4_get_port,
 	.memory_allocated  = &udp_memory_allocated,
 	.sysctl_mem	   = sysctl_udp_mem,

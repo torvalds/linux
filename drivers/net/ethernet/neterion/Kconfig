@@ -26,7 +26,7 @@ config S2IO
 	  on its age.
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/s2io.txt>.
+	  <file:Documentation/networking/device_drivers/neterion/s2io.txt>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called s2io.
@@ -41,7 +41,7 @@ config VXGE
 	  labeled as either one, depending on its age.
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/vxge.txt>.
+	  <file:Documentation/networking/device_drivers/neterion/vxge.txt>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called vxge.

@@ -88,7 +88,7 @@ do_rt_sigreturn(void)
 	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe *frame = (struct rt_sigframe *)(regs->usp);
 
-	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
@@ -237,8 +237,6 @@ static void do_signal(struct pt_regs *regs, int syscall)
 	 */
 	if (!user_mode(regs))
 		return;
-
-	current->thread.esp0 = (unsigned long)regs;
 
 	/*
 	 * If we were from a system call, check for system call restarting...

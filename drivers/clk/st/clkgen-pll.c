@@ -613,7 +613,7 @@ static struct clk * __init clkgen_pll_register(const char *parent_name,
 	init.name = clk_name;
 	init.ops = pll_data->ops;
 
-	init.flags = pll_flags | CLK_IS_BASIC | CLK_GET_RATE_NOCACHE;
+	init.flags = pll_flags | CLK_GET_RATE_NOCACHE;
 	init.parent_names = &parent_name;
 	init.num_parents  = 1;
 

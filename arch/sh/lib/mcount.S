@@ -1,12 +1,9 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * arch/sh/lib/mcount.S
  *
  *  Copyright (C) 2008, 2009  Paul Mundt
  *  Copyright (C) 2008, 2009  Matt Fleming
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <asm/ftrace.h>
 #include <asm/thread_info.h>

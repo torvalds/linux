@@ -152,15 +152,14 @@
 				map0 {
 					trip = <&cpu_alert>;
 					cooling-device =
-						<&cpu0 THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>;
-				};
-
-				map1 {
-					trip = <&cpu_alert>;
-					cooling-device =
-						<&cpu4 THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>;
+						<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -172,77 +171,6 @@
 			     <1 14 IRQ_TYPE_LEVEL_LOW>,/* Physical Non-Secure PPI */
 			     <1 11 IRQ_TYPE_LEVEL_LOW>,/* Virtual PPI */
 			     <1 10 IRQ_TYPE_LEVEL_LOW>;/* Hypervisor PPI */
-	};
-
-	fsl_mc: fsl-mc@80c000000 {
-		compatible = "fsl,qoriq-mc";
-		reg = <0x00000008 0x0c000000 0 0x40>,	 /* MC portal base */
-		      <0x00000000 0x08340000 0 0x40000>; /* MC control reg */
-		msi-parent = <&its>;
-		#address-cells = <3>;
-		#size-cells = <1>;
-
-		/*
-		 * Region type 0x0 - MC portals
-		 * Region type 0x1 - QBMAN portals
-		 */
-		ranges = <0x0 0x0 0x0 0x8 0x0c000000 0x4000000
-			  0x1 0x0 0x0 0x8 0x18000000 0x8000000>;
-
-		dpmacs {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			dpmac1: dpmac@1 {
-				compatible = "fsl,qoriq-mc-dpmac";
-				reg = <1>;
-			};
-
-			dpmac2: dpmac@2 {
-				compatible = "fsl,qoriq-mc-dpmac";
-				reg = <2>;
-			};
-
-			dpmac3: dpmac@3 {
-				compatible = "fsl,qoriq-mc-dpmac";
-				reg = <3>;
-			};
-
-			dpmac4: dpmac@4 {
-				compatible = "fsl,qoriq-mc-dpmac";
-				reg = <4>;
-			};
-
-			dpmac5: dpmac@5 {
-				compatible = "fsl,qoriq-mc-dpmac";
-				reg = <5>;
-			};
-
-			dpmac6: dpmac@6 {
-				compatible = "fsl,qoriq-mc-dpmac";
-				reg = <6>;
-			};
-
-			dpmac7: dpmac@7 {
-				compatible = "fsl,qoriq-mc-dpmac";
-				reg = <7>;
-			};
-
-			dpmac8: dpmac@8 {
-				compatible = "fsl,qoriq-mc-dpmac";
-				reg = <8>;
-			};
-
-			dpmac9: dpmac@9 {
-				compatible = "fsl,qoriq-mc-dpmac";
-				reg = <9>;
-			};
-
-			dpmac10: dpmac@a {
-				compatible = "fsl,qoriq-mc-dpmac";
-				reg = <0xa>;
-			};
-		};
 	};
 
 	psci {
@@ -262,6 +190,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+		dma-ranges = <0x0 0x0 0x0 0x0 0x10000 0x00000000>;
 
 		clockgen: clocking@1300000 {
 			compatible = "fsl,ls1088a-clockgen";
@@ -512,7 +441,7 @@
 		};
 
 		pcie@3400000 {
-			compatible = "fsl,ls1088a-pcie", "snps,dw-pcie";
+			compatible = "fsl,ls1088a-pcie";
 			reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
 			       0x20 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
@@ -533,10 +462,11 @@
 					<0000 0 0 2 &gic 0 0 0 110 IRQ_TYPE_LEVEL_HIGH>,
 					<0000 0 0 3 &gic 0 0 0 111 IRQ_TYPE_LEVEL_HIGH>,
 					<0000 0 0 4 &gic 0 0 0 112 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
 		};
 
 		pcie@3500000 {
-			compatible = "fsl,ls1088a-pcie", "snps,dw-pcie";
+			compatible = "fsl,ls1088a-pcie";
 			reg = <0x00 0x03500000 0x0 0x00100000   /* controller registers */
 			       0x28 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
@@ -557,10 +487,11 @@
 					<0000 0 0 2 &gic 0 0 0 115 IRQ_TYPE_LEVEL_HIGH>,
 					<0000 0 0 3 &gic 0 0 0 116 IRQ_TYPE_LEVEL_HIGH>,
 					<0000 0 0 4 &gic 0 0 0 117 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
 		};
 
 		pcie@3600000 {
-			compatible = "fsl,ls1088a-pcie", "snps,dw-pcie";
+			compatible = "fsl,ls1088a-pcie";
 			reg = <0x00 0x03600000 0x0 0x00100000   /* controller registers */
 			       0x30 0x00000000 0x0 0x00002000>; /* configuration space */
 			reg-names = "regs", "config";
@@ -581,6 +512,7 @@
 					<0000 0 0 2 &gic 0 0 0 120 IRQ_TYPE_LEVEL_HIGH>,
 					<0000 0 0 3 &gic 0 0 0 121 IRQ_TYPE_LEVEL_HIGH>,
 					<0000 0 0 4 &gic 0 0 0 122 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
 		};
 
 		cluster1_core0_watchdog: wdt@c000000 {
@@ -637,6 +569,77 @@
 			reg = <0x0 0xc130000 0x0 0x1000>;
 			clocks = <&clockgen 4 3>, <&clockgen 4 3>;
 			clock-names = "apb_pclk", "wdog_clk";
+		};
+
+		fsl_mc: fsl-mc@80c000000 {
+			compatible = "fsl,qoriq-mc";
+			reg = <0x00000008 0x0c000000 0 0x40>,	 /* MC portal base */
+			      <0x00000000 0x08340000 0 0x40000>; /* MC control reg */
+			msi-parent = <&its>;
+			#address-cells = <3>;
+			#size-cells = <1>;
+
+			/*
+			 * Region type 0x0 - MC portals
+			 * Region type 0x1 - QBMAN portals
+			 */
+			ranges = <0x0 0x0 0x0 0x8 0x0c000000 0x4000000
+				  0x1 0x0 0x0 0x8 0x18000000 0x8000000>;
+
+			dpmacs {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				dpmac1: dpmac@1 {
+					compatible = "fsl,qoriq-mc-dpmac";
+					reg = <1>;
+				};
+
+				dpmac2: dpmac@2 {
+					compatible = "fsl,qoriq-mc-dpmac";
+					reg = <2>;
+				};
+
+				dpmac3: dpmac@3 {
+					compatible = "fsl,qoriq-mc-dpmac";
+					reg = <3>;
+				};
+
+				dpmac4: dpmac@4 {
+					compatible = "fsl,qoriq-mc-dpmac";
+					reg = <4>;
+				};
+
+				dpmac5: dpmac@5 {
+					compatible = "fsl,qoriq-mc-dpmac";
+					reg = <5>;
+				};
+
+				dpmac6: dpmac@6 {
+					compatible = "fsl,qoriq-mc-dpmac";
+					reg = <6>;
+				};
+
+				dpmac7: dpmac@7 {
+					compatible = "fsl,qoriq-mc-dpmac";
+					reg = <7>;
+				};
+
+				dpmac8: dpmac@8 {
+					compatible = "fsl,qoriq-mc-dpmac";
+					reg = <8>;
+				};
+
+				dpmac9: dpmac@9 {
+					compatible = "fsl,qoriq-mc-dpmac";
+					reg = <9>;
+				};
+
+				dpmac10: dpmac@a {
+					compatible = "fsl,qoriq-mc-dpmac";
+					reg = <0xa>;
+				};
+			};
 		};
 	};
 

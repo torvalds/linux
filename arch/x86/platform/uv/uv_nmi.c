@@ -560,7 +560,7 @@ static inline void uv_clear_nmi(int cpu)
 	}
 }
 
-/* Ping non-responding CPU's attemping to force them into the NMI handler */
+/* Ping non-responding CPU's attempting to force them into the NMI handler */
 static void uv_nmi_nr_cpus_ping(void)
 {
 	int cpu;

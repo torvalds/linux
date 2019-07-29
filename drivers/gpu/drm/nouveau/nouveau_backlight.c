@@ -253,6 +253,9 @@ nouveau_backlight_init(struct drm_connector *connector)
 	case NV_DEVICE_INFO_V0_FERMI:
 	case NV_DEVICE_INFO_V0_KEPLER:
 	case NV_DEVICE_INFO_V0_MAXWELL:
+	case NV_DEVICE_INFO_V0_PASCAL:
+	case NV_DEVICE_INFO_V0_VOLTA:
+	case NV_DEVICE_INFO_V0_TURING:
 		ret = nv50_backlight_init(nv_encoder, &props, &ops);
 		break;
 	default:

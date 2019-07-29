@@ -404,7 +404,7 @@ static void *pcxl_dma_alloc(struct device *dev, size_t size,
 	order = get_order(size);
 	size = 1 << (order + PAGE_SHIFT);
 	vaddr = pcxl_alloc_range(size);
-	paddr = __get_free_pages(flag, order);
+	paddr = __get_free_pages(flag | __GFP_ZERO, order);
 	flush_kernel_dcache_range(paddr, size);
 	paddr = __pa(paddr);
 	map_uncached_pages(vaddr, size, paddr);
@@ -429,7 +429,7 @@ static void *pcx_dma_alloc(struct device *dev, size_t size,
 	if ((attrs & DMA_ATTR_NON_CONSISTENT) == 0)
 		return NULL;
 
-	addr = (void *)__get_free_pages(flag, get_order(size));
+	addr = (void *)__get_free_pages(flag | __GFP_ZERO, get_order(size));
 	if (addr)
 		*dma_handle = (dma_addr_t)virt_to_phys(addr);
 

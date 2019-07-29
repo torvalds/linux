@@ -39,8 +39,7 @@
 #define __user_ok(addr, size) ({ (void)(size); (addr) < STACK_TOP; })
 #define __kernel_ok (uaccess_kernel())
 #define __access_ok(addr, size) (__user_ok((addr) & get_fs().seg, (size)))
-#define access_ok(type, addr, size) \
-	({ (void)(type); __access_ok((unsigned long)(addr), size); })
+#define access_ok(addr, size) __access_ok((unsigned long)(addr), size)
 
 /*
  * The exception table consists of pairs of addresses: the first is the

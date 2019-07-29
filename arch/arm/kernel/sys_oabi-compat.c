@@ -285,7 +285,7 @@ asmlinkage long sys_oabi_epoll_wait(int epfd,
 			maxevents > (INT_MAX/sizeof(*kbuf)) ||
 			maxevents > (INT_MAX/sizeof(*events)))
 		return -EINVAL;
-	if (!access_ok(VERIFY_WRITE, events, sizeof(*events) * maxevents))
+	if (!access_ok(events, sizeof(*events) * maxevents))
 		return -EFAULT;
 	kbuf = kmalloc_array(maxevents, sizeof(*kbuf), GFP_KERNEL);
 	if (!kbuf)
@@ -326,7 +326,7 @@ asmlinkage long sys_oabi_semtimedop(int semid,
 
 	if (nsops < 1 || nsops > SEMOPM)
 		return -EINVAL;
-	if (!access_ok(VERIFY_READ, tsops, sizeof(*tsops) * nsops))
+	if (!access_ok(tsops, sizeof(*tsops) * nsops))
 		return -EFAULT;
 	sops = kmalloc_array(nsops, sizeof(*sops), GFP_KERNEL);
 	if (!sops)

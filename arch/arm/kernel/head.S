@@ -398,7 +398,7 @@ ENTRY(secondary_startup)
 	ldmia	r4, {r5, r7, r12}		@ address to jump to after
 	sub	lr, r4, r5			@ mmu has been enabled
 	add	r3, r7, lr
-	ldrd	r4, [r3, #0]			@ get secondary_data.pgdir
+	ldrd	r4, r5, [r3, #0]		@ get secondary_data.pgdir
 ARM_BE8(eor	r4, r4, r5)			@ Swap r5 and r4 in BE:
 ARM_BE8(eor	r5, r4, r5)			@ it can be done in 3 steps
 ARM_BE8(eor	r4, r4, r5)			@ without using a temp reg.

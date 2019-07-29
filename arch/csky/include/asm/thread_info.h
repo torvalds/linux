@@ -10,6 +10,7 @@
 #include <asm/types.h>
 #include <asm/page.h>
 #include <asm/processor.h>
+#include <abi/switch_context.h>
 
 struct thread_info {
 	struct task_struct	*task;
@@ -35,6 +36,9 @@ struct thread_info {
 }
 
 #define THREAD_SIZE_ORDER (THREAD_SHIFT - PAGE_SHIFT)
+
+#define thread_saved_fp(tsk) \
+	((unsigned long)(((struct switch_stack *)(tsk->thread.ksp))->r8))
 
 static inline struct thread_info *current_thread_info(void)
 {

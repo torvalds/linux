@@ -18,6 +18,7 @@ Required properties:
 		R-Car Gen2 and RZ/G1 devices.
 
       - "renesas,etheravb-r8a774a1" for the R8A774A1 SoC.
+      - "renesas,etheravb-r8a774c0" for the R8A774C0 SoC.
       - "renesas,etheravb-r8a7795" for the R8A7795 SoC.
       - "renesas,etheravb-r8a7796" for the R8A7796 SoC.
       - "renesas,etheravb-r8a77965" for the R8A77965 SoC.

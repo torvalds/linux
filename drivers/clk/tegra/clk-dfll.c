@@ -1184,17 +1184,7 @@ static int attr_registers_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int attr_registers_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, attr_registers_show, inode->i_private);
-}
-
-static const struct file_operations attr_registers_fops = {
-	.open		= attr_registers_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(attr_registers);
 
 static void dfll_debug_init(struct tegra_dfll *td)
 {

@@ -16,6 +16,7 @@
 #include "xfs_refcount_item.h"
 #include "xfs_alloc.h"
 #include "xfs_refcount.h"
+#include "xfs_defer.h"
 
 /*
  * This routine is called to allocate a "refcount update done"
@@ -227,8 +228,7 @@ xfs_refcount_update_cancel_item(
 	kmem_free(refc);
 }
 
-static const struct xfs_defer_op_type xfs_refcount_update_defer_type = {
-	.type		= XFS_DEFER_OPS_TYPE_REFCOUNT,
+const struct xfs_defer_op_type xfs_refcount_update_defer_type = {
 	.max_items	= XFS_CUI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_refcount_update_diff_items,
 	.create_intent	= xfs_refcount_update_create_intent,
@@ -239,10 +239,3 @@ static const struct xfs_defer_op_type xfs_refcount_update_defer_type = {
 	.finish_cleanup = xfs_refcount_update_finish_cleanup,
 	.cancel_item	= xfs_refcount_update_cancel_item,
 };
-
-/* Register the deferred op type. */
-void
-xfs_refcount_update_init_defer_op(void)
-{
-	xfs_defer_init_op_type(&xfs_refcount_update_defer_type);
-}

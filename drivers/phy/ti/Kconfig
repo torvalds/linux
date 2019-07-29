@@ -76,3 +76,14 @@ config TWL4030_USB
 	  family chips (including the TWL5030 and TPS659x0 devices).
 	  This transceiver supports high and full speed devices plus,
 	  in host mode, low speed.
+
+config PHY_TI_GMII_SEL
+	tristate
+	default y if TI_CPSW=y
+	depends on TI_CPSW || COMPILE_TEST
+	select GENERIC_PHY
+	select REGMAP
+	default m
+	help
+	  This driver supports configuring of the TI CPSW Port mode depending on
+	  the Ethernet PHY connected to the CPSW Port.

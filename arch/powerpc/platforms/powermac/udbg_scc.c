@@ -87,7 +87,7 @@ void udbg_scc_init(int force_scc)
 	for (ch = NULL; (ch = of_get_next_child(escc, ch)) != NULL;) {
 		if (ch == stdout)
 			ch_def = of_node_get(ch);
-		if (strcmp(ch->name, "ch-a") == 0)
+		if (of_node_name_eq(ch, "ch-a"))
 			ch_a = of_node_get(ch);
 	}
 	if (ch_def == NULL && !force_scc)

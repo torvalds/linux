@@ -15,12 +15,135 @@
 #define OWL_PINCONF_SLEW_SLOW 0
 #define OWL_PINCONF_SLEW_FAST 1
 
-enum owl_pinconf_pull {
-	OWL_PINCONF_PULL_HIZ,
-	OWL_PINCONF_PULL_DOWN,
-	OWL_PINCONF_PULL_UP,
-	OWL_PINCONF_PULL_HOLD,
-};
+#define MUX_PG(group_name, reg, shift, width)				\
+	{								\
+		.name = #group_name,					\
+		.pads = group_name##_pads,				\
+		.npads = ARRAY_SIZE(group_name##_pads),			\
+		.funcs = group_name##_funcs,				\
+		.nfuncs = ARRAY_SIZE(group_name##_funcs),		\
+		.mfpctl_reg  = MFCTL##reg,				\
+		.mfpctl_shift = shift,					\
+		.mfpctl_width = width,					\
+		.drv_reg = -1,						\
+		.drv_shift = -1,					\
+		.drv_width = -1,					\
+		.sr_reg = -1,						\
+		.sr_shift = -1,						\
+		.sr_width = -1,						\
+	}
+
+#define DRV_PG(group_name, reg, shift, width)				\
+	{								\
+		.name = #group_name,					\
+		.pads = group_name##_pads,				\
+		.npads = ARRAY_SIZE(group_name##_pads),			\
+		.mfpctl_reg  = -1,					\
+		.mfpctl_shift = -1,					\
+		.mfpctl_width = -1,					\
+		.drv_reg = PAD_DRV##reg,				\
+		.drv_shift = shift,					\
+		.drv_width = width,					\
+		.sr_reg = -1,						\
+		.sr_shift = -1,						\
+		.sr_width = -1,						\
+	}
+
+#define SR_PG(group_name, reg, shift, width)				\
+	{								\
+		.name = #group_name,					\
+		.pads = group_name##_pads,				\
+		.npads = ARRAY_SIZE(group_name##_pads),			\
+		.mfpctl_reg  = -1,					\
+		.mfpctl_shift = -1,					\
+		.mfpctl_width = -1,					\
+		.drv_reg = -1,						\
+		.drv_shift = -1,					\
+		.drv_width = -1,					\
+		.sr_reg = PAD_SR##reg,					\
+		.sr_shift = shift,					\
+		.sr_width = width,					\
+	}
+
+#define FUNCTION(fname)					\
+	{						\
+		.name = #fname,				\
+		.groups = fname##_groups,		\
+		.ngroups = ARRAY_SIZE(fname##_groups),	\
+	}
+
+/* PAD PULL UP/DOWN CONFIGURES */
+#define PULLCTL_CONF(pull_reg, pull_sft, pull_wdt)	\
+	{						\
+		.reg = PAD_PULLCTL##pull_reg,		\
+		.shift = pull_sft,			\
+		.width = pull_wdt,			\
+	}
+
+#define PAD_PULLCTL_CONF(pad_name, pull_reg, pull_sft, pull_wdt)	\
+	struct owl_pullctl pad_name##_pullctl_conf			\
+		= PULLCTL_CONF(pull_reg, pull_sft, pull_wdt)
+
+#define ST_CONF(st_reg, st_sft, st_wdt)			\
+	{						\
+		.reg = PAD_ST##st_reg,			\
+		.shift = st_sft,			\
+		.width = st_wdt,			\
+	}
+
+#define PAD_ST_CONF(pad_name, st_reg, st_sft, st_wdt)	\
+	struct owl_st pad_name##_st_conf		\
+		= ST_CONF(st_reg, st_sft, st_wdt)
+
+#define PAD_INFO(name)					\
+	{						\
+		.pad = name,				\
+		.pullctl = NULL,			\
+		.st = NULL,				\
+	}
+
+#define PAD_INFO_ST(name)				\
+	{						\
+		.pad = name,				\
+		.pullctl = NULL,			\
+		.st = &name##_st_conf,			\
+	}
+
+#define PAD_INFO_PULLCTL(name)				\
+	{						\
+		.pad = name,				\
+		.pullctl = &name##_pullctl_conf,	\
+		.st = NULL,				\
+	}
+
+#define PAD_INFO_PULLCTL_ST(name)			\
+	{						\
+		.pad = name,				\
+		.pullctl = &name##_pullctl_conf,	\
+		.st = &name##_st_conf,			\
+	}
+
+#define OWL_GPIO_PORT_A		0
+#define OWL_GPIO_PORT_B		1
+#define OWL_GPIO_PORT_C		2
+#define OWL_GPIO_PORT_D		3
+#define OWL_GPIO_PORT_E		4
+#define OWL_GPIO_PORT_F		5
+
+#define OWL_GPIO_PORT(port, base, count, _outen, _inen, _dat, _intc_ctl,\
+			_intc_pd, _intc_msk, _intc_type, _share)	\
+	[OWL_GPIO_PORT_##port] = {				\
+		.offset = base,					\
+		.pins = count,					\
+		.outen = _outen,				\
+		.inen = _inen,					\
+		.dat = _dat,					\
+		.intc_ctl = _intc_ctl,				\
+		.intc_pd = _intc_pd,				\
+		.intc_msk = _intc_msk,				\
+		.intc_type = _intc_type,			\
+		.shared_ctl_offset = _share,			\
+	}
 
 enum owl_pinconf_drv {
 	OWL_PINCONF_DRV_2MA,
@@ -148,6 +271,7 @@ struct owl_gpio_port {
 	unsigned int intc_pd;
 	unsigned int intc_msk;
 	unsigned int intc_type;
+	u8 shared_ctl_offset;
 };
 
 /**
@@ -174,6 +298,12 @@ struct owl_pinctrl_soc_data {
 	unsigned int ngpios;
 	const struct owl_gpio_port *ports;
 	unsigned int nports;
+	int (*padctl_val2arg)(const struct owl_padinfo *padinfo,
+				unsigned int param,
+				u32 *arg);
+	int (*padctl_arg2val)(const struct owl_padinfo *info,
+				unsigned int param,
+				u32 *arg);
 };
 
 int owl_pinctrl_probe(struct platform_device *pdev,

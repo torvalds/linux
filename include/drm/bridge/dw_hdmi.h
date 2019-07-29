@@ -133,6 +133,7 @@ struct dw_hdmi_plat_data {
 	const struct dw_hdmi_phy_ops *phy_ops;
 	const char *phy_name;
 	void *phy_data;
+	unsigned int phy_force_vendor;
 
 	/* Synopsys PHY support */
 	const struct dw_hdmi_mpll_config *mpll_cfg;

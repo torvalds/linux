@@ -77,10 +77,16 @@ static const struct malidp_format_id malidp500_de_formats[] = {
 	{ DRM_FORMAT_YUYV, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 2) },	\
 	{ DRM_FORMAT_UYVY, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 3) },	\
 	{ DRM_FORMAT_NV12, DE_VIDEO1 | DE_VIDEO2 | SE_MEMWRITE, MALIDP_ID(5, 6) },	\
-	{ DRM_FORMAT_YUV420, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 7) }
+	{ DRM_FORMAT_YUV420, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 7) }, \
+	{ DRM_FORMAT_X0L2, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(6, 6)}
 
 static const struct malidp_format_id malidp550_de_formats[] = {
 	MALIDP_COMMON_FORMATS,
+};
+
+static const struct malidp_format_id malidp650_de_formats[] = {
+	MALIDP_COMMON_FORMATS,
+	{ DRM_FORMAT_X0L0, DE_VIDEO1 | DE_VIDEO2, MALIDP_ID(5, 4)},
 };
 
 static const struct malidp_layer malidp500_layers[] = {
@@ -630,6 +636,8 @@ static int malidp550_rotmem_required(struct malidp_hw_device *hwdev, u16 w, u16 
 	case DRM_FORMAT_BGR565:
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_X0L0:
+	case DRM_FORMAT_X0L2:
 		bytes_per_col = 32;
 		break;
 	/* 16 lines at 1.5 bytes per pixel */
@@ -905,8 +913,8 @@ const struct malidp_hw malidp_device[MALIDP_MAX_DEVICES] = {
 					    MALIDP550_DC_IRQ_SE,
 				.vsync_irq = MALIDP550_DC_IRQ_CONF_VALID,
 			},
-			.pixel_formats = malidp550_de_formats,
-			.n_pixel_formats = ARRAY_SIZE(malidp550_de_formats),
+			.pixel_formats = malidp650_de_formats,
+			.n_pixel_formats = ARRAY_SIZE(malidp650_de_formats),
 			.bus_align_bytes = 16,
 		},
 		.query_hw = malidp650_query_hw,

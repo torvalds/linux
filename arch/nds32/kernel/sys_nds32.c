@@ -6,6 +6,8 @@
 
 #include <asm/cachectl.h>
 #include <asm/proc-fns.h>
+#include <asm/udftrap.h>
+#include <asm/fpu.h>
 
 SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
 	       unsigned long, prot, unsigned long, flags,
@@ -47,4 +49,34 @@ SYSCALL_DEFINE3(cacheflush, unsigned int, start, unsigned int, end, int, cache)
 	cpu_cache_wbinval_range_check(vma, start, end, flushi, wbd);
 
 	return 0;
+}
+
+SYSCALL_DEFINE1(udftrap, int, option)
+{
+#if IS_ENABLED(CONFIG_SUPPORT_DENORMAL_ARITHMETIC)
+	int old_udftrap;
+
+	if (!used_math()) {
+		load_fpu(&init_fpuregs);
+		current->thread.fpu.UDF_trap = init_fpuregs.UDF_trap;
+		set_used_math();
+	}
+
+	old_udftrap = current->thread.fpu.UDF_trap;
+	switch (option) {
+	case DISABLE_UDFTRAP:
+		current->thread.fpu.UDF_trap = 0;
+		break;
+	case ENABLE_UDFTRAP:
+		current->thread.fpu.UDF_trap = FPCSR_mskUDFE;
+		break;
+	case GET_UDFTRAP:
+		break;
+	default:
+		return -EINVAL;
+	}
+	return old_udftrap;
+#else
+	return -ENOTSUPP;
+#endif
 }

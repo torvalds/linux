@@ -1151,7 +1151,7 @@ static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
 
 	print_info = (vortex_debug > 1);
 	if (print_info)
-		pr_info("See Documentation/networking/vortex.txt\n");
+		pr_info("See Documentation/networking/device_drivers/3com/vortex.txt\n");
 
 	pr_info("%s: 3Com %s %s at %p.\n",
 	       print_name,
@@ -1956,7 +1956,7 @@ vortex_error(struct net_device *dev, int status)
 				   dev->name, tx_status);
 			if (tx_status == 0x82) {
 				pr_err("Probably a duplex mismatch.  See "
-						"Documentation/networking/vortex.txt\n");
+						"Documentation/networking/device_drivers/3com/vortex.txt\n");
 			}
 			dump_tx_ring(dev);
 		}

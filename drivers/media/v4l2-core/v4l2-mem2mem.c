@@ -87,6 +87,7 @@ static const char * const m2m_entity_name[] = {
  * @curr_ctx:		currently running instance
  * @job_queue:		instances queued to run
  * @job_spinlock:	protects job_queue
+ * @job_work:		worker to run queued jobs.
  * @m2m_ops:		driver callbacks
  */
 struct v4l2_m2m_dev {
@@ -103,6 +104,7 @@ struct v4l2_m2m_dev {
 
 	struct list_head	job_queue;
 	spinlock_t		job_spinlock;
+	struct work_struct	job_work;
 
 	const struct v4l2_m2m_ops *m2m_ops;
 };
@@ -244,6 +246,9 @@ EXPORT_SYMBOL(v4l2_m2m_get_curr_priv);
  * @m2m_dev: per-device context
  *
  * Get next transaction (if present) from the waiting jobs list and run it.
+ *
+ * Note that this function can run on a given v4l2_m2m_ctx context,
+ * but call .device_run for another context.
  */
 static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
 {
@@ -297,50 +302,47 @@ static void __v4l2_m2m_try_queue(struct v4l2_m2m_dev *m2m_dev,
 
 	/* If the context is aborted then don't schedule it */
 	if (m2m_ctx->job_flags & TRANS_ABORT) {
-		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
 		dprintk("Aborted context\n");
-		return;
+		goto job_unlock;
 	}
 
 	if (m2m_ctx->job_flags & TRANS_QUEUED) {
-		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
 		dprintk("On job queue already\n");
-		return;
+		goto job_unlock;
 	}
 
 	spin_lock_irqsave(&m2m_ctx->out_q_ctx.rdy_spinlock, flags_out);
 	if (list_empty(&m2m_ctx->out_q_ctx.rdy_queue)
 	    && !m2m_ctx->out_q_ctx.buffered) {
-		spin_unlock_irqrestore(&m2m_ctx->out_q_ctx.rdy_spinlock,
-					flags_out);
-		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
 		dprintk("No input buffers available\n");
-		return;
+		goto out_unlock;
 	}
 	spin_lock_irqsave(&m2m_ctx->cap_q_ctx.rdy_spinlock, flags_cap);
 	if (list_empty(&m2m_ctx->cap_q_ctx.rdy_queue)
 	    && !m2m_ctx->cap_q_ctx.buffered) {
-		spin_unlock_irqrestore(&m2m_ctx->cap_q_ctx.rdy_spinlock,
-					flags_cap);
-		spin_unlock_irqrestore(&m2m_ctx->out_q_ctx.rdy_spinlock,
-					flags_out);
-		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
 		dprintk("No output buffers available\n");
-		return;
+		goto cap_unlock;
 	}
 	spin_unlock_irqrestore(&m2m_ctx->cap_q_ctx.rdy_spinlock, flags_cap);
 	spin_unlock_irqrestore(&m2m_ctx->out_q_ctx.rdy_spinlock, flags_out);
 
 	if (m2m_dev->m2m_ops->job_ready
 		&& (!m2m_dev->m2m_ops->job_ready(m2m_ctx->priv))) {
-		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
 		dprintk("Driver not ready\n");
-		return;
+		goto job_unlock;
 	}
 
 	list_add_tail(&m2m_ctx->queue, &m2m_dev->job_queue);
 	m2m_ctx->job_flags |= TRANS_QUEUED;
 
+	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
+	return;
+
+cap_unlock:
+	spin_unlock_irqrestore(&m2m_ctx->cap_q_ctx.rdy_spinlock, flags_cap);
+out_unlock:
+	spin_unlock_irqrestore(&m2m_ctx->out_q_ctx.rdy_spinlock, flags_out);
+job_unlock:
 	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
 }
 
@@ -364,6 +366,18 @@ void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
 	v4l2_m2m_try_run(m2m_dev);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_try_schedule);
+
+/**
+ * v4l2_m2m_device_run_work() - run pending jobs for the context
+ * @work: Work structure used for scheduling the execution of this function.
+ */
+static void v4l2_m2m_device_run_work(struct work_struct *work)
+{
+	struct v4l2_m2m_dev *m2m_dev =
+		container_of(work, struct v4l2_m2m_dev, job_work);
+
+	v4l2_m2m_try_run(m2m_dev);
+}
 
 /**
  * v4l2_m2m_cancel_job() - cancel pending jobs for the context
@@ -424,7 +438,12 @@ void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 	/* This instance might have more buffers ready, but since we do not
 	 * allow more than one job on the job_queue per instance, each has
 	 * to be scheduled separately after the previous one finishes. */
-	v4l2_m2m_try_schedule(m2m_ctx);
+	__v4l2_m2m_try_queue(m2m_dev, m2m_ctx);
+
+	/* We might be running in atomic context,
+	 * but the job must be run in non-atomic context.
+	 */
+	schedule_work(&m2m_dev->job_work);
 }
 EXPORT_SYMBOL(v4l2_m2m_job_finish);
 
@@ -866,6 +885,7 @@ struct v4l2_m2m_dev *v4l2_m2m_init(const struct v4l2_m2m_ops *m2m_ops)
 	m2m_dev->m2m_ops = m2m_ops;
 	INIT_LIST_HEAD(&m2m_dev->job_queue);
 	spin_lock_init(&m2m_dev->job_spinlock);
+	INIT_WORK(&m2m_dev->job_work, v4l2_m2m_device_run_work);
 
 	return m2m_dev;
 }
@@ -908,12 +928,14 @@ struct v4l2_m2m_ctx *v4l2_m2m_ctx_init(struct v4l2_m2m_dev *m2m_dev,
 	if (ret)
 		goto err;
 	/*
-	 * If both queues use same mutex assign it as the common buffer
-	 * queues lock to the m2m context. This lock is used in the
-	 * v4l2_m2m_ioctl_* helpers.
+	 * Both queues should use same the mutex to lock the m2m context.
+	 * This lock is used in some v4l2_m2m_* helpers.
 	 */
-	if (out_q_ctx->q.lock == cap_q_ctx->q.lock)
-		m2m_ctx->q_lock = out_q_ctx->q.lock;
+	if (WARN_ON(out_q_ctx->q.lock != cap_q_ctx->q.lock)) {
+		ret = -EINVAL;
+		goto err;
+	}
+	m2m_ctx->q_lock = out_q_ctx->q.lock;
 
 	return m2m_ctx;
 err:

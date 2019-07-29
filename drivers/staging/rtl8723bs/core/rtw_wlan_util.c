@@ -889,7 +889,7 @@ void WMMOnAssocRsp(struct adapter *padapter)
 		TXOP = 0x2f;
 		acParm = AIFS | (ECWMin << 8) | (ECWMax << 12) | (TXOP << 16);
 		rtw_hal_set_hwreg(padapter, HW_VAR_AC_PARAM_VO, (u8 *)(&acParm));
-	} else{
+	} else {
 		edca[0] = edca[1] = edca[2] = edca[3] = 0;
 
 		for (i = 0; i < 4; i++) {
@@ -1028,7 +1028,7 @@ static void bwmode_update_check(struct adapter *padapter, struct ndis_80211_var_
 			new_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 			break;
 		}
-	} else{
+	} else {
 		new_bwmode = CHANNEL_WIDTH_20;
 		new_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 	}
@@ -1060,7 +1060,7 @@ static void bwmode_update_check(struct adapter *padapter, struct ndis_80211_var_
 				/*  bwmode */
 				psta->bw_mode = pmlmeext->cur_bwmode;
 				phtpriv_sta->ch_offset = pmlmeext->cur_ch_offset;
-			} else{
+			} else {
 				psta->bw_mode = CHANNEL_WIDTH_20;
 				phtpriv_sta->ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 			}
@@ -1094,7 +1094,7 @@ void HT_caps_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE)
 			/* 	Commented by Albert 2010/07/12 */
 			/* 	Got the endian issue here. */
 			pmlmeinfo->HT_caps.u.HT_cap[i] &= (pIE->data[i]);
-		} else{
+		} else {
 			/* modify from  fw by Thomas 2010/11/17 */
 			if ((pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x3) > (pIE->data[i] & 0x3))
 				max_AMPDU_len = (pIE->data[i] & 0x3);
@@ -1191,7 +1191,7 @@ void HTOnAssocRsp(struct adapter *padapter)
 
 	if ((pmlmeinfo->HT_info_enable) && (pmlmeinfo->HT_caps_enable)) {
 		pmlmeinfo->HT_enable = 1;
-	} else{
+	} else {
 		pmlmeinfo->HT_enable = 0;
 		/* set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode); */
 		return;
@@ -1239,7 +1239,7 @@ void VCS_update(struct adapter *padapter, struct sta_info *psta)
 		if (pregpriv->vcs_type == 1) { /* 1:RTS/CTS 2:CTS to self */
 			psta->rtsen = 1;
 			psta->cts2self = 0;
-		} else{
+		} else {
 			psta->rtsen = 0;
 			psta->cts2self = 1;
 		}
@@ -1251,11 +1251,11 @@ void VCS_update(struct adapter *padapter, struct sta_info *psta)
 			if (pregpriv->vcs_type == 1) {
 				psta->rtsen = 1;
 				psta->cts2self = 0;
-			} else{
+			} else {
 				psta->rtsen = 0;
 				psta->cts2self = 1;
 			}
-		} else{
+		} else {
 			psta->rtsen = 0;
 			psta->cts2self = 0;
 		}
@@ -1751,7 +1751,7 @@ void update_capinfo(struct adapter *Adapter, u16 updateCap)
 				pmlmeinfo->preamble_mode = PREAMBLE_SHORT;
 				rtw_hal_set_hwreg(Adapter, HW_VAR_ACK_PREAMBLE, (u8 *)&ShortPreamble);
 			}
-		} else{
+		} else {
 			/*  Long Preamble */
 			if (pmlmeinfo->preamble_mode != PREAMBLE_LONG) { /*  PREAMBLE_SHORT or PREAMBLE_AUTO */
 				ShortPreamble = false;
@@ -1804,7 +1804,7 @@ void update_wireless_mode(struct adapter *padapter)
 			network_type = WIRELESS_11_5N;
 
 		network_type |= WIRELESS_11A;
-	} else{
+	} else {
 		if (pmlmeinfo->VHT_enable)
 			network_type = WIRELESS_11AC;
 		else if (pmlmeinfo->HT_enable)
@@ -1839,7 +1839,7 @@ void update_sta_basic_rate(struct sta_info *psta, u8 wireless_mode)
 		/*  Only B, B/G, and B/G/N AP could use CCK rate */
 		memcpy(psta->bssrateset, rtw_basic_rate_cck, 4);
 		psta->bssratelen = 4;
-	} else{
+	} else {
 		memcpy(psta->bssrateset, rtw_basic_rate_ofdm, 3);
 		psta->bssratelen = 3;
 	}
@@ -2038,7 +2038,7 @@ void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta)
 	if (i > (NUM_STA-1)) {
 		psta->mac_id = NUM_STA;
 		DBG_871X("  no room for more MACIDs\n");
-	} else{
+	} else {
 		psta->mac_id = i;
 		DBG_871X("%s = %d\n", __func__, psta->mac_id);
 	}
@@ -2147,7 +2147,7 @@ int  rtw_set_gpio_output_value(struct net_device *netdev, int gpio_num, bool isH
 
 		DBG_871X("%s Set gpio %x[%d]=%d\n", __func__, REG_GPIO_PIN_CTRL+1, gpio_num, isHigh);
 		res = 0;
-	} else{
+	} else {
 		DBG_871X("%s The gpio is input, not be set!\n", __func__);
 		res = -1;
 	}

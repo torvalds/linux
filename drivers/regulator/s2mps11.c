@@ -5,7 +5,7 @@
 
 #include <linux/bug.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -14,7 +14,6 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
-#include <linux/of_gpio.h>
 #include <linux/mfd/samsung/core.h>
 #include <linux/mfd/samsung/s2mps11.h>
 #include <linux/mfd/samsung/s2mps13.h>
@@ -44,7 +43,7 @@ struct s2mps11_info {
 	 * Array (size: number of regulators) with GPIO-s for external
 	 * sleep control.
 	 */
-	int *ext_control_gpio;
+	struct gpio_desc **ext_control_gpiod;
 };
 
 static int get_ramp_delay(int ramp_delay)
@@ -511,7 +510,7 @@ static int s2mps14_regulator_enable(struct regulator_dev *rdev)
 	case S2MPS14X:
 		if (test_bit(rdev_get_id(rdev), s2mps11->suspend_state))
 			val = S2MPS14_ENABLE_SUSPEND;
-		else if (gpio_is_valid(s2mps11->ext_control_gpio[rdev_get_id(rdev)]))
+		else if (s2mps11->ext_control_gpiod[rdev_get_id(rdev)])
 			val = S2MPS14_ENABLE_EXT_CONTROL;
 		else
 			val = rdev->desc->enable_mask;
@@ -805,7 +804,7 @@ static int s2mps14_pmic_enable_ext_control(struct s2mps11_info *s2mps11,
 static void s2mps14_pmic_dt_parse_ext_control_gpio(struct platform_device *pdev,
 		struct of_regulator_match *rdata, struct s2mps11_info *s2mps11)
 {
-	int *gpio = s2mps11->ext_control_gpio;
+	struct gpio_desc **gpio = s2mps11->ext_control_gpiod;
 	unsigned int i;
 	unsigned int valid_regulators[3] = { S2MPS14_LDO10, S2MPS14_LDO11,
 		S2MPS14_LDO12 };
@@ -816,11 +815,20 @@ static void s2mps14_pmic_dt_parse_ext_control_gpio(struct platform_device *pdev,
 		if (!rdata[reg].init_data || !rdata[reg].of_node)
 			continue;
 
-		gpio[reg] = of_get_named_gpio(rdata[reg].of_node,
-				"samsung,ext-control-gpios", 0);
-		if (gpio_is_valid(gpio[reg]))
-			dev_dbg(&pdev->dev, "Using GPIO %d for ext-control over %d/%s\n",
-					gpio[reg], reg, rdata[reg].name);
+		gpio[reg] = devm_gpiod_get_from_of_node(&pdev->dev,
+				rdata[reg].of_node,
+				"samsung,ext-control-gpios",
+				0,
+				GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+				"s2mps11-regulator");
+		if (IS_ERR(gpio[reg])) {
+			dev_err(&pdev->dev, "Failed to get control GPIO for %d/%s\n",
+				reg, rdata[reg].name);
+			continue;
+		}
+		if (gpio[reg])
+			dev_dbg(&pdev->dev, "Using GPIO for ext-control over %d/%s\n",
+				reg, rdata[reg].name);
 	}
 }
 
@@ -1126,17 +1134,10 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	s2mps11->ext_control_gpio = devm_kmalloc_array(&pdev->dev,
-			rdev_num, sizeof(*s2mps11->ext_control_gpio),
-			GFP_KERNEL);
-	if (!s2mps11->ext_control_gpio)
+	s2mps11->ext_control_gpiod = devm_kcalloc(&pdev->dev, rdev_num,
+			       sizeof(*s2mps11->ext_control_gpiod), GFP_KERNEL);
+	if (!s2mps11->ext_control_gpiod)
 		return -ENOMEM;
-	/*
-	 * 0 is a valid GPIO so initialize all GPIO-s to negative value
-	 * to indicate that external control won't be used for this regulator.
-	 */
-	for (i = 0; i < rdev_num; i++)
-		s2mps11->ext_control_gpio[i] = -EINVAL;
 
 	if (!iodev->dev->of_node) {
 		if (iodev->pdata) {
@@ -1166,8 +1167,6 @@ common_reg:
 	config.dev = &pdev->dev;
 	config.regmap = iodev->regmap_pmic;
 	config.driver_data = s2mps11;
-	config.ena_gpio_flags = GPIOF_OUT_INIT_HIGH;
-	config.ena_gpio_initialized = true;
 	for (i = 0; i < rdev_num; i++) {
 		struct regulator_dev *regulator;
 
@@ -1178,8 +1177,13 @@ common_reg:
 			config.init_data = rdata[i].init_data;
 			config.of_node = rdata[i].of_node;
 		}
-		config.ena_gpio = s2mps11->ext_control_gpio[i];
-
+		config.ena_gpiod = s2mps11->ext_control_gpiod[i];
+		/*
+		 * Hand the GPIO descriptor management over to the regulator
+		 * core, remove it from devres management.
+		 */
+		if (config.ena_gpiod)
+			devm_gpiod_unhinge(&pdev->dev, config.ena_gpiod);
 		regulator = devm_regulator_register(&pdev->dev,
 						&regulators[i], &config);
 		if (IS_ERR(regulator)) {
@@ -1189,7 +1193,7 @@ common_reg:
 			goto out;
 		}
 
-		if (gpio_is_valid(s2mps11->ext_control_gpio[i])) {
+		if (s2mps11->ext_control_gpiod[i]) {
 			ret = s2mps14_pmic_enable_ext_control(s2mps11,
 					regulator);
 			if (ret < 0) {

@@ -50,7 +50,7 @@ report::
 	  /sys/bus/event_source/devices/<pmu>/format/*
 
 	Note that the last two syntaxes support prefix and glob matching in
-	the PMU name to simplify creation of events accross multiple instances
+	the PMU name to simplify creation of events across multiple instances
 	of the same type of PMU in large systems (e.g. memory controller PMUs).
 	Multiple PMU instances are typical for uncore PMUs, so the prefix
 	'uncore_' is also ignored when performing this match.
@@ -277,7 +277,7 @@ echo 0 > /proc/sys/kernel/nmi_watchdog
 for best results. Otherwise the bottlenecks may be inconsistent
 on workload with changing phases.
 
-This enables --metric-only, unless overriden with --no-metric-only.
+This enables --metric-only, unless overridden with --no-metric-only.
 
 To interpret the results it is usually needed to know on which
 CPUs the workload runs on. If needed the CPUs can be forced using

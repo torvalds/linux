@@ -15,11 +15,12 @@
 #ifndef __LINUX_REGULATOR_DRIVER_H_
 #define __LINUX_REGULATOR_DRIVER_H_
 
-#define MAX_COUPLED		4
+#define MAX_COUPLED		2
 
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/regulator/consumer.h>
+#include <linux/ww_mutex.h>
 
 struct gpio_desc;
 struct regmap;
@@ -462,7 +463,7 @@ struct regulator_dev {
 	struct coupling_desc coupling_desc;
 
 	struct blocking_notifier_head notifier;
-	struct mutex mutex; /* consumer lock */
+	struct ww_mutex mutex; /* consumer lock */
 	struct task_struct *mutex_owner;
 	int ref_cnt;
 	struct module *owner;
@@ -473,7 +474,6 @@ struct regulator_dev {
 	struct regmap *regmap;
 
 	struct delayed_work disable_work;
-	int deferred_disables;
 
 	void *reg_data;		/* regulator_dev data */
 
@@ -544,5 +544,8 @@ int regulator_set_pull_down_regmap(struct regulator_dev *rdev);
 int regulator_set_active_discharge_regmap(struct regulator_dev *rdev,
 					  bool enable);
 void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data);
+
+void regulator_lock(struct regulator_dev *rdev);
+void regulator_unlock(struct regulator_dev *rdev);
 
 #endif

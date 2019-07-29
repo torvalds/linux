@@ -44,6 +44,7 @@
 #include "hw/host1x04.h"
 #include "hw/host1x05.h"
 #include "hw/host1x06.h"
+#include "hw/host1x07.h"
 
 void host1x_hypervisor_writel(struct host1x *host1x, u32 v, u32 r)
 {
@@ -130,7 +131,19 @@ static const struct host1x_info host1x06_info = {
 	.has_hypervisor = true,
 };
 
+static const struct host1x_info host1x07_info = {
+	.nb_channels = 63,
+	.nb_pts = 704,
+	.nb_mlocks = 32,
+	.nb_bases = 0,
+	.init = host1x07_init,
+	.sync_offset = 0x0,
+	.dma_mask = DMA_BIT_MASK(40),
+	.has_hypervisor = true,
+};
+
 static const struct of_device_id host1x_of_match[] = {
+	{ .compatible = "nvidia,tegra194-host1x", .data = &host1x07_info, },
 	{ .compatible = "nvidia,tegra186-host1x", .data = &host1x06_info, },
 	{ .compatible = "nvidia,tegra210-host1x", .data = &host1x05_info, },
 	{ .compatible = "nvidia,tegra124-host1x", .data = &host1x04_info, },
