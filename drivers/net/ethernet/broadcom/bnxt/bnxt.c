@@ -3635,7 +3635,7 @@ static void bnxt_free_ring_stats(struct bnxt *bp)
 	if (!bp->bnapi)
 		return;
 
-	size = sizeof(struct ctx_hw_stats);
+	size = bp->hw_ring_stats_size;
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
@@ -3654,7 +3654,7 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 	u32 size, i;
 	struct pci_dev *pdev = bp->pdev;
 
-	size = sizeof(struct ctx_hw_stats);
+	size = bp->hw_ring_stats_size;
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
@@ -4989,6 +4989,11 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 		    VNIC_QCAPS_RESP_FLAGS_ROCE_MIRRORING_CAPABLE_VNIC_CAP)
 			bp->flags |= BNXT_FLAG_ROCE_MIRROR_CAP;
 		bp->max_tpa_v2 = le16_to_cpu(resp->max_aggs_supported);
+		if (bp->max_tpa_v2)
+			bp->hw_ring_stats_size =
+				sizeof(struct ctx_hw_stats_ext);
+		else
+			bp->hw_ring_stats_size = sizeof(struct ctx_hw_stats);
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
@@ -6186,6 +6191,7 @@ static int bnxt_hwrm_stat_ctx_alloc(struct bnxt *bp)
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_STAT_CTX_ALLOC, -1, -1);
 
+	req.stats_dma_length = cpu_to_le16(bp->hw_ring_stats_size);
 	req.update_period_ms = cpu_to_le32(bp->stats_coal_ticks / 1000);
 
 	mutex_lock(&bp->hwrm_cmd_lock);

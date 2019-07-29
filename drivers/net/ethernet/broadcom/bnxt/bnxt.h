@@ -1607,6 +1607,7 @@ struct bnxt {
 	int			hw_port_stats_size;
 	u16			fw_rx_stats_ext_size;
 	u16			fw_tx_stats_ext_size;
+	u16			hw_ring_stats_size;
 	u8			pri2cos[8];
 	u8			pri2cos_valid;
 
