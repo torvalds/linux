@@ -2333,7 +2333,7 @@ static void bnxt_free_rx_skbs(struct bnxt *bp)
 		int j;
 
 		if (rxr->rx_tpa) {
-			for (j = 0; j < MAX_TPA; j++) {
+			for (j = 0; j < bp->max_tpa; j++) {
 				struct bnxt_tpa_info *tpa_info =
 							&rxr->rx_tpa[j];
 				u8 *data = tpa_info->data;
@@ -2495,6 +2495,10 @@ static void bnxt_free_tpa_info(struct bnxt *bp)
 	for (i = 0; i < bp->rx_nr_rings; i++) {
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 
+		if (rxr->rx_tpa) {
+			kfree(rxr->rx_tpa[0].agg_arr);
+			rxr->rx_tpa[0].agg_arr = NULL;
+		}
 		kfree(rxr->rx_tpa);
 		rxr->rx_tpa = NULL;
 	}
@@ -2502,15 +2506,33 @@ static void bnxt_free_tpa_info(struct bnxt *bp)
 
 static int bnxt_alloc_tpa_info(struct bnxt *bp)
 {
-	int i;
+	int i, j, total_aggs = 0;
+
+	bp->max_tpa = MAX_TPA;
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		if (!bp->max_tpa_v2)
+			return 0;
+		bp->max_tpa = max_t(u16, bp->max_tpa_v2, MAX_TPA_P5);
+		total_aggs = bp->max_tpa * MAX_SKB_FRAGS;
+	}
 
 	for (i = 0; i < bp->rx_nr_rings; i++) {
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
+		struct rx_agg_cmp *agg;
 
-		rxr->rx_tpa = kcalloc(MAX_TPA, sizeof(struct bnxt_tpa_info),
+		rxr->rx_tpa = kcalloc(bp->max_tpa, sizeof(struct bnxt_tpa_info),
 				      GFP_KERNEL);
 		if (!rxr->rx_tpa)
 			return -ENOMEM;
+
+		if (!(bp->flags & BNXT_FLAG_CHIP_P5))
+			continue;
+		agg = kcalloc(total_aggs, sizeof(*agg), GFP_KERNEL);
+		rxr->rx_tpa[0].agg_arr = agg;
+		if (!agg)
+			return -ENOMEM;
+		for (j = 1; j < bp->max_tpa; j++)
+			rxr->rx_tpa[j].agg_arr = agg + j * MAX_SKB_FRAGS;
 	}
 	return 0;
 }
@@ -2974,7 +2996,7 @@ static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 			u8 *data;
 			dma_addr_t mapping;
 
-			for (i = 0; i < MAX_TPA; i++) {
+			for (i = 0; i < bp->max_tpa; i++) {
 				data = __bnxt_alloc_rx_data(bp, &mapping,
 							    GFP_KERNEL);
 				if (!data)
@@ -4435,6 +4457,7 @@ static int bnxt_hwrm_clear_vnic_filter(struct bnxt *bp)
 static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, u16 vnic_id, u32 tpa_flags)
 {
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
+	u16 max_aggs = VNIC_TPA_CFG_REQ_MAX_AGGS_MAX;
 	struct hwrm_vnic_tpa_cfg_input req = {0};
 
 	if (vnic->fw_vnic_id == INVALID_HW_RING_ID)
@@ -4474,9 +4497,14 @@ static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, u16 vnic_id, u32 tpa_flags)
 			nsegs = (MAX_SKB_FRAGS - n) / n;
 		}
 
-		segs = ilog2(nsegs);
+		if (bp->flags & BNXT_FLAG_CHIP_P5) {
+			segs = MAX_TPA_SEGS_P5;
+			max_aggs = bp->max_tpa;
+		} else {
+			segs = ilog2(nsegs);
+		}
 		req.max_agg_segs = cpu_to_le16(segs);
-		req.max_aggs = cpu_to_le16(VNIC_TPA_CFG_REQ_MAX_AGGS_MAX);
+		req.max_aggs = cpu_to_le16(max_aggs);
 
 		req.min_agg_len = cpu_to_le32(512);
 	}
@@ -4836,6 +4864,7 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 		if (flags &
 		    VNIC_QCAPS_RESP_FLAGS_ROCE_MIRRORING_CAPABLE_VNIC_CAP)
 			bp->flags |= BNXT_FLAG_ROCE_MIRROR_CAP;
+		bp->max_tpa_v2 = le16_to_cpu(resp->max_aggs_supported);
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
