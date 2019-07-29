@@ -16118,6 +16118,8 @@ void cfg80211_ch_switch_notify(struct net_device *dev,
 	    !WARN_ON(!wdev->current_bss))
 		cfg80211_update_assoc_bss_entry(wdev, chandef->chan);
 
+	cfg80211_sched_dfs_chan_update(rdev);
+
 	nl80211_ch_switch_notify(rdev, dev, chandef, GFP_KERNEL,
 				 NL80211_CMD_CH_SWITCH_NOTIFY, 0);
 }
