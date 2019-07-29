@@ -983,6 +983,13 @@ static void lpuart_copy_rx_to_tty(struct lpuart_port *sport)
 		unsigned char sr = readb(sport->port.membase + UARTSR1);
 
 		if (sr & (UARTSR1_PE | UARTSR1_FE)) {
+			unsigned char cr2;
+
+			/* Disable receiver during this operation... */
+			cr2 = readb(sport->port.membase + UARTCR2);
+			cr2 &= ~UARTCR2_RE;
+			writeb(cr2, sport->port.membase + UARTCR2);
+
 			/* Read DR to clear the error flags */
 			readb(sport->port.membase + UARTDR);
 
@@ -990,6 +997,25 @@ static void lpuart_copy_rx_to_tty(struct lpuart_port *sport)
 				sport->port.icount.parity++;
 			else if (sr & UARTSR1_FE)
 				sport->port.icount.frame++;
+			/*
+			 * At this point parity/framing error is
+			 * cleared However, since the DMA already read
+			 * the data register and we had to read it
+			 * again after reading the status register to
+			 * properly clear the flags, the FIFO actually
+			 * underflowed... This requires a clearing of
+			 * the FIFO...
+			 */
+			if (readb(sport->port.membase + UARTSFIFO) &
+			    UARTSFIFO_RXUF) {
+				writeb(UARTSFIFO_RXUF,
+				       sport->port.membase + UARTSFIFO);
+				writeb(UARTCFIFO_RXFLUSH,
+				       sport->port.membase + UARTCFIFO);
+			}
+
+			cr2 |= UARTCR2_RE;
+			writeb(cr2, sport->port.membase + UARTCR2);
 		}
 	}
 
