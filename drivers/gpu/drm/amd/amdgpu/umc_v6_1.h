@@ -24,6 +24,7 @@
 #define __UMC_V6_1_H__
 
 #include "soc15_common.h"
+#include "amdgpu.h"
 
 /* HBM  Memory Channel Width */
 #define UMC_V6_1_HBM_MEMORY_CHANNEL_WIDTH	128
@@ -37,5 +38,7 @@
 #define UMC_V6_1_PER_CHANNEL_OFFSET		0x800
 
 extern const struct amdgpu_umc_funcs umc_v6_1_funcs;
+extern const uint32_t
+	umc_v6_1_channel_idx_tbl[UMC_V6_1_UMC_INSTANCE_NUM][UMC_V6_1_CHANNEL_INSTANCE_NUM];
 
 #endif

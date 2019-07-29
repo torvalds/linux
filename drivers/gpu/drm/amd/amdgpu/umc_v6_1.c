@@ -41,7 +41,7 @@
 /* offset in 256B block */
 #define OFFSET_IN_256B_BLOCK(addr)		((addr) & 0xffULL)
 
-static uint32_t
+const uint32_t
 	umc_v6_1_channel_idx_tbl[UMC_V6_1_UMC_INSTANCE_NUM][UMC_V6_1_CHANNEL_INSTANCE_NUM] = {
 		{2, 18, 11, 27},	{4, 20, 13, 29},
 		{1, 17, 8, 24},		{7, 23, 14, 30},
@@ -235,7 +235,15 @@ static void umc_v6_1_query_ras_error_address(struct amdgpu_device *adev,
 	umc_v6_1_disable_umc_index_mode(adev);
 }
 
+static void umc_v6_1_ras_init(struct amdgpu_device *adev)
+{
+
+}
+
 const struct amdgpu_umc_funcs umc_v6_1_funcs = {
+	.ras_init = umc_v6_1_ras_init,
 	.query_ras_error_count = umc_v6_1_query_ras_error_count,
 	.query_ras_error_address = umc_v6_1_query_ras_error_address,
+	.enable_umc_index_mode = umc_v6_1_enable_umc_index_mode,
+	.disable_umc_index_mode = umc_v6_1_disable_umc_index_mode,
 };
