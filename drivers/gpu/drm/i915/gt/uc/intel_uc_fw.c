@@ -146,7 +146,8 @@ __uc_fw_override(struct intel_uc_fw *uc_fw)
 		break;
 	}
 
-	return uc_fw->path;
+	uc_fw->user_overridden = uc_fw->path;
+	return uc_fw->user_overridden;
 }
 
 /**
@@ -176,7 +177,7 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 		__uc_fw_auto_select(uc_fw, INTEL_INFO(i915)->platform,
 				    INTEL_REVID(i915));
 
-	if (uc_fw->path)
+	if (uc_fw->path && *uc_fw->path)
 		uc_fw->status = INTEL_UC_FIRMWARE_SELECTED;
 	else
 		uc_fw->status = INTEL_UC_FIRMWARE_NOT_SUPPORTED;

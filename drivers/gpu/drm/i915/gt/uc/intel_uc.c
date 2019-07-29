@@ -422,7 +422,7 @@ int intel_uc_init_hw(struct intel_uc *uc)
 
 		if (intel_uc_is_using_huc(uc)) {
 			ret = intel_huc_fw_upload(huc);
-			if (ret)
+			if (ret && intel_uc_fw_is_overridden(&huc->fw))
 				goto err_out;
 		}
 
@@ -444,9 +444,9 @@ int intel_uc_init_hw(struct intel_uc *uc)
 	if (ret)
 		goto err_log_capture;
 
-	if (intel_uc_is_using_huc(uc)) {
+	if (intel_uc_fw_is_loaded(&huc->fw)) {
 		ret = intel_huc_auth(huc);
-		if (ret)
+		if (ret && intel_uc_fw_is_overridden(&huc->fw))
 			goto err_communication;
 	}
 
@@ -465,7 +465,7 @@ int intel_uc_init_hw(struct intel_uc *uc)
 	dev_info(i915->drm.dev, "GuC submission %s\n",
 		 enableddisabled(intel_uc_is_using_guc_submission(uc)));
 	dev_info(i915->drm.dev, "HuC %s\n",
-		 enableddisabled(intel_uc_is_using_huc(uc)));
+		 enableddisabled(intel_huc_is_authenticated(huc)));
 
 	return 0;
 

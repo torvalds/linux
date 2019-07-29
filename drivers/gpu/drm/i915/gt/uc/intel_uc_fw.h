@@ -61,6 +61,7 @@ struct intel_uc_fw {
 	enum intel_uc_fw_type type;
 	enum intel_uc_fw_status status;
 	const char *path;
+	bool user_overridden;
 	size_t size;
 	struct drm_i915_gem_object *obj;
 
@@ -139,6 +140,11 @@ static inline bool intel_uc_fw_is_running(struct intel_uc_fw *uc_fw)
 static inline bool intel_uc_fw_supported(struct intel_uc_fw *uc_fw)
 {
 	return __intel_uc_fw_status(uc_fw) != INTEL_UC_FIRMWARE_NOT_SUPPORTED;
+}
+
+static inline bool intel_uc_fw_is_overridden(const struct intel_uc_fw *uc_fw)
+{
+	return uc_fw->user_overridden;
 }
 
 static inline void intel_uc_fw_sanitize(struct intel_uc_fw *uc_fw)
