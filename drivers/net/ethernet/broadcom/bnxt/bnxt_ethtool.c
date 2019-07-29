@@ -163,6 +163,14 @@ static const char * const bnxt_ring_tpa_stats_str[] = {
 	"tpa_aborts",
 };
 
+static const char * const bnxt_ring_tpa2_stats_str[] = {
+	"rx_tpa_eligible_pkt",
+	"rx_tpa_eligible_bytes",
+	"rx_tpa_pkt",
+	"rx_tpa_bytes",
+	"rx_tpa_errors",
+};
+
 static const char * const bnxt_ring_sw_stats_str[] = {
 	"rx_l4_csum_errors",
 	"missed_irqs",
@@ -461,14 +469,23 @@ static const struct {
 	 ARRAY_SIZE(bnxt_tx_pkts_pri_arr))
 #define BNXT_NUM_PCIE_STATS ARRAY_SIZE(bnxt_pcie_stats_arr)
 
+static int bnxt_get_num_tpa_ring_stats(struct bnxt *bp)
+{
+	if (BNXT_SUPPORTS_TPA(bp)) {
+		if (bp->max_tpa_v2)
+			return ARRAY_SIZE(bnxt_ring_tpa2_stats_str);
+		return ARRAY_SIZE(bnxt_ring_tpa_stats_str);
+	}
+	return 0;
+}
+
 static int bnxt_get_num_ring_stats(struct bnxt *bp)
 {
 	int num_stats;
 
 	num_stats = ARRAY_SIZE(bnxt_ring_stats_str) +
-		    ARRAY_SIZE(bnxt_ring_sw_stats_str);
-	if (BNXT_SUPPORTS_TPA(bp))
-		num_stats += ARRAY_SIZE(bnxt_ring_tpa_stats_str);
+		    ARRAY_SIZE(bnxt_ring_sw_stats_str) +
+		    bnxt_get_num_tpa_ring_stats(bp);
 	return num_stats * bp->cp_nr_rings;
 }
 
@@ -515,10 +532,8 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 {
 	u32 i, j = 0;
 	struct bnxt *bp = netdev_priv(dev);
-	u32 stat_fields = ARRAY_SIZE(bnxt_ring_stats_str);
-
-	if (BNXT_SUPPORTS_TPA(bp))
-		stat_fields += ARRAY_SIZE(bnxt_ring_tpa_stats_str);
+	u32 stat_fields = ARRAY_SIZE(bnxt_ring_stats_str) +
+			  bnxt_get_num_tpa_ring_stats(bp);
 
 	if (!bp->bnapi) {
 		j += bnxt_get_num_ring_stats(bp) + BNXT_NUM_SW_FUNC_STATS;
@@ -609,6 +624,7 @@ skip_ring_stats:
 static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
 	struct bnxt *bp = netdev_priv(dev);
+	static const char * const *str;
 	u32 i, j, num_str;
 
 	switch (stringset) {
@@ -623,10 +639,15 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			if (!BNXT_SUPPORTS_TPA(bp))
 				goto skip_tpa_stats;
 
-			num_str = ARRAY_SIZE(bnxt_ring_tpa_stats_str);
+			if (bp->max_tpa_v2) {
+				num_str = ARRAY_SIZE(bnxt_ring_tpa2_stats_str);
+				str = bnxt_ring_tpa2_stats_str;
+			} else {
+				num_str = ARRAY_SIZE(bnxt_ring_tpa_stats_str);
+				str = bnxt_ring_tpa_stats_str;
+			}
 			for (j = 0; j < num_str; j++) {
-				sprintf(buf, "[%d]: %s", i,
-					bnxt_ring_tpa_stats_str[j]);
+				sprintf(buf, "[%d]: %s", i, str[j]);
 				buf += ETH_GSTRING_LEN;
 			}
 skip_tpa_stats:
