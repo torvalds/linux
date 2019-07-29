@@ -9896,6 +9896,68 @@ static void bnxt_init_dflt_coal(struct bnxt *bp)
 	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
 }
 
+static int bnxt_fw_init_one_p1(struct bnxt *bp)
+{
+	int rc;
+
+	bp->fw_cap = 0;
+	rc = bnxt_hwrm_ver_get(bp);
+	if (rc)
+		return rc;
+
+	if (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL) {
+		rc = bnxt_alloc_kong_hwrm_resources(bp);
+		if (rc)
+			bp->fw_cap &= ~BNXT_FW_CAP_KONG_MB_CHNL;
+	}
+
+	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) ||
+	    bp->hwrm_max_ext_req_len > BNXT_HWRM_MAX_REQ_LEN) {
+		rc = bnxt_alloc_hwrm_short_cmd_req(bp);
+		if (rc)
+			return rc;
+	}
+	rc = bnxt_hwrm_func_reset(bp);
+	if (rc)
+		return -ENODEV;
+
+	bnxt_hwrm_fw_set_time(bp);
+	return 0;
+}
+
+static int bnxt_fw_init_one_p2(struct bnxt *bp)
+{
+	int rc;
+
+	/* Get the MAX capabilities for this function */
+	rc = bnxt_hwrm_func_qcaps(bp);
+	if (rc) {
+		netdev_err(bp->dev, "hwrm query capability failure rc: %x\n",
+			   rc);
+		return -ENODEV;
+	}
+
+	rc = bnxt_hwrm_cfa_adv_flow_mgnt_qcaps(bp);
+	if (rc)
+		netdev_warn(bp->dev, "hwrm query adv flow mgnt failure rc: %d\n",
+			    rc);
+
+	rc = bnxt_hwrm_func_drv_rgtr(bp);
+	if (rc)
+		return -ENODEV;
+
+	rc = bnxt_hwrm_func_rgtr_async_events(bp, NULL, 0);
+	if (rc)
+		return -ENODEV;
+
+	bnxt_hwrm_func_qcfg(bp);
+	bnxt_hwrm_vnic_qcaps(bp);
+	bnxt_hwrm_port_led_qcaps(bp);
+	bnxt_ethtool_init(bp);
+	bnxt_dcb_init(bp);
+	return 0;
+}
+
 static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 {
 	int rc;
@@ -10851,31 +10913,17 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto init_err_pci_clean;
 
 	mutex_init(&bp->hwrm_cmd_lock);
-	rc = bnxt_hwrm_ver_get(bp);
+
+	rc = bnxt_fw_init_one_p1(bp);
 	if (rc)
 		goto init_err_pci_clean;
-
-	if (bp->fw_cap & BNXT_FW_CAP_KONG_MB_CHNL) {
-		rc = bnxt_alloc_kong_hwrm_resources(bp);
-		if (rc)
-			bp->fw_cap &= ~BNXT_FW_CAP_KONG_MB_CHNL;
-	}
-
-	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) ||
-	    bp->hwrm_max_ext_req_len > BNXT_HWRM_MAX_REQ_LEN) {
-		rc = bnxt_alloc_hwrm_short_cmd_req(bp);
-		if (rc)
-			goto init_err_pci_clean;
-	}
 
 	if (BNXT_CHIP_P5(bp))
 		bp->flags |= BNXT_FLAG_CHIP_P5;
 
-	rc = bnxt_hwrm_func_reset(bp);
+	rc = bnxt_fw_init_one_p2(bp);
 	if (rc)
 		goto init_err_pci_clean;
-
-	bnxt_hwrm_fw_set_time(bp);
 
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
 			   NETIF_F_TSO | NETIF_F_TSO6 |
@@ -10920,36 +10968,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!BNXT_CHIP_P4_PLUS(bp))
 		bp->flags |= BNXT_FLAG_DOUBLE_DB;
 
-	rc = bnxt_hwrm_func_drv_rgtr(bp);
-	if (rc)
-		goto init_err_pci_clean;
-
-	rc = bnxt_hwrm_func_rgtr_async_events(bp, NULL, 0);
-	if (rc)
-		goto init_err_pci_clean;
-
 	bp->ulp_probe = bnxt_ulp_probe;
-
-	rc = bnxt_hwrm_queue_qportcfg(bp);
-	if (rc) {
-		netdev_err(bp->dev, "hwrm query qportcfg failure rc: %x\n",
-			   rc);
-		rc = -1;
-		goto init_err_pci_clean;
-	}
-	/* Get the MAX capabilities for this function */
-	rc = bnxt_hwrm_func_qcaps(bp);
-	if (rc) {
-		netdev_err(bp->dev, "hwrm query capability failure rc: %x\n",
-			   rc);
-		rc = -1;
-		goto init_err_pci_clean;
-	}
-
-	rc = bnxt_hwrm_cfa_adv_flow_mgnt_qcaps(bp);
-	if (rc)
-		netdev_warn(bp->dev, "hwrm query adv flow mgnt failure rc: %d\n",
-			    rc);
 
 	rc = bnxt_init_mac_addr(bp);
 	if (rc) {
@@ -10964,11 +10983,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (rc)
 			goto init_err_pci_clean;
 	}
-	bnxt_hwrm_func_qcfg(bp);
-	bnxt_hwrm_vnic_qcaps(bp);
-	bnxt_hwrm_port_led_qcaps(bp);
-	bnxt_ethtool_init(bp);
-	bnxt_dcb_init(bp);
 
 	/* MTU range: 60 - FW defined max */
 	dev->min_mtu = ETH_ZLEN;
