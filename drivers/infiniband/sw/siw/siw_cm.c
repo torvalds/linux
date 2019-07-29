@@ -220,13 +220,12 @@ static void siw_put_work(struct siw_cm_work *work)
 static void siw_cep_set_inuse(struct siw_cep *cep)
 {
 	unsigned long flags;
-	int rv;
 retry:
 	spin_lock_irqsave(&cep->lock, flags);
 
 	if (cep->in_use) {
 		spin_unlock_irqrestore(&cep->lock, flags);
-		rv = wait_event_interruptible(cep->waitq, !cep->in_use);
+		wait_event_interruptible(cep->waitq, !cep->in_use);
 		if (signal_pending(current))
 			flush_signals(current);
 		goto retry;

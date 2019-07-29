@@ -1620,6 +1620,7 @@ static int hfi1_kern_exp_rcv_alloc_flows(struct tid_rdma_request *req,
 		flows[i].req = req;
 		flows[i].npagesets = 0;
 		flows[i].pagesets[0].mapped =  0;
+		flows[i].resync_npkts = 0;
 	}
 	req->flows = flows;
 	return 0;
@@ -1671,34 +1672,6 @@ static struct tid_rdma_flow *find_flow_ib(struct tid_rdma_request *req,
 		}
 	}
 	return NULL;
-}
-
-static struct tid_rdma_flow *
-__find_flow_ranged(struct tid_rdma_request *req, u16 head, u16 tail,
-		   u32 psn, u16 *fidx)
-{
-	for ( ; CIRC_CNT(head, tail, MAX_FLOWS);
-	      tail = CIRC_NEXT(tail, MAX_FLOWS)) {
-		struct tid_rdma_flow *flow = &req->flows[tail];
-		u32 spsn, lpsn;
-
-		spsn = full_flow_psn(flow, flow->flow_state.spsn);
-		lpsn = full_flow_psn(flow, flow->flow_state.lpsn);
-
-		if (cmp_psn(psn, spsn) >= 0 && cmp_psn(psn, lpsn) <= 0) {
-			if (fidx)
-				*fidx = tail;
-			return flow;
-		}
-	}
-	return NULL;
-}
-
-static struct tid_rdma_flow *find_flow(struct tid_rdma_request *req,
-				       u32 psn, u16 *fidx)
-{
-	return __find_flow_ranged(req, req->setup_head, req->clear_tail, psn,
-				  fidx);
 }
 
 /* TID RDMA READ functions */
@@ -2788,19 +2761,7 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 			 * to prevent continuous Flow Sequence errors for any
 			 * packets that could be still in the fabric.
 			 */
-			flow = find_flow(req, psn, NULL);
-			if (!flow) {
-				/*
-				 * We can't find the IB PSN matching the
-				 * received KDETH PSN. The only thing we can
-				 * do at this point is report the error to
-				 * the QP.
-				 */
-				hfi1_kern_read_tid_flow_free(qp);
-				spin_unlock(&qp->s_lock);
-				rvt_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
-				return ret;
-			}
+			flow = &req->flows[req->clear_tail];
 			if (priv->s_flags & HFI1_R_TID_SW_PSN) {
 				diff = cmp_psn(psn,
 					       flow->flow_state.r_next_psn);
