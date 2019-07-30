@@ -862,11 +862,11 @@ e_tag:
 	ccp_dm_free(&final_wa);
 
 e_dst:
-	if (aes->src_len && !in_place)
+	if (ilen > 0 && !in_place)
 		ccp_free_data(&dst, cmd_q);
 
 e_src:
-	if (aes->src_len)
+	if (ilen > 0)
 		ccp_free_data(&src, cmd_q);
 
 e_aad:
