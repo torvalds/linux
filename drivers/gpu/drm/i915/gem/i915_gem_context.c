@@ -475,9 +475,17 @@ static struct i915_address_space *
 __set_ppgtt(struct i915_gem_context *ctx, struct i915_address_space *vm)
 {
 	struct i915_address_space *old = ctx->vm;
+	struct i915_gem_engines_iter it;
+	struct intel_context *ce;
 
 	ctx->vm = i915_vm_get(vm);
 	ctx->desc_template = default_desc_template(ctx->i915, vm);
+
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		i915_vm_put(ce->vm);
+		ce->vm = i915_vm_get(vm);
+	}
+	i915_gem_context_unlock_engines(ctx);
 
 	return old;
 }
@@ -1004,7 +1012,7 @@ static void set_ppgtt_barrier(void *data)
 
 static int emit_ppgtt_update(struct i915_request *rq, void *data)
 {
-	struct i915_address_space *vm = rq->gem_context->vm;
+	struct i915_address_space *vm = rq->hw_context->vm;
 	struct intel_engine_cs *engine = rq->engine;
 	u32 base = engine->mmio_base;
 	u32 *cs;
@@ -1113,9 +1121,8 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 				   set_ppgtt_barrier,
 				   old);
 	if (err) {
-		ctx->vm = old;
-		ctx->desc_template = default_desc_template(ctx->i915, old);
-		i915_vm_put(vm);
+		i915_vm_put(__set_ppgtt(ctx, old));
+		i915_vm_put(old);
 	}
 
 unlock:

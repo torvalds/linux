@@ -223,7 +223,6 @@ struct i915_execbuffer {
 	struct intel_engine_cs *engine; /** engine to queue the request to */
 	struct intel_context *context; /* logical state for the request */
 	struct i915_gem_context *gem_context; /** caller's context */
-	struct i915_address_space *vm; /** GTT and vma for the request */
 
 	struct i915_request *request; /** our request to build */
 	struct i915_vma *batch; /** identity of the batch obj/vma */
@@ -697,7 +696,7 @@ static int eb_reserve(struct i915_execbuffer *eb)
 
 		case 1:
 			/* Too fragmented, unbind everything and retry */
-			err = i915_gem_evict_vm(eb->vm);
+			err = i915_gem_evict_vm(eb->context->vm);
 			if (err)
 				return err;
 			break;
@@ -725,12 +724,8 @@ static int eb_select_context(struct i915_execbuffer *eb)
 		return -ENOENT;
 
 	eb->gem_context = ctx;
-	if (ctx->vm) {
-		eb->vm = ctx->vm;
+	if (ctx->vm)
 		eb->invalid_flags |= EXEC_OBJECT_NEEDS_GTT;
-	} else {
-		eb->vm = &eb->i915->ggtt.vm;
-	}
 
 	eb->context_flags = 0;
 	if (test_bit(UCONTEXT_NO_ZEROMAP, &ctx->user_flags))
@@ -832,7 +827,7 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 			goto err_vma;
 		}
 
-		vma = i915_vma_instance(obj, eb->vm, NULL);
+		vma = i915_vma_instance(obj, eb->context->vm, NULL);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto err_obj;

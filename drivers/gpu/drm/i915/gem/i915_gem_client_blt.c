@@ -250,13 +250,11 @@ int i915_gem_schedule_fill_pages_blt(struct drm_i915_gem_object *obj,
 				     u32 value)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct i915_gem_context *ctx = ce->gem_context;
-	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
 	struct clear_pages_work *work;
 	struct i915_sleeve *sleeve;
 	int err;
 
-	sleeve = create_sleeve(vm, obj, pages, page_sizes);
+	sleeve = create_sleeve(ce->vm, obj, pages, page_sizes);
 	if (IS_ERR(sleeve))
 		return PTR_ERR(sleeve);
 

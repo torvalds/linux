@@ -747,7 +747,7 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 
 	GEM_BUG_ON(!intel_engine_can_store_dword(ce->engine));
 
-	vma = i915_vma_instance(obj, ce->gem_context->vm, NULL);
+	vma = i915_vma_instance(obj, ce->vm, NULL);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 

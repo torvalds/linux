@@ -1605,8 +1605,6 @@ __execlists_context_pin(struct intel_context *ce,
 	void *vaddr;
 	int ret;
 
-	GEM_BUG_ON(!ce->gem_context->vm);
-
 	ret = execlists_context_deferred_alloc(ce, engine);
 	if (ret)
 		goto err;
@@ -1716,8 +1714,7 @@ static int gen8_emit_init_breadcrumb(struct i915_request *rq)
 static int emit_pdps(struct i915_request *rq)
 {
 	const struct intel_engine_cs * const engine = rq->engine;
-	struct i915_ppgtt * const ppgtt =
-		i915_vm_to_ppgtt(rq->gem_context->vm);
+	struct i915_ppgtt * const ppgtt = i915_vm_to_ppgtt(rq->hw_context->vm);
 	int err, i;
 	u32 *cs;
 
@@ -1790,7 +1787,7 @@ static int execlists_request_alloc(struct i915_request *request)
 	 */
 
 	/* Unconditionally invalidate GPU caches and TLBs. */
-	if (i915_vm_is_4lvl(request->gem_context->vm))
+	if (i915_vm_is_4lvl(request->hw_context->vm))
 		ret = request->engine->emit_flush(request, EMIT_INVALIDATE);
 	else
 		ret = emit_pdps(request);
@@ -2920,7 +2917,7 @@ static void execlists_init_reg_state(u32 *regs,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring)
 {
-	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(ce->gem_context->vm);
+	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(ce->vm);
 	bool rcs = engine->class == RENDER_CLASS;
 	u32 base = engine->mmio_base;
 

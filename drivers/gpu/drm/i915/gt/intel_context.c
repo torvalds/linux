@@ -191,6 +191,8 @@ intel_context_init(struct intel_context *ce,
 	kref_init(&ce->ref);
 
 	ce->gem_context = ctx;
+	ce->vm = i915_vm_get(ctx->vm ?: &engine->gt->ggtt->vm);
+
 	ce->engine = engine;
 	ce->ops = engine->cops;
 	ce->sseu = engine->sseu;
@@ -206,6 +208,8 @@ intel_context_init(struct intel_context *ce,
 
 void intel_context_fini(struct intel_context *ce)
 {
+	i915_vm_put(ce->vm);
+
 	mutex_destroy(&ce->pin_mutex);
 	i915_active_fini(&ce->active);
 }

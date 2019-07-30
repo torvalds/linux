@@ -1380,9 +1380,9 @@ static struct i915_address_space *vm_alias(struct intel_context *ce)
 {
 	struct i915_address_space *vm;
 
-	vm = ce->gem_context->vm;
-	if (!vm)
-		vm = &ce->engine->gt->ggtt->alias->vm;
+	vm = ce->vm;
+	if (i915_is_ggtt(vm))
+		vm = &i915_vm_to_ggtt(vm)->alias->vm;
 
 	return vm;
 }
