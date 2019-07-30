@@ -276,6 +276,8 @@ static void ubifs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct ubifs_inode *ui = ubifs_inode(inode);
+
+	fscrypt_free_inode(inode);
 	kmem_cache_free(ubifs_inode_slab, ui);
 }
 
