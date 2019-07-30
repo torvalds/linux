@@ -9,11 +9,12 @@
 #define nop()	asm volatile ("nop\n":::"memory")
 
 /*
- * sync:        completion barrier
- * sync.s:      completion barrier and shareable to other cores
- * sync.i:      completion barrier with flush cpu pipeline
- * sync.is:     completion barrier with flush cpu pipeline and shareable to
- *		other cores
+ * sync:        completion barrier, all sync.xx instructions
+ *              guarantee the last response recieved by bus transaction
+ *              made by ld/st instructions before sync.s
+ * sync.s:      inherit from sync, but also shareable to other cores
+ * sync.i:      inherit from sync, but also flush cpu pipeline
+ * sync.is:     the same with sync.i + sync.s
  *
  * bar.brwarw:  ordering barrier for all load/store instructions before it
  * bar.brwarws: ordering barrier for all load/store instructions before it
@@ -27,9 +28,7 @@
  */
 
 #ifdef CONFIG_CPU_HAS_CACHEV2
-#define mb()		asm volatile ("bar.brwarw\n":::"memory")
-#define rmb()		asm volatile ("bar.brar\n":::"memory")
-#define wmb()		asm volatile ("bar.bwaw\n":::"memory")
+#define mb()		asm volatile ("sync.s\n":::"memory")
 
 #ifdef CONFIG_SMP
 #define __smp_mb()	asm volatile ("bar.brwarws\n":::"memory")
