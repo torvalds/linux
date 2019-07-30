@@ -3271,8 +3271,10 @@ static inline int stmmac_rx_threshold_count(struct stmmac_rx_queue *rx_q)
 static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 {
 	struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
-	int dirty = stmmac_rx_dirty(priv, queue);
+	int len, dirty = stmmac_rx_dirty(priv, queue);
 	unsigned int entry = rx_q->dirty_rx;
+
+	len = DIV_ROUND_UP(priv->dma_buf_sz, PAGE_SIZE) * PAGE_SIZE;
 
 	while (dirty-- > 0) {
 		struct stmmac_rx_buffer *buf = &rx_q->buf_pool[entry];
@@ -3291,6 +3293,13 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 		}
 
 		buf->addr = page_pool_get_dma_addr(buf->page);
+
+		/* Sync whole allocation to device. This will invalidate old
+		 * data.
+		 */
+		dma_sync_single_for_device(priv->device, buf->addr, len,
+					   DMA_FROM_DEVICE);
+
 		stmmac_set_desc_addr(priv, p, buf->addr);
 		stmmac_refill_desc3(priv, rx_q, p);
 
@@ -3425,8 +3434,6 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			skb_copy_to_linear_data(skb, page_address(buf->page),
 						frame_len);
 			skb_put(skb, frame_len);
-			dma_sync_single_for_device(priv->device, buf->addr,
-						   frame_len, DMA_FROM_DEVICE);
 
 			if (netif_msg_pktdata(priv)) {
 				netdev_dbg(priv->dev, "frame received (%dbytes)",
