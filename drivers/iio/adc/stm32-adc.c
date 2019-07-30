@@ -1919,10 +1919,8 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	}
 
 	adc->irq = platform_get_irq(pdev, 0);
-	if (adc->irq < 0) {
-		dev_err(&pdev->dev, "failed to get irq\n");
+	if (adc->irq < 0)
 		return adc->irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, adc->irq, stm32_adc_isr,
 			       0, pdev->name, adc);

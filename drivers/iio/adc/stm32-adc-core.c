@@ -374,7 +374,6 @@ static int stm32_adc_irq_probe(struct platform_device *pdev,
 			 */
 			if (i && priv->irq[i] == -ENXIO)
 				continue;
-			dev_err(&pdev->dev, "failed to get irq\n");
 
 			return priv->irq[i];
 		}

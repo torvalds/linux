@@ -529,10 +529,8 @@ static int sc27xx_adc_probe(struct platform_device *pdev)
 	}
 
 	sc27xx_data->irq = platform_get_irq(pdev, 0);
-	if (sc27xx_data->irq < 0) {
-		dev_err(dev, "failed to get ADC irq number\n");
+	if (sc27xx_data->irq < 0)
 		return sc27xx_data->irq;
-	}
 
 	ret = of_hwspin_lock_get_id(np, 0);
 	if (ret < 0) {
