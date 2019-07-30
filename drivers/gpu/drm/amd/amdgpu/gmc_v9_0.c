@@ -1201,7 +1201,7 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
-		if (amdgpu_virt_support_skip_setting(adev))
+		if (amdgpu_sriov_vf(adev))
 			break;
 		/* fall through */
 	case CHIP_VEGA20:

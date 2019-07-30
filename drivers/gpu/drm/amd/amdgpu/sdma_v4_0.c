@@ -330,14 +330,12 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
-		if (!amdgpu_virt_support_skip_setting(adev)) {
-			soc15_program_register_sequence(adev,
-							 golden_settings_sdma_4,
-							 ARRAY_SIZE(golden_settings_sdma_4));
-			soc15_program_register_sequence(adev,
-							 golden_settings_sdma_vg10,
-							 ARRAY_SIZE(golden_settings_sdma_vg10));
-		}
+		soc15_program_register_sequence(adev,
+						golden_settings_sdma_4,
+						ARRAY_SIZE(golden_settings_sdma_4));
+		soc15_program_register_sequence(adev,
+						golden_settings_sdma_vg10,
+						ARRAY_SIZE(golden_settings_sdma_vg10));
 		break;
 	case CHIP_VEGA12:
 		soc15_program_register_sequence(adev,
@@ -1833,7 +1831,8 @@ static int sdma_v4_0_hw_init(void *handle)
 			adev->powerplay.pp_funcs->set_powergating_by_smu)
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_SDMA, false);
 
-	sdma_v4_0_init_golden_registers(adev);
+	if (!amdgpu_sriov_vf(adev))
+		sdma_v4_0_init_golden_registers(adev);
 
 	r = sdma_v4_0_start(adev);
 
