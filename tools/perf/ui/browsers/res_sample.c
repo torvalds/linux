@@ -24,7 +24,7 @@ void res_sample_init(void)
 }
 
 int res_sample_browse(struct res_sample *res_samples, int num_res,
-		      struct perf_evsel *evsel, enum rstype rstype)
+		      struct evsel *evsel, enum rstype rstype)
 {
 	char **names;
 	int i, n;
@@ -66,7 +66,7 @@ int res_sample_browse(struct res_sample *res_samples, int num_res,
 
 	timestamp__scnprintf_nsec(r->time, tsample, sizeof tsample);
 
-	attr_to_script(extra_format, &evsel->attr);
+	attr_to_script(extra_format, &evsel->core.attr);
 
 	if (asprintf(&cmd, "%s script %s%s --time %s %s%s %s%s --ns %s %s %s %s %s | less +/%s",
 		     perf,

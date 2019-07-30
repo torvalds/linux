@@ -92,12 +92,12 @@ struct perf_header {
 	struct perf_env 	env;
 };
 
-struct perf_evlist;
+struct evlist;
 struct perf_session;
 
 int perf_session__read_header(struct perf_session *session);
 int perf_session__write_header(struct perf_session *session,
-			       struct perf_evlist *evlist,
+			       struct evlist *evlist,
 			       int fd, bool at_exit);
 int perf_header__write_pipe(int fd);
 
@@ -117,11 +117,11 @@ int perf_header__fprintf_info(struct perf_session *s, FILE *fp, bool full);
 
 int perf_event__synthesize_features(struct perf_tool *tool,
 				    struct perf_session *session,
-				    struct perf_evlist *evlist,
+				    struct evlist *evlist,
 				    perf_event__handler_t process);
 
 int perf_event__synthesize_extra_attr(struct perf_tool *tool,
-				      struct perf_evlist *evsel_list,
+				      struct evlist *evsel_list,
 				      perf_event__handler_t process,
 				      bool is_pipe);
 
@@ -132,29 +132,29 @@ int perf_event__synthesize_attr(struct perf_tool *tool,
 				struct perf_event_attr *attr, u32 ids, u64 *id,
 				perf_event__handler_t process);
 int perf_event__synthesize_attrs(struct perf_tool *tool,
-				 struct perf_evlist *evlist,
+				 struct evlist *evlist,
 				 perf_event__handler_t process);
 int perf_event__synthesize_event_update_unit(struct perf_tool *tool,
-					     struct perf_evsel *evsel,
+					     struct evsel *evsel,
 					     perf_event__handler_t process);
 int perf_event__synthesize_event_update_scale(struct perf_tool *tool,
-					      struct perf_evsel *evsel,
+					      struct evsel *evsel,
 					      perf_event__handler_t process);
 int perf_event__synthesize_event_update_name(struct perf_tool *tool,
-					     struct perf_evsel *evsel,
+					     struct evsel *evsel,
 					     perf_event__handler_t process);
 int perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
-					     struct perf_evsel *evsel,
+					     struct evsel *evsel,
 					     perf_event__handler_t process);
 int perf_event__process_attr(struct perf_tool *tool, union perf_event *event,
-			     struct perf_evlist **pevlist);
+			     struct evlist **pevlist);
 int perf_event__process_event_update(struct perf_tool *tool,
 				     union perf_event *event,
-				     struct perf_evlist **pevlist);
+				     struct evlist **pevlist);
 size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp);
 
 int perf_event__synthesize_tracing_data(struct perf_tool *tool,
-					int fd, struct perf_evlist *evlist,
+					int fd, struct evlist *evlist,
 					perf_event__handler_t process);
 int perf_event__process_tracing_data(struct perf_session *session,
 				     union perf_event *event);

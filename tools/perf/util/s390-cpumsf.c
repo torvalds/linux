@@ -918,7 +918,7 @@ s390_cpumsf_process_event(struct perf_session *session,
 					      struct s390_cpumsf,
 					      auxtrace);
 	u64 timestamp = sample->time;
-	struct perf_evsel *ev_bc000;
+	struct evsel *ev_bc000;
 
 	int err = 0;
 
@@ -935,7 +935,7 @@ s390_cpumsf_process_event(struct perf_session *session,
 		/* Handle event with raw data */
 		ev_bc000 = perf_evlist__event2evsel(session->evlist, event);
 		if (ev_bc000 &&
-		    ev_bc000->attr.config == PERF_EVENT_CPUM_CF_DIAG)
+		    ev_bc000->core.attr.config == PERF_EVENT_CPUM_CF_DIAG)
 			err = s390_cpumcf_dumpctr(sf, sample);
 		return err;
 	}

@@ -16,6 +16,7 @@
 #include <linux/bitmap.h>
 #include <linux/time64.h>
 #include <linux/zalloc.h>
+#include <perf/cpumap.h>
 
 #include "perf.h"
 #include "svghelper.h"
@@ -728,10 +729,10 @@ static int str_to_bitmap(char *s, cpumask_t *b)
 {
 	int i;
 	int ret = 0;
-	struct cpu_map *m;
+	struct perf_cpu_map *m;
 	int c;
 
-	m = cpu_map__new(s);
+	m = perf_cpu_map__new(s);
 	if (!m)
 		return -1;
 
@@ -745,7 +746,7 @@ static int str_to_bitmap(char *s, cpumask_t *b)
 		set_bit(c, cpumask_bits(b));
 	}
 
-	cpu_map__put(m);
+	perf_cpu_map__put(m);
 
 	return ret;
 }

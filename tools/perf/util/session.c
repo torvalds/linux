@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <perf/cpumap.h>
 
 #include "evlist.h"
 #include "evsel.h"
@@ -151,10 +152,10 @@ static void perf_session__destroy_kernel_maps(struct perf_session *session)
 
 static bool perf_session__has_comm_exec(struct perf_session *session)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (evsel->attr.comm_exec)
+		if (evsel->core.attr.comm_exec)
 			return true;
 	}
 
@@ -300,7 +301,7 @@ static int process_event_synth_tracing_data_stub(struct perf_session *session
 
 static int process_event_synth_attr_stub(struct perf_tool *tool __maybe_unused,
 					 union perf_event *event __maybe_unused,
-					 struct perf_evlist **pevlist
+					 struct evlist **pevlist
 					 __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
@@ -309,7 +310,7 @@ static int process_event_synth_attr_stub(struct perf_tool *tool __maybe_unused,
 
 static int process_event_synth_event_update_stub(struct perf_tool *tool __maybe_unused,
 						 union perf_event *event __maybe_unused,
-						 struct perf_evlist **pevlist
+						 struct evlist **pevlist
 						 __maybe_unused)
 {
 	if (dump_trace)
@@ -322,7 +323,7 @@ static int process_event_synth_event_update_stub(struct perf_tool *tool __maybe_
 static int process_event_sample_stub(struct perf_tool *tool __maybe_unused,
 				     union perf_event *event __maybe_unused,
 				     struct perf_sample *sample __maybe_unused,
-				     struct perf_evsel *evsel __maybe_unused,
+				     struct evsel *evsel __maybe_unused,
 				     struct machine *machine __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
@@ -1033,7 +1034,7 @@ static void callchain__lbr_callstack_printf(struct perf_sample *sample)
 	}
 }
 
-static void callchain__printf(struct perf_evsel *evsel,
+static void callchain__printf(struct evsel *evsel,
 			      struct perf_sample *sample)
 {
 	unsigned int i;
@@ -1129,7 +1130,7 @@ static void stack_user__printf(struct stack_dump *dump)
 	       dump->size, dump->offset);
 }
 
-static void perf_evlist__print_tstamp(struct perf_evlist *evlist,
+static void perf_evlist__print_tstamp(struct evlist *evlist,
 				       union perf_event *event,
 				       struct perf_sample *sample)
 {
@@ -1178,7 +1179,7 @@ static void sample_read__printf(struct perf_sample *sample, u64 read_format)
 			sample->read.one.id, sample->read.one.value);
 }
 
-static void dump_event(struct perf_evlist *evlist, union perf_event *event,
+static void dump_event(struct evlist *evlist, union perf_event *event,
 		       u64 file_offset, struct perf_sample *sample)
 {
 	if (!dump_trace)
@@ -1198,7 +1199,7 @@ static void dump_event(struct perf_evlist *evlist, union perf_event *event,
 	       event->header.size, perf_event__name(event->header.type));
 }
 
-static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
+static void dump_sample(struct evsel *evsel, union perf_event *event,
 			struct perf_sample *sample)
 {
 	u64 sample_type;
@@ -1210,7 +1211,7 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 	       event->header.misc, sample->pid, sample->tid, sample->ip,
 	       sample->period, sample->addr);
 
-	sample_type = evsel->attr.sample_type;
+	sample_type = evsel->core.attr.sample_type;
 
 	if (evsel__has_callchain(evsel))
 		callchain__printf(evsel, sample);
@@ -1240,10 +1241,10 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 		printf("... transaction: %" PRIx64 "\n", sample->transaction);
 
 	if (sample_type & PERF_SAMPLE_READ)
-		sample_read__printf(sample, evsel->attr.read_format);
+		sample_read__printf(sample, evsel->core.attr.read_format);
 }
 
-static void dump_read(struct perf_evsel *evsel, union perf_event *event)
+static void dump_read(struct evsel *evsel, union perf_event *event)
 {
 	struct read_event *read_event = &event->read;
 	u64 read_format;
@@ -1258,7 +1259,7 @@ static void dump_read(struct perf_evsel *evsel, union perf_event *event)
 	if (!evsel)
 		return;
 
-	read_format = evsel->attr.read_format;
+	read_format = evsel->core.attr.read_format;
 
 	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
 		printf("... time enabled : %" PRIu64 "\n", read_event->time_enabled);
@@ -1296,7 +1297,7 @@ static struct machine *machines__find_for_cpumode(struct machines *machines,
 	return &machines->host;
 }
 
-static int deliver_sample_value(struct perf_evlist *evlist,
+static int deliver_sample_value(struct evlist *evlist,
 				struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
@@ -1326,7 +1327,7 @@ static int deliver_sample_value(struct perf_evlist *evlist,
 	return tool->sample(tool, event, sample, sid->evsel, machine);
 }
 
-static int deliver_sample_group(struct perf_evlist *evlist,
+static int deliver_sample_group(struct evlist *evlist,
 				struct perf_tool *tool,
 				union  perf_event *event,
 				struct perf_sample *sample,
@@ -1347,16 +1348,16 @@ static int deliver_sample_group(struct perf_evlist *evlist,
 }
 
 static int
- perf_evlist__deliver_sample(struct perf_evlist *evlist,
+ perf_evlist__deliver_sample(struct evlist *evlist,
 			     struct perf_tool *tool,
 			     union  perf_event *event,
 			     struct perf_sample *sample,
-			     struct perf_evsel *evsel,
+			     struct evsel *evsel,
 			     struct machine *machine)
 {
 	/* We know evsel != NULL. */
-	u64 sample_type = evsel->attr.sample_type;
-	u64 read_format = evsel->attr.read_format;
+	u64 sample_type = evsel->core.attr.sample_type;
+	u64 read_format = evsel->core.attr.read_format;
 
 	/* Standard sample delivery. */
 	if (!(sample_type & PERF_SAMPLE_READ))
@@ -1372,12 +1373,12 @@ static int
 }
 
 static int machines__deliver_event(struct machines *machines,
-				   struct perf_evlist *evlist,
+				   struct evlist *evlist,
 				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct perf_tool *tool, u64 file_offset)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct machine *machine;
 
 	dump_event(evlist, event, file_offset, sample);
@@ -1553,7 +1554,7 @@ int perf_session__deliver_synth_event(struct perf_session *session,
 				      union perf_event *event,
 				      struct perf_sample *sample)
 {
-	struct perf_evlist *evlist = session->evlist;
+	struct evlist *evlist = session->evlist;
 	struct perf_tool *tool = session->tool;
 
 	events_stats__inc(&evlist->stats, event->header.type);
@@ -1631,7 +1632,7 @@ out_parse_sample:
 static s64 perf_session__process_event(struct perf_session *session,
 				       union perf_event *event, u64 file_offset)
 {
-	struct perf_evlist *evlist = session->evlist;
+	struct evlist *evlist = session->evlist;
 	struct perf_tool *tool = session->tool;
 	int ret;
 
@@ -1705,11 +1706,11 @@ static void
 perf_session__warn_order(const struct perf_session *session)
 {
 	const struct ordered_events *oe = &session->ordered_events;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	bool should_warn = true;
 
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (evsel->attr.write_backward)
+		if (evsel->core.attr.write_backward)
 			should_warn = false;
 	}
 
@@ -2183,10 +2184,10 @@ int perf_session__process_events(struct perf_session *session)
 
 bool perf_session__has_traces(struct perf_session *session, const char *msg)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (evsel->attr.type == PERF_TYPE_TRACEPOINT)
+		if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT)
 			return true;
 	}
 
@@ -2257,13 +2258,13 @@ size_t perf_session__fprintf(struct perf_session *session, FILE *fp)
 	return machine__fprintf(&session->machines.host, fp);
 }
 
-struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
+struct evsel *perf_session__find_first_evtype(struct perf_session *session,
 					      unsigned int type)
 {
-	struct perf_evsel *pos;
+	struct evsel *pos;
 
 	evlist__for_each_entry(session->evlist, pos) {
-		if (pos->attr.type == type)
+		if (pos->core.attr.type == type)
 			return pos;
 	}
 	return NULL;
@@ -2273,23 +2274,23 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap)
 {
 	int i, err = -1;
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 
 	for (i = 0; i < PERF_TYPE_MAX; ++i) {
-		struct perf_evsel *evsel;
+		struct evsel *evsel;
 
 		evsel = perf_session__find_first_evtype(session, i);
 		if (!evsel)
 			continue;
 
-		if (!(evsel->attr.sample_type & PERF_SAMPLE_CPU)) {
+		if (!(evsel->core.attr.sample_type & PERF_SAMPLE_CPU)) {
 			pr_err("File does not contain CPU events. "
 			       "Remove -C option to proceed.\n");
 			return -1;
 		}
 	}
 
-	map = cpu_map__new(cpu_list);
+	map = perf_cpu_map__new(cpu_list);
 	if (map == NULL) {
 		pr_err("Invalid cpu_list\n");
 		return -1;
@@ -2310,7 +2311,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 	err = 0;
 
 out_delete_map:
-	cpu_map__put(map);
+	perf_cpu_map__put(map);
 	return err;
 }
 
@@ -2327,10 +2328,10 @@ void perf_session__fprintf_info(struct perf_session *session, FILE *fp,
 
 
 int __perf_session__set_tracepoints_handlers(struct perf_session *session,
-					     const struct perf_evsel_str_handler *assocs,
+					     const struct evsel_str_handler *assocs,
 					     size_t nr_assocs)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	size_t i;
 	int err;
 
@@ -2357,7 +2358,7 @@ out:
 int perf_event__process_id_index(struct perf_session *session,
 				 union perf_event *event)
 {
-	struct perf_evlist *evlist = session->evlist;
+	struct evlist *evlist = session->evlist;
 	struct id_index_event *ie = &event->id_index;
 	size_t i, nr, max_nr;
 
@@ -2393,11 +2394,11 @@ int perf_event__process_id_index(struct perf_session *session,
 
 int perf_event__synthesize_id_index(struct perf_tool *tool,
 				    perf_event__handler_t process,
-				    struct perf_evlist *evlist,
+				    struct evlist *evlist,
 				    struct machine *machine)
 {
 	union perf_event *ev;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	size_t nr = 0, i = 0, sz, max_nr, n;
 	int err;
 

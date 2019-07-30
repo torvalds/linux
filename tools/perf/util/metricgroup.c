@@ -21,7 +21,7 @@
 #include <linux/zalloc.h>
 
 struct metric_event *metricgroup__lookup(struct rblist *metric_events,
-					 struct perf_evsel *evsel,
+					 struct evsel *evsel,
 					 bool create)
 {
 	struct rb_node *nd;
@@ -86,10 +86,10 @@ struct egroup {
 	const char *metric_expr;
 };
 
-static bool record_evsel(int *ind, struct perf_evsel **start,
+static bool record_evsel(int *ind, struct evsel **start,
 			 int idnum,
-			 struct perf_evsel **metric_events,
-			 struct perf_evsel *ev)
+			 struct evsel **metric_events,
+			 struct evsel *ev)
 {
 	metric_events[*ind] = ev;
 	if (*ind == 0)
@@ -101,12 +101,12 @@ static bool record_evsel(int *ind, struct perf_evsel **start,
 	return false;
 }
 
-static struct perf_evsel *find_evsel_group(struct perf_evlist *perf_evlist,
-					   const char **ids,
-					   int idnum,
-					   struct perf_evsel **metric_events)
+static struct evsel *find_evsel_group(struct evlist *perf_evlist,
+				      const char **ids,
+				      int idnum,
+				      struct evsel **metric_events)
 {
-	struct perf_evsel *ev, *start = NULL;
+	struct evsel *ev, *start = NULL;
 	int ind = 0;
 
 	evlist__for_each_entry (perf_evlist, ev) {
@@ -140,7 +140,7 @@ static struct perf_evsel *find_evsel_group(struct perf_evlist *perf_evlist,
 }
 
 static int metricgroup__setup_events(struct list_head *groups,
-				     struct perf_evlist *perf_evlist,
+				     struct evlist *perf_evlist,
 				     struct rblist *metric_events_list)
 {
 	struct metric_event *me;
@@ -148,10 +148,10 @@ static int metricgroup__setup_events(struct list_head *groups,
 	int i = 0;
 	int ret = 0;
 	struct egroup *eg;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	list_for_each_entry (eg, groups, nd) {
-		struct perf_evsel **metric_events;
+		struct evsel **metric_events;
 
 		metric_events = calloc(sizeof(void *), eg->idnum + 1);
 		if (!metric_events) {
@@ -502,7 +502,7 @@ int metricgroup__parse_groups(const struct option *opt,
 			   struct rblist *metric_events)
 {
 	struct parse_events_error parse_error;
-	struct perf_evlist *perf_evlist = *(struct perf_evlist **)opt->value;
+	struct evlist *perf_evlist = *(struct evlist **)opt->value;
 	struct strbuf extra_events;
 	LIST_HEAD(group_list);
 	int ret;

@@ -760,15 +760,15 @@ static int intel_bts_synth_event(struct perf_session *session,
 static int intel_bts_synth_events(struct intel_bts *bts,
 				  struct perf_session *session)
 {
-	struct perf_evlist *evlist = session->evlist;
-	struct perf_evsel *evsel;
+	struct evlist *evlist = session->evlist;
+	struct evsel *evsel;
 	struct perf_event_attr attr;
 	bool found = false;
 	u64 id;
 	int err;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->attr.type == bts->pmu_type && evsel->ids) {
+		if (evsel->core.attr.type == bts->pmu_type && evsel->ids) {
 			found = true;
 			break;
 		}
@@ -782,18 +782,18 @@ static int intel_bts_synth_events(struct intel_bts *bts,
 	memset(&attr, 0, sizeof(struct perf_event_attr));
 	attr.size = sizeof(struct perf_event_attr);
 	attr.type = PERF_TYPE_HARDWARE;
-	attr.sample_type = evsel->attr.sample_type & PERF_SAMPLE_MASK;
+	attr.sample_type = evsel->core.attr.sample_type & PERF_SAMPLE_MASK;
 	attr.sample_type |= PERF_SAMPLE_IP | PERF_SAMPLE_TID |
 			    PERF_SAMPLE_PERIOD;
 	attr.sample_type &= ~(u64)PERF_SAMPLE_TIME;
 	attr.sample_type &= ~(u64)PERF_SAMPLE_CPU;
-	attr.exclude_user = evsel->attr.exclude_user;
-	attr.exclude_kernel = evsel->attr.exclude_kernel;
-	attr.exclude_hv = evsel->attr.exclude_hv;
-	attr.exclude_host = evsel->attr.exclude_host;
-	attr.exclude_guest = evsel->attr.exclude_guest;
-	attr.sample_id_all = evsel->attr.sample_id_all;
-	attr.read_format = evsel->attr.read_format;
+	attr.exclude_user = evsel->core.attr.exclude_user;
+	attr.exclude_kernel = evsel->core.attr.exclude_kernel;
+	attr.exclude_hv = evsel->core.attr.exclude_hv;
+	attr.exclude_host = evsel->core.attr.exclude_host;
+	attr.exclude_guest = evsel->core.attr.exclude_guest;
+	attr.sample_id_all = evsel->core.attr.sample_id_all;
+	attr.read_format = evsel->core.attr.read_format;
 
 	id = evsel->id[0] + 1000000000;
 	if (!id)

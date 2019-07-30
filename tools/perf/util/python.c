@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <poll.h>
 #include <linux/err.h>
+#include <perf/cpumap.h>
 #include "evlist.h"
 #include "callchain.h"
 #include "evsel.h"
@@ -93,7 +94,7 @@ PyMODINIT_FUNC PyInit_perf(void);
 
 struct pyrf_event {
 	PyObject_HEAD
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct perf_sample sample;
 	union perf_event   event;
 };
@@ -337,7 +338,7 @@ static PyObject *pyrf_sample_event__repr(struct pyrf_event *pevent)
 
 static bool is_tracepoint(struct pyrf_event *pevent)
 {
-	return pevent->evsel->attr.type == PERF_TYPE_TRACEPOINT;
+	return pevent->evsel->core.attr.type == PERF_TYPE_TRACEPOINT;
 }
 
 static PyObject*
@@ -383,13 +384,13 @@ static PyObject*
 get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 {
 	const char *str = _PyUnicode_AsString(PyObject_Str(attr_name));
-	struct perf_evsel *evsel = pevent->evsel;
+	struct evsel *evsel = pevent->evsel;
 	struct tep_format_field *field;
 
 	if (!evsel->tp_format) {
 		struct tep_event *tp_format;
 
-		tp_format = trace_event__tp_format_id(evsel->attr.config);
+		tp_format = trace_event__tp_format_id(evsel->core.attr.config);
 		if (!tp_format)
 			return NULL;
 
@@ -536,7 +537,7 @@ static PyObject *pyrf_event__new(union perf_event *event)
 struct pyrf_cpu_map {
 	PyObject_HEAD
 
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 };
 
 static int pyrf_cpu_map__init(struct pyrf_cpu_map *pcpus,
@@ -549,7 +550,7 @@ static int pyrf_cpu_map__init(struct pyrf_cpu_map *pcpus,
 					 kwlist, &cpustr))
 		return -1;
 
-	pcpus->cpus = cpu_map__new(cpustr);
+	pcpus->cpus = perf_cpu_map__new(cpustr);
 	if (pcpus->cpus == NULL)
 		return -1;
 	return 0;
@@ -557,7 +558,7 @@ static int pyrf_cpu_map__init(struct pyrf_cpu_map *pcpus,
 
 static void pyrf_cpu_map__delete(struct pyrf_cpu_map *pcpus)
 {
-	cpu_map__put(pcpus->cpus);
+	perf_cpu_map__put(pcpus->cpus);
 	Py_TYPE(pcpus)->tp_free((PyObject*)pcpus);
 }
 
@@ -605,7 +606,7 @@ static int pyrf_cpu_map__setup_types(void)
 struct pyrf_thread_map {
 	PyObject_HEAD
 
-	struct thread_map *threads;
+	struct perf_thread_map *threads;
 };
 
 static int pyrf_thread_map__init(struct pyrf_thread_map *pthreads,
@@ -626,7 +627,7 @@ static int pyrf_thread_map__init(struct pyrf_thread_map *pthreads,
 
 static void pyrf_thread_map__delete(struct pyrf_thread_map *pthreads)
 {
-	thread_map__put(pthreads->threads);
+	perf_thread_map__put(pthreads->threads);
 	Py_TYPE(pthreads)->tp_free((PyObject*)pthreads);
 }
 
@@ -674,7 +675,7 @@ static int pyrf_thread_map__setup_types(void)
 struct pyrf_evsel {
 	PyObject_HEAD
 
-	struct perf_evsel evsel;
+	struct evsel evsel;
 };
 
 static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
@@ -782,7 +783,7 @@ static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
 	attr.sample_id_all  = sample_id_all;
 	attr.size	    = sizeof(attr);
 
-	perf_evsel__init(&pevsel->evsel, &attr, idx);
+	evsel__init(&pevsel->evsel, &attr, idx);
 	return 0;
 }
 
@@ -795,9 +796,9 @@ static void pyrf_evsel__delete(struct pyrf_evsel *pevsel)
 static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 				  PyObject *args, PyObject *kwargs)
 {
-	struct perf_evsel *evsel = &pevsel->evsel;
-	struct cpu_map *cpus = NULL;
-	struct thread_map *threads = NULL;
+	struct evsel *evsel = &pevsel->evsel;
+	struct perf_cpu_map *cpus = NULL;
+	struct perf_thread_map *threads = NULL;
 	PyObject *pcpus = NULL, *pthreads = NULL;
 	int group = 0, inherit = 0;
 	static char *kwlist[] = { "cpus", "threads", "group", "inherit", NULL };
@@ -812,12 +813,12 @@ static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 	if (pcpus != NULL)
 		cpus = ((struct pyrf_cpu_map *)pcpus)->cpus;
 
-	evsel->attr.inherit = inherit;
+	evsel->core.attr.inherit = inherit;
 	/*
 	 * This will group just the fds for this single evsel, to group
 	 * multiple events, use evlist.open().
 	 */
-	if (perf_evsel__open(evsel, cpus, threads) < 0) {
+	if (evsel__open(evsel, cpus, threads) < 0) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;
 	}
@@ -858,22 +859,22 @@ static int pyrf_evsel__setup_types(void)
 struct pyrf_evlist {
 	PyObject_HEAD
 
-	struct perf_evlist evlist;
+	struct evlist evlist;
 };
 
 static int pyrf_evlist__init(struct pyrf_evlist *pevlist,
 			     PyObject *args, PyObject *kwargs __maybe_unused)
 {
 	PyObject *pcpus = NULL, *pthreads = NULL;
-	struct cpu_map *cpus;
-	struct thread_map *threads;
+	struct perf_cpu_map *cpus;
+	struct perf_thread_map *threads;
 
 	if (!PyArg_ParseTuple(args, "OO", &pcpus, &pthreads))
 		return -1;
 
 	threads = ((struct pyrf_thread_map *)pthreads)->threads;
 	cpus = ((struct pyrf_cpu_map *)pcpus)->cpus;
-	perf_evlist__init(&pevlist->evlist, cpus, threads);
+	evlist__init(&pevlist->evlist, cpus, threads);
 	return 0;
 }
 
@@ -886,7 +887,7 @@ static void pyrf_evlist__delete(struct pyrf_evlist *pevlist)
 static PyObject *pyrf_evlist__mmap(struct pyrf_evlist *pevlist,
 				   PyObject *args, PyObject *kwargs)
 {
-	struct perf_evlist *evlist = &pevlist->evlist;
+	struct evlist *evlist = &pevlist->evlist;
 	static char *kwlist[] = { "pages", "overwrite", NULL };
 	int pages = 128, overwrite = false;
 
@@ -906,7 +907,7 @@ static PyObject *pyrf_evlist__mmap(struct pyrf_evlist *pevlist,
 static PyObject *pyrf_evlist__poll(struct pyrf_evlist *pevlist,
 				   PyObject *args, PyObject *kwargs)
 {
-	struct perf_evlist *evlist = &pevlist->evlist;
+	struct evlist *evlist = &pevlist->evlist;
 	static char *kwlist[] = { "timeout", NULL };
 	int timeout = -1, n;
 
@@ -926,7 +927,7 @@ static PyObject *pyrf_evlist__get_pollfd(struct pyrf_evlist *pevlist,
 					 PyObject *args __maybe_unused,
 					 PyObject *kwargs __maybe_unused)
 {
-	struct perf_evlist *evlist = &pevlist->evlist;
+	struct evlist *evlist = &pevlist->evlist;
         PyObject *list = PyList_New(0);
 	int i;
 
@@ -964,22 +965,22 @@ static PyObject *pyrf_evlist__add(struct pyrf_evlist *pevlist,
 				  PyObject *args,
 				  PyObject *kwargs __maybe_unused)
 {
-	struct perf_evlist *evlist = &pevlist->evlist;
+	struct evlist *evlist = &pevlist->evlist;
 	PyObject *pevsel;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	if (!PyArg_ParseTuple(args, "O", &pevsel))
 		return NULL;
 
 	Py_INCREF(pevsel);
 	evsel = &((struct pyrf_evsel *)pevsel)->evsel;
-	evsel->idx = evlist->nr_entries;
-	perf_evlist__add(evlist, evsel);
+	evsel->idx = evlist->core.nr_entries;
+	evlist__add(evlist, evsel);
 
-	return Py_BuildValue("i", evlist->nr_entries);
+	return Py_BuildValue("i", evlist->core.nr_entries);
 }
 
-static struct perf_mmap *get_md(struct perf_evlist *evlist, int cpu)
+static struct perf_mmap *get_md(struct evlist *evlist, int cpu)
 {
 	int i;
 
@@ -996,7 +997,7 @@ static struct perf_mmap *get_md(struct perf_evlist *evlist, int cpu)
 static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 					  PyObject *args, PyObject *kwargs)
 {
-	struct perf_evlist *evlist = &pevlist->evlist;
+	struct evlist *evlist = &pevlist->evlist;
 	union perf_event *event;
 	int sample_id_all = 1, cpu;
 	static char *kwlist[] = { "cpu", "sample_id_all", NULL };
@@ -1018,7 +1019,7 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 	if (event != NULL) {
 		PyObject *pyevent = pyrf_event__new(event);
 		struct pyrf_event *pevent = (struct pyrf_event *)pyevent;
-		struct perf_evsel *evsel;
+		struct evsel *evsel;
 
 		if (pyevent == NULL)
 			return PyErr_NoMemory();
@@ -1049,7 +1050,7 @@ end:
 static PyObject *pyrf_evlist__open(struct pyrf_evlist *pevlist,
 				   PyObject *args, PyObject *kwargs)
 {
-	struct perf_evlist *evlist = &pevlist->evlist;
+	struct evlist *evlist = &pevlist->evlist;
 	int group = 0;
 	static char *kwlist[] = { "group", NULL };
 
@@ -1059,7 +1060,7 @@ static PyObject *pyrf_evlist__open(struct pyrf_evlist *pevlist,
 	if (group)
 		perf_evlist__set_leader(evlist);
 
-	if (perf_evlist__open(evlist) < 0) {
+	if (evlist__open(evlist) < 0) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;
 	}
@@ -1112,15 +1113,15 @@ static Py_ssize_t pyrf_evlist__length(PyObject *obj)
 {
 	struct pyrf_evlist *pevlist = (void *)obj;
 
-	return pevlist->evlist.nr_entries;
+	return pevlist->evlist.core.nr_entries;
 }
 
 static PyObject *pyrf_evlist__item(PyObject *obj, Py_ssize_t i)
 {
 	struct pyrf_evlist *pevlist = (void *)obj;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 
-	if (i >= pevlist->evlist.nr_entries)
+	if (i >= pevlist->evlist.core.nr_entries)
 		return NULL;
 
 	evlist__for_each_entry(&pevlist->evlist, pos) {

@@ -27,7 +27,7 @@ const char *kvm_exit_trace = "kvm:kvm_exit";
  * the time of MMIO write: kvm_mmio(KVM_TRACE_MMIO_WRITE...) -> kvm_entry
  * the time of MMIO read: kvm_exit -> kvm_mmio(KVM_TRACE_MMIO_READ...).
  */
-static void mmio_event_get_key(struct perf_evsel *evsel, struct perf_sample *sample,
+static void mmio_event_get_key(struct evsel *evsel, struct perf_sample *sample,
 			       struct event_key *key)
 {
 	key->key  = perf_evsel__intval(evsel, sample, "gpa");
@@ -38,7 +38,7 @@ static void mmio_event_get_key(struct perf_evsel *evsel, struct perf_sample *sam
 #define KVM_TRACE_MMIO_READ 1
 #define KVM_TRACE_MMIO_WRITE 2
 
-static bool mmio_event_begin(struct perf_evsel *evsel,
+static bool mmio_event_begin(struct evsel *evsel,
 			     struct perf_sample *sample, struct event_key *key)
 {
 	/* MMIO read begin event in kernel. */
@@ -55,7 +55,7 @@ static bool mmio_event_begin(struct perf_evsel *evsel,
 	return false;
 }
 
-static bool mmio_event_end(struct perf_evsel *evsel, struct perf_sample *sample,
+static bool mmio_event_end(struct evsel *evsel, struct perf_sample *sample,
 			   struct event_key *key)
 {
 	/* MMIO write end event in kernel. */
@@ -89,7 +89,7 @@ static struct kvm_events_ops mmio_events = {
 };
 
  /* The time of emulation pio access is from kvm_pio to kvm_entry. */
-static void ioport_event_get_key(struct perf_evsel *evsel,
+static void ioport_event_get_key(struct evsel *evsel,
 				 struct perf_sample *sample,
 				 struct event_key *key)
 {
@@ -97,7 +97,7 @@ static void ioport_event_get_key(struct perf_evsel *evsel,
 	key->info = perf_evsel__intval(evsel, sample, "rw");
 }
 
-static bool ioport_event_begin(struct perf_evsel *evsel,
+static bool ioport_event_begin(struct evsel *evsel,
 			       struct perf_sample *sample,
 			       struct event_key *key)
 {
@@ -109,7 +109,7 @@ static bool ioport_event_begin(struct perf_evsel *evsel,
 	return false;
 }
 
-static bool ioport_event_end(struct perf_evsel *evsel,
+static bool ioport_event_end(struct evsel *evsel,
 			     struct perf_sample *sample __maybe_unused,
 			     struct event_key *key __maybe_unused)
 {

@@ -16,7 +16,7 @@ char *get_cpuid_str(struct perf_pmu *pmu)
 	const char *sysfs = sysfs__mountpoint();
 	int cpu;
 	u64 midr = 0;
-	struct cpu_map *cpus;
+	struct perf_cpu_map *cpus;
 	FILE *file;
 
 	if (!sysfs || !pmu || !pmu->cpus)
@@ -27,7 +27,7 @@ char *get_cpuid_str(struct perf_pmu *pmu)
 		return NULL;
 
 	/* read midr from list of cpus mapped to this pmu */
-	cpus = cpu_map__get(pmu->cpus);
+	cpus = perf_cpu_map__get(pmu->cpus);
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 		scnprintf(path, PATH_MAX, "%s/devices/system/cpu/cpu%d"MIDR,
 				sysfs, cpus->map[cpu]);
@@ -60,6 +60,6 @@ char *get_cpuid_str(struct perf_pmu *pmu)
 		buf = NULL;
 	}
 
-	cpu_map__put(cpus);
+	perf_cpu_map__put(cpus);
 	return buf;
 }

@@ -150,7 +150,7 @@ void __weak auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp __maybe_u
 }
 
 void __weak auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp __maybe_unused,
-					  struct perf_evlist *evlist __maybe_unused,
+					  struct evlist *evlist __maybe_unused,
 					  int idx __maybe_unused,
 					  bool per_cpu __maybe_unused)
 {
@@ -325,7 +325,7 @@ void perf_mmap__munmap(struct perf_mmap *map)
 static void build_node_mask(int node, cpu_set_t *mask)
 {
 	int c, cpu, nr_cpus;
-	const struct cpu_map *cpu_map = NULL;
+	const struct perf_cpu_map *cpu_map = NULL;
 
 	cpu_map = cpu_map__online();
 	if (!cpu_map)

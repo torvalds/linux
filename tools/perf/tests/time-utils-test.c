@@ -69,7 +69,7 @@ struct test_data {
 
 static bool test__perf_time__parse_for_ranges(struct test_data *d)
 {
-	struct perf_evlist evlist = {
+	struct evlist evlist = {
 		.first_sample_time = d->first,
 		.last_sample_time = d->last,
 	};

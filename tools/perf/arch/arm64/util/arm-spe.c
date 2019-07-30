@@ -27,12 +27,12 @@
 struct arm_spe_recording {
 	struct auxtrace_record		itr;
 	struct perf_pmu			*arm_spe_pmu;
-	struct perf_evlist		*evlist;
+	struct evlist		*evlist;
 };
 
 static size_t
 arm_spe_info_priv_size(struct auxtrace_record *itr __maybe_unused,
-		       struct perf_evlist *evlist __maybe_unused)
+		       struct evlist *evlist __maybe_unused)
 {
 	return ARM_SPE_AUXTRACE_PRIV_SIZE;
 }
@@ -59,27 +59,27 @@ static int arm_spe_info_fill(struct auxtrace_record *itr,
 }
 
 static int arm_spe_recording_options(struct auxtrace_record *itr,
-				     struct perf_evlist *evlist,
+				     struct evlist *evlist,
 				     struct record_opts *opts)
 {
 	struct arm_spe_recording *sper =
 			container_of(itr, struct arm_spe_recording, itr);
 	struct perf_pmu *arm_spe_pmu = sper->arm_spe_pmu;
-	struct perf_evsel *evsel, *arm_spe_evsel = NULL;
+	struct evsel *evsel, *arm_spe_evsel = NULL;
 	bool privileged = geteuid() == 0 || perf_event_paranoid() < 0;
-	struct perf_evsel *tracking_evsel;
+	struct evsel *tracking_evsel;
 	int err;
 
 	sper->evlist = evlist;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->attr.type == arm_spe_pmu->type) {
+		if (evsel->core.attr.type == arm_spe_pmu->type) {
 			if (arm_spe_evsel) {
 				pr_err("There may be only one " ARM_SPE_PMU_NAME "x event\n");
 				return -EINVAL;
 			}
-			evsel->attr.freq = 0;
-			evsel->attr.sample_period = 1;
+			evsel->core.attr.freq = 0;
+			evsel->core.attr.sample_period = 1;
 			arm_spe_evsel = evsel;
 			opts->full_auxtrace = true;
 		}
@@ -130,8 +130,8 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 	tracking_evsel = perf_evlist__last(evlist);
 	perf_evlist__set_tracking_event(evlist, tracking_evsel);
 
-	tracking_evsel->attr.freq = 0;
-	tracking_evsel->attr.sample_period = 1;
+	tracking_evsel->core.attr.freq = 0;
+	tracking_evsel->core.attr.sample_period = 1;
 	perf_evsel__set_sample_bit(tracking_evsel, TIME);
 	perf_evsel__set_sample_bit(tracking_evsel, CPU);
 	perf_evsel__reset_sample_bit(tracking_evsel, BRANCH_STACK);
@@ -160,10 +160,10 @@ static int arm_spe_read_finish(struct auxtrace_record *itr, int idx)
 {
 	struct arm_spe_recording *sper =
 			container_of(itr, struct arm_spe_recording, itr);
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(sper->evlist, evsel) {
-		if (evsel->attr.type == sper->arm_spe_pmu->type)
+		if (evsel->core.attr.type == sper->arm_spe_pmu->type)
 			return perf_evlist__enable_event_idx(sper->evlist,
 							     evsel, idx);
 	}

@@ -138,7 +138,7 @@ static int synth_all(struct machine *machine)
 
 static int synth_process(struct machine *machine)
 {
-	struct thread_map *map;
+	struct perf_thread_map *map;
 	int err;
 
 	map = thread_map__new_by_pid(getpid());
@@ -147,7 +147,7 @@ static int synth_process(struct machine *machine)
 						perf_event__process,
 						machine, 0);
 
-	thread_map__put(map);
+	perf_thread_map__put(map);
 	return err;
 }
 

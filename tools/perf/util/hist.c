@@ -816,7 +816,7 @@ static int
 iter_finish_mem_entry(struct hist_entry_iter *iter,
 		      struct addr_location *al __maybe_unused)
 {
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he = iter->he;
 	int err = -EINVAL;
@@ -886,7 +886,7 @@ static int
 iter_add_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *al)
 {
 	struct branch_info *bi;
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 	struct hists *hists = evsel__hists(evsel);
 	struct perf_sample *sample = iter->sample;
 	struct hist_entry *he = NULL;
@@ -938,7 +938,7 @@ iter_prepare_normal_entry(struct hist_entry_iter *iter __maybe_unused,
 static int
 iter_add_single_normal_entry(struct hist_entry_iter *iter, struct addr_location *al)
 {
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 	struct perf_sample *sample = iter->sample;
 	struct hist_entry *he;
 
@@ -956,7 +956,7 @@ iter_finish_normal_entry(struct hist_entry_iter *iter,
 			 struct addr_location *al __maybe_unused)
 {
 	struct hist_entry *he = iter->he;
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 	struct perf_sample *sample = iter->sample;
 
 	if (he == NULL)
@@ -996,7 +996,7 @@ static int
 iter_add_single_cumulative_entry(struct hist_entry_iter *iter,
 				 struct addr_location *al)
 {
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 	struct hists *hists = evsel__hists(evsel);
 	struct perf_sample *sample = iter->sample;
 	struct hist_entry **he_cache = iter->priv;
@@ -1041,7 +1041,7 @@ static int
 iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 			       struct addr_location *al)
 {
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 	struct perf_sample *sample = iter->sample;
 	struct hist_entry **he_cache = iter->priv;
 	struct hist_entry *he;
@@ -1873,7 +1873,7 @@ static void output_resort(struct hists *hists, struct ui_progress *prog,
 	}
 }
 
-void perf_evsel__output_resort_cb(struct perf_evsel *evsel, struct ui_progress *prog,
+void perf_evsel__output_resort_cb(struct evsel *evsel, struct ui_progress *prog,
 				  hists__resort_cb_t cb, void *cb_arg)
 {
 	bool use_callchain;
@@ -1888,7 +1888,7 @@ void perf_evsel__output_resort_cb(struct perf_evsel *evsel, struct ui_progress *
 	output_resort(evsel__hists(evsel), prog, use_callchain, cb, cb_arg);
 }
 
-void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *prog)
+void perf_evsel__output_resort(struct evsel *evsel, struct ui_progress *prog)
 {
 	return perf_evsel__output_resort_cb(evsel, prog, NULL, NULL);
 }
@@ -2573,9 +2573,9 @@ void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
 	}
 }
 
-size_t perf_evlist__fprintf_nr_events(struct perf_evlist *evlist, FILE *fp)
+size_t perf_evlist__fprintf_nr_events(struct evlist *evlist, FILE *fp)
 {
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	size_t ret = 0;
 
 	evlist__for_each_entry(evlist, pos) {
@@ -2602,7 +2602,7 @@ int __hists__scnprintf_title(struct hists *hists, char *bf, size_t size, bool sh
 	int socket_id = hists->socket_filter;
 	unsigned long nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 	u64 nr_events = hists->stats.total_period;
-	struct perf_evsel *evsel = hists_to_evsel(hists);
+	struct evsel *evsel = hists_to_evsel(hists);
 	const char *ev_name = perf_evsel__name(evsel);
 	char buf[512], sample_freq_str[64] = "";
 	size_t buflen = sizeof(buf);
@@ -2615,7 +2615,7 @@ int __hists__scnprintf_title(struct hists *hists, char *bf, size_t size, bool sh
 	}
 
 	if (perf_evsel__is_group_event(evsel)) {
-		struct perf_evsel *pos;
+		struct evsel *pos;
 
 		perf_evsel__group_desc(evsel, buf, buflen);
 		ev_name = buf;
@@ -2638,12 +2638,12 @@ int __hists__scnprintf_title(struct hists *hists, char *bf, size_t size, bool sh
 		enable_ref = true;
 
 	if (show_freq)
-		scnprintf(sample_freq_str, sizeof(sample_freq_str), " %d Hz,", evsel->attr.sample_freq);
+		scnprintf(sample_freq_str, sizeof(sample_freq_str), " %d Hz,", evsel->core.attr.sample_freq);
 
 	nr_samples = convert_unit(nr_samples, &unit);
 	printed = scnprintf(bf, size,
 			   "Samples: %lu%c of event%s '%s',%s%sEvent count (approx.): %" PRIu64,
-			   nr_samples, unit, evsel->nr_members > 1 ? "s" : "",
+			   nr_samples, unit, evsel->core.nr_members > 1 ? "s" : "",
 			   ev_name, sample_freq_str, enable_ref ? ref : " ", nr_events);
 
 
@@ -2731,7 +2731,7 @@ static void hists__delete_all_entries(struct hists *hists)
 	hists__delete_remaining_entries(&hists->entries_collapsed);
 }
 
-static void hists_evsel__exit(struct perf_evsel *evsel)
+static void hists_evsel__exit(struct evsel *evsel)
 {
 	struct hists *hists = evsel__hists(evsel);
 	struct perf_hpp_fmt *fmt, *pos;
@@ -2749,7 +2749,7 @@ static void hists_evsel__exit(struct perf_evsel *evsel)
 	}
 }
 
-static int hists_evsel__init(struct perf_evsel *evsel)
+static int hists_evsel__init(struct evsel *evsel)
 {
 	struct hists *hists = evsel__hists(evsel);
 

@@ -674,8 +674,8 @@ union perf_event {
 void perf_event__print_totals(void);
 
 struct perf_tool;
-struct thread_map;
-struct cpu_map;
+struct perf_thread_map;
+struct perf_cpu_map;
 struct perf_stat_config;
 struct perf_counts_values;
 
@@ -685,15 +685,15 @@ typedef int (*perf_event__handler_t)(struct perf_tool *tool,
 				     struct machine *machine);
 
 int perf_event__synthesize_thread_map(struct perf_tool *tool,
-				      struct thread_map *threads,
+				      struct perf_thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine, bool mmap_data);
 int perf_event__synthesize_thread_map2(struct perf_tool *tool,
-				      struct thread_map *threads,
+				      struct perf_thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine);
 int perf_event__synthesize_cpu_map(struct perf_tool *tool,
-				   struct cpu_map *cpus,
+				   struct perf_cpu_map *cpus,
 				   perf_event__handler_t process,
 				   struct machine *machine);
 int perf_event__synthesize_threads(struct perf_tool *tool,
@@ -844,8 +844,8 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp);
 int kallsyms__get_function_start(const char *kallsyms_filename,
 				 const char *symbol_name, u64 *addr);
 
-void *cpu_map_data__alloc(struct cpu_map *map, size_t *size, u16 *type, int *max);
-void  cpu_map_data__synthesize(struct cpu_map_data *data, struct cpu_map *map,
+void *cpu_map_data__alloc(struct perf_cpu_map *map, size_t *size, u16 *type, int *max);
+void  cpu_map_data__synthesize(struct cpu_map_data *data, struct perf_cpu_map *map,
 			       u16 type, int max);
 
 void event_attr_init(struct perf_event_attr *attr);

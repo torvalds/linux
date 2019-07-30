@@ -20,7 +20,7 @@ static void cpumsf_free(struct auxtrace_record *itr)
 }
 
 static size_t cpumsf_info_priv_size(struct auxtrace_record *itr __maybe_unused,
-				    struct perf_evlist *evlist __maybe_unused)
+				    struct evlist *evlist __maybe_unused)
 {
 	return 0;
 }
@@ -43,7 +43,7 @@ cpumsf_reference(struct auxtrace_record *itr __maybe_unused)
 
 static int
 cpumsf_recording_options(struct auxtrace_record *ar __maybe_unused,
-			 struct perf_evlist *evlist __maybe_unused,
+			 struct evlist *evlist __maybe_unused,
 			 struct record_opts *opts)
 {
 	unsigned int factor = 1;
@@ -82,19 +82,19 @@ cpumsf_parse_snapshot_options(struct auxtrace_record *itr __maybe_unused,
  * auxtrace_record__init is called when perf record
  * check if the event really need auxtrace
  */
-struct auxtrace_record *auxtrace_record__init(struct perf_evlist *evlist,
+struct auxtrace_record *auxtrace_record__init(struct evlist *evlist,
 					      int *err)
 {
 	struct auxtrace_record *aux;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	int diagnose = 0;
 
 	*err = 0;
-	if (evlist->nr_entries == 0)
+	if (evlist->core.nr_entries == 0)
 		return NULL;
 
 	evlist__for_each_entry(evlist, pos) {
-		if (pos->attr.config == PERF_EVENT_CPUM_SF_DIAG) {
+		if (pos->core.attr.config == PERF_EVENT_CPUM_SF_DIAG) {
 			diagnose = 1;
 			break;
 		}

@@ -78,7 +78,7 @@ static int scripts_config(const char *var, const char *value, void *data)
  * Return -1 on failure.
  */
 static int list_scripts(char *script_name, bool *custom,
-			struct perf_evsel *evsel)
+			struct evsel *evsel)
 {
 	char *buf, *paths[SCRIPT_MAX_NO], *names[SCRIPT_MAX_NO];
 	int i, num, choice;
@@ -100,7 +100,7 @@ static int list_scripts(char *script_name, bool *custom,
 		return -1;
 
 	if (evsel)
-		attr_to_script(scriptc.extra_format, &evsel->attr);
+		attr_to_script(scriptc.extra_format, &evsel->core.attr);
 	add_script_option("Show individual samples", "", &scriptc);
 	add_script_option("Show individual samples with assembler", "-F +insn --xed",
 			  &scriptc);
@@ -162,7 +162,7 @@ void run_script(char *cmd)
 	SLsmg_refresh();
 }
 
-int script_browse(const char *script_opt, struct perf_evsel *evsel)
+int script_browse(const char *script_opt, struct evsel *evsel)
 {
 	char *cmd, script_name[SCRIPT_FULLPATH_LEN];
 	bool custom = false;

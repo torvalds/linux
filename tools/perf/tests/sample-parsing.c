@@ -153,11 +153,13 @@ static bool samples_same(const struct perf_sample *s1,
 
 static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 {
-	struct perf_evsel evsel = {
+	struct evsel evsel = {
 		.needs_swap = false,
-		.attr = {
-			.sample_type = sample_type,
-			.read_format = read_format,
+		.core = {
+			. attr = {
+				.sample_type = sample_type,
+				.read_format = read_format,
+			},
 		},
 	};
 	union perf_event *event;
@@ -221,10 +223,10 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 	int err, ret = -1;
 
 	if (sample_type & PERF_SAMPLE_REGS_USER)
-		evsel.attr.sample_regs_user = sample_regs;
+		evsel.core.attr.sample_regs_user = sample_regs;
 
 	if (sample_type & PERF_SAMPLE_REGS_INTR)
-		evsel.attr.sample_regs_intr = sample_regs;
+		evsel.core.attr.sample_regs_intr = sample_regs;
 
 	for (i = 0; i < sizeof(regs); i++)
 		*(i + (u8 *)regs) = i & 0xfe;

@@ -32,8 +32,8 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 	};
 	const char *filename = "/etc/passwd";
 	int flags = O_RDONLY | O_DIRECTORY;
-	struct perf_evlist *evlist = perf_evlist__new();
-	struct perf_evsel *evsel;
+	struct evlist *evlist = evlist__new();
+	struct evsel *evsel;
 	int err = -1, i, nr_events = 0, nr_polls = 0;
 	char sbuf[STRERR_BUFSIZE];
 
@@ -48,7 +48,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__add(evlist, evsel);
+	evlist__add(evlist, evsel);
 
 	err = perf_evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
@@ -58,9 +58,9 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 
 	perf_evsel__config(evsel, &opts, NULL);
 
-	thread_map__set_pid(evlist->threads, 0, getpid());
+	perf_thread_map__set_pid(evlist->core.threads, 0, getpid());
 
-	err = perf_evlist__open(evlist);
+	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
@@ -74,7 +74,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__enable(evlist);
+	evlist__enable(evlist);
 
 	/*
 	 * Generate the event:
@@ -134,7 +134,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 out_ok:
 	err = 0;
 out_delete_evlist:
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 out:
 	return err;
 }

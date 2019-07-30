@@ -47,10 +47,10 @@ static struct sample fake_samples[] = {
 	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_KERNEL_PAGE_FAULT, .socket = 3 },
 };
 
-static int add_hist_entries(struct perf_evlist *evlist,
+static int add_hist_entries(struct evlist *evlist,
 			    struct machine *machine)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct addr_location al;
 	struct perf_sample sample = { .period = 100, };
 	size_t i;
@@ -108,8 +108,8 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 	int err = TEST_FAIL;
 	struct machines machines;
 	struct machine *machine;
-	struct perf_evsel *evsel;
-	struct perf_evlist *evlist = perf_evlist__new();
+	struct evsel *evsel;
+	struct evlist *evlist = evlist__new();
 
 	TEST_ASSERT_VAL("No memory", evlist);
 
@@ -321,7 +321,7 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 
 out:
 	/* tear down everything */
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	reset_output_field();
 	machines__exit(&machines);
 

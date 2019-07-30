@@ -38,7 +38,6 @@
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/cpumap.h"
-#include "util/xyarray.h"
 #include "util/sort.h"
 #include "util/string2.h"
 #include "util/term.h"
@@ -101,7 +100,7 @@ static void perf_top__resize(struct perf_top *top)
 
 static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 {
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct symbol *sym;
 	struct annotation *notes;
 	struct map *map;
@@ -129,7 +128,7 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 	notes = symbol__annotation(sym);
 	pthread_mutex_lock(&notes->lock);
 
-	if (!symbol__hists(sym, top->evlist->nr_entries)) {
+	if (!symbol__hists(sym, top->evlist->core.nr_entries)) {
 		pthread_mutex_unlock(&notes->lock);
 		pr_err("Not enough memory for annotating '%s' symbol!\n",
 		       sym->name);
@@ -186,7 +185,7 @@ static void ui__warn_map_erange(struct map *map, struct symbol *sym, u64 ip)
 static void perf_top__record_precise_ip(struct perf_top *top,
 					struct hist_entry *he,
 					struct perf_sample *sample,
-					struct perf_evsel *evsel, u64 ip)
+					struct evsel *evsel, u64 ip)
 {
 	struct annotation *notes;
 	struct symbol *sym = he->ms.sym;
@@ -228,7 +227,7 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 static void perf_top__show_details(struct perf_top *top)
 {
 	struct hist_entry *he = top->sym_filter_entry;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct annotation *notes;
 	struct symbol *symbol;
 	int more;
@@ -270,7 +269,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	char bf[160];
 	int printed = 0;
 	const int win_width = top->winsize.ws_col - 1;
-	struct perf_evsel *evsel = top->sym_evsel;
+	struct evsel *evsel = top->sym_evsel;
 	struct hists *hists = evsel__hists(evsel);
 
 	puts(CONSOLE_CLEAR);
@@ -404,7 +403,7 @@ static void perf_top__print_mapped_keys(struct perf_top *top)
 	fprintf(stdout, "\t[d]     display refresh delay.             \t(%d)\n", top->delay_secs);
 	fprintf(stdout, "\t[e]     display entries (lines).           \t(%d)\n", top->print_entries);
 
-	if (top->evlist->nr_entries > 1)
+	if (top->evlist->core.nr_entries > 1)
 		fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", perf_evsel__name(top->sym_evsel));
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", top->count_filter);
@@ -439,7 +438,7 @@ static int perf_top__key_mapped(struct perf_top *top, int c)
 		case 'S':
 			return 1;
 		case 'E':
-			return top->evlist->nr_entries > 1 ? 1 : 0;
+			return top->evlist->core.nr_entries > 1 ? 1 : 0;
 		default:
 			break;
 	}
@@ -485,7 +484,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 			}
 			break;
 		case 'E':
-			if (top->evlist->nr_entries > 1) {
+			if (top->evlist->core.nr_entries > 1) {
 				/* Select 0 as the default event: */
 				int counter = 0;
 
@@ -496,7 +495,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 
 				prompt_integer(&counter, "Enter details event counter");
 
-				if (counter >= top->evlist->nr_entries) {
+				if (counter >= top->evlist->core.nr_entries) {
 					top->sym_evsel = perf_evlist__first(top->evlist);
 					fprintf(stderr, "Sorry, no such event, using %s.\n", perf_evsel__name(top->sym_evsel));
 					sleep(1);
@@ -554,7 +553,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 static void perf_top__sort_new_samples(void *arg)
 {
 	struct perf_top *t = arg;
-	struct perf_evsel *evsel = t->sym_evsel;
+	struct evsel *evsel = t->sym_evsel;
 	struct hists *hists;
 
 	if (t->evlist->selected != NULL)
@@ -586,7 +585,7 @@ static void stop_top(void)
 
 static void *display_thread_tui(void *arg)
 {
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	struct perf_top *top = arg;
 	const char *help = "For a higher level overview, try: perf top --sort comm,dso";
 	struct hist_browser_timer hbt = {
@@ -693,7 +692,7 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 {
 	struct perf_top *top = arg;
 	struct hist_entry *he = iter->he;
-	struct perf_evsel *evsel = iter->evsel;
+	struct evsel *evsel = iter->evsel;
 
 	if (perf_hpp_list.sym && single)
 		perf_top__record_precise_ip(top, he, iter->sample, evsel, al->addr);
@@ -705,7 +704,7 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 
 static void perf_event__process_sample(struct perf_tool *tool,
 				       const union perf_event *event,
-				       struct perf_evsel *evsel,
+				       struct evsel *evsel,
 				       struct perf_sample *sample,
 				       struct machine *machine)
 {
@@ -813,7 +812,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 static void
 perf_top__process_lost(struct perf_top *top, union perf_event *event,
-		       struct perf_evsel *evsel)
+		       struct evsel *evsel)
 {
 	struct hists *hists = evsel__hists(evsel);
 
@@ -825,7 +824,7 @@ perf_top__process_lost(struct perf_top *top, union perf_event *event,
 static void
 perf_top__process_lost_samples(struct perf_top *top,
 			       union perf_event *event,
-			       struct perf_evsel *evsel)
+			       struct evsel *evsel)
 {
 	struct hists *hists = evsel__hists(evsel);
 
@@ -839,7 +838,7 @@ static u64 last_timestamp;
 static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 {
 	struct record_opts *opts = &top->record_opts;
-	struct perf_evlist *evlist = top->evlist;
+	struct evlist *evlist = top->evlist;
 	struct perf_mmap *md;
 	union perf_event *event;
 
@@ -874,7 +873,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 static void perf_top__mmap_read(struct perf_top *top)
 {
 	bool overwrite = top->record_opts.overwrite;
-	struct perf_evlist *evlist = top->evlist;
+	struct evlist *evlist = top->evlist;
 	int i;
 
 	if (overwrite)
@@ -909,10 +908,10 @@ static void perf_top__mmap_read(struct perf_top *top)
 static int perf_top__overwrite_check(struct perf_top *top)
 {
 	struct record_opts *opts = &top->record_opts;
-	struct perf_evlist *evlist = top->evlist;
+	struct evlist *evlist = top->evlist;
 	struct perf_evsel_config_term *term;
 	struct list_head *config_terms;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	int set, overwrite = -1;
 
 	evlist__for_each_entry(evlist, evsel) {
@@ -952,11 +951,11 @@ static int perf_top__overwrite_check(struct perf_top *top)
 }
 
 static int perf_top_overwrite_fallback(struct perf_top *top,
-				       struct perf_evsel *evsel)
+				       struct evsel *evsel)
 {
 	struct record_opts *opts = &top->record_opts;
-	struct perf_evlist *evlist = top->evlist;
-	struct perf_evsel *counter;
+	struct evlist *evlist = top->evlist;
+	struct evsel *counter;
 
 	if (!opts->overwrite)
 		return 0;
@@ -966,7 +965,7 @@ static int perf_top_overwrite_fallback(struct perf_top *top,
 		return 0;
 
 	evlist__for_each_entry(evlist, counter)
-		counter->attr.write_backward = false;
+		counter->core.attr.write_backward = false;
 	opts->overwrite = false;
 	pr_debug2("fall back to non-overwrite mode\n");
 	return 1;
@@ -975,8 +974,8 @@ static int perf_top_overwrite_fallback(struct perf_top *top,
 static int perf_top__start_counters(struct perf_top *top)
 {
 	char msg[BUFSIZ];
-	struct perf_evsel *counter;
-	struct perf_evlist *evlist = top->evlist;
+	struct evsel *counter;
+	struct evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
 
 	if (perf_top__overwrite_check(top)) {
@@ -989,8 +988,8 @@ static int perf_top__start_counters(struct perf_top *top)
 
 	evlist__for_each_entry(evlist, counter) {
 try_again:
-		if (perf_evsel__open(counter, top->evlist->cpus,
-				     top->evlist->threads) < 0) {
+		if (evsel__open(counter, top->evlist->core.cpus,
+				     top->evlist->core.threads) < 0) {
 
 			/*
 			 * Specially handle overwrite fall back.
@@ -1100,11 +1099,11 @@ static int deliver_event(struct ordered_events *qe,
 			 struct ordered_event *qevent)
 {
 	struct perf_top *top = qe->data;
-	struct perf_evlist *evlist = top->evlist;
+	struct evlist *evlist = top->evlist;
 	struct perf_session *session = top->session;
 	union perf_event *event = qevent->event;
 	struct perf_sample sample;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	struct machine *machine;
 	int ret = -1;
 
@@ -1222,7 +1221,7 @@ static int __cmd_top(struct perf_top *top)
 		pr_debug("Couldn't synthesize BPF events: Pre-existing BPF programs won't have symbols resolved.\n");
 
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
-				    top->evlist->threads, false,
+				    top->evlist->core.threads, false,
 				    top->nr_threads_synthesize);
 
 	if (top->nr_threads_synthesize > 1)
@@ -1255,7 +1254,7 @@ static int __cmd_top(struct perf_top *top)
 	 * so leave the check here.
 	 */
         if (!target__none(&opts->target))
-                perf_evlist__enable(top->evlist);
+		evlist__enable(top->evlist);
 
 	ret = -1;
 	if (pthread_create(&thread_process, NULL, process_thread, top)) {
@@ -1511,7 +1510,7 @@ int cmd_top(int argc, const char **argv)
 		    "Record namespaces events"),
 	OPT_END()
 	};
-	struct perf_evlist *sb_evlist = NULL;
+	struct evlist *sb_evlist = NULL;
 	const char * const top_usage[] = {
 		"perf top [<options>]",
 		NULL
@@ -1524,7 +1523,7 @@ int cmd_top(int argc, const char **argv)
 	top.annotation_opts.min_pcnt = 5;
 	top.annotation_opts.context  = 4;
 
-	top.evlist = perf_evlist__new();
+	top.evlist = evlist__new();
 	if (top.evlist == NULL)
 		return -ENOMEM;
 
@@ -1536,7 +1535,7 @@ int cmd_top(int argc, const char **argv)
 	if (argc)
 		usage_with_options(top_usage, options);
 
-	if (!top.evlist->nr_entries &&
+	if (!top.evlist->core.nr_entries &&
 	    perf_evlist__add_default(top.evlist) < 0) {
 		pr_err("Not enough memory for event selector list\n");
 		goto out_delete_evlist;
@@ -1661,7 +1660,7 @@ int cmd_top(int argc, const char **argv)
 		perf_evlist__stop_sb_thread(sb_evlist);
 
 out_delete_evlist:
-	perf_evlist__delete(top.evlist);
+	evlist__delete(top.evlist);
 	perf_session__delete(top.session);
 
 	return status;

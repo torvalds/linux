@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
+#include <perf/cpumap.h>
 #include "evlist.h"
 #include "evsel.h"
 #include "machine.h"
@@ -61,7 +62,7 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 {
 	struct event_update_event *ev = (struct event_update_event*) event;
 	struct event_update_event_cpus *ev_data;
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 
 	ev_data = (struct event_update_event_cpus*) ev->data;
 
@@ -73,14 +74,14 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 	TEST_ASSERT_VAL("wrong cpus", map->map[0] == 1);
 	TEST_ASSERT_VAL("wrong cpus", map->map[1] == 2);
 	TEST_ASSERT_VAL("wrong cpus", map->map[2] == 3);
-	cpu_map__put(map);
+	perf_cpu_map__put(map);
 	return 0;
 }
 
 int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
-	struct perf_evlist *evlist;
-	struct perf_evsel *evsel;
+	struct evlist *evlist;
+	struct evsel *evsel;
 	struct event_name tmp;
 
 	evlist = perf_evlist__new_default();
@@ -108,11 +109,11 @@ int test__event_update(struct test *test __maybe_unused, int subtest __maybe_unu
 	TEST_ASSERT_VAL("failed to synthesize attr update name",
 			!perf_event__synthesize_event_update_name(&tmp.tool, evsel, process_event_name));
 
-	evsel->own_cpus = cpu_map__new("1,2,3");
+	evsel->core.own_cpus = perf_cpu_map__new("1,2,3");
 
 	TEST_ASSERT_VAL("failed to synthesize attr update cpus",
 			!perf_event__synthesize_event_update_cpus(&tmp.tool, evsel, process_event_cpus));
 
-	cpu_map__put(evsel->own_cpus);
+	perf_cpu_map__put(evsel->core.own_cpus);
 	return 0;
 }
