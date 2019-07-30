@@ -1225,10 +1225,8 @@ static int oxnas_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(bank->reg_base);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "irq get failed\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	bank->id = id;
 	bank->gpio_chip.parent = &pdev->dev;
