@@ -636,7 +636,7 @@ static int psp_v3_1_mode1_reset(struct psp_context *psp)
 
 static bool psp_v3_1_support_vmr_ring(struct psp_context *psp)
 {
-	if (amdgpu_sriov_vf(psp->adev) && psp->sos_fw_version >= 0x80455)
+	if (amdgpu_sriov_vf(psp->adev))
 		return true;
 
 	return false;
