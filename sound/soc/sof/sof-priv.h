@@ -644,6 +644,8 @@ void sof_block_write(struct snd_sof_dev *sdev, u32 bar, u32 offset, void *src,
 void sof_block_read(struct snd_sof_dev *sdev, u32 bar, u32 offset, void *dest,
 		    size_t size);
 
+int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id);
+
 void intel_ipc_msg_data(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream,
 			void *p, size_t sz);
