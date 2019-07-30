@@ -3,6 +3,10 @@
  * simple driver for PWM (Pulse Width Modulator) controller
  *
  * Derived from pxa PWM driver by eric miao <eric.miao@marvell.com>
+ *
+ * Limitations:
+ * - When disabled the output is driven to 0 independent of the configured
+ *   polarity.
  */
 
 #include <linux/bitfield.h>
