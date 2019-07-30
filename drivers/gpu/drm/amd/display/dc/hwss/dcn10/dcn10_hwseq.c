@@ -2586,8 +2586,11 @@ static bool dcn10_is_rear_mpo_fix_required(struct pipe_ctx *pipe_ctx, enum dc_co
 
 			while (top->top_pipe)
 				top = top->top_pipe; // Traverse to top pipe_ctx
-			if (top->plane_state && top->plane_state->layer_index == 0)
-				return true; // Front MPO plane not hidden
+			if (top->plane_state && top->plane_state->layer_index == 0 && !top->plane_state->global_alpha)
+				// Global alpha used by top plane for PIP overlay
+				// Pre-multiplied/per-pixel alpha used by MPO
+				// Check top plane's global alpha to ensure layer_index > 0 not caused by PIP
+				return true; // MPO in use and front plane not hidden
 		}
 	}
 	return false;
