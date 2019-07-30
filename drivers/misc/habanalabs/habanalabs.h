@@ -917,6 +917,7 @@ struct hl_debug_params {
  * @dev_node: node in the device list of file private data
  * @refcount: number of related contexts.
  * @restore_phase_mutex: lock for context switch and restore phase.
+ * @is_control: true for control device, false otherwise
  */
 struct hl_fpriv {
 	struct hl_device	*hdev;
@@ -929,6 +930,7 @@ struct hl_fpriv {
 	struct list_head	dev_node;
 	struct kref		refcount;
 	struct mutex		restore_phase_mutex;
+	u8			is_control;
 };
 
 
@@ -1015,7 +1017,7 @@ struct hl_dbg_device_entry {
  */
 
 /* Theoretical limit only. A single host can only contain up to 4 or 8 PCIe
- * x16 cards. In extereme cases, there are hosts that can accommodate 16 cards
+ * x16 cards. In extreme cases, there are hosts that can accommodate 16 cards.
  */
 #define HL_MAX_MINORS	256
 
@@ -1160,7 +1162,9 @@ struct hl_device_reset_work {
  * @pcie_bar: array of available PCIe bars.
  * @rmmio: configuration area address on SRAM.
  * @cdev: related char device.
- * @dev: realted kernel basic device structure.
+ * @cdev_ctrl: char device for control operations only (INFO IOCTL)
+ * @dev: related kernel basic device structure.
+ * @dev_ctrl: related kernel device structure for the control device
  * @work_freq: delayed work to lower device frequency if possible.
  * @work_heartbeat: delayed work for ArmCP is-alive check.
  * @asic_name: ASIC specific nmae.
@@ -1213,6 +1217,7 @@ struct hl_device_reset_work {
  * @soft_reset_cnt: number of soft reset since KMD loading.
  * @hard_reset_cnt: number of hard reset since KMD loading.
  * @id: device minor.
+ * @id_control: minor of the control device
  * @disabled: is device disabled.
  * @late_init_done: is late init stage was done during initialization.
  * @hwmon_initialized: is H/W monitor sensors was initialized.
@@ -1234,7 +1239,9 @@ struct hl_device {
 	void __iomem			*pcie_bar[6];
 	void __iomem			*rmmio;
 	struct cdev			cdev;
+	struct cdev			cdev_ctrl;
 	struct device			*dev;
+	struct device			*dev_ctrl;
 	struct delayed_work		work_freq;
 	struct delayed_work		work_heartbeat;
 	char				asic_name[16];
@@ -1288,6 +1295,7 @@ struct hl_device {
 	u32				soft_reset_cnt;
 	u32				hard_reset_cnt;
 	u16				id;
+	u16				id_control;
 	u8				disabled;
 	u8				late_init_done;
 	u8				hwmon_initialized;
@@ -1393,6 +1401,7 @@ static inline bool hl_mem_area_crosses_range(u64 address, u32 size,
 }
 
 int hl_device_open(struct inode *inode, struct file *filp);
+int hl_device_open_ctrl(struct inode *inode, struct file *filp);
 bool hl_device_disabled_or_in_reset(struct hl_device *hdev);
 enum hl_device_status hl_device_status(struct hl_device *hdev);
 int hl_device_set_debug_mode(struct hl_device *hdev, bool enable);
@@ -1632,6 +1641,7 @@ static inline void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev,
 
 /* IOCTLs */
 long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
+long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg);
 int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data);
 int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data);
 int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data);

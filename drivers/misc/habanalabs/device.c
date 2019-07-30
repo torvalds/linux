@@ -95,6 +95,24 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int hl_device_release_ctrl(struct inode *inode, struct file *filp)
+{
+	struct hl_fpriv *hpriv = filp->private_data;
+	struct hl_device *hdev;
+
+	filp->private_data = NULL;
+
+	hdev = hpriv->hdev;
+
+	mutex_lock(&hdev->fpriv_list_lock);
+	list_del(&hpriv->dev_node);
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	kfree(hpriv);
+
+	return 0;
+}
+
 /*
  * hl_mmap - mmap function for habanalabs device
  *
@@ -123,6 +141,14 @@ static const struct file_operations hl_ops = {
 	.mmap = hl_mmap,
 	.unlocked_ioctl = hl_ioctl,
 	.compat_ioctl = hl_ioctl
+};
+
+static const struct file_operations hl_ctrl_ops = {
+	.owner = THIS_MODULE,
+	.open = hl_device_open_ctrl,
+	.release = hl_device_release_ctrl,
+	.unlocked_ioctl = hl_ioctl_control,
+	.compat_ioctl = hl_ioctl_control
 };
 
 /*
@@ -567,7 +593,8 @@ static void device_kill_open_processes(struct hl_device *hdev)
 	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_node) {
 		task = get_pid_task(hpriv->taskpid, PIDTYPE_PID);
 		if (task) {
-			dev_info(hdev->dev, "Killing user process\n");
+			dev_info(hdev->dev, "Killing user process pid=%d\n",
+				task_pid_nr(task));
 			send_sig(SIGKILL, task, 1);
 			usleep_range(1000, 10000);
 
@@ -872,7 +899,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	int i, rc, cq_ready_cnt;
 	char *name;
 
-	name = kasprintf(GFP_KERNEL, "hl%d", hdev->id);
+	name = kasprintf(GFP_KERNEL, "hl%d", hdev->id / 2);
 	if (!name)
 		return -ENOMEM;
 
@@ -885,10 +912,25 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	if (rc)
 		goto out_disabled;
 
+	name = kasprintf(GFP_KERNEL, "hl_controlD%d", hdev->id / 2);
+	if (!name) {
+		rc = -ENOMEM;
+		goto release_device;
+	}
+
+	/* Create control device */
+	rc = device_setup_cdev(hdev, hclass, hdev->id_control, &hl_ctrl_ops,
+				name, &hdev->cdev_ctrl, &hdev->dev_ctrl);
+
+	kfree(name);
+
+	if (rc)
+		goto release_device;
+
 	/* Initialize ASIC function pointers and perform early init */
 	rc = device_early_init(hdev);
 	if (rc)
-		goto release_device;
+		goto release_control_device;
 
 	/*
 	 * Start calling ASIC initialization. First S/W then H/W and finally
@@ -1063,6 +1105,9 @@ sw_fini:
 	hdev->asic_funcs->sw_fini(hdev);
 early_fini:
 	device_early_fini(hdev);
+release_control_device:
+	device_destroy(hclass, hdev->dev_ctrl->devt);
+	cdev_del(&hdev->cdev_ctrl);
 release_device:
 	device_destroy(hclass, hdev->dev->devt);
 	cdev_del(&hdev->cdev);
@@ -1178,6 +1223,8 @@ void hl_device_fini(struct hl_device *hdev)
 	device_early_fini(hdev);
 
 	/* Hide device from user */
+	device_destroy(hdev->dev_ctrl->class, hdev->dev_ctrl->devt);
+	cdev_del(&hdev->cdev_ctrl);
 	device_destroy(hdev->dev->class, hdev->dev->devt);
 	cdev_del(&hdev->cdev);
 

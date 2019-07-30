@@ -130,7 +130,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	}
 
 	if (hdev->compute_ctx) {
-		dev_info_ratelimited(hdev->dev,
+		dev_dbg_ratelimited(hdev->dev,
 			"Can't open %s because another user is working on it\n",
 			dev_name(hdev->dev));
 		rc = -EBUSY;
@@ -170,6 +170,55 @@ out_err:
 	return rc;
 }
 
+int hl_device_open_ctrl(struct inode *inode, struct file *filp)
+{
+	struct hl_device *hdev;
+	struct hl_fpriv *hpriv;
+	int rc;
+
+	mutex_lock(&hl_devs_idr_lock);
+	hdev = idr_find(&hl_devs_idr, iminor(inode));
+	mutex_unlock(&hl_devs_idr_lock);
+
+	if (!hdev) {
+		pr_err("Couldn't find device %d:%d\n",
+			imajor(inode), iminor(inode));
+		return -ENXIO;
+	}
+
+	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
+	if (!hpriv)
+		return -ENOMEM;
+
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	if (hl_device_disabled_or_in_reset(hdev)) {
+		dev_err_ratelimited(hdev->dev_ctrl,
+			"Can't open %s because it is disabled or in reset\n",
+			dev_name(hdev->dev_ctrl));
+		rc = -EPERM;
+		goto out_err;
+	}
+
+	list_add(&hpriv->dev_node, &hdev->fpriv_list);
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	hpriv->hdev = hdev;
+	filp->private_data = hpriv;
+	hpriv->filp = filp;
+	hpriv->is_control = true;
+	nonseekable_open(inode, filp);
+
+	hpriv->taskpid = find_get_pid(current->pid);
+
+	return 0;
+
+out_err:
+	mutex_unlock(&hdev->fpriv_list_lock);
+	kfree(hpriv);
+	return rc;
+}
+
 static void set_driver_behavior_per_device(struct hl_device *hdev)
 {
 	hdev->mmu_enable = 1;
@@ -197,7 +246,7 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		enum hl_asic_type asic_type, int minor)
 {
 	struct hl_device *hdev;
-	int rc;
+	int rc, main_id, ctrl_id = 0;
 
 	*dev = NULL;
 
@@ -238,33 +287,34 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 
 	mutex_lock(&hl_devs_idr_lock);
 
-	if (minor == -1) {
-		rc = idr_alloc(&hl_devs_idr, hdev, 0, HL_MAX_MINORS,
+	/* Always save 2 numbers, 1 for main device and 1 for control.
+	 * They must be consecutive
+	 */
+	main_id = idr_alloc(&hl_devs_idr, hdev, 0, HL_MAX_MINORS,
 				GFP_KERNEL);
-	} else {
-		void *old_idr = idr_replace(&hl_devs_idr, hdev, minor);
 
-		if (IS_ERR_VALUE(old_idr)) {
-			rc = PTR_ERR(old_idr);
-			pr_err("Error %d when trying to replace minor %d\n",
-				rc, minor);
-			mutex_unlock(&hl_devs_idr_lock);
-			goto free_hdev;
-		}
-		rc = minor;
-	}
+	if (main_id >= 0)
+		ctrl_id = idr_alloc(&hl_devs_idr, hdev, main_id + 1,
+					main_id + 2, GFP_KERNEL);
 
 	mutex_unlock(&hl_devs_idr_lock);
 
-	if (rc < 0) {
-		if (rc == -ENOSPC) {
+	if ((main_id < 0) || (ctrl_id < 0)) {
+		if ((main_id == -ENOSPC) || (ctrl_id == -ENOSPC))
 			pr_err("too many devices in the system\n");
-			rc = -EBUSY;
+
+		if (main_id >= 0) {
+			mutex_lock(&hl_devs_idr_lock);
+			idr_remove(&hl_devs_idr, main_id);
+			mutex_unlock(&hl_devs_idr_lock);
 		}
+
+		rc = -EBUSY;
 		goto free_hdev;
 	}
 
-	hdev->id = rc;
+	hdev->id = main_id;
+	hdev->id_control = ctrl_id;
 
 	*dev = hdev;
 
@@ -286,6 +336,7 @@ void destroy_hdev(struct hl_device *hdev)
 	/* Remove device from the device list */
 	mutex_lock(&hl_devs_idr_lock);
 	idr_remove(&hl_devs_idr, hdev->id);
+	idr_remove(&hl_devs_idr, hdev->id_control);
 	mutex_unlock(&hl_devs_idr_lock);
 
 	kfree(hdev);

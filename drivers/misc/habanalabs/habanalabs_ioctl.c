@@ -194,7 +194,8 @@ out:
 	return rc;
 }
 
-static int hl_info_ioctl(struct hl_fpriv *hpriv, void *data)
+static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
+				struct device *dev)
 {
 	struct hl_info_args *args = data;
 	struct hl_device *hdev = hpriv->hdev;
@@ -205,7 +206,7 @@ static int hl_info_ioctl(struct hl_fpriv *hpriv, void *data)
 		return device_status_info(hdev, args);
 
 	if (hl_device_disabled_or_in_reset(hdev)) {
-		dev_warn_ratelimited(hdev->dev,
+		dev_warn_ratelimited(dev,
 			"Device is %s. Can't execute INFO IOCTL\n",
 			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
 		return -EBUSY;
@@ -229,12 +230,22 @@ static int hl_info_ioctl(struct hl_fpriv *hpriv, void *data)
 		break;
 
 	default:
-		dev_err(hdev->dev, "Invalid request %d\n", args->op);
+		dev_err(dev, "Invalid request %d\n", args->op);
 		rc = -ENOTTY;
 		break;
 	}
 
 	return rc;
+}
+
+static int hl_info_ioctl(struct hl_fpriv *hpriv, void *data)
+{
+	return _hl_info_ioctl(hpriv, data, hpriv->hdev->dev);
+}
+
+static int hl_info_ioctl_control(struct hl_fpriv *hpriv, void *data)
+{
+	return _hl_info_ioctl(hpriv, data, hpriv->hdev->dev_ctrl);
 }
 
 static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
@@ -291,51 +302,44 @@ static const struct hl_ioctl_desc hl_ioctls[] = {
 	HL_IOCTL_DEF(HL_IOCTL_DEBUG, hl_debug_ioctl)
 };
 
-#define HL_CORE_IOCTL_COUNT	ARRAY_SIZE(hl_ioctls)
+static const struct hl_ioctl_desc hl_ioctls_control[] = {
+	HL_IOCTL_DEF(HL_IOCTL_INFO, hl_info_ioctl_control)
+};
 
-long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
+static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
+		const struct hl_ioctl_desc *ioctl, struct device *dev)
 {
 	struct hl_fpriv *hpriv = filep->private_data;
 	struct hl_device *hdev = hpriv->hdev;
-	hl_ioctl_t *func;
-	const struct hl_ioctl_desc *ioctl = NULL;
 	unsigned int nr = _IOC_NR(cmd);
 	char stack_kdata[128] = {0};
 	char *kdata = NULL;
 	unsigned int usize, asize;
+	hl_ioctl_t *func;
+	u32 hl_size;
 	int retcode;
 
 	if (hdev->hard_reset_pending) {
-		dev_crit_ratelimited(hdev->dev,
+		dev_crit_ratelimited(hdev->dev_ctrl,
 			"Device HARD reset pending! Please close FD\n");
 		return -ENODEV;
-	}
-
-	if ((nr >= HL_COMMAND_START) && (nr < HL_COMMAND_END)) {
-		u32 hl_size;
-
-		ioctl = &hl_ioctls[nr];
-
-		hl_size = _IOC_SIZE(ioctl->cmd);
-		usize = asize = _IOC_SIZE(cmd);
-		if (hl_size > asize)
-			asize = hl_size;
-
-		cmd = ioctl->cmd;
-	} else {
-		dev_err(hdev->dev, "invalid ioctl: pid=%d, nr=0x%02x\n",
-			task_pid_nr(current), nr);
-		return -ENOTTY;
 	}
 
 	/* Do not trust userspace, use our own definition */
 	func = ioctl->func;
 
 	if (unlikely(!func)) {
-		dev_dbg(hdev->dev, "no function\n");
+		dev_dbg(dev, "no function\n");
 		retcode = -ENOTTY;
 		goto out_err;
 	}
+
+	hl_size = _IOC_SIZE(ioctl->cmd);
+	usize = asize = _IOC_SIZE(cmd);
+	if (hl_size > asize)
+		asize = hl_size;
+
+	cmd = ioctl->cmd;
 
 	if (cmd & (IOC_IN | IOC_OUT)) {
 		if (asize <= sizeof(stack_kdata)) {
@@ -366,12 +370,47 @@ long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 out_err:
 	if (retcode)
-		dev_dbg(hdev->dev,
-			"error in ioctl: pid=%d, cmd=0x%02x, nr=0x%02x\n",
+		dev_dbg(dev, "error in ioctl: pid=%d, cmd=0x%02x, nr=0x%02x\n",
 			  task_pid_nr(current), cmd, nr);
 
 	if (kdata != stack_kdata)
 		kfree(kdata);
 
 	return retcode;
+}
+
+long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
+{
+	struct hl_fpriv *hpriv = filep->private_data;
+	struct hl_device *hdev = hpriv->hdev;
+	const struct hl_ioctl_desc *ioctl = NULL;
+	unsigned int nr = _IOC_NR(cmd);
+
+	if ((nr >= HL_COMMAND_START) && (nr < HL_COMMAND_END)) {
+		ioctl = &hl_ioctls[nr];
+	} else {
+		dev_err(hdev->dev, "invalid ioctl: pid=%d, nr=0x%02x\n",
+			task_pid_nr(current), nr);
+		return -ENOTTY;
+	}
+
+	return _hl_ioctl(filep, cmd, arg, ioctl, hdev->dev);
+}
+
+long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg)
+{
+	struct hl_fpriv *hpriv = filep->private_data;
+	struct hl_device *hdev = hpriv->hdev;
+	const struct hl_ioctl_desc *ioctl = NULL;
+	unsigned int nr = _IOC_NR(cmd);
+
+	if (nr == _IOC_NR(HL_IOCTL_INFO)) {
+		ioctl = &hl_ioctls_control[nr];
+	} else {
+		dev_err(hdev->dev_ctrl, "invalid ioctl: pid=%d, nr=0x%02x\n",
+			task_pid_nr(current), nr);
+		return -ENOTTY;
+	}
+
+	return _hl_ioctl(filep, cmd, arg, ioctl, hdev->dev_ctrl);
 }
