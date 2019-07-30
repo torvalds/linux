@@ -431,13 +431,8 @@ static int dwc_eth_dwmac_probe(struct platform_device *pdev)
 	 * resource initialization is done in the glue logic.
 	 */
 	stmmac_res.irq = platform_get_irq(pdev, 0);
-	if (stmmac_res.irq < 0) {
-		if (stmmac_res.irq != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"IRQ configuration information not found\n");
-
+	if (stmmac_res.irq < 0)
 		return stmmac_res.irq;
-	}
 	stmmac_res.wol_irq = stmmac_res.irq;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

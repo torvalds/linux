@@ -467,10 +467,8 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 
 	/* Get the device interrupt */
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(dev, "platform_get_irq 0 failed\n");
+	if (ret < 0)
 		goto err_io;
-	}
 	pdata->dev_irq = ret;
 
 	/* Get the per channel DMA interrupts */
@@ -479,12 +477,8 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 
 		for (i = 0; (i < max) && (dma_irqnum < dma_irqend); i++) {
 			ret = platform_get_irq(pdata->platdev, dma_irqnum++);
-			if (ret < 0) {
-				netdev_err(pdata->netdev,
-					   "platform_get_irq %u failed\n",
-					   dma_irqnum - 1);
+			if (ret < 0)
 				goto err_io;
-			}
 
 			pdata->channel_irq[i] = ret;
 		}
@@ -496,10 +490,8 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 
 	/* Get the auto-negotiation interrupt */
 	ret = platform_get_irq(phy_pdev, phy_irqnum++);
-	if (ret < 0) {
-		dev_err(dev, "platform_get_irq phy 0 failed\n");
+	if (ret < 0)
 		goto err_io;
-	}
 	pdata->an_irq = ret;
 
 	/* Configure the netdev resource */

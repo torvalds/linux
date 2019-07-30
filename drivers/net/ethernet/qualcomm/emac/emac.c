@@ -556,11 +556,8 @@ static int emac_probe_resources(struct platform_device *pdev,
 
 	/* Core 0 interrupt */
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"error: missing core0 irq resource (error=%i)\n", ret);
+	if (ret < 0)
 		return ret;
-	}
 	adpt->irq.irq = ret;
 
 	/* base register address */

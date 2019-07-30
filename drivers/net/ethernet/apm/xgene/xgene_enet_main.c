@@ -1617,7 +1617,6 @@ static int xgene_get_rx_delay(struct xgene_enet_pdata *pdata)
 static int xgene_enet_get_irqs(struct xgene_enet_pdata *pdata)
 {
 	struct platform_device *pdev = pdata->pdev;
-	struct device *dev = &pdev->dev;
 	int i, ret, max_irqs;
 
 	if (phy_interface_mode_is_rgmii(pdata->phy_mode))
@@ -1637,9 +1636,7 @@ static int xgene_enet_get_irqs(struct xgene_enet_pdata *pdata)
 				pdata->cq_cnt = max_irqs / 2;
 				break;
 			}
-			dev_err(dev, "Unable to get ENET IRQ\n");
-			ret = ret ? : -ENXIO;
-			return ret;
+			return ret ? : -ENXIO;
 		}
 		pdata->irqs[i] = ret;
 	}

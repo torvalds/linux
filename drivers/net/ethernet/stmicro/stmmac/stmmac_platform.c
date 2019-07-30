@@ -610,13 +610,8 @@ int stmmac_get_platform_resources(struct platform_device *pdev,
 	 * probe if needed before we went too far with resource allocation.
 	 */
 	stmmac_res->irq = platform_get_irq_byname(pdev, "macirq");
-	if (stmmac_res->irq < 0) {
-		if (stmmac_res->irq != -EPROBE_DEFER) {
-			dev_err(&pdev->dev,
-				"MAC IRQ configuration information not found\n");
-		}
+	if (stmmac_res->irq < 0)
 		return stmmac_res->irq;
-	}
 
 	/* On some platforms e.g. SPEAr the wake up irq differs from the mac irq
 	 * The external wake up irq can be passed through the platform code

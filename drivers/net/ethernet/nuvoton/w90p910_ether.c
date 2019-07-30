@@ -993,14 +993,12 @@ static int w90p910_ether_probe(struct platform_device *pdev)
 
 	ether->txirq = platform_get_irq(pdev, 0);
 	if (ether->txirq < 0) {
-		dev_err(&pdev->dev, "failed to get ether tx irq\n");
 		error = -ENXIO;
 		goto failed_free_io;
 	}
 
 	ether->rxirq = platform_get_irq(pdev, 1);
 	if (ether->rxirq < 0) {
-		dev_err(&pdev->dev, "failed to get ether rx irq\n");
 		error = -ENXIO;
 		goto failed_free_io;
 	}
