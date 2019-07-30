@@ -466,6 +466,10 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 				dout->wb.wb_dst_width;
 		mode_lib->vba.WritebackDestinationHeight[mode_lib->vba.NumberOfActivePlanes] =
 				dout->wb.wb_dst_height;
+		mode_lib->vba.WritebackHRatio[mode_lib->vba.NumberOfActivePlanes] =
+				dout->wb.wb_hratio;
+		mode_lib->vba.WritebackVRatio[mode_lib->vba.NumberOfActivePlanes] =
+				dout->wb.wb_vratio;
 		mode_lib->vba.WritebackPixelFormat[mode_lib->vba.NumberOfActivePlanes] =
 				(enum source_format_class) (dout->wb.wb_pixel_format);
 		mode_lib->vba.WritebackHTaps[mode_lib->vba.NumberOfActivePlanes] =
