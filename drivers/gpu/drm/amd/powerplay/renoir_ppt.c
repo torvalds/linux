@@ -138,14 +138,30 @@ static int renoir_get_smu_table_index(struct smu_context *smc, uint32_t index)
 	return mapping.map_to;
 }
 
+static int renoir_tables_init(struct smu_context *smu, struct smu_table *tables)
+{
+	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
+		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, SMU_TABLE_DPMCLOCKS, sizeof(DpmClocks_t),
+		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
+		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+
+	return 0;
+}
+
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
 	.get_smu_table_index = renoir_get_smu_table_index,
+	.tables_init = renoir_tables_init,
 	.set_power_state = NULL,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)
 {
+	struct smu_table_context *smu_table = &smu->smu_table;
+
 	smu->ppt_funcs = &renoir_ppt_funcs;
 	smu->smc_if_version = SMU12_DRIVER_IF_VERSION;
+	smu_table->table_count = TABLE_COUNT;
 }

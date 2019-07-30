@@ -270,6 +270,36 @@ static int smu_v12_0_gfx_off_control(struct smu_context *smu, bool enable)
 	return ret;
 }
 
+static int smu_v12_0_init_smc_tables(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = NULL;
+
+	if (smu_table->tables || smu_table->table_count == 0)
+		return -EINVAL;
+
+	tables = kcalloc(SMU_TABLE_COUNT, sizeof(struct smu_table),
+			 GFP_KERNEL);
+	if (!tables)
+		return -ENOMEM;
+
+	smu_table->tables = tables;
+
+	return smu_tables_init(smu, tables);
+}
+
+static int smu_v12_0_fini_smc_tables(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+
+	if (!smu_table->tables || smu_table->table_count == 0)
+		return -EINVAL;
+
+	kfree(smu_table->tables);
+	smu_table->tables = NULL;
+
+	return 0;
+}
 static const struct smu_funcs smu_v12_0_funcs = {
 	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
@@ -280,6 +310,8 @@ static const struct smu_funcs smu_v12_0_funcs = {
 	.read_smc_arg = smu_v12_0_read_arg,
 	.set_gfx_cgpg = smu_v12_0_set_gfx_cgpg,
 	.gfx_off_control = smu_v12_0_gfx_off_control,
+	.init_smc_tables = smu_v12_0_init_smc_tables,
+	.fini_smc_tables = smu_v12_0_fini_smc_tables,
 };
 
 void smu_v12_0_set_smu_funcs(struct smu_context *smu)
