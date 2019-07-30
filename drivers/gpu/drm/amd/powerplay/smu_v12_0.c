@@ -295,11 +295,30 @@ static int smu_v12_0_fini_smc_tables(struct smu_context *smu)
 	if (!smu_table->tables || smu_table->table_count == 0)
 		return -EINVAL;
 
+	kfree(smu_table->clocks_table);
 	kfree(smu_table->tables);
+
+	smu_table->clocks_table = NULL;
 	smu_table->tables = NULL;
 
 	return 0;
 }
+
+static int smu_v12_0_populate_smc_tables(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *table = NULL;
+
+	table = &smu_table->tables[SMU_TABLE_DPMCLOCKS];
+	if (!table)
+		return -EINVAL;
+
+	if (!table->cpu_addr)
+		return -EINVAL;
+
+	return smu_update_table(smu, SMU_TABLE_DPMCLOCKS, 0, smu_table->clocks_table, false);
+}
+
 static const struct smu_funcs smu_v12_0_funcs = {
 	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
@@ -312,6 +331,7 @@ static const struct smu_funcs smu_v12_0_funcs = {
 	.gfx_off_control = smu_v12_0_gfx_off_control,
 	.init_smc_tables = smu_v12_0_init_smc_tables,
 	.fini_smc_tables = smu_v12_0_fini_smc_tables,
+	.populate_smc_tables = smu_v12_0_populate_smc_tables,
 };
 
 void smu_v12_0_set_smu_funcs(struct smu_context *smu)

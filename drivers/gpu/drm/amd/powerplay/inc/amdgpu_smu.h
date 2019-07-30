@@ -253,6 +253,7 @@ struct smu_table_context
 	void				*hardcode_pptable;
 	unsigned long			metrics_time;
 	void				*metrics_table;
+	void				*clocks_table;
 
 	void				*max_sustainable_clocks;
 	struct smu_bios_boot_up_values	boot_values;
@@ -473,7 +474,7 @@ struct smu_funcs
 	int (*get_clk_info_from_vbios)(struct smu_context *smu);
 	int (*check_pptable)(struct smu_context *smu);
 	int (*parse_pptable)(struct smu_context *smu);
-	int (*populate_smc_pptable)(struct smu_context *smu);
+	int (*populate_smc_tables)(struct smu_context *smu);
 	int (*check_fw_version)(struct smu_context *smu);
 	int (*powergate_sdma)(struct smu_context *smu, bool gate);
 	int (*powergate_vcn)(struct smu_context *smu, bool gate);
@@ -568,8 +569,8 @@ struct smu_funcs
 	((smu)->funcs->check_pptable ? (smu)->funcs->check_pptable((smu)) : 0)
 #define smu_parse_pptable(smu) \
 	((smu)->funcs->parse_pptable ? (smu)->funcs->parse_pptable((smu)) : 0)
-#define smu_populate_smc_pptable(smu) \
-	((smu)->funcs->populate_smc_pptable ? (smu)->funcs->populate_smc_pptable((smu)) : 0)
+#define smu_populate_smc_tables(smu) \
+	((smu)->funcs->populate_smc_tables ? (smu)->funcs->populate_smc_tables((smu)) : 0)
 #define smu_check_fw_version(smu) \
 	((smu)->funcs->check_fw_version ? (smu)->funcs->check_fw_version((smu)) : 0)
 #define smu_write_pptable(smu) \

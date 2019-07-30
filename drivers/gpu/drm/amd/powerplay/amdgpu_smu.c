@@ -1150,7 +1150,7 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	 * type of clks.
 	 */
 	if (initialize) {
-		ret = smu_populate_smc_pptable(smu);
+		ret = smu_populate_smc_tables(smu);
 		if (ret)
 			return ret;
 
