@@ -21,7 +21,7 @@ MED_ATTRS(ipc_associate_access) {
 MED_ACCTYPE(ipc_associate_access, "ipc_associate", process_kobject, "process", ipc_kobject, "object");
 
 int __init ipc_acctype_associate_init(void) {
-	MED_REGISTER_ACCTYPE(ipc_associate_access,MEDUSA_ACCTYPE_TRIGGEREDATSUBJECT);
+	MED_REGISTER_ACCTYPE(ipc_associate_access,MEDUSA_ACCTYPE_TRIGGEREDATOBJECT);
 	return 0;
 }
 

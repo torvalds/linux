@@ -26,7 +26,7 @@ MED_ATTRS(ipc_msgsnd_access) {
 MED_ACCTYPE(ipc_msgsnd_access, "ipc_msgsnd", process_kobject, "process", ipc_kobject, "object");
 
 int __init ipc_acctype_msgsnd_init(void) {
-	MED_REGISTER_ACCTYPE(ipc_msgsnd_access,MEDUSA_ACCTYPE_TRIGGEREDATSUBJECT);
+	MED_REGISTER_ACCTYPE(ipc_msgsnd_access,MEDUSA_ACCTYPE_TRIGGEREDATOBJECT);
 	return 0;
 }
 

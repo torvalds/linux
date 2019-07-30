@@ -23,7 +23,7 @@ MED_ATTRS(ipc_shmat_access) {
 MED_ACCTYPE(ipc_shmat_access, "ipc_shmat", process_kobject, "process", ipc_kobject, "object");
 
 int __init ipc_acctype_shmat_init(void) {
-	MED_REGISTER_ACCTYPE(ipc_shmat_access,MEDUSA_ACCTYPE_TRIGGEREDATSUBJECT);
+	MED_REGISTER_ACCTYPE(ipc_shmat_access,MEDUSA_ACCTYPE_TRIGGEREDATOBJECT);
 	return 0;
 }
 
