@@ -1701,10 +1701,8 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(pctrl->regs);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get interrupt number\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	pctrl->pctldesc = chv_pinctrl_desc;
 	pctrl->pctldesc.name = dev_name(&pdev->dev);
