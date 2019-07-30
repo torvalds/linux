@@ -523,6 +523,8 @@ int medusa_l1_task_alloc(struct task_struct *task, unsigned long clone_flags)
         get_cmdline(task, med->cmdline, sizeof(med->cmdline));
 	task->security = med;
 
+	process_kobj_validate_task(task);
+
 	return 0;
 }
 
