@@ -284,10 +284,8 @@ static int sprd_wdt_probe(struct platform_device *pdev)
 	}
 
 	wdt->irq = platform_get_irq(pdev, 0);
-	if (wdt->irq < 0) {
-		dev_err(dev, "failed to get IRQ resource\n");
+	if (wdt->irq < 0)
 		return wdt->irq;
-	}
 
 	ret = devm_request_irq(dev, wdt->irq, sprd_wdt_isr, IRQF_NO_SUSPEND,
 			       "sprd-wdt", (void *)wdt);
