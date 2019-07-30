@@ -131,48 +131,43 @@ static const struct file_operations hl_ops = {
  * @hdev: pointer to habanalabs device structure
  * @hclass: pointer to the class object of the device
  * @minor: minor number of the specific device
- * @fpos : file operations to install for this device
+ * @fpos: file operations to install for this device
+ * @name: name of the device as it will appear in the filesystem
+ * @cdev: pointer to the char device object that will be created
+ * @dev: pointer to the device object that will be created
  *
  * Create a cdev and a Linux device for habanalabs's device. Need to be
  * called at the end of the habanalabs device initialization process,
  * because this function exposes the device to the user
  */
 static int device_setup_cdev(struct hl_device *hdev, struct class *hclass,
-				int minor, const struct file_operations *fops)
+				int minor, const struct file_operations *fops,
+				char *name, struct cdev *cdev,
+				struct device **dev)
 {
 	int err, devno = MKDEV(hdev->major, minor);
-	struct cdev *hdev_cdev = &hdev->cdev;
-	char *name;
 
-	name = kasprintf(GFP_KERNEL, "hl%d", hdev->id);
-	if (!name)
-		return -ENOMEM;
-
-	cdev_init(hdev_cdev, fops);
-	hdev_cdev->owner = THIS_MODULE;
-	err = cdev_add(hdev_cdev, devno, 1);
+	cdev_init(cdev, fops);
+	cdev->owner = THIS_MODULE;
+	err = cdev_add(cdev, devno, 1);
 	if (err) {
 		pr_err("Failed to add char device %s\n", name);
-		goto err_cdev_add;
+		return err;
 	}
 
-	hdev->dev = device_create(hclass, NULL, devno, NULL, "%s", name);
-	if (IS_ERR(hdev->dev)) {
+	*dev = device_create(hclass, NULL, devno, NULL, "%s", name);
+	if (IS_ERR(*dev)) {
 		pr_err("Failed to create device %s\n", name);
-		err = PTR_ERR(hdev->dev);
+		err = PTR_ERR(*dev);
 		goto err_device_create;
 	}
 
-	dev_set_drvdata(hdev->dev, hdev);
-
-	kfree(name);
+	dev_set_drvdata(*dev, hdev);
 
 	return 0;
 
 err_device_create:
-	cdev_del(hdev_cdev);
-err_cdev_add:
-	kfree(name);
+	cdev_del(cdev);
 	return err;
 }
 
@@ -875,9 +870,17 @@ out_err:
 int hl_device_init(struct hl_device *hdev, struct class *hclass)
 {
 	int i, rc, cq_ready_cnt;
+	char *name;
+
+	name = kasprintf(GFP_KERNEL, "hl%d", hdev->id);
+	if (!name)
+		return -ENOMEM;
 
 	/* Create device */
-	rc = device_setup_cdev(hdev, hclass, hdev->id, &hl_ops);
+	rc = device_setup_cdev(hdev, hclass, hdev->id, &hl_ops, name,
+				&hdev->cdev, &hdev->dev);
+
+	kfree(name);
 
 	if (rc)
 		goto out_disabled;
