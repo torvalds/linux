@@ -95,41 +95,9 @@ int hl_device_open(struct inode *inode, struct file *filp)
 		return -ENXIO;
 	}
 
-	mutex_lock(&hdev->fd_open_cnt_lock);
-
-	if (hl_device_disabled_or_in_reset(hdev)) {
-		dev_err_ratelimited(hdev->dev,
-			"Can't open %s because it is disabled or in reset\n",
-			dev_name(hdev->dev));
-		mutex_unlock(&hdev->fd_open_cnt_lock);
-		return -EPERM;
-	}
-
-	if (hdev->in_debug) {
-		dev_err_ratelimited(hdev->dev,
-			"Can't open %s because it is being debugged by another user\n",
-			dev_name(hdev->dev));
-		mutex_unlock(&hdev->fd_open_cnt_lock);
-		return -EPERM;
-	}
-
-	if (atomic_read(&hdev->fd_open_cnt)) {
-		dev_info_ratelimited(hdev->dev,
-			"Can't open %s because another user is working on it\n",
-			dev_name(hdev->dev));
-		mutex_unlock(&hdev->fd_open_cnt_lock);
-		return -EBUSY;
-	}
-
-	atomic_inc(&hdev->fd_open_cnt);
-
-	mutex_unlock(&hdev->fd_open_cnt_lock);
-
 	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
-	if (!hpriv) {
-		rc = -ENOMEM;
-		goto close_device;
-	}
+	if (!hpriv)
+		return -ENOMEM;
 
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
@@ -141,34 +109,64 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	hl_cb_mgr_init(&hpriv->cb_mgr);
 	hl_ctx_mgr_init(&hpriv->ctx_mgr);
 
-	rc = hl_ctx_create(hdev, hpriv);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to open FD (CTX fail)\n");
+	hpriv->taskpid = find_get_pid(current->pid);
+
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	if (hl_device_disabled_or_in_reset(hdev)) {
+		dev_err_ratelimited(hdev->dev,
+			"Can't open %s because it is disabled or in reset\n",
+			dev_name(hdev->dev));
+		rc = -EPERM;
 		goto out_err;
 	}
 
-	hpriv->taskpid = find_get_pid(current->pid);
+	if (hdev->in_debug) {
+		dev_err_ratelimited(hdev->dev,
+			"Can't open %s because it is being debugged by another user\n",
+			dev_name(hdev->dev));
+		rc = -EPERM;
+		goto out_err;
+	}
 
-	/*
-	 * Device is IDLE at this point so it is legal to change PLLs. There
-	 * is no need to check anything because if the PLL is already HIGH, the
-	 * set function will return without doing anything
+	if (hdev->compute_ctx) {
+		dev_info_ratelimited(hdev->dev,
+			"Can't open %s because another user is working on it\n",
+			dev_name(hdev->dev));
+		rc = -EBUSY;
+		goto out_err;
+	}
+
+	rc = hl_ctx_create(hdev, hpriv);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to create context %d\n", rc);
+		goto out_err;
+	}
+
+	/* Device is IDLE at this point so it is legal to change PLLs.
+	 * There is no need to check anything because if the PLL is
+	 * already HIGH, the set function will return without doing
+	 * anything
 	 */
 	hl_device_set_frequency(hdev, PLL_HIGH);
+
+	list_add(&hpriv->dev_node, &hdev->fpriv_list);
+	mutex_unlock(&hdev->fpriv_list_lock);
 
 	hl_debugfs_add_file(hpriv);
 
 	return 0;
 
 out_err:
-	filp->private_data = NULL;
-	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
-	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
-	mutex_destroy(&hpriv->restore_phase_mutex);
-	kfree(hpriv);
+	mutex_unlock(&hdev->fpriv_list_lock);
 
-close_device:
-	atomic_dec(&hdev->fd_open_cnt);
+	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
+	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
+	filp->private_data = NULL;
+	mutex_destroy(&hpriv->restore_phase_mutex);
+	put_pid(hpriv->taskpid);
+
+	kfree(hpriv);
 	return rc;
 }
 

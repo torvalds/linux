@@ -254,11 +254,11 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 		goto out;
 	}
 
-	mutex_lock(&hdev->fd_open_cnt_lock);
+	mutex_lock(&hdev->fpriv_list_lock);
 
-	if (atomic_read(&hdev->fd_open_cnt) > 0) {
+	if (hdev->compute_ctx) {
 		dev_err(hdev->dev,
-			"Can't change PM profile while user process is opened on the device\n");
+			"Can't change PM profile while compute context is opened on the device\n");
 		count = -EPERM;
 		goto unlock_mutex;
 	}
@@ -266,24 +266,35 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 	if (strncmp("auto", buf, strlen("auto")) == 0) {
 		/* Make sure we are in LOW PLL when changing modes */
 		if (hdev->pm_mng_profile == PM_MANUAL) {
-			atomic_set(&hdev->curr_pll_profile, PLL_HIGH);
+			hdev->curr_pll_profile = PLL_HIGH;
 			hl_device_set_frequency(hdev, PLL_LOW);
 			hdev->pm_mng_profile = PM_AUTO;
 		}
 	} else if (strncmp("manual", buf, strlen("manual")) == 0) {
-		/* Make sure we are in LOW PLL when changing modes */
 		if (hdev->pm_mng_profile == PM_AUTO) {
-			flush_delayed_work(&hdev->work_freq);
+			/* Must release the lock because the work thread also
+			 * takes this lock. But before we release it, set
+			 * the mode to manual so nothing will change if a user
+			 * suddenly opens the device
+			 */
 			hdev->pm_mng_profile = PM_MANUAL;
+
+			mutex_unlock(&hdev->fpriv_list_lock);
+
+			/* Flush the current work so we can return to the user
+			 * knowing that he is the only one changing frequencies
+			 */
+			flush_delayed_work(&hdev->work_freq);
+
+			return count;
 		}
 	} else {
 		dev_err(hdev->dev, "value should be auto or manual\n");
 		count = -EINVAL;
-		goto unlock_mutex;
 	}
 
 unlock_mutex:
-	mutex_unlock(&hdev->fd_open_cnt_lock);
+	mutex_unlock(&hdev->fpriv_list_lock);
 out:
 	return count;
 }

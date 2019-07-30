@@ -914,6 +914,7 @@ struct hl_debug_params {
  * @ctx_mgr: context manager to handle multiple context for this FD.
  * @cb_mgr: command buffer manager to handle multiple buffers for this FD.
  * @debugfs_list: list of relevant ASIC debugfs.
+ * @dev_node: node in the device list of file private data
  * @refcount: number of related contexts.
  * @restore_phase_mutex: lock for context switch and restore phase.
  */
@@ -925,6 +926,7 @@ struct hl_fpriv {
 	struct hl_ctx_mgr	ctx_mgr;
 	struct hl_cb_mgr	cb_mgr;
 	struct list_head	debugfs_list;
+	struct list_head	dev_node;
 	struct kref		refcount;
 	struct mutex		restore_phase_mutex;
 };
@@ -1178,12 +1180,6 @@ struct hl_device_reset_work {
  * @cpu_accessible_dma_pool: KMD <-> ArmCP shared memory pool.
  * @asid_bitmap: holds used/available ASIDs.
  * @asid_mutex: protects asid_bitmap.
- * @fd_open_cnt_lock: lock for updating fd_open_cnt in hl_device_open. Although
- *                    fd_open_cnt is atomic, we need this lock to serialize
- *                    the open function because the driver currently supports
- *                    only a single process at a time. In addition, we need a
- *                    lock here so we can flush user processes which are opening
- *                    the device while we are trying to hard reset it
  * @send_cpu_message_lock: enforces only one message in KMD <-> ArmCP queue.
  * @debug_lock: protects critical section of setting debug mode for device
  * @asic_prop: ASIC specific immutable properties.
@@ -1199,6 +1195,9 @@ struct hl_device_reset_work {
  * @hl_debugfs: device's debugfs manager.
  * @cb_pool: list of preallocated CBs.
  * @cb_pool_lock: protects the CB pool.
+ * @fpriv_list: list of file private data structures. Each structure is created
+ *              when a user opens the device
+ * @fpriv_list_lock: protects the fpriv_list
  * @compute_ctx: current compute context executing.
  * @dram_used_mem: current DRAM memory consumption.
  * @timeout_jiffies: device CS timeout value.
@@ -1206,10 +1205,9 @@ struct hl_device_reset_work {
  *             value is saved so in case of hard-reset, KMD will restore this
  *             value and update the F/W after the re-initialization
  * @in_reset: is device in reset flow.
- * @curr_pll_profile: current PLL profile.
- * @fd_open_cnt: number of open user processes.
  * @cs_active_cnt: number of active command submissions on this device (active
  *                 means already in H/W queues)
+ * @curr_pll_profile: current PLL profile.
  * @major: habanalabs KMD major.
  * @high_pll: high PLL profile frequency.
  * @soft_reset_cnt: number of soft reset since KMD loading.
@@ -1228,7 +1226,7 @@ struct hl_device_reset_work {
  * @mmu_enable: is MMU enabled.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
  * @dma_mask: the dma mask that was set for this device
- * @in_debug: is device under debug. This, together with fd_open_cnt, enforces
+ * @in_debug: is device under debug. This, together with fpriv_list, enforces
  *            that only a single user is configuring the debug infrastructure.
  */
 struct hl_device {
@@ -1256,8 +1254,6 @@ struct hl_device {
 	struct gen_pool			*cpu_accessible_dma_pool;
 	unsigned long			*asid_bitmap;
 	struct mutex			asid_mutex;
-	/* TODO: remove fd_open_cnt_lock for multiple process support */
-	struct mutex			fd_open_cnt_lock;
 	struct mutex			send_cpu_message_lock;
 	struct mutex			debug_lock;
 	struct asic_fixed_properties	asic_prop;
@@ -1276,15 +1272,17 @@ struct hl_device {
 	struct list_head		cb_pool;
 	spinlock_t			cb_pool_lock;
 
+	struct list_head		fpriv_list;
+	struct mutex			fpriv_list_lock;
+
 	struct hl_ctx			*compute_ctx;
 
 	atomic64_t			dram_used_mem;
 	u64				timeout_jiffies;
 	u64				max_power;
 	atomic_t			in_reset;
-	atomic_t			curr_pll_profile;
-	atomic_t			fd_open_cnt;
 	atomic_t			cs_active_cnt;
+	enum hl_pll_frequency		curr_pll_profile;
 	u32				major;
 	u32				high_pll;
 	u32				soft_reset_cnt;

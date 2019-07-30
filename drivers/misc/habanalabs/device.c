@@ -42,10 +42,12 @@ static void hpriv_release(struct kref *ref)
 {
 	struct hl_fpriv *hpriv;
 	struct hl_device *hdev;
+	struct hl_ctx *ctx;
 
 	hpriv = container_of(ref, struct hl_fpriv, refcount);
 
 	hdev = hpriv->hdev;
+	ctx = hpriv->ctx;
 
 	put_pid(hpriv->taskpid);
 
@@ -53,13 +55,12 @@ static void hpriv_release(struct kref *ref)
 
 	mutex_destroy(&hpriv->restore_phase_mutex);
 
-	kfree(hpriv);
-
-	/* Now the FD is really closed */
-	atomic_dec(&hdev->fd_open_cnt);
-
-	/* This allows a new user context to open the device */
+	mutex_lock(&hdev->fpriv_list_lock);
+	list_del(&hpriv->dev_node);
 	hdev->compute_ctx = NULL;
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	kfree(hpriv);
 }
 
 void hl_hpriv_get(struct hl_fpriv *hpriv)
@@ -229,14 +230,14 @@ static int device_early_init(struct hl_device *hdev)
 
 	hl_cb_mgr_init(&hdev->kernel_cb_mgr);
 
-	mutex_init(&hdev->fd_open_cnt_lock);
 	mutex_init(&hdev->send_cpu_message_lock);
 	mutex_init(&hdev->debug_lock);
 	mutex_init(&hdev->mmu_cache_lock);
 	INIT_LIST_HEAD(&hdev->hw_queues_mirror_list);
 	spin_lock_init(&hdev->hw_queues_mirror_lock);
+	INIT_LIST_HEAD(&hdev->fpriv_list);
+	mutex_init(&hdev->fpriv_list_lock);
 	atomic_set(&hdev->in_reset, 0);
-	atomic_set(&hdev->fd_open_cnt, 0);
 	atomic_set(&hdev->cs_active_cnt, 0);
 
 	return 0;
@@ -266,6 +267,8 @@ static void device_early_fini(struct hl_device *hdev)
 	mutex_destroy(&hdev->debug_lock);
 	mutex_destroy(&hdev->send_cpu_message_lock);
 
+	mutex_destroy(&hdev->fpriv_list_lock);
+
 	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
 
 	kfree(hdev->hl_chip_info);
@@ -277,8 +280,6 @@ static void device_early_fini(struct hl_device *hdev)
 
 	if (hdev->asic_funcs->early_fini)
 		hdev->asic_funcs->early_fini(hdev);
-
-	mutex_destroy(&hdev->fd_open_cnt_lock);
 }
 
 static void set_freq_to_low_job(struct work_struct *work)
@@ -286,8 +287,12 @@ static void set_freq_to_low_job(struct work_struct *work)
 	struct hl_device *hdev = container_of(work, struct hl_device,
 						work_freq.work);
 
-	if (atomic_read(&hdev->fd_open_cnt) == 0)
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	if (!hdev->compute_ctx)
 		hl_device_set_frequency(hdev, PLL_LOW);
+
+	mutex_unlock(&hdev->fpriv_list_lock);
 
 	schedule_delayed_work(&hdev->work_freq,
 			usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
@@ -338,7 +343,7 @@ static int device_late_init(struct hl_device *hdev)
 	hdev->high_pll = hdev->asic_prop.high_pll;
 
 	/* force setting to low frequency */
-	atomic_set(&hdev->curr_pll_profile, PLL_LOW);
+	hdev->curr_pll_profile = PLL_LOW;
 
 	if (hdev->pm_mng_profile == PM_AUTO)
 		hdev->asic_funcs->set_pll_profile(hdev, PLL_LOW);
@@ -387,37 +392,25 @@ static void device_late_fini(struct hl_device *hdev)
  * @hdev: pointer to habanalabs device structure
  * @freq: the new frequency value
  *
- * Change the frequency if needed.
- * We allose to set PLL to low only if there is no user process
- * Returns 0 if no change was done, otherwise returns 1;
+ * Change the frequency if needed. This function has no protection against
+ * concurrency, therefore it is assumed that the calling function has protected
+ * itself against the case of calling this function from multiple threads with
+ * different values
+ *
+ * Returns 0 if no change was done, otherwise returns 1
  */
 int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq)
 {
-	enum hl_pll_frequency old_freq =
-			(freq == PLL_HIGH) ? PLL_LOW : PLL_HIGH;
-	int ret;
-
-	if (hdev->pm_mng_profile == PM_MANUAL)
+	if ((hdev->pm_mng_profile == PM_MANUAL) ||
+			(hdev->curr_pll_profile == freq))
 		return 0;
-
-	ret = atomic_cmpxchg(&hdev->curr_pll_profile, old_freq, freq);
-	if (ret == freq)
-		return 0;
-
-	/*
-	 * in case we want to lower frequency, check if device is not
-	 * opened. We must have a check here to workaround race condition with
-	 * hl_device_open
-	 */
-	if ((freq == PLL_LOW) && (atomic_read(&hdev->fd_open_cnt) > 0)) {
-		atomic_set(&hdev->curr_pll_profile, PLL_HIGH);
-		return 0;
-	}
 
 	dev_dbg(hdev->dev, "Changing device frequency to %s\n",
 		freq == PLL_HIGH ? "high" : "low");
 
 	hdev->asic_funcs->set_pll_profile(hdev, freq);
+
+	hdev->curr_pll_profile = freq;
 
 	return 1;
 }
@@ -449,19 +442,8 @@ int hl_device_set_debug_mode(struct hl_device *hdev, bool enable)
 		goto out;
 	}
 
-	mutex_lock(&hdev->fd_open_cnt_lock);
-
-	if (atomic_read(&hdev->fd_open_cnt) > 1) {
-		dev_err(hdev->dev,
-			"Failed to enable debug mode. More then a single user is using the device\n");
-		rc = -EPERM;
-		goto unlock_fd_open_lock;
-	}
-
 	hdev->in_debug = 1;
 
-unlock_fd_open_lock:
-	mutex_unlock(&hdev->fd_open_cnt_lock);
 out:
 	mutex_unlock(&hdev->debug_lock);
 
@@ -568,6 +550,7 @@ disable_device:
 static void device_kill_open_processes(struct hl_device *hdev)
 {
 	u16 pending_total, pending_cnt;
+	struct hl_fpriv	*hpriv;
 	struct task_struct *task = NULL;
 
 	if (hdev->pldm)
@@ -575,31 +558,29 @@ static void device_kill_open_processes(struct hl_device *hdev)
 	else
 		pending_total = HL_PENDING_RESET_PER_SEC;
 
-	pending_cnt = pending_total;
-
-	/* Flush all processes that are inside hl_open */
-	mutex_lock(&hdev->fd_open_cnt_lock);
-
-	while ((atomic_read(&hdev->fd_open_cnt)) && (pending_cnt)) {
-
-		pending_cnt--;
-
-		dev_info(hdev->dev,
-			"Can't HARD reset, waiting for user to close FD\n");
+	/* Giving time for user to close FD, and for processes that are inside
+	 * hl_device_open to finish
+	 */
+	if (!list_empty(&hdev->fpriv_list))
 		ssleep(1);
-	}
 
-	if (atomic_read(&hdev->fd_open_cnt)) {
-		task = get_pid_task(hdev->compute_ctx->hpriv->taskpid,
-					PIDTYPE_PID);
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	/* This section must be protected because we are dereferencing
+	 * pointers that are freed if the process exits
+	 */
+	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_node) {
+		task = get_pid_task(hpriv->taskpid, PIDTYPE_PID);
 		if (task) {
-			dev_info(hdev->dev, "Killing user processes\n");
+			dev_info(hdev->dev, "Killing user process\n");
 			send_sig(SIGKILL, task, 1);
-			msleep(100);
+			usleep_range(1000, 10000);
 
 			put_task_struct(task);
 		}
 	}
+
+	mutex_unlock(&hdev->fpriv_list_lock);
 
 	/* We killed the open users, but because the driver cleans up after the
 	 * user contexts are closed (e.g. mmu mappings), we need to wait again
@@ -609,19 +590,18 @@ static void device_kill_open_processes(struct hl_device *hdev)
 
 	pending_cnt = pending_total;
 
-	while ((atomic_read(&hdev->fd_open_cnt)) && (pending_cnt)) {
+	while ((!list_empty(&hdev->fpriv_list)) && (pending_cnt)) {
+		dev_info(hdev->dev,
+			"Waiting for all unmap operations to finish before hard reset\n");
 
 		pending_cnt--;
 
 		ssleep(1);
 	}
 
-	if (atomic_read(&hdev->fd_open_cnt))
+	if (!list_empty(&hdev->fpriv_list))
 		dev_crit(hdev->dev,
 			"Going to hard reset with open user contexts\n");
-
-	mutex_unlock(&hdev->fd_open_cnt_lock);
-
 }
 
 static void device_hard_reset_pending(struct work_struct *work)
@@ -677,12 +657,15 @@ int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 		/* This also blocks future CS/VM/JOB completion operations */
 		hdev->disabled = true;
 
-		/*
-		 * Flush anyone that is inside the critical section of enqueue
+		/* Flush anyone that is inside the critical section of enqueue
 		 * jobs to the H/W
 		 */
 		hdev->asic_funcs->hw_queues_lock(hdev);
 		hdev->asic_funcs->hw_queues_unlock(hdev);
+
+		/* Flush anyone that is inside device open */
+		mutex_lock(&hdev->fpriv_list_lock);
+		mutex_unlock(&hdev->fpriv_list_lock);
 
 		dev_err(hdev->dev, "Going to RESET device!\n");
 	}
@@ -759,11 +742,15 @@ again:
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		hl_cq_reset(hdev, &hdev->completion_queue[i]);
 
+	mutex_lock(&hdev->fpriv_list_lock);
+
 	/* Make sure the context switch phase will run again */
 	if (hdev->compute_ctx) {
 		atomic_set(&hdev->compute_ctx->thread_ctx_switch_token, 1);
 		hdev->compute_ctx->thread_ctx_switch_wait_token = 0;
 	}
+
+	mutex_unlock(&hdev->fpriv_list_lock);
 
 	/* Finished tear-down, starting to re-initialize */
 
@@ -1125,12 +1112,15 @@ void hl_device_fini(struct hl_device *hdev)
 	/* Mark device as disabled */
 	hdev->disabled = true;
 
-	/*
-	 * Flush anyone that is inside the critical section of enqueue
+	/* Flush anyone that is inside the critical section of enqueue
 	 * jobs to the H/W
 	 */
 	hdev->asic_funcs->hw_queues_lock(hdev);
 	hdev->asic_funcs->hw_queues_unlock(hdev);
+
+	/* Flush anyone that is inside device open */
+	mutex_lock(&hdev->fpriv_list_lock);
+	mutex_unlock(&hdev->fpriv_list_lock);
 
 	hdev->hard_reset_pending = true;
 
