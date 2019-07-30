@@ -152,7 +152,7 @@ static void clear_pages_dma_fence_cb(struct dma_fence *fence,
 static void clear_pages_worker(struct work_struct *work)
 {
 	struct clear_pages_work *w = container_of(work, typeof(*w), work);
-	struct drm_i915_private *i915 = w->ce->gem_context->i915;
+	struct drm_i915_private *i915 = w->ce->engine->i915;
 	struct drm_i915_gem_object *obj = w->sleeve->vma->obj;
 	struct i915_vma *vma = w->sleeve->vma;
 	struct i915_request *rq;

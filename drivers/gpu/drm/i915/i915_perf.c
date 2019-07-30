@@ -1667,7 +1667,7 @@ gen8_update_reg_state_unlocked(struct intel_context *ce,
 			       u32 *reg_state,
 			       const struct i915_oa_config *oa_config)
 {
-	struct drm_i915_private *i915 = ce->gem_context->i915;
+	struct drm_i915_private *i915 = ce->engine->i915;
 	u32 ctx_oactxctrl = i915->perf.oa.ctx_oactxctrl_offset;
 	u32 ctx_flexeu0 = i915->perf.oa.ctx_flexeu0_offset;
 	/* The MMIO offsets for Flex EU registers aren't contiguous */
