@@ -607,7 +607,10 @@ static void gen11_dsi_map_pll(struct intel_encoder *encoder,
 	I915_WRITE(ICL_DPCLKA_CFGCR0, val);
 
 	for_each_dsi_phy(phy, intel_dsi->phys) {
-		val &= ~ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
+		if (INTEL_GEN(dev_priv) >= 12)
+			val |= ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
+		else
+			val &= ~ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
 	}
 	I915_WRITE(ICL_DPCLKA_CFGCR0, val);
 
@@ -951,6 +954,8 @@ static void
 gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	/* step 4a: power up all lanes of the DDI used by DSI */
 	gen11_dsi_power_up_lanes(encoder);
 
@@ -973,7 +978,8 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 	gen11_dsi_configure_transcoder(encoder, pipe_config);
 
 	/* Step 4l: Gate DDI clocks */
-	gen11_dsi_gate_clocks(encoder);
+	if (IS_GEN(dev_priv, 11))
+		gen11_dsi_gate_clocks(encoder);
 }
 
 static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
