@@ -928,11 +928,8 @@ static int stm32_init_port(struct stm32_port *stm32port,
 	port->fifosize	= stm32port->info->cfg.fifosize;
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret <= 0) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Can't get event IRQ: %d\n", ret);
-		return ret ? ret : -ENODEV;
-	}
+	if (ret <= 0)
+		return ret ? : -ENODEV;
 	port->irq = ret;
 
 	port->rs485_config = stm32_config_rs485;
@@ -941,14 +938,8 @@ static int stm32_init_port(struct stm32_port *stm32port,
 
 	if (stm32port->info->cfg.has_wakeup) {
 		stm32port->wakeirq = platform_get_irq(pdev, 1);
-		if (stm32port->wakeirq <= 0 && stm32port->wakeirq != -ENXIO) {
-			if (stm32port->wakeirq != -EPROBE_DEFER)
-				dev_err(&pdev->dev,
-					"Can't get event wake IRQ: %d\n",
-					stm32port->wakeirq);
-			return stm32port->wakeirq ? stm32port->wakeirq :
-				-ENODEV;
-		}
+		if (stm32port->wakeirq <= 0 && stm32port->wakeirq != -ENXIO)
+			return stm32port->wakeirq ? : -ENODEV;
 	}
 
 	stm32port->fifoen = stm32port->info->cfg.has_fifo;

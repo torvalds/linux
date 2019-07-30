@@ -1307,10 +1307,8 @@ static int tegra_uart_probe(struct platform_device *pdev)
 
 	u->iotype = UPIO_MEM32;
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Couldn't get IRQ\n");
+	if (ret < 0)
 		return ret;
-	}
 	u->irq = ret;
 	u->regshift = 2;
 	ret = uart_add_one_port(&tegra_uart_driver, u);
