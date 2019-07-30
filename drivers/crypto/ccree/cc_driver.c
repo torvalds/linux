@@ -338,10 +338,8 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	/* Then IRQ */
 	new_drvdata->irq = platform_get_irq(plat_dev, 0);
-	if (new_drvdata->irq < 0) {
-		dev_err(dev, "Failed getting IRQ resource\n");
+	if (new_drvdata->irq < 0)
 		return new_drvdata->irq;
-	}
 
 	init_completion(&new_drvdata->hw_queue_avail);
 

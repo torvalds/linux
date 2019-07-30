@@ -1281,7 +1281,6 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	/* Get the IRQ */
 	tdes_dd->irq = platform_get_irq(pdev,  0);
 	if (tdes_dd->irq < 0) {
-		dev_err(dev, "no IRQ resource info\n");
 		err = tdes_dd->irq;
 		goto res_err;
 	}

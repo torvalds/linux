@@ -495,10 +495,8 @@ static int mtk_crypto_probe(struct platform_device *pdev)
 
 	for (i = 0; i < MTK_IRQ_NUM; i++) {
 		cryp->irq[i] = platform_get_irq(pdev, i);
-		if (cryp->irq[i] < 0) {
-			dev_err(cryp->dev, "no IRQ:%d resource info\n", i);
+		if (cryp->irq[i] < 0)
 			return cryp->irq[i];
-		}
 	}
 
 	cryp->clk_cryp = devm_clk_get(&pdev->dev, "cryp");
