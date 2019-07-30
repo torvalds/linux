@@ -576,6 +576,8 @@ static const unsigned hscin2_s_pins[] = {124, 125, 126, 127};
 static const int hscin2_s_muxvals[] = {3, 3, 3, 3};
 static const unsigned hscin3_s_pins[] = {129, 130, 131, 132};
 static const int hscin3_s_muxvals[] = {3, 3, 3, 3};
+static const unsigned hscin4_s_pins[] = {80, 81, 82, 83};
+static const int hscin4_s_muxvals[] = {3, 3, 3, 3};
 static const unsigned hscout0_ci_pins[] = {113, 114, 115, 116, 117, 118, 119,
 					   120, 121, 122, 123};
 static const int hscout0_ci_muxvals[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
@@ -679,6 +681,7 @@ static const struct uniphier_pinctrl_group uniphier_ld20_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(hscin1_s),
 	UNIPHIER_PINCTRL_GROUP(hscin2_s),
 	UNIPHIER_PINCTRL_GROUP(hscin3_s),
+	UNIPHIER_PINCTRL_GROUP(hscin4_s),
 	UNIPHIER_PINCTRL_GROUP(hscout0_ci),
 	UNIPHIER_PINCTRL_GROUP(hscout0_p),
 	UNIPHIER_PINCTRL_GROUP(hscout0_s),
@@ -721,6 +724,7 @@ static const char * const hscin0_groups[] = {"hscin0_ci",
 static const char * const hscin1_groups[] = {"hscin1_p", "hscin1_s"};
 static const char * const hscin2_groups[] = {"hscin2_s"};
 static const char * const hscin3_groups[] = {"hscin3_s"};
+static const char * const hscin4_groups[] = {"hscin4_s"};
 static const char * const hscout0_groups[] = {"hscout0_ci",
 					      "hscout0_p",
 					      "hscout0_s"};
@@ -757,6 +761,7 @@ static const struct uniphier_pinmux_function uniphier_ld20_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(hscin1),
 	UNIPHIER_PINMUX_FUNCTION(hscin2),
 	UNIPHIER_PINMUX_FUNCTION(hscin3),
+	UNIPHIER_PINMUX_FUNCTION(hscin4),
 	UNIPHIER_PINMUX_FUNCTION(hscout0),
 	UNIPHIER_PINMUX_FUNCTION(hscout1),
 	UNIPHIER_PINMUX_FUNCTION(i2c0),
