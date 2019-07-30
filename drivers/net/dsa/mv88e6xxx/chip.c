@@ -430,7 +430,7 @@ int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
 		return 0;
 
 	/* Port's MAC control must not be changed unless the link is down */
-	err = chip->info->ops->port_set_link(chip, port, 0);
+	err = chip->info->ops->port_set_link(chip, port, LINK_FORCED_DOWN);
 	if (err)
 		return err;
 
