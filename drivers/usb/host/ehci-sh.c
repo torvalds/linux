@@ -85,9 +85,6 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
-		dev_err(&pdev->dev,
-			"Found HC with no IRQ. Check %s setup!\n",
-			dev_name(&pdev->dev));
 		ret = -ENODEV;
 		goto fail_create_hcd;
 	}

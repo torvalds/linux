@@ -3061,11 +3061,8 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	/* Get IRQs */
 	for (i = 0; i < 4; i++) {
 		udc->udp_irq[i] = platform_get_irq(pdev, i);
-		if (udc->udp_irq[i] < 0) {
-			dev_err(udc->dev,
-				"irq resource %d not available!\n", i);
+		if (udc->udp_irq[i] < 0)
 			return udc->udp_irq[i];
-		}
 	}
 
 	udc->udp_baseaddr = devm_ioremap_resource(dev, res);

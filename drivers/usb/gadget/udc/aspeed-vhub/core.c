@@ -348,7 +348,6 @@ static int ast_vhub_probe(struct platform_device *pdev)
 	/* Find interrupt and install handler */
 	vhub->irq = platform_get_irq(pdev, 0);
 	if (vhub->irq < 0) {
-		dev_err(&pdev->dev, "Failed to get interrupt\n");
 		rc = vhub->irq;
 		goto err;
 	}
