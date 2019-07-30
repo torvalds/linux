@@ -900,7 +900,7 @@ cxgbit_handle_immediate_data(struct iscsi_cmd *cmd, struct iscsi_scsi_req *hdr,
 
 		sg_init_table(&ccmd->sg, 1);
 		sg_set_page(&ccmd->sg, skb_frag_page(dfrag),
-				skb_frag_size(dfrag), dfrag->page_offset);
+				skb_frag_size(dfrag), skb_frag_off(dfrag));
 		get_page(skb_frag_page(dfrag));
 
 		cmd->se_cmd.t_data_sg = &ccmd->sg;
@@ -1403,7 +1403,7 @@ static void cxgbit_lro_skb_dump(struct sk_buff *skb)
 			pdu_cb->ddigest, pdu_cb->frags);
 	for (i = 0; i < ssi->nr_frags; i++)
 		pr_info("skb 0x%p, frag %d, off %u, sz %u.\n",
-			skb, i, ssi->frags[i].page_offset,
+			skb, i, skb_frag_off(&ssi->frags[i]),
 			skb_frag_size(&ssi->frags[i]));
 }
 

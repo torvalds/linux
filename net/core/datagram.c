@@ -442,8 +442,8 @@ static int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 
 			if (copy > len)
 				copy = len;
-			n = cb(vaddr + frag->page_offset +
-				offset - start, copy, data, to);
+			n = cb(vaddr + skb_frag_off(frag) + offset - start,
+			       copy, data, to);
 			kunmap(page);
 			offset += n;
 			if (n != copy)
@@ -573,7 +573,7 @@ int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
 			if (copy > len)
 				copy = len;
 			copied = copy_page_from_iter(skb_frag_page(frag),
-					  frag->page_offset + offset - start,
+					  skb_frag_off(frag) + offset - start,
 					  copy, from);
 			if (copied != copy)
 				goto fault;

@@ -642,7 +642,7 @@ do_frag:
 
 			ret = kernel_sendpage(psock->sk->sk_socket,
 					      skb_frag_page(frag),
-					      frag->page_offset + frag_offset,
+					      skb_frag_off(frag) + frag_offset,
 					      skb_frag_size(frag) - frag_offset,
 					      MSG_DONTWAIT);
 			if (ret <= 0) {

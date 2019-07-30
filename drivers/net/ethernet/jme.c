@@ -2040,8 +2040,8 @@ jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 		ctxbi = txbi + ((idx + i + 2) & (mask));
 
 		ret = jme_fill_tx_map(jme->pdev, ctxdesc, ctxbi,
-				skb_frag_page(frag),
-				frag->page_offset, skb_frag_size(frag), hidma);
+				      skb_frag_page(frag), skb_frag_off(frag),
+				      skb_frag_size(frag), hidma);
 		if (ret) {
 			jme_drop_tx_map(jme, idx, i);
 			goto out;

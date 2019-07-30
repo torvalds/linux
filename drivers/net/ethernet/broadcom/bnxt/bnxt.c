@@ -957,7 +957,7 @@ static struct sk_buff *bnxt_rx_page_skb(struct bnxt *bp,
 
 	frag = &skb_shinfo(skb)->frags[0];
 	skb_frag_size_sub(frag, payload);
-	frag->page_offset += payload;
+	skb_frag_off_add(frag, payload);
 	skb->data_len -= payload;
 	skb->tail += payload;
 
