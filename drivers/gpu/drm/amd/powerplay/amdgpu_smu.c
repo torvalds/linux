@@ -451,6 +451,7 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int
 		     void *table_data, bool drv2smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
+	struct amdgpu_device *adev = smu->adev;
 	struct smu_table *table = NULL;
 	int ret = 0;
 	int table_id = smu_table_get_index(smu, table_index);
@@ -477,6 +478,9 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int
 					  table_id | ((argument & 0xFFFF) << 16));
 	if (ret)
 		return ret;
+
+	/* flush hdp cache */
+	adev->nbio_funcs->hdp_flush(adev, NULL);
 
 	if (!drv2smu)
 		memcpy(table_data, table->cpu_addr, table->size);
