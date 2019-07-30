@@ -46,8 +46,8 @@ static void dump_test_log(const struct prog_test_def *test, bool failed)
 			if (env.log_buf[env.log_cnt - 1] != '\n')
 				fprintf(stdout, "\n");
 		}
-		env.log_cnt = 0;
 	}
+	env.log_cnt = 0;
 }
 
 void test__end_subtest()
