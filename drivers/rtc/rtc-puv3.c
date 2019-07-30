@@ -186,16 +186,12 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 
 	/* find the IRQs */
 	puv3_rtc_tickno = platform_get_irq(pdev, 1);
-	if (puv3_rtc_tickno < 0) {
-		dev_err(&pdev->dev, "no irq for rtc tick\n");
+	if (puv3_rtc_tickno < 0)
 		return -ENOENT;
-	}
 
 	puv3_rtc_alarmno = platform_get_irq(pdev, 0);
-	if (puv3_rtc_alarmno < 0) {
-		dev_err(&pdev->dev, "no irq for alarm\n");
+	if (puv3_rtc_alarmno < 0)
 		return -ENOENT;
-	}
 
 	dev_dbg(&pdev->dev, "PKUnity_rtc: tick irq %d, alarm irq %d\n",
 		 puv3_rtc_tickno, puv3_rtc_alarmno);

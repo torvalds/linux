@@ -323,10 +323,8 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 		rtc->type = id->driver_data;
 
 	rtc->irq = platform_get_irq(pdev, 0);
-	if (rtc->irq < 0) {
-		dev_err(&pdev->dev, "Failed to get platform irq\n");
+	if (rtc->irq < 0)
 		return -ENOENT;
-	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rtc->base = devm_ioremap_resource(&pdev->dev, mem);

@@ -290,10 +290,8 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(info->base);
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret <= 0) {
-		dev_err(&pdev->dev, "failed to get platform IRQ: %d\n", ret);
+	if (ret <= 0)
 		return ret;
-	}
 
 	info->irq = ret;
 

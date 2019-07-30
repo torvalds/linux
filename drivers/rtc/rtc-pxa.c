@@ -324,15 +324,11 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 	}
 
 	sa1100_rtc->irq_1hz = platform_get_irq(pdev, 0);
-	if (sa1100_rtc->irq_1hz < 0) {
-		dev_err(dev, "No 1Hz IRQ resource defined\n");
+	if (sa1100_rtc->irq_1hz < 0)
 		return -ENXIO;
-	}
 	sa1100_rtc->irq_alarm = platform_get_irq(pdev, 1);
-	if (sa1100_rtc->irq_alarm < 0) {
-		dev_err(dev, "No alarm IRQ resource defined\n");
+	if (sa1100_rtc->irq_alarm < 0)
 		return -ENXIO;
-	}
 
 	pxa_rtc->base = devm_ioremap(dev, pxa_rtc->ress->start,
 				resource_size(pxa_rtc->ress));
