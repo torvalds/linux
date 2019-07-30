@@ -33,7 +33,6 @@ MODULE_PARM_DESC(eco_mode, "Turn on Eco mode (less bright, more silent)");
 #define DRIVER_DATE		"2019"
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		0
-#define DRIVER_PATCHLEVEL	1
 
 /*
  * The DLP has an actual width of 854 pixels, but that is not a multiple
@@ -746,7 +745,7 @@ static int gm12u320_usb_probe(struct usb_interface *interface,
 	if (ret)
 		goto err_put;
 
-	drm_fbdev_generic_setup(dev, dev->mode_config.preferred_depth);
+	drm_fbdev_generic_setup(dev, 0);
 
 	return 0;
 
@@ -765,9 +764,8 @@ static void gm12u320_usb_disconnect(struct usb_interface *interface)
 	drm_dev_put(dev);
 }
 
-#ifdef CONFIG_PM
-static int gm12u320_suspend(struct usb_interface *interface,
-			    pm_message_t message)
+static __maybe_unused int gm12u320_suspend(struct usb_interface *interface,
+					   pm_message_t message)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
 	struct gm12u320_device *gm12u320 = dev->dev_private;
@@ -778,7 +776,7 @@ static int gm12u320_suspend(struct usb_interface *interface,
 	return 0;
 }
 
-static int gm12u320_resume(struct usb_interface *interface)
+static __maybe_unused int gm12u320_resume(struct usb_interface *interface)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
 	struct gm12u320_device *gm12u320 = dev->dev_private;
@@ -789,7 +787,6 @@ static int gm12u320_resume(struct usb_interface *interface)
 
 	return 0;
 }
-#endif
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1de1, 0xc102) },
