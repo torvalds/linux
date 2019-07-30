@@ -1393,7 +1393,7 @@ br_multicast_leave_group(struct net_bridge *br,
 			del_timer(&p->timer);
 			kfree_rcu(p, rcu);
 			br_mdb_notify(br->dev, port, group, RTM_DELMDB,
-				      p->flags);
+				      p->flags | MDB_PG_FLAGS_FAST_LEAVE);
 
 			if (!mp->ports && !mp->host_joined &&
 			    netif_running(br->dev))

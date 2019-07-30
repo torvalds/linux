@@ -60,6 +60,8 @@ static void __mdb_entry_fill_flags(struct br_mdb_entry *e, unsigned char flags)
 	e->flags = 0;
 	if (flags & MDB_PG_FLAGS_OFFLOAD)
 		e->flags |= MDB_FLAGS_OFFLOAD;
+	if (flags & MDB_PG_FLAGS_FAST_LEAVE)
+		e->flags |= MDB_FLAGS_FAST_LEAVE;
 }
 
 static void __mdb_entry_to_br_ip(struct br_mdb_entry *entry, struct br_ip *ip)

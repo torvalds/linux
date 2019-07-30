@@ -199,6 +199,7 @@ struct net_bridge_fdb_entry {
 
 #define MDB_PG_FLAGS_PERMANENT	BIT(0)
 #define MDB_PG_FLAGS_OFFLOAD	BIT(1)
+#define MDB_PG_FLAGS_FAST_LEAVE	BIT(2)
 
 struct net_bridge_port_group {
 	struct net_bridge_port		*port;
