@@ -14,7 +14,6 @@
 #include <linux/videodev2.h>
 #include <linux/slab.h>
 
-#include <media/videobuf-dma-contig.h>
 #include <media/v4l2-device.h>
 
 #include <video/omapvrfb.h>
@@ -40,7 +39,7 @@ static int omap_vout_allocate_vrfb_buffers(struct omap_vout_device *vout,
 						&vout->smsshado_phy_addr[i]);
 		}
 		if (!vout->smsshado_virt_addr[i] && startindex != -1) {
-			if (V4L2_MEMORY_MMAP == vout->memory && i >= startindex)
+			if (vout->vq.memory == V4L2_MEMORY_MMAP && i >= startindex)
 				break;
 		}
 		if (!vout->smsshado_virt_addr[i]) {
@@ -109,8 +108,7 @@ int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
 			dev_info(&pdev->dev, ": VRFB allocation failed\n");
 			for (j = 0; j < i; j++)
 				omap_vrfb_release_ctx(&vout->vrfb_context[j]);
-			ret = -ENOMEM;
-			goto free_buffers;
+			return -ENOMEM;
 		}
 	}
 
@@ -155,8 +153,10 @@ int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
 
 	init_waitqueue_head(&vout->vrfb_dma_tx.wait);
 
-	/* statically allocated the VRFB buffer is done through
-	   commands line aruments */
+	/*
+	 * statically allocated the VRFB buffer is done through
+	 * command line arguments
+	 */
 	if (static_vrfb_allocation) {
 		if (omap_vout_allocate_vrfb_buffers(vout, &vrfb_num_bufs, -1)) {
 			ret =  -ENOMEM;
@@ -169,9 +169,6 @@ int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
 release_vrfb_ctx:
 	for (j = 0; j < VRFB_NUM_BUFS; j++)
 		omap_vrfb_release_ctx(&vout->vrfb_context[j]);
-free_buffers:
-	omap_vout_free_buffers(vout);
-
 	return ret;
 }
 
@@ -231,13 +228,14 @@ int omap_vout_vrfb_buffer_setup(struct omap_vout_device *vout,
 }
 
 int omap_vout_prepare_vrfb(struct omap_vout_device *vout,
-			   struct videobuf_buffer *vb)
+			   struct vb2_buffer *vb)
 {
 	struct dma_async_tx_descriptor *tx;
 	enum dma_ctrl_flags flags = DMA_PREP_INTERRUPT | DMA_CTRL_ACK;
 	struct dma_chan *chan = vout->vrfb_dma_tx.chan;
 	struct dma_interleaved_template *xt = vout->vrfb_dma_tx.xt;
 	dma_cookie_t cookie;
+	dma_addr_t buf_phy_addr = vb2_dma_contig_plane_dma_addr(vb, 0);
 	enum dma_status status;
 	enum dss_rotation rotation;
 	size_t dst_icg;
@@ -256,8 +254,8 @@ int omap_vout_prepare_vrfb(struct omap_vout_device *vout,
 	dst_icg = ((MAX_PIXELS_PER_LINE * pixsize) -
 		  (vout->pix.width * vout->bpp)) + 1;
 
-	xt->src_start = vout->buf_phy_addr[vb->i];
-	xt->dst_start = vout->vrfb_context[vb->i].paddr[0];
+	xt->src_start = buf_phy_addr;
+	xt->dst_start = vout->vrfb_context[vb->index].paddr[0];
 
 	xt->numf = vout->pix.height;
 	xt->frame_size = 1;
@@ -308,8 +306,8 @@ int omap_vout_prepare_vrfb(struct omap_vout_device *vout,
 	/* Store buffers physical address into an array. Addresses
 	 * from this array will be used to configure DSS */
 	rotation = calc_rotation(vout);
-	vout->queued_buf_addr[vb->i] = (u8 *)
-		vout->vrfb_context[vb->i].paddr[rotation];
+	vout->queued_buf_addr[vb->index] = (u8 *)
+		vout->vrfb_context[vb->index].paddr[rotation];
 	return 0;
 }
 
