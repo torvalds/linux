@@ -125,14 +125,18 @@ __cvdso_clock_gettime32(clockid_t clock, struct old_timespec32 *res)
 
 	ret = __cvdso_clock_gettime_common(clock, &ts);
 
+#ifdef VDSO_HAS_32BIT_FALLBACK
+	if (unlikely(ret))
+		return clock_gettime32_fallback(clock, res);
+#else
 	if (unlikely(ret))
 		ret = clock_gettime_fallback(clock, &ts);
+#endif
 
 	if (likely(!ret)) {
 		res->tv_sec = ts.tv_sec;
 		res->tv_nsec = ts.tv_nsec;
 	}
-
 	return ret;
 }
 
@@ -232,8 +236,14 @@ __cvdso_clock_getres_time32(clockid_t clock, struct old_timespec32 *res)
 	int ret;
 
 	ret = __cvdso_clock_getres_common(clock, &ts);
+
+#ifdef VDSO_HAS_32BIT_FALLBACK
+	if (unlikely(ret))
+		return clock_getres32_fallback(clock, res);
+#else
 	if (unlikely(ret))
 		ret = clock_getres_fallback(clock, &ts);
+#endif
 
 	if (likely(!ret)) {
 		res->tv_sec = ts.tv_sec;
