@@ -59,7 +59,7 @@ static void hpriv_release(struct kref *ref)
 	atomic_dec(&hdev->fd_open_cnt);
 
 	/* This allows a new user context to open the device */
-	hdev->user_ctx = NULL;
+	hdev->compute_ctx = NULL;
 }
 
 void hl_hpriv_get(struct hl_fpriv *hpriv)
@@ -590,7 +590,7 @@ static void device_kill_open_processes(struct hl_device *hdev)
 	}
 
 	if (atomic_read(&hdev->fd_open_cnt)) {
-		task = get_pid_task(hdev->user_ctx->hpriv->taskpid,
+		task = get_pid_task(hdev->compute_ctx->hpriv->taskpid,
 					PIDTYPE_PID);
 		if (task) {
 			dev_info(hdev->dev, "Killing user processes\n");
@@ -760,9 +760,9 @@ again:
 		hl_cq_reset(hdev, &hdev->completion_queue[i]);
 
 	/* Make sure the context switch phase will run again */
-	if (hdev->user_ctx) {
-		atomic_set(&hdev->user_ctx->thread_ctx_switch_token, 1);
-		hdev->user_ctx->thread_ctx_switch_wait_token = 0;
+	if (hdev->compute_ctx) {
+		atomic_set(&hdev->compute_ctx->thread_ctx_switch_token, 1);
+		hdev->compute_ctx->thread_ctx_switch_wait_token = 0;
 	}
 
 	/* Finished tear-down, starting to re-initialize */
@@ -793,7 +793,7 @@ again:
 			goto out_err;
 		}
 
-		hdev->user_ctx = NULL;
+		hdev->compute_ctx = NULL;
 
 		rc = hl_ctx_init(hdev, hdev->kernel_ctx, true);
 		if (rc) {
@@ -970,7 +970,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto mmu_fini;
 	}
 
-	hdev->user_ctx = NULL;
+	hdev->compute_ctx = NULL;
 
 	rc = hl_ctx_init(hdev, hdev->kernel_ctx, true);
 	if (rc) {

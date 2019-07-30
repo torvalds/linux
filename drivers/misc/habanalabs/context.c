@@ -26,12 +26,13 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		dma_fence_put(ctx->cs_pending[i]);
 
 	if (ctx->asid != HL_KERNEL_ASID_ID) {
-		/*
-		 * The engines are stopped as there is no executing CS, but the
+		/* The engines are stopped as there is no executing CS, but the
 		 * Coresight might be still working by accessing addresses
 		 * related to the stopped engines. Hence stop it explicitly.
+		 * Stop only if this is the compute context, as there can be
+		 * only one compute context
 		 */
-		if (hdev->in_debug)
+		if ((hdev->in_debug) && (hdev->compute_ctx == ctx))
 			hl_device_set_debug_mode(hdev, false);
 
 		hl_vm_ctx_fini(ctx);
@@ -85,9 +86,11 @@ int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv)
 	hl_hpriv_get(hpriv);
 	ctx->hpriv = hpriv;
 
-	/* TODO: remove for multiple contexts */
+	/* TODO: remove for multiple contexts per process */
 	hpriv->ctx = ctx;
-	hdev->user_ctx = ctx;
+
+	/* TODO: remove the following line for multiple process support */
+	hdev->compute_ctx = ctx;
 
 	return 0;
 

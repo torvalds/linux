@@ -370,7 +370,7 @@ static int mmu_show(struct seq_file *s, void *data)
 	if (dev_entry->mmu_asid == HL_KERNEL_ASID_ID)
 		ctx = hdev->kernel_ctx;
 	else
-		ctx = hdev->user_ctx;
+		ctx = hdev->compute_ctx;
 
 	if (!ctx) {
 		dev_err(hdev->dev, "no ctx available\n");
@@ -533,7 +533,7 @@ out:
 static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 				u64 *phys_addr)
 {
-	struct hl_ctx *ctx = hdev->user_ctx;
+	struct hl_ctx *ctx = hdev->compute_ctx;
 	u64 hop_addr, hop_pte_addr, hop_pte;
 	u64 offset_mask = HOP4_MASK | OFFSET_MASK;
 	int rc = 0;
