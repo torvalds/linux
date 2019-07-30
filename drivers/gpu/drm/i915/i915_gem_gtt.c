@@ -2446,18 +2446,18 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 		pte_flags |= PTE_READ_ONLY;
 
 	if (flags & I915_VMA_LOCAL_BIND) {
-		struct i915_ppgtt *appgtt = i915->mm.aliasing_ppgtt;
+		struct i915_ppgtt *alias = i915_vm_to_ggtt(vma->vm)->alias;
 
 		if (!(vma->flags & I915_VMA_LOCAL_BIND)) {
-			ret = appgtt->vm.allocate_va_range(&appgtt->vm,
-							   vma->node.start,
-							   vma->size);
+			ret = alias->vm.allocate_va_range(&alias->vm,
+							  vma->node.start,
+							  vma->size);
 			if (ret)
 				return ret;
 		}
 
-		appgtt->vm.insert_entries(&appgtt->vm, vma, cache_level,
-					  pte_flags);
+		alias->vm.insert_entries(&alias->vm, vma,
+					 cache_level, pte_flags);
 	}
 
 	if (flags & I915_VMA_GLOBAL_BIND) {
@@ -2485,7 +2485,8 @@ static void aliasing_gtt_unbind_vma(struct i915_vma *vma)
 	}
 
 	if (vma->flags & I915_VMA_LOCAL_BIND) {
-		struct i915_address_space *vm = &i915->mm.aliasing_ppgtt->vm;
+		struct i915_address_space *vm =
+			&i915_vm_to_ggtt(vma->vm)->alias->vm;
 
 		vm->clear_range(vm, vma->node.start, vma->size);
 	}
@@ -2542,13 +2543,12 @@ static void i915_gtt_color_adjust(const struct drm_mm_node *node,
 		*end -= I915_GTT_PAGE_SIZE;
 }
 
-static int init_aliasing_ppgtt(struct drm_i915_private *i915)
+static int init_aliasing_ppgtt(struct i915_ggtt *ggtt)
 {
-	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct i915_ppgtt *ppgtt;
 	int err;
 
-	ppgtt = i915_ppgtt_create(i915);
+	ppgtt = i915_ppgtt_create(ggtt->vm.i915);
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
 
@@ -2567,7 +2567,7 @@ static int init_aliasing_ppgtt(struct drm_i915_private *i915)
 	if (err)
 		goto err_ppgtt;
 
-	i915->mm.aliasing_ppgtt = ppgtt;
+	ggtt->alias = ppgtt;
 
 	GEM_BUG_ON(ggtt->vm.vma_ops.bind_vma != ggtt_bind_vma);
 	ggtt->vm.vma_ops.bind_vma = aliasing_gtt_bind_vma;
@@ -2582,14 +2582,14 @@ err_ppgtt:
 	return err;
 }
 
-static void fini_aliasing_ppgtt(struct drm_i915_private *i915)
+static void fini_aliasing_ppgtt(struct i915_ggtt *ggtt)
 {
-	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct drm_i915_private *i915 = ggtt->vm.i915;
 	struct i915_ppgtt *ppgtt;
 
 	mutex_lock(&i915->drm.struct_mutex);
 
-	ppgtt = fetch_and_zero(&i915->mm.aliasing_ppgtt);
+	ppgtt = fetch_and_zero(&ggtt->alias);
 	if (!ppgtt)
 		goto out;
 
@@ -2706,7 +2706,7 @@ int i915_init_ggtt(struct drm_i915_private *i915)
 		return ret;
 
 	if (INTEL_PPGTT(i915) == INTEL_PPGTT_ALIASING) {
-		ret = init_aliasing_ppgtt(i915);
+		ret = init_aliasing_ppgtt(&i915->ggtt);
 		if (ret)
 			cleanup_init_ggtt(&i915->ggtt);
 	}
@@ -2755,7 +2755,7 @@ void i915_ggtt_driver_release(struct drm_i915_private *i915)
 {
 	struct pagevec *pvec;
 
-	fini_aliasing_ppgtt(i915);
+	fini_aliasing_ppgtt(&i915->ggtt);
 
 	ggtt_cleanup_hw(&i915->ggtt);
 
@@ -3588,7 +3588,7 @@ int i915_gem_gtt_reserve(struct i915_address_space *vm,
 	GEM_BUG_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE));
 	GEM_BUG_ON(!IS_ALIGNED(offset, I915_GTT_MIN_ALIGNMENT));
 	GEM_BUG_ON(range_overflows(offset, size, vm->total));
-	GEM_BUG_ON(vm == &vm->i915->mm.aliasing_ppgtt->vm);
+	GEM_BUG_ON(vm == &vm->i915->ggtt.alias->vm);
 	GEM_BUG_ON(drm_mm_node_allocated(node));
 
 	node->size = size;
@@ -3685,7 +3685,7 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 	GEM_BUG_ON(start >= end);
 	GEM_BUG_ON(start > 0  && !IS_ALIGNED(start, I915_GTT_PAGE_SIZE));
 	GEM_BUG_ON(end < U64_MAX && !IS_ALIGNED(end, I915_GTT_PAGE_SIZE));
-	GEM_BUG_ON(vm == &vm->i915->mm.aliasing_ppgtt->vm);
+	GEM_BUG_ON(vm == &vm->i915->ggtt.alias->vm);
 	GEM_BUG_ON(drm_mm_node_allocated(node));
 
 	if (unlikely(range_overflows(start, size, end)))

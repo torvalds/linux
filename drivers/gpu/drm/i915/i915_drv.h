@@ -784,9 +784,6 @@ struct i915_gem_mm {
 	 */
 	struct vfsmount *gemfs;
 
-	/** PPGTT used for aliasing the PPGTT with the GTT */
-	struct i915_ppgtt *aliasing_ppgtt;
-
 	struct notifier_block oom_notifier;
 	struct notifier_block vmap_notifier;
 	struct shrinker shrinker;

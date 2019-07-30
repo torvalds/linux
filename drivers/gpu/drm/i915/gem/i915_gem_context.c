@@ -459,8 +459,7 @@ __create_context(struct drm_i915_private *i915)
 	i915_gem_context_set_recoverable(ctx);
 
 	ctx->ring_size = 4 * PAGE_SIZE;
-	ctx->desc_template =
-		default_desc_template(i915, &i915->mm.aliasing_ppgtt->vm);
+	ctx->desc_template = default_desc_template(i915, NULL);
 
 	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp); i++)
 		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;
@@ -2258,8 +2257,8 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		args->size = 0;
 		if (ctx->vm)
 			args->value = ctx->vm->total;
-		else if (to_i915(dev)->mm.aliasing_ppgtt)
-			args->value = to_i915(dev)->mm.aliasing_ppgtt->vm.total;
+		else if (to_i915(dev)->ggtt.alias)
+			args->value = to_i915(dev)->ggtt.alias->vm.total;
 		else
 			args->value = to_i915(dev)->ggtt.vm.total;
 		break;

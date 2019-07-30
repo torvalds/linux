@@ -1376,30 +1376,41 @@ static void ring_context_destroy(struct kref *ref)
 	intel_context_free(ce);
 }
 
-static int __context_pin_ppgtt(struct i915_gem_context *ctx)
+static struct i915_address_space *vm_alias(struct intel_context *ce)
+{
+	struct i915_address_space *vm;
+
+	vm = ce->gem_context->vm;
+	if (!vm)
+		vm = &ce->engine->gt->ggtt->alias->vm;
+
+	return vm;
+}
+
+static int __context_pin_ppgtt(struct intel_context *ce)
 {
 	struct i915_address_space *vm;
 	int err = 0;
 
-	vm = ctx->vm ?: &ctx->i915->mm.aliasing_ppgtt->vm;
+	vm = vm_alias(ce);
 	if (vm)
 		err = gen6_ppgtt_pin(i915_vm_to_ppgtt((vm)));
 
 	return err;
 }
 
-static void __context_unpin_ppgtt(struct i915_gem_context *ctx)
+static void __context_unpin_ppgtt(struct intel_context *ce)
 {
 	struct i915_address_space *vm;
 
-	vm = ctx->vm ?: &ctx->i915->mm.aliasing_ppgtt->vm;
+	vm = vm_alias(ce);
 	if (vm)
 		gen6_ppgtt_unpin(i915_vm_to_ppgtt(vm));
 }
 
 static void ring_context_unpin(struct intel_context *ce)
 {
-	__context_unpin_ppgtt(ce->gem_context);
+	__context_unpin_ppgtt(ce);
 }
 
 static struct i915_vma *
@@ -1493,7 +1504,7 @@ static int ring_context_pin(struct intel_context *ce)
 	if (err)
 		return err;
 
-	err = __context_pin_ppgtt(ce->gem_context);
+	err = __context_pin_ppgtt(ce);
 	if (err)
 		goto err_active;
 
@@ -1685,7 +1696,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 	return 0;
 }
 
-static int remap_l3(struct i915_request *rq, int slice)
+static int remap_l3_slice(struct i915_request *rq, int slice)
 {
 	u32 *cs, *remap_info = rq->i915->l3_parity.remap_info[slice];
 	int i;
@@ -1713,15 +1724,34 @@ static int remap_l3(struct i915_request *rq, int slice)
 	return 0;
 }
 
+static int remap_l3(struct i915_request *rq)
+{
+	struct i915_gem_context *ctx = rq->gem_context;
+	int i, err;
+
+	if (!ctx->remap_slice)
+		return 0;
+
+	for (i = 0; i < MAX_L3_SLICES; i++) {
+		if (!(ctx->remap_slice & BIT(i)))
+			continue;
+
+		err = remap_l3_slice(rq, i);
+		if (err)
+			return err;
+	}
+
+	ctx->remap_slice = 0;
+	return 0;
+}
+
 static int switch_context(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
-	struct i915_gem_context *ctx = rq->gem_context;
-	struct i915_address_space *vm =
-		ctx->vm ?: &rq->i915->mm.aliasing_ppgtt->vm;
+	struct i915_address_space *vm = vm_alias(rq->hw_context);
 	unsigned int unwind_mm = 0;
 	u32 hw_flags = 0;
-	int ret, i;
+	int ret;
 
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
@@ -1765,7 +1795,7 @@ static int switch_context(struct i915_request *rq)
 		 * as nothing actually executes using the kernel context; it
 		 * is purely used for flushing user contexts.
 		 */
-		if (i915_gem_context_is_kernel(ctx))
+		if (i915_gem_context_is_kernel(rq->gem_context))
 			hw_flags = MI_RESTORE_INHIBIT;
 
 		ret = mi_set_context(rq, hw_flags);
@@ -1799,18 +1829,9 @@ static int switch_context(struct i915_request *rq)
 			goto err_mm;
 	}
 
-	if (ctx->remap_slice) {
-		for (i = 0; i < MAX_L3_SLICES; i++) {
-			if (!(ctx->remap_slice & BIT(i)))
-				continue;
-
-			ret = remap_l3(rq, i);
-			if (ret)
-				goto err_mm;
-		}
-
-		ctx->remap_slice = 0;
-	}
+	ret = remap_l3(rq);
+	if (ret)
+		goto err_mm;
 
 	return 0;
 

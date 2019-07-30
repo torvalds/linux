@@ -394,6 +394,9 @@ struct i915_ggtt {
 	void __iomem *gsm;
 	void (*invalidate)(struct i915_ggtt *ggtt);
 
+	/** PPGTT used for aliasing the PPGTT with the GTT */
+	struct i915_ppgtt *alias;
+
 	bool do_idle_maps;
 
 	int mtrr;
