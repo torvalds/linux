@@ -85,6 +85,7 @@
 				clocks = <&l4_main_clk>;
 				clock-names = "apb_pclk";
 				resets = <&rst DMA_RESET>;
+				reset-names = "dma";
 			};
 		};
 
