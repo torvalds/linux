@@ -52,6 +52,7 @@ struct virtio_vsock_pkt {
 	/* socket refcnt not held, only use for cancellation */
 	struct vsock_sock *vsk;
 	void *buf;
+	u32 buf_len;
 	u32 len;
 	u32 off;
 	bool reply;
