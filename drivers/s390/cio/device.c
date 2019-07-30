@@ -1695,18 +1695,6 @@ int ccw_device_force_console(struct ccw_device *cdev)
 EXPORT_SYMBOL_GPL(ccw_device_force_console);
 #endif
 
-/*
- * get ccw_device matching the busid, but only if owned by cdrv
- */
-static int
-__ccwdev_check_busid(struct device *dev, const void *id)
-{
-	const char *bus_id = id;
-
-	return (strcmp(bus_id, dev_name(dev)) == 0);
-}
-
-
 /**
  * get_ccwdev_by_busid() - obtain device from a bus id
  * @cdrv: driver the device is owned by
@@ -1723,8 +1711,7 @@ struct ccw_device *get_ccwdev_by_busid(struct ccw_driver *cdrv,
 {
 	struct device *dev;
 
-	dev = driver_find_device(&cdrv->driver, NULL, (void *)bus_id,
-				 __ccwdev_check_busid);
+	dev = driver_find_device_by_name(&cdrv->driver, bus_id);
 
 	return dev ? to_ccwdev(dev) : NULL;
 }
