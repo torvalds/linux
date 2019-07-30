@@ -1306,8 +1306,8 @@ myri10ge_vlan_rx(struct net_device *dev, void *addr, struct sk_buff *skb)
 		skb->len -= VLAN_HLEN;
 		skb->data_len -= VLAN_HLEN;
 		frag = skb_shinfo(skb)->frags;
-		frag->page_offset += VLAN_HLEN;
-		skb_frag_size_set(frag, skb_frag_size(frag) - VLAN_HLEN);
+		skb_frag_off_add(frag, VLAN_HLEN);
+		skb_frag_size_sub(frag, VLAN_HLEN);
 	}
 }
 
@@ -1364,7 +1364,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, int len, __wsum csum)
 	}
 
 	/* remove padding */
-	rx_frags[0].page_offset += MXGEFW_PAD;
+	skb_frag_off_add(&rx_frags[0], MXGEFW_PAD);
 	skb_frag_size_sub(&rx_frags[0], MXGEFW_PAD);
 	len -= MXGEFW_PAD;
 

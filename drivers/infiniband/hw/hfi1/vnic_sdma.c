@@ -108,7 +108,7 @@ static noinline int build_vnic_ulp_payload(struct sdma_engine *sde,
 		ret = sdma_txadd_page(sde->dd,
 				      &tx->txreq,
 				      skb_frag_page(frag),
-				      frag->page_offset,
+				      skb_frag_off(frag),
 				      skb_frag_size(frag));
 		if (unlikely(ret))
 			goto bail_txadd;

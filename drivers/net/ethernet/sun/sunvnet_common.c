@@ -1088,7 +1088,7 @@ static inline int vnet_skb_map(struct ldc_channel *lp, struct sk_buff *skb,
 			vaddr = kmap_atomic(skb_frag_page(f));
 			blen = skb_frag_size(f);
 			blen += 8 - (blen & 7);
-			err = ldc_map_single(lp, vaddr + f->page_offset,
+			err = ldc_map_single(lp, vaddr + skb_frag_off(f),
 					     blen, cookies + nc, ncookies - nc,
 					     map_perm);
 			kunmap_atomic(vaddr);
@@ -1124,7 +1124,7 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
 
-		docopy |= f->page_offset & 7;
+		docopy |= skb_frag_off(f) & 7;
 	}
 	if (((unsigned long)skb->data & 7) != VNET_PACKET_SKIP ||
 	    skb_tailroom(skb) < pad ||

@@ -1328,7 +1328,7 @@ static int build_dma_sg(const struct sk_buff *skb, struct urb *urb)
 
 		total_len += skb_frag_size(f);
 		sg_set_page(&urb->sg[i + s], skb_frag_page(f), skb_frag_size(f),
-				f->page_offset);
+			    skb_frag_off(f));
 	}
 	urb->transfer_buffer_length = total_len;
 
