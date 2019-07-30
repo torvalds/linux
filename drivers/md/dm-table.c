@@ -894,7 +894,7 @@ int device_supports_dax(struct dm_target *ti, struct dm_dev *dev,
 static int device_synchronous(struct dm_target *ti, struct dm_dev *dev,
 				       sector_t start, sector_t len, void *data)
 {
-	return dax_synchronous(dev->dax_dev);
+	return dev->dax_dev && dax_synchronous(dev->dax_dev);
 }
 
 bool dm_table_supports_dax(struct dm_table *t,
