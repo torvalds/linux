@@ -796,10 +796,8 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	nvec->irq = platform_get_irq(pdev, 0);
-	if (nvec->irq < 0) {
-		dev_err(dev, "no irq resource?\n");
+	if (nvec->irq < 0)
 		return -ENODEV;
-	}
 
 	i2c_clk = devm_clk_get(dev, "div-clk");
 	if (IS_ERR(i2c_clk)) {
