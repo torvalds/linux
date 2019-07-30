@@ -783,7 +783,8 @@ static const struct intel_device_info intel_elkhartlake_info = {
 		[TRANSCODER_D] = TRANSCODER_D_OFFSET, \
 		[TRANSCODER_DSI_0] = TRANSCODER_DSI0_OFFSET, \
 		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET, \
-	}
+	}, \
+	.has_global_mocs = 1
 
 static const struct intel_device_info intel_tigerlake_12_info = {
 	GEN12_FEATURES,

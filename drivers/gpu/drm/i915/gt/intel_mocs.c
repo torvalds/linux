@@ -392,6 +392,10 @@ void intel_mocs_init_engine(struct intel_engine_cs *engine)
 	unsigned int index;
 	u32 unused_value;
 
+	/* Platforms with global MOCS do not need per-engine initialization. */
+	if (HAS_GLOBAL_MOCS_REGISTERS(gt->i915))
+		return;
+
 	/* Called under a blanket forcewake */
 	assert_forcewakes_active(uncore, FORCEWAKE_ALL);
 
@@ -414,6 +418,43 @@ void intel_mocs_init_engine(struct intel_engine_cs *engine)
 		intel_uncore_write_fw(uncore,
 				      mocs_register(engine->id, index),
 				      unused_value);
+}
+
+/**
+ * intel_mocs_init_global() - program the global mocs registers
+ * gt:      pointer to struct intel_gt
+ *
+ * This function initializes the MOCS global registers.
+ */
+void intel_mocs_init_global(struct intel_gt *gt)
+{
+	struct intel_uncore *uncore = gt->uncore;
+	struct drm_i915_mocs_table table;
+	unsigned int index;
+
+	if (!HAS_GLOBAL_MOCS_REGISTERS(gt->i915))
+		return;
+
+	if (!get_mocs_settings(gt, &table))
+		return;
+
+	if (GEM_DEBUG_WARN_ON(table.size > table.n_entries))
+		return;
+
+	for (index = 0; index < table.size; index++)
+		intel_uncore_write(uncore,
+				   GEN12_GLOBAL_MOCS(index),
+				   table.table[index].control_value);
+
+	/*
+	 * Ok, now set the unused entries to the invalid entry (index 0). These
+	 * entries are officially undefined and no contract for the contents and
+	 * settings is given for these entries.
+	 */
+	for (; index < table.n_entries; index++)
+		intel_uncore_write(uncore,
+				   GEN12_GLOBAL_MOCS(index),
+				   table.table[0].control_value);
 }
 
 /**
@@ -619,7 +660,8 @@ int intel_mocs_emit(struct i915_request *rq)
 	struct drm_i915_mocs_table t;
 	int ret;
 
-	if (rq->engine->class != RENDER_CLASS)
+	if (HAS_GLOBAL_MOCS_REGISTERS(rq->i915) ||
+	    rq->engine->class != RENDER_CLASS)
 		return 0;
 
 	if (get_mocs_settings(rq->engine->gt, &t)) {

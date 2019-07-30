@@ -112,6 +112,7 @@ enum intel_ppgtt_type {
 	func(gpu_reset_clobbers_display); \
 	func(has_reset_engine); \
 	func(has_fpga_dbg); \
+	func(has_global_mocs); \
 	func(has_gt_uc); \
 	func(has_l3_dpf); \
 	func(has_llc); \
