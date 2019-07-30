@@ -3130,10 +3130,8 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 	writel(ALL_MBOX_BITS, PRCM_ARM_IT1_CLR);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(&pdev->dev, "no prcmu irq provided\n");
+	if (irq <= 0)
 		return irq;
-	}
 
 	err = request_threaded_irq(irq, prcmu_irq_handler,
 	        prcmu_irq_thread_fn, IRQF_NO_SUSPEND, "prcmu", NULL);
