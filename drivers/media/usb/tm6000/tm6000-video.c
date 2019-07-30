@@ -106,7 +106,7 @@ static inline void buffer_filled(struct tm6000_core *dev,
 	dprintk(dev, V4L2_DEBUG_ISOC, "[%p/%d] wakeup\n", buf, buf->vb.i);
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	v4l2_get_timestamp(&buf->vb.ts);
+	buf->vb.ts = ktime_get_ns();
 
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);
@@ -180,7 +180,7 @@ static int copy_streams(u8 *data, unsigned long len,
 			field = (header >> 11) & 0x1;
 			line  = (header >> 12) & 0x1ff;
 			cmd   = (header >> 21) & 0x7;
-			/* Validates haeder fields */
+			/* Validates header fields */
 			if (size > TM6000_URB_MSG_LEN)
 				size = TM6000_URB_MSG_LEN;
 			pktsize = TM6000_URB_MSG_LEN;

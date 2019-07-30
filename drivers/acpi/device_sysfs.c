@@ -202,11 +202,15 @@ static int create_of_modalias(struct acpi_device *acpi_dev, char *modalias,
 {
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
 	const union acpi_object *of_compatible, *obj;
+	acpi_status status;
 	int len, count;
 	int i, nval;
 	char *c;
 
-	acpi_get_name(acpi_dev->handle, ACPI_SINGLE_NAME, &buf);
+	status = acpi_get_name(acpi_dev->handle, ACPI_SINGLE_NAME, &buf);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
 	/* DT strings are all in lower case */
 	for (c = buf.pointer; *c != '\0'; c++)
 		*c = tolower(*c);

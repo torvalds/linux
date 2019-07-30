@@ -48,6 +48,8 @@
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
 #include <linux/screen_info.h>
+#include <linux/vt.h>
+#include <linux/console.h>
 
 #include <linux/uaccess.h>
 
@@ -167,6 +169,53 @@ void vga_set_default_device(struct pci_dev *pdev)
 	pci_dev_put(vga_default);
 	vga_default = pci_dev_get(pdev);
 }
+
+/**
+ * vga_remove_vgacon - deactivete vga console
+ *
+ * Unbind and unregister vgacon in case pdev is the default vga
+ * device.  Can be called by gpu drivers on initialization to make
+ * sure vga register access done by vgacon will not disturb the
+ * device.
+ *
+ * @pdev: pci device.
+ */
+#if !defined(CONFIG_VGA_CONSOLE)
+int vga_remove_vgacon(struct pci_dev *pdev)
+{
+	return 0;
+}
+#elif !defined(CONFIG_DUMMY_CONSOLE)
+int vga_remove_vgacon(struct pci_dev *pdev)
+{
+	return -ENODEV;
+}
+#else
+int vga_remove_vgacon(struct pci_dev *pdev)
+{
+	int ret = 0;
+
+	if (pdev != vga_default)
+		return 0;
+	vgaarb_info(&pdev->dev, "deactivate vga console\n");
+
+	console_lock();
+	if (con_is_bound(&vga_con))
+		ret = do_take_over_console(&dummy_con, 0,
+					   MAX_NR_CONSOLES - 1, 1);
+	if (ret == 0) {
+		ret = do_unregister_con_driver(&vga_con);
+
+		/* Ignore "already unregistered". */
+		if (ret == -ENODEV)
+			ret = 0;
+	}
+	console_unlock();
+
+	return ret;
+}
+#endif
+EXPORT_SYMBOL(vga_remove_vgacon);
 
 static inline void vga_irq_set_state(struct vga_device *vgadev, bool state)
 {

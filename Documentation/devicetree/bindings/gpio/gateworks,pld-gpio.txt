@@ -1,0 +1,20 @@
+Gateworks PLD GPIO controller bindings
+
+The GPIO controller should be a child node on an I2C bus,
+see: i2c/i2c.txt for details.
+
+Required properties:
+- compatible: Should be "gateworks,pld-gpio"
+- reg: I2C slave address
+- gpio-controller: Marks the device node as a GPIO controller.
+- #gpio-cells: Should be <2>. The first cell is the gpio number and
+  the second cell is used to specify optional parameters.
+
+Example:
+
+pld@56 {
+	compatible = "gateworks,pld-gpio";
+	reg = <0x56>;
+	gpio-controller;
+	#gpio-cells = <2>;
+};

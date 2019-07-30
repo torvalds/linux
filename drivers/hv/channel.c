@@ -282,8 +282,8 @@ int vmbus_open(struct vmbus_channel *newchannel,
 EXPORT_SYMBOL_GPL(vmbus_open);
 
 /* Used for Hyper-V Socket: a guest client's connect() to the host */
-int vmbus_send_tl_connect_request(const uuid_le *shv_guest_servie_id,
-				  const uuid_le *shv_host_servie_id)
+int vmbus_send_tl_connect_request(const guid_t *shv_guest_servie_id,
+				  const guid_t *shv_host_servie_id)
 {
 	struct vmbus_channel_tl_connect_request conn_msg;
 	int ret;

@@ -65,7 +65,7 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 			if (!skb->protocol)
 				virtio_net_hdr_set_proto(skb, hdr);
 retry:
-			skb_probe_transport_header(skb, -1);
+			skb_probe_transport_header(skb);
 			if (!skb_transport_header_was_set(skb)) {
 				/* UFO does not specify ipv4 or 6: try both */
 				if (gso_type & SKB_GSO_UDP &&

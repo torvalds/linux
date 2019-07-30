@@ -63,8 +63,7 @@ static void gapspci_fixup_resources(struct pci_dev *dev)
 		BUG_ON(dma_declare_coherent_memory(&dev->dev,
 						res.start,
 						region.start,
-						resource_size(&res),
-						DMA_MEMORY_EXCLUSIVE));
+						resource_size(&res)));
 		break;
 	default:
 		printk("PCI: Failed resource fixup\n");

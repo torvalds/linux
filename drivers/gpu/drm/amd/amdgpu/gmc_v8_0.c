@@ -1471,8 +1471,9 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 		gmc_v8_0_set_fault_enable_default(adev, false);
 
 	if (printk_ratelimit()) {
-		struct amdgpu_task_info task_info = { 0 };
+		struct amdgpu_task_info task_info;
 
+		memset(&task_info, 0, sizeof(struct amdgpu_task_info));
 		amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
 
 		dev_err(adev->dev, "GPU fault detected: %d 0x%08x for process %s pid %d thread %s pid %d\n",

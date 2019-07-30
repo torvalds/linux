@@ -270,7 +270,7 @@ static void metricgroup__print_strlist(struct strlist *metrics, bool raw)
 }
 
 void metricgroup__print(bool metrics, bool metricgroups, char *filter,
-			bool raw)
+			bool raw, bool details)
 {
 	struct pmu_events_map *map = perf_pmu__find_map(NULL);
 	struct pmu_event *pe;
@@ -329,6 +329,12 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 					if (asprintf(&s, "%s\n%*s%s]",
 						     pe->metric_name, 8, "[", pe->desc) < 0)
 						return;
+
+					if (details) {
+						if (asprintf(&s, "%s\n%*s%s]",
+							     s, 8, "[", pe->metric_expr) < 0)
+							return;
+					}
 				}
 
 				if (!s)
@@ -352,7 +358,7 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	else if (metrics && !raw)
 		printf("\nMetrics:\n\n");
 
-	for (node = rb_first(&groups.entries); node; node = next) {
+	for (node = rb_first_cached(&groups.entries); node; node = next) {
 		struct mep *me = container_of(node, struct mep, nd);
 
 		if (metricgroups)

@@ -239,7 +239,7 @@ static long sc1200wdt_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 		timeout = new_timeout;
 		sc1200wdt_write_data(WDTO, timeout);
-		/* fall through and return the new timeout */
+		/* fall through - and return the new timeout */
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout * 60, p);

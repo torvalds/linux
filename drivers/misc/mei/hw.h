@@ -311,7 +311,8 @@ struct mei_client_properties {
 	u8 protocol_version;
 	u8 max_number_of_connections;
 	u8 fixed_address;
-	u8 single_recv_buf;
+	u8 single_recv_buf:1;
+	u8 reserved:7;
 	u32 max_msg_length;
 } __packed;
 

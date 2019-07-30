@@ -510,21 +510,48 @@ static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
 					    int port, int lane)
 {
 	struct dsa_switch *ds = chip->ds;
+	int duplex = DUPLEX_UNKNOWN;
+	int speed = SPEED_UNKNOWN;
+	int link, err;
 	u16 status;
-	bool up;
 
-	mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
-			      MV88E6390_SGMII_STATUS, &status);
+	err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+				    MV88E6390_SGMII_PHY_STATUS, &status);
+	if (err) {
+		dev_err(chip->dev, "can't read SGMII PHY status: %d\n", err);
+		return;
+	}
 
-	/* Status must be read twice in order to give the current link
-	 * status. Otherwise the change in link status since the last
-	 * read of the register is returned.
-	 */
-	mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
-			      MV88E6390_SGMII_STATUS, &status);
-	up = status & MV88E6390_SGMII_STATUS_LINK;
+	link = status & MV88E6390_SGMII_PHY_STATUS_LINK ?
+	       LINK_FORCED_UP : LINK_FORCED_DOWN;
 
-	dsa_port_phylink_mac_change(ds, port, up);
+	if (status & MV88E6390_SGMII_PHY_STATUS_SPD_DPL_VALID) {
+		duplex = status & MV88E6390_SGMII_PHY_STATUS_DUPLEX_FULL ?
+			 DUPLEX_FULL : DUPLEX_HALF;
+
+		switch (status & MV88E6390_SGMII_PHY_STATUS_SPEED_MASK) {
+		case MV88E6390_SGMII_PHY_STATUS_SPEED_1000:
+			speed = SPEED_1000;
+			break;
+		case MV88E6390_SGMII_PHY_STATUS_SPEED_100:
+			speed = SPEED_100;
+			break;
+		case MV88E6390_SGMII_PHY_STATUS_SPEED_10:
+			speed = SPEED_10;
+			break;
+		default:
+			dev_err(chip->dev, "invalid PHY speed\n");
+			return;
+		}
+	}
+
+	err = mv88e6xxx_port_setup_mac(chip, port, link, speed, duplex,
+				       PAUSE_OFF, PHY_INTERFACE_MODE_NA);
+	if (err)
+		dev_err(chip->dev, "can't propagate PHY settings to MAC: %d\n",
+			err);
+	else
+		dsa_port_phylink_mac_change(ds, port, link == LINK_FORCED_UP);
 }
 
 static int mv88e6390_serdes_irq_enable_sgmii(struct mv88e6xxx_chip *chip,

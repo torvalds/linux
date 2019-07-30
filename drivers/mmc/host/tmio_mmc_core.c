@@ -1073,7 +1073,7 @@ static int tmio_mmc_init_ocr(struct tmio_mmc_host *host)
 
 	/* use ocr_mask if no regulator */
 	if (!mmc->ocr_avail)
-		mmc->ocr_avail =  pdata->ocr_mask;
+		mmc->ocr_avail = pdata->ocr_mask;
 
 	/*
 	 * try again.
@@ -1294,6 +1294,7 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 	cancel_delayed_work_sync(&host->delayed_reset_work);
 	tmio_mmc_release_dma(host);
 
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 }

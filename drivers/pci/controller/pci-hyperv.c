@@ -391,14 +391,6 @@ struct hv_interrupt_entry {
 	u32	data;
 };
 
-#define HV_VP_SET_BANK_COUNT_MAX	5 /* current implementation limit */
-
-struct hv_vp_set {
-	u64	format;			/* 0 (HvGenericSetSparse4k) */
-	u64	valid_banks;
-	u64	masks[HV_VP_SET_BANK_COUNT_MAX];
-};
-
 /*
  * flags for hv_device_interrupt_target.flags
  */
@@ -410,7 +402,7 @@ struct hv_device_interrupt_target {
 	u32	flags;
 	union {
 		u64		 vp_mask;
-		struct hv_vp_set vp_set;
+		struct hv_vpset vp_set;
 	};
 };
 
@@ -420,7 +412,7 @@ struct retarget_msi_interrupt {
 	struct hv_interrupt_entry int_entry;
 	u64	reserved2;
 	struct hv_device_interrupt_target int_target;
-} __packed;
+} __packed __aligned(8);
 
 /*
  * Driver specific state.
@@ -460,12 +452,16 @@ struct hv_pcibus_device {
 	struct msi_controller msi_chip;
 	struct irq_domain *irq_domain;
 
-	/* hypercall arg, must not cross page boundary */
-	struct retarget_msi_interrupt retarget_msi_interrupt_params;
-
 	spinlock_t retarget_msi_interrupt_lock;
 
 	struct workqueue_struct *wq;
+
+	/* hypercall arg, must not cross page boundary */
+	struct retarget_msi_interrupt retarget_msi_interrupt_params;
+
+	/*
+	 * Don't put anything here: retarget_msi_interrupt_params must be last
+	 */
 };
 
 /*
@@ -910,12 +906,12 @@ static void hv_irq_unmask(struct irq_data *data)
 	struct retarget_msi_interrupt *params;
 	struct hv_pcibus_device *hbus;
 	struct cpumask *dest;
+	cpumask_var_t tmp;
 	struct pci_bus *pbus;
 	struct pci_dev *pdev;
 	unsigned long flags;
 	u32 var_size = 0;
-	int cpu_vmbus;
-	int cpu;
+	int cpu, nr_bank;
 	u64 res;
 
 	dest = irq_data_get_effective_affinity_mask(data);
@@ -955,28 +951,27 @@ static void hv_irq_unmask(struct irq_data *data)
 		 */
 		params->int_target.flags |=
 			HV_DEVICE_INTERRUPT_TARGET_PROCESSOR_SET;
-		params->int_target.vp_set.valid_banks =
-			(1ull << HV_VP_SET_BANK_COUNT_MAX) - 1;
+
+		if (!alloc_cpumask_var(&tmp, GFP_ATOMIC)) {
+			res = 1;
+			goto exit_unlock;
+		}
+
+		cpumask_and(tmp, dest, cpu_online_mask);
+		nr_bank = cpumask_to_vpset(&params->int_target.vp_set, tmp);
+		free_cpumask_var(tmp);
+
+		if (nr_bank <= 0) {
+			res = 1;
+			goto exit_unlock;
+		}
 
 		/*
 		 * var-sized hypercall, var-size starts after vp_mask (thus
-		 * vp_set.format does not count, but vp_set.valid_banks does).
+		 * vp_set.format does not count, but vp_set.valid_bank_mask
+		 * does).
 		 */
-		var_size = 1 + HV_VP_SET_BANK_COUNT_MAX;
-
-		for_each_cpu_and(cpu, dest, cpu_online_mask) {
-			cpu_vmbus = hv_cpu_number_to_vp_number(cpu);
-
-			if (cpu_vmbus >= HV_VP_SET_BANK_COUNT_MAX * 64) {
-				dev_err(&hbus->hdev->device,
-					"too high CPU %d", cpu_vmbus);
-				res = 1;
-				goto exit_unlock;
-			}
-
-			params->int_target.vp_set.masks[cpu_vmbus / 64] |=
-				(1ULL << (cpu_vmbus & 63));
-		}
+		var_size = 1 + nr_bank;
 	} else {
 		for_each_cpu_and(cpu, dest, cpu_online_mask) {
 			params->int_target.vp_mask |=

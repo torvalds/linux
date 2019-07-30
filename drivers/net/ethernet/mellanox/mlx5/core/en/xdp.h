@@ -34,13 +34,12 @@
 
 #include "en.h"
 
-#define MLX5E_XDP_MAX_MTU ((int)(PAGE_SIZE - \
-				 MLX5_SKB_FRAG_SZ(XDP_PACKET_HEADROOM)))
 #define MLX5E_XDP_MIN_INLINE (ETH_HLEN + VLAN_HLEN)
 #define MLX5E_XDP_TX_EMPTY_DS_COUNT \
 	(sizeof(struct mlx5e_tx_wqe) / MLX5_SEND_WQE_DS)
 #define MLX5E_XDP_TX_DS_COUNT (MLX5E_XDP_TX_EMPTY_DS_COUNT + 1 /* SG DS */)
 
+int mlx5e_xdp_max_mtu(struct mlx5e_params *params);
 bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
 		      void *va, u16 *rx_headroom, u32 *len);
 bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq);

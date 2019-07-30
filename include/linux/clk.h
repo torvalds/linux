@@ -384,6 +384,17 @@ int __must_check devm_clk_bulk_get_all(struct device *dev,
 struct clk *devm_clk_get(struct device *dev, const char *id);
 
 /**
+ * devm_clk_get_optional - lookup and obtain a managed reference to an optional
+ *			   clock producer.
+ * @dev: device for clock "consumer"
+ * @id: clock consumer ID
+ *
+ * Behaves the same as devm_clk_get() except where there is no clock producer.
+ * In this case, instead of returning -ENOENT, the function returns NULL.
+ */
+struct clk *devm_clk_get_optional(struct device *dev, const char *id);
+
+/**
  * devm_get_clk_from_child - lookup and obtain a managed reference to a
  *			     clock producer from child node.
  * @dev: device for clock "consumer"
@@ -718,6 +729,12 @@ static inline struct clk *devm_clk_get(struct device *dev, const char *id)
 	return NULL;
 }
 
+static inline struct clk *devm_clk_get_optional(struct device *dev,
+						const char *id)
+{
+	return NULL;
+}
+
 static inline int __must_check devm_clk_bulk_get(struct device *dev, int num_clks,
 						 struct clk_bulk_data *clks)
 {
@@ -794,6 +811,22 @@ static inline bool clk_has_parent(struct clk *clk, struct clk *parent)
 	return true;
 }
 
+static inline int clk_set_rate_range(struct clk *clk, unsigned long min,
+				     unsigned long max)
+{
+	return 0;
+}
+
+static inline int clk_set_min_rate(struct clk *clk, unsigned long rate)
+{
+	return 0;
+}
+
+static inline int clk_set_max_rate(struct clk *clk, unsigned long rate)
+{
+	return 0;
+}
+
 static inline int clk_set_parent(struct clk *clk, struct clk *parent)
 {
 	return 0;
@@ -860,6 +893,25 @@ static inline void clk_bulk_disable_unprepare(int num_clks,
 {
 	clk_bulk_disable(num_clks, clks);
 	clk_bulk_unprepare(num_clks, clks);
+}
+
+/**
+ * clk_get_optional - lookup and obtain a reference to an optional clock
+ *		      producer.
+ * @dev: device for clock "consumer"
+ * @id: clock consumer ID
+ *
+ * Behaves the same as clk_get() except where there is no clock producer. In
+ * this case, instead of returning -ENOENT, the function returns NULL.
+ */
+static inline struct clk *clk_get_optional(struct device *dev, const char *id)
+{
+	struct clk *clk = clk_get(dev, id);
+
+	if (clk == ERR_PTR(-ENOENT))
+		return NULL;
+
+	return clk;
 }
 
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)

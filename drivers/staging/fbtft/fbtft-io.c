@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/export.h>
 #include <linux/errno.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/spi/spi.h>
 #include "fbtft.h"
 
@@ -142,30 +142,30 @@ int fbtft_write_gpio8_wr(struct fbtft_par *par, void *buf, size_t len)
 		data = *(u8 *)buf;
 
 		/* Start writing by pulling down /WR */
-		gpio_set_value(par->gpio.wr, 0);
+		gpiod_set_value(par->gpio.wr, 0);
 
 		/* Set data */
 #ifndef DO_NOT_OPTIMIZE_FBTFT_WRITE_GPIO
 		if (data == prev_data) {
-			gpio_set_value(par->gpio.wr, 0); /* used as delay */
+			gpiod_set_value(par->gpio.wr, 0); /* used as delay */
 		} else {
 			for (i = 0; i < 8; i++) {
 				if ((data & 1) != (prev_data & 1))
-					gpio_set_value(par->gpio.db[i],
-						       data & 1);
+					gpiod_set_value(par->gpio.db[i],
+							data & 1);
 				data >>= 1;
 				prev_data >>= 1;
 			}
 		}
 #else
 		for (i = 0; i < 8; i++) {
-			gpio_set_value(par->gpio.db[i], data & 1);
+			gpiod_set_value(par->gpio.db[i], data & 1);
 			data >>= 1;
 		}
 #endif
 
 		/* Pullup /WR */
-		gpio_set_value(par->gpio.wr, 1);
+		gpiod_set_value(par->gpio.wr, 1);
 
 #ifndef DO_NOT_OPTIMIZE_FBTFT_WRITE_GPIO
 		prev_data = *(u8 *)buf;
@@ -192,30 +192,30 @@ int fbtft_write_gpio16_wr(struct fbtft_par *par, void *buf, size_t len)
 		data = *(u16 *)buf;
 
 		/* Start writing by pulling down /WR */
-		gpio_set_value(par->gpio.wr, 0);
+		gpiod_set_value(par->gpio.wr, 0);
 
 		/* Set data */
 #ifndef DO_NOT_OPTIMIZE_FBTFT_WRITE_GPIO
 		if (data == prev_data) {
-			gpio_set_value(par->gpio.wr, 0); /* used as delay */
+			gpiod_set_value(par->gpio.wr, 0); /* used as delay */
 		} else {
 			for (i = 0; i < 16; i++) {
 				if ((data & 1) != (prev_data & 1))
-					gpio_set_value(par->gpio.db[i],
-						       data & 1);
+					gpiod_set_value(par->gpio.db[i],
+							data & 1);
 				data >>= 1;
 				prev_data >>= 1;
 			}
 		}
 #else
 		for (i = 0; i < 16; i++) {
-			gpio_set_value(par->gpio.db[i], data & 1);
+			gpiod_set_value(par->gpio.db[i], data & 1);
 			data >>= 1;
 		}
 #endif
 
 		/* Pullup /WR */
-		gpio_set_value(par->gpio.wr, 1);
+		gpiod_set_value(par->gpio.wr, 1);
 
 #ifndef DO_NOT_OPTIMIZE_FBTFT_WRITE_GPIO
 		prev_data = *(u16 *)buf;

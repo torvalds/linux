@@ -79,7 +79,7 @@ ENTRY(__raw_writesw)
 		bpl	.Loutsw_8_lp
 
 		tst	r2, #7
-		ldmeqfd	sp!, {r4, r5, r6, pc}
+		ldmfdeq	sp!, {r4, r5, r6, pc}
 
 .Lno_outsw_8:	tst	r2, #4
 		beq	.Lno_outsw_4

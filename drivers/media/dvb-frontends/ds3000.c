@@ -914,7 +914,7 @@ static int ds3000_set_frontend(struct dvb_frontend *fe)
 	/* ds3000 global reset */
 	ds3000_writereg(state, 0x07, 0x80);
 	ds3000_writereg(state, 0x07, 0x00);
-	/* ds3000 build-in uC reset */
+	/* ds3000 built-in uC reset */
 	ds3000_writereg(state, 0xb2, 0x01);
 	/* ds3000 software reset */
 	ds3000_writereg(state, 0x00, 0x01);
@@ -1023,7 +1023,7 @@ static int ds3000_set_frontend(struct dvb_frontend *fe)
 
 	/* ds3000 out of software reset */
 	ds3000_writereg(state, 0x00, 0x00);
-	/* start ds3000 build-in uC */
+	/* start ds3000 built-in uC */
 	ds3000_writereg(state, 0xb2, 0x00);
 
 	if (fe->ops.tuner_ops.get_frequency) {

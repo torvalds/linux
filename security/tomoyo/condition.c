@@ -28,9 +28,11 @@ static bool tomoyo_argv(const unsigned int index, const char *arg_ptr,
 {
 	int i;
 	struct tomoyo_path_info arg;
+
 	arg.name = arg_ptr;
 	for (i = 0; i < argc; argv++, checked++, i++) {
 		bool result;
+
 		if (index != argv->index)
 			continue;
 		*checked = 1;
@@ -62,12 +64,14 @@ static bool tomoyo_envp(const char *env_name, const char *env_value,
 	int i;
 	struct tomoyo_path_info name;
 	struct tomoyo_path_info value;
+
 	name.name = env_name;
 	tomoyo_fill_path_info(&name);
 	value.name = env_value;
 	tomoyo_fill_path_info(&value);
 	for (i = 0; i < envc; envp++, checked++, i++) {
 		bool result;
+
 		if (!tomoyo_path_matches_pattern(&name, envp->name))
 			continue;
 		*checked = 1;
@@ -113,6 +117,7 @@ static bool tomoyo_scan_bprm(struct tomoyo_execve *ee,
 	bool result = true;
 	u8 local_checked[32];
 	u8 *checked;
+
 	if (argc + envc <= sizeof(local_checked)) {
 		checked = local_checked;
 		memset(local_checked, 0, sizeof(local_checked));
@@ -131,6 +136,7 @@ static bool tomoyo_scan_bprm(struct tomoyo_execve *ee,
 			/* Read. */
 			const char *kaddr = dump->data;
 			const unsigned char c = kaddr[offset++];
+
 			if (c && arg_len < TOMOYO_EXEC_TMPSIZE - 10) {
 				if (c == '\\') {
 					arg_ptr[arg_len++] = '\\';
@@ -160,6 +166,7 @@ static bool tomoyo_scan_bprm(struct tomoyo_execve *ee,
 				argv_count--;
 			} else if (envp_count) {
 				char *cp = strchr(arg_ptr, '=');
+
 				if (cp) {
 					*cp = '\0';
 					if (!tomoyo_envp(arg_ptr, cp + 1,
@@ -182,6 +189,7 @@ static bool tomoyo_scan_bprm(struct tomoyo_execve *ee,
 out:
 	if (result) {
 		int i;
+
 		/* Check not-yet-checked entries. */
 		for (i = 0; i < argc; i++) {
 			if (checked[i])
@@ -229,6 +237,7 @@ static bool tomoyo_scan_exec_realpath(struct file *file,
 {
 	bool result;
 	struct tomoyo_path_info exe;
+
 	if (!file)
 		return false;
 	exe.name = tomoyo_realpath_from_path(&file->f_path);
@@ -250,6 +259,7 @@ static bool tomoyo_scan_exec_realpath(struct file *file,
 static const struct tomoyo_path_info *tomoyo_get_dqword(char *start)
 {
 	char *cp = start + strlen(start) - 1;
+
 	if (cp == start || *start++ != '"' || *cp != '"')
 		return NULL;
 	*cp = '\0';
@@ -270,6 +280,7 @@ static bool tomoyo_parse_name_union_quoted(struct tomoyo_acl_param *param,
 					   struct tomoyo_name_union *ptr)
 {
 	char *filename = param->data;
+
 	if (*filename == '@')
 		return tomoyo_parse_name_union(param, ptr);
 	ptr->filename = tomoyo_get_dqword(filename);
@@ -310,6 +321,7 @@ static bool tomoyo_parse_envp(char *left, char *right,
 	const struct tomoyo_path_info *name;
 	const struct tomoyo_path_info *value;
 	char *cp = left + strlen(left) - 1;
+
 	if (*cp-- != ']' || *cp != '"')
 		goto out;
 	*cp = '\0';
@@ -364,6 +376,7 @@ static inline bool tomoyo_same_condition(const struct tomoyo_condition *a,
 static u8 tomoyo_condition_type(const char *word)
 {
 	u8 i;
+
 	for (i = 0; i < TOMOYO_MAX_CONDITION_KEYWORD; i++) {
 		if (!strcmp(word, tomoyo_condition_keyword[i]))
 			break;
@@ -395,6 +408,7 @@ static struct tomoyo_condition *tomoyo_commit_condition
 {
 	struct tomoyo_condition *ptr;
 	bool found = false;
+
 	if (mutex_lock_interruptible(&tomoyo_policy_lock)) {
 		dprintk(KERN_WARNING "%u: %s failed\n", __LINE__, __func__);
 		ptr = NULL;
@@ -442,12 +456,14 @@ static char *tomoyo_get_transit_preference(struct tomoyo_acl_param *param,
 {
 	char * const pos = param->data;
 	bool flag;
+
 	if (*pos == '<') {
 		e->transit = tomoyo_get_domainname(param);
 		goto done;
 	}
 	{
 		char *cp = strchr(pos, ' ');
+
 		if (cp)
 			*cp = '\0';
 		flag = tomoyo_correct_path(pos) || !strcmp(pos, "keep") ||
@@ -489,6 +505,7 @@ struct tomoyo_condition *tomoyo_get_condition(struct tomoyo_acl_param *param)
 		tomoyo_get_transit_preference(param, &e);
 	char * const end_of_string = start_of_string + strlen(start_of_string);
 	char *pos;
+
 rerun:
 	pos = start_of_string;
 	while (1) {
@@ -498,6 +515,7 @@ rerun:
 		char *cp;
 		char *right_word;
 		bool is_not;
+
 		if (!*left_word)
 			break;
 		/*
@@ -622,8 +640,8 @@ rerun:
 		}
 store_value:
 		if (!condp) {
-			dprintk(KERN_WARNING "%u: dry_run left=%u right=%u "
-				"match=%u\n", __LINE__, left, right, !is_not);
+			dprintk(KERN_WARNING "%u: dry_run left=%u right=%u match=%u\n",
+				__LINE__, left, right, !is_not);
 			continue;
 		}
 		condp->left = left;
@@ -660,6 +678,7 @@ store_value:
 	envp = (struct tomoyo_envp *) (argv + e.argc);
 	{
 		bool flag = false;
+
 		for (pos = start_of_string; pos < end_of_string; pos++) {
 			if (*pos)
 				continue;
@@ -698,6 +717,7 @@ void tomoyo_get_attributes(struct tomoyo_obj_info *obj)
 
 	for (i = 0; i < TOMOYO_MAX_PATH_STAT; i++) {
 		struct inode *inode;
+
 		switch (i) {
 		case TOMOYO_PATH1:
 			dentry = obj->path1.dentry;
@@ -718,6 +738,7 @@ void tomoyo_get_attributes(struct tomoyo_obj_info *obj)
 		inode = d_backing_inode(dentry);
 		if (inode) {
 			struct tomoyo_mini_stat *stat = &obj->stat[i];
+
 			stat->uid  = inode->i_uid;
 			stat->gid  = inode->i_gid;
 			stat->ino  = inode->i_ino;
@@ -726,8 +747,7 @@ void tomoyo_get_attributes(struct tomoyo_obj_info *obj)
 			stat->rdev = inode->i_rdev;
 			obj->stat_valid[i] = true;
 		}
-		if (i & 1) /* i == TOMOYO_PATH1_PARENT ||
-			      i == TOMOYO_PATH2_PARENT */
+		if (i & 1) /* TOMOYO_PATH1_PARENT or TOMOYO_PATH2_PARENT */
 			dput(dentry);
 	}
 }
@@ -758,6 +778,7 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 	u16 argc;
 	u16 envc;
 	struct linux_binprm *bprm = NULL;
+
 	if (!cond)
 		return true;
 	condc = cond->condc;
@@ -780,6 +801,7 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 		const u8 right = condp->right;
 		bool is_bitop[2] = { false, false };
 		u8 j;
+
 		condp++;
 		/* Check argv[] and envp[] later. */
 		if (left == TOMOYO_ARGV_ENTRY || left == TOMOYO_ENVP_ENTRY)
@@ -787,10 +809,11 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 		/* Check string expressions. */
 		if (right == TOMOYO_NAME_UNION) {
 			const struct tomoyo_name_union *ptr = names_p++;
+			struct tomoyo_path_info *symlink;
+			struct tomoyo_execve *ee;
+			struct file *file;
+
 			switch (left) {
-				struct tomoyo_path_info *symlink;
-				struct tomoyo_execve *ee;
-				struct file *file;
 			case TOMOYO_SYMLINK_TARGET:
 				symlink = obj ? obj->symlink_target : NULL;
 				if (!symlink ||
@@ -812,6 +835,7 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 		for (j = 0; j < 2; j++) {
 			const u8 index = j ? right : left;
 			unsigned long value = 0;
+
 			switch (index) {
 			case TOMOYO_TASK_UID:
 				value = from_kuid(&init_user_ns, current_uid());
@@ -874,31 +898,31 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 				value = S_ISVTX;
 				break;
 			case TOMOYO_MODE_OWNER_READ:
-				value = S_IRUSR;
+				value = 0400;
 				break;
 			case TOMOYO_MODE_OWNER_WRITE:
-				value = S_IWUSR;
+				value = 0200;
 				break;
 			case TOMOYO_MODE_OWNER_EXECUTE:
-				value = S_IXUSR;
+				value = 0100;
 				break;
 			case TOMOYO_MODE_GROUP_READ:
-				value = S_IRGRP;
+				value = 0040;
 				break;
 			case TOMOYO_MODE_GROUP_WRITE:
-				value = S_IWGRP;
+				value = 0020;
 				break;
 			case TOMOYO_MODE_GROUP_EXECUTE:
-				value = S_IXGRP;
+				value = 0010;
 				break;
 			case TOMOYO_MODE_OTHERS_READ:
-				value = S_IROTH;
+				value = 0004;
 				break;
 			case TOMOYO_MODE_OTHERS_WRITE:
-				value = S_IWOTH;
+				value = 0002;
 				break;
 			case TOMOYO_MODE_OTHERS_EXECUTE:
-				value = S_IXOTH;
+				value = 0001;
 				break;
 			case TOMOYO_EXEC_ARGC:
 				if (!bprm)
@@ -923,6 +947,7 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 				{
 					u8 stat_index;
 					struct tomoyo_mini_stat *stat;
+
 					switch (index) {
 					case TOMOYO_PATH1_UID:
 					case TOMOYO_PATH1_GID:
@@ -1036,12 +1061,14 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 		if (left == TOMOYO_NUMBER_UNION) {
 			/* Fetch values now. */
 			const struct tomoyo_number_union *ptr = numbers_p++;
+
 			min_v[0] = ptr->values[0];
 			max_v[0] = ptr->values[1];
 		}
 		if (right == TOMOYO_NUMBER_UNION) {
 			/* Fetch values now. */
 			const struct tomoyo_number_union *ptr = numbers_p++;
+
 			if (ptr->group) {
 				if (tomoyo_number_matches_group(min_v[0],
 								max_v[0],

@@ -505,7 +505,7 @@ out:
 static int __vsock_bind_stream(struct vsock_sock *vsk,
 			       struct sockaddr_vm *addr)
 {
-	static u32 port = 0;
+	static u32 port;
 	struct sockaddr_vm new_addr;
 
 	if (!port)
@@ -1439,7 +1439,7 @@ static int vsock_stream_setsockopt(struct socket *sock,
 		break;
 
 	case SO_VM_SOCKETS_CONNECT_TIMEOUT: {
-		struct timeval tv;
+		struct __kernel_old_timeval tv;
 		COPY_IN(tv);
 		if (tv.tv_sec >= 0 && tv.tv_usec < USEC_PER_SEC &&
 		    tv.tv_sec < (MAX_SCHEDULE_TIMEOUT / HZ - 1)) {
@@ -1517,7 +1517,7 @@ static int vsock_stream_getsockopt(struct socket *sock,
 		break;
 
 	case SO_VM_SOCKETS_CONNECT_TIMEOUT: {
-		struct timeval tv;
+		struct __kernel_old_timeval tv;
 		tv.tv_sec = vsk->connect_timeout / HZ;
 		tv.tv_usec =
 		    (vsk->connect_timeout -

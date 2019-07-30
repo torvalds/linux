@@ -219,7 +219,6 @@
 	cap-sd-highspeed;
 	cap-sdio-irq;
 	clock-frequency = <50000000>;
-	disable-wp;
 	keep-power-in-suspend;
 	max-frequency = <50000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;

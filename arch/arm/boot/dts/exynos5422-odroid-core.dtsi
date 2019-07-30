@@ -36,6 +36,11 @@
 	};
 };
 
+&adc {
+	vdd-supply = <&ldo4_reg>;
+	status = "okay";
+};
+
 &bus_wcore {
 	devfreq-events = <&nocp_mem0_0>, <&nocp_mem0_1>,
 			<&nocp_mem1_0>, <&nocp_mem1_1>;
@@ -468,7 +473,7 @@
 			buck8_reg: BUCK8 {
 				regulator-name = "vdd_1.8v_ldo";
 				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1500000>;
+				regulator-max-microvolt = <2000000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};

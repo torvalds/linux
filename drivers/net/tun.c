@@ -1763,9 +1763,6 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	int skb_xdp = 1;
 	bool frags = tun_napi_frags_enabled(tfile);
 
-	if (!(tun->dev->flags & IFF_UP))
-		return -EIO;
-
 	if (!(tun->flags & IFF_NO_PI)) {
 		if (len < sizeof(pi))
 			return -EINVAL;
@@ -1867,6 +1864,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 			err = skb_copy_datagram_from_iter(skb, 0, from, len);
 
 		if (err) {
+			err = -EFAULT;
+drop:
 			this_cpu_inc(tun->pcpu_stats->rx_dropped);
 			kfree_skb(skb);
 			if (frags) {
@@ -1874,7 +1873,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 				mutex_unlock(&tfile->napi_mutex);
 			}
 
-			return -EFAULT;
+			return err;
 		}
 	}
 
@@ -1929,7 +1928,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	}
 
 	skb_reset_network_header(skb);
-	skb_probe_transport_header(skb, 0);
+	skb_probe_transport_header(skb);
 
 	if (skb_xdp) {
 		struct bpf_prog *xdp_prog;
@@ -1958,6 +1957,13 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	    !tfile->detached)
 		rxhash = __skb_get_hash_symmetric(skb);
 
+	rcu_read_lock();
+	if (unlikely(!(tun->dev->flags & IFF_UP))) {
+		err = -EIO;
+		rcu_read_unlock();
+		goto drop;
+	}
+
 	if (frags) {
 		/* Exercise flow dissector code path. */
 		u32 headlen = eth_get_headlen(skb->data, skb_headlen(skb));
@@ -1965,6 +1971,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		if (unlikely(headlen > skb_headlen(skb))) {
 			this_cpu_inc(tun->pcpu_stats->rx_dropped);
 			napi_free_frags(&tfile->napi);
+			rcu_read_unlock();
 			mutex_unlock(&tfile->napi_mutex);
 			WARN_ON(1);
 			return -ENOMEM;
@@ -1992,6 +1999,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	} else {
 		netif_rx_ni(skb);
 	}
+	rcu_read_unlock();
 
 	stats = get_cpu_ptr(tun->pcpu_stats);
 	u64_stats_update_begin(&stats->syncp);
@@ -2482,7 +2490,7 @@ build:
 
 	skb->protocol = eth_type_trans(skb, tun->dev);
 	skb_reset_network_header(skb);
-	skb_probe_transport_header(skb, 0);
+	skb_probe_transport_header(skb);
 
 	if (skb_xdp) {
 		err = do_xdp_generic(xdp_prog, skb);

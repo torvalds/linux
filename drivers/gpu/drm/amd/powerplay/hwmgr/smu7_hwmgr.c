@@ -3491,14 +3491,14 @@ static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr, u32 *query)
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_PmStatusLogStart);
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-							ixSMU_PM_STATUS_94, 0);
+							ixSMU_PM_STATUS_95, 0);
 
 	for (i = 0; i < 10; i++) {
-		mdelay(1);
+		mdelay(500);
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_PmStatusLogSample);
 		tmp = cgs_read_ind_register(hwmgr->device,
 						CGS_IND_REG__SMC,
-						ixSMU_PM_STATUS_94);
+						ixSMU_PM_STATUS_95);
 		if (tmp != 0)
 			break;
 	}
@@ -3681,10 +3681,12 @@ static int smu7_request_link_speed_change_before_state_change(
 			data->force_pcie_gen = PP_PCIEGen2;
 			if (current_link_speed == PP_PCIEGen2)
 				break;
+			/* fall through */
 		case PP_PCIEGen2:
 			if (0 == amdgpu_acpi_pcie_performance_request(hwmgr->adev, PCIE_PERF_REQ_GEN2, false))
 				break;
 #endif
+			/* fall through */
 		default:
 			data->force_pcie_gen = smu7_get_current_pcie_speed(hwmgr);
 			break;

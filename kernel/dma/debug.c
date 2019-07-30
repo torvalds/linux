@@ -134,17 +134,6 @@ static u32 nr_total_entries;
 /* number of preallocated entries requested by kernel cmdline */
 static u32 nr_prealloc_entries = PREALLOC_DMA_DEBUG_ENTRIES;
 
-/* debugfs dentry's for the stuff above */
-static struct dentry *dma_debug_dent        __read_mostly;
-static struct dentry *global_disable_dent   __read_mostly;
-static struct dentry *error_count_dent      __read_mostly;
-static struct dentry *show_all_errors_dent  __read_mostly;
-static struct dentry *show_num_errors_dent  __read_mostly;
-static struct dentry *num_free_entries_dent __read_mostly;
-static struct dentry *min_free_entries_dent __read_mostly;
-static struct dentry *nr_total_entries_dent __read_mostly;
-static struct dentry *filter_dent           __read_mostly;
-
 /* per-driver filter related state */
 
 #define NAME_MAX_LEN	64
@@ -717,7 +706,7 @@ static struct dma_debug_entry *dma_entry_alloc(void)
 #ifdef CONFIG_STACKTRACE
 	entry->stacktrace.max_entries = DMA_DEBUG_STACKTRACE_ENTRIES;
 	entry->stacktrace.entries = entry->st_entries;
-	entry->stacktrace.skip = 2;
+	entry->stacktrace.skip = 1;
 	save_stack_trace(&entry->stacktrace);
 #endif
 
@@ -840,66 +829,46 @@ static const struct file_operations filter_fops = {
 	.llseek = default_llseek,
 };
 
-static int dma_debug_fs_init(void)
+static int dump_show(struct seq_file *seq, void *v)
 {
-	dma_debug_dent = debugfs_create_dir("dma-api", NULL);
-	if (!dma_debug_dent) {
-		pr_err("can not create debugfs directory\n");
-		return -ENOMEM;
+	int idx;
+
+	for (idx = 0; idx < HASH_SIZE; idx++) {
+		struct hash_bucket *bucket = &dma_entry_hash[idx];
+		struct dma_debug_entry *entry;
+		unsigned long flags;
+
+		spin_lock_irqsave(&bucket->lock, flags);
+		list_for_each_entry(entry, &bucket->list, list) {
+			seq_printf(seq,
+				   "%s %s %s idx %d P=%llx N=%lx D=%llx L=%llx %s %s\n",
+				   dev_name(entry->dev),
+				   dev_driver_string(entry->dev),
+				   type2name[entry->type], idx,
+				   phys_addr(entry), entry->pfn,
+				   entry->dev_addr, entry->size,
+				   dir2name[entry->direction],
+				   maperr2str[entry->map_err_type]);
+		}
+		spin_unlock_irqrestore(&bucket->lock, flags);
 	}
-
-	global_disable_dent = debugfs_create_bool("disabled", 0444,
-			dma_debug_dent,
-			&global_disable);
-	if (!global_disable_dent)
-		goto out_err;
-
-	error_count_dent = debugfs_create_u32("error_count", 0444,
-			dma_debug_dent, &error_count);
-	if (!error_count_dent)
-		goto out_err;
-
-	show_all_errors_dent = debugfs_create_u32("all_errors", 0644,
-			dma_debug_dent,
-			&show_all_errors);
-	if (!show_all_errors_dent)
-		goto out_err;
-
-	show_num_errors_dent = debugfs_create_u32("num_errors", 0644,
-			dma_debug_dent,
-			&show_num_errors);
-	if (!show_num_errors_dent)
-		goto out_err;
-
-	num_free_entries_dent = debugfs_create_u32("num_free_entries", 0444,
-			dma_debug_dent,
-			&num_free_entries);
-	if (!num_free_entries_dent)
-		goto out_err;
-
-	min_free_entries_dent = debugfs_create_u32("min_free_entries", 0444,
-			dma_debug_dent,
-			&min_free_entries);
-	if (!min_free_entries_dent)
-		goto out_err;
-
-	nr_total_entries_dent = debugfs_create_u32("nr_total_entries", 0444,
-			dma_debug_dent,
-			&nr_total_entries);
-	if (!nr_total_entries_dent)
-		goto out_err;
-
-	filter_dent = debugfs_create_file("driver_filter", 0644,
-					  dma_debug_dent, NULL, &filter_fops);
-	if (!filter_dent)
-		goto out_err;
-
 	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(dump);
 
-out_err:
-	debugfs_remove_recursive(dma_debug_dent);
+static void dma_debug_fs_init(void)
+{
+	struct dentry *dentry = debugfs_create_dir("dma-api", NULL);
 
-	return -ENOMEM;
+	debugfs_create_bool("disabled", 0444, dentry, &global_disable);
+	debugfs_create_u32("error_count", 0444, dentry, &error_count);
+	debugfs_create_u32("all_errors", 0644, dentry, &show_all_errors);
+	debugfs_create_u32("num_errors", 0644, dentry, &show_num_errors);
+	debugfs_create_u32("num_free_entries", 0444, dentry, &num_free_entries);
+	debugfs_create_u32("min_free_entries", 0444, dentry, &min_free_entries);
+	debugfs_create_u32("nr_total_entries", 0444, dentry, &nr_total_entries);
+	debugfs_create_file("driver_filter", 0644, dentry, NULL, &filter_fops);
+	debugfs_create_file("dump", 0444, dentry, NULL, &dump_fops);
 }
 
 static int device_dma_allocations(struct device *dev, struct dma_debug_entry **out_entry)
@@ -985,12 +954,7 @@ static int dma_debug_init(void)
 		spin_lock_init(&dma_entry_hash[i].lock);
 	}
 
-	if (dma_debug_fs_init() != 0) {
-		pr_err("error creating debugfs entries - disabling\n");
-		global_disable = true;
-
-		return 0;
-	}
+	dma_debug_fs_init();
 
 	nr_pages = DIV_ROUND_UP(nr_prealloc_entries, DMA_DEBUG_DYNAMIC_ENTRIES);
 	for (i = 0; i < nr_pages; ++i)

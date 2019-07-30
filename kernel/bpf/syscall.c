@@ -136,21 +136,29 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 
 void *bpf_map_area_alloc(size_t size, int numa_node)
 {
-	/* We definitely need __GFP_NORETRY, so OOM killer doesn't
-	 * trigger under memory pressure as we really just want to
-	 * fail instead.
+	/* We really just want to fail instead of triggering OOM killer
+	 * under memory pressure, therefore we set __GFP_NORETRY to kmalloc,
+	 * which is used for lower order allocation requests.
+	 *
+	 * It has been observed that higher order allocation requests done by
+	 * vmalloc with __GFP_NORETRY being set might fail due to not trying
+	 * to reclaim memory from the page cache, thus we set
+	 * __GFP_RETRY_MAYFAIL to avoid such situations.
 	 */
-	const gfp_t flags = __GFP_NOWARN | __GFP_NORETRY | __GFP_ZERO;
+
+	const gfp_t flags = __GFP_NOWARN | __GFP_ZERO;
 	void *area;
 
 	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
-		area = kmalloc_node(size, GFP_USER | flags, numa_node);
+		area = kmalloc_node(size, GFP_USER | __GFP_NORETRY | flags,
+				    numa_node);
 		if (area != NULL)
 			return area;
 	}
 
-	return __vmalloc_node_flags_caller(size, numa_node, GFP_KERNEL | flags,
-					   __builtin_return_address(0));
+	return __vmalloc_node_flags_caller(size, numa_node,
+					   GFP_KERNEL | __GFP_RETRY_MAYFAIL |
+					   flags, __builtin_return_address(0));
 }
 
 void bpf_map_area_free(void *area)
@@ -463,7 +471,7 @@ int map_check_no_btf(const struct bpf_map *map,
 	return -ENOTSUPP;
 }
 
-static int map_check_btf(const struct bpf_map *map, const struct btf *btf,
+static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 			 u32 btf_key_id, u32 btf_value_id)
 {
 	const struct btf_type *key_type, *value_type;
@@ -477,6 +485,22 @@ static int map_check_btf(const struct bpf_map *map, const struct btf *btf,
 	value_type = btf_type_id_size(btf, &btf_value_id, &value_size);
 	if (!value_type || value_size != map->value_size)
 		return -EINVAL;
+
+	map->spin_lock_off = btf_find_spin_lock(btf, value_type);
+
+	if (map_value_has_spin_lock(map)) {
+		if (map->map_type != BPF_MAP_TYPE_HASH &&
+		    map->map_type != BPF_MAP_TYPE_ARRAY &&
+		    map->map_type != BPF_MAP_TYPE_CGROUP_STORAGE)
+			return -ENOTSUPP;
+		if (map->spin_lock_off + sizeof(struct bpf_spin_lock) >
+		    map->value_size) {
+			WARN_ONCE(1,
+				  "verifier bug spin_lock_off %d value_size %d\n",
+				  map->spin_lock_off, map->value_size);
+			return -EFAULT;
+		}
+	}
 
 	if (map->ops->map_check_btf)
 		ret = map->ops->map_check_btf(map, btf, key_type, value_type);
@@ -542,6 +566,8 @@ static int map_create(union bpf_attr *attr)
 		map->btf = btf;
 		map->btf_key_type_id = attr->btf_key_type_id;
 		map->btf_value_type_id = attr->btf_value_type_id;
+	} else {
+		map->spin_lock_off = -EINVAL;
 	}
 
 	err = security_bpf_map_alloc(map);
@@ -664,7 +690,7 @@ static void *__bpf_copy_key(void __user *ukey, u64 key_size)
 }
 
 /* last field in 'union bpf_attr' used by this command */
-#define BPF_MAP_LOOKUP_ELEM_LAST_FIELD value
+#define BPF_MAP_LOOKUP_ELEM_LAST_FIELD flags
 
 static int map_lookup_elem(union bpf_attr *attr)
 {
@@ -680,6 +706,9 @@ static int map_lookup_elem(union bpf_attr *attr)
 	if (CHECK_ATTR(BPF_MAP_LOOKUP_ELEM))
 		return -EINVAL;
 
+	if (attr->flags & ~BPF_F_LOCK)
+		return -EINVAL;
+
 	f = fdget(ufd);
 	map = __bpf_map_get(f);
 	if (IS_ERR(map))
@@ -687,6 +716,12 @@ static int map_lookup_elem(union bpf_attr *attr)
 
 	if (!(f.file->f_mode & FMODE_CAN_READ)) {
 		err = -EPERM;
+		goto err_put;
+	}
+
+	if ((attr->flags & BPF_F_LOCK) &&
+	    !map_value_has_spin_lock(map)) {
+		err = -EINVAL;
 		goto err_put;
 	}
 
@@ -745,7 +780,13 @@ static int map_lookup_elem(union bpf_attr *attr)
 			err = -ENOENT;
 		} else {
 			err = 0;
-			memcpy(value, ptr, value_size);
+			if (attr->flags & BPF_F_LOCK)
+				/* lock 'ptr' and copy everything but lock */
+				copy_map_value_locked(map, value, ptr, true);
+			else
+				copy_map_value(map, value, ptr);
+			/* mask lock, since value wasn't zero inited */
+			check_and_init_map_lock(map, value);
 		}
 		rcu_read_unlock();
 	}
@@ -805,6 +846,12 @@ static int map_update_elem(union bpf_attr *attr)
 
 	if (!(f.file->f_mode & FMODE_CAN_WRITE)) {
 		err = -EPERM;
+		goto err_put;
+	}
+
+	if ((attr->flags & BPF_F_LOCK) &&
+	    !map_value_has_spin_lock(map)) {
+		err = -EINVAL;
 		goto err_put;
 	}
 
@@ -1219,6 +1266,7 @@ static void __bpf_prog_put_rcu(struct rcu_head *rcu)
 static void __bpf_prog_put(struct bpf_prog *prog, bool do_idr_lock)
 {
 	if (atomic_dec_and_test(&prog->aux->refcnt)) {
+		perf_event_bpf_event(prog, PERF_BPF_EVENT_PROG_UNLOAD, 0);
 		/* bpf_prog_free_id() must be called first */
 		bpf_prog_free_id(prog, do_idr_lock);
 		bpf_prog_kallsyms_del_all(prog);
@@ -1244,24 +1292,54 @@ static int bpf_prog_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static void bpf_prog_get_stats(const struct bpf_prog *prog,
+			       struct bpf_prog_stats *stats)
+{
+	u64 nsecs = 0, cnt = 0;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		const struct bpf_prog_stats *st;
+		unsigned int start;
+		u64 tnsecs, tcnt;
+
+		st = per_cpu_ptr(prog->aux->stats, cpu);
+		do {
+			start = u64_stats_fetch_begin_irq(&st->syncp);
+			tnsecs = st->nsecs;
+			tcnt = st->cnt;
+		} while (u64_stats_fetch_retry_irq(&st->syncp, start));
+		nsecs += tnsecs;
+		cnt += tcnt;
+	}
+	stats->nsecs = nsecs;
+	stats->cnt = cnt;
+}
+
 #ifdef CONFIG_PROC_FS
 static void bpf_prog_show_fdinfo(struct seq_file *m, struct file *filp)
 {
 	const struct bpf_prog *prog = filp->private_data;
 	char prog_tag[sizeof(prog->tag) * 2 + 1] = { };
+	struct bpf_prog_stats stats;
 
+	bpf_prog_get_stats(prog, &stats);
 	bin2hex(prog_tag, prog->tag, sizeof(prog->tag));
 	seq_printf(m,
 		   "prog_type:\t%u\n"
 		   "prog_jited:\t%u\n"
 		   "prog_tag:\t%s\n"
 		   "memlock:\t%llu\n"
-		   "prog_id:\t%u\n",
+		   "prog_id:\t%u\n"
+		   "run_time_ns:\t%llu\n"
+		   "run_cnt:\t%llu\n",
 		   prog->type,
 		   prog->jited,
 		   prog_tag,
 		   prog->pages * 1ULL << PAGE_SHIFT,
-		   prog->aux->id);
+		   prog->aux->id,
+		   stats.nsecs,
+		   stats.cnt);
 }
 #endif
 
@@ -1562,6 +1640,7 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 	}
 
 	bpf_prog_kallsyms_add(prog);
+	perf_event_bpf_event(prog, PERF_BPF_EVENT_PROG_LOAD, 0);
 	return err;
 
 free_used_maps:
@@ -2083,6 +2162,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	struct bpf_prog_info __user *uinfo = u64_to_user_ptr(attr->info.info);
 	struct bpf_prog_info info = {};
 	u32 info_len = attr->info.info_len;
+	struct bpf_prog_stats stats;
 	char __user *uinsns;
 	u32 ulen;
 	int err;
@@ -2121,6 +2201,10 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	err = set_info_rec_size(&info);
 	if (err)
 		return err;
+
+	bpf_prog_get_stats(prog, &stats);
+	info.run_time_ns = stats.nsecs;
+	info.run_cnt = stats.cnt;
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		info.jited_prog_len = 0;

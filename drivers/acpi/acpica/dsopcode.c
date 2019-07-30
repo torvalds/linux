@@ -3,7 +3,7 @@
  *
  * Module Name: dsopcode - Dispatcher support for regions and fields
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -130,8 +130,8 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 		/* Must have a valid (>0) bit count */
 
 		if (bit_count == 0) {
-			ACPI_ERROR((AE_INFO,
-				    "Attempt to CreateField of length zero"));
+			ACPI_BIOS_ERROR((AE_INFO,
+					 "Attempt to CreateField of length zero"));
 			status = AE_AML_OPERAND_VALUE;
 			goto cleanup;
 		}
@@ -194,12 +194,13 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 	/* Entire field must fit within the current length of the buffer */
 
 	if ((bit_offset + bit_count) > (8 * (u32)buffer_desc->buffer.length)) {
-		ACPI_ERROR((AE_INFO,
-			    "Field [%4.4s] at bit offset/length %u/%u "
-			    "exceeds size of target Buffer (%u bits)",
-			    acpi_ut_get_node_name(result_desc), bit_offset,
-			    bit_count, 8 * (u32)buffer_desc->buffer.length));
 		status = AE_AML_BUFFER_LIMIT;
+		ACPI_BIOS_EXCEPTION((AE_INFO, status,
+				     "Field [%4.4s] at bit offset/length %u/%u "
+				     "exceeds size of target Buffer (%u bits)",
+				     acpi_ut_get_node_name(result_desc),
+				     bit_offset, bit_count,
+				     8 * (u32)buffer_desc->buffer.length));
 		goto cleanup;
 	}
 
@@ -355,6 +356,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	union acpi_operand_object *operand_desc;
 	struct acpi_namespace_node *node;
 	union acpi_parse_object *next_op;
+	acpi_adr_space_type space_id;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_eval_region_operands, op);
 
@@ -367,6 +369,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	/* next_op points to the op that holds the space_ID */
 
 	next_op = op->common.value.arg;
+	space_id = (acpi_adr_space_type)next_op->common.value.integer;
 
 	/* next_op points to address op */
 
@@ -401,6 +404,15 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 
 	obj_desc->region.length = (u32) operand_desc->integer.value;
 	acpi_ut_remove_reference(operand_desc);
+
+	/* A zero-length operation region is unusable. Just warn */
+
+	if (!obj_desc->region.length
+	    && (space_id < ACPI_NUM_PREDEFINED_REGIONS)) {
+		ACPI_WARNING((AE_INFO,
+			      "Operation Region [%4.4s] has zero length (SpaceId %X)",
+			      node->name.ascii, space_id));
+	}
 
 	/*
 	 * Get the address and save it

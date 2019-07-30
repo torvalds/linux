@@ -3,9 +3,15 @@
  * SoC core Device Tree for the ARM Integrator platforms
  */
 
-/include/ "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
+	};
+
 	core-module@10000000 {
 		compatible = "arm,core-module-integrator", "syscon", "simple-mfd";
 		reg = <0x10000000 0x200>;

@@ -296,7 +296,7 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 		return ret;
 	}
 	/*
-	 * NOTE: some devices with two i2c busses have the bad habit to return 0
+	 * NOTE: some devices with two i2c buses have the bad habit to return 0
 	 * bytes if we are on bus B AND there was no write attempt to the
 	 * specified slave address before AND no device is present at the
 	 * requested slave address.
@@ -427,7 +427,7 @@ static int em25xx_bus_B_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		return ret;
 	}
 	/*
-	 * NOTE: some devices with two i2c busses have the bad habit to return 0
+	 * NOTE: some devices with two i2c buses have the bad habit to return 0
 	 * bytes if we are on bus B AND there was no write attempt to the
 	 * specified slave address before AND no device is present at the
 	 * requested slave address.

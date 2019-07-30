@@ -64,7 +64,7 @@ bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu);
 int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 				u64 fault_address, char *insn, int insn_len);
 
-static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
+static inline unsigned long kvm_mmu_available_pages(struct kvm *kvm)
 {
 	if (kvm->arch.n_max_mmu_pages > kvm->arch.n_used_mmu_pages)
 		return kvm->arch.n_max_mmu_pages -
@@ -203,7 +203,6 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	return -(u32)fault & errcode;
 }
 
-void kvm_mmu_invalidate_zap_all_pages(struct kvm *kvm);
 void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end);
 
 void kvm_mmu_gfn_disallow_lpage(struct kvm_memory_slot *slot, gfn_t gfn);

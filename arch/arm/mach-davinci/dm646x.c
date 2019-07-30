@@ -15,6 +15,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/init.h>
+#include <linux/irqchip/irq-davinci-aintc.h>
 #include <linux/platform_data/edma.h>
 #include <linux/platform_data/gpio-davinci.h>
 #include <linux/platform_device.h>
@@ -24,13 +25,13 @@
 
 #include <mach/common.h>
 #include <mach/cputype.h>
-#include <mach/irqs.h>
 #include <mach/mux.h>
 #include <mach/serial.h>
 #include <mach/time.h>
 
 #include "asp.h"
 #include "davinci.h"
+#include "irqs.h"
 #include "mux.h"
 
 #define DAVINCI_VPIF_BASE       (0x01C12000)
@@ -62,23 +63,23 @@ static struct resource dm646x_emac_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= IRQ_DM646X_EMACRXTHINT,
-		.end	= IRQ_DM646X_EMACRXTHINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DM646X_EMACRXTHINT),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DM646X_EMACRXTHINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DM646X_EMACRXINT,
-		.end	= IRQ_DM646X_EMACRXINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DM646X_EMACRXINT),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DM646X_EMACRXINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DM646X_EMACTXINT,
-		.end	= IRQ_DM646X_EMACTXINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DM646X_EMACTXINT),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DM646X_EMACTXINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DM646X_EMACMISCINT,
-		.end	= IRQ_DM646X_EMACMISCINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DM646X_EMACMISCINT),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DM646X_EMACMISCINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -273,12 +274,12 @@ static struct resource edma_resources[] = {
 	},
 	{
 		.name	= "edma3_ccint",
-		.start	= IRQ_CCINT0,
+		.start	= DAVINCI_INTC_IRQ(IRQ_CCINT0),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		.name	= "edma3_ccerrint",
-		.start	= IRQ_CCERRINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_CCERRINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 	/* not using TC*_ERR */
@@ -315,12 +316,12 @@ static struct resource dm646x_mcasp0_resources[] = {
 	},
 	{
 		.name	= "tx",
-		.start	= IRQ_DM646X_MCASP0TXINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DM646X_MCASP0TXINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		.name	= "rx",
-		.start	= IRQ_DM646X_MCASP0RXINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DM646X_MCASP0RXINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -341,7 +342,7 @@ static struct resource dm646x_mcasp1_resources[] = {
 	},
 	{
 		.name	= "tx",
-		.start	= IRQ_DM646X_MCASP1TXINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DM646X_MCASP1TXINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -388,13 +389,13 @@ static struct platform_device vpif_dev = {
 
 static struct resource vpif_display_resource[] = {
 	{
-		.start = IRQ_DM646X_VP_VERTINT2,
-		.end   = IRQ_DM646X_VP_VERTINT2,
+		.start = DAVINCI_INTC_IRQ(IRQ_DM646X_VP_VERTINT2),
+		.end   = DAVINCI_INTC_IRQ(IRQ_DM646X_VP_VERTINT2),
 		.flags = IORESOURCE_IRQ,
 	},
 	{
-		.start = IRQ_DM646X_VP_VERTINT3,
-		.end   = IRQ_DM646X_VP_VERTINT3,
+		.start = DAVINCI_INTC_IRQ(IRQ_DM646X_VP_VERTINT3),
+		.end   = DAVINCI_INTC_IRQ(IRQ_DM646X_VP_VERTINT3),
 		.flags = IORESOURCE_IRQ,
 	},
 };
@@ -412,13 +413,13 @@ static struct platform_device vpif_display_dev = {
 
 static struct resource vpif_capture_resource[] = {
 	{
-		.start = IRQ_DM646X_VP_VERTINT0,
-		.end   = IRQ_DM646X_VP_VERTINT0,
+		.start = DAVINCI_INTC_IRQ(IRQ_DM646X_VP_VERTINT0),
+		.end   = DAVINCI_INTC_IRQ(IRQ_DM646X_VP_VERTINT0),
 		.flags = IORESOURCE_IRQ,
 	},
 	{
-		.start = IRQ_DM646X_VP_VERTINT1,
-		.end   = IRQ_DM646X_VP_VERTINT1,
+		.start = DAVINCI_INTC_IRQ(IRQ_DM646X_VP_VERTINT1),
+		.end   = DAVINCI_INTC_IRQ(IRQ_DM646X_VP_VERTINT1),
 		.flags = IORESOURCE_IRQ,
 	},
 };
@@ -441,18 +442,18 @@ static struct resource dm646x_gpio_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{	/* interrupt */
-		.start	= IRQ_DM646X_GPIOBNK0,
-		.end	= IRQ_DM646X_GPIOBNK0,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DM646X_GPIOBNK0),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DM646X_GPIOBNK0),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DM646X_GPIOBNK1,
-		.end	= IRQ_DM646X_GPIOBNK1,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DM646X_GPIOBNK1),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DM646X_GPIOBNK1),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DM646X_GPIOBNK2,
-		.end	= IRQ_DM646X_GPIOBNK2,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DM646X_GPIOBNK2),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DM646X_GPIOBNK2),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -513,7 +514,7 @@ static struct davinci_timer_info dm646x_timer_info = {
 static struct plat_serial8250_port dm646x_serial0_platform_data[] = {
 	{
 		.mapbase	= DAVINCI_UART0_BASE,
-		.irq		= IRQ_UARTINT0,
+		.irq		= DAVINCI_INTC_IRQ(IRQ_UARTINT0),
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
 				  UPF_IOREMAP,
 		.iotype		= UPIO_MEM32,
@@ -526,7 +527,7 @@ static struct plat_serial8250_port dm646x_serial0_platform_data[] = {
 static struct plat_serial8250_port dm646x_serial1_platform_data[] = {
 	{
 		.mapbase	= DAVINCI_UART1_BASE,
-		.irq		= IRQ_UARTINT1,
+		.irq		= DAVINCI_INTC_IRQ(IRQ_UARTINT1),
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
 				  UPF_IOREMAP,
 		.iotype		= UPIO_MEM32,
@@ -539,7 +540,7 @@ static struct plat_serial8250_port dm646x_serial1_platform_data[] = {
 static struct plat_serial8250_port dm646x_serial2_platform_data[] = {
 	{
 		.mapbase	= DAVINCI_UART2_BASE,
-		.irq		= IRQ_DM646X_UARTINT2,
+		.irq		= DAVINCI_INTC_IRQ(IRQ_DM646X_UARTINT2),
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
 				  UPF_IOREMAP,
 		.iotype		= UPIO_MEM32,
@@ -585,10 +586,6 @@ static const struct davinci_soc_info davinci_soc_info_dm646x = {
 	.pinmux_base		= DAVINCI_SYSTEM_MODULE_BASE,
 	.pinmux_pins		= dm646x_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(dm646x_pins),
-	.intc_base		= DAVINCI_ARM_INTC_BASE,
-	.intc_type		= DAVINCI_INTC_TYPE_AINTC,
-	.intc_irq_prios		= dm646x_default_priorities,
-	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 	.timer_info		= &dm646x_timer_info,
 	.emac_pdata		= &dm646x_emac_pdata,
 	.sram_dma		= 0x10010000,
@@ -688,6 +685,21 @@ void __init dm646x_register_clocks(void)
 {
 	/* PLL1 and PSC are registered in dm646x_init_time() */
 	platform_device_register(&dm646x_pll2_device);
+}
+
+static const struct davinci_aintc_config dm646x_aintc_config = {
+	.reg = {
+		.start		= DAVINCI_ARM_INTC_BASE,
+		.end		= DAVINCI_ARM_INTC_BASE + SZ_4K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	.num_irqs		= 64,
+	.prios			= dm646x_default_priorities,
+};
+
+void __init dm646x_init_irq(void)
+{
+	davinci_aintc_init(&dm646x_aintc_config);
 }
 
 static int __init dm646x_init_devices(void)

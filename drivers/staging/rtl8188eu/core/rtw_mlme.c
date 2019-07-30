@@ -300,8 +300,8 @@ int rtw_is_same_ibss(struct adapter *adapter, struct wlan_network *pnetwork)
 
 static int is_same_ess(struct wlan_bssid_ex *a, struct wlan_bssid_ex *b)
 {
-	return (a->Ssid.SsidLength == b->Ssid.SsidLength) &&
-	       !memcmp(a->Ssid.Ssid, b->Ssid.Ssid, a->Ssid.SsidLength);
+	return (a->ssid.ssid_length == b->ssid.ssid_length) &&
+	       !memcmp(a->ssid.ssid, b->ssid.ssid, a->ssid.ssid_length);
 }
 
 int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
@@ -315,9 +315,9 @@ int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
 	s_cap = le16_to_cpu(le_scap);
 	d_cap = le16_to_cpu(le_dcap);
 
-	return ((src->Ssid.SsidLength == dst->Ssid.SsidLength) &&
+	return ((src->ssid.ssid_length == dst->ssid.ssid_length) &&
 		(!memcmp(src->MacAddress, dst->MacAddress, ETH_ALEN)) &&
-		(!memcmp(src->Ssid.Ssid, dst->Ssid.Ssid, src->Ssid.SsidLength)) &&
+		(!memcmp(src->ssid.ssid, dst->ssid.ssid, src->ssid.ssid_length)) &&
 		((s_cap & WLAN_CAPABILITY_IBSS) ==
 		(d_cap & WLAN_CAPABILITY_IBSS)) &&
 		((s_cap & WLAN_CAPABILITY_ESS) ==
@@ -558,7 +558,7 @@ void rtw_survey_event_callback(struct adapter	*adapter, u8 *pbuf)
 	pnetwork = (struct wlan_bssid_ex *)pbuf;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("%s, ssid=%s\n", __func__, pnetwork->Ssid.Ssid));
+		 ("%s, ssid=%s\n", __func__, pnetwork->ssid.ssid));
 
 	len = get_wlan_bssid_ex_sz(pnetwork);
 	if (len > (sizeof(struct wlan_bssid_ex))) {
@@ -587,8 +587,8 @@ void rtw_survey_event_callback(struct adapter	*adapter, u8 *pbuf)
 
 	/*  lock pmlmepriv->lock when you accessing network_q */
 	if (!check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
-		if (pnetwork->Ssid.Ssid[0] == 0)
-			pnetwork->Ssid.SsidLength = 0;
+		if (pnetwork->ssid.ssid[0] == 0)
+			pnetwork->ssid.ssid_length = 0;
 		rtw_add_network(adapter, pnetwork);
 	}
 
@@ -636,7 +636,7 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 
 					RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("switching to adhoc master\n"));
 
-					memcpy(&pdev_network->Ssid, &pmlmepriv->assoc_ssid, sizeof(struct ndis_802_11_ssid));
+					memcpy(&pdev_network->ssid, &pmlmepriv->assoc_ssid, sizeof(struct ndis_802_11_ssid));
 
 					rtw_update_registrypriv_dev_network(adapter);
 					rtw_generate_random_ibss(pibss);
@@ -741,7 +741,7 @@ void rtw_free_assoc_resources_locked(struct adapter *adapter)
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_, ("+rtw_free_assoc_resources\n"));
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 		 ("tgt_network->network.MacAddress=%pM ssid=%s\n",
-		 tgt_network->network.MacAddress, tgt_network->network.Ssid.Ssid));
+		 tgt_network->network.MacAddress, tgt_network->network.ssid.ssid));
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE | WIFI_AP_STATE)) {
 		struct sta_info *psta;
@@ -975,10 +975,10 @@ void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf)
 
 	rtw_get_encrypt_decrypt_from_registrypriv(adapter);
 
-	if (pmlmepriv->assoc_ssid.SsidLength == 0)
+	if (pmlmepriv->assoc_ssid.ssid_length == 0)
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("@@@@@   joinbss event call back  for Any SSid\n"));
 	else
-		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("@@@@@   rtw_joinbss_event_callback for SSid:%s\n", pmlmepriv->assoc_ssid.Ssid));
+		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("@@@@@   rtw_joinbss_event_callback for SSid:%s\n", pmlmepriv->assoc_ssid.ssid));
 
 	the_same_macaddr = !memcmp(pnetwork->network.MacAddress, cur_network->network.MacAddress, ETH_ALEN);
 
@@ -1279,7 +1279,7 @@ void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf)
 
 			memcpy(pdev_network, &tgt_network->network, get_wlan_bssid_ex_sz(&tgt_network->network));
 
-			memcpy(&pdev_network->Ssid, &pmlmepriv->assoc_ssid, sizeof(struct ndis_802_11_ssid));
+			memcpy(&pdev_network->ssid, &pmlmepriv->assoc_ssid, sizeof(struct ndis_802_11_ssid));
 
 			rtw_update_registrypriv_dev_network(adapter);
 
@@ -1422,9 +1422,9 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 	}
 
 	/* check ssid, if needed */
-	if (pmlmepriv->assoc_ssid.SsidLength) {
-		if (competitor->network.Ssid.SsidLength != pmlmepriv->assoc_ssid.SsidLength ||
-		    memcmp(competitor->network.Ssid.Ssid, pmlmepriv->assoc_ssid.Ssid, pmlmepriv->assoc_ssid.SsidLength))
+	if (pmlmepriv->assoc_ssid.ssid_length) {
+		if (competitor->network.ssid.ssid_length != pmlmepriv->assoc_ssid.ssid_length ||
+		    memcmp(competitor->network.ssid.ssid, pmlmepriv->assoc_ssid.ssid, pmlmepriv->assoc_ssid.ssid_length))
 			goto exit;
 	}
 
@@ -1445,8 +1445,8 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv
 	if (updated) {
 		DBG_88E("[by_bssid:%u][assoc_ssid:%s]new candidate: %s(%pM rssi:%d\n",
 			pmlmepriv->assoc_by_bssid,
-			pmlmepriv->assoc_ssid.Ssid,
-			(*candidate)->network.Ssid.Ssid,
+			pmlmepriv->assoc_ssid.ssid,
+			(*candidate)->network.ssid.ssid,
 			(*candidate)->network.MacAddress,
 			(int)(*candidate)->network.Rssi);
 		DBG_88E("[to_roaming:%u]\n", pmlmepriv->to_roaming);
@@ -1493,7 +1493,7 @@ int rtw_select_and_join_from_scanned_queue(struct mlme_priv *pmlmepriv)
 		goto exit;
 	} else {
 		DBG_88E("%s: candidate: %s(%pM ch:%u)\n", __func__,
-			candidate->network.Ssid.Ssid, candidate->network.MacAddress,
+			candidate->network.ssid.ssid, candidate->network.MacAddress,
 			candidate->network.Configuration.DSConfig);
 	}
 
@@ -1772,7 +1772,7 @@ void rtw_init_registrypriv_dev_network(struct adapter *adapter)
 
 	memcpy(pdev_network->MacAddress, myhwaddr, ETH_ALEN);
 
-	memcpy(&pdev_network->Ssid, &pregistrypriv->ssid, sizeof(struct ndis_802_11_ssid));
+	memcpy(&pdev_network->ssid, &pregistrypriv->ssid, sizeof(struct ndis_802_11_ssid));
 
 	pdev_network->Configuration.Length = sizeof(struct ndis_802_11_config);
 	pdev_network->Configuration.BeaconPeriod = 100;
@@ -2049,9 +2049,9 @@ void _rtw_roaming(struct adapter *padapter, struct wlan_network *tgt_network)
 
 	if (pmlmepriv->to_roaming > 0) {
 		DBG_88E("roaming from %s(%pM length:%d\n",
-			pnetwork->network.Ssid.Ssid, pnetwork->network.MacAddress,
-			pnetwork->network.Ssid.SsidLength);
-		memcpy(&pmlmepriv->assoc_ssid, &pnetwork->network.Ssid, sizeof(struct ndis_802_11_ssid));
+			pnetwork->network.ssid.ssid, pnetwork->network.MacAddress,
+			pnetwork->network.ssid.ssid_length);
+		memcpy(&pmlmepriv->assoc_ssid, &pnetwork->network.ssid, sizeof(struct ndis_802_11_ssid));
 
 		pmlmepriv->assoc_by_bssid = false;
 

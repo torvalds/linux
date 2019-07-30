@@ -28,6 +28,12 @@ cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
 
 ifdef CONFIG_ISA_ARCV2
 
+ifdef CONFIG_ARC_USE_UNALIGNED_MEM_ACCESS
+cflags-y				+= -munaligned-access
+else
+cflags-y				+= -mno-unaligned-access
+endif
+
 ifndef CONFIG_ARC_HAS_LL64
 cflags-y				+= -mno-ll64
 endif

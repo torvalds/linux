@@ -54,6 +54,7 @@
 #include <linux/printk.h>
 #include <linux/hrtimer.h>
 #include <linux/bitmap.h>
+#include <linux/numa.h>
 #include <rdma/rdma_vt.h>
 
 #include "hfi.h"
@@ -72,7 +73,6 @@
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
 
-#define HFI1_MAX_ACTIVE_WORKQUEUE_ENTRIES 5
 /*
  * min buffers we want to have per context, after driver
  */
@@ -215,11 +215,11 @@ static void hfi1_rcd_free(struct kref *kref)
 	struct hfi1_ctxtdata *rcd =
 		container_of(kref, struct hfi1_ctxtdata, kref);
 
-	hfi1_free_ctxtdata(rcd->dd, rcd);
-
 	spin_lock_irqsave(&rcd->dd->uctxt_lock, flags);
 	rcd->dd->rcd[rcd->ctxt] = NULL;
 	spin_unlock_irqrestore(&rcd->dd->uctxt_lock, flags);
+
+	hfi1_free_ctxtdata(rcd->dd, rcd);
 
 	kfree(rcd);
 }
@@ -243,10 +243,13 @@ int hfi1_rcd_put(struct hfi1_ctxtdata *rcd)
  * @rcd: pointer to an initialized rcd data structure
  *
  * Use this to get a reference after the init.
+ *
+ * Return : reflect kref_get_unless_zero(), which returns non-zero on
+ * increment, otherwise 0.
  */
-void hfi1_rcd_get(struct hfi1_ctxtdata *rcd)
+int hfi1_rcd_get(struct hfi1_ctxtdata *rcd)
 {
-	kref_get(&rcd->kref);
+	return kref_get_unless_zero(&rcd->kref);
 }
 
 /**
@@ -326,7 +329,8 @@ struct hfi1_ctxtdata *hfi1_rcd_get_by_index(struct hfi1_devdata *dd, u16 ctxt)
 	spin_lock_irqsave(&dd->uctxt_lock, flags);
 	if (dd->rcd[ctxt]) {
 		rcd = dd->rcd[ctxt];
-		hfi1_rcd_get(rcd);
+		if (!hfi1_rcd_get(rcd))
+			rcd = NULL;
 	}
 	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 
@@ -371,6 +375,9 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 		rcd->rhf_rcv_function_map = normal_rhf_rcv_functions;
 
 		mutex_init(&rcd->exp_mutex);
+		spin_lock_init(&rcd->exp_lock);
+		INIT_LIST_HEAD(&rcd->flow_queue.queue_head);
+		INIT_LIST_HEAD(&rcd->rarr_queue.queue_head);
 
 		hfi1_cdbg(PROC, "setting up context %u\n", rcd->ctxt);
 
@@ -473,6 +480,9 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 						    GFP_KERNEL, numa);
 			if (!rcd->opstats)
 				goto bail;
+
+			/* Initialize TID flow generations for the context */
+			hfi1_kern_init_ctxt_generations(rcd);
 		}
 
 		*context = rcd;
@@ -772,6 +782,8 @@ static void enable_chip(struct hfi1_devdata *dd)
 			rcvmask |= HFI1_RCVCTRL_NO_RHQ_DROP_ENB;
 		if (HFI1_CAP_KGET_MASK(rcd->flags, NODROP_EGR_FULL))
 			rcvmask |= HFI1_RCVCTRL_NO_EGR_DROP_ENB;
+		if (HFI1_CAP_IS_KSET(TID_RDMA))
+			rcvmask |= HFI1_RCVCTRL_TIDFLOW_ENB;
 		hfi1_rcvctrl(dd, rcvmask, rcd);
 		sc_enable(rcd->sc);
 		hfi1_rcd_put(rcd);
@@ -927,6 +939,8 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 		lastfail = hfi1_create_rcvhdrq(dd, rcd);
 		if (!lastfail)
 			lastfail = hfi1_setup_eagerbufs(rcd);
+		if (!lastfail)
+			lastfail = hfi1_kern_exp_rcv_init(rcd, reinit);
 		if (lastfail) {
 			dd_dev_err(dd,
 				   "failed to allocate kernel ctxt's rcvhdrq and/or egr bufs\n");
@@ -1303,7 +1317,7 @@ static struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev,
 		dd->unit = ret;
 		list_add(&dd->list, &hfi1_dev_list);
 	}
-	dd->node = -1;
+	dd->node = NUMA_NO_NODE;
 
 	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
 	idr_preload_end();
@@ -1497,6 +1511,13 @@ static int __init hfi1_mod_init(void)
 	/* sanitize link CRC options */
 	link_crc_mask &= SUPPORTED_CRCS;
 
+	ret = opfn_init();
+	if (ret < 0) {
+		pr_err("Failed to allocate opfn_wq");
+		goto bail_dev;
+	}
+
+	hfi1_compute_tid_rdma_flow_wt();
 	/*
 	 * These must be called before the driver is registered with
 	 * the PCI subsystem.
@@ -1527,6 +1548,7 @@ module_init(hfi1_mod_init);
 static void __exit hfi1_mod_cleanup(void)
 {
 	pci_unregister_driver(&hfi1_pci_driver);
+	opfn_exit();
 	node_affinity_destroy_all();
 	hfi1_dbg_exit();
 
@@ -1581,7 +1603,7 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 		struct hfi1_ctxtdata *rcd = dd->rcd[ctxt];
 
 		if (rcd) {
-			hfi1_clear_tids(rcd);
+			hfi1_free_ctxt_rcv_groups(rcd);
 			hfi1_free_ctxt(rcd);
 		}
 	}

@@ -1379,7 +1379,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 
 	status = gpiochip_add_irqchip(chip, lock_key, request_key);
 	if (status)
-		goto err_remove_chip;
+		goto err_free_gpiochip_mask;
 
 	status = of_gpiochip_add(chip);
 	if (status)
@@ -1387,7 +1387,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 
 	status = gpiochip_init_valid_mask(chip);
 	if (status)
-		goto err_remove_chip;
+		goto err_remove_of_chip;
 
 	for (i = 0; i < chip->ngpio; i++) {
 		struct gpio_desc *desc = &gdev->descs[i];
@@ -1415,14 +1415,18 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 	if (gpiolib_initialized) {
 		status = gpiochip_setup_dev(gdev);
 		if (status)
-			goto err_remove_chip;
+			goto err_remove_acpi_chip;
 	}
 	return 0;
 
-err_remove_chip:
+err_remove_acpi_chip:
 	acpi_gpiochip_remove(chip);
+err_remove_of_chip:
 	gpiochip_free_hogs(chip);
 	of_gpiochip_remove(chip);
+err_remove_chip:
+	gpiochip_irqchip_remove(chip);
+err_free_gpiochip_mask:
 	gpiochip_free_valid_mask(chip);
 err_remove_irqchip_mask:
 	gpiochip_irqchip_free_valid_mask(chip);
@@ -1781,6 +1785,43 @@ static const struct irq_domain_ops gpiochip_domain_ops = {
 	/* Virtually all GPIO irqchips are twocell:ed */
 	.xlate	= irq_domain_xlate_twocell,
 };
+
+/**
+ * gpiochip_irq_domain_activate() - Lock a GPIO to be used as an IRQ
+ * @domain: The IRQ domain used by this IRQ chip
+ * @data: Outermost irq_data associated with the IRQ
+ * @reserve: If set, only reserve an interrupt vector instead of assigning one
+ *
+ * This function is a wrapper that calls gpiochip_lock_as_irq() and is to be
+ * used as the activate function for the &struct irq_domain_ops. The host_data
+ * for the IRQ domain must be the &struct gpio_chip.
+ */
+int gpiochip_irq_domain_activate(struct irq_domain *domain,
+				 struct irq_data *data, bool reserve)
+{
+	struct gpio_chip *chip = domain->host_data;
+
+	return gpiochip_lock_as_irq(chip, data->hwirq);
+}
+EXPORT_SYMBOL_GPL(gpiochip_irq_domain_activate);
+
+/**
+ * gpiochip_irq_domain_deactivate() - Unlock a GPIO used as an IRQ
+ * @domain: The IRQ domain used by this IRQ chip
+ * @data: Outermost irq_data associated with the IRQ
+ *
+ * This function is a wrapper that will call gpiochip_unlock_as_irq() and is to
+ * be used as the deactivate function for the &struct irq_domain_ops. The
+ * host_data for the IRQ domain must be the &struct gpio_chip.
+ */
+void gpiochip_irq_domain_deactivate(struct irq_domain *domain,
+				    struct irq_data *data)
+{
+	struct gpio_chip *chip = domain->host_data;
+
+	return gpiochip_unlock_as_irq(chip, data->hwirq);
+}
+EXPORT_SYMBOL_GPL(gpiochip_irq_domain_deactivate);
 
 static int gpiochip_to_irq(struct gpio_chip *chip, unsigned offset)
 {
@@ -2525,6 +2566,14 @@ EXPORT_SYMBOL_GPL(gpiochip_free_own_desc);
  * rely on gpio_request() having been called beforehand.
  */
 
+static int gpio_set_config(struct gpio_chip *gc, unsigned offset,
+			   enum pin_config_param mode)
+{
+	unsigned long config = { PIN_CONF_PACKED(mode, 0) };
+
+	return gc->set_config ? gc->set_config(gc, offset, config) : -ENOTSUPP;
+}
+
 /**
  * gpiod_direction_input - set the GPIO direction to input
  * @desc:	GPIO to set to input
@@ -2572,19 +2621,18 @@ int gpiod_direction_input(struct gpio_desc *desc)
 	if (status == 0)
 		clear_bit(FLAG_IS_OUT, &desc->flags);
 
+	if (test_bit(FLAG_PULL_UP, &desc->flags))
+		gpio_set_config(chip, gpio_chip_hwgpio(desc),
+				PIN_CONFIG_BIAS_PULL_UP);
+	else if (test_bit(FLAG_PULL_DOWN, &desc->flags))
+		gpio_set_config(chip, gpio_chip_hwgpio(desc),
+				PIN_CONFIG_BIAS_PULL_DOWN);
+
 	trace_gpio_direction(desc_to_gpio(desc), 1, status);
 
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpiod_direction_input);
-
-static int gpio_set_drive_single_ended(struct gpio_chip *gc, unsigned offset,
-				       enum pin_config_param mode)
-{
-	unsigned long config = { PIN_CONF_PACKED(mode, 0) };
-
-	return gc->set_config ? gc->set_config(gc, offset, config) : -ENOTSUPP;
-}
 
 static int gpiod_direction_output_raw_commit(struct gpio_desc *desc, int value)
 {
@@ -2682,8 +2730,8 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 	gc = desc->gdev->chip;
 	if (test_bit(FLAG_OPEN_DRAIN, &desc->flags)) {
 		/* First see if we can enable open drain in hardware */
-		ret = gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
-						  PIN_CONFIG_DRIVE_OPEN_DRAIN);
+		ret = gpio_set_config(gc, gpio_chip_hwgpio(desc),
+				      PIN_CONFIG_DRIVE_OPEN_DRAIN);
 		if (!ret)
 			goto set_output_value;
 		/* Emulate open drain by not actively driving the line high */
@@ -2691,16 +2739,16 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 			return gpiod_direction_input(desc);
 	}
 	else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags)) {
-		ret = gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
-						  PIN_CONFIG_DRIVE_OPEN_SOURCE);
+		ret = gpio_set_config(gc, gpio_chip_hwgpio(desc),
+				      PIN_CONFIG_DRIVE_OPEN_SOURCE);
 		if (!ret)
 			goto set_output_value;
 		/* Emulate open source by not actively driving the line low */
 		if (!value)
 			return gpiod_direction_input(desc);
 	} else {
-		gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
-					    PIN_CONFIG_DRIVE_PUSH_PULL);
+		gpio_set_config(gc, gpio_chip_hwgpio(desc),
+				PIN_CONFIG_DRIVE_PUSH_PULL);
 	}
 
 set_output_value:
@@ -4056,6 +4104,17 @@ int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
 
 	if (lflags & GPIO_OPEN_SOURCE)
 		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
+
+	if ((lflags & GPIO_PULL_UP) && (lflags & GPIO_PULL_DOWN)) {
+		gpiod_err(desc,
+			  "both pull-up and pull-down enabled, invalid configuration\n");
+		return -EINVAL;
+	}
+
+	if (lflags & GPIO_PULL_UP)
+		set_bit(FLAG_PULL_UP, &desc->flags);
+	else if (lflags & GPIO_PULL_DOWN)
+		set_bit(FLAG_PULL_DOWN, &desc->flags);
 
 	status = gpiod_set_transitory(desc, (lflags & GPIO_TRANSITORY));
 	if (status < 0)

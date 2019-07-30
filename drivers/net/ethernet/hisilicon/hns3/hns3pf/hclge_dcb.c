@@ -93,13 +93,11 @@ static int hclge_dcb_common_validate(struct hclge_dev *hdev, u8 num_tc,
 		}
 	}
 
-	for (i = 0; i < hdev->num_alloc_vport; i++) {
-		if (num_tc > hdev->vport[i].alloc_tqps) {
-			dev_err(&hdev->pdev->dev,
-				"allocated tqp(%u) checking failed, %u > tqp(%u)\n",
-				i, num_tc, hdev->vport[i].alloc_tqps);
-			return -EINVAL;
-		}
+	if (num_tc > hdev->vport[0].alloc_tqps) {
+		dev_err(&hdev->pdev->dev,
+			"allocated tqp checking failed, %u > tqp(%u)\n",
+			num_tc, hdev->vport[0].alloc_tqps);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -156,21 +154,15 @@ static int hclge_ets_validate(struct hclge_dev *hdev, struct ieee_ets *ets,
 	return 0;
 }
 
-static int hclge_map_update(struct hnae3_handle *h)
+static int hclge_map_update(struct hclge_dev *hdev)
 {
-	struct hclge_vport *vport = hclge_get_vport(h);
-	struct hclge_dev *hdev = vport->back;
 	int ret;
 
-	ret = hclge_tm_map_cfg(hdev);
+	ret = hclge_tm_schd_setup_hw(hdev);
 	if (ret)
 		return ret;
 
-	ret = hclge_tm_schd_mode_hw(hdev);
-	if (ret)
-		return ret;
-
-	ret = hclge_pause_setup_hw(hdev);
+	ret = hclge_pause_setup_hw(hdev, false);
 	if (ret)
 		return ret;
 
@@ -222,19 +214,51 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 	if (ret)
 		return ret;
 
+	if (map_changed) {
+		ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+		if (ret)
+			return ret;
+
+		ret = hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+		if (ret)
+			return ret;
+	}
+
 	hclge_tm_schd_info_update(hdev, num_tc);
 
 	ret = hclge_ieee_ets_to_tm_info(hdev, ets);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	if (map_changed) {
+		ret = hclge_map_update(hdev);
+		if (ret)
+			goto err_out;
+
 		ret = hclge_client_setup_tc(hdev);
+		if (ret)
+			goto err_out;
+
+		ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
+		if (ret)
+			return ret;
+
+		ret = hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 		if (ret)
 			return ret;
 	}
 
 	return hclge_tm_dwrr_cfg(hdev);
+
+err_out:
+	if (!map_changed)
+		return ret;
+
+	if (hclge_notify_client(hdev, HNAE3_INIT_CLIENT))
+		return ret;
+
+	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+	return ret;
 }
 
 static int hclge_ieee_getpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
@@ -283,6 +307,9 @@ static int hclge_ieee_setpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 	    hdev->flag & HCLGE_FLAG_MQPRIO_ENABLE)
 		return -EINVAL;
 
+	if (pfc->pfc_en == hdev->tm_info.pfc_en)
+		return 0;
+
 	prio_tc = hdev->tm_info.prio_tc;
 	pfc_map = 0;
 
@@ -295,12 +322,10 @@ static int hclge_ieee_setpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 		}
 	}
 
-	if (pfc_map == hdev->tm_info.hw_pfc_map)
-		return 0;
-
 	hdev->tm_info.hw_pfc_map = pfc_map;
+	hdev->tm_info.pfc_en = pfc->pfc_en;
 
-	return hclge_pause_setup_hw(hdev);
+	return hclge_pause_setup_hw(hdev, false);
 }
 
 /* DCBX configuration */
@@ -345,12 +370,24 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 	if (ret)
 		return -EINVAL;
 
+	ret = hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+	if (ret)
+		return ret;
+
+	ret = hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+	if (ret)
+		return ret;
+
 	hclge_tm_schd_info_update(hdev, tc);
 	hclge_tm_prio_tc_info_update(hdev, prio_tc);
 
-	ret = hclge_tm_init_hw(hdev);
+	ret = hclge_tm_init_hw(hdev, false);
 	if (ret)
-		return ret;
+		goto err_out;
+
+	ret = hclge_client_setup_tc(hdev);
+	if (ret)
+		goto err_out;
 
 	hdev->flag &= ~HCLGE_FLAG_DCB_ENABLE;
 
@@ -359,7 +396,18 @@ static int hclge_setup_tc(struct hnae3_handle *h, u8 tc, u8 *prio_tc)
 	else
 		hdev->flag &= ~HCLGE_FLAG_MQPRIO_ENABLE;
 
-	return 0;
+	ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
+	if (ret)
+		return ret;
+
+	return hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+
+err_out:
+	if (hclge_notify_client(hdev, HNAE3_INIT_CLIENT))
+		return ret;
+
+	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
+	return ret;
 }
 
 static const struct hnae3_dcb_ops hns3_dcb_ops = {
@@ -369,7 +417,6 @@ static const struct hnae3_dcb_ops hns3_dcb_ops = {
 	.ieee_setpfc	= hclge_ieee_setpfc,
 	.getdcbx	= hclge_getdcbx,
 	.setdcbx	= hclge_setdcbx,
-	.map_update	= hclge_map_update,
 	.setup_tc	= hclge_setup_tc,
 };
 

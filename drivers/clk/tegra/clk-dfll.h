@@ -1,6 +1,6 @@
 /*
  * clk-dfll.h - prototypes and macros for the Tegra DFLL clocksource driver
- * Copyright (C) 2013 NVIDIA Corporation.  All rights reserved.
+ * Copyright (C) 2013-2019 NVIDIA Corporation.  All rights reserved.
  *
  * Aleksandr Frid <afrid@nvidia.com>
  * Paul Walmsley <pwalmsley@nvidia.com>
@@ -22,11 +22,14 @@
 #include <linux/reset.h>
 #include <linux/types.h>
 
+#include "cvb.h"
+
 /**
  * struct tegra_dfll_soc_data - SoC-specific hooks/integration for the DFLL driver
  * @dev: struct device * that holds the OPP table for the DFLL
  * @max_freq: maximum frequency supported on this SoC
  * @cvb: CPU frequency table for this SoC
+ * @alignment: parameters of the regulator step and offset
  * @init_clock_trimmers: callback to initialize clock trimmers
  * @set_clock_trimmers_high: callback to tune clock trimmers for high voltage
  * @set_clock_trimmers_low: callback to tune clock trimmers for low voltage
@@ -35,6 +38,7 @@ struct tegra_dfll_soc_data {
 	struct device *dev;
 	unsigned long max_freq;
 	const struct cvb_table *cvb;
+	struct rail_alignment alignment;
 
 	void (*init_clock_trimmers)(void);
 	void (*set_clock_trimmers_high)(void);

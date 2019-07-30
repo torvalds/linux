@@ -1260,8 +1260,8 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 		goto error_msg_hdr_check;
 	result = -EIO;
 	num_pls = le16_to_cpu(msg_hdr->num_pls);
-	pl_itr = sizeof(*msg_hdr) +	/* Check payload descriptor(s) */
-		num_pls * sizeof(msg_hdr->pld[0]);
+	/* Check payload descriptor(s) */
+	pl_itr = struct_size(msg_hdr, pld, num_pls);
 	pl_itr = ALIGN(pl_itr, I2400M_PL_ALIGN);
 	if (pl_itr > skb_len) {	/* got all the payload descriptors? */
 		dev_err(dev, "RX: HW BUG? message too short (%u bytes) for "

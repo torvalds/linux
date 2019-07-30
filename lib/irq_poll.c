@@ -35,7 +35,7 @@ void irq_poll_sched(struct irq_poll *iop)
 
 	local_irq_save(flags);
 	list_add_tail(&iop->list, this_cpu_ptr(&blk_cpu_iopoll));
-	__raise_softirq_irqoff(IRQ_POLL_SOFTIRQ);
+	raise_softirq_irqoff(IRQ_POLL_SOFTIRQ);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(irq_poll_sched);

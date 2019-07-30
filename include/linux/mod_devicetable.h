@@ -779,4 +779,25 @@ struct typec_device_id {
 	kernel_ulong_t driver_data;
 };
 
+/**
+ * struct tee_client_device_id - tee based device identifier
+ * @uuid: For TEE based client devices we use the device uuid as
+ *        the identifier.
+ */
+struct tee_client_device_id {
+	uuid_t uuid;
+};
+
+/* WMI */
+
+#define WMI_MODULE_PREFIX	"wmi:"
+
+/**
+ * struct wmi_device_id - WMI device identifier
+ * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
+ */
+struct wmi_device_id {
+	const char guid_string[UUID_STRING_LEN+1];
+};
+
 #endif /* LINUX_MOD_DEVICETABLE_H */

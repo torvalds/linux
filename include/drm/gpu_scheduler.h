@@ -138,10 +138,6 @@ struct drm_sched_fence {
 	struct dma_fence		finished;
 
         /**
-         * @cb: the callback for the parent fence below.
-         */
-	struct dma_fence_cb		cb;
-        /**
          * @parent: the fence returned by &drm_sched_backend_ops.run_job
          * when scheduling the job on hardware. We signal the
          * &drm_sched_fence.finished fence once parent is signalled.
@@ -181,6 +177,7 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  *         be scheduled further.
  * @s_priority: the priority of the job.
  * @entity: the entity to which this job belongs.
+ * @cb: the callback for the parent fence in s_fence.
  *
  * A job is created by the driver using drm_sched_job_init(), and
  * should call drm_sched_entity_push_job() once it wants the scheduler
@@ -197,6 +194,7 @@ struct drm_sched_job {
 	atomic_t			karma;
 	enum drm_sched_priority		s_priority;
 	struct drm_sched_entity  *entity;
+	struct dma_fence_cb		cb;
 };
 
 static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
@@ -298,9 +296,10 @@ int drm_sched_job_init(struct drm_sched_job *job,
 		       void *owner);
 void drm_sched_job_cleanup(struct drm_sched_job *job);
 void drm_sched_wakeup(struct drm_gpu_scheduler *sched);
-void drm_sched_hw_job_reset(struct drm_gpu_scheduler *sched,
-			    struct drm_sched_job *job);
-void drm_sched_job_recovery(struct drm_gpu_scheduler *sched);
+void drm_sched_stop(struct drm_gpu_scheduler *sched);
+void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery);
+void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched);
+void drm_sched_increase_karma(struct drm_sched_job *bad);
 bool drm_sched_dependency_optimized(struct dma_fence* fence,
 				    struct drm_sched_entity *entity);
 void drm_sched_fault(struct drm_gpu_scheduler *sched);

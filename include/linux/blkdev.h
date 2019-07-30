@@ -50,6 +50,9 @@ struct blk_stat_callback;
 /* Must be consistent with blk_mq_poll_stats_bkt() */
 #define BLK_MQ_POLL_STATS_BKTS 16
 
+/* Doing classic polling */
+#define BLK_MQ_POLL_CLASSIC -1
+
 /*
  * Maximum number of blkcg policies allowed to be registered concurrently.
  * Defined here to simplify include dependency.
@@ -216,8 +219,6 @@ struct request {
 	unsigned short write_hint;
 	unsigned short ioprio;
 
-	void *special;		/* opaque pointer available for LLD use */
-
 	unsigned int extra_len;	/* length of alignment and padding */
 
 	enum mq_rq_state state;
@@ -236,9 +237,6 @@ struct request {
 	 */
 	rq_end_io_fn *end_io;
 	void *end_io_data;
-
-	/* for bidi */
-	struct request *next_rq;
 };
 
 static inline bool blk_op_is_scsi(unsigned int op)
@@ -550,7 +548,6 @@ struct request_queue {
 	struct rcu_head		rcu_head;
 	wait_queue_head_t	mq_freeze_wq;
 	struct percpu_ref	q_usage_counter;
-	struct list_head	all_q_node;
 
 	struct blk_mq_tag_set	*tag_set;
 	struct list_head	tag_set_list;
@@ -572,38 +569,31 @@ struct request_queue {
 	u64			write_hints[BLK_MAX_WRITE_HINTS];
 };
 
-#define QUEUE_FLAG_STOPPED	1	/* queue is stopped */
-#define QUEUE_FLAG_DYING	2	/* queue being torn down */
-#define QUEUE_FLAG_BIDI		4	/* queue supports bidi requests */
-#define QUEUE_FLAG_NOMERGES     5	/* disable merge attempts */
-#define QUEUE_FLAG_SAME_COMP	6	/* complete on same CPU-group */
-#define QUEUE_FLAG_FAIL_IO	7	/* fake timeout */
-#define QUEUE_FLAG_NONROT	9	/* non-rotational device (SSD) */
-#define QUEUE_FLAG_VIRT        QUEUE_FLAG_NONROT /* paravirt device */
-#define QUEUE_FLAG_IO_STAT     10	/* do disk/partitions IO accounting */
-#define QUEUE_FLAG_DISCARD     11	/* supports DISCARD */
-#define QUEUE_FLAG_NOXMERGES   12	/* No extended merges */
-#define QUEUE_FLAG_ADD_RANDOM  13	/* Contributes to random pool */
-#define QUEUE_FLAG_SECERASE    14	/* supports secure erase */
-#define QUEUE_FLAG_SAME_FORCE  15	/* force complete on same CPU */
-#define QUEUE_FLAG_DEAD        16	/* queue tear-down finished */
-#define QUEUE_FLAG_INIT_DONE   17	/* queue is initialized */
-#define QUEUE_FLAG_NO_SG_MERGE 18	/* don't attempt to merge SG segments*/
-#define QUEUE_FLAG_POLL	       19	/* IO polling enabled if set */
-#define QUEUE_FLAG_WC	       20	/* Write back caching */
-#define QUEUE_FLAG_FUA	       21	/* device supports FUA writes */
-#define QUEUE_FLAG_FLUSH_NQ    22	/* flush not queueuable */
-#define QUEUE_FLAG_DAX         23	/* device supports DAX */
-#define QUEUE_FLAG_STATS       24	/* track IO start and completion times */
-#define QUEUE_FLAG_POLL_STATS  25	/* collecting stats for hybrid polling */
-#define QUEUE_FLAG_REGISTERED  26	/* queue has been registered to a disk */
-#define QUEUE_FLAG_SCSI_PASSTHROUGH 27	/* queue supports SCSI commands */
-#define QUEUE_FLAG_QUIESCED    28	/* queue has been quiesced */
-#define QUEUE_FLAG_PCI_P2PDMA  29	/* device supports PCI p2p requests */
-
-#define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
-				 (1 << QUEUE_FLAG_SAME_COMP)	|	\
-				 (1 << QUEUE_FLAG_ADD_RANDOM))
+#define QUEUE_FLAG_STOPPED	0	/* queue is stopped */
+#define QUEUE_FLAG_DYING	1	/* queue being torn down */
+#define QUEUE_FLAG_NOMERGES     3	/* disable merge attempts */
+#define QUEUE_FLAG_SAME_COMP	4	/* complete on same CPU-group */
+#define QUEUE_FLAG_FAIL_IO	5	/* fake timeout */
+#define QUEUE_FLAG_NONROT	6	/* non-rotational device (SSD) */
+#define QUEUE_FLAG_VIRT		QUEUE_FLAG_NONROT /* paravirt device */
+#define QUEUE_FLAG_IO_STAT	7	/* do disk/partitions IO accounting */
+#define QUEUE_FLAG_DISCARD	8	/* supports DISCARD */
+#define QUEUE_FLAG_NOXMERGES	9	/* No extended merges */
+#define QUEUE_FLAG_ADD_RANDOM	10	/* Contributes to random pool */
+#define QUEUE_FLAG_SECERASE	11	/* supports secure erase */
+#define QUEUE_FLAG_SAME_FORCE	12	/* force complete on same CPU */
+#define QUEUE_FLAG_DEAD		13	/* queue tear-down finished */
+#define QUEUE_FLAG_INIT_DONE	14	/* queue is initialized */
+#define QUEUE_FLAG_POLL		16	/* IO polling enabled if set */
+#define QUEUE_FLAG_WC		17	/* Write back caching */
+#define QUEUE_FLAG_FUA		18	/* device supports FUA writes */
+#define QUEUE_FLAG_DAX		19	/* device supports DAX */
+#define QUEUE_FLAG_STATS	20	/* track IO start and completion times */
+#define QUEUE_FLAG_POLL_STATS	21	/* collecting stats for hybrid polling */
+#define QUEUE_FLAG_REGISTERED	22	/* queue has been registered to a disk */
+#define QUEUE_FLAG_SCSI_PASSTHROUGH 23	/* queue supports SCSI commands */
+#define QUEUE_FLAG_QUIESCED	24	/* queue has been quiesced */
+#define QUEUE_FLAG_PCI_P2PDMA	25	/* device supports PCI p2p requests */
 
 #define QUEUE_FLAG_MQ_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_SAME_COMP))
@@ -645,8 +635,6 @@ static inline bool blk_account_rq(struct request *rq)
 {
 	return (rq->rq_flags & RQF_STARTED) && !blk_rq_is_passthrough(rq);
 }
-
-#define blk_bidi_rq(rq)		((rq)->next_rq != NULL)
 
 #define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 
@@ -796,6 +784,10 @@ struct req_iterator {
 #define rq_for_each_segment(bvl, _rq, _iter)			\
 	__rq_for_each_bio(_iter.bio, _rq)			\
 		bio_for_each_segment(bvl, _iter.bio, _iter.iter)
+
+#define rq_for_each_bvec(bvl, _rq, _iter)			\
+	__rq_for_each_bio(_iter.bio, _rq)			\
+		bio_for_each_bvec(bvl, _iter.bio, _iter.iter)
 
 #define rq_iter_last(bvec, _iter)				\
 		(_iter.bio->bi_next == NULL &&			\
@@ -1069,7 +1061,6 @@ extern void blk_queue_virt_boundary(struct request_queue *, unsigned long);
 extern void blk_queue_dma_alignment(struct request_queue *, int);
 extern void blk_queue_update_dma_alignment(struct request_queue *, int);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
-extern void blk_queue_flush_queueable(struct request_queue *q, bool queueable);
 extern void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua);
 
 /*
@@ -1444,11 +1435,6 @@ static inline unsigned int blksize_bits(unsigned int size)
 static inline unsigned int block_size(struct block_device *bdev)
 {
 	return bdev->bd_block_size;
-}
-
-static inline bool queue_flush_queueable(struct request_queue *q)
-{
-	return !test_bit(QUEUE_FLAG_FLUSH_NQ, &q->queue_flags);
 }
 
 typedef struct {struct page *v;} Sector;

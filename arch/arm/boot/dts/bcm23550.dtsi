@@ -36,9 +36,9 @@
 /* BCM23550 and BCM21664 have almost identical clocks */
 #include "dt-bindings/clock/bcm21664.h"
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "BCM23550 SoC";
 	compatible = "brcm,bcm23550";
 	interrupt-parent = <&gic>;

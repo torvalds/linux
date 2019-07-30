@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/memory.h>
 #include <linux/memory_hotplug.h>
+#include <linux/numa.h>
 #include <asm/machdep.h>
 #include <asm/debugfs.h>
 
@@ -223,7 +224,7 @@ static int memtrace_online(void)
 		ent = &memtrace_array[i];
 
 		/* We have onlined this chunk previously */
-		if (ent->nid == -1)
+		if (ent->nid == NUMA_NO_NODE)
 			continue;
 
 		/* Remove from io mappings */
@@ -257,7 +258,7 @@ static int memtrace_online(void)
 		 */
 		debugfs_remove_recursive(ent->dir);
 		pr_info("Added trace memory back to node %d\n", ent->nid);
-		ent->size = ent->start = ent->nid = -1;
+		ent->size = ent->start = ent->nid = NUMA_NO_NODE;
 	}
 	if (ret)
 		return ret;

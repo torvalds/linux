@@ -131,8 +131,8 @@ struct pblk_pr_ctx {
 	unsigned int bio_init_idx;
 	void *ppa_ptr;
 	dma_addr_t dma_ppa_list;
-	__le64 lba_list_mem[NVM_MAX_VLBA];
-	__le64 lba_list_media[NVM_MAX_VLBA];
+	u64 lba_list_mem[NVM_MAX_VLBA];
+	u64 lba_list_media[NVM_MAX_VLBA];
 };
 
 /* Pad context */
@@ -487,6 +487,7 @@ struct pblk_line {
 	__le32 *vsc;			/* Valid sector count in line */
 
 	struct kref ref;		/* Write buffer L2P references */
+	atomic_t sec_to_update;         /* Outstanding L2P updates to ppa */
 
 	struct pblk_w_err_gc *w_err_gc;	/* Write error gc recovery metadata */
 
@@ -646,7 +647,7 @@ struct pblk {
 
 	int sec_per_write;
 
-	unsigned char instance_uuid[16];
+	guid_t instance_uuid;
 
 	/* Persistent write amplification counters, 4kb sector I/Os */
 	atomic64_t user_wa;		/* Sectors written by user */
@@ -924,7 +925,7 @@ int pblk_gc_sysfs_force(struct pblk *pblk, int force);
 /*
  * pblk rate limiter
  */
-void pblk_rl_init(struct pblk_rl *rl, int budget);
+void pblk_rl_init(struct pblk_rl *rl, int budget, int threshold);
 void pblk_rl_free(struct pblk_rl *rl);
 void pblk_rl_update_rates(struct pblk_rl *rl);
 int pblk_rl_high_thrs(struct pblk_rl *rl);
@@ -1358,14 +1359,6 @@ static inline sector_t pblk_get_lba(struct bio *bio)
 static inline unsigned int pblk_get_secs(struct bio *bio)
 {
 	return  bio->bi_iter.bi_size / PBLK_EXPOSED_PAGE_SIZE;
-}
-
-static inline void pblk_setup_uuid(struct pblk *pblk)
-{
-	uuid_le uuid;
-
-	uuid_le_gen(&uuid);
-	memcpy(pblk->instance_uuid, uuid.b, 16);
 }
 
 static inline char *pblk_disk_name(struct pblk *pblk)

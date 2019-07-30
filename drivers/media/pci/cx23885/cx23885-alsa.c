@@ -59,7 +59,7 @@ module_param(audio_debug, int, 0644);
 MODULE_PARM_DESC(audio_debug, "enable debug messages [analog audio]");
 
 /****************************************************************************
-			Board specific funtions
+			Board specific functions
  ****************************************************************************/
 
 /* Constants taken from cx88-reg.h */

@@ -10,16 +10,24 @@ enum perf_data_mode {
 };
 
 struct perf_data_file {
-	const char	*path;
+	char		*path;
 	int		 fd;
+	unsigned long	 size;
 };
 
 struct perf_data {
+	const char		*path;
 	struct perf_data_file	 file;
 	bool			 is_pipe;
+	bool			 is_dir;
 	bool			 force;
-	unsigned long		 size;
 	enum perf_data_mode	 mode;
+
+	struct {
+		u64			 version;
+		struct perf_data_file	*files;
+		int			 nr;
+	} dir;
 };
 
 static inline bool perf_data__is_read(struct perf_data *data)
@@ -37,14 +45,14 @@ static inline int perf_data__is_pipe(struct perf_data *data)
 	return data->is_pipe;
 }
 
+static inline bool perf_data__is_dir(struct perf_data *data)
+{
+	return data->is_dir;
+}
+
 static inline int perf_data__fd(struct perf_data *data)
 {
 	return data->file.fd;
-}
-
-static inline unsigned long perf_data__size(struct perf_data *data)
-{
-	return data->size;
 }
 
 int perf_data__open(struct perf_data *data);
@@ -62,5 +70,11 @@ ssize_t perf_data_file__write(struct perf_data_file *file,
  */
 int perf_data__switch(struct perf_data *data,
 			   const char *postfix,
-			   size_t pos, bool at_exit);
+			   size_t pos, bool at_exit, char **new_filepath);
+
+int perf_data__create_dir(struct perf_data *data, int nr);
+int perf_data__open_dir(struct perf_data *data);
+void perf_data__close_dir(struct perf_data *data);
+int perf_data__update_dir(struct perf_data *data);
+unsigned long perf_data__size(struct perf_data *data);
 #endif /* __PERF_DATA_H */

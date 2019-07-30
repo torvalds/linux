@@ -84,6 +84,7 @@ int acpi_map_pxm_to_node(int pxm)
 
 	return node;
 }
+EXPORT_SYMBOL(acpi_map_pxm_to_node);
 
 /**
  * acpi_map_pxm_to_online_node - Map proximity ID to online node

@@ -202,7 +202,7 @@ static int stv6110_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 		i++;
 	}
 
-	/* RCCLKOFF = 1 calibration done, desactivate the calibration Clock */
+	/* RCCLKOFF = 1 calibration done, deactivate the calibration Clock */
 	priv->regs[RSTV6110_CTRL3] |= (1 << 6);
 	stv6110_write_regs(fe, &priv->regs[RSTV6110_CTRL3], RSTV6110_CTRL3, 1);
 	return 0;

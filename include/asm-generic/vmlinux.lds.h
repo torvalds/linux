@@ -738,7 +738,7 @@
 		KEEP(*(.orc_unwind_ip))					\
 		VMLINUX_SYMBOL(__stop_orc_unwind_ip) = .;		\
 	}								\
-	. = ALIGN(6);							\
+	. = ALIGN(2);							\
 	.orc_unwind : AT(ADDR(.orc_unwind) - LOAD_OFFSET) {		\
 		VMLINUX_SYMBOL(__start_orc_unwind) = .;			\
 		KEEP(*(.orc_unwind))					\

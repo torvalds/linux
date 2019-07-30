@@ -138,7 +138,8 @@ static inline unsigned long __kern_hyp_va(unsigned long v)
 	})
 
 /*
- * We currently only support a 40bit IPA.
+ * We currently support using a VM-specified IPA size. For backward
+ * compatibility, the default IPA size is fixed to 40bits.
  */
 #define KVM_PHYS_SHIFT	(40)
 
@@ -444,6 +445,17 @@ static inline int kvm_read_guest_lock(struct kvm *kvm,
 	return ret;
 }
 
+static inline int kvm_write_guest_lock(struct kvm *kvm, gpa_t gpa,
+				       const void *data, unsigned long len)
+{
+	int srcu_idx = srcu_read_lock(&kvm->srcu);
+	int ret = kvm_write_guest(kvm, gpa, data, len);
+
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
+
+	return ret;
+}
+
 #ifdef CONFIG_KVM_INDIRECT_VECTORS
 /*
  * EL2 vectors can be mapped and rerouted in a number of ways,
@@ -591,9 +603,15 @@ static inline u64 kvm_vttbr_baddr_mask(struct kvm *kvm)
 	return vttbr_baddr_mask(kvm_phys_shift(kvm), kvm_stage2_levels(kvm));
 }
 
-static inline bool kvm_cpu_has_cnp(void)
+static __always_inline u64 kvm_get_vttbr(struct kvm *kvm)
 {
-	return system_supports_cnp();
+	struct kvm_vmid *vmid = &kvm->arch.vmid;
+	u64 vmid_field, baddr;
+	u64 cnp = system_supports_cnp() ? VTTBR_CNP_BIT : 0;
+
+	baddr = kvm->arch.pgd_phys;
+	vmid_field = (u64)vmid->vmid << VTTBR_VMID_SHIFT;
+	return kvm_phys_to_vttbr(baddr) | vmid_field | cnp;
 }
 
 #endif /* __ASSEMBLY__ */

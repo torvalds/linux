@@ -935,17 +935,17 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 		if (ssid_len > NDIS_802_11_LENGTH_SSID)
 			ssid_len = 0;
 	}
-	memcpy(bssid->Ssid.Ssid, (p + 2), ssid_len);
-	bssid->Ssid.SsidLength = ssid_len;
+	memcpy(bssid->ssid.ssid, (p + 2), ssid_len);
+	bssid->ssid.ssid_length = ssid_len;
 
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("%s bssid.Ssid.Ssid:%s bssid.Ssid.SsidLength:%d "
-				"cur_network->network.Ssid.Ssid:%s len:%d\n", __func__, bssid->Ssid.Ssid,
-				bssid->Ssid.SsidLength, cur_network->network.Ssid.Ssid,
-				cur_network->network.Ssid.SsidLength));
+	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("%s bssid.ssid.ssid:%s bssid.ssid.ssid_length:%d "
+				"cur_network->network.ssid.ssid:%s len:%d\n", __func__, bssid->ssid.ssid,
+				bssid->ssid.ssid_length, cur_network->network.ssid.ssid,
+				cur_network->network.ssid.ssid_length));
 
-	if (memcmp(bssid->Ssid.Ssid, cur_network->network.Ssid.Ssid, 32) ||
-	    bssid->Ssid.SsidLength != cur_network->network.Ssid.SsidLength) {
-		if (bssid->Ssid.Ssid[0] != '\0' && bssid->Ssid.SsidLength != 0) { /* not hidden ssid */
+	if (memcmp(bssid->ssid.ssid, cur_network->network.ssid.ssid, 32) ||
+	    bssid->ssid.ssid_length != cur_network->network.ssid.ssid_length) {
+		if (bssid->ssid.ssid[0] != '\0' && bssid->ssid.ssid_length != 0) { /* not hidden ssid */
 			DBG_88E("%s(), SSID is not match return FAIL\n", __func__);
 			goto _mismatch;
 		}

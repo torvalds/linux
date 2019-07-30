@@ -41,20 +41,6 @@ const struct msm_format *dpu_get_msm_format(
 		const uint64_t modifiers);
 
 /**
- * dpu_populate_formats - populate the given array with fourcc codes supported
- * @format_list:       pointer to list of possible formats
- * @pixel_formats:     array to populate with fourcc codes
- * @pixel_modifiers:   array to populate with drm modifiers, can be NULL
- * @pixel_formats_max: length of pixel formats array
- * Return: number of elements populated
- */
-uint32_t dpu_populate_formats(
-		const struct dpu_format_extended *format_list,
-		uint32_t *pixel_formats,
-		uint64_t *pixel_modifiers,
-		uint32_t pixel_formats_max);
-
-/**
  * dpu_format_check_modified_format - validate format and buffers for
  *                   dpu non-standard, i.e. modified format
  * @kms:             kms driver

@@ -30,8 +30,6 @@ void ixgbe_txrx_ring_enable(struct ixgbe_adapter *adapter, int ring);
 
 struct xdp_umem *ixgbe_xsk_umem(struct ixgbe_adapter *adapter,
 				struct ixgbe_ring *ring);
-int ixgbe_xsk_umem_query(struct ixgbe_adapter *adapter, struct xdp_umem **umem,
-			 u16 qid);
 int ixgbe_xsk_umem_setup(struct ixgbe_adapter *adapter, struct xdp_umem *umem,
 			 u16 qid);
 

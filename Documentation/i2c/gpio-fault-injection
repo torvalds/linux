@@ -1,3 +1,4 @@
+=========================
 Linux I2C fault injection
 =========================
 
@@ -12,6 +13,9 @@ Once the Kconfig option I2C_GPIO_FAULT_INJECTOR is enabled, there will be an
 mounted at /sys/kernel/debug. There will be a separate subdirectory per GPIO
 driven I2C bus. Each subdirectory will contain files to trigger the fault
 injection. They will be described now along with their intended use-cases.
+
+Wire states
+===========
 
 "scl"
 -----
@@ -34,10 +38,10 @@ I2C specification version 4, section 3.1.16) using the helpers of the Linux I2C
 core (see 'struct bus_recovery_info'). However, the bus recovery will not
 succeed because SDA is still pinned low until you manually release it again
 with "echo 1 > sda". A test with an automatic release can be done with the
-following class of fault injectors.
+"incomplete transfers" class of fault injectors.
 
-Introduction to incomplete transfers
-------------------------------------
+Incomplete transfers
+====================
 
 The following fault injectors create situations where SDA will be held low by a
 device. Bus recovery should be able to fix these situations. But please note:
@@ -79,3 +83,54 @@ This is why bus recovery (up to 9 clock pulses) must either check SDA or send
 additional STOP conditions to ensure the bus has been released. Otherwise
 random data will be written to a device!
 
+Lost arbitration
+================
+
+Here, we want to simulate the condition where the master under test loses the
+bus arbitration against another master in a multi-master setup.
+
+"lose_arbitration"
+------------------
+
+This file is write only and you need to write the duration of the arbitration
+intereference (in µs, maximum is 100ms). The calling process will then sleep
+and wait for the next bus clock. The process is interruptible, though.
+
+Arbitration lost is achieved by waiting for SCL going down by the master under
+test and then pulling SDA low for some time. So, the I2C address sent out
+should be corrupted and that should be detected properly. That means that the
+address sent out should have a lot of '1' bits to be able to detect corruption.
+There doesn't need to be a device at this address because arbitration lost
+should be detected beforehand. Also note, that SCL going down is monitored
+using interrupts, so the interrupt latency might cause the first bits to be not
+corrupted. A good starting point for using this fault injector on an otherwise
+idle bus is:
+
+# echo 200 > lose_arbitration &
+# i2cget -y <bus_to_test> 0x3f
+
+Panic during transfer
+=====================
+
+This fault injector will create a Kernel panic once the master under test
+started a transfer. This usually means that the state machine of the bus master
+driver will be ungracefully interrupted and the bus may end up in an unusual
+state. Use this to check if your shutdown/reboot/boot code can handle this
+scenario.
+
+"inject_panic"
+--------------
+
+This file is write only and you need to write the delay between the detected
+start of a transmission and the induced Kernel panic (in µs, maximum is 100ms).
+The calling process will then sleep and wait for the next bus clock. The
+process is interruptible, though.
+
+Start of a transfer is detected by waiting for SCL going down by the master
+under test.  A good starting point for using this fault injector is:
+
+# echo 0 > inject_panic &
+# i2cget -y <bus_to_test> <some_address>
+
+Note that there doesn't need to be a device listening to the address you are
+using. Results may vary depending on that, though.

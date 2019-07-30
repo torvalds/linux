@@ -1056,12 +1056,6 @@ int debug_register_view(debug_info_t *id, struct debug_view *view)
 		mode &= ~(S_IWUSR | S_IWGRP | S_IWOTH);
 	pde = debugfs_create_file(view->name, mode, id->debugfs_root_entry,
 				  id, &debug_file_ops);
-	if (!pde) {
-		pr_err("Registering view %s/%s failed due to out of "
-		       "memory\n", id->name, view->name);
-		rc = -1;
-		goto out;
-	}
 	spin_lock_irqsave(&id->lock, flags);
 	for (i = 0; i < DEBUG_MAX_VIEWS; i++) {
 		if (!id->views[i])

@@ -75,7 +75,7 @@ struct __packed axi_dma_lli {
 	__le32		sstat;
 	__le32		dstat;
 	__le32		status_lo;
-	__le32		ststus_hi;
+	__le32		status_hi;
 	__le32		reserved_lo;
 	__le32		reserved_hi;
 };

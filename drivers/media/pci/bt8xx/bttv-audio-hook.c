@@ -1,5 +1,5 @@
 /*
- * Handlers for board audio hooks, splitted from bttv-cards
+ * Handlers for board audio hooks, split from bttv-cards
  *
  * Copyright (c) 2006 Mauro Carvalho Chehab <mchehab@kernel.org>
  * This code is placed under the terms of the GNU General Public License

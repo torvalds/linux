@@ -182,6 +182,23 @@ static int ehci_orion_drv_reset(struct usb_hcd *hcd)
 	return ret;
 }
 
+static int __maybe_unused ehci_orion_drv_suspend(struct device *dev)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
+
+	return ehci_suspend(hcd, device_may_wakeup(dev));
+}
+
+static int __maybe_unused ehci_orion_drv_resume(struct device *dev)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
+
+	return ehci_resume(hcd, false);
+}
+
+static SIMPLE_DEV_PM_OPS(ehci_orion_pm_ops, ehci_orion_drv_suspend,
+			 ehci_orion_drv_resume);
+
 static const struct ehci_driver_overrides orion_overrides __initconst = {
 	.extra_priv_size =	sizeof(struct orion_ehci_hcd),
 	.reset = ehci_orion_drv_reset,
@@ -257,15 +274,7 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->phy)) {
 		err = PTR_ERR(priv->phy);
 		if (err != -ENOSYS)
-			goto err_phy_get;
-	} else {
-		err = phy_init(priv->phy);
-		if (err)
-			goto err_phy_init;
-
-		err = phy_power_on(priv->phy);
-		if (err)
-			goto err_phy_power_on;
+			goto err_dis_clk;
 	}
 
 	/*
@@ -297,19 +306,12 @@ static int ehci_orion_drv_probe(struct platform_device *pdev)
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
-		goto err_add_hcd;
+		goto err_dis_clk;
 
 	device_wakeup_enable(hcd->self.controller);
 	return 0;
 
-err_add_hcd:
-	if (!IS_ERR(priv->phy))
-		phy_power_off(priv->phy);
-err_phy_power_on:
-	if (!IS_ERR(priv->phy))
-		phy_exit(priv->phy);
-err_phy_init:
-err_phy_get:
+err_dis_clk:
 	if (!IS_ERR(priv->clk))
 		clk_disable_unprepare(priv->clk);
 	usb_put_hcd(hcd);
@@ -326,11 +328,6 @@ static int ehci_orion_drv_remove(struct platform_device *pdev)
 	struct orion_ehci_hcd *priv = hcd_to_orion_priv(hcd);
 
 	usb_remove_hcd(hcd);
-
-	if (!IS_ERR(priv->phy)) {
-		phy_power_off(priv->phy);
-		phy_exit(priv->phy);
-	}
 
 	if (!IS_ERR(priv->clk))
 		clk_disable_unprepare(priv->clk);
@@ -354,6 +351,7 @@ static struct platform_driver ehci_orion_driver = {
 	.driver = {
 		.name	= "orion-ehci",
 		.of_match_table = ehci_orion_dt_ids,
+		.pm = &ehci_orion_pm_ops,
 	},
 };
 

@@ -18,7 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/clk-lpss.h>
+#include <linux/platform_data/x86/clk-lpss.h>
 #include <linux/platform_data/x86/pmc_atom.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>

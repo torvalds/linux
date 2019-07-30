@@ -36,27 +36,27 @@ consideration important quirks of other architectures) and
 defines calling convention that is compatible with C calling
 convention of the linux kernel on those architectures.
 
-Q: can multiple return values be supported in the future?
+Q: Can multiple return values be supported in the future?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 A: NO. BPF allows only register R0 to be used as return value.
 
-Q: can more than 5 function arguments be supported in the future?
+Q: Can more than 5 function arguments be supported in the future?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 A: NO. BPF calling convention only allows registers R1-R5 to be used
 as arguments. BPF is not a standalone instruction set.
 (unlike x64 ISA that allows msft, cdecl and other conventions)
 
-Q: can BPF programs access instruction pointer or return address?
+Q: Can BPF programs access instruction pointer or return address?
 -----------------------------------------------------------------
 A: NO.
 
-Q: can BPF programs access stack pointer ?
+Q: Can BPF programs access stack pointer ?
 ------------------------------------------
 A: NO.
 
 Only frame pointer (register R10) is accessible.
 From compiler point of view it's necessary to have stack pointer.
-For example LLVM defines register R11 as stack pointer in its
+For example, LLVM defines register R11 as stack pointer in its
 BPF backend, but it makes sure that generated code never uses it.
 
 Q: Does C-calling convention diminishes possible use cases?
@@ -66,8 +66,8 @@ A: YES.
 BPF design forces addition of major functionality in the form
 of kernel helper functions and kernel objects like BPF maps with
 seamless interoperability between them. It lets kernel call into
-BPF programs and programs call kernel helpers with zero overhead.
-As all of them were native C code. That is particularly the case
+BPF programs and programs call kernel helpers with zero overhead,
+as all of them were native C code. That is particularly the case
 for JITed BPF programs that are indistinguishable from
 native kernel C code.
 
@@ -75,9 +75,9 @@ Q: Does it mean that 'innovative' extensions to BPF code are disallowed?
 ------------------------------------------------------------------------
 A: Soft yes.
 
-At least for now until BPF core has support for
+At least for now, until BPF core has support for
 bpf-to-bpf calls, indirect calls, loops, global variables,
-jump tables, read only sections and all other normal constructs
+jump tables, read-only sections, and all other normal constructs
 that C code can produce.
 
 Q: Can loops be supported in a safe way?
@@ -109,16 +109,16 @@ For example why BPF_JNE and other compare and jumps are not cpu-like?
 A: This was necessary to avoid introducing flags into ISA which are
 impossible to make generic and efficient across CPU architectures.
 
-Q: why BPF_DIV instruction doesn't map to x64 div?
+Q: Why BPF_DIV instruction doesn't map to x64 div?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 A: Because if we picked one-to-one relationship to x64 it would have made
 it more complicated to support on arm64 and other archs. Also it
 needs div-by-zero runtime check.
 
-Q: why there is no BPF_SDIV for signed divide operation?
+Q: Why there is no BPF_SDIV for signed divide operation?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 A: Because it would be rarely used. llvm errors in such case and
-prints a suggestion to use unsigned divide instead
+prints a suggestion to use unsigned divide instead.
 
 Q: Why BPF has implicit prologue and epilogue?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

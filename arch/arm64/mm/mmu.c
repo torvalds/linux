@@ -42,7 +42,6 @@
 #include <asm/setup.h>
 #include <asm/sizes.h>
 #include <asm/tlb.h>
-#include <asm/memblock.h>
 #include <asm/mmu_context.h>
 #include <asm/ptdump.h>
 #include <asm/tlbflush.h>
@@ -104,6 +103,8 @@ static phys_addr_t __init early_pgtable_alloc(void)
 	void *ptr;
 
 	phys = memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE);
+	if (!phys)
+		panic("Failed to allocate page table page\n");
 
 	/*
 	 * The FIX_{PGD,PUD,PMD} slots may be in active use, but the FIX_PTE
@@ -655,10 +656,6 @@ static void __init map_kernel(pgd_t *pgdp)
 	kasan_copy_shadow(pgdp);
 }
 
-/*
- * paging_init() sets up the page tables, initialises the zone memory
- * maps and sets up the zero page.
- */
 void __init paging_init(void)
 {
 	pgd_t *pgdp = pgd_set_fixmap(__pa_symbol(swapper_pg_dir));

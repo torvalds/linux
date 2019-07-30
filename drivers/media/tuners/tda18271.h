@@ -69,10 +69,10 @@ enum tda18271_i2c_gate {
 };
 
 enum tda18271_output_options {
-	/* slave tuner output & loop thru & xtal oscillator always on */
+	/* slave tuner output & loop through & xtal oscillator always on */
 	TDA18271_OUTPUT_LT_XT_ON = 0,
 
-	/* slave tuner output loop thru off */
+	/* slave tuner output loop through off */
 	TDA18271_OUTPUT_LT_OFF = 1,
 
 	/* xtal oscillator off */

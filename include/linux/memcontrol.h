@@ -429,6 +429,11 @@ static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
 }
 struct mem_cgroup *mem_cgroup_from_id(unsigned short id);
 
+static inline struct mem_cgroup *mem_cgroup_from_seq(struct seq_file *m)
+{
+	return mem_cgroup_from_css(seq_css(m));
+}
+
 static inline struct mem_cgroup *lruvec_memcg(struct lruvec *lruvec)
 {
 	struct mem_cgroup_per_node *mz;
@@ -561,7 +566,10 @@ struct mem_cgroup *lock_page_memcg(struct page *page);
 void __unlock_page_memcg(struct mem_cgroup *memcg);
 void unlock_page_memcg(struct page *page);
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
+/*
+ * idx can be of type enum memcg_stat_item or node_stat_item.
+ * Keep in sync with memcg_exact_page_state().
+ */
 static inline unsigned long memcg_page_state(struct mem_cgroup *memcg,
 					     int idx)
 {
@@ -937,6 +945,11 @@ static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
 	return NULL;
 }
 
+static inline struct mem_cgroup *mem_cgroup_from_seq(struct seq_file *m)
+{
+	return NULL;
+}
+
 static inline struct mem_cgroup *lruvec_memcg(struct lruvec *lruvec)
 {
 	return NULL;
@@ -1273,12 +1286,12 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
 
 struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep);
 void memcg_kmem_put_cache(struct kmem_cache *cachep);
-int memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
-			    struct mem_cgroup *memcg);
 
 #ifdef CONFIG_MEMCG_KMEM
-int memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
-void memcg_kmem_uncharge(struct page *page, int order);
+int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order);
+void __memcg_kmem_uncharge(struct page *page, int order);
+int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
+			      struct mem_cgroup *memcg);
 
 extern struct static_key_false memcg_kmem_enabled_key;
 extern struct workqueue_struct *memcg_kmem_cache_wq;
@@ -1300,6 +1313,26 @@ static inline bool memcg_kmem_enabled(void)
 	return static_branch_unlikely(&memcg_kmem_enabled_key);
 }
 
+static inline int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
+{
+	if (memcg_kmem_enabled())
+		return __memcg_kmem_charge(page, gfp, order);
+	return 0;
+}
+
+static inline void memcg_kmem_uncharge(struct page *page, int order)
+{
+	if (memcg_kmem_enabled())
+		__memcg_kmem_uncharge(page, order);
+}
+
+static inline int memcg_kmem_charge_memcg(struct page *page, gfp_t gfp,
+					  int order, struct mem_cgroup *memcg)
+{
+	if (memcg_kmem_enabled())
+		return __memcg_kmem_charge_memcg(page, gfp, order, memcg);
+	return 0;
+}
 /*
  * helper for accessing a memcg's index. It will be used as an index in the
  * child cache array in kmem_cache, and also to derive its name. This function
@@ -1322,6 +1355,15 @@ static inline int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
 }
 
 static inline void memcg_kmem_uncharge(struct page *page, int order)
+{
+}
+
+static inline int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
+{
+	return 0;
+}
+
+static inline void __memcg_kmem_uncharge(struct page *page, int order)
 {
 }
 

@@ -58,6 +58,7 @@ struct cifs_sb_info {
 	spinlock_t tlink_tree_lock;
 	struct tcon_link *master_tlink;
 	struct nls_table *local_nls;
+	unsigned int bsize;
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned long actimeo; /* attribute cache timeout (jiffies) */

@@ -308,7 +308,6 @@ void v3d_exec_put(struct v3d_exec_info *exec);
 void v3d_tfu_job_put(struct v3d_tfu_job *exec);
 void v3d_reset(struct v3d_dev *v3d);
 void v3d_invalidate_caches(struct v3d_dev *v3d);
-void v3d_flush_caches(struct v3d_dev *v3d);
 
 /* v3d_irq.c */
 void v3d_irq_init(struct v3d_dev *v3d);

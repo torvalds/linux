@@ -9,12 +9,12 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mm_types.h>
+#include <linux/mman.h>
 #include <linux/syscalls.h>
 #include <linux/sched/sysctl.h>
 
 #include <asm/insn.h>
 #include <asm/insn-eval.h>
-#include <asm/mman.h>
 #include <asm/mmu_context.h>
 #include <asm/mpx.h>
 #include <asm/processor.h>

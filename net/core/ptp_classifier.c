@@ -185,9 +185,10 @@ void __init ptp_classifier_init(void)
 		{ 0x16,  0,  0, 0x00000000 },
 		{ 0x06,  0,  0, 0x00000000 },
 	};
-	struct sock_fprog_kern ptp_prog = {
-		.len = ARRAY_SIZE(ptp_filter), .filter = ptp_filter,
-	};
+	struct sock_fprog_kern ptp_prog;
+
+	ptp_prog.len = ARRAY_SIZE(ptp_filter);
+	ptp_prog.filter = ptp_filter;
 
 	BUG_ON(bpf_prog_create(&ptp_insns, &ptp_prog));
 }

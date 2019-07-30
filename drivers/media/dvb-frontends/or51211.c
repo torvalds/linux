@@ -59,7 +59,7 @@ struct or51211_state {
 
 	/* Demodulator private data */
 	u8 initialized:1;
-	u32 snr; /* Result of last SNR claculation */
+	u32 snr; /* Result of last SNR calculation */
 
 	/* Tuner private data */
 	u32 current_frequency;

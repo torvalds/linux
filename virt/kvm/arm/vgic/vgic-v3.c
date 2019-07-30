@@ -358,7 +358,7 @@ retry:
 	if (status) {
 		/* clear consumed data */
 		val &= ~(1 << bit_nr);
-		ret = kvm_write_guest(kvm, ptr, &val, 1);
+		ret = kvm_write_guest_lock(kvm, ptr, &val, 1);
 		if (ret)
 			return ret;
 	}
@@ -409,7 +409,7 @@ int vgic_v3_save_pending_tables(struct kvm *kvm)
 		else
 			val &= ~(1 << bit_nr);
 
-		ret = kvm_write_guest(kvm, ptr, &val, 1);
+		ret = kvm_write_guest_lock(kvm, ptr, &val, 1);
 		if (ret)
 			return ret;
 	}
@@ -589,7 +589,7 @@ early_param("kvm-arm.vgic_v4_enable", early_gicv4_enable);
  */
 int vgic_v3_probe(const struct gic_kvm_info *info)
 {
-	u32 ich_vtr_el2 = kvm_call_hyp(__vgic_v3_get_ich_vtr_el2);
+	u32 ich_vtr_el2 = kvm_call_hyp_ret(__vgic_v3_get_ich_vtr_el2);
 	int ret;
 
 	/*
@@ -679,7 +679,7 @@ void vgic_v3_put(struct kvm_vcpu *vcpu)
 	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
 
 	if (likely(cpu_if->vgic_sre))
-		cpu_if->vgic_vmcr = kvm_call_hyp(__vgic_v3_read_vmcr);
+		cpu_if->vgic_vmcr = kvm_call_hyp_ret(__vgic_v3_read_vmcr);
 
 	kvm_call_hyp(__vgic_v3_save_aprs, vcpu);
 

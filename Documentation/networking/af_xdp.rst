@@ -295,6 +295,41 @@ using::
 For XDP_SKB mode, use the switch "-S" instead of "-N" and all options
 can be displayed with "-h", as usual.
 
+FAQ
+=======
+
+Q: I am not seeing any traffic on the socket. What am I doing wrong?
+
+A: When a netdev of a physical NIC is initialized, Linux usually
+   allocates one Rx and Tx queue pair per core. So on a 8 core system,
+   queue ids 0 to 7 will be allocated, one per core. In the AF_XDP
+   bind call or the xsk_socket__create libbpf function call, you
+   specify a specific queue id to bind to and it is only the traffic
+   towards that queue you are going to get on you socket. So in the
+   example above, if you bind to queue 0, you are NOT going to get any
+   traffic that is distributed to queues 1 through 7. If you are
+   lucky, you will see the traffic, but usually it will end up on one
+   of the queues you have not bound to.
+
+   There are a number of ways to solve the problem of getting the
+   traffic you want to the queue id you bound to. If you want to see
+   all the traffic, you can force the netdev to only have 1 queue, queue
+   id 0, and then bind to queue 0. You can use ethtool to do this::
+
+   sudo ethtool -L <interface> combined 1
+
+   If you want to only see part of the traffic, you can program the
+   NIC through ethtool to filter out your traffic to a single queue id
+   that you can bind your XDP socket to. Here is one example in which
+   UDP traffic to and from port 4242 are sent to queue 2::
+
+   sudo ethtool -N <interface> rx-flow-hash udp4 fn
+   sudo ethtool -N <interface> flow-type udp4 src-port 4242 dst-port \
+   4242 action 2
+
+   A number of other ways are possible all up to the capabilitites of
+   the NIC you have.
+
 Credits
 =======
 
@@ -309,4 +344,3 @@ Credits
 - Michael S. Tsirkin
 - Qi Z Zhang
 - Willem de Bruijn
-

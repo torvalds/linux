@@ -45,16 +45,9 @@ static inline void set_fs(mm_segment_t val)
 			      : /* no outputs */ : "r" (val.seg) : "memory");
 }
 
-static inline mm_segment_t get_ds(void)
-{
-    /* return the supervisor data space code */
-    return KERNEL_DS;
-}
-
 #else
 #define USER_DS		MAKE_MM_SEG(TASK_SIZE)
 #define KERNEL_DS	MAKE_MM_SEG(0xFFFFFFFF)
-#define get_ds()	(KERNEL_DS)
 #define get_fs()	(current_thread_info()->addr_limit)
 #define set_fs(x)	(current_thread_info()->addr_limit = (x))
 #endif

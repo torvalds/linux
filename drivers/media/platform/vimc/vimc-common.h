@@ -22,6 +22,8 @@
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
 
+#define VIMC_PDEV_NAME "vimc"
+
 /* VIMC-specific controls */
 #define VIMC_CID_VIMC_BASE		(0x00f00000 | 0xf000)
 #define VIMC_CID_VIMC_CLASS		(0x00f00000 | 1)
@@ -113,22 +115,11 @@ struct vimc_pix_map {
 struct vimc_ent_device {
 	struct media_entity *ent;
 	struct media_pad *pads;
-	void (*process_frame)(struct vimc_ent_device *ved,
-			      struct media_pad *sink, const void *frame);
+	void * (*process_frame)(struct vimc_ent_device *ved,
+				const void *frame);
 	void (*vdev_get_format)(struct vimc_ent_device *ved,
 			      struct v4l2_pix_format *fmt);
 };
-
-/**
- * vimc_propagate_frame - propagate a frame through the topology
- *
- * @src:	the source pad where the frame is being originated
- * @frame:	the frame to be propagated
- *
- * This function will call the process_frame callback from the vimc_ent_device
- * struct of the nodes directly connected to the @src pad
- */
-int vimc_propagate_frame(struct media_pad *src, const void *frame);
 
 /**
  * vimc_pads_init - initialize pads

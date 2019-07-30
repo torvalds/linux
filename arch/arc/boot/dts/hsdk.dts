@@ -18,8 +18,8 @@
 	model = "snps,hsdk";
 	compatible = "snps,hsdk";
 
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xf0005000,115200n8 console=ttyS0,115200n8 debug print-fatal-signals=1";
@@ -105,17 +105,17 @@
 		#size-cells = <1>;
 		interrupt-parent = <&idu_intc>;
 
-		ranges = <0x00000000 0xf0000000 0x10000000>;
+		ranges = <0x00000000 0x0 0xf0000000 0x10000000>;
 
 		cgu_rst: reset-controller@8a0 {
 			compatible = "snps,hsdk-reset";
 			#reset-cells = <1>;
-			reg = <0x8A0 0x4>, <0xFF0 0x4>;
+			reg = <0x8a0 0x4>, <0xff0 0x4>;
 		};
 
 		core_clk: core-clk@0 {
 			compatible = "snps,hsdk-core-pll-clock";
-			reg = <0x00 0x10>, <0x14B8 0x4>;
+			reg = <0x00 0x10>, <0x14b8 0x4>;
 			#clock-cells = <0>;
 			clocks = <&input_clk>;
 
@@ -167,6 +167,18 @@
 			#clock-cells = <0>;
 		};
 
+		dmac_core_clk: dmac-core-clk {
+			compatible = "fixed-clock";
+			clock-frequency = <400000000>;
+			#clock-cells = <0>;
+		};
+
+		dmac_cfg_clk: dmac-gpu-cfg-clk {
+			compatible = "fixed-clock";
+			clock-frequency = <200000000>;
+			#clock-cells = <0>;
+		};
+
 		gmac: ethernet@8000 {
 			#interrupt-cells = <1>;
 			compatible = "snps,dwmac";
@@ -200,6 +212,7 @@
 			compatible = "snps,hsdk-v1.0-ohci", "generic-ohci";
 			reg = <0x60000 0x100>;
 			interrupts = <15>;
+			resets = <&cgu_rst HSDK_USB_RESET>;
 			dma-coherent;
 		};
 
@@ -207,6 +220,7 @@
 			compatible = "snps,hsdk-v1.0-ehci", "generic-ehci";
 			reg = <0x40000 0x100>;
 			interrupts = <15>;
+			resets = <&cgu_rst HSDK_USB_RESET>;
 			dma-coherent;
 		};
 
@@ -237,12 +251,28 @@
 				reg = <0>;
 			};
 		};
+
+		dmac: dmac@80000 {
+			compatible = "snps,axi-dma-1.01a";
+			reg = <0x80000 0x400>;
+			interrupts = <27>;
+			clocks = <&dmac_core_clk>, <&dmac_cfg_clk>;
+			clock-names = "core-clk", "cfgr-clk";
+
+			dma-channels = <4>;
+			snps,dma-masters = <2>;
+			snps,data-width = <3>;
+			snps,block-size = <4096 4096 4096 4096>;
+			snps,priority = <0 1 2 3>;
+			snps,axi-max-burst-len = <16>;
+		};
 	};
 
 	memory@80000000 {
-		#address-cells = <1>;
-		#size-cells = <1>;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		device_type = "memory";
-		reg = <0x80000000 0x40000000>;  /* 1 GiB */
+		reg = <0x0 0x80000000 0x0 0x40000000>;  /* 1 GB lowmem */
+		/*     0x1 0x00000000 0x0 0x40000000>;     1 GB highmem */
 	};
 };

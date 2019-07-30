@@ -54,7 +54,7 @@ struct acpi_rsconvert_info acpi_rs_get_irq[9] = {
 	 AML_OFFSET(irq.flags),
 	 3},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.sharable),
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.shareable),
 	 AML_OFFSET(irq.flags),
 	 4},
 
@@ -92,7 +92,7 @@ struct acpi_rsconvert_info acpi_rs_set_irq[14] = {
 	 AML_OFFSET(irq.flags),
 	 3},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.sharable),
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.shareable),
 	 AML_OFFSET(irq.flags),
 	 4},
 
@@ -139,7 +139,7 @@ struct acpi_rsconvert_info acpi_rs_set_irq[14] = {
 	 ACPI_ACTIVE_HIGH},
 
 	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_VALUE,
-	 ACPI_RS_OFFSET(data.irq.sharable),
+	 ACPI_RS_OFFSET(data.irq.shareable),
 	 ACPI_EXCLUSIVE},
 
 	/* We can optimize to a 2-byte irq_no_flags() descriptor */
@@ -178,7 +178,7 @@ struct acpi_rsconvert_info acpi_rs_convert_ext_irq[10] = {
 	 AML_OFFSET(extended_irq.flags),
 	 2},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.extended_irq.sharable),
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.extended_irq.shareable),
 	 AML_OFFSET(extended_irq.flags),
 	 3},
 

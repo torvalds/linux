@@ -199,9 +199,13 @@
 			assigned-clock-parents = <&scg1 IMX7ULP_CLK_SOSC_BUS_CLK>;
 		};
 
-		smc1: smc1@40410000 {
+		smc1: clock-controller@40410000 {
 			compatible = "fsl,imx7ulp-smc1";
 			reg = <0x40410000 0x1000>;
+			#clock-cells = <1>;
+			clocks = <&scg1 IMX7ULP_CLK_CORE_DIV>,
+				 <&scg1 IMX7ULP_CLK_HSRUN_CORE_DIV>;
+			clock-names = "divcore", "hsrun_divcore";
 		};
 
 		pcc3: clock-controller@40b30000 {
@@ -341,6 +345,19 @@
 				 <&pcc3 IMX7ULP_CLK_PCTLF>;
 			clock-names = "gpio", "port";
 			gpio-ranges = <&iomuxc1 0 96 32>;
+		};
+	};
+
+	m4aips1: bus@41080000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x41080000 0x80000>;
+		ranges;
+
+		sim: sim@410a3000 {
+			compatible = "fsl,imx7ulp-sim", "syscon";
+			reg = <0x410a3000 0x1000>;
 		};
 	};
 };

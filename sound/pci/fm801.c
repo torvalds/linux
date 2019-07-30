@@ -1408,7 +1408,6 @@ static int snd_fm801_suspend(struct device *dev)
 	if (chip->tea575x_tuner & TUNER_ONLY) {
 		/* FIXME: tea575x suspend */
 	} else {
-		snd_pcm_suspend_all(chip->pcm);
 		snd_ac97_suspend(chip->ac97);
 		snd_ac97_suspend(chip->ac97_sec);
 	}

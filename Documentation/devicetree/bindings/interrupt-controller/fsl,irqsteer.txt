@@ -6,8 +6,9 @@ Required properties:
 	- "fsl,imx8m-irqsteer"
 	- "fsl,imx-irqsteer"
 - reg: Physical base address and size of registers.
-- interrupts: Should contain the parent interrupt line used to multiplex the
-  input interrupts.
+- interrupts: Should contain the up to 8 parent interrupt lines used to
+  multiplex the input interrupts. They should be specified sequentially
+  from output 0 to 7.
 - clocks: Should contain one clock for entry in clock-names
   see Documentation/devicetree/bindings/clock/clock-bindings.txt
 - clock-names:
@@ -16,8 +17,8 @@ Required properties:
 - #interrupt-cells: Specifies the number of cells needed to encode an
   interrupt source. The value must be 1.
 - fsl,channel: The output channel that all input IRQs should be steered into.
-- fsl,irq-groups: Number of IRQ groups managed by this controller instance.
-  Each group manages 64 input interrupts.
+- fsl,num-irqs: Number of input interrupts of this channel.
+  Should be multiple of 32 input interrupts and up to 512 interrupts.
 
 Example:
 
@@ -28,7 +29,7 @@ Example:
 		clocks = <&clk IMX8MQ_CLK_DISP_APB_ROOT>;
 		clock-names = "ipg";
 		fsl,channel = <0>;
-		fsl,irq-groups = <1>;
+		fsl,num-irqs = <64>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
 	};

@@ -16,7 +16,6 @@
 #include "xfs_rmap_item.h"
 #include "xfs_alloc.h"
 #include "xfs_rmap.h"
-#include "xfs_defer.h"
 
 /* Set the map extent flags for this reverse mapping. */
 static void

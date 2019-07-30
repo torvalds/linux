@@ -4,7 +4,7 @@
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 

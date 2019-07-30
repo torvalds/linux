@@ -18,18 +18,15 @@ enum {
 };
 
 #define WILC_MAX_NUM_STA			9
-#define MAX_NUM_SCANNED_NETWORKS		100
-#define MAX_NUM_SCANNED_NETWORKS_SHADOW		130
+#define WILC_MAX_NUM_SCANNED_CH			14
 #define WILC_MAX_NUM_PROBED_SSID		10
 
-#define TX_MIC_KEY_LEN				8
-#define RX_MIC_KEY_LEN				8
+#define WILC_TX_MIC_KEY_LEN			8
+#define WILC_RX_MIC_KEY_LEN			8
 
 #define WILC_MAX_NUM_PMKIDS			16
 #define WILC_ADD_STA_LENGTH			40
 #define WILC_NUM_CONCURRENT_IFC			2
-
-#define NUM_RSSI                5
 
 enum {
 	WILC_SET_CFG = 0,
@@ -37,48 +34,6 @@ enum {
 };
 
 #define WILC_MAX_ASSOC_RESP_FRAME_SIZE   256
-
-struct rssi_history_buffer {
-	bool full;
-	u8 index;
-	s8 samples[NUM_RSSI];
-};
-
-struct network_info {
-	s8 rssi;
-	u16 cap_info;
-	u8 ssid[MAX_SSID_LEN];
-	u8 ssid_len;
-	u8 bssid[6];
-	u16 beacon_period;
-	u8 dtim_period;
-	u8 ch;
-	unsigned long time_scan_cached;
-	unsigned long time_scan;
-	bool new_network;
-	u8 found;
-	u32 tsf_lo;
-	u8 *ies;
-	u16 ies_len;
-	void *join_params;
-	struct rssi_history_buffer rssi_history;
-	u64 tsf;
-};
-
-struct connect_info {
-	u8 bssid[6];
-	u8 *req_ies;
-	size_t req_ies_len;
-	u8 *resp_ies;
-	u16 resp_ies_len;
-	u16 status;
-};
-
-struct disconnect_info {
-	u16 reason;
-	u8 *ie;
-	size_t ie_len;
-};
 
 struct assoc_resp {
 	__le16 capab_info;
@@ -129,11 +84,6 @@ enum cfg_param {
 	WILC_CFG_PARAM_RTS_THRESHOLD = BIT(3)
 };
 
-struct found_net_info {
-	u8 bssid[6];
-	s8 rssi;
-};
-
 enum scan_event {
 	SCAN_EVENT_NETWORK_FOUND	= 0,
 	SCAN_EVENT_DONE			= 1,
@@ -147,72 +97,71 @@ enum conn_event {
 	CONN_DISCONN_EVENT_FORCE_32BIT		= 0xFFFFFFFF
 };
 
-typedef void (*wilc_scan_result)(enum scan_event, struct network_info *,
-				 void *, void *);
-
-typedef void (*wilc_connect_result)(enum conn_event,
-				     struct connect_info *,
-				     u8,
-				     struct disconnect_info *,
-				     void *);
-
-typedef void (*wilc_remain_on_chan_expired)(void *, u32);
-typedef void (*wilc_remain_on_chan_ready)(void *);
-
-struct rcvd_net_info {
-	u8 *buffer;
-	u32 len;
+enum {
+	WILC_HIF_SDIO = 0,
+	WILC_HIF_SPI = BIT(0)
 };
 
-struct hidden_net_info {
-	u8  *ssid;
+enum {
+	WILC_MAC_STATUS_INIT = -1,
+	WILC_MAC_STATUS_DISCONNECTED = 0,
+	WILC_MAC_STATUS_CONNECTED = 1
+};
+
+struct wilc_rcvd_net_info {
+	s8 rssi;
+	u8 ch;
+	u16 frame_len;
+	struct ieee80211_mgmt *mgmt;
+};
+
+struct wilc_probe_ssid_info {
 	u8 ssid_len;
+	u8 *ssid;
 };
 
-struct hidden_network {
-	struct hidden_net_info *net_info;
+struct wilc_probe_ssid {
+	struct wilc_probe_ssid_info *ssid_info;
 	u8 n_ssids;
+	u32 size;
 };
 
-struct user_scan_req {
-	wilc_scan_result scan_result;
+struct wilc_user_scan_req {
+	void (*scan_result)(enum scan_event evt,
+			    struct wilc_rcvd_net_info *info, void *priv);
 	void *arg;
 	u32 ch_cnt;
-	struct found_net_info net_info[MAX_NUM_SCANNED_NETWORKS];
 };
 
-struct user_conn_req {
-	u8 *bssid;
-	u8 *ssid;
+struct wilc_conn_info {
+	u8 bssid[ETH_ALEN];
 	u8 security;
 	enum authtype auth_type;
-	size_t ssid_len;
-	u8 *ies;
-	size_t ies_len;
-	wilc_connect_result conn_result;
-	bool ht_capable;
 	u8 ch;
+	u8 *req_ies;
+	size_t req_ies_len;
+	u8 *resp_ies;
+	u16 resp_ies_len;
+	u16 status;
+	void (*conn_result)(enum conn_event evt, u8 status, void *priv_data);
 	void *arg;
 	void *param;
 };
 
-struct remain_ch {
+struct wilc_remain_ch {
 	u16 ch;
 	u32 duration;
-	wilc_remain_on_chan_expired expired;
-	wilc_remain_on_chan_ready ready;
+	void (*expired)(void *priv, u64 cookie);
 	void *arg;
-	u32 id;
+	u32 cookie;
 };
 
 struct wilc;
 struct host_if_drv {
-	struct user_scan_req usr_scan_req;
-	struct user_conn_req usr_conn_req;
-	struct remain_ch remain_on_ch;
-	u8 remain_on_ch_pending;
+	struct wilc_user_scan_req usr_scan_req;
+	struct wilc_conn_info conn_info;
+	struct wilc_remain_ch remain_on_ch;
 	u64 p2p_timeout;
-	u8 p2p_connect;
 
 	enum host_if_state hif_state;
 
@@ -230,17 +179,6 @@ struct host_if_drv {
 	bool ifc_up;
 	int driver_handler_id;
 	u8 assoc_resp[WILC_MAX_ASSOC_RESP_FRAME_SIZE];
-};
-
-struct add_sta_param {
-	u8 bssid[ETH_ALEN];
-	u16 aid;
-	u8 rates_len;
-	const u8 *rates;
-	bool ht_supported;
-	struct ieee80211_ht_cap ht_capa;
-	u16 flags_mask;
-	u16 flags_set;
 };
 
 struct wilc_vif;
@@ -261,18 +199,16 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 		    u8 cipher_mode);
 int wilc_set_pmkid_info(struct wilc_vif *vif, struct wilc_pmkid_attr *pmkid);
 int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr);
-int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
-		      size_t ssid_len, const u8 *ies, size_t ies_len,
-		      wilc_connect_result connect_result, void *user_arg,
-		      u8 security, enum authtype auth_type,
-		      u8 channel, void *join_params);
+int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ies,
+		      size_t ies_len);
 int wilc_disconnect(struct wilc_vif *vif);
 int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel);
 int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level);
 int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
-	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies,
-	      size_t ies_len, wilc_scan_result scan_result, void *user_arg,
-	      struct hidden_network *hidden_network);
+	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies, size_t ies_len,
+	      void (*scan_result_fn)(enum scan_event,
+				     struct wilc_rcvd_net_info *, void *),
+	      void *user_arg, struct wilc_probe_ssid *search);
 int wilc_hif_set_cfg(struct wilc_vif *vif,
 		     struct cfg_param_attr *cfg_param);
 int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler);
@@ -287,14 +223,13 @@ int wilc_del_station(struct wilc_vif *vif, const u8 *mac_addr);
 int wilc_edit_station(struct wilc_vif *vif, const u8 *mac,
 		      struct station_parameters *params);
 int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout);
-int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled, u32 count,
+int wilc_setup_multicast_filter(struct wilc_vif *vif, u32 enabled, u32 count,
 				u8 *mc_list);
-int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
+int wilc_remain_on_channel(struct wilc_vif *vif, u64 cookie,
 			   u32 duration, u16 chan,
-			   wilc_remain_on_chan_expired expired,
-			   wilc_remain_on_chan_ready ready,
+			   void (*expired)(void *, u64),
 			   void *user_arg);
-int wilc_listen_state_expired(struct wilc_vif *vif, u32 session_id);
+int wilc_listen_state_expired(struct wilc_vif *vif, u64 cookie);
 void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg);
 int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
 			     u8 ifc_id);
@@ -307,4 +242,6 @@ int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power);
 void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length);
 void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length);
 void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length);
+void *wilc_parse_join_bss_param(struct cfg80211_bss *bss,
+				struct cfg80211_crypto_settings *crypto);
 #endif

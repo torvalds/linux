@@ -563,7 +563,6 @@ static int __init init_evm(void)
 {
 	int error;
 	struct list_head *pos, *q;
-	struct xattr_list *xattr;
 
 	evm_init_config();
 
@@ -580,11 +579,8 @@ static int __init init_evm(void)
 error:
 	if (error != 0) {
 		if (!list_empty(&evm_config_xattrnames)) {
-			list_for_each_safe(pos, q, &evm_config_xattrnames) {
-				xattr = list_entry(pos, struct xattr_list,
-						   list);
+			list_for_each_safe(pos, q, &evm_config_xattrnames)
 				list_del(pos);
-			}
 		}
 	}
 

@@ -3602,7 +3602,7 @@ static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 	{0xaa, 0x14, 0x0081},
 /* Other registers */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
-/* Frame retreiving */
+/* Frame retrieving */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 /* Gains */
 	{0xa0, 0xa0, ZC3XX_R1A8_DIGITALGAIN},
@@ -3718,7 +3718,7 @@ static const struct usb_action pas106b_Initial[] = {	/* 352x288 */
 	{0xaa, 0x14, 0x0081},
 /* Other registers */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
-/* Frame retreiving */
+/* Frame retrieving */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 /* Gains */
 	{0xa0, 0xa0, ZC3XX_R1A8_DIGITALGAIN},
@@ -6775,7 +6775,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_HV7131R:
 	case SENSOR_TAS5130C:
 		reg_r(gspca_dev, 0x0008);
-		/* fall thru */
+		/* fall through */
 	case SENSOR_PO2030:
 		reg_w(gspca_dev, 0x03, 0x0008);
 		break;
@@ -6824,7 +6824,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_TAS5130C:
 		reg_w(gspca_dev, 0x09, 0x01ad);	/* (from win traces) */
 		reg_w(gspca_dev, 0x15, 0x01ae);
-		/* fall thru */
+		/* fall through */
 	case SENSOR_PAS202B:
 	case SENSOR_PO2030:
 /*		reg_w(gspca_dev, 0x40, ZC3XX_R117_GGAIN); in win traces */

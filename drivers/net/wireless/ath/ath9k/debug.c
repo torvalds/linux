@@ -148,7 +148,7 @@ static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 		{ "OFDM LEVEL", ah->ani.ofdmNoiseImmunityLevel },
 		{ "CCK LEVEL", ah->ani.cckNoiseImmunityLevel },
 		{ "SPUR UP", ah->stats.ast_ani_spurup },
-		{ "SPUR DOWN", ah->stats.ast_ani_spurup },
+		{ "SPUR DOWN", ah->stats.ast_ani_spurdown },
 		{ "OFDM WS-DET ON", ah->stats.ast_ani_ofdmon },
 		{ "OFDM WS-DET OFF", ah->stats.ast_ani_ofdmoff },
 		{ "MRC-CCK ON", ah->stats.ast_ani_ccklow },
@@ -1442,9 +1442,6 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    sc, &fops_ackto);
 #endif
 	debugfs_create_file("tpc", 0600, sc->debug.debugfs_phy, sc, &fops_tpc);
-
-	debugfs_create_u16("airtime_flags", 0600,
-			   sc->debug.debugfs_phy, &sc->airtime_flags);
 
 	debugfs_create_file("nf_override", 0600,
 			    sc->debug.debugfs_phy, sc, &fops_nf_override);

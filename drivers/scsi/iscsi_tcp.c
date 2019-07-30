@@ -518,7 +518,7 @@ static int iscsi_sw_tcp_pdu_init(struct iscsi_task *task,
 	if (!task->sc)
 		iscsi_sw_tcp_send_linear_data_prep(conn, task->data, count);
 	else {
-		struct scsi_data_buffer *sdb = scsi_out(task->sc);
+		struct scsi_data_buffer *sdb = &task->sc->sdb;
 
 		err = iscsi_sw_tcp_send_data_prep(conn, sdb->table.sgl,
 						  sdb->table.nents, offset,
@@ -952,12 +952,6 @@ static umode_t iscsi_sw_tcp_attr_is_visible(int param_type, int param)
 	return 0;
 }
 
-static int iscsi_sw_tcp_slave_alloc(struct scsi_device *sdev)
-{
-	blk_queue_flag_set(QUEUE_FLAG_BIDI, sdev->request_queue);
-	return 0;
-}
-
 static int iscsi_sw_tcp_slave_configure(struct scsi_device *sdev)
 {
 	struct iscsi_sw_tcp_host *tcp_sw_host = iscsi_host_priv(sdev->host);
@@ -985,7 +979,6 @@ static struct scsi_host_template iscsi_sw_tcp_sht = {
 	.eh_device_reset_handler= iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.dma_boundary		= PAGE_SIZE - 1,
-	.slave_alloc            = iscsi_sw_tcp_slave_alloc,
 	.slave_configure        = iscsi_sw_tcp_slave_configure,
 	.target_alloc		= iscsi_target_alloc,
 	.proc_name		= "iscsi_tcp",

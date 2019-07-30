@@ -31,5 +31,6 @@
 #include "asic_reg/mp/mp_9_0_sh_mask.h"
 
 #include "asic_reg/nbio/nbio_7_4_offset.h"
+#include "asic_reg/nbio/nbio_7_4_sh_mask.h"
 
 #endif

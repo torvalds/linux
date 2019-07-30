@@ -191,6 +191,30 @@ enum rsnd_reg {
 	SSI_SYS_STATUS7,
 	HDMI0_SEL,
 	HDMI1_SEL,
+	SSI9_BUSIF0_MODE,
+	SSI9_BUSIF1_MODE,
+	SSI9_BUSIF2_MODE,
+	SSI9_BUSIF3_MODE,
+	SSI9_BUSIF4_MODE,
+	SSI9_BUSIF5_MODE,
+	SSI9_BUSIF6_MODE,
+	SSI9_BUSIF7_MODE,
+	SSI9_BUSIF0_ADINR,
+	SSI9_BUSIF1_ADINR,
+	SSI9_BUSIF2_ADINR,
+	SSI9_BUSIF3_ADINR,
+	SSI9_BUSIF4_ADINR,
+	SSI9_BUSIF5_ADINR,
+	SSI9_BUSIF6_ADINR,
+	SSI9_BUSIF7_ADINR,
+	SSI9_BUSIF0_DALIGN,
+	SSI9_BUSIF1_DALIGN,
+	SSI9_BUSIF2_DALIGN,
+	SSI9_BUSIF3_DALIGN,
+	SSI9_BUSIF4_DALIGN,
+	SSI9_BUSIF5_DALIGN,
+	SSI9_BUSIF6_DALIGN,
+	SSI9_BUSIF7_DALIGN,
 
 	/* SSI */
 	SSICR,
@@ -209,6 +233,9 @@ enum rsnd_reg {
 #define SSI_BUSIF_MODE(i)	(SSI_BUSIF0_MODE + (i))
 #define SSI_BUSIF_ADINR(i)	(SSI_BUSIF0_ADINR + (i))
 #define SSI_BUSIF_DALIGN(i)	(SSI_BUSIF0_DALIGN + (i))
+#define SSI9_BUSIF_MODE(i)	(SSI9_BUSIF0_MODE + (i))
+#define SSI9_BUSIF_ADINR(i)	(SSI9_BUSIF0_ADINR + (i))
+#define SSI9_BUSIF_DALIGN(i)	(SSI9_BUSIF0_DALIGN + (i))
 #define SSI_SYS_STATUS(i)	(SSI_SYS_STATUS0 + (i))
 
 
@@ -580,6 +607,8 @@ struct rsnd_priv {
 #define RSND_GEN1	(1 << 0)
 #define RSND_GEN2	(2 << 0)
 #define RSND_GEN3	(3 << 0)
+#define RSND_SOC_MASK	(0xFF << 4)
+#define RSND_SOC_E	(1 << 4) /* E1/E2/E3 */
 
 	/*
 	 * below value will be filled on rsnd_gen_probe()
@@ -652,6 +681,9 @@ struct rsnd_priv {
 #define rsnd_is_gen1(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN1)
 #define rsnd_is_gen2(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN2)
 #define rsnd_is_gen3(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN3)
+#define rsnd_is_e3(priv)	(((priv)->flags & \
+					(RSND_GEN_MASK | RSND_SOC_MASK)) == \
+					(RSND_GEN3 | RSND_SOC_E))
 
 #define rsnd_flags_has(p, f) ((p)->flags & (f))
 #define rsnd_flags_set(p, f) ((p)->flags |= (f))

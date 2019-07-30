@@ -14,11 +14,6 @@
 #include <linux/etherdevice.h>
 #include <linux/module.h>
 
-#include <net/cfg80211.h>
-#include <net/rtnetlink.h>
-#include <linux/etherdevice.h>
-#include <linux/module.h>
-
 static struct wiphy *common_wiphy;
 
 struct virt_wifi_wiphy_priv {
@@ -365,7 +360,6 @@ static struct wiphy *virt_wifi_make_wiphy(void)
 	wiphy->bands[NL80211_BAND_5GHZ] = &band_5ghz;
 	wiphy->bands[NL80211_BAND_60GHZ] = NULL;
 
-	wiphy->regulatory_flags = REGULATORY_WIPHY_SELF_MANAGED;
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	priv = wiphy_priv(wiphy);
@@ -429,13 +423,11 @@ static int virt_wifi_net_device_open(struct net_device *dev)
 static int virt_wifi_net_device_stop(struct net_device *dev)
 {
 	struct virt_wifi_netdev_priv *n_priv = netdev_priv(dev);
-	struct virt_wifi_wiphy_priv *w_priv;
 
 	n_priv->is_up = false;
 
 	if (!dev->ieee80211_ptr)
 		return 0;
-	w_priv = wiphy_priv(dev->ieee80211_ptr->wiphy);
 
 	virt_wifi_cancel_scan(dev->ieee80211_ptr->wiphy);
 	virt_wifi_cancel_connect(dev);

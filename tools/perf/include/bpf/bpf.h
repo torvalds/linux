@@ -18,6 +18,20 @@ struct bpf_map {
         unsigned int numa_node;
 };
 
+#define bpf_map(name, _type, type_key, type_val, _max_entries)	\
+struct bpf_map SEC("maps") name = {				\
+	.type	     = BPF_MAP_TYPE_##_type,			\
+	.key_size    = sizeof(type_key),			\
+	.value_size  = sizeof(type_val),			\
+	.max_entries = _max_entries,				\
+};								\
+struct ____btf_map_##name {					\
+	type_key key;						\
+	type_val value;                                 	\
+};								\
+struct ____btf_map_##name __attribute__((section(".maps." #name), used)) \
+	____btf_map_##name = { }
+
 /*
  * FIXME: this should receive .max_entries as a parameter, as careful
  *	  tuning of these limits is needed to avoid hitting limits that
@@ -26,13 +40,7 @@ struct bpf_map {
  *	  For the current need, 'perf trace --filter-pids', 64 should
  *	  be good enough, but this surely needs to be revisited.
  */
-#define pid_map(name, value_type)		\
-struct bpf_map SEC("maps") name = {		\
-	.type	     = BPF_MAP_TYPE_HASH,	\
-	.key_size    = sizeof(pid_t),		\
-	.value_size  = sizeof(value_type),	\
-	.max_entries = 64,			\
-}
+#define pid_map(name, value_type) bpf_map(name, HASH, pid_t, value_type, 64)
 
 static int (*bpf_map_update_elem)(struct bpf_map *map, void *key, void *value, u64 flags) = (void *)BPF_FUNC_map_update_elem;
 static void *(*bpf_map_lookup_elem)(struct bpf_map *map, void *key) = (void *)BPF_FUNC_map_lookup_elem;

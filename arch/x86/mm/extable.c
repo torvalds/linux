@@ -122,6 +122,7 @@ __visible bool ex_handler_uaccess(const struct exception_table_entry *fixup,
 				  unsigned long error_code,
 				  unsigned long fault_addr)
 {
+	WARN_ONCE(trapnr == X86_TRAP_GP, "General protection fault in user access. Non-canonical address?");
 	regs->ip = ex_fixup_addr(fixup);
 	return true;
 }

@@ -78,7 +78,8 @@ struct hubp_funcs {
 	bool (*hubp_program_surface_flip_and_addr)(
 		struct hubp *hubp,
 		const struct dc_plane_address *address,
-		bool flip_immediate);
+		bool flip_immediate,
+		uint8_t vmid);
 
 	void (*hubp_program_pte_vm)(
 		struct hubp *hubp,

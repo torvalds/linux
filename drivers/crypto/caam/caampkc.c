@@ -1042,8 +1042,10 @@ static int __init caam_pkc_init(void)
 	 * If priv is NULL, it's probably because the caam driver wasn't
 	 * properly initialized (e.g. RNG4 init failed). Thus, bail out here.
 	 */
-	if (!priv)
-		return -ENODEV;
+	if (!priv) {
+		err = -ENODEV;
+		goto out_put_dev;
+	}
 
 	/* Determine public key hardware accelerator presence. */
 	if (priv->era < 10)
@@ -1053,8 +1055,10 @@ static int __init caam_pkc_init(void)
 		pk_inst = rd_reg32(&priv->ctrl->vreg.pkha) & CHA_VER_NUM_MASK;
 
 	/* Do not register algorithms if PKHA is not present. */
-	if (!pk_inst)
-		return -ENODEV;
+	if (!pk_inst) {
+		err =  -ENODEV;
+		goto out_put_dev;
+	}
 
 	err = crypto_register_akcipher(&caam_rsa);
 	if (err)
@@ -1063,6 +1067,8 @@ static int __init caam_pkc_init(void)
 	else
 		dev_info(ctrldev, "caam pkc algorithms registered in /proc/crypto\n");
 
+out_put_dev:
+	put_device(ctrldev);
 	return err;
 }
 

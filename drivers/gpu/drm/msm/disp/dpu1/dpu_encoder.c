@@ -24,7 +24,7 @@
 #include "msm_drv.h"
 #include "dpu_kms.h"
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_intf.h"
@@ -205,7 +205,7 @@ struct dpu_encoder_virt {
 	bool idle_pc_supported;
 	struct mutex rc_lock;
 	enum dpu_enc_rc_states rc_state;
-	struct kthread_delayed_work delayed_off_work;
+	struct delayed_work delayed_off_work;
 	struct kthread_work vsync_event_work;
 	struct msm_display_topology topology;
 	bool mode_set_complete;
@@ -742,7 +742,6 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 {
 	struct dpu_encoder_virt *dpu_enc;
 	struct msm_drm_private *priv;
-	struct msm_drm_thread *disp_thread;
 	bool is_vid_mode = false;
 
 	if (!drm_enc || !drm_enc->dev || !drm_enc->dev->dev_private ||
@@ -754,12 +753,6 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 	priv = drm_enc->dev->dev_private;
 	is_vid_mode = dpu_enc->disp_info.capabilities &
 						MSM_DISPLAY_CAP_VID_MODE;
-
-	if (drm_enc->crtc->index >= ARRAY_SIZE(priv->disp_thread)) {
-		DPU_ERROR("invalid crtc index\n");
-		return -EINVAL;
-	}
-	disp_thread = &priv->disp_thread[drm_enc->crtc->index];
 
 	/*
 	 * when idle_pc is not supported, process only KICKOFF, STOP and MODESET
@@ -777,8 +770,7 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 	switch (sw_event) {
 	case DPU_ENC_RC_EVENT_KICKOFF:
 		/* cancel delayed off work, if any */
-		if (kthread_cancel_delayed_work_sync(
-				&dpu_enc->delayed_off_work))
+		if (cancel_delayed_work_sync(&dpu_enc->delayed_off_work))
 			DPU_DEBUG_ENC(dpu_enc, "sw_event:%d, work cancelled\n",
 					sw_event);
 
@@ -837,10 +829,8 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 			return 0;
 		}
 
-		kthread_queue_delayed_work(
-			&disp_thread->worker,
-			&dpu_enc->delayed_off_work,
-			msecs_to_jiffies(dpu_enc->idle_timeout));
+		queue_delayed_work(priv->wq, &dpu_enc->delayed_off_work,
+				   msecs_to_jiffies(dpu_enc->idle_timeout));
 
 		trace_dpu_enc_rc(DRMID(drm_enc), sw_event,
 				 dpu_enc->idle_pc_supported, dpu_enc->rc_state,
@@ -849,8 +839,7 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 
 	case DPU_ENC_RC_EVENT_PRE_STOP:
 		/* cancel delayed off work, if any */
-		if (kthread_cancel_delayed_work_sync(
-				&dpu_enc->delayed_off_work))
+		if (cancel_delayed_work_sync(&dpu_enc->delayed_off_work))
 			DPU_DEBUG_ENC(dpu_enc, "sw_event:%d, work cancelled\n",
 					sw_event);
 
@@ -1368,7 +1357,7 @@ static void dpu_encoder_frame_done_callback(
 	}
 }
 
-static void dpu_encoder_off_work(struct kthread_work *work)
+static void dpu_encoder_off_work(struct work_struct *work)
 {
 	struct dpu_encoder_virt *dpu_enc = container_of(work,
 			struct dpu_encoder_virt, delayed_off_work.work);
@@ -1756,15 +1745,14 @@ static void dpu_encoder_vsync_event_work_handler(struct kthread_work *work)
 			nsecs_to_jiffies(ktime_to_ns(wakeup_time)));
 }
 
-void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
-		struct dpu_encoder_kickoff_params *params, bool async)
+void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc, bool async)
 {
 	struct dpu_encoder_virt *dpu_enc;
 	struct dpu_encoder_phys *phys;
 	bool needs_hw_reset = false;
 	unsigned int i;
 
-	if (!drm_enc || !params) {
+	if (!drm_enc) {
 		DPU_ERROR("invalid args\n");
 		return;
 	}
@@ -1778,7 +1766,7 @@ void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
 		phys = dpu_enc->phys_encs[i];
 		if (phys) {
 			if (phys->ops.prepare_for_kickoff)
-				phys->ops.prepare_for_kickoff(phys, params);
+				phys->ops.prepare_for_kickoff(phys);
 			if (phys->enable_state == DPU_ENC_ERR_NEEDS_HW_RESET)
 				needs_hw_reset = true;
 		}
@@ -2193,7 +2181,7 @@ int dpu_encoder_setup(struct drm_device *dev, struct drm_encoder *enc,
 
 
 	mutex_init(&dpu_enc->rc_lock);
-	kthread_init_delayed_work(&dpu_enc->delayed_off_work,
+	INIT_DELAYED_WORK(&dpu_enc->delayed_off_work,
 			dpu_encoder_off_work);
 	dpu_enc->idle_timeout = IDLE_TIMEOUT;
 

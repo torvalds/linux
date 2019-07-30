@@ -88,8 +88,8 @@ struct scif_driver {
  * @send_intr: Send an interrupt to the remote node on a specified doorbell.
  * @send_p2p_intr: Send an interrupt to the peer node on a specified doorbell
  * which is specifically targeted for a peer to peer node.
- * @ioremap: Map a buffer with the specified physical address and length.
- * @iounmap: Unmap a buffer previously mapped.
+ * @remap: Map a buffer with the specified physical address and length.
+ * @unmap: Unmap a buffer previously mapped.
  */
 struct scif_hw_ops {
 	int (*next_db)(struct scif_hw_dev *sdev);
@@ -104,9 +104,9 @@ struct scif_hw_ops {
 	void (*send_intr)(struct scif_hw_dev *sdev, int db);
 	void (*send_p2p_intr)(struct scif_hw_dev *sdev, int db,
 			      struct mic_mw *mw);
-	void __iomem * (*ioremap)(struct scif_hw_dev *sdev,
+	void __iomem * (*remap)(struct scif_hw_dev *sdev,
 				  phys_addr_t pa, size_t len);
-	void (*iounmap)(struct scif_hw_dev *sdev, void __iomem *va);
+	void (*unmap)(struct scif_hw_dev *sdev, void __iomem *va);
 };
 
 int scif_register_driver(struct scif_driver *driver);

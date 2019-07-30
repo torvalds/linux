@@ -14,21 +14,23 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include "udl_connector.h"
 #include "udl_drv.h"
 
-static bool udl_get_edid_block(struct udl_device *udl, int block_idx,
-							   u8 *buff)
+static int udl_get_edid_block(void *data, u8 *buf, unsigned int block,
+			       size_t len)
 {
 	int ret, i;
 	u8 *read_buff;
+	struct udl_device *udl = data;
 
 	read_buff = kmalloc(2, GFP_KERNEL);
 	if (!read_buff)
-		return false;
+		return -1;
 
-	for (i = 0; i < EDID_LENGTH; i++) {
-		int bval = (i + block_idx * EDID_LENGTH) << 8;
+	for (i = 0; i < len; i++) {
+		int bval = (i + block * EDID_LENGTH) << 8;
 		ret = usb_control_msg(udl->udev,
 				      usb_rcvctrlpipe(udl->udev, 0),
 					  (0x02), (0x80 | (0x02 << 5)), bval,
@@ -36,60 +38,13 @@ static bool udl_get_edid_block(struct udl_device *udl, int block_idx,
 		if (ret < 1) {
 			DRM_ERROR("Read EDID byte %d failed err %x\n", i, ret);
 			kfree(read_buff);
-			return false;
+			return -1;
 		}
-		buff[i] = read_buff[1];
+		buf[i] = read_buff[1];
 	}
 
 	kfree(read_buff);
-	return true;
-}
-
-static bool udl_get_edid(struct udl_device *udl, u8 **result_buff,
-			 int *result_buff_size)
-{
-	int i, extensions;
-	u8 *block_buff = NULL, *buff_ptr;
-
-	block_buff = kmalloc(EDID_LENGTH, GFP_KERNEL);
-	if (block_buff == NULL)
-		return false;
-
-	if (udl_get_edid_block(udl, 0, block_buff) &&
-	    memchr_inv(block_buff, 0, EDID_LENGTH)) {
-		extensions = ((struct edid *)block_buff)->extensions;
-		if (extensions > 0) {
-			/* we have to read all extensions one by one */
-			*result_buff_size = EDID_LENGTH * (extensions + 1);
-			*result_buff = kmalloc(*result_buff_size, GFP_KERNEL);
-			buff_ptr = *result_buff;
-			if (buff_ptr == NULL) {
-				kfree(block_buff);
-				return false;
-			}
-			memcpy(buff_ptr, block_buff, EDID_LENGTH);
-			kfree(block_buff);
-			buff_ptr += EDID_LENGTH;
-			for (i = 1; i < extensions; ++i) {
-				if (udl_get_edid_block(udl, i, buff_ptr)) {
-					buff_ptr += EDID_LENGTH;
-				} else {
-					kfree(*result_buff);
-					*result_buff = NULL;
-					return false;
-				}
-			}
-			return true;
-		}
-		/* we have only base edid block */
-		*result_buff = block_buff;
-		*result_buff_size = EDID_LENGTH;
-		return true;
-	}
-
-	kfree(block_buff);
-
-	return false;
+	return 0;
 }
 
 static int udl_get_modes(struct drm_connector *connector)
@@ -121,8 +76,6 @@ static enum drm_mode_status udl_mode_valid(struct drm_connector *connector,
 static enum drm_connector_status
 udl_detect(struct drm_connector *connector, bool force)
 {
-	u8 *edid_buff = NULL;
-	int edid_buff_size = 0;
 	struct udl_device *udl = connector->dev->dev_private;
 	struct udl_drm_connector *udl_connector =
 					container_of(connector,
@@ -135,12 +88,10 @@ udl_detect(struct drm_connector *connector, bool force)
 		udl_connector->edid = NULL;
 	}
 
-
-	if (!udl_get_edid(udl, &edid_buff, &edid_buff_size))
+	udl_connector->edid = drm_do_get_edid(connector, udl_get_edid_block, udl);
+	if (!udl_connector->edid)
 		return connector_status_disconnected;
 
-	udl_connector->edid = (struct edid *)edid_buff;
-	
 	return connector_status_connected;
 }
 

@@ -356,10 +356,6 @@ Read-Copy Update (RCU)
 
 .. kernel-doc:: include/linux/rcupdate.h
 
-.. kernel-doc:: include/linux/rcupdate_wait.h
-
-.. kernel-doc:: include/linux/rcutree.h
-
 .. kernel-doc:: kernel/rcu/tree.c
 
 .. kernel-doc:: kernel/rcu/tree_plugin.h

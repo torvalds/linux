@@ -404,9 +404,6 @@ int core_enable_device_list_for_node(
 	return 0;
 }
 
-/*
- *	Called with se_node_acl->lun_entry_mutex held.
- */
 void core_disable_device_list_for_node(
 	struct se_lun *lun,
 	struct se_dev_entry *orig,
@@ -418,6 +415,9 @@ void core_disable_device_list_for_node(
 	 * reference to se_device->dev_group.
 	 */
 	struct se_device *dev = rcu_dereference_raw(lun->lun_se_dev);
+
+	lockdep_assert_held(&nacl->lun_entry_mutex);
+
 	/*
 	 * If the MappedLUN entry is being disabled, the entry in
 	 * lun->lun_deve_list must be removed now before clearing the

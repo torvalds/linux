@@ -6,8 +6,6 @@
 #ifndef __PHY_MIPI_DPHY_H_
 #define __PHY_MIPI_DPHY_H_
 
-#include <video/videomode.h>
-
 /**
  * struct phy_configure_opts_mipi_dphy - MIPI D-PHY configuration set
  *
@@ -192,10 +190,10 @@ struct phy_configure_opts_mipi_dphy {
 	/**
 	 * @init:
 	 *
-	 * Time, in picoseconds for the initialization period to
+	 * Time, in microseconds for the initialization period to
 	 * complete.
 	 *
-	 * Minimum value: 100000000 ps
+	 * Minimum value: 100 us
 	 */
 	unsigned int		init;
 
@@ -246,11 +244,11 @@ struct phy_configure_opts_mipi_dphy {
 	/**
 	 * @wakeup:
 	 *
-	 * Time, in picoseconds, that a transmitter drives a Mark-1
+	 * Time, in microseconds, that a transmitter drives a Mark-1
 	 * state prior to a Stop state in order to initiate an exit
 	 * from ULPS.
 	 *
-	 * Minimum value: 1000000000 ps
+	 * Minimum value: 1000 us
 	 */
 	unsigned int		wakeup;
 
@@ -271,7 +269,8 @@ struct phy_configure_opts_mipi_dphy {
 	/**
 	 * @lanes:
 	 *
-	 * Number of active data lanes used for the transmissions.
+	 * Number of active, consecutive, data lanes, starting from
+	 * lane 0, used for the transmissions.
 	 */
 	unsigned char		lanes;
 };

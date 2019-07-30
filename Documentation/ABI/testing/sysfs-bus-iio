@@ -1554,6 +1554,10 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_co2_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_co2_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_ethanol_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_ethanol_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_h2_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_h2_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentration_voc_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_concentrationX_voc_raw
 KernelVersion:	4.3
@@ -1685,3 +1689,18 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw (unscaled) phase difference reading from channel Y
 		that can be processed to radians.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_massconcentration_pm1_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_massconcentrationY_pm1_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_massconcentration_pm2p5_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_massconcentrationY_pm2p5_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_massconcentration_pm4_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_massconcentrationY_pm4_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_massconcentration_pm10_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_massconcentrationY_pm10_input
+KernelVersion:	4.22
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Mass concentration reading of particulate matter in ug / m3.
+		pmX consists of particles with aerodynamic diameter less or
+		equal to X micrometers.

@@ -11,9 +11,11 @@ config ARC
 	select ARC_TIMERS
 	select ARCH_HAS_DMA_COHERENT_TO_PFN
 	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_HAS_SETUP_DMA_OPS
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_SUPPORTS_ATOMIC_RMW if ARC_HAS_LLSC
+	select ARCH_32BIT_OFF_T
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
 	select COMMON_CLK
@@ -30,7 +32,6 @@ config ARC
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_FUTEX_CMPXCHG if FUTEX
-	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IOREMAP_PROT
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZMA
@@ -44,7 +45,6 @@ config ARC
 	select MODULES_USE_ELF_RELA
 	select OF
 	select OF_EARLY_FLATTREE
-	select OF_RESERVED_MEM
 	select PCI_SYSCALL if PCI
 	select PERF_USE_VMALLOC if ARC_CACHE_VIPT_ALIASING
 
@@ -144,11 +144,11 @@ config ARC_CPU_770
 	  Support for ARC770 core introduced with Rel 4.10 (Summer 2011)
 	  This core has a bunch of cool new features:
 	  -MMU-v3: Variable Page Sz (4k, 8k, 16k), bigger J-TLB (128x4)
-                   Shared Address Spaces (for sharing TLB entries in MMU)
+	           Shared Address Spaces (for sharing TLB entries in MMU)
 	  -Caches: New Prog Model, Region Flush
 	  -Insns: endian swap, load-locked/store-conditional, time-stamp-ctr
 
-endif	#ISA_ARCOMPACT
+endif #ISA_ARCOMPACT
 
 config ARC_CPU_HS
 	bool "ARC-HS"
@@ -198,7 +198,7 @@ config ARC_SMP_HALT_ON_RESET
 	  at designated entry point. For other case, all jump to common
 	  entry point and spin wait for Master's signal.
 
-endif	#SMP
+endif #SMP
 
 config ARC_MCIP
 	bool "ARConnect Multicore IP (MCIP) Support "
@@ -249,7 +249,7 @@ config ARC_CACHE_VIPT_ALIASING
 	bool "Support VIPT Aliasing D$"
 	depends on ARC_HAS_DCACHE && ISA_ARCOMPACT
 
-endif	#ARC_CACHE
+endif #ARC_CACHE
 
 config ARC_HAS_ICCM
 	bool "Use ICCM"
@@ -370,7 +370,7 @@ config ARC_FPU_SAVE_RESTORE
 	  based on actual usage of FPU by a task. Thus our implemn does
 	  this for all tasks in system.
 
-endif	#ISA_ARCOMPACT
+endif #ISA_ARCOMPACT
 
 config ARC_CANT_LLSC
 	def_bool n
@@ -385,6 +385,15 @@ config ARC_HAS_SWAPE
 	default y
 
 if ISA_ARCV2
+
+config ARC_USE_UNALIGNED_MEM_ACCESS
+	bool "Enable unaligned access in HW"
+	default y
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS
+	help
+	  The ARC HS architecture supports unaligned memory access
+	  which is disabled by default. Enable unaligned access in
+	  hardware and use software to use it
 
 config ARC_HAS_LL64
 	bool "Insn: 64bit LDD/STD"
@@ -414,7 +423,7 @@ config ARC_IRQ_NO_AUTOSAVE
 	  This is programmable and can be optionally disabled in which case
 	  software INTERRUPT_PROLOGUE/EPILGUE do the needed work
 
-endif	# ISA_ARCV2
+endif # ISA_ARCV2
 
 endmenu   # "ARC CPU Configuration"
 

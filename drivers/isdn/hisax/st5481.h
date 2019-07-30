@@ -512,7 +512,7 @@ static inline const char *ST5481_CMD_string(int evt)
 	case ST5481_CMD_AR10: return "AR10";
 	case ST5481_CMD_ARL: return "ARL";
 	case ST5481_CMD_PDN: return "PDN";
-	};
+	}
 
 	sprintf(s, "0x%x", evt);
 	return s;

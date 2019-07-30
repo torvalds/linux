@@ -103,12 +103,16 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		 * to be revisited if support for multiple ftrace entry points
 		 * is added in the future, but for now, the pr_err() below
 		 * deals with a theoretical issue only.
+		 *
+		 * Note that PLTs are place relative, and plt_entries_equal()
+		 * checks whether they point to the same target. Here, we need
+		 * to check if the actual opcodes are in fact identical,
+		 * regardless of the offset in memory so use memcmp() instead.
 		 */
 		trampoline = get_plt_entry(addr, mod->arch.ftrace_trampoline);
-		if (!plt_entries_equal(mod->arch.ftrace_trampoline,
-				       &trampoline)) {
-			if (!plt_entries_equal(mod->arch.ftrace_trampoline,
-					       &(struct plt_entry){})) {
+		if (memcmp(mod->arch.ftrace_trampoline, &trampoline,
+			   sizeof(trampoline))) {
+			if (plt_entry_is_initialized(mod->arch.ftrace_trampoline)) {
 				pr_err("ftrace: far branches to multiple entry points unsupported inside a single module\n");
 				return -EINVAL;
 			}

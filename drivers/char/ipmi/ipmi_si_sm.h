@@ -26,6 +26,10 @@ enum si_type {
 	SI_TYPE_INVALID, SI_KCS, SI_SMIC, SI_BT
 };
 
+enum ipmi_addr_space {
+	IPMI_IO_ADDR_SPACE, IPMI_MEM_ADDR_SPACE
+};
+
 /*
  * The structure for doing I/O in the state machine.  The state
  * machine doesn't have the actual I/O routines, they are done through
@@ -42,11 +46,11 @@ struct si_sm_io {
 	 * state machine shouldn't touch these.
 	 */
 	void __iomem *addr;
-	int  regspacing;
-	int  regsize;
-	int  regshift;
-	int addr_type;
-	long addr_data;
+	unsigned int regspacing;
+	unsigned int regsize;
+	unsigned int regshift;
+	enum ipmi_addr_space addr_space;
+	unsigned long addr_data;
 	enum ipmi_addr_src addr_source; /* ACPI, PCI, SMBIOS, hardcode, etc. */
 	void (*addr_source_cleanup)(struct si_sm_io *io);
 	void *addr_source_data;

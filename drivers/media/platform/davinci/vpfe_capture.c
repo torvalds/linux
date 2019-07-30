@@ -518,7 +518,7 @@ static void vpfe_schedule_bottom_field(struct vpfe_device *vpfe_dev)
 
 static void vpfe_process_buffer_complete(struct vpfe_device *vpfe_dev)
 {
-	v4l2_get_timestamp(&vpfe_dev->cur_frm->ts);
+	vpfe_dev->cur_frm->ts = ktime_get_ns();
 	vpfe_dev->cur_frm->state = VIDEOBUF_DONE;
 	vpfe_dev->cur_frm->size = vpfe_dev->fmt.fmt.pix.sizeimage;
 	wake_up_interruptible(&vpfe_dev->cur_frm->done);

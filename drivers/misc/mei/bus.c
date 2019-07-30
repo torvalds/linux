@@ -28,7 +28,6 @@
 #include "client.h"
 
 #define to_mei_cl_driver(d) container_of(d, struct mei_cl_driver, driver)
-#define to_mei_cl_device(d) container_of(d, struct mei_cl_device, dev)
 
 /**
  * __mei_cl_send - internal client send (write)
@@ -541,17 +540,9 @@ int mei_cldev_enable(struct mei_cl_device *cldev)
 		goto out;
 	}
 
-	if (!mei_cl_bus_module_get(cldev)) {
-		dev_err(&cldev->dev, "get hw module failed");
-		ret = -ENODEV;
-		goto out;
-	}
-
 	ret = mei_cl_connect(cl, cldev->me_cl, NULL);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&cldev->dev, "cannot connect\n");
-		mei_cl_bus_module_put(cldev);
-	}
 
 out:
 	mutex_unlock(&bus->device_lock);
@@ -614,7 +605,6 @@ int mei_cldev_disable(struct mei_cl_device *cldev)
 	if (err < 0)
 		dev_err(bus->dev, "Could not disconnect from the ME client\n");
 
-	mei_cl_bus_module_put(cldev);
 out:
 	/* Flush queues and remove any pending read */
 	mei_cl_flush_queues(cl, NULL);
@@ -725,9 +715,16 @@ static int mei_cl_device_probe(struct device *dev)
 	if (!id)
 		return -ENODEV;
 
+	if (!mei_cl_bus_module_get(cldev)) {
+		dev_err(&cldev->dev, "get hw module failed");
+		return -ENODEV;
+	}
+
 	ret = cldrv->probe(cldev, id);
-	if (ret)
+	if (ret) {
+		mei_cl_bus_module_put(cldev);
 		return ret;
+	}
 
 	__module_get(THIS_MODULE);
 	return 0;
@@ -755,6 +752,7 @@ static int mei_cl_device_remove(struct device *dev)
 
 	mei_cldev_unregister_callbacks(cldev);
 
+	mei_cl_bus_module_put(cldev);
 	module_put(THIS_MODULE);
 	dev->driver = NULL;
 	return ret;

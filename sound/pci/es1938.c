@@ -1475,7 +1475,6 @@ static int es1938_suspend(struct device *dev)
 	unsigned char *s, *d;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
 
 	/* save mixer-related registers */
 	for (s = saved_regs, d = chip->saved_regs; *s; s++, d++)

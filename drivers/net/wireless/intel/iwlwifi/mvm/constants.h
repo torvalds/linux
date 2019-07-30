@@ -8,6 +8,7 @@
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2013 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,6 +65,7 @@
 #define __MVM_CONSTANTS_H
 
 #include <linux/ieee80211.h>
+#include "fw-api.h"
 
 #define IWL_MVM_UAPSD_NOAGG_BSSIDS_NUM		20
 
@@ -114,6 +117,7 @@
 #define IWL_MVM_TCM_LOWLAT_ENABLE_THRESH	100 /* packets/10 seconds */
 #define IWL_MVM_UAPSD_NONAGG_PERIOD		5000 /* msecs */
 #define IWL_MVM_UAPSD_NOAGG_LIST_LEN		IWL_MVM_UAPSD_NOAGG_BSSIDS_NUM
+#define IWL_MVM_NON_TRANSMITTING_AP		0
 #define IWL_MVM_RS_NUM_TRY_BEFORE_ANT_TOGGLE    1
 #define IWL_MVM_RS_HT_VHT_RETRIES_PER_RATE      2
 #define IWL_MVM_RS_HT_VHT_RETRIES_PER_RATE_TW   1
@@ -145,5 +149,8 @@
 #define IWL_MVM_RS_TPC_SR_NO_INCREASE		85	/* percent */
 #define IWL_MVM_RS_TPC_TX_POWER_STEP		3
 #define IWL_MVM_ENABLE_EBS			1
+#define IWL_MVM_FTM_INITIATOR_ALGO		IWL_TOF_ALGO_TYPE_MAX_LIKE
+#define IWL_MVM_FTM_INITIATOR_DYNACK		true
+#define IWL_MVM_D3_DEBUG			false
 
 #endif /* __MVM_CONSTANTS_H */

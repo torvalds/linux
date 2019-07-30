@@ -79,6 +79,32 @@ struct aic32x4_priv {
 	struct device *dev;
 };
 
+static int mic_bias_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		/* Change Mic Bias Registor */
+		snd_soc_component_update_bits(component, AIC32X4_MICBIAS,
+				AIC32x4_MICBIAS_MASK,
+				AIC32X4_MICBIAS_LDOIN |
+				AIC32X4_MICBIAS_2075V);
+		printk(KERN_DEBUG "%s: Mic Bias will be turned ON\n", __func__);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_component_update_bits(component, AIC32X4_MICBIAS,
+				AIC32x4_MICBIAS_MASK, 0);
+		printk(KERN_DEBUG "%s: Mic Bias will be turned OFF\n",
+				__func__);
+		break;
+	}
+
+	return 0;
+}
+
+
 static int aic32x4_get_mfp1_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -450,7 +476,9 @@ static const struct snd_soc_dapm_widget aic32x4_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("IN3_R to Left Mixer Negative Resistor", SND_SOC_NOPM, 0, 0,
 			in3r_to_lmixer_controls),
 
-	SND_SOC_DAPM_MICBIAS("Mic Bias", AIC32X4_MICBIAS, 6, 0),
+	SND_SOC_DAPM_SUPPLY("Mic Bias", AIC32X4_MICBIAS, 6, 0, mic_bias_event,
+			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+
 
 	SND_SOC_DAPM_OUTPUT("HPL"),
 	SND_SOC_DAPM_OUTPUT("HPR"),
@@ -462,6 +490,8 @@ static const struct snd_soc_dapm_widget aic32x4_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN2_R"),
 	SND_SOC_DAPM_INPUT("IN3_L"),
 	SND_SOC_DAPM_INPUT("IN3_R"),
+	SND_SOC_DAPM_INPUT("CM_L"),
+	SND_SOC_DAPM_INPUT("CM_R"),
 };
 
 static const struct snd_soc_dapm_route aic32x4_dapm_routes[] = {
@@ -942,6 +972,7 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 	if (gpio_is_valid(aic32x4->rstn_gpio)) {
 		ndelay(10);
 		gpio_set_value(aic32x4->rstn_gpio, 1);
+		mdelay(1);
 	}
 
 	snd_soc_component_write(component, AIC32X4_RESET, 0x01);

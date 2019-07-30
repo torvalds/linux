@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/machine.h>
@@ -73,48 +74,12 @@ static int rt2880_get_group_pins(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-static int rt2880_pinctrl_dt_node_to_map(struct pinctrl_dev *pctrldev,
-					 struct device_node *np_config,
-					 struct pinctrl_map **map,
-					 unsigned int *num_maps)
-{
-	struct rt2880_priv *p = pinctrl_dev_get_drvdata(pctrldev);
-	struct property *prop;
-	const char *function_name, *group_name;
-	int ret;
-	int ngroups = 0;
-	unsigned int reserved_maps = 0;
-
-	for_each_node_with_property(np_config, "group")
-		ngroups++;
-
-	*map = NULL;
-	ret = pinctrl_utils_reserve_map(pctrldev, map, &reserved_maps,
-					num_maps, ngroups);
-	if (ret) {
-		dev_err(p->dev, "can't reserve map: %d\n", ret);
-		return ret;
-	}
-
-	of_property_for_each_string(np_config, "group", prop, group_name) {
-		ret = pinctrl_utils_add_map_mux(pctrldev, map, &reserved_maps,
-						num_maps, group_name,
-						function_name);
-		if (ret) {
-			dev_err(p->dev, "can't add map: %d\n", ret);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static const struct pinctrl_ops rt2880_pctrl_ops = {
 	.get_groups_count	= rt2880_get_group_count,
 	.get_group_name		= rt2880_get_group_name,
 	.get_group_pins		= rt2880_get_group_pins,
-	.dt_node_to_map		= rt2880_pinctrl_dt_node_to_map,
-	.dt_free_map		= pinctrl_utils_free_map,
+	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_free_map		= pinconf_generic_dt_free_map,
 };
 
 static int rt2880_pmx_func_count(struct pinctrl_dev *pctrldev)
@@ -385,7 +350,6 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 	for_each_compatible_node(np, NULL, "ralink,rt2880-gpio") {
 		const __be32 *ngpio, *gpiobase;
 		struct pinctrl_gpio_range *range;
-		char *name;
 
 		if (!of_device_is_available(np))
 			continue;
@@ -397,9 +361,10 @@ static int rt2880_pinmux_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		range = devm_kzalloc(p->dev, sizeof(*range) + 4, GFP_KERNEL);
-		range->name = name = (char *) &range[1];
-		sprintf(name, "pio");
+		range = devm_kzalloc(p->dev, sizeof(*range), GFP_KERNEL);
+		if (!range)
+			return -ENOMEM;
+		range->name = "pio";
 		range->npins = __be32_to_cpu(*ngpio);
 		range->base = __be32_to_cpu(*gpiobase);
 		range->pin_base = range->base;

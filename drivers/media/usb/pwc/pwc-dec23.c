@@ -41,7 +41,7 @@
  * UNROLL_LOOP_FOR_COPYING_BLOCK
  *   0: use a loop for a smaller code (but little slower)
  *   1: when unrolling the loop, gcc produces some faster code (perhaps only
- *   valid for intel processor class). Activating this option, automaticaly
+ *   valid for intel processor class). Activating this option, automatically
  *   activate USE_LOOKUP_TABLE_TO_CLAMP
  */
 #define UNROLL_LOOP_FOR_COPY		1
@@ -332,7 +332,7 @@ void pwc_dec23_init(struct pwc_device *pdev, const unsigned char *cmd)
 		build_table_color(TimonRomTable[version][1], pdec->table_0004_pass2, pdec->table_8004_pass2);
 	}
 
-	/* Informations can be coded on a variable number of bits but never less than 8 */
+	/* Information can be coded on a variable number of bits but never less than 8 */
 	shift = 8 - pdec->nbits;
 	pdec->scalebits = SCALEBITS - shift;
 	pdec->nbitsmask = 0xFF >> shift;

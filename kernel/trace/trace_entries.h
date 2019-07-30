@@ -65,7 +65,8 @@ FTRACE_ENTRY_REG(function, ftrace_entry,
 		__field(	unsigned long,	parent_ip	)
 	),
 
-	F_printk(" %lx <-- %lx", __entry->ip, __entry->parent_ip),
+	F_printk(" %ps <-- %ps",
+		 (void *)__entry->ip, (void *)__entry->parent_ip),
 
 	FILTER_TRACE_FN,
 
@@ -83,7 +84,7 @@ FTRACE_ENTRY_PACKED(funcgraph_entry, ftrace_graph_ent_entry,
 		__field_desc(	int,		graph_ent,	depth		)
 	),
 
-	F_printk("--> %lx (%d)", __entry->func, __entry->depth),
+	F_printk("--> %ps (%d)", (void *)__entry->func, __entry->depth),
 
 	FILTER_OTHER
 );
@@ -102,8 +103,8 @@ FTRACE_ENTRY_PACKED(funcgraph_exit, ftrace_graph_ret_entry,
 		__field_desc(	int,		ret,		depth	)
 	),
 
-	F_printk("<-- %lx (%d) (start: %llx  end: %llx) over: %d",
-		 __entry->func, __entry->depth,
+	F_printk("<-- %ps (%d) (start: %llx  end: %llx) over: %d",
+		 (void *)__entry->func, __entry->depth,
 		 __entry->calltime, __entry->rettime,
 		 __entry->depth),
 
@@ -167,12 +168,6 @@ FTRACE_ENTRY_DUP(wakeup, ctx_switch_entry,
 
 #define FTRACE_STACK_ENTRIES	8
 
-#ifndef CONFIG_64BIT
-# define IP_FMT "%08lx"
-#else
-# define IP_FMT "%016lx"
-#endif
-
 FTRACE_ENTRY(kernel_stack, stack_entry,
 
 	TRACE_STACK,
@@ -182,12 +177,13 @@ FTRACE_ENTRY(kernel_stack, stack_entry,
 		__dynamic_array(unsigned long,	caller	)
 	),
 
-	F_printk("\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n"
-		 "\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n"
-		 "\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n",
-		 __entry->caller[0], __entry->caller[1], __entry->caller[2],
-		 __entry->caller[3], __entry->caller[4], __entry->caller[5],
-		 __entry->caller[6], __entry->caller[7]),
+	F_printk("\t=> %ps\n\t=> %ps\n\t=> %ps\n"
+		 "\t=> %ps\n\t=> %ps\n\t=> %ps\n"
+		 "\t=> %ps\n\t=> %ps\n",
+		 (void *)__entry->caller[0], (void *)__entry->caller[1],
+		 (void *)__entry->caller[2], (void *)__entry->caller[3],
+		 (void *)__entry->caller[4], (void *)__entry->caller[5],
+		 (void *)__entry->caller[6], (void *)__entry->caller[7]),
 
 	FILTER_OTHER
 );
@@ -201,12 +197,13 @@ FTRACE_ENTRY(user_stack, userstack_entry,
 		__array(	unsigned long,	caller, FTRACE_STACK_ENTRIES	)
 	),
 
-	F_printk("\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n"
-		 "\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n"
-		 "\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n",
-		 __entry->caller[0], __entry->caller[1], __entry->caller[2],
-		 __entry->caller[3], __entry->caller[4], __entry->caller[5],
-		 __entry->caller[6], __entry->caller[7]),
+	F_printk("\t=> %ps\n\t=> %ps\n\t=> %ps\n"
+		 "\t=> %ps\n\t=> %ps\n\t=> %ps\n"
+		 "\t=> %ps\n\t=> %ps\n",
+		 (void *)__entry->caller[0], (void *)__entry->caller[1],
+		 (void *)__entry->caller[2], (void *)__entry->caller[3],
+		 (void *)__entry->caller[4], (void *)__entry->caller[5],
+		 (void *)__entry->caller[6], (void *)__entry->caller[7]),
 
 	FILTER_OTHER
 );

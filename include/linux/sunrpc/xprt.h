@@ -196,8 +196,6 @@ struct rpc_xprt {
 
 	size_t			max_payload;	/* largest RPC payload size,
 						   in bytes */
-	unsigned int		tsh_size;	/* size of transport specific
-						   header */
 
 	struct rpc_wait_queue	binding;	/* requests waiting on rpcbind */
 	struct rpc_wait_queue	sending;	/* requests waiting to send */
@@ -361,11 +359,6 @@ struct rpc_xprt *	xprt_alloc(struct net *net, size_t size,
 				unsigned int num_prealloc,
 				unsigned int max_req);
 void			xprt_free(struct rpc_xprt *);
-
-static inline __be32 *xprt_skip_transport_header(struct rpc_xprt *xprt, __be32 *p)
-{
-	return p + xprt->tsh_size;
-}
 
 static inline int
 xprt_enable_swap(struct rpc_xprt *xprt)

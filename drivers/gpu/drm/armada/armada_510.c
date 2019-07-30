@@ -9,7 +9,7 @@
  */
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include "armada_crtc.h"
 #include "armada_drm.h"
 #include "armada_hw.h"

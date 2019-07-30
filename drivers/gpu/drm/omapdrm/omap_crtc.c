@@ -18,7 +18,6 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_plane_helper.h>
 #include <linux/math64.h>
@@ -427,12 +426,8 @@ static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 
-	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-	    omap_crtc->name, mode->base.id, mode->name,
-	    mode->vrefresh, mode->clock,
-	    mode->hdisplay, mode->hsync_start, mode->hsync_end, mode->htotal,
-	    mode->vdisplay, mode->vsync_start, mode->vsync_end, mode->vtotal,
-	    mode->type, mode->flags);
+	DBG("%s: set mode: " DRM_MODE_FMT,
+	    omap_crtc->name, DRM_MODE_ARG(mode));
 
 	drm_display_mode_to_videomode(mode, &omap_crtc->vm);
 }

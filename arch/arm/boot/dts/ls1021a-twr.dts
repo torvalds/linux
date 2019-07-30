@@ -51,6 +51,7 @@
 
 / {
 	model = "LS1021A TWR Board";
+	compatible = "fsl,ls1021a-twr", "fsl,ls1021a";
 
 	aliases {
 		enet2_rgmii_phy = &rgmii_phy1;

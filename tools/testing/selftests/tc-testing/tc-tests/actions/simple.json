@@ -126,5 +126,30 @@
         "teardown": [
             ""
         ]
+    },
+    {
+        "id": "b776",
+        "name": "Replace simple action with invalid goto chain control",
+        "category": [
+            "actions",
+            "simple"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action simple",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action simple sdata \"hello\" pass index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action simple sdata \"world\" goto chain 42 index  90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action simple",
+        "matchPattern": "action order [0-9]*: Simple <hello>.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action simple"
+        ]
     }
 ]

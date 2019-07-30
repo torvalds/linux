@@ -52,7 +52,7 @@ cea_map_percpu_pages(void *cea_vaddr, void *ptr, int pages, pgprot_t prot)
 		cea_set_pte(cea_vaddr, per_cpu_ptr_to_phys(ptr), prot);
 }
 
-static void percpu_setup_debug_store(int cpu)
+static void __init percpu_setup_debug_store(int cpu)
 {
 #ifdef CONFIG_CPU_SUP_INTEL
 	int npages;

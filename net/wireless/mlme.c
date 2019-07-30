@@ -21,7 +21,8 @@
 
 
 void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
-			    const u8 *buf, size_t len, int uapsd_queues)
+			    const u8 *buf, size_t len, int uapsd_queues,
+			    const u8 *req_ies, size_t req_ies_len)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
@@ -33,6 +34,8 @@ void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
 	cr.status = (int)le16_to_cpu(mgmt->u.assoc_resp.status_code);
 	cr.bssid = mgmt->bssid;
 	cr.bss = bss;
+	cr.req_ie = req_ies;
+	cr.req_ie_len = req_ies_len;
 	cr.resp_ie = mgmt->u.assoc_resp.variable;
 	cr.resp_ie_len =
 		len - offsetof(struct ieee80211_mgmt, u.assoc_resp.variable);
@@ -52,7 +55,8 @@ void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
 		return;
 	}
 
-	nl80211_send_rx_assoc(rdev, dev, buf, len, GFP_KERNEL, uapsd_queues);
+	nl80211_send_rx_assoc(rdev, dev, buf, len, GFP_KERNEL, uapsd_queues,
+			      req_ies, req_ies_len);
 	/* update current_bss etc., consumes the bss reference */
 	__cfg80211_connect_result(dev, &cr, cr.status == WLAN_STATUS_SUCCESS);
 }

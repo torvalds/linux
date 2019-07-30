@@ -803,6 +803,45 @@ static ssize_t dtn_log_write(
 	return size;
 }
 
+/*
+ * Backlight at this moment.  Read only.
+ * As written to display, taking ABM and backlight lut into account.
+ * Ranges from 0x0 to 0x10000 (= 100% PWM)
+ */
+static int current_backlight_read(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct dc *dc = adev->dm.dc;
+	unsigned int backlight = dc_get_current_backlight_pwm(dc);
+
+	seq_printf(m, "0x%x\n", backlight);
+	return 0;
+}
+
+/*
+ * Backlight value that is being approached.  Read only.
+ * As written to display, taking ABM and backlight lut into account.
+ * Ranges from 0x0 to 0x10000 (= 100% PWM)
+ */
+static int target_backlight_read(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct dc *dc = adev->dm.dc;
+	unsigned int backlight = dc_get_target_backlight_pwm(dc);
+
+	seq_printf(m, "0x%x\n", backlight);
+	return 0;
+}
+
+static const struct drm_info_list amdgpu_dm_debugfs_list[] = {
+	{"amdgpu_current_backlight_pwm", &current_backlight_read},
+	{"amdgpu_target_backlight_pwm", &target_backlight_read},
+};
+
 int dtn_debugfs_init(struct amdgpu_device *adev)
 {
 	static const struct file_operations dtn_log_fops = {
@@ -813,9 +852,15 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 	};
 
 	struct drm_minor *minor = adev->ddev->primary;
-	struct dentry *root = minor->debugfs_root;
+	struct dentry *ent, *root = minor->debugfs_root;
+	int ret;
 
-	struct dentry *ent = debugfs_create_file(
+	ret = amdgpu_debugfs_add_files(adev, amdgpu_dm_debugfs_list,
+				ARRAY_SIZE(amdgpu_dm_debugfs_list));
+	if (ret)
+		return ret;
+
+	ent = debugfs_create_file(
 		"amdgpu_dm_dtn_log",
 		0644,
 		root,

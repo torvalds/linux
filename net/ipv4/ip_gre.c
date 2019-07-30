@@ -259,7 +259,6 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	struct net *net = dev_net(skb->dev);
 	struct metadata_dst *tun_dst = NULL;
 	struct erspan_base_hdr *ershdr;
-	struct erspan_metadata *pkt_md;
 	struct ip_tunnel_net *itn;
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph;
@@ -282,9 +281,6 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 		if (unlikely(!pskb_may_pull(skb, len)))
 			return PACKET_REJECT;
 
-		ershdr = (struct erspan_base_hdr *)(skb->data + gre_hdr_len);
-		pkt_md = (struct erspan_metadata *)(ershdr + 1);
-
 		if (__iptunnel_pull_header(skb,
 					   len,
 					   htons(ETH_P_TEB),
@@ -292,8 +288,9 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 			goto drop;
 
 		if (tunnel->collect_md) {
+			struct erspan_metadata *pkt_md, *md;
 			struct ip_tunnel_info *info;
-			struct erspan_metadata *md;
+			unsigned char *gh;
 			__be64 tun_id;
 			__be16 flags;
 
@@ -306,6 +303,14 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 			if (!tun_dst)
 				return PACKET_REJECT;
 
+			/* skb can be uncloned in __iptunnel_pull_header, so
+			 * old pkt_md is no longer valid and we need to reset
+			 * it
+			 */
+			gh = skb_network_header(skb) +
+			     skb_network_header_len(skb);
+			pkt_md = (struct erspan_metadata *)(gh + gre_hdr_len +
+							    sizeof(*ershdr));
 			md = ip_tunnel_info_opts(&tun_dst->u.tun_info);
 			md->version = ver;
 			md2 = &md->u.md2;
@@ -449,81 +454,14 @@ static int gre_handle_offloads(struct sk_buff *skb, bool csum)
 	return iptunnel_handle_offloads(skb, csum ? SKB_GSO_GRE_CSUM : SKB_GSO_GRE);
 }
 
-static struct rtable *gre_get_rt(struct sk_buff *skb,
-				 struct net_device *dev,
-				 struct flowi4 *fl,
-				 const struct ip_tunnel_key *key)
-{
-	struct net *net = dev_net(dev);
-
-	memset(fl, 0, sizeof(*fl));
-	fl->daddr = key->u.ipv4.dst;
-	fl->saddr = key->u.ipv4.src;
-	fl->flowi4_tos = RT_TOS(key->tos);
-	fl->flowi4_mark = skb->mark;
-	fl->flowi4_proto = IPPROTO_GRE;
-
-	return ip_route_output_key(net, fl);
-}
-
-static struct rtable *prepare_fb_xmit(struct sk_buff *skb,
-				      struct net_device *dev,
-				      struct flowi4 *fl,
-				      int tunnel_hlen)
-{
-	struct ip_tunnel_info *tun_info;
-	const struct ip_tunnel_key *key;
-	struct rtable *rt = NULL;
-	int min_headroom;
-	bool use_cache;
-	int err;
-
-	tun_info = skb_tunnel_info(skb);
-	key = &tun_info->key;
-	use_cache = ip_tunnel_dst_cache_usable(skb, tun_info);
-
-	if (use_cache)
-		rt = dst_cache_get_ip4(&tun_info->dst_cache, &fl->saddr);
-	if (!rt) {
-		rt = gre_get_rt(skb, dev, fl, key);
-		if (IS_ERR(rt))
-			goto err_free_skb;
-		if (use_cache)
-			dst_cache_set_ip4(&tun_info->dst_cache, &rt->dst,
-					  fl->saddr);
-	}
-
-	min_headroom = LL_RESERVED_SPACE(rt->dst.dev) + rt->dst.header_len
-			+ tunnel_hlen + sizeof(struct iphdr);
-	if (skb_headroom(skb) < min_headroom || skb_header_cloned(skb)) {
-		int head_delta = SKB_DATA_ALIGN(min_headroom -
-						skb_headroom(skb) +
-						16);
-		err = pskb_expand_head(skb, max_t(int, head_delta, 0),
-				       0, GFP_ATOMIC);
-		if (unlikely(err))
-			goto err_free_rt;
-	}
-	return rt;
-
-err_free_rt:
-	ip_rt_put(rt);
-err_free_skb:
-	kfree_skb(skb);
-	dev->stats.tx_dropped++;
-	return NULL;
-}
-
 static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 			__be16 proto)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct ip_tunnel_info *tun_info;
 	const struct ip_tunnel_key *key;
-	struct rtable *rt = NULL;
-	struct flowi4 fl;
 	int tunnel_hlen;
-	__be16 df, flags;
+	__be16 flags;
 
 	tun_info = skb_tunnel_info(skb);
 	if (unlikely(!tun_info || !(tun_info->mode & IP_TUNNEL_INFO_TX) ||
@@ -533,13 +471,12 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 	key = &tun_info->key;
 	tunnel_hlen = gre_calc_hlen(key->tun_flags);
 
-	rt = prepare_fb_xmit(skb, dev, &fl, tunnel_hlen);
-	if (!rt)
-		return;
+	if (skb_cow_head(skb, dev->needed_headroom))
+		goto err_free_skb;
 
 	/* Push Tunnel header. */
 	if (gre_handle_offloads(skb, !!(tun_info->key.tun_flags & TUNNEL_CSUM)))
-		goto err_free_rt;
+		goto err_free_skb;
 
 	flags = tun_info->key.tun_flags &
 		(TUNNEL_CSUM | TUNNEL_KEY | TUNNEL_SEQ);
@@ -547,14 +484,10 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 			 tunnel_id_to_key32(tun_info->key.tun_id),
 			 (flags & TUNNEL_SEQ) ? htonl(tunnel->o_seqno++) : 0);
 
-	df = key->tun_flags & TUNNEL_DONT_FRAGMENT ?  htons(IP_DF) : 0;
+	ip_md_tunnel_xmit(skb, dev, IPPROTO_GRE, tunnel_hlen);
 
-	iptunnel_xmit(skb->sk, rt, skb, fl.saddr, key->u.ipv4.dst, IPPROTO_GRE,
-		      key->tos, key->ttl, df, false);
 	return;
 
-err_free_rt:
-	ip_rt_put(rt);
 err_free_skb:
 	kfree_skb(skb);
 	dev->stats.tx_dropped++;
@@ -566,10 +499,8 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ip_tunnel_info *tun_info;
 	const struct ip_tunnel_key *key;
 	struct erspan_metadata *md;
-	struct rtable *rt = NULL;
 	bool truncate = false;
-	__be16 df, proto;
-	struct flowi4 fl;
+	__be16 proto;
 	int tunnel_hlen;
 	int version;
 	int nhoff;
@@ -582,21 +513,20 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	key = &tun_info->key;
 	if (!(tun_info->key.tun_flags & TUNNEL_ERSPAN_OPT))
-		goto err_free_rt;
+		goto err_free_skb;
 	md = ip_tunnel_info_opts(tun_info);
 	if (!md)
-		goto err_free_rt;
+		goto err_free_skb;
 
 	/* ERSPAN has fixed 8 byte GRE header */
 	version = md->version;
 	tunnel_hlen = 8 + erspan_hdr_len(version);
 
-	rt = prepare_fb_xmit(skb, dev, &fl, tunnel_hlen);
-	if (!rt)
-		return;
+	if (skb_cow_head(skb, dev->needed_headroom))
+		goto err_free_skb;
 
 	if (gre_handle_offloads(skb, false))
-		goto err_free_rt;
+		goto err_free_skb;
 
 	if (skb->len > dev->mtu + dev->hard_header_len) {
 		pskb_trim(skb, dev->mtu + dev->hard_header_len);
@@ -625,20 +555,16 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 				       truncate, true);
 		proto = htons(ETH_P_ERSPAN2);
 	} else {
-		goto err_free_rt;
+		goto err_free_skb;
 	}
 
 	gre_build_header(skb, 8, TUNNEL_SEQ,
 			 proto, 0, htonl(tunnel->o_seqno++));
 
-	df = key->tun_flags & TUNNEL_DONT_FRAGMENT ?  htons(IP_DF) : 0;
+	ip_md_tunnel_xmit(skb, dev, IPPROTO_GRE, tunnel_hlen);
 
-	iptunnel_xmit(skb->sk, rt, skb, fl.saddr, key->u.ipv4.dst, IPPROTO_GRE,
-		      key->tos, key->ttl, df, false);
 	return;
 
-err_free_rt:
-	ip_rt_put(rt);
 err_free_skb:
 	kfree_skb(skb);
 	dev->stats.tx_dropped++;
@@ -647,13 +573,18 @@ err_free_skb:
 static int gre_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
 {
 	struct ip_tunnel_info *info = skb_tunnel_info(skb);
+	const struct ip_tunnel_key *key;
 	struct rtable *rt;
 	struct flowi4 fl4;
 
 	if (ip_tunnel_info_af(info) != AF_INET)
 		return -EINVAL;
 
-	rt = gre_get_rt(skb, dev, &fl4, &info->key);
+	key = &info->key;
+	ip_tunnel_init_flow(&fl4, IPPROTO_GRE, key->u.ipv4.dst, key->u.ipv4.src,
+			    tunnel_id_to_key32(key->tun_id), key->tos, 0,
+			    skb->mark, skb_get_hash(skb));
+	rt = ip_route_output_key(dev_net(dev), &fl4);
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 

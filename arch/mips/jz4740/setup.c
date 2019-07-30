@@ -31,7 +31,6 @@
 
 #define JZ4740_EMC_SDRAM_CTRL 0x80
 
-
 static void __init jz4740_detect_mem(void)
 {
 	void __iomem *jz_emc_base;
@@ -66,15 +65,22 @@ static unsigned long __init get_board_mach_type(const void *fdt)
 void __init plat_mem_setup(void)
 {
 	int offset;
+	void *dtb;
 
 	jz4740_reset_init();
-	__dt_setup_arch(__dtb_start);
 
-	offset = fdt_path_offset(__dtb_start, "/memory");
+	if (__dtb_start != __dtb_end)
+		dtb = __dtb_start;
+	else
+		dtb = (void *)fw_passed_dtb;
+
+	__dt_setup_arch(dtb);
+
+	offset = fdt_path_offset(dtb, "/memory");
 	if (offset < 0)
 		jz4740_detect_mem();
 
-	mips_machtype = get_board_mach_type(__dtb_start);
+	mips_machtype = get_board_mach_type(dtb);
 }
 
 void __init device_tree_init(void)

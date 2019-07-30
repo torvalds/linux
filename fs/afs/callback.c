@@ -203,8 +203,7 @@ void afs_put_cb_interest(struct afs_net *net, struct afs_cb_interest *cbi)
  */
 void afs_init_callback_state(struct afs_server *server)
 {
-	if (!test_and_clear_bit(AFS_SERVER_FL_NEW, &server->flags))
-		server->cb_s_break++;
+	server->cb_s_break++;
 }
 
 /*

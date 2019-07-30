@@ -138,7 +138,7 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 	u8 *p = data;
 
 	if (stringset == ETH_SS_STATS) {
-		memcpy(p, *aq_ethtool_stat_names,
+		memcpy(p, aq_ethtool_stat_names,
 		       sizeof(aq_ethtool_stat_names));
 		p = p + sizeof(aq_ethtool_stat_names);
 		for (i = 0; i < cfg->vecs; i++) {

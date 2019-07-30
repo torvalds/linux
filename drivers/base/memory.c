@@ -88,6 +88,7 @@ unsigned long __weak memory_block_size_bytes(void)
 {
 	return MIN_MEMORY_BLOCK_SIZE;
 }
+EXPORT_SYMBOL_GPL(memory_block_size_bytes);
 
 static unsigned long get_memory_block_size(void)
 {
@@ -505,7 +506,7 @@ static ssize_t probe_store(struct device *dev, struct device_attribute *attr,
 
 	ret = lock_device_hotplug_sysfs();
 	if (ret)
-		goto out;
+		return ret;
 
 	nid = memory_add_physaddr_to_nid(phys_addr);
 	ret = __add_memory(nid, phys_addr,

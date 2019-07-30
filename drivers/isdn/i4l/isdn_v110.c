@@ -354,7 +354,7 @@ EncodeMatrix(unsigned char *buf, int len, unsigned char *m, int mlen)
 				printk(KERN_WARNING "isdn_v110 (EncodeMatrix): buffer full!\n");
 				return line;
 			}
-			/* else: fall through */
+			/* fall through */
 		case 128:
 			m[line] = 128;	/* leftmost -> set byte to 1000000 */
 			mbit = 64;	/* current bit in the matrix line */

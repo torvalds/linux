@@ -136,15 +136,20 @@ static int __init exynos5_clk_register_subcmu(struct device *parent,
 {
 	struct of_phandle_args genpdspec = { .np = pd_node };
 	struct platform_device *pdev;
+	int ret;
 
-	pdev = platform_device_alloc(info->pd_name, -1);
+	pdev = platform_device_alloc("exynos5-subcmu", PLATFORM_DEVID_AUTO);
+	if (!pdev)
+		return -ENOMEM;
+
 	pdev->dev.parent = parent;
-	pdev->driver_override = "exynos5-subcmu";
 	platform_set_drvdata(pdev, (void *)info);
 	of_genpd_add_device(&genpdspec, &pdev->dev);
-	platform_device_add(pdev);
+	ret = platform_device_add(pdev);
+	if (ret)
+		platform_device_put(pdev);
 
-	return 0;
+	return ret;
 }
 
 static int __init exynos5_clk_probe(struct platform_device *pdev)

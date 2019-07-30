@@ -76,6 +76,9 @@
 #include "pwc-dec23.h"
 #include "pwc-dec1.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/pwc.h>
+
 /* Function prototypes and driver templates */
 
 /* hotplug device table support */
@@ -155,6 +158,32 @@ static const struct video_device pwc_template = {
 
 /***************************************************************************/
 /* Private functions */
+
+static void *pwc_alloc_urb_buffer(struct device *dev,
+				  size_t size, dma_addr_t *dma_handle)
+{
+	void *buffer = kmalloc(size, GFP_KERNEL);
+
+	if (!buffer)
+		return NULL;
+
+	*dma_handle = dma_map_single(dev, buffer, size, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, *dma_handle)) {
+		kfree(buffer);
+		return NULL;
+	}
+
+	return buffer;
+}
+
+static void pwc_free_urb_buffer(struct device *dev,
+				size_t size,
+				void *buffer,
+				dma_addr_t dma_handle)
+{
+	dma_unmap_single(dev, dma_handle, size, DMA_FROM_DEVICE);
+	kfree(buffer);
+}
 
 static struct pwc_frame_buf *pwc_get_next_fill_buf(struct pwc_device *pdev)
 {
@@ -260,6 +289,8 @@ static void pwc_isoc_handler(struct urb *urb)
 	int i, fst, flen;
 	unsigned char *iso_buf = NULL;
 
+	trace_pwc_handler_enter(urb, pdev);
+
 	if (urb->status == -ENOENT || urb->status == -ECONNRESET ||
 	    urb->status == -ESHUTDOWN) {
 		PWC_DEBUG_OPEN("URB (%p) unlinked %ssynchronously.\n",
@@ -300,6 +331,11 @@ static void pwc_isoc_handler(struct urb *urb)
 
 	/* Reset ISOC error counter. We did get here, after all. */
 	pdev->visoc_errors = 0;
+
+	dma_sync_single_for_cpu(&urb->dev->dev,
+				urb->transfer_dma,
+				urb->transfer_buffer_length,
+				DMA_FROM_DEVICE);
 
 	/* vsync: 0 = don't copy data
 		  1 = sync-hunt
@@ -347,7 +383,14 @@ static void pwc_isoc_handler(struct urb *urb)
 		pdev->vlast_packet_size = flen;
 	}
 
+	dma_sync_single_for_device(&urb->dev->dev,
+				   urb->transfer_dma,
+				   urb->transfer_buffer_length,
+				   DMA_FROM_DEVICE);
+
 handler_end:
+	trace_pwc_handler_exit(urb, pdev);
+
 	i = usb_submit_urb(urb, GFP_ATOMIC);
 	if (i != 0)
 		PWC_ERROR("Error (%d) re-submitting urb in pwc_isoc_handler.\n", i);
@@ -421,16 +464,15 @@ retry:
 		urb->dev = udev;
 		urb->pipe = usb_rcvisocpipe(udev, pdev->vendpoint);
 		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
-		urb->transfer_buffer = usb_alloc_coherent(udev,
-							  ISO_BUFFER_SIZE,
-							  GFP_KERNEL,
-							  &urb->transfer_dma);
+		urb->transfer_buffer_length = ISO_BUFFER_SIZE;
+		urb->transfer_buffer = pwc_alloc_urb_buffer(&udev->dev,
+							    urb->transfer_buffer_length,
+							    &urb->transfer_dma);
 		if (urb->transfer_buffer == NULL) {
 			PWC_ERROR("Failed to allocate urb buffer %d\n", i);
 			pwc_isoc_cleanup(pdev);
 			return -ENOMEM;
 		}
-		urb->transfer_buffer_length = ISO_BUFFER_SIZE;
 		urb->complete = pwc_isoc_handler;
 		urb->context = pdev;
 		urb->start_frame = 0;
@@ -481,15 +523,16 @@ static void pwc_iso_free(struct pwc_device *pdev)
 
 	/* Freeing ISOC buffers one by one */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
-		if (pdev->urbs[i]) {
+		struct urb *urb = pdev->urbs[i];
+
+		if (urb) {
 			PWC_DEBUG_MEMORY("Freeing URB\n");
-			if (pdev->urbs[i]->transfer_buffer) {
-				usb_free_coherent(pdev->udev,
-					pdev->urbs[i]->transfer_buffer_length,
-					pdev->urbs[i]->transfer_buffer,
-					pdev->urbs[i]->transfer_dma);
-			}
-			usb_free_urb(pdev->urbs[i]);
+			if (urb->transfer_buffer)
+				pwc_free_urb_buffer(&urb->dev->dev,
+						    urb->transfer_buffer_length,
+						    urb->transfer_buffer,
+						    urb->transfer_dma);
+			usb_free_urb(urb);
 			pdev->urbs[i] = NULL;
 		}
 	}
@@ -610,7 +653,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vb->vb2_queue);
 
-	/* Don't allow queing new buffers after device disconnection */
+	/* Don't allow queueing new buffers after device disconnection */
 	if (!pdev->udev)
 		return -ENODEV;
 

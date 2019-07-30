@@ -437,7 +437,7 @@ static int tda10086_set_frontend(struct dvb_frontend *fe)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	/* calcluate the frequency offset (in *Hz* not kHz) */
+	/* calculate the frequency offset (in *Hz* not kHz) */
 	freqoff = fe_params->frequency - freq;
 	freqoff = ((1<<16) * freqoff) / (SACLK/1000);
 	tda10086_write_byte(state, 0x3d, 0x80 | ((freqoff >> 8) & 0x7f));

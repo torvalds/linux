@@ -111,7 +111,8 @@ negotiated size) and send larger write sizes to modern servers.
 
 5) Continue to extend the smb3 "buildbot" which does automated xfstesting
 against Windows, Samba and Azure currently - to add additional tests and
-to allow the buildbot to execute the tests faster.
+to allow the buildbot to execute the tests faster. The URL for the
+buildbot is: http://smb3-test-rhel-75.southcentralus.cloudapp.azure.com
 
 6) Address various coverity warnings (most are not bugs per-se, but
 the more warnings are addressed, the easier it is to spot real

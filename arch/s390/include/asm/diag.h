@@ -32,6 +32,7 @@ enum diag_stat_enum {
 	DIAG_STAT_X2FC,
 	DIAG_STAT_X304,
 	DIAG_STAT_X308,
+	DIAG_STAT_X318,
 	DIAG_STAT_X500,
 	NR_DIAG_STAT
 };
@@ -292,6 +293,17 @@ struct diag26c_mac_resp {
 	u8	mac[ETH_ALEN];
 	u8	res[2];
 } __aligned(8);
+
+#define CPNC_LINUX		0x4
+union diag318_info {
+	unsigned long val;
+	struct {
+		unsigned int cpnc : 8;
+		unsigned int cpvc_linux : 24;
+		unsigned char cpvc_distro[3];
+		unsigned char zero;
+	};
+};
 
 int diag204(unsigned long subcode, unsigned long size, void *addr);
 int diag224(void *ptr);

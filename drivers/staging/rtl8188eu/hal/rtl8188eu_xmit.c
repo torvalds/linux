@@ -440,14 +440,14 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt,
 	RT_TRACE(_module_rtl8192c_xmit_c_, _drv_info_, ("+xmitframe_complete\n"));
 
 	pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
-	if (pxmitbuf == NULL)
+	if (!pxmitbuf)
 		return false;
 
 	/* 3 1. pick up first frame */
 	rtw_free_xmitframe(pxmitpriv, pxmitframe);
 
 	pxmitframe = rtw_dequeue_xframe(pxmitpriv, pxmitpriv->hwxmits, pxmitpriv->hwxmit_entry);
-	if (pxmitframe == NULL) {
+	if (!pxmitframe) {
 		/*  no more xmit frame, release xmit buffer */
 		rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
 		return false;

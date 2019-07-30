@@ -36,6 +36,8 @@
  */
 extern unsigned long __cmpxchg_called_with_bad_pointer(void)
 	__compiletime_error("Bad argument size for cmpxchg");
+extern unsigned long __cmpxchg64_unsupported(void)
+	__compiletime_error("cmpxchg64 not available; cpu_has_64bits may be false");
 extern unsigned long __xchg_called_with_bad_pointer(void)
 	__compiletime_error("Bad argument size for xchg");
 
@@ -204,12 +206,102 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 	cmpxchg((ptr), (o), (n));					\
   })
 #else
-#include <asm-generic/cmpxchg-local.h>
-#define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
-#ifndef CONFIG_SMP
-#define cmpxchg64(ptr, o, n) cmpxchg64_local((ptr), (o), (n))
-#endif
-#endif
+
+# include <asm-generic/cmpxchg-local.h>
+# define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
+
+# ifdef CONFIG_SMP
+
+static inline unsigned long __cmpxchg64(volatile void *ptr,
+					unsigned long long old,
+					unsigned long long new)
+{
+	unsigned long long tmp, ret;
+	unsigned long flags;
+
+	/*
+	 * The assembly below has to combine 32 bit values into a 64 bit
+	 * register, and split 64 bit values from one register into two. If we
+	 * were to take an interrupt in the middle of this we'd only save the
+	 * least significant 32 bits of each register & probably clobber the
+	 * most significant 32 bits of the 64 bit values we're using. In order
+	 * to avoid this we must disable interrupts.
+	 */
+	local_irq_save(flags);
+
+	asm volatile(
+	"	.set	push				\n"
+	"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"
+	/* Load 64 bits from ptr */
+	"1:	lld	%L0, %3		# __cmpxchg64	\n"
+	/*
+	 * Split the 64 bit value we loaded into the 2 registers that hold the
+	 * ret variable.
+	 */
+	"	dsra	%M0, %L0, 32			\n"
+	"	sll	%L0, %L0, 0			\n"
+	/*
+	 * Compare ret against old, breaking out of the loop if they don't
+	 * match.
+	 */
+	"	bne	%M0, %M4, 2f			\n"
+	"	bne	%L0, %L4, 2f			\n"
+	/*
+	 * Combine the 32 bit halves from the 2 registers that hold the new
+	 * variable into a single 64 bit register.
+	 */
+#  if MIPS_ISA_REV >= 2
+	"	move	%L1, %L5			\n"
+	"	dins	%L1, %M5, 32, 32		\n"
+#  else
+	"	dsll	%L1, %L5, 32			\n"
+	"	dsrl	%L1, %L1, 32			\n"
+	"	.set	noat				\n"
+	"	dsll	$at, %M5, 32			\n"
+	"	or	%L1, %L1, $at			\n"
+	"	.set	at				\n"
+#  endif
+	/* Attempt to store new at ptr */
+	"	scd	%L1, %2				\n"
+	/* If we failed, loop! */
+	"\t" __scbeqz "	%L1, 1b				\n"
+	"	.set	pop				\n"
+	"2:						\n"
+	: "=&r"(ret),
+	  "=&r"(tmp),
+	  "=" GCC_OFF_SMALL_ASM() (*(unsigned long long *)ptr)
+	: GCC_OFF_SMALL_ASM() (*(unsigned long long *)ptr),
+	  "r" (old),
+	  "r" (new)
+	: "memory");
+
+	local_irq_restore(flags);
+	return ret;
+}
+
+#  define cmpxchg64(ptr, o, n) ({					\
+	unsigned long long __old = (__typeof__(*(ptr)))(o);		\
+	unsigned long long __new = (__typeof__(*(ptr)))(n);		\
+	__typeof__(*(ptr)) __res;					\
+									\
+	/*								\
+	 * We can only use cmpxchg64 if we know that the CPU supports	\
+	 * 64-bits, ie. lld & scd. Our call to __cmpxchg64_unsupported	\
+	 * will cause a build error unless cpu_has_64bits is a		\
+	 * compile-time constant 1.					\
+	 */								\
+	if (cpu_has_64bits && kernel_uses_llsc)				\
+		__res = __cmpxchg64((ptr), __old, __new);		\
+	else								\
+		__res = __cmpxchg64_unsupported();			\
+									\
+	__res;								\
+})
+
+# else /* !CONFIG_SMP */
+#  define cmpxchg64(ptr, o, n) cmpxchg64_local((ptr), (o), (n))
+# endif /* !CONFIG_SMP */
+#endif /* !CONFIG_64BIT */
 
 #undef __scbeqz
 

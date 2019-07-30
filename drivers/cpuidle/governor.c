@@ -89,6 +89,7 @@ int cpuidle_register_governor(struct cpuidle_governor *gov)
 	mutex_lock(&cpuidle_lock);
 	if (__cpuidle_find_governor(gov->name) == NULL) {
 		ret = 0;
+		list_add_tail(&gov->governor_list, &cpuidle_governors);
 		if (!cpuidle_curr_governor ||
 		    !strncasecmp(param_governor, gov->name, CPUIDLE_NAME_LEN) ||
 		    (cpuidle_curr_governor->rating < gov->rating &&

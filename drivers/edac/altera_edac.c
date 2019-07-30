@@ -29,6 +29,7 @@
 #define EDAC_MOD_STR		"altera_edac"
 #define EDAC_DEVICE		"Altera"
 
+#ifdef CONFIG_EDAC_ALTERA_SDRAM
 static const struct altr_sdram_prv_data c5_data = {
 	.ecc_ctrl_offset    = CV_CTLCFG_OFST,
 	.ecc_ctl_en_mask    = CV_CTLCFG_ECC_AUTO_EN,
@@ -468,6 +469,39 @@ static int altr_sdram_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/*
+ * If you want to suspend, need to disable EDAC by removing it
+ * from the device tree or defconfig.
+ */
+#ifdef CONFIG_PM
+static int altr_sdram_prepare(struct device *dev)
+{
+	pr_err("Suspend not allowed when EDAC is enabled.\n");
+
+	return -EPERM;
+}
+
+static const struct dev_pm_ops altr_sdram_pm_ops = {
+	.prepare = altr_sdram_prepare,
+};
+#endif
+
+static struct platform_driver altr_sdram_edac_driver = {
+	.probe = altr_sdram_probe,
+	.remove = altr_sdram_remove,
+	.driver = {
+		.name = "altr_sdram_edac",
+#ifdef CONFIG_PM
+		.pm = &altr_sdram_pm_ops,
+#endif
+		.of_match_table = altr_sdram_ctrl_of_match,
+	},
+};
+
+module_platform_driver(altr_sdram_edac_driver);
+
+#endif	/* CONFIG_EDAC_ALTERA_SDRAM */
+
 /**************** Stratix 10 EDAC Memory Controller Functions ************/
 
 /**
@@ -529,37 +563,6 @@ static const struct regmap_config s10_sdram_regmap_cfg = {
 };
 
 /************** </Stratix10 EDAC Memory Controller Functions> ***********/
-
-/*
- * If you want to suspend, need to disable EDAC by removing it
- * from the device tree or defconfig.
- */
-#ifdef CONFIG_PM
-static int altr_sdram_prepare(struct device *dev)
-{
-	pr_err("Suspend not allowed when EDAC is enabled.\n");
-
-	return -EPERM;
-}
-
-static const struct dev_pm_ops altr_sdram_pm_ops = {
-	.prepare = altr_sdram_prepare,
-};
-#endif
-
-static struct platform_driver altr_sdram_edac_driver = {
-	.probe = altr_sdram_probe,
-	.remove = altr_sdram_remove,
-	.driver = {
-		.name = "altr_sdram_edac",
-#ifdef CONFIG_PM
-		.pm = &altr_sdram_pm_ops,
-#endif
-		.of_match_table = altr_sdram_ctrl_of_match,
-	},
-};
-
-module_platform_driver(altr_sdram_edac_driver);
 
 /************************* EDAC Parent Probe *************************/
 
@@ -1046,14 +1049,17 @@ altr_init_a10_ecc_block(struct device_node *np, u32 irq_mask,
 			return -ENODEV;
 		}
 
-		if (of_address_to_resource(sysmgr_np, 0, &res))
+		if (of_address_to_resource(sysmgr_np, 0, &res)) {
+			of_node_put(sysmgr_np);
 			return -ENOMEM;
+		}
 
 		/* Need physical address for SMCC call */
 		base = res.start;
 
 		ecc_mgr_map = regmap_init(NULL, NULL, (void *)base,
 					  &s10_sdram_regmap_cfg);
+		of_node_put(sysmgr_np);
 	}
 	of_node_put(np_eccmgr);
 	if (IS_ERR(ecc_mgr_map)) {
@@ -2140,11 +2146,13 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 
 			altr_edac_a10_device_add(edac, child);
 
+#ifdef CONFIG_EDAC_ALTERA_SDRAM
 		else if ((of_device_is_compatible(child, "altr,sdram-edac-a10")) ||
 			 (of_device_is_compatible(child, "altr,sdram-edac-s10")))
 			of_platform_populate(pdev->dev.of_node,
 					     altr_sdram_ctrl_of_match,
 					     NULL, &pdev->dev);
+#endif
 	}
 
 	return 0;

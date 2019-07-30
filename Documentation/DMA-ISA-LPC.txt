@@ -52,8 +52,8 @@ Address translation
 -------------------
 
 To translate the virtual address to a bus address, use the normal DMA
-API. Do _not_ use isa_virt_to_phys() even though it does the same
-thing. The reason for this is that the function isa_virt_to_phys()
+API. Do _not_ use isa_virt_to_bus() even though it does the same
+thing. The reason for this is that the function isa_virt_to_bus()
 will require a Kconfig dependency to ISA, not just ISA_DMA_API which
 is really all you need. Remember that even though the DMA controller
 has its origins in ISA it is used elsewhere.

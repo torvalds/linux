@@ -36,6 +36,7 @@
 #define vnic_dev_fw_info fnic_dev_fw_info
 #define vnic_dev_spec fnic_dev_spec
 #define vnic_dev_stats_clear fnic_dev_stats_clear
+#define vnic_dev_cmd_init fnic_dev_cmd_init
 #define vnic_dev_stats_dump fnic_dev_stats_dump
 #define vnic_dev_hang_notify fnic_dev_hang_notify
 #define vnic_dev_packet_filter fnic_dev_packet_filter
@@ -128,6 +129,7 @@ int vnic_dev_fw_info(struct vnic_dev *vdev,
 int vnic_dev_spec(struct vnic_dev *vdev, unsigned int offset,
 		  unsigned int size, void *value);
 int vnic_dev_stats_clear(struct vnic_dev *vdev);
+int vnic_dev_cmd_init(struct vnic_dev *vdev);
 int vnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats);
 int vnic_dev_hang_notify(struct vnic_dev *vdev);
 void vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,

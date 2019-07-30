@@ -36,6 +36,8 @@ EXPORT_SYMBOL(kfree_const);
  * kstrdup - allocate space for and copy an existing string
  * @s: the string to duplicate
  * @gfp: the GFP mask used in the kmalloc() call when allocating memory
+ *
+ * Return: newly allocated copy of @s or %NULL in case of error
  */
 char *kstrdup(const char *s, gfp_t gfp)
 {
@@ -58,9 +60,10 @@ EXPORT_SYMBOL(kstrdup);
  * @s: the string to duplicate
  * @gfp: the GFP mask used in the kmalloc() call when allocating memory
  *
- * Function returns source string if it is in .rodata section otherwise it
- * fallbacks to kstrdup.
- * Strings allocated by kstrdup_const should be freed by kfree_const.
+ * Note: Strings allocated by kstrdup_const should be freed by kfree_const.
+ *
+ * Return: source string if it is in .rodata section otherwise
+ * fallback to kstrdup.
  */
 const char *kstrdup_const(const char *s, gfp_t gfp)
 {
@@ -78,6 +81,8 @@ EXPORT_SYMBOL(kstrdup_const);
  * @gfp: the GFP mask used in the kmalloc() call when allocating memory
  *
  * Note: Use kmemdup_nul() instead if the size is known exactly.
+ *
+ * Return: newly allocated copy of @s or %NULL in case of error
  */
 char *kstrndup(const char *s, size_t max, gfp_t gfp)
 {
@@ -103,6 +108,8 @@ EXPORT_SYMBOL(kstrndup);
  * @src: memory region to duplicate
  * @len: memory region length
  * @gfp: GFP mask to use
+ *
+ * Return: newly allocated copy of @src or %NULL in case of error
  */
 void *kmemdup(const void *src, size_t len, gfp_t gfp)
 {
@@ -120,6 +127,9 @@ EXPORT_SYMBOL(kmemdup);
  * @s: The data to stringify
  * @len: The size of the data
  * @gfp: the GFP mask used in the kmalloc() call when allocating memory
+ *
+ * Return: newly allocated copy of @s with NUL-termination or %NULL in
+ * case of error
  */
 char *kmemdup_nul(const char *s, size_t len, gfp_t gfp)
 {
@@ -143,7 +153,7 @@ EXPORT_SYMBOL(kmemdup_nul);
  * @src: source address in user space
  * @len: number of bytes to copy
  *
- * Returns an ERR_PTR() on failure.  Result is physically
+ * Return: an ERR_PTR() on failure.  Result is physically
  * contiguous, to be freed by kfree().
  */
 void *memdup_user(const void __user *src, size_t len)
@@ -169,7 +179,7 @@ EXPORT_SYMBOL(memdup_user);
  * @src: source address in user space
  * @len: number of bytes to copy
  *
- * Returns an ERR_PTR() on failure.  Result may be not
+ * Return: an ERR_PTR() on failure.  Result may be not
  * physically contiguous.  Use kvfree() to free.
  */
 void *vmemdup_user(const void __user *src, size_t len)
@@ -193,6 +203,8 @@ EXPORT_SYMBOL(vmemdup_user);
  * strndup_user - duplicate an existing string from user space
  * @s: The string to duplicate
  * @n: Maximum number of bytes to copy, including the trailing NUL.
+ *
+ * Return: newly allocated copy of @s or an ERR_PTR() in case of error
  */
 char *strndup_user(const char __user *s, long n)
 {
@@ -224,7 +236,7 @@ EXPORT_SYMBOL(strndup_user);
  * @src: source address in user space
  * @len: number of bytes to copy
  *
- * Returns an ERR_PTR() on failure.
+ * Return: an ERR_PTR() on failure.
  */
 void *memdup_user_nul(const void __user *src, size_t len)
 {
@@ -310,10 +322,6 @@ EXPORT_SYMBOL_GPL(__get_user_pages_fast);
  * @pages:	array that receives pointers to the pages pinned.
  *		Should be at least nr_pages long.
  *
- * Returns number of pages pinned. This may be fewer than the number
- * requested. If nr_pages is 0 or negative, returns 0. If no pages
- * were pinned, returns -errno.
- *
  * get_user_pages_fast provides equivalent functionality to get_user_pages,
  * operating on current and current->mm, with force=0 and vma=NULL. However
  * unlike get_user_pages, it must be called without mmap_sem held.
@@ -325,6 +333,10 @@ EXPORT_SYMBOL_GPL(__get_user_pages_fast);
  * pages have to be faulted in, it may turn out to be slightly slower so
  * callers need to carefully consider what to use. On many architectures,
  * get_user_pages_fast simply falls back to get_user_pages.
+ *
+ * Return: number of pages pinned. This may be fewer than the number
+ * requested. If nr_pages is 0 or negative, returns 0. If no pages
+ * were pinned, returns -errno.
  */
 int __weak get_user_pages_fast(unsigned long start,
 				int nr_pages, int write, struct page **pages)
@@ -386,6 +398,8 @@ EXPORT_SYMBOL(vm_mmap);
  *
  * Please note that any use of gfp flags outside of GFP_KERNEL is careful to not
  * fall back to vmalloc.
+ *
+ * Return: pointer to the allocated memory of %NULL in case of failure
  */
 void *kvmalloc_node(size_t size, gfp_t flags, int node)
 {
@@ -729,7 +743,8 @@ error:
  * @buffer:   the buffer to copy to.
  * @buflen:   the length of the buffer. Larger cmdline values are truncated
  *            to this length.
- * Returns the size of the cmdline field copied. Note that the copy does
+ *
+ * Return: the size of the cmdline field copied. Note that the copy does
  * not guarantee an ending NULL byte.
  */
 int get_cmdline(struct task_struct *task, char *buffer, int buflen)

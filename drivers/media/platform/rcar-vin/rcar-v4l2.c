@@ -665,7 +665,7 @@ static void rvin_mc_try_format(struct rvin_dev *vin,
 	 * The V4L2 specification clearly documents the colorspace fields
 	 * as being set by drivers for capture devices. Using the values
 	 * supplied by userspace thus wouldn't comply with the API. Until
-	 * the API is updated force fixed vaules.
+	 * the API is updated force fixed values.
 	 */
 	pix->colorspace = RVIN_DEFAULT_COLORSPACE;
 	pix->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(pix->colorspace);
@@ -964,7 +964,7 @@ void rvin_v4l2_unregister(struct rvin_dev *vin)
 	v4l2_info(&vin->v4l2_dev, "Removing %s\n",
 		  video_device_node_name(&vin->vdev));
 
-	/* Checks internaly if vdev have been init or not */
+	/* Checks internally if vdev have been init or not */
 	video_unregister_device(&vin->vdev);
 }
 

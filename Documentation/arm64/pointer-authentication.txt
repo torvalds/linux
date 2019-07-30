@@ -78,6 +78,11 @@ bits can vary between the two. Note that the masks apply to TTBR0
 addresses, and are not valid to apply to TTBR1 addresses (e.g. kernel
 pointers).
 
+Additionally, when CONFIG_CHECKPOINT_RESTORE is also set, the kernel
+will expose the NT_ARM_PACA_KEYS and NT_ARM_PACG_KEYS regsets (struct
+user_pac_address_keys and struct user_pac_generic_keys). These can be
+used to get and set the keys for a thread.
+
 
 Virtualization
 --------------

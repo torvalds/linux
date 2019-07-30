@@ -1847,6 +1847,8 @@ static int ocfs2_mount_volume(struct super_block *sb)
 	if (ocfs2_is_hard_readonly(osb))
 		goto leave;
 
+	mutex_init(&osb->obs_trim_fs_mutex);
+
 	status = ocfs2_dlm_init(osb);
 	if (status < 0) {
 		mlog_errno(status);

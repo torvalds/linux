@@ -128,23 +128,12 @@ EXPORT_SYMBOL(il_update_stats);
 
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
-	if (!debugfs_create_file(#name, mode, parent, il,		\
-			 &il_dbgfs_##name##_ops))		\
-		goto err;						\
+	debugfs_create_file(#name, mode, parent, il,			\
+			    &il_dbgfs_##name##_ops);			\
 } while (0)
 
 #define DEBUGFS_ADD_BOOL(name, parent, ptr) do {			\
-	struct dentry *__tmp;						\
-	__tmp = debugfs_create_bool(#name, 0600, parent, ptr);		\
-	if (IS_ERR(__tmp) || !__tmp)					\
-		goto err;						\
-} while (0)
-
-#define DEBUGFS_ADD_X32(name, parent, ptr) do {				\
-	struct dentry *__tmp;						\
-	__tmp = debugfs_create_x32(#name, 0600, parent, ptr);		\
-	if (IS_ERR(__tmp) || !__tmp)					\
-		goto err;						\
+	debugfs_create_bool(#name, 0600, parent, ptr);			\
 } while (0)
 
 /* file operation */
@@ -1341,27 +1330,18 @@ DEBUGFS_WRITE_FILE_OPS(wd_timeout);
  * Create the debugfs files and directories
  *
  */
-int
+void
 il_dbgfs_register(struct il_priv *il, const char *name)
 {
 	struct dentry *phyd = il->hw->wiphy->debugfsdir;
 	struct dentry *dir_drv, *dir_data, *dir_rf, *dir_debug;
 
 	dir_drv = debugfs_create_dir(name, phyd);
-	if (!dir_drv)
-		return -ENOMEM;
-
 	il->debugfs_dir = dir_drv;
 
 	dir_data = debugfs_create_dir("data", dir_drv);
-	if (!dir_data)
-		goto err;
 	dir_rf = debugfs_create_dir("rf", dir_drv);
-	if (!dir_rf)
-		goto err;
 	dir_debug = debugfs_create_dir("debug", dir_drv);
-	if (!dir_debug)
-		goto err;
 
 	DEBUGFS_ADD_FILE(nvm, dir_data, 0400);
 	DEBUGFS_ADD_FILE(sram, dir_data, 0600);
@@ -1399,12 +1379,6 @@ il_dbgfs_register(struct il_priv *il, const char *name)
 		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
 				 &il->disable_chain_noise_cal);
 	DEBUGFS_ADD_BOOL(disable_tx_power, dir_rf, &il->disable_tx_power_cal);
-	return 0;
-
-err:
-	IL_ERR("Can't create the debugfs directory\n");
-	il_dbgfs_unregister(il);
-	return -ENOMEM;
 }
 EXPORT_SYMBOL(il_dbgfs_register);
 

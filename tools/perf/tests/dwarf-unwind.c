@@ -10,6 +10,7 @@
 #include "../util/unwind.h"
 #include "perf_regs.h"
 #include "map.h"
+#include "symbol.h"
 #include "thread.h"
 #include "callchain.h"
 

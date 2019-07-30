@@ -35,6 +35,7 @@
 #include "amdgpu_trace.h"
 
 #define AMDGPU_IB_TEST_TIMEOUT	msecs_to_jiffies(1000)
+#define AMDGPU_IB_TEST_GFX_XGMI_TIMEOUT	msecs_to_jiffies(2000)
 
 /*
  * IB
@@ -202,12 +203,12 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 			amdgpu_asic_flush_hdp(adev, ring);
 	}
 
+	if (need_ctx_switch)
+		status |= AMDGPU_HAVE_CTX_SWITCH;
+
 	skip_preamble = ring->current_ctx == fence_ctx;
 	if (job && ring->funcs->emit_cntxcntl) {
-		if (need_ctx_switch)
-			status |= AMDGPU_HAVE_CTX_SWITCH;
 		status |= job->preamble_status;
-
 		amdgpu_ring_emit_cntxcntl(ring, status);
 	}
 
@@ -221,8 +222,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 			!amdgpu_sriov_vf(adev)) /* for SRIOV preemption, Preamble CE ib must be inserted anyway */
 			continue;
 
-		amdgpu_ring_emit_ib(ring, job, ib, need_ctx_switch);
-		need_ctx_switch = false;
+		amdgpu_ring_emit_ib(ring, job, ib, status);
+		status &= ~AMDGPU_HAVE_CTX_SWITCH;
 	}
 
 	if (ring->funcs->emit_tmz)
@@ -344,6 +345,8 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		 * cost waiting for it coming back under RUNTIME only
 		*/
 		tmo_gfx = 8 * AMDGPU_IB_TEST_TIMEOUT;
+	} else if (adev->gmc.xgmi.hive_id) {
+		tmo_gfx = AMDGPU_IB_TEST_GFX_XGMI_TIMEOUT;
 	}
 
 	for (i = 0; i < adev->num_rings; ++i) {

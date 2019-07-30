@@ -50,7 +50,7 @@ static void ufshcd_dwc_program_clk_div(struct ufs_hba *hba, u32 divider_val)
 /**
  * ufshcd_dwc_link_is_up()
  * Check if link is up
- * @hba: private structure poitner
+ * @hba: private structure pointer
  *
  * Returns 0 on success, non-zero value on failure
  */
@@ -110,7 +110,7 @@ static int ufshcd_dwc_connection_setup(struct ufs_hba *hba)
 /**
  * ufshcd_dwc_link_startup_notify()
  * UFS Host DWC specific link startup sequence
- * @hba: private structure poitner
+ * @hba: private structure pointer
  * @status: Callback notify status
  *
  * Returns 0 on success, non-zero value on failure

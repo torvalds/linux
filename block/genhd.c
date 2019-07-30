@@ -365,8 +365,8 @@ int register_blkdev(unsigned int major, const char *name)
 		}
 
 		if (index == 0) {
-			printk("register_blkdev: failed to get major for %s\n",
-			       name);
+			printk("%s: failed to get major for %s\n",
+			       __func__, name);
 			ret = -EBUSY;
 			goto out;
 		}
@@ -375,8 +375,8 @@ int register_blkdev(unsigned int major, const char *name)
 	}
 
 	if (major >= BLKDEV_MAJOR_MAX) {
-		pr_err("register_blkdev: major requested (%u) is greater than the maximum (%u) for %s\n",
-		       major, BLKDEV_MAJOR_MAX-1, name);
+		pr_err("%s: major requested (%u) is greater than the maximum (%u) for %s\n",
+		       __func__, major, BLKDEV_MAJOR_MAX-1, name);
 
 		ret = -EINVAL;
 		goto out;
@@ -655,10 +655,12 @@ exit:
 		kobject_uevent(&part_to_dev(part)->kobj, KOBJ_ADD);
 	disk_part_iter_exit(&piter);
 
-	err = sysfs_create_link(&ddev->kobj,
-				&disk->queue->backing_dev_info->dev->kobj,
-				"bdi");
-	WARN_ON(err);
+	if (disk->queue->backing_dev_info->dev) {
+		err = sysfs_create_link(&ddev->kobj,
+			  &disk->queue->backing_dev_info->dev->kobj,
+			  "bdi");
+		WARN_ON(err);
+	}
 }
 
 /**

@@ -173,6 +173,7 @@ static int hw_atl_b0_hw_rss_hash_set(struct aq_hw_s *self,
 	int err = 0;
 	unsigned int i = 0U;
 	unsigned int addr = 0U;
+	u32 val;
 
 	for (i = 10, addr = 0U; i--; ++addr) {
 		u32 key_data = cfg->is_rss ?
@@ -180,8 +181,9 @@ static int hw_atl_b0_hw_rss_hash_set(struct aq_hw_s *self,
 		hw_atl_rpf_rss_key_wr_data_set(self, key_data);
 		hw_atl_rpf_rss_key_addr_set(self, addr);
 		hw_atl_rpf_rss_key_wr_en_set(self, 1U);
-		AQ_HW_WAIT_FOR(hw_atl_rpf_rss_key_wr_en_get(self) == 0,
-			       1000U, 10U);
+		err = readx_poll_timeout_atomic(hw_atl_rpf_rss_key_wr_en_get,
+						self, val, val == 0,
+						1000U, 10000U);
 		if (err < 0)
 			goto err_exit;
 	}
@@ -199,8 +201,9 @@ static int hw_atl_b0_hw_rss_set(struct aq_hw_s *self,
 	u32 i = 0U;
 	u32 num_rss_queues = max(1U, self->aq_nic_cfg->num_rss_queues);
 	int err = 0;
-	u16 bitary[(HW_ATL_B0_RSS_REDIRECTION_MAX *
-					HW_ATL_B0_RSS_REDIRECTION_BITS / 16U)];
+	u16 bitary[1 + (HW_ATL_B0_RSS_REDIRECTION_MAX *
+		   HW_ATL_B0_RSS_REDIRECTION_BITS / 16U)];
+	u32 val;
 
 	memset(bitary, 0, sizeof(bitary));
 
@@ -214,8 +217,9 @@ static int hw_atl_b0_hw_rss_set(struct aq_hw_s *self,
 		hw_atl_rpf_rss_redir_tbl_wr_data_set(self, bitary[i]);
 		hw_atl_rpf_rss_redir_tbl_addr_set(self, i);
 		hw_atl_rpf_rss_redir_wr_en_set(self, 1U);
-		AQ_HW_WAIT_FOR(hw_atl_rpf_rss_redir_wr_en_get(self) == 0,
-			       1000U, 10U);
+		err = readx_poll_timeout_atomic(hw_atl_rpf_rss_redir_wr_en_get,
+						self, val, val == 0,
+						1000U, 10000U);
 		if (err < 0)
 			goto err_exit;
 	}

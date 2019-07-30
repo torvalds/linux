@@ -1747,10 +1747,9 @@ retry:
  */
 static void sdma_desc_avail(struct sdma_engine *sde, uint avail)
 {
-	struct iowait *wait, *nw;
+	struct iowait *wait, *nw, *twait;
 	struct iowait *waits[SDMA_WAIT_BATCH_SIZE];
-	uint i, n = 0, seq, max_idx = 0;
-	u8 max_starved_cnt = 0;
+	uint i, n = 0, seq, tidx = 0;
 
 #ifdef CONFIG_SDMA_VERBOSITY
 	dd_dev_err(sde->dd, "CONFIG SDMA(%u) %s:%d %s()\n", sde->this_idx,
@@ -1775,13 +1774,20 @@ static void sdma_desc_avail(struct sdma_engine *sde, uint avail)
 					continue;
 				if (n == ARRAY_SIZE(waits))
 					break;
+				iowait_init_priority(wait);
 				num_desc = iowait_get_all_desc(wait);
 				if (num_desc > avail)
 					break;
 				avail -= num_desc;
-				/* Find the most starved wait memeber */
-				iowait_starve_find_max(wait, &max_starved_cnt,
-						       n, &max_idx);
+				/* Find the top-priority wait memeber */
+				if (n) {
+					twait = waits[tidx];
+					tidx =
+					    iowait_priority_update_top(wait,
+								       twait,
+								       n,
+								       tidx);
+				}
 				list_del_init(&wait->list);
 				waits[n++] = wait;
 			}
@@ -1790,12 +1796,12 @@ static void sdma_desc_avail(struct sdma_engine *sde, uint avail)
 		}
 	} while (read_seqretry(&sde->waitlock, seq));
 
-	/* Schedule the most starved one first */
+	/* Schedule the top-priority entry first */
 	if (n)
-		waits[max_idx]->wakeup(waits[max_idx], SDMA_AVAIL_REASON);
+		waits[tidx]->wakeup(waits[tidx], SDMA_AVAIL_REASON);
 
 	for (i = 0; i < n; i++)
-		if (i != max_idx)
+		if (i != tidx)
 			waits[i]->wakeup(waits[i], SDMA_AVAIL_REASON);
 }
 

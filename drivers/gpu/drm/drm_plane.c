@@ -220,6 +220,9 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 			format_modifier_count++;
 	}
 
+	if (format_modifier_count)
+		config->allow_fb_modifiers = true;
+
 	plane->modifier_count = format_modifier_count;
 	plane->modifiers = kmalloc_array(format_modifier_count,
 					 sizeof(format_modifiers[0]),

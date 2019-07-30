@@ -2441,7 +2441,6 @@ static void nsp32_set_sync_entry(nsp32_hw_data *data,
 
 	period      = data->synct[entry].period_num;
 	ackwidth    = data->synct[entry].ackwidth;
-	offset      = offset;
 	sample_rate = data->synct[entry].sample_rate;
 
 	target->syncreg    = TO_SYNCREG(period, offset);

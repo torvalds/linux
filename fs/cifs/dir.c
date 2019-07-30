@@ -621,20 +621,10 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 {
 	int rc = -EPERM;
 	unsigned int xid;
-	int create_options = CREATE_NOT_DIR | CREATE_OPTION_SPECIAL;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
-	struct cifs_io_parms io_parms;
 	char *full_path = NULL;
-	struct inode *newinode = NULL;
-	__u32 oplock = 0;
-	struct cifs_fid fid;
-	struct cifs_open_parms oparms;
-	FILE_ALL_INFO *buf = NULL;
-	unsigned int bytes_written;
-	struct win_dev *pdev;
-	struct kvec iov[2];
 
 	if (!old_valid_dev(device_number))
 		return -EINVAL;
@@ -654,103 +644,12 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 		goto mknod_out;
 	}
 
-	if (tcon->unix_ext) {
-		struct cifs_unix_set_info_args args = {
-			.mode	= mode & ~current_umask(),
-			.ctime	= NO_CHANGE_64,
-			.atime	= NO_CHANGE_64,
-			.mtime	= NO_CHANGE_64,
-			.device	= device_number,
-		};
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
-			args.uid = current_fsuid();
-			args.gid = current_fsgid();
-		} else {
-			args.uid = INVALID_UID; /* no change */
-			args.gid = INVALID_GID; /* no change */
-		}
-		rc = CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
-					    cifs_sb->local_nls,
-					    cifs_remap(cifs_sb));
-		if (rc)
-			goto mknod_out;
-
-		rc = cifs_get_inode_info_unix(&newinode, full_path,
-						inode->i_sb, xid);
-
-		if (rc == 0)
-			d_instantiate(direntry, newinode);
-		goto mknod_out;
-	}
-
-	if (!S_ISCHR(mode) && !S_ISBLK(mode))
-		goto mknod_out;
-
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL))
-		goto mknod_out;
-
-
-	cifs_dbg(FYI, "sfu compat create special file\n");
-
-	buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
-	if (buf == NULL) {
-		rc = -ENOMEM;
-		goto mknod_out;
-	}
-
-	if (backup_cred(cifs_sb))
-		create_options |= CREATE_OPEN_BACKUP_INTENT;
-
-	oparms.tcon = tcon;
-	oparms.cifs_sb = cifs_sb;
-	oparms.desired_access = GENERIC_WRITE;
-	oparms.create_options = create_options;
-	oparms.disposition = FILE_CREATE;
-	oparms.path = full_path;
-	oparms.fid = &fid;
-	oparms.reconnect = false;
-
-	if (tcon->ses->server->oplocks)
-		oplock = REQ_OPLOCK;
-	else
-		oplock = 0;
-	rc = tcon->ses->server->ops->open(xid, &oparms, &oplock, buf);
-	if (rc)
-		goto mknod_out;
-
-	/*
-	 * BB Do not bother to decode buf since no local inode yet to put
-	 * timestamps in, but we can reuse it safely.
-	 */
-
-	pdev = (struct win_dev *)buf;
-	io_parms.pid = current->tgid;
-	io_parms.tcon = tcon;
-	io_parms.offset = 0;
-	io_parms.length = sizeof(struct win_dev);
-	iov[1].iov_base = buf;
-	iov[1].iov_len = sizeof(struct win_dev);
-	if (S_ISCHR(mode)) {
-		memcpy(pdev->type, "IntxCHR", 8);
-		pdev->major = cpu_to_le64(MAJOR(device_number));
-		pdev->minor = cpu_to_le64(MINOR(device_number));
-		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
-							&bytes_written, iov, 1);
-	} else if (S_ISBLK(mode)) {
-		memcpy(pdev->type, "IntxBLK", 8);
-		pdev->major = cpu_to_le64(MAJOR(device_number));
-		pdev->minor = cpu_to_le64(MINOR(device_number));
-		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
-							&bytes_written, iov, 1);
-	}
-	tcon->ses->server->ops->close(xid, tcon, &fid);
-	d_drop(direntry);
-
-	/* FIXME: add code here to set EAs */
+	rc = tcon->ses->server->ops->make_node(xid, inode, direntry, tcon,
+					       full_path, mode,
+					       device_number);
 
 mknod_out:
 	kfree(full_path);
-	kfree(buf);
 	free_xid(xid);
 	cifs_put_tlink(tlink);
 	return rc;

@@ -12,7 +12,7 @@
  *
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/bug.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -150,7 +150,6 @@ static const struct i2c_device_id wm8400_i2c_id[] = {
        { "wm8400", 0 },
        { }
 };
-MODULE_DEVICE_TABLE(i2c, wm8400_i2c_id);
 
 static struct i2c_driver wm8400_i2c_driver = {
 	.driver = {
@@ -161,7 +160,7 @@ static struct i2c_driver wm8400_i2c_driver = {
 };
 #endif
 
-static int __init wm8400_module_init(void)
+static int __init wm8400_driver_init(void)
 {
 	int ret = -ENODEV;
 
@@ -173,15 +172,4 @@ static int __init wm8400_module_init(void)
 
 	return ret;
 }
-subsys_initcall(wm8400_module_init);
-
-static void __exit wm8400_module_exit(void)
-{
-#if IS_ENABLED(CONFIG_I2C)
-	i2c_del_driver(&wm8400_i2c_driver);
-#endif
-}
-module_exit(wm8400_module_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
+subsys_initcall(wm8400_driver_init);

@@ -3886,6 +3886,12 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 	netif_stop_queue(ndev);
 
 	qdev->workqueue = create_singlethread_workqueue(ndev->name);
+	if (!qdev->workqueue) {
+		unregister_netdev(ndev);
+		err = -ENOMEM;
+		goto err_out_iounmap;
+	}
+
 	INIT_DELAYED_WORK(&qdev->reset_work, ql_reset_work);
 	INIT_DELAYED_WORK(&qdev->tx_timeout_work, ql_tx_timeout_work);
 	INIT_DELAYED_WORK(&qdev->link_state_work, ql_link_state_machine_work);

@@ -149,7 +149,7 @@ static void populate_seccomp_data(struct seccomp_data *sd)
 
 	sd->nr = syscall_get_nr(task, regs);
 	sd->arch = syscall_get_arch();
-	syscall_get_arguments(task, regs, 0, 6, args);
+	syscall_get_arguments(task, regs, args);
 	sd->args[0] = args[0];
 	sd->args[1] = args[1];
 	sd->args[2] = args[2];
@@ -267,6 +267,7 @@ static u32 seccomp_run_filters(const struct seccomp_data *sd,
 	 * All filters in the list are evaluated and the lowest BPF return
 	 * value always takes priority (ignoring the DATA).
 	 */
+	preempt_disable();
 	for (; f; f = f->prev) {
 		u32 cur_ret = BPF_PROG_RUN(f->prog, sd);
 
@@ -275,6 +276,7 @@ static u32 seccomp_run_filters(const struct seccomp_data *sd,
 			*match = f;
 		}
 	}
+	preempt_enable();
 	return ret;
 }
 #endif /* CONFIG_SECCOMP_FILTER */
@@ -443,8 +445,8 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 	 * behavior of privileged children.
 	 */
 	if (!task_no_new_privs(current) &&
-	    security_capable_noaudit(current_cred(), current_user_ns(),
-				     CAP_SYS_ADMIN) != 0)
+	    security_capable(current_cred(), current_user_ns(),
+				     CAP_SYS_ADMIN, CAP_OPT_NOAUDIT) != 0)
 		return ERR_PTR(-EACCES);
 
 	/* Allocate a new seccomp_filter */
@@ -500,7 +502,10 @@ out:
  *
  * Caller must be holding current->sighand->siglock lock.
  *
- * Returns 0 on success, -ve on error.
+ * Returns 0 on success, -ve on error, or
+ *   - in TSYNC mode: the pid of a thread which was either not in the correct
+ *     seccomp mode or did not have an ancestral seccomp filter
+ *   - in NEW_LISTENER mode: the fd of the new listener
  */
 static long seccomp_attach_filter(unsigned int flags,
 				  struct seccomp_filter *filter)
@@ -1256,6 +1261,16 @@ static long seccomp_set_mode_filter(unsigned int flags,
 	if (flags & ~SECCOMP_FILTER_FLAG_MASK)
 		return -EINVAL;
 
+	/*
+	 * In the successful case, NEW_LISTENER returns the new listener fd.
+	 * But in the failure case, TSYNC returns the thread that died. If you
+	 * combine these two flags, there's no way to tell whether something
+	 * succeeded or failed. So, let's disallow this combination.
+	 */
+	if ((flags & SECCOMP_FILTER_FLAG_TSYNC) &&
+	    (flags & SECCOMP_FILTER_FLAG_NEW_LISTENER))
+		return -EINVAL;
+
 	/* Prepare the new filter before holding any locks. */
 	prepared = seccomp_prepare_user_filter(filter);
 	if (IS_ERR(prepared))
@@ -1302,7 +1317,7 @@ out:
 		mutex_unlock(&current->signal->cred_guard_mutex);
 out_put_fd:
 	if (flags & SECCOMP_FILTER_FLAG_NEW_LISTENER) {
-		if (ret < 0) {
+		if (ret) {
 			listener_f->private_data = NULL;
 			fput(listener_f);
 			put_unused_fd(listener);

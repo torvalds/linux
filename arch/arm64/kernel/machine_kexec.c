@@ -321,7 +321,7 @@ void crash_post_resume(void)
  * but does not hold any data of loaded kernel image.
  *
  * Note that all the pages in crash dump kernel memory have been initially
- * marked as Reserved in kexec_reserve_crashkres_pages().
+ * marked as Reserved as memory was allocated via memblock_reserve().
  *
  * In hibernation, the pages which are Reserved and yet "nosave" are excluded
  * from the hibernation iamge. crash_is_nosave() does thich check for crash
@@ -361,7 +361,6 @@ void crash_free_reserved_phys_range(unsigned long begin, unsigned long end)
 
 	for (addr = begin; addr < end; addr += PAGE_SIZE) {
 		page = phys_to_page(addr);
-		ClearPageReserved(page);
 		free_reserved_page(page);
 	}
 }

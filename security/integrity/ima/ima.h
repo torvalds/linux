@@ -153,6 +153,7 @@ int ima_measurements_show(struct seq_file *m, void *v);
 unsigned long ima_get_binary_runtime_size(void);
 int ima_init_template(void);
 void ima_init_template_list(void);
+int __init ima_init_digests(void);
 
 /*
  * used to protect h_table and sha_table
@@ -307,8 +308,7 @@ static inline int security_filter_rule_init(u32 field, u32 op, char *rulestr,
 }
 
 static inline int security_filter_rule_match(u32 secid, u32 field, u32 op,
-					     void *lsmrule,
-					     struct audit_context *actx)
+					     void *lsmrule)
 {
 	return -EINVAL;
 }

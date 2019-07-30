@@ -16,7 +16,7 @@ SYNOPSIS
 
 	**bpftool** **version**
 
-	*OBJECT* := { **map** | **program** | **cgroup** | **perf** | **net** }
+	*OBJECT* := { **map** | **program** | **cgroup** | **perf** | **net** | **feature** }
 
 	*OPTIONS* := { { **-V** | **--version** } | { **-h** | **--help** }
 	| { **-j** | **--json** } [{ **-p** | **--pretty** }] }
@@ -33,6 +33,8 @@ SYNOPSIS
 	*PERF-COMMANDS* := { **show** | **list** | **help** }
 
 	*NET-COMMANDS* := { **show** | **list** | **help** }
+
+	*FEATURE-COMMANDS* := { **probe** | **help** }
 
 DESCRIPTION
 ===========
@@ -72,5 +74,6 @@ SEE ALSO
 	**bpftool-prog**\ (8),
 	**bpftool-map**\ (8),
 	**bpftool-cgroup**\ (8),
+	**bpftool-feature**\ (8),
 	**bpftool-net**\ (8),
 	**bpftool-perf**\ (8)

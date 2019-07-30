@@ -34,7 +34,9 @@ static int ts_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		return 0;
 
 	switch (usage->hid & HID_USAGE) {
+	case 0x00c: ts_map_key_clear(KEY_WLAN);		break;
 	case 0x00d: ts_map_key_clear(KEY_MEDIA);	break;
+	case 0x010: ts_map_key_clear(KEY_ZOOM);		break;
 	case 0x024: ts_map_key_clear(KEY_MENU);		break;
 	case 0x025: ts_map_key_clear(KEY_TV);		break;
 	case 0x027: ts_map_key_clear(KEY_MODE);		break;
@@ -67,6 +69,7 @@ static const struct hid_device_id ts_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_BTC, USB_DEVICE_ID_BTC_EMPREX_REMOTE_2) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_TOPSEED2, USB_DEVICE_ID_TOPSEED2_RF_COMBO) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_WIRELESS) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_TOSHIBA_WT10A) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, ts_devices);

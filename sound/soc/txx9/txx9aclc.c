@@ -313,8 +313,10 @@ static int txx9aclc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		if (ret)
 			goto exit;
 	}
-	return snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 		card->dev, 64 * 1024, 4 * 1024 * 1024);
+	return 0;
 
 exit:
 	for (i = 0; i < 2; i++) {

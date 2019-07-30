@@ -1450,7 +1450,7 @@ void cn23xx_tell_vf_its_macaddr_changed(struct octeon_device *oct, int vfidx,
 		mbox_cmd.recv_len = 0;
 		mbox_cmd.recv_status = 0;
 		mbox_cmd.fn = NULL;
-		mbox_cmd.fn_arg = 0;
+		mbox_cmd.fn_arg = NULL;
 		ether_addr_copy(mbox_cmd.msg.s.params, mac);
 		mbox_cmd.q_no = vfidx * oct->sriov_info.rings_per_vf;
 		octeon_mbox_write(oct, &mbox_cmd);

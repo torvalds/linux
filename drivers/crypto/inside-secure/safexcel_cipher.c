@@ -940,7 +940,7 @@ static int safexcel_des_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 	}
 
 	ret = des_ekey(tmp, key);
-	if (!ret && (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+	if (!ret && (tfm->crt_flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
 		return -EINVAL;
 	}

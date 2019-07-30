@@ -79,7 +79,6 @@ void arch_release_task_struct(struct task_struct *tsk);
  *  TIF_SIGPENDING	- signal pending
  *  TIF_NEED_RESCHED	- rescheduling necessary
  *  TIF_NOTIFY_RESUME	- callback before returning to user
- *  TIF_USEDFPU		- FPU was used by this task this quantum (SMP)
  */
 #define TIF_SIGPENDING		0
 #define TIF_NEED_RESCHED	1

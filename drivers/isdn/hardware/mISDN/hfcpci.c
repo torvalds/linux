@@ -2032,10 +2032,19 @@ setup_hw(struct hfc_pci *hc)
 	hc->hw.fifos = buffer;
 	pci_write_config_dword(hc->pdev, 0x80, hc->hw.dmahandle);
 	hc->hw.pci_io = ioremap((ulong) hc->hw.pci_io, 256);
+	if (unlikely(!hc->hw.pci_io)) {
+		printk(KERN_WARNING
+		       "HFC-PCI: Error in ioremap for PCI!\n");
+		pci_free_consistent(hc->pdev, 0x8000, hc->hw.fifos,
+				    hc->hw.dmahandle);
+		return 1;
+	}
+
 	printk(KERN_INFO
 	       "HFC-PCI: defined at mem %#lx fifo %#lx(%#lx) IRQ %d HZ %d\n",
 	       (u_long) hc->hw.pci_io, (u_long) hc->hw.fifos,
 	       (u_long) hc->hw.dmahandle, hc->irq, HZ);
+
 	/* enable memory mapped ports, disable busmaster */
 	pci_write_config_word(hc->pdev, PCI_COMMAND, PCI_ENA_MEMIO);
 	hc->hw.int_m2 = 0;

@@ -23,6 +23,7 @@
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -641,12 +642,13 @@ static irqreturn_t stm32_dma_chan_irq(int irq, void *devid)
 {
 	struct stm32_dma_chan *chan = devid;
 	struct stm32_dma_device *dmadev = stm32_dma_get_dev(chan);
-	u32 status, scr;
+	u32 status, scr, sfcr;
 
 	spin_lock(&chan->vchan.lock);
 
 	status = stm32_dma_irq_status(chan);
 	scr = stm32_dma_read(dmadev, STM32_DMA_SCR(chan->id));
+	sfcr = stm32_dma_read(dmadev, STM32_DMA_SFCR(chan->id));
 
 	if (status & STM32_DMA_TCI) {
 		stm32_dma_irq_clear(chan, STM32_DMA_TCI);
@@ -661,10 +663,12 @@ static irqreturn_t stm32_dma_chan_irq(int irq, void *devid)
 	if (status & STM32_DMA_FEI) {
 		stm32_dma_irq_clear(chan, STM32_DMA_FEI);
 		status &= ~STM32_DMA_FEI;
-		if (!(scr & STM32_DMA_SCR_EN))
-			dev_err(chan2dev(chan), "FIFO Error\n");
-		else
-			dev_dbg(chan2dev(chan), "FIFO over/underrun\n");
+		if (sfcr & STM32_DMA_SFCR_FEIE) {
+			if (!(scr & STM32_DMA_SCR_EN))
+				dev_err(chan2dev(chan), "FIFO Error\n");
+			else
+				dev_dbg(chan2dev(chan), "FIFO over/underrun\n");
+		}
 	}
 	if (status) {
 		stm32_dma_irq_clear(chan, status);
@@ -1112,15 +1116,14 @@ static int stm32_dma_alloc_chan_resources(struct dma_chan *c)
 	int ret;
 
 	chan->config_init = false;
-	ret = clk_prepare_enable(dmadev->clk);
-	if (ret < 0) {
-		dev_err(chan2dev(chan), "clk_prepare_enable failed: %d\n", ret);
+
+	ret = pm_runtime_get_sync(dmadev->ddev.dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = stm32_dma_disable_chan(chan);
 	if (ret < 0)
-		clk_disable_unprepare(dmadev->clk);
+		pm_runtime_put(dmadev->ddev.dev);
 
 	return ret;
 }
@@ -1140,7 +1143,7 @@ static void stm32_dma_free_chan_resources(struct dma_chan *c)
 		spin_unlock_irqrestore(&chan->vchan.lock, flags);
 	}
 
-	clk_disable_unprepare(dmadev->clk);
+	pm_runtime_put(dmadev->ddev.dev);
 
 	vchan_free_chan_resources(to_virt_chan(c));
 }
@@ -1240,6 +1243,12 @@ static int stm32_dma_probe(struct platform_device *pdev)
 		return PTR_ERR(dmadev->clk);
 	}
 
+	ret = clk_prepare_enable(dmadev->clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "clk_prep_enable error: %d\n", ret);
+		return ret;
+	}
+
 	dmadev->mem2mem = of_property_read_bool(pdev->dev.of_node,
 						"st,mem2mem");
 
@@ -1289,7 +1298,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 
 	ret = dma_async_device_register(dd);
 	if (ret)
-		return ret;
+		goto clk_free;
 
 	for (i = 0; i < STM32_DMA_MAX_CHANNELS; i++) {
 		chan = &dmadev->chan[i];
@@ -1321,20 +1330,58 @@ static int stm32_dma_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dmadev);
 
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_put(&pdev->dev);
+
 	dev_info(&pdev->dev, "STM32 DMA driver registered\n");
 
 	return 0;
 
 err_unregister:
 	dma_async_device_unregister(dd);
+clk_free:
+	clk_disable_unprepare(dmadev->clk);
 
 	return ret;
 }
+
+#ifdef CONFIG_PM
+static int stm32_dma_runtime_suspend(struct device *dev)
+{
+	struct stm32_dma_device *dmadev = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(dmadev->clk);
+
+	return 0;
+}
+
+static int stm32_dma_runtime_resume(struct device *dev)
+{
+	struct stm32_dma_device *dmadev = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(dmadev->clk);
+	if (ret) {
+		dev_err(dev, "failed to prepare_enable clock\n");
+		return ret;
+	}
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops stm32_dma_pm_ops = {
+	SET_RUNTIME_PM_OPS(stm32_dma_runtime_suspend,
+			   stm32_dma_runtime_resume, NULL)
+};
 
 static struct platform_driver stm32_dma_driver = {
 	.driver = {
 		.name = "stm32-dma",
 		.of_match_table = stm32_dma_of_match,
+		.pm = &stm32_dma_pm_ops,
 	},
 };
 

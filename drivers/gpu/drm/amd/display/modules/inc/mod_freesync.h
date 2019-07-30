@@ -104,7 +104,7 @@ struct mod_vrr_params_fixed_refresh {
 
 struct mod_vrr_params {
 	bool supported;
-	bool send_vsif;
+	bool send_info_frame;
 	enum mod_vrr_state state;
 
 	uint32_t min_refresh_in_uhz;
@@ -145,7 +145,7 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
 		const struct mod_vrr_params *vrr,
 		enum vrr_packet_type packet_type,
-		const enum color_transfer_func *app_tf,
+		enum color_transfer_func app_tf,
 		struct dc_info_packet *infopacket);
 
 void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,

@@ -416,8 +416,12 @@ static void rht_deferred_worker(struct work_struct *work)
 	else if (tbl->nest)
 		err = rhashtable_rehash_alloc(ht, tbl, tbl->size);
 
-	if (!err)
-		err = rhashtable_rehash_table(ht);
+	if (!err || err == -EEXIST) {
+		int nerr;
+
+		nerr = rhashtable_rehash_table(ht);
+		err = err ?: nerr;
+	}
 
 	mutex_unlock(&ht->mutex);
 
@@ -682,7 +686,7 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_enter);
  * rhashtable_walk_exit - Free an iterator
  * @iter:	Hash table Iterator
  *
- * This function frees resources allocated by rhashtable_walk_init.
+ * This function frees resources allocated by rhashtable_walk_enter.
  */
 void rhashtable_walk_exit(struct rhashtable_iter *iter)
 {

@@ -305,8 +305,9 @@ void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 
 	/* We expect errors as the qp is drained during shutdown */
 	if (wc->status != IB_WC_SUCCESS && rds_conn_up(conn)) {
-		rds_ib_conn_error(conn, "send completion on <%pI6c,%pI6c> had status %u (%s), disconnecting and reconnecting\n",
-				  &conn->c_laddr, &conn->c_faddr, wc->status,
+		rds_ib_conn_error(conn, "send completion on <%pI6c,%pI6c,%d> had status %u (%s), disconnecting and reconnecting\n",
+				  &conn->c_laddr, &conn->c_faddr,
+				  conn->c_tos, wc->status,
 				  ib_wc_status_msg(wc->status));
 	}
 }
@@ -645,16 +646,16 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		if (i < work_alloc
 		    && scat != &rm->data.op_sg[rm->data.op_count]) {
 			len = min(RDS_FRAG_SIZE,
-				ib_sg_dma_len(dev, scat) - rm->data.op_dmaoff);
+				  sg_dma_len(scat) - rm->data.op_dmaoff);
 			send->s_wr.num_sge = 2;
 
-			send->s_sge[1].addr = ib_sg_dma_address(dev, scat);
+			send->s_sge[1].addr = sg_dma_address(scat);
 			send->s_sge[1].addr += rm->data.op_dmaoff;
 			send->s_sge[1].length = len;
 
 			bytes_sent += len;
 			rm->data.op_dmaoff += len;
-			if (rm->data.op_dmaoff == ib_sg_dma_len(dev, scat)) {
+			if (rm->data.op_dmaoff == sg_dma_len(scat)) {
 				scat++;
 				rm->data.op_dmasg++;
 				rm->data.op_dmaoff = 0;
@@ -808,8 +809,8 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 	}
 
 	/* Convert our struct scatterlist to struct ib_sge */
-	send->s_sge[0].addr = ib_sg_dma_address(ic->i_cm_id->device, op->op_sg);
-	send->s_sge[0].length = ib_sg_dma_len(ic->i_cm_id->device, op->op_sg);
+	send->s_sge[0].addr = sg_dma_address(op->op_sg);
+	send->s_sge[0].length = sg_dma_len(op->op_sg);
 	send->s_sge[0].lkey = ic->i_pd->local_dma_lkey;
 
 	rdsdebug("rva %Lx rpa %Lx len %u\n", op->op_remote_addr,
@@ -921,9 +922,8 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 
 		for (j = 0; j < send->s_rdma_wr.wr.num_sge &&
 		     scat != &op->op_sg[op->op_count]; j++) {
-			len = ib_sg_dma_len(ic->i_cm_id->device, scat);
-			send->s_sge[j].addr =
-				 ib_sg_dma_address(ic->i_cm_id->device, scat);
+			len = sg_dma_len(scat);
+			send->s_sge[j].addr = sg_dma_address(scat);
 			send->s_sge[j].length = len;
 			send->s_sge[j].lkey = ic->i_pd->local_dma_lkey;
 

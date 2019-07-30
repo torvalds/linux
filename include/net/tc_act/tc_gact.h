@@ -22,7 +22,7 @@ static inline bool __is_tcf_gact_act(const struct tc_action *a, int act,
 #ifdef CONFIG_NET_CLS_ACT
 	struct tcf_gact *gact;
 
-	if (a->ops && a->ops->type != TCA_ACT_GACT)
+	if (a->ops && a->ops->id != TCA_ID_GACT)
 		return false;
 
 	gact = to_gact(a);
@@ -56,7 +56,7 @@ static inline bool is_tcf_gact_goto_chain(const struct tc_action *a)
 
 static inline u32 tcf_gact_goto_chain_index(const struct tc_action *a)
 {
-	return a->goto_chain->index;
+	return READ_ONCE(a->tcfa_action) & TC_ACT_EXT_VAL_MASK;
 }
 
 #endif /* __NET_TC_GACT_H */

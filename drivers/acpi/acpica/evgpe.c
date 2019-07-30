@@ -3,7 +3,7 @@
  *
  * Module Name: evgpe - General Purpose Event handling and dispatch
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -801,7 +801,7 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 							      dispatch.handler->
 							      context);
 
-		/* If requested, clear (if level-triggered) and reenable the GPE */
+		/* If requested, clear (if level-triggered) and re-enable the GPE */
 
 		if (return_value & ACPI_REENABLE_GPE) {
 			(void)acpi_ev_finish_gpe(gpe_event_info);

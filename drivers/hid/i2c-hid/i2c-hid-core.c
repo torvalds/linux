@@ -50,6 +50,7 @@
 #define I2C_HID_QUIRK_NO_IRQ_AFTER_RESET	BIT(1)
 #define I2C_HID_QUIRK_NO_RUNTIME_PM		BIT(2)
 #define I2C_HID_QUIRK_DELAY_AFTER_SLEEP		BIT(3)
+#define I2C_HID_QUIRK_BOGUS_IRQ			BIT(4)
 
 /* flags */
 #define I2C_HID_STARTED		0
@@ -180,6 +181,10 @@ static const struct i2c_hid_quirks {
 	{ USB_VENDOR_ID_LG, I2C_DEVICE_ID_LG_8001,
 		I2C_HID_QUIRK_NO_RUNTIME_PM },
 	{ I2C_VENDOR_ID_GOODIX, I2C_DEVICE_ID_GOODIX_01F0,
+		I2C_HID_QUIRK_NO_RUNTIME_PM },
+	{ USB_VENDOR_ID_ELAN, HID_ANY_ID,
+		 I2C_HID_QUIRK_BOGUS_IRQ },
+	{ USB_VENDOR_ID_SYNAPTICS, I2C_DEVICE_ID_SYNAPTICS_7E7E,
 		I2C_HID_QUIRK_NO_RUNTIME_PM },
 	{ 0, 0 }
 };
@@ -502,6 +507,12 @@ static void i2c_hid_get_input(struct i2c_hid *ihid)
 		/* host or device initiated RESET completed */
 		if (test_and_clear_bit(I2C_HID_RESET_PENDING, &ihid->flags))
 			wake_up(&ihid->wait);
+		return;
+	}
+
+	if (ihid->quirks & I2C_HID_QUIRK_BOGUS_IRQ && ret_size == 0xffff) {
+		dev_warn_once(&ihid->client->dev, "%s: IRQ triggered but "
+			      "there's no data\n", __func__);
 		return;
 	}
 

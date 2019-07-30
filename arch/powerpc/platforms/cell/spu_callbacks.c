@@ -34,7 +34,7 @@
  */
 
 static void *spu_syscall_table[] = {
-#define __SYSCALL(nr, entry, nargs) entry,
+#define __SYSCALL(nr, entry)	entry,
 #include <asm/syscall_table_spu.h>
 #undef __SYSCALL
 };

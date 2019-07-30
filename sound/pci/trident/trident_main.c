@@ -3320,13 +3320,11 @@ static void snd_trident_proc_read(struct snd_info_entry *entry,
 
 static void snd_trident_proc_init(struct snd_trident *trident)
 {
-	struct snd_info_entry *entry;
 	const char *s = "trident";
 	
 	if (trident->device == TRIDENT_DEVICE_ID_SI7018)
 		s = "sis7018";
-	if (! snd_card_proc_new(trident->card, s, &entry))
-		snd_info_set_text_ops(entry, trident, snd_trident_proc_read);
+	snd_card_ro_proc_new(trident->card, s, trident, snd_trident_proc_read);
 }
 
 static int snd_trident_dev_free(struct snd_device *device)
@@ -3915,10 +3913,6 @@ static int snd_trident_suspend(struct device *dev)
 
 	trident->in_suspend = 1;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(trident->pcm);
-	snd_pcm_suspend_all(trident->foldback);
-	snd_pcm_suspend_all(trident->spdif);
-
 	snd_ac97_suspend(trident->ac97);
 	snd_ac97_suspend(trident->ac97_sec);
 	return 0;

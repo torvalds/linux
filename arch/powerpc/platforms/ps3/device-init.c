@@ -354,9 +354,7 @@ static int ps3_setup_storage_dev(const struct ps3_repository_device *repo,
 		 repo->dev_index, repo->dev_type, port, blk_size, num_blocks,
 		 num_regions);
 
-	p = kzalloc(sizeof(struct ps3_storage_device) +
-		    num_regions * sizeof(struct ps3_storage_region),
-		    GFP_KERNEL);
+	p = kzalloc(struct_size(p, regions, num_regions), GFP_KERNEL);
 	if (!p) {
 		result = -ENOMEM;
 		goto fail_malloc;

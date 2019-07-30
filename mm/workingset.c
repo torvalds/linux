@@ -215,13 +215,12 @@ static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
 
 /**
  * workingset_eviction - note the eviction of a page from memory
- * @mapping: address space the page was backing
  * @page: the page being evicted
  *
- * Returns a shadow entry to be stored in @mapping->i_pages in place
+ * Returns a shadow entry to be stored in @page->mapping->i_pages in place
  * of the evicted @page so that a later refault can be detected.
  */
-void *workingset_eviction(struct address_space *mapping, struct page *page)
+void *workingset_eviction(struct page *page)
 {
 	struct pglist_data *pgdat = page_pgdat(page);
 	struct mem_cgroup *memcg = page_memcg(page);

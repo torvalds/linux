@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
+config DRM_KOMEDA
+	tristate "ARM Komeda display driver"
+	depends on DRM && OF
+	depends on COMMON_CLK
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_GEM_CMA_HELPER
+	select VIDEOMODE_HELPERS
+	help
+	  Choose this option if you want to compile the ARM Komeda display
+	  Processor driver. It supports the D71 variants of the hardware.
+
+	  If compiled as a module it will be called komeda.

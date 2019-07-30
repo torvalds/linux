@@ -215,11 +215,20 @@ _GLOBAL_TOC(memcmp)
 	beq	.Lzero
 
 .Lcmp_rest_lt8bytes:
-	/* Here we have only less than 8 bytes to compare with. at least s1
-	 * Address is aligned with 8 bytes.
-	 * The next double words are load and shift right with appropriate
-	 * bits.
+	/*
+	 * Here we have less than 8 bytes to compare. At least s1 is aligned to
+	 * 8 bytes, but s2 may not be. We must make sure s2 + 7 doesn't cross a
+	 * page boundary, otherwise we might read past the end of the buffer and
+	 * trigger a page fault. We use 4K as the conservative minimum page
+	 * size. If we detect that case we go to the byte-by-byte loop.
+	 *
+	 * Otherwise the next double word is loaded from s1 and s2, and shifted
+	 * right to compare the appropriate bits.
 	 */
+	clrldi	r6,r4,(64-12)	// r6 = r4 & 0xfff
+	cmpdi	r6,0xff8
+	bgt	.Lshort
+
 	subfic  r6,r5,8
 	slwi	r6,r6,3
 	LD	rA,0,r3

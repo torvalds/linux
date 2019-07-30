@@ -48,8 +48,13 @@ static enum drm_mode_status
 sun8i_dw_hdmi_mode_valid_h6(struct drm_connector *connector,
 			    const struct drm_display_mode *mode)
 {
-	/* This is max for HDMI 2.0b (4K@60Hz) */
-	if (mode->clock > 594000)
+	/*
+	 * Controller support maximum of 594 MHz, which correlates to
+	 * 4K@60Hz 4:4:4 or RGB. However, for frequencies greater than
+	 * 340 MHz scrambling has to be enabled. Because scrambling is
+	 * not yet implemented, just limit to 340 MHz for now.
+	 */
+	if (mode->clock > 340000)
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;

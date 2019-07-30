@@ -12,7 +12,18 @@ all:
 src := $(subst /generated,,$(obj))
 -include $(src)/Kbuild
 
+# $(generic)/Kbuild lists mandatory-y. Exclude um since it is a special case.
+ifneq ($(SRCARCH),um)
+include $(generic)/Kbuild
+endif
+
 include scripts/Kbuild.include
+
+redundant := $(filter $(mandatory-y) $(generated-y), $(generic-y))
+redundant += $(foreach f, $(generic-y), $(if $(wildcard $(srctree)/$(src)/$(f)),$(f)))
+redundant := $(sort $(redundant))
+$(if $(redundant),\
+	$(warning redundant generic-y found in $(src)/Kbuild: $(redundant)))
 
 # If arch does not implement mandatory headers, fallback to asm-generic ones.
 mandatory-y := $(filter-out $(generated-y), $(mandatory-y))

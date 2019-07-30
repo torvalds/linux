@@ -1167,6 +1167,7 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 	char link[10];
 	struct hfi1_devdata *dd = dd_from_dev(ibd);
 	struct hfi1_pportdata *ppd;
+	struct dentry *root;
 	int unit = dd->unit;
 	int i, j;
 
@@ -1174,31 +1175,29 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 		return;
 	snprintf(name, sizeof(name), "%s_%d", class_name(), unit);
 	snprintf(link, sizeof(link), "%d", unit);
-	ibd->hfi1_ibdev_dbg = debugfs_create_dir(name, hfi1_dbg_root);
-	if (!ibd->hfi1_ibdev_dbg) {
-		pr_warn("create of %s failed\n", name);
-		return;
-	}
+	root = debugfs_create_dir(name, hfi1_dbg_root);
+	ibd->hfi1_ibdev_dbg = root;
+
 	ibd->hfi1_ibdev_link =
 		debugfs_create_symlink(link, hfi1_dbg_root, name);
-	if (!ibd->hfi1_ibdev_link) {
-		pr_warn("create of %s symlink failed\n", name);
-		return;
-	}
-	DEBUGFS_SEQ_FILE_CREATE(opcode_stats, ibd->hfi1_ibdev_dbg, ibd);
-	DEBUGFS_SEQ_FILE_CREATE(tx_opcode_stats, ibd->hfi1_ibdev_dbg, ibd);
-	DEBUGFS_SEQ_FILE_CREATE(ctx_stats, ibd->hfi1_ibdev_dbg, ibd);
-	DEBUGFS_SEQ_FILE_CREATE(qp_stats, ibd->hfi1_ibdev_dbg, ibd);
-	DEBUGFS_SEQ_FILE_CREATE(sdes, ibd->hfi1_ibdev_dbg, ibd);
-	DEBUGFS_SEQ_FILE_CREATE(rcds, ibd->hfi1_ibdev_dbg, ibd);
-	DEBUGFS_SEQ_FILE_CREATE(pios, ibd->hfi1_ibdev_dbg, ibd);
-	DEBUGFS_SEQ_FILE_CREATE(sdma_cpu_list, ibd->hfi1_ibdev_dbg, ibd);
+
+	debugfs_create_file("opcode_stats", 0444, root, ibd,
+			    &_opcode_stats_file_ops);
+	debugfs_create_file("tx_opcode_stats", 0444, root, ibd,
+			    &_tx_opcode_stats_file_ops);
+	debugfs_create_file("ctx_stats", 0444, root, ibd, &_ctx_stats_file_ops);
+	debugfs_create_file("qp_stats", 0444, root, ibd, &_qp_stats_file_ops);
+	debugfs_create_file("sdes", 0444, root, ibd, &_sdes_file_ops);
+	debugfs_create_file("rcds", 0444, root, ibd, &_rcds_file_ops);
+	debugfs_create_file("pios", 0444, root, ibd, &_pios_file_ops);
+	debugfs_create_file("sdma_cpu_list", 0444, root, ibd,
+			    &_sdma_cpu_list_file_ops);
+
 	/* dev counter files */
 	for (i = 0; i < ARRAY_SIZE(cntr_ops); i++)
-		DEBUGFS_FILE_CREATE(cntr_ops[i].name,
-				    ibd->hfi1_ibdev_dbg,
-				    dd,
-				    &cntr_ops[i].ops, S_IRUGO);
+		debugfs_create_file(cntr_ops[i].name, 0444, root, dd,
+				    &cntr_ops[i].ops);
+
 	/* per port files */
 	for (ppd = dd->pport, j = 0; j < dd->num_pports; j++, ppd++)
 		for (i = 0; i < ARRAY_SIZE(port_cntr_ops); i++) {
@@ -1206,12 +1205,11 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 				 sizeof(name),
 				 port_cntr_ops[i].name,
 				 j + 1);
-			DEBUGFS_FILE_CREATE(name,
-					    ibd->hfi1_ibdev_dbg,
-					    ppd,
-					    &port_cntr_ops[i].ops,
+			debugfs_create_file(name,
 					    !port_cntr_ops[i].ops.write ?
-					    S_IRUGO : S_IRUGO | S_IWUSR);
+						    S_IRUGO :
+						    S_IRUGO | S_IWUSR,
+					    root, ppd, &port_cntr_ops[i].ops);
 		}
 
 	hfi1_fault_init_debugfs(ibd);
@@ -1341,10 +1339,10 @@ DEBUGFS_FILE_OPS(driver_stats);
 void hfi1_dbg_init(void)
 {
 	hfi1_dbg_root  = debugfs_create_dir(DRIVER_NAME, NULL);
-	if (!hfi1_dbg_root)
-		pr_warn("init of debugfs failed\n");
-	DEBUGFS_SEQ_FILE_CREATE(driver_stats_names, hfi1_dbg_root, NULL);
-	DEBUGFS_SEQ_FILE_CREATE(driver_stats, hfi1_dbg_root, NULL);
+	debugfs_create_file("driver_stats_names", 0444, hfi1_dbg_root, NULL,
+			    &_driver_stats_names_file_ops);
+	debugfs_create_file("driver_stats", 0444, hfi1_dbg_root, NULL,
+			    &_driver_stats_file_ops);
 }
 
 void hfi1_dbg_exit(void)

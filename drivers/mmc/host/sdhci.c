@@ -883,7 +883,7 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd,
 			     bool *too_big)
 {
 	u8 count;
-	struct mmc_data *data = cmd->data;
+	struct mmc_data *data;
 	unsigned target_timeout, current_timeout;
 
 	*too_big = true;
@@ -897,6 +897,11 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd,
 	if (host->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL)
 		return 0xE;
 
+	/* Unspecified command, asume max */
+	if (cmd == NULL)
+		return 0xE;
+
+	data = cmd->data;
 	/* Unspecified timeout, assume max */
 	if (!data && !cmd->busy_timeout)
 		return 0xE;
@@ -2048,6 +2053,8 @@ static int sdhci_check_ro(struct sdhci_host *host)
 		is_readonly = 0;
 	else if (host->ops->get_ro)
 		is_readonly = host->ops->get_ro(host);
+	else if (mmc_can_gpio_ro(host->mmc))
+		is_readonly = mmc_gpio_get_ro(host->mmc);
 	else
 		is_readonly = !(sdhci_readl(host, SDHCI_PRESENT_STATE)
 				& SDHCI_WRITE_PROTECT);
@@ -2376,6 +2383,10 @@ static int __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
 			return -ETIMEDOUT;
 		}
 
+		/* Spec does not require a delay between tuning cycles */
+		if (host->tuning_delay > 0)
+			mdelay(host->tuning_delay);
+
 		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 		if (!(ctrl & SDHCI_CTRL_EXEC_TUNING)) {
 			if (ctrl & SDHCI_CTRL_TUNED_CLK)
@@ -2383,9 +2394,6 @@ static int __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
 			break;
 		}
 
-		/* Spec does not require a delay between tuning cycles */
-		if (host->tuning_delay > 0)
-			mdelay(host->tuning_delay);
 	}
 
 	pr_info("%s: Tuning failed, falling back to fixed sampling clock\n",
@@ -3353,7 +3361,14 @@ void sdhci_cqe_enable(struct mmc_host *mmc)
 
 	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
 	ctrl &= ~SDHCI_CTRL_DMA_MASK;
-	if (host->flags & SDHCI_USE_64_BIT_DMA)
+	/*
+	 * Host from V4.10 supports ADMA3 DMA type.
+	 * ADMA3 performs integrated descriptor which is more suitable
+	 * for cmd queuing to fetch both command and transfer descriptors.
+	 */
+	if (host->v4_mode && (host->caps1 & SDHCI_CAN_DO_ADMA3))
+		ctrl |= SDHCI_CTRL_ADMA3;
+	else if (host->flags & SDHCI_USE_64_BIT_DMA)
 		ctrl |= SDHCI_CTRL_ADMA64;
 	else
 		ctrl |= SDHCI_CTRL_ADMA32;
@@ -3363,7 +3378,7 @@ void sdhci_cqe_enable(struct mmc_host *mmc)
 		     SDHCI_BLOCK_SIZE);
 
 	/* Set maximum timeout */
-	sdhci_writeb(host, 0xE, SDHCI_TIMEOUT_CONTROL);
+	sdhci_set_timeout(host, NULL);
 
 	host->ier = host->cqe_ier;
 

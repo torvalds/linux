@@ -176,16 +176,16 @@ static umode_t lm75_is_visible(const void *data, enum hwmon_sensor_types type,
 	case hwmon_chip:
 		switch (attr) {
 		case hwmon_chip_update_interval:
-			return S_IRUGO;
+			return 0444;
 		}
 		break;
 	case hwmon_temp:
 		switch (attr) {
 		case hwmon_temp_input:
-			return S_IRUGO;
+			return 0444;
 		case hwmon_temp_max:
 		case hwmon_temp_max_hyst:
-			return S_IRUGO | S_IWUSR;
+			return 0644;
 		}
 		break;
 	default:

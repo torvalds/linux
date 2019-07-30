@@ -25,6 +25,12 @@ struct mt76x02_vif;
 
 int mt76x2_mac_start(struct mt76x02_dev *dev);
 void mt76x2_mac_stop(struct mt76x02_dev *dev, bool force);
-void mt76x2_mac_resume(struct mt76x02_dev *dev);
+
+static inline void mt76x2_mac_resume(struct mt76x02_dev *dev)
+{
+	mt76_wr(dev, MT_MAC_SYS_CTRL,
+		MT_MAC_SYS_CTRL_ENABLE_TX |
+		MT_MAC_SYS_CTRL_ENABLE_RX);
+}
 
 #endif

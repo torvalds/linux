@@ -13,6 +13,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/bits.h>
 #include <linux/stringify.h>
 
 /*
@@ -138,6 +139,28 @@ static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
 #define xchg(ptr,x) \
 	((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 
+static inline u32 xchg_small(volatile void *ptr, u32 x, int size)
+{
+	int off = (unsigned long)ptr % sizeof(u32);
+	volatile u32 *p = ptr - off;
+#ifdef __BIG_ENDIAN
+	int bitoff = (sizeof(u32) - size - off) * BITS_PER_BYTE;
+#else
+	int bitoff = off * BITS_PER_BYTE;
+#endif
+	u32 bitmask = ((0x1 << size * BITS_PER_BYTE) - 1) << bitoff;
+	u32 oldv, newv;
+	u32 ret;
+
+	do {
+		oldv = READ_ONCE(*p);
+		ret = (oldv & bitmask) >> bitoff;
+		newv = (oldv & ~bitmask) | (x << bitoff);
+	} while (__cmpxchg_u32(p, oldv, newv) != oldv);
+
+	return ret;
+}
+
 /*
  * This only works if the compiler isn't horribly bad at optimizing.
  * gcc-2.5.8 reportedly can't handle this, but I define that one to
@@ -150,11 +173,16 @@ static __inline__ unsigned long
 __xchg(unsigned long x, volatile void * ptr, int size)
 {
 	switch (size) {
-		case 4:
-			return xchg_u32(ptr, x);
+	case 1:
+		return xchg_small(ptr, x, 1);
+	case 2:
+		return xchg_small(ptr, x, 2);
+	case 4:
+		return xchg_u32(ptr, x);
+	default:
+		__xchg_called_with_bad_pointer();
+		return x;
 	}
-	__xchg_called_with_bad_pointer();
-	return x;
 }
 
 #endif /* __ASSEMBLY__ */

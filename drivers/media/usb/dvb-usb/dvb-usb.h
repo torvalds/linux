@@ -336,7 +336,7 @@ struct usb_data_stream {
  * struct dvb_usb_adapter - a DVB adapter on a USB device
  * @id: index of this adapter (starting with 0).
  *
- * @feedcount: number of reqested feeds (used for streaming-activation)
+ * @feedcount: number of requested feeds (used for streaming-activation)
  * @pid_filtering: is hardware pid_filtering used or not.
  *
  * @pll_addr: I2C address of the tuner for programming

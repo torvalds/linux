@@ -40,6 +40,7 @@ struct dma_fence_array_cb {
  * @num_fences: number of fences in the array
  * @num_pending: fences in the array still pending
  * @fences: array of the fences
+ * @work: internal irq_work function
  */
 struct dma_fence_array {
 	struct dma_fence base;

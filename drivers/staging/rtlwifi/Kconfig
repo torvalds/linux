@@ -2,7 +2,7 @@ config R8822BE
 	tristate "Realtek RTL8822BE Wireless Network Adapter"
 	depends on PCI && MAC80211 && m
 	select FW_LOADER
-	---help---
+	help
 	This is the staging driver for Realtek RTL8822BE 802.11ac PCIe
 	wireless network adapters.
 

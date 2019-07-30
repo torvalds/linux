@@ -35,13 +35,7 @@ static const struct file_operations bootrom_file_ops = {
 
 static int bootrom_setup(void)
 {
-	if (!debugfs_create_file("bootrom", 0444,
-			NULL, NULL, &bootrom_file_ops)) {
-		pr_err("Failed to create bootrom debugfs file\n");
-
-		return -EINVAL;
-	}
-
+	debugfs_create_file("bootrom", 0444, NULL, NULL, &bootrom_file_ops);
 	return 0;
 }
 

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/staging/android/ion/ion.c
+ * ION Memory Allocator
  *
  * Copyright (C) 2011 Google, Inc.
  */
 
-#include <linux/anon_inodes.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/dma-buf.h>
@@ -14,10 +13,8 @@
 #include <linux/file.h>
 #include <linux/freezer.h>
 #include <linux/fs.h>
-#include <linux/idr.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
-#include <linux/memblock.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/mm_types.h>
@@ -390,7 +387,7 @@ static const struct dma_buf_ops dma_buf_ops = {
 	.unmap = ion_dma_buf_kunmap,
 };
 
-int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
+static int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 {
 	struct ion_device *dev = internal_dev;
 	struct ion_buffer *buffer = NULL;
@@ -447,7 +444,7 @@ int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 	return fd;
 }
 
-int ion_query_heaps(struct ion_heap_query *query)
+static int ion_query_heaps(struct ion_heap_query *query)
 {
 	struct ion_device *dev = internal_dev;
 	struct ion_heap_data __user *buffer = u64_to_user_ptr(query->heaps);
@@ -489,6 +486,81 @@ int ion_query_heaps(struct ion_heap_query *query)
 	ret = 0;
 out:
 	up_read(&dev->lock);
+	return ret;
+}
+
+union ion_ioctl_arg {
+	struct ion_allocation_data allocation;
+	struct ion_heap_query query;
+};
+
+static int validate_ioctl_arg(unsigned int cmd, union ion_ioctl_arg *arg)
+{
+	switch (cmd) {
+	case ION_IOC_HEAP_QUERY:
+		if (arg->query.reserved0 ||
+		    arg->query.reserved1 ||
+		    arg->query.reserved2)
+			return -EINVAL;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	int ret = 0;
+	union ion_ioctl_arg data;
+
+	if (_IOC_SIZE(cmd) > sizeof(data))
+		return -EINVAL;
+
+	/*
+	 * The copy_from_user is unconditional here for both read and write
+	 * to do the validate. If there is no write for the ioctl, the
+	 * buffer is cleared
+	 */
+	if (copy_from_user(&data, (void __user *)arg, _IOC_SIZE(cmd)))
+		return -EFAULT;
+
+	ret = validate_ioctl_arg(cmd, &data);
+	if (ret) {
+		pr_warn_once("%s: ioctl validate failed\n", __func__);
+		return ret;
+	}
+
+	if (!(_IOC_DIR(cmd) & _IOC_WRITE))
+		memset(&data, 0, sizeof(data));
+
+	switch (cmd) {
+	case ION_IOC_ALLOC:
+	{
+		int fd;
+
+		fd = ion_alloc(data.allocation.len,
+			       data.allocation.heap_id_mask,
+			       data.allocation.flags);
+		if (fd < 0)
+			return fd;
+
+		data.allocation.fd = fd;
+
+		break;
+	}
+	case ION_IOC_HEAP_QUERY:
+		ret = ion_query_heaps(&data.query);
+		break;
+	default:
+		return -ENOTTY;
+	}
+
+	if (_IOC_DIR(cmd) & _IOC_READ) {
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
+			return -EFAULT;
+	}
 	return ret;
 }
 

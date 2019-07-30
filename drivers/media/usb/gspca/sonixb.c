@@ -121,7 +121,7 @@ struct sensor_data {
 
 /* We calculate the autogain at the end of the transfer of a frame, at this
    moment a frame with the old settings is being captured and transmitted. So
-   if we adjust the gain or exposure we must ignore atleast the next frame for
+   if we adjust the gain or exposure we must ignore at least the next frame for
    the new settings to come into effect before doing any other adjustments. */
 #define AUTOGAIN_IGNORE_FRAMES 1
 
@@ -757,7 +757,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 		/* Don't allow this to get below 10 when using autogain, the
 		   steps become very large (relatively) when below 10 causing
-		   the image to oscilate from much too dark, to much too bright
+		   the image to oscillate from much too dark, to much too bright
 		   and back again. */
 		if (gspca_dev->autogain->val && reg10 < 10)
 			reg10 = 10;

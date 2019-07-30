@@ -26,6 +26,10 @@ config MACH_MT7623
 	bool "MediaTek MT7623 SoCs support"
 	default ARCH_MEDIATEK
 
+config MACH_MT7629
+	bool "MediaTek MT7629 SoCs support"
+	default ARCH_MEDIATEK
+
 config MACH_MT8127
 	bool "MediaTek MT8127 SoCs support"
 	default ARCH_MEDIATEK

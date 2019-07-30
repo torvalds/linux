@@ -104,7 +104,7 @@ unsigned long __init find_ibft_region(unsigned long *sizep)
 
 	if (ibft_addr) {
 		*sizep = PAGE_ALIGN(ibft_addr->header.length);
-		return (u64)isa_virt_to_bus(ibft_addr);
+		return (u64)virt_to_phys(ibft_addr);
 	}
 
 	*sizep = 0;

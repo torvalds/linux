@@ -104,6 +104,7 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 int db_export__branch_types(struct db_export *dbe);
 
 int db_export__call_path(struct db_export *dbe, struct call_path *cp);
-int db_export__call_return(struct db_export *dbe, struct call_return *cr);
+int db_export__call_return(struct db_export *dbe, struct call_return *cr,
+			   u64 *parent_db_id);
 
 #endif

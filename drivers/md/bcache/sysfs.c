@@ -67,6 +67,8 @@ read_attribute(written);
 read_attribute(btree_written);
 read_attribute(metadata_written);
 read_attribute(active_journal_entries);
+read_attribute(backing_dev_name);
+read_attribute(backing_dev_uuid);
 
 sysfs_time_stats_attribute(btree_gc,	sec, ms);
 sysfs_time_stats_attribute(btree_split, sec, us);
@@ -243,6 +245,19 @@ SHOW(__bch_cached_dev)
 		return strlen(buf);
 	}
 
+	if (attr == &sysfs_backing_dev_name) {
+		snprintf(buf, BDEVNAME_SIZE + 1, "%s", dc->backing_dev_name);
+		strcat(buf, "\n");
+		return strlen(buf);
+	}
+
+	if (attr == &sysfs_backing_dev_uuid) {
+		/* convert binary uuid into 36-byte string plus '\0' */
+		snprintf(buf, 36+1, "%pU", dc->sb.uuid);
+		strcat(buf, "\n");
+		return strlen(buf);
+	}
+
 #undef var
 	return 0;
 }
@@ -262,10 +277,10 @@ STORE(__cached_dev)
 
 	sysfs_strtoul(data_csum,	dc->disk.data_csum);
 	d_strtoul(verify);
-	d_strtoul(bypass_torture_test);
-	d_strtoul(writeback_metadata);
-	d_strtoul(writeback_running);
-	d_strtoul(writeback_delay);
+	sysfs_strtoul_bool(bypass_torture_test, dc->bypass_torture_test);
+	sysfs_strtoul_bool(writeback_metadata, dc->writeback_metadata);
+	sysfs_strtoul_bool(writeback_running, dc->writeback_running);
+	sysfs_strtoul_clamp(writeback_delay, dc->writeback_delay, 0, UINT_MAX);
 
 	sysfs_strtoul_clamp(writeback_percent, dc->writeback_percent,
 			    0, bch_cutoff_writeback);
@@ -287,9 +302,15 @@ STORE(__cached_dev)
 	sysfs_strtoul_clamp(writeback_rate_update_seconds,
 			    dc->writeback_rate_update_seconds,
 			    1, WRITEBACK_RATE_UPDATE_SECS_MAX);
-	d_strtoul(writeback_rate_i_term_inverse);
-	d_strtoul_nonzero(writeback_rate_p_term_inverse);
-	d_strtoul_nonzero(writeback_rate_minimum);
+	sysfs_strtoul_clamp(writeback_rate_i_term_inverse,
+			    dc->writeback_rate_i_term_inverse,
+			    1, UINT_MAX);
+	sysfs_strtoul_clamp(writeback_rate_p_term_inverse,
+			    dc->writeback_rate_p_term_inverse,
+			    1, UINT_MAX);
+	sysfs_strtoul_clamp(writeback_rate_minimum,
+			    dc->writeback_rate_minimum,
+			    1, UINT_MAX);
 
 	sysfs_strtoul_clamp(io_error_limit, dc->error_limit, 0, INT_MAX);
 
@@ -299,7 +320,9 @@ STORE(__cached_dev)
 		dc->io_disable = v ? 1 : 0;
 	}
 
-	d_strtoi_h(sequential_cutoff);
+	sysfs_strtoul_clamp(sequential_cutoff,
+			    dc->sequential_cutoff,
+			    0, UINT_MAX);
 	d_strtoi_h(readahead);
 
 	if (attr == &sysfs_clear_stats)
@@ -452,6 +475,8 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_verify,
 	&sysfs_bypass_torture_test,
 #endif
+	&sysfs_backing_dev_name,
+	&sysfs_backing_dev_uuid,
 	NULL
 };
 KTYPE(bch_cached_dev);
@@ -761,10 +786,12 @@ STORE(__bch_cache_set)
 		c->shrink.scan_objects(&c->shrink, &sc);
 	}
 
-	sysfs_strtoul(congested_read_threshold_us,
-		      c->congested_read_threshold_us);
-	sysfs_strtoul(congested_write_threshold_us,
-		      c->congested_write_threshold_us);
+	sysfs_strtoul_clamp(congested_read_threshold_us,
+			    c->congested_read_threshold_us,
+			    0, UINT_MAX);
+	sysfs_strtoul_clamp(congested_write_threshold_us,
+			    c->congested_write_threshold_us,
+			    0, UINT_MAX);
 
 	if (attr == &sysfs_errors) {
 		v = __sysfs_match_string(error_actions, -1, buf);
@@ -774,12 +801,20 @@ STORE(__bch_cache_set)
 		c->on_error = v;
 	}
 
-	if (attr == &sysfs_io_error_limit)
-		c->error_limit = strtoul_or_return(buf);
+	sysfs_strtoul_clamp(io_error_limit, c->error_limit, 0, UINT_MAX);
 
 	/* See count_io_errors() for why 88 */
-	if (attr == &sysfs_io_error_halflife)
-		c->error_decay = strtoul_or_return(buf) / 88;
+	if (attr == &sysfs_io_error_halflife) {
+		unsigned long v = 0;
+		ssize_t ret;
+
+		ret = strtoul_safe_clamp(buf, v, 0, UINT_MAX);
+		if (!ret) {
+			c->error_decay = v / 88;
+			return size;
+		}
+		return ret;
+	}
 
 	if (attr == &sysfs_io_disable) {
 		v = strtoul_or_return(buf);
@@ -794,13 +829,15 @@ STORE(__bch_cache_set)
 		}
 	}
 
-	sysfs_strtoul(journal_delay_ms,		c->journal_delay_ms);
-	sysfs_strtoul(verify,			c->verify);
-	sysfs_strtoul(key_merging_disabled,	c->key_merging_disabled);
+	sysfs_strtoul_clamp(journal_delay_ms,
+			    c->journal_delay_ms,
+			    0, USHRT_MAX);
+	sysfs_strtoul_bool(verify,		c->verify);
+	sysfs_strtoul_bool(key_merging_disabled, c->key_merging_disabled);
 	sysfs_strtoul(expensive_debug_checks,	c->expensive_debug_checks);
-	sysfs_strtoul(gc_always_rewrite,	c->gc_always_rewrite);
-	sysfs_strtoul(btree_shrinker_disabled,	c->shrinker_disabled);
-	sysfs_strtoul(copy_gc_enabled,		c->copy_gc_enabled);
+	sysfs_strtoul_bool(gc_always_rewrite,	c->gc_always_rewrite);
+	sysfs_strtoul_bool(btree_shrinker_disabled, c->shrinker_disabled);
+	sysfs_strtoul_bool(copy_gc_enabled,	c->copy_gc_enabled);
 	/*
 	 * write gc_after_writeback here may overwrite an already set
 	 * BCH_DO_AUTO_GC, it doesn't matter because this flag will be

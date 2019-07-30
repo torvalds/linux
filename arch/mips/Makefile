@@ -233,6 +233,8 @@ toolchain-crc				:= $(call cc-option-yn,$(mips-cflags) -Wa$(comma)-mcrc)
 cflags-$(toolchain-crc)			+= -DTOOLCHAIN_SUPPORTS_CRC
 toolchain-dsp				:= $(call cc-option-yn,$(mips-cflags) -Wa$(comma)-mdsp)
 cflags-$(toolchain-dsp)			+= -DTOOLCHAIN_SUPPORTS_DSP
+toolchain-ginv				:= $(call cc-option-yn,$(mips-cflags) -Wa$(comma)-mginv)
+cflags-$(toolchain-ginv)		+= -DTOOLCHAIN_SUPPORTS_GINV
 
 #
 # Firmware support

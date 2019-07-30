@@ -141,7 +141,6 @@ config VIDEO_RENESAS_CEU
 	---help---
 	  This is a v4l2 driver for the Renesas CEU Interface
 
-source "drivers/media/platform/soc_camera/Kconfig"
 source "drivers/media/platform/exynos4-is/Kconfig"
 source "drivers/media/platform/am437x/Kconfig"
 source "drivers/media/platform/xilinx/Kconfig"
@@ -650,7 +649,7 @@ config VIDEO_SECO_CEC
 config VIDEO_SECO_RC
 	bool "SECO Boards IR RC5 support"
 	depends on VIDEO_SECO_CEC
-	select RC_CORE
+	depends on RC_CORE
 	help
 	  If you say yes here you will get support for the
 	  SECO Boards Consumer-IR in seco-cec driver.
@@ -669,7 +668,7 @@ menuconfig SDR_PLATFORM_DRIVERS
 if SDR_PLATFORM_DRIVERS
 
 config VIDEO_RCAR_DRIF
-	tristate "Renesas Digitial Radio Interface (DRIF)"
+	tristate "Renesas Digital Radio Interface (DRIF)"
 	depends on VIDEO_V4L2
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select VIDEOBUF2_VMALLOC

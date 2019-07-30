@@ -153,6 +153,11 @@ config E300C3_CPU
 	bool "e300c3 (831x)"
 	depends on PPC_BOOK3S_32
 
+config G4_CPU
+	bool "G4 (74xx)"
+	depends on PPC_BOOK3S_32
+	select ALTIVEC
+
 endchoice
 
 config TARGET_CPU_BOOL
@@ -171,6 +176,7 @@ config TARGET_CPU
 	default "860" if 860_CPU
 	default "e300c2" if E300C2_CPU
 	default "e300c3" if E300C3_CPU
+	default "G4" if G4_CPU
 
 config PPC_BOOK3S
 	def_bool y
@@ -318,7 +324,7 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
 
 config PPC_RADIX_MMU
 	bool "Radix MMU Support"
-	depends on PPC_BOOK3S_64
+	depends on PPC_BOOK3S_64 && HUGETLB_PAGE
 	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
 	default y
 	help
@@ -402,6 +408,9 @@ config NOT_COHERENT_CACHE
 	bool
 	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || \
 		GAMECUBE_COMMON || AMIGAONE
+	select ARCH_HAS_DMA_COHERENT_TO_PFN
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	default n if PPC_47x
 	default y
 

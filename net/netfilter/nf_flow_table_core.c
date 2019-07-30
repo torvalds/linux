@@ -121,7 +121,7 @@ static void flow_offload_fixup_ct_state(struct nf_conn *ct)
 	if (l4num == IPPROTO_TCP)
 		flow_offload_fixup_tcp(&ct->proto.tcp);
 
-	l4proto = __nf_ct_l4proto_find(l4num);
+	l4proto = nf_ct_l4proto_find(l4num);
 	if (!l4proto)
 		return;
 

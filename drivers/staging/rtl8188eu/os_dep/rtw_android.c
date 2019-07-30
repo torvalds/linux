@@ -84,7 +84,7 @@ static int rtw_android_get_rssi(struct net_device *net, char *command,
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		bytes_written += snprintf(&command[bytes_written], total_len,
 					  "%s rssi %d",
-					  pcur_network->network.Ssid.Ssid,
+					  pcur_network->network.ssid.ssid,
 					  padapter->recvpriv.rssi);
 	}
 	return bytes_written;

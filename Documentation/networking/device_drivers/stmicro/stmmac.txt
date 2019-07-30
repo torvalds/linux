@@ -267,7 +267,7 @@ static struct fixed_phy_status stmmac0_fixed_phy_status = {
 
 During the board's device_init we can configure the first
 MAC for fixed_link by calling:
-  fixed_phy_add(PHY_POLL, 1, &stmmac0_fixed_phy_status, -1);
+  fixed_phy_add(PHY_POLL, 1, &stmmac0_fixed_phy_status);
 and the second one, with a real PHY device attached to the bus,
 by using the stmmac_mdio_bus_data structure (to provide the id, the
 reset procedure etc).

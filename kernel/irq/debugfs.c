@@ -56,6 +56,7 @@ static const struct irq_bit_descr irqchip_flags[] = {
 	BIT_MASK_DESCR(IRQCHIP_ONESHOT_SAFE),
 	BIT_MASK_DESCR(IRQCHIP_EOI_THREADED),
 	BIT_MASK_DESCR(IRQCHIP_SUPPORTS_LEVEL_MSI),
+	BIT_MASK_DESCR(IRQCHIP_SUPPORTS_NMI),
 };
 
 static void
@@ -140,6 +141,7 @@ static const struct irq_bit_descr irqdesc_istates[] = {
 	BIT_MASK_DESCR(IRQS_WAITING),
 	BIT_MASK_DESCR(IRQS_PENDING),
 	BIT_MASK_DESCR(IRQS_SUSPENDED),
+	BIT_MASK_DESCR(IRQS_NMI),
 };
 
 
@@ -203,8 +205,8 @@ static ssize_t irq_debug_write(struct file *file, const char __user *user_buf,
 		chip_bus_lock(desc);
 		raw_spin_lock_irqsave(&desc->lock, flags);
 
-		if (irq_settings_is_level(desc)) {
-			/* Can't do level, sorry */
+		if (irq_settings_is_level(desc) || desc->istate & IRQS_NMI) {
+			/* Can't do level nor NMIs, sorry */
 			err = -EINVAL;
 		} else {
 			desc->istate |= IRQS_PENDING;
@@ -256,8 +258,6 @@ static int __init irq_debugfs_init(void)
 	int irq;
 
 	root_dir = debugfs_create_dir("irq", NULL);
-	if (!root_dir)
-		return -ENOMEM;
 
 	irq_domain_debugfs_init(root_dir);
 

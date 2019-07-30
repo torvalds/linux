@@ -38,7 +38,6 @@ comment "VOP Bus Driver"
 
 config VOP_BUS
 	tristate "VOP Bus Driver"
-	depends on 64BIT && PCI && X86 && X86_DEV_DMA_OPS
 	help
 	  This option is selected by any driver which registers a
 	  device or driver on the VOP Bus, such as CONFIG_INTEL_MIC_HOST
@@ -132,7 +131,7 @@ comment "VOP Driver"
 
 config VOP
 	tristate "VOP Driver"
-	depends on 64BIT && PCI && X86 && VOP_BUS
+	depends on VOP_BUS
 	select VHOST_RING
 	select VIRTIO
 	help

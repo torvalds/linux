@@ -506,7 +506,7 @@ static void f2fs_update_extent_tree_range(struct inode *inode,
 	unsigned int end = fofs + len;
 	unsigned int pos = (unsigned int)fofs;
 	bool updated = false;
-	bool leftmost;
+	bool leftmost = false;
 
 	if (!et)
 		return;

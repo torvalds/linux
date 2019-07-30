@@ -8,6 +8,7 @@
 
 struct hdac_hda_pcm {
 	int stream_tag[2];
+	unsigned int format_val[2];
 };
 
 struct hdac_hda_priv {

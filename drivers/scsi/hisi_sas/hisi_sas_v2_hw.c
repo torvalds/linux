@@ -868,12 +868,13 @@ hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
 
 			hisi_hba->devices[i].device_id = i;
 			sas_dev = &hisi_hba->devices[i];
-			sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
+			sas_dev->dev_status = HISI_SAS_DEV_INIT;
 			sas_dev->dev_type = device->dev_type;
 			sas_dev->hisi_hba = hisi_hba;
 			sas_dev->sas_device = device;
 			sas_dev->sata_idx = sata_idx;
 			sas_dev->dq = dq;
+			spin_lock_init(&sas_dev->lock);
 			INIT_LIST_HEAD(&hisi_hba->devices[i].list);
 			break;
 		}
@@ -1589,7 +1590,7 @@ static void phys_init_v2_hw(struct hisi_hba *hisi_hba)
 	}
 }
 
-static void sl_notify_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void sl_notify_ssp_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	u32 sl_control;
 
@@ -2677,6 +2678,8 @@ static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	if (is_sata_phy_v2_hw(hisi_hba, phy_no))
 		goto end;
 
+	del_timer(&phy->timer);
+
 	if (phy_no == 8) {
 		u32 port_state = hisi_sas_read32(hisi_hba, PORT_STATE);
 
@@ -2756,6 +2759,7 @@ static int phy_down_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	struct hisi_sas_port *port = phy->port;
 	struct device *dev = hisi_hba->dev;
 
+	del_timer(&phy->timer);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 1);
 
 	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
@@ -2943,6 +2947,9 @@ static irqreturn_t int_chnl_int_v2_hw(int irq_no, void *p)
 		if ((irq_msk & (1 << phy_no)) && irq_value0) {
 			if (irq_value0 & CHL_INT0_SL_RX_BCST_ACK_MSK)
 				phy_bcast_v2_hw(phy_no, hisi_hba);
+
+			if (irq_value0 & CHL_INT0_PHY_RDY_MSK)
+				hisi_sas_phy_oob_ready(hisi_hba, phy_no);
 
 			hisi_sas_phy_write32(hisi_hba, phy_no,
 					CHL_INT0, irq_value0
@@ -3227,6 +3234,8 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	unsigned long flags;
 	int phy_no, offset;
 
+	del_timer(&phy->timer);
+
 	phy_no = sas_phy->id;
 	initial_fis = &hisi_hba->initial_fis[phy_no];
 	fis = &initial_fis->fis;
@@ -3393,6 +3402,8 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 		tasklet_init(t, cq_tasklet_v2_hw, (unsigned long)cq);
 	}
 
+	hisi_hba->cq_nvecs = hisi_hba->queue_count;
+
 	return 0;
 
 free_cq_int_irqs:
@@ -3542,8 +3553,8 @@ static int write_gpio_v2_hw(struct hisi_hba *hisi_hba, u8 reg_type,
 	return 0;
 }
 
-static void wait_cmds_complete_timeout_v2_hw(struct hisi_hba *hisi_hba,
-					     int delay_ms, int timeout_ms)
+static int wait_cmds_complete_timeout_v2_hw(struct hisi_hba *hisi_hba,
+					    int delay_ms, int timeout_ms)
 {
 	struct device *dev = hisi_hba->dev;
 	int entries, entries_old = 0, time;
@@ -3557,7 +3568,12 @@ static void wait_cmds_complete_timeout_v2_hw(struct hisi_hba *hisi_hba,
 		msleep(delay_ms);
 	}
 
+	if (time >= timeout_ms)
+		return -ETIMEDOUT;
+
 	dev_dbg(dev, "wait commands complete %dms\n", time);
+
+	return 0;
 }
 
 static struct device_attribute *host_attrs_v2_hw[] = {
@@ -3590,7 +3606,7 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.setup_itct = setup_itct_v2_hw,
 	.slot_index_alloc = slot_index_alloc_quirk_v2_hw,
 	.alloc_dev = alloc_dev_quirk_v2_hw,
-	.sl_notify = sl_notify_v2_hw,
+	.sl_notify_ssp = sl_notify_ssp_v2_hw,
 	.get_wideport_bitmap = get_wideport_bitmap_v2_hw,
 	.clear_itct = clear_itct_v2_hw,
 	.free_device = free_device_v2_hw,

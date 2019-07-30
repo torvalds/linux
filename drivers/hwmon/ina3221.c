@@ -111,6 +111,7 @@ struct ina3221_input {
  * @inputs: Array of channel input source specific structures
  * @lock: mutex lock to serialize sysfs attribute accesses
  * @reg_config: Register value of INA3221_CONFIG
+ * @single_shot: running in single-shot operating mode
  */
 struct ina3221_data {
 	struct device *pm_dev;
@@ -119,6 +120,8 @@ struct ina3221_data {
 	struct ina3221_input inputs[INA3221_NUM_CHANNELS];
 	struct mutex lock;
 	u32 reg_config;
+
+	bool single_shot;
 };
 
 static inline bool ina3221_is_enabled(struct ina3221_data *ina, int channel)
@@ -188,6 +191,11 @@ static int ina3221_read_in(struct device *dev, u32 attr, int channel, long *val)
 		if (!ina3221_is_enabled(ina, channel))
 			return -ENODATA;
 
+		/* Write CONFIG register to trigger a single-shot measurement */
+		if (ina->single_shot)
+			regmap_write(ina->regmap, INA3221_CONFIG,
+				     ina->reg_config);
+
 		ret = ina3221_wait_for_data(ina);
 		if (ret)
 			return ret;
@@ -231,6 +239,11 @@ static int ina3221_read_curr(struct device *dev, u32 attr,
 	case hwmon_curr_input:
 		if (!ina3221_is_enabled(ina, channel))
 			return -ENODATA;
+
+		/* Write CONFIG register to trigger a single-shot measurement */
+		if (ina->single_shot)
+			regmap_write(ina->regmap, INA3221_CONFIG,
+				     ina->reg_config);
 
 		ret = ina3221_wait_for_data(ina);
 		if (ret)
@@ -499,7 +512,7 @@ static const struct hwmon_chip_info ina3221_chip_info = {
 };
 
 /* Extra attribute groups */
-static ssize_t ina3221_show_shunt(struct device *dev,
+static ssize_t ina3221_shunt_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct sensor_device_attribute *sd_attr = to_sensor_dev_attr(attr);
@@ -510,9 +523,9 @@ static ssize_t ina3221_show_shunt(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", input->shunt_resistor);
 }
 
-static ssize_t ina3221_set_shunt(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t ina3221_shunt_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	struct sensor_device_attribute *sd_attr = to_sensor_dev_attr(attr);
 	struct ina3221_data *ina = dev_get_drvdata(dev);
@@ -533,12 +546,9 @@ static ssize_t ina3221_set_shunt(struct device *dev,
 }
 
 /* shunt resistance */
-static SENSOR_DEVICE_ATTR(shunt1_resistor, S_IRUGO | S_IWUSR,
-		ina3221_show_shunt, ina3221_set_shunt, INA3221_CHANNEL1);
-static SENSOR_DEVICE_ATTR(shunt2_resistor, S_IRUGO | S_IWUSR,
-		ina3221_show_shunt, ina3221_set_shunt, INA3221_CHANNEL2);
-static SENSOR_DEVICE_ATTR(shunt3_resistor, S_IRUGO | S_IWUSR,
-		ina3221_show_shunt, ina3221_set_shunt, INA3221_CHANNEL3);
+static SENSOR_DEVICE_ATTR_RW(shunt1_resistor, ina3221_shunt, INA3221_CHANNEL1);
+static SENSOR_DEVICE_ATTR_RW(shunt2_resistor, ina3221_shunt, INA3221_CHANNEL2);
+static SENSOR_DEVICE_ATTR_RW(shunt3_resistor, ina3221_shunt, INA3221_CHANNEL3);
 
 static struct attribute *ina3221_attrs[] = {
 	&sensor_dev_attr_shunt1_resistor.dev_attr.attr,
@@ -617,6 +627,8 @@ static int ina3221_probe_from_dt(struct device *dev, struct ina3221_data *ina)
 	if (!np)
 		return 0;
 
+	ina->single_shot = of_property_read_bool(np, "ti,single-shot");
+
 	for_each_child_of_node(np, child) {
 		ret = ina3221_probe_child_from_dt(dev, child, ina);
 		if (ret)
@@ -665,6 +677,10 @@ static int ina3221_probe(struct i2c_client *client,
 
 	/* The driver will be reset, so use reset value */
 	ina->reg_config = INA3221_CONFIG_DEFAULT;
+
+	/* Clear continuous bit to use single-shot mode */
+	if (ina->single_shot)
+		ina->reg_config &= ~INA3221_CONFIG_MODE_CONTINUOUS;
 
 	/* Disable channels if their inputs are disconnected */
 	for (i = 0; i < INA3221_NUM_CHANNELS; i++) {

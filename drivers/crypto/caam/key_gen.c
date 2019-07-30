@@ -48,7 +48,7 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 {
 	u32 *desc;
 	struct split_key_result result;
-	dma_addr_t dma_addr_in, dma_addr_out;
+	dma_addr_t dma_addr;
 	int ret = -ENOMEM;
 
 	adata->keylen = split_key_len(adata->algtype & OP_ALG_ALGSEL_MASK);
@@ -71,22 +71,17 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 		return ret;
 	}
 
-	dma_addr_in = dma_map_single(jrdev, (void *)key_in, keylen,
-				     DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, dma_addr_in)) {
-		dev_err(jrdev, "unable to map key input memory\n");
+	memcpy(key_out, key_in, keylen);
+
+	dma_addr = dma_map_single(jrdev, key_out, adata->keylen_pad,
+				  DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(jrdev, dma_addr)) {
+		dev_err(jrdev, "unable to map key memory\n");
 		goto out_free;
 	}
 
-	dma_addr_out = dma_map_single(jrdev, key_out, adata->keylen_pad,
-				      DMA_FROM_DEVICE);
-	if (dma_mapping_error(jrdev, dma_addr_out)) {
-		dev_err(jrdev, "unable to map key output memory\n");
-		goto out_unmap_in;
-	}
-
 	init_job_desc(desc, 0);
-	append_key(desc, dma_addr_in, keylen, CLASS_2 | KEY_DEST_CLASS_REG);
+	append_key(desc, dma_addr, keylen, CLASS_2 | KEY_DEST_CLASS_REG);
 
 	/* Sets MDHA up into an HMAC-INIT */
 	append_operation(desc, (adata->algtype & OP_ALG_ALGSEL_MASK) |
@@ -104,12 +99,10 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 	 * FIFO_STORE with the explicit split-key content store
 	 * (0x26 output type)
 	 */
-	append_fifo_store(desc, dma_addr_out, adata->keylen,
+	append_fifo_store(desc, dma_addr, adata->keylen,
 			  LDST_CLASS_2_CCB | FIFOST_TYPE_SPLIT_KEK);
 
 #ifdef DEBUG
-	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key_in, keylen, 1);
 	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
 #endif
@@ -129,10 +122,7 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 #endif
 	}
 
-	dma_unmap_single(jrdev, dma_addr_out, adata->keylen_pad,
-			 DMA_FROM_DEVICE);
-out_unmap_in:
-	dma_unmap_single(jrdev, dma_addr_in, keylen, DMA_TO_DEVICE);
+	dma_unmap_single(jrdev, dma_addr, adata->keylen_pad, DMA_BIDIRECTIONAL);
 out_free:
 	kfree(desc);
 	return ret;

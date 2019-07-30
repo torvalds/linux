@@ -45,11 +45,9 @@ nfp_flower_cmsg_mac_repr_start(struct nfp_app *app, unsigned int num_ports)
 {
 	struct nfp_flower_cmsg_mac_repr *msg;
 	struct sk_buff *skb;
-	unsigned int size;
 
-	size = sizeof(*msg) + num_ports * sizeof(msg->ports[0]);
-	skb = nfp_flower_cmsg_alloc(app, size, NFP_FLOWER_CMSG_TYPE_MAC_REPR,
-				    GFP_KERNEL);
+	skb = nfp_flower_cmsg_alloc(app, struct_size(msg, ports, num_ports),
+				    NFP_FLOWER_CMSG_TYPE_MAC_REPR, GFP_KERNEL);
 	if (!skb)
 		return NULL;
 
@@ -203,7 +201,7 @@ nfp_flower_cmsg_portreify_rx(struct nfp_app *app, struct sk_buff *skb)
 	}
 
 	atomic_inc(&priv->reify_replies);
-	wake_up_interruptible(&priv->reify_wait_queue);
+	wake_up(&priv->reify_wait_queue);
 }
 
 static void

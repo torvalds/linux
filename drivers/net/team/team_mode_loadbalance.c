@@ -325,6 +325,20 @@ static int lb_bpf_func_set(struct team *team, struct team_gsetter_ctx *ctx)
 	return 0;
 }
 
+static void lb_bpf_func_free(struct team *team)
+{
+	struct lb_priv *lb_priv = get_lb_priv(team);
+	struct bpf_prog *fp;
+
+	if (!lb_priv->ex->orig_fprog)
+		return;
+
+	__fprog_destroy(lb_priv->ex->orig_fprog);
+	fp = rcu_dereference_protected(lb_priv->fp,
+				       lockdep_is_held(&team->lock));
+	bpf_prog_destroy(fp);
+}
+
 static int lb_tx_method_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
 	struct lb_priv *lb_priv = get_lb_priv(team);
@@ -639,6 +653,7 @@ static void lb_exit(struct team *team)
 
 	team_options_unregister(team, lb_options,
 				ARRAY_SIZE(lb_options));
+	lb_bpf_func_free(team);
 	cancel_delayed_work_sync(&lb_priv->ex->stats.refresh_dw);
 	free_percpu(lb_priv->pcpu_stats);
 	kfree(lb_priv->ex);

@@ -106,7 +106,6 @@ struct caam_drv_private {
 	struct dentry *dfs_root;
 	struct dentry *ctl; /* controller dir */
 	struct debugfs_blob_wrapper ctl_kek_wrap, ctl_tkek_wrap, ctl_tdsk_wrap;
-	struct dentry *ctl_kek, *ctl_tkek, *ctl_tdsk;
 #endif
 };
 

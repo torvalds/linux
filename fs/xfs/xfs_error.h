@@ -98,5 +98,6 @@ extern int xfs_errortag_clearall(struct xfs_mount *mp);
 #define		XFS_PTAG_SHUTDOWN_IOERROR	0x00000020
 #define		XFS_PTAG_SHUTDOWN_LOGERROR	0x00000040
 #define		XFS_PTAG_FSBLOCK_ZERO		0x00000080
+#define		XFS_PTAG_VERIFIER_ERROR		0x00000100
 
 #endif	/* __XFS_ERROR_H__ */

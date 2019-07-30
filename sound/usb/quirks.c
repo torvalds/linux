@@ -1000,6 +1000,105 @@ static int snd_usb_axefx3_boot_quirk(struct usb_device *dev)
 	return 0;
 }
 
+
+#define MICROBOOK_BUF_SIZE 128
+
+static int snd_usb_motu_microbookii_communicate(struct usb_device *dev, u8 *buf,
+						int buf_size, int *length)
+{
+	int err, actual_length;
+
+	err = usb_interrupt_msg(dev, usb_sndintpipe(dev, 0x01), buf, *length,
+				&actual_length, 1000);
+	if (err < 0)
+		return err;
+
+	print_hex_dump(KERN_DEBUG, "MicroBookII snd: ", DUMP_PREFIX_NONE, 16, 1,
+		       buf, actual_length, false);
+
+	memset(buf, 0, buf_size);
+
+	err = usb_interrupt_msg(dev, usb_rcvintpipe(dev, 0x82), buf, buf_size,
+				&actual_length, 1000);
+	if (err < 0)
+		return err;
+
+	print_hex_dump(KERN_DEBUG, "MicroBookII rcv: ", DUMP_PREFIX_NONE, 16, 1,
+		       buf, actual_length, false);
+
+	*length = actual_length;
+	return 0;
+}
+
+static int snd_usb_motu_microbookii_boot_quirk(struct usb_device *dev)
+{
+	int err, actual_length, poll_attempts = 0;
+	static const u8 set_samplerate_seq[] = { 0x00, 0x00, 0x00, 0x00,
+						 0x00, 0x00, 0x0b, 0x14,
+						 0x00, 0x00, 0x00, 0x01 };
+	static const u8 poll_ready_seq[] = { 0x00, 0x04, 0x00, 0x00,
+					     0x00, 0x00, 0x0b, 0x18 };
+	u8 *buf = kzalloc(MICROBOOK_BUF_SIZE, GFP_KERNEL);
+
+	if (!buf)
+		return -ENOMEM;
+
+	dev_info(&dev->dev, "Waiting for MOTU Microbook II to boot up...\n");
+
+	/* First we tell the device which sample rate to use. */
+	memcpy(buf, set_samplerate_seq, sizeof(set_samplerate_seq));
+	actual_length = sizeof(set_samplerate_seq);
+	err = snd_usb_motu_microbookii_communicate(dev, buf, MICROBOOK_BUF_SIZE,
+						   &actual_length);
+
+	if (err < 0) {
+		dev_err(&dev->dev,
+			"failed setting the sample rate for Motu MicroBook II: %d\n",
+			err);
+		goto free_buf;
+	}
+
+	/* Then we poll every 100 ms until the device informs of its readiness. */
+	while (true) {
+		if (++poll_attempts > 100) {
+			dev_err(&dev->dev,
+				"failed booting Motu MicroBook II: timeout\n");
+			err = -ENODEV;
+			goto free_buf;
+		}
+
+		memset(buf, 0, MICROBOOK_BUF_SIZE);
+		memcpy(buf, poll_ready_seq, sizeof(poll_ready_seq));
+
+		actual_length = sizeof(poll_ready_seq);
+		err = snd_usb_motu_microbookii_communicate(
+			dev, buf, MICROBOOK_BUF_SIZE, &actual_length);
+		if (err < 0) {
+			dev_err(&dev->dev,
+				"failed booting Motu MicroBook II: communication error %d\n",
+				err);
+			goto free_buf;
+		}
+
+		/* the device signals its readiness through a message of the
+		 * form
+		 *           XX 06 00 00 00 00 0b 18  00 00 00 01
+		 * If the device is not yet ready to accept audio data, the
+		 * last byte of that sequence is 00.
+		 */
+		if (actual_length == 12 && buf[actual_length - 1] == 1)
+			break;
+
+		msleep(100);
+	}
+
+	dev_info(&dev->dev, "MOTU MicroBook II ready\n");
+
+free_buf:
+	kfree(buf);
+	return err;
+}
+
 /*
  * Setup quirks
  */
@@ -1177,6 +1276,8 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 		return snd_usb_gamecon780_boot_quirk(dev);
 	case USB_ID(0x2466, 0x8010): /* Fractal Audio Axe-Fx 3 */
 		return snd_usb_axefx3_boot_quirk(dev);
+	case USB_ID(0x07fd, 0x0004): /* MOTU MicroBook II */
+		return snd_usb_motu_microbookii_boot_quirk(dev);
 	}
 
 	return 0;
@@ -1479,10 +1580,6 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	/* XMOS based USB DACs */
 	switch (chip->usb_id) {
 	case USB_ID(0x1511, 0x0037): /* AURALiC VEGA */
-	case USB_ID(0x20b1, 0x0002): /* Wyred 4 Sound DAC-2 DSD */
-	case USB_ID(0x20b1, 0x2004): /* Matrix Audio X-SPDIF 2 */
-	case USB_ID(0x20b1, 0x2008): /* Matrix Audio X-Sabre */
-	case USB_ID(0x20b1, 0x300a): /* Matrix Audio Mini-i Pro */
 	case USB_ID(0x22d9, 0x0416): /* OPPO HA-1 */
 	case USB_ID(0x22d9, 0x0436): /* OPPO Sonica */
 	case USB_ID(0x22d9, 0x0461): /* OPPO UDP-205 */
@@ -1492,23 +1589,13 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
 
-	case USB_ID(0x10cb, 0x0103): /* The Bit Opus #3; with fp->dsd_raw */
-	case USB_ID(0x152a, 0x85de): /* SMSL D1 DAC */
-	case USB_ID(0x16d0, 0x09dd): /* Encore mDSD */
 	case USB_ID(0x0d8c, 0x0316): /* Hegel HD12 DSD */
+	case USB_ID(0x10cb, 0x0103): /* The Bit Opus #3; with fp->dsd_raw */
 	case USB_ID(0x16b0, 0x06b2): /* NuPrime DAC-10 */
+	case USB_ID(0x16d0, 0x09dd): /* Encore mDSD */
 	case USB_ID(0x16d0, 0x0733): /* Furutech ADL Stratos */
 	case USB_ID(0x16d0, 0x09db): /* NuPrime Audio DAC-9 */
 	case USB_ID(0x1db5, 0x0003): /* Bryston BDA3 */
-	case USB_ID(0x20b1, 0x000a): /* Gustard DAC-X20U */
-	case USB_ID(0x20b1, 0x2005): /* Denafrips Ares DAC */
-	case USB_ID(0x20b1, 0x2009): /* DIYINHK DSD DXD 384kHz USB to I2S/DSD */
-	case USB_ID(0x20b1, 0x2023): /* JLsounds I2SoverUSB */
-	case USB_ID(0x20b1, 0x3021): /* Eastern El. MiniMax Tube DAC Supreme */
-	case USB_ID(0x20b1, 0x3023): /* Aune X1S 32BIT/384 DSD DAC */
-	case USB_ID(0x20b1, 0x302d): /* Unison Research Unico CD Due */
-	case USB_ID(0x20b1, 0x307b): /* CH Precision C1 DAC */
-	case USB_ID(0x20b1, 0x3086): /* Singxer F-1 converter board */
 	case USB_ID(0x22d9, 0x0426): /* OPPO HA-2 */
 	case USB_ID(0x22e1, 0xca01): /* HDTA Serenade DSD */
 	case USB_ID(0x249c, 0x9326): /* M2Tech Young MkIII */

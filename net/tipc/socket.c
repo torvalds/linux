@@ -737,7 +737,7 @@ static __poll_t tipc_poll(struct file *file, struct socket *sock,
 	case TIPC_CONNECTING:
 		if (!tsk->cong_link_cnt && !tsk_conn_cong(tsk))
 			revents |= EPOLLOUT;
-		/* fall thru' */
+		/* fall through */
 	case TIPC_LISTEN:
 		if (!skb_queue_empty(&sk->sk_receive_queue))
 			revents |= EPOLLIN | EPOLLRDNORM;
@@ -1333,7 +1333,7 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 
 	if (unlikely(!dest)) {
 		dest = &tsk->peer;
-		if (!syn || dest->family != AF_TIPC)
+		if (!syn && dest->family != AF_TIPC)
 			return -EDESTADDRREQ;
 	}
 
@@ -2349,6 +2349,16 @@ static int tipc_wait_for_connect(struct socket *sock, long *timeo_p)
 	return 0;
 }
 
+static bool tipc_sockaddr_is_sane(struct sockaddr_tipc *addr)
+{
+	if (addr->family != AF_TIPC)
+		return false;
+	if (addr->addrtype == TIPC_SERVICE_RANGE)
+		return (addr->addr.nameseq.lower <= addr->addr.nameseq.upper);
+	return (addr->addrtype == TIPC_SERVICE_ADDR ||
+		addr->addrtype == TIPC_SOCKET_ADDR);
+}
+
 /**
  * tipc_connect - establish a connection to another TIPC port
  * @sock: socket structure
@@ -2384,17 +2394,17 @@ static int tipc_connect(struct socket *sock, struct sockaddr *dest,
 		if (!tipc_sk_type_connectionless(sk))
 			res = -EINVAL;
 		goto exit;
-	} else if (dst->family != AF_TIPC) {
-		res = -EINVAL;
 	}
-	if (dst->addrtype != TIPC_ADDR_ID && dst->addrtype != TIPC_ADDR_NAME)
+	if (!tipc_sockaddr_is_sane(dst)) {
 		res = -EINVAL;
-	if (res)
 		goto exit;
-
+	}
 	/* DGRAM/RDM connect(), just save the destaddr */
 	if (tipc_sk_type_connectionless(sk)) {
 		memcpy(&tsk->peer, dest, destlen);
+		goto exit;
+	} else if (dst->addrtype == TIPC_SERVICE_RANGE) {
+		res = -EINVAL;
 		goto exit;
 	}
 
@@ -2421,7 +2431,7 @@ static int tipc_connect(struct socket *sock, struct sockaddr *dest,
 		 * case is EINPROGRESS, rather than EALREADY.
 		 */
 		res = -EINPROGRESS;
-		/* fall thru' */
+		/* fall through */
 	case TIPC_CONNECTING:
 		if (!timeout) {
 			if (previous == TIPC_CONNECTING)
@@ -3255,6 +3265,8 @@ static int __tipc_nl_add_sk_con(struct sk_buff *skb, struct tipc_sock *tsk)
 	peer_port = tsk_peer_port(tsk);
 
 	nest = nla_nest_start(skb, TIPC_NLA_SOCK_CON);
+	if (!nest)
+		return -EMSGSIZE;
 
 	if (nla_put_u32(skb, TIPC_NLA_CON_NODE, peer_node))
 		goto msg_full;

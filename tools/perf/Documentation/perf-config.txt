@@ -114,11 +114,15 @@ Given a $HOME/.perfconfig like this:
 
 	[report]
 		# Defaults
-		sort-order = comm,dso,symbol
+		sort_order = comm,dso,symbol
 		percent-limit = 0
 		queue-size = 0
 		children = true
 		group = true
+
+	[llvm]
+		dump-obj = true
+		clang-opt = -g
 
 You can hide source code of annotate feature setting the config to false with
 
@@ -552,6 +556,47 @@ trace.*::
 
 	trace.show_zeros::
 		Do not suppress syscall arguments that are equal to zero.
+
+llvm.*::
+	llvm.clang-path::
+		Path to clang. If omit, search it from $PATH.
+
+	llvm.clang-bpf-cmd-template::
+		Cmdline template. Below lines show its default value. Environment
+		variable is used to pass options.
+		"$CLANG_EXEC -D__KERNEL__ $CLANG_OPTIONS $KERNEL_INC_OPTIONS \
+		-Wno-unused-value -Wno-pointer-sign -working-directory \
+		$WORKING_DIR  -c $CLANG_SOURCE -target bpf -O2 -o -"
+
+	llvm.clang-opt::
+		Options passed to clang.
+
+	llvm.kbuild-dir::
+		kbuild directory. If not set, use /lib/modules/`uname -r`/build.
+		If set to "" deliberately, skip kernel header auto-detector.
+
+	llvm.kbuild-opts::
+		Options passed to 'make' when detecting kernel header options.
+
+	llvm.dump-obj::
+		Enable perf dump BPF object files compiled by LLVM.
+
+	llvm.opts::
+		Options passed to llc.
+
+samples.*::
+
+	samples.context::
+		Define how many ns worth of time to show
+		around samples in perf report sample context browser.
+
+scripts.*::
+
+	Any option defines a script that is added to the scripts menu
+	in the interactive perf browser and whose output is displayed.
+	The name of the option is the name, the value is a script command line.
+	The script gets the same options passed as a full perf script,
+	in particular -i perfdata file, --cpu, --tid
 
 SEE ALSO
 --------

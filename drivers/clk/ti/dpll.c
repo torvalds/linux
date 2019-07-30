@@ -192,10 +192,9 @@ static void __init _register_dpll(void *user,
 	dd->clk_bypass = __clk_get_hw(clk);
 
 	/* register the clock */
-	clk = ti_clk_register(NULL, &clk_hw->hw, node->name);
+	clk = ti_clk_register_omap_hw(NULL, &clk_hw->hw, node->name);
 
 	if (!IS_ERR(clk)) {
-		omap2_init_clk_hw_omap_clocks(&clk_hw->hw);
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 		kfree(clk_hw->hw.init->parent_names);
 		kfree(clk_hw->hw.init);
@@ -265,14 +264,12 @@ static void _register_dpll_x2(struct device_node *node,
 #endif
 
 	/* register the clock */
-	clk = ti_clk_register(NULL, &clk_hw->hw, name);
+	clk = ti_clk_register_omap_hw(NULL, &clk_hw->hw, name);
 
-	if (IS_ERR(clk)) {
+	if (IS_ERR(clk))
 		kfree(clk_hw);
-	} else {
-		omap2_init_clk_hw_omap_clocks(&clk_hw->hw);
+	else
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-	}
 }
 #endif
 

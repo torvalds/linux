@@ -100,6 +100,7 @@ static __poll_t media_request_poll(struct file *filp,
 	if (!(poll_requested_events(wait) & EPOLLPRI))
 		return 0;
 
+	poll_wait(filp, &req->poll_wait, wait);
 	spin_lock_irqsave(&req->lock, flags);
 	if (req->state == MEDIA_REQUEST_STATE_COMPLETE) {
 		ret = EPOLLPRI;
@@ -109,8 +110,6 @@ static __poll_t media_request_poll(struct file *filp,
 		ret = EPOLLERR;
 		goto unlock;
 	}
-
-	poll_wait(filp, &req->poll_wait, wait);
 
 unlock:
 	spin_unlock_irqrestore(&req->lock, flags);

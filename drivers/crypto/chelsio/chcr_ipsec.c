@@ -303,6 +303,9 @@ static bool chcr_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 		if (ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr))
 			return false;
 	}
+	/* Inline single pdu */
+	if (skb_shinfo(skb)->gso_size)
+		return false;
 	return true;
 }
 
@@ -333,7 +336,8 @@ static inline int is_eth_imm(const struct sk_buff *skb,
 }
 
 static inline unsigned int calc_tx_sec_flits(const struct sk_buff *skb,
-					     struct ipsec_sa_entry *sa_entry)
+					     struct ipsec_sa_entry *sa_entry,
+					     bool *immediate)
 {
 	unsigned int kctx_len;
 	unsigned int flits;
@@ -351,8 +355,10 @@ static inline unsigned int calc_tx_sec_flits(const struct sk_buff *skb,
 	 * TX Packet header plus the skb data in the Work Request.
 	 */
 
-	if (hdrlen)
+	if (hdrlen) {
+		*immediate = true;
 		return DIV_ROUND_UP(skb->len + hdrlen, sizeof(__be64));
+	}
 
 	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1);
 
@@ -415,12 +421,12 @@ inline void *copy_esn_pktxt(struct sk_buff *skb,
 	iv = skb_transport_header(skb) + sizeof(struct ip_esp_hdr);
 	memcpy(aadiv->iv, iv, 8);
 
-	if (sa_entry->imm) {
+	if (is_eth_imm(skb, sa_entry) && !skb_is_nonlinear(skb)) {
 		sc_imm = (struct ulptx_idata *)(pos +
 			  (DIV_ROUND_UP(sizeof(struct chcr_ipsec_aadiv),
 					sizeof(__be64)) << 3));
-		sc_imm->cmd_more = FILL_CMD_MORE(!sa_entry->imm);
-		sc_imm->len = cpu_to_be32(sa_entry->imm);
+		sc_imm->cmd_more = FILL_CMD_MORE(0);
+		sc_imm->len = cpu_to_be32(skb->len);
 	}
 	pos += len;
 	return pos;
@@ -528,15 +534,18 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 	struct adapter *adap = pi->adapter;
 	unsigned int ivsize = GCM_ESP_IV_SIZE;
 	struct chcr_ipsec_wr *wr;
+	bool immediate = false;
 	u16 immdatalen = 0;
 	unsigned int flits;
 	u32 ivinoffset;
 	u32 aadstart;
 	u32 aadstop;
 	u32 ciphstart;
+	u16 sc_more = 0;
 	u32 ivdrop = 0;
 	u32 esnlen = 0;
 	u32 wr_mid;
+	u16 ndesc;
 	int qidx = skb_get_queue_mapping(skb);
 	struct sge_eth_txq *q = &adap->sge.ethtxq[qidx + pi->first_qset];
 	unsigned int kctx_len = sa_entry->kctx_len;
@@ -544,22 +553,24 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 
 	atomic_inc(&adap->chcr_stats.ipsec_cnt);
 
-	flits = calc_tx_sec_flits(skb, sa_entry);
+	flits = calc_tx_sec_flits(skb, sa_entry, &immediate);
+	ndesc = DIV_ROUND_UP(flits, 2);
 	if (sa_entry->esn)
 		ivdrop = 1;
 
-	if (is_eth_imm(skb, sa_entry)) {
+	if (immediate)
 		immdatalen = skb->len;
-		sa_entry->imm = immdatalen;
-	}
 
-	if (sa_entry->esn)
+	if (sa_entry->esn) {
 		esnlen = sizeof(struct chcr_ipsec_aadiv);
+		if (!skb_is_nonlinear(skb))
+			sc_more  = 1;
+	}
 
 	/* WR Header */
 	wr = (struct chcr_ipsec_wr *)pos;
 	wr->wreq.op_to_compl = htonl(FW_WR_OP_V(FW_ULPTX_WR));
-	wr_mid = FW_CRYPTO_LOOKASIDE_WR_LEN16_V(DIV_ROUND_UP(flits, 2));
+	wr_mid = FW_CRYPTO_LOOKASIDE_WR_LEN16_V(ndesc);
 
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
 		netif_tx_stop_queue(q->txq);
@@ -571,10 +582,10 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 
 	/* ULPTX */
 	wr->req.ulptx.cmd_dest = FILL_ULPTX_CMD_DEST(pi->port_id, qid);
-	wr->req.ulptx.len = htonl(DIV_ROUND_UP(flits, 2)  - 1);
+	wr->req.ulptx.len = htonl(ndesc - 1);
 
 	/* Sub-command */
-	wr->req.sc_imm.cmd_more = FILL_CMD_MORE(!immdatalen);
+	wr->req.sc_imm.cmd_more = FILL_CMD_MORE(!immdatalen || sc_more);
 	wr->req.sc_imm.len = cpu_to_be32(sizeof(struct cpl_tx_sec_pdu) +
 					 sizeof(wr->req.key_ctx) +
 					 kctx_len +
@@ -697,7 +708,7 @@ out_free:       dev_kfree_skb_any(skb);
 
 	cxgb4_reclaim_completed_tx(adap, &q->q, true);
 
-	flits = calc_tx_sec_flits(skb, sa_entry);
+	flits = calc_tx_sec_flits(skb, sa_entry, &immediate);
 	ndesc = flits_to_desc(flits);
 	credits = txq_avail(&q->q) - ndesc;
 
@@ -709,9 +720,6 @@ out_free:       dev_kfree_skb_any(skb);
 			flits);
 		return NETDEV_TX_BUSY;
 	}
-
-	if (is_eth_imm(skb, sa_entry))
-		immediate = true;
 
 	if (!immediate &&
 	    unlikely(cxgb4_map_skb(adap->pdev_dev, skb, addr) < 0)) {

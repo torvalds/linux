@@ -35,6 +35,7 @@ static DECLARE_RWSEM(bpf_devs_lock);
 struct bpf_offload_dev {
 	const struct bpf_prog_offload_ops *ops;
 	struct list_head netdevs;
+	void *priv;
 };
 
 struct bpf_offload_netdev {
@@ -171,6 +172,41 @@ int bpf_prog_offload_finalize(struct bpf_verifier_env *env)
 	up_read(&bpf_devs_lock);
 
 	return ret;
+}
+
+void
+bpf_prog_offload_replace_insn(struct bpf_verifier_env *env, u32 off,
+			      struct bpf_insn *insn)
+{
+	const struct bpf_prog_offload_ops *ops;
+	struct bpf_prog_offload *offload;
+	int ret = -EOPNOTSUPP;
+
+	down_read(&bpf_devs_lock);
+	offload = env->prog->aux->offload;
+	if (offload) {
+		ops = offload->offdev->ops;
+		if (!offload->opt_failed && ops->replace_insn)
+			ret = ops->replace_insn(env, off, insn);
+		offload->opt_failed |= ret;
+	}
+	up_read(&bpf_devs_lock);
+}
+
+void
+bpf_prog_offload_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt)
+{
+	struct bpf_prog_offload *offload;
+	int ret = -EOPNOTSUPP;
+
+	down_read(&bpf_devs_lock);
+	offload = env->prog->aux->offload;
+	if (offload) {
+		if (!offload->opt_failed && offload->offdev->ops->remove_insns)
+			ret = offload->offdev->ops->remove_insns(env, off, cnt);
+		offload->opt_failed |= ret;
+	}
+	up_read(&bpf_devs_lock);
 }
 
 static void __bpf_prog_offload_destroy(struct bpf_prog *prog)
@@ -634,7 +670,7 @@ unlock:
 EXPORT_SYMBOL_GPL(bpf_offload_dev_netdev_unregister);
 
 struct bpf_offload_dev *
-bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops)
+bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops, void *priv)
 {
 	struct bpf_offload_dev *offdev;
 	int err;
@@ -653,6 +689,7 @@ bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops)
 		return ERR_PTR(-ENOMEM);
 
 	offdev->ops = ops;
+	offdev->priv = priv;
 	INIT_LIST_HEAD(&offdev->netdevs);
 
 	return offdev;
@@ -665,3 +702,9 @@ void bpf_offload_dev_destroy(struct bpf_offload_dev *offdev)
 	kfree(offdev);
 }
 EXPORT_SYMBOL_GPL(bpf_offload_dev_destroy);
+
+void *bpf_offload_dev_priv(struct bpf_offload_dev *offdev)
+{
+	return offdev->priv;
+}
+EXPORT_SYMBOL_GPL(bpf_offload_dev_priv);

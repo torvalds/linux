@@ -1259,7 +1259,7 @@ static bool atl1e_clean_tx_irq(struct atl1e_adapter *adapter)
 		}
 
 		if (tx_buffer->skb) {
-			dev_kfree_skb_irq(tx_buffer->skb);
+			dev_consume_skb_irq(tx_buffer->skb);
 			tx_buffer->skb = NULL;
 		}
 

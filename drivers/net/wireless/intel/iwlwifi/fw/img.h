@@ -105,6 +105,8 @@ struct iwl_ucode_capabilities {
 	u32 n_scan_channels;
 	u32 standard_phy_calibration_size;
 	u32 flags;
+	u32 error_log_addr;
+	u32 error_log_size;
 	unsigned long _api[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_API)];
 	unsigned long _capa[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_CAPA)];
 };
@@ -223,27 +225,24 @@ struct iwl_fw_dbg {
 };
 
 /**
+ * @tlv: the buffer allocation tlv
+ * @is_alloc: indicates if the buffer was already allocated
+ */
+struct iwl_fw_ini_allocation_data {
+	struct iwl_fw_ini_allocation_tlv tlv;
+	u32 is_alloc;
+} __packed;
+
+/**
  * struct iwl_fw_ini_active_triggers
  * @active: is this trigger active
- * @apply_point: last apply point that updated this trigger
- * @conf: active trigger
- * @conf_ext: second trigger, contains extra regions to dump
+ * @size: allocated memory size of the trigger
+ * @trig: trigger
  */
 struct iwl_fw_ini_active_triggers {
 	bool active;
-	enum iwl_fw_ini_apply_point apply_point;
-	struct iwl_fw_ini_trigger *conf;
-	struct iwl_fw_ini_trigger *conf_ext;
-};
-
-/**
- * struct iwl_fw_ini_active_regs
- * @reg: active region from TLV
- * @apply_point: apply point where it became active
- */
-struct iwl_fw_ini_active_regs {
-	struct iwl_fw_ini_region_cfg *reg;
-	enum iwl_fw_ini_apply_point apply_point;
+	size_t size;
+	struct iwl_fw_ini_trigger *trig;
 };
 
 /**

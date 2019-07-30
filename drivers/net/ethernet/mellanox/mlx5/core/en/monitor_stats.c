@@ -66,7 +66,7 @@ static int mlx5e_monitor_event_handler(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-void mlx5e_monitor_counter_start(struct mlx5e_priv *priv)
+static void mlx5e_monitor_counter_start(struct mlx5e_priv *priv)
 {
 	MLX5_NB_INIT(&priv->monitor_counters_nb, mlx5e_monitor_event_handler,
 		     MONITOR_COUNTER);

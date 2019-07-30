@@ -230,6 +230,7 @@ cleanup:
  * @cgrp: The cgroup which descendants to traverse
  * @prog: A program to attach
  * @type: Type of attach operation
+ * @flags: Option flags
  *
  * Must be called with cgroup_mutex held.
  */
@@ -363,7 +364,7 @@ cleanup:
  * Must be called with cgroup_mutex held.
  */
 int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
-			enum bpf_attach_type type, u32 unused_flags)
+			enum bpf_attach_type type)
 {
 	struct list_head *progs = &cgrp->bpf.progs[type];
 	enum bpf_cgroup_storage_type stype;

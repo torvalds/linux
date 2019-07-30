@@ -29,10 +29,11 @@ struct amdgpu_hive_info {
 	struct list_head	device_list;
 	struct psp_xgmi_topology_info	topology_info;
 	int number_devices;
-	struct mutex hive_lock;
+	struct mutex hive_lock,
+		     reset_lock;
 };
 
-struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev);
+struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev, int lock);
 int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_device *adev);
 int amdgpu_xgmi_add_device(struct amdgpu_device *adev);
 void amdgpu_xgmi_remove_device(struct amdgpu_device *adev);

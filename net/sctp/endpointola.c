@@ -107,6 +107,13 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 			auth_chunks->param_hdr.length =
 					htons(sizeof(struct sctp_paramhdr) + 2);
 		}
+
+		/* Allocate and initialize transorms arrays for supported
+		 * HMACs.
+		 */
+		err = sctp_auth_init_hmacs(ep, gfp);
+		if (err)
+			goto nomem;
 	}
 
 	/* Initialize the base structure. */
@@ -150,14 +157,9 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	INIT_LIST_HEAD(&ep->endpoint_shared_keys);
 	null_key = sctp_auth_shkey_create(0, gfp);
 	if (!null_key)
-		goto nomem;
+		goto nomem_shkey;
 
 	list_add(&null_key->key_list, &ep->endpoint_shared_keys);
-
-	/* Allocate and initialize transorms arrays for supported HMACs. */
-	err = sctp_auth_init_hmacs(ep, gfp);
-	if (err)
-		goto nomem_hmacs;
 
 	/* Add the null key to the endpoint shared keys list and
 	 * set the hmcas and chunks pointers.
@@ -169,8 +171,8 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 
 	return ep;
 
-nomem_hmacs:
-	sctp_auth_destroy_keys(&ep->endpoint_shared_keys);
+nomem_shkey:
+	sctp_auth_destroy_hmacs(ep->auth_hmacs);
 nomem:
 	/* Free all allocations */
 	kfree(auth_hmacs);

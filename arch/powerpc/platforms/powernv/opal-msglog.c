@@ -98,7 +98,7 @@ static ssize_t opal_msglog_read(struct file *file, struct kobject *kobj,
 }
 
 static struct bin_attribute opal_msglog_attr = {
-	.attr = {.name = "msglog", .mode = 0444},
+	.attr = {.name = "msglog", .mode = 0400},
 	.read = opal_msglog_read
 };
 

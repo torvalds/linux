@@ -626,7 +626,7 @@ nv50_wndw_new(struct nouveau_drm *drm, enum drm_plane_type type, int index,
 		int (*new)(struct nouveau_drm *, enum drm_plane_type,
 			   int, s32, struct nv50_wndw **);
 	} wndws[] = {
-		{ TU104_DISP_WINDOW_CHANNEL_DMA, 0, wndwc57e_new },
+		{ TU102_DISP_WINDOW_CHANNEL_DMA, 0, wndwc57e_new },
 		{ GV100_DISP_WINDOW_CHANNEL_DMA, 0, wndwc37e_new },
 		{}
 	};

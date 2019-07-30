@@ -39,11 +39,15 @@
 #include <linux/idr.h>
 #include <linux/elf.h>
 #include <linux/crc32.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/virtio_ids.h>
 #include <linux/virtio_ring.h>
 #include <asm/byteorder.h>
+#include <linux/platform_device.h>
 
 #include "remoteproc_internal.h"
+
+#define HIGH_BITS_MASK 0xFFFFFFFF00000000ULL
 
 static DEFINE_MUTEX(rproc_list_mutex);
 static LIST_HEAD(rproc_list);
@@ -145,7 +149,7 @@ static void rproc_disable_iommu(struct rproc *rproc)
 	iommu_domain_free(domain);
 }
 
-static phys_addr_t rproc_va_to_pa(void *cpu_addr)
+phys_addr_t rproc_va_to_pa(void *cpu_addr)
 {
 	/*
 	 * Return physical address according to virtual address location
@@ -160,6 +164,7 @@ static phys_addr_t rproc_va_to_pa(void *cpu_addr)
 	WARN_ON(!virt_addr_valid(cpu_addr));
 	return virt_to_phys(cpu_addr);
 }
+EXPORT_SYMBOL(rproc_va_to_pa);
 
 /**
  * rproc_da_to_va() - lookup the kernel virtual address for a remoteproc address
@@ -203,6 +208,10 @@ void *rproc_da_to_va(struct rproc *rproc, u64 da, int len)
 
 	list_for_each_entry(carveout, &rproc->carveouts, node) {
 		int offset = da - carveout->da;
+
+		/*  Verify that carveout is allocated */
+		if (!carveout->va)
+			continue;
 
 		/* try next carveout if da is too small */
 		if (offset < 0)
@@ -272,25 +281,27 @@ rproc_find_carveout_by_name(struct rproc *rproc, const char *name, ...)
  * @len: associated area size
  *
  * This function is a helper function to verify requested device area (couple
- * da, len) is part of specified carevout.
+ * da, len) is part of specified carveout.
+ * If da is not set (defined as FW_RSC_ADDR_ANY), only requested length is
+ * checked.
  *
- * Return: 0 if carveout match request else -ENOMEM
+ * Return: 0 if carveout matches request else error
  */
-int rproc_check_carveout_da(struct rproc *rproc, struct rproc_mem_entry *mem,
-			    u32 da, u32 len)
+static int rproc_check_carveout_da(struct rproc *rproc,
+				   struct rproc_mem_entry *mem, u32 da, u32 len)
 {
 	struct device *dev = &rproc->dev;
-	int delta = 0;
+	int delta;
 
 	/* Check requested resource length */
 	if (len > mem->len) {
 		dev_err(dev, "Registered carveout doesn't fit len request\n");
-		return -ENOMEM;
+		return -EINVAL;
 	}
 
 	if (da != FW_RSC_ADDR_ANY && mem->da == FW_RSC_ADDR_ANY) {
-		/* Update existing carveout da */
-		mem->da = da;
+		/* Address doesn't match registered carveout configuration */
+		return -EINVAL;
 	} else if (da != FW_RSC_ADDR_ANY && mem->da != FW_RSC_ADDR_ANY) {
 		delta = da - mem->da;
 
@@ -298,13 +309,13 @@ int rproc_check_carveout_da(struct rproc *rproc, struct rproc_mem_entry *mem,
 		if (delta < 0) {
 			dev_err(dev,
 				"Registered carveout doesn't fit da request\n");
-			return -ENOMEM;
+			return -EINVAL;
 		}
 
 		if (delta + len > mem->len) {
 			dev_err(dev,
 				"Registered carveout doesn't fit len request\n");
-			return -ENOMEM;
+			return -EINVAL;
 		}
 	}
 
@@ -418,8 +429,25 @@ static int rproc_vdev_do_start(struct rproc_subdev *subdev)
 static void rproc_vdev_do_stop(struct rproc_subdev *subdev, bool crashed)
 {
 	struct rproc_vdev *rvdev = container_of(subdev, struct rproc_vdev, subdev);
+	int ret;
 
-	rproc_remove_virtio_dev(rvdev);
+	ret = device_for_each_child(&rvdev->dev, NULL, rproc_remove_virtio_dev);
+	if (ret)
+		dev_warn(&rvdev->dev, "can't remove vdev child device: %d\n", ret);
+}
+
+/**
+ * rproc_rvdev_release() - release the existence of a rvdev
+ *
+ * @dev: the subdevice's dev
+ */
+static void rproc_rvdev_release(struct device *dev)
+{
+	struct rproc_vdev *rvdev = container_of(dev, struct rproc_vdev, dev);
+
+	of_reserved_mem_device_release(dev);
+
+	kfree(rvdev);
 }
 
 /**
@@ -455,6 +483,7 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 	struct device *dev = &rproc->dev;
 	struct rproc_vdev *rvdev;
 	int i, ret;
+	char name[16];
 
 	/* make sure resource isn't truncated */
 	if (sizeof(*rsc) + rsc->num_of_vrings * sizeof(struct fw_rsc_vdev_vring)
@@ -488,6 +517,29 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 	rvdev->rproc = rproc;
 	rvdev->index = rproc->nb_vdev++;
 
+	/* Initialise vdev subdevice */
+	snprintf(name, sizeof(name), "vdev%dbuffer", rvdev->index);
+	rvdev->dev.parent = rproc->dev.parent;
+	rvdev->dev.release = rproc_rvdev_release;
+	dev_set_name(&rvdev->dev, "%s#%s", dev_name(rvdev->dev.parent), name);
+	dev_set_drvdata(&rvdev->dev, rvdev);
+
+	ret = device_register(&rvdev->dev);
+	if (ret) {
+		put_device(&rvdev->dev);
+		return ret;
+	}
+	/* Make device dma capable by inheriting from parent's capabilities */
+	set_dma_ops(&rvdev->dev, get_dma_ops(rproc->dev.parent));
+
+	ret = dma_coerce_mask_and_coherent(&rvdev->dev,
+					   dma_get_mask(rproc->dev.parent));
+	if (ret) {
+		dev_warn(dev,
+			 "Failed to set DMA mask %llx. Trying to continue... %x\n",
+			 dma_get_mask(rproc->dev.parent), ret);
+	}
+
 	/* parse the vrings */
 	for (i = 0; i < rsc->num_of_vrings; i++) {
 		ret = rproc_parse_vring(rvdev, rsc, i);
@@ -518,7 +570,7 @@ unwind_vring_allocations:
 	for (i--; i >= 0; i--)
 		rproc_free_vring(&rvdev->vring[i]);
 free_rvdev:
-	kfree(rvdev);
+	device_unregister(&rvdev->dev);
 	return ret;
 }
 
@@ -536,7 +588,7 @@ void rproc_vdev_release(struct kref *ref)
 
 	rproc_remove_subdev(rproc, &rvdev->subdev);
 	list_del(&rvdev->node);
-	kfree(rvdev);
+	device_unregister(&rvdev->dev);
 }
 
 /**
@@ -558,9 +610,8 @@ void rproc_vdev_release(struct kref *ref)
 static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 			      int offset, int avail)
 {
-	struct rproc_mem_entry *trace;
+	struct rproc_debug_trace *trace;
 	struct device *dev = &rproc->dev;
-	void *ptr;
 	char name[15];
 
 	if (sizeof(*rsc) > avail) {
@@ -574,28 +625,23 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 		return -EINVAL;
 	}
 
-	/* what's the kernel address of this resource ? */
-	ptr = rproc_da_to_va(rproc, rsc->da, rsc->len);
-	if (!ptr) {
-		dev_err(dev, "erroneous trace resource entry\n");
-		return -EINVAL;
-	}
-
 	trace = kzalloc(sizeof(*trace), GFP_KERNEL);
 	if (!trace)
 		return -ENOMEM;
 
 	/* set the trace buffer dma properties */
-	trace->len = rsc->len;
-	trace->va = ptr;
+	trace->trace_mem.len = rsc->len;
+	trace->trace_mem.da = rsc->da;
+
+	/* set pointer on rproc device */
+	trace->rproc = rproc;
 
 	/* make sure snprintf always null terminates, even if truncating */
 	snprintf(name, sizeof(name), "trace%d", rproc->num_traces);
 
 	/* create the debugfs entry */
-	trace->priv = rproc_create_trace_file(name, rproc, trace);
-	if (!trace->priv) {
-		trace->va = NULL;
+	trace->tfile = rproc_create_trace_file(name, rproc, trace);
+	if (!trace->tfile) {
 		kfree(trace);
 		return -EINVAL;
 	}
@@ -604,8 +650,8 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 
 	rproc->num_traces++;
 
-	dev_dbg(dev, "%s added: va %pK, da 0x%x, len 0x%x\n",
-		name, ptr, rsc->da, rsc->len);
+	dev_dbg(dev, "%s added: da 0x%x, len 0x%x\n",
+		name, rsc->da, rsc->len);
 
 	return 0;
 }
@@ -715,6 +761,18 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 	dev_dbg(dev, "carveout va %pK, dma %pad, len 0x%x\n",
 		va, &dma, mem->len);
 
+	if (mem->da != FW_RSC_ADDR_ANY && !rproc->domain) {
+		/*
+		 * Check requested da is equal to dma address
+		 * and print a warn message in case of missalignment.
+		 * Don't stop rproc_start sequence as coprocessor may
+		 * build pa to da translation on its side.
+		 */
+		if (mem->da != (u32)dma)
+			dev_warn(dev->parent,
+				 "Allocated carveout doesn't fit device address request\n");
+	}
+
 	/*
 	 * Ok, this is non-standard.
 	 *
@@ -732,15 +790,7 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 	 * to use the iommu-based DMA API: we expect 'dma' to contain the
 	 * physical address in this case.
 	 */
-
-	if (mem->da != FW_RSC_ADDR_ANY) {
-		if (!rproc->domain) {
-			dev_err(dev->parent,
-				"Bad carveout rsc configuration\n");
-			ret = -ENOMEM;
-			goto dma_free;
-		}
-
+	if (mem->da != FW_RSC_ADDR_ANY && rproc->domain) {
 		mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
 		if (!mapping) {
 			ret = -ENOMEM;
@@ -767,11 +817,17 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 
 		dev_dbg(dev, "carveout mapped 0x%x to %pad\n",
 			mem->da, &dma);
-	} else {
+	}
+
+	if (mem->da == FW_RSC_ADDR_ANY) {
+		/* Update device address as undefined by requester */
+		if ((u64)dma & HIGH_BITS_MASK)
+			dev_warn(dev, "DMA address cast in 32bit to fit resource table format\n");
+
 		mem->da = (u32)dma;
 	}
 
-	mem->dma = (u32)dma;
+	mem->dma = dma;
 	mem->va = va;
 
 	return 0;
@@ -900,7 +956,8 @@ EXPORT_SYMBOL(rproc_add_carveout);
  * @dma: dma address
  * @len: memory carveout length
  * @da: device address
- * @release: memory carveout function
+ * @alloc: memory carveout allocation function
+ * @release: memory carveout release function
  * @name: carveout name
  *
  * This function allocates a rproc_mem_entry struct and fill it with parameters
@@ -1110,6 +1167,7 @@ static int rproc_alloc_registered_carveouts(struct rproc *rproc)
 	struct rproc_mem_entry *entry, *tmp;
 	struct fw_rsc_carveout *rsc;
 	struct device *dev = &rproc->dev;
+	u64 pa;
 	int ret;
 
 	list_for_each_entry_safe(entry, tmp, &rproc->carveouts, node) {
@@ -1146,10 +1204,15 @@ static int rproc_alloc_registered_carveouts(struct rproc *rproc)
 
 			/* Use va if defined else dma to generate pa */
 			if (entry->va)
-				rsc->pa = (u32)rproc_va_to_pa(entry->va);
+				pa = (u64)rproc_va_to_pa(entry->va);
 			else
-				rsc->pa = (u32)entry->dma;
+				pa = (u64)entry->dma;
 
+			if (((u64)pa) & HIGH_BITS_MASK)
+				dev_warn(dev,
+					 "Physical address cast in 32bit to fit resource table format\n");
+
+			rsc->pa = (u32)pa;
 			rsc->da = entry->da;
 			rsc->len = entry->len;
 		}
@@ -1182,15 +1245,16 @@ static void rproc_coredump_cleanup(struct rproc *rproc)
 static void rproc_resource_cleanup(struct rproc *rproc)
 {
 	struct rproc_mem_entry *entry, *tmp;
+	struct rproc_debug_trace *trace, *ttmp;
 	struct rproc_vdev *rvdev, *rvtmp;
 	struct device *dev = &rproc->dev;
 
 	/* clean up debugfs trace entries */
-	list_for_each_entry_safe(entry, tmp, &rproc->traces, node) {
-		rproc_remove_trace_file(entry->priv);
+	list_for_each_entry_safe(trace, ttmp, &rproc->traces, node) {
+		rproc_remove_trace_file(trace->tfile);
 		rproc->num_traces--;
-		list_del(&entry->node);
-		kfree(entry);
+		list_del(&trace->node);
+		kfree(trace);
 	}
 
 	/* clean up iommu mapping entries */

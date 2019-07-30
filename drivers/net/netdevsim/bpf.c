@@ -248,7 +248,7 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 
 static int nsim_bpf_verifier_prep(struct bpf_prog *prog)
 {
-	struct netdevsim *ns = netdev_priv(prog->aux->offload->netdev);
+	struct netdevsim *ns = bpf_offload_dev_priv(prog->aux->offload->offdev);
 
 	if (!ns->bpf_bind_accept)
 		return -EOPNOTSUPP;
@@ -589,7 +589,8 @@ int nsim_bpf_init(struct netdevsim *ns)
 		if (IS_ERR_OR_NULL(ns->sdev->ddir_bpf_bound_progs))
 			return -ENOMEM;
 
-		ns->sdev->bpf_dev = bpf_offload_dev_create(&nsim_bpf_dev_ops);
+		ns->sdev->bpf_dev = bpf_offload_dev_create(&nsim_bpf_dev_ops,
+							   ns);
 		err = PTR_ERR_OR_ZERO(ns->sdev->bpf_dev);
 		if (err)
 			return err;

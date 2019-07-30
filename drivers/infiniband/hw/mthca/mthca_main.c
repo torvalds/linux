@@ -961,7 +961,7 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 	/* We can handle large RDMA requests, so allow larger segments. */
 	dma_set_max_seg_size(&pdev->dev, 1024 * 1024 * 1024);
 
-	mdev = (struct mthca_dev *) ib_alloc_device(sizeof *mdev);
+	mdev = ib_alloc_device(mthca_dev, ib_dev);
 	if (!mdev) {
 		dev_err(&pdev->dev, "Device struct alloc failed, "
 			"aborting.\n");

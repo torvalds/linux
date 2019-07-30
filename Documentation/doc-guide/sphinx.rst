@@ -27,8 +27,8 @@ Sphinx Install
 ==============
 
 The ReST markups currently used by the Documentation/ files are meant to be
-built with ``Sphinx`` version 1.3 or upper. If you're desiring to build
-PDF outputs, it is recommended to use version 1.4.6 or upper.
+built with ``Sphinx`` version 1.3 or higher. If you desire to build
+PDF output, it is recommended to use version 1.4.6 or higher.
 
 There's a script that checks for the Sphinx requirements. Please see
 :ref:`sphinx-pre-install` for further details.
@@ -37,15 +37,15 @@ Most distributions are shipped with Sphinx, but its toolchain is fragile,
 and it is not uncommon that upgrading it or some other Python packages
 on your machine would cause the documentation build to break.
 
-A way to get rid of that is to use a different version than the one shipped
-on your distributions. In order to do that, it is recommended to install
+A way to avoid that is to use a different version than the one shipped
+with your distributions. In order to do so, it is recommended to install
 Sphinx inside a virtual environment, using ``virtualenv-3``
 or ``virtualenv``, depending on how your distribution packaged Python 3.
 
 .. note::
 
    #) Sphinx versions below 1.5 don't work properly with Python's
-      docutils version 0.13.1 or upper. So, if you're willing to use
+      docutils version 0.13.1 or higher. So, if you're willing to use
       those versions, you should run ``pip install 'docutils==0.12'``.
 
    #) It is recommended to use the RTD theme for html output. Depending
@@ -82,7 +82,7 @@ output.
 PDF and LaTeX builds
 --------------------
 
-Such builds are currently supported only with Sphinx versions 1.4 and upper.
+Such builds are currently supported only with Sphinx versions 1.4 and higher.
 
 For PDF and LaTeX output, you'll also need ``XeLaTeX`` version 3.14159265.
 

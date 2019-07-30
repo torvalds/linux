@@ -27,16 +27,22 @@
 
 #include "dm_services_types.h"
 
+/* If HW itself ever powered down it will be 0.
+ * fwDmcuInit will write to 1.
+ * Driver will only call MCP init if current state is 1,
+ * and the MCP command will transition this to 2.
+ */
 enum dmcu_state {
-	DMCU_NOT_INITIALIZED = 0,
-	DMCU_RUNNING = 1
+	DMCU_UNLOADED = 0,
+	DMCU_LOADED_UNINITIALIZED = 1,
+	DMCU_RUNNING = 2,
 };
 
 struct dmcu_version {
-	unsigned int date;
-	unsigned int month;
-	unsigned int year;
 	unsigned int interface_version;
+	unsigned int abm_version;
+	unsigned int psr_version;
+	unsigned int build_version;
 };
 
 struct dmcu {

@@ -169,8 +169,8 @@ struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id)
 
 	rcu_read_lock_bh();
 	list_for_each_entry_rcu(tunnel, &pn->l2tp_tunnel_list, list) {
-		if (tunnel->tunnel_id == tunnel_id) {
-			l2tp_tunnel_inc_refcount(tunnel);
+		if (tunnel->tunnel_id == tunnel_id &&
+		    refcount_inc_not_zero(&tunnel->ref_count)) {
 			rcu_read_unlock_bh();
 
 			return tunnel;
@@ -190,8 +190,8 @@ struct l2tp_tunnel *l2tp_tunnel_get_nth(const struct net *net, int nth)
 
 	rcu_read_lock_bh();
 	list_for_each_entry_rcu(tunnel, &pn->l2tp_tunnel_list, list) {
-		if (++count > nth) {
-			l2tp_tunnel_inc_refcount(tunnel);
+		if (++count > nth &&
+		    refcount_inc_not_zero(&tunnel->ref_count)) {
 			rcu_read_unlock_bh();
 			return tunnel;
 		}
@@ -909,7 +909,7 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct l2tp_tunnel *tunnel;
 
-	tunnel = l2tp_tunnel(sk);
+	tunnel = rcu_dereference_sk_user_data(sk);
 	if (tunnel == NULL)
 		goto pass_up;
 

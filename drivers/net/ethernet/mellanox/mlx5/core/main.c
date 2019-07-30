@@ -65,6 +65,7 @@
 #include "lib/vxlan.h"
 #include "lib/devcom.h"
 #include "diag/fw_tracer.h"
+#include "ecpf.h"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox 5th generation network adapters (ConnectX series) core driver");
@@ -162,26 +163,6 @@ static struct mlx5_profile profile[] = {
 		.mr_cache[15]	= {
 			.size	= 8,
 			.limit	= 4
-		},
-		.mr_cache[16]	= {
-			.size	= 8,
-			.limit	= 4
-		},
-		.mr_cache[17]	= {
-			.size	= 8,
-			.limit	= 4
-		},
-		.mr_cache[18]	= {
-			.size	= 8,
-			.limit	= 4
-		},
-		.mr_cache[19]	= {
-			.size	= 4,
-			.limit	= 2
-		},
-		.mr_cache[20]	= {
-			.size	= 4,
-			.limit	= 2
 		},
 	},
 };
@@ -459,6 +440,58 @@ static int handle_hca_cap_atomic(struct mlx5_core_dev *dev)
 	return err;
 }
 
+static int handle_hca_cap_odp(struct mlx5_core_dev *dev)
+{
+	void *set_hca_cap;
+	void *set_ctx;
+	int set_sz;
+	bool do_set = false;
+	int err;
+
+	if (!IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING) ||
+	    !MLX5_CAP_GEN(dev, pg))
+		return 0;
+
+	err = mlx5_core_get_caps(dev, MLX5_CAP_ODP);
+	if (err)
+		return err;
+
+	set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
+	set_ctx = kzalloc(set_sz, GFP_KERNEL);
+	if (!set_ctx)
+		return -ENOMEM;
+
+	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability);
+	memcpy(set_hca_cap, dev->caps.hca_cur[MLX5_CAP_ODP],
+	       MLX5_ST_SZ_BYTES(odp_cap));
+
+#define ODP_CAP_SET_MAX(dev, field)                                            \
+	do {                                                                   \
+		u32 _res = MLX5_CAP_ODP_MAX(dev, field);                       \
+		if (_res) {                                                    \
+			do_set = true;                                         \
+			MLX5_SET(odp_cap, set_hca_cap, field, _res);           \
+		}                                                              \
+	} while (0)
+
+	ODP_CAP_SET_MAX(dev, ud_odp_caps.srq_receive);
+	ODP_CAP_SET_MAX(dev, rc_odp_caps.srq_receive);
+	ODP_CAP_SET_MAX(dev, xrc_odp_caps.srq_receive);
+	ODP_CAP_SET_MAX(dev, xrc_odp_caps.send);
+	ODP_CAP_SET_MAX(dev, xrc_odp_caps.receive);
+	ODP_CAP_SET_MAX(dev, xrc_odp_caps.write);
+	ODP_CAP_SET_MAX(dev, xrc_odp_caps.read);
+	ODP_CAP_SET_MAX(dev, xrc_odp_caps.atomic);
+
+	if (do_set)
+		err = set_caps(dev, set_ctx, set_sz,
+			       MLX5_SET_HCA_CAP_OP_MOD_ODP);
+
+	kfree(set_ctx);
+
+	return err;
+}
+
 static int handle_hca_cap(struct mlx5_core_dev *dev)
 {
 	void *set_ctx = NULL;
@@ -532,6 +565,33 @@ query_ex:
 	return err;
 }
 
+static int set_hca_cap(struct mlx5_core_dev *dev)
+{
+	struct pci_dev *pdev = dev->pdev;
+	int err;
+
+	err = handle_hca_cap(dev);
+	if (err) {
+		dev_err(&pdev->dev, "handle_hca_cap failed\n");
+		goto out;
+	}
+
+	err = handle_hca_cap_atomic(dev);
+	if (err) {
+		dev_err(&pdev->dev, "handle_hca_cap_atomic failed\n");
+		goto out;
+	}
+
+	err = handle_hca_cap_odp(dev);
+	if (err) {
+		dev_err(&pdev->dev, "handle_hca_cap_odp failed\n");
+		goto out;
+	}
+
+out:
+	return err;
+}
+
 static int set_hca_ctrl(struct mlx5_core_dev *dev)
 {
 	struct mlx5_reg_host_endianness he_in;
@@ -567,6 +627,8 @@ int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id)
 
 	MLX5_SET(enable_hca_in, in, opcode, MLX5_CMD_OP_ENABLE_HCA);
 	MLX5_SET(enable_hca_in, in, function_id, func_id);
+	MLX5_SET(enable_hca_in, in, embedded_cpu_function,
+		 dev->caps.embedded_cpu);
 	return mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
 }
 
@@ -577,6 +639,8 @@ int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id)
 
 	MLX5_SET(disable_hca_in, in, opcode, MLX5_CMD_OP_DISABLE_HCA);
 	MLX5_SET(disable_hca_in, in, function_id, func_id);
+	MLX5_SET(enable_hca_in, in, embedded_cpu_function,
+		 dev->caps.embedded_cpu);
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
@@ -692,6 +756,11 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		dev_err(&pdev->dev, "Failed setting DMA capabilities mask, aborting\n");
 		goto err_clr_master;
 	}
+
+	if (pci_enable_atomic_ops_to_root(pdev, PCI_EXP_DEVCAP2_ATOMIC_COMP32) &&
+	    pci_enable_atomic_ops_to_root(pdev, PCI_EXP_DEVCAP2_ATOMIC_COMP64) &&
+	    pci_enable_atomic_ops_to_root(pdev, PCI_EXP_DEVCAP2_ATOMIC_COMP128))
+		mlx5_core_dbg(dev, "Enabling pci atomics failed\n");
 
 	dev->iseg_base = pci_resource_start(dev->pdev, 0);
 	dev->iseg = ioremap(dev->iseg_base, sizeof(*dev->iseg));
@@ -849,6 +918,7 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	struct pci_dev *pdev = dev->pdev;
 	int err;
 
+	dev->caps.embedded_cpu = mlx5_read_embedded_cpu(dev);
 	mutex_lock(&dev->intf_state_mutex);
 	if (test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
 		dev_warn(&dev->pdev->dev, "%s: interface is up, NOP\n",
@@ -914,15 +984,9 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto reclaim_boot_pages;
 	}
 
-	err = handle_hca_cap(dev);
+	err = set_hca_cap(dev);
 	if (err) {
-		dev_err(&pdev->dev, "handle_hca_cap failed\n");
-		goto reclaim_boot_pages;
-	}
-
-	err = handle_hca_cap_atomic(dev);
-	if (err) {
-		dev_err(&pdev->dev, "handle_hca_cap_atomic failed\n");
+		dev_err(&pdev->dev, "set_hca_cap failed\n");
 		goto reclaim_boot_pages;
 	}
 
@@ -1014,6 +1078,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_sriov;
 	}
 
+	err = mlx5_ec_init(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init embedded CPU\n");
+		goto err_ec;
+	}
+
 	if (mlx5_device_registered(dev)) {
 		mlx5_attach_device(dev);
 	} else {
@@ -1031,6 +1101,9 @@ out:
 	return 0;
 
 err_reg_dev:
+	mlx5_ec_cleanup(dev);
+
+err_ec:
 	mlx5_sriov_detach(dev);
 
 err_sriov:
@@ -1105,6 +1178,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	if (mlx5_device_registered(dev))
 		mlx5_detach_device(dev);
 
+	mlx5_ec_cleanup(dev);
 	mlx5_sriov_detach(dev);
 	mlx5_cleanup_fs(dev);
 	mlx5_accel_ipsec_cleanup(dev);
@@ -1415,6 +1489,8 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0x101a), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 Ex VF */
 	{ PCI_VDEVICE(MELLANOX, 0x101b) },			/* ConnectX-6 */
 	{ PCI_VDEVICE(MELLANOX, 0x101c), MLX5_PCI_DEV_IS_VF},	/* ConnectX-6 VF */
+	{ PCI_VDEVICE(MELLANOX, 0x101d) },			/* ConnectX-6 Dx */
+	{ PCI_VDEVICE(MELLANOX, 0x101e), MLX5_PCI_DEV_IS_VF},	/* ConnectX Family mlx5Gen Virtual Function */
 	{ PCI_VDEVICE(MELLANOX, 0xa2d2) },			/* BlueField integrated ConnectX-5 network controller */
 	{ PCI_VDEVICE(MELLANOX, 0xa2d3), MLX5_PCI_DEV_IS_VF},	/* BlueField integrated ConnectX-5 network controller VF */
 	{ 0, }

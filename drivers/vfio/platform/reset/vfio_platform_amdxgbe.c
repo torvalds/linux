@@ -25,7 +25,7 @@
 #include <uapi/linux/mdio.h>
 #include <linux/delay.h>
 
-#include "vfio_platform_private.h"
+#include "../vfio_platform_private.h"
 
 #define DMA_MR			0x3000
 #define MAC_VR			0x0110

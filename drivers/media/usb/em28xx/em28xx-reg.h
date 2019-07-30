@@ -67,7 +67,7 @@
 #define EM28XX_I2C_CLK_WAIT_ENABLE	0x40
 #define EM28XX_I2C_EEPROM_ON_BOARD	0x08
 #define EM28XX_I2C_EEPROM_KEY_VALID	0x04
-#define EM2874_I2C_SECONDARY_BUS_SELECT	0x04 /* em2874 has two i2c busses */
+#define EM2874_I2C_SECONDARY_BUS_SELECT	0x04 /* em2874 has two i2c buses */
 #define EM28XX_I2C_FREQ_1_5_MHZ		0x03 /* bus frequency (bits [1-0]) */
 #define EM28XX_I2C_FREQ_25_KHZ		0x02
 #define EM28XX_I2C_FREQ_400_KHZ		0x01

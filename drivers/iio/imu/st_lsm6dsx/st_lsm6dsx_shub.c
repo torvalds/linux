@@ -105,12 +105,10 @@ static void st_lsm6dsx_shub_wait_complete(struct st_lsm6dsx_hw *hw)
 static int st_lsm6dsx_shub_read_reg(struct st_lsm6dsx_hw *hw, u8 addr,
 				    u8 *data, int len)
 {
-	const struct st_lsm6dsx_shub_settings *hub_settings;
 	int err;
 
 	mutex_lock(&hw->page_lock);
 
-	hub_settings = &hw->settings->shub_settings;
 	err = st_lsm6dsx_set_page(hw, true);
 	if (err < 0)
 		goto out;

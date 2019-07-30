@@ -317,10 +317,10 @@ struct oabi_sembuf {
 asmlinkage long sys_oabi_semtimedop(int semid,
 				    struct oabi_sembuf __user *tsops,
 				    unsigned nsops,
-				    const struct timespec __user *timeout)
+				    const struct old_timespec32 __user *timeout)
 {
 	struct sembuf *sops;
-	struct timespec local_timeout;
+	struct old_timespec32 local_timeout;
 	long err;
 	int i;
 
@@ -350,7 +350,7 @@ asmlinkage long sys_oabi_semtimedop(int semid,
 	} else {
 		mm_segment_t fs = get_fs();
 		set_fs(KERNEL_DS);
-		err = sys_semtimedop(semid, sops, nsops, timeout);
+		err = sys_semtimedop_time32(semid, sops, nsops, timeout);
 		set_fs(fs);
 	}
 	kfree(sops);
@@ -375,7 +375,7 @@ asmlinkage int sys_oabi_ipc(uint call, int first, int second, int third,
 		return  sys_oabi_semtimedop(first,
 					    (struct oabi_sembuf __user *)ptr,
 					    second,
-					    (const struct timespec __user *)fifth);
+					    (const struct old_timespec32 __user *)fifth);
 	default:
 		return sys_ipc(call, first, second, third, ptr, fifth);
 	}

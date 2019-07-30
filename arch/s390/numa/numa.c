@@ -58,18 +58,6 @@ EXPORT_SYMBOL(__node_distance);
 int numa_debug_enabled;
 
 /*
- * alloc_node_data() - Allocate node data
- */
-static __init pg_data_t *alloc_node_data(void)
-{
-	pg_data_t *res;
-
-	res = (pg_data_t *) memblock_phys_alloc(sizeof(pg_data_t), 8);
-	memset(res, 0, sizeof(pg_data_t));
-	return res;
-}
-
-/*
  * numa_setup_memory() - Assign bootmem to nodes
  *
  * The memory is first added to memblock without any respect to nodes.
@@ -104,8 +92,12 @@ static void __init numa_setup_memory(void)
 	} while (cur_base < end_of_dram);
 
 	/* Allocate and fill out node_data */
-	for (nid = 0; nid < MAX_NUMNODES; nid++)
-		NODE_DATA(nid) = alloc_node_data();
+	for (nid = 0; nid < MAX_NUMNODES; nid++) {
+		NODE_DATA(nid) = memblock_alloc(sizeof(pg_data_t), 8);
+		if (!NODE_DATA(nid))
+			panic("%s: Failed to allocate %zu bytes align=0x%x\n",
+			      __func__, sizeof(pg_data_t), 8);
+	}
 
 	for_each_online_node(nid) {
 		unsigned long start_pfn, end_pfn;

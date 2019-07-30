@@ -629,40 +629,22 @@ out:
 	return count;
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, temp1_input_show, NULL, 0);
-static SENSOR_DEVICE_ATTR(humidity1_input, S_IRUGO, humidity1_input_show,
-			  NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO | S_IWUSR,
-			  temp1_limit_show, temp1_limit_store,
-			  limit_max);
-static SENSOR_DEVICE_ATTR(humidity1_max, S_IRUGO | S_IWUSR,
-			  humidity1_limit_show, humidity1_limit_store,
-			  limit_max);
-static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IRUGO | S_IWUSR,
-			  temp1_limit_show, temp1_limit_store,
-			  limit_max_hyst);
-static SENSOR_DEVICE_ATTR(humidity1_max_hyst, S_IRUGO | S_IWUSR,
-			  humidity1_limit_show, humidity1_limit_store,
-			  limit_max_hyst);
-static SENSOR_DEVICE_ATTR(temp1_min, S_IRUGO | S_IWUSR,
-			  temp1_limit_show, temp1_limit_store,
-			  limit_min);
-static SENSOR_DEVICE_ATTR(humidity1_min, S_IRUGO | S_IWUSR,
-			  humidity1_limit_show, humidity1_limit_store,
-			  limit_min);
-static SENSOR_DEVICE_ATTR(temp1_min_hyst, S_IRUGO | S_IWUSR,
-			  temp1_limit_show, temp1_limit_store,
-			  limit_min_hyst);
-static SENSOR_DEVICE_ATTR(humidity1_min_hyst, S_IRUGO | S_IWUSR,
-			  humidity1_limit_show, humidity1_limit_store,
-			  limit_min_hyst);
-static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, temp1_alarm_show, NULL, 0);
-static SENSOR_DEVICE_ATTR(humidity1_alarm, S_IRUGO, humidity1_alarm_show,
-			  NULL, 0);
-static SENSOR_DEVICE_ATTR(heater_enable, S_IRUGO | S_IWUSR,
-			  heater_enable_show, heater_enable_store, 0);
-static SENSOR_DEVICE_ATTR(update_interval, S_IRUGO | S_IWUSR,
-			  update_interval_show, update_interval_store, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp1_input, 0);
+static SENSOR_DEVICE_ATTR_RO(humidity1_input, humidity1_input, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, temp1_limit, limit_max);
+static SENSOR_DEVICE_ATTR_RW(humidity1_max, humidity1_limit, limit_max);
+static SENSOR_DEVICE_ATTR_RW(temp1_max_hyst, temp1_limit, limit_max_hyst);
+static SENSOR_DEVICE_ATTR_RW(humidity1_max_hyst, humidity1_limit,
+			     limit_max_hyst);
+static SENSOR_DEVICE_ATTR_RW(temp1_min, temp1_limit, limit_min);
+static SENSOR_DEVICE_ATTR_RW(humidity1_min, humidity1_limit, limit_min);
+static SENSOR_DEVICE_ATTR_RW(temp1_min_hyst, temp1_limit, limit_min_hyst);
+static SENSOR_DEVICE_ATTR_RW(humidity1_min_hyst, humidity1_limit,
+			     limit_min_hyst);
+static SENSOR_DEVICE_ATTR_RO(temp1_alarm, temp1_alarm, 0);
+static SENSOR_DEVICE_ATTR_RO(humidity1_alarm, humidity1_alarm, 0);
+static SENSOR_DEVICE_ATTR_RW(heater_enable, heater_enable, 0);
+static SENSOR_DEVICE_ATTR_RW(update_interval, update_interval, 0);
 
 static struct attribute *sht3x_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,

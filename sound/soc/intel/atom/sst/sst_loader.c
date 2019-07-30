@@ -269,7 +269,7 @@ static void sst_do_memcpy(struct list_head *memcpy_list)
 	struct sst_memcpy_list *listnode;
 
 	list_for_each_entry(listnode, memcpy_list, memcpylist) {
-		if (listnode->is_io == true)
+		if (listnode->is_io)
 			memcpy32_toio((void __iomem *)listnode->dstn,
 					listnode->src, listnode->size);
 		else

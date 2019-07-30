@@ -458,7 +458,8 @@ EXPORT_SYMBOL_GPL(pnv_power9_force_smt4_release);
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void pnv_program_cpu_hotplug_lpcr(unsigned int cpu, u64 lpcr_val)
+
+void pnv_program_cpu_hotplug_lpcr(unsigned int cpu, u64 lpcr_val)
 {
 	u64 pir = get_hard_smp_processor_id(cpu);
 
@@ -481,20 +482,6 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
 {
 	unsigned long srr1;
 	u32 idle_states = pnv_get_supported_cpuidle_states();
-	u64 lpcr_val;
-
-	/*
-	 * We don't want to take decrementer interrupts while we are
-	 * offline, so clear LPCR:PECE1. We keep PECE2 (and
-	 * LPCR_PECE_HVEE on P9) enabled as to let IPIs in.
-	 *
-	 * If the CPU gets woken up by a special wakeup, ensure that
-	 * the SLW engine sets LPCR with decrementer bit cleared, else
-	 * the CPU will come back to the kernel due to a spurious
-	 * wakeup.
-	 */
-	lpcr_val = mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1;
-	pnv_program_cpu_hotplug_lpcr(cpu, lpcr_val);
 
 	__ppc64_runlatch_off();
 
@@ -525,16 +512,6 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
 	}
 
 	__ppc64_runlatch_on();
-
-	/*
-	 * Re-enable decrementer interrupts in LPCR.
-	 *
-	 * Further, we want stop states to be woken up by decrementer
-	 * for non-hotplug cases. So program the LPCR via stop api as
-	 * well.
-	 */
-	lpcr_val = mfspr(SPRN_LPCR) | (u64)LPCR_PECE1;
-	pnv_program_cpu_hotplug_lpcr(cpu, lpcr_val);
 
 	return srr1;
 }

@@ -389,7 +389,7 @@
 #define     MVPP2_GMAC_IN_BAND_AUTONEG		BIT(2)
 #define     MVPP2_GMAC_IN_BAND_AUTONEG_BYPASS	BIT(3)
 #define     MVPP2_GMAC_IN_BAND_RESTART_AN	BIT(4)
-#define     MVPP2_GMAC_CONFIG_MII_SPEED	BIT(5)
+#define     MVPP2_GMAC_CONFIG_MII_SPEED		BIT(5)
 #define     MVPP2_GMAC_CONFIG_GMII_SPEED	BIT(6)
 #define     MVPP2_GMAC_AN_SPEED_EN		BIT(7)
 #define     MVPP2_GMAC_FC_ADV_EN		BIT(9)
@@ -402,8 +402,8 @@
 #define     MVPP2_GMAC_STATUS0_GMII_SPEED	BIT(1)
 #define     MVPP2_GMAC_STATUS0_MII_SPEED	BIT(2)
 #define     MVPP2_GMAC_STATUS0_FULL_DUPLEX	BIT(3)
-#define     MVPP2_GMAC_STATUS0_RX_PAUSE		BIT(6)
-#define     MVPP2_GMAC_STATUS0_TX_PAUSE		BIT(7)
+#define     MVPP2_GMAC_STATUS0_RX_PAUSE		BIT(4)
+#define     MVPP2_GMAC_STATUS0_TX_PAUSE		BIT(5)
 #define     MVPP2_GMAC_STATUS0_AN_COMPLETE	BIT(11)
 #define MVPP2_GMAC_PORT_FIFO_CFG_1_REG		0x1c
 #define     MVPP2_GMAC_TX_FIFO_MIN_TH_OFFS	6
@@ -430,6 +430,8 @@
 #define MVPP22_XLG_CTRL0_REG			0x100
 #define     MVPP22_XLG_CTRL0_PORT_EN		BIT(0)
 #define     MVPP22_XLG_CTRL0_MAC_RESET_DIS	BIT(1)
+#define     MVPP22_XLG_CTRL0_FORCE_LINK_DOWN	BIT(2)
+#define     MVPP22_XLG_CTRL0_FORCE_LINK_PASS	BIT(3)
 #define     MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN	BIT(7)
 #define     MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN	BIT(8)
 #define     MVPP22_XLG_CTRL0_MIB_CNT_DIS	BIT(14)
@@ -481,6 +483,7 @@
 /* XPCS registers. PPv2.2 only */
 #define MVPP22_XPCS_BASE(port)			(0x7400 + (port) * 0x1000)
 #define MVPP22_XPCS_CFG0			0x0
+#define     MVPP22_XPCS_CFG0_RESET_DIS		BIT(0)
 #define     MVPP22_XPCS_CFG0_PCS_MODE(n)	((n) << 3)
 #define     MVPP22_XPCS_CFG0_ACTIVE_LANE(n)	((n) << 5)
 
@@ -549,8 +552,8 @@
 #define MVPP2_MAX_TSO_SEGS		300
 #define MVPP2_MAX_SKB_DESCS		(MVPP2_MAX_TSO_SEGS * 2 + MAX_SKB_FRAGS)
 
-/* Dfault number of RXQs in use */
-#define MVPP2_DEFAULT_RXQ		1
+/* Max number of RXQs per port */
+#define MVPP2_PORT_MAX_RXQ		32
 
 /* Max number of Rx descriptors */
 #define MVPP2_MAX_RXD_MAX		1024
@@ -803,7 +806,7 @@ struct mvpp2_port {
 	u8 id;
 
 	/* Index of the port from the "group of ports" complex point
-	 * of view
+	 * of view. This is specific to PPv2.2.
 	 */
 	int gop_id;
 

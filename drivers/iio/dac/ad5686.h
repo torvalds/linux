@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file is part of AD5686 DAC driver
  *
@@ -54,9 +54,11 @@ enum ad5686_supported_device_ids {
 	ID_AD5311R,
 	ID_AD5671R,
 	ID_AD5672R,
+	ID_AD5674R,
 	ID_AD5675R,
 	ID_AD5676,
 	ID_AD5676R,
+	ID_AD5679R,
 	ID_AD5681R,
 	ID_AD5682R,
 	ID_AD5683,

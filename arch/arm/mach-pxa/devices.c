@@ -1065,7 +1065,7 @@ struct platform_device pxa93x_device_gpio = {
 
 /* pxa2xx-spi platform-device ID equals respective SSP platform-device ID + 1.
  * See comment in arch/arm/mach-pxa/ssp.c::ssp_probe() */
-void __init pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_master *info)
+void __init pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_controller *info)
 {
 	struct platform_device *pd;
 

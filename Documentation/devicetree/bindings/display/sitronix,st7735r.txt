@@ -20,7 +20,7 @@ Example:
 	backlight: backlight {
 		compatible = "gpio-backlight";
 		gpios = <&gpio 44 GPIO_ACTIVE_HIGH>;
-	}
+	};
 
 	...
 

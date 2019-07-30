@@ -40,6 +40,7 @@
 #include "nvreg.h"
 #include "nouveau_fbcon.h"
 #include "disp.h"
+#include "nouveau_dma.h"
 
 #include <subdev/bios/pll.h>
 #include <subdev/clk.h>
@@ -1077,12 +1078,223 @@ nouveau_crtc_set_config(struct drm_mode_set *set,
 	return ret;
 }
 
+struct nv04_page_flip_state {
+	struct list_head head;
+	struct drm_pending_vblank_event *event;
+	struct drm_crtc *crtc;
+	int bpp, pitch;
+	u64 offset;
+};
+
+static int
+nv04_finish_page_flip(struct nouveau_channel *chan,
+		      struct nv04_page_flip_state *ps)
+{
+	struct nouveau_fence_chan *fctx = chan->fence;
+	struct nouveau_drm *drm = chan->drm;
+	struct drm_device *dev = drm->dev;
+	struct nv04_page_flip_state *s;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+
+	if (list_empty(&fctx->flip)) {
+		NV_ERROR(drm, "unexpected pageflip\n");
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+		return -EINVAL;
+	}
+
+	s = list_first_entry(&fctx->flip, struct nv04_page_flip_state, head);
+	if (s->event) {
+		drm_crtc_arm_vblank_event(s->crtc, s->event);
+	} else {
+		/* Give up ownership of vblank for page-flipped crtc */
+		drm_crtc_vblank_put(s->crtc);
+	}
+
+	list_del(&s->head);
+	if (ps)
+		*ps = *s;
+	kfree(s);
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+	return 0;
+}
+
+int
+nv04_flip_complete(struct nvif_notify *notify)
+{
+	struct nouveau_cli *cli = (void *)notify->object->client;
+	struct nouveau_drm *drm = cli->drm;
+	struct nouveau_channel *chan = drm->channel;
+	struct nv04_page_flip_state state;
+
+	if (!nv04_finish_page_flip(chan, &state)) {
+		nv_set_crtc_base(drm->dev, drm_crtc_index(state.crtc),
+				 state.offset + state.crtc->y *
+				 state.pitch + state.crtc->x *
+				 state.bpp / 8);
+	}
+
+	return NVIF_NOTIFY_KEEP;
+}
+
+static int
+nv04_page_flip_emit(struct nouveau_channel *chan,
+		    struct nouveau_bo *old_bo,
+		    struct nouveau_bo *new_bo,
+		    struct nv04_page_flip_state *s,
+		    struct nouveau_fence **pfence)
+{
+	struct nouveau_fence_chan *fctx = chan->fence;
+	struct nouveau_drm *drm = chan->drm;
+	struct drm_device *dev = drm->dev;
+	unsigned long flags;
+	int ret;
+
+	/* Queue it to the pending list */
+	spin_lock_irqsave(&dev->event_lock, flags);
+	list_add_tail(&s->head, &fctx->flip);
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	/* Synchronize with the old framebuffer */
+	ret = nouveau_fence_sync(old_bo, chan, false, false);
+	if (ret)
+		goto fail;
+
+	/* Emit the pageflip */
+	ret = RING_SPACE(chan, 2);
+	if (ret)
+		goto fail;
+
+	BEGIN_NV04(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
+	OUT_RING  (chan, 0x00000000);
+	FIRE_RING (chan);
+
+	ret = nouveau_fence_new(chan, false, pfence);
+	if (ret)
+		goto fail;
+
+	return 0;
+fail:
+	spin_lock_irqsave(&dev->event_lock, flags);
+	list_del(&s->head);
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+	return ret;
+}
+
+static int
+nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
+		    struct drm_pending_vblank_event *event, u32 flags,
+		    struct drm_modeset_acquire_ctx *ctx)
+{
+	const int swap_interval = (flags & DRM_MODE_PAGE_FLIP_ASYNC) ? 0 : 1;
+	struct drm_device *dev = crtc->dev;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_bo *old_bo = nouveau_framebuffer(crtc->primary->fb)->nvbo;
+	struct nouveau_bo *new_bo = nouveau_framebuffer(fb)->nvbo;
+	struct nv04_page_flip_state *s;
+	struct nouveau_channel *chan;
+	struct nouveau_cli *cli;
+	struct nouveau_fence *fence;
+	struct nv04_display *dispnv04 = nv04_display(dev);
+	int head = nouveau_crtc(crtc)->index;
+	int ret;
+
+	chan = drm->channel;
+	if (!chan)
+		return -ENODEV;
+	cli = (void *)chan->user.client;
+
+	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	if (new_bo != old_bo) {
+		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM, true);
+		if (ret)
+			goto fail_free;
+	}
+
+	mutex_lock(&cli->mutex);
+	ret = ttm_bo_reserve(&new_bo->bo, true, false, NULL);
+	if (ret)
+		goto fail_unpin;
+
+	/* synchronise rendering channel with the kernel's channel */
+	ret = nouveau_fence_sync(new_bo, chan, false, true);
+	if (ret) {
+		ttm_bo_unreserve(&new_bo->bo);
+		goto fail_unpin;
+	}
+
+	if (new_bo != old_bo) {
+		ttm_bo_unreserve(&new_bo->bo);
+
+		ret = ttm_bo_reserve(&old_bo->bo, true, false, NULL);
+		if (ret)
+			goto fail_unpin;
+	}
+
+	/* Initialize a page flip struct */
+	*s = (struct nv04_page_flip_state)
+		{ { }, event, crtc, fb->format->cpp[0] * 8, fb->pitches[0],
+		  new_bo->bo.offset };
+
+	/* Keep vblanks on during flip, for the target crtc of this flip */
+	drm_crtc_vblank_get(crtc);
+
+	/* Emit a page flip */
+	if (swap_interval) {
+		ret = RING_SPACE(chan, 8);
+		if (ret)
+			goto fail_unreserve;
+
+		BEGIN_NV04(chan, NvSubImageBlit, 0x012c, 1);
+		OUT_RING  (chan, 0);
+		BEGIN_NV04(chan, NvSubImageBlit, 0x0134, 1);
+		OUT_RING  (chan, head);
+		BEGIN_NV04(chan, NvSubImageBlit, 0x0100, 1);
+		OUT_RING  (chan, 0);
+		BEGIN_NV04(chan, NvSubImageBlit, 0x0130, 1);
+		OUT_RING  (chan, 0);
+	}
+
+	nouveau_bo_ref(new_bo, &dispnv04->image[head]);
+
+	ret = nv04_page_flip_emit(chan, old_bo, new_bo, s, &fence);
+	if (ret)
+		goto fail_unreserve;
+	mutex_unlock(&cli->mutex);
+
+	/* Update the crtc struct and cleanup */
+	crtc->primary->fb = fb;
+
+	nouveau_bo_fence(old_bo, fence, false);
+	ttm_bo_unreserve(&old_bo->bo);
+	if (old_bo != new_bo)
+		nouveau_bo_unpin(old_bo);
+	nouveau_fence_unref(&fence);
+	return 0;
+
+fail_unreserve:
+	drm_crtc_vblank_put(crtc);
+	ttm_bo_unreserve(&old_bo->bo);
+fail_unpin:
+	mutex_unlock(&cli->mutex);
+	if (old_bo != new_bo)
+		nouveau_bo_unpin(new_bo);
+fail_free:
+	kfree(s);
+	return ret;
+}
+
 static const struct drm_crtc_funcs nv04_crtc_funcs = {
 	.cursor_set = nv04_crtc_cursor_set,
 	.cursor_move = nv04_crtc_cursor_move,
 	.gamma_set = nv_crtc_gamma_set,
 	.set_config = nouveau_crtc_set_config,
-	.page_flip = nouveau_crtc_page_flip,
+	.page_flip = nv04_crtc_page_flip,
 	.destroy = nv_crtc_destroy,
 };
 

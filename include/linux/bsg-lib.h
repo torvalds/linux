@@ -69,6 +69,10 @@ struct bsg_job {
 	int result;
 	unsigned int reply_payload_rcv_len;
 
+	/* BIDI support */
+	struct request *bidi_rq;
+	struct bio *bidi_bio;
+
 	void *dd_data;		/* Used for driver-specific storage */
 };
 

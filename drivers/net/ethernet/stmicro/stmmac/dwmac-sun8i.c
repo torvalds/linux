@@ -1147,7 +1147,10 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	plat_dat->interface = of_get_phy_mode(dev->of_node);
+	ret = of_get_phy_mode(dev->of_node);
+	if (ret < 0)
+		return -EINVAL;
+	plat_dat->interface = ret;
 
 	/* platform data specifying hardware features and callbacks.
 	 * hardware features were copied from Allwinner drivers.

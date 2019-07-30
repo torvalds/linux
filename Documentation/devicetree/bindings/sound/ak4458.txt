@@ -4,7 +4,7 @@ This device supports I2C mode.
 
 Required properties:
 
-- compatible : "asahi-kasei,ak4458"
+- compatible : "asahi-kasei,ak4458" or "asahi-kasei,ak4497"
 - reg : The I2C address of the device for I2C
 
 Optional properties:

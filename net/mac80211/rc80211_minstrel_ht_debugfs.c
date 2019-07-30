@@ -160,9 +160,10 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 			"lookaround %d\n",
 			max(0, (int) mi->total_packets - (int) mi->sample_packets),
 			mi->sample_packets);
-	p += sprintf(p, "Average # of aggregated frames per A-MPDU: %d.%d\n",
-		MINSTREL_TRUNC(mi->avg_ampdu_len),
-		MINSTREL_TRUNC(mi->avg_ampdu_len * 10) % 10);
+	if (mi->avg_ampdu_len)
+		p += sprintf(p, "Average # of aggregated frames per A-MPDU: %d.%d\n",
+			MINSTREL_TRUNC(mi->avg_ampdu_len),
+			MINSTREL_TRUNC(mi->avg_ampdu_len * 10) % 10);
 	ms->len = p - ms->buf;
 	WARN_ON(ms->len + sizeof(*ms) > 32768);
 

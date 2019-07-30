@@ -304,7 +304,7 @@ void __init efi_arch_mem_reserve(phys_addr_t addr, u64 size)
  * - Not within any part of the kernel
  * - Not the BIOS reserved area (E820_TYPE_RESERVED, E820_TYPE_NVS, etc)
  */
-static bool can_free_region(u64 start, u64 size)
+static __init bool can_free_region(u64 start, u64 size)
 {
 	if (start + size > __pa_symbol(_text) && start <= __pa_symbol(_end))
 		return false;
@@ -449,7 +449,7 @@ void __init efi_free_boot_services(void)
 		 */
 		rm_size = real_mode_size_needed();
 		if (rm_size && (start + rm_size) < (1<<20) && size >= rm_size) {
-			set_real_mode_mem(start, rm_size);
+			set_real_mode_mem(start);
 			start += rm_size;
 			size -= rm_size;
 		}
@@ -717,7 +717,7 @@ void efi_recover_from_page_fault(unsigned long phys_addr)
 	 * "efi_mm" cannot be used to check if the page fault had occurred
 	 * in the firmware context because efi=old_map doesn't use efi_pgd.
 	 */
-	if (efi_rts_work.efi_rts_id == NONE)
+	if (efi_rts_work.efi_rts_id == EFI_NONE)
 		return;
 
 	/*
@@ -742,7 +742,7 @@ void efi_recover_from_page_fault(unsigned long phys_addr)
 	 * because this case occurs *very* rarely and hence could be improved
 	 * on a need by basis.
 	 */
-	if (efi_rts_work.efi_rts_id == RESET_SYSTEM) {
+	if (efi_rts_work.efi_rts_id == EFI_RESET_SYSTEM) {
 		pr_info("efi_reset_system() buggy! Reboot through BIOS\n");
 		machine_real_restart(MRR_BIOS);
 		return;

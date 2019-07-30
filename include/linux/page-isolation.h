@@ -41,16 +41,6 @@ int move_freepages_block(struct zone *zone, struct page *page,
 
 /*
  * Changes migrate type in [start_pfn, end_pfn) to be MIGRATE_ISOLATE.
- * If specified range includes migrate types other than MOVABLE or CMA,
- * this will fail with -EBUSY.
- *
- * For isolating all pages in the range finally, the caller have to
- * free all pages in the range. test_page_isolated() can be used for
- * test it.
- *
- * The following flags are allowed (they can be combined in a bit mask)
- * SKIP_HWPOISON - ignore hwpoison pages
- * REPORT_FAILURE - report details about the failure to isolate the range
  */
 int
 start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,

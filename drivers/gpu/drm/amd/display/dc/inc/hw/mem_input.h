@@ -31,7 +31,7 @@
 #include "dml/display_mode_structs.h"
 
 struct dchub_init_data;
-struct cstate_pstate_watermarks_st1 {
+struct cstate_pstate_watermarks_st {
 	uint32_t cstate_exit_ns;
 	uint32_t cstate_enter_plus_exit_ns;
 	uint32_t pstate_change_ns;
@@ -40,7 +40,7 @@ struct cstate_pstate_watermarks_st1 {
 struct dcn_watermarks {
 	uint32_t pte_meta_urgent_ns;
 	uint32_t urgent_ns;
-	struct cstate_pstate_watermarks_st1 cstate_pstate;
+	struct cstate_pstate_watermarks_st cstate_pstate;
 };
 
 struct dcn_watermark_set {

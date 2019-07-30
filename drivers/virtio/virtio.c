@@ -161,6 +161,7 @@ EXPORT_SYMBOL_GPL(virtio_config_enable);
 
 void virtio_add_status(struct virtio_device *dev, unsigned int status)
 {
+	might_sleep();
 	dev->config->set_status(dev, dev->config->get_status(dev) | status);
 }
 EXPORT_SYMBOL_GPL(virtio_add_status);
@@ -170,6 +171,7 @@ int virtio_finalize_features(struct virtio_device *dev)
 	int ret = dev->config->finalize_features(dev);
 	unsigned status;
 
+	might_sleep();
 	if (ret)
 		return ret;
 

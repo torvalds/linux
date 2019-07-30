@@ -35,6 +35,7 @@
 #include <asm/msr-index.h>
 #include <asm/asm.h>
 #include <asm/kvm_page_track.h>
+#include <asm/kvm_vcpu_regs.h>
 #include <asm/hyperv-tlfs.h>
 
 #define KVM_MAX_VCPUS 288
@@ -125,7 +126,7 @@ static inline gfn_t gfn_to_index(gfn_t gfn, gfn_t base_gfn, int level)
 }
 
 #define KVM_PERMILLE_MMU_PAGES 20
-#define KVM_MIN_ALLOC_MMU_PAGES 64
+#define KVM_MIN_ALLOC_MMU_PAGES 64UL
 #define KVM_MMU_HASH_SHIFT 12
 #define KVM_NUM_MMU_PAGES (1 << KVM_MMU_HASH_SHIFT)
 #define KVM_MIN_FREE_MMU_PAGES 5
@@ -137,23 +138,23 @@ static inline gfn_t gfn_to_index(gfn_t gfn, gfn_t base_gfn, int level)
 #define ASYNC_PF_PER_VCPU 64
 
 enum kvm_reg {
-	VCPU_REGS_RAX = 0,
-	VCPU_REGS_RCX = 1,
-	VCPU_REGS_RDX = 2,
-	VCPU_REGS_RBX = 3,
-	VCPU_REGS_RSP = 4,
-	VCPU_REGS_RBP = 5,
-	VCPU_REGS_RSI = 6,
-	VCPU_REGS_RDI = 7,
+	VCPU_REGS_RAX = __VCPU_REGS_RAX,
+	VCPU_REGS_RCX = __VCPU_REGS_RCX,
+	VCPU_REGS_RDX = __VCPU_REGS_RDX,
+	VCPU_REGS_RBX = __VCPU_REGS_RBX,
+	VCPU_REGS_RSP = __VCPU_REGS_RSP,
+	VCPU_REGS_RBP = __VCPU_REGS_RBP,
+	VCPU_REGS_RSI = __VCPU_REGS_RSI,
+	VCPU_REGS_RDI = __VCPU_REGS_RDI,
 #ifdef CONFIG_X86_64
-	VCPU_REGS_R8 = 8,
-	VCPU_REGS_R9 = 9,
-	VCPU_REGS_R10 = 10,
-	VCPU_REGS_R11 = 11,
-	VCPU_REGS_R12 = 12,
-	VCPU_REGS_R13 = 13,
-	VCPU_REGS_R14 = 14,
-	VCPU_REGS_R15 = 15,
+	VCPU_REGS_R8  = __VCPU_REGS_R8,
+	VCPU_REGS_R9  = __VCPU_REGS_R9,
+	VCPU_REGS_R10 = __VCPU_REGS_R10,
+	VCPU_REGS_R11 = __VCPU_REGS_R11,
+	VCPU_REGS_R12 = __VCPU_REGS_R12,
+	VCPU_REGS_R13 = __VCPU_REGS_R13,
+	VCPU_REGS_R14 = __VCPU_REGS_R14,
+	VCPU_REGS_R15 = __VCPU_REGS_R15,
 #endif
 	VCPU_REGS_RIP,
 	NR_VCPU_REGS
@@ -252,14 +253,14 @@ struct kvm_mmu_memory_cache {
  * kvm_memory_slot.arch.gfn_track which is 16 bits, so the role bits used
  * by indirect shadow page can not be more than 15 bits.
  *
- * Currently, we used 14 bits that are @level, @cr4_pae, @quadrant, @access,
+ * Currently, we used 14 bits that are @level, @gpte_is_8_bytes, @quadrant, @access,
  * @nxe, @cr0_wp, @smep_andnot_wp and @smap_andnot_wp.
  */
 union kvm_mmu_page_role {
 	u32 word;
 	struct {
 		unsigned level:4;
-		unsigned cr4_pae:1;
+		unsigned gpte_is_8_bytes:1;
 		unsigned quadrant:2;
 		unsigned direct:1;
 		unsigned access:3;
@@ -294,6 +295,7 @@ union kvm_mmu_extended_role {
 		unsigned int valid:1;
 		unsigned int execonly:1;
 		unsigned int cr0_pg:1;
+		unsigned int cr4_pae:1;
 		unsigned int cr4_pse:1;
 		unsigned int cr4_pke:1;
 		unsigned int cr4_smap:1;
@@ -319,6 +321,7 @@ struct kvm_mmu_page {
 	struct list_head link;
 	struct hlist_node hash_link;
 	bool unsync;
+	bool mmio_cached;
 
 	/*
 	 * The following two entries are used to key the shadow page in the
@@ -333,10 +336,6 @@ struct kvm_mmu_page {
 	int root_count;          /* Currently serving as active root */
 	unsigned int unsync_children;
 	struct kvm_rmap_head parent_ptes; /* rmap pointers to parent sptes */
-
-	/* The page is obsolete if mmu_valid_gen != kvm->arch.mmu_valid_gen.  */
-	unsigned long mmu_valid_gen;
-
 	DECLARE_BITMAP(unsync_child_bitmap, 512);
 
 #ifdef CONFIG_X86_32
@@ -352,6 +351,7 @@ struct kvm_mmu_page {
 };
 
 struct kvm_pio_request {
+	unsigned long linear_rip;
 	unsigned long count;
 	int in;
 	int port;
@@ -570,6 +570,7 @@ struct kvm_vcpu_arch {
 	bool tpr_access_reporting;
 	u64 ia32_xss;
 	u64 microcode_version;
+	u64 arch_capabilities;
 
 	/*
 	 * Paging state of the vcpu
@@ -844,17 +845,15 @@ enum kvm_irqchip_mode {
 };
 
 struct kvm_arch {
-	unsigned int n_used_mmu_pages;
-	unsigned int n_requested_mmu_pages;
-	unsigned int n_max_mmu_pages;
+	unsigned long n_used_mmu_pages;
+	unsigned long n_requested_mmu_pages;
+	unsigned long n_max_mmu_pages;
 	unsigned int indirect_shadow_pages;
-	unsigned long mmu_valid_gen;
 	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
 	/*
 	 * Hash table of struct kvm_mmu_page.
 	 */
 	struct list_head active_mmu_pages;
-	struct list_head zapped_obsolete_pages;
 	struct kvm_page_track_notifier_node mmu_sp_tracker;
 	struct kvm_page_track_notifier_head track_notifier_head;
 
@@ -1184,7 +1183,7 @@ struct kvm_x86_ops {
 
 	int (*smi_allowed)(struct kvm_vcpu *vcpu);
 	int (*pre_enter_smm)(struct kvm_vcpu *vcpu, char *smstate);
-	int (*pre_leave_smm)(struct kvm_vcpu *vcpu, u64 smbase);
+	int (*pre_leave_smm)(struct kvm_vcpu *vcpu, const char *smstate);
 	int (*enable_smi_window)(struct kvm_vcpu *vcpu);
 
 	int (*mem_enc_op)(struct kvm *kvm, void __user *argp);
@@ -1196,6 +1195,8 @@ struct kvm_x86_ops {
 	int (*nested_enable_evmcs)(struct kvm_vcpu *vcpu,
 				   uint16_t *vmcs_version);
 	uint16_t (*nested_get_evmcs_version)(struct kvm_vcpu *vcpu);
+
+	bool (*need_emulation_on_page_fault)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_arch_async_pf {
@@ -1255,9 +1256,9 @@ void kvm_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 				   struct kvm_memory_slot *slot,
 				   gfn_t gfn_offset, unsigned long mask);
 void kvm_mmu_zap_all(struct kvm *kvm);
-void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, struct kvm_memslots *slots);
-unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm);
-void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages);
+void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen);
+unsigned long kvm_mmu_calculate_default_mmu_pages(struct kvm *kvm);
+void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned long kvm_nr_mmu_pages);
 
 int load_pdptrs(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu, unsigned long cr3);
 bool pdptrs_changed(struct kvm_vcpu *vcpu);
@@ -1591,5 +1592,8 @@ static inline int kvm_cpu_get_apicid(int mps_cpu)
 
 #define put_smstate(type, buf, offset, val)                      \
 	*(type *)((buf) + (offset) - 0x7e00) = val
+
+#define GET_SMSTATE(type, buf, offset)		\
+	(*(type *)((buf) + (offset) - 0x7e00))
 
 #endif /* _ASM_X86_KVM_HOST_H */

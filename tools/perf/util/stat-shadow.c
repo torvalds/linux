@@ -168,7 +168,7 @@ static void reset_stat(struct runtime_stat *st)
 	struct rb_node *pos, *next;
 
 	rblist = &st->value_list;
-	next = rb_first(&rblist->entries);
+	next = rb_first_cached(&rblist->entries);
 	while (next) {
 		pos = next;
 		next = rb_next(pos);

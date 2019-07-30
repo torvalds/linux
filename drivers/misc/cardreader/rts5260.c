@@ -64,11 +64,13 @@ static void rts5260_fill_driving(struct rtsx_pcr *pcr, u8 voltage)
 		drive_sel = pcr->sd30_drive_sel_1v8;
 	}
 
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD30_CLK_DRIVE_SEL,
+	rtsx_pci_write_register(pcr, SD30_CLK_DRIVE_SEL,
 			 0xFF, driving[drive_sel][0]);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD30_CMD_DRIVE_SEL,
+
+	rtsx_pci_write_register(pcr, SD30_CMD_DRIVE_SEL,
 			 0xFF, driving[drive_sel][1]);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD30_DAT_DRIVE_SEL,
+
+	rtsx_pci_write_register(pcr, SD30_CMD_DRIVE_SEL,
 			 0xFF, driving[drive_sel][2]);
 }
 
@@ -193,7 +195,7 @@ static int sd_set_sample_push_timing_sd30(struct rtsx_pcr *pcr)
 		| SD_ASYNC_FIFO_NOT_RST, SD_30_MODE | SD_ASYNC_FIFO_NOT_RST);
 	rtsx_pci_write_register(pcr, CLK_CTL, CLK_LOW_FREQ, CLK_LOW_FREQ);
 	rtsx_pci_write_register(pcr, CARD_CLK_SOURCE, 0xFF,
-				CRC_VAR_CLK0 | SD30_FIX_CLK | SAMPLE_VAR_CLK1);
+			CRC_VAR_CLK0 | SD30_FIX_CLK | SAMPLE_VAR_CLK1);
 	rtsx_pci_write_register(pcr, CLK_CTL, CLK_LOW_FREQ, 0);
 
 	return 0;
@@ -207,22 +209,16 @@ static int rts5260_card_power_on(struct rtsx_pcr *pcr, int card)
 	if (option->ocp_en)
 		rtsx_pci_enable_ocp(pcr);
 
-	rtsx_pci_init_cmd(pcr);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, LDO_CONFIG2,
-			 DV331812_VDD1, DV331812_VDD1);
-	err = rtsx_pci_send_cmd(pcr, CMD_TIMEOUT_DEF);
-	if (err < 0)
-		return err;
 
-	rtsx_pci_init_cmd(pcr);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, LDO_VCC_CFG0,
+	rtsx_pci_write_register(pcr, LDO_CONFIG2, DV331812_VDD1, DV331812_VDD1);
+	rtsx_pci_write_register(pcr, LDO_VCC_CFG0,
 			 RTS5260_DVCC_TUNE_MASK, RTS5260_DVCC_33);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, LDO_VCC_CFG1,
-			 LDO_POW_SDVDD1_MASK, LDO_POW_SDVDD1_ON);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, LDO_CONFIG2,
-			 DV331812_POWERON, DV331812_POWERON);
-	err = rtsx_pci_send_cmd(pcr, CMD_TIMEOUT_DEF);
 
+	rtsx_pci_write_register(pcr, LDO_VCC_CFG1, LDO_POW_SDVDD1_MASK,
+			LDO_POW_SDVDD1_ON);
+
+	rtsx_pci_write_register(pcr, LDO_CONFIG2,
+			 DV331812_POWERON, DV331812_POWERON);
 	msleep(20);
 
 	if (pcr->extra_caps & EXTRA_CAPS_SD_SDR50 ||
@@ -242,8 +238,8 @@ static int rts5260_card_power_on(struct rtsx_pcr *pcr, int card)
 	/* Reset SD_CFG3 register */
 	rtsx_pci_write_register(pcr, SD_CFG3, SD30_CLK_END_EN, 0);
 	rtsx_pci_write_register(pcr, REG_SD_STOP_SDCLK_CFG,
-				SD30_CLK_STOP_CFG_EN | SD30_CLK_STOP_CFG1 |
-				SD30_CLK_STOP_CFG0, 0);
+			SD30_CLK_STOP_CFG_EN | SD30_CLK_STOP_CFG1 |
+			SD30_CLK_STOP_CFG0, 0);
 
 	rtsx_pci_write_register(pcr, REG_PRE_RW_MODE, EN_INFINITE_MODE, 0);
 
@@ -273,9 +269,9 @@ static int rts5260_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
 	}
 
 	/* set pad drive */
-	rtsx_pci_init_cmd(pcr);
 	rts5260_fill_driving(pcr, voltage);
-	return rtsx_pci_send_cmd(pcr, CMD_TIMEOUT_DEF);
+
+	return 0;
 }
 
 static void rts5260_stop_cmd(struct rtsx_pcr *pcr)
@@ -290,13 +286,9 @@ static void rts5260_stop_cmd(struct rtsx_pcr *pcr)
 
 static void rts5260_card_before_power_off(struct rtsx_pcr *pcr)
 {
-	struct rtsx_cr_option *option = &pcr->option;
-
 	rts5260_stop_cmd(pcr);
 	rts5260_switch_output_voltage(pcr, OUTPUT_3V3);
 
-	if (option->ocp_en)
-		rtsx_pci_disable_ocp(pcr);
 }
 
 static int rts5260_card_power_off(struct rtsx_pcr *pcr, int card)
@@ -304,13 +296,12 @@ static int rts5260_card_power_off(struct rtsx_pcr *pcr, int card)
 	int err = 0;
 
 	rts5260_card_before_power_off(pcr);
-
-	rtsx_pci_init_cmd(pcr);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, LDO_VCC_CFG1,
+	err = rtsx_pci_write_register(pcr, LDO_VCC_CFG1,
 			 LDO_POW_SDVDD1_MASK, LDO_POW_SDVDD1_OFF);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, LDO_CONFIG2,
+	err = rtsx_pci_write_register(pcr, LDO_CONFIG2,
 			 DV331812_POWERON, DV331812_POWEROFF);
-	err = rtsx_pci_send_cmd(pcr, CMD_TIMEOUT_DEF);
+	if (pcr->option.ocp_en)
+		rtsx_pci_disable_ocp(pcr);
 
 	return err;
 }
@@ -322,41 +313,29 @@ static void rts5260_init_ocp(struct rtsx_pcr *pcr)
 	if (option->ocp_en) {
 		u8 mask, val;
 
+
+		rtsx_pci_write_register(pcr, RTS5260_DVCC_CTRL,
+				RTS5260_DVCC_OCP_THD_MASK,
+				option->sd_800mA_ocp_thd);
+
+		rtsx_pci_write_register(pcr, RTS5260_DV331812_CFG,
+				RTS5260_DV331812_OCP_THD_MASK,
+				RTS5260_DV331812_OCP_THD_270);
+
+		mask = SD_OCP_GLITCH_MASK;
+		val = pcr->hw_param.ocp_glitch;
+		rtsx_pci_write_register(pcr, REG_OCPGLITCH, mask, val);
 		rtsx_pci_write_register(pcr, RTS5260_DVCC_CTRL,
 					RTS5260_DVCC_OCP_EN |
 					RTS5260_DVCC_OCP_CL_EN,
 					RTS5260_DVCC_OCP_EN |
 					RTS5260_DVCC_OCP_CL_EN);
-		rtsx_pci_write_register(pcr, RTS5260_DVIO_CTRL,
-					RTS5260_DVIO_OCP_EN |
-					RTS5260_DVIO_OCP_CL_EN,
-					RTS5260_DVIO_OCP_EN |
-					RTS5260_DVIO_OCP_CL_EN);
-
-		rtsx_pci_write_register(pcr, RTS5260_DVCC_CTRL,
-					RTS5260_DVCC_OCP_THD_MASK,
-					option->sd_400mA_ocp_thd);
-
-		rtsx_pci_write_register(pcr, RTS5260_DVIO_CTRL,
-					RTS5260_DVIO_OCP_THD_MASK,
-					RTS5260_DVIO_OCP_THD_350);
-
-		rtsx_pci_write_register(pcr, RTS5260_DV331812_CFG,
-					RTS5260_DV331812_OCP_THD_MASK,
-					RTS5260_DV331812_OCP_THD_210);
-
-		mask = SD_OCP_GLITCH_MASK | SDVIO_OCP_GLITCH_MASK;
-		val = pcr->hw_param.ocp_glitch;
-		rtsx_pci_write_register(pcr, REG_OCPGLITCH, mask, val);
 
 		rtsx_pci_enable_ocp(pcr);
 	} else {
 		rtsx_pci_write_register(pcr, RTS5260_DVCC_CTRL,
 					RTS5260_DVCC_OCP_EN |
 					RTS5260_DVCC_OCP_CL_EN, 0);
-		rtsx_pci_write_register(pcr, RTS5260_DVIO_CTRL,
-					RTS5260_DVIO_OCP_EN |
-					RTS5260_DVIO_OCP_CL_EN, 0);
 	}
 }
 
@@ -364,14 +343,9 @@ static void rts5260_enable_ocp(struct rtsx_pcr *pcr)
 {
 	u8 val = 0;
 
-	rtsx_pci_write_register(pcr, FPDCTL, OC_POWER_DOWN, 0);
-
 	val = SD_OCP_INT_EN | SD_DETECT_EN;
-	val |= SDVIO_OCP_INT_EN | SDVIO_DETECT_EN;
 	rtsx_pci_write_register(pcr, REG_OCPCTL, 0xFF, val);
-	rtsx_pci_write_register(pcr, REG_DV3318_OCPCTL,
-				DV3318_DETECT_EN | DV3318_OCP_INT_EN,
-				DV3318_DETECT_EN | DV3318_OCP_INT_EN);
+
 }
 
 static void rts5260_disable_ocp(struct rtsx_pcr *pcr)
@@ -379,14 +353,10 @@ static void rts5260_disable_ocp(struct rtsx_pcr *pcr)
 	u8 mask = 0;
 
 	mask = SD_OCP_INT_EN | SD_DETECT_EN;
-	mask |= SDVIO_OCP_INT_EN | SDVIO_DETECT_EN;
 	rtsx_pci_write_register(pcr, REG_OCPCTL, mask, 0);
-	rtsx_pci_write_register(pcr, REG_DV3318_OCPCTL,
-				DV3318_DETECT_EN | DV3318_OCP_INT_EN, 0);
 
-	rtsx_pci_write_register(pcr, FPDCTL, OC_POWER_DOWN,
-				OC_POWER_DOWN);
 }
+
 
 static int rts5260_get_ocpstat(struct rtsx_pcr *pcr, u8 *val)
 {
@@ -404,9 +374,7 @@ static void rts5260_clear_ocpstat(struct rtsx_pcr *pcr)
 	u8 val = 0;
 
 	mask = SD_OCP_INT_CLR | SD_OC_CLR;
-	mask |= SDVIO_OCP_INT_CLR | SDVIO_OC_CLR;
 	val = SD_OCP_INT_CLR | SD_OC_CLR;
-	val |= SDVIO_OCP_INT_CLR | SDVIO_OC_CLR;
 
 	rtsx_pci_write_register(pcr, REG_OCPCTL, mask, val);
 	rtsx_pci_write_register(pcr, REG_DV3318_OCPCTL,
@@ -425,35 +393,21 @@ static void rts5260_process_ocp(struct rtsx_pcr *pcr)
 
 	rtsx_pci_get_ocpstat(pcr, &pcr->ocp_stat);
 	rts5260_get_ocpstat2(pcr, &pcr->ocp_stat2);
-	if (pcr->card_exist & SD_EXIST)
-		rtsx_sd_power_off_card3v3(pcr);
-	else if (pcr->card_exist & MS_EXIST)
-		rtsx_ms_power_off_card3v3(pcr);
 
-	if (!(pcr->card_exist & MS_EXIST) && !(pcr->card_exist & SD_EXIST)) {
-		if ((pcr->ocp_stat & (SD_OC_NOW | SD_OC_EVER |
-			SDVIO_OC_NOW | SDVIO_OC_EVER)) ||
-			(pcr->ocp_stat2 & (DV3318_OCP_NOW | DV3318_OCP_EVER)))
-			rtsx_pci_clear_ocpstat(pcr);
+	if ((pcr->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) ||
+		(pcr->ocp_stat2 & (DV3318_OCP_NOW | DV3318_OCP_EVER))) {
+		rtsx_pci_card_power_off(pcr, RTSX_SD_CARD);
+		rtsx_pci_write_register(pcr, CARD_OE, SD_OUTPUT_EN, 0);
+		rtsx_pci_clear_ocpstat(pcr);
 		pcr->ocp_stat = 0;
 		pcr->ocp_stat2 = 0;
 	}
 
-	if ((pcr->ocp_stat & (SD_OC_NOW | SD_OC_EVER |
-			SDVIO_OC_NOW | SDVIO_OC_EVER)) ||
-			(pcr->ocp_stat2 & (DV3318_OCP_NOW | DV3318_OCP_EVER))) {
-		if (pcr->card_exist & SD_EXIST)
-			rtsx_pci_write_register(pcr, CARD_OE, SD_OUTPUT_EN, 0);
-		else if (pcr->card_exist & MS_EXIST)
-			rtsx_pci_write_register(pcr, CARD_OE, MS_OUTPUT_EN, 0);
-	}
 }
 
 static int rts5260_init_hw(struct rtsx_pcr *pcr)
 {
 	int err;
-
-	rtsx_pci_init_ocp(pcr);
 
 	rtsx_pci_init_cmd(pcr);
 
@@ -483,6 +437,8 @@ static int rts5260_init_hw(struct rtsx_pcr *pcr)
 	if (err < 0)
 		return err;
 
+	rtsx_pci_init_ocp(pcr);
+
 	return 0;
 }
 
@@ -499,7 +455,13 @@ static void rts5260_pwr_saving_setting(struct rtsx_pcr *pcr)
 		pcr_dbg(pcr, "Set parameters for L1.2.");
 		rtsx_pci_write_register(pcr, PWR_GLOBAL_CTRL,
 					0xFF, PCIE_L1_2_EN);
-		rtsx_pci_write_register(pcr, PWR_FE_CTL,
+	rtsx_pci_write_register(pcr, RTS5260_DVCC_CTRL,
+					RTS5260_DVCC_OCP_EN |
+					RTS5260_DVCC_OCP_CL_EN,
+					RTS5260_DVCC_OCP_EN |
+					RTS5260_DVCC_OCP_CL_EN);
+
+	rtsx_pci_write_register(pcr, PWR_FE_CTL,
 					0xFF, PCIE_L1_2_PD_FE_EN);
 	} else if (lss_l1_1) {
 		pcr_dbg(pcr, "Set parameters for L1.1.");
@@ -742,7 +704,7 @@ void rts5260_init_params(struct rtsx_pcr *pcr)
 	option->ocp_en = 1;
 	if (option->ocp_en)
 		hw_param->interrupt_en |= SD_OC_INT_EN;
-	hw_param->ocp_glitch = SD_OCP_GLITCH_10M | SDVIO_OCP_GLITCH_800U;
+	hw_param->ocp_glitch =  SDVIO_OCP_GLITCH_800U | SDVIO_OCP_GLITCH_800U;
 	option->sd_400mA_ocp_thd = RTS5260_DVCC_OCP_THD_550;
 	option->sd_800mA_ocp_thd = RTS5260_DVCC_OCP_THD_970;
 }

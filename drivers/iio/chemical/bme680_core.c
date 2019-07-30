@@ -63,9 +63,23 @@ struct bme680_data {
 	s32 t_fine;
 };
 
+static const struct regmap_range bme680_volatile_ranges[] = {
+	regmap_reg_range(BME680_REG_MEAS_STAT_0, BME680_REG_GAS_R_LSB),
+	regmap_reg_range(BME680_REG_STATUS, BME680_REG_STATUS),
+	regmap_reg_range(BME680_T2_LSB_REG, BME680_GH3_REG),
+};
+
+static const struct regmap_access_table bme680_volatile_table = {
+	.yes_ranges	= bme680_volatile_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(bme680_volatile_ranges),
+};
+
 const struct regmap_config bme680_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.max_register = 0xef,
+	.volatile_table = &bme680_volatile_table,
+	.cache_type = REGCACHE_RBTREE,
 };
 EXPORT_SYMBOL(bme680_regmap_config);
 
@@ -315,6 +329,10 @@ static s16 bme680_compensate_temp(struct bme680_data *data,
 	struct bme680_calib *calib = &data->bme680;
 	s64 var1, var2, var3;
 	s16 calc_temp;
+
+	/* If the calibration is invalid, attempt to reload it */
+	if (!calib->par_t2)
+		bme680_read_calib(data, calib);
 
 	var1 = (adc_temp >> 3) - (calib->par_t1 << 1);
 	var2 = (var1 * calib->par_t2) >> 11;
@@ -583,8 +601,7 @@ static int bme680_gas_config(struct bme680_data *data)
 	return ret;
 }
 
-static int bme680_read_temp(struct bme680_data *data,
-			    int *val, int *val2)
+static int bme680_read_temp(struct bme680_data *data, int *val)
 {
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
@@ -617,10 +634,9 @@ static int bme680_read_temp(struct bme680_data *data,
 	 * compensate_press/compensate_humid to get compensated
 	 * pressure/humidity readings.
 	 */
-	if (val && val2) {
-		*val = comp_temp;
-		*val2 = 100;
-		return IIO_VAL_FRACTIONAL;
+	if (val) {
+		*val = comp_temp * 10; /* Centidegrees to millidegrees */
+		return IIO_VAL_INT;
 	}
 
 	return ret;
@@ -635,7 +651,7 @@ static int bme680_read_press(struct bme680_data *data,
 	s32 adc_press;
 
 	/* Read and compensate temperature to get a reading of t_fine */
-	ret = bme680_read_temp(data, NULL, NULL);
+	ret = bme680_read_temp(data, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -668,7 +684,7 @@ static int bme680_read_humid(struct bme680_data *data,
 	u32 comp_humidity;
 
 	/* Read and compensate temperature to get a reading of t_fine */
-	ret = bme680_read_temp(data, NULL, NULL);
+	ret = bme680_read_temp(data, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -761,7 +777,7 @@ static int bme680_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_PROCESSED:
 		switch (chan->type) {
 		case IIO_TEMP:
-			return bme680_read_temp(data, val, val2);
+			return bme680_read_temp(data, val);
 		case IIO_PRESSURE:
 			return bme680_read_press(data, val, val2);
 		case IIO_HUMIDITYRELATIVE:
@@ -867,7 +883,27 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 {
 	struct iio_dev *indio_dev;
 	struct bme680_data *data;
+	unsigned int val;
 	int ret;
+
+	ret = regmap_write(regmap, BME680_REG_SOFT_RESET,
+			   BME680_CMD_SOFTRESET);
+	if (ret < 0) {
+		dev_err(dev, "Failed to reset chip\n");
+		return ret;
+	}
+
+	ret = regmap_read(regmap, BME680_REG_CHIP_ID, &val);
+	if (ret < 0) {
+		dev_err(dev, "Error reading chip ID\n");
+		return ret;
+	}
+
+	if (val != BME680_CHIP_ID_VAL) {
+		dev_err(dev, "Wrong chip ID, got %x expected %x\n",
+				val, BME680_CHIP_ID_VAL);
+		return -ENODEV;
+	}
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)

@@ -123,6 +123,9 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	int ret = -EINVAL;
 	bool loaded;
 
+	/* Reset PMU outside of the non-preemptible section */
+	kvm_pmu_vcpu_reset(vcpu);
+
 	preempt_disable();
 	loaded = (vcpu->cpu != -1);
 	if (loaded)
@@ -169,9 +172,6 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 
 		vcpu->arch.reset_state.reset = false;
 	}
-
-	/* Reset PMU */
-	kvm_pmu_vcpu_reset(vcpu);
 
 	/* Default workaround setup is enabled (if supported) */
 	if (kvm_arm_have_ssbd() == KVM_SSBD_KERNEL)

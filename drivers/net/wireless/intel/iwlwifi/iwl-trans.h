@@ -8,6 +8,7 @@
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -228,6 +230,12 @@ struct iwl_device_cmd {
 enum iwl_hcmd_dataflag {
 	IWL_HCMD_DFL_NOCOPY	= BIT(0),
 	IWL_HCMD_DFL_DUP	= BIT(1),
+};
+
+enum iwl_error_event_table_status {
+	IWL_ERROR_EVENT_TABLE_LMAC1 = BIT(0),
+	IWL_ERROR_EVENT_TABLE_LMAC2 = BIT(1),
+	IWL_ERROR_EVENT_TABLE_UMAC = BIT(2),
 };
 
 /**
@@ -608,6 +616,7 @@ struct iwl_trans_ops {
 	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
 						 u32 dump_mask);
 	void (*debugfs_cleanup)(struct iwl_trans *trans);
+	void (*sync_nmi)(struct iwl_trans *trans);
 };
 
 /**
@@ -684,6 +693,9 @@ enum iwl_plat_pm_mode {
  */
 #define IWL_TRANS_IDLE_TIMEOUT 2000
 
+/* Max time to wait for nmi interrupt */
+#define IWL_TRANS_NMI_TIMEOUT (HZ / 4)
+
 /**
  * struct iwl_dram_data
  * @physical: page phy pointer
@@ -694,6 +706,20 @@ struct iwl_dram_data {
 	dma_addr_t physical;
 	void *block;
 	int size;
+};
+
+/**
+ * struct iwl_self_init_dram - dram data used by self init process
+ * @fw: lmac and umac dram data
+ * @fw_cnt: total number of items in array
+ * @paging: paging dram data
+ * @paging_cnt: total number of items in array
+ */
+struct iwl_self_init_dram {
+	struct iwl_dram_data *fw;
+	int fw_cnt;
+	struct iwl_dram_data *paging;
+	int paging_cnt;
 };
 
 /**
@@ -738,6 +764,10 @@ struct iwl_dram_data {
  *	mode is set during the initialization phase and is not
  *	supposed to change during runtime.
  * @dbg_rec_on: true iff there is a fw debug recording currently active
+ * @lmac_error_event_table: addrs of lmacs error tables
+ * @umac_error_event_table: addr of umac error table
+ * @error_event_table_tlv_status: bitmap that indicates what error table
+ *	pointers was recevied via TLV. use enum &iwl_error_event_table_status
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -790,11 +820,16 @@ struct iwl_trans {
 	u8 dbg_n_dest_reg;
 	int num_blocks;
 	struct iwl_dram_data fw_mon[IWL_FW_INI_APPLY_NUM];
+	struct iwl_self_init_dram init_dram;
 
 	enum iwl_plat_pm_mode system_pm_mode;
 	enum iwl_plat_pm_mode runtime_pm_mode;
 	bool suspending;
 	bool dbg_rec_on;
+
+	u32 lmac_error_event_table[2];
+	u32 umac_error_event_table;
+	unsigned int error_event_table_tlv_status;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -1202,6 +1237,12 @@ static inline void iwl_trans_fw_error(struct iwl_trans *trans)
 	/* prevent double restarts due to the same erroneous FW */
 	if (!test_and_set_bit(STATUS_FW_ERROR, &trans->status))
 		iwl_op_mode_nic_error(trans->op_mode);
+}
+
+static inline void iwl_trans_sync_nmi(struct iwl_trans *trans)
+{
+	if (trans->ops->sync_nmi)
+		trans->ops->sync_nmi(trans);
 }
 
 /*****************************************************

@@ -46,7 +46,7 @@ static const struct mt76_reg_pair common_mac_reg_table[] = {
 	{ MT_MM20_PROT_CFG,		0x01742004 },
 	{ MT_MM40_PROT_CFG,		0x03f42084 },
 	{ MT_TXOP_CTRL_CFG,		0x0000583f },
-	{ MT_TX_RTS_CFG,		0x00092b20 },
+	{ MT_TX_RTS_CFG,		0x00ffff20 },
 	{ MT_EXP_ACK_TIME,		0x002400ca },
 	{ MT_TXOP_HLDR_ET,		0x00000002 },
 	{ MT_XIFS_TIME_CFG,		0x33a41010 },
@@ -88,6 +88,7 @@ static const struct mt76_reg_pair mt76x0_mac_reg_table[] = {
 	{ MT_TX_PROT_CFG6,		0xe3f42004 },
 	{ MT_TX_PROT_CFG7,		0xe3f42084 },
 	{ MT_TX_PROT_CFG8,		0xe3f42104 },
+	{ MT_VHT_HT_FBK_CFG1,		0xedcba980 },
 };
 
 static const struct mt76_reg_pair mt76x0_bbp_init_tab[] = {

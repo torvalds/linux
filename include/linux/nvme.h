@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions for the NVM Express interface
  * Copyright (c) 2011-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _LINUX_NVME_H
@@ -975,8 +967,13 @@ struct nvme_get_log_page_command {
 	__le16			numdl;
 	__le16			numdu;
 	__u16			rsvd11;
-	__le32			lpol;
-	__le32			lpou;
+	union {
+		struct {
+			__le32 lpol;
+			__le32 lpou;
+		};
+		__le64 lpo;
+	};
 	__u32			rsvd14[2];
 };
 

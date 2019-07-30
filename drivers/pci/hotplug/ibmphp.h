@@ -378,7 +378,6 @@ int ibmphp_add_pfmem_from_mem(struct resource_node *);
 struct bus_node *ibmphp_find_res_bus(u8);
 void ibmphp_print_test(void);	/* for debugging purposes */
 
-void ibmphp_hpc_initvars(void);
 int ibmphp_hpc_readslot(struct slot *, u8, u8 *);
 int ibmphp_hpc_writeslot(struct slot *, u8);
 void ibmphp_lock_operations(void);

@@ -10,14 +10,17 @@
  *          Hans de Goede <hdegoede@redhat.com>
  */
 #include <linux/export.h>
-#include <drm/drm_atomic.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_plane_helper.h>
-#include <drm/drm_atomic_helper.h>
 
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
+
+#include "hgsmi_channels.h"
 #include "vbox_drv.h"
 #include "vboxvideo.h"
-#include "hgsmi_channels.h"
 
 /*
  * Set a graphics mode.  Poke any required values into registers, do an HGSMI

@@ -78,7 +78,7 @@ void *bpf_internal_load_pointer_neg_helper(const struct sk_buff *skb, int k, uns
 	return NULL;
 }
 
-struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
+struct bpf_prog *bpf_prog_alloc_no_stats(unsigned int size, gfp_t gfp_extra_flags)
 {
 	gfp_t gfp_flags = GFP_KERNEL | __GFP_ZERO | gfp_extra_flags;
 	struct bpf_prog_aux *aux;
@@ -103,6 +103,32 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 	INIT_LIST_HEAD_RCU(&fp->aux->ksym_lnode);
 
 	return fp;
+}
+
+struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
+{
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_ZERO | gfp_extra_flags;
+	struct bpf_prog *prog;
+	int cpu;
+
+	prog = bpf_prog_alloc_no_stats(size, gfp_extra_flags);
+	if (!prog)
+		return NULL;
+
+	prog->aux->stats = alloc_percpu_gfp(struct bpf_prog_stats, gfp_flags);
+	if (!prog->aux->stats) {
+		kfree(prog->aux);
+		vfree(prog);
+		return NULL;
+	}
+
+	for_each_possible_cpu(cpu) {
+		struct bpf_prog_stats *pstats;
+
+		pstats = per_cpu_ptr(prog->aux->stats, cpu);
+		u64_stats_init(&pstats->syncp);
+	}
+	return prog;
 }
 EXPORT_SYMBOL_GPL(bpf_prog_alloc);
 
@@ -231,7 +257,10 @@ struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 
 void __bpf_prog_free(struct bpf_prog *fp)
 {
-	kfree(fp->aux);
+	if (fp->aux) {
+		free_percpu(fp->aux->stats);
+		kfree(fp->aux);
+	}
 	vfree(fp);
 }
 
@@ -307,15 +336,16 @@ int bpf_prog_calc_tag(struct bpf_prog *fp)
 	return 0;
 }
 
-static int bpf_adj_delta_to_imm(struct bpf_insn *insn, u32 pos, u32 delta,
-				u32 curr, const bool probe_pass)
+static int bpf_adj_delta_to_imm(struct bpf_insn *insn, u32 pos, s32 end_old,
+				s32 end_new, u32 curr, const bool probe_pass)
 {
 	const s64 imm_min = S32_MIN, imm_max = S32_MAX;
+	s32 delta = end_new - end_old;
 	s64 imm = insn->imm;
 
-	if (curr < pos && curr + imm + 1 > pos)
+	if (curr < pos && curr + imm + 1 >= end_old)
 		imm += delta;
-	else if (curr > pos + delta && curr + imm + 1 <= pos + delta)
+	else if (curr >= end_new && curr + imm + 1 < end_new)
 		imm -= delta;
 	if (imm < imm_min || imm > imm_max)
 		return -ERANGE;
@@ -324,15 +354,16 @@ static int bpf_adj_delta_to_imm(struct bpf_insn *insn, u32 pos, u32 delta,
 	return 0;
 }
 
-static int bpf_adj_delta_to_off(struct bpf_insn *insn, u32 pos, u32 delta,
-				u32 curr, const bool probe_pass)
+static int bpf_adj_delta_to_off(struct bpf_insn *insn, u32 pos, s32 end_old,
+				s32 end_new, u32 curr, const bool probe_pass)
 {
 	const s32 off_min = S16_MIN, off_max = S16_MAX;
+	s32 delta = end_new - end_old;
 	s32 off = insn->off;
 
-	if (curr < pos && curr + off + 1 > pos)
+	if (curr < pos && curr + off + 1 >= end_old)
 		off += delta;
-	else if (curr > pos + delta && curr + off + 1 <= pos + delta)
+	else if (curr >= end_new && curr + off + 1 < end_new)
 		off -= delta;
 	if (off < off_min || off > off_max)
 		return -ERANGE;
@@ -341,10 +372,10 @@ static int bpf_adj_delta_to_off(struct bpf_insn *insn, u32 pos, u32 delta,
 	return 0;
 }
 
-static int bpf_adj_branches(struct bpf_prog *prog, u32 pos, u32 delta,
-			    const bool probe_pass)
+static int bpf_adj_branches(struct bpf_prog *prog, u32 pos, s32 end_old,
+			    s32 end_new, const bool probe_pass)
 {
-	u32 i, insn_cnt = prog->len + (probe_pass ? delta : 0);
+	u32 i, insn_cnt = prog->len + (probe_pass ? end_new - end_old : 0);
 	struct bpf_insn *insn = prog->insnsi;
 	int ret = 0;
 
@@ -356,22 +387,23 @@ static int bpf_adj_branches(struct bpf_prog *prog, u32 pos, u32 delta,
 		 * do any other adjustments. Therefore skip the patchlet.
 		 */
 		if (probe_pass && i == pos) {
-			i += delta + 1;
-			insn++;
+			i = end_new;
+			insn = prog->insnsi + end_old;
 		}
 		code = insn->code;
-		if (BPF_CLASS(code) != BPF_JMP ||
+		if ((BPF_CLASS(code) != BPF_JMP &&
+		     BPF_CLASS(code) != BPF_JMP32) ||
 		    BPF_OP(code) == BPF_EXIT)
 			continue;
 		/* Adjust offset of jmps if we cross patch boundaries. */
 		if (BPF_OP(code) == BPF_CALL) {
 			if (insn->src_reg != BPF_PSEUDO_CALL)
 				continue;
-			ret = bpf_adj_delta_to_imm(insn, pos, delta, i,
-						   probe_pass);
+			ret = bpf_adj_delta_to_imm(insn, pos, end_old,
+						   end_new, i, probe_pass);
 		} else {
-			ret = bpf_adj_delta_to_off(insn, pos, delta, i,
-						   probe_pass);
+			ret = bpf_adj_delta_to_off(insn, pos, end_old,
+						   end_new, i, probe_pass);
 		}
 		if (ret)
 			break;
@@ -421,7 +453,7 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 	 * we afterwards may not fail anymore.
 	 */
 	if (insn_adj_cnt > cnt_max &&
-	    bpf_adj_branches(prog, off, insn_delta, true))
+	    bpf_adj_branches(prog, off, off + 1, off + len, true))
 		return NULL;
 
 	/* Several new instructions need to be inserted. Make room
@@ -453,11 +485,23 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 	 * the ship has sailed to reverse to the original state. An
 	 * overflow cannot happen at this point.
 	 */
-	BUG_ON(bpf_adj_branches(prog_adj, off, insn_delta, false));
+	BUG_ON(bpf_adj_branches(prog_adj, off, off + 1, off + len, false));
 
 	bpf_adj_linfo(prog_adj, off, insn_delta);
 
 	return prog_adj;
+}
+
+int bpf_remove_insns(struct bpf_prog *prog, u32 off, u32 cnt)
+{
+	/* Branch offsets can't overflow when program is shrinking, no need
+	 * to call bpf_adj_branches(..., true) here
+	 */
+	memmove(prog->insnsi + off, prog->insnsi + off + cnt,
+		sizeof(struct bpf_insn) * (prog->len - off - cnt));
+	prog->len -= cnt;
+
+	return WARN_ON_ONCE(bpf_adj_branches(prog, off, off + cnt, off, false));
 }
 
 void bpf_prog_kallsyms_del_subprogs(struct bpf_prog *fp)
@@ -495,7 +539,7 @@ bpf_get_prog_addr_region(const struct bpf_prog *prog,
 	*symbol_end   = addr + hdr->pages * PAGE_SIZE;
 }
 
-static void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
+void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
 {
 	const char *end = sym + KSYM_NAME_LEN;
 	const struct btf_type *type;
@@ -934,6 +978,27 @@ static int bpf_jit_blind_insn(const struct bpf_insn *from,
 		*to++ = BPF_JMP_REG(from->code, from->dst_reg, BPF_REG_AX, off);
 		break;
 
+	case BPF_JMP32 | BPF_JEQ  | BPF_K:
+	case BPF_JMP32 | BPF_JNE  | BPF_K:
+	case BPF_JMP32 | BPF_JGT  | BPF_K:
+	case BPF_JMP32 | BPF_JLT  | BPF_K:
+	case BPF_JMP32 | BPF_JGE  | BPF_K:
+	case BPF_JMP32 | BPF_JLE  | BPF_K:
+	case BPF_JMP32 | BPF_JSGT | BPF_K:
+	case BPF_JMP32 | BPF_JSLT | BPF_K:
+	case BPF_JMP32 | BPF_JSGE | BPF_K:
+	case BPF_JMP32 | BPF_JSLE | BPF_K:
+	case BPF_JMP32 | BPF_JSET | BPF_K:
+		/* Accommodate for extra offset in case of a backjump. */
+		off = from->off;
+		if (off < 0)
+			off -= 2;
+		*to++ = BPF_ALU32_IMM(BPF_MOV, BPF_REG_AX, imm_rnd ^ from->imm);
+		*to++ = BPF_ALU32_IMM(BPF_XOR, BPF_REG_AX, imm_rnd);
+		*to++ = BPF_JMP32_REG(from->code, from->dst_reg, BPF_REG_AX,
+				      off);
+		break;
+
 	case BPF_LD | BPF_IMM | BPF_DW:
 		*to++ = BPF_ALU64_IMM(BPF_MOV, BPF_REG_AX, imm_rnd ^ aux[1].imm);
 		*to++ = BPF_ALU64_IMM(BPF_XOR, BPF_REG_AX, imm_rnd);
@@ -1130,6 +1195,31 @@ EXPORT_SYMBOL_GPL(__bpf_call_base);
 	INSN_2(JMP, CALL),			\
 	/* Exit instruction. */			\
 	INSN_2(JMP, EXIT),			\
+	/* 32-bit Jump instructions. */		\
+	/*   Register based. */			\
+	INSN_3(JMP32, JEQ,  X),			\
+	INSN_3(JMP32, JNE,  X),			\
+	INSN_3(JMP32, JGT,  X),			\
+	INSN_3(JMP32, JLT,  X),			\
+	INSN_3(JMP32, JGE,  X),			\
+	INSN_3(JMP32, JLE,  X),			\
+	INSN_3(JMP32, JSGT, X),			\
+	INSN_3(JMP32, JSLT, X),			\
+	INSN_3(JMP32, JSGE, X),			\
+	INSN_3(JMP32, JSLE, X),			\
+	INSN_3(JMP32, JSET, X),			\
+	/*   Immediate based. */		\
+	INSN_3(JMP32, JEQ,  K),			\
+	INSN_3(JMP32, JNE,  K),			\
+	INSN_3(JMP32, JGT,  K),			\
+	INSN_3(JMP32, JLT,  K),			\
+	INSN_3(JMP32, JGE,  K),			\
+	INSN_3(JMP32, JLE,  K),			\
+	INSN_3(JMP32, JSGT, K),			\
+	INSN_3(JMP32, JSLT, K),			\
+	INSN_3(JMP32, JSGE, K),			\
+	INSN_3(JMP32, JSLE, K),			\
+	INSN_3(JMP32, JSET, K),			\
 	/* Jump instructions. */		\
 	/*   Register based. */			\
 	INSN_3(JMP, JEQ,  X),			\
@@ -1202,8 +1292,9 @@ bool bpf_opcode_in_insntable(u8 code)
 #ifndef CONFIG_BPF_JIT_ALWAYS_ON
 /**
  *	__bpf_prog_run - run eBPF program on a given context
- *	@ctx: is the data we are operating on
+ *	@regs: is the array of MAX_BPF_EXT_REG eBPF pseudo-registers
  *	@insn: is the array of eBPF instructions
+ *	@stack: is the eBPF storage stack
  *
  * Decode and execute eBPF instructions.
  */
@@ -1390,145 +1481,49 @@ select_insn:
 out:
 		CONT;
 	}
-	/* JMP */
 	JMP_JA:
 		insn += insn->off;
 		CONT;
-	JMP_JEQ_X:
-		if (DST == SRC) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JEQ_K:
-		if (DST == IMM) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JNE_X:
-		if (DST != SRC) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JNE_K:
-		if (DST != IMM) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JGT_X:
-		if (DST > SRC) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JGT_K:
-		if (DST > IMM) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JLT_X:
-		if (DST < SRC) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JLT_K:
-		if (DST < IMM) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JGE_X:
-		if (DST >= SRC) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JGE_K:
-		if (DST >= IMM) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JLE_X:
-		if (DST <= SRC) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JLE_K:
-		if (DST <= IMM) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JSGT_X:
-		if (((s64) DST) > ((s64) SRC)) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JSGT_K:
-		if (((s64) DST) > ((s64) IMM)) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JSLT_X:
-		if (((s64) DST) < ((s64) SRC)) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JSLT_K:
-		if (((s64) DST) < ((s64) IMM)) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JSGE_X:
-		if (((s64) DST) >= ((s64) SRC)) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JSGE_K:
-		if (((s64) DST) >= ((s64) IMM)) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JSLE_X:
-		if (((s64) DST) <= ((s64) SRC)) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JSLE_K:
-		if (((s64) DST) <= ((s64) IMM)) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JSET_X:
-		if (DST & SRC) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
-	JMP_JSET_K:
-		if (DST & IMM) {
-			insn += insn->off;
-			CONT_JMP;
-		}
-		CONT;
 	JMP_EXIT:
 		return BPF_R0;
-
+	/* JMP */
+#define COND_JMP(SIGN, OPCODE, CMP_OP)				\
+	JMP_##OPCODE##_X:					\
+		if ((SIGN##64) DST CMP_OP (SIGN##64) SRC) {	\
+			insn += insn->off;			\
+			CONT_JMP;				\
+		}						\
+		CONT;						\
+	JMP32_##OPCODE##_X:					\
+		if ((SIGN##32) DST CMP_OP (SIGN##32) SRC) {	\
+			insn += insn->off;			\
+			CONT_JMP;				\
+		}						\
+		CONT;						\
+	JMP_##OPCODE##_K:					\
+		if ((SIGN##64) DST CMP_OP (SIGN##64) IMM) {	\
+			insn += insn->off;			\
+			CONT_JMP;				\
+		}						\
+		CONT;						\
+	JMP32_##OPCODE##_K:					\
+		if ((SIGN##32) DST CMP_OP (SIGN##32) IMM) {	\
+			insn += insn->off;			\
+			CONT_JMP;				\
+		}						\
+		CONT;
+	COND_JMP(u, JEQ, ==)
+	COND_JMP(u, JNE, !=)
+	COND_JMP(u, JGT, >)
+	COND_JMP(u, JLT, <)
+	COND_JMP(u, JGE, >=)
+	COND_JMP(u, JLE, <=)
+	COND_JMP(u, JSET, &)
+	COND_JMP(s, JSGT, >)
+	COND_JMP(s, JSLT, <)
+	COND_JMP(s, JSGE, >=)
+	COND_JMP(s, JSLE, <=)
+#undef COND_JMP
 	/* STX and ST and LDX*/
 #define LDST(SIZEOP, SIZE)						\
 	STX_MEM_##SIZEOP:						\
@@ -2036,6 +2031,8 @@ const struct bpf_func_proto bpf_map_delete_elem_proto __weak;
 const struct bpf_func_proto bpf_map_push_elem_proto __weak;
 const struct bpf_func_proto bpf_map_pop_elem_proto __weak;
 const struct bpf_func_proto bpf_map_peek_elem_proto __weak;
+const struct bpf_func_proto bpf_spin_lock_proto __weak;
+const struct bpf_func_proto bpf_spin_unlock_proto __weak;
 
 const struct bpf_func_proto bpf_get_prandom_u32_proto __weak;
 const struct bpf_func_proto bpf_get_smp_processor_id_proto __weak;
@@ -2100,6 +2097,10 @@ int __weak skb_copy_bits(const struct sk_buff *skb, int offset, void *to,
 {
 	return -EFAULT;
 }
+
+DEFINE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
+EXPORT_SYMBOL(bpf_stats_enabled_key);
+int sysctl_bpf_stats_enabled __read_mostly;
 
 /* All definitions of tracepoints related to BPF. */
 #define CREATE_TRACE_POINTS

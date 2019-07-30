@@ -47,28 +47,28 @@
 		#size-cells = <0>;
 
 		cpu@0 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 		};
 
 		cpu@1 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 		};
 
 		cpu@2 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 		};
 
 		cpu@3 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			reg = <0x0 0x3>;
 			enable-method = "psci";

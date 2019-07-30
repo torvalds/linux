@@ -796,7 +796,7 @@ static int vidioc_s_fmt_vid_overlay(struct file *file, void *__fh, struct v4l2_f
 		return -EFAULT;
 	}
 
-	/* vv->ov.fh is used to indicate that we have valid overlay informations, too */
+	/* vv->ov.fh is used to indicate that we have valid overlay information, too */
 	vv->ov.fh = fh;
 
 	/* check if our current overlay is active */

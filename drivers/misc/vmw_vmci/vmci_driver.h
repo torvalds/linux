@@ -54,4 +54,6 @@ void vmci_guest_exit(void);
 bool vmci_guest_code_active(void);
 u32 vmci_get_vm_context_id(void);
 
+bool vmci_use_ppn64(void);
+
 #endif /* _VMCI_DRIVER_H_ */

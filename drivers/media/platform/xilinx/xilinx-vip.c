@@ -166,7 +166,7 @@ EXPORT_SYMBOL_GPL(xvip_set_format_size);
  * the register, otherwise the bitmask is cleared from the register
  * when the flag @set is false.
  *
- * Fox eample, this function can be used to set a control with a boolean value
+ * Fox example, this function can be used to set a control with a boolean value
  * requested by users. If the caller knows whether to set or clear in the first
  * place, the caller should call xvip_clr() or xvip_set() directly instead of
  * using this function.

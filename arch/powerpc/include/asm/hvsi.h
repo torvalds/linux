@@ -64,7 +64,7 @@ struct hvsi_priv {
 	unsigned int	inbuf_len;	/* data in input buffer */
 	unsigned char	inbuf[HVSI_INBUF_SIZE];
 	unsigned int	inbuf_cur;	/* Cursor in input buffer */
-	unsigned int	inbuf_pktlen;	/* packet lenght from cursor */
+	unsigned int	inbuf_pktlen;	/* packet length from cursor */
 	atomic_t	seqno;		/* packet sequence number */
 	unsigned int	opened:1;	/* driver opened */
 	unsigned int	established:1;	/* protocol established */

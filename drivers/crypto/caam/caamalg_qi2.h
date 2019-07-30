@@ -76,6 +76,7 @@ struct dpaa2_caam_priv {
  * @nctx: notification context of response FQ
  * @store: where dequeued frames are stored
  * @priv: backpointer to dpaa2_caam_priv
+ * @dpio: portal used for data path operations
  */
 struct dpaa2_caam_priv_per_cpu {
 	struct napi_struct napi;
@@ -86,6 +87,7 @@ struct dpaa2_caam_priv_per_cpu {
 	struct dpaa2_io_notification_ctx nctx;
 	struct dpaa2_io_store *store;
 	struct dpaa2_caam_priv *priv;
+	struct dpaa2_io *dpio;
 };
 
 /*

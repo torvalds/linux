@@ -262,6 +262,8 @@ struct vb2_buffer {
 	 * prepared:		this buffer has been prepared, i.e. the
 	 *			buf_prepare op was called. It is cleared again
 	 *			after the 'buf_finish' op is called.
+	 * copied_timestamp:	the timestamp of this capture buffer was copied
+	 *			from an output buffer.
 	 * queued_entry:	entry on the queued buffers list, which holds
 	 *			all buffers queued from userspace
 	 * done_entry:		entry on the list that stores all buffers ready
@@ -269,8 +271,9 @@ struct vb2_buffer {
 	 * vb2_plane:		per-plane information; do not change
 	 */
 	enum vb2_buffer_state	state;
-	bool			synced;
-	bool			prepared;
+	unsigned int		synced:1;
+	unsigned int		prepared:1;
+	unsigned int		copied_timestamp:1;
 
 	struct vb2_plane	planes[VB2_MAX_PLANES];
 	struct list_head	queued_entry;
@@ -296,6 +299,7 @@ struct vb2_buffer {
 	u32		cnt_mem_num_users;
 	u32		cnt_mem_mmap;
 
+	u32		cnt_buf_out_validate;
 	u32		cnt_buf_init;
 	u32		cnt_buf_prepare;
 	u32		cnt_buf_finish;
@@ -342,6 +346,10 @@ struct vb2_buffer {
  * @wait_finish:	reacquire all locks released in the previous callback;
  *			required to continue operation after sleeping while
  *			waiting for a new buffer to arrive.
+ * @buf_out_validate:	called when the output buffer is prepared or queued
+ *			to a request; drivers can use this to validate
+ *			userspace-provided information; this is required only
+ *			for OUTPUT queues.
  * @buf_init:		called once after allocating a buffer (in MMAP case)
  *			or after acquiring a new USERPTR buffer; drivers may
  *			perform additional buffer-related initialization;
@@ -391,7 +399,7 @@ struct vb2_buffer {
  * @buf_queue:		passes buffer vb to the driver; driver may start
  *			hardware operation on this buffer; driver should give
  *			the buffer back by calling vb2_buffer_done() function;
- *			it is allways called after calling VIDIOC_STREAMON()
+ *			it is always called after calling VIDIOC_STREAMON()
  *			ioctl; might be called before @start_streaming callback
  *			if user pre-queued buffers before calling
  *			VIDIOC_STREAMON().
@@ -409,6 +417,7 @@ struct vb2_ops {
 	void (*wait_prepare)(struct vb2_queue *q);
 	void (*wait_finish)(struct vb2_queue *q);
 
+	int (*buf_out_validate)(struct vb2_buffer *vb);
 	int (*buf_init)(struct vb2_buffer *vb);
 	int (*buf_prepare)(struct vb2_buffer *vb);
 	void (*buf_finish)(struct vb2_buffer *vb);

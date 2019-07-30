@@ -24,15 +24,17 @@ __printf(1, 2) void vbg_debug(const char *fmt, ...);
 #define vbg_debug pr_debug
 #endif
 
-int vbg_hgcm_connect(struct vbg_dev *gdev,
+int vbg_hgcm_connect(struct vbg_dev *gdev, u32 requestor,
 		     struct vmmdev_hgcm_service_location *loc,
 		     u32 *client_id, int *vbox_status);
 
-int vbg_hgcm_disconnect(struct vbg_dev *gdev, u32 client_id, int *vbox_status);
+int vbg_hgcm_disconnect(struct vbg_dev *gdev, u32 requestor,
+			u32 client_id, int *vbox_status);
 
-int vbg_hgcm_call(struct vbg_dev *gdev, u32 client_id, u32 function,
-		  u32 timeout_ms, struct vmmdev_hgcm_function_parameter *parms,
-		  u32 parm_count, int *vbox_status);
+int vbg_hgcm_call(struct vbg_dev *gdev, u32 requestor, u32 client_id,
+		  u32 function, u32 timeout_ms,
+		  struct vmmdev_hgcm_function_parameter *parms, u32 parm_count,
+		  int *vbox_status);
 
 /**
  * Convert a VirtualBox status code to a standard Linux kernel return value.

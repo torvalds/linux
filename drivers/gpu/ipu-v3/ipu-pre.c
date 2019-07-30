@@ -265,6 +265,12 @@ void ipu_pre_update(struct ipu_pre *pre, unsigned int bufaddr)
 	writel(IPU_PRE_CTRL_SDW_UPDATE, pre->regs + IPU_PRE_CTRL_SET);
 }
 
+bool ipu_pre_update_pending(struct ipu_pre *pre)
+{
+	return !!(readl_relaxed(pre->regs + IPU_PRE_CTRL) &
+		  IPU_PRE_CTRL_SDW_UPDATE);
+}
+
 u32 ipu_pre_get_baddr(struct ipu_pre *pre)
 {
 	return (u32)pre->buffer_paddr;

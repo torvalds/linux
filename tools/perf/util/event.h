@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <linux/kernel.h>
+#include <linux/bpf.h>
 
 #include "../perf.h"
 #include "build-id.h"
@@ -84,6 +85,29 @@ struct throttle_event {
 	u64 stream_id;
 };
 
+#ifndef KSYM_NAME_LEN
+#define KSYM_NAME_LEN 256
+#endif
+
+struct ksymbol_event {
+	struct perf_event_header header;
+	u64 addr;
+	u32 len;
+	u16 ksym_type;
+	u16 flags;
+	char name[KSYM_NAME_LEN];
+};
+
+struct bpf_event {
+	struct perf_event_header header;
+	u16 type;
+	u16 flags;
+	u32 id;
+
+	/* for bpf_prog types */
+	u8 tag[BPF_TAG_SIZE];  // prog tag
+};
+
 #define PERF_SAMPLE_MASK				\
 	(PERF_SAMPLE_IP | PERF_SAMPLE_TID |		\
 	 PERF_SAMPLE_TIME | PERF_SAMPLE_ADDR |		\
@@ -137,26 +161,7 @@ struct ip_callchain {
 	u64 ips[0];
 };
 
-struct branch_flags {
-	u64 mispred:1;
-	u64 predicted:1;
-	u64 in_tx:1;
-	u64 abort:1;
-	u64 cycles:16;
-	u64 type:4;
-	u64 reserved:40;
-};
-
-struct branch_entry {
-	u64			from;
-	u64			to;
-	struct branch_flags	flags;
-};
-
-struct branch_stack {
-	u64			nr;
-	struct branch_entry	entries[0];
-};
+struct branch_stack;
 
 enum {
 	PERF_IP_FLAG_BRANCH		= 1ULL << 0,
@@ -527,8 +532,9 @@ struct auxtrace_error_event {
 	u32 cpu;
 	u32 pid;
 	u32 tid;
-	u32 reserved__; /* For alignment */
+	u32 fmt;
 	u64 ip;
+	u64 time;
 	char msg[MAX_AUXTRACE_ERROR_MSG];
 };
 
@@ -651,6 +657,8 @@ union perf_event {
 	struct stat_round_event		stat_round;
 	struct time_conv_event		time_conv;
 	struct feature_event		feat;
+	struct ksymbol_event		ksymbol_event;
+	struct bpf_event		bpf_event;
 };
 
 void perf_event__print_totals(void);
@@ -748,6 +756,14 @@ int perf_event__process_exit(struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
+int perf_event__process_ksymbol(struct perf_tool *tool,
+				union perf_event *event,
+				struct perf_sample *sample,
+				struct machine *machine);
+int perf_event__process_bpf_event(struct perf_tool *tool,
+				  union perf_event *event,
+				  struct perf_sample *sample,
+				  struct machine *machine);
 int perf_tool__process_synth_event(struct perf_tool *tool,
 				   union perf_event *event,
 				   struct machine *machine,
@@ -811,6 +827,8 @@ size_t perf_event__fprintf_switch(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_thread_map(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_cpu_map(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_namespaces(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_ksymbol(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_bpf_event(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf(union perf_event *event, FILE *fp);
 
 int kallsyms__get_function_start(const char *kallsyms_filename,

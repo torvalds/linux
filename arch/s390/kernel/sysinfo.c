@@ -545,8 +545,6 @@ static __init int stsi_init_debugfs(void)
 	int lvl, i;
 
 	stsi_root = debugfs_create_dir("stsi", arch_debugfs_dir);
-	if (IS_ERR_OR_NULL(stsi_root))
-		return 0;
 	lvl = stsi(NULL, 0, 0, 0);
 	if (lvl > 0)
 		stsi_0_0_0 = lvl;

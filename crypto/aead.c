@@ -61,8 +61,10 @@ int crypto_aead_setkey(struct crypto_aead *tfm,
 	else
 		err = crypto_aead_alg(tfm)->setkey(tfm, key, keylen);
 
-	if (err)
+	if (unlikely(err)) {
+		crypto_aead_set_flags(tfm, CRYPTO_TFM_NEED_KEY);
 		return err;
+	}
 
 	crypto_aead_clear_flags(tfm, CRYPTO_TFM_NEED_KEY);
 	return 0;

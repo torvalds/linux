@@ -41,7 +41,7 @@
 #define MTK_MDP_CTX_ERROR		BIT(5)
 
 /**
- *  struct mtk_mdp_pix_align - alignement of image
+ *  struct mtk_mdp_pix_align - alignment of image
  *  @org_w: source alignment of width
  *  @org_h: source alignment of height
  *  @target_w: dst alignment of width
@@ -122,8 +122,8 @@ struct mtk_mdp_frame {
 /**
  * struct mtk_mdp_variant - image processor variant information
  * @pix_max:		maximum limit of image size
- * @pix_min:		minimun limit of image size
- * @pix_align:		alignement of image
+ * @pix_min:		minimum limit of image size
+ * @pix_align:		alignment of image
  * @h_scale_up_max:	maximum scale-up in horizontal
  * @v_scale_up_max:	maximum scale-up in vertical
  * @h_scale_down_max:	maximum scale-down in horizontal

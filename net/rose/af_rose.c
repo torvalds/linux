@@ -689,8 +689,10 @@ static int rose_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		rose->source_call = user->call;
 		ax25_uid_put(user);
 	} else {
-		if (ax25_uid_policy && !capable(CAP_NET_BIND_SERVICE))
+		if (ax25_uid_policy && !capable(CAP_NET_BIND_SERVICE)) {
+			dev_put(dev);
 			return -EACCES;
+		}
 		rose->source_call   = *source;
 	}
 

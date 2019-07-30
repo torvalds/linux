@@ -63,6 +63,7 @@
 #define MX6_BM_NON_BURST_SETTING	BIT(1)
 #define MX6_BM_OVER_CUR_DIS		BIT(7)
 #define MX6_BM_OVER_CUR_POLARITY	BIT(8)
+#define MX6_BM_PWR_POLARITY		BIT(9)
 #define MX6_BM_WAKEUP_ENABLE		BIT(10)
 #define MX6_BM_UTMI_ON_CLOCK		BIT(13)
 #define MX6_BM_ID_WAKEUP		BIT(16)
@@ -383,6 +384,9 @@ static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 		else if (data->oc_pol_configured)
 			reg &= ~MX6_BM_OVER_CUR_POLARITY;
 	}
+	/* If the polarity is not set keep it as setup by the bootlader */
+	if (data->pwr_pol == 1)
+		reg |= MX6_BM_PWR_POLARITY;
 	writel(reg, usbmisc->base + data->index * 4);
 
 	/* SoC non-burst setting */
@@ -585,6 +589,9 @@ static int usbmisc_imx7d_init(struct imx_usbmisc_data *data)
 		else if (data->oc_pol_configured)
 			reg &= ~MX6_BM_OVER_CUR_POLARITY;
 	}
+	/* If the polarity is not set keep it as setup by the bootlader */
+	if (data->pwr_pol == 1)
+		reg |= MX6_BM_PWR_POLARITY;
 	writel(reg, usbmisc->base);
 
 	reg = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);

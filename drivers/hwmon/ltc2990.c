@@ -136,7 +136,7 @@ static int ltc2990_get_value(struct i2c_client *i2c, int index, int *result)
 	return 0;
 }
 
-static ssize_t ltc2990_show_value(struct device *dev,
+static ssize_t ltc2990_value_show(struct device *dev,
 				  struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -170,26 +170,16 @@ static umode_t ltc2990_attrs_visible(struct kobject *kobj,
 	return 0;
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_TEMP1);
-static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_TEMP2);
-static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_TEMP3);
-static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_CURR1);
-static SENSOR_DEVICE_ATTR(curr2_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_CURR2);
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_IN0);
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_IN1);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_IN2);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_IN3);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, ltc2990_show_value, NULL,
-			  LTC2990_IN4);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, ltc2990_value, LTC2990_TEMP1);
+static SENSOR_DEVICE_ATTR_RO(temp2_input, ltc2990_value, LTC2990_TEMP2);
+static SENSOR_DEVICE_ATTR_RO(temp3_input, ltc2990_value, LTC2990_TEMP3);
+static SENSOR_DEVICE_ATTR_RO(curr1_input, ltc2990_value, LTC2990_CURR1);
+static SENSOR_DEVICE_ATTR_RO(curr2_input, ltc2990_value, LTC2990_CURR2);
+static SENSOR_DEVICE_ATTR_RO(in0_input, ltc2990_value, LTC2990_IN0);
+static SENSOR_DEVICE_ATTR_RO(in1_input, ltc2990_value, LTC2990_IN1);
+static SENSOR_DEVICE_ATTR_RO(in2_input, ltc2990_value, LTC2990_IN2);
+static SENSOR_DEVICE_ATTR_RO(in3_input, ltc2990_value, LTC2990_IN3);
+static SENSOR_DEVICE_ATTR_RO(in4_input, ltc2990_value, LTC2990_IN4);
 
 static struct attribute *ltc2990_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,

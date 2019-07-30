@@ -103,6 +103,9 @@ int __init irq_remapping_prepare(void)
 	else if (IS_ENABLED(CONFIG_AMD_IOMMU) &&
 		 amd_iommu_irq_ops.prepare() == 0)
 		remap_ops = &amd_iommu_irq_ops;
+	else if (IS_ENABLED(CONFIG_HYPERV_IOMMU) &&
+		 hyperv_irq_remap_ops.prepare() == 0)
+		remap_ops = &hyperv_irq_remap_ops;
 	else
 		return -ENOSYS;
 

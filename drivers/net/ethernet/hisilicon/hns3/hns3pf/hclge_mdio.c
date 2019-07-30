@@ -8,12 +8,6 @@
 #include "hclge_main.h"
 #include "hclge_mdio.h"
 
-#define HCLGE_PHY_SUPPORTED_FEATURES	(SUPPORTED_Autoneg | \
-					 SUPPORTED_TP | \
-					 PHY_10BT_FEATURES | \
-					 PHY_100BT_FEATURES | \
-					 SUPPORTED_1000baseT_Full)
-
 enum hclge_mdio_c22_op_seq {
 	HCLGE_MDIO_C22_WRITE = 1,
 	HCLGE_MDIO_C22_READ = 2
@@ -195,8 +189,10 @@ static void hclge_mac_adjust_link(struct net_device *netdev)
 		netdev_err(netdev, "failed to configure flow control.\n");
 }
 
-int hclge_mac_connect_phy(struct hclge_dev *hdev)
+int hclge_mac_connect_phy(struct hnae3_handle *handle)
 {
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
 	struct net_device *netdev = hdev->vport[0].nic.netdev;
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
@@ -215,22 +211,17 @@ int hclge_mac_connect_phy(struct hclge_dev *hdev)
 		return ret;
 	}
 
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, mask);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_TP_BIT, mask);
-	linkmode_set_bit_array(phy_10_100_features_array,
-			       ARRAY_SIZE(phy_10_100_features_array),
-			       mask);
-	linkmode_set_bit_array(phy_gbit_features_array,
-			       ARRAY_SIZE(phy_gbit_features_array),
-			       mask);
+	linkmode_copy(mask, hdev->hw.mac.supported);
 	linkmode_and(phydev->supported, phydev->supported, mask);
-	phy_support_asym_pause(phydev);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	return 0;
 }
 
-void hclge_mac_disconnect_phy(struct hclge_dev *hdev)
+void hclge_mac_disconnect_phy(struct hnae3_handle *handle)
 {
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 
 	if (!phydev)

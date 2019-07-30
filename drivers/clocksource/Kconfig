@@ -131,7 +131,8 @@ config SUN5I_HSTIMER
 config TEGRA_TIMER
 	bool "Tegra timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
-	depends on ARM
+	select TIMER_OF
+	depends on ARM || ARM64
 	help
 	  Enables support for the Tegra driver.
 
@@ -144,6 +145,7 @@ config VT8500_TIMER
 config NPCM7XX_TIMER
 	bool "NPCM7xx timer driver" if COMPILE_TEST
 	depends on HAS_IOMEM
+	select TIMER_OF
 	select CLKSRC_MMIO
 	help
 	  Enable 24-bit TIMER0 and TIMER1 counters in the NPCM7xx architecture,
@@ -359,6 +361,16 @@ config ARM64_ERRATUM_858921
 	  (all versions), whose counter may return incorrect values.
 	  The workaround will be dynamically enabled when an affected
 	  core is detected.
+
+config SUN50I_ERRATUM_UNKNOWN1
+	bool "Workaround for Allwinner A64 erratum UNKNOWN1"
+	default y
+	depends on ARM_ARCH_TIMER && ARM64 && ARCH_SUNXI
+	select ARM_ARCH_TIMER_OOL_WORKAROUND
+	help
+	  This option enables a workaround for instability in the timer on
+	  the Allwinner A64 SoC. The workaround will only be active if the
+	  allwinner,erratum-unknown1 property is found in the timer node.
 
 config ARM_GLOBAL_TIMER
 	bool "Support for the ARM global timer" if COMPILE_TEST
@@ -633,5 +645,14 @@ config GX6605S_TIMER
 	select TIMER_OF
 	help
 	  This option enables support for gx6605s SOC's timer.
+
+config MILBEAUT_TIMER
+	bool "Milbeaut timer driver" if COMPILE_TEST
+	depends on OF
+	depends on ARM
+	select TIMER_OF
+	select CLKSRC_MMIO
+	help
+	  Enables the support for Milbeaut timer driver.
 
 endmenu

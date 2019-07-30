@@ -29,31 +29,59 @@
 #include "dm_services.h"
 #include <stdarg.h>
 
+struct dc_reg_value_masks {
+	uint32_t value;
+	uint32_t mask;
+};
+
+struct dc_reg_sequence {
+	uint32_t addr;
+	struct dc_reg_value_masks value_masks;
+};
+
+static inline void set_reg_field_value_masks(
+	struct dc_reg_value_masks *field_value_mask,
+	uint32_t value,
+	uint32_t mask,
+	uint8_t shift)
+{
+	ASSERT(mask != 0);
+
+	field_value_mask->value = (field_value_mask->value & ~mask) | (mask & (value << shift));
+	field_value_mask->mask = field_value_mask->mask | mask;
+}
+
 uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 		uint32_t addr, uint32_t reg_val, int n,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
 		...)
 {
+	struct dc_reg_value_masks field_value_mask = {0};
 	uint32_t shift, mask, field_value;
 	int i = 1;
 
 	va_list ap;
 	va_start(ap, field_value1);
 
-	reg_val = set_reg_field_value_ex(reg_val, field_value1, mask1, shift1);
+	/* gather all bits value/mask getting updated in this register */
+	set_reg_field_value_masks(&field_value_mask,
+			field_value1, mask1, shift1);
 
 	while (i < n) {
 		shift = va_arg(ap, uint32_t);
 		mask = va_arg(ap, uint32_t);
 		field_value = va_arg(ap, uint32_t);
 
-		reg_val = set_reg_field_value_ex(reg_val, field_value, mask, shift);
+		set_reg_field_value_masks(&field_value_mask,
+				field_value, mask, shift);
 		i++;
 	}
-
-	dm_write_reg(ctx, addr, reg_val);
 	va_end(ap);
 
+
+	/* mmio write directly */
+	reg_val = (reg_val & ~field_value_mask.mask) | field_value_mask.value;
+	dm_write_reg(ctx, addr, reg_val);
 	return reg_val;
 }
 

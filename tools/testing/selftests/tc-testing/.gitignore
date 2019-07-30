@@ -3,3 +3,4 @@ __pycache__/
 plugins/
 *.xml
 *.tap
+tdc_config_local.py

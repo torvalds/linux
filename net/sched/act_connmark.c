@@ -21,6 +21,7 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/act_api.h>
+#include <net/pkt_cls.h>
 #include <uapi/linux/tc_act/tc_connmark.h>
 #include <net/tc_act/tc_connmark.h>
 
@@ -97,13 +98,15 @@ static const struct nla_policy connmark_policy[TCA_CONNMARK_MAX + 1] = {
 static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 			     struct nlattr *est, struct tc_action **a,
 			     int ovr, int bind, bool rtnl_held,
+			     struct tcf_proto *tp,
 			     struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, connmark_net_id);
 	struct nlattr *tb[TCA_CONNMARK_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tcf_connmark_info *ci;
 	struct tc_connmark *parm;
-	int ret = 0;
+	int ret = 0, err;
 
 	if (!nla)
 		return -EINVAL;
@@ -128,7 +131,11 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 		}
 
 		ci = to_connmark(*a);
-		ci->tcf_action = parm->action;
+		err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch,
+					       extack);
+		if (err < 0)
+			goto release_idr;
+		tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 		ci->net = net;
 		ci->zone = parm->zone;
 
@@ -142,15 +149,24 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 			tcf_idr_release(*a, bind);
 			return -EEXIST;
 		}
+		err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch,
+					       extack);
+		if (err < 0)
+			goto release_idr;
 		/* replacing action and zone */
 		spin_lock_bh(&ci->tcf_lock);
-		ci->tcf_action = parm->action;
+		goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 		ci->zone = parm->zone;
 		spin_unlock_bh(&ci->tcf_lock);
+		if (goto_ch)
+			tcf_chain_put_by_act(goto_ch);
 		ret = 0;
 	}
 
 	return ret;
+release_idr:
+	tcf_idr_release(*a, bind);
+	return err;
 }
 
 static inline int tcf_connmark_dump(struct sk_buff *skb, struct tc_action *a,
@@ -204,7 +220,7 @@ static int tcf_connmark_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_connmark_ops = {
 	.kind		=	"connmark",
-	.type		=	TCA_ACT_CONNMARK,
+	.id		=	TCA_ID_CONNMARK,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_connmark_act,
 	.dump		=	tcf_connmark_dump,

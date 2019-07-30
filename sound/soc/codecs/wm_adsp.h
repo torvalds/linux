@@ -85,13 +85,14 @@ struct wm_adsp {
 	bool preloaded;
 	bool booted;
 	bool running;
+	bool fatal_error;
 
 	struct list_head ctl_list;
 
 	struct work_struct boot_work;
 
-	struct wm_adsp_compr *compr;
-	struct wm_adsp_compr_buf *buffer;
+	struct list_head compr_list;
+	struct list_head buffer_list;
 
 	struct mutex pwr_lock;
 

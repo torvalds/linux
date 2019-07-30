@@ -18,13 +18,13 @@ class TdcPlugin:
         if self.args.verbose > 1:
             print(' -- {}.post_suite'.format(self.sub_class))
 
-    def pre_case(self, test_ordinal, testid, test_name):
+    def pre_case(self, testid, test_name, test_skip):
         '''run commands before test_runner does one test'''
         if self.args.verbose > 1:
             print(' -- {}.pre_case'.format(self.sub_class))
         self.args.testid = testid
         self.args.test_name = test_name
-        self.args.test_ordinal = test_ordinal
+        self.args.test_skip = test_skip
 
     def post_case(self):
         '''run commands after test_runner does one test'''

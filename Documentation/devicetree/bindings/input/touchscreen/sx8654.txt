@@ -1,9 +1,16 @@
 * Semtech SX8654 I2C Touchscreen Controller
 
 Required properties:
-- compatible: must be "semtech,sx8654"
+- compatible: must be one of the following, depending on the model:
+	"semtech,sx8650"
+	"semtech,sx8654"
+	"semtech,sx8655"
+	"semtech,sx8656"
 - reg: i2c slave address
 - interrupts: touch controller interrupt
+
+Optional properties:
+ - reset-gpios: GPIO specification for the NRST input
 
 Example:
 
@@ -12,4 +19,5 @@ Example:
 		reg = <0x48>;
 		interrupt-parent = <&gpio6>;
 		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
 	};

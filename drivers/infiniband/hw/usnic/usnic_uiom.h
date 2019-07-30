@@ -93,5 +93,4 @@ struct usnic_uiom_reg *usnic_uiom_reg_get(struct usnic_uiom_pd *pd,
 void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr,
 			    struct ib_ucontext *ucontext);
 int usnic_uiom_init(char *drv_name);
-void usnic_uiom_fini(void);
 #endif /* USNIC_UIOM_H_ */

@@ -206,8 +206,7 @@ static struct dp_meter *dp_meter_create(struct nlattr **a)
 			return ERR_PTR(-EINVAL);
 
 	/* Allocate and set up the meter before locking anything. */
-	meter = kzalloc(n_bands * sizeof(struct dp_meter_band) +
-			sizeof(*meter), GFP_KERNEL);
+	meter = kzalloc(struct_size(meter, bands, n_bands), GFP_KERNEL);
 	if (!meter)
 		return ERR_PTR(-ENOMEM);
 

@@ -45,7 +45,7 @@ static int dcon_init_xo_1(struct dcon_priv *dcon)
 {
 	unsigned char lob;
 	int ret, i;
-	struct dcon_gpio *pin = &gpios_asis[0];
+	const struct dcon_gpio *pin = &gpios_asis[0];
 
 	for (i = 0; i < ARRAY_SIZE(gpios_asis); i++) {
 		gpios[i] = devm_gpiod_get(&dcon->client->dev, pin[i].name,

@@ -22,7 +22,7 @@
 		#size-cells = <0>;
 
 		cpu0: cpu@0 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
 			operating-points-v2 = <&cpu_opp_table>;
@@ -31,7 +31,7 @@
 		};
 
 		cpu1: cpu@1 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
 			reg = <0x1>;
@@ -40,7 +40,7 @@
 		};
 
 		cpu2: cpu@2 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
 			reg = <0x2>;
@@ -49,7 +49,7 @@
 		};
 
 		cpu3: cpu@3 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
 			reg = <0x3>;

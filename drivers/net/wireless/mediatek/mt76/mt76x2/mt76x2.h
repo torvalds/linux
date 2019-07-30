@@ -49,11 +49,9 @@ static inline bool mt76x2_channel_silent(struct mt76x02_dev *dev)
 
 extern const struct ieee80211_ops mt76x2_ops;
 
-struct mt76x02_dev *mt76x2_alloc_device(struct device *pdev);
 int mt76x2_register_device(struct mt76x02_dev *dev);
 
 void mt76x2_phy_power_on(struct mt76x02_dev *dev);
-int mt76x2_init_hardware(struct mt76x02_dev *dev);
 void mt76x2_stop_hardware(struct mt76x02_dev *dev);
 int mt76x2_eeprom_init(struct mt76x02_dev *dev);
 int mt76x2_apply_calibration_data(struct mt76x02_dev *dev, int channel);
@@ -73,6 +71,7 @@ int mt76x2_mcu_load_cr(struct mt76x02_dev *dev, u8 type, u8 temp_level,
 
 void mt76x2_cleanup(struct mt76x02_dev *dev);
 
+int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard);
 void mt76x2_reset_wlan(struct mt76x02_dev *dev, bool enable);
 void mt76x2_init_txpower(struct mt76x02_dev *dev,
 			 struct ieee80211_supported_band *sband);

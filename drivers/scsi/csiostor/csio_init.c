@@ -167,14 +167,10 @@ csio_dfs_destroy(struct csio_hw *hw)
  * csio_dfs_init - Debug filesystem initialization for the module.
  *
  */
-static int
+static void
 csio_dfs_init(void)
 {
 	csio_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!csio_debugfs_root)
-		pr_warn("Could not create debugfs entry, continuing\n");
-
-	return 0;
 }
 
 /*

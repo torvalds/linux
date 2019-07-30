@@ -28,8 +28,8 @@ typedef int (*vmci_event_release_cb) (void *client_data);
 struct ppn_set {
 	u64 num_produce_pages;
 	u64 num_consume_pages;
-	u32 *produce_ppns;
-	u32 *consume_ppns;
+	u64 *produce_ppns;
+	u64 *consume_ppns;
 	bool initialized;
 };
 

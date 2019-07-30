@@ -12,6 +12,22 @@
 
 #define DM_MSG_PREFIX "core-rq"
 
+/*
+ * One of these is allocated per request.
+ */
+struct dm_rq_target_io {
+	struct mapped_device *md;
+	struct dm_target *ti;
+	struct request *orig, *clone;
+	struct kthread_work work;
+	blk_status_t error;
+	union map_info info;
+	struct dm_stats_aux stats_aux;
+	unsigned long duration_jiffies;
+	unsigned n_sectors;
+	unsigned completed;
+};
+
 #define DM_MQ_NR_HW_QUEUES 1
 #define DM_MQ_QUEUE_DEPTH 2048
 static unsigned dm_mq_nr_hw_queues = DM_MQ_NR_HW_QUEUES;
@@ -206,11 +222,14 @@ static void dm_done(struct request *clone, blk_status_t error, bool mapped)
 	}
 
 	if (unlikely(error == BLK_STS_TARGET)) {
-		if (req_op(clone) == REQ_OP_WRITE_SAME &&
-		    !clone->q->limits.max_write_same_sectors)
+		if (req_op(clone) == REQ_OP_DISCARD &&
+		    !clone->q->limits.max_discard_sectors)
+			disable_discard(tio->md);
+		else if (req_op(clone) == REQ_OP_WRITE_SAME &&
+			 !clone->q->limits.max_write_same_sectors)
 			disable_write_same(tio->md);
-		if (req_op(clone) == REQ_OP_WRITE_ZEROES &&
-		    !clone->q->limits.max_write_zeroes_sectors)
+		else if (req_op(clone) == REQ_OP_WRITE_ZEROES &&
+			 !clone->q->limits.max_write_zeroes_sectors)
 			disable_write_zeroes(tio->md);
 	}
 
@@ -527,7 +546,7 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
 	md->tag_set->ops = &dm_mq_ops;
 	md->tag_set->queue_depth = dm_get_blk_mq_queue_depth();
 	md->tag_set->numa_node = md->numa_node_id;
-	md->tag_set->flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
+	md->tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
 	md->tag_set->nr_hw_queues = dm_get_blk_mq_nr_hw_queues();
 	md->tag_set->driver_data = md;
 

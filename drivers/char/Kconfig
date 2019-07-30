@@ -244,26 +244,23 @@ source "drivers/char/hw_random/Kconfig"
 
 config NVRAM
 	tristate "/dev/nvram support"
-	depends on ATARI || X86 || GENERIC_NVRAM
+	depends on X86 || HAVE_ARCH_NVRAM_OPS
+	default M68K || PPC
 	---help---
 	  If you say Y here and create a character special file /dev/nvram
 	  with major number 10 and minor number 144 using mknod ("man mknod"),
-	  you get read and write access to the extra bytes of non-volatile
-	  memory in the real time clock (RTC), which is contained in every PC
-	  and most Ataris.  The actual number of bytes varies, depending on the
-	  nvram in the system, but is usually 114 (128-14 for the RTC).
+	  you get read and write access to the non-volatile memory.
 
-	  This memory is conventionally called "CMOS RAM" on PCs and "NVRAM"
-	  on Ataris. /dev/nvram may be used to view settings there, or to
-	  change them (with some utility). It could also be used to frequently
+	  /dev/nvram may be used to view settings in NVRAM or to change them
+	  (with some utility). It could also be used to frequently
 	  save a few bits of very important data that may not be lost over
 	  power-off and for which writing to disk is too insecure. Note
 	  however that most NVRAM space in a PC belongs to the BIOS and you
 	  should NEVER idly tamper with it. See Ralf Brown's interrupt list
 	  for a guide to the use of CMOS bytes by your BIOS.
 
-	  On Atari machines, /dev/nvram is always configured and does not need
-	  to be selected.
+	  This memory is conventionally called "NVRAM" on PowerPC machines,
+	  "CMOS RAM" on PCs, "NVRAM" on Ataris and "PRAM" on Macintoshes.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called nvram.
@@ -351,7 +348,7 @@ config XILINX_HWICAP
 
 config R3964
 	tristate "Siemens R3964 line discipline"
-	depends on TTY
+	depends on TTY && BROKEN
 	---help---
 	  This driver allows synchronous communication with devices using the
 	  Siemens R3964 packet protocol. Unless you are dealing with special

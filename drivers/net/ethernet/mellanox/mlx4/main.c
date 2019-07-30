@@ -3981,6 +3981,7 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto err_params_unregister;
 
+	devlink_params_publish(devlink);
 	pci_save_state(pdev);
 	return 0;
 

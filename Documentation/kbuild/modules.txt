@@ -140,7 +140,7 @@ executed to make module versioning work.
 		make -C $KDIR M=$PWD bar.lst
 		make -C $KDIR M=$PWD baz.o
 		make -C $KDIR M=$PWD foo.ko
-		make -C $KDIR M=$PWD /
+		make -C $KDIR M=$PWD ./
 
 
 === 3. Creating a Kbuild File for an External Module

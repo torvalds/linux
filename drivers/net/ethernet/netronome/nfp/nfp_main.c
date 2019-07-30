@@ -300,6 +300,47 @@ static int nfp_pcie_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		return nfp_pcie_sriov_enable(pdev, num_vfs);
 }
 
+int nfp_flash_update_common(struct nfp_pf *pf, const char *path,
+			    struct netlink_ext_ack *extack)
+{
+	struct device *dev = &pf->pdev->dev;
+	const struct firmware *fw;
+	struct nfp_nsp *nsp;
+	int err;
+
+	nsp = nfp_nsp_open(pf->cpp);
+	if (IS_ERR(nsp)) {
+		err = PTR_ERR(nsp);
+		if (extack)
+			NL_SET_ERR_MSG_MOD(extack, "can't access NSP");
+		else
+			dev_err(dev, "Failed to access the NSP: %d\n", err);
+		return err;
+	}
+
+	err = request_firmware_direct(&fw, path, dev);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "unable to read flash file from disk");
+		goto exit_close_nsp;
+	}
+
+	dev_info(dev, "Please be patient while writing flash image: %s\n",
+		 path);
+
+	err = nfp_nsp_write_flash(nsp, fw);
+	if (err < 0)
+		goto exit_release_fw;
+	dev_info(dev, "Finished writing flash image\n");
+	err = 0;
+
+exit_release_fw:
+	release_firmware(fw);
+exit_close_nsp:
+	nfp_nsp_close(nsp);
+	return err;
+}
+
 static const struct firmware *
 nfp_net_fw_request(struct pci_dev *pdev, struct nfp_pf *pf, const char *name)
 {

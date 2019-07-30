@@ -100,31 +100,6 @@ int (*snd_mixer_oss_notify_callback)(struct snd_card *card, int free_flag);
 EXPORT_SYMBOL(snd_mixer_oss_notify_callback);
 #endif
 
-#ifdef CONFIG_SND_PROC_FS
-static void snd_card_id_read(struct snd_info_entry *entry,
-			     struct snd_info_buffer *buffer)
-{
-	snd_iprintf(buffer, "%s\n", entry->card->id);
-}
-
-static int init_info_for_card(struct snd_card *card)
-{
-	struct snd_info_entry *entry;
-
-	entry = snd_info_create_card_entry(card, "id", card->proc_root);
-	if (!entry) {
-		dev_dbg(card->dev, "unable to create card entry\n");
-		return -ENOMEM;
-	}
-	entry->c.text.read = snd_card_id_read;
-	card->proc_id = entry;
-
-	return snd_info_card_register(card);
-}
-#else /* !CONFIG_SND_PROC_FS */
-#define init_info_for_card(card)
-#endif
-
 static int check_empty_slot(struct module *module, int slot)
 {
 	return !slots[slot] || !*slots[slot];
@@ -407,14 +382,7 @@ int snd_card_disconnect(struct snd_card *card)
 	card->shutdown = 1;
 	spin_unlock(&card->files_lock);
 
-	/* phase 1: disable fops (user space) operations for ALSA API */
-	mutex_lock(&snd_card_mutex);
-	snd_cards[card->number] = NULL;
-	clear_bit(card->number, snd_cards_lock);
-	mutex_unlock(&snd_card_mutex);
-	
-	/* phase 2: replace file->f_op with special dummy operations */
-	
+	/* replace file->f_op with special dummy operations */
 	spin_lock(&card->files_lock);
 	list_for_each_entry(mfile, &card->files_list, list) {
 		/* it's critical part, use endless loop */
@@ -430,7 +398,7 @@ int snd_card_disconnect(struct snd_card *card)
 	}
 	spin_unlock(&card->files_lock);	
 
-	/* phase 3: notify all connected devices about disconnection */
+	/* notify all connected devices about disconnection */
 	/* at this point, they cannot respond to any calls except release() */
 
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
@@ -446,6 +414,13 @@ int snd_card_disconnect(struct snd_card *card)
 		device_del(&card->card_dev);
 		card->registered = false;
 	}
+
+	/* disable fops (user space) operations for ALSA API */
+	mutex_lock(&snd_card_mutex);
+	snd_cards[card->number] = NULL;
+	clear_bit(card->number, snd_cards_lock);
+	mutex_unlock(&snd_card_mutex);
+
 #ifdef CONFIG_PM
 	wake_up(&card->power_sleep);
 #endif
@@ -491,7 +466,6 @@ static int snd_card_do_free(struct snd_card *card)
 	snd_device_free_all(card);
 	if (card->private_free)
 		card->private_free(card);
-	snd_info_free_entry(card->proc_id);
 	if (snd_info_card_free(card) < 0) {
 		dev_warn(card->dev, "unable to free card info\n");
 		/* Not fatal error */
@@ -795,7 +769,10 @@ int snd_card_register(struct snd_card *card)
 	}
 	snd_cards[card->number] = card;
 	mutex_unlock(&snd_card_mutex);
-	init_info_for_card(card);
+	err = snd_info_card_register(card);
+	if (err < 0)
+		return err;
+
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 	if (snd_mixer_oss_notify_callback)
 		snd_mixer_oss_notify_callback(card, SND_MIXER_OSS_NOTIFY_REGISTER);

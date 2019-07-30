@@ -146,25 +146,8 @@ static int ti_sci_debug_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-/**
- * ti_sci_debug_open() - debug file open
- * @inode:	inode pointer
- * @file:	file pointer
- *
- * Return: result of single_open
- */
-static int ti_sci_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ti_sci_debug_show, inode->i_private);
-}
-
-/* log file operations */
-static const struct file_operations ti_sci_debug_fops = {
-	.open = ti_sci_debug_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+/* Provide the log file operations interface*/
+DEFINE_SHOW_ATTRIBUTE(ti_sci_debug);
 
 /**
  * ti_sci_debugfs_create() - Create log debug file

@@ -10,7 +10,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_gem.h>
 
 #include <linux/of_device.h>

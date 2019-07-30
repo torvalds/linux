@@ -1,0 +1,24 @@
+Milbeaut SRAM for smp bringup
+
+Milbeaut SoCs use a part of the sram for the bringup of the secondary cores.
+Once they get powered up in the bootloader, they stay at the specific part
+of the sram.
+Therefore the part needs to be added as the sub-node of mmio-sram.
+
+Required sub-node properties:
+- compatible : should be "socionext,milbeaut-smp-sram"
+
+Example:
+
+        sram: sram@0 {
+                compatible = "mmio-sram";
+                reg = <0x0 0x10000>;
+                #address-cells = <1>;
+                #size-cells = <1>;
+                ranges = <0 0x0 0x10000>;
+
+                smp-sram@f100 {
+                        compatible = "socionext,milbeaut-smp-sram";
+                        reg = <0xf100 0x20>;
+                };
+        };

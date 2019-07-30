@@ -1277,8 +1277,6 @@ static int __init ibmphp_init(void)
 
 	ibmphp_debug = debug;
 
-	ibmphp_hpc_initvars();
-
 	for (i = 0; i < 16; i++)
 		irqs[i] = 0;
 

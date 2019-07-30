@@ -47,9 +47,10 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-/include/ "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	interrupt-parent = <&gic>;
 
 	L2: l2-cache-controller@c4200000 {
@@ -71,6 +72,13 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0xc1100000 0x200000>;
+
+			hhi: system-controller@4000 {
+				compatible = "amlogic,meson-hhi-sysctrl",
+					     "simple-mfd",
+					     "syscon";
+				reg = <0x4000 0x400>;
+			};
 
 			assist: assist@7c00 {
 				compatible = "amlogic,meson-mx-assist", "syscon";

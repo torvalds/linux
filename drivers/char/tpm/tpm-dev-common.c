@@ -27,7 +27,38 @@
 static struct workqueue_struct *tpm_dev_wq;
 static DEFINE_MUTEX(tpm_dev_wq_lock);
 
-static void tpm_async_work(struct work_struct *work)
+static ssize_t tpm_dev_transmit(struct tpm_chip *chip, struct tpm_space *space,
+				u8 *buf, size_t bufsiz)
+{
+	struct tpm_header *header = (void *)buf;
+	ssize_t ret, len;
+
+	ret = tpm2_prepare_space(chip, space, buf, bufsiz);
+	/* If the command is not implemented by the TPM, synthesize a
+	 * response with a TPM2_RC_COMMAND_CODE return for user-space.
+	 */
+	if (ret == -EOPNOTSUPP) {
+		header->length = cpu_to_be32(sizeof(*header));
+		header->tag = cpu_to_be16(TPM2_ST_NO_SESSIONS);
+		header->return_code = cpu_to_be32(TPM2_RC_COMMAND_CODE |
+						  TSS2_RESMGR_TPM_RC_LAYER);
+		ret = sizeof(*header);
+	}
+	if (ret)
+		goto out_rc;
+
+	len = tpm_transmit(chip, buf, bufsiz);
+	if (len < 0)
+		ret = len;
+
+	if (!ret)
+		ret = tpm2_commit_space(chip, space, buf, &len);
+
+out_rc:
+	return ret ? ret : len;
+}
+
+static void tpm_dev_async_work(struct work_struct *work)
 {
 	struct file_priv *priv =
 			container_of(work, struct file_priv, async_work);
@@ -35,9 +66,8 @@ static void tpm_async_work(struct work_struct *work)
 
 	mutex_lock(&priv->buffer_mutex);
 	priv->command_enqueued = false;
-	ret = tpm_transmit(priv->chip, priv->space, priv->data_buffer,
-			   sizeof(priv->data_buffer), 0);
-
+	ret = tpm_dev_transmit(priv->chip, priv->space, priv->data_buffer,
+			       sizeof(priv->data_buffer));
 	tpm_put_ops(priv->chip);
 	if (ret > 0) {
 		priv->response_length = ret;
@@ -80,7 +110,7 @@ void tpm_common_open(struct file *file, struct tpm_chip *chip,
 	mutex_init(&priv->buffer_mutex);
 	timer_setup(&priv->user_read_timer, user_reader_timeout, 0);
 	INIT_WORK(&priv->timeout_work, tpm_timeout_work);
-	INIT_WORK(&priv->async_work, tpm_async_work);
+	INIT_WORK(&priv->async_work, tpm_dev_async_work);
 	init_waitqueue_head(&priv->async_wait);
 	file->private_data = priv;
 }
@@ -183,8 +213,8 @@ ssize_t tpm_common_write(struct file *file, const char __user *buf,
 		return size;
 	}
 
-	ret = tpm_transmit(priv->chip, priv->space, priv->data_buffer,
-			   sizeof(priv->data_buffer), 0);
+	ret = tpm_dev_transmit(priv->chip, priv->space, priv->data_buffer,
+			       sizeof(priv->data_buffer));
 	tpm_put_ops(priv->chip);
 
 	if (ret > 0) {
@@ -203,12 +233,19 @@ __poll_t tpm_common_poll(struct file *file, poll_table *wait)
 	__poll_t mask = 0;
 
 	poll_wait(file, &priv->async_wait, wait);
+	mutex_lock(&priv->buffer_mutex);
 
-	if (!priv->response_read || priv->response_length)
+	/*
+	 * The response_length indicates if there is still response
+	 * (or part of it) to be consumed. Partial reads decrease it
+	 * by the number of bytes read, and write resets it the zero.
+	 */
+	if (priv->response_length)
 		mask = EPOLLIN | EPOLLRDNORM;
 	else
 		mask = EPOLLOUT | EPOLLWRNORM;
 
+	mutex_unlock(&priv->buffer_mutex);
 	return mask;
 }
 

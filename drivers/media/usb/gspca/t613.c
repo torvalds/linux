@@ -966,7 +966,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_SATURATION, 0, 0xf, 1, 5);
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_GAMMA, 0, GAMMA_MAX, 1, 10);
-	/* Activate lowlight, some apps dont bring up the
+	/* Activate lowlight, some apps don't bring up the
 	   backlight_compensation control) */
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_BACKLIGHT_COMPENSATION, 0, 1, 1, 1);

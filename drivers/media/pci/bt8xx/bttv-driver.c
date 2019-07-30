@@ -2435,7 +2435,7 @@ static int bttv_s_fmt_vid_cap(struct file *file, void *priv,
 
 	f->fmt.pix.field = field;
 
-	/* update our state informations */
+	/* update our state information */
 	fh->fmt              = fmt;
 	fh->cap.field        = f->fmt.pix.field;
 	fh->cap.last         = V4L2_FIELD_NONE;
@@ -3064,7 +3064,7 @@ static int bttv_open(struct file *file)
 	   V4L2 apps we now reset the cropping parameters as seen through
 	   this fh, which is to say VIDIOC_G_SELECTION and scaling limit checks
 	   will use btv->crop[0], the default cropping parameters for the
-	   current video standard, and VIDIOC_S_FMT will not implicitely
+	   current video standard, and VIDIOC_S_FMT will not implicitly
 	   change the cropping parameters until VIDIOC_S_SELECTION has been
 	   called. */
 	fh->do_crop = !reset_crop; /* module parameter */
@@ -3600,9 +3600,7 @@ static void
 bttv_irq_wakeup_video(struct bttv *btv, struct bttv_buffer_set *wakeup,
 		      struct bttv_buffer_set *curr, unsigned int state)
 {
-	struct timeval ts;
-
-	v4l2_get_timestamp(&ts);
+	u64 ts = ktime_get_ns();
 
 	if (wakeup->top == wakeup->bottom) {
 		if (NULL != wakeup->top && curr->top != wakeup->top) {
@@ -3643,7 +3641,7 @@ bttv_irq_wakeup_vbi(struct bttv *btv, struct bttv_buffer *wakeup,
 	if (NULL == wakeup)
 		return;
 
-	v4l2_get_timestamp(&wakeup->vb.ts);
+	wakeup->vb.ts = ktime_get_ns();
 	wakeup->vb.field_count = btv->field_count;
 	wakeup->vb.state = state;
 	wake_up(&wakeup->vb.done);
@@ -3713,7 +3711,7 @@ bttv_irq_wakeup_top(struct bttv *btv)
 	btv->curr.top = NULL;
 	bttv_risc_hook(btv, RISC_SLOT_O_FIELD, NULL, 0);
 
-	v4l2_get_timestamp(&wakeup->vb.ts);
+	wakeup->vb.ts = ktime_get_ns();
 	wakeup->vb.field_count = btv->field_count;
 	wakeup->vb.state = VIDEOBUF_DONE;
 	wake_up(&wakeup->vb.done);

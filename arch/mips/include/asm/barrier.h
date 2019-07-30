@@ -105,6 +105,20 @@
  */
 #define STYPE_SYNC_MB 0x10
 
+/*
+ * stype 0x14 - A completion barrier specific to global invalidations
+ *
+ * When a sync instruction of this type completes any preceding GINVI or GINVT
+ * operation has been globalized & completed on all coherent CPUs. Anything
+ * that the GINV* instruction should invalidate will have been invalidated on
+ * all coherent CPUs when this instruction completes. It is implementation
+ * specific whether the GINV* instructions themselves will ensure completion,
+ * or this sync type will.
+ *
+ * In systems implementing global invalidates (ie. with Config5.GI == 2 or 3)
+ * this sync type also requires that previous SYNCI operations have completed.
+ */
+#define STYPE_GINV	0x14
 
 #ifdef CONFIG_CPU_HAS_SYNC
 #define __sync()				\
@@ -257,6 +271,11 @@
 #else
 #define loongson_llsc_mb()	do { } while (0)
 #endif
+
+static inline void sync_ginv(void)
+{
+	asm volatile("sync\t%0" :: "i"(STYPE_GINV));
+}
 
 #include <asm-generic/barrier.h>
 

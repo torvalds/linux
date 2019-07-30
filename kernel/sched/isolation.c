@@ -80,7 +80,7 @@ static int __init housekeeping_setup(char *str, enum hk_flags flags)
 		cpumask_andnot(housekeeping_mask,
 			       cpu_possible_mask, non_housekeeping_mask);
 		if (cpumask_empty(housekeeping_mask))
-			cpumask_set_cpu(smp_processor_id(), housekeeping_mask);
+			__cpumask_set_cpu(smp_processor_id(), housekeeping_mask);
 	} else {
 		cpumask_var_t tmp;
 

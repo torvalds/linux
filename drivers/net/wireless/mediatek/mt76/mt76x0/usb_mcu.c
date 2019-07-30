@@ -15,6 +15,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/firmware.h>
+#include <linux/module.h>
 
 #include "mt76x0.h"
 #include "mcu.h"
@@ -139,12 +140,6 @@ static int mt76x0u_load_firmware(struct mt76x02_dev *dev)
 		 FIELD_PREP(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, 0x20));
 	mt76x02u_mcu_fw_reset(dev);
 	usleep_range(5000, 6000);
-/*
-	mt76x0_rmw(dev, MT_PBF_CFG, 0, (MT_PBF_CFG_TX0Q_EN |
-					 MT_PBF_CFG_TX1Q_EN |
-					 MT_PBF_CFG_TX2Q_EN |
-					 MT_PBF_CFG_TX3Q_EN));
-*/
 
 	mt76_wr(dev, MT_FCE_PSE_CTRL, 1);
 

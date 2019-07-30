@@ -7,13 +7,14 @@
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 #define MBUS_ID(target,attributes) (((target) << 24) | ((attributes) << 16))
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Marvell Armada 39x family SoC";
 	compatible = "marvell,armada390";
 

@@ -515,7 +515,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 	/* and set the carrier values for reception */
 	ite_set_carrier_params(dev);
 
-	/* reenable the receiver */
+	/* re-enable the receiver */
 	if (dev->in_use)
 		dev->params.enable_rx(dev);
 

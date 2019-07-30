@@ -30,37 +30,35 @@
 #include <linux/init.h>
 #include <linux/uaccess.h>
 
-/**************************************************/
-/* the actual current config file                 */
-
 /*
- * Define kernel_config_data and kernel_config_data_size, which contains the
- * wrapped and compressed configuration file.  The file is first compressed
- * with gzip and then bounded by two eight byte magic numbers to allow
- * extraction from a binary kernel image:
- *
- *   IKCFG_ST
- *   <image>
- *   IKCFG_ED
+ * "IKCFG_ST" and "IKCFG_ED" are used to extract the config data from
+ * a binary kernel image or a module. See scripts/extract-ikconfig.
  */
-#define MAGIC_START	"IKCFG_ST"
-#define MAGIC_END	"IKCFG_ED"
-#include "config_data.h"
-
-
-#define MAGIC_SIZE (sizeof(MAGIC_START) - 1)
-#define kernel_config_data_size \
-	(sizeof(kernel_config_data) - 1 - MAGIC_SIZE * 2)
+asm (
+"	.pushsection .rodata, \"a\"		\n"
+"	.ascii \"IKCFG_ST\"			\n"
+"	.global kernel_config_data		\n"
+"kernel_config_data:				\n"
+"	.incbin \"kernel/config_data.gz\"	\n"
+"	.global kernel_config_data_end		\n"
+"kernel_config_data_end:			\n"
+"	.ascii \"IKCFG_ED\"			\n"
+"	.popsection				\n"
+);
 
 #ifdef CONFIG_IKCONFIG_PROC
+
+extern char kernel_config_data;
+extern char kernel_config_data_end;
 
 static ssize_t
 ikconfig_read_current(struct file *file, char __user *buf,
 		      size_t len, loff_t * offset)
 {
 	return simple_read_from_buffer(buf, len, offset,
-				       kernel_config_data + MAGIC_SIZE,
-				       kernel_config_data_size);
+				       &kernel_config_data,
+				       &kernel_config_data_end -
+				       &kernel_config_data);
 }
 
 static const struct file_operations ikconfig_file_ops = {
@@ -79,7 +77,7 @@ static int __init ikconfig_init(void)
 	if (!entry)
 		return -ENOMEM;
 
-	proc_set_size(entry, kernel_config_data_size);
+	proc_set_size(entry, &kernel_config_data_end - &kernel_config_data);
 
 	return 0;
 }

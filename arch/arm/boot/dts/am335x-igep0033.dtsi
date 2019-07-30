@@ -123,10 +123,6 @@
 	phy-mode = "rmii";
 };
 
-&phy_sel {
-	rmii-clock-ext;
-};
-
 &elm {
 	status = "okay";
 };

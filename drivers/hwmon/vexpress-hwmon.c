@@ -92,9 +92,8 @@ struct vexpress_hwmon_type {
 };
 
 #if !defined(CONFIG_REGULATOR_VEXPRESS)
-static DEVICE_ATTR(in1_label, S_IRUGO, vexpress_hwmon_label_show, NULL);
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, vexpress_hwmon_u32_show,
-		NULL, 1000);
+static DEVICE_ATTR(in1_label, 0444, vexpress_hwmon_label_show, NULL);
+static SENSOR_DEVICE_ATTR_RO(in1_input, vexpress_hwmon_u32, 1000);
 static struct attribute *vexpress_hwmon_attrs_volt[] = {
 	&dev_attr_in1_label.attr,
 	&sensor_dev_attr_in1_input.dev_attr.attr,
@@ -113,9 +112,8 @@ static struct vexpress_hwmon_type vexpress_hwmon_volt = {
 };
 #endif
 
-static DEVICE_ATTR(curr1_label, S_IRUGO, vexpress_hwmon_label_show, NULL);
-static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, vexpress_hwmon_u32_show,
-		NULL, 1000);
+static DEVICE_ATTR(curr1_label, 0444, vexpress_hwmon_label_show, NULL);
+static SENSOR_DEVICE_ATTR_RO(curr1_input, vexpress_hwmon_u32, 1000);
 static struct attribute *vexpress_hwmon_attrs_amp[] = {
 	&dev_attr_curr1_label.attr,
 	&sensor_dev_attr_curr1_input.dev_attr.attr,
@@ -133,9 +131,8 @@ static struct vexpress_hwmon_type vexpress_hwmon_amp = {
 	},
 };
 
-static DEVICE_ATTR(temp1_label, S_IRUGO, vexpress_hwmon_label_show, NULL);
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, vexpress_hwmon_u32_show,
-		NULL, 1000);
+static DEVICE_ATTR(temp1_label, 0444, vexpress_hwmon_label_show, NULL);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, vexpress_hwmon_u32, 1000);
 static struct attribute *vexpress_hwmon_attrs_temp[] = {
 	&dev_attr_temp1_label.attr,
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -153,9 +150,8 @@ static struct vexpress_hwmon_type vexpress_hwmon_temp = {
 	},
 };
 
-static DEVICE_ATTR(power1_label, S_IRUGO, vexpress_hwmon_label_show, NULL);
-static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, vexpress_hwmon_u32_show,
-		NULL, 1);
+static DEVICE_ATTR(power1_label, 0444, vexpress_hwmon_label_show, NULL);
+static SENSOR_DEVICE_ATTR_RO(power1_input, vexpress_hwmon_u32, 1);
 static struct attribute *vexpress_hwmon_attrs_power[] = {
 	&dev_attr_power1_label.attr,
 	&sensor_dev_attr_power1_input.dev_attr.attr,
@@ -173,9 +169,8 @@ static struct vexpress_hwmon_type vexpress_hwmon_power = {
 	},
 };
 
-static DEVICE_ATTR(energy1_label, S_IRUGO, vexpress_hwmon_label_show, NULL);
-static SENSOR_DEVICE_ATTR(energy1_input, S_IRUGO, vexpress_hwmon_u64_show,
-		NULL, 1);
+static DEVICE_ATTR(energy1_label, 0444, vexpress_hwmon_label_show, NULL);
+static SENSOR_DEVICE_ATTR_RO(energy1_input, vexpress_hwmon_u64, 1);
 static struct attribute *vexpress_hwmon_attrs_energy[] = {
 	&dev_attr_energy1_label.attr,
 	&sensor_dev_attr_energy1_input.dev_attr.attr,

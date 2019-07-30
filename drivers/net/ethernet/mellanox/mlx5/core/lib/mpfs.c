@@ -108,8 +108,7 @@ int mlx5_mpfs_init(struct mlx5_core_dev *dev)
 
 	mutex_init(&mpfs->lock);
 	mpfs->size   = l2table_size;
-	mpfs->bitmap = kcalloc(BITS_TO_LONGS(l2table_size),
-			       sizeof(uintptr_t), GFP_KERNEL);
+	mpfs->bitmap = bitmap_zalloc(l2table_size, GFP_KERNEL);
 	if (!mpfs->bitmap) {
 		kfree(mpfs);
 		return -ENOMEM;
@@ -127,7 +126,7 @@ void mlx5_mpfs_cleanup(struct mlx5_core_dev *dev)
 		return;
 
 	WARN_ON(!hlist_empty(mpfs->hash));
-	kfree(mpfs->bitmap);
+	bitmap_free(mpfs->bitmap);
 	kfree(mpfs);
 }
 

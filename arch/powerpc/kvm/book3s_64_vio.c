@@ -133,7 +133,6 @@ extern void kvm_spapr_tce_release_iommu_group(struct kvm *kvm,
 					continue;
 
 				kref_put(&stit->kref, kvm_spapr_tce_liobn_put);
-				return;
 			}
 		}
 	}
@@ -338,14 +337,15 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 		}
 	}
 
+	kvm_get_kvm(kvm);
 	if (!ret)
 		ret = anon_inode_getfd("kvm-spapr-tce", &kvm_spapr_tce_fops,
 				       stt, O_RDWR | O_CLOEXEC);
 
-	if (ret >= 0) {
+	if (ret >= 0)
 		list_add_rcu(&stt->list, &kvm->arch.spapr_tce_tables);
-		kvm_get_kvm(kvm);
-	}
+	else
+		kvm_put_kvm(kvm);
 
 	mutex_unlock(&kvm->lock);
 
@@ -543,13 +543,13 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 	if (ret != H_SUCCESS)
 		return ret;
 
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+
 	ret = kvmppc_tce_validate(stt, tce);
 	if (ret != H_SUCCESS)
-		return ret;
+		goto unlock_exit;
 
 	dir = iommu_tce_direction(tce);
-
-	idx = srcu_read_lock(&vcpu->kvm->srcu);
 
 	if ((dir != DMA_NONE) && kvmppc_tce_to_ua(vcpu->kvm, tce, &ua, NULL)) {
 		ret = H_PARAMETER;

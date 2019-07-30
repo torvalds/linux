@@ -103,7 +103,7 @@ static const unsigned char chroma_ac_value[162 + 2] = {
 
 /*
  * Quantization tables for luminance and chrominance components in
- * zig-zag scan order from the Freescale i.MX VPU libaries
+ * zig-zag scan order from the Freescale i.MX VPU libraries
  */
 
 static unsigned char luma_q[64] = {

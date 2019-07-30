@@ -26,8 +26,8 @@ static const char i40e_driver_string[] =
 #define DRV_KERN "-k"
 
 #define DRV_VERSION_MAJOR 2
-#define DRV_VERSION_MINOR 7
-#define DRV_VERSION_BUILD 6
+#define DRV_VERSION_MINOR 8
+#define DRV_VERSION_BUILD 10
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -3064,6 +3064,26 @@ static void i40e_config_xps_tx_ring(struct i40e_ring *ring)
 }
 
 /**
+ * i40e_xsk_umem - Retrieve the AF_XDP ZC if XDP and ZC is enabled
+ * @ring: The Tx or Rx ring
+ *
+ * Returns the UMEM or NULL.
+ **/
+static struct xdp_umem *i40e_xsk_umem(struct i40e_ring *ring)
+{
+	bool xdp_on = i40e_enabled_xdp_vsi(ring->vsi);
+	int qid = ring->queue_index;
+
+	if (ring_is_xdp(ring))
+		qid -= ring->vsi->alloc_queue_pairs;
+
+	if (!xdp_on || !test_bit(qid, ring->vsi->af_xdp_zc_qps))
+		return NULL;
+
+	return xdp_get_umem_from_qid(ring->vsi->netdev, qid);
+}
+
+/**
  * i40e_configure_tx_ring - Configure a transmit ring context and rest
  * @ring: The Tx ring to configure
  *
@@ -3613,7 +3633,7 @@ static void i40e_configure_msi_and_legacy(struct i40e_vsi *vsi)
 		      (I40E_QUEUE_TYPE_TX
 		       << I40E_QINT_TQCTL_NEXTQ_TYPE_SHIFT);
 
-	       wr32(hw, I40E_QINT_TQCTL(nextqp), val);
+		wr32(hw, I40E_QINT_TQCTL(nextqp), val);
 	}
 
 	val = I40E_QINT_TQCTL_CAUSE_ENA_MASK		      |
@@ -7177,11 +7197,13 @@ static int i40e_parse_cls_flower(struct i40e_vsi *vsi,
 				 struct tc_cls_flower_offload *f,
 				 struct i40e_cloud_filter *filter)
 {
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_dissector *dissector = rule->match.dissector;
 	u16 n_proto_mask = 0, n_proto_key = 0, addr_type = 0;
 	struct i40e_pf *pf = vsi->back;
 	u8 field_flags = 0;
 
-	if (f->dissector->used_keys &
+	if (dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
@@ -7191,143 +7213,109 @@ static int i40e_parse_cls_flower(struct i40e_vsi *vsi,
 	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
 	      BIT(FLOW_DISSECTOR_KEY_ENC_KEYID))) {
 		dev_err(&pf->pdev->dev, "Unsupported key used: 0x%x\n",
-			f->dissector->used_keys);
+			dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
-		struct flow_dissector_key_keyid *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_KEYID,
-						  f->key);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_match_enc_keyid match;
 
-		struct flow_dissector_key_keyid *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ENC_KEYID,
-						  f->mask);
-
-		if (mask->keyid != 0)
+		flow_rule_match_enc_keyid(rule, &match);
+		if (match.mask->keyid != 0)
 			field_flags |= I40E_CLOUD_FIELD_TEN_ID;
 
-		filter->tenant_id = be32_to_cpu(key->keyid);
+		filter->tenant_id = be32_to_cpu(match.key->keyid);
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_dissector_key_basic *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  f->key);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_match_basic match;
 
-		struct flow_dissector_key_basic *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  f->mask);
-
-		n_proto_key = ntohs(key->n_proto);
-		n_proto_mask = ntohs(mask->n_proto);
+		flow_rule_match_basic(rule, &match);
+		n_proto_key = ntohs(match.key->n_proto);
+		n_proto_mask = ntohs(match.mask->n_proto);
 
 		if (n_proto_key == ETH_P_ALL) {
 			n_proto_key = 0;
 			n_proto_mask = 0;
 		}
 		filter->n_proto = n_proto_key & n_proto_mask;
-		filter->ip_proto = key->ip_proto;
+		filter->ip_proto = match.key->ip_proto;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
-		struct flow_dissector_key_eth_addrs *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ETH_ADDRS,
-						  f->key);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_match_eth_addrs match;
 
-		struct flow_dissector_key_eth_addrs *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_ETH_ADDRS,
-						  f->mask);
+		flow_rule_match_eth_addrs(rule, &match);
 
 		/* use is_broadcast and is_zero to check for all 0xf or 0 */
-		if (!is_zero_ether_addr(mask->dst)) {
-			if (is_broadcast_ether_addr(mask->dst)) {
+		if (!is_zero_ether_addr(match.mask->dst)) {
+			if (is_broadcast_ether_addr(match.mask->dst)) {
 				field_flags |= I40E_CLOUD_FIELD_OMAC;
 			} else {
 				dev_err(&pf->pdev->dev, "Bad ether dest mask %pM\n",
-					mask->dst);
+					match.mask->dst);
 				return I40E_ERR_CONFIG;
 			}
 		}
 
-		if (!is_zero_ether_addr(mask->src)) {
-			if (is_broadcast_ether_addr(mask->src)) {
+		if (!is_zero_ether_addr(match.mask->src)) {
+			if (is_broadcast_ether_addr(match.mask->src)) {
 				field_flags |= I40E_CLOUD_FIELD_IMAC;
 			} else {
 				dev_err(&pf->pdev->dev, "Bad ether src mask %pM\n",
-					mask->src);
+					match.mask->src);
 				return I40E_ERR_CONFIG;
 			}
 		}
-		ether_addr_copy(filter->dst_mac, key->dst);
-		ether_addr_copy(filter->src_mac, key->src);
+		ether_addr_copy(filter->dst_mac, match.key->dst);
+		ether_addr_copy(filter->src_mac, match.key->src);
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
-		struct flow_dissector_key_vlan *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_VLAN,
-						  f->key);
-		struct flow_dissector_key_vlan *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_VLAN,
-						  f->mask);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match;
 
-		if (mask->vlan_id) {
-			if (mask->vlan_id == VLAN_VID_MASK) {
+		flow_rule_match_vlan(rule, &match);
+		if (match.mask->vlan_id) {
+			if (match.mask->vlan_id == VLAN_VID_MASK) {
 				field_flags |= I40E_CLOUD_FIELD_IVLAN;
 
 			} else {
 				dev_err(&pf->pdev->dev, "Bad vlan mask 0x%04x\n",
-					mask->vlan_id);
+					match.mask->vlan_id);
 				return I40E_ERR_CONFIG;
 			}
 		}
 
-		filter->vlan_id = cpu_to_be16(key->vlan_id);
+		filter->vlan_id = cpu_to_be16(match.key->vlan_id);
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_CONTROL)) {
-		struct flow_dissector_key_control *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_CONTROL,
-						  f->key);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
+		struct flow_match_control match;
 
-		addr_type = key->addr_type;
+		flow_rule_match_control(rule, &match);
+		addr_type = match.key->addr_type;
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
-		struct flow_dissector_key_ipv4_addrs *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_IPV4_ADDRS,
-						  f->key);
-		struct flow_dissector_key_ipv4_addrs *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_IPV4_ADDRS,
-						  f->mask);
+		struct flow_match_ipv4_addrs match;
 
-		if (mask->dst) {
-			if (mask->dst == cpu_to_be32(0xffffffff)) {
+		flow_rule_match_ipv4_addrs(rule, &match);
+		if (match.mask->dst) {
+			if (match.mask->dst == cpu_to_be32(0xffffffff)) {
 				field_flags |= I40E_CLOUD_FIELD_IIP;
 			} else {
 				dev_err(&pf->pdev->dev, "Bad ip dst mask %pI4b\n",
-					&mask->dst);
+					&match.mask->dst);
 				return I40E_ERR_CONFIG;
 			}
 		}
 
-		if (mask->src) {
-			if (mask->src == cpu_to_be32(0xffffffff)) {
+		if (match.mask->src) {
+			if (match.mask->src == cpu_to_be32(0xffffffff)) {
 				field_flags |= I40E_CLOUD_FIELD_IIP;
 			} else {
 				dev_err(&pf->pdev->dev, "Bad ip src mask %pI4b\n",
-					&mask->src);
+					&match.mask->src);
 				return I40E_ERR_CONFIG;
 			}
 		}
@@ -7336,70 +7324,60 @@ static int i40e_parse_cls_flower(struct i40e_vsi *vsi,
 			dev_err(&pf->pdev->dev, "Tenant id not allowed for ip filter\n");
 			return I40E_ERR_CONFIG;
 		}
-		filter->dst_ipv4 = key->dst;
-		filter->src_ipv4 = key->src;
+		filter->dst_ipv4 = match.key->dst;
+		filter->src_ipv4 = match.key->src;
 	}
 
 	if (addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
-		struct flow_dissector_key_ipv6_addrs *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_IPV6_ADDRS,
-						  f->key);
-		struct flow_dissector_key_ipv6_addrs *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_IPV6_ADDRS,
-						  f->mask);
+		struct flow_match_ipv6_addrs match;
+
+		flow_rule_match_ipv6_addrs(rule, &match);
 
 		/* src and dest IPV6 address should not be LOOPBACK
 		 * (0:0:0:0:0:0:0:1), which can be represented as ::1
 		 */
-		if (ipv6_addr_loopback(&key->dst) ||
-		    ipv6_addr_loopback(&key->src)) {
+		if (ipv6_addr_loopback(&match.key->dst) ||
+		    ipv6_addr_loopback(&match.key->src)) {
 			dev_err(&pf->pdev->dev,
 				"Bad ipv6, addr is LOOPBACK\n");
 			return I40E_ERR_CONFIG;
 		}
-		if (!ipv6_addr_any(&mask->dst) || !ipv6_addr_any(&mask->src))
+		if (!ipv6_addr_any(&match.mask->dst) ||
+		    !ipv6_addr_any(&match.mask->src))
 			field_flags |= I40E_CLOUD_FIELD_IIP;
 
-		memcpy(&filter->src_ipv6, &key->src.s6_addr32,
+		memcpy(&filter->src_ipv6, &match.key->src.s6_addr32,
 		       sizeof(filter->src_ipv6));
-		memcpy(&filter->dst_ipv6, &key->dst.s6_addr32,
+		memcpy(&filter->dst_ipv6, &match.key->dst.s6_addr32,
 		       sizeof(filter->dst_ipv6));
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_PORTS)) {
-		struct flow_dissector_key_ports *key =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_PORTS,
-						  f->key);
-		struct flow_dissector_key_ports *mask =
-			skb_flow_dissector_target(f->dissector,
-						  FLOW_DISSECTOR_KEY_PORTS,
-						  f->mask);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
+		struct flow_match_ports match;
 
-		if (mask->src) {
-			if (mask->src == cpu_to_be16(0xffff)) {
+		flow_rule_match_ports(rule, &match);
+		if (match.mask->src) {
+			if (match.mask->src == cpu_to_be16(0xffff)) {
 				field_flags |= I40E_CLOUD_FIELD_IIP;
 			} else {
 				dev_err(&pf->pdev->dev, "Bad src port mask 0x%04x\n",
-					be16_to_cpu(mask->src));
+					be16_to_cpu(match.mask->src));
 				return I40E_ERR_CONFIG;
 			}
 		}
 
-		if (mask->dst) {
-			if (mask->dst == cpu_to_be16(0xffff)) {
+		if (match.mask->dst) {
+			if (match.mask->dst == cpu_to_be16(0xffff)) {
 				field_flags |= I40E_CLOUD_FIELD_IIP;
 			} else {
 				dev_err(&pf->pdev->dev, "Bad dst port mask 0x%04x\n",
-					be16_to_cpu(mask->dst));
+					be16_to_cpu(match.mask->dst));
 				return I40E_ERR_CONFIG;
 			}
 		}
 
-		filter->dst_port = key->dst;
-		filter->src_port = key->src;
+		filter->dst_port = match.key->dst;
+		filter->src_port = match.key->src;
 
 		switch (filter->ip_proto) {
 		case IPPROTO_TCP:
@@ -8139,8 +8117,8 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 		i40e_service_event_schedule(pf);
 	} else {
 		i40e_pf_unquiesce_all_vsi(pf);
-	set_bit(__I40E_CLIENT_SERVICE_REQUESTED, pf->state);
-	set_bit(__I40E_CLIENT_L2_CHANGE, pf->state);
+		set_bit(__I40E_CLIENT_SERVICE_REQUESTED, pf->state);
+		set_bit(__I40E_CLIENT_L2_CHANGE, pf->state);
 	}
 
 exit:
@@ -10106,6 +10084,12 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	hash_init(vsi->mac_filter_hash);
 	vsi->irqs_ready = false;
 
+	if (type == I40E_VSI_MAIN) {
+		vsi->af_xdp_zc_qps = bitmap_zalloc(pf->num_lan_qps, GFP_KERNEL);
+		if (!vsi->af_xdp_zc_qps)
+			goto err_rings;
+	}
+
 	ret = i40e_set_num_rings_in_vsi(vsi);
 	if (ret)
 		goto err_rings;
@@ -10124,6 +10108,7 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	goto unlock_pf;
 
 err_rings:
+	bitmap_free(vsi->af_xdp_zc_qps);
 	pf->next_vsi = i - 1;
 	kfree(vsi);
 unlock_pf:
@@ -10204,6 +10189,7 @@ static int i40e_vsi_clear(struct i40e_vsi *vsi)
 	i40e_put_lump(pf->qp_pile, vsi->base_queue, vsi->idx);
 	i40e_put_lump(pf->irq_pile, vsi->base_vector, vsi->idx);
 
+	bitmap_free(vsi->af_xdp_zc_qps);
 	i40e_vsi_free_arrays(vsi, true);
 	i40e_clear_rss_config_user(vsi);
 
@@ -11050,6 +11036,7 @@ int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count)
 	if (!(pf->flags & I40E_FLAG_RSS_ENABLED))
 		return 0;
 
+	queue_count = min_t(int, queue_count, num_online_cpus());
 	new_rss_size = min_t(int, queue_count, pf->rss_size_max);
 
 	if (queue_count != vsi->num_queue_pairs) {
@@ -11652,7 +11639,8 @@ static int i40e_get_phys_port_id(struct net_device *netdev,
 static int i40e_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			    struct net_device *dev,
 			    const unsigned char *addr, u16 vid,
-			    u16 flags)
+			    u16 flags,
+			    struct netlink_ext_ack *extack)
 {
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	struct i40e_pf *pf = np->vsi->back;
@@ -12189,9 +12177,6 @@ static int i40e_xdp(struct net_device *dev,
 	case XDP_QUERY_PROG:
 		xdp->prog_id = vsi->xdp_prog ? vsi->xdp_prog->aux->id : 0;
 		return 0;
-	case XDP_QUERY_XSK_UMEM:
-		return i40e_xsk_umem_query(vsi, &xdp->xsk.umem,
-					   xdp->xsk.queue_id);
 	case XDP_SETUP_XSK_UMEM:
 		return i40e_xsk_umem_setup(vsi, xdp->xsk.umem,
 					   xdp->xsk.queue_id);
@@ -13880,6 +13865,29 @@ static void i40e_get_platform_mac_addr(struct pci_dev *pdev, struct i40e_pf *pf)
 }
 
 /**
+ * i40e_set_fec_in_flags - helper function for setting FEC options in flags
+ * @fec_cfg: FEC option to set in flags
+ * @flags: ptr to flags in which we set FEC option
+ **/
+void i40e_set_fec_in_flags(u8 fec_cfg, u32 *flags)
+{
+	if (fec_cfg & I40E_AQ_SET_FEC_AUTO)
+		*flags |= I40E_FLAG_RS_FEC | I40E_FLAG_BASE_R_FEC;
+	if ((fec_cfg & I40E_AQ_SET_FEC_REQUEST_RS) ||
+	    (fec_cfg & I40E_AQ_SET_FEC_ABILITY_RS)) {
+		*flags |= I40E_FLAG_RS_FEC;
+		*flags &= ~I40E_FLAG_BASE_R_FEC;
+	}
+	if ((fec_cfg & I40E_AQ_SET_FEC_REQUEST_KR) ||
+	    (fec_cfg & I40E_AQ_SET_FEC_ABILITY_KR)) {
+		*flags |= I40E_FLAG_BASE_R_FEC;
+		*flags &= ~I40E_FLAG_RS_FEC;
+	}
+	if (fec_cfg == 0)
+		*flags &= ~(I40E_FLAG_RS_FEC | I40E_FLAG_BASE_R_FEC);
+}
+
+/**
  * i40e_probe - Device initialization routine
  * @pdev: PCI device information struct
  * @ent: entry in i40e_pci_tbl
@@ -14369,6 +14377,9 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			i40e_stat_str(&pf->hw, err),
 			i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
 	pf->hw.phy.link_info.requested_speeds = abilities.link_speed;
+
+	/* set the FEC config due to the board capabilities */
+	i40e_set_fec_in_flags(abilities.fec_cfg_curr_mod_ext_info, &pf->flags);
 
 	/* get the supported phy types from the fw */
 	err = i40e_aq_get_phy_capabilities(hw, false, true, &abilities, NULL);

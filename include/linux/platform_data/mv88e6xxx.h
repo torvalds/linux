@@ -2,7 +2,7 @@
 #ifndef __DSA_MV88E6XXX_H
 #define __DSA_MV88E6XXX_H
 
-#include <net/dsa.h>
+#include <linux/platform_data/dsa.h>
 
 struct dsa_mv88e6xxx_pdata {
 	/* Must be first, such that dsa_register_switch() can access this

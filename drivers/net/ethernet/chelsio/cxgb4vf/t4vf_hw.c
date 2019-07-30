@@ -2005,8 +2005,10 @@ static void t4vf_handle_get_port_info(struct port_info *pi,
 	    fc != lc->fc || fec != lc->fec) {	/* something changed */
 		if (!link_ok && lc->link_ok) {
 			lc->link_down_rc = linkdnrc;
-			dev_warn(adapter->pdev_dev, "Port %d link down, reason: %s\n",
-				 pi->port_id, t4vf_link_down_rc_str(linkdnrc));
+			dev_warn_ratelimited(adapter->pdev_dev,
+					     "Port %d link down, reason: %s\n",
+					     pi->port_id,
+					     t4vf_link_down_rc_str(linkdnrc));
 		}
 		lc->link_ok = link_ok;
 		lc->speed = speed;

@@ -444,8 +444,8 @@ static inline int next_memory_node(int nid)
 	return next_node(nid, node_states[N_MEMORY]);
 }
 
-extern int nr_node_ids;
-extern int nr_online_nodes;
+extern unsigned int nr_node_ids;
+extern unsigned int nr_online_nodes;
 
 static inline void node_set_online(int nid)
 {
@@ -485,8 +485,8 @@ static inline int num_node_state(enum node_states state)
 #define first_online_node	0
 #define first_memory_node	0
 #define next_online_node(nid)	(MAX_NUMNODES)
-#define nr_node_ids		1
-#define nr_online_nodes		1
+#define nr_node_ids		1U
+#define nr_online_nodes		1U
 
 #define node_set_online(node)	   node_set_state((node), N_ONLINE)
 #define node_set_offline(node)	   node_clear_state((node), N_ONLINE)

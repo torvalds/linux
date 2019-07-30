@@ -816,7 +816,7 @@ EXPORT_SYMBOL(drm_mm_scan_add_block);
  * When the scan list is empty, the selected memory nodes can be freed. An
  * immediately following drm_mm_insert_node_in_range_generic() or one of the
  * simpler versions of that function with !DRM_MM_SEARCH_BEST will then return
- * the just freed block (because its at the top of the free_stack list).
+ * the just freed block (because it's at the top of the free_stack list).
  *
  * Returns:
  * True if this block should be evicted, false otherwise. Will always

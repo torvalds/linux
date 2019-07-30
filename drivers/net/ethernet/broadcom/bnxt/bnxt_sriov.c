@@ -121,6 +121,54 @@ int bnxt_set_vf_spoofchk(struct net_device *dev, int vf_id, bool setting)
 	return rc;
 }
 
+static int bnxt_hwrm_func_qcfg_flags(struct bnxt *bp, struct bnxt_vf_info *vf)
+{
+	struct hwrm_func_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_func_qcfg_input req = {0};
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCFG, -1, -1);
+	req.fid = cpu_to_le16(vf->fw_fid);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc) {
+		mutex_unlock(&bp->hwrm_cmd_lock);
+		return -EIO;
+	}
+	vf->func_qcfg_flags = le16_to_cpu(resp->flags);
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return 0;
+}
+
+static bool bnxt_is_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf)
+{
+	if (!(bp->fw_cap & BNXT_FW_CAP_TRUSTED_VF))
+		return !!(vf->flags & BNXT_VF_TRUST);
+
+	bnxt_hwrm_func_qcfg_flags(bp, vf);
+	return !!(vf->func_qcfg_flags & FUNC_QCFG_RESP_FLAGS_TRUSTED_VF);
+}
+
+static int bnxt_hwrm_set_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf)
+{
+	struct hwrm_func_cfg_input req = {0};
+	int rc;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_TRUSTED_VF))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
+	req.fid = cpu_to_le16(vf->fw_fid);
+	if (vf->flags & BNXT_VF_TRUST)
+		req.flags = cpu_to_le32(FUNC_CFG_REQ_FLAGS_TRUSTED_VF_ENABLE);
+	else
+		req.flags = cpu_to_le32(FUNC_CFG_REQ_FLAGS_TRUSTED_VF_DISABLE);
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		return -EIO;
+	return 0;
+}
+
 int bnxt_set_vf_trust(struct net_device *dev, int vf_id, bool trusted)
 {
 	struct bnxt *bp = netdev_priv(dev);
@@ -135,6 +183,7 @@ int bnxt_set_vf_trust(struct net_device *dev, int vf_id, bool trusted)
 	else
 		vf->flags &= ~BNXT_VF_TRUST;
 
+	bnxt_hwrm_set_trusted_vf(bp, vf);
 	return 0;
 }
 
@@ -164,7 +213,7 @@ int bnxt_get_vf_config(struct net_device *dev, int vf_id,
 	else
 		ivi->qos = 0;
 	ivi->spoofchk = !!(vf->flags & BNXT_VF_SPOOFCHK);
-	ivi->trusted = !!(vf->flags & BNXT_VF_TRUST);
+	ivi->trusted = bnxt_is_trusted_vf(bp, vf);
 	if (!(vf->flags & BNXT_VF_LINK_FORCED))
 		ivi->linkstate = IFLA_VF_LINK_STATE_AUTO;
 	else if (vf->flags & BNXT_VF_LINK_UP)
@@ -935,9 +984,10 @@ static int bnxt_vf_configure_mac(struct bnxt *bp, struct bnxt_vf_info *vf)
 	 * if the PF assigned MAC address is zero
 	 */
 	if (req->enables & cpu_to_le32(FUNC_VF_CFG_REQ_ENABLES_DFLT_MAC_ADDR)) {
+		bool trust = bnxt_is_trusted_vf(bp, vf);
+
 		if (is_valid_ether_addr(req->dflt_mac_addr) &&
-		    ((vf->flags & BNXT_VF_TRUST) ||
-		     !is_valid_ether_addr(vf->mac_addr) ||
+		    (trust || !is_valid_ether_addr(vf->mac_addr) ||
 		     ether_addr_equal(req->dflt_mac_addr, vf->mac_addr))) {
 			ether_addr_copy(vf->vf_mac_addr, req->dflt_mac_addr);
 			return bnxt_hwrm_exec_fwd_resp(bp, vf, msg_size);
@@ -962,7 +1012,7 @@ static int bnxt_vf_validate_set_mac(struct bnxt *bp, struct bnxt_vf_info *vf)
 	 * Otherwise, it must match the VF MAC address if firmware spec >=
 	 * 1.2.2
 	 */
-	if (vf->flags & BNXT_VF_TRUST) {
+	if (bnxt_is_trusted_vf(bp, vf)) {
 		mac_ok = true;
 	} else if (is_valid_ether_addr(vf->mac_addr)) {
 		if (ether_addr_equal((const u8 *)req->l2_addr, vf->mac_addr))

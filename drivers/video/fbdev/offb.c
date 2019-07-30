@@ -141,6 +141,7 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		/* Clear PALETTE_ACCESS_CNTL in DAC_CNTL */
 		out_le32(par->cmap_adr + 0x58,
 			 in_le32(par->cmap_adr + 0x58) & ~0x20);
+		/* fall through */
 	case cmap_r128:
 		/* Set palette index & data */
 		out_8(par->cmap_adr + 0xb0, regno);
@@ -210,6 +211,7 @@ static int offb_blank(int blank, struct fb_info *info)
 				/* Clear PALETTE_ACCESS_CNTL in DAC_CNTL */
 				out_le32(par->cmap_adr + 0x58,
 					 in_le32(par->cmap_adr + 0x58) & ~0x20);
+				/* fall through */
 			case cmap_r128:
 				/* Set palette index & data */
 				out_8(par->cmap_adr + 0xb0, i);
@@ -646,7 +648,7 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 		}
 #endif
 		/* kludge for valkyrie */
-		if (strcmp(dp->name, "valkyrie") == 0)
+		if (of_node_name_eq(dp, "valkyrie"))
 			address += 0x1000;
 		offb_init_fb(no_real_node ? "bootx" : NULL,
 			     width, height, depth, pitch, address,

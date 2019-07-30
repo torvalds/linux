@@ -2947,7 +2947,7 @@ static int lpfcdiag_loop_post_rxbufs(struct lpfc_hba *phba, uint16_t rxxri,
 			cmd->un.cont64[i].addrLow = putPaddrLow(mp[i]->phys);
 			cmd->un.cont64[i].tus.f.bdeSize =
 				((struct lpfc_dmabufext *)mp[i])->size;
-					cmd->ulpBdeCount = ++i;
+			cmd->ulpBdeCount = ++i;
 
 			if ((--num_bde > 0) && (i < 2))
 				continue;
@@ -4682,7 +4682,7 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct bsg_job *job,
 	 * Don't allow mailbox commands to be sent when blocked or when in
 	 * the middle of discovery
 	 */
-	 if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) {
+	if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) {
 		rc = -EAGAIN;
 		goto job_done;
 	}

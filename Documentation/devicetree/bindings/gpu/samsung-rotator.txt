@@ -2,9 +2,10 @@
 
 Required properties:
   - compatible : value should be one of the following:
-	(a) "samsung,exynos4210-rotator" for Rotator IP in Exynos4210
-	(b) "samsung,exynos4212-rotator" for Rotator IP in Exynos4212/4412
-	(c) "samsung,exynos5250-rotator" for Rotator IP in Exynos5250
+	* "samsung,s5pv210-rotator" for Rotator IP in S5PV210
+	* "samsung,exynos4210-rotator" for Rotator IP in Exynos4210
+	* "samsung,exynos4212-rotator" for Rotator IP in Exynos4212/4412
+	* "samsung,exynos5250-rotator" for Rotator IP in Exynos5250
 
   - reg : Physical base address of the IP registers and length of memory
 	  mapped region.

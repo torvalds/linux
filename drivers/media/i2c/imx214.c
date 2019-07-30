@@ -377,7 +377,7 @@ static const struct reg_8 mode_table_common[] = {
 	/* Moire reduction */
 	{0x6957, 0x01},
 
-	/* image enhancment */
+	/* image enhancement */
 	{0x6987, 0x17},
 	{0x698A, 0x03},
 	{0x698B, 0x03},

@@ -29,9 +29,7 @@
 #include <net/ipv6_frag.h>
 
 #ifdef CONFIG_NF_NAT_NEEDED
-#include <linux/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_core.h>
-#include <net/netfilter/nf_nat_l3proto.h>
+#include <net/netfilter/nf_nat.h>
 #endif
 
 #include "datapath.h"
@@ -622,7 +620,7 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 	if (natted) {
 		struct nf_conntrack_tuple inverse;
 
-		if (!nf_ct_invert_tuplepr(&inverse, &tuple)) {
+		if (!nf_ct_invert_tuple(&inverse, &tuple)) {
 			pr_debug("ovs_ct_find_existing: Inversion failed!\n");
 			return NULL;
 		}
@@ -745,14 +743,14 @@ static int ovs_ct_nat_execute(struct sk_buff *skb, struct nf_conn *ct,
 	switch (ctinfo) {
 	case IP_CT_RELATED:
 	case IP_CT_RELATED_REPLY:
-		if (IS_ENABLED(CONFIG_NF_NAT_IPV4) &&
+		if (IS_ENABLED(CONFIG_NF_NAT) &&
 		    skb->protocol == htons(ETH_P_IP) &&
 		    ip_hdr(skb)->protocol == IPPROTO_ICMP) {
 			if (!nf_nat_icmp_reply_translation(skb, ct, ctinfo,
 							   hooknum))
 				err = NF_DROP;
 			goto push;
-		} else if (IS_ENABLED(CONFIG_NF_NAT_IPV6) &&
+		} else if (IS_ENABLED(CONFIG_IPV6) &&
 			   skb->protocol == htons(ETH_P_IPV6)) {
 			__be16 frag_off;
 			u8 nexthdr = ipv6_hdr(skb)->nexthdr;
@@ -1673,7 +1671,7 @@ static bool ovs_ct_nat_to_attr(const struct ovs_conntrack_info *info,
 	}
 
 	if (info->range.flags & NF_NAT_RANGE_MAP_IPS) {
-		if (IS_ENABLED(CONFIG_NF_NAT_IPV4) &&
+		if (IS_ENABLED(CONFIG_NF_NAT) &&
 		    info->family == NFPROTO_IPV4) {
 			if (nla_put_in_addr(skb, OVS_NAT_ATTR_IP_MIN,
 					    info->range.min_addr.ip) ||
@@ -1682,7 +1680,7 @@ static bool ovs_ct_nat_to_attr(const struct ovs_conntrack_info *info,
 			     (nla_put_in_addr(skb, OVS_NAT_ATTR_IP_MAX,
 					      info->range.max_addr.ip))))
 				return false;
-		} else if (IS_ENABLED(CONFIG_NF_NAT_IPV6) &&
+		} else if (IS_ENABLED(CONFIG_IPV6) &&
 			   info->family == NFPROTO_IPV6) {
 			if (nla_put_in6_addr(skb, OVS_NAT_ATTR_IP_MIN,
 					     &info->range.min_addr.in6) ||

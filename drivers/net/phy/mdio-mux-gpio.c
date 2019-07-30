@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  * Copyright (C) 2011, 2012 Cavium, Inc.
  */
 
@@ -103,4 +100,4 @@ module_platform_driver(mdio_mux_gpio_driver);
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR("David Daney");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

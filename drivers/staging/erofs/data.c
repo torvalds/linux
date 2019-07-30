@@ -20,8 +20,9 @@ static inline void read_endio(struct bio *bio)
 	int i;
 	struct bio_vec *bvec;
 	const blk_status_t err = bio->bi_status;
+	struct bvec_iter_all iter_all;
 
-	bio_for_each_segment_all(bvec, bio, i) {
+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
 		struct page *page = bvec->bv_page;
 
 		/* page is already locked */
@@ -165,43 +166,16 @@ err_out:
 	return err;
 }
 
-#ifdef CONFIG_EROFS_FS_ZIP
-extern int z_erofs_map_blocks_iter(struct inode *,
-				   struct erofs_map_blocks *,
-				   struct page **, int);
-#endif
-
-int erofs_map_blocks_iter(struct inode *inode,
-			  struct erofs_map_blocks *map,
-			  struct page **mpage_ret, int flags)
-{
-	/* by default, reading raw data never use erofs_map_blocks_iter */
-	if (unlikely(!is_inode_layout_compression(inode))) {
-		if (*mpage_ret)
-			put_page(*mpage_ret);
-		*mpage_ret = NULL;
-
-		return erofs_map_blocks(inode, map, flags);
-	}
-
-#ifdef CONFIG_EROFS_FS_ZIP
-	return z_erofs_map_blocks_iter(inode, map, mpage_ret, flags);
-#else
-	/* data compression is not available */
-	return -ENOTSUPP;
-#endif
-}
-
 int erofs_map_blocks(struct inode *inode,
 		     struct erofs_map_blocks *map, int flags)
 {
 	if (unlikely(is_inode_layout_compression(inode))) {
-		struct page *mpage = NULL;
-		int err;
+		int err = z_erofs_map_blocks_iter(inode, map, flags);
 
-		err = erofs_map_blocks_iter(inode, map, &mpage, flags);
-		if (mpage)
-			put_page(mpage);
+		if (map->mpage) {
+			put_page(map->mpage);
+			map->mpage = NULL;
+		}
 		return err;
 	}
 	return erofs_map_blocks_flatmode(inode, map, flags);
@@ -324,7 +298,7 @@ submit_bio_retry:
 	*last_block = current_block;
 
 	/* shift in advance in case of it followed by too many gaps */
-	if (unlikely(bio->bi_vcnt >= bio->bi_max_vecs)) {
+	if (bio->bi_iter.bi_size >= bio->bi_max_vecs * PAGE_SIZE) {
 		/* err should reassign to 0 after submitting */
 		err = 0;
 		goto submit_bio_out;

@@ -3566,7 +3566,7 @@ static void be2iscsi_enable_msix(struct beiscsi_hba *phba)
 
 	/* if eqid_count == 1 fall back to INTX */
 	if (enable_msix && nvec > 1) {
-		const struct irq_affinity desc = { .post_vectors = 1 };
+		struct irq_affinity desc = { .post_vectors = 1 };
 
 		if (pci_alloc_irq_vectors_affinity(phba->pcidev, 2, nvec,
 				PCI_IRQ_MSIX | PCI_IRQ_AFFINITY, &desc) < 0) {

@@ -2,8 +2,12 @@
 #include <stdio.h>
 #include <linux/string.h>
 
+#include "../../util/callchain.h"
 #include "../../util/util.h"
 #include "../../util/hist.h"
+#include "../../util/map.h"
+#include "../../util/map_groups.h"
+#include "../../util/symbol.h"
 #include "../../util/sort.h"
 #include "../../util/evsel.h"
 #include "../../util/srcline.h"
@@ -788,7 +792,8 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 
 	indent = hists__overhead_width(hists) + 4;
 
-	for (nd = rb_first(&hists->entries); nd; nd = __rb_hierarchy_next(nd, HMD_FORCE_CHILD)) {
+	for (nd = rb_first_cached(&hists->entries); nd;
+	     nd = __rb_hierarchy_next(nd, HMD_FORCE_CHILD)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 		float percent;
 

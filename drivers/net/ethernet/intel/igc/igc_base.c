@@ -54,22 +54,6 @@ out:
 }
 
 /**
- * igc_check_for_link_base - Check for link
- * @hw: pointer to the HW structure
- *
- * If sgmii is enabled, then use the pcs register to determine link, otherwise
- * use the generic interface for determining link.
- */
-static s32 igc_check_for_link_base(struct igc_hw *hw)
-{
-	s32 ret_val = 0;
-
-	ret_val = igc_check_for_copper_link(hw);
-
-	return ret_val;
-}
-
-/**
  * igc_reset_hw_base - Reset hardware
  * @hw: pointer to the HW structure
  *
@@ -124,22 +108,6 @@ static s32 igc_reset_hw_base(struct igc_hw *hw)
 }
 
 /**
- * igc_get_phy_id_base - Retrieve PHY addr and id
- * @hw: pointer to the HW structure
- *
- * Retrieves the PHY address and ID for both PHY's which do and do not use
- * sgmi interface.
- */
-static s32 igc_get_phy_id_base(struct igc_hw *hw)
-{
-	s32  ret_val = 0;
-
-	ret_val = igc_get_phy_id(hw);
-
-	return ret_val;
-}
-
-/**
  * igc_init_nvm_params_base - Init NVM func ptrs.
  * @hw: pointer to the HW structure
  */
@@ -163,6 +131,7 @@ static s32 igc_init_nvm_params_base(struct igc_hw *hw)
 	if (size > 15)
 		size = 15;
 
+	nvm->type = igc_nvm_eeprom_spi;
 	nvm->word_size = BIT(size);
 	nvm->opcode_bits = 8;
 	nvm->delay_usec = 1;
@@ -261,11 +230,11 @@ static s32 igc_init_phy_params_base(struct igc_hw *hw)
 		goto out;
 	}
 
-	ret_val = igc_get_phy_id_base(hw);
+	ret_val = igc_get_phy_id(hw);
 	if (ret_val)
 		return ret_val;
 
-	igc_check_for_link_base(hw);
+	igc_check_for_copper_link(hw);
 
 	/* Verify phy id and set remaining function pointers */
 	switch (phy->id) {
@@ -350,26 +319,6 @@ static void igc_release_phy_base(struct igc_hw *hw)
 }
 
 /**
- * igc_get_link_up_info_base - Get link speed/duplex info
- * @hw: pointer to the HW structure
- * @speed: stores the current speed
- * @duplex: stores the current duplex
- *
- * This is a wrapper function, if using the serial gigabit media independent
- * interface, use PCS to retrieve the link speed and duplex information.
- * Otherwise, use the generic function to get the link speed and duplex info.
- */
-static s32 igc_get_link_up_info_base(struct igc_hw *hw, u16 *speed,
-				     u16 *duplex)
-{
-	s32 ret_val;
-
-	ret_val = igc_get_speed_and_duplex_copper(hw, speed, duplex);
-
-	return ret_val;
-}
-
-/**
  * igc_init_hw_base - Initialize hardware
  * @hw: pointer to the HW structure
  *
@@ -403,19 +352,6 @@ static s32 igc_init_hw_base(struct igc_hw *hw)
 	 * is no link.
 	 */
 	igc_clear_hw_cntrs_base(hw);
-
-	return ret_val;
-}
-
-/**
- * igc_read_mac_addr_base - Read device MAC address
- * @hw: pointer to the HW structure
- */
-static s32 igc_read_mac_addr_base(struct igc_hw *hw)
-{
-	s32 ret_val = 0;
-
-	ret_val = igc_read_mac_addr(hw);
 
 	return ret_val;
 }
@@ -512,10 +448,10 @@ void igc_rx_fifo_flush_base(struct igc_hw *hw)
 
 static struct igc_mac_operations igc_mac_ops_base = {
 	.init_hw		= igc_init_hw_base,
-	.check_for_link		= igc_check_for_link_base,
+	.check_for_link		= igc_check_for_copper_link,
 	.rar_set		= igc_rar_set,
-	.read_mac_addr		= igc_read_mac_addr_base,
-	.get_speed_and_duplex	= igc_get_link_up_info_base,
+	.read_mac_addr		= igc_read_mac_addr,
+	.get_speed_and_duplex	= igc_get_speed_and_duplex_copper,
 };
 
 static const struct igc_phy_operations igc_phy_ops_base = {

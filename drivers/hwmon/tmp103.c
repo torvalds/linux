@@ -61,9 +61,8 @@ static inline u8 tmp103_mc_to_reg(int val)
 	return DIV_ROUND_CLOSEST(val, 1000);
 }
 
-static ssize_t tmp103_show_temp(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
+static ssize_t tmp103_temp_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
 	struct regmap *regmap = dev_get_drvdata(dev);
@@ -77,9 +76,9 @@ static ssize_t tmp103_show_temp(struct device *dev,
 	return sprintf(buf, "%d\n", tmp103_reg_to_mc(regval));
 }
 
-static ssize_t tmp103_set_temp(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t tmp103_temp_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
 	struct regmap *regmap = dev_get_drvdata(dev);
@@ -94,14 +93,11 @@ static ssize_t tmp103_set_temp(struct device *dev,
 	return ret ? ret : count;
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, tmp103_show_temp, NULL ,
-			  TMP103_TEMP_REG);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, tmp103_temp, TMP103_TEMP_REG);
 
-static SENSOR_DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO, tmp103_show_temp,
-			  tmp103_set_temp, TMP103_TLOW_REG);
+static SENSOR_DEVICE_ATTR_RW(temp1_min, tmp103_temp, TMP103_TLOW_REG);
 
-static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, tmp103_show_temp,
-			  tmp103_set_temp, TMP103_THIGH_REG);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, tmp103_temp, TMP103_THIGH_REG);
 
 static struct attribute *tmp103_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,

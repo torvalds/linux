@@ -657,15 +657,16 @@ static int qla_async_rftid(scsi_qla_host_t *vha, port_id_t *d_id)
 	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
 	sp->done = qla2x00_async_sns_sp_done;
 
+	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	    "Async-%s - hdl=%x portid %06x.\n",
+	    sp->name, sp->handle, d_id->b24);
+
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_disc, vha, 0x2043,
 		    "RFT_ID issue IOCB failed (%d).\n", rval);
 		goto done_free_sp;
 	}
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
-	    "Async-%s - hdl=%x portid %06x.\n",
-	    sp->name, sp->handle, d_id->b24);
 	return rval;
 done_free_sp:
 	sp->free(sp);
@@ -752,6 +753,10 @@ static int qla_async_rffid(scsi_qla_host_t *vha, port_id_t *d_id,
 	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
 	sp->done = qla2x00_async_sns_sp_done;
 
+	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	    "Async-%s - hdl=%x portid %06x feature %x type %x.\n",
+	    sp->name, sp->handle, d_id->b24, fc4feature, fc4type);
+
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_disc, vha, 0x2047,
@@ -759,9 +764,6 @@ static int qla_async_rffid(scsi_qla_host_t *vha, port_id_t *d_id,
 		goto done_free_sp;
 	}
 
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
-	    "Async-%s - hdl=%x portid %06x feature %x type %x.\n",
-	    sp->name, sp->handle, d_id->b24, fc4feature, fc4type);
 	return rval;
 
 done_free_sp:
@@ -844,15 +846,16 @@ static int qla_async_rnnid(scsi_qla_host_t *vha, port_id_t *d_id,
 	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
 	sp->done = qla2x00_async_sns_sp_done;
 
+	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	    "Async-%s - hdl=%x portid %06x\n",
+	    sp->name, sp->handle, d_id->b24);
+
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_disc, vha, 0x204d,
 		    "RNN_ID issue IOCB failed (%d).\n", rval);
 		goto done_free_sp;
 	}
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
-	    "Async-%s - hdl=%x portid %06x\n",
-	    sp->name, sp->handle, d_id->b24);
 
 	return rval;
 
@@ -957,15 +960,16 @@ static int qla_async_rsnn_nn(scsi_qla_host_t *vha)
 	sp->u.iocb_cmd.timeout = qla2x00_async_iocb_timeout;
 	sp->done = qla2x00_async_sns_sp_done;
 
+	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	    "Async-%s - hdl=%x.\n",
+	    sp->name, sp->handle);
+
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_disc, vha, 0x2043,
 		    "RFT_ID issue IOCB failed (%d).\n", rval);
 		goto done_free_sp;
 	}
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
-	    "Async-%s - hdl=%x.\n",
-	    sp->name, sp->handle);
 
 	return rval;
 
@@ -3578,13 +3582,13 @@ int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 	sp->done = qla24xx_async_gffid_sp_done;
 
-	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS)
-		goto done_free_sp;
-
 	ql_dbg(ql_dbg_disc, vha, 0x2132,
 	    "Async-%s hdl=%x  %8phC.\n", sp->name,
 	    sp->handle, fcport->port_name);
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS)
+		goto done_free_sp;
 
 	return rval;
 done_free_sp:
@@ -4067,6 +4071,10 @@ static int qla24xx_async_gnnft(scsi_qla_host_t *vha, struct srb *sp,
 
 	sp->done = qla2x00_async_gpnft_gnnft_sp_done;
 
+	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	    "Async-%s hdl=%x FC4Type %x.\n", sp->name,
+	    sp->handle, ct_req->req.gpn_ft.port_type);
+
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
 		spin_lock_irqsave(&vha->work_lock, flags);
@@ -4075,9 +4083,6 @@ static int qla24xx_async_gnnft(scsi_qla_host_t *vha, struct srb *sp,
 		goto done_free_sp;
 	}
 
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
-	    "Async-%s hdl=%x FC4Type %x.\n", sp->name,
-	    sp->handle, ct_req->req.gpn_ft.port_type);
 	return rval;
 
 done_free_sp:
@@ -4158,7 +4163,8 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 			spin_lock_irqsave(&vha->work_lock, flags);
 			vha->scan.scan_flags &= ~SF_SCANNING;
 			spin_unlock_irqrestore(&vha->work_lock, flags);
-			goto done_free_sp;
+			qla2x00_rel_sp(sp);
+			return rval;
 		}
 		sp->u.iocb_cmd.u.ctarg.req_size = GPN_FT_REQ_SIZE;
 
@@ -4177,7 +4183,13 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 			spin_lock_irqsave(&vha->work_lock, flags);
 			vha->scan.scan_flags &= ~SF_SCANNING;
 			spin_unlock_irqrestore(&vha->work_lock, flags);
-			goto done_free_sp;
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    sp->u.iocb_cmd.u.ctarg.req_allocated_size,
+			    sp->u.iocb_cmd.u.ctarg.req,
+			    sp->u.iocb_cmd.u.ctarg.req_dma);
+			sp->u.iocb_cmd.u.ctarg.req = NULL;
+			qla2x00_rel_sp(sp);
+			return rval;
 		}
 		sp->u.iocb_cmd.u.ctarg.rsp_size = rspsz;
 
@@ -4214,6 +4226,10 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 
 	sp->done = qla2x00_async_gpnft_gnnft_sp_done;
 
+	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	    "Async-%s hdl=%x FC4Type %x.\n", sp->name,
+	    sp->handle, ct_req->req.gpn_ft.port_type);
+
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
 		spin_lock_irqsave(&vha->work_lock, flags);
@@ -4222,9 +4238,6 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 		goto done_free_sp;
 	}
 
-	ql_dbg(ql_dbg_disc, vha, 0xffff,
-	    "Async-%s hdl=%x FC4Type %x.\n", sp->name,
-	    sp->handle, ct_req->req.gpn_ft.port_type);
 	return rval;
 
 done_free_sp:
@@ -4345,13 +4358,14 @@ int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 	sp->done = qla2x00_async_gnnid_sp_done;
 
-	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS)
-		goto done_free_sp;
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "Async-%s - %8phC hdl=%x loopid=%x portid %06x.\n",
 	    sp->name, fcport->port_name,
 	    sp->handle, fcport->loop_id, fcport->d_id.b24);
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS)
+		goto done_free_sp;
 	return rval;
 
 done_free_sp:
@@ -4475,14 +4489,15 @@ int qla24xx_async_gfpnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 	sp->done = qla2x00_async_gfpnid_sp_done;
 
-	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS)
-		goto done_free_sp;
-
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "Async-%s - %8phC hdl=%x loopid=%x portid %06x.\n",
 	    sp->name, fcport->port_name,
 	    sp->handle, fcport->loop_id, fcport->d_id.b24);
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS)
+		goto done_free_sp;
+
 	return rval;
 
 done_free_sp:

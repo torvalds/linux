@@ -161,6 +161,10 @@ struct stream_encoder_funcs {
 	void (*set_avmute)(
 		struct stream_encoder *enc, bool enable);
 
+	void (*dig_connect_to_otg)(
+		struct stream_encoder *enc,
+		int tg_inst);
+
 };
 
 #endif /* STREAM_ENCODER_H_ */

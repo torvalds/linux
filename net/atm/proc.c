@@ -134,7 +134,8 @@ static void vcc_seq_stop(struct seq_file *seq, void *v)
 static void *vcc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	v = vcc_walk(seq, 1);
-	*pos += !!PTR_ERR(v);
+	if (v)
+		(*pos)++;
 	return v;
 }
 

@@ -88,7 +88,9 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	if (!efuseTbl)
 		return;
 
-	tmp = kzalloc(EFUSE_MAX_SECTION_88E * (sizeof(void *) + EFUSE_MAX_WORD_UNIT * sizeof(u16)), GFP_KERNEL);
+	tmp = kcalloc(EFUSE_MAX_SECTION_88E,
+		      sizeof(void *) + EFUSE_MAX_WORD_UNIT * sizeof(u16),
+		      GFP_KERNEL);
 	if (!tmp) {
 		DBG_88E("%s: alloc eFuseWord fail!\n", __func__);
 		goto eFuseWord_failed;

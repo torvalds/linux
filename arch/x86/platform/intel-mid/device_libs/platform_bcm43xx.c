@@ -44,7 +44,6 @@ static struct fixed_voltage_config bcm43xx_vmmc = {
 	 */
 	.microvolts		= 2000000,		/* 1.8V */
 	.startup_delay		= 250 * 1000,		/* 250ms */
-	.enable_high		= 1,			/* active high */
 	.enabled_at_boot	= 0,			/* disabled at boot */
 	.init_data		= &bcm43xx_vmmc_data,
 };

@@ -16,12 +16,13 @@
 #include <linux/slab.h>
 
 #include <linux/phy/phy.h>
+#include <linux/phy/phy-mipi-dphy.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 
 #include "sun4i_drv.h"
 #include "sun6i_mipi_dsi.h"
@@ -616,6 +617,8 @@ static void sun6i_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
 	struct sun6i_dsi *dsi = encoder_to_sun6i_dsi(encoder);
 	struct mipi_dsi_device *device = dsi->device;
+	union phy_configure_opts opts = { 0 };
+	struct phy_configure_opts_mipi_dphy *cfg = &opts.mipi_dphy;
 	u16 delay;
 
 	DRM_DEBUG_DRIVER("Enabling DSI output\n");
@@ -634,8 +637,15 @@ static void sun6i_dsi_encoder_enable(struct drm_encoder *encoder)
 	sun6i_dsi_setup_format(dsi, mode);
 	sun6i_dsi_setup_timings(dsi, mode);
 
-	sun6i_dphy_init(dsi->dphy, device->lanes);
-	sun6i_dphy_power_on(dsi->dphy, device->lanes);
+	phy_init(dsi->dphy);
+
+	phy_mipi_dphy_get_default_config(mode->clock * 1000,
+					 mipi_dsi_pixel_format_to_bpp(device->format),
+					 device->lanes, cfg);
+
+	phy_set_mode(dsi->dphy, PHY_MODE_MIPI_DPHY);
+	phy_configure(dsi->dphy, &opts);
+	phy_power_on(dsi->dphy);
 
 	if (!IS_ERR(dsi->panel))
 		drm_panel_prepare(dsi->panel);
@@ -673,8 +683,8 @@ static void sun6i_dsi_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_unprepare(dsi->panel);
 	}
 
-	sun6i_dphy_power_off(dsi->dphy);
-	sun6i_dphy_exit(dsi->dphy);
+	phy_power_off(dsi->dphy);
+	phy_exit(dsi->dphy);
 
 	pm_runtime_put(dsi->dev);
 }
@@ -967,7 +977,6 @@ static const struct component_ops sun6i_dsi_ops = {
 static int sun6i_dsi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dphy_node;
 	struct sun6i_dsi *dsi;
 	struct resource *res;
 	void __iomem *base;
@@ -1013,11 +1022,10 @@ static int sun6i_dsi_probe(struct platform_device *pdev)
 	 */
 	clk_set_rate_exclusive(dsi->mod_clk, 297000000);
 
-	dphy_node = of_parse_phandle(dev->of_node, "phys", 0);
-	ret = sun6i_dphy_probe(dsi, dphy_node);
-	of_node_put(dphy_node);
-	if (ret) {
+	dsi->dphy = devm_phy_get(dev, "dphy");
+	if (IS_ERR(dsi->dphy)) {
 		dev_err(dev, "Couldn't get the MIPI D-PHY\n");
+		ret = PTR_ERR(dsi->dphy);
 		goto err_unprotect_clk;
 	}
 
@@ -1026,7 +1034,7 @@ static int sun6i_dsi_probe(struct platform_device *pdev)
 	ret = mipi_dsi_host_register(&dsi->host);
 	if (ret) {
 		dev_err(dev, "Couldn't register MIPI-DSI host\n");
-		goto err_remove_phy;
+		goto err_pm_disable;
 	}
 
 	ret = component_add(&pdev->dev, &sun6i_dsi_ops);
@@ -1039,9 +1047,8 @@ static int sun6i_dsi_probe(struct platform_device *pdev)
 
 err_remove_dsi_host:
 	mipi_dsi_host_unregister(&dsi->host);
-err_remove_phy:
+err_pm_disable:
 	pm_runtime_disable(dev);
-	sun6i_dphy_remove(dsi);
 err_unprotect_clk:
 	clk_rate_exclusive_put(dsi->mod_clk);
 	return ret;
@@ -1055,7 +1062,6 @@ static int sun6i_dsi_remove(struct platform_device *pdev)
 	component_del(&pdev->dev, &sun6i_dsi_ops);
 	mipi_dsi_host_unregister(&dsi->host);
 	pm_runtime_disable(dev);
-	sun6i_dphy_remove(dsi);
 	clk_rate_exclusive_put(dsi->mod_clk);
 
 	return 0;

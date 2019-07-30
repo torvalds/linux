@@ -729,7 +729,7 @@ static long lp_ioctl(struct file *file, unsigned int cmd,
 			ret = lp_set_timeout32(minor, (void __user *)arg);
 			break;
 		}
-		/* fallthrough for 64-bit */
+		/* fall through - for 64-bit */
 	case LPSETTIMEOUT_NEW:
 		ret = lp_set_timeout64(minor, (void __user *)arg);
 		break;
@@ -757,7 +757,7 @@ static long lp_compat_ioctl(struct file *file, unsigned int cmd,
 			ret = lp_set_timeout32(minor, (void __user *)arg);
 			break;
 		}
-		/* fallthrough for x32 mode */
+		/* fall through - for x32 mode */
 	case LPSETTIMEOUT_NEW:
 		ret = lp_set_timeout64(minor, (void __user *)arg);
 		break;

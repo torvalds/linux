@@ -51,14 +51,7 @@ struct amdgpu_doorbell_index {
 	uint32_t userqueue_start;
 	uint32_t userqueue_end;
 	uint32_t gfx_ring0;
-	uint32_t sdma_engine0;
-	uint32_t sdma_engine1;
-	uint32_t sdma_engine2;
-	uint32_t sdma_engine3;
-	uint32_t sdma_engine4;
-	uint32_t sdma_engine5;
-	uint32_t sdma_engine6;
-	uint32_t sdma_engine7;
+	uint32_t sdma_engine[8];
 	uint32_t ih;
 	union {
 		struct {
@@ -78,7 +71,11 @@ struct amdgpu_doorbell_index {
 			uint32_t vce_ring6_7;
 		} uvd_vce;
 	};
+	uint32_t first_non_cp;
+	uint32_t last_non_cp;
 	uint32_t max_assignment;
+	/* Per engine SDMA doorbell size in dword */
+	uint32_t sdma_doorbell_range;
 };
 
 typedef enum _AMDGPU_DOORBELL_ASSIGNMENT
@@ -148,6 +145,10 @@ typedef enum _AMDGPU_VEGA20_DOORBELL_ASSIGNMENT
 	AMDGPU_VEGA20_DOORBELL64_VCE_RING2_3             = 0x18D,
 	AMDGPU_VEGA20_DOORBELL64_VCE_RING4_5             = 0x18E,
 	AMDGPU_VEGA20_DOORBELL64_VCE_RING6_7             = 0x18F,
+
+	AMDGPU_VEGA20_DOORBELL64_FIRST_NON_CP            = AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE0,
+	AMDGPU_VEGA20_DOORBELL64_LAST_NON_CP             = AMDGPU_VEGA20_DOORBELL64_VCE_RING6_7,
+
 	AMDGPU_VEGA20_DOORBELL_MAX_ASSIGNMENT            = 0x18F,
 	AMDGPU_VEGA20_DOORBELL_INVALID                   = 0xFFFF
 } AMDGPU_VEGA20_DOORBELL_ASSIGNMENT;
@@ -226,6 +227,9 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	AMDGPU_DOORBELL64_VCE_RING2_3             = 0xFD,
 	AMDGPU_DOORBELL64_VCE_RING4_5             = 0xFE,
 	AMDGPU_DOORBELL64_VCE_RING6_7             = 0xFF,
+
+	AMDGPU_DOORBELL64_FIRST_NON_CP            = AMDGPU_DOORBELL64_sDMA_ENGINE0,
+	AMDGPU_DOORBELL64_LAST_NON_CP             = AMDGPU_DOORBELL64_VCE_RING6_7,
 
 	AMDGPU_DOORBELL64_MAX_ASSIGNMENT          = 0xFF,
 	AMDGPU_DOORBELL64_INVALID                 = 0xFFFF

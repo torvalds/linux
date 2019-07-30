@@ -27,7 +27,6 @@
 #define DRV_VERSION     "1.01"
 const char pch_driver_version[] = DRV_VERSION;
 
-#define PCI_DEVICE_ID_INTEL_IOH1_GBE	0x8802		/* Pci device ID */
 #define PCH_GBE_MAR_ENTRIES		16
 #define PCH_GBE_SHORT_PKT		64
 #define DSC_INIT16			0xC000
@@ -37,11 +36,9 @@ const char pch_driver_version[] = DRV_VERSION;
 #define PCH_GBE_PCI_BAR			1
 #define PCH_GBE_RESERVE_MEMORY		0x200000	/* 2MB */
 
-/* Macros for ML7223 */
-#define PCI_VENDOR_ID_ROHM			0x10db
-#define PCI_DEVICE_ID_ROHM_ML7223_GBE		0x8013
+#define PCI_DEVICE_ID_INTEL_IOH1_GBE		0x8802
 
-/* Macros for ML7831 */
+#define PCI_DEVICE_ID_ROHM_ML7223_GBE		0x8013
 #define PCI_DEVICE_ID_ROHM_ML7831_GBE		0x8802
 
 #define PCH_GBE_TX_WEIGHT         64

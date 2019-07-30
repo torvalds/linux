@@ -282,7 +282,7 @@ static int adv748x_afe_s_stream(struct v4l2_subdev *sd, int enable)
 			goto unlock;
 	}
 
-	ret = adv748x_tx_power(&state->txb, enable);
+	ret = adv748x_tx_power(afe->tx, enable);
 	if (ret)
 		goto unlock;
 

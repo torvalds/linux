@@ -108,6 +108,8 @@ EXPORT_SYMBOL_GPL(ehci_cf_port_reset_rwsem);
 static void hub_release(struct kref *kref);
 static int usb_reset_and_verify_device(struct usb_device *udev);
 static int hub_port_disable(struct usb_hub *hub, int port1, int set_state);
+static bool hub_port_warm_reset_required(struct usb_hub *hub, int port1,
+		u16 portstatus);
 
 static inline char *portspeed(struct usb_hub *hub, int portstatus)
 {
@@ -607,6 +609,36 @@ static int hub_port_status(struct usb_hub *hub, int port1,
 				   status, change, NULL);
 }
 
+static void hub_resubmit_irq_urb(struct usb_hub *hub)
+{
+	unsigned long flags;
+	int status;
+
+	spin_lock_irqsave(&hub->irq_urb_lock, flags);
+
+	if (hub->quiescing) {
+		spin_unlock_irqrestore(&hub->irq_urb_lock, flags);
+		return;
+	}
+
+	status = usb_submit_urb(hub->urb, GFP_ATOMIC);
+	if (status && status != -ENODEV && status != -EPERM &&
+	    status != -ESHUTDOWN) {
+		dev_err(hub->intfdev, "resubmit --> %d\n", status);
+		mod_timer(&hub->irq_urb_retry, jiffies + HZ);
+	}
+
+	spin_unlock_irqrestore(&hub->irq_urb_lock, flags);
+}
+
+static void hub_retry_irq_urb(struct timer_list *t)
+{
+	struct usb_hub *hub = from_timer(hub, t, irq_urb_retry);
+
+	hub_resubmit_irq_urb(hub);
+}
+
+
 static void kick_hub_wq(struct usb_hub *hub)
 {
 	struct usb_interface *intf;
@@ -709,12 +741,7 @@ static void hub_irq(struct urb *urb)
 	kick_hub_wq(hub);
 
 resubmit:
-	if (hub->quiescing)
-		return;
-
-	status = usb_submit_urb(hub->urb, GFP_ATOMIC);
-	if (status != 0 && status != -ENODEV && status != -EPERM)
-		dev_err(hub->intfdev, "resubmit --> %d\n", status);
+	hub_resubmit_irq_urb(hub);
 }
 
 /* USB 2.0 spec Section 11.24.2.3 */
@@ -1112,6 +1139,11 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 						   USB_PORT_FEAT_ENABLE);
 		}
 
+		/* Make sure a warm-reset request is handled by port_event */
+		if (type == HUB_RESUME &&
+		    hub_port_warm_reset_required(hub, port1, portstatus))
+			set_bit(port1, hub->event_bits);
+
 		/*
 		 * Add debounce if USB3 link is in polling/link training state.
 		 * Link will automatically transition to Enabled state after
@@ -1264,10 +1296,13 @@ enum hub_quiescing_type {
 static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
 {
 	struct usb_device *hdev = hub->hdev;
+	unsigned long flags;
 	int i;
 
 	/* hub_wq and related activity won't re-trigger */
+	spin_lock_irqsave(&hub->irq_urb_lock, flags);
 	hub->quiescing = 1;
+	spin_unlock_irqrestore(&hub->irq_urb_lock, flags);
 
 	if (type != HUB_SUSPEND) {
 		/* Disconnect all the children */
@@ -1278,6 +1313,7 @@ static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
 	}
 
 	/* Stop hub_wq and related activity */
+	del_timer_sync(&hub->irq_urb_retry);
 	usb_kill_urb(hub->urb);
 	if (hub->has_indicators)
 		cancel_delayed_work_sync(&hub->leds);
@@ -1810,6 +1846,8 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	INIT_DELAYED_WORK(&hub->leds, led_work);
 	INIT_DELAYED_WORK(&hub->init_work, NULL);
 	INIT_WORK(&hub->events, hub_event);
+	spin_lock_init(&hub->irq_urb_lock);
+	timer_setup(&hub->irq_urb_retry, hub_retry_irq_urb, 0);
 	usb_get_intf(intf);
 	usb_get_dev(hdev);
 
@@ -3220,8 +3258,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	}
 
 	/* disable USB2 hardware LPM */
-	if (udev->usb2_hw_lpm_enabled == 1)
-		usb_set_usb2_hardware_lpm(udev, 0);
+	usb_disable_usb2_hardware_lpm(udev);
 
 	if (usb_disable_ltm(udev)) {
 		dev_err(&udev->dev, "Failed to disable LTM before suspend\n");
@@ -3259,8 +3296,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 		usb_enable_ltm(udev);
  err_ltm:
 		/* Try to enable USB2 hardware LPM again */
-		if (udev->usb2_hw_lpm_capable == 1)
-			usb_set_usb2_hardware_lpm(udev, 1);
+		usb_enable_usb2_hardware_lpm(udev);
 
 		if (udev->do_remote_wakeup)
 			(void) usb_disable_remote_wakeup(udev);
@@ -3543,8 +3579,7 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 		hub_port_logical_disconnect(hub, port1);
 	} else  {
 		/* Try to enable USB2 hardware LPM */
-		if (udev->usb2_hw_lpm_capable == 1)
-			usb_set_usb2_hardware_lpm(udev, 1);
+		usb_enable_usb2_hardware_lpm(udev);
 
 		/* Try to enable USB3 LTM */
 		usb_enable_ltm(udev);
@@ -4435,7 +4470,7 @@ static void hub_set_initial_usb2_lpm_policy(struct usb_device *udev)
 	if ((udev->bos->ext_cap->bmAttributes & cpu_to_le32(USB_BESL_SUPPORT)) ||
 			connect_type == USB_PORT_CONNECT_TYPE_HARD_WIRED) {
 		udev->usb2_hw_lpm_allowed = 1;
-		usb_set_usb2_hardware_lpm(udev, 1);
+		usb_enable_usb2_hardware_lpm(udev);
 	}
 }
 
@@ -5649,8 +5684,7 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 	/* Disable USB2 hardware LPM.
 	 * It will be re-enabled by the enumeration process.
 	 */
-	if (udev->usb2_hw_lpm_enabled == 1)
-		usb_set_usb2_hardware_lpm(udev, 0);
+	usb_disable_usb2_hardware_lpm(udev);
 
 	/* Disable LPM while we reset the device and reinstall the alt settings.
 	 * Device-initiated LPM, and system exit latency settings are cleared
@@ -5753,7 +5787,7 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 
 done:
 	/* Now that the alt settings are re-installed, enable LTM and LPM. */
-	usb_set_usb2_hardware_lpm(udev, 1);
+	usb_enable_usb2_hardware_lpm(udev);
 	usb_unlocked_enable_lpm(udev);
 	usb_enable_ltm(udev);
 	usb_release_bos_descriptor(udev);

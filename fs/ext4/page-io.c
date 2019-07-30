@@ -63,10 +63,11 @@ static void ext4_finish_bio(struct bio *bio)
 {
 	int i;
 	struct bio_vec *bvec;
+	struct bvec_iter_all iter_all;
 
-	bio_for_each_segment_all(bvec, bio, i) {
+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
 		struct page *page = bvec->bv_page;
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
+#ifdef CONFIG_FS_ENCRYPTION
 		struct page *data_page = NULL;
 #endif
 		struct buffer_head *bh, *head;
@@ -78,7 +79,7 @@ static void ext4_finish_bio(struct bio *bio)
 		if (!page)
 			continue;
 
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
+#ifdef CONFIG_FS_ENCRYPTION
 		if (!page->mapping) {
 			/* The bounce data pages are unmapped. */
 			data_page = page;
@@ -111,7 +112,7 @@ static void ext4_finish_bio(struct bio *bio)
 		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
 		local_irq_restore(flags);
 		if (!under_io) {
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
+#ifdef CONFIG_FS_ENCRYPTION
 			if (data_page)
 				fscrypt_restore_control_page(data_page);
 #endif
@@ -467,18 +468,15 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 				ext4_io_submit(io);
 			continue;
 		}
-		if (buffer_new(bh)) {
+		if (buffer_new(bh))
 			clear_buffer_new(bh);
-			clean_bdev_bh_alias(bh);
-		}
 		set_buffer_async_write(bh);
 		nr_to_submit++;
 	} while ((bh = bh->b_this_page) != head);
 
 	bh = head = page_buffers(page);
 
-	if (ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode) &&
-	    nr_to_submit) {
+	if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode) && nr_to_submit) {
 		gfp_t gfp_flags = GFP_NOFS;
 
 	retry_encrypt:

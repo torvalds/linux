@@ -30,7 +30,7 @@ ENTRY(__raw_readsl)
 2:		movs	r2, r2, lsl #31
 		ldrcs	r3, [r0, #0]
 		ldrcs	ip, [r0, #0]
-		stmcsia	r1!, {r3, ip}
+		stmiacs	r1!, {r3, ip}
 		ldrne	r3, [r0, #0]
 		strne	r3, [r1, #0]
 		ret	lr

@@ -235,9 +235,13 @@ static int coh901331_suspend(struct device *dev)
 
 static int coh901331_resume(struct device *dev)
 {
+	int ret;
 	struct coh901331_port *rtap = dev_get_drvdata(dev);
 
-	clk_prepare(rtap->clk);
+	ret = clk_prepare(rtap->clk);
+	if (ret)
+		return ret;
+
 	if (device_may_wakeup(dev)) {
 		disable_irq_wake(rtap->irq);
 	} else {

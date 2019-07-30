@@ -23,6 +23,7 @@ struct blk_mq_ctx {
 
 	unsigned int		cpu;
 	unsigned short		index_hw[HCTX_MAX_TYPES];
+	struct blk_mq_hw_ctx 	*hctxs[HCTX_MAX_TYPES];
 
 	/* incremented at dispatch time */
 	unsigned long		rq_dispatched[2];
@@ -40,6 +41,8 @@ void blk_mq_free_queue(struct request_queue *q);
 int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr);
 void blk_mq_wake_waiters(struct request_queue *q);
 bool blk_mq_dispatch_rq_list(struct request_queue *, struct list_head *, bool);
+void blk_mq_add_to_requeue_list(struct request *rq, bool at_head,
+				bool kick_requeue_list);
 void blk_mq_flush_busy_ctxs(struct blk_mq_hw_ctx *hctx, struct list_head *list);
 bool blk_mq_get_driver_tag(struct request *rq);
 struct request *blk_mq_dequeue_from_ctx(struct blk_mq_hw_ctx *hctx,
@@ -67,10 +70,8 @@ void blk_mq_request_bypass_insert(struct request *rq, bool run_queue);
 void blk_mq_insert_requests(struct blk_mq_hw_ctx *hctx, struct blk_mq_ctx *ctx,
 				struct list_head *list);
 
-blk_status_t blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
-						struct request *rq,
-						blk_qc_t *cookie,
-						bool bypass, bool last);
+/* Used by blk_insert_cloned_request() to issue request directly */
+blk_status_t blk_mq_request_issue_directly(struct request *rq, bool last);
 void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 				    struct list_head *list);
 
@@ -96,26 +97,23 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue_type(struct request_queue *
  * blk_mq_map_queue() - map (cmd_flags,type) to hardware queue
  * @q: request queue
  * @flags: request command flags
- * @cpu: CPU
+ * @cpu: cpu ctx
  */
 static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
 						     unsigned int flags,
-						     unsigned int cpu)
+						     struct blk_mq_ctx *ctx)
 {
 	enum hctx_type type = HCTX_TYPE_DEFAULT;
 
-	if ((flags & REQ_HIPRI) &&
-	    q->tag_set->nr_maps > HCTX_TYPE_POLL && 
-	    q->tag_set->map[HCTX_TYPE_POLL].nr_queues &&
-	    test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
+	/*
+	 * The caller ensure that if REQ_HIPRI, poll must be enabled.
+	 */
+	if (flags & REQ_HIPRI)
 		type = HCTX_TYPE_POLL;
-
-	else if (((flags & REQ_OP_MASK) == REQ_OP_READ) &&
-	         q->tag_set->nr_maps > HCTX_TYPE_READ &&
-		 q->tag_set->map[HCTX_TYPE_READ].nr_queues)
+	else if ((flags & REQ_OP_MASK) == REQ_OP_READ)
 		type = HCTX_TYPE_READ;
 	
-	return blk_mq_map_queue_type(q, type, cpu);
+	return ctx->hctxs[type];
 }
 
 /*
@@ -222,15 +220,6 @@ static inline void __blk_mq_put_driver_tag(struct blk_mq_hw_ctx *hctx,
 		rq->rq_flags &= ~RQF_MQ_INFLIGHT;
 		atomic_dec(&hctx->nr_active);
 	}
-}
-
-static inline void blk_mq_put_driver_tag_hctx(struct blk_mq_hw_ctx *hctx,
-				       struct request *rq)
-{
-	if (rq->tag == -1 || rq->internal_tag == -1)
-		return;
-
-	__blk_mq_put_driver_tag(hctx, rq);
 }
 
 static inline void blk_mq_put_driver_tag(struct request *rq)

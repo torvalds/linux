@@ -90,7 +90,11 @@ static struct pxp_fmt formats[] = {
 		.depth	= 16,
 		.types	= MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
 	}, {
-		.fourcc = V4L2_PIX_FMT_YUV32,
+		.fourcc = V4L2_PIX_FMT_VUYA32,
+		.depth	= 32,
+		.types	= MEM2MEM_CAPTURE,
+	}, {
+		.fourcc = V4L2_PIX_FMT_VUYX32,
 		.depth	= 32,
 		.types	= MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
 	}, {
@@ -236,7 +240,7 @@ static u32 pxp_v4l2_pix_fmt_to_ps_format(u32 v4l2_pix_fmt)
 	case V4L2_PIX_FMT_RGB555:  return BV_PXP_PS_CTRL_FORMAT__RGB555;
 	case V4L2_PIX_FMT_RGB444:  return BV_PXP_PS_CTRL_FORMAT__RGB444;
 	case V4L2_PIX_FMT_RGB565:  return BV_PXP_PS_CTRL_FORMAT__RGB565;
-	case V4L2_PIX_FMT_YUV32:   return BV_PXP_PS_CTRL_FORMAT__YUV1P444;
+	case V4L2_PIX_FMT_VUYX32:  return BV_PXP_PS_CTRL_FORMAT__YUV1P444;
 	case V4L2_PIX_FMT_UYVY:    return BV_PXP_PS_CTRL_FORMAT__UYVY1P422;
 	case V4L2_PIX_FMT_YUYV:    return BM_PXP_PS_CTRL_WB_SWAP |
 					  BV_PXP_PS_CTRL_FORMAT__UYVY1P422;
@@ -265,7 +269,8 @@ static u32 pxp_v4l2_pix_fmt_to_out_format(u32 v4l2_pix_fmt)
 	case V4L2_PIX_FMT_RGB555:   return BV_PXP_OUT_CTRL_FORMAT__RGB555;
 	case V4L2_PIX_FMT_RGB444:   return BV_PXP_OUT_CTRL_FORMAT__RGB444;
 	case V4L2_PIX_FMT_RGB565:   return BV_PXP_OUT_CTRL_FORMAT__RGB565;
-	case V4L2_PIX_FMT_YUV32:    return BV_PXP_OUT_CTRL_FORMAT__YUV1P444;
+	case V4L2_PIX_FMT_VUYA32:
+	case V4L2_PIX_FMT_VUYX32:   return BV_PXP_OUT_CTRL_FORMAT__YUV1P444;
 	case V4L2_PIX_FMT_UYVY:     return BV_PXP_OUT_CTRL_FORMAT__UYVY1P422;
 	case V4L2_PIX_FMT_VYUY:     return BV_PXP_OUT_CTRL_FORMAT__VYUY1P422;
 	case V4L2_PIX_FMT_GREY:     return BV_PXP_OUT_CTRL_FORMAT__Y8;
@@ -281,7 +286,8 @@ static u32 pxp_v4l2_pix_fmt_to_out_format(u32 v4l2_pix_fmt)
 static bool pxp_v4l2_pix_fmt_is_yuv(u32 v4l2_pix_fmt)
 {
 	switch (v4l2_pix_fmt) {
-	case V4L2_PIX_FMT_YUV32:
+	case V4L2_PIX_FMT_VUYA32:
+	case V4L2_PIX_FMT_VUYX32:
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_VYUY:
@@ -680,7 +686,7 @@ static void pxp_setup_csc(struct pxp_ctx *ctx)
 				csc2_coef = csc2_coef_rec709_full;
 			else
 				csc2_coef = csc2_coef_rec709_lim;
-		} else if (ycbcr_enc == V4L2_YCBCR_ENC_709) {
+		} else if (ycbcr_enc == V4L2_YCBCR_ENC_BT2020) {
 			if (quantization == V4L2_QUANTIZATION_FULL_RANGE)
 				csc2_coef = csc2_coef_bt2020_full;
 			else

@@ -39,7 +39,7 @@ nfp_abm_u32_check_knode(struct nfp_abm *abm, struct tc_cls_u32_knode *knode,
 	}
 	if (knode->sel->off || knode->sel->offshift || knode->sel->offmask ||
 	    knode->sel->offoff || knode->fshift) {
-		NL_SET_ERR_MSG_MOD(extack, "variable offseting not supported");
+		NL_SET_ERR_MSG_MOD(extack, "variable offsetting not supported");
 		return false;
 	}
 	if (knode->sel->hoff || knode->sel->hmask) {
@@ -78,7 +78,7 @@ nfp_abm_u32_check_knode(struct nfp_abm *abm, struct tc_cls_u32_knode *knode,
 
 	k = &knode->sel->keys[0];
 	if (k->offmask) {
-		NL_SET_ERR_MSG_MOD(extack, "offset mask - variable offseting not supported");
+		NL_SET_ERR_MSG_MOD(extack, "offset mask - variable offsetting not supported");
 		return false;
 	}
 	if (k->off) {

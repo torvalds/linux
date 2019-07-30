@@ -226,11 +226,11 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 
 		sensor->scale = scale[sensor->info.class];
 
-		sensor->dev_attr_input.attr.mode = S_IRUGO;
+		sensor->dev_attr_input.attr.mode = 0444;
 		sensor->dev_attr_input.show = scpi_show_sensor;
 		sensor->dev_attr_input.attr.name = sensor->input;
 
-		sensor->dev_attr_label.attr.mode = S_IRUGO;
+		sensor->dev_attr_label.attr.mode = 0444;
 		sensor->dev_attr_label.show = scpi_show_label;
 		sensor->dev_attr_label.attr.name = sensor->label;
 

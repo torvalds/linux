@@ -1,19 +1,24 @@
 /* SPDX-License-Identifier: GPL-2.0
  * Microchip switch driver common header
  *
- * Copyright (C) 2017-2018 Microchip Technology Inc.
+ * Copyright (C) 2017-2019 Microchip Technology Inc.
  */
 
 #ifndef __KSZ_COMMON_H
 #define __KSZ_COMMON_H
 
+void ksz_port_cleanup(struct ksz_device *dev, int port);
 void ksz_update_port_member(struct ksz_device *dev, int port);
+void ksz_init_mib_timer(struct ksz_device *dev);
 
 /* Common DSA access functions */
 
 int ksz_phy_read16(struct dsa_switch *ds, int addr, int reg);
 int ksz_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val);
+void ksz_adjust_link(struct dsa_switch *ds, int port,
+		     struct phy_device *phydev);
 int ksz_sset_count(struct dsa_switch *ds, int port, int sset);
+void ksz_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *buf);
 int ksz_port_bridge_join(struct dsa_switch *ds, int port,
 			 struct net_device *br);
 void ksz_port_bridge_leave(struct dsa_switch *ds, int port,
@@ -30,7 +35,7 @@ void ksz_port_mdb_add(struct dsa_switch *ds, int port,
 int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_mdb *mdb);
 int ksz_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy);
-void ksz_disable_port(struct dsa_switch *ds, int port, struct phy_device *phy);
+void ksz_disable_port(struct dsa_switch *ds, int port);
 
 /* Common register access functions */
 
@@ -209,6 +214,20 @@ static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 		data &= ~bits;
 
 	ksz_write8(dev, addr, data);
+}
+
+struct ksz_poll_ctx {
+	struct ksz_device *dev;
+	int port;
+	int offset;
+};
+
+static inline u32 ksz_pread32_poll(struct ksz_poll_ctx *ctx)
+{
+	u32 data;
+
+	ksz_pread32(ctx->dev, ctx->port, ctx->offset, &data);
+	return data;
 }
 
 #endif

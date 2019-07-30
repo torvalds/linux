@@ -22,8 +22,6 @@ you'll need the following options as well...
     CONFIG_DECNET_ROUTER (to be able to add/delete routes)
     CONFIG_NETFILTER (will be required for the DECnet routing daemon)
 
-    CONFIG_DECNET_ROUTE_FWMARK is optional
-
 Don't turn on SIOCGIFCONF support for DECnet unless you are really sure
 that you need it, in general you won't and it can cause ifconfig to
 malfunction.

@@ -192,6 +192,34 @@ static void set_pin_free(
 	service->busyness[id][en] = false;
 }
 
+enum gpio_result dal_gpio_service_lock(
+	struct gpio_service *service,
+	enum gpio_id id,
+	uint32_t en)
+{
+	if (!service->busyness[id]) {
+		ASSERT_CRITICAL(false);
+		return GPIO_RESULT_OPEN_FAILED;
+	}
+
+	set_pin_busy(service, id, en);
+	return GPIO_RESULT_OK;
+}
+
+enum gpio_result dal_gpio_service_unlock(
+	struct gpio_service *service,
+	enum gpio_id id,
+	uint32_t en)
+{
+	if (!service->busyness[id]) {
+		ASSERT_CRITICAL(false);
+		return GPIO_RESULT_OPEN_FAILED;
+	}
+
+	set_pin_free(service, id, en);
+	return GPIO_RESULT_OK;
+}
+
 enum gpio_result dal_gpio_service_open(
 	struct gpio_service *service,
 	enum gpio_id id,

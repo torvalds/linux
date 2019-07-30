@@ -3,6 +3,7 @@
  * Copyright 2018 NXP.
  */
 
+#include <linux/arm-smccc.h>
 #include <linux/firmware/imx/sci.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -11,6 +12,9 @@
 
 #define IMX_SC_TIMER_FUNC_GET_RTC_SEC1970	9
 #define IMX_SC_TIMER_FUNC_SET_RTC_TIME		6
+
+#define IMX_SIP_SRTC			0xC2000002
+#define IMX_SIP_SRTC_SET_TIME		0x0
 
 static struct imx_sc_ipc *rtc_ipc_handle;
 static struct rtc_device *imx_sc_rtc;
@@ -37,13 +41,28 @@ static int imx_sc_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 	}
 
-	rtc_time_to_tm(msg.time, tm);
+	rtc_time64_to_tm(msg.time, tm);
 
 	return 0;
 }
 
+static int imx_sc_rtc_set_time(struct device *dev, struct rtc_time *tm)
+{
+	struct arm_smccc_res res;
+
+	/* pack 2 time parameters into 1 register, 16 bits for each */
+	arm_smccc_smc(IMX_SIP_SRTC, IMX_SIP_SRTC_SET_TIME,
+		      ((tm->tm_year + 1900) << 16) | (tm->tm_mon + 1),
+		      (tm->tm_mday << 16) | tm->tm_hour,
+		      (tm->tm_min << 16) | tm->tm_sec,
+		      0, 0, 0, &res);
+
+	return res.a0;
+}
+
 static const struct rtc_class_ops imx_sc_rtc_ops = {
 	.read_time = imx_sc_rtc_read_time,
+	.set_time = imx_sc_rtc_set_time,
 };
 
 static int imx_sc_rtc_probe(struct platform_device *pdev)

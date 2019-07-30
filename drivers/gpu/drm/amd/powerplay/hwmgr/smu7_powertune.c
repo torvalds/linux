@@ -1211,7 +1211,7 @@ int smu7_power_control_set_level(struct pp_hwmgr *hwmgr)
 				hwmgr->platform_descriptor.TDPAdjustment :
 				(-1 * hwmgr->platform_descriptor.TDPAdjustment);
 
-		 if (hwmgr->chip_id > CHIP_TONGA)
+		if (hwmgr->chip_id > CHIP_TONGA)
 			target_tdp = ((100 + adjust_percent) * (int)(cac_table->usTDP * 256)) / 100;
 		else
 			target_tdp = ((100 + adjust_percent) * (int)(cac_table->usConfigurableTDP * 256)) / 100;

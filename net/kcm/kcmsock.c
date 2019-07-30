@@ -2036,13 +2036,13 @@ static int __init kcm_init(void)
 
 	kcm_muxp = kmem_cache_create("kcm_mux_cache",
 				     sizeof(struct kcm_mux), 0,
-				     SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+				     SLAB_HWCACHE_ALIGN, NULL);
 	if (!kcm_muxp)
 		goto fail;
 
 	kcm_psockp = kmem_cache_create("kcm_psock_cache",
 				       sizeof(struct kcm_psock), 0,
-					SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+					SLAB_HWCACHE_ALIGN, NULL);
 	if (!kcm_psockp)
 		goto fail;
 
@@ -2054,13 +2054,13 @@ static int __init kcm_init(void)
 	if (err)
 		goto fail;
 
-	err = sock_register(&kcm_family_ops);
-	if (err)
-		goto sock_register_fail;
-
 	err = register_pernet_device(&kcm_net_ops);
 	if (err)
 		goto net_ops_fail;
+
+	err = sock_register(&kcm_family_ops);
+	if (err)
+		goto sock_register_fail;
 
 	err = kcm_proc_init();
 	if (err)
@@ -2069,12 +2069,12 @@ static int __init kcm_init(void)
 	return 0;
 
 proc_init_fail:
-	unregister_pernet_device(&kcm_net_ops);
-
-net_ops_fail:
 	sock_unregister(PF_KCM);
 
 sock_register_fail:
+	unregister_pernet_device(&kcm_net_ops);
+
+net_ops_fail:
 	proto_unregister(&kcm_proto);
 
 fail:
@@ -2090,8 +2090,8 @@ fail:
 static void __exit kcm_exit(void)
 {
 	kcm_proc_exit();
-	unregister_pernet_device(&kcm_net_ops);
 	sock_unregister(PF_KCM);
+	unregister_pernet_device(&kcm_net_ops);
 	proto_unregister(&kcm_proto);
 	destroy_workqueue(kcm_wq);
 

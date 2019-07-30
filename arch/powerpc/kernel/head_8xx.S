@@ -142,7 +142,7 @@ instruction_counter:
 	tophys(r11,r1);			/* use tophys(r1) if kernel */ \
 	beq	1f;		\
 	mfspr	r11,SPRN_SPRG_THREAD;	\
-	lwz	r11,THREAD_INFO-THREAD(r11);	\
+	lwz	r11,TASK_STACK-THREAD(r11);	\
 	addi	r11,r11,THREAD_SIZE;	\
 	tophys(r11,r11);	\
 1:	subi	r11,r11,INT_FRAME_SIZE	/* alloc exc. frame */
@@ -292,6 +292,17 @@ SystemCall:
  */
 	EXCEPTION(0x1000, SoftEmu, program_check_exception, EXC_XFER_STD)
 
+/* Called from DataStoreTLBMiss when perf TLB misses events are activated */
+#ifdef CONFIG_PERF_EVENTS
+	patch_site	0f, patch__dtlbmiss_perf
+0:	lwz	r10, (dtlb_miss_counter - PAGE_OFFSET)@l(0)
+	addi	r10, r10, 1
+	stw	r10, (dtlb_miss_counter - PAGE_OFFSET)@l(0)
+	mfspr	r10, SPRN_SPRG_SCRATCH0
+	mfspr	r11, SPRN_SPRG_SCRATCH1
+	rfi
+#endif
+
 	. = 0x1100
 /*
  * For the MPC8xx, this is a software tablewalk to load the instruction
@@ -337,8 +348,8 @@ InstructionTLBMiss:
 	rlwinm	r10, r10, 16, 0xfff8
 	cmpli	cr0, r10, PAGE_OFFSET@h
 #ifndef CONFIG_PIN_TLB_TEXT
-	/* It is assumed that kernel code fits into the first 8M page */
-0:	cmpli	cr7, r10, (PAGE_OFFSET + 0x0800000)@h
+	/* It is assumed that kernel code fits into the first 32M */
+0:	cmpli	cr7, r10, (PAGE_OFFSET + 0x2000000)@h
 	patch_site	0b, patch__itlbmiss_linmem_top
 #endif
 #endif
@@ -405,10 +416,20 @@ InstructionTLBMiss:
 #ifndef CONFIG_PIN_TLB_TEXT
 ITLBMissLinear:
 	mtcr	r11
+#if defined(CONFIG_STRICT_KERNEL_RWX) && CONFIG_ETEXT_SHIFT < 23
+	patch_site	0f, patch__itlbmiss_linmem_top8
+
+	mfspr	r10, SPRN_SRR0
+0:	subis	r11, r10, (PAGE_OFFSET - 0x80000000)@ha
+	rlwinm	r11, r11, 4, MI_PS8MEG ^ MI_PS512K
+	ori	r11, r11, MI_PS512K | MI_SVALID
+	rlwinm	r10, r10, 0, 0x0ff80000	/* 8xx supports max 256Mb RAM */
+#else
 	/* Set 8M byte page and mark it valid */
 	li	r11, MI_PS8MEG | MI_SVALID
-	mtspr	SPRN_MI_TWC, r11
 	rlwinm	r10, r10, 20, 0x0f800000	/* 8xx supports max 256Mb RAM */
+#endif
+	mtspr	SPRN_MI_TWC, r11
 	ori	r10, r10, 0xf0 | MI_SPS16K | _PAGE_SH | _PAGE_DIRTY | \
 			  _PAGE_PRESENT
 	mtspr	SPRN_MI_RPN, r10	/* Update TLB entry */
@@ -434,7 +455,7 @@ DataStoreTLBMiss:
 #ifndef CONFIG_PIN_TLB_IMMR
 	cmpli	cr6, r10, VIRT_IMMR_BASE@h
 #endif
-0:	cmpli	cr7, r10, (PAGE_OFFSET + 0x1800000)@h
+0:	cmpli	cr7, r10, (PAGE_OFFSET + 0x2000000)@h
 	patch_site	0b, patch__dtlbmiss_linmem_top
 
 	mfspr	r10, SPRN_M_TWB	/* Get level 1 table */
@@ -494,16 +515,6 @@ DataStoreTLBMiss:
 	rfi
 	patch_site	0b, patch__dtlbmiss_exit_1
 
-#ifdef CONFIG_PERF_EVENTS
-	patch_site	0f, patch__dtlbmiss_perf
-0:	lwz	r10, (dtlb_miss_counter - PAGE_OFFSET)@l(0)
-	addi	r10, r10, 1
-	stw	r10, (dtlb_miss_counter - PAGE_OFFSET)@l(0)
-	mfspr	r10, SPRN_SPRG_SCRATCH0
-	mfspr	r11, SPRN_SPRG_SCRATCH1
-	rfi
-#endif
-
 DTLBMissIMMR:
 	mtcr	r11
 	/* Set 512k byte guarded page and mark it valid */
@@ -525,10 +536,29 @@ DTLBMissIMMR:
 
 DTLBMissLinear:
 	mtcr	r11
+	rlwinm	r10, r10, 20, 0x0f800000	/* 8xx supports max 256Mb RAM */
+#if defined(CONFIG_STRICT_KERNEL_RWX) && CONFIG_DATA_SHIFT < 23
+	patch_site	0f, patch__dtlbmiss_romem_top8
+
+0:	subis	r11, r10, (PAGE_OFFSET - 0x80000000)@ha
+	rlwinm	r11, r11, 0, 0xff800000
+	neg	r10, r11
+	or	r11, r11, r10
+	rlwinm	r11, r11, 4, MI_PS8MEG ^ MI_PS512K
+	ori	r11, r11, MI_PS512K | MI_SVALID
+	mfspr	r10, SPRN_MD_EPN
+	rlwinm	r10, r10, 0, 0x0ff80000	/* 8xx supports max 256Mb RAM */
+#else
 	/* Set 8M byte page and mark it valid */
 	li	r11, MD_PS8MEG | MD_SVALID
+#endif
 	mtspr	SPRN_MD_TWC, r11
-	rlwinm	r10, r10, 20, 0x0f800000	/* 8xx supports max 256Mb RAM */
+#ifdef CONFIG_STRICT_KERNEL_RWX
+	patch_site	0f, patch__dtlbmiss_romem_top
+
+0:	subis	r11, r10, 0
+	rlwimi	r10, r11, 11, _PAGE_RO
+#endif
 	ori	r10, r10, 0xf0 | MD_SPS16K | _PAGE_SH | _PAGE_DIRTY | \
 			  _PAGE_PRESENT
 	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
@@ -551,11 +581,11 @@ InstructionTLBError:
 	mr	r4,r12
 	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
 	andis.	r10,r9,SRR1_ISI_NOPT@h
-	beq+	1f
+	beq+	.Litlbie
 	tlbie	r4
-itlbie:
 	/* 0x400 is InstructionAccess exception, needed by bad_page_fault() */
-1:	EXC_XFER_LITE(0x400, handle_page_fault)
+.Litlbie:
+	EXC_XFER_LITE(0x400, handle_page_fault)
 
 /* This is the data TLB error on the MPC8xx.  This could be due to
  * many reasons, including a dirty update to a pte.  We bail out to
@@ -577,10 +607,10 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	stw	r5,_DSISR(r11)
 	mfspr	r4,SPRN_DAR
 	andis.	r10,r5,DSISR_NOHPTE@h
-	beq+	1f
+	beq+	.Ldtlbie
 	tlbie	r4
-dtlbie:
-1:	li	r10,RPN_PATTERN
+.Ldtlbie:
+	li	r10,RPN_PATTERN
 	mtspr	SPRN_DAR,r10	/* Tag DAR, to be used in DTLB Error */
 	/* 0x300 is DataAccess exception, needed by bad_page_fault() */
 	EXC_XFER_LITE(0x300, handle_page_fault)
@@ -603,8 +633,8 @@ DataBreakpoint:
 	mtspr	SPRN_SPRG_SCRATCH1, r11
 	mfcr	r10
 	mfspr	r11, SPRN_SRR0
-	cmplwi	cr0, r11, (dtlbie - PAGE_OFFSET)@l
-	cmplwi	cr7, r11, (itlbie - PAGE_OFFSET)@l
+	cmplwi	cr0, r11, (.Ldtlbie - PAGE_OFFSET)@l
+	cmplwi	cr7, r11, (.Litlbie - PAGE_OFFSET)@l
 	beq-	cr0, 11f
 	beq-	cr7, 11f
 	EXCEPTION_PROLOG_1
@@ -886,27 +916,10 @@ initial_mmu:
 	mtspr	SPRN_MD_CTR, r10	/* remove PINNED DTLB entries */
 
 	tlbia			/* Invalidate all TLB entries */
-#ifdef CONFIG_PIN_TLB_TEXT
-	lis	r8, MI_RSV4I@h
-	ori	r8, r8, 0x1c00
-
-	mtspr	SPRN_MI_CTR, r8	/* Set instruction MMU control */
-#endif
-
 #ifdef CONFIG_PIN_TLB_DATA
 	oris	r10, r10, MD_RSV4I@h
 	mtspr	SPRN_MD_CTR, r10	/* Set data TLB control */
 #endif
-
-	/* Now map the lower 8 Meg into the ITLB. */
-	lis	r8, KERNELBASE@h	/* Create vaddr for TLB */
-	ori	r8, r8, MI_EVALID	/* Mark it valid */
-	mtspr	SPRN_MI_EPN, r8
-	li	r8, MI_PS8MEG /* Set 8M byte page */
-	ori	r8, r8, MI_SVALID	/* Make it valid */
-	mtspr	SPRN_MI_TWC, r8
-	li	r8, MI_BOOTINIT		/* Create RPN for address 0 */
-	mtspr	SPRN_MI_RPN, r8		/* Store TLB entry */
 
 	lis	r8, MI_APG_INIT@h	/* Set protection modes */
 	ori	r8, r8, MI_APG_INIT@l
@@ -936,6 +949,34 @@ initial_mmu:
 	ori	r8, r8, MI_BOOTINIT|0x2 /* Inhibit cache -- Cort */
 	mtspr	SPRN_MD_RPN, r8
 #endif
+
+	/* Now map the lower RAM (up to 32 Mbytes) into the ITLB. */
+#ifdef CONFIG_PIN_TLB_TEXT
+	lis	r8, MI_RSV4I@h
+	ori	r8, r8, 0x1c00
+#endif
+	li	r9, 4				/* up to 4 pages of 8M */
+	mtctr	r9
+	lis	r9, KERNELBASE@h		/* Create vaddr for TLB */
+	li	r10, MI_PS8MEG | MI_SVALID	/* Set 8M byte page */
+	li	r11, MI_BOOTINIT		/* Create RPN for address 0 */
+	lis	r12, _einittext@h
+	ori	r12, r12, _einittext@l
+1:
+#ifdef CONFIG_PIN_TLB_TEXT
+	mtspr	SPRN_MI_CTR, r8	/* Set instruction MMU control */
+	addi	r8, r8, 0x100
+#endif
+
+	ori	r0, r9, MI_EVALID		/* Mark it valid */
+	mtspr	SPRN_MI_EPN, r0
+	mtspr	SPRN_MI_TWC, r10
+	mtspr	SPRN_MI_RPN, r11		/* Store TLB entry */
+	addis	r9, r9, 0x80
+	addis	r11, r11, 0x80
+
+	cmpl	cr0, r9, r12
+	bdnzf	gt, 1b
 
 	/* Since the cache is enabled according to the information we
 	 * just loaded into the TLB, invalidate and enable the caches here.
@@ -989,5 +1030,6 @@ swapper_pg_dir:
 /* Room for two PTE table poiners, usually the kernel and current user
  * pointer to their respective root page table (pgdir).
  */
+	.globl	abatron_pteptrs
 abatron_pteptrs:
 	.space	8

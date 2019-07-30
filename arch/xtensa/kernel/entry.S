@@ -1860,6 +1860,8 @@ ENTRY(system_call)
 	l32i	a7, a2, PT_SYSCALL
 
 1:
+	s32i	a7, a1, 4
+
 	/* syscall = sys_call_table[syscall_nr] */
 
 	movi	a4, sys_call_table
@@ -1893,8 +1895,12 @@ ENTRY(system_call)
 	retw
 
 1:
+	l32i	a4, a1, 4
+	l32i	a3, a2, PT_SYSCALL
+	s32i	a4, a2, PT_SYSCALL
 	mov	a6, a2
 	call4	do_syscall_trace_leave
+	s32i	a3, a2, PT_SYSCALL
 	retw
 
 ENDPROC(system_call)

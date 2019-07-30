@@ -108,7 +108,7 @@ void adv7533_dsi_power_off(struct adv7511 *adv)
 	regmap_write(adv->regmap_cec, 0x27, 0x0b);
 }
 
-void adv7533_mode_set(struct adv7511 *adv, struct drm_display_mode *mode)
+void adv7533_mode_set(struct adv7511 *adv, const struct drm_display_mode *mode)
 {
 	struct mipi_dsi_device *dsi = adv->dsi;
 	int lanes, ret;

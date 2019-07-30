@@ -67,7 +67,7 @@ const char *const bpf_class_string[8] = {
 	[BPF_STX]   = "stx",
 	[BPF_ALU]   = "alu",
 	[BPF_JMP]   = "jmp",
-	[BPF_RET]   = "BUG",
+	[BPF_JMP32] = "jmp32",
 	[BPF_ALU64] = "alu64",
 };
 
@@ -136,23 +136,22 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			else
 				print_bpf_end_insn(verbose, cbs->private_data, insn);
 		} else if (BPF_OP(insn->code) == BPF_NEG) {
-			verbose(cbs->private_data, "(%02x) r%d = %s-r%d\n",
-				insn->code, insn->dst_reg,
-				class == BPF_ALU ? "(u32) " : "",
+			verbose(cbs->private_data, "(%02x) %c%d = -%c%d\n",
+				insn->code, class == BPF_ALU ? 'w' : 'r',
+				insn->dst_reg, class == BPF_ALU ? 'w' : 'r',
 				insn->dst_reg);
 		} else if (BPF_SRC(insn->code) == BPF_X) {
-			verbose(cbs->private_data, "(%02x) %sr%d %s %sr%d\n",
-				insn->code, class == BPF_ALU ? "(u32) " : "",
+			verbose(cbs->private_data, "(%02x) %c%d %s %c%d\n",
+				insn->code, class == BPF_ALU ? 'w' : 'r',
 				insn->dst_reg,
 				bpf_alu_string[BPF_OP(insn->code) >> 4],
-				class == BPF_ALU ? "(u32) " : "",
+				class == BPF_ALU ? 'w' : 'r',
 				insn->src_reg);
 		} else {
-			verbose(cbs->private_data, "(%02x) %sr%d %s %s%d\n",
-				insn->code, class == BPF_ALU ? "(u32) " : "",
+			verbose(cbs->private_data, "(%02x) %c%d %s %d\n",
+				insn->code, class == BPF_ALU ? 'w' : 'r',
 				insn->dst_reg,
 				bpf_alu_string[BPF_OP(insn->code) >> 4],
-				class == BPF_ALU ? "(u32) " : "",
 				insn->imm);
 		}
 	} else if (class == BPF_STX) {
@@ -220,7 +219,7 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			verbose(cbs->private_data, "BUG_ld_%02x\n", insn->code);
 			return;
 		}
-	} else if (class == BPF_JMP) {
+	} else if (class == BPF_JMP32 || class == BPF_JMP) {
 		u8 opcode = BPF_OP(insn->code);
 
 		if (opcode == BPF_CALL) {
@@ -244,13 +243,18 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 		} else if (insn->code == (BPF_JMP | BPF_EXIT)) {
 			verbose(cbs->private_data, "(%02x) exit\n", insn->code);
 		} else if (BPF_SRC(insn->code) == BPF_X) {
-			verbose(cbs->private_data, "(%02x) if r%d %s r%d goto pc%+d\n",
-				insn->code, insn->dst_reg,
+			verbose(cbs->private_data,
+				"(%02x) if %c%d %s %c%d goto pc%+d\n",
+				insn->code, class == BPF_JMP32 ? 'w' : 'r',
+				insn->dst_reg,
 				bpf_jmp_string[BPF_OP(insn->code) >> 4],
+				class == BPF_JMP32 ? 'w' : 'r',
 				insn->src_reg, insn->off);
 		} else {
-			verbose(cbs->private_data, "(%02x) if r%d %s 0x%x goto pc%+d\n",
-				insn->code, insn->dst_reg,
+			verbose(cbs->private_data,
+				"(%02x) if %c%d %s 0x%x goto pc%+d\n",
+				insn->code, class == BPF_JMP32 ? 'w' : 'r',
+				insn->dst_reg,
 				bpf_jmp_string[BPF_OP(insn->code) >> 4],
 				insn->imm, insn->off);
 		}

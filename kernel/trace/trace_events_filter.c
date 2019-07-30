@@ -491,10 +491,12 @@ predicate_parse(const char *str, int nr_parens, int nr_preds,
 				break;
 			case '&':
 			case '|':
+				/* accepting only "&&" or "||" */
 				if (next[1] == next[0]) {
 					ptr++;
 					break;
 				}
+				/* fall through */
 			default:
 				parse_error(pe, FILT_ERR_TOO_MANY_PREDS,
 					    next - str);
@@ -823,6 +825,9 @@ enum regex_type filter_parse_regex(char *buff, int len, char **search, int *not)
 
 	*search = buff;
 
+	if (isdigit(buff[0]))
+		return MATCH_INDEX;
+
 	for (i = 0; i < len; i++) {
 		if (buff[i] == '*') {
 			if (!i) {
@@ -860,6 +865,8 @@ static void filter_build_regex(struct filter_pred *pred)
 	}
 
 	switch (type) {
+	/* MATCH_INDEX should not happen, but if it does, match full */
+	case MATCH_INDEX:
 	case MATCH_FULL:
 		r->match = regex_match_full;
 		break;
@@ -1301,7 +1308,7 @@ static int parse_pred(const char *str, void *data,
 		/* go past the last quote */
 		i++;
 
-	} else if (isdigit(str[i])) {
+	} else if (isdigit(str[i]) || str[i] == '-') {
 
 		/* Make sure the field is not a string */
 		if (is_string_field(field)) {
@@ -1313,6 +1320,9 @@ static int parse_pred(const char *str, void *data,
 			parse_error(pe, FILT_ERR_ILLEGAL_FIELD_OP, pos + i);
 			goto err_free;
 		}
+
+		if (str[i] == '-')
+			i++;
 
 		/* We allow 0xDEADBEEF */
 		while (isalnum(str[i]))

@@ -285,6 +285,10 @@ int mv88e6352_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
 int mv88e6390_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
 int mv88e6390x_port_set_speed(struct mv88e6xxx_chip *chip, int port, int speed);
 
+phy_interface_t mv88e6341_port_max_speed_mode(int port);
+phy_interface_t mv88e6390_port_max_speed_mode(int port);
+phy_interface_t mv88e6390x_port_max_speed_mode(int port);
+
 int mv88e6xxx_port_set_state(struct mv88e6xxx_chip *chip, int port, u8 state);
 
 int mv88e6xxx_port_set_vlan_map(struct mv88e6xxx_chip *chip, int port, u16 map);

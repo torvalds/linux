@@ -1920,7 +1920,9 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 	f2fs_balance_fs_bg(sbi);
 
 	/* collect a number of dirty node pages and write together */
-	if (get_pages(sbi, F2FS_DIRTY_NODES) < nr_pages_to_skip(sbi, NODE))
+	if (wbc->sync_mode != WB_SYNC_ALL &&
+			get_pages(sbi, F2FS_DIRTY_NODES) <
+					nr_pages_to_skip(sbi, NODE))
 		goto skip_write;
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
@@ -1959,7 +1961,7 @@ static int f2fs_set_node_page_dirty(struct page *page)
 	if (!PageDirty(page)) {
 		__set_page_dirty_nobuffers(page);
 		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_NODES);
-		SetPagePrivate(page);
+		f2fs_set_page_private(page, 0);
 		f2fs_trace_pid(page);
 		return 1;
 	}

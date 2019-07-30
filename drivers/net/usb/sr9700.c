@@ -434,7 +434,7 @@ static int sr9700_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		usbnet_skb_return(dev, sr_skb);
 
 		skb_pull(skb, len + SR_RX_OVERHEAD);
-	};
+	}
 
 	return 0;
 }

@@ -19,9 +19,9 @@
 
 #include <drm/exynos_drm.h>
 
-#include <drm/drm_edid.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_probe_helper.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"

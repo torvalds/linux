@@ -49,7 +49,7 @@ INCLUDES
 #if ((DRXDAP_SINGLE_MASTER == 0) && (DRXDAPFASI_LONG_ADDR_ALLOWED == 0))
 #error "Multi master mode and short addressing only is an illegal combination"
 	*;			/* Generate a fatal compiler error to make sure it stops here,
-				   this is necesarry because not all compilers stop after a #error. */
+				   this is necessary because not all compilers stop after a #error. */
 #endif
 
 /*-------------------------------------------------------------------------
@@ -203,7 +203,7 @@ struct drxj_agc_status {
 * /struct drxjrs_errors
 * Available failure information in DRXJ_FEC_RS.
 *
-* Container for errors that are received in the most recently finished measurment period
+* Container for errors that are received in the most recently finished measurement period
 *
 */
 	struct drxjrs_errors {
@@ -405,7 +405,7 @@ struct drxj_cfg_atv_output {
 *
 */
 	struct drxj_data {
-		/* device capabilties (determined during drx_open()) */
+		/* device capabilities (determined during drx_open()) */
 		bool has_lna;		  /*< true if LNA (aka PGA) present */
 		bool has_oob;		  /*< true if OOB supported */
 		bool has_ntsc;		  /*< true if NTSC supported */
@@ -455,7 +455,7 @@ struct drxj_cfg_atv_output {
 
 		/* IQM fs frequecy shift and inversion */
 		u32 iqm_fs_rate_ofs;	   /*< frequency shifter setting after setchannel      */
-		bool pos_image;	   /*< Ture: positive image                            */
+		bool pos_image;	   /*< True: positive image                            */
 		/* IQM RC frequecy shift */
 		u32 iqm_rc_rate_ofs;	   /*< frequency shifter setting after setchannel      */
 
@@ -468,8 +468,8 @@ struct drxj_cfg_atv_output {
 		bool phase_correction_bypass;/*< flag: true=bypass */
 		s16 atv_top_vid_peak;	  /*< shadow of ATV_TOP_VID_PEAK__A */
 		u16 atv_top_noise_th;	  /*< shadow of ATV_TOP_NOISE_TH__A */
-		bool enable_cvbs_output;  /*< flag CVBS ouput enable */
-		bool enable_sif_output;	  /*< flag SIF ouput enable */
+		bool enable_cvbs_output;  /*< flag CVBS output enable */
+		bool enable_sif_output;	  /*< flag SIF output enable */
 		 enum drxjsif_attenuation sif_attenuation;
 					  /*< current SIF att setting */
 		/* Agc configuration for QAM and VSB */

@@ -359,10 +359,10 @@ static int ch7006_encoder_set_property(struct drm_encoder *encoder,
 	if (modes_changed) {
 		drm_helper_probe_single_connector_modes(connector, 0, 0);
 
-		/* Disable the crtc to ensure a full modeset is
-		 * performed whenever it's turned on again. */
 		if (crtc)
-			drm_crtc_force_disable(crtc);
+			drm_crtc_helper_set_mode(crtc, &crtc->mode,
+						 crtc->x, crtc->y,
+						 crtc->primary->fb);
 	}
 
 	return 0;

@@ -73,7 +73,7 @@ Compressed Formats
       - 'MG2S'
       - MPEG-2 parsed slice data, as extracted from the MPEG-2 bitstream.
 	This format is adapted for stateless video decoders that implement a
-	MPEG-2 pipeline (using the :ref:`codec` and :ref:`media-request-api`).
+	MPEG-2 pipeline (using the :ref:`mem2mem` and :ref:`media-request-api`).
 	Metadata associated with the frame to decode is required to be passed
 	through the ``V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS`` control and
 	quantization matrices can optionally be specified through the

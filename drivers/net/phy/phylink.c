@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * phylink models the MAC to optional PHY connection, supporting
  * technologies such as SFP cages where the PHY is hot-pluggable.
  *
  * Copyright (C) 2015 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/ethtool.h>
 #include <linux/export.h>
@@ -305,6 +302,13 @@ static void phylink_mac_config(struct phylink *pl,
 	pl->ops->mac_config(pl->netdev, pl->link_an_mode, state);
 }
 
+static void phylink_mac_config_up(struct phylink *pl,
+				  const struct phylink_link_state *state)
+{
+	if (state->link)
+		phylink_mac_config(pl, state);
+}
+
 static void phylink_mac_an_restart(struct phylink *pl)
 {
 	if (pl->link_config.an_enabled &&
@@ -408,12 +412,12 @@ static void phylink_resolve(struct work_struct *w)
 		case MLO_AN_PHY:
 			link_state = pl->phy_state;
 			phylink_resolve_flow(pl, &link_state);
-			phylink_mac_config(pl, &link_state);
+			phylink_mac_config_up(pl, &link_state);
 			break;
 
 		case MLO_AN_FIXED:
 			phylink_get_fixed_state(pl, &link_state);
-			phylink_mac_config(pl, &link_state);
+			phylink_mac_config_up(pl, &link_state);
 			break;
 
 		case MLO_AN_INBAND:
@@ -694,9 +698,8 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 		   __ETHTOOL_LINK_MODE_MASK_NBITS, pl->supported,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS, phy->advertising);
 
-	phy_start_machine(phy);
-	if (phy->irq > 0)
-		phy_start_interrupts(phy);
+	if (phy_interrupt_is_valid(phy))
+		phy_request_interrupt(phy);
 
 	return 0;
 }
@@ -1282,6 +1285,24 @@ int phylink_get_eee_err(struct phylink *pl)
 EXPORT_SYMBOL_GPL(phylink_get_eee_err);
 
 /**
+ * phylink_init_eee() - init and check the EEE features
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @clk_stop_enable: allow PHY to stop receive clock
+ *
+ * Must be called either with RTNL held or within mac_link_up()
+ */
+int phylink_init_eee(struct phylink *pl, bool clk_stop_enable)
+{
+	int ret = -EOPNOTSUPP;
+
+	if (pl->phydev)
+		ret = phy_init_eee(pl->phydev, clk_stop_enable);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phylink_init_eee);
+
+/**
  * phylink_ethtool_get_eee() - read the energy efficient ethernet parameters
  * @pl: a pointer to a &struct phylink returned from phylink_create()
  * @eee: a pointer to a &struct ethtool_eee for the read parameters
@@ -1708,4 +1729,4 @@ void phylink_helper_basex_speed(struct phylink_link_state *state)
 }
 EXPORT_SYMBOL_GPL(phylink_helper_basex_speed);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

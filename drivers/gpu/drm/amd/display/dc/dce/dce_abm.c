@@ -53,6 +53,27 @@
 
 #define MCP_DISABLE_ABM_IMMEDIATELY 255
 
+static bool dce_abm_set_pipe(struct abm *abm, uint32_t controller_id)
+{
+	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
+	uint32_t rampingBoundary = 0xFFFF;
+
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
+			1, 80000);
+
+	/* set ramping boundary */
+	REG_WRITE(MASTER_COMM_DATA_REG1, rampingBoundary);
+
+	/* setDMCUParam_Pipe */
+	REG_UPDATE_2(MASTER_COMM_CMD_REG,
+			MASTER_COMM_CMD_REG_BYTE0, MCP_ABM_PIPE_SET,
+			MASTER_COMM_CMD_REG_BYTE1, controller_id);
+
+	/* notifyDMCUMsg */
+	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+
+	return true;
+}
 
 static unsigned int calculate_16_bit_backlight_from_pwm(struct dce_abm *abm_dce)
 {
@@ -175,7 +196,6 @@ static void dmcu_set_backlight_level(
 	uint32_t controller_id)
 {
 	unsigned int backlight_8_bit = 0;
-	uint32_t rampingBoundary = 0xFFFF;
 	uint32_t s2;
 
 	if (backlight_pwm_u16_16 & 0x10000)
@@ -185,16 +205,7 @@ static void dmcu_set_backlight_level(
 		// Take MSB of fractional part since backlight is not max
 		backlight_8_bit = (backlight_pwm_u16_16 >> 8) & 0xFF;
 
-	/* set ramping boundary */
-	REG_WRITE(MASTER_COMM_DATA_REG1, rampingBoundary);
-
-	/* setDMCUParam_Pipe */
-	REG_UPDATE_2(MASTER_COMM_CMD_REG,
-			MASTER_COMM_CMD_REG_BYTE0, MCP_ABM_PIPE_SET,
-			MASTER_COMM_CMD_REG_BYTE1, controller_id);
-
-	/* notifyDMCUMsg */
-	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+	dce_abm_set_pipe(&abm_dce->base, controller_id);
 
 	/* waitDMCUReadyForCmd */
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT,
@@ -309,16 +320,7 @@ static bool dce_abm_immediate_disable(struct abm *abm)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 
-	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
-			1, 80000);
-
-	/* setDMCUParam_ABMLevel */
-	REG_UPDATE_2(MASTER_COMM_CMD_REG,
-			MASTER_COMM_CMD_REG_BYTE0, MCP_ABM_LEVEL_SET,
-			MASTER_COMM_CMD_REG_BYTE2, MCP_DISABLE_ABM_IMMEDIATELY);
-
-	/* notifyDMCUMsg */
-	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+	dce_abm_set_pipe(abm, MCP_DISABLE_ABM_IMMEDIATELY);
 
 	abm->stored_backlight_registers.BL_PWM_CNTL =
 		REG_READ(BL_PWM_CNTL);
@@ -419,6 +421,7 @@ static const struct abm_funcs dce_funcs = {
 	.abm_init = dce_abm_init,
 	.set_abm_level = dce_abm_set_level,
 	.init_backlight = dce_abm_init_backlight,
+	.set_pipe = dce_abm_set_pipe,
 	.set_backlight_level_pwm = dce_abm_set_backlight_level_pwm,
 	.get_current_backlight = dce_abm_get_current_backlight,
 	.get_target_backlight = dce_abm_get_target_backlight,

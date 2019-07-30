@@ -14,7 +14,7 @@
  * The "ascii-art picture" below (in comments, first row
  * is the keycode in hex, and subsequent row(s) shows
  * the button labels (several variants when appropriate)
- * helps to descide which keycodes to assign to the buttons.
+ * helps to decide which keycodes to assign to the buttons.
  */
 
 static struct rc_map_table behold_columbus[] = {
@@ -68,7 +68,7 @@ static struct rc_map_table behold_columbus[] = {
 	{ 0x18, KEY_VOLUMEDOWN },
 
 	/*   0x0E   0x1E     0x0F     0x1A  *
-	 *   Stop   Pause  Previouse  Next  *
+	 *   Stop   Pause  Previous   Next  *
 	 *                                  */
 
 	{ 0x0E, KEY_STOP },

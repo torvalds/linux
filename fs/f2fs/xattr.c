@@ -224,11 +224,11 @@ static struct f2fs_xattr_entry *__find_inline_xattr(struct inode *inode,
 {
 	struct f2fs_xattr_entry *entry;
 	unsigned int inline_size = inline_xattr_size(inode);
+	void *max_addr = base_addr + inline_size;
 
 	list_for_each_xattr(entry, base_addr) {
-		if ((void *)entry + sizeof(__u32) > base_addr + inline_size ||
-			(void *)XATTR_NEXT_ENTRY(entry) + sizeof(__u32) >
-			base_addr + inline_size) {
+		if ((void *)entry + sizeof(__u32) > max_addr ||
+			(void *)XATTR_NEXT_ENTRY(entry) > max_addr) {
 			*last_addr = entry;
 			return NULL;
 		}
@@ -238,6 +238,13 @@ static struct f2fs_xattr_entry *__find_inline_xattr(struct inode *inode,
 			continue;
 		if (!memcmp(entry->e_name, name, len))
 			break;
+	}
+
+	/* inline xattr header or entry across max inline xattr size */
+	if (IS_XATTR_LAST_ENTRY(entry) &&
+		(void *)entry + sizeof(__u32) > max_addr) {
+		*last_addr = entry;
+		return NULL;
 	}
 	return entry;
 }
@@ -340,7 +347,7 @@ check:
 	*base_addr = txattr_addr;
 	return 0;
 out:
-	kzfree(txattr_addr);
+	kvfree(txattr_addr);
 	return err;
 }
 
@@ -383,7 +390,7 @@ static int read_all_xattrs(struct inode *inode, struct page *ipage,
 	*base_addr = txattr_addr;
 	return 0;
 fail:
-	kzfree(txattr_addr);
+	kvfree(txattr_addr);
 	return err;
 }
 
@@ -510,7 +517,7 @@ int f2fs_getxattr(struct inode *inode, int index, const char *name,
 	}
 	error = size;
 out:
-	kzfree(base_addr);
+	kvfree(base_addr);
 	return error;
 }
 
@@ -538,7 +545,7 @@ ssize_t f2fs_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 		if (!handler || (handler->list && !handler->list(dentry)))
 			continue;
 
-		prefix = handler->prefix ?: handler->name;
+		prefix = xattr_prefix(handler);
 		prefix_len = strlen(prefix);
 		size = prefix_len + entry->e_name_len + 1;
 		if (buffer) {
@@ -556,7 +563,7 @@ ssize_t f2fs_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 	}
 	error = buffer_size - rest;
 cleanup:
-	kzfree(base_addr);
+	kvfree(base_addr);
 	return error;
 }
 
@@ -687,7 +694,7 @@ static int __f2fs_setxattr(struct inode *inode, int index,
 	if (!error && S_ISDIR(inode->i_mode))
 		set_sbi_flag(F2FS_I_SB(inode), SBI_NEED_CP);
 exit:
-	kzfree(base_addr);
+	kvfree(base_addr);
 	return error;
 }
 

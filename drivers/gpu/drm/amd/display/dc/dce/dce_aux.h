@@ -25,7 +25,9 @@
 
 #ifndef __DAL_AUX_ENGINE_DCE110_H__
 #define __DAL_AUX_ENGINE_DCE110_H__
-#include "aux_engine.h"
+
+#include "i2caux_interface.h"
+#include "inc/hw/aux_engine.h"
 
 #define AUX_COMMON_REG_LIST(id)\
 	SRI(AUX_CONTROL, DP_AUX, id), \
@@ -69,14 +71,26 @@ enum {	/* This is the timeout as defined in DP 1.2a,
 	 * at most within ~240usec. That means,
 	 * increasing this timeout will not affect normal operation,
 	 * and we'll timeout after
-	 * SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD = 1600usec.
+	 * SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD = 2400usec.
 	 * This timeout is especially important for
-	 * resume from S3 and CTS.
+	 * converters, resume from S3, and CTS.
 	 */
-	SW_AUX_TIMEOUT_PERIOD_MULTIPLIER = 4
+	SW_AUX_TIMEOUT_PERIOD_MULTIPLIER = 6
 };
+
+struct dce_aux {
+	uint32_t inst;
+	struct ddc *ddc;
+	struct dc_context *ctx;
+	/* following values are expressed in milliseconds */
+	uint32_t delay;
+	uint32_t max_defer_write_retry;
+
+	bool acquire_reset;
+};
+
 struct aux_engine_dce110 {
-	struct aux_engine base;
+	struct dce_aux base;
 	const struct dce110_aux_registers *regs;
 	struct {
 		uint32_t aux_control;
@@ -96,16 +110,22 @@ struct aux_engine_dce110_init_data {
 	const struct dce110_aux_registers *regs;
 };
 
-struct aux_engine *dce110_aux_engine_construct(
+struct dce_aux *dce110_aux_engine_construct(
 		struct aux_engine_dce110 *aux_engine110,
 		struct dc_context *ctx,
 		uint32_t inst,
 		uint32_t timeout_period,
 		const struct dce110_aux_registers *regs);
 
-void dce110_engine_destroy(struct aux_engine **engine);
+void dce110_engine_destroy(struct dce_aux **engine);
 
 bool dce110_aux_engine_acquire(
-	struct aux_engine *aux_engine,
+	struct dce_aux *aux_engine,
 	struct ddc *ddc);
+
+int dce_aux_transfer(struct ddc_service *ddc,
+		struct aux_payload *cmd);
+
+bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
+		struct aux_payload *cmd);
 #endif

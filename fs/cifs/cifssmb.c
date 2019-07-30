@@ -139,8 +139,8 @@ static int __cifs_reconnect_tcon(const struct nls_table *nlsc,
 		return -ENOMEM;
 
 	if (tcon->ipc) {
-		snprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$",
-			 tcon->ses->server->hostname);
+		scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$",
+			  tcon->ses->server->hostname);
 		rc = CIFSTCon(0, tcon->ses, tree, tcon, nlsc);
 		goto out;
 	}
@@ -172,7 +172,7 @@ static int __cifs_reconnect_tcon(const struct nls_table *nlsc,
 			continue;
 		}
 
-		snprintf(tree, MAX_TREE_SIZE, "\\%s", tgt);
+		scnprintf(tree, MAX_TREE_SIZE, "\\%s", tgt);
 
 		rc = CIFSTCon(0, tcon->ses, tree, tcon, nlsc);
 		if (!rc)
@@ -822,9 +822,10 @@ static void
 cifs_echo_callback(struct mid_q_entry *mid)
 {
 	struct TCP_Server_Info *server = mid->callback_data;
+	struct cifs_credits credits = { .value = 1, .instance = 0 };
 
 	DeleteMidQEntry(mid);
-	add_credits(server, 1, CIFS_ECHO_OP);
+	add_credits(server, &credits, CIFS_ECHO_OP);
 }
 
 int
@@ -859,7 +860,7 @@ CIFSSMBEcho(struct TCP_Server_Info *server)
 	iov[1].iov_base = (char *)smb + 4;
 
 	rc = cifs_call_async(server, &rqst, NULL, cifs_echo_callback, NULL,
-			     server, CIFS_ASYNC_OP | CIFS_ECHO_OP);
+			     server, CIFS_ASYNC_OP | CIFS_ECHO_OP, NULL);
 	if (rc)
 		cifs_dbg(FYI, "Echo request failed: %d\n", rc);
 
@@ -1605,16 +1606,17 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	}
 
 	if (server->ops->is_status_pending &&
-	    server->ops->is_status_pending(buf, server, 0)) {
+	    server->ops->is_status_pending(buf, server)) {
 		cifs_discard_remaining_data(server);
 		return -1;
 	}
 
 	/* set up first two iov for signature check and to get credits */
 	rdata->iov[0].iov_base = buf;
-	rdata->iov[0].iov_len = 4;
-	rdata->iov[1].iov_base = buf + 4;
-	rdata->iov[1].iov_len = server->total_read - 4;
+	rdata->iov[0].iov_len = server->vals->header_preamble_size;
+	rdata->iov[1].iov_base = buf + server->vals->header_preamble_size;
+	rdata->iov[1].iov_len =
+		server->total_read - server->vals->header_preamble_size;
 	cifs_dbg(FYI, "0: iov_base=%p iov_len=%zu\n",
 		 rdata->iov[0].iov_base, rdata->iov[0].iov_len);
 	cifs_dbg(FYI, "1: iov_base=%p iov_len=%zu\n",
@@ -1713,6 +1715,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 				 .rq_npages = rdata->nr_pages,
 				 .rq_pagesz = rdata->pagesz,
 				 .rq_tailsz = rdata->tailsz };
+	struct cifs_credits credits = { .value = 1, .instance = 0 };
 
 	cifs_dbg(FYI, "%s: mid=%llu state=%d result=%d bytes=%u\n",
 		 __func__, mid->mid, mid->mid_state, rdata->result,
@@ -1750,7 +1753,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 
 	queue_work(cifsiod_wq, &rdata->work);
 	DeleteMidQEntry(mid);
-	add_credits(server, 1, 0);
+	add_credits(server, &credits, 0);
 }
 
 /* cifs_async_readv - send an async write, and set up mid to handle result */
@@ -1809,7 +1812,7 @@ cifs_async_readv(struct cifs_readdata *rdata)
 
 	kref_get(&rdata->refcount);
 	rc = cifs_call_async(tcon->ses->server, &rqst, cifs_readv_receive,
-			     cifs_readv_callback, NULL, rdata, 0);
+			     cifs_readv_callback, NULL, rdata, 0, NULL);
 
 	if (rc == 0)
 		cifs_stats_inc(&tcon->stats.cifs_stats.num_reads);
@@ -2123,14 +2126,18 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 		wdata2->tailsz = tailsz;
 		wdata2->bytes = cur_len;
 
-		wdata2->cfile = find_writable_file(CIFS_I(inode), false);
+		rc = cifs_get_writable_file(CIFS_I(inode), false,
+					    &wdata2->cfile);
 		if (!wdata2->cfile) {
-			cifs_dbg(VFS, "No writable handles for inode\n");
-			rc = -EBADF;
-			break;
+			cifs_dbg(VFS, "No writable handle to retry writepages rc=%d\n",
+				 rc);
+			if (!is_retryable_error(rc))
+				rc = -EBADF;
+		} else {
+			wdata2->pid = wdata2->cfile->pid;
+			rc = server->ops->async_writev(wdata2,
+						       cifs_writedata_release);
 		}
-		wdata2->pid = wdata2->cfile->pid;
-		rc = server->ops->async_writev(wdata2, cifs_writedata_release);
 
 		for (j = 0; j < nr_pages; j++) {
 			unlock_page(wdata2->pages[j]);
@@ -2145,12 +2152,20 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 			kref_put(&wdata2->refcount, cifs_writedata_release);
 			if (is_retryable_error(rc))
 				continue;
+			i += nr_pages;
 			break;
 		}
 
 		rest_len -= cur_len;
 		i += nr_pages;
 	} while (i < wdata->nr_pages);
+
+	/* cleanup remaining pages from the original wdata */
+	for (; i < wdata->nr_pages; i++) {
+		SetPageError(wdata->pages[i]);
+		end_page_writeback(wdata->pages[i]);
+		put_page(wdata->pages[i]);
+	}
 
 	if (rc != 0 && !is_retryable_error(rc))
 		mapping_set_error(inode->i_mapping, rc);
@@ -2226,6 +2241,7 @@ cifs_writev_callback(struct mid_q_entry *mid)
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
 	unsigned int written;
 	WRITE_RSP *smb = (WRITE_RSP *)mid->resp_buf;
+	struct cifs_credits credits = { .value = 1, .instance = 0 };
 
 	switch (mid->mid_state) {
 	case MID_RESPONSE_RECEIVED:
@@ -2261,7 +2277,7 @@ cifs_writev_callback(struct mid_q_entry *mid)
 
 	queue_work(cifsiod_wq, &wdata->work);
 	DeleteMidQEntry(mid);
-	add_credits(tcon->ses->server, 1, 0);
+	add_credits(tcon->ses->server, &credits, 0);
 }
 
 /* cifs_async_writev - send an async write, and set up mid to handle result */
@@ -2339,7 +2355,7 @@ cifs_async_writev(struct cifs_writedata *wdata,
 
 	kref_get(&wdata->refcount);
 	rc = cifs_call_async(tcon->ses->server, &rqst, NULL,
-				cifs_writev_callback, NULL, wdata, 0);
+			     cifs_writev_callback, NULL, wdata, 0, NULL);
 
 	if (rc == 0)
 		cifs_stats_inc(&tcon->stats.cifs_stats.num_writes);

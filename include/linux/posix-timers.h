@@ -12,7 +12,7 @@ struct siginfo;
 
 struct cpu_timer_list {
 	struct list_head entry;
-	u64 expires, incr;
+	u64 expires;
 	struct task_struct *task;
 	int firing;
 };

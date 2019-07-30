@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../pci.h"
@@ -549,13 +527,13 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 			    RT_IN_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC)) {
 
 				bool rtstatus;
-				u32 InitializeCount = 0;
+				u32 initializecount = 0;
 				do {
-					InitializeCount++;
+					initializecount++;
 					RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
 						 "IPS Set eRf nic enable\n");
 					rtstatus = rtl_ps_enable_nic(hw);
-				} while (!rtstatus && (InitializeCount < 10));
+				} while (!rtstatus && (initializecount < 10));
 
 				RT_CLEAR_PS_LEVEL(ppsc,
 						  RT_RF_OFF_LEVL_HALT_NIC);
@@ -935,7 +913,7 @@ static bool _rtl92s_phy_bb_config_parafile(struct ieee80211_hw *hw)
 
 	if (!rtstatus) {
 		pr_err("Write BB Reg Fail!!\n");
-		goto phy_BB8190_Config_ParaFile_Fail;
+		goto phy_bb8190_config_parafile_fail;
 	}
 
 	/* 2. If EEPROM or EFUSE autoload OK, We must config by
@@ -948,7 +926,7 @@ static bool _rtl92s_phy_bb_config_parafile(struct ieee80211_hw *hw)
 	}
 	if (!rtstatus) {
 		pr_err("_rtl92s_phy_bb_config_parafile(): BB_PG Reg Fail!!\n");
-		goto phy_BB8190_Config_ParaFile_Fail;
+		goto phy_bb8190_config_parafile_fail;
 	}
 
 	/* 3. BB AGC table Initialization */
@@ -956,7 +934,7 @@ static bool _rtl92s_phy_bb_config_parafile(struct ieee80211_hw *hw)
 
 	if (!rtstatus) {
 		pr_err("%s(): AGC Table Fail\n", __func__);
-		goto phy_BB8190_Config_ParaFile_Fail;
+		goto phy_bb8190_config_parafile_fail;
 	}
 
 	/* Check if the CCK HighPower is turned ON. */
@@ -964,7 +942,7 @@ static bool _rtl92s_phy_bb_config_parafile(struct ieee80211_hw *hw)
 	rtlphy->cck_high_power = (bool)(rtl92s_phy_query_bb_reg(hw,
 			RFPGA0_XA_HSSIPARAMETER2, 0x200));
 
-phy_BB8190_Config_ParaFile_Fail:
+phy_bb8190_config_parafile_fail:
 	return rtstatus;
 }
 
@@ -1029,13 +1007,13 @@ bool rtl92s_phy_mac_config(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u32 i;
 	u32 arraylength;
-	u32 *ptraArray;
+	u32 *ptrarray;
 
 	arraylength = MAC_2T_ARRAYLENGTH;
-	ptraArray = rtl8192semac_2t_array;
+	ptrarray = rtl8192semac_2t_array;
 
 	for (i = 0; i < arraylength; i = i + 2)
-		rtl_write_byte(rtlpriv, ptraArray[i], (u8)ptraArray[i + 1]);
+		rtl_write_byte(rtlpriv, ptrarray[i], (u8)ptrarray[i + 1]);
 
 	return true;
 }
@@ -1128,7 +1106,7 @@ void rtl92s_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw)
 }
 
 static void _rtl92s_phy_get_txpower_index(struct ieee80211_hw *hw, u8 channel,
-					  u8 *cckpowerlevel, u8 *ofdmpowerLevel)
+					  u8 *cckpowerlevel, u8 *ofdmpowerlevel)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -1144,15 +1122,15 @@ static void _rtl92s_phy_get_txpower_index(struct ieee80211_hw *hw, u8 channel,
 	/* 2. OFDM for 1T or 2T */
 	if (rtlphy->rf_type == RF_1T2R || rtlphy->rf_type == RF_1T1R) {
 		/* Read HT 40 OFDM TX power */
-		ofdmpowerLevel[0] = rtlefuse->txpwrlevel_ht40_1s[0][index];
-		ofdmpowerLevel[1] = rtlefuse->txpwrlevel_ht40_1s[1][index];
+		ofdmpowerlevel[0] = rtlefuse->txpwrlevel_ht40_1s[0][index];
+		ofdmpowerlevel[1] = rtlefuse->txpwrlevel_ht40_1s[1][index];
 	} else if (rtlphy->rf_type == RF_2T2R) {
 		/* Read HT 40 OFDM TX power */
-		ofdmpowerLevel[0] = rtlefuse->txpwrlevel_ht40_2s[0][index];
-		ofdmpowerLevel[1] = rtlefuse->txpwrlevel_ht40_2s[1][index];
+		ofdmpowerlevel[0] = rtlefuse->txpwrlevel_ht40_2s[0][index];
+		ofdmpowerlevel[1] = rtlefuse->txpwrlevel_ht40_2s[1][index];
 	} else {
-		ofdmpowerLevel[0] = 0;
-		ofdmpowerLevel[1] = 0;
+		ofdmpowerlevel[0] = 0;
+		ofdmpowerlevel[1] = 0;
 	}
 }
 
@@ -1171,7 +1149,7 @@ void rtl92s_phy_set_txpower(struct ieee80211_hw *hw, u8	channel)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	/* [0]:RF-A, [1]:RF-B */
-	u8 cckpowerlevel[2], ofdmpowerLevel[2];
+	u8 cckpowerlevel[2], ofdmpowerlevel[2];
 
 	if (!rtlefuse->txpwr_fromeprom)
 		return;
@@ -1183,18 +1161,18 @@ void rtl92s_phy_set_txpower(struct ieee80211_hw *hw, u8	channel)
 	 * 1. For CCK.
 	 * 2. For OFDM 1T or 2T */
 	_rtl92s_phy_get_txpower_index(hw, channel, &cckpowerlevel[0],
-			&ofdmpowerLevel[0]);
+			&ofdmpowerlevel[0]);
 
 	RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
 		 "Channel-%d, cckPowerLevel (A / B) = 0x%x / 0x%x, ofdmPowerLevel (A / B) = 0x%x / 0x%x\n",
 		 channel, cckpowerlevel[0], cckpowerlevel[1],
-		 ofdmpowerLevel[0], ofdmpowerLevel[1]);
+		 ofdmpowerlevel[0], ofdmpowerlevel[1]);
 
 	_rtl92s_phy_ccxpower_indexcheck(hw, channel, &cckpowerlevel[0],
-			&ofdmpowerLevel[0]);
+			&ofdmpowerlevel[0]);
 
 	rtl92s_phy_rf6052_set_ccktxpower(hw, cckpowerlevel[0]);
-	rtl92s_phy_rf6052_set_ofdmtxpower(hw, &ofdmpowerLevel[0], channel);
+	rtl92s_phy_rf6052_set_ofdmtxpower(hw, &ofdmpowerlevel[0], channel);
 
 }
 

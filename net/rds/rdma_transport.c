@@ -51,6 +51,8 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 	struct rds_connection *conn = cm_id->context;
 	struct rds_transport *trans;
 	int ret = 0;
+	int *err;
+	u8 len;
 
 	rdsdebug("conn %p id %p handling event %u (%s)\n", conn, cm_id,
 		 event->event, rdma_event_msg(event->event));
@@ -81,6 +83,7 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 		break;
 
 	case RDMA_CM_EVENT_ADDR_RESOLVED:
+		rdma_set_service_type(cm_id, conn->c_tos);
 		/* XXX do we need to clean up if this fails? */
 		ret = rdma_resolve_route(cm_id,
 					 RDS_RDMA_RESOLVE_TIMEOUT_MS);
@@ -106,8 +109,19 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 		break;
 
 	case RDMA_CM_EVENT_REJECTED:
+		if (!conn)
+			break;
+		err = (int *)rdma_consumer_reject_data(cm_id, event, &len);
+		if (!err || (err && ((*err) == RDS_RDMA_REJ_INCOMPAT))) {
+			pr_warn("RDS/RDMA: conn <%pI6c, %pI6c> rejected, dropping connection\n",
+				&conn->c_laddr, &conn->c_faddr);
+			conn->c_proposed_version = RDS_PROTOCOL_COMPAT_VERSION;
+			conn->c_tos = 0;
+			rds_conn_drop(conn);
+		}
 		rdsdebug("Connection rejected: %s\n",
 			 rdma_reject_msg(cm_id, event->status));
+		break;
 		/* FALLTHROUGH */
 	case RDMA_CM_EVENT_ADDR_ERROR:
 	case RDMA_CM_EVENT_ROUTE_ERROR:

@@ -14,6 +14,8 @@
 #include <linux/usb/typec.h>
 
 /* Register offsets */
+#define TPS_REG_VID			0x00
+#define TPS_REG_MODE			0x03
 #define TPS_REG_CMD1			0x08
 #define TPS_REG_DATA1			0x09
 #define TPS_REG_INT_EVENT1		0x14
@@ -66,6 +68,20 @@ struct tps6598x_rx_identity_reg {
 #define TPS_TASK_TIMEOUT		1
 #define TPS_TASK_REJECTED		3
 
+enum {
+	TPS_MODE_APP,
+	TPS_MODE_BOOT,
+	TPS_MODE_BIST,
+	TPS_MODE_DISC,
+};
+
+static const char *const modes[] = {
+	[TPS_MODE_APP]	= "APP ",
+	[TPS_MODE_BOOT]	= "BOOT",
+	[TPS_MODE_BIST]	= "BIST",
+	[TPS_MODE_DISC]	= "DISC",
+};
+
 /* Unrecognized commands will be replaced with "!CMD" */
 #define INVALID_CMD(_cmd_)		(_cmd_ == 0x444d4321)
 
@@ -110,6 +126,20 @@ tps6598x_block_read(struct tps6598x *tps, u8 reg, void *val, size_t len)
 	return 0;
 }
 
+static int tps6598x_block_write(struct tps6598x *tps, u8 reg,
+				void *val, size_t len)
+{
+	u8 data[TPS_MAX_LEN + 1];
+
+	if (!tps->i2c_protocol)
+		return regmap_raw_write(tps->regmap, reg, val, len);
+
+	data[0] = len;
+	memcpy(&data[1], val, len);
+
+	return regmap_raw_write(tps->regmap, reg, data, sizeof(data));
+}
+
 static inline int tps6598x_read16(struct tps6598x *tps, u8 reg, u16 *val)
 {
 	return tps6598x_block_read(tps, reg, val, sizeof(u16));
@@ -127,23 +157,23 @@ static inline int tps6598x_read64(struct tps6598x *tps, u8 reg, u64 *val)
 
 static inline int tps6598x_write16(struct tps6598x *tps, u8 reg, u16 val)
 {
-	return regmap_raw_write(tps->regmap, reg, &val, sizeof(u16));
+	return tps6598x_block_write(tps, reg, &val, sizeof(u16));
 }
 
 static inline int tps6598x_write32(struct tps6598x *tps, u8 reg, u32 val)
 {
-	return regmap_raw_write(tps->regmap, reg, &val, sizeof(u32));
+	return tps6598x_block_write(tps, reg, &val, sizeof(u32));
 }
 
 static inline int tps6598x_write64(struct tps6598x *tps, u8 reg, u64 val)
 {
-	return regmap_raw_write(tps->regmap, reg, &val, sizeof(u64));
+	return tps6598x_block_write(tps, reg, &val, sizeof(u64));
 }
 
 static inline int
 tps6598x_write_4cc(struct tps6598x *tps, u8 reg, const char *val)
 {
-	return regmap_raw_write(tps->regmap, reg, &val, sizeof(u32));
+	return tps6598x_block_write(tps, reg, &val, sizeof(u32));
 }
 
 static int tps6598x_read_partner_identity(struct tps6598x *tps)
@@ -229,8 +259,8 @@ static int tps6598x_exec_cmd(struct tps6598x *tps, const char *cmd,
 		return -EBUSY;
 
 	if (in_len) {
-		ret = regmap_raw_write(tps->regmap, TPS_REG_DATA1,
-				       in_data, in_len);
+		ret = tps6598x_block_write(tps, TPS_REG_DATA1,
+					   in_data, in_len);
 		if (ret)
 			return ret;
 	}
@@ -384,6 +414,32 @@ err_unlock:
 	return IRQ_HANDLED;
 }
 
+static int tps6598x_check_mode(struct tps6598x *tps)
+{
+	char mode[5] = { };
+	int ret;
+
+	ret = tps6598x_read32(tps, TPS_REG_MODE, (void *)mode);
+	if (ret)
+		return ret;
+
+	switch (match_string(modes, ARRAY_SIZE(modes), mode)) {
+	case TPS_MODE_APP:
+		return 0;
+	case TPS_MODE_BOOT:
+		dev_warn(tps->dev, "dead-battery condition\n");
+		return 0;
+	case TPS_MODE_BIST:
+	case TPS_MODE_DISC:
+	default:
+		dev_err(tps->dev, "controller in unsupported mode \"%s\"\n",
+			mode);
+		break;
+	}
+
+	return -ENODEV;
+}
+
 static const struct regmap_config tps6598x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -409,10 +465,8 @@ static int tps6598x_probe(struct i2c_client *client)
 	if (IS_ERR(tps->regmap))
 		return PTR_ERR(tps->regmap);
 
-	ret = tps6598x_read32(tps, 0, &vid);
-	if (ret < 0)
-		return ret;
-	if (!vid)
+	ret = tps6598x_read32(tps, TPS_REG_VID, &vid);
+	if (ret < 0 || !vid)
 		return -ENODEV;
 
 	/*
@@ -424,6 +478,11 @@ static int tps6598x_probe(struct i2c_client *client)
 	 */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		tps->i2c_protocol = true;
+
+	/* Make sure the controller has application firmware running */
+	ret = tps6598x_check_mode(tps);
+	if (ret)
+		return ret;
 
 	ret = tps6598x_read32(tps, TPS_REG_STATUS, &status);
 	if (ret < 0)

@@ -44,6 +44,11 @@
 		};
 	};
 
+	display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop0_out>, <&vop1_out>;
+	};
+
 	sram: sram@10080000 {
 		compatible = "mmio-sram";
 		reg = <0x10080000 0x10000>;
@@ -54,6 +59,48 @@
 		smp-sram@0 {
 			compatible = "rockchip,rk3066-smp-sram";
 			reg = <0x0 0x50>;
+		};
+	};
+
+	vop0: vop@1010c000 {
+		compatible = "rockchip,rk3066-vop";
+		reg = <0x1010c000 0x19c>;
+		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_LCDC0>,
+			 <&cru DCLK_LCDC0>,
+			 <&cru HCLK_LCDC0>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		power-domains = <&power RK3066_PD_VIO>;
+		resets = <&cru SRST_LCDC0_AXI>,
+			 <&cru SRST_LCDC0_AHB>,
+			 <&cru SRST_LCDC0_DCLK>;
+		reset-names = "axi", "ahb", "dclk";
+		status = "disabled";
+
+		vop0_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+
+	vop1: vop@1010e000 {
+		compatible = "rockchip,rk3066-vop";
+		reg = <0x1010e000 0x19c>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_LCDC1>,
+			 <&cru DCLK_LCDC1>,
+			 <&cru HCLK_LCDC1>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		power-domains = <&power RK3066_PD_VIO>;
+		resets = <&cru SRST_LCDC1_AXI>,
+			 <&cru SRST_LCDC1_AHB>,
+			 <&cru SRST_LCDC1_DCLK>;
+		reset-names = "axi", "ahb", "dclk";
+		status = "disabled";
+
+		vop1_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 	};
 
@@ -669,6 +716,7 @@
 				 <&cru SCLK_CIF0>,
 				 <&cru ACLK_CIF0>,
 				 <&cru HCLK_CIF0>,
+				 <&cru HCLK_HDMI>,
 				 <&cru ACLK_IPP>,
 				 <&cru HCLK_IPP>,
 				 <&cru ACLK_RGA>,

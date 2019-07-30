@@ -699,6 +699,7 @@ config TOUCHSCREEN_EDT_FT5X06
 config TOUCHSCREEN_RASPBERRYPI_FW
 	tristate "Raspberry Pi's firmware base touch screen support"
 	depends on RASPBERRYPI_FIRMWARE || (RASPBERRYPI_FIRMWARE=n && COMPILE_TEST)
+	select INPUT_POLLDEV
 	help
 	  Say Y here if you have the official Raspberry Pi 7 inch screen on
 	  your system.
@@ -1168,11 +1169,11 @@ config TOUCHSCREEN_SIS_I2C
 	  module will be called sis_i2c.
 
 config TOUCHSCREEN_ST1232
-	tristate "Sitronix ST1232 touchscreen controllers"
+	tristate "Sitronix ST1232 or ST1633 touchscreen controllers"
 	depends on I2C
 	help
-	  Say Y here if you want to support Sitronix ST1232
-	  touchscreen controller.
+	  Say Y here if you want to support the Sitronix ST1232
+	  or ST1633 touchscreen controller.
 
 	  If unsure, say N.
 

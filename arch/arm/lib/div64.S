@@ -88,8 +88,8 @@ UNWIND(.fnstart)
  	@ Break out early if dividend reaches 0.
 2:	cmp	xh, yl
 	orrcs	yh, yh, ip
-	subcss	xh, xh, yl
-	movnes	ip, ip, lsr #1
+	subscs	xh, xh, yl
+	movsne	ip, ip, lsr #1
 	mov	yl, yl, lsr #1
 	bne	2b
 

@@ -582,15 +582,14 @@ truncate_out:
 	zero_user(page, offset, PAGE_SIZE - offset);
 
 	/* An encrypted inode should have a key and truncate the last page. */
-	f2fs_bug_on(F2FS_I_SB(inode), cache_only && f2fs_encrypted_inode(inode));
+	f2fs_bug_on(F2FS_I_SB(inode), cache_only && IS_ENCRYPTED(inode));
 	if (!cache_only)
 		set_page_dirty(page);
 	f2fs_put_page(page, 1);
 	return 0;
 }
 
-int f2fs_truncate_blocks(struct inode *inode, u64 from, bool lock,
-							bool buf_write)
+int f2fs_truncate_blocks(struct inode *inode, u64 from, bool lock)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct dnode_of_data dn;
@@ -598,7 +597,6 @@ int f2fs_truncate_blocks(struct inode *inode, u64 from, bool lock,
 	int count = 0, err = 0;
 	struct page *ipage;
 	bool truncate_page = false;
-	int flag = buf_write ? F2FS_GET_BLOCK_PRE_AIO : F2FS_GET_BLOCK_PRE_DIO;
 
 	trace_f2fs_truncate_blocks_enter(inode, from);
 
@@ -608,7 +606,7 @@ int f2fs_truncate_blocks(struct inode *inode, u64 from, bool lock,
 		goto free_partial;
 
 	if (lock)
-		__do_map_lock(sbi, flag, true);
+		f2fs_lock_op(sbi);
 
 	ipage = f2fs_get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(ipage)) {
@@ -646,7 +644,7 @@ free_next:
 	err = f2fs_truncate_inode_blocks(inode, free_from);
 out:
 	if (lock)
-		__do_map_lock(sbi, flag, false);
+		f2fs_unlock_op(sbi);
 free_partial:
 	/* lastly zero out the first data page */
 	if (!err)
@@ -681,7 +679,7 @@ int f2fs_truncate(struct inode *inode)
 			return err;
 	}
 
-	err = f2fs_truncate_blocks(inode, i_size_read(inode), true, false);
+	err = f2fs_truncate_blocks(inode, i_size_read(inode), true);
 	if (err)
 		return err;
 
@@ -711,7 +709,7 @@ int f2fs_getattr(const struct path *path, struct kstat *stat,
 		stat->attributes |= STATX_ATTR_APPEND;
 	if (flags & F2FS_COMPR_FL)
 		stat->attributes |= STATX_ATTR_COMPRESSED;
-	if (f2fs_encrypted_inode(inode))
+	if (IS_ENCRYPTED(inode))
 		stat->attributes |= STATX_ATTR_ENCRYPTED;
 	if (flags & F2FS_IMMUTABLE_FL)
 		stat->attributes |= STATX_ATTR_IMMUTABLE;
@@ -768,7 +766,6 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int err;
-	bool size_changed = false;
 
 	if (unlikely(f2fs_cp_error(F2FS_I_SB(inode))))
 		return -EIO;
@@ -843,8 +840,6 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 		down_write(&F2FS_I(inode)->i_sem);
 		F2FS_I(inode)->last_disk_size = i_size_read(inode);
 		up_write(&F2FS_I(inode)->i_sem);
-
-		size_changed = true;
 	}
 
 	__setattr_copy(inode, attr);
@@ -858,7 +853,7 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	/* file size may changed here */
-	f2fs_mark_inode_dirty_sync(inode, size_changed);
+	f2fs_mark_inode_dirty_sync(inode, true);
 
 	/* inode change will produce dirty node pages flushed by checkpoint */
 	f2fs_balance_fs(F2FS_I_SB(inode), true);
@@ -1262,7 +1257,7 @@ static int f2fs_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	new_size = i_size_read(inode) - len;
 	truncate_pagecache(inode, new_size);
 
-	ret = f2fs_truncate_blocks(inode, new_size, true, false);
+	ret = f2fs_truncate_blocks(inode, new_size, true);
 	up_write(&F2FS_I(inode)->i_mmap_sem);
 	if (!ret)
 		f2fs_i_size_write(inode, new_size);
@@ -1447,7 +1442,7 @@ static int f2fs_insert_range(struct inode *inode, loff_t offset, loff_t len)
 	f2fs_balance_fs(sbi, true);
 
 	down_write(&F2FS_I(inode)->i_mmap_sem);
-	ret = f2fs_truncate_blocks(inode, i_size_read(inode), true, false);
+	ret = f2fs_truncate_blocks(inode, i_size_read(inode), true);
 	up_write(&F2FS_I(inode)->i_mmap_sem);
 	if (ret)
 		return ret;
@@ -1563,7 +1558,7 @@ static long f2fs_fallocate(struct file *file, int mode,
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
 
-	if (f2fs_encrypted_inode(inode) &&
+	if (IS_ENCRYPTED(inode) &&
 		(mode & (FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_INSERT_RANGE)))
 		return -EOPNOTSUPP;
 
@@ -1647,10 +1642,12 @@ static int f2fs_ioc_getflags(struct file *filp, unsigned long arg)
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	unsigned int flags = fi->i_flags;
 
-	if (f2fs_encrypted_inode(inode))
+	if (IS_ENCRYPTED(inode))
 		flags |= F2FS_ENCRYPT_FL;
 	if (f2fs_has_inline_data(inode) || f2fs_has_inline_dentry(inode))
 		flags |= F2FS_INLINE_DATA_FL;
+	if (is_inode_flag_set(inode, FI_PIN_FILE))
+		flags |= F2FS_NOCOW_FL;
 
 	flags &= F2FS_FL_USER_VISIBLE;
 
@@ -1750,10 +1747,12 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 
 	down_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
 
-	if (!get_dirty_pages(inode))
-		goto skip_flush;
-
-	f2fs_msg(F2FS_I_SB(inode)->sb, KERN_WARNING,
+	/*
+	 * Should wait end_io to count F2FS_WB_CP_DATA correctly by
+	 * f2fs_is_atomic_file.
+	 */
+	if (get_dirty_pages(inode))
+		f2fs_msg(F2FS_I_SB(inode)->sb, KERN_WARNING,
 		"Unexpected flush for atomic writes: ino=%lu, npages=%u",
 					inode->i_ino, get_dirty_pages(inode));
 	ret = filemap_write_and_wait_range(inode->i_mapping, 0, LLONG_MAX);
@@ -1761,7 +1760,7 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 		up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
 		goto out;
 	}
-skip_flush:
+
 	set_inode_flag(inode, FI_ATOMIC_FILE);
 	clear_inode_flag(inode, FI_ATOMIC_REVOKE_REQUEST);
 	up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
@@ -1968,11 +1967,11 @@ static int f2fs_ioc_shutdown(struct file *filp, unsigned long arg)
 		break;
 	case F2FS_GOING_DOWN_NEED_FSCK:
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		set_sbi_flag(sbi, SBI_CP_DISABLED_QUICK);
+		set_sbi_flag(sbi, SBI_IS_DIRTY);
 		/* do checkpoint only */
 		ret = f2fs_sync_fs(sb, 1);
-		if (ret)
-			goto out;
-		break;
+		goto out;
 	default:
 		ret = -EINVAL;
 		goto out;
@@ -1988,6 +1987,9 @@ static int f2fs_ioc_shutdown(struct file *filp, unsigned long arg)
 out:
 	if (in != F2FS_GOING_DOWN_FULLSYNC)
 		mnt_drop_write_file(filp);
+
+	trace_f2fs_shutdown(sbi, in, ret);
+
 	return ret;
 }
 
@@ -2414,7 +2416,7 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
 	if (!S_ISREG(src->i_mode) || !S_ISREG(dst->i_mode))
 		return -EINVAL;
 
-	if (f2fs_encrypted_inode(src) || f2fs_encrypted_inode(dst))
+	if (IS_ENCRYPTED(src) || IS_ENCRYPTED(dst))
 		return -EOPNOTSUPP;
 
 	if (src == dst) {
@@ -2871,8 +2873,8 @@ static int f2fs_ioc_set_pin_file(struct file *filp, unsigned long arg)
 	__u32 pin;
 	int ret = 0;
 
-	if (!inode_owner_or_capable(inode))
-		return -EACCES;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	if (get_user(pin, (__u32 __user *)arg))
 		return -EFAULT;

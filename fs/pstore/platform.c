@@ -501,6 +501,9 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 {
 	struct pstore_record record;
 
+	if (!c)
+		return;
+
 	pstore_record_init(&record, psinfo);
 	record.type = PSTORE_TYPE_CONSOLE;
 

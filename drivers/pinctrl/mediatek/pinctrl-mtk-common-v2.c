@@ -290,7 +290,13 @@ static int mtk_xt_set_gpio_as_eint(void *data, unsigned long eint_n)
 		return err;
 
 	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_SMT, MTK_ENABLE);
-	if (err)
+	/* SMT is supposed to be supported by every real GPIO and doesn't
+	 * support virtual GPIOs, so the extra condition err != -ENOTSUPP
+	 * is just for adding EINT support to these virtual GPIOs. It should
+	 * add an extra flag in the pin descriptor when more pins with
+	 * distinctive characteristic come out.
+	 */
+	if (err && err != -ENOTSUPP)
 		return err;
 
 	return 0;

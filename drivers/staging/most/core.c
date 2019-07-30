@@ -1431,7 +1431,7 @@ int most_register_interface(struct most_interface *iface)
 
 	INIT_LIST_HEAD(&iface->p->channel_list);
 	iface->p->dev_id = id;
-	snprintf(iface->p->name, STRING_SIZE, "mdev%d", id);
+	strcpy(iface->p->name, iface->description);
 	iface->dev.init_name = iface->p->name;
 	iface->dev.bus = &mc.bus;
 	iface->dev.parent = &mc.dev;

@@ -224,12 +224,6 @@ static int snd_emu10k1_suspend(struct device *dev)
 
 	cancel_delayed_work_sync(&emu->emu1010.firmware_work);
 
-	snd_pcm_suspend_all(emu->pcm);
-	snd_pcm_suspend_all(emu->pcm_mic);
-	snd_pcm_suspend_all(emu->pcm_efx);
-	snd_pcm_suspend_all(emu->pcm_multi);
-	snd_pcm_suspend_all(emu->pcm_p16v);
-
 	snd_ac97_suspend(emu->ac97);
 
 	snd_emu10k1_efx_suspend(emu);

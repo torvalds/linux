@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Read-Copy Update definitions shared among RCU implementations.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  * Copyright IBM Corporation, 2011
  *
- * Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+ * Author: Paul E. McKenney <paulmck@linux.ibm.com>
  */
 
 #ifndef __LINUX_RCU_H
@@ -30,7 +17,7 @@
 #define RCU_TRACE(stmt)
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
-/* Offset to allow for unmatched rcu_irq_{enter,exit}(). */
+/* Offset to allow distinguishing irq vs. task-based idle entry/exit. */
 #define DYNTICK_IRQ_NONIDLE	((LONG_MAX / 2) + 1)
 
 
@@ -462,8 +449,6 @@ void rcu_request_urgent_qs_task(struct task_struct *t);
 
 enum rcutorture_type {
 	RCU_FLAVOR,
-	RCU_BH_FLAVOR,
-	RCU_SCHED_FLAVOR,
 	RCU_TASKS_FLAVOR,
 	SRCU_FLAVOR,
 	INVALID_RCU_FLAVOR

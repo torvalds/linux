@@ -651,7 +651,8 @@ static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 		regs->vector = formatvec & 0xfff;
 	} else {
 		struct switch_stack *sw = (struct switch_stack *)regs - 1;
-		unsigned long buf[fsize / 2]; /* yes, twice as much */
+		/* yes, twice as much as max(sizeof(frame.un.fmt<x>)) */
+		unsigned long buf[sizeof(((struct frame *)0)->un) / 2];
 
 		/* that'll make sure that expansion won't crap over data */
 		if (copy_from_user(buf + fsize / 4, fp, fsize))

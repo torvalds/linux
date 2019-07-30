@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -84,8 +84,6 @@ struct lpfc_sli2_slim;
 #define LPFC_HB_MBOX_INTERVAL   5	/* Heart beat interval in seconds. */
 #define LPFC_HB_MBOX_TIMEOUT    30	/* Heart beat timeout  in seconds. */
 
-#define LPFC_LOOK_AHEAD_OFF	0	/* Look ahead logic is turned off */
-
 /* Error Attention event polling interval */
 #define LPFC_ERATT_POLL_INTERVAL	5 /* EATT poll interval in seconds */
 
@@ -146,6 +144,7 @@ struct lpfc_nvmet_ctxbuf {
 	struct lpfc_nvmet_rcv_ctx *context;
 	struct lpfc_iocbq *iocbq;
 	struct lpfc_sglq *sglq;
+	struct work_struct defer_work;
 };
 
 struct lpfc_dma_pool {
@@ -234,8 +233,6 @@ typedef struct lpfc_vpd {
 #endif
 	} sli3Feat;
 } lpfc_vpd_t;
-
-struct lpfc_scsi_buf;
 
 
 /*
@@ -466,6 +463,7 @@ struct lpfc_vport {
 	uint32_t cfg_use_adisc;
 	uint32_t cfg_discovery_threads;
 	uint32_t cfg_log_verbose;
+	uint32_t cfg_enable_fc4_type;
 	uint32_t cfg_max_luns;
 	uint32_t cfg_enable_da_id;
 	uint32_t cfg_max_scsicmpl_time;
@@ -479,6 +477,7 @@ struct lpfc_vport {
 	struct dentry *debug_disc_trc;
 	struct dentry *debug_nodelist;
 	struct dentry *debug_nvmestat;
+	struct dentry *debug_scsistat;
 	struct dentry *debug_nvmektime;
 	struct dentry *debug_cpucheck;
 	struct dentry *vport_debugfs_root;
@@ -596,6 +595,13 @@ struct lpfc_mbox_ext_buf_ctx {
 	struct list_head ext_dmabuf_list;
 };
 
+struct lpfc_epd_pool {
+	/* Expedite pool */
+	struct list_head list;
+	u32 count;
+	spinlock_t lock;	/* lock for expedite pool */
+};
+
 struct lpfc_ras_fwlog {
 	uint8_t *fwlog_buff;
 	uint32_t fw_buffcount; /* Buffer size posted to FW */
@@ -617,20 +623,19 @@ struct lpfc_ras_fwlog {
 
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
-	int (*lpfc_new_scsi_buf)
-		(struct lpfc_vport *, int);
-	struct lpfc_scsi_buf * (*lpfc_get_scsi_buf)
-		(struct lpfc_hba *, struct lpfc_nodelist *);
+	struct lpfc_io_buf * (*lpfc_get_scsi_buf)
+		(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
+		struct scsi_cmnd *cmnd);
 	int (*lpfc_scsi_prep_dma_buf)
-		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+		(struct lpfc_hba *, struct lpfc_io_buf *);
 	void (*lpfc_scsi_unprep_dma_buf)
-		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+		(struct lpfc_hba *, struct lpfc_io_buf *);
 	void (*lpfc_release_scsi_buf)
-		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+		(struct lpfc_hba *, struct lpfc_io_buf *);
 	void (*lpfc_rampdown_queue_depth)
 		(struct lpfc_hba *);
 	void (*lpfc_scsi_prep_cmnd)
-		(struct lpfc_vport *, struct lpfc_scsi_buf *,
+		(struct lpfc_vport *, struct lpfc_io_buf *,
 		 struct lpfc_nodelist *);
 
 	/* IOCB interface function jump table entries */
@@ -673,13 +678,17 @@ struct lpfc_hba {
 		(struct lpfc_hba *);
 
 	int (*lpfc_bg_scsi_prep_dma_buf)
-		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+		(struct lpfc_hba *, struct lpfc_io_buf *);
 	/* Add new entries here */
+
+	/* expedite pool */
+	struct lpfc_epd_pool epd_pool;
 
 	/* SLI4 specific HBA data structure */
 	struct lpfc_sli4_hba sli4_hba;
 
 	struct workqueue_struct *wq;
+	struct delayed_work     eq_delay_work;
 
 	struct lpfc_sli sli;
 	uint8_t pci_dev_grp;	/* lpfc PCI dev group: 0x0, 0x1, 0x2,... */
@@ -713,7 +722,6 @@ struct lpfc_hba {
 #define HBA_FCOE_MODE		0x4 /* HBA function in FCoE Mode */
 #define HBA_SP_QUEUE_EVT	0x8 /* Slow-path qevt posted to worker thread*/
 #define HBA_POST_RECEIVE_BUFFER 0x10 /* Rcv buffers need to be posted */
-#define FCP_XRI_ABORT_EVENT	0x20
 #define ELS_XRI_ABORT_EVENT	0x40
 #define ASYNC_EVENT		0x80
 #define LINK_DISABLED		0x100 /* Link disabled by user */
@@ -784,12 +792,12 @@ struct lpfc_hba {
 	uint8_t  nvmet_support;	/* driver supports NVMET */
 #define LPFC_NVMET_MAX_PORTS	32
 	uint8_t  mds_diags_support;
-	uint32_t initial_imax;
 	uint8_t  bbcredit_support;
 	uint8_t  enab_exp_wqcq_pages;
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
+	uint32_t cfg_xri_rebalancing;
 	uint32_t cfg_enable_npiv;
 	uint32_t cfg_enable_rrq;
 	uint32_t cfg_topology;
@@ -811,12 +819,14 @@ struct lpfc_hba {
 	uint32_t cfg_use_msi;
 	uint32_t cfg_auto_imax;
 	uint32_t cfg_fcp_imax;
+	uint32_t cfg_cq_poll_threshold;
+	uint32_t cfg_cq_max_proc_limit;
 	uint32_t cfg_fcp_cpu_map;
-	uint32_t cfg_fcp_io_channel;
+	uint32_t cfg_hdw_queue;
+	uint32_t cfg_irq_chann;
 	uint32_t cfg_suppress_rsp;
 	uint32_t cfg_nvme_oas;
 	uint32_t cfg_nvme_embed_cmd;
-	uint32_t cfg_nvme_io_channel;
 	uint32_t cfg_nvmet_mrq_post;
 	uint32_t cfg_nvmet_mrq;
 	uint32_t cfg_enable_nvmet;
@@ -852,6 +862,7 @@ struct lpfc_hba {
 	uint32_t cfg_prot_guard;
 	uint32_t cfg_hostmem_hgp;
 	uint32_t cfg_log_verbose;
+	uint32_t cfg_enable_fc4_type;
 	uint32_t cfg_aer_support;
 	uint32_t cfg_sriov_nr_virtfn;
 	uint32_t cfg_request_firmware_upgrade;
@@ -872,15 +883,12 @@ struct lpfc_hba {
 	uint32_t cfg_ras_fwlog_level;
 	uint32_t cfg_ras_fwlog_buffsize;
 	uint32_t cfg_ras_fwlog_func;
-	uint32_t cfg_enable_fc4_type;
 	uint32_t cfg_enable_bbcr;	/* Enable BB Credit Recovery */
 	uint32_t cfg_enable_dpp;	/* Enable Direct Packet Push */
-	uint32_t cfg_xri_split;
 #define LPFC_ENABLE_FCP  1
 #define LPFC_ENABLE_NVME 2
 #define LPFC_ENABLE_BOTH 3
 	uint32_t cfg_enable_pbde;
-	uint32_t io_channel_irqs;	/* number of irqs for io channels */
 	struct nvmet_fc_target_port *targetport;
 	lpfc_vpd_t vpd;		/* vital product data */
 
@@ -952,14 +960,6 @@ struct lpfc_hba {
 	struct timer_list eratt_poll;
 	uint32_t eratt_poll_interval;
 
-	/*
-	 * stat  counters
-	 */
-	atomic_t fc4ScsiInputRequests;
-	atomic_t fc4ScsiOutputRequests;
-	atomic_t fc4ScsiControlRequests;
-	atomic_t fc4ScsiIoCmpls;
-
 	uint64_t bg_guard_err_cnt;
 	uint64_t bg_apptag_err_cnt;
 	uint64_t bg_reftag_err_cnt;
@@ -970,13 +970,6 @@ struct lpfc_hba {
 	struct list_head lpfc_scsi_buf_list_get;
 	struct list_head lpfc_scsi_buf_list_put;
 	uint32_t total_scsi_bufs;
-	spinlock_t nvme_buf_list_get_lock;  /* NVME buf alloc list lock */
-	spinlock_t nvme_buf_list_put_lock;  /* NVME buf free list lock */
-	struct list_head lpfc_nvme_buf_list_get;
-	struct list_head lpfc_nvme_buf_list_put;
-	uint32_t total_nvme_bufs;
-	uint32_t get_nvme_bufs;
-	uint32_t put_nvme_bufs;
 	struct list_head lpfc_iocb_list;
 	uint32_t total_iocbq_bufs;
 	struct list_head active_rrq_list;
@@ -1033,6 +1026,7 @@ struct lpfc_hba {
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct dentry *hba_debugfs_root;
 	atomic_t debugfs_vport_count;
+	struct dentry *debug_multixri_pools;
 	struct dentry *debug_hbqinfo;
 	struct dentry *debug_dumpHostSlim;
 	struct dentry *debug_dumpHBASlim;
@@ -1050,6 +1044,10 @@ struct lpfc_hba {
 
 	struct dentry *debug_nvmeio_trc;
 	struct lpfc_debugfs_nvmeio_trc *nvmeio_trc;
+	struct dentry *debug_hdwqinfo;
+#ifdef LPFC_HDWQ_LOCK_STAT
+	struct dentry *debug_lockstat;
+#endif
 	atomic_t nvmeio_trc_cnt;
 	uint32_t nvmeio_trc_size;
 	uint32_t nvmeio_trc_output_idx;
@@ -1090,7 +1088,6 @@ struct lpfc_hba {
 
 	uint8_t temp_sensor_support;
 	/* Fields used for heart beat. */
-	unsigned long last_eqdelay_time;
 	unsigned long last_completion_time;
 	unsigned long skipped_hb;
 	struct timer_list hb_tmofunc;
@@ -1164,16 +1161,12 @@ struct lpfc_hba {
 	uint16_t sfp_warning;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-#define LPFC_CHECK_CPU_CNT    32
-	uint32_t cpucheck_rcv_io[LPFC_CHECK_CPU_CNT];
-	uint32_t cpucheck_xmt_io[LPFC_CHECK_CPU_CNT];
-	uint32_t cpucheck_cmpl_io[LPFC_CHECK_CPU_CNT];
-	uint32_t cpucheck_ccmpl_io[LPFC_CHECK_CPU_CNT];
 	uint16_t cpucheck_on;
 #define LPFC_CHECK_OFF		0
 #define LPFC_CHECK_NVME_IO	1
 #define LPFC_CHECK_NVMET_RCV	2
 #define LPFC_CHECK_NVMET_IO	4
+#define LPFC_CHECK_SCSI_IO	8
 	uint16_t ktime_on;
 	uint64_t ktime_data_samples;
 	uint64_t ktime_status_samples;
@@ -1296,4 +1289,24 @@ lpfc_phba_elsring(struct lpfc_hba *phba)
 			return NULL;
 	}
 	return &phba->sli.sli3_ring[LPFC_ELS_RING];
+}
+
+/**
+ * lpfc_sli4_mod_hba_eq_delay - update EQ delay
+ * @phba: Pointer to HBA context object.
+ * @q: The Event Queue to update.
+ * @delay: The delay value (in us) to be written.
+ *
+ **/
+static inline void
+lpfc_sli4_mod_hba_eq_delay(struct lpfc_hba *phba, struct lpfc_queue *eq,
+			   u32 delay)
+{
+	struct lpfc_register reg_data;
+
+	reg_data.word0 = 0;
+	bf_set(lpfc_sliport_eqdelay_id, &reg_data, eq->queue_id);
+	bf_set(lpfc_sliport_eqdelay_delay, &reg_data, delay);
+	writel(reg_data.word0, phba->sli4_hba.u.if_type2.EQDregaddr);
+	eq->q_mode = delay;
 }

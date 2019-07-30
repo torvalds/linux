@@ -1278,6 +1278,20 @@
 				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
 			};
 		};
+
+		dvfs_pwm_active_state: dvfs_pwm_active {
+			dvfs_pwm_pbb1 {
+				nvidia,pins = "dvfs_pwm_pbb1";
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+		};
+
+		dvfs_pwm_inactive_state: dvfs_pwm_inactive {
+			dvfs_pwm_pbb1 {
+				nvidia,pins = "dvfs_pwm_pbb1";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+		};
 	};
 
 	pwm@7000a000 {
@@ -1303,6 +1317,16 @@
 		clock-frequency = <100000>;
 	};
 
+	sata@70020000 {
+		status = "okay";
+		phys = <&{/padctl@7009f000/pads/sata/lanes/sata-0}>;
+	};
+
+	hda@70030000 {
+		nvidia,model = "jetson-tx1-hda";
+		status = "okay";
+	};
+
 	usb@70090000 {
 		phys = <&{/padctl@7009f000/pads/usb2/lanes/usb2-0}>,
 		       <&{/padctl@7009f000/pads/usb2/lanes/usb2-1}>,
@@ -1322,15 +1346,6 @@
 		dvdd-usb-ss-pll-supply = <&vdd_pex_1v05>;
 		hvdd-usb-ss-pll-e-supply = <&vdd_1v8>;
 
-		status = "okay";
-	};
-
-	sata@70020000 {
-		status = "okay";
-		phys = <&{/padctl@7009f000/pads/sata/lanes/sata-0}>;
-	};
-
-	hda@70030000 {
 		status = "okay";
 	};
 

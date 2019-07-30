@@ -17,102 +17,14 @@
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_print.h>
-#include <drm/tinydrm/tinydrm.h>
+#include <drm/drm_rect.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
-#include <uapi/drm/drm.h>
 
 static unsigned int spi_max;
 module_param(spi_max, uint, 0400);
 MODULE_PARM_DESC(spi_max, "Set a lower SPI max transfer size");
-
-/**
- * tinydrm_merge_clips - Merge clip rectangles
- * @dst: Destination clip rectangle
- * @src: Source clip rectangle(s)
- * @num_clips: Number of @src clip rectangles
- * @flags: Dirty fb ioctl flags
- * @max_width: Maximum width of @dst
- * @max_height: Maximum height of @dst
- *
- * This function merges @src clip rectangle(s) into @dst. If @src is NULL,
- * @max_width and @min_width is used to set a full @dst clip rectangle.
- *
- * Returns:
- * true if it's a full clip, false otherwise
- */
-bool tinydrm_merge_clips(struct drm_clip_rect *dst,
-			 struct drm_clip_rect *src, unsigned int num_clips,
-			 unsigned int flags, u32 max_width, u32 max_height)
-{
-	unsigned int i;
-
-	if (!src || !num_clips) {
-		dst->x1 = 0;
-		dst->x2 = max_width;
-		dst->y1 = 0;
-		dst->y2 = max_height;
-		return true;
-	}
-
-	dst->x1 = ~0;
-	dst->y1 = ~0;
-	dst->x2 = 0;
-	dst->y2 = 0;
-
-	for (i = 0; i < num_clips; i++) {
-		if (flags & DRM_MODE_FB_DIRTY_ANNOTATE_COPY)
-			i++;
-		dst->x1 = min(dst->x1, src[i].x1);
-		dst->x2 = max(dst->x2, src[i].x2);
-		dst->y1 = min(dst->y1, src[i].y1);
-		dst->y2 = max(dst->y2, src[i].y2);
-	}
-
-	if (dst->x2 > max_width || dst->y2 > max_height ||
-	    dst->x1 >= dst->x2 || dst->y1 >= dst->y2) {
-		DRM_DEBUG_KMS("Illegal clip: x1=%u, x2=%u, y1=%u, y2=%u\n",
-			      dst->x1, dst->x2, dst->y1, dst->y2);
-		dst->x1 = 0;
-		dst->y1 = 0;
-		dst->x2 = max_width;
-		dst->y2 = max_height;
-	}
-
-	return (dst->x2 - dst->x1) == max_width &&
-	       (dst->y2 - dst->y1) == max_height;
-}
-EXPORT_SYMBOL(tinydrm_merge_clips);
-
-int tinydrm_fb_dirty(struct drm_framebuffer *fb,
-		     struct drm_file *file_priv,
-		     unsigned int flags, unsigned int color,
-		     struct drm_clip_rect *clips,
-		     unsigned int num_clips)
-{
-	struct tinydrm_device *tdev = fb->dev->dev_private;
-	struct drm_plane *plane = &tdev->pipe.plane;
-	int ret = 0;
-
-	drm_modeset_lock(&plane->mutex, NULL);
-
-	/* fbdev can flush even when we're not interested */
-	if (plane->state->fb == fb) {
-		mutex_lock(&tdev->dirty_lock);
-		ret = tdev->fb_dirty(fb, file_priv, flags,
-				     color, clips, num_clips);
-		mutex_unlock(&tdev->dirty_lock);
-	}
-
-	drm_modeset_unlock(&plane->mutex);
-
-	if (ret)
-		dev_err_once(fb->dev->dev,
-			     "Failed to update display %d\n", ret);
-
-	return ret;
-}
-EXPORT_SYMBOL(tinydrm_fb_dirty);
 
 /**
  * tinydrm_memcpy - Copy clip buffer
@@ -122,7 +34,7 @@ EXPORT_SYMBOL(tinydrm_fb_dirty);
  * @clip: Clip rectangle area to copy
  */
 void tinydrm_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
-		    struct drm_clip_rect *clip)
+		    struct drm_rect *clip)
 {
 	unsigned int cpp = drm_format_plane_cpp(fb->format->format, 0);
 	unsigned int pitch = fb->pitches[0];
@@ -146,7 +58,7 @@ EXPORT_SYMBOL(tinydrm_memcpy);
  * @clip: Clip rectangle area to copy
  */
 void tinydrm_swab16(u16 *dst, void *vaddr, struct drm_framebuffer *fb,
-		    struct drm_clip_rect *clip)
+		    struct drm_rect *clip)
 {
 	size_t len = (clip->x2 - clip->x1) * sizeof(u16);
 	unsigned int x, y;
@@ -186,7 +98,7 @@ EXPORT_SYMBOL(tinydrm_swab16);
  */
 void tinydrm_xrgb8888_to_rgb565(u16 *dst, void *vaddr,
 				struct drm_framebuffer *fb,
-				struct drm_clip_rect *clip, bool swap)
+				struct drm_rect *clip, bool swap)
 {
 	size_t len = (clip->x2 - clip->x1) * sizeof(u32);
 	unsigned int x, y;
@@ -235,7 +147,7 @@ EXPORT_SYMBOL(tinydrm_xrgb8888_to_rgb565);
  * ITU BT.601 is used for the RGB -> luma (brightness) conversion.
  */
 void tinydrm_xrgb8888_to_gray8(u8 *dst, void *vaddr, struct drm_framebuffer *fb,
-			       struct drm_clip_rect *clip)
+			       struct drm_rect *clip)
 {
 	unsigned int len = (clip->x2 - clip->x1) * sizeof(u32);
 	unsigned int x, y;

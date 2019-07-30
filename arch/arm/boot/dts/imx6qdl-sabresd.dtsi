@@ -64,7 +64,6 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio2 31 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		regulator-always-on;
 	};
 
 	gpio-keys {
@@ -250,6 +249,8 @@
 		pinctrl-0 = <&pinctrl_i2c1_mma8451_int>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <18 IRQ_TYPE_LEVEL_LOW>;
+		vdd-supply = <&reg_sensors>;
+		vddio-supply = <&reg_sensors>;
 	};
 
 	ov5642: camera@3c {
@@ -440,6 +441,8 @@
 		pinctrl-0 = <&pinctrl_i2c3_mag3110_int>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <16 IRQ_TYPE_EDGE_RISING>;
+		vdd-supply = <&reg_sensors>;
+		vddio-supply = <&reg_sensors>;
 	};
 
 	light-sensor@44 {
@@ -449,6 +452,7 @@
 		pinctrl-0 = <&pinctrl_i2c3_isl29023_int>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+		vcc-supply = <&reg_sensors>;
 	};
 };
 

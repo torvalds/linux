@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
-#include "skeleton.dtsi"
-
 #include <dt-bindings/clock/qcom,gcc-apq8084.h>
 #include <dt-bindings/gpio/gpio.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Qualcomm APQ 8084";
 	compatible = "qcom,apq8084";
 	interrupt-parent = <&intc>;
@@ -85,6 +85,11 @@
 				min-residency-us = <2000>;
 			};
 		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
 	};
 
 	firmware {

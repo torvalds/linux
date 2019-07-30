@@ -17,7 +17,6 @@
 #include <linux/seq_file.h>
 
 #include "sysfs.h"
-#include "../kernfs/kernfs-internal.h"
 
 /*
  * Determine ktype->sysfs_ops for the given kernfs_node.  This function
@@ -497,6 +496,7 @@ bool sysfs_remove_file_self(struct kobject *kobj, const struct attribute *attr)
 void sysfs_remove_files(struct kobject *kobj, const struct attribute * const *ptr)
 {
 	int i;
+
 	for (i = 0; ptr[i]; i++)
 		sysfs_remove_file(kobj, ptr[i]);
 }

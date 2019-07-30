@@ -57,7 +57,7 @@ static const struct file_operations r128_driver_fops = {
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG | DRIVER_LEGACY |
-	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
+	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ,
 	.dev_priv_size = sizeof(drm_r128_buf_priv_t),
 	.load = r128_driver_load,
 	.preclose = r128_driver_preclose,

@@ -1365,7 +1365,6 @@ void snd_pmac_suspend(struct snd_pmac *chip)
 	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 	if (chip->suspend)
 		chip->suspend(chip);
-	snd_pcm_suspend_all(chip->pcm);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	snd_pmac_beep_stop(chip);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);

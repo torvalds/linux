@@ -213,7 +213,6 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 		to_sas_host_attrs(shost)->q = q;
 	}
 
-	blk_queue_flag_set(QUEUE_FLAG_BIDI, q);
 	return 0;
 }
 

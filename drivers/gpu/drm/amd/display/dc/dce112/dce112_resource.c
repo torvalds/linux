@@ -76,6 +76,7 @@
 
 #ifndef mmBIOS_SCRATCH_2
 	#define mmBIOS_SCRATCH_2 0x05CB
+	#define mmBIOS_SCRATCH_3 0x05CC
 	#define mmBIOS_SCRATCH_6 0x05CF
 #endif
 
@@ -376,6 +377,7 @@ static const struct dce110_clk_src_mask cs_mask = {
 };
 
 static const struct bios_registers bios_regs = {
+	.BIOS_SCRATCH_3 = mmBIOS_SCRATCH_3,
 	.BIOS_SCRATCH_6 = mmBIOS_SCRATCH_6
 };
 
@@ -607,7 +609,7 @@ struct output_pixel_processor *dce112_opp_create(
 	return &opp->base;
 }
 
-struct aux_engine *dce112_aux_engine_create(
+struct dce_aux *dce112_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -763,7 +765,7 @@ static struct clock_source *find_matching_pll(
 		const struct resource_pool *pool,
 		const struct dc_stream_state *const stream)
 {
-	switch (stream->sink->link->link_enc->transmitter) {
+	switch (stream->link->link_enc->transmitter) {
 	case TRANSMITTER_UNIPHY_A:
 		return pool->clock_sources[DCE112_CLK_SRC_PLL0];
 	case TRANSMITTER_UNIPHY_B:

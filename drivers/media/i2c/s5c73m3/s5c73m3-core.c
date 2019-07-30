@@ -1431,7 +1431,7 @@ err:
 	for (++i; i < S5C73M3_MAX_SUPPLIES; i++) {
 		int r = regulator_enable(state->supplies[i].consumer);
 		if (r < 0)
-			v4l2_err(&state->oif_sd, "Failed to reenable %s: %d\n",
+			v4l2_err(&state->oif_sd, "Failed to re-enable %s: %d\n",
 				 state->supplies[i].supply, r);
 	}
 

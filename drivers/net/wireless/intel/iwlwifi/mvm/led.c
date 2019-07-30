@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017        Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,6 +29,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2017        Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,6 +115,7 @@ int iwl_mvm_leds_init(struct iwl_mvm *mvm)
 	switch (mode) {
 	case IWL_LED_BLINK:
 		IWL_ERR(mvm, "Blink led mode not supported, used default\n");
+		/* fall through */
 	case IWL_LED_DEFAULT:
 	case IWL_LED_RF_STATE:
 		mode = IWL_LED_RF_STATE;

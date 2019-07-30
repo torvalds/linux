@@ -283,12 +283,10 @@ static int dwxgmac2_dma_interrupt(void __iomem *ioaddr,
 		x->normal_irq_n++;
 
 		if (likely(intr_status & XGMAC_RI)) {
-			if (likely(intr_en & XGMAC_RIE)) {
-				x->rx_normal_irq_n++;
-				ret |= handle_rx;
-			}
+			x->rx_normal_irq_n++;
+			ret |= handle_rx;
 		}
-		if (likely(intr_status & XGMAC_TI)) {
+		if (likely(intr_status & (XGMAC_TI | XGMAC_TBU))) {
 			x->tx_normal_irq_n++;
 			ret |= handle_tx;
 		}

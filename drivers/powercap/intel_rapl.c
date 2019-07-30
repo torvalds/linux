@@ -1156,6 +1156,7 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 	INTEL_CPU_FAM6(KABYLAKE_MOBILE,		rapl_defaults_core),
 	INTEL_CPU_FAM6(KABYLAKE_DESKTOP,	rapl_defaults_core),
 	INTEL_CPU_FAM6(CANNONLAKE_MOBILE,	rapl_defaults_core),
+	INTEL_CPU_FAM6(ICELAKE_MOBILE,		rapl_defaults_core),
 
 	INTEL_CPU_FAM6(ATOM_SILVERMONT,		rapl_defaults_byt),
 	INTEL_CPU_FAM6(ATOM_AIRMONT,		rapl_defaults_cht),
@@ -1164,6 +1165,7 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 	INTEL_CPU_FAM6(ATOM_GOLDMONT,		rapl_defaults_core),
 	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS,	rapl_defaults_core),
 	INTEL_CPU_FAM6(ATOM_GOLDMONT_X,		rapl_defaults_core),
+	INTEL_CPU_FAM6(ATOM_TREMONT_X,		rapl_defaults_core),
 
 	INTEL_CPU_FAM6(XEON_PHI_KNL,		rapl_defaults_hsw_server),
 	INTEL_CPU_FAM6(XEON_PHI_KNM,		rapl_defaults_hsw_server),

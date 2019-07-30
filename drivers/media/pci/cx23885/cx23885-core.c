@@ -1996,9 +1996,9 @@ static inline int encoder_on_portc(struct cx23885_dev *dev)
  * and report errors if we think we're tampering with a GPIo that might
  * be assigned to the encoder (and used for the host bus).
  *
- * GPIO  2 thru  0 - On the cx23885 bridge
- * GPIO 18 thru  3 - On the cx23417 host bus interface
- * GPIO 23 thru 19 - On the cx25840 a/v core
+ * GPIO  2 through  0 - On the cx23885 bridge
+ * GPIO 18 through  3 - On the cx23417 host bus interface
+ * GPIO 23 through 19 - On the cx25840 a/v core
  */
 void cx23885_gpio_set(struct cx23885_dev *dev, u32 mask)
 {

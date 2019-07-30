@@ -91,6 +91,11 @@ static void vm_open(struct kvm_vm *vm, int perm, unsigned long type)
 	if (vm->kvm_fd < 0)
 		exit(KSFT_SKIP);
 
+	if (!kvm_check_cap(KVM_CAP_IMMEDIATE_EXIT)) {
+		fprintf(stderr, "immediate_exit not available, skipping test\n");
+		exit(KSFT_SKIP);
+	}
+
 	vm->fd = ioctl(vm->kvm_fd, KVM_CREATE_VM, type);
 	TEST_ASSERT(vm->fd >= 0, "KVM_CREATE_VM ioctl failed, "
 		"rc: %i errno: %i", vm->fd, errno);
@@ -1119,6 +1124,22 @@ int _vcpu_run(struct kvm_vm *vm, uint32_t vcpuid)
 		rc = ioctl(vcpu->fd, KVM_RUN, NULL);
 	} while (rc == -1 && errno == EINTR);
 	return rc;
+}
+
+void vcpu_run_complete_io(struct kvm_vm *vm, uint32_t vcpuid)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	int ret;
+
+	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+
+	vcpu->state->immediate_exit = 1;
+	ret = ioctl(vcpu->fd, KVM_RUN, NULL);
+	vcpu->state->immediate_exit = 0;
+
+	TEST_ASSERT(ret == -1 && errno == EINTR,
+		    "KVM_RUN IOCTL didn't exit immediately, rc: %i, errno: %i",
+		    ret, errno);
 }
 
 /*

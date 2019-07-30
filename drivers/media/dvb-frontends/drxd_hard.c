@@ -1144,6 +1144,8 @@ static int EnableAndResetMB(struct drxd_state *state)
 
 static int InitCC(struct drxd_state *state)
 {
+	int status = 0;
+
 	if (state->osc_clock_freq == 0 ||
 	    state->osc_clock_freq > 20000 ||
 	    (state->osc_clock_freq % 4000) != 0) {
@@ -1151,14 +1153,17 @@ static int InitCC(struct drxd_state *state)
 		return -1;
 	}
 
-	Write16(state, CC_REG_OSC_MODE__A, CC_REG_OSC_MODE_M20, 0);
-	Write16(state, CC_REG_PLL_MODE__A, CC_REG_PLL_MODE_BYPASS_PLL |
-		CC_REG_PLL_MODE_PUMP_CUR_12, 0);
-	Write16(state, CC_REG_REF_DIVIDE__A, state->osc_clock_freq / 4000, 0);
-	Write16(state, CC_REG_PWD_MODE__A, CC_REG_PWD_MODE_DOWN_PLL, 0);
-	Write16(state, CC_REG_UPDATE__A, CC_REG_UPDATE_KEY, 0);
+	status |= Write16(state, CC_REG_OSC_MODE__A, CC_REG_OSC_MODE_M20, 0);
+	status |= Write16(state, CC_REG_PLL_MODE__A,
+				CC_REG_PLL_MODE_BYPASS_PLL |
+				CC_REG_PLL_MODE_PUMP_CUR_12, 0);
+	status |= Write16(state, CC_REG_REF_DIVIDE__A,
+				state->osc_clock_freq / 4000, 0);
+	status |= Write16(state, CC_REG_PWD_MODE__A, CC_REG_PWD_MODE_DOWN_PLL,
+				0);
+	status |= Write16(state, CC_REG_UPDATE__A, CC_REG_UPDATE_KEY, 0);
 
-	return 0;
+	return status;
 }
 
 static int ResetECOD(struct drxd_state *state)
@@ -1312,7 +1317,10 @@ static int SC_SendCommand(struct drxd_state *state, u16 cmd)
 	int status = 0, ret;
 	u16 errCode;
 
-	Write16(state, SC_RA_RAM_CMD__A, cmd, 0);
+	status = Write16(state, SC_RA_RAM_CMD__A, cmd, 0);
+	if (status < 0)
+		return status;
+
 	SC_WaitForReady(state);
 
 	ret = Read16(state, SC_RA_RAM_CMD_ADDR__A, &errCode, 0);
@@ -1339,9 +1347,9 @@ static int SC_ProcStartCommand(struct drxd_state *state,
 			break;
 		}
 		SC_WaitForReady(state);
-		Write16(state, SC_RA_RAM_CMD_ADDR__A, subCmd, 0);
-		Write16(state, SC_RA_RAM_PARAM1__A, param1, 0);
-		Write16(state, SC_RA_RAM_PARAM0__A, param0, 0);
+		status |= Write16(state, SC_RA_RAM_CMD_ADDR__A, subCmd, 0);
+		status |= Write16(state, SC_RA_RAM_PARAM1__A, param1, 0);
+		status |= Write16(state, SC_RA_RAM_PARAM0__A, param0, 0);
 
 		SC_SendCommand(state, SC_RA_RAM_CMD_PROC_START);
 	} while (0);

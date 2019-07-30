@@ -90,7 +90,7 @@ static void rpcrdma_xprt_drain(struct rpcrdma_xprt *r_xprt)
 	/* Flush Receives, then wait for deferred Reply work
 	 * to complete.
 	 */
-	ib_drain_qp(ia->ri_id->qp);
+	ib_drain_rq(ia->ri_id->qp);
 	drain_workqueue(buf->rb_completion_wq);
 
 	/* Deferred Reply processing might have scheduled
@@ -1481,6 +1481,8 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 	if (ep->rep_receive_count > needed)
 		goto out;
 	needed -= ep->rep_receive_count;
+	if (!temp)
+		needed += RPCRDMA_MAX_RECV_BATCH;
 
 	count = 0;
 	wr = NULL;

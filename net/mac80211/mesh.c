@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  * 	       Javier Cardona <javier@cozybit.com>
  *
@@ -1106,7 +1106,8 @@ ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
 	if (baselen > len)
 		return;
 
-	ieee802_11_parse_elems(pos, len - baselen, false, &elems);
+	ieee802_11_parse_elems(pos, len - baselen, false, &elems, mgmt->bssid,
+			       NULL);
 
 	if (!elems.mesh_id)
 		return;
@@ -1170,7 +1171,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	ieee802_11_parse_elems(mgmt->u.probe_resp.variable, len - baselen,
-			       false, &elems);
+			       false, &elems, mgmt->bssid, NULL);
 
 	/* ignore non-mesh or secure / unsecure mismatch */
 	if ((!elems.mesh_id || !elems.mesh_config) ||
@@ -1306,7 +1307,8 @@ static void mesh_rx_csa_frame(struct ieee80211_sub_if_data *sdata,
 	pos = mgmt->u.action.u.chan_switch.variable;
 	baselen = offsetof(struct ieee80211_mgmt,
 			   u.action.u.chan_switch.variable);
-	ieee802_11_parse_elems(pos, len - baselen, true, &elems);
+	ieee802_11_parse_elems(pos, len - baselen, true, &elems,
+			       mgmt->bssid, NULL);
 
 	ifmsh->chsw_ttl = elems.mesh_chansw_params_ie->mesh_ttl;
 	if (!--ifmsh->chsw_ttl)

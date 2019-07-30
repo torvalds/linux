@@ -123,7 +123,7 @@ long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
 				 (u64)len_high << 32 | len_low, advice);
 }
 
-long sys_switch_endian(void)
+SYSCALL_DEFINE0(switch_endian)
 {
 	struct thread_info *ti;
 

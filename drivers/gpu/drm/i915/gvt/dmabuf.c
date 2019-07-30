@@ -29,7 +29,6 @@
  */
 
 #include <linux/dma-buf.h>
-#include <drm/drmP.h>
 #include <linux/vfio.h>
 
 #include "i915_drv.h"
@@ -164,9 +163,7 @@ static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 
 	obj->read_domains = I915_GEM_DOMAIN_GTT;
 	obj->write_domain = 0;
-	if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		unsigned int tiling_mode = 0;
 		unsigned int stride = 0;
 
@@ -212,7 +209,7 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_vgpu_primary_plane_format p;
 	struct intel_vgpu_cursor_plane_format c;
-	int ret;
+	int ret, tile_height = 1;
 
 	if (plane_id == DRM_PLANE_TYPE_PRIMARY) {
 		ret = intel_vgpu_decode_primary_plane(vgpu, &p);
@@ -231,19 +228,19 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 			break;
 		case PLANE_CTL_TILED_X:
 			info->drm_format_mod = I915_FORMAT_MOD_X_TILED;
+			tile_height = 8;
 			break;
 		case PLANE_CTL_TILED_Y:
 			info->drm_format_mod = I915_FORMAT_MOD_Y_TILED;
+			tile_height = 32;
 			break;
 		case PLANE_CTL_TILED_YF:
 			info->drm_format_mod = I915_FORMAT_MOD_Yf_TILED;
+			tile_height = 32;
 			break;
 		default:
 			gvt_vgpu_err("invalid tiling mode: %x\n", p.tiled);
 		}
-
-		info->size = (((p.stride * p.height * p.bpp) / 8) +
-			      (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 	} else if (plane_id == DRM_PLANE_TYPE_CURSOR) {
 		ret = intel_vgpu_decode_cursor_plane(vgpu, &c);
 		if (ret)
@@ -265,14 +262,13 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 			info->x_hot = UINT_MAX;
 			info->y_hot = UINT_MAX;
 		}
-
-		info->size = (((info->stride * c.height * c.bpp) / 8)
-				+ (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 	} else {
 		gvt_vgpu_err("invalid plane id:%d\n", plane_id);
 		return -EINVAL;
 	}
 
+	info->size = (info->stride * roundup(info->height, tile_height)
+		      + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (info->size == 0) {
 		gvt_vgpu_err("fb size is zero\n");
 		return -EINVAL;

@@ -75,7 +75,7 @@ static int smsusb_submit_urb(struct smsusb_device_t *dev,
 			     struct smsusb_urb_t *surb);
 
 /*
- * Completing URB's callback handler - bottom half (proccess context)
+ * Completing URB's callback handler - bottom half (process context)
  * submits the URB prepared on smsusb_onresponse()
  */
 static void do_submit_urb(struct work_struct *work)

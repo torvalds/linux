@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef _DEBUG_H_
@@ -213,12 +202,12 @@ void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 void ath10k_sta_update_rx_duration(struct ath10k *ar,
 				   struct ath10k_fw_stats *stats);
 void ath10k_sta_update_rx_tid_stats(struct ath10k *ar, u8 *first_hdr,
-				    unsigned long int num_msdus,
+				    unsigned long num_msdus,
 				    enum ath10k_pkt_rx_err err,
-				    unsigned long int unchain_cnt,
-				    unsigned long int drop_cnt,
-				    unsigned long int drop_cnt_filter,
-				    unsigned long int queued_msdus);
+				    unsigned long unchain_cnt,
+				    unsigned long drop_cnt,
+				    unsigned long drop_cnt_filter,
+				    unsigned long queued_msdus);
 void ath10k_sta_update_rx_tid_stats_ampdu(struct ath10k *ar,
 					  u16 peer_id, u8 tid,
 					  struct htt_rx_indication_mpdu_range *ranges,
@@ -232,12 +221,12 @@ void ath10k_sta_update_rx_duration(struct ath10k *ar,
 
 static inline
 void ath10k_sta_update_rx_tid_stats(struct ath10k *ar, u8 *first_hdr,
-				    unsigned long int num_msdus,
+				    unsigned long num_msdus,
 				    enum ath10k_pkt_rx_err err,
-				    unsigned long int unchain_cnt,
-				    unsigned long int drop_cnt,
-				    unsigned long int drop_cnt_filter,
-				    unsigned long int queued_msdus)
+				    unsigned long unchain_cnt,
+				    unsigned long drop_cnt,
+				    unsigned long drop_cnt_filter,
+				    unsigned long queued_msdus)
 {
 }
 

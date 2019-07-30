@@ -97,8 +97,8 @@ struct dc_context {
 	struct dc_bios *dc_bios;
 	bool created_bios;
 	struct gpio_service *gpio_service;
-	struct i2caux *i2caux;
 	uint32_t dc_sink_id_count;
+	uint32_t dc_stream_id_count;
 	uint64_t fbc_gpu_addr;
 };
 
@@ -201,6 +201,7 @@ union display_content_support {
 struct dc_panel_patch {
 	unsigned int dppowerup_delay;
 	unsigned int extra_t12_ms;
+	unsigned int extra_delay_backlight_off;
 };
 
 struct dc_edid_caps {

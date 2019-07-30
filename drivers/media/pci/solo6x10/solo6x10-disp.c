@@ -71,7 +71,7 @@ static void solo_vin_config(struct solo_dev *solo_dev)
 	solo_reg_write(solo_dev, SOLO_VI_CH_FORMAT,
 		       SOLO_VI_FD_SEL_MASK(0) | SOLO_VI_PROG_MASK(0));
 
-	/* On 6110, initialize mozaic darkness stength */
+	/* On 6110, initialize mozaic darkness strength */
 	if (solo_dev->type == SOLO_DEV_6010)
 		solo_reg_write(solo_dev, SOLO_VI_FMT_CFG, 0);
 	else
@@ -230,7 +230,7 @@ int solo_set_motion_block(struct solo_dev *solo_dev, u8 ch,
 }
 
 /* First 8k is motion flag (512 bytes * 16). Following that is an 8k+8k
- * threshold and working table for each channel. Atleast that's what the
+ * threshold and working table for each channel. At least that's what the
  * spec says. However, this code (taken from rdk) has some mystery 8k
  * block right after the flag area, before the first thresh table. */
 static void solo_motion_config(struct solo_dev *solo_dev)

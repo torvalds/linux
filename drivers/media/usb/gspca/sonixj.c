@@ -2677,7 +2677,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	 * which is 62 bytes long and is followed by various information
 	 * including statuses and luminosity.
 	 *
-	 * A marker may be splitted on two packets.
+	 * A marker may be split on two packets.
 	 *
 	 * The 6th byte of a marker contains the bits:
 	 *	0x08: USB full

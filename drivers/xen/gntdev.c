@@ -600,7 +600,7 @@ static int gntdev_open(struct inode *inode, struct file *flip)
 	mutex_init(&priv->lock);
 
 #ifdef CONFIG_XEN_GNTDEV_DMABUF
-	priv->dmabuf_priv = gntdev_dmabuf_init();
+	priv->dmabuf_priv = gntdev_dmabuf_init(flip);
 	if (IS_ERR(priv->dmabuf_priv)) {
 		ret = PTR_ERR(priv->dmabuf_priv);
 		kfree(priv);

@@ -160,6 +160,7 @@ extern int ql2xautodetectsfp;
 extern int ql2xenablemsix;
 extern int qla2xuseresexchforels;
 extern int ql2xexlogins;
+extern int ql2xdifbundlinginternalbuffers;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -269,8 +270,8 @@ extern void qla24xx_build_scsi_iocbs(srb_t *, struct cmd_type_7 *,
 	uint16_t, struct req_que *);
 extern int qla2x00_start_scsi(srb_t *sp);
 extern int qla24xx_start_scsi(srb_t *sp);
-int qla2x00_marker(struct scsi_qla_host *, struct req_que *, struct rsp_que *,
-						uint16_t, uint64_t, uint8_t);
+int qla2x00_marker(struct scsi_qla_host *, struct qla_qpair *,
+    uint16_t, uint64_t, uint8_t);
 extern int qla2x00_start_sp(srb_t *);
 extern int qla24xx_dif_start_scsi(srb_t *);
 extern int qla2x00_start_bidir(srb_t *, struct scsi_qla_host *, uint32_t);
@@ -285,7 +286,7 @@ extern int qla24xx_walk_and_build_sglist_no_difb(struct qla_hw_data *, srb_t *,
 extern int qla24xx_walk_and_build_sglist(struct qla_hw_data *, srb_t *,
 	uint32_t *, uint16_t, struct qla_tc_param *);
 extern int qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *, srb_t *,
-	uint32_t *, uint16_t, struct qla_tc_param *);
+	uint32_t *, uint16_t, struct qla_tgt_cmd *);
 extern int qla24xx_get_one_block_sg(uint32_t, struct qla2_sgx *, uint32_t *);
 extern int qla24xx_configure_prot_mode(srb_t *, uint16_t *);
 extern int qla24xx_build_scsi_crc_2_iocbs(srb_t *,
@@ -898,5 +899,6 @@ void qlt_update_host_map(struct scsi_qla_host *, port_id_t);
 void qlt_remove_target_resources(struct qla_hw_data *);
 void qlt_clr_qp_table(struct scsi_qla_host *vha);
 void qlt_set_mode(struct scsi_qla_host *);
+int qla2x00_set_data_rate(scsi_qla_host_t *vha, uint16_t mode);
 
 #endif /* _QLA_GBL_H */

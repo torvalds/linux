@@ -30,6 +30,7 @@
  * Helper functions for common, but complicated tasks.
  *
  */
+#include <linux/bug.h>
 #include <asm/octeon/octeon.h>
 
 #include <asm/octeon/cvmx-config.h>
@@ -43,7 +44,6 @@
 #include <asm/octeon/cvmx-helper-board.h>
 
 #include <asm/octeon/cvmx-pip-defs.h>
-#include <asm/octeon/cvmx-smix-defs.h>
 #include <asm/octeon/cvmx-asxx-defs.h>
 
 /* Port count per interface */
@@ -315,22 +315,6 @@ cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int interface)
 			return CVMX_HELPER_INTERFACE_MODE_LOOP;
 		else
 			return CVMX_HELPER_INTERFACE_MODE_DISABLED;
-	}
-
-	if (interface == 0
-	    && cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CN3005_EVB_HS5
-	    && cvmx_sysinfo_get()->board_rev_major == 1) {
-		/*
-		 * Lie about interface type of CN3005 board.  This
-		 * board has a switch on port 1 like the other
-		 * evaluation boards, but it is connected over RGMII
-		 * instead of GMII.  Report GMII mode so that the
-		 * speed is forced to 1 Gbit full duplex.  Other than
-		 * some initial configuration (which does not use the
-		 * output of this function) there is no difference in
-		 * setup between GMII and RGMII modes.
-		 */
-		return CVMX_HELPER_INTERFACE_MODE_GMII;
 	}
 
 	/* Interface 1 is always disabled on CN31XX and CN30XX */
@@ -778,7 +762,6 @@ static int __cvmx_helper_packet_hardware_enable(int interface)
 		result = __cvmx_helper_loop_enable(interface);
 		break;
 	}
-	result |= __cvmx_helper_board_hardware_enable(interface);
 	return result;
 }
 
@@ -1026,7 +1009,6 @@ int cvmx_helper_initialize_packet_io_global(void)
 	int result = 0;
 	int interface;
 	union cvmx_l2c_cfg l2c_cfg;
-	union cvmx_smix_en smix_en;
 	const int num_interfaces = cvmx_helper_get_number_of_interfaces();
 
 	/*
@@ -1045,24 +1027,6 @@ int cvmx_helper_initialize_packet_io_global(void)
 	l2c_cfg.s.lrf_arb_mode = 0;
 	l2c_cfg.s.rfb_arb_mode = 0;
 	cvmx_write_csr(CVMX_L2C_CFG, l2c_cfg.u64);
-
-	/* Make sure SMI/MDIO is enabled so we can query PHYs */
-	smix_en.u64 = cvmx_read_csr(CVMX_SMIX_EN(0));
-	if (!smix_en.s.en) {
-		smix_en.s.en = 1;
-		cvmx_write_csr(CVMX_SMIX_EN(0), smix_en.u64);
-	}
-
-	/* Newer chips actually have two SMI/MDIO interfaces */
-	if (!OCTEON_IS_MODEL(OCTEON_CN3XXX) &&
-	    !OCTEON_IS_MODEL(OCTEON_CN58XX) &&
-	    !OCTEON_IS_MODEL(OCTEON_CN50XX)) {
-		smix_en.u64 = cvmx_read_csr(CVMX_SMIX_EN(1));
-		if (!smix_en.s.en) {
-			smix_en.s.en = 1;
-			cvmx_write_csr(CVMX_SMIX_EN(1), smix_en.u64);
-		}
-	}
 
 	cvmx_pko_initialize_global();
 	for (interface = 0; interface < num_interfaces; interface++) {
@@ -1136,6 +1100,7 @@ cvmx_helper_link_info_t cvmx_helper_link_get(int ipd_port)
 		if (index == 0)
 			result = __cvmx_helper_rgmii_link_get(ipd_port);
 		else {
+			WARN(1, "Using deprecated link status - please update your DT");
 			result.s.full_duplex = 1;
 			result.s.link_up = 1;
 			result.s.speed = 1000;

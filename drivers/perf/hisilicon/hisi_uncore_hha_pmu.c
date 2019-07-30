@@ -407,6 +407,7 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 		.stop		= hisi_uncore_pmu_stop,
 		.read		= hisi_uncore_pmu_read,
 		.attr_groups	= hisi_hha_pmu_attr_groups,
+		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 	};
 
 	ret = perf_pmu_register(&hha_pmu->pmu, name, -1);

@@ -67,7 +67,7 @@ static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
 		pcpu_set_page_chunk(nth_page(pages, i), chunk);
 
 	chunk->data = pages;
-	chunk->base_addr = page_address(pages) - pcpu_group_offsets[0];
+	chunk->base_addr = page_address(pages);
 
 	spin_lock_irqsave(&pcpu_lock, flags);
 	pcpu_chunk_populated(chunk, 0, nr_pages, false);

@@ -25,7 +25,10 @@ struct seq_file;
 struct vm_area_struct;
 struct super_block;
 struct file_system_type;
+struct poll_table_struct;
+struct fs_context;
 
+struct kernfs_fs_context;
 struct kernfs_open_node;
 struct kernfs_iattrs;
 
@@ -167,7 +170,6 @@ struct kernfs_node {
  * kernfs_node parameter.
  */
 struct kernfs_syscall_ops {
-	int (*remount_fs)(struct kernfs_root *root, int *flags, char *data);
 	int (*show_options)(struct seq_file *sf, struct kernfs_root *root);
 
 	int (*mkdir)(struct kernfs_node *parent, const char *name,
@@ -261,11 +263,26 @@ struct kernfs_ops {
 	ssize_t (*write)(struct kernfs_open_file *of, char *buf, size_t bytes,
 			 loff_t off);
 
+	__poll_t (*poll)(struct kernfs_open_file *of,
+			 struct poll_table_struct *pt);
+
 	int (*mmap)(struct kernfs_open_file *of, struct vm_area_struct *vma);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lock_class_key	lockdep_key;
 #endif
+};
+
+/*
+ * The kernfs superblock creation/mount parameter context.
+ */
+struct kernfs_fs_context {
+	struct kernfs_root	*root;		/* Root of the hierarchy being mounted */
+	void			*ns_tag;	/* Namespace tag of the mount (or NULL) */
+	unsigned long		magic;		/* File system specific magic number */
+
+	/* The following are set/used by kernfs_mount() */
+	bool			new_sb_created;	/* Set to T if we allocated a new sb */
 };
 
 #ifdef CONFIG_KERNFS
@@ -350,14 +367,14 @@ int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
 int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 		     const char *new_name, const void *new_ns);
 int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr);
+__poll_t kernfs_generic_poll(struct kernfs_open_file *of,
+			     struct poll_table_struct *pt);
 void kernfs_notify(struct kernfs_node *kn);
 
 const void *kernfs_super_ns(struct super_block *sb);
-struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
-			       struct kernfs_root *root, unsigned long magic,
-			       bool *new_sb_created, const void *ns);
+int kernfs_get_tree(struct fs_context *fc);
+void kernfs_free_fs_context(struct fs_context *fc);
 void kernfs_kill_sb(struct super_block *sb);
-struct super_block *kernfs_pin_sb(struct kernfs_root *root, const void *ns);
 
 void kernfs_init(void);
 
@@ -459,11 +476,10 @@ static inline void kernfs_notify(struct kernfs_node *kn) { }
 static inline const void *kernfs_super_ns(struct super_block *sb)
 { return NULL; }
 
-static inline struct dentry *
-kernfs_mount_ns(struct file_system_type *fs_type, int flags,
-		struct kernfs_root *root, unsigned long magic,
-		bool *new_sb_created, const void *ns)
-{ return ERR_PTR(-ENOSYS); }
+static inline int kernfs_get_tree(struct fs_context *fc)
+{ return -ENOSYS; }
+
+static inline void kernfs_free_fs_context(struct fs_context *fc) { }
 
 static inline void kernfs_kill_sb(struct super_block *sb) { }
 
@@ -544,15 +560,6 @@ static inline int kernfs_rename(struct kernfs_node *kn,
 				const char *new_name)
 {
 	return kernfs_rename_ns(kn, new_parent, new_name, NULL);
-}
-
-static inline struct dentry *
-kernfs_mount(struct file_system_type *fs_type, int flags,
-		struct kernfs_root *root, unsigned long magic,
-		bool *new_sb_created)
-{
-	return kernfs_mount_ns(fs_type, flags, root,
-				magic, new_sb_created, NULL);
 }
 
 #endif	/* __LINUX_KERNFS_H */

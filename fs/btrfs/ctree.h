@@ -934,7 +934,8 @@ struct btrfs_fs_info {
 
 	spinlock_t delayed_iput_lock;
 	struct list_head delayed_iputs;
-	struct mutex cleaner_delayed_iput_mutex;
+	atomic_t nr_delayed_iputs;
+	wait_queue_head_t delayed_iputs_wait;
 
 	/* this protects tree_mod_seq_list */
 	spinlock_t tree_mod_seq_lock;
@@ -1074,10 +1075,13 @@ struct btrfs_fs_info {
 	atomic_t scrubs_paused;
 	atomic_t scrub_cancel_req;
 	wait_queue_head_t scrub_pause_wait;
-	int scrub_workers_refcnt;
+	/*
+	 * The worker pointers are NULL iff the refcount is 0, ie. scrub is not
+	 * running.
+	 */
+	refcount_t scrub_workers_refcnt;
 	struct btrfs_workqueue *scrub_workers;
 	struct btrfs_workqueue *scrub_wr_completion_workers;
-	struct btrfs_workqueue *scrub_nocow_workers;
 	struct btrfs_workqueue *scrub_parity_workers;
 
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
@@ -1199,6 +1203,26 @@ enum {
 	BTRFS_ROOT_MULTI_LOG_TASKS,
 	BTRFS_ROOT_DIRTY,
 	BTRFS_ROOT_DELETING,
+
+	/*
+	 * Reloc tree is orphan, only kept here for qgroup delayed subtree scan
+	 *
+	 * Set for the subvolume tree owning the reloc tree.
+	 */
+	BTRFS_ROOT_DEAD_RELOC_TREE,
+	/* Mark dead root stored on device whose cleanup needs to be resumed */
+	BTRFS_ROOT_DEAD_TREE,
+};
+
+/*
+ * Record swapped tree blocks of a subvolume tree for delayed subtree trace
+ * code. For detail check comment in fs/btrfs/qgroup.c.
+ */
+struct btrfs_qgroup_swapped_blocks {
+	spinlock_t lock;
+	/* RM_EMPTY_ROOT() of above blocks[] */
+	bool swapped;
+	struct rb_root blocks[BTRFS_MAX_LEVEL];
 };
 
 /*
@@ -1312,6 +1336,14 @@ struct btrfs_root {
 	u64 nr_ordered_extents;
 
 	/*
+	 * Not empty if this subvolume root has gone through tree block swap
+	 * (relocation)
+	 *
+	 * Will be used by reloc_control::dirty_subvol_roots.
+	 */
+	struct list_head reloc_dirty_list;
+
+	/*
 	 * Number of currently running SEND ioctls to prevent
 	 * manipulation with the read-only status via SUBVOL_SETFLAGS
 	 */
@@ -1327,6 +1359,9 @@ struct btrfs_root {
 
 	/* Number of active swapfiles */
 	atomic_t nr_swapfiles;
+
+	/* Record pairs of swapped blocks for qgroup */
+	struct btrfs_qgroup_swapped_blocks swapped_blocks;
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	u64 alloc_bytenr;
@@ -2775,7 +2810,8 @@ enum btrfs_flush_state {
 	FLUSH_DELALLOC		=	5,
 	FLUSH_DELALLOC_WAIT	=	6,
 	ALLOC_CHUNK		=	7,
-	COMMIT_TRANS		=	8,
+	ALLOC_CHUNK_FORCE	=	8,
+	COMMIT_TRANS		=	9,
 };
 
 int btrfs_alloc_data_chunk_ondemand(struct btrfs_inode *inode, u64 bytes);
@@ -3181,8 +3217,7 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 
 /* inode.c */
 struct extent_map *btrfs_get_extent_fiemap(struct btrfs_inode *inode,
-		struct page *page, size_t pg_offset, u64 start,
-		u64 len, int create);
+					   u64 start, u64 len);
 noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			      u64 *orig_start, u64 *orig_block_len,
 			      u64 *ram_bytes);
@@ -3254,6 +3289,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root);
 int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size);
 void btrfs_add_delayed_iput(struct inode *inode);
 void btrfs_run_delayed_iputs(struct btrfs_fs_info *fs_info);
+int btrfs_wait_on_delayed_iputs(struct btrfs_fs_info *fs_info);
 int btrfs_prealloc_file_range(struct inode *inode, int mode,
 			      u64 start, u64 num_bytes, u64 min_size,
 			      loff_t actual_len, u64 *alloc_hint);
@@ -3261,7 +3297,7 @@ int btrfs_prealloc_file_range_trans(struct inode *inode,
 				    struct btrfs_trans_handle *trans, int mode,
 				    u64 start, u64 num_bytes, u64 min_size,
 				    loff_t actual_len, u64 *alloc_hint);
-int btrfs_run_delalloc_range(void *private_data, struct page *locked_page,
+int btrfs_run_delalloc_range(struct inode *inode, struct page *locked_page,
 		u64 start, u64 end, int *page_started, unsigned long *nr_written,
 		struct writeback_control *wbc);
 int btrfs_writepage_cow_fixup(struct page *page, u64 start, u64 end);
@@ -3415,31 +3451,17 @@ void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
 #define btrfs_debug(fs_info, fmt, args...)				\
-do {									\
-        DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);         	\
-        if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT))  	\
-		btrfs_printk(fs_info, KERN_DEBUG fmt, ##args);		\
-} while (0)
-#define btrfs_debug_in_rcu(fs_info, fmt, args...) 			\
-do {									\
-        DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt); 	        \
-        if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT)) 		\
-		btrfs_printk_in_rcu(fs_info, KERN_DEBUG fmt, ##args);	\
-} while (0)
+	_dynamic_func_call_no_desc(fmt, btrfs_printk,			\
+				   fs_info, KERN_DEBUG fmt, ##args)
+#define btrfs_debug_in_rcu(fs_info, fmt, args...)			\
+	_dynamic_func_call_no_desc(fmt, btrfs_printk_in_rcu,		\
+				   fs_info, KERN_DEBUG fmt, ##args)
 #define btrfs_debug_rl_in_rcu(fs_info, fmt, args...)			\
-do {									\
-        DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);         	\
-        if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT))  	\
-		btrfs_printk_rl_in_rcu(fs_info, KERN_DEBUG fmt,		\
-				       ##args);\
-} while (0)
-#define btrfs_debug_rl(fs_info, fmt, args...) 				\
-do {									\
-        DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);         	\
-        if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT))  	\
-		btrfs_printk_ratelimited(fs_info, KERN_DEBUG fmt,	\
-					 ##args);			\
-} while (0)
+	_dynamic_func_call_no_desc(fmt, btrfs_printk_rl_in_rcu,		\
+				   fs_info, KERN_DEBUG fmt, ##args)
+#define btrfs_debug_rl(fs_info, fmt, args...)				\
+	_dynamic_func_call_no_desc(fmt, btrfs_printk_ratelimited,	\
+				   fs_info, KERN_DEBUG fmt, ##args)
 #elif defined(DEBUG)
 #define btrfs_debug(fs_info, fmt, args...) \
 	btrfs_printk(fs_info, KERN_DEBUG fmt, ##args)
@@ -3490,21 +3512,18 @@ do {								\
 	rcu_read_unlock();					\
 } while (0)
 
-#ifdef CONFIG_BTRFS_ASSERT
-
 __cold
 static inline void assfail(const char *expr, const char *file, int line)
 {
-	pr_err("assertion failed: %s, file: %s, line: %d\n",
-	       expr, file, line);
-	BUG();
+	if (IS_ENABLED(CONFIG_BTRFS_ASSERT)) {
+		pr_err("assertion failed: %s, file: %s, line: %d\n",
+		       expr, file, line);
+		BUG();
+	}
 }
 
 #define ASSERT(expr)	\
 	(likely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
-#else
-#define ASSERT(expr)	((void)0)
-#endif
 
 /*
  * Use that for functions that are conditionally exported for sanity tests but

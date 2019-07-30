@@ -20,7 +20,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/gpio.h>
 
 #include "spi-dw.h"
 
@@ -54,41 +53,41 @@ static ssize_t dw_spi_show_regs(struct file *file, char __user *user_buf,
 	if (!buf)
 		return 0;
 
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"%s registers:\n", dev_name(&dws->master->dev));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"=================================\n");
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"CTRL0: \t\t0x%08x\n", dw_readl(dws, DW_SPI_CTRL0));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"CTRL1: \t\t0x%08x\n", dw_readl(dws, DW_SPI_CTRL1));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"SSIENR: \t0x%08x\n", dw_readl(dws, DW_SPI_SSIENR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"SER: \t\t0x%08x\n", dw_readl(dws, DW_SPI_SER));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"BAUDR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_BAUDR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"TXFTLR: \t0x%08x\n", dw_readl(dws, DW_SPI_TXFLTR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"RXFTLR: \t0x%08x\n", dw_readl(dws, DW_SPI_RXFLTR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"TXFLR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_TXFLR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"RXFLR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_RXFLR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"SR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_SR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"IMR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_IMR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"ISR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_ISR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"DMACR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_DMACR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"DMATDLR: \t0x%08x\n", dw_readl(dws, DW_SPI_DMATDLR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"DMARDLR: \t0x%08x\n", dw_readl(dws, DW_SPI_DMARDLR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"=================================\n");
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
@@ -138,11 +137,10 @@ void dw_spi_set_cs(struct spi_device *spi, bool enable)
 	struct dw_spi *dws = spi_controller_get_devdata(spi->controller);
 	struct chip_data *chip = spi_get_ctldata(spi);
 
-	/* Chip select logic is inverted from spi_set_cs() */
 	if (chip && chip->cs_control)
-		chip->cs_control(!enable);
+		chip->cs_control(enable);
 
-	if (!enable)
+	if (enable)
 		dw_writel(dws, DW_SPI_SER, BIT(spi->chip_select));
 	else if (dws->cs_override)
 		dw_writel(dws, DW_SPI_SER, 0);
@@ -317,7 +315,8 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 	/* Default SPI mode is SCPOL = 0, SCPH = 0 */
 	cr0 = (transfer->bits_per_word - 1)
 		| (chip->type << SPI_FRF_OFFSET)
-		| (spi->mode << SPI_MODE_OFFSET)
+		| ((((spi->mode & SPI_CPOL) ? 1 : 0) << SPI_SCOL_OFFSET) |
+			(((spi->mode & SPI_CPHA) ? 1 : 0) << SPI_SCPH_OFFSET))
 		| (chip->tmode << SPI_TMOD_OFFSET);
 
 	/*
@@ -397,7 +396,6 @@ static int dw_spi_setup(struct spi_device *spi)
 {
 	struct dw_spi_chip *chip_info = NULL;
 	struct chip_data *chip;
-	int ret;
 
 	/* Only alloc on first setup */
 	chip = spi_get_ctldata(spi);
@@ -424,13 +422,6 @@ static int dw_spi_setup(struct spi_device *spi)
 	}
 
 	chip->tmode = SPI_TMOD_TR;
-
-	if (gpio_is_valid(spi->cs_gpio)) {
-		ret = gpio_direction_output(spi->cs_gpio,
-				!(spi->mode & SPI_CS_HIGH));
-		if (ret)
-			return ret;
-	}
 
 	return 0;
 }
@@ -496,6 +487,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 		goto err_free_master;
 	}
 
+	master->use_gpio_descriptors = true;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP;
 	master->bits_per_word_mask =  SPI_BPW_RANGE_MASK(4, 16);
 	master->bus_num = dws->bus_num;

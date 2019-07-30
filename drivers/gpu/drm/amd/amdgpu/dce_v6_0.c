@@ -1423,6 +1423,7 @@ static void dce_v6_0_audio_set_avi_infoframe(struct drm_encoder *encoder,
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 	struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
+	struct drm_connector *connector = amdgpu_get_connector_for_encoder(encoder);
 	struct hdmi_avi_infoframe frame;
 	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
 	uint8_t *payload = buffer + 3;
@@ -1430,7 +1431,7 @@ static void dce_v6_0_audio_set_avi_infoframe(struct drm_encoder *encoder,
 	ssize_t err;
 	u32 tmp;
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, connector, mode);
 	if (err < 0) {
 		DRM_ERROR("failed to setup AVI infoframe: %zd\n", err);
 		return;
@@ -2979,7 +2980,7 @@ static int dce_v6_0_pageflip_irq(struct amdgpu_device *adev,
 				 struct amdgpu_irq_src *source,
 				 struct amdgpu_iv_entry *entry)
 {
-		unsigned long flags;
+	unsigned long flags;
 	unsigned crtc_id;
 	struct amdgpu_crtc *amdgpu_crtc;
 	struct amdgpu_flip_work *works;

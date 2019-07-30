@@ -6,9 +6,9 @@
  * Licensed under GPLv2 or later
  */
 
-/include/ "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "wm,wm8850";
 
 	cpus {
@@ -20,6 +20,11 @@
 			compatible = "arm,cortex-a9";
 			reg = <0x0>;
 		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
 	};
 
 	aliases {

@@ -43,13 +43,13 @@ int qedr_iw_query_gid(struct ib_device *ibdev, u8 port,
 
 int qedr_query_pkey(struct ib_device *, u8 port, u16 index, u16 *pkey);
 
-struct ib_ucontext *qedr_alloc_ucontext(struct ib_device *, struct ib_udata *);
-int qedr_dealloc_ucontext(struct ib_ucontext *);
+int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);
+void qedr_dealloc_ucontext(struct ib_ucontext *uctx);
 
 int qedr_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
-struct ib_pd *qedr_alloc_pd(struct ib_device *,
-			    struct ib_ucontext *, struct ib_udata *);
-int qedr_dealloc_pd(struct ib_pd *pd);
+int qedr_alloc_pd(struct ib_pd *pd, struct ib_ucontext *uctx,
+		  struct ib_udata *udata);
+void qedr_dealloc_pd(struct ib_pd *pd);
 
 struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
 			     const struct ib_cq_init_attr *attr,

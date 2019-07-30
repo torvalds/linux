@@ -308,7 +308,7 @@ static void lme2510_int_response(struct urb *lme_urb)
 
 		switch (ibuf[0]) {
 		case 0xaa:
-			debug_data_snipet(1, "INT Remote data snipet", ibuf);
+			debug_data_snipet(1, "INT Remote data snippet", ibuf);
 			if (!adap_to_d(adap)->rc_dev)
 				break;
 
@@ -358,13 +358,13 @@ static void lme2510_int_response(struct urb *lme_urb)
 
 			lme2510_update_stats(adap);
 
-			debug_data_snipet(5, "INT Remote data snipet in", ibuf);
+			debug_data_snipet(5, "INT Remote data snippet in", ibuf);
 		break;
 		case 0xcc:
-			debug_data_snipet(1, "INT Control data snipet", ibuf);
+			debug_data_snipet(1, "INT Control data snippet", ibuf);
 			break;
 		default:
-			debug_data_snipet(1, "INT Unknown data snipet", ibuf);
+			debug_data_snipet(1, "INT Unknown data snippet", ibuf);
 		break;
 		}
 	}

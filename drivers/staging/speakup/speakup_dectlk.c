@@ -260,7 +260,8 @@ static void do_catch_up(struct spk_synth *synth)
 				synth->io_ops->synth_out(synth, PROCSPEECH);
 			if (time_after_eq(jiffies, jiff_max)) {
 				if (!in_escape)
-					synth->io_ops->synth_out(synth, PROCSPEECH);
+					synth->io_ops->synth_out(synth,
+								 PROCSPEECH);
 				spin_lock_irqsave(&speakup_info.spinlock,
 						  flags);
 				jiffy_delta_val = jiffy_delta->u.n.value;

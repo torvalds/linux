@@ -3103,7 +3103,7 @@ static int skl_init_algo_data(struct device *dev, struct soc_bytes_ext *be,
 	ac->size = dfw_ac->max;
 
 	if (ac->max) {
-		ac->params = (char *) devm_kzalloc(dev, ac->max, GFP_KERNEL);
+		ac->params = devm_kzalloc(dev, ac->max, GFP_KERNEL);
 		if (!ac->params)
 			return -ENOMEM;
 

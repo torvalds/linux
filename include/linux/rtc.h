@@ -67,7 +67,7 @@ extern struct class *rtc_class;
  *
  * The (current) exceptions are mostly filesystem hooks:
  *   - the proc() hook for procfs
- *   - non-ioctl() chardev hooks:  open(), release(), read_callback()
+ *   - non-ioctl() chardev hooks:  open(), release()
  *
  * REVISIT those periodic irq calls *do* have ops_lock when they're
  * issued through ioctl() ...
@@ -81,7 +81,6 @@ struct rtc_class_ops {
 	int (*proc)(struct device *, struct seq_file *);
 	int (*set_mmss64)(struct device *, time64_t secs);
 	int (*set_mmss)(struct device *, unsigned long secs);
-	int (*read_callback)(struct device *, int data);
 	int (*alarm_irq_enable)(struct device *, unsigned int enabled);
 	int (*read_offset)(struct device *, long *offset);
 	int (*set_offset)(struct device *, long offset);

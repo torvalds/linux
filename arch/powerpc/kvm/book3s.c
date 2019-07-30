@@ -39,6 +39,7 @@
 #include "book3s.h"
 #include "trace.h"
 
+#define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
 /* #define EXIT_DEBUG */
@@ -71,6 +72,8 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "pthru_all",       VCPU_STAT(pthru_all) },
 	{ "pthru_host",      VCPU_STAT(pthru_host) },
 	{ "pthru_bad_aff",   VCPU_STAT(pthru_bad_aff) },
+	{ "largepages_2M",    VM_STAT(num_2M_pages) },
+	{ "largepages_1G",    VM_STAT(num_1G_pages) },
 	{ NULL }
 };
 
@@ -191,6 +194,13 @@ void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec)
 #endif
 }
 EXPORT_SYMBOL_GPL(kvmppc_book3s_queue_irqprio);
+
+void kvmppc_core_queue_machine_check(struct kvm_vcpu *vcpu, ulong flags)
+{
+	/* might as well deliver this straight away */
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_MACHINE_CHECK, flags);
+}
+EXPORT_SYMBOL_GPL(kvmppc_core_queue_machine_check);
 
 void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong flags)
 {
@@ -635,7 +645,7 @@ int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id,
 				r = -ENXIO;
 				break;
 			}
-			if (xive_enabled())
+			if (xics_on_xive())
 				*val = get_reg_val(id, kvmppc_xive_get_icp(vcpu));
 			else
 				*val = get_reg_val(id, kvmppc_xics_get_icp(vcpu));
@@ -708,7 +718,7 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id,
 				r = -ENXIO;
 				break;
 			}
-			if (xive_enabled())
+			if (xics_on_xive())
 				r = kvmppc_xive_set_icp(vcpu, set_reg_val(id, *val));
 			else
 				r = kvmppc_xics_set_icp(vcpu, set_reg_val(id, *val));
@@ -984,7 +994,7 @@ int kvmppc_book3s_hcall_implemented(struct kvm *kvm, unsigned long hcall)
 int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 		bool line_status)
 {
-	if (xive_enabled())
+	if (xics_on_xive())
 		return kvmppc_xive_set_irq(kvm, irq_source_id, irq, level,
 					   line_status);
 	else
@@ -1037,7 +1047,7 @@ static int kvmppc_book3s_init(void)
 
 #ifdef CONFIG_KVM_XICS
 #ifdef CONFIG_KVM_XIVE
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		kvmppc_xive_init_module();
 		kvm_register_device_ops(&kvm_xive_ops, KVM_DEV_TYPE_XICS);
 	} else
@@ -1050,7 +1060,7 @@ static int kvmppc_book3s_init(void)
 static void kvmppc_book3s_exit(void)
 {
 #ifdef CONFIG_KVM_XICS
-	if (xive_enabled())
+	if (xics_on_xive())
 		kvmppc_xive_exit_module();
 #endif
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER

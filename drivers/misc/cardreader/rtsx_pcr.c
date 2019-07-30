@@ -703,7 +703,10 @@ EXPORT_SYMBOL_GPL(rtsx_pci_card_pull_ctl_disable);
 
 static void rtsx_pci_enable_bus_int(struct rtsx_pcr *pcr)
 {
-	pcr->bier = TRANS_OK_INT_EN | TRANS_FAIL_INT_EN | SD_INT_EN;
+	struct rtsx_hw_param *hw_param = &pcr->hw_param;
+
+	pcr->bier = TRANS_OK_INT_EN | TRANS_FAIL_INT_EN | SD_INT_EN
+		| hw_param->interrupt_en;
 
 	if (pcr->num_slots > 1)
 		pcr->bier |= MS_INT_EN;
@@ -969,8 +972,19 @@ static void rtsx_pci_card_detect(struct work_struct *work)
 
 static void rtsx_pci_process_ocp(struct rtsx_pcr *pcr)
 {
-	if (pcr->ops->process_ocp)
+	if (pcr->ops->process_ocp) {
 		pcr->ops->process_ocp(pcr);
+	} else {
+		if (!pcr->option.ocp_en)
+			return;
+		rtsx_pci_get_ocpstat(pcr, &pcr->ocp_stat);
+		if (pcr->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) {
+			rtsx_pci_card_power_off(pcr, RTSX_SD_CARD);
+			rtsx_pci_write_register(pcr, CARD_OE, SD_OUTPUT_EN, 0);
+			rtsx_pci_clear_ocpstat(pcr);
+			pcr->ocp_stat = 0;
+		}
+	}
 }
 
 static int rtsx_pci_process_ocp_interrupt(struct rtsx_pcr *pcr)
@@ -1039,7 +1053,7 @@ static irqreturn_t rtsx_pci_isr(int irq, void *dev_id)
 		}
 	}
 
-	if (pcr->card_inserted || pcr->card_removed)
+	if ((pcr->card_inserted || pcr->card_removed) && !(int_reg & SD_OC_INT))
 		schedule_delayed_work(&pcr->carddet_work,
 				msecs_to_jiffies(200));
 
@@ -1144,10 +1158,12 @@ void rtsx_pci_enable_ocp(struct rtsx_pcr *pcr)
 {
 	u8 val = SD_OCP_INT_EN | SD_DETECT_EN;
 
-	if (pcr->ops->enable_ocp)
+	if (pcr->ops->enable_ocp) {
 		pcr->ops->enable_ocp(pcr);
-	else
+	} else {
+		rtsx_pci_write_register(pcr, FPDCTL, OC_POWER_DOWN, 0);
 		rtsx_pci_write_register(pcr, REG_OCPCTL, 0xFF, val);
+	}
 
 }
 
@@ -1155,10 +1171,13 @@ void rtsx_pci_disable_ocp(struct rtsx_pcr *pcr)
 {
 	u8 mask = SD_OCP_INT_EN | SD_DETECT_EN;
 
-	if (pcr->ops->disable_ocp)
+	if (pcr->ops->disable_ocp) {
 		pcr->ops->disable_ocp(pcr);
-	else
+	} else {
 		rtsx_pci_write_register(pcr, REG_OCPCTL, mask, 0);
+		rtsx_pci_write_register(pcr, FPDCTL, OC_POWER_DOWN,
+				OC_POWER_DOWN);
+	}
 }
 
 void rtsx_pci_init_ocp(struct rtsx_pcr *pcr)
@@ -1169,7 +1188,7 @@ void rtsx_pci_init_ocp(struct rtsx_pcr *pcr)
 		struct rtsx_cr_option *option = &(pcr->option);
 
 		if (option->ocp_en) {
-			u8 val = option->sd_400mA_ocp_thd;
+			u8 val = option->sd_800mA_ocp_thd;
 
 			rtsx_pci_write_register(pcr, FPDCTL, OC_POWER_DOWN, 0);
 			rtsx_pci_write_register(pcr, REG_OCPPARA1,
@@ -1204,6 +1223,7 @@ void rtsx_pci_clear_ocpstat(struct rtsx_pcr *pcr)
 		u8 val = SD_OCP_INT_CLR | SD_OC_CLR;
 
 		rtsx_pci_write_register(pcr, REG_OCPCTL, mask, val);
+		udelay(100);
 		rtsx_pci_write_register(pcr, REG_OCPCTL, mask, 0);
 	}
 }
@@ -1213,7 +1233,6 @@ int rtsx_sd_power_off_card3v3(struct rtsx_pcr *pcr)
 	rtsx_pci_write_register(pcr, CARD_CLK_EN, SD_CLK_EN |
 		MS_CLK_EN | SD40_CLK_EN, 0);
 	rtsx_pci_write_register(pcr, CARD_OE, SD_OUTPUT_EN, 0);
-
 	rtsx_pci_card_power_off(pcr, RTSX_SD_CARD);
 
 	msleep(50);
@@ -1312,6 +1331,9 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	default:
 		break;
 	}
+
+	/*init ocp*/
+	rtsx_pci_init_ocp(pcr);
 
 	/* Enable clk_request_n to enable clock power management */
 	rtsx_pci_write_config_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL + 1, 1);

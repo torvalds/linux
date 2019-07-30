@@ -33,6 +33,11 @@ Each test case has required data:
 
 id:           A unique alphanumeric value to identify a particular test case
 name:         Descriptive name that explains the command under test
+skip:         A completely optional key, if the corresponding value is "yes"
+              then tdc will not execute the test case in question. However,
+              this test case will still appear in the results output but
+              marked as skipped. This key can be placed anywhere inside the
+              test case at the top level.
 category:     A list of single-word descriptions covering what the command
               under test is testing. Example: filter, actions, u32, gact, etc.
 setup:        The list of commands required to ensure the command under test

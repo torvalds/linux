@@ -1637,7 +1637,7 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 		reg = ioread32(priv->base + FTGMAC100_OFFSET_REVR);
 		reg &= ~FTGMAC100_REVR_NEW_MDIO_INTERFACE;
 		iowrite32(reg, priv->base + FTGMAC100_OFFSET_REVR);
-	};
+	}
 
 	/* Get PHY mode from device-tree */
 	if (np) {

@@ -248,7 +248,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 
 		/* All handling should be done by __videobuf_mmap_mapper() */
 		if (!mem->vaddr) {
-			dev_err(q->dev, "memory is not alloced/mmapped.\n");
+			dev_err(q->dev, "memory is not allocated/mmapped.\n");
 			return -EINVAL;
 		}
 		break;

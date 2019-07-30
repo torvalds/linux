@@ -13,6 +13,7 @@
 #include <linux/bcd.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/rtc.h>
 
@@ -73,10 +74,50 @@
 static struct i2c_driver isl1208_driver;
 
 /* ISL1208 various variants */
-enum {
+enum isl1208_id {
 	TYPE_ISL1208 = 0,
+	TYPE_ISL1209,
 	TYPE_ISL1218,
 	TYPE_ISL1219,
+	ISL_LAST_ID
+};
+
+/* Chip capabilities table */
+static const struct isl1208_config {
+	const char	name[8];
+	unsigned int	nvmem_length;
+	unsigned	has_tamper:1;
+	unsigned	has_timestamp:1;
+} isl1208_configs[] = {
+	[TYPE_ISL1208] = { "isl1208", 2, false, false },
+	[TYPE_ISL1209] = { "isl1209", 2, true,  false },
+	[TYPE_ISL1218] = { "isl1218", 8, false, false },
+	[TYPE_ISL1219] = { "isl1219", 2, true,  true },
+};
+
+static const struct i2c_device_id isl1208_id[] = {
+	{ "isl1208", TYPE_ISL1208 },
+	{ "isl1209", TYPE_ISL1209 },
+	{ "isl1218", TYPE_ISL1218 },
+	{ "isl1219", TYPE_ISL1219 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, isl1208_id);
+
+static const struct of_device_id isl1208_of_match[] = {
+	{ .compatible = "isil,isl1208", .data = &isl1208_configs[TYPE_ISL1208] },
+	{ .compatible = "isil,isl1209", .data = &isl1208_configs[TYPE_ISL1209] },
+	{ .compatible = "isil,isl1218", .data = &isl1208_configs[TYPE_ISL1218] },
+	{ .compatible = "isil,isl1219", .data = &isl1208_configs[TYPE_ISL1219] },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, isl1208_of_match);
+
+/* Device state */
+struct isl1208_state {
+	struct nvmem_config nvmem_config;
+	struct rtc_device *rtc;
+	const struct isl1208_config *config;
 };
 
 /* block read */
@@ -161,6 +202,7 @@ isl1208_i2c_get_atr(struct i2c_client *client)
 	return atr;
 }
 
+/* returns adjustment value + 100 */
 static int
 isl1208_i2c_get_dtr(struct i2c_client *client)
 {
@@ -171,7 +213,7 @@ isl1208_i2c_get_dtr(struct i2c_client *client)
 	/* dtr encodes adjustments of {-60,-40,-20,0,20,40,60} ppm */
 	dtr = ((dtr & 0x3) * 20) * (dtr & (1 << 2) ? -1 : 1);
 
-	return dtr;
+	return dtr + 100;
 }
 
 static int
@@ -248,8 +290,8 @@ isl1208_rtc_proc(struct device *dev, struct seq_file *seq)
 		   (sr & ISL1208_REG_SR_RTCF) ? "bad" : "okay");
 
 	dtr = isl1208_i2c_get_dtr(client);
-	if (dtr >= 0 - 1)
-		seq_printf(seq, "digital_trim\t: %d ppm\n", dtr);
+	if (dtr >= 0)
+		seq_printf(seq, "digital_trim\t: %d ppm\n", dtr - 100);
 
 	atr = isl1208_i2c_get_atr(client);
 	if (atr >= 0)
@@ -556,7 +598,7 @@ isl1208_rtc_interrupt(int irq, void *data)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	struct i2c_client *client = data;
-	struct rtc_device *rtc = i2c_get_clientdata(client);
+	struct isl1208_state *isl1208 = i2c_get_clientdata(client);
 	int handled = 0, sr, err;
 
 	/*
@@ -579,7 +621,7 @@ isl1208_rtc_interrupt(int irq, void *data)
 	if (sr & ISL1208_REG_SR_ALM) {
 		dev_dbg(&client->dev, "alarm!\n");
 
-		rtc_update_irq(rtc, 1, RTC_IRQF | RTC_AF);
+		rtc_update_irq(isl1208->rtc, 1, RTC_IRQF | RTC_AF);
 
 		/* Clear the alarm */
 		sr &= ~ISL1208_REG_SR_ALM;
@@ -596,11 +638,12 @@ isl1208_rtc_interrupt(int irq, void *data)
 			return err;
 	}
 
-	if (sr & ISL1208_REG_SR_EVT) {
-		sysfs_notify(&rtc->dev.kobj, NULL,
-			     dev_attr_timestamp0.attr.name);
+	if (isl1208->config->has_tamper && (sr & ISL1208_REG_SR_EVT)) {
 		dev_warn(&client->dev, "event detected");
 		handled = 1;
+		if (isl1208->config->has_timestamp)
+			sysfs_notify(&isl1208->rtc->dev.kobj, NULL,
+				     dev_attr_timestamp0.attr.name);
 	}
 
 	return handled ? IRQ_HANDLED : IRQ_NONE;
@@ -637,7 +680,7 @@ isl1208_sysfs_show_dtrim(struct device *dev,
 	if (dtr < 0)
 		return dtr;
 
-	return sprintf(buf, "%d ppm\n", dtr);
+	return sprintf(buf, "%d ppm\n", dtr - 100);
 }
 
 static DEVICE_ATTR(dtrim, S_IRUGO, isl1208_sysfs_show_dtrim, NULL);
@@ -700,6 +743,46 @@ static const struct attribute_group isl1219_rtc_sysfs_files = {
 	.attrs	= isl1219_rtc_attrs,
 };
 
+static int isl1208_nvmem_read(void *priv, unsigned int off, void *buf,
+			      size_t count)
+{
+	struct isl1208_state *isl1208 = priv;
+	struct i2c_client *client = to_i2c_client(isl1208->rtc->dev.parent);
+	int ret;
+
+	/* nvmem sanitizes offset/count for us, but count==0 is possible */
+	if (!count)
+		return count;
+	ret = isl1208_i2c_read_regs(client, ISL1208_REG_USR1 + off, buf,
+				    count);
+	return ret == 0 ? count : ret;
+}
+
+static int isl1208_nvmem_write(void *priv, unsigned int off, void *buf,
+			       size_t count)
+{
+	struct isl1208_state *isl1208 = priv;
+	struct i2c_client *client = to_i2c_client(isl1208->rtc->dev.parent);
+	int ret;
+
+	/* nvmem sanitizes off/count for us, but count==0 is possible */
+	if (!count)
+		return count;
+	ret = isl1208_i2c_set_regs(client, ISL1208_REG_USR1 + off, buf,
+				   count);
+
+	return ret == 0 ? count : ret;
+}
+
+static const struct nvmem_config isl1208_nvmem_config = {
+	.name = "isl1208_nvram",
+	.word_size = 1,
+	.stride = 1,
+	/* .size from chip specific config */
+	.reg_read = isl1208_nvmem_read,
+	.reg_write = isl1208_nvmem_write,
+};
+
 static int isl1208_setup_irq(struct i2c_client *client, int irq)
 {
 	int rc = devm_request_threaded_irq(&client->dev, irq, NULL,
@@ -722,7 +805,7 @@ static int
 isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int rc = 0;
-	struct rtc_device *rtc;
+	struct isl1208_state *isl1208;
 	int evdet_irq = -1;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
@@ -731,13 +814,33 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (isl1208_i2c_validate_client(client) < 0)
 		return -ENODEV;
 
-	rtc = devm_rtc_allocate_device(&client->dev);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
+	/* Allocate driver state, point i2c client data to it */
+	isl1208 = devm_kzalloc(&client->dev, sizeof(*isl1208), GFP_KERNEL);
+	if (!isl1208)
+		return -ENOMEM;
+	i2c_set_clientdata(client, isl1208);
 
-	rtc->ops = &isl1208_rtc_ops;
+	/* Determine which chip we have */
+	if (client->dev.of_node) {
+		isl1208->config = of_device_get_match_data(&client->dev);
+		if (!isl1208->config)
+			return -ENODEV;
+	} else {
+		if (id->driver_data >= ISL_LAST_ID)
+			return -ENODEV;
+		isl1208->config = &isl1208_configs[id->driver_data];
+	}
 
-	i2c_set_clientdata(client, rtc);
+	isl1208->rtc = devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(isl1208->rtc))
+		return PTR_ERR(isl1208->rtc);
+
+	isl1208->rtc->ops = &isl1208_rtc_ops;
+
+	/* Setup nvmem configuration in driver state struct */
+	isl1208->nvmem_config = isl1208_nvmem_config;
+	isl1208->nvmem_config.size = isl1208->config->nvmem_length;
+	isl1208->nvmem_config.priv = isl1208;
 
 	rc = isl1208_i2c_get_sr(client);
 	if (rc < 0) {
@@ -749,7 +852,7 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		dev_warn(&client->dev, "rtc power failure detected, "
 			 "please set clock.\n");
 
-	if (id->driver_data == TYPE_ISL1219) {
+	if (isl1208->config->has_tamper) {
 		struct device_node *np = client->dev.of_node;
 		u32 evienb;
 
@@ -770,13 +873,15 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			dev_err(&client->dev, "could not enable tamper detection\n");
 			return rc;
 		}
-		rc = rtc_add_group(rtc, &isl1219_rtc_sysfs_files);
-		if (rc)
-			return rc;
 		evdet_irq = of_irq_get_byname(np, "evdet");
 	}
+	if (isl1208->config->has_timestamp) {
+		rc = rtc_add_group(isl1208->rtc, &isl1219_rtc_sysfs_files);
+		if (rc)
+			return rc;
+	}
 
-	rc = rtc_add_group(rtc, &isl1208_rtc_sysfs_files);
+	rc = rtc_add_group(isl1208->rtc, &isl1208_rtc_sysfs_files);
 	if (rc)
 		return rc;
 
@@ -790,24 +895,12 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (rc)
 		return rc;
 
-	return rtc_register_device(rtc);
+	rc = rtc_nvmem_register(isl1208->rtc, &isl1208->nvmem_config);
+	if (rc)
+		return rc;
+
+	return rtc_register_device(isl1208->rtc);
 }
-
-static const struct i2c_device_id isl1208_id[] = {
-	{ "isl1208", TYPE_ISL1208 },
-	{ "isl1218", TYPE_ISL1218 },
-	{ "isl1219", TYPE_ISL1219 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, isl1208_id);
-
-static const struct of_device_id isl1208_of_match[] = {
-	{ .compatible = "isil,isl1208" },
-	{ .compatible = "isil,isl1218" },
-	{ .compatible = "isil,isl1219" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, isl1208_of_match);
 
 static struct i2c_driver isl1208_driver = {
 	.driver = {

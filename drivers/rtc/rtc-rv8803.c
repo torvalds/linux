@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * RTC driver for the Micro Crystal RV8803
  *
  * Copyright (C) 2015 Micro Crystal SA
- *
- * Alexandre Belloni <alexandre.belloni@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Alexandre Belloni <alexandre.belloni@bootlin.com>
  *
  */
 
@@ -235,9 +231,6 @@ static int rv8803_set_time(struct device *dev, struct rtc_time *tm)
 	struct rv8803_data *rv8803 = dev_get_drvdata(dev);
 	u8 date[7];
 	int ctrl, flags, ret;
-
-	if ((tm->tm_year < 100) || (tm->tm_year > 199))
-		return -EINVAL;
 
 	ctrl = rv8803_read_reg(rv8803->client, RV8803_CTRL);
 	if (ctrl < 0)
@@ -602,6 +595,8 @@ static int rv8803_probe(struct i2c_client *client,
 
 	rv8803->rtc->ops = &rv8803_rtc_ops;
 	rv8803->rtc->nvram_old_abi = true;
+	rv8803->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rv8803->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	err = rtc_register_device(rv8803->rtc);
 	if (err)
 		return err;
@@ -648,6 +643,6 @@ static struct i2c_driver rv8803_driver = {
 };
 module_i2c_driver(rv8803_driver);
 
-MODULE_AUTHOR("Alexandre Belloni <alexandre.belloni@free-electrons.com>");
+MODULE_AUTHOR("Alexandre Belloni <alexandre.belloni@bootlin.com>");
 MODULE_DESCRIPTION("Micro Crystal RV8803 RTC driver");
 MODULE_LICENSE("GPL v2");

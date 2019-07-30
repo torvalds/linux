@@ -501,7 +501,7 @@ static int dpaa_get_ts_info(struct net_device *net_dev,
 	struct device_node *mac_node = dev->of_node;
 	struct device_node *fman_node = NULL, *ptp_node = NULL;
 	struct platform_device *ptp_dev = NULL;
-	struct qoriq_ptp *ptp = NULL;
+	struct ptp_qoriq *ptp = NULL;
 
 	info->phc_index = -1;
 

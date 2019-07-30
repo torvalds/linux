@@ -62,6 +62,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x40000000 0x40000000>;
 	};
 
@@ -116,6 +117,11 @@
 
 		states = <3300000 0
 			  1800000 1>;
+	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&saradc 8>;
 	};
 
 	vcc_1v8: regulator-vcc-1v8 {

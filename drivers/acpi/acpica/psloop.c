@@ -3,7 +3,7 @@
  *
  * Module Name: psloop - Main AML parse loop
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -32,10 +32,6 @@ static acpi_status
 acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		      u8 * aml_op_start, union acpi_parse_object *op);
 
-static void
-acpi_ps_link_module_code(union acpi_parse_object *parent_op,
-			 u8 *aml_start, u32 aml_length, acpi_owner_id owner_id);
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ps_get_arguments
@@ -56,7 +52,6 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 {
 	acpi_status status = AE_OK;
 	union acpi_parse_object *arg = NULL;
-	const struct acpi_opcode_info *op_info;
 
 	ACPI_FUNCTION_TRACE_PTR(ps_get_arguments, walk_state);
 
@@ -136,96 +131,6 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 				  walk_state->arg_count,
 				  walk_state->pass_number));
 
-		/*
-		 * This case handles the legacy option that groups all module-level
-		 * code blocks together and defers execution until all of the tables
-		 * are loaded. Execute all of these blocks at this time.
-		 * Execute any module-level code that was detected during the table
-		 * load phase.
-		 *
-		 * Note: this option is deprecated and will be eliminated in the
-		 * future. Use of this option can cause problems with AML code that
-		 * depends upon in-order immediate execution of module-level code.
-		 */
-		if (!acpi_gbl_execute_tables_as_methods &&
-		    (walk_state->pass_number <= ACPI_IMODE_LOAD_PASS2) &&
-		    ((walk_state->parse_flags & ACPI_PARSE_DISASSEMBLE) == 0)) {
-			/*
-			 * We want to skip If/Else/While constructs during Pass1 because we
-			 * want to actually conditionally execute the code during Pass2.
-			 *
-			 * Except for disassembly, where we always want to walk the
-			 * If/Else/While packages
-			 */
-			switch (op->common.aml_opcode) {
-			case AML_IF_OP:
-			case AML_ELSE_OP:
-			case AML_WHILE_OP:
-				/*
-				 * Currently supported module-level opcodes are:
-				 * IF/ELSE/WHILE. These appear to be the most common,
-				 * and easiest to support since they open an AML
-				 * package.
-				 */
-				if (walk_state->pass_number ==
-				    ACPI_IMODE_LOAD_PASS1) {
-					acpi_ps_link_module_code(op->common.
-								 parent,
-								 aml_op_start,
-								 (u32)
-								 (walk_state->
-								 parser_state.
-								 pkg_end -
-								 aml_op_start),
-								 walk_state->
-								 owner_id);
-				}
-
-				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-						  "Pass1: Skipping an If/Else/While body\n"));
-
-				/* Skip body of if/else/while in pass 1 */
-
-				walk_state->parser_state.aml =
-				    walk_state->parser_state.pkg_end;
-				walk_state->arg_count = 0;
-				break;
-
-			default:
-				/*
-				 * Check for an unsupported executable opcode at module
-				 * level. We must be in PASS1, the parent must be a SCOPE,
-				 * The opcode class must be EXECUTE, and the opcode must
-				 * not be an argument to another opcode.
-				 */
-				if ((walk_state->pass_number ==
-				     ACPI_IMODE_LOAD_PASS1)
-				    && (op->common.parent->common.aml_opcode ==
-					AML_SCOPE_OP)) {
-					op_info =
-					    acpi_ps_get_opcode_info(op->common.
-								    aml_opcode);
-					if ((op_info->class ==
-					     AML_CLASS_EXECUTE) && (!arg)) {
-						ACPI_WARNING((AE_INFO,
-							      "Unsupported module-level executable opcode "
-							      "0x%.2X at table offset 0x%.4X",
-							      op->common.
-							      aml_opcode,
-							      (u32)
-							      (ACPI_PTR_DIFF
-							       (aml_op_start,
-								walk_state->
-								parser_state.
-								aml_start) +
-							       sizeof(struct
-								      acpi_table_header))));
-					}
-				}
-				break;
-			}
-		}
-
 		/* Special processing for certain opcodes */
 
 		switch (op->common.aml_opcode) {
@@ -298,104 +203,6 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 	}
 
 	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ps_link_module_code
- *
- * PARAMETERS:  parent_op           - Parent parser op
- *              aml_start           - Pointer to the AML
- *              aml_length          - Length of executable AML
- *              owner_id            - owner_id of module level code
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Wrap the module-level code with a method object and link the
- *              object to the global list. Note, the mutex field of the method
- *              object is used to link multiple module-level code objects.
- *
- * NOTE: In this legacy option, each block of detected executable AML
- * code that is outside of any control method is wrapped with a temporary
- * control method object and placed on a global list below.
- *
- * This function executes the module-level code for all tables only after
- * all of the tables have been loaded. It is a legacy option and is
- * not compatible with other ACPI implementations. See acpi_ns_load_table.
- *
- * This function will be removed when the legacy option is removed.
- *
- ******************************************************************************/
-
-static void
-acpi_ps_link_module_code(union acpi_parse_object *parent_op,
-			 u8 *aml_start, u32 aml_length, acpi_owner_id owner_id)
-{
-	union acpi_operand_object *prev;
-	union acpi_operand_object *next;
-	union acpi_operand_object *method_obj;
-	struct acpi_namespace_node *parent_node;
-
-	ACPI_FUNCTION_TRACE(ps_link_module_code);
-
-	/* Get the tail of the list */
-
-	prev = next = acpi_gbl_module_code_list;
-	while (next) {
-		prev = next;
-		next = next->method.mutex;
-	}
-
-	/*
-	 * Insert the module level code into the list. Merge it if it is
-	 * adjacent to the previous element.
-	 */
-	if (!prev ||
-	    ((prev->method.aml_start + prev->method.aml_length) != aml_start)) {
-
-		/* Create, initialize, and link a new temporary method object */
-
-		method_obj = acpi_ut_create_internal_object(ACPI_TYPE_METHOD);
-		if (!method_obj) {
-			return_VOID;
-		}
-
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "Create/Link new code block: %p\n",
-				  method_obj));
-
-		if (parent_op->common.node) {
-			parent_node = parent_op->common.node;
-		} else {
-			parent_node = acpi_gbl_root_node;
-		}
-
-		method_obj->method.aml_start = aml_start;
-		method_obj->method.aml_length = aml_length;
-		method_obj->method.owner_id = owner_id;
-		method_obj->method.info_flags |= ACPI_METHOD_MODULE_LEVEL;
-
-		/*
-		 * Save the parent node in next_object. This is cheating, but we
-		 * don't want to expand the method object.
-		 */
-		method_obj->method.next_object =
-		    ACPI_CAST_PTR(union acpi_operand_object, parent_node);
-
-		if (!prev) {
-			acpi_gbl_module_code_list = method_obj;
-		} else {
-			prev->method.mutex = method_obj;
-		}
-	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "Appending to existing code block: %p\n",
-				  prev));
-
-		prev->method.aml_length += aml_length;
-	}
-
-	return_VOID;
 }
 
 /*******************************************************************************

@@ -164,7 +164,7 @@ Types and flags used to represent the media graph elements
 
     *  -  ``MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV``
        -  Video pixel encoding converter. An entity capable of pixel
-	  enconding conversion must have at least one sink pad and one
+	  encoding conversion must have at least one sink pad and one
 	  source pad, and convert the encoding of pixels received on
 	  its sink pad(s) to a different encoding output on its source
 	  pad(s). Pixel encoding conversion includes but isn't limited

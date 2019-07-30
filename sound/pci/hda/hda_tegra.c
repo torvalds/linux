@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/string.h>
+#include <linux/pm_runtime.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -218,7 +219,6 @@ disable_hda:
 	return rc;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static void hda_tegra_disable_clocks(struct hda_tegra *data)
 {
 	clk_disable_unprepare(data->hda2hdmi_clk);
@@ -229,43 +229,72 @@ static void hda_tegra_disable_clocks(struct hda_tegra *data)
 /*
  * power management
  */
-static int hda_tegra_suspend(struct device *dev)
+static int __maybe_unused hda_tegra_suspend(struct device *dev)
+{
+	struct snd_card *card = dev_get_drvdata(dev);
+	int rc;
+
+	rc = pm_runtime_force_suspend(dev);
+	if (rc < 0)
+		return rc;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+
+	return 0;
+}
+
+static int __maybe_unused hda_tegra_resume(struct device *dev)
+{
+	struct snd_card *card = dev_get_drvdata(dev);
+	int rc;
+
+	rc = pm_runtime_force_resume(dev);
+	if (rc < 0)
+		return rc;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+
+	return 0;
+}
+
+static int __maybe_unused hda_tegra_runtime_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
 	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
 	struct hdac_bus *bus = azx_bus(chip);
 
-	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-
-	azx_stop_chip(chip);
-	synchronize_irq(bus->irq);
-	azx_enter_link_reset(chip);
+	if (chip && chip->running) {
+		azx_stop_chip(chip);
+		synchronize_irq(bus->irq);
+		azx_enter_link_reset(chip);
+	}
 	hda_tegra_disable_clocks(hda);
 
 	return 0;
 }
 
-static int hda_tegra_resume(struct device *dev)
+static int __maybe_unused hda_tegra_runtime_resume(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
 	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
+	int rc;
 
-	hda_tegra_enable_clocks(hda);
-
-	hda_tegra_init(hda);
-
-	azx_init_chip(chip, 1);
-
-	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	rc = hda_tegra_enable_clocks(hda);
+	if (rc != 0)
+		return rc;
+	if (chip && chip->running) {
+		hda_tegra_init(hda);
+		azx_init_chip(chip, 1);
+	}
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops hda_tegra_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(hda_tegra_suspend, hda_tegra_resume)
+	SET_RUNTIME_PM_OPS(hda_tegra_runtime_suspend,
+			   hda_tegra_runtime_resume,
+			   NULL)
 };
 
 static int hda_tegra_dev_disconnect(struct snd_device *device)
@@ -303,7 +332,23 @@ static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 	struct hdac_bus *bus = azx_bus(chip);
 	struct device *dev = hda->dev;
 	struct resource *res;
-	int err;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	hda->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(hda->regs))
+		return PTR_ERR(hda->regs);
+
+	bus->remap_addr = hda->regs + HDA_BAR0;
+	bus->addr = res->start + HDA_BAR0;
+
+	hda_tegra_init(hda);
+
+	return 0;
+}
+
+static int hda_tegra_init_clk(struct hda_tegra *hda)
+{
+	struct device *dev = hda->dev;
 
 	hda->hda_clk = devm_clk_get(dev, "hda");
 	if (IS_ERR(hda->hda_clk)) {
@@ -321,22 +366,6 @@ static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 		return PTR_ERR(hda->hda2hdmi_clk);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hda->regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(hda->regs))
-		return PTR_ERR(hda->regs);
-
-	bus->remap_addr = hda->regs + HDA_BAR0;
-	bus->addr = res->start + HDA_BAR0;
-
-	err = hda_tegra_enable_clocks(hda);
-	if (err) {
-		dev_err(dev, "failed to get enable clocks\n");
-		return err;
-	}
-
-	hda_tegra_init(hda);
-
 	return 0;
 }
 
@@ -347,8 +376,8 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	int err;
 	unsigned short gcap;
 	int irq_id = platform_get_irq(pdev, 0);
-	const char *sname;
-	struct device_node *root;
+	const char *sname, *drv_name = "tegra-hda";
+	struct device_node *np = pdev->dev.of_node;
 
 	err = hda_tegra_init_chip(chip, pdev);
 	if (err)
@@ -407,17 +436,11 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	}
 
 	/* driver name */
-	strcpy(card->driver, "tegra-hda");
-
-	root = of_find_node_by_path("/");
-	sname = of_get_property(root, "compatible", NULL);
-	of_node_put(root);
-	if (!sname) {
-		dev_err(card->dev,
-			"failed to get compatible property from root node\n");
-		return -ENODEV;
-	}
+	strncpy(card->driver, drv_name, sizeof(card->driver));
 	/* shortname for card */
+	sname = of_get_property(np, "nvidia,model", NULL);
+	if (!sname)
+		sname = drv_name;
 	if (strlen(sname) > sizeof(card->shortname))
 		dev_info(card->dev, "truncating shortname for card\n");
 	strncpy(card->shortname, sname, sizeof(card->shortname));
@@ -487,7 +510,8 @@ MODULE_DEVICE_TABLE(of, hda_tegra_match);
 
 static int hda_tegra_probe(struct platform_device *pdev)
 {
-	const unsigned int driver_flags = AZX_DCAPS_CORBRP_SELF_CLEAR;
+	const unsigned int driver_flags = AZX_DCAPS_CORBRP_SELF_CLEAR |
+					  AZX_DCAPS_PM_RUNTIME;
 	struct snd_card *card;
 	struct azx *chip;
 	struct hda_tegra *hda;
@@ -506,12 +530,21 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	err = hda_tegra_init_clk(hda);
+	if (err < 0)
+		goto out_free;
+
 	err = hda_tegra_create(card, driver_flags, hda);
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;
 
 	dev_set_drvdata(&pdev->dev, card);
+
+	pm_runtime_enable(hda->dev);
+	if (!azx_has_pm_runtime(chip))
+		pm_runtime_forbid(hda->dev);
+
 	schedule_work(&hda->probe_work);
 
 	return 0;
@@ -528,6 +561,7 @@ static void hda_tegra_probe_work(struct work_struct *work)
 	struct platform_device *pdev = to_platform_device(hda->dev);
 	int err;
 
+	pm_runtime_get_sync(hda->dev);
 	err = hda_tegra_first_init(chip, pdev);
 	if (err < 0)
 		goto out_free;
@@ -549,12 +583,18 @@ static void hda_tegra_probe_work(struct work_struct *work)
 	snd_hda_set_power_save(&chip->bus, power_save * 1000);
 
  out_free:
+	pm_runtime_put(hda->dev);
 	return; /* no error return from async probe */
 }
 
 static int hda_tegra_remove(struct platform_device *pdev)
 {
-	return snd_card_free(dev_get_drvdata(&pdev->dev));
+	int ret;
+
+	ret = snd_card_free(dev_get_drvdata(&pdev->dev));
+	pm_runtime_disable(&pdev->dev);
+
+	return ret;
 }
 
 static void hda_tegra_shutdown(struct platform_device *pdev)

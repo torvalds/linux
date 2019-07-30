@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ9477 series register access through SPI
  *
- * Copyright (C) 2017-2018 Microchip Technology Inc.
+ * Copyright (C) 2017-2019 Microchip Technology Inc.
  */
 
 #include <asm/unaligned.h>
@@ -155,6 +155,8 @@ static void ksz9477_spi_shutdown(struct spi_device *spi)
 static const struct of_device_id ksz9477_dt_ids[] = {
 	{ .compatible = "microchip,ksz9477" },
 	{ .compatible = "microchip,ksz9897" },
+	{ .compatible = "microchip,ksz9893" },
+	{ .compatible = "microchip,ksz9563" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ksz9477_dt_ids);

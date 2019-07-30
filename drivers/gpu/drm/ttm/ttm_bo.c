@@ -49,9 +49,8 @@ static void ttm_bo_global_kobj_release(struct kobject *kobj);
  * ttm_global_mutex - protecting the global BO state
  */
 DEFINE_MUTEX(ttm_global_mutex);
-struct ttm_bo_global ttm_bo_glob = {
-	.use_count = 0
-};
+unsigned ttm_bo_glob_use_count;
+struct ttm_bo_global ttm_bo_glob;
 
 static struct attribute ttm_bo_count = {
 	.name = "bo_count",
@@ -198,19 +197,22 @@ static void ttm_bo_ref_bug(struct kref *list_kref)
 
 void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 {
+	struct ttm_bo_device *bdev = bo->bdev;
+	bool notify = false;
+
 	if (!list_empty(&bo->swap)) {
 		list_del_init(&bo->swap);
 		kref_put(&bo->list_kref, ttm_bo_ref_bug);
+		notify = true;
 	}
 	if (!list_empty(&bo->lru)) {
 		list_del_init(&bo->lru);
 		kref_put(&bo->list_kref, ttm_bo_ref_bug);
+		notify = true;
 	}
 
-	/*
-	 * TODO: Add a driver hook to delete from
-	 * driver-specific LRU's here.
-	 */
+	if (notify && bdev->driver->del_from_lru_notify)
+		bdev->driver->del_from_lru_notify(bo);
 }
 
 void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo)
@@ -676,15 +678,6 @@ void ttm_bo_put(struct ttm_buffer_object *bo)
 }
 EXPORT_SYMBOL(ttm_bo_put);
 
-void ttm_bo_unref(struct ttm_buffer_object **p_bo)
-{
-	struct ttm_buffer_object *bo = *p_bo;
-
-	*p_bo = NULL;
-	ttm_bo_put(bo);
-}
-EXPORT_SYMBOL(ttm_bo_unref);
-
 int ttm_bo_lock_delayed_workqueue(struct ttm_bo_device *bdev)
 {
 	return cancel_delayed_work_sync(&bdev->wq);
@@ -882,8 +875,10 @@ static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
 		reservation_object_add_shared_fence(bo->resv, fence);
 
 		ret = reservation_object_reserve_shared(bo->resv, 1);
-		if (unlikely(ret))
+		if (unlikely(ret)) {
+			dma_fence_put(fence);
 			return ret;
+		}
 
 		dma_fence_put(bo->moving);
 		bo->moving = fence;
@@ -1535,12 +1530,13 @@ static void ttm_bo_global_release(void)
 	struct ttm_bo_global *glob = &ttm_bo_glob;
 
 	mutex_lock(&ttm_global_mutex);
-	if (--glob->use_count > 0)
+	if (--ttm_bo_glob_use_count > 0)
 		goto out;
 
 	kobject_del(&glob->kobj);
 	kobject_put(&glob->kobj);
 	ttm_mem_global_release(&ttm_mem_glob);
+	memset(glob, 0, sizeof(*glob));
 out:
 	mutex_unlock(&ttm_global_mutex);
 }
@@ -1552,7 +1548,7 @@ static int ttm_bo_global_init(void)
 	unsigned i;
 
 	mutex_lock(&ttm_global_mutex);
-	if (++glob->use_count > 1)
+	if (++ttm_bo_glob_use_count > 1)
 		goto out;
 
 	ret = ttm_mem_global_init(&ttm_mem_glob);

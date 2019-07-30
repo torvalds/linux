@@ -4,7 +4,7 @@
 #include <uapi/linux/bpf.h>
 #include "bpf_helpers.h"
 
-SEC("kprobe/blk_start_request")
+SEC("kprobe/blk_mq_start_request")
 int bpf_prog1(struct pt_regs *ctx)
 {
 	return 0;

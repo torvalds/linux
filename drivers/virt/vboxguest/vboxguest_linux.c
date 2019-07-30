@@ -5,6 +5,7 @@
  * Copyright (C) 2006-2016 Oracle Corporation
  */
 
+#include <linux/cred.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
@@ -28,6 +29,23 @@ static DEFINE_MUTEX(vbg_gdev_mutex);
 /** Global vbg_gdev pointer used by vbg_get/put_gdev. */
 static struct vbg_dev *vbg_gdev;
 
+static u32 vbg_misc_device_requestor(struct inode *inode)
+{
+	u32 requestor = VMMDEV_REQUESTOR_USERMODE |
+			VMMDEV_REQUESTOR_CON_DONT_KNOW |
+			VMMDEV_REQUESTOR_TRUST_NOT_GIVEN;
+
+	if (from_kuid(current_user_ns(), current->cred->uid) == 0)
+		requestor |= VMMDEV_REQUESTOR_USR_ROOT;
+	else
+		requestor |= VMMDEV_REQUESTOR_USR_USER;
+
+	if (in_egroup_p(inode->i_gid))
+		requestor |= VMMDEV_REQUESTOR_GRP_VBOX;
+
+	return requestor;
+}
+
 static int vbg_misc_device_open(struct inode *inode, struct file *filp)
 {
 	struct vbg_session *session;
@@ -36,7 +54,7 @@ static int vbg_misc_device_open(struct inode *inode, struct file *filp)
 	/* misc_open sets filp->private_data to our misc device */
 	gdev = container_of(filp->private_data, struct vbg_dev, misc_device);
 
-	session = vbg_core_open_session(gdev, false);
+	session = vbg_core_open_session(gdev, vbg_misc_device_requestor(inode));
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
@@ -53,7 +71,8 @@ static int vbg_misc_device_user_open(struct inode *inode, struct file *filp)
 	gdev = container_of(filp->private_data, struct vbg_dev,
 			    misc_device_user);
 
-	session = vbg_core_open_session(gdev, false);
+	session = vbg_core_open_session(gdev, vbg_misc_device_requestor(inode) |
+					      VMMDEV_REQUESTOR_USER_DEVICE);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
@@ -115,7 +134,8 @@ static long vbg_misc_device_ioctl(struct file *filp, unsigned int req,
 			 req == VBG_IOCTL_VMMDEV_REQUEST_BIG;
 
 	if (is_vmmdev_req)
-		buf = vbg_req_alloc(size, VBG_IOCTL_HDR_TYPE_DEFAULT);
+		buf = vbg_req_alloc(size, VBG_IOCTL_HDR_TYPE_DEFAULT,
+				    session->requestor);
 	else
 		buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)

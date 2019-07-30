@@ -607,12 +607,12 @@ static struct spi_board_info spi_board_info[] __initdata = {
 },
 };
 
-static struct pxa2xx_spi_master pxa_ssp1_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp1_master_info = {
 	.num_chipselect	= 1,
 	.enable_dma	= 1,
 };
 
-static struct pxa2xx_spi_master pxa_ssp2_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp2_master_info = {
 	.num_chipselect	= 1,
 };
 

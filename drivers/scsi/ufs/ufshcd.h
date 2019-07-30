@@ -546,7 +546,7 @@ struct ufs_hba {
 	int nutrs;
 	int nutmrs;
 	u32 ufs_version;
-	struct ufs_hba_variant_ops *vops;
+	const struct ufs_hba_variant_ops *vops;
 	void *priv;
 	unsigned int irq;
 	bool is_irq_enabled;

@@ -267,6 +267,7 @@ static void rds_tcp_tc_info(struct socket *rds_sock, unsigned int len,
 		tsinfo.last_sent_nxt = tc->t_last_sent_nxt;
 		tsinfo.last_expected_una = tc->t_last_expected_una;
 		tsinfo.last_seen_una = tc->t_last_seen_una;
+		tsinfo.tos = tc->t_cpath->cp_conn->c_tos;
 
 		rds_info_copy(iter, &tsinfo, sizeof(tsinfo));
 	}
@@ -452,6 +453,12 @@ static void rds_tcp_destroy_conns(void)
 
 static void rds_tcp_exit(void);
 
+static u8 rds_tcp_get_tos_map(u8 tos)
+{
+	/* all user tos mapped to default 0 for TCP transport */
+	return 0;
+}
+
 struct rds_transport rds_tcp_transport = {
 	.laddr_check		= rds_tcp_laddr_check,
 	.xmit_path_prepare	= rds_tcp_xmit_path_prepare,
@@ -466,6 +473,7 @@ struct rds_transport rds_tcp_transport = {
 	.inc_free		= rds_tcp_inc_free,
 	.stats_info_copy	= rds_tcp_stats_info_copy,
 	.exit			= rds_tcp_exit,
+	.get_tos_map		= rds_tcp_get_tos_map,
 	.t_owner		= THIS_MODULE,
 	.t_name			= "tcp",
 	.t_type			= RDS_TRANS_TCP,
@@ -600,7 +608,7 @@ static void rds_tcp_kill_sock(struct net *net)
 	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
 		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
-		if (net != c_net || !tc->t_sock)
+		if (net != c_net)
 			continue;
 		if (!list_has_conn(&tmp_list, tc->t_cpath->cp_conn)) {
 			list_move_tail(&tc->t_tcp_node, &tmp_list);

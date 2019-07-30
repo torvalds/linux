@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016 Avago Technologies.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful.
- * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND WARRANTIES,
- * INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY, FITNESS FOR A
- * PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE DISCLAIMED, EXCEPT TO
- * THE EXTENT THAT SUCH DISCLAIMERS ARE HELD TO BE LEGALLY INVALID.
- * See the GNU General Public License for more details, a copy of which
- * can be found in the file COPYING included with this package
- *
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -1155,10 +1143,8 @@ __nvmet_fc_free_assocs(struct nvmet_fc_tgtport *tgtport)
 				&tgtport->assoc_list, a_list) {
 		if (!nvmet_fc_tgt_a_get(assoc))
 			continue;
-		spin_unlock_irqrestore(&tgtport->lock, flags);
-		nvmet_fc_delete_target_assoc(assoc);
-		nvmet_fc_tgt_a_put(assoc);
-		spin_lock_irqsave(&tgtport->lock, flags);
+		if (!schedule_work(&assoc->del_work))
+			nvmet_fc_tgt_a_put(assoc);
 	}
 	spin_unlock_irqrestore(&tgtport->lock, flags);
 }
@@ -1197,7 +1183,8 @@ nvmet_fc_delete_ctrl(struct nvmet_ctrl *ctrl)
 		nvmet_fc_tgtport_put(tgtport);
 
 		if (found_ctrl) {
-			schedule_work(&assoc->del_work);
+			if (!schedule_work(&assoc->del_work))
+				nvmet_fc_tgt_a_put(assoc);
 			return;
 		}
 
@@ -1515,10 +1502,8 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 			(struct fcnvme_ls_disconnect_rqst *)iod->rqstbuf;
 	struct fcnvme_ls_disconnect_acc *acc =
 			(struct fcnvme_ls_disconnect_acc *)iod->rspbuf;
-	struct nvmet_fc_tgt_queue *queue = NULL;
 	struct nvmet_fc_tgt_assoc *assoc;
 	int ret = 0;
-	bool del_assoc = false;
 
 	memset(acc, 0, sizeof(*acc));
 
@@ -1549,18 +1534,7 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 		assoc = nvmet_fc_find_target_assoc(tgtport,
 				be64_to_cpu(rqst->associd.association_id));
 		iod->assoc = assoc;
-		if (assoc) {
-			if (rqst->discon_cmd.scope ==
-					FCNVME_DISCONN_CONNECTION) {
-				queue = nvmet_fc_find_target_queue(tgtport,
-						be64_to_cpu(
-							rqst->discon_cmd.id));
-				if (!queue) {
-					nvmet_fc_tgt_a_put(assoc);
-					ret = VERR_NO_CONN;
-				}
-			}
-		} else
+		if (!assoc)
 			ret = VERR_NO_ASSOC;
 	}
 
@@ -1588,26 +1562,10 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 				sizeof(struct fcnvme_ls_disconnect_acc)),
 			FCNVME_LS_DISCONNECT);
 
-
-	/* are we to delete a Connection ID (queue) */
-	if (queue) {
-		int qid = queue->qid;
-
-		nvmet_fc_delete_target_queue(queue);
-
-		/* release the get taken by find_target_queue */
-		nvmet_fc_tgt_q_put(queue);
-
-		/* tear association down if io queue terminated */
-		if (!qid)
-			del_assoc = true;
-	}
-
 	/* release get taken in nvmet_fc_find_target_assoc */
 	nvmet_fc_tgt_a_put(iod->assoc);
 
-	if (del_assoc)
-		nvmet_fc_delete_target_assoc(iod->assoc);
+	nvmet_fc_delete_target_assoc(iod->assoc);
 }
 
 

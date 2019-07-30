@@ -2439,16 +2439,20 @@ xlog_recover_validate_buf_type(
 	case XFS_BLFT_BTREE_BUF:
 		switch (magic32) {
 		case XFS_ABTB_CRC_MAGIC:
-		case XFS_ABTC_CRC_MAGIC:
 		case XFS_ABTB_MAGIC:
+			bp->b_ops = &xfs_bnobt_buf_ops;
+			break;
+		case XFS_ABTC_CRC_MAGIC:
 		case XFS_ABTC_MAGIC:
-			bp->b_ops = &xfs_allocbt_buf_ops;
+			bp->b_ops = &xfs_cntbt_buf_ops;
 			break;
 		case XFS_IBT_CRC_MAGIC:
-		case XFS_FIBT_CRC_MAGIC:
 		case XFS_IBT_MAGIC:
-		case XFS_FIBT_MAGIC:
 			bp->b_ops = &xfs_inobt_buf_ops;
+			break;
+		case XFS_FIBT_CRC_MAGIC:
+		case XFS_FIBT_MAGIC:
+			bp->b_ops = &xfs_finobt_buf_ops;
 			break;
 		case XFS_BMAP_CRC_MAGIC:
 		case XFS_BMAP_MAGIC:
@@ -3045,7 +3049,7 @@ xlog_recover_inode_pass2(
 	 * Make sure the place we're flushing out to really looks
 	 * like an inode!
 	 */
-	if (unlikely(dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC))) {
+	if (unlikely(!xfs_verify_magic16(bp, dip->di_magic))) {
 		xfs_alert(mp,
 	"%s: Bad inode magic number, dip = "PTR_FMT", dino bp = "PTR_FMT", ino = %Ld",
 			__func__, dip, bp, in_f->ilf_ino);

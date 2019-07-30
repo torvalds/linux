@@ -207,7 +207,7 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	if (!r) {
 		acpi_status = amdgpu_acpi_init(adev);
 		if (acpi_status)
-		dev_dbg(&dev->pdev->dev,
+			dev_dbg(&dev->pdev->dev,
 				"Error during ACPI methods call\n");
 	}
 

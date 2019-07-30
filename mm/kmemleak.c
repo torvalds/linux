@@ -1401,6 +1401,7 @@ static void scan_block(void *_start, void *_end,
 /*
  * Scan a large memory block in MAX_SCAN_SIZE chunks to reduce the latency.
  */
+#ifdef CONFIG_SMP
 static void scan_large_block(void *start, void *end)
 {
 	void *next;
@@ -1412,6 +1413,7 @@ static void scan_large_block(void *start, void *end)
 		cond_resched();
 	}
 }
+#endif
 
 /*
  * Scan a memory block corresponding to a kmemleak_object. A condition is
@@ -1528,11 +1530,6 @@ static void kmemleak_scan(void)
 		spin_unlock_irqrestore(&object->lock, flags);
 	}
 	rcu_read_unlock();
-
-	/* data/bss scanning */
-	scan_large_block(_sdata, _edata);
-	scan_large_block(__bss_start, __bss_stop);
-	scan_large_block(__start_ro_after_init, __end_ro_after_init);
 
 #ifdef CONFIG_SMP
 	/* per-cpu sections scanning */
@@ -2070,6 +2067,17 @@ void __init kmemleak_init(void)
 		kmemleak_free_enabled = 1;
 	}
 	local_irq_restore(flags);
+
+	/* register the data/bss sections */
+	create_object((unsigned long)_sdata, _edata - _sdata,
+		      KMEMLEAK_GREY, GFP_ATOMIC);
+	create_object((unsigned long)__bss_start, __bss_stop - __bss_start,
+		      KMEMLEAK_GREY, GFP_ATOMIC);
+	/* only register .data..ro_after_init if not within .data */
+	if (__start_ro_after_init < _sdata || __end_ro_after_init > _edata)
+		create_object((unsigned long)__start_ro_after_init,
+			      __end_ro_after_init - __start_ro_after_init,
+			      KMEMLEAK_GREY, GFP_ATOMIC);
 
 	/*
 	 * This is the point where tracking allocations is safe. Automatic

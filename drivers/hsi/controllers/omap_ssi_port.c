@@ -162,7 +162,7 @@ static int ssi_div_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(ssi_sst_div_fops, ssi_div_get, ssi_div_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(ssi_sst_div_fops, ssi_div_get, ssi_div_set, "%llu\n");
 
 static int ssi_debug_add_port(struct omap_ssi_port *omap_port,
 				     struct dentry *dir)
@@ -177,8 +177,8 @@ static int ssi_debug_add_port(struct omap_ssi_port *omap_port,
 	dir = debugfs_create_dir("sst", dir);
 	if (!dir)
 		return -ENOMEM;
-	debugfs_create_file("divisor", S_IRUGO | S_IWUSR, dir, port,
-			    &ssi_sst_div_fops);
+	debugfs_create_file_unsafe("divisor", 0644, dir, port,
+				   &ssi_sst_div_fops);
 
 	return 0;
 }

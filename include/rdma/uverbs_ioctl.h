@@ -652,6 +652,7 @@ struct uverbs_attr_bundle {
 	struct ib_udata driver_udata;
 	struct ib_udata ucore;
 	struct ib_uverbs_file *ufile;
+	struct ib_ucontext *context;
 	DECLARE_BITMAP(attr_present, UVERBS_API_ATTR_BKEY_LEN);
 	struct uverbs_attr attrs[];
 };
@@ -662,6 +663,23 @@ static inline bool uverbs_attr_is_valid(const struct uverbs_attr_bundle *attrs_b
 	return test_bit(uapi_bkey_attr(uapi_key_attr(idx)),
 			attrs_bundle->attr_present);
 }
+
+/**
+ * rdma_udata_to_drv_context - Helper macro to get the driver's context out of
+ *                             ib_udata which is embedded in uverbs_attr_bundle.
+ *
+ * If udata is not NULL this cannot fail. Otherwise a NULL udata will result
+ * in a NULL ucontext pointer, as a safety precaution. Callers should be using
+ * 'udata' to determine if the driver call is in user or kernel mode, not
+ * 'ucontext'.
+ *
+ */
+#define rdma_udata_to_drv_context(udata, drv_dev_struct, member)               \
+	(udata ? container_of(container_of(udata, struct uverbs_attr_bundle,   \
+					   driver_udata)                       \
+				      ->context,                               \
+			      drv_dev_struct, member) :                        \
+		 (drv_dev_struct *)NULL)
 
 #define IS_UVERBS_COPY_ERR(_ret)		((_ret) && (_ret) != -ENOENT)
 

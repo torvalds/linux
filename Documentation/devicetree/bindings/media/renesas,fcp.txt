@@ -2,8 +2,9 @@ Renesas R-Car Frame Compression Processor (FCP)
 -----------------------------------------------
 
 The FCP is a companion module of video processing modules in the Renesas R-Car
-Gen3 SoCs. It provides data compression and decompression, data caching, and
-conversion of AXI transactions in order to reduce the memory bandwidth.
+Gen3 and RZ/G2 SoCs. It provides data compression and decompression, data
+caching, and conversion of AXI transactions in order to reduce the memory
+bandwidth.
 
 There are three types of FCP: FCP for Codec (FCPC), FCP for VSP (FCPV) and FCP
 for FDP (FCPF). Their configuration and behaviour depend on the module they

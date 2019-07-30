@@ -1717,7 +1717,7 @@ static int snd_es18xx_pcm(struct snd_card *card, int device)
         chip->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
+					      card->dev,
 					      64*1024,
 					      chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 	return 0;
@@ -1730,8 +1730,6 @@ static int snd_es18xx_suspend(struct snd_card *card, pm_message_t state)
 	struct snd_es18xx *chip = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-
-	snd_pcm_suspend_all(chip->pcm);
 
 	/* power down */
 	chip->pm_reg = (unsigned char)snd_es18xx_read(chip, ES18XX_PM);

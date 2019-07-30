@@ -236,19 +236,6 @@ description.
 Design limitations
 ==================
 
-DSA is a platform device driver
--------------------------------
-
-DSA is implemented as a DSA platform device driver which is convenient because
-it will register the entire DSA switch tree attached to a master network device
-in one-shot, facilitating the device creation and simplifying the device driver
-model a bit, this comes however with a number of limitations:
-
-- building DSA and its switch drivers as modules is currently not working
-- the device driver parenting does not necessarily reflect the original
-  bus/device the switch can be created from
-- supporting non-MDIO and non-MMIO (platform) switches is not possible
-
 Limits on the number of devices and ports
 -----------------------------------------
 

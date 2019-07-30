@@ -69,13 +69,15 @@ void snd_hdac_display_power(struct hdac_bus *bus, unsigned int idx, bool enable)
 
 	dev_dbg(bus->dev, "display power %s\n",
 		enable ? "enable" : "disable");
+
+	mutex_lock(&bus->lock);
 	if (enable)
 		set_bit(idx, &bus->display_power_status);
 	else
 		clear_bit(idx, &bus->display_power_status);
 
 	if (!acomp || !acomp->ops)
-		return;
+		goto unlock;
 
 	if (bus->display_power_status) {
 		if (!bus->display_power_active) {
@@ -92,6 +94,8 @@ void snd_hdac_display_power(struct hdac_bus *bus, unsigned int idx, bool enable)
 			bus->display_power_active = false;
 		}
 	}
+ unlock:
+	mutex_unlock(&bus->lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_display_power);
 
@@ -269,7 +273,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_acomp_register_notifier);
  */
 int snd_hdac_acomp_init(struct hdac_bus *bus,
 			const struct drm_audio_component_audio_ops *aops,
-			int (*match_master)(struct device *, void *),
+			int (*match_master)(struct device *, int, void *),
 			size_t extra_size)
 {
 	struct component_match *match = NULL;
@@ -288,7 +292,7 @@ int snd_hdac_acomp_init(struct hdac_bus *bus,
 	bus->audio_component = acomp;
 	devres_add(dev, acomp);
 
-	component_match_add(dev, &match, match_master, bus);
+	component_match_add_typed(dev, &match, match_master, bus);
 	ret = component_master_add_with_match(dev, &hdac_component_master_ops,
 					      match);
 	if (ret < 0)

@@ -5,7 +5,6 @@
 #include <linux/io-64-nonatomic-hi-lo.h>
 #include <linux/lockdep.h>
 #include <net/dst_metadata.h>
-#include <net/switchdev.h>
 
 #include "nfpcore/nfp_cpp.h"
 #include "nfpcore/nfp_nsp.h"
@@ -196,7 +195,7 @@ static netdev_tx_t nfp_repr_xmit(struct sk_buff *skb, struct net_device *netdev)
 	ret = dev_queue_xmit(skb);
 	nfp_repr_inc_tx_stats(netdev, len, ret);
 
-	return ret;
+	return NETDEV_TX_OK;
 }
 
 static int nfp_repr_stop(struct net_device *netdev)
@@ -273,6 +272,8 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_fix_features	= nfp_repr_fix_features,
 	.ndo_set_features	= nfp_port_set_features,
 	.ndo_set_mac_address    = eth_mac_addr,
+	.ndo_get_port_parent_id	= nfp_port_get_port_parent_id,
+	.ndo_get_devlink	= nfp_devlink_get_devlink,
 };
 
 void
@@ -336,8 +337,6 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 
 	netdev->max_mtu = pf_netdev->max_mtu;
 
-	SWITCHDEV_SET_OPS(netdev, &nfp_port_switchdev_ops);
-
 	/* Set features the lower device can support with representors */
 	if (repr_cap & NFP_NET_CFG_CTRL_LIVE_ADDR)
 		netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
@@ -384,7 +383,7 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
 	netdev->gso_max_segs = NFP_NET_LSO_MAX_SEGS;
 
-	netdev->priv_flags |= IFF_NO_QUEUE;
+	netdev->priv_flags |= IFF_NO_QUEUE | IFF_DISABLE_NETPOLL;
 	netdev->features |= NETIF_F_LLTX;
 
 	if (nfp_app_has_tc(app)) {

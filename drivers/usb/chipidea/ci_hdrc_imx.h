@@ -18,6 +18,7 @@ struct imx_usbmisc_data {
 	/* true if dt specifies polarity */
 	unsigned int oc_pol_configured:1;
 
+	unsigned int pwr_pol:1; /* power polarity */
 	unsigned int evdo:1; /* set external vbus divider option */
 	unsigned int ulpi:1; /* connected to an ULPI phy */
 	unsigned int hsic:1; /* HSIC controlller */

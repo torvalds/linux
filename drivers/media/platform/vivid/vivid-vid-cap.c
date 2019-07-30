@@ -124,7 +124,8 @@ static int vid_cap_queue_setup(struct vb2_queue *vq,
 		}
 	} else {
 		for (p = 0; p < buffers; p++)
-			sizes[p] = tpg_g_line_width(&dev->tpg, p) * h +
+			sizes[p] = (tpg_g_line_width(&dev->tpg, p) * h) /
+					dev->fmt_cap->vdownsampling[p] +
 					dev->fmt_cap->data_offset[p];
 	}
 
@@ -161,7 +162,9 @@ static int vid_cap_buf_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 	for (p = 0; p < buffers; p++) {
-		size = tpg_g_line_width(&dev->tpg, p) * dev->fmt_cap_rect.height +
+		size = (tpg_g_line_width(&dev->tpg, p) *
+			dev->fmt_cap_rect.height) /
+			dev->fmt_cap->vdownsampling[p] +
 			dev->fmt_cap->data_offset[p];
 
 		if (vb2_plane_size(vb, p) < size) {
@@ -545,7 +548,8 @@ int vivid_g_fmt_vid_cap(struct file *file, void *priv,
 	for (p = 0; p < mp->num_planes; p++) {
 		mp->plane_fmt[p].bytesperline = tpg_g_bytesperline(&dev->tpg, p);
 		mp->plane_fmt[p].sizeimage =
-			tpg_g_line_width(&dev->tpg, p) * mp->height +
+			(tpg_g_line_width(&dev->tpg, p) * mp->height) /
+			dev->fmt_cap->vdownsampling[p] +
 			dev->fmt_cap->data_offset[p];
 	}
 	return 0;

@@ -4,13 +4,13 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
-#include "skeleton.dtsi"
 
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
 
 	memory {
+		device_type = "memory";
 		reg = <0x00000000 0x04000000>,
 		    <0x08000000 0x04000000>;
 	};

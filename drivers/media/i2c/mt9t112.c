@@ -541,7 +541,7 @@ static int mt9t112_init_setting(const struct i2c_client *client)
 	mt9t112_mcu_write(ret, client, VAR(18, 109), 0x0AF0);
 
 	/*
-	 * Flicker Dectection registers.
+	 * Flicker Detection registers.
 	 * This section should be replaced whenever new timing file is
 	 * generated. All the following registers need to be replaced.
 	 * Following registers are generated from Register Wizard but user can

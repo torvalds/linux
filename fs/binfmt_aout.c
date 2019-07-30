@@ -29,97 +29,14 @@
 
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>
-#include <asm/a.out-core.h>
 
 static int load_aout_binary(struct linux_binprm *);
 static int load_aout_library(struct file*);
-
-#ifdef CONFIG_COREDUMP
-/*
- * Routine writes a core dump image in the current directory.
- * Currently only a stub-function.
- *
- * Note that setuid/setgid files won't make a core-dump if the uid/gid
- * changed due to the set[u|g]id. It's enforced by the "current->mm->dumpable"
- * field, which also makes sure the core-dumps won't be recursive if the
- * dumping of the process results in another error..
- */
-static int aout_core_dump(struct coredump_params *cprm)
-{
-	mm_segment_t fs;
-	int has_dumped = 0;
-	void __user *dump_start;
-	int dump_size;
-	struct user dump;
-#ifdef __alpha__
-#       define START_DATA(u)	((void __user *)u.start_data)
-#else
-#	define START_DATA(u)	((void __user *)((u.u_tsize << PAGE_SHIFT) + \
-				 u.start_code))
-#endif
-#       define START_STACK(u)   ((void __user *)u.start_stack)
-
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-	has_dumped = 1;
-       	strncpy(dump.u_comm, current->comm, sizeof(dump.u_comm));
-	dump.u_ar0 = offsetof(struct user, regs);
-	dump.signal = cprm->siginfo->si_signo;
-	aout_dump_thread(cprm->regs, &dump);
-
-/* If the size of the dump file exceeds the rlimit, then see what would happen
-   if we wrote the stack, but not the data area.  */
-	if ((dump.u_dsize + dump.u_ssize+1) * PAGE_SIZE > cprm->limit)
-		dump.u_dsize = 0;
-
-/* Make sure we have enough room to write the stack and data areas. */
-	if ((dump.u_ssize + 1) * PAGE_SIZE > cprm->limit)
-		dump.u_ssize = 0;
-
-/* make sure we actually have a data and stack area to dump */
-	set_fs(USER_DS);
-	if (!access_ok(START_DATA(dump), dump.u_dsize << PAGE_SHIFT))
-		dump.u_dsize = 0;
-	if (!access_ok(START_STACK(dump), dump.u_ssize << PAGE_SHIFT))
-		dump.u_ssize = 0;
-
-	set_fs(KERNEL_DS);
-/* struct user */
-	if (!dump_emit(cprm, &dump, sizeof(dump)))
-		goto end_coredump;
-/* Now dump all of the user data.  Include malloced stuff as well */
-	if (!dump_skip(cprm, PAGE_SIZE - sizeof(dump)))
-		goto end_coredump;
-/* now we start writing out the user space info */
-	set_fs(USER_DS);
-/* Dump the data area */
-	if (dump.u_dsize != 0) {
-		dump_start = START_DATA(dump);
-		dump_size = dump.u_dsize << PAGE_SHIFT;
-		if (!dump_emit(cprm, dump_start, dump_size))
-			goto end_coredump;
-	}
-/* Now prepare to dump the stack area */
-	if (dump.u_ssize != 0) {
-		dump_start = START_STACK(dump);
-		dump_size = dump.u_ssize << PAGE_SHIFT;
-		if (!dump_emit(cprm, dump_start, dump_size))
-			goto end_coredump;
-	}
-end_coredump:
-	set_fs(fs);
-	return has_dumped;
-}
-#else
-#define aout_core_dump NULL
-#endif
 
 static struct linux_binfmt aout_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_aout_binary,
 	.load_shlib	= load_aout_library,
-	.core_dump	= aout_core_dump,
-	.min_coredump	= PAGE_SIZE
 };
 
 #define BAD_ADDR(x)	((unsigned long)(x) >= TASK_SIZE)

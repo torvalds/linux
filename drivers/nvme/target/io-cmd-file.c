@@ -75,11 +75,11 @@ err:
 	return ret;
 }
 
-static void nvmet_file_init_bvec(struct bio_vec *bv, struct sg_page_iter *iter)
+static void nvmet_file_init_bvec(struct bio_vec *bv, struct scatterlist *sg)
 {
-	bv->bv_page = sg_page_iter_page(iter);
-	bv->bv_offset = iter->sg->offset;
-	bv->bv_len = PAGE_SIZE - iter->sg->offset;
+	bv->bv_page = sg_page(sg);
+	bv->bv_offset = sg->offset;
+	bv->bv_len = sg->length;
 }
 
 static ssize_t nvmet_file_submit_bvec(struct nvmet_req *req, loff_t pos,
@@ -128,14 +128,14 @@ static void nvmet_file_io_done(struct kiocb *iocb, long ret, long ret2)
 
 static bool nvmet_file_execute_io(struct nvmet_req *req, int ki_flags)
 {
-	ssize_t nr_bvec = DIV_ROUND_UP(req->data_len, PAGE_SIZE);
-	struct sg_page_iter sg_pg_iter;
+	ssize_t nr_bvec = req->sg_cnt;
 	unsigned long bv_cnt = 0;
 	bool is_sync = false;
 	size_t len = 0, total_len = 0;
 	ssize_t ret = 0;
 	loff_t pos;
-
+	int i;
+	struct scatterlist *sg;
 
 	if (req->f.mpool_alloc && nr_bvec > NVMET_MAX_MPOOL_BVEC)
 		is_sync = true;
@@ -147,8 +147,8 @@ static bool nvmet_file_execute_io(struct nvmet_req *req, int ki_flags)
 	}
 
 	memset(&req->f.iocb, 0, sizeof(struct kiocb));
-	for_each_sg_page(req->sg, &sg_pg_iter, req->sg_cnt, 0) {
-		nvmet_file_init_bvec(&req->f.bvec[bv_cnt], &sg_pg_iter);
+	for_each_sg(req->sg, sg, req->sg_cnt, i) {
+		nvmet_file_init_bvec(&req->f.bvec[bv_cnt], sg);
 		len += req->f.bvec[bv_cnt].bv_len;
 		total_len += req->f.bvec[bv_cnt].bv_len;
 		bv_cnt++;
@@ -225,7 +225,7 @@ static void nvmet_file_submit_buffered_io(struct nvmet_req *req)
 
 static void nvmet_file_execute_rw(struct nvmet_req *req)
 {
-	ssize_t nr_bvec = DIV_ROUND_UP(req->data_len, PAGE_SIZE);
+	ssize_t nr_bvec = req->sg_cnt;
 
 	if (!req->sg_cnt || !nr_bvec) {
 		nvmet_req_complete(req, 0);
@@ -297,7 +297,7 @@ static void nvmet_file_execute_discard(struct nvmet_req *req)
 		}
 
 		ret = vfs_fallocate(req->ns->file, mode, offset, len);
-		if (ret) {
+		if (ret && ret != -EOPNOTSUPP) {
 			req->error_slba = le64_to_cpu(range.slba);
 			status = errno_to_nvme_status(req, ret);
 			break;

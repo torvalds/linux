@@ -272,6 +272,7 @@ void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 		       unsigned int height, unsigned int stride, u32 format,
 		       uint64_t modifier, unsigned int bufaddr);
 void ipu_pre_update(struct ipu_pre *pre, unsigned int bufaddr);
+bool ipu_pre_update_pending(struct ipu_pre *pre);
 
 struct ipu_prg *ipu_prg_lookup_by_phandle(struct device *dev, const char *name,
 					  int ipu_id);

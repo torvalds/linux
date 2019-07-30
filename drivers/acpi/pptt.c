@@ -209,6 +209,9 @@ static int acpi_pptt_leaf_node(struct acpi_table_header *table_hdr,
 	struct acpi_pptt_processor *cpu_node;
 	u32 proc_sz;
 
+	if (table_hdr->revision > 1)
+		return (node->flags & ACPI_PPTT_ACPI_LEAF_NODE);
+
 	table_end = (unsigned long)table_hdr + table_hdr->length;
 	node_entry = ACPI_PTR_DIFF(node, table_hdr);
 	entry = ACPI_ADD_PTR(struct acpi_subtable_header, table_hdr,
@@ -451,6 +454,11 @@ static struct acpi_pptt_processor *acpi_find_processor_package_id(struct acpi_ta
 	return cpu;
 }
 
+static void acpi_pptt_warn_missing(void)
+{
+	pr_warn_once("No PPTT table found, cpu and cache topology may be inaccurate\n");
+}
+
 /**
  * topology_get_acpi_cpu_tag() - Find a unique topology value for a feature
  * @table: Pointer to the head of the PPTT table
@@ -498,7 +506,7 @@ static int find_acpi_cpu_topology_tag(unsigned int cpu, int level, int flag)
 
 	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
 	if (ACPI_FAILURE(status)) {
-		pr_warn_once("No PPTT table found, cpu topology may be inaccurate\n");
+		acpi_pptt_warn_missing();
 		return -ENOENT;
 	}
 	retval = topology_get_acpi_cpu_tag(table, cpu, level, flag);
@@ -531,7 +539,7 @@ int acpi_find_last_cache_level(unsigned int cpu)
 	acpi_cpu_id = get_acpi_id_for_cpu(cpu);
 	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
 	if (ACPI_FAILURE(status)) {
-		pr_warn_once("No PPTT table found, cache topology may be inaccurate\n");
+		acpi_pptt_warn_missing();
 	} else {
 		number_of_levels = acpi_find_cache_levels(table, acpi_cpu_id);
 		acpi_put_table(table);
@@ -563,7 +571,7 @@ int cache_setup_acpi(unsigned int cpu)
 
 	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
 	if (ACPI_FAILURE(status)) {
-		pr_warn_once("No PPTT table found, cache topology may be inaccurate\n");
+		acpi_pptt_warn_missing();
 		return -ENOENT;
 	}
 
@@ -617,7 +625,7 @@ int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
 
 	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
 	if (ACPI_FAILURE(status)) {
-		pr_warn_once("No PPTT table found, topology may be inaccurate\n");
+		acpi_pptt_warn_missing();
 		return -ENOENT;
 	}
 

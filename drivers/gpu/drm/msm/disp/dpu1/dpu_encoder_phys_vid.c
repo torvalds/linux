@@ -587,14 +587,13 @@ static int dpu_encoder_phys_vid_wait_for_vblank(
 }
 
 static void dpu_encoder_phys_vid_prepare_for_kickoff(
-		struct dpu_encoder_phys *phys_enc,
-		struct dpu_encoder_kickoff_params *params)
+		struct dpu_encoder_phys *phys_enc)
 {
 	struct dpu_encoder_phys_vid *vid_enc;
 	struct dpu_hw_ctl *ctl;
 	int rc;
 
-	if (!phys_enc || !params) {
+	if (!phys_enc) {
 		DPU_ERROR("invalid encoder/parameters\n");
 		return;
 	}

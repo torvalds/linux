@@ -453,9 +453,6 @@ struct ip_vs_protocol {
 	int (*dnat_handler)(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			    struct ip_vs_conn *cp, struct ip_vs_iphdr *iph);
 
-	int (*csum_check)(int af, struct sk_buff *skb,
-			  struct ip_vs_protocol *pp);
-
 	const char *(*state_name)(int state);
 
 	void (*state_transition)(struct ip_vs_conn *cp, int direction,

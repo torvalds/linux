@@ -471,7 +471,7 @@ static int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue,
 	if (IS_ERR(segments))
 		return PTR_ERR(segments);
 
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 	skb = segments;
 
 	while (skb) {

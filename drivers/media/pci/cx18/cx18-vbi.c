@@ -24,7 +24,7 @@
 /*
  * Raster Reference/Protection (RP) bytes, used in Start/End Active
  * Video codes emitted from the digitzer in VIP 1.x mode, that flag the start
- * of VBI sample or VBI ancillary data regions in the digitial ratser line.
+ * of VBI sample or VBI ancillary data regions in the digital ratser line.
  *
  * Task FieldEven VerticalBlank HorizontalBlank 0 0 0 0
  */

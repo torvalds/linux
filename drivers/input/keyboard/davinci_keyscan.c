@@ -32,10 +32,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
-#include <asm/irq.h>
-
-#include <mach/hardware.h>
-#include <mach/irqs.h>
 #include <linux/platform_data/keyscan-davinci.h>
 
 /* Key scan registers */

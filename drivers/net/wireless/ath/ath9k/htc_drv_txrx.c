@@ -574,12 +574,12 @@ void ath9k_tx_failed_tasklet(unsigned long data)
 {
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
 
-	spin_lock_bh(&priv->tx.tx_lock);
+	spin_lock(&priv->tx.tx_lock);
 	if (priv->tx.flags & ATH9K_HTC_OP_TX_DRAIN) {
-		spin_unlock_bh(&priv->tx.tx_lock);
+		spin_unlock(&priv->tx.tx_lock);
 		return;
 	}
-	spin_unlock_bh(&priv->tx.tx_lock);
+	spin_unlock(&priv->tx.tx_lock);
 
 	ath9k_htc_tx_drainq(priv, &priv->tx.tx_failed);
 }

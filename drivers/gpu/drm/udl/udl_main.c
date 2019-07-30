@@ -12,6 +12,7 @@
  */
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include "udl_drv.h"
 
 /* -BULK_SIZE as per usb-skeleton. Can we get full page and avoid overhead? */
@@ -378,6 +379,12 @@ void udl_driver_unload(struct drm_device *dev)
 		udl_free_urb_list(dev);
 
 	udl_fbdev_cleanup(dev);
-	udl_modeset_cleanup(dev);
 	kfree(udl);
+}
+
+void udl_driver_release(struct drm_device *dev)
+{
+	udl_modeset_cleanup(dev);
+	drm_dev_fini(dev);
+	kfree(dev);
 }

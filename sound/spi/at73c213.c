@@ -350,7 +350,7 @@ static int snd_at73c213_pcm_new(struct snd_at73c213 *chip, int device)
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &at73c213_playback_ops);
 
-	retval = snd_pcm_lib_preallocate_pages_for_all(chip->pcm,
+	snd_pcm_lib_preallocate_pages_for_all(chip->pcm,
 			SNDRV_DMA_TYPE_DEV, &chip->ssc->pdev->dev,
 			64 * 1024, 64 * 1024);
 out:

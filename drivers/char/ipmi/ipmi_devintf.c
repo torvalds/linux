@@ -207,7 +207,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 	struct list_head *entry;
 	struct ipmi_recv_msg  *msg;
 	unsigned long    flags;
-	int rv = 0;
+	int rv = 0, rv2 = 0;
 
 	/* We claim a mutex because we don't want two
 	   users getting something from the queue at a time.
@@ -250,7 +250,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 
 	if (msg->msg.data_len > 0) {
 		if (rsp->msg.data_len < msg->msg.data_len) {
-			rv = -EMSGSIZE;
+			rv2 = -EMSGSIZE;
 			if (trunc)
 				msg->msg.data_len = rsp->msg.data_len;
 			else
@@ -274,7 +274,7 @@ static int handle_recv(struct ipmi_file_private *priv,
 
 	mutex_unlock(&priv->recv_mutex);
 	ipmi_free_recv_msg(msg);
-	return 0;
+	return rv2;
 
 recv_putback_on_err:
 	/* If we got an error, put the message back onto

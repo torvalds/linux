@@ -705,7 +705,6 @@ static int sa11x0_dma_device_pause(struct dma_chan *chan)
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
 	struct sa11x0_dma_phy *p;
-	LIST_HEAD(head);
 	unsigned long flags;
 
 	dev_dbg(d->slave.dev, "vchan %p: pause\n", &c->vc);
@@ -732,7 +731,6 @@ static int sa11x0_dma_device_resume(struct dma_chan *chan)
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
 	struct sa11x0_dma_phy *p;
-	LIST_HEAD(head);
 	unsigned long flags;
 
 	dev_dbg(d->slave.dev, "vchan %p: resume\n", &c->vc);

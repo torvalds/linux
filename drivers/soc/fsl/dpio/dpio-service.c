@@ -27,6 +27,7 @@ struct dpaa2_io {
 	/* protect notifications list */
 	spinlock_t lock_notifications;
 	struct list_head notifications;
+	struct device *dev;
 };
 
 struct dpaa2_io_store {
@@ -98,13 +99,15 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_select);
 /**
  * dpaa2_io_create() - create a dpaa2_io object.
  * @desc: the dpaa2_io descriptor
+ * @dev: the actual DPIO device
  *
  * Activates a "struct dpaa2_io" corresponding to the given config of an actual
  * DPIO object.
  *
  * Return a valid dpaa2_io object for success, or NULL for failure.
  */
-struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc)
+struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc,
+				 struct device *dev)
 {
 	struct dpaa2_io *obj = kmalloc(sizeof(*obj), GFP_KERNEL);
 
@@ -146,6 +149,8 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc)
 		dpio_by_cpu[desc->cpu] = obj;
 	spin_unlock(&dpio_list_lock);
 
+	obj->dev = dev;
+
 	return obj;
 }
 
@@ -160,6 +165,11 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc)
  */
 void dpaa2_io_down(struct dpaa2_io *d)
 {
+	spin_lock(&dpio_list_lock);
+	dpio_by_cpu[d->dpio_desc.cpu] = NULL;
+	list_del(&d->node);
+	spin_unlock(&dpio_list_lock);
+
 	kfree(d);
 }
 
@@ -210,10 +220,24 @@ done:
 }
 
 /**
+ * dpaa2_io_get_cpu() - get the cpu associated with a given DPIO object
+ *
+ * @d: the given DPIO object.
+ *
+ * Return the cpu associated with the DPIO object
+ */
+int dpaa2_io_get_cpu(struct dpaa2_io *d)
+{
+	return d->dpio_desc.cpu;
+}
+EXPORT_SYMBOL(dpaa2_io_get_cpu);
+
+/**
  * dpaa2_io_service_register() - Prepare for servicing of FQDAN or CDAN
  *                               notifications on the given DPIO service.
  * @d:   the given DPIO service.
  * @ctx: the notification context.
+ * @dev: the device that requests the register
  *
  * The caller should make the MC command to attach a DPAA2 object to
  * a DPIO after this function completes successfully.  In that way:
@@ -228,13 +252,19 @@ done:
  * Return 0 for success, or -ENODEV for failure.
  */
 int dpaa2_io_service_register(struct dpaa2_io *d,
-			      struct dpaa2_io_notification_ctx *ctx)
+			      struct dpaa2_io_notification_ctx *ctx,
+			      struct device *dev)
 {
+	struct device_link *link;
 	unsigned long irqflags;
 
 	d = service_select_by_cpu(d, ctx->desired_cpu);
 	if (!d)
 		return -ENODEV;
+
+	link = device_link_add(dev, d->dev, DL_FLAG_AUTOREMOVE_CONSUMER);
+	if (!link)
+		return -EINVAL;
 
 	ctx->dpio_id = d->dpio_desc.dpio_id;
 	ctx->qman64 = (u64)(uintptr_t)ctx;
@@ -256,12 +286,14 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_register);
  * dpaa2_io_service_deregister - The opposite of 'register'.
  * @service: the given DPIO service.
  * @ctx: the notification context.
+ * @dev: the device that requests to be deregistered
  *
  * This function should be called only after sending the MC command to
  * to detach the notification-producing device from the DPIO.
  */
 void dpaa2_io_service_deregister(struct dpaa2_io *service,
-				 struct dpaa2_io_notification_ctx *ctx)
+				 struct dpaa2_io_notification_ctx *ctx,
+				 struct device *dev)
 {
 	struct dpaa2_io *d = ctx->dpio_private;
 	unsigned long irqflags;
@@ -272,6 +304,9 @@ void dpaa2_io_service_deregister(struct dpaa2_io *service,
 	spin_lock_irqsave(&d->lock_notifications, irqflags);
 	list_del(&ctx->node);
 	spin_unlock_irqrestore(&d->lock_notifications, irqflags);
+
+	if (dev)
+		device_link_remove(dev, d->dev);
 }
 EXPORT_SYMBOL_GPL(dpaa2_io_service_deregister);
 
@@ -438,7 +473,7 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_enqueue_qd);
  * Return 0 for success, and negative error code for failure.
  */
 int dpaa2_io_service_release(struct dpaa2_io *d,
-			     u32 bpid,
+			     u16 bpid,
 			     const u64 *buffers,
 			     unsigned int num_buffers)
 {
@@ -467,7 +502,7 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_release);
  * Eg. if the buffer pool is empty, this will return zero.
  */
 int dpaa2_io_service_acquire(struct dpaa2_io *d,
-			     u32 bpid,
+			     u16 bpid,
 			     u64 *buffers,
 			     unsigned int num_buffers)
 {
@@ -595,6 +630,7 @@ struct dpaa2_dq *dpaa2_io_store_next(struct dpaa2_io_store *s, int *is_last)
 		if (!(dpaa2_dq_flags(ret) & DPAA2_DQ_STAT_VALIDFRAME))
 			ret = NULL;
 	} else {
+		prefetch(&s->vaddr[s->idx]);
 		*is_last = 0;
 	}
 

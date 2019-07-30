@@ -55,31 +55,14 @@ void nitrox_debugfs_exit(struct nitrox_device *ndev)
 	ndev->debugfs_dir = NULL;
 }
 
-int nitrox_debugfs_init(struct nitrox_device *ndev)
+void nitrox_debugfs_init(struct nitrox_device *ndev)
 {
-	struct dentry *dir, *f;
+	struct dentry *dir;
 
 	dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!dir)
-		return -ENOMEM;
 
 	ndev->debugfs_dir = dir;
-	f = debugfs_create_file("firmware", 0400, dir, ndev,
-				&firmware_fops);
-	if (!f)
-		goto err;
-	f = debugfs_create_file("device", 0400, dir, ndev,
-				&device_fops);
-	if (!f)
-		goto err;
-	f = debugfs_create_file("stats", 0400, dir, ndev,
-				&stats_fops);
-	if (!f)
-		goto err;
-
-	return 0;
-
-err:
-	nitrox_debugfs_exit(ndev);
-	return -ENODEV;
+	debugfs_create_file("firmware", 0400, dir, ndev, &firmware_fops);
+	debugfs_create_file("device", 0400, dir, ndev, &device_fops);
+	debugfs_create_file("stats", 0400, dir, ndev, &stats_fops);
 }
