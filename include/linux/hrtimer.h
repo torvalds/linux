@@ -408,6 +408,9 @@ static inline void hrtimer_start_expires(struct hrtimer *timer,
 	hrtimer_start_range_ns(timer, soft, delta, mode);
 }
 
+void hrtimer_sleeper_start_expires(struct hrtimer_sleeper *sl,
+				   enum hrtimer_mode mode);
+
 static inline void hrtimer_restart(struct hrtimer *timer)
 {
 	hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
