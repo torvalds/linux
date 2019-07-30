@@ -696,10 +696,8 @@ static int qcom_iommu_ctx_probe(struct platform_device *pdev)
 		return PTR_ERR(ctx->base);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "failed to get irq\n");
+	if (irq < 0)
 		return -ENODEV;
-	}
 
 	/* clear IRQs before registering fault handler, just in case the
 	 * boot-loader left us a surprise:
