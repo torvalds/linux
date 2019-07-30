@@ -685,6 +685,11 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 			break;
 		}
 
+		if (INTEL_GEN(dev_priv) >= 12) {
+			if (is_vid_mode(intel_dsi))
+				tmp |= BLANKING_PACKET_ENABLE;
+		}
+
 		/* program DSI operation mode */
 		if (is_vid_mode(intel_dsi)) {
 			tmp &= ~OP_MODE_MASK;

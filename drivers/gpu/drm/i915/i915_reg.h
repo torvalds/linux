@@ -11021,6 +11021,7 @@ enum skl_power_gate {
 #define  CALIBRATION_DISABLED		(0x0 << 4)
 #define  CALIBRATION_ENABLED_INITIAL_ONLY	(0x2 << 4)
 #define  CALIBRATION_ENABLED_INITIAL_PERIODIC	(0x3 << 4)
+#define  BLANKING_PACKET_ENABLE		(1 << 2)
 #define  S3D_ORIENTATION_LANDSCAPE	(1 << 1)
 #define  EOTP_DISABLED			(1 << 0)
 
