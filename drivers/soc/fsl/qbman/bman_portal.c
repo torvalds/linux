@@ -135,10 +135,8 @@ static int bman_portal_probe(struct platform_device *pdev)
 	pcfg->cpu = -1;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(dev, "Can't get %pOF IRQ'\n", node);
+	if (irq <= 0)
 		goto err_ioremap1;
-	}
 	pcfg->irq = irq;
 
 	pcfg->addr_virt_ce = memremap(addr_phys[0]->start,
