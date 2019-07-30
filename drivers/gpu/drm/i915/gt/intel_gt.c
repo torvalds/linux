@@ -79,7 +79,10 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 				   I915_MASTER_ERROR_INTERRUPT);
 	}
 
-	if (INTEL_GEN(i915) >= 8) {
+	if (INTEL_GEN(i915) >= 12) {
+		rmw_clear(uncore, GEN12_RING_FAULT_REG, RING_FAULT_VALID);
+		intel_uncore_posting_read(uncore, GEN12_RING_FAULT_REG);
+	} else if (INTEL_GEN(i915) >= 8) {
 		rmw_clear(uncore, GEN8_RING_FAULT_REG, RING_FAULT_VALID);
 		intel_uncore_posting_read(uncore, GEN8_RING_FAULT_REG);
 	} else if (INTEL_GEN(i915) >= 6) {
@@ -117,14 +120,27 @@ static void gen6_check_faults(struct intel_gt *gt)
 static void gen8_check_faults(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
-	u32 fault = intel_uncore_read(uncore, GEN8_RING_FAULT_REG);
+	i915_reg_t fault_reg, fault_data0_reg, fault_data1_reg;
+	u32 fault;
 
+	if (INTEL_GEN(gt->i915) >= 12) {
+		fault_reg = GEN12_RING_FAULT_REG;
+		fault_data0_reg = GEN12_FAULT_TLB_DATA0;
+		fault_data1_reg = GEN12_FAULT_TLB_DATA1;
+	} else {
+		fault_reg = GEN8_RING_FAULT_REG;
+		fault_data0_reg = GEN8_FAULT_TLB_DATA0;
+		fault_data1_reg = GEN8_FAULT_TLB_DATA1;
+	}
+
+	fault = intel_uncore_read(uncore, fault_reg);
 	if (fault & RING_FAULT_VALID) {
 		u32 fault_data0, fault_data1;
 		u64 fault_addr;
 
-		fault_data0 = intel_uncore_read(uncore, GEN8_FAULT_TLB_DATA0);
-		fault_data1 = intel_uncore_read(uncore, GEN8_FAULT_TLB_DATA1);
+		fault_data0 = intel_uncore_read(uncore, fault_data0_reg);
+		fault_data1 = intel_uncore_read(uncore, fault_data1_reg);
+
 		fault_addr = ((u64)(fault_data1 & FAULT_VA_HIGH_BITS) << 44) |
 			     ((u64)fault_data0 << 12);
 

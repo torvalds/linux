@@ -1106,7 +1106,10 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 
 	if (INTEL_GEN(dev_priv) >= 6) {
 		ee->rc_psmi = ENGINE_READ(engine, RING_PSMI_CTL);
-		if (INTEL_GEN(dev_priv) >= 8)
+
+		if (INTEL_GEN(dev_priv) >= 12)
+			ee->fault_reg = I915_READ(GEN12_RING_FAULT_REG);
+		else if (INTEL_GEN(dev_priv) >= 8)
 			ee->fault_reg = I915_READ(GEN8_RING_FAULT_REG);
 		else
 			ee->fault_reg = GEN6_RING_FAULT_REG_READ(engine);
@@ -1541,7 +1544,12 @@ static void capture_reg_state(struct i915_gpu_state *error)
 	if (IS_GEN(i915, 7))
 		error->err_int = intel_uncore_read(uncore, GEN7_ERR_INT);
 
-	if (INTEL_GEN(i915) >= 8) {
+	if (INTEL_GEN(i915) >= 12) {
+		error->fault_data0 = intel_uncore_read(uncore,
+						       GEN12_FAULT_TLB_DATA0);
+		error->fault_data1 = intel_uncore_read(uncore,
+						       GEN12_FAULT_TLB_DATA1);
+	} else if (INTEL_GEN(i915) >= 8) {
 		error->fault_data0 = intel_uncore_read(uncore,
 						       GEN8_FAULT_TLB_DATA0);
 		error->fault_data1 = intel_uncore_read(uncore,
