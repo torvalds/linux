@@ -167,10 +167,8 @@ static int denali_dt_probe(struct platform_device *pdev)
 
 	denali->dev = dev;
 	denali->irq = platform_get_irq(pdev, 0);
-	if (denali->irq < 0) {
-		dev_err(dev, "no irq defined\n");
+	if (denali->irq < 0)
 		return denali->irq;
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "denali_reg");
 	denali->reg = devm_ioremap_resource(dev, res);
