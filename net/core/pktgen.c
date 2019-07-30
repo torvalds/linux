@@ -2172,7 +2172,7 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 	} else {
 		do {
 			set_current_state(TASK_INTERRUPTIBLE);
-			hrtimer_start_expires(&t.timer, HRTIMER_MODE_ABS);
+			hrtimer_sleeper_start_expires(&t, HRTIMER_MODE_ABS);
 
 			if (likely(t.task))
 				schedule();

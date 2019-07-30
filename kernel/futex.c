@@ -2611,7 +2611,7 @@ static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
 
 	/* Arm the timer */
 	if (timeout)
-		hrtimer_start_expires(&timeout->timer, HRTIMER_MODE_ABS);
+		hrtimer_sleeper_start_expires(timeout, HRTIMER_MODE_ABS);
 
 	/*
 	 * If we have been removed from the hash list, then another task
@@ -2897,7 +2897,7 @@ retry_private:
 	}
 
 	if (unlikely(to))
-		hrtimer_start_expires(&to->timer, HRTIMER_MODE_ABS);
+		hrtimer_sleeper_start_expires(to, HRTIMER_MODE_ABS);
 
 	ret = rt_mutex_wait_proxy_lock(&q.pi_state->pi_mutex, to, &rt_waiter);
 
