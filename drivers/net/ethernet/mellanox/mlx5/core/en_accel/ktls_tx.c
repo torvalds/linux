@@ -69,7 +69,7 @@ build_static_params(struct mlx5e_umr_wqe *wqe, u16 pc, u32 sqn,
 	cseg->qpn_ds           = cpu_to_be32((sqn << MLX5_WQE_CTRL_QPN_SHIFT) |
 					     STATIC_PARAMS_DS_CNT);
 	cseg->fm_ce_se         = fence ? MLX5_FENCE_MODE_INITIATOR_SMALL : 0;
-	cseg->tisn             = cpu_to_be32(priv_tx->tisn);
+	cseg->tisn             = cpu_to_be32(priv_tx->tisn << 8);
 
 	ucseg->flags = MLX5_UMR_INLINE;
 	ucseg->bsf_octowords = cpu_to_be16(MLX5_ST_SZ_BYTES(tls_static_params) / 16);
@@ -278,7 +278,7 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8)  | MLX5_OPCODE_DUMP);
 	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | ds_cnt);
-	cseg->tisn             = cpu_to_be32(tisn);
+	cseg->tisn             = cpu_to_be32(tisn << 8);
 	cseg->fm_ce_se         = first ? MLX5_FENCE_MODE_INITIATOR_SMALL : 0;
 
 	eseg->inline_hdr.sz = cpu_to_be16(ihs);
@@ -434,7 +434,7 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 	priv_tx->expected_seq = seq + datalen;
 
 	cseg = &(*wqe)->ctrl;
-	cseg->tisn = cpu_to_be32(priv_tx->tisn);
+	cseg->tisn = cpu_to_be32(priv_tx->tisn << 8);
 
 	stats->tls_encrypted_packets += skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1;
 	stats->tls_encrypted_bytes   += datalen;
