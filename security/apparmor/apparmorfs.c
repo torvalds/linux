@@ -591,7 +591,7 @@ static __poll_t ns_revision_poll(struct file *file, poll_table *pt)
 
 void __aa_bump_ns_revision(struct aa_ns *ns)
 {
-	WRITE_ONCE(ns->revision, ns->revision + 1);
+	WRITE_ONCE(ns->revision, READ_ONCE(ns->revision) + 1);
 	wake_up_interruptible(&ns->wait);
 }
 
@@ -2331,6 +2331,8 @@ static struct aa_sfs_entry aa_sfs_entry_versions[] = {
 static struct aa_sfs_entry aa_sfs_entry_policy[] = {
 	AA_SFS_DIR("versions",			aa_sfs_entry_versions),
 	AA_SFS_FILE_BOOLEAN("set_load",		1),
+	/* number of out of band transitions supported */
+	AA_SFS_FILE_U64("outofband",		MAX_OOB_SUPPORTED),
 	{ }
 };
 

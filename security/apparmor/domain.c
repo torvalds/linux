@@ -320,8 +320,7 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 	might_sleep();
 
 	/* transition from exec match to xattr set */
-	state = aa_dfa_null_transition(profile->xmatch, state);
-
+	state = aa_dfa_outofband_transition(profile->xmatch, state);
 	d = bprm->file->f_path.dentry;
 
 	for (i = 0; i < profile->xattr_count; i++) {
@@ -330,7 +329,13 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 		if (size >= 0) {
 			u32 perm;
 
-			/* Check the xattr value, not just presence */
+			/*
+			 * Check the xattr presence before value. This ensure
+			 * that not present xattr can be distinguished from a 0
+			 * length value or rule that matches any value
+			 */
+			state = aa_dfa_null_transition(profile->xmatch, state);
+			/* Check xattr value */
 			state = aa_dfa_match_len(profile->xmatch, state, value,
 						 size);
 			perm = dfa_user_allow(profile->xmatch, state);
@@ -340,7 +345,7 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 			}
 		}
 		/* transition to next element */
-		state = aa_dfa_null_transition(profile->xmatch, state);
+		state = aa_dfa_outofband_transition(profile->xmatch, state);
 		if (size < 0) {
 			/*
 			 * No xattr match, so verify if transition to
