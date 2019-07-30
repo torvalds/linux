@@ -20,7 +20,7 @@
 /*
  * For now 512TB is only supported with book3s and 64K linux page size.
  */
-#if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_PPC_64K_PAGES)
+#ifdef CONFIG_PPC_64K_PAGES
 /*
  * Max value currently used:
  */

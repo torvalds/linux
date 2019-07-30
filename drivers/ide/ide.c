@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 1994-1998	    Linus Torvalds & authors (see below)
  *  Copyright (C) 2003-2005, 2007   Bartlomiej Zolnierkiewicz

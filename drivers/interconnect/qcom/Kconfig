@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INTERCONNECT_QCOM
 	bool "Qualcomm Network-on-Chip interconnect drivers"
 	depends on ARCH_QCOM

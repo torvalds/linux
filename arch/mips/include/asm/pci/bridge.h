@@ -801,15 +801,13 @@ struct bridge_err_cmdword {
 #define PCI64_ATTR_RMF_SHFT	48
 
 struct bridge_controller {
-	struct pci_controller	pc;
-	struct resource		mem;
-	struct resource		io;
 	struct resource		busn;
 	struct bridge_regs	*base;
-	nasid_t			nasid;
-	unsigned int		widget_id;
-	u64			baddr;
+	unsigned long		baddr;
+	unsigned long		intr_addr;
+	struct irq_domain	*domain;
 	unsigned int		pci_int[8];
+	nasid_t			nasid;
 };
 
 #define BRIDGE_CONTROLLER(bus) \
@@ -821,9 +819,5 @@ struct bridge_controller {
 	__raw_writel(__raw_readl(&bc->base->reg) | (val), &bc->base->reg)
 #define bridge_clr(bc, reg, val)	\
 	__raw_writel(__raw_readl(&bc->base->reg) & ~(val), &bc->base->reg)
-
-extern int request_bridge_irq(struct bridge_controller *bc, int pin);
-
-extern struct pci_ops bridge_pci_ops;
 
 #endif /* _ASM_PCI_BRIDGE_H */

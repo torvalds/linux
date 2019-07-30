@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API.
  *
  * SEED Cipher Algorithm.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Documentation of SEED can be found in RFC 4269.
  * Copyright (C) 2007 Korea Information Security Agency (KISA).
@@ -470,7 +466,7 @@ static void __exit seed_fini(void)
 	crypto_unregister_alg(&seed_alg);
 }
 
-module_init(seed_init);
+subsys_initcall(seed_init);
 module_exit(seed_fini);
 
 MODULE_DESCRIPTION("SEED Cipher Algorithm");

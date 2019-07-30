@@ -272,7 +272,8 @@ static void dce110_update_hdmi_info_packet(
 static void dce110_stream_encoder_dp_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
-	enum dc_color_space output_color_space)
+	enum dc_color_space output_color_space,
+	uint32_t enable_sdp_splitting)
 {
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	uint32_t h_active_start;
@@ -977,7 +978,7 @@ static void dce110_stream_encoder_dp_unblank(
 
 		uint64_t m_vid_l = n_vid;
 
-		m_vid_l *= param->pixel_clk_khz;
+		m_vid_l *= param->timing.pix_clk_100hz / 10;
 		m_vid_l = div_u64(m_vid_l,
 			param->link_settings.link_rate
 				* LINK_RATE_REF_FREQ_IN_KHZ);

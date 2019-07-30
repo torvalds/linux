@@ -72,6 +72,8 @@ struct amdgpu_bo_va {
 
 	/* If the mappings are cleared or filled */
 	bool				cleared;
+
+	bool				is_xgmi;
 };
 
 struct amdgpu_bo {

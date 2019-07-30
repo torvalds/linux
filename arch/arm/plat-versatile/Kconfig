@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if PLAT_VERSATILE
 
 config PLAT_VERSATILE_SCHED_CLOCK

@@ -21,6 +21,7 @@
  * IN THE SOFTWARE.
  */
 
+#include "intel_dp.h"
 #include "intel_drv.h"
 
 static void

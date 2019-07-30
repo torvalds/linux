@@ -192,7 +192,7 @@ static void __i915_sw_fence_complete(struct i915_sw_fence *fence,
 	__i915_sw_fence_notify(fence, FENCE_FREE);
 }
 
-static void i915_sw_fence_complete(struct i915_sw_fence *fence)
+void i915_sw_fence_complete(struct i915_sw_fence *fence)
 {
 	debug_fence_assert(fence);
 
@@ -202,7 +202,7 @@ static void i915_sw_fence_complete(struct i915_sw_fence *fence)
 	__i915_sw_fence_complete(fence, NULL);
 }
 
-static void i915_sw_fence_await(struct i915_sw_fence *fence)
+void i915_sw_fence_await(struct i915_sw_fence *fence)
 {
 	debug_fence_assert(fence);
 	WARN_ON(atomic_inc_return(&fence->pending) <= 1);
@@ -359,11 +359,6 @@ int i915_sw_fence_await_sw_fence_gfp(struct i915_sw_fence *fence,
 	return __i915_sw_fence_await_sw_fence(fence, signaler, NULL, gfp);
 }
 
-struct i915_sw_dma_fence_cb {
-	struct dma_fence_cb base;
-	struct i915_sw_fence *fence;
-};
-
 struct i915_sw_dma_fence_cb_timer {
 	struct i915_sw_dma_fence_cb base;
 	struct dma_fence *dma;
@@ -473,6 +468,40 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 		ret = 1;
 	} else {
 		func(dma, &cb->base);
+		if (ret == -ENOENT) /* fence already signaled */
+			ret = 0;
+	}
+
+	return ret;
+}
+
+static void __dma_i915_sw_fence_wake(struct dma_fence *dma,
+				     struct dma_fence_cb *data)
+{
+	struct i915_sw_dma_fence_cb *cb = container_of(data, typeof(*cb), base);
+
+	i915_sw_fence_complete(cb->fence);
+}
+
+int __i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
+				    struct dma_fence *dma,
+				    struct i915_sw_dma_fence_cb *cb)
+{
+	int ret;
+
+	debug_fence_assert(fence);
+
+	if (dma_fence_is_signaled(dma))
+		return 0;
+
+	cb->fence = fence;
+	i915_sw_fence_await(fence);
+
+	ret = dma_fence_add_callback(dma, &cb->base, __dma_i915_sw_fence_wake);
+	if (ret == 0) {
+		ret = 1;
+	} else {
+		i915_sw_fence_complete(fence);
 		if (ret == -ENOENT) /* fence already signaled */
 			ret = 0;
 	}

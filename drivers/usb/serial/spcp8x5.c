@@ -281,10 +281,7 @@ static void spcp8x5_dtr_rts(struct usb_serial_port *port, int on)
 
 static void spcp8x5_init_termios(struct tty_struct *tty)
 {
-	tty->termios = tty_std_termios;
-	tty->termios.c_cflag = B115200 | CS8 | CREAD | HUPCL | CLOCAL;
-	tty->termios.c_ispeed = 115200;
-	tty->termios.c_ospeed = 115200;
+	tty_encode_baud_rate(tty, 115200, 115200);
 }
 
 static void spcp8x5_set_termios(struct tty_struct *tty,

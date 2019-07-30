@@ -108,19 +108,6 @@ i915_active_request_set_retire_fn(struct i915_active_request *active,
 	active->retire = fn ?: i915_active_retire_noop;
 }
 
-static inline struct i915_request *
-__i915_active_request_peek(const struct i915_active_request *active)
-{
-	/*
-	 * Inside the error capture (running with the driver in an unknown
-	 * state), we want to bend the rules slightly (a lot).
-	 *
-	 * Work is in progress to make it safer, in the meantime this keeps
-	 * the known issue from spamming the logs.
-	 */
-	return rcu_dereference_protected(active->request, 1);
-}
-
 /**
  * i915_active_request_raw - return the active request
  * @active - the active tracker
@@ -418,8 +405,5 @@ void i915_active_fini(struct i915_active *ref);
 #else
 static inline void i915_active_fini(struct i915_active *ref) { }
 #endif
-
-int i915_global_active_init(void);
-void i915_global_active_exit(void);
 
 #endif /* _I915_ACTIVE_H_ */

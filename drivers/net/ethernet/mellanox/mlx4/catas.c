@@ -129,10 +129,6 @@ static int mlx4_reset_slave(struct mlx4_dev *dev)
 	comm_flags = rst_req << COM_CHAN_RST_REQ_OFFSET;
 	__raw_writel((__force u32)cpu_to_be32(comm_flags),
 		     (__iomem char *)priv->mfunc.comm + MLX4_COMM_CHAN_FLAGS);
-	/* Make sure that our comm channel write doesn't
-	 * get mixed in with writes from another CPU.
-	 */
-	mmiowb();
 
 	end = msecs_to_jiffies(MLX4_COMM_TIME) + jiffies;
 	while (time_before(jiffies, end)) {

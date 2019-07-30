@@ -679,8 +679,7 @@ static int mini_cqe_res_format_to_hw(struct mlx5_ib_dev *dev, u8 format)
 }
 
 static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
-			  struct ib_ucontext *context, struct mlx5_ib_cq *cq,
-			  int entries, u32 **cqb,
+			  struct mlx5_ib_cq *cq, int entries, u32 **cqb,
 			  int *cqe_size, int *index, int *inlen)
 {
 	struct mlx5_ib_create_cq ucmd = {};
@@ -691,6 +690,8 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	int ncont;
 	void *cqc;
 	int err;
+	struct mlx5_ib_ucontext *context = rdma_udata_to_drv_context(
+		udata, struct mlx5_ib_ucontext, ibucontext);
 
 	ucmdlen = udata->inlen < sizeof(ucmd) ?
 		  (sizeof(ucmd) - sizeof(ucmd.flags)) : sizeof(ucmd);
@@ -715,8 +716,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		return err;
 	}
 
-	err = mlx5_ib_db_map_user(to_mucontext(context), udata, ucmd.db_addr,
-				  &cq->db);
+	err = mlx5_ib_db_map_user(context, udata, ucmd.db_addr, &cq->db);
 	if (err)
 		goto err_umem;
 
@@ -740,7 +740,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	MLX5_SET(cqc, cqc, log_page_size,
 		 page_shift - MLX5_ADAPTER_PAGE_SHIFT);
 
-	*index = to_mucontext(context)->bfregi.sys_pages[0];
+	*index = context->bfregi.sys_pages[0];
 
 	if (ucmd.cqe_comp_en == 1) {
 		int mini_cqe_format;
@@ -782,23 +782,26 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		cq->private_flags |= MLX5_IB_CQ_PR_FLAGS_CQE_128_PAD;
 	}
 
-	MLX5_SET(create_cq_in, *cqb, uid, to_mucontext(context)->devx_uid);
+	MLX5_SET(create_cq_in, *cqb, uid, context->devx_uid);
 	return 0;
 
 err_cqb:
 	kvfree(*cqb);
 
 err_db:
-	mlx5_ib_db_unmap_user(to_mucontext(context), &cq->db);
+	mlx5_ib_db_unmap_user(context, &cq->db);
 
 err_umem:
 	ib_umem_release(cq->buf.umem);
 	return err;
 }
 
-static void destroy_cq_user(struct mlx5_ib_cq *cq, struct ib_ucontext *context)
+static void destroy_cq_user(struct mlx5_ib_cq *cq, struct ib_udata *udata)
 {
-	mlx5_ib_db_unmap_user(to_mucontext(context), &cq->db);
+	struct mlx5_ib_ucontext *context = rdma_udata_to_drv_context(
+		udata, struct mlx5_ib_ucontext, ibucontext);
+
+	mlx5_ib_db_unmap_user(context, &cq->db);
 	ib_umem_release(cq->buf.umem);
 }
 
@@ -883,7 +886,6 @@ static void notify_soft_wc_handler(struct work_struct *work)
 
 struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 				const struct ib_cq_init_attr *attr,
-				struct ib_ucontext *context,
 				struct ib_udata *udata)
 {
 	int entries = attr->cqe;
@@ -923,9 +925,9 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	INIT_LIST_HEAD(&cq->list_send_qp);
 	INIT_LIST_HEAD(&cq->list_recv_qp);
 
-	if (context) {
-		err = create_cq_user(dev, udata, context, cq, entries,
-				     &cqb, &cqe_size, &index, &inlen);
+	if (udata) {
+		err = create_cq_user(dev, udata, cq, entries, &cqb, &cqe_size,
+				     &index, &inlen);
 		if (err)
 			goto err_create;
 	} else {
@@ -962,7 +964,7 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 
 	mlx5_ib_dbg(dev, "cqn 0x%x\n", cq->mcq.cqn);
 	cq->mcq.irqn = irqn;
-	if (context)
+	if (udata)
 		cq->mcq.tasklet_ctx.comp = mlx5_ib_cq_comp;
 	else
 		cq->mcq.comp  = mlx5_ib_cq_comp;
@@ -970,7 +972,7 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 
 	INIT_LIST_HEAD(&cq->wc_list);
 
-	if (context)
+	if (udata)
 		if (ib_copy_to_udata(udata, &cq->mcq.cqn, sizeof(__u32))) {
 			err = -EFAULT;
 			goto err_cmd;
@@ -985,8 +987,8 @@ err_cmd:
 
 err_cqb:
 	kvfree(cqb);
-	if (context)
-		destroy_cq_user(cq, context);
+	if (udata)
+		destroy_cq_user(cq, udata);
 	else
 		destroy_cq_kernel(dev, cq);
 
@@ -996,19 +998,14 @@ err_create:
 	return ERR_PTR(err);
 }
 
-
-int mlx5_ib_destroy_cq(struct ib_cq *cq)
+int mlx5_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(cq->device);
 	struct mlx5_ib_cq *mcq = to_mcq(cq);
-	struct ib_ucontext *context = NULL;
-
-	if (cq->uobject)
-		context = cq->uobject->context;
 
 	mlx5_core_destroy_cq(dev->mdev, &mcq->mcq);
-	if (context)
-		destroy_cq_user(mcq, context);
+	if (udata)
+		destroy_cq_user(mcq, udata);
 	else
 		destroy_cq_kernel(dev, mcq);
 

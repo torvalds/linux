@@ -132,8 +132,6 @@ struct amdgpu_display_manager {
 	 */
 	struct drm_private_obj atomic_obj;
 
-	struct drm_modeset_lock atomic_obj_lock;
-
 	/**
 	 * @dc_lock:
 	 *
@@ -183,6 +181,15 @@ struct amdgpu_display_manager {
 	 */
 	struct common_irq_params
 	vblank_params[DC_IRQ_SOURCE_VBLANK6 - DC_IRQ_SOURCE_VBLANK1 + 1];
+
+	/**
+	 * @vupdate_params:
+	 *
+	 * Vertical update IRQ parameters, passed to registered handlers when
+	 * triggered.
+	 */
+	struct common_irq_params
+	vupdate_params[DC_IRQ_SOURCE_VUPDATE6 - DC_IRQ_SOURCE_VUPDATE1 + 1];
 
 	spinlock_t irq_handler_list_table_lock;
 
@@ -240,6 +247,10 @@ struct amdgpu_dm_connector {
 	struct mutex hpd_lock;
 
 	bool fake_enable;
+#ifdef CONFIG_DEBUG_FS
+	uint32_t debugfs_dpcd_address;
+	uint32_t debugfs_dpcd_size;
+#endif
 };
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)
@@ -259,6 +270,9 @@ struct dm_plane_state {
 struct dm_crtc_state {
 	struct drm_crtc_state base;
 	struct dc_stream_state *stream;
+
+	int active_planes;
+	bool interrupts_enabled;
 
 	int crc_skip_count;
 	bool crc_enabled;

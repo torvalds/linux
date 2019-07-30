@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Joachim Eastwood <manabian@gmail.com>
  * Copyright (C) 2012 Variscite Ltd. - http://www.variscite.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include "omap4460.dtsi"
+#include "omap4-mcpdm.dtsi"
 
 / {
 	model = "Variscite VAR-SOM-OM44";
@@ -71,16 +69,6 @@
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x19c, PIN_OUTPUT | MUX_MODE3)		/* fref_clk2_out.gpio_182 */
 			OMAP4_IOPAD(0x1a0, PIN_INPUT | MUX_MODE0)		/* sys_nirq2.sys_nirq2 */
-		>;
-	};
-
-	mcpdm_pins: pinmux_mcpdm_pins {
-		pinctrl-single,pins = <
-			OMAP4_IOPAD(0x106, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_pdm_ul_data.abe_pdm_ul_data */
-			OMAP4_IOPAD(0x108, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_pdm_dl_data.abe_pdm_dl_data */
-			OMAP4_IOPAD(0x10a, PIN_INPUT_PULLUP | MUX_MODE0)	/* abe_pdm_frame.abe_pdm_frame */
-			OMAP4_IOPAD(0x10c, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_pdm_lb_clk.abe_pdm_lb_clk */
-			OMAP4_IOPAD(0x10e, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_clks.abe_clks */
 		>;
 	};
 
@@ -249,16 +237,6 @@
 
 &i2c4 {
 	status = "disabled";
-};
-
-&mcpdm {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mcpdm_pins>;
-
-	clocks = <&twl6040>;
-	clock-names = "pdmclk";
-
-	status = "okay";
 };
 
 &gpmc {

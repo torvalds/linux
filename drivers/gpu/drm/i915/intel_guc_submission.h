@@ -29,6 +29,7 @@
 
 #include "i915_gem.h"
 #include "i915_selftest.h"
+#include "intel_engine_types.h"
 
 struct drm_i915_private;
 

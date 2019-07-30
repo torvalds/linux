@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * extcon-axp288.c - X-Power AXP288 PMIC extcon cable detection driver
  *
  * Copyright (c) 2017-2018 Hans de Goede <hdegoede@redhat.com>
  * Copyright (C) 2015 Intel Corporation
  * Author: Ramakrishna Pallala <ramakrishna.pallala@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/acpi.h>
@@ -333,7 +325,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	struct axp288_extcon_info *info;
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
-	const char *name;
+	struct acpi_device *adev;
 	int ret, i, pirq;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
@@ -357,9 +349,10 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 
-		name = acpi_dev_get_first_match_name("INT3496", NULL, -1);
-		if (name) {
-			info->id_extcon = extcon_get_extcon_dev(name);
+		adev = acpi_dev_get_first_match_dev("INT3496", NULL, -1);
+		if (adev) {
+			info->id_extcon = extcon_get_extcon_dev(acpi_dev_name(adev));
+			put_device(&adev->dev);
 			if (!info->id_extcon)
 				return -EPROBE_DEFER;
 

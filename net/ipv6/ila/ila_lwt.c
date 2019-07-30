@@ -146,7 +146,8 @@ static int ila_build_state(struct nlattr *nla,
 	if (family != AF_INET6)
 		return -EINVAL;
 
-	ret = nla_parse_nested(tb, ILA_ATTR_MAX, nla, ila_nl_policy, extack);
+	ret = nla_parse_nested_deprecated(tb, ILA_ATTR_MAX, nla,
+					  ila_nl_policy, extack);
 	if (ret < 0)
 		return ret;
 

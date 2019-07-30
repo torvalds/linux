@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/gpio/gpio-mb86s7x.c
  *
  *  Copyright (C) 2015 Fujitsu Semiconductor Limited
  *  Copyright (C) 2015 Linaro Ltd.
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/io.h>
@@ -146,7 +138,6 @@ static void mb86s70_gpio_set(struct gpio_chip *gc, unsigned gpio, int value)
 static int mb86s70_gpio_probe(struct platform_device *pdev)
 {
 	struct mb86s70_gpio_chip *gchip;
-	struct resource *res;
 	int ret;
 
 	gchip = devm_kzalloc(&pdev->dev, sizeof(*gchip), GFP_KERNEL);
@@ -155,8 +146,7 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gchip);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gchip->base = devm_ioremap_resource(&pdev->dev, res);
+	gchip->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gchip->base))
 		return PTR_ERR(gchip->base);
 

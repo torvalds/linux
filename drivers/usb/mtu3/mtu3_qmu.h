@@ -15,6 +15,7 @@
 #define QMU_GPD_RING_SIZE	(MAX_GPD_NUM * QMU_GPD_SIZE)
 
 #define GPD_BUF_SIZE		65532
+#define GPD_BUF_SIZE_EL		1048572
 
 void mtu3_qmu_stop(struct mtu3_ep *mep);
 int mtu3_qmu_start(struct mtu3_ep *mep);

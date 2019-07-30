@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Cryptographic API.
  *
@@ -6,10 +7,6 @@
  * Copyright (c) 2014 Steffen Trumtrar <s.trumtrar@pengutronix.de>
  * Copyright (c) 2013 Vista Silicon S.L.
  * Author: Javier Martin <javier.martin@vista-silicon.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Based on omap-aes.c and tegra-aes.c
  */
@@ -354,7 +351,7 @@ static void sahara_decode_status(struct sahara_dev *dev, unsigned int status)
 {
 	u8 state;
 
-	if (!IS_ENABLED(DEBUG))
+	if (!__is_defined(DEBUG))
 		return;
 
 	state = SAHARA_STATUS_GET_STATE(status);
@@ -406,7 +403,7 @@ static void sahara_dump_descriptors(struct sahara_dev *dev)
 {
 	int i;
 
-	if (!IS_ENABLED(DEBUG))
+	if (!__is_defined(DEBUG))
 		return;
 
 	for (i = 0; i < SAHARA_MAX_HW_DESC; i++) {
@@ -427,7 +424,7 @@ static void sahara_dump_links(struct sahara_dev *dev)
 {
 	int i;
 
-	if (!IS_ENABLED(DEBUG))
+	if (!__is_defined(DEBUG))
 		return;
 
 	for (i = 0; i < SAHARA_MAX_HW_LINK; i++) {

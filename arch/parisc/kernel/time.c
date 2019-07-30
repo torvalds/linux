@@ -40,7 +40,7 @@
 
 #include <linux/timex.h>
 
-static unsigned long clocktick __read_mostly;	/* timer cycles per tick */
+static unsigned long clocktick __ro_after_init;	/* timer cycles per tick */
 
 /*
  * We keep time on PA-RISC Linux by using the Interval Timer which is

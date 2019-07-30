@@ -6,82 +6,16 @@
 #include <asm/page.h>
 
 #ifdef CONFIG_PPC_BOOK3S_64
-
 #include <asm/book3s/64/hugetlb.h>
-/*
- * This should work for other subarchs too. But right now we use the
- * new format only for 64bit book3s
- */
-static inline pte_t *hugepd_page(hugepd_t hpd)
-{
-	BUG_ON(!hugepd_ok(hpd));
-	/*
-	 * We have only four bits to encode, MMU page size
-	 */
-	BUILD_BUG_ON((MMU_PAGE_COUNT - 1) > 0xf);
-	return __va(hpd_val(hpd) & HUGEPD_ADDR_MASK);
-}
-
-static inline unsigned int hugepd_mmu_psize(hugepd_t hpd)
-{
-	return (hpd_val(hpd) & HUGEPD_SHIFT_MASK) >> 2;
-}
-
-static inline unsigned int hugepd_shift(hugepd_t hpd)
-{
-	return mmu_psize_to_shift(hugepd_mmu_psize(hpd));
-}
-static inline void flush_hugetlb_page(struct vm_area_struct *vma,
-				      unsigned long vmaddr)
-{
-	if (radix_enabled())
-		return radix__flush_hugetlb_page(vma, vmaddr);
-}
-
-#else
-
-static inline pte_t *hugepd_page(hugepd_t hpd)
-{
-	BUG_ON(!hugepd_ok(hpd));
-#ifdef CONFIG_PPC_8xx
-	return (pte_t *)__va(hpd_val(hpd) & ~HUGEPD_SHIFT_MASK);
-#else
-	return (pte_t *)((hpd_val(hpd) &
-			  ~HUGEPD_SHIFT_MASK) | PD_HUGE);
-#endif
-}
-
-static inline unsigned int hugepd_shift(hugepd_t hpd)
-{
-#ifdef CONFIG_PPC_8xx
-	return ((hpd_val(hpd) & _PMD_PAGE_MASK) >> 1) + 17;
-#else
-	return hpd_val(hpd) & HUGEPD_SHIFT_MASK;
-#endif
-}
-
+#elif defined(CONFIG_PPC_FSL_BOOK3E)
+#include <asm/nohash/hugetlb-book3e.h>
+#elif defined(CONFIG_PPC_8xx)
+#include <asm/nohash/32/hugetlb-8xx.h>
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
+extern bool hugetlb_disabled;
 
-static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
-				    unsigned pdshift)
-{
-	/*
-	 * On FSL BookE, we have multiple higher-level table entries that
-	 * point to the same hugepte.  Just use the first one since they're all
-	 * identical.  So for that case, idx=0.
-	 */
-	unsigned long idx = 0;
-
-	pte_t *dir = hugepd_page(hpd);
-#ifdef CONFIG_PPC_8xx
-	idx = (addr & ((1UL << pdshift) - 1)) >> PAGE_SHIFT;
-#elif !defined(CONFIG_PPC_FSL_BOOK3E)
-	idx = (addr & ((1UL << pdshift) - 1)) >> hugepd_shift(hpd);
-#endif
-
-	return dir + idx;
-}
+void hugetlbpage_init_default(void);
 
 void flush_dcache_icache_hugepage(struct page *page);
 
@@ -99,15 +33,6 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
 
 void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
 			    pte_t pte);
-#ifdef CONFIG_PPC_8xx
-static inline void flush_hugetlb_page(struct vm_area_struct *vma,
-				      unsigned long vmaddr)
-{
-	flush_tlb_page(vma, vmaddr);
-}
-#else
-void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
-#endif
 
 #define __HAVE_ARCH_HUGETLB_FREE_PGD_RANGE
 void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,

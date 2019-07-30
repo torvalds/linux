@@ -83,13 +83,11 @@ struct mlx5_core_srq *mlx5_cmd_get_srq(struct mlx5_ib_dev *dev, u32 srqn)
 	struct mlx5_srq_table *table = &dev->srq_table;
 	struct mlx5_core_srq *srq;
 
-	spin_lock(&table->lock);
-
-	srq = radix_tree_lookup(&table->tree, srqn);
+	xa_lock(&table->array);
+	srq = xa_load(&table->array, srqn);
 	if (srq)
 		atomic_inc(&srq->common.refcount);
-
-	spin_unlock(&table->lock);
+	xa_unlock(&table->array);
 
 	return srq;
 }
@@ -597,9 +595,7 @@ int mlx5_cmd_create_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	atomic_set(&srq->common.refcount, 1);
 	init_completion(&srq->common.free);
 
-	spin_lock_irq(&table->lock);
-	err = radix_tree_insert(&table->tree, srq->srqn, srq);
-	spin_unlock_irq(&table->lock);
+	err = xa_err(xa_store_irq(&table->array, srq->srqn, srq, GFP_KERNEL));
 	if (err)
 		goto err_destroy_srq_split;
 
@@ -611,26 +607,22 @@ err_destroy_srq_split:
 	return err;
 }
 
-int mlx5_cmd_destroy_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq)
+void mlx5_cmd_destroy_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq)
 {
 	struct mlx5_srq_table *table = &dev->srq_table;
 	struct mlx5_core_srq *tmp;
 	int err;
 
-	spin_lock_irq(&table->lock);
-	tmp = radix_tree_delete(&table->tree, srq->srqn);
-	spin_unlock_irq(&table->lock);
+	tmp = xa_erase_irq(&table->array, srq->srqn);
 	if (!tmp || tmp != srq)
-		return -EINVAL;
+		return;
 
 	err = destroy_srq_split(dev, srq);
 	if (err)
-		return err;
+		return;
 
 	mlx5_core_res_put(&srq->common);
 	wait_for_completion(&srq->common.free);
-
-	return 0;
 }
 
 int mlx5_cmd_query_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
@@ -680,13 +672,11 @@ static int srq_event_notifier(struct notifier_block *nb,
 	eqe = data;
 	srqn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
 
-	spin_lock(&table->lock);
-
-	srq = radix_tree_lookup(&table->tree, srqn);
+	xa_lock(&table->array);
+	srq = xa_load(&table->array, srqn);
 	if (srq)
 		atomic_inc(&srq->common.refcount);
-
-	spin_unlock(&table->lock);
+	xa_unlock(&table->array);
 
 	if (!srq)
 		return NOTIFY_OK;
@@ -703,8 +693,7 @@ int mlx5_init_srq_table(struct mlx5_ib_dev *dev)
 	struct mlx5_srq_table *table = &dev->srq_table;
 
 	memset(table, 0, sizeof(*table));
-	spin_lock_init(&table->lock);
-	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
+	xa_init_flags(&table->array, XA_FLAGS_LOCK_IRQ);
 
 	table->nb.notifier_call = srq_event_notifier;
 	mlx5_notifier_register(dev->mdev, &table->nb);

@@ -15,6 +15,7 @@ Required properties:
 			"atmel,at91sam9g45-ebi"
 			"atmel,at91sam9x5-ebi"
 			"atmel,sama5d3-ebi"
+			"microchip,sam9x60-ebi"
 
 - reg:			Contains offset/length value for EBI memory mapping.
 			This property might contain several entries if the EBI

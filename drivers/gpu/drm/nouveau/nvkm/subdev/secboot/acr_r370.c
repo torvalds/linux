@@ -49,20 +49,36 @@ acr_r370_generate_flcn_bl_desc(const struct nvkm_acr *acr,
 	desc->data_size = pdesc->app_resident_data_size;
 }
 
-const struct acr_r352_ls_func
-acr_r370_ls_fecs_func = {
-	.load = acr_ls_ucode_load_fecs,
+static const struct acr_r352_lsf_func
+acr_r370_ls_fecs_func_0 = {
 	.generate_bl_desc = acr_r370_generate_flcn_bl_desc,
 	.bl_desc_size = sizeof(struct acr_r370_flcn_bl_desc),
 };
 
 const struct acr_r352_ls_func
-acr_r370_ls_gpccs_func = {
-	.load = acr_ls_ucode_load_gpccs,
+acr_r370_ls_fecs_func = {
+	.load = acr_ls_ucode_load_fecs,
+	.version_max = 0,
+	.version = {
+		&acr_r370_ls_fecs_func_0,
+	}
+};
+
+static const struct acr_r352_lsf_func
+acr_r370_ls_gpccs_func_0 = {
 	.generate_bl_desc = acr_r370_generate_flcn_bl_desc,
 	.bl_desc_size = sizeof(struct acr_r370_flcn_bl_desc),
 	/* GPCCS will be loaded using PRI */
 	.lhdr_flags = LSF_FLAG_FORCE_PRIV_LOAD,
+};
+
+const struct acr_r352_ls_func
+acr_r370_ls_gpccs_func = {
+	.load = acr_ls_ucode_load_gpccs,
+	.version_max = 0,
+	.version = {
+		&acr_r370_ls_gpccs_func_0,
+	}
 };
 
 static void
@@ -95,12 +111,20 @@ acr_r370_generate_sec2_bl_desc(const struct nvkm_acr *acr,
 	desc->argv = 0x01000000;
 }
 
+const struct acr_r352_lsf_func
+acr_r370_ls_sec2_func_0 = {
+	.generate_bl_desc = acr_r370_generate_sec2_bl_desc,
+	.bl_desc_size = sizeof(struct acr_r370_flcn_bl_desc),
+};
+
 const struct acr_r352_ls_func
 acr_r370_ls_sec2_func = {
 	.load = acr_ls_ucode_load_sec2,
-	.generate_bl_desc = acr_r370_generate_sec2_bl_desc,
-	.bl_desc_size = sizeof(struct acr_r370_flcn_bl_desc),
 	.post_run = acr_ls_sec2_post_run,
+	.version_max = 0,
+	.version = {
+		&acr_r370_ls_sec2_func_0,
+	}
 };
 
 void

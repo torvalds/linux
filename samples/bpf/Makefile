@@ -52,6 +52,7 @@ hostprogs-y += xdpsock
 hostprogs-y += xdp_fwd
 hostprogs-y += task_fd_query
 hostprogs-y += xdp_sample_pkts
+hostprogs-y += ibumad
 hostprogs-y += hbm
 
 # Libbpf dependencies
@@ -108,6 +109,7 @@ xdpsock-objs := xdpsock_user.o
 xdp_fwd-objs := xdp_fwd_user.o
 task_fd_query-objs := bpf_load.o task_fd_query_user.o $(TRACE_HELPERS)
 xdp_sample_pkts-objs := xdp_sample_pkts_user.o $(TRACE_HELPERS)
+ibumad-objs := bpf_load.o ibumad_user.o $(TRACE_HELPERS)
 hbm-objs := bpf_load.o hbm.o $(CGROUP_HELPERS)
 
 # Tell kbuild to always build the programs
@@ -166,6 +168,7 @@ always += xdp_adjust_tail_kern.o
 always += xdp_fwd_kern.o
 always += task_fd_query_kern.o
 always += xdp_sample_pkts_kern.o
+always += ibumad_kern.o
 always += hbm_out_kern.o
 
 KBUILD_HOSTCFLAGS += -I$(objtree)/usr/include

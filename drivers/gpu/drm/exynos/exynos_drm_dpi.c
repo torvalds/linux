@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Exynos DRM Parallel output support.
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd
  *
  * Contacts: Andrzej Hajda <a.hajda@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #include <drm/drmP.h>
@@ -77,7 +74,8 @@ static int exynos_dpi_get_modes(struct drm_connector *connector)
 
 		mode = drm_mode_create(connector->dev);
 		if (!mode) {
-			DRM_ERROR("failed to create a new display mode\n");
+			DRM_DEV_ERROR(ctx->dev,
+				      "failed to create a new display mode\n");
 			return 0;
 		}
 		drm_display_mode_from_videomode(ctx->vm, mode);
@@ -108,7 +106,8 @@ static int exynos_dpi_create_connector(struct drm_encoder *encoder)
 				 &exynos_dpi_connector_funcs,
 				 DRM_MODE_CONNECTOR_VGA);
 	if (ret) {
-		DRM_ERROR("failed to initialize connector with drm\n");
+		DRM_DEV_ERROR(ctx->dev,
+			      "failed to initialize connector with drm\n");
 		return ret;
 	}
 
@@ -213,7 +212,8 @@ int exynos_dpi_bind(struct drm_device *dev, struct drm_encoder *encoder)
 
 	ret = exynos_dpi_create_connector(encoder);
 	if (ret) {
-		DRM_ERROR("failed to create connector ret = %d\n", ret);
+		DRM_DEV_ERROR(encoder_to_dpi(encoder)->dev,
+			      "failed to create connector ret = %d\n", ret);
 		drm_encoder_cleanup(encoder);
 		return ret;
 	}

@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) STMicroelectronics SA 2017
  *
  * Authors: Philippe Cornu <philippe.cornu@st.com>
  *          Yannick Fertre <yannick.fertre@st.com>
- *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef __DW_MIPI_DSI__

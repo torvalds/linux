@@ -1,15 +1,10 @@
-/* sound/soc/samsung/jive_wm8750.c
- *
- * Copyright 2007,2008 Simtec Electronics
- *
- * Based on sound/soc/pxa/spitz.c
- *	Copyright 2005 Wolfson Microelectronics PLC.
- *	Copyright 2005 Openedhand Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2007,2008 Simtec Electronics
+//
+// Based on sound/soc/pxa/spitz.c
+//	Copyright 2005 Wolfson Microelectronics PLC.
+//	Copyright 2005 Openedhand Ltd.
 
 #include <linux/module.h>
 #include <sound/soc.h>

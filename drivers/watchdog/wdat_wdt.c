@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ACPI Hardware Watchdog (WDAT) driver.
  *
  * Copyright (C) 2016, Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
@@ -287,7 +284,7 @@ static unsigned int wdat_wdt_get_timeleft(struct watchdog_device *wdd)
 	struct wdat_wdt *wdat = to_wdat_wdt(wdd);
 	u32 periods = 0;
 
-	wdat_wdt_run_action(wdat, ACPI_WDAT_GET_COUNTDOWN, 0, &periods);
+	wdat_wdt_run_action(wdat, ACPI_WDAT_GET_CURRENT_COUNTDOWN, 0, &periods);
 	return periods * wdat->period / 1000;
 }
 
@@ -308,6 +305,7 @@ static const struct watchdog_ops wdat_wdt_ops = {
 
 static int wdat_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	const struct acpi_wdat_entry *entries;
 	const struct acpi_table_wdat *tbl;
 	struct wdat_wdt *wdat;
@@ -321,11 +319,11 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	wdat = devm_kzalloc(&pdev->dev, sizeof(*wdat), GFP_KERNEL);
+	wdat = devm_kzalloc(dev, sizeof(*wdat), GFP_KERNEL);
 	if (!wdat)
 		return -ENOMEM;
 
-	regs = devm_kcalloc(&pdev->dev, pdev->num_resources, sizeof(*regs),
+	regs = devm_kcalloc(dev, pdev->num_resources, sizeof(*regs),
 			    GFP_KERNEL);
 	if (!regs)
 		return -ENOMEM;
@@ -350,15 +348,15 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 
 		res = &pdev->resource[i];
 		if (resource_type(res) == IORESOURCE_MEM) {
-			reg = devm_ioremap_resource(&pdev->dev, res);
+			reg = devm_ioremap_resource(dev, res);
 			if (IS_ERR(reg))
 				return PTR_ERR(reg);
 		} else if (resource_type(res) == IORESOURCE_IO) {
-			reg = devm_ioport_map(&pdev->dev, res->start, 1);
+			reg = devm_ioport_map(dev, res->start, 1);
 			if (!reg)
 				return -ENOMEM;
 		} else {
-			dev_err(&pdev->dev, "Unsupported resource\n");
+			dev_err(dev, "Unsupported resource\n");
 			return -EINVAL;
 		}
 
@@ -376,12 +374,11 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 
 		action = entries[i].action;
 		if (action >= MAX_WDAT_ACTIONS) {
-			dev_dbg(&pdev->dev, "Skipping unknown action: %u\n",
-				action);
+			dev_dbg(dev, "Skipping unknown action: %u\n", action);
 			continue;
 		}
 
-		instr = devm_kzalloc(&pdev->dev, sizeof(*instr), GFP_KERNEL);
+		instr = devm_kzalloc(dev, sizeof(*instr), GFP_KERNEL);
 		if (!instr)
 			return -ENOMEM;
 
@@ -398,7 +395,7 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 		} else if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
 			r.flags = IORESOURCE_IO;
 		} else {
-			dev_dbg(&pdev->dev, "Unsupported address space: %d\n",
+			dev_dbg(dev, "Unsupported address space: %d\n",
 				gas->space_id);
 			continue;
 		}
@@ -413,14 +410,15 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 		}
 
 		if (!instr->reg) {
-			dev_err(&pdev->dev, "I/O resource not found\n");
+			dev_err(dev, "I/O resource not found\n");
 			return -EINVAL;
 		}
 
 		instructions = wdat->instructions[action];
 		if (!instructions) {
-			instructions = devm_kzalloc(&pdev->dev,
-					sizeof(*instructions), GFP_KERNEL);
+			instructions = devm_kzalloc(dev,
+						    sizeof(*instructions),
+						    GFP_KERNEL);
 			if (!instructions)
 				return -ENOMEM;
 
@@ -441,7 +439,7 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, wdat);
 
 	watchdog_set_nowayout(&wdat->wdd, nowayout);
-	return devm_watchdog_register_device(&pdev->dev, &wdat->wdd);
+	return devm_watchdog_register_device(dev, &wdat->wdd);
 }
 
 #ifdef CONFIG_PM_SLEEP

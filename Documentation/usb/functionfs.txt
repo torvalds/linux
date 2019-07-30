@@ -1,4 +1,6 @@
-*How FunctionFS works*
+====================
+How FunctionFS works
+====================
 
 From kernel point of view it is just a composite function with some
 unique behaviour.  It may be added to an USB configuration only after
@@ -38,13 +40,13 @@ when mounting.
 
 One can imagine a gadget that has an Ethernet, MTP and HID interfaces
 where the last two are implemented via FunctionFS.  On user space
-level it would look like this:
+level it would look like this::
 
-$ insmod g_ffs.ko idVendor=<ID> iSerialNumber=<string> functions=mtp,hid
-$ mkdir /dev/ffs-mtp && mount -t functionfs mtp /dev/ffs-mtp
-$ ( cd /dev/ffs-mtp && mtp-daemon ) &
-$ mkdir /dev/ffs-hid && mount -t functionfs hid /dev/ffs-hid
-$ ( cd /dev/ffs-hid && hid-daemon ) &
+  $ insmod g_ffs.ko idVendor=<ID> iSerialNumber=<string> functions=mtp,hid
+  $ mkdir /dev/ffs-mtp && mount -t functionfs mtp /dev/ffs-mtp
+  $ ( cd /dev/ffs-mtp && mtp-daemon ) &
+  $ mkdir /dev/ffs-hid && mount -t functionfs hid /dev/ffs-hid
+  $ ( cd /dev/ffs-hid && hid-daemon ) &
 
 On kernel level the gadget checks ffs_data->dev_name to identify
 whether it's FunctionFS designed for MTP ("mtp") or HID ("hid").
@@ -64,4 +66,3 @@ have been written to their ep0's.
 
 Conversely, the gadget is unregistered after the first USB function
 closes its endpoints.
-

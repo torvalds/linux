@@ -274,7 +274,7 @@
 		};
 
 		adc: adc@126c0000 {
-			compatible = "samsung,exynos-adc-v1";
+			compatible = "samsung,exynos4212-adc";
 			reg = <0x126C0000 0x100>;
 			interrupt-parent = <&combiner>;
 			interrupts = <10 3>;

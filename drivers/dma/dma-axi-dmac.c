@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Analog Devices AXI-DMAC core
  *
  * Copyright 2013-2015 Analog Devices Inc.
  *  Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/clk.h>
@@ -166,7 +165,7 @@ static int axi_dmac_dest_is_mem(struct axi_dmac_chan *chan)
 
 static bool axi_dmac_check_len(struct axi_dmac_chan *chan, unsigned int len)
 {
-	if (len == 0 || len > chan->max_length)
+	if (len == 0)
 		return false;
 	if ((len & chan->align_mask) != 0) /* Not aligned */
 		return false;
@@ -379,6 +378,49 @@ static struct axi_dmac_desc *axi_dmac_alloc_desc(unsigned int num_sgs)
 	return desc;
 }
 
+static struct axi_dmac_sg *axi_dmac_fill_linear_sg(struct axi_dmac_chan *chan,
+	enum dma_transfer_direction direction, dma_addr_t addr,
+	unsigned int num_periods, unsigned int period_len,
+	struct axi_dmac_sg *sg)
+{
+	unsigned int num_segments, i;
+	unsigned int segment_size;
+	unsigned int len;
+
+	/* Split into multiple equally sized segments if necessary */
+	num_segments = DIV_ROUND_UP(period_len, chan->max_length);
+	segment_size = DIV_ROUND_UP(period_len, num_segments);
+	/* Take care of alignment */
+	segment_size = ((segment_size - 1) | chan->align_mask) + 1;
+
+	for (i = 0; i < num_periods; i++) {
+		len = period_len;
+
+		while (len > segment_size) {
+			if (direction == DMA_DEV_TO_MEM)
+				sg->dest_addr = addr;
+			else
+				sg->src_addr = addr;
+			sg->x_len = segment_size;
+			sg->y_len = 1;
+			sg++;
+			addr += segment_size;
+			len -= segment_size;
+		}
+
+		if (direction == DMA_DEV_TO_MEM)
+			sg->dest_addr = addr;
+		else
+			sg->src_addr = addr;
+		sg->x_len = len;
+		sg->y_len = 1;
+		sg++;
+		addr += len;
+	}
+
+	return sg;
+}
+
 static struct dma_async_tx_descriptor *axi_dmac_prep_slave_sg(
 	struct dma_chan *c, struct scatterlist *sgl,
 	unsigned int sg_len, enum dma_transfer_direction direction,
@@ -386,15 +428,23 @@ static struct dma_async_tx_descriptor *axi_dmac_prep_slave_sg(
 {
 	struct axi_dmac_chan *chan = to_axi_dmac_chan(c);
 	struct axi_dmac_desc *desc;
+	struct axi_dmac_sg *dsg;
 	struct scatterlist *sg;
+	unsigned int num_sgs;
 	unsigned int i;
 
 	if (direction != chan->direction)
 		return NULL;
 
-	desc = axi_dmac_alloc_desc(sg_len);
+	num_sgs = 0;
+	for_each_sg(sgl, sg, sg_len, i)
+		num_sgs += DIV_ROUND_UP(sg_dma_len(sg), chan->max_length);
+
+	desc = axi_dmac_alloc_desc(num_sgs);
 	if (!desc)
 		return NULL;
+
+	dsg = desc->sg;
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		if (!axi_dmac_check_addr(chan, sg_dma_address(sg)) ||
@@ -403,12 +453,8 @@ static struct dma_async_tx_descriptor *axi_dmac_prep_slave_sg(
 			return NULL;
 		}
 
-		if (direction == DMA_DEV_TO_MEM)
-			desc->sg[i].dest_addr = sg_dma_address(sg);
-		else
-			desc->sg[i].src_addr = sg_dma_address(sg);
-		desc->sg[i].x_len = sg_dma_len(sg);
-		desc->sg[i].y_len = 1;
+		dsg = axi_dmac_fill_linear_sg(chan, direction, sg_dma_address(sg), 1,
+			sg_dma_len(sg), dsg);
 	}
 
 	desc->cyclic = false;
@@ -423,7 +469,7 @@ static struct dma_async_tx_descriptor *axi_dmac_prep_dma_cyclic(
 {
 	struct axi_dmac_chan *chan = to_axi_dmac_chan(c);
 	struct axi_dmac_desc *desc;
-	unsigned int num_periods, i;
+	unsigned int num_periods, num_segments;
 
 	if (direction != chan->direction)
 		return NULL;
@@ -436,20 +482,14 @@ static struct dma_async_tx_descriptor *axi_dmac_prep_dma_cyclic(
 		return NULL;
 
 	num_periods = buf_len / period_len;
+	num_segments = DIV_ROUND_UP(period_len, chan->max_length);
 
-	desc = axi_dmac_alloc_desc(num_periods);
+	desc = axi_dmac_alloc_desc(num_periods * num_segments);
 	if (!desc)
 		return NULL;
 
-	for (i = 0; i < num_periods; i++) {
-		if (direction == DMA_DEV_TO_MEM)
-			desc->sg[i].dest_addr = buf_addr;
-		else
-			desc->sg[i].src_addr = buf_addr;
-		desc->sg[i].x_len = period_len;
-		desc->sg[i].y_len = 1;
-		buf_addr += period_len;
-	}
+	axi_dmac_fill_linear_sg(chan, direction, buf_addr, num_periods,
+		period_len, desc->sg);
 
 	desc->cyclic = true;
 
@@ -485,7 +525,7 @@ static struct dma_async_tx_descriptor *axi_dmac_prep_interleaved(
 
 	if (chan->hw_2d) {
 		if (!axi_dmac_check_len(chan, xt->sgl[0].size) ||
-		    !axi_dmac_check_len(chan, xt->numf))
+		    xt->numf == 0)
 			return NULL;
 		if (xt->sgl[0].size + dst_icg > chan->max_length ||
 		    xt->sgl[0].size + src_icg > chan->max_length)
@@ -577,15 +617,6 @@ static int axi_dmac_parse_chan_dt(struct device_node *of_chan,
 		return ret;
 	chan->dest_width = val / 8;
 
-	ret = of_property_read_u32(of_chan, "adi,length-width", &val);
-	if (ret)
-		return ret;
-
-	if (val >= 32)
-		chan->max_length = UINT_MAX;
-	else
-		chan->max_length = (1ULL << val) - 1;
-
 	chan->align_mask = max(chan->dest_width, chan->src_width) - 1;
 
 	if (axi_dmac_dest_is_mem(chan) && axi_dmac_src_is_mem(chan))
@@ -597,10 +628,25 @@ static int axi_dmac_parse_chan_dt(struct device_node *of_chan,
 	else
 		chan->direction = DMA_DEV_TO_DEV;
 
-	chan->hw_cyclic = of_property_read_bool(of_chan, "adi,cyclic");
-	chan->hw_2d = of_property_read_bool(of_chan, "adi,2d");
-
 	return 0;
+}
+
+static void axi_dmac_detect_caps(struct axi_dmac *dmac)
+{
+	struct axi_dmac_chan *chan = &dmac->chan;
+
+	axi_dmac_write(dmac, AXI_DMAC_REG_FLAGS, AXI_DMAC_FLAG_CYCLIC);
+	if (axi_dmac_read(dmac, AXI_DMAC_REG_FLAGS) == AXI_DMAC_FLAG_CYCLIC)
+		chan->hw_cyclic = true;
+
+	axi_dmac_write(dmac, AXI_DMAC_REG_Y_LENGTH, 1);
+	if (axi_dmac_read(dmac, AXI_DMAC_REG_Y_LENGTH) == 1)
+		chan->hw_2d = true;
+
+	axi_dmac_write(dmac, AXI_DMAC_REG_X_LENGTH, 0xffffffff);
+	chan->max_length = axi_dmac_read(dmac, AXI_DMAC_REG_X_LENGTH);
+	if (chan->max_length != UINT_MAX)
+		chan->max_length++;
 }
 
 static int axi_dmac_probe(struct platform_device *pdev)
@@ -647,11 +693,12 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	of_node_put(of_channels);
 
 	pdev->dev.dma_parms = &dmac->dma_parms;
-	dma_set_max_seg_size(&pdev->dev, dmac->chan.max_length);
+	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
 	dma_dev = &dmac->dma_dev;
 	dma_cap_set(DMA_SLAVE, dma_dev->cap_mask);
 	dma_cap_set(DMA_CYCLIC, dma_dev->cap_mask);
+	dma_cap_set(DMA_INTERLEAVE, dma_dev->cap_mask);
 	dma_dev->device_free_chan_resources = axi_dmac_free_chan_resources;
 	dma_dev->device_tx_status = dma_cookie_status;
 	dma_dev->device_issue_pending = axi_dmac_issue_pending;
@@ -674,6 +721,8 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(dmac->clk);
 	if (ret < 0)
 		return ret;
+
+	axi_dmac_detect_caps(dmac);
 
 	axi_dmac_write(dmac, AXI_DMAC_REG_IRQ_MASK, 0x00);
 

@@ -513,8 +513,6 @@ int octeon_retry_droq_refill(struct octeon_droq *droq)
 		 */
 		wmb();
 		writel(desc_refilled, droq->pkts_credit_reg);
-		/* make sure mmio write completes */
-		mmiowb();
 
 		if (pkts_credit + desc_refilled >= CN23XX_SLI_DEF_BP)
 			reschedule = 0;
@@ -712,8 +710,6 @@ octeon_droq_fast_process_packets(struct octeon_device *oct,
 				 */
 				wmb();
 				writel(desc_refilled, droq->pkts_credit_reg);
-				/* make sure mmio write completes */
-				mmiowb();
 			}
 		}
 	}                       /* for (each packet)... */

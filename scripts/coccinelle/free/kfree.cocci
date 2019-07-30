@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Find a use after free.
 //# Values of variables may imply that some
 //# execution paths are not possible, resulting in false positives.
@@ -5,9 +6,9 @@
 //# SCTP_DBG_OBJCNT_DEC that do not actually evaluate their argument
 ///
 // Confidence: Moderate
-// Copyright: (C) 2010-2012 Nicolas Palix.  GPLv2.
-// Copyright: (C) 2010-2012 Julia Lawall, INRIA/LIP6.  GPLv2.
-// Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.  GPLv2.
+// Copyright: (C) 2010-2012 Nicolas Palix.
+// Copyright: (C) 2010-2012 Julia Lawall, INRIA/LIP6.
+// Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.
 // URL: http://coccinelle.lip6.fr/
 // Comments:
 // Options: --no-includes --include-headers

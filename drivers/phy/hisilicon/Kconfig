@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Phy drivers for Hisilicon platforms
 #
@@ -9,6 +10,16 @@ config PHY_HI6220_USB
 	select MFD_SYSCON
 	help
 	  Enable this to support the HISILICON HI6220 USB PHY.
+
+	  To compile this driver as a module, choose M here.
+
+config PHY_HI3660_USB
+	tristate "hi3660 USB PHY support"
+	depends on (ARCH_HISI && ARM64) || COMPILE_TEST
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the HISILICON HI3660 USB PHY.
 
 	  To compile this driver as a module, choose M here.
 

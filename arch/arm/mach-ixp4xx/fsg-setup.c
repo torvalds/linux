@@ -29,6 +29,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
+#include "irqs.h"
+
 #define FSG_SDA_PIN		12
 #define FSG_SCL_PIN		13
 

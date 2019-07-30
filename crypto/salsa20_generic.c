@@ -86,18 +86,17 @@ static void salsa20_docrypt(u32 *state, u8 *dst, const u8 *src,
 {
 	__le32 stream[SALSA20_BLOCK_SIZE / sizeof(__le32)];
 
-	if (dst != src)
-		memcpy(dst, src, bytes);
-
 	while (bytes >= SALSA20_BLOCK_SIZE) {
 		salsa20_block(state, stream);
-		crypto_xor(dst, (const u8 *)stream, SALSA20_BLOCK_SIZE);
+		crypto_xor_cpy(dst, src, (const u8 *)stream,
+			       SALSA20_BLOCK_SIZE);
 		bytes -= SALSA20_BLOCK_SIZE;
 		dst += SALSA20_BLOCK_SIZE;
+		src += SALSA20_BLOCK_SIZE;
 	}
 	if (bytes) {
 		salsa20_block(state, stream);
-		crypto_xor(dst, (const u8 *)stream, bytes);
+		crypto_xor_cpy(dst, src, (const u8 *)stream, bytes);
 	}
 }
 
@@ -161,7 +160,7 @@ static int salsa20_crypt(struct skcipher_request *req)
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	salsa20_init(state, ctx, walk.iv);
+	salsa20_init(state, ctx, req->iv);
 
 	while (walk.nbytes > 0) {
 		unsigned int nbytes = walk.nbytes;
@@ -204,7 +203,7 @@ static void __exit salsa20_generic_mod_fini(void)
 	crypto_unregister_skcipher(&alg);
 }
 
-module_init(salsa20_generic_mod_init);
+subsys_initcall(salsa20_generic_mod_init);
 module_exit(salsa20_generic_mod_fini);
 
 MODULE_LICENSE("GPL");

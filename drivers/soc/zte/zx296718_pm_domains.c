@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 ZTE Ltd.
  *
  * Author: Baoyou Xie <baoyou.xie@linaro.org>
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <dt-bindings/soc/zte,pm_domains.h>

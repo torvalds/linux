@@ -371,6 +371,58 @@ void bcm_phy_get_stats(struct phy_device *phydev, u64 *shadow,
 }
 EXPORT_SYMBOL_GPL(bcm_phy_get_stats);
 
+void bcm_phy_r_rc_cal_reset(struct phy_device *phydev)
+{
+	/* Reset R_CAL/RC_CAL Engine */
+	bcm_phy_write_exp_sel(phydev, 0x00b0, 0x0010);
+
+	/* Disable Reset R_AL/RC_CAL Engine */
+	bcm_phy_write_exp_sel(phydev, 0x00b0, 0x0000);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_r_rc_cal_reset);
+
+int bcm_phy_28nm_a0b0_afe_config_init(struct phy_device *phydev)
+{
+	/* Increase VCO range to prevent unlocking problem of PLL at low
+	 * temp
+	 */
+	bcm_phy_write_misc(phydev, PLL_PLLCTRL_1, 0x0048);
+
+	/* Change Ki to 011 */
+	bcm_phy_write_misc(phydev, PLL_PLLCTRL_2, 0x021b);
+
+	/* Disable loading of TVCO buffer to bandgap, set bandgap trim
+	 * to 111
+	 */
+	bcm_phy_write_misc(phydev, PLL_PLLCTRL_4, 0x0e20);
+
+	/* Adjust bias current trim by -3 */
+	bcm_phy_write_misc(phydev, DSP_TAP10, 0x690b);
+
+	/* Switch to CORE_BASE1E */
+	phy_write(phydev, MII_BRCM_CORE_BASE1E, 0xd);
+
+	bcm_phy_r_rc_cal_reset(phydev);
+
+	/* write AFE_RXCONFIG_0 */
+	bcm_phy_write_misc(phydev, AFE_RXCONFIG_0, 0xeb19);
+
+	/* write AFE_RXCONFIG_1 */
+	bcm_phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9a3f);
+
+	/* write AFE_RX_LP_COUNTER */
+	bcm_phy_write_misc(phydev, AFE_RX_LP_COUNTER, 0x7fc0);
+
+	/* write AFE_HPF_TRIM_OTHERS */
+	bcm_phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x000b);
+
+	/* write AFTE_TX_CONFIG */
+	bcm_phy_write_misc(phydev, AFE_TX_CONFIG, 0x0800);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(bcm_phy_28nm_a0b0_afe_config_init);
+
 MODULE_DESCRIPTION("Broadcom PHY Library");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Broadcom Corporation");

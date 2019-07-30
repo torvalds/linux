@@ -742,4 +742,3 @@
 #define mmPSOC_GLOBAL_CONF_PAD_SEL_81                                0xC4BA44
 
 #endif /* ASIC_REG_PSOC_GLOBAL_CONF_REGS_H_ */
-

@@ -68,6 +68,13 @@ struct mt76x02_calibration {
 	s8 tssi_dc;
 };
 
+struct mt76x02_beacon_ops {
+	unsigned int nslots;
+	unsigned int slot_size;
+	void (*pre_tbtt_enable) (struct mt76x02_dev *, bool);
+	void (*beacon_enable) (struct mt76x02_dev *, bool);
+};
+
 struct mt76x02_dev {
 	struct mt76_dev mt76; /* must be first */
 
@@ -79,23 +86,25 @@ struct mt76x02_dev {
 
 	u8 txdone_seq;
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
+	spinlock_t txstatus_fifo_lock;
 
 	struct sk_buff *rx_head;
 
-	struct tasklet_struct tx_tasklet;
-	struct tasklet_struct pre_tbtt_tasklet;
+	struct napi_struct tx_napi;
 	struct delayed_work cal_work;
-	struct delayed_work mac_work;
 	struct delayed_work wdt_work;
+
+	struct hrtimer pre_tbtt_timer;
+	struct work_struct pre_tbtt_work;
+
+	const struct mt76x02_beacon_ops *beacon_ops;
 
 	u32 aggr_stats[32];
 
 	struct sk_buff *beacons[8];
-	u8 beacon_mask;
 	u8 beacon_data_mask;
 
 	u8 tbtt_count;
-	u16 beacon_int;
 
 	u32 tx_hang_reset;
 	u8 tx_hang_check;
@@ -163,7 +172,6 @@ void mt76x02_set_tx_ackto(struct mt76x02_dev *dev);
 void mt76x02_set_coverage_class(struct ieee80211_hw *hw,
 				s16 coverage_class);
 int mt76x02_set_rts_threshold(struct ieee80211_hw *hw, u32 val);
-int mt76x02_insert_hdr_pad(struct sk_buff *skb);
 void mt76x02_remove_hdr_pad(struct sk_buff *skb, int len);
 bool mt76x02_tx_status_data(struct mt76_dev *mdev, u8 *update);
 void mt76x02_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
@@ -173,9 +181,9 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance);
 void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		struct sk_buff *skb);
 int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
-			   struct sk_buff *skb, struct mt76_queue *q,
-			   struct mt76_wcid *wcid, struct ieee80211_sta *sta,
-			   u32 *tx_info);
+			   enum mt76_txq_id qid, struct mt76_wcid *wcid,
+			   struct ieee80211_sta *sta,
+			   struct mt76_tx_info *tx_info);
 void mt76x02_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     const u8 *mac);
 void mt76x02_sw_scan_complete(struct ieee80211_hw *hw,
@@ -185,9 +193,19 @@ void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *info, u32 changed);
 
-extern const u16 mt76x02_beacon_offsets[16];
+struct beacon_bc_data {
+	struct mt76x02_dev *dev;
+	struct sk_buff_head q;
+	struct sk_buff *tail[8];
+};
 void mt76x02_init_beacon_config(struct mt76x02_dev *dev);
-void mt76x02_set_irq_mask(struct mt76x02_dev *dev, u32 clear, u32 set);
+void mt76x02e_init_beacon_config(struct mt76x02_dev *dev);
+void mt76x02_resync_beacon_timer(struct mt76x02_dev *dev);
+void mt76x02_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif);
+void mt76x02_enqueue_buffered_bc(struct mt76x02_dev *dev,
+				 struct beacon_bc_data *data,
+				 int max_nframes);
+
 void mt76x02_mac_start(struct mt76x02_dev *dev);
 
 void mt76x02_init_debugfs(struct mt76x02_dev *dev);
@@ -208,12 +226,12 @@ static inline bool is_mt76x2(struct mt76x02_dev *dev)
 
 static inline void mt76x02_irq_enable(struct mt76x02_dev *dev, u32 mask)
 {
-	mt76x02_set_irq_mask(dev, 0, mask);
+	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, 0, mask);
 }
 
 static inline void mt76x02_irq_disable(struct mt76x02_dev *dev, u32 mask)
 {
-	mt76x02_set_irq_mask(dev, mask, 0);
+	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
 static inline bool

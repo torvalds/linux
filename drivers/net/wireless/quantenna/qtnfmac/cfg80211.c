@@ -144,6 +144,7 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 {
 	struct net_device *netdev =  wdev->netdev;
 	struct qtnf_vif *vif;
+	struct sk_buff *skb;
 
 	if (WARN_ON(!netdev))
 		return -EFAULT;
@@ -156,6 +157,11 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	netif_tx_stop_all_queues(netdev);
 	if (netif_carrier_ok(netdev))
 		netif_carrier_off(netdev);
+
+	while ((skb = skb_dequeue(&vif->high_pri_tx_queue)))
+		dev_kfree_skb_any(skb);
+
+	cancel_work_sync(&vif->high_pri_tx_work);
 
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdevice(netdev);
@@ -424,13 +430,13 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	*cookie = short_cookie;
 
 	if (params->offchan)
-		flags |= QLINK_MGMT_FRAME_TX_FLAG_OFFCHAN;
+		flags |= QLINK_FRAME_TX_FLAG_OFFCHAN;
 
 	if (params->no_cck)
-		flags |= QLINK_MGMT_FRAME_TX_FLAG_NO_CCK;
+		flags |= QLINK_FRAME_TX_FLAG_NO_CCK;
 
 	if (params->dont_wait_for_ack)
-		flags |= QLINK_MGMT_FRAME_TX_FLAG_ACK_NOWAIT;
+		flags |= QLINK_FRAME_TX_FLAG_ACK_NOWAIT;
 
 	/* If channel is not specified, pass "freq = 0" to tell device
 	 * firmware to use current channel.
@@ -445,9 +451,8 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 le16_to_cpu(mgmt_frame->frame_control), mgmt_frame->da,
 		 params->len, short_cookie, flags);
 
-	return qtnf_cmd_send_mgmt_frame(vif, short_cookie, flags,
-					freq,
-					params->buf, params->len);
+	return qtnf_cmd_send_frame(vif, short_cookie, flags,
+				   freq, params->buf, params->len);
 }
 
 static int
@@ -993,53 +998,31 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 #endif
 };
 
-static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
+static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy,
 				       struct regulatory_request *req)
 {
-	struct qtnf_wmac *mac = wiphy_priv(wiphy_in);
-	struct qtnf_bus *bus = mac->bus;
-	struct wiphy *wiphy;
-	unsigned int mac_idx;
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	enum nl80211_band band;
 	int ret;
 
 	pr_debug("MAC%u: initiator=%d alpha=%c%c\n", mac->macid, req->initiator,
 		 req->alpha2[0], req->alpha2[1]);
 
-	ret = qtnf_cmd_reg_notify(bus, req);
+	ret = qtnf_cmd_reg_notify(mac, req, qtnf_mac_slave_radar_get(wiphy));
 	if (ret) {
-		if (ret == -EOPNOTSUPP) {
-			pr_warn("reg update not supported\n");
-		} else if (ret == -EALREADY) {
-			pr_info("regulatory domain is already set to %c%c",
-				req->alpha2[0], req->alpha2[1]);
-		} else {
-			pr_err("failed to update reg domain to %c%c\n",
-			       req->alpha2[0], req->alpha2[1]);
-		}
-
+		pr_err("MAC%u: failed to update region to %c%c: %d\n",
+		       mac->macid, req->alpha2[0], req->alpha2[1], ret);
 		return;
 	}
 
-	for (mac_idx = 0; mac_idx < QTNF_MAX_MAC; ++mac_idx) {
-		if (!(bus->hw_info.mac_bitmap & (1 << mac_idx)))
+	for (band = 0; band < NUM_NL80211_BANDS; ++band) {
+		if (!wiphy->bands[band])
 			continue;
 
-		mac = bus->mac[mac_idx];
-		if (!mac)
-			continue;
-
-		wiphy = priv_to_wiphy(mac);
-
-		for (band = 0; band < NUM_NL80211_BANDS; ++band) {
-			if (!wiphy->bands[band])
-				continue;
-
-			ret = qtnf_cmd_band_info_get(mac, wiphy->bands[band]);
-			if (ret)
-				pr_err("failed to get chan info for mac %u band %u\n",
-				       mac_idx, band);
-		}
+		ret = qtnf_cmd_band_info_get(mac, wiphy->bands[band]);
+		if (ret)
+			pr_err("MAC%u: failed to update band %u\n",
+			       mac->macid, band);
 	}
 }
 
@@ -1095,6 +1078,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	struct wiphy *wiphy = priv_to_wiphy(mac);
 	struct qtnf_mac_info *macinfo = &mac->macinfo;
 	int ret;
+	bool regdomain_is_known;
 
 	if (!wiphy) {
 		pr_err("invalid wiphy pointer\n");
@@ -1127,7 +1111,8 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_HAS_CHANNEL_SWITCH |
-			WIPHY_FLAG_4ADDR_STATION;
+			WIPHY_FLAG_4ADDR_STATION |
+			WIPHY_FLAG_NETNS_OK;
 	wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
@@ -1166,11 +1151,19 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		wiphy->wowlan = macinfo->wowlan;
 #endif
 
+	regdomain_is_known = isalpha(mac->rd->alpha2[0]) &&
+				isalpha(mac->rd->alpha2[1]);
+
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_REG_UPDATE) {
-		wiphy->regulatory_flags |= REGULATORY_STRICT_REG |
-			REGULATORY_CUSTOM_REG;
 		wiphy->reg_notifier = qtnf_cfg80211_reg_notifier;
-		wiphy_apply_custom_regulatory(wiphy, hw_info->rd);
+
+		if (mac->rd->alpha2[0] == '9' && mac->rd->alpha2[1] == '9') {
+			wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+				REGULATORY_STRICT_REG;
+			wiphy_apply_custom_regulatory(wiphy, mac->rd);
+		} else if (regdomain_is_known) {
+			wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
+		}
 	} else {
 		wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
 	}
@@ -1193,10 +1186,9 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		goto out;
 
 	if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
-		ret = regulatory_set_wiphy_regd(wiphy, hw_info->rd);
-	else if (isalpha(hw_info->rd->alpha2[0]) &&
-		 isalpha(hw_info->rd->alpha2[1]))
-		ret = regulatory_hint(wiphy, hw_info->rd->alpha2);
+		ret = regulatory_set_wiphy_regd(wiphy, mac->rd);
+	else if (regdomain_is_known)
+		ret = regulatory_hint(wiphy, mac->rd->alpha2);
 
 out:
 	return ret;

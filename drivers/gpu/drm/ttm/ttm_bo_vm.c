@@ -432,6 +432,9 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 	struct ttm_buffer_object *bo;
 	int ret;
 
+	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET_START))
+		return -EINVAL;
+
 	bo = ttm_bo_vm_lookup(bdev, vma->vm_pgoff, vma_pages(vma));
 	if (unlikely(!bo))
 		return -EINVAL;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010 IBM Corporation
  * Copyright (C) 2010 Politecnico di Torino, Italy
@@ -6,10 +7,6 @@
  * Authors:
  * Mimi Zohar <zohar@us.ibm.com>
  * Roberto Sassu <roberto.sassu@polito.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2 of the License.
  *
  * See Documentation/security/keys/trusted-encrypted.rst
  */
@@ -333,7 +330,6 @@ static int calc_hash(struct crypto_shash *tfm, u8 *digest,
 	int err;
 
 	desc->tfm = tfm;
-	desc->flags = 0;
 
 	err = crypto_shash_digest(desc, buf, buflen, digest);
 	shash_desc_zero(desc);

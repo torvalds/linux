@@ -21,7 +21,7 @@
  *    - Equal to SDIO clock
  *    - 2/5 PLL0
  *
- * CP110 has 32 gatable clocks, for the various peripherals in the IP.
+ * CP110 has 32 gateable clocks, for the various peripherals in the IP.
  */
 
 #define pr_fmt(fmt) "cp110-system-controller: " fmt
@@ -57,7 +57,7 @@ enum {
 #define CP110_CORE_NAND			4
 #define CP110_CORE_SDIO			5
 
-/* A number of gatable clocks need special handling */
+/* A number of gateable clocks need special handling */
 #define CP110_GATE_AUDIO		0
 #define CP110_GATE_COMM_UNIT		1
 #define CP110_GATE_NAND			2

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * tc358767 eDP bridge driver
  *
@@ -12,16 +13,6 @@
  *
  * Copyright (C) 2012 Texas Instruments
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -1222,8 +1213,8 @@ static int tc_bridge_attach(struct drm_bridge *bridge)
 					 &bus_format, 1);
 	tc->connector.display_info.bus_flags =
 		DRM_BUS_FLAG_DE_HIGH |
-		DRM_BUS_FLAG_PIXDATA_NEGEDGE |
-		DRM_BUS_FLAG_SYNC_NEGEDGE;
+		DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE |
+		DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE;
 	drm_connector_attach_encoder(&tc->connector, tc->bridge.encoder);
 
 	return 0;

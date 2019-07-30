@@ -209,6 +209,12 @@
 				clock-names = "PCLK";
 			};
 
+			rtc: rtc@1e781000 {
+				compatible = "aspeed,ast2400-rtc";
+				reg = <0x1e781000 0x18>;
+				status = "disabled";
+			};
+
 			uart1: serial@1e783000 {
 				compatible = "ns16550a";
 				reg = <0x1e783000 0x20>;

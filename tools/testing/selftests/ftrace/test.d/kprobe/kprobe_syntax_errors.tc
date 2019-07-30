@@ -1,0 +1,85 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: Kprobe event parser error log check
+
+[ -f kprobe_events ] || exit_unsupported # this is configurable
+
+[ -f error_log ] || exit_unsupported
+
+check_error() { # command-with-error-pos-by-^
+    ftrace_errlog_check 'trace_kprobe' "$1" 'kprobe_events'
+}
+
+if grep -q 'r\[maxactive\]' README; then
+check_error 'p^100 vfs_read'		# MAXACT_NO_KPROBE
+check_error 'r^1a111 vfs_read'		# BAD_MAXACT
+check_error 'r^100000 vfs_read'		# MAXACT_TOO_BIG
+fi
+
+check_error 'p ^non_exist_func'		# BAD_PROBE_ADDR (enoent)
+check_error 'p ^hoge-fuga'		# BAD_PROBE_ADDR (bad syntax)
+check_error 'p ^hoge+1000-1000'		# BAD_PROBE_ADDR (bad syntax)
+check_error 'r ^vfs_read+10'		# BAD_RETPROBE
+check_error 'p:^/bar vfs_read'		# NO_GROUP_NAME
+check_error 'p:^12345678901234567890123456789012345678901234567890123456789012345/bar vfs_read'	# GROUP_TOO_LONG
+
+check_error 'p:^foo.1/bar vfs_read'	# BAD_GROUP_NAME
+check_error 'p:foo/^ vfs_read'		# NO_EVENT_NAME
+check_error 'p:foo/^12345678901234567890123456789012345678901234567890123456789012345 vfs_read'	# EVENT_TOO_LONG
+check_error 'p:foo/^bar.1 vfs_read'	# BAD_EVENT_NAME
+
+check_error 'p vfs_read ^$retval'	# RETVAL_ON_PROBE
+check_error 'p vfs_read ^$stack10000'	# BAD_STACK_NUM
+
+if grep -q '$arg<N>' README; then
+check_error 'p vfs_read ^$arg10000'	# BAD_ARG_NUM
+fi
+
+check_error 'p vfs_read ^$none_var'	# BAD_VAR
+
+check_error 'p vfs_read ^%none_reg'	# BAD_REG_NAME
+check_error 'p vfs_read ^@12345678abcde'	# BAD_MEM_ADDR
+check_error 'p vfs_read ^@+10'		# FILE_ON_KPROBE
+
+check_error 'p vfs_read ^+0@0)'		# DEREF_NEED_BRACE
+check_error 'p vfs_read ^+0ab1(@0)'	# BAD_DEREF_OFFS
+check_error 'p vfs_read +0(+0(@0^)'	# DEREF_OPEN_BRACE
+
+if grep -A1 "fetcharg:" README | grep -q '\$comm' ; then
+check_error 'p vfs_read +0(^$comm)'	# COMM_CANT_DEREF
+fi
+
+check_error 'p vfs_read ^&1'		# BAD_FETCH_ARG
+
+
+# We've introduced this limitation with array support
+if grep -q ' <type>\\\[<array-size>\\\]' README; then
+check_error 'p vfs_read +0(^+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(+0(@0))))))))))))))'	# TOO_MANY_OPS?
+check_error 'p vfs_read +0(@11):u8[10^'		# ARRAY_NO_CLOSE
+check_error 'p vfs_read +0(@11):u8[10]^a'	# BAD_ARRAY_SUFFIX
+check_error 'p vfs_read +0(@11):u8[^10a]'	# BAD_ARRAY_NUM
+check_error 'p vfs_read +0(@11):u8[^256]'	# ARRAY_TOO_BIG
+fi
+
+check_error 'p vfs_read @11:^unknown_type'	# BAD_TYPE
+check_error 'p vfs_read $stack0:^string'	# BAD_STRING
+check_error 'p vfs_read @11:^b10@a/16'		# BAD_BITFIELD
+
+check_error 'p vfs_read ^arg123456789012345678901234567890=@11'	# ARG_NAME_TOO_LOG
+check_error 'p vfs_read ^=@11'			# NO_ARG_NAME
+check_error 'p vfs_read ^var.1=@11'		# BAD_ARG_NAME
+check_error 'p vfs_read var1=@11 ^var1=@12'	# USED_ARG_NAME
+check_error 'p vfs_read ^+1234567(+1234567(+1234567(+1234567(+1234567(+1234567(@1234))))))'	# ARG_TOO_LONG
+check_error 'p vfs_read arg1=^'			# NO_ARG_BODY
+
+# instruction boundary check is valid on x86 (at this moment)
+case $(uname -m) in
+  x86_64|i[3456]86)
+    echo 'p vfs_read' > kprobe_events
+    if grep -q FTRACE ../kprobes/list ; then
+	check_error 'p ^vfs_read+3'		# BAD_INSN_BNDRY (only if function-tracer is enabled)
+    fi
+    ;;
+esac
+
+exit 0

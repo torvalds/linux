@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Architectures that offer an FUNCTION_TRACER implementation should
 #  select HAVE_FUNCTION_TRACER:
@@ -773,13 +774,6 @@ config TRACE_EVAL_MAP_FILE
 	increase the memory footprint of the running kernel.
 
 	If unsure, say N
-
-config TRACING_EVENTS_GPIO
-	bool "Trace gpio events"
-	depends on GPIOLIB
-	default y
-	help
-	  Enable tracing events for gpio subsystem
 
 config GCOV_PROFILE_FTRACE
 	bool "Enable GCOV profiling on ftrace subsystem"

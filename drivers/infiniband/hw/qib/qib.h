@@ -52,6 +52,7 @@
 #include <linux/kref.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
+#include <linux/xarray.h>
 #include <rdma/ib_hdrs.h>
 #include <rdma/rdma_vt.h>
 
@@ -1105,8 +1106,7 @@ struct qib_filedata {
 	int rec_cpu_num; /* for cpu affinity; -1 if none */
 };
 
-extern struct list_head qib_dev_list;
-extern spinlock_t qib_devs_lock;
+extern struct xarray qib_dev_table;
 extern struct qib_devdata *qib_lookup(int unit);
 extern u32 qib_cpulist_count;
 extern unsigned long *qib_cpulist;

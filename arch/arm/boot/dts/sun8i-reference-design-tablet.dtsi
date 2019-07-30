@@ -86,14 +86,6 @@
 	status = "okay";
 };
 
-&pio {
-	usb0_id_detect_pin: usb0-id-detect-pin {
-		pins = "PH8";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-};
-
 &r_rsb {
 	status = "okay";
 
@@ -224,9 +216,7 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>;
-	usb0_id_det-gpio = <&pio 7 8 GPIO_ACTIVE_HIGH>; /* PH8 */
+	usb0_id_det-gpios = <&pio 7 8 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PH8 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb0_vbus-supply = <&reg_drivevbus>;
 	status = "okay";

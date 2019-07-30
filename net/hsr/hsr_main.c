@@ -1,9 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright 2011-2014 Autronica Fire and Security AS
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  *
  * Author(s):
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
@@ -19,7 +15,6 @@
 #include "hsr_framereg.h"
 #include "hsr_slave.h"
 
-
 static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 			     void *ptr)
 {
@@ -31,12 +26,12 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 
 	dev = netdev_notifier_info_to_dev(ptr);
 	port = hsr_port_get_rtnl(dev);
-	if (port == NULL) {
+	if (!port) {
 		if (!is_hsr_master(dev))
 			return NOTIFY_DONE;	/* Not an HSR device */
 		hsr = netdev_priv(dev);
 		port = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-		if (port == NULL) {
+		if (!port) {
 			/* Resend of notification concerning removed device? */
 			return NOTIFY_DONE;
 		}
@@ -63,7 +58,8 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 
 		if (port->type == HSR_PT_SLAVE_A) {
 			ether_addr_copy(master->dev->dev_addr, dev->dev_addr);
-			call_netdevice_notifiers(NETDEV_CHANGEADDR, master->dev);
+			call_netdevice_notifiers(NETDEV_CHANGEADDR,
+						 master->dev);
 		}
 
 		/* Make sure we recognize frames from ourselves in hsr_rcv() */
@@ -97,7 +93,6 @@ static int hsr_netdev_notify(struct notifier_block *nb, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-
 struct hsr_port *hsr_port_get_hsr(struct hsr_priv *hsr, enum hsr_port_type pt)
 {
 	struct hsr_port *port;
@@ -111,7 +106,6 @@ struct hsr_port *hsr_port_get_hsr(struct hsr_priv *hsr, enum hsr_port_type pt)
 static struct notifier_block hsr_nb = {
 	.notifier_call = hsr_netdev_notify,	/* Slave event notifications */
 };
-
 
 static int __init hsr_init(void)
 {

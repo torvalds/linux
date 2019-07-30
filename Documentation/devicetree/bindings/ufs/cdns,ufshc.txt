@@ -5,8 +5,9 @@ Each UFS controller instance should have its own node.
 Please see the ufshcd-pltfrm.txt for a list of all available properties.
 
 Required properties:
-- compatible	: Compatible list, contains the following controller:
-			"cdns,ufshc"
+- compatible	: Compatible list, contains one of the following controllers:
+			"cdns,ufshc" - Generic CDNS HCI,
+			"cdns,ufshc-m31-16nm" - CDNS UFS HC + M31 16nm PHY
 		  complemented with the JEDEC version:
 			"jedec,ufs-2.0"
 

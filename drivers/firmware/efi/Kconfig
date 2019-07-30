@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "EFI (Extensible Firmware Interface) Support"
 	depends on EFI
 

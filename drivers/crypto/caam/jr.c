@@ -170,12 +170,12 @@ static void caam_jr_dequeue(unsigned long devarg)
 	void (*usercall)(struct device *dev, u32 *desc, u32 status, void *arg);
 	u32 *userdesc, userstatus;
 	void *userarg;
+	u32 outring_used = 0;
 
-	while (rd_reg32(&jrp->rregs->outring_used)) {
+	while (outring_used ||
+	       (outring_used = rd_reg32(&jrp->rregs->outring_used))) {
 
 		head = READ_ONCE(jrp->head);
-
-		spin_lock(&jrp->outlock);
 
 		sw_idx = tail = jrp->tail;
 		hw_idx = jrp->out_ring_read_index;
@@ -199,7 +199,7 @@ static void caam_jr_dequeue(unsigned long devarg)
 		/* mark completed, avoid matching on a recycled desc addr */
 		jrp->entinfo[sw_idx].desc_addr_dma = 0;
 
-		/* Stash callback params for use outside of lock */
+		/* Stash callback params */
 		usercall = jrp->entinfo[sw_idx].callbk;
 		userarg = jrp->entinfo[sw_idx].cbkarg;
 		userdesc = jrp->entinfo[sw_idx].desc_addr_virt;
@@ -232,10 +232,9 @@ static void caam_jr_dequeue(unsigned long devarg)
 			jrp->tail = tail;
 		}
 
-		spin_unlock(&jrp->outlock);
-
 		/* Finally, execute user's callback */
 		usercall(dev, userdesc, userstatus, userarg);
+		outring_used--;
 	}
 
 	/* reenable / unmask IRQs */
@@ -345,7 +344,7 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	head = jrp->head;
 	tail = READ_ONCE(jrp->tail);
 
-	if (!rd_reg32(&jrp->rregs->inpring_avail) ||
+	if (!jrp->inpring_avail ||
 	    CIRC_SPACE(head, tail, JOBR_DEPTH) <= 0) {
 		spin_unlock_bh(&jrp->inplock);
 		dma_unmap_single(dev, desc_dma, desc_size, DMA_TO_DEVICE);
@@ -359,7 +358,7 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	head_entry->cbkarg = areq;
 	head_entry->desc_addr_dma = desc_dma;
 
-	jrp->inpring[jrp->inp_ring_write_index] = cpu_to_caam_dma(desc_dma);
+	jrp->inpring[head] = cpu_to_caam_dma(desc_dma);
 
 	/*
 	 * Guarantee that the descriptor's DMA address has been written to
@@ -368,17 +367,21 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	 */
 	smp_wmb();
 
-	jrp->inp_ring_write_index = (jrp->inp_ring_write_index + 1) &
-				    (JOBR_DEPTH - 1);
 	jrp->head = (head + 1) & (JOBR_DEPTH - 1);
 
 	/*
 	 * Ensure that all job information has been written before
-	 * notifying CAAM that a new job was added to the input ring.
+	 * notifying CAAM that a new job was added to the input ring
+	 * using a memory barrier. The wr_reg32() uses api iowrite32()
+	 * to do the register write. iowrite32() issues a memory barrier
+	 * before the write operation.
 	 */
-	wmb();
 
 	wr_reg32(&jrp->rregs->inpring_jobadd, 1);
+
+	jrp->inpring_avail--;
+	if (!jrp->inpring_avail)
+		jrp->inpring_avail = rd_reg32(&jrp->rregs->inpring_avail);
 
 	spin_unlock_bh(&jrp->inplock);
 
@@ -431,7 +434,6 @@ static int caam_jr_init(struct device *dev)
 		jrp->entinfo[i].desc_addr_dma = !0;
 
 	/* Setup rings */
-	jrp->inp_ring_write_index = 0;
 	jrp->out_ring_read_index = 0;
 	jrp->head = 0;
 	jrp->tail = 0;
@@ -441,10 +443,9 @@ static int caam_jr_init(struct device *dev)
 	wr_reg32(&jrp->rregs->inpring_size, JOBR_DEPTH);
 	wr_reg32(&jrp->rregs->outring_size, JOBR_DEPTH);
 
-	jrp->ringsize = JOBR_DEPTH;
+	jrp->inpring_avail = JOBR_DEPTH;
 
 	spin_lock_init(&jrp->inplock);
-	spin_lock_init(&jrp->outlock);
 
 	/* Select interrupt coalescing parameters */
 	clrsetbits_32(&jrp->rregs->rconfig_lo, 0, JOBR_INTC |

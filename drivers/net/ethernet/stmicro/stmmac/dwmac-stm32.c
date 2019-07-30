@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * dwmac-stm32.c - DWMAC Specific Glue layer for STM32 MCU
  *
  * Copyright (C) STMicroelectronics SA 2017
  * Author:  Alexandre Torgue <alexandre.torgue@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
- *
  */
 
 #include <linux/clk.h>

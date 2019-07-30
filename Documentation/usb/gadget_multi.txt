@@ -1,6 +1,9 @@
-                                                             -*- org -*-
+==============================
+Multifunction Composite Gadget
+==============================
 
-* Overview
+Overview
+========
 
 The Multifunction Composite Gadget (or g_multi) is a composite gadget
 that makes extensive use of the composite framework to provide
@@ -17,13 +20,15 @@ have two configurations -- one with RNDIS and another with CDC ECM[3].
 Please note that if you use non-standard configuration (that is enable
 CDC ECM) you may need to change vendor and/or product ID.
 
-* Host drivers
+Host drivers
+============
 
 To make use of the gadget one needs to make it work on host side --
 without that there's no hope of achieving anything with the gadget.
 As one might expect, things one need to do very from system to system.
 
-** Linux host drivers
+Linux host drivers
+------------------
 
 Since the gadget uses standard composite framework and appears as such
 to Linux host it does not need any additional drivers on Linux host
@@ -34,11 +39,13 @@ This is also true for two configuration set-up with RNDIS
 configuration being the first one.  Linux host will use the second
 configuration with CDC ECM which should work better under Linux.
 
-** Windows host drivers
+Windows host drivers
+--------------------
 
 For the gadget to work under Windows two conditions have to be met:
 
-*** Detecting as composite gadget
+Detecting as composite gadget
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 First of all, Windows need to detect the gadget as an USB composite
 gadget which on its own have some conditions[4].  If they are met,
@@ -53,7 +60,8 @@ The only thing to worry is that the gadget has to have a single
 configuration so a dual RNDIS and CDC ECM gadget won't work unless you
 create a proper INF -- and of course, if you do submit it!
 
-*** Installing drivers for each function
+Installing drivers for each function
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The other, trickier thing is making Windows install drivers for each
 individual function.
@@ -63,7 +71,8 @@ implementing USB Mass Storage class and selects appropriate driver.
 
 Things are harder with RDNIS and CDC ACM.
 
-**** RNDIS
+RNDIS
+.....
 
 To make Windows select RNDIS drivers for the first function in the
 gadget, one needs to use the [[file:linux.inf]] file provided with this
@@ -75,11 +84,13 @@ RNDIS was not the first interface.  You do not need to worry abut it
 unless you are trying to develop your own gadget in which case watch
 out for this bug.
 
-**** CDC ACM
+CDC ACM
+.......
 
 Similarly, [[file:linux-cdc-acm.inf]] is provided for CDC ACM.
 
-**** Customising the gadget
+Customising the gadget
+......................
 
 If you intend to hack the g_multi gadget be advised that rearranging
 functions will obviously change interface numbers for each of the
@@ -97,14 +108,16 @@ things don't work as intended before realising Windows have cached
 some drivers information (changing USB port may sometimes help plus
 you might try using USBDeview[8] to remove the phantom device).
 
-**** INF testing
+INF testing
+...........
 
 Provided INF files have been tested on Windows XP SP3, Windows Vista
 and Windows 7, all 32-bit versions.  It should work on 64-bit versions
 as well.  It most likely won't work on Windows prior to Windows XP
 SP2.
 
-** Other systems
+Other systems
+-------------
 
 At this moment, drivers for any other systems have not been tested.
 Knowing how MacOS is based on BSD and BSD is an Open Source it is
@@ -115,7 +128,8 @@ For more exotic systems I have even less to say...
 
 Any testing and drivers *are* *welcome*!
 
-* Authors
+Authors
+=======
 
 This document has been written by Michal Nazarewicz
 ([[mailto:mina86@mina86.com]]).  INF files have been hacked with
@@ -124,7 +138,8 @@ Xiaofan Chen ([[mailto:xiaofanc@gmail.com]]) basing on the MS RNDIS
 template[9], Microchip's CDC ACM INF file and David Brownell's
 ([[mailto:dbrownell@users.sourceforge.net]]) original INF files.
 
-* Footnotes
+Footnotes
+=========
 
 [1] Remote Network Driver Interface Specification,
 [[http://msdn.microsoft.com/en-us/library/ee484414.aspx]].

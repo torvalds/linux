@@ -119,6 +119,19 @@ const struct dc_plane_status *dc_plane_get_status(
 	if (core_dc->current_state == NULL)
 		return NULL;
 
+	/* Find the current plane state and set its pending bit to false */
+	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx =
+				&core_dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->plane_state != plane_state)
+			continue;
+
+		pipe_ctx->plane_state->status.is_flip_pending = false;
+
+		break;
+	}
+
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx =
 				&core_dc->current_state->res_ctx.pipe_ctx[i];

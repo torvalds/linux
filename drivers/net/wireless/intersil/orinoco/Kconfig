@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config HERMES
 	tristate "Hermes chipset 802.11b support (Orinoco/Prism2/Symbol)"
 	depends on (PPC_PMAC || PCI || PCMCIA)

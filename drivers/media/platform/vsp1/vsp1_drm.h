@@ -42,7 +42,7 @@ struct vsp1_drm_pipeline {
 	struct vsp1_du_crc_config crc;
 
 	/* Frame synchronisation */
-	void (*du_complete)(void *data, bool completed, u32 crc);
+	void (*du_complete)(void *data, unsigned int status, u32 crc);
 	void *du_private;
 };
 

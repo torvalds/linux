@@ -55,6 +55,7 @@ struct pkey_index_qp_list {
 };
 
 extern const struct attribute_group ib_dev_attr_group;
+extern bool ib_devices_shared_netns;
 
 int ib_device_register_sysfs(struct ib_device *device);
 void ib_device_unregister_sysfs(struct ib_device *device);
@@ -279,7 +280,8 @@ static inline void ib_mad_agent_security_change(void)
 }
 #endif
 
-struct ib_device *ib_device_get_by_index(u32 ifindex);
+struct ib_device *ib_device_get_by_index(const struct net *net, u32 index);
+
 /* RDMA device netlink */
 void nldev_init(void);
 void nldev_exit(void);
@@ -302,6 +304,7 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 	qp->device = dev;
 	qp->pd = pd;
 	qp->uobject = uobj;
+	qp->real_qp = qp;
 	/*
 	 * We don't track XRC QPs for now, because they don't have PD
 	 * and more importantly they are created internaly by driver,
@@ -336,4 +339,17 @@ int roce_resolve_route_from_path(struct sa_path_rec *rec,
 				 const struct ib_gid_attr *attr);
 
 struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr);
+
+void ib_free_port_attrs(struct ib_core_device *coredev);
+int ib_setup_port_attrs(struct ib_core_device *coredev);
+
+int rdma_compatdev_set(u8 enable);
+
+int ib_port_register_module_stat(struct ib_device *device, u8 port_num,
+				 struct kobject *kobj, struct kobj_type *ktype,
+				 const char *name);
+void ib_port_unregister_module_stat(struct kobject *kobj);
+
+int ib_device_set_netns_put(struct sk_buff *skb,
+			    struct ib_device *dev, u32 ns_fd);
 #endif /* _CORE_PRIV_H */

@@ -6,6 +6,8 @@ Description:
 		This file allows user to read/write the raw NVMEM contents.
 		Permissions for write to this file depends on the nvmem
 		provider configuration.
+		Note: This file is only present if CONFIG_NVMEM_SYSFS
+		is enabled
 
 		ex:
 		hexdump /sys/bus/nvmem/devices/qfprom0/nvmem

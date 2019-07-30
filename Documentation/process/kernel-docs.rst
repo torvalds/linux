@@ -95,18 +95,6 @@ On-line docs
         [...]. This paper examines some common problems for
         submitting larger changes and some strategies to avoid problems.
 
-    * Title: **Overview of the Virtual File System**
-
-      :Author: Richard Gooch.
-      :URL: http://www.mjmwired.net/kernel/Documentation/filesystems/vfs.txt
-      :Date: 2007
-      :Keywords: VFS, File System, mounting filesystems, opening files,
-        dentries, dcache.
-      :Description: Brief introduction to the Linux Virtual File System.
-        What is it, how it works, operations taken when opening a file or
-        mounting a file system and description of important data
-        structures explaining the purpose of each of their entries.
-
     * Title: **Linux Device Drivers, Third Edition**
 
       :Author: Jonathan Corbet, Alessandro Rubini, Greg Kroah-Hartman

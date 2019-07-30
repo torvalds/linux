@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* include/linux/dm9000.h
  *
  * Copyright (c) 2004 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
  * Header file for dm9000 platform data
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
 */
 
 #ifndef __DM9000_PLATFORM_DATA

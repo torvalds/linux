@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VFIO PCI Intel Graphics support
  *
  * Copyright (C) 2016 Red Hat, Inc.  All rights reserved.
  *	Author: Alex Williamson <alex.williamson@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Register a device specific region through which to provide read-only
  * access to the Intel IGD opregion.  The register defining the opregion

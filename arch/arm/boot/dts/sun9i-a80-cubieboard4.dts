@@ -89,31 +89,23 @@
 	vga-dac {
 		compatible = "corpro,gm7123", "adi,adv7123", "dumb-vga-dac";
 		vdd-supply = <&reg_dcdc1>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
 			port@0 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <0>;
 
-				vga_dac_in: endpoint@0 {
-					reg = <0>;
+				vga_dac_in: endpoint {
 					remote-endpoint = <&tcon0_out_vga>;
 				};
 			};
 
 			port@1 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <1>;
 
-				vga_dac_out: endpoint@0 {
-					reg = <0>;
+				vga_dac_out: endpoint {
 					remote-endpoint = <&vga_con_in>;
 				};
 			};
@@ -502,8 +494,7 @@
 };
 
 &tcon0_out {
-	tcon0_out_vga: endpoint@0 {
-		reg = <0>;
+	tcon0_out_vga: endpoint {
 		remote-endpoint = <&vga_dac_in>;
 	};
 };

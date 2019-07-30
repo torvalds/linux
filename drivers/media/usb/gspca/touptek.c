@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ToupTek UCMOS / AmScope MU series camera driver
  * TODO: contrast with ScopeTek / AmScope MDC cameras
@@ -7,16 +8,6 @@
  * Special thanks to Bushing for helping with the decrypt algorithm and
  * Sean O'Sullivan / the Rensselaer Center for Open Source
  * Software (RCOS) for helping me learn kernel development
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include "gspca.h"

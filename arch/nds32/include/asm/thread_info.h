@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #ifndef __ASM_NDS32_THREAD_INFO_H
@@ -42,7 +42,6 @@ struct thread_info {
  *  TIF_SIGPENDING	- signal pending
  *  TIF_NEED_RESCHED	- rescheduling necessary
  *  TIF_NOTIFY_RESUME	- callback before returning to user
- *  TIF_USEDFPU		- FPU was used by this task this quantum (SMP)
  *  TIF_POLLING_NRFLAG	- true if poll_idle() is polling TIF_NEED_RESCHED
  */
 #define TIF_SIGPENDING		1
@@ -50,7 +49,6 @@ struct thread_info {
 #define TIF_SINGLESTEP		3
 #define TIF_NOTIFY_RESUME	4	/* callback before returning to user */
 #define TIF_SYSCALL_TRACE	8
-#define TIF_USEDFPU             16
 #define TIF_POLLING_NRFLAG	17
 #define TIF_MEMDIE		18
 #define TIF_FREEZE		19

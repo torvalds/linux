@@ -547,7 +547,6 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 			reg);
 		break;
 	}
-	mmiowb();
 	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
 }
 
@@ -2110,6 +2109,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		unsigned int tmp = cmd->scan_begin_arg;
+
 		cmd->scan_begin_arg =
 		    ni_timer_to_ns(dev, ni_ns_to_timer(dev,
 						       cmd->scan_begin_arg,
@@ -2120,6 +2120,7 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (!devpriv->is_611x && !devpriv->is_6143) {
 			unsigned int tmp = cmd->convert_arg;
+
 			cmd->convert_arg =
 			    ni_timer_to_ns(dev, ni_ns_to_timer(dev,
 							       cmd->convert_arg,
@@ -4398,9 +4399,13 @@ static int ni_calib_insn_write(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	ni_write_caldac(dev, CR_CHAN(insn->chanspec), data[0]);
+	if (insn->n) {
+		/* only bother writing the last sample to the channel */
+		ni_write_caldac(dev, CR_CHAN(insn->chanspec),
+				data[insn->n - 1]);
+	}
 
-	return 1;
+	return insn->n;
 }
 
 static int ni_calib_insn_read(struct comedi_device *dev,
@@ -4409,10 +4414,12 @@ static int ni_calib_insn_read(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
+	unsigned int i;
 
-	data[0] = devpriv->caldacs[CR_CHAN(insn->chanspec)];
+	for (i = 0; i < insn->n; i++)
+		data[0] = devpriv->caldacs[CR_CHAN(insn->chanspec)];
 
-	return 1;
+	return insn->n;
 }
 
 static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -4505,9 +4512,15 @@ static int ni_eeprom_insn_read(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	data[0] = ni_read_eeprom(dev, CR_CHAN(insn->chanspec));
+	unsigned int val;
+	unsigned int i;
 
-	return 1;
+	if (insn->n) {
+		val = ni_read_eeprom(dev, CR_CHAN(insn->chanspec));
+		for (i = 0; i < insn->n; i++)
+			data[i] = val;
+	}
+	return insn->n;
 }
 
 static int ni_m_series_eeprom_insn_read(struct comedi_device *dev,
@@ -4516,10 +4529,12 @@ static int ni_m_series_eeprom_insn_read(struct comedi_device *dev,
 					unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
+	unsigned int i;
 
-	data[0] = devpriv->eeprom_buffer[CR_CHAN(insn->chanspec)];
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->eeprom_buffer[CR_CHAN(insn->chanspec)];
 
-	return 1;
+	return insn->n;
 }
 
 static unsigned int ni_old_get_pfi_routing(struct comedi_device *dev,
@@ -4784,7 +4799,7 @@ static int cs5529_do_conversion(struct comedi_device *dev,
 	if (data) {
 		*data = ni_ao_win_inw(dev, NI67XX_CAL_DATA_REG);
 		/* cs5529 returns 16 bit signed data in bipolar mode */
-		*data ^= (1 << 15);
+		*data ^= BIT(15);
 	}
 	return 0;
 }
@@ -6193,7 +6208,7 @@ static int ni_E_init(struct comedi_device *dev,
 		s->subdev_flags = SDF_READABLE | SDF_DIFF | SDF_INTERNAL;
 		/*  one channel for each analog output channel */
 		s->n_chan = board->n_aochan;
-		s->maxdata = (1 << 16) - 1;
+		s->maxdata = BIT(16) - 1;
 		s->range_table = &range_unknown;	/* XXX */
 		s->insn_read = cs5529_ai_insn_read;
 		s->insn_config = NULL;

@@ -994,7 +994,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 6,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "DL2",
@@ -1013,7 +1012,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 7,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "DL3",
@@ -1032,7 +1030,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 8,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "DL4",
@@ -1051,7 +1048,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 9,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "DL5",
@@ -1070,7 +1066,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 10,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "DLM",
@@ -1089,7 +1084,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 12,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "UL1",
@@ -1108,7 +1102,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 0,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "UL2",
@@ -1127,7 +1120,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 1,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "UL3",
@@ -1146,7 +1138,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 2,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "UL4",
@@ -1165,7 +1156,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 3,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "UL5",
@@ -1184,7 +1174,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 4,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "DLBT",
@@ -1203,7 +1192,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 13,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "ULBT",
@@ -1222,7 +1210,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 16,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 };
 

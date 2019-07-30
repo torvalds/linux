@@ -1,7 +1,6 @@
 [
     {
         "PublicDescription": "Counts the number of instructions retired from execution. For instructions that consist of multiple micro-ops, Counts the retirement of the last micro-op of the instruction. Counting continues during hardware interrupts, traps, and inside interrupt handlers. Notes: INST_RETIRED.ANY is counted by a designated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. INST_RETIRED.ANY_P is counted by a programmable counter and it is an architectural performance event. Counting: Faulting executions of GETSEC/VM entry/VM Exit/MWait will not count as retired instructions.",
-        "EventCode": "0x00",
         "Counter": "Fixed counter 0",
         "UMask": "0x1",
         "EventName": "INST_RETIRED.ANY",
@@ -11,7 +10,6 @@
     },
     {
         "PublicDescription": "Counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
-        "EventCode": "0x00",
         "Counter": "Fixed counter 1",
         "UMask": "0x2",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
@@ -20,7 +18,6 @@
         "CounterHTOff": "Fixed counter 1"
     },
     {
-        "EventCode": "0x00",
         "Counter": "Fixed counter 1",
         "UMask": "0x2",
         "AnyThread": "1",
@@ -31,7 +28,6 @@
     },
     {
         "PublicDescription": "Counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. Note: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
-        "EventCode": "0x00",
         "Counter": "Fixed counter 2",
         "UMask": "0x3",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
@@ -121,7 +117,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts the number of Blend Uops issued by the Resource Allocation Table (RAT) to the reservation station (RS) in order to preserve upper bits of vector registers. Starting with the Skylake microarchitecture, these Blend uops are needed since every Intel SSE instruction executed in Dirty Upper State needs to preserve bits 128-255 of the destination register. For more information, refer to Mixing Intel AVX and Intel SSE Code section of the Optimization Guide.",
+        "PublicDescription": "Counts the number of Blend Uops issued by the Resource Allocation Table (RAT) to the reservation station (RS) in order to preserve upper bits of vector registers. Starting with the Skylake microarchitecture, these Blend uops are needed since every Intel SSE instruction executed in Dirty Upper State needs to preserve bits 128-255 of the destination register. For more information, refer to \u201cMixing Intel AVX and Intel SSE Code\u201d section of the Optimization Guide.",
         "EventCode": "0x0E",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
@@ -248,6 +244,16 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "PublicDescription": "This event counts cycles during which the microcode scoreboard stalls happen.",
+        "EventCode": "0x59",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "PARTIAL_RAT_STALLS.SCOREBOARD",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles where the pipeline is stalled due to serializing operations.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "PublicDescription": "Counts cycles during which the reservation station (RS) is empty for the thread.; Note: In ST-mode, not active thread should drive 0. This is usually caused by severely costly branch mispredictions, or allocator/FE issues.",
         "EventCode": "0x5E",
         "Counter": "0,1,2,3",
@@ -361,8 +367,8 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Counts resource-related stall cycles. Reasons for stalls can be as follows:a. *any* u-arch structure got full (LB, SB, RS, ROB, BOB, LM, Physical Register Reclaim Table (PRRT), or Physical History Table (PHT) slots).b. *any* u-arch structure got empty (like INT/SIMD FreeLists).c. FPU control word (FPCW), MXCSR.and others. This counts cycles that the pipeline back-end blocked uop delivery from the front-end.",
-        "EventCode": "0xA2",
+        "PublicDescription": "Counts resource-related stall cycles.",
+        "EventCode": "0xa2",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "RESOURCE_STALLS.ANY",
@@ -735,7 +741,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts cycles without actually retired uops.",
+        "PublicDescription": "This event counts cycles without actually retired uops.",
         "EventCode": "0xC2",
         "Invert": "1",
         "Counter": "0,1,2,3",
@@ -759,6 +765,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "PublicDescription": "Number of machine clears (nukes) of any type.",
         "EventCode": "0xC3",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -839,14 +846,15 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts not taken branch instructions retired.",
+        "PEBS": "1",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts not taken branch instructions retired.",
         "EventCode": "0xC4",
         "Counter": "0,1,2,3",
         "UMask": "0x10",
         "Errata": "SKL091",
         "EventName": "BR_INST_RETIRED.NOT_TAKEN",
         "SampleAfterValue": "400009",
-        "BriefDescription": "Not taken branch instructions retired.",
+        "BriefDescription": "Counts all not taken macro branch instructions retired.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -924,7 +932,7 @@
         "UMask": "0x20",
         "EventName": "BR_MISP_RETIRED.NEAR_TAKEN",
         "SampleAfterValue": "400009",
-        "BriefDescription": "Number of near branch instructions retired that were mispredicted and taken. ",
+        "BriefDescription": "Number of near branch instructions retired that were mispredicted and taken.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -935,6 +943,15 @@
         "EventName": "ROB_MISC_EVENTS.LBR_INSERTS",
         "SampleAfterValue": "2000003",
         "BriefDescription": "Increments whenever there is an update to the LBR array.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0xCC",
+        "Counter": "0,1,2,3",
+        "UMask": "0x40",
+        "EventName": "ROB_MISC_EVENTS.PAUSE_INST",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Number of retired PAUSE instructions (that do not end up with a VMExit to the VMM; TSX aborted Instructions may be counted). This event is not supported on first SKL and KBL products.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {

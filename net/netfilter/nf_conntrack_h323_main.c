@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * H.323 connection tracking helper
  *
  * Copyright (c) 2006 Jing Min Zhao <zhaojingmin@users.sourceforge.net>
  * Copyright (c) 2006-2012 Patrick McHardy <kaber@trash.net>
- *
- * This source code is licensed under General Public License version 2.
  *
  * Based on the 'brute force' H.323 connection tracking module by
  * Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
@@ -748,24 +747,19 @@ static int callforward_do_filter(struct net *net,
 		}
 		break;
 	}
-#if IS_ENABLED(CONFIG_NF_CONNTRACK_IPV6)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6: {
-		const struct nf_ipv6_ops *v6ops;
 		struct rt6_info *rt1, *rt2;
 		struct flowi6 fl1, fl2;
-
-		v6ops = nf_get_ipv6_ops();
-		if (!v6ops)
-			return 0;
 
 		memset(&fl1, 0, sizeof(fl1));
 		fl1.daddr = src->in6;
 
 		memset(&fl2, 0, sizeof(fl2));
 		fl2.daddr = dst->in6;
-		if (!v6ops->route(net, (struct dst_entry **)&rt1,
+		if (!nf_ip6_route(net, (struct dst_entry **)&rt1,
 				  flowi6_to_flowi(&fl1), false)) {
-			if (!v6ops->route(net, (struct dst_entry **)&rt2,
+			if (!nf_ip6_route(net, (struct dst_entry **)&rt2,
 					  flowi6_to_flowi(&fl2), false)) {
 				if (ipv6_addr_equal(rt6_nexthop(rt1, &fl1.daddr),
 						    rt6_nexthop(rt2, &fl2.daddr)) &&

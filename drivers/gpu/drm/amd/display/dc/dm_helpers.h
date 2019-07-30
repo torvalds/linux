@@ -58,7 +58,7 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 		bool enable);
 
 /*
- * poll pending down reply before clear payload allocation table
+ * poll pending down reply
  */
 void dm_helpers_dp_mst_poll_pending_down_reply(
 	struct dc_context *ctx,

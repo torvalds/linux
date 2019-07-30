@@ -192,6 +192,7 @@ static const struct v4l2_subdev_ops uif_ops = {
 
 static void uif_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_uif *uif = to_uif(&entity->subdev);

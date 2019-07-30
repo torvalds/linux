@@ -837,7 +837,6 @@ ath5k_txbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf,
 
 	txq->link = &ds->ds_link;
 	ath5k_hw_start_tx_dma(ah, txq->qnum);
-	mmiowb();
 	spin_unlock_bh(&txq->lock);
 
 	return 0;
@@ -2174,7 +2173,6 @@ ath5k_beacon_config(struct ath5k_hw *ah)
 	}
 
 	ath5k_hw_set_imr(ah, ah->imask);
-	mmiowb();
 	spin_unlock_bh(&ah->block);
 }
 
@@ -2779,7 +2777,6 @@ int ath5k_start(struct ieee80211_hw *hw)
 
 	ret = 0;
 done:
-	mmiowb();
 	mutex_unlock(&ah->lock);
 
 	set_bit(ATH_STAT_STARTED, ah->status);
@@ -2839,7 +2836,6 @@ void ath5k_stop(struct ieee80211_hw *hw)
 				"putting device to sleep\n");
 	}
 
-	mmiowb();
 	mutex_unlock(&ah->lock);
 
 	ath5k_stop_tasklets(ah);

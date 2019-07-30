@@ -32,6 +32,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
+#include "irqs.h"
+
 #define IXDP425_SDA_PIN		7
 #define IXDP425_SCL_PIN		6
 

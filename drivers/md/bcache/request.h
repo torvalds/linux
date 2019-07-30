@@ -33,7 +33,7 @@ struct data_insert_op {
 	BKEY_PADDED(replace_key);
 };
 
-unsigned int bch_get_congested(struct cache_set *c);
+unsigned int bch_get_congested(const struct cache_set *c);
 void bch_data_insert(struct closure *cl);
 
 void bch_cached_dev_request_init(struct cached_dev *dc);

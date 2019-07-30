@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # IPv6 configuration
 #
@@ -135,44 +136,11 @@ config INET6_TUNNEL
 	tristate
 	default n
 
-config INET6_XFRM_MODE_TRANSPORT
-	tristate "IPv6: IPsec transport mode"
-	default IPV6
-	select XFRM
-	---help---
-	  Support for IPsec transport mode.
-
-	  If unsure, say Y.
-
-config INET6_XFRM_MODE_TUNNEL
-	tristate "IPv6: IPsec tunnel mode"
-	default IPV6
-	select XFRM
-	---help---
-	  Support for IPsec tunnel mode.
-
-	  If unsure, say Y.
-
-config INET6_XFRM_MODE_BEET
-	tristate "IPv6: IPsec BEET mode"
-	default IPV6
-	select XFRM
-	---help---
-	  Support for IPsec BEET mode.
-
-	  If unsure, say Y.
-
-config INET6_XFRM_MODE_ROUTEOPTIMIZATION
-	tristate "IPv6: MIPv6 route optimization mode"
-	select XFRM
-	---help---
-	  Support for MIPv6 route optimization mode.
-
 config IPV6_VTI
 tristate "Virtual (secure) IPv6: tunneling"
 	select IPV6_TUNNEL
 	select NET_IP_TUNNEL
-	depends on INET6_XFRM_MODE_TUNNEL
+	select XFRM
 	---help---
 	Tunneling means encapsulating data of one protocol type within
 	another protocol and sending it over a channel that understands the

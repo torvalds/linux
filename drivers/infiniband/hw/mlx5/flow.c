@@ -29,6 +29,9 @@ mlx5_ib_ft_type_to_namespace(enum mlx5_ib_uapi_flow_table_type table_type,
 	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX:
 		*namespace = MLX5_FLOW_NAMESPACE_EGRESS;
 		break;
+	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_FDB:
+		*namespace = MLX5_FLOW_NAMESPACE_FDB;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -75,7 +78,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	struct ib_qp *qp = NULL;
 	struct ib_uobject *uobj =
 		uverbs_attr_get_uobject(attrs, MLX5_IB_ATTR_CREATE_FLOW_HANDLE);
-	struct mlx5_ib_dev *dev = to_mdev(uobj->context->device);
+	struct mlx5_ib_dev *dev = mlx5_udata_to_mdev(&attrs->driver_udata);
 	int len, ret, i;
 	u32 counter_id = 0;
 
@@ -93,6 +96,10 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 	    ((dest_devx && dest_qp) || (!dest_devx && !dest_qp)))
 		return -EINVAL;
 
+	/* Allow only DEVX object as dest when inserting to FDB */
+	if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB && !dest_devx)
+		return -EINVAL;
+
 	if (dest_devx) {
 		devx_obj = uverbs_attr_get_obj(
 			attrs, MLX5_IB_ATTR_CREATE_FLOW_DEST_DEVX);
@@ -103,6 +110,10 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 		 * steering destination.
 		 */
 		if (!mlx5_ib_devx_is_flow_dest(devx_obj, &dest_id, &dest_type))
+			return -EINVAL;
+		/* Allow only flow table as dest when inserting to FDB */
+		if (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB &&
+		    dest_type != MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE)
 			return -EINVAL;
 	} else if (dest_qp) {
 		struct mlx5_ib_qp *mqp;
@@ -189,7 +200,8 @@ err_out:
 }
 
 static int flow_matcher_cleanup(struct ib_uobject *uobject,
-				enum rdma_remove_reason why)
+				enum rdma_remove_reason why,
+				struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_ib_flow_matcher *obj = uobject->object;
 	int ret;
@@ -202,21 +214,67 @@ static int flow_matcher_cleanup(struct ib_uobject *uobject,
 	return 0;
 }
 
+static int mlx5_ib_matcher_ns(struct uverbs_attr_bundle *attrs,
+			      struct mlx5_ib_flow_matcher *obj)
+{
+	enum mlx5_ib_uapi_flow_table_type ft_type =
+		MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_RX;
+	u32 flags;
+	int err;
+
+	/* New users should use MLX5_IB_ATTR_FLOW_MATCHER_FT_TYPE and older
+	 * users should switch to it. We leave this to not break userspace
+	 */
+	if (uverbs_attr_is_valid(attrs, MLX5_IB_ATTR_FLOW_MATCHER_FT_TYPE) &&
+	    uverbs_attr_is_valid(attrs, MLX5_IB_ATTR_FLOW_MATCHER_FLOW_FLAGS))
+		return -EINVAL;
+
+	if (uverbs_attr_is_valid(attrs, MLX5_IB_ATTR_FLOW_MATCHER_FT_TYPE)) {
+		err = uverbs_get_const(&ft_type, attrs,
+				       MLX5_IB_ATTR_FLOW_MATCHER_FT_TYPE);
+		if (err)
+			return err;
+
+		err = mlx5_ib_ft_type_to_namespace(ft_type, &obj->ns_type);
+		if (err)
+			return err;
+
+		return 0;
+	}
+
+	if (uverbs_attr_is_valid(attrs, MLX5_IB_ATTR_FLOW_MATCHER_FLOW_FLAGS)) {
+		err = uverbs_get_flags32(&flags, attrs,
+					 MLX5_IB_ATTR_FLOW_MATCHER_FLOW_FLAGS,
+					 IB_FLOW_ATTR_FLAGS_EGRESS);
+		if (err)
+			return err;
+
+		if (flags) {
+			mlx5_ib_ft_type_to_namespace(
+				MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX,
+				&obj->ns_type);
+			return 0;
+		}
+	}
+
+	obj->ns_type = MLX5_FLOW_NAMESPACE_BYPASS;
+
+	return 0;
+}
+
 static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_MATCHER_CREATE)(
 	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, MLX5_IB_ATTR_FLOW_MATCHER_CREATE_HANDLE);
-	struct mlx5_ib_dev *dev = to_mdev(uobj->context->device);
+	struct mlx5_ib_dev *dev = mlx5_udata_to_mdev(&attrs->driver_udata);
 	struct mlx5_ib_flow_matcher *obj;
-	u32 flags;
 	int err;
 
 	obj = kzalloc(sizeof(struct mlx5_ib_flow_matcher), GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
 
-	obj->ns_type = MLX5_FLOW_NAMESPACE_BYPASS;
 	obj->mask_len = uverbs_attr_get_len(
 		attrs, MLX5_IB_ATTR_FLOW_MATCHER_MATCH_MASK);
 	err = uverbs_copy_from(&obj->matcher_mask,
@@ -242,18 +300,9 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_MATCHER_CREATE)(
 	if (err)
 		goto end;
 
-	err = uverbs_get_flags32(&flags, attrs,
-				 MLX5_IB_ATTR_FLOW_MATCHER_FLOW_FLAGS,
-				 IB_FLOW_ATTR_FLAGS_EGRESS);
+	err = mlx5_ib_matcher_ns(attrs, obj);
 	if (err)
 		goto end;
-
-	if (flags) {
-		err = mlx5_ib_ft_type_to_namespace(
-			MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX, &obj->ns_type);
-		if (err)
-			goto end;
-	}
 
 	uobj->object = obj;
 	obj->mdev = dev->mdev;
@@ -326,7 +375,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER)(
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, MLX5_IB_ATTR_CREATE_MODIFY_HEADER_HANDLE);
-	struct mlx5_ib_dev *mdev = to_mdev(uobj->context->device);
+	struct mlx5_ib_dev *mdev = mlx5_udata_to_mdev(&attrs->driver_udata);
 	enum mlx5_ib_uapi_flow_table_type ft_type;
 	struct ib_flow_action *action;
 	int num_actions;
@@ -353,7 +402,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER)(
 	if (IS_ERR(action))
 		return PTR_ERR(action);
 
-	uverbs_flow_action_fill_action(action, uobj, uobj->context->device,
+	uverbs_flow_action_fill_action(action, uobj, &mdev->ib_dev,
 				       IB_FLOW_ACTION_UNSPECIFIED);
 
 	return 0;
@@ -445,7 +494,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_PACKET_REFORMAT)(
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,
 		MLX5_IB_ATTR_CREATE_PACKET_REFORMAT_HANDLE);
-	struct mlx5_ib_dev *mdev = to_mdev(uobj->context->device);
+	struct mlx5_ib_dev *mdev = mlx5_udata_to_mdev(&attrs->driver_udata);
 	enum mlx5_ib_uapi_flow_action_packet_reformat_type dv_prt;
 	enum mlx5_ib_uapi_flow_table_type ft_type;
 	struct mlx5_ib_flow_action *maction;
@@ -493,8 +542,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_PACKET_REFORMAT)(
 			goto free_maction;
 	}
 
-	uverbs_flow_action_fill_action(&maction->ib_action, uobj,
-				       uobj->context->device,
+	uverbs_flow_action_fill_action(&maction->ib_action, uobj, &mdev->ib_dev,
 				       IB_FLOW_ACTION_UNSPECIFIED);
 	return 0;
 
@@ -605,6 +653,9 @@ DECLARE_UVERBS_NAMED_METHOD(
 			   UA_MANDATORY),
 	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_FLOW_MATCHER_FLOW_FLAGS,
 			     enum ib_flow_flags,
+			     UA_OPTIONAL),
+	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_FLOW_MATCHER_FT_TYPE,
+			     enum mlx5_ib_uapi_flow_table_type,
 			     UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(
@@ -619,15 +670,9 @@ DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_FLOW_MATCHER,
 			    &UVERBS_METHOD(MLX5_IB_METHOD_FLOW_MATCHER_CREATE),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_FLOW_MATCHER_DESTROY));
 
-static bool flow_is_supported(struct ib_device *device)
-{
-	return !to_mdev(device)->rep;
-}
-
 const struct uapi_definition mlx5_ib_flow_defs[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
-		MLX5_IB_OBJECT_FLOW_MATCHER,
-		UAPI_DEF_IS_OBJ_SUPPORTED(flow_is_supported)),
+		MLX5_IB_OBJECT_FLOW_MATCHER),
 	UAPI_DEF_CHAIN_OBJ_TREE(
 		UVERBS_OBJECT_FLOW,
 		&mlx5_ib_fs),

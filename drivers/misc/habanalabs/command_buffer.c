@@ -13,7 +13,7 @@
 
 static void cb_fini(struct hl_device *hdev, struct hl_cb *cb)
 {
-	hdev->asic_funcs->dma_free_coherent(hdev, cb->size,
+	hdev->asic_funcs->asic_dma_free_coherent(hdev, cb->size,
 			(void *) (uintptr_t) cb->kernel_address,
 			cb->bus_address);
 	kfree(cb);
@@ -66,10 +66,10 @@ static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
 		return NULL;
 
 	if (ctx_id == HL_KERNEL_ASID_ID)
-		p = hdev->asic_funcs->dma_alloc_coherent(hdev, cb_size,
+		p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, cb_size,
 						&cb->bus_address, GFP_ATOMIC);
 	else
-		p = hdev->asic_funcs->dma_alloc_coherent(hdev, cb_size,
+		p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, cb_size,
 						&cb->bus_address,
 						GFP_USER | __GFP_ZERO);
 	if (!p) {
@@ -213,6 +213,13 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 	struct hl_device *hdev = hpriv->hdev;
 	u64 handle;
 	int rc;
+
+	if (hl_device_disabled_or_in_reset(hdev)) {
+		dev_warn_ratelimited(hdev->dev,
+			"Device is %s. Can't execute CB IOCTL\n",
+			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
+		return -EBUSY;
+	}
 
 	switch (args->in.op) {
 	case HL_CB_OP_CREATE:

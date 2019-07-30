@@ -102,4 +102,3 @@
 #define mmPSOC_MME_PLL_FREQ_CALC_EN                                  0xC71440
 
 #endif /* ASIC_REG_PSOC_MME_PLL_REGS_H_ */
-

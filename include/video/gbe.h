@@ -1,10 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * include/video/gbe.h -- SGI GBE (Graphics Back End)
  *
  * Copyright (C) 1999 Silicon Graphics, Inc. (Jeffrey Newquist)
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License version 2 as published by the Free Software Foundation.
  */
 
 #ifndef __GBE_H__

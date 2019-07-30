@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 BayLibre, SAS
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  * Copyright (C) 2014 Endless Mobile
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -112,32 +100,39 @@ void meson_vpp_init(struct meson_drm *priv)
 		writel_relaxed(0x20000, priv->io_base + _REG(VPP_DOLBY_CTRL));
 		writel_relaxed(0x1020080,
 				priv->io_base + _REG(VPP_DUMMY_DATA1));
-	}
+	} else if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu"))
+		writel_relaxed(0xf, priv->io_base + _REG(DOLBY_PATH_CTRL));
 
 	/* Initialize vpu fifo control registers */
-	writel_relaxed(readl_relaxed(priv->io_base + _REG(VPP_OFIFO_SIZE)) |
-			0x77f, priv->io_base + _REG(VPP_OFIFO_SIZE));
+	if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu"))
+		writel_relaxed(0xfff << 20 | 0x1000,
+			       priv->io_base + _REG(VPP_OFIFO_SIZE));
+	else
+		writel_relaxed(readl_relaxed(priv->io_base + _REG(VPP_OFIFO_SIZE)) |
+				0x77f, priv->io_base + _REG(VPP_OFIFO_SIZE));
 	writel_relaxed(0x08080808, priv->io_base + _REG(VPP_HOLD_LINES));
 
-	/* Turn off preblend */
-	writel_bits_relaxed(VPP_PREBLEND_ENABLE, 0,
-			    priv->io_base + _REG(VPP_MISC));
+	if (!meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu")) {
+		/* Turn off preblend */
+		writel_bits_relaxed(VPP_PREBLEND_ENABLE, 0,
+				    priv->io_base + _REG(VPP_MISC));
 
-	/* Turn off POSTBLEND */
-	writel_bits_relaxed(VPP_POSTBLEND_ENABLE, 0,
-			    priv->io_base + _REG(VPP_MISC));
+		/* Turn off POSTBLEND */
+		writel_bits_relaxed(VPP_POSTBLEND_ENABLE, 0,
+				    priv->io_base + _REG(VPP_MISC));
 
-	/* Force all planes off */
-	writel_bits_relaxed(VPP_OSD1_POSTBLEND | VPP_OSD2_POSTBLEND |
-			    VPP_VD1_POSTBLEND | VPP_VD2_POSTBLEND |
-			    VPP_VD1_PREBLEND | VPP_VD2_PREBLEND, 0,
-			    priv->io_base + _REG(VPP_MISC));
+		/* Force all planes off */
+		writel_bits_relaxed(VPP_OSD1_POSTBLEND | VPP_OSD2_POSTBLEND |
+				    VPP_VD1_POSTBLEND | VPP_VD2_POSTBLEND |
+				    VPP_VD1_PREBLEND | VPP_VD2_PREBLEND, 0,
+				    priv->io_base + _REG(VPP_MISC));
 
-	/* Setup default VD settings */
-	writel_relaxed(4096,
-			priv->io_base + _REG(VPP_PREBLEND_VD1_H_START_END));
-	writel_relaxed(4096,
-			priv->io_base + _REG(VPP_BLEND_VD2_H_START_END));
+		/* Setup default VD settings */
+		writel_relaxed(4096,
+				priv->io_base + _REG(VPP_PREBLEND_VD1_H_START_END));
+		writel_relaxed(4096,
+				priv->io_base + _REG(VPP_BLEND_VD2_H_START_END));
+	}
 
 	/* Disable Scalers */
 	writel_relaxed(0, priv->io_base + _REG(VPP_OSD_SC_CTRL0));

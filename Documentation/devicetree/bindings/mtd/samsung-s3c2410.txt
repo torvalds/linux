@@ -6,7 +6,7 @@ Required properties:
 	"samsung,s3c2412-nand"
 	"samsung,s3c2440-nand"
 - reg : register's location and length.
-- #address-cells, #size-cells : see nand.txt
+- #address-cells, #size-cells : see nand-controller.yaml
 - clocks : phandle to the nand controller clock
 - clock-names : must contain "nand"
 
@@ -14,8 +14,8 @@ Optional child nodes:
 Child nodes representing the available nand chips.
 
 Optional child properties:
-- nand-ecc-mode : see nand.txt
-- nand-on-flash-bbt : see nand.txt
+- nand-ecc-mode : see nand-controller.yaml
+- nand-on-flash-bbt : see nand-controller.yaml
 
 Each child device node may optionally contain a 'partitions' sub-node,
 which further contains sub-nodes describing the flash partition mapping.

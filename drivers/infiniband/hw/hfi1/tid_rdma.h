@@ -76,10 +76,8 @@ struct tid_rdma_qp_params {
 struct tid_flow_state {
 	u32 generation;
 	u32 psn;
-	u32 r_next_psn;      /* next PSN to be received (in TID space) */
 	u8 index;
 	u8 last_index;
-	u8 flags;
 };
 
 enum tid_rdma_req_state {

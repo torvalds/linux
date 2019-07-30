@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 include ../scripts/Makefile.include
 include ../scripts/Makefile.arch
 
@@ -107,6 +108,9 @@ include ../scripts/utilities.mak
 # Define NO_AIO if you do not want support of Posix AIO based trace
 # streaming for record mode. Currently Posix AIO trace streaming is
 # supported only when linking with glibc.
+#
+# Define NO_LIBZSTD if you do not want support of Zstandard based runtime
+# trace compression in record mode.
 #
 
 # As per kernel Makefile, avoid funny character set dependencies

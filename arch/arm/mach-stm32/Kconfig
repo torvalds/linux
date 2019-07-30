@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_STM32
 	bool "STMicroelectronics STM32 family" if ARM_SINGLE_ARMV7M || ARCH_MULTI_V7
 	select ARMV7M_SYSTICK if ARM_SINGLE_ARMV7M
 	select HAVE_ARM_ARCH_TIMER if ARCH_MULTI_V7
 	select ARM_GIC if ARCH_MULTI_V7
 	select ARM_PSCI if ARCH_MULTI_V7
+	select ARM_AMBA
 	select ARCH_HAS_RESET_CONTROLLER
 	select CLKSRC_STM32
 	select PINCTRL
@@ -18,22 +20,18 @@ if ARM_SINGLE_ARMV7M
 
 config MACH_STM32F429
 	bool "STMicroelectronics STM32F429"
-	select ARM_AMBA
 	default y
 
 config MACH_STM32F469
 	bool "STMicroelectronics STM32F469"
-	select ARM_AMBA
 	default y
 
 config MACH_STM32F746
 	bool "STMicroelectronics STM32F746"
-	select ARM_AMBA
 	default y
 
 config MACH_STM32F769
 	bool "STMicroelectronics STM32F769"
-	select ARM_AMBA
 	default y
 
 config MACH_STM32H743

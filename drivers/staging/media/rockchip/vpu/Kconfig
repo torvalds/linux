@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config VIDEO_ROCKCHIP_VPU
 	tristate "Rockchip VPU driver"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
@@ -5,7 +6,6 @@ config VIDEO_ROCKCHIP_VPU
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV
-	default n
 	help
 	  Support for the Video Processing Unit present on Rockchip SoC,
 	  which accelerates video and image encoding and decoding.

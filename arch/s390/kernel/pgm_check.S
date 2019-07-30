@@ -7,7 +7,7 @@
 
 #include <linux/linkage.h>
 
-#define PGM_CHECK(handler)	.long handler
+#define PGM_CHECK(handler)	.quad handler
 #define PGM_CHECK_DEFAULT	PGM_CHECK(default_trap_handler)
 
 /*

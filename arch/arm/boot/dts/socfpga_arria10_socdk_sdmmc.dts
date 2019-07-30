@@ -9,6 +9,7 @@
 &mmc {
 	status = "okay";
 	cap-sd-highspeed;
+	cap-mmc-highspeed;
 	broken-cd;
 	bus-width = <4>;
 };

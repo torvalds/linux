@@ -87,7 +87,21 @@ used to get and set the keys for a thread.
 Virtualization
 --------------
 
-Pointer authentication is not currently supported in KVM guests. KVM
-will mask the feature bits from ID_AA64ISAR1_EL1, and attempted use of
-the feature will result in an UNDEFINED exception being injected into
-the guest.
+Pointer authentication is enabled in KVM guest when each virtual cpu is
+initialised by passing flags KVM_ARM_VCPU_PTRAUTH_[ADDRESS/GENERIC] and
+requesting these two separate cpu features to be enabled. The current KVM
+guest implementation works by enabling both features together, so both
+these userspace flags are checked before enabling pointer authentication.
+The separate userspace flag will allow to have no userspace ABI changes
+if support is added in the future to allow these two features to be
+enabled independently of one another.
+
+As Arm Architecture specifies that Pointer Authentication feature is
+implemented along with the VHE feature so KVM arm64 ptrauth code relies
+on VHE mode to be present.
+
+Additionally, when these vcpu feature flags are not set then KVM will
+filter out the Pointer Authentication system key registers from
+KVM_GET/SET_REG_* ioctls and mask those features from cpufeature ID
+register. Any attempt to use the Pointer Authentication instructions will
+result in an UNDEFINED exception being injected into the guest.

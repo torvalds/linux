@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_PANEL
 	bool
 	depends on DRM
@@ -37,6 +38,15 @@ config DRM_PANEL_SIMPLE
 	  a GPIO to be powered up. Optionally a backlight can be attached so
 	  that it can be automatically turned off when the panel goes into a
 	  low power state.
+
+config DRM_PANEL_FEIYANG_FY07024DI26A30D
+	tristate "Feiyang FY07024DI26A30-D MIPI-DSI LCD panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y if you want to enable support for panels based on the
+	  Feiyang FY07024DI26A30-D MIPI-DSI interface.
 
 config DRM_PANEL_ILITEK_IL9322
 	tristate "Ilitek ILI9322 320x240 QVGA panels"
@@ -148,6 +158,28 @@ config DRM_PANEL_RAYDIUM_RM68200
 	help
 	  Say Y here if you want to enable support for Raydium RM68200
 	  720x1280 DSI video mode panel.
+
+config DRM_PANEL_ROCKTECH_JH057N00900
+	tristate "Rocktech JH057N00900 MIPI touchscreen panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Rocktech JH057N00900
+	  MIPI DSI panel as e.g. used in the Librem 5 devkit. It has a
+	  resolution of 720x1440 pixels, a built in backlight and touch
+	  controller.
+	  Touch input support is provided by the goodix driver and needs to be
+	  selected separately.
+
+config DRM_PANEL_RONBO_RB070D30
+	tristate "Ronbo Electronics RB070D30 panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Ronbo Electronics
+	  RB070D30 1024x600 DSI panel.
 
 config DRM_PANEL_SAMSUNG_S6D16D0
 	tristate "Samsung S6D16D0 DSI video mode panel"

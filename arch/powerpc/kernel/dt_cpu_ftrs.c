@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2017, Nicholas Piggin, IBM Corporation
- * Licensed under GPLv2.
  */
 
 #define pr_fmt(fmt) "dt-cpu-ftrs: " fmt

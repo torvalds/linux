@@ -136,8 +136,8 @@ static int imx_gpc_pu_pgc_sw_pxx_req(struct generic_pm_domain *genpd,
 		GPC_PU_PGC_SW_PUP_REQ : GPC_PU_PGC_SW_PDN_REQ;
 	const bool enable_power_control = !on;
 	const bool has_regulator = !IS_ERR(domain->regulator);
-	unsigned long deadline;
 	int i, ret = 0;
+	u32 pxx_req;
 
 	regmap_update_bits(domain->regmap, GPC_PGC_CPU_MAPPING,
 			   domain->bits.map, domain->bits.map);
@@ -169,30 +169,19 @@ static int imx_gpc_pu_pgc_sw_pxx_req(struct generic_pm_domain *genpd,
 	 * As per "5.5.9.4 Example Code 4" in IMX7DRM.pdf wait
 	 * for PUP_REQ/PDN_REQ bit to be cleared
 	 */
-	deadline = jiffies + msecs_to_jiffies(1);
-	while (true) {
-		u32 pxx_req;
-
-		regmap_read(domain->regmap, offset, &pxx_req);
-
-		if (!(pxx_req & domain->bits.pxx))
-			break;
-
-		if (time_after(jiffies, deadline)) {
-			dev_err(domain->dev, "falied to command PGC\n");
-			ret = -ETIMEDOUT;
-			/*
-			 * If we were in a process of enabling a
-			 * domain and failed we might as well disable
-			 * the regulator we just enabled. And if it
-			 * was the opposite situation and we failed to
-			 * power down -- keep the regulator on
-			 */
-			on = !on;
-			break;
-		}
-
-		cpu_relax();
+	ret = regmap_read_poll_timeout(domain->regmap, offset, pxx_req,
+				       !(pxx_req & domain->bits.pxx),
+				       0, USEC_PER_MSEC);
+	if (ret) {
+		dev_err(domain->dev, "failed to command PGC\n");
+		/*
+		 * If we were in a process of enabling a
+		 * domain and failed we might as well disable
+		 * the regulator we just enabled. And if it
+		 * was the opposite situation and we failed to
+		 * power down -- keep the regulator on
+		 */
+		on = !on;
 	}
 
 	if (enable_power_control)
@@ -574,7 +563,6 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *pgc_np, *np;
 	struct regmap *regmap;
-	struct resource *res;
 	void __iomem *base;
 	int ret;
 
@@ -584,8 +572,7 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res  = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

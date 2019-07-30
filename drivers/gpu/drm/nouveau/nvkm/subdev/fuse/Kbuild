@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 nvkm-y += nvkm/subdev/fuse/base.o
 nvkm-y += nvkm/subdev/fuse/nv50.o
 nvkm-y += nvkm/subdev/fuse/gf100.o

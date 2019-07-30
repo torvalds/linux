@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NetLabel Unlabeled Support
  *
@@ -6,25 +7,10 @@
  * mappings for network protocols such as CIPSO and RIPSO.
  *
  * Author: Paul Moore <paul@paul-moore.com>
- *
  */
 
 /*
  * (c) Copyright Hewlett-Packard Development Company, L.P., 2006 - 2008
- *
- * This program is free software;  you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY;  without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- * the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program;  if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/types.h>
@@ -1317,57 +1303,57 @@ unlabel_staticlistdef_return:
 static const struct genl_ops netlbl_unlabel_genl_ops[] = {
 	{
 	.cmd = NLBL_UNLABEL_C_STATICADD,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_staticadd,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_UNLABEL_C_STATICREMOVE,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_staticremove,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_UNLABEL_C_STATICLIST,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
-	.policy = netlbl_unlabel_genl_policy,
 	.doit = NULL,
 	.dumpit = netlbl_unlabel_staticlist,
 	},
 	{
 	.cmd = NLBL_UNLABEL_C_STATICADDDEF,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_staticadddef,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_UNLABEL_C_STATICREMOVEDEF,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_staticremovedef,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_UNLABEL_C_STATICLISTDEF,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
-	.policy = netlbl_unlabel_genl_policy,
 	.doit = NULL,
 	.dumpit = netlbl_unlabel_staticlistdef,
 	},
 	{
 	.cmd = NLBL_UNLABEL_C_ACCEPT,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = GENL_ADMIN_PERM,
-	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_accept,
 	.dumpit = NULL,
 	},
 	{
 	.cmd = NLBL_UNLABEL_C_LIST,
+	.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 	.flags = 0,
-	.policy = netlbl_unlabel_genl_policy,
 	.doit = netlbl_unlabel_list,
 	.dumpit = NULL,
 	},
@@ -1378,6 +1364,7 @@ static struct genl_family netlbl_unlabel_gnl_family __ro_after_init = {
 	.name = NETLBL_NLTYPE_UNLABELED_NAME,
 	.version = NETLBL_PROTO_VERSION,
 	.maxattr = NLBL_UNLABEL_A_MAX,
+	.policy = netlbl_unlabel_genl_policy,
 	.module = THIS_MODULE,
 	.ops = netlbl_unlabel_genl_ops,
 	.n_ops = ARRAY_SIZE(netlbl_unlabel_genl_ops),

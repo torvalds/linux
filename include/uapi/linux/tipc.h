@@ -190,6 +190,7 @@ struct sockaddr_tipc {
 #define TIPC_MCAST_REPLICAST    134     /* Default: TIPC selects. No arg */
 #define TIPC_GROUP_JOIN         135     /* Takes struct tipc_group_req* */
 #define TIPC_GROUP_LEAVE        136     /* No argument */
+#define TIPC_SOCK_RECVQ_USED    137     /* Default: none (read only) */
 
 /*
  * Flag values

@@ -103,8 +103,15 @@ static struct sk_buff *gswip_tag_rcv(struct sk_buff *skb,
 	return skb;
 }
 
-const struct dsa_device_ops gswip_netdev_ops = {
+static const struct dsa_device_ops gswip_netdev_ops = {
+	.name = "gwsip",
+	.proto	= DSA_TAG_PROTO_GSWIP,
 	.xmit = gswip_tag_xmit,
 	.rcv = gswip_tag_rcv,
 	.overhead = GSWIP_RX_HEADER_LEN,
 };
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_GSWIP);
+
+module_dsa_tag_driver(gswip_netdev_ops);

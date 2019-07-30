@@ -289,6 +289,7 @@ struct altr_sdram_mc_data {
 #define ALTR_A10_ECC_INIT_WATCHDOG_10US      10000
 
 /************* Stratix10 Defines **************/
+#define ALTR_S10_DERR_ADDRA_OFST          0x2C
 
 /* Stratix10 ECC Manager Defines */
 #define S10_SYSMGR_ECC_INTMASK_CLR_OFST   0x98
@@ -299,6 +300,7 @@ struct altr_sdram_mc_data {
 #define S10_SYSMGR_UE_ADDR_OFST           0x224
 
 #define S10_DDR0_IRQ_MASK                 BIT(16)
+#define S10_DBE_IRQ_MASK                  0x3FE
 
 /* Define ECC Block Offsets for peripherals */
 #define ECC_BLK_ADDRESS_OFST              0x40
@@ -319,7 +321,7 @@ struct altr_sdram_mc_data {
 #define ECC_BLK_STARTACC_OFST             0x7C
 
 #define ECC_XACT_KICK                     0x10000
-#define ECC_WORD_WRITE                    0xF
+#define ECC_WORD_WRITE                    0xFF
 #define ECC_WRITE_DOVR                    0x101
 #define ECC_WRITE_EDOVR                   0x103
 #define ECC_READ_EOVR                     0x2
@@ -369,70 +371,5 @@ struct altr_arria10_edac {
 	struct list_head	a10_ecc_devices;
 	struct notifier_block	panic_notifier;
 };
-
-/*
- * Functions specified by ARM SMC Calling convention:
- *
- * FAST call executes atomic operations, returns when the requested operation
- * has completed.
- * STD call starts a operation which can be preempted by a non-secure
- * interrupt. The call can return before the requested operation has
- * completed.
- *
- * a0..a7 is used as register names in the descriptions below, on arm32
- * that translates to r0..r7 and on arm64 to w0..w7.
- */
-
-#define INTEL_SIP_SMC_STD_CALL_VAL(func_num) \
-	ARM_SMCCC_CALL_VAL(ARM_SMCCC_STD_CALL, ARM_SMCCC_SMC_64, \
-	ARM_SMCCC_OWNER_SIP, (func_num))
-
-#define INTEL_SIP_SMC_FAST_CALL_VAL(func_num) \
-	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL, ARM_SMCCC_SMC_64, \
-	ARM_SMCCC_OWNER_SIP, (func_num))
-
-#define INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION		0xFFFFFFFF
-#define INTEL_SIP_SMC_STATUS_OK				0x0
-#define INTEL_SIP_SMC_REG_ERROR				0x5
-
-/*
- * Request INTEL_SIP_SMC_REG_READ
- *
- * Read a protected register using SMCCC
- *
- * Call register usage:
- * a0: INTEL_SIP_SMC_REG_READ.
- * a1: register address.
- * a2-7: not used.
- *
- * Return status:
- * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_REG_ERROR, or
- *     INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION
- * a1: Value in the register
- * a2-3: not used.
- */
-#define INTEL_SIP_SMC_FUNCID_REG_READ 7
-#define INTEL_SIP_SMC_REG_READ \
-	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_REG_READ)
-
-/*
- * Request INTEL_SIP_SMC_REG_WRITE
- *
- * Write a protected register using SMCCC
- *
- * Call register usage:
- * a0: INTEL_SIP_SMC_REG_WRITE.
- * a1: register address
- * a2: value to program into register.
- * a3-7: not used.
- *
- * Return status:
- * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_REG_ERROR, or
- *     INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION
- * a1-3: not used.
- */
-#define INTEL_SIP_SMC_FUNCID_REG_WRITE 8
-#define INTEL_SIP_SMC_REG_WRITE \
-	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_REG_WRITE)
 
 #endif	/* #ifndef _ALTERA_EDAC_H */

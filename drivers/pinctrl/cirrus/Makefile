@@ -1,4 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Cirrus Logic pinctrl drivers
+obj-$(CONFIG_PINCTRL_LOCHNAGAR)	+= pinctrl-lochnagar.o
+
 pinctrl-madera-objs		:= pinctrl-madera-core.o
 ifeq ($(CONFIG_PINCTRL_CS47L35),y)
 pinctrl-madera-objs		+= pinctrl-cs47l35.o

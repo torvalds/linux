@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Allwinner sunxi AHCI SATA platform driver
  * Copyright 2013 Olliver Schinagl <oliver@schinagl.nl>
@@ -6,15 +7,6 @@
  * based on the AHCI SATA platform driver by Jeff Garzik and Anton Vorontsov
  * Based on code from Allwinner Technology Co., Ltd. <www.allwinnertech.com>,
  * Daniel Wang <danielwang@allwinnertech.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
 #include <linux/ahci_platform.h>

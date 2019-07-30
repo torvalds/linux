@@ -17,6 +17,7 @@
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
 #include <linux/sunrpc/svc.h>
+#include <linux/sunrpc/svc_xprt.h>
 #include <linux/sunrpc/msg_prot.h>
 
 #include <uapi/linux/nfsd/debug.h>
@@ -73,7 +74,7 @@ extern const struct seq_operations nfs_exports_op;
 /*
  * Function prototypes.
  */
-int		nfsd_svc(int nrservs, struct net *net);
+int		nfsd_svc(int nrservs, struct net *net, const struct cred *cred);
 int		nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp);
 
 int		nfsd_nrthreads(struct net *);
@@ -98,10 +99,12 @@ extern const struct svc_version nfsd_acl_version3;
 #endif
 #endif
 
+struct nfsd_net;
+
 enum vers_op {NFSD_SET, NFSD_CLEAR, NFSD_TEST, NFSD_AVAIL };
-int nfsd_vers(int vers, enum vers_op change);
-int nfsd_minorversion(u32 minorversion, enum vers_op change);
-void nfsd_reset_versions(void);
+int nfsd_vers(struct nfsd_net *nn, int vers, enum vers_op change);
+int nfsd_minorversion(struct nfsd_net *nn, u32 minorversion, enum vers_op change);
+void nfsd_reset_versions(struct nfsd_net *nn);
 int nfsd_create_serv(struct net *net);
 
 extern int nfsd_max_blksize;
@@ -109,6 +112,12 @@ extern int nfsd_max_blksize;
 static inline int nfsd_v4client(struct svc_rqst *rq)
 {
 	return rq->rq_prog == NFS_PROGRAM && rq->rq_vers == 4;
+}
+static inline struct user_namespace *
+nfsd_user_namespace(const struct svc_rqst *rqstp)
+{
+	const struct cred *cred = rqstp->rq_xprt->xpt_cred;
+	return cred ? cred->user_ns : &init_user_ns;
 }
 
 /* 

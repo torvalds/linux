@@ -28,20 +28,16 @@
  * device that might share buffers with virtgpu
  */
 
-int virtgpu_gem_prime_pin(struct drm_gem_object *obj)
-{
-	WARN_ONCE(1, "not implemented");
-	return -ENODEV;
-}
-
-void virtgpu_gem_prime_unpin(struct drm_gem_object *obj)
-{
-	WARN_ONCE(1, "not implemented");
-}
-
 struct sg_table *virtgpu_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
-	return ERR_PTR(-ENODEV);
+	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
+
+	if (!bo->tbo.ttm->pages || !bo->tbo.ttm->num_pages)
+		/* should not happen */
+		return ERR_PTR(-EINVAL);
+
+	return drm_prime_pages_to_sg(bo->tbo.ttm->pages,
+				     bo->tbo.ttm->num_pages);
 }
 
 struct drm_gem_object *virtgpu_gem_prime_import_sg_table(
@@ -68,7 +64,10 @@ void virtgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 }
 
 int virtgpu_gem_prime_mmap(struct drm_gem_object *obj,
-		       struct vm_area_struct *area)
+			   struct vm_area_struct *vma)
 {
-	return -ENODEV;
+	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
+
+	bo->gem_base.vma_node.vm_node.start = bo->tbo.vma_node.vm_node.start;
+	return drm_gem_prime_mmap(obj, vma);
 }

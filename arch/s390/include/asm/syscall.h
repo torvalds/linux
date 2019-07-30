@@ -14,13 +14,8 @@
 #include <linux/err.h>
 #include <asm/ptrace.h>
 
-/*
- * The syscall table always contains 32 bit pointers since we know that the
- * address of the function to be called is (way) below 4GB.  So the "int"
- * type here is what we want [need] for both 32 bit and 64 bit systems.
- */
-extern const unsigned int sys_call_table[];
-extern const unsigned int sys_call_table_emu[];
+extern const unsigned long sys_call_table[];
+extern const unsigned long sys_call_table_emu[];
 
 static inline long syscall_get_nr(struct task_struct *task,
 				  struct pt_regs *regs)
@@ -84,10 +79,10 @@ static inline void syscall_set_arguments(struct task_struct *task,
 	regs->orig_gpr2 = args[0];
 }
 
-static inline int syscall_get_arch(void)
+static inline int syscall_get_arch(struct task_struct *task)
 {
 #ifdef CONFIG_COMPAT
-	if (test_tsk_thread_flag(current, TIF_31BIT))
+	if (test_tsk_thread_flag(task, TIF_31BIT))
 		return AUDIT_ARCH_S390;
 #endif
 	return AUDIT_ARCH_S390X;

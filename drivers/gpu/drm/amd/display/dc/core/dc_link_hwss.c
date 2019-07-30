@@ -58,6 +58,8 @@ void dp_enable_link_phy(
 	const struct dc_link_settings *link_settings)
 {
 	struct link_encoder *link_enc = link->link_enc;
+	struct dc  *core_dc = link->ctx->dc;
+	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
 	struct pipe_ctx *pipes =
 			link->dc->current_state->res_ctx.pipe_ctx;
@@ -84,6 +86,9 @@ void dp_enable_link_phy(
 		}
 	}
 
+	if (dmcu != NULL && dmcu->funcs->lock_phy)
+		dmcu->funcs->lock_phy(dmcu);
+
 	if (dc_is_dp_sst_signal(signal)) {
 		link_enc->funcs->enable_dp_output(
 						link_enc,
@@ -95,6 +100,10 @@ void dp_enable_link_phy(
 						link_settings,
 						clock_source);
 	}
+
+	if (dmcu != NULL && dmcu->funcs->unlock_phy)
+		dmcu->funcs->unlock_phy(dmcu);
+
 	link->cur_link_settings = *link_settings;
 
 	dp_receiver_power_ctrl(link, true);
@@ -150,14 +159,24 @@ bool edp_receiver_ready_T7(struct dc_link *link)
 
 void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 {
+	struct dc  *core_dc = link->ctx->dc;
+	struct dmcu *dmcu = core_dc->res_pool->dmcu;
+
 	if (!link->wa_flags.dp_keep_receiver_powered)
 		dp_receiver_power_ctrl(link, false);
 
 	if (signal == SIGNAL_TYPE_EDP) {
 		link->link_enc->funcs->disable_output(link->link_enc, signal);
 		link->dc->hwss.edp_power_control(link, false);
-	} else
+	} else {
+		if (dmcu != NULL && dmcu->funcs->lock_phy)
+			dmcu->funcs->lock_phy(dmcu);
+
 		link->link_enc->funcs->disable_output(link->link_enc, signal);
+
+		if (dmcu != NULL && dmcu->funcs->unlock_phy)
+			dmcu->funcs->unlock_phy(dmcu);
+	}
 
 	/* Clear current link setting.*/
 	memset(&link->cur_link_settings, 0,

@@ -168,7 +168,6 @@ static void send_complete(struct work_struct *work)
  * rvt_create_cq - create a completion queue
  * @ibdev: the device this completion queue is attached to
  * @attr: creation attributes
- * @context: unused by the QLogic_IB driver
  * @udata: user data for libibverbs.so
  *
  * Called by ib_create_cq() in the generic verbs code.
@@ -178,7 +177,6 @@ static void send_complete(struct work_struct *work)
  */
 struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 			    const struct ib_cq_init_attr *attr,
-			    struct ib_ucontext *context,
 			    struct ib_udata *udata)
 {
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
@@ -232,7 +230,7 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 	if (udata && udata->outlen >= sizeof(__u64)) {
 		int err;
 
-		cq->ip = rvt_create_mmap_info(rdi, sz, context, wc);
+		cq->ip = rvt_create_mmap_info(rdi, sz, udata, wc);
 		if (!cq->ip) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_wc;
@@ -299,12 +297,13 @@ done:
 /**
  * rvt_destroy_cq - destroy a completion queue
  * @ibcq: the completion queue to destroy.
+ * @udata: user data or NULL for kernel object
  *
  * Called by ib_destroy_cq() in the generic verbs code.
  *
  * Return: always 0
  */
-int rvt_destroy_cq(struct ib_cq *ibcq)
+int rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
 	struct rvt_dev_info *rdi = cq->rdi;

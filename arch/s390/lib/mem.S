@@ -178,6 +178,7 @@ ENTRY(__memset\bits)
 	BR_EX	%r14
 .L__memset_mvc\bits:
 	mvc	\bytes(1,%r1),0(%r1)
+ENDPROC(__memset\bits)
 .endm
 
 __MEMSET 16,2,sth

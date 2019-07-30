@@ -156,12 +156,9 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 	}
 
 	vmw_execbuf_release_pinned_bo(dev_priv);
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "destruction.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return;
-	}
 
 	cmd->header.id = SVGA_3D_CMD_CONTEXT_DESTROY;
 	cmd->header.size = sizeof(cmd->body);
@@ -210,7 +207,7 @@ static int vmw_gb_context_init(struct vmw_private *dev_priv,
 		for (i = 0; i < SVGA_COTABLE_DX10_MAX; ++i) {
 			uctx->cotables[i] = vmw_cotable_alloc(dev_priv,
 							      &uctx->res, i);
-			if (unlikely(IS_ERR(uctx->cotables[i]))) {
+			if (IS_ERR(uctx->cotables[i])) {
 				ret = PTR_ERR(uctx->cotables[i]);
 				goto out_cotables;
 			}
@@ -259,9 +256,8 @@ static int vmw_context_init(struct vmw_private *dev_priv,
 		return -ENOMEM;
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Fifo reserve failed.\n");
 		vmw_resource_unreference(&res);
 		return -ENOMEM;
 	}
@@ -311,10 +307,8 @@ static int vmw_gb_context_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for context "
-			  "creation.\n");
 		ret = -ENOMEM;
 		goto out_no_fifo;
 	}
@@ -345,12 +339,10 @@ static int vmw_gb_context_bind(struct vmw_resource *res,
 
 	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for context "
-			  "binding.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
+
 	cmd->header.id = SVGA_3D_CMD_BIND_GB_CONTEXT;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = res->id;
@@ -391,10 +383,8 @@ static int vmw_gb_context_unbind(struct vmw_resource *res,
 
 	submit_size = sizeof(*cmd2) + (readback ? sizeof(*cmd1) : 0);
 
-	cmd = vmw_fifo_reserve(dev_priv, submit_size);
+	cmd = VMW_FIFO_RESERVE(dev_priv, submit_size);
 	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for context "
-			  "unbinding.\n");
 		mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
@@ -441,12 +431,9 @@ static int vmw_gb_context_destroy(struct vmw_resource *res)
 	if (likely(res->id == -1))
 		return 0;
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for context "
-			  "destruction.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id = SVGA_3D_CMD_DESTROY_GB_CONTEXT;
 	cmd->header.size = sizeof(cmd->body);
@@ -487,10 +474,8 @@ static int vmw_dx_context_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for context "
-			  "creation.\n");
 		ret = -ENOMEM;
 		goto out_no_fifo;
 	}
@@ -521,12 +506,9 @@ static int vmw_dx_context_bind(struct vmw_resource *res,
 
 	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for context "
-			  "binding.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id = SVGA_3D_CMD_DX_BIND_CONTEXT;
 	cmd->header.size = sizeof(cmd->body);
@@ -615,10 +597,8 @@ static int vmw_dx_context_unbind(struct vmw_resource *res,
 
 	submit_size = sizeof(*cmd2) + (readback ? sizeof(*cmd1) : 0);
 
-	cmd = vmw_fifo_reserve(dev_priv, submit_size);
+	cmd = VMW_FIFO_RESERVE(dev_priv, submit_size);
 	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for context "
-			  "unbinding.\n");
 		mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
@@ -665,12 +645,9 @@ static int vmw_dx_context_destroy(struct vmw_resource *res)
 	if (likely(res->id == -1))
 		return 0;
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for context "
-			  "destruction.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id = SVGA_3D_CMD_DX_DESTROY_CONTEXT;
 	cmd->header.size = sizeof(cmd->body);
@@ -751,7 +728,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!dev_priv->has_dx && dx) {
-		DRM_ERROR("DX contexts not supported by device.\n");
+		VMW_DEBUG_USER("DX contexts not supported by device.\n");
 		return -EINVAL;
 	}
 

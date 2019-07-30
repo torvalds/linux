@@ -70,7 +70,7 @@ void acpi_ns_print_pathname(u32 num_segments, const char *pathname)
 			    acpi_os_printf("?");
 		}
 
-		pathname += ACPI_NAME_SIZE;
+		pathname += ACPI_NAMESEG_SIZE;
 		num_segments--;
 		if (num_segments) {
 			acpi_os_printf(".");

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Windfarm PowerMac thermal control.  SMU "satellite" controller sensors.
  *
  * Copyright (C) 2005 Paul Mackerras, IBM Corp. <paulus@samba.org>
- *
- * Released under the terms of the GNU GPL v2.
  */
 
 #include <linux/types.h>

@@ -278,7 +278,6 @@ ring_doorbell(struct octeon_device *oct, struct octeon_instr_queue *iq)
 	if (atomic_read(&oct->status) == OCT_DEV_RUNNING) {
 		writel(iq->fill_cnt, iq->doorbell_reg);
 		/* make sure doorbell write goes through */
-		mmiowb();
 		iq->fill_cnt = 0;
 		iq->last_db_time = jiffies;
 		return;

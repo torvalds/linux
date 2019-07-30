@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ISHTP-HID glue driver's definitions.
  *
  * Copyright (c) 2014-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 #ifndef ISHTP_HID__H
 #define	ISHTP_HID__H
@@ -24,9 +16,9 @@
 #define	IS_RESPONSE	0x80
 
 /* Used to dump to Linux trace buffer, if enabled */
-#define hid_ishtp_trace(client, ...)	\
-	client->cl_device->ishtp_dev->print_log(\
-		client->cl_device->ishtp_dev, __VA_ARGS__)
+extern void (*hid_print_trace)(void *unused, const char *format, ...);
+#define hid_ishtp_trace(client, ...) \
+		(hid_print_trace)(NULL, __VA_ARGS__)
 
 /* ISH Transport protocol (ISHTP in short) GUID */
 static const guid_t hid_ishtp_guid =
@@ -159,6 +151,9 @@ struct ishtp_cl_data {
  * @client_data:	Link to the client instance
  * @hid_wait:		Completion waitq
  *
+ * @raw_get_req:	Flag indicating raw get request ongoing
+ * @raw_buf:		raw request buffer filled on receiving get report
+ * @raw_buf_size:	raw request buffer size
  * Used to tie hid hid->driver data to driver client instance
  */
 struct ishtp_hid_data {
@@ -166,6 +161,11 @@ struct ishtp_hid_data {
 	bool request_done;
 	struct ishtp_cl_data *client_data;
 	wait_queue_head_t hid_wait;
+
+	/* raw request */
+	bool raw_get_req;
+	u8 *raw_buf;
+	size_t raw_buf_size;
 };
 
 /* Interface functions between HID LL driver and ISH TP client */

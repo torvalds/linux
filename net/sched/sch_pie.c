@@ -1,14 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2013 Cisco Systems, Inc, 2013.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Author: Vijay Subramanian <vijaynsu@cisco.com>
  * Author: Mythili Prabhu <mysuryan@cisco.com>
@@ -216,7 +207,8 @@ static int pie_change(struct Qdisc *sch, struct nlattr *opt,
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_PIE_MAX, opt, pie_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_PIE_MAX, opt, pie_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 
@@ -491,7 +483,7 @@ static int pie_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct pie_sched_data *q = qdisc_priv(sch);
 	struct nlattr *opts;
 
-	opts = nla_nest_start(skb, TCA_OPTIONS);
+	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (!opts)
 		goto nla_put_failure;
 

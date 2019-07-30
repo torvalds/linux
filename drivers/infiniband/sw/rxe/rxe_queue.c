@@ -36,18 +36,15 @@
 #include "rxe_loc.h"
 #include "rxe_queue.h"
 
-int do_mmap_info(struct rxe_dev *rxe,
-		 struct mminfo __user *outbuf,
-		 struct ib_ucontext *context,
-		 struct rxe_queue_buf *buf,
-		 size_t buf_size,
-		 struct rxe_mmap_info **ip_p)
+int do_mmap_info(struct rxe_dev *rxe, struct mminfo __user *outbuf,
+		 struct ib_udata *udata, struct rxe_queue_buf *buf,
+		 size_t buf_size, struct rxe_mmap_info **ip_p)
 {
 	int err;
 	struct rxe_mmap_info *ip = NULL;
 
 	if (outbuf) {
-		ip = rxe_create_mmap_info(rxe, buf_size, context, buf);
+		ip = rxe_create_mmap_info(rxe, buf_size, udata, buf);
 		if (!ip)
 			goto err1;
 
@@ -153,12 +150,9 @@ static int resize_finish(struct rxe_queue *q, struct rxe_queue *new_q,
 	return 0;
 }
 
-int rxe_queue_resize(struct rxe_queue *q,
-		     unsigned int *num_elem_p,
-		     unsigned int elem_size,
-		     struct ib_ucontext *context,
-		     struct mminfo __user *outbuf,
-		     spinlock_t *producer_lock,
+int rxe_queue_resize(struct rxe_queue *q, unsigned int *num_elem_p,
+		     unsigned int elem_size, struct ib_udata *udata,
+		     struct mminfo __user *outbuf, spinlock_t *producer_lock,
 		     spinlock_t *consumer_lock)
 {
 	struct rxe_queue *new_q;
@@ -170,7 +164,7 @@ int rxe_queue_resize(struct rxe_queue *q,
 	if (!new_q)
 		return -ENOMEM;
 
-	err = do_mmap_info(new_q->rxe, outbuf, context, new_q->buf,
+	err = do_mmap_info(new_q->rxe, outbuf, udata, new_q->buf,
 			   new_q->buf_size, &new_q->ip);
 	if (err) {
 		vfree(new_q->buf);

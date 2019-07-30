@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HDMI driver for OMAP5
  *
@@ -8,18 +9,6 @@
  *	Mythri pk
  *	Archit Taneja <archit@ti.com>
  *	Tomi Valkeinen <tomi.valkeinen@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define DSS_SUBSYS_NAME "HDMI"
@@ -248,15 +237,15 @@ static void hdmi_power_off_full(struct omap_hdmi *hdmi)
 }
 
 static void hdmi_display_set_timings(struct omap_dss_device *dssdev,
-				     const struct videomode *vm)
+				     const struct drm_display_mode *mode)
 {
 	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
 
 	mutex_lock(&hdmi->lock);
 
-	hdmi->cfg.vm = *vm;
+	drm_display_mode_to_videomode(mode, &hdmi->cfg.vm);
 
-	dispc_set_tv_pclk(hdmi->dss->dispc, vm->pixelclock);
+	dispc_set_tv_pclk(hdmi->dss->dispc, mode->clock * 1000);
 
 	mutex_unlock(&hdmi->lock);
 }
@@ -320,26 +309,20 @@ static void hdmi_stop_audio_stream(struct omap_hdmi *hd)
 	REG_FLD_MOD(hd->wp.base, HDMI_WP_SYSCONFIG, hd->wp_idlemode, 3, 2);
 }
 
-static int hdmi_display_enable(struct omap_dss_device *dssdev)
+static void hdmi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
 	unsigned long flags;
-	int r = 0;
+	int r;
 
 	DSSDBG("ENTER hdmi_display_enable\n");
 
 	mutex_lock(&hdmi->lock);
 
-	if (!dssdev->dispc_channel_connected) {
-		DSSERR("failed to enable display: no output/manager\n");
-		r = -ENODEV;
-		goto err0;
-	}
-
 	r = hdmi_power_on_full(hdmi);
 	if (r) {
 		DSSERR("failed to power on device\n");
-		goto err0;
+		goto done;
 	}
 
 	if (hdmi->audio_configured) {
@@ -359,12 +342,8 @@ static int hdmi_display_enable(struct omap_dss_device *dssdev)
 	hdmi->display_enabled = true;
 	spin_unlock_irqrestore(&hdmi->audio_playing_lock, flags);
 
+done:
 	mutex_unlock(&hdmi->lock);
-	return 0;
-
-err0:
-	mutex_unlock(&hdmi->lock);
-	return r;
 }
 
 static void hdmi_display_disable(struct omap_dss_device *dssdev)
@@ -422,21 +401,12 @@ static void hdmi_core_disable(struct omap_hdmi *hdmi)
 static int hdmi_connect(struct omap_dss_device *src,
 			struct omap_dss_device *dst)
 {
-	int r;
-
-	r = omapdss_device_connect(dst->dss, dst, dst->next);
-	if (r)
-		return r;
-
-	dst->dispc_channel_connected = true;
-	return 0;
+	return omapdss_device_connect(dst->dss, dst, dst->next);
 }
 
 static void hdmi_disconnect(struct omap_dss_device *src,
 			    struct omap_dss_device *dst)
 {
-	dst->dispc_channel_connected = false;
-
 	omapdss_device_disconnect(dst, dst->next);
 }
 
@@ -682,7 +652,7 @@ static int hdmi5_init_output(struct omap_hdmi *hdmi)
 
 	out->dev = &hdmi->pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_HDMI;
-	out->output_type = OMAP_DISPLAY_TYPE_HDMI;
+	out->type = OMAP_DISPLAY_TYPE_HDMI;
 	out->name = "hdmi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 	out->ops = &hdmi_ops;
@@ -690,19 +660,9 @@ static int hdmi5_init_output(struct omap_hdmi *hdmi)
 	out->of_ports = BIT(0);
 	out->ops_flags = OMAP_DSS_DEVICE_OP_EDID;
 
-	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
-	if (IS_ERR(out->next)) {
-		if (PTR_ERR(out->next) != -EPROBE_DEFER)
-			dev_err(out->dev, "failed to find video sink\n");
-		return PTR_ERR(out->next);
-	}
-
-	r = omapdss_output_validate(out);
-	if (r) {
-		omapdss_device_put(out->next);
-		out->next = NULL;
+	r = omapdss_device_init_output(out);
+	if (r < 0)
 		return r;
-	}
 
 	omapdss_device_register(out);
 
@@ -713,9 +673,8 @@ static void hdmi5_uninit_output(struct omap_hdmi *hdmi)
 {
 	struct omap_dss_device *out = &hdmi->output;
 
-	if (out->next)
-		omapdss_device_put(out->next);
 	omapdss_device_unregister(out);
+	omapdss_device_cleanup_output(out);
 }
 
 static int hdmi5_probe_of(struct omap_hdmi *hdmi)

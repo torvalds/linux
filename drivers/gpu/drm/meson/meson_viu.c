@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 BayLibre, SAS
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  * Copyright (C) 2014 Endless Mobile
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -25,7 +13,6 @@
 #include "meson_viu.h"
 #include "meson_vpp.h"
 #include "meson_venc.h"
-#include "meson_canvas.h"
 #include "meson_registers.h"
 
 /**
@@ -91,8 +78,36 @@ static int eotf_bypass_coeff[EOTF_COEFF_SIZE] = {
 	EOTF_COEFF_RIGHTSHIFT /* right shift */
 };
 
-void meson_viu_set_osd_matrix(struct meson_drm *priv,
-			      enum viu_matrix_sel_e m_select,
+static void meson_viu_set_g12a_osd1_matrix(struct meson_drm *priv,
+					   int *m, bool csc_on)
+{
+	/* VPP WRAP OSD1 matrix */
+	writel(((m[0] & 0xfff) << 16) | (m[1] & 0xfff),
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET0_1));
+	writel(m[2] & 0xfff,
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET2));
+	writel(((m[3] & 0x1fff) << 16) | (m[4] & 0x1fff),
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_COEF00_01));
+	writel(((m[5] & 0x1fff) << 16) | (m[6] & 0x1fff),
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_COEF02_10));
+	writel(((m[7] & 0x1fff) << 16) | (m[8] & 0x1fff),
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_COEF11_12));
+	writel(((m[9] & 0x1fff) << 16) | (m[10] & 0x1fff),
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_COEF20_21));
+	writel((m[11] & 0x1fff) << 16,
+		priv->io_base +	_REG(VPP_WRAP_OSD1_MATRIX_COEF22));
+
+	writel(((m[18] & 0xfff) << 16) | (m[19] & 0xfff),
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_OFFSET0_1));
+	writel(m[20] & 0xfff,
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_OFFSET2));
+
+	writel_bits_relaxed(BIT(0), csc_on ? BIT(0) : 0,
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_EN_CTRL));
+}
+
+static void meson_viu_set_osd_matrix(struct meson_drm *priv,
+				     enum viu_matrix_sel_e m_select,
 			      int *m, bool csc_on)
 {
 	if (m_select == VIU_MATRIX_OSD) {
@@ -160,10 +175,10 @@ void meson_viu_set_osd_matrix(struct meson_drm *priv,
 #define OSD_EOTF_LUT_SIZE 33
 #define OSD_OETF_LUT_SIZE 41
 
-void meson_viu_set_osd_lut(struct meson_drm *priv, enum viu_lut_sel_e lut_sel,
-			   unsigned int *r_map, unsigned int *g_map,
-			   unsigned int *b_map,
-			   bool csc_on)
+static void
+meson_viu_set_osd_lut(struct meson_drm *priv, enum viu_lut_sel_e lut_sel,
+		      unsigned int *r_map, unsigned int *g_map,
+		      unsigned int *b_map, bool csc_on)
 {
 	unsigned int addr_port;
 	unsigned int data_port;
@@ -337,14 +352,24 @@ void meson_viu_init(struct meson_drm *priv)
 	if (meson_vpu_is_compatible(priv, "amlogic,meson-gxm-vpu") ||
 	    meson_vpu_is_compatible(priv, "amlogic,meson-gxl-vpu"))
 		meson_viu_load_matrix(priv);
+	else if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu"))
+		meson_viu_set_g12a_osd1_matrix(priv, RGB709_to_YUV709l_coeff,
+					       true);
 
 	/* Initialize OSD1 fifo control register */
 	reg = BIT(0) |	/* Urgent DDR request priority */
-	      (4 << 5) | /* hold_fifo_lines */
-	      (3 << 10) | /* burst length 64 */
-	      (32 << 12) | /* fifo_depth_val: 32*8=256 */
-	      (2 << 22) | /* 4 words in 1 burst */
-	      (2 << 24);
+	      (4 << 5); /* hold_fifo_lines */
+	if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu"))
+		reg |= (1 << 10) | /* burst length 32 */
+		       (32 << 12) | /* fifo_depth_val: 32*8=256 */
+		       (2 << 22) | /* 4 words in 1 burst */
+		       (2 << 24) |
+		       (1 << 31);
+	else
+		reg |= (3 << 10) | /* burst length 64 */
+		       (32 << 12) | /* fifo_depth_val: 32*8=256 */
+		       (2 << 22) | /* 4 words in 1 burst */
+		       (2 << 24);
 	writel_relaxed(reg, priv->io_base + _REG(VIU_OSD1_FIFO_CTRL_STAT));
 	writel_relaxed(reg, priv->io_base + _REG(VIU_OSD2_FIFO_CTRL_STAT));
 
@@ -370,6 +395,29 @@ void meson_viu_init(struct meson_drm *priv)
 	writel_relaxed(0x00FF00C0,
 			priv->io_base + _REG(VD2_IF0_LUMA_FIFO_SIZE));
 
+	if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu")) {
+		writel_relaxed(4 << 29 |
+				1 << 27 |
+				1 << 26 | /* blend_din0 input to blend0 */
+				1 << 25 | /* blend1_dout to blend2 */
+				1 << 24 | /* blend1_din3 input to blend1 */
+				1 << 20 |
+				0 << 16 |
+				1,
+				priv->io_base + _REG(VIU_OSD_BLEND_CTRL));
+		writel_relaxed(1 << 20,
+				priv->io_base + _REG(OSD1_BLEND_SRC_CTRL));
+		writel_relaxed(1 << 20,
+				priv->io_base + _REG(OSD2_BLEND_SRC_CTRL));
+		writel_relaxed(0, priv->io_base + _REG(VD1_BLEND_SRC_CTRL));
+		writel_relaxed(0, priv->io_base + _REG(VD2_BLEND_SRC_CTRL));
+		writel_relaxed(0,
+				priv->io_base + _REG(VIU_OSD_BLEND_DUMMY_DATA0));
+		writel_relaxed(0,
+				priv->io_base + _REG(VIU_OSD_BLEND_DUMMY_ALPHA));
+		writel_bits_relaxed(0x3 << 2, 0x3 << 2,
+				priv->io_base + _REG(DOLBY_PATH_CTRL));
+	}
 
 	priv->viu.osd1_enabled = false;
 	priv->viu.osd1_commit = false;

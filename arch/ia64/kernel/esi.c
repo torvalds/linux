@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Extensible SAL Interface (ESI) support routines.
  *

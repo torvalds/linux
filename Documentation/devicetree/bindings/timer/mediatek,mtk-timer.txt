@@ -17,6 +17,7 @@ Required properties:
 	* "mediatek,mt8127-timer" for MT8127 compatible timers (GPT)
 	* "mediatek,mt8135-timer" for MT8135 compatible timers (GPT)
 	* "mediatek,mt8173-timer" for MT8173 compatible timers (GPT)
+	* "mediatek,mt8516-timer" for MT8516 compatible timers (GPT)
 	* "mediatek,mt6577-timer" for MT6577 and all above compatible timers (GPT)
 
 	For those SoCs that use SYST

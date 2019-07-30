@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET  is implemented using the  BSD Socket
@@ -6,11 +7,6 @@
  *		Definitions for the Forwarding Information Base.
  *
  * Authors:	A.N.Kuznetsov, <kuznet@ms2.inr.ac.ru>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 
 #ifndef _NET_IP_FIB_H
@@ -32,10 +28,14 @@ struct fib_config {
 	u8			fc_protocol;
 	u8			fc_scope;
 	u8			fc_type;
-	/* 3 bytes unused */
+	u8			fc_gw_family;
+	/* 2 bytes unused */
 	u32			fc_table;
 	__be32			fc_dst;
-	__be32			fc_gw;
+	union {
+		__be32		fc_gw4;
+		struct in6_addr	fc_gw6;
+	};
 	int			fc_oif;
 	u32			fc_flags;
 	u32			fc_priority;
@@ -76,27 +76,49 @@ struct fnhe_hash_bucket {
 #define FNHE_HASH_SIZE		(1 << FNHE_HASH_SHIFT)
 #define FNHE_RECLAIM_DEPTH	5
 
+struct fib_nh_common {
+	struct net_device	*nhc_dev;
+	int			nhc_oif;
+	unsigned char		nhc_scope;
+	u8			nhc_family;
+	u8			nhc_gw_family;
+	unsigned char		nhc_flags;
+	struct lwtunnel_state	*nhc_lwtstate;
+
+	union {
+		__be32          ipv4;
+		struct in6_addr ipv6;
+	} nhc_gw;
+
+	int			nhc_weight;
+	atomic_t		nhc_upper_bound;
+
+	/* v4 specific, but allows fib6_nh with v4 routes */
+	struct rtable __rcu * __percpu *nhc_pcpu_rth_output;
+	struct rtable __rcu     *nhc_rth_input;
+	struct fnhe_hash_bucket	__rcu *nhc_exceptions;
+};
+
 struct fib_nh {
-	struct net_device	*nh_dev;
+	struct fib_nh_common	nh_common;
 	struct hlist_node	nh_hash;
 	struct fib_info		*nh_parent;
-	unsigned int		nh_flags;
-	unsigned char		nh_scope;
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
-	int			nh_weight;
-	atomic_t		nh_upper_bound;
-#endif
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	__u32			nh_tclassid;
 #endif
-	int			nh_oif;
-	__be32			nh_gw;
 	__be32			nh_saddr;
 	int			nh_saddr_genid;
-	struct rtable __rcu * __percpu *nh_pcpu_rth_output;
-	struct rtable __rcu	*nh_rth_input;
-	struct fnhe_hash_bucket	__rcu *nh_exceptions;
-	struct lwtunnel_state	*nh_lwtstate;
+#define fib_nh_family		nh_common.nhc_family
+#define fib_nh_dev		nh_common.nhc_dev
+#define fib_nh_oif		nh_common.nhc_oif
+#define fib_nh_flags		nh_common.nhc_flags
+#define fib_nh_lws		nh_common.nhc_lwtstate
+#define fib_nh_scope		nh_common.nhc_scope
+#define fib_nh_gw_family	nh_common.nhc_gw_family
+#define fib_nh_gw4		nh_common.nhc_gw.ipv4
+#define fib_nh_gw6		nh_common.nhc_gw.ipv6
+#define fib_nh_weight		nh_common.nhc_weight
+#define fib_nh_upper_bound	nh_common.nhc_upper_bound
 };
 
 /*
@@ -123,9 +145,10 @@ struct fib_info {
 #define fib_rtt fib_metrics->metrics[RTAX_RTT-1]
 #define fib_advmss fib_metrics->metrics[RTAX_ADVMSS-1]
 	int			fib_nhs;
+	bool			fib_nh_is_v6;
 	struct rcu_head		rcu;
 	struct fib_nh		fib_nh[0];
-#define fib_dev		fib_nh[0].nh_dev
+#define fib_dev		fib_nh[0].fib_nh_dev
 };
 
 
@@ -135,15 +158,16 @@ struct fib_rule;
 
 struct fib_table;
 struct fib_result {
-	__be32		prefix;
-	unsigned char	prefixlen;
-	unsigned char	nh_sel;
-	unsigned char	type;
-	unsigned char	scope;
-	u32		tclassid;
-	struct fib_info *fi;
-	struct fib_table *table;
-	struct hlist_head *fa_head;
+	__be32			prefix;
+	unsigned char		prefixlen;
+	unsigned char		nh_sel;
+	unsigned char		type;
+	unsigned char		scope;
+	u32			tclassid;
+	struct fib_nh_common	*nhc;
+	struct fib_info		*fi;
+	struct fib_table	*table;
+	struct hlist_head	*fa_head;
 };
 
 struct fib_result_nl {
@@ -161,11 +185,10 @@ struct fib_result_nl {
 	int             err;
 };
 
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
-#define FIB_RES_NH(res)		((res).fi->fib_nh[(res).nh_sel])
-#else /* CONFIG_IP_ROUTE_MULTIPATH */
-#define FIB_RES_NH(res)		((res).fi->fib_nh[0])
-#endif /* CONFIG_IP_ROUTE_MULTIPATH */
+static inline struct fib_nh_common *fib_info_nhc(struct fib_info *fi, int nhsel)
+{
+	return &fi->fib_nh[nhsel].nh_common;
+}
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 #define FIB_TABLE_HASHSZ 256
@@ -174,18 +197,11 @@ struct fib_result_nl {
 #endif
 
 __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
+__be32 fib_result_prefsrc(struct net *net, struct fib_result *res);
 
-#define FIB_RES_SADDR(net, res)				\
-	((FIB_RES_NH(res).nh_saddr_genid ==		\
-	  atomic_read(&(net)->ipv4.dev_addr_genid)) ?	\
-	 FIB_RES_NH(res).nh_saddr :			\
-	 fib_info_update_nh_saddr((net), &FIB_RES_NH(res)))
-#define FIB_RES_GW(res)			(FIB_RES_NH(res).nh_gw)
-#define FIB_RES_DEV(res)		(FIB_RES_NH(res).nh_dev)
-#define FIB_RES_OIF(res)		(FIB_RES_NH(res).nh_oif)
-
-#define FIB_RES_PREFSRC(net, res)	((res).fi->fib_prefsrc ? : \
-					 FIB_RES_SADDR(net, res))
+#define FIB_RES_NHC(res)		((res).nhc)
+#define FIB_RES_DEV(res)	(FIB_RES_NHC(res)->nhc_dev)
+#define FIB_RES_OIF(res)	(FIB_RES_NHC(res)->nhc_oif)
 
 struct fib_entry_notifier_info {
 	struct fib_notifier_info info; /* must be first */
@@ -383,6 +399,8 @@ static inline bool fib4_rules_early_flow_dissect(struct net *net,
 /* Exported by fib_frontend.c */
 extern const struct nla_policy rtm_ipv4_policy[];
 void ip_fib_init(void);
+int fib_gw_from_via(struct fib_config *cfg, struct nlattr *nla,
+		    struct netlink_ext_ack *extack);
 __be32 fib_compute_spec_dst(struct sk_buff *skb);
 bool fib_info_nh_uses_dev(struct fib_info *fi, const struct net_device *dev);
 int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
@@ -405,7 +423,7 @@ int fib_unmerge(struct net *net);
 int ip_fib_check_default(__be32 gw, struct net_device *dev);
 int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force);
 int fib_sync_down_addr(struct net_device *dev, __be32 local);
-int fib_sync_up(struct net_device *dev, unsigned int nh_flags);
+int fib_sync_up(struct net_device *dev, unsigned char nh_flags);
 void fib_sync_mtu(struct net_device *dev, u32 orig_mtu);
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
@@ -416,6 +434,15 @@ void fib_select_multipath(struct fib_result *res, int hash);
 void fib_select_path(struct net *net, struct fib_result *res,
 		     struct flowi4 *fl4, const struct sk_buff *skb);
 
+int fib_nh_init(struct net *net, struct fib_nh *fib_nh,
+		struct fib_config *cfg, int nh_weight,
+		struct netlink_ext_ack *extack);
+void fib_nh_release(struct net *net, struct fib_nh *fib_nh);
+int fib_nh_common_init(struct fib_nh_common *nhc, struct nlattr *fc_encap,
+		       u16 fc_encap_type, void *cfg, gfp_t gfp_flags,
+		       struct netlink_ext_ack *extack);
+void fib_nh_common_release(struct fib_nh_common *nhc);
+
 /* Exported by fib_trie.c */
 void fib_trie_init(void);
 struct fib_table *fib_trie_table(u32 id, struct fib_table *alias);
@@ -423,10 +450,12 @@ struct fib_table *fib_trie_table(u32 id, struct fib_table *alias);
 static inline void fib_combine_itag(u32 *itag, const struct fib_result *res)
 {
 #ifdef CONFIG_IP_ROUTE_CLASSID
+	struct fib_nh_common *nhc = res->nhc;
+	struct fib_nh *nh = container_of(nhc, struct fib_nh, nh_common);
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	u32 rtag;
 #endif
-	*itag = FIB_RES_NH(*res).nh_tclassid<<16;
+	*itag = nh->nh_tclassid << 16;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	rtag = res->tclassid;
 	if (*itag == 0)
@@ -467,4 +496,9 @@ u32 ip_mtu_from_fib_result(struct fib_result *res, __be32 daddr);
 int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 			  struct fib_dump_filter *filter,
 			  struct netlink_callback *cb);
+
+int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nh,
+		     unsigned char *flags, bool skip_oif);
+int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nh,
+		    int nh_weight);
 #endif  /* _NET_FIB_H */

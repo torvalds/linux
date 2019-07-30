@@ -34,3 +34,12 @@
 	.result = ACCEPT,
 	.retval = 5,
 },
+{
+	"ld_dw: xor semi-random 64 bit imms, test 5",
+	.insns = { },
+	.data = { },
+	.fill_helper = bpf_fill_rand_ld_dw,
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	.result = ACCEPT,
+	.retval = 1000000 - 6,
+},

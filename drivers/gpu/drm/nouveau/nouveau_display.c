@@ -358,15 +358,6 @@ nouveau_display_hpd_work(struct work_struct *work)
 
 #ifdef CONFIG_ACPI
 
-/*
- * Hans de Goede: This define belongs in acpi/video.h, I've submitted a patch
- * to the acpi subsys to move it there from drivers/acpi/acpi_video.c .
- * This should be dropped once that is merged.
- */
-#ifndef ACPI_VIDEO_NOTIFY_PROBE
-#define ACPI_VIDEO_NOTIFY_PROBE			0x81
-#endif
-
 static int
 nouveau_display_acpi_ntfy(struct notifier_block *nb, unsigned long val,
 			  void *data)

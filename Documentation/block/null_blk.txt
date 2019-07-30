@@ -93,3 +93,7 @@ zoned=[0/1]: Default: 0
 
 zone_size=[MB]: Default: 256
   Per zone size when exposed as a zoned block device. Must be a power of two.
+
+zone_nr_conv=[nr_conv]: Default: 0
+  The number of conventional zones to create when block device is zoned.  If
+  zone_nr_conv >= nr_zones, it will be reduced to nr_zones - 1.

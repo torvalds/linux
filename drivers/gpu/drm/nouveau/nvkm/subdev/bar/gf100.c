@@ -94,6 +94,8 @@ gf100_bar_oneinit_bar(struct gf100_bar *bar, struct gf100_barN *bar_vm,
 		return ret;
 
 	bar_len = device->func->resource_size(device, bar_nr);
+	if (!bar_len)
+		return -ENOMEM;
 	if (bar_nr == 3 && bar->bar2_halve)
 		bar_len >>= 1;
 

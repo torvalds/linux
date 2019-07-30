@@ -626,7 +626,7 @@ int ext4_getfsmap(struct super_block *sb, struct ext4_fsmap_head *head,
 {
 	struct ext4_fsmap dkeys[2];	/* per-dev keys */
 	struct ext4_getfsmap_dev handlers[EXT4_GETFSMAP_DEVS];
-	struct ext4_getfsmap_info info = {0};
+	struct ext4_getfsmap_info info = { NULL };
 	int i;
 	int error = 0;
 

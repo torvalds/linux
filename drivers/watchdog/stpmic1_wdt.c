@@ -81,18 +81,19 @@ static const struct watchdog_ops pmic_watchdog_ops = {
 
 static int pmic_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int ret;
 	struct stpmic1 *pmic;
 	struct stpmic1_wdt *wdt;
 
-	if (!pdev->dev.parent)
+	if (!dev->parent)
 		return -EINVAL;
 
-	pmic = dev_get_drvdata(pdev->dev.parent);
+	pmic = dev_get_drvdata(dev->parent);
 	if (!pmic)
 		return -EINVAL;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(struct stpmic1_wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(struct stpmic1_wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
@@ -102,15 +103,15 @@ static int pmic_wdt_probe(struct platform_device *pdev)
 	wdt->wdtdev.ops = &pmic_watchdog_ops;
 	wdt->wdtdev.min_timeout = PMIC_WDT_MIN_TIMEOUT;
 	wdt->wdtdev.max_timeout = PMIC_WDT_MAX_TIMEOUT;
-	wdt->wdtdev.parent = &pdev->dev;
+	wdt->wdtdev.parent = dev;
 
 	wdt->wdtdev.timeout = PMIC_WDT_DEFAULT_TIMEOUT;
-	watchdog_init_timeout(&wdt->wdtdev, 0, &pdev->dev);
+	watchdog_init_timeout(&wdt->wdtdev, 0, dev);
 
 	watchdog_set_nowayout(&wdt->wdtdev, nowayout);
 	watchdog_set_drvdata(&wdt->wdtdev, wdt);
 
-	ret = devm_watchdog_register_device(&pdev->dev, &wdt->wdtdev);
+	ret = devm_watchdog_register_device(dev, &wdt->wdtdev);
 	if (ret)
 		return ret;
 

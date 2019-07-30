@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 generated-y += syscall_table.h
 generic-y += barrier.h
 generic-y += bitops.h
@@ -23,6 +24,7 @@ generic-y += local.h
 generic-y += local64.h
 generic-y += mcs_spinlock.h
 generic-y += mm-arch-hooks.h
+generic-y += mmiowb.h
 generic-y += parport.h
 generic-y += percpu.h
 generic-y += preempt.h

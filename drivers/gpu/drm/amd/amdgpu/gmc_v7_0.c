@@ -242,7 +242,7 @@ static void gmc_v7_0_vram_gtt_location(struct amdgpu_device *adev,
 	u64 base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
 	base <<= 24;
 
-	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
+	amdgpu_gmc_vram_location(adev, mc, base);
 	amdgpu_gmc_gart_location(adev, mc);
 }
 
@@ -458,31 +458,6 @@ static void gmc_v7_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
 					unsigned pasid)
 {
 	amdgpu_ring_emit_wreg(ring, mmIH_VMID_0_LUT + vmid, pasid);
-}
-
-/**
- * gmc_v7_0_set_pte_pde - update the page tables using MMIO
- *
- * @adev: amdgpu_device pointer
- * @cpu_pt_addr: cpu address of the page table
- * @gpu_page_idx: entry in the page table to update
- * @addr: dst addr to write into pte/pde
- * @flags: access flags
- *
- * Update the page tables using the CPU.
- */
-static int gmc_v7_0_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
-				 uint32_t gpu_page_idx, uint64_t addr,
-				 uint64_t flags)
-{
-	void __iomem *ptr = (void *)cpu_pt_addr;
-	uint64_t value;
-
-	value = addr & 0xFFFFFFFFFFFFF000ULL;
-	value |= flags;
-	writeq(value, ptr + (gpu_page_idx * 8));
-
-	return 0;
 }
 
 static uint64_t gmc_v7_0_get_vm_pte_flags(struct amdgpu_device *adev,
@@ -1030,7 +1005,7 @@ static int gmc_v7_0_sw_init(void *handle)
 		pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(32));
 		pr_warn("amdgpu: No coherent DMA available\n");
 	}
-	adev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
+	adev->need_swiotlb = drm_need_swiotlb(dma_bits);
 
 	r = gmc_v7_0_init_microcode(adev);
 	if (r) {
@@ -1376,7 +1351,6 @@ static const struct amdgpu_gmc_funcs gmc_v7_0_gmc_funcs = {
 	.flush_gpu_tlb = gmc_v7_0_flush_gpu_tlb,
 	.emit_flush_gpu_tlb = gmc_v7_0_emit_flush_gpu_tlb,
 	.emit_pasid_mapping = gmc_v7_0_emit_pasid_mapping,
-	.set_pte_pde = gmc_v7_0_set_pte_pde,
 	.set_prt = gmc_v7_0_set_prt,
 	.get_vm_pte_flags = gmc_v7_0_get_vm_pte_flags,
 	.get_vm_pde = gmc_v7_0_get_vm_pde

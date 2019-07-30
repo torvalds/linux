@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_RTS5208) := rts5208.o
 
 ccflags-y := -Idrivers/scsi

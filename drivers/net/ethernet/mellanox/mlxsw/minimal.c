@@ -51,33 +51,20 @@ static int mlxsw_m_port_dummy_open_stop(struct net_device *dev)
 	return 0;
 }
 
-static int
-mlxsw_m_port_get_phys_port_name(struct net_device *dev, char *name, size_t len)
-{
-	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(dev);
-	struct mlxsw_core *core = mlxsw_m_port->mlxsw_m->core;
-	u8 local_port = mlxsw_m_port->local_port;
-
-	return mlxsw_core_port_get_phys_port_name(core, local_port, name, len);
-}
-
-static int mlxsw_m_port_get_port_parent_id(struct net_device *dev,
-					   struct netdev_phys_item_id *ppid)
+static struct devlink_port *
+mlxsw_m_port_get_devlink_port(struct net_device *dev)
 {
 	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(dev);
 	struct mlxsw_m *mlxsw_m = mlxsw_m_port->mlxsw_m;
 
-	ppid->id_len = sizeof(mlxsw_m->base_mac);
-	memcpy(&ppid->id, &mlxsw_m->base_mac, ppid->id_len);
-
-	return 0;
+	return mlxsw_core_port_devlink_port_get(mlxsw_m->core,
+						mlxsw_m_port->local_port);
 }
 
 static const struct net_device_ops mlxsw_m_port_netdev_ops = {
 	.ndo_open		= mlxsw_m_port_dummy_open_stop,
 	.ndo_stop		= mlxsw_m_port_dummy_open_stop,
-	.ndo_get_phys_port_name	= mlxsw_m_port_get_phys_port_name,
-	.ndo_get_port_parent_id	= mlxsw_m_port_get_port_parent_id,
+	.ndo_get_devlink_port	= mlxsw_m_port_get_devlink_port,
 };
 
 static int mlxsw_m_get_module_info(struct net_device *netdev,
@@ -150,7 +137,10 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u8 local_port, u8 module)
 	struct net_device *dev;
 	int err;
 
-	err = mlxsw_core_port_init(mlxsw_m->core, local_port);
+	err = mlxsw_core_port_init(mlxsw_m->core, local_port,
+				   module + 1, false, 0,
+				   mlxsw_m->base_mac,
+				   sizeof(mlxsw_m->base_mac));
 	if (err) {
 		dev_err(mlxsw_m->bus_info->dev, "Port %d: Failed to init core port\n",
 			local_port);
@@ -190,7 +180,7 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u8 local_port, u8 module)
 	}
 
 	mlxsw_core_port_eth_set(mlxsw_m->core, mlxsw_m_port->local_port,
-				mlxsw_m_port, dev, module + 1, false, 0);
+				mlxsw_m_port, dev);
 
 	return 0;
 

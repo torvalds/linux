@@ -227,6 +227,18 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
 		      int total_nvports);
 void esw_offloads_cleanup_reps(struct mlx5_eswitch *esw);
 int esw_offloads_init_reps(struct mlx5_eswitch *esw);
+void esw_vport_cleanup_ingress_rules(struct mlx5_eswitch *esw,
+				     struct mlx5_vport *vport);
+int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
+				 struct mlx5_vport *vport);
+void esw_vport_cleanup_egress_rules(struct mlx5_eswitch *esw,
+				    struct mlx5_vport *vport);
+int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
+				struct mlx5_vport *vport);
+void esw_vport_disable_egress_acl(struct mlx5_eswitch *esw,
+				  struct mlx5_vport *vport);
+void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
+				   struct mlx5_vport *vport);
 
 /* E-Switch API */
 int mlx5_eswitch_init(struct mlx5_core_dev *dev);
@@ -234,23 +246,23 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw);
 int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode);
 void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw);
 int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
-			       int vport, u8 mac[ETH_ALEN]);
+			       u16 vport, u8 mac[ETH_ALEN]);
 int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
-				 int vport, int link_state);
+				 u16 vport, int link_state);
 int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
-				int vport, u16 vlan, u8 qos);
+				u16 vport, u16 vlan, u8 qos);
 int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
-				    int vport, bool spoofchk);
+				    u16 vport, bool spoofchk);
 int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
-				 int vport_num, bool setting);
-int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, int vport,
+				 u16 vport_num, bool setting);
+int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, u16 vport,
 				u32 max_rate, u32 min_rate);
 int mlx5_eswitch_set_vepa(struct mlx5_eswitch *esw, u8 setting);
 int mlx5_eswitch_get_vepa(struct mlx5_eswitch *esw, u8 *setting);
 int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
-				  int vport, struct ifla_vf_info *ivi);
+				  u16 vport, struct ifla_vf_info *ivi);
 int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
-				 int vport,
+				 u16 vport,
 				 struct ifla_vf_stats *vf_stats);
 void mlx5_eswitch_del_send_to_vport_rule(struct mlx5_flow_handle *rule);
 
@@ -284,7 +296,7 @@ u32
 mlx5_eswitch_get_chain_range(struct mlx5_eswitch *esw);
 
 struct mlx5_flow_handle *
-mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport,
+mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, u16 vport,
 				  struct mlx5_flow_destination *dest);
 
 enum {
@@ -354,7 +366,7 @@ int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 				 struct mlx5_esw_flow_attr *attr);
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
-				  int vport, u16 vlan, u8 qos, u8 set_flags);
+				  u16 vport, u16 vlan, u8 qos, u8 set_flags);
 
 static inline bool mlx5_eswitch_vlan_actions_supported(struct mlx5_core_dev *dev,
 						       u8 vlan_depth)
@@ -376,11 +388,11 @@ bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 
-#define esw_info(dev, format, ...)				\
-	pr_info("(%s): E-Switch: " format, (dev)->priv.name, ##__VA_ARGS__)
+#define esw_info(__dev, format, ...)			\
+	dev_info((__dev)->device, "E-Switch: " format, ##__VA_ARGS__)
 
-#define esw_warn(dev, format, ...)				\
-	pr_warn("(%s): E-Switch: " format, (dev)->priv.name, ##__VA_ARGS__)
+#define esw_warn(__dev, format, ...)			\
+	dev_warn((__dev)->device, "E-Switch: " format, ##__VA_ARGS__)
 
 #define esw_debug(dev, format, ...)				\
 	mlx5_core_dbg_mask(dev, MLX5_DEBUG_ESWITCH_MASK, format, ##__VA_ARGS__)
@@ -418,7 +430,7 @@ static inline int mlx5_eswitch_vport_num_to_index(struct mlx5_eswitch *esw,
 	return vport_num;
 }
 
-static inline int mlx5_eswitch_index_to_vport_num(struct mlx5_eswitch *esw,
+static inline u16 mlx5_eswitch_index_to_vport_num(struct mlx5_eswitch *esw,
 						  int index)
 {
 	if (index == mlx5_eswitch_ecpf_idx(esw) &&
@@ -430,6 +442,54 @@ static inline int mlx5_eswitch_index_to_vport_num(struct mlx5_eswitch *esw,
 
 	return index;
 }
+
+/* TODO: This mlx5e_tc function shouldn't be called by eswitch */
+void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw);
+
+/* The vport getter/iterator are only valid after esw->total_vports
+ * and vport->vport are initialized in mlx5_eswitch_init.
+ */
+#define mlx5_esw_for_all_vports(esw, i, vport)		\
+	for ((i) = MLX5_VPORT_PF;			\
+	     (vport) = &(esw)->vports[i],		\
+	     (i) < (esw)->total_vports; (i)++)
+
+#define mlx5_esw_for_each_vf_vport(esw, i, vport, nvfs)	\
+	for ((i) = MLX5_VPORT_FIRST_VF;			\
+	     (vport) = &(esw)->vports[(i)],		\
+	     (i) <= (nvfs); (i)++)
+
+#define mlx5_esw_for_each_vf_vport_reverse(esw, i, vport, nvfs)	\
+	for ((i) = (nvfs);					\
+	     (vport) = &(esw)->vports[(i)],			\
+	     (i) >= MLX5_VPORT_FIRST_VF; (i)--)
+
+/* The rep getter/iterator are only valid after esw->total_vports
+ * and vport->vport are initialized in mlx5_eswitch_init.
+ */
+#define mlx5_esw_for_all_reps(esw, i, rep)			\
+	for ((i) = MLX5_VPORT_PF;				\
+	     (rep) = &(esw)->offloads.vport_reps[i],		\
+	     (i) < (esw)->total_vports; (i)++)
+
+#define mlx5_esw_for_each_vf_rep(esw, i, rep, nvfs)		\
+	for ((i) = MLX5_VPORT_FIRST_VF;				\
+	     (rep) = &(esw)->offloads.vport_reps[i],		\
+	     (i) <= (nvfs); (i)++)
+
+#define mlx5_esw_for_each_vf_rep_reverse(esw, i, rep, nvfs)	\
+	for ((i) = (nvfs);					\
+	     (rep) = &(esw)->offloads.vport_reps[i],		\
+	     (i) >= MLX5_VPORT_FIRST_VF; (i)--)
+
+#define mlx5_esw_for_each_vf_vport_num(esw, vport, nvfs)	\
+	for ((vport) = MLX5_VPORT_FIRST_VF; (vport) <= (nvfs); (vport)++)
+
+#define mlx5_esw_for_each_vf_vport_num_reverse(esw, vport, nvfs)	\
+	for ((vport) = (nvfs); (vport) >= MLX5_VPORT_FIRST_VF; (vport)--)
+
+struct mlx5_vport *__must_check
+mlx5_eswitch_get_vport(struct mlx5_eswitch *esw, u16 vport_num);
 
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */

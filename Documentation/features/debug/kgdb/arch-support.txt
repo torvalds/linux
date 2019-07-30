@@ -21,7 +21,7 @@
     |       nds32: | TODO |
     |       nios2: |  ok  |
     |    openrisc: | TODO |
-    |      parisc: | TODO |
+    |      parisc: |  ok  |
     |     powerpc: |  ok  |
     |       riscv: | TODO |
     |        s390: | TODO |

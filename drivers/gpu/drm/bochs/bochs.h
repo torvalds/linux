@@ -7,6 +7,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include <drm/drm_gem.h>
 
@@ -69,11 +70,9 @@ struct bochs_device {
 	struct edid *edid;
 
 	/* drm */
-	struct drm_device  *dev;
-	struct drm_crtc crtc;
-	struct drm_encoder encoder;
+	struct drm_device *dev;
+	struct drm_simple_display_pipe pipe;
 	struct drm_connector connector;
-	bool mode_config_initialized;
 
 	/* ttm */
 	struct {
@@ -100,8 +99,6 @@ static inline struct bochs_bo *gem_to_bochs_bo(struct drm_gem_object *gem)
 {
 	return container_of(gem, struct bochs_bo, gem);
 }
-
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
 static inline u64 bochs_bo_mmap_offset(struct bochs_bo *bo)
 {

@@ -139,7 +139,7 @@ static int ql_pdma(struct qlogicfas408_priv *priv, int phase, char *request, int
 	} else {		/* out */
 #if QL_TURBO_PDMA
 		rtrc(4)
-		    if (reqlen >= 128 && inb(qbase + 8) & 0x10) {	/* empty */
+		if (reqlen >= 128 && inb(qbase + 8) & 0x10) {	/* empty */
 			outsl(qbase + 4, request, 32);
 			reqlen -= 128;
 			request += 128;
@@ -240,7 +240,7 @@ static void ql_icmd(struct scsi_cmnd *cmd)
 	outb(0x40 | qlcfg8 | priv->qinitid, qbase + 8);
 	outb(qlcfg7, qbase + 7);
 	outb(qlcfg6, qbase + 6);
-	 /**/ outb(qlcfg5, qbase + 5);	/* select timer */
+	outb(qlcfg5, qbase + 5);	/* select timer */
 	outb(qlcfg9 & 7, qbase + 9);	/* prescaler */
 /*	outb(0x99, qbase + 5);	*/
 	outb(scmd_id(cmd), qbase + 4);

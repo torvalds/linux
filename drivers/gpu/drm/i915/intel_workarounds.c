@@ -37,7 +37,7 @@
  *    costly and simplifies things. We can revisit this in the future.
  *
  * Layout
- * ''''''
+ * ~~~~~~
  *
  * Keep things in this file ordered by WA type, as per the above (context, GT,
  * display, register whitelist, batchbuffer). Then, inside each type, keep the
@@ -518,6 +518,12 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine)
 	struct drm_i915_private *i915 = engine->i915;
 	struct i915_wa_list *wal = &engine->ctx_wa_list;
 
+	/* WaDisableBankHangMode:icl */
+	wa_write(wal,
+		 GEN8_L3CNTLREG,
+		 intel_uncore_read(engine->uncore, GEN8_L3CNTLREG) |
+		 GEN8_ERRDETBCTRL);
+
 	/* Wa_1604370585:icl (pre-prod)
 	 * Formerly known as WaPushConstantDereferenceHoldDisable
 	 */
@@ -541,10 +547,6 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine)
 		WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
 				  GEN11_TDL_CLOCK_GATING_FIX_DISABLE);
 
-	/* WaEnableStateCacheRedirectToCS:icl */
-	WA_SET_BIT_MASKED(GEN9_SLICE_COMMON_ECO_CHICKEN1,
-			  GEN11_STATE_CACHE_REDIRECT_TO_CS);
-
 	/* Wa_2006665173:icl (pre-prod) */
 	if (IS_ICL_REVID(i915, ICL_REVID_A0, ICL_REVID_A0))
 		WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
@@ -555,6 +557,11 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine)
 			   GEN10_CACHE_MODE_SS,
 			   0, /* write-only, so skip validation */
 			   _MASKED_BIT_ENABLE(FLOAT_BLEND_OPTIMIZATION_ENABLE));
+
+	/* WaDisableGPGPUMidThreadPreemption:icl */
+	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1,
+			    GEN9_PREEMPT_GPGPU_LEVEL_MASK,
+			    GEN9_PREEMPT_GPGPU_THREAD_GROUP_LEVEL);
 }
 
 void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
@@ -564,26 +571,26 @@ void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
 
 	wa_init_start(wal, "context");
 
-	if (INTEL_GEN(i915) < 8)
-		return;
-	else if (IS_BROADWELL(i915))
-		bdw_ctx_workarounds_init(engine);
-	else if (IS_CHERRYVIEW(i915))
-		chv_ctx_workarounds_init(engine);
-	else if (IS_SKYLAKE(i915))
-		skl_ctx_workarounds_init(engine);
-	else if (IS_BROXTON(i915))
-		bxt_ctx_workarounds_init(engine);
-	else if (IS_KABYLAKE(i915))
-		kbl_ctx_workarounds_init(engine);
-	else if (IS_GEMINILAKE(i915))
-		glk_ctx_workarounds_init(engine);
-	else if (IS_COFFEELAKE(i915))
-		cfl_ctx_workarounds_init(engine);
+	if (IS_GEN(i915, 11))
+		icl_ctx_workarounds_init(engine);
 	else if (IS_CANNONLAKE(i915))
 		cnl_ctx_workarounds_init(engine);
-	else if (IS_ICELAKE(i915))
-		icl_ctx_workarounds_init(engine);
+	else if (IS_COFFEELAKE(i915))
+		cfl_ctx_workarounds_init(engine);
+	else if (IS_GEMINILAKE(i915))
+		glk_ctx_workarounds_init(engine);
+	else if (IS_KABYLAKE(i915))
+		kbl_ctx_workarounds_init(engine);
+	else if (IS_BROXTON(i915))
+		bxt_ctx_workarounds_init(engine);
+	else if (IS_SKYLAKE(i915))
+		skl_ctx_workarounds_init(engine);
+	else if (IS_CHERRYVIEW(i915))
+		chv_ctx_workarounds_init(engine);
+	else if (IS_BROADWELL(i915))
+		bdw_ctx_workarounds_init(engine);
+	else if (INTEL_GEN(i915) < 8)
+		return;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 
@@ -724,9 +731,9 @@ cfl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 }
 
 static void
-wa_init_mcr(struct drm_i915_private *dev_priv, struct i915_wa_list *wal)
+wa_init_mcr(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
+	const struct sseu_dev_info *sseu = &RUNTIME_INFO(i915)->sseu;
 	u32 mcr_slice_subslice_mask;
 
 	/*
@@ -742,14 +749,15 @@ wa_init_mcr(struct drm_i915_private *dev_priv, struct i915_wa_list *wal)
 	 * something more complex that requires checking the range of every
 	 * MMIO read).
 	 */
-	if (INTEL_GEN(dev_priv) >= 10 &&
+	if (INTEL_GEN(i915) >= 10 &&
 	    is_power_of_2(sseu->slice_mask)) {
 		/*
 		 * read FUSE3 for enabled L3 Bank IDs, if L3 Bank matches
 		 * enabled subslice, no need to redirect MCR packet
 		 */
 		u32 slice = fls(sseu->slice_mask);
-		u32 fuse3 = I915_READ(GEN10_MIRROR_FUSE3);
+		u32 fuse3 =
+			intel_uncore_read(&i915->uncore, GEN10_MIRROR_FUSE3);
 		u8 ss_mask = sseu->subslice_mask[slice];
 
 		u8 enabled_mask = (ss_mask | ss_mask >>
@@ -763,7 +771,7 @@ wa_init_mcr(struct drm_i915_private *dev_priv, struct i915_wa_list *wal)
 		WARN_ON((enabled_mask & disabled_mask) != enabled_mask);
 	}
 
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (INTEL_GEN(i915) >= 11)
 		mcr_slice_subslice_mask = GEN11_MCR_SLICE_MASK |
 					  GEN11_MCR_SUBSLICE_MASK;
 	else
@@ -783,7 +791,7 @@ wa_init_mcr(struct drm_i915_private *dev_priv, struct i915_wa_list *wal)
 	wa_write_masked_or(wal,
 			   GEN8_MCR_SELECTOR,
 			   mcr_slice_subslice_mask,
-			   intel_calculate_mcr_s_ss_select(dev_priv));
+			   intel_calculate_mcr_s_ss_select(i915));
 }
 
 static void
@@ -862,26 +870,22 @@ icl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 static void
 gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
-	if (INTEL_GEN(i915) < 8)
-		return;
-	else if (IS_BROADWELL(i915))
-		return;
-	else if (IS_CHERRYVIEW(i915))
-		return;
-	else if (IS_SKYLAKE(i915))
-		skl_gt_workarounds_init(i915, wal);
-	else if (IS_BROXTON(i915))
-		bxt_gt_workarounds_init(i915, wal);
-	else if (IS_KABYLAKE(i915))
-		kbl_gt_workarounds_init(i915, wal);
-	else if (IS_GEMINILAKE(i915))
-		glk_gt_workarounds_init(i915, wal);
-	else if (IS_COFFEELAKE(i915))
-		cfl_gt_workarounds_init(i915, wal);
+	if (IS_GEN(i915, 11))
+		icl_gt_workarounds_init(i915, wal);
 	else if (IS_CANNONLAKE(i915))
 		cnl_gt_workarounds_init(i915, wal);
-	else if (IS_ICELAKE(i915))
-		icl_gt_workarounds_init(i915, wal);
+	else if (IS_COFFEELAKE(i915))
+		cfl_gt_workarounds_init(i915, wal);
+	else if (IS_GEMINILAKE(i915))
+		glk_gt_workarounds_init(i915, wal);
+	else if (IS_KABYLAKE(i915))
+		kbl_gt_workarounds_init(i915, wal);
+	else if (IS_BROXTON(i915))
+		bxt_gt_workarounds_init(i915, wal);
+	else if (IS_SKYLAKE(i915))
+		skl_gt_workarounds_init(i915, wal);
+	else if (INTEL_GEN(i915) <= 8)
+		return;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 }
@@ -896,15 +900,14 @@ void intel_gt_init_workarounds(struct drm_i915_private *i915)
 }
 
 static enum forcewake_domains
-wal_get_fw_for_rmw(struct drm_i915_private *dev_priv,
-		   const struct i915_wa_list *wal)
+wal_get_fw_for_rmw(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 {
 	enum forcewake_domains fw = 0;
 	struct i915_wa *wa;
 	unsigned int i;
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		fw |= intel_uncore_forcewake_for_reg(dev_priv,
+		fw |= intel_uncore_forcewake_for_reg(uncore,
 						     wa->reg,
 						     FW_REG_READ |
 						     FW_REG_WRITE);
@@ -913,7 +916,7 @@ wal_get_fw_for_rmw(struct drm_i915_private *dev_priv,
 }
 
 static void
-wa_list_apply(struct drm_i915_private *dev_priv, const struct i915_wa_list *wal)
+wa_list_apply(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 {
 	enum forcewake_domains fw;
 	unsigned long flags;
@@ -923,27 +926,22 @@ wa_list_apply(struct drm_i915_private *dev_priv, const struct i915_wa_list *wal)
 	if (!wal->count)
 		return;
 
-	fw = wal_get_fw_for_rmw(dev_priv, wal);
+	fw = wal_get_fw_for_rmw(uncore, wal);
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
-	intel_uncore_forcewake_get__locked(dev_priv, fw);
+	spin_lock_irqsave(&uncore->lock, flags);
+	intel_uncore_forcewake_get__locked(uncore, fw);
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++) {
-		u32 val = I915_READ_FW(wa->reg);
-
-		val &= ~wa->mask;
-		val |= wa->val;
-
-		I915_WRITE_FW(wa->reg, val);
+		intel_uncore_rmw_fw(uncore, wa->reg, wa->mask, wa->val);
 	}
 
-	intel_uncore_forcewake_put__locked(dev_priv, fw);
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
+	intel_uncore_forcewake_put__locked(uncore, fw);
+	spin_unlock_irqrestore(&uncore->lock, flags);
 }
 
-void intel_gt_apply_workarounds(struct drm_i915_private *dev_priv)
+void intel_gt_apply_workarounds(struct drm_i915_private *i915)
 {
-	wa_list_apply(dev_priv, &dev_priv->gt_wa_list);
+	wa_list_apply(&i915->uncore, &i915->gt_wa_list);
 }
 
 static bool
@@ -960,7 +958,7 @@ wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
 	return true;
 }
 
-static bool wa_list_verify(struct drm_i915_private *dev_priv,
+static bool wa_list_verify(struct intel_uncore *uncore,
 			   const struct i915_wa_list *wal,
 			   const char *from)
 {
@@ -969,15 +967,17 @@ static bool wa_list_verify(struct drm_i915_private *dev_priv,
 	bool ok = true;
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		ok &= wa_verify(wa, I915_READ(wa->reg), wal->name, from);
+		ok &= wa_verify(wa,
+				intel_uncore_read(uncore, wa->reg),
+				wal->name, from);
 
 	return ok;
 }
 
-bool intel_gt_verify_workarounds(struct drm_i915_private *dev_priv,
+bool intel_gt_verify_workarounds(struct drm_i915_private *i915,
 				 const char *from)
 {
-	return wa_list_verify(dev_priv, &dev_priv->gt_wa_list, from);
+	return wa_list_verify(&i915->uncore, &i915->gt_wa_list, from);
 }
 
 static void
@@ -1052,6 +1052,9 @@ static void icl_whitelist_build(struct i915_wa_list *w)
 
 	/* WaAllowUMDToModifySamplerMode:icl */
 	whitelist_reg(w, GEN10_SAMPLER_MODE);
+
+	/* WaEnableStateCacheRedirectToCS:icl */
+	whitelist_reg(w, GEN9_SLICE_COMMON_ECO_CHICKEN1);
 }
 
 void intel_engine_init_whitelist(struct intel_engine_cs *engine)
@@ -1059,30 +1062,26 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	struct drm_i915_private *i915 = engine->i915;
 	struct i915_wa_list *w = &engine->whitelist;
 
-	GEM_BUG_ON(engine->id != RCS);
+	GEM_BUG_ON(engine->id != RCS0);
 
 	wa_init_start(w, "whitelist");
 
-	if (INTEL_GEN(i915) < 8)
-		return;
-	else if (IS_BROADWELL(i915))
-		return;
-	else if (IS_CHERRYVIEW(i915))
-		return;
-	else if (IS_SKYLAKE(i915))
-		skl_whitelist_build(w);
-	else if (IS_BROXTON(i915))
-		bxt_whitelist_build(w);
-	else if (IS_KABYLAKE(i915))
-		kbl_whitelist_build(w);
-	else if (IS_GEMINILAKE(i915))
-		glk_whitelist_build(w);
-	else if (IS_COFFEELAKE(i915))
-		cfl_whitelist_build(w);
+	if (IS_GEN(i915, 11))
+		icl_whitelist_build(w);
 	else if (IS_CANNONLAKE(i915))
 		cnl_whitelist_build(w);
-	else if (IS_ICELAKE(i915))
-		icl_whitelist_build(w);
+	else if (IS_COFFEELAKE(i915))
+		cfl_whitelist_build(w);
+	else if (IS_GEMINILAKE(i915))
+		glk_whitelist_build(w);
+	else if (IS_KABYLAKE(i915))
+		kbl_whitelist_build(w);
+	else if (IS_BROXTON(i915))
+		bxt_whitelist_build(w);
+	else if (IS_SKYLAKE(i915))
+		skl_whitelist_build(w);
+	else if (INTEL_GEN(i915) <= 8)
+		return;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 
@@ -1091,8 +1090,8 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 
 void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
 	const struct i915_wa_list *wal = &engine->whitelist;
+	struct intel_uncore *uncore = engine->uncore;
 	const u32 base = engine->mmio_base;
 	struct i915_wa *wa;
 	unsigned int i;
@@ -1101,13 +1100,15 @@ void intel_engine_apply_whitelist(struct intel_engine_cs *engine)
 		return;
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		I915_WRITE(RING_FORCE_TO_NONPRIV(base, i),
-			   i915_mmio_reg_offset(wa->reg));
+		intel_uncore_write(uncore,
+				   RING_FORCE_TO_NONPRIV(base, i),
+				   i915_mmio_reg_offset(wa->reg));
 
 	/* And clear the rest just in case of garbage */
 	for (; i < RING_MAX_NONPRIV_SLOTS; i++)
-		I915_WRITE(RING_FORCE_TO_NONPRIV(base, i),
-			   i915_mmio_reg_offset(RING_NOPID(base)));
+		intel_uncore_write(uncore,
+				   RING_FORCE_TO_NONPRIV(base, i),
+				   i915_mmio_reg_offset(RING_NOPID(base)));
 }
 
 static void
@@ -1115,7 +1116,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	if (IS_ICELAKE(i915)) {
+	if (IS_GEN(i915, 11)) {
 		/* This is not an Wa. Enable for better image quality */
 		wa_masked_en(wal,
 			     _3D_CHICKEN3,
@@ -1170,8 +1171,8 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 				    GEN7_DISABLE_SAMPLER_PREFETCH);
 	}
 
-	if (IS_GEN(i915, 9) || IS_CANNONLAKE(i915)) {
-		/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl,cfl,cnl */
+	if (IS_GEN_RANGE(i915, 9, 11)) {
+		/* FtrPerCtxtPreemptionGranularityControl:skl,bxt,kbl,cfl,cnl,icl */
 		wa_masked_en(wal,
 			     GEN7_FF_SLICE_CS_CHICKEN1,
 			     GEN9_FFSC_PERCTX_PREEMPT_CTRL);
@@ -1236,7 +1237,7 @@ engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal
 	if (I915_SELFTEST_ONLY(INTEL_GEN(engine->i915) < 8))
 		return;
 
-	if (engine->id == RCS)
+	if (engine->id == RCS0)
 		rcs_engine_wa_init(engine, wal);
 	else
 		xcs_engine_wa_init(engine, wal);
@@ -1256,7 +1257,7 @@ void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 
 void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 {
-	wa_list_apply(engine->i915, &engine->wa_list);
+	wa_list_apply(engine->uncore, &engine->wa_list);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

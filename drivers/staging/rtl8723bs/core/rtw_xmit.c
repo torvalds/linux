@@ -2861,8 +2861,6 @@ void xmit_delivery_enabled_frames(struct adapter *padapter, struct sta_info *pst
 
 	/* spin_unlock_bh(&psta->sleep_q.lock); */
 	spin_unlock_bh(&pxmitpriv->lock);
-
-	return;
 }
 
 void enqueue_pending_xmitbuf(

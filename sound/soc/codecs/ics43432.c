@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2S MEMS microphone driver for InvenSense ICS-43432
  *
@@ -5,8 +6,6 @@
  * - I2S interface, 64 BCLs per frame, 32 bits per channel, 24 bit data
  *
  * Copyright (c) 2015 Axis Communications AB
- *
- * Licensed under GPL v2.
  */
 
 #include <linux/module.h>

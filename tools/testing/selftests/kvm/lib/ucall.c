@@ -142,7 +142,7 @@ uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
 		vm_vaddr_t gva;
 		TEST_ASSERT(run->mmio.is_write && run->mmio.len == 8,
 			    "Unexpected ucall exit mmio address access");
-		gva = *(vm_vaddr_t *)run->mmio.data;
+		memcpy(&gva, run->mmio.data, sizeof(gva));
 		memcpy(uc, addr_gva2hva(vm, gva), sizeof(*uc));
 	}
 

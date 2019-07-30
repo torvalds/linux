@@ -491,7 +491,7 @@
 		reset-names = "pcie", "pcie0", "pcie1", "pcie2";
 		clocks = <&clkctrl 24 &clkctrl 25 &clkctrl 26>;
 		clock-names = "pcie0", "pcie1", "pcie2";
-		phys = <&pcie0_port>, <&pcie1_port>, <&pcie2_port>;
+		phys = <&pcie0_phy 0>, <&pcie0_phy 1>, <&pcie1_phy 0>;
 		phy-names = "pcie-phy0", "pcie-phy1", "pcie-phy2";
 
 		pcie@0,0 {
@@ -522,29 +522,12 @@
 	pcie0_phy: pcie-phy@1e149000 {
 		compatible = "mediatek,mt7621-pci-phy";
 		reg = <0x1e149000 0x0700>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		pcie0_port: pcie-phy@0 {
-			reg = <0>;
-			#phy-cells = <0>;
-		};
-
-		pcie1_port: pcie-phy@1 {
-			reg = <1>;
-			#phy-cells = <0>;
-		};
+		#phy-cells = <1>;
 	};
 
 	pcie1_phy: pcie-phy@1e14a000 {
 		compatible = "mediatek,mt7621-pci-phy";
 		reg = <0x1e14a000 0x0700>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		pcie2_port: pcie-phy@0 {
-			reg = <0>;
-			#phy-cells = <0>;
-		};
+		#phy-cells = <1>;
 	};
 };

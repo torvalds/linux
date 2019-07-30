@@ -1,7 +1,8 @@
-ccflags-y += -I$(src)/include
-ccflags-y += -I$(src)/include/nvkm
-ccflags-y += -I$(src)/nvkm
-ccflags-y += -I$(src)
+# SPDX-License-Identifier: GPL-2.0
+ccflags-y += -I $(srctree)/$(src)/include
+ccflags-y += -I $(srctree)/$(src)/include/nvkm
+ccflags-y += -I $(srctree)/$(src)/nvkm
+ccflags-y += -I $(srctree)/$(src)
 
 # NVKM - HW resource manager
 #- code also used by various userspace tools/tests

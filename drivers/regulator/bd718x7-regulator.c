@@ -27,8 +27,8 @@
 static int bd718xx_buck1234_set_ramp_delay(struct regulator_dev *rdev,
 					   int ramp_delay)
 {
-	int id = rdev->desc->id;
-	unsigned int ramp_value = BUCK_RAMPRATE_10P00MV;
+	int id = rdev_get_id(rdev);
+	unsigned int ramp_value;
 
 	dev_dbg(&rdev->dev, "Buck[%d] Set Ramp = %d\n", id + 1,
 		ramp_delay);

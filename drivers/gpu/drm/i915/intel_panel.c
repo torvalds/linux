@@ -33,7 +33,10 @@
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/pwm.h>
+
+#include "intel_connector.h"
 #include "intel_drv.h"
+#include "intel_panel.h"
 
 #define CRC_PMIC_PWM_PERIOD_NS	21333
 
@@ -46,27 +49,26 @@ intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 }
 
-/**
- * intel_find_panel_downclock - find the reduced downclock for LVDS in EDID
- * @dev_priv: i915 device instance
- * @fixed_mode : panel native mode
- * @connector: LVDS/eDP connector
- *
- * Return downclock_avail
- * Find the reduced downclock for LVDS/eDP in EDID.
- */
-struct drm_display_mode *
-intel_find_panel_downclock(struct drm_i915_private *dev_priv,
-			struct drm_display_mode *fixed_mode,
-			struct drm_connector *connector)
+static bool is_downclock_mode(const struct drm_display_mode *downclock_mode,
+			      const struct drm_display_mode *fixed_mode)
 {
-	struct drm_display_mode *scan, *tmp_mode;
-	int temp_downclock;
+	return drm_mode_match(downclock_mode, fixed_mode,
+			      DRM_MODE_MATCH_TIMINGS |
+			      DRM_MODE_MATCH_FLAGS |
+			      DRM_MODE_MATCH_3D_FLAGS) &&
+		downclock_mode->clock < fixed_mode->clock;
+}
 
-	temp_downclock = fixed_mode->clock;
-	tmp_mode = NULL;
+struct drm_display_mode *
+intel_panel_edid_downclock_mode(struct intel_connector *connector,
+				const struct drm_display_mode *fixed_mode)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	const struct drm_display_mode *scan, *best_mode = NULL;
+	struct drm_display_mode *downclock_mode;
+	int best_clock = fixed_mode->clock;
 
-	list_for_each_entry(scan, &connector->probed_modes, head) {
+	list_for_each_entry(scan, &connector->base.probed_modes, head) {
 		/*
 		 * If one mode has the same resolution with the fixed_panel
 		 * mode while they have the different refresh rate, it means
@@ -74,29 +76,98 @@ intel_find_panel_downclock(struct drm_i915_private *dev_priv,
 		 * case we can set the different FPx0/1 to dynamically select
 		 * between low and high frequency.
 		 */
-		if (scan->hdisplay == fixed_mode->hdisplay &&
-		    scan->hsync_start == fixed_mode->hsync_start &&
-		    scan->hsync_end == fixed_mode->hsync_end &&
-		    scan->htotal == fixed_mode->htotal &&
-		    scan->vdisplay == fixed_mode->vdisplay &&
-		    scan->vsync_start == fixed_mode->vsync_start &&
-		    scan->vsync_end == fixed_mode->vsync_end &&
-		    scan->vtotal == fixed_mode->vtotal) {
-			if (scan->clock < temp_downclock) {
-				/*
-				 * The downclock is already found. But we
-				 * expect to find the lower downclock.
-				 */
-				temp_downclock = scan->clock;
-				tmp_mode = scan;
-			}
+		if (is_downclock_mode(scan, fixed_mode) &&
+		    scan->clock < best_clock) {
+			/*
+			 * The downclock is already found. But we
+			 * expect to find the lower downclock.
+			 */
+			best_clock = scan->clock;
+			best_mode = scan;
 		}
 	}
 
-	if (temp_downclock < fixed_mode->clock)
-		return drm_mode_duplicate(&dev_priv->drm, tmp_mode);
-	else
+	if (!best_mode)
 		return NULL;
+
+	downclock_mode = drm_mode_duplicate(&dev_priv->drm, best_mode);
+	if (!downclock_mode)
+		return NULL;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] using downclock mode from EDID: ",
+		      connector->base.base.id, connector->base.name);
+	drm_mode_debug_printmodeline(downclock_mode);
+
+	return downclock_mode;
+}
+
+struct drm_display_mode *
+intel_panel_edid_fixed_mode(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	const struct drm_display_mode *scan;
+	struct drm_display_mode *fixed_mode;
+
+	if (list_empty(&connector->base.probed_modes))
+		return NULL;
+
+	/* prefer fixed mode from EDID if available */
+	list_for_each_entry(scan, &connector->base.probed_modes, head) {
+		if ((scan->type & DRM_MODE_TYPE_PREFERRED) == 0)
+			continue;
+
+		fixed_mode = drm_mode_duplicate(&dev_priv->drm, scan);
+		if (!fixed_mode)
+			return NULL;
+
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] using preferred mode from EDID: ",
+			      connector->base.base.id, connector->base.name);
+		drm_mode_debug_printmodeline(fixed_mode);
+
+		return fixed_mode;
+	}
+
+	scan = list_first_entry(&connector->base.probed_modes,
+				typeof(*scan), head);
+
+	fixed_mode = drm_mode_duplicate(&dev_priv->drm, scan);
+	if (!fixed_mode)
+		return NULL;
+
+	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] using first mode from EDID: ",
+		      connector->base.base.id, connector->base.name);
+	drm_mode_debug_printmodeline(fixed_mode);
+
+	return fixed_mode;
+}
+
+struct drm_display_mode *
+intel_panel_vbt_fixed_mode(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct drm_display_info *info = &connector->base.display_info;
+	struct drm_display_mode *fixed_mode;
+
+	if (!dev_priv->vbt.lfp_lvds_vbt_mode)
+		return NULL;
+
+	fixed_mode = drm_mode_duplicate(&dev_priv->drm,
+					dev_priv->vbt.lfp_lvds_vbt_mode);
+	if (!fixed_mode)
+		return NULL;
+
+	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] using mode from VBT: ",
+		      connector->base.base.id, connector->base.name);
+	drm_mode_debug_printmodeline(fixed_mode);
+
+	info->width_mm = fixed_mode->width_mm;
+	info->height_mm = fixed_mode->height_mm;
+
+	return fixed_mode;
 }
 
 /* adjusted_mode has been preset to be the panel's fixed mode */
@@ -1894,15 +1965,14 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		panel->backlight.set = bxt_set_backlight;
 		panel->backlight.get = bxt_get_backlight;
 		panel->backlight.hz_to_pwm = bxt_hz_to_pwm;
-	} else if (HAS_PCH_CNP(dev_priv) || HAS_PCH_ICP(dev_priv)) {
+	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP) {
 		panel->backlight.setup = cnp_setup_backlight;
 		panel->backlight.enable = cnp_enable_backlight;
 		panel->backlight.disable = cnp_disable_backlight;
 		panel->backlight.set = bxt_set_backlight;
 		panel->backlight.get = bxt_get_backlight;
 		panel->backlight.hz_to_pwm = cnp_hz_to_pwm;
-	} else if (HAS_PCH_LPT(dev_priv) || HAS_PCH_SPT(dev_priv) ||
-		   HAS_PCH_KBP(dev_priv)) {
+	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_LPT) {
 		panel->backlight.setup = lpt_setup_backlight;
 		panel->backlight.enable = lpt_enable_backlight;
 		panel->backlight.disable = lpt_disable_backlight;

@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * GPIO and IRQ definitions for HP iPAQ hx4700
  *
  * Copyright (c) 2008 Philipp Zabel
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef _HX4700_H_

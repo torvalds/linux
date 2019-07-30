@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*****************************************************************************
  * Linux PPP over L2TP (PPPoX/PPPoL2TP) Sockets
  *
@@ -11,11 +12,6 @@
  * Based on original work by Martijn van Oosterhout <kleptog@svana.org>
  *
  * License:
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
- *
  */
 
 /* This driver handles only L2TP data frames; control frames are handled by a
@@ -1070,7 +1066,6 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 {
 	struct pppol2tp_ioc_stats stats;
 	struct l2tp_session *session;
-	int val;
 
 	switch (cmd) {
 	case PPPIOCGMRU:
@@ -1097,7 +1092,7 @@ static int pppol2tp_ioctl(struct socket *sock, unsigned int cmd,
 		if (!session->session_id && !session->peer_session_id)
 			return -ENOSYS;
 
-		if (get_user(val, (int __user *)arg))
+		if (!access_ok((int __user *)arg, sizeof(int)))
 			return -EFAULT;
 		break;
 

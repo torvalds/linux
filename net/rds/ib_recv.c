@@ -168,6 +168,7 @@ void rds_ib_recv_free_caches(struct rds_ib_connection *ic)
 		list_del(&inc->ii_cache_entry);
 		WARN_ON(!list_empty(&inc->ii_frags));
 		kmem_cache_free(rds_ib_incoming_slab, inc);
+		atomic_dec(&rds_ib_allocation);
 	}
 
 	rds_ib_cache_xfer_to_ready(&ic->i_cache_frags);
@@ -1057,6 +1058,8 @@ out:
 
 void rds_ib_recv_exit(void)
 {
+	WARN_ON(atomic_read(&rds_ib_allocation));
+
 	kmem_cache_destroy(rds_ib_incoming_slab);
 	kmem_cache_destroy(rds_ib_frag_slab);
 }

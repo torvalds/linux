@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ALSA SoC I2S (McBSP) Audio Layer for TI DAVINCI processor
  *
@@ -6,10 +7,6 @@
  *
  * DT support	(c) 2016 Petr Kulhavy, Barix AG <petr@barix.com>
  *		based on davinci-mcasp.c DT support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * TODO:
  * on DA850 implement HW FIFOs instead of DMA into DXR and DRR registers

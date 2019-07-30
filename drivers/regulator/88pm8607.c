@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Regulators driver for Marvell 88PM8607
  *
  * Copyright (C) 2009 Marvell International Ltd.
  *	Haojian Zhuang <haojian.zhuang@marvell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -235,6 +232,8 @@ static const struct regulator_ops pm8606_preg_ops = {
 {									\
 	.desc	= {							\
 		.name	= "PREG",					\
+		.of_match = of_match_ptr("PREG"),			\
+		.regulators_node = of_match_ptr("regulators"),		\
 		.ops	= &pm8606_preg_ops,				\
 		.type	= REGULATOR_CURRENT,				\
 		.id	= PM8606_ID_PREG,				\
@@ -249,6 +248,8 @@ static const struct regulator_ops pm8606_preg_ops = {
 {									\
 	.desc	= {							\
 		.name	= #vreg,					\
+		.of_match = of_match_ptr(#vreg),			\
+		.regulators_node = of_match_ptr("regulators"),		\
 		.ops	= &pm8607_regulator_ops,			\
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= PM8607_ID_##vreg,				\
@@ -270,6 +271,8 @@ static const struct regulator_ops pm8606_preg_ops = {
 {									\
 	.desc	= {							\
 		.name	= "LDO" #_id,					\
+		.of_match = of_match_ptr("LDO" #_id),			\
+		.regulators_node = of_match_ptr("regulators"),		\
 		.ops	= &pm8607_regulator_ops,			\
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= PM8607_ID_LDO##_id,				\
@@ -309,36 +312,6 @@ static struct pm8607_regulator_info pm8606_regulator_info[] = {
 	PM8606_PREG(PREREGULATORB, 5),
 };
 
-#ifdef CONFIG_OF
-static int pm8607_regulator_dt_init(struct platform_device *pdev,
-				    struct pm8607_regulator_info *info,
-				    struct regulator_config *config)
-{
-	struct device_node *nproot, *np;
-	nproot = pdev->dev.parent->of_node;
-	if (!nproot)
-		return -ENODEV;
-	nproot = of_get_child_by_name(nproot, "regulators");
-	if (!nproot) {
-		dev_err(&pdev->dev, "failed to find regulators node\n");
-		return -ENODEV;
-	}
-	for_each_child_of_node(nproot, np) {
-		if (of_node_name_eq(np, info->desc.name)) {
-			config->init_data =
-				of_get_regulator_init_data(&pdev->dev, np,
-							   &info->desc);
-			config->of_node = np;
-			break;
-		}
-	}
-	of_node_put(nproot);
-	return 0;
-}
-#else
-#define pm8607_regulator_dt_init(x, y, z)	(-1)
-#endif
-
 static int pm8607_regulator_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
@@ -373,12 +346,11 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 	if ((i == PM8607_ID_BUCK3) && chip->buck3_double)
 		info->slope_double = 1;
 
-	config.dev = &pdev->dev;
+	config.dev = chip->dev;
 	config.driver_data = info;
 
-	if (pm8607_regulator_dt_init(pdev, info, &config))
-		if (pdata)
-			config.init_data = pdata;
+	if (pdata)
+		config.init_data = pdata;
 
 	if (chip->id == CHIP_PM8607)
 		config.regmap = chip->regmap;

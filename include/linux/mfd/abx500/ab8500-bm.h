@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright ST-Ericsson 2012.
  *
  * Author: Arun Murthy <arun.murthy@stericsson.com>
- * Licensed under GPLv2.
  */
 
 #ifndef _AB8500_BM_H

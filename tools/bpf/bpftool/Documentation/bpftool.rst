@@ -49,7 +49,7 @@ OPTIONS
 	-h, --help
 		  Print short help message (similar to **bpftool help**).
 
-	-v, --version
+	-V, --version
 		  Print version number (similar to **bpftool version**).
 
 	-j, --json
@@ -76,4 +76,5 @@ SEE ALSO
 	**bpftool-cgroup**\ (8),
 	**bpftool-feature**\ (8),
 	**bpftool-net**\ (8),
-	**bpftool-perf**\ (8)
+	**bpftool-perf**\ (8),
+	**bpftool-btf**\ (8)

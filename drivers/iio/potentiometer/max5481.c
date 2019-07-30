@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Maxim Integrated MAX5481-MAX5484 digital potentiometer driver
  * Copyright 2016 Rockwell Collins
  *
  * Datasheet:
  * http://datasheets.maximintegrated.com/en/ds/MAX5481-MAX5484.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the gnu general public license version 2 as
- * published by the free software foundation.
- *
  */
 
 #include <linux/acpi.h>

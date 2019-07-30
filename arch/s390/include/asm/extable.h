@@ -19,6 +19,11 @@ struct exception_table_entry
 	int insn, fixup;
 };
 
+extern struct exception_table_entry *__start_dma_ex_table;
+extern struct exception_table_entry *__stop_dma_ex_table;
+
+const struct exception_table_entry *s390_search_extables(unsigned long addr);
+
 static inline unsigned long extable_fixup(const struct exception_table_entry *x)
 {
 	return (unsigned long)&x->fixup + x->fixup;

@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * VDSO implementation for AArch64 and vector page setup for AArch32.
+ * VDSO implementations.
  *
  * Copyright (C) 2012 ARM Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Author: Will Deacon <will.deacon@arm.com>
  */
@@ -53,60 +42,128 @@ struct vdso_data *vdso_data = &vdso_data_store.data;
 /*
  * Create and map the vectors page for AArch32 tasks.
  */
-static struct page *vectors_page[1] __ro_after_init;
+#define C_VECTORS	0
+#define C_SIGPAGE	1
+#define C_PAGES		(C_SIGPAGE + 1)
+static struct page *aarch32_vdso_pages[C_PAGES] __ro_after_init;
+static const struct vm_special_mapping aarch32_vdso_spec[C_PAGES] = {
+	{
+		.name	= "[vectors]", /* ABI */
+		.pages	= &aarch32_vdso_pages[C_VECTORS],
+	},
+	{
+		.name	= "[sigpage]", /* ABI */
+		.pages	= &aarch32_vdso_pages[C_SIGPAGE],
+	},
+};
 
-static int __init alloc_vectors_page(void)
+static int aarch32_alloc_kuser_vdso_page(void)
 {
 	extern char __kuser_helper_start[], __kuser_helper_end[];
-	extern char __aarch32_sigret_code_start[], __aarch32_sigret_code_end[];
-
 	int kuser_sz = __kuser_helper_end - __kuser_helper_start;
-	int sigret_sz = __aarch32_sigret_code_end - __aarch32_sigret_code_start;
-	unsigned long vpage;
+	unsigned long vdso_page;
 
-	vpage = get_zeroed_page(GFP_ATOMIC);
+	if (!IS_ENABLED(CONFIG_KUSER_HELPERS))
+		return 0;
 
-	if (!vpage)
+	vdso_page = get_zeroed_page(GFP_ATOMIC);
+	if (!vdso_page)
 		return -ENOMEM;
 
-	/* kuser helpers */
-	memcpy((void *)vpage + 0x1000 - kuser_sz, __kuser_helper_start,
-		kuser_sz);
-
-	/* sigreturn code */
-	memcpy((void *)vpage + AARCH32_KERN_SIGRET_CODE_OFFSET,
-               __aarch32_sigret_code_start, sigret_sz);
-
-	flush_icache_range(vpage, vpage + PAGE_SIZE);
-	vectors_page[0] = virt_to_page(vpage);
-
+	memcpy((void *)(vdso_page + 0x1000 - kuser_sz), __kuser_helper_start,
+	       kuser_sz);
+	aarch32_vdso_pages[C_VECTORS] = virt_to_page(vdso_page);
+	flush_dcache_page(aarch32_vdso_pages[C_VECTORS]);
 	return 0;
 }
-arch_initcall(alloc_vectors_page);
 
-int aarch32_setup_vectors_page(struct linux_binprm *bprm, int uses_interp)
+static int __init aarch32_alloc_vdso_pages(void)
+{
+	extern char __aarch32_sigret_code_start[], __aarch32_sigret_code_end[];
+	int sigret_sz = __aarch32_sigret_code_end - __aarch32_sigret_code_start;
+	unsigned long sigpage;
+	int ret;
+
+	sigpage = get_zeroed_page(GFP_ATOMIC);
+	if (!sigpage)
+		return -ENOMEM;
+
+	memcpy((void *)sigpage, __aarch32_sigret_code_start, sigret_sz);
+	aarch32_vdso_pages[C_SIGPAGE] = virt_to_page(sigpage);
+	flush_dcache_page(aarch32_vdso_pages[C_SIGPAGE]);
+
+	ret = aarch32_alloc_kuser_vdso_page();
+	if (ret)
+		free_page(sigpage);
+
+	return ret;
+}
+arch_initcall(aarch32_alloc_vdso_pages);
+
+static int aarch32_kuser_helpers_setup(struct mm_struct *mm)
+{
+	void *ret;
+
+	if (!IS_ENABLED(CONFIG_KUSER_HELPERS))
+		return 0;
+
+	/*
+	 * Avoid VM_MAYWRITE for compatibility with arch/arm/, where it's
+	 * not safe to CoW the page containing the CPU exception vectors.
+	 */
+	ret = _install_special_mapping(mm, AARCH32_VECTORS_BASE, PAGE_SIZE,
+				       VM_READ | VM_EXEC |
+				       VM_MAYREAD | VM_MAYEXEC,
+				       &aarch32_vdso_spec[C_VECTORS]);
+
+	return PTR_ERR_OR_ZERO(ret);
+}
+
+static int aarch32_sigreturn_setup(struct mm_struct *mm)
+{
+	unsigned long addr;
+	void *ret;
+
+	addr = get_unmapped_area(NULL, 0, PAGE_SIZE, 0, 0);
+	if (IS_ERR_VALUE(addr)) {
+		ret = ERR_PTR(addr);
+		goto out;
+	}
+
+	/*
+	 * VM_MAYWRITE is required to allow gdb to Copy-on-Write and
+	 * set breakpoints.
+	 */
+	ret = _install_special_mapping(mm, addr, PAGE_SIZE,
+				       VM_READ | VM_EXEC | VM_MAYREAD |
+				       VM_MAYWRITE | VM_MAYEXEC,
+				       &aarch32_vdso_spec[C_SIGPAGE]);
+	if (IS_ERR(ret))
+		goto out;
+
+	mm->context.vdso = (void *)addr;
+
+out:
+	return PTR_ERR_OR_ZERO(ret);
+}
+
+int aarch32_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
-	unsigned long addr = AARCH32_VECTORS_BASE;
-	static const struct vm_special_mapping spec = {
-		.name	= "[vectors]",
-		.pages	= vectors_page,
-
-	};
-	void *ret;
+	int ret;
 
 	if (down_write_killable(&mm->mmap_sem))
 		return -EINTR;
-	current->mm->context.vdso = (void *)addr;
 
-	/* Map vectors page at the high address. */
-	ret = _install_special_mapping(mm, addr, PAGE_SIZE,
-				       VM_READ|VM_EXEC|VM_MAYREAD|VM_MAYEXEC,
-				       &spec);
+	ret = aarch32_kuser_helpers_setup(mm);
+	if (ret)
+		goto out;
 
+	ret = aarch32_sigreturn_setup(mm);
+
+out:
 	up_write(&mm->mmap_sem);
-
-	return PTR_ERR_OR_ZERO(ret);
+	return ret;
 }
 #endif /* CONFIG_COMPAT */
 
@@ -146,8 +203,6 @@ static int __init vdso_init(void)
 	}
 
 	vdso_pages = (vdso_end - vdso_start) >> PAGE_SHIFT;
-	pr_info("vdso: %ld pages (%ld code @ %p, %ld data @ %p)\n",
-		vdso_pages + 1, vdso_pages, vdso_start, 1L, vdso_data);
 
 	/* Allocate the vDSO pagelist, plus a page for the data. */
 	vdso_pagelist = kcalloc(vdso_pages + 1, sizeof(struct page *),
@@ -231,6 +286,9 @@ void update_vsyscall(struct timekeeper *tk)
 							tk->tkr_mono.shift;
 	vdso_data->wtm_clock_sec		= tk->wall_to_monotonic.tv_sec;
 	vdso_data->wtm_clock_nsec		= tk->wall_to_monotonic.tv_nsec;
+
+	/* Read without the seqlock held by clock_getres() */
+	WRITE_ONCE(vdso_data->hrtimer_res, hrtimer_resolution);
 
 	if (!use_syscall) {
 		/* tkr_mono.cycle_last == tkr_raw.cycle_last */

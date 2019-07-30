@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012, NVIDIA CORPORATION.  All rights reserved.
  * Copyright (C) 2011 Google, Inc.
@@ -8,16 +9,6 @@
  *	Benoit Goby <benoit@android.com>
  *	Colin Cross <ccross@android.com>
  *	Hiroshi DOYU <hdoyu@nvidia.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/err.h>
@@ -170,8 +161,7 @@ int tegra_ahb_enable_smmu(struct device_node *dn)
 EXPORT_SYMBOL(tegra_ahb_enable_smmu);
 #endif
 
-#ifdef CONFIG_PM
-static int tegra_ahb_suspend(struct device *dev)
+static int __maybe_unused tegra_ahb_suspend(struct device *dev)
 {
 	int i;
 	struct tegra_ahb *ahb = dev_get_drvdata(dev);
@@ -181,7 +171,7 @@ static int tegra_ahb_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra_ahb_resume(struct device *dev)
+static int __maybe_unused tegra_ahb_resume(struct device *dev)
 {
 	int i;
 	struct tegra_ahb *ahb = dev_get_drvdata(dev);
@@ -190,7 +180,6 @@ static int tegra_ahb_resume(struct device *dev)
 		gizmo_writel(ahb, ahb->ctx[i], tegra_ahb_gizmo[i]);
 	return 0;
 }
-#endif
 
 static UNIVERSAL_DEV_PM_OPS(tegra_ahb_pm,
 			    tegra_ahb_suspend,

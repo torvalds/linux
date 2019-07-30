@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * pm_runtime.h - Device run-time power management helper functions.
  *
  * Copyright (C) 2009 Rafael J. Wysocki <rjw@sisk.pl>
- *
- * This file is released under the GPLv2.
  */
 
 #ifndef _LINUX_PM_RUNTIME_H

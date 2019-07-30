@@ -897,7 +897,7 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 	if (vnic_wq_desc_avail(wq) < MAX_SKB_FRAGS + ENIC_DESC_MAX_SPLITS)
 		netif_tx_stop_queue(txq);
 	skb_tx_timestamp(skb);
-	if (!skb->xmit_more || netif_xmit_stopped(txq))
+	if (!netdev_xmit_more() || netif_xmit_stopped(txq))
 		vnic_wq_doorbell(wq);
 
 	spin_unlock(&enic->wq_lock[txq_map]);

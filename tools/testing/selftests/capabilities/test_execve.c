@@ -430,8 +430,6 @@ int main(int argc, char **argv)
 {
 	char *tmp1, *tmp2, *our_path;
 
-	ksft_print_header();
-
 	/* Find our path */
 	tmp1 = strdup(argv[0]);
 	if (!tmp1)
@@ -445,6 +443,8 @@ int main(int argc, char **argv)
 	mpid = getpid();
 
 	if (fork_wait()) {
+		ksft_print_header();
+		ksft_set_plan(12);
 		ksft_print_msg("[RUN]\t+++ Tests with uid == 0 +++\n");
 		return do_tests(0, our_path);
 	}
@@ -452,6 +452,8 @@ int main(int argc, char **argv)
 	ksft_print_msg("==================================================\n");
 
 	if (fork_wait()) {
+		ksft_print_header();
+		ksft_set_plan(9);
 		ksft_print_msg("[RUN]\t+++ Tests with uid != 0 +++\n");
 		return do_tests(1, our_path);
 	}

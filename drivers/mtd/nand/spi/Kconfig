@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig MTD_SPI_NAND
 	tristate "SPI NAND device Support"
 	select MTD_NAND_CORE

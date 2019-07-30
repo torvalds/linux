@@ -1,14 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2017 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 #include "test_progs.h"
 #include "bpf_rlimit.h"
 
 int error_cnt, pass_cnt;
 bool jit_enabled;
+bool verifier_stats = false;
 
 struct ipv4_packet pkt_v4 = {
 	.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
@@ -162,11 +160,14 @@ void *spin_lock_thread(void *arg)
 #include <prog_tests/tests.h>
 #undef DECLARE
 
-int main(void)
+int main(int ac, char **av)
 {
 	srand(time(NULL));
 
 	jit_enabled = is_jit_enabled();
+
+	if (ac == 2 && strcmp(av[1], "-s") == 0)
+		verifier_stats = true;
 
 #define CALL
 #include <prog_tests/tests.h>

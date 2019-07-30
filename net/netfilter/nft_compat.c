@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2012-2013 by Pablo Neira Ayuso <pablo@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This software has been sponsored by Sophos Astaro <http://www.sophos.com>
  */
@@ -198,8 +195,8 @@ static int nft_parse_compat(const struct nlattr *attr, u16 *proto, bool *inv)
 	u32 flags;
 	int err;
 
-	err = nla_parse_nested(tb, NFTA_RULE_COMPAT_MAX, attr,
-			       nft_rule_compat_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, NFTA_RULE_COMPAT_MAX, attr,
+					  nft_rule_compat_policy, NULL);
 	if (err < 0)
 		return err;
 

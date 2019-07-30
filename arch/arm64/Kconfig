@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config ARM64
 	def_bool y
 	select ACPI_CCA_REQUIRED if ACPI
@@ -13,13 +14,15 @@ config ARM64
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_DMA_COHERENT_TO_PFN
 	select ARCH_HAS_DMA_MMAP_PGPROT
+	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
-	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
+	select ARCH_HAS_GIGANTIC_PAGE
 	select ARCH_HAS_KCOV
+	select ARCH_HAS_KEEPINITRD
 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SETUP_DMA_OPS
@@ -58,6 +61,7 @@ config ARM64
 	select ARCH_INLINE_SPIN_UNLOCK_BH if !PREEMPT
 	select ARCH_INLINE_SPIN_UNLOCK_IRQ if !PREEMPT
 	select ARCH_INLINE_SPIN_UNLOCK_IRQRESTORE if !PREEMPT
+	select ARCH_KEEP_MEMBLOCK
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
@@ -65,7 +69,7 @@ config ARM64
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_INT128 if GCC_VERSION >= 50000 || CC_IS_CLANG
 	select ARCH_SUPPORTS_NUMA_BALANCING
-	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
+	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION if COMPAT
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARM_AMBA
@@ -90,6 +94,7 @@ config ARM64
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CLOCKEVENTS_BROADCAST
 	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_IRQ_MULTI_HANDLER
@@ -148,8 +153,8 @@ config ARM64
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_FUNCTION_ARG_ACCESS_API
 	select HAVE_RCU_TABLE_FREE
-	select HAVE_RCU_TABLE_INVALIDATE
 	select HAVE_RSEQ
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
@@ -237,9 +242,6 @@ config LOCKDEP_SUPPORT
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
-config RWSEM_XCHGADD_ALGORITHM
-	def_bool y
-
 config GENERIC_BUG
 	def_bool y
 	depends on BUG
@@ -297,7 +299,7 @@ menu "Kernel Features"
 menu "ARM errata workarounds via the alternatives framework"
 
 config ARM64_WORKAROUND_CLEAN_CACHE
-	def_bool n
+	bool
 
 config ARM64_ERRATUM_826319
 	bool "Cortex-A53: 826319: System might deadlock if a write cannot complete until read data is accepted"
@@ -464,26 +466,27 @@ config ARM64_ERRATUM_1024718
 	bool "Cortex-A55: 1024718: Update of DBM/AP bits without break before make might result in incorrect update"
 	default y
 	help
-	  This option adds work around for Arm Cortex-A55 Erratum 1024718.
+	  This option adds a workaround for ARM Cortex-A55 Erratum 1024718.
 
 	  Affected Cortex-A55 cores (r0p0, r0p1, r1p0) could cause incorrect
 	  update of the hardware dirty bit when the DBM/AP bits are updated
-	  without a break-before-make. The work around is to disable the usage
+	  without a break-before-make. The workaround is to disable the usage
 	  of hardware DBM locally on the affected cores. CPUs not affected by
-	  erratum will continue to use the feature.
+	  this erratum will continue to use the feature.
 
 	  If unsure, say Y.
 
-config ARM64_ERRATUM_1188873
-	bool "Cortex-A76: MRC read following MRRC read of specific Generic Timer in AArch32 might give incorrect result"
+config ARM64_ERRATUM_1418040
+	bool "Cortex-A76/Neoverse-N1: MRC read following MRRC read of specific Generic Timer in AArch32 might give incorrect result"
 	default y
-	select ARM_ARCH_TIMER_OOL_WORKAROUND
+	depends on COMPAT
 	help
-	  This option adds work arounds for ARM Cortex-A76 erratum 1188873
+	  This option adds a workaround for ARM Cortex-A76/Neoverse-N1
+	  errata 1188873 and 1418040.
 
-	  Affected Cortex-A76 cores (r0p0, r1p0, r2p0) could cause
-	  register corruption when accessing the timer registers from
-	  AArch32 userspace.
+	  Affected Cortex-A76/Neoverse-N1 cores (r0p0 to r3p1) could
+	  cause register corruption when accessing the timer registers
+	  from AArch32 userspace.
 
 	  If unsure, say Y.
 
@@ -491,7 +494,7 @@ config ARM64_ERRATUM_1165522
 	bool "Cortex-A76: Speculative AT instruction using out-of-context translation regime could cause subsequent request to generate an incorrect translation"
 	default y
 	help
-	  This option adds work arounds for ARM Cortex-A76 erratum 1165522
+	  This option adds a workaround for ARM Cortex-A76 erratum 1165522.
 
 	  Affected Cortex-A76 cores (r0p0, r1p0, r2p0) could end-up with
 	  corrupted TLBs by speculating an AT instruction during a guest
@@ -504,7 +507,7 @@ config ARM64_ERRATUM_1286807
 	default y
 	select ARM64_WORKAROUND_REPEAT_TLBI
 	help
-	  This option adds workaround for ARM Cortex-A76 erratum 1286807
+	  This option adds a workaround for ARM Cortex-A76 erratum 1286807.
 
 	  On the affected Cortex-A76 cores (r0p0 to r3p0), if a virtual
 	  address for a cacheable mapping of a location is being
@@ -517,14 +520,32 @@ config ARM64_ERRATUM_1286807
 
 	  If unsure, say Y.
 
+config ARM64_ERRATUM_1463225
+	bool "Cortex-A76: Software Step might prevent interrupt recognition"
+	default y
+	help
+	  This option adds a workaround for Arm Cortex-A76 erratum 1463225.
+
+	  On the affected Cortex-A76 cores (r0p0 to r3p1), software stepping
+	  of a system call instruction (SVC) can prevent recognition of
+	  subsequent interrupts when software stepping is disabled in the
+	  exception handler of the system call and either kernel debugging
+	  is enabled or VHE is in use.
+
+	  Work around the erratum by triggering a dummy step exception
+	  when handling a system call from a task that is being stepped
+	  in a VHE configuration of the kernel.
+
+	  If unsure, say Y.
+
 config CAVIUM_ERRATUM_22375
 	bool "Cavium erratum 22375, 24313"
 	default y
 	help
-	  Enable workaround for erratum 22375, 24313.
+	  Enable workaround for errata 22375 and 24313.
 
 	  This implements two gicv3-its errata workarounds for ThunderX. Both
-	  with small impact affecting only ITS table allocation.
+	  with a small impact affecting only ITS table allocation.
 
 	    erratum 22375: only alloc 8MB table size
 	    erratum 24313: ignore memory access type
@@ -588,9 +609,6 @@ config QCOM_FALKOR_ERRATUM_1003
 
 config ARM64_WORKAROUND_REPEAT_TLBI
 	bool
-	help
-	  Enable the repeat TLBI workaround for Falkor erratum 1009 and
-	  Cortex-A76 erratum 1286807.
 
 config QCOM_FALKOR_ERRATUM_1009
 	bool "Falkor E1009: Prematurely complete a DSB after a TLBI"
@@ -626,7 +644,7 @@ config HISILICON_ERRATUM_161600802
 	bool "Hip07 161600802: Erroneous redistributor VLPI base"
 	default y
 	help
-	  The HiSilicon Hip07 SoC usees the wrong redistributor base
+	  The HiSilicon Hip07 SoC uses the wrong redistributor base
 	  when issued ITS commands such as VMOVP and VMAPP, and requires
 	  a 128kB offset to be applied to the target address in this commands.
 
@@ -646,7 +664,7 @@ config FUJITSU_ERRATUM_010001
 	bool "Fujitsu-A64FX erratum E#010001: Undefined fault may occur wrongly"
 	default y
 	help
-	  This option adds workaround for Fujitsu-A64FX erratum E#010001.
+	  This option adds a workaround for Fujitsu-A64FX erratum E#010001.
 	  On some variants of the Fujitsu-A64FX cores ver(1.0, 1.1), memory
 	  accesses may cause undefined fault (Data abort, DFSC=0b111111).
 	  This fault occurs under a specific hardware condition when a
@@ -657,7 +675,7 @@ config FUJITSU_ERRATUM_010001
 	  case-4  TTBR1_EL2 with TCR_EL2.NFD1 == 1.
 
 	  The workaround is to ensure these bits are clear in TCR_ELx.
-	  The workaround only affect the Fujitsu-A64FX.
+	  The workaround only affects the Fujitsu-A64FX.
 
 	  If unsure, say Y.
 
@@ -889,6 +907,9 @@ config ARCH_WANT_HUGE_PMD_SHARE
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
 
+config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+	def_bool y if PGTABLE_LEVELS > 2
+
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
 	---help---
@@ -1078,9 +1099,65 @@ config RODATA_FULL_DEFAULT_ENABLED
 	  This requires the linear region to be mapped down to pages,
 	  which may adversely affect performance in some cases.
 
+config ARM64_SW_TTBR0_PAN
+	bool "Emulate Privileged Access Never using TTBR0_EL1 switching"
+	help
+	  Enabling this option prevents the kernel from accessing
+	  user-space memory directly by pointing TTBR0_EL1 to a reserved
+	  zeroed area and reserved ASID. The user access routines
+	  restore the valid TTBR0_EL1 temporarily.
+
+menuconfig COMPAT
+	bool "Kernel support for 32-bit EL0"
+	depends on ARM64_4K_PAGES || EXPERT
+	select COMPAT_BINFMT_ELF if BINFMT_ELF
+	select HAVE_UID16
+	select OLD_SIGSUSPEND3
+	select COMPAT_OLD_SIGACTION
+	help
+	  This option enables support for a 32-bit EL0 running under a 64-bit
+	  kernel at EL1. AArch32-specific components such as system calls,
+	  the user helper functions, VFP support and the ptrace interface are
+	  handled appropriately by the kernel.
+
+	  If you use a page size other than 4KB (i.e, 16KB or 64KB), please be aware
+	  that you will only be able to execute AArch32 binaries that were compiled
+	  with page size aligned segments.
+
+	  If you want to execute 32-bit userspace applications, say Y.
+
+if COMPAT
+
+config KUSER_HELPERS
+	bool "Enable kuser helpers page for 32 bit applications"
+	default y
+	help
+	  Warning: disabling this option may break 32-bit user programs.
+
+	  Provide kuser helpers to compat tasks. The kernel provides
+	  helper code to userspace in read only form at a fixed location
+	  to allow userspace to be independent of the CPU type fitted to
+	  the system. This permits binaries to be run on ARMv4 through
+	  to ARMv8 without modification.
+
+	  See Documentation/arm/kernel_user_helpers.txt for details.
+
+	  However, the fixed address nature of these helpers can be used
+	  by ROP (return orientated programming) authors when creating
+	  exploits.
+
+	  If all of the binaries and libraries which run on your platform
+	  are built specifically for your platform, and make no use of
+	  these helpers, then you can turn this option off to hinder
+	  such exploits. However, in that case, if a binary or library
+	  relying on those helpers is run, it will not function correctly.
+
+	  Say N here only if you are absolutely certain that you do not
+	  need these helpers; otherwise, the safe option is to say Y.
+
+
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
-	depends on COMPAT
 	depends on SYSCTL
 	help
 	  Legacy software support may require certain instructions
@@ -1146,13 +1223,7 @@ config SETEND_EMULATION
 	  If unsure, say Y
 endif
 
-config ARM64_SW_TTBR0_PAN
-	bool "Emulate Privileged Access Never using TTBR0_EL1 switching"
-	help
-	  Enabling this option prevents the kernel from accessing
-	  user-space memory directly by pointing TTBR0_EL1 to a reserved
-	  zeroed area and reserved ASID. The user access routines
-	  restore the valid TTBR0_EL1 temporarily.
+endif
 
 menu "ARMv8.1 architectural features"
 
@@ -1288,6 +1359,7 @@ menu "ARMv8.3 architectural features"
 config ARM64_PTR_AUTH
 	bool "Enable support for pointer authentication"
 	default y
+	depends on !KVM || ARM64_VHE
 	help
 	  Pointer authentication (part of the ARMv8.3 Extensions) provides
 	  instructions for signing and authenticating pointers against secret
@@ -1301,8 +1373,9 @@ config ARM64_PTR_AUTH
 	  context-switched along with the process.
 
 	  The feature is detected at runtime. If the feature is not present in
-	  hardware it will not be advertised to userspace nor will it be
-	  enabled.
+	  hardware it will not be advertised to userspace/KVM guest nor will it
+	  be enabled. However, KVM guest also require VHE mode and hence
+	  CONFIG_ARM64_VHE=y option to use this feature.
 
 endmenu
 
@@ -1317,6 +1390,9 @@ config ARM64_SVE
 	  additional vectorisation opportunities.
 
 	  To enable use of this extension on CPUs that implement it, say Y.
+
+	  On CPUs that support the SVE2 extensions, this option will enable
+	  those too.
 
 	  Note that for architectural reasons, firmware _must_ implement SVE
 	  support when running on SVE capable hardware.  The required support
@@ -1347,11 +1423,12 @@ config ARM64_MODULE_PLTS
 
 config ARM64_PSEUDO_NMI
 	bool "Support for NMI-like interrupts"
+	depends on BROKEN # 1556553607-46531-1-git-send-email-julien.thierry@arm.com
 	select CONFIG_ARM_GIC_V3
 	help
 	  Adds support for mimicking Non-Maskable Interrupts through the use of
 	  GIC interrupt priority. This support requires version 3 or later of
-	  Arm GIC.
+	  ARM GIC.
 
 	  This high priority configuration for interrupts needs to be
 	  explicitly enabled by setting the kernel parameter
@@ -1474,25 +1551,6 @@ config DMI
 	  continue to boot on existing non-UEFI platforms.
 
 endmenu
-
-config COMPAT
-	bool "Kernel support for 32-bit EL0"
-	depends on ARM64_4K_PAGES || EXPERT
-	select COMPAT_BINFMT_ELF if BINFMT_ELF
-	select HAVE_UID16
-	select OLD_SIGSUSPEND3
-	select COMPAT_OLD_SIGACTION
-	help
-	  This option enables support for a 32-bit EL0 running under a 64-bit
-	  kernel at EL1. AArch32-specific components such as system calls,
-	  the user helper functions, VFP support and the ptrace interface are
-	  handled appropriately by the kernel.
-
-	  If you use a page size other than 4KB (i.e, 16KB or 64KB), please be aware
-	  that you will only be able to execute AArch32 binaries that were compiled
-	  with page size aligned segments.
-
-	  If you want to execute 32-bit userspace applications, say Y.
 
 config SYSVIPC_COMPAT
 	def_bool y

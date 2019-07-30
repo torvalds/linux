@@ -1072,7 +1072,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	mdev->iface.num_channels = num_endpoints;
 
 	snprintf(mdev->description, sizeof(mdev->description),
-		 "usb_device %d-%s:%d.%d",
+		 "%d-%s:%d.%d",
 		 usb_dev->bus->busnum,
 		 usb_dev->devpath,
 		 usb_dev->config->desc.bConfigurationValue,

@@ -107,11 +107,15 @@ static const struct watchdog_ops bcm7038_wdt_ops = {
 	.get_timeleft	= bcm7038_wdt_get_timeleft,
 };
 
+static void bcm7038_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int bcm7038_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct bcm7038_watchdog *wdt;
-	struct resource *res;
 	int err;
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
@@ -120,8 +124,7 @@ static int bcm7038_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdt);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->base = devm_ioremap_resource(dev, res);
+	wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
@@ -129,6 +132,11 @@ static int bcm7038_wdt_probe(struct platform_device *pdev)
 	/* If unable to get clock, use default frequency */
 	if (!IS_ERR(wdt->clk)) {
 		err = clk_prepare_enable(wdt->clk);
+		if (err)
+			return err;
+		err = devm_add_action_or_reset(dev,
+					       bcm7038_clk_disable_unprepare,
+					       wdt->clk);
 		if (err)
 			return err;
 		wdt->rate = clk_get_rate(wdt->clk);
@@ -148,27 +156,15 @@ static int bcm7038_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.parent		= dev;
 	watchdog_set_drvdata(&wdt->wdd, wdt);
 
-	err = watchdog_register_device(&wdt->wdd);
+	watchdog_stop_on_reboot(&wdt->wdd);
+	watchdog_stop_on_unregister(&wdt->wdd);
+	err = devm_watchdog_register_device(dev, &wdt->wdd);
 	if (err) {
 		dev_err(dev, "Failed to register watchdog device\n");
-		clk_disable_unprepare(wdt->clk);
 		return err;
 	}
 
 	dev_info(dev, "Registered BCM7038 Watchdog\n");
-
-	return 0;
-}
-
-static int bcm7038_wdt_remove(struct platform_device *pdev)
-{
-	struct bcm7038_watchdog *wdt = platform_get_drvdata(pdev);
-
-	if (!nowayout)
-		bcm7038_wdt_stop(&wdt->wdd);
-
-	watchdog_unregister_device(&wdt->wdd);
-	clk_disable_unprepare(wdt->clk);
 
 	return 0;
 }
@@ -198,14 +194,6 @@ static int bcm7038_wdt_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(bcm7038_wdt_pm_ops, bcm7038_wdt_suspend,
 			 bcm7038_wdt_resume);
 
-static void bcm7038_wdt_shutdown(struct platform_device *pdev)
-{
-	struct bcm7038_watchdog *wdt = platform_get_drvdata(pdev);
-
-	if (watchdog_active(&wdt->wdd))
-		bcm7038_wdt_stop(&wdt->wdd);
-}
-
 static const struct of_device_id bcm7038_wdt_match[] = {
 	{ .compatible = "brcm,bcm7038-wdt" },
 	{},
@@ -214,8 +202,6 @@ MODULE_DEVICE_TABLE(of, bcm7038_wdt_match);
 
 static struct platform_driver bcm7038_wdt_driver = {
 	.probe		= bcm7038_wdt_probe,
-	.remove		= bcm7038_wdt_remove,
-	.shutdown	= bcm7038_wdt_shutdown,
 	.driver		= {
 		.name		= "bcm7038-wdt",
 		.of_match_table	= bcm7038_wdt_match,

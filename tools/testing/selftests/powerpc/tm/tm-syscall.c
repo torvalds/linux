@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015, Sam Bobroff, IBM Corp.
- * Licensed under GPLv2.
  *
  * Test the kernel's system call code to ensure that a system call
  * made from within an active HTM transaction is aborted with the

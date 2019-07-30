@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * consumer.h -- SoC Regulator consumer support.
  *
  * Copyright (C) 2007, 2008 Wolfson Microelectronics PLC.
  *
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Regulator Consumer Interface.
  *
@@ -29,7 +26,6 @@
  *   but this drops rapidly to 60% when below 100mA. Regulator r has > 90%
  *   efficiency in IDLE mode at loads < 10mA. Thus regulator r will operate
  *   in normal mode for loads > 10mA and in IDLE mode for load <= 10mA.
- *
  */
 
 #ifndef __LINUX_REGULATOR_CONSUMER_H_
@@ -474,6 +470,11 @@ static inline int regulator_get_voltage(struct regulator *regulator)
 
 static inline int regulator_is_supported_voltage(struct regulator *regulator,
 				   int min_uV, int max_uV)
+{
+	return 0;
+}
+
+static inline unsigned int regulator_get_linear_step(struct regulator *regulator)
 {
 	return 0;
 }

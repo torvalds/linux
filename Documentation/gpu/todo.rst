@@ -215,12 +215,12 @@ Might be good to also have some igt testcases for this.
 
 Contact: Daniel Vetter, Noralf Tronnes
 
-Put a reservation_object into drm_gem_object
+Remove the ->gem_prime_res_obj callback
 --------------------------------------------
 
-This would remove the need for the ->gem_prime_res_obj callback. It would also
-allow us to implement generic helpers for waiting for a bo, allowing for quite a
-bit of refactoring in the various wait ioctl implementations.
+The ->gem_prime_res_obj callback can be removed from drivers by using the
+reservation_object in the drm_gem_object. It may also be possible to use the
+generic drm_gem_reservation_object_wait helper for waiting for a bo.
 
 Contact: Daniel Vetter
 
@@ -468,10 +468,6 @@ those drivers as simple as possible, so lots of room for refactoring:
   least) into a separate helper, like we have for mipi-dsi already. Or follow
   one of the ideas for having a shared dsi/dbi helper, abstracting away the
   transport details more.
-
-- Quick aside: The unregister devm stuff is kinda getting the lifetimes of
-  a drm_device wrong. Doesn't matter, since everyone else gets it wrong
-  too :-)
 
 Contact: Noralf Trønnes, Daniel Vetter
 

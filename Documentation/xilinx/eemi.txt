@@ -41,8 +41,8 @@ Example of EEMI ops usage:
 	int ret;
 
 	eemi_ops = zynqmp_pm_get_eemi_ops();
-	if (!eemi_ops)
-		return -ENXIO;
+	if (IS_ERR(eemi_ops))
+		return PTR_ERR(eemi_ops);
 
 	ret = eemi_ops->query_data(qdata, ret_payload);
 

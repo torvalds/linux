@@ -7,7 +7,7 @@ Required properties:
                        NAND controller's registers. The second contains base
                        physical address and size of NAND controller's buffer.
 - interrupts:          Interrupt number for nfc.
-- nand-bus-width:      See nand.txt.
+- nand-bus-width:      See nand-controller.yaml.
 - nand-ecc-mode:       Support none and hw ecc mode.
 - #address-cells:      Partition address, should be set 1.
 - #size-cells:         Partition size, should be set 1.

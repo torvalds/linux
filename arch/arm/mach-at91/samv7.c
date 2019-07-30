@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Setup code for SAMv7x
  *
  *  Copyright (C) 2013 Atmel,
  *                2016 Andras Szemzo <szemzo.andras@gmail.com>
- *
- * Licensed under GPLv2 or later.
  */
 #include <linux/of.h>
 #include <linux/of_platform.h>

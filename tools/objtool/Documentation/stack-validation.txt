@@ -111,7 +111,7 @@ c) Higher live patching compatibility rate
    be detectable).  Objtool makes that possible.
 
    For more details, see the livepatch documentation in the Linux kernel
-   source tree at Documentation/livepatch/livepatch.txt.
+   source tree at Documentation/livepatch/livepatch.rst.
 
 Rules
 -----
@@ -306,7 +306,7 @@ ignore it:
 
 - To skip validation of a file, add
 
-    OBJECT_FILES_NON_STANDARD_filename.o := n
+    OBJECT_FILES_NON_STANDARD_filename.o := y
 
   to the Makefile.
 

@@ -26,16 +26,10 @@
 #define PCPU_MIN_ALLOC_SHIFT		2
 #define PCPU_MIN_ALLOC_SIZE		(1 << PCPU_MIN_ALLOC_SHIFT)
 
-/* number of bits per page, used to trigger a scan if blocks are > PAGE_SIZE */
-#define PCPU_BITS_PER_PAGE		(PAGE_SIZE >> PCPU_MIN_ALLOC_SHIFT)
-
 /*
- * This determines the size of each metadata block.  There are several subtle
- * constraints around this constant.  The reserved region must be a multiple of
- * PCPU_BITMAP_BLOCK_SIZE.  Additionally, PCPU_BITMAP_BLOCK_SIZE must be a
- * multiple of PAGE_SIZE or PAGE_SIZE must be a multiple of
- * PCPU_BITMAP_BLOCK_SIZE to align with the populated page map. The unit_size
- * also has to be a multiple of PCPU_BITMAP_BLOCK_SIZE to ensure full blocks.
+ * The PCPU_BITMAP_BLOCK_SIZE must be the same size as PAGE_SIZE as the
+ * updating of hints is used to manage the nr_empty_pop_pages in both
+ * the chunk and globally.
  */
 #define PCPU_BITMAP_BLOCK_SIZE		PAGE_SIZE
 #define PCPU_BITMAP_BLOCK_BITS		(PCPU_BITMAP_BLOCK_SIZE >>	\

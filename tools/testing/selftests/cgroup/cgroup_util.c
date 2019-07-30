@@ -74,6 +74,16 @@ char *cg_name_indexed(const char *root, const char *name, int index)
 	return ret;
 }
 
+char *cg_control(const char *cgroup, const char *control)
+{
+	size_t len = strlen(cgroup) + strlen(control) + 2;
+	char *ret = malloc(len);
+
+	snprintf(ret, len, "%s/%s", cgroup, control);
+
+	return ret;
+}
+
 int cg_read(const char *cgroup, const char *control, char *buf, size_t len)
 {
 	char path[PATH_MAX];
@@ -196,7 +206,32 @@ int cg_create(const char *cgroup)
 	return mkdir(cgroup, 0644);
 }
 
-static int cg_killall(const char *cgroup)
+int cg_wait_for_proc_count(const char *cgroup, int count)
+{
+	char buf[10 * PAGE_SIZE] = {0};
+	int attempts;
+	char *ptr;
+
+	for (attempts = 10; attempts >= 0; attempts--) {
+		int nr = 0;
+
+		if (cg_read(cgroup, "cgroup.procs", buf, sizeof(buf)))
+			break;
+
+		for (ptr = buf; *ptr; ptr++)
+			if (*ptr == '\n')
+				nr++;
+
+		if (nr >= count)
+			return 0;
+
+		usleep(100000);
+	}
+
+	return -1;
+}
+
+int cg_killall(const char *cgroup)
 {
 	char buf[PAGE_SIZE];
 	char *ptr = buf;
@@ -227,9 +262,7 @@ int cg_destroy(const char *cgroup)
 retry:
 	ret = rmdir(cgroup);
 	if (ret && errno == EBUSY) {
-		ret = cg_killall(cgroup);
-		if (ret)
-			return ret;
+		cg_killall(cgroup);
 		usleep(100);
 		goto retry;
 	}
@@ -238,6 +271,14 @@ retry:
 		ret = 0;
 
 	return ret;
+}
+
+int cg_enter(const char *cgroup, int pid)
+{
+	char pidbuf[64];
+
+	snprintf(pidbuf, sizeof(pidbuf), "%d", pid);
+	return cg_write(cgroup, "cgroup.procs", pidbuf);
 }
 
 int cg_enter_current(const char *cgroup)
@@ -368,4 +409,13 @@ int set_oom_adj_score(int pid, int score)
 
 	close(fd);
 	return 0;
+}
+
+char proc_read_text(int pid, const char *item, char *buf, size_t size)
+{
+	char path[PATH_MAX];
+
+	snprintf(path, sizeof(path), "/proc/%d/%s", pid, item);
+
+	return read_text(path, buf, size);
 }

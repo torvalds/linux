@@ -14,6 +14,7 @@ Required properties:
 	"atmel,at91sam9261-nand-controller"
 	"atmel,at91sam9g45-nand-controller"
 	"atmel,sama5d3-nand-controller"
+	"microchip,sam9x60-nand-controller"
 - ranges: empty ranges property to forward EBI ranges definitions.
 - #address-cells: should be set to 2.
 - #size-cells: should be set to 1.

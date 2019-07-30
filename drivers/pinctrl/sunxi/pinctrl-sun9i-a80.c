@@ -722,7 +722,7 @@ static const struct sunxi_pinctrl_desc sun9i_a80_pinctrl_data = {
 	.npins = ARRAY_SIZE(sun9i_a80_pins),
 	.irq_banks = 5,
 	.disable_strict_mode = true,
-	.has_io_bias_cfg = true,
+	.io_bias_cfg_variant = BIAS_VOLTAGE_GRP_CONFIG,
 };
 
 static int sun9i_a80_pinctrl_probe(struct platform_device *pdev)

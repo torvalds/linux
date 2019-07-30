@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  *
  *	(C)Copyright 1998,1999 SysKonnect,
  *	a business unit of Schneider & Koch & Co. Datensysteme GmbH.
  *
  *	See the file "skfddi.c" for further information.
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  *	The information in this file is provided "AS IS" without warranty.
  *
@@ -1206,7 +1202,7 @@ void process_receive(struct s_smc *smc)
 		}
 		/*
 		 * SUPERNET 3 Bug: FORMAC delivers status words
-		 * of aborded frames to the BMU
+		 * of aborted frames to the BMU
 		 */
 		if (len <= 4) {
 			DB_RX(2, "Frame length = 0");
@@ -1343,7 +1339,7 @@ void process_receive(struct s_smc *smc)
 				break ;
 			default :
 				/*
-				 * unknown FC abord the frame
+				 * unknown FC abort the frame
 				 */
 				DB_RX(2, "unknown FC error");
 				smt_free_mbuf(smc,mb) ;

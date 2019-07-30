@@ -49,7 +49,7 @@ static int iwch_finish_mem_reg(struct iwch_mr *mhp, u32 stag)
 	mmid = stag >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
 	pr_debug("%s mmid 0x%x mhp %p\n", __func__, mmid, mhp);
-	return insert_handle(mhp->rhp, &mhp->rhp->mmidr, mhp, mmid);
+	return xa_insert_irq(&mhp->rhp->mrs, mmid, mhp, GFP_KERNEL);
 }
 
 int iwch_register_mem(struct iwch_dev *rhp, struct iwch_pd *php,

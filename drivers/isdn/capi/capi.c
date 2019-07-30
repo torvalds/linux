@@ -960,7 +960,7 @@ static int capi_open(struct inode *inode, struct file *file)
 	list_add_tail(&cdev->list, &capidev_list);
 	mutex_unlock(&capidev_list_lock);
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int capi_release(struct inode *inode, struct file *file)

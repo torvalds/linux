@@ -25,9 +25,13 @@
  *   Jani Nikula <jani.nikula@intel.com>
  */
 
-#include <drm/drm_mipi_dsi.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_mipi_dsi.h>
+
+#include "intel_connector.h"
+#include "intel_ddi.h"
 #include "intel_dsi.h"
+#include "intel_panel.h"
 
 static inline int header_credits_available(struct drm_i915_private *dev_priv,
 					   enum transcoder dsi_trans)
@@ -246,13 +250,13 @@ static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
 
 		for (lane = 0; lane <= 3; lane++) {
 			/* Bspec: must not use GRP register for write */
-			tmp = I915_READ(ICL_PORT_TX_DW4_LN(port, lane));
+			tmp = I915_READ(ICL_PORT_TX_DW4_LN(lane, port));
 			tmp &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
 				 CURSOR_COEFF_MASK);
 			tmp |= POST_CURSOR_1(0x0);
 			tmp |= POST_CURSOR_2(0x0);
 			tmp |= CURSOR_COEFF(0x3f);
-			I915_WRITE(ICL_PORT_TX_DW4_LN(port, lane), tmp);
+			I915_WRITE(ICL_PORT_TX_DW4_LN(lane, port), tmp);
 		}
 	}
 }
@@ -399,11 +403,11 @@ static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 		tmp &= ~LOADGEN_SELECT;
 		I915_WRITE(ICL_PORT_TX_DW4_AUX(port), tmp);
 		for (lane = 0; lane <= 3; lane++) {
-			tmp = I915_READ(ICL_PORT_TX_DW4_LN(port, lane));
+			tmp = I915_READ(ICL_PORT_TX_DW4_LN(lane, port));
 			tmp &= ~LOADGEN_SELECT;
 			if (lane != 2)
 				tmp |= LOADGEN_SELECT;
-			I915_WRITE(ICL_PORT_TX_DW4_LN(port, lane), tmp);
+			I915_WRITE(ICL_PORT_TX_DW4_LN(lane, port), tmp);
 		}
 	}
 
@@ -876,7 +880,8 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 		I915_WRITE(PIPECONF(dsi_trans), tmp);
 
 		/* wait for transcoder to be enabled */
-		if (intel_wait_for_register(dev_priv, PIPECONF(dsi_trans),
+		if (intel_wait_for_register(&dev_priv->uncore,
+					    PIPECONF(dsi_trans),
 					    I965_PIPECONF_ACTIVE,
 					    I965_PIPECONF_ACTIVE, 10))
 			DRM_ERROR("DSI transcoder not enabled\n");
@@ -1054,7 +1059,8 @@ static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 		I915_WRITE(PIPECONF(dsi_trans), tmp);
 
 		/* wait for transcoder to be disabled */
-		if (intel_wait_for_register(dev_priv, PIPECONF(dsi_trans),
+		if (intel_wait_for_register(&dev_priv->uncore,
+					    PIPECONF(dsi_trans),
 					    I965_PIPECONF_ACTIVE, 0, 50))
 			DRM_ERROR("DSI trancoder not disabled\n");
 	}
@@ -1146,13 +1152,11 @@ static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
 		intel_wakeref_t wakeref;
 
 		wakeref = fetch_and_zero(&intel_dsi->io_wakeref[port]);
-		if (wakeref) {
-			intel_display_power_put(dev_priv,
-						port == PORT_A ?
-						POWER_DOMAIN_PORT_DDI_A_IO :
-						POWER_DOMAIN_PORT_DDI_B_IO,
-						wakeref);
-		}
+		intel_display_power_put(dev_priv,
+					port == PORT_A ?
+					POWER_DOMAIN_PORT_DDI_A_IO :
+					POWER_DOMAIN_PORT_DDI_B_IO,
+					wakeref);
 	}
 
 	/* set mode to DDI */
@@ -1194,11 +1198,10 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	u32 pll_id;
 
 	/* FIXME: adapt icl_ddi_clock_get() for DSI and use that? */
-	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
-	pipe_config->port_clock = cnl_calc_wrpll_link(dev_priv, pll_id);
+	pipe_config->port_clock =
+		cnl_calc_wrpll_link(dev_priv, &pipe_config->dpll_hw_state);
 	pipe_config->base.adjusted_mode.crtc_clock = intel_dsi->pclk;
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
 }
@@ -1367,7 +1370,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	struct intel_encoder *encoder;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
-	struct drm_display_mode *scan, *fixed_mode = NULL;
+	struct drm_display_mode *fixed_mode;
 	enum port port;
 
 	if (!intel_bios_is_dsi_present(dev_priv, &port))
@@ -1417,15 +1420,8 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	/* attach connector to encoder */
 	intel_connector_attach_encoder(intel_connector, encoder);
 
-	/* fill mode info from VBT */
 	mutex_lock(&dev->mode_config.mutex);
-	intel_dsi_vbt_get_modes(intel_dsi);
-	list_for_each_entry(scan, &connector->probed_modes, head) {
-		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
-			fixed_mode = drm_mode_duplicate(dev, scan);
-			break;
-		}
-	}
+	fixed_mode = intel_panel_vbt_fixed_mode(intel_connector);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	if (!fixed_mode) {
@@ -1433,11 +1429,8 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 		goto err;
 	}
 
-	connector->display_info.width_mm = fixed_mode->width_mm;
-	connector->display_info.height_mm = fixed_mode->height_mm;
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 	intel_panel_setup_backlight(connector, INVALID_PIPE);
-
 
 	if (dev_priv->vbt.dsi.config->dual_link)
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_B);

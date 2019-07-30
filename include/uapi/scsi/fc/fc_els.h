@@ -52,6 +52,7 @@ enum fc_els_cmd {
 	ELS_RRQ =	0x12,	/* reinstate recovery qualifier */
 	ELS_REC =	0x13,	/* read exchange concise */
 	ELS_SRR =	0x14,	/* sequence retransmission request */
+	ELS_FPIN =	0x16,	/* Fabric Performance Impact Notification */
 	ELS_PRLI =	0x20,	/* process login */
 	ELS_PRLO =	0x21,	/* process logout */
 	ELS_SCN =	0x22,	/* state change notification */
@@ -119,6 +120,7 @@ enum fc_els_cmd {
 	[ELS_RRQ] =	"RRQ",			\
 	[ELS_REC] =	"REC",			\
 	[ELS_SRR] =	"SRR",			\
+	[ELS_FPIN] =	"FPIN",			\
 	[ELS_PRLI] =	"PRLI",			\
 	[ELS_PRLO] =	"PRLO",			\
 	[ELS_SCN] =	"SCN",			\
@@ -827,6 +829,37 @@ enum fc_els_clid_ic {
 	ELS_CLID_IC_INVAL =	6,	/* invalid primitive sequence */
 	ELS_CLID_IC_LOOP_TO =	7,	/* loop initialization time out */
 	ELS_CLID_IC_LIP =	8,	/* receiving LIP */
+};
+
+
+/*
+ * Fabric Notification Descriptor Tag values
+ */
+enum fc_fn_dtag {
+	ELS_FN_DTAG_LNK_INTEGRITY =	0x00020001,	/* Link Integrity */
+	ELS_FN_DTAG_PEER_CONGEST =	0x00020003,	/* Peer Congestion */
+	ELS_FN_DTAG_CONGESTION =	0x00020004,	/* Congestion */
+};
+
+/*
+ * Fabric Notification Descriptor
+ */
+struct fc_fn_desc {
+	__be32		fn_desc_tag;	/* Notification Descriptor Tag */
+	__be32		fn_desc_value_len; /* Length of Descriptor Value field
+					    * (in bytes)
+					    */
+	__u8		fn_desc_value[0];  /* Descriptor Value */
+};
+
+/*
+ * ELS_FPIN - Fabric Performance Impact Notification
+ */
+struct fc_els_fpin {
+	__u8		fpin_cmd;	/* command (0x16) */
+	__u8		fpin_zero[3];	/* specified as zero - part of cmd */
+	__be32		fpin_desc_cnt;	/* count of descriptors */
+	struct fc_fn_desc	fpin_desc[0];	/* Descriptor list */
 };
 
 #endif /* _FC_ELS_H_ */

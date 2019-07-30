@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config TEGRA_MC
 	bool "NVIDIA Tegra Memory Controller support"
 	default y

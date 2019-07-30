@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * include/net/l3mdev.h - L3 master device API
  * Copyright (c) 2015 Cumulus Networks
  * Copyright (c) 2015 David Ahern <dsa@cumulusnetworks.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #ifndef _NET_L3MDEV_H_
 #define _NET_L3MDEV_H_

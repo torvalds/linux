@@ -28,7 +28,7 @@
 
 #include "xen-ops.h"
 
-/* Xen may fire a timer up to this many ns early */
+/* Minimum amount of time until next clock event fires */
 #define TIMER_SLOP	100000
 
 static u64 xen_sched_clock_offset __read_mostly;
@@ -212,7 +212,7 @@ static int xen_timerop_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static const struct clock_event_device xen_timerop_clockevent = {
+static struct clock_event_device xen_timerop_clockevent __ro_after_init = {
 	.name			= "xen",
 	.features		= CLOCK_EVT_FEAT_ONESHOT,
 
@@ -273,7 +273,7 @@ static int xen_vcpuop_set_next_event(unsigned long delta,
 	return ret;
 }
 
-static const struct clock_event_device xen_vcpuop_clockevent = {
+static struct clock_event_device xen_vcpuop_clockevent __ro_after_init = {
 	.name = "xen",
 	.features = CLOCK_EVT_FEAT_ONESHOT,
 
@@ -570,3 +570,17 @@ void __init xen_hvm_init_time_ops(void)
 	x86_platform.set_wallclock = xen_set_wallclock;
 }
 #endif
+
+/* Kernel parameter to specify Xen timer slop */
+static int __init parse_xen_timer_slop(char *ptr)
+{
+	unsigned long slop = memparse(ptr, NULL);
+
+	xen_timerop_clockevent.min_delta_ns = slop;
+	xen_timerop_clockevent.min_delta_ticks = slop;
+	xen_vcpuop_clockevent.min_delta_ns = slop;
+	xen_vcpuop_clockevent.min_delta_ticks = slop;
+
+	return 0;
+}
+early_param("xen_timer_slop", parse_xen_timer_slop);

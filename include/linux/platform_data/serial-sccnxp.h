@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  NXP (Philips) SCC+++(SCN+++) serial driver
  *
  *  Copyright (C) 2012 Alexander Shiyan <shc_work@mail.ru>
  *
  *  Based on sc26xx.c, by Thomas Bogendörfer (tsbogend@alpha.franken.de)
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
  */
 
 #ifndef _PLATFORM_DATA_SERIAL_SCCNXP_H_

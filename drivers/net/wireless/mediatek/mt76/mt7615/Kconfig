@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config MT7615E
+	tristate "MediaTek MT7615E (PCIe) support"
+	select MT76_CORE
+	depends on MAC80211
+	depends on PCI
+	help
+	  This adds support for MT7615-based wireless PCIe devices.

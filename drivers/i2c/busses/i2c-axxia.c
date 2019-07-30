@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This driver implements I2C master functionality using the LSI API2C
  * controller.
@@ -5,10 +6,6 @@
  * NOTE: The controller has a limitation in that it can only do transfers of
  * maximum 255 bytes at a time. If a larger transfer is attempted, error code
  * (-EINVAL) is returned.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
  */
 #include <linux/clk.h>
 #include <linux/clkdev.h>
@@ -99,6 +96,7 @@
  * @adapter: core i2c abstraction
  * @i2c_clk: clock reference for i2c input clock
  * @bus_clk_rate: current i2c bus clock rate
+ * @last: a flag indicating is this is last message in transfer
  */
 struct axxia_i2c_dev {
 	void __iomem *base;
@@ -112,6 +110,7 @@ struct axxia_i2c_dev {
 	struct i2c_adapter adapter;
 	struct clk *i2c_clk;
 	u32 bus_clk_rate;
+	bool last;
 };
 
 static void i2c_int_disable(struct axxia_i2c_dev *idev, u32 mask)
@@ -324,14 +323,13 @@ static irqreturn_t axxia_i2c_isr(int irq, void *_dev)
 		/* Stop completed */
 		i2c_int_disable(idev, ~MST_STATUS_TSS);
 		complete(&idev->msg_complete);
-	} else if (status & MST_STATUS_SNS) {
+	} else if (status & (MST_STATUS_SNS | MST_STATUS_SS)) {
 		/* Transfer done */
-		i2c_int_disable(idev, ~MST_STATUS_TSS);
+		int mask = idev->last ? ~0 : ~MST_STATUS_TSS;
+
+		i2c_int_disable(idev, mask);
 		if (i2c_m_rd(idev->msg_r) && idev->msg_xfrd_r < idev->msg_r->len)
 			axxia_i2c_empty_rx_fifo(idev);
-		complete(&idev->msg_complete);
-	} else if (status & MST_STATUS_SS) {
-		/* Auto/Sequence transfer done */
 		complete(&idev->msg_complete);
 	} else if (status & MST_STATUS_TSS) {
 		/* Transfer timeout */
@@ -405,6 +403,7 @@ static int axxia_i2c_xfer_seq(struct axxia_i2c_dev *idev, struct i2c_msg msgs[])
 	idev->msg_r = &msgs[1];
 	idev->msg_xfrd = 0;
 	idev->msg_xfrd_r = 0;
+	idev->last = true;
 	axxia_i2c_fill_tx_fifo(idev);
 
 	writel(CMD_SEQUENCE, idev->base + MST_COMMAND);
@@ -414,10 +413,6 @@ static int axxia_i2c_xfer_seq(struct axxia_i2c_dev *idev, struct i2c_msg msgs[])
 
 	time_left = wait_for_completion_timeout(&idev->msg_complete,
 						I2C_XFER_TIMEOUT);
-
-	i2c_int_disable(idev, int_mask);
-
-	axxia_i2c_empty_rx_fifo(idev);
 
 	if (idev->msg_err == -ENXIO) {
 		if (axxia_i2c_handle_seq_nak(idev))
@@ -438,9 +433,10 @@ static int axxia_i2c_xfer_seq(struct axxia_i2c_dev *idev, struct i2c_msg msgs[])
 	return idev->msg_err;
 }
 
-static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
+static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg,
+			      bool last)
 {
-	u32 int_mask = MST_STATUS_ERR | MST_STATUS_SNS;
+	u32 int_mask = MST_STATUS_ERR;
 	u32 rx_xfer, tx_xfer;
 	unsigned long time_left;
 	unsigned int wt_value;
@@ -449,6 +445,7 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 	idev->msg_r = msg;
 	idev->msg_xfrd = 0;
 	idev->msg_xfrd_r = 0;
+	idev->last = last;
 	reinit_completion(&idev->msg_complete);
 
 	axxia_i2c_set_addr(idev, msg);
@@ -478,8 +475,13 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 	if (idev->msg_err)
 		goto out;
 
-	/* Start manual mode */
-	writel(CMD_MANUAL, idev->base + MST_COMMAND);
+	if (!last) {
+		writel(CMD_MANUAL, idev->base + MST_COMMAND);
+		int_mask |= MST_STATUS_SNS;
+	} else {
+		writel(CMD_AUTO, idev->base + MST_COMMAND);
+		int_mask |= MST_STATUS_SS;
+	}
 
 	writel(WT_EN | wt_value, idev->base + WAIT_TIMER_CONTROL);
 
@@ -505,28 +507,6 @@ out:
 		axxia_i2c_init(idev);
 
 	return idev->msg_err;
-}
-
-static int axxia_i2c_stop(struct axxia_i2c_dev *idev)
-{
-	u32 int_mask = MST_STATUS_ERR | MST_STATUS_SCC | MST_STATUS_TSS;
-	unsigned long time_left;
-
-	reinit_completion(&idev->msg_complete);
-
-	/* Issue stop */
-	writel(0xb, idev->base + MST_COMMAND);
-	i2c_int_enable(idev, int_mask);
-	time_left = wait_for_completion_timeout(&idev->msg_complete,
-					      I2C_STOP_TIMEOUT);
-	i2c_int_disable(idev, int_mask);
-	if (time_left == 0)
-		return -ETIMEDOUT;
-
-	if (readl(idev->base + MST_COMMAND) & CMD_BUSY)
-		dev_warn(idev->dev, "busy after stop\n");
-
-	return 0;
 }
 
 /* This function checks if the msgs[] array contains messages compatible with
@@ -558,9 +538,7 @@ axxia_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	i2c_int_enable(idev, MST_STATUS_TSS);
 
 	for (i = 0; ret == 0 && i < num; ++i)
-		ret = axxia_i2c_xfer_msg(idev, &msgs[i]);
-
-	axxia_i2c_stop(idev);
+		ret = axxia_i2c_xfer_msg(idev, &msgs[i], i == (num - 1));
 
 	return ret ? : i;
 }

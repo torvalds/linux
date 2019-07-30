@@ -80,10 +80,8 @@ void mlx5_init_port_tun_entropy(struct mlx5_tun_entropy *tun_entropy,
 	mlx5_query_port_tun_entropy(mdev, &entropy_flags);
 	tun_entropy->num_enabling_entries = 0;
 	tun_entropy->num_disabling_entries = 0;
-	tun_entropy->enabled = entropy_flags.calc_enabled;
-	tun_entropy->enabled =
-		(entropy_flags.calc_supported) ?
-		entropy_flags.calc_enabled : true;
+	tun_entropy->enabled = entropy_flags.calc_supported ?
+			       entropy_flags.calc_enabled : true;
 }
 
 static int mlx5_set_entropy(struct mlx5_tun_entropy *tun_entropy,

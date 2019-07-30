@@ -141,6 +141,8 @@
 #define mmUVD_GPCOM_VCPU_DATA0_BASE_IDX                                                                1
 #define mmUVD_GPCOM_VCPU_DATA1                                                                         0x03c5
 #define mmUVD_GPCOM_VCPU_DATA1_BASE_IDX                                                                1
+#define mmUVD_ENGINE_CNTL                                                                              0x03c6
+#define mmUVD_ENGINE_CNTL_BASE_IDX                                                                     1
 #define mmUVD_UDEC_DBW_UV_ADDR_CONFIG                                                                  0x03d2
 #define mmUVD_UDEC_DBW_UV_ADDR_CONFIG_BASE_IDX                                                         1
 #define mmUVD_UDEC_ADDR_CONFIG                                                                         0x03d3

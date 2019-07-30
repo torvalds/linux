@@ -8,7 +8,7 @@
 
 /* The maximal number of PEBS events: */
 #define MAX_PEBS_EVENTS		8
-#define MAX_FIXED_PEBS_EVENTS	3
+#define MAX_FIXED_PEBS_EVENTS	4
 
 /*
  * A debug store configuration.

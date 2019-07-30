@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Frame buffer device for IBM GXT4500P/6500P and GXT4000P/6000P
  * display adaptors

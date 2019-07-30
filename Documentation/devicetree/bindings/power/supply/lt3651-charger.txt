@@ -1,0 +1,29 @@
+Analog Devices LT3651 Charger Power Supply bindings: lt3651-charger
+
+Required properties:
+- compatible: Should contain one of the following:
+ * "lltc,ltc3651-charger", (DEPRECATED: Use "lltc,lt3651-charger")
+ * "lltc,lt3651-charger"
+ - lltc,acpr-gpios: Connect to ACPR output. See remark below.
+
+Optional properties:
+ - lltc,fault-gpios: Connect to FAULT output. See remark below.
+ - lltc,chrg-gpios: Connect to CHRG output. See remark below.
+
+The lt3651 outputs are open-drain type and active low. The driver assumes the
+GPIO reports "active" when the output is asserted, so if the pins have been
+connected directly, the GPIO flags should be set to active low also.
+
+The driver will attempt to aquire interrupts for all GPIOs to detect changes in
+line state. If the system is not capabale of providing interrupts, the driver
+cannot report changes and userspace will need to periodically read the sysfs
+attributes to detect changes.
+
+Example:
+
+	charger: battery-charger {
+		compatible = "lltc,lt3651-charger";
+		lltc,acpr-gpios = <&gpio0 68 GPIO_ACTIVE_LOW>;
+		lltc,fault-gpios = <&gpio0 64 GPIO_ACTIVE_LOW>;
+		lltc,chrg-gpios = <&gpio0 63 GPIO_ACTIVE_LOW>;
+	};

@@ -101,9 +101,9 @@ struct drm_dsc_config {
 	 */
 	u16 slice_height;
 	/**
-	 * @enable422: True for 4_2_2 sampling, false for 4_4_4 sampling
+	 * @simple_422: True if simple 4_2_2 mode is enabled else False
 	 */
-	bool enable422;
+	bool simple_422;
 	/**
 	 * @pic_width: Width of the input display frame in pixels
 	 */
@@ -601,8 +601,9 @@ struct drm_dsc_pps_infoframe {
 	struct drm_dsc_picture_parameter_set pps_payload;
 } __packed;
 
-void drm_dsc_dp_pps_header_init(struct drm_dsc_pps_infoframe *pps_sdp);
-void drm_dsc_pps_infoframe_pack(struct drm_dsc_pps_infoframe *pps_sdp,
+void drm_dsc_dp_pps_header_init(struct dp_sdp_header *pps_header);
+void drm_dsc_pps_payload_pack(struct drm_dsc_picture_parameter_set *pps_sdp,
 				const struct drm_dsc_config *dsc_cfg);
+int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg);
 
 #endif /* _DRM_DSC_H_ */

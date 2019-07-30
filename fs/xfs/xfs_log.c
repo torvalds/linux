@@ -23,6 +23,7 @@
 #include "xfs_cksum.h"
 #include "xfs_sysfs.h"
 #include "xfs_sb.h"
+#include "xfs_health.h"
 
 kmem_zone_t	*xfs_log_ticket_zone;
 
@@ -861,7 +862,7 @@ xfs_log_write_unmount_record(
 	 * recalculated during log recovery at next mount.  Refer to
 	 * xlog_check_unmount_rec for more details.
 	 */
-	if (XFS_TEST_ERROR((mp->m_flags & XFS_MOUNT_BAD_SUMMARY), mp,
+	if (XFS_TEST_ERROR(xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS), mp,
 			XFS_ERRTAG_FORCE_SUMMARY_RECALC)) {
 		xfs_alert(mp, "%s: will fix summary counters at next mount",
 				__func__);
@@ -2068,7 +2069,7 @@ xlog_print_tic_res(
 
 	/* match with XLOG_REG_TYPE_* in xfs_log.h */
 #define REG_TYPE_STR(type, str)	[XLOG_REG_TYPE_##type] = str
-	static char *res_type_str[XLOG_REG_TYPE_MAX + 1] = {
+	static char *res_type_str[] = {
 	    REG_TYPE_STR(BFORMAT, "bformat"),
 	    REG_TYPE_STR(BCHUNK, "bchunk"),
 	    REG_TYPE_STR(EFI_FORMAT, "efi_format"),
@@ -2088,8 +2089,15 @@ xlog_print_tic_res(
 	    REG_TYPE_STR(UNMOUNT, "unmount"),
 	    REG_TYPE_STR(COMMIT, "commit"),
 	    REG_TYPE_STR(TRANSHDR, "trans header"),
-	    REG_TYPE_STR(ICREATE, "inode create")
+	    REG_TYPE_STR(ICREATE, "inode create"),
+	    REG_TYPE_STR(RUI_FORMAT, "rui_format"),
+	    REG_TYPE_STR(RUD_FORMAT, "rud_format"),
+	    REG_TYPE_STR(CUI_FORMAT, "cui_format"),
+	    REG_TYPE_STR(CUD_FORMAT, "cud_format"),
+	    REG_TYPE_STR(BUI_FORMAT, "bui_format"),
+	    REG_TYPE_STR(BUD_FORMAT, "bud_format"),
 	};
+	BUILD_BUG_ON(ARRAY_SIZE(res_type_str) != XLOG_REG_TYPE_MAX + 1);
 #undef REG_TYPE_STR
 
 	xfs_warn(mp, "ticket reservation summary:");

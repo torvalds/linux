@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config IBM_EMAC
 	tristate "IBM EMAC Ethernet support"
 	depends on PPC_DCR

@@ -301,7 +301,7 @@ static struct phy_device *__fixed_phy_register(unsigned int irq,
 				 phy->supported);
 	}
 
-	linkmode_copy(phy->advertising, phy->supported);
+	phy_advertise_supported(phy);
 
 	ret = phy_device_register(phy);
 	if (ret) {

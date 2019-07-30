@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Sony ACX565AKM LCD Panel driver
  *
@@ -6,18 +7,6 @@
  * Original Driver Author: Imre Deak <imre.deak@nokia.com>
  * Based on panel-generic.c by Tomi Valkeinen <tomi.valkeinen@ti.com>
  * Adapted to new DSS2 framework: Roger Quadros <roger.quadros@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/backlight.h>
@@ -516,16 +505,8 @@ static void acx565akm_disconnect(struct omap_dss_device *src,
 static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-	int r;
 
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
-
-	r = src->ops->enable(src);
-	if (r) {
-		pr_err("%s sdi enable failed\n", __func__);
-		return r;
-	}
 
 	/*FIXME tweak me */
 	msleep(50);
@@ -562,7 +543,6 @@ static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 static void acx565akm_panel_power_off(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
 
 	dev_dbg(dssdev->dev, "%s\n", __func__);
 
@@ -585,56 +565,32 @@ static void acx565akm_panel_power_off(struct omap_dss_device *dssdev)
 
 	/* FIXME need to tweak this delay */
 	msleep(100);
-
-	src->ops->disable(src);
 }
 
-static int acx565akm_enable(struct omap_dss_device *dssdev)
+static void acx565akm_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	int r;
-
-	dev_dbg(dssdev->dev, "%s\n", __func__);
-
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
 
 	mutex_lock(&ddata->mutex);
-	r = acx565akm_panel_power_on(dssdev);
+	acx565akm_panel_power_on(dssdev);
 	mutex_unlock(&ddata->mutex);
-	if (r)
-		return r;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return 0;
 }
 
 static void acx565akm_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	dev_dbg(dssdev->dev, "%s\n", __func__);
-
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	mutex_lock(&ddata->mutex);
 	acx565akm_panel_power_off(dssdev);
 	mutex_unlock(&ddata->mutex);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void acx565akm_get_timings(struct omap_dss_device *dssdev,
-				  struct videomode *vm)
+static int acx565akm_get_modes(struct omap_dss_device *dssdev,
+			       struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*vm = ddata->vm;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
 static const struct omap_dss_device_ops acx565akm_ops = {
@@ -644,7 +600,7 @@ static const struct omap_dss_device_ops acx565akm_ops = {
 	.enable		= acx565akm_enable,
 	.disable	= acx565akm_disable,
 
-	.get_timings	= acx565akm_get_timings,
+	.get_modes	= acx565akm_get_modes,
 };
 
 static int acx565akm_probe(struct spi_device *spi)
@@ -739,10 +695,13 @@ static int acx565akm_probe(struct spi_device *spi)
 	dssdev->dev = &spi->dev;
 	dssdev->ops = &acx565akm_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_SDI;
+	dssdev->display = true;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
-	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_SYNC_NEGEDGE
-			  | DRM_BUS_FLAG_PIXDATA_POSEDGE;
+	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_MODES;
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH
+			  | DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE
+			  | DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);
@@ -766,7 +725,8 @@ static int acx565akm_remove(struct spi_device *spi)
 
 	omapdss_device_unregister(dssdev);
 
-	acx565akm_disable(dssdev);
+	if (omapdss_device_is_enabled(dssdev))
+		acx565akm_disable(dssdev);
 
 	return 0;
 }

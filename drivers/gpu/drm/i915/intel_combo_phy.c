@@ -239,7 +239,8 @@ void icl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 	for_each_combo_port_reverse(dev_priv, port) {
 		u32 val;
 
-		if (!icl_combo_phy_verify_state(dev_priv, port))
+		if (port == PORT_A &&
+		    !icl_combo_phy_verify_state(dev_priv, port))
 			DRM_WARN("Port %c combo PHY HW state changed unexpectedly\n",
 				 port_name(port));
 

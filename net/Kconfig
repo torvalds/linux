@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Network configuration
 #
@@ -429,11 +430,8 @@ config NET_SOCK_MSG
 	  with the help of BPF programs.
 
 config NET_DEVLINK
-	bool "Network physical/parent device Netlink interface"
-	help
-	  Network physical/parent device Netlink interface provides
-	  infrastructure to support access to physical chip-wide config and
-	  monitoring.
+	bool
+	default n
 
 config PAGE_POOL
        bool

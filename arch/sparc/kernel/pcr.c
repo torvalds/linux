@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* pcr.c: Generic sparc64 performance counter infrastructure.
  *
  * Copyright (C) 2009 David S. Miller (davem@davemloft.net)

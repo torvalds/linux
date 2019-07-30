@@ -45,5 +45,6 @@ struct meson_clk_pll_data {
 
 extern const struct clk_ops meson_clk_pll_ro_ops;
 extern const struct clk_ops meson_clk_pll_ops;
+extern const struct clk_ops meson_clk_pcie_pll_ops;
 
 #endif /* __MESON_CLK_PLL_H */

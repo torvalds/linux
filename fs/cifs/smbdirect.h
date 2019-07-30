@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *   Copyright (C) 2017, Microsoft Corporation.
  *
  *   Author(s): Long Li <longli@microsoft.com>
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
  */
 #ifndef _SMBDIRECT_H
 #define _SMBDIRECT_H
@@ -70,12 +61,11 @@ struct smbd_connection {
 	int ri_rc;
 	struct completion ri_done;
 	wait_queue_head_t conn_wait;
-	wait_queue_head_t wait_destroy;
+	wait_queue_head_t disconn_wait;
 
 	struct completion negotiate_completion;
 	bool negotiate_done;
 
-	struct work_struct destroy_work;
 	struct work_struct disconnect_work;
 	struct work_struct recv_done_work;
 	struct work_struct post_send_credits_work;
@@ -123,13 +113,6 @@ struct smbd_connection {
 	wait_queue_head_t wait_for_mr_cleanup;
 
 	/* Activity accoutning */
-	/* Pending reqeusts issued from upper layer */
-	int smbd_send_pending;
-	wait_queue_head_t wait_smbd_send_pending;
-
-	int smbd_recv_pending;
-	wait_queue_head_t wait_smbd_recv_pending;
-
 	atomic_t send_pending;
 	wait_queue_head_t wait_send_pending;
 	atomic_t send_payload_pending;
@@ -288,11 +271,12 @@ struct smbd_connection *smbd_get_connection(
 /* Reconnect SMBDirect session */
 int smbd_reconnect(struct TCP_Server_Info *server);
 /* Destroy SMBDirect session */
-void smbd_destroy(struct smbd_connection *info);
+void smbd_destroy(struct TCP_Server_Info *server);
 
 /* Interface for carrying upper layer I/O through send/recv */
 int smbd_recv(struct smbd_connection *info, struct msghdr *msg);
-int smbd_send(struct TCP_Server_Info *server, struct smb_rqst *rqst);
+int smbd_send(struct TCP_Server_Info *server,
+	int num_rqst, struct smb_rqst *rqst);
 
 enum mr_state {
 	MR_READY,
@@ -330,9 +314,9 @@ struct smbd_connection {};
 static inline void *smbd_get_connection(
 	struct TCP_Server_Info *server, struct sockaddr *dstaddr) {return NULL;}
 static inline int smbd_reconnect(struct TCP_Server_Info *server) {return -1; }
-static inline void smbd_destroy(struct smbd_connection *info) {}
+static inline void smbd_destroy(struct TCP_Server_Info *server) {}
 static inline int smbd_recv(struct smbd_connection *info, struct msghdr *msg) {return -1; }
-static inline int smbd_send(struct TCP_Server_Info *server, struct smb_rqst *rqst) {return -1; }
+static inline int smbd_send(struct TCP_Server_Info *server, int num_rqst, struct smb_rqst *rqst) {return -1; }
 #endif
 
 #endif

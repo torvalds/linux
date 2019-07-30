@@ -367,7 +367,7 @@ static void iproc_msi_handler(struct irq_desc *desc)
 
 		/*
 		 * Now go read the tail pointer again to see if there are new
-		 * oustanding events that came in during the above window.
+		 * outstanding events that came in during the above window.
 		 */
 	} while (true);
 

@@ -3,7 +3,7 @@
  * Renesas Mobile SDHI
  *
  * Copyright (C) 2017 Horms Solutions Ltd., Simon Horman
- * Copyright (C) 2017 Renesas Electronics Corporation
+ * Copyright (C) 2017-19 Renesas Electronics Corporation
  */
 
 #ifndef RENESAS_SDHI_H

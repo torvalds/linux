@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NEC NL8048HL11 Panel driver
  *
  * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Erik Gilling <konkers@android.com>
  * Converted to new DSS device model: Tomi Valkeinen <tomi.valkeinen@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/delay.h>
@@ -118,50 +114,26 @@ static void nec_8048_disconnect(struct omap_dss_device *src,
 {
 }
 
-static int nec_8048_enable(struct omap_dss_device *dssdev)
+static void nec_8048_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-	int r;
-
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
-	r = src->ops->enable(src);
-	if (r)
-		return r;
 
 	gpiod_set_value_cansleep(ddata->res_gpio, 1);
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return 0;
 }
 
 static void nec_8048_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
 
 	gpiod_set_value_cansleep(ddata->res_gpio, 0);
-
-	src->ops->disable(src);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void nec_8048_get_timings(struct omap_dss_device *dssdev,
-				 struct videomode *vm)
+static int nec_8048_get_modes(struct omap_dss_device *dssdev,
+			      struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*vm = ddata->vm;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
 static const struct omap_dss_device_ops nec_8048_ops = {
@@ -171,7 +143,7 @@ static const struct omap_dss_device_ops nec_8048_ops = {
 	.enable		= nec_8048_enable,
 	.disable	= nec_8048_disable,
 
-	.get_timings	= nec_8048_get_timings,
+	.get_modes	= nec_8048_get_modes,
 };
 
 static int nec_8048_probe(struct spi_device *spi)
@@ -216,10 +188,13 @@ static int nec_8048_probe(struct spi_device *spi)
 	dssdev->dev = &spi->dev;
 	dssdev->ops = &nec_8048_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
+	dssdev->display = true;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
-	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_SYNC_POSEDGE
-			  | DRM_BUS_FLAG_PIXDATA_POSEDGE;
+	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_MODES;
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH
+			  | DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE
+			  | DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

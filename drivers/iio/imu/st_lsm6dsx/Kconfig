@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 config IIO_ST_LSM6DSX
 	tristate "ST_LSM6DSx driver for STM 6-axis IMU MEMS sensors"
@@ -9,7 +10,7 @@ config IIO_ST_LSM6DSX
 	help
 	  Say yes here to build support for STMicroelectronics LSM6DSx imu
 	  sensor. Supported devices: lsm6ds3, lsm6ds3h, lsm6dsl, lsm6dsm,
-	  ism330dlc, lsm6dso
+	  ism330dlc, lsm6dso, lsm6dsox, asm330lhh, lsm6dsr
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called st_lsm6dsx.

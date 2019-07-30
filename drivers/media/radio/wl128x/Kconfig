@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # TI's wl128x FM driver based on TI's ST driver.
 #

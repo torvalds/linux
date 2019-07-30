@@ -1599,7 +1599,7 @@ static int ave_probe(struct platform_device *pdev)
 	ndev->max_mtu = AVE_MAX_ETHFRAME - (ETH_HLEN + ETH_FCS_LEN);
 
 	mac_addr = of_get_mac_address(np);
-	if (mac_addr)
+	if (!IS_ERR(mac_addr))
 		ether_addr_copy(ndev->dev_addr, mac_addr);
 
 	/* if the mac address is invalid, use random mac address */

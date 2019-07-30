@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Extended Error Log driver
  *
  * Copyright (C) 2013 Intel Corp.
  * Author: Chen, Gong <gong.chen@intel.com>
- *
- * This file is licensed under GPLv2.
  */
 
 #include <linux/module.h>

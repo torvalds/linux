@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Marek Vasut <marex@denx.de>
  *
@@ -5,15 +6,6 @@
  * Copyright (C) 2010 Juergen Beisert, Pengutronix
  * Copyright (C) 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright (C) 2008 Embedded Alley Solutions, Inc All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <drm/drmP.h>
@@ -253,12 +245,12 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
 	if (!(bus_flags & DRM_BUS_FLAG_DE_LOW))
 		vdctrl0 |= VDCTRL0_ENABLE_ACT_HIGH;
 	/*
-	 * DRM_BUS_FLAG_PIXDATA_ defines are controller centric,
+	 * DRM_BUS_FLAG_PIXDATA_DRIVE_ defines are controller centric,
 	 * controllers VDCTRL0_DOTCLK is display centric.
 	 * Drive on positive edge       -> display samples on falling edge
-	 * DRM_BUS_FLAG_PIXDATA_POSEDGE -> VDCTRL0_DOTCLK_ACT_FALLING
+	 * DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE -> VDCTRL0_DOTCLK_ACT_FALLING
 	 */
-	if (bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
+	if (bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE)
 		vdctrl0 |= VDCTRL0_DOTCLK_ACT_FALLING;
 
 	writel(vdctrl0, mxsfb->base + LCDC_VDCTRL0);

@@ -25,12 +25,10 @@
 #include <linux/module.h>
 #include <linux/fdtable.h>
 #include <linux/uaccess.h>
-#include <linux/firmware.h>
 #include <linux/mmu_context.h>
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
-#include "amdgpu_ucode.h"
 #include "soc15_hw_ip.h"
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
@@ -111,7 +109,6 @@ static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
 		uint8_t vmid);
 static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 		uint64_t page_table_base);
-static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type);
 static void set_scratch_backing_va(struct kgd_dev *kgd,
 					uint64_t va, uint32_t vmid);
 static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid);
@@ -158,7 +155,6 @@ static const struct kfd2kgd_calls kfd2kgd = {
 			get_atc_vmid_pasid_mapping_pasid,
 	.get_atc_vmid_pasid_mapping_valid =
 			get_atc_vmid_pasid_mapping_valid,
-	.get_fw_version = get_fw_version,
 	.set_scratch_backing_va = set_scratch_backing_va,
 	.get_tile_config = amdgpu_amdkfd_get_tile_config,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base,
@@ -872,56 +868,6 @@ static void set_scratch_backing_va(struct kgd_dev *kgd,
 	 * passed to the shader by the CP. It's the user mode driver's
 	 * responsibility.
 	 */
-}
-
-/* FIXME: Does this need to be ASIC-specific code? */
-static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
-	const union amdgpu_firmware_header *hdr;
-
-	switch (type) {
-	case KGD_ENGINE_PFP:
-		hdr = (const union amdgpu_firmware_header *)adev->gfx.pfp_fw->data;
-		break;
-
-	case KGD_ENGINE_ME:
-		hdr = (const union amdgpu_firmware_header *)adev->gfx.me_fw->data;
-		break;
-
-	case KGD_ENGINE_CE:
-		hdr = (const union amdgpu_firmware_header *)adev->gfx.ce_fw->data;
-		break;
-
-	case KGD_ENGINE_MEC1:
-		hdr = (const union amdgpu_firmware_header *)adev->gfx.mec_fw->data;
-		break;
-
-	case KGD_ENGINE_MEC2:
-		hdr = (const union amdgpu_firmware_header *)adev->gfx.mec2_fw->data;
-		break;
-
-	case KGD_ENGINE_RLC:
-		hdr = (const union amdgpu_firmware_header *)adev->gfx.rlc_fw->data;
-		break;
-
-	case KGD_ENGINE_SDMA1:
-		hdr = (const union amdgpu_firmware_header *)adev->sdma.instance[0].fw->data;
-		break;
-
-	case KGD_ENGINE_SDMA2:
-		hdr = (const union amdgpu_firmware_header *)adev->sdma.instance[1].fw->data;
-		break;
-
-	default:
-		return 0;
-	}
-
-	if (hdr == NULL)
-		return 0;
-
-	/* Only 12 bit in use*/
-	return hdr->common.ucode_version;
 }
 
 static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,

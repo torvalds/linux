@@ -9,6 +9,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/rtc.h>
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
@@ -271,7 +272,6 @@ static const struct regmap_config snvs_rtc_config = {
 static int snvs_rtc_probe(struct platform_device *pdev)
 {
 	struct snvs_rtc_data *data;
-	struct resource *res;
 	int ret;
 	void __iomem *mmio;
 
@@ -283,9 +283,8 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 
 	if (IS_ERR(data->regmap)) {
 		dev_warn(&pdev->dev, "snvs rtc: you use old dts file, please update it\n");
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-		mmio = devm_ioremap_resource(&pdev->dev, res);
+		mmio = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(mmio))
 			return PTR_ERR(mmio);
 
@@ -332,6 +331,9 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 	}
 
 	device_init_wakeup(&pdev->dev, true);
+	ret = dev_pm_set_wake_irq(&pdev->dev, data->irq);
+	if (ret)
+		dev_err(&pdev->dev, "failed to enable irq wake\n");
 
 	ret = devm_request_irq(&pdev->dev, data->irq, snvs_rtc_irq_handler,
 			       IRQF_SHARED, "rtc alarm", &pdev->dev);
@@ -358,18 +360,7 @@ error_rtc_device_register:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int snvs_rtc_suspend(struct device *dev)
-{
-	struct snvs_rtc_data *data = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		return enable_irq_wake(data->irq);
-
-	return 0;
-}
-
-static int snvs_rtc_suspend_noirq(struct device *dev)
+static int __maybe_unused snvs_rtc_suspend_noirq(struct device *dev)
 {
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
 
@@ -379,17 +370,7 @@ static int snvs_rtc_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int snvs_rtc_resume(struct device *dev)
-{
-	struct snvs_rtc_data *data = dev_get_drvdata(dev);
-
-	if (device_may_wakeup(dev))
-		return disable_irq_wake(data->irq);
-
-	return 0;
-}
-
-static int snvs_rtc_resume_noirq(struct device *dev)
+static int __maybe_unused snvs_rtc_resume_noirq(struct device *dev)
 {
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
 
@@ -400,19 +381,8 @@ static int snvs_rtc_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops snvs_rtc_pm_ops = {
-	.suspend = snvs_rtc_suspend,
-	.suspend_noirq = snvs_rtc_suspend_noirq,
-	.resume = snvs_rtc_resume,
-	.resume_noirq = snvs_rtc_resume_noirq,
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(snvs_rtc_suspend_noirq, snvs_rtc_resume_noirq)
 };
-
-#define SNVS_RTC_PM_OPS	(&snvs_rtc_pm_ops)
-
-#else
-
-#define SNVS_RTC_PM_OPS	NULL
-
-#endif
 
 static const struct of_device_id snvs_dt_ids[] = {
 	{ .compatible = "fsl,sec-v4.0-mon-rtc-lp", },
@@ -423,7 +393,7 @@ MODULE_DEVICE_TABLE(of, snvs_dt_ids);
 static struct platform_driver snvs_rtc_driver = {
 	.driver = {
 		.name	= "snvs_rtc",
-		.pm	= SNVS_RTC_PM_OPS,
+		.pm	= &snvs_rtc_pm_ops,
 		.of_match_table = snvs_dt_ids,
 	},
 	.probe		= snvs_rtc_probe,

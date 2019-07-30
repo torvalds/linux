@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Written by Pekka Paalanen, 2008-2009 <pq@iki.fi>
  */

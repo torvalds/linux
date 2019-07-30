@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig NVMEM
 	bool "NVMEM Support"
 	help
@@ -13,6 +14,16 @@ menuconfig NVMEM
 
 if NVMEM
 
+config NVMEM_SYSFS
+	bool "/sys/bus/nvmem/devices/*/nvmem (sysfs interface)"
+	depends on SYSFS
+	default y
+	help
+	 Say Y here to add a sysfs interface for NVMEM.
+
+	 This interface is mostly used by userspace applications to
+	 read/write directly into nvmem.
+
 config NVMEM_IMX_IIM
 	tristate "i.MX IC Identification Module support"
 	depends on ARCH_MXC || COMPILE_TEST
@@ -25,8 +36,8 @@ config NVMEM_IMX_IIM
 	  will be called nvmem-imx-iim.
 
 config NVMEM_IMX_OCOTP
-	tristate "i.MX6 On-Chip OTP Controller support"
-	depends on SOC_IMX6 || SOC_IMX7D || COMPILE_TEST
+	tristate "i.MX 6/7/8 On-Chip OTP Controller support"
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  This is a driver for the On-Chip OTP Controller (OCOTP) available on
@@ -112,6 +123,16 @@ config NVMEM_BCM_OCOTP
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-bcm-ocotp.
+
+config NVMEM_STM32_ROMEM
+	tristate "STMicroelectronics STM32 factory-programmed memory support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  Say y here to enable read-only access for STMicroelectronics STM32
+	  factory-programmed memory area.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-stm32-romem.
 
 config NVMEM_SUNXI_SID
 	tristate "Allwinner SoCs SID support"

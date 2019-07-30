@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VHOST_NET
 	tristate "Host kernel accelerator for virtio net"
 	depends on NET && EVENTFD && (TUN || !TUN) && (TAP || !TAP)

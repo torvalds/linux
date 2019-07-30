@@ -26,6 +26,9 @@ int pci_proc_domain(struct pci_bus *);
 #define ZPCI_BUS_NR			0	/* default bus number */
 #define ZPCI_DEVFN			0	/* default device number */
 
+#define ZPCI_NR_DMA_SPACES		1
+#define ZPCI_NR_DEVICES			CONFIG_PCI_NR_FUNCTIONS
+
 /* PCI Function Controls */
 #define ZPCI_FC_FN_ENABLED		0x80
 #define ZPCI_FC_ERROR			0x40
@@ -83,6 +86,8 @@ enum zpci_state {
 
 struct zpci_bar_struct {
 	struct resource *res;		/* bus resource */
+	void __iomem	*mio_wb;
+	void __iomem	*mio_wt;
 	u32		val;		/* bar start & 3 flag bits */
 	u16		map_idx;	/* index into bar mapping array */
 	u8		size;		/* order 2 exponent */
@@ -112,6 +117,8 @@ struct zpci_dev {
 	/* IRQ stuff */
 	u64		msi_addr;	/* MSI address */
 	unsigned int	max_msi;	/* maximum number of MSI's */
+	unsigned int	msi_first_bit;
+	unsigned int	msi_nr_irqs;
 	struct airq_iv *aibv;		/* adapter interrupt bit vector */
 	unsigned long	aisb;		/* number of the summary bit */
 
@@ -130,6 +137,7 @@ struct zpci_dev {
 	struct iommu_device iommu_dev;  /* IOMMU core handle */
 
 	char res_name[16];
+	bool mio_capable;
 	struct zpci_bar_struct bars[PCI_BAR_COUNT];
 
 	u64		start_dma;	/* Start of available DMA addresses */
@@ -158,6 +166,7 @@ static inline bool zdev_enabled(struct zpci_dev *zdev)
 }
 
 extern const struct attribute_group *zpci_attr_groups[];
+extern unsigned int s390_pci_force_floating __initdata;
 
 /* -----------------------------------------------------------------------------
   Prototypes
@@ -218,6 +227,9 @@ struct zpci_dev *get_zdev_by_fid(u32);
 /* DMA */
 int zpci_dma_init(void);
 void zpci_dma_exit(void);
+
+int __init zpci_irq_init(void);
+void __init zpci_irq_exit(void);
 
 /* FMB */
 int zpci_fmb_enable_device(struct zpci_dev *);

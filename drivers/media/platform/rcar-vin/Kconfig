@@ -3,6 +3,7 @@ config VIDEO_RCAR_CSI2
 	tristate "R-Car MIPI CSI-2 Receiver"
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && OF
 	depends on ARCH_RENESAS || COMPILE_TEST
+	select RESET_CONTROLLER
 	select V4L2_FWNODE
 	help
 	  Support for Renesas R-Car MIPI CSI-2 receiver.
@@ -17,7 +18,7 @@ config VIDEO_RCAR_VIN
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_FWNODE
-	---help---
+	help
 	  Support for Renesas R-Car Video Input (VIN) driver.
 	  Supports R-Car Gen2 and Gen3 SoCs.
 

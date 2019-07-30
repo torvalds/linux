@@ -233,6 +233,10 @@
 #define MT_WF_DMA(ofs)			(MT_WF_DMA_BASE + (ofs))
 
 #define MT_DMA_DCR0			MT_WF_DMA(0x000)
+#define MT_DMA_DCR0_MAX_RX_LEN		GENMASK(15, 0)
+#define MT_DMA_DCR0_DAMSDU		BIT(16)
+#define MT_DMA_DCR0_RX_VEC_DROP		BIT(17)
+
 #define MT_DMA_DCR1			MT_WF_DMA(0x004)
 
 #define MT_DMA_FQCR0			MT_WF_DMA(0x008)

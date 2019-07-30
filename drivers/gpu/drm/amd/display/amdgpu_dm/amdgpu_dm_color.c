@@ -126,46 +126,51 @@ int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc)
 		crtc->base.state->dev->dev_private;
 	struct drm_color_lut *lut;
 	uint32_t lut_size;
-	struct dc_gamma *gamma;
+	struct dc_gamma *gamma = NULL;
 	enum dc_transfer_func_type old_type = stream->out_transfer_func->type;
 
 	bool ret;
 
-	if (!blob) {
+	if (!blob && adev->asic_type <= CHIP_RAVEN) {
 		/* By default, use the SRGB predefined curve.*/
 		stream->out_transfer_func->type = TF_TYPE_PREDEFINED;
 		stream->out_transfer_func->tf = TRANSFER_FUNCTION_SRGB;
 		return 0;
 	}
 
-	lut = (struct drm_color_lut *)blob->data;
-	lut_size = blob->length / sizeof(struct drm_color_lut);
+	if (blob) {
+		lut = (struct drm_color_lut *)blob->data;
+		lut_size = blob->length / sizeof(struct drm_color_lut);
 
-	gamma = dc_create_gamma();
-	if (!gamma)
-		return -ENOMEM;
+		gamma = dc_create_gamma();
+		if (!gamma)
+			return -ENOMEM;
 
-	gamma->num_entries = lut_size;
-	if (gamma->num_entries == MAX_COLOR_LEGACY_LUT_ENTRIES)
-		gamma->type = GAMMA_RGB_256;
-	else if (gamma->num_entries == MAX_COLOR_LUT_ENTRIES)
-		gamma->type = GAMMA_CS_TFM_1D;
-	else {
-		/* Invalid lut size */
-		dc_gamma_release(&gamma);
-		return -EINVAL;
+		gamma->num_entries = lut_size;
+		if (gamma->num_entries == MAX_COLOR_LEGACY_LUT_ENTRIES)
+			gamma->type = GAMMA_RGB_256;
+		else if (gamma->num_entries == MAX_COLOR_LUT_ENTRIES)
+			gamma->type = GAMMA_CS_TFM_1D;
+		else {
+			/* Invalid lut size */
+			dc_gamma_release(&gamma);
+			return -EINVAL;
+		}
+
+		/* Convert drm_lut into dc_gamma */
+		__drm_lut_to_dc_gamma(lut, gamma, gamma->type == GAMMA_RGB_256);
 	}
 
-	/* Convert drm_lut into dc_gamma */
-	__drm_lut_to_dc_gamma(lut, gamma, gamma->type == GAMMA_RGB_256);
-
-	/* Call color module to translate into something DC understands. Namely
-	 * a transfer function.
+	/* predefined gamma ROM only exist for RAVEN and pre-RAVEN ASIC,
+	 * set canRomBeUsed accordingly
 	 */
 	stream->out_transfer_func->type = TF_TYPE_DISTRIBUTED_POINTS;
 	ret = mod_color_calculate_regamma_params(stream->out_transfer_func,
-						 gamma, true, adev->asic_type <= CHIP_RAVEN, NULL);
-	dc_gamma_release(&gamma);
+			gamma, true, adev->asic_type <= CHIP_RAVEN, NULL);
+
+	if (gamma)
+		dc_gamma_release(&gamma);
+
 	if (!ret) {
 		stream->out_transfer_func->type = old_type;
 		DRM_ERROR("Out of memory when calculating regamma params\n");

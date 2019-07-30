@@ -170,6 +170,7 @@ struct hfi1_qp_priv {
 	struct tid_flow_state flow_state;
 	struct tid_rdma_qp_params tid_rdma;
 	struct rvt_qp *owner;
+	u16 s_running_pkt_size;
 	u8 hdr_type; /* 9B or 16B */
 	struct rvt_sge_state tid_ss;       /* SGE state pointer for 2nd leg */
 	atomic_t n_requests;               /* # of TID RDMA requests in the */
@@ -415,6 +416,7 @@ void hfi1_rc_hdrerr(
 
 u8 ah_to_sc(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr);
 
+void hfi1_rc_verbs_aborted(struct rvt_qp *qp, struct hfi1_opa_header *opah);
 void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah);
 
 void hfi1_ud_rcv(struct hfi1_packet *packet);

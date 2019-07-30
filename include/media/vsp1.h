@@ -17,6 +17,9 @@ struct device;
 
 int vsp1_du_init(struct device *dev);
 
+#define VSP1_DU_STATUS_COMPLETE		BIT(0)
+#define VSP1_DU_STATUS_WRITEBACK	BIT(1)
+
 /**
  * struct vsp1_du_lif_config - VSP LIF configuration
  * @width: output frame width
@@ -32,7 +35,7 @@ struct vsp1_du_lif_config {
 	unsigned int height;
 	bool interlaced;
 
-	void (*callback)(void *data, bool completed, u32 crc);
+	void (*callback)(void *data, unsigned int status, u32 crc);
 	void *callback_data;
 };
 
@@ -82,11 +85,25 @@ struct vsp1_du_crc_config {
 };
 
 /**
+ * struct vsp1_du_writeback_config - VSP writeback configuration parameters
+ * @pixelformat: plane pixel format (V4L2 4CC)
+ * @pitch: line pitch in bytes for the first plane
+ * @mem: DMA memory address for each plane of the frame buffer
+ */
+struct vsp1_du_writeback_config {
+	u32 pixelformat;
+	unsigned int pitch;
+	dma_addr_t mem[3];
+};
+
+/**
  * struct vsp1_du_atomic_pipe_config - VSP atomic pipe configuration parameters
  * @crc: CRC computation configuration
+ * @writeback: writeback configuration
  */
 struct vsp1_du_atomic_pipe_config {
 	struct vsp1_du_crc_config crc;
+	struct vsp1_du_writeback_config writeback;
 };
 
 void vsp1_du_atomic_begin(struct device *dev, unsigned int pipe_index);

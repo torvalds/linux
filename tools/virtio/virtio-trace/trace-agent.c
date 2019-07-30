@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Guest agent for virtio-trace
  *
  * Copyright (C) 2012 Hitachi, Ltd.
  * Created by Yoshihiro Yunomae <yoshihiro.yunomae.ez@hitachi.com>
  *            Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
- *
- * Licensed under GPL version 2 only.
- *
  */
 
 #define _GNU_SOURCE

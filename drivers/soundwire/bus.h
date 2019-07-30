@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
-// Copyright(c) 2015-17 Intel Corporation.
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* Copyright(c) 2015-17 Intel Corporation. */
 
 #ifndef __SDW_BUS_H
 #define __SDW_BUS_H
@@ -16,7 +16,7 @@ static inline int sdw_acpi_find_slaves(struct sdw_bus *bus)
 #endif
 
 void sdw_extract_slave_id(struct sdw_bus *bus,
-			u64 addr, struct sdw_slave_id *id);
+			  u64 addr, struct sdw_slave_id *id);
 
 enum {
 	SDW_MSG_FLAG_READ = 0,
@@ -116,19 +116,19 @@ struct sdw_master_runtime {
 };
 
 struct sdw_dpn_prop *sdw_get_slave_dpn_prop(struct sdw_slave *slave,
-				enum sdw_data_direction direction,
-				unsigned int port_num);
+					    enum sdw_data_direction direction,
+					    unsigned int port_num);
 int sdw_configure_dpn_intr(struct sdw_slave *slave, int port,
-					bool enable, int mask);
+			   bool enable, int mask);
 
 int sdw_transfer(struct sdw_bus *bus, struct sdw_msg *msg);
 int sdw_transfer_defer(struct sdw_bus *bus, struct sdw_msg *msg,
-				struct sdw_defer *defer);
+		       struct sdw_defer *defer);
 
 #define SDW_READ_INTR_CLEAR_RETRY	10
 
 int sdw_fill_msg(struct sdw_msg *msg, struct sdw_slave *slave,
-		u32 addr, size_t count, u16 dev_num, u8 flags, u8 *buf);
+		 u32 addr, size_t count, u16 dev_num, u8 flags, u8 *buf);
 
 /* Read-Modify-Write Slave register */
 static inline int

@@ -133,7 +133,7 @@ static int radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 	/* TODO we should be able to split locking for interval tree and
 	 * the tear down.
 	 */
-	if (range->blockable)
+	if (mmu_notifier_range_blockable(range))
 		mutex_lock(&rmn->lock);
 	else if (!mutex_trylock(&rmn->lock))
 		return -EAGAIN;
@@ -144,7 +144,7 @@ static int radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 		struct radeon_bo *bo;
 		long r;
 
-		if (!range->blockable) {
+		if (!mmu_notifier_range_blockable(range)) {
 			ret = -EAGAIN;
 			goto out_unlock;
 		}

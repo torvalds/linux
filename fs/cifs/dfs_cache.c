@@ -2,7 +2,7 @@
 /*
  * DFS referral cache routines
  *
- * Copyright (c) 2018 Paulo Alcantara <palcantara@suse.de>
+ * Copyright (c) 2018-2019 Paulo Alcantara <palcantara@suse.de>
  */
 
 #include <linux/rcupdate.h>
@@ -52,6 +52,7 @@ static struct kmem_cache *dfs_cache_slab __read_mostly;
 struct dfs_cache_vol_info {
 	char *vi_fullpath;
 	struct smb_vol vi_vol;
+	char *vi_mntdata;
 	struct list_head vi_list;
 };
 
@@ -131,7 +132,7 @@ static inline void flush_cache_ent(struct dfs_cache_entry *ce)
 		return;
 
 	hlist_del_init_rcu(&ce->ce_hlist);
-	kfree(ce->ce_path);
+	kfree_const(ce->ce_path);
 	free_tgts(ce);
 	dfs_cache_count--;
 	call_rcu(&ce->ce_rcu, free_cache_entry);
@@ -421,7 +422,7 @@ alloc_cache_entry(const char *path, const struct dfs_info3_param *refs,
 
 	rc = copy_ref_data(refs, numrefs, ce, NULL);
 	if (rc) {
-		kfree(ce->ce_path);
+		kfree_const(ce->ce_path);
 		kmem_cache_free(dfs_cache_slab, ce);
 		ce = ERR_PTR(rc);
 	}
@@ -529,6 +530,7 @@ static inline void free_vol(struct dfs_cache_vol_info *vi)
 {
 	list_del(&vi->vi_list);
 	kfree(vi->vi_fullpath);
+	kfree(vi->vi_mntdata);
 	cifs_cleanup_volume_info_contents(&vi->vi_vol);
 	kfree(vi);
 }
@@ -1139,17 +1141,18 @@ err_free_username:
  * dfs_cache_add_vol - add a cifs volume during mount() that will be handled by
  * DFS cache refresh worker.
  *
+ * @mntdata: mount data.
  * @vol: cifs volume.
  * @fullpath: origin full path.
  *
  * Return zero if volume was set up correctly, otherwise non-zero.
  */
-int dfs_cache_add_vol(struct smb_vol *vol, const char *fullpath)
+int dfs_cache_add_vol(char *mntdata, struct smb_vol *vol, const char *fullpath)
 {
 	int rc;
 	struct dfs_cache_vol_info *vi;
 
-	if (!vol || !fullpath)
+	if (!vol || !fullpath || !mntdata)
 		return -EINVAL;
 
 	cifs_dbg(FYI, "%s: fullpath: %s\n", __func__, fullpath);
@@ -1167,6 +1170,8 @@ int dfs_cache_add_vol(struct smb_vol *vol, const char *fullpath)
 	rc = dup_vol(vol, &vi->vi_vol);
 	if (rc)
 		goto err_free_fullpath;
+
+	vi->vi_mntdata = mntdata;
 
 	mutex_lock(&dfs_cache.dc_lock);
 	list_add_tail(&vi->vi_list, &dfs_cache.dc_vol_list);
@@ -1275,8 +1280,102 @@ static void get_tcons(struct TCP_Server_Info *server, struct list_head *head)
 	spin_unlock(&cifs_tcp_ses_lock);
 }
 
+static inline bool is_dfs_link(const char *path)
+{
+	char *s;
+
+	s = strchr(path + 1, '\\');
+	if (!s)
+		return false;
+	return !!strchr(s + 1, '\\');
+}
+
+static inline char *get_dfs_root(const char *path)
+{
+	char *s, *npath;
+
+	s = strchr(path + 1, '\\');
+	if (!s)
+		return ERR_PTR(-EINVAL);
+
+	s = strchr(s + 1, '\\');
+	if (!s)
+		return ERR_PTR(-EINVAL);
+
+	npath = kstrndup(path, s - path, GFP_KERNEL);
+	if (!npath)
+		return ERR_PTR(-ENOMEM);
+
+	return npath;
+}
+
+/* Find root SMB session out of a DFS link path */
+static struct cifs_ses *find_root_ses(struct dfs_cache_vol_info *vi,
+				      struct cifs_tcon *tcon, const char *path)
+{
+	char *rpath;
+	int rc;
+	struct dfs_info3_param ref = {0};
+	char *mdata = NULL, *devname = NULL;
+	bool is_smb3 = tcon->ses->server->vals->header_preamble_size == 0;
+	struct TCP_Server_Info *server;
+	struct cifs_ses *ses;
+	struct smb_vol vol;
+
+	rpath = get_dfs_root(path);
+	if (IS_ERR(rpath))
+		return ERR_CAST(rpath);
+
+	memset(&vol, 0, sizeof(vol));
+
+	rc = dfs_cache_noreq_find(rpath, &ref, NULL);
+	if (rc) {
+		ses = ERR_PTR(rc);
+		goto out;
+	}
+
+	mdata = cifs_compose_mount_options(vi->vi_mntdata, rpath, &ref,
+					   &devname);
+	free_dfs_info_param(&ref);
+
+	if (IS_ERR(mdata)) {
+		ses = ERR_CAST(mdata);
+		mdata = NULL;
+		goto out;
+	}
+
+	rc = cifs_setup_volume_info(&vol, mdata, devname, is_smb3);
+	kfree(devname);
+
+	if (rc) {
+		ses = ERR_PTR(rc);
+		goto out;
+	}
+
+	server = cifs_find_tcp_session(&vol);
+	if (IS_ERR_OR_NULL(server)) {
+		ses = ERR_PTR(-EHOSTDOWN);
+		goto out;
+	}
+	if (server->tcpStatus != CifsGood) {
+		cifs_put_tcp_session(server, 0);
+		ses = ERR_PTR(-EHOSTDOWN);
+		goto out;
+	}
+
+	ses = cifs_get_smb_ses(server, &vol);
+
+out:
+	cifs_cleanup_volume_info_contents(&vol);
+	kfree(mdata);
+	kfree(rpath);
+
+	return ses;
+}
+
 /* Refresh DFS cache entry from a given tcon */
-static void do_refresh_tcon(struct dfs_cache *dc, struct cifs_tcon *tcon)
+static void do_refresh_tcon(struct dfs_cache *dc, struct dfs_cache_vol_info *vi,
+			    struct cifs_tcon *tcon)
 {
 	int rc = 0;
 	unsigned int xid;
@@ -1285,6 +1384,7 @@ static void do_refresh_tcon(struct dfs_cache *dc, struct cifs_tcon *tcon)
 	struct dfs_cache_entry *ce;
 	struct dfs_info3_param *refs = NULL;
 	int numrefs = 0;
+	struct cifs_ses *root_ses = NULL, *ses;
 
 	xid = get_xid();
 
@@ -1306,13 +1406,24 @@ static void do_refresh_tcon(struct dfs_cache *dc, struct cifs_tcon *tcon)
 	if (!cache_entry_expired(ce))
 		goto out;
 
-	if (unlikely(!tcon->ses->server->ops->get_dfs_refer)) {
+	/* If it's a DFS Link, then use root SMB session for refreshing it */
+	if (is_dfs_link(npath)) {
+		ses = root_ses = find_root_ses(vi, tcon, npath);
+		if (IS_ERR(ses)) {
+			rc = PTR_ERR(ses);
+			root_ses = NULL;
+			goto out;
+		}
+	} else {
+		ses = tcon->ses;
+	}
+
+	if (unlikely(!ses->server->ops->get_dfs_refer)) {
 		rc = -EOPNOTSUPP;
 	} else {
-		rc = tcon->ses->server->ops->get_dfs_refer(xid, tcon->ses, path,
-							   &refs, &numrefs,
-							   dc->dc_nlsc,
-							   tcon->remap);
+		rc = ses->server->ops->get_dfs_refer(xid, ses, path, &refs,
+						     &numrefs, dc->dc_nlsc,
+						     tcon->remap);
 		if (!rc) {
 			mutex_lock(&dfs_cache_list_lock);
 			ce = __update_cache_entry(npath, refs, numrefs);
@@ -1323,9 +1434,11 @@ static void do_refresh_tcon(struct dfs_cache *dc, struct cifs_tcon *tcon)
 				rc = PTR_ERR(ce);
 		}
 	}
-	if (rc)
-		cifs_dbg(FYI, "%s: failed to update expired entry\n", __func__);
+
 out:
+	if (root_ses)
+		cifs_put_smb_ses(root_ses);
+
 	free_xid(xid);
 	free_normalized_path(path, npath);
 }
@@ -1333,9 +1446,6 @@ out:
 /*
  * Worker that will refresh DFS cache based on lowest TTL value from a DFS
  * referral.
- *
- * FIXME: ensure that all requests are sent to DFS root for refreshing the
- * cache.
  */
 static void refresh_cache_worker(struct work_struct *work)
 {
@@ -1356,7 +1466,7 @@ static void refresh_cache_worker(struct work_struct *work)
 			goto next;
 		get_tcons(server, &list);
 		list_for_each_entry_safe(tcon, ntcon, &list, ulist) {
-			do_refresh_tcon(dc, tcon);
+			do_refresh_tcon(dc, vi, tcon);
 			list_del_init(&tcon->ulist);
 			cifs_put_tcon(tcon);
 		}

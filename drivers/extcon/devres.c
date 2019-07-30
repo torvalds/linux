@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/extcon/devres.c - EXTCON device's resource management
  *
  * Copyright (C) 2016 Samsung Electronics
  * Author: Chanwoo Choi <cw00.choi@samsung.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "extcon.h"
@@ -205,7 +197,7 @@ EXPORT_SYMBOL(devm_extcon_register_notifier);
 
 /**
  * devm_extcon_unregister_notifier()
-			- Resource-managed extcon_unregister_notifier()
+ *			- Resource-managed extcon_unregister_notifier()
  * @dev:	the device owning the extcon device being created
  * @edev:	the extcon device
  * @id:		the unique id among the extcon enumeration

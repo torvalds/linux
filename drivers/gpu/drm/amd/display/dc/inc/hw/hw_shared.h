@@ -146,6 +146,12 @@ struct out_csc_color_matrix {
 	uint16_t regval[12];
 };
 
+enum gamut_remap_select {
+	GAMUT_REMAP_BYPASS = 0,
+	GAMUT_REMAP_COEFF,
+	GAMUT_REMAP_COMA_COEFF,
+	GAMUT_REMAP_COMB_COEFF
+};
 
 enum opp_regamma {
 	OPP_REGAMMA_BYPASS = 0,

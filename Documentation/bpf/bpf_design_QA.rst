@@ -85,8 +85,33 @@ Q: Can loops be supported in a safe way?
 A: It's not clear yet.
 
 BPF developers are trying to find a way to
-support bounded loops where the verifier can guarantee that
-the program terminates in less than 4096 instructions.
+support bounded loops.
+
+Q: What are the verifier limits?
+--------------------------------
+A: The only limit known to the user space is BPF_MAXINSNS (4096).
+It's the maximum number of instructions that the unprivileged bpf
+program can have. The verifier has various internal limits.
+Like the maximum number of instructions that can be explored during
+program analysis. Currently, that limit is set to 1 million.
+Which essentially means that the largest program can consist
+of 1 million NOP instructions. There is a limit to the maximum number
+of subsequent branches, a limit to the number of nested bpf-to-bpf
+calls, a limit to the number of the verifier states per instruction,
+a limit to the number of maps used by the program.
+All these limits can be hit with a sufficiently complex program.
+There are also non-numerical limits that can cause the program
+to be rejected. The verifier used to recognize only pointer + constant
+expressions. Now it can recognize pointer + bounded_register.
+bpf_lookup_map_elem(key) had a requirement that 'key' must be
+a pointer to the stack. Now, 'key' can be a pointer to map value.
+The verifier is steadily getting 'smarter'. The limits are
+being removed. The only way to know that the program is going to
+be accepted by the verifier is to try to load it.
+The bpf development process guarantees that the future kernel
+versions will accept all bpf programs that were accepted by
+the earlier versions.
+
 
 Instruction level questions
 ---------------------------

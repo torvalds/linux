@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_ATMEL_SOC
 	tristate "SoC Audio for the Atmel System-on-Chip"
 	depends on HAS_IOMEM
@@ -108,5 +109,19 @@ config SND_SOC_MIKROE_PROTO
 	  Board. This board contains the WM8731 codec, which can be configured
 	  using I2C over SDA (MPU Data Input) and SCL (MPU Clock Input) pins.
 	  Both playback and capture are supported.
+
+config SND_MCHP_SOC_I2S_MCC
+	tristate "Microchip ASoC driver for boards using I2S MCC"
+	depends on OF && (ARCH_AT91 || COMPILE_TEST)
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select REGMAP_MMIO
+	help
+	  Say Y or M if you want to add support for I2S Multi-Channel ASoC
+	  driver on the following Microchip platforms:
+	  - sam9x60
+
+	  The I2SMCC complies with the Inter-IC Sound (I2S) bus specification
+	  and supports a Time Division Multiplexed (TDM) interface with
+	  external multi-channel audio codecs.
 
 endif

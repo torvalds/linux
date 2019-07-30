@@ -9,6 +9,7 @@
 
 #include <linux/bits.h>
 #include <linux/completion.h>
+#include <linux/list.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/spinlock_types.h>
 #include <linux/types.h>
@@ -290,38 +291,108 @@
 #define     CHNL_ACTIVE__CHANNEL2			BIT(2)
 #define     CHNL_ACTIVE__CHANNEL3			BIT(3)
 
-struct denali_nand_info {
-	struct nand_chip nand;
-	unsigned long clk_rate;		/* core clock rate */
-	unsigned long clk_x_rate;	/* bus interface clock rate */
-	int active_bank;		/* currently selected bank */
+/**
+ * struct denali_chip_sel - per-CS data of Denali NAND
+ *
+ * @bank:                  bank id of the controller this CS is connected to
+ * @hwhr2_and_we_2_re:     value of timing register HWHR2_AND_WE_2_RE
+ * @tcwaw_and_addr_2_data: value of timing register TCWAW_AND_ADDR_2_DATA
+ * @re_2_we:               value of timing register RE_2_WE
+ * @acc_clks:              value of timing register ACC_CLKS
+ * @rdwr_en_lo_cnt:        value of timing register RDWR_EN_LO_CNT
+ * @rdwr_en_hi_cnt:        value of timing register RDWR_EN_HI_CNT
+ * @cs_setup_cnt:          value of timing register CS_SETUP_CNT
+ * @re_2_re:               value of timing register RE_2_RE
+ */
+struct denali_chip_sel {
+	int bank;
+	u32 hwhr2_and_we_2_re;
+	u32 tcwaw_and_addr_2_data;
+	u32 re_2_we;
+	u32 acc_clks;
+	u32 rdwr_en_lo_cnt;
+	u32 rdwr_en_hi_cnt;
+	u32 cs_setup_cnt;
+	u32 re_2_re;
+};
+
+/**
+ * struct denali_chip - per-chip data of Denali NAND
+ *
+ * @chip:  base NAND chip structure
+ * @node:  node to be used to associate this chip with the controller
+ * @nsels: the number of CS lines of this chip
+ * @sels:  the array of per-cs data
+ */
+struct denali_chip {
+	struct nand_chip chip;
+	struct list_head node;
+	unsigned int nsels;
+	struct denali_chip_sel sels[0];
+};
+
+/**
+ * struct denali_controller - Denali NAND controller data
+ *
+ * @controller:     base NAND controller structure
+ * @dev:            device
+ * @chips:          the list of chips attached to this controller
+ * @clk_rate:       frequency of core clock
+ * @clk_x_rate:     frequency of bus interface clock
+ * @reg:            base of Register Interface
+ * @host:           base of Host Data/Command interface
+ * @complete:       completion used to wait for interrupts
+ * @irq:            interrupt number
+ * @irq_mask:       interrupt bits the controller is waiting for
+ * @irq_status:     interrupt bits of events that have happened
+ * @irq_lock:       lock to protect @irq_mask and @irq_status
+ * @dma_avail:      set if DMA engine is available
+ * @devs_per_cs:    number of devices connected in parallel
+ * @oob_skip_bytes: number of bytes in OOB skipped by the ECC engine
+ * @active_bank:    active bank id
+ * @nbanks:         the number of banks supported by this controller
+ * @revision:       IP revision
+ * @caps:           controller capabilities that cannot be detected run-time
+ * @ecc_caps:       ECC engine capabilities
+ * @host_read:      callback for read access of Host Data/Command Interface
+ * @host_write:     callback for write access of Host Data/Command Interface
+ * @setup_dma:      callback for setup of the Data DMA
+ */
+struct denali_controller {
+	struct nand_controller controller;
 	struct device *dev;
-	void __iomem *reg;		/* Register Interface */
-	void __iomem *host;		/* Host Data/Command Interface */
+	struct list_head chips;
+	unsigned long clk_rate;
+	unsigned long clk_x_rate;
+	void __iomem *reg;
+	void __iomem *host;
 	struct completion complete;
-	spinlock_t irq_lock;		/* protect irq_mask and irq_status */
-	u32 irq_mask;			/* interrupts we are waiting for */
-	u32 irq_status;			/* interrupts that have happened */
 	int irq;
-	void *buf;			/* for syndrome layout conversion */
-	int dma_avail;			/* can support DMA? */
-	int devs_per_cs;		/* devices connected in parallel */
-	int oob_skip_bytes;		/* number of bytes reserved for BBM */
-	int max_banks;
-	unsigned int revision;		/* IP revision */
-	unsigned int caps;		/* IP capability (or quirk) */
+	u32 irq_mask;
+	u32 irq_status;
+	spinlock_t irq_lock;
+	bool dma_avail;
+	int devs_per_cs;
+	int oob_skip_bytes;
+	int active_bank;
+	int nbanks;
+	unsigned int revision;
+	unsigned int caps;
 	const struct nand_ecc_caps *ecc_caps;
-	u32 (*host_read)(struct denali_nand_info *denali, u32 addr);
-	void (*host_write)(struct denali_nand_info *denali, u32 addr, u32 data);
-	void (*setup_dma)(struct denali_nand_info *denali, dma_addr_t dma_addr,
-			  int page, int write);
+	u32 (*host_read)(struct denali_controller *denali, u32 addr);
+	void (*host_write)(struct denali_controller *denali, u32 addr,
+			   u32 data);
+	void (*setup_dma)(struct denali_controller *denali, dma_addr_t dma_addr,
+			  int page, bool write);
 };
 
 #define DENALI_CAP_HW_ECC_FIXUP			BIT(0)
 #define DENALI_CAP_DMA_64BIT			BIT(1)
 
 int denali_calc_ecc_bytes(int step_size, int strength);
-int denali_init(struct denali_nand_info *denali);
-void denali_remove(struct denali_nand_info *denali);
+int denali_chip_init(struct denali_controller *denali,
+		     struct denali_chip *dchip);
+int denali_init(struct denali_controller *denali);
+void denali_remove(struct denali_controller *denali);
 
 #endif /* __DENALI_H__ */

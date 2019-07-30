@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/regulator/ab3100.c
  *
  * Copyright (C) 2008-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Low-level control of the AB3100 IC Low Dropout (LDO)
  * regulators, external regulator and buck converter
  * Author: Mattias Wallin <mattias.wallin@stericsson.com>
@@ -48,7 +48,6 @@
  * @regreg: regulator register number in the AB3100
  */
 struct ab3100_regulator {
-	struct regulator_dev *rdev;
 	struct device *dev;
 	struct ab3100_platform_data *plfdata;
 	u8 regreg;
@@ -354,14 +353,13 @@ static int ab3100_get_voltage_regulator_external(struct regulator_dev *reg)
 		return 0;
 }
 
-static struct regulator_ops regulator_ops_fixed = {
-	.list_voltage = regulator_list_voltage_linear,
+static const struct regulator_ops regulator_ops_fixed = {
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
 };
 
-static struct regulator_ops regulator_ops_variable = {
+static const struct regulator_ops regulator_ops_variable = {
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
@@ -370,7 +368,7 @@ static struct regulator_ops regulator_ops_variable = {
 	.list_voltage = regulator_list_voltage_table,
 };
 
-static struct regulator_ops regulator_ops_variable_sleepable = {
+static const struct regulator_ops regulator_ops_variable_sleepable = {
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
@@ -386,14 +384,14 @@ static struct regulator_ops regulator_ops_variable_sleepable = {
  * is an on/off switch plain an simple. The external
  * voltage is defined in the board set-up if any.
  */
-static struct regulator_ops regulator_ops_external = {
+static const struct regulator_ops regulator_ops_external = {
 	.enable      = ab3100_enable_regulator,
 	.disable     = ab3100_disable_regulator,
 	.is_enabled  = ab3100_is_enabled_regulator,
 	.get_voltage = ab3100_get_voltage_regulator_external,
 };
 
-static struct regulator_desc
+static const struct regulator_desc
 ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 	{
 		.name = "LDO_A",
@@ -402,7 +400,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.n_voltages = 1,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
-		.min_uV = LDO_A_VOLTAGE,
+		.fixed_uV = LDO_A_VOLTAGE,
 		.enable_time = 200,
 	},
 	{
@@ -412,7 +410,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.n_voltages = 1,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
-		.min_uV = LDO_C_VOLTAGE,
+		.fixed_uV = LDO_C_VOLTAGE,
 		.enable_time = 200,
 	},
 	{
@@ -422,7 +420,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.n_voltages = 1,
 		.type = REGULATOR_VOLTAGE,
 		.owner = THIS_MODULE,
-		.min_uV = LDO_D_VOLTAGE,
+		.fixed_uV = LDO_D_VOLTAGE,
 		.enable_time = 200,
 	},
 	{
@@ -500,7 +498,7 @@ static int ab3100_regulator_register(struct platform_device *pdev,
 				     struct device_node *np,
 				     unsigned long id)
 {
-	struct regulator_desc *desc;
+	const struct regulator_desc *desc;
 	struct ab3100_regulator *reg;
 	struct regulator_dev *rdev;
 	struct regulator_config config = { };
@@ -545,8 +543,6 @@ static int ab3100_regulator_register(struct platform_device *pdev,
 		return err;
 	}
 
-	/* Then set a pointer back to the registered regulator */
-	reg->rdev = rdev;
 	return 0;
 }
 
@@ -609,18 +605,6 @@ static const u8 ab3100_reg_initvals[] = {
 	LDO_D_SETTING,
 };
 
-static int ab3100_regulators_remove(struct platform_device *pdev)
-{
-	int i;
-
-	for (i = 0; i < AB3100_NUM_REGULATORS; i++) {
-		struct ab3100_regulator *reg = &ab3100_regulators[i];
-
-		reg->rdev = NULL;
-	}
-	return 0;
-}
-
 static int
 ab3100_regulator_of_probe(struct platform_device *pdev, struct device_node *np)
 {
@@ -647,10 +631,8 @@ ab3100_regulator_of_probe(struct platform_device *pdev, struct device_node *np)
 			pdev, NULL, ab3100_regulator_matches[i].init_data,
 			ab3100_regulator_matches[i].of_node,
 			(unsigned long)ab3100_regulator_matches[i].driver_data);
-		if (err) {
-			ab3100_regulators_remove(pdev);
+		if (err)
 			return err;
-		}
 	}
 
 	return 0;
@@ -705,14 +687,12 @@ static int ab3100_regulators_probe(struct platform_device *pdev)
 
 	/* Register the regulators */
 	for (i = 0; i < AB3100_NUM_REGULATORS; i++) {
-		struct regulator_desc *desc = &ab3100_regulator_desc[i];
+		const struct regulator_desc *desc = &ab3100_regulator_desc[i];
 
 		err = ab3100_regulator_register(pdev, plfdata, NULL, NULL,
 						desc->id);
-		if (err) {
-			ab3100_regulators_remove(pdev);
+		if (err)
 			return err;
-		}
 	}
 
 	return 0;
@@ -723,7 +703,6 @@ static struct platform_driver ab3100_regulators_driver = {
 		.name  = "ab3100-regulators",
 	},
 	.probe = ab3100_regulators_probe,
-	.remove = ab3100_regulators_remove,
 };
 
 static __init int ab3100_regulators_init(void)

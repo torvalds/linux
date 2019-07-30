@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015 Verifone Int.
  *
  * Author: Nicolas Saenz Julienne <nicolassaenzj@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify i t
- * under  the terms of the GNU General  Public License as published by th e
- * Free Software Foundation;  either version 2 of the License, or (at you r
- * option) any later version.
  *
  * This driver is based on the gpio-tps65912 implementation.
  */

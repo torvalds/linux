@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config PAGE_EXTENSION
 	bool "Extend memmap on extra space for more information on page"
 	---help---
@@ -33,7 +34,6 @@ config DEBUG_PAGEALLOC
 
 config DEBUG_PAGEALLOC_ENABLE_DEFAULT
 	bool "Enable debug page memory allocations by default?"
-	default n
 	depends on DEBUG_PAGEALLOC
 	---help---
 	  Enable debug page memory allocations by default? This value

@@ -18,13 +18,13 @@
 &pinctrl {
 	act8846 {
 		pmic_vsel: pmic-vsel {
-			rockchip,pins = <7 1 RK_FUNC_GPIO &pcfg_output_low>;
+			rockchip,pins = <7 RK_PA1 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 	};
 
 	ir {
 		ir_int: ir-int {
-			rockchip,pins = <7 5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <7 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

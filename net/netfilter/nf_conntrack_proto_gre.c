@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ip_conntrack_proto_gre.c - Version 3.0
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * A driver for the CMOS camera controller in the Marvell 88ALP01 "cafe"
  * multifunction chip.  Currently works with the Omnivision OV7670
@@ -13,9 +14,6 @@
  *
  * v4l2_device/v4l2_subdev conversion by:
  * Copyright (C) 2009 Hans Verkuil <hverkuil@xs4all.nl>
- *
- * This file may be distributed under the terms of the GNU General
- * Public License, version 2.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>

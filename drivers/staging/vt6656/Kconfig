@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config VT6656
 	tristate "VIA Technologies VT6656 support"
 	depends on MAC80211 && USB && WLAN && m

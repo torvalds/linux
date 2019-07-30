@@ -21,6 +21,7 @@
 		mmc1 = &usdhc2;
 		mmc2 = &usdhc3;
 		serial0 = &adma_lpuart0;
+		mu1 = &lsio_mu1;
 	};
 
 	cpus {
@@ -34,6 +35,9 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			next-level-cache = <&A35_L2>;
+			clocks = <&clk IMX_A35_CLK>;
+			operating-points-v2 = <&a35_opp_table>;
+			#cooling-cells = <2>;
 		};
 
 		A35_1: cpu@1 {
@@ -42,6 +46,9 @@
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			next-level-cache = <&A35_L2>;
+			clocks = <&clk IMX_A35_CLK>;
+			operating-points-v2 = <&a35_opp_table>;
+			#cooling-cells = <2>;
 		};
 
 		A35_2: cpu@2 {
@@ -50,6 +57,9 @@
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			next-level-cache = <&A35_L2>;
+			clocks = <&clk IMX_A35_CLK>;
+			operating-points-v2 = <&a35_opp_table>;
+			#cooling-cells = <2>;
 		};
 
 		A35_3: cpu@3 {
@@ -58,10 +68,31 @@
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			next-level-cache = <&A35_L2>;
+			clocks = <&clk IMX_A35_CLK>;
+			operating-points-v2 = <&a35_opp_table>;
+			#cooling-cells = <2>;
 		};
 
 		A35_L2: l2-cache0 {
 			compatible = "cache";
+		};
+	};
+
+	a35_opp_table: opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-900000000 {
+			opp-hz = /bits/ 64 <900000000>;
+			opp-microvolt = <1000000>;
+			clock-latency-ns = <150000>;
+		};
+
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <1100000>;
+			clock-latency-ns = <150000>;
+			opp-suspend;
 		};
 	};
 
@@ -87,7 +118,8 @@
 	scu {
 		compatible = "fsl,imx-scu";
 		mbox-names = "tx0", "tx1", "tx2", "tx3",
-			     "rx0", "rx1", "rx2", "rx3";
+			     "rx0", "rx1", "rx2", "rx3",
+			     "gip3";
 		mboxes = <&lsio_mu1 0 0
 			  &lsio_mu1 0 1
 			  &lsio_mu1 0 2
@@ -95,7 +127,8 @@
 			  &lsio_mu1 1 0
 			  &lsio_mu1 1 1
 			  &lsio_mu1 1 2
-			  &lsio_mu1 1 3>;
+			  &lsio_mu1 1 3
+			  &lsio_mu1 3 3>;
 
 		clk: clock-controller {
 			compatible = "fsl,imx8qxp-clk";
@@ -160,6 +193,39 @@
 			clocks = <&adma_lpcg IMX_ADMA_LPCG_UART0_BAUD_CLK>;
 			clock-names = "ipg";
 			power-domains = <&pd IMX_SC_R_UART_0>;
+			status = "disabled";
+		};
+
+		adma_lpuart1: serial@5a070000 {
+			compatible = "fsl,imx8qxp-lpuart", "fsl,imx7ulp-lpuart";
+			reg = <0x5a070000 0x1000>;
+			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			clocks = <&adma_lpcg IMX_ADMA_LPCG_UART1_BAUD_CLK>;
+			clock-names = "ipg";
+			power-domains = <&pd IMX_SC_R_UART_1>;
+			status = "disabled";
+		};
+
+		adma_lpuart2: serial@5a080000 {
+			compatible = "fsl,imx8qxp-lpuart", "fsl,imx7ulp-lpuart";
+			reg = <0x5a080000 0x1000>;
+			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			clocks = <&adma_lpcg IMX_ADMA_LPCG_UART2_BAUD_CLK>;
+			clock-names = "ipg";
+			power-domains = <&pd IMX_SC_R_UART_2>;
+			status = "disabled";
+		};
+
+		adma_lpuart3: serial@5a090000 {
+			compatible = "fsl,imx8qxp-lpuart", "fsl,imx7ulp-lpuart";
+			reg = <0x5a090000 0x1000>;
+			interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			clocks = <&adma_lpcg IMX_ADMA_LPCG_UART3_BAUD_CLK>;
+			clock-names = "ipg";
+			power-domains = <&pd IMX_SC_R_UART_3>;
 			status = "disabled";
 		};
 
@@ -328,7 +394,7 @@
 			compatible = "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
 			reg = <0x5d1b0000 0x10000>;
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
-			#mbox-cells = <0>;
+			#mbox-cells = <2>;
 			status = "disabled";
 		};
 
@@ -339,11 +405,19 @@
 			#mbox-cells = <2>;
 		};
 
+		lsio_mu2: mailbox@5d1d0000 {
+			compatible = "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
+			reg = <0x5d1d0000 0x10000>;
+			interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <2>;
+			status = "disabled";
+		};
+
 		lsio_mu3: mailbox@5d1e0000 {
 			compatible = "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
 			reg = <0x5d1e0000 0x10000>;
 			interrupts = <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
-			#mbox-cells = <0>;
+			#mbox-cells = <2>;
 			status = "disabled";
 		};
 
@@ -351,7 +425,7 @@
 			compatible = "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
 			reg = <0x5d1f0000 0x10000>;
 			interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
-			#mbox-cells = <0>;
+			#mbox-cells = <2>;
 			status = "disabled";
 		};
 
@@ -442,5 +516,10 @@
 			#interrupt-cells = <2>;
 			power-domains = <&pd IMX_SC_R_GPIO_7>;
 		};
+	};
+
+	watchdog {
+		compatible = "fsl,imx8qxp-sc-wdt", "fsl,imx-sc-wdt";
+		timeout-sec = <60>;
 	};
 };

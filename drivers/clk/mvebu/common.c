@@ -240,7 +240,7 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 	int n;
 
 	if (ctrl) {
-		pr_err("mvebu-clk-gating: cannot instantiate more than one gatable clock device\n");
+		pr_err("mvebu-clk-gating: cannot instantiate more than one gateable clock device\n");
 		return;
 	}
 

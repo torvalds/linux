@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* parport_sunbpp.c: Parallel-port routines for SBUS
  * 
  * Author: Derrick J. Brashear <shadow@dementia.org>

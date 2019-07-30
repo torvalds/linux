@@ -3,6 +3,7 @@
 
 #include "ice.h"
 #include "ice_lib.h"
+#include "ice_dcb_lib.h"
 
 /**
  * ice_setup_rx_ctx - Configure a receive ring context
@@ -73,7 +74,7 @@ static int ice_setup_rx_ctx(struct ice_ring *ring)
 		regval |= (rxdid << QRXFLXP_CNTXT_RXDID_IDX_S) &
 			QRXFLXP_CNTXT_RXDID_IDX_M;
 
-		/* increasing context priority to pick up profile id;
+		/* increasing context priority to pick up profile ID;
 		 * default is 0x01; setting to 0x03 to ensure profile
 		 * is programming if prev context is of same priority
 		 */
@@ -124,6 +125,8 @@ ice_setup_tx_ctx(struct ice_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf_q)
 	/* Transmit Queue Length */
 	tlan_ctx->qlen = ring->count;
 
+	ice_set_cgd_num(tlan_ctx, ring);
+
 	/* PF number */
 	tlan_ctx->pf_num = hw->pf_id;
 
@@ -138,7 +141,7 @@ ice_setup_tx_ctx(struct ice_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf_q)
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_PF;
 		break;
 	case ICE_VSI_VF:
-		/* Firmware expects vmvf_num to be absolute VF id */
+		/* Firmware expects vmvf_num to be absolute VF ID */
 		tlan_ctx->vmvf_num = hw->func_caps.vf_base_id + vsi->vf_id;
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_VF;
 		break;
@@ -175,17 +178,14 @@ static int ice_pf_rxq_wait(struct ice_pf *pf, int pf_q, bool ena)
 	int i;
 
 	for (i = 0; i < ICE_Q_WAIT_MAX_RETRY; i++) {
-		u32 rx_reg = rd32(&pf->hw, QRX_CTRL(pf_q));
-
-		if (ena == !!(rx_reg & QRX_CTRL_QENA_STAT_M))
-			break;
+		if (ena == !!(rd32(&pf->hw, QRX_CTRL(pf_q)) &
+			      QRX_CTRL_QENA_STAT_M))
+			return 0;
 
 		usleep_range(20, 40);
 	}
-	if (i >= ICE_Q_WAIT_MAX_RETRY)
-		return -ETIMEDOUT;
 
-	return 0;
+	return -ETIMEDOUT;
 }
 
 /**
@@ -197,19 +197,13 @@ static int ice_vsi_ctrl_rx_rings(struct ice_vsi *vsi, bool ena)
 {
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
-	int i, j, ret = 0;
+	int i, ret = 0;
 
 	for (i = 0; i < vsi->num_rxq; i++) {
 		int pf_q = vsi->rxq_map[i];
 		u32 rx_reg;
 
-		for (j = 0; j < ICE_Q_WAIT_MAX_RETRY; j++) {
-			rx_reg = rd32(hw, QRX_CTRL(pf_q));
-			if (((rx_reg >> QRX_CTRL_QENA_REQ_S) & 1) ==
-			    ((rx_reg >> QRX_CTRL_QENA_STAT_S) & 1))
-				break;
-			usleep_range(1000, 2000);
-		}
+		rx_reg = rd32(hw, QRX_CTRL(pf_q));
 
 		/* Skip if the queue is already in the requested state */
 		if (ena == !!(rx_reg & QRX_CTRL_QENA_STAT_M))
@@ -238,12 +232,11 @@ static int ice_vsi_ctrl_rx_rings(struct ice_vsi *vsi, bool ena)
 /**
  * ice_vsi_alloc_arrays - Allocate queue and vector pointer arrays for the VSI
  * @vsi: VSI pointer
- * @alloc_qvectors: a bool to specify if q_vectors need to be allocated.
  *
  * On error: returns error code (negative)
  * On success: returns 0
  */
-static int ice_vsi_alloc_arrays(struct ice_vsi *vsi, bool alloc_qvectors)
+static int ice_vsi_alloc_arrays(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 
@@ -258,15 +251,11 @@ static int ice_vsi_alloc_arrays(struct ice_vsi *vsi, bool alloc_qvectors)
 	if (!vsi->rx_rings)
 		goto err_rxrings;
 
-	if (alloc_qvectors) {
-		/* allocate memory for q_vector pointers */
-		vsi->q_vectors = devm_kcalloc(&pf->pdev->dev,
-					      vsi->num_q_vectors,
-					      sizeof(*vsi->q_vectors),
-					      GFP_KERNEL);
-		if (!vsi->q_vectors)
-			goto err_vectors;
-	}
+	/* allocate memory for q_vector pointers */
+	vsi->q_vectors = devm_kcalloc(&pf->pdev->dev, vsi->num_q_vectors,
+				      sizeof(*vsi->q_vectors), GFP_KERNEL);
+	if (!vsi->q_vectors)
+		goto err_vectors;
 
 	return 0;
 
@@ -279,25 +268,49 @@ err_txrings:
 }
 
 /**
- * ice_vsi_set_num_qs - Set num queues, descriptors and vectors for a VSI
+ * ice_vsi_set_num_desc - Set number of descriptors for queues on this VSI
  * @vsi: the VSI being configured
+ */
+static void ice_vsi_set_num_desc(struct ice_vsi *vsi)
+{
+	switch (vsi->type) {
+	case ICE_VSI_PF:
+		vsi->num_rx_desc = ICE_DFLT_NUM_RX_DESC;
+		vsi->num_tx_desc = ICE_DFLT_NUM_TX_DESC;
+		break;
+	default:
+		dev_dbg(&vsi->back->pdev->dev,
+			"Not setting number of Tx/Rx descriptors for VSI type %d\n",
+			vsi->type);
+		break;
+	}
+}
+
+/**
+ * ice_vsi_set_num_qs - Set number of queues, descriptors and vectors for a VSI
+ * @vsi: the VSI being configured
+ * @vf_id: ID of the VF being configured
  *
  * Return 0 on success and a negative value on error
  */
-static void ice_vsi_set_num_qs(struct ice_vsi *vsi)
+static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
 {
 	struct ice_pf *pf = vsi->back;
+	struct ice_vf *vf = NULL;
+
+	if (vsi->type == ICE_VSI_VF)
+		vsi->vf_id = vf_id;
 
 	switch (vsi->type) {
 	case ICE_VSI_PF:
 		vsi->alloc_txq = pf->num_lan_tx;
 		vsi->alloc_rxq = pf->num_lan_rx;
-		vsi->num_desc = ALIGN(ICE_DFLT_NUM_DESC, ICE_REQ_DESC_MULTIPLE);
 		vsi->num_q_vectors = max_t(int, pf->num_lan_rx, pf->num_lan_tx);
 		break;
 	case ICE_VSI_VF:
-		vsi->alloc_txq = pf->num_vf_qps;
-		vsi->alloc_rxq = pf->num_vf_qps;
+		vf = &pf->vf[vsi->vf_id];
+		vsi->alloc_txq = vf->num_vf_qs;
+		vsi->alloc_rxq = vf->num_vf_qs;
 		/* pf->num_vf_msix includes (VF miscellaneous vector +
 		 * data queue interrupts). Since vsi->num_q_vectors is number
 		 * of queues vectors, subtract 1 from the original vector
@@ -306,10 +319,11 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi)
 		vsi->num_q_vectors = pf->num_vf_msix - 1;
 		break;
 	default:
-		dev_warn(&vsi->back->pdev->dev, "Unknown VSI type %d\n",
-			 vsi->type);
+		dev_warn(&pf->pdev->dev, "Unknown VSI type %d\n", vsi->type);
 		break;
 	}
+
+	ice_vsi_set_num_desc(vsi);
 }
 
 /**
@@ -370,16 +384,15 @@ void ice_vsi_delete(struct ice_vsi *vsi)
 }
 
 /**
- * ice_vsi_free_arrays - clean up VSI resources
+ * ice_vsi_free_arrays - De-allocate queue and vector pointer arrays for the VSI
  * @vsi: pointer to VSI being cleared
- * @free_qvectors: bool to specify if q_vectors should be deallocated
  */
-static void ice_vsi_free_arrays(struct ice_vsi *vsi, bool free_qvectors)
+static void ice_vsi_free_arrays(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
 
 	/* free the ring and vector containers */
-	if (free_qvectors && vsi->q_vectors) {
+	if (vsi->q_vectors) {
 		devm_kfree(&pf->pdev->dev, vsi->q_vectors);
 		vsi->q_vectors = NULL;
 	}
@@ -427,7 +440,7 @@ int ice_vsi_clear(struct ice_vsi *vsi)
 	if (vsi->idx < pf->next_vsi)
 		pf->next_vsi = vsi->idx;
 
-	ice_vsi_free_arrays(vsi, true);
+	ice_vsi_free_arrays(vsi);
 	mutex_unlock(&pf->sw_mutex);
 	devm_kfree(&pf->pdev->dev, vsi);
 
@@ -455,10 +468,12 @@ static irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
  * ice_vsi_alloc - Allocates the next available struct VSI in the PF
  * @pf: board private structure
  * @type: type of VSI
+ * @vf_id: ID of the VF being configured
  *
  * returns a pointer to a VSI on success, NULL on failure.
  */
-static struct ice_vsi *ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type)
+static struct ice_vsi *
+ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type, u16 vf_id)
 {
 	struct ice_vsi *vsi = NULL;
 
@@ -484,18 +499,21 @@ static struct ice_vsi *ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type)
 	vsi->idx = pf->next_vsi;
 	vsi->work_lmt = ICE_DFLT_IRQ_WORK;
 
-	ice_vsi_set_num_qs(vsi);
+	if (type == ICE_VSI_VF)
+		ice_vsi_set_num_qs(vsi, vf_id);
+	else
+		ice_vsi_set_num_qs(vsi, ICE_INVAL_VFID);
 
 	switch (vsi->type) {
 	case ICE_VSI_PF:
-		if (ice_vsi_alloc_arrays(vsi, true))
+		if (ice_vsi_alloc_arrays(vsi))
 			goto err_rings;
 
 		/* Setup default MSIX irq handler for VSI */
 		vsi->irq_handler = ice_msix_clean_rings;
 		break;
 	case ICE_VSI_VF:
-		if (ice_vsi_alloc_arrays(vsi, true))
+		if (ice_vsi_alloc_arrays(vsi))
 			goto err_rings;
 		break;
 	default:
@@ -547,7 +565,7 @@ static int __ice_vsi_get_qs_contig(struct ice_qs_cfg *qs_cfg)
 
 /**
  * __ice_vsi_get_qs_sc - Assign a scattered queues from PF to VSI
- * @qs_cfg: gathered variables needed for PF->VSI queues assignment
+ * @qs_cfg: gathered variables needed for pf->vsi queues assignment
  *
  * Return 0 on success and -ENOMEM in case of no left space in PF queue bitmap
  */
@@ -579,11 +597,10 @@ err_scatter:
 
 /**
  * __ice_vsi_get_qs - helper function for assigning queues from PF to VSI
- * @qs_cfg: gathered variables needed for PF->VSI queues assignment
+ * @qs_cfg: gathered variables needed for pf->vsi queues assignment
  *
- * This is an internal function for assigning queues from the PF to VSI and
- * initially tries to find contiguous space.  If it is not successful to find
- * contiguous space, then it tries with the scatter approach.
+ * This function first tries to find contiguous space. If it is not successful,
+ * it tries with the scatter approach.
  *
  * Return 0 on success and -ENOMEM in case of no left space in PF queue bitmap
  */
@@ -827,7 +844,7 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 	/* find the (rounded up) power-of-2 of qcount */
 	pow = order_base_2(qcount_rx);
 
-	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
+	ice_for_each_traffic_class(i) {
 		if (!(vsi->tc_cfg.ena_tc & BIT(i))) {
 			/* TC is not enabled */
 			vsi->tc_cfg.tc_info[i].qoffset = 0;
@@ -852,7 +869,18 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 		tx_count += tx_numq_tc;
 		ctxt->info.tc_mapping[i] = cpu_to_le16(qmap);
 	}
-	vsi->num_rxq = offset;
+
+	/* if offset is non-zero, means it is calculated correctly based on
+	 * enabled TCs for a given VSI otherwise qcount_rx will always
+	 * be correct and non-zero because it is based off - VSI's
+	 * allocated Rx queues which is at least 1 (hence qcount_tx will be
+	 * at least 1)
+	 */
+	if (offset)
+		vsi->num_rxq = offset;
+	else
+		vsi->num_rxq = qcount_rx;
+
 	vsi->num_txq = tx_count;
 
 	if (vsi->type == ICE_VSI_VF && vsi->num_txq != vsi->num_rxq) {
@@ -881,6 +909,9 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 static void ice_set_rss_vsi_ctx(struct ice_vsi_ctx *ctxt, struct ice_vsi *vsi)
 {
 	u8 lut_type, hash_type;
+	struct ice_pf *pf;
+
+	pf = vsi->back;
 
 	switch (vsi->type) {
 	case ICE_VSI_PF:
@@ -894,8 +925,7 @@ static void ice_set_rss_vsi_ctx(struct ice_vsi_ctx *ctxt, struct ice_vsi *vsi)
 		hash_type = ICE_AQ_VSI_Q_OPT_RSS_TPLZ;
 		break;
 	default:
-		dev_warn(&vsi->back->pdev->dev, "Unknown VSI type %d\n",
-			 vsi->type);
+		dev_warn(&pf->pdev->dev, "Unknown VSI type %d\n", vsi->type);
 		return;
 	}
 
@@ -923,6 +953,7 @@ static int ice_vsi_init(struct ice_vsi *vsi)
 	if (!ctxt)
 		return -ENOMEM;
 
+	ctxt->info = vsi->info;
 	switch (vsi->type) {
 	case ICE_VSI_PF:
 		ctxt->flags = ICE_AQ_VSI_TYPE_PF;
@@ -947,6 +978,14 @@ static int ice_vsi_init(struct ice_vsi *vsi)
 
 	ctxt->info.sw_id = vsi->port_info->sw_id;
 	ice_vsi_setup_q_map(vsi, ctxt);
+
+	/* Enable MAC Antispoof with new VSI being initialized or updated */
+	if (vsi->type == ICE_VSI_VF && pf->vf[vsi->vf_id].spoofchk) {
+		ctxt->info.valid_sections |=
+			cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID);
+		ctxt->info.sec_flags |=
+			ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF;
+	}
 
 	ret = ice_add_vsi(hw, vsi->idx, ctxt, NULL);
 	if (ret) {
@@ -973,10 +1012,11 @@ static int ice_vsi_init(struct ice_vsi *vsi)
 static void ice_free_q_vector(struct ice_vsi *vsi, int v_idx)
 {
 	struct ice_q_vector *q_vector;
+	struct ice_pf *pf = vsi->back;
 	struct ice_ring *ring;
 
 	if (!vsi->q_vectors[v_idx]) {
-		dev_dbg(&vsi->back->pdev->dev, "Queue vector at index %d not found\n",
+		dev_dbg(&pf->pdev->dev, "Queue vector at index %d not found\n",
 			v_idx);
 		return;
 	}
@@ -991,7 +1031,7 @@ static void ice_free_q_vector(struct ice_vsi *vsi, int v_idx)
 	if (vsi->netdev)
 		netif_napi_del(&q_vector->napi);
 
-	devm_kfree(&vsi->back->pdev->dev, q_vector);
+	devm_kfree(&pf->pdev->dev, q_vector);
 	vsi->q_vectors[v_idx] = NULL;
 }
 
@@ -1003,7 +1043,7 @@ void ice_vsi_free_q_vectors(struct ice_vsi *vsi)
 {
 	int v_idx;
 
-	for (v_idx = 0; v_idx < vsi->num_q_vectors; v_idx++)
+	ice_for_each_q_vector(vsi, v_idx)
 		ice_free_q_vector(vsi, v_idx);
 }
 
@@ -1143,8 +1183,7 @@ static int ice_vsi_setup_vector_base(struct ice_vsi *vsi)
 						  num_q_vectors, vsi->idx);
 		break;
 	default:
-		dev_warn(&vsi->back->pdev->dev, "Unknown VSI type %d\n",
-			 vsi->type);
+		dev_warn(&pf->pdev->dev, "Unknown VSI type %d\n", vsi->type);
 		break;
 	}
 
@@ -1153,7 +1192,7 @@ static int ice_vsi_setup_vector_base(struct ice_vsi *vsi)
 			"Failed to get tracking for %d HW vectors for VSI %d, err=%d\n",
 			num_q_vectors, vsi->vsi_num, vsi->hw_base_vector);
 		if (vsi->type != ICE_VSI_VF) {
-			ice_free_res(vsi->back->sw_irq_tracker,
+			ice_free_res(pf->sw_irq_tracker,
 				     vsi->sw_base_vector, vsi->idx);
 			pf->num_avail_sw_msix += num_q_vectors;
 		}
@@ -1215,7 +1254,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		ring->ring_active = false;
 		ring->vsi = vsi;
 		ring->dev = &pf->pdev->dev;
-		ring->count = vsi->num_desc;
+		ring->count = vsi->num_tx_desc;
 		vsi->tx_rings[i] = ring;
 	}
 
@@ -1234,7 +1273,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		ring->vsi = vsi;
 		ring->netdev = vsi->netdev;
 		ring->dev = &pf->pdev->dev;
-		ring->count = vsi->num_desc;
+		ring->count = vsi->num_rx_desc;
 		vsi->rx_rings[i] = ring;
 	}
 
@@ -1253,7 +1292,11 @@ err_out:
  * through the MSI-X enabling code. On a constrained vector budget, we map Tx
  * and Rx rings to the vector as "efficiently" as possible.
  */
+#ifdef CONFIG_DCB
+void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
+#else
 static void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
+#endif /* CONFIG_DCB */
 {
 	int q_vectors = vsi->num_q_vectors;
 	int tx_rings_rem, rx_rings_rem;
@@ -1339,7 +1382,6 @@ int ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena)
  */
 static int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi)
 {
-	u8 seed[ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE];
 	struct ice_aqc_get_set_rss_keys *key;
 	struct ice_pf *pf = vsi->back;
 	enum ice_status status;
@@ -1361,31 +1403,30 @@ static int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi)
 				    vsi->rss_table_size);
 
 	if (status) {
-		dev_err(&vsi->back->pdev->dev,
+		dev_err(&pf->pdev->dev,
 			"set_rss_lut failed, error %d\n", status);
 		err = -EIO;
 		goto ice_vsi_cfg_rss_exit;
 	}
 
-	key = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*key), GFP_KERNEL);
+	key = devm_kzalloc(&pf->pdev->dev, sizeof(*key), GFP_KERNEL);
 	if (!key) {
 		err = -ENOMEM;
 		goto ice_vsi_cfg_rss_exit;
 	}
 
 	if (vsi->rss_hkey_user)
-		memcpy(seed, vsi->rss_hkey_user,
-		       ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE);
+		memcpy(key,
+		       (struct ice_aqc_get_set_rss_keys *)vsi->rss_hkey_user,
+		       ICE_GET_SET_RSS_KEY_EXTEND_KEY_SIZE);
 	else
-		netdev_rss_key_fill((void *)seed,
-				    ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE);
-	memcpy(&key->standard_rss_key, seed,
-	       ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE);
+		netdev_rss_key_fill((void *)key,
+				    ICE_GET_SET_RSS_KEY_EXTEND_KEY_SIZE);
 
 	status = ice_aq_set_rss_key(&pf->hw, vsi->idx, key);
 
 	if (status) {
-		dev_err(&vsi->back->pdev->dev, "set_rss_key failed, error %d\n",
+		dev_err(&pf->pdev->dev, "set_rss_key failed, error %d\n",
 			status);
 		err = -EIO;
 	}
@@ -1397,12 +1438,12 @@ ice_vsi_cfg_rss_exit:
 }
 
 /**
- * ice_add_mac_to_list - Add a mac address filter entry to the list
+ * ice_add_mac_to_list - Add a MAC address filter entry to the list
  * @vsi: the VSI to be forwarded to
  * @add_list: pointer to the list which contains MAC filter entries
  * @macaddr: the MAC address to be added.
  *
- * Adds mac address filter entry to the temp list
+ * Adds MAC address filter entry to the temp list
  *
  * Returns 0 on success or ENOMEM on failure.
  */
@@ -1504,7 +1545,7 @@ void ice_free_fltr_list(struct device *dev, struct list_head *h)
 /**
  * ice_vsi_add_vlan - Add VSI membership for given VLAN
  * @vsi: the VSI being configured
- * @vid: VLAN id to be added
+ * @vid: VLAN ID to be added
  */
 int ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid)
 {
@@ -1542,7 +1583,7 @@ int ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid)
 /**
  * ice_vsi_kill_vlan - Remove VSI membership for a given VLAN
  * @vsi: the VSI being configured
- * @vid: VLAN id to be removed
+ * @vid: VLAN ID to be removed
  *
  * Returns 0 on success and negative on failure
  */
@@ -1551,7 +1592,8 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 	struct ice_fltr_list_entry *list;
 	struct ice_pf *pf = vsi->back;
 	LIST_HEAD(tmp_add_list);
-	int status = 0;
+	enum ice_status status;
+	int err = 0;
 
 	list = devm_kzalloc(&pf->pdev->dev, sizeof(*list), GFP_KERNEL);
 	if (!list)
@@ -1567,14 +1609,20 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 	INIT_LIST_HEAD(&list->list_entry);
 	list_add(&list->list_entry, &tmp_add_list);
 
-	if (ice_remove_vlan(&pf->hw, &tmp_add_list)) {
-		dev_err(&pf->pdev->dev, "Error removing VLAN %d on vsi %i\n",
-			vid, vsi->vsi_num);
-		status = -EIO;
+	status = ice_remove_vlan(&pf->hw, &tmp_add_list);
+	if (status == ICE_ERR_DOES_NOT_EXIST) {
+		dev_dbg(&pf->pdev->dev,
+			"Failed to remove VLAN %d on VSI %i, it does not exist, status: %d\n",
+			vid, vsi->vsi_num, status);
+	} else if (status) {
+		dev_err(&pf->pdev->dev,
+			"Error removing VLAN %d on vsi %i error: %d\n",
+			vid, vsi->vsi_num, status);
+		err = -EIO;
 	}
 
 	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
-	return status;
+	return err;
 }
 
 /**
@@ -1586,7 +1634,6 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
  */
 int ice_vsi_cfg_rxqs(struct ice_vsi *vsi)
 {
-	int err = 0;
 	u16 i;
 
 	if (vsi->type == ICE_VSI_VF)
@@ -1601,14 +1648,19 @@ int ice_vsi_cfg_rxqs(struct ice_vsi *vsi)
 	vsi->rx_buf_len = ICE_RXBUF_2048;
 setup_rings:
 	/* set up individual rings */
-	for (i = 0; i < vsi->num_rxq && !err; i++)
-		err = ice_setup_rx_ctx(vsi->rx_rings[i]);
+	for (i = 0; i < vsi->num_rxq; i++) {
+		int err;
 
-	if (err) {
-		dev_err(&vsi->back->pdev->dev, "ice_setup_rx_ctx failed\n");
-		return -EIO;
+		err = ice_setup_rx_ctx(vsi->rx_rings[i]);
+		if (err) {
+			dev_err(&vsi->back->pdev->dev,
+				"ice_setup_rx_ctx failed for RxQ %d, err %d\n",
+				i, err);
+			return err;
+		}
 	}
-	return err;
+
+	return 0;
 }
 
 /**
@@ -1640,7 +1692,7 @@ ice_vsi_cfg_txqs(struct ice_vsi *vsi, struct ice_ring **rings, int offset)
 	num_q_grps = 1;
 
 	/* set up and configure the Tx queues for each enabled TC */
-	for (tc = 0; tc < ICE_MAX_TRAFFIC_CLASS; tc++) {
+	ice_for_each_traffic_class(tc) {
 		if (!(vsi->tc_cfg.ena_tc & BIT(tc)))
 			break;
 
@@ -1660,10 +1712,10 @@ ice_vsi_cfg_txqs(struct ice_vsi *vsi, struct ice_ring **rings, int offset)
 			rings[q_idx]->tail =
 				pf->hw.hw_addr + QTX_COMM_DBELL(pf_q);
 			status = ice_ena_vsi_txq(vsi->port_info, vsi->idx, tc,
-						 num_q_grps, qg_buf, buf_len,
-						 NULL);
+						 i, num_q_grps, qg_buf,
+						 buf_len, NULL);
 			if (status) {
-				dev_err(&vsi->back->pdev->dev,
+				dev_err(&pf->pdev->dev,
 					"Failed to set LAN Tx queue context, error: %d\n",
 					status);
 				err = -ENODEV;
@@ -1707,7 +1759,7 @@ int ice_vsi_cfg_lan_txqs(struct ice_vsi *vsi)
  * This function converts a decimal interrupt rate limit in usecs to the format
  * expected by firmware.
  */
-static u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
+u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
 {
 	u32 val = intrl / gran;
 
@@ -1717,17 +1769,49 @@ static u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
 }
 
 /**
+ * ice_cfg_itr_gran - set the ITR granularity to 2 usecs if not already set
+ * @hw: board specific structure
+ */
+static void ice_cfg_itr_gran(struct ice_hw *hw)
+{
+	u32 regval = rd32(hw, GLINT_CTL);
+
+	/* no need to update global register if ITR gran is already set */
+	if (!(regval & GLINT_CTL_DIS_AUTOMASK_M) &&
+	    (((regval & GLINT_CTL_ITR_GRAN_200_M) >>
+	     GLINT_CTL_ITR_GRAN_200_S) == ICE_ITR_GRAN_US) &&
+	    (((regval & GLINT_CTL_ITR_GRAN_100_M) >>
+	     GLINT_CTL_ITR_GRAN_100_S) == ICE_ITR_GRAN_US) &&
+	    (((regval & GLINT_CTL_ITR_GRAN_50_M) >>
+	     GLINT_CTL_ITR_GRAN_50_S) == ICE_ITR_GRAN_US) &&
+	    (((regval & GLINT_CTL_ITR_GRAN_25_M) >>
+	      GLINT_CTL_ITR_GRAN_25_S) == ICE_ITR_GRAN_US))
+		return;
+
+	regval = ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_200_S) &
+		  GLINT_CTL_ITR_GRAN_200_M) |
+		 ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_100_S) &
+		  GLINT_CTL_ITR_GRAN_100_M) |
+		 ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_50_S) &
+		  GLINT_CTL_ITR_GRAN_50_M) |
+		 ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_25_S) &
+		  GLINT_CTL_ITR_GRAN_25_M);
+	wr32(hw, GLINT_CTL, regval);
+}
+
+/**
  * ice_cfg_itr - configure the initial interrupt throttle values
  * @hw: pointer to the HW structure
  * @q_vector: interrupt vector that's being configured
- * @vector: HW vector index to apply the interrupt throttling to
  *
  * Configure interrupt throttling values for the ring containers that are
  * associated with the interrupt vector passed in.
  */
 static void
-ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
+ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector)
 {
+	ice_cfg_itr_gran(hw);
+
 	if (q_vector->num_ring_rx) {
 		struct ice_ring_container *rc = &q_vector->rx;
 
@@ -1738,8 +1822,7 @@ ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
 		rc->target_itr = ITR_TO_REG(rc->itr_setting);
 		rc->next_update = jiffies + 1;
 		rc->current_itr = rc->target_itr;
-		rc->latency_range = ICE_LOW_LATENCY;
-		wr32(hw, GLINT_ITR(rc->itr_idx, vector),
+		wr32(hw, GLINT_ITR(rc->itr_idx, q_vector->reg_idx),
 		     ITR_REG_ALIGN(rc->current_itr) >> ICE_ITR_GRAN_S);
 	}
 
@@ -1753,8 +1836,7 @@ ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
 		rc->target_itr = ITR_TO_REG(rc->itr_setting);
 		rc->next_update = jiffies + 1;
 		rc->current_itr = rc->target_itr;
-		rc->latency_range = ICE_LOW_LATENCY;
-		wr32(hw, GLINT_ITR(rc->itr_idx, vector),
+		wr32(hw, GLINT_ITR(rc->itr_idx, q_vector->reg_idx),
 		     ITR_REG_ALIGN(rc->current_itr) >> ICE_ITR_GRAN_S);
 	}
 }
@@ -1766,17 +1848,17 @@ ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
 void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
-	u16 vector = vsi->hw_base_vector;
 	struct ice_hw *hw = &pf->hw;
 	u32 txq = 0, rxq = 0;
 	int i, q;
 
-	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
+	for (i = 0; i < vsi->num_q_vectors; i++) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[i];
+		u16 reg_idx = q_vector->reg_idx;
 
-		ice_cfg_itr(hw, q_vector, vector);
+		ice_cfg_itr(hw, q_vector);
 
-		wr32(hw, GLINT_RATE(vector),
+		wr32(hw, GLINT_RATE(reg_idx),
 		     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
 
 		/* Both Transmit Queue Interrupt Cause Control register
@@ -1791,33 +1873,37 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 		 * tracked for this PF.
 		 */
 		for (q = 0; q < q_vector->num_ring_tx; q++) {
-			int itr_idx = q_vector->tx.itr_idx;
+			int itr_idx = (q_vector->tx.itr_idx <<
+				       QINT_TQCTL_ITR_INDX_S) &
+				QINT_TQCTL_ITR_INDX_M;
 			u32 val;
 
 			if (vsi->type == ICE_VSI_VF)
-				val = QINT_TQCTL_CAUSE_ENA_M |
-				      (itr_idx << QINT_TQCTL_ITR_INDX_S)  |
-				      ((i + 1) << QINT_TQCTL_MSIX_INDX_S);
+				val = QINT_TQCTL_CAUSE_ENA_M | itr_idx |
+				      (((i + 1) << QINT_TQCTL_MSIX_INDX_S) &
+				       QINT_TQCTL_MSIX_INDX_M);
 			else
-				val = QINT_TQCTL_CAUSE_ENA_M |
-				      (itr_idx << QINT_TQCTL_ITR_INDX_S)  |
-				      (vector << QINT_TQCTL_MSIX_INDX_S);
+				val = QINT_TQCTL_CAUSE_ENA_M | itr_idx |
+				      ((reg_idx << QINT_TQCTL_MSIX_INDX_S) &
+				       QINT_TQCTL_MSIX_INDX_M);
 			wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), val);
 			txq++;
 		}
 
 		for (q = 0; q < q_vector->num_ring_rx; q++) {
-			int itr_idx = q_vector->rx.itr_idx;
+			int itr_idx = (q_vector->rx.itr_idx <<
+				       QINT_RQCTL_ITR_INDX_S) &
+				QINT_RQCTL_ITR_INDX_M;
 			u32 val;
 
 			if (vsi->type == ICE_VSI_VF)
-				val = QINT_RQCTL_CAUSE_ENA_M |
-				      (itr_idx << QINT_RQCTL_ITR_INDX_S)  |
-				      ((i + 1) << QINT_RQCTL_MSIX_INDX_S);
+				val = QINT_RQCTL_CAUSE_ENA_M | itr_idx |
+					(((i + 1) << QINT_RQCTL_MSIX_INDX_S) &
+					 QINT_RQCTL_MSIX_INDX_M);
 			else
-				val = QINT_RQCTL_CAUSE_ENA_M |
-				      (itr_idx << QINT_RQCTL_ITR_INDX_S)  |
-				      (vector << QINT_RQCTL_MSIX_INDX_S);
+				val = QINT_RQCTL_CAUSE_ENA_M | itr_idx |
+					((reg_idx << QINT_RQCTL_MSIX_INDX_S) &
+					 QINT_RQCTL_MSIX_INDX_M);
 			wr32(hw, QINT_RQCTL(vsi->rxq_map[rxq]), val);
 			rxq++;
 		}
@@ -1847,6 +1933,10 @@ int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi)
 	 * insertion happens in the Tx hot path, in ice_tx_map.
 	 */
 	ctxt->info.vlan_flags = ICE_AQ_VSI_VLAN_MODE_ALL;
+
+	/* Preserve existing VLAN strip setting */
+	ctxt->info.vlan_flags |= (vsi->info.vlan_flags &
+				  ICE_AQ_VSI_VLAN_EMOD_M);
 
 	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
 
@@ -1937,7 +2027,7 @@ int ice_vsi_stop_rx_rings(struct ice_vsi *vsi)
  * ice_vsi_stop_tx_rings - Disable Tx rings
  * @vsi: the VSI being configured
  * @rst_src: reset source
- * @rel_vmvf_num: Relative id of VF/VM
+ * @rel_vmvf_num: Relative ID of VF/VM
  * @rings: Tx ring array to be stopped
  * @offset: offset within vsi->txq_map
  */
@@ -1947,10 +2037,10 @@ ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 {
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
+	int tc, q_idx = 0, err = 0;
+	u16 *q_ids, *q_handles, i;
 	enum ice_status status;
 	u32 *q_teids, val;
-	u16 *q_ids, i;
-	int err = 0;
 
 	if (vsi->num_txq > ICE_LAN_TXQ_MAX_QDIS)
 		return -EINVAL;
@@ -1967,50 +2057,69 @@ ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 		goto err_alloc_q_ids;
 	}
 
-	/* set up the Tx queue list to be disabled */
-	ice_for_each_txq(vsi, i) {
-		u16 v_idx;
-
-		if (!rings || !rings[i] || !rings[i]->q_vector) {
-			err = -EINVAL;
-			goto err_out;
-		}
-
-		q_ids[i] = vsi->txq_map[i + offset];
-		q_teids[i] = rings[i]->txq_teid;
-
-		/* clear cause_ena bit for disabled queues */
-		val = rd32(hw, QINT_TQCTL(rings[i]->reg_idx));
-		val &= ~QINT_TQCTL_CAUSE_ENA_M;
-		wr32(hw, QINT_TQCTL(rings[i]->reg_idx), val);
-
-		/* software is expected to wait for 100 ns */
-		ndelay(100);
-
-		/* trigger a software interrupt for the vector associated to
-		 * the queue to schedule NAPI handler
-		 */
-		v_idx = rings[i]->q_vector->v_idx;
-		wr32(hw, GLINT_DYN_CTL(vsi->hw_base_vector + v_idx),
-		     GLINT_DYN_CTL_SWINT_TRIG_M | GLINT_DYN_CTL_INTENA_MSK_M);
+	q_handles = devm_kcalloc(&pf->pdev->dev, vsi->num_txq,
+				 sizeof(*q_handles), GFP_KERNEL);
+	if (!q_handles) {
+		err = -ENOMEM;
+		goto err_alloc_q_handles;
 	}
-	status = ice_dis_vsi_txq(vsi->port_info, vsi->num_txq, q_ids, q_teids,
-				 rst_src, rel_vmvf_num, NULL);
-	/* if the disable queue command was exercised during an active reset
-	 * flow, ICE_ERR_RESET_ONGOING is returned. This is not an error as
-	 * the reset operation disables queues at the hardware level anyway.
-	 */
-	if (status == ICE_ERR_RESET_ONGOING) {
-		dev_info(&pf->pdev->dev,
-			 "Reset in progress. LAN Tx queues already disabled\n");
-	} else if (status) {
-		dev_err(&pf->pdev->dev,
-			"Failed to disable LAN Tx queues, error: %d\n",
-			status);
-		err = -ENODEV;
+
+	/* set up the Tx queue list to be disabled for each enabled TC */
+	ice_for_each_traffic_class(tc) {
+		if (!(vsi->tc_cfg.ena_tc & BIT(tc)))
+			break;
+
+		for (i = 0; i < vsi->tc_cfg.tc_info[tc].qcount_tx; i++) {
+			if (!rings || !rings[q_idx] ||
+			    !rings[q_idx]->q_vector) {
+				err = -EINVAL;
+				goto err_out;
+			}
+
+			q_ids[i] = vsi->txq_map[q_idx + offset];
+			q_teids[i] = rings[q_idx]->txq_teid;
+			q_handles[i] = i;
+
+			/* clear cause_ena bit for disabled queues */
+			val = rd32(hw, QINT_TQCTL(rings[i]->reg_idx));
+			val &= ~QINT_TQCTL_CAUSE_ENA_M;
+			wr32(hw, QINT_TQCTL(rings[i]->reg_idx), val);
+
+			/* software is expected to wait for 100 ns */
+			ndelay(100);
+
+			/* trigger a software interrupt for the vector
+			 * associated to the queue to schedule NAPI handler
+			 */
+			wr32(hw, GLINT_DYN_CTL(rings[i]->q_vector->reg_idx),
+			     GLINT_DYN_CTL_SWINT_TRIG_M |
+			     GLINT_DYN_CTL_INTENA_MSK_M);
+			q_idx++;
+		}
+		status = ice_dis_vsi_txq(vsi->port_info, vsi->idx, tc,
+					 vsi->num_txq, q_handles, q_ids,
+					 q_teids, rst_src, rel_vmvf_num, NULL);
+
+		/* if the disable queue command was exercised during an active
+		 * reset flow, ICE_ERR_RESET_ONGOING is returned. This is not
+		 * an error as the reset operation disables queues at the
+		 * hardware level anyway.
+		 */
+		if (status == ICE_ERR_RESET_ONGOING) {
+			dev_dbg(&pf->pdev->dev,
+				"Reset in progress. LAN Tx queues already disabled\n");
+		} else if (status) {
+			dev_err(&pf->pdev->dev,
+				"Failed to disable LAN Tx queues, error: %d\n",
+				status);
+			err = -ENODEV;
+		}
 	}
 
 err_out:
+	devm_kfree(&pf->pdev->dev, q_handles);
+
+err_alloc_q_handles:
 	devm_kfree(&pf->pdev->dev, q_ids);
 
 err_alloc_q_ids:
@@ -2023,10 +2132,11 @@ err_alloc_q_ids:
  * ice_vsi_stop_lan_tx_rings - Disable LAN Tx rings
  * @vsi: the VSI being configured
  * @rst_src: reset source
- * @rel_vmvf_num: Relative id of VF/VM
+ * @rel_vmvf_num: Relative ID of VF/VM
  */
-int ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi,
-			      enum ice_disq_rst_src rst_src, u16 rel_vmvf_num)
+int
+ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
+			  u16 rel_vmvf_num)
 {
 	return ice_vsi_stop_tx_rings(vsi, rst_src, rel_vmvf_num, vsi->tx_rings,
 				     0);
@@ -2036,19 +2146,22 @@ int ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi,
  * ice_cfg_vlan_pruning - enable or disable VLAN pruning on the VSI
  * @vsi: VSI to enable or disable VLAN pruning on
  * @ena: set to true to enable VLAN pruning and false to disable it
+ * @vlan_promisc: enable valid security flags if not in VLAN promiscuous mode
  *
  * returns 0 if VSI is updated, negative otherwise
  */
-int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena)
+int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena, bool vlan_promisc)
 {
 	struct ice_vsi_ctx *ctxt;
 	struct device *dev;
+	struct ice_pf *pf;
 	int status;
 
 	if (!vsi)
 		return -EINVAL;
 
-	dev = &vsi->back->pdev->dev;
+	pf = vsi->back;
+	dev = &pf->pdev->dev;
 	ctxt = devm_kzalloc(dev, sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
 		return -ENOMEM;
@@ -2067,14 +2180,16 @@ int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena)
 		ctxt->info.sw_flags2 &= ~ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA;
 	}
 
-	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID |
-						ICE_AQ_VSI_PROP_SW_VALID);
+	if (!vlan_promisc)
+		ctxt->info.valid_sections =
+			cpu_to_le16(ICE_AQ_VSI_PROP_SECURITY_VALID |
+				    ICE_AQ_VSI_PROP_SW_VALID);
 
-	status = ice_update_vsi(&vsi->back->hw, vsi->idx, ctxt, NULL);
+	status = ice_update_vsi(&pf->hw, vsi->idx, ctxt, NULL);
 	if (status) {
 		netdev_err(vsi->netdev, "%sabling VLAN pruning on VSI handle: %d, VSI HW ID: %d failed, err = %d, aq_err = %d\n",
 			   ena ? "En" : "Dis", vsi->idx, vsi->vsi_num, status,
-			   vsi->back->hw.adminq.sq_last_status);
+			   pf->hw.adminq.sq_last_status);
 		goto err_out;
 	}
 
@@ -2089,12 +2204,98 @@ err_out:
 	return -EIO;
 }
 
+static void ice_vsi_set_tc_cfg(struct ice_vsi *vsi)
+{
+	struct ice_dcbx_cfg *cfg = &vsi->port_info->local_dcbx_cfg;
+
+	vsi->tc_cfg.ena_tc = ice_dcb_get_ena_tc(cfg);
+	vsi->tc_cfg.numtc = ice_dcb_get_num_tc(cfg);
+}
+
+/**
+ * ice_vsi_set_q_vectors_reg_idx - set the HW register index for all q_vectors
+ * @vsi: VSI to set the q_vectors register index on
+ */
+static int
+ice_vsi_set_q_vectors_reg_idx(struct ice_vsi *vsi)
+{
+	u16 i;
+
+	if (!vsi || !vsi->q_vectors)
+		return -EINVAL;
+
+	ice_for_each_q_vector(vsi, i) {
+		struct ice_q_vector *q_vector = vsi->q_vectors[i];
+
+		if (!q_vector) {
+			dev_err(&vsi->back->pdev->dev,
+				"Failed to set reg_idx on q_vector %d VSI %d\n",
+				i, vsi->vsi_num);
+			goto clear_reg_idx;
+		}
+
+		q_vector->reg_idx = q_vector->v_idx + vsi->hw_base_vector;
+	}
+
+	return 0;
+
+clear_reg_idx:
+	ice_for_each_q_vector(vsi, i) {
+		struct ice_q_vector *q_vector = vsi->q_vectors[i];
+
+		if (q_vector)
+			q_vector->reg_idx = 0;
+	}
+
+	return -EINVAL;
+}
+
+/**
+ * ice_vsi_add_rem_eth_mac - Program VSI ethertype based filter with rule
+ * @vsi: the VSI being configured
+ * @add_rule: boolean value to add or remove ethertype filter rule
+ */
+static void
+ice_vsi_add_rem_eth_mac(struct ice_vsi *vsi, bool add_rule)
+{
+	struct ice_fltr_list_entry *list;
+	struct ice_pf *pf = vsi->back;
+	LIST_HEAD(tmp_add_list);
+	enum ice_status status;
+
+	list = devm_kzalloc(&pf->pdev->dev, sizeof(*list), GFP_KERNEL);
+	if (!list)
+		return;
+
+	list->fltr_info.lkup_type = ICE_SW_LKUP_ETHERTYPE;
+	list->fltr_info.fltr_act = ICE_DROP_PACKET;
+	list->fltr_info.flag = ICE_FLTR_TX;
+	list->fltr_info.src_id = ICE_SRC_ID_VSI;
+	list->fltr_info.vsi_handle = vsi->idx;
+	list->fltr_info.l_data.ethertype_mac.ethertype = vsi->ethtype;
+
+	INIT_LIST_HEAD(&list->list_entry);
+	list_add(&list->list_entry, &tmp_add_list);
+
+	if (add_rule)
+		status = ice_add_eth_mac(&pf->hw, &tmp_add_list);
+	else
+		status = ice_remove_eth_mac(&pf->hw, &tmp_add_list);
+
+	if (status)
+		dev_err(&pf->pdev->dev,
+			"Failure Adding or Removing Ethertype on VSI %i error: %d\n",
+			vsi->vsi_num, status);
+
+	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
+}
+
 /**
  * ice_vsi_setup - Set up a VSI by a given type
  * @pf: board private structure
  * @pi: pointer to the port_info instance
  * @type: VSI type
- * @vf_id: defines VF id to which this VSI connects. This field is meant to be
+ * @vf_id: defines VF ID to which this VSI connects. This field is meant to be
  *         used only for ICE_VSI_VF VSI type. For other VSI types, should
  *         fill-in ICE_INVAL_VFID as input.
  *
@@ -2112,7 +2313,11 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	struct ice_vsi *vsi;
 	int ret, i;
 
-	vsi = ice_vsi_alloc(pf, type);
+	if (type == ICE_VSI_VF)
+		vsi = ice_vsi_alloc(pf, type, vf_id);
+	else
+		vsi = ice_vsi_alloc(pf, type, ICE_INVAL_VFID);
+
 	if (!vsi) {
 		dev_err(dev, "could not allocate VSI\n");
 		return NULL;
@@ -2120,6 +2325,9 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 
 	vsi->port_info = pi;
 	vsi->vsw = pf->first_sw;
+	if (vsi->type == ICE_VSI_PF)
+		vsi->ethtype = ETH_P_PAUSE;
+
 	if (vsi->type == ICE_VSI_VF)
 		vsi->vf_id = vf_id;
 
@@ -2132,7 +2340,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	/* set RSS capabilities */
 	ice_vsi_set_rss_params(vsi);
 
-	/* set tc configuration */
+	/* set TC configuration */
 	ice_vsi_set_tc_cfg(vsi);
 
 	/* create the VSI */
@@ -2149,6 +2357,10 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		ret = ice_vsi_setup_vector_base(vsi);
 		if (ret)
 			goto unroll_alloc_q_vector;
+
+		ret = ice_vsi_set_q_vectors_reg_idx(vsi);
+		if (ret)
+			goto unroll_vector_base;
 
 		ret = ice_vsi_alloc_rings(vsi);
 		if (ret)
@@ -2188,6 +2400,10 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		} else {
 			vsi->hw_base_vector = pf->vf[vf_id].first_vector_idx;
 		}
+		ret = ice_vsi_set_q_vectors_reg_idx(vsi);
+		if (ret)
+			goto unroll_vector_base;
+
 		pf->q_left_tx -= vsi->alloc_txq;
 		pf->q_left_rx -= vsi->alloc_rxq;
 		break;
@@ -2203,18 +2419,29 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
 			      max_txqs);
 	if (ret) {
-		dev_info(&pf->pdev->dev, "Failed VSI lan queue config\n");
+		dev_err(&pf->pdev->dev,
+			"VSI %d failed lan queue config, error %d\n",
+			vsi->vsi_num, ret);
 		goto unroll_vector_base;
 	}
+
+	/* Add switch rule to drop all Tx Flow Control Frames, of look up
+	 * type ETHERTYPE from VSIs, and restrict malicious VF from sending
+	 * out PAUSE or PFC frames. If enabled, FW can still send FC frames.
+	 * The rule is added once for PF VSI in order to create appropriate
+	 * recipe, since VSI/VSI list is ignored with drop action...
+	 */
+	if (vsi->type == ICE_VSI_PF)
+		ice_vsi_add_rem_eth_mac(vsi, true);
 
 	return vsi;
 
 unroll_vector_base:
 	/* reclaim SW interrupts back to the common pool */
-	ice_free_res(vsi->back->sw_irq_tracker, vsi->sw_base_vector, vsi->idx);
+	ice_free_res(pf->sw_irq_tracker, vsi->sw_base_vector, vsi->idx);
 	pf->num_avail_sw_msix += vsi->num_q_vectors;
 	/* reclaim HW interrupt back to the common pool */
-	ice_free_res(vsi->back->hw_irq_tracker, vsi->hw_base_vector, vsi->idx);
+	ice_free_res(pf->hw_irq_tracker, vsi->hw_base_vector, vsi->idx);
 	pf->num_avail_hw_msix += vsi->num_q_vectors;
 unroll_alloc_q_vector:
 	ice_vsi_free_q_vectors(vsi);
@@ -2281,7 +2508,7 @@ void ice_vsi_free_irq(struct ice_vsi *vsi)
 			return;
 
 		vsi->irqs_ready = false;
-		for (i = 0; i < vsi->num_q_vectors; i++) {
+		ice_for_each_q_vector(vsi, i) {
 			u16 vector = i + base;
 			int irq_num;
 
@@ -2500,12 +2727,12 @@ void ice_vsi_dis_irq(struct ice_vsi *vsi)
 
 	/* disable each interrupt */
 	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags)) {
-		for (i = vsi->hw_base_vector;
-		     i < (vsi->num_q_vectors + vsi->hw_base_vector); i++)
-			wr32(hw, GLINT_DYN_CTL(i), 0);
+		ice_for_each_q_vector(vsi, i)
+			wr32(hw, GLINT_DYN_CTL(vsi->q_vectors[i]->reg_idx), 0);
 
 		ice_flush(hw);
-		for (i = 0; i < vsi->num_q_vectors; i++)
+
+		ice_for_each_q_vector(vsi, i)
 			synchronize_irq(pf->msix_entries[i + base].vector);
 	}
 }
@@ -2551,21 +2778,22 @@ int ice_vsi_release(struct ice_vsi *vsi)
 	/* reclaim interrupt vectors back to PF */
 	if (vsi->type != ICE_VSI_VF) {
 		/* reclaim SW interrupts back to the common pool */
-		ice_free_res(vsi->back->sw_irq_tracker, vsi->sw_base_vector,
-			     vsi->idx);
+		ice_free_res(pf->sw_irq_tracker, vsi->sw_base_vector, vsi->idx);
 		pf->num_avail_sw_msix += vsi->num_q_vectors;
 		/* reclaim HW interrupts back to the common pool */
-		ice_free_res(vsi->back->hw_irq_tracker, vsi->hw_base_vector,
-			     vsi->idx);
+		ice_free_res(pf->hw_irq_tracker, vsi->hw_base_vector, vsi->idx);
 		pf->num_avail_hw_msix += vsi->num_q_vectors;
 	} else if (test_bit(ICE_VF_STATE_CFG_INTR, vf->vf_states)) {
 		/* Reclaim VF resources back only while freeing all VFs or
 		 * vector reassignment is requested
 		 */
-		ice_free_res(vsi->back->hw_irq_tracker, vf->first_vector_idx,
+		ice_free_res(pf->hw_irq_tracker, vf->first_vector_idx,
 			     vsi->idx);
 		pf->num_avail_hw_msix += pf->num_vf_msix;
 	}
+
+	if (vsi->type == ICE_VSI_PF)
+		ice_vsi_add_rem_eth_mac(vsi, false);
 
 	ice_remove_vsi_fltr(&pf->hw, vsi->idx);
 	ice_rm_vsi_lan_cfg(vsi->port_info, vsi->idx);
@@ -2596,6 +2824,7 @@ int ice_vsi_release(struct ice_vsi *vsi)
 int ice_vsi_rebuild(struct ice_vsi *vsi)
 {
 	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
+	struct ice_vf *vf = NULL;
 	struct ice_pf *pf;
 	int ret, i;
 
@@ -2603,16 +2832,38 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 		return -EINVAL;
 
 	pf = vsi->back;
+	if (vsi->type == ICE_VSI_VF)
+		vf = &pf->vf[vsi->vf_id];
+
 	ice_rm_vsi_lan_cfg(vsi->port_info, vsi->idx);
 	ice_vsi_free_q_vectors(vsi);
-	ice_free_res(vsi->back->sw_irq_tracker, vsi->sw_base_vector, vsi->idx);
-	ice_free_res(vsi->back->hw_irq_tracker, vsi->hw_base_vector, vsi->idx);
-	vsi->sw_base_vector = 0;
+
+	if (vsi->type != ICE_VSI_VF) {
+		/* reclaim SW interrupts back to the common pool */
+		ice_free_res(pf->sw_irq_tracker, vsi->sw_base_vector, vsi->idx);
+		pf->num_avail_sw_msix += vsi->num_q_vectors;
+		vsi->sw_base_vector = 0;
+		/* reclaim HW interrupts back to the common pool */
+		ice_free_res(pf->hw_irq_tracker, vsi->hw_base_vector,
+			     vsi->idx);
+		pf->num_avail_hw_msix += vsi->num_q_vectors;
+	} else {
+		/* Reclaim VF resources back to the common pool for reset and
+		 * and rebuild, with vector reassignment
+		 */
+		ice_free_res(pf->hw_irq_tracker, vf->first_vector_idx,
+			     vsi->idx);
+		pf->num_avail_hw_msix += pf->num_vf_msix;
+	}
 	vsi->hw_base_vector = 0;
+
 	ice_vsi_clear_rings(vsi);
-	ice_vsi_free_arrays(vsi, false);
-	ice_dev_onetime_setup(&vsi->back->hw);
-	ice_vsi_set_num_qs(vsi);
+	ice_vsi_free_arrays(vsi);
+	ice_dev_onetime_setup(&pf->hw);
+	if (vsi->type == ICE_VSI_VF)
+		ice_vsi_set_num_qs(vsi, vf->vf_id);
+	else
+		ice_vsi_set_num_qs(vsi, ICE_INVAL_VFID);
 	ice_vsi_set_tc_cfg(vsi);
 
 	/* Initialize VSI struct elements and create VSI in FW */
@@ -2620,7 +2871,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	if (ret < 0)
 		goto err_vsi;
 
-	ret = ice_vsi_alloc_arrays(vsi, false);
+	ret = ice_vsi_alloc_arrays(vsi);
 	if (ret < 0)
 		goto err_vsi;
 
@@ -2634,6 +2885,10 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 		if (ret)
 			goto err_vectors;
 
+		ret = ice_vsi_set_q_vectors_reg_idx(vsi);
+		if (ret)
+			goto err_vectors;
+
 		ret = ice_vsi_alloc_rings(vsi);
 		if (ret)
 			goto err_vectors;
@@ -2643,7 +2898,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 		 * receive traffic on first queue. Hence no need to capture
 		 * return value
 		 */
-		if (test_bit(ICE_FLAG_RSS_ENA, vsi->back->flags))
+		if (test_bit(ICE_FLAG_RSS_ENA, pf->flags))
 			ice_vsi_cfg_rss_lut_key(vsi);
 		break;
 	case ICE_VSI_VF:
@@ -2655,12 +2910,16 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 		if (ret)
 			goto err_vectors;
 
+		ret = ice_vsi_set_q_vectors_reg_idx(vsi);
+		if (ret)
+			goto err_vectors;
+
 		ret = ice_vsi_alloc_rings(vsi);
 		if (ret)
 			goto err_vectors;
 
-		vsi->back->q_left_tx -= vsi->alloc_txq;
-		vsi->back->q_left_rx -= vsi->alloc_rxq;
+		pf->q_left_tx -= vsi->alloc_txq;
+		pf->q_left_rx -= vsi->alloc_rxq;
 		break;
 	default:
 		break;
@@ -2673,8 +2932,9 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
 			      max_txqs);
 	if (ret) {
-		dev_info(&vsi->back->pdev->dev,
-			 "Failed VSI lan queue config\n");
+		dev_err(&pf->pdev->dev,
+			"VSI %d failed lan queue config, error %d\n",
+			vsi->vsi_num, ret);
 		goto err_vectors;
 	}
 	return 0;
@@ -2690,7 +2950,7 @@ err_rings:
 	}
 err_vsi:
 	ice_vsi_clear(vsi);
-	set_bit(__ICE_RESET_FAILED, vsi->back->state);
+	set_bit(__ICE_RESET_FAILED, pf->state);
 	return ret;
 }
 
@@ -2705,3 +2965,125 @@ bool ice_is_reset_in_progress(unsigned long *state)
 	       test_bit(__ICE_CORER_REQ, state) ||
 	       test_bit(__ICE_GLOBR_REQ, state);
 }
+
+#ifdef CONFIG_DCB
+/**
+ * ice_vsi_update_q_map - update our copy of the VSI info with new queue map
+ * @vsi: VSI being configured
+ * @ctx: the context buffer returned from AQ VSI update command
+ */
+static void ice_vsi_update_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctx)
+{
+	vsi->info.mapping_flags = ctx->info.mapping_flags;
+	memcpy(&vsi->info.q_mapping, &ctx->info.q_mapping,
+	       sizeof(vsi->info.q_mapping));
+	memcpy(&vsi->info.tc_mapping, ctx->info.tc_mapping,
+	       sizeof(vsi->info.tc_mapping));
+}
+
+/**
+ * ice_vsi_cfg_netdev_tc - Setup the netdev TC configuration
+ * @vsi: the VSI being configured
+ * @ena_tc: TC map to be enabled
+ */
+static void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc)
+{
+	struct net_device *netdev = vsi->netdev;
+	struct ice_pf *pf = vsi->back;
+	struct ice_dcbx_cfg *dcbcfg;
+	u8 netdev_tc;
+	int i;
+
+	if (!netdev)
+		return;
+
+	if (!ena_tc) {
+		netdev_reset_tc(netdev);
+		return;
+	}
+
+	if (netdev_set_num_tc(netdev, vsi->tc_cfg.numtc))
+		return;
+
+	dcbcfg = &pf->hw.port_info->local_dcbx_cfg;
+
+	ice_for_each_traffic_class(i)
+		if (vsi->tc_cfg.ena_tc & BIT(i))
+			netdev_set_tc_queue(netdev,
+					    vsi->tc_cfg.tc_info[i].netdev_tc,
+					    vsi->tc_cfg.tc_info[i].qcount_tx,
+					    vsi->tc_cfg.tc_info[i].qoffset);
+
+	for (i = 0; i < ICE_MAX_USER_PRIORITY; i++) {
+		u8 ets_tc = dcbcfg->etscfg.prio_table[i];
+
+		/* Get the mapped netdev TC# for the UP */
+		netdev_tc = vsi->tc_cfg.tc_info[ets_tc].netdev_tc;
+		netdev_set_prio_tc_map(netdev, i, netdev_tc);
+	}
+}
+
+/**
+ * ice_vsi_cfg_tc - Configure VSI Tx Sched for given TC map
+ * @vsi: VSI to be configured
+ * @ena_tc: TC bitmap
+ *
+ * VSI queues expected to be quiesced before calling this function
+ */
+int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc)
+{
+	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
+	struct ice_vsi_ctx *ctx;
+	struct ice_pf *pf = vsi->back;
+	enum ice_status status;
+	int i, ret = 0;
+	u8 num_tc = 0;
+
+	ice_for_each_traffic_class(i) {
+		/* build bitmap of enabled TCs */
+		if (ena_tc & BIT(i))
+			num_tc++;
+		/* populate max_txqs per TC */
+		max_txqs[i] = pf->num_lan_tx;
+	}
+
+	vsi->tc_cfg.ena_tc = ena_tc;
+	vsi->tc_cfg.numtc = num_tc;
+
+	ctx = devm_kzalloc(&pf->pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->vf_num = 0;
+	ctx->info = vsi->info;
+
+	ice_vsi_setup_q_map(vsi, ctx);
+
+	/* must to indicate which section of VSI context are being modified */
+	ctx->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_RXQ_MAP_VALID);
+	status = ice_update_vsi(&pf->hw, vsi->idx, ctx, NULL);
+	if (status) {
+		dev_info(&pf->pdev->dev, "Failed VSI Update\n");
+		ret = -EIO;
+		goto out;
+	}
+
+	status = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
+				 max_txqs);
+
+	if (status) {
+		dev_err(&pf->pdev->dev,
+			"VSI %d failed TC config, error %d\n",
+			vsi->vsi_num, status);
+		ret = -EIO;
+		goto out;
+	}
+	ice_vsi_update_q_map(vsi, ctx);
+	vsi->info.valid_sections = 0;
+
+	ice_vsi_cfg_netdev_tc(vsi, ena_tc);
+out:
+	devm_kfree(&pf->pdev->dev, ctx);
+	return ret;
+}
+#endif /* CONFIG_DCB */

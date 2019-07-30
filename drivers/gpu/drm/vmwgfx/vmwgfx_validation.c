@@ -76,6 +76,8 @@ struct vmw_validation_res_node {
 	u32 switching_backup : 1;
 	u32 first_usage : 1;
 	u32 reserved : 1;
+	u32 dirty : 1;
+	u32 dirty_set : 1;
 	unsigned long private[0];
 };
 
@@ -299,6 +301,7 @@ int vmw_validation_add_bo(struct vmw_validation_context *ctx,
  * @ctx: The validation context.
  * @res: The resource.
  * @priv_size: Size of private, additional metadata.
+ * @dirty: Whether to change dirty status.
  * @p_node: Output pointer of additional metadata address.
  * @first_usage: Whether this was the first time this resource was seen.
  *
@@ -307,6 +310,7 @@ int vmw_validation_add_bo(struct vmw_validation_context *ctx,
 int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 				struct vmw_resource *res,
 				size_t priv_size,
+				u32 dirty,
 				void **p_node,
 				bool *first_usage)
 {
@@ -321,8 +325,7 @@ int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 
 	node = vmw_validation_mem_alloc(ctx, sizeof(*node) + priv_size);
 	if (!node) {
-		DRM_ERROR("Failed to allocate a resource validation "
-			  "entry.\n");
+		VMW_DEBUG_USER("Failed to allocate a resource validation entry.\n");
 		return -ENOMEM;
 	}
 
@@ -358,12 +361,40 @@ int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 	}
 
 out_fill:
+	if (dirty) {
+		node->dirty_set = 1;
+		/* Overwriting previous information here is intentional! */
+		node->dirty = (dirty & VMW_RES_DIRTY_SET) ? 1 : 0;
+	}
 	if (first_usage)
 		*first_usage = node->first_usage;
 	if (p_node)
 		*p_node = &node->private;
 
 	return 0;
+}
+
+/**
+ * vmw_validation_res_set_dirty - Register a resource dirty set or clear during
+ * validation.
+ * @ctx: The validation context.
+ * @val_private: The additional meta-data pointer returned when the
+ * resource was registered with the validation context. Used to identify
+ * the resource.
+ * @dirty: Dirty information VMW_RES_DIRTY_XX
+ */
+void vmw_validation_res_set_dirty(struct vmw_validation_context *ctx,
+				  void *val_private, u32 dirty)
+{
+	struct vmw_validation_res_node *val;
+
+	if (!dirty)
+		return;
+
+	val = container_of(val_private, typeof(*val), private);
+	val->dirty_set = 1;
+	/* Overwriting previous information here is intentional! */
+	val->dirty = (dirty & VMW_RES_DIRTY_SET) ? 1 : 0;
 }
 
 /**
@@ -450,15 +481,23 @@ void vmw_validation_res_unreserve(struct vmw_validation_context *ctx,
 	struct vmw_validation_res_node *val;
 
 	list_splice_init(&ctx->resource_ctx_list, &ctx->resource_list);
-
-	list_for_each_entry(val, &ctx->resource_list, head) {
-		if (val->reserved)
-			vmw_resource_unreserve(val->res,
-					       !backoff &&
-					       val->switching_backup,
-					       val->new_backup,
-					       val->new_backup_offset);
-	}
+	if (backoff)
+		list_for_each_entry(val, &ctx->resource_list, head) {
+			if (val->reserved)
+				vmw_resource_unreserve(val->res,
+						       false, false, false,
+						       NULL, 0);
+		}
+	else
+		list_for_each_entry(val, &ctx->resource_list, head) {
+			if (val->reserved)
+				vmw_resource_unreserve(val->res,
+						       val->dirty_set,
+						       val->dirty,
+						       val->switching_backup,
+						       val->new_backup,
+						       val->new_backup_offset);
+		}
 }
 
 /**

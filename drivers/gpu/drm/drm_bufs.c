@@ -584,6 +584,14 @@ void drm_legacy_master_rmmaps(struct drm_device *dev, struct drm_master *master)
 	mutex_unlock(&dev->struct_mutex);
 }
 
+void drm_legacy_rmmaps(struct drm_device *dev)
+{
+	struct drm_map_list *r_list, *list_temp;
+
+	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
+		drm_legacy_rmmap(dev, r_list->map);
+}
+
 /* The rmmap ioctl appears to be unnecessary.  All mappings are torn down on
  * the last close of the device, and this is necessary for cleanup when things
  * exit uncleanly.  Therefore, having userland manually remove mappings seems
@@ -1332,7 +1340,10 @@ static int copy_one_buf(void *data, int count, struct drm_buf_entry *from)
 				 .size = from->buf_size,
 				 .low_mark = from->low_mark,
 				 .high_mark = from->high_mark};
-	return copy_to_user(to, &v, offsetof(struct drm_buf_desc, flags));
+
+	if (copy_to_user(to, &v, offsetof(struct drm_buf_desc, flags)))
+		return -EFAULT;
+	return 0;
 }
 
 int drm_legacy_infobufs(struct drm_device *dev, void *data,

@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  *
  * Copyright 2010-2011 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
  */
@@ -13,6 +11,7 @@
 #include <linux/hugetlb.h>
 #include <linux/module.h>
 #include <linux/log2.h>
+#include <linux/sizes.h>
 
 #include <asm/trace.h>
 #include <asm/kvm_ppc.h>
@@ -864,6 +863,149 @@ long kvmppc_h_clear_mod(struct kvm_vcpu *vcpu, unsigned long flags,
 	ret = H_SUCCESS;
  out:
 	unlock_hpte(hpte, v & ~HPTE_V_HVLOCK);
+	return ret;
+}
+
+static int kvmppc_get_hpa(struct kvm_vcpu *vcpu, unsigned long gpa,
+			  int writing, unsigned long *hpa,
+			  struct kvm_memory_slot **memslot_p)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_memory_slot *memslot;
+	unsigned long gfn, hva, pa, psize = PAGE_SHIFT;
+	unsigned int shift;
+	pte_t *ptep, pte;
+
+	/* Find the memslot for this address */
+	gfn = gpa >> PAGE_SHIFT;
+	memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
+	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
+		return H_PARAMETER;
+
+	/* Translate to host virtual address */
+	hva = __gfn_to_hva_memslot(memslot, gfn);
+
+	/* Try to find the host pte for that virtual address */
+	ptep = __find_linux_pte(vcpu->arch.pgdir, hva, NULL, &shift);
+	if (!ptep)
+		return H_TOO_HARD;
+	pte = kvmppc_read_update_linux_pte(ptep, writing);
+	if (!pte_present(pte))
+		return H_TOO_HARD;
+
+	/* Convert to a physical address */
+	if (shift)
+		psize = 1UL << shift;
+	pa = pte_pfn(pte) << PAGE_SHIFT;
+	pa |= hva & (psize - 1);
+	pa |= gpa & ~PAGE_MASK;
+
+	if (hpa)
+		*hpa = pa;
+	if (memslot_p)
+		*memslot_p = memslot;
+
+	return H_SUCCESS;
+}
+
+static long kvmppc_do_h_page_init_zero(struct kvm_vcpu *vcpu,
+				       unsigned long dest)
+{
+	struct kvm_memory_slot *memslot;
+	struct kvm *kvm = vcpu->kvm;
+	unsigned long pa, mmu_seq;
+	long ret = H_SUCCESS;
+	int i;
+
+	/* Used later to detect if we might have been invalidated */
+	mmu_seq = kvm->mmu_notifier_seq;
+	smp_rmb();
+
+	ret = kvmppc_get_hpa(vcpu, dest, 1, &pa, &memslot);
+	if (ret != H_SUCCESS)
+		return ret;
+
+	/* Check if we've been invalidated */
+	raw_spin_lock(&kvm->mmu_lock.rlock);
+	if (mmu_notifier_retry(kvm, mmu_seq)) {
+		ret = H_TOO_HARD;
+		goto out_unlock;
+	}
+
+	/* Zero the page */
+	for (i = 0; i < SZ_4K; i += L1_CACHE_BYTES, pa += L1_CACHE_BYTES)
+		dcbz((void *)pa);
+	kvmppc_update_dirty_map(memslot, dest >> PAGE_SHIFT, PAGE_SIZE);
+
+out_unlock:
+	raw_spin_unlock(&kvm->mmu_lock.rlock);
+	return ret;
+}
+
+static long kvmppc_do_h_page_init_copy(struct kvm_vcpu *vcpu,
+				       unsigned long dest, unsigned long src)
+{
+	unsigned long dest_pa, src_pa, mmu_seq;
+	struct kvm_memory_slot *dest_memslot;
+	struct kvm *kvm = vcpu->kvm;
+	long ret = H_SUCCESS;
+
+	/* Used later to detect if we might have been invalidated */
+	mmu_seq = kvm->mmu_notifier_seq;
+	smp_rmb();
+
+	ret = kvmppc_get_hpa(vcpu, dest, 1, &dest_pa, &dest_memslot);
+	if (ret != H_SUCCESS)
+		return ret;
+	ret = kvmppc_get_hpa(vcpu, src, 0, &src_pa, NULL);
+	if (ret != H_SUCCESS)
+		return ret;
+
+	/* Check if we've been invalidated */
+	raw_spin_lock(&kvm->mmu_lock.rlock);
+	if (mmu_notifier_retry(kvm, mmu_seq)) {
+		ret = H_TOO_HARD;
+		goto out_unlock;
+	}
+
+	/* Copy the page */
+	memcpy((void *)dest_pa, (void *)src_pa, SZ_4K);
+
+	kvmppc_update_dirty_map(dest_memslot, dest >> PAGE_SHIFT, PAGE_SIZE);
+
+out_unlock:
+	raw_spin_unlock(&kvm->mmu_lock.rlock);
+	return ret;
+}
+
+long kvmppc_rm_h_page_init(struct kvm_vcpu *vcpu, unsigned long flags,
+			   unsigned long dest, unsigned long src)
+{
+	struct kvm *kvm = vcpu->kvm;
+	u64 pg_mask = SZ_4K - 1;	/* 4K page size */
+	long ret = H_SUCCESS;
+
+	/* Don't handle radix mode here, go up to the virtual mode handler */
+	if (kvm_is_radix(kvm))
+		return H_TOO_HARD;
+
+	/* Check for invalid flags (H_PAGE_SET_LOANED covers all CMO flags) */
+	if (flags & ~(H_ICACHE_INVALIDATE | H_ICACHE_SYNCHRONIZE |
+		      H_ZERO_PAGE | H_COPY_PAGE | H_PAGE_SET_LOANED))
+		return H_PARAMETER;
+
+	/* dest (and src if copy_page flag set) must be page aligned */
+	if ((dest & pg_mask) || ((flags & H_COPY_PAGE) && (src & pg_mask)))
+		return H_PARAMETER;
+
+	/* zero and/or copy the page as determined by the flags */
+	if (flags & H_COPY_PAGE)
+		ret = kvmppc_do_h_page_init_copy(vcpu, dest, src);
+	else if (flags & H_ZERO_PAGE)
+		ret = kvmppc_do_h_page_init_zero(vcpu, dest);
+
+	/* We can ignore the other flags */
+
 	return ret;
 }
 

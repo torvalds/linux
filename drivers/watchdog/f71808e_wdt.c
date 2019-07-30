@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /***************************************************************************
  *   Copyright (C) 2006 by Hans Edgington <hans@edgington.nl>              *
  *   Copyright (C) 2007-2009 Hans de Goede <hdegoede@redhat.com>           *
  *   Copyright (C) 2010 Giel van Schijndel <me@mortis.eu>                  *
  *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- *   This program is distributed in the hope that it will be useful,       *
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU General Public License for more details.                          *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -338,8 +325,11 @@ static int f71862fg_pin_configure(unsigned short ioaddr)
 
 static int watchdog_start(void)
 {
+	int err;
+	u8 tmp;
+
 	/* Make sure we don't die as soon as the watchdog is enabled below */
-	int err = watchdog_keepalive();
+	err = watchdog_keepalive();
 	if (err)
 		return err;
 
@@ -386,19 +376,18 @@ static int watchdog_start(void)
 		break;
 
 	case f81866:
-		/* Set pin 70 to WDTRST# */
-		superio_clear_bit(watchdog.sioaddr, SIO_F81866_REG_PORT_SEL,
-				  BIT(3) | BIT(0));
-		superio_set_bit(watchdog.sioaddr, SIO_F81866_REG_PORT_SEL,
-				BIT(2));
 		/*
 		 * GPIO1 Control Register when 27h BIT3:2 = 01 & BIT0 = 0.
 		 * The PIN 70(GPIO15/WDTRST) is controlled by 2Ch:
 		 *     BIT5: 0 -> WDTRST#
 		 *           1 -> GPIO15
 		 */
-		superio_clear_bit(watchdog.sioaddr, SIO_F81866_REG_GPIO1,
-				  BIT(5));
+		tmp = superio_inb(watchdog.sioaddr, SIO_F81866_REG_PORT_SEL);
+		tmp &= ~(BIT(3) | BIT(0));
+		tmp |= BIT(2);
+		superio_outb(watchdog.sioaddr, SIO_F81866_REG_PORT_SEL, tmp);
+
+		superio_clear_bit(watchdog.sioaddr, SIO_F81866_REG_GPIO1, 5);
 		break;
 
 	default:
@@ -525,7 +514,7 @@ static int watchdog_open(struct inode *inode, struct file *file)
 		__module_get(THIS_MODULE);
 
 	watchdog.expect_close = 0;
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int watchdog_release(struct inode *inode, struct file *file)

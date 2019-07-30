@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Broadcom
  *	Author: Jayachandran C <jchandra@broadcom.com>
  * Copyright (C) 2016 Semihalf
  * 	Author: Tomasz Nowicki <tn@semihalf.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation (the "GPL").
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License version 2 (GPLv2) for more details.
- *
- * You should have received a copy of the GNU General Public License
- * version 2 (GPLv2) along with this source code.
  */
 
 #define pr_fmt(fmt) "ACPI: " fmt
@@ -51,6 +40,18 @@ struct mcfg_fixup {
 
 static struct mcfg_fixup mcfg_quirks[] = {
 /*	{ OEM_ID, OEM_TABLE_ID, REV, SEGMENT, BUS_RANGE, ops, cfgres }, */
+
+#define AL_ECAM(table_id, rev, seg, ops) \
+	{ "AMAZON", table_id, rev, seg, MCFG_BUS_ANY, ops }
+
+	AL_ECAM("GRAVITON", 0, 0, &al_pcie_ops),
+	AL_ECAM("GRAVITON", 0, 1, &al_pcie_ops),
+	AL_ECAM("GRAVITON", 0, 2, &al_pcie_ops),
+	AL_ECAM("GRAVITON", 0, 3, &al_pcie_ops),
+	AL_ECAM("GRAVITON", 0, 4, &al_pcie_ops),
+	AL_ECAM("GRAVITON", 0, 5, &al_pcie_ops),
+	AL_ECAM("GRAVITON", 0, 6, &al_pcie_ops),
+	AL_ECAM("GRAVITON", 0, 7, &al_pcie_ops),
 
 #define QCOM_ECAM32(seg) \
 	{ "QCOM  ", "QDF2432 ", 1, seg, MCFG_BUS_ANY, &pci_32b_ops }

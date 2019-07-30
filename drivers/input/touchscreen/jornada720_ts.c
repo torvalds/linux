@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/input/touchscreen/jornada720_ts.c
  *
@@ -5,10 +6,6 @@
  *
  *  Copyright (C) 2006 Filip Zyzniewski <filip.zyzniewski@tefnet.pl>
  *  based on HP Jornada 56x touchscreen driver by Alex Lange <chicken@handhelds.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * HP Jornada 710/720/729 Touchscreen Driver
  */

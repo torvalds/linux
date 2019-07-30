@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config COMMON_RESET_HI3660
 	tristate "Hi3660 Reset Driver"
 	depends on ARCH_HISI || COMPILE_TEST

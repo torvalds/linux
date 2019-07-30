@@ -6,5 +6,5 @@ config VIDEO_OMAP4
 	depends on ARCH_OMAP4 || COMPILE_TEST
 	select MFD_SYSCON
 	select VIDEOBUF2_DMA_CONTIG
-	---help---
+	help
 	  Driver for an OMAP 4 ISS controller.

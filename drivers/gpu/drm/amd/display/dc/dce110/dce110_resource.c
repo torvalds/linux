@@ -392,6 +392,55 @@ static const struct resource_caps stoney_resource_cap = {
 		.num_ddc = 3,
 };
 
+static const struct dc_plane_cap plane_cap = {
+		.type = DC_PLANE_TYPE_DCE_RGB,
+		.blends_with_below = true,
+		.blends_with_above = true,
+		.per_pixel_alpha = 1,
+
+		.pixel_format_support = {
+				.argb8888 = true,
+				.nv12 = false,
+				.fp16 = false
+		},
+
+		.max_upscale_factor = {
+				.argb8888 = 16000,
+				.nv12 = 1,
+				.fp16 = 1
+		},
+
+		.max_downscale_factor = {
+				.argb8888 = 250,
+				.nv12 = 1,
+				.fp16 = 1
+		}
+};
+
+static const struct dc_plane_cap underlay_plane_cap = {
+		.type = DC_PLANE_TYPE_DCE_UNDERLAY,
+		.blends_with_above = true,
+		.per_pixel_alpha = 1,
+
+		.pixel_format_support = {
+				.argb8888 = false,
+				.nv12 = true,
+				.fp16 = false
+		},
+
+		.max_upscale_factor = {
+				.argb8888 = 1,
+				.nv12 = 16000,
+				.fp16 = 1
+		},
+
+		.max_downscale_factor = {
+				.argb8888 = 1,
+				.nv12 = 250,
+				.fp16 = 1
+		}
+};
+
 #define CTX  ctx
 #define REG(reg) mm ## reg
 
@@ -854,7 +903,8 @@ static enum dc_status build_mapped_resource(
 
 static bool dce110_validate_bandwidth(
 	struct dc *dc,
-	struct dc_state *context)
+	struct dc_state *context,
+	bool fast_validate)
 {
 	bool result = false;
 
@@ -868,7 +918,7 @@ static bool dce110_validate_bandwidth(
 			dc->bw_vbios,
 			context->res_ctx.pipe_ctx,
 			dc->res_pool->pipe_count,
-			&context->bw.dce))
+			&context->bw_ctx.bw.dce))
 		result =  true;
 
 	if (!result)
@@ -878,8 +928,8 @@ static bool dce110_validate_bandwidth(
 			context->streams[0]->timing.v_addressable,
 			context->streams[0]->timing.pix_clk_100hz / 10);
 
-	if (memcmp(&dc->current_state->bw.dce,
-			&context->bw.dce, sizeof(context->bw.dce))) {
+	if (memcmp(&dc->current_state->bw_ctx.bw.dce,
+			&context->bw_ctx.bw.dce, sizeof(context->bw_ctx.bw.dce))) {
 
 		DC_LOG_BANDWIDTH_CALCS(
 			"%s: finish,\n"
@@ -893,34 +943,34 @@ static bool dce110_validate_bandwidth(
 			"sclk: %d sclk_sleep: %d yclk: %d blackout_recovery_time_us: %d\n"
 			,
 			__func__,
-			context->bw.dce.nbp_state_change_wm_ns[0].b_mark,
-			context->bw.dce.nbp_state_change_wm_ns[0].a_mark,
-			context->bw.dce.urgent_wm_ns[0].b_mark,
-			context->bw.dce.urgent_wm_ns[0].a_mark,
-			context->bw.dce.stutter_exit_wm_ns[0].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[0].a_mark,
-			context->bw.dce.nbp_state_change_wm_ns[1].b_mark,
-			context->bw.dce.nbp_state_change_wm_ns[1].a_mark,
-			context->bw.dce.urgent_wm_ns[1].b_mark,
-			context->bw.dce.urgent_wm_ns[1].a_mark,
-			context->bw.dce.stutter_exit_wm_ns[1].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[1].a_mark,
-			context->bw.dce.nbp_state_change_wm_ns[2].b_mark,
-			context->bw.dce.nbp_state_change_wm_ns[2].a_mark,
-			context->bw.dce.urgent_wm_ns[2].b_mark,
-			context->bw.dce.urgent_wm_ns[2].a_mark,
-			context->bw.dce.stutter_exit_wm_ns[2].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[2].a_mark,
-			context->bw.dce.stutter_mode_enable,
-			context->bw.dce.cpuc_state_change_enable,
-			context->bw.dce.cpup_state_change_enable,
-			context->bw.dce.nbp_state_change_enable,
-			context->bw.dce.all_displays_in_sync,
-			context->bw.dce.dispclk_khz,
-			context->bw.dce.sclk_khz,
-			context->bw.dce.sclk_deep_sleep_khz,
-			context->bw.dce.yclk_khz,
-			context->bw.dce.blackout_recovery_time_us);
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[0].b_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[0].a_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[0].b_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[0].a_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[0].b_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[0].a_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[1].b_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[1].a_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[1].b_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[1].a_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[1].b_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[1].a_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[2].b_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[2].a_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[2].b_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[2].a_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[2].b_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[2].a_mark,
+			context->bw_ctx.bw.dce.stutter_mode_enable,
+			context->bw_ctx.bw.dce.cpuc_state_change_enable,
+			context->bw_ctx.bw.dce.cpup_state_change_enable,
+			context->bw_ctx.bw.dce.nbp_state_change_enable,
+			context->bw_ctx.bw.dce.all_displays_in_sync,
+			context->bw_ctx.bw.dce.dispclk_khz,
+			context->bw_ctx.bw.dce.sclk_khz,
+			context->bw_ctx.bw.dce.sclk_deep_sleep_khz,
+			context->bw_ctx.bw.dce.yclk_khz,
+			context->bw_ctx.bw.dce.blackout_recovery_time_us);
 	}
 	return result;
 }
@@ -1370,6 +1420,11 @@ static bool construct(
 	dce110_hw_sequencer_construct(dc);
 
 	dc->caps.max_planes =  pool->base.pipe_count;
+
+	for (i = 0; i < pool->base.underlay_pipe_index; ++i)
+		dc->caps.planes[i] = plane_cap;
+
+	dc->caps.planes[pool->base.underlay_pipe_index] = underlay_plane_cap;
 
 	bw_calcs_init(dc->bw_dceip, dc->bw_vbios, dc->ctx->asic_id);
 

@@ -231,7 +231,6 @@ static const struct watchdog_ops omap_wdt_ops = {
 static int omap_wdt_probe(struct platform_device *pdev)
 {
 	struct omap_wd_timer_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct resource *res;
 	struct omap_wdt_dev *wdev;
 	int ret;
 
@@ -245,8 +244,7 @@ static int omap_wdt_probe(struct platform_device *pdev)
 	mutex_init(&wdev->lock);
 
 	/* reserve static register mappings */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdev->base = devm_ioremap_resource(&pdev->dev, res);
+	wdev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdev->base))
 		return PTR_ERR(wdev->base);
 

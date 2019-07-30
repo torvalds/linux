@@ -83,6 +83,13 @@ enum {
 #define CLKF_HW_SUP			BIT(6)
 #define CLKF_NO_IDLEST			BIT(7)
 
+#define CLKF_SOC_MASK			GENMASK(11, 8)
+
+#define CLKF_SOC_NONSEC			BIT(8)
+#define CLKF_SOC_DRA72			BIT(9)
+#define CLKF_SOC_DRA74			BIT(10)
+#define CLKF_SOC_DRA76			BIT(11)
+
 #define CLK(dev, con, ck)		\
 	{				\
 		.lk = {			\
@@ -303,7 +310,6 @@ long omap4_dpll_regm4xen_round_rate(struct clk_hw *hw,
 int omap4_dpll_regm4xen_determine_rate(struct clk_hw *hw,
 				       struct clk_rate_request *req);
 int omap2_clk_for_each(int (*fn)(struct clk_hw_omap *hw));
-bool omap2_clk_is_hw_omap(struct clk_hw *hw);
 
 extern struct ti_clk_ll_ops *ti_clk_ll_ops;
 

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Touchscreen driver DMI based configuration code
  *
  * Copyright (c) 2017 Red Hat Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Red Hat authors:
  * Hans de Goede <hdegoede@redhat.com>
@@ -249,6 +245,21 @@ static const struct ts_dmi_data jumper_ezpad_6_pro_data = {
 	.properties	= jumper_ezpad_6_pro_props,
 };
 
+static const struct property_entry jumper_ezpad_6_pro_b_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1980),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1500),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3692-jumper-ezpad-6-pro-b.fw"),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data jumper_ezpad_6_pro_b_data = {
+	.acpi_name      = "MSSL1680:00",
+	.properties     = jumper_ezpad_6_pro_b_props,
+};
+
 static const struct property_entry jumper_ezpad_mini3_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-x", 23),
 	PROPERTY_ENTRY_U32("touchscreen-min-y", 16),
@@ -263,6 +274,23 @@ static const struct property_entry jumper_ezpad_mini3_props[] = {
 static const struct ts_dmi_data jumper_ezpad_mini3_data = {
 	.acpi_name	= "MSSL1680:00",
 	.properties	= jumper_ezpad_mini3_props,
+};
+
+static const struct property_entry myria_my8307_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1720),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1140),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-myria-my8307.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data myria_my8307_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= myria_my8307_props,
 };
 
 static const struct property_entry onda_obook_20_plus_props[] = {
@@ -674,6 +702,17 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
+		/* Jumper EZpad 6 Pro B */
+		.driver_data = (void *)&jumper_ezpad_6_pro_b_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Jumper"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "EZpad"),
+			DMI_MATCH(DMI_BIOS_VERSION, "5.12"),
+			/* Above matches are too generic, add bios-date match */
+			DMI_MATCH(DMI_BIOS_DATE, "04/24/2018"),
+		},
+	},
+	{
 		/* Jumper EZpad mini3 */
 		.driver_data = (void *)&jumper_ezpad_mini3_data,
 		.matches = {
@@ -688,6 +727,14 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDIACOM"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "FlexBook edge11 - M-FBE11"),
+		},
+	},
+	{
+		/* Myria MY8307 */
+		.driver_data = (void *)&myria_my8307_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Complet Electro Serv"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MY8307"),
 		},
 	},
 	{

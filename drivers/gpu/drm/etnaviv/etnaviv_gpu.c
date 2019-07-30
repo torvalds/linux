@@ -365,6 +365,7 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 	dev_info(gpu->dev, "model: GC%x, revision: %x\n",
 		 gpu->identity.model, gpu->identity.revision);
 
+	gpu->idle_mask = ~VIVS_HI_IDLE_STATE_AXI_LP;
 	/*
 	 * If there is a match in the HWDB, we aren't interested in the
 	 * remaining register values, as they might be wrong.
@@ -412,7 +413,7 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 	}
 
 	/* GC600 idle register reports zero bits where modules aren't present */
-	if (gpu->identity.model == chipModel_GC600) {
+	if (gpu->identity.model == chipModel_GC600)
 		gpu->idle_mask = VIVS_HI_IDLE_STATE_TX |
 				 VIVS_HI_IDLE_STATE_RA |
 				 VIVS_HI_IDLE_STATE_SE |
@@ -421,9 +422,6 @@ static void etnaviv_hw_identify(struct etnaviv_gpu *gpu)
 				 VIVS_HI_IDLE_STATE_PE |
 				 VIVS_HI_IDLE_STATE_DE |
 				 VIVS_HI_IDLE_STATE_FE;
-	} else {
-		gpu->idle_mask = ~VIVS_HI_IDLE_STATE_AXI_LP;
-	}
 
 	etnaviv_hw_specs(gpu);
 }
@@ -762,7 +760,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	if (IS_ERR(gpu->cmdbuf_suballoc)) {
 		dev_err(gpu->dev, "Failed to create cmdbuf suballocator\n");
 		ret = PTR_ERR(gpu->cmdbuf_suballoc);
-		goto fail;
+		goto destroy_iommu;
 	}
 
 	/* Create buffer: */
@@ -770,7 +768,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 				  PAGE_SIZE);
 	if (ret) {
 		dev_err(gpu->dev, "could not create command buffer\n");
-		goto destroy_iommu;
+		goto destroy_suballoc;
 	}
 
 	if (gpu->mmu->version == ETNAVIV_IOMMU_V1 &&
@@ -802,6 +800,9 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 free_buffer:
 	etnaviv_cmdbuf_free(&gpu->buffer);
 	gpu->buffer.suballoc = NULL;
+destroy_suballoc:
+	etnaviv_cmdbuf_suballoc_destroy(gpu->cmdbuf_suballoc);
+	gpu->cmdbuf_suballoc = NULL;
 destroy_iommu:
 	etnaviv_iommu_destroy(gpu->mmu);
 	gpu->mmu = NULL;

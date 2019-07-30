@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP3 thermal driver.
  *
  * Copyright (C) 2011-2012 Texas Instruments Inc.
  * Copyright (C) 2014 Pavel Machek <pavel@ucw.cz>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  *
  * Note
  * http://www.ti.com/lit/er/sprz278f/sprz278f.pdf "Advisory

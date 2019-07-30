@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # This config refers to the generic KASAN mode.
 config HAVE_ARCH_KASAN
 	bool

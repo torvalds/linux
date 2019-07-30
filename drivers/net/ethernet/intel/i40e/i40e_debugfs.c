@@ -1321,7 +1321,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		if (strncmp(&cmd_buf[5], "stop", 4) == 0) {
 			int ret;
 
-			ret = i40e_aq_stop_lldp(&pf->hw, false, NULL);
+			ret = i40e_aq_stop_lldp(&pf->hw, false, false, NULL);
 			if (ret) {
 				dev_info(&pf->pdev->dev,
 					 "Stop LLDP AQ command failed =0x%x\n",
@@ -1358,7 +1358,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 				/* Continue and start FW LLDP anyways */
 			}
 
-			ret = i40e_aq_start_lldp(&pf->hw, NULL);
+			ret = i40e_aq_start_lldp(&pf->hw, false, NULL);
 			if (ret) {
 				dev_info(&pf->pdev->dev,
 					 "Start LLDP AQ command failed =0x%x\n",

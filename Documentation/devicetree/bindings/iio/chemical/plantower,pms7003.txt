@@ -1,7 +1,13 @@
 * Plantower PMS7003 particulate matter sensor
 
 Required properties:
-- compatible: must be "plantower,pms7003"
+- compatible: must one of:
+   "plantower,pms1003"
+   "plantower,pms3003"
+   "plantower,pms5003"
+   "plantower,pms6003"
+   "plantower,pms7003"
+   "plantower,pmsa003"
 - vcc-supply: phandle to the regulator that provides power to the sensor
 
 Optional properties:

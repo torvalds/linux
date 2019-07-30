@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CTF writing support via babeltrace.
  *
  * Copyright (C) 2014, Jiri Olsa <jolsa@redhat.com>
  * Copyright (C) 2014, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 
 #include <errno.h>
@@ -271,7 +270,7 @@ static int string_set_value(struct bt_ctf_field *field, const char *string)
 				if (i > 0)
 					strncpy(buffer, string, i);
 			}
-			strncat(buffer + p, numstr, 4);
+			memcpy(buffer + p, numstr, 4);
 			p += 3;
 		}
 	}
@@ -310,7 +309,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 	if (flags & TEP_FIELD_IS_DYNAMIC) {
 		unsigned long long tmp_val;
 
-		tmp_val = tep_read_number(fmtf->event->pevent,
+		tmp_val = tep_read_number(fmtf->event->tep,
 					  data + offset, len);
 		offset = tmp_val;
 		len = offset >> 16;
@@ -354,7 +353,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 			unsigned long long value_int;
 
 			value_int = tep_read_number(
-					fmtf->event->pevent,
+					fmtf->event->tep,
 					data + offset + i * len, len);
 
 			if (!(flags & TEP_FIELD_IS_SIGNED))

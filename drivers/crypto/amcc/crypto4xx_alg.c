@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * AMCC SoC PPC4xx Crypto Driver
  *
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
  * All rights reserved. James Hsiao <jhsiao@amcc.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * This file implements the Linux crypto algorithms.
  */
@@ -141,9 +132,10 @@ static int crypto4xx_setkey_aes(struct crypto_skcipher *cipher,
 	/* Setup SA */
 	sa = ctx->sa_in;
 
-	set_dynamic_sa_command_0(sa, SA_NOT_SAVE_HASH, (cm == CRYPTO_MODE_CBC ?
-				 SA_SAVE_IV : SA_NOT_SAVE_IV),
-				 SA_LOAD_HASH_FROM_SA, SA_LOAD_IV_FROM_STATE,
+	set_dynamic_sa_command_0(sa, SA_NOT_SAVE_HASH, (cm == CRYPTO_MODE_ECB ?
+				 SA_NOT_SAVE_IV : SA_SAVE_IV),
+				 SA_NOT_LOAD_HASH, (cm == CRYPTO_MODE_ECB ?
+				 SA_LOAD_IV_FROM_SA : SA_LOAD_IV_FROM_STATE),
 				 SA_NO_HEADER_PROC, SA_HASH_ALG_NULL,
 				 SA_CIPHER_ALG_AES, SA_PAD_TYPE_ZERO,
 				 SA_OP_GROUP_BASIC, SA_OPCODE_DECRYPT,
@@ -162,6 +154,11 @@ static int crypto4xx_setkey_aes(struct crypto_skcipher *cipher,
 	memcpy(ctx->sa_out, ctx->sa_in, ctx->sa_len * 4);
 	sa = ctx->sa_out;
 	sa->sa_command_0.bf.dir = DIR_OUTBOUND;
+	/*
+	 * SA_OPCODE_ENCRYPT is the same value as SA_OPCODE_DECRYPT.
+	 * it's the DIR_(IN|OUT)BOUND that matters
+	 */
+	sa->sa_command_0.bf.opcode = SA_OPCODE_ENCRYPT;
 
 	return 0;
 }
@@ -258,10 +255,10 @@ crypto4xx_ctr_crypt(struct skcipher_request *req, bool encrypt)
 	 * overlow.
 	 */
 	if (counter + nblks < counter) {
-		struct skcipher_request *subreq = skcipher_request_ctx(req);
+		SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, ctx->sw_cipher.cipher);
 		int ret;
 
-		skcipher_request_set_tfm(subreq, ctx->sw_cipher.cipher);
+		skcipher_request_set_sync_tfm(subreq, ctx->sw_cipher.cipher);
 		skcipher_request_set_callback(subreq, req->base.flags,
 			NULL, NULL);
 		skcipher_request_set_crypt(subreq, req->src, req->dst,
@@ -283,14 +280,14 @@ static int crypto4xx_sk_setup_fallback(struct crypto4xx_ctx *ctx,
 {
 	int rc;
 
-	crypto_skcipher_clear_flags(ctx->sw_cipher.cipher,
+	crypto_sync_skcipher_clear_flags(ctx->sw_cipher.cipher,
 				    CRYPTO_TFM_REQ_MASK);
-	crypto_skcipher_set_flags(ctx->sw_cipher.cipher,
+	crypto_sync_skcipher_set_flags(ctx->sw_cipher.cipher,
 		crypto_skcipher_get_flags(cipher) & CRYPTO_TFM_REQ_MASK);
-	rc = crypto_skcipher_setkey(ctx->sw_cipher.cipher, key, keylen);
+	rc = crypto_sync_skcipher_setkey(ctx->sw_cipher.cipher, key, keylen);
 	crypto_skcipher_clear_flags(cipher, CRYPTO_TFM_RES_MASK);
 	crypto_skcipher_set_flags(cipher,
-		crypto_skcipher_get_flags(ctx->sw_cipher.cipher) &
+		crypto_sync_skcipher_get_flags(ctx->sw_cipher.cipher) &
 			CRYPTO_TFM_RES_MASK);
 
 	return rc;

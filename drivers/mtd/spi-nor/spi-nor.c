@@ -744,7 +744,7 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 	u8 erase_mask = region->offset & SNOR_ERASE_TYPE_MASK;
 
 	/*
-	 * Erase types are ordered by size, with the biggest erase type at
+	 * Erase types are ordered by size, with the smallest erase type at
 	 * index 0.
 	 */
 	for (i = SNOR_ERASE_TYPE_MAX - 1; i >= 0; i--) {
@@ -1636,6 +1636,95 @@ static int sr2_bit7_quad_enable(struct spi_nor *nor)
 	return 0;
 }
 
+/**
+ * spi_nor_clear_sr_bp() - clear the Status Register Block Protection bits.
+ * @nor:        pointer to a 'struct spi_nor'
+ *
+ * Read-modify-write function that clears the Block Protection bits from the
+ * Status Register without affecting other bits.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spi_nor_clear_sr_bp(struct spi_nor *nor)
+{
+	int ret;
+	u8 mask = SR_BP2 | SR_BP1 | SR_BP0;
+
+	ret = read_sr(nor);
+	if (ret < 0) {
+		dev_err(nor->dev, "error while reading status register\n");
+		return ret;
+	}
+
+	write_enable(nor);
+
+	ret = write_sr(nor, ret & ~mask);
+	if (ret) {
+		dev_err(nor->dev, "write to status register failed\n");
+		return ret;
+	}
+
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret)
+		dev_err(nor->dev, "timeout while writing status register\n");
+	return ret;
+}
+
+/**
+ * spi_nor_spansion_clear_sr_bp() - clear the Status Register Block Protection
+ * bits on spansion flashes.
+ * @nor:        pointer to a 'struct spi_nor'
+ *
+ * Read-modify-write function that clears the Block Protection bits from the
+ * Status Register without affecting other bits. The function is tightly
+ * coupled with the spansion_quad_enable() function. Both assume that the Write
+ * Register with 16 bits, together with the Read Configuration Register (35h)
+ * instructions are supported.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spi_nor_spansion_clear_sr_bp(struct spi_nor *nor)
+{
+	int ret;
+	u8 mask = SR_BP2 | SR_BP1 | SR_BP0;
+	u8 sr_cr[2] = {0};
+
+	/* Check current Quad Enable bit value. */
+	ret = read_cr(nor);
+	if (ret < 0) {
+		dev_err(nor->dev,
+			"error while reading configuration register\n");
+		return ret;
+	}
+
+	/*
+	 * When the configuration register Quad Enable bit is one, only the
+	 * Write Status (01h) command with two data bytes may be used.
+	 */
+	if (ret & CR_QUAD_EN_SPAN) {
+		sr_cr[1] = ret;
+
+		ret = read_sr(nor);
+		if (ret < 0) {
+			dev_err(nor->dev,
+				"error while reading status register\n");
+			return ret;
+		}
+		sr_cr[0] = ret & ~mask;
+
+		ret = write_sr_cr(nor, sr_cr);
+		if (ret)
+			dev_err(nor->dev, "16-bit write register failed\n");
+		return ret;
+	}
+
+	/*
+	 * If the Quad Enable bit is zero, use the Write Status (01h) command
+	 * with one data byte.
+	 */
+	return spi_nor_clear_sr_bp(nor);
+}
+
 /* Used when the "_ext_id" is two bytes at most */
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
 		.id = {							\
@@ -1905,7 +1994,9 @@ static const struct flash_info spi_nor_ids[] = {
 			SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR) },
 	{ "s25fl256s0", INFO(0x010219, 0x4d00, 256 * 1024, 128, USE_CLSR) },
 	{ "s25fl256s1", INFO(0x010219, 0x4d01,  64 * 1024, 512, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR) },
-	{ "s25fl512s",  INFO6(0x010220, 0x4d0080, 256 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR) },
+	{ "s25fl512s",  INFO6(0x010220, 0x4d0080, 256 * 1024, 256,
+			SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB | USE_CLSR) },
 	{ "s25fs512s",  INFO6(0x010220, 0x4d0081, 256 * 1024, 256, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR) },
 	{ "s70fl01gs",  INFO(0x010221, 0x4d00, 256 * 1024, 256, 0) },
 	{ "s25sl12800", INFO(0x012018, 0x0300, 256 * 1024,  64, 0) },
@@ -2071,8 +2162,8 @@ static const struct flash_info *spi_nor_read_id(struct spi_nor *nor)
 				return &spi_nor_ids[tmp];
 		}
 	}
-	dev_err(nor->dev, "unrecognized JEDEC id bytes: %02x, %02x, %02x\n",
-		id[0], id[1], id[2]);
+	dev_err(nor->dev, "unrecognized JEDEC id bytes: %*ph\n",
+		SPI_NOR_MAX_ID_LEN, id);
 	return ERR_PTR(-ENODEV);
 }
 
@@ -3658,6 +3749,8 @@ static int spi_nor_init_params(struct spi_nor *nor,
 		default:
 			/* Kept only for backward compatibility purpose. */
 			params->quad_enable = spansion_quad_enable;
+			if (nor->clear_sr_bp)
+				nor->clear_sr_bp = spi_nor_spansion_clear_sr_bp;
 			break;
 		}
 
@@ -3910,17 +4003,13 @@ static int spi_nor_init(struct spi_nor *nor)
 {
 	int err;
 
-	/*
-	 * Atmel, SST, Intel/Numonyx, and others serial NOR tend to power up
-	 * with the software protection bits set
-	 */
-	if (JEDEC_MFR(nor->info) == SNOR_MFR_ATMEL ||
-	    JEDEC_MFR(nor->info) == SNOR_MFR_INTEL ||
-	    JEDEC_MFR(nor->info) == SNOR_MFR_SST ||
-	    nor->info->flags & SPI_NOR_HAS_LOCK) {
-		write_enable(nor);
-		write_sr(nor, 0);
-		spi_nor_wait_till_ready(nor);
+	if (nor->clear_sr_bp) {
+		err = nor->clear_sr_bp(nor);
+		if (err) {
+			dev_err(nor->dev,
+				"fail to clear block protection bits\n");
+			return err;
+		}
 	}
 
 	if (nor->quad_enable) {
@@ -4044,6 +4133,16 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	 */
 	if (info->flags & SPI_S3AN)
 		nor->flags |=  SNOR_F_READY_XSR_RDY;
+
+	/*
+	 * Atmel, SST, Intel/Numonyx, and others serial NOR tend to power up
+	 * with the software protection bits set.
+	 */
+	if (JEDEC_MFR(nor->info) == SNOR_MFR_ATMEL ||
+	    JEDEC_MFR(nor->info) == SNOR_MFR_INTEL ||
+	    JEDEC_MFR(nor->info) == SNOR_MFR_SST ||
+	    nor->info->flags & SPI_NOR_HAS_LOCK)
+		nor->clear_sr_bp = spi_nor_clear_sr_bp;
 
 	/* Parse the Serial Flash Discoverable Parameters table. */
 	ret = spi_nor_init_params(nor, &params);

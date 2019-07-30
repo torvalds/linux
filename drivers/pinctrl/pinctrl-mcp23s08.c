@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* MCP23S08 SPI/I2C GPIO driver */
 
 #include <linux/kernel.h>
@@ -266,7 +267,6 @@ static int mcp_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		status = (data & BIT(pin)) ? 1 : 0;
 		break;
 	default:
-		dev_err(mcp->dev, "Invalid config param %04x\n", param);
 		return -ENOTSUPP;
 	}
 
@@ -293,7 +293,7 @@ static int mcp_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			ret = mcp_set_bit(mcp, MCP_GPPU, pin, arg);
 			break;
 		default:
-			dev_err(mcp->dev, "Invalid config param %04x\n", param);
+			dev_dbg(mcp->dev, "Invalid config param %04x\n", param);
 			return -ENOTSUPP;
 		}
 	}
@@ -656,115 +656,6 @@ static int mcp23s08_irqchip_setup(struct mcp23s08 *mcp)
 
 /*----------------------------------------------------------------------*/
 
-#ifdef CONFIG_DEBUG_FS
-
-#include <linux/seq_file.h>
-
-/*
- * This compares the chip's registers with the register
- * cache and corrects any incorrectly set register. This
- * can be used to fix state for MCP23xxx, that temporary
- * lost its power supply.
- */
-#define MCP23S08_CONFIG_REGS 7
-static int __check_mcp23s08_reg_cache(struct mcp23s08 *mcp)
-{
-	int cached[MCP23S08_CONFIG_REGS];
-	int err = 0, i;
-
-	/* read cached config registers */
-	for (i = 0; i < MCP23S08_CONFIG_REGS; i++) {
-		err = mcp_read(mcp, i, &cached[i]);
-		if (err)
-			goto out;
-	}
-
-	regcache_cache_bypass(mcp->regmap, true);
-
-	for (i = 0; i < MCP23S08_CONFIG_REGS; i++) {
-		int uncached;
-		err = mcp_read(mcp, i, &uncached);
-		if (err)
-			goto out;
-
-		if (uncached != cached[i]) {
-			dev_err(mcp->dev, "restoring reg 0x%02x from 0x%04x to 0x%04x (power-loss?)\n",
-				i, uncached, cached[i]);
-			mcp_write(mcp, i, cached[i]);
-		}
-	}
-
-out:
-	if (err)
-		dev_err(mcp->dev, "read error: reg=%02x, err=%d", i, err);
-	regcache_cache_bypass(mcp->regmap, false);
-	return err;
-}
-
-/*
- * This shows more info than the generic gpio dump code:
- * pullups, deglitching, open drain drive.
- */
-static void mcp23s08_dbg_show(struct seq_file *s, struct gpio_chip *chip)
-{
-	struct mcp23s08	*mcp;
-	char		bank;
-	int		t;
-	unsigned	mask;
-	int iodir, gpio, gppu;
-
-	mcp = gpiochip_get_data(chip);
-
-	/* NOTE: we only handle one bank for now ... */
-	bank = '0' + ((mcp->addr >> 1) & 0x7);
-
-	mutex_lock(&mcp->lock);
-
-	t = __check_mcp23s08_reg_cache(mcp);
-	if (t) {
-		seq_printf(s, " I/O Error\n");
-		goto done;
-	}
-	t = mcp_read(mcp, MCP_IODIR, &iodir);
-	if (t) {
-		seq_printf(s, " I/O Error\n");
-		goto done;
-	}
-	t = mcp_read(mcp, MCP_GPIO, &gpio);
-	if (t) {
-		seq_printf(s, " I/O Error\n");
-		goto done;
-	}
-	t = mcp_read(mcp, MCP_GPPU, &gppu);
-	if (t) {
-		seq_printf(s, " I/O Error\n");
-		goto done;
-	}
-
-	for (t = 0, mask = BIT(0); t < chip->ngpio; t++, mask <<= 1) {
-		const char *label;
-
-		label = gpiochip_is_requested(chip, t);
-		if (!label)
-			continue;
-
-		seq_printf(s, " gpio-%-3d P%c.%d (%-12s) %s %s %s\n",
-			   chip->base + t, bank, t, label,
-			   (iodir & mask) ? "in " : "out",
-			   (gpio & mask) ? "hi" : "lo",
-			   (gppu & mask) ? "up" : "  ");
-		/* NOTE:  ignoring the irq-related registers */
-	}
-done:
-	mutex_unlock(&mcp->lock);
-}
-
-#else
-#define mcp23s08_dbg_show	NULL
-#endif
-
-/*----------------------------------------------------------------------*/
-
 static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 			      void *data, unsigned addr, unsigned type,
 			      unsigned int base, int cs)
@@ -785,7 +676,6 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	mcp->chip.get = mcp23s08_get;
 	mcp->chip.direction_output = mcp23s08_direction_output;
 	mcp->chip.set = mcp23s08_set;
-	mcp->chip.dbg_show = mcp23s08_dbg_show;
 #ifdef CONFIG_OF_GPIO
 	mcp->chip.of_gpio_n_cells = 2;
 	mcp->chip.of_node = dev->of_node;
@@ -881,6 +771,10 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	if (ret < 0)
 		goto fail;
 
+	ret = devm_gpiochip_add_data(dev, &mcp->chip, mcp);
+	if (ret < 0)
+		goto fail;
+
 	mcp->irq_controller =
 		device_property_read_bool(dev, "interrupt-controller");
 	if (mcp->irq && mcp->irq_controller) {
@@ -921,10 +815,6 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 		if (ret)
 			goto fail;
 	}
-
-	ret = devm_gpiochip_add_data(dev, &mcp->chip, mcp);
-	if (ret < 0)
-		goto fail;
 
 	if (one_regmap_config) {
 		mcp->pinctrl_desc.name = devm_kasprintf(dev, GFP_KERNEL,

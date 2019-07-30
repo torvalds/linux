@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* module that allows mangling of the arp payload */
 #include <linux/module.h>
 #include <linux/netfilter.h>

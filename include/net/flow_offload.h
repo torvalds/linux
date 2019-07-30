@@ -71,6 +71,8 @@ void flow_rule_match_eth_addrs(const struct flow_rule *rule,
 			       struct flow_match_eth_addrs *out);
 void flow_rule_match_vlan(const struct flow_rule *rule,
 			  struct flow_match_vlan *out);
+void flow_rule_match_cvlan(const struct flow_rule *rule,
+			   struct flow_match_vlan *out);
 void flow_rule_match_ipv4_addrs(const struct flow_rule *rule,
 				struct flow_match_ipv4_addrs *out);
 void flow_rule_match_ipv6_addrs(const struct flow_rule *rule,
@@ -118,6 +120,8 @@ enum flow_action_id {
 	FLOW_ACTION_MARK,
 	FLOW_ACTION_WAKE,
 	FLOW_ACTION_QUEUE,
+	FLOW_ACTION_SAMPLE,
+	FLOW_ACTION_POLICE,
 };
 
 /* This is mirroring enum pedit_header_type definition for easy mapping between
@@ -157,6 +161,16 @@ struct flow_action_entry {
 			u32		index;
 			u8		vf;
 		} queue;
+		struct {				/* FLOW_ACTION_SAMPLE */
+			struct psample_group	*psample_group;
+			u32			rate;
+			u32			trunc_size;
+			bool			truncate;
+		} sample;
+		struct {				/* FLOW_ACTION_POLICE */
+			s64			burst;
+			u64			rate_bytes_ps;
+		} police;
 	};
 };
 
@@ -168,6 +182,17 @@ struct flow_action {
 static inline bool flow_action_has_entries(const struct flow_action *action)
 {
 	return action->num_entries;
+}
+
+/**
+ * flow_action_has_one_action() - check if exactly one action is present
+ * @action: tc filter flow offload action
+ *
+ * Returns true if exactly one action is present.
+ */
+static inline bool flow_offload_has_one_action(const struct flow_action *action)
+{
+	return action->num_entries == 1;
 }
 
 #define flow_action_for_each(__i, __act, __actions)			\

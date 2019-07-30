@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CUSE: Character device in Userspace
  *
  * Copyright (C) 2008-2009  SUSE Linux Products GmbH
  * Copyright (C) 2008-2009  Tejun Heo <tj@kernel.org>
- *
- * This file is released under the GPLv2.
  *
  * CUSE enables character devices to be implemented from userland much
  * like FUSE allows filesystems.  On initialization /dev/cuse is
@@ -32,6 +31,8 @@
  * additional reference is taken which is released when the file is
  * closed.
  */
+
+#define pr_fmt(fmt) "CUSE: " fmt
 
 #include <linux/fuse.h>
 #include <linux/cdev.h>
@@ -225,7 +226,7 @@ static int cuse_parse_one(char **pp, char *end, char **keyp, char **valp)
 		return 0;
 
 	if (end[-1] != '\0') {
-		printk(KERN_ERR "CUSE: info not properly terminated\n");
+		pr_err("info not properly terminated\n");
 		return -EINVAL;
 	}
 
@@ -242,7 +243,7 @@ static int cuse_parse_one(char **pp, char *end, char **keyp, char **valp)
 		key = strstrip(key);
 
 	if (!strlen(key)) {
-		printk(KERN_ERR "CUSE: zero length info key specified\n");
+		pr_err("zero length info key specified\n");
 		return -EINVAL;
 	}
 
@@ -282,12 +283,11 @@ static int cuse_parse_devinfo(char *p, size_t len, struct cuse_devinfo *devinfo)
 		if (strcmp(key, "DEVNAME") == 0)
 			devinfo->name = val;
 		else
-			printk(KERN_WARNING "CUSE: unknown device info \"%s\"\n",
-			       key);
+			pr_warn("unknown device info \"%s\"\n", key);
 	}
 
 	if (!devinfo->name || !strlen(devinfo->name)) {
-		printk(KERN_ERR "CUSE: DEVNAME unspecified\n");
+		pr_err("DEVNAME unspecified\n");
 		return -EINVAL;
 	}
 
@@ -341,7 +341,7 @@ static void cuse_process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	else
 		rc = register_chrdev_region(devt, 1, devinfo.name);
 	if (rc) {
-		printk(KERN_ERR "CUSE: failed to register chrdev region\n");
+		pr_err("failed to register chrdev region\n");
 		goto err;
 	}
 

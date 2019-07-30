@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * arch/arm/mach-u300/core.c
  *
- *
  * Copyright (C) 2007-2012 ST-Ericsson SA
- * License terms: GNU General Public License (GPL) version 2
  * Core platform support, IRQ handling and device definitions.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */

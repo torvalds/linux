@@ -128,7 +128,6 @@ struct drm_file *drm_file_alloc(struct drm_minor *minor)
 
 	/* for compatibility root is always authenticated */
 	file->authenticated = capable(CAP_SYS_ADMIN);
-	file->lock_count = 0;
 
 	INIT_LIST_HEAD(&file->lhead);
 	INIT_LIST_HEAD(&file->fbs);
@@ -425,30 +424,6 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	return 0;
 }
 
-static void drm_legacy_dev_reinit(struct drm_device *dev)
-{
-	if (dev->irq_enabled)
-		drm_irq_uninstall(dev);
-
-	mutex_lock(&dev->struct_mutex);
-
-	drm_legacy_agp_clear(dev);
-
-	drm_legacy_sg_cleanup(dev);
-	drm_legacy_vma_flush(dev);
-	drm_legacy_dma_takedown(dev);
-
-	mutex_unlock(&dev->struct_mutex);
-
-	dev->sigdata.lock = NULL;
-
-	dev->context_flag = 0;
-	dev->last_context = 0;
-	dev->if_version = 0;
-
-	DRM_DEBUG("lastclose completed\n");
-}
-
 void drm_lastclose(struct drm_device * dev)
 {
 	DRM_DEBUG("\n");
@@ -577,6 +552,7 @@ put_back_event:
 				file_priv->event_space -= length;
 				list_add(&e->link, &file_priv->event_list);
 				spin_unlock_irq(&dev->event_lock);
+				wake_up_interruptible(&file_priv->event_wait);
 				break;
 			}
 

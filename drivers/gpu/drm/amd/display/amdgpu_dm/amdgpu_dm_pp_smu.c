@@ -33,6 +33,7 @@
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_pm.h"
 #include "dm_pp_smu.h"
+#include "amdgpu_smu.h"
 
 
 bool dm_pp_apply_display_requirements(
@@ -40,6 +41,7 @@ bool dm_pp_apply_display_requirements(
 		const struct dm_pp_display_configuration *pp_display_cfg)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
+	struct smu_context *smu = &adev->smu;
 	int i;
 
 	if (adev->pm.dpm_enabled) {
@@ -105,6 +107,9 @@ bool dm_pp_apply_display_requirements(
 			adev->powerplay.pp_funcs->display_configuration_change(
 				adev->powerplay.pp_handle,
 				&adev->pm.pm_display_cfg);
+		else
+			smu_display_configuration_change(smu,
+							 &adev->pm.pm_display_cfg);
 
 		amdgpu_pm_compute_clocks(adev);
 	}
@@ -308,6 +313,12 @@ bool dm_pp_get_clock_levels_by_type(
 		if (adev->powerplay.pp_funcs->get_clock_by_type(pp_handle,
 			dc_to_pp_clock_type(clk_type), &pp_clks)) {
 		/* Error in pplib. Provide default values. */
+			return true;
+		}
+	} else if (adev->smu.funcs && adev->smu.funcs->get_clock_by_type) {
+		if (smu_get_clock_by_type(&adev->smu,
+					  dc_to_pp_clock_type(clk_type),
+					  &pp_clks)) {
 			get_default_clock_levels(clk_type, dc_clks);
 			return true;
 		}
@@ -319,6 +330,13 @@ bool dm_pp_get_clock_levels_by_type(
 		if (adev->powerplay.pp_funcs->get_display_mode_validation_clocks(
 						pp_handle, &validation_clks)) {
 			/* Error in pplib. Provide default values. */
+			DRM_INFO("DM_PPLIB: Warning: using default validation clocks!\n");
+			validation_clks.engine_max_clock = 72000;
+			validation_clks.memory_max_clock = 80000;
+			validation_clks.level = 0;
+		}
+	} else if (adev->smu.funcs && adev->smu.funcs->get_max_high_clocks) {
+		if (smu_get_max_high_clocks(&adev->smu, &validation_clks)) {
 			DRM_INFO("DM_PPLIB: Warning: using default validation clocks!\n");
 			validation_clks.engine_max_clock = 72000;
 			validation_clks.memory_max_clock = 80000;
@@ -374,14 +392,21 @@ bool dm_pp_get_clock_levels_by_type_with_latency(
 	void *pp_handle = adev->powerplay.pp_handle;
 	struct pp_clock_levels_with_latency pp_clks = { 0 };
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret;
 
-	if (!pp_funcs || !pp_funcs->get_clock_by_type_with_latency)
-		return false;
+	if (pp_funcs && pp_funcs->get_clock_by_type_with_latency) {
+		ret = pp_funcs->get_clock_by_type_with_latency(pp_handle,
+						dc_to_pp_clock_type(clk_type),
+						&pp_clks);
+		if (ret)
+			return false;
+	} else if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->get_clock_by_type_with_latency) {
+		if (smu_get_clock_by_type_with_latency(&adev->smu,
+						       dc_to_pp_clock_type(clk_type),
+						       &pp_clks))
+			return false;
+	}
 
-	if (pp_funcs->get_clock_by_type_with_latency(pp_handle,
-						     dc_to_pp_clock_type(clk_type),
-						     &pp_clks))
-		return false;
 
 	pp_to_dc_clock_levels_with_latency(&pp_clks, clk_level_info, clk_type);
 
@@ -397,14 +422,20 @@ bool dm_pp_get_clock_levels_by_type_with_voltage(
 	void *pp_handle = adev->powerplay.pp_handle;
 	struct pp_clock_levels_with_voltage pp_clk_info = {0};
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret;
 
-	if (!pp_funcs || !pp_funcs->get_clock_by_type_with_voltage)
-		return false;
-
-	if (pp_funcs->get_clock_by_type_with_voltage(pp_handle,
-						     dc_to_pp_clock_type(clk_type),
-						     &pp_clk_info))
-		return false;
+	if (pp_funcs && pp_funcs->get_clock_by_type_with_voltage) {
+		ret = pp_funcs->get_clock_by_type_with_voltage(pp_handle,
+						dc_to_pp_clock_type(clk_type),
+						&pp_clk_info);
+		if (ret)
+			return false;
+	} else if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->get_clock_by_type_with_voltage) {
+		if (smu_get_clock_by_type_with_voltage(&adev->smu,
+						       dc_to_pp_clock_type(clk_type),
+						       &pp_clk_info))
+			return false;
+	}
 
 	pp_to_dc_clock_levels_with_voltage(&pp_clk_info, clk_level_info, clk_type);
 
@@ -445,6 +476,10 @@ bool dm_pp_apply_clock_for_voltage_request(
 		ret = adev->powerplay.pp_funcs->display_clock_voltage_request(
 			adev->powerplay.pp_handle,
 			&pp_clock_request);
+	else if (adev->smu.funcs &&
+		 adev->smu.funcs->display_clock_voltage_request)
+		ret = smu_display_clock_voltage_request(&adev->smu,
+							&pp_clock_request);
 	if (ret)
 		return false;
 	return true;
@@ -462,6 +497,8 @@ bool dm_pp_get_static_clocks(
 		ret = adev->powerplay.pp_funcs->get_current_clocks(
 			adev->powerplay.pp_handle,
 			&pp_clk_info);
+	else if (adev->smu.funcs)
+		ret = smu_get_current_clocks(&adev->smu, &pp_clk_info);
 	if (ret)
 		return false;
 
@@ -470,27 +507,6 @@ bool dm_pp_get_static_clocks(
 	static_clk_info->max_sclk_khz = pp_clk_info.max_engine_clock * 10;
 
 	return true;
-}
-
-void pp_rv_set_display_requirement(struct pp_smu *pp,
-		struct pp_smu_display_requirement_rv *req)
-{
-	const struct dc_context *ctx = pp->dm;
-	struct amdgpu_device *adev = ctx->driver_context;
-	void *pp_handle = adev->powerplay.pp_handle;
-	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-	struct pp_display_clock_request clock = {0};
-
-	if (!pp_funcs || !pp_funcs->display_clock_voltage_request)
-		return;
-
-	clock.clock_type = amd_pp_dcf_clock;
-	clock.clock_freq_in_khz = req->hard_min_dcefclk_mhz * 1000;
-	pp_funcs->display_clock_voltage_request(pp_handle, &clock);
-
-	clock.clock_type = amd_pp_f_clock;
-	clock.clock_freq_in_khz = req->hard_min_fclk_mhz * 1000;
-	pp_funcs->display_clock_voltage_request(pp_handle, &clock);
 }
 
 void pp_rv_set_wm_ranges(struct pp_smu *pp,
@@ -507,9 +523,6 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 
 	wm_with_clock_ranges.num_wm_dmif_sets = ranges->num_reader_wm_sets;
 	wm_with_clock_ranges.num_wm_mcif_sets = ranges->num_writer_wm_sets;
-
-	if (!pp_funcs || !pp_funcs->set_watermarks_for_clocks_ranges)
-		return;
 
 	for (i = 0; i < wm_with_clock_ranges.num_wm_dmif_sets; i++) {
 		if (ranges->reader_wm_sets[i].wm_inst > 3)
@@ -543,7 +556,13 @@ void pp_rv_set_wm_ranges(struct pp_smu *pp,
 				ranges->writer_wm_sets[i].min_drain_clk_mhz * 1000;
 	}
 
-	pp_funcs->set_watermarks_for_clocks_ranges(pp_handle, &wm_with_clock_ranges);
+	if (pp_funcs && pp_funcs->set_watermarks_for_clocks_ranges)
+		pp_funcs->set_watermarks_for_clocks_ranges(pp_handle,
+							   &wm_with_clock_ranges);
+	else if (adev->smu.funcs &&
+		 adev->smu.funcs->set_watermarks_for_clock_ranges)
+		smu_set_watermarks_for_clock_ranges(&adev->smu,
+						    &wm_with_clock_ranges);
 }
 
 void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
@@ -553,10 +572,10 @@ void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 	void *pp_handle = adev->powerplay.pp_handle;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
-	if (!pp_funcs || !pp_funcs->notify_smu_enable_pwe)
-		return;
-
-	pp_funcs->notify_smu_enable_pwe(pp_handle);
+	if (pp_funcs && pp_funcs->notify_smu_enable_pwe)
+		pp_funcs->notify_smu_enable_pwe(pp_handle);
+	else if (adev->smu.funcs)
+		smu_notify_smu_enable_pwe(&adev->smu);
 }
 
 void pp_rv_set_active_display_count(struct pp_smu *pp, int count)
@@ -611,17 +630,16 @@ void pp_rv_set_hard_min_fclk_by_freq(struct pp_smu *pp, int mhz)
 	pp_funcs->set_hard_min_fclk_by_freq(pp_handle, mhz);
 }
 
-void dm_pp_get_funcs_rv(
+void dm_pp_get_funcs(
 		struct dc_context *ctx,
-		struct pp_smu_funcs_rv *funcs)
+		struct pp_smu_funcs *funcs)
 {
-	funcs->pp_smu.dm = ctx;
-	funcs->set_display_requirement = pp_rv_set_display_requirement;
-	funcs->set_wm_ranges = pp_rv_set_wm_ranges;
-	funcs->set_pme_wa_enable = pp_rv_set_pme_wa_enable;
-	funcs->set_display_count = pp_rv_set_active_display_count;
-	funcs->set_min_deep_sleep_dcfclk = pp_rv_set_min_deep_sleep_dcfclk;
-	funcs->set_hard_min_dcfclk_by_freq = pp_rv_set_hard_min_dcefclk_by_freq;
-	funcs->set_hard_min_fclk_by_freq = pp_rv_set_hard_min_fclk_by_freq;
+	funcs->rv_funcs.pp_smu.dm = ctx;
+	funcs->rv_funcs.set_wm_ranges = pp_rv_set_wm_ranges;
+	funcs->rv_funcs.set_pme_wa_enable = pp_rv_set_pme_wa_enable;
+	funcs->rv_funcs.set_display_count = pp_rv_set_active_display_count;
+	funcs->rv_funcs.set_min_deep_sleep_dcfclk = pp_rv_set_min_deep_sleep_dcfclk;
+	funcs->rv_funcs.set_hard_min_dcfclk_by_freq = pp_rv_set_hard_min_dcefclk_by_freq;
+	funcs->rv_funcs.set_hard_min_fclk_by_freq = pp_rv_set_hard_min_fclk_by_freq;
 }
 

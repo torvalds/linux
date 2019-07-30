@@ -328,6 +328,12 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 		dev_err(&hdev->dev, "failed to create hda codec %d\n", ret);
 		goto error_no_pm;
 	}
+	/*
+	 * Overwrite type to HDA_DEV_ASOC since it is a ASoC driver
+	 * hda_codec.c will check this flag to determine if unregister
+	 * device is needed.
+	 */
+	hdev->type = HDA_DEV_ASOC;
 
 	/*
 	 * snd_hda_codec_device_new decrements the usage count so call get pm

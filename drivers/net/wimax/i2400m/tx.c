@@ -640,8 +640,7 @@ void i2400m_tx_close(struct i2400m *i2400m)
 	 * figure out where the next TX message starts (and where the
 	 * offset to the moved header is).
 	 */
-	hdr_size = sizeof(*tx_msg)
-		+ le16_to_cpu(tx_msg->num_pls) * sizeof(tx_msg->pld[0]);
+	hdr_size = struct_size(tx_msg, pld, le16_to_cpu(tx_msg->num_pls));
 	hdr_size = ALIGN(hdr_size, I2400M_PL_ALIGN);
 	tx_msg->offset = I2400M_TX_PLD_SIZE - hdr_size;
 	tx_msg_moved = (void *) tx_msg + tx_msg->offset;

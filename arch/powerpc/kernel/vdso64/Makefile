@@ -12,9 +12,8 @@ GCOV_PROFILE := n
 KCOV_INSTRUMENT := n
 UBSAN_SANITIZE := n
 
-ccflags-y := -shared -fno-common -fno-builtin
-ccflags-y += -nostdlib -Wl,-soname=linux-vdso64.so.1 \
-		$(call cc-ldoption, -Wl$(comma)--hash-style=both)
+ccflags-y := -shared -fno-common -fno-builtin -nostdlib \
+	-Wl,-soname=linux-vdso64.so.1 -Wl,--hash-style=both
 asflags-y := -D__VDSO64__ -s
 
 obj-y += vdso64_wrapper.o

@@ -62,6 +62,14 @@
  *			Slots are requested and waited for,
  *			the wait times out after slot_timeout_secs.
  *
+ * What:		/sys/fs/orangefs/cache_timeout_msecs
+ * Date:		Mar 2018
+ * Contact:		Martin Brandenburg <martin@omnibond.com>
+ * Description:
+ *			Time in milliseconds between which
+ *			orangefs_revalidate_mapping will invalidate the page
+ *			cache.
+ *
  * What:		/sys/fs/orangefs/dcache_timeout_msecs
  * Date:		Jul 2016
  * Contact:		Martin Brandenburg <martin@omnibond.com>
@@ -222,6 +230,13 @@ static ssize_t sysfs_int_show(struct kobject *kobj,
 				       slot_timeout_secs);
 			goto out;
 		} else if (!strcmp(attr->attr.name,
+				   "cache_timeout_msecs")) {
+			rc = scnprintf(buf,
+				       PAGE_SIZE,
+				       "%d\n",
+				       orangefs_cache_timeout_msecs);
+			goto out;
+		} else if (!strcmp(attr->attr.name,
 				   "dcache_timeout_msecs")) {
 			rc = scnprintf(buf,
 				       PAGE_SIZE,
@@ -276,6 +291,9 @@ static ssize_t sysfs_int_store(struct kobject *kobj,
 		goto out;
 	} else if (!strcmp(attr->attr.name, "slot_timeout_secs")) {
 		rc = kstrtoint(buf, 0, &slot_timeout_secs);
+		goto out;
+	} else if (!strcmp(attr->attr.name, "cache_timeout_msecs")) {
+		rc = kstrtoint(buf, 0, &orangefs_cache_timeout_msecs);
 		goto out;
 	} else if (!strcmp(attr->attr.name, "dcache_timeout_msecs")) {
 		rc = kstrtoint(buf, 0, &orangefs_dcache_timeout_msecs);
@@ -818,6 +836,9 @@ static struct orangefs_attribute op_timeout_secs_attribute =
 static struct orangefs_attribute slot_timeout_secs_attribute =
 	__ATTR(slot_timeout_secs, 0664, sysfs_int_show, sysfs_int_store);
 
+static struct orangefs_attribute cache_timeout_msecs_attribute =
+	__ATTR(cache_timeout_msecs, 0664, sysfs_int_show, sysfs_int_store);
+
 static struct orangefs_attribute dcache_timeout_msecs_attribute =
 	__ATTR(dcache_timeout_msecs, 0664, sysfs_int_show, sysfs_int_store);
 
@@ -861,6 +882,7 @@ static struct orangefs_attribute perf_time_interval_secs_attribute =
 static struct attribute *orangefs_default_attrs[] = {
 	&op_timeout_secs_attribute.attr,
 	&slot_timeout_secs_attribute.attr,
+	&cache_timeout_msecs_attribute.attr,
 	&dcache_timeout_msecs_attribute.attr,
 	&getattr_timeout_msecs_attribute.attr,
 	&readahead_count_attribute.attr,

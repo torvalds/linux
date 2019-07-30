@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* inode.c: /proc/openprom handling routines
  *
  * Copyright (C) 1996-1999 Jakub Jelinek  (jakub@redhat.com)
@@ -336,15 +337,9 @@ static struct inode *openprom_alloc_inode(struct super_block *sb)
 	return &oi->vfs_inode;
 }
 
-static void openprom_i_callback(struct rcu_head *head)
+static void openprom_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(op_inode_cachep, OP_I(inode));
-}
-
-static void openprom_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, openprom_i_callback);
 }
 
 static struct inode *openprom_iget(struct super_block *sb, ino_t ino)
@@ -375,7 +370,7 @@ static int openprom_remount(struct super_block *sb, int *flags, char *data)
 
 static const struct super_operations openprom_sops = {
 	.alloc_inode	= openprom_alloc_inode,
-	.destroy_inode	= openprom_destroy_inode,
+	.free_inode	= openprom_free_inode,
 	.statfs		= simple_statfs,
 	.remount_fs	= openprom_remount,
 };

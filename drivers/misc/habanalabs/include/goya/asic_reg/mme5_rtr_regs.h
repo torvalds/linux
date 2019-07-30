@@ -328,4 +328,3 @@
 #define mmMME5_RTR_NON_LIN_SCRAMB                                    0x140604
 
 #endif /* ASIC_REG_MME5_RTR_REGS_H_ */
-

@@ -23,11 +23,9 @@
 /* The maximum number of ports one device can grab at once */
 #define MAX_NUM_PORTS		16
 
-/* parity check flag */
-#define RELEVANT_IFLAG(iflag)	(iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
-
 /* USB serial flags */
 #define USB_SERIAL_WRITE_BUSY	0
+#define USB_SERIAL_THROTTLED	1
 
 /**
  * usb_serial_port: structure for the specific ports of a device.
@@ -67,8 +65,6 @@
  * @flags: usb serial port flags
  * @write_wait: a wait_queue_head_t used by the port.
  * @work: work queue entry for the line discipline waking up.
- * @throttled: nonzero if the read urb is inactive to throttle the device
- * @throttle_req: nonzero if the tty wants to throttle us
  * @dev: pointer to the serial device
  *
  * This structure is used by the usb-serial core and drivers for the specific
@@ -115,8 +111,6 @@ struct usb_serial_port {
 	unsigned long		flags;
 	wait_queue_head_t	write_wait;
 	struct work_struct	work;
-	char			throttled;
-	char			throttle_req;
 	unsigned long		sysrq; /* sysrq timeout */
 	struct device		dev;
 };

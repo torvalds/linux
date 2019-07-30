@@ -158,6 +158,27 @@ static void sdhci_am654_set_power(struct sdhci_host *host, unsigned char mode,
 	sdhci_set_power_noreg(host, mode, vdd);
 }
 
+static void sdhci_am654_write_b(struct sdhci_host *host, u8 val, int reg)
+{
+	unsigned char timing = host->mmc->ios.timing;
+
+	if (reg == SDHCI_HOST_CONTROL) {
+		switch (timing) {
+		/*
+		 * According to the data manual, HISPD bit
+		 * should not be set in these speed modes.
+		 */
+		case MMC_TIMING_SD_HS:
+		case MMC_TIMING_MMC_HS:
+		case MMC_TIMING_UHS_SDR12:
+		case MMC_TIMING_UHS_SDR25:
+			val &= ~SDHCI_CTRL_HISPD;
+		}
+	}
+
+	writeb(val, host->ioaddr + reg);
+}
+
 static struct sdhci_ops sdhci_am654_ops = {
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
 	.get_timeout_clock = sdhci_pltfm_clk_get_max_clock,
@@ -165,6 +186,7 @@ static struct sdhci_ops sdhci_am654_ops = {
 	.set_bus_width = sdhci_set_bus_width,
 	.set_power = sdhci_am654_set_power,
 	.set_clock = sdhci_am654_set_clock,
+	.write_b = sdhci_am654_write_b,
 	.reset = sdhci_reset,
 };
 
@@ -209,7 +231,7 @@ static int sdhci_am654_init(struct sdhci_host *host)
 		ctl_cfg_2 = SLOTTYPE_EMBEDDED;
 
 	regmap_update_bits(sdhci_am654->base, CTL_CFG_2,
-			   ctl_cfg_2, SLOTTYPE_MASK);
+			   SLOTTYPE_MASK, ctl_cfg_2);
 
 	return sdhci_add_host(host);
 }

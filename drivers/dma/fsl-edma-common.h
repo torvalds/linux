@@ -136,7 +136,7 @@ struct fsl_edma_desc {
 };
 
 enum edma_version {
-	v1, /* 32ch, Vybdir, mpc57x, etc */
+	v1, /* 32ch, Vybrid, mpc57x, etc */
 	v2, /* 64ch Coldfire */
 };
 

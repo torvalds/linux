@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MT76x2_COMMON
 	tristate
 	select MT76x02_LIB
