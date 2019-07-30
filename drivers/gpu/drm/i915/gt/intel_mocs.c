@@ -62,6 +62,10 @@ struct drm_i915_mocs_table {
 #define GEN11_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
 
 /* (e)LLC caching options */
+/*
+ * Note: LE_0_PAGETABLE works only up to Gen11; for newer gens it means
+ * the same as LE_UC
+ */
 #define LE_0_PAGETABLE		_LE_CACHEABILITY(0)
 #define LE_1_UC			_LE_CACHEABILITY(1)
 #define LE_2_WT			_LE_CACHEABILITY(2)
@@ -100,8 +104,9 @@ struct drm_i915_mocs_table {
  * of bspec.
  *
  * Entries not part of the following tables are undefined as far as
- * userspace is concerned and shouldn't be relied upon.  For the time
- * being they will be initialized to PTE.
+ * userspace is concerned and shouldn't be relied upon.  For Gen < 12
+ * they will be initialized to PTE. Gen >= 12 onwards don't have a setting for
+ * PTE and will be initialized to an invalid value.
  *
  * The last two entries are reserved by the hardware. For ICL+ they
  * should be initialized according to bspec and never used, for older
@@ -137,14 +142,7 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 };
 
 #define GEN11_MOCS_ENTRIES \
-	/* Base - Uncached (Deprecated) */ \
-	MOCS_ENTRY(I915_MOCS_UNCACHED, \
-		   LE_1_UC | LE_TC_1_LLC, \
-		   L3_1_UC), \
-	/* Base - L3 + LeCC:PAT (Deprecated) */ \
-	MOCS_ENTRY(I915_MOCS_PTE, \
-		   LE_0_PAGETABLE | LE_TC_1_LLC, \
-		   L3_3_WB), \
+	/* Entries 0 and 1 are defined per-platform */ \
 	/* Base - L3 + LLC */ \
 	MOCS_ENTRY(2, \
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
@@ -242,7 +240,50 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
 		   L3_1_UC)
 
+static const struct drm_i915_mocs_entry tigerlake_mocs_table[] = {
+	/* Base - Error (Reserved for Non-Use) */
+	MOCS_ENTRY(0, 0x0, 0x0),
+	/* Base - Reserved */
+	MOCS_ENTRY(1, 0x0, 0x0),
+
+	GEN11_MOCS_ENTRIES,
+
+	/* Implicitly enable L1 - HDC:L1 + L3 + LLC */
+	MOCS_ENTRY(48,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
+		   L3_3_WB),
+	/* Implicitly enable L1 - HDC:L1 + L3 */
+	MOCS_ENTRY(49,
+		   LE_1_UC | LE_TC_1_LLC,
+		   L3_3_WB),
+	/* Implicitly enable L1 - HDC:L1 + LLC */
+	MOCS_ENTRY(50,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
+		   L3_1_UC),
+	/* Implicitly enable L1 - HDC:L1 */
+	MOCS_ENTRY(51,
+		   LE_1_UC | LE_TC_1_LLC,
+		   L3_1_UC),
+	/* HW Special Case (CCS) */
+	MOCS_ENTRY(60,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
+		   L3_1_UC),
+	/* HW Special Case (Displayable) */
+	MOCS_ENTRY(61,
+		   LE_1_UC | LE_TC_1_LLC | LE_SCF(1),
+		   L3_3_WB),
+};
+
 static const struct drm_i915_mocs_entry icelake_mocs_table[] = {
+	/* Base - Uncached (Deprecated) */
+	MOCS_ENTRY(I915_MOCS_UNCACHED,
+		   LE_1_UC | LE_TC_1_LLC,
+		   L3_1_UC),
+	/* Base - L3 + LeCC:PAT (Deprecated) */
+	MOCS_ENTRY(I915_MOCS_PTE,
+		   LE_0_PAGETABLE | LE_TC_1_LLC,
+		   L3_3_WB),
+
 	GEN11_MOCS_ENTRIES
 };
 
@@ -264,7 +305,12 @@ static bool get_mocs_settings(struct intel_gt *gt,
 	struct drm_i915_private *i915 = gt->i915;
 	bool result = false;
 
-	if (INTEL_GEN(i915) >= 11) {
+	if (INTEL_GEN(i915) >= 12) {
+		table->size  = ARRAY_SIZE(tigerlake_mocs_table);
+		table->table = tigerlake_mocs_table;
+		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
+		result = true;
+	} else if (IS_GEN(i915, 11)) {
 		table->size  = ARRAY_SIZE(icelake_mocs_table);
 		table->table = icelake_mocs_table;
 		table->n_entries = GEN11_NUM_MOCS_ENTRIES;
