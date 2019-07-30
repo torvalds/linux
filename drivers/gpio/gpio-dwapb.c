@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 
 #include "gpiolib.h"
+#include "gpiolib-acpi.h"
 
 #define GPIO_SWPORTA_DR		0x00
 #define GPIO_SWPORTA_DDR	0x04

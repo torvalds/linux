@@ -30,6 +30,7 @@
 
 #include "gpiolib.h"
 #include "gpiolib-of.h"
+#include "gpiolib-acpi.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/gpio.h>

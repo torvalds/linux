@@ -18,6 +18,7 @@
 #include <linux/pinctrl/pinctrl.h>
 
 #include "gpiolib.h"
+#include "gpiolib-acpi.h"
 
 /**
  * struct acpi_gpio_event - ACPI GPIO event handler data
