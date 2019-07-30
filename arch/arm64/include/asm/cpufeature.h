@@ -363,21 +363,6 @@ cpucap_multi_entry_cap_matches(const struct arm64_cpu_capabilities *entry,
 	return false;
 }
 
-/*
- * Take appropriate action for all matching entries in the shared capability
- * entry.
- */
-static inline void
-cpucap_multi_entry_cap_cpu_enable(const struct arm64_cpu_capabilities *entry)
-{
-	const struct arm64_cpu_capabilities *caps;
-
-	for (caps = entry->match_list; caps->matches; caps++)
-		if (caps->matches(caps, SCOPE_LOCAL_CPU) &&
-		    caps->cpu_enable)
-			caps->cpu_enable(caps);
-}
-
 extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
 extern struct static_key_false cpu_hwcap_keys[ARM64_NCAPS];
 extern struct static_key_false arm64_const_caps_ready;
