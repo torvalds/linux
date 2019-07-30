@@ -2798,7 +2798,7 @@ static loff_t bch2_next_pagecache_data(struct inode *vinode,
 				end_offset =
 					min(end_offset,
 					    max(start_offset,
-						((loff_t) index) << PAGE_SHIFT));
+						((loff_t) folio->index) << PAGE_SHIFT));
 				folio_unlock(folio);
 				folio_batch_release(&fbatch);
 				return end_offset;
@@ -2847,7 +2847,7 @@ static loff_t bch2_seek_data(struct file *file, u64 offset)
 		next_data = bch2_next_pagecache_data(&inode->v,
 						     offset, next_data);
 
-	if (next_data > isize)
+	if (next_data >= isize)
 		return -ENXIO;
 
 	return vfs_setpos(file, next_data, MAX_LFS_FILESIZE);
