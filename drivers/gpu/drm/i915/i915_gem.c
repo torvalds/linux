@@ -1247,8 +1247,7 @@ int i915_gem_init_hw(struct drm_i915_private *i915)
 		goto out;
 	}
 
-	intel_mocs_init_global(gt);
-	intel_mocs_init_l3cc_table(gt);
+	intel_mocs_init(gt);
 
 	intel_engines_set_scheduler_caps(i915);
 

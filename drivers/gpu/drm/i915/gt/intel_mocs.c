@@ -426,14 +426,13 @@ void intel_mocs_init_engine(struct intel_engine_cs *engine)
  *
  * This function initializes the MOCS global registers.
  */
-void intel_mocs_init_global(struct intel_gt *gt)
+static void intel_mocs_init_global(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
 	struct drm_i915_mocs_table table;
 	unsigned int index;
 
-	if (!HAS_GLOBAL_MOCS_REGISTERS(gt->i915))
-		return;
+	GEM_BUG_ON(!HAS_GLOBAL_MOCS_REGISTERS(gt->i915));
 
 	if (!get_mocs_settings(gt, &table))
 		return;
@@ -599,7 +598,7 @@ static int emit_mocs_l3cc_table(struct i915_request *rq,
  *
  * Return: Nothing.
  */
-void intel_mocs_init_l3cc_table(struct intel_gt *gt)
+static void intel_mocs_init_l3cc_table(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
 	struct drm_i915_mocs_table table;
@@ -677,4 +676,12 @@ int intel_mocs_emit(struct i915_request *rq)
 	}
 
 	return 0;
+}
+
+void intel_mocs_init(struct intel_gt *gt)
+{
+	intel_mocs_init_l3cc_table(gt);
+
+	if (HAS_GLOBAL_MOCS_REGISTERS(gt->i915))
+		intel_mocs_init_global(gt);
 }
