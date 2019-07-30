@@ -35,7 +35,6 @@ struct virtio_vsock_sock {
 
 	/* Protected by tx_lock */
 	u32 tx_cnt;
-	u32 buf_alloc;
 	u32 peer_fwd_cnt;
 	u32 peer_buf_alloc;
 
@@ -43,6 +42,7 @@ struct virtio_vsock_sock {
 	u32 fwd_cnt;
 	u32 last_fwd_cnt;
 	u32 rx_bytes;
+	u32 buf_alloc;
 	struct list_head rx_queue;
 };
 
