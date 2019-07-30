@@ -814,7 +814,6 @@ static enum dma_status omap_dma_tx_status(struct dma_chan *chan,
 	dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
 	struct omap_chan *c = to_omap_dma_chan(chan);
-	struct virt_dma_desc *vd;
 	enum dma_status ret;
 	unsigned long flags;
 	struct omap_desc *d = NULL;
@@ -841,10 +840,14 @@ static enum dma_status omap_dma_tx_status(struct dma_chan *chan,
 			pos = 0;
 
 		txstate->residue = omap_dma_desc_size_pos(d, pos);
-	} else if ((vd = vchan_find_desc(&c->vc, cookie))) {
-		txstate->residue = omap_dma_desc_size(to_omap_dma_desc(&vd->tx));
 	} else {
-		txstate->residue = 0;
+		struct virt_dma_desc *vd = vchan_find_desc(&c->vc, cookie);
+
+		if (vd)
+			txstate->residue = omap_dma_desc_size(
+						to_omap_dma_desc(&vd->tx));
+		else
+			txstate->residue = 0;
 	}
 
 out:
