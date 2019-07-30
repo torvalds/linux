@@ -20,9 +20,6 @@ struct module;
 enum gpiod_flags;
 enum gpio_lookup_flags;
 
-#ifdef CONFIG_GPIOLIB
-
-#ifdef CONFIG_GPIOLIB_IRQCHIP
 /**
  * struct gpio_irq_chip - GPIO interrupt controller
  */
@@ -161,7 +158,6 @@ struct gpio_irq_chip {
 	 */
 	void		(*irq_disable)(struct irq_data *data);
 };
-#endif /* CONFIG_GPIOLIB_IRQCHIP */
 
 /**
  * struct gpio_chip - abstract a GPIO controller
@@ -441,15 +437,11 @@ bool gpiochip_line_is_valid(const struct gpio_chip *chip, unsigned int offset);
 /* get driver data */
 void *gpiochip_get_data(struct gpio_chip *chip);
 
-struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
-
 struct bgpio_pdata {
 	const char *label;
 	int base;
 	int ngpio;
 };
-
-#if IS_ENABLED(CONFIG_GPIO_GENERIC)
 
 int bgpio_init(struct gpio_chip *gc, struct device *dev,
 	       unsigned long sz, void __iomem *dat, void __iomem *set,
@@ -462,10 +454,6 @@ int bgpio_init(struct gpio_chip *gc, struct device *dev,
 #define BGPIOF_BIG_ENDIAN_BYTE_ORDER	BIT(3)
 #define BGPIOF_READ_OUTPUT_REG_SET	BIT(4) /* reg_set stores output value */
 #define BGPIOF_NO_OUTPUT		BIT(5) /* only input */
-
-#endif /* CONFIG_GPIO_GENERIC */
-
-#ifdef CONFIG_GPIOLIB_IRQCHIP
 
 int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 		     irq_hw_number_t hwirq);
@@ -555,14 +543,10 @@ static inline int gpiochip_irqchip_add_nested(struct gpio_chip *gpiochip,
 }
 #endif /* CONFIG_LOCKDEP */
 
-#endif /* CONFIG_GPIOLIB_IRQCHIP */
-
 int gpiochip_generic_request(struct gpio_chip *chip, unsigned offset);
 void gpiochip_generic_free(struct gpio_chip *chip, unsigned offset);
 int gpiochip_generic_config(struct gpio_chip *chip, unsigned offset,
 			    unsigned long config);
-
-#ifdef CONFIG_PINCTRL
 
 /**
  * struct gpio_pin_range - pin range controlled by a gpio chip
@@ -576,6 +560,8 @@ struct gpio_pin_range {
 	struct pinctrl_gpio_range range;
 };
 
+#ifdef CONFIG_PINCTRL
+
 int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 			   unsigned int gpio_offset, unsigned int pin_offset,
 			   unsigned int npins);
@@ -585,8 +571,6 @@ int gpiochip_add_pingroup_range(struct gpio_chip *chip,
 void gpiochip_remove_pin_ranges(struct gpio_chip *chip);
 
 #else /* ! CONFIG_PINCTRL */
-
-struct pinctrl_dev;
 
 static inline int
 gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
@@ -619,6 +603,11 @@ void gpiochip_free_own_desc(struct gpio_desc *desc);
 void devprop_gpiochip_set_names(struct gpio_chip *chip,
 				const struct fwnode_handle *fwnode);
 
+
+#ifdef CONFIG_GPIOLIB
+
+struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
+
 #else /* CONFIG_GPIOLIB */
 
 static inline struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
@@ -630,4 +619,4 @@ static inline struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
 
 #endif /* CONFIG_GPIOLIB */
 
-#endif
+#endif /* __LINUX_GPIO_DRIVER_H */
