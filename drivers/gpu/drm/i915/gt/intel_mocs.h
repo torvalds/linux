@@ -49,7 +49,6 @@
  * context handling keep the MOCS in step.
  */
 
-struct drm_i915_private;
 struct i915_request;
 struct intel_engine_cs;
 struct intel_gt;
