@@ -85,11 +85,10 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 {
 	switch (dir) {
 	case DMA_TO_DEVICE:
-		cache_op(paddr, size, dma_wb_range);
-		break;
+		return;
 	case DMA_FROM_DEVICE:
 	case DMA_BIDIRECTIONAL:
-		cache_op(paddr, size, dma_wbinv_range);
+		cache_op(paddr, size, dma_inv_range);
 		break;
 	default:
 		BUG();
