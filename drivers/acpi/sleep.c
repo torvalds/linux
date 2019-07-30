@@ -930,8 +930,6 @@ static int lps0_device_attach(struct acpi_device *adev,
 
 		acpi_handle_debug(adev->handle, "_DSM function mask: 0x%x\n",
 				  bitmask);
-
-		acpi_ec_mark_gpe_for_wake();
 	} else {
 		acpi_handle_debug(adev->handle,
 				  "_DSM function 0 evaluation failed\n");
@@ -960,8 +958,6 @@ static int acpi_s2idle_prepare(void)
 	if (lps0_device_handle) {
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF);
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY);
-
-		acpi_ec_set_gpe_wake_mask(ACPI_GPE_ENABLE);
 	}
 
 	if (acpi_sci_irq_valid())
@@ -979,10 +975,7 @@ static int acpi_s2idle_prepare(void)
 
 static void acpi_s2idle_wake(void)
 {
-	if (!lps0_device_handle)
-		return;
-
-	if (pm_debug_messages_on)
+	if (lps0_device_handle && pm_debug_messages_on)
 		lpi_check_constraints();
 
 	/*
@@ -1031,8 +1024,6 @@ static void acpi_s2idle_restore(void)
 		disable_irq_wake(acpi_sci_irq);
 
 	if (lps0_device_handle) {
-		acpi_ec_set_gpe_wake_mask(ACPI_GPE_DISABLE);
-
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT);
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON);
 	}
@@ -1081,7 +1072,7 @@ bool acpi_s2idle_wakeup(void)
 
 bool acpi_sleep_no_ec_events(void)
 {
-	return !s2idle_in_progress || !lps0_device_handle;
+	return !s2idle_in_progress;
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -25,6 +25,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <asm/io.h>
@@ -1048,17 +1049,21 @@ void acpi_ec_unblock_transactions(void)
 		acpi_ec_start(first_ec, true);
 }
 
+#ifdef CONFIG_PM_SLEEP
 void acpi_ec_mark_gpe_for_wake(void)
 {
 	if (first_ec && !ec_no_wakeup)
 		acpi_mark_gpe_for_wake(NULL, first_ec->gpe);
 }
+EXPORT_SYMBOL_GPL(acpi_ec_mark_gpe_for_wake);
 
 void acpi_ec_set_gpe_wake_mask(u8 action)
 {
-	if (first_ec && !ec_no_wakeup)
+	if (pm_suspend_no_platform() && first_ec && !ec_no_wakeup)
 		acpi_set_gpe_wake_mask(NULL, first_ec->gpe, action);
 }
+EXPORT_SYMBOL_GPL(acpi_ec_set_gpe_wake_mask);
+#endif
 
 bool acpi_ec_dispatch_gpe(void)
 {
