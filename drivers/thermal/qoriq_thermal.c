@@ -204,11 +204,10 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 
 	data->little_endian = of_property_read_bool(np, "little-endian");
 
-	data->regs = of_iomap(np, 0);
-	if (!data->regs) {
+	data->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(data->regs)) {
 		dev_err(&pdev->dev, "Failed to get memory region\n");
-		ret = -ENODEV;
-		goto err_iomap;
+		return PTR_ERR(data->regs);
 	}
 
 	data->clk = devm_clk_get_optional(&pdev->dev, NULL);
@@ -225,22 +224,19 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 
 	ret = qoriq_tmu_calibration(pdev);	/* TMU calibration */
 	if (ret < 0)
-		goto err_tmu;
+		goto err;
 
 	ret = qoriq_tmu_register_tmu_zone(pdev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register sensors\n");
 		ret = -ENODEV;
-		goto err_tmu;
+		goto err;
 	}
 
 	return 0;
 
-err_tmu:
+err:
 	clk_disable_unprepare(data->clk);
-	iounmap(data->regs);
-
-err_iomap:
 	platform_set_drvdata(pdev, NULL);
 
 	return ret;
@@ -252,8 +248,6 @@ static int qoriq_tmu_remove(struct platform_device *pdev)
 
 	/* Disable monitoring */
 	tmu_write(data, TMR_DISABLE, &data->regs->tmr);
-
-	iounmap(data->regs);
 
 	clk_disable_unprepare(data->clk);
 
