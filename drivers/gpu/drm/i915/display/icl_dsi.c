@@ -403,8 +403,8 @@ static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 		tmp |= FRC_LATENCY_OPTIM_VAL(0x5);
 		I915_WRITE(ICL_PORT_TX_DW2_GRP(phy), tmp);
 
-		/* For EHL set latency optimization for PCS_DW1 lanes */
-		if (IS_ELKHARTLAKE(dev_priv)) {
+		/* For EHL, TGL, set latency optimization for PCS_DW1 lanes */
+		if (IS_ELKHARTLAKE(dev_priv) || (INTEL_GEN(dev_priv) >= 12)) {
 			tmp = I915_READ(ICL_PORT_PCS_DW1_AUX(phy));
 			tmp &= ~LATENCY_OPTIM_MASK;
 			tmp |= LATENCY_OPTIM_VAL(0);
