@@ -65,8 +65,10 @@ medusa_answer_t medusa_ipc_associate(struct kern_ipc_perm *ipcp, int flag)
 
 	if (!VS_INTERSECT(VSS(&task_security(current)),VS(ipc_security(ipcp))) ||
 		!VS_INTERSECT(VSW(&task_security(current)),VS(ipc_security(ipcp)))
-	)
-		return MED_NO;
+	) {
+		retval = MED_NO;
+		goto out;
+	}
 	
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_associate_access, &task_security(current))) {
 		process_kern2kobj(&process, current);
