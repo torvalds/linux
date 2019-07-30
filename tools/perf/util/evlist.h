@@ -55,7 +55,6 @@ struct evlist {
 	struct perf_evlist core;
 	struct hlist_head heads[PERF_EVLIST__HLIST_SIZE];
 	int		 nr_groups;
-	int		 nr_mmaps;
 	bool		 enabled;
 	size_t		 mmap_len;
 	int		 id_pos;

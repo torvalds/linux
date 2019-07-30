@@ -13,6 +13,7 @@ struct perf_evlist {
 	bool			 has_user_cpus;
 	struct perf_cpu_map	*cpus;
 	struct perf_thread_map	*threads;
+	int			 nr_mmaps;
 };
 
 /**

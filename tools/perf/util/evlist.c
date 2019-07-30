@@ -651,7 +651,7 @@ static int perf_evlist__set_paused(struct evlist *evlist, bool value)
 	if (!evlist->overwrite_mmap)
 		return 0;
 
-	for (i = 0; i < evlist->nr_mmaps; i++) {
+	for (i = 0; i < evlist->core.nr_mmaps; i++) {
 		int fd = evlist->overwrite_mmap[i].core.fd;
 		int err;
 
@@ -679,11 +679,11 @@ static void evlist__munmap_nofree(struct evlist *evlist)
 	int i;
 
 	if (evlist->mmap)
-		for (i = 0; i < evlist->nr_mmaps; i++)
+		for (i = 0; i < evlist->core.nr_mmaps; i++)
 			perf_mmap__munmap(&evlist->mmap[i]);
 
 	if (evlist->overwrite_mmap)
-		for (i = 0; i < evlist->nr_mmaps; i++)
+		for (i = 0; i < evlist->core.nr_mmaps; i++)
 			perf_mmap__munmap(&evlist->overwrite_mmap[i]);
 }
 
@@ -700,14 +700,14 @@ static struct mmap *evlist__alloc_mmap(struct evlist *evlist,
 	int i;
 	struct mmap *map;
 
-	evlist->nr_mmaps = perf_cpu_map__nr(evlist->core.cpus);
+	evlist->core.nr_mmaps = perf_cpu_map__nr(evlist->core.cpus);
 	if (perf_cpu_map__empty(evlist->core.cpus))
-		evlist->nr_mmaps = perf_thread_map__nr(evlist->core.threads);
-	map = zalloc(evlist->nr_mmaps * sizeof(struct mmap));
+		evlist->core.nr_mmaps = perf_thread_map__nr(evlist->core.threads);
+	map = zalloc(evlist->core.nr_mmaps * sizeof(struct mmap));
 	if (!map)
 		return NULL;
 
-	for (i = 0; i < evlist->nr_mmaps; i++) {
+	for (i = 0; i < evlist->core.nr_mmaps; i++) {
 		map[i].core.fd = -1;
 		map[i].core.overwrite = overwrite;
 		/*
@@ -1847,7 +1847,7 @@ static void *perf_evlist__poll_thread(void *arg)
 		if (!draining)
 			perf_evlist__poll(evlist, 1000);
 
-		for (i = 0; i < evlist->nr_mmaps; i++) {
+		for (i = 0; i < evlist->core.nr_mmaps; i++) {
 			struct mmap *map = &evlist->mmap[i];
 			union perf_event *event;
 

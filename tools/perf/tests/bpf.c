@@ -179,7 +179,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	(*func)();
 	evlist__disable(evlist);
 
-	for (i = 0; i < evlist->nr_mmaps; i++) {
+	for (i = 0; i < evlist->core.nr_mmaps; i++) {
 		union perf_event *event;
 		struct mmap *md;
 

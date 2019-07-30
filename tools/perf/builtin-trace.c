@@ -3443,7 +3443,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 again:
 	before = trace->nr_events;
 
-	for (i = 0; i < evlist->nr_mmaps; i++) {
+	for (i = 0; i < evlist->core.nr_mmaps; i++) {
 		union perf_event *event;
 		struct mmap *md;
 
