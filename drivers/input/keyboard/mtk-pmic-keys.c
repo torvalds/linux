@@ -277,8 +277,10 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 		keys->keys[index].regs = &mtk_pmic_regs->keys_regs[index];
 
 		keys->keys[index].irq = platform_get_irq(pdev, index);
-		if (keys->keys[index].irq < 0)
+		if (keys->keys[index].irq < 0) {
+			of_node_put(child);
 			return keys->keys[index].irq;
+		}
 
 		error = of_property_read_u32(child,
 			"linux,keycodes", &keys->keys[index].keycode);
@@ -286,6 +288,7 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 			dev_err(keys->dev,
 				"failed to read key:%d linux,keycode property: %d\n",
 				index, error);
+			of_node_put(child);
 			return error;
 		}
 
@@ -293,8 +296,10 @@ static int mtk_pmic_keys_probe(struct platform_device *pdev)
 			keys->keys[index].wakeup = true;
 
 		error = mtk_pmic_key_setup(keys, &keys->keys[index]);
-		if (error)
+		if (error) {
+			of_node_put(child);
 			return error;
+		}
 
 		index++;
 	}

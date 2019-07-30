@@ -163,7 +163,7 @@ enum iproc_pcie_ib_map_type {
  * @size_unit: inbound mapping region size unit, could be SZ_1K, SZ_1M, or
  * SZ_1G
  * @region_sizes: list of supported inbound mapping region sizes in KB, MB, or
- * GB, depedning on the size unit
+ * GB, depending on the size unit
  * @nr_sizes: number of supported inbound mapping region sizes
  * @nr_windows: number of supported inbound mapping windows for the region
  * @imap_addr_offset: register offset between the upper and lower 32-bit

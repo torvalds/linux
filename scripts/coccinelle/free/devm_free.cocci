@@ -3,7 +3,7 @@
 /// functions.  Values allocated using the devm_functions are freed when
 /// the device is detached, and thus the use of the standard freeing
 /// function would cause a double free.
-/// See Documentation/driver-model/devres.txt for more information.
+/// See Documentation/driver-api/driver-model/devres.rst for more information.
 ///
 /// A difficulty of detecting this problem is that the standard freeing
 /// function might be called from a different function than the one

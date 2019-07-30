@@ -336,19 +336,6 @@ static int si476x_radio_querycap(struct file *file, void *priv,
 	strscpy(capability->card,   DRIVER_CARD, sizeof(capability->card));
 	snprintf(capability->bus_info, sizeof(capability->bus_info),
 		 "platform:%s", radio->v4l2dev.name);
-
-	capability->device_caps = V4L2_CAP_TUNER
-		| V4L2_CAP_RADIO
-		| V4L2_CAP_HW_FREQ_SEEK;
-
-	si476x_core_lock(radio->core);
-	if (!si476x_core_is_a_secondary_tuner(radio->core))
-		capability->device_caps |= V4L2_CAP_RDS_CAPTURE
-			| V4L2_CAP_READWRITE;
-	si476x_core_unlock(radio->core);
-
-	capability->capabilities = capability->device_caps
-		| V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1459,6 +1446,14 @@ static int si476x_radio_probe(struct platform_device *pdev)
 
 	radio->videodev.v4l2_dev  = &radio->v4l2dev;
 	radio->videodev.ioctl_ops = &si4761_ioctl_ops;
+	radio->videodev.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
+				      V4L2_CAP_HW_FREQ_SEEK;
+
+	si476x_core_lock(radio->core);
+	if (!si476x_core_is_a_secondary_tuner(radio->core))
+		radio->videodev.device_caps |= V4L2_CAP_RDS_CAPTURE |
+					       V4L2_CAP_READWRITE;
+	si476x_core_unlock(radio->core);
 
 	video_set_drvdata(&radio->videodev, radio);
 	platform_set_drvdata(pdev, radio);

@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (C) 2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
- */
+/* Copyright (C) 2013 Jozsef Kadlecsik <kadlec@netfilter.org> */
 
 #ifndef _IP_SET_HASH_GEN_H
 #define _IP_SET_HASH_GEN_H
@@ -622,7 +621,7 @@ retry:
 					goto cleanup;
 				}
 				m->size = AHASH_INIT_SIZE;
-				extsize = ext_size(AHASH_INIT_SIZE, dsize);
+				extsize += ext_size(AHASH_INIT_SIZE, dsize);
 				RCU_INIT_POINTER(hbucket(t, key), m);
 			} else if (m->pos >= m->size) {
 				struct hbucket *ht;

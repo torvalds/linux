@@ -422,7 +422,6 @@ static int imx_keypad_probe(struct platform_device *pdev)
 			dev_get_platdata(&pdev->dev);
 	struct imx_keypad *keypad;
 	struct input_dev *input_dev;
-	struct resource *res;
 	int irq, error, i, row, col;
 
 	if (!keymap_data && !pdev->dev.of_node) {
@@ -455,8 +454,7 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	timer_setup(&keypad->check_matrix_timer,
 		    imx_keypad_check_for_events, 0);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	keypad->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	keypad->mmio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(keypad->mmio_base))
 		return PTR_ERR(keypad->mmio_base);
 

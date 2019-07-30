@@ -13,32 +13,32 @@ kill the processes associated with it and avoid using it in the future.
 
 This patchkit implements the necessary infrastructure in the VM.
 
-To quote the overview comment:
+To quote the overview comment::
 
- * High level machine check handler. Handles pages reported by the
- * hardware as being corrupted usually due to a 2bit ECC memory or cache
- * failure.
- *
- * This focusses on pages detected as corrupted in the background.
- * When the current CPU tries to consume corruption the currently
- * running process can just be killed directly instead. This implies
- * that if the error cannot be handled for some reason it's safe to
- * just ignore it because no corruption has been consumed yet. Instead
- * when that happens another machine check will happen.
- *
- * Handles page cache pages in various states. The tricky part
- * here is that we can access any page asynchronous to other VM
- * users, because memory failures could happen anytime and anywhere,
- * possibly violating some of their assumptions. This is why this code
- * has to be extremely careful. Generally it tries to use normal locking
- * rules, as in get the standard locks, even if that means the
- * error handling takes potentially a long time.
- *
- * Some of the operations here are somewhat inefficient and have non
- * linear algorithmic complexity, because the data structures have not
- * been optimized for this case. This is in particular the case
- * for the mapping from a vma to a process. Since this case is expected
- * to be rare we hope we can get away with this.
+	High level machine check handler. Handles pages reported by the
+	hardware as being corrupted usually due to a 2bit ECC memory or cache
+	failure.
+
+	This focusses on pages detected as corrupted in the background.
+	When the current CPU tries to consume corruption the currently
+	running process can just be killed directly instead. This implies
+	that if the error cannot be handled for some reason it's safe to
+	just ignore it because no corruption has been consumed yet. Instead
+	when that happens another machine check will happen.
+
+	Handles page cache pages in various states. The tricky part
+	here is that we can access any page asynchronous to other VM
+	users, because memory failures could happen anytime and anywhere,
+	possibly violating some of their assumptions. This is why this code
+	has to be extremely careful. Generally it tries to use normal locking
+	rules, as in get the standard locks, even if that means the
+	error handling takes potentially a long time.
+
+	Some of the operations here are somewhat inefficient and have non
+	linear algorithmic complexity, because the data structures have not
+	been optimized for this case. This is in particular the case
+	for the mapping from a vma to a process. Since this case is expected
+	to be rare we hope we can get away with this.
 
 The code consists of a the high level handler in mm/memory-failure.c,
 a new page poison bit and various checks in the VM to handle poisoned

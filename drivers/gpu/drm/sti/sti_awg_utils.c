@@ -4,6 +4,8 @@
  * Author: Vincent Abriou <vincent.abriou@st.com> for STMicroelectronics.
  */
 
+#include <drm/drm_print.h>
+
 #include "sti_awg_utils.h"
 
 #define AWG_DELAY (-5)

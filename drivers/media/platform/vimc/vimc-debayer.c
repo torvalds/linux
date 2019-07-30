@@ -16,14 +16,16 @@
 #include "vimc-common.h"
 
 #define VIMC_DEB_DRV_NAME "vimc-debayer"
-/* This module only supports tranforming a bayer format to V4L2_PIX_FMT_RGB24 */
+/* This module only supports transforming a bayer format
+ * to V4L2_PIX_FMT_RGB24
+ */
 #define VIMC_DEB_SRC_PIXFMT V4L2_PIX_FMT_RGB24
 #define VIMC_DEB_SRC_MBUS_FMT_DEFAULT MEDIA_BUS_FMT_RGB888_1X24
 
 static unsigned int deb_mean_win_size = 3;
 module_param(deb_mean_win_size, uint, 0000);
 MODULE_PARM_DESC(deb_mean_win_size, " the window size to calculate the mean.\n"
-	"NOTE: the window size need to be an odd number, as the main pixel "
+	"NOTE: the window size needs to be an odd number, as the main pixel "
 	"stays in the center of the window, otherwise the next odd number "
 	"is considered");
 
@@ -260,7 +262,7 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		/* Do not change the format while stream is on */
-		if (vdeb->src_frame)
+		if (vdeb->ved.stream)
 			return -EBUSY;
 
 		sink_fmt = &vdeb->sink_fmt;
@@ -326,9 +328,6 @@ static int vimc_deb_s_stream(struct v4l2_subdev *sd, int enable)
 		u32 src_pixelformat = vdeb->ved.stream->producer_pixfmt;
 		const struct v4l2_format_info *pix_info;
 		unsigned int frame_size;
-
-		if (vdeb->src_frame)
-			return 0;
 
 		/* We only support translating bayer to RGB24 */
 		if (src_pixelformat != V4L2_PIX_FMT_RGB24) {

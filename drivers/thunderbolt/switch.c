@@ -1967,10 +1967,10 @@ struct tb_sw_lookup {
 	u64 route;
 };
 
-static int tb_switch_match(struct device *dev, void *data)
+static int tb_switch_match(struct device *dev, const void *data)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
-	struct tb_sw_lookup *lookup = data;
+	const struct tb_sw_lookup *lookup = data;
 
 	if (!sw)
 		return 0;

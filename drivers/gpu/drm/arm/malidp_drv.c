@@ -549,19 +549,12 @@ static const struct file_operations malidp_debugfs_fops = {
 static int malidp_debugfs_init(struct drm_minor *minor)
 {
 	struct malidp_drm *malidp = minor->dev->dev_private;
-	struct dentry *dentry = NULL;
 
 	malidp_error_stats_init(&malidp->de_errors);
 	malidp_error_stats_init(&malidp->se_errors);
 	spin_lock_init(&malidp->errors_lock);
-	dentry = debugfs_create_file("debug",
-				     S_IRUGO | S_IWUSR,
-				     minor->debugfs_root, minor->dev,
-				     &malidp_debugfs_fops);
-	if (!dentry) {
-		DRM_ERROR("Cannot create debug file\n");
-		return -ENOMEM;
-	}
+	debugfs_create_file("debug", S_IRUGO | S_IWUSR, minor->debugfs_root,
+			    minor->dev, &malidp_debugfs_fops);
 	return 0;
 }
 

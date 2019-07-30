@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/trivial-rtc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Trivial RTCs
+
+maintainers:
+  - Alexandre Belloni <alexandre.belloni@bootlin.com>
+
+description: |
+  This is a list of trivial RTC devices that have simple device tree
+  bindings, consisting only of a compatible field, an address and
+  possibly an interrupt line.
+
+allOf:
+  - $ref: "rtc.yaml#"
+
+properties:
+  compatible:
+    enum:
+      # AB-RTCMC-32.768kHz-B5ZE-S3: Real Time Clock/Calendar Module with I2C Interface
+      - abracon,abb5zes3
+      # AB-RTCMC-32.768kHz-EOZ9: Real Time Clock/Calendar Module with I2C Interface
+      - abracon,abeoz9
+      # I2C, 32-Bit Binary Counter Watchdog RTC with Trickle Charger and Reset Input/Output
+      - dallas,ds1374
+      # Dallas DS1672 Real-time Clock
+      - dallas,ds1672
+      # Extremely Accurate I²C RTC with Integrated Crystal and SRAM
+      - dallas,ds3232
+      # I2C-BUS INTERFACE REAL TIME CLOCK MODULE
+      - epson,rx8010
+      # I2C-BUS INTERFACE REAL TIME CLOCK MODULE with Battery Backed RAM
+      - epson,rx8571
+      # I2C-BUS INTERFACE REAL TIME CLOCK MODULE
+      - epson,rx8581
+      # Intersil ISL1208 Low Power RTC with Battery Backed SRAM
+      - isil,isl1208
+      # Intersil ISL1218 Low Power RTC with Battery Backed SRAM
+      - isil,isl1218
+      # Intersil ISL12022 Real-time Clock
+      - isil,isl12022
+      # Real Time Clock Module with I2C-Bus
+      - microcrystal,rv3028
+      # Real Time Clock Module with I2C-Bus
+      - microcrystal,rv3029
+      # Real Time Clock
+      - microcrystal,rv8523
+      # Real-time clock
+      - nxp,pcf2127
+      # Real-time clock
+      - nxp,pcf2129
+      # Real-time clock/calendar
+      - nxp,pcf8563
+      # Real-time Clock Module
+      - pericom,pt7c4338
+      # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
+      - ricoh,r2025sd
+      # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
+      - ricoh,r2221tl
+      # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
+      - ricoh,rs5c372a
+      # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
+      - ricoh,rs5c372b
+      # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
+      - ricoh,rv5c386
+      # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
+      - ricoh,rv5c387a
+      # 2-wire CMOS real-time clock
+      - sii,s35390a
+      # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
+      - whwave,sd3078
+      # Xircom X1205 I2C RTC
+      - xircom,x1205
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  start-year: true
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+...

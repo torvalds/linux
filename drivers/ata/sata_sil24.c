@@ -1202,7 +1202,6 @@ static int sil24_port_start(struct ata_port *ap)
 	cb = dmam_alloc_coherent(dev, cb_size, &cb_dma, GFP_KERNEL);
 	if (!cb)
 		return -ENOMEM;
-	memset(cb, 0, cb_size);
 
 	pp->cmd_block = cb;
 	pp->cmd_block_dma = cb_dma;

@@ -143,6 +143,7 @@ struct cxgbi_ppm {
 	spinlock_t map_lock;		/* ppm map lock */
 	unsigned int bmap_index_max;
 	unsigned int next;
+	unsigned int max_index_in_edram;
 	unsigned long *ppod_bmap;
 	struct cxgbi_ppod_data ppod_data[0];
 };
@@ -324,9 +325,9 @@ int cxgbi_ppm_ppods_reserve(struct cxgbi_ppm *, unsigned short nr_pages,
 			    unsigned long caller_data);
 int cxgbi_ppm_init(void **ppm_pp, struct net_device *, struct pci_dev *,
 		   void *lldev, struct cxgbi_tag_format *,
-		   unsigned int ppmax, unsigned int llimit,
-		   unsigned int start,
-		   unsigned int reserve_factor);
+		   unsigned int iscsi_size, unsigned int llimit,
+		   unsigned int start, unsigned int reserve_factor,
+		   unsigned int edram_start, unsigned int edram_size);
 int cxgbi_ppm_release(struct cxgbi_ppm *ppm);
 void cxgbi_tagmask_check(unsigned int tagmask, struct cxgbi_tag_format *);
 unsigned int cxgbi_tagmask_set(unsigned int ppmax);

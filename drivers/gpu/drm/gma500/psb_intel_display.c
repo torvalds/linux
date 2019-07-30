@@ -6,16 +6,17 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
+#include <linux/delay.h>
 #include <linux/i2c.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_plane_helper.h>
+
 #include "framebuffer.h"
+#include "gma_display.h"
+#include "power.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "gma_display.h"
-#include "power.h"
 
 #define INTEL_LIMIT_I9XX_SDVO_DAC   0
 #define INTEL_LIMIT_I9XX_LVDS	    1

@@ -328,10 +328,6 @@ static ssize_t pci_addr_show(struct device *dev, struct device_attribute *attr,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	/* Use dummy, fixed address for simulator */
-	if (!hdev->pdev)
-		return sprintf(buf, "0000:%02d:00.0\n", hdev->id);
-
 	return sprintf(buf, "%04x:%02x:%02x.%x\n",
 			pci_domain_nr(hdev->pdev->bus),
 			hdev->pdev->bus->number,

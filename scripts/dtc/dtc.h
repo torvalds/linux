@@ -216,7 +216,8 @@ void add_child(struct node *parent, struct node *child);
 void delete_node_by_name(struct node *parent, char *name);
 void delete_node(struct node *node);
 void append_to_property(struct node *node,
-			char *name, const void *data, int len);
+			char *name, const void *data, int len,
+			enum markertype type);
 
 const char *get_unitname(struct node *node);
 struct property *get_property(struct node *node, const char *propname);

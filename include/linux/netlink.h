@@ -192,7 +192,14 @@ struct netlink_callback {
 	bool			strict_check;
 	u16			answer_flags;
 	unsigned int		prev_seq, seq;
-	long			args[6];
+	union {
+		u8		ctx[48];
+
+		/* args is deprecated. Cast a struct over ctx instead
+		 * for proper type safety.
+		 */
+		long		args[6];
+	};
 };
 
 struct netlink_notify {

@@ -39,18 +39,6 @@ config FB_OMAP2_DSS_DPI
 	help
 	  DPI Interface. This is the Parallel Display Interface.
 
-config FB_OMAP2_DSS_RFBI
-	bool "RFBI support"
-	depends on BROKEN
-	help
-	  MIPI DBI support (RFBI, Remote Framebuffer Interface, in Texas
-	  Instrument's terminology).
-
-	  DBI is a bus between the host processor and a peripheral,
-	  such as a display or a framebuffer chip.
-
-	  See http://www.mipi.org/ for DBI specifications.
-
 config FB_OMAP2_DSS_VENC
 	bool "VENC support"
 	default y

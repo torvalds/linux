@@ -182,7 +182,6 @@ static u32 crypto4xx_build_pdr(struct crypto4xx_device *dev)
 				  dev->pdr_pa);
 		return -ENOMEM;
 	}
-	memset(dev->pdr, 0, sizeof(struct ce_pd) * PPC4XX_NUM_PD);
 	dev->shadow_sa_pool = dma_alloc_coherent(dev->core_dev->device,
 				   sizeof(union shadow_sa_buf) * PPC4XX_NUM_PD,
 				   &dev->shadow_sa_pool_pa,
@@ -1210,8 +1209,8 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.max_keysize = AES_MAX_KEY_SIZE,
 		.ivsize	= AES_IV_SIZE,
 		.setkey = crypto4xx_setkey_aes_cbc,
-		.encrypt = crypto4xx_encrypt_iv,
-		.decrypt = crypto4xx_decrypt_iv,
+		.encrypt = crypto4xx_encrypt_iv_block,
+		.decrypt = crypto4xx_decrypt_iv_block,
 		.init = crypto4xx_sk_init,
 		.exit = crypto4xx_sk_exit,
 	} },
@@ -1222,7 +1221,7 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
 				CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
 			.cra_module = THIS_MODULE,
 		},
@@ -1230,8 +1229,8 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.max_keysize = AES_MAX_KEY_SIZE,
 		.ivsize	= AES_IV_SIZE,
 		.setkey	= crypto4xx_setkey_aes_cfb,
-		.encrypt = crypto4xx_encrypt_iv,
-		.decrypt = crypto4xx_decrypt_iv,
+		.encrypt = crypto4xx_encrypt_iv_stream,
+		.decrypt = crypto4xx_decrypt_iv_stream,
 		.init = crypto4xx_sk_init,
 		.exit = crypto4xx_sk_exit,
 	} },
@@ -1243,7 +1242,7 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 			.cra_flags = CRYPTO_ALG_NEED_FALLBACK |
 				CRYPTO_ALG_ASYNC |
 				CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
 			.cra_module = THIS_MODULE,
 		},
@@ -1263,7 +1262,7 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
 				CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
 			.cra_module = THIS_MODULE,
 		},
@@ -1290,8 +1289,8 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.min_keysize = AES_MIN_KEY_SIZE,
 		.max_keysize = AES_MAX_KEY_SIZE,
 		.setkey	= crypto4xx_setkey_aes_ecb,
-		.encrypt = crypto4xx_encrypt_noiv,
-		.decrypt = crypto4xx_decrypt_noiv,
+		.encrypt = crypto4xx_encrypt_noiv_block,
+		.decrypt = crypto4xx_decrypt_noiv_block,
 		.init = crypto4xx_sk_init,
 		.exit = crypto4xx_sk_exit,
 	} },
@@ -1302,7 +1301,7 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
 				CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
 			.cra_module = THIS_MODULE,
 		},
@@ -1310,8 +1309,8 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.max_keysize = AES_MAX_KEY_SIZE,
 		.ivsize	= AES_IV_SIZE,
 		.setkey	= crypto4xx_setkey_aes_ofb,
-		.encrypt = crypto4xx_encrypt_iv,
-		.decrypt = crypto4xx_decrypt_iv,
+		.encrypt = crypto4xx_encrypt_iv_stream,
+		.decrypt = crypto4xx_decrypt_iv_stream,
 		.init = crypto4xx_sk_init,
 		.exit = crypto4xx_sk_exit,
 	} },

@@ -25,6 +25,19 @@
 
 #include "display_mode_lib.h"
 #include "dc_features.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#include "dcn20/display_mode_vba_20.h"
+#include "dcn20/display_rq_dlg_calc_20.h"
+#endif
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+const struct dml_funcs dml20_funcs = {
+	.validate = dml20_ModeSupportAndSystemConfigurationFull,
+	.recalculate = dml20_recalculate,
+	.rq_dlg_get_dlg_reg = dml20_rq_dlg_get_dlg_reg,
+	.rq_dlg_get_rq_reg = dml20_rq_dlg_get_rq_reg
+};
+#endif
 
 void dml_init_instance(struct display_mode_lib *lib,
 		const struct _vcs_dpi_soc_bounding_box_st *soc_bb,
@@ -34,6 +47,15 @@ void dml_init_instance(struct display_mode_lib *lib,
 	lib->soc = *soc_bb;
 	lib->ip = *ip_params;
 	lib->project = project;
+	switch (project) {
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	case DML_PROJECT_NAVI10:
+		lib->funcs = dml20_funcs;
+		break;
+#endif
+	default:
+		break;
+	}
 }
 
 const char *dml_get_status_message(enum dm_validation_status status)

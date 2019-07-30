@@ -564,6 +564,7 @@ enum OpalHMI_XstopType {
 	CHECKSTOP_TYPE_UNKNOWN	=	0,
 	CHECKSTOP_TYPE_CORE	=	1,
 	CHECKSTOP_TYPE_NX	=	2,
+	CHECKSTOP_TYPE_NPU	=	3
 };
 
 enum OpalHMI_CoreXstopReason {

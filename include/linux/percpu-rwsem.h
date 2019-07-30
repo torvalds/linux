@@ -17,14 +17,18 @@ struct percpu_rw_semaphore {
 	int			readers_block;
 };
 
-#define DEFINE_STATIC_PERCPU_RWSEM(name)				\
+#define __DEFINE_PERCPU_RWSEM(name, is_static)				\
 static DEFINE_PER_CPU(unsigned int, __percpu_rwsem_rc_##name);		\
-static struct percpu_rw_semaphore name = {				\
-	.rss = __RCU_SYNC_INITIALIZER(name.rss, RCU_SCHED_SYNC),	\
+is_static struct percpu_rw_semaphore name = {				\
+	.rss = __RCU_SYNC_INITIALIZER(name.rss),			\
 	.read_count = &__percpu_rwsem_rc_##name,			\
 	.rw_sem = __RWSEM_INITIALIZER(name.rw_sem),			\
 	.writer = __RCUWAIT_INITIALIZER(name.writer),			\
 }
+#define DEFINE_PERCPU_RWSEM(name)		\
+	__DEFINE_PERCPU_RWSEM(name, /* not static */)
+#define DEFINE_STATIC_PERCPU_RWSEM(name)	\
+	__DEFINE_PERCPU_RWSEM(name, static)
 
 extern int __percpu_down_read(struct percpu_rw_semaphore *, int);
 extern void __percpu_up_read(struct percpu_rw_semaphore *);
@@ -117,7 +121,7 @@ static inline void percpu_rwsem_release(struct percpu_rw_semaphore *sem,
 	lock_release(&sem->rw_sem.dep_map, 1, ip);
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
 	if (!read)
-		sem->rw_sem.owner = RWSEM_OWNER_UNKNOWN;
+		atomic_long_set(&sem->rw_sem.owner, RWSEM_OWNER_UNKNOWN);
 #endif
 }
 
@@ -127,7 +131,7 @@ static inline void percpu_rwsem_acquire(struct percpu_rw_semaphore *sem,
 	lock_acquire(&sem->rw_sem.dep_map, 0, 1, read, 1, NULL, ip);
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
 	if (!read)
-		sem->rw_sem.owner = current;
+		atomic_long_set(&sem->rw_sem.owner, (long)current);
 #endif
 }
 

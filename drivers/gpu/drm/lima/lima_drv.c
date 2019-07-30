@@ -17,7 +17,7 @@
 
 int lima_sched_timeout_ms;
 
-MODULE_PARM_DESC(sched_timeout_ms, "task run timeout in ms (0 = no timeout (default))");
+MODULE_PARM_DESC(sched_timeout_ms, "task run timeout in ms");
 module_param_named(sched_timeout_ms, lima_sched_timeout_ms, int, 0444);
 
 static int lima_ioctl_get_param(struct drm_device *dev, void *data, struct drm_file *file)

@@ -230,6 +230,7 @@ static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(journal_task),
 	NULL,
 };
+ATTRIBUTE_GROUPS(ext4);
 
 /* Features this copy of ext4 supports */
 EXT4_ATTR_FEATURE(lazy_itable_init);
@@ -256,6 +257,7 @@ static struct attribute *ext4_feat_attrs[] = {
 	ATTR_LIST(metadata_csum_seed),
 	NULL,
 };
+ATTRIBUTE_GROUPS(ext4_feat);
 
 static void *calc_ptr(struct ext4_attr *a, struct ext4_sb_info *sbi)
 {
@@ -374,13 +376,13 @@ static const struct sysfs_ops ext4_attr_ops = {
 };
 
 static struct kobj_type ext4_sb_ktype = {
-	.default_attrs	= ext4_attrs,
+	.default_groups = ext4_groups,
 	.sysfs_ops	= &ext4_attr_ops,
 	.release	= ext4_sb_release,
 };
 
 static struct kobj_type ext4_feat_ktype = {
-	.default_attrs	= ext4_feat_attrs,
+	.default_groups = ext4_feat_groups,
 	.sysfs_ops	= &ext4_attr_ops,
 	.release	= (void (*)(struct kobject *))kfree,
 };

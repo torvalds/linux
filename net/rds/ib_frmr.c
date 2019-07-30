@@ -32,6 +32,24 @@
 
 #include "ib_mr.h"
 
+static inline void
+rds_transition_frwr_state(struct rds_ib_mr *ibmr,
+			  enum rds_ib_fr_state old_state,
+			  enum rds_ib_fr_state new_state)
+{
+	if (cmpxchg(&ibmr->u.frmr.fr_state,
+		    old_state, new_state) == old_state &&
+	    old_state == FRMR_IS_INUSE) {
+		/* enforce order of ibmr->u.frmr.fr_state update
+		 * before decrementing i_fastreg_inuse_count
+		 */
+		smp_mb__before_atomic();
+		atomic_dec(&ibmr->ic->i_fastreg_inuse_count);
+		if (waitqueue_active(&rds_ib_ring_empty_wait))
+			wake_up(&rds_ib_ring_empty_wait);
+	}
+}
+
 static struct rds_ib_mr *rds_ib_alloc_frmr(struct rds_ib_device *rds_ibdev,
 					   int npages)
 {
@@ -75,6 +93,8 @@ static struct rds_ib_mr *rds_ib_alloc_frmr(struct rds_ib_device *rds_ibdev,
 		pool->max_items_soft = pool->max_items;
 
 	frmr->fr_state = FRMR_IS_FREE;
+	init_waitqueue_head(&frmr->fr_inv_done);
+	init_waitqueue_head(&frmr->fr_reg_done);
 	return ibmr;
 
 out_no_cigar:
@@ -116,13 +136,19 @@ static int rds_ib_post_reg_frmr(struct rds_ib_mr *ibmr)
 	if (unlikely(ret != ibmr->sg_len))
 		return ret < 0 ? ret : -EINVAL;
 
+	if (cmpxchg(&frmr->fr_state,
+		    FRMR_IS_FREE, FRMR_IS_INUSE) != FRMR_IS_FREE)
+		return -EBUSY;
+
+	atomic_inc(&ibmr->ic->i_fastreg_inuse_count);
+
 	/* Perform a WR for the fast_reg_mr. Each individual page
 	 * in the sg list is added to the fast reg page list and placed
 	 * inside the fast_reg_mr WR.  The key used is a rolling 8bit
 	 * counter, which should guarantee uniqueness.
 	 */
 	ib_update_fast_reg_key(frmr->mr, ibmr->remap_count++);
-	frmr->fr_state = FRMR_IS_INUSE;
+	frmr->fr_reg = true;
 
 	memset(&reg_wr, 0, sizeof(reg_wr));
 	reg_wr.wr.wr_id = (unsigned long)(void *)ibmr;
@@ -138,12 +164,23 @@ static int rds_ib_post_reg_frmr(struct rds_ib_mr *ibmr)
 	ret = ib_post_send(ibmr->ic->i_cm_id->qp, &reg_wr.wr, NULL);
 	if (unlikely(ret)) {
 		/* Failure here can be because of -ENOMEM as well */
-		frmr->fr_state = FRMR_IS_STALE;
+		rds_transition_frwr_state(ibmr, FRMR_IS_INUSE, FRMR_IS_STALE);
+
 		atomic_inc(&ibmr->ic->i_fastreg_wrs);
 		if (printk_ratelimit())
 			pr_warn("RDS/IB: %s returned error(%d)\n",
 				__func__, ret);
+		goto out;
 	}
+
+	/* Wait for the registration to complete in order to prevent an invalid
+	 * access error resulting from a race between the memory region already
+	 * being accessed while registration is still pending.
+	 */
+	wait_event(frmr->fr_reg_done, !frmr->fr_reg);
+
+out:
+
 	return ret;
 }
 
@@ -239,8 +276,8 @@ static int rds_ib_post_inv(struct rds_ib_mr *ibmr)
 	if (frmr->fr_state != FRMR_IS_INUSE)
 		goto out;
 
-	while (atomic_dec_return(&ibmr->ic->i_fastunreg_wrs) <= 0) {
-		atomic_inc(&ibmr->ic->i_fastunreg_wrs);
+	while (atomic_dec_return(&ibmr->ic->i_fastreg_wrs) <= 0) {
+		atomic_inc(&ibmr->ic->i_fastreg_wrs);
 		cpu_relax();
 	}
 
@@ -255,12 +292,29 @@ static int rds_ib_post_inv(struct rds_ib_mr *ibmr)
 
 	ret = ib_post_send(i_cm_id->qp, s_wr, NULL);
 	if (unlikely(ret)) {
-		frmr->fr_state = FRMR_IS_STALE;
+		rds_transition_frwr_state(ibmr, FRMR_IS_INUSE, FRMR_IS_STALE);
 		frmr->fr_inv = false;
-		atomic_inc(&ibmr->ic->i_fastunreg_wrs);
+		/* enforce order of frmr->fr_inv update
+		 * before incrementing i_fastreg_wrs
+		 */
+		smp_mb__before_atomic();
+		atomic_inc(&ibmr->ic->i_fastreg_wrs);
 		pr_err("RDS/IB: %s returned error(%d)\n", __func__, ret);
 		goto out;
 	}
+
+	/* Wait for the FRMR_IS_FREE (or FRMR_IS_STALE) transition in order to
+	 * 1) avoid a silly bouncing between "clean_list" and "drop_list"
+	 *    triggered by function "rds_ib_reg_frmr" as it is releases frmr
+	 *    regions whose state is not "FRMR_IS_FREE" right away.
+	 * 2) prevents an invalid access error in a race
+	 *    from a pending "IB_WR_LOCAL_INV" operation
+	 *    with a teardown ("dma_unmap_sg", "put_page")
+	 *    and de-registration ("ib_dereg_mr") of the corresponding
+	 *    memory region.
+	 */
+	wait_event(frmr->fr_inv_done, frmr->fr_state != FRMR_IS_INUSE);
+
 out:
 	return ret;
 }
@@ -271,7 +325,7 @@ void rds_ib_mr_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 	struct rds_ib_frmr *frmr = &ibmr->u.frmr;
 
 	if (wc->status != IB_WC_SUCCESS) {
-		frmr->fr_state = FRMR_IS_STALE;
+		rds_transition_frwr_state(ibmr, FRMR_IS_INUSE, FRMR_IS_STALE);
 		if (rds_conn_up(ic->conn))
 			rds_ib_conn_error(ic->conn,
 					  "frmr completion <%pI4,%pI4> status %u(%s), vendor_err 0x%x, disconnecting and reconnecting\n",
@@ -283,12 +337,21 @@ void rds_ib_mr_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 	}
 
 	if (frmr->fr_inv) {
-		frmr->fr_state = FRMR_IS_FREE;
+		rds_transition_frwr_state(ibmr, FRMR_IS_INUSE, FRMR_IS_FREE);
 		frmr->fr_inv = false;
-		atomic_inc(&ic->i_fastreg_wrs);
-	} else {
-		atomic_inc(&ic->i_fastunreg_wrs);
+		wake_up(&frmr->fr_inv_done);
 	}
+
+	if (frmr->fr_reg) {
+		frmr->fr_reg = false;
+		wake_up(&frmr->fr_reg_done);
+	}
+
+	/* enforce order of frmr->{fr_reg,fr_inv} update
+	 * before incrementing i_fastreg_wrs
+	 */
+	smp_mb__before_atomic();
+	atomic_inc(&ic->i_fastreg_wrs);
 }
 
 void rds_ib_unreg_frmr(struct list_head *list, unsigned int *nfreed,
@@ -296,14 +359,18 @@ void rds_ib_unreg_frmr(struct list_head *list, unsigned int *nfreed,
 {
 	struct rds_ib_mr *ibmr, *next;
 	struct rds_ib_frmr *frmr;
-	int ret = 0;
+	int ret = 0, ret2;
 	unsigned int freed = *nfreed;
 
 	/* String all ib_mr's onto one list and hand them to ib_unmap_fmr */
 	list_for_each_entry(ibmr, list, unmap_list) {
-		if (ibmr->sg_dma_len)
-			ret |= rds_ib_post_inv(ibmr);
+		if (ibmr->sg_dma_len) {
+			ret2 = rds_ib_post_inv(ibmr);
+			if (ret2 && !ret)
+				ret = ret2;
+		}
 	}
+
 	if (ret)
 		pr_warn("RDS/IB: %s failed (err=%d)\n", __func__, ret);
 

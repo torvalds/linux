@@ -872,13 +872,12 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 	}
 
 	/* check client and interface hw capabilities */
-	if (codec_dai->driver->playback.channels_min)
+	if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_PLAYBACK) &&
+	    snd_soc_dai_stream_valid(cpu_dai,   SNDRV_PCM_STREAM_PLAYBACK))
 		playback = 1;
-	if (codec_dai->driver->capture.channels_min)
+	if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_CAPTURE) &&
+	    snd_soc_dai_stream_valid(cpu_dai,   SNDRV_PCM_STREAM_CAPTURE))
 		capture = 1;
-
-	capture = capture && cpu_dai->driver->capture.channels_min;
-	playback = playback && cpu_dai->driver->playback.channels_min;
 
 	/*
 	 * Compress devices are unidirectional so only one of the directions

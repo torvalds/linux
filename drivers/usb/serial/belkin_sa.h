@@ -9,7 +9,7 @@
  *  and associated source files.  Please see the usb/serial files for
  *  individual credits and copyrights.
  *
- * See Documentation/usb/usb-serial.txt for more information on using this
+ * See Documentation/usb/usb-serial.rst for more information on using this
  * driver
  *
  * 12-Mar-2001 gkh

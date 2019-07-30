@@ -55,7 +55,6 @@
 /* Flags for trace_probe */
 #define TP_FLAG_TRACE		1
 #define TP_FLAG_PROFILE		2
-#define TP_FLAG_REGISTERED	4
 
 /* data_loc: data location, compatible with u32 */
 #define make_data_loc(len, offs)	\
@@ -92,10 +91,13 @@ enum fetch_op {
 	FETCH_OP_FOFFS,		/* File offset: .immediate */
 	// Stage 2 (dereference) op
 	FETCH_OP_DEREF,		/* Dereference: .offset */
+	FETCH_OP_UDEREF,	/* User-space Dereference: .offset */
 	// Stage 3 (store) ops
 	FETCH_OP_ST_RAW,	/* Raw: .size */
 	FETCH_OP_ST_MEM,	/* Mem: .offset, .size */
+	FETCH_OP_ST_UMEM,	/* Mem: .offset, .size */
 	FETCH_OP_ST_STRING,	/* String: .offset, .size */
+	FETCH_OP_ST_USTRING,	/* User String: .offset, .size */
 	// Stage 4 (modify) op
 	FETCH_OP_MOD_BF,	/* Bitfield: .basesize, .lshift, .rshift */
 	// Stage 5 (loop) op
@@ -235,15 +237,70 @@ struct event_file_link {
 	struct list_head		list;
 };
 
-static inline bool trace_probe_is_enabled(struct trace_probe *tp)
+static inline bool trace_probe_test_flag(struct trace_probe *tp,
+					 unsigned int flag)
 {
-	return !!(tp->flags & (TP_FLAG_TRACE | TP_FLAG_PROFILE));
+	return !!(tp->flags & flag);
 }
 
-static inline bool trace_probe_is_registered(struct trace_probe *tp)
+static inline void trace_probe_set_flag(struct trace_probe *tp,
+					unsigned int flag)
 {
-	return !!(tp->flags & TP_FLAG_REGISTERED);
+	tp->flags |= flag;
 }
+
+static inline void trace_probe_clear_flag(struct trace_probe *tp,
+					  unsigned int flag)
+{
+	tp->flags &= ~flag;
+}
+
+static inline bool trace_probe_is_enabled(struct trace_probe *tp)
+{
+	return trace_probe_test_flag(tp, TP_FLAG_TRACE | TP_FLAG_PROFILE);
+}
+
+static inline const char *trace_probe_name(struct trace_probe *tp)
+{
+	return trace_event_name(&tp->call);
+}
+
+static inline const char *trace_probe_group_name(struct trace_probe *tp)
+{
+	return tp->call.class->system;
+}
+
+static inline struct trace_event_call *
+	trace_probe_event_call(struct trace_probe *tp)
+{
+	return &tp->call;
+}
+
+static inline int trace_probe_unregister_event_call(struct trace_probe *tp)
+{
+	/* tp->event is unregistered in trace_remove_event_call() */
+	return trace_remove_event_call(&tp->call);
+}
+
+static inline bool trace_probe_has_single_file(struct trace_probe *tp)
+{
+	return !!list_is_singular(&tp->files);
+}
+
+int trace_probe_init(struct trace_probe *tp, const char *event,
+		     const char *group);
+void trace_probe_cleanup(struct trace_probe *tp);
+int trace_probe_register_event_call(struct trace_probe *tp);
+int trace_probe_add_file(struct trace_probe *tp, struct trace_event_file *file);
+int trace_probe_remove_file(struct trace_probe *tp,
+			    struct trace_event_file *file);
+struct event_file_link *trace_probe_get_file_link(struct trace_probe *tp,
+						struct trace_event_file *file);
+
+#define trace_probe_for_each_link(pos, tp)	\
+	list_for_each_entry(pos, &(tp)->files, list)
+#define trace_probe_for_each_link_rcu(pos, tp)	\
+	list_for_each_entry_rcu(pos, &(tp)->files, list)
 
 /* Check the name is good for event/group/fields */
 static inline bool is_good_name(const char *name)
@@ -255,18 +312,6 @@ static inline bool is_good_name(const char *name)
 			return false;
 	}
 	return true;
-}
-
-static inline struct event_file_link *
-find_event_file_link(struct trace_probe *tp, struct trace_event_file *file)
-{
-	struct event_file_link *link;
-
-	list_for_each_entry(link, &tp->files, list)
-		if (link->file == file)
-			return link;
-
-	return NULL;
 }
 
 #define TPARG_FL_RETURN BIT(0)

@@ -23,6 +23,7 @@ config VGA_SWITCHEROO
 	depends on X86
 	depends on ACPI
 	depends on PCI
+	depends on (FRAMEBUFFER_CONSOLE=n || FB=y)
 	select VGA_ARB
 	help
 	  Many laptops released in 2008/9/10 have two GPUs with a multiplexer

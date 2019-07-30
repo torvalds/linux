@@ -44,9 +44,9 @@
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_gem.h>
 #include <drm/amdgpu_drm.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_ioctl.h>
 #include <drm/gpu_scheduler.h>
 
 #include <kgd_kfd_interface.h>
@@ -84,6 +84,8 @@
 #include "amdgpu_doorbell.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_smu.h"
+#include "amdgpu_discovery.h"
+#include "amdgpu_mes.h"
 
 #define MAX_GPU_INSTANCE		16
 
@@ -118,7 +120,6 @@ extern int amdgpu_disp_priority;
 extern int amdgpu_hw_i2c;
 extern int amdgpu_pcie_gen2;
 extern int amdgpu_msi;
-extern int amdgpu_lockup_timeout;
 extern int amdgpu_dpm;
 extern int amdgpu_fw_load_type;
 extern int amdgpu_aspm;
@@ -143,7 +144,6 @@ extern uint amdgpu_sdma_phase_quantum;
 extern char *amdgpu_disable_cu;
 extern char *amdgpu_virtual_display;
 extern uint amdgpu_pp_feature_mask;
-extern int amdgpu_vram_page_split;
 extern int amdgpu_ngg;
 extern int amdgpu_prim_buf_per_se;
 extern int amdgpu_pos_buf_per_se;
@@ -156,9 +156,15 @@ extern int amdgpu_gpu_recovery;
 extern int amdgpu_emu_mode;
 extern uint amdgpu_smu_memory_pool_size;
 extern uint amdgpu_dc_feature_mask;
+extern uint amdgpu_dm_abm_level;
 extern struct amdgpu_mgpu_info mgpu_info;
 extern int amdgpu_ras_enable;
 extern uint amdgpu_ras_mask;
+extern int amdgpu_async_gfx_ring;
+extern int amdgpu_mcbp;
+extern int amdgpu_discovery;
+extern int amdgpu_mes;
+extern int amdgpu_noretry;
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 extern int amdgpu_si_support;
@@ -211,9 +217,11 @@ struct amdgpu_irq_src;
 struct amdgpu_fpriv;
 struct amdgpu_bo_va_mapping;
 struct amdgpu_atif;
+struct kfd_vm_fault_info;
 
 enum amdgpu_cp_irq {
-	AMDGPU_CP_IRQ_GFX_EOP = 0,
+	AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP = 0,
+	AMDGPU_CP_IRQ_GFX_ME0_PIPE1_EOP,
 	AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP,
 	AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE1_EOP,
 	AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE2_EOP,
@@ -415,6 +423,7 @@ struct amdgpu_fpriv {
 };
 
 int amdgpu_file_to_fpriv(struct file *filp, struct amdgpu_fpriv **fpriv);
+int amdgpu_device_get_job_timeout_settings(struct amdgpu_device *adev);
 
 int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		  unsigned size, struct amdgpu_ib *ib);
@@ -558,6 +567,8 @@ struct amdgpu_asic_funcs {
 			       uint64_t *count1);
 	/* do we need to reset the asic at init time (e.g., kexec) */
 	bool (*need_reset_on_init)(struct amdgpu_device *adev);
+	/* PCIe replay counter */
+	uint64_t (*get_pcie_replay_count)(struct amdgpu_device *adev);
 };
 
 /*
@@ -639,6 +650,11 @@ struct nbio_hdp_flush_reg {
 	u32 ref_and_mask_sdma1;
 };
 
+struct amdgpu_mmio_remap {
+	u32 reg_offset;
+	resource_size_t bus_addr;
+};
+
 struct amdgpu_nbio_funcs {
 	const struct nbio_hdp_flush_reg *hdp_flush_reg;
 	u32 (*get_hdp_flush_req_offset)(struct amdgpu_device *adev);
@@ -651,6 +667,8 @@ struct amdgpu_nbio_funcs {
 	u32 (*get_memsize)(struct amdgpu_device *adev);
 	void (*sdma_doorbell_range)(struct amdgpu_device *adev, int instance,
 			bool use_doorbell, int doorbell_index, int doorbell_size);
+	void (*vcn_doorbell_range)(struct amdgpu_device *adev, bool use_doorbell,
+			int doorbell_index);
 	void (*enable_doorbell_aperture)(struct amdgpu_device *adev,
 					 bool enable);
 	void (*enable_doorbell_selfring_aperture)(struct amdgpu_device *adev,
@@ -666,10 +684,11 @@ struct amdgpu_nbio_funcs {
 	void (*ih_control)(struct amdgpu_device *adev);
 	void (*init_registers)(struct amdgpu_device *adev);
 	void (*detect_hw_virt)(struct amdgpu_device *adev);
+	void (*remap_hdp_registers)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_df_funcs {
-	void (*init)(struct amdgpu_device *adev);
+	void (*sw_init)(struct amdgpu_device *adev);
 	void (*enable_broadcast_mode)(struct amdgpu_device *adev,
 				      bool enable);
 	u32 (*get_fb_channel_number)(struct amdgpu_device *adev);
@@ -680,6 +699,12 @@ struct amdgpu_df_funcs {
 				      u32 *flags);
 	void (*enable_ecc_force_par_wr_rmw)(struct amdgpu_device *adev,
 					    bool enable);
+	int (*pmc_start)(struct amdgpu_device *adev, uint64_t config,
+					 int is_enable);
+	int (*pmc_stop)(struct amdgpu_device *adev, uint64_t config,
+					 int is_disable);
+	void (*pmc_get_count)(struct amdgpu_device *adev, uint64_t config,
+					 uint64_t *count);
 };
 /* Define the HW IP blocks will be used in driver , add more if necessary */
 enum amd_hw_ip_block_type {
@@ -714,6 +739,7 @@ struct amd_powerplay {
 };
 
 #define AMDGPU_RESET_MAGIC_NUM 64
+#define AMDGPU_MAX_DF_PERFMONS 4
 struct amdgpu_device {
 	struct device			*dev;
 	struct drm_device		*ddev;
@@ -740,6 +766,7 @@ struct amdgpu_device {
 	struct amdgpu_debugfs		debugfs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
 	unsigned			debugfs_count;
 #if defined(CONFIG_DEBUG_FS)
+	struct dentry                   *debugfs_preempt;
 	struct dentry			*debugfs_regs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
 #endif
 	struct amdgpu_atif		*atif;
@@ -749,6 +776,7 @@ struct amdgpu_device {
 	struct mutex                    grbm_idx_mutex;
 	struct dev_pm_domain		vga_pm_domain;
 	bool				have_disp_power_ref;
+	bool                            have_atomics_support;
 
 	/* BIOS */
 	bool				is_atom_fw;
@@ -764,6 +792,7 @@ struct amdgpu_device {
 	void __iomem			*rmmio;
 	/* protects concurrent MM_INDEX/DATA based register access */
 	spinlock_t mmio_idx_lock;
+	struct amdgpu_mmio_remap        rmmio_remap;
 	/* protects concurrent SMC based register access */
 	spinlock_t smc_idx_lock;
 	amdgpu_rreg_t			smc_rreg;
@@ -889,6 +918,13 @@ struct amdgpu_device {
 	/* display related functionality */
 	struct amdgpu_display_manager dm;
 
+	/* discovery */
+	uint8_t				*discovery;
+
+	/* mes */
+	bool                            enable_mes;
+	struct amdgpu_mes               mes;
+
 	struct amdgpu_ip_block          ip_blocks[AMDGPU_MAX_IP_NUM];
 	int				num_ip_blocks;
 	struct mutex	mn_lock;
@@ -906,7 +942,7 @@ struct amdgpu_device {
 	const struct amdgpu_df_funcs	*df_funcs;
 
 	/* delayed work_func for deferring clockgating during resume */
-	struct delayed_work     late_init_work;
+	struct delayed_work     delayed_init_work;
 
 	struct amdgpu_virt	virt;
 	/* firmware VRAM reservation */
@@ -936,6 +972,14 @@ struct amdgpu_device {
 	struct work_struct		xgmi_reset_work;
 
 	bool                            in_baco_reset;
+
+	long				gfx_timeout;
+	long				sdma_timeout;
+	long				video_timeout;
+	long				compute_timeout;
+
+	uint64_t			unique_id;
+	uint64_t	df_perfmon_config_assign_mask[AMDGPU_MAX_DF_PERFMONS];
 };
 
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)
@@ -1065,6 +1109,7 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define amdgpu_asic_init_doorbell_index(adev) (adev)->asic_funcs->init_doorbell_index((adev))
 #define amdgpu_asic_get_pcie_usage(adev, cnt0, cnt1) ((adev)->asic_funcs->get_pcie_usage((adev), (cnt0), (cnt1)))
 #define amdgpu_asic_need_reset_on_init(adev) (adev)->asic_funcs->need_reset_on_init((adev))
+#define amdgpu_asic_get_pcie_replay_count(adev) ((adev)->asic_funcs->get_pcie_replay_count((adev)))
 
 /* Common functions */
 bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev);
@@ -1081,6 +1126,9 @@ void amdgpu_device_program_register_sequence(struct amdgpu_device *adev,
 					     const u32 array_size);
 
 bool amdgpu_device_is_px(struct drm_device *dev);
+bool amdgpu_device_is_peer_accessible(struct amdgpu_device *adev,
+				      struct amdgpu_device *peer_adev);
+
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)
 void amdgpu_register_atpx_handler(void);
@@ -1170,5 +1218,24 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev );
 static inline int amdgpu_dm_display_resume(struct amdgpu_device *adev) { return 0; }
 #endif
 
+
+void amdgpu_register_gpu_instance(struct amdgpu_device *adev);
+void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev);
+
 #include "amdgpu_object.h"
+
+/* used by df_v3_6.c and amdgpu_pmu.c */
+#define AMDGPU_PMU_ATTR(_name, _object)					\
+static ssize_t								\
+_name##_show(struct device *dev,					\
+			       struct device_attribute *attr,		\
+			       char *page)				\
+{									\
+	BUILD_BUG_ON(sizeof(_object) >= PAGE_SIZE - 1);			\
+	return sprintf(page, _object "\n");				\
+}									\
+									\
+static struct device_attribute pmu_attr_##_name = __ATTR_RO(_name)
+
 #endif
+

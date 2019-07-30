@@ -257,12 +257,14 @@ static int __init rk3288_suspend_init(struct device_node *np)
 	rk3288_bootram_base = of_iomap(sram_np, 0);
 	if (!rk3288_bootram_base) {
 		pr_err("%s: could not map bootram base\n", __func__);
+		of_node_put(sram_np);
 		return -ENOMEM;
 	}
 
 	ret = of_address_to_resource(sram_np, 0, &res);
 	if (ret) {
 		pr_err("%s: could not get bootram phy addr\n", __func__);
+		of_node_put(sram_np);
 		return ret;
 	}
 	rk3288_bootram_phy = res.start;

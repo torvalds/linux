@@ -945,7 +945,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		goto fixup;
 
 	if (ai_usermode & UM_SIGNAL) {
-		force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)addr, current);
+		force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)addr);
 	} else {
 		/*
 		 * We're about to disable the alignment trap and return to

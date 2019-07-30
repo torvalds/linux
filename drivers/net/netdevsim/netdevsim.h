@@ -157,6 +157,7 @@ struct nsim_dev {
 	struct netdev_phys_item_id switch_id;
 	struct list_head port_list;
 	struct mutex port_list_lock; /* protects port list */
+	bool fw_update_status;
 };
 
 int nsim_dev_init(void);

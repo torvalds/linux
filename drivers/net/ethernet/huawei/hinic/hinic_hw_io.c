@@ -36,6 +36,7 @@
 
 enum io_cmd {
 	IO_CMD_MODIFY_QUEUE_CTXT = 0,
+	IO_CMD_CLEAN_QUEUE_CTXT,
 };
 
 static void init_db_area_idx(struct hinic_free_db_area *free_db_area)
@@ -199,6 +200,59 @@ static int write_qp_ctxts(struct hinic_func_to_io *func_to_io, u16 base_qpn,
 {
 	return (write_sq_ctxts(func_to_io, base_qpn, num_qps) ||
 		write_rq_ctxts(func_to_io, base_qpn, num_qps));
+}
+
+static int hinic_clean_queue_offload_ctxt(struct hinic_func_to_io *func_to_io,
+					  enum hinic_qp_ctxt_type ctxt_type)
+{
+	struct hinic_hwif *hwif = func_to_io->hwif;
+	struct hinic_clean_queue_ctxt *ctxt_block;
+	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_cmdq_buf cmdq_buf;
+	u64 out_param = 0;
+	int err;
+
+	err = hinic_alloc_cmdq_buf(&func_to_io->cmdqs, &cmdq_buf);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to allocate cmdq buf\n");
+		return err;
+	}
+
+	ctxt_block = cmdq_buf.buf;
+	ctxt_block->cmdq_hdr.num_queues = func_to_io->max_qps;
+	ctxt_block->cmdq_hdr.queue_type = ctxt_type;
+	ctxt_block->cmdq_hdr.addr_offset = 0;
+
+	/* TSO/LRO ctxt size: 0x0:0B; 0x1:160B; 0x2:200B; 0x3:240B */
+	ctxt_block->ctxt_size = 0x3;
+
+	hinic_cpu_to_be32(ctxt_block, sizeof(*ctxt_block));
+
+	cmdq_buf.size = sizeof(*ctxt_block);
+
+	err = hinic_cmdq_direct_resp(&func_to_io->cmdqs, HINIC_MOD_L2NIC,
+				     IO_CMD_CLEAN_QUEUE_CTXT,
+				     &cmdq_buf, &out_param);
+
+	if (err || out_param) {
+		dev_err(&pdev->dev, "Failed to clean offload ctxts, err: %d, out_param: 0x%llx\n",
+			err, out_param);
+
+		err = -EFAULT;
+	}
+
+	hinic_free_cmdq_buf(&func_to_io->cmdqs, &cmdq_buf);
+
+	return err;
+}
+
+static int hinic_clean_qp_offload_ctxt(struct hinic_func_to_io *func_to_io)
+{
+	/* clean LRO/TSO context space */
+	return (hinic_clean_queue_offload_ctxt(func_to_io,
+					       HINIC_QP_CTXT_TYPE_SQ) ||
+		hinic_clean_queue_offload_ctxt(func_to_io,
+					       HINIC_QP_CTXT_TYPE_RQ));
 }
 
 /**
@@ -369,6 +423,12 @@ int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,
 	err = write_qp_ctxts(func_to_io, base_qpn, num_qps);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init QP ctxts\n");
+		goto err_write_qp_ctxts;
+	}
+
+	err = hinic_clean_qp_offload_ctxt(func_to_io);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to clean QP contexts space\n");
 		goto err_write_qp_ctxts;
 	}
 

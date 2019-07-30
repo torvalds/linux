@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/crc32.h>
+#include <linux/sched/mm.h>
 
 #define	DM_MSG_PREFIX		"zoned metadata"
 
@@ -1162,8 +1163,7 @@ static int dmz_init_zones(struct dmz_metadata *zmd)
 	while (sector < dev->capacity) {
 		/* Get zone information */
 		nr_blkz = DMZ_REPORT_NR_ZONES;
-		ret = blkdev_report_zones(dev->bdev, sector, blkz,
-					  &nr_blkz, GFP_KERNEL);
+		ret = blkdev_report_zones(dev->bdev, sector, blkz, &nr_blkz);
 		if (ret) {
 			dmz_dev_err(dev, "Report zones failed %d", ret);
 			goto out;
@@ -1201,12 +1201,20 @@ out:
 static int dmz_update_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 {
 	unsigned int nr_blkz = 1;
+	unsigned int noio_flag;
 	struct blk_zone blkz;
 	int ret;
 
-	/* Get zone information from disk */
+	/*
+	 * Get zone information from disk. Since blkdev_report_zones() uses
+	 * GFP_KERNEL by default for memory allocations, set the per-task
+	 * PF_MEMALLOC_NOIO flag so that all allocations are done as if
+	 * GFP_NOIO was specified.
+	 */
+	noio_flag = memalloc_noio_save();
 	ret = blkdev_report_zones(zmd->dev->bdev, dmz_start_sect(zmd, zone),
-				  &blkz, &nr_blkz, GFP_NOIO);
+				  &blkz, &nr_blkz);
+	memalloc_noio_restore(noio_flag);
 	if (!nr_blkz)
 		ret = -EIO;
 	if (ret) {
@@ -1591,30 +1599,6 @@ struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd)
 	dmz_unlock_map(zmd);
 
 	return zone;
-}
-
-/*
- * Activate a zone (increment its reference count).
- */
-void dmz_activate_zone(struct dm_zone *zone)
-{
-	set_bit(DMZ_ACTIVE, &zone->flags);
-	atomic_inc(&zone->refcount);
-}
-
-/*
- * Deactivate a zone. This decrement the zone reference counter
- * and clears the active state of the zone once the count reaches 0,
- * indicating that all BIOs to the zone have completed. Returns
- * true if the zone was deactivated.
- */
-void dmz_deactivate_zone(struct dm_zone *zone)
-{
-	if (atomic_dec_and_test(&zone->refcount)) {
-		WARN_ON(!test_bit(DMZ_ACTIVE, &zone->flags));
-		clear_bit_unlock(DMZ_ACTIVE, &zone->flags);
-		smp_mb__after_atomic();
-	}
 }
 
 /*

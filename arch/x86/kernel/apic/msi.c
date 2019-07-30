@@ -370,14 +370,14 @@ struct irq_domain *hpet_create_irq_domain(int hpet_id)
 	return d;
 }
 
-int hpet_assign_irq(struct irq_domain *domain, struct hpet_dev *dev,
+int hpet_assign_irq(struct irq_domain *domain, struct hpet_channel *hc,
 		    int dev_num)
 {
 	struct irq_alloc_info info;
 
 	init_irq_alloc_info(&info, NULL);
 	info.type = X86_IRQ_ALLOC_TYPE_HPET;
-	info.hpet_data = dev;
+	info.hpet_data = hc;
 	info.hpet_id = hpet_dev_id(domain);
 	info.hpet_index = dev_num;
 

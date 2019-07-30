@@ -18,17 +18,17 @@ static struct rc_map_table avermedia_m733a_rm_k6[] = {
 	{ 0x0406, KEY_MUTE },
 	{ 0x0408, KEY_MODE },     /* TV/FM */
 
-	{ 0x0409, KEY_1 },
-	{ 0x040a, KEY_2 },
-	{ 0x040b, KEY_3 },
-	{ 0x040c, KEY_4 },
-	{ 0x040d, KEY_5 },
-	{ 0x040e, KEY_6 },
-	{ 0x040f, KEY_7 },
-	{ 0x0410, KEY_8 },
-	{ 0x0411, KEY_9 },
+	{ 0x0409, KEY_NUMERIC_1 },
+	{ 0x040a, KEY_NUMERIC_2 },
+	{ 0x040b, KEY_NUMERIC_3 },
+	{ 0x040c, KEY_NUMERIC_4 },
+	{ 0x040d, KEY_NUMERIC_5 },
+	{ 0x040e, KEY_NUMERIC_6 },
+	{ 0x040f, KEY_NUMERIC_7 },
+	{ 0x0410, KEY_NUMERIC_8 },
+	{ 0x0411, KEY_NUMERIC_9 },
 	{ 0x044c, KEY_DOT },      /* '.' */
-	{ 0x0412, KEY_0 },
+	{ 0x0412, KEY_NUMERIC_0 },
 	{ 0x0407, KEY_REFRESH },  /* Refresh/Reload */
 
 	{ 0x0413, KEY_AUDIO },

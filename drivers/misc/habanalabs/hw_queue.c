@@ -265,7 +265,7 @@ static void ext_hw_queue_schedule_job(struct hl_cs_job *job)
 	cq = &hdev->completion_queue[q->hw_queue_id];
 	cq_addr = cq->bus_address + cq->pi * sizeof(struct hl_cq_entry);
 
-	hdev->asic_funcs->add_end_of_cb_packets(cb->kernel_address, len,
+	hdev->asic_funcs->add_end_of_cb_packets(hdev, cb->kernel_address, len,
 						cq_addr,
 						__le32_to_cpu(cq_pkt.data),
 						q->hw_queue_id);

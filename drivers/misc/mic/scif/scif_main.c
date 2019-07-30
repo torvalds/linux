@@ -133,6 +133,7 @@ static int scif_setup_scifdev(void)
 static void scif_destroy_scifdev(void)
 {
 	kfree(scif_dev);
+	scif_dev = NULL;
 }
 
 static int scif_probe(struct scif_hw_dev *sdev)

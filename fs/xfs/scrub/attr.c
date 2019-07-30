@@ -9,26 +9,62 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_btree.h"
-#include "xfs_bit.h"
 #include "xfs_log_format.h"
-#include "xfs_trans.h"
-#include "xfs_sb.h"
 #include "xfs_inode.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
-#include "xfs_dir2.h"
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
-#include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/dabtree.h"
-#include "scrub/trace.h"
+#include "scrub/attr.h"
 
-#include <linux/posix_acl_xattr.h>
-#include <linux/xattr.h>
+/*
+ * Allocate enough memory to hold an attr value and attr block bitmaps,
+ * reallocating the buffer if necessary.  Buffer contents are not preserved
+ * across a reallocation.
+ */
+int
+xchk_setup_xattr_buf(
+	struct xfs_scrub	*sc,
+	size_t			value_size,
+	xfs_km_flags_t		flags)
+{
+	size_t			sz;
+	struct xchk_xattr_buf	*ab = sc->buf;
+
+	/*
+	 * We need enough space to read an xattr value from the file or enough
+	 * space to hold three copies of the xattr free space bitmap.  We don't
+	 * need the buffer space for both purposes at the same time.
+	 */
+	sz = 3 * sizeof(long) * BITS_TO_LONGS(sc->mp->m_attr_geo->blksize);
+	sz = max_t(size_t, sz, value_size);
+
+	/*
+	 * If there's already a buffer, figure out if we need to reallocate it
+	 * to accommodate a larger size.
+	 */
+	if (ab) {
+		if (sz <= ab->sz)
+			return 0;
+		kmem_free(ab);
+		sc->buf = NULL;
+	}
+
+	/*
+	 * Don't zero the buffer upon allocation to avoid runtime overhead.
+	 * All users must be careful never to read uninitialized contents.
+	 */
+	ab = kmem_alloc_large(sizeof(*ab) + sz, flags);
+	if (!ab)
+		return -ENOMEM;
+
+	ab->sz = sz;
+	sc->buf = ab;
+	return 0;
+}
 
 /* Set us up to scrub an inode's extended attributes. */
 int
@@ -36,19 +72,18 @@ xchk_setup_xattr(
 	struct xfs_scrub	*sc,
 	struct xfs_inode	*ip)
 {
-	size_t			sz;
+	int			error;
 
 	/*
-	 * Allocate the buffer without the inode lock held.  We need enough
-	 * space to read every xattr value in the file or enough space to
-	 * hold three copies of the xattr free space bitmap.  (Not both at
-	 * the same time.)
+	 * We failed to get memory while checking attrs, so this time try to
+	 * get all the memory we're ever going to need.  Allocate the buffer
+	 * without the inode lock held, which means we can sleep.
 	 */
-	sz = max_t(size_t, XATTR_SIZE_MAX, 3 * sizeof(long) *
-			BITS_TO_LONGS(sc->mp->m_attr_geo->blksize));
-	sc->buf = kmem_zalloc_large(sz, KM_SLEEP);
-	if (!sc->buf)
-		return -ENOMEM;
+	if (sc->flags & XCHK_TRY_HARDER) {
+		error = xchk_setup_xattr_buf(sc, XATTR_SIZE_MAX, KM_SLEEP);
+		if (error)
+			return error;
+	}
 
 	return xchk_setup_inode_contents(sc, ip, 0);
 }
@@ -83,7 +118,7 @@ xchk_xattr_listent(
 	sx = container_of(context, struct xchk_xattr, context);
 
 	if (xchk_should_terminate(sx->sc, &error)) {
-		context->seen_enough = 1;
+		context->seen_enough = error;
 		return;
 	}
 
@@ -99,6 +134,19 @@ xchk_xattr_listent(
 		return;
 	}
 
+	/*
+	 * Try to allocate enough memory to extrat the attr value.  If that
+	 * doesn't work, we overload the seen_enough variable to convey
+	 * the error message back to the main scrub function.
+	 */
+	error = xchk_setup_xattr_buf(sx->sc, valuelen, KM_MAYFAIL);
+	if (error == -ENOMEM)
+		error = -EDEADLOCK;
+	if (error) {
+		context->seen_enough = error;
+		return;
+	}
+
 	args.flags = ATTR_KERNOTIME;
 	if (flags & XFS_ATTR_ROOT)
 		args.flags |= ATTR_ROOT;
@@ -111,8 +159,8 @@ xchk_xattr_listent(
 	args.namelen = namelen;
 	args.hashval = xfs_da_hashname(args.name, args.namelen);
 	args.trans = context->tp;
-	args.value = sx->sc->buf;
-	args.valuelen = XATTR_SIZE_MAX;
+	args.value = xchk_xattr_valuebuf(sx->sc);
+	args.valuelen = valuelen;
 
 	error = xfs_attr_get_ilocked(context->dp, &args);
 	if (error == -EEXIST)
@@ -125,7 +173,7 @@ xchk_xattr_listent(
 					     args.blkno);
 fail_xref:
 	if (sx->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		context->seen_enough = 1;
+		context->seen_enough = XFS_ITER_ABORT;
 	return;
 }
 
@@ -170,13 +218,12 @@ xchk_xattr_check_freemap(
 	unsigned long			*map,
 	struct xfs_attr3_icleaf_hdr	*leafhdr)
 {
-	unsigned long			*freemap;
-	unsigned long			*dstmap;
+	unsigned long			*freemap = xchk_xattr_freemap(sc);
+	unsigned long			*dstmap = xchk_xattr_dstmap(sc);
 	unsigned int			mapsize = sc->mp->m_attr_geo->blksize;
 	int				i;
 
 	/* Construct bitmap of freemap contents. */
-	freemap = (unsigned long *)sc->buf + BITS_TO_LONGS(mapsize);
 	bitmap_zero(freemap, mapsize);
 	for (i = 0; i < XFS_ATTR_LEAF_MAPSIZE; i++) {
 		if (!xchk_xattr_set_map(sc, freemap,
@@ -186,7 +233,6 @@ xchk_xattr_check_freemap(
 	}
 
 	/* Look for bits that are set in freemap and are marked in use. */
-	dstmap = freemap + BITS_TO_LONGS(mapsize);
 	return bitmap_and(dstmap, freemap, map, mapsize) == 0;
 }
 
@@ -201,13 +247,13 @@ xchk_xattr_entry(
 	char				*buf_end,
 	struct xfs_attr_leafblock	*leaf,
 	struct xfs_attr3_icleaf_hdr	*leafhdr,
-	unsigned long			*usedmap,
 	struct xfs_attr_leaf_entry	*ent,
 	int				idx,
 	unsigned int			*usedbytes,
 	__u32				*last_hashval)
 {
 	struct xfs_mount		*mp = ds->state->mp;
+	unsigned long			*usedmap = xchk_xattr_usedmap(ds->sc);
 	char				*name_end;
 	struct xfs_attr_leaf_name_local	*lentry;
 	struct xfs_attr_leaf_name_remote *rentry;
@@ -267,16 +313,26 @@ xchk_xattr_block(
 	struct xfs_attr_leafblock	*leaf = bp->b_addr;
 	struct xfs_attr_leaf_entry	*ent;
 	struct xfs_attr_leaf_entry	*entries;
-	unsigned long			*usedmap = ds->sc->buf;
+	unsigned long			*usedmap;
 	char				*buf_end;
 	size_t				off;
 	__u32				last_hashval = 0;
 	unsigned int			usedbytes = 0;
 	unsigned int			hdrsize;
 	int				i;
+	int				error;
 
 	if (*last_checked == blk->blkno)
 		return 0;
+
+	/* Allocate memory for block usage checking. */
+	error = xchk_setup_xattr_buf(ds->sc, 0, KM_MAYFAIL);
+	if (error == -ENOMEM)
+		return -EDEADLOCK;
+	if (error)
+		return error;
+	usedmap = xchk_xattr_usedmap(ds->sc);
+
 	*last_checked = blk->blkno;
 	bitmap_zero(usedmap, mp->m_attr_geo->blksize);
 
@@ -324,7 +380,7 @@ xchk_xattr_block(
 
 		/* Check the entry and nameval. */
 		xchk_xattr_entry(ds, level, buf_end, leaf, &leafhdr,
-				usedmap, ent, i, &usedbytes, &last_hashval);
+				ent, i, &usedbytes, &last_hashval);
 
 		if (ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 			goto out;
@@ -464,6 +520,10 @@ xchk_xattr(
 	error = xfs_attr_list_int_ilocked(&sx.context);
 	if (!xchk_fblock_process_error(sc, XFS_ATTR_FORK, 0, &error))
 		goto out;
+
+	/* Did our listent function try to return any errors? */
+	if (sx.context.seen_enough < 0)
+		error = sx.context.seen_enough;
 out:
 	return error;
 }

@@ -7,7 +7,6 @@ menuconfig USB_ATM
 	tristate "USB DSL modem support"
 	depends on ATM
 	select CRC32
-	default n
 	help
 	  Say Y here if you want to connect a USB Digital Subscriber Line (DSL)
 	  modem to your computer's USB port.  You will then need to choose your

@@ -59,6 +59,7 @@ struct encoder_feature_support {
 			uint32_t IS_TPS3_CAPABLE:1;
 			uint32_t IS_TPS4_CAPABLE:1;
 			uint32_t HDMI_6GB_EN:1;
+			uint32_t DP_IS_USB_C:1;
 		} bits;
 		uint32_t raw;
 	} flags;
@@ -112,9 +113,26 @@ struct link_encoder {
 	struct encoder_feature_support features;
 	enum transmitter transmitter;
 	enum hpd_source_id hpd_source;
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	bool usbc_combo_phy;
+#endif
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+struct link_enc_state {
+
+		uint32_t dphy_fec_en;
+		uint32_t dphy_fec_ready_shadow;
+		uint32_t dphy_fec_active_status;
+
+};
+#endif
+
 struct link_encoder_funcs {
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	void (*read_state)(
+			struct link_encoder *enc, struct link_enc_state *s);
+#endif
 	bool (*validate_output_with_stream)(
 		struct link_encoder *enc, const struct dc_stream_state *stream);
 	void (*hw_init)(struct link_encoder *enc);
@@ -155,6 +173,16 @@ struct link_encoder_funcs {
 	bool (*is_dig_enabled)(struct link_encoder *enc);
 	unsigned int (*get_dig_frontend)(struct link_encoder *enc);
 	void (*destroy)(struct link_encoder **enc);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	void (*fec_set_enable)(struct link_encoder *enc,
+		bool enable);
+
+	void (*fec_set_ready)(struct link_encoder *enc,
+		bool ready);
+
+	bool (*fec_is_active)(struct link_encoder *enc);
+#endif
 };
 
 #endif /* LINK_ENCODER_H_ */

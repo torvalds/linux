@@ -118,6 +118,7 @@ void kvm_pmu_refresh(struct kvm_vcpu *vcpu);
 void kvm_pmu_reset(struct kvm_vcpu *vcpu);
 void kvm_pmu_init(struct kvm_vcpu *vcpu);
 void kvm_pmu_destroy(struct kvm_vcpu *vcpu);
+int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp);
 
 bool is_vmware_backdoor_pmc(u32 pmc_idx);
 

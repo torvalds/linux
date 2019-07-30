@@ -24,9 +24,13 @@
  *    Dave Airlie
  *    Jerome Glisse <glisse@freedesktop.org>
  */
-#include <drm/drmP.h>
-#include "radeon.h"
+
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_device.h>
+#include <drm/drm_pci.h>
 #include <drm/radeon_drm.h>
+
+#include "radeon.h"
 
 #if IS_ENABLED(CONFIG_AGP)
 

@@ -55,8 +55,27 @@ struct omap_framebuffer {
 	struct mutex lock;
 };
 
+static int omap_framebuffer_dirty(struct drm_framebuffer *fb,
+				  struct drm_file *file_priv,
+				  unsigned flags, unsigned color,
+				  struct drm_clip_rect *clips,
+				  unsigned num_clips)
+{
+	struct drm_crtc *crtc;
+
+	drm_modeset_lock_all(fb->dev);
+
+	drm_for_each_crtc(crtc, fb->dev)
+		omap_crtc_flush(crtc);
+
+	drm_modeset_unlock_all(fb->dev);
+
+	return 0;
+}
+
 static const struct drm_framebuffer_funcs omap_framebuffer_funcs = {
 	.create_handle = drm_gem_fb_create_handle,
+	.dirty = omap_framebuffer_dirty,
 	.destroy = drm_gem_fb_destroy,
 };
 
@@ -287,7 +306,9 @@ void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	unsigned int num_planes = drm_format_num_planes(mode_cmd->pixel_format);
+	const struct drm_format_info *info = drm_get_format_info(dev,
+								 mode_cmd);
+	unsigned int num_planes = info->num_planes;
 	struct drm_gem_object *bos[4];
 	struct drm_framebuffer *fb;
 	int i;
@@ -326,7 +347,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 			dev, mode_cmd, mode_cmd->width, mode_cmd->height,
 			(char *)&mode_cmd->pixel_format);
 
-	format = drm_format_info(mode_cmd->pixel_format);
+	format = drm_get_format_info(dev, mode_cmd);
 
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
 		if (formats[i] == mode_cmd->pixel_format)

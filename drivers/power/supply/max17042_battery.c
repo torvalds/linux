@@ -1005,7 +1005,7 @@ static void max17042_stop_work(void *data)
 static int max17042_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	const struct power_supply_desc *max17042_desc = &max17042_psy_desc;
 	struct power_supply_config psy_cfg = {};
 	const struct acpi_device_id *acpi_id = NULL;

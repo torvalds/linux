@@ -386,6 +386,9 @@ struct iwl_mvm_rxq_dup_data {
  * @amsdu_enabled: bitmap of TX AMSDU allowed TIDs.
  *	In case TLC offload is not active it is either 0xFFFF or 0.
  * @max_amsdu_len: max AMSDU length
+ * @orig_amsdu_len: used to save the original amsdu_len when it is changed via
+ *      debugfs.  If it's set to 0, it means that it is it's not set via
+ *      debugfs.
  * @agg_tids: bitmap of tids whose status is operational aggregated (IWL_AGG_ON)
  * @sleep_tx_count: the number of frames that we told the firmware to let out
  *	even when that station is asleep. This is useful in case the queue
@@ -434,6 +437,7 @@ struct iwl_mvm_sta {
 	bool disable_tx;
 	u16 amsdu_enabled;
 	u16 max_amsdu_len;
+	u16 orig_amsdu_len;
 	bool sleeping;
 	u8 agg_tids;
 	u8 sleep_tx_count;

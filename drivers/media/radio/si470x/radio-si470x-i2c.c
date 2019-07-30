@@ -223,10 +223,6 @@ static int si470x_vidioc_querycap(struct file *file, void *priv,
 {
 	strscpy(capability->driver, DRIVER_NAME, sizeof(capability->driver));
 	strscpy(capability->card, DRIVER_CARD, sizeof(capability->card));
-	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_READWRITE |
-		V4L2_CAP_TUNER | V4L2_CAP_RADIO | V4L2_CAP_RDS_CAPTURE;
-	capability->capabilities = capability->device_caps | V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -382,6 +378,9 @@ static int si470x_i2c_probe(struct i2c_client *client,
 	radio->videodev.lock = &radio->lock;
 	radio->videodev.v4l2_dev = &radio->v4l2_dev;
 	radio->videodev.release = video_device_release_empty;
+	radio->videodev.device_caps =
+		V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_READWRITE | V4L2_CAP_TUNER |
+		V4L2_CAP_RADIO | V4L2_CAP_RDS_CAPTURE;
 	video_set_drvdata(&radio->videodev, radio);
 
 	radio->gpio_reset = devm_gpiod_get_optional(&client->dev, "reset",

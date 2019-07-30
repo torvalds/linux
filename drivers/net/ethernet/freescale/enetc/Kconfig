@@ -29,3 +29,13 @@ config FSL_ENETC_PTP_CLOCK
 	  packets using the SO_TIMESTAMPING API.
 
 	  If compiled as module (M), the module name is fsl-enetc-ptp.
+
+config FSL_ENETC_HW_TIMESTAMPING
+	bool "ENETC hardware timestamping support"
+	depends on FSL_ENETC || FSL_ENETC_VF
+	help
+	  Enable hardware timestamping support on the Ethernet packets
+	  using the SO_TIMESTAMPING API. Because the RX BD ring dynamic
+	  allocation has not been supported and it is too expensive to use
+	  extended RX BDs if timestamping is not used, this option enables
+	  extended RX BDs in order to support hardware timestamping.

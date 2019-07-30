@@ -164,40 +164,11 @@ acr_ls_sec2_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 	struct nvkm_sec2 *sec = device->sec2;
 	/* on SEC arguments are always at the beginning of EMEM */
 	const u32 addr_args = 0x01000000;
-	u32 reg;
 	int ret;
 
 	ret = acr_ls_msgqueue_post_run(sec->queue, sec->falcon, addr_args);
 	if (ret)
 		return ret;
-
-	/*
-	 * There is a bug where the LS firmware sometimes require to be started
-	 * twice (this happens only on SEC). Detect and workaround that
-	 * condition.
-	 *
-	 * Once started, the falcon will end up in STOPPED condition (bit 5)
-	 * if successful, or in HALT condition (bit 4) if not.
-	 */
-	nvkm_msec(device, 1,
-		  if ((reg = nvkm_falcon_rd32(sb->boot_falcon, 0x100) & 0x30) != 0)
-			  break;
-	);
-	if (reg & BIT(4)) {
-		nvkm_debug(subdev, "applying workaround for start bug...\n");
-		nvkm_falcon_start(sb->boot_falcon);
-		nvkm_msec(subdev->device, 1,
-			if ((reg = nvkm_rd32(subdev->device,
-					     sb->boot_falcon->addr + 0x100)
-			     & 0x30) != 0)
-				break;
-		);
-		if (reg & BIT(4)) {
-			nvkm_error(subdev, "%s failed to start\n",
-			       nvkm_secboot_falcon_name[acr->boot_falcon]);
-			return -EINVAL;
-		}
-	}
 
 	nvkm_debug(&sb->subdev, "%s started\n",
 		   nvkm_secboot_falcon_name[acr->boot_falcon]);

@@ -859,7 +859,8 @@ static int nfs4_set_client(struct nfs_server *server,
 		const size_t addrlen,
 		const char *ip_addr,
 		int proto, const struct rpc_timeout *timeparms,
-		u32 minorversion, struct net *net)
+		u32 minorversion, unsigned int nconnect,
+		struct net *net)
 {
 	struct nfs_client_initdata cl_init = {
 		.hostname = hostname,
@@ -875,6 +876,8 @@ static int nfs4_set_client(struct nfs_server *server,
 	};
 	struct nfs_client *clp;
 
+	if (minorversion > 0 && proto == XPRT_TRANSPORT_TCP)
+		cl_init.nconnect = nconnect;
 	if (server->flags & NFS_MOUNT_NORESVPORT)
 		set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
 	if (server->options & NFS_OPTION_MIGRATION)
@@ -940,6 +943,9 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 	if (rpc_ntop(ds_addr, buf, sizeof(buf)) <= 0)
 		return ERR_PTR(-EINVAL);
 	cl_init.hostname = buf;
+
+	if (mds_clp->cl_nconnect > 1 && ds_proto == XPRT_TRANSPORT_TCP)
+		cl_init.nconnect = mds_clp->cl_nconnect;
 
 	if (mds_srv->flags & NFS_MOUNT_NORESVPORT)
 		__set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
@@ -1074,6 +1080,7 @@ static int nfs4_init_server(struct nfs_server *server,
 			data->nfs_server.protocol,
 			&timeparms,
 			data->minorversion,
+			data->nfs_server.nconnect,
 			data->net);
 	if (error < 0)
 		return error;
@@ -1163,6 +1170,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 				XPRT_TRANSPORT_RDMA,
 				parent_server->client->cl_timeout,
 				parent_client->cl_mvops->minor_version,
+				parent_client->cl_nconnect,
 				parent_client->cl_net);
 	if (!error)
 		goto init_server;
@@ -1176,6 +1184,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 				XPRT_TRANSPORT_TCP,
 				parent_server->client->cl_timeout,
 				parent_client->cl_mvops->minor_version,
+				parent_client->cl_nconnect,
 				parent_client->cl_net);
 	if (error < 0)
 		goto error;
@@ -1271,7 +1280,8 @@ int nfs4_update_server(struct nfs_server *server, const char *hostname,
 	set_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status);
 	error = nfs4_set_client(server, hostname, sap, salen, buf,
 				clp->cl_proto, clnt->cl_timeout,
-				clp->cl_minorversion, net);
+				clp->cl_minorversion,
+				clp->cl_nconnect, net);
 	clear_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status);
 	if (error != 0) {
 		nfs_server_insert_lists(server);

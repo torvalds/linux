@@ -11,6 +11,7 @@
  * in the MontaVista 2.4 kernel (and the Amstrad changes therein)
  */
 #include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -99,7 +100,8 @@ void __init ams_delta_init_fiq(struct gpio_chip *chip,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(irq_data); i++) {
-		gpiod = gpiochip_request_own_desc(chip, i, pin_name[i], 0);
+		gpiod = gpiochip_request_own_desc(chip, i, pin_name[i],
+						  GPIO_ACTIVE_HIGH, GPIOD_IN);
 		if (IS_ERR(gpiod)) {
 			pr_err("%s: failed to get GPIO pin %d (%ld)\n",
 			       __func__, i, PTR_ERR(gpiod));

@@ -7,7 +7,7 @@
    License.  See linux/COPYING for more information.
 
    Uniform CD-ROM driver for Linux.
-   See Documentation/cdrom/cdrom-standard.tex for usage information.
+   See Documentation/cdrom/cdrom-standard.rst for usage information.
 
    The routines in the file provide a uniform interface between the
    software that uses CD-ROMs and the various low-level drivers that

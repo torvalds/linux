@@ -481,7 +481,6 @@ static int fotg210_set_halt_and_wedge(struct usb_ep *_ep, int value, int wedge)
 	struct fotg210_ep *ep;
 	struct fotg210_udc *fotg210;
 	unsigned long flags;
-	int ret = 0;
 
 	ep = container_of(_ep, struct fotg210_ep, ep);
 
@@ -504,7 +503,7 @@ static int fotg210_set_halt_and_wedge(struct usb_ep *_ep, int value, int wedge)
 	}
 
 	spin_unlock_irqrestore(&ep->fotg210->lock, flags);
-	return ret;
+	return 0;
 }
 
 static int fotg210_ep_set_halt(struct usb_ep *_ep, int value)

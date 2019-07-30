@@ -277,7 +277,7 @@ static void force_sig_info_umip_fault(void __user *addr, struct pt_regs *regs)
 	tsk->thread.error_code	= X86_PF_USER | X86_PF_WRITE;
 	tsk->thread.trap_nr	= X86_TRAP_PF;
 
-	force_sig_fault(SIGSEGV, SEGV_MAPERR, addr, tsk);
+	force_sig_fault(SIGSEGV, SEGV_MAPERR, addr);
 
 	if (!(show_unhandled_signals && unhandled_signal(tsk, SIGSEGV)))
 		return;

@@ -126,7 +126,7 @@ badframe:
 			task->comm, task_pid_nr(task), __func__,
 			frame, (void *)regs->sepc, (void *)regs->sp);
 	}
-	force_sig(SIGSEGV, task);
+	force_sig(SIGSEGV);
 	return 0;
 }
 

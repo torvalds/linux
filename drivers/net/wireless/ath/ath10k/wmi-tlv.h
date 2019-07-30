@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  */
 #ifndef _WMI_TLV_H
 #define _WMI_TLV_H
@@ -301,11 +301,15 @@ enum wmi_tlv_event_id {
 	WMI_TLV_VDEV_STOPPED_EVENTID,
 	WMI_TLV_VDEV_INSTALL_KEY_COMPLETE_EVENTID,
 	WMI_TLV_VDEV_MCC_BCN_INTERVAL_CHANGE_REQ_EVENTID,
+	WMI_TLV_VDEV_TSF_REPORT_EVENTID,
+	WMI_TLV_VDEV_DELETE_RESP_EVENTID,
 	WMI_TLV_PEER_STA_KICKOUT_EVENTID = WMI_TLV_EV(WMI_TLV_GRP_PEER),
 	WMI_TLV_PEER_INFO_EVENTID,
 	WMI_TLV_PEER_TX_FAIL_CNT_THR_EVENTID,
 	WMI_TLV_PEER_ESTIMATED_LINKSPEED_EVENTID,
 	WMI_TLV_PEER_STATE_EVENTID,
+	WMI_TLV_PEER_ASSOC_CONF_EVENTID,
+	WMI_TLV_PEER_DELETE_RESP_EVENTID,
 	WMI_TLV_MGMT_RX_EVENTID = WMI_TLV_EV(WMI_TLV_GRP_MGMT),
 	WMI_TLV_HOST_SWBA_EVENTID,
 	WMI_TLV_TBTTOFFSET_UPDATE_EVENTID,
@@ -1567,6 +1571,10 @@ wmi_tlv_svc_map(const __le32 *in, unsigned long *out, size_t len)
 	       WMI_SERVICE_SAP_AUTH_OFFLOAD, len);
 	SVCMAP(WMI_TLV_SERVICE_MGMT_TX_WMI,
 	       WMI_SERVICE_MGMT_TX_WMI, len);
+	SVCMAP(WMI_TLV_SERVICE_MESH_11S,
+	       WMI_SERVICE_MESH_11S, len);
+	SVCMAP(WMI_TLV_SERVICE_SYNC_DELETE_CMDS,
+	       WMI_SERVICE_SYNC_DELETE_CMDS, len);
 }
 
 static inline void
@@ -1774,6 +1782,16 @@ struct wmi_tlv_start_scan_cmd {
 	struct wmi_mac_addr mac_addr;
 	struct wmi_mac_addr mac_mask;
 } __packed;
+
+enum wmi_tlv_vdev_subtype {
+	WMI_TLV_VDEV_SUBTYPE_NONE	= 0,
+	WMI_TLV_VDEV_SUBTYPE_P2P_DEV	= 1,
+	WMI_TLV_VDEV_SUBTYPE_P2P_CLI	= 2,
+	WMI_TLV_VDEV_SUBTYPE_P2P_GO	= 3,
+	WMI_TLV_VDEV_SUBTYPE_PROXY_STA	= 4,
+	WMI_TLV_VDEV_SUBTYPE_MESH	= 5,
+	WMI_TLV_VDEV_SUBTYPE_MESH_11S	= 6,
+};
 
 struct wmi_tlv_vdev_start_cmd {
 	__le32 vdev_id;

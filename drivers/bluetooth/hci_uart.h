@@ -100,6 +100,7 @@ int hci_uart_register_device(struct hci_uart *hu, const struct hci_uart_proto *p
 void hci_uart_unregister_device(struct hci_uart *hu);
 
 int hci_uart_tx_wakeup(struct hci_uart *hu);
+int hci_uart_wait_until_sent(struct hci_uart *hu);
 int hci_uart_init_ready(struct hci_uart *hu);
 void hci_uart_init_work(struct work_struct *work);
 void hci_uart_set_baudrate(struct hci_uart *hu, unsigned int speed);

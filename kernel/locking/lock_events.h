@@ -31,50 +31,13 @@ enum lock_events {
 DECLARE_PER_CPU(unsigned long, lockevents[lockevent_num]);
 
 /*
- * The purpose of the lock event counting subsystem is to provide a low
- * overhead way to record the number of specific locking events by using
- * percpu counters. It is the percpu sum that matters, not specifically
- * how many of them happens in each cpu.
- *
- * It is possible that the same percpu counter may be modified in both
- * the process and interrupt contexts. For architectures that perform
- * percpu operation with multiple instructions, it is possible to lose
- * count if a process context percpu update is interrupted in the middle
- * and the same counter is updated in the interrupt context. Therefore,
- * the generated percpu sum may not be precise. The error, if any, should
- * be small and insignificant.
- *
- * For those architectures that do multi-instruction percpu operation,
- * preemption in the middle and moving the task to another cpu may cause
- * a larger error in the count. Again, this will be few and far between.
- * Given the imprecise nature of the count and the possibility of resetting
- * the count and doing the measurement again, this is not really a big
- * problem.
- *
- * To get a better picture of what is happening under the hood, it is
- * suggested that a few measurements should be taken with the counts
- * reset in between to stamp out outliner because of these possible
- * error conditions.
- *
- * To minimize overhead, we use __this_cpu_*() in all cases except when
- * CONFIG_DEBUG_PREEMPT is defined. In this particular case, this_cpu_*()
- * will be used to avoid the appearance of unwanted BUG messages.
- */
-#ifdef CONFIG_DEBUG_PREEMPT
-#define lockevent_percpu_inc(x)		this_cpu_inc(x)
-#define lockevent_percpu_add(x, v)	this_cpu_add(x, v)
-#else
-#define lockevent_percpu_inc(x)		__this_cpu_inc(x)
-#define lockevent_percpu_add(x, v)	__this_cpu_add(x, v)
-#endif
-
-/*
- * Increment the PV qspinlock statistical counters
+ * Increment the statistical counters. use raw_cpu_inc() because of lower
+ * overhead and we don't care if we loose the occasional update.
  */
 static inline void __lockevent_inc(enum lock_events event, bool cond)
 {
 	if (cond)
-		lockevent_percpu_inc(lockevents[event]);
+		raw_cpu_inc(lockevents[event]);
 }
 
 #define lockevent_inc(ev)	  __lockevent_inc(LOCKEVENT_ ##ev, true)
@@ -82,7 +45,7 @@ static inline void __lockevent_inc(enum lock_events event, bool cond)
 
 static inline void __lockevent_add(enum lock_events event, int inc)
 {
-	lockevent_percpu_add(lockevents[event], inc);
+	raw_cpu_add(lockevents[event], inc);
 }
 
 #define lockevent_add(ev, c)	__lockevent_add(LOCKEVENT_ ##ev, c)

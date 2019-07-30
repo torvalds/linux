@@ -1222,8 +1222,10 @@ static void i40iw_add_ipv4_addr(struct i40iw_device *iwdev)
 		if ((((rdma_vlan_dev_vlan_id(dev) < 0xFFFF) &&
 		      (rdma_vlan_dev_real_dev(dev) == iwdev->netdev)) ||
 		    (dev == iwdev->netdev)) && (dev->flags & IFF_UP)) {
+			const struct in_ifaddr *ifa;
+
 			idev = in_dev_get(dev);
-			for_ifa(idev) {
+			in_dev_for_each_ifa_rtnl(ifa, idev) {
 				i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_CM,
 					    "IP=%pI4, vlan_id=%d, MAC=%pM\n", &ifa->ifa_address,
 					     rdma_vlan_dev_vlan_id(dev), dev->dev_addr);
@@ -1235,7 +1237,7 @@ static void i40iw_add_ipv4_addr(struct i40iw_device *iwdev)
 						       true,
 						       I40IW_ARP_ADD);
 			}
-			endfor_ifa(idev);
+
 			in_dev_put(idev);
 		}
 	}

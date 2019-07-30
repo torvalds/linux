@@ -232,8 +232,6 @@ out:
 	return -ENOMEM;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
 static void pcpu_free_lowcore(struct pcpu *pcpu)
 {
 	unsigned long async_stack, nodat_stack, lowcore;
@@ -252,8 +250,6 @@ static void pcpu_free_lowcore(struct pcpu *pcpu)
 	free_pages(nodat_stack, THREAD_SIZE_ORDER);
 	free_pages(lowcore, LC_ORDER);
 }
-
-#endif /* CONFIG_HOTPLUG_CPU */
 
 static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 {
@@ -418,7 +414,7 @@ void smp_yield_cpu(int cpu)
 		diag_stat_inc_norecursion(DIAG_STAT_X09C);
 		asm volatile("diag %0,0,0x9c"
 			     : : "d" (pcpu_devices[cpu].address));
-	} else if (MACHINE_HAS_DIAG44) {
+	} else if (MACHINE_HAS_DIAG44 && !smp_cpu_mtid) {
 		diag_stat_inc_norecursion(DIAG_STAT_X044);
 		asm volatile("diag 0,0,0x44");
 	}
@@ -895,8 +891,6 @@ static int __init _setup_possible_cpus(char *s)
 }
 early_param("possible_cpus", _setup_possible_cpus);
 
-#ifdef CONFIG_HOTPLUG_CPU
-
 int __cpu_disable(void)
 {
 	unsigned long cregs[16];
@@ -936,8 +930,6 @@ void __noreturn cpu_die(void)
 	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), SIGP_STOP, 0);
 	for (;;) ;
 }
-
-#endif /* CONFIG_HOTPLUG_CPU */
 
 void __init smp_fill_possible_mask(void)
 {
@@ -996,7 +988,6 @@ int setup_profiling_timer(unsigned int multiplier)
 	return 0;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static ssize_t cpu_configure_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -1073,7 +1064,6 @@ out:
 	return rc ? rc : count;
 }
 static DEVICE_ATTR(configure, 0644, cpu_configure_show, cpu_configure_store);
-#endif /* CONFIG_HOTPLUG_CPU */
 
 static ssize_t show_cpu_address(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -1083,9 +1073,7 @@ static ssize_t show_cpu_address(struct device *dev,
 static DEVICE_ATTR(address, 0444, show_cpu_address, NULL);
 
 static struct attribute *cpu_common_attrs[] = {
-#ifdef CONFIG_HOTPLUG_CPU
 	&dev_attr_configure.attr,
-#endif
 	&dev_attr_address.attr,
 	NULL,
 };
@@ -1144,14 +1132,10 @@ static int smp_add_present_cpu(int cpu)
 out_topology:
 	sysfs_remove_group(&s->kobj, &cpu_common_attr_group);
 out_cpu:
-#ifdef CONFIG_HOTPLUG_CPU
 	unregister_cpu(c);
-#endif
 out:
 	return rc;
 }
-
-#ifdef CONFIG_HOTPLUG_CPU
 
 int __ref smp_rescan_cpus(void)
 {
@@ -1188,17 +1172,14 @@ static ssize_t __ref rescan_store(struct device *dev,
 	return rc ? rc : count;
 }
 static DEVICE_ATTR_WO(rescan);
-#endif /* CONFIG_HOTPLUG_CPU */
 
 static int __init s390_smp_init(void)
 {
 	int cpu, rc = 0;
 
-#ifdef CONFIG_HOTPLUG_CPU
 	rc = device_create_file(cpu_subsys.dev_root, &dev_attr_rescan);
 	if (rc)
 		return rc;
-#endif
 	for_each_present_cpu(cpu) {
 		rc = smp_add_present_cpu(cpu);
 		if (rc)

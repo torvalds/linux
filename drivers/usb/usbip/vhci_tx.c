@@ -144,16 +144,14 @@ static int vhci_send_cmd_unlink(struct vhci_device *vdev)
 	struct vhci_unlink *unlink = NULL;
 
 	struct msghdr msg;
-	struct kvec iov[3];
+	struct kvec iov;
 	size_t txsize;
-
 	size_t total_size = 0;
 
 	while ((unlink = dequeue_from_unlink_tx(vdev)) != NULL) {
 		int ret;
 		struct usbip_header pdu_header;
 
-		txsize = 0;
 		memset(&pdu_header, 0, sizeof(pdu_header));
 		memset(&msg, 0, sizeof(msg));
 		memset(&iov, 0, sizeof(iov));
@@ -169,11 +167,11 @@ static int vhci_send_cmd_unlink(struct vhci_device *vdev)
 
 		usbip_header_correct_endian(&pdu_header, 1);
 
-		iov[0].iov_base = &pdu_header;
-		iov[0].iov_len  = sizeof(pdu_header);
-		txsize += sizeof(pdu_header);
+		iov.iov_base = &pdu_header;
+		iov.iov_len  = sizeof(pdu_header);
+		txsize = sizeof(pdu_header);
 
-		ret = kernel_sendmsg(vdev->ud.tcp_socket, &msg, iov, 1, txsize);
+		ret = kernel_sendmsg(vdev->ud.tcp_socket, &msg, &iov, 1, txsize);
 		if (ret != txsize) {
 			pr_err("sendmsg failed!, ret=%d for %zd\n", ret,
 			       txsize);

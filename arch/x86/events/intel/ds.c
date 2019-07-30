@@ -337,7 +337,7 @@ static int alloc_pebs_buffer(int cpu)
 	struct debug_store *ds = hwev->ds;
 	size_t bsiz = x86_pmu.pebs_buffer_size;
 	int max, node = cpu_to_node(cpu);
-	void *buffer, *ibuffer, *cea;
+	void *buffer, *insn_buff, *cea;
 
 	if (!x86_pmu.pebs)
 		return 0;
@@ -351,12 +351,12 @@ static int alloc_pebs_buffer(int cpu)
 	 * buffer then.
 	 */
 	if (x86_pmu.intel_cap.pebs_format < 2) {
-		ibuffer = kzalloc_node(PEBS_FIXUP_SIZE, GFP_KERNEL, node);
-		if (!ibuffer) {
+		insn_buff = kzalloc_node(PEBS_FIXUP_SIZE, GFP_KERNEL, node);
+		if (!insn_buff) {
 			dsfree_pages(buffer, bsiz);
 			return -ENOMEM;
 		}
-		per_cpu(insn_buffer, cpu) = ibuffer;
+		per_cpu(insn_buffer, cpu) = insn_buff;
 	}
 	hwev->ds_pebs_vaddr = buffer;
 	/* Update the cpu entry area mapping */

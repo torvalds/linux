@@ -4,6 +4,7 @@
 #ifndef __HCLGEVF_MAIN_H
 #define __HCLGEVF_MAIN_H
 #include <linux/fs.h>
+#include <linux/if_vlan.h>
 #include <linux/types.h>
 #include "hclge_mbx.h"
 #include "hclgevf_cmd.h"
@@ -12,9 +13,12 @@
 #define HCLGEVF_MOD_VERSION "1.0"
 #define HCLGEVF_DRIVER_NAME "hclgevf"
 
+#define HCLGEVF_MAX_VLAN_ID	4095
 #define HCLGEVF_MISC_VECTOR_NUM		0
 
 #define HCLGEVF_INVALID_VPORT		0xffff
+#define HCLGEVF_GENERAL_TASK_INTERVAL	  5
+#define HCLGEVF_KEEP_ALIVE_TASK_INTERVAL  2
 
 /* This number in actual depends upon the total number of VFs
  * created by physical function. But the maximum number of
@@ -130,6 +134,8 @@ enum hclgevf_states {
 	HCLGEVF_STATE_DOWN,
 	HCLGEVF_STATE_DISABLED,
 	HCLGEVF_STATE_IRQ_INITED,
+	HCLGEVF_STATE_REMOVING,
+	HCLGEVF_STATE_NIC_REGISTERED,
 	/* task states */
 	HCLGEVF_STATE_SERVICE_SCHED,
 	HCLGEVF_STATE_RST_SERVICE_SCHED,
@@ -220,6 +226,7 @@ struct hclgevf_rst_stats {
 	u32 vf_rst_cnt;			/* the number of VF reset */
 	u32 rst_done_cnt;		/* the number of reset completed */
 	u32 hw_rst_done_cnt;		/* the number of HW reset completed */
+	u32 rst_fail_cnt;		/* the number of VF reset fail */
 };
 
 struct hclgevf_dev {
@@ -264,6 +271,8 @@ struct hclgevf_dev {
 	u32 base_msi_vector;
 	u16 *vector_status;
 	int *vector_irq;
+
+	unsigned long vlan_del_fail_bmap[BITS_TO_LONGS(VLAN_N_VID)];
 
 	bool mbx_event_pending;
 	struct hclgevf_mbx_resp_status mbx_resp; /* mailbox response */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/char/watchdog/pnx4008_wdt.c
  *
@@ -11,10 +12,6 @@
  * 2005-2006 (c) MontaVista Software, Inc.
  *
  * (C) 2012 Wolfram Sang, Pengutronix
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -221,10 +218,8 @@ static int pnx4008_wdt_probe(struct platform_device *pdev)
 		set_bit(WDOG_HW_RUNNING, &pnx4008_wdd.status);
 
 	ret = devm_watchdog_register_device(dev, &pnx4008_wdd);
-	if (ret < 0) {
-		dev_err(dev, "cannot register watchdog device\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	dev_info(dev, "heartbeat %d sec\n", pnx4008_wdd.timeout);
 

@@ -421,7 +421,8 @@ struct flex_groups {
 			   EXT4_PROJINHERIT_FL | EXT4_CASEFOLD_FL)
 
 /* Flags that are appropriate for regular files (all but dir-specific ones). */
-#define EXT4_REG_FLMASK (~(EXT4_DIRSYNC_FL | EXT4_TOPDIR_FL | EXT4_CASEFOLD_FL))
+#define EXT4_REG_FLMASK (~(EXT4_DIRSYNC_FL | EXT4_TOPDIR_FL | EXT4_CASEFOLD_FL |\
+			   EXT4_PROJINHERIT_FL))
 
 /* Flags that are appropriate for non-directories/regular files. */
 #define EXT4_OTHER_FLMASK (EXT4_NODUMP_FL | EXT4_NOATIME_FL)
@@ -2077,6 +2078,9 @@ struct ext4_filename {
 #ifdef CONFIG_FS_ENCRYPTION
 	struct fscrypt_str crypto_buf;
 #endif
+#ifdef CONFIG_UNICODE
+	struct fscrypt_str cf_name;
+#endif
 };
 
 #define fname_name(p) ((p)->disk_name.name)
@@ -2302,6 +2306,12 @@ extern unsigned ext4_free_clusters_after_init(struct super_block *sb,
 					      struct ext4_group_desc *gdp);
 ext4_fsblk_t ext4_inode_to_goal_block(struct inode *);
 
+#ifdef CONFIG_UNICODE
+extern void ext4_fname_setup_ci_filename(struct inode *dir,
+					 const struct qstr *iname,
+					 struct fscrypt_str *fname);
+#endif
+
 #ifdef CONFIG_FS_ENCRYPTION
 static inline void ext4_fname_from_fscrypt_name(struct ext4_filename *dst,
 						const struct fscrypt_name *src)
@@ -2328,6 +2338,10 @@ static inline int ext4_fname_setup_filename(struct inode *dir,
 		return err;
 
 	ext4_fname_from_fscrypt_name(fname, &name);
+
+#ifdef CONFIG_UNICODE
+	ext4_fname_setup_ci_filename(dir, iname, &fname->cf_name);
+#endif
 	return 0;
 }
 
@@ -2343,6 +2357,10 @@ static inline int ext4_fname_prepare_lookup(struct inode *dir,
 		return err;
 
 	ext4_fname_from_fscrypt_name(fname, &name);
+
+#ifdef CONFIG_UNICODE
+	ext4_fname_setup_ci_filename(dir, &dentry->d_name, &fname->cf_name);
+#endif
 	return 0;
 }
 
@@ -2356,6 +2374,11 @@ static inline void ext4_fname_free_filename(struct ext4_filename *fname)
 	fname->crypto_buf.name = NULL;
 	fname->usr_fname = NULL;
 	fname->disk_name.name = NULL;
+
+#ifdef CONFIG_UNICODE
+	kfree(fname->cf_name.name);
+	fname->cf_name.name = NULL;
+#endif
 }
 #else /* !CONFIG_FS_ENCRYPTION */
 static inline int ext4_fname_setup_filename(struct inode *dir,
@@ -2366,6 +2389,11 @@ static inline int ext4_fname_setup_filename(struct inode *dir,
 	fname->usr_fname = iname;
 	fname->disk_name.name = (unsigned char *) iname->name;
 	fname->disk_name.len = iname->len;
+
+#ifdef CONFIG_UNICODE
+	ext4_fname_setup_ci_filename(dir, iname, &fname->cf_name);
+#endif
+
 	return 0;
 }
 
@@ -2376,7 +2404,13 @@ static inline int ext4_fname_prepare_lookup(struct inode *dir,
 	return ext4_fname_setup_filename(dir, &dentry->d_name, 1, fname);
 }
 
-static inline void ext4_fname_free_filename(struct ext4_filename *fname) { }
+static inline void ext4_fname_free_filename(struct ext4_filename *fname)
+{
+#ifdef CONFIG_UNICODE
+	kfree(fname->cf_name.name);
+	fname->cf_name.name = NULL;
+#endif
+}
 #endif /* !CONFIG_FS_ENCRYPTION */
 
 /* dir.c */
@@ -2568,8 +2602,8 @@ extern int ext4_ext_migrate(struct inode *);
 extern int ext4_ind_migrate(struct inode *inode);
 
 /* namei.c */
-extern int ext4_dirent_csum_verify(struct inode *inode,
-				   struct ext4_dir_entry *dirent);
+extern int ext4_dirblock_csum_verify(struct inode *inode,
+				     struct buffer_head *bh);
 extern int ext4_orphan_add(handle_t *, struct inode *);
 extern int ext4_orphan_del(handle_t *, struct inode *);
 extern int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
@@ -3070,11 +3104,11 @@ extern int ext4_try_create_inline_dir(handle_t *handle,
 extern int ext4_read_inline_dir(struct file *filp,
 				struct dir_context *ctx,
 				int *has_inline_data);
-extern int htree_inlinedir_to_tree(struct file *dir_file,
-				   struct inode *dir, ext4_lblk_t block,
-				   struct dx_hash_info *hinfo,
-				   __u32 start_hash, __u32 start_minor_hash,
-				   int *has_inline_data);
+extern int ext4_inlinedir_to_tree(struct file *dir_file,
+				  struct inode *dir, ext4_lblk_t block,
+				  struct dx_hash_info *hinfo,
+				  __u32 start_hash, __u32 start_minor_hash,
+				  int *has_inline_data);
 extern struct buffer_head *ext4_find_inline_entry(struct inode *dir,
 					struct ext4_filename *fname,
 					struct ext4_dir_entry_2 **res_dir,
@@ -3113,14 +3147,13 @@ extern struct ext4_dir_entry_2 *ext4_init_dot_dotdot(struct inode *inode,
 				 struct ext4_dir_entry_2 *de,
 				 int blocksize, int csum_size,
 				 unsigned int parent_ino, int dotdot_real_len);
-extern void initialize_dirent_tail(struct ext4_dir_entry_tail *t,
-				   unsigned int blocksize);
-extern int ext4_handle_dirty_dirent_node(handle_t *handle,
-					 struct inode *inode,
-					 struct buffer_head *bh);
+extern void ext4_initialize_dirent_tail(struct buffer_head *bh,
+					unsigned int blocksize);
+extern int ext4_handle_dirty_dirblock(handle_t *handle, struct inode *inode,
+				      struct buffer_head *bh);
 extern int ext4_ci_compare(const struct inode *parent,
-			   const struct qstr *name,
-			   const struct qstr *entry);
+			   const struct qstr *fname,
+			   const struct qstr *entry, bool quick);
 
 #define S_SHIFT 12
 static const unsigned char ext4_type_by_mode[(S_IFMT >> S_SHIFT) + 1] = {

@@ -859,6 +859,19 @@ int wiphy_register(struct wiphy *wiphy)
 		return -EINVAL;
 	}
 
+	for (i = 0; i < rdev->wiphy.n_vendor_commands; i++) {
+		/*
+		 * Validate we have a policy (can be explicitly set to
+		 * VENDOR_CMD_RAW_DATA which is non-NULL) and also that
+		 * we have at least one of doit/dumpit.
+		 */
+		if (WARN_ON(!rdev->wiphy.vendor_commands[i].policy))
+			return -EINVAL;
+		if (WARN_ON(!rdev->wiphy.vendor_commands[i].doit &&
+			    !rdev->wiphy.vendor_commands[i].dumpit))
+			return -EINVAL;
+	}
+
 #ifdef CONFIG_PM
 	if (WARN_ON(rdev->wiphy.wowlan && rdev->wiphy.wowlan->n_patterns &&
 		    (!rdev->wiphy.wowlan->pattern_min_len ||

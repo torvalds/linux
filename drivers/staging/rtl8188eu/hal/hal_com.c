@@ -283,9 +283,3 @@ bool hal_mapping_out_pipe(struct adapter *adapter, u8 numoutpipe)
 	}
 	return result;
 }
-
-void hal_init_macaddr(struct adapter *adapter)
-{
-	rtw_hal_set_hwreg(adapter, HW_VAR_MAC_ADDR,
-			  adapter->eeprompriv.mac_addr);
-}

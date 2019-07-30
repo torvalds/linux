@@ -115,7 +115,7 @@ static void end_clone_bio(struct bio *clone)
 
 	/*
 	 * Update the original request.
-	 * Do not use blk_end_request() here, because it may complete
+	 * Do not use blk_mq_end_request() here, because it may complete
 	 * the original request before the clone, and break the ordering.
 	 */
 	if (is_last)

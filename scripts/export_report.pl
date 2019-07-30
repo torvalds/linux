@@ -52,13 +52,12 @@ sub usage {
 
 sub collectcfiles {
     my @file;
-    while (<.tmp_versions/*.mod>) {
-	open my $fh, '<', $_ or die "cannot open $_: $!\n";
-	push (@file,
-	      grep s/\.ko/.mod.c/,	# change the suffix
-	      grep m/.+\.ko/,		# find the .ko path
-	      <$fh>);			# lines in opened file
+    open my $fh, '< modules.order' or die "cannot open modules.order: $!\n";
+    while (<$fh>) {
+	s/\.ko$/.mod.c/;
+	push (@file, $_)
     }
+    close($fh);
     chomp @file;
     return @file;
 }

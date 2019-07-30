@@ -153,7 +153,7 @@ struct dentry_operations {
  * Locking rules for dentry_operations callbacks are to be found in
  * Documentation/filesystems/Locking. Keep it updated!
  *
- * FUrther descriptions are found in Documentation/filesystems/vfs.txt.
+ * FUrther descriptions are found in Documentation/filesystems/vfs.rst.
  * Keep it updated too!
  */
 
@@ -291,7 +291,6 @@ static inline unsigned d_count(const struct dentry *dentry)
  */
 extern __printf(4, 5)
 char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
-extern char *simple_dname(struct dentry *, char *, int);
 
 extern char *__d_path(const struct path *, const struct path *, char *, int);
 extern char *d_absolute_path(const struct path *, char *, int);
@@ -568,7 +567,7 @@ static inline struct dentry *d_backing_dentry(struct dentry *upper)
  * If dentry is on a union/overlay, then return the underlying, real dentry.
  * Otherwise return the dentry itself.
  *
- * See also: Documentation/filesystems/vfs.txt
+ * See also: Documentation/filesystems/vfs.rst
  */
 static inline struct dentry *d_real(struct dentry *dentry,
 				    const struct inode *inode)

@@ -66,6 +66,9 @@
 #define MT_WLAN_FUN_CTRL_GPIO_OUT	GENMASK(23, 16) /* MT76x0 */
 #define MT_WLAN_FUN_CTRL_GPIO_OUT_EN	GENMASK(31, 24) /* MT76x0 */
 
+/* MT76x0 */
+#define MT_CSR_EE_CFG1			0x0104
+
 #define MT_XO_CTRL0			0x0100
 #define MT_XO_CTRL1			0x0104
 #define MT_XO_CTRL2			0x0108

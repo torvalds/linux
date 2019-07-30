@@ -12,7 +12,7 @@
 #define ACPI_MAX_STRING			80
 
 /*
- * Please update drivers/acpi/debug.c and Documentation/acpi/debug.txt
+ * Please update drivers/acpi/debug.c and Documentation/firmware-guide/acpi/debug.rst
  * if you add to this list.
  */
 #define ACPI_BUS_COMPONENT		0x00010000

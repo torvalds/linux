@@ -202,6 +202,7 @@ static int capture_g_fmt_vid_cap(struct file *file, void *fh,
 static int __capture_try_fmt_vid_cap(struct capture_priv *priv,
 				     struct v4l2_subdev_format *fmt_src,
 				     struct v4l2_format *f,
+				     const struct imx_media_pixfmt **retcc,
 				     struct v4l2_rect *compose)
 {
 	const struct imx_media_pixfmt *cc, *cc_src;
@@ -242,8 +243,17 @@ static int __capture_try_fmt_vid_cap(struct capture_priv *priv,
 		}
 	}
 
-	imx_media_mbus_fmt_to_pix_fmt(&f->fmt.pix, compose,
-				      &fmt_src->format, cc);
+	imx_media_mbus_fmt_to_pix_fmt(&f->fmt.pix, &fmt_src->format, cc);
+
+	if (retcc)
+		*retcc = cc;
+
+	if (compose) {
+		compose->left = 0;
+		compose->top = 0;
+		compose->width = fmt_src->format.width;
+		compose->height = fmt_src->format.height;
+	}
 
 	return 0;
 }
@@ -261,7 +271,7 @@ static int capture_try_fmt_vid_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	return __capture_try_fmt_vid_cap(priv, &fmt_src, f, NULL);
+	return __capture_try_fmt_vid_cap(priv, &fmt_src, f, NULL, NULL);
 }
 
 static int capture_s_fmt_vid_cap(struct file *file, void *fh,
@@ -269,7 +279,6 @@ static int capture_s_fmt_vid_cap(struct file *file, void *fh,
 {
 	struct capture_priv *priv = video_drvdata(file);
 	struct v4l2_subdev_format fmt_src;
-	struct v4l2_rect compose;
 	int ret;
 
 	if (vb2_is_busy(&priv->q)) {
@@ -283,14 +292,12 @@ static int capture_s_fmt_vid_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	ret = __capture_try_fmt_vid_cap(priv, &fmt_src, f, &compose);
+	ret = __capture_try_fmt_vid_cap(priv, &fmt_src, f, &priv->vdev.cc,
+					&priv->vdev.compose);
 	if (ret)
 		return ret;
 
 	priv->vdev.fmt.fmt.pix = f->fmt.pix;
-	priv->vdev.cc = imx_media_find_format(f->fmt.pix.pixelformat,
-					      CS_SEL_ANY, true);
-	priv->vdev.compose = compose;
 
 	return 0;
 }
@@ -520,12 +527,45 @@ static void capture_buf_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&priv->q_lock, flags);
 }
 
+static int capture_validate_fmt(struct capture_priv *priv)
+{
+	struct v4l2_subdev_format fmt_src;
+	const struct imx_media_pixfmt *cc;
+	struct v4l2_rect compose;
+	struct v4l2_format f;
+	int ret;
+
+	fmt_src.pad = priv->src_sd_pad;
+	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL, &fmt_src);
+	if (ret)
+		return ret;
+
+	v4l2_fill_pix_format(&f.fmt.pix, &fmt_src.format);
+
+	ret = __capture_try_fmt_vid_cap(priv, &fmt_src, &f, &cc, &compose);
+	if (ret)
+		return ret;
+
+	return (priv->vdev.fmt.fmt.pix.width != f.fmt.pix.width ||
+		priv->vdev.fmt.fmt.pix.height != f.fmt.pix.height ||
+		priv->vdev.cc->cs != cc->cs ||
+		priv->vdev.compose.width != compose.width ||
+		priv->vdev.compose.height != compose.height) ? -EINVAL : 0;
+}
+
 static int capture_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct capture_priv *priv = vb2_get_drv_priv(vq);
 	struct imx_media_buffer *buf, *tmp;
 	unsigned long flags;
 	int ret;
+
+	ret = capture_validate_fmt(priv);
+	if (ret) {
+		v4l2_err(priv->src_sd, "capture format not valid\n");
+		goto return_bufs;
+	}
 
 	ret = imx_media_pipeline_set_stream(priv->md, &priv->src_sd->entity,
 					    true);
@@ -614,7 +654,6 @@ static int capture_release(struct file *file)
 	struct capture_priv *priv = video_drvdata(file);
 	struct video_device *vfd = priv->vdev.vfd;
 	struct vb2_queue *vq = &priv->q;
-	int ret = 0;
 
 	mutex_lock(&priv->mutex);
 
@@ -627,7 +666,7 @@ static int capture_release(struct file *file)
 
 	v4l2_fh_release(file);
 	mutex_unlock(&priv->mutex);
-	return ret;
+	return 0;
 }
 
 static const struct v4l2_file_operations capture_fops = {
@@ -648,21 +687,6 @@ static struct video_device capture_videodev = {
 	.tvnorms	= V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
 	.device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING,
 };
-
-void imx_media_capture_device_set_format(struct imx_media_video_dev *vdev,
-					 const struct v4l2_pix_format *pix,
-					 const struct v4l2_rect *compose)
-{
-	struct capture_priv *priv = to_capture_priv(vdev);
-
-	mutex_lock(&priv->mutex);
-	priv->vdev.fmt.fmt.pix = *pix;
-	priv->vdev.cc = imx_media_find_format(pix->pixelformat, CS_SEL_ANY,
-					      true);
-	priv->vdev.compose = *compose;
-	mutex_unlock(&priv->mutex);
-}
-EXPORT_SYMBOL_GPL(imx_media_capture_device_set_format);
 
 struct imx_media_buffer *
 imx_media_capture_device_next_buf(struct imx_media_video_dev *vdev)
@@ -701,19 +725,20 @@ void imx_media_capture_device_error(struct imx_media_video_dev *vdev)
 }
 EXPORT_SYMBOL_GPL(imx_media_capture_device_error);
 
-int imx_media_capture_device_register(struct imx_media_dev *md,
-				      struct imx_media_video_dev *vdev)
+int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 {
 	struct capture_priv *priv = to_capture_priv(vdev);
 	struct v4l2_subdev *sd = priv->src_sd;
+	struct v4l2_device *v4l2_dev = sd->v4l2_dev;
 	struct video_device *vfd = vdev->vfd;
 	struct vb2_queue *vq = &priv->q;
 	struct v4l2_subdev_format fmt_src;
 	int ret;
 
-	priv->md = md;
+	/* get media device */
+	priv->md = container_of(v4l2_dev->mdev, struct imx_media_dev, md);
 
-	vfd->v4l2_dev = sd->v4l2_dev;
+	vfd->v4l2_dev = v4l2_dev;
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret) {
@@ -765,8 +790,10 @@ int imx_media_capture_device_register(struct imx_media_dev *md,
 	}
 
 	vdev->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	imx_media_mbus_fmt_to_pix_fmt(&vdev->fmt.fmt.pix, &vdev->compose,
+	imx_media_mbus_fmt_to_pix_fmt(&vdev->fmt.fmt.pix,
 				      &fmt_src.format, NULL);
+	vdev->compose.width = fmt_src.format.width;
+	vdev->compose.height = fmt_src.format.height;
 	vdev->cc = imx_media_find_format(vdev->fmt.fmt.pix.pixelformat,
 					 CS_SEL_ANY, false);
 
@@ -774,6 +801,9 @@ int imx_media_capture_device_register(struct imx_media_dev *md,
 		  video_device_node_name(vfd));
 
 	vfd->ctrl_handler = &priv->ctrl_hdlr;
+
+	/* add vdev to the video device list */
+	imx_media_add_video_device(priv->md, vdev);
 
 	return 0;
 unreg:
@@ -799,18 +829,19 @@ void imx_media_capture_device_unregister(struct imx_media_video_dev *vdev)
 EXPORT_SYMBOL_GPL(imx_media_capture_device_unregister);
 
 struct imx_media_video_dev *
-imx_media_capture_device_init(struct v4l2_subdev *src_sd, int pad)
+imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
+			      int pad)
 {
 	struct capture_priv *priv;
 	struct video_device *vfd;
 
-	priv = devm_kzalloc(src_sd->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 
 	priv->src_sd = src_sd;
 	priv->src_sd_pad = pad;
-	priv->dev = src_sd->dev;
+	priv->dev = dev;
 
 	mutex_init(&priv->mutex);
 	spin_lock_init(&priv->q_lock);

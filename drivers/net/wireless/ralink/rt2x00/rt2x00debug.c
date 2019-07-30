@@ -52,6 +52,7 @@ struct rt2x00debug_intf {
 	 *   - chipset file
 	 *   - device state flags file
 	 *   - device capability flags file
+	 *   - hardware restart file
 	 *   - register folder
 	 *     - csr offset/value files
 	 *     - eeprom offset/value files
@@ -68,6 +69,7 @@ struct rt2x00debug_intf {
 	struct dentry *chipset_entry;
 	struct dentry *dev_flags;
 	struct dentry *cap_flags;
+	struct dentry *restart_hw;
 	struct dentry *register_folder;
 	struct dentry *csr_off_entry;
 	struct dentry *csr_val_entry;
@@ -566,6 +568,34 @@ static const struct file_operations rt2x00debug_fop_cap_flags = {
 	.llseek		= default_llseek,
 };
 
+static ssize_t rt2x00debug_write_restart_hw(struct file *file,
+					    const char __user *buf,
+					    size_t length,
+					    loff_t *offset)
+{
+	struct rt2x00debug_intf *intf =	file->private_data;
+	struct rt2x00_dev *rt2x00dev = intf->rt2x00dev;
+	static unsigned long last_reset;
+
+	if (!rt2x00_has_cap_restart_hw(rt2x00dev))
+		return -EOPNOTSUPP;
+
+	if (time_before(jiffies, last_reset + msecs_to_jiffies(2000)))
+		return -EBUSY;
+
+	last_reset = jiffies;
+
+	ieee80211_restart_hw(rt2x00dev->hw);
+	return length;
+}
+
+static const struct file_operations rt2x00debug_restart_hw = {
+	.owner = THIS_MODULE,
+	.write = rt2x00debug_write_restart_hw,
+	.open = simple_open,
+	.llseek = generic_file_llseek,
+};
+
 static struct dentry *rt2x00debug_create_file_driver(const char *name,
 						     struct rt2x00debug_intf
 						     *intf,
@@ -661,6 +691,10 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 					      intf->driver_folder, intf,
 					      &rt2x00debug_fop_cap_flags);
 
+	intf->restart_hw = debugfs_create_file("restart_hw", 0200,
+					       intf->driver_folder, intf,
+					       &rt2x00debug_restart_hw);
+
 	intf->register_folder =
 	    debugfs_create_dir("register", intf->driver_folder);
 
@@ -742,6 +776,7 @@ void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)
 	debugfs_remove(intf->csr_off_entry);
 	debugfs_remove(intf->register_folder);
 	debugfs_remove(intf->dev_flags);
+	debugfs_remove(intf->restart_hw);
 	debugfs_remove(intf->cap_flags);
 	debugfs_remove(intf->chipset_entry);
 	debugfs_remove(intf->driver_entry);

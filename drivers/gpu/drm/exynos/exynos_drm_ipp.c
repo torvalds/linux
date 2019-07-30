@@ -16,10 +16,9 @@
  * all copies or substantial portions of the Software.
  */
 
-
 #include <drm/drmP.h>
 #include <drm/drm_mode.h>
-#include <uapi/drm/exynos_drm.h>
+#include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"

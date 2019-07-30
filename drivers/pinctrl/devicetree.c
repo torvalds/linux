@@ -112,12 +112,11 @@ static int dt_to_map_one_config(struct pinctrl *p,
 		np_pctldev = of_get_next_parent(np_pctldev);
 		if (!np_pctldev || of_node_is_root(np_pctldev)) {
 			of_node_put(np_pctldev);
-			ret = driver_deferred_probe_check_state(p->dev);
 			/* keep deferring if modules are enabled unless we've timed out */
-			if (IS_ENABLED(CONFIG_MODULES) && !allow_default && ret == -ENODEV)
-				ret = -EPROBE_DEFER;
+			if (IS_ENABLED(CONFIG_MODULES) && !allow_default)
+				return driver_deferred_probe_check_state_continue(p->dev);
 
-			return ret;
+			return driver_deferred_probe_check_state(p->dev);
 		}
 		/* If we're creating a hog we can use the passed pctldev */
 		if (hog_pctldev && (np_pctldev == p->dev->of_node)) {

@@ -133,7 +133,7 @@ isert_create_qp(struct isert_conn *isert_conn,
 	attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	attr.qp_type = IB_QPT_RC;
 	if (device->pi_capable)
-		attr.create_flags |= IB_QP_CREATE_SIGNATURE_EN;
+		attr.create_flags |= IB_QP_CREATE_INTEGRITY_EN;
 
 	ret = rdma_create_qp(cma_id, device->pd, &attr);
 	if (ret) {
@@ -309,7 +309,7 @@ isert_create_device_ib_res(struct isert_device *device)
 
 	/* Check signature cap */
 	device->pi_capable = ib_dev->attrs.device_cap_flags &
-			     IB_DEVICE_SIGNATURE_HANDOVER ? true : false;
+			     IB_DEVICE_INTEGRITY_HANDOVER ? true : false;
 
 	return 0;
 
@@ -1669,7 +1669,7 @@ isert_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	isert_dbg("Cmd %p\n", isert_cmd);
 
-	ret = isert_check_pi_status(cmd, isert_cmd->rw.sig->sig_mr);
+	ret = isert_check_pi_status(cmd, isert_cmd->rw.reg->mr);
 	isert_rdma_rw_ctx_destroy(isert_cmd, isert_conn);
 
 	if (ret) {
@@ -1715,7 +1715,7 @@ isert_rdma_read_done(struct ib_cq *cq, struct ib_wc *wc)
 	iscsit_stop_dataout_timer(cmd);
 
 	if (isert_prot_cmd(isert_conn, se_cmd))
-		ret = isert_check_pi_status(se_cmd, isert_cmd->rw.sig->sig_mr);
+		ret = isert_check_pi_status(se_cmd, isert_cmd->rw.reg->mr);
 	isert_rdma_rw_ctx_destroy(isert_cmd, isert_conn);
 	cmd->write_data_done = 0;
 
@@ -2059,8 +2059,7 @@ isert_put_text_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 }
 
 static inline void
-isert_set_dif_domain(struct se_cmd *se_cmd, struct ib_sig_attrs *sig_attrs,
-		     struct ib_sig_domain *domain)
+isert_set_dif_domain(struct se_cmd *se_cmd, struct ib_sig_domain *domain)
 {
 	domain->sig_type = IB_SIG_TYPE_T10_DIF;
 	domain->sig.dif.bg_type = IB_T10DIF_CRC;
@@ -2088,17 +2087,17 @@ isert_set_sig_attrs(struct se_cmd *se_cmd, struct ib_sig_attrs *sig_attrs)
 	case TARGET_PROT_DIN_INSERT:
 	case TARGET_PROT_DOUT_STRIP:
 		sig_attrs->mem.sig_type = IB_SIG_TYPE_NONE;
-		isert_set_dif_domain(se_cmd, sig_attrs, &sig_attrs->wire);
+		isert_set_dif_domain(se_cmd, &sig_attrs->wire);
 		break;
 	case TARGET_PROT_DOUT_INSERT:
 	case TARGET_PROT_DIN_STRIP:
 		sig_attrs->wire.sig_type = IB_SIG_TYPE_NONE;
-		isert_set_dif_domain(se_cmd, sig_attrs, &sig_attrs->mem);
+		isert_set_dif_domain(se_cmd, &sig_attrs->mem);
 		break;
 	case TARGET_PROT_DIN_PASS:
 	case TARGET_PROT_DOUT_PASS:
-		isert_set_dif_domain(se_cmd, sig_attrs, &sig_attrs->wire);
-		isert_set_dif_domain(se_cmd, sig_attrs, &sig_attrs->mem);
+		isert_set_dif_domain(se_cmd, &sig_attrs->wire);
+		isert_set_dif_domain(se_cmd, &sig_attrs->mem);
 		break;
 	default:
 		isert_err("Unsupported PI operation %d\n", se_cmd->prot_op);

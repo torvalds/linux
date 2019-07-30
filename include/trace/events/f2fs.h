@@ -76,16 +76,7 @@ TRACE_DEFINE_ENUM(CP_TRIMMED);
 #define show_bio_type(op,op_flags)	show_bio_op(op),		\
 						show_bio_op_flags(op_flags)
 
-#define show_bio_op(op)							\
-	__print_symbolic(op,						\
-		{ REQ_OP_READ,			"READ" },		\
-		{ REQ_OP_WRITE,			"WRITE" },		\
-		{ REQ_OP_FLUSH,			"FLUSH" },		\
-		{ REQ_OP_DISCARD,		"DISCARD" },		\
-		{ REQ_OP_SECURE_ERASE,		"SECURE_ERASE" },	\
-		{ REQ_OP_ZONE_RESET,		"ZONE_RESET" },		\
-		{ REQ_OP_WRITE_SAME,		"WRITE_SAME" },		\
-		{ REQ_OP_WRITE_ZEROES,		"WRITE_ZEROES" })
+#define show_bio_op(op)		blk_op_str(op)
 
 #define show_bio_op_flags(flags)					\
 	__print_flags(F2FS_BIO_FLAG_MASK(flags), "|",			\
@@ -1028,8 +1019,8 @@ DECLARE_EVENT_CLASS(f2fs__submit_page_bio,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= page->mapping->host->i_sb->s_dev;
-		__entry->ino		= page->mapping->host->i_ino;
+		__entry->dev		= page_file_mapping(page)->host->i_sb->s_dev;
+		__entry->ino		= page_file_mapping(page)->host->i_ino;
 		__entry->index		= page->index;
 		__entry->old_blkaddr	= fio->old_blkaddr;
 		__entry->new_blkaddr	= fio->new_blkaddr;
@@ -1216,10 +1207,11 @@ DECLARE_EVENT_CLASS(f2fs__page,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= page->mapping->host->i_sb->s_dev;
-		__entry->ino	= page->mapping->host->i_ino;
+		__entry->dev	= page_file_mapping(page)->host->i_sb->s_dev;
+		__entry->ino	= page_file_mapping(page)->host->i_ino;
 		__entry->type	= type;
-		__entry->dir	= S_ISDIR(page->mapping->host->i_mode);
+		__entry->dir	=
+			S_ISDIR(page_file_mapping(page)->host->i_mode);
 		__entry->index	= page->index;
 		__entry->dirty	= PageDirty(page);
 		__entry->uptodate = PageUptodate(page);

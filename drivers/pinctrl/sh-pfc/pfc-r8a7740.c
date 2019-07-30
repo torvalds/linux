@@ -1515,7 +1515,7 @@ static const u16 pinmux_data[] = {
 #define __IO		(SH_PFC_PIN_CFG_INPUT | SH_PFC_PIN_CFG_OUTPUT)
 #define __PD		(SH_PFC_PIN_CFG_PULL_DOWN)
 #define __PU		(SH_PFC_PIN_CFG_PULL_UP)
-#define __PUD		(SH_PFC_PIN_CFG_PULL_DOWN | SH_PFC_PIN_CFG_PULL_UP)
+#define __PUD		(SH_PFC_PIN_CFG_PULL_UP_DOWN)
 
 #define R8A7740_PIN_I_PD(pin)		SH_PFC_PIN_CFG(pin, __I | __PD)
 #define R8A7740_PIN_I_PU(pin)		SH_PFC_PIN_CFG(pin, __I | __PU)

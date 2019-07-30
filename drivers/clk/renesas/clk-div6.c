@@ -30,8 +30,8 @@
  * @div: divisor value (1-64)
  * @src_shift: Shift to access the register bits to select the parent clock
  * @src_width: Number of register bits to select the parent clock (may be 0)
- * @parents: Array to map from valid parent clocks indices to hardware indices
  * @nb: Notifier block to save/restore clock state for system resume
+ * @parents: Array to map from valid parent clocks indices to hardware indices
  */
 struct div6_clock {
 	struct clk_hw hw;
@@ -39,8 +39,8 @@ struct div6_clock {
 	unsigned int div;
 	u32 src_shift;
 	u32 src_width;
-	u8 *parents;
 	struct notifier_block nb;
+	u8 parents[];
 };
 
 #define to_div6_clock(_hw) container_of(_hw, struct div6_clock, hw)
@@ -221,16 +221,9 @@ struct clk * __init cpg_div6_register(const char *name,
 	struct clk *clk;
 	unsigned int i;
 
-	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
+	clock = kzalloc(struct_size(clock, parents, num_parents), GFP_KERNEL);
 	if (!clock)
 		return ERR_PTR(-ENOMEM);
-
-	clock->parents = kmalloc_array(num_parents, sizeof(*clock->parents),
-				       GFP_KERNEL);
-	if (!clock->parents) {
-		clk = ERR_PTR(-ENOMEM);
-		goto free_clock;
-	}
 
 	clock->reg = reg;
 
@@ -259,7 +252,7 @@ struct clk * __init cpg_div6_register(const char *name,
 		pr_err("%s: invalid number of parents for DIV6 clock %s\n",
 		       __func__, name);
 		clk = ERR_PTR(-EINVAL);
-		goto free_parents;
+		goto free_clock;
 	}
 
 	/* Filter out invalid parents */
@@ -282,7 +275,7 @@ struct clk * __init cpg_div6_register(const char *name,
 
 	clk = clk_register(NULL, &clock->hw);
 	if (IS_ERR(clk))
-		goto free_parents;
+		goto free_clock;
 
 	if (notifiers) {
 		clock->nb.notifier_call = cpg_div6_clock_notifier_call;
@@ -291,8 +284,6 @@ struct clk * __init cpg_div6_register(const char *name,
 
 	return clk;
 
-free_parents:
-	kfree(clock->parents);
 free_clock:
 	kfree(clock);
 	return clk;

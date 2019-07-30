@@ -45,7 +45,6 @@ A typical IIO HW consumer setup looks like this::
 
 More details
 ============
-.. kernel-doc:: include/linux/iio/hw-consumer.h
 .. kernel-doc:: drivers/iio/buffer/industrialio-hw-consumer.c
    :export:
 

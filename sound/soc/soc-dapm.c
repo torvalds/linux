@@ -1157,8 +1157,8 @@ static __always_inline int is_connected_ep(struct snd_soc_dapm_widget *widget,
 		list_add_tail(&widget->work_list, list);
 
 	if (custom_stop_condition && custom_stop_condition(widget, dir)) {
-		widget->endpoints[dir] = 1;
-		return widget->endpoints[dir];
+		list = NULL;
+		custom_stop_condition = NULL;
 	}
 
 	if ((widget->is_ep & SND_SOC_DAPM_DIR_TO_EP(dir)) && widget->connected) {
@@ -1195,8 +1195,8 @@ static __always_inline int is_connected_ep(struct snd_soc_dapm_widget *widget,
  *
  * Optionally, can be supplied with a function acting as a stopping condition.
  * This function takes the dapm widget currently being examined and the walk
- * direction as an arguments, it should return true if the walk should be
- * stopped and false otherwise.
+ * direction as an arguments, it should return true if widgets from that point
+ * in the graph onwards should not be added to the widget list.
  */
 static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 	struct list_head *list,
@@ -3706,6 +3706,8 @@ request_failed:
 		dev_err(dapm->dev, "ASoC: Failed to request %s: %d\n",
 			w->name, ret);
 
+	kfree_const(w->sname);
+	kfree(w);
 	return ERR_PTR(ret);
 }
 
@@ -3828,18 +3830,14 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 		snd_soc_dapm_widget_for_each_source_path(w, path) {
 			source = path->source->priv;
 
-			if (source->driver->ops->startup) {
-				ret = source->driver->ops->startup(&substream,
-								   source);
-				if (ret < 0) {
-					dev_err(source->dev,
-						"ASoC: startup() failed: %d\n",
-						ret);
-					goto out;
-				}
+			ret = snd_soc_dai_startup(source, &substream);
+			if (ret < 0) {
+				dev_err(source->dev,
+					"ASoC: startup() failed: %d\n", ret);
+				goto out;
 			}
 			source->active++;
-			ret = soc_dai_hw_params(&substream, params, source);
+			ret = snd_soc_dai_hw_params(source, &substream, params);
 			if (ret < 0)
 				goto out;
 
@@ -3850,18 +3848,14 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 		snd_soc_dapm_widget_for_each_sink_path(w, path) {
 			sink = path->sink->priv;
 
-			if (sink->driver->ops->startup) {
-				ret = sink->driver->ops->startup(&substream,
-								 sink);
-				if (ret < 0) {
-					dev_err(sink->dev,
-						"ASoC: startup() failed: %d\n",
-						ret);
-					goto out;
-				}
+			ret = snd_soc_dai_startup(sink, &substream);
+			if (ret < 0) {
+				dev_err(sink->dev,
+					"ASoC: startup() failed: %d\n", ret);
+				goto out;
 			}
 			sink->active++;
-			ret = soc_dai_hw_params(&substream, params, sink);
+			ret = snd_soc_dai_hw_params(sink, &substream, params);
 			if (ret < 0)
 				goto out;
 
@@ -3898,26 +3892,20 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 		snd_soc_dapm_widget_for_each_source_path(w, path) {
 			source = path->source->priv;
 
-			if (source->driver->ops->hw_free)
-				source->driver->ops->hw_free(&substream,
-							     source);
+			snd_soc_dai_hw_free(source, &substream);
 
 			source->active--;
-			if (source->driver->ops->shutdown)
-				source->driver->ops->shutdown(&substream,
-							      source);
+			snd_soc_dai_shutdown(source, &substream);
 		}
 
 		substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
 		snd_soc_dapm_widget_for_each_sink_path(w, path) {
 			sink = path->sink->priv;
 
-			if (sink->driver->ops->hw_free)
-				sink->driver->ops->hw_free(&substream, sink);
+			snd_soc_dai_hw_free(sink, &substream);
 
 			sink->active--;
-			if (sink->driver->ops->shutdown)
-				sink->driver->ops->shutdown(&substream, sink);
+			snd_soc_dai_shutdown(sink, &substream);
 		}
 		break;
 

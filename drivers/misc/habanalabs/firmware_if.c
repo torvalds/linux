@@ -29,13 +29,13 @@ int hl_fw_push_fw_to_device(struct hl_device *hdev, const char *fw_name,
 
 	rc = request_firmware(&fw, fw_name, hdev->dev);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to request %s\n", fw_name);
+		dev_err(hdev->dev, "Firmware file %s is not found!\n", fw_name);
 		goto out;
 	}
 
 	fw_size = fw->size;
 	if ((fw_size % 4) != 0) {
-		dev_err(hdev->dev, "illegal %s firmware size %zu\n",
+		dev_err(hdev->dev, "Illegal %s firmware size %zu\n",
 			fw_name, fw_size);
 		rc = -EINVAL;
 		goto out;
@@ -85,12 +85,6 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	u32 tmp;
 	int rc = 0;
 
-	if (len > HL_CPU_CB_SIZE) {
-		dev_err(hdev->dev, "Invalid CPU message size of %d bytes\n",
-			len);
-		return -ENOMEM;
-	}
-
 	pkt = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, len,
 								&pkt_dma_addr);
 	if (!pkt) {
@@ -117,33 +111,28 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		goto out;
 	}
 
-	rc = hl_poll_timeout_memory(hdev, (u64) (uintptr_t) &pkt->fence,
-					timeout, &tmp);
+	rc = hl_poll_timeout_memory(hdev, &pkt->fence, tmp,
+				(tmp == ARMCP_PACKET_FENCE_VAL), 1000, timeout);
 
 	hl_hw_queue_inc_ci_kernel(hdev, hw_queue_id);
 
 	if (rc == -ETIMEDOUT) {
-		dev_err(hdev->dev, "Timeout while waiting for device CPU\n");
+		dev_err(hdev->dev, "Device CPU packet timeout (0x%x)\n", tmp);
 		hdev->device_cpu_disabled = true;
 		goto out;
 	}
 
-	if (tmp == ARMCP_PACKET_FENCE_VAL) {
-		u32 ctl = le32_to_cpu(pkt->ctl);
+	tmp = le32_to_cpu(pkt->ctl);
 
-		rc = (ctl & ARMCP_PKT_CTL_RC_MASK) >> ARMCP_PKT_CTL_RC_SHIFT;
-		if (rc) {
-			dev_err(hdev->dev,
-				"F/W ERROR %d for CPU packet %d\n",
-				rc, (ctl & ARMCP_PKT_CTL_OPCODE_MASK)
+	rc = (tmp & ARMCP_PKT_CTL_RC_MASK) >> ARMCP_PKT_CTL_RC_SHIFT;
+	if (rc) {
+		dev_err(hdev->dev, "F/W ERROR %d for CPU packet %d\n",
+			rc,
+			(tmp & ARMCP_PKT_CTL_OPCODE_MASK)
 						>> ARMCP_PKT_CTL_OPCODE_SHIFT);
-			rc = -EINVAL;
-		} else if (result) {
-			*result = (long) le64_to_cpu(pkt->result);
-		}
-	} else {
-		dev_err(hdev->dev, "CPU packet wrong fence value\n");
-		rc = -EINVAL;
+		rc = -EIO;
+	} else if (result) {
+		*result = (long) le64_to_cpu(pkt->result);
 	}
 
 out:
@@ -186,9 +175,6 @@ void *hl_fw_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
 {
 	u64 kernel_addr;
 
-	/* roundup to HL_CPU_PKT_SIZE */
-	size = (size + (HL_CPU_PKT_SIZE - 1)) & HL_CPU_PKT_MASK;
-
 	kernel_addr = gen_pool_alloc(hdev->cpu_accessible_dma_pool, size);
 
 	*dma_handle = hdev->cpu_accessible_dma_address +
@@ -200,9 +186,6 @@ void *hl_fw_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
 void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 					void *vaddr)
 {
-	/* roundup to HL_CPU_PKT_SIZE */
-	size = (size + (HL_CPU_PKT_SIZE - 1)) & HL_CPU_PKT_MASK;
-
 	gen_pool_free(hdev->cpu_accessible_dma_pool, (u64) (uintptr_t) vaddr,
 			size);
 }
@@ -256,7 +239,7 @@ int hl_fw_armcp_info_get(struct hl_device *hdev)
 					HL_ARMCP_INFO_TIMEOUT_USEC, &result);
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to send armcp info pkt, error %d\n", rc);
+			"Failed to send ArmCP info pkt, error %d\n", rc);
 		goto out;
 	}
 
@@ -291,7 +274,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 					max_size, &eeprom_info_dma_addr);
 	if (!eeprom_info_cpu_addr) {
 		dev_err(hdev->dev,
-			"Failed to allocate DMA memory for EEPROM info packet\n");
+			"Failed to allocate DMA memory for ArmCP EEPROM packet\n");
 		return -ENOMEM;
 	}
 
@@ -307,7 +290,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 
 	if (rc) {
 		dev_err(hdev->dev,
-			"Failed to send armcp EEPROM pkt, error %d\n", rc);
+			"Failed to send ArmCP EEPROM packet, error %d\n", rc);
 		goto out;
 	}
 

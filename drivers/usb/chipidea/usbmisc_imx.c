@@ -763,13 +763,16 @@ static const struct of_device_id usbmisc_imx_dt_ids[] = {
 		.compatible = "fsl,imx7d-usbmisc",
 		.data = &imx7d_usbmisc_ops,
 	},
+	{
+		.compatible = "fsl,imx7ulp-usbmisc",
+		.data = &imx7d_usbmisc_ops,
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, usbmisc_imx_dt_ids);
 
 static int usbmisc_imx_probe(struct platform_device *pdev)
 {
-	struct resource	*res;
 	struct imx_usbmisc *data;
 	const struct of_device_id *of_id;
 
@@ -783,8 +786,7 @@ static int usbmisc_imx_probe(struct platform_device *pdev)
 
 	spin_lock_init(&data->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->base = devm_ioremap_resource(&pdev->dev, res);
+	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 

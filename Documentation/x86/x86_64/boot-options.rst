@@ -9,7 +9,7 @@ only the AMD64 specific ones are listed here.
 
 Machine check
 =============
-Please see Documentation/x86/x86_64/machinecheck for sysfs runtime tunables.
+Please see Documentation/x86/x86_64/machinecheck.rst for sysfs runtime tunables.
 
    mce=off
 		Disable machine check
@@ -89,7 +89,7 @@ APICs
      Don't use the local APIC (alias for i386 compatibility)
 
    pirq=...
-	See Documentation/x86/i386/IO-APIC.txt
+	See Documentation/x86/i386/IO-APIC.rst
 
    noapictimer
 	Don't set up the APIC timer

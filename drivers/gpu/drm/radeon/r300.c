@@ -25,19 +25,25 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
+
 #include <drm/drm.h>
 #include <drm/drm_crtc_helper.h>
-#include "radeon_reg.h"
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_pci.h>
+#include <drm/radeon_drm.h>
+
+#include "r100_track.h"
+#include "r300_reg_safe.h"
+#include "r300d.h"
 #include "radeon.h"
 #include "radeon_asic.h"
-#include <drm/radeon_drm.h>
-#include "r100_track.h"
-#include "r300d.h"
+#include "radeon_reg.h"
 #include "rv350d.h"
-#include "r300_reg_safe.h"
 
 /* This files gather functions specifics to: r300,r350,rv350,rv370,rv380
  *
@@ -350,7 +356,7 @@ int r300_mc_wait_for_idle(struct radeon_device *rdev)
 		if (tmp & R300_MC_IDLE) {
 			return 0;
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	return -1;
 }

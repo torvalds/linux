@@ -178,6 +178,7 @@ restart:
 		goto restart;
 
 	clear_bit(HCI_UART_SENDING, &hu->tx_state);
+	wake_up_bit(&hu->tx_state, HCI_UART_SENDING);
 }
 
 void hci_uart_init_work(struct work_struct *work)
@@ -211,6 +212,13 @@ int hci_uart_init_ready(struct hci_uart *hu)
 	schedule_work(&hu->init_ready);
 
 	return 0;
+}
+
+int hci_uart_wait_until_sent(struct hci_uart *hu)
+{
+	return wait_on_bit_timeout(&hu->tx_state, HCI_UART_SENDING,
+				   TASK_INTERRUPTIBLE,
+				   msecs_to_jiffies(2000));
 }
 
 /* ------- Interface to HCI layer ------ */

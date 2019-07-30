@@ -21,7 +21,7 @@
  *
  * Author : Dave Airlie <airlied@redhat.com>
  */
-#include <drm/drmP.h>
+
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 

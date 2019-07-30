@@ -147,11 +147,10 @@ mwifiex_find_stream_to_delete(struct mwifiex_private *priv, int ptr_tid,
 	int tid;
 	u8 ret = false;
 	struct mwifiex_tx_ba_stream_tbl *tx_tbl;
-	unsigned long flags;
 
 	tid = priv->aggr_prio_tbl[ptr_tid].ampdu_user;
 
-	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
 	list_for_each_entry(tx_tbl, &priv->tx_ba_stream_tbl_ptr, list) {
 		if (tid > priv->aggr_prio_tbl[tx_tbl->tid].ampdu_user) {
 			tid = priv->aggr_prio_tbl[tx_tbl->tid].ampdu_user;
@@ -160,7 +159,7 @@ mwifiex_find_stream_to_delete(struct mwifiex_private *priv, int ptr_tid,
 			ret = true;
 		}
 	}
-	spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
+	spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
 
 	return ret;
 }

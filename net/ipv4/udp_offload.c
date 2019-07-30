@@ -208,7 +208,7 @@ struct sk_buff *__udp_gso_segment(struct sk_buff *gso_skb,
 		gso_skb->destructor = NULL;
 
 	segs = skb_segment(gso_skb, features);
-	if (unlikely(IS_ERR_OR_NULL(segs))) {
+	if (IS_ERR_OR_NULL(segs)) {
 		if (copy_dtor)
 			gso_skb->destructor = sock_wfree;
 		return segs;

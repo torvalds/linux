@@ -187,7 +187,7 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 				/* Handle eh_abort timeout */
 				BNX2FC_IO_DBG(io_req, "eh_abort for IO "
 					      "cleaned up\n");
-				complete(&io_req->tm_done);
+				complete(&io_req->abts_done);
 			}
 			kref_put(&io_req->refcount,
 				 bnx2fc_cmd_release); /* drop timer hold */
@@ -210,8 +210,8 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 		list_del_init(&io_req->link);
 		io_req->on_tmf_queue = 0;
 		BNX2FC_IO_DBG(io_req, "tm_queue cleanup\n");
-		if (io_req->wait_for_comp)
-			complete(&io_req->tm_done);
+		if (io_req->wait_for_abts_comp)
+			complete(&io_req->abts_done);
 	}
 
 	list_for_each_entry_safe(io_req, tmp, &tgt->els_queue, link) {
@@ -251,8 +251,8 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 				/* Handle eh_abort timeout */
 				BNX2FC_IO_DBG(io_req, "eh_abort for IO "
 					      "in retire_q\n");
-				if (io_req->wait_for_comp)
-					complete(&io_req->tm_done);
+				if (io_req->wait_for_abts_comp)
+					complete(&io_req->abts_done);
 			}
 			kref_put(&io_req->refcount, bnx2fc_cmd_release);
 		}

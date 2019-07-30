@@ -12,6 +12,8 @@
 			clock-frequency = <996000000>;
 			operating-points-v2 = <&cpu0_opp_table>;
 			#cooling-cells = <2>;
+			nvmem-cells = <&cpu_speed_grade>;
+			nvmem-cell-names = "speed_grade";
 		};
 
 		cpu1: cpu@1 {
@@ -39,15 +41,23 @@
 
 		opp-792000000 {
 			opp-hz = /bits/ 64 <792000000>;
-			opp-microvolt = <975000>;
+			opp-microvolt = <1000000>;
 			clock-latency-ns = <150000>;
+			opp-supported-hw = <0xf>, <0xf>;
 		};
 
 		opp-996000000 {
 			opp-hz = /bits/ 64 <996000000>;
-			opp-microvolt = <1075000>;
+			opp-microvolt = <1100000>;
 			clock-latency-ns = <150000>;
-			opp-suspend;
+			opp-supported-hw = <0xc>, <0xf>;
+		};
+
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <1225000>;
+			clock-latency-ns = <150000>;
+			opp-supported-hw = <0x8>, <0xf>;
 		};
 	};
 

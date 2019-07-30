@@ -77,7 +77,7 @@ void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos)
 static inline struct nfs_page *
 nfs_page_alloc(void)
 {
-	struct nfs_page	*p = kmem_cache_zalloc(nfs_page_cachep, GFP_NOIO);
+	struct nfs_page	*p = kmem_cache_zalloc(nfs_page_cachep, GFP_KERNEL);
 	if (p)
 		INIT_LIST_HEAD(&p->wb_list);
 	return p;
@@ -775,8 +775,6 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 	if (pagecount <= ARRAY_SIZE(pg_array->page_array))
 		pg_array->pagevec = pg_array->page_array;
 	else {
-		if (hdr->rw_mode == FMODE_WRITE)
-			gfp_flags = GFP_NOIO;
 		pg_array->pagevec = kcalloc(pagecount, sizeof(struct page *), gfp_flags);
 		if (!pg_array->pagevec) {
 			pg_array->npages = 0;
@@ -851,7 +849,7 @@ nfs_pageio_alloc_mirrors(struct nfs_pageio_descriptor *desc,
 	desc->pg_mirrors_dynamic = NULL;
 	if (mirror_count == 1)
 		return desc->pg_mirrors_static;
-	ret = kmalloc_array(mirror_count, sizeof(*ret), GFP_NOFS);
+	ret = kmalloc_array(mirror_count, sizeof(*ret), GFP_KERNEL);
 	if (ret != NULL) {
 		for (i = 0; i < mirror_count; i++)
 			nfs_pageio_mirror_init(&ret[i], desc->pg_bsize);

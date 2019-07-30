@@ -9,11 +9,10 @@
 
 #include "main.h"
 
+#include <linux/netlink.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
 #include <linux/types.h>
-
-struct netlink_callback;
-struct seq_file;
-struct sk_buff;
 
 extern char batadv_routing_algo[];
 extern struct list_head batadv_hardif_list;

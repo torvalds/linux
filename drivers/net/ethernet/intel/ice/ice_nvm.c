@@ -119,7 +119,7 @@ ice_read_sr_word_aq(struct ice_hw *hw, u16 offset, u16 *data)
 
 	status = ice_read_sr_aq(hw, offset, 1, data, true);
 	if (!status)
-		*data = le16_to_cpu(*(__le16 *)data);
+		*data = le16_to_cpu(*(__force __le16 *)data);
 
 	return status;
 }
@@ -174,7 +174,7 @@ ice_read_sr_buf_aq(struct ice_hw *hw, u16 offset, u16 *words, u16 *data)
 	} while (words_read < *words);
 
 	for (i = 0; i < *words; i++)
-		data[i] = le16_to_cpu(((__le16 *)data)[i]);
+		data[i] = le16_to_cpu(((__force __le16 *)data)[i]);
 
 read_nvm_buf_aq_exit:
 	*words = words_read;
@@ -313,6 +313,37 @@ ice_read_sr_buf(struct ice_hw *hw, u16 offset, u16 *words, u16 *data)
 		status = ice_read_sr_buf_aq(hw, offset, words, data);
 		ice_release_nvm(hw);
 	}
+
+	return status;
+}
+
+/**
+ * ice_nvm_validate_checksum
+ * @hw: pointer to the HW struct
+ *
+ * Verify NVM PFA checksum validity (0x0706)
+ */
+enum ice_status ice_nvm_validate_checksum(struct ice_hw *hw)
+{
+	struct ice_aqc_nvm_checksum *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	status = ice_acquire_nvm(hw, ICE_RES_READ);
+	if (status)
+		return status;
+
+	cmd = &desc.params.nvm_checksum;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_checksum);
+	cmd->flags = ICE_AQC_NVM_CHECKSUM_VERIFY;
+
+	status = ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
+	ice_release_nvm(hw);
+
+	if (!status)
+		if (le16_to_cpu(cmd->checksum) != ICE_AQC_NVM_CHECKSUM_CORRECT)
+			status = ICE_ERR_NVM_CHECKSUM;
 
 	return status;
 }

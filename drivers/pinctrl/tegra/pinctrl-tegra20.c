@@ -1989,13 +1989,13 @@ static struct tegra_function tegra20_functions[] = {
 		.tri_reg = ((tri_r) - TRISTATE_REG_A),		\
 		.tri_bank = 0,					\
 		.tri_bit = tri_b,				\
-		.parked_bit = -1,				\
 		.einput_bit = -1,				\
 		.odrain_bit = -1,				\
 		.lock_bit = -1,					\
 		.ioreset_bit = -1,				\
 		.rcv_sel_bit = -1,				\
 		.drv_reg = -1,					\
+		.parked_bitmask = 0,				\
 	}
 
 /* Pin groups with only pull up and pull down control */
@@ -2009,7 +2009,7 @@ static struct tegra_function tegra20_functions[] = {
 		.pupd_bank = 2,					\
 		.pupd_bit = pupd_b,				\
 		.drv_reg = -1,					\
-		.parked_bit = -1,				\
+		.parked_bitmask = 0,				\
 	}
 
 /* Pin groups for drive strength registers (configurable version) */
@@ -2025,7 +2025,7 @@ static struct tegra_function tegra20_functions[] = {
 		.tri_reg = -1,					\
 		.drv_reg = ((r) - PINGROUP_REG_A),		\
 		.drv_bank = 3,					\
-		.parked_bit = -1,				\
+		.parked_bitmask = 0,				\
 		.hsm_bit = hsm_b,				\
 		.schmitt_bit = schmitt_b,			\
 		.lpmd_bit = lpmd_b,				\

@@ -244,9 +244,9 @@ int ieee80211_wx_set_rts(struct ieee80211_device *ieee,
 			     struct iw_request_info *info,
 			     union iwreq_data *wrqu, char *extra)
 {
-	if (wrqu->rts.disabled || !wrqu->rts.fixed)
+	if (wrqu->rts.disabled || !wrqu->rts.fixed) {
 		ieee->rts = DEFAULT_RTS_THRESHOLD;
-	else {
+	} else {
 		if (wrqu->rts.value < MIN_RTS_THRESHOLD ||
 				wrqu->rts.value > MAX_RTS_THRESHOLD)
 			return -EINVAL;

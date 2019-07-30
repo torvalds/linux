@@ -388,7 +388,8 @@ void gfs2_recover_func(struct work_struct *work)
 		}
 
 		t_tlck = ktime_get();
-		fs_info(sdp, "jid=%u: Replaying journal...\n", jd->jd_jid);
+		fs_info(sdp, "jid=%u: Replaying journal...0x%x to 0x%x\n",
+			jd->jd_jid, head.lh_tail, head.lh_blkno);
 
 		for (pass = 0; pass < 2; pass++) {
 			lops_before_scan(jd, &head, pass);

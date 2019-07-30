@@ -36,9 +36,13 @@
 #include <linux/export.h>
 #include <linux/sched/signal.h>
 
-#include <drm/drmP.h>
-#include "drm_legacy.h"
+#include <drm/drm.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
+
 #include "drm_internal.h"
+#include "drm_legacy.h"
 
 static int drm_lock_take(struct drm_lock_data *lock_data, unsigned int context);
 

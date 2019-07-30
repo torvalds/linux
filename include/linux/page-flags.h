@@ -703,6 +703,7 @@ PAGEFLAG_FALSE(DoubleMap)
 #define PG_offline	0x00000100
 #define PG_kmemcg	0x00000200
 #define PG_table	0x00000400
+#define PG_guard	0x00000800
 
 #define PageType(page, flag)						\
 	((page->page_type & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
@@ -753,6 +754,11 @@ PAGE_TYPE_OPS(Kmemcg, kmemcg)
  * Marks pages in use as page tables.
  */
 PAGE_TYPE_OPS(Table, table)
+
+/*
+ * Marks guardpages used with debug_pagealloc.
+ */
+PAGE_TYPE_OPS(Guard, guard)
 
 extern bool is_free_buddy_page(struct page *page);
 

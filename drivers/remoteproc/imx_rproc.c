@@ -165,7 +165,7 @@ static int imx_rproc_start(struct rproc *rproc)
 	ret = regmap_update_bits(priv->regmap, dcfg->src_reg,
 				 dcfg->src_mask, dcfg->src_start);
 	if (ret)
-		dev_err(dev, "Filed to enable M4!\n");
+		dev_err(dev, "Failed to enable M4!\n");
 
 	return ret;
 }
@@ -180,7 +180,7 @@ static int imx_rproc_stop(struct rproc *rproc)
 	ret = regmap_update_bits(priv->regmap, dcfg->src_reg,
 				 dcfg->src_mask, dcfg->src_stop);
 	if (ret)
-		dev_err(dev, "Filed to stop M4!\n");
+		dev_err(dev, "Failed to stop M4!\n");
 
 	return ret;
 }
@@ -203,7 +203,7 @@ static int imx_rproc_da_to_sys(struct imx_rproc *priv, u64 da,
 		}
 	}
 
-	dev_warn(priv->dev, "Translation filed: da = 0x%llx len = 0x%x\n",
+	dev_warn(priv->dev, "Translation failed: da = 0x%llx len = 0x%x\n",
 		 da, len);
 	return -ENOENT;
 }
@@ -349,7 +349,7 @@ static int imx_rproc_probe(struct platform_device *pdev)
 
 	ret = imx_rproc_addr_init(priv, pdev);
 	if (ret) {
-		dev_err(dev, "filed on imx_rproc_addr_init\n");
+		dev_err(dev, "failed on imx_rproc_addr_init\n");
 		goto err_put_rproc;
 	}
 

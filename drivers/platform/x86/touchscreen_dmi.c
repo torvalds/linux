@@ -87,6 +87,22 @@ static const struct ts_dmi_data chuwi_hi10_air_data = {
 	.properties	= chuwi_hi10_air_props,
 };
 
+static const struct property_entry chuwi_hi10_plus_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 0),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 5),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1914),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1283),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-chuwi-hi10plus.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data chuwi_hi10_plus_data = {
+	.acpi_name      = "MSSL0017:00",
+	.properties     = chuwi_hi10_plus_props,
+};
+
 static const struct property_entry chuwi_vi8_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-x", 4),
 	PROPERTY_ENTRY_U32("touchscreen-min-y", 6),
@@ -597,8 +613,18 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 		/* Chuwi Hi10 Air */
 		.driver_data = (void *)&chuwi_hi10_air_data,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Hampoo"),
+			DMI_MATCH(DMI_SYS_VENDOR, "CHUWI INNOVATION AND TECHNOLOGY(SHENZHEN)CO.LTD"),
+			DMI_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
 			DMI_MATCH(DMI_PRODUCT_SKU, "P1W6_C109D_B"),
+		},
+	},
+	{
+		/* Chuwi Hi10 Plus (CWI527) */
+		.driver_data = (void *)&chuwi_hi10_plus_data,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Hampoo"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Hi10 plus tablet"),
+			DMI_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
 		},
 	},
 	{

@@ -45,5 +45,10 @@ struct resource_pool *dce110_create_resource_pool(
 	struct dc *dc,
 	struct hw_asic_id asic_id);
 
+struct stream_encoder *dce110_find_first_free_match_stream_enc_for_link(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct dc_stream_state *stream);
+
 #endif /* __DC_RESOURCE_DCE110_H__ */
 

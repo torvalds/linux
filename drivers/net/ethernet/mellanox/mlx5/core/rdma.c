@@ -106,10 +106,10 @@ static int mlx5_rdma_enable_roce_steering(struct mlx5_core_dev *dev)
 
 	return 0;
 
-destroy_flow_table:
-	mlx5_destroy_flow_table(ft);
 destroy_flow_group:
 	mlx5_destroy_flow_group(fg);
+destroy_flow_table:
+	mlx5_destroy_flow_table(ft);
 free:
 	kvfree(spec);
 	kvfree(flow_group_in);
@@ -126,7 +126,7 @@ static void mlx5_rdma_make_default_gid(struct mlx5_core_dev *dev, union ib_gid *
 {
 	u8 hw_id[ETH_ALEN];
 
-	mlx5_query_nic_vport_mac_address(dev, 0, hw_id);
+	mlx5_query_mac_address(dev, hw_id);
 	gid->global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
 	addrconf_addr_eui48(&gid->raw[8], hw_id);
 }

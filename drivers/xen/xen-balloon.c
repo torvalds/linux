@@ -129,8 +129,6 @@ void xen_balloon_init(void)
 {
 	register_balloon(&balloon_dev);
 
-	register_xen_selfballooning(&balloon_dev);
-
 	register_xenstore_notifier(&xenstore_notifier);
 }
 EXPORT_SYMBOL_GPL(xen_balloon_init);

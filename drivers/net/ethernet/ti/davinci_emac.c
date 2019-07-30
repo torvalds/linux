@@ -1371,7 +1371,7 @@ static int emac_devioctl(struct net_device *ndev, struct ifreq *ifrq, int cmd)
 		return -EOPNOTSUPP;
 }
 
-static int match_first_device(struct device *dev, void *data)
+static int match_first_device(struct device *dev, const void *data)
 {
 	if (dev->parent && dev->parent->of_node)
 		return of_device_is_compatible(dev->parent->of_node,
@@ -1428,8 +1428,8 @@ static int emac_dev_open(struct net_device *ndev)
 		if (!skb)
 			break;
 
-		ret = cpdma_chan_submit(priv->rxchan, skb, skb->data,
-					skb_tailroom(skb), 0);
+		ret = cpdma_chan_idle_submit(priv->rxchan, skb, skb->data,
+					     skb_tailroom(skb), 0);
 		if (WARN_ON(ret < 0))
 			break;
 	}

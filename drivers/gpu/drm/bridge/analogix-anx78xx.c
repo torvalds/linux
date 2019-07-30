@@ -7,23 +7,22 @@
  */
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/interrupt.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
-#include <linux/types.h>
-#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
+#include <linux/types.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #include "analogix-anx78xx.h"

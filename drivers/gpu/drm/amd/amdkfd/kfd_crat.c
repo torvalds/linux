@@ -134,9 +134,12 @@ static struct kfd_gpu_cache_info carrizo_cache_info[] = {
 #define polaris10_cache_info carrizo_cache_info
 #define polaris11_cache_info carrizo_cache_info
 #define polaris12_cache_info carrizo_cache_info
+#define vegam_cache_info carrizo_cache_info
 /* TODO - check & update Vega10 cache details */
 #define vega10_cache_info carrizo_cache_info
 #define raven_cache_info carrizo_cache_info
+/* TODO - check & update Navi10 cache details */
+#define navi10_cache_info carrizo_cache_info
 
 static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
@@ -372,7 +375,7 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 			if (props->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS)
 				props->weight = 20;
 			else if (props->iolink_type == CRAT_IOLINK_TYPE_XGMI)
-				props->weight = 15;
+				props->weight = 15 * iolink->num_hops_xgmi;
 			else
 				props->weight = node_distance(id_from, id_to);
 
@@ -652,6 +655,10 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 		pcache_info = polaris12_cache_info;
 		num_of_cache_types = ARRAY_SIZE(polaris12_cache_info);
 		break;
+	case CHIP_VEGAM:
+		pcache_info = vegam_cache_info;
+		num_of_cache_types = ARRAY_SIZE(vegam_cache_info);
+		break;
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
@@ -661,6 +668,9 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 	case CHIP_RAVEN:
 		pcache_info = raven_cache_info;
 		num_of_cache_types = ARRAY_SIZE(raven_cache_info);
+	case CHIP_NAVI10:
+		pcache_info = navi10_cache_info;
+		num_of_cache_types = ARRAY_SIZE(navi10_cache_info);
 		break;
 	default:
 		return -EINVAL;
@@ -1092,6 +1102,7 @@ static int kfd_fill_gpu_direct_io_link_to_cpu(int *avail_size,
 
 static int kfd_fill_gpu_xgmi_link_to_gpu(int *avail_size,
 			struct kfd_dev *kdev,
+			struct kfd_dev *peer_kdev,
 			struct crat_subtype_iolink *sub_type_hdr,
 			uint32_t proximity_domain_from,
 			uint32_t proximity_domain_to)
@@ -1110,6 +1121,8 @@ static int kfd_fill_gpu_xgmi_link_to_gpu(int *avail_size,
 	sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_XGMI;
 	sub_type_hdr->proximity_domain_from = proximity_domain_from;
 	sub_type_hdr->proximity_domain_to = proximity_domain_to;
+	sub_type_hdr->num_hops_xgmi =
+		amdgpu_amdkfd_get_xgmi_hops_count(kdev->kgd, peer_kdev->kgd);
 	return 0;
 }
 
@@ -1287,7 +1300,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 				(char *)sub_type_hdr +
 				sizeof(struct crat_subtype_iolink));
 			ret = kfd_fill_gpu_xgmi_link_to_gpu(
-				&avail_size, kdev,
+				&avail_size, kdev, peer_dev->gpu,
 				(struct crat_subtype_iolink *)sub_type_hdr,
 				proximity_domain, nid);
 			if (ret < 0)

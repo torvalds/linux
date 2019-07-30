@@ -5098,7 +5098,6 @@ static irqreturn_t rt5677_irq(int unused, void *data)
 			goto exit;
 		}
 
-		irq_fired = false;
 		for (i = 0; i < RT5677_IRQ_NUM; i++) {
 			if (reg_irq & rt5677_irq_descs[i].status_mask) {
 				irq_fired = true;

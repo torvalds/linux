@@ -305,6 +305,9 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 	if (is_end)
 		ar->debug.fw_stats_done = true;
 
+	if (stats.extended)
+		ar->debug.fw_stats.extended = true;
+
 	is_started = !list_empty(&ar->debug.fw_stats.pdevs);
 
 	if (is_started && !is_end) {
@@ -873,7 +876,7 @@ static int ath10k_debug_htt_stats_req(struct ath10k *ar)
 	cookie = get_jiffies_64();
 
 	ret = ath10k_htt_h2t_stats_req(&ar->htt, ar->debug.htt_stats_mask,
-				       cookie);
+				       ar->debug.reset_htt_stats, cookie);
 	if (ret) {
 		ath10k_warn(ar, "failed to send htt stats request: %d\n", ret);
 		return ret;
@@ -922,8 +925,8 @@ static ssize_t ath10k_write_htt_stats_mask(struct file *file,
 	if (ret)
 		return ret;
 
-	/* max 8 bit masks (for now) */
-	if (mask > 0xff)
+	/* max 17 bit masks (for now) */
+	if (mask > HTT_STATS_BIT_MASK)
 		return -E2BIG;
 
 	mutex_lock(&ar->conf_mutex);
@@ -2469,6 +2472,44 @@ static const struct file_operations fops_ps_state_enable = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_write_reset_htt_stats(struct file *file,
+					    const char __user *user_buf,
+					    size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	unsigned long reset;
+	int ret;
+
+	ret = kstrtoul_from_user(user_buf, count, 0, &reset);
+	if (ret)
+		return ret;
+
+	if (reset == 0 || reset > 0x1ffff)
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	ar->debug.reset_htt_stats = reset;
+
+	ret = ath10k_debug_htt_stats_req(ar);
+	if (ret)
+		goto out;
+
+	ar->debug.reset_htt_stats = 0;
+	ret = count;
+
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static const struct file_operations fops_reset_htt_stats = {
+	.write = ath10k_write_reset_htt_stats,
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
+
 int ath10k_debug_create(struct ath10k *ar)
 {
 	ar->debug.cal_data = vzalloc(ATH10K_DEBUG_CAL_DATA_LEN);
@@ -2609,6 +2650,9 @@ int ath10k_debug_register(struct ath10k *ar)
 	debugfs_create_file("ps_state_enable", 0600, ar->debug.debugfs_phy, ar,
 			    &fops_ps_state_enable);
 
+	debugfs_create_file("reset_htt_stats", 0200, ar->debug.debugfs_phy, ar,
+			    &fops_reset_htt_stats);
+
 	return 0;
 }
 
@@ -2620,8 +2664,8 @@ void ath10k_debug_unregister(struct ath10k *ar)
 #endif /* CONFIG_ATH10K_DEBUGFS */
 
 #ifdef CONFIG_ATH10K_DEBUG
-void ath10k_dbg(struct ath10k *ar, enum ath10k_debug_mask mask,
-		const char *fmt, ...)
+void __ath10k_dbg(struct ath10k *ar, enum ath10k_debug_mask mask,
+		  const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -2638,7 +2682,7 @@ void ath10k_dbg(struct ath10k *ar, enum ath10k_debug_mask mask,
 
 	va_end(args);
 }
-EXPORT_SYMBOL(ath10k_dbg);
+EXPORT_SYMBOL(__ath10k_dbg);
 
 void ath10k_dbg_dump(struct ath10k *ar,
 		     enum ath10k_debug_mask mask,
@@ -2651,7 +2695,7 @@ void ath10k_dbg_dump(struct ath10k *ar,
 
 	if (ath10k_debug_mask & mask) {
 		if (msg)
-			ath10k_dbg(ar, mask, "%s\n", msg);
+			__ath10k_dbg(ar, mask, "%s\n", msg);
 
 		for (ptr = buf; (ptr - buf) < len; ptr += 16) {
 			linebuflen = 0;

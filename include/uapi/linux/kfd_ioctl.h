@@ -35,9 +35,10 @@ struct kfd_ioctl_get_version_args {
 };
 
 /* For kfd_ioctl_create_queue_args.queue_type. */
-#define KFD_IOC_QUEUE_TYPE_COMPUTE	0
-#define KFD_IOC_QUEUE_TYPE_SDMA		1
-#define KFD_IOC_QUEUE_TYPE_COMPUTE_AQL	2
+#define KFD_IOC_QUEUE_TYPE_COMPUTE		0x0
+#define KFD_IOC_QUEUE_TYPE_SDMA			0x1
+#define KFD_IOC_QUEUE_TYPE_COMPUTE_AQL		0x2
+#define KFD_IOC_QUEUE_TYPE_SDMA_XGMI		0x3
 
 #define KFD_MAX_QUEUE_PERCENTAGE	100
 #define KFD_MAX_QUEUE_PRIORITY		15
@@ -338,6 +339,7 @@ struct kfd_ioctl_acquire_vm_args {
 #define KFD_IOC_ALLOC_MEM_FLAGS_GTT		(1 << 1)
 #define KFD_IOC_ALLOC_MEM_FLAGS_USERPTR		(1 << 2)
 #define KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL	(1 << 3)
+#define KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP	(1 << 4)
 /* Allocation flags: attributes/access options */
 #define KFD_IOC_ALLOC_MEM_FLAGS_WRITABLE	(1 << 31)
 #define KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE	(1 << 30)
@@ -408,6 +410,21 @@ struct kfd_ioctl_unmap_memory_from_gpu_args {
 	__u32 n_success;		/* to/from KFD */
 };
 
+/* Allocate GWS for specific queue
+ *
+ * @gpu_id:      device identifier
+ * @queue_id:    queue's id that GWS is allocated for
+ * @num_gws:     how many GWS to allocate
+ * @first_gws:   index of the first GWS allocated.
+ *               only support contiguous GWS allocation
+ */
+struct kfd_ioctl_alloc_queue_gws_args {
+	__u32 gpu_id;		/* to KFD */
+	__u32 queue_id;		/* to KFD */
+	__u32 num_gws;		/* to KFD */
+	__u32 first_gws;	/* from KFD */
+};
+
 struct kfd_ioctl_get_dmabuf_info_args {
 	__u64 size;		/* from KFD */
 	__u64 metadata_ptr;	/* to KFD */
@@ -424,6 +441,13 @@ struct kfd_ioctl_import_dmabuf_args {
 	__u64 handle;	/* from KFD */
 	__u32 gpu_id;	/* to KFD */
 	__u32 dmabuf_fd;	/* to KFD */
+};
+
+/* Register offset inside the remapped mmio page
+ */
+enum kfd_mmio_remap {
+	KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL = 0,
+	KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL = 4,
 };
 
 #define AMDKFD_IOCTL_BASE 'K'
@@ -520,7 +544,10 @@ struct kfd_ioctl_import_dmabuf_args {
 #define AMDKFD_IOC_IMPORT_DMABUF		\
 		AMDKFD_IOWR(0x1D, struct kfd_ioctl_import_dmabuf_args)
 
+#define AMDKFD_IOC_ALLOC_QUEUE_GWS		\
+		AMDKFD_IOWR(0x1E, struct kfd_ioctl_alloc_queue_gws_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x1E
+#define AMDKFD_COMMAND_END		0x1F
 
 #endif

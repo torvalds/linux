@@ -41,19 +41,21 @@ struct safexcel_ahash_req {
 	u64 len[2];
 	u64 processed[2];
 
-	u8 cache[SHA512_BLOCK_SIZE] __aligned(sizeof(u32));
+	u8 cache[SHA512_BLOCK_SIZE << 1] __aligned(sizeof(u32));
 	dma_addr_t cache_dma;
 	unsigned int cache_sz;
 
-	u8 cache_next[SHA512_BLOCK_SIZE] __aligned(sizeof(u32));
+	u8 cache_next[SHA512_BLOCK_SIZE << 1] __aligned(sizeof(u32));
 };
 
 static inline u64 safexcel_queued_len(struct safexcel_ahash_req *req)
 {
-	if (req->len[1] > req->processed[1])
-		return 0xffffffff - (req->len[0] - req->processed[0]);
+	u64 len, processed;
 
-	return req->len[0] - req->processed[0];
+	len = (0xffffffff * req->len[1]) + req->len[0];
+	processed = (0xffffffff * req->processed[1]) + req->processed[0];
+
+	return len - processed;
 }
 
 static void safexcel_hash_token(struct safexcel_command_desc *cdesc,
@@ -87,6 +89,9 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 	cdesc->control_data.control0 |= ctx->alg;
 	cdesc->control_data.control0 |= req->digest;
 
+	if (!req->finish)
+		cdesc->control_data.control0 |= CONTEXT_CONTROL_NO_FINISH_HASH;
+
 	if (req->digest == CONTEXT_CONTROL_DIGEST_PRECOMPUTED) {
 		if (req->processed[0] || req->processed[1]) {
 			if (ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_MD5)
@@ -104,9 +109,6 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 		} else {
 			cdesc->control_data.control0 |= CONTEXT_CONTROL_RESTART_HASH;
 		}
-
-		if (!req->finish)
-			cdesc->control_data.control0 |= CONTEXT_CONTROL_NO_FINISH_HASH;
 
 		/*
 		 * Copy the input digest if needed, and setup the context
@@ -183,6 +185,7 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 		dma_unmap_single(priv->dev, sreq->cache_dma, sreq->cache_sz,
 				 DMA_TO_DEVICE);
 		sreq->cache_dma = 0;
+		sreq->cache_sz = 0;
 	}
 
 	if (sreq->finish)
@@ -209,11 +212,15 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 	struct safexcel_command_desc *cdesc, *first_cdesc = NULL;
 	struct safexcel_result_desc *rdesc;
 	struct scatterlist *sg;
-	int i, extra, n_cdesc = 0, ret = 0;
-	u64 queued, len, cache_len;
+	int i, extra = 0, n_cdesc = 0, ret = 0;
+	u64 queued, len, cache_len, cache_max;
+
+	cache_max = crypto_ahash_blocksize(ahash);
+	if (req->digest == CONTEXT_CONTROL_DIGEST_HMAC)
+		cache_max <<= 1;
 
 	queued = len = safexcel_queued_len(req);
-	if (queued <= crypto_ahash_blocksize(ahash))
+	if (queued <= cache_max)
 		cache_len = queued;
 	else
 		cache_len = queued - areq->nbytes;
@@ -223,26 +230,23 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 		 * fit into full blocks, cache it for the next send() call.
 		 */
 		extra = queued & (crypto_ahash_blocksize(ahash) - 1);
+
+		if (req->digest == CONTEXT_CONTROL_DIGEST_HMAC &&
+		    extra < crypto_ahash_blocksize(ahash))
+			extra += crypto_ahash_blocksize(ahash);
+
+		/* If this is not the last request and the queued data
+		 * is a multiple of a block, cache the last one for now.
+		 */
 		if (!extra)
-			/* If this is not the last request and the queued data
-			 * is a multiple of a block, cache the last one for now.
-			 */
 			extra = crypto_ahash_blocksize(ahash);
 
-		if (extra) {
-			sg_pcopy_to_buffer(areq->src, sg_nents(areq->src),
-					   req->cache_next, extra,
-					   areq->nbytes - extra);
+		sg_pcopy_to_buffer(areq->src, sg_nents(areq->src),
+				   req->cache_next, extra,
+				   areq->nbytes - extra);
 
-			queued -= extra;
-			len -= extra;
-
-			if (!queued) {
-				*commands = 0;
-				*results = 0;
-				return 0;
-			}
-		}
+		queued -= extra;
+		len -= extra;
 	}
 
 	/* Add a command descriptor for the cached data, if any */
@@ -269,8 +273,7 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 	}
 
 	/* Now handle the current ahash request buffer(s) */
-	req->nents = dma_map_sg(priv->dev, areq->src,
-				sg_nents_for_len(areq->src, areq->nbytes),
+	req->nents = dma_map_sg(priv->dev, areq->src, sg_nents(areq->src),
 				DMA_TO_DEVICE);
 	if (!req->nents) {
 		ret = -ENOMEM;
@@ -345,6 +348,7 @@ unmap_cache:
 	if (req->cache_dma) {
 		dma_unmap_single(priv->dev, req->cache_dma, req->cache_sz,
 				 DMA_TO_DEVICE);
+		req->cache_dma = 0;
 		req->cache_sz = 0;
 	}
 
@@ -486,7 +490,7 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 	struct safexcel_inv_result result = {};
 	int ring = ctx->base.ring;
 
-	memset(req, 0, sizeof(struct ahash_request));
+	memset(req, 0, EIP197_AHASH_REQ_SIZE);
 
 	/* create invalidation request */
 	init_completion(&result.completion);
@@ -519,10 +523,9 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 /* safexcel_ahash_cache: cache data until at least one request can be sent to
  * the engine, aka. when there is at least 1 block size in the pipe.
  */
-static int safexcel_ahash_cache(struct ahash_request *areq)
+static int safexcel_ahash_cache(struct ahash_request *areq, u32 cache_max)
 {
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
-	struct crypto_ahash *ahash = crypto_ahash_reqtfm(areq);
 	u64 queued, cache_len;
 
 	/* queued: everything accepted by the driver which will be handled by
@@ -539,7 +542,7 @@ static int safexcel_ahash_cache(struct ahash_request *areq)
 	 * In case there isn't enough bytes to proceed (less than a
 	 * block size), cache the data until we have enough.
 	 */
-	if (cache_len + areq->nbytes <= crypto_ahash_blocksize(ahash)) {
+	if (cache_len + areq->nbytes <= cache_max) {
 		sg_pcopy_to_buffer(areq->src, sg_nents(areq->src),
 				   req->cache + cache_len,
 				   areq->nbytes, 0);
@@ -599,6 +602,7 @@ static int safexcel_ahash_update(struct ahash_request *areq)
 {
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(areq);
+	u32 cache_max;
 
 	/* If the request is 0 length, do nothing */
 	if (!areq->nbytes)
@@ -608,7 +612,11 @@ static int safexcel_ahash_update(struct ahash_request *areq)
 	if (req->len[0] < areq->nbytes)
 		req->len[1]++;
 
-	safexcel_ahash_cache(areq);
+	cache_max = crypto_ahash_blocksize(ahash);
+	if (req->digest == CONTEXT_CONTROL_DIGEST_HMAC)
+		cache_max <<= 1;
+
+	safexcel_ahash_cache(areq, cache_max);
 
 	/*
 	 * We're not doing partial updates when performing an hmac request.
@@ -621,7 +629,7 @@ static int safexcel_ahash_update(struct ahash_request *areq)
 		return safexcel_ahash_enqueue(areq);
 
 	if (!req->last_req &&
-	    safexcel_queued_len(req) > crypto_ahash_blocksize(ahash))
+	    safexcel_queued_len(req) > cache_max)
 		return safexcel_ahash_enqueue(areq);
 
 	return 0;
@@ -678,6 +686,11 @@ static int safexcel_ahash_export(struct ahash_request *areq, void *out)
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(areq);
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 	struct safexcel_ahash_export_state *export = out;
+	u32 cache_sz;
+
+	cache_sz = crypto_ahash_blocksize(ahash);
+	if (req->digest == CONTEXT_CONTROL_DIGEST_HMAC)
+		cache_sz <<= 1;
 
 	export->len[0] = req->len[0];
 	export->len[1] = req->len[1];
@@ -687,7 +700,7 @@ static int safexcel_ahash_export(struct ahash_request *areq, void *out)
 	export->digest = req->digest;
 
 	memcpy(export->state, req->state, req->state_sz);
-	memcpy(export->cache, req->cache, crypto_ahash_blocksize(ahash));
+	memcpy(export->cache, req->cache, cache_sz);
 
 	return 0;
 }
@@ -697,11 +710,16 @@ static int safexcel_ahash_import(struct ahash_request *areq, const void *in)
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(areq);
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 	const struct safexcel_ahash_export_state *export = in;
+	u32 cache_sz;
 	int ret;
 
 	ret = crypto_ahash_init(areq);
 	if (ret)
 		return ret;
+
+	cache_sz = crypto_ahash_blocksize(ahash);
+	if (req->digest == CONTEXT_CONTROL_DIGEST_HMAC)
+		cache_sz <<= 1;
 
 	req->len[0] = export->len[0];
 	req->len[1] = export->len[1];
@@ -710,7 +728,7 @@ static int safexcel_ahash_import(struct ahash_request *areq, const void *in)
 
 	req->digest = export->digest;
 
-	memcpy(req->cache, export->cache, crypto_ahash_blocksize(ahash));
+	memcpy(req->cache, export->cache, cache_sz);
 	memcpy(req->state, export->state, req->state_sz);
 
 	return 0;

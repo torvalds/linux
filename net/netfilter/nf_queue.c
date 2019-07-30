@@ -156,7 +156,6 @@ static void nf_ip6_saveroute(const struct sk_buff *skb,
 }
 
 static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
-		      const struct nf_hook_entries *entries,
 		      unsigned int index, unsigned int queuenum)
 {
 	int status = -ENOENT;
@@ -190,6 +189,11 @@ static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
 		goto err;
 	}
 
+	if (!skb_dst_force(skb) && state->hook != NF_INET_PRE_ROUTING) {
+		status = -ENETDOWN;
+		goto err;
+	}
+
 	*entry = (struct nf_queue_entry) {
 		.skb	= skb,
 		.state	= *state,
@@ -198,7 +202,6 @@ static int __nf_queue(struct sk_buff *skb, const struct nf_hook_state *state,
 	};
 
 	nf_queue_entry_get_refs(entry);
-	skb_dst_force(skb);
 
 	switch (entry->state.pf) {
 	case AF_INET:
@@ -225,12 +228,11 @@ err:
 
 /* Packets leaving via this function must come back through nf_reinject(). */
 int nf_queue(struct sk_buff *skb, struct nf_hook_state *state,
-	     const struct nf_hook_entries *entries, unsigned int index,
-	     unsigned int verdict)
+	     unsigned int index, unsigned int verdict)
 {
 	int ret;
 
-	ret = __nf_queue(skb, state, entries, index, verdict >> NF_VERDICT_QBITS);
+	ret = __nf_queue(skb, state, index, verdict >> NF_VERDICT_QBITS);
 	if (ret < 0) {
 		if (ret == -ESRCH &&
 		    (verdict & NF_VERDICT_FLAG_QUEUE_BYPASS))
@@ -336,7 +338,7 @@ next_hook:
 		local_bh_enable();
 		break;
 	case NF_QUEUE:
-		err = nf_queue(skb, &entry->state, hooks, i, verdict);
+		err = nf_queue(skb, &entry->state, i, verdict);
 		if (err == 1)
 			goto next_hook;
 		break;

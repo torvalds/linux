@@ -13,7 +13,7 @@
 #ifdef DEBUG
 #include <linux/highmem.h>
 
-void caam_dump_sg(const char *level, const char *prefix_str, int prefix_type,
+void caam_dump_sg(const char *prefix_str, int prefix_type,
 		  int rowsize, int groupsize, struct scatterlist *sg,
 		  size_t tlen, bool ascii)
 {
@@ -35,15 +35,15 @@ void caam_dump_sg(const char *level, const char *prefix_str, int prefix_type,
 
 		buf = it_page + it->offset;
 		len = min_t(size_t, tlen, it->length);
-		print_hex_dump(level, prefix_str, prefix_type, rowsize,
-			       groupsize, buf, len, ascii);
+		print_hex_dump_debug(prefix_str, prefix_type, rowsize,
+				     groupsize, buf, len, ascii);
 		tlen -= len;
 
 		kunmap_atomic(it_page);
 	}
 }
 #else
-void caam_dump_sg(const char *level, const char *prefix_str, int prefix_type,
+void caam_dump_sg(const char *prefix_str, int prefix_type,
 		  int rowsize, int groupsize, struct scatterlist *sg,
 		  size_t tlen, bool ascii)
 {}

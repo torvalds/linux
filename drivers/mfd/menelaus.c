@@ -1125,8 +1125,6 @@ static inline void menelaus_rtc_init(struct menelaus_chip *m)
 			menelaus_remove_irq_work(MENELAUS_RTCALM_IRQ);
 			device_init_wakeup(&m->client->dev, 0);
 		}
-		dev_err(&m->client->dev, "can't register RTC: %d\n",
-				(int) PTR_ERR(m->rtc));
 		the_menelaus->rtc = NULL;
 	}
 }

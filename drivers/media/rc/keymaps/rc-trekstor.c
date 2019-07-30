@@ -12,7 +12,7 @@
 /* Imported from af9015.h.
    Initial keytable was from Marc Schneider <macke@macke.org> */
 static struct rc_map_table trekstor[] = {
-	{ 0x0084, KEY_0 },
+	{ 0x0084, KEY_NUMERIC_0 },
 	{ 0x0085, KEY_MUTE },            /* Mute */
 	{ 0x0086, KEY_HOMEPAGE },        /* Home */
 	{ 0x0087, KEY_UP },              /* Up */
@@ -24,17 +24,17 @@ static struct rc_map_table trekstor[] = {
 	{ 0x008d, KEY_PLAY },            /* Play/Pause */
 	{ 0x008e, KEY_STOP },            /* Stop */
 	{ 0x008f, KEY_EPG },             /* Info/EPG */
-	{ 0x0090, KEY_7 },
-	{ 0x0091, KEY_4 },
-	{ 0x0092, KEY_1 },
+	{ 0x0090, KEY_NUMERIC_7 },
+	{ 0x0091, KEY_NUMERIC_4 },
+	{ 0x0092, KEY_NUMERIC_1 },
 	{ 0x0093, KEY_CHANNELDOWN },     /* Channel - */
-	{ 0x0094, KEY_8 },
-	{ 0x0095, KEY_5 },
-	{ 0x0096, KEY_2 },
+	{ 0x0094, KEY_NUMERIC_8 },
+	{ 0x0095, KEY_NUMERIC_5 },
+	{ 0x0096, KEY_NUMERIC_2 },
 	{ 0x0097, KEY_CHANNELUP },       /* Channel + */
-	{ 0x0098, KEY_9 },
-	{ 0x0099, KEY_6 },
-	{ 0x009a, KEY_3 },
+	{ 0x0098, KEY_NUMERIC_9 },
+	{ 0x0099, KEY_NUMERIC_6 },
+	{ 0x009a, KEY_NUMERIC_3 },
 	{ 0x009b, KEY_VOLUMEDOWN },      /* Volume - */
 	{ 0x009c, KEY_TV },              /* TV */
 	{ 0x009d, KEY_RECORD },          /* Record */

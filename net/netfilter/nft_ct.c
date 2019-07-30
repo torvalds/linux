@@ -21,6 +21,7 @@
 #include <net/netfilter/nf_conntrack_labels.h>
 #include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
+#include <net/netfilter/nf_conntrack_expect.h>
 
 struct nft_ct {
 	enum nft_ct_keys	key:8;
@@ -1153,6 +1154,135 @@ static struct nft_object_type nft_ct_helper_obj_type __read_mostly = {
 	.owner		= THIS_MODULE,
 };
 
+struct nft_ct_expect_obj {
+	u16		l3num;
+	__be16		dport;
+	u8		l4proto;
+	u8		size;
+	u32		timeout;
+};
+
+static int nft_ct_expect_obj_init(const struct nft_ctx *ctx,
+				  const struct nlattr * const tb[],
+				  struct nft_object *obj)
+{
+	struct nft_ct_expect_obj *priv = nft_obj_data(obj);
+
+	if (!tb[NFTA_CT_EXPECT_L4PROTO] ||
+	    !tb[NFTA_CT_EXPECT_DPORT] ||
+	    !tb[NFTA_CT_EXPECT_TIMEOUT] ||
+	    !tb[NFTA_CT_EXPECT_SIZE])
+		return -EINVAL;
+
+	priv->l3num = ctx->family;
+	if (tb[NFTA_CT_EXPECT_L3PROTO])
+		priv->l3num = ntohs(nla_get_be16(tb[NFTA_CT_EXPECT_L3PROTO]));
+
+	priv->l4proto = nla_get_u8(tb[NFTA_CT_EXPECT_L4PROTO]);
+	priv->dport = nla_get_be16(tb[NFTA_CT_EXPECT_DPORT]);
+	priv->timeout = nla_get_u32(tb[NFTA_CT_EXPECT_TIMEOUT]);
+	priv->size = nla_get_u8(tb[NFTA_CT_EXPECT_SIZE]);
+
+	return nf_ct_netns_get(ctx->net, ctx->family);
+}
+
+static void nft_ct_expect_obj_destroy(const struct nft_ctx *ctx,
+				       struct nft_object *obj)
+{
+	nf_ct_netns_put(ctx->net, ctx->family);
+}
+
+static int nft_ct_expect_obj_dump(struct sk_buff *skb,
+				  struct nft_object *obj, bool reset)
+{
+	const struct nft_ct_expect_obj *priv = nft_obj_data(obj);
+
+	if (nla_put_be16(skb, NFTA_CT_EXPECT_L3PROTO, htons(priv->l3num)) ||
+	    nla_put_u8(skb, NFTA_CT_EXPECT_L4PROTO, priv->l4proto) ||
+	    nla_put_be16(skb, NFTA_CT_EXPECT_DPORT, priv->dport) ||
+	    nla_put_u32(skb, NFTA_CT_EXPECT_TIMEOUT, priv->timeout) ||
+	    nla_put_u8(skb, NFTA_CT_EXPECT_SIZE, priv->size))
+		return -1;
+
+	return 0;
+}
+
+static void nft_ct_expect_obj_eval(struct nft_object *obj,
+				   struct nft_regs *regs,
+				   const struct nft_pktinfo *pkt)
+{
+	const struct nft_ct_expect_obj *priv = nft_obj_data(obj);
+	struct nf_conntrack_expect *exp;
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn_help *help;
+	enum ip_conntrack_dir dir;
+	u16 l3num = priv->l3num;
+	struct nf_conn *ct;
+
+	ct = nf_ct_get(pkt->skb, &ctinfo);
+	if (!ct || ctinfo == IP_CT_UNTRACKED) {
+		regs->verdict.code = NFT_BREAK;
+		return;
+	}
+	dir = CTINFO2DIR(ctinfo);
+
+	help = nfct_help(ct);
+	if (!help)
+		help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
+	if (!help) {
+		regs->verdict.code = NF_DROP;
+		return;
+	}
+
+	if (help->expecting[NF_CT_EXPECT_CLASS_DEFAULT] >= priv->size) {
+		regs->verdict.code = NFT_BREAK;
+		return;
+	}
+	if (l3num == NFPROTO_INET)
+		l3num = nf_ct_l3num(ct);
+
+	exp = nf_ct_expect_alloc(ct);
+	if (exp == NULL) {
+		regs->verdict.code = NF_DROP;
+		return;
+	}
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, l3num,
+		          &ct->tuplehash[!dir].tuple.src.u3,
+		          &ct->tuplehash[!dir].tuple.dst.u3,
+		          priv->l4proto, NULL, &priv->dport);
+	exp->timeout.expires = jiffies + priv->timeout * HZ;
+
+	if (nf_ct_expect_related(exp) != 0)
+		regs->verdict.code = NF_DROP;
+}
+
+static const struct nla_policy nft_ct_expect_policy[NFTA_CT_EXPECT_MAX + 1] = {
+	[NFTA_CT_EXPECT_L3PROTO]	= { .type = NLA_U16 },
+	[NFTA_CT_EXPECT_L4PROTO]	= { .type = NLA_U8 },
+	[NFTA_CT_EXPECT_DPORT]		= { .type = NLA_U16 },
+	[NFTA_CT_EXPECT_TIMEOUT]	= { .type = NLA_U32 },
+	[NFTA_CT_EXPECT_SIZE]		= { .type = NLA_U8 },
+};
+
+static struct nft_object_type nft_ct_expect_obj_type;
+
+static const struct nft_object_ops nft_ct_expect_obj_ops = {
+	.type		= &nft_ct_expect_obj_type,
+	.size		= sizeof(struct nft_ct_expect_obj),
+	.eval		= nft_ct_expect_obj_eval,
+	.init		= nft_ct_expect_obj_init,
+	.destroy	= nft_ct_expect_obj_destroy,
+	.dump		= nft_ct_expect_obj_dump,
+};
+
+static struct nft_object_type nft_ct_expect_obj_type __read_mostly = {
+	.type		= NFT_OBJECT_CT_EXPECT,
+	.ops		= &nft_ct_expect_obj_ops,
+	.maxattr	= NFTA_CT_EXPECT_MAX,
+	.policy		= nft_ct_expect_policy,
+	.owner		= THIS_MODULE,
+};
+
 static int __init nft_ct_module_init(void)
 {
 	int err;
@@ -1170,17 +1300,23 @@ static int __init nft_ct_module_init(void)
 	err = nft_register_obj(&nft_ct_helper_obj_type);
 	if (err < 0)
 		goto err2;
+
+	err = nft_register_obj(&nft_ct_expect_obj_type);
+	if (err < 0)
+		goto err3;
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	err = nft_register_obj(&nft_ct_timeout_obj_type);
 	if (err < 0)
-		goto err3;
+		goto err4;
 #endif
 	return 0;
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
+err4:
+	nft_unregister_obj(&nft_ct_expect_obj_type);
+#endif
 err3:
 	nft_unregister_obj(&nft_ct_helper_obj_type);
-#endif
 err2:
 	nft_unregister_expr(&nft_notrack_type);
 err1:
@@ -1193,6 +1329,7 @@ static void __exit nft_ct_module_exit(void)
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	nft_unregister_obj(&nft_ct_timeout_obj_type);
 #endif
+	nft_unregister_obj(&nft_ct_expect_obj_type);
 	nft_unregister_obj(&nft_ct_helper_obj_type);
 	nft_unregister_expr(&nft_notrack_type);
 	nft_unregister_expr(&nft_ct_type);
@@ -1207,3 +1344,4 @@ MODULE_ALIAS_NFT_EXPR("ct");
 MODULE_ALIAS_NFT_EXPR("notrack");
 MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_CT_HELPER);
 MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_CT_TIMEOUT);
+MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_CT_EXPECT);

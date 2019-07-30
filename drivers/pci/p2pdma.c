@@ -25,12 +25,6 @@ struct pci_p2pdma {
 	bool p2pmem_published;
 };
 
-struct p2pdma_pagemap {
-	struct dev_pagemap pgmap;
-	struct percpu_ref ref;
-	struct completion ref_done;
-};
-
 static ssize_t size_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
@@ -78,31 +72,6 @@ static const struct attribute_group p2pmem_group = {
 	.attrs = p2pmem_attrs,
 	.name = "p2pmem",
 };
-
-static struct p2pdma_pagemap *to_p2p_pgmap(struct percpu_ref *ref)
-{
-	return container_of(ref, struct p2pdma_pagemap, ref);
-}
-
-static void pci_p2pdma_percpu_release(struct percpu_ref *ref)
-{
-	struct p2pdma_pagemap *p2p_pgmap = to_p2p_pgmap(ref);
-
-	complete(&p2p_pgmap->ref_done);
-}
-
-static void pci_p2pdma_percpu_kill(struct percpu_ref *ref)
-{
-	percpu_ref_kill(ref);
-}
-
-static void pci_p2pdma_percpu_cleanup(struct percpu_ref *ref)
-{
-	struct p2pdma_pagemap *p2p_pgmap = to_p2p_pgmap(ref);
-
-	wait_for_completion(&p2p_pgmap->ref_done);
-	percpu_ref_exit(&p2p_pgmap->ref);
-}
 
 static void pci_p2pdma_release(void *data)
 {
@@ -166,7 +135,6 @@ out:
 int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 			    u64 offset)
 {
-	struct p2pdma_pagemap *p2p_pgmap;
 	struct dev_pagemap *pgmap;
 	void *addr;
 	int error;
@@ -189,27 +157,15 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 			return error;
 	}
 
-	p2p_pgmap = devm_kzalloc(&pdev->dev, sizeof(*p2p_pgmap), GFP_KERNEL);
-	if (!p2p_pgmap)
+	pgmap = devm_kzalloc(&pdev->dev, sizeof(*pgmap), GFP_KERNEL);
+	if (!pgmap)
 		return -ENOMEM;
-
-	init_completion(&p2p_pgmap->ref_done);
-	error = percpu_ref_init(&p2p_pgmap->ref,
-			pci_p2pdma_percpu_release, 0, GFP_KERNEL);
-	if (error)
-		goto pgmap_free;
-
-	pgmap = &p2p_pgmap->pgmap;
-
 	pgmap->res.start = pci_resource_start(pdev, bar) + offset;
 	pgmap->res.end = pgmap->res.start + size - 1;
 	pgmap->res.flags = pci_resource_flags(pdev, bar);
-	pgmap->ref = &p2p_pgmap->ref;
 	pgmap->type = MEMORY_DEVICE_PCI_P2PDMA;
 	pgmap->pci_p2pdma_bus_offset = pci_bus_address(pdev, bar) -
 		pci_resource_start(pdev, bar);
-	pgmap->kill = pci_p2pdma_percpu_kill;
-	pgmap->cleanup = pci_p2pdma_percpu_cleanup;
 
 	addr = devm_memremap_pages(&pdev->dev, pgmap);
 	if (IS_ERR(addr)) {
@@ -220,7 +176,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 	error = gen_pool_add_owner(pdev->p2pdma->pool, (unsigned long)addr,
 			pci_bus_address(pdev, bar) + offset,
 			resource_size(&pgmap->res), dev_to_node(&pdev->dev),
-			&p2p_pgmap->ref);
+			pgmap->ref);
 	if (error)
 		goto pages_free;
 
@@ -232,14 +188,14 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 pages_free:
 	devm_memunmap_pages(&pdev->dev, pgmap);
 pgmap_free:
-	devm_kfree(&pdev->dev, p2p_pgmap);
+	devm_kfree(&pdev->dev, pgmap);
 	return error;
 }
 EXPORT_SYMBOL_GPL(pci_p2pdma_add_resource);
 
 /*
  * Note this function returns the parent PCI device with a
- * reference taken. It is the caller's responsibily to drop
+ * reference taken. It is the caller's responsibility to drop
  * the reference.
  */
 static struct pci_dev *find_parent_pci_dev(struct device *dev)
@@ -399,7 +355,7 @@ static int upstream_bridge_distance(struct pci_dev *provider,
 
 	/*
 	 * Allow the connection if both devices are on a whitelisted root
-	 * complex, but add an arbitary large value to the distance.
+	 * complex, but add an arbitrary large value to the distance.
 	 */
 	if (root_complex_whitelist(provider) &&
 	    root_complex_whitelist(client))
@@ -458,7 +414,7 @@ static int upstream_bridge_distance_warn(struct pci_dev *provider,
 }
 
 /**
- * pci_p2pdma_distance_many - Determive the cumulative distance between
+ * pci_p2pdma_distance_many - Determine the cumulative distance between
  *	a p2pdma provider and the clients in use.
  * @provider: p2pdma provider to check against the client list
  * @clients: array of devices to check (NULL-terminated)
@@ -487,6 +443,14 @@ int pci_p2pdma_distance_many(struct pci_dev *provider, struct device **clients,
 		return -1;
 
 	for (i = 0; i < num_clients; i++) {
+		if (IS_ENABLED(CONFIG_DMA_VIRT_OPS) &&
+		    clients[i]->dma_ops == &dma_virt_ops) {
+			if (verbose)
+				dev_warn(clients[i],
+					 "cannot be used for peer-to-peer DMA because the driver makes use of dma_virt_ops\n");
+			return -1;
+		}
+
 		pci_client = find_parent_pci_dev(clients[i]);
 		if (!pci_client) {
 			if (verbose)
@@ -765,7 +729,7 @@ int pci_p2pdma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	 * p2pdma mappings are not compatible with devices that use
 	 * dma_virt_ops. If the upper layers do the right thing
 	 * this should never happen because it will be prevented
-	 * by the check in pci_p2pdma_add_client()
+	 * by the check in pci_p2pdma_distance_many()
 	 */
 	if (WARN_ON_ONCE(IS_ENABLED(CONFIG_DMA_VIRT_OPS) &&
 			 dev->dma_ops == &dma_virt_ops))

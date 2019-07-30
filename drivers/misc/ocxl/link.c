@@ -224,6 +224,17 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 		ack_irq(spa, ADDRESS_ERROR);
 		return IRQ_HANDLED;
 	}
+
+	if (!pe_data->mm) {
+		/*
+		 * translation fault from a kernel context - an OpenCAPI
+		 * device tried to access a bad kernel address
+		 */
+		rcu_read_unlock();
+		pr_warn("Unresolved OpenCAPI xsl fault in kernel context\n");
+		ack_irq(spa, ADDRESS_ERROR);
+		return IRQ_HANDLED;
+	}
 	WARN_ON(pe_data->mm->context.id != pid);
 
 	if (mmget_not_zero(pe_data->mm)) {
@@ -523,7 +534,13 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 	pe->amr = cpu_to_be64(amr);
 	pe->software_state = cpu_to_be32(SPA_PE_VALID);
 
-	mm_context_add_copro(mm);
+	/*
+	 * For user contexts, register a copro so that TLBIs are seen
+	 * by the nest MMU. If we have a kernel context, TLBIs are
+	 * already global.
+	 */
+	if (mm)
+		mm_context_add_copro(mm);
 	/*
 	 * Barrier is to make sure PE is visible in the SPA before it
 	 * is used by the device. It also helps with the global TLBI
@@ -546,7 +563,8 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 	 * have a reference on mm_users. Incrementing mm_count solves
 	 * the problem.
 	 */
-	mmgrab(mm);
+	if (mm)
+		mmgrab(mm);
 	trace_ocxl_context_add(current->pid, spa->spa_mem, pasid, pidr, tidr);
 unlock:
 	mutex_unlock(&spa->spa_lock);
@@ -652,8 +670,10 @@ int ocxl_link_remove_pe(void *link_handle, int pasid)
 	if (!pe_data) {
 		WARN(1, "Couldn't find pe data when removing PE\n");
 	} else {
-		mm_context_remove_copro(pe_data->mm);
-		mmdrop(pe_data->mm);
+		if (pe_data->mm) {
+			mm_context_remove_copro(pe_data->mm);
+			mmdrop(pe_data->mm);
+		}
 		kfree_rcu(pe_data, rcu);
 	}
 unlock:

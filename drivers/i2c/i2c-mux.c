@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 
 /* multiplexer per channel data */
 struct i2c_mux_priv {
@@ -243,8 +244,7 @@ struct i2c_mux_core *i2c_mux_alloc(struct i2c_adapter *parent,
 {
 	struct i2c_mux_core *muxc;
 
-	muxc = devm_kzalloc(dev, sizeof(*muxc)
-			    + max_adapters * sizeof(muxc->adapter[0])
+	muxc = devm_kzalloc(dev, struct_size(muxc, adapter, max_adapters)
 			    + sizeof_priv, GFP_KERNEL);
 	if (!muxc)
 		return NULL;

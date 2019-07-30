@@ -476,4 +476,11 @@ static inline void __sync_cache_range_r(volatile void *p, size_t size)
 void flush_uprobe_xol_access(struct page *page, unsigned long uaddr,
 			     void *kaddr, unsigned long len);
 
+
+#ifdef CONFIG_CPU_ICACHE_MISMATCH_WORKAROUND
+void check_cpu_icache_size(int cpuid);
+#else
+static inline void check_cpu_icache_size(int cpuid) { }
+#endif
+
 #endif

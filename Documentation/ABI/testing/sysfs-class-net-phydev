@@ -41,3 +41,11 @@ Description:
 		xgmii, moca, qsgmii, trgmii, 1000base-x, 2500base-x, rxaui,
 		xaui, 10gbase-kr, unknown
 
+What:		/sys/class/mdio_bus/<bus>/<device>/phy_standalone
+Date:		May 2019
+KernelVersion:	5.3
+Contact:	netdev@vger.kernel.org
+Description:
+		Boolean value indicating whether the PHY device is used in
+		standalone mode, without a net_device associated, by PHYLINK.
+		Attribute created only when this is the case.

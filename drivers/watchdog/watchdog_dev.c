@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	watchdog_dev.c
  *
@@ -19,11 +20,6 @@
  *	  Rusty Lynch <rusty@linux.co.intel.com>
  *	  Satyam Sharma <satyam@infradead.org>
  *	  Randy Dunlap <randy.dunlap@oracle.com>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	Neither Alan Cox, CymruNet Ltd., Wim Van Sebroeck nor Iguana vzw.
  *	admit liability nor provide warranty for any of this software.
@@ -69,6 +65,7 @@ struct watchdog_core_data {
 	struct mutex lock;
 	ktime_t last_keepalive;
 	ktime_t last_hw_keepalive;
+	ktime_t open_deadline;
 	struct hrtimer timer;
 	struct kthread_work work;
 	unsigned long status;		/* Internal status bits */
@@ -86,6 +83,19 @@ static struct kthread_worker *watchdog_kworker;
 
 static bool handle_boot_enabled =
 	IS_ENABLED(CONFIG_WATCHDOG_HANDLE_BOOT_ENABLED);
+
+static unsigned open_timeout = CONFIG_WATCHDOG_OPEN_TIMEOUT;
+
+static bool watchdog_past_open_deadline(struct watchdog_core_data *data)
+{
+	return ktime_after(ktime_get(), data->open_deadline);
+}
+
+static void watchdog_set_open_deadline(struct watchdog_core_data *data)
+{
+	data->open_deadline = open_timeout ?
+		ktime_get() + ktime_set(open_timeout, 0) : KTIME_MAX;
+}
 
 static inline bool watchdog_need_worker(struct watchdog_device *wdd)
 {
@@ -119,13 +129,14 @@ static ktime_t watchdog_next_keepalive(struct watchdog_device *wdd)
 	ktime_t virt_timeout;
 	unsigned int hw_heartbeat_ms;
 
-	virt_timeout = ktime_add(wd_data->last_keepalive,
-				 ms_to_ktime(timeout_ms));
+	if (watchdog_active(wdd))
+		virt_timeout = ktime_add(wd_data->last_keepalive,
+					 ms_to_ktime(timeout_ms));
+	else
+		virt_timeout = wd_data->open_deadline;
+
 	hw_heartbeat_ms = min_not_zero(timeout_ms, wdd->max_hw_heartbeat_ms);
 	keepalive_interval = ms_to_ktime(hw_heartbeat_ms / 2);
-
-	if (!watchdog_active(wdd))
-		return keepalive_interval;
 
 	/*
 	 * To ensure that the watchdog times out wdd->timeout seconds
@@ -211,7 +222,13 @@ static bool watchdog_worker_should_ping(struct watchdog_core_data *wd_data)
 {
 	struct watchdog_device *wdd = wd_data->wdd;
 
-	return wdd && (watchdog_active(wdd) || watchdog_hw_running(wdd));
+	if (!wdd)
+		return false;
+
+	if (watchdog_active(wdd))
+		return true;
+
+	return watchdog_hw_running(wdd) && !watchdog_past_open_deadline(wd_data);
 }
 
 static void watchdog_ping_work(struct kthread_work *work)
@@ -824,6 +841,15 @@ static int watchdog_open(struct inode *inode, struct file *file)
 	if (!hw_running)
 		kref_get(&wd_data->kref);
 
+	/*
+	 * open_timeout only applies for the first open from
+	 * userspace. Set open_deadline to infinity so that the kernel
+	 * will take care of an always-running hardware watchdog in
+	 * case the device gets magic-closed or WDIOS_DISABLECARD is
+	 * applied.
+	 */
+	wd_data->open_deadline = KTIME_MAX;
+
 	/* dev/watchdog is a virtual (and thus non-seekable) filesystem */
 	return stream_open(inode, file);
 
@@ -983,6 +1009,7 @@ static int watchdog_cdev_register(struct watchdog_device *wdd, dev_t devno)
 
 	/* Record time of most recent heartbeat as 'just before now'. */
 	wd_data->last_hw_keepalive = ktime_sub(ktime_get(), 1);
+	watchdog_set_open_deadline(wd_data);
 
 	/*
 	 * If the watchdog is running, prevent its driver from being unloaded,
@@ -1181,3 +1208,8 @@ module_param(handle_boot_enabled, bool, 0444);
 MODULE_PARM_DESC(handle_boot_enabled,
 	"Watchdog core auto-updates boot enabled watchdogs before userspace takes over (default="
 	__MODULE_STRING(IS_ENABLED(CONFIG_WATCHDOG_HANDLE_BOOT_ENABLED)) ")");
+
+module_param(open_timeout, uint, 0644);
+MODULE_PARM_DESC(open_timeout,
+	"Maximum time (in seconds, 0 means infinity) for userspace to take over a running watchdog (default="
+	__MODULE_STRING(CONFIG_WATCHDOG_OPEN_TIMEOUT) ")");

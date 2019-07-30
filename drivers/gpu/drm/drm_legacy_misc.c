@@ -33,7 +33,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_print.h>
+
 #include "drm_internal.h"
 #include "drm_legacy.h"
 
@@ -49,6 +54,26 @@ void drm_legacy_init_members(struct drm_device *dev)
 void drm_legacy_destroy_members(struct drm_device *dev)
 {
 	mutex_destroy(&dev->ctxlist_mutex);
+}
+
+int drm_legacy_setup(struct drm_device * dev)
+{
+	int ret;
+
+	if (dev->driver->firstopen &&
+	    drm_core_check_feature(dev, DRIVER_LEGACY)) {
+		ret = dev->driver->firstopen(dev);
+		if (ret != 0)
+			return ret;
+	}
+
+	ret = drm_legacy_dma_setup(dev);
+	if (ret < 0)
+		return ret;
+
+
+	DRM_DEBUG("\n");
+	return 0;
 }
 
 void drm_legacy_dev_reinit(struct drm_device *dev)

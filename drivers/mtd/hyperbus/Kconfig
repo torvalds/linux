@@ -1,0 +1,23 @@
+menuconfig MTD_HYPERBUS
+	tristate "HyperBus support"
+	select MTD_CFI
+	select MTD_MAP_BANK_WIDTH_2
+	select MTD_CFI_AMDSTD
+	select MTD_COMPLEX_MAPPINGS
+	help
+	  This is the framework for the HyperBus which can be used by
+	  the HyperBus Controller driver to communicate with
+	  HyperFlash. See Cypress HyperBus specification for more
+	  details
+
+if MTD_HYPERBUS
+
+config HBMC_AM654
+	tristate "HyperBus controller driver for AM65x SoC"
+	select MULTIPLEXER
+	select MUX_MMIO
+	help
+	 This is the driver for HyperBus controller on TI's AM65x and
+	 other SoCs
+
+endif # MTD_HYPERBUS

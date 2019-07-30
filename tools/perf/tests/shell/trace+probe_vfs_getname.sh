@@ -7,6 +7,7 @@
 # that already handles "probe:vfs_getname" if present, and used in the
 # "open" syscall "filename" argument beautifier.
 
+# SPDX-License-Identifier: GPL-2.0
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
 . $(dirname $0)/lib/probe.sh

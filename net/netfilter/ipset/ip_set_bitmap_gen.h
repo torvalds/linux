@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (C) 2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
- */
+/* Copyright (C) 2013 Jozsef Kadlecsik <kadlec@netfilter.org> */
 
 #ifndef __IP_SET_BITMAP_IP_GEN_H
 #define __IP_SET_BITMAP_IP_GEN_H

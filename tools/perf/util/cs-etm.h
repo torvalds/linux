@@ -9,6 +9,7 @@
 
 #include "util/event.h"
 #include "util/session.h"
+#include <linux/bits.h>
 
 /* Versionning header in case things need tro change in the future.  That way
  * decoding of old snapshot is still possible.
@@ -97,11 +98,71 @@ enum {
 	CS_ETMV4_EXC_END = 31,
 };
 
+enum cs_etm_sample_type {
+	CS_ETM_EMPTY,
+	CS_ETM_RANGE,
+	CS_ETM_DISCONTINUITY,
+	CS_ETM_EXCEPTION,
+	CS_ETM_EXCEPTION_RET,
+};
+
+enum cs_etm_isa {
+	CS_ETM_ISA_UNKNOWN,
+	CS_ETM_ISA_A64,
+	CS_ETM_ISA_A32,
+	CS_ETM_ISA_T32,
+};
+
 /* RB tree for quick conversion between traceID and metadata pointers */
 struct intlist *traceid_list;
 
+struct cs_etm_queue;
+
+struct cs_etm_packet {
+	enum cs_etm_sample_type sample_type;
+	enum cs_etm_isa isa;
+	u64 start_addr;
+	u64 end_addr;
+	u32 instr_count;
+	u32 last_instr_type;
+	u32 last_instr_subtype;
+	u32 flags;
+	u32 exception_number;
+	u8 last_instr_cond;
+	u8 last_instr_taken_branch;
+	u8 last_instr_size;
+	u8 trace_chan_id;
+	int cpu;
+};
+
+#define CS_ETM_PACKET_MAX_BUFFER 1024
+
+/*
+ * When working with per-thread scenarios the process under trace can
+ * be scheduled on any CPU and as such, more than one traceID may be
+ * associated with the same process.  Since a traceID of '0' is illegal
+ * as per the CoreSight architecture, use that specific value to
+ * identify the queue where all packets (with any traceID) are
+ * aggregated.
+ */
+#define CS_ETM_PER_THREAD_TRACEID 0
+
+struct cs_etm_packet_queue {
+	u32 packet_count;
+	u32 head;
+	u32 tail;
+	u32 instr_count;
+	u64 timestamp;
+	u64 next_timestamp;
+	struct cs_etm_packet packet_buffer[CS_ETM_PACKET_MAX_BUFFER];
+};
+
 #define KiB(x) ((x) * 1024)
 #define MiB(x) ((x) * 1024 * 1024)
+
+#define CS_ETM_INVAL_ADDR 0xdeadbeefdeadbeefUL
+
+#define BMVAL(val, lsb, msb)	((val & GENMASK(msb, lsb)) >> lsb)
 
 #define CS_ETM_HEADER_SIZE (CS_HEADER_VERSION_0_MAX * sizeof(u64))
 
@@ -114,6 +175,13 @@ struct intlist *traceid_list;
 int cs_etm__process_auxtrace_info(union perf_event *event,
 				  struct perf_session *session);
 int cs_etm__get_cpu(u8 trace_chan_id, int *cpu);
+int cs_etm__etmq_set_tid(struct cs_etm_queue *etmq,
+			 pid_t tid, u8 trace_chan_id);
+bool cs_etm__etmq_is_timeless(struct cs_etm_queue *etmq);
+void cs_etm__etmq_set_traceid_queue_timestamp(struct cs_etm_queue *etmq,
+					      u8 trace_chan_id);
+struct cs_etm_packet_queue
+*cs_etm__etmq_get_packet_queue(struct cs_etm_queue *etmq, u8 trace_chan_id);
 #else
 static inline int
 cs_etm__process_auxtrace_info(union perf_event *event __maybe_unused,
@@ -126,6 +194,32 @@ static inline int cs_etm__get_cpu(u8 trace_chan_id __maybe_unused,
 				  int *cpu __maybe_unused)
 {
 	return -1;
+}
+
+static inline int cs_etm__etmq_set_tid(
+				struct cs_etm_queue *etmq __maybe_unused,
+				pid_t tid __maybe_unused,
+				u8 trace_chan_id __maybe_unused)
+{
+	return -1;
+}
+
+static inline bool cs_etm__etmq_is_timeless(
+				struct cs_etm_queue *etmq __maybe_unused)
+{
+	/* What else to return? */
+	return true;
+}
+
+static inline void cs_etm__etmq_set_traceid_queue_timestamp(
+				struct cs_etm_queue *etmq __maybe_unused,
+				u8 trace_chan_id __maybe_unused) {}
+
+static inline struct cs_etm_packet_queue *cs_etm__etmq_get_packet_queue(
+				struct cs_etm_queue *etmq __maybe_unused,
+				u8 trace_chan_id __maybe_unused)
+{
+	return NULL;
 }
 #endif
 

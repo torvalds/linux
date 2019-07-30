@@ -61,6 +61,6 @@ examples:
         compatible = "avia,hx711";
         sck-gpios = <&gpio3 10 GPIO_ACTIVE_HIGH>;
         dout-gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
-        avdd-suppy = <&avdd>;
+        avdd-supply = <&avdd>;
         clock-frequency = <100000>;
     };

@@ -12,6 +12,9 @@
 
 #include <linux/pm_runtime.h>
 
+struct drm_encoder;
+struct drm_mode_set;
+
 struct gma_clock_t {
 	/* given values */
 	int n;

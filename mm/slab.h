@@ -172,6 +172,7 @@ int __kmem_cache_shutdown(struct kmem_cache *);
 void __kmem_cache_release(struct kmem_cache *);
 int __kmem_cache_shrink(struct kmem_cache *);
 void __kmemcg_cache_deactivate(struct kmem_cache *s);
+void __kmemcg_cache_deactivate_after_rcu(struct kmem_cache *s);
 void slab_kmem_cache_release(struct kmem_cache *);
 
 struct seq_file;
@@ -203,6 +204,12 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
  */
 void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
 int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
+
+static inline int cache_vmstat_idx(struct kmem_cache *s)
+{
+	return (s->flags & SLAB_RECLAIM_ACCOUNT) ?
+		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE;
+}
 
 #ifdef CONFIG_MEMCG_KMEM
 
@@ -241,31 +248,6 @@ static inline const char *cache_name(struct kmem_cache *s)
 	return s->name;
 }
 
-/*
- * Note, we protect with RCU only the memcg_caches array, not per-memcg caches.
- * That said the caller must assure the memcg's cache won't go away by either
- * taking a css reference to the owner cgroup, or holding the slab_mutex.
- */
-static inline struct kmem_cache *
-cache_from_memcg_idx(struct kmem_cache *s, int idx)
-{
-	struct kmem_cache *cachep;
-	struct memcg_cache_array *arr;
-
-	rcu_read_lock();
-	arr = rcu_dereference(s->memcg_params.memcg_caches);
-
-	/*
-	 * Make sure we will access the up-to-date value. The code updating
-	 * memcg_caches issues a write barrier to match this (see
-	 * memcg_create_kmem_cache()).
-	 */
-	cachep = READ_ONCE(arr->entries[idx]);
-	rcu_read_unlock();
-
-	return cachep;
-}
-
 static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
 {
 	if (is_root_cache(s))
@@ -273,25 +255,94 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
 	return s->memcg_params.root_cache;
 }
 
+/*
+ * Expects a pointer to a slab page. Please note, that PageSlab() check
+ * isn't sufficient, as it returns true also for tail compound slab pages,
+ * which do not have slab_cache pointer set.
+ * So this function assumes that the page can pass PageHead() and PageSlab()
+ * checks.
+ *
+ * The kmem_cache can be reparented asynchronously. The caller must ensure
+ * the memcg lifetime, e.g. by taking rcu_read_lock() or cgroup_mutex.
+ */
+static inline struct mem_cgroup *memcg_from_slab_page(struct page *page)
+{
+	struct kmem_cache *s;
+
+	s = READ_ONCE(page->slab_cache);
+	if (s && !is_root_cache(s))
+		return READ_ONCE(s->memcg_params.memcg);
+
+	return NULL;
+}
+
+/*
+ * Charge the slab page belonging to the non-root kmem_cache.
+ * Can be called for non-root kmem_caches only.
+ */
 static __always_inline int memcg_charge_slab(struct page *page,
 					     gfp_t gfp, int order,
 					     struct kmem_cache *s)
 {
-	if (is_root_cache(s))
+	struct mem_cgroup *memcg;
+	struct lruvec *lruvec;
+	int ret;
+
+	rcu_read_lock();
+	memcg = READ_ONCE(s->memcg_params.memcg);
+	while (memcg && !css_tryget_online(&memcg->css))
+		memcg = parent_mem_cgroup(memcg);
+	rcu_read_unlock();
+
+	if (unlikely(!memcg || mem_cgroup_is_root(memcg))) {
+		mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+				    (1 << order));
+		percpu_ref_get_many(&s->memcg_params.refcnt, 1 << order);
 		return 0;
-	return memcg_kmem_charge_memcg(page, gfp, order, s->memcg_params.memcg);
+	}
+
+	ret = memcg_kmem_charge_memcg(page, gfp, order, memcg);
+	if (ret)
+		goto out;
+
+	lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
+	mod_lruvec_state(lruvec, cache_vmstat_idx(s), 1 << order);
+
+	/* transer try_charge() page references to kmem_cache */
+	percpu_ref_get_many(&s->memcg_params.refcnt, 1 << order);
+	css_put_many(&memcg->css, 1 << order);
+out:
+	css_put(&memcg->css);
+	return ret;
 }
 
+/*
+ * Uncharge a slab page belonging to a non-root kmem_cache.
+ * Can be called for non-root kmem_caches only.
+ */
 static __always_inline void memcg_uncharge_slab(struct page *page, int order,
 						struct kmem_cache *s)
 {
-	memcg_kmem_uncharge(page, order);
+	struct mem_cgroup *memcg;
+	struct lruvec *lruvec;
+
+	rcu_read_lock();
+	memcg = READ_ONCE(s->memcg_params.memcg);
+	if (likely(!mem_cgroup_is_root(memcg))) {
+		lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
+		mod_lruvec_state(lruvec, cache_vmstat_idx(s), -(1 << order));
+		memcg_kmem_uncharge_memcg(page, order, memcg);
+	} else {
+		mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+				    -(1 << order));
+	}
+	rcu_read_unlock();
+
+	percpu_ref_put_many(&s->memcg_params.refcnt, 1 << order);
 }
 
 extern void slab_init_memcg_params(struct kmem_cache *);
-extern void memcg_link_cache(struct kmem_cache *s);
-extern void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
-				void (*deact_fn)(struct kmem_cache *));
+extern void memcg_link_cache(struct kmem_cache *s, struct mem_cgroup *memcg);
 
 #else /* CONFIG_MEMCG_KMEM */
 
@@ -310,7 +361,7 @@ static inline bool is_root_cache(struct kmem_cache *s)
 static inline bool slab_equal_or_root(struct kmem_cache *s,
 				      struct kmem_cache *p)
 {
-	return true;
+	return s == p;
 }
 
 static inline const char *cache_name(struct kmem_cache *s)
@@ -318,15 +369,14 @@ static inline const char *cache_name(struct kmem_cache *s)
 	return s->name;
 }
 
-static inline struct kmem_cache *
-cache_from_memcg_idx(struct kmem_cache *s, int idx)
-{
-	return NULL;
-}
-
 static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
 {
 	return s;
+}
+
+static inline struct mem_cgroup *memcg_from_slab_page(struct page *page)
+{
+	return NULL;
 }
 
 static inline int memcg_charge_slab(struct page *page, gfp_t gfp, int order,
@@ -344,16 +394,52 @@ static inline void slab_init_memcg_params(struct kmem_cache *s)
 {
 }
 
-static inline void memcg_link_cache(struct kmem_cache *s)
+static inline void memcg_link_cache(struct kmem_cache *s,
+				    struct mem_cgroup *memcg)
 {
 }
 
 #endif /* CONFIG_MEMCG_KMEM */
 
+static inline struct kmem_cache *virt_to_cache(const void *obj)
+{
+	struct page *page;
+
+	page = virt_to_head_page(obj);
+	if (WARN_ONCE(!PageSlab(page), "%s: Object is not a Slab page!\n",
+					__func__))
+		return NULL;
+	return page->slab_cache;
+}
+
+static __always_inline int charge_slab_page(struct page *page,
+					    gfp_t gfp, int order,
+					    struct kmem_cache *s)
+{
+	if (is_root_cache(s)) {
+		mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+				    1 << order);
+		return 0;
+	}
+
+	return memcg_charge_slab(page, gfp, order, s);
+}
+
+static __always_inline void uncharge_slab_page(struct page *page, int order,
+					       struct kmem_cache *s)
+{
+	if (is_root_cache(s)) {
+		mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
+				    -(1 << order));
+		return;
+	}
+
+	memcg_uncharge_slab(page, order, s);
+}
+
 static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 {
 	struct kmem_cache *cachep;
-	struct page *page;
 
 	/*
 	 * When kmemcg is not being used, both assignments should return the
@@ -363,18 +449,15 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 	 * will also be a constant.
 	 */
 	if (!memcg_kmem_enabled() &&
+	    !IS_ENABLED(CONFIG_SLAB_FREELIST_HARDENED) &&
 	    !unlikely(s->flags & SLAB_CONSISTENCY_CHECKS))
 		return s;
 
-	page = virt_to_head_page(x);
-	cachep = page->slab_cache;
-	if (slab_equal_or_root(cachep, s))
-		return cachep;
-
-	pr_err("%s: Wrong slab cache. %s but object is from %s\n",
-	       __func__, s->name, cachep->name);
-	WARN_ON_ONCE(1);
-	return s;
+	cachep = virt_to_cache(x);
+	WARN_ONCE(cachep && !slab_equal_or_root(cachep, s),
+		  "%s: Wrong slab cache. %s but object is from %s\n",
+		  __func__, s->name, cachep->name);
+	return cachep;
 }
 
 static inline size_t slab_ksize(const struct kmem_cache *s)
@@ -523,5 +606,25 @@ static inline int cache_random_seq_create(struct kmem_cache *cachep,
 }
 static inline void cache_random_seq_destroy(struct kmem_cache *cachep) { }
 #endif /* CONFIG_SLAB_FREELIST_RANDOM */
+
+static inline bool slab_want_init_on_alloc(gfp_t flags, struct kmem_cache *c)
+{
+	if (static_branch_unlikely(&init_on_alloc)) {
+		if (c->ctor)
+			return false;
+		if (c->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_POISON))
+			return flags & __GFP_ZERO;
+		return true;
+	}
+	return flags & __GFP_ZERO;
+}
+
+static inline bool slab_want_init_on_free(struct kmem_cache *c)
+{
+	if (static_branch_unlikely(&init_on_free))
+		return !(c->ctor ||
+			 (c->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_POISON)));
+	return false;
+}
 
 #endif /* MM_SLAB_H */

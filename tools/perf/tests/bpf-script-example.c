@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * bpf-script-example.c
  * Test basic LLVM building

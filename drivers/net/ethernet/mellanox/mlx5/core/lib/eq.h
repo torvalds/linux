@@ -7,7 +7,6 @@
 #include <linux/mlx5/eq.h>
 #include <linux/mlx5/cq.h>
 
-#define MLX5_MAX_IRQ_NAME   (32)
 #define MLX5_EQE_SIZE       (sizeof(struct mlx5_eqe))
 
 struct mlx5_eq_tasklet {
@@ -36,8 +35,14 @@ struct mlx5_eq {
 	struct mlx5_rsc_debug   *dbg;
 };
 
+struct mlx5_eq_async {
+	struct mlx5_eq          core;
+	struct notifier_block   irq_nb;
+};
+
 struct mlx5_eq_comp {
-	struct mlx5_eq          core; /* Must be first */
+	struct mlx5_eq          core;
+	struct notifier_block   irq_nb;
 	struct mlx5_eq_tasklet  tasklet_ctx;
 	struct list_head        list;
 };
@@ -70,7 +75,7 @@ int mlx5_eq_table_create(struct mlx5_core_dev *dev);
 void mlx5_eq_table_destroy(struct mlx5_core_dev *dev);
 
 int mlx5_eq_add_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
-int mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
+void mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq);
 struct mlx5_eq_comp *mlx5_eqn2comp_eq(struct mlx5_core_dev *dev, int eqn);
 struct mlx5_eq *mlx5_get_async_eq(struct mlx5_core_dev *dev);
 void mlx5_cq_tasklet_cb(unsigned long data);
@@ -91,8 +96,5 @@ void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev);
 #ifdef CONFIG_RFS_ACCEL
 struct cpu_rmap *mlx5_eq_table_get_rmap(struct mlx5_core_dev *dev);
 #endif
-
-int mlx5_eq_notifier_register(struct mlx5_core_dev *dev, struct mlx5_nb *nb);
-int mlx5_eq_notifier_unregister(struct mlx5_core_dev *dev, struct mlx5_nb *nb);
 
 #endif

@@ -1176,8 +1176,8 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			rawir.pulse = ((ir->buf_in[i] & MCE_PULSE_BIT) != 0);
 			rawir.duration = (ir->buf_in[i] & MCE_PULSE_MASK);
 			if (unlikely(!rawir.duration)) {
-				dev_warn(ir->dev, "nonsensical irdata %02x with duration 0",
-					 ir->buf_in[i]);
+				dev_dbg(ir->dev, "nonsensical irdata %02x with duration 0",
+					ir->buf_in[i]);
 				break;
 			}
 			if (rawir.pulse) {

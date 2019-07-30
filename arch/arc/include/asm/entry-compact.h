@@ -195,8 +195,8 @@
 	PUSHAX  CTOP_AUX_EFLAGS
 #endif
 
-	lr	r9, [ecr]
-	st      r9, [sp, PT_event]    /* EV_Trap expects r9 to have ECR */
+	lr	r10, [ecr]
+	st      r10, [sp, PT_event]    /* EV_Trap expects r10 to have ECR */
 .endm
 
 /*--------------------------------------------------------------

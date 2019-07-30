@@ -312,12 +312,12 @@ extern int nfs4_set_rw_stateid(nfs4_stateid *stateid,
 		const struct nfs_lock_context *l_ctx,
 		fmode_t fmode);
 
+extern int nfs4_proc_get_lease_time(struct nfs_client *clp,
+		struct nfs_fsinfo *fsinfo);
 #if defined(CONFIG_NFS_V4_1)
 extern int nfs41_sequence_done(struct rpc_task *, struct nfs4_sequence_res *);
 extern int nfs4_proc_create_session(struct nfs_client *, const struct cred *);
 extern int nfs4_proc_destroy_session(struct nfs4_session *, const struct cred *);
-extern int nfs4_proc_get_lease_time(struct nfs_client *clp,
-		struct nfs_fsinfo *fsinfo);
 extern int nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data,
 				  bool sync);
 extern int nfs4_detect_session_trunking(struct nfs_client *clp,

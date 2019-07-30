@@ -217,13 +217,12 @@ static acpi_status acpi_gpiochip_alloc_event(struct acpi_resource *ares,
 	if (!handler)
 		return AE_OK;
 
-	desc = gpiochip_request_own_desc(chip, pin, "ACPI:Event", 0);
+	desc = gpiochip_request_own_desc(chip, pin, "ACPI:Event",
+					 GPIO_ACTIVE_HIGH, GPIOD_IN);
 	if (IS_ERR(desc)) {
 		dev_err(chip->parent, "Failed to request GPIO\n");
 		return AE_ERROR;
 	}
-
-	gpiod_direction_input(desc);
 
 	ret = gpiochip_lock_as_irq(chip, pin);
 	if (ret) {
@@ -951,6 +950,7 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 			const char *label = "ACPI:OpRegion";
 
 			desc = gpiochip_request_own_desc(chip, pin, label,
+							 GPIO_ACTIVE_HIGH,
 							 flags);
 			if (IS_ERR(desc)) {
 				status = AE_ERROR;

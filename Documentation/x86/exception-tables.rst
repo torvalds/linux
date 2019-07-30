@@ -35,7 +35,7 @@ page fault handler::
   void do_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 in arch/x86/mm/fault.c. The parameters on the stack are set up by
-the low level assembly glue in arch/x86/kernel/entry_32.S. The parameter
+the low level assembly glue in arch/x86/entry/entry_32.S. The parameter
 regs is a pointer to the saved registers on the stack, error_code
 contains a reason code for the exception.
 

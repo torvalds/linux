@@ -789,7 +789,7 @@ static void nsp_pio_read(struct scsi_cmnd *SCpnt)
 		    SCpnt->SCp.buffers_residual != 0 ) {
 			//nsp_dbg(NSP_DEBUG_DATA_IO, "scatterlist next timeout=%d", time_out);
 			SCpnt->SCp.buffers_residual--;
-			SCpnt->SCp.buffer++;
+			SCpnt->SCp.buffer = sg_next(SCpnt->SCp.buffer);
 			SCpnt->SCp.ptr		 = BUFFER_ADDR;
 			SCpnt->SCp.this_residual = SCpnt->SCp.buffer->length;
 			time_out = 1000;
@@ -887,7 +887,7 @@ static void nsp_pio_write(struct scsi_cmnd *SCpnt)
 		    SCpnt->SCp.buffers_residual != 0 ) {
 			//nsp_dbg(NSP_DEBUG_DATA_IO, "scatterlist next");
 			SCpnt->SCp.buffers_residual--;
-			SCpnt->SCp.buffer++;
+			SCpnt->SCp.buffer = sg_next(SCpnt->SCp.buffer);
 			SCpnt->SCp.ptr		 = BUFFER_ADDR;
 			SCpnt->SCp.this_residual = SCpnt->SCp.buffer->length;
 			time_out = 1000;

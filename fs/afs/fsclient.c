@@ -1911,7 +1911,7 @@ struct afs_call *afs_fs_get_capabilities(struct afs_net *net,
 		return ERR_PTR(-ENOMEM);
 
 	call->key = key;
-	call->server = afs_get_server(server);
+	call->server = afs_get_server(server, afs_server_trace_get_caps);
 	call->server_index = server_index;
 	call->upgrade = true;
 	call->async = true;

@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/chemical/sensirion,sps30.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sensirion SPS30 particulate matter sensor
+
+maintainers:
+  - Tomasz Duszynski <tduszyns@gmail.com>
+
+description: |
+  Air pollution sensor capable of measuring mass concentration of dust
+  particles.
+
+properties:
+  compatible:
+    enum:
+      - sensirion,sps30
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      air-pollution-sensor@69 {
+        compatible = "sensirion,sps30";
+        reg = <0x69>;
+      };
+    };
+
+...

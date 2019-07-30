@@ -1,13 +1,10 @@
-/*
- * rt1308.c  --  RT1308 ALSA SoC amplifier component driver
- *
- * Copyright 2019 Realtek Semiconductor Corp.
- * Author: Derek Fang <derek.fang@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// rt1308.c  --  RT1308 ALSA SoC amplifier component driver
+//
+// Copyright 2019 Realtek Semiconductor Corp.
+// Author: Derek Fang <derek.fang@realtek.com>
+//
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -40,10 +37,10 @@ static const struct reg_sequence init_list[] = {
 	{ RT1308_VREF,			0x18100000 },
 	{ RT1308_IV_SENSE,		0x87010000 },
 	{ RT1308_DUMMY_REG,		0x00000200 },
-	{ RT1308_SIL_DET,		0x61c30000 },
+	{ RT1308_SIL_DET,		0xe1c30000 },
 	{ RT1308_DC_CAL_2,		0x00ffff00 },
 	{ RT1308_CLK_DET,		0x01000000 },
-	{ RT1308_POWER_STATUS,		0x00800000 },
+	{ RT1308_POWER_STATUS,		0x08800000 },
 	{ RT1308_DAC_SET,		0xafaf0700 },
 
 };
@@ -308,12 +305,13 @@ static int rt1308_classd_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		msleep(30);
 		snd_soc_component_update_bits(component, RT1308_POWER_STATUS,
-			RT1308_POW_PDB_REG_BIT, RT1308_POW_PDB_REG_BIT);
+			RT1308_POW_PDB_REG_BIT | RT1308_POW_PDB_MN_BIT,
+			RT1308_POW_PDB_REG_BIT | RT1308_POW_PDB_MN_BIT);
 		msleep(40);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_component_update_bits(component, RT1308_POWER_STATUS,
-			RT1308_POW_PDB_REG_BIT, 0);
+			RT1308_POW_PDB_REG_BIT | RT1308_POW_PDB_MN_BIT, 0);
 		usleep_range(150000, 200000);
 		break;
 
@@ -808,33 +806,11 @@ static void rt1308_efuse(struct rt1308_priv *rt1308)
 {
 	regmap_write(rt1308->regmap, RT1308_RESET, 0);
 
-	regmap_write(rt1308->regmap, RT1308_POWER, 0xff371600);
-	regmap_write(rt1308->regmap, RT1308_CLK_1, 0x52100000);
-	regmap_write(rt1308->regmap, RT1308_I2C_I2S_SDW_SET, 0x01014005);
-	regmap_write(rt1308->regmap, RT1308_CLASS_D_SET_2, 0x227f5501);
-	regmap_write(rt1308->regmap, RT1308_PADS_1, 0x50150505);
-	regmap_write(rt1308->regmap, RT1308_VREF, 0x18100000);
-	regmap_write(rt1308->regmap, RT1308_IV_SENSE, 0x87010000);
-	regmap_write(rt1308->regmap, RT1308_DUMMY_REG, 0x00000200);
-	regmap_write(rt1308->regmap, RT1308_SIL_DET, 0x61c30000);
-	regmap_write(rt1308->regmap, RT1308_CLK_DET, 0x03700000);
-	regmap_write(rt1308->regmap, RT1308_SINE_TONE_GEN_1, 0x50022f00);
 	regmap_write(rt1308->regmap, RT1308_POWER_STATUS, 0x01800000);
-	regmap_write(rt1308->regmap, RT1308_DC_CAL_2, 0x00ffff00);
-	regmap_write(rt1308->regmap, RT1308_CLASS_D_SET_2, 0x607e5501);
-
-	regmap_write(rt1308->regmap, RT1308_CLK_2, 0x0060e000);
-	regmap_write(rt1308->regmap, RT1308_EFUSE_1, 0x04fe0f00);
 	msleep(100);
 	regmap_write(rt1308->regmap, RT1308_EFUSE_1, 0x44fe0f00);
 	msleep(20);
 	regmap_write(rt1308->regmap, RT1308_PVDD_OFFSET_CTL, 0x10000000);
-
-	regmap_write(rt1308->regmap, RT1308_POWER_STATUS, 0x00800000);
-	regmap_write(rt1308->regmap, RT1308_POWER, 0x0);
-	regmap_write(rt1308->regmap, RT1308_CLK_1, 0x52000000);
-	regmap_write(rt1308->regmap, RT1308_CLASS_D_SET_2, 0x227f5501);
-	regmap_write(rt1308->regmap, RT1308_SINE_TONE_GEN_1, 0x10022f00);
 }
 
 static int rt1308_i2c_probe(struct i2c_client *i2c,

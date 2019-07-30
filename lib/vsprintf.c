@@ -599,7 +599,7 @@ static char *string_nocheck(char *buf, char *end, const char *s,
 			    struct printf_spec spec)
 {
 	int len = 0;
-	size_t lim = spec.precision;
+	int lim = spec.precision;
 
 	while (lim--) {
 		char c = *s++;
@@ -1799,7 +1799,7 @@ char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
 #ifdef CONFIG_COMMON_CLK
 		return string(buf, end, __clk_get_name(clk), spec);
 #else
-		return error_string(buf, end, "(%pC?)", spec);
+		return ptr_to_id(buf, end, clk, spec);
 #endif
 	}
 }

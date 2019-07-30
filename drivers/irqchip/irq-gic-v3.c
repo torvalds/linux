@@ -461,7 +461,11 @@ static void gic_deactivate_unhandled(u32 irqnr)
 
 static inline void gic_handle_nmi(u32 irqnr, struct pt_regs *regs)
 {
+	bool irqs_enabled = interrupts_enabled(regs);
 	int err;
+
+	if (irqs_enabled)
+		nmi_enter();
 
 	if (static_branch_likely(&supports_deactivate_key))
 		gic_write_eoir(irqnr);
@@ -474,6 +478,9 @@ static inline void gic_handle_nmi(u32 irqnr, struct pt_regs *regs)
 	err = handle_domain_nmi(gic_data.domain, irqnr, regs);
 	if (err)
 		gic_deactivate_unhandled(irqnr);
+
+	if (irqs_enabled)
+		nmi_exit();
 }
 
 static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
@@ -1332,6 +1339,9 @@ static int __init gic_init_bases(void __iomem *dist_base,
 	if (gic_dist_supports_lpis()) {
 		its_init(handle, &gic_data.rdists, gic_data.domain);
 		its_cpu_init();
+	} else {
+		if (IS_ENABLED(CONFIG_ARM_GIC_V2M))
+			gicv2m_init(handle, gic_data.domain);
 	}
 
 	if (gic_prio_masking_enabled()) {

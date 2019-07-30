@@ -33,7 +33,7 @@ extern void InitSysInterrupt8723BSdio(struct adapter *padapter);
 extern void EnableInterrupt8723BSdio(struct adapter *padapter);
 extern void DisableInterrupt8723BSdio(struct adapter *padapter);
 extern u8 HalQueryTxBufferStatus8723BSdio(struct adapter *padapter);
-extern u8 HalQueryTxOQTBufferStatus8723BSdio(struct adapter *padapter);
+extern void HalQueryTxOQTBufferStatus8723BSdio(struct adapter *padapter);
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
 extern void ClearInterrupt8723BSdio(struct adapter *padapter);
 #endif /* CONFIG_WOWLAN */

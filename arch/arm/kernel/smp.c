@@ -372,6 +372,7 @@ static void smp_store_cpu_info(unsigned int cpuid)
 	cpu_info->cpuid = read_cpuid_id();
 
 	store_cpu_topology(cpuid);
+	check_cpu_icache_size(cpuid);
 }
 
 /*

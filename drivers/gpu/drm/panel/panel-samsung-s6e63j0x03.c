@@ -8,13 +8,18 @@
  * Hoegeun Kwon <hoegeun.kwon@samsung.com>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/drm_panel.h>
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/regulator/consumer.h>
+
 #include <video/mipi_display.h>
+
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 
 #define MCS_LEVEL2_KEY		0xf0
 #define MCS_MTP_KEY		0xf1

@@ -171,7 +171,9 @@
 		ranges;
 
 		ethmac: ethernet@ff3f0000 {
-			compatible = "amlogic,meson-axg-dwmac", "snps,dwmac";
+			compatible = "amlogic,meson-axg-dwmac",
+				     "snps,dwmac-3.70a",
+				     "snps,dwmac";
 			reg = <0x0 0xff3f0000 0x0 0x10000
 			       0x0 0xff634540 0x0 0x8>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
@@ -299,7 +301,7 @@
 				};
 
 				emmc_pins: emmc {
-					mux {
+					mux-0 {
 						groups = "emmc_nand_d0",
 							 "emmc_nand_d1",
 							 "emmc_nand_d2",
@@ -308,11 +310,23 @@
 							 "emmc_nand_d5",
 							 "emmc_nand_d6",
 							 "emmc_nand_d7",
-							 "emmc_clk",
-							 "emmc_cmd",
-							 "emmc_ds";
+							 "emmc_cmd";
+						function = "emmc";
+						bias-pull-up;
+					};
+
+					mux-1 {
+						groups = "emmc_clk";
 						function = "emmc";
 						bias-disable;
+					};
+				};
+
+				emmc_ds_pins: emmc_ds {
+					mux {
+						groups = "emmc_ds";
+						function = "emmc";
+						bias-pull-down;
 					};
 				};
 
@@ -559,13 +573,18 @@
 				};
 
 				sdio_pins: sdio {
-					mux {
+					mux-0 {
 						groups = "sdio_d0",
 							 "sdio_d1",
 							 "sdio_d2",
 							 "sdio_d3",
-							 "sdio_cmd",
-							 "sdio_clk";
+							 "sdio_cmd";
+						function = "sdio";
+						bias-pull-up;
+					};
+
+					mux-1 {
+						groups = "sdio_clk";
 						function = "sdio";
 						bias-disable;
 					};

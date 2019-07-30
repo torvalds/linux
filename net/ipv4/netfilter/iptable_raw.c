@@ -2,7 +2,7 @@
 /*
  * 'raw' table, which is the very first hooked in at PRE_ROUTING and LOCAL_OUT .
  *
- * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@netfilter.org>
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>

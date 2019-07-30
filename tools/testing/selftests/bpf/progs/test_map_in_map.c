@@ -5,23 +5,23 @@
 #include <linux/types.h>
 #include "bpf_helpers.h"
 
-struct bpf_map_def SEC("maps") mim_array = {
-	.type = BPF_MAP_TYPE_ARRAY_OF_MAPS,
-	.key_size = sizeof(int),
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
+	__uint(max_entries, 1);
+	__uint(map_flags, 0);
+	__uint(key_size, sizeof(__u32));
 	/* must be sizeof(__u32) for map in map */
-	.value_size = sizeof(__u32),
-	.max_entries = 1,
-	.map_flags = 0,
-};
+	__uint(value_size, sizeof(__u32));
+} mim_array SEC(".maps");
 
-struct bpf_map_def SEC("maps") mim_hash = {
-	.type = BPF_MAP_TYPE_HASH_OF_MAPS,
-	.key_size = sizeof(int),
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+	__uint(max_entries, 1);
+	__uint(map_flags, 0);
+	__uint(key_size, sizeof(int));
 	/* must be sizeof(__u32) for map in map */
-	.value_size = sizeof(__u32),
-	.max_entries = 1,
-	.map_flags = 0,
-};
+	__uint(value_size, sizeof(__u32));
+} mim_hash SEC(".maps");
 
 SEC("xdp_mimtest")
 int xdp_mimtest0(struct xdp_md *ctx)

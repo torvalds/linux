@@ -10,9 +10,9 @@
 #include <linux/compiler.h>
 
 #ifdef HAVE_SYSCALL_TABLE_SUPPORT
+#include <linux/zalloc.h>
 #include <string.h>
 #include "string2.h"
-#include "util.h"
 
 #if defined(__x86_64__)
 #include <asm/syscalls_64.c>

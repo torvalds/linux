@@ -1,7 +1,7 @@
 /*
 	Hardware Random Number Generator
 
-	Please read Documentation/hw_random.txt for details on use.
+	Please read Documentation/admin-guide/hw_random.rst for details on use.
 
 	----------------------------------------------------------
 	This software may be used and distributed according to the terms

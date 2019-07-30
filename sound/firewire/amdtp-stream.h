@@ -33,6 +33,8 @@
  * @CIP_HEADER_WITHOUT_EOH: Only for in-stream. CIP Header doesn't include
  *	valid EOH.
  * @CIP_NO_HEADERS: a lack of headers in packets
+ * @CIP_UNALIGHED_DBC: Only for in-stream. The value of dbc is not alighed to
+ *	the value of current SYT_INTERVAL; e.g. initial value is not zero.
  */
 enum cip_flags {
 	CIP_NONBLOCKING		= 0x00,
@@ -45,6 +47,7 @@ enum cip_flags {
 	CIP_JUMBO_PAYLOAD	= 0x40,
 	CIP_HEADER_WITHOUT_EOH	= 0x80,
 	CIP_NO_HEADER		= 0x100,
+	CIP_UNALIGHED_DBC	= 0x200,
 };
 
 /**
@@ -91,12 +94,20 @@ enum amdtp_stream_direction {
 	AMDTP_IN_STREAM
 };
 
+struct pkt_desc {
+	u32 cycle;
+	u32 syt;
+	unsigned int data_blocks;
+	unsigned int data_block_counter;
+	__be32 *ctx_payload;
+};
+
 struct amdtp_stream;
-typedef unsigned int (*amdtp_stream_process_data_blocks_t)(
+typedef unsigned int (*amdtp_stream_process_ctx_payloads_t)(
 						struct amdtp_stream *s,
-						__be32 *buffer,
-						unsigned int data_blocks,
-						unsigned int *syt);
+						const struct pkt_desc *desc,
+						unsigned int packets,
+						struct snd_pcm_substream *pcm);
 struct amdtp_stream {
 	struct fw_unit *unit;
 	enum cip_flags flags;
@@ -107,6 +118,7 @@ struct amdtp_stream {
 	struct fw_iso_context *context;
 	struct iso_packets_buffer buffer;
 	int packet_index;
+	struct pkt_desc *pkt_descs;
 	int tag;
 	union {
 		struct {
@@ -119,8 +131,6 @@ struct amdtp_stream {
 			// Fixed interval of dbc between previos/current
 			// packets.
 			unsigned int dbc_interval;
-			// Indicate the value of dbc field in a first packet.
-			unsigned int first_dbc;
 		} tx;
 		struct {
 			// To calculate CIP data blocks and tstamp.
@@ -131,6 +141,7 @@ struct amdtp_stream {
 
 			// To generate CIP header.
 			unsigned int fdf;
+			int syt_override;
 		} rx;
 	} ctx_data;
 
@@ -158,13 +169,13 @@ struct amdtp_stream {
 
 	/* For backends to process data blocks. */
 	void *protocol;
-	amdtp_stream_process_data_blocks_t process_data_blocks;
+	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
 };
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 		      enum amdtp_stream_direction dir, enum cip_flags flags,
 		      unsigned int fmt,
-		      amdtp_stream_process_data_blocks_t process_data_blocks,
+		      amdtp_stream_process_ctx_payloads_t process_ctx_payloads,
 		      unsigned int protocol_size);
 void amdtp_stream_destroy(struct amdtp_stream *s);
 
