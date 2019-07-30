@@ -1746,6 +1746,8 @@ static bool icp_ddi_port_hotplug_long_detect(enum hpd_pin pin, u32 val)
 		return val & ICP_DDIA_HPD_LONG_DETECT;
 	case HPD_PORT_B:
 		return val & ICP_DDIB_HPD_LONG_DETECT;
+	case HPD_PORT_C:
+		return val & TGP_DDIC_HPD_LONG_DETECT;
 	default:
 		return false;
 	}
@@ -2605,9 +2607,17 @@ static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir,
 			    const u32 *pins)
 {
-	u32 ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
-	u32 tc_hotplug_trigger = pch_iir & SDE_TC_MASK_ICP;
+	u32 ddi_hotplug_trigger;
+	u32 tc_hotplug_trigger;
 	u32 pin_mask = 0, long_mask = 0;
+
+	if (HAS_PCH_MCC(dev_priv)) {
+		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_TGP;
+		tc_hotplug_trigger = 0;
+	} else {
+		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
+		tc_hotplug_trigger = pch_iir & SDE_TC_MASK_ICP;
+	}
 
 	if (ddi_hotplug_trigger) {
 		u32 dig_hotplug_reg;
@@ -3920,9 +3930,11 @@ static void icp_hpd_detection_setup(struct drm_i915_private *dev_priv,
 	hotplug |= ddi_hotplug_enable_mask;
 	I915_WRITE(SHOTPLUG_CTL_DDI, hotplug);
 
-	hotplug = I915_READ(SHOTPLUG_CTL_TC);
-	hotplug |= tc_hotplug_enable_mask;
-	I915_WRITE(SHOTPLUG_CTL_TC, hotplug);
+	if (tc_hotplug_enable_mask) {
+		hotplug = I915_READ(SHOTPLUG_CTL_TC);
+		hotplug |= tc_hotplug_enable_mask;
+		I915_WRITE(SHOTPLUG_CTL_TC, hotplug);
+	}
 }
 
 static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv)
@@ -3936,6 +3948,18 @@ static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv)
 
 	icp_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK,
 				ICP_TC_HPD_ENABLE_MASK);
+}
+
+static void mcc_hpd_irq_setup(struct drm_i915_private *dev_priv)
+{
+	u32 hotplug_irqs, enabled_irqs;
+
+	hotplug_irqs = SDE_DDI_MASK_TGP;
+	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, hpd_mcc);
+
+	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
+
+	icp_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK, 0);
 }
 
 static void tgp_hpd_irq_setup(struct drm_i915_private *dev_priv)
@@ -4442,6 +4466,8 @@ static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 	if (HAS_PCH_TGP(dev_priv))
 		icp_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK,
 					TGP_TC_HPD_ENABLE_MASK);
+	else if (HAS_PCH_MCC(dev_priv))
+		icp_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK, 0);
 	else
 		icp_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK,
 					ICP_TC_HPD_ENABLE_MASK);
@@ -4974,7 +5000,10 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		if (I915_HAS_HOTPLUG(dev_priv))
 			dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else {
-		if (INTEL_GEN(dev_priv) >= 11)
+		if (HAS_PCH_MCC(dev_priv))
+			/* EHL doesn't need most of gen11_hpd_irq_setup */
+			dev_priv->display.hpd_irq_setup = mcc_hpd_irq_setup;
+		else if (INTEL_GEN(dev_priv) >= 11)
 			dev_priv->display.hpd_irq_setup = gen11_hpd_irq_setup;
 		else if (IS_GEN9_LP(dev_priv))
 			dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
