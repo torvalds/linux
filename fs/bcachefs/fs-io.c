@@ -519,6 +519,7 @@ struct bch_page_sector {
 	/* i_sectors: */
 	enum {
 		SECTOR_UNALLOCATED,
+		SECTOR_RESERVED,
 		SECTOR_DIRTY,
 		SECTOR_ALLOCATED,
 	}			state:2;
@@ -763,10 +764,10 @@ static void bch2_set_page_dirty(struct bch_fs *c,
 		s->s[i].replicas_reserved += sectors;
 		res->disk.sectors -= sectors;
 
-		if (s->s[i].state == SECTOR_UNALLOCATED) {
-			s->s[i].state = SECTOR_DIRTY;
+		if (s->s[i].state == SECTOR_UNALLOCATED)
 			dirty_sectors++;
-		}
+
+		s->s[i].state = max_t(unsigned, s->s[i].state, SECTOR_DIRTY);
 	}
 
 	if (dirty_sectors)
@@ -934,6 +935,9 @@ static void bch2_add_page_sectors(struct bio *bio, struct bkey_s_c k)
 	struct bvec_iter iter;
 	struct bio_vec bv;
 	unsigned nr_ptrs = bch2_bkey_nr_ptrs_allocated(k);
+	unsigned state = k.k->type == KEY_TYPE_reservation
+		? SECTOR_RESERVED
+		: SECTOR_ALLOCATED;
 
 	BUG_ON(bio->bi_iter.bi_sector	< bkey_start_offset(k.k));
 	BUG_ON(bio_end_sector(bio)	> k.k->p.offset);
@@ -947,7 +951,7 @@ static void bch2_add_page_sectors(struct bio *bio, struct bkey_s_c k)
 		     i < (bv.bv_offset + bv.bv_len) >> 9;
 		     i++) {
 			s->s[i].nr_replicas = nr_ptrs;
-			s->s[i].state = SECTOR_ALLOCATED;
+			s->s[i].state = state;
 		}
 	}
 }
@@ -1342,7 +1346,7 @@ do_io:
 	orig = *s;
 
 	for (i = 0; i < PAGE_SECTORS; i++) {
-		if (s->s[i].state == SECTOR_UNALLOCATED)
+		if (s->s[i].state < SECTOR_DIRTY)
 			continue;
 
 		nr_replicas_this_write =
@@ -1352,7 +1356,7 @@ do_io:
 	}
 
 	for (i = 0; i < PAGE_SECTORS; i++) {
-		if (s->s[i].state == SECTOR_UNALLOCATED)
+		if (s->s[i].state < SECTOR_DIRTY)
 			continue;
 
 		s->s[i].nr_replicas = w->opts.compression
@@ -1376,7 +1380,7 @@ do_io:
 		u64 sector;
 
 		while (offset < PAGE_SECTORS &&
-		       orig.s[offset].state == SECTOR_UNALLOCATED)
+		       orig.s[offset].state < SECTOR_DIRTY)
 			offset++;
 
 		if (offset == PAGE_SECTORS)
@@ -1385,7 +1389,7 @@ do_io:
 		sector = ((u64) page->index << PAGE_SECTOR_SHIFT) + offset;
 
 		while (offset + sectors < PAGE_SECTORS &&
-		       orig.s[offset + sectors].state != SECTOR_UNALLOCATED)
+		       orig.s[offset + sectors].state >= SECTOR_DIRTY)
 			sectors++;
 
 		for (i = offset; i < offset + sectors; i++) {
