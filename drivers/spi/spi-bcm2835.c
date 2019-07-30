@@ -1015,7 +1015,6 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 
 	bs->irq = platform_get_irq(pdev, 0);
 	if (bs->irq <= 0) {
-		dev_err(&pdev->dev, "could not get IRQ: %d\n", bs->irq);
 		err = bs->irq ? bs->irq : -ENODEV;
 		goto out_controller_put;
 	}

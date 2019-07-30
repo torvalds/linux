@@ -156,10 +156,8 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	}
 
 	dws->irq = platform_get_irq(pdev, 0);
-	if (dws->irq < 0) {
-		dev_err(&pdev->dev, "no irq resource?\n");
+	if (dws->irq < 0)
 		return dws->irq; /* -ENXIO */
-	}
 
 	dwsmmio->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dwsmmio->clk))

@@ -1105,7 +1105,6 @@ static int dspi_probe(struct platform_device *pdev)
 	dspi_init(dspi);
 	dspi->irq = platform_get_irq(pdev, 0);
 	if (dspi->irq < 0) {
-		dev_err(&pdev->dev, "can't get platform irq\n");
 		ret = dspi->irq;
 		goto out_clk_put;
 	}

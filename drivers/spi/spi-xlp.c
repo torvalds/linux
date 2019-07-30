@@ -384,10 +384,8 @@ static int xlp_spi_probe(struct platform_device *pdev)
 		return PTR_ERR(xspi->base);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "no IRQ resource found: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 	err = devm_request_irq(&pdev->dev, irq, xlp_spi_interrupt, 0,
 			pdev->name, xspi);
 	if (err) {

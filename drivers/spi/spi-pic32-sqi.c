@@ -590,7 +590,6 @@ static int pic32_sqi_probe(struct platform_device *pdev)
 	/* irq */
 	sqi->irq = platform_get_irq(pdev, 0);
 	if (sqi->irq < 0) {
-		dev_err(&pdev->dev, "no irq found\n");
 		ret = sqi->irq;
 		goto err_free_master;
 	}
