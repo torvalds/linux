@@ -333,7 +333,7 @@ static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
 				card->osn_info.data_cb(skb);
 				break;
 			}
-			/* else unknown */
+			/* Else, fall through */
 		default:
 			dev_kfree_skb_any(skb);
 			QETH_CARD_TEXT(card, 3, "inbunkno");
