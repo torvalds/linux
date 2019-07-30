@@ -123,10 +123,11 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 
 	if (cpu_data->time_span_ns >= cpu_data->sleep_length_ns) {
 		/*
-		 * One of the safety nets has triggered or this was a timer
-		 * wakeup (or equivalent).
+		 * One of the safety nets has triggered or the wakeup was close
+		 * enough to the closest timer event expected at the idle state
+		 * selection time to be discarded.
 		 */
-		measured_us = sleep_length_us;
+		measured_us = UINT_MAX;
 	} else {
 		unsigned int lat;
 
@@ -187,15 +188,6 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		cpu_data->states[idx_timer].misses = misses;
 		cpu_data->states[idx_timer].hits = hits;
 	}
-
-	/*
-	 * If the total time span between idle state selection and the "reflect"
-	 * callback is greater than or equal to the sleep length determined at
-	 * the idle state selection time, the wakeup is likely to be due to a
-	 * timer event.
-	 */
-	if (cpu_data->time_span_ns >= cpu_data->sleep_length_ns)
-		measured_us = UINT_MAX;
 
 	/*
 	 * Save idle duration values corresponding to non-timer wakeups for
