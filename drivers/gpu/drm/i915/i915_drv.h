@@ -2274,10 +2274,9 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define HAS_GT_UC(dev_priv)	(INTEL_INFO(dev_priv)->has_gt_uc)
 
-/* Having GuC/HuC is not the same as using GuC/HuC */
+/* Having GuC is not the same as using GuC */
 #define USES_GUC(dev_priv)		intel_uc_is_using_guc(&(dev_priv)->gt.uc)
 #define USES_GUC_SUBMISSION(dev_priv)	intel_uc_is_using_guc_submission(&(dev_priv)->gt.uc)
-#define USES_HUC(dev_priv)		intel_uc_is_using_huc(&(dev_priv)->gt.uc)
 
 #define HAS_POOLED_EU(dev_priv)	(INTEL_INFO(dev_priv)->has_pooled_eu)
 

@@ -393,6 +393,18 @@ static inline void intel_uncore_rmw_fw(struct intel_uncore *uncore,
 	intel_uncore_write_fw(uncore, reg, val);
 }
 
+static inline int intel_uncore_write_and_verify(struct intel_uncore *uncore,
+						i915_reg_t reg, u32 val,
+						u32 mask, u32 expected_val)
+{
+	u32 reg_val;
+
+	intel_uncore_write(uncore, reg, val);
+	reg_val = intel_uncore_read(uncore, reg);
+
+	return (reg_val & mask) != expected_val ? -EINVAL : 0;
+}
+
 #define raw_reg_read(base, reg) \
 	readl(base + i915_mmio_reg_offset(reg))
 #define raw_reg_write(base, reg, value) \

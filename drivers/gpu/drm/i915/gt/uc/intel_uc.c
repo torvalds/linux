@@ -397,6 +397,49 @@ void intel_uc_sanitize(struct intel_uc *uc)
 	__uc_sanitize(uc);
 }
 
+/* Initialize and verify the uC regs related to uC positioning in WOPCM */
+static int uc_init_wopcm(struct intel_uc *uc)
+{
+	struct intel_gt *gt = uc_to_gt(uc);
+	struct intel_uncore *uncore = gt->uncore;
+	u32 base = intel_wopcm_guc_base(&gt->i915->wopcm);
+	u32 size = intel_wopcm_guc_size(&gt->i915->wopcm);
+	u32 huc_agent = intel_uc_is_using_huc(uc) ? HUC_LOADING_AGENT_GUC : 0;
+	u32 mask;
+	int err;
+
+	GEM_BUG_ON(!intel_uc_is_using_guc(uc));
+	GEM_BUG_ON(!(base & GUC_WOPCM_OFFSET_MASK));
+	GEM_BUG_ON(base & ~GUC_WOPCM_OFFSET_MASK);
+	GEM_BUG_ON(!(size & GUC_WOPCM_SIZE_MASK));
+	GEM_BUG_ON(size & ~GUC_WOPCM_SIZE_MASK);
+
+	mask = GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED;
+	err = intel_uncore_write_and_verify(uncore, GUC_WOPCM_SIZE, size, mask,
+					    size | GUC_WOPCM_SIZE_LOCKED);
+	if (err)
+		goto err_out;
+
+	mask = GUC_WOPCM_OFFSET_MASK | GUC_WOPCM_OFFSET_VALID | huc_agent;
+	err = intel_uncore_write_and_verify(uncore, DMA_GUC_WOPCM_OFFSET,
+					    base | huc_agent, mask,
+					    base | huc_agent |
+					    GUC_WOPCM_OFFSET_VALID);
+	if (err)
+		goto err_out;
+
+	return 0;
+
+err_out:
+	DRM_ERROR("Failed to init uC WOPCM registers:\n");
+	DRM_ERROR("DMA_GUC_WOPCM_OFFSET=%#x\n",
+		  intel_uncore_read(uncore, DMA_GUC_WOPCM_OFFSET));
+	DRM_ERROR("GUC_WOPCM_SIZE=%#x\n",
+		  intel_uncore_read(uncore, GUC_WOPCM_SIZE));
+
+	return err;
+}
+
 int intel_uc_init_hw(struct intel_uc *uc)
 {
 	struct drm_i915_private *i915 = uc_to_gt(uc)->i915;
@@ -408,6 +451,10 @@ int intel_uc_init_hw(struct intel_uc *uc)
 		return 0;
 
 	GEM_BUG_ON(!intel_uc_fw_supported(&guc->fw));
+
+	ret = uc_init_wopcm(uc);
+	if (ret)
+		goto err_out;
 
 	guc_reset_interrupts(guc);
 

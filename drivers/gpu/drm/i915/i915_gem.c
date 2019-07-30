@@ -1240,14 +1240,8 @@ int i915_gem_init_hw(struct drm_i915_private *i915)
 		goto out;
 	}
 
-	ret = intel_wopcm_init_hw(&i915->wopcm, gt);
-	if (ret) {
-		DRM_ERROR("Enabling WOPCM failed (%d)\n", ret);
-		goto out;
-	}
-
 	/* We can't enable contexts until all firmware is loaded */
-	ret = intel_uc_init_hw(&i915->gt.uc);
+	ret = intel_uc_init_hw(&gt->uc);
 	if (ret) {
 		DRM_ERROR("Enabling uc failed (%d)\n", ret);
 		goto out;
