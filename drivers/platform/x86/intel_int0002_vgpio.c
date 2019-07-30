@@ -166,10 +166,8 @@ static int int0002_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "Error getting IRQ: %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
