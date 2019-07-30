@@ -2644,6 +2644,28 @@ static u32 gen8_de_pipe_fault_mask(struct drm_i915_private *dev_priv)
 		return GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
 }
 
+static void
+gen8_de_misc_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
+{
+	bool found = false;
+
+	if (iir & GEN8_DE_MISC_GSE) {
+		intel_opregion_asle_intr(dev_priv);
+		found = true;
+	}
+
+	if (iir & GEN8_DE_EDP_PSR) {
+		u32 psr_iir = I915_READ(EDP_PSR_IIR);
+
+		intel_psr_irq_handler(dev_priv, psr_iir);
+		I915_WRITE(EDP_PSR_IIR, psr_iir);
+		found = true;
+	}
+
+	if (!found)
+		DRM_ERROR("Unexpected DE Misc interrupt\n");
+}
+
 static irqreturn_t
 gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 {
@@ -2654,29 +2676,12 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 	if (master_ctl & GEN8_DE_MISC_IRQ) {
 		iir = I915_READ(GEN8_DE_MISC_IIR);
 		if (iir) {
-			bool found = false;
-
 			I915_WRITE(GEN8_DE_MISC_IIR, iir);
 			ret = IRQ_HANDLED;
-
-			if (iir & GEN8_DE_MISC_GSE) {
-				intel_opregion_asle_intr(dev_priv);
-				found = true;
-			}
-
-			if (iir & GEN8_DE_EDP_PSR) {
-				u32 psr_iir = I915_READ(EDP_PSR_IIR);
-
-				intel_psr_irq_handler(dev_priv, psr_iir);
-				I915_WRITE(EDP_PSR_IIR, psr_iir);
-				found = true;
-			}
-
-			if (!found)
-				DRM_ERROR("Unexpected DE Misc interrupt\n");
-		}
-		else
+			gen8_de_misc_irq_handler(dev_priv, iir);
+		} else {
 			DRM_ERROR("The master control interrupt lied (DE MISC)!\n");
+		}
 	}
 
 	if (INTEL_GEN(dev_priv) >= 11 && (master_ctl & GEN11_DE_HPD_IRQ)) {
