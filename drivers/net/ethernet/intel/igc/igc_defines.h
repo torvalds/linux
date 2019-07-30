@@ -10,10 +10,6 @@
 
 #define IGC_CTRL_EXT_DRV_LOAD	0x10000000 /* Drv loaded bit for FW */
 
-/* PCI Bus Info */
-#define PCIE_DEVICE_CONTROL2		0x28
-#define PCIE_DEVICE_CONTROL2_16ms	0x0005
-
 /* Physical Func Reset Done Indication */
 #define IGC_CTRL_EXT_LINK_MODE_MASK	0x00C00000
 
