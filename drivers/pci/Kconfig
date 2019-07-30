@@ -170,7 +170,7 @@ config PCI_P2PDMA
 
 	  Many PCIe root complexes do not support P2P transactions and
 	  it's hard to tell which support it at all, so at this time,
-	  P2P DMA transations must be between devices behind the same root
+	  P2P DMA transactions must be between devices behind the same root
 	  port.
 
 	  If unsure, say N.

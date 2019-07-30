@@ -409,7 +409,6 @@ void pci_restore_vc_state(struct pci_dev *dev)
  * For each type of VC capability, VC/VC9/MFVC, find the capability, size
  * it, and allocate a buffer for save/restore.
  */
-
 void pci_allocate_vc_save_buffers(struct pci_dev *dev)
 {
 	int i;
