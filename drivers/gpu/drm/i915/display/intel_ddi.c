@@ -2921,6 +2921,12 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 		if (!intel_phy_is_combo(dev_priv, phy))
 			I915_WRITE(DDI_CLK_SEL(port),
 				   icl_pll_to_ddi_clk_sel(encoder, crtc_state));
+		else if (IS_ELKHARTLAKE(dev_priv) && port >= PORT_C)
+			/*
+			 * MG does not exist but the programming is required
+			 * to ungate DDIC and DDID
+			 */
+			I915_WRITE(DDI_CLK_SEL(port), DDI_CLK_SEL_MG);
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		/* Configure DPCLKA_CFGCR0 to map the DPLL to the DDI. */
 		val = I915_READ(DPCLKA_CFGCR0);
@@ -2961,7 +2967,8 @@ static void intel_ddi_clk_disable(struct intel_encoder *encoder)
 	enum phy phy = intel_port_to_phy(dev_priv, port);
 
 	if (INTEL_GEN(dev_priv) >= 11) {
-		if (!intel_phy_is_combo(dev_priv, phy))
+		if (!intel_phy_is_combo(dev_priv, phy) ||
+		    (IS_ELKHARTLAKE(dev_priv) && port >= PORT_C))
 			I915_WRITE(DDI_CLK_SEL(port), DDI_CLK_SEL_NONE);
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		I915_WRITE(DPCLKA_CFGCR0, I915_READ(DPCLKA_CFGCR0) |
