@@ -1148,8 +1148,8 @@ analogix_dp_best_encoder(struct drm_connector *connector)
 }
 
 
-int analogix_dp_atomic_check(struct drm_connector *connector,
-			     struct drm_atomic_state *state)
+static int analogix_dp_atomic_check(struct drm_connector *connector,
+				    struct drm_atomic_state *state)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
 	struct drm_connector_state *conn_state;
