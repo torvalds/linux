@@ -1194,6 +1194,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 			switch (engine->id) {
 			default:
 				MISSING_CASE(engine->id);
+				/* fall through */
 			case RCS0:
 				mmio = RENDER_HWS_PGA_GEN7;
 				break;

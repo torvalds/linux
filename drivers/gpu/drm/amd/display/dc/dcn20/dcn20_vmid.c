@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/delay.h>
+
 #include "dcn20_vmid.h"
 #include "reg_helper.h"
 
@@ -35,6 +37,38 @@
 #undef FN
 #define FN(reg_name, field_name) \
 	vmid->shifts->field_name, vmid->masks->field_name
+
+static void dcn20_wait_for_vmid_ready(struct dcn20_vmid *vmid)
+{
+	/* According the hardware spec, we need to poll for the lowest
+	 * bit of PAGE_TABLE_BASE_ADDR_LO32 = 1 any time a GPUVM
+	 * context is updated. We can't use REG_WAIT here since we
+	 * don't have a seperate field to wait on.
+	 *
+	 * TODO: Confirm timeout / poll interval with hardware team
+	 */
+
+	int max_times = 10000;
+	int delay_us  = 5;
+	int i;
+
+	for (i = 0; i < max_times; ++i) {
+		uint32_t entry_lo32;
+
+		REG_GET(PAGE_TABLE_BASE_ADDR_LO32,
+			VM_CONTEXT0_PAGE_DIRECTORY_ENTRY_LO32,
+			&entry_lo32);
+
+		if (entry_lo32 & 0x1)
+			return;
+
+		udelay(delay_us);
+	}
+
+	/* VM setup timed out */
+	DC_LOG_WARNING("Timeout while waiting for GPUVM context update\n");
+	ASSERT(0);
+}
 
 void dcn20_vmid_setup(struct dcn20_vmid *vmid, const struct dcn_vmid_page_table_config *config)
 {
@@ -54,6 +88,9 @@ void dcn20_vmid_setup(struct dcn20_vmid *vmid, const struct dcn_vmid_page_table_
 
 	REG_SET(PAGE_TABLE_BASE_ADDR_HI32, 0,
 			VM_CONTEXT0_PAGE_DIRECTORY_ENTRY_HI32, (config->page_table_base_addr >> 32) & 0xFFFFFFFF);
+	/* Note: per hardware spec PAGE_TABLE_BASE_ADDR_LO32 must be programmed last in sequence */
 	REG_SET(PAGE_TABLE_BASE_ADDR_LO32, 0,
 			VM_CONTEXT0_PAGE_DIRECTORY_ENTRY_LO32, config->page_table_base_addr & 0xFFFFFFFF);
+
+	dcn20_wait_for_vmid_ready(vmid);
 }

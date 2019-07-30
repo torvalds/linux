@@ -2616,7 +2616,7 @@ ctnetlink_glue_attach_expect(const struct nlattr *attr, struct nf_conn *ct,
 	if (IS_ERR(exp))
 		return PTR_ERR(exp);
 
-	err = nf_ct_expect_related_report(exp, portid, report);
+	err = nf_ct_expect_related_report(exp, portid, report, 0);
 	nf_ct_expect_put(exp);
 	return err;
 }
@@ -3367,7 +3367,7 @@ ctnetlink_create_expect(struct net *net,
 		goto err_rcu;
 	}
 
-	err = nf_ct_expect_related_report(exp, portid, report);
+	err = nf_ct_expect_related_report(exp, portid, report, 0);
 	nf_ct_expect_put(exp);
 err_rcu:
 	rcu_read_unlock();

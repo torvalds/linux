@@ -301,7 +301,6 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
 /*
  * Huge pte definitions.
  */
-#define pte_huge(pte)		(!(pte_val(pte) & PTE_TABLE_BIT))
 #define pte_mkhuge(pte)		(__pte(pte_val(pte) & ~PTE_TABLE_BIT))
 
 /*

@@ -530,9 +530,8 @@ static void qed_rdma_init_devinfo(struct qed_hwfn *p_hwfn,
 	SET_FIELD(dev->dev_caps, QED_RDMA_DEV_CAP_LOCAL_INV_FENCE, 1);
 
 	/* Check atomic operations support in PCI configuration space. */
-	pci_read_config_dword(cdev->pdev,
-			      cdev->pdev->pcie_cap + PCI_EXP_DEVCTL2,
-			      &pci_status_control);
+	pcie_capability_read_dword(cdev->pdev, PCI_EXP_DEVCTL2,
+				   &pci_status_control);
 
 	if (pci_status_control & PCI_EXP_DEVCTL2_LTR_EN)
 		SET_FIELD(dev->dev_caps, QED_RDMA_DEV_CAP_ATOMIC_OP, 1);

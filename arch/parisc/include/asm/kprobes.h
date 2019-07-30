@@ -50,6 +50,10 @@ struct kprobe_ctlblk {
 
 int __kprobes parisc_kprobe_break_handler(struct pt_regs *regs);
 int __kprobes parisc_kprobe_ss_handler(struct pt_regs *regs);
+static inline int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+{
+	return 0;
+}
 
 #endif /* CONFIG_KPROBES */
 #endif /* _PARISC_KPROBES_H */
