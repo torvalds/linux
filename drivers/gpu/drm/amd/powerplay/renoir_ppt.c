@@ -33,6 +33,12 @@
 #define MSG_MAP(msg, index) \
 	[SMU_MSG_##msg] = {1, (index)}
 
+#define TAB_MAP_VALID(tab) \
+	[SMU_TABLE_##tab] = {1, TABLE_##tab}
+
+#define TAB_MAP_INVALID(tab) \
+	[SMU_TABLE_##tab] = {0, TABLE_##tab}
+
 static struct smu_12_0_cmn2aisc_mapping renoir_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage),
 	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion),
@@ -97,6 +103,13 @@ static struct smu_12_0_cmn2aisc_mapping renoir_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(SetHardMinFclkByFreq,           PPSMC_MSG_SetHardMinFclkByFreq),
 };
 
+static struct smu_12_0_cmn2aisc_mapping renoir_table_map[SMU_TABLE_COUNT] = {
+	TAB_MAP_VALID(WATERMARKS),
+	TAB_MAP_INVALID(CUSTOM_DPM),
+	TAB_MAP_VALID(DPMCLOCKS),
+	TAB_MAP_VALID(SMU_METRICS),
+};
+
 static int renoir_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
 	struct smu_12_0_cmn2aisc_mapping mapping;
@@ -111,9 +124,23 @@ static int renoir_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 	return mapping.map_to;
 }
 
+static int renoir_get_smu_table_index(struct smu_context *smc, uint32_t index)
+{
+	struct smu_12_0_cmn2aisc_mapping mapping;
+
+	if (index >= SMU_TABLE_COUNT)
+		return -EINVAL;
+
+	mapping = renoir_table_map[index];
+	if (!(mapping.valid_mapping))
+		return -EINVAL;
+
+	return mapping.map_to;
+}
 
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
+	.get_smu_table_index = renoir_get_smu_table_index,
 	.set_power_state = NULL,
 };
 
