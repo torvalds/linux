@@ -189,6 +189,8 @@ static void ieee80211_add_addbaext(struct ieee80211_sub_if_data *sdata,
 	u8 *pos;
 
 	sband = ieee80211_get_sband(sdata);
+	if (!sband)
+		return;
 	he_cap = ieee80211_get_he_iftype_cap(sband, sdata->vif.type);
 	if (!he_cap)
 		return;
