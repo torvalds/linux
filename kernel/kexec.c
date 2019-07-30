@@ -113,11 +113,12 @@ out_free_image:
 /*         printk( KERN_ERR "### %s:%d; " fmt "\n", __FUNCTION__, __LINE__, ## __VA_ARGS__ ); \ */
 /* }  while (0) */
 
-void InternalSerialPuts( char* str )
-{
-        while( *str != 0 )
-                outb((int)*str++, 0x3f8);
-}
+#define InternalSerialPuts( const_str )   \
+do {                                      \
+        char *str = const_str;            \
+        while( *str != 0 )                \
+                outb((int)*str++, 0x3f8); \
+} while(0)
 
 #define DebugMSG( fmt, ... ) \
 do { \
@@ -522,9 +523,10 @@ typedef struct {
         u64 offset       = Lba * block_size;
         int ret          = -1;
 
-        DebugMSG( "device_id = %lld, MediaId = %d, "
-                  "Lba = %lld, BufferSize = %lld",
-                  block_io->device_id, MediaId, Lba, BufferSize );
+        DebugMSG( "device_id = %lld, MediaId = %d, block_io->file = %px "
+                  "Lba = %lld, BufferSize = %lld, Buffer = %px",
+                  block_io->device_id, MediaId, block_io->file,
+                  Lba, BufferSize, Buffer );
 
         ret = vfs_read(block_io->file, Buffer, BufferSize, &offset);
 
@@ -1919,6 +1921,7 @@ void efi_setup_11_mapping_physical_addr( unsigned long start, unsigned long end 
                 /* If we got here, it means that vma->vm_end < end. We need to
                  * extend the vma */
                 start = vma->vm_end;
+
                 /* end must be smaller than the vma end: */
                 /* BUG_ON( vma->vm_end < end ); */
         }
@@ -2120,8 +2123,6 @@ void efi_register_phys_mem_allocation_inside_existing(
         MemoryAllocation *prev_chunk          = NULL;
         MemoryAllocation *next_chunk          = NULL;
 
-        BUG_ON( end_of_requested_region > end_of_existing_region );
-
         /* We need to split the allocation we found into up to 3 pieces:
          * prev, new, next chunks. We will reuse the existing chunk for the new
          * requested allocation. prev & next are the residues of the preexisting
@@ -2131,6 +2132,9 @@ void efi_register_phys_mem_allocation_inside_existing(
                   "end_of_requested_region = 0x%lx",
                   phys_addr, mem_map->phys_addr,
                   end_of_existing_region, end_of_requested_region);
+
+        BUG_ON( end_of_requested_region > end_of_existing_region );
+
         if (phys_addr > mem_map->phys_addr) {
                 size_t prev_chunk_size = phys_addr - mem_map->phys_addr;
                 BUG_ON( prev_chunk_size % PAGE_SIZE != 0 );
@@ -2734,7 +2738,7 @@ __attribute__((ms_abi)) efi_status_t efi_hook_UnloadImage(void)
 __attribute__((ms_abi)) efi_status_t efi_hook_ExitBootServices(void)
 {
          DebugMSG( "Returning SUCCESS" );
-        while(1) {}
+        /* while(1) {} */
          return EFI_SUCCESS;
 }
 
@@ -3223,7 +3227,7 @@ char e820_types[][32] = {
         "E820_PRAM"
 };
 
-void print_efi_memmap(void)
+void print_e820_memmap(void)
 {
         struct e820_table* map = e820_table;
         int i;
@@ -3236,11 +3240,13 @@ void print_efi_memmap(void)
                 if (entry->type == E820_TYPE_RESERVED_KERN )
                         type_str = "E820_RESERVED_KERN";
 
-                DebugMSG( "%2d: 0x%016llx-0x%016llx  size: 0x%012llx type=%d: %s",
+                DebugMSG( "%2d: 0x%016llx-0x%016llx  size: 0x%-12llx "
+                          "(%-6lld pages) type=%d: %s",
                           i,
                           entry->addr,
                           entry->addr + entry->size - 1,
                           entry->size,
+                          NUM_PAGES( entry->size ),
                           entry->type,
                           type_str );
         }
@@ -3266,17 +3272,19 @@ int get_efi_entry_by_addr(u64 addr)
 /* Receive addr, a physical address which resides in one of the e820 mappings,
  * locate the matching region in the e820 mapping, and create a virtual address
  * space matching exactly the physcial region (1:1 mapping). */
-void efi_remap_reserved_area( u64 addr )
+void efi_remap_area( u64 addr, EFI_MEMORY_TYPE type )
 {
         struct e820_table* map   = e820_table;
         int entry_id             = get_efi_entry_by_addr( addr );
         struct e820_entry *entry = &map->entries[entry_id];
         unsigned long start      = ALIGN_DOWN( entry->addr ,PAGE_SIZE);
         unsigned long end        = ALIGN( entry->addr + entry->size, PAGE_SIZE);
+        unsigned long size       = end - start;
 
         DebugMSG( "addr = 0x%llx, entry_id = %d entry->addr = 0x%llx",
                   addr, entry_id, entry->addr );
 
+        efi_register_phys_mem_allocation( type, NUM_PAGES( size ), start );
         efi_setup_11_mapping_physical_addr( start, end );
 }
 
@@ -3381,7 +3389,7 @@ void efi_setup_configuration_tables( efi_system_table_t *systab )
         efi_guid_t acpi20_guid = ACPI_20_TABLE_GUID;
         int table_id           = 0;
 
-        print_efi_memmap();
+        print_e820_memmap();
         DebugMSG( "############### acpi20 @ 0x%lx (entry %d)",
                   efi.acpi20, get_efi_entry_by_addr( efi.acpi20 ) );
         DebugMSG( "############### acpi@ 0x%lx (entry %d)",
@@ -3392,8 +3400,10 @@ void efi_setup_configuration_tables( efi_system_table_t *systab )
         /* We need to make sure the physical address pointed by the
          * configuration table is addressable also via virtual addressing. We
          * solve this by creating a 1:1 mapping for the entire regions. */
-        efi_remap_reserved_area( efi.acpi20 );
-        efi_remap_reserved_area( efi.smbios );
+        efi_remap_area( efi.acpi20, EfiReservedMemoryType );
+
+        /* SMBIOS is on the same memory region as Runtime Services. */
+        efi_remap_area( efi.smbios, EfiRuntimeServicesCode );
 
         memcpy( &efi_config_table[table_id].guid, &acpi20_guid,
                 sizeof(acpi20_guid) );
@@ -3450,14 +3460,13 @@ static void hook_boot_services( efi_system_table_t *systab )
                                                 sizeof(con_out) );
         systab->stderr_handle  = 0xdeadbeefcafe0003;
         systab->stderr         = 0xdeadbeefcafe0004;
-        systab->runtime        = efi_map_11_and_register_allocation(
-                                                &runtime_services,
-                                                sizeof(runtime_services) );
+        systab->runtime        = (void*)efi.runtime;
 
         efi_setup_configuration_tables(systab);
+        efi_print_memory_map();
 
-        /*
-         * We will fill boot_services with actual function pointer, but this is
+
+        /* We will fill boot_services with actual function pointer, but this is
          * a precaution in case we missed a function pointer in our setup. */
         memset(boot_services, 0x43, sizeof( *boot_services ) );
 
@@ -3486,6 +3495,7 @@ void efi_register_ram_as_available(void)
         u32 num_regions          = e820_table->nr_entries;
         struct e820_entry *entry = &e820_table->entries[num_regions-1];
 
+        DebugMSG( "Marking RAM as available" );
         efi_register_phys_mem_allocation( EfiConventionalMemory,
                                           NUM_PAGES( entry->size ),
                                           entry->addr );
@@ -3528,12 +3538,18 @@ void efi_mark_reserved_areas(void)
         struct e820_table* map = e820_table;
         int i;
 
+        DebugMSG ("Marking reserved memory areas" );
+
         for (i = 0; i < map->nr_entries; i++) {
                 struct e820_entry *entry   = &map->entries[i];
                 EFI_MEMORY_TYPE   efi_type = EfiReservedMemoryType;
 
+                /* The reserved areas also contain the code for runtime
+                 * services. We want to mark them as such so that windows loader
+                 * will map them into memory. */
+
                 if (entry->type == E820_TYPE_RESERVED)
-                        efi_type = EfiReservedMemoryType;
+                        efi_type = EfiRuntimeServicesCode;
                 else if (entry->type == E820_TYPE_ACPI)
                         efi_type = EfiACPIReclaimMemory;
                 else if (entry->type == E820_TYPE_NVS)
@@ -3543,9 +3559,15 @@ void efi_mark_reserved_areas(void)
                 else
                         continue;
 
-                efi_register_phys_mem_allocation( efi_type,
-                                                  NUM_PAGES( entry->size ),
-                                                  entry->addr );
+                /* For runtime services code, we want these addresses to be
+                 * accessible during bootloading. We therefore need to remap
+                 * them into 1:1 virt-to-pys memory */
+                if (efi_type == EfiRuntimeServicesCode)
+                        efi_remap_area( entry->addr, EfiRuntimeServicesCode );
+                else
+                        efi_register_phys_mem_allocation( efi_type,
+                                                          NUM_PAGES( entry->size ),
+                                                          entry->addr );
         }
 
 }
@@ -3565,9 +3587,6 @@ void launch_efi_app(EFI_APP_ENTRY efiApp, efi_system_table_t *systab)
         efi_hook_AllocatePages( AllocateAnyPages, EfiConventionalMemory,
                                 pool_pages, &pool );
 
-        efi_register_ram_as_available();
-        efi_mark_reserved_areas();
-
         /* The system table must be accessible via physical addressing. We
          * therefore create 1:1 mapping of the location of it. */
         remapped_systab =
@@ -3585,6 +3604,9 @@ void kimage_run_pe(struct kimage *image)
         /* Print the beginning of the entry point. You can compare this to the
          * objdump output of the EFI app you're running. */
         DumpBuffer( "Entry point:", (uint8_t*) image->raw_image_start, 64 );
+
+        efi_register_ram_as_available();
+        efi_mark_reserved_areas();
 
         hook_boot_services( &fake_systab );
         efiApp = (EFI_APP_ENTRY)image->raw_image_start;
