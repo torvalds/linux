@@ -233,10 +233,17 @@ static void guc_disable_interrupts(struct intel_guc *guc)
 	guc->interrupts.disable(guc);
 }
 
+static inline bool guc_communication_enabled(struct intel_guc *guc)
+{
+	return guc->send != intel_guc_send_nop;
+}
+
 static int guc_enable_communication(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 	int ret;
+
+	GEM_BUG_ON(guc_communication_enabled(guc));
 
 	ret = intel_guc_ct_enable(&guc->ct);
 	if (ret)
@@ -550,7 +557,7 @@ void intel_uc_suspend(struct intel_uc *uc)
 		intel_uc_runtime_suspend(uc);
 }
 
-int intel_uc_resume(struct intel_uc *uc)
+static int __uc_resume(struct intel_uc *uc, bool enable_communication)
 {
 	struct intel_guc *guc = &uc->guc;
 	int err;
@@ -558,7 +565,11 @@ int intel_uc_resume(struct intel_uc *uc)
 	if (!intel_guc_is_running(guc))
 		return 0;
 
-	guc_enable_communication(guc);
+	/* Make sure we enable communication if and only if it's disabled */
+	GEM_BUG_ON(enable_communication == guc_communication_enabled(guc));
+
+	if (enable_communication)
+		guc_enable_communication(guc);
 
 	err = intel_guc_resume(guc);
 	if (err) {
@@ -567,4 +578,22 @@ int intel_uc_resume(struct intel_uc *uc)
 	}
 
 	return 0;
+}
+
+int intel_uc_resume(struct intel_uc *uc)
+{
+	/*
+	 * When coming out of S3/S4 we sanitize and re-init the HW, so
+	 * communication is already re-enabled at this point.
+	 */
+	return __uc_resume(uc, false);
+}
+
+int intel_uc_runtime_resume(struct intel_uc *uc)
+{
+	/*
+	 * During runtime resume we don't sanitize, so we need to re-init
+	 * communication as well.
+	 */
+	return __uc_resume(uc, true);
 }

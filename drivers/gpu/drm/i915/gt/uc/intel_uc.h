@@ -47,6 +47,7 @@ void intel_uc_reset_prepare(struct intel_uc *uc);
 void intel_uc_suspend(struct intel_uc *uc);
 void intel_uc_runtime_suspend(struct intel_uc *uc);
 int intel_uc_resume(struct intel_uc *uc);
+int intel_uc_runtime_resume(struct intel_uc *uc);
 
 static inline bool intel_uc_is_using_guc(struct intel_uc *uc)
 {
