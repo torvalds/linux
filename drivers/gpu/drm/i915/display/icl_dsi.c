@@ -862,6 +862,15 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 		dsi_trans = dsi_port_to_transcoder(port);
 		I915_WRITE(VSYNCSHIFT(dsi_trans), vsync_shift);
 	}
+
+	/* program TRANS_VBLANK register, should be same as vtotal programmed */
+	if (INTEL_GEN(dev_priv) >= 12) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			dsi_trans = dsi_port_to_transcoder(port);
+			I915_WRITE(VBLANK(dsi_trans),
+				   (vactive - 1) | ((vtotal - 1) << 16));
+		}
+	}
 }
 
 static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
