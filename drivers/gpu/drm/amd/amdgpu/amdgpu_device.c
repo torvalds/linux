@@ -1025,12 +1025,6 @@ static int amdgpu_device_check_arguments(struct amdgpu_device *adev)
 
 	amdgpu_device_check_block_size(adev);
 
-	ret = amdgpu_device_get_job_timeout_settings(adev);
-	if (ret) {
-		dev_err(adev->dev, "invalid lockup_timeout parameter syntax\n");
-		return ret;
-	}
-
 	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);
 
 	return ret;
@@ -2744,6 +2738,12 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_device_ip_early_init(adev);
 	if (r)
 		return r;
+
+	r = amdgpu_device_get_job_timeout_settings(adev);
+	if (r) {
+		dev_err(adev->dev, "invalid lockup_timeout parameter syntax\n");
+		return r;
+	}
 
 	/* doorbell bar mapping and doorbell index init*/
 	amdgpu_device_doorbell_init(adev);
