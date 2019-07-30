@@ -1836,17 +1836,20 @@ struct security_hook_list medusa_l1_hooks_special[] = {
 void __init medusa_init(void);
 
 // Number and order of hooks has to be the same
+/*
 static inline void security_replace_hooks(struct security_hook_list *old_hooks, struct security_hook_list *new_hooks, int count)
 {
 	int i;
 	for (i = 0; i < count; i++)
 		hlist_replace_rcu(&old_hooks[i].list, &new_hooks[i].list);
 }
+*/
 
 static int __init medusa_l1_init(void)
 {
 	int ret = 0;
 
+	/*
 	extern bool l1_initialized;
 	extern struct task_list l0_task_list;
 	extern struct inode_list l0_inode_list;
@@ -1857,13 +1860,13 @@ static int __init medusa_l1_init(void)
 	struct task_list *tmp_task;
 	struct kern_ipc_perm_list *tmp_ipcp;
 
-	/* holding l0_mutex cannot be executed no l0 hook */
+	// holding l0_mutex cannot be executed no l0 hook
 	mutex_lock(&l0_mutex);
 	
 	list_for_each_safe(pos, q, &l0_inode_list.list) {
 		tmp_inode = list_entry(pos, struct inode_list, list);
 		ret = medusa_l1_inode_alloc_security(tmp_inode->inode);
-		/* TODO: error checking of ret */
+		// TODO: error checking of ret
 		list_del(pos);
 		kfree(tmp_inode);
 	}
@@ -1871,7 +1874,7 @@ static int __init medusa_l1_init(void)
 	list_for_each_safe(pos, q, &l0_task_list.list) {
 		tmp_task = list_entry(pos, struct task_list, list);
 		ret = medusa_l1_task_alloc(tmp_task->task, tmp_task->clone_flags);
-		/* TODO: error checking of ret */
+		// TODO: error checking of ret
 		list_del(pos);
 		kfree(tmp_task);
 	}
@@ -1879,18 +1882,20 @@ static int __init medusa_l1_init(void)
 	list_for_each_safe(pos, q, &l0_kern_ipc_perm_list.list) {
 		tmp_ipcp = list_entry(pos, struct kern_ipc_perm_list, list);
 		ret = tmp_ipcp->medusa_l1_ipc_alloc_security(tmp_ipcp->ipcp);
-		/* TODO: error checking of ret */
+		// TODO: error checking of ret
 		list_del(pos);
 		kfree(tmp_ipcp);
 	}
+	*/
 
 	/* register the hooks */
 	security_add_hooks(medusa_l1_hooks, ARRAY_SIZE(medusa_l1_hooks), "medusa");
-	security_replace_hooks(medusa_l0_hooks, medusa_l1_hooks_special, ARRAY_SIZE(medusa_l1_hooks_special));
+	security_add_hooks(medusa_l1_hooks_special, ARRAY_SIZE(medusa_l1_hooks_special), "medusa");
+	//security_replace_hooks(medusa_l0_hooks, medusa_l1_hooks_special, ARRAY_SIZE(medusa_l1_hooks_special));
 
-	l1_initialized = true;
+	//l1_initialized = true;
 	printk("medusa: l1 registered with the kernel\n");
-	mutex_unlock(&l0_mutex);
+	//mutex_unlock(&l0_mutex);
 
 	medusa_init();
 
@@ -1915,7 +1920,30 @@ static void __exit medusa_l1_exit (void)
 	return;
 }
 
-module_init(medusa_l1_init);
+//module_init(medusa_l1_init);
 MODULE_LICENSE("GPL");
+
+/*
+ * TODO: Refactor L1 using this variable (initialization).
+ */
+int medusa_enabled __lsm_ro_after_init = true;
+
+struct lsm_blob_sizes medusa_blob_sizes __lsm_ro_after_init = {
+	.lbs_cred = 0,
+	.lbs_file = 0,
+	.lbs_inode = sizeof(struct medusa_l1_inode_s),
+	.lbs_ipc = sizeof(struct medusa_l1_ipc_s),
+	.lbs_msg_msg = 0,
+	.lbs_task = sizeof(struct medusa_l1_task_s),
+};
+
+DEFINE_LSM(medusa) = {
+	.name = "medusa",
+	.order = LSM_ORDER_MUTABLE,
+	.flags = LSM_FLAG_LEGACY_MAJOR | LSM_FLAG_EXCLUSIVE,
+	.enabled = &medusa_enabled,
+	.init = medusa_l1_init,
+	.blobs = &medusa_blob_sizes,
+};
 
 #endif /* CONFIG_SECURITY_MEDUSA */
