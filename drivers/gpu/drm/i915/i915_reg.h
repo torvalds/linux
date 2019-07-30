@@ -251,9 +251,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define _MMIO_PIPE2(pipe, reg)		_MMIO(INTEL_INFO(dev_priv)->pipe_offsets[pipe] - \
 					      INTEL_INFO(dev_priv)->pipe_offsets[PIPE_A] + (reg) + \
 					      DISPLAY_MMIO_BASE(dev_priv))
-#define _MMIO_TRANS2(pipe, reg)		_MMIO(INTEL_INFO(dev_priv)->trans_offsets[(pipe)] - \
-					      INTEL_INFO(dev_priv)->trans_offsets[TRANSCODER_A] + (reg) + \
-					      DISPLAY_MMIO_BASE(dev_priv))
+#define _TRANS2(tran, reg)		(INTEL_INFO(dev_priv)->trans_offsets[(tran)] - \
+					 INTEL_INFO(dev_priv)->trans_offsets[TRANSCODER_A] + (reg) + \
+					 DISPLAY_MMIO_BASE(dev_priv))
+#define _MMIO_TRANS2(tran, reg)		_MMIO(_TRANS2(tran, reg))
 #define _CURSOR2(pipe, reg)		_MMIO(INTEL_INFO(dev_priv)->cursor_offsets[(pipe)] - \
 					      INTEL_INFO(dev_priv)->cursor_offsets[PIPE_A] + (reg) + \
 					      DISPLAY_MMIO_BASE(dev_priv))
