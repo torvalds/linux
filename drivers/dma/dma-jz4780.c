@@ -886,10 +886,8 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	}
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(dev, "failed to get IRQ: %d\n", ret);
+	if (ret < 0)
 		return ret;
-	}
 
 	jzdma->irq = ret;
 

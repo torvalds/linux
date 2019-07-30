@@ -1366,12 +1366,8 @@ static int stm32_dma_probe(struct platform_device *pdev)
 	for (i = 0; i < STM32_DMA_MAX_CHANNELS; i++) {
 		chan = &dmadev->chan[i];
 		ret = platform_get_irq(pdev, i);
-		if (ret < 0)  {
-			if (ret != -EPROBE_DEFER)
-				dev_err(&pdev->dev,
-					"No irq resource for chan %d\n", i);
+		if (ret < 0)
 			goto err_unregister;
-		}
 		chan->irq = ret;
 
 		ret = devm_request_irq(&pdev->dev, chan->irq,
