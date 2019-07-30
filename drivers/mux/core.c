@@ -405,17 +405,12 @@ int mux_control_deselect(struct mux_control *mux)
 }
 EXPORT_SYMBOL_GPL(mux_control_deselect);
 
-static int of_dev_node_match(struct device *dev, const void *data)
-{
-	return dev->of_node == data;
-}
-
 /* Note this function returns a reference to the mux_chip dev. */
 static struct mux_chip *of_find_mux_chip_by_node(struct device_node *np)
 {
 	struct device *dev;
 
-	dev = class_find_device(&mux_class, NULL, np, of_dev_node_match);
+	dev = class_find_device_by_of_node(&mux_class, np);
 
 	return dev ? to_mux_chip(dev) : NULL;
 }
