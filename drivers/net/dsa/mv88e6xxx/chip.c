@@ -4275,6 +4275,31 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.ops = &mv88e6191_ops,
 	},
 
+	[MV88E6220] = {
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6220,
+		.family = MV88E6XXX_FAMILY_6250,
+		.name = "Marvell 88E6220",
+		.num_databases = 64,
+
+		/* Ports 2-4 are not routed to pins
+		 * => usable ports 0, 1, 5, 6
+		 */
+		.num_ports = 7,
+		.num_internal_phys = 2,
+		.max_vid = 4095,
+		.port_base_addr = 0x08,
+		.phy_base_addr = 0x00,
+		.global1_addr = 0x0f,
+		.global2_addr = 0x07,
+		.age_time_coeff = 15000,
+		.g1_irqs = 9,
+		.g2_irqs = 10,
+		.atu_move_port_mask = 0xf,
+		.dual_chip = true,
+		.tag_protocol = DSA_TAG_PROTO_DSA,
+		.ops = &mv88e6250_ops,
+	},
+
 	[MV88E6240] = {
 		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6240,
 		.family = MV88E6XXX_FAMILY_6352,
