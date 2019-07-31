@@ -36,6 +36,7 @@
 
 #define UART_EXAR_INT0		0x80
 #define UART_EXAR_8XMODE	0x88	/* 8X sampling rate select */
+#define UART_EXAR_SLEEP		0x8b	/* Sleep mode */
 #define UART_EXAR_DVID		0x8d	/* Device identification */
 
 #define UART_EXAR_FCTR		0x08	/* Feature Control Register */
@@ -128,6 +129,17 @@ struct exar8250 {
 	int			line[0];
 };
 
+static void exar_pm(struct uart_port *port, unsigned int state, unsigned int old)
+{
+	/*
+	 * Exar UARTs have a SLEEP register that enables or disables each UART
+	 * to enter sleep mode separately. On the XR17V35x the register
+	 * is accessible to each UART at the UART_EXAR_SLEEP offset, but
+	 * the UART channel may only write to the corresponding bit.
+	 */
+	serial_port_out(port, UART_EXAR_SLEEP, state ? 0xff : 0);
+}
+
 static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 			 int idx, unsigned int offset,
 			 struct uart_8250_port *port)
@@ -154,6 +166,8 @@ static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	} else {
 		port->port.type = PORT_XR17D15X;
 	}
+
+	port->port.pm = exar_pm;
 
 	return 0;
 }

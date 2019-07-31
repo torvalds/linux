@@ -44,7 +44,6 @@
  * These are definitions for the Exar XR17V35X and XR17(C|D)15X
  */
 #define UART_EXAR_INT0		0x80
-#define UART_EXAR_SLEEP		0x8b	/* Sleep mode */
 
 /* Nuvoton NPCM timeout register */
 #define UART_NPCM_TOR          7
@@ -708,19 +707,8 @@ EXPORT_SYMBOL_GPL(serial8250_rpm_put_tx);
 static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 {
 	unsigned char lcr = 0, efr = 0;
-	/*
-	 * Exar UARTs have a SLEEP register that enables or disables
-	 * each UART to enter sleep mode separately.  On the XR17V35x the
-	 * register is accessible to each UART at the UART_EXAR_SLEEP
-	 * offset but the UART channel may only write to the corresponding
-	 * bit.
-	 */
+
 	serial8250_rpm_get(p);
-	if ((p->port.type == PORT_XR17V35X) ||
-	   (p->port.type == PORT_XR17D15X)) {
-		serial_out(p, UART_EXAR_SLEEP, sleep ? 0xff : 0);
-		goto out;
-	}
 
 	if (p->capabilities & UART_CAP_SLEEP) {
 		if (p->capabilities & UART_CAP_EFR) {
@@ -737,7 +725,7 @@ static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 			serial_out(p, UART_LCR, lcr);
 		}
 	}
-out:
+
 	serial8250_rpm_put(p);
 }
 
