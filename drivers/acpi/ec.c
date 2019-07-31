@@ -1049,33 +1049,6 @@ void acpi_ec_unblock_transactions(void)
 		acpi_ec_start(first_ec, true);
 }
 
-#ifdef CONFIG_PM_SLEEP
-void acpi_ec_mark_gpe_for_wake(void)
-{
-	if (first_ec && !ec_no_wakeup)
-		acpi_mark_gpe_for_wake(NULL, first_ec->gpe);
-}
-EXPORT_SYMBOL_GPL(acpi_ec_mark_gpe_for_wake);
-
-void acpi_ec_set_gpe_wake_mask(u8 action)
-{
-	if (pm_suspend_no_platform() && first_ec && !ec_no_wakeup)
-		acpi_set_gpe_wake_mask(NULL, first_ec->gpe, action);
-}
-EXPORT_SYMBOL_GPL(acpi_ec_set_gpe_wake_mask);
-#endif
-
-bool acpi_ec_dispatch_gpe(void)
-{
-	u32 ret;
-
-	if (!first_ec)
-		return false;
-
-	ret = acpi_dispatch_gpe(NULL, first_ec->gpe);
-	return ret == ACPI_INTERRUPT_HANDLED;
-}
-
 /* --------------------------------------------------------------------------
                                 Event Management
    -------------------------------------------------------------------------- */
@@ -1984,7 +1957,32 @@ static int acpi_ec_resume(struct device *dev)
 	acpi_ec_enable_event(ec);
 	return 0;
 }
-#endif
+
+void acpi_ec_mark_gpe_for_wake(void)
+{
+	if (first_ec && !ec_no_wakeup)
+		acpi_mark_gpe_for_wake(NULL, first_ec->gpe);
+}
+EXPORT_SYMBOL_GPL(acpi_ec_mark_gpe_for_wake);
+
+void acpi_ec_set_gpe_wake_mask(u8 action)
+{
+	if (pm_suspend_no_platform() && first_ec && !ec_no_wakeup)
+		acpi_set_gpe_wake_mask(NULL, first_ec->gpe, action);
+}
+EXPORT_SYMBOL_GPL(acpi_ec_set_gpe_wake_mask);
+
+bool acpi_ec_dispatch_gpe(void)
+{
+	u32 ret;
+
+	if (!first_ec)
+		return false;
+
+	ret = acpi_dispatch_gpe(NULL, first_ec->gpe);
+	return ret == ACPI_INTERRUPT_HANDLED;
+}
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops acpi_ec_pm = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(acpi_ec_suspend_noirq, acpi_ec_resume_noirq)
