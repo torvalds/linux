@@ -49,7 +49,7 @@
  *                              for processing a DN_Alive pong from a device.
  *
  *   wusb_handle_dn_disconnect()Called by notif.c:wusb_handle_dn() to
- *                              process a disconenct request from a
+ *                              process a disconnect request from a
  *                              device.
  *
  *   __wusb_dev_disable()       Called by rh.c:wusbhc_rh_clear_port_feat() when
