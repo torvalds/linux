@@ -118,6 +118,7 @@ static const struct {
 	u8 value;
 	const char *error_text;
 } qi_error_list[] = {
+	{ 0x00, "No error" },
 	{ 0x1F, "Job terminated by FQ or ICID flush" },
 	{ 0x20, "FD format error"},
 	{ 0x21, "FD command format error"},
