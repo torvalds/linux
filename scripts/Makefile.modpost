@@ -110,7 +110,7 @@ $(modules:.ko=.mod.c): modules-modpost
 # modname is set to make c_flags define KBUILD_MODNAME
 modname = $(notdir $(@:.mod.o=))
 
-quiet_cmd_cc_o_c = CC      $@
+quiet_cmd_cc_o_c = CC [M]  $@
       cmd_cc_o_c = $(CC) $(c_flags) $(KBUILD_CFLAGS_MODULE) $(CFLAGS_MODULE) \
 		   -c -o $@ $<
 
