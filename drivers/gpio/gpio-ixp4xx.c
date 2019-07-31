@@ -321,10 +321,8 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	g->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(g->base)) {
-		dev_err(dev, "ioremap error\n");
+	if (IS_ERR(g->base))
 		return PTR_ERR(g->base);
-	}
 
 	/*
 	 * Make sure GPIO 14 and 15 are NOT used as clocks but GPIO on
