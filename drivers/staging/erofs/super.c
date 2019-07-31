@@ -211,7 +211,7 @@ static void default_options(struct erofs_sb_info *sbi)
 {
 	/* set up some FS parameters */
 #ifdef CONFIG_EROFS_FS_ZIP
-	sbi->max_sync_decompress_pages = DEFAULT_MAX_SYNC_DECOMPRESS_PAGES;
+	sbi->max_sync_decompress_pages = 3;
 #endif
 
 #ifdef CONFIG_EROFS_FS_XATTR

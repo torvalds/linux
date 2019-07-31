@@ -1509,6 +1509,12 @@ out:
 	return 0;
 }
 
+static bool should_decompress_synchronously(struct erofs_sb_info *sbi,
+					    unsigned int nr)
+{
+	return nr <= sbi->max_sync_decompress_pages;
+}
+
 static int z_erofs_vle_normalaccess_readpages(struct file *filp,
 					      struct address_space *mapping,
 					      struct list_head *pages,
@@ -1517,7 +1523,7 @@ static int z_erofs_vle_normalaccess_readpages(struct file *filp,
 	struct inode *const inode = mapping->host;
 	struct erofs_sb_info *const sbi = EROFS_I_SB(inode);
 
-	bool sync = __should_decompress_synchronously(sbi, nr_pages);
+	bool sync = should_decompress_synchronously(sbi, nr_pages);
 	struct z_erofs_vle_frontend f = VLE_FRONTEND_INIT(inode);
 	gfp_t gfp = mapping_gfp_constraint(mapping, GFP_KERNEL);
 	struct page *head = NULL;
