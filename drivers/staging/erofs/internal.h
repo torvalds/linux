@@ -113,8 +113,6 @@ struct erofs_sb_info {
 	u8 volume_name[16];             /* volume name */
 	u32 requirements;
 
-	char *dev_name;
-
 	unsigned int mount_opt;
 
 #ifdef CONFIG_EROFS_FAULT_INJECTION
