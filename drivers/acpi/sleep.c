@@ -696,7 +696,6 @@ static const struct platform_suspend_ops acpi_suspend_ops_old = {
 	.recover = acpi_pm_finish,
 };
 
-static bool s2idle_in_progress;
 static bool s2idle_wakeup;
 
 /*
@@ -950,7 +949,6 @@ static struct acpi_scan_handler lps0_handler = {
 static int acpi_s2idle_begin(void)
 {
 	acpi_scan_lock_acquire();
-	s2idle_in_progress = true;
 	return 0;
 }
 
@@ -1032,7 +1030,6 @@ static void acpi_s2idle_restore(void)
 
 static void acpi_s2idle_end(void)
 {
-	s2idle_in_progress = false;
 	acpi_scan_lock_release();
 }
 
@@ -1060,7 +1057,6 @@ static void acpi_sleep_suspend_setup(void)
 }
 
 #else /* !CONFIG_SUSPEND */
-#define s2idle_in_progress	(false)
 #define s2idle_wakeup		(false)
 #define lps0_device_handle	(NULL)
 static inline void acpi_sleep_suspend_setup(void) {}
@@ -1069,11 +1065,6 @@ static inline void acpi_sleep_suspend_setup(void) {}
 bool acpi_s2idle_wakeup(void)
 {
 	return s2idle_wakeup;
-}
-
-bool acpi_sleep_no_ec_events(void)
-{
-	return !s2idle_in_progress;
 }
 
 #ifdef CONFIG_PM_SLEEP
