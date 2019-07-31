@@ -655,6 +655,15 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	if (pd_info->keepon_startup) {
 		pd->genpd.flags &= (~GENPD_FLAG_PM_CLK);
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
+		if (!rockchip_pmu_domain_is_on(pd)) {
+			error = rockchip_pd_power(pd, true);
+			if (error) {
+				dev_err(pmu->dev,
+					"failed to power on domain '%s': %d\n",
+					node->name, error);
+				goto err_unprepare_clocks;
+			}
+		}
 	}
 
 	pm_genpd_init(&pd->genpd, NULL, !rockchip_pmu_domain_is_on(pd));
