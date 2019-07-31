@@ -1015,9 +1015,6 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 	u32 transport_caps;
 	struct mlx5_base_av *av;
 	unsigned ds, opcode;
-#if defined(DEBUG)
-	u32 ctrl_wqe_index, ctrl_qpn;
-#endif
 	u32 qpn = qp->trans_qp.base.mqp.qpn;
 
 	ds = be32_to_cpu(ctrl->qpn_ds) & MLX5_WQE_CTRL_DS_MASK;
@@ -1032,27 +1029,6 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 			    wqe_index, qpn);
 		return -EFAULT;
 	}
-
-#if defined(DEBUG)
-	ctrl_wqe_index = (be32_to_cpu(ctrl->opmod_idx_opcode) &
-			MLX5_WQE_CTRL_WQE_INDEX_MASK) >>
-			MLX5_WQE_CTRL_WQE_INDEX_SHIFT;
-	if (wqe_index != ctrl_wqe_index) {
-		mlx5_ib_err(dev, "Got WQE with invalid wqe_index. wqe_index=0x%x, qpn=0x%x ctrl->wqe_index=0x%x\n",
-			    wqe_index, qpn,
-			    ctrl_wqe_index);
-		return -EFAULT;
-	}
-
-	ctrl_qpn = (be32_to_cpu(ctrl->qpn_ds) & MLX5_WQE_CTRL_QPN_MASK) >>
-		MLX5_WQE_CTRL_QPN_SHIFT;
-	if (qpn != ctrl_qpn) {
-		mlx5_ib_err(dev, "Got WQE with incorrect QP number. wqe_index=0x%x, qpn=0x%x ctrl->qpn=0x%x\n",
-			    wqe_index, qpn,
-			    ctrl_qpn);
-		return -EFAULT;
-	}
-#endif /* DEBUG */
 
 	*wqe_end = *wqe + ds * MLX5_WQE_DS_UNITS;
 	*wqe += sizeof(*ctrl);
