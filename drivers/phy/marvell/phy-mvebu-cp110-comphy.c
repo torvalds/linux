@@ -715,6 +715,7 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 
 		lane->priv = priv;
 		lane->mode = PHY_MODE_INVALID;
+		lane->submode = PHY_INTERFACE_MODE_NA;
 		lane->id = val;
 		lane->port = -1;
 		phy_set_drvdata(phy, lane);
