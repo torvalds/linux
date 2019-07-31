@@ -89,6 +89,10 @@ bool acpi_sleep_state_supported(u8 sleep_state)
 }
 
 #ifdef CONFIG_ACPI_SLEEP
+static bool sleep_no_lps0 __read_mostly;
+module_param(sleep_no_lps0, bool, 0644);
+MODULE_PARM_DESC(sleep_no_lps0, "Do not use the special LPS0 device interface");
+
 static u32 acpi_target_sleep_state = ACPI_STATE_S0;
 
 u32 acpi_target_system_state(void)
@@ -158,11 +162,11 @@ static int __init init_nvs_nosave(const struct dmi_system_id *d)
 	return 0;
 }
 
-static bool acpi_sleep_no_lps0;
+static bool acpi_sleep_default_s3;
 
-static int __init init_no_lps0(const struct dmi_system_id *d)
+static int __init init_default_s3(const struct dmi_system_id *d)
 {
-	acpi_sleep_no_lps0 = true;
+	acpi_sleep_default_s3 = true;
 	return 0;
 }
 
@@ -363,7 +367,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 	 * S0 Idle firmware interface.
 	 */
 	{
-	.callback = init_no_lps0,
+	.callback = init_default_s3,
 	.ident = "Dell XPS13 9360",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
@@ -376,7 +380,7 @@ static const struct dmi_system_id acpisleep_dmi_table[] __initconst = {
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=199057).
 	 */
 	{
-	.callback = init_no_lps0,
+	.callback = init_default_s3,
 	.ident = "ThinkPad X1 Tablet(2016)",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
@@ -524,8 +528,9 @@ static void acpi_pm_end(void)
 	acpi_sleep_tts_switch(acpi_target_sleep_state);
 }
 #else /* !CONFIG_ACPI_SLEEP */
+#define sleep_no_lps0	(1)
 #define acpi_target_sleep_state	ACPI_STATE_S0
-#define acpi_sleep_no_lps0	(false)
+#define acpi_sleep_default_s3	(1)
 static inline void acpi_sleep_dmi_check(void) {}
 #endif /* CONFIG_ACPI_SLEEP */
 
@@ -904,12 +909,6 @@ static int lps0_device_attach(struct acpi_device *adev,
 	if (lps0_device_handle)
 		return 0;
 
-	if (acpi_sleep_no_lps0) {
-		acpi_handle_info(adev->handle,
-				 "Low Power S0 Idle interface disabled\n");
-		return 0;
-	}
-
 	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
 		return 0;
 
@@ -937,7 +936,7 @@ static int lps0_device_attach(struct acpi_device *adev,
 	 * Use suspend-to-idle by default if the default suspend mode was not
 	 * set from the command line.
 	 */
-	if (mem_sleep_default > PM_SUSPEND_MEM)
+	if (mem_sleep_default > PM_SUSPEND_MEM && !acpi_sleep_default_s3)
 		mem_sleep_current = PM_SUSPEND_TO_IDLE;
 
 	return 0;
@@ -957,7 +956,7 @@ static int acpi_s2idle_begin(void)
 
 static int acpi_s2idle_prepare(void)
 {
-	if (lps0_device_handle) {
+	if (lps0_device_handle && !sleep_no_lps0) {
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF);
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY);
 	}
@@ -977,7 +976,7 @@ static int acpi_s2idle_prepare(void)
 
 static void acpi_s2idle_wake(void)
 {
-	if (lps0_device_handle && pm_debug_messages_on)
+	if (lps0_device_handle && !sleep_no_lps0 && pm_debug_messages_on)
 		lpi_check_constraints();
 
 	/*
@@ -1025,7 +1024,7 @@ static void acpi_s2idle_restore(void)
 	if (acpi_sci_irq_valid())
 		disable_irq_wake(acpi_sci_irq);
 
-	if (lps0_device_handle) {
+	if (lps0_device_handle && !sleep_no_lps0) {
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT);
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_ON);
 	}
