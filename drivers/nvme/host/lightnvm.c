@@ -690,34 +690,6 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	return 0;
 }
 
-static int nvme_nvm_submit_io_sync(struct nvm_dev *dev, struct nvm_rq *rqd)
-{
-	struct request_queue *q = dev->q;
-	struct request *rq;
-	struct nvme_nvm_command cmd;
-	int ret = 0;
-
-	memset(&cmd, 0, sizeof(struct nvme_nvm_command));
-
-	rq = nvme_nvm_alloc_request(q, rqd, &cmd);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
-
-	/* I/Os can fail and the error is signaled through rqd. Callers must
-	 * handle the error accordingly.
-	 */
-	blk_execute_rq(q, NULL, rq, 0);
-	if (nvme_req(rq)->flags & NVME_REQ_CANCELLED)
-		ret = -EINTR;
-
-	rqd->ppa_status = le64_to_cpu(nvme_req(rq)->result.u64);
-	rqd->error = nvme_req(rq)->status;
-
-	blk_mq_free_request(rq);
-
-	return ret;
-}
-
 static void *nvme_nvm_create_dma_pool(struct nvm_dev *nvmdev, char *name,
 					int size)
 {
@@ -754,7 +726,6 @@ static struct nvm_dev_ops nvme_nvm_dev_ops = {
 	.get_chk_meta		= nvme_nvm_get_chk_meta,
 
 	.submit_io		= nvme_nvm_submit_io,
-	.submit_io_sync		= nvme_nvm_submit_io_sync,
 
 	.create_dma_pool	= nvme_nvm_create_dma_pool,
 	.destroy_dma_pool	= nvme_nvm_destroy_dma_pool,
