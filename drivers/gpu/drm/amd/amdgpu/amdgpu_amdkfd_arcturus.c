@@ -28,7 +28,6 @@
 #include <linux/uaccess.h>
 #include <linux/mmu_context.h>
 #include <linux/firmware.h>
-#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
 #include "sdma0/sdma0_4_2_2_offset.h"
