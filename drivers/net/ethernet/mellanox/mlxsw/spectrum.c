@@ -6330,7 +6330,7 @@ static int __init mlxsw_sp_module_init(void)
 	return 0;
 
 err_sp2_pci_driver_register:
-	mlxsw_pci_driver_unregister(&mlxsw_sp2_pci_driver);
+	mlxsw_pci_driver_unregister(&mlxsw_sp1_pci_driver);
 err_sp1_pci_driver_register:
 	mlxsw_core_driver_unregister(&mlxsw_sp2_driver);
 err_sp2_core_driver_register:
