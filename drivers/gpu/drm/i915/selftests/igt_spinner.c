@@ -9,25 +9,24 @@
 
 #include "igt_spinner.h"
 
-int igt_spinner_init(struct igt_spinner *spin, struct drm_i915_private *i915)
+int igt_spinner_init(struct igt_spinner *spin, struct intel_gt *gt)
 {
 	unsigned int mode;
 	void *vaddr;
 	int err;
 
-	GEM_BUG_ON(INTEL_GEN(i915) < 8);
+	GEM_BUG_ON(INTEL_GEN(gt->i915) < 8);
 
 	memset(spin, 0, sizeof(*spin));
-	spin->i915 = i915;
-	spin->gt = &i915->gt;
+	spin->gt = gt;
 
-	spin->hws = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	spin->hws = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
 	if (IS_ERR(spin->hws)) {
 		err = PTR_ERR(spin->hws);
 		goto err;
 	}
 
-	spin->obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	spin->obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
 	if (IS_ERR(spin->obj)) {
 		err = PTR_ERR(spin->obj);
 		goto err_hws;
@@ -41,7 +40,7 @@ int igt_spinner_init(struct igt_spinner *spin, struct drm_i915_private *i915)
 	}
 	spin->seqno = memset(vaddr, 0xff, PAGE_SIZE);
 
-	mode = i915_coherent_map_type(i915);
+	mode = i915_coherent_map_type(gt->i915);
 	vaddr = i915_gem_object_pin_map(spin->obj, mode);
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);
@@ -87,22 +86,22 @@ static int move_to_active(struct i915_vma *vma,
 
 struct i915_request *
 igt_spinner_create_request(struct igt_spinner *spin,
-			   struct i915_gem_context *ctx,
-			   struct intel_engine_cs *engine,
+			   struct intel_context *ce,
 			   u32 arbitration_command)
 {
+	struct intel_engine_cs *engine = ce->engine;
 	struct i915_request *rq = NULL;
 	struct i915_vma *hws, *vma;
 	u32 *batch;
 	int err;
 
-	spin->gt = engine->gt;
+	GEM_BUG_ON(spin->gt != ce->vm->gt);
 
-	vma = i915_vma_instance(spin->obj, ctx->vm, NULL);
+	vma = i915_vma_instance(spin->obj, ce->vm, NULL);
 	if (IS_ERR(vma))
 		return ERR_CAST(vma);
 
-	hws = i915_vma_instance(spin->hws, ctx->vm, NULL);
+	hws = i915_vma_instance(spin->hws, ce->vm, NULL);
 	if (IS_ERR(hws))
 		return ERR_CAST(hws);
 
@@ -114,7 +113,7 @@ igt_spinner_create_request(struct igt_spinner *spin,
 	if (err)
 		goto unpin_vma;
 
-	rq = igt_request_alloc(ctx, engine);
+	rq = intel_context_create_request(ce);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto unpin_hws;

@@ -22,9 +22,9 @@
 static int live_sanitycheck(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct intel_engine_cs *engine;
+	struct i915_gem_engines_iter it;
 	struct i915_gem_context *ctx;
-	enum intel_engine_id id;
+	struct intel_context *ce;
 	struct igt_spinner spin;
 	intel_wakeref_t wakeref;
 	int err = -ENOMEM;
@@ -35,17 +35,17 @@ static int live_sanitycheck(void *arg)
 	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	if (igt_spinner_init(&spin, i915))
+	if (igt_spinner_init(&spin, &i915->gt))
 		goto err_unlock;
 
 	ctx = kernel_context(i915);
 	if (!ctx)
 		goto err_spin;
 
-	for_each_engine(engine, i915, id) {
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
 		struct i915_request *rq;
 
-		rq = igt_spinner_create_request(&spin, ctx, engine, MI_NOOP);
+		rq = igt_spinner_create_request(&spin, ce, MI_NOOP);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			goto err_ctx;
@@ -69,6 +69,7 @@ static int live_sanitycheck(void *arg)
 
 	err = 0;
 err_ctx:
+	i915_gem_context_unlock_engines(ctx);
 	kernel_context_close(ctx);
 err_spin:
 	igt_spinner_fini(&spin);
@@ -480,6 +481,24 @@ err_unlock:
 	return err;
 }
 
+static struct i915_request *
+spinner_create_request(struct igt_spinner *spin,
+		       struct i915_gem_context *ctx,
+		       struct intel_engine_cs *engine,
+		       u32 arb)
+{
+	struct intel_context *ce;
+	struct i915_request *rq;
+
+	ce = i915_gem_context_get_engine(ctx, engine->id);
+	if (IS_ERR(ce))
+		return ERR_CAST(ce);
+
+	rq = igt_spinner_create_request(spin, ce, arb);
+	intel_context_put(ce);
+	return rq;
+}
+
 static int live_preempt(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -499,10 +518,10 @@ static int live_preempt(void *arg)
 	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	if (igt_spinner_init(&spin_hi, i915))
+	if (igt_spinner_init(&spin_hi, &i915->gt))
 		goto err_unlock;
 
-	if (igt_spinner_init(&spin_lo, i915))
+	if (igt_spinner_init(&spin_lo, &i915->gt))
 		goto err_spin_hi;
 
 	ctx_hi = kernel_context(i915);
@@ -529,8 +548,8 @@ static int live_preempt(void *arg)
 			goto err_ctx_lo;
 		}
 
-		rq = igt_spinner_create_request(&spin_lo, ctx_lo, engine,
-						MI_ARB_CHECK);
+		rq = spinner_create_request(&spin_lo, ctx_lo, engine,
+					    MI_ARB_CHECK);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			goto err_ctx_lo;
@@ -545,8 +564,8 @@ static int live_preempt(void *arg)
 			goto err_ctx_lo;
 		}
 
-		rq = igt_spinner_create_request(&spin_hi, ctx_hi, engine,
-						MI_ARB_CHECK);
+		rq = spinner_create_request(&spin_hi, ctx_hi, engine,
+					    MI_ARB_CHECK);
 		if (IS_ERR(rq)) {
 			igt_spinner_end(&spin_lo);
 			err = PTR_ERR(rq);
@@ -603,10 +622,10 @@ static int live_late_preempt(void *arg)
 	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	if (igt_spinner_init(&spin_hi, i915))
+	if (igt_spinner_init(&spin_hi, &i915->gt))
 		goto err_unlock;
 
-	if (igt_spinner_init(&spin_lo, i915))
+	if (igt_spinner_init(&spin_lo, &i915->gt))
 		goto err_spin_hi;
 
 	ctx_hi = kernel_context(i915);
@@ -632,8 +651,8 @@ static int live_late_preempt(void *arg)
 			goto err_ctx_lo;
 		}
 
-		rq = igt_spinner_create_request(&spin_lo, ctx_lo, engine,
-						MI_ARB_CHECK);
+		rq = spinner_create_request(&spin_lo, ctx_lo, engine,
+					    MI_ARB_CHECK);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			goto err_ctx_lo;
@@ -645,8 +664,8 @@ static int live_late_preempt(void *arg)
 			goto err_wedged;
 		}
 
-		rq = igt_spinner_create_request(&spin_hi, ctx_hi, engine,
-						MI_NOOP);
+		rq = spinner_create_request(&spin_hi, ctx_hi, engine,
+					    MI_NOOP);
 		if (IS_ERR(rq)) {
 			igt_spinner_end(&spin_lo);
 			err = PTR_ERR(rq);
@@ -711,7 +730,7 @@ static int preempt_client_init(struct drm_i915_private *i915,
 	if (!c->ctx)
 		return -ENOMEM;
 
-	if (igt_spinner_init(&c->spin, i915))
+	if (igt_spinner_init(&c->spin, &i915->gt))
 		goto err_ctx;
 
 	return 0;
@@ -761,9 +780,9 @@ static int live_nopreempt(void *arg)
 
 		engine->execlists.preempt_hang.count = 0;
 
-		rq_a = igt_spinner_create_request(&a.spin,
-						  a.ctx, engine,
-						  MI_ARB_CHECK);
+		rq_a = spinner_create_request(&a.spin,
+					      a.ctx, engine,
+					      MI_ARB_CHECK);
 		if (IS_ERR(rq_a)) {
 			err = PTR_ERR(rq_a);
 			goto err_client_b;
@@ -778,9 +797,9 @@ static int live_nopreempt(void *arg)
 			goto err_wedged;
 		}
 
-		rq_b = igt_spinner_create_request(&b.spin,
-						  b.ctx, engine,
-						  MI_ARB_CHECK);
+		rq_b = spinner_create_request(&b.spin,
+					      b.ctx, engine,
+					      MI_ARB_CHECK);
 		if (IS_ERR(rq_b)) {
 			err = PTR_ERR(rq_b);
 			goto err_client_b;
@@ -880,9 +899,9 @@ static int live_suppress_self_preempt(void *arg)
 
 		engine->execlists.preempt_hang.count = 0;
 
-		rq_a = igt_spinner_create_request(&a.spin,
-						  a.ctx, engine,
-						  MI_NOOP);
+		rq_a = spinner_create_request(&a.spin,
+					      a.ctx, engine,
+					      MI_NOOP);
 		if (IS_ERR(rq_a)) {
 			err = PTR_ERR(rq_a);
 			goto err_client_b;
@@ -895,9 +914,9 @@ static int live_suppress_self_preempt(void *arg)
 		}
 
 		for (depth = 0; depth < 8; depth++) {
-			rq_b = igt_spinner_create_request(&b.spin,
-							  b.ctx, engine,
-							  MI_NOOP);
+			rq_b = spinner_create_request(&b.spin,
+						      b.ctx, engine,
+						      MI_NOOP);
 			if (IS_ERR(rq_b)) {
 				err = PTR_ERR(rq_b);
 				goto err_client_b;
@@ -1048,9 +1067,9 @@ static int live_suppress_wait_preempt(void *arg)
 				goto err_client_3;
 
 			for (i = 0; i < ARRAY_SIZE(client); i++) {
-				rq[i] = igt_spinner_create_request(&client[i].spin,
-								   client[i].ctx, engine,
-								   MI_NOOP);
+				rq[i] = spinner_create_request(&client[i].spin,
+							       client[i].ctx, engine,
+							       MI_NOOP);
 				if (IS_ERR(rq[i])) {
 					err = PTR_ERR(rq[i]);
 					goto err_wedged;
@@ -1157,9 +1176,9 @@ static int live_chain_preempt(void *arg)
 		if (!intel_engine_has_preemption(engine))
 			continue;
 
-		rq = igt_spinner_create_request(&lo.spin,
-						lo.ctx, engine,
-						MI_ARB_CHECK);
+		rq = spinner_create_request(&lo.spin,
+					    lo.ctx, engine,
+					    MI_ARB_CHECK);
 		if (IS_ERR(rq))
 			goto err_wedged;
 		i915_request_add(rq);
@@ -1183,18 +1202,18 @@ static int live_chain_preempt(void *arg)
 		}
 
 		for_each_prime_number_from(count, 1, ring_size) {
-			rq = igt_spinner_create_request(&hi.spin,
-							hi.ctx, engine,
-							MI_ARB_CHECK);
+			rq = spinner_create_request(&hi.spin,
+						    hi.ctx, engine,
+						    MI_ARB_CHECK);
 			if (IS_ERR(rq))
 				goto err_wedged;
 			i915_request_add(rq);
 			if (!igt_wait_for_spinner(&hi.spin, rq))
 				goto err_wedged;
 
-			rq = igt_spinner_create_request(&lo.spin,
-							lo.ctx, engine,
-							MI_ARB_CHECK);
+			rq = spinner_create_request(&lo.spin,
+						    lo.ctx, engine,
+						    MI_ARB_CHECK);
 			if (IS_ERR(rq))
 				goto err_wedged;
 			i915_request_add(rq);
@@ -1284,10 +1303,10 @@ static int live_preempt_hang(void *arg)
 	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	if (igt_spinner_init(&spin_hi, i915))
+	if (igt_spinner_init(&spin_hi, &i915->gt))
 		goto err_unlock;
 
-	if (igt_spinner_init(&spin_lo, i915))
+	if (igt_spinner_init(&spin_lo, &i915->gt))
 		goto err_spin_hi;
 
 	ctx_hi = kernel_context(i915);
@@ -1308,8 +1327,8 @@ static int live_preempt_hang(void *arg)
 		if (!intel_engine_has_preemption(engine))
 			continue;
 
-		rq = igt_spinner_create_request(&spin_lo, ctx_lo, engine,
-						MI_ARB_CHECK);
+		rq = spinner_create_request(&spin_lo, ctx_lo, engine,
+					    MI_ARB_CHECK);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			goto err_ctx_lo;
@@ -1324,8 +1343,8 @@ static int live_preempt_hang(void *arg)
 			goto err_ctx_lo;
 		}
 
-		rq = igt_spinner_create_request(&spin_hi, ctx_hi, engine,
-						MI_ARB_CHECK);
+		rq = spinner_create_request(&spin_hi, ctx_hi, engine,
+					    MI_ARB_CHECK);
 		if (IS_ERR(rq)) {
 			igt_spinner_end(&spin_lo);
 			err = PTR_ERR(rq);

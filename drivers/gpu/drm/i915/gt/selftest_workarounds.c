@@ -238,6 +238,7 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 			  struct igt_spinner *spin)
 {
 	struct i915_gem_context *ctx;
+	struct intel_context *ce;
 	struct i915_request *rq;
 	intel_wakeref_t wakeref;
 	int err = 0;
@@ -248,10 +249,14 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 
 	GEM_BUG_ON(i915_gem_context_is_bannable(ctx));
 
+	ce = i915_gem_context_get_engine(ctx, engine->id);
+	GEM_BUG_ON(IS_ERR(ce));
+
 	rq = ERR_PTR(-ENODEV);
 	with_intel_runtime_pm(&engine->i915->runtime_pm, wakeref)
-		rq = igt_spinner_create_request(spin, ctx, engine, MI_NOOP);
+		rq = igt_spinner_create_request(spin, ce, MI_NOOP);
 
+	intel_context_put(ce);
 	kernel_context_close(ctx);
 
 	if (IS_ERR(rq)) {
@@ -291,7 +296,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	err = igt_spinner_init(&spin, i915);
+	err = igt_spinner_init(&spin, engine->gt);
 	if (err)
 		goto out_ctx;
 
@@ -1083,7 +1088,7 @@ verify_wa_lists(struct i915_gem_context *ctx, struct wa_lists *lists,
 
 	ok &= wa_list_verify(&i915->uncore, &lists->gt_wa_list, str);
 
-	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+	for_each_gem_engine(ce, i915_gem_context_engines(ctx), it) {
 		enum intel_engine_id id = ce->engine->id;
 
 		ok &= engine_wa_list_verify(ce,
@@ -1094,7 +1099,6 @@ verify_wa_lists(struct i915_gem_context *ctx, struct wa_lists *lists,
 					    &lists->engine[id].ctx_wa_list,
 					    str) == 0;
 	}
-	i915_gem_context_unlock_engines(ctx);
 
 	return ok;
 }
@@ -1115,6 +1119,8 @@ live_gpu_reset_workarounds(void *arg)
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
+	i915_gem_context_lock_engines(ctx);
+
 	pr_info("Verifying after GPU reset...\n");
 
 	igt_global_reset_lock(&i915->gt);
@@ -1131,6 +1137,7 @@ live_gpu_reset_workarounds(void *arg)
 	ok = verify_wa_lists(ctx, &lists, "after reset");
 
 out:
+	i915_gem_context_unlock_engines(ctx);
 	kernel_context_close(ctx);
 	reference_lists_fini(i915, &lists);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
@@ -1143,10 +1150,10 @@ static int
 live_engine_reset_workarounds(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct intel_engine_cs *engine;
+	struct i915_gem_engines_iter it;
 	struct i915_gem_context *ctx;
+	struct intel_context *ce;
 	struct igt_spinner spin;
-	enum intel_engine_id id;
 	struct i915_request *rq;
 	intel_wakeref_t wakeref;
 	struct wa_lists lists;
@@ -1164,7 +1171,8 @@ live_engine_reset_workarounds(void *arg)
 
 	reference_lists_init(i915, &lists);
 
-	for_each_engine(engine, i915, id) {
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		struct intel_engine_cs *engine = ce->engine;
 		bool ok;
 
 		pr_info("Verifying after %s reset...\n", engine->name);
@@ -1183,11 +1191,11 @@ live_engine_reset_workarounds(void *arg)
 			goto err;
 		}
 
-		ret = igt_spinner_init(&spin, i915);
+		ret = igt_spinner_init(&spin, engine->gt);
 		if (ret)
 			goto err;
 
-		rq = igt_spinner_create_request(&spin, ctx, engine, MI_NOOP);
+		rq = igt_spinner_create_request(&spin, ce, MI_NOOP);
 		if (IS_ERR(rq)) {
 			ret = PTR_ERR(rq);
 			igt_spinner_fini(&spin);
@@ -1214,8 +1222,8 @@ live_engine_reset_workarounds(void *arg)
 			goto err;
 		}
 	}
-
 err:
+	i915_gem_context_unlock_engines(ctx);
 	reference_lists_fini(i915, &lists);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	igt_global_reset_unlock(&i915->gt);

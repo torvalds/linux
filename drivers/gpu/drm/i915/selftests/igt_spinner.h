@@ -17,7 +17,6 @@
 struct intel_gt;
 
 struct igt_spinner {
-	struct drm_i915_private *i915;
 	struct intel_gt *gt;
 	struct drm_i915_gem_object *hws;
 	struct drm_i915_gem_object *obj;
@@ -25,13 +24,12 @@ struct igt_spinner {
 	void *seqno;
 };
 
-int igt_spinner_init(struct igt_spinner *spin, struct drm_i915_private *i915);
+int igt_spinner_init(struct igt_spinner *spin, struct intel_gt *gt);
 void igt_spinner_fini(struct igt_spinner *spin);
 
 struct i915_request *
 igt_spinner_create_request(struct igt_spinner *spin,
-			   struct i915_gem_context *ctx,
-			   struct intel_engine_cs *engine,
+			   struct intel_context *ce,
 			   u32 arbitration_command);
 void igt_spinner_end(struct igt_spinner *spin);
 
