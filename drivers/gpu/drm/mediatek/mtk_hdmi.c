@@ -1300,9 +1300,10 @@ static int mtk_hdmi_bridge_attach(struct drm_bridge *bridge)
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 	int ret;
 
-	ret = drm_connector_init(bridge->encoder->dev, &hdmi->conn,
-				 &mtk_hdmi_connector_funcs,
-				 DRM_MODE_CONNECTOR_HDMIA);
+	ret = drm_connector_init_with_ddc(bridge->encoder->dev, &hdmi->conn,
+					  &mtk_hdmi_connector_funcs,
+					  DRM_MODE_CONNECTOR_HDMIA,
+					  hdmi->ddc_adpt);
 	if (ret) {
 		dev_err(hdmi->dev, "Failed to initialize connector: %d\n", ret);
 		return ret;
