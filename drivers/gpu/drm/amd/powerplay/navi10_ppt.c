@@ -1509,6 +1509,56 @@ static int navi10_display_disable_memory_clock_switch(struct smu_context *smu,
 	return ret;
 }
 
+static int navi10_get_power_limit(struct smu_context *smu,
+				     uint32_t *limit,
+				     bool asic_default)
+{
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+	uint32_t asic_default_power_limit;
+	int ret = 0;
+	int power_src;
+
+	if (!smu->default_power_limit ||
+	    !smu->power_limit) {
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
+			power_src = smu_power_get_index(smu, SMU_POWER_SOURCE_AC);
+			if (power_src < 0)
+				return -EINVAL;
+
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetPptLimit,
+				power_src << 16);
+			if (ret) {
+				pr_err("[%s] get PPT limit failed!", __func__);
+				return ret;
+			}
+			smu_read_smc_arg(smu, &asic_default_power_limit);
+		} else {
+			/* the last hope to figure out the ppt limit */
+			if (!pptable) {
+				pr_err("Cannot get PPT limit due to pptable missing!");
+				return -EINVAL;
+			}
+			asic_default_power_limit =
+				pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
+		}
+
+		if (smu->od_enabled) {
+			asic_default_power_limit *= (100 + smu->smu_table.TDPODLimit);
+			asic_default_power_limit /= 100;
+		}
+
+		smu->default_power_limit = asic_default_power_limit;
+		smu->power_limit = asic_default_power_limit;
+	}
+
+	if (asic_default)
+		*limit = smu->default_power_limit;
+	else
+		*limit = smu->power_limit;
+
+	return 0;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -1546,6 +1596,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.set_performance_level = navi10_set_performance_level,
 	.get_thermal_temperature_range = navi10_get_thermal_temperature_range,
 	.display_disable_memory_clock_switch = navi10_display_disable_memory_clock_switch,
+	.get_power_limit = navi10_get_power_limit,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

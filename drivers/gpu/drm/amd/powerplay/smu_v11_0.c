@@ -1015,64 +1015,32 @@ static int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 	return 0;
 }
 
-static int smu_v11_0_get_power_limit(struct smu_context *smu,
-				     uint32_t *limit,
-				     bool get_default)
-{
-	int ret = 0;
-	int power_src;
-
-	power_src = smu_power_get_index(smu, SMU_POWER_SOURCE_AC);
-	if (power_src < 0)
-		return -EINVAL;
-
-	if (get_default) {
-		mutex_lock(&smu->mutex);
-		*limit = smu->default_power_limit;
-		if (smu->od_enabled) {
-			*limit *= (100 + smu->smu_table.TDPODLimit);
-			*limit /= 100;
-		}
-		mutex_unlock(&smu->mutex);
-	} else {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetPptLimit,
-			power_src << 16);
-		if (ret) {
-			pr_err("[%s] get PPT limit failed!", __func__);
-			return ret;
-		}
-		smu_read_smc_arg(smu, limit);
-		smu->power_limit = *limit;
-	}
-
-	return ret;
-}
-
 static int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 {
-	uint32_t max_power_limit;
 	int ret = 0;
+
+	if (n > smu->default_power_limit) {
+		pr_err("New power limit is over the max allowed %d\n",
+				smu->default_power_limit);
+		return -EINVAL;
+	}
 
 	if (n == 0)
 		n = smu->default_power_limit;
 
-	max_power_limit = smu->default_power_limit;
-
-	if (smu->od_enabled) {
-		max_power_limit *= (100 + smu->smu_table.TDPODLimit);
-		max_power_limit /= 100;
+	if (!smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
+		pr_err("Setting new power limit is not supported!\n");
+		return -EOPNOTSUPP;
 	}
-	if (n > max_power_limit)
-		return -EINVAL;
 
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n);
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n);
 	if (ret) {
-		pr_err("[%s] Set power limit Failed!", __func__);
+		pr_err("[%s] Set power limit Failed!\n", __func__);
 		return ret;
 	}
+	smu->power_limit = n;
 
-	return ret;
+	return 0;
 }
 
 static int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
@@ -1753,7 +1721,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
 	.system_features_control = smu_v11_0_system_features_control,
 	.notify_display_change = smu_v11_0_notify_display_change,
-	.get_power_limit = smu_v11_0_get_power_limit,
 	.set_power_limit = smu_v11_0_set_power_limit,
 	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,

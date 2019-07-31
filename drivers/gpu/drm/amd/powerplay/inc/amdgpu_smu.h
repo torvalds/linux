@@ -450,6 +450,7 @@ struct pptable_funcs {
 	int (*set_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
 	int (*display_disable_memory_clock_switch)(struct smu_context *smu, bool disable_memory_clock_switch);
 	void (*dump_pptable)(struct smu_context *smu);
+	int (*get_power_limit)(struct smu_context *smu, uint32_t *limit, bool asic_default);
 };
 
 struct smu_funcs
@@ -482,7 +483,6 @@ struct smu_funcs
 	int (*set_allowed_mask)(struct smu_context *smu);
 	int (*get_enabled_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 	int (*notify_display_change)(struct smu_context *smu);
-	int (*get_power_limit)(struct smu_context *smu, uint32_t *limit, bool def);
 	int (*set_power_limit)(struct smu_context *smu, uint32_t n);
 	int (*get_current_clk_freq)(struct smu_context *smu, enum smu_clk_type clk_id, uint32_t *value);
 	int (*init_max_sustainable_clocks)(struct smu_context *smu);
@@ -611,7 +611,7 @@ struct smu_funcs
 #define smu_set_default_od8_settings(smu) \
 	((smu)->ppt_funcs->set_default_od8_settings ? (smu)->ppt_funcs->set_default_od8_settings((smu)) : 0)
 #define smu_get_power_limit(smu, limit, def) \
-	((smu)->funcs->get_power_limit ? (smu)->funcs->get_power_limit((smu), (limit), (def)) : 0)
+	((smu)->ppt_funcs->get_power_limit ? (smu)->ppt_funcs->get_power_limit((smu), (limit), (def)) : 0)
 #define smu_set_power_limit(smu, limit) \
 	((smu)->funcs->set_power_limit ? (smu)->funcs->set_power_limit((smu), (limit)) : 0)
 #define smu_get_current_clk_freq(smu, clk_id, value) \
