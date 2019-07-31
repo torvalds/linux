@@ -31,6 +31,7 @@ ALL_TESTS="
 	ping_ipv4
 	test_update
 	test_no_update
+	test_dscp_leftover
 "
 
 lib_dir=$(dirname $0)/../../../net/forwarding
@@ -48,6 +49,11 @@ reprioritize()
 	local -a reprio=(0 0 2 2 6 6 4 4)
 
 	echo ${reprio[$in]}
+}
+
+zero()
+{
+    echo 0
 }
 
 h1_create()
@@ -223,6 +229,19 @@ test_update()
 test_no_update()
 {
 	__test_update 0 echo
+}
+
+# Test that when the last APP rule is removed, the prio->DSCP map is properly
+# set to zeroes, and that the last APP rule does not stay active in the ASIC.
+test_dscp_leftover()
+{
+	lldptool -T -i $swp2 -V APP -d $(dscp_map 0) >/dev/null
+	lldpad_app_wait_del
+
+	__test_update 0 zero
+
+	lldptool -T -i $swp2 -V APP $(dscp_map 0) >/dev/null
+	lldpad_app_wait_set $swp2
 }
 
 trap cleanup EXIT
