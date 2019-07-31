@@ -77,6 +77,7 @@ struct intel_guc_client {
 	I915_SELFTEST_DECLARE(bool use_nop_wqi);
 };
 
+void intel_guc_submission_init_early(struct intel_guc *guc);
 int intel_guc_submission_init(struct intel_guc *guc);
 int intel_guc_submission_enable(struct intel_guc *guc);
 void intel_guc_submission_disable(struct intel_guc *guc);

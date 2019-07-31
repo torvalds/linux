@@ -61,6 +61,8 @@ struct intel_guc {
 		void (*disable)(struct intel_guc *guc);
 	} interrupts;
 
+	bool submission_supported;
+
 	struct i915_vma *ads_vma;
 	struct __guc_ads_blob *ads_blob;
 
@@ -188,6 +190,11 @@ static inline int intel_guc_sanitize(struct intel_guc *guc)
 	guc->mmio_msg = 0;
 
 	return 0;
+}
+
+static inline bool intel_guc_is_submission_supported(struct intel_guc *guc)
+{
+	return guc->submission_supported;
 }
 
 static inline void intel_guc_enable_msg(struct intel_guc *guc, u32 mask)

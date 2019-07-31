@@ -1163,6 +1163,22 @@ void intel_guc_submission_disable(struct intel_guc *guc)
 	guc_clients_disable(guc);
 }
 
+static bool __guc_submission_support(struct intel_guc *guc)
+{
+	/* XXX: GuC submission is unavailable for now */
+	return false;
+
+	if (!intel_guc_is_supported(guc))
+		return false;
+
+	return i915_modparams.enable_guc & ENABLE_GUC_SUBMISSION;
+}
+
+void intel_guc_submission_init_early(struct intel_guc *guc)
+{
+	guc->submission_supported = __guc_submission_support(guc);
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftest_guc.c"
 #endif
