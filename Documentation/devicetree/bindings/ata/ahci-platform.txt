@@ -45,7 +45,7 @@ Required properties when using sub-nodes:
 - #address-cells    : number of cells to encode an address
 - #size-cells       : number of cells representing the size of an address
 
-For allwinner,sun8i-r40-ahci, the reset propertie must be present.
+For allwinner,sun8i-r40-ahci, the reset property must be present.
 
 Sub-nodes required properties:
 - reg		    : the port number
