@@ -3484,9 +3484,9 @@ static int clk_cpy_name(const char **dst_p, const char *src, bool must_exist)
 	return 0;
 }
 
-static int clk_core_populate_parent_map(struct clk_core *core)
+static int clk_core_populate_parent_map(struct clk_core *core,
+					const struct clk_init_data *init)
 {
-	const struct clk_init_data *init = core->hw->init;
 	u8 num_parents = init->num_parents;
 	const char * const *parent_names = init->parent_names;
 	const struct clk_hw **parent_hws = init->parent_hws;
@@ -3566,6 +3566,14 @@ __clk_register(struct device *dev, struct device_node *np, struct clk_hw *hw)
 {
 	int ret;
 	struct clk_core *core;
+	const struct clk_init_data *init = hw->init;
+
+	/*
+	 * The init data is not supposed to be used outside of registration path.
+	 * Set it to NULL so that provider drivers can't use it either and so that
+	 * we catch use of hw->init early on in the core.
+	 */
+	hw->init = NULL;
 
 	core = kzalloc(sizeof(*core), GFP_KERNEL);
 	if (!core) {
@@ -3573,17 +3581,17 @@ __clk_register(struct device *dev, struct device_node *np, struct clk_hw *hw)
 		goto fail_out;
 	}
 
-	core->name = kstrdup_const(hw->init->name, GFP_KERNEL);
+	core->name = kstrdup_const(init->name, GFP_KERNEL);
 	if (!core->name) {
 		ret = -ENOMEM;
 		goto fail_name;
 	}
 
-	if (WARN_ON(!hw->init->ops)) {
+	if (WARN_ON(!init->ops)) {
 		ret = -EINVAL;
 		goto fail_ops;
 	}
-	core->ops = hw->init->ops;
+	core->ops = init->ops;
 
 	if (dev && pm_runtime_enabled(dev))
 		core->rpm_enabled = true;
@@ -3592,13 +3600,13 @@ __clk_register(struct device *dev, struct device_node *np, struct clk_hw *hw)
 	if (dev && dev->driver)
 		core->owner = dev->driver->owner;
 	core->hw = hw;
-	core->flags = hw->init->flags;
-	core->num_parents = hw->init->num_parents;
+	core->flags = init->flags;
+	core->num_parents = init->num_parents;
 	core->min_rate = 0;
 	core->max_rate = ULONG_MAX;
 	hw->core = core;
 
-	ret = clk_core_populate_parent_map(core);
+	ret = clk_core_populate_parent_map(core, init);
 	if (ret)
 		goto fail_parents;
 
