@@ -22,7 +22,7 @@
  */
 
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_vcn.h"
 #include "soc15.h"
@@ -2112,7 +2112,7 @@ static int vcn_v2_0_dec_ring_test_ring(struct amdgpu_ring *ring)
 		tmp = RREG32(adev->vcn.inst[ring->me].external.scratch9);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)
