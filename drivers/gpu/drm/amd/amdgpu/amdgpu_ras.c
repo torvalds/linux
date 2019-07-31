@@ -601,8 +601,19 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 	default:
 		break;
 	}
+
+	obj->err_data.ue_count += err_data.ue_count;
+	obj->err_data.ce_count += err_data.ce_count;
+
 	info->ue_count = obj->err_data.ue_count;
 	info->ce_count = obj->err_data.ce_count;
+
+	if (err_data.ce_count)
+		dev_info(adev->dev, "%ld correctable errors detected in %s block\n",
+			 obj->err_data.ce_count, ras_block_str(info->head.block));
+	if (err_data.ue_count)
+		dev_info(adev->dev, "%ld uncorrectable errors detected in %s block\n",
+			 obj->err_data.ue_count, ras_block_str(info->head.block));
 
 	return 0;
 }
