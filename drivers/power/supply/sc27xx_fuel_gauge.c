@@ -858,6 +858,8 @@ static int sc27xx_fgu_hw_init(struct sc27xx_fgu_data *data)
 	data->alarm_cap = power_supply_ocv2cap_simple(data->cap_table,
 						      data->table_len,
 						      data->min_volt);
+	if (!data->alarm_cap)
+		data->alarm_cap += 1;
 
 	power_supply_put_battery_info(data->battery, &info);
 
