@@ -14,6 +14,7 @@ menuconfig COMMON_CLK_QCOM
 	tristate "Support for Qualcomm's clock controllers"
 	depends on OF
 	depends on ARCH_QCOM || COMPILE_TEST
+	select RATIONAL
 	select REGMAP_MMIO
 	select RESET_CONTROLLER
 
