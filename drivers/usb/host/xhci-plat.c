@@ -307,7 +307,6 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		ret = usb_phy_init(hcd->usb_phy);
 		if (ret)
 			goto put_usb3_hcd;
-		hcd->skip_phy_initialization = 1;
 	}
 
 	hcd->tpl_support = of_usb_host_tpl_support(sysdev->of_node);
