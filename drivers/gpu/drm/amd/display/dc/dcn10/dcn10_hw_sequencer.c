@@ -1503,9 +1503,12 @@ dcn10_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 	} else
 		dpp->funcs->dpp_program_regamma_pwl(dpp, NULL, OPP_REGAMMA_BYPASS);
 
-	log_tf(stream->ctx,
-			stream->out_transfer_func,
-			dpp->regamma_params.hw_points_num);
+	if (stream != NULL && stream->ctx != NULL &&
+			stream->out_transfer_func != NULL) {
+		log_tf(stream->ctx,
+				stream->out_transfer_func,
+				dpp->regamma_params.hw_points_num);
+	}
 
 	return true;
 }
