@@ -4995,13 +4995,15 @@ int libbpf_num_possible_cpus(void)
 	static const char *fcpu = "/sys/devices/system/cpu/possible";
 	int len = 0, n = 0, il = 0, ir = 0;
 	unsigned int start = 0, end = 0;
+	int tmp_cpus = 0;
 	static int cpus;
 	char buf[128];
 	int error = 0;
 	int fd = -1;
 
-	if (cpus > 0)
-		return cpus;
+	tmp_cpus = READ_ONCE(cpus);
+	if (tmp_cpus > 0)
+		return tmp_cpus;
 
 	fd = open(fcpu, O_RDONLY);
 	if (fd < 0) {
@@ -5024,7 +5026,7 @@ int libbpf_num_possible_cpus(void)
 	}
 	buf[len] = '\0';
 
-	for (ir = 0, cpus = 0; ir <= len; ir++) {
+	for (ir = 0, tmp_cpus = 0; ir <= len; ir++) {
 		/* Each sub string separated by ',' has format \d+-\d+ or \d+ */
 		if (buf[ir] == ',' || buf[ir] == '\0') {
 			buf[ir] = '\0';
@@ -5036,13 +5038,15 @@ int libbpf_num_possible_cpus(void)
 			} else if (n == 1) {
 				end = start;
 			}
-			cpus += end - start + 1;
+			tmp_cpus += end - start + 1;
 			il = ir + 1;
 		}
 	}
-	if (cpus <= 0) {
-		pr_warning("Invalid #CPUs %d from %s\n", cpus, fcpu);
+	if (tmp_cpus <= 0) {
+		pr_warning("Invalid #CPUs %d from %s\n", tmp_cpus, fcpu);
 		return -EINVAL;
 	}
-	return cpus;
+
+	WRITE_ONCE(cpus, tmp_cpus);
+	return tmp_cpus;
 }
