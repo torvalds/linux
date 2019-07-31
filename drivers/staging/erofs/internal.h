@@ -51,18 +51,6 @@ struct erofs_fault_info {
 };
 #endif	/* CONFIG_EROFS_FAULT_INJECTION */
 
-#ifdef CONFIG_EROFS_FS_ZIP_CACHE_BIPOLAR
-#define EROFS_FS_ZIP_CACHE_LVL	(2)
-#elif defined(EROFS_FS_ZIP_CACHE_UNIPOLAR)
-#define EROFS_FS_ZIP_CACHE_LVL	(1)
-#else
-#define EROFS_FS_ZIP_CACHE_LVL	(0)
-#endif
-
-#if (!defined(EROFS_FS_HAS_MANAGED_CACHE) && (EROFS_FS_ZIP_CACHE_LVL > 0))
-#define EROFS_FS_HAS_MANAGED_CACHE
-#endif
-
 /* EROFS_SUPER_MAGIC_V1 to represent the whole file system */
 #define EROFS_SUPER_MAGIC   EROFS_SUPER_MAGIC_V1
 
@@ -85,10 +73,11 @@ struct erofs_sb_info {
 
 	unsigned int shrinker_run_no;
 
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
-	struct inode *managed_cache;
-#endif
+	/* current strategy of how to use managed cache */
+	unsigned char cache_strategy;
 
+	/* pseudo inode to manage cached pages */
+	struct inode *managed_cache;
 #endif	/* CONFIG_EROFS_FS_ZIP */
 	u32 blocks;
 	u32 meta_blkaddr;
@@ -174,6 +163,12 @@ static inline void *erofs_kmalloc(struct erofs_sb_info *sbi,
 #define test_opt(sbi, option)	((sbi)->mount_opt & EROFS_MOUNT_##option)
 
 #ifdef CONFIG_EROFS_FS_ZIP
+enum {
+	EROFS_ZIP_CACHE_DISABLED,
+	EROFS_ZIP_CACHE_READAHEAD,
+	EROFS_ZIP_CACHE_READAROUND
+};
+
 #define EROFS_LOCKED_MAGIC     (INT_MIN | 0xE0F510CCL)
 
 /* basic unit of the workstation of a super_block */

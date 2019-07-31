@@ -65,6 +65,16 @@ fault_injection=%d     Enable fault injection in all supported types with
                        by default if CONFIG_EROFS_FS_XATTR is selected.
 (no)acl                Setup POSIX Access Control List. Note: acl is enabled
                        by default if CONFIG_EROFS_FS_POSIX_ACL is selected.
+cache_strategy=%s      Select a strategy for cached decompression from now on:
+                         disabled: In-place I/O decompression only;
+                        readahead: Cache the last incomplete compressed physical
+                                   cluster for further reading. It still does
+                                   in-place I/O decompression for the rest
+                                   compressed physical clusters;
+                       readaround: Cache the both ends of incomplete compressed
+                                   physical clusters for further reading.
+                                   It still does in-place I/O decompression
+                                   for the rest compressed physical clusters.
 
 Module parameters
 =================

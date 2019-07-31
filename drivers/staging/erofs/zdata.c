@@ -162,7 +162,6 @@ struct z_erofs_decompress_frontend {
 static struct page *z_pagemap_global[Z_EROFS_VMAP_GLOBAL_PAGES];
 static DEFINE_MUTEX(z_pagemap_global_lock);
 
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
 static void preload_compressed_pages(struct z_erofs_collector *clt,
 				     struct address_space *mc,
 				     enum z_erofs_cache_alloctype type,
@@ -273,15 +272,6 @@ int erofs_try_to_free_cached_page(struct address_space *mapping,
 	}
 	return ret;
 }
-#else
-static void preload_compressed_pages(struct z_erofs_collector *clt,
-				     struct address_space *mc,
-				     enum z_erofs_cache_alloctype type,
-				     struct list_head *pagepool)
-{
-	/* nowhere to load compressed pages from */
-}
-#endif
 
 /* page_type must be Z_EROFS_PAGE_TYPE_EXCLUSIVE */
 static inline bool try_inplace_io(struct z_erofs_collector *clt,
@@ -547,25 +537,19 @@ static inline struct page *__stagingpage_alloc(struct list_head *pagepool,
 	return page;
 }
 
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
 static bool should_alloc_managed_pages(struct z_erofs_decompress_frontend *fe,
+				       unsigned int cachestrategy,
 				       erofs_off_t la)
 {
+	if (cachestrategy <= EROFS_ZIP_CACHE_DISABLED)
+		return false;
+
 	if (fe->backmost)
 		return true;
 
-	if (EROFS_FS_ZIP_CACHE_LVL >= 2)
-		return la < fe->headoffset;
-
-	return false;
+	return cachestrategy >= EROFS_ZIP_CACHE_READAROUND &&
+		la < fe->headoffset;
 }
-#else
-static bool should_alloc_managed_pages(struct z_erofs_decompress_frontend *fe,
-				       erofs_off_t la)
-{
-	return false;
-}
-#endif
 
 static int z_erofs_do_read_page(struct z_erofs_decompress_frontend *fe,
 				struct page *page,
@@ -621,7 +605,7 @@ restart_now:
 		goto err_out;
 
 	/* preload all compressed pages (maybe downgrade role if necessary) */
-	if (should_alloc_managed_pages(fe, map->m_la))
+	if (should_alloc_managed_pages(fe, sbi->cache_strategy, map->m_la))
 		cache_strategy = DELAYEDALLOC;
 	else
 		cache_strategy = DONTALLOC;
@@ -1126,9 +1110,7 @@ out:
 
 /* define decompression jobqueue types */
 enum {
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
 	JQ_BYPASS,
-#endif
 	JQ_SUBMIT,
 	NR_JOBQUEUES,
 };
@@ -1139,14 +1121,12 @@ static void *jobqueueset_init(struct super_block *sb,
 			      struct z_erofs_unzip_io *fgq,
 			      bool forcefg)
 {
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
 	/*
 	 * if managed cache is enabled, bypass jobqueue is needed,
 	 * no need to read from device for all pclusters in this queue.
 	 */
 	q[JQ_BYPASS] = jobqueue_init(sb, fgq + JQ_BYPASS, true);
 	qtail[JQ_BYPASS] = &q[JQ_BYPASS]->head;
-#endif
 
 	q[JQ_SUBMIT] = jobqueue_init(sb, fgq + JQ_SUBMIT, forcefg);
 	qtail[JQ_SUBMIT] = &q[JQ_SUBMIT]->head;
@@ -1154,7 +1134,6 @@ static void *jobqueueset_init(struct super_block *sb,
 	return tagptr_cast_ptr(tagptr_fold(tagptr1_t, q[JQ_SUBMIT], !forcefg));
 }
 
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
 static void move_to_bypass_jobqueue(struct z_erofs_pcluster *pcl,
 				    z_erofs_next_pcluster_t qtail[],
 				    z_erofs_next_pcluster_t owned_head)
@@ -1188,24 +1167,6 @@ static bool postsubmit_is_all_bypassed(struct z_erofs_unzip_io *q[],
 	kvfree(container_of(q[JQ_SUBMIT], struct z_erofs_unzip_io_sb, io));
 	return true;
 }
-#else
-static void move_to_bypass_jobqueue(struct z_erofs_pcluster *pcl,
-				    z_erofs_next_pcluster_t qtail[],
-				    z_erofs_next_pcluster_t owned_head)
-{
-	/* impossible to bypass submission for managed cache disabled */
-	DBG_BUGON(1);
-}
-
-static bool postsubmit_is_all_bypassed(struct z_erofs_unzip_io *q[],
-				       unsigned int nr_bios,
-				       bool force_fg)
-{
-	/* bios should be >0 if managed cache is disabled */
-	DBG_BUGON(!nr_bios);
-	return false;
-}
-#endif
 
 static bool z_erofs_vle_submit_all(struct super_block *sb,
 				   z_erofs_next_pcluster_t owned_head,
@@ -1317,10 +1278,9 @@ static void z_erofs_submit_and_unzip(struct super_block *sb,
 				    pagepool, io, force_fg))
 		return;
 
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
 	/* decompress no I/O pclusters immediately */
 	z_erofs_vle_unzip_all(sb, &io[JQ_BYPASS], pagepool);
-#endif
+
 	if (!force_fg)
 		return;
 

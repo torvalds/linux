@@ -145,8 +145,6 @@ int erofs_workgroup_put(struct erofs_workgroup *grp)
 	return count;
 }
 
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
-/* for cache-managed case, customized reclaim paths exist */
 static void erofs_workgroup_unfreeze_final(struct erofs_workgroup *grp)
 {
 	erofs_workgroup_unfreeze(grp, 0);
@@ -191,30 +189,6 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 	erofs_workgroup_unfreeze_final(grp);
 	return true;
 }
-
-#else
-/* for nocache case, no customized reclaim path at all */
-static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
-					   struct erofs_workgroup *grp,
-					   bool cleanup)
-{
-	int cnt = atomic_read(&grp->refcount);
-
-	DBG_BUGON(cnt <= 0);
-	DBG_BUGON(cleanup && cnt != 1);
-
-	if (cnt > 1)
-		return false;
-
-	DBG_BUGON(xa_untag_pointer(radix_tree_delete(&sbi->workstn_tree,
-						     grp->index)) != grp);
-
-	/* (rarely) could be grabbed again when freeing */
-	erofs_workgroup_put(grp);
-	return true;
-}
-
-#endif
 
 static unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
 					      unsigned long nr_shrink,
