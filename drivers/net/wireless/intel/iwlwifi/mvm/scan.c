@@ -79,9 +79,6 @@
 #define IWL_SCAN_NUM_OF_FRAGS		3
 #define IWL_SCAN_LAST_2_4_CHN		14
 
-#define IWL_SCAN_BAND_5_2		0
-#define IWL_SCAN_BAND_2_4		1
-
 /* adaptive dwell max budget time [TU] for full scan */
 #define IWL_SCAN_ADWELL_MAX_BUDGET_FULL_SCAN 300
 /* adaptive dwell max budget time [TU] for directed scan */
@@ -194,14 +191,6 @@ static inline __le16 iwl_mvm_scan_rx_chain(struct iwl_mvm *mvm)
 	rx_chain |= rx_ant << PHY_RX_CHAIN_FORCE_SEL_POS;
 	rx_chain |= 0x1 << PHY_RX_CHAIN_DRIVER_FORCE_POS;
 	return cpu_to_le16(rx_chain);
-}
-
-static __le32 iwl_mvm_scan_rxon_flags(enum nl80211_band band)
-{
-	if (band == NL80211_BAND_2GHZ)
-		return cpu_to_le32(PHY_BAND_24);
-	else
-		return cpu_to_le32(PHY_BAND_5);
 }
 
 static inline __le32
@@ -981,6 +970,7 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 mvm->fw->ucode_capa.n_scan_channels);
 	u32 ssid_bitmap = 0;
 	int i;
+	u8 band;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1000,7 +990,8 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd->scan_flags = cpu_to_le32(iwl_mvm_scan_lmac_flags(mvm, params,
 							      vif));
 
-	cmd->flags = iwl_mvm_scan_rxon_flags(params->channels[0]->band);
+	band = iwl_mvm_phy_band_from_nl80211(params->channels[0]->band);
+	cmd->flags = cpu_to_le32(band);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
 					MAC_FILTER_IN_BEACON);
 	iwl_mvm_scan_fill_tx_cmd(mvm, cmd->tx_cmd, params->no_cck);
@@ -1402,9 +1393,10 @@ iwl_mvm_umac_scan_cfg_channels(struct iwl_mvm *mvm,
 		channel_cfg[i].flags = cpu_to_le32(ssid_bitmap);
 		channel_cfg[i].v1.channel_num = channels[i]->hw_value;
 		if (iwl_mvm_is_scan_ext_chan_supported(mvm)) {
+			enum nl80211_band band = channels[i]->band;
+
 			channel_cfg[i].v2.band =
-				channels[i]->hw_value <= IWL_SCAN_LAST_2_4_CHN ?
-					IWL_SCAN_BAND_2_4 : IWL_SCAN_BAND_5_2;
+				iwl_mvm_phy_band_from_nl80211(band);
 			channel_cfg[i].v2.iter_count = 1;
 			channel_cfg[i].v2.iter_interval = 0;
 		} else {

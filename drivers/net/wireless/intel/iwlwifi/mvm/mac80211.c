@@ -3636,8 +3636,7 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 
 	/* Set the channel info data */
 	iwl_mvm_set_chan_info(mvm, &aux_roc_req.channel_info, channel->hw_value,
-			      (channel->band == NL80211_BAND_2GHZ) ?
-			       PHY_BAND_24 : PHY_BAND_5,
+			      iwl_mvm_phy_band_from_nl80211(channel->band),
 			      PHY_VHT_CHANNEL_MODE20,
 			      0);
 

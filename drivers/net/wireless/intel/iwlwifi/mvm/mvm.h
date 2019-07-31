@@ -2077,6 +2077,19 @@ void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
 			     struct dentry *dir);
 #endif
 
+static inline u8 iwl_mvm_phy_band_from_nl80211(enum nl80211_band band)
+{
+	switch (band) {
+	case NL80211_BAND_2GHZ:
+		return PHY_BAND_24;
+	case NL80211_BAND_5GHZ:
+		return PHY_BAND_5;
+	default:
+		WARN_ONCE(1, "Unsupported band (%u)\n", band);
+		return PHY_BAND_5;
+	}
+}
+
 /* Channel info utils */
 static inline bool iwl_mvm_has_ultra_hb_channel(struct iwl_mvm *mvm)
 {
@@ -2125,11 +2138,12 @@ iwl_mvm_set_chan_info_chandef(struct iwl_mvm *mvm,
 			      struct iwl_fw_channel_info *ci,
 			      struct cfg80211_chan_def *chandef)
 {
+	enum nl80211_band band = chandef->chan->band;
+
 	iwl_mvm_set_chan_info(mvm, ci, chandef->chan->hw_value,
-			      (chandef->chan->band == NL80211_BAND_2GHZ ?
-			       PHY_BAND_24 : PHY_BAND_5),
-			       iwl_mvm_get_channel_width(chandef),
-			       iwl_mvm_get_ctrl_pos(chandef));
+			      iwl_mvm_phy_band_from_nl80211(band),
+			      iwl_mvm_get_channel_width(chandef),
+			      iwl_mvm_get_ctrl_pos(chandef));
 }
 
 #endif /* __IWL_MVM_H__ */
