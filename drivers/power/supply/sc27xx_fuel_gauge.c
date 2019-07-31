@@ -1098,7 +1098,8 @@ static int sc27xx_fgu_suspend(struct device *dev)
 	 * If we are charging, then no need to enable the FGU interrupts to
 	 * adjust the battery capacity.
 	 */
-	if (status != POWER_SUPPLY_STATUS_NOT_CHARGING)
+	if (status != POWER_SUPPLY_STATUS_NOT_CHARGING &&
+	    status != POWER_SUPPLY_STATUS_DISCHARGING)
 		return 0;
 
 	ret = regmap_update_bits(data->regmap, data->base + SC27XX_FGU_INT_EN,
