@@ -1,5 +1,10 @@
+=======
+Authors
+=======
+
 Original Author
-===============
+---------------
+
 Steve French (sfrench@samba.org)
 
 The author wishes to express his appreciation and thanks to:
@@ -12,7 +17,7 @@ side of the original CIFS Unix extensions and reviewing and implementing
 portions of the newer CIFS POSIX extensions into the Samba 3 file server. Thank
 Dave Boutcher of IBM Rochester (author of the OS/400 smb/cifs filesystem client)
 for proving years ago that very good smb/cifs clients could be done on Unix-like
-operating systems.  Volker Lendecke, Andrew Tridgell, Urban Widmark, John 
+operating systems.  Volker Lendecke, Andrew Tridgell, Urban Widmark, John
 Newbigin and others for their work on the Linux smbfs module.  Thanks to
 the other members of the Storage Network Industry Association CIFS Technical
 Workgroup for their work specifying this highly complex protocol and finally
@@ -20,33 +25,34 @@ thanks to the Samba team for their technical advice and encouragement.
 
 Patch Contributors
 ------------------
-Zwane Mwaikambo
-Andi Kleen
-Amrut Joshi
-Shobhit Dayal
-Sergey Vlasov
-Richard Hughes
-Yury Umanets
-Mark Hamzy (for some of the early cifs IPv6 work)
-Domen Puncer
-Jesper Juhl (in particular for lots of whitespace/formatting cleanup)
-Vince Negri and Dave Stahl (for finding an important caching bug)
-Adrian Bunk (kcalloc cleanups)
-Miklos Szeredi 
-Kazeon team for various fixes especially for 2.4 version.
-Asser Ferno (Change Notify support)
-Shaggy (Dave Kleikamp) for innumerable small fs suggestions and some good cleanup
-Gunter Kukkukk (testing and suggestions for support of old servers)
-Igor Mammedov (DFS support)
-Jeff Layton (many, many fixes, as well as great work on the cifs Kerberos code)
-Scott Lovenberg
-Pavel Shilovsky (for great work adding SMB2 support, and various SMB3 features)
-Aurelien Aptel (for DFS SMB3 work and some key bug fixes)
-Ronnie Sahlberg (for SMB3 xattr work, bug fixes, and lots of great work on compounding)
-Shirish Pargaonkar (for many ACL patches over the years)
-Sachin Prabhu (many bug fixes, including for reconnect, copy offload and security)
-Paulo Alcantara
-Long Li (some great work on RDMA, SMB Direct)
+
+- Zwane Mwaikambo
+- Andi Kleen
+- Amrut Joshi
+- Shobhit Dayal
+- Sergey Vlasov
+- Richard Hughes
+- Yury Umanets
+- Mark Hamzy (for some of the early cifs IPv6 work)
+- Domen Puncer
+- Jesper Juhl (in particular for lots of whitespace/formatting cleanup)
+- Vince Negri and Dave Stahl (for finding an important caching bug)
+- Adrian Bunk (kcalloc cleanups)
+- Miklos Szeredi
+- Kazeon team for various fixes especially for 2.4 version.
+- Asser Ferno (Change Notify support)
+- Shaggy (Dave Kleikamp) for innumerable small fs suggestions and some good cleanup
+- Gunter Kukkukk (testing and suggestions for support of old servers)
+- Igor Mammedov (DFS support)
+- Jeff Layton (many, many fixes, as well as great work on the cifs Kerberos code)
+- Scott Lovenberg
+- Pavel Shilovsky (for great work adding SMB2 support, and various SMB3 features)
+- Aurelien Aptel (for DFS SMB3 work and some key bug fixes)
+- Ronnie Sahlberg (for SMB3 xattr work, bug fixes, and lots of great work on compounding)
+- Shirish Pargaonkar (for many ACL patches over the years)
+- Sachin Prabhu (many bug fixes, including for reconnect, copy offload and security)
+- Paulo Alcantara
+- Long Li (some great work on RDMA, SMB Direct)
 
 
 Test case and Bug Report contributors

@@ -1,3 +1,7 @@
+=======
+Changes
+=======
+
 See https://wiki.samba.org/index.php/LinuxCIFSKernel for summary
 information (that may be easier to read than parsing the output of
 "git log fs/cifs") about fixes/improvements to CIFS/SMB2/SMB3 support (changes

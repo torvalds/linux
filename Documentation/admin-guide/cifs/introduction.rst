@@ -1,3 +1,7 @@
+============
+Introduction
+============
+
   This is the client VFS module for the SMB3 NAS protocol as well
   as for older dialects such as the Common Internet File System (CIFS)
   protocol which was the successor to the Server Message Block
@@ -33,7 +37,9 @@
   tools (including smbinfo and setcifsacl) that can be obtained from
 
       https://git.samba.org/?p=cifs-utils.git
+
   or
+
       git://git.samba.org/cifs-utils.git
 
   mount.cifs should be installed in the directory with the other mount helpers.
@@ -41,5 +47,7 @@
   For more information on the module see the project wiki page at
 
       https://wiki.samba.org/index.php/LinuxCIFS
+
   and
+
       https://wiki.samba.org/index.php/LinuxCIFS_utils
