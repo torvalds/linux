@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-dove/include/mach/irqs.h
- *
  * IRQ definitions for Marvell Dove 88AP510 SoC
  *
  * This file is licensed under the terms of the GNU General Public

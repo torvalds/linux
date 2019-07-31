@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-dove/include/mach/pm.h
- *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
@@ -10,7 +8,7 @@
 #define __ASM_ARCH_PM_H
 
 #include <asm/errno.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #define CLOCK_GATING_CONTROL	(DOVE_PMU_VIRT_BASE + 0x38)
 #define  CLOCK_GATING_BIT_USB0		0

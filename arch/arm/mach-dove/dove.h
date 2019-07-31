@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-dove/include/mach/dove.h
- *
  * Generic definitions for Marvell Dove 88AP510 SoC
  *
  * This file is licensed under the terms of the GNU General Public
@@ -11,7 +9,7 @@
 #ifndef __ASM_ARCH_DOVE_H
 #define __ASM_ARCH_DOVE_H
 
-#include <mach/irqs.h>
+#include "irqs.h"
 
 /*
  * Marvell Dove address maps.
