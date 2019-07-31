@@ -52,8 +52,6 @@ reprioritize()
 
 h1_create()
 {
-	local dscp;
-
 	simple_if_init $h1 192.0.2.1/28
 	tc qdisc add dev $h1 clsact
 	dscp_capture_install $h1 0
@@ -87,6 +85,7 @@ h2_destroy()
 dscp_map()
 {
 	local base=$1; shift
+	local prio
 
 	for prio in {0..7}; do
 		echo app=$prio,5,$((base + prio))
@@ -156,6 +155,7 @@ dscp_ping_test()
 	local reprio=$1; shift
 	local dev1=$1; shift
 	local dev2=$1; shift
+	local i
 
 	local prio2=$($reprio $prio)   # ICMP Request egress prio
 	local prio3=$($reprio $prio2)  # ICMP Response egress prio
@@ -205,6 +205,7 @@ __test_update()
 {
 	local update=$1; shift
 	local reprio=$1; shift
+	local prio
 
 	sysctl_restore net.ipv4.ip_forward_update_priority
 	sysctl_set net.ipv4.ip_forward_update_priority $update
