@@ -3617,7 +3617,7 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 	  unsigned int *nbytes, char **buf, int *buf_type)
 {
 	struct smb_rqst rqst;
-	int resp_buftype, rc = -EACCES;
+	int resp_buftype, rc;
 	struct smb2_read_plain_req *req = NULL;
 	struct smb2_read_rsp *rsp = NULL;
 	struct kvec iov[1];
