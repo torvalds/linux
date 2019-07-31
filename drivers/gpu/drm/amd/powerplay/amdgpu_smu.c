@@ -476,7 +476,7 @@ bool is_support_sw_smu(struct amdgpu_device *adev)
 {
 	if (adev->asic_type == CHIP_VEGA20)
 		return (amdgpu_dpm == 2) ? true : false;
-	else if (adev->asic_type >= CHIP_NAVI10)
+	else if (adev->asic_type >= CHIP_ARCTURUS)
 		return true;
 	else
 		return false;
@@ -708,6 +708,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
+	case CHIP_ARCTURUS:
 		if (adev->pm.pp_feature & PP_OVERDRIVE_MASK)
 			smu->od_enabled = true;
 		smu_v11_0_set_smu_funcs(smu);
@@ -1013,9 +1014,11 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		return 0;
 	}
 
-	ret = smu_init_display_count(smu, 0);
-	if (ret)
-		return ret;
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		ret = smu_init_display_count(smu, 0);
+		if (ret)
+			return ret;
+	}
 
 	if (initialize) {
 		/* get boot_values from vbios to set revision, gfxclk, and etc. */
@@ -1091,17 +1094,19 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	ret = smu_notify_display_change(smu);
-	if (ret)
-		return ret;
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		ret = smu_notify_display_change(smu);
+		if (ret)
+			return ret;
 
-	/*
-	 * Set min deep sleep dce fclk with bootup value from vbios via
-	 * SetMinDeepSleepDcefclk MSG.
-	 */
-	ret = smu_set_min_dcef_deep_sleep(smu);
-	if (ret)
-		return ret;
+		/*
+		 * Set min deep sleep dce fclk with bootup value from vbios via
+		 * SetMinDeepSleepDcefclk MSG.
+		 */
+		ret = smu_set_min_dcef_deep_sleep(smu);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * Set initialized values (get from vbios) to dpm tables context such as
@@ -1212,12 +1217,18 @@ static int smu_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
-		ret = smu_check_fw_status(smu);
-		if (ret) {
-			pr_err("SMC firmware status is not correct\n");
-			return ret;
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
+		if (adev->asic_type < CHIP_NAVI10) {
+			ret = smu_load_microcode(smu);
+			if (ret)
+				return ret;
 		}
+	}
+
+	ret = smu_check_fw_status(smu);
+	if (ret) {
+		pr_err("SMC firmware status is not correct\n");
+		return ret;
 	}
 
 	if (!smu->pm_enabled)
