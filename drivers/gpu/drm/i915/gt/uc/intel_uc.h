@@ -51,8 +51,7 @@ int intel_uc_runtime_resume(struct intel_uc *uc);
 
 static inline bool intel_uc_supports_guc(struct intel_uc *uc)
 {
-	GEM_BUG_ON(i915_modparams.enable_guc < 0);
-	return i915_modparams.enable_guc > 0;
+	return intel_guc_is_supported(&uc->guc);
 }
 
 static inline bool intel_uc_supports_guc_submission(struct intel_uc *uc)
@@ -63,8 +62,7 @@ static inline bool intel_uc_supports_guc_submission(struct intel_uc *uc)
 
 static inline bool intel_uc_supports_huc(struct intel_uc *uc)
 {
-	GEM_BUG_ON(i915_modparams.enable_guc < 0);
-	return i915_modparams.enable_guc & ENABLE_GUC_LOAD_HUC;
+	return intel_huc_is_supported(&uc->huc);
 }
 
 #endif

@@ -132,6 +132,25 @@ __uc_fw_auto_select(struct intel_uc_fw *uc_fw, enum intel_platform p, u8 rev)
 			uc_fw->path = NULL;
 		}
 	}
+
+	/* We don't want to enable GuC/HuC on pre-Gen11 by default */
+	if (i915_modparams.enable_guc == -1 && p < INTEL_ICELAKE)
+		uc_fw->path = NULL;
+}
+
+static const char *__override_guc_firmware_path(void)
+{
+	if (i915_modparams.enable_guc & (ENABLE_GUC_SUBMISSION |
+					 ENABLE_GUC_LOAD_HUC))
+		return i915_modparams.guc_firmware_path;
+	return "";
+}
+
+static const char *__override_huc_firmware_path(void)
+{
+	if (i915_modparams.enable_guc & ENABLE_GUC_LOAD_HUC)
+		return i915_modparams.huc_firmware_path;
+	return "";
 }
 
 static bool
@@ -139,10 +158,10 @@ __uc_fw_override(struct intel_uc_fw *uc_fw)
 {
 	switch (uc_fw->type) {
 	case INTEL_UC_FW_TYPE_GUC:
-		uc_fw->path = i915_modparams.guc_firmware_path;
+		uc_fw->path = __override_guc_firmware_path();
 		break;
 	case INTEL_UC_FW_TYPE_HUC:
-		uc_fw->path = i915_modparams.huc_firmware_path;
+		uc_fw->path = __override_huc_firmware_path();
 		break;
 	}
 
