@@ -149,6 +149,7 @@ void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip);
 				      ptp_clock_info)
 
 extern const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops;
+extern const struct mv88e6xxx_ptp_ops mv88e6250_ptp_ops;
 extern const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops;
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_PTP */
@@ -168,6 +169,7 @@ static inline void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip)
 }
 
 static const struct mv88e6xxx_ptp_ops mv88e6165_ptp_ops = {};
+static const struct mv88e6xxx_ptp_ops mv88e6250_ptp_ops = {};
 static const struct mv88e6xxx_ptp_ops mv88e6352_ptp_ops = {};
 
 #endif /* CONFIG_NET_DSA_MV88E6XXX_PTP */

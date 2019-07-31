@@ -3538,6 +3538,8 @@ static const struct mv88e6xxx_ops mv88e6250_ops = {
 	.reset = mv88e6250_g1_reset,
 	.vtu_getnext = mv88e6250_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6250_g1_vtu_loadpurge,
+	.avb_ops = &mv88e6352_avb_ops,
+	.ptp_ops = &mv88e6250_ptp_ops,
 	.phylink_validate = mv88e6065_phylink_validate,
 };
 
@@ -4334,6 +4336,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.atu_move_port_mask = 0xf,
 		.dual_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
+		.ptp_support = true,
 		.ops = &mv88e6250_ops,
 	},
 
@@ -4379,6 +4382,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.atu_move_port_mask = 0xf,
 		.dual_chip = true,
 		.tag_protocol = DSA_TAG_PROTO_DSA,
+		.ptp_support = true,
 		.ops = &mv88e6250_ops,
 	},
 
