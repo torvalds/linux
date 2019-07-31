@@ -310,6 +310,7 @@ enum rtw_flags {
 	RTW_FLAG_INACTIVE_PS,
 	RTW_FLAG_LEISURE_PS,
 	RTW_FLAG_DIG_DISABLE,
+	RTW_FLAG_BUSY_TRAFFIC,
 
 	NUM_OF_RTW_FLAGS,
 };
@@ -640,6 +641,16 @@ struct rtw_chip_ops {
 	void (*cfg_ldo25)(struct rtw_dev *rtwdev, bool enable);
 	void (*false_alarm_statistics)(struct rtw_dev *rtwdev);
 	void (*do_iqk)(struct rtw_dev *rtwdev);
+
+	/* for coex */
+	void (*coex_set_init)(struct rtw_dev *rtwdev);
+	void (*coex_set_ant_switch)(struct rtw_dev *rtwdev,
+				    u8 ctrl_type, u8 pos_type);
+	void (*coex_set_gnt_fix)(struct rtw_dev *rtwdev);
+	void (*coex_set_gnt_debug)(struct rtw_dev *rtwdev);
+	void (*coex_set_rfe_type)(struct rtw_dev *rtwdev);
+	void (*coex_set_wl_tx_power)(struct rtw_dev *rtwdev, u8 wl_pwr);
+	void (*coex_set_wl_rx_gain)(struct rtw_dev *rtwdev, bool low_gain);
 };
 
 #define RTW_PWR_POLLING_CNT	20000
@@ -852,6 +863,216 @@ struct rtw_chip_info {
 
 	const struct rtw_rfe_def *rfe_defs;
 	u32 rfe_defs_size;
+
+	/* coex paras */
+	u32 coex_para_ver;
+	u8 bt_desired_ver;
+	bool scbd_support;
+	bool new_scbd10_def; /* true: fix 2M(8822c) */
+	u8 pstdma_type; /* 0: LPSoff, 1:LPSon */
+	u8 bt_rssi_type;
+	u8 ant_isolation;
+	u8 rssi_tolerance;
+	u8 table_sant_num;
+	u8 table_nsant_num;
+	u8 tdma_sant_num;
+	u8 tdma_nsant_num;
+	u8 bt_afh_span_bw20;
+	u8 bt_afh_span_bw40;
+	u8 afh_5g_num;
+	u8 wl_rf_para_num;
+	const u8 *bt_rssi_step;
+	const u8 *wl_rssi_step;
+	const struct coex_table_para *table_nsant;
+	const struct coex_table_para *table_sant;
+	const struct coex_tdma_para *tdma_sant;
+	const struct coex_tdma_para *tdma_nsant;
+	const struct coex_rf_para *wl_rf_para_tx;
+	const struct coex_rf_para *wl_rf_para_rx;
+	const struct coex_5g_afh_map *afh_5g;
+};
+
+enum rtw_coex_bt_state_cnt {
+	COEX_CNT_BT_RETRY,
+	COEX_CNT_BT_REINIT,
+	COEX_CNT_BT_REENABLE,
+	COEX_CNT_BT_POPEVENT,
+	COEX_CNT_BT_SETUPLINK,
+	COEX_CNT_BT_IGNWLANACT,
+	COEX_CNT_BT_INQ,
+	COEX_CNT_BT_PAGE,
+	COEX_CNT_BT_ROLESWITCH,
+	COEX_CNT_BT_AFHUPDATE,
+	COEX_CNT_BT_INFOUPDATE,
+	COEX_CNT_BT_IQK,
+	COEX_CNT_BT_IQKFAIL,
+
+	COEX_CNT_BT_MAX
+};
+
+enum rtw_coex_wl_state_cnt {
+	COEX_CNT_WL_CONNPKT,
+	COEX_CNT_WL_COEXRUN,
+	COEX_CNT_WL_NOISY0,
+	COEX_CNT_WL_NOISY1,
+	COEX_CNT_WL_NOISY2,
+	COEX_CNT_WL_5MS_NOEXTEND,
+	COEX_CNT_WL_FW_NOTIFY,
+
+	COEX_CNT_WL_MAX
+};
+
+struct rtw_coex_rfe {
+	bool ant_switch_exist;
+	bool ant_switch_diversity;
+	bool ant_switch_with_bt;
+	u8 rfe_module_type;
+	u8 ant_switch_polarity;
+
+	/* true if WLG at BTG, else at WLAG */
+	bool wlg_at_btg;
+};
+
+struct rtw_coex_dm {
+	bool cur_ps_tdma_on;
+	bool cur_wl_rx_low_gain_en;
+
+	u8 reason;
+	u8 bt_rssi_state[4];
+	u8 wl_rssi_state[4];
+	u8 wl_ch_info[3];
+	u8 cur_ps_tdma;
+	u8 cur_table;
+	u8 ps_tdma_para[5];
+	u8 cur_bt_pwr_lvl;
+	u8 cur_bt_lna_lvl;
+	u8 cur_wl_pwr_lvl;
+	u8 bt_status;
+	u32 cur_ant_pos_type;
+	u32 cur_switch_status;
+	u32 setting_tdma;
+};
+
+#define COEX_BTINFO_SRC_WL_FW	0x0
+#define COEX_BTINFO_SRC_BT_RSP	0x1
+#define COEX_BTINFO_SRC_BT_ACT	0x2
+#define COEX_BTINFO_SRC_BT_IQK	0x3
+#define COEX_BTINFO_SRC_BT_SCBD	0x4
+#define COEX_BTINFO_SRC_MAX	0x5
+
+#define COEX_INFO_FTP		BIT(7)
+#define COEX_INFO_A2DP		BIT(6)
+#define COEX_INFO_HID		BIT(5)
+#define COEX_INFO_SCO_BUSY	BIT(4)
+#define COEX_INFO_ACL_BUSY	BIT(3)
+#define COEX_INFO_INQ_PAGE	BIT(2)
+#define COEX_INFO_SCO_ESCO	BIT(1)
+#define COEX_INFO_CONNECTION	BIT(0)
+#define COEX_BTINFO_LENGTH_MAX	10
+
+struct rtw_coex_stat {
+	bool bt_disabled;
+	bool bt_disabled_pre;
+	bool bt_link_exist;
+	bool bt_whck_test;
+	bool bt_inq_page;
+	bool bt_inq;
+	bool bt_page;
+	bool bt_ble_voice;
+	bool bt_ble_exist;
+	bool bt_hfp_exist;
+	bool bt_a2dp_exist;
+	bool bt_hid_exist;
+	bool bt_pan_exist; /* PAN or OPP */
+	bool bt_opp_exist; /* OPP only */
+	bool bt_acl_busy;
+	bool bt_fix_2M;
+	bool bt_setup_link;
+	bool bt_multi_link;
+	bool bt_a2dp_sink;
+	bool bt_a2dp_active;
+	bool bt_reenable;
+	bool bt_ble_scan_en;
+	bool bt_init_scan;
+	bool bt_slave;
+	bool bt_418_hid_exist;
+	bool bt_mailbox_reply;
+
+	bool wl_under_lps;
+	bool wl_under_ips;
+	bool wl_hi_pri_task1;
+	bool wl_hi_pri_task2;
+	bool wl_force_lps_ctrl;
+	bool wl_gl_busy;
+	bool wl_linkscan_proc;
+	bool wl_ps_state_fail;
+	bool wl_tx_limit_en;
+	bool wl_ampdu_limit_en;
+	bool wl_connected;
+	bool wl_slot_extend;
+	bool wl_cck_lock;
+	bool wl_cck_lock_pre;
+	bool wl_cck_lock_ever;
+
+	u32 bt_supported_version;
+	u32 bt_supported_feature;
+	s8 bt_rssi;
+	u8 kt_ver;
+	u8 gnt_workaround_state;
+	u8 tdma_timer_base;
+	u8 bt_profile_num;
+	u8 bt_info_c2h[COEX_BTINFO_SRC_MAX][COEX_BTINFO_LENGTH_MAX];
+	u8 bt_info_lb2;
+	u8 bt_info_lb3;
+	u8 bt_info_hb0;
+	u8 bt_info_hb1;
+	u8 bt_info_hb2;
+	u8 bt_info_hb3;
+	u8 bt_ble_scan_type;
+	u8 bt_hid_pair_num;
+	u8 bt_hid_slot;
+	u8 bt_a2dp_bitpool;
+	u8 bt_iqk_state;
+
+	u8 wl_noisy_level;
+	u8 wl_fw_dbg_info[10];
+	u8 wl_fw_dbg_info_pre[10];
+	u8 wl_coex_mode;
+	u8 ampdu_max_time;
+	u8 wl_tput_dir;
+
+	u16 score_board;
+	u16 retry_limit;
+
+	/* counters to record bt states */
+	u32 cnt_bt[COEX_CNT_BT_MAX];
+
+	/* counters to record wifi states */
+	u32 cnt_wl[COEX_CNT_WL_MAX];
+
+	u32 darfrc;
+	u32 darfrch;
+};
+
+struct rtw_coex {
+	/* protects coex info request section */
+	struct mutex mutex;
+	struct sk_buff_head queue;
+	wait_queue_head_t wait;
+
+	bool under_5g;
+	bool stop_dm;
+	bool freeze;
+	bool freerun;
+	bool wl_rf_off;
+
+	struct rtw_coex_stat stat;
+	struct rtw_coex_dm dm;
+	struct rtw_coex_rfe rfe;
+
+	struct delayed_work bt_relink_work;
+	struct delayed_work bt_reenable_work;
+	struct delayed_work defreeze_work;
 };
 
 #define DACK_MSBK_BACKUP_NUM	0xf
@@ -861,6 +1082,16 @@ struct rtw_dm_info {
 	u32 cck_fa_cnt;
 	u32 ofdm_fa_cnt;
 	u32 total_fa_cnt;
+
+	u32 cck_ok_cnt;
+	u32 cck_err_cnt;
+	u32 ofdm_ok_cnt;
+	u32 ofdm_err_cnt;
+	u32 ht_ok_cnt;
+	u32 ht_err_cnt;
+	u32 vht_ok_cnt;
+	u32 vht_err_cnt;
+
 	u8 min_rssi;
 	u8 pre_min_rssi;
 	u16 fa_history[4];
@@ -888,6 +1119,7 @@ struct rtw_efuse {
 	u8 addr[ETH_ALEN];
 	u8 channel_plan;
 	u8 country_code[2];
+	u8 rf_board_option;
 	u8 rfe_option;
 	u8 thermal_meter;
 	u8 crystal_cap;
@@ -1047,6 +1279,7 @@ struct rtw_dev {
 	struct rtw_regulatory regd;
 
 	struct rtw_dm_info dm_info;
+	struct rtw_coex coex;
 
 	/* ensures exclusive access from mac80211 callbacks */
 	struct mutex mutex;

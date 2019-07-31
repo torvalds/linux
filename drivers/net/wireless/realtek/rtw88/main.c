@@ -8,6 +8,7 @@
 #include "ps.h"
 #include "sec.h"
 #include "mac.h"
+#include "coex.h"
 #include "phy.h"
 #include "reg.h"
 #include "efuse.h"
@@ -149,12 +150,21 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
 					      watch_dog_work.work);
 	struct rtw_watch_dog_iter_data data = {};
+	bool busy_traffic = rtw_flag_check(rtwdev, RTW_FLAG_BUSY_TRAFFIC);
 
 	if (!rtw_flag_check(rtwdev, RTW_FLAG_RUNNING))
 		return;
 
 	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->watch_dog_work,
 				     RTW_WATCH_DOG_DELAY_TIME);
+
+	if (rtwdev->stats.tx_cnt > 100 || rtwdev->stats.rx_cnt > 100)
+		rtw_flag_set(rtwdev, RTW_FLAG_BUSY_TRAFFIC);
+	else
+		rtw_flag_clear(rtwdev, RTW_FLAG_BUSY_TRAFFIC);
+
+	if (busy_traffic != rtw_flag_check(rtwdev, RTW_FLAG_BUSY_TRAFFIC))
+		rtw_coex_wl_status_change_notify(rtwdev);
 
 	/* reset tx/rx statictics */
 	rtwdev->stats.tx_unicast = 0;
@@ -297,6 +307,15 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 		hal->cch_by_bw[i] = ch_param.cch_by_bw[i];
 
 	chip->ops->set_channel(rtwdev, center_chan, bandwidth, primary_chan_idx);
+
+	if (hal->current_band_type == RTW_BAND_5G) {
+		rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_5G);
+	} else {
+		if (rtw_flag_check(rtwdev, RTW_FLAG_SCANNING))
+			rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_24G);
+		else
+			rtw_coex_switchband_notify(rtwdev, COEX_SWITCH_TO_24G_NOFORSCAN);
+	}
 
 	rtw_phy_set_tx_power_level(rtwdev, center_chan);
 }
@@ -641,6 +660,7 @@ static int rtw_power_on(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_fw_state *fw = &rtwdev->fw;
+	bool wifi_only;
 	int ret;
 
 	ret = rtw_hci_setup(rtwdev);
@@ -684,6 +704,10 @@ static int rtw_power_on(struct rtw_dev *rtwdev)
 		goto err_off;
 	}
 
+	wifi_only = !rtwdev->efuse.btcoex;
+	rtw_coex_power_on_setting(rtwdev);
+	rtw_coex_init_hw_config(rtwdev, wifi_only);
+
 	return 0;
 
 err_off:
@@ -722,10 +746,15 @@ static void rtw_power_off(struct rtw_dev *rtwdev)
 
 void rtw_core_stop(struct rtw_dev *rtwdev)
 {
+	struct rtw_coex *coex = &rtwdev->coex;
+
 	rtw_flag_clear(rtwdev, RTW_FLAG_RUNNING);
 	rtw_flag_clear(rtwdev, RTW_FLAG_FW_RUNNING);
 
 	cancel_delayed_work_sync(&rtwdev->watch_dog_work);
+	cancel_delayed_work_sync(&coex->bt_relink_work);
+	cancel_delayed_work_sync(&coex->bt_reenable_work);
+	cancel_delayed_work_sync(&coex->defreeze_work);
 
 	rtw_power_off(rtwdev);
 }
@@ -876,7 +905,6 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_hal *hal = &rtwdev->hal;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
-	u32 wl_bt_pwr_ctrl;
 	int ret = 0;
 
 	switch (rtw_hci_type(rtwdev)) {
@@ -888,9 +916,6 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 		return -EINVAL;
 	}
 
-	wl_bt_pwr_ctrl = rtw_read32(rtwdev, REG_WL_BT_PWR_CTRL);
-	if (wl_bt_pwr_ctrl & BIT_BT_FUNC_EN)
-		rtwdev->efuse.btcoex = true;
 	hal->chip_version = rtw_read32(rtwdev, REG_SYS_CFG1);
 	hal->fab_version = BIT_GET_VENDOR_ID(hal->chip_version) >> 2;
 	hal->cut_version = BIT_GET_CHIP_VER(hal->chip_version);
@@ -1044,11 +1069,14 @@ static int rtw_chip_efuse_info_setup(struct rtw_dev *rtwdev)
 		efuse->lna_type_5g = 0;
 	if (efuse->channel_plan == 0xff)
 		efuse->channel_plan = 0x7f;
+	if (efuse->rf_board_option == 0xff)
+		efuse->rf_board_option = 0;
 	if (efuse->bt_setting & BIT(0))
 		efuse->share_ant = true;
 	if (efuse->regd == 0xff)
 		efuse->regd = 0;
 
+	efuse->btcoex = (efuse->rf_board_option & 0xe0) == 0x20;
 	efuse->ext_pa_2g = efuse->pa_type_2g & BIT(4) ? 1 : 0;
 	efuse->ext_lna_2g = efuse->lna_type_2g & BIT(3) ? 1 : 0;
 	efuse->ext_pa_5g = efuse->pa_type_5g & BIT(0) ? 1 : 0;
@@ -1111,6 +1139,7 @@ EXPORT_SYMBOL(rtw_chip_info_setup);
 
 int rtw_core_init(struct rtw_dev *rtwdev)
 {
+	struct rtw_coex *coex = &rtwdev->coex;
 	int ret;
 
 	INIT_LIST_HEAD(&rtwdev->rsvd_page_list);
@@ -1120,8 +1149,12 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 
 	INIT_DELAYED_WORK(&rtwdev->watch_dog_work, rtw_watch_dog_work);
 	INIT_DELAYED_WORK(&rtwdev->lps_work, rtw_lps_work);
+	INIT_DELAYED_WORK(&coex->bt_relink_work, rtw_coex_bt_relink_work);
+	INIT_DELAYED_WORK(&coex->bt_reenable_work, rtw_coex_bt_reenable_work);
+	INIT_DELAYED_WORK(&coex->defreeze_work, rtw_coex_defreeze_work);
 	INIT_WORK(&rtwdev->c2h_work, rtw_c2h_work);
 	skb_queue_head_init(&rtwdev->c2h_queue);
+	skb_queue_head_init(&rtwdev->coex.queue);
 	skb_queue_head_init(&rtwdev->tx_report.queue);
 
 	spin_lock_init(&rtwdev->dm_lock);
@@ -1130,7 +1163,10 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	spin_lock_init(&rtwdev->tx_report.q_lock);
 
 	mutex_init(&rtwdev->mutex);
+	mutex_init(&rtwdev->coex.mutex);
 	mutex_init(&rtwdev->hal.tx_power_mutex);
+
+	init_waitqueue_head(&rtwdev->coex.wait);
 
 	rtwdev->sec.total_cam_num = 32;
 	rtwdev->hal.current_channel = 1;
@@ -1174,6 +1210,7 @@ void rtw_core_deinit(struct rtw_dev *rtwdev)
 	}
 
 	mutex_destroy(&rtwdev->mutex);
+	mutex_destroy(&rtwdev->coex.mutex);
 	mutex_destroy(&rtwdev->hal.tx_power_mutex);
 }
 EXPORT_SYMBOL(rtw_core_deinit);

@@ -7,6 +7,7 @@
 #include "tx.h"
 #include "fw.h"
 #include "mac.h"
+#include "coex.h"
 #include "ps.h"
 #include "reg.h"
 #include "debug.h"
@@ -253,6 +254,7 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 		enum rtw_net_type net_type;
 
 		if (conf->assoc) {
+			rtw_coex_connect_notify(rtwdev, COEX_ASSOCIATE_FINISH);
 			net_type = RTW_NET_MGD_LINKED;
 			chip->ops->do_iqk(rtwdev);
 
@@ -262,6 +264,7 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 			rtw_add_rsvd_page(rtwdev, RSVD_NULL, true);
 			rtw_fw_download_rsvd_page(rtwdev, vif);
 			rtw_send_rsvd_page_h2c(rtwdev);
+			rtw_coex_media_status_notify(rtwdev, conf->assoc);
 		} else {
 			net_type = RTW_NET_NO_LINK;
 			rtwvif->aid = 0;
@@ -469,6 +472,8 @@ static void rtw_ops_sw_scan_start(struct ieee80211_hw *hw,
 	config |= PORT_SET_MAC_ADDR;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 
+	rtw_coex_scan_notify(rtwdev, COEX_SCAN_START);
+
 	rtw_flag_set(rtwdev, RTW_FLAG_DIG_DISABLE);
 	rtw_flag_set(rtwdev, RTW_FLAG_SCANNING);
 
@@ -491,6 +496,19 @@ static void rtw_ops_sw_scan_complete(struct ieee80211_hw *hw,
 	config |= PORT_SET_MAC_ADDR;
 	rtw_vif_port_config(rtwdev, rtwvif, config);
 
+	rtw_coex_scan_notify(rtwdev, COEX_SCAN_FINISH);
+
+	mutex_unlock(&rtwdev->mutex);
+}
+
+static void rtw_ops_mgd_prepare_tx(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   u16 duration)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+
+	mutex_lock(&rtwdev->mutex);
+	rtw_coex_connect_notify(rtwdev, COEX_ASSOCIATE_START);
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -509,5 +527,6 @@ const struct ieee80211_ops rtw_ops = {
 	.ampdu_action		= rtw_ops_ampdu_action,
 	.sw_scan_start		= rtw_ops_sw_scan_start,
 	.sw_scan_complete	= rtw_ops_sw_scan_complete,
+	.mgd_prepare_tx		= rtw_ops_mgd_prepare_tx,
 };
 EXPORT_SYMBOL(rtw_ops);
