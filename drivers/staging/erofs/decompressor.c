@@ -7,6 +7,7 @@
  * Created by Gao Xiang <gaoxiang25@huawei.com>
  */
 #include "compress.h"
+#include <linux/module.h>
 #include <linux/lz4.h>
 
 #ifndef LZ4_DISTANCE_MAX	/* history window size */
@@ -28,6 +29,10 @@ struct z_erofs_decompressor {
 	int (*decompress)(struct z_erofs_decompress_req *rq, u8 *out);
 	char *name;
 };
+
+static bool use_vmap;
+module_param(use_vmap, bool, 0444);
+MODULE_PARM_DESC(use_vmap, "Use vmap() instead of vm_map_ram() (default 0)");
 
 static int lz4_prepare_destpages(struct z_erofs_decompress_req *rq,
 				 struct list_head *pagepool)
@@ -219,29 +224,28 @@ static void copy_from_pcpubuf(struct page **out, const char *dst,
 
 static void *erofs_vmap(struct page **pages, unsigned int count)
 {
-#ifdef CONFIG_EROFS_FS_USE_VM_MAP_RAM
 	int i = 0;
+
+	if (use_vmap)
+		return vmap(pages, count, VM_MAP, PAGE_KERNEL);
 
 	while (1) {
 		void *addr = vm_map_ram(pages, count, -1, PAGE_KERNEL);
+
 		/* retry two more times (totally 3 times) */
 		if (addr || ++i >= 3)
 			return addr;
 		vm_unmap_aliases();
 	}
 	return NULL;
-#else
-	return vmap(pages, count, VM_MAP, PAGE_KERNEL);
-#endif
 }
 
 static void erofs_vunmap(const void *mem, unsigned int count)
 {
-#ifdef CONFIG_EROFS_FS_USE_VM_MAP_RAM
-	vm_unmap_ram(mem, count);
-#else
-	vunmap(mem);
-#endif
+	if (!use_vmap)
+		vm_unmap_ram(mem, count);
+	else
+		vunmap(mem);
 }
 
 static int decompress_generic(struct z_erofs_decompress_req *rq,

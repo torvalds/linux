@@ -66,6 +66,10 @@ fault_injection=%d     Enable fault injection in all supported types with
 (no)acl                Setup POSIX Access Control List. Note: acl is enabled
                        by default if CONFIG_EROFS_FS_POSIX_ACL is selected.
 
+Module parameters
+=================
+use_vmap=[0|1]         Use vmap() instead of vm_map_ram() (default 0).
+
 On-disk details
 ===============
 
