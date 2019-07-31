@@ -31,40 +31,42 @@ int st_magn_trig_set_state(struct iio_trigger *trig, bool state)
 
 static int st_magn_buffer_postenable(struct iio_dev *indio_dev)
 {
-	int err;
 	struct st_sensor_data *mdata = iio_priv(indio_dev);
+	int err;
 
 	mdata->buffer_data = kmalloc(indio_dev->scan_bytes,
 				     GFP_DMA | GFP_KERNEL);
-	if (mdata->buffer_data == NULL) {
-		err = -ENOMEM;
-		goto allocate_memory_error;
-	}
+	if (!mdata->buffer_data)
+		return -ENOMEM;
 
 	err = iio_triggered_buffer_postenable(indio_dev);
 	if (err < 0)
-		goto st_magn_buffer_postenable_error;
+		goto st_magn_free_buffer;
 
-	return st_sensors_set_enable(indio_dev, true);
+	err = st_sensors_set_enable(indio_dev, true);
+	if (err < 0)
+		goto st_magn_buffer_predisable;
 
-st_magn_buffer_postenable_error:
+	return 0;
+
+st_magn_buffer_predisable:
+	iio_triggered_buffer_predisable(indio_dev);
+st_magn_free_buffer:
 	kfree(mdata->buffer_data);
-allocate_memory_error:
 	return err;
 }
 
 static int st_magn_buffer_predisable(struct iio_dev *indio_dev)
 {
-	int err;
 	struct st_sensor_data *mdata = iio_priv(indio_dev);
+	int err, err2;
 
 	err = st_sensors_set_enable(indio_dev, false);
-	if (err < 0)
-		goto st_magn_buffer_predisable_error;
 
-	err = iio_triggered_buffer_predisable(indio_dev);
+	err2 = iio_triggered_buffer_predisable(indio_dev);
+	if (!err)
+		err = err2;
 
-st_magn_buffer_predisable_error:
 	kfree(mdata->buffer_data);
 	return err;
 }
