@@ -2407,23 +2407,6 @@ static void serial8250_shutdown(struct uart_port *port)
 		serial8250_do_shutdown(port);
 }
 
-/*
- * XR17V35x UARTs have an extra fractional divisor register (DLD)
- * Calculate divisor with extra 4-bit fractional portion
- */
-static unsigned int xr17v35x_get_divisor(struct uart_8250_port *up,
-					 unsigned int baud,
-					 unsigned int *frac)
-{
-	struct uart_port *port = &up->port;
-	unsigned int quot_16;
-
-	quot_16 = DIV_ROUND_CLOSEST(port->uartclk, baud);
-	*frac = quot_16 & 0x0f;
-
-	return quot_16 >> 4;
-}
-
 /* Nuvoton NPCM UARTs have a custom divisor calculation */
 static unsigned int npcm_get_divisor(struct uart_8250_port *up,
 		unsigned int baud)
@@ -2451,8 +2434,6 @@ static unsigned int serial8250_do_get_divisor(struct uart_port *port,
 	else if ((port->flags & UPF_MAGIC_MULTIPLIER) &&
 		 baud == (port->uartclk/8))
 		quot = 0x8002;
-	else if (up->port.type == PORT_XR17V35X)
-		quot = xr17v35x_get_divisor(up, baud, frac);
 	else if (up->port.type == PORT_NPCM)
 		quot = npcm_get_divisor(up, baud);
 	else
@@ -2539,13 +2520,6 @@ void serial8250_do_set_divisor(struct uart_port *port, unsigned int baud,
 		serial_port_out(port, UART_LCR, up->lcr | UART_LCR_DLAB);
 
 	serial_dl_write(up, quot);
-
-	/* XR17V35x UARTs have an extra fractional divisor register (DLD) */
-	if (up->port.type == PORT_XR17V35X) {
-		/* Preserve bits not related to baudrate; DLD[7:4]. */
-		quot_frac |= serial_port_in(port, 0x2) & 0xf0;
-		serial_port_out(port, 0x2, quot_frac);
-	}
 }
 EXPORT_SYMBOL_GPL(serial8250_do_set_divisor);
 

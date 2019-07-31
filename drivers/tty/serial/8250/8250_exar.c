@@ -140,6 +140,31 @@ static void exar_pm(struct uart_port *port, unsigned int state, unsigned int old
 	serial_port_out(port, UART_EXAR_SLEEP, state ? 0xff : 0);
 }
 
+/*
+ * XR17V35x UARTs have an extra fractional divisor register (DLD)
+ * Calculate divisor with extra 4-bit fractional portion
+ */
+static unsigned int xr17v35x_get_divisor(struct uart_port *p, unsigned int baud,
+					 unsigned int *frac)
+{
+	unsigned int quot_16;
+
+	quot_16 = DIV_ROUND_CLOSEST(p->uartclk, baud);
+	*frac = quot_16 & 0x0f;
+
+	return quot_16 >> 4;
+}
+
+static void xr17v35x_set_divisor(struct uart_port *p, unsigned int baud,
+				 unsigned int quot, unsigned int quot_frac)
+{
+	serial8250_do_set_divisor(p, baud, quot, quot_frac);
+
+	/* Preserve bits not related to baudrate; DLD[7:4]. */
+	quot_frac |= serial_port_in(p, 0x2) & 0xf0;
+	serial_port_out(p, 0x2, quot_frac);
+}
+
 static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 			 int idx, unsigned int offset,
 			 struct uart_8250_port *port)
@@ -163,6 +188,9 @@ static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	status = readb(port->port.membase + UART_EXAR_DVID);
 	if (status == 0x82 || status == 0x84 || status == 0x88) {
 		port->port.type = PORT_XR17V35X;
+
+		port->port.get_divisor = xr17v35x_get_divisor;
+		port->port.set_divisor = xr17v35x_set_divisor;
 	} else {
 		port->port.type = PORT_XR17D15X;
 	}
