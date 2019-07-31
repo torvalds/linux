@@ -4093,10 +4093,6 @@ static void rs_drv_add_sta_debugfs(void *mvm, void *priv_sta,
 
 	MVM_DEBUGFS_ADD_FILE_RS(ss_force, dir, 0600);
 }
-
-void rs_remove_sta_debugfs(void *mvm, void *mvm_sta)
-{
-}
 #endif
 
 /*
@@ -4124,7 +4120,6 @@ static const struct rate_control_ops rs_mvm_ops_drv = {
 	.rate_update = rs_drv_rate_update,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.add_sta_debugfs = rs_drv_add_sta_debugfs,
-	.remove_sta_debugfs = rs_remove_sta_debugfs,
 #endif
 	.capa = RATE_CTRL_CAPA_VHT_EXT_NSS_BW,
 };

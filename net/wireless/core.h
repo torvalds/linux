@@ -306,6 +306,8 @@ void ieee80211_set_bitrate_flags(struct wiphy *wiphy);
 void cfg80211_bss_expire(struct cfg80211_registered_device *rdev);
 void cfg80211_bss_age(struct cfg80211_registered_device *rdev,
                       unsigned long age_secs);
+void cfg80211_update_assoc_bss_entry(struct wireless_dev *wdev,
+				     struct ieee80211_channel *channel);
 
 /* IBSS */
 int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,

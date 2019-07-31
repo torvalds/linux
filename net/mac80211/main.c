@@ -1048,21 +1048,15 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		}
 	}
 
-	/* Enable Extended Key IDs when driver allowed it, or when it
-	 * supports neither HW crypto nor A-MPDUs
+	/* Mac80211 and therefore all drivers using SW crypto only
+	 * are able to handle PTK rekeys and Extended Key ID.
 	 */
-	if ((!local->ops->set_key &&
-	     !ieee80211_hw_check(hw, AMPDU_AGGREGATION)) ||
-	    ieee80211_hw_check(&local->hw, EXT_KEY_ID_NATIVE))
-		wiphy_ext_feature_set(local->hw.wiphy,
-				      NL80211_EXT_FEATURE_EXT_KEY_ID);
-
-	/* Mac80211 and therefore all cards only using SW crypto are able to
-	 * handle PTK rekeys correctly
-	 */
-	if (!local->ops->set_key)
+	if (!local->ops->set_key) {
 		wiphy_ext_feature_set(local->hw.wiphy,
 				      NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
+		wiphy_ext_feature_set(local->hw.wiphy,
+				      NL80211_EXT_FEATURE_EXT_KEY_ID);
+	}
 
 	/*
 	 * Calculate scan IE length -- we need this to alloc

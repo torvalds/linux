@@ -1480,6 +1480,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_meshconf_ie *mesh_config;
 	const u8 *he_cap;
 	const struct ieee80211_he_operation *he_operation;
+	const struct ieee80211_he_spr *he_spr;
 	const struct ieee80211_mu_edca_param_set *mu_edca_param_set;
 	const u8 *uora_element;
 	const u8 *mesh_id;
@@ -1506,6 +1507,7 @@ struct ieee802_11_elems {
 	u8 max_bssid_indicator;
 	u8 dtim_count;
 	u8 dtim_period;
+	const struct ieee80211_addba_ext_ie *addba_ext_ie;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
@@ -1767,7 +1769,8 @@ ieee80211_build_data_template(struct ieee80211_sub_if_data *sdata,
 			      struct sk_buff *skb, u32 info_flags);
 void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
 			  struct ieee80211_supported_band *sband,
-			  int retry_count, int shift, bool send_to_cooked);
+			  int retry_count, int shift, bool send_to_cooked,
+			  struct ieee80211_tx_status *status);
 
 void ieee80211_check_fast_xmit(struct sta_info *sta);
 void ieee80211_check_fast_xmit_all(struct ieee80211_local *local);
@@ -1804,7 +1807,8 @@ void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 				      u8 dialog_token, u16 timeout,
 				      u16 start_seq_num, u16 ba_policy, u16 tid,
-				      u16 buf_size, bool tx, bool auto_seq);
+				      u16 buf_size, bool tx, bool auto_seq,
+				      const struct ieee80211_addba_ext_ie *addbaext);
 void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
 					 enum ieee80211_agg_stop_reason reason);
 void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
@@ -1869,6 +1873,13 @@ ieee80211_he_cap_ie_to_sta_he_cap(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_supported_band *sband,
 				  const u8 *he_cap_ie, u8 he_cap_len,
 				  struct sta_info *sta);
+void
+ieee80211_he_spr_ie_to_bss_conf(struct ieee80211_vif *vif,
+				const struct ieee80211_he_spr *he_spr_ie_elem);
+
+void
+ieee80211_he_op_ie_to_bss_conf(struct ieee80211_vif *vif,
+			const struct ieee80211_he_operation *he_op_ie_elem);
 
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
@@ -2133,9 +2144,11 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 			       u32 cap);
 u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 				const struct cfg80211_chan_def *chandef);
+u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata, u8 iftype);
 u8 *ieee80211_ie_build_he_cap(u8 *pos,
 			      const struct ieee80211_sta_he_cap *he_cap,
 			      u8 *end);
+u8 *ieee80211_ie_build_he_oper(u8 *pos);
 int ieee80211_parse_bitrates(struct cfg80211_chan_def *chandef,
 			     const struct ieee80211_supported_band *sband,
 			     const u8 *srates, int srates_len, u32 *rates);

@@ -2216,7 +2216,8 @@ static int mac80211_hwsim_roc(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int mac80211_hwsim_croc(struct ieee80211_hw *hw)
+static int mac80211_hwsim_croc(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif)
 {
 	struct mac80211_hwsim_data *hwsim = hw->priv;
 
@@ -2594,7 +2595,7 @@ static const struct ieee80211_sband_iftype_data he_capa_5ghz = {
 	},
 };
 
-static void mac80211_hswim_he_capab(struct ieee80211_supported_band *sband)
+static void mac80211_hwsim_he_capab(struct ieee80211_supported_band *sband)
 {
 	if (sband->band == NL80211_BAND_2GHZ)
 		sband->iftype_data =
@@ -2805,12 +2806,6 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, SUPPORTS_PS);
 	ieee80211_hw_set(hw, TDLS_WIDER_BW);
-
-	/* We only have SW crypto and only implement the A-MPDU API
-	 * (but don't really build A-MPDUs) so can have extended key
-	 * support
-	 */
-	ieee80211_hw_set(hw, EXT_KEY_ID_NATIVE);
 	if (rctbl)
 		ieee80211_hw_set(hw, SUPPORTS_RC_TABLE);
 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
@@ -2897,7 +2892,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		sband->ht_cap.mcs.rx_mask[1] = 0xff;
 		sband->ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 
-		mac80211_hswim_he_capab(sband);
+		mac80211_hwsim_he_capab(sband);
 
 		hw->wiphy->bands[band] = sband;
 	}
@@ -3233,6 +3228,7 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 {
 	struct mac80211_hwsim_data *data2;
 	struct ieee80211_rx_status rx_status;
+	struct ieee80211_hdr *hdr;
 	const u8 *dst;
 	int frame_data_len;
 	void *frame_data;
@@ -3298,6 +3294,12 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 	rx_status.band = data2->channel->band;
 	rx_status.rate_idx = nla_get_u32(info->attrs[HWSIM_ATTR_RX_RATE]);
 	rx_status.signal = nla_get_u32(info->attrs[HWSIM_ATTR_SIGNAL]);
+
+	hdr = (void *)skb->data;
+
+	if (ieee80211_is_beacon(hdr->frame_control) ||
+	    ieee80211_is_probe_resp(hdr->frame_control))
+		rx_status.boottime_ns = ktime_get_boottime_ns();
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 	data2->rx_pkts++;

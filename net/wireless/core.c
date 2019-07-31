@@ -142,12 +142,10 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 	if (result)
 		return result;
 
-	if (rdev->wiphy.debugfsdir &&
-	    !debugfs_rename(rdev->wiphy.debugfsdir->d_parent,
-			    rdev->wiphy.debugfsdir,
-			    rdev->wiphy.debugfsdir->d_parent,
-			    newname))
-		pr_err("failed to rename debugfs dir to %s!\n", newname);
+	if (rdev->wiphy.debugfsdir)
+		debugfs_rename(rdev->wiphy.debugfsdir->d_parent,
+			       rdev->wiphy.debugfsdir,
+			       rdev->wiphy.debugfsdir->d_parent, newname);
 
 	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
 
@@ -899,11 +897,8 @@ int wiphy_register(struct wiphy *wiphy)
 	cfg80211_rdev_list_generation++;
 
 	/* add to debugfs */
-	rdev->wiphy.debugfsdir =
-		debugfs_create_dir(wiphy_name(&rdev->wiphy),
-				   ieee80211_debugfs_dir);
-	if (IS_ERR(rdev->wiphy.debugfsdir))
-		rdev->wiphy.debugfsdir = NULL;
+	rdev->wiphy.debugfsdir = debugfs_create_dir(wiphy_name(&rdev->wiphy),
+						    ieee80211_debugfs_dir);
 
 	cfg80211_debugfs_rdev_add(rdev);
 	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);

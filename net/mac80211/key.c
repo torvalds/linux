@@ -270,7 +270,7 @@ int ieee80211_set_tx_key(struct ieee80211_key *key)
 
 	sta->ptk_idx = key->conf.keyidx;
 
-	if (ieee80211_hw_check(&local->hw, NO_AMPDU_KEYBORDER_SUPPORT))
+	if (!ieee80211_hw_check(&local->hw, AMPDU_KEYBORDER_SUPPORT))
 		clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 	ieee80211_check_fast_xmit(sta);
 
@@ -290,15 +290,15 @@ static void ieee80211_pairwise_rekey(struct ieee80211_key *old,
 		/* Extended Key ID key install, initial one or rekey */
 
 		if (sta->ptk_idx != INVALID_PTK_KEYIDX &&
-		    ieee80211_hw_check(&local->hw,
-				       NO_AMPDU_KEYBORDER_SUPPORT)) {
+		    !ieee80211_hw_check(&local->hw, AMPDU_KEYBORDER_SUPPORT)) {
 			/* Aggregation Sessions with Extended Key ID must not
 			 * mix MPDUs with different keyIDs within one A-MPDU.
-			 * Tear down any running Tx aggregation and all new
-			 * Rx/Tx aggregation request during rekey if the driver
-			 * asks us to do so. (Blocking Tx only would be
-			 * sufficient but WLAN_STA_BLOCK_BA gets the job done
-			 * for the few ms we need it.)
+			 * Tear down running Tx aggregation sessions and block
+			 * new Rx/Tx aggregation requests during rekey to
+			 * ensure there are no A-MPDUs when the driver is not
+			 * supporting A-MPDU key borders. (Blocking Tx only
+			 * would be sufficient but WLAN_STA_BLOCK_BA gets the
+			 * job done for the few ms we need it.)
 			 */
 			set_sta_flag(sta, WLAN_STA_BLOCK_BA);
 			mutex_lock(&sta->ampdu_mlme.mtx);

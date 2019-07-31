@@ -1065,7 +1065,6 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 	cfg80211_del_sta_sinfo(sdata->dev, sta->sta.addr, sinfo, GFP_KERNEL);
 	kfree(sinfo);
 
-	rate_control_remove_sta_debugfs(sta);
 	ieee80211_sta_debugfs_remove(sta);
 
 	cleanup_single_sta(sta);

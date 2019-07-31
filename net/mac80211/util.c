@@ -1200,6 +1200,13 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 
 			elems->cisco_dtpc_elem = pos;
 			break;
+		case WLAN_EID_ADDBA_EXT:
+			if (elen != sizeof(struct ieee80211_addba_ext_ie)) {
+				elem_parse_failed = true;
+				break;
+			}
+			elems->addba_ext_ie = (void *)pos;
+			break;
 		case WLAN_EID_TIMEOUT_INTERVAL:
 			if (elen >= sizeof(struct ieee80211_timeout_interval_ie))
 				elems->timeout_int = (void *)pos;
@@ -1233,6 +1240,10 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 				   WLAN_EID_EXT_MULTIPLE_BSSID_CONFIGURATION &&
 				   elen == 3) {
 				elems->mbssid_config_ie = (void *)&pos[1];
+			} else if (pos[0] == WLAN_EID_EXT_HE_SPR &&
+				   elen >= sizeof(*elems->he_spr) &&
+				   elen >= ieee80211_he_spr_size(&pos[1])) {
+				elems->he_spr = (void *)&pos[1];
 			}
 			break;
 		default:
@@ -2702,6 +2713,27 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 	return pos;
 }
 
+u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata, u8 iftype)
+{
+	const struct ieee80211_sta_he_cap *he_cap;
+	struct ieee80211_supported_band *sband;
+	u8 n;
+
+	sband = ieee80211_get_sband(sdata);
+	if (!sband)
+		return 0;
+
+	he_cap = ieee80211_get_he_iftype_cap(sband, iftype);
+	if (!he_cap)
+		return 0;
+
+	n = ieee80211_he_mcs_nss_size(&he_cap->he_cap_elem);
+	return 2 + 1 +
+	       sizeof(he_cap->he_cap_elem) + n +
+	       ieee80211_he_ppe_size(he_cap->ppe_thres[0],
+				     he_cap->he_cap_elem.phy_cap_info);
+}
+
 u8 *ieee80211_ie_build_he_cap(u8 *pos,
 			      const struct ieee80211_sta_he_cap *he_cap,
 			      u8 *end)
@@ -2887,6 +2919,34 @@ u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 
 	/* don't require special VHT peer rates */
 	vht_oper->basic_mcs_set = cpu_to_le16(0xffff);
+
+	return pos + sizeof(struct ieee80211_vht_operation);
+}
+
+u8 *ieee80211_ie_build_he_oper(u8 *pos)
+{
+	struct ieee80211_he_operation *he_oper;
+	u32 he_oper_params;
+
+	*pos++ = WLAN_EID_EXTENSION;
+	*pos++ = 1 + sizeof(struct ieee80211_he_operation);
+	*pos++ = WLAN_EID_EXT_HE_OPERATION;
+
+	he_oper_params = 0;
+	he_oper_params |= u32_encode_bits(1023, /* disabled */
+				IEEE80211_HE_OPERATION_RTS_THRESHOLD_MASK);
+	he_oper_params |= u32_encode_bits(1,
+				IEEE80211_HE_OPERATION_ER_SU_DISABLE);
+	he_oper_params |= u32_encode_bits(1,
+				IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED);
+
+	he_oper = (struct ieee80211_he_operation *)pos;
+	he_oper->he_oper_params = cpu_to_le32(he_oper_params);
+
+	/* don't require special HE peer rates */
+	he_oper->he_mcs_nss_set = cpu_to_le16(0xffff);
+
+	/* TODO add VHT operational and 6GHz operational subelement? */
 
 	return pos + sizeof(struct ieee80211_vht_operation);
 }
