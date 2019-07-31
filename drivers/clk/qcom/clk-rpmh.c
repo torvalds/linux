@@ -396,6 +396,7 @@ static int clk_rpmh_probe(struct platform_device *pdev)
 	hw_clks = desc->clks;
 
 	for (i = 0; i < desc->num_clks; i++) {
+		const char *name = hw_clks[i]->init->name;
 		u32 res_addr;
 		size_t aux_data_len;
 		const struct bcm_db *data;
@@ -426,8 +427,7 @@ static int clk_rpmh_probe(struct platform_device *pdev)
 
 		ret = devm_clk_hw_register(&pdev->dev, hw_clks[i]);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to register %s\n",
-				hw_clks[i]->init->name);
+			dev_err(&pdev->dev, "failed to register %s\n", name);
 			return ret;
 		}
 	}
