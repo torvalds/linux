@@ -1839,8 +1839,7 @@ static void pblk_save_lba_list(struct pblk *pblk, struct pblk_line *line)
 	struct pblk_w_err_gc *w_err_gc = line->w_err_gc;
 	struct pblk_emeta *emeta = line->emeta;
 
-	w_err_gc->lba_list = pblk_malloc(lba_list_size,
-					 l_mg->emeta_alloc_type, GFP_KERNEL);
+	w_err_gc->lba_list = kvmalloc(lba_list_size, GFP_KERNEL);
 	memcpy(w_err_gc->lba_list, emeta_to_lbas(pblk, emeta->buf),
 				lba_list_size);
 }
