@@ -170,7 +170,7 @@ static inline int cpuidle_enter(struct cpuidle_driver *drv,
 				struct cpuidle_device *dev, int index)
 {return -ENODEV; }
 static inline void cpuidle_reflect(struct cpuidle_device *dev, int index) { }
-extern u64 cpuidle_poll_time(struct cpuidle_driver *drv,
+static inline u64 cpuidle_poll_time(struct cpuidle_driver *drv,
 			     struct cpuidle_device *dev)
 {return 0; }
 static inline int cpuidle_register_driver(struct cpuidle_driver *drv)
