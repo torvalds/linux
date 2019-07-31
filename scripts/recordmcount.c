@@ -258,17 +258,14 @@ static void *mmap_file(char const *fname)
 	fd_map = open(fname, O_RDONLY);
 	if (fd_map < 0) {
 		perror(fname);
-		cleanup();
 		return NULL;
 	}
 	if (fstat(fd_map, &sb) < 0) {
 		perror(fname);
-		cleanup();
 		goto out;
 	}
 	if (!S_ISREG(sb.st_mode)) {
 		fprintf(stderr, "not a regular file: %s\n", fname);
-		cleanup();
 		goto out;
 	}
 	file_map = mmap(0, sb.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE,
@@ -314,13 +311,11 @@ static int write_file(const char *fname)
 	fd_map = open(tmp_file, O_WRONLY | O_TRUNC | O_CREAT, sb.st_mode);
 	if (fd_map < 0) {
 		perror(fname);
-		cleanup();
 		return -1;
 	}
 	n = write(fd_map, file_map, sb.st_size);
 	if (n != sb.st_size) {
 		perror("write");
-		cleanup();
 		close(fd_map);
 		return -1;
 	}
@@ -328,7 +323,6 @@ static int write_file(const char *fname)
 		n = write(fd_map, file_append, file_append_size);
 		if (n != file_append_size) {
 			perror("write");
-			cleanup();
 			close(fd_map);
 			return -1;
 		}
@@ -336,7 +330,6 @@ static int write_file(const char *fname)
 	close(fd_map);
 	if (rename(tmp_file, fname) < 0) {
 		perror(fname);
-		cleanup();
 		return -1;
 	}
 	return 0;
@@ -460,7 +453,6 @@ static int do_file(char const *const fname)
 	default:
 		fprintf(stderr, "unrecognized ELF data encoding %d: %s\n",
 			ehdr->e_ident[EI_DATA], fname);
-		cleanup();
 		goto out;
 	case ELFDATA2LSB:
 		if (*(unsigned char const *)&endian != 1) {
@@ -493,7 +485,6 @@ static int do_file(char const *const fname)
 	    w2(ehdr->e_type) != ET_REL ||
 	    ehdr->e_ident[EI_VERSION] != EV_CURRENT) {
 		fprintf(stderr, "unrecognized ET_REL file %s\n", fname);
-		cleanup();
 		goto out;
 	}
 
@@ -502,7 +493,6 @@ static int do_file(char const *const fname)
 	default:
 		fprintf(stderr, "unrecognized e_machine %u %s\n",
 			w2(ehdr->e_machine), fname);
-		cleanup();
 		goto out;
 	case EM_386:
 		reltype = R_386_32;
@@ -546,14 +536,12 @@ static int do_file(char const *const fname)
 	default:
 		fprintf(stderr, "unrecognized ELF class %d %s\n",
 			ehdr->e_ident[EI_CLASS], fname);
-		cleanup();
 		goto out;
 	case ELFCLASS32:
 		if (w2(ehdr->e_ehsize) != sizeof(Elf32_Ehdr)
 		||  w2(ehdr->e_shentsize) != sizeof(Elf32_Shdr)) {
 			fprintf(stderr,
 				"unrecognized ET_REL file: %s\n", fname);
-			cleanup();
 			goto out;
 		}
 		if (w2(ehdr->e_machine) == EM_MIPS) {
@@ -569,7 +557,6 @@ static int do_file(char const *const fname)
 		||  w2(ghdr->e_shentsize) != sizeof(Elf64_Shdr)) {
 			fprintf(stderr,
 				"unrecognized ET_REL file: %s\n", fname);
-			cleanup();
 			goto out;
 		}
 		if (w2(ghdr->e_machine) == EM_S390) {
