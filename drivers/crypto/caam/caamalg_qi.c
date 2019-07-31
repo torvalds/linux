@@ -884,20 +884,8 @@ static void aead_done(struct caam_drv_req *drv_req, u32 status)
 
 	qidev = caam_ctx->qidev;
 
-	if (unlikely(status)) {
-		u32 ssrc = status & JRSTA_SSRC_MASK;
-		u8 err_id = status & JRSTA_CCBERR_ERRID_MASK;
-
-		caam_jr_strstatus(qidev, status);
-		/*
-		 * verify hw auth check passed else return -EBADMSG
-		 */
-		if (ssrc == JRSTA_SSRC_CCB_ERROR &&
-		    err_id == JRSTA_CCBERR_ERRID_ICVCHK)
-			ecode = -EBADMSG;
-		else
-			ecode = -EIO;
-	}
+	if (unlikely(status))
+		ecode = caam_jr_strstatus(qidev, status);
 
 	edesc = container_of(drv_req, typeof(*edesc), drv_req);
 	aead_unmap(qidev, edesc, aead_req);
@@ -1190,13 +1178,14 @@ static void skcipher_done(struct caam_drv_req *drv_req, u32 status)
 	struct caam_ctx *caam_ctx = crypto_skcipher_ctx(skcipher);
 	struct device *qidev = caam_ctx->qidev;
 	int ivsize = crypto_skcipher_ivsize(skcipher);
+	int ecode = 0;
 
 	dev_dbg(qidev, "%s %d: status 0x%x\n", __func__, __LINE__, status);
 
 	edesc = container_of(drv_req, typeof(*edesc), drv_req);
 
 	if (status)
-		caam_jr_strstatus(qidev, status);
+		ecode = caam_jr_strstatus(qidev, status);
 
 	print_hex_dump_debug("dstiv  @" __stringify(__LINE__)": ",
 			     DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
@@ -1215,7 +1204,7 @@ static void skcipher_done(struct caam_drv_req *drv_req, u32 status)
 	memcpy(req->iv, (u8 *)&edesc->sgt[0] + edesc->qm_sg_bytes, ivsize);
 
 	qi_cache_free(edesc);
-	skcipher_request_complete(req, status);
+	skcipher_request_complete(req, ecode);
 }
 
 static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,

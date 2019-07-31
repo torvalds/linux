@@ -1228,10 +1228,8 @@ static void aead_encrypt_done(void *cbk_ctx, u32 status)
 
 	dev_dbg(ctx->dev, "%s %d: err 0x%x\n", __func__, __LINE__, status);
 
-	if (unlikely(status)) {
-		caam_qi2_strstatus(ctx->dev, status);
-		ecode = -EIO;
-	}
+	if (unlikely(status))
+		ecode = caam_qi2_strstatus(ctx->dev, status);
 
 	aead_unmap(ctx->dev, edesc, req);
 	qi_cache_free(edesc);
@@ -1251,17 +1249,8 @@ static void aead_decrypt_done(void *cbk_ctx, u32 status)
 
 	dev_dbg(ctx->dev, "%s %d: err 0x%x\n", __func__, __LINE__, status);
 
-	if (unlikely(status)) {
-		caam_qi2_strstatus(ctx->dev, status);
-		/*
-		 * verify hw auth check passed else return -EBADMSG
-		 */
-		if ((status & JRSTA_CCBERR_ERRID_MASK) ==
-		     JRSTA_CCBERR_ERRID_ICVCHK)
-			ecode = -EBADMSG;
-		else
-			ecode = -EIO;
-	}
+	if (unlikely(status))
+		ecode = caam_qi2_strstatus(ctx->dev, status);
 
 	aead_unmap(ctx->dev, edesc, req);
 	qi_cache_free(edesc);
@@ -1353,10 +1342,8 @@ static void skcipher_encrypt_done(void *cbk_ctx, u32 status)
 
 	dev_dbg(ctx->dev, "%s %d: err 0x%x\n", __func__, __LINE__, status);
 
-	if (unlikely(status)) {
-		caam_qi2_strstatus(ctx->dev, status);
-		ecode = -EIO;
-	}
+	if (unlikely(status))
+		ecode = caam_qi2_strstatus(ctx->dev, status);
 
 	print_hex_dump_debug("dstiv  @" __stringify(__LINE__)": ",
 			     DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
@@ -1391,10 +1378,8 @@ static void skcipher_decrypt_done(void *cbk_ctx, u32 status)
 
 	dev_dbg(ctx->dev, "%s %d: err 0x%x\n", __func__, __LINE__, status);
 
-	if (unlikely(status)) {
-		caam_qi2_strstatus(ctx->dev, status);
-		ecode = -EIO;
-	}
+	if (unlikely(status))
+		ecode = caam_qi2_strstatus(ctx->dev, status);
 
 	print_hex_dump_debug("dstiv  @" __stringify(__LINE__)": ",
 			     DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
@@ -3095,10 +3080,7 @@ static void split_key_sh_done(void *cbk_ctx, u32 err)
 
 	dev_dbg(res->dev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 
-	if (err)
-		caam_qi2_strstatus(res->dev, err);
-
-	res->err = err;
+	res->err = err ? caam_qi2_strstatus(res->dev, err) : 0;
 	complete(&res->completion);
 }
 
@@ -3283,10 +3265,8 @@ static void ahash_done(void *cbk_ctx, u32 status)
 
 	dev_dbg(ctx->dev, "%s %d: err 0x%x\n", __func__, __LINE__, status);
 
-	if (unlikely(status)) {
-		caam_qi2_strstatus(ctx->dev, status);
-		ecode = -EIO;
-	}
+	if (unlikely(status))
+		ecode = caam_qi2_strstatus(ctx->dev, status);
 
 	ahash_unmap_ctx(ctx->dev, edesc, req, DMA_FROM_DEVICE);
 	memcpy(req->result, state->caam_ctx, digestsize);
@@ -3311,10 +3291,8 @@ static void ahash_done_bi(void *cbk_ctx, u32 status)
 
 	dev_dbg(ctx->dev, "%s %d: err 0x%x\n", __func__, __LINE__, status);
 
-	if (unlikely(status)) {
-		caam_qi2_strstatus(ctx->dev, status);
-		ecode = -EIO;
-	}
+	if (unlikely(status))
+		ecode = caam_qi2_strstatus(ctx->dev, status);
 
 	ahash_unmap_ctx(ctx->dev, edesc, req, DMA_BIDIRECTIONAL);
 	switch_buf(state);
@@ -3344,10 +3322,8 @@ static void ahash_done_ctx_src(void *cbk_ctx, u32 status)
 
 	dev_dbg(ctx->dev, "%s %d: err 0x%x\n", __func__, __LINE__, status);
 
-	if (unlikely(status)) {
-		caam_qi2_strstatus(ctx->dev, status);
-		ecode = -EIO;
-	}
+	if (unlikely(status))
+		ecode = caam_qi2_strstatus(ctx->dev, status);
 
 	ahash_unmap_ctx(ctx->dev, edesc, req, DMA_BIDIRECTIONAL);
 	memcpy(req->result, state->caam_ctx, digestsize);
@@ -3372,10 +3348,8 @@ static void ahash_done_ctx_dst(void *cbk_ctx, u32 status)
 
 	dev_dbg(ctx->dev, "%s %d: err 0x%x\n", __func__, __LINE__, status);
 
-	if (unlikely(status)) {
-		caam_qi2_strstatus(ctx->dev, status);
-		ecode = -EIO;
-	}
+	if (unlikely(status))
+		ecode = caam_qi2_strstatus(ctx->dev, status);
 
 	ahash_unmap_ctx(ctx->dev, edesc, req, DMA_FROM_DEVICE);
 	switch_buf(state);
@@ -4701,7 +4675,7 @@ static void dpaa2_caam_process_fd(struct dpaa2_caam_priv *priv,
 
 	fd_err = dpaa2_fd_get_ctrl(fd) & FD_CTRL_ERR_MASK;
 	if (unlikely(fd_err))
-		dev_err(priv->dev, "FD error: %08x\n", fd_err);
+		dev_err_ratelimited(priv->dev, "FD error: %08x\n", fd_err);
 
 	/*
 	 * FD[ADDR] is guaranteed to be valid, irrespective of errors reported

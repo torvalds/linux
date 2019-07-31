@@ -211,8 +211,8 @@ static const char * const rng_err_id_list[] = {
 	"Secure key generation",
 };
 
-static void report_ccb_status(struct device *jrdev, const u32 status,
-			      const char *error)
+static int report_ccb_status(struct device *jrdev, const u32 status,
+			     const char *error)
 {
 	u8 cha_id = (status & JRSTA_CCBERR_CHAID_MASK) >>
 		    JRSTA_CCBERR_CHAID_SHIFT;
@@ -248,22 +248,27 @@ static void report_ccb_status(struct device *jrdev, const u32 status,
 	 * CCB ICV check failures are part of normal operation life;
 	 * we leave the upper layers to do what they want with them.
 	 */
-	if (err_id != JRSTA_CCBERR_ERRID_ICVCHK)
-		dev_err(jrdev, "%08x: %s: %s %d: %s%s: %s%s\n",
-			status, error, idx_str, idx,
-			cha_str, cha_err_code,
-			err_str, err_err_code);
+	if (err_id == JRSTA_CCBERR_ERRID_ICVCHK)
+		return -EBADMSG;
+
+	dev_err_ratelimited(jrdev, "%08x: %s: %s %d: %s%s: %s%s\n", status,
+			    error, idx_str, idx, cha_str, cha_err_code,
+			    err_str, err_err_code);
+
+	return -EINVAL;
 }
 
-static void report_jump_status(struct device *jrdev, const u32 status,
-			       const char *error)
+static int report_jump_status(struct device *jrdev, const u32 status,
+			      const char *error)
 {
 	dev_err(jrdev, "%08x: %s: %s() not implemented\n",
 		status, error, __func__);
+
+	return -EINVAL;
 }
 
-static void report_deco_status(struct device *jrdev, const u32 status,
-			       const char *error)
+static int report_deco_status(struct device *jrdev, const u32 status,
+			      const char *error)
 {
 	u8 err_id = status & JRSTA_DECOERR_ERROR_MASK;
 	u8 idx = (status & JRSTA_DECOERR_INDEX_MASK) >>
@@ -289,10 +294,12 @@ static void report_deco_status(struct device *jrdev, const u32 status,
 
 	dev_err(jrdev, "%08x: %s: %s %d: %s%s\n",
 		status, error, idx_str, idx, err_str, err_err_code);
+
+	return -EINVAL;
 }
 
-static void report_qi_status(struct device *qidev, const u32 status,
-			     const char *error)
+static int report_qi_status(struct device *qidev, const u32 status,
+			    const char *error)
 {
 	u8 err_id = status & JRSTA_QIERR_ERROR_MASK;
 	const char *err_str = "unidentified error value 0x";
@@ -310,27 +317,33 @@ static void report_qi_status(struct device *qidev, const u32 status,
 
 	dev_err(qidev, "%08x: %s: %s%s\n",
 		status, error, err_str, err_err_code);
+
+	return -EINVAL;
 }
 
-static void report_jr_status(struct device *jrdev, const u32 status,
-			     const char *error)
+static int report_jr_status(struct device *jrdev, const u32 status,
+			    const char *error)
 {
 	dev_err(jrdev, "%08x: %s: %s() not implemented\n",
 		status, error, __func__);
+
+	return -EINVAL;
 }
 
-static void report_cond_code_status(struct device *jrdev, const u32 status,
-				    const char *error)
+static int report_cond_code_status(struct device *jrdev, const u32 status,
+				   const char *error)
 {
 	dev_err(jrdev, "%08x: %s: %s() not implemented\n",
 		status, error, __func__);
+
+	return -EINVAL;
 }
 
-void caam_strstatus(struct device *jrdev, u32 status, bool qi_v2)
+int caam_strstatus(struct device *jrdev, u32 status, bool qi_v2)
 {
 	static const struct stat_src {
-		void (*report_ssed)(struct device *jrdev, const u32 status,
-				    const char *error);
+		int (*report_ssed)(struct device *jrdev, const u32 status,
+				   const char *error);
 		const char *error;
 	} status_src[16] = {
 		{ NULL, "No error" },
@@ -358,11 +371,14 @@ void caam_strstatus(struct device *jrdev, u32 status, bool qi_v2)
 	 * Otherwise print the error source name.
 	 */
 	if (status_src[ssrc].report_ssed)
-		status_src[ssrc].report_ssed(jrdev, status, error);
-	else if (error)
+		return status_src[ssrc].report_ssed(jrdev, status, error);
+
+	if (error)
 		dev_err(jrdev, "%d: %s\n", ssrc, error);
 	else
 		dev_err(jrdev, "%d: unknown error source\n", ssrc);
+
+	return -EINVAL;
 }
 EXPORT_SYMBOL(caam_strstatus);
 

@@ -577,8 +577,9 @@ static enum qman_cb_dqrr_result caam_rsp_fq_dqrr_cb(struct qman_portal *p,
 
 		if (ssrc != JRSTA_SSRC_CCB_ERROR ||
 		    err_id != JRSTA_CCBERR_ERRID_ICVCHK)
-			dev_err(qidev, "Error: %#x in CAAM response FD\n",
-				status);
+			dev_err_ratelimited(qidev,
+					    "Error: %#x in CAAM response FD\n",
+					    status);
 	}
 
 	if (unlikely(qm_fd_get_format(fd) != qm_fd_compound)) {

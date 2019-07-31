@@ -15,13 +15,14 @@ void split_key_done(struct device *dev, u32 *desc, u32 err,
 			   void *context)
 {
 	struct split_key_result *res = context;
+	int ecode = 0;
 
 	dev_dbg(dev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 
 	if (err)
-		caam_jr_strstatus(dev, err);
+		ecode = caam_jr_strstatus(dev, err);
 
-	res->err = err;
+	res->err = ecode;
 
 	complete(&res->completion);
 }
