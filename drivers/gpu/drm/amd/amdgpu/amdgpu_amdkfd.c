@@ -655,8 +655,12 @@ void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
-	if (adev->powerplay.pp_funcs &&
-	    adev->powerplay.pp_funcs->switch_power_profile)
+	if (is_support_sw_smu(adev))
+		smu_switch_power_profile(&adev->smu,
+					 PP_SMC_POWER_PROFILE_COMPUTE,
+					 !idle);
+	else if (adev->powerplay.pp_funcs &&
+		 adev->powerplay.pp_funcs->switch_power_profile)
 		amdgpu_dpm_switch_power_profile(adev,
 						PP_SMC_POWER_PROFILE_COMPUTE,
 						!idle);

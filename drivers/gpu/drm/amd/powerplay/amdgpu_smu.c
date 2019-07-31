@@ -1677,6 +1677,42 @@ int smu_handle_task(struct smu_context *smu,
 	return ret;
 }
 
+int smu_switch_power_profile(struct smu_context *smu,
+			     enum PP_SMC_POWER_PROFILE type,
+			     bool en)
+{
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+	long workload;
+	uint32_t index;
+
+	if (!smu->pm_enabled)
+		return -EINVAL;
+
+	if (!(type < PP_SMC_POWER_PROFILE_CUSTOM))
+		return -EINVAL;
+
+	mutex_lock(&smu->mutex);
+
+	if (!en) {
+		smu->workload_mask &= ~(1 << smu->workload_prority[type]);
+		index = fls(smu->workload_mask);
+		index = index > 0 && index <= WORKLOAD_POLICY_MAX ? index - 1 : 0;
+		workload = smu->workload_setting[index];
+	} else {
+		smu->workload_mask |= (1 << smu->workload_prority[type]);
+		index = fls(smu->workload_mask);
+		index = index <= WORKLOAD_POLICY_MAX ? index - 1 : 0;
+		workload = smu->workload_setting[index];
+	}
+
+	if (smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+		smu_set_power_profile_mode(smu, &workload, 0);
+
+	mutex_unlock(&smu->mutex);
+
+	return 0;
+}
+
 enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
