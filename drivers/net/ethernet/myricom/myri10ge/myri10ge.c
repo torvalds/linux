@@ -3037,7 +3037,6 @@ static int myri10ge_set_mac_address(struct net_device *dev, void *addr)
 static int myri10ge_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct myri10ge_priv *mgp = netdev_priv(dev);
-	int error = 0;
 
 	netdev_info(dev, "changing mtu from %d to %d\n", dev->mtu, new_mtu);
 	if (mgp->running) {
@@ -3049,7 +3048,7 @@ static int myri10ge_change_mtu(struct net_device *dev, int new_mtu)
 	} else
 		dev->mtu = new_mtu;
 
-	return error;
+	return 0;
 }
 
 /*
