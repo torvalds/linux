@@ -8,6 +8,7 @@
 #include "pci.h"
 #include "tx.h"
 #include "rx.h"
+#include "fw.h"
 #include "debug.h"
 
 static u32 rtw_pci_tx_queue_idx_addr[] = {
@@ -822,10 +823,7 @@ static void rtw_pci_rx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 		skb_put_data(new, skb->data, new_len);
 
 		if (pkt_stat.is_c2h) {
-			 /* pass rx_desc & offset for further operation */
-			*((u32 *)new->cb) = pkt_offset;
-			skb_queue_tail(&rtwdev->c2h_queue, new);
-			ieee80211_queue_work(rtwdev->hw, &rtwdev->c2h_work);
+			rtw_fw_c2h_cmd_rx_irqsafe(rtwdev, pkt_offset, new);
 		} else {
 			/* remove rx_desc */
 			skb_pull(new, pkt_offset);

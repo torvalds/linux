@@ -36,9 +36,6 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 	c2h = (struct rtw_c2h_cmd *)(skb->data + pkt_offset);
 	len = skb->len - pkt_offset - 2;
 
-	rtw_dbg(rtwdev, RTW_DBG_FW, "recv C2H, id=0x%02x, seq=0x%02x, len=%d\n",
-		c2h->id, c2h->seq, len);
-
 	switch (c2h->id) {
 	case C2H_HALMAC:
 		rtw_fw_c2h_cmd_handle_ext(rtwdev, skb);
@@ -47,6 +44,30 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 		break;
 	}
 }
+
+void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
+			       struct sk_buff *skb)
+{
+	struct rtw_c2h_cmd *c2h;
+	u8 len;
+
+	c2h = (struct rtw_c2h_cmd *)(skb->data + pkt_offset);
+	len = skb->len - pkt_offset - 2;
+	*((u32 *)skb->cb) = pkt_offset;
+
+	rtw_dbg(rtwdev, RTW_DBG_FW, "recv C2H, id=0x%02x, seq=0x%02x, len=%d\n",
+		c2h->id, c2h->seq, len);
+
+	switch (c2h->id) {
+	default:
+		/* pass offset for further operation */
+		*((u32 *)skb->cb) = pkt_offset;
+		skb_queue_tail(&rtwdev->c2h_queue, skb);
+		ieee80211_queue_work(rtwdev->hw, &rtwdev->c2h_work);
+		break;
+	}
+}
+EXPORT_SYMBOL(rtw_fw_c2h_cmd_rx_irqsafe);
 
 static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 				    u8 *h2c)
