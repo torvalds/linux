@@ -356,8 +356,7 @@ static int erofs_init_managed_cache(struct super_block *sb)
 
 	inode->i_mapping->a_ops = &managed_cache_aops;
 	mapping_set_gfp_mask(inode->i_mapping,
-			     GFP_NOFS | __GFP_HIGHMEM |
-			     __GFP_MOVABLE |  __GFP_NOFAIL);
+			     GFP_NOFS | __GFP_HIGHMEM | __GFP_MOVABLE);
 	sbi->managed_cache = inode;
 	return 0;
 }
