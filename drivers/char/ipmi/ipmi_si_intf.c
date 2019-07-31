@@ -261,10 +261,10 @@ static void cleanup_ipmi_si(void);
 #ifdef DEBUG_TIMING
 void debug_timestamp(char *msg)
 {
-	struct timespec64 t;
+	struct timespec t;
 
-	ktime_get_ts64(&t);
-	pr_debug("**%s: %lld.%9.9ld\n", msg, (long long) t.tv_sec, t.tv_nsec);
+	ktime_get_ts(&t);
+	pr_debug("**%s: %ld.%9.9ld\n", msg, (long) t.tv_sec, t.tv_nsec);
 }
 #else
 #define debug_timestamp(x)
@@ -935,18 +935,18 @@ static void set_run_to_completion(void *send_info, bool i_run_to_completion)
  * we are spinning in kipmid looking for something and not delaying
  * between checks
  */
-static inline void ipmi_si_set_not_busy(struct timespec64 *ts)
+static inline void ipmi_si_set_not_busy(struct timespec *ts)
 {
 	ts->tv_nsec = -1;
 }
-static inline int ipmi_si_is_busy(struct timespec64 *ts)
+static inline int ipmi_si_is_busy(struct timespec *ts)
 {
 	return ts->tv_nsec != -1;
 }
 
-static inline int ipmi_thread_busy_wait(enum si_sm_result smi_result,
-					const struct smi_info *smi_info,
-					struct timespec64 *busy_until)
+static inline bool ipmi_thread_busy_wait(enum si_sm_result smi_result,
+					 const struct smi_info *smi_info,
+					 struct timespec *busy_until)
 {
 	unsigned int max_busy_us = 0;
 
@@ -955,18 +955,18 @@ static inline int ipmi_thread_busy_wait(enum si_sm_result smi_result,
 	if (max_busy_us == 0 || smi_result != SI_SM_CALL_WITH_DELAY)
 		ipmi_si_set_not_busy(busy_until);
 	else if (!ipmi_si_is_busy(busy_until)) {
-		ktime_get_ts64(busy_until);
-		timespec64_add_ns(busy_until, max_busy_us*NSEC_PER_USEC);
+		ktime_get_ts(busy_until);
+		timespec_add_ns(busy_until, max_busy_us * NSEC_PER_USEC);
 	} else {
-		struct timespec64 now;
+		struct timespec now;
 
-		ktime_get_ts64(&now);
-		if (unlikely(timespec64_compare(&now, busy_until) > 0)) {
+		ktime_get_ts(&now);
+		if (unlikely(timespec_compare(&now, busy_until) > 0)) {
 			ipmi_si_set_not_busy(busy_until);
-			return 0;
+			return false;
 		}
 	}
-	return 1;
+	return true;
 }
 
 
@@ -984,7 +984,7 @@ static int ipmi_thread(void *data)
 	struct smi_info *smi_info = data;
 	unsigned long flags;
 	enum si_sm_result smi_result;
-	struct timespec64 busy_until;
+	struct timespec busy_until = { 0, 0 };
 
 	ipmi_si_set_not_busy(&busy_until);
 	set_user_nice(current, MAX_NICE);
