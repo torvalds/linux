@@ -111,6 +111,7 @@ static int ath10k_qmi_msa_mem_info_send_sync_msg(struct ath10k_qmi *qmi)
 	struct wlfw_msa_info_resp_msg_v01 resp = {};
 	struct wlfw_msa_info_req_msg_v01 req = {};
 	struct ath10k *ar = qmi->ar;
+	phys_addr_t max_mapped_addr;
 	struct qmi_txn txn;
 	int ret;
 	int i;
@@ -150,8 +151,20 @@ static int ath10k_qmi_msa_mem_info_send_sync_msg(struct ath10k_qmi *qmi)
 		goto out;
 	}
 
+	max_mapped_addr = qmi->msa_pa + qmi->msa_mem_size;
 	qmi->nr_mem_region = resp.mem_region_info_len;
 	for (i = 0; i < resp.mem_region_info_len; i++) {
+		if (resp.mem_region_info[i].size > qmi->msa_mem_size ||
+		    resp.mem_region_info[i].region_addr > max_mapped_addr ||
+		    resp.mem_region_info[i].region_addr < qmi->msa_pa ||
+		    resp.mem_region_info[i].size +
+		    resp.mem_region_info[i].region_addr > max_mapped_addr) {
+			ath10k_err(ar, "received out of range memory region address 0x%llx with size 0x%x, aborting\n",
+				   resp.mem_region_info[i].region_addr,
+				   resp.mem_region_info[i].size);
+			ret = -EINVAL;
+			goto fail_unwind;
+		}
 		qmi->mem_region[i].addr = resp.mem_region_info[i].region_addr;
 		qmi->mem_region[i].size = resp.mem_region_info[i].size;
 		qmi->mem_region[i].secure = resp.mem_region_info[i].secure_flag;
@@ -165,6 +178,8 @@ static int ath10k_qmi_msa_mem_info_send_sync_msg(struct ath10k_qmi *qmi)
 	ath10k_dbg(ar, ATH10K_DBG_QMI, "qmi msa mem info request completed\n");
 	return 0;
 
+fail_unwind:
+	memset(&qmi->mem_region[0], 0, sizeof(qmi->mem_region[0]) * i);
 out:
 	return ret;
 }
