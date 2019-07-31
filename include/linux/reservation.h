@@ -140,6 +140,38 @@ reservation_object_lock_interruptible(struct reservation_object *obj,
 	return ww_mutex_lock_interruptible(&obj->lock, ctx);
 }
 
+/**
+ * reservation_object_lock_slow - slowpath lock the reservation object
+ * @obj: the reservation object
+ * @ctx: the locking context
+ *
+ * Acquires the reservation object after a die case. This function
+ * will sleep until the lock becomes available. See reservation_object_lock() as
+ * well.
+ */
+static inline void
+reservation_object_lock_slow(struct reservation_object *obj,
+			     struct ww_acquire_ctx *ctx)
+{
+	ww_mutex_lock_slow(&obj->lock, ctx);
+}
+
+/**
+ * reservation_object_lock_slow_interruptible - slowpath lock the reservation
+ * object, interruptible
+ * @obj: the reservation object
+ * @ctx: the locking context
+ *
+ * Acquires the reservation object interruptible after a die case. This function
+ * will sleep until the lock becomes available. See
+ * reservation_object_lock_interruptible() as well.
+ */
+static inline int
+reservation_object_lock_slow_interruptible(struct reservation_object *obj,
+					   struct ww_acquire_ctx *ctx)
+{
+	return ww_mutex_lock_slow_interruptible(&obj->lock, ctx);
+}
 
 /**
  * reservation_object_trylock - trylock the reservation object
@@ -159,6 +191,31 @@ static inline bool __must_check
 reservation_object_trylock(struct reservation_object *obj)
 {
 	return ww_mutex_trylock(&obj->lock);
+}
+
+/**
+ * reservation_object_is_locked - is the reservation object locked
+ * @obj: the reservation object
+ *
+ * Returns true if the mutex is locked, false if unlocked.
+ */
+static inline bool
+reservation_object_is_locked(struct reservation_object *obj)
+{
+	return ww_mutex_is_locked(&obj->lock);
+}
+
+/**
+ * reservation_object_locking_ctx - returns the context used to lock the object
+ * @obj: the reservation object
+ *
+ * Returns the context used to lock a reservation object or NULL if no context
+ * was used or the object is not locked at all.
+ */
+static inline struct ww_acquire_ctx *
+reservation_object_locking_ctx(struct reservation_object *obj)
+{
+	return READ_ONCE(obj->lock.ctx);
 }
 
 /**

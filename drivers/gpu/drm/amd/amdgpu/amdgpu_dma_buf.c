@@ -380,7 +380,7 @@ amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 	bp.flags = 0;
 	bp.type = ttm_bo_type_sg;
 	bp.resv = resv;
-	ww_mutex_lock(&resv->lock, NULL);
+	reservation_object_lock(resv, NULL);
 	ret = amdgpu_bo_create(adev, &bp, &bo);
 	if (ret)
 		goto error;
@@ -392,11 +392,11 @@ amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 	if (attach->dmabuf->ops != &amdgpu_dmabuf_ops)
 		bo->prime_shared_count = 1;
 
-	ww_mutex_unlock(&resv->lock);
+	reservation_object_unlock(resv);
 	return &bo->gem_base;
 
 error:
-	ww_mutex_unlock(&resv->lock);
+	reservation_object_unlock(resv);
 	return ERR_PTR(ret);
 }
 

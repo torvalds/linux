@@ -68,10 +68,10 @@ struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
 
 	flags = TTM_PL_FLAG_TT;
 
-	ww_mutex_lock(&robj->lock, NULL);
+	reservation_object_lock(robj, NULL);
 	ret = nouveau_bo_new(&drm->client, attach->dmabuf->size, 0, flags, 0, 0,
 			     sg, robj, &nvbo);
-	ww_mutex_unlock(&robj->lock);
+	reservation_object_unlock(robj);
 	if (ret)
 		return ERR_PTR(ret);
 

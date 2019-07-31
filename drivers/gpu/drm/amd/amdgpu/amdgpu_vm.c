@@ -2416,7 +2416,8 @@ void amdgpu_vm_bo_trace_cs(struct amdgpu_vm *vm, struct ww_acquire_ctx *ticket)
 			struct amdgpu_bo *bo;
 
 			bo = mapping->bo_va->base.bo;
-			if (READ_ONCE(bo->tbo.resv->lock.ctx) != ticket)
+			if (reservation_object_locking_ctx(bo->tbo.resv) !=
+			    ticket)
 				continue;
 		}
 

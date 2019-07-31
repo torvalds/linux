@@ -402,14 +402,14 @@ void vmw_resource_unreserve(struct vmw_resource *res,
 
 	if (switch_backup && new_backup != res->backup) {
 		if (res->backup) {
-			lockdep_assert_held(&res->backup->base.resv->lock.base);
+			reservation_object_assert_held(res->backup->base.resv);
 			list_del_init(&res->mob_head);
 			vmw_bo_unreference(&res->backup);
 		}
 
 		if (new_backup) {
 			res->backup = vmw_bo_reference(new_backup);
-			lockdep_assert_held(&new_backup->base.resv->lock.base);
+			reservation_object_assert_held(new_backup->base.resv);
 			list_add_tail(&res->mob_head, &new_backup->res_list);
 		} else {
 			res->backup = NULL;
@@ -691,7 +691,7 @@ void vmw_resource_unbind_list(struct vmw_buffer_object *vbo)
 		.num_shared = 0
 	};
 
-	lockdep_assert_held(&vbo->base.resv->lock.base);
+	reservation_object_assert_held(vbo->base.resv);
 	list_for_each_entry_safe(res, next, &vbo->res_list, mob_head) {
 		if (!res->func->unbind)
 			continue;

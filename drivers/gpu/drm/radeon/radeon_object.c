@@ -611,7 +611,7 @@ int radeon_bo_get_surface_reg(struct radeon_bo *bo)
 	int steal;
 	int i;
 
-	lockdep_assert_held(&bo->tbo.resv->lock.base);
+	reservation_object_assert_held(bo->tbo.resv);
 
 	if (!bo->tiling_flags)
 		return 0;
@@ -737,7 +737,7 @@ void radeon_bo_get_tiling_flags(struct radeon_bo *bo,
 				uint32_t *tiling_flags,
 				uint32_t *pitch)
 {
-	lockdep_assert_held(&bo->tbo.resv->lock.base);
+	reservation_object_assert_held(bo->tbo.resv);
 
 	if (tiling_flags)
 		*tiling_flags = bo->tiling_flags;
@@ -749,7 +749,7 @@ int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 				bool force_drop)
 {
 	if (!force_drop)
-		lockdep_assert_held(&bo->tbo.resv->lock.base);
+		reservation_object_assert_held(bo->tbo.resv);
 
 	if (!(bo->tiling_flags & RADEON_TILING_SURFACE))
 		return 0;
