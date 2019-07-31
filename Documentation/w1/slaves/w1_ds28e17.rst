@@ -1,11 +1,16 @@
+========================
 Kernel driver w1_ds28e17
 ========================
 
 Supported chips:
+
   * Maxim DS28E17 1-Wire-to-I2C Master Bridge
 
 supported family codes:
+
+        =================  ====
 	W1_FAMILY_DS28E17  0x19
+        =================  ====
 
 Author: Jan Kandziora <jjj@gmx.de>
 
@@ -20,11 +25,11 @@ a DS28E17 can be accessed by the kernel or userspace tools as if they were
 connected to a "native" I2C bus master.
 
 
-An udev rule like the following
--------------------------------------------------------------------------------
-SUBSYSTEM=="i2c-dev", KERNEL=="i2c-[0-9]*", ATTRS{name}=="w1-19-*", \
-        SYMLINK+="i2c-$attr{name}"
--------------------------------------------------------------------------------
+An udev rule like the following::
+
+  SUBSYSTEM=="i2c-dev", KERNEL=="i2c-[0-9]*", ATTRS{name}=="w1-19-*", \
+          SYMLINK+="i2c-$attr{name}"
+
 may be used to create stable /dev/i2c- entries based on the unique id of the
 DS28E17 chip.
 
@@ -65,4 +70,3 @@ structure is created.
 
 
 See https://github.com/ianka/w1_ds28e17 for even more information.
-

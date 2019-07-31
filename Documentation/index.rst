@@ -117,6 +117,7 @@ needed).
    target/index
    timers/index
    spi/index
+   w1/index
    watchdog/index
    virtual/index
    input/index

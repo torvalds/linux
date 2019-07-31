@@ -1,7 +1,9 @@
+======================
 Kernel driver w1_therm
-====================
+======================
 
 Supported chips:
+
   * Maxim ds18*20 based temperature sensors.
   * Maxim ds1825 based temperature sensors.
 
@@ -13,12 +15,16 @@ Description
 
 w1_therm provides basic temperature conversion for ds18*20 devices, and the
 ds28ea00 device.
-supported family codes:
+
+Supported family codes:
+
+====================	====
 W1_THERM_DS18S20	0x10
 W1_THERM_DS1822		0x22
 W1_THERM_DS18B20	0x28
 W1_THERM_DS1825		0x3B
 W1_THERM_DS28EA00	0x42
+====================	====
 
 Support is provided through the sysfs w1_slave file.  Each open and
 read sequence will initiate a temperature conversion then provide two
@@ -51,6 +57,7 @@ If so, it will activate the master's strong pullup.
 In case the detection of parasite devices using this command fails
 (seems to be the case with some DS18S20) the strong pullup can
 be force-enabled.
+
 If the strong pullup is enabled, the master's strong pullup will be
 driven when the conversion is taking place, provided the master driver
 does support the strong pullup (or it falls back to a pullup

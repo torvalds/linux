@@ -2,10 +2,13 @@ Kernel driver w1_ds2438
 =======================
 
 Supported chips:
+
   * Maxim DS2438 Smart Battery Monitor
 
 supported family codes:
+        ================        ====
         W1_FAMILY_DS2438        0x26
+        ================        ====
 
 Author: Mariusz Bialonczyk <manio@skyboo.net>
 
@@ -56,8 +59,11 @@ Opening and reading this file initiates the CONVERT_V (voltage conversion)
 command of the chip.
 
 Depending on a sysfs filename a different input for the A/D will be selected:
-vad: general purpose A/D input (VAD)
-vdd: battery input (VDD)
+
+vad:
+    general purpose A/D input (VAD)
+vdd:
+    battery input (VDD)
 
 After the voltage conversion the value is returned as decimal ASCII.
 Note: To get a volts the value has to be divided by 100.

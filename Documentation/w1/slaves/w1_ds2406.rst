@@ -1,7 +1,9 @@
+=======================
 w1_ds2406 kernel driver
 =======================
 
 Supported chips:
+
   * Maxim DS2406 (and other family 0x12) addressable switches
 
 Author: Scott Alfter <scott@alfter.us>
@@ -9,7 +11,7 @@ Author: Scott Alfter <scott@alfter.us>
 Description
 -----------
 
-The w1_ds2406 driver allows connected devices to be switched on and off. 
+The w1_ds2406 driver allows connected devices to be switched on and off.
 These chips also provide 128 bytes of OTP EPROM, but reading/writing it is
 not supported.  In TSOC-6 form, the DS2406 provides two switch outputs and
 can be provided with power on a dedicated input.  In TO-92 form, it provides

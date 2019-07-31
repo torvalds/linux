@@ -1,7 +1,9 @@
+====================
 Kernel driver ds2490
 ====================
 
 Supported chips:
+
   * Maxim DS2490 based
 
 Author: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
@@ -18,6 +20,7 @@ which has 0x81 family ID integrated chip and DS2490
 low-level operational chip.
 
 Notes and limitations.
+
 - The weak pullup current is a minimum of 0.9mA and maximum of 6.0mA.
 - The 5V strong pullup is supported with a minimum of 5.9mA and a
   maximum of 30.4 mA.  (From DS2490.pdf)
@@ -65,4 +68,5 @@ Notes and limitations.
   reattaching would clear the problem.  usbmon output in the guest and
   host did not explain the problem.  My guess is a bug in either qemu
   or the host OS and more likely the host OS.
--- 03-06-2008 David Fries <David@Fries.net>
+
+03-06-2008 David Fries <David@Fries.net>

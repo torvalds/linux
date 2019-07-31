@@ -1,9 +1,10 @@
-Kernel driver for omap HDQ/1-wire module.
+========================================
+Kernel driver for omap HDQ/1-wire module
 ========================================
 
 Supported chips:
 ================
-	HDQ/1-wire controller on the TI OMAP 2430/3430 platforms.
+HDQ/1-wire controller on the TI OMAP 2430/3430 platforms.
 
 A useful link about HDQ basics:
 ===============================
@@ -40,9 +41,10 @@ driver(drivers/w1/slaves/w1_bq27000.c) sets the ID to 1.
 Please note to load both the modules with a different ID if required, but note
 that the ID used should be same for both master and slave driver loading.
 
-e.g:
-insmod omap_hdq.ko W1_ID=2
-inamod w1_bq27000.ko F_ID=2
+e.g::
+
+  insmod omap_hdq.ko W1_ID=2
+  inamod w1_bq27000.ko F_ID=2
 
 The driver also supports 1-wire mode. In this mode, there is no need to
 pass slave ID as parameter. The driver will auto-detect slaves connected

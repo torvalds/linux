@@ -1,11 +1,16 @@
+========================
 Kernel driver w1_ds28e04
 ========================
 
 Supported chips:
+
   * Maxim DS28E04-100 4096-Bit Addressable 1-Wire EEPROM with PIO
 
 supported family codes:
+
+        =================	====
 	W1_FAMILY_DS28E04	0x1C
+        =================	====
 
 Author: Markus Franke, <franke.m@sebakmt.com> <franm@hrz.tu-chemnitz.de>
 
