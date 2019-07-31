@@ -326,8 +326,6 @@ static int sc27xx_fgu_set_clbcnt(struct sc27xx_fgu_data *data, int clbcnt)
 {
 	int ret;
 
-	clbcnt *= SC27XX_FGU_SAMPLE_HZ;
-
 	ret = regmap_update_bits(data->regmap,
 				 data->base + SC27XX_FGU_CLBCNT_SETL,
 				 SC27XX_FGU_CLBCNT_MASK, clbcnt);
@@ -362,7 +360,6 @@ static int sc27xx_fgu_get_clbcnt(struct sc27xx_fgu_data *data, int *clb_cnt)
 
 	*clb_cnt = ccl & SC27XX_FGU_CLBCNT_MASK;
 	*clb_cnt |= (cch & SC27XX_FGU_CLBCNT_MASK) << SC27XX_FGU_CLBCNT_SHIFT;
-	*clb_cnt /= SC27XX_FGU_SAMPLE_HZ;
 
 	return 0;
 }
@@ -380,10 +377,10 @@ static int sc27xx_fgu_get_capacity(struct sc27xx_fgu_data *data, int *cap)
 
 	/*
 	 * Convert coulomb counter to delta capacity (mAh), and set multiplier
-	 * as 100 to improve the precision.
+	 * as 10 to improve the precision.
 	 */
-	temp = DIV_ROUND_CLOSEST(delta_clbcnt, 360);
-	temp = sc27xx_fgu_adc_to_current(data, temp);
+	temp = DIV_ROUND_CLOSEST(delta_clbcnt * 10, 36 * SC27XX_FGU_SAMPLE_HZ);
+	temp = sc27xx_fgu_adc_to_current(data, temp / 1000);
 
 	/*
 	 * Convert to capacity percent of the battery total capacity,
@@ -790,7 +787,7 @@ static int sc27xx_fgu_cap_to_clbcnt(struct sc27xx_fgu_data *data, int capacity)
 	 * Convert current capacity (mAh) to coulomb counter according to the
 	 * formula: 1 mAh =3.6 coulomb.
 	 */
-	return DIV_ROUND_CLOSEST(cur_cap * 36 * data->cur_1000ma_adc, 10);
+	return DIV_ROUND_CLOSEST(cur_cap * 36 * data->cur_1000ma_adc * SC27XX_FGU_SAMPLE_HZ, 10);
 }
 
 static int sc27xx_fgu_calibration(struct sc27xx_fgu_data *data)
