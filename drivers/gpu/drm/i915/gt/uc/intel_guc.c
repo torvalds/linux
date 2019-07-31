@@ -144,7 +144,7 @@ static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
-	if (!intel_uc_is_using_guc_submission(&guc_to_gt(guc)->uc))
+	if (!intel_uc_supports_guc_submission(&guc_to_gt(guc)->uc))
 		flags |= GUC_CTL_DISABLE_SCHEDULER;
 
 	return flags;
@@ -154,7 +154,7 @@ static u32 guc_ctl_ctxinfo_flags(struct intel_guc *guc)
 {
 	u32 flags = 0;
 
-	if (intel_uc_is_using_guc_submission(&guc_to_gt(guc)->uc)) {
+	if (intel_uc_supports_guc_submission(&guc_to_gt(guc)->uc)) {
 		u32 ctxnum, base;
 
 		base = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
@@ -290,7 +290,7 @@ int intel_guc_init(struct intel_guc *guc)
 	if (ret)
 		goto err_ads;
 
-	if (intel_uc_is_using_guc_submission(&gt->uc)) {
+	if (intel_uc_supports_guc_submission(&gt->uc)) {
 		/*
 		 * This is stuff we need to have available at fw load time
 		 * if we are planning to enable submission later
@@ -329,7 +329,7 @@ void intel_guc_fini(struct intel_guc *guc)
 
 	i915_ggtt_disable_guc(gt->ggtt);
 
-	if (intel_uc_is_using_guc_submission(&gt->uc))
+	if (intel_uc_supports_guc_submission(&gt->uc))
 		intel_guc_submission_fini(guc);
 
 	intel_guc_ct_fini(&guc->ct);
