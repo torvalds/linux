@@ -165,12 +165,6 @@ int vm_create_device(struct kvm_vm *vm, struct kvm_create_device *cd);
 	memcpy(&(g), _p, sizeof(g));				\
 })
 
-/* ucall implementation types */
-typedef enum {
-	UCALL_PIO,
-	UCALL_MMIO,
-} ucall_type_t;
-
 /* Common ucalls */
 enum {
 	UCALL_NONE,
@@ -186,7 +180,7 @@ struct ucall {
 	uint64_t args[UCALL_MAX_ARGS];
 };
 
-void ucall_init(struct kvm_vm *vm, ucall_type_t type, void *arg);
+void ucall_init(struct kvm_vm *vm, void *arg);
 void ucall_uninit(struct kvm_vm *vm);
 void ucall(uint64_t cmd, int nargs, ...);
 uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc);

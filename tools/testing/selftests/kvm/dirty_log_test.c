@@ -337,7 +337,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 #endif
 #ifdef __aarch64__
-	ucall_init(vm, UCALL_MMIO, NULL);
+	ucall_init(vm, NULL);
 #endif
 
 	/* Export the shared variables to the guest */

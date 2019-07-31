@@ -7,9 +7,9 @@ top_srcdir = ../../../..
 KSFT_KHDR_INSTALL := 1
 UNAME_M := $(shell uname -m)
 
-LIBKVM = lib/assert.c lib/elf.c lib/io.c lib/kvm_util.c lib/ucall.c lib/sparsebit.c
-LIBKVM_x86_64 = lib/x86_64/processor.c lib/x86_64/vmx.c
-LIBKVM_aarch64 = lib/aarch64/processor.c
+LIBKVM = lib/assert.c lib/elf.c lib/io.c lib/kvm_util.c lib/sparsebit.c
+LIBKVM_x86_64 = lib/x86_64/processor.c lib/x86_64/vmx.c lib/x86_64/ucall.c
+LIBKVM_aarch64 = lib/aarch64/processor.c lib/aarch64/ucall.c
 LIBKVM_s390x = lib/s390x/processor.c
 
 TEST_GEN_PROGS_x86_64 = x86_64/cr4_cpuid_sync_test
