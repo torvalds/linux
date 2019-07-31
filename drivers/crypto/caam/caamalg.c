@@ -1884,6 +1884,9 @@ static int skcipher_encrypt(struct skcipher_request *req)
 	u32 *desc;
 	int ret = 0;
 
+	if (!req->cryptlen)
+		return 0;
+
 	/* allocate extended descriptor */
 	edesc = skcipher_edesc_alloc(req, DESC_JOB_IO_LEN * CAAM_CMD_SZ);
 	if (IS_ERR(edesc))
@@ -1917,6 +1920,9 @@ static int skcipher_decrypt(struct skcipher_request *req)
 	struct device *jrdev = ctx->jrdev;
 	u32 *desc;
 	int ret = 0;
+
+	if (!req->cryptlen)
+		return 0;
 
 	/* allocate extended descriptor */
 	edesc = skcipher_edesc_alloc(req, DESC_JOB_IO_LEN * CAAM_CMD_SZ);
