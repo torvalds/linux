@@ -652,15 +652,16 @@ static void mlx5e_hairpin_put(struct mlx5e_priv *priv,
 			      struct mlx5e_hairpin_entry *hpe)
 {
 	/* no more hairpin flows for us, release the hairpin pair */
-	if (!refcount_dec_and_test(&hpe->refcnt))
+	if (!refcount_dec_and_mutex_lock(&hpe->refcnt, &priv->fs.tc.hairpin_tbl_lock))
 		return;
+	hash_del(&hpe->hairpin_hlist);
+	mutex_unlock(&priv->fs.tc.hairpin_tbl_lock);
 
 	netdev_dbg(priv->netdev, "del hairpin: peer %s\n",
 		   dev_name(hpe->hp->pair->peer_mdev->device));
 
 	WARN_ON(!list_empty(&hpe->flows));
 	mlx5e_hairpin_destroy(hpe->hp);
-	hash_del(&hpe->hairpin_hlist);
 	kfree(hpe);
 }
 
@@ -729,13 +730,17 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 				     extack);
 	if (err)
 		return err;
+
+	mutex_lock(&priv->fs.tc.hairpin_tbl_lock);
 	hpe = mlx5e_hairpin_get(priv, peer_id, match_prio);
 	if (hpe)
 		goto attach_flow;
 
 	hpe = kzalloc(sizeof(*hpe), GFP_KERNEL);
-	if (!hpe)
-		return -ENOMEM;
+	if (!hpe) {
+		err = -ENOMEM;
+		goto create_hairpin_err;
+	}
 
 	spin_lock_init(&hpe->flows_lock);
 	INIT_LIST_HEAD(&hpe->flows);
@@ -784,6 +789,8 @@ attach_flow:
 	} else {
 		flow->nic_attr->hairpin_tirn = hpe->hp->tirn;
 	}
+	mutex_unlock(&priv->fs.tc.hairpin_tbl_lock);
+
 	flow->hpe = hpe;
 	spin_lock(&hpe->flows_lock);
 	list_add(&flow->hairpin, &hpe->flows);
@@ -792,6 +799,7 @@ attach_flow:
 	return 0;
 
 create_hairpin_err:
+	mutex_unlock(&priv->fs.tc.hairpin_tbl_lock);
 	kfree(hpe);
 	return err;
 }
@@ -3768,10 +3776,12 @@ static void mlx5e_tc_hairpin_update_dead_peer(struct mlx5e_priv *priv,
 
 	peer_vhca_id = MLX5_CAP_GEN(peer_mdev, vhca_id);
 
+	mutex_lock(&priv->fs.tc.hairpin_tbl_lock);
 	hash_for_each(priv->fs.tc.hairpin_tbl, bkt, hpe, hairpin_hlist) {
 		if (hpe->peer_vhca_id == peer_vhca_id)
 			hpe->hp->pair->peer_gone = true;
 	}
+	mutex_unlock(&priv->fs.tc.hairpin_tbl_lock);
 }
 
 static int mlx5e_tc_netdev_event(struct notifier_block *this,
@@ -3808,6 +3818,7 @@ int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 
 	mutex_init(&tc->t_lock);
 	hash_init(tc->mod_hdr_tbl);
+	mutex_init(&tc->hairpin_tbl_lock);
 	hash_init(tc->hairpin_tbl);
 
 	err = rhashtable_init(&tc->ht, &tc_ht_params);
@@ -3838,6 +3849,8 @@ void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 
 	if (tc->netdevice_nb.notifier_call)
 		unregister_netdevice_notifier(&tc->netdevice_nb);
+
+	mutex_destroy(&tc->hairpin_tbl_lock);
 
 	rhashtable_destroy(&tc->ht);
 
