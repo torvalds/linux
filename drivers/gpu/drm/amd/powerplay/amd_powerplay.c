@@ -931,12 +931,10 @@ static int pp_dpm_set_mp1_state(void *handle, enum pp_mp1_state mp1_state)
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;
 
-	if (hwmgr->hwmgr_func->set_mp1_state == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
-		return -EINVAL;
-	}
+	if (hwmgr->hwmgr_func->set_mp1_state)
+		return hwmgr->hwmgr_func->set_mp1_state(hwmgr, mp1_state);
 
-	return hwmgr->hwmgr_func->set_mp1_state(hwmgr, mp1_state);
+	return 0;
 }
 
 static int pp_dpm_switch_power_profile(void *handle,
