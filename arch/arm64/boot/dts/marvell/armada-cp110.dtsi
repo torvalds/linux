@@ -133,6 +133,9 @@
 			compatible = "marvell,comphy-cp110";
 			reg = <0x120000 0x6000>;
 			marvell,system-controller = <&CP110_LABEL(syscon0)>;
+			clocks = <&CP110_LABEL(clk) 1 5>, <&CP110_LABEL(clk) 1 6>,
+				 <&CP110_LABEL(clk) 1 18>;
+			clock-names = "mg_clk", "mg_core_clk", "axi_clk";
 			#address-cells = <1>;
 			#size-cells = <0>;
 
