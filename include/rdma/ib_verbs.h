@@ -2650,7 +2650,6 @@ struct ib_client {
 
 	refcount_t uses;
 	struct completion uses_zero;
-	struct list_head list;
 	u32 client_id;
 
 	/* kverbs are not required by the client */
