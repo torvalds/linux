@@ -45,7 +45,6 @@
  */
 #define UART_EXAR_INT0		0x80
 #define UART_EXAR_SLEEP		0x8b	/* Sleep mode */
-#define UART_EXAR_DVID		0x8d	/* Device identification */
 
 /* Nuvoton NPCM timeout register */
 #define UART_NPCM_TOR          7
@@ -1012,27 +1011,6 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	up->capabilities |= UART_CAP_FIFO;
 
 	/*
-	 * XR17V35x UARTs have an extra divisor register, DLD
-	 * that gets enabled with when DLAB is set which will
-	 * cause the device to incorrectly match and assign
-	 * port type to PORT_16650.  The EFR for this UART is
-	 * found at offset 0x09. Instead check the Deice ID (DVID)
-	 * register for a 2, 4 or 8 port UART.
-	 */
-	if (up->port.flags & UPF_EXAR_EFR) {
-		status1 = serial_in(up, UART_EXAR_DVID);
-		if (status1 == 0x82 || status1 == 0x84 || status1 == 0x88) {
-			DEBUG_AUTOCONF("Exar XR17V35x ");
-			up->port.type = PORT_XR17V35X;
-			up->capabilities |= UART_CAP_AFE | UART_CAP_EFR |
-						UART_CAP_SLEEP;
-
-			return;
-		}
-
-	}
-
-	/*
 	 * Check for presence of the EFR when DLAB is set.
 	 * Only ST16C650V1 UARTs pass this test.
 	 */
@@ -1169,18 +1147,6 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 		DEBUG_AUTOCONF("Couldn't force IER_UUE to 0 ");
 	}
 	serial_out(up, UART_IER, iersave);
-
-	/*
-	 * Exar uarts have EFR in a weird location
-	 */
-	if (up->port.flags & UPF_EXAR_EFR) {
-		DEBUG_AUTOCONF("Exar XR17D15x ");
-		up->port.type = PORT_XR17D15X;
-		up->capabilities |= UART_CAP_AFE | UART_CAP_EFR |
-				    UART_CAP_SLEEP;
-
-		return;
-	}
 
 	/*
 	 * We distinguish between 16550A and U6 16550A by counting

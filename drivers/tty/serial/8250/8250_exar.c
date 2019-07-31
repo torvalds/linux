@@ -36,6 +36,7 @@
 
 #define UART_EXAR_INT0		0x80
 #define UART_EXAR_8XMODE	0x88	/* 8X sampling rate select */
+#define UART_EXAR_DVID		0x8d	/* Device identification */
 
 #define UART_EXAR_FCTR		0x08	/* Feature Control Register */
 #define UART_FCTR_EXAR_IRDA	0x10	/* IrDa data encode select */
@@ -133,11 +134,26 @@ static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 {
 	const struct exar8250_board *board = priv->board;
 	unsigned int bar = 0;
+	unsigned char status;
 
 	port->port.iotype = UPIO_MEM;
 	port->port.mapbase = pci_resource_start(pcidev, bar) + offset;
 	port->port.membase = priv->virt + offset;
 	port->port.regshift = board->reg_shift;
+
+	/*
+	 * XR17V35x UARTs have an extra divisor register, DLD that gets enabled
+	 * with when DLAB is set which will cause the device to incorrectly match
+	 * and assign port type to PORT_16650. The EFR for this UART is found
+	 * at offset 0x09. Instead check the Deice ID (DVID) register
+	 * for a 2, 4 or 8 port UART.
+	 */
+	status = readb(port->port.membase + UART_EXAR_DVID);
+	if (status == 0x82 || status == 0x84 || status == 0x88) {
+		port->port.type = PORT_XR17V35X;
+	} else {
+		port->port.type = PORT_XR17D15X;
+	}
 
 	return 0;
 }
@@ -494,8 +510,7 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		return rc;
 
 	memset(&uart, 0, sizeof(uart));
-	uart.port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ
-			  | UPF_EXAR_EFR;
+	uart.port.flags = UPF_SHARE_IRQ | UPF_EXAR_EFR | UPF_FIXED_TYPE | UPF_FIXED_PORT;
 	uart.port.irq = pci_irq_vector(pcidev, 0);
 	uart.port.dev = &pcidev->dev;
 
