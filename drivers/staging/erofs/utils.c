@@ -34,10 +34,10 @@ void *erofs_get_pcpubuf(unsigned int pagenr)
 }
 #endif
 
+#ifdef CONFIG_EROFS_FS_ZIP
 /* global shrink count (for all mounted EROFS instances) */
 static atomic_long_t erofs_global_shrink_cnt;
 
-#ifdef CONFIG_EROFS_FS_ZIP
 #define __erofs_workgroup_get(grp)	atomic_inc(&(grp)->refcount)
 #define __erofs_workgroup_put(grp)	atomic_dec(&(grp)->refcount)
 
@@ -215,9 +215,9 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 
 #endif
 
-unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
-				       unsigned long nr_shrink,
-				       bool cleanup)
+static unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
+					      unsigned long nr_shrink,
+					      bool cleanup)
 {
 	pgoff_t first_index = 0;
 	void *batch[PAGEVEC_SIZE];
@@ -250,8 +250,6 @@ repeat:
 	return freed;
 }
 
-#endif
-
 /* protected by 'erofs_sb_list_lock' */
 static unsigned int shrinker_run_no;
 
@@ -259,7 +257,7 @@ static unsigned int shrinker_run_no;
 static DEFINE_SPINLOCK(erofs_sb_list_lock);
 static LIST_HEAD(erofs_sb_list);
 
-void erofs_register_super(struct super_block *sb)
+void erofs_shrinker_register(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 
@@ -270,11 +268,17 @@ void erofs_register_super(struct super_block *sb)
 	spin_unlock(&erofs_sb_list_lock);
 }
 
-void erofs_unregister_super(struct super_block *sb)
+void erofs_shrinker_unregister(struct super_block *sb)
 {
+	struct erofs_sb_info *const sbi = EROFS_SB(sb);
+
+	mutex_lock(&sbi->umount_mutex);
+	erofs_shrink_workstation(sbi, ~0UL, true);
+
 	spin_lock(&erofs_sb_list_lock);
-	list_del(&EROFS_SB(sb)->list);
+	list_del(&sbi->list);
 	spin_unlock(&erofs_sb_list_lock);
+	mutex_unlock(&sbi->umount_mutex);
 }
 
 static unsigned long erofs_shrink_count(struct shrinker *shrink,
@@ -318,9 +322,7 @@ static unsigned long erofs_shrink_scan(struct shrinker *shrink,
 		spin_unlock(&erofs_sb_list_lock);
 		sbi->shrinker_run_no = run_no;
 
-#ifdef CONFIG_EROFS_FS_ZIP
 		freed += erofs_shrink_workstation(sbi, nr, false);
-#endif
 
 		spin_lock(&erofs_sb_list_lock);
 		/* Get the next list element before we move this one */
@@ -340,9 +342,20 @@ static unsigned long erofs_shrink_scan(struct shrinker *shrink,
 	return freed;
 }
 
-struct shrinker erofs_shrinker_info = {
+static struct shrinker erofs_shrinker_info = {
 	.scan_objects = erofs_shrink_scan,
 	.count_objects = erofs_shrink_count,
 	.seeks = DEFAULT_SEEKS,
 };
+
+int __init erofs_init_shrinker(void)
+{
+	return register_shrinker(&erofs_shrinker_info);
+}
+
+void erofs_exit_shrinker(void)
+{
+	unregister_shrinker(&erofs_shrinker_info);
+}
+#endif	/* !CONFIG_EROFS_FS_ZIP */
 

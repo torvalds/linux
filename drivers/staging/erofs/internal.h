@@ -72,10 +72,26 @@ typedef u64 erofs_off_t;
 typedef u32 erofs_blk_t;
 
 struct erofs_sb_info {
+#ifdef CONFIG_EROFS_FS_ZIP
 	/* list for all registered superblocks, mainly for shrinker */
 	struct list_head list;
 	struct mutex umount_mutex;
 
+	/* cluster size in bit shift */
+	unsigned char clusterbits;
+	/* the dedicated workstation for compression */
+	struct radix_tree_root workstn_tree;
+
+	/* threshold for decompression synchronously */
+	unsigned int max_sync_decompress_pages;
+
+	unsigned int shrinker_run_no;
+
+#ifdef EROFS_FS_HAS_MANAGED_CACHE
+	struct inode *managed_cache;
+#endif
+
+#endif	/* CONFIG_EROFS_FS_ZIP */
 	u32 blocks;
 	u32 meta_blkaddr;
 #ifdef CONFIG_EROFS_FS_XATTR
@@ -84,21 +100,6 @@ struct erofs_sb_info {
 
 	/* inode slot unit size in bit shift */
 	unsigned char islotbits;
-#ifdef CONFIG_EROFS_FS_ZIP
-	/* cluster size in bit shift */
-	unsigned char clusterbits;
-
-	/* the dedicated workstation for compression */
-	struct radix_tree_root workstn_tree;
-
-	/* threshold for decompression synchronously */
-	unsigned int max_sync_decompress_pages;
-
-#ifdef EROFS_FS_HAS_MANAGED_CACHE
-	struct inode *managed_cache;
-#endif
-
-#endif
 
 	u32 build_time_nsec;
 	u64 build_time;
@@ -115,7 +116,6 @@ struct erofs_sb_info {
 	char *dev_name;
 
 	unsigned int mount_opt;
-	unsigned int shrinker_run_no;
 
 #ifdef CONFIG_EROFS_FAULT_INJECTION
 	struct erofs_fault_info fault_info;	/* For fault injection */
@@ -253,15 +253,8 @@ static inline int erofs_wait_on_workgroup_freezed(struct erofs_workgroup *grp)
 
 /* page count of a compressed cluster */
 #define erofs_clusterpages(sbi)         ((1 << (sbi)->clusterbits) / PAGE_SIZE)
-
-int __init z_erofs_init_zip_subsystem(void);
-void z_erofs_exit_zip_subsystem(void);
 #else
 #define EROFS_PCPUBUF_NR_PAGES          0
-
-/* dummy initializer/finalizer for the decompression subsystem */
-static inline int z_erofs_init_zip_subsystem(void) { return 0; }
-static inline void z_erofs_exit_zip_subsystem(void) {}
 #endif	/* !CONFIG_EROFS_FS_ZIP */
 
 /* we strictly follow PAGE_SIZE and no buffer head yet */
@@ -525,8 +518,6 @@ int erofs_namei(struct inode *dir, struct qstr *name,
 extern const struct file_operations erofs_dir_fops;
 
 /* utils.c / zdata.c */
-extern struct shrinker erofs_shrinker_info;
-
 struct page *erofs_allocpage(struct list_head *pool, gfp_t gfp);
 
 #if (EROFS_PCPUBUF_NR_PAGES > 0)
@@ -544,20 +535,31 @@ static inline void *erofs_get_pcpubuf(unsigned int pagenr)
 #define erofs_put_pcpubuf(buf) do {} while (0)
 #endif
 
+#ifdef CONFIG_EROFS_FS_ZIP
 int erofs_workgroup_put(struct erofs_workgroup *grp);
 struct erofs_workgroup *erofs_find_workgroup(struct super_block *sb,
 					     pgoff_t index, bool *tag);
 int erofs_register_workgroup(struct super_block *sb,
 			     struct erofs_workgroup *grp, bool tag);
-unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
-				       unsigned long nr_shrink, bool cleanup);
 void erofs_workgroup_free_rcu(struct erofs_workgroup *grp);
+void erofs_shrinker_register(struct super_block *sb);
+void erofs_shrinker_unregister(struct super_block *sb);
+int __init erofs_init_shrinker(void);
+void erofs_exit_shrinker(void);
+int __init z_erofs_init_zip_subsystem(void);
+void z_erofs_exit_zip_subsystem(void);
 int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
 				       struct erofs_workgroup *egrp);
 int erofs_try_to_free_cached_page(struct address_space *mapping,
 				  struct page *page);
-void erofs_register_super(struct super_block *sb);
-void erofs_unregister_super(struct super_block *sb);
+#else
+static inline void erofs_shrinker_register(struct super_block *sb) {}
+static inline void erofs_shrinker_unregister(struct super_block *sb) {}
+static inline int erofs_init_shrinker(void) { return 0; }
+static inline void erofs_exit_shrinker(void) {}
+static inline int z_erofs_init_zip_subsystem(void) { return 0; }
+static inline void z_erofs_exit_zip_subsystem(void) {}
+#endif	/* !CONFIG_EROFS_FS_ZIP */
 
 #endif	/* __EROFS_INTERNAL_H */
 

@@ -458,7 +458,7 @@ static int erofs_read_super(struct super_block *sb,
 	snprintf(sbi->dev_name, PATH_MAX, "%s", dev_name);
 	sbi->dev_name[PATH_MAX - 1] = '\0';
 
-	erofs_register_super(sb);
+	erofs_shrinker_register(sb);
 
 	if (!silent)
 		infoln("mounted on %s with opts: %s.", dev_name,
@@ -502,20 +502,10 @@ static void erofs_put_super(struct super_block *sb)
 	infoln("unmounted for %s", sbi->dev_name);
 	__putname(sbi->dev_name);
 
+	erofs_shrinker_unregister(sb);
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	iput(sbi->managed_cache);
 #endif
-
-	mutex_lock(&sbi->umount_mutex);
-
-#ifdef CONFIG_EROFS_FS_ZIP
-	/* clean up the compression space of this sb */
-	erofs_shrink_workstation(EROFS_SB(sb), ~0UL, true);
-#endif
-
-	erofs_unregister_super(sb);
-	mutex_unlock(&sbi->umount_mutex);
-
 	kfree(sbi);
 	sb->s_fs_info = NULL;
 }
@@ -569,7 +559,7 @@ static int __init erofs_module_init(void)
 	if (err)
 		goto icache_err;
 
-	err = register_shrinker(&erofs_shrinker_info);
+	err = erofs_init_shrinker();
 	if (err)
 		goto shrinker_err;
 
@@ -587,7 +577,7 @@ static int __init erofs_module_init(void)
 fs_err:
 	z_erofs_exit_zip_subsystem();
 zip_err:
-	unregister_shrinker(&erofs_shrinker_info);
+	erofs_exit_shrinker();
 shrinker_err:
 	erofs_exit_inode_cache();
 icache_err:
@@ -598,7 +588,7 @@ static void __exit erofs_module_exit(void)
 {
 	unregister_filesystem(&erofs_fs_type);
 	z_erofs_exit_zip_subsystem();
-	unregister_shrinker(&erofs_shrinker_info);
+	erofs_exit_shrinker();
 	erofs_exit_inode_cache();
 	infoln("successfully finalize erofs");
 }
