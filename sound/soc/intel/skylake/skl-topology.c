@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/firmware.h>
 #include <linux/uuid.h>
+#include <sound/intel-nhlt.h>
 #include <sound/soc.h>
 #include <sound/soc-topology.h>
 #include <uapi/sound/snd_sst_tokens.h>
