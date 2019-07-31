@@ -602,6 +602,10 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 		if (adev->umc.funcs->query_ras_error_count)
 			adev->umc.funcs->query_ras_error_count(adev, &err_data);
 		break;
+	case AMDGPU_RAS_BLOCK__GFX:
+		if (adev->gfx.funcs->query_ras_error_count)
+			adev->gfx.funcs->query_ras_error_count(adev, &err_data);
+		break;
 	default:
 		break;
 	}
@@ -639,13 +643,22 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 	if (!obj)
 		return -EINVAL;
 
-	if (block_info.block_id != TA_RAS_BLOCK__UMC) {
+	switch (info->head.block) {
+	case AMDGPU_RAS_BLOCK__GFX:
+		if (adev->gfx.funcs->ras_error_inject)
+			ret = adev->gfx.funcs->ras_error_inject(adev, info);
+		else
+			ret = -EINVAL;
+		break;
+	case AMDGPU_RAS_BLOCK__UMC:
+		ret = psp_ras_trigger_error(&adev->psp, &block_info);
+		break;
+	default:
 		DRM_INFO("%s error injection is not supported yet\n",
 			 ras_block_str(info->head.block));
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	ret = psp_ras_trigger_error(&adev->psp, &block_info);
 	if (ret)
 		DRM_ERROR("RAS ERROR: inject %s error failed ret %d\n",
 				ras_block_str(info->head.block),
