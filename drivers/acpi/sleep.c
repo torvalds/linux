@@ -916,27 +916,29 @@ static int lps0_device_attach(struct acpi_device *adev,
 	guid_parse(ACPI_LPS0_DSM_UUID, &lps0_dsm_guid);
 	/* Check if the _DSM is present and as expected. */
 	out_obj = acpi_evaluate_dsm(adev->handle, &lps0_dsm_guid, 1, 0, NULL);
-	if (out_obj && out_obj->type == ACPI_TYPE_BUFFER) {
-		char bitmask = *(char *)out_obj->buffer.pointer;
-
-		lps0_dsm_func_mask = bitmask;
-		lps0_device_handle = adev->handle;
-		/*
-		 * Use suspend-to-idle by default if the default
-		 * suspend mode was not set from the command line.
-		 */
-		if (mem_sleep_default > PM_SUSPEND_MEM)
-			mem_sleep_current = PM_SUSPEND_TO_IDLE;
-
-		acpi_handle_debug(adev->handle, "_DSM function mask: 0x%x\n",
-				  bitmask);
-	} else {
+	if (!out_obj || out_obj->type != ACPI_TYPE_BUFFER) {
 		acpi_handle_debug(adev->handle,
 				  "_DSM function 0 evaluation failed\n");
+		return 0;
 	}
+
+	lps0_dsm_func_mask = *(char *)out_obj->buffer.pointer;
+
 	ACPI_FREE(out_obj);
 
+	acpi_handle_debug(adev->handle, "_DSM function mask: 0x%x\n",
+			  lps0_dsm_func_mask);
+
+	lps0_device_handle = adev->handle;
+
 	lpi_device_get_constraints();
+
+	/*
+	 * Use suspend-to-idle by default if the default suspend mode was not
+	 * set from the command line.
+	 */
+	if (mem_sleep_default > PM_SUSPEND_MEM)
+		mem_sleep_current = PM_SUSPEND_TO_IDLE;
 
 	return 0;
 }
