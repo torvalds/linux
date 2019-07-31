@@ -2154,50 +2154,28 @@ static const struct file_operations dapm_bias_fops = {
 void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
 	struct dentry *parent)
 {
-	struct dentry *d;
-
 	if (!parent || IS_ERR(parent))
 		return;
 
 	dapm->debugfs_dapm = debugfs_create_dir("dapm", parent);
 
-	if (IS_ERR(dapm->debugfs_dapm)) {
-		dev_warn(dapm->dev,
-			 "ASoC: Failed to create DAPM debugfs directory %ld\n",
-			 PTR_ERR(dapm->debugfs_dapm));
-		return;
-	}
-
-	d = debugfs_create_file("bias_level", 0444,
-				dapm->debugfs_dapm, dapm,
-				&dapm_bias_fops);
-	if (IS_ERR(d))
-		dev_warn(dapm->dev,
-			 "ASoC: Failed to create bias level debugfs file: %ld\n",
-			 PTR_ERR(d));
+	debugfs_create_file("bias_level", 0444, dapm->debugfs_dapm, dapm,
+			    &dapm_bias_fops);
 }
 
 static void dapm_debugfs_add_widget(struct snd_soc_dapm_widget *w)
 {
 	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct dentry *d;
 
 	if (!dapm->debugfs_dapm || !w->name)
 		return;
 
-	d = debugfs_create_file(w->name, 0444,
-				dapm->debugfs_dapm, w,
-				&dapm_widget_power_fops);
-	if (IS_ERR(d))
-		dev_warn(w->dapm->dev,
-			 "ASoC: Failed to create %s debugfs file: %ld\n",
-			 w->name, PTR_ERR(d));
+	debugfs_create_file(w->name, 0444, dapm->debugfs_dapm, w,
+			    &dapm_widget_power_fops);
 }
 
 static void dapm_debugfs_cleanup(struct snd_soc_dapm_context *dapm)
 {
-	if (!dapm->debugfs_dapm)
-		return;
 	debugfs_remove_recursive(dapm->debugfs_dapm);
 	dapm->debugfs_dapm = NULL;
 }
