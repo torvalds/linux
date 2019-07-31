@@ -214,8 +214,10 @@ static struct drm_connector *tfp410_connector_create(struct drm_device *dev,
 
 	connector = &tfp410_connector->base;
 
-	drm_connector_init(dev, connector, &tfp410_connector_funcs,
-			DRM_MODE_CONNECTOR_DVID);
+	drm_connector_init_with_ddc(dev, connector,
+				    &tfp410_connector_funcs,
+				    DRM_MODE_CONNECTOR_DVID,
+				    mod->i2c);
 	drm_connector_helper_add(connector, &tfp410_connector_helper_funcs);
 
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
