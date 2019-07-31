@@ -18,80 +18,77 @@
  * Structure fields follow one of the following exclusion rules.
  *
  * I: Modifiable by initialization/destruction paths and read-only
- *    for everyone else.
+ *    for everyone else;
  *
+ * L: Field should be protected by pageset lock;
+ *
+ * A: Field should be accessed / updated in atomic for parallelized code.
  */
-
-struct z_erofs_vle_work {
+struct z_erofs_collection {
 	struct mutex lock;
 
-	/* I: decompression offset in page */
+	/* I: page offset of start position of decompression */
 	unsigned short pageofs;
+
+	/* L: maximum relative page index in pagevec[] */
 	unsigned short nr_pages;
 
-	/* L: queued pages in pagevec[] */
+	/* L: total number of pages in pagevec[] */
 	unsigned int vcnt;
 
 	union {
-		/* L: pagevec */
+		/* L: inline a certain number of pagevecs for bootstrap */
 		erofs_vtptr_t pagevec[Z_EROFS_NR_INLINE_PAGEVECS];
+
+		/* I: can be used to free the pcluster by RCU. */
 		struct rcu_head rcu;
 	};
 };
 
-#define Z_EROFS_VLE_WORKGRP_FMT_PLAIN        0
-#define Z_EROFS_VLE_WORKGRP_FMT_LZ4          1
-#define Z_EROFS_VLE_WORKGRP_FMT_MASK         1
-#define Z_EROFS_VLE_WORKGRP_FULL_LENGTH      2
+#define Z_EROFS_PCLUSTER_FULL_LENGTH    0x00000001
+#define Z_EROFS_PCLUSTER_LENGTH_BIT     1
 
-typedef void *z_erofs_vle_owned_workgrp_t;
+/*
+ * let's leave a type here in case of introducing
+ * another tagged pointer later.
+ */
+typedef void *z_erofs_next_pcluster_t;
 
-struct z_erofs_vle_workgroup {
+struct z_erofs_pcluster {
 	struct erofs_workgroup obj;
-	struct z_erofs_vle_work work;
+	struct z_erofs_collection primary_collection;
 
-	/* point to next owned_workgrp_t */
-	z_erofs_vle_owned_workgrp_t next;
+	/* A: point to next chained pcluster or TAILs */
+	z_erofs_next_pcluster_t next;
 
-	/* compressed pages (including multi-usage pages) */
+	/* A: compressed pages (including multi-usage pages) */
 	struct page *compressed_pages[Z_EROFS_CLUSTER_MAX_PAGES];
-	unsigned int llen, flags;
+
+	/* A: lower limit of decompressed length and if full length or not */
+	unsigned int length;
+
+	/* I: compression algorithm format */
+	unsigned char algorithmformat;
+	/* I: bit shift of physical cluster size */
+	unsigned char clusterbits;
 };
+
+#define z_erofs_primarycollection(pcluster) (&(pcluster)->primary_collection)
 
 /* let's avoid the valid 32-bit kernel addresses */
 
 /* the chained workgroup has't submitted io (still open) */
-#define Z_EROFS_VLE_WORKGRP_TAIL        ((void *)0x5F0ECAFE)
+#define Z_EROFS_PCLUSTER_TAIL           ((void *)0x5F0ECAFE)
 /* the chained workgroup has already submitted io */
-#define Z_EROFS_VLE_WORKGRP_TAIL_CLOSED ((void *)0x5F0EDEAD)
+#define Z_EROFS_PCLUSTER_TAIL_CLOSED    ((void *)0x5F0EDEAD)
 
-#define Z_EROFS_VLE_WORKGRP_NIL         (NULL)
+#define Z_EROFS_PCLUSTER_NIL            (NULL)
 
-#define z_erofs_vle_workgrp_fmt(grp)	\
-	((grp)->flags & Z_EROFS_VLE_WORKGRP_FMT_MASK)
+#define Z_EROFS_WORKGROUP_SIZE  sizeof(struct z_erofs_pcluster)
 
-static inline void z_erofs_vle_set_workgrp_fmt(
-	struct z_erofs_vle_workgroup *grp,
-	unsigned int fmt)
-{
-	grp->flags = fmt | (grp->flags & ~Z_EROFS_VLE_WORKGRP_FMT_MASK);
-}
-
-
-/* definitions if multiref is disabled */
-#define z_erofs_vle_grab_primary_work(grp)	(&(grp)->work)
-#define z_erofs_vle_grab_work(grp, pageofs)	(&(grp)->work)
-#define z_erofs_vle_work_workgroup(wrk, primary)	\
-	((primary) ? container_of(wrk,	\
-		struct z_erofs_vle_workgroup, work) : \
-		({ BUG(); (void *)NULL; }))
-
-
-#define Z_EROFS_WORKGROUP_SIZE       sizeof(struct z_erofs_vle_workgroup)
-
-struct z_erofs_vle_unzip_io {
+struct z_erofs_unzip_io {
 	atomic_t pending_bios;
-	z_erofs_vle_owned_workgrp_t head;
+	z_erofs_next_pcluster_t head;
 
 	union {
 		wait_queue_head_t wait;
@@ -99,8 +96,8 @@ struct z_erofs_vle_unzip_io {
 	} u;
 };
 
-struct z_erofs_vle_unzip_io_sb {
-	struct z_erofs_vle_unzip_io io;
+struct z_erofs_unzip_io_sb {
+	struct z_erofs_unzip_io io;
 	struct super_block *sb;
 };
 
@@ -117,8 +114,8 @@ static inline bool erofs_page_is_managed(const struct erofs_sb_info *sbi,
 					 struct page *page) { return false; }
 #endif	/* !EROFS_FS_HAS_MANAGED_CACHE */
 
-#define Z_EROFS_ONLINEPAGE_COUNT_BITS 2
-#define Z_EROFS_ONLINEPAGE_COUNT_MASK ((1 << Z_EROFS_ONLINEPAGE_COUNT_BITS) - 1)
+#define Z_EROFS_ONLINEPAGE_COUNT_BITS   2
+#define Z_EROFS_ONLINEPAGE_COUNT_MASK   ((1 << Z_EROFS_ONLINEPAGE_COUNT_BITS) - 1)
 #define Z_EROFS_ONLINEPAGE_INDEX_SHIFT  (Z_EROFS_ONLINEPAGE_COUNT_BITS)
 
 /*
@@ -193,13 +190,12 @@ static inline void z_erofs_onlinepage_endio(struct page *page)
 			SetPageUptodate(page);
 		unlock_page(page);
 	}
-
 	debugln("%s, page %p value %x", __func__, page, atomic_read(u.o));
 }
 
-#define Z_EROFS_VLE_VMAP_ONSTACK_PAGES	\
+#define Z_EROFS_VMAP_ONSTACK_PAGES	\
 	min_t(unsigned int, THREAD_SIZE / 8 / sizeof(struct page *), 96U)
-#define Z_EROFS_VLE_VMAP_GLOBAL_PAGES	2048
+#define Z_EROFS_VMAP_GLOBAL_PAGES	2048
 
 #endif
 
