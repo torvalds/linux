@@ -3921,7 +3921,7 @@ static int __init gic_acpi_parse_madt_its(union acpi_subtable_headers *header,
 	res.end = its_entry->base_address + ACPI_GICV3_ITS_MEM_SIZE - 1;
 	res.flags = IORESOURCE_MEM;
 
-	dom_handle = irq_domain_alloc_fwnode((void *)its_entry->base_address);
+	dom_handle = irq_domain_alloc_fwnode(&res.start);
 	if (!dom_handle) {
 		pr_err("ITS@%pa: Unable to allocate GICv3 ITS domain token\n",
 		       &res.start);
