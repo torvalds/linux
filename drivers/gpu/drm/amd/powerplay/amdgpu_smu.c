@@ -63,6 +63,8 @@ size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf)
 	uint32_t feature_mask[2] = { 0 };
 	int32_t feature_index = 0;
 	uint32_t count = 0;
+	uint32_t sort_feature[SMU_FEATURE_COUNT];
+	uint64_t hw_feature_count = 0;
 
 	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
 	if (ret)
@@ -75,11 +77,17 @@ size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf)
 		feature_index = smu_feature_get_index(smu, i);
 		if (feature_index < 0)
 			continue;
+		sort_feature[feature_index] = i;
+		hw_feature_count++;
+	}
+
+	for (i = 0; i < hw_feature_count; i++) {
 		size += sprintf(buf + size, "%02d. %-20s (%2d) : %s\n",
 			       count++,
-			       smu_get_feature_name(smu, i),
-			       feature_index,
-			       !!smu_feature_is_enabled(smu, i) ? "enabeld" : "disabled");
+			       smu_get_feature_name(smu, sort_feature[i]),
+			       i,
+			       !!smu_feature_is_enabled(smu, sort_feature[i]) ?
+			       "enabeld" : "disabled");
 	}
 
 failed:
