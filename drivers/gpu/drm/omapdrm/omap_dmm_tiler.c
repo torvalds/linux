@@ -98,7 +98,6 @@ static int dmm_dma_copy(struct dmm *dmm, dma_addr_t src, dma_addr_t dst)
 		return -EIO;
 	}
 
-	dma_async_issue_pending(dmm->wa_dma_chan);
 	status = dma_sync_wait(dmm->wa_dma_chan, cookie);
 	if (status != DMA_COMPLETE)
 		dev_err(dmm->dev, "i878 wa DMA copy failure\n");
