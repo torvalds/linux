@@ -25,7 +25,7 @@ static u8 _rtl88ee_map_hwqueue_to_fwqueue(struct sk_buff *skb, u8 hw_queue)
 }
 
 static void _rtl88ee_query_rxphystatus(struct ieee80211_hw *hw,
-			struct rtl_stats *pstatus, u8 *pdesc,
+			struct rtl_stats *pstatus, __le32 *pdesc,
 			struct rx_fwinfo_88e *p_drvinfo,
 			bool bpacket_match_bssid,
 			bool bpacket_toself, bool packet_beacon)
@@ -271,7 +271,7 @@ static void _rtl88ee_smart_antenna(struct ieee80211_hw *hw,
 static void _rtl88ee_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 					       struct sk_buff *skb,
 					       struct rtl_stats *pstatus,
-					       u8 *pdesc,
+					       __le32 *pdesc,
 					       struct rx_fwinfo_88e *p_drvinfo)
 {
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
@@ -313,8 +313,8 @@ static void _rtl88ee_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	rtl_process_phyinfo(hw, tmp_buf, pstatus);
 }
 
-static void _rtl88ee_insert_emcontent(struct rtl_tcb_desc *ptcb_desc,
-				      u8 *virtualaddress)
+static void rtl88ee_insert_emcontent(struct rtl_tcb_desc *ptcb_desc,
+				     __le32 *virtualaddress)
 {
 	u32 dwtmp = 0;
 	memset(virtualaddress, 0, 8);
@@ -367,12 +367,13 @@ static void _rtl88ee_insert_emcontent(struct rtl_tcb_desc *ptcb_desc,
 bool rtl88ee_rx_query_desc(struct ieee80211_hw *hw,
 			   struct rtl_stats *status,
 			   struct ieee80211_rx_status *rx_status,
-			   u8 *pdesc, struct sk_buff *skb)
+			   u8 *pdesc8, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rx_fwinfo_88e *p_drvinfo;
 	struct ieee80211_hdr *hdr;
 	u8 wake_match;
+	__le32 *pdesc = (__le32 *)pdesc8;
 	u32 phystatus = get_rx_desc_physt(pdesc);
 
 	status->packet_report_type = (u8)get_rx_status_desc_rpt_sel(pdesc);
@@ -473,7 +474,7 @@ bool rtl88ee_rx_query_desc(struct ieee80211_hw *hw,
 }
 
 void rtl88ee_tx_fill_desc(struct ieee80211_hw *hw,
-			  struct ieee80211_hdr *hdr, u8 *pdesc_tx,
+			  struct ieee80211_hdr *hdr, u8 *pdesc8,
 			  u8 *txbd, struct ieee80211_tx_info *info,
 			  struct ieee80211_sta *sta,
 			  struct sk_buff *skb,
@@ -484,7 +485,6 @@ void rtl88ee_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
-	u8 *pdesc = (u8 *)pdesc_tx;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
 	unsigned int buf_len = 0;
@@ -497,6 +497,7 @@ void rtl88ee_tx_fill_desc(struct ieee80211_hw *hw,
 	dma_addr_t mapping;
 	u8 bw_40 = 0;
 	u8 short_gi = 0;
+	__le32 *pdesc = (u32 *)pdesc8;
 
 	if (mac->opmode == NL80211_IFTYPE_STATION) {
 		bw_40 = mac->bw_40;
@@ -521,7 +522,7 @@ void rtl88ee_tx_fill_desc(struct ieee80211_hw *hw,
 			 "DMA mapping error\n");
 		return;
 	}
-	CLEAR_PCI_TX_DESC_CONTENT(pdesc, sizeof(struct tx_desc_88e));
+	clear_pci_tx_desc_content(pdesc, sizeof(struct tx_desc_88e));
 	if (ieee80211_is_nullfunc(fc) || ieee80211_is_ctl(fc)) {
 		firstseg = true;
 		lastseg = true;
@@ -535,8 +536,8 @@ void rtl88ee_tx_fill_desc(struct ieee80211_hw *hw,
 				RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
 					 "Insert 8 byte.pTcb->EMPktNum:%d\n",
 					  ptcb_desc->empkt_num);
-				_rtl88ee_insert_emcontent(ptcb_desc,
-							  (u8 *)(skb->data));
+				rtl88ee_insert_emcontent(ptcb_desc,
+							 (__le32 *)(skb->data));
 			}
 		} else {
 			set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
@@ -660,17 +661,18 @@ void rtl88ee_tx_fill_desc(struct ieee80211_hw *hw,
 		set_tx_desc_bmc(pdesc, 1);
 	}
 
-	rtl88e_dm_set_tx_ant_by_tx_info(hw, pdesc, ptcb_desc->mac_id);
+	rtl88e_dm_set_tx_ant_by_tx_info(hw, pdesc8, ptcb_desc->mac_id);
 	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
 
 void rtl88ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			     u8 *pdesc, bool firstseg,
+			     u8 *pdesc8, bool firstseg,
 			     bool lastseg, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	u8 fw_queue = QSLT_BEACON;
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	dma_addr_t mapping = pci_map_single(rtlpci->pdev,
 					    skb->data, skb->len,
@@ -684,7 +686,7 @@ void rtl88ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
 			 "DMA mapping error\n");
 		return;
 	}
-	CLEAR_PCI_TX_DESC_CONTENT(pdesc, TX_DESC_SIZE);
+	clear_pci_tx_desc_content(pdesc, TX_DESC_SIZE);
 
 	if (firstseg)
 		set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
@@ -726,9 +728,11 @@ void rtl88ee_tx_fill_cmddesc(struct ieee80211_hw *hw,
 		      pdesc, TX_DESC_SIZE);
 }
 
-void rtl88ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
+void rtl88ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc8,
 		      bool istx, u8 desc_name, u8 *val)
 {
+	__le32 *pdesc = (__le32 *)pdesc8;
+
 	if (istx == true) {
 		switch (desc_name) {
 		case HW_DESC_OWN:
@@ -765,9 +769,10 @@ void rtl88ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 }
 
 u64 rtl88ee_get_desc(struct ieee80211_hw *hw,
-		     u8 *pdesc, bool istx, u8 desc_name)
+		     u8 *pdesc8, bool istx, u8 desc_name)
 {
 	u32 ret = 0;
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	if (istx == true) {
 		switch (desc_name) {
