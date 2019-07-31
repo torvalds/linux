@@ -87,7 +87,7 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
  * @dev: the device for the GPIO provider
  * @return: true if the valid mask needs to be set
  */
-bool of_gpio_need_valid_mask(struct gpio_chip *gc)
+bool of_gpio_need_valid_mask(const struct gpio_chip *gc)
 {
 	int size;
 	struct device_node *np = gc->of_node;
