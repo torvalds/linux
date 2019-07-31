@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2019 Linaro Ltd.
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/misc/intel,ixp4xx-ahb-queue-manager.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Intel IXP4xx AHB Queue Manager
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |
+  The IXP4xx AHB Queue Manager maintains queues as circular buffers in
+  an 8KB embedded SRAM along with hardware pointers. It is used by both
+  the XScale processor and the NPEs (Network Processing Units) in the
+  IXP4xx for accelerating queues, especially for networking. Clients pick
+  queues from the queue manager with foo-queue = <&qmgr N> where the
+  &qmgr is a phandle to the queue manager and N is the queue resource
+  number. The queue resources available and their specific purpose
+  on a certain IXP4xx system will vary.
+
+properties:
+  compatible:
+    items:
+      - const: intel,ixp4xx-ahb-queue-manager
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: Interrupt for queues 0-31
+      - description: Interrupt for queues 32-63
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    qmgr: queue-manager@60000000 {
+         compatible = "intel,ixp4xx-ahb-queue-manager";
+         reg = <0x60000000 0x4000>;
+         interrupts = <3 IRQ_TYPE_LEVEL_HIGH>, <4 IRQ_TYPE_LEVEL_HIGH>;
+    };

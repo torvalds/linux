@@ -54,7 +54,7 @@ static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
 
 static LIST_HEAD(all_blkcgs);		/* protected by blkcg_pol_mutex */
 
-static bool blkcg_debug_stats = false;
+bool blkcg_debug_stats = false;
 static struct workqueue_struct *blkcg_punt_bio_wq;
 
 static bool blkcg_policy_enabled(struct request_queue *q,
@@ -944,10 +944,7 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 					 dbytes, dios);
 		}
 
-		if (!blkcg_debug_stats)
-			goto next;
-
-		if (atomic_read(&blkg->use_delay)) {
+		if (blkcg_debug_stats && atomic_read(&blkg->use_delay)) {
 			has_stats = true;
 			off += scnprintf(buf+off, size-off,
 					 " use_delay=%d delay_nsec=%llu",
@@ -967,7 +964,7 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 				has_stats = true;
 			off += written;
 		}
-next:
+
 		if (has_stats) {
 			if (off < size - 1) {
 				off += scnprintf(buf+off, size-off, "\n");

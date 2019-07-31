@@ -377,6 +377,12 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 	vdsc_cfg->rc_bits = (hrd_delay * vdsc_cfg->bits_per_pixel) / 16;
 	vdsc_cfg->initial_dec_delay = hrd_delay - vdsc_cfg->initial_xmit_delay;
 
+	/* As per DSC spec v1.2a recommendation: */
+	if (vdsc_cfg->native_420)
+		vdsc_cfg->second_line_offset_adj = 512;
+	else
+		vdsc_cfg->second_line_offset_adj = 0;
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_dsc_compute_rc_parameters);

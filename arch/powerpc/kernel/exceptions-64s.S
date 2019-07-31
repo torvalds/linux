@@ -1531,7 +1531,7 @@ EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
  *
  * Call convention:
  *
- * syscall register convention is in Documentation/powerpc/syscall64-abi.txt
+ * syscall register convention is in Documentation/powerpc/syscall64-abi.rst
  *
  * For hypercalls, the register convention is as follows:
  * r0 volatile

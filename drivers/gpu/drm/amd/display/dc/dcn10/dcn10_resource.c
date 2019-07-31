@@ -508,7 +508,7 @@ static const struct resource_caps rv2_res_cap = {
 		.num_audio = 3,
 		.num_stream_encoder = 3,
 		.num_pll = 3,
-		.num_ddc = 3,
+		.num_ddc = 4,
 };
 
 static const struct dc_plane_cap plane_cap = {
