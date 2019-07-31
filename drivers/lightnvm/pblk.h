@@ -783,14 +783,10 @@ struct nvm_chk_meta *pblk_chunk_get_off(struct pblk *pblk,
 					      struct ppa_addr ppa);
 void pblk_log_write_err(struct pblk *pblk, struct nvm_rq *rqd);
 void pblk_log_read_err(struct pblk *pblk, struct nvm_rq *rqd);
-int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd);
-int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd);
-int pblk_submit_io_sync_sem(struct pblk *pblk, struct nvm_rq *rqd);
+int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd, void *buf);
+int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd, void *buf);
 int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line);
 void pblk_check_chunk_state_update(struct pblk *pblk, struct nvm_rq *rqd);
-struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
-			      unsigned int nr_secs, unsigned int len,
-			      int alloc_type, gfp_t gfp_mask);
 struct pblk_line *pblk_line_get(struct pblk *pblk);
 struct pblk_line *pblk_line_get_first_data(struct pblk *pblk);
 struct pblk_line *pblk_line_replace_data(struct pblk *pblk);

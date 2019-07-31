@@ -342,7 +342,7 @@ split_retry:
 		bio_put(int_bio);
 		int_bio = bio_clone_fast(bio, GFP_KERNEL, &pblk_bio_set);
 		goto split_retry;
-	} else if (pblk_submit_io(pblk, rqd)) {
+	} else if (pblk_submit_io(pblk, rqd, NULL)) {
 		/* Submitting IO to drive failed, let's report an error */
 		rqd->error = -ENODEV;
 		pblk_end_io_read(rqd);
@@ -419,7 +419,6 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	struct bio *bio;
 	struct nvm_rq rqd;
 	int data_len;
 	int ret = NVM_IO_OK;
@@ -447,25 +446,12 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 		goto out;
 
 	data_len = (gc_rq->secs_to_gc) * geo->csecs;
-	bio = pblk_bio_map_addr(pblk, gc_rq->data, gc_rq->secs_to_gc, data_len,
-						PBLK_VMALLOC_META, GFP_KERNEL);
-	if (IS_ERR(bio)) {
-		pblk_err(pblk, "could not allocate GC bio (%lu)\n",
-								PTR_ERR(bio));
-		ret = PTR_ERR(bio);
-		goto err_free_dma;
-	}
-
-	bio->bi_iter.bi_sector = 0; /* internal bio */
-	bio_set_op_attrs(bio, REQ_OP_READ, 0);
-
 	rqd.opcode = NVM_OP_PREAD;
 	rqd.nr_ppas = gc_rq->secs_to_gc;
-	rqd.bio = bio;
 
-	if (pblk_submit_io_sync(pblk, &rqd)) {
+	if (pblk_submit_io_sync(pblk, &rqd, gc_rq->data)) {
 		ret = -EIO;
-		goto err_free_bio;
+		goto err_free_dma;
 	}
 
 	pblk_read_check_rand(pblk, &rqd, gc_rq->lba_list, gc_rq->nr_secs);
@@ -489,8 +475,6 @@ out:
 	pblk_free_rqd_meta(pblk, &rqd);
 	return ret;
 
-err_free_bio:
-	bio_put(bio);
 err_free_dma:
 	pblk_free_rqd_meta(pblk, &rqd);
 	return ret;

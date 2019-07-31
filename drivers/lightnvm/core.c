@@ -731,7 +731,7 @@ static int nvm_set_flags(struct nvm_geo *geo, struct nvm_rq *rqd)
 	return flags;
 }
 
-int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
+int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd, void *buf)
 {
 	struct nvm_dev *dev = tgt_dev->parent;
 	int ret;
@@ -745,7 +745,7 @@ int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 	rqd->flags = nvm_set_flags(&tgt_dev->geo, rqd);
 
 	/* In case of error, fail with right address format */
-	ret = dev->ops->submit_io(dev, rqd);
+	ret = dev->ops->submit_io(dev, rqd, buf);
 	if (ret)
 		nvm_rq_dev_to_tgt(tgt_dev, rqd);
 	return ret;
@@ -759,7 +759,8 @@ static void nvm_sync_end_io(struct nvm_rq *rqd)
 	complete(waiting);
 }
 
-static int nvm_submit_io_wait(struct nvm_dev *dev, struct nvm_rq *rqd)
+static int nvm_submit_io_wait(struct nvm_dev *dev, struct nvm_rq *rqd,
+			      void *buf)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
 	int ret = 0;
@@ -767,7 +768,7 @@ static int nvm_submit_io_wait(struct nvm_dev *dev, struct nvm_rq *rqd)
 	rqd->end_io = nvm_sync_end_io;
 	rqd->private = &wait;
 
-	ret = dev->ops->submit_io(dev, rqd);
+	ret = dev->ops->submit_io(dev, rqd, buf);
 	if (ret)
 		return ret;
 
@@ -776,7 +777,8 @@ static int nvm_submit_io_wait(struct nvm_dev *dev, struct nvm_rq *rqd)
 	return 0;
 }
 
-int nvm_submit_io_sync(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
+int nvm_submit_io_sync(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
+		       void *buf)
 {
 	struct nvm_dev *dev = tgt_dev->parent;
 	int ret;
@@ -789,7 +791,7 @@ int nvm_submit_io_sync(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 	rqd->dev = tgt_dev;
 	rqd->flags = nvm_set_flags(&tgt_dev->geo, rqd);
 
-	ret = nvm_submit_io_wait(dev, rqd);
+	ret = nvm_submit_io_wait(dev, rqd, buf);
 
 	return ret;
 }
@@ -816,7 +818,7 @@ static int nvm_submit_io_sync_raw(struct nvm_dev *dev, struct nvm_rq *rqd)
 	rqd->dev = NULL;
 	rqd->flags = nvm_set_flags(&dev->geo, rqd);
 
-	return nvm_submit_io_wait(dev, rqd);
+	return nvm_submit_io_wait(dev, rqd, NULL);
 }
 
 static int nvm_bb_chunk_sense(struct nvm_dev *dev, struct ppa_addr ppa)

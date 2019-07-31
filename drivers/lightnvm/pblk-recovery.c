@@ -178,12 +178,11 @@ static int pblk_recov_pad_line(struct pblk *pblk, struct pblk_line *line,
 	void *meta_list;
 	struct pblk_pad_rq *pad_rq;
 	struct nvm_rq *rqd;
-	struct bio *bio;
 	struct ppa_addr *ppa_list;
 	void *data;
 	__le64 *lba_list = emeta_to_lbas(pblk, line->emeta->buf);
 	u64 w_ptr = line->cur_sec;
-	int left_line_ppas, rq_ppas, rq_len;
+	int left_line_ppas, rq_ppas;
 	int i, j;
 	int ret = 0;
 
@@ -212,28 +211,15 @@ next_pad_rq:
 		goto fail_complete;
 	}
 
-	rq_len = rq_ppas * geo->csecs;
-
-	bio = pblk_bio_map_addr(pblk, data, rq_ppas, rq_len,
-						PBLK_VMALLOC_META, GFP_KERNEL);
-	if (IS_ERR(bio)) {
-		ret = PTR_ERR(bio);
-		goto fail_complete;
-	}
-
-	bio->bi_iter.bi_sector = 0; /* internal bio */
-	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-
 	rqd = pblk_alloc_rqd(pblk, PBLK_WRITE_INT);
 
 	ret = pblk_alloc_rqd_meta(pblk, rqd);
 	if (ret) {
 		pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
-		bio_put(bio);
 		goto fail_complete;
 	}
 
-	rqd->bio = bio;
+	rqd->bio = NULL;
 	rqd->opcode = NVM_OP_PWRITE;
 	rqd->is_seq = 1;
 	rqd->nr_ppas = rq_ppas;
@@ -275,13 +261,12 @@ next_pad_rq:
 	kref_get(&pad_rq->ref);
 	pblk_down_chunk(pblk, ppa_list[0]);
 
-	ret = pblk_submit_io(pblk, rqd);
+	ret = pblk_submit_io(pblk, rqd, data);
 	if (ret) {
 		pblk_err(pblk, "I/O submission failed: %d\n", ret);
 		pblk_up_chunk(pblk, ppa_list[0]);
 		kref_put(&pad_rq->ref, pblk_recov_complete);
 		pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
-		bio_put(bio);
 		goto fail_complete;
 	}
 
@@ -375,7 +360,6 @@ static int pblk_recov_scan_oob(struct pblk *pblk, struct pblk_line *line,
 	struct ppa_addr *ppa_list;
 	void *meta_list;
 	struct nvm_rq *rqd;
-	struct bio *bio;
 	void *data;
 	dma_addr_t dma_ppa_list, dma_meta_list;
 	__le64 *lba_list;
@@ -407,15 +391,7 @@ next_rq:
 	rq_len = rq_ppas * geo->csecs;
 
 retry_rq:
-	bio = bio_map_kern(dev->q, data, rq_len, GFP_KERNEL);
-	if (IS_ERR(bio))
-		return PTR_ERR(bio);
-
-	bio->bi_iter.bi_sector = 0; /* internal bio */
-	bio_set_op_attrs(bio, REQ_OP_READ, 0);
-	bio_get(bio);
-
-	rqd->bio = bio;
+	rqd->bio = NULL;
 	rqd->opcode = NVM_OP_PREAD;
 	rqd->meta_list = meta_list;
 	rqd->nr_ppas = rq_ppas;
@@ -445,10 +421,9 @@ retry_rq:
 				addr_to_gen_ppa(pblk, paddr + j, line->id);
 	}
 
-	ret = pblk_submit_io_sync(pblk, rqd);
+	ret = pblk_submit_io_sync(pblk, rqd, data);
 	if (ret) {
 		pblk_err(pblk, "I/O submission failed: %d\n", ret);
-		bio_put(bio);
 		return ret;
 	}
 
@@ -460,24 +435,20 @@ retry_rq:
 
 		if (padded) {
 			pblk_log_read_err(pblk, rqd);
-			bio_put(bio);
 			return -EINTR;
 		}
 
 		pad_distance = pblk_pad_distance(pblk, line);
 		ret = pblk_recov_pad_line(pblk, line, pad_distance);
 		if (ret) {
-			bio_put(bio);
 			return ret;
 		}
 
 		padded = true;
-		bio_put(bio);
 		goto retry_rq;
 	}
 
 	pblk_get_packed_meta(pblk, rqd);
-	bio_put(bio);
 
 	for (i = 0; i < rqd->nr_ppas; i++) {
 		struct pblk_sec_meta *meta = pblk_get_meta(pblk, meta_list, i);
