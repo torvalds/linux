@@ -21,8 +21,11 @@
  *
  */
 
+#include <linux/delay.h>
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+
 #include "amdgpu.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_trace.h"
@@ -882,7 +885,7 @@ static int sdma_v5_0_ring_test_ring(struct amdgpu_ring *ring)
 		if (amdgpu_emu_mode == 1)
 			msleep(1);
 		else
-			DRM_UDELAY(1);
+			udelay(1);
 	}
 
 	if (i < adev->usec_timeout) {
@@ -1337,7 +1340,7 @@ static int sdma_v5_0_ring_preempt_ib(struct amdgpu_ring *ring)
 		if (ring->trail_seq ==
 		    le32_to_cpu(*(ring->trail_fence_cpu_addr)))
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout) {
