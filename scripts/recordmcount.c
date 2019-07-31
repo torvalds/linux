@@ -52,8 +52,7 @@ static void *file_append; /* added to the end of the file */
 static size_t file_append_size; /* how much is added to end of file */
 
 /* Per-file resource cleanup when multiple files. */
-static void
-cleanup(void)
+static void cleanup(void)
 {
 	if (!mmap_failed)
 		munmap(file_map, sb.st_size);
@@ -68,8 +67,7 @@ cleanup(void)
 
 /* ulseek, uwrite, ...:  Check return value for errors. */
 
-static off_t
-ulseek(off_t const offset, int const whence)
+static off_t ulseek(off_t const offset, int const whence)
 {
 	switch (whence) {
 	case SEEK_SET:
@@ -89,8 +87,7 @@ ulseek(off_t const offset, int const whence)
 	return file_ptr - file_map;
 }
 
-static ssize_t
-uwrite(void const *const buf, size_t const count)
+static ssize_t uwrite(void const *const buf, size_t const count)
 {
 	size_t cnt = count;
 	off_t idx = 0;
@@ -127,8 +124,7 @@ uwrite(void const *const buf, size_t const count)
 	return count;
 }
 
-static void *
-umalloc(size_t size)
+static void * umalloc(size_t size)
 {
 	void *const addr = malloc(size);
 	if (addr == 0) {
@@ -394,8 +390,7 @@ static uint32_t (*w)(uint32_t);
 static uint32_t (*w2)(uint16_t);
 
 /* Names of the sections that could contain calls to mcount. */
-static int
-is_mcounted_section_name(char const *const txtname)
+static int is_mcounted_section_name(char const *const txtname)
 {
 	return strncmp(".text",          txtname, 5) == 0 ||
 		strcmp(".init.text",     txtname) == 0 ||
@@ -448,8 +443,7 @@ static void MIPS64_r_info(Elf64_Rel *const rp, unsigned sym, unsigned type)
 	}).r_info;
 }
 
-static int
-do_file(char const *const fname)
+static int do_file(char const *const fname)
 {
 	Elf32_Ehdr *const ehdr = mmap_file(fname);
 	unsigned int reltype = 0;
@@ -597,8 +591,7 @@ out:
 	return rc;
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	const char ftrace[] = "/ftrace.o";
 	int ftrace_size = sizeof(ftrace) - 1;
