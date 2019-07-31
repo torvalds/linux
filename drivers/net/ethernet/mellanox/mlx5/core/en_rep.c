@@ -659,8 +659,8 @@ mlx5e_rep_indr_offload(struct net_device *netdev,
 		       struct flow_cls_offload *flower,
 		       struct mlx5e_rep_indr_block_priv *indr_priv)
 {
+	unsigned long flags = MLX5_TC_FLAG(EGRESS) | MLX5_TC_FLAG(ESW_OFFLOAD);
 	struct mlx5e_priv *priv = netdev_priv(indr_priv->rpriv->netdev);
-	int flags = MLX5E_TC_EGRESS | MLX5E_TC_ESW_OFFLOAD;
 	int err = 0;
 
 	switch (flower->command) {
@@ -721,10 +721,6 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 		indr_priv = mlx5e_rep_indr_block_priv_lookup(rpriv, netdev);
 		if (indr_priv)
 			return -EEXIST;
-
-		if (flow_block_cb_is_busy(mlx5e_rep_indr_setup_block_cb,
-					  indr_priv, &mlx5e_block_cb_list))
-			return -EBUSY;
 
 		indr_priv = kmalloc(sizeof(*indr_priv), GFP_KERNEL);
 		if (!indr_priv)
@@ -1163,12 +1159,12 @@ mlx5e_rep_setup_tc_cls_flower(struct mlx5e_priv *priv,
 static int mlx5e_rep_setup_tc_cb(enum tc_setup_type type, void *type_data,
 				 void *cb_priv)
 {
+	unsigned long flags = MLX5_TC_FLAG(INGRESS) | MLX5_TC_FLAG(ESW_OFFLOAD);
 	struct mlx5e_priv *priv = cb_priv;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
-		return mlx5e_rep_setup_tc_cls_flower(priv, type_data, MLX5E_TC_INGRESS |
-						     MLX5E_TC_ESW_OFFLOAD);
+		return mlx5e_rep_setup_tc_cls_flower(priv, type_data, flags);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1564,6 +1560,7 @@ static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 	if (rpriv->rep->vport == MLX5_VPORT_UPLINK) {
 		uplink_priv = &rpriv->uplink_priv;
 
+		mutex_init(&uplink_priv->unready_flows_lock);
 		INIT_LIST_HEAD(&uplink_priv->unready_flows);
 
 		/* init shared tc flow table */
@@ -1608,6 +1605,7 @@ static void mlx5e_cleanup_rep_tx(struct mlx5e_priv *priv)
 
 		/* delete shared tc flow table */
 		mlx5e_tc_esw_cleanup(&rpriv->uplink_priv.tc_ht);
+		mutex_destroy(&rpriv->uplink_priv.unready_flows_lock);
 	}
 }
 

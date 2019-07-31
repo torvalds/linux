@@ -1933,6 +1933,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 
 	hash_init(esw->offloads.encap_tbl);
 	hash_init(esw->offloads.mod_hdr_tbl);
+	atomic64_set(&esw->offloads.num_flows, 0);
 	mutex_init(&esw->state_lock);
 
 	mlx5_esw_for_all_vports(esw, i, vport) {
@@ -2085,23 +2086,19 @@ int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 	if (vlan > 4095 || qos > 7)
 		return -EINVAL;
 
-	mutex_lock(&esw->state_lock);
-
 	err = modify_esw_vport_cvlan(esw->dev, vport, vlan, qos, set_flags);
 	if (err)
-		goto unlock;
+		return err;
 
 	evport->info.vlan = vlan;
 	evport->info.qos = qos;
 	if (evport->enabled && esw->mode == MLX5_ESWITCH_LEGACY) {
 		err = esw_vport_ingress_config(esw, evport);
 		if (err)
-			goto unlock;
+			return err;
 		err = esw_vport_egress_config(esw, evport);
 	}
 
-unlock:
-	mutex_unlock(&esw->state_lock);
 	return err;
 }
 
@@ -2109,11 +2106,16 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				u16 vport, u16 vlan, u8 qos)
 {
 	u8 set_flags = 0;
+	int err;
 
 	if (vlan || qos)
 		set_flags = SET_VLAN_STRIP | SET_VLAN_INSERT;
 
-	return __mlx5_eswitch_set_vport_vlan(esw, vport, vlan, qos, set_flags);
+	mutex_lock(&esw->state_lock);
+	err = __mlx5_eswitch_set_vport_vlan(esw, vport, vlan, qos, set_flags);
+	mutex_unlock(&esw->state_lock);
+
+	return err;
 }
 
 int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,

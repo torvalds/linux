@@ -3429,7 +3429,7 @@ out:
 #ifdef CONFIG_MLX5_ESWITCH
 static int mlx5e_setup_tc_cls_flower(struct mlx5e_priv *priv,
 				     struct flow_cls_offload *cls_flower,
-				     int flags)
+				     unsigned long flags)
 {
 	switch (cls_flower->command) {
 	case FLOW_CLS_REPLACE:
@@ -3449,12 +3449,12 @@ static int mlx5e_setup_tc_cls_flower(struct mlx5e_priv *priv,
 static int mlx5e_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 				   void *cb_priv)
 {
+	unsigned long flags = MLX5_TC_FLAG(INGRESS) | MLX5_TC_FLAG(NIC_OFFLOAD);
 	struct mlx5e_priv *priv = cb_priv;
 
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
-		return mlx5e_setup_tc_cls_flower(priv, type_data, MLX5E_TC_INGRESS |
-						 MLX5E_TC_NIC_OFFLOAD);
+		return mlx5e_setup_tc_cls_flower(priv, type_data, flags);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3647,7 +3647,7 @@ static int set_feature_tc_num_filters(struct net_device *netdev, bool enable)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
-	if (!enable && mlx5e_tc_num_filters(priv, MLX5E_TC_NIC_OFFLOAD)) {
+	if (!enable && mlx5e_tc_num_filters(priv, MLX5_TC_FLAG(NIC_OFFLOAD))) {
 		netdev_err(netdev,
 			   "Active offloaded tc filters, can't turn hw_tc_offload off\n");
 		return -EINVAL;
@@ -3788,9 +3788,10 @@ static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 			netdev_warn(netdev, "Dropping C-tag vlan stripping offload due to S-tag vlan\n");
 	}
 	if (!MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_STRIDING_RQ)) {
-		features &= ~NETIF_F_LRO;
-		if (params->lro_en)
+		if (features & NETIF_F_LRO) {
 			netdev_warn(netdev, "Disabling LRO, not supported in legacy RQ\n");
+			features &= ~NETIF_F_LRO;
+		}
 	}
 
 	if (MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS)) {
@@ -3957,7 +3958,8 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 	case HWTSTAMP_FILTER_NTP_ALL:
 		/* Disable CQE compression */
-		netdev_warn(priv->netdev, "Disabling cqe compression");
+		if (MLX5E_GET_PFLAG(&priv->channels.params, MLX5E_PFLAG_RX_CQE_COMPRESS))
+			netdev_warn(priv->netdev, "Disabling RX cqe compression\n");
 		err = mlx5e_modify_rx_cqe_compression_locked(priv, false);
 		if (err) {
 			netdev_err(priv->netdev, "Failed disabling cqe compression err=%d\n", err);
