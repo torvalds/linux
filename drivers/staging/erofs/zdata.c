@@ -634,10 +634,7 @@ z_erofs_vle_work_iter_end(struct z_erofs_vle_work_builder *builder)
 static inline struct page *__stagingpage_alloc(struct list_head *pagepool,
 					       gfp_t gfp)
 {
-	struct page *page = erofs_allocpage(pagepool, gfp);
-
-	if (unlikely(!page))
-		return NULL;
+	struct page *page = erofs_allocpage(pagepool, gfp, true);
 
 	page->mapping = Z_EROFS_MAPPING_STAGING;
 	return page;
