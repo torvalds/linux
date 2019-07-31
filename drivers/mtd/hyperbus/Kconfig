@@ -14,6 +14,7 @@ if MTD_HYPERBUS
 
 config HBMC_AM654
 	tristate "HyperBus controller driver for AM65x SoC"
+	depends on ARM64 || COMPILE_TEST
 	select MULTIPLEXER
 	imply MUX_MMIO
 	help
