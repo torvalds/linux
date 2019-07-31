@@ -18,8 +18,8 @@
  * c8000000	fdb00000	1M	Cryptographic SRAM
  * e0000000	@runtime	128M	PCIe-0 Memory space
  * e8000000	@runtime	128M	PCIe-1 Memory space
- * f1000000	fde00000	8M	on-chip south-bridge registers
- * f1800000	fe600000	8M	on-chip north-bridge registers
+ * f1000000	fec00000	1M	on-chip south-bridge registers
+ * f1800000	fe400000	8M	on-chip north-bridge registers
  * f2000000	fee00000	1M	PCIe-0 I/O space
  * f2100000	fef00000	1M	PCIe-1 I/O space
  */
@@ -42,11 +42,11 @@
 #define DOVE_SCRATCHPAD_SIZE		SZ_1M
 
 #define DOVE_SB_REGS_PHYS_BASE		0xf1000000
-#define DOVE_SB_REGS_VIRT_BASE		IOMEM(0xfde00000)
-#define DOVE_SB_REGS_SIZE		SZ_8M
+#define DOVE_SB_REGS_VIRT_BASE		IOMEM(0xfec00000)
+#define DOVE_SB_REGS_SIZE		SZ_1M
 
 #define DOVE_NB_REGS_PHYS_BASE		0xf1800000
-#define DOVE_NB_REGS_VIRT_BASE		IOMEM(0xfe600000)
+#define DOVE_NB_REGS_VIRT_BASE		IOMEM(0xfe400000)
 #define DOVE_NB_REGS_SIZE		SZ_8M
 
 #define DOVE_PCIE0_IO_PHYS_BASE		0xf2000000
