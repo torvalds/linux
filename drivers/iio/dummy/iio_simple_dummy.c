@@ -695,7 +695,7 @@ static int iio_dummy_remove(struct iio_sw_device *swd)
  * i2c:
  * Documentation/i2c/writing-clients.rst
  * spi:
- * Documentation/spi/spi-summary
+ * Documentation/spi/spi-summary.rst
  */
 static const struct iio_sw_device_ops iio_dummy_device_ops = {
 	.probe = iio_dummy_probe,

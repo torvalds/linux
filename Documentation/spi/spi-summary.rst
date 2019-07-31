@@ -1,3 +1,4 @@
+====================================
 Overview of Linux kernel SPI support
 ====================================
 
@@ -139,12 +140,14 @@ a command and then reading its response.
 
 There are two types of SPI driver, here called:
 
-  Controller drivers ... controllers may be built into System-On-Chip
+  Controller drivers ...
+        controllers may be built into System-On-Chip
 	processors, and often support both Master and Slave roles.
 	These drivers touch hardware registers and may use DMA.
 	Or they can be PIO bitbangers, needing just GPIO pins.
 
-  Protocol drivers ... these pass messages through the controller
+  Protocol drivers ...
+        these pass messages through the controller
 	driver to communicate with a Slave or Master device on the
 	other side of an SPI link.
 
@@ -160,7 +163,7 @@ those two types of drivers.
 There is a minimal core of SPI programming interfaces, focussing on
 using the driver model to connect controller and protocol drivers using
 device tables provided by board specific initialization code.  SPI
-shows up in sysfs in several locations:
+shows up in sysfs in several locations::
 
    /sys/devices/.../CTLR ... physical node for a given SPI controller
 
@@ -168,7 +171,7 @@ shows up in sysfs in several locations:
 	chipselect C, accessed through CTLR.
 
    /sys/bus/spi/devices/spiB.C ... symlink to that physical
-   	.../CTLR/spiB.C device
+	.../CTLR/spiB.C device
 
    /sys/devices/.../CTLR/spiB.C/modalias ... identifies the driver
 	that should be used with this device (for hotplug/coldplug)
@@ -206,7 +209,8 @@ Linux needs several kinds of information to properly configure SPI devices.
 That information is normally provided by board-specific code, even for
 chips that do support some of automated discovery/enumeration.
 
-DECLARE CONTROLLERS
+Declare Controllers
+^^^^^^^^^^^^^^^^^^^
 
 The first kind of information is a list of what SPI controllers exist.
 For System-on-Chip (SOC) based boards, these will usually be platform
@@ -221,7 +225,7 @@ same basic controller setup code.  This is because most SOCs have several
 SPI-capable controllers, and only the ones actually usable on a given
 board should normally be set up and registered.
 
-So for example arch/.../mach-*/board-*.c files might have code like:
+So for example arch/.../mach-*/board-*.c files might have code like::
 
 	#include <mach/spi.h>	/* for mysoc_spi_data */
 
@@ -238,7 +242,7 @@ So for example arch/.../mach-*/board-*.c files might have code like:
 		...
 	}
 
-And SOC-specific utility code might look something like:
+And SOC-specific utility code might look something like::
 
 	#include <mach/spi.h>
 
@@ -269,8 +273,8 @@ same SOC controller is used.  For example, on one board SPI might use
 an external clock, where another derives the SPI clock from current
 settings of some master clock.
 
-
-DECLARE SLAVE DEVICES
+Declare Slave Devices
+^^^^^^^^^^^^^^^^^^^^^
 
 The second kind of information is a list of what SPI slave devices exist
 on the target board, often with some board-specific data needed for the
@@ -278,7 +282,7 @@ driver to work correctly.
 
 Normally your arch/.../mach-*/board-*.c files would provide a small table
 listing the SPI devices on each board.  (This would typically be only a
-small handful.)  That might look like:
+small handful.)  That might look like::
 
 	static struct ads7846_platform_data ads_info = {
 		.vref_delay_usecs	= 100,
@@ -316,7 +320,7 @@ not possible until the infrastructure knows how to deselect it.
 
 Then your board initialization code would register that table with the SPI
 infrastructure, so that it's available later when the SPI master controller
-driver is registered:
+driver is registered::
 
 	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
 
@@ -324,12 +328,13 @@ Like with other static board-specific setup, you won't unregister those.
 
 The widely used "card" style computers bundle memory, cpu, and little else
 onto a card that's maybe just thirty square centimeters.  On such systems,
-your arch/.../mach-.../board-*.c file would primarily provide information
+your ``arch/.../mach-.../board-*.c`` file would primarily provide information
 about the devices on the mainboard into which such a card is plugged.  That
 certainly includes SPI devices hooked up through the card connectors!
 
 
-NON-STATIC CONFIGURATIONS
+Non-static Configurations
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Developer boards often play by different rules than product boards, and one
 example is the potential need to hotplug SPI devices and/or controllers.
@@ -349,7 +354,7 @@ How do I write an "SPI Protocol Driver"?
 Most SPI drivers are currently kernel drivers, but there's also support
 for userspace drivers.  Here we talk only about kernel drivers.
 
-SPI protocol drivers somewhat resemble platform device drivers:
+SPI protocol drivers somewhat resemble platform device drivers::
 
 	static struct spi_driver CHIP_driver = {
 		.driver = {
@@ -366,6 +371,8 @@ The driver core will automatically attempt to bind this driver to any SPI
 device whose board_info gave a modalias of "CHIP".  Your probe() code
 might look like this unless you're creating a device which is managing
 a bus (appearing under /sys/class/spi_master).
+
+::
 
 	static int CHIP_probe(struct spi_device *spi)
 	{
@@ -479,6 +486,8 @@ The main task of this type of driver is to provide an "spi_master".
 Use spi_alloc_master() to allocate the master, and spi_master_get_devdata()
 to get the driver-private data allocated for that device.
 
+::
+
 	struct spi_master	*master;
 	struct CONTROLLER	*c;
 
@@ -503,7 +512,8 @@ If you need to remove your SPI controller driver, spi_unregister_master()
 will reverse the effect of spi_register_master().
 
 
-BUS NUMBERING
+Bus Numbering
+^^^^^^^^^^^^^
 
 Bus numbering is important, since that's how Linux identifies a given
 SPI bus (shared SCK, MOSI, MISO).  Valid bus numbers start at zero.  On
@@ -517,9 +527,10 @@ then be replaced by a dynamically assigned number. You'd then need to treat
 this as a non-static configuration (see above).
 
 
-SPI MASTER METHODS
+SPI Master Methods
+^^^^^^^^^^^^^^^^^^
 
-    master->setup(struct spi_device *spi)
+``master->setup(struct spi_device *spi)``
 	This sets up the device clock rate, SPI mode, and word sizes.
 	Drivers may change the defaults provided by board_info, and then
 	call spi_setup(spi) to invoke this routine.  It may sleep.
@@ -528,37 +539,37 @@ SPI MASTER METHODS
 	change them right away ... otherwise drivers could corrupt I/O
 	that's in progress for other SPI devices.
 
-		** BUG ALERT:  for some reason the first version of
-		** many spi_master drivers seems to get this wrong.
-		** When you code setup(), ASSUME that the controller
-		** is actively processing transfers for another device.
+	.. note::
 
-    master->cleanup(struct spi_device *spi)
+		BUG ALERT:  for some reason the first version of
+		many spi_master drivers seems to get this wrong.
+		When you code setup(), ASSUME that the controller
+		is actively processing transfers for another device.
+
+``master->cleanup(struct spi_device *spi)``
 	Your controller driver may use spi_device.controller_state to hold
 	state it dynamically associates with that device.  If you do that,
 	be sure to provide the cleanup() method to free that state.
 
-    master->prepare_transfer_hardware(struct spi_master *master)
+``master->prepare_transfer_hardware(struct spi_master *master)``
 	This will be called by the queue mechanism to signal to the driver
 	that a message is coming in soon, so the subsystem requests the
 	driver to prepare the transfer hardware by issuing this call.
 	This may sleep.
 
-    master->unprepare_transfer_hardware(struct spi_master *master)
+``master->unprepare_transfer_hardware(struct spi_master *master)``
 	This will be called by the queue mechanism to signal to the driver
 	that there are no more messages pending in the queue and it may
 	relax the hardware (e.g. by power management calls). This may sleep.
 
-    master->transfer_one_message(struct spi_master *master,
-				 struct spi_message *mesg)
+``master->transfer_one_message(struct spi_master *master, struct spi_message *mesg)``
 	The subsystem calls the driver to transfer a single message while
 	queuing transfers that arrive in the meantime. When the driver is
 	finished with this message, it must call
 	spi_finalize_current_message() so the subsystem can issue the next
 	message. This may sleep.
 
-    master->transfer_one(struct spi_master *master, struct spi_device *spi,
-			 struct spi_transfer *transfer)
+``master->transfer_one(struct spi_master *master, struct spi_device *spi, struct spi_transfer *transfer)``
 	The subsystem calls the driver to transfer a single transfer while
 	queuing transfers that arrive in the meantime. When the driver is
 	finished with this transfer, it must call
@@ -568,19 +579,20 @@ SPI MASTER METHODS
 	not call your transfer_one callback.
 
 	Return values:
-	negative errno: error
-	0: transfer is finished
-	1: transfer is still in progress
 
-    master->set_cs_timing(struct spi_device *spi, u8 setup_clk_cycles,
-			      u8 hold_clk_cycles, u8 inactive_clk_cycles)
+	* negative errno: error
+	* 0: transfer is finished
+	* 1: transfer is still in progress
+
+``master->set_cs_timing(struct spi_device *spi, u8 setup_clk_cycles, u8 hold_clk_cycles, u8 inactive_clk_cycles)``
 	This method allows SPI client drivers to request SPI master controller
 	for configuring device specific CS setup, hold and inactive timing
 	requirements.
 
-    DEPRECATED METHODS
+Deprecated Methods
+^^^^^^^^^^^^^^^^^^
 
-    master->transfer(struct spi_device *spi, struct spi_message *message)
+``master->transfer(struct spi_device *spi, struct spi_message *message)``
 	This must not sleep. Its responsibility is to arrange that the
 	transfer happens and its complete() callback is issued. The two
 	will normally happen later, after other transfers complete, and
@@ -590,7 +602,8 @@ SPI MASTER METHODS
 	implemented.
 
 
-SPI MESSAGE QUEUE
+SPI Message Queue
+^^^^^^^^^^^^^^^^^
 
 If you are happy with the standard queueing mechanism provided by the
 SPI subsystem, just implement the queued methods specified above. Using
@@ -619,13 +632,13 @@ THANKS TO
 Contributors to Linux-SPI discussions include (in alphabetical order,
 by last name):
 
-Mark Brown
-David Brownell
-Russell King
-Grant Likely
-Dmitry Pervushin
-Stephen Street
-Mark Underwood
-Andrew Victor
-Linus Walleij
-Vitaly Wool
+- Mark Brown
+- David Brownell
+- Russell King
+- Grant Likely
+- Dmitry Pervushin
+- Stephen Street
+- Mark Underwood
+- Andrew Victor
+- Linus Walleij
+- Vitaly Wool

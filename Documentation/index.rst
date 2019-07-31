@@ -116,6 +116,7 @@ needed).
    power/index
    target/index
    timers/index
+   spi/index
    watchdog/index
    virtual/index
    input/index

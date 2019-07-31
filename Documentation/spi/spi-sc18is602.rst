@@ -1,8 +1,11 @@
+===========================
 Kernel driver spi-sc18is602
 ===========================
 
 Supported chips:
+
   * NXP SI18IS602/602B/603
+
     Datasheet: http://www.nxp.com/documents/data_sheet/SC18IS602_602B_603.pdf
 
 Author:

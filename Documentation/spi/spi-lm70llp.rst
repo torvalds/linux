@@ -1,8 +1,11 @@
+==============================================
 spi_lm70llp :  LM70-LLP parport-to-SPI adapter
 ==============================================
 
 Supported board/chip:
+
   * National Semiconductor LM70 LLP evaluation board
+
     Datasheet: http://www.national.com/pf/LM/LM70.html
 
 Author:
@@ -29,9 +32,10 @@ available (on page 4) here:
 
 The hardware interfacing on the LM70 LLP eval board is as follows:
 
+   ======== == =========   ==========
    Parallel                 LM70 LLP
-     Port      Direction   JP2 Header
-   ----------- --------- ----------------
+     Port   .  Direction   JP2 Header
+   ======== == =========   ==========
       D0     2      -         -
       D1     3     -->      V+   5
       D2     4     -->      V+   5
@@ -42,7 +46,7 @@ The hardware interfacing on the LM70 LLP eval board is as follows:
       D7     9     -->      SI/O 5
      GND    25      -       GND  7
     Select  13     <--      SI/O 1
-   ----------- --------- ----------------
+   ======== == =========   ==========
 
 Note that since the LM70 uses a "3-wire" variant of SPI, the SI/SO pin
 is connected to both pin D7 (as Master Out) and Select (as Master In)
@@ -74,6 +78,7 @@ inverting the value read at pin 13.
 
 Thanks to
 ---------
-o David Brownell for mentoring the SPI-side driver development.
-o Dr.Craig Hollabaugh for the (early) "manual" bitbanging driver version.
-o Nadir Billimoria for help interpreting the circuit schematic.
+
+- David Brownell for mentoring the SPI-side driver development.
+- Dr.Craig Hollabaugh for the (early) "manual" bitbanging driver version.
+- Nadir Billimoria for help interpreting the circuit schematic.
