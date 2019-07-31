@@ -106,6 +106,11 @@ struct mv88e6xxx_info {
 	unsigned int g2_irqs;
 	bool pvt;
 
+	/* Mark certain ports as invalid. This is required for example for the
+	 * MV88E6220 (which is in general a MV88E6250 with 7 ports) but the
+	 * ports 2-4 are not routet to pins.
+	 */
+	unsigned int invalid_port_mask;
 	/* Multi-chip Addressing Mode.
 	 * Some chips respond to only 2 registers of its own SMI device address
 	 * when it is non-zero, and use indirect access to internal registers.
@@ -569,6 +574,11 @@ static inline u16 mv88e6xxx_port_mask(struct mv88e6xxx_chip *chip)
 static inline unsigned int mv88e6xxx_num_gpio(struct mv88e6xxx_chip *chip)
 {
 	return chip->info->num_gpio;
+}
+
+static inline bool mv88e6xxx_is_invalid_port(struct mv88e6xxx_chip *chip, int port)
+{
+	return (chip->info->invalid_port_mask & BIT(port)) != 0;
 }
 
 int mv88e6xxx_read(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
