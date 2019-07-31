@@ -190,7 +190,9 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 	sg_free_table(&acd->sgt);
  err_dma_map_sg:
  err_alloc_sg_table:
-	put_user_pages(acd->user_pages, acd->page_count);
+	for (i = 0 ; i < acd->page_count ; i++) {
+		put_page(acd->user_pages[i]);
+	}
  err_get_user_pages:
 	kfree(acd->user_pages);
  err_alloc_userpages:
@@ -209,13 +211,16 @@ void  transfer_complete_cb(struct aio_cb_data *acd, size_t xfr_count, u32 flags)
 	BUG_ON(acd->ldev == NULL);
 	BUG_ON(acd->ldev->pldev == NULL);
 
+	for (i = 0 ; i < acd->page_count ; i++) {
+		if (!PageReserved(acd->user_pages[i])) {
+			set_page_dirty(acd->user_pages[i]);
+		}
+	}
+
 	dma_unmap_sg(&acd->ldev->pldev->dev, acd->sgt.sgl, acd->sgt.nents, acd->ldev->dir);
 
-	for (i = 0; i < acd->page_count; i++) {
-		if (!PageReserved(acd->user_pages[i]))
-			put_user_pages_dirty(&acd->user_pages[i], 1);
-		else
-			put_user_page(acd->user_pages[i]);
+	for (i = 0 ; i < acd->page_count ; i++) {
+		put_page(acd->user_pages[i]);
 	}
 
 	sg_free_table(&acd->sgt);
