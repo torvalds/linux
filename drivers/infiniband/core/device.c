@@ -98,6 +98,12 @@ static LIST_HEAD(client_list);
 static DEFINE_XARRAY_FLAGS(clients, XA_FLAGS_ALLOC);
 static DECLARE_RWSEM(clients_rwsem);
 
+static void ib_client_put(struct ib_client *client)
+{
+	if (refcount_dec_and_test(&client->uses))
+		complete(&client->uses_zero);
+}
+
 /*
  * If client_data is registered then the corresponding client must also still
  * be registered.
@@ -651,6 +657,14 @@ static int add_client_context(struct ib_device *device,
 
 	down_write(&device->client_data_rwsem);
 	/*
+	 * So long as the client is registered hold both the client and device
+	 * unregistration locks.
+	 */
+	if (!refcount_inc_not_zero(&client->uses))
+		goto out_unlock;
+	refcount_inc(&device->refcount);
+
+	/*
 	 * Another caller to add_client_context got here first and has already
 	 * completely initialized context.
 	 */
@@ -673,6 +687,9 @@ static int add_client_context(struct ib_device *device,
 	return 0;
 
 out:
+	ib_device_put(device);
+	ib_client_put(client);
+out_unlock:
 	up_write(&device->client_data_rwsem);
 	return ret;
 }
@@ -692,7 +709,7 @@ static void remove_client_context(struct ib_device *device,
 	client_data = xa_load(&device->client_data, client_id);
 	xa_clear_mark(&device->client_data, client_id, CLIENT_DATA_REGISTERED);
 	client = xa_load(&clients, client_id);
-	downgrade_write(&device->client_data_rwsem);
+	up_write(&device->client_data_rwsem);
 
 	/*
 	 * Notice we cannot be holding any exclusive locks when calling the
@@ -702,17 +719,13 @@ static void remove_client_context(struct ib_device *device,
 	 *
 	 * For this reason clients and drivers should not call the
 	 * unregistration functions will holdling any locks.
-	 *
-	 * It tempting to drop the client_data_rwsem too, but this is required
-	 * to ensure that unregister_client does not return until all clients
-	 * are completely unregistered, which is required to avoid module
-	 * unloading races.
 	 */
 	if (client->remove)
 		client->remove(device, client_data);
 
 	xa_erase(&device->client_data, client_id);
-	up_read(&device->client_data_rwsem);
+	ib_device_put(device);
+	ib_client_put(client);
 }
 
 static int alloc_port_data(struct ib_device *device)
@@ -1696,6 +1709,8 @@ int ib_register_client(struct ib_client *client)
 	unsigned long index;
 	int ret;
 
+	refcount_set(&client->uses, 1);
+	init_completion(&client->uses_zero);
 	ret = assign_client_id(client);
 	if (ret)
 		return ret;
@@ -1731,16 +1746,29 @@ void ib_unregister_client(struct ib_client *client)
 	unsigned long index;
 
 	down_write(&clients_rwsem);
+	ib_client_put(client);
 	xa_clear_mark(&clients, client->client_id, CLIENT_REGISTERED);
 	up_write(&clients_rwsem);
-	/*
-	 * Every device still known must be serialized to make sure we are
-	 * done with the client callbacks before we return.
-	 */
-	down_read(&devices_rwsem);
-	xa_for_each (&devices, index, device)
+
+	/* We do not want to have locks while calling client->remove() */
+	rcu_read_lock();
+	xa_for_each (&devices, index, device) {
+		if (!ib_device_try_get(device))
+			continue;
+		rcu_read_unlock();
+
 		remove_client_context(device, client->client_id);
-	up_read(&devices_rwsem);
+
+		ib_device_put(device);
+		rcu_read_lock();
+	}
+	rcu_read_unlock();
+
+	/*
+	 * remove_client_context() is not a fence, it can return even though a
+	 * removal is ongoing. Wait until all removals are completed.
+	 */
+	wait_for_completion(&client->uses_zero);
 
 	down_write(&clients_rwsem);
 	list_del(&client->list);

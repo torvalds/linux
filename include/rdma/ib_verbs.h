@@ -2722,6 +2722,9 @@ struct ib_client {
 			const union ib_gid *gid,
 			const struct sockaddr *addr,
 			void *client_data);
+
+	refcount_t uses;
+	struct completion uses_zero;
 	struct list_head list;
 	u32 client_id;
 
