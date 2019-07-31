@@ -1414,9 +1414,9 @@ void rtl88e_dm_set_tx_ant_by_tx_info(struct ieee80211_hw *hw,
 
 	if ((rtlefuse->antenna_div_type == CG_TRX_HW_ANTDIV) ||
 	    (rtlefuse->antenna_div_type == CG_TRX_SMART_ANTDIV)) {
-		SET_TX_DESC_ANTSEL_A(pdesc, pfat_table->antsel_a[mac_id]);
-		SET_TX_DESC_ANTSEL_B(pdesc, pfat_table->antsel_b[mac_id]);
-		SET_TX_DESC_ANTSEL_C(pdesc, pfat_table->antsel_c[mac_id]);
+		set_tx_desc_antsel_a(pdesc, pfat_table->antsel_a[mac_id]);
+		set_tx_desc_antsel_b(pdesc, pfat_table->antsel_b[mac_id]);
+		set_tx_desc_antsel_c(pdesc, pfat_table->antsel_c[mac_id]);
 	}
 }
 
