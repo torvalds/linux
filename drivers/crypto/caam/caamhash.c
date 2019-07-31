@@ -96,6 +96,7 @@ struct caam_hash_ctx {
 	dma_addr_t sh_desc_fin_dma;
 	dma_addr_t sh_desc_digest_dma;
 	enum dma_data_direction dir;
+	enum dma_data_direction key_dir;
 	struct device *jrdev;
 	int ctx_len;
 	struct alginfo adata;
@@ -476,6 +477,18 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 			goto bad_free_key;
 
 		memcpy(ctx->key, key, keylen);
+
+		/*
+		 * In case |user key| > |derived key|, using DKP<imm,imm>
+		 * would result in invalid opcodes (last bytes of user key) in
+		 * the resulting descriptor. Use DKP<ptr,imm> instead => both
+		 * virtual and dma key addresses are needed.
+		 */
+		if (keylen > ctx->adata.keylen_pad)
+			dma_sync_single_for_device(ctx->jrdev,
+						   ctx->adata.key_dma,
+						   ctx->adata.keylen_pad,
+						   DMA_TO_DEVICE);
 	} else {
 		ret = gen_split_key(ctx->jrdev, ctx->key, &ctx->adata, key,
 				    keylen, CAAM_MAX_HASH_KEY_SIZE);
@@ -1825,28 +1838,38 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 
 	if (is_xcbc_aes(caam_hash->alg_type)) {
 		ctx->dir = DMA_TO_DEVICE;
+		ctx->key_dir = DMA_BIDIRECTIONAL;
 		ctx->adata.algtype = OP_TYPE_CLASS1_ALG | caam_hash->alg_type;
 		ctx->ctx_len = 48;
+	} else if (is_cmac_aes(caam_hash->alg_type)) {
+		ctx->dir = DMA_TO_DEVICE;
+		ctx->key_dir = DMA_NONE;
+		ctx->adata.algtype = OP_TYPE_CLASS1_ALG | caam_hash->alg_type;
+		ctx->ctx_len = 32;
+	} else {
+		if (priv->era >= 6) {
+			ctx->dir = DMA_BIDIRECTIONAL;
+			ctx->key_dir = alg->setkey ? DMA_TO_DEVICE : DMA_NONE;
+		} else {
+			ctx->dir = DMA_TO_DEVICE;
+			ctx->key_dir = DMA_NONE;
+		}
+		ctx->adata.algtype = OP_TYPE_CLASS2_ALG | caam_hash->alg_type;
+		ctx->ctx_len = runninglen[(ctx->adata.algtype &
+					   OP_ALG_ALGSEL_SUBMASK) >>
+					  OP_ALG_ALGSEL_SHIFT];
+	}
 
+	if (ctx->key_dir != DMA_NONE) {
 		ctx->adata.key_dma = dma_map_single_attrs(ctx->jrdev, ctx->key,
 							  ARRAY_SIZE(ctx->key),
-							  DMA_BIDIRECTIONAL,
+							  ctx->key_dir,
 							  DMA_ATTR_SKIP_CPU_SYNC);
 		if (dma_mapping_error(ctx->jrdev, ctx->adata.key_dma)) {
 			dev_err(ctx->jrdev, "unable to map key\n");
 			caam_jr_free(ctx->jrdev);
 			return -ENOMEM;
 		}
-	} else if (is_cmac_aes(caam_hash->alg_type)) {
-		ctx->dir = DMA_TO_DEVICE;
-		ctx->adata.algtype = OP_TYPE_CLASS1_ALG | caam_hash->alg_type;
-		ctx->ctx_len = 32;
-	} else {
-		ctx->dir = priv->era >= 6 ? DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
-		ctx->adata.algtype = OP_TYPE_CLASS2_ALG | caam_hash->alg_type;
-		ctx->ctx_len = runninglen[(ctx->adata.algtype &
-					   OP_ALG_ALGSEL_SUBMASK) >>
-					  OP_ALG_ALGSEL_SHIFT];
 	}
 
 	dma_addr = dma_map_single_attrs(ctx->jrdev, ctx->sh_desc_update,
@@ -1855,10 +1878,10 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 	if (dma_mapping_error(ctx->jrdev, dma_addr)) {
 		dev_err(ctx->jrdev, "unable to map shared descriptors\n");
 
-		if (is_xcbc_aes(caam_hash->alg_type))
+		if (ctx->key_dir != DMA_NONE)
 			dma_unmap_single_attrs(ctx->jrdev, ctx->adata.key_dma,
 					       ARRAY_SIZE(ctx->key),
-					       DMA_BIDIRECTIONAL,
+					       ctx->key_dir,
 					       DMA_ATTR_SKIP_CPU_SYNC);
 
 		caam_jr_free(ctx->jrdev);
@@ -1891,9 +1914,9 @@ static void caam_hash_cra_exit(struct crypto_tfm *tfm)
 	dma_unmap_single_attrs(ctx->jrdev, ctx->sh_desc_update_dma,
 			       offsetof(struct caam_hash_ctx, key),
 			       ctx->dir, DMA_ATTR_SKIP_CPU_SYNC);
-	if (is_xcbc_aes(ctx->adata.algtype))
+	if (ctx->key_dir != DMA_NONE)
 		dma_unmap_single_attrs(ctx->jrdev, ctx->adata.key_dma,
-				       ARRAY_SIZE(ctx->key), DMA_BIDIRECTIONAL,
+				       ARRAY_SIZE(ctx->key), ctx->key_dir,
 				       DMA_ATTR_SKIP_CPU_SYNC);
 	caam_jr_free(ctx->jrdev);
 }

@@ -533,14 +533,26 @@ static inline void append_proto_dkp(u32 * const desc, struct alginfo *adata)
 	if (adata->key_inline) {
 		int words;
 
-		append_operation(desc, OP_TYPE_UNI_PROTOCOL | protid |
-				 OP_PCL_DKP_SRC_IMM | OP_PCL_DKP_DST_IMM |
-				 adata->keylen);
-		append_data(desc, adata->key_virt, adata->keylen);
+		if (adata->keylen > adata->keylen_pad) {
+			append_operation(desc, OP_TYPE_UNI_PROTOCOL | protid |
+					 OP_PCL_DKP_SRC_PTR |
+					 OP_PCL_DKP_DST_IMM | adata->keylen);
+			append_ptr(desc, adata->key_dma);
+
+			words = (ALIGN(adata->keylen_pad, CAAM_CMD_SZ) -
+				 CAAM_PTR_SZ) / CAAM_CMD_SZ;
+		} else {
+			append_operation(desc, OP_TYPE_UNI_PROTOCOL | protid |
+					 OP_PCL_DKP_SRC_IMM |
+					 OP_PCL_DKP_DST_IMM | adata->keylen);
+			append_data(desc, adata->key_virt, adata->keylen);
+
+			words = (ALIGN(adata->keylen_pad, CAAM_CMD_SZ) -
+				 ALIGN(adata->keylen, CAAM_CMD_SZ)) /
+				CAAM_CMD_SZ;
+		}
 
 		/* Reserve space in descriptor buffer for the derived key */
-		words = (ALIGN(adata->keylen_pad, CAAM_CMD_SZ) -
-			 ALIGN(adata->keylen, CAAM_CMD_SZ)) / CAAM_CMD_SZ;
 		if (words)
 			(*desc) = cpu_to_caam32(caam32_to_cpu(*desc) + words);
 	} else {
