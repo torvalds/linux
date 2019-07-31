@@ -1194,7 +1194,7 @@ static void cdns_uart_console_write(struct console *co, const char *s,
 				unsigned int count)
 {
 	struct uart_port *port = console_port;
-	unsigned long flags;
+	unsigned long flags = 0;
 	unsigned int imr, ctrl;
 	int locked = 1;
 
