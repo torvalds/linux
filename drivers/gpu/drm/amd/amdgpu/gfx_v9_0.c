@@ -1334,7 +1334,6 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 		else
 			chip_name = "raven";
 		break;
-		break;
 	case CHIP_ARCTURUS:
 		chip_name = "arcturus";
 		break;
