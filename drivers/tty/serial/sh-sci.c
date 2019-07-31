@@ -1092,9 +1092,8 @@ static void rx_fifo_timer_fn(struct timer_list *t)
 	scif_set_rtrg(port, 1);
 }
 
-static ssize_t rx_trigger_show(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+static ssize_t rx_fifo_trigger_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct sci_port *sci = to_sci_port(port);
@@ -1102,10 +1101,9 @@ static ssize_t rx_trigger_show(struct device *dev,
 	return sprintf(buf, "%d\n", sci->rx_trigger);
 }
 
-static ssize_t rx_trigger_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf,
-				size_t count)
+static ssize_t rx_fifo_trigger_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct sci_port *sci = to_sci_port(port);
@@ -1123,7 +1121,7 @@ static ssize_t rx_trigger_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(rx_fifo_trigger, 0644, rx_trigger_show, rx_trigger_store);
+static DEVICE_ATTR_RW(rx_fifo_trigger);
 
 static ssize_t rx_fifo_timeout_show(struct device *dev,
 			       struct device_attribute *attr,
