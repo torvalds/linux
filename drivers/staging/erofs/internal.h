@@ -279,6 +279,8 @@ static inline void z_erofs_exit_zip_subsystem(void) {}
 #error erofs cannot be used in this platform
 #endif
 
+#define EROFS_IO_MAX_RETRIES_NOFAIL     5
+
 #define ROOT_NID(sb)		((sb)->root_nid)
 
 #define erofs_blknr(addr)       ((addr) / EROFS_BLKSIZ)
@@ -466,12 +468,6 @@ static inline void __submit_bio(struct bio *bio, unsigned int op,
 	bio_set_op_attrs(bio, op, op_flags);
 	submit_bio(bio);
 }
-
-#ifndef CONFIG_EROFS_FS_IO_MAX_RETRIES
-#define EROFS_IO_MAX_RETRIES_NOFAIL	0
-#else
-#define EROFS_IO_MAX_RETRIES_NOFAIL	CONFIG_EROFS_FS_IO_MAX_RETRIES
-#endif
 
 struct page *__erofs_get_meta_page(struct super_block *sb, erofs_blk_t blkaddr,
 				   bool prio, bool nofail);
