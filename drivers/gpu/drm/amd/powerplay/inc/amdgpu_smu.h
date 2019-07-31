@@ -449,6 +449,7 @@ struct pptable_funcs {
 	int (*set_default_od_settings)(struct smu_context *smu, bool initialize);
 	int (*set_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
 	int (*display_disable_memory_clock_switch)(struct smu_context *smu, bool disable_memory_clock_switch);
+	void (*dump_pptable)(struct smu_context *smu);
 };
 
 struct smu_funcs
@@ -742,7 +743,8 @@ struct smu_funcs
 	((smu)->funcs->baco_reset? (smu)->funcs->baco_reset((smu)) : 0)
 #define smu_asic_set_performance_level(smu, level) \
 	((smu)->ppt_funcs->set_performance_level? (smu)->ppt_funcs->set_performance_level((smu), (level)) : -EINVAL);
-
+#define smu_dump_pptable(smu) \
+	((smu)->ppt_funcs->dump_pptable ? (smu)->ppt_funcs->dump_pptable((smu)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,
