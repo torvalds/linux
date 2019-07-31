@@ -1980,7 +1980,11 @@ bool acpi_ec_dispatch_gpe(void)
 		return false;
 
 	ret = acpi_dispatch_gpe(NULL, first_ec->gpe);
-	return ret == ACPI_INTERRUPT_HANDLED;
+	if (ret == ACPI_INTERRUPT_HANDLED) {
+		pm_pr_dbg("EC GPE dispatched\n");
+		return true;
+	}
+	return false;
 }
 #endif /* CONFIG_PM_SLEEP */
 
