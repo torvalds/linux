@@ -303,7 +303,7 @@ void rdma_nl_exit(void)
 
 	for (idx = 0; idx < RDMA_NL_NUM_CLIENTS; idx++)
 		WARN(rdma_nl_types[idx].cb_table,
-		     "Nelink client %d wasn't released prior to unloading %s\n",
+		     "Netlink client %d wasn't released prior to unloading %s\n",
 		     idx, KBUILD_MODNAME);
 }
 
