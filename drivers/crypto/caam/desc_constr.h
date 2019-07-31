@@ -457,8 +457,8 @@ do { \
  *           functions where it is used.
  * @keylen: length of the provided algorithm key, in bytes
  * @keylen_pad: padded length of the provided algorithm key, in bytes
- * @key: address where algorithm key resides; virtual address if key_inline
- *       is true, dma (bus) address if key_inline is false.
+ * @key_dma: dma (bus) address where algorithm key resides
+ * @key_virt: virtual address where algorithm key resides
  * @key_inline: true - key can be inlined in the descriptor; false - key is
  *              referenced by the descriptor
  */
@@ -466,10 +466,8 @@ struct alginfo {
 	u32 algtype;
 	unsigned int keylen;
 	unsigned int keylen_pad;
-	union {
-		dma_addr_t key_dma;
-		const void *key_virt;
-	};
+	dma_addr_t key_dma;
+	const void *key_virt;
 	bool key_inline;
 };
 
