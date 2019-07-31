@@ -48,21 +48,26 @@ static void *file_map;	/* pointer of the mapped file */
 static void *file_end;	/* pointer to the end of the mapped file */
 static int file_updated; /* flag to state file was changed */
 static void *file_ptr;	/* current file pointer location */
+
 static void *file_append; /* added to the end of the file */
 static size_t file_append_size; /* how much is added to end of file */
 
 /* Per-file resource cleanup when multiple files. */
-static void cleanup(void)
+static void file_append_cleanup(void)
+{
+	free(file_append);
+	file_append = NULL;
+	file_append_size = 0;
+	file_updated = 0;
+}
+
+static void mmap_cleanup(void)
 {
 	if (!mmap_failed)
 		munmap(file_map, sb.st_size);
 	else
 		free(file_map);
 	file_map = NULL;
-	free(file_append);
-	file_append = NULL;
-	file_append_size = 0;
-	file_updated = 0;
 }
 
 /* ulseek, uwrite, ...:  Check return value for errors. */
@@ -103,7 +108,8 @@ static ssize_t uwrite(void const *const buf, size_t const count)
 		}
 		if (!file_append) {
 			perror("write");
-			cleanup();
+			file_append_cleanup();
+			mmap_cleanup();
 			return -1;
 		}
 		if (file_ptr < file_end) {
@@ -129,11 +135,75 @@ static void * umalloc(size_t size)
 	void *const addr = malloc(size);
 	if (addr == 0) {
 		fprintf(stderr, "malloc failed: %zu bytes\n", size);
-		cleanup();
+		file_append_cleanup();
+		mmap_cleanup();
 		return NULL;
 	}
 	return addr;
 }
+
+/*
+ * Get the whole file as a programming convenience in order to avoid
+ * malloc+lseek+read+free of many pieces.  If successful, then mmap
+ * avoids copying unused pieces; else just read the whole file.
+ * Open for both read and write; new info will be appended to the file.
+ * Use MAP_PRIVATE so that a few changes to the in-memory ElfXX_Ehdr
+ * do not propagate to the file until an explicit overwrite at the last.
+ * This preserves most aspects of consistency (all except .st_size)
+ * for simultaneous readers of the file while we are appending to it.
+ * However, multiple writers still are bad.  We choose not to use
+ * locking because it is expensive and the use case of kernel build
+ * makes multiple writers unlikely.
+ */
+static void *mmap_file(char const *fname)
+{
+	/* Avoid problems if early cleanup() */
+	fd_map = -1;
+	mmap_failed = 1;
+	file_map = NULL;
+	file_ptr = NULL;
+	file_updated = 0;
+	sb.st_size = 0;
+
+	fd_map = open(fname, O_RDONLY);
+	if (fd_map < 0) {
+		perror(fname);
+		return NULL;
+	}
+	if (fstat(fd_map, &sb) < 0) {
+		perror(fname);
+		goto out;
+	}
+	if (!S_ISREG(sb.st_mode)) {
+		fprintf(stderr, "not a regular file: %s\n", fname);
+		goto out;
+	}
+	file_map = mmap(0, sb.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE,
+			fd_map, 0);
+	if (file_map == MAP_FAILED) {
+		mmap_failed = 1;
+		file_map = umalloc(sb.st_size);
+		if (!file_map) {
+			perror(fname);
+			goto out;
+		}
+		if (read(fd_map, file_map, sb.st_size) != sb.st_size) {
+			perror(fname);
+			free(file_map);
+			file_map = NULL;
+			goto out;
+		}
+	} else
+		mmap_failed = 0;
+out:
+	close(fd_map);
+	fd_map = -1;
+
+	file_end = file_map + sb.st_size;
+
+	return file_map;
+}
+
 
 static unsigned char ideal_nop5_x86_64[5] = { 0x0f, 0x1f, 0x44, 0x00, 0x00 };
 static unsigned char ideal_nop5_x86_32[5] = { 0x3e, 0x8d, 0x74, 0x26, 0x00 };
@@ -236,61 +306,6 @@ static int make_nop_arm64(void *map, size_t const offset)
 	if (uwrite(ideal_nop, 4) < 0)
 		return -1;
 	return 0;
-}
-
-/*
- * Get the whole file as a programming convenience in order to avoid
- * malloc+lseek+read+free of many pieces.  If successful, then mmap
- * avoids copying unused pieces; else just read the whole file.
- * Open for both read and write; new info will be appended to the file.
- * Use MAP_PRIVATE so that a few changes to the in-memory ElfXX_Ehdr
- * do not propagate to the file until an explicit overwrite at the last.
- * This preserves most aspects of consistency (all except .st_size)
- * for simultaneous readers of the file while we are appending to it.
- * However, multiple writers still are bad.  We choose not to use
- * locking because it is expensive and the use case of kernel build
- * makes multiple writers unlikely.
- */
-static void *mmap_file(char const *fname)
-{
-	file_map = NULL;
-	sb.st_size = 0;
-	fd_map = open(fname, O_RDONLY);
-	if (fd_map < 0) {
-		perror(fname);
-		return NULL;
-	}
-	if (fstat(fd_map, &sb) < 0) {
-		perror(fname);
-		goto out;
-	}
-	if (!S_ISREG(sb.st_mode)) {
-		fprintf(stderr, "not a regular file: %s\n", fname);
-		goto out;
-	}
-	file_map = mmap(0, sb.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE,
-			fd_map, 0);
-	mmap_failed = 0;
-	if (file_map == MAP_FAILED) {
-		mmap_failed = 1;
-		file_map = umalloc(sb.st_size);
-		if (!file_map) {
-			perror(fname);
-			goto out;
-		}
-		if (read(fd_map, file_map, sb.st_size) != sb.st_size) {
-			perror(fname);
-			free(file_map);
-			file_map = NULL;
-			goto out;
-		}
-	}
-out:
-	close(fd_map);
-
-	file_end = file_map + sb.st_size;
-
-	return file_map;
 }
 
 static int write_file(const char *fname)
@@ -438,10 +453,11 @@ static void MIPS64_r_info(Elf64_Rel *const rp, unsigned sym, unsigned type)
 
 static int do_file(char const *const fname)
 {
-	Elf32_Ehdr *const ehdr = mmap_file(fname);
 	unsigned int reltype = 0;
+	Elf32_Ehdr *ehdr;
 	int rc = -1;
 
+	ehdr = mmap_file(fname);
 	if (!ehdr)
 		goto out;
 
@@ -577,7 +593,8 @@ static int do_file(char const *const fname)
 
 	rc = write_file(fname);
 out:
-	cleanup();
+	file_append_cleanup();
+	mmap_cleanup();
 	return rc;
 }
 
@@ -620,12 +637,6 @@ int main(int argc, char *argv[])
 		    strcmp(file + (len - ftrace_size), ftrace) == 0)
 			continue;
 
-		/* Avoid problems if early cleanup() */
-		fd_map = -1;
-		mmap_failed = 1;
-		file_map = NULL;
-		file_ptr = NULL;
-		file_updated = 0;
 		if (do_file(file)) {
 			fprintf(stderr, "%s: failed\n", file);
 			++n_error;
