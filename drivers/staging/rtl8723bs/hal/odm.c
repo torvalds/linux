@@ -1255,13 +1255,11 @@ void odm_RSSIMonitorCheckCE(PDM_ODM_T pDM_Odm)
 	int tmpEntryMaxPWDB = 0, tmpEntryMinPWDB = 0xff;
 	u8 sta_cnt = 0;
 	u32 PWDB_rssi[NUM_STA] = {0};/* 0~15]:MACID, [16~31]:PWDB_rssi */
-	bool FirstConnect = false;
 	pRA_T pRA_Table = &pDM_Odm->DM_RA_Table;
 
 	if (pDM_Odm->bLinked != true)
 		return;
 
-	FirstConnect = (pDM_Odm->bLinked) && (pRA_Table->firstconnect == false);
 	pRA_Table->firstconnect = pDM_Odm->bLinked;
 
 	/* if (check_fwstate(&Adapter->mlmepriv, WIFI_AP_STATE|WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE) == true) */
