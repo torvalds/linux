@@ -179,6 +179,193 @@ static struct policydb_compat_info *policydb_lookup_compat(int version)
 }
 
 /*
+ * The following *_destroy functions are used to
+ * free any memory allocated for each kind of
+ * symbol data in the policy database.
+ */
+
+static int perm_destroy(void *key, void *datum, void *p)
+{
+	kfree(key);
+	kfree(datum);
+	return 0;
+}
+
+static int common_destroy(void *key, void *datum, void *p)
+{
+	struct common_datum *comdatum;
+
+	kfree(key);
+	if (datum) {
+		comdatum = datum;
+		hashtab_map(comdatum->permissions.table, perm_destroy, NULL);
+		hashtab_destroy(comdatum->permissions.table);
+	}
+	kfree(datum);
+	return 0;
+}
+
+static void constraint_expr_destroy(struct constraint_expr *expr)
+{
+	if (expr) {
+		ebitmap_destroy(&expr->names);
+		if (expr->type_names) {
+			ebitmap_destroy(&expr->type_names->types);
+			ebitmap_destroy(&expr->type_names->negset);
+			kfree(expr->type_names);
+		}
+		kfree(expr);
+	}
+}
+
+static int cls_destroy(void *key, void *datum, void *p)
+{
+	struct class_datum *cladatum;
+	struct constraint_node *constraint, *ctemp;
+	struct constraint_expr *e, *etmp;
+
+	kfree(key);
+	if (datum) {
+		cladatum = datum;
+		hashtab_map(cladatum->permissions.table, perm_destroy, NULL);
+		hashtab_destroy(cladatum->permissions.table);
+		constraint = cladatum->constraints;
+		while (constraint) {
+			e = constraint->expr;
+			while (e) {
+				etmp = e;
+				e = e->next;
+				constraint_expr_destroy(etmp);
+			}
+			ctemp = constraint;
+			constraint = constraint->next;
+			kfree(ctemp);
+		}
+
+		constraint = cladatum->validatetrans;
+		while (constraint) {
+			e = constraint->expr;
+			while (e) {
+				etmp = e;
+				e = e->next;
+				constraint_expr_destroy(etmp);
+			}
+			ctemp = constraint;
+			constraint = constraint->next;
+			kfree(ctemp);
+		}
+		kfree(cladatum->comkey);
+	}
+	kfree(datum);
+	return 0;
+}
+
+static int role_destroy(void *key, void *datum, void *p)
+{
+	struct role_datum *role;
+
+	kfree(key);
+	if (datum) {
+		role = datum;
+		ebitmap_destroy(&role->dominates);
+		ebitmap_destroy(&role->types);
+	}
+	kfree(datum);
+	return 0;
+}
+
+static int type_destroy(void *key, void *datum, void *p)
+{
+	kfree(key);
+	kfree(datum);
+	return 0;
+}
+
+static int user_destroy(void *key, void *datum, void *p)
+{
+	struct user_datum *usrdatum;
+
+	kfree(key);
+	if (datum) {
+		usrdatum = datum;
+		ebitmap_destroy(&usrdatum->roles);
+		ebitmap_destroy(&usrdatum->range.level[0].cat);
+		ebitmap_destroy(&usrdatum->range.level[1].cat);
+		ebitmap_destroy(&usrdatum->dfltlevel.cat);
+	}
+	kfree(datum);
+	return 0;
+}
+
+static int sens_destroy(void *key, void *datum, void *p)
+{
+	struct level_datum *levdatum;
+
+	kfree(key);
+	if (datum) {
+		levdatum = datum;
+		if (levdatum->level)
+			ebitmap_destroy(&levdatum->level->cat);
+		kfree(levdatum->level);
+	}
+	kfree(datum);
+	return 0;
+}
+
+static int cat_destroy(void *key, void *datum, void *p)
+{
+	kfree(key);
+	kfree(datum);
+	return 0;
+}
+
+static int (*destroy_f[SYM_NUM]) (void *key, void *datum, void *datap) =
+{
+	common_destroy,
+	cls_destroy,
+	role_destroy,
+	type_destroy,
+	user_destroy,
+	cond_destroy_bool,
+	sens_destroy,
+	cat_destroy,
+};
+
+static int filenametr_destroy(void *key, void *datum, void *p)
+{
+	struct filename_trans *ft = key;
+	kfree(ft->name);
+	kfree(key);
+	kfree(datum);
+	cond_resched();
+	return 0;
+}
+
+static int range_tr_destroy(void *key, void *datum, void *p)
+{
+	struct mls_range *rt = datum;
+	kfree(key);
+	ebitmap_destroy(&rt->level[0].cat);
+	ebitmap_destroy(&rt->level[1].cat);
+	kfree(datum);
+	cond_resched();
+	return 0;
+}
+
+static void ocontext_destroy(struct ocontext *c, int i)
+{
+	if (!c)
+		return;
+
+	context_destroy(&c->context[0]);
+	context_destroy(&c->context[1]);
+	if (i == OCON_ISID || i == OCON_FS ||
+	    i == OCON_NETIF || i == OCON_FSUSE)
+		kfree(c->u.name);
+	kfree(c);
+}
+
+/*
  * Initialize the role table.
  */
 static int roles_init(struct policydb *p)
@@ -273,8 +460,6 @@ static int rangetr_cmp(struct hashtab *h, const void *k1, const void *k2)
 
 	return v;
 }
-
-static int (*destroy_f[SYM_NUM]) (void *key, void *datum, void *datap);
 
 /*
  * Initialize a policy database structure.
@@ -567,193 +752,6 @@ static int policydb_index(struct policydb *p)
 	rc = 0;
 out:
 	return rc;
-}
-
-/*
- * The following *_destroy functions are used to
- * free any memory allocated for each kind of
- * symbol data in the policy database.
- */
-
-static int perm_destroy(void *key, void *datum, void *p)
-{
-	kfree(key);
-	kfree(datum);
-	return 0;
-}
-
-static int common_destroy(void *key, void *datum, void *p)
-{
-	struct common_datum *comdatum;
-
-	kfree(key);
-	if (datum) {
-		comdatum = datum;
-		hashtab_map(comdatum->permissions.table, perm_destroy, NULL);
-		hashtab_destroy(comdatum->permissions.table);
-	}
-	kfree(datum);
-	return 0;
-}
-
-static void constraint_expr_destroy(struct constraint_expr *expr)
-{
-	if (expr) {
-		ebitmap_destroy(&expr->names);
-		if (expr->type_names) {
-			ebitmap_destroy(&expr->type_names->types);
-			ebitmap_destroy(&expr->type_names->negset);
-			kfree(expr->type_names);
-		}
-		kfree(expr);
-	}
-}
-
-static int cls_destroy(void *key, void *datum, void *p)
-{
-	struct class_datum *cladatum;
-	struct constraint_node *constraint, *ctemp;
-	struct constraint_expr *e, *etmp;
-
-	kfree(key);
-	if (datum) {
-		cladatum = datum;
-		hashtab_map(cladatum->permissions.table, perm_destroy, NULL);
-		hashtab_destroy(cladatum->permissions.table);
-		constraint = cladatum->constraints;
-		while (constraint) {
-			e = constraint->expr;
-			while (e) {
-				etmp = e;
-				e = e->next;
-				constraint_expr_destroy(etmp);
-			}
-			ctemp = constraint;
-			constraint = constraint->next;
-			kfree(ctemp);
-		}
-
-		constraint = cladatum->validatetrans;
-		while (constraint) {
-			e = constraint->expr;
-			while (e) {
-				etmp = e;
-				e = e->next;
-				constraint_expr_destroy(etmp);
-			}
-			ctemp = constraint;
-			constraint = constraint->next;
-			kfree(ctemp);
-		}
-		kfree(cladatum->comkey);
-	}
-	kfree(datum);
-	return 0;
-}
-
-static int role_destroy(void *key, void *datum, void *p)
-{
-	struct role_datum *role;
-
-	kfree(key);
-	if (datum) {
-		role = datum;
-		ebitmap_destroy(&role->dominates);
-		ebitmap_destroy(&role->types);
-	}
-	kfree(datum);
-	return 0;
-}
-
-static int type_destroy(void *key, void *datum, void *p)
-{
-	kfree(key);
-	kfree(datum);
-	return 0;
-}
-
-static int user_destroy(void *key, void *datum, void *p)
-{
-	struct user_datum *usrdatum;
-
-	kfree(key);
-	if (datum) {
-		usrdatum = datum;
-		ebitmap_destroy(&usrdatum->roles);
-		ebitmap_destroy(&usrdatum->range.level[0].cat);
-		ebitmap_destroy(&usrdatum->range.level[1].cat);
-		ebitmap_destroy(&usrdatum->dfltlevel.cat);
-	}
-	kfree(datum);
-	return 0;
-}
-
-static int sens_destroy(void *key, void *datum, void *p)
-{
-	struct level_datum *levdatum;
-
-	kfree(key);
-	if (datum) {
-		levdatum = datum;
-		if (levdatum->level)
-			ebitmap_destroy(&levdatum->level->cat);
-		kfree(levdatum->level);
-	}
-	kfree(datum);
-	return 0;
-}
-
-static int cat_destroy(void *key, void *datum, void *p)
-{
-	kfree(key);
-	kfree(datum);
-	return 0;
-}
-
-static int (*destroy_f[SYM_NUM]) (void *key, void *datum, void *datap) =
-{
-	common_destroy,
-	cls_destroy,
-	role_destroy,
-	type_destroy,
-	user_destroy,
-	cond_destroy_bool,
-	sens_destroy,
-	cat_destroy,
-};
-
-static int filenametr_destroy(void *key, void *datum, void *p)
-{
-	struct filename_trans *ft = key;
-	kfree(ft->name);
-	kfree(key);
-	kfree(datum);
-	cond_resched();
-	return 0;
-}
-
-static int range_tr_destroy(void *key, void *datum, void *p)
-{
-	struct mls_range *rt = datum;
-	kfree(key);
-	ebitmap_destroy(&rt->level[0].cat);
-	ebitmap_destroy(&rt->level[1].cat);
-	kfree(datum);
-	cond_resched();
-	return 0;
-}
-
-static void ocontext_destroy(struct ocontext *c, int i)
-{
-	if (!c)
-		return;
-
-	context_destroy(&c->context[0]);
-	context_destroy(&c->context[1]);
-	if (i == OCON_ISID || i == OCON_FS ||
-	    i == OCON_NETIF || i == OCON_FSUSE)
-		kfree(c->u.name);
-	kfree(c);
 }
 
 /*
