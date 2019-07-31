@@ -11137,6 +11137,7 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 W:	https://fedorahosted.org/dropwatch/
 F:	net/core/drop_monitor.c
+F:	include/uapi/linux/net_dropmon.h
 
 NETWORKING DRIVERS
 M:	"David S. Miller" <davem@davemloft.net>
