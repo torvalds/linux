@@ -745,7 +745,7 @@ ap_ts_i2c: &i2c14 {
 	 * All the hardware muxes would allow us to hook things up in different
 	 * ways to some potential benefit for static configurations (you could
 	 * achieve extra USB2 bandwidth by using two different ports for the
-	 * two conenctors or possibly even get USB3 peripheral mode), but in
+	 * two connectors or possibly even get USB3 peripheral mode), but in
 	 * each case you end up forcing to disconnect/reconnect an in-use
 	 * USB session in some cases depending on what you hotplug into the
 	 * other connector.  Thus hardcoding this as peripheral makes sense.
