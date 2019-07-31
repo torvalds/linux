@@ -228,10 +228,8 @@ int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev)
 		 * than dynamically allocate it and have to free it later,
 		 * just point part way into the property name for the string.
 		 */
-		if (ret < 0) {
-			/* strlen("pinctrl-") == 8 */
-			statename = prop->name + 8;
-		}
+		if (ret < 0)
+			statename = prop->name + strlen("pinctrl-");
 
 		/* For every referenced pin configuration node in it */
 		for (config = 0; config < size; config++) {
