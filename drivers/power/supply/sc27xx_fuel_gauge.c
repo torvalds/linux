@@ -111,6 +111,7 @@ struct sc27xx_fgu_data {
 static int sc27xx_fgu_cap_to_clbcnt(struct sc27xx_fgu_data *data, int capacity);
 static void sc27xx_fgu_capacity_calibration(struct sc27xx_fgu_data *data,
 					    int cap, bool int_mode);
+static void sc27xx_fgu_adjust_cap(struct sc27xx_fgu_data *data, int cap);
 
 static const char * const sc27xx_charger_supply_name[] = {
 	"sc2731_charger",
@@ -610,17 +611,25 @@ static int sc27xx_fgu_set_property(struct power_supply *psy,
 	struct sc27xx_fgu_data *data = power_supply_get_drvdata(psy);
 	int ret;
 
-	if (psp != POWER_SUPPLY_PROP_CAPACITY)
-		return -EINVAL;
-
 	mutex_lock(&data->lock);
 
-	ret = sc27xx_fgu_save_last_cap(data, val->intval);
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CAPACITY:
+		ret = sc27xx_fgu_save_last_cap(data, val->intval);
+		if (ret < 0)
+			dev_err(data->dev, "failed to save battery capacity\n");
+		break;
+
+	case POWER_SUPPLY_PROP_CALIBRATE:
+		sc27xx_fgu_adjust_cap(data, val->intval);
+		ret = 0;
+		break;
+
+	default:
+		ret = -EINVAL;
+	}
 
 	mutex_unlock(&data->lock);
-
-	if (ret < 0)
-		dev_err(data->dev, "failed to save battery capacity\n");
 
 	return ret;
 }
@@ -635,7 +644,8 @@ static void sc27xx_fgu_external_power_changed(struct power_supply *psy)
 static int sc27xx_fgu_property_is_writeable(struct power_supply *psy,
 					    enum power_supply_property psp)
 {
-	return psp == POWER_SUPPLY_PROP_CAPACITY;
+	return psp == POWER_SUPPLY_PROP_CAPACITY ||
+		psp == POWER_SUPPLY_PROP_CALIBRATE;
 }
 
 static enum power_supply_property sc27xx_fgu_props[] = {
@@ -651,6 +661,7 @@ static enum power_supply_property sc27xx_fgu_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 	POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CALIBRATE,
 };
 
 static const struct power_supply_desc sc27xx_fgu_desc = {
