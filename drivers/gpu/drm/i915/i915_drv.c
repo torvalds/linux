@@ -921,6 +921,8 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	if (ret < 0)
 		return ret;
 
+	intel_wopcm_init_early(&dev_priv->wopcm);
+
 	intel_gt_init_early(&dev_priv->gt, dev_priv);
 
 	ret = i915_gem_init_early(dev_priv);
@@ -930,13 +932,11 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	/* This must be called before any calls to HAS_PCH_* */
 	intel_detect_pch(dev_priv);
 
-	intel_wopcm_init_early(&dev_priv->wopcm);
-	intel_uc_init_early(&dev_priv->gt.uc);
 	intel_pm_setup(dev_priv);
 	intel_init_dpio(dev_priv);
 	ret = intel_power_domains_init(dev_priv);
 	if (ret < 0)
-		goto err_uc;
+		goto err_gem;
 	intel_irq_init(dev_priv);
 	intel_init_display_hooks(dev_priv);
 	intel_init_clock_gating_hooks(dev_priv);
@@ -947,8 +947,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	return 0;
 
-err_uc:
-	intel_uc_cleanup_early(&dev_priv->gt.uc);
+err_gem:
 	i915_gem_cleanup_early(dev_priv);
 err_workqueues:
 	intel_gt_driver_late_release(&dev_priv->gt);
@@ -965,7 +964,6 @@ static void i915_driver_late_release(struct drm_i915_private *dev_priv)
 {
 	intel_irq_fini(dev_priv);
 	intel_power_domains_cleanup(dev_priv);
-	intel_uc_cleanup_early(&dev_priv->gt.uc);
 	i915_gem_cleanup_early(dev_priv);
 	intel_gt_driver_late_release(&dev_priv->gt);
 	i915_workqueues_cleanup(dev_priv);

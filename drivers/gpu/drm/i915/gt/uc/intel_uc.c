@@ -137,7 +137,7 @@ void intel_uc_init_early(struct intel_uc *uc)
 	sanitize_options_early(uc);
 }
 
-void intel_uc_cleanup_early(struct intel_uc *uc)
+void intel_uc_driver_late_release(struct intel_uc *uc)
 {
 	guc_free_load_err_log(&uc->guc);
 }
