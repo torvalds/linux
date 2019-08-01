@@ -323,6 +323,7 @@ static int smmu_pmu_event_init(struct perf_event *event)
 	struct smmu_pmu *smmu_pmu = to_smmu_pmu(event->pmu);
 	struct device *dev = smmu_pmu->dev;
 	struct perf_event *sibling;
+	int group_num_events = 1;
 	u16 event_id;
 
 	if (event->attr.type != event->pmu->type)
@@ -347,18 +348,23 @@ static int smmu_pmu_event_init(struct perf_event *event)
 	}
 
 	/* Don't allow groups with mixed PMUs, except for s/w events */
-	if (event->group_leader->pmu != event->pmu &&
-	    !is_software_event(event->group_leader)) {
-		dev_dbg(dev, "Can't create mixed PMU group\n");
-		return -EINVAL;
+	if (!is_software_event(event->group_leader)) {
+		if (event->group_leader->pmu != event->pmu)
+			return -EINVAL;
+
+		if (++group_num_events > smmu_pmu->num_counters)
+			return -EINVAL;
 	}
 
 	for_each_sibling_event(sibling, event->group_leader) {
-		if (sibling->pmu != event->pmu &&
-		    !is_software_event(sibling)) {
-			dev_dbg(dev, "Can't create mixed PMU group\n");
+		if (is_software_event(sibling))
+			continue;
+
+		if (sibling->pmu != event->pmu)
 			return -EINVAL;
-		}
+
+		if (++group_num_events > smmu_pmu->num_counters)
+			return -EINVAL;
 	}
 
 	hwc->idx = -1;
