@@ -949,19 +949,15 @@ static int pca953x_probe(struct i2c_client *client,
 	if (i2c_id) {
 		chip->driver_data = i2c_id->driver_data;
 	} else {
-		const struct acpi_device_id *acpi_id;
-		struct device *dev = &client->dev;
+		const void *match;
 
-		chip->driver_data = (uintptr_t)of_device_get_match_data(dev);
-		if (!chip->driver_data) {
-			acpi_id = acpi_match_device(pca953x_acpi_ids, dev);
-			if (!acpi_id) {
-				ret = -ENODEV;
-				goto err_exit;
-			}
-
-			chip->driver_data = acpi_id->driver_data;
+		match = device_get_match_data(&client->dev);
+		if (!match) {
+			ret = -ENODEV;
+			goto err_exit;
 		}
+
+		chip->driver_data = (uintptr_t)match;
 	}
 
 	i2c_set_clientdata(client, chip);
