@@ -431,8 +431,9 @@ static int i915_pmu_event_init(struct perf_event *event)
 	return 0;
 }
 
-static u64 __get_rc6(struct drm_i915_private *i915)
+static u64 __get_rc6(struct intel_gt *gt)
 {
+	struct drm_i915_private *i915 = gt->i915;
 	u64 val;
 
 	val = intel_rc6_residency_ns(i915,
@@ -449,9 +450,10 @@ static u64 __get_rc6(struct drm_i915_private *i915)
 	return val;
 }
 
-static u64 get_rc6(struct drm_i915_private *i915)
+static u64 get_rc6(struct intel_gt *gt)
 {
 #if IS_ENABLED(CONFIG_PM)
+	struct drm_i915_private *i915 = gt->i915;
 	struct intel_runtime_pm *rpm = &i915->runtime_pm;
 	struct i915_pmu *pmu = &i915->pmu;
 	intel_wakeref_t wakeref;
@@ -460,7 +462,7 @@ static u64 get_rc6(struct drm_i915_private *i915)
 
 	wakeref = intel_runtime_pm_get_if_in_use(rpm);
 	if (wakeref) {
-		val = __get_rc6(i915);
+		val = __get_rc6(gt);
 		intel_runtime_pm_put(rpm, wakeref);
 
 		/*
@@ -523,7 +525,7 @@ static u64 get_rc6(struct drm_i915_private *i915)
 
 	return val;
 #else
-	return __get_rc6(i915);
+	return __get_rc6(gt);
 #endif
 }
 
@@ -566,7 +568,7 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 			val = count_interrupts(i915);
 			break;
 		case I915_PMU_RC6_RESIDENCY:
-			val = get_rc6(i915);
+			val = get_rc6(&i915->gt);
 			break;
 		}
 	}
