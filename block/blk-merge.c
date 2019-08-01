@@ -167,17 +167,17 @@ static bool bvec_split_segs(const struct request_queue *q,
 {
 	unsigned len = bv->bv_len;
 	unsigned total_len = 0;
-	unsigned new_nsegs = 0, seg_size = 0;
+	unsigned seg_size = 0;
 
 	/*
 	 * Multi-page bvec may be too big to hold in one segment, so the
 	 * current bvec has to be splitted as multiple segments.
 	 */
-	while (len && new_nsegs + *nsegs < max_segs) {
+	while (len && *nsegs < max_segs) {
 		seg_size = get_max_segment_size(q, bv->bv_offset + total_len);
 		seg_size = min(seg_size, len);
 
-		new_nsegs++;
+		(*nsegs)++;
 		total_len += seg_size;
 		len -= seg_size;
 
@@ -185,11 +185,7 @@ static bool bvec_split_segs(const struct request_queue *q,
 			break;
 	}
 
-	if (new_nsegs) {
-		*nsegs += new_nsegs;
-		if (sectors)
-			*sectors += total_len >> 9;
-	}
+	*sectors += total_len >> 9;
 
 	/* split in the middle of the bvec if len != 0 */
 	return !!len;
@@ -349,6 +345,7 @@ EXPORT_SYMBOL(blk_queue_split);
 unsigned int blk_recalc_rq_segments(struct request *rq)
 {
 	unsigned int nr_phys_segs = 0;
+	unsigned int nr_sectors = 0;
 	struct req_iterator iter;
 	struct bio_vec bv;
 
@@ -365,7 +362,8 @@ unsigned int blk_recalc_rq_segments(struct request *rq)
 	}
 
 	rq_for_each_bvec(bv, rq, iter)
-		bvec_split_segs(rq->q, &bv, &nr_phys_segs, NULL, UINT_MAX);
+		bvec_split_segs(rq->q, &bv, &nr_phys_segs, &nr_sectors,
+				UINT_MAX);
 	return nr_phys_segs;
 }
 
