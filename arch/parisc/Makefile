@@ -164,5 +164,8 @@ define archhelp
 	@echo  '  zinstall	- Install compressed vmlinuz kernel'
 endef
 
+archclean:
+	$(Q)$(MAKE) $(clean)=$(boot)
+
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/parisc/kernel/syscalls all
