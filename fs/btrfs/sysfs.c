@@ -795,6 +795,43 @@ void btrfs_sysfs_add_block_group_type(struct btrfs_block_group_cache *cache)
 	space_info->block_group_kobjs[index] = &rkobj->kobj;
 }
 
+static const char *alloc_name(u64 flags)
+{
+	switch (flags) {
+	case BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_DATA:
+		return "mixed";
+	case BTRFS_BLOCK_GROUP_METADATA:
+		return "metadata";
+	case BTRFS_BLOCK_GROUP_DATA:
+		return "data";
+	case BTRFS_BLOCK_GROUP_SYSTEM:
+		return "system";
+	default:
+		WARN_ON(1);
+		return "invalid-combination";
+	};
+}
+
+/*
+ * Create a sysfs entry for a space info type at path
+ * /sys/fs/btrfs/UUID/allocation/TYPE
+ */
+int btrfs_sysfs_add_space_info_type(struct btrfs_fs_info *fs_info,
+				    struct btrfs_space_info *space_info)
+{
+	int ret;
+
+	ret = kobject_init_and_add(&space_info->kobj, &space_info_ktype,
+				   fs_info->space_info_kobj, "%s",
+				   alloc_name(space_info->flags));
+	if (ret) {
+		kobject_put(&space_info->kobj);
+		return ret;
+	}
+
+	return 0;
+}
+
 /* when one_device is NULL, it removes all device links */
 
 int btrfs_sysfs_rm_device_link(struct btrfs_fs_devices *fs_devices,

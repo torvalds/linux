@@ -34,23 +34,6 @@ void btrfs_clear_space_info_full(struct btrfs_fs_info *info)
 	rcu_read_unlock();
 }
 
-static const char *alloc_name(u64 flags)
-{
-	switch (flags) {
-	case BTRFS_BLOCK_GROUP_METADATA|BTRFS_BLOCK_GROUP_DATA:
-		return "mixed";
-	case BTRFS_BLOCK_GROUP_METADATA:
-		return "metadata";
-	case BTRFS_BLOCK_GROUP_DATA:
-		return "data";
-	case BTRFS_BLOCK_GROUP_SYSTEM:
-		return "system";
-	default:
-		WARN_ON(1);
-		return "invalid-combination";
-	};
-}
-
 static int create_space_info(struct btrfs_fs_info *info, u64 flags)
 {
 
@@ -80,13 +63,9 @@ static int create_space_info(struct btrfs_fs_info *info, u64 flags)
 	INIT_LIST_HEAD(&space_info->tickets);
 	INIT_LIST_HEAD(&space_info->priority_tickets);
 
-	ret = kobject_init_and_add(&space_info->kobj, &space_info_ktype,
-				    info->space_info_kobj, "%s",
-				    alloc_name(space_info->flags));
-	if (ret) {
-		kobject_put(&space_info->kobj);
+	ret = btrfs_sysfs_add_space_info_type(info, space_info);
+	if (ret)
 		return ret;
-	}
 
 	list_add_rcu(&space_info->list, &info->space_info);
 	if (flags & BTRFS_BLOCK_GROUP_DATA)
