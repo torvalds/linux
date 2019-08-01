@@ -1689,8 +1689,6 @@ void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(atomic_read(&dev_priv->mm.free_count));
 	WARN_ON(dev_priv->mm.shrink_count);
 
-	intel_gt_cleanup_early(&dev_priv->gt);
-
 	i915_gemfs_fini(dev_priv);
 }
 

@@ -260,7 +260,7 @@ void intel_gt_fini_scratch(struct intel_gt *gt)
 	i915_vma_unpin_and_release(&gt->scratch, 0);
 }
 
-void intel_gt_cleanup_early(struct intel_gt *gt)
+void intel_gt_driver_late_release(struct intel_gt *gt)
 {
 	intel_gt_fini_reset(gt);
 }
