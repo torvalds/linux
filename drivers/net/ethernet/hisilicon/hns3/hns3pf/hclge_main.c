@@ -2517,7 +2517,7 @@ static void hclge_reset_task_schedule(struct hclge_dev *hdev)
 			      &hdev->rst_service_task);
 }
 
-static void hclge_task_schedule(struct hclge_dev *hdev)
+void hclge_task_schedule(struct hclge_dev *hdev, unsigned long delay_time)
 {
 	if (!test_bit(HCLGE_STATE_DOWN, &hdev->state) &&
 	    !test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
@@ -2526,7 +2526,7 @@ static void hclge_task_schedule(struct hclge_dev *hdev)
 		hdev->fd_arfs_expire_timer++;
 		mod_delayed_work_on(cpumask_first(&hdev->affinity_mask),
 				    system_wq, &hdev->service_task,
-				    round_jiffies_relative(HZ));
+				    delay_time);
 	}
 }
 
@@ -3636,7 +3636,7 @@ static void hclge_service_task(struct work_struct *work)
 		hdev->fd_arfs_expire_timer = 0;
 	}
 
-	hclge_task_schedule(hdev);
+	hclge_task_schedule(hdev, round_jiffies_relative(HZ));
 }
 
 struct hclge_vport *hclge_get_vport(struct hnae3_handle *handle)
@@ -6175,7 +6175,7 @@ static void hclge_set_timer_task(struct hnae3_handle *handle, bool enable)
 	struct hclge_dev *hdev = vport->back;
 
 	if (enable) {
-		hclge_task_schedule(hdev);
+		hclge_task_schedule(hdev, round_jiffies_relative(HZ));
 	} else {
 		/* Set the DOWN flag here to disable the service to be
 		 * scheduled again
@@ -6220,6 +6220,7 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state) &&
 	    hdev->reset_type != HNAE3_FUNC_RESET) {
 		hclge_mac_stop_phy(hdev);
+		hclge_update_link_status(hdev);
 		return;
 	}
 

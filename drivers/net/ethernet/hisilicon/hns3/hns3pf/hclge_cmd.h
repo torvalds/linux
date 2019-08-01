@@ -257,6 +257,7 @@ enum hclge_opcode_type {
 	/* M7 stats command */
 	HCLGE_OPC_M7_STATS_BD		= 0x7012,
 	HCLGE_OPC_M7_STATS_INFO		= 0x7013,
+	HCLGE_OPC_M7_COMPAT_CFG		= 0x701A,
 
 	/* SFP command */
 	HCLGE_OPC_GET_SFP_INFO		= 0x7104,
@@ -1007,6 +1008,12 @@ struct hclge_query_ppu_pf_other_int_dfx_cmd {
 	__le16 rx_rd_fbd_poison_qid;
 	__le16 rx_rd_fbd_poison_vf_id;
 	u8 rsv[4];
+};
+
+#define HCLGE_LINK_EVENT_REPORT_EN_B	0
+struct hclge_firmware_compat_cmd {
+	__le32 compat;
+	u8 rsv[20];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

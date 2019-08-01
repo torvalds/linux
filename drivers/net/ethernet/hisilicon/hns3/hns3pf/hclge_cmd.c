@@ -383,6 +383,22 @@ err_csq:
 	return ret;
 }
 
+static int hclge_firmware_compat_config(struct hclge_dev *hdev)
+{
+	struct hclge_firmware_compat_cmd *req;
+	struct hclge_desc desc;
+	u32 compat = 0;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_M7_COMPAT_CFG, false);
+
+	req = (struct hclge_firmware_compat_cmd *)desc.data;
+
+	hnae3_set_bit(compat, HCLGE_LINK_EVENT_REPORT_EN_B, 1);
+	req->compat = cpu_to_le32(compat);
+
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
 int hclge_cmd_init(struct hclge_dev *hdev)
 {
 	u32 version;
@@ -428,6 +444,15 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 				 HNAE3_FW_VERSION_BYTE1_SHIFT),
 		 hnae3_get_field(version, HNAE3_FW_VERSION_BYTE0_MASK,
 				 HNAE3_FW_VERSION_BYTE0_SHIFT));
+
+	/* ask the firmware to enable some features, driver can work without
+	 * it.
+	 */
+	ret = hclge_firmware_compat_config(hdev);
+	if (ret)
+		dev_warn(&hdev->pdev->dev,
+			 "Firmware compatible features not enabled(%d).\n",
+			 ret);
 
 	return 0;
 
