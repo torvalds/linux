@@ -3120,6 +3120,72 @@ ipv6_runtime()
 }
 
 ################################################################################
+# netfilter blocking connections
+
+netfilter_tcp_reset()
+{
+	local a
+
+	for a in ${NSA_IP} ${VRF_IP}
+	do
+		log_start
+		run_cmd nettest -s &
+		sleep 1
+		run_cmd_nsb nettest -r ${a}
+		log_test_addr ${a} $? 1 "Global server, reject with TCP-reset on Rx"
+	done
+}
+
+netfilter_icmp()
+{
+	local stype="$1"
+	local arg
+	local a
+
+	[ "${stype}" = "UDP" ] && arg="-D"
+
+	for a in ${NSA_IP} ${VRF_IP}
+	do
+		log_start
+		run_cmd nettest ${arg} -s &
+		sleep 1
+		run_cmd_nsb nettest ${arg} -r ${a}
+		log_test_addr ${a} $? 1 "Global ${stype} server, Rx reject icmp-port-unreach"
+	done
+}
+
+ipv4_netfilter()
+{
+	which nettest >/dev/null
+	if [ $? -ne 0 ]; then
+		log_error "nettest not found; skipping tests"
+		return
+	fi
+
+	log_section "IPv4 Netfilter"
+	log_subsection "TCP reset"
+
+	setup "yes"
+	run_cmd iptables -A INPUT -p tcp --dport 12345 -j REJECT --reject-with tcp-reset
+
+	netfilter_tcp_reset
+
+	log_start
+	log_subsection "ICMP unreachable"
+
+	log_start
+	run_cmd iptables -F
+	run_cmd iptables -A INPUT -p tcp --dport 12345 -j REJECT --reject-with icmp-port-unreachable
+	run_cmd iptables -A INPUT -p udp --dport 12345 -j REJECT --reject-with icmp-port-unreachable
+
+	netfilter_icmp "TCP"
+	netfilter_icmp "UDP"
+
+	log_start
+	iptables -F
+}
+
+################################################################################
 # usage
 
 usage()
@@ -3139,7 +3205,7 @@ EOF
 ################################################################################
 # main
 
-TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp ipv4_addr_bind ipv4_runtime"
+TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp ipv4_addr_bind ipv4_runtime ipv4_netfilter"
 TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp ipv6_addr_bind ipv6_runtime"
 PAUSE_ON_FAIL=no
 PAUSE=no
@@ -3183,6 +3249,7 @@ do
 	ipv4_udp|udp)    ipv4_udp;;
 	ipv4_bind|bind)  ipv4_addr_bind;;
 	ipv4_runtime)    ipv4_runtime;;
+	ipv4_netfilter)  ipv4_netfilter;;
 
 	ipv6_ping|ping6) ipv6_ping;;
 	ipv6_tcp|tcp6)   ipv6_tcp;;
