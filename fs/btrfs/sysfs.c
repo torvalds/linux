@@ -675,11 +675,16 @@ void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 	btrfs_sysfs_rm_device_link(fs_info->fs_devices, NULL);
 }
 
-const char * const btrfs_feature_set_names[FEAT_MAX] = {
+static const char * const btrfs_feature_set_names[FEAT_MAX] = {
 	[FEAT_COMPAT]	 = "compat",
 	[FEAT_COMPAT_RO] = "compat_ro",
 	[FEAT_INCOMPAT]	 = "incompat",
 };
+
+const char * const btrfs_feature_set_name(enum btrfs_feature_set set)
+{
+	return btrfs_feature_set_names[set];
+}
 
 char *btrfs_printable_features(enum btrfs_feature_set set, u64 flags)
 {

@@ -5259,7 +5259,7 @@ static int check_feature_bits(struct btrfs_fs_info *fs_info,
 			      u64 change_mask, u64 flags, u64 supported_flags,
 			      u64 safe_set, u64 safe_clear)
 {
-	const char *type = btrfs_feature_set_names[set];
+	const char *type = btrfs_feature_set_name(set);
 	char *names;
 	u64 disallowed, unsupported;
 	u64 set_mask = flags & change_mask;
