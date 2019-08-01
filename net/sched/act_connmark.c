@@ -104,6 +104,7 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 	struct tcf_connmark_info *ci;
 	struct tc_connmark *parm;
 	int ret = 0;
+	u32 index;
 
 	if (!nla)
 		return -EINVAL;
@@ -117,13 +118,13 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	parm = nla_data(tb[TCA_CONNMARK_PARMS]);
-
-	ret = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	index = parm->index;
+	ret = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!ret) {
-		ret = tcf_idr_create(tn, parm->index, est, a,
+		ret = tcf_idr_create(tn, index, est, a,
 				     &act_connmark_ops, bind, false);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 
