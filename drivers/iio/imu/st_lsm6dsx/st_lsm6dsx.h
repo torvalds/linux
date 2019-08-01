@@ -58,8 +58,8 @@ enum st_lsm6dsx_hw_id {
 	.address = addr,						\
 	.modified = 1,							\
 	.channel2 = mod,						\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
-			      BIT(IIO_CHAN_INFO_SCALE),			\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),			\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
 	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
 	.scan_index = scan_idx,						\
 	.scan_type = {							\
