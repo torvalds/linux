@@ -394,6 +394,7 @@ static int hclge_firmware_compat_config(struct hclge_dev *hdev)
 	req = (struct hclge_firmware_compat_cmd *)desc.data;
 
 	hnae3_set_bit(compat, HCLGE_LINK_EVENT_REPORT_EN_B, 1);
+	hnae3_set_bit(compat, HCLGE_NCSI_ERROR_REPORT_EN_B, 1);
 	req->compat = cpu_to_le32(compat);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
