@@ -357,7 +357,10 @@ static int i2c_acpi_find_match_adapter(struct device *dev, const void *data)
 
 struct i2c_adapter *i2c_acpi_find_adapter_by_handle(acpi_handle handle)
 {
-	struct device *dev = bus_find_device_by_acpi_dev(&i2c_bus_type, handle);
+	struct device *dev;
+
+	dev = bus_find_device(&i2c_bus_type, NULL, handle,
+			      i2c_acpi_find_match_adapter);
 
 	return dev ? i2c_verify_adapter(dev) : NULL;
 }
