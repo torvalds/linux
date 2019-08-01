@@ -52,93 +52,6 @@ struct core_freesync {
 	struct dc *dc;
 };
 
-void setFieldWithMask(unsigned char *dest, unsigned int mask, unsigned int value)
-{
-	unsigned int shift = 0;
-
-	if (!mask || !dest)
-		return;
-
-	while (!((mask >> shift) & 1))
-		shift++;
-
-	//reset
-	*dest = *dest & ~mask;
-	//set
-	//dont let value span past mask
-	value = value & (mask >> shift);
-	//insert value
-	*dest = *dest | (value << shift);
-}
-
-// VTEM Byte Offset
-#define VRR_VTEM_PB0		0
-#define VRR_VTEM_PB1		1
-#define VRR_VTEM_PB2		2
-#define VRR_VTEM_PB3		3
-#define VRR_VTEM_PB4		4
-#define VRR_VTEM_PB5		5
-#define VRR_VTEM_PB6		6
-
-#define VRR_VTEM_MD0		7
-#define VRR_VTEM_MD1		8
-#define VRR_VTEM_MD2		9
-#define VRR_VTEM_MD3		10
-
-
-// VTEM Byte Masks
-//PB0
-#define MASK__VRR_VTEM_PB0__RESERVED0  0x01
-#define MASK__VRR_VTEM_PB0__SYNC       0x02
-#define MASK__VRR_VTEM_PB0__VFR        0x04
-#define MASK__VRR_VTEM_PB0__AFR        0x08
-#define MASK__VRR_VTEM_PB0__DS_TYPE    0x30
-	//0: Periodic pseudo-static EM Data Set
-	//1: Periodic dynamic EM Data Set
-	//2: Unique EM Data Set
-	//3: Reserved
-#define MASK__VRR_VTEM_PB0__END        0x40
-#define MASK__VRR_VTEM_PB0__NEW        0x80
-
-//PB1
-#define MASK__VRR_VTEM_PB1__RESERVED1 0xFF
-
-//PB2
-#define MASK__VRR_VTEM_PB2__ORGANIZATION_ID 0xFF
-	//0: This is a Vendor Specific EM Data Set
-	//1: This EM Data Set is defined by This Specification (HDMI 2.1 r102.clean)
-	//2: This EM Data Set is defined by CTA-861-G
-	//3: This EM Data Set is defined by VESA
-//PB3
-#define MASK__VRR_VTEM_PB3__DATA_SET_TAG_MSB    0xFF
-//PB4
-#define MASK__VRR_VTEM_PB4__DATA_SET_TAG_LSB    0xFF
-//PB5
-#define MASK__VRR_VTEM_PB5__DATA_SET_LENGTH_MSB 0xFF
-//PB6
-#define MASK__VRR_VTEM_PB6__DATA_SET_LENGTH_LSB 0xFF
-
-
-
-//PB7-27 (20 bytes):
-//PB7 = MD0
-#define MASK__VRR_VTEM_MD0__VRR_EN         0x01
-#define MASK__VRR_VTEM_MD0__M_CONST        0x02
-#define MASK__VRR_VTEM_MD0__RESERVED2      0x0C
-#define MASK__VRR_VTEM_MD0__FVA_FACTOR_M1  0xF0
-
-//MD1
-#define MASK__VRR_VTEM_MD1__BASE_VFRONT    0xFF
-
-//MD2
-#define MASK__VRR_VTEM_MD2__BASE_REFRESH_RATE_98  0x03
-#define MASK__VRR_VTEM_MD2__RB                    0x04
-#define MASK__VRR_VTEM_MD2__RESERVED3             0xF8
-
-//MD3
-#define MASK__VRR_VTEM_MD3__BASE_REFRESH_RATE_07  0xFF
-
-
 #define MOD_FREESYNC_TO_CORE(mod_freesync)\
 		container_of(mod_freesync, struct core_freesync, public)
 
@@ -574,22 +487,64 @@ bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
 	return false;
 }
 
-static void build_vrr_infopacket_header_vtem(enum signal_type signal,
+static void build_vrr_infopacket_data(const struct mod_vrr_params *vrr,
 		struct dc_info_packet *infopacket)
 {
-	// HEADER
+	/* PB1 = 0x1A (24bit AMD IEEE OUI (0x00001A) - Byte 0) */
+	infopacket->sb[1] = 0x1A;
 
-	// HB0, HB1, HB2 indicates PacketType VTEMPacket
-	infopacket->hb0 = 0x7F;
-	infopacket->hb1 = 0xC0;
-	infopacket->hb2 = 0x00; //sequence_index
+	/* PB2 = 0x00 (24bit AMD IEEE OUI (0x00001A) - Byte 1) */
+	infopacket->sb[2] = 0x00;
 
-	setFieldWithMask(&infopacket->sb[VRR_VTEM_PB0], MASK__VRR_VTEM_PB0__VFR, 1);
-	setFieldWithMask(&infopacket->sb[VRR_VTEM_PB2], MASK__VRR_VTEM_PB2__ORGANIZATION_ID, 1);
-	setFieldWithMask(&infopacket->sb[VRR_VTEM_PB3], MASK__VRR_VTEM_PB3__DATA_SET_TAG_MSB, 0);
-	setFieldWithMask(&infopacket->sb[VRR_VTEM_PB4], MASK__VRR_VTEM_PB4__DATA_SET_TAG_LSB, 1);
-	setFieldWithMask(&infopacket->sb[VRR_VTEM_PB5], MASK__VRR_VTEM_PB5__DATA_SET_LENGTH_MSB, 0);
-	setFieldWithMask(&infopacket->sb[VRR_VTEM_PB6], MASK__VRR_VTEM_PB6__DATA_SET_LENGTH_LSB, 4);
+	/* PB3 = 0x00 (24bit AMD IEEE OUI (0x00001A) - Byte 2) */
+	infopacket->sb[3] = 0x00;
+
+	/* PB4 = Reserved */
+
+	/* PB5 = Reserved */
+
+	/* PB6 = [Bits 7:3 = Reserved] */
+
+	/* PB6 = [Bit 0 = FreeSync Supported] */
+	if (vrr->state != VRR_STATE_UNSUPPORTED)
+		infopacket->sb[6] |= 0x01;
+
+	/* PB6 = [Bit 1 = FreeSync Enabled] */
+	if (vrr->state != VRR_STATE_DISABLED &&
+			vrr->state != VRR_STATE_UNSUPPORTED)
+		infopacket->sb[6] |= 0x02;
+
+	/* PB6 = [Bit 2 = FreeSync Active] */
+	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
+			vrr->state == VRR_STATE_ACTIVE_FIXED)
+		infopacket->sb[6] |= 0x04;
+
+	/* PB7 = FreeSync Minimum refresh rate (Hz) */
+	infopacket->sb[7] = (unsigned char)(vrr->min_refresh_in_uhz / 1000000);
+
+	/* PB8 = FreeSync Maximum refresh rate (Hz)
+	 * Note: We should never go above the field rate of the mode timing set.
+	 */
+	infopacket->sb[8] = (unsigned char)(vrr->max_refresh_in_uhz / 1000000);
+
+
+	//FreeSync HDR
+	infopacket->sb[9] = 0;
+	infopacket->sb[10] = 0;
+}
+
+static void build_vrr_infopacket_fs2_data(enum color_transfer_func app_tf,
+		struct dc_info_packet *infopacket)
+{
+	if (app_tf != TRANSFER_FUNC_UNKNOWN) {
+		infopacket->valid = true;
+
+		infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
+
+		if (app_tf == TRANSFER_FUNC_GAMMA_22) {
+			infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
+		}
+	}
 }
 
 static void build_vrr_infopacket_header_v1(enum signal_type signal,
@@ -690,105 +645,6 @@ static void build_vrr_infopacket_header_v2(enum signal_type signal,
 	}
 }
 
-static void build_vrr_vtem_infopacket_data(const struct dc_stream_state *stream,
-		const struct mod_vrr_params *vrr,
-		struct dc_info_packet *infopacket)
-{
-	unsigned int fieldRateInHz;
-
-	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
-				vrr->state == VRR_STATE_ACTIVE_FIXED) {
-		setFieldWithMask(&infopacket->sb[VRR_VTEM_MD0], MASK__VRR_VTEM_MD0__VRR_EN, 1);
-	} else {
-		setFieldWithMask(&infopacket->sb[VRR_VTEM_MD0], MASK__VRR_VTEM_MD0__VRR_EN, 0);
-	}
-
-	if (!stream->timing.vic) {
-		setFieldWithMask(&infopacket->sb[VRR_VTEM_MD1], MASK__VRR_VTEM_MD1__BASE_VFRONT,
-				stream->timing.v_front_porch);
-
-
-		/* TODO: In dal2, we check mode flags for a reduced blanking timing.
-		 * Need a way to relay that information to this function.
-		 * if("ReducedBlanking")
-		 * {
-		 *   setFieldWithMask(&infopacket->sb[VRR_VTEM_MD2], MASK__VRR_VTEM_MD2__RB, 1;
-		 * }
-		 */
-
-		//TODO: DAL2 does FixPoint and rounding. Here we might need to account for that
-		fieldRateInHz = (stream->timing.pix_clk_100hz * 100)/
-			(stream->timing.h_total * stream->timing.v_total);
-
-		setFieldWithMask(&infopacket->sb[VRR_VTEM_MD2],  MASK__VRR_VTEM_MD2__BASE_REFRESH_RATE_98,
-				fieldRateInHz >> 8);
-		setFieldWithMask(&infopacket->sb[VRR_VTEM_MD3], MASK__VRR_VTEM_MD3__BASE_REFRESH_RATE_07,
-				fieldRateInHz);
-
-	}
-	infopacket->valid = true;
-}
-
-static void build_vrr_infopacket_data(const struct mod_vrr_params *vrr,
-		struct dc_info_packet *infopacket)
-{
-	/* PB1 = 0x1A (24bit AMD IEEE OUI (0x00001A) - Byte 0) */
-	infopacket->sb[1] = 0x1A;
-
-	/* PB2 = 0x00 (24bit AMD IEEE OUI (0x00001A) - Byte 1) */
-	infopacket->sb[2] = 0x00;
-
-	/* PB3 = 0x00 (24bit AMD IEEE OUI (0x00001A) - Byte 2) */
-	infopacket->sb[3] = 0x00;
-
-	/* PB4 = Reserved */
-
-	/* PB5 = Reserved */
-
-	/* PB6 = [Bits 7:3 = Reserved] */
-
-	/* PB6 = [Bit 0 = FreeSync Supported] */
-	if (vrr->state != VRR_STATE_UNSUPPORTED)
-		infopacket->sb[6] |= 0x01;
-
-	/* PB6 = [Bit 1 = FreeSync Enabled] */
-	if (vrr->state != VRR_STATE_DISABLED &&
-			vrr->state != VRR_STATE_UNSUPPORTED)
-		infopacket->sb[6] |= 0x02;
-
-	/* PB6 = [Bit 2 = FreeSync Active] */
-	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
-			vrr->state == VRR_STATE_ACTIVE_FIXED)
-		infopacket->sb[6] |= 0x04;
-
-	/* PB7 = FreeSync Minimum refresh rate (Hz) */
-	infopacket->sb[7] = (unsigned char)(vrr->min_refresh_in_uhz / 1000000);
-
-	/* PB8 = FreeSync Maximum refresh rate (Hz)
-	 * Note: We should never go above the field rate of the mode timing set.
-	 */
-	infopacket->sb[8] = (unsigned char)(vrr->max_refresh_in_uhz / 1000000);
-
-
-	//FreeSync HDR
-	infopacket->sb[9] = 0;
-	infopacket->sb[10] = 0;
-}
-
-static void build_vrr_infopacket_fs2_data(enum color_transfer_func app_tf,
-		struct dc_info_packet *infopacket)
-{
-	if (app_tf != TRANSFER_FUNC_UNKNOWN) {
-		infopacket->valid = true;
-
-		infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
-
-		if (app_tf == TRANSFER_FUNC_GAMMA_22) {
-			infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
-		}
-	}
-}
-
 static void build_vrr_infopacket_checksum(unsigned int *payload_size,
 		struct dc_info_packet *infopacket)
 {
@@ -841,21 +697,6 @@ static void build_vrr_infopacket_v2(enum signal_type signal,
 	infopacket->valid = true;
 }
 
-static void build_vrr_infopacket_vtem(const struct dc_stream_state *stream,
-		const struct mod_vrr_params *vrr,
-		struct dc_info_packet *infopacket)
-{
-	//VTEM info packet for HdmiVrr
-
-	memset(infopacket, 0, sizeof(struct dc_info_packet));
-
-	//VTEM Packet is structured differently
-	build_vrr_infopacket_header_vtem(stream->signal, infopacket);
-	build_vrr_vtem_infopacket_data(stream, vrr, infopacket);
-
-	infopacket->valid = true;
-}
-
 void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
 		const struct mod_vrr_params *vrr,
@@ -868,15 +709,12 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 	 * Check if Freesync is supported. Return if false. If true,
 	 * set the corresponding bit in the info packet
 	 */
-	if (!vrr->supported || (!vrr->send_info_frame && packet_type != PACKET_TYPE_VTEM))
+	if (!vrr->supported || (!vrr->send_info_frame))
 		return;
 
 	switch (packet_type) {
 	case PACKET_TYPE_FS2:
 		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket);
-		break;
-	case PACKET_TYPE_VTEM:
-		build_vrr_infopacket_vtem(stream, vrr, infopacket);
 		break;
 	case PACKET_TYPE_VRR:
 	case PACKET_TYPE_FS1:
