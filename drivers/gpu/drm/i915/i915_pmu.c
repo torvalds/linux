@@ -162,29 +162,30 @@ add_sample(struct i915_pmu_sample *sample, u32 val)
 }
 
 static void
-engines_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
+engines_sample(struct drm_i915_private *i915, unsigned int period_ns)
 {
+	struct intel_uncore *uncore = &i915->uncore;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	intel_wakeref_t wakeref;
 	unsigned long flags;
 
-	if ((dev_priv->pmu.enable & ENGINE_SAMPLE_MASK) == 0)
+	if ((i915->pmu.enable & ENGINE_SAMPLE_MASK) == 0)
 		return;
 
 	wakeref = 0;
-	if (READ_ONCE(dev_priv->gt.awake))
-		wakeref = intel_runtime_pm_get_if_in_use(&dev_priv->runtime_pm);
+	if (READ_ONCE(i915->gt.awake))
+		wakeref = intel_runtime_pm_get_if_in_use(&i915->runtime_pm);
 	if (!wakeref)
 		return;
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
-	for_each_engine(engine, dev_priv, id) {
+	spin_lock_irqsave(&uncore->lock, flags);
+	for_each_engine(engine, i915, id) {
 		struct intel_engine_pmu *pmu = &engine->pmu;
 		bool busy;
 		u32 val;
 
-		val = I915_READ_FW(RING_CTL(engine->mmio_base));
+		val = ENGINE_READ_FW(engine, RING_CTL);
 		if (val == 0) /* powerwell off => engine idle */
 			continue;
 
@@ -202,15 +203,15 @@ engines_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 		 */
 		busy = val & (RING_WAIT_SEMAPHORE | RING_WAIT);
 		if (!busy) {
-			val = I915_READ_FW(RING_MI_MODE(engine->mmio_base));
+			val = ENGINE_READ_FW(engine, RING_MI_MODE);
 			busy = !(val & MODE_IDLE);
 		}
 		if (busy)
 			add_sample(&pmu->sample[I915_SAMPLE_BUSY], period_ns);
 	}
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
+	spin_unlock_irqrestore(&uncore->lock, flags);
 
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
 static void
