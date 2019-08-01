@@ -5654,7 +5654,7 @@ static int gfx_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
 	if (adev->gfx.funcs->query_ras_error_count)
 		adev->gfx.funcs->query_ras_error_count(adev, err_data);
 	amdgpu_ras_reset_gpu(adev, 0);
-	return AMDGPU_RAS_UE;
+	return AMDGPU_RAS_SUCCESS;
 }
 
 static const struct {

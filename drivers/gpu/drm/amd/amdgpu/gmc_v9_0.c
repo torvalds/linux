@@ -259,7 +259,7 @@ static int gmc_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
 	if (err_data->ue_count)
 		amdgpu_ras_reset_gpu(adev, 0);
 
-	return AMDGPU_RAS_UE;
+	return AMDGPU_RAS_SUCCESS;
 }
 
 static int gmc_v9_0_process_ecc_irq(struct amdgpu_device *adev,

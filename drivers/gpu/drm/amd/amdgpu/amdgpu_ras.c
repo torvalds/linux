@@ -1048,7 +1048,7 @@ static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 			 * But leave IP do that recovery, here we just dispatch
 			 * the error.
 			 */
-			if (ret == AMDGPU_RAS_UE) {
+			if (ret == AMDGPU_RAS_SUCCESS) {
 				/* these counts could be left as 0 if
 				 * some blocks do not count error number
 				 */
