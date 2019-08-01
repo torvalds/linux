@@ -107,6 +107,48 @@ static inline
 void ibdev_dbg(const struct ib_device *ibdev, const char *format, ...) {}
 #endif
 
+#define ibdev_level_ratelimited(ibdev_level, ibdev, fmt, ...)           \
+do {                                                                    \
+	static DEFINE_RATELIMIT_STATE(_rs,                              \
+				      DEFAULT_RATELIMIT_INTERVAL,       \
+				      DEFAULT_RATELIMIT_BURST);         \
+	if (__ratelimit(&_rs))                                          \
+		ibdev_level(ibdev, fmt, ##__VA_ARGS__);                 \
+} while (0)
+
+#define ibdev_emerg_ratelimited(ibdev, fmt, ...) \
+	ibdev_level_ratelimited(ibdev_emerg, ibdev, fmt, ##__VA_ARGS__)
+#define ibdev_alert_ratelimited(ibdev, fmt, ...) \
+	ibdev_level_ratelimited(ibdev_alert, ibdev, fmt, ##__VA_ARGS__)
+#define ibdev_crit_ratelimited(ibdev, fmt, ...) \
+	ibdev_level_ratelimited(ibdev_crit, ibdev, fmt, ##__VA_ARGS__)
+#define ibdev_err_ratelimited(ibdev, fmt, ...) \
+	ibdev_level_ratelimited(ibdev_err, ibdev, fmt, ##__VA_ARGS__)
+#define ibdev_warn_ratelimited(ibdev, fmt, ...) \
+	ibdev_level_ratelimited(ibdev_warn, ibdev, fmt, ##__VA_ARGS__)
+#define ibdev_notice_ratelimited(ibdev, fmt, ...) \
+	ibdev_level_ratelimited(ibdev_notice, ibdev, fmt, ##__VA_ARGS__)
+#define ibdev_info_ratelimited(ibdev, fmt, ...) \
+	ibdev_level_ratelimited(ibdev_info, ibdev, fmt, ##__VA_ARGS__)
+
+#if defined(CONFIG_DYNAMIC_DEBUG)
+/* descriptor check is first to prevent flooding with "callbacks suppressed" */
+#define ibdev_dbg_ratelimited(ibdev, fmt, ...)                          \
+do {                                                                    \
+	static DEFINE_RATELIMIT_STATE(_rs,                              \
+				      DEFAULT_RATELIMIT_INTERVAL,       \
+				      DEFAULT_RATELIMIT_BURST);         \
+	DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);                 \
+	if (DYNAMIC_DEBUG_BRANCH(descriptor) && __ratelimit(&_rs))      \
+		__dynamic_ibdev_dbg(&descriptor, ibdev, fmt,            \
+				    ##__VA_ARGS__);                     \
+} while (0)
+#else
+__printf(2, 3) __cold
+static inline
+void ibdev_dbg_ratelimited(const struct ib_device *ibdev, const char *format, ...) {}
+#endif
+
 union ib_gid {
 	u8	raw[16];
 	struct {
