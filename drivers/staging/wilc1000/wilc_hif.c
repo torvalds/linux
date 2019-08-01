@@ -798,15 +798,6 @@ int wilc_disconnect(struct wilc_vif *vif)
 	return 0;
 }
 
-void wilc_resolve_disconnect_aberration(struct wilc_vif *vif)
-{
-	if (!vif->hif_drv)
-		return;
-	if (vif->hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP ||
-	    vif->hif_drv->hif_state == HOST_IF_CONNECTING)
-		wilc_disconnect(vif);
-}
-
 int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats)
 {
 	struct wid wid_list[5];
