@@ -104,51 +104,40 @@ int mt76x02_mac_set_beacon(struct mt76x02_dev *dev, u8 vif_idx,
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_set_beacon);
 
-static void
-__mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev, u8 vif_idx,
-				bool val, struct sk_buff *skb)
-{
-	u8 old_mask = dev->mt76.beacon_mask;
-	bool en;
-	u32 reg;
-
-	if (val) {
-		dev->mt76.beacon_mask |= BIT(vif_idx);
-		if (skb)
-			mt76x02_mac_set_beacon(dev, vif_idx, skb);
-	} else {
-		dev->mt76.beacon_mask &= ~BIT(vif_idx);
-		mt76x02_mac_set_beacon(dev, vif_idx, NULL);
-	}
-
-	if (!!old_mask == !!dev->mt76.beacon_mask)
-		return;
-
-	en = dev->mt76.beacon_mask;
-
-	reg = MT_BEACON_TIME_CFG_BEACON_TX |
-	      MT_BEACON_TIME_CFG_TBTT_EN |
-	      MT_BEACON_TIME_CFG_TIMER_EN;
-	mt76_rmw(dev, MT_BEACON_TIME_CFG, reg, reg * en);
-	mt76x02_beacon_enable(dev, en);
-}
-
 void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
-				   struct ieee80211_vif *vif, bool val)
+				   struct ieee80211_vif *vif, bool enable)
 {
-	u8 vif_idx = ((struct mt76x02_vif *)vif->drv_priv)->idx;
-	struct sk_buff *skb = NULL;
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
+	u8 old_mask = dev->mt76.beacon_mask;
 
 	mt76x02_pre_tbtt_enable(dev, false);
-
-	if (mt76_is_usb(dev))
-		skb = ieee80211_beacon_get(mt76_hw(dev), vif);
 
 	if (!dev->mt76.beacon_mask)
 		dev->tbtt_count = 0;
 
-	__mt76x02_mac_set_beacon_enable(dev, vif_idx, val, skb);
+	if (enable) {
+		dev->mt76.beacon_mask |= BIT(mvif->idx);
+	} else {
+		dev->mt76.beacon_mask &= ~BIT(mvif->idx);
+		mt76x02_mac_set_beacon(dev, mvif->idx, NULL);
+	}
 
+	if (!!old_mask == !!dev->mt76.beacon_mask)
+		goto out;
+
+	if (dev->mt76.beacon_mask)
+		mt76_set(dev, MT_BEACON_TIME_CFG,
+			 MT_BEACON_TIME_CFG_BEACON_TX |
+			 MT_BEACON_TIME_CFG_TBTT_EN |
+			 MT_BEACON_TIME_CFG_TIMER_EN);
+	else
+		mt76_clear(dev, MT_BEACON_TIME_CFG,
+			   MT_BEACON_TIME_CFG_BEACON_TX |
+			   MT_BEACON_TIME_CFG_TBTT_EN |
+			   MT_BEACON_TIME_CFG_TIMER_EN);
+	mt76x02_beacon_enable(dev, !!dev->mt76.beacon_mask);
+
+out:
 	mt76x02_pre_tbtt_enable(dev, true);
 }
 
