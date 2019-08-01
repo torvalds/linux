@@ -828,7 +828,7 @@ struct hclge_mac_ethertype_idx_rd_cmd {
 	u8	flags;
 	u8	resp_code;
 	__le16  vlan_tag;
-	u8      mac_add[6];
+	u8      mac_addr[6];
 	__le16  index;
 	__le16	ethter_type;
 	__le16  egress_port;

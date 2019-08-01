@@ -847,9 +847,9 @@ static void hclge_dbg_dump_mng_table(struct hclge_dev *hdev)
 		memset(printf_buf, 0, HCLGE_DBG_BUF_LEN);
 		snprintf(printf_buf, HCLGE_DBG_BUF_LEN,
 			 "%02u   |%02x:%02x:%02x:%02x:%02x:%02x|",
-			 req0->index, req0->mac_add[0], req0->mac_add[1],
-			 req0->mac_add[2], req0->mac_add[3], req0->mac_add[4],
-			 req0->mac_add[5]);
+			 req0->index, req0->mac_addr[0], req0->mac_addr[1],
+			 req0->mac_addr[2], req0->mac_addr[3],
+			 req0->mac_addr[4], req0->mac_addr[5]);
 
 		snprintf(printf_buf + strlen(printf_buf),
 			 HCLGE_DBG_BUF_LEN - strlen(printf_buf),
