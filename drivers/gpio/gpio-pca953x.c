@@ -9,6 +9,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bits.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -28,9 +29,9 @@
 #define PCA953X_INVERT		0x02
 #define PCA953X_DIRECTION	0x03
 
-#define REG_ADDR_MASK		0x3f
-#define REG_ADDR_EXT		0x40
-#define REG_ADDR_AI		0x80
+#define REG_ADDR_MASK		GENMASK(5, 0)
+#define REG_ADDR_EXT		BIT(6)
+#define REG_ADDR_AI		BIT(7)
 
 #define PCA957X_IN		0x00
 #define PCA957X_INVRT		0x01
@@ -55,17 +56,17 @@
 #define PCAL6524_OUT_INDCONF	0x2c
 #define PCAL6524_DEBOUNCE	0x2d
 
-#define PCA_GPIO_MASK		0x00FF
+#define PCA_GPIO_MASK		GENMASK(7, 0)
 
-#define PCAL_GPIO_MASK		0x1f
-#define PCAL_PINCTRL_MASK	0x60
+#define PCAL_GPIO_MASK		GENMASK(4, 0)
+#define PCAL_PINCTRL_MASK	GENMASK(6, 5)
 
-#define PCA_INT			0x0100
-#define PCA_PCAL		0x0200
+#define PCA_INT			BIT(8)
+#define PCA_PCAL		BIT(9)
 #define PCA_LATCH_INT		(PCA_PCAL | PCA_INT)
-#define PCA953X_TYPE		0x1000
-#define PCA957X_TYPE		0x2000
-#define PCA_TYPE_MASK		0xF000
+#define PCA953X_TYPE		BIT(12)
+#define PCA957X_TYPE		BIT(13)
+#define PCA_TYPE_MASK		GENMASK(15, 12)
 
 #define PCA_CHIP_TYPE(x)	((x) & PCA_TYPE_MASK)
 
@@ -565,7 +566,7 @@ static void pca953x_irq_mask(struct irq_data *d)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
 
-	chip->irq_mask[d->hwirq / BANK_SZ] &= ~(1 << (d->hwirq % BANK_SZ));
+	chip->irq_mask[d->hwirq / BANK_SZ] &= ~BIT(d->hwirq % BANK_SZ);
 }
 
 static void pca953x_irq_unmask(struct irq_data *d)
@@ -573,7 +574,7 @@ static void pca953x_irq_unmask(struct irq_data *d)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
 
-	chip->irq_mask[d->hwirq / BANK_SZ] |= 1 << (d->hwirq % BANK_SZ);
+	chip->irq_mask[d->hwirq / BANK_SZ] |= BIT(d->hwirq % BANK_SZ);
 }
 
 static int pca953x_irq_set_wake(struct irq_data *d, unsigned int on)
@@ -641,7 +642,7 @@ static int pca953x_irq_set_type(struct irq_data *d, unsigned int type)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
 	int bank_nb = d->hwirq / BANK_SZ;
-	u8 mask = 1 << (d->hwirq % BANK_SZ);
+	u8 mask = BIT(d->hwirq % BANK_SZ);
 
 	if (!(type & IRQ_TYPE_EDGE_BOTH)) {
 		dev_err(&chip->client->dev, "irq %d: unsupported type %d\n",
@@ -666,7 +667,7 @@ static void pca953x_irq_shutdown(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
-	u8 mask = 1 << (d->hwirq % BANK_SZ);
+	u8 mask = BIT(d->hwirq % BANK_SZ);
 
 	chip->irq_trig_raise[d->hwirq / BANK_SZ] &= ~mask;
 	chip->irq_trig_fall[d->hwirq / BANK_SZ] &= ~mask;
