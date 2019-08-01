@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: GPL-2.0
 # Author: Jesper Dangaard Brouer <hawk@kernel.org>
 
-TESTNAME=xdp_vlan
+# Allow wrapper scripts to name test
+if [ -z "$TESTNAME" ]; then
+    TESTNAME=xdp_vlan
+fi
 
 # Default XDP mode
 XDP_MODE=xdpgeneric
