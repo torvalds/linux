@@ -255,6 +255,7 @@ ahci
 ahci_brcm
 ahci_ceva
 ahci_mtk
+ahci_mvebu
 ahci_platform
 ahci_qoriq
 ahci_seattle
@@ -354,6 +355,8 @@ arm_dsu_pmu
 arm_mhu
 arm_scpi
 arm_spe_pmu
+armada-37xx-cpufreq
+armada_37xx_wdt
 arp_tables
 arpt_mangle
 arptable_filter
@@ -1885,6 +1888,7 @@ i2c-parport
 i2c-parport-light
 i2c-pca-platform
 i2c-piix4
+i2c-pxa
 i2c-qcom-geni
 i2c-qup
 i2c-rcar
@@ -2511,7 +2515,9 @@ map_funcs
 map_ram
 map_rom
 marvell
+marvell-cesa
 marvell10g
+marvell_nand
 matrix-keymap
 matrix_keypad
 matrox_w1
@@ -2836,6 +2842,8 @@ mv88e6xxx
 mv_u3d_core
 mv_udc
 mvmdio
+mvneta
+mvpp2
 mvsas
 mvumi
 mwifiex
@@ -3160,6 +3168,7 @@ ofb
 ofpart
 ohci-platform
 olpc_apsp
+omap-rng
 omap4-keypad
 omfs
 omninet
@@ -3347,6 +3356,7 @@ phy-isp1301
 phy-mapphone-mdm6600
 phy-mtk-tphy
 phy-mtk-xsphy
+phy-mvebu-cp110-comphy
 phy-ocelot-serdes
 phy-pxa-28nm-hsic
 phy-pxa-28nm-usb2
@@ -3879,6 +3889,7 @@ rtc-88pm860x
 rtc-ab-b5ze-s3
 rtc-ab3100
 rtc-abx80x
+rtc-armada38x
 rtc-as3722
 rtc-bq32k
 rtc-bq4802
@@ -4395,6 +4406,7 @@ snd-soc-ak5558
 snd-soc-alc5623
 snd-soc-apq8016-sbc
 snd-soc-apq8096
+snd-soc-armada-370-db
 snd-soc-audio-graph-card
 snd-soc-audio-graph-scu-card
 snd-soc-bcm2835-i2s
@@ -4444,6 +4456,7 @@ snd-soc-imx-es8328
 snd-soc-imx-sgtl5000
 snd-soc-imx-spdif
 snd-soc-inno-rk3036
+snd-soc-kirkwood
 snd-soc-lpass-apq8016
 snd-soc-lpass-cpu
 snd-soc-lpass-ipq806x
@@ -4580,6 +4593,7 @@ snd_xen_front
 snic
 snps_udc_core
 snps_udc_plat
+snvs_pwrkey
 soc_button_array
 soc_camera
 soc_camera_platform
@@ -4622,6 +4636,7 @@ speakup_txprt
 speedfax
 speedtch
 spi-altera
+spi-armada-3700
 spi-axi-spi-engine
 spi-bcm-qspi
 spi-bcm2835
@@ -4646,6 +4661,7 @@ spi-mt65xx
 spi-mxic
 spi-nor
 spi-oc-tiny
+spi-orion
 spi-pl022
 spi-pxa2xx-pci
 spi-pxa2xx-platform
