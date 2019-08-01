@@ -1338,6 +1338,9 @@ int mlx5e_ethtool_set_pauseparam(struct mlx5e_priv *priv,
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
 
+	if (!MLX5_CAP_GEN(mdev, vport_group_manager))
+		return -EOPNOTSUPP;
+
 	if (pauseparam->autoneg)
 		return -EINVAL;
 
