@@ -157,22 +157,36 @@ static unsigned get_max_segment_size(const struct request_queue *q,
 		     queue_max_segment_size(q));
 }
 
-/*
- * Split the bvec @bv into segments, and update all kinds of
- * variables.
+/**
+ * bvec_split_segs - verify whether or not a bvec should be split in the middle
+ * @q:        [in] request queue associated with the bio associated with @bv
+ * @bv:       [in] bvec to examine
+ * @nsegs:    [in,out] Number of segments in the bio being built. Incremented
+ *            by the number of segments from @bv that may be appended to that
+ *            bio without exceeding @max_segs
+ * @sectors:  [in,out] Number of sectors in the bio being built. Incremented
+ *            by the number of sectors from @bv that may be appended to that
+ *            bio without exceeding @max_sectors
+ * @max_segs: [in] upper bound for *@nsegs
+ * @max_sectors: [in] upper bound for *@sectors
+ *
+ * When splitting a bio, it can happen that a bvec is encountered that is too
+ * big to fit in a single segment and hence that it has to be split in the
+ * middle. This function verifies whether or not that should happen. The value
+ * %true is returned if and only if appending the entire @bv to a bio with
+ * *@nsegs segments and *@sectors sectors would make that bio unacceptable for
+ * the block driver.
  */
 static bool bvec_split_segs(const struct request_queue *q,
 			    const struct bio_vec *bv, unsigned *nsegs,
-			    unsigned *sectors, unsigned max_segs)
+			    unsigned *sectors, unsigned max_segs,
+			    unsigned max_sectors)
 {
-	unsigned len = bv->bv_len;
+	unsigned max_len = (min(max_sectors, UINT_MAX >> 9) - *sectors) << 9;
+	unsigned len = min(bv->bv_len, max_len);
 	unsigned total_len = 0;
 	unsigned seg_size = 0;
 
-	/*
-	 * Multi-page bvec may be too big to hold in one segment, so the
-	 * current bvec has to be splitted as multiple segments.
-	 */
 	while (len && *nsegs < max_segs) {
 		seg_size = get_max_segment_size(q, bv->bv_offset + total_len);
 		seg_size = min(seg_size, len);
@@ -187,8 +201,8 @@ static bool bvec_split_segs(const struct request_queue *q,
 
 	*sectors += total_len >> 9;
 
-	/* split in the middle of the bvec if len != 0 */
-	return !!len;
+	/* tell the caller to split the bvec if it is too big to fit */
+	return len > 0 || bv->bv_len > max_len;
 }
 
 /**
@@ -229,34 +243,18 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 		if (bvprvp && bvec_gap_to_prev(q, bvprvp, bv.bv_offset))
 			goto split;
 
-		if (sectors + (bv.bv_len >> 9) > max_sectors) {
-			/*
-			 * Consider this a new segment if we're splitting in
-			 * the middle of this vector.
-			 */
-			if (nsegs < max_segs &&
-			    sectors < max_sectors) {
-				/* split in the middle of bvec */
-				bv.bv_len = (max_sectors - sectors) << 9;
-				bvec_split_segs(q, &bv, &nsegs,
-						&sectors, max_segs);
-			}
+		if (nsegs < max_segs &&
+		    sectors + (bv.bv_len >> 9) <= max_sectors &&
+		    bv.bv_offset + bv.bv_len <= PAGE_SIZE) {
+			nsegs++;
+			sectors += bv.bv_len >> 9;
+		} else if (bvec_split_segs(q, &bv, &nsegs, &sectors, max_segs,
+					 max_sectors)) {
 			goto split;
 		}
-
-		if (nsegs == max_segs)
-			goto split;
 
 		bvprv = bv;
 		bvprvp = &bvprv;
-
-		if (bv.bv_offset + bv.bv_len <= PAGE_SIZE) {
-			nsegs++;
-			sectors += bv.bv_len >> 9;
-		} else if (bvec_split_segs(q, &bv, &nsegs, &sectors,
-				max_segs)) {
-			goto split;
-		}
 	}
 
 	*segs = nsegs;
@@ -363,7 +361,7 @@ unsigned int blk_recalc_rq_segments(struct request *rq)
 
 	rq_for_each_bvec(bv, rq, iter)
 		bvec_split_segs(rq->q, &bv, &nr_phys_segs, &nr_sectors,
-				UINT_MAX);
+				UINT_MAX, UINT_MAX);
 	return nr_phys_segs;
 }
 
