@@ -439,6 +439,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 					ret = -EAGAIN;
 				goto error;
 			}
+			ret = dio->size;
 
 			if (polled)
 				WRITE_ONCE(iocb->ki_cookie, qc);
@@ -465,7 +466,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 				ret = -EAGAIN;
 			goto error;
 		}
-		ret += bio->bi_iter.bi_size;
+		ret = dio->size;
 
 		bio = bio_alloc(gfp, nr_pages);
 		if (!bio) {
