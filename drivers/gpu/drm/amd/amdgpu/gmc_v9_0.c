@@ -254,7 +254,11 @@ static int gmc_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
 	 */
 	if (adev->umc.funcs->query_ras_error_address)
 		adev->umc.funcs->query_ras_error_address(adev, err_data);
-	amdgpu_ras_reset_gpu(adev, 0);
+
+	/* only uncorrectable error needs gpu reset */
+	if (err_data->ue_count)
+		amdgpu_ras_reset_gpu(adev, 0);
+
 	return AMDGPU_RAS_UE;
 }
 
