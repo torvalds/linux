@@ -249,6 +249,11 @@ static int gmc_v9_0_process_ras_data_cb(struct amdgpu_device *adev,
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
 	if (adev->umc.funcs->query_ras_error_count)
 		adev->umc.funcs->query_ras_error_count(adev, err_data);
+	/* umc query_ras_error_address is also responsible for clearing
+	 * error status
+	 */
+	if (adev->umc.funcs->query_ras_error_address)
+		adev->umc.funcs->query_ras_error_address(adev, err_data);
 	amdgpu_ras_reset_gpu(adev, 0);
 	return AMDGPU_RAS_UE;
 }
