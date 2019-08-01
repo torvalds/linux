@@ -744,6 +744,7 @@ int qman_requires_cleanup(void)
 
 void qman_done_cleanup(void)
 {
+	qman_enable_irqs();
 	__qman_requires_cleanup = 0;
 }
 

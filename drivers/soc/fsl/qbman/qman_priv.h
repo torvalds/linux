@@ -279,3 +279,4 @@ int qman_shutdown_fq(u32 fqid);
 
 int qman_requires_cleanup(void);
 void qman_done_cleanup(void);
+void qman_enable_irqs(void);
