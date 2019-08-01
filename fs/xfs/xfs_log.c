@@ -429,10 +429,7 @@ xfs_log_reserve(
 
 	ASSERT(*ticp == NULL);
 	tic = xlog_ticket_alloc(log, unit_bytes, cnt, client, permanent,
-				KM_SLEEP | KM_MAYFAIL);
-	if (!tic)
-		return -ENOMEM;
-
+				KM_SLEEP);
 	*ticp = tic;
 
 	xlog_grant_push_ail(log, tic->t_cnt ? tic->t_unit_res * tic->t_cnt
