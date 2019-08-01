@@ -833,7 +833,6 @@ static int psp_hw_start(struct psp_context *psp)
 				"XGMI: Failed to initialize XGMI session\n");
 	}
 
-
 	if (psp->adev->psp.ta_fw) {
 		ret = psp_ras_initialize(psp);
 		if (ret)
@@ -853,6 +852,24 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 		break;
 	case AMDGPU_UCODE_ID_SDMA1:
 		*type = GFX_FW_TYPE_SDMA1;
+		break;
+	case AMDGPU_UCODE_ID_SDMA2:
+		*type = GFX_FW_TYPE_SDMA2;
+		break;
+	case AMDGPU_UCODE_ID_SDMA3:
+		*type = GFX_FW_TYPE_SDMA3;
+		break;
+	case AMDGPU_UCODE_ID_SDMA4:
+		*type = GFX_FW_TYPE_SDMA4;
+		break;
+	case AMDGPU_UCODE_ID_SDMA5:
+		*type = GFX_FW_TYPE_SDMA5;
+		break;
+	case AMDGPU_UCODE_ID_SDMA6:
+		*type = GFX_FW_TYPE_SDMA6;
+		break;
+	case AMDGPU_UCODE_ID_SDMA7:
+		*type = GFX_FW_TYPE_SDMA7;
 		break;
 	case AMDGPU_UCODE_ID_CP_CE:
 		*type = GFX_FW_TYPE_CP_CE;
@@ -982,12 +999,20 @@ out:
 		if (ucode->ucode_id == AMDGPU_UCODE_ID_SMC &&
 		    (psp_smu_reload_quirk(psp) || psp->autoload_supported))
 			continue;
+
 		if (amdgpu_sriov_vf(adev) &&
 		   (ucode->ucode_id == AMDGPU_UCODE_ID_SDMA0
 		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA1
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA2
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA3
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA4
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA5
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA6
+		    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA7
 		    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G))
 			/*skip ucode loading in SRIOV VF */
 			continue;
+
 		if (psp->autoload_supported &&
 		    (ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC1_JT ||
 		     ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2_JT))
