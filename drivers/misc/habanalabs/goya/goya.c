@@ -2468,7 +2468,7 @@ static int goya_hw_init(struct hl_device *hdev)
 	 * we need to reset the chip before doing H/W init. This register is
 	 * cleared by the H/W upon H/W reset
 	 */
-	WREG32(mmPSOC_GLOBAL_CONF_APP_STATUS, HL_DEVICE_HW_STATE_DIRTY);
+	WREG32(mmHW_STATE, HL_DEVICE_HW_STATE_DIRTY);
 
 	rc = goya_init_cpu(hdev, GOYA_CPU_TIMEOUT_USEC);
 	if (rc) {
@@ -5046,7 +5046,7 @@ static int goya_get_eeprom_data(struct hl_device *hdev, void *data,
 
 static enum hl_device_hw_state goya_get_hw_state(struct hl_device *hdev)
 {
-	return RREG32(mmPSOC_GLOBAL_CONF_APP_STATUS);
+	return RREG32(mmHW_STATE);
 }
 
 static const struct hl_asic_funcs goya_funcs = {
