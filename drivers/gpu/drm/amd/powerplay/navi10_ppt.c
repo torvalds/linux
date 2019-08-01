@@ -23,6 +23,7 @@
 
 #include "pp_debug.h"
 #include <linux/firmware.h>
+#include <linux/pci.h>
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
 #include "atomfirmware.h"
@@ -577,28 +578,20 @@ static int navi10_set_default_dpm_table(struct smu_context *smu)
 static int navi10_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 {
 	int ret = 0;
-	struct smu_power_context *smu_power = &smu->smu_power;
-	struct smu_power_gate *power_gate = &smu_power->power_gate;
 
-	if (enable && power_gate->uvd_gated) {
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT)) {
-			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 1);
-			if (ret)
-				return ret;
-		}
-		power_gate->uvd_gated = false;
+	if (enable) {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 1);
+		if (ret)
+			return ret;
 	} else {
-		if (!enable && !power_gate->uvd_gated) {
-			if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT)) {
-				ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn);
-				if (ret)
-					return ret;
-			}
-			power_gate->uvd_gated = true;
-		}
+		ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn);
+		if (ret)
+			return ret;
 	}
 
-	return 0;
+	ret = smu_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, enable);
+
+	return ret;
 }
 
 static int navi10_get_current_clk_freq_by_table(struct smu_context *smu,
@@ -1573,7 +1566,7 @@ static int navi10_set_peak_clock_by_device(struct smu_context *smu)
 	uint32_t sclk_freq = 0, uclk_freq = 0;
 	uint32_t uclk_level = 0;
 
-	switch (adev->rev_id) {
+	switch (adev->pdev->revision) {
 	case 0xf0: /* XTX */
 	case 0xc0:
 		sclk_freq = NAVI10_PEAK_SCLK_XTX;
@@ -1620,6 +1613,22 @@ static int navi10_set_performance_level(struct smu_context *smu, enum amd_dpm_fo
 	return ret;
 }
 
+static int navi10_get_thermal_temperature_range(struct smu_context *smu,
+						struct smu_temperature_range *range)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_11_0_powerplay_table *powerplay_table = table_context->power_play_table;
+
+	if (!range || !powerplay_table)
+		return -EINVAL;
+
+	/* The unit is temperature */
+	range->min = 0;
+	range->max = powerplay_table->software_shutdown_temp;
+
+	return 0;
+}
+
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -1657,6 +1666,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_ppfeature_status = navi10_get_ppfeature_status,
 	.set_ppfeature_status = navi10_set_ppfeature_status,
 	.set_performance_level = navi10_set_performance_level,
+	.get_thermal_temperature_range = navi10_get_thermal_temperature_range,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
