@@ -68,13 +68,6 @@ MODULE_FIRMWARE("amdgpu/raven_sdma.bin");
 MODULE_FIRMWARE("amdgpu/picasso_sdma.bin");
 MODULE_FIRMWARE("amdgpu/raven2_sdma.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_sdma.bin");
-MODULE_FIRMWARE("amdgpu/arcturus_sdma1.bin");
-MODULE_FIRMWARE("amdgpu/arcturus_sdma2.bin");
-MODULE_FIRMWARE("amdgpu/arcturus_sdma3.bin");
-MODULE_FIRMWARE("amdgpu/arcturus_sdma4.bin");
-MODULE_FIRMWARE("amdgpu/arcturus_sdma5.bin");
-MODULE_FIRMWARE("amdgpu/arcturus_sdma6.bin");
-MODULE_FIRMWARE("amdgpu/arcturus_sdma7.bin");
 
 #define SDMA0_POWER_CNTL__ON_OFF_CONDITION_HOLD_TIME_MASK  0x000000F8L
 #define SDMA0_POWER_CNTL__ON_OFF_STATUS_DURATION_TIME_MASK 0xFC000000L
@@ -379,6 +372,43 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 	}
 }
 
+static int sdma_v4_0_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
+{
+	int err = 0;
+	const struct sdma_firmware_header_v1_0 *hdr;
+
+	err = amdgpu_ucode_validate(sdma_inst->fw);
+	if (err)
+		return err;
+
+	hdr = (const struct sdma_firmware_header_v1_0 *)sdma_inst->fw->data;
+	sdma_inst->fw_version = le32_to_cpu(hdr->header.ucode_version);
+	sdma_inst->feature_version = le32_to_cpu(hdr->ucode_feature_version);
+
+	if (sdma_inst->feature_version >= 20)
+		sdma_inst->burst_nop = true;
+
+	return 0;
+}
+
+static void sdma_v4_0_destroy_inst_ctx(struct amdgpu_device *adev)
+{
+	int i;
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		if (adev->sdma.instance[i].fw != NULL)
+			release_firmware(adev->sdma.instance[i].fw);
+
+		/* arcturus shares the same FW memory across
+		   all SDMA isntances */
+		if (adev->asic_type == CHIP_ARCTURUS)
+			break;
+	}
+
+	memset((void*)adev->sdma.instance, 0,
+		sizeof(struct amdgpu_sdma_instance) * AMDGPU_MAX_SDMA_INSTANCES);
+}
+
 /**
  * sdma_v4_0_init_microcode - load ucode images from disk
  *
@@ -398,7 +428,6 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 	int err = 0, i;
 	struct amdgpu_firmware_info *info = NULL;
 	const struct common_firmware_header *header = NULL;
-	const struct sdma_firmware_header_v1_0 *hdr;
 
 	DRM_DEBUG("\n");
 
@@ -427,26 +456,42 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		BUG();
 	}
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		if (i == 0)
-			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma.bin", chip_name);
-		else
-			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma%d.bin", chip_name, i);
-		err = request_firmware(&adev->sdma.instance[i].fw, fw_name, adev->dev);
-		if (err)
-			goto out;
-		err = amdgpu_ucode_validate(adev->sdma.instance[i].fw);
-		if (err)
-			goto out;
-		hdr = (const struct sdma_firmware_header_v1_0 *)adev->sdma.instance[i].fw->data;
-		adev->sdma.instance[i].fw_version = le32_to_cpu(hdr->header.ucode_version);
-		adev->sdma.instance[i].feature_version = le32_to_cpu(hdr->ucode_feature_version);
-		if (adev->sdma.instance[i].feature_version >= 20)
-			adev->sdma.instance[i].burst_nop = true;
-		DRM_DEBUG("psp_load == '%s'\n",
-				adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ? "true" : "false");
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma.bin", chip_name);
 
-		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+	err = request_firmware(&adev->sdma.instance[0].fw, fw_name, adev->dev);
+	if (err)
+		goto out;
+
+	err = sdma_v4_0_init_inst_ctx(&adev->sdma.instance[0]);
+	if (err)
+		goto out;
+
+	for (i = 1; i < adev->sdma.num_instances; i++) {
+		if (adev->asic_type == CHIP_ARCTURUS) {
+			/* Acturus will leverage the same FW memory
+			   for every SDMA instance */
+			memcpy((void*)&adev->sdma.instance[i],
+			       (void*)&adev->sdma.instance[0],
+			       sizeof(struct amdgpu_sdma_instance));
+		}
+		else {
+			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma%d.bin", chip_name, i);
+
+			err = request_firmware(&adev->sdma.instance[i].fw, fw_name, adev->dev);
+			if (err)
+				goto out;
+
+			err = sdma_v4_0_init_inst_ctx(&adev->sdma.instance[i]);
+			if (err)
+				goto out;
+		}
+	}
+
+	DRM_DEBUG("psp_load == '%s'\n",
+		adev->firmware.load_type == AMDGPU_FW_LOAD_PSP ? "true" : "false");
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		for (i = 0; i < adev->sdma.num_instances; i++) {
 			info = &adev->firmware.ucode[AMDGPU_UCODE_ID_SDMA0 + i];
 			info->ucode_id = AMDGPU_UCODE_ID_SDMA0 + i;
 			info->fw = adev->sdma.instance[i].fw;
@@ -455,13 +500,11 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 				ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
 		}
 	}
+
 out:
 	if (err) {
 		DRM_ERROR("sdma_v4_0: Failed to load firmware \"%s\"\n", fw_name);
-		for (i = 0; i < adev->sdma.num_instances; i++) {
-			release_firmware(adev->sdma.instance[i].fw);
-			adev->sdma.instance[i].fw = NULL;
-		}
+		sdma_v4_0_destroy_inst_ctx(adev);
 	}
 	return err;
 }
@@ -1814,10 +1857,7 @@ static int sdma_v4_0_sw_fini(void *handle)
 			amdgpu_ring_fini(&adev->sdma.instance[i].page);
 	}
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		release_firmware(adev->sdma.instance[i].fw);
-		adev->sdma.instance[i].fw = NULL;
-	}
+	sdma_v4_0_destroy_inst_ctx(adev);
 
 	return 0;
 }
