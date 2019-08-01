@@ -103,14 +103,17 @@ static void hclge_cmd_config_regs(struct hclge_cmq_ring *ring)
 	dma_addr_t dma = ring->desc_dma_addr;
 	struct hclge_dev *hdev = ring->dev;
 	struct hclge_hw *hw = &hdev->hw;
+	u32 reg_val;
 
 	if (ring->ring_type == HCLGE_TYPE_CSQ) {
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_L_REG,
 				lower_32_bits(dma));
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_BASEADDR_H_REG,
 				upper_32_bits(dma));
-		hclge_write_dev(hw, HCLGE_NIC_CSQ_DEPTH_REG,
-				ring->desc_num >> HCLGE_NIC_CMQ_DESC_NUM_S);
+		reg_val = hclge_read_dev(hw, HCLGE_NIC_CSQ_DEPTH_REG);
+		reg_val &= HCLGE_NIC_SW_RST_RDY;
+		reg_val |= ring->desc_num >> HCLGE_NIC_CMQ_DESC_NUM_S;
+		hclge_write_dev(hw, HCLGE_NIC_CSQ_DEPTH_REG, reg_val);
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_HEAD_REG, 0);
 		hclge_write_dev(hw, HCLGE_NIC_CSQ_TAIL_REG, 0);
 	} else {

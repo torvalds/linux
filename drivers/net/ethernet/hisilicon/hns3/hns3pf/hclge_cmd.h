@@ -907,8 +907,11 @@ struct hclge_serdes_lb_cmd {
 #define HCLGE_NIC_CRQ_DEPTH_REG		0x27020
 #define HCLGE_NIC_CRQ_TAIL_REG		0x27024
 #define HCLGE_NIC_CRQ_HEAD_REG		0x27028
-#define HCLGE_NIC_CMQ_EN_B		16
-#define HCLGE_NIC_CMQ_ENABLE		BIT(HCLGE_NIC_CMQ_EN_B)
+
+/* this bit indicates that the driver is ready for hardware reset */
+#define HCLGE_NIC_SW_RST_RDY_B		16
+#define HCLGE_NIC_SW_RST_RDY		BIT(HCLGE_NIC_SW_RST_RDY_B)
+
 #define HCLGE_NIC_CMQ_DESC_NUM		1024
 #define HCLGE_NIC_CMQ_DESC_NUM_S	3
 
