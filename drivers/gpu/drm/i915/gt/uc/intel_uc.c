@@ -55,78 +55,42 @@ static int __intel_uc_reset_hw(struct intel_uc *uc)
 	return ret;
 }
 
-static int __get_platform_enable_guc(struct intel_uc *uc)
+static void __confirm_options(struct intel_uc *uc)
 {
-	struct intel_uc_fw *guc_fw = &uc->guc.fw;
-	struct intel_uc_fw *huc_fw = &uc->huc.fw;
-	int enable_guc = 0;
-
-	if (!HAS_GT_UC(uc_to_gt(uc)->i915))
-		return 0;
-
-	/* We don't want to enable GuC/HuC on pre-Gen11 by default */
-	if (INTEL_GEN(uc_to_gt(uc)->i915) < 11)
-		return 0;
-
-	if (intel_uc_fw_supported(guc_fw) && intel_uc_fw_supported(huc_fw))
-		enable_guc |= ENABLE_GUC_LOAD_HUC;
-
-	return enable_guc;
-}
-
-/**
- * sanitize_options_early - sanitize uC related modparam options
- * @uc: the intel_uc structure
- *
- * In case of "enable_guc" option this function will attempt to modify
- * it only if it was initially set to "auto(-1)". Default value for this
- * modparam varies between platforms and it is hardcoded in driver code.
- * Any other modparam value is only monitored against availability of the
- * related hardware or firmware definitions.
- */
-static void sanitize_options_early(struct intel_uc *uc)
-{
-	struct intel_uc_fw *guc_fw = &uc->guc.fw;
-	struct intel_uc_fw *huc_fw = &uc->huc.fw;
-
-	/* A negative value means "use platform default" */
-	if (i915_modparams.enable_guc < 0)
-		i915_modparams.enable_guc = __get_platform_enable_guc(uc);
-
-	DRM_DEBUG_DRIVER("enable_guc=%d (submission:%s huc:%s)\n",
+	DRM_DEBUG_DRIVER("enable_guc=%d (guc:%s submission:%s huc:%s)\n",
 			 i915_modparams.enable_guc,
+			 yesno(intel_uc_supports_guc(uc)),
 			 yesno(intel_uc_supports_guc_submission(uc)),
 			 yesno(intel_uc_supports_huc(uc)));
 
-	/* Verify GuC firmware availability */
-	if (intel_uc_supports_guc(uc) && !intel_uc_fw_supported(guc_fw)) {
-		DRM_WARN("Incompatible option detected: enable_guc=%d, "
-			 "but GuC is not supported!\n",
-			 i915_modparams.enable_guc);
-		DRM_INFO("Disabling GuC/HuC loading!\n");
-		i915_modparams.enable_guc = 0;
+	if (i915_modparams.enable_guc == -1)
+		return;
+
+	if (i915_modparams.enable_guc == 0) {
+		GEM_BUG_ON(intel_uc_supports_guc(uc));
+		GEM_BUG_ON(intel_uc_supports_guc_submission(uc));
+		GEM_BUG_ON(intel_uc_supports_huc(uc));
+		return;
 	}
 
-	/* Verify HuC firmware availability */
-	if (intel_uc_supports_huc(uc) && !intel_uc_fw_supported(huc_fw)) {
-		DRM_WARN("Incompatible option detected: enable_guc=%d, "
-			 "but HuC is not supported!\n",
-			 i915_modparams.enable_guc);
-		DRM_INFO("Disabling HuC loading!\n");
-		i915_modparams.enable_guc &= ~ENABLE_GUC_LOAD_HUC;
-	}
+	if (!intel_uc_supports_guc(uc))
+		DRM_INFO("Incompatible option enable_guc=%d - %s\n",
+			 i915_modparams.enable_guc, "GuC is not supported!");
 
-	/* XXX: GuC submission is unavailable for now */
-	if (intel_uc_supports_guc_submission(uc)) {
-		DRM_INFO("Incompatible option detected: enable_guc=%d, "
-			 "but GuC submission is not supported!\n",
-			 i915_modparams.enable_guc);
-		DRM_INFO("Switching to non-GuC submission mode!\n");
-		i915_modparams.enable_guc &= ~ENABLE_GUC_SUBMISSION;
-	}
+	if (i915_modparams.enable_guc & ENABLE_GUC_LOAD_HUC &&
+	    !intel_uc_supports_huc(uc))
+		DRM_INFO("Incompatible option enable_guc=%d - %s\n",
+			 i915_modparams.enable_guc, "HuC is not supported!");
 
-	/* Make sure that sanitization was done */
-	GEM_BUG_ON(i915_modparams.enable_guc < 0);
+	if (i915_modparams.enable_guc & ENABLE_GUC_SUBMISSION &&
+	    !intel_uc_supports_guc_submission(uc))
+		DRM_INFO("Incompatible option enable_guc=%d - %s\n",
+			 i915_modparams.enable_guc, "GuC submission is N/A");
+
+	if (i915_modparams.enable_guc & ~(ENABLE_GUC_SUBMISSION |
+					  ENABLE_GUC_LOAD_HUC))
+		DRM_INFO("Incompatible option enable_guc=%d - %s\n",
+			 i915_modparams.enable_guc, "undocumented flag");
 }
 
 void intel_uc_init_early(struct intel_uc *uc)
@@ -134,7 +98,7 @@ void intel_uc_init_early(struct intel_uc *uc)
 	intel_guc_init_early(&uc->guc);
 	intel_huc_init_early(&uc->huc);
 
-	sanitize_options_early(uc);
+	__confirm_options(uc);
 }
 
 void intel_uc_driver_late_release(struct intel_uc *uc)
