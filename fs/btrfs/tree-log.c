@@ -6233,7 +6233,7 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	struct btrfs_fs_info *fs_info = log_root_tree->fs_info;
 	struct walk_control wc = {
 		.process_func = process_one_buffer,
-		.stage = 0,
+		.stage = LOG_WALK_PIN_ONLY,
 	};
 
 	path = btrfs_alloc_path();
