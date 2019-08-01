@@ -130,8 +130,7 @@ __mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev, u8 vif_idx,
 	      MT_BEACON_TIME_CFG_TBTT_EN |
 	      MT_BEACON_TIME_CFG_TIMER_EN;
 	mt76_rmw(dev, MT_BEACON_TIME_CFG, reg, reg * en);
-
-	dev->beacon_ops->beacon_enable(dev, en);
+	mt76x02_beacon_enable(dev, en);
 }
 
 void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
@@ -140,7 +139,7 @@ void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 	u8 vif_idx = ((struct mt76x02_vif *)vif->drv_priv)->idx;
 	struct sk_buff *skb = NULL;
 
-	dev->beacon_ops->pre_tbtt_enable(dev, false);
+	mt76x02_pre_tbtt_enable(dev, false);
 
 	if (mt76_is_usb(dev))
 		skb = ieee80211_beacon_get(mt76_hw(dev), vif);
@@ -150,7 +149,7 @@ void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 
 	__mt76x02_mac_set_beacon_enable(dev, vif_idx, val, skb);
 
-	dev->beacon_ops->pre_tbtt_enable(dev, true);
+	mt76x02_pre_tbtt_enable(dev, true);
 }
 
 void

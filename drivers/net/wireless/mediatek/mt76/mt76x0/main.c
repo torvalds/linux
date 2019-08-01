@@ -14,7 +14,7 @@ mt76x0_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	int ret;
 
 	cancel_delayed_work_sync(&dev->cal_work);
-	dev->beacon_ops->pre_tbtt_enable(dev, false);
+	mt76x02_pre_tbtt_enable(dev, false);
 	if (mt76_is_mmio(dev))
 		tasklet_disable(&dev->dfs_pd.dfs_tasklet);
 
@@ -31,7 +31,7 @@ mt76x0_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 		mt76x02_dfs_init_params(dev);
 		tasklet_enable(&dev->dfs_pd.dfs_tasklet);
 	}
-	dev->beacon_ops->pre_tbtt_enable(dev, true);
+	mt76x02_pre_tbtt_enable(dev, true);
 
 	mt76_txq_schedule_all(&dev->mt76);
 

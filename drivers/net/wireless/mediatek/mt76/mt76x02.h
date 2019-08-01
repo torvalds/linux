@@ -64,6 +64,11 @@ struct mt76x02_beacon_ops {
 	void (*beacon_enable)(struct mt76x02_dev *dev, bool en);
 };
 
+#define mt76x02_beacon_enable(dev, enable)	\
+	(dev)->beacon_ops->beacon_enable(dev, enable)
+#define mt76x02_pre_tbtt_enable(dev, enable)	\
+	(dev)->beacon_ops->pre_tbtt_enable(dev, enable)
+
 struct mt76x02_dev {
 	struct mt76_dev mt76; /* must be first */
 

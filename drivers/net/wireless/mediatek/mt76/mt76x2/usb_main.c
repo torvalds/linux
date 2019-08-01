@@ -37,7 +37,7 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 	int err;
 
 	cancel_delayed_work_sync(&dev->cal_work);
-	dev->beacon_ops->pre_tbtt_enable(dev, false);
+	mt76x02_pre_tbtt_enable(dev, false);
 
 	mutex_lock(&dev->mt76.mutex);
 	set_bit(MT76_RESET, &dev->mt76.state);
@@ -53,7 +53,7 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 	clear_bit(MT76_RESET, &dev->mt76.state);
 	mutex_unlock(&dev->mt76.mutex);
 
-	dev->beacon_ops->pre_tbtt_enable(dev, true);
+	mt76x02_pre_tbtt_enable(dev, true);
 	mt76_txq_schedule_all(&dev->mt76);
 
 	return err;
