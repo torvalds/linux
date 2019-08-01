@@ -963,7 +963,7 @@ release_fw:
  ******************************************************************************/
 static int ccg_fw_update(struct ucsi_ccg *uc, enum enum_flash_mode flash_mode)
 {
-	int err;
+	int err = 0;
 
 	while (flash_mode != FLASH_NOT_NEEDED) {
 		err = do_flash(uc, flash_mode);
