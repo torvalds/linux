@@ -31,9 +31,6 @@
 struct gve_rx_desc_queue {
 	struct gve_rx_desc *desc_ring; /* the descriptor ring */
 	dma_addr_t bus; /* the bus for the desc_ring */
-	u32 cnt; /* free-running total number of completed packets */
-	u32 fill_cnt; /* free-running total number of descriptors posted */
-	u32 mask; /* masks the cnt to the size of the ring */
 	u8 seqno; /* the next expected seqno for this desc*/
 };
 
@@ -60,8 +57,6 @@ struct gve_rx_data_queue {
 	dma_addr_t data_bus; /* dma mapping of the slots */
 	struct gve_rx_slot_page_info *page_info; /* page info of the buffers */
 	struct gve_queue_page_list *qpl; /* qpl assigned to this queue */
-	u32 mask; /* masks the cnt to the size of the ring */
-	u32 cnt; /* free-running total number of completed packets */
 };
 
 struct gve_priv;
@@ -73,6 +68,9 @@ struct gve_rx_ring {
 	struct gve_rx_data_queue data;
 	u64 rbytes; /* free-running bytes received */
 	u64 rpackets; /* free-running packets received */
+	u32 cnt; /* free-running total number of completed packets */
+	u32 fill_cnt; /* free-running total number of descs and buffs posted */
+	u32 mask; /* masks the cnt and fill_cnt to the size of the ring */
 	u32 q_num; /* queue index */
 	u32 ntfy_id; /* notification block index */
 	struct gve_queue_resources *q_resources; /* head and tail pointer idx */
