@@ -6268,7 +6268,6 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 					 enum hclge_mac_vlan_tbl_opcode op)
 {
 	struct hclge_dev *hdev = vport->back;
-	int return_status = -EIO;
 
 	if (cmdq_resp) {
 		dev_err(&hdev->pdev->dev,
@@ -6279,52 +6278,53 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 
 	if (op == HCLGE_MAC_VLAN_ADD) {
 		if ((!resp_code) || (resp_code == 1)) {
-			return_status = 0;
+			return 0;
 		} else if (resp_code == HCLGE_ADD_UC_OVERFLOW) {
-			return_status = -ENOSPC;
 			dev_err(&hdev->pdev->dev,
 				"add mac addr failed for uc_overflow.\n");
+			return -ENOSPC;
 		} else if (resp_code == HCLGE_ADD_MC_OVERFLOW) {
-			return_status = -ENOSPC;
 			dev_err(&hdev->pdev->dev,
 				"add mac addr failed for mc_overflow.\n");
-		} else {
-			dev_err(&hdev->pdev->dev,
-				"add mac addr failed for undefined, code=%d.\n",
-				resp_code);
+			return -ENOSPC;
 		}
+
+		dev_err(&hdev->pdev->dev,
+			"add mac addr failed for undefined, code=%u.\n",
+			resp_code);
+		return -EIO;
 	} else if (op == HCLGE_MAC_VLAN_REMOVE) {
 		if (!resp_code) {
-			return_status = 0;
+			return 0;
 		} else if (resp_code == 1) {
-			return_status = -ENOENT;
 			dev_dbg(&hdev->pdev->dev,
 				"remove mac addr failed for miss.\n");
-		} else {
-			dev_err(&hdev->pdev->dev,
-				"remove mac addr failed for undefined, code=%d.\n",
-				resp_code);
+			return -ENOENT;
 		}
+
+		dev_err(&hdev->pdev->dev,
+			"remove mac addr failed for undefined, code=%u.\n",
+			resp_code);
+		return -EIO;
 	} else if (op == HCLGE_MAC_VLAN_LKUP) {
 		if (!resp_code) {
-			return_status = 0;
+			return 0;
 		} else if (resp_code == 1) {
-			return_status = -ENOENT;
 			dev_dbg(&hdev->pdev->dev,
 				"lookup mac addr failed for miss.\n");
-		} else {
-			dev_err(&hdev->pdev->dev,
-				"lookup mac addr failed for undefined, code=%d.\n",
-				resp_code);
+			return -ENOENT;
 		}
-	} else {
-		return_status = -EINVAL;
+
 		dev_err(&hdev->pdev->dev,
-			"unknown opcode for get_mac_vlan_cmd_status,opcode=%d.\n",
-			op);
+			"lookup mac addr failed for undefined, code=%u.\n",
+			resp_code);
+		return -EIO;
 	}
 
-	return return_status;
+	dev_err(&hdev->pdev->dev,
+		"unknown opcode for get_mac_vlan_cmd_status, opcode=%d.\n", op);
+
+	return -EINVAL;
 }
 
 static int hclge_update_desc_vfid(struct hclge_desc *desc, int vfid, bool clr)
