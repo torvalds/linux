@@ -1587,29 +1587,29 @@ out:
 }
 
 #define IPMI_SI_ATTR(name) \
-static ssize_t ipmi_##name##_show(struct device *dev,			\
-				  struct device_attribute *attr,	\
-				  char *buf)				\
+static ssize_t name##_show(struct device *dev,			\
+			   struct device_attribute *attr,		\
+			   char *buf)					\
 {									\
 	struct smi_info *smi_info = dev_get_drvdata(dev);		\
 									\
 	return snprintf(buf, 10, "%u\n", smi_get_stat(smi_info, name));	\
 }									\
-static DEVICE_ATTR(name, 0444, ipmi_##name##_show, NULL)
+static DEVICE_ATTR(name, 0444, name##_show, NULL)
 
-static ssize_t ipmi_type_show(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf)
+static ssize_t type_show(struct device *dev,
+			 struct device_attribute *attr,
+			 char *buf)
 {
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 
 	return snprintf(buf, 10, "%s\n", si_to_str[smi_info->io.si_type]);
 }
-static DEVICE_ATTR(type, 0444, ipmi_type_show, NULL);
+static DEVICE_ATTR(type, 0444, type_show, NULL);
 
-static ssize_t ipmi_interrupts_enabled_show(struct device *dev,
-					    struct device_attribute *attr,
-					    char *buf)
+static ssize_t interrupts_enabled_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
 {
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 	int enabled = smi_info->io.irq && !smi_info->interrupt_disabled;
@@ -1617,7 +1617,7 @@ static ssize_t ipmi_interrupts_enabled_show(struct device *dev,
 	return snprintf(buf, 10, "%d\n", enabled);
 }
 static DEVICE_ATTR(interrupts_enabled, 0444,
-		   ipmi_interrupts_enabled_show, NULL);
+		   interrupts_enabled_show, NULL);
 
 IPMI_SI_ATTR(short_timeouts);
 IPMI_SI_ATTR(long_timeouts);
@@ -1631,9 +1631,9 @@ IPMI_SI_ATTR(events);
 IPMI_SI_ATTR(watchdog_pretimeouts);
 IPMI_SI_ATTR(incoming_messages);
 
-static ssize_t ipmi_params_show(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
+static ssize_t params_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
 {
 	struct smi_info *smi_info = dev_get_drvdata(dev);
 
@@ -1648,7 +1648,7 @@ static ssize_t ipmi_params_show(struct device *dev,
 			smi_info->io.irq,
 			smi_info->io.slave_addr);
 }
-static DEVICE_ATTR(params, 0444, ipmi_params_show, NULL);
+static DEVICE_ATTR(params, 0444, params_show, NULL);
 
 static struct attribute *ipmi_si_dev_attrs[] = {
 	&dev_attr_type.attr,
