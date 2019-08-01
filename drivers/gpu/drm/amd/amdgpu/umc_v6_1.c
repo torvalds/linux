@@ -142,46 +142,39 @@ static void umc_v6_1_querry_uncorrectable_error_count(struct amdgpu_device *adev
 		*error_count += 1;
 }
 
+static void umc_v6_1_query_error_count(struct amdgpu_device *adev,
+					   struct ras_err_data *err_data, uint32_t umc_reg_offset,
+					   uint32_t channel_index)
+{
+	umc_v6_1_query_correctable_error_count(adev, umc_reg_offset,
+						   &(err_data->ce_count));
+	umc_v6_1_querry_uncorrectable_error_count(adev, umc_reg_offset,
+						  &(err_data->ue_count));
+}
+
 static void umc_v6_1_query_ras_error_count(struct amdgpu_device *adev,
 					   void *ras_error_status)
 {
-	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
-	uint32_t umc_inst, channel_inst, umc_reg_offset, mc_umc_status_addr;
-
-	mc_umc_status_addr =
-		SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
-
-	for (umc_inst = 0; umc_inst < UMC_V6_1_UMC_INSTANCE_NUM; umc_inst++) {
-		/* enable the index mode to query eror count per channel */
-		umc_v6_1_enable_umc_index_mode(adev, umc_inst);
-		for (channel_inst = 0; channel_inst < UMC_V6_1_CHANNEL_INSTANCE_NUM; channel_inst++) {
-			/* calc the register offset according to channel instance */
-			umc_reg_offset = UMC_V6_1_PER_CHANNEL_OFFSET * channel_inst;
-			umc_v6_1_query_correctable_error_count(adev, umc_reg_offset,
-							       &(err_data->ce_count));
-			umc_v6_1_querry_uncorrectable_error_count(adev, umc_reg_offset,
-								  &(err_data->ue_count));
-			/* clear umc status */
-			WREG64(mc_umc_status_addr + umc_reg_offset, 0x0ULL);
-		}
-	}
-	umc_v6_1_disable_umc_index_mode(adev);
+	amdgpu_umc_for_each_channel(umc_v6_1_query_error_count);
 }
 
 static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
-					 uint32_t umc_reg_offset, uint32_t channel_index,
-					 struct ras_err_data *err_data)
+					 struct ras_err_data *err_data,
+					 uint32_t umc_reg_offset, uint32_t channel_index)
 {
-	uint32_t lsb;
+	uint32_t lsb, mc_umc_status_addr;
 	uint64_t mc_umc_status, err_addr;
-	uint32_t mc_umc_status_addr;
-
-	/* skip error address process if -ENOMEM */
-	if (!err_data->err_addr)
-		return;
 
 	mc_umc_status_addr =
 		SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
+
+	/* skip error address process if -ENOMEM */
+	if (!err_data->err_addr) {
+		/* clear umc status */
+		WREG64(mc_umc_status_addr + umc_reg_offset, 0x0ULL);
+		return;
+	}
+
 	mc_umc_status = RREG64(mc_umc_status_addr + umc_reg_offset);
 
 	/* calculate error address if ue/ce error is detected */
@@ -197,42 +190,21 @@ static void umc_v6_1_query_error_address(struct amdgpu_device *adev,
 
 		/* translate umc channel address to soc pa, 3 parts are included */
 		err_data->err_addr[err_data->err_addr_cnt] =
-						ADDR_OF_8KB_BLOCK(err_addr)
-						| ADDR_OF_256B_BLOCK(channel_index)
-						| OFFSET_IN_256B_BLOCK(err_addr);
+						ADDR_OF_8KB_BLOCK(err_addr) |
+						ADDR_OF_256B_BLOCK(channel_index) |
+						OFFSET_IN_256B_BLOCK(err_addr);
 
 		err_data->err_addr_cnt++;
 	}
+
+	/* clear umc status */
+	WREG64(mc_umc_status_addr + umc_reg_offset, 0x0ULL);
 }
 
 static void umc_v6_1_query_ras_error_address(struct amdgpu_device *adev,
 					     void *ras_error_status)
 {
-	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
-	uint32_t umc_inst, channel_inst, umc_reg_offset;
-	uint32_t channel_index, mc_umc_status_addr;
-
-	mc_umc_status_addr =
-		SOC15_REG_OFFSET(UMC, 0, mmMCA_UMC_UMC0_MCUMC_STATUST0);
-
-	for (umc_inst = 0; umc_inst < UMC_V6_1_UMC_INSTANCE_NUM; umc_inst++) {
-		/* enable the index mode to query eror count per channel */
-		umc_v6_1_enable_umc_index_mode(adev, umc_inst);
-		for (channel_inst = 0; channel_inst < UMC_V6_1_CHANNEL_INSTANCE_NUM; channel_inst++) {
-			/* calc the register offset according to channel instance */
-			umc_reg_offset = UMC_V6_1_PER_CHANNEL_OFFSET * channel_inst;
-			/* get channel index of interleaved memory */
-			channel_index = umc_v6_1_channel_idx_tbl[umc_inst][channel_inst];
-
-			umc_v6_1_query_error_address(adev, umc_reg_offset,
-						     channel_index, err_data);
-
-			/* clear umc status */
-			WREG64(mc_umc_status_addr + umc_reg_offset, 0x0ULL);
-		}
-	}
-
-	umc_v6_1_disable_umc_index_mode(adev);
+	amdgpu_umc_for_each_channel(umc_v6_1_query_error_address);
 }
 
 static void umc_v6_1_ras_init(struct amdgpu_device *adev)
