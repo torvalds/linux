@@ -67,14 +67,14 @@ gv100_grctx_generate_attrib(struct gf100_grctx *info)
 	const u32 attrib = grctx->attrib_nr;
 	const u32   gfxp = grctx->gfxp_nr;
 	const int s = 12;
-	const int max_batches = 0xffff;
 	u32 size = grctx->alpha_nr_max * gr->tpc_total;
 	u32 ao = 0;
 	u32 bo = ao + size;
 	int gpc, ppc, b, n = 0;
 
-	size += grctx->gfxp_nr * gr->tpc_total;
-	size = ((size * 0x20) + 128) & ~127;
+	for (gpc = 0; gpc < gr->gpc_nr; gpc++)
+		size += grctx->gfxp_nr * gr->ppc_nr[gpc] * gr->ppc_tpc_max;
+	size = ((size * 0x20) + 127) & ~127;
 	b = mmio_vram(info, size, (1 << s), false);
 
 	mmio_refn(info, 0x418810, 0x80000000, s, b);
@@ -84,13 +84,12 @@ gv100_grctx_generate_attrib(struct gf100_grctx *info)
 	mmio_wr32(info, 0x419e04, 0x80000000 | size >> 7);
 	mmio_wr32(info, 0x405830, attrib);
 	mmio_wr32(info, 0x40585c, alpha);
-	mmio_wr32(info, 0x4064c4, ((alpha / 4) << 16) | max_batches);
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 		for (ppc = 0; ppc < gr->ppc_nr[gpc]; ppc++, n++) {
 			const u32 as =  alpha * gr->ppc_tpc_nr[gpc][ppc];
-			const u32 bs = attrib * gr->ppc_tpc_nr[gpc][ppc];
-			const u32 gs =   gfxp * gr->ppc_tpc_nr[gpc][ppc];
+			const u32 bs = attrib * gr->ppc_tpc_max;
+			const u32 gs =   gfxp * gr->ppc_tpc_max;
 			const u32 u = 0x418ea0 + (n * 0x04);
 			const u32 o = PPC_UNIT(gpc, ppc, 0);
 			if (!(gr->ppc_mask[gpc] & (1 << ppc)))

@@ -216,6 +216,7 @@ void gf100_gr_init_419eb4(struct gf100_gr *);
 void gf100_gr_init_tex_hww_esr(struct gf100_gr *, int, int);
 void gf100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
 void gf100_gr_init_400054(struct gf100_gr *);
+void gf100_gr_init_num_tpc_per_gpc(struct gf100_gr *, bool, bool);
 extern const struct gf100_gr_func_zbc gf100_gr_zbc;
 
 void gf117_gr_init_zcull(struct gf100_gr *);

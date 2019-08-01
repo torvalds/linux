@@ -2170,6 +2170,23 @@ gf100_gr_new_(const struct gf100_gr_func *func, struct nvkm_device *device,
 }
 
 void
+gf100_gr_init_num_tpc_per_gpc(struct gf100_gr *gr, bool pd, bool ds)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	int gpc, i, j;
+	u32 data;
+
+	for (gpc = 0, i = 0; i < 4; i++) {
+		for (data = 0, j = 0; j < 8 && gpc < gr->gpc_nr; j++, gpc++)
+			data |= gr->tpc_nr[gpc] << (j * 4);
+		if (pd)
+			nvkm_wr32(device, 0x406028 + (i * 4), data);
+		if (ds)
+			nvkm_wr32(device, 0x405870 + (i * 4), data);
+	}
+}
+
+void
 gf100_gr_init_400054(struct gf100_gr *gr)
 {
 	nvkm_wr32(gr->base.engine.subdev.device, 0x400054, 0x34ce3464);
@@ -2336,8 +2353,8 @@ gf100_gr_init(struct gf100_gr *gr)
 	if (gr->func->init_40601c)
 		gr->func->init_40601c(gr);
 
-	nvkm_wr32(device, 0x404490, 0xc0000000);
 	nvkm_wr32(device, 0x406018, 0xc0000000);
+	nvkm_wr32(device, 0x404490, 0xc0000000);
 
 	if (gr->func->init_sked_hww_esr)
 		gr->func->init_sked_hww_esr(gr);

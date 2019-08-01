@@ -1324,10 +1324,8 @@ gf100_grctx_generate_sm_id(struct gf100_gr *gr, int gpc, int tpc, int sm)
 void
 gf100_grctx_generate_floorsweep(struct gf100_gr *gr)
 {
-	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const struct gf100_grctx_func *func = gr->func->grctx;
-	int gpc, sm, i, j;
-	u32 data;
+	int sm;
 
 	for (sm = 0; sm < gr->sm_nr; sm++) {
 		func->sm_id(gr, gr->sm[sm].gpc, gr->sm[sm].tpc, sm);
@@ -1335,12 +1333,8 @@ gf100_grctx_generate_floorsweep(struct gf100_gr *gr)
 			func->tpc_nr(gr, gr->sm[sm].gpc);
 	}
 
-	for (gpc = 0, i = 0; i < 4; i++) {
-		for (data = 0, j = 0; j < 8 && gpc < gr->gpc_nr; j++, gpc++)
-			data |= gr->tpc_nr[gpc] << (j * 4);
-		nvkm_wr32(device, 0x406028 + (i * 4), data);
-		nvkm_wr32(device, 0x405870 + (i * 4), data);
-	}
+	gf100_gr_init_num_tpc_per_gpc(gr, false, true);
+	gf100_gr_init_num_tpc_per_gpc(gr, true, false);
 
 	if (func->r4060a8)
 		func->r4060a8(gr);
