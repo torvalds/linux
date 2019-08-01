@@ -1671,18 +1671,27 @@ static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 	mv88e6xxx_reg_unlock(chip);
 }
 
-static int _mv88e6xxx_port_vlan_del(struct mv88e6xxx_chip *chip,
-				    int port, u16 vid)
+static int mv88e6xxx_port_vlan_leave(struct mv88e6xxx_chip *chip,
+				     int port, u16 vid)
 {
 	struct mv88e6xxx_vtu_entry vlan;
 	int i, err;
 
-	err = mv88e6xxx_vtu_get(chip, vid, &vlan, false);
+	if (!vid)
+		return -EOPNOTSUPP;
+
+	vlan.vid = vid - 1;
+	vlan.valid = false;
+
+	err = mv88e6xxx_vtu_getnext(chip, &vlan);
 	if (err)
 		return err;
 
-	/* Tell switchdev if this VLAN is handled in software */
-	if (vlan.member[port] == MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER)
+	/* If the VLAN doesn't exist in hardware or the port isn't a member,
+	 * tell switchdev that this VLAN is likely handled in software.
+	 */
+	if (vlan.vid != vid || !vlan.valid ||
+	    vlan.member[port] == MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER)
 		return -EOPNOTSUPP;
 
 	vlan.member[port] = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER;
@@ -1721,7 +1730,7 @@ static int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 		goto unlock;
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
-		err = _mv88e6xxx_port_vlan_del(chip, port, vid);
+		err = mv88e6xxx_port_vlan_leave(chip, port, vid);
 		if (err)
 			goto unlock;
 
