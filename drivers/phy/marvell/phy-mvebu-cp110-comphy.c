@@ -80,8 +80,8 @@
 #define MVEBU_COMPHY_TX_SLEW_RATE(n)		(0x974 + (n) * 0x1000)
 #define     MVEBU_COMPHY_TX_SLEW_RATE_EMPH(n)	((n) << 5)
 #define     MVEBU_COMPHY_TX_SLEW_RATE_SLC(n)	((n) << 10)
-#define MVEBU_COMPHY_DLT_CTRL(n)		(0x984 + (n) * 0x1000)
-#define     MVEBU_COMPHY_DLT_CTRL_DTL_FLOOP_EN	BIT(2)
+#define MVEBU_COMPHY_DTL_CTRL(n)		(0x984 + (n) * 0x1000)
+#define     MVEBU_COMPHY_DTL_CTRL_DTL_FLOOP_EN	BIT(2)
 #define MVEBU_COMPHY_FRAME_DETECT0(n)		(0xa14 + (n) * 0x1000)
 #define     MVEBU_COMPHY_FRAME_DETECT0_PATN(n)	((n) << 7)
 #define MVEBU_COMPHY_FRAME_DETECT3(n)		(0xa20 + (n) * 0x1000)
@@ -494,9 +494,9 @@ static int mvebu_comphy_set_mode_sgmii(struct phy *phy)
 	val |= MVEBU_COMPHY_RX_CTRL1_RXCLK2X_SEL;
 	writel(val, priv->base + MVEBU_COMPHY_RX_CTRL1(lane->id));
 
-	val = readl(priv->base + MVEBU_COMPHY_DLT_CTRL(lane->id));
-	val &= ~MVEBU_COMPHY_DLT_CTRL_DTL_FLOOP_EN;
-	writel(val, priv->base + MVEBU_COMPHY_DLT_CTRL(lane->id));
+	val = readl(priv->base + MVEBU_COMPHY_DTL_CTRL(lane->id));
+	val &= ~MVEBU_COMPHY_DTL_CTRL_DTL_FLOOP_EN;
+	writel(val, priv->base + MVEBU_COMPHY_DTL_CTRL(lane->id));
 
 	regmap_read(priv->regmap, MVEBU_COMPHY_CONF1(lane->id), &val);
 	val &= ~MVEBU_COMPHY_CONF1_USB_PCIE;
@@ -527,9 +527,9 @@ static int mvebu_comphy_set_mode_rxaui(struct phy *phy)
 	       MVEBU_COMPHY_RX_CTRL1_CLK8T_EN;
 	writel(val, priv->base + MVEBU_COMPHY_RX_CTRL1(lane->id));
 
-	val = readl(priv->base + MVEBU_COMPHY_DLT_CTRL(lane->id));
-	val |= MVEBU_COMPHY_DLT_CTRL_DLT_FLOOP_EN;
-	writel(val, priv->base + MVEBU_COMPHY_DLT_CTRL(lane->id));
+	val = readl(priv->base + MVEBU_COMPHY_DTL_CTRL(lane->id));
+	val |= MVEBU_COMPHY_DTL_CTRL_DTL_FLOOP_EN;
+	writel(val, priv->base + MVEBU_COMPHY_DTL_CTRL(lane->id));
 
 	val = readl(priv->base + MVEBU_COMPHY_SERDES_CFG2(lane->id));
 	val |= MVEBU_COMPHY_SERDES_CFG2_DFE_EN;
@@ -580,9 +580,9 @@ static int mvebu_comphy_set_mode_10gkr(struct phy *phy)
 	       MVEBU_COMPHY_RX_CTRL1_CLK8T_EN;
 	writel(val, priv->base + MVEBU_COMPHY_RX_CTRL1(lane->id));
 
-	val = readl(priv->base + MVEBU_COMPHY_DLT_CTRL(lane->id));
-	val |= MVEBU_COMPHY_DLT_CTRL_DTL_FLOOP_EN;
-	writel(val, priv->base + MVEBU_COMPHY_DLT_CTRL(lane->id));
+	val = readl(priv->base + MVEBU_COMPHY_DTL_CTRL(lane->id));
+	val |= MVEBU_COMPHY_DTL_CTRL_DTL_FLOOP_EN;
+	writel(val, priv->base + MVEBU_COMPHY_DTL_CTRL(lane->id));
 
 	/* Speed divider */
 	val = readl(priv->base + MVEBU_COMPHY_SPEED_DIV(lane->id));
