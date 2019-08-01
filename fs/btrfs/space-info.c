@@ -878,20 +878,19 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 	} while (flush_state < ARRAY_SIZE(priority_flush_states));
 }
 
-static int wait_reserve_ticket(struct btrfs_fs_info *fs_info,
-			       struct btrfs_space_info *space_info,
-			       struct reserve_ticket *ticket)
+static void wait_reserve_ticket(struct btrfs_fs_info *fs_info,
+				struct btrfs_space_info *space_info,
+				struct reserve_ticket *ticket)
 
 {
 	DEFINE_WAIT(wait);
-	u64 reclaim_bytes = 0;
 	int ret = 0;
 
 	spin_lock(&space_info->lock);
 	while (ticket->bytes > 0 && ticket->error == 0) {
 		ret = prepare_to_wait_event(&ticket->wait, &wait, TASK_KILLABLE);
 		if (ret) {
-			ret = -EINTR;
+			ticket->error = -EINTR;
 			break;
 		}
 		spin_unlock(&space_info->lock);
@@ -901,18 +900,7 @@ static int wait_reserve_ticket(struct btrfs_fs_info *fs_info,
 		finish_wait(&ticket->wait, &wait);
 		spin_lock(&space_info->lock);
 	}
-	if (!ret)
-		ret = ticket->error;
-	if (!list_empty(&ticket->list))
-		list_del_init(&ticket->list);
-	if (ticket->bytes && ticket->bytes < ticket->orig_bytes)
-		reclaim_bytes = ticket->orig_bytes - ticket->bytes;
 	spin_unlock(&space_info->lock);
-
-	if (reclaim_bytes)
-		btrfs_space_info_add_old_bytes(fs_info, space_info,
-					       reclaim_bytes);
-	return ret;
 }
 
 /**
@@ -1010,16 +998,18 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 		return ret;
 
 	if (flush == BTRFS_RESERVE_FLUSH_ALL)
-		return wait_reserve_ticket(fs_info, space_info, &ticket);
+		wait_reserve_ticket(fs_info, space_info, &ticket);
+	else
+		priority_reclaim_metadata_space(fs_info, space_info, &ticket);
 
-	ret = 0;
-	priority_reclaim_metadata_space(fs_info, space_info, &ticket);
 	spin_lock(&space_info->lock);
-	if (ticket.bytes) {
+	ret = ticket.error;
+	if (ticket.bytes || ticket.error) {
 		if (ticket.bytes < orig_bytes)
 			reclaim_bytes = orig_bytes - ticket.bytes;
 		list_del_init(&ticket.list);
-		ret = -ENOSPC;
+		if (!ret)
+			ret = -ENOSPC;
 	}
 	spin_unlock(&space_info->lock);
 
