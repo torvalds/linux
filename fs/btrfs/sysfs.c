@@ -800,6 +800,28 @@ void btrfs_sysfs_add_block_group_type(struct btrfs_block_group_cache *cache)
 	space_info->block_group_kobjs[index] = &rkobj->kobj;
 }
 
+/*
+ * Remove sysfs directories for all block group types of a given space info and
+ * the space info as well
+ */
+void btrfs_sysfs_remove_space_info(struct btrfs_space_info *space_info)
+{
+	int i;
+
+	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++) {
+		struct kobject *kobj;
+
+		kobj = space_info->block_group_kobjs[i];
+		space_info->block_group_kobjs[i] = NULL;
+		if (kobj) {
+			kobject_del(kobj);
+			kobject_put(kobj);
+		}
+	}
+	kobject_del(&space_info->kobj);
+	kobject_put(&space_info->kobj);
+}
+
 static const char *alloc_name(u64 flags)
 {
 	switch (flags) {
