@@ -9,6 +9,7 @@
 #include "include/hw_ip/mmu/mmu_general.h"
 #include "include/hw_ip/mmu/mmu_v1_0.h"
 #include "include/goya/asic_reg/goya_masks.h"
+#include "include/goya/goya_reg_map.h"
 
 #include <linux/pci.h>
 #include <linux/genalloc.h>
@@ -1006,36 +1007,34 @@ int goya_init_cpu_queues(struct hl_device *hdev)
 
 	eq = &hdev->event_queue;
 
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_0,
-			lower_32_bits(cpu_pq->bus_address));
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_1,
-			upper_32_bits(cpu_pq->bus_address));
+	WREG32(mmCPU_PQ_BASE_ADDR_LOW, lower_32_bits(cpu_pq->bus_address));
+	WREG32(mmCPU_PQ_BASE_ADDR_HIGH, upper_32_bits(cpu_pq->bus_address));
 
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_2, lower_32_bits(eq->bus_address));
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_3, upper_32_bits(eq->bus_address));
+	WREG32(mmCPU_EQ_BASE_ADDR_LOW, lower_32_bits(eq->bus_address));
+	WREG32(mmCPU_EQ_BASE_ADDR_HIGH, upper_32_bits(eq->bus_address));
 
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_8,
+	WREG32(mmCPU_CQ_BASE_ADDR_LOW,
 			lower_32_bits(VA_CPU_ACCESSIBLE_MEM_ADDR));
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_9,
+	WREG32(mmCPU_CQ_BASE_ADDR_HIGH,
 			upper_32_bits(VA_CPU_ACCESSIBLE_MEM_ADDR));
 
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_5, HL_QUEUE_SIZE_IN_BYTES);
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_4, HL_EQ_SIZE_IN_BYTES);
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_10, HL_CPU_ACCESSIBLE_MEM_SIZE);
+	WREG32(mmCPU_PQ_LENGTH, HL_QUEUE_SIZE_IN_BYTES);
+	WREG32(mmCPU_EQ_LENGTH, HL_EQ_SIZE_IN_BYTES);
+	WREG32(mmCPU_CQ_LENGTH, HL_CPU_ACCESSIBLE_MEM_SIZE);
 
 	/* Used for EQ CI */
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_6, 0);
+	WREG32(mmCPU_EQ_CI, 0);
 
 	WREG32(mmCPU_IF_PF_PQ_PI, 0);
 
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_7, PQ_INIT_STATUS_READY_FOR_CP);
+	WREG32(mmCPU_PQ_INIT_STATUS, PQ_INIT_STATUS_READY_FOR_CP);
 
 	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
 			GOYA_ASYNC_EVENT_ID_PI_UPDATE);
 
 	err = hl_poll_timeout(
 		hdev,
-		mmPSOC_GLOBAL_CONF_SCRATCHPAD_7,
+		mmCPU_PQ_INIT_STATUS,
 		status,
 		(status == PQ_INIT_STATUS_READY_FOR_HOST),
 		1000,
@@ -2205,12 +2204,12 @@ static void goya_read_device_fw_version(struct hl_device *hdev,
 
 	switch (fwc) {
 	case FW_COMP_UBOOT:
-		ver_off = RREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_29);
+		ver_off = RREG32(mmUBOOT_VER_OFFSET);
 		dest = hdev->asic_prop.uboot_ver;
 		name = "U-Boot";
 		break;
 	case FW_COMP_PREBOOT:
-		ver_off = RREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_28);
+		ver_off = RREG32(mmPREBOOT_VER_OFFSET);
 		dest = hdev->asic_prop.preboot_ver;
 		name = "Preboot";
 		break;
@@ -3949,7 +3948,7 @@ void goya_add_end_of_cb_packets(struct hl_device *hdev, u64 kernel_address,
 
 void goya_update_eq_ci(struct hl_device *hdev, u32 val)
 {
-	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_6, val);
+	WREG32(mmCPU_EQ_CI, val);
 }
 
 void goya_restore_phase_topology(struct hl_device *hdev)
