@@ -271,6 +271,13 @@ exit:
  *
  * SRM should be presented in the name of "display_hdcp_srm.bin".
  *
+ * Format of the SRM table, that userspace needs to write into the binary file,
+ * is defined at:
+ * 1. Renewability chapter on 55th page of HDCP 1.4 specification
+ * https://www.digital-cp.com/sites/default/files/specifications/HDCP%20Specification%20Rev1_4_Secure.pdf
+ * 2. Renewability chapter on 63rd page of HDCP 2.2 specification
+ * https://www.digital-cp.com/sites/default/files/specifications/HDCP%20on%20HDMI%20Specification%20Rev2_2_Final1.pdf
+ *
  * Returns:
  * TRUE on any of the KSV is revoked, else FALSE.
  */
