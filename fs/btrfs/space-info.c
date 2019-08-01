@@ -664,7 +664,7 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 		if (ret > 0 || ret == -ENOSPC)
 			ret = 0;
 		break;
-	case COMMIT_TRANS:
+	case RUN_DELAYED_IPUTS:
 		/*
 		 * If we have pending delayed iputs then we could free up a
 		 * bunch of pinned space, so make sure we run the iputs before
@@ -672,7 +672,8 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 		 */
 		btrfs_run_delayed_iputs(fs_info);
 		btrfs_wait_on_delayed_iputs(fs_info);
-
+		break;
+	case COMMIT_TRANS:
 		ret = may_commit_transaction(fs_info, space_info);
 		break;
 	default:
