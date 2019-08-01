@@ -5336,59 +5336,50 @@ static struct btrfs_trans_handle *evict_refill_and_join(struct btrfs_root *root,
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
+	struct btrfs_trans_handle *trans;
 	u64 delayed_refs_extra = btrfs_calc_trans_metadata_size(fs_info, 1);
-	int failures = 0;
+	int ret;
 
-	for (;;) {
-		struct btrfs_trans_handle *trans;
-		int ret;
-
-		ret = btrfs_block_rsv_refill(root, rsv,
-					     rsv->size + delayed_refs_extra,
-					     BTRFS_RESERVE_FLUSH_LIMIT);
-
-		if (ret && ++failures > 2) {
-			btrfs_warn(fs_info,
-				   "could not allocate space for a delete; will truncate on mount");
-			return ERR_PTR(-ENOSPC);
-		}
-
-		/*
-		 * Evict can generate a large amount of delayed refs without
-		 * having a way to add space back since we exhaust our temporary
-		 * block rsv.  We aren't allowed to do FLUSH_ALL in this case
-		 * because we could deadlock with so many things in the flushing
-		 * code, so we have to try and hold some extra space to
-		 * compensate for our delayed ref generation.  If we can't get
-		 * that space then we need see if we can steal our minimum from
-		 * the global reserve.  We will be ratelimited by the amount of
-		 * space we have for the delayed refs rsv, so we'll end up
-		 * committing and trying again.
-		 */
-		trans = btrfs_join_transaction(root);
-		if (IS_ERR(trans) || !ret) {
-			if (!IS_ERR(trans)) {
-				trans->block_rsv = &fs_info->trans_block_rsv;
-				trans->bytes_reserved = delayed_refs_extra;
-				btrfs_block_rsv_migrate(rsv, trans->block_rsv,
-							delayed_refs_extra, 1);
-			}
-			return trans;
-		}
-
+	/*
+	 * Eviction should be taking place at some place safe because of our
+	 * delayed iputs.  However the normal flushing code will run delayed
+	 * iputs, so we cannot use FLUSH_ALL otherwise we'll deadlock.
+	 *
+	 * We reserve the delayed_refs_extra here again because we can't use
+	 * btrfs_start_transaction(root, 0) for the same deadlocky reason as
+	 * above.  We reserve our extra bit here because we generate a ton of
+	 * delayed refs activity by truncating.
+	 *
+	 * If we cannot make our reservation we'll attempt to steal from the
+	 * global reserve, because we really want to be able to free up space.
+	 */
+	ret = btrfs_block_rsv_refill(root, rsv, rsv->size + delayed_refs_extra,
+				     BTRFS_RESERVE_FLUSH_EVICT);
+	if (ret) {
 		/*
 		 * Try to steal from the global reserve if there is space for
 		 * it.
 		 */
-		if (!btrfs_check_space_for_delayed_refs(fs_info) &&
-		    !btrfs_block_rsv_migrate(global_rsv, rsv, rsv->size, 0))
-			return trans;
-
-		/* If not, commit and try again. */
-		ret = btrfs_commit_transaction(trans);
-		if (ret)
-			return ERR_PTR(ret);
+		if (btrfs_check_space_for_delayed_refs(fs_info) ||
+		    btrfs_block_rsv_migrate(global_rsv, rsv, rsv->size, 0)) {
+			btrfs_warn(fs_info,
+				   "could not allocate space for delete; will truncate on mount");
+			return ERR_PTR(-ENOSPC);
+		}
+		delayed_refs_extra = 0;
 	}
+
+	trans = btrfs_join_transaction(root);
+	if (IS_ERR(trans))
+		return trans;
+
+	if (delayed_refs_extra) {
+		trans->block_rsv = &fs_info->trans_block_rsv;
+		trans->bytes_reserved = delayed_refs_extra;
+		btrfs_block_rsv_migrate(rsv, trans->block_rsv,
+					delayed_refs_extra, 1);
+	}
+	return trans;
 }
 
 void btrfs_evict_inode(struct inode *inode)

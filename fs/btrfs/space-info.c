@@ -848,6 +848,17 @@ static const enum btrfs_flush_state priority_flush_states[] = {
 	ALLOC_CHUNK,
 };
 
+static const enum btrfs_flush_state evict_flush_states[] = {
+	FLUSH_DELAYED_ITEMS_NR,
+	FLUSH_DELAYED_ITEMS,
+	FLUSH_DELAYED_REFS_NR,
+	FLUSH_DELAYED_REFS,
+	FLUSH_DELALLOC,
+	FLUSH_DELALLOC_WAIT,
+	ALLOC_CHUNK,
+	COMMIT_TRANS,
+};
+
 static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 				struct btrfs_space_info *space_info,
 				struct reserve_ticket *ticket,
@@ -922,12 +933,24 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 	u64 reclaim_bytes = 0;
 	int ret;
 
-	if (flush == BTRFS_RESERVE_FLUSH_ALL)
+	switch (flush) {
+	case BTRFS_RESERVE_FLUSH_ALL:
 		wait_reserve_ticket(fs_info, space_info, ticket);
-	else
+		break;
+	case BTRFS_RESERVE_FLUSH_LIMIT:
 		priority_reclaim_metadata_space(fs_info, space_info, ticket,
 						priority_flush_states,
 						ARRAY_SIZE(priority_flush_states));
+		break;
+	case BTRFS_RESERVE_FLUSH_EVICT:
+		priority_reclaim_metadata_space(fs_info, space_info, ticket,
+						evict_flush_states,
+						ARRAY_SIZE(evict_flush_states));
+		break;
+	default:
+		ASSERT(0);
+		break;
+	}
 
 	spin_lock(&space_info->lock);
 	ret = ticket->error;

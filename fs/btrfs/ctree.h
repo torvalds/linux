@@ -2536,6 +2536,7 @@ enum btrfs_reserve_flush_enum {
 	 * case, use FLUSH LIMIT
 	 */
 	BTRFS_RESERVE_FLUSH_LIMIT,
+	BTRFS_RESERVE_FLUSH_EVICT,
 	BTRFS_RESERVE_FLUSH_ALL,
 };
 
