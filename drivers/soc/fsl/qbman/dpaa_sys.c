@@ -40,6 +40,7 @@ int qbman_init_private_mem(struct device *dev, int idx, dma_addr_t *addr,
 	int ret;
 	struct device_node *mem_node;
 	u64 size64;
+	struct reserved_mem *rmem;
 
 	ret = of_reserved_mem_device_init_by_idx(dev, dev->of_node, idx);
 	if (ret) {
@@ -62,10 +63,8 @@ int qbman_init_private_mem(struct device *dev, int idx, dma_addr_t *addr,
 		return -ENODEV;
 	}
 
-	if (!dma_alloc_coherent(dev, *size, addr, 0)) {
-		dev_err(dev, "DMA Alloc memory failed\n");
-		return -ENODEV;
-	}
+	rmem = of_reserved_mem_lookup(mem_node);
+	*addr = rmem->base;
 
 	/*
 	 * Disassociate the reserved memory area from the device
