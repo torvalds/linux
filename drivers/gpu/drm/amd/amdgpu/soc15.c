@@ -1155,7 +1155,13 @@ static int soc15_common_early_init(void *handle)
 		break;
 	case CHIP_RENOIR:
 		adev->asic_funcs = &soc15_asic_funcs;
-		adev->cg_flags = 0;
+		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
+				 AMD_CG_SUPPORT_GFX_MGLS |
+				 AMD_CG_SUPPORT_GFX_3D_CGCG |
+				 AMD_CG_SUPPORT_GFX_3D_CGLS |
+				 AMD_CG_SUPPORT_GFX_CGCG |
+				 AMD_CG_SUPPORT_GFX_CGLS |
+				 AMD_CG_SUPPORT_GFX_CP_LS;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x91;
 
