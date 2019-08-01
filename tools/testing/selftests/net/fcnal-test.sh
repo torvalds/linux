@@ -3248,6 +3248,126 @@ ipv6_netfilter()
 }
 
 ################################################################################
+# specific use cases
+
+# VRF only.
+# ns-A device enslaved to bridge. Verify traffic with and without
+# br_netfilter module loaded. Repeat with SVI on bridge.
+use_case_br()
+{
+	setup "yes"
+
+	setup_cmd ip link set ${NSA_DEV} down
+	setup_cmd ip addr del dev ${NSA_DEV} ${NSA_IP}/24
+	setup_cmd ip -6 addr del dev ${NSA_DEV} ${NSA_IP6}/64
+
+	setup_cmd ip link add br0 type bridge
+	setup_cmd ip addr add dev br0 ${NSA_IP}/24
+	setup_cmd ip -6 addr add dev br0 ${NSA_IP6}/64 nodad
+
+	setup_cmd ip li set ${NSA_DEV} master br0
+	setup_cmd ip li set ${NSA_DEV} up
+	setup_cmd ip li set br0 up
+	setup_cmd ip li set br0 vrf ${VRF}
+
+	rmmod br_netfilter 2>/dev/null
+	sleep 5 # DAD
+
+	run_cmd ip neigh flush all
+	run_cmd ping -c1 -w1 -I br0 ${NSB_IP}
+	log_test $? 0 "Bridge into VRF - IPv4 ping out"
+
+	run_cmd ip neigh flush all
+	run_cmd ${ping6} -c1 -w1 -I br0 ${NSB_IP6}
+	log_test $? 0 "Bridge into VRF - IPv6 ping out"
+
+	run_cmd ip neigh flush all
+	run_cmd_nsb ping -c1 -w1 ${NSA_IP}
+	log_test $? 0 "Bridge into VRF - IPv4 ping in"
+
+	run_cmd ip neigh flush all
+	run_cmd_nsb ${ping6} -c1 -w1 ${NSA_IP6}
+	log_test $? 0 "Bridge into VRF - IPv6 ping in"
+
+	modprobe br_netfilter
+	if [ $? -eq 0 ]; then
+		run_cmd ip neigh flush all
+		run_cmd ping -c1 -w1 -I br0 ${NSB_IP}
+		log_test $? 0 "Bridge into VRF with br_netfilter - IPv4 ping out"
+
+		run_cmd ip neigh flush all
+		run_cmd ${ping6} -c1 -w1 -I br0 ${NSB_IP6}
+		log_test $? 0 "Bridge into VRF with br_netfilter - IPv6 ping out"
+
+		run_cmd ip neigh flush all
+		run_cmd_nsb ping -c1 -w1 ${NSA_IP}
+		log_test $? 0 "Bridge into VRF with br_netfilter - IPv4 ping in"
+
+		run_cmd ip neigh flush all
+		run_cmd_nsb ${ping6} -c1 -w1 ${NSA_IP6}
+		log_test $? 0 "Bridge into VRF with br_netfilter - IPv6 ping in"
+	fi
+
+	setup_cmd ip li set br0 nomaster
+	setup_cmd ip li add br0.100 link br0 type vlan id 100
+	setup_cmd ip li set br0.100 vrf ${VRF} up
+	setup_cmd ip    addr add dev br0.100 172.16.101.1/24
+	setup_cmd ip -6 addr add dev br0.100 2001:db8:101::1/64 nodad
+
+	setup_cmd_nsb ip li add vlan100 link ${NSB_DEV} type vlan id 100
+	setup_cmd_nsb ip addr add dev vlan100 172.16.101.2/24
+	setup_cmd_nsb ip -6 addr add dev vlan100 2001:db8:101::2/64 nodad
+	setup_cmd_nsb ip li set vlan100 up
+	sleep 1
+
+	rmmod br_netfilter 2>/dev/null
+
+	run_cmd ip neigh flush all
+	run_cmd ping -c1 -w1 -I br0.100 172.16.101.2
+	log_test $? 0 "Bridge vlan into VRF - IPv4 ping out"
+
+	run_cmd ip neigh flush all
+	run_cmd ${ping6} -c1 -w1 -I br0.100 2001:db8:101::2
+	log_test $? 0 "Bridge vlan into VRF - IPv6 ping out"
+
+	run_cmd ip neigh flush all
+	run_cmd_nsb ping -c1 -w1 172.16.101.1
+	log_test $? 0 "Bridge vlan into VRF - IPv4 ping in"
+
+	run_cmd ip neigh flush all
+	run_cmd_nsb ${ping6} -c1 -w1 2001:db8:101::1
+	log_test $? 0 "Bridge vlan into VRF - IPv6 ping in"
+
+	modprobe br_netfilter
+	if [ $? -eq 0 ]; then
+		run_cmd ip neigh flush all
+		run_cmd ping -c1 -w1 -I br0.100 172.16.101.2
+		log_test $? 0 "Bridge vlan into VRF with br_netfilter - IPv4 ping out"
+
+		run_cmd ip neigh flush all
+		run_cmd ${ping6} -c1 -w1 -I br0.100 2001:db8:101::2
+		log_test $? 0 "Bridge vlan into VRF with br_netfilter - IPv6 ping out"
+
+		run_cmd ip neigh flush all
+		run_cmd_nsb ping -c1 -w1 172.16.101.1
+		log_test $? 0 "Bridge vlan into VRF - IPv4 ping in"
+
+		run_cmd ip neigh flush all
+		run_cmd_nsb ${ping6} -c1 -w1 2001:db8:101::1
+		log_test $? 0 "Bridge vlan into VRF - IPv6 ping in"
+	fi
+
+	setup_cmd ip li del br0 2>/dev/null
+	setup_cmd_nsb ip li del vlan100 2>/dev/null
+}
+
+use_cases()
+{
+	log_section "Use cases"
+	use_case_br
+}
+
+################################################################################
 # usage
 
 usage()
@@ -3269,6 +3389,8 @@ EOF
 
 TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp ipv4_addr_bind ipv4_runtime ipv4_netfilter"
 TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp ipv6_addr_bind ipv6_runtime ipv6_netfilter"
+TESTS_OTHER="use_cases"
+
 PAUSE_ON_FAIL=no
 PAUSE=no
 
@@ -3319,6 +3441,8 @@ do
 	ipv6_bind|bind6) ipv6_addr_bind;;
 	ipv6_runtime)    ipv6_runtime;;
 	ipv6_netfilter)  ipv6_netfilter;;
+
+	use_cases)       use_cases;;
 
 	# setup namespaces and config, but do not run any tests
 	setup)		 setup; exit 0;;
