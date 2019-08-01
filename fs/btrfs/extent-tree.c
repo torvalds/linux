@@ -4,7 +4,6 @@
  */
 
 #include <linux/sched.h>
-#include <linux/sched/mm.h>
 #include <linux/sched/signal.h>
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
@@ -7573,7 +7572,6 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 static void link_block_group(struct btrfs_block_group_cache *cache)
 {
 	struct btrfs_space_info *space_info = cache->space_info;
-	struct btrfs_fs_info *fs_info = cache->fs_info;
 	int index = btrfs_bg_flags_to_raid_index(cache->flags);
 	bool first = false;
 
@@ -7583,39 +7581,8 @@ static void link_block_group(struct btrfs_block_group_cache *cache)
 	list_add_tail(&cache->list, &space_info->block_groups[index]);
 	up_write(&space_info->groups_sem);
 
-	if (first) {
-		struct raid_kobject *rkobj;
-		unsigned int nofs_flag;
-		int ret;
-
-		/*
-		 * Setup a NOFS context because kobject_add(), deep in its call
-		 * chain, does GFP_KERNEL allocations, and we are often called
-		 * in a context where if reclaim is triggered we can deadlock
-		 * (we are either holding a transaction handle or some lock
-		 * required for a transaction commit).
-		 */
-		nofs_flag = memalloc_nofs_save();
-		rkobj = kzalloc(sizeof(*rkobj), GFP_KERNEL);
-		if (!rkobj) {
-			memalloc_nofs_restore(nofs_flag);
-			btrfs_warn(cache->fs_info,
-				"couldn't alloc memory for raid level kobject");
-			return;
-		}
-		rkobj->flags = cache->flags;
-		kobject_init(&rkobj->kobj, &btrfs_raid_ktype);
-		ret = kobject_add(&rkobj->kobj, &space_info->kobj, "%s",
-				  btrfs_bg_type_to_raid_name(rkobj->flags));
-		memalloc_nofs_restore(nofs_flag);
-		if (ret) {
-			kobject_put(&rkobj->kobj);
-			btrfs_warn(fs_info,
-			   "failed to add kobject for block cache, ignoring");
-			return;
-		}
-		space_info->block_group_kobjs[index] = &rkobj->kobj;
-	}
+	if (first)
+		btrfs_sysfs_add_block_group_type(cache);
 }
 
 static struct btrfs_block_group_cache *

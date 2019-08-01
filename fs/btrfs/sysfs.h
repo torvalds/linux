@@ -96,5 +96,6 @@ int __init btrfs_init_sysfs(void);
 void __cold btrfs_exit_sysfs(void);
 int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info);
 void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info);
+void btrfs_sysfs_add_block_group_type(struct btrfs_block_group_cache *cache);
 
 #endif
