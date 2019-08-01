@@ -519,7 +519,9 @@ int hda_ipc_pcm_params(struct snd_sof_dev *sdev,
 int hda_dsp_ipc_send_msg(struct snd_sof_dev *sdev,
 			 struct snd_sof_ipc_msg *msg);
 void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev);
-int hda_dsp_ipc_fw_ready(struct snd_sof_dev *sdev, u32 msg_id);
+int hda_dsp_ipc_get_mailbox_offset(struct snd_sof_dev *sdev);
+int hda_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id);
+
 irqreturn_t hda_dsp_ipc_irq_handler(int irq, void *context);
 irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context);
 int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir);
