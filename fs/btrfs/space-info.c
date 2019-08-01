@@ -849,8 +849,10 @@ static const enum btrfs_flush_state priority_flush_states[] = {
 };
 
 static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
-					    struct btrfs_space_info *space_info,
-					    struct reserve_ticket *ticket)
+				struct btrfs_space_info *space_info,
+				struct reserve_ticket *ticket,
+				const enum btrfs_flush_state *states,
+				int states_nr)
 {
 	u64 to_reclaim;
 	int flush_state;
@@ -866,8 +868,7 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 
 	flush_state = 0;
 	do {
-		flush_space(fs_info, space_info, to_reclaim,
-			    priority_flush_states[flush_state]);
+		flush_space(fs_info, space_info, to_reclaim, states[flush_state]);
 		flush_state++;
 		spin_lock(&space_info->lock);
 		if (ticket->bytes == 0) {
@@ -875,7 +876,7 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 			return;
 		}
 		spin_unlock(&space_info->lock);
-	} while (flush_state < ARRAY_SIZE(priority_flush_states));
+	} while (flush_state < states_nr);
 }
 
 static void wait_reserve_ticket(struct btrfs_fs_info *fs_info,
@@ -924,7 +925,9 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 	if (flush == BTRFS_RESERVE_FLUSH_ALL)
 		wait_reserve_ticket(fs_info, space_info, ticket);
 	else
-		priority_reclaim_metadata_space(fs_info, space_info, ticket);
+		priority_reclaim_metadata_space(fs_info, space_info, ticket,
+						priority_flush_states,
+						ARRAY_SIZE(priority_flush_states));
 
 	spin_lock(&space_info->lock);
 	ret = ticket->error;
