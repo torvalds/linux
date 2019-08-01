@@ -125,12 +125,28 @@ void null_zone_reset(struct nullb_cmd *cmd, sector_t sector)
 	struct nullb_device *dev = cmd->nq->dev;
 	unsigned int zno = null_zone_no(dev, sector);
 	struct blk_zone *zone = &dev->zones[zno];
+	size_t i;
 
-	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL) {
-		cmd->error = BLK_STS_IOERR;
-		return;
+	switch (req_op(cmd->rq)) {
+	case REQ_OP_ZONE_RESET_ALL:
+		for (i = 0; i < dev->nr_zones; i++) {
+			if (zone[i].type == BLK_ZONE_TYPE_CONVENTIONAL)
+				continue;
+			zone[i].cond = BLK_ZONE_COND_EMPTY;
+			zone[i].wp = zone[i].start;
+		}
+		break;
+	case REQ_OP_ZONE_RESET:
+		if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL) {
+			cmd->error = BLK_STS_IOERR;
+			return;
+		}
+
+		zone->cond = BLK_ZONE_COND_EMPTY;
+		zone->wp = zone->start;
+		break;
+	default:
+		cmd->error = BLK_STS_NOTSUPP;
+		break;
 	}
-
-	zone->cond = BLK_ZONE_COND_EMPTY;
-	zone->wp = zone->start;
 }
