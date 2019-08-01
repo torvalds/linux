@@ -853,6 +853,12 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 		return -EIO;
 
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	if (pmcsr == (u16) ~0) {
+		pci_err(dev, "can't change power state from %s to %s (config space inaccessible)\n",
+			pci_power_name(dev->current_state),
+			pci_power_name(state));
+		return -EIO;
+	}
 
 	/*
 	 * If we're (effectively) in D3, force entire word to 0.
