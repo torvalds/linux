@@ -447,6 +447,8 @@ static void dsc_init_reg_values(struct dsc_reg_values *reg_vals)
 {
 	int i;
 
+	memset(reg_vals, 0, sizeof(struct dsc_reg_values));
+
 	/* Non-PPS values */
 	reg_vals->dsc_clock_enable            = 1;
 	reg_vals->dsc_clock_gating_disable    = 0;
