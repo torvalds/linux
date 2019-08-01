@@ -8,7 +8,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
-#include <linux/kobject.h>
 #include <linux/bug.h>
 
 #include "ctree.h"
