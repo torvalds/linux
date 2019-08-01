@@ -493,6 +493,16 @@ static void pci_xr17v35x_exit(struct pci_dev *pcidev)
 	port->port.private_data = NULL;
 }
 
+static inline void exar_misc_clear(struct exar8250 *priv)
+{
+	/* Clear all PCI interrupts by reading INT0. No effect on IIR */
+	readb(priv->virt + UART_EXAR_INT0);
+
+	/* Clear INT0 for Expansion Interface slave ports, too */
+	if (priv->board->num_ports > 8)
+		readb(priv->virt + 0x2000 + UART_EXAR_INT0);
+}
+
 /*
  * These Exar UARTs have an extra interrupt indicator that could fire for a
  * few interrupts that are not presented/cleared through IIR.  One of which is
@@ -504,14 +514,7 @@ static void pci_xr17v35x_exit(struct pci_dev *pcidev)
  */
 static irqreturn_t exar_misc_handler(int irq, void *data)
 {
-	struct exar8250 *priv = data;
-
-	/* Clear all PCI interrupts by reading INT0. No effect on IIR */
-	readb(priv->virt + UART_EXAR_INT0);
-
-	/* Clear INT0 for Expansion Interface slave ports, too */
-	if (priv->board->num_ports > 8)
-		readb(priv->virt + 0x2000 + UART_EXAR_INT0);
+	exar_misc_clear(data);
 
 	return IRQ_HANDLED;
 }
@@ -584,6 +587,9 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
+	/* Clear interrupts */
+	exar_misc_clear(priv);
+
 	for (i = 0; i < nr_ports && i < maxnr; i++) {
 		rc = board->setup(priv, pcidev, &uart, i);
 		if (rc) {
@@ -641,6 +647,8 @@ static int __maybe_unused exar_resume(struct device *dev)
 {
 	struct exar8250 *priv = dev_get_drvdata(dev);
 	unsigned int i;
+
+	exar_misc_clear(priv);
 
 	for (i = 0; i < priv->nr; i++)
 		if (priv->line[i] >= 0)

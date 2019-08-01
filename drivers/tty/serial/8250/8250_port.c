@@ -40,11 +40,6 @@
 
 #include "8250.h"
 
-/*
- * These are definitions for the Exar XR17V35X and XR17(C|D)15X
- */
-#define UART_EXAR_INT0		0x80
-
 /* Nuvoton NPCM timeout register */
 #define UART_NPCM_TOR          7
 #define UART_NPCM_TOIE         BIT(7)  /* Timeout Interrupt Enable */
@@ -2138,8 +2133,6 @@ int serial8250_do_startup(struct uart_port *port)
 	serial_port_in(port, UART_RX);
 	serial_port_in(port, UART_IIR);
 	serial_port_in(port, UART_MSR);
-	if ((port->type == PORT_XR17V35X) || (port->type == PORT_XR17D15X))
-		serial_port_in(port, UART_EXAR_INT0);
 
 	/*
 	 * At this point, there's no way the LSR could still be 0xff;
@@ -2297,8 +2290,6 @@ dont_test_tx_en:
 	serial_port_in(port, UART_RX);
 	serial_port_in(port, UART_IIR);
 	serial_port_in(port, UART_MSR);
-	if ((port->type == PORT_XR17V35X) || (port->type == PORT_XR17D15X))
-		serial_port_in(port, UART_EXAR_INT0);
 	up->lsr_saved_flags = 0;
 	up->msr_saved_flags = 0;
 
