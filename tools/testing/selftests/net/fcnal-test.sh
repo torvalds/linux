@@ -1401,6 +1401,114 @@ ipv4_udp()
 }
 
 ################################################################################
+# IPv4 address bind
+#
+# verifies ability or inability to bind to an address / device
+
+ipv4_addr_bind_novrf()
+{
+	#
+	# raw socket
+	#
+	for a in ${NSA_IP} ${NSA_LO_IP}
+	do
+		log_start
+		run_cmd nettest -s -R -P icmp -l ${a} -b
+		log_test_addr ${a} $? 0 "Raw socket bind to local address"
+
+		log_start
+		run_cmd nettest -s -R -P icmp -l ${a} -d ${NSA_DEV} -b
+		log_test_addr ${a} $? 0 "Raw socket bind to local address after device bind"
+	done
+
+	#
+	# tcp sockets
+	#
+	a=${NSA_IP}
+	log_start
+	run_cmd nettest -l ${a} -r ${NSB_IP} -t1 -b
+	log_test_addr ${a} $? 0 "TCP socket bind to local address"
+
+	log_start
+	run_cmd nettest -l ${a} -r ${NSB_IP} -d ${NSA_DEV} -t1 -b
+	log_test_addr ${a} $? 0 "TCP socket bind to local address after device bind"
+
+	# Sadly, the kernel allows binding a socket to a device and then
+	# binding to an address not on the device. The only restriction
+	# is that the address is valid in the L3 domain. So this test
+	# passes when it really should not
+	#a=${NSA_LO_IP}
+	#log_start
+	#show_hint "Should fail with 'Cannot assign requested address'"
+	#run_cmd nettest -s -l ${a} -d ${NSA_DEV} -t1 -b
+	#log_test_addr ${a} $? 1 "TCP socket bind to out of scope local address"
+}
+
+ipv4_addr_bind_vrf()
+{
+	#
+	# raw socket
+	#
+	for a in ${NSA_IP} ${VRF_IP}
+	do
+		log_start
+		run_cmd nettest -s -R -P icmp -l ${a} -b
+		log_test_addr ${a} $? 0 "Raw socket bind to local address"
+
+		log_start
+		run_cmd nettest -s -R -P icmp -l ${a} -d ${NSA_DEV} -b
+		log_test_addr ${a} $? 0 "Raw socket bind to local address after device bind"
+		log_start
+		run_cmd nettest -s -R -P icmp -l ${a} -d ${VRF} -b
+		log_test_addr ${a} $? 0 "Raw socket bind to local address after VRF bind"
+	done
+
+	a=${NSA_LO_IP}
+	log_start
+	show_hint "Address on loopback is out of VRF scope"
+	run_cmd nettest -s -R -P icmp -l ${a} -d ${VRF} -b
+	log_test_addr ${a} $? 1 "Raw socket bind to out of scope address after VRF bind"
+
+	#
+	# tcp sockets
+	#
+	for a in ${NSA_IP} ${VRF_IP}
+	do
+		log_start
+		run_cmd nettest -s -l ${a} -d ${VRF} -t1 -b
+		log_test_addr ${a} $? 0 "TCP socket bind to local address"
+
+		log_start
+		run_cmd nettest -s -l ${a} -d ${NSA_DEV} -t1 -b
+		log_test_addr ${a} $? 0 "TCP socket bind to local address after device bind"
+	done
+
+	a=${NSA_LO_IP}
+	log_start
+	show_hint "Address on loopback out of scope for VRF"
+	run_cmd nettest -s -l ${a} -d ${VRF} -t1 -b
+	log_test_addr ${a} $? 1 "TCP socket bind to invalid local address for VRF"
+
+	log_start
+	show_hint "Address on loopback out of scope for device in VRF"
+	run_cmd nettest -s -l ${a} -d ${NSA_DEV} -t1 -b
+	log_test_addr ${a} $? 1 "TCP socket bind to invalid local address for device bind"
+}
+
+ipv4_addr_bind()
+{
+	log_section "IPv4 address binds"
+
+	log_subsection "No VRF"
+	setup
+	ipv4_addr_bind_novrf
+
+	log_subsection "With VRF"
+	setup "yes"
+	ipv4_addr_bind_vrf
+}
+
+################################################################################
 # IPv6
 
 ipv6_ping_novrf()
@@ -2557,7 +2665,7 @@ EOF
 ################################################################################
 # main
 
-TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp"
+TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp ipv4_addr_bind"
 TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp"
 PAUSE_ON_FAIL=no
 PAUSE=no
@@ -2599,6 +2707,7 @@ do
 	ipv4_ping|ping)  ipv4_ping;;
 	ipv4_tcp|tcp)    ipv4_tcp;;
 	ipv4_udp|udp)    ipv4_udp;;
+	ipv4_bind|bind)  ipv4_addr_bind;;
 
 	ipv6_ping|ping6) ipv6_ping;;
 	ipv6_tcp|tcp6)   ipv6_tcp;;
