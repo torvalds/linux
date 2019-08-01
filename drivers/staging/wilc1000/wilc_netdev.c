@@ -626,10 +626,8 @@ static int wilc_mac_open(struct net_device *ndev)
 		return ret;
 	}
 
-	wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif), vif->iftype,
-				 vif->idx);
-	wilc_set_operation_mode(vif, vif->iftype);
-
+	wilc_set_operation_mode(vif, wilc_get_vif_idx(vif), vif->iftype,
+				vif->idx);
 	wilc_get_mac_address(vif, mac_add);
 	netdev_dbg(ndev, "Mac address: %pM\n", mac_add);
 	ether_addr_copy(ndev->dev_addr, mac_add);

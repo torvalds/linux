@@ -1419,7 +1419,8 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		if (vif->iftype == WILC_AP_MODE || vif->iftype == WILC_GO_MODE)
 			wilc_wfi_deinit_mon_interface(wl, true);
 		vif->iftype = WILC_STATION_MODE;
-		wilc_set_operation_mode(vif, WILC_STATION_MODE);
+		wilc_set_operation_mode(vif, wilc_get_vif_idx(vif),
+					WILC_STATION_MODE, vif->idx);
 
 		memset(priv->assoc_stainfo.sta_associated_bss, 0,
 		       WILC_MAX_NUM_STA * ETH_ALEN);
@@ -1431,8 +1432,8 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		priv->wdev.iftype = type;
 		vif->monitor_flag = 0;
 		vif->iftype = WILC_CLIENT_MODE;
-		wilc_set_operation_mode(vif, WILC_STATION_MODE);
-
+		wilc_set_operation_mode(vif, wilc_get_vif_idx(vif),
+					WILC_STATION_MODE, vif->idx);
 		break;
 
 	case NL80211_IFTYPE_AP:
@@ -1440,18 +1441,17 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		priv->wdev.iftype = type;
 		vif->iftype = WILC_AP_MODE;
 
-		if (wl->initialized) {
-			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
-						 0, vif->idx);
-			wilc_set_operation_mode(vif, WILC_AP_MODE);
-		}
+		if (wl->initialized)
+			wilc_set_operation_mode(vif, wilc_get_vif_idx(vif),
+						WILC_AP_MODE, vif->idx);
 		break;
 
 	case NL80211_IFTYPE_P2P_GO:
-		wilc_set_operation_mode(vif, WILC_AP_MODE);
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev.iftype = type;
 		vif->iftype = WILC_GO_MODE;
+		wilc_set_operation_mode(vif, wilc_get_vif_idx(vif),
+					WILC_AP_MODE, vif->idx);
 		break;
 
 	default:
@@ -1659,16 +1659,16 @@ static int del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	vif->monitor_flag = 0;
 
 	mutex_lock(&wl->vif_mutex);
-	wilc_set_wfi_drv_handler(vif, 0, 0, 0);
-	for (i = vif->idx; i < wl->vif_num ; i++) {
+	wilc_set_operation_mode(vif, 0, 0, 0);
+	for (i = vif->idx; i < wl->vif_num; i++) {
 		if ((i + 1) >= wl->vif_num) {
 			wl->vif[i] = NULL;
 		} else {
 			vif = wl->vif[i + 1];
 			vif->idx = i;
 			wl->vif[i] = vif;
-			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
-						 vif->iftype, vif->idx);
+			wilc_set_operation_mode(vif, wilc_get_vif_idx(vif),
+						vif->iftype, vif->idx);
 		}
 	}
 	wl->vif_num--;

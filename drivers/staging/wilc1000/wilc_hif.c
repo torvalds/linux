@@ -1409,18 +1409,14 @@ int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel)
 	return result;
 }
 
-int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
-			     u8 ifc_id)
+int wilc_set_operation_mode(struct wilc_vif *vif, int index, u8 mode,
+			    u8 ifc_id)
 {
 	struct wid wid;
-	struct host_if_drv *hif_drv = vif->hif_drv;
 	int result;
 	struct wilc_drv_handler drv;
 
-	if (!hif_drv)
-		return -EFAULT;
-
-	wid.id = WID_SET_DRV_HANDLER;
+	wid.id = WID_SET_OPERATION_MODE;
 	wid.type = WID_STR;
 	wid.size = sizeof(drv);
 	wid.val = (u8 *)&drv;
@@ -1431,26 +1427,6 @@ int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 	if (result)
 		netdev_err(vif->ndev, "Failed to set driver handler\n");
-
-	return result;
-}
-
-int wilc_set_operation_mode(struct wilc_vif *vif, u32 mode)
-{
-	struct wid wid;
-	struct wilc_op_mode op_mode;
-	int result;
-
-	wid.id = WID_SET_OPERATION_MODE;
-	wid.type = WID_INT;
-	wid.size = sizeof(op_mode);
-	wid.val = (u8 *)&op_mode;
-
-	op_mode.mode = cpu_to_le32(mode);
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
-	if (result)
-		netdev_err(vif->ndev, "Failed to set operation mode\n");
 
 	return result;
 }
@@ -1629,8 +1605,6 @@ int wilc_deinit(struct wilc_vif *vif)
 	del_timer_sync(&hif_drv->connect_timer);
 	del_timer_sync(&vif->periodic_rssi);
 	del_timer_sync(&hif_drv->remain_on_ch_timer);
-
-	wilc_set_wfi_drv_handler(vif, 0, 0, 0);
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		hif_drv->usr_scan_req.scan_result(SCAN_EVENT_ABORTED, NULL,
