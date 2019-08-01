@@ -27,6 +27,7 @@
 #include <drm/drm_sysfs.h>
 
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
@@ -333,6 +334,9 @@ void drm_sysfs_lease_event(struct drm_device *dev)
  * Send a uevent for the DRM device specified by @dev.  Currently we only
  * set HOTPLUG=1 in the uevent environment, but this could be expanded to
  * deal with other types of events.
+ *
+ * Any new uapi should be using the drm_sysfs_connector_status_event()
+ * for uevents on connector status change.
  */
 void drm_sysfs_hotplug_event(struct drm_device *dev)
 {
@@ -344,6 +348,37 @@ void drm_sysfs_hotplug_event(struct drm_device *dev)
 	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
 }
 EXPORT_SYMBOL(drm_sysfs_hotplug_event);
+
+/**
+ * drm_sysfs_connector_status_event - generate a DRM uevent for connector
+ * property status change
+ * @connector: connector on which property status changed
+ * @property: connector property whose status changed.
+ *
+ * Send a uevent for the DRM device specified by @dev.  Currently we
+ * set HOTPLUG=1 and connector id along with the attached property id
+ * related to the status change.
+ */
+void drm_sysfs_connector_status_event(struct drm_connector *connector,
+				      struct drm_property *property)
+{
+	struct drm_device *dev = connector->dev;
+	char hotplug_str[] = "HOTPLUG=1", conn_id[21], prop_id[21];
+	char *envp[4] = { hotplug_str, conn_id, prop_id, NULL };
+
+	WARN_ON(!drm_mode_obj_find_prop_id(&connector->base,
+					   property->base.id));
+
+	snprintf(conn_id, ARRAY_SIZE(conn_id),
+		 "CONNECTOR=%u", connector->base.id);
+	snprintf(prop_id, ARRAY_SIZE(prop_id),
+		 "PROPERTY=%u", property->base.id);
+
+	DRM_DEBUG("generating connector status event\n");
+
+	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
+}
+EXPORT_SYMBOL(drm_sysfs_connector_status_event);
 
 static void drm_sysfs_release(struct device *dev)
 {
