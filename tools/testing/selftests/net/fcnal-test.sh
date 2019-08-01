@@ -2935,6 +2935,191 @@ ipv6_addr_bind()
 }
 
 ################################################################################
+# IPv6 runtime tests
+
+ipv6_rt()
+{
+	local desc="$1"
+	local varg="-6 $2"
+	local with_vrf="yes"
+	local a
+
+	#
+	# server tests
+	#
+	for a in ${NSA_IP6} ${VRF_IP6}
+	do
+		log_start
+		run_cmd nettest ${varg} -s &
+		sleep 1
+		run_cmd_nsb nettest ${varg} -r ${a} &
+		sleep 3
+		run_cmd ip link del ${VRF}
+		sleep 1
+		log_test_addr ${a} 0 0 "${desc}, global server"
+
+		setup ${with_vrf}
+	done
+
+	for a in ${NSA_IP6} ${VRF_IP6}
+	do
+		log_start
+		run_cmd nettest ${varg} -d ${VRF} -s &
+		sleep 1
+		run_cmd_nsb nettest ${varg} -r ${a} &
+		sleep 3
+		run_cmd ip link del ${VRF}
+		sleep 1
+		log_test_addr ${a} 0 0 "${desc}, VRF server"
+
+		setup ${with_vrf}
+	done
+
+	for a in ${NSA_IP6} ${VRF_IP6}
+	do
+		log_start
+		run_cmd nettest ${varg} -d ${NSA_DEV} -s &
+		sleep 1
+		run_cmd_nsb nettest ${varg} -r ${a} &
+		sleep 3
+		run_cmd ip link del ${VRF}
+		sleep 1
+		log_test_addr ${a} 0 0 "${desc}, enslaved device server"
+
+		setup ${with_vrf}
+	done
+
+	#
+	# client test
+	#
+	log_start
+	run_cmd_nsb nettest ${varg} -s &
+	sleep 1
+	run_cmd nettest ${varg} -d ${VRF} -r ${NSB_IP6} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test  0 0 "${desc}, VRF client"
+
+	setup ${with_vrf}
+
+	log_start
+	run_cmd_nsb nettest ${varg} -s &
+	sleep 1
+	run_cmd nettest ${varg} -d ${NSA_DEV} -r ${NSB_IP6} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test  0 0 "${desc}, enslaved device client"
+
+	setup ${with_vrf}
+
+
+	#
+	# local address tests
+	#
+	for a in ${NSA_IP6} ${VRF_IP6}
+	do
+		log_start
+		run_cmd nettest ${varg} -s &
+		sleep 1
+		run_cmd nettest ${varg} -d ${VRF} -r ${a} &
+		sleep 3
+		run_cmd ip link del ${VRF}
+		sleep 1
+		log_test_addr ${a} 0 0 "${desc}, global server, VRF client"
+
+		setup ${with_vrf}
+	done
+
+	for a in ${NSA_IP6} ${VRF_IP6}
+	do
+		log_start
+		run_cmd nettest ${varg} -d ${VRF} -s &
+		sleep 1
+		run_cmd nettest ${varg} -d ${VRF} -r ${a} &
+		sleep 3
+		run_cmd ip link del ${VRF}
+		sleep 1
+		log_test_addr ${a} 0 0 "${desc}, VRF server and client"
+
+		setup ${with_vrf}
+	done
+
+	a=${NSA_IP6}
+	log_start
+	run_cmd nettest ${varg} -s &
+	sleep 1
+	run_cmd nettest ${varg} -d ${NSA_DEV} -r ${a} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test_addr ${a} 0 0 "${desc}, global server, device client"
+
+	setup ${with_vrf}
+
+	log_start
+	run_cmd nettest ${varg} -d ${VRF} -s &
+	sleep 1
+	run_cmd nettest ${varg} -d ${NSA_DEV} -r ${a} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test_addr ${a} 0 0 "${desc}, VRF server, device client"
+
+	setup ${with_vrf}
+
+	log_start
+	run_cmd nettest ${varg} -d ${NSA_DEV} -s &
+	sleep 1
+	run_cmd nettest ${varg} -d ${NSA_DEV} -r ${a} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test_addr ${a} 0 0 "${desc}, device server, device client"
+}
+
+ipv6_ping_rt()
+{
+	local with_vrf="yes"
+	local a
+
+	a=${NSA_IP6}
+	log_start
+	run_cmd_nsb ${ping6} -f ${a} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test_addr ${a} 0 0 "Device delete with active traffic - ping in"
+
+	setup ${with_vrf}
+
+	log_start
+	run_cmd ${ping6} -f ${NSB_IP6} -I ${VRF} &
+	sleep 1
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test_addr ${a} 0 0 "Device delete with active traffic - ping out"
+}
+
+ipv6_runtime()
+{
+	log_section "Run time tests - ipv6"
+
+	setup "yes"
+	ipv6_ping_rt
+
+	setup "yes"
+	ipv6_rt "TCP active socket"  "-n -1"
+
+	setup "yes"
+	ipv6_rt "TCP passive socket" "-i"
+
+	setup "yes"
+	ipv6_rt "UDP active socket"  "-D -n -1"
+}
+
+################################################################################
 # usage
 
 usage()
@@ -2955,7 +3140,7 @@ EOF
 # main
 
 TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp ipv4_addr_bind ipv4_runtime"
-TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp ipv6_addr_bind"
+TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp ipv6_addr_bind ipv6_runtime"
 PAUSE_ON_FAIL=no
 PAUSE=no
 
@@ -3003,6 +3188,7 @@ do
 	ipv6_tcp|tcp6)   ipv6_tcp;;
 	ipv6_udp|udp6)   ipv6_udp;;
 	ipv6_bind|bind6) ipv6_addr_bind;;
+	ipv6_runtime)    ipv6_runtime;;
 
 	# setup namespaces and config, but do not run any tests
 	setup)		 setup; exit 0;;
