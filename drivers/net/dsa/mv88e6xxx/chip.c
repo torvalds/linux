@@ -1453,12 +1453,10 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 	if (!vid_begin)
 		return -EOPNOTSUPP;
 
-	mv88e6xxx_reg_lock(chip);
-
 	do {
 		err = mv88e6xxx_vtu_getnext(chip, &vlan);
 		if (err)
-			goto unlock;
+			return err;
 
 		if (!vlan.valid)
 			break;
@@ -1487,15 +1485,11 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 			dev_err(ds->dev, "p%d: hw VLAN %d already used by port %d in %s\n",
 				port, vlan.vid, i,
 				netdev_name(dsa_to_port(ds, i)->bridge_dev));
-			err = -EOPNOTSUPP;
-			goto unlock;
+			return -EOPNOTSUPP;
 		}
 	} while (vlan.vid < vid_end);
 
-unlock:
-	mv88e6xxx_reg_unlock(chip);
-
-	return err;
+	return 0;
 }
 
 static int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
@@ -1529,15 +1523,15 @@ mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 	/* If the requested port doesn't belong to the same bridge as the VLAN
 	 * members, do not support it (yet) and fallback to software VLAN.
 	 */
+	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_port_check_hw_vlan(ds, port, vlan->vid_begin,
 					   vlan->vid_end);
-	if (err)
-		return err;
+	mv88e6xxx_reg_unlock(chip);
 
 	/* We don't need any dynamic resource from the kernel (yet),
 	 * so skip the prepare phase.
 	 */
-	return 0;
+	return err;
 }
 
 static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
