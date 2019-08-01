@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include <linux/filter.h>
 #include <bpf/bpf.h>
@@ -25,6 +26,7 @@ static int getsetsockopt(void)
 	union {
 		char u8[4];
 		__u32 u32;
+		char cc[16]; /* TCP_CA_NAME_MAX */
 	} buf = {};
 	socklen_t optlen;
 
@@ -112,6 +114,29 @@ static int getsetsockopt(void)
 	if (buf.u32 != 0x55AA*2) {
 		log_err("Unexpected getsockopt(SO_SNDBUF) 0x%x != 0x55AA*2",
 			buf.u32);
+		goto err;
+	}
+
+	/* TCP_CONGESTION can extend the string */
+
+	strcpy(buf.cc, "nv");
+	err = setsockopt(fd, SOL_TCP, TCP_CONGESTION, &buf, strlen("nv"));
+	if (err) {
+		log_err("Failed to call setsockopt(TCP_CONGESTION)");
+		goto err;
+	}
+
+
+	optlen = sizeof(buf.cc);
+	err = getsockopt(fd, SOL_TCP, TCP_CONGESTION, &buf, &optlen);
+	if (err) {
+		log_err("Failed to call getsockopt(TCP_CONGESTION)");
+		goto err;
+	}
+
+	if (strcmp(buf.cc, "cubic") != 0) {
+		log_err("Unexpected getsockopt(TCP_CONGESTION) %s != %s",
+			buf.cc, "cubic");
 		goto err;
 	}
 
