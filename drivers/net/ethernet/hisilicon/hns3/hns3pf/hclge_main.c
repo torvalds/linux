@@ -3517,7 +3517,15 @@ static void hclge_reset(struct hclge_dev *hdev)
 	hdev->reset_fail_cnt = 0;
 	hdev->rst_stats.reset_done_cnt++;
 	ae_dev->reset_type = HNAE3_NONE_RESET;
-	del_timer(&hdev->reset_timer);
+
+	/* if default_reset_request has a higher level reset request,
+	 * it should be handled as soon as possible. since some errors
+	 * need this kind of reset to fix.
+	 */
+	hdev->reset_level = hclge_get_reset_level(ae_dev,
+						  &hdev->default_reset_request);
+	if (hdev->reset_level != HNAE3_NONE_RESET)
+		set_bit(hdev->reset_level, &hdev->reset_request);
 
 	return;
 
@@ -3552,9 +3560,10 @@ static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
 		handle = &hdev->vport[0].nic;
 
 	if (time_before(jiffies, (hdev->last_reset_time +
-				  HCLGE_RESET_INTERVAL)))
+				  HCLGE_RESET_INTERVAL))) {
+		mod_timer(&hdev->reset_timer, jiffies + HCLGE_RESET_INTERVAL);
 		return;
-	else if (hdev->default_reset_request)
+	} else if (hdev->default_reset_request)
 		hdev->reset_level =
 			hclge_get_reset_level(ae_dev,
 					      &hdev->default_reset_request);
@@ -3583,6 +3592,12 @@ static void hclge_set_def_reset_request(struct hnae3_ae_dev *ae_dev,
 static void hclge_reset_timer(struct timer_list *t)
 {
 	struct hclge_dev *hdev = from_timer(hdev, t, reset_timer);
+
+	/* if default_reset_request has no value, it means that this reset
+	 * request has already be handled, so just return here
+	 */
+	if (!hdev->default_reset_request)
+		return;
 
 	dev_info(&hdev->pdev->dev,
 		 "triggering reset in reset timer\n");
