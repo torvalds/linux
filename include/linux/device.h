@@ -229,6 +229,8 @@ static inline struct device *bus_find_device_by_devt(struct bus_type *bus,
 /**
  * bus_find_next_device - Find the next device after a given device in a
  * given bus.
+ * @bus: bus type
+ * @cur: device to begin the search with.
  */
 static inline struct device *
 bus_find_next_device(struct bus_type *bus,struct device *cur)
