@@ -52,7 +52,6 @@
 #include <linux/acpi.h>
 #include <linux/ctype.h>
 #include <linux/time64.h>
-#include "ipmi_si_sm.h"
 #include "ipmi_dmi.h"
 
 #define DEVICE_NAME "ipmi_ssif"

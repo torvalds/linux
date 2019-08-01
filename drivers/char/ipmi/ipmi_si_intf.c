@@ -40,6 +40,7 @@
 #include <linux/ipmi.h>
 #include <linux/ipmi_smi.h>
 #include "ipmi_si.h"
+#include "ipmi_si_sm.h"
 #include <linux/string.h>
 #include <linux/ctype.h>
 
@@ -1266,12 +1267,12 @@ int ipmi_std_irq_setup(struct si_sm_io *io)
 	rv = request_irq(io->irq,
 			 ipmi_si_irq_handler,
 			 IRQF_SHARED,
-			 DEVICE_NAME,
+			 SI_DEVICE_NAME,
 			 io->irq_handler_data);
 	if (rv) {
 		dev_warn(io->dev, "%s unable to claim interrupt %d,"
 			 " running polled\n",
-			 DEVICE_NAME, io->irq);
+			 SI_DEVICE_NAME, io->irq);
 		io->irq = 0;
 	} else {
 		io->irq_cleanup = std_irq_cleanup;
