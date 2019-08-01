@@ -865,7 +865,6 @@ static void intel_hdcp_prop_work(struct work_struct *work)
 					       prop_work);
 	struct intel_connector *connector = intel_hdcp_to_connector(hdcp);
 	struct drm_device *dev = connector->base.dev;
-	struct drm_connector_state *state;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 	mutex_lock(&hdcp->mutex);
@@ -875,10 +874,9 @@ static void intel_hdcp_prop_work(struct work_struct *work)
 	 * those to UNDESIRED is handled by core. If value == UNDESIRED,
 	 * we're running just after hdcp has been disabled, so just exit
 	 */
-	if (hdcp->value != DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
-		state = connector->base.state;
-		state->content_protection = hdcp->value;
-	}
+	if (hdcp->value != DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
+		drm_hdcp_update_content_protection(&connector->base,
+						   hdcp->value);
 
 	mutex_unlock(&hdcp->mutex);
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
