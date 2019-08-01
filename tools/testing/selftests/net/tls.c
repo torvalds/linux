@@ -984,6 +984,30 @@ TEST_F(tls, shutdown_unsent)
 	shutdown(self->cfd, SHUT_RDWR);
 }
 
+TEST_F(tls, shutdown_reuse)
+{
+	struct sockaddr_in addr;
+	int ret;
+
+	shutdown(self->fd, SHUT_RDWR);
+	shutdown(self->cfd, SHUT_RDWR);
+	close(self->cfd);
+
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_port = 0;
+
+	ret = bind(self->fd, &addr, sizeof(addr));
+	EXPECT_EQ(ret, 0);
+	ret = listen(self->fd, 10);
+	EXPECT_EQ(ret, -1);
+	EXPECT_EQ(errno, EINVAL);
+
+	ret = connect(self->fd, &addr, sizeof(addr));
+	EXPECT_EQ(ret, -1);
+	EXPECT_EQ(errno, EISCONN);
+}
+
 TEST(non_established) {
 	struct tls12_crypto_info_aes_gcm_256 tls12;
 	struct sockaddr_in addr;
