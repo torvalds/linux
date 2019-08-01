@@ -196,7 +196,7 @@ static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
 	 * actually a nGPA.
 	 */
 	vcpu->arch.mmio_gva = mmu_is_nested(vcpu) ? 0 : gva & PAGE_MASK;
-	vcpu->arch.access = access;
+	vcpu->arch.mmio_access = access;
 	vcpu->arch.mmio_gfn = gfn;
 	vcpu->arch.mmio_gen = gen;
 }
