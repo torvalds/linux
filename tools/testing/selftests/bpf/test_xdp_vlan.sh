@@ -1,6 +1,11 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
+# Author: Jesper Dangaard Brouer <hawk@kernel.org>
 
 TESTNAME=xdp_vlan
+
+# Default XDP mode
+XDP_MODE=xdpgeneric
 
 usage() {
   echo "Testing XDP + TC eBPF VLAN manipulations: $TESTNAME"
@@ -9,7 +14,21 @@ usage() {
   echo "  -v | --verbose : Verbose"
   echo "  --flush        : Flush before starting (e.g. after --interactive)"
   echo "  --interactive  : Keep netns setup running after test-run"
+  echo "  --mode=XXX     : Choose XDP mode (xdp | xdpgeneric | xdpdrv)"
   echo ""
+}
+
+valid_xdp_mode()
+{
+	local mode=$1
+
+	case "$mode" in
+		xdpgeneric | xdpdrv | xdp)
+			return 0
+			;;
+		*)
+			return 1
+	esac
 }
 
 cleanup()
@@ -37,7 +56,7 @@ cleanup()
 
 # Using external program "getopt" to get --long-options
 OPTIONS=$(getopt -o hvfi: \
-    --long verbose,flush,help,interactive,debug -- "$@")
+    --long verbose,flush,help,interactive,debug,mode: -- "$@")
 if (( $? != 0 )); then
     usage
     echo "selftests: $TESTNAME [FAILED] Error calling getopt, unknown option?"
@@ -58,6 +77,11 @@ while true; do
 		;;
 	    -f | --flush )
 		cleanup
+		shift
+		;;
+	    --mode )
+		shift
+		XDP_MODE=$1
 		shift
 		;;
 	    -- )
@@ -81,8 +105,14 @@ if [ "$EUID" -ne 0 ]; then
 	exit 1
 fi
 
-ip link set dev lo xdp off 2>/dev/null > /dev/null
-if [ $? -ne 0 ];then
+valid_xdp_mode $XDP_MODE
+if [ $? -ne 0 ]; then
+	echo "selftests: $TESTNAME [FAILED] unknown XDP mode ($XDP_MODE)"
+	exit 1
+fi
+
+ip link set dev lo xdpgeneric off 2>/dev/null > /dev/null
+if [ $? -ne 0 ]; then
 	echo "selftests: $TESTNAME [SKIP] need ip xdp support"
 	exit 0
 fi
@@ -166,7 +196,7 @@ export FILE=test_xdp_vlan.o
 
 # First test: Remove VLAN by setting VLAN ID 0, using "xdp_vlan_change"
 export XDP_PROG=xdp_vlan_change
-ip netns exec ns1 ip link set $DEVNS1 xdp object $FILE section $XDP_PROG
+ip netns exec ns1 ip link set $DEVNS1 $XDP_MODE object $FILE section $XDP_PROG
 
 # In ns1: egress use TC to add back VLAN tag 4011
 #  (del cmd)
@@ -187,8 +217,8 @@ ip netns exec ns1 ping -W 2 -c 3 $IPADDR2
 # ETH_P_8021Q indication, and this cause overwriting of our changes.
 #
 export XDP_PROG=xdp_vlan_remove_outer2
-ip netns exec ns1 ip link set $DEVNS1 xdp off
-ip netns exec ns1 ip link set $DEVNS1 xdp object $FILE section $XDP_PROG
+ip netns exec ns1 ip link set $DEVNS1 $XDP_MODE off
+ip netns exec ns1 ip link set $DEVNS1 $XDP_MODE object $FILE section $XDP_PROG
 
 # Now the namespaces should still be able reach each-other, test with ping:
 ip netns exec ns2 ping -W 2 -c 3 $IPADDR1
