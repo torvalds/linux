@@ -930,6 +930,20 @@ config HAVE_ARCH_PREL32_RELOCATIONS
 	  architectures, and don't require runtime relocation on relocatable
 	  kernels.
 
+# Select if the architecture has support for applying RELR relocations.
+config ARCH_HAS_RELR
+	bool
+
+config RELR
+	bool "Use RELR relocation packing"
+	depends on ARCH_HAS_RELR && TOOLS_SUPPORT_RELR
+	default y
+	help
+	  Store the kernel's dynamic relocations in the RELR relocation packing
+	  format. Requires a compatible linker (LLD supports this feature), as
+	  well as compatible NM and OBJCOPY utilities (llvm-nm and llvm-objcopy
+	  are compatible).
+
 source "kernel/gcov/Kconfig"
 
 source "scripts/gcc-plugins/Kconfig"
