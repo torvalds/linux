@@ -77,6 +77,7 @@ struct encoder_info_frame {
 	struct dc_info_packet gamut;
 	struct dc_info_packet vendor;
 	struct dc_info_packet hfvsif;
+	struct dc_info_packet vtem;
 	/* source product description */
 	struct dc_info_packet spd;
 	/* video stream configuration */

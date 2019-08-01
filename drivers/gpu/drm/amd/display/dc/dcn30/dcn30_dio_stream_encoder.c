@@ -212,6 +212,7 @@ void enc3_stream_encoder_update_hdmi_info_packets(
 	enc3_update_hdmi_info_packet(enc1, 1, &info_frame->vendor);
 	enc3_update_hdmi_info_packet(enc1, 3, &info_frame->spd);
 	enc3_update_hdmi_info_packet(enc1, 4, &info_frame->hdrsmd);
+	enc3_update_hdmi_info_packet(enc1, 6, &info_frame->vtem);
 }
 
 void enc3_stream_encoder_stop_hdmi_info_packets(
