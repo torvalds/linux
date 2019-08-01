@@ -2646,6 +2646,113 @@ ipv6_udp()
 }
 
 ################################################################################
+# IPv6 address bind
+
+ipv6_addr_bind_novrf()
+{
+	#
+	# raw socket
+	#
+	for a in ${NSA_IP6} ${NSA_LO_IP6}
+	do
+		log_start
+		run_cmd nettest -6 -s -R -P ipv6-icmp -l ${a} -b
+		log_test_addr ${a} $? 0 "Raw socket bind to local address"
+
+		log_start
+		run_cmd nettest -6 -s -R -P ipv6-icmp -l ${a} -d ${NSA_DEV} -b
+		log_test_addr ${a} $? 0 "Raw socket bind to local address after device bind"
+	done
+
+	#
+	# tcp sockets
+	#
+	a=${NSA_IP6}
+	log_start
+	run_cmd nettest -6 -s -l ${a} -t1 -b
+	log_test_addr ${a} $? 0 "TCP socket bind to local address"
+
+	log_start
+	run_cmd nettest -6 -s -l ${a} -d ${NSA_DEV} -t1 -b
+	log_test_addr ${a} $? 0 "TCP socket bind to local address after device bind"
+
+	a=${NSA_LO_IP6}
+	log_start
+	show_hint "Should fail with 'Cannot assign requested address'"
+	run_cmd nettest -6 -s -l ${a} -d ${NSA_DEV} -t1 -b
+	log_test_addr ${a} $? 1 "TCP socket bind to out of scope local address"
+}
+
+ipv6_addr_bind_vrf()
+{
+	#
+	# raw socket
+	#
+	for a in ${NSA_IP6} ${VRF_IP6}
+	do
+		log_start
+		run_cmd nettest -6 -s -R -P ipv6-icmp -l ${a} -d ${VRF} -b
+		log_test_addr ${a} $? 0 "Raw socket bind to local address after vrf bind"
+
+		log_start
+		run_cmd nettest -6 -s -R -P ipv6-icmp -l ${a} -d ${NSA_DEV} -b
+		log_test_addr ${a} $? 0 "Raw socket bind to local address after device bind"
+	done
+
+	a=${NSA_LO_IP6}
+	log_start
+	show_hint "Address on loopback is out of VRF scope"
+	run_cmd nettest -6 -s -R -P ipv6-icmp -l ${a} -d ${VRF} -b
+	log_test_addr ${a} $? 1 "Raw socket bind to invalid local address after vrf bind"
+
+	#
+	# tcp sockets
+	#
+	# address on enslaved device is valid for the VRF or device in a VRF
+	for a in ${NSA_IP6} ${VRF_IP6}
+	do
+		log_start
+		run_cmd nettest -6 -s -l ${a} -d ${VRF} -t1 -b
+		log_test_addr ${a} $? 0 "TCP socket bind to local address with VRF bind"
+	done
+
+	a=${NSA_IP6}
+	log_start
+	run_cmd nettest -6 -s -l ${a} -d ${NSA_DEV} -t1 -b
+	log_test_addr ${a} $? 0 "TCP socket bind to local address with device bind"
+
+	a=${VRF_IP6}
+	log_start
+	run_cmd nettest -6 -s -l ${a} -d ${NSA_DEV} -t1 -b
+	log_test_addr ${a} $? 1 "TCP socket bind to VRF address with device bind"
+
+	a=${NSA_LO_IP6}
+	log_start
+	show_hint "Address on loopback out of scope for VRF"
+	run_cmd nettest -6 -s -l ${a} -d ${VRF} -t1 -b
+	log_test_addr ${a} $? 1 "TCP socket bind to invalid local address for VRF"
+
+	log_start
+	show_hint "Address on loopback out of scope for device in VRF"
+	run_cmd nettest -6 -s -l ${a} -d ${NSA_DEV} -t1 -b
+	log_test_addr ${a} $? 1 "TCP socket bind to invalid local address for device bind"
+
+}
+
+ipv6_addr_bind()
+{
+	log_section "IPv6 address binds"
+
+	log_subsection "No VRF"
+	setup
+	ipv6_addr_bind_novrf
+
+	log_subsection "With VRF"
+	setup "yes"
+	ipv6_addr_bind_vrf
+}
+
+################################################################################
 # usage
 
 usage()
@@ -2666,7 +2773,7 @@ EOF
 # main
 
 TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp ipv4_addr_bind"
-TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp"
+TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp ipv6_addr_bind"
 PAUSE_ON_FAIL=no
 PAUSE=no
 
@@ -2712,6 +2819,7 @@ do
 	ipv6_ping|ping6) ipv6_ping;;
 	ipv6_tcp|tcp6)   ipv6_tcp;;
 	ipv6_udp|udp6)   ipv6_udp;;
+	ipv6_bind|bind6) ipv6_addr_bind;;
 
 	# setup namespaces and config, but do not run any tests
 	setup)		 setup; exit 0;;
