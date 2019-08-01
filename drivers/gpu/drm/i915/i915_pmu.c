@@ -162,9 +162,10 @@ add_sample(struct i915_pmu_sample *sample, u32 val)
 }
 
 static void
-engines_sample(struct drm_i915_private *i915, unsigned int period_ns)
+engines_sample(struct intel_gt *gt, unsigned int period_ns)
 {
-	struct intel_uncore *uncore = &i915->uncore;
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_uncore *uncore = gt->uncore;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	intel_wakeref_t wakeref;
@@ -174,7 +175,7 @@ engines_sample(struct drm_i915_private *i915, unsigned int period_ns)
 		return;
 
 	wakeref = 0;
-	if (READ_ONCE(i915->gt.awake))
+	if (READ_ONCE(gt->awake))
 		wakeref = intel_runtime_pm_get_if_in_use(&i915->runtime_pm);
 	if (!wakeref)
 		return;
@@ -221,34 +222,35 @@ add_sample_mult(struct i915_pmu_sample *sample, u32 val, u32 mul)
 }
 
 static void
-frequency_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
+frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 {
-	if (dev_priv->pmu.enable &
-	    config_enabled_mask(I915_PMU_ACTUAL_FREQUENCY)) {
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_uncore *uncore = gt->uncore;
+	struct i915_pmu *pmu = &i915->pmu;
+
+	if (pmu->enable & config_enabled_mask(I915_PMU_ACTUAL_FREQUENCY)) {
 		u32 val;
 
-		val = dev_priv->gt_pm.rps.cur_freq;
-		if (dev_priv->gt.awake) {
+		val = i915->gt_pm.rps.cur_freq;
+		if (gt->awake) {
 			intel_wakeref_t wakeref;
 
-			with_intel_runtime_pm_if_in_use(&dev_priv->runtime_pm,
+			with_intel_runtime_pm_if_in_use(&i915->runtime_pm,
 							wakeref) {
-				val = intel_uncore_read_notrace(&dev_priv->uncore,
+				val = intel_uncore_read_notrace(uncore,
 								GEN6_RPSTAT1);
-				val = intel_get_cagf(dev_priv, val);
+				val = intel_get_cagf(i915, val);
 			}
 		}
 
-		add_sample_mult(&dev_priv->pmu.sample[__I915_SAMPLE_FREQ_ACT],
-				intel_gpu_freq(dev_priv, val),
+		add_sample_mult(&pmu->sample[__I915_SAMPLE_FREQ_ACT],
+				intel_gpu_freq(i915, val),
 				period_ns / 1000);
 	}
 
-	if (dev_priv->pmu.enable &
-	    config_enabled_mask(I915_PMU_REQUESTED_FREQUENCY)) {
-		add_sample_mult(&dev_priv->pmu.sample[__I915_SAMPLE_FREQ_REQ],
-				intel_gpu_freq(dev_priv,
-					       dev_priv->gt_pm.rps.cur_freq),
+	if (pmu->enable & config_enabled_mask(I915_PMU_REQUESTED_FREQUENCY)) {
+		add_sample_mult(&pmu->sample[__I915_SAMPLE_FREQ_REQ],
+				intel_gpu_freq(i915, i915->gt_pm.rps.cur_freq),
 				period_ns / 1000);
 	}
 }
@@ -258,6 +260,7 @@ static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 	struct drm_i915_private *i915 =
 		container_of(hrtimer, struct drm_i915_private, pmu.timer);
 	struct i915_pmu *pmu = &i915->pmu;
+	struct intel_gt *gt = &i915->gt;
 	unsigned int period_ns;
 	ktime_t now;
 
@@ -274,8 +277,8 @@ static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 	 * grabbing the forcewake. However the potential error from timer call-
 	 * back delay greatly dominates this so we keep it simple.
 	 */
-	engines_sample(i915, period_ns);
-	frequency_sample(i915, period_ns);
+	engines_sample(gt, period_ns);
+	frequency_sample(gt, period_ns);
 
 	hrtimer_forward(hrtimer, now, ns_to_ktime(PERIOD));
 
