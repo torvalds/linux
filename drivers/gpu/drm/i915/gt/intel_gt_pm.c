@@ -164,3 +164,15 @@ int intel_gt_resume(struct intel_gt *gt)
 
 	return err;
 }
+
+void intel_gt_runtime_suspend(struct intel_gt *gt)
+{
+	intel_uc_runtime_suspend(&gt->uc);
+}
+
+int intel_gt_runtime_resume(struct intel_gt *gt)
+{
+	intel_gt_init_swizzling(gt);
+
+	return intel_uc_runtime_resume(&gt->uc);
+}

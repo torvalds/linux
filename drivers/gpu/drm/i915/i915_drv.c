@@ -2925,7 +2925,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	 */
 	i915_gem_runtime_suspend(dev_priv);
 
-	intel_uc_runtime_suspend(&dev_priv->gt.uc);
+	intel_gt_runtime_suspend(&dev_priv->gt);
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
@@ -2950,9 +2950,8 @@ static int intel_runtime_suspend(struct device *kdev)
 
 		intel_runtime_pm_enable_interrupts(dev_priv);
 
-		intel_uc_runtime_resume(&dev_priv->gt.uc);
+		intel_gt_runtime_resume(&dev_priv->gt);
 
-		intel_gt_init_swizzling(&dev_priv->gt);
 		i915_gem_restore_fences(dev_priv);
 
 		enable_rpm_wakeref_asserts(rpm);
@@ -3047,13 +3046,11 @@ static int intel_runtime_resume(struct device *kdev)
 
 	intel_runtime_pm_enable_interrupts(dev_priv);
 
-	intel_uc_runtime_resume(&dev_priv->gt.uc);
-
 	/*
 	 * No point of rolling back things in case of an error, as the best
 	 * we can do is to hope that things will still work (and disable RPM).
 	 */
-	intel_gt_init_swizzling(&dev_priv->gt);
+	intel_gt_runtime_resume(&dev_priv->gt);
 	i915_gem_restore_fences(dev_priv);
 
 	/*
