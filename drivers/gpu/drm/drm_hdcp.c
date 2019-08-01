@@ -344,15 +344,33 @@ static struct drm_prop_enum_list drm_cp_enum_list[] = {
 };
 DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
 
+static struct drm_prop_enum_list drm_hdcp_content_type_enum_list[] = {
+	{ DRM_MODE_HDCP_CONTENT_TYPE0, "HDCP Type0" },
+	{ DRM_MODE_HDCP_CONTENT_TYPE1, "HDCP Type1" },
+};
+DRM_ENUM_NAME_FN(drm_get_hdcp_content_type_name,
+		 drm_hdcp_content_type_enum_list)
+
 /**
  * drm_connector_attach_content_protection_property - attach content protection
  * property
  *
  * @connector: connector to attach CP property on.
+ * @hdcp_content_type: is HDCP Content Type property needed for connector
  *
  * This is used to add support for content protection on select connectors.
  * Content Protection is intentionally vague to allow for different underlying
  * technologies, however it is most implemented by HDCP.
+ *
+ * When hdcp_content_type is true enum property called HDCP Content Type is
+ * created (if it is not already) and attached to the connector.
+ *
+ * This property is used for sending the protected content's stream type
+ * from userspace to kernel on selected connectors. Protected content provider
+ * will decide their type of their content and declare the same to kernel.
+ *
+ * Content type will be used during the HDCP 2.2 authentication.
+ * Content type will be set to &drm_connector_state.hdcp_content_type.
  *
  * The content protection will be set to &drm_connector_state.content_protection
  *
@@ -360,7 +378,7 @@ DRM_ENUM_NAME_FN(drm_get_content_protection_name, drm_cp_enum_list)
  * Zero on success, negative errno on failure.
  */
 int drm_connector_attach_content_protection_property(
-		struct drm_connector *connector)
+		struct drm_connector *connector, bool hdcp_content_type)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_property *prop =
@@ -376,6 +394,22 @@ int drm_connector_attach_content_protection_property(
 	drm_object_attach_property(&connector->base, prop,
 				   DRM_MODE_CONTENT_PROTECTION_UNDESIRED);
 	dev->mode_config.content_protection_property = prop;
+
+	if (!hdcp_content_type)
+		return 0;
+
+	prop = dev->mode_config.hdcp_content_type_property;
+	if (!prop)
+		prop = drm_property_create_enum(dev, 0, "HDCP Content Type",
+					drm_hdcp_content_type_enum_list,
+					ARRAY_SIZE(
+					drm_hdcp_content_type_enum_list));
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&connector->base, prop,
+				   DRM_MODE_HDCP_CONTENT_TYPE0);
+	dev->mode_config.hdcp_content_type_property = prop;
 
 	return 0;
 }

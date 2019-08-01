@@ -1829,7 +1829,9 @@ int intel_hdcp_init(struct intel_connector *connector,
 	if (!shim)
 		return -EINVAL;
 
-	ret = drm_connector_attach_content_protection_property(&connector->base);
+	ret =
+	drm_connector_attach_content_protection_property(&connector->base,
+							 false);
 	if (ret)
 		return ret;
 
