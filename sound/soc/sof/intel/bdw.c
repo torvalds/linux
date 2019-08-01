@@ -455,11 +455,6 @@ static int bdw_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 	sof_block_read(sdev, sdev->mmio_bar, offset, fw_ready,
 		       sizeof(*fw_ready));
 
-	snd_sof_dsp_mailbox_init(sdev, fw_ready->dspbox_offset,
-				 fw_ready->dspbox_size,
-				 fw_ready->hostbox_offset,
-				 fw_ready->hostbox_size);
-
 	/* make sure ABI version is compatible */
 	ret = snd_sof_ipc_valid(sdev);
 	if (ret < 0)
