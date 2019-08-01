@@ -1807,10 +1807,10 @@ static int tsl2772_probe(struct i2c_client *clientp,
 		return PTR_ERR(chip->vdd_supply);
 	}
 
-	ret = devm_add_action(&clientp->dev, tsl2772_disable_regulators_action,
-			      chip);
+	ret = devm_add_action_or_reset(&clientp->dev,
+					tsl2772_disable_regulators_action,
+					chip);
 	if (ret < 0) {
-		tsl2772_disable_regulators_action(chip);
 		dev_err(&clientp->dev, "Failed to setup regulator cleanup action %d\n",
 			ret);
 		return ret;
