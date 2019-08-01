@@ -1595,7 +1595,7 @@ static ssize_t ipmi_##name##_show(struct device *dev,			\
 									\
 	return snprintf(buf, 10, "%u\n", smi_get_stat(smi_info, name));	\
 }									\
-static DEVICE_ATTR(name, S_IRUGO, ipmi_##name##_show, NULL)
+static DEVICE_ATTR(name, 0444, ipmi_##name##_show, NULL)
 
 static ssize_t ipmi_type_show(struct device *dev,
 			      struct device_attribute *attr,
@@ -1605,7 +1605,7 @@ static ssize_t ipmi_type_show(struct device *dev,
 
 	return snprintf(buf, 10, "%s\n", si_to_str[smi_info->io.si_type]);
 }
-static DEVICE_ATTR(type, S_IRUGO, ipmi_type_show, NULL);
+static DEVICE_ATTR(type, 0444, ipmi_type_show, NULL);
 
 static ssize_t ipmi_interrupts_enabled_show(struct device *dev,
 					    struct device_attribute *attr,
@@ -1616,7 +1616,7 @@ static ssize_t ipmi_interrupts_enabled_show(struct device *dev,
 
 	return snprintf(buf, 10, "%d\n", enabled);
 }
-static DEVICE_ATTR(interrupts_enabled, S_IRUGO,
+static DEVICE_ATTR(interrupts_enabled, 0444,
 		   ipmi_interrupts_enabled_show, NULL);
 
 IPMI_SI_ATTR(short_timeouts);
@@ -1648,7 +1648,7 @@ static ssize_t ipmi_params_show(struct device *dev,
 			smi_info->io.irq,
 			smi_info->io.slave_addr);
 }
-static DEVICE_ATTR(params, S_IRUGO, ipmi_params_show, NULL);
+static DEVICE_ATTR(params, 0444, ipmi_params_show, NULL);
 
 static struct attribute *ipmi_si_dev_attrs[] = {
 	&dev_attr_type.attr,
