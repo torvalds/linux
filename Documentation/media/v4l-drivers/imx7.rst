@@ -41,7 +41,7 @@ data from MIPI CSI-2 camera sensor. It has one source pad, corresponding to the
 virtual channel 0. This module is compliant to previous version of Samsung
 D-phy, and supports two D-PHY Rx Data lanes.
 
-csi_mux
+csi-mux
 -------
 
 This is the video multiplexer. It has two sink pads to select from either camera
@@ -56,7 +56,7 @@ can interface directly with Parallel and MIPI CSI-2 buses. It has 256 x 64 FIFO
 to store received image pixel data and embedded DMA controllers to transfer data
 from the FIFO through AHB bus.
 
-This entity has one sink pad that receives from the csi_mux entity and a single
+This entity has one sink pad that receives from the csi-mux entity and a single
 source pad that routes video frames directly to memory buffers. This pad is
 routed to a capture device node.
 
@@ -81,14 +81,14 @@ an output of 800x600, and BGGR 10 bit bayer format:
 
    # Setup links
    media-ctl -l "'ov2680 1-0036':0 -> 'imx7-mipi-csis.0':0[1]"
-   media-ctl -l "'imx7-mipi-csis.0':1 -> 'csi_mux':1[1]"
-   media-ctl -l "'csi_mux':2 -> 'csi':0[1]"
+   media-ctl -l "'imx7-mipi-csis.0':1 -> 'csi-mux':1[1]"
+   media-ctl -l "'csi-mux':2 -> 'csi':0[1]"
    media-ctl -l "'csi':1 -> 'csi capture':0[1]"
 
    # Configure pads for pipeline
    media-ctl -V "'ov2680 1-0036':0 [fmt:SBGGR10_1X10/800x600 field:none]"
-   media-ctl -V "'csi_mux':1 [fmt:SBGGR10_1X10/800x600 field:none]"
-   media-ctl -V "'csi_mux':2 [fmt:SBGGR10_1X10/800x600 field:none]"
+   media-ctl -V "'csi-mux':1 [fmt:SBGGR10_1X10/800x600 field:none]"
+   media-ctl -V "'csi-mux':2 [fmt:SBGGR10_1X10/800x600 field:none]"
    media-ctl -V "'imx7-mipi-csis.0':0 [fmt:SBGGR10_1X10/800x600 field:none]"
    media-ctl -V "'csi':0 [fmt:SBGGR10_1X10/800x600 field:none]"
 
@@ -97,64 +97,63 @@ the resolutions supported by the sensor.
 
 .. code-block:: none
 
-    root@imx7s-warp:~# media-ctl -p
-    Media controller API version 4.17.0
+	# media-ctl -p
+	Media controller API version 5.2.0
 
-    Media device information
-    ------------------------
-    driver          imx-media
-    model           imx-media
-    serial
-    bus info
-    hw revision     0x0
-    driver version  4.17.0
+	Media device information
+	------------------------
+	driver          imx7-csi
+	model           imx-media
+	serial
+	bus info
+	hw revision     0x0
+	driver version  5.2.0
 
-    Device topology
-    - entity 1: csi (2 pads, 2 links)
-		type V4L2 subdev subtype Unknown flags 0
-		device node name /dev/v4l-subdev0
-	    pad0: Sink
-		    [fmt:SBGGR10_1X10/800x600 field:none]
-		    <- "csi_mux":2 [ENABLED]
-	    pad1: Source
-		    [fmt:SBGGR10_1X10/800x600 field:none]
-		    -> "csi capture":0 [ENABLED]
+	Device topology
+	- entity 1: csi (2 pads, 2 links)
+	            type V4L2 subdev subtype Unknown flags 0
+	            device node name /dev/v4l-subdev0
+	        pad0: Sink
+	                [fmt:SBGGR10_1X10/800x600 field:none colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
+	                <- "csi-mux":2 [ENABLED]
+	        pad1: Source
+	                [fmt:SBGGR10_1X10/800x600 field:none colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
+	                -> "csi capture":0 [ENABLED]
 
-    - entity 4: csi capture (1 pad, 1 link)
-		type Node subtype V4L flags 0
-		device node name /dev/video0
-	    pad0: Sink
-		    <- "csi":1 [ENABLED]
+	- entity 4: csi capture (1 pad, 1 link)
+	            type Node subtype V4L flags 0
+	            device node name /dev/video0
+	        pad0: Sink
+	                <- "csi":1 [ENABLED]
 
-    - entity 10: csi_mux (3 pads, 2 links)
-		type V4L2 subdev subtype Unknown flags 0
-		device node name /dev/v4l-subdev1
-	    pad0: Sink
-		    [fmt:unknown/0x0]
-	    pad1: Sink
-		    [fmt:unknown/800x600 field:none]
-		    <- "imx7-mipi-csis.0":1 [ENABLED]
-	    pad2: Source
-		    [fmt:unknown/800x600 field:none]
-		    -> "csi":0 [ENABLED]
+	- entity 10: csi-mux (3 pads, 2 links)
+	             type V4L2 subdev subtype Unknown flags 0
+	             device node name /dev/v4l-subdev1
+	        pad0: Sink
+	                [fmt:Y8_1X8/1x1 field:none]
+	        pad1: Sink
+	               [fmt:SBGGR10_1X10/800x600 field:none]
+	                <- "imx7-mipi-csis.0":1 [ENABLED]
+	        pad2: Source
+	                [fmt:SBGGR10_1X10/800x600 field:none]
+	                -> "csi":0 [ENABLED]
 
-    - entity 14: imx7-mipi-csis.0 (2 pads, 2 links)
-		type V4L2 subdev subtype Unknown flags 0
-		device node name /dev/v4l-subdev2
-	    pad0: Sink
-		    [fmt:SBGGR10_1X10/800x600 field:none]
-		    <- "ov2680 1-0036":0 [ENABLED]
-	    pad1: Source
-		    [fmt:SBGGR10_1X10/800x600 field:none]
-		    -> "csi_mux":1 [ENABLED]
+	- entity 14: imx7-mipi-csis.0 (2 pads, 2 links)
+	             type V4L2 subdev subtype Unknown flags 0
+	             device node name /dev/v4l-subdev2
+	        pad0: Sink
+	                [fmt:SBGGR10_1X10/800x600 field:none]
+	                <- "ov2680 1-0036":0 [ENABLED]
+	        pad1: Source
+	                [fmt:SBGGR10_1X10/800x600 field:none]
+	                -> "csi-mux":1 [ENABLED]
 
-    - entity 17: ov2680 1-0036 (1 pad, 1 link)
-		type V4L2 subdev subtype Sensor flags 0
-		device node name /dev/v4l-subdev3
-	    pad0: Source
-		    [fmt:SBGGR10_1X10/800x600 field:none]
-		    -> "imx7-mipi-csis.0":0 [ENABLED]
-
+	- entity 17: ov2680 1-0036 (1 pad, 1 link)
+	             type V4L2 subdev subtype Sensor flags 0
+	             device node name /dev/v4l-subdev3
+	        pad0: Source
+	                [fmt:SBGGR10_1X10/800x600@1/30 field:none colorspace:srgb]
+	                -> "imx7-mipi-csis.0":0 [ENABLED]
 
 References
 ----------
