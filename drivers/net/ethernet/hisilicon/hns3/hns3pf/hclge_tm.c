@@ -650,12 +650,8 @@ static void hclge_pfc_info_init(struct hclge_dev *hdev)
 	}
 }
 
-static int hclge_tm_schd_info_init(struct hclge_dev *hdev)
+static void hclge_tm_schd_info_init(struct hclge_dev *hdev)
 {
-	if ((hdev->tx_sch_mode != HCLGE_FLAG_TC_BASE_SCH_MODE) &&
-	    (hdev->tm_info.num_pg != 1))
-		return -EINVAL;
-
 	hclge_tm_pg_info_init(hdev);
 
 	hclge_tm_tc_info_init(hdev);
@@ -663,8 +659,6 @@ static int hclge_tm_schd_info_init(struct hclge_dev *hdev)
 	hclge_tm_vport_info_update(hdev);
 
 	hclge_pfc_info_init(hdev);
-
-	return 0;
 }
 
 static int hclge_tm_pg_to_pri_map(struct hclge_dev *hdev)
@@ -1428,15 +1422,15 @@ int hclge_tm_init_hw(struct hclge_dev *hdev, bool init)
 
 int hclge_tm_schd_init(struct hclge_dev *hdev)
 {
-	int ret;
-
 	/* fc_mode is HCLGE_FC_FULL on reset */
 	hdev->tm_info.fc_mode = HCLGE_FC_FULL;
 	hdev->fc_mode_last_time = hdev->tm_info.fc_mode;
 
-	ret = hclge_tm_schd_info_init(hdev);
-	if (ret)
-		return ret;
+	if (hdev->tx_sch_mode != HCLGE_FLAG_TC_BASE_SCH_MODE &&
+	    hdev->tm_info.num_pg != 1)
+		return -EINVAL;
+
+	hclge_tm_schd_info_init(hdev);
 
 	return hclge_tm_init_hw(hdev, true);
 }
