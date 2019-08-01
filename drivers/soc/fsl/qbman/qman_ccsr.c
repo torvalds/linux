@@ -492,7 +492,7 @@ RESERVEDMEM_OF_DECLARE(qman_pfdr, "fsl,qman-pfdr", qman_pfdr);
 
 #endif
 
-static unsigned int qm_get_fqid_maxcnt(void)
+unsigned int qm_get_fqid_maxcnt(void)
 {
 	return fqd_sz / 64;
 }
@@ -736,6 +736,17 @@ int qman_is_probed(void)
 	return __qman_probed;
 }
 EXPORT_SYMBOL_GPL(qman_is_probed);
+
+int qman_requires_cleanup(void)
+{
+	return __qman_requires_cleanup;
+}
+
+void qman_done_cleanup(void)
+{
+	__qman_requires_cleanup = 0;
+}
+
 
 static int fsl_qman_probe(struct platform_device *pdev)
 {
