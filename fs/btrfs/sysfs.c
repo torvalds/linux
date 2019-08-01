@@ -395,7 +395,7 @@ static void space_info_release(struct kobject *kobj)
 	kfree(sinfo);
 }
 
-struct kobj_type space_info_ktype = {
+static struct kobj_type space_info_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = space_info_release,
 	.default_groups = space_info_groups,
