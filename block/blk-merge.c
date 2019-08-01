@@ -195,6 +195,25 @@ static bool bvec_split_segs(const struct request_queue *q,
 	return !!len;
 }
 
+/**
+ * blk_bio_segment_split - split a bio in two bios
+ * @q:    [in] request queue pointer
+ * @bio:  [in] bio to be split
+ * @bs:	  [in] bio set to allocate the clone from
+ * @segs: [out] number of segments in the bio with the first half of the sectors
+ *
+ * Clone @bio, update the bi_iter of the clone to represent the first sectors
+ * of @bio and update @bio->bi_iter to represent the remaining sectors. The
+ * following is guaranteed for the cloned bio:
+ * - That it has at most get_max_io_size(@q, @bio) sectors.
+ * - That it has at most queue_max_segments(@q) segments.
+ *
+ * Except for discard requests the cloned bio will point at the bi_io_vec of
+ * the original bio. It is the responsibility of the caller to ensure that the
+ * original bio is not freed before the cloned bio. The caller is also
+ * responsible for ensuring that @bs is only destroyed after processing of the
+ * split bio has finished.
+ */
 static struct bio *blk_bio_segment_split(struct request_queue *q,
 					 struct bio *bio,
 					 struct bio_set *bs,
@@ -251,6 +270,19 @@ split:
 	return bio_split(bio, sectors, GFP_NOIO, bs);
 }
 
+/**
+ * __blk_queue_split - split a bio and submit the second half
+ * @q:       [in] request queue pointer
+ * @bio:     [in, out] bio to be split
+ * @nr_segs: [out] number of segments in the first bio
+ *
+ * Split a bio into two bios, chain the two bios, submit the second half and
+ * store a pointer to the first half in *@bio. If the second bio is still too
+ * big it will be split by a recursive call to this function. Since this
+ * function may allocate a new bio from @q->bio_split, it is the responsibility
+ * of the caller to ensure that @q is only released after processing of the
+ * split bio has finished.
+ */
 void __blk_queue_split(struct request_queue *q, struct bio **bio,
 		unsigned int *nr_segs)
 {
@@ -295,6 +327,17 @@ void __blk_queue_split(struct request_queue *q, struct bio **bio,
 	}
 }
 
+/**
+ * blk_queue_split - split a bio and submit the second half
+ * @q:   [in] request queue pointer
+ * @bio: [in, out] bio to be split
+ *
+ * Split a bio into two bios, chains the two bios, submit the second half and
+ * store a pointer to the first half in *@bio. Since this function may allocate
+ * a new bio from @q->bio_split, it is the responsibility of the caller to
+ * ensure that @q is only released after processing of the split bio has
+ * finished.
+ */
 void blk_queue_split(struct request_queue *q, struct bio **bio)
 {
 	unsigned int nr_segs;
