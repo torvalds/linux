@@ -920,12 +920,13 @@ static unsigned long get_clk_cfg(unsigned long clk_freq)
 	return 0;
 }
 
-static unsigned long get_clk_div_rate(unsigned int baud, unsigned int *clk_div)
+static unsigned long get_clk_div_rate(unsigned int baud,
+			unsigned int sampling_rate, unsigned int *clk_div)
 {
 	unsigned long ser_clk;
 	unsigned long desired_clk;
 
-	desired_clk = baud * UART_OVERSAMPLING;
+	desired_clk = baud * sampling_rate;
 	ser_clk = get_clk_cfg(desired_clk);
 	if (!ser_clk) {
 		pr_err("%s: Can't find matching DFS entry for baud %d\n",
@@ -951,12 +952,20 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
 	u32 ser_clk_cfg;
 	struct qcom_geni_serial_port *port = to_dev_port(uport, uport);
 	unsigned long clk_rate;
+	u32 ver, sampling_rate;
 
 	qcom_geni_serial_stop_rx(uport);
 	/* baud rate */
 	baud = uart_get_baud_rate(uport, termios, old, 300, 4000000);
 	port->baud = baud;
-	clk_rate = get_clk_div_rate(baud, &clk_div);
+
+	sampling_rate = UART_OVERSAMPLING;
+	/* Sampling rate is halved for IP versions >= 2.5 */
+	ver = geni_se_get_qup_hw_version(&port->se);
+	if (GENI_SE_VERSION_MAJOR(ver) >= 2 && GENI_SE_VERSION_MINOR(ver) >= 5)
+		sampling_rate /= 2;
+
+	clk_rate = get_clk_div_rate(baud, sampling_rate, &clk_div);
 	if (!clk_rate)
 		goto out_restart_rx;
 
