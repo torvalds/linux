@@ -1401,43 +1401,6 @@ static int mv88e6xxx_atu_new(struct mv88e6xxx_chip *chip, u16 *fid)
 	return mv88e6xxx_g1_atu_flush(chip, *fid, true);
 }
 
-static int mv88e6xxx_vtu_get(struct mv88e6xxx_chip *chip, u16 vid,
-			     struct mv88e6xxx_vtu_entry *entry, bool new)
-{
-	int err;
-
-	if (!vid)
-		return -EOPNOTSUPP;
-
-	entry->vid = vid - 1;
-	entry->valid = false;
-
-	err = mv88e6xxx_vtu_getnext(chip, entry);
-	if (err)
-		return err;
-
-	if (entry->vid == vid && entry->valid)
-		return 0;
-
-	if (new) {
-		int i;
-
-		/* Initialize a fresh VLAN entry */
-		memset(entry, 0, sizeof(*entry));
-		entry->vid = vid;
-
-		/* Exclude all ports */
-		for (i = 0; i < mv88e6xxx_num_ports(chip); ++i)
-			entry->member[i] =
-				MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER;
-
-		return mv88e6xxx_atu_new(chip, &entry->fid);
-	}
-
-	/* switchdev expects -EOPNOTSUPP to honor software VLANs */
-	return -EOPNOTSUPP;
-}
-
 static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 					u16 vid_begin, u16 vid_end)
 {
@@ -1616,26 +1579,58 @@ static int mv88e6xxx_broadcast_setup(struct mv88e6xxx_chip *chip, u16 vid)
 	return 0;
 }
 
-static int _mv88e6xxx_port_vlan_add(struct mv88e6xxx_chip *chip, int port,
+static int mv88e6xxx_port_vlan_join(struct mv88e6xxx_chip *chip, int port,
 				    u16 vid, u8 member)
 {
+	const u8 non_member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_NON_MEMBER;
 	struct mv88e6xxx_vtu_entry vlan;
-	int err;
+	int i, err;
 
-	err = mv88e6xxx_vtu_get(chip, vid, &vlan, true);
+	if (!vid)
+		return -EOPNOTSUPP;
+
+	vlan.vid = vid - 1;
+	vlan.valid = false;
+
+	err = mv88e6xxx_vtu_getnext(chip, &vlan);
 	if (err)
 		return err;
 
-	if (vlan.valid && vlan.member[port] == member)
-		return 0;
-	vlan.valid = true;
-	vlan.member[port] = member;
+	if (vlan.vid != vid || !vlan.valid) {
+		memset(&vlan, 0, sizeof(vlan));
 
-	err = mv88e6xxx_vtu_loadpurge(chip, &vlan);
-	if (err)
-		return err;
+		err = mv88e6xxx_atu_new(chip, &vlan.fid);
+		if (err)
+			return err;
 
-	return mv88e6xxx_broadcast_setup(chip, vid);
+		for (i = 0; i < mv88e6xxx_num_ports(chip); ++i)
+			if (i == port)
+				vlan.member[i] = member;
+			else
+				vlan.member[i] = non_member;
+
+		vlan.vid = vid;
+		vlan.valid = true;
+
+		err = mv88e6xxx_vtu_loadpurge(chip, &vlan);
+		if (err)
+			return err;
+
+		err = mv88e6xxx_broadcast_setup(chip, vlan.vid);
+		if (err)
+			return err;
+	} else if (vlan.member[port] != member) {
+		vlan.member[port] = member;
+
+		err = mv88e6xxx_vtu_loadpurge(chip, &vlan);
+		if (err)
+			return err;
+	} else {
+		dev_info(chip->dev, "p%d: already a member of VLAN %d\n",
+			 port, vid);
+	}
+
+	return 0;
 }
 
 static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
@@ -1660,7 +1655,7 @@ static void mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 	mv88e6xxx_reg_lock(chip);
 
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid)
-		if (_mv88e6xxx_port_vlan_add(chip, port, vid, member))
+		if (mv88e6xxx_port_vlan_join(chip, port, vid, member))
 			dev_err(ds->dev, "p%d: failed to add VLAN %d%c\n", port,
 				vid, untagged ? 'u' : 't');
 
