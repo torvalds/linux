@@ -1540,23 +1540,36 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 					const unsigned char *addr, u16 vid,
 					u8 state)
 {
-	struct mv88e6xxx_vtu_entry vlan;
 	struct mv88e6xxx_atu_entry entry;
+	struct mv88e6xxx_vtu_entry vlan;
+	u16 fid;
 	int err;
 
 	/* Null VLAN ID corresponds to the port private database */
-	if (vid == 0)
-		err = mv88e6xxx_port_get_fid(chip, port, &vlan.fid);
-	else
-		err = mv88e6xxx_vtu_get(chip, vid, &vlan, false);
-	if (err)
-		return err;
+	if (vid == 0) {
+		err = mv88e6xxx_port_get_fid(chip, port, &fid);
+		if (err)
+			return err;
+	} else {
+		vlan.vid = vid - 1;
+		vlan.valid = false;
+
+		err = mv88e6xxx_vtu_getnext(chip, &vlan);
+		if (err)
+			return err;
+
+		/* switchdev expects -EOPNOTSUPP to honor software VLANs */
+		if (vlan.vid != vid || !vlan.valid)
+			return -EOPNOTSUPP;
+
+		fid = vlan.fid;
+	}
 
 	entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
 	ether_addr_copy(entry.mac, addr);
 	eth_addr_dec(entry.mac);
 
-	err = mv88e6xxx_g1_atu_getnext(chip, vlan.fid, &entry);
+	err = mv88e6xxx_g1_atu_getnext(chip, fid, &entry);
 	if (err)
 		return err;
 
@@ -1577,7 +1590,7 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 		entry.state = state;
 	}
 
-	return mv88e6xxx_g1_atu_loadpurge(chip, vlan.fid, &entry);
+	return mv88e6xxx_g1_atu_loadpurge(chip, fid, &entry);
 }
 
 static int mv88e6xxx_port_add_broadcast(struct mv88e6xxx_chip *chip, int port,
