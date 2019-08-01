@@ -6,7 +6,7 @@
 #include <linux/iopoll.h>
 #include <linux/of.h>
 
-#include "enetc_pf.h"
+#include "enetc_mdio.h"
 
 #define	ENETC_MDIO_REG_OFFSET	0x1c00
 #define	ENETC_MDIO_CFG	0x0	/* MDIO configuration and status */
@@ -19,10 +19,6 @@
 #define enetc_mdio_wr(hw, off, val) \
 	enetc_port_wr(hw, ENETC_##off + ENETC_MDIO_REG_OFFSET, val)
 #define enetc_mdio_rd_reg(off)	enetc_mdio_rd(hw, off)
-
-struct enetc_mdio_priv {
-	struct enetc_hw *hw;
-};
 
 #define ENETC_MDC_DIV		258
 
@@ -47,8 +43,7 @@ static int enetc_mdio_wait_complete(struct enetc_hw *hw)
 				  !(val & MDIO_CFG_BSY), 10, 10 * TIMEOUT);
 }
 
-static int enetc_mdio_write(struct mii_bus *bus, int phy_id, int regnum,
-			    u16 value)
+int enetc_mdio_write(struct mii_bus *bus, int phy_id, int regnum, u16 value)
 {
 	struct enetc_mdio_priv *mdio_priv = bus->priv;
 	struct enetc_hw *hw = mdio_priv->hw;
@@ -95,7 +90,7 @@ static int enetc_mdio_write(struct mii_bus *bus, int phy_id, int regnum,
 	return 0;
 }
 
-static int enetc_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
+int enetc_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 {
 	struct enetc_mdio_priv *mdio_priv = bus->priv;
 	struct enetc_hw *hw = mdio_priv->hw;
