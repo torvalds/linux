@@ -398,12 +398,6 @@ struct btrfs_dev_replace {
 	wait_queue_head_t replace_wait;
 };
 
-/* For raid type sysfs entries */
-struct raid_kobject {
-	u64 flags;
-	struct kobject kobj;
-};
-
 /*
  * free clusters are used to claim free space in relatively large chunks,
  * allowing us to do less seeky writes. They are used for all metadata
@@ -3095,12 +3089,6 @@ loff_t btrfs_remap_file_range(struct file *file_in, loff_t pos_in,
 /* tree-defrag.c */
 int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root);
-
-/* sysfs.c */
-int __init btrfs_init_sysfs(void);
-void __cold btrfs_exit_sysfs(void);
-int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info);
-void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info);
 
 /* super.c */
 int btrfs_parse_options(struct btrfs_fs_info *info, char *options,

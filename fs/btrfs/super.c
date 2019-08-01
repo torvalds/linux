@@ -43,6 +43,7 @@
 #include "free-space-cache.h"
 #include "backref.h"
 #include "space-info.h"
+#include "sysfs.h"
 #include "tests/btrfs-tests.h"
 #include "block-group.h"
 
