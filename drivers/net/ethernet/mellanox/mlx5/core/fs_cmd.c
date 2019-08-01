@@ -566,7 +566,9 @@ static int mlx5_cmd_delete_fte(struct mlx5_flow_root_namespace *ns,
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
-int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u32 *id)
+int mlx5_cmd_fc_bulk_alloc(struct mlx5_core_dev *dev,
+			   enum mlx5_fc_bulk_alloc_bitmask alloc_bitmask,
+			   u32 *id)
 {
 	u32 in[MLX5_ST_SZ_DW(alloc_flow_counter_in)]   = {0};
 	u32 out[MLX5_ST_SZ_DW(alloc_flow_counter_out)] = {0};
@@ -574,11 +576,17 @@ int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u32 *id)
 
 	MLX5_SET(alloc_flow_counter_in, in, opcode,
 		 MLX5_CMD_OP_ALLOC_FLOW_COUNTER);
+	MLX5_SET(alloc_flow_counter_in, in, flow_counter_bulk, alloc_bitmask);
 
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (!err)
 		*id = MLX5_GET(alloc_flow_counter_out, out, flow_counter_id);
 	return err;
+}
+
+int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u32 *id)
+{
+	return mlx5_cmd_fc_bulk_alloc(dev, 0, id);
 }
 
 int mlx5_cmd_fc_free(struct mlx5_core_dev *dev, u32 id)
@@ -615,67 +623,24 @@ int mlx5_cmd_fc_query(struct mlx5_core_dev *dev, u32 id,
 	return 0;
 }
 
-struct mlx5_cmd_fc_bulk {
-	u32 id;
-	int num;
-	int outlen;
-	u32 out[0];
-};
-
-struct mlx5_cmd_fc_bulk *
-mlx5_cmd_fc_bulk_alloc(struct mlx5_core_dev *dev, u32 id, int num)
+int mlx5_cmd_fc_get_bulk_query_out_len(int bulk_len)
 {
-	struct mlx5_cmd_fc_bulk *b;
-	int outlen =
-		MLX5_ST_SZ_BYTES(query_flow_counter_out) +
-		MLX5_ST_SZ_BYTES(traffic_counter) * num;
-
-	b = kzalloc(sizeof(*b) + outlen, GFP_KERNEL);
-	if (!b)
-		return NULL;
-
-	b->id = id;
-	b->num = num;
-	b->outlen = outlen;
-
-	return b;
+	return MLX5_ST_SZ_BYTES(query_flow_counter_out) +
+		MLX5_ST_SZ_BYTES(traffic_counter) * bulk_len;
 }
 
-void mlx5_cmd_fc_bulk_free(struct mlx5_cmd_fc_bulk *b)
+int mlx5_cmd_fc_bulk_query(struct mlx5_core_dev *dev, u32 base_id, int bulk_len,
+			   u32 *out)
 {
-	kfree(b);
-}
-
-int
-mlx5_cmd_fc_bulk_query(struct mlx5_core_dev *dev, struct mlx5_cmd_fc_bulk *b)
-{
+	int outlen = mlx5_cmd_fc_get_bulk_query_out_len(bulk_len);
 	u32 in[MLX5_ST_SZ_DW(query_flow_counter_in)] = {0};
 
 	MLX5_SET(query_flow_counter_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_FLOW_COUNTER);
 	MLX5_SET(query_flow_counter_in, in, op_mod, 0);
-	MLX5_SET(query_flow_counter_in, in, flow_counter_id, b->id);
-	MLX5_SET(query_flow_counter_in, in, num_of_counters, b->num);
-	return mlx5_cmd_exec(dev, in, sizeof(in), b->out, b->outlen);
-}
-
-void mlx5_cmd_fc_bulk_get(struct mlx5_core_dev *dev,
-			  struct mlx5_cmd_fc_bulk *b, u32 id,
-			  u64 *packets, u64 *bytes)
-{
-	int index = id - b->id;
-	void *stats;
-
-	if (index < 0 || index >= b->num) {
-		mlx5_core_warn(dev, "Flow counter id (0x%x) out of range (0x%x..0x%x). Counter ignored.\n",
-			       id, b->id, b->id + b->num - 1);
-		return;
-	}
-
-	stats = MLX5_ADDR_OF(query_flow_counter_out, b->out,
-			     flow_statistics[index]);
-	*packets = MLX5_GET64(traffic_counter, stats, packets);
-	*bytes = MLX5_GET64(traffic_counter, stats, octets);
+	MLX5_SET(query_flow_counter_in, in, flow_counter_id, base_id);
+	MLX5_SET(query_flow_counter_in, in, num_of_counters, bulk_len);
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
 }
 
 int mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,

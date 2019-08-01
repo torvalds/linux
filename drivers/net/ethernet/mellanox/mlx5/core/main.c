@@ -1217,8 +1217,10 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup)
 {
 	int err = 0;
 
-	if (cleanup)
+	if (cleanup) {
+		mlx5_unregister_device(dev);
 		mlx5_drain_health_wq(dev);
+	}
 
 	mutex_lock(&dev->intf_state_mutex);
 	if (!test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
@@ -1369,7 +1371,6 @@ static void remove_one(struct pci_dev *pdev)
 
 	mlx5_crdump_disable(dev);
 	mlx5_devlink_unregister(devlink);
-	mlx5_unregister_device(dev);
 
 	if (mlx5_unload_one(dev, true)) {
 		mlx5_core_err(dev, "mlx5_unload_one failed\n");

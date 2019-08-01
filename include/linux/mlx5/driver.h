@@ -488,6 +488,7 @@ struct mlx5_fc_stats {
 	struct delayed_work work;
 	unsigned long next_query;
 	unsigned long sampling_interval; /* jiffies */
+	u32 *bulk_query_out;
 };
 
 struct mlx5_events;
