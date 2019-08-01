@@ -1890,14 +1890,7 @@ static int tsl2772_probe(struct i2c_client *clientp,
 	if (ret < 0)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		dev_err(&clientp->dev,
-			"%s: iio registration failed\n", __func__);
-		return ret;
-	}
-
-	return 0;
+	return devm_iio_device_register(&clientp->dev, indio_dev);
 }
 
 static int tsl2772_suspend(struct device *dev)
@@ -1932,15 +1925,6 @@ static int tsl2772_resume(struct device *dev)
 	usleep_range(TSL2772_BOOT_MIN_SLEEP_TIME, TSL2772_BOOT_MAX_SLEEP_TIME);
 
 	return tsl2772_chip_on(indio_dev);
-}
-
-static int tsl2772_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-
-	iio_device_unregister(indio_dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id tsl2772_idtable[] = {
@@ -1989,7 +1973,6 @@ static struct i2c_driver tsl2772_driver = {
 	},
 	.id_table = tsl2772_idtable,
 	.probe = tsl2772_probe,
-	.remove = tsl2772_remove,
 };
 
 module_i2c_driver(tsl2772_driver);
