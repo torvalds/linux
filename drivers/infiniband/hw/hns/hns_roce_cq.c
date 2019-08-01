@@ -83,7 +83,6 @@ static int hns_roce_sw2hw_cq(struct hns_roce_dev *dev,
 
 static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 			     struct hns_roce_mtt *hr_mtt,
-			     struct hns_roce_uar *hr_uar,
 			     struct hns_roce_cq *hr_cq, int vector)
 {
 	struct hns_roce_cmd_mailbox *mailbox;
@@ -154,7 +153,6 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 
 	hr_cq->cons_index = 0;
 	hr_cq->arm_sn = 1;
-	hr_cq->uar = hr_uar;
 
 	atomic_set(&hr_cq->refcount, 1);
 	init_completion(&hr_cq->free);
@@ -302,7 +300,6 @@ static int create_user_cq(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_cq *hr_cq,
 			  struct ib_udata *udata,
 			  struct hns_roce_ib_create_cq_resp *resp,
-			  struct hns_roce_uar *uar,
 			  int cq_entries)
 {
 	struct hns_roce_ib_create_cq ucmd;
@@ -337,9 +334,6 @@ static int create_user_cq(struct hns_roce_dev *hr_dev,
 		resp->cap_flags |= HNS_ROCE_SUPPORT_CQ_RECORD_DB;
 	}
 
-	/* Get user space parameters */
-	uar = &context->uar;
-
 	return 0;
 
 err_mtt:
@@ -350,10 +344,10 @@ err_mtt:
 }
 
 static int create_kernel_cq(struct hns_roce_dev *hr_dev,
-			    struct hns_roce_cq *hr_cq, struct hns_roce_uar *uar,
-			    int cq_entries)
+			    struct hns_roce_cq *hr_cq, int cq_entries)
 {
 	struct device *dev = hr_dev->dev;
+	struct hns_roce_uar *uar;
 	int ret;
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) {
@@ -420,7 +414,6 @@ int hns_roce_ib_create_cq(struct ib_cq *ib_cq,
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_ib_create_cq_resp resp = {};
 	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
-	struct hns_roce_uar *uar = NULL;
 	int vector = attr->comp_vector;
 	int cq_entries = attr->cqe;
 	int ret;
@@ -439,14 +432,13 @@ int hns_roce_ib_create_cq(struct ib_cq *ib_cq,
 	spin_lock_init(&hr_cq->lock);
 
 	if (udata) {
-		ret = create_user_cq(hr_dev, hr_cq, udata, &resp, uar,
-				     cq_entries);
+		ret = create_user_cq(hr_dev, hr_cq, udata, &resp, cq_entries);
 		if (ret) {
 			dev_err(dev, "Create cq failed in user mode!\n");
 			goto err_cq;
 		}
 	} else {
-		ret = create_kernel_cq(hr_dev, hr_cq, uar, cq_entries);
+		ret = create_kernel_cq(hr_dev, hr_cq, cq_entries);
 		if (ret) {
 			dev_err(dev, "Create cq failed in kernel mode!\n");
 			goto err_cq;
@@ -454,7 +446,7 @@ int hns_roce_ib_create_cq(struct ib_cq *ib_cq,
 	}
 
 	/* Allocate cq index, fill cq_context */
-	ret = hns_roce_cq_alloc(hr_dev, cq_entries, &hr_cq->hr_buf.hr_mtt, uar,
+	ret = hns_roce_cq_alloc(hr_dev, cq_entries, &hr_cq->hr_buf.hr_mtt,
 				hr_cq, vector);
 	if (ret) {
 		dev_err(dev, "Creat CQ .Failed to cq_alloc.\n");
