@@ -135,9 +135,9 @@ static void sel_netif_destroy(struct sel_netif *netif)
  */
 static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
 {
-	int ret;
+	int ret = 0;
 	struct sel_netif *netif;
-	struct sel_netif *new = NULL;
+	struct sel_netif *new;
 	struct net_device *dev;
 
 	/* NOTE: we always use init's network namespace since we don't
@@ -154,32 +154,27 @@ static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
 	netif = sel_netif_find(ns, ifindex);
 	if (netif != NULL) {
 		*sid = netif->nsec.sid;
-		ret = 0;
 		goto out;
 	}
+
+	ret = security_netif_sid(&selinux_state, dev->name, sid);
+	if (ret != 0)
+		goto out;
 	new = kzalloc(sizeof(*new), GFP_ATOMIC);
-	if (new == NULL) {
-		ret = -ENOMEM;
-		goto out;
+	if (new) {
+		new->nsec.ns = ns;
+		new->nsec.ifindex = ifindex;
+		new->nsec.sid = *sid;
+		if (sel_netif_insert(new))
+			kfree(new);
 	}
-	ret = security_netif_sid(&selinux_state, dev->name, &new->nsec.sid);
-	if (ret != 0)
-		goto out;
-	new->nsec.ns = ns;
-	new->nsec.ifindex = ifindex;
-	ret = sel_netif_insert(new);
-	if (ret != 0)
-		goto out;
-	*sid = new->nsec.sid;
 
 out:
 	spin_unlock_bh(&sel_netif_lock);
 	dev_put(dev);
-	if (unlikely(ret)) {
+	if (unlikely(ret))
 		pr_warn("SELinux: failure in %s(), unable to determine network interface label (%d)\n",
 			__func__, ifindex);
-		kfree(new);
-	}
 	return ret;
 }
 

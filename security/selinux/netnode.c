@@ -199,9 +199,9 @@ static void sel_netnode_insert(struct sel_netnode *node)
  */
 static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
 {
-	int ret = -ENOMEM;
+	int ret;
 	struct sel_netnode *node;
-	struct sel_netnode *new = NULL;
+	struct sel_netnode *new;
 
 	spin_lock_bh(&sel_netnode_lock);
 	node = sel_netnode_find(addr, family);
@@ -210,38 +210,36 @@ static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
 		spin_unlock_bh(&sel_netnode_lock);
 		return 0;
 	}
+
 	new = kzalloc(sizeof(*new), GFP_ATOMIC);
-	if (new == NULL)
-		goto out;
 	switch (family) {
 	case PF_INET:
 		ret = security_node_sid(&selinux_state, PF_INET,
 					addr, sizeof(struct in_addr), sid);
-		new->nsec.addr.ipv4 = *(__be32 *)addr;
+		if (new)
+			new->nsec.addr.ipv4 = *(__be32 *)addr;
 		break;
 	case PF_INET6:
 		ret = security_node_sid(&selinux_state, PF_INET6,
 					addr, sizeof(struct in6_addr), sid);
-		new->nsec.addr.ipv6 = *(struct in6_addr *)addr;
+		if (new)
+			new->nsec.addr.ipv6 = *(struct in6_addr *)addr;
 		break;
 	default:
 		BUG();
 		ret = -EINVAL;
 	}
-	if (ret != 0)
-		goto out;
+	if (ret == 0 && new) {
+		new->nsec.family = family;
+		new->nsec.sid = *sid;
+		sel_netnode_insert(new);
+	} else
+		kfree(new);
 
-	new->nsec.family = family;
-	new->nsec.sid = *sid;
-	sel_netnode_insert(new);
-
-out:
 	spin_unlock_bh(&sel_netnode_lock);
-	if (unlikely(ret)) {
+	if (unlikely(ret))
 		pr_warn("SELinux: failure in %s(), unable to determine network node label\n",
 			__func__);
-		kfree(new);
-	}
 	return ret;
 }
 
