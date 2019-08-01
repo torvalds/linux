@@ -47,15 +47,9 @@ static struct vgem_device {
 	struct platform_device *platform;
 } *vgem_device;
 
-static void sync_and_unpin(struct drm_vgem_gem_object *bo);
-static struct page **pin_and_sync(struct drm_vgem_gem_object *bo);
-
 static void vgem_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_vgem_gem_object *vgem_obj = to_vgem_bo(obj);
-
-	if (!obj->import_attach)
-		sync_and_unpin(vgem_obj);
 
 	kvfree(vgem_obj->pages);
 	mutex_destroy(&vgem_obj->pages_lock);
@@ -84,15 +78,40 @@ static vm_fault_t vgem_gem_fault(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 
 	mutex_lock(&obj->pages_lock);
-	if (!obj->pages)
-		pin_and_sync(obj);
 	if (obj->pages) {
 		get_page(obj->pages[page_offset]);
 		vmf->page = obj->pages[page_offset];
 		ret = 0;
 	}
 	mutex_unlock(&obj->pages_lock);
+	if (ret) {
+		struct page *page;
 
+		page = shmem_read_mapping_page(
+					file_inode(obj->base.filp)->i_mapping,
+					page_offset);
+		if (!IS_ERR(page)) {
+			vmf->page = page;
+			ret = 0;
+		} else switch (PTR_ERR(page)) {
+			case -ENOSPC:
+			case -ENOMEM:
+				ret = VM_FAULT_OOM;
+				break;
+			case -EBUSY:
+				ret = VM_FAULT_RETRY;
+				break;
+			case -EFAULT:
+			case -EINVAL:
+				ret = VM_FAULT_SIGBUS;
+				break;
+			default:
+				WARN_ON(PTR_ERR(page));
+				ret = VM_FAULT_SIGBUS;
+				break;
+		}
+
+	}
 	return ret;
 }
 
@@ -258,93 +277,32 @@ static const struct file_operations vgem_driver_fops = {
 	.release	= drm_release,
 };
 
-/* Called under pages_lock, except in free path (where it can't race): */
-static void sync_and_unpin(struct drm_vgem_gem_object *bo)
-{
-	struct drm_device *dev = bo->base.dev;
-
-	if (bo->table) {
-		dma_sync_sg_for_cpu(dev->dev, bo->table->sgl,
-				bo->table->nents, DMA_BIDIRECTIONAL);
-		sg_free_table(bo->table);
-		kfree(bo->table);
-		bo->table = NULL;
-	}
-
-	if (bo->pages) {
-		drm_gem_put_pages(&bo->base, bo->pages, true, true);
-		bo->pages = NULL;
-	}
-}
-
-static struct page **pin_and_sync(struct drm_vgem_gem_object *bo)
-{
-	struct drm_device *dev = bo->base.dev;
-	int npages = bo->base.size >> PAGE_SHIFT;
-	struct page **pages;
-	struct sg_table *sgt;
-
-	WARN_ON(!mutex_is_locked(&bo->pages_lock));
-
-	pages = drm_gem_get_pages(&bo->base);
-	if (IS_ERR(pages)) {
-		bo->pages_pin_count--;
-		mutex_unlock(&bo->pages_lock);
-		return pages;
-	}
-
-	sgt = drm_prime_pages_to_sg(pages, npages);
-	if (IS_ERR(sgt)) {
-		dev_err(dev->dev,
-			"failed to allocate sgt: %ld\n",
-			PTR_ERR(bo->table));
-		drm_gem_put_pages(&bo->base, pages, false, false);
-		mutex_unlock(&bo->pages_lock);
-		return ERR_CAST(bo->table);
-	}
-
-	/*
-	 * Flush the object from the CPU cache so that importers
-	 * can rely on coherent indirect access via the exported
-	 * dma-address.
-	 */
-	dma_sync_sg_for_device(dev->dev, sgt->sgl,
-			sgt->nents, DMA_BIDIRECTIONAL);
-
-	bo->pages = pages;
-	bo->table = sgt;
-
-	return pages;
-}
-
 static struct page **vgem_pin_pages(struct drm_vgem_gem_object *bo)
 {
-	struct page **pages;
-
 	mutex_lock(&bo->pages_lock);
-	if (bo->pages_pin_count++ == 0 && !bo->pages) {
-		pages = pin_and_sync(bo);
-	} else {
-		WARN_ON(!bo->pages);
-		pages = bo->pages;
+	if (bo->pages_pin_count++ == 0) {
+		struct page **pages;
+
+		pages = drm_gem_get_pages(&bo->base);
+		if (IS_ERR(pages)) {
+			bo->pages_pin_count--;
+			mutex_unlock(&bo->pages_lock);
+			return pages;
+		}
+
+		bo->pages = pages;
 	}
 	mutex_unlock(&bo->pages_lock);
 
-	return pages;
+	return bo->pages;
 }
 
 static void vgem_unpin_pages(struct drm_vgem_gem_object *bo)
 {
-	/*
-	 * We shouldn't hit this for imported bo's.. in the import
-	 * case we don't own the scatter-table
-	 */
-	WARN_ON(bo->base.import_attach);
-
 	mutex_lock(&bo->pages_lock);
 	if (--bo->pages_pin_count == 0) {
-		WARN_ON(!bo->table);
-		sync_and_unpin(bo);
+		drm_gem_put_pages(&bo->base, bo->pages, true, true);
+		bo->pages = NULL;
 	}
 	mutex_unlock(&bo->pages_lock);
 }
@@ -352,11 +310,17 @@ static void vgem_unpin_pages(struct drm_vgem_gem_object *bo)
 static int vgem_prime_pin(struct drm_gem_object *obj)
 {
 	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
+	long n_pages = obj->size >> PAGE_SHIFT;
 	struct page **pages;
 
 	pages = vgem_pin_pages(bo);
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
+
+	/* Flush the object from the CPU cache so that importers can rely
+	 * on coherent indirect access via the exported dma-address.
+	 */
+	drm_clflush_pages(pages, n_pages);
 
 	return 0;
 }
