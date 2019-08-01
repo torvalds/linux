@@ -2772,7 +2772,12 @@ static int scsi_internal_device_unblock(struct scsi_device *sdev,
 static void
 device_block(struct scsi_device *sdev, void *data)
 {
-	scsi_internal_device_block(sdev);
+	int ret;
+
+	ret = scsi_internal_device_block(sdev);
+
+	WARN_ONCE(ret, "scsi_internal_device_block(%s) failed: ret = %d\n",
+		  dev_name(&sdev->sdev_gendev), ret);
 }
 
 static int
