@@ -2485,7 +2485,8 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 
 	if (flow_flag_test(flow, EGRESS) &&
 	    !((actions & MLX5_FLOW_CONTEXT_ACTION_DECAP) ||
-	      (actions & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP)))
+	      (actions & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) ||
+	      (actions & MLX5_FLOW_CONTEXT_ACTION_DROP)))
 		return false;
 
 	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
