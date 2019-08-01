@@ -1509,6 +1509,188 @@ ipv4_addr_bind()
 }
 
 ################################################################################
+# IPv4 runtime tests
+
+ipv4_rt()
+{
+	local desc="$1"
+	local varg="$2"
+	local with_vrf="yes"
+	local a
+
+	#
+	# server tests
+	#
+	for a in ${NSA_IP} ${VRF_IP}
+	do
+		log_start
+		run_cmd nettest ${varg} -s &
+		sleep 1
+		run_cmd_nsb nettest ${varg} -r ${a} &
+		sleep 3
+		run_cmd ip link del ${VRF}
+		sleep 1
+		log_test_addr ${a} 0 0 "${desc}, global server"
+
+		setup ${with_vrf}
+	done
+
+	for a in ${NSA_IP} ${VRF_IP}
+	do
+		log_start
+		run_cmd nettest ${varg} -s -d ${VRF} &
+		sleep 1
+		run_cmd_nsb nettest ${varg} -r ${a} &
+		sleep 3
+		run_cmd ip link del ${VRF}
+		sleep 1
+		log_test_addr ${a} 0 0 "${desc}, VRF server"
+
+		setup ${with_vrf}
+	done
+
+	a=${NSA_IP}
+	log_start
+	run_cmd nettest ${varg} -s -d ${NSA_DEV} &
+	sleep 1
+	run_cmd_nsb nettest ${varg} -r ${a} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test_addr ${a} 0 0 "${desc}, enslaved device server"
+
+	setup ${with_vrf}
+
+	#
+	# client test
+	#
+	log_start
+	run_cmd_nsb nettest ${varg} -s &
+	sleep 1
+	run_cmd nettest ${varg} -d ${VRF} -r ${NSB_IP} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test_addr ${a} 0 0 "${desc}, VRF client"
+
+	setup ${with_vrf}
+
+	log_start
+	run_cmd_nsb nettest ${varg} -s &
+	sleep 1
+	run_cmd nettest ${varg} -d ${NSA_DEV} -r ${NSB_IP} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test_addr ${a} 0 0 "${desc}, enslaved device client"
+
+	setup ${with_vrf}
+
+	#
+	# local address tests
+	#
+	for a in ${NSA_IP} ${VRF_IP}
+	do
+		log_start
+		run_cmd nettest ${varg} -s &
+		sleep 1
+		run_cmd nettest ${varg} -d ${VRF} -r ${a} &
+		sleep 3
+		run_cmd ip link del ${VRF}
+		sleep 1
+		log_test_addr ${a} 0 0 "${desc}, global server, VRF client, local"
+
+		setup ${with_vrf}
+	done
+
+	for a in ${NSA_IP} ${VRF_IP}
+	do
+		log_start
+		run_cmd nettest ${varg} -d ${VRF} -s &
+		sleep 1
+		run_cmd nettest ${varg} -d ${VRF} -r ${a} &
+		sleep 3
+		run_cmd ip link del ${VRF}
+		sleep 1
+		log_test_addr ${a} 0 0 "${desc}, VRF server and client, local"
+
+		setup ${with_vrf}
+	done
+
+	a=${NSA_IP}
+	log_start
+	run_cmd nettest ${varg} -s &
+	sleep 1
+	run_cmd nettest ${varg} -d ${NSA_DEV} -r ${a} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test_addr ${a} 0 0 "${desc}, global server, enslaved device client, local"
+
+	setup ${with_vrf}
+
+	log_start
+	run_cmd nettest ${varg} -d ${VRF} -s &
+	sleep 1
+	run_cmd nettest ${varg} -d ${NSA_DEV} -r ${a} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test_addr ${a} 0 0 "${desc}, VRF server, enslaved device client, local"
+
+	setup ${with_vrf}
+
+	log_start
+	run_cmd nettest ${varg} -d ${NSA_DEV} -s &
+	sleep 1
+	run_cmd nettest ${varg} -d ${NSA_DEV} -r ${a} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test_addr ${a} 0 0 "${desc}, enslaved device server and client, local"
+}
+
+ipv4_ping_rt()
+{
+	local with_vrf="yes"
+	local a
+
+	for a in ${NSA_IP} ${VRF_IP}
+	do
+		log_start
+		run_cmd_nsb ping -f ${a} &
+		sleep 3
+		run_cmd ip link del ${VRF}
+		sleep 1
+		log_test_addr ${a} 0 0 "Device delete with active traffic - ping in"
+
+		setup ${with_vrf}
+	done
+
+	a=${NSB_IP}
+	log_start
+	run_cmd ping -f -I ${VRF} ${a} &
+	sleep 3
+	run_cmd ip link del ${VRF}
+	sleep 1
+	log_test_addr ${a} 0 0 "Device delete with active traffic - ping out"
+}
+
+ipv4_runtime()
+{
+	log_section "Run time tests - ipv4"
+
+	setup "yes"
+	ipv4_ping_rt
+
+	setup "yes"
+	ipv4_rt "TCP active socket"  "-n -1"
+
+	setup "yes"
+	ipv4_rt "TCP passive socket" "-i"
+}
+
+################################################################################
 # IPv6
 
 ipv6_ping_novrf()
@@ -2772,7 +2954,7 @@ EOF
 ################################################################################
 # main
 
-TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp ipv4_addr_bind"
+TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp ipv4_addr_bind ipv4_runtime"
 TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp ipv6_addr_bind"
 PAUSE_ON_FAIL=no
 PAUSE=no
@@ -2815,6 +2997,7 @@ do
 	ipv4_tcp|tcp)    ipv4_tcp;;
 	ipv4_udp|udp)    ipv4_udp;;
 	ipv4_bind|bind)  ipv4_addr_bind;;
+	ipv4_runtime)    ipv4_runtime;;
 
 	ipv6_ping|ping6) ipv6_ping;;
 	ipv6_tcp|tcp6)   ipv6_tcp;;
