@@ -132,16 +132,29 @@ static struct bio *blk_bio_write_same_split(struct request_queue *q,
 	return bio_split(bio, q->limits.max_write_same_sectors, GFP_NOIO, bs);
 }
 
+/*
+ * Return the maximum number of sectors from the start of a bio that may be
+ * submitted as a single request to a block device. If enough sectors remain,
+ * align the end to the physical block size. Otherwise align the end to the
+ * logical block size. This approach minimizes the number of non-aligned
+ * requests that are submitted to a block device if the start of a bio is not
+ * aligned to a physical block boundary.
+ */
 static inline unsigned get_max_io_size(struct request_queue *q,
 				       struct bio *bio)
 {
 	unsigned sectors = blk_max_size_offset(q, bio->bi_iter.bi_sector);
-	unsigned mask = queue_logical_block_size(q) - 1;
+	unsigned max_sectors = sectors;
+	unsigned pbs = queue_physical_block_size(q) >> SECTOR_SHIFT;
+	unsigned lbs = queue_logical_block_size(q) >> SECTOR_SHIFT;
+	unsigned start_offset = bio->bi_iter.bi_sector & (pbs - 1);
 
-	/* aligned to logical block size */
-	sectors &= ~(mask >> 9);
+	max_sectors += start_offset;
+	max_sectors &= ~(pbs - 1);
+	if (max_sectors > start_offset)
+		return max_sectors - start_offset;
 
-	return sectors;
+	return sectors & (lbs - 1);
 }
 
 static unsigned get_max_segment_size(const struct request_queue *q,
