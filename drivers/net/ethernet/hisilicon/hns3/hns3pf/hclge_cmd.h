@@ -86,6 +86,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_PF_RSRC		= 0x0023,
 	HCLGE_OPC_QUERY_VF_RSRC		= 0x0024,
 	HCLGE_OPC_GET_CFG_PARAM		= 0x0025,
+	HCLGE_OPC_PF_RST_DONE		= 0x0026,
 
 	HCLGE_OPC_STATS_64_BIT		= 0x0030,
 	HCLGE_OPC_STATS_32_BIT		= 0x0031,
@@ -257,6 +258,7 @@ enum hclge_opcode_type {
 	/* M7 stats command */
 	HCLGE_OPC_M7_STATS_BD		= 0x7012,
 	HCLGE_OPC_M7_STATS_INFO		= 0x7013,
+	HCLGE_OPC_M7_COMPAT_CFG		= 0x701A,
 
 	/* SFP command */
 	HCLGE_OPC_GET_SFP_INFO		= 0x7104,
@@ -827,7 +829,7 @@ struct hclge_mac_ethertype_idx_rd_cmd {
 	u8	flags;
 	u8	resp_code;
 	__le16  vlan_tag;
-	u8      mac_add[6];
+	u8      mac_addr[6];
 	__le16  index;
 	__le16	ethter_type;
 	__le16  egress_port;
@@ -877,6 +879,13 @@ struct hclge_reset_cmd {
 	u8 rsv[22];
 };
 
+#define HCLGE_PF_RESET_DONE_BIT		BIT(0)
+
+struct hclge_pf_rst_done_cmd {
+	u8 pf_rst_done;
+	u8 rsv[23];
+};
+
 #define HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B	BIT(0)
 #define HCLGE_CMD_SERDES_PARALLEL_INNER_LOOP_B	BIT(2)
 #define HCLGE_CMD_SERDES_DONE_B			BIT(0)
@@ -906,8 +915,11 @@ struct hclge_serdes_lb_cmd {
 #define HCLGE_NIC_CRQ_DEPTH_REG		0x27020
 #define HCLGE_NIC_CRQ_TAIL_REG		0x27024
 #define HCLGE_NIC_CRQ_HEAD_REG		0x27028
-#define HCLGE_NIC_CMQ_EN_B		16
-#define HCLGE_NIC_CMQ_ENABLE		BIT(HCLGE_NIC_CMQ_EN_B)
+
+/* this bit indicates that the driver is ready for hardware reset */
+#define HCLGE_NIC_SW_RST_RDY_B		16
+#define HCLGE_NIC_SW_RST_RDY		BIT(HCLGE_NIC_SW_RST_RDY_B)
+
 #define HCLGE_NIC_CMQ_DESC_NUM		1024
 #define HCLGE_NIC_CMQ_DESC_NUM_S	3
 
@@ -1007,6 +1019,13 @@ struct hclge_query_ppu_pf_other_int_dfx_cmd {
 	__le16 rx_rd_fbd_poison_qid;
 	__le16 rx_rd_fbd_poison_vf_id;
 	u8 rsv[4];
+};
+
+#define HCLGE_LINK_EVENT_REPORT_EN_B	0
+#define HCLGE_NCSI_ERROR_REPORT_EN_B	1
+struct hclge_firmware_compat_cmd {
+	__le32 compat;
+	u8 rsv[20];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

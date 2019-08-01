@@ -1396,19 +1396,22 @@ static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
 	u32 val;
 	int ret;
 
-	/* wait to check the hardware reset completion status */
-	val = hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING);
-	dev_info(&hdev->pdev->dev, "checking vf resetting status: %x\n", val);
-
 	if (hdev->reset_type == HNAE3_FLR_RESET)
 		return hclgevf_flr_poll_timeout(hdev,
 						HCLGEVF_RESET_WAIT_US,
 						HCLGEVF_RESET_WAIT_CNT);
-
-	ret = readl_poll_timeout(hdev->hw.io_base + HCLGEVF_RST_ING, val,
-				 !(val & HCLGEVF_RST_ING_BITS),
-				 HCLGEVF_RESET_WAIT_US,
-				 HCLGEVF_RESET_WAIT_TIMEOUT_US);
+	else if (hdev->reset_type == HNAE3_VF_RESET)
+		ret = readl_poll_timeout(hdev->hw.io_base +
+					 HCLGEVF_VF_RST_ING, val,
+					 !(val & HCLGEVF_VF_RST_ING_BIT),
+					 HCLGEVF_RESET_WAIT_US,
+					 HCLGEVF_RESET_WAIT_TIMEOUT_US);
+	else
+		ret = readl_poll_timeout(hdev->hw.io_base +
+					 HCLGEVF_RST_ING, val,
+					 !(val & HCLGEVF_RST_ING_BITS),
+					 HCLGEVF_RESET_WAIT_US,
+					 HCLGEVF_RESET_WAIT_TIMEOUT_US);
 
 	/* hardware completion status should be available by this time */
 	if (ret) {
@@ -1424,6 +1427,20 @@ static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
 	msleep(5000);
 
 	return 0;
+}
+
+static void hclgevf_reset_handshake(struct hclgevf_dev *hdev, bool enable)
+{
+	u32 reg_val;
+
+	reg_val = hclgevf_read_dev(&hdev->hw, HCLGEVF_NIC_CSQ_DEPTH_REG);
+	if (enable)
+		reg_val |= HCLGEVF_NIC_SW_RST_RDY;
+	else
+		reg_val &= ~HCLGEVF_NIC_SW_RST_RDY;
+
+	hclgevf_write_dev(&hdev->hw, HCLGEVF_NIC_CSQ_DEPTH_REG,
+			  reg_val);
 }
 
 static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
@@ -1448,7 +1465,14 @@ static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
 	if (ret)
 		return ret;
 
-	return hclgevf_notify_client(hdev, HNAE3_RESTORE_CLIENT);
+	ret = hclgevf_notify_client(hdev, HNAE3_RESTORE_CLIENT);
+	if (ret)
+		return ret;
+
+	/* clear handshake status with IMP */
+	hclgevf_reset_handshake(hdev, false);
+
+	return 0;
 }
 
 static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
@@ -1474,8 +1498,7 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 	set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
 	/* inform hardware that preparatory work is done */
 	msleep(HCLGEVF_RESET_SYNC_TIME);
-	hclgevf_write_dev(&hdev->hw, HCLGEVF_NIC_CSQ_DEPTH_REG,
-			  HCLGEVF_NIC_CMQ_ENABLE);
+	hclgevf_reset_handshake(hdev, true);
 	dev_info(&hdev->pdev->dev, "prepare reset(%d) wait done, ret:%d\n",
 		 hdev->reset_type, ret);
 
@@ -1484,6 +1507,8 @@ static int hclgevf_reset_prepare_wait(struct hclgevf_dev *hdev)
 
 static void hclgevf_reset_err_handle(struct hclgevf_dev *hdev)
 {
+	/* recover handshake status with IMP when reset fail */
+	hclgevf_reset_handshake(hdev, true);
 	hdev->rst_stats.rst_fail_cnt++;
 	dev_err(&hdev->pdev->dev, "failed to reset VF(%d)\n",
 		hdev->rst_stats.rst_fail_cnt);
@@ -1494,9 +1519,6 @@ static void hclgevf_reset_err_handle(struct hclgevf_dev *hdev)
 	if (hclgevf_is_reset_pending(hdev)) {
 		set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 		hclgevf_reset_task_schedule(hdev);
-	} else {
-		hclgevf_write_dev(&hdev->hw, HCLGEVF_NIC_CSQ_DEPTH_REG,
-				  HCLGEVF_NIC_CMQ_ENABLE);
 	}
 }
 
@@ -1867,7 +1889,7 @@ static void hclgevf_clear_event_cause(struct hclgevf_dev *hdev, u32 regclr)
 static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
 						      u32 *clearval)
 {
-	u32 cmdq_src_reg, rst_ing_reg;
+	u32 val, cmdq_src_reg, rst_ing_reg;
 
 	/* fetch the events from their corresponding regs */
 	cmdq_src_reg = hclgevf_read_dev(&hdev->hw,
@@ -1883,6 +1905,12 @@ static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
 		cmdq_src_reg &= ~BIT(HCLGEVF_VECTOR0_RST_INT_B);
 		*clearval = cmdq_src_reg;
 		hdev->rst_stats.vf_rst_cnt++;
+		/* set up VF hardware reset status, its PF will clear
+		 * this status when PF has initialized done.
+		 */
+		val = hclgevf_read_dev(&hdev->hw, HCLGEVF_VF_RST_ING);
+		hclgevf_write_dev(&hdev->hw, HCLGEVF_VF_RST_ING,
+				  val | HCLGEVF_VF_RST_ING_BIT);
 		return HCLGEVF_VECTOR0_EVENT_RST;
 	}
 

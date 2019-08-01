@@ -2909,24 +2909,22 @@ int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget,
 		       void (*rx_fn)(struct hns3_enet_ring *, struct sk_buff *))
 {
 #define RCB_NOF_ALLOC_RX_BUFF_ONCE 16
-	int recv_pkts, recv_bds, clean_count, err;
 	int unused_count = hns3_desc_unused(ring);
 	struct sk_buff *skb = ring->skb;
-	int num;
+	int recv_pkts = 0;
+	int recv_bds = 0;
+	int err, num;
 
 	num = readl_relaxed(ring->tqp->io_base + HNS3_RING_RX_RING_FBDNUM_REG);
 	rmb(); /* Make sure num taken effect before the other data is touched */
 
-	recv_pkts = 0, recv_bds = 0, clean_count = 0;
 	num -= unused_count;
 	unused_count -= ring->pending_buf;
 
 	while (recv_pkts < budget && recv_bds < num) {
 		/* Reuse or realloc buffers */
-		if (clean_count + unused_count >= RCB_NOF_ALLOC_RX_BUFF_ONCE) {
-			hns3_nic_alloc_rx_buffers(ring,
-						  clean_count + unused_count);
-			clean_count = 0;
+		if (unused_count >= RCB_NOF_ALLOC_RX_BUFF_ONCE) {
+			hns3_nic_alloc_rx_buffers(ring, unused_count);
 			unused_count = hns3_desc_unused(ring) -
 					ring->pending_buf;
 		}
@@ -2940,7 +2938,7 @@ int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget,
 			goto out;
 		} else if (unlikely(err)) {  /* Do jump the err */
 			recv_bds += ring->pending_buf;
-			clean_count += ring->pending_buf;
+			unused_count += ring->pending_buf;
 			ring->skb = NULL;
 			ring->pending_buf = 0;
 			continue;
@@ -2948,7 +2946,7 @@ int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget,
 
 		rx_fn(ring, skb);
 		recv_bds += ring->pending_buf;
-		clean_count += ring->pending_buf;
+		unused_count += ring->pending_buf;
 		ring->skb = NULL;
 		ring->pending_buf = 0;
 
@@ -2957,8 +2955,8 @@ int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget,
 
 out:
 	/* Make all data has been write before submit */
-	if (clean_count + unused_count > 0)
-		hns3_nic_alloc_rx_buffers(ring, clean_count + unused_count);
+	if (unused_count > 0)
+		hns3_nic_alloc_rx_buffers(ring, unused_count);
 
 	return recv_pkts;
 }
@@ -3588,7 +3586,7 @@ out:
 	return ret;
 }
 
-static void hns3_fini_ring(struct hns3_enet_ring *ring)
+void hns3_fini_ring(struct hns3_enet_ring *ring)
 {
 	hns3_free_desc(ring);
 	devm_kfree(ring_to_dev(ring), ring->desc_cb);

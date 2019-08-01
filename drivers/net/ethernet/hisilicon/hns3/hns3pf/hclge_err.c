@@ -652,16 +652,11 @@ static void hclge_log_error(struct device *dev, char *reg,
  * @desc: descriptor for describing the command
  * @cmd:  command opcode
  * @flag: flag for extended command structure
- * @w_num: offset for setting the read interrupt type.
- * @int_type: select which type of the interrupt for which the error
- * info will be read(RAS-CE/RAS-NFE/RAS-FE etc).
  *
  * This function query the error info from hw register/s using command
  */
 static int hclge_cmd_query_error(struct hclge_dev *hdev,
-				 struct hclge_desc *desc, u32 cmd,
-				 u16 flag, u8 w_num,
-				 enum hclge_err_int_type int_type)
+				 struct hclge_desc *desc, u32 cmd, u16 flag)
 {
 	struct device *dev = &hdev->pdev->dev;
 	int desc_num = 1;
@@ -673,8 +668,6 @@ static int hclge_cmd_query_error(struct hclge_dev *hdev,
 		hclge_cmd_setup_basic_desc(&desc[1], cmd, true);
 		desc_num = 2;
 	}
-	if (w_num)
-		desc[0].data[w_num] = cpu_to_le32(int_type);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], desc_num);
 	if (ret)
@@ -872,8 +865,7 @@ static int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
 	}
 
 	/* configure TM QCN hw errors */
-	ret = hclge_cmd_query_error(hdev, &desc, HCLGE_TM_QCN_MEM_INT_CFG,
-				    0, 0, 0);
+	ret = hclge_cmd_query_error(hdev, &desc, HCLGE_TM_QCN_MEM_INT_CFG, 0);
 	if (ret) {
 		dev_err(dev, "fail(%d) to read TM QCN CFG status\n", ret);
 		return ret;
@@ -1410,7 +1402,7 @@ static int hclge_log_rocee_ecc_error(struct hclge_dev *hdev)
 
 	ret = hclge_cmd_query_error(hdev, &desc[0],
 				    HCLGE_QUERY_ROCEE_ECC_RAS_INFO_CMD,
-				    HCLGE_CMD_FLAG_NEXT, 0, 0);
+				    HCLGE_CMD_FLAG_NEXT);
 	if (ret) {
 		dev_err(dev, "failed(%d) to query ROCEE ECC error sts\n", ret);
 		return ret;
@@ -1434,7 +1426,7 @@ static int hclge_log_rocee_ovf_error(struct hclge_dev *hdev)
 
 	/* read overflow error status */
 	ret = hclge_cmd_query_error(hdev, &desc[0], HCLGE_ROCEE_PF_RAS_INT_CMD,
-				    0, 0, 0);
+				    0);
 	if (ret) {
 		dev_err(dev, "failed(%d) to query ROCEE OVF error sts\n", ret);
 		return ret;
@@ -1483,8 +1475,7 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 
 	/* read RAS error interrupt status */
 	ret = hclge_cmd_query_error(hdev, &desc[0],
-				    HCLGE_QUERY_CLEAR_ROCEE_RAS_INT,
-				    0, 0, 0);
+				    HCLGE_QUERY_CLEAR_ROCEE_RAS_INT, 0);
 	if (ret) {
 		dev_err(dev, "failed(%d) to query ROCEE RAS INT SRC\n", ret);
 		/* reset everything for now */
