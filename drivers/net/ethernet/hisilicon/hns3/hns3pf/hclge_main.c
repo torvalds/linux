@@ -2876,10 +2876,15 @@ static irqreturn_t hclge_misc_irq_handle(int irq, void *data)
 		break;
 	}
 
-	/* clear the source of interrupt if it is not cause by reset */
+	hclge_clear_event_cause(hdev, event_cause, clearval);
+
+	/* Enable interrupt if it is not cause by reset. And when
+	 * clearval equal to 0, it means interrupt status may be
+	 * cleared by hardware before driver reads status register.
+	 * For this case, vector0 interrupt also should be enabled.
+	 */
 	if (!clearval ||
 	    event_cause == HCLGE_VECTOR0_EVENT_MBX) {
-		hclge_clear_event_cause(hdev, event_cause, clearval);
 		hclge_enable_vector(&hdev->misc_vector, true);
 	}
 
@@ -3253,7 +3258,13 @@ static void hclge_clear_reset_cause(struct hclge_dev *hdev)
 	if (!clearval)
 		return;
 
-	hclge_write_dev(&hdev->hw, HCLGE_MISC_RESET_STS_REG, clearval);
+	/* For revision 0x20, the reset interrupt source
+	 * can only be cleared after hardware reset done
+	 */
+	if (hdev->pdev->revision == 0x20)
+		hclge_write_dev(&hdev->hw, HCLGE_MISC_RESET_STS_REG,
+				clearval);
+
 	hclge_enable_vector(&hdev->misc_vector, true);
 }
 
@@ -3374,6 +3385,18 @@ static bool hclge_reset_err_handle(struct hclge_dev *hdev)
 	return false;
 }
 
+static int hclge_set_rst_done(struct hclge_dev *hdev)
+{
+	struct hclge_pf_rst_done_cmd *req;
+	struct hclge_desc desc;
+
+	req = (struct hclge_pf_rst_done_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_PF_RST_DONE, false);
+	req->pf_rst_done |= HCLGE_PF_RESET_DONE_BIT;
+
+	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
 static int hclge_reset_prepare_up(struct hclge_dev *hdev)
 {
 	int ret = 0;
@@ -3383,6 +3406,11 @@ static int hclge_reset_prepare_up(struct hclge_dev *hdev)
 		/* fall through */
 	case HNAE3_FLR_RESET:
 		ret = hclge_set_all_vf_rst(hdev, false);
+		break;
+	case HNAE3_GLOBAL_RESET:
+		/* fall through */
+	case HNAE3_IMP_RESET:
+		ret = hclge_set_rst_done(hdev);
 		break;
 	default:
 		break;

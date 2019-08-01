@@ -86,6 +86,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_PF_RSRC		= 0x0023,
 	HCLGE_OPC_QUERY_VF_RSRC		= 0x0024,
 	HCLGE_OPC_GET_CFG_PARAM		= 0x0025,
+	HCLGE_OPC_PF_RST_DONE		= 0x0026,
 
 	HCLGE_OPC_STATS_64_BIT		= 0x0030,
 	HCLGE_OPC_STATS_32_BIT		= 0x0031,
@@ -876,6 +877,13 @@ struct hclge_reset_cmd {
 	u8 mac_func_reset;
 	u8 fun_reset_vfid;
 	u8 rsv[22];
+};
+
+#define HCLGE_PF_RESET_DONE_BIT		BIT(0)
+
+struct hclge_pf_rst_done_cmd {
+	u8 pf_rst_done;
+	u8 rsv[23];
 };
 
 #define HCLGE_CMD_SERDES_SERIAL_INNER_LOOP_B	BIT(0)
