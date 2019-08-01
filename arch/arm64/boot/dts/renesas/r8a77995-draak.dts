@@ -19,11 +19,6 @@
 		ethernet0 = &avb;
 	};
 
-	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
-		stdout-path = "serial0:115200n8";
-	};
-
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 50000>;
@@ -33,6 +28,11 @@
 
 		power-supply = <&reg_12p0v>;
 		enable-gpios = <&gpio4 0 GPIO_ACTIVE_HIGH>;
+	};
+
+	chosen {
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		stdout-path = "serial0:115200n8";
 	};
 
 	composite-in {
