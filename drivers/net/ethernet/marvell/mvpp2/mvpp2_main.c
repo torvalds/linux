@@ -5014,7 +5014,6 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	struct device_node *port_node = to_of_node(port_fwnode);
 	netdev_features_t features;
 	struct net_device *dev;
-	struct resource *res;
 	struct phylink *phylink;
 	char *mac_from = "";
 	unsigned int ntxqs, nrxqs, thread;
@@ -5118,8 +5117,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	port->comphy = comphy;
 
 	if (priv->hw_version == MVPP21) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 2 + id);
-		port->base = devm_ioremap_resource(&pdev->dev, res);
+		port->base = devm_platform_ioremap_resource(pdev, 2 + id);
 		if (IS_ERR(port->base)) {
 			err = PTR_ERR(port->base);
 			goto err_free_irq;
@@ -5551,14 +5549,12 @@ static int mvpp2_probe(struct platform_device *pdev)
 	if (priv->hw_version == MVPP21)
 		queue_mode = MVPP2_QDIST_SINGLE_MODE;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
 	if (priv->hw_version == MVPP21) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		priv->lms_base = devm_ioremap_resource(&pdev->dev, res);
+		priv->lms_base = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(priv->lms_base))
 			return PTR_ERR(priv->lms_base);
 	} else {
