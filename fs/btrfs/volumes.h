@@ -82,7 +82,6 @@ struct btrfs_device {
 
 	unsigned long dev_state;
 	blk_status_t last_flush_error;
-	int flush_bio_sent;
 
 #ifdef __BTRFS_NEED_DEVICE_DATA_ORDERED
 	seqcount_t data_seqcount;
