@@ -896,6 +896,7 @@ static const struct amdgpu_asic_funcs vega20_asic_funcs =
 	.get_pcie_usage = &soc15_get_pcie_usage,
 	.need_reset_on_init = &soc15_need_reset_on_init,
 	.get_pcie_replay_count = &soc15_get_pcie_replay_count,
+	.reset_method = &soc15_asic_reset_method
 };
 
 static int soc15_common_early_init(void *handle)
