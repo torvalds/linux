@@ -904,6 +904,47 @@ static void wait_reserve_ticket(struct btrfs_fs_info *fs_info,
 }
 
 /**
+ * handle_reserve_ticket - do the appropriate flushing and waiting for a ticket
+ * @fs_info - the fs
+ * @space_info - the space_info for the reservation
+ * @ticket - the ticket for the reservation
+ * @flush - how much we can flush
+ *
+ * This does the work of figuring out how to flush for the ticket, waiting for
+ * the reservation, and returning the appropriate error if there is one.
+ */
+static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
+				 struct btrfs_space_info *space_info,
+				 struct reserve_ticket *ticket,
+				 enum btrfs_reserve_flush_enum flush)
+{
+	u64 reclaim_bytes = 0;
+	int ret;
+
+	if (flush == BTRFS_RESERVE_FLUSH_ALL)
+		wait_reserve_ticket(fs_info, space_info, ticket);
+	else
+		priority_reclaim_metadata_space(fs_info, space_info, ticket);
+
+	spin_lock(&space_info->lock);
+	ret = ticket->error;
+	if (ticket->bytes || ticket->error) {
+		if (ticket->bytes < ticket->orig_bytes)
+			reclaim_bytes = ticket->orig_bytes - ticket->bytes;
+		list_del_init(&ticket->list);
+		if (!ret)
+			ret = -ENOSPC;
+	}
+	spin_unlock(&space_info->lock);
+
+	if (reclaim_bytes)
+		btrfs_space_info_add_old_bytes(fs_info, space_info,
+					       reclaim_bytes);
+	ASSERT(list_empty(&ticket->list));
+	return ret;
+}
+
+/**
  * reserve_metadata_bytes - try to reserve bytes from the block_rsv's space
  * @root - the root we're allocating for
  * @space_info - the space info we want to allocate from
@@ -925,7 +966,6 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 {
 	struct reserve_ticket ticket;
 	u64 used;
-	u64 reclaim_bytes = 0;
 	int ret = 0;
 
 	ASSERT(orig_bytes);
@@ -997,27 +1037,7 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 	if (!ret || flush == BTRFS_RESERVE_NO_FLUSH)
 		return ret;
 
-	if (flush == BTRFS_RESERVE_FLUSH_ALL)
-		wait_reserve_ticket(fs_info, space_info, &ticket);
-	else
-		priority_reclaim_metadata_space(fs_info, space_info, &ticket);
-
-	spin_lock(&space_info->lock);
-	ret = ticket.error;
-	if (ticket.bytes || ticket.error) {
-		if (ticket.bytes < orig_bytes)
-			reclaim_bytes = orig_bytes - ticket.bytes;
-		list_del_init(&ticket.list);
-		if (!ret)
-			ret = -ENOSPC;
-	}
-	spin_unlock(&space_info->lock);
-
-	if (reclaim_bytes)
-		btrfs_space_info_add_old_bytes(fs_info, space_info,
-					       reclaim_bytes);
-	ASSERT(list_empty(&ticket.list));
-	return ret;
+	return handle_reserve_ticket(fs_info, space_info, &ticket, flush);
 }
 
 /**
