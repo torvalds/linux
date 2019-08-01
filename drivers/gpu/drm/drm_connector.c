@@ -983,10 +983,19 @@ static const struct drm_prop_enum_list hdmi_colorspaces[] = {
  *	- If the state is DESIRED, kernel should attempt to re-authenticate the
  *	  link whenever possible. This includes across disable/enable, dpms,
  *	  hotplug, downstream device changes, link status failures, etc..
- *	- Userspace is responsible for polling the property to determine when
- *	  the value transitions from ENABLED to DESIRED. This signifies the link
- *	  is no longer protected and userspace should take appropriate action
- *	  (whatever that might be).
+ *	- Kernel sends uevent with the connector id and property id through
+ *	  @drm_hdcp_update_content_protection, upon below kernel triggered
+ *	  scenarios:
+ *		DESIRED -> ENABLED	(authentication success)
+ *		ENABLED -> DESIRED	(termination of authentication)
+ *	- Please note no uevents for userspace triggered property state changes,
+ *	  which can't fail such as
+ *		DESIRED/ENABLED -> UNDESIRED
+ *		UNDESIRED -> DESIRED
+ *	- Userspace is responsible for polling the property or listen to uevents
+ *	  to determine when the value transitions from ENABLED to DESIRED.
+ *	  This signifies the link is no longer protected and userspace should
+ *	  take appropriate action (whatever that might be).
  *
  * HDCP Content Type:
  *	This Enum property is used by the userspace to declare the content type

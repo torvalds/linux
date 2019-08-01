@@ -374,6 +374,10 @@ DRM_ENUM_NAME_FN(drm_get_hdcp_content_type_name,
  *
  * The content protection will be set to &drm_connector_state.content_protection
  *
+ * When kernel triggered content protection state change like DESIRED->ENABLED
+ * and ENABLED->DESIRED, will use drm_hdcp_update_content_protection() to update
+ * the content protection state of a connector.
+ *
  * Returns:
  * Zero on success, negative errno on failure.
  */
@@ -414,3 +418,33 @@ int drm_connector_attach_content_protection_property(
 	return 0;
 }
 EXPORT_SYMBOL(drm_connector_attach_content_protection_property);
+
+/**
+ * drm_hdcp_update_content_protection - Updates the content protection state
+ * of a connector
+ *
+ * @connector: drm_connector on which content protection state needs an update
+ * @val: New state of the content protection property
+ *
+ * This function can be used by display drivers, to update the kernel triggered
+ * content protection state changes of a drm_connector such as DESIRED->ENABLED
+ * and ENABLED->DESIRED. No uevent for DESIRED->UNDESIRED or ENABLED->UNDESIRED,
+ * as userspace is triggering such state change and kernel performs it without
+ * fail.This function update the new state of the property into the connector's
+ * state and generate an uevent to notify the userspace.
+ */
+void drm_hdcp_update_content_protection(struct drm_connector *connector,
+					u64 val)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_connector_state *state = connector->state;
+
+	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+	if (state->content_protection == val)
+		return;
+
+	state->content_protection = val;
+	drm_sysfs_connector_status_event(connector,
+				 dev->mode_config.content_protection_property);
+}
+EXPORT_SYMBOL(drm_hdcp_update_content_protection);
