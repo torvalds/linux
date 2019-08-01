@@ -39,7 +39,7 @@ static const char* __smu_message_names[] = {
 const char *smu_get_message_name(struct smu_context *smu, enum smu_message_type type)
 {
 	if (type < 0 || type >= SMU_MSG_MAX_COUNT)
-		return "unknow smu message";
+		return "unknown smu message";
 	return __smu_message_names[type];
 }
 
@@ -52,7 +52,7 @@ static const char* __smu_feature_names[] = {
 const char *smu_get_feature_name(struct smu_context *smu, enum smu_feature_mask feature)
 {
 	if (feature < 0 || feature >= SMU_FEATURE_COUNT)
-		return "unknow smu feature";
+		return "unknown smu feature";
 	return __smu_feature_names[feature];
 }
 
@@ -87,7 +87,7 @@ size_t smu_sys_get_pp_feature_mask(struct smu_context *smu, char *buf)
 			       smu_get_feature_name(smu, sort_feature[i]),
 			       i,
 			       !!smu_feature_is_enabled(smu, sort_feature[i]) ?
-			       "enabeld" : "disabled");
+			       "enabled" : "disabled");
 	}
 
 failed:
