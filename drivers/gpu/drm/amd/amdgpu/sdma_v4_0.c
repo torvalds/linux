@@ -1963,7 +1963,8 @@ static int sdma_v4_0_process_ras_data_cb(struct amdgpu_device *adev,
 		struct ras_err_data *err_data,
 		struct amdgpu_iv_entry *entry)
 {
-	uint32_t instance, err_source;
+	uint32_t err_source;
+	int instance;
 
 	instance = sdma_v4_0_irq_id_to_seq(entry->client_id);
 	if (instance < 0)
