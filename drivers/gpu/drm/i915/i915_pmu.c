@@ -8,6 +8,8 @@
 #include <linux/pm_runtime.h>
 
 #include "gt/intel_engine.h"
+#include "gt/intel_engine_pm.h"
+#include "gt/intel_gt_pm.h"
 
 #include "i915_drv.h"
 #include "i915_pmu.h"
@@ -165,30 +167,26 @@ static void
 engines_sample(struct intel_gt *gt, unsigned int period_ns)
 {
 	struct drm_i915_private *i915 = gt->i915;
-	struct intel_uncore *uncore = gt->uncore;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	intel_wakeref_t wakeref;
-	unsigned long flags;
 
 	if ((i915->pmu.enable & ENGINE_SAMPLE_MASK) == 0)
 		return;
 
-	wakeref = 0;
-	if (READ_ONCE(gt->awake))
-		wakeref = intel_runtime_pm_get_if_in_use(&i915->runtime_pm);
-	if (!wakeref)
-		return;
-
-	spin_lock_irqsave(&uncore->lock, flags);
 	for_each_engine(engine, i915, id) {
 		struct intel_engine_pmu *pmu = &engine->pmu;
+		unsigned long flags;
 		bool busy;
 		u32 val;
 
+		if (!intel_engine_pm_get_if_awake(engine))
+			continue;
+
+		spin_lock_irqsave(&engine->uncore->lock, flags);
+
 		val = ENGINE_READ_FW(engine, RING_CTL);
 		if (val == 0) /* powerwell off => engine idle */
-			continue;
+			goto skip;
 
 		if (val & RING_WAIT)
 			add_sample(&pmu->sample[I915_SAMPLE_WAIT], period_ns);
@@ -209,10 +207,11 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 		}
 		if (busy)
 			add_sample(&pmu->sample[I915_SAMPLE_BUSY], period_ns);
-	}
-	spin_unlock_irqrestore(&uncore->lock, flags);
 
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+skip:
+		spin_unlock_irqrestore(&engine->uncore->lock, flags);
+		intel_engine_pm_put(engine);
+	}
 }
 
 static void
@@ -232,15 +231,10 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 		u32 val;
 
 		val = i915->gt_pm.rps.cur_freq;
-		if (gt->awake) {
-			intel_wakeref_t wakeref;
-
-			with_intel_runtime_pm_if_in_use(&i915->runtime_pm,
-							wakeref) {
-				val = intel_uncore_read_notrace(uncore,
-								GEN6_RPSTAT1);
-				val = intel_get_cagf(i915, val);
-			}
+		if (intel_gt_pm_get_if_awake(gt)) {
+			val = intel_uncore_read_notrace(uncore, GEN6_RPSTAT1);
+			val = intel_get_cagf(i915, val);
+			intel_gt_pm_put(gt);
 		}
 
 		add_sample_mult(&pmu->sample[__I915_SAMPLE_FREQ_ACT],
