@@ -1716,6 +1716,7 @@ ice_get_settings_link_up(struct ethtool_link_ksettings *ks,
 			 struct net_device *netdev)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_port_info *pi = np->vsi->port_info;
 	struct ethtool_link_ksettings cap_ksettings;
 	struct ice_link_status *link_info;
 	struct ice_vsi *vsi = np->vsi;
@@ -2040,6 +2041,33 @@ ice_get_settings_link_up(struct ethtool_link_ksettings *ks,
 		break;
 	}
 	ks->base.duplex = DUPLEX_FULL;
+
+	if (link_info->an_info & ICE_AQ_AN_COMPLETED)
+		ethtool_link_ksettings_add_link_mode(ks, lp_advertising,
+						     Autoneg);
+
+	/* Set flow control negotiated Rx/Tx pause */
+	switch (pi->fc.current_mode) {
+	case ICE_FC_FULL:
+		ethtool_link_ksettings_add_link_mode(ks, lp_advertising, Pause);
+		break;
+	case ICE_FC_TX_PAUSE:
+		ethtool_link_ksettings_add_link_mode(ks, lp_advertising, Pause);
+		ethtool_link_ksettings_add_link_mode(ks, lp_advertising,
+						     Asym_Pause);
+		break;
+	case ICE_FC_RX_PAUSE:
+		ethtool_link_ksettings_add_link_mode(ks, lp_advertising,
+						     Asym_Pause);
+		break;
+	case ICE_FC_PFC:
+		/* fall through */
+	default:
+		ethtool_link_ksettings_del_link_mode(ks, lp_advertising, Pause);
+		ethtool_link_ksettings_del_link_mode(ks, lp_advertising,
+						     Asym_Pause);
+		break;
+	}
 }
 
 /**
@@ -2078,9 +2106,12 @@ ice_get_link_ksettings(struct net_device *netdev,
 	struct ice_aqc_get_phy_caps_data *caps;
 	struct ice_link_status *hw_link_info;
 	struct ice_vsi *vsi = np->vsi;
+	enum ice_status status;
+	int err = 0;
 
 	ethtool_link_ksettings_zero_link_mode(ks, supported);
 	ethtool_link_ksettings_zero_link_mode(ks, advertising);
+	ethtool_link_ksettings_zero_link_mode(ks, lp_advertising);
 	hw_link_info = &vsi->port_info->phy.link_info;
 
 	/* set speed and duplex */
@@ -2125,47 +2156,35 @@ ice_get_link_ksettings(struct net_device *netdev,
 	/* flow control is symmetric and always supported */
 	ethtool_link_ksettings_add_link_mode(ks, supported, Pause);
 
-	switch (vsi->port_info->fc.req_mode) {
-	case ICE_FC_FULL:
+	caps = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*caps), GFP_KERNEL);
+	if (!caps)
+		return -ENOMEM;
+
+	status = ice_aq_get_phy_caps(vsi->port_info, false,
+				     ICE_AQC_REPORT_SW_CFG, caps, NULL);
+	if (status) {
+		err = -EIO;
+		goto done;
+	}
+
+	/* Set the advertised flow control based on the PHY capability */
+	if ((caps->caps & ICE_AQC_PHY_EN_TX_LINK_PAUSE) &&
+	    (caps->caps & ICE_AQC_PHY_EN_RX_LINK_PAUSE)) {
 		ethtool_link_ksettings_add_link_mode(ks, advertising, Pause);
-		break;
-	case ICE_FC_TX_PAUSE:
 		ethtool_link_ksettings_add_link_mode(ks, advertising,
 						     Asym_Pause);
-		break;
-	case ICE_FC_RX_PAUSE:
+	} else if (caps->caps & ICE_AQC_PHY_EN_TX_LINK_PAUSE) {
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     Asym_Pause);
+	} else if (caps->caps & ICE_AQC_PHY_EN_RX_LINK_PAUSE) {
 		ethtool_link_ksettings_add_link_mode(ks, advertising, Pause);
 		ethtool_link_ksettings_add_link_mode(ks, advertising,
 						     Asym_Pause);
-		break;
-	case ICE_FC_PFC:
-	default:
+	} else {
 		ethtool_link_ksettings_del_link_mode(ks, advertising, Pause);
 		ethtool_link_ksettings_del_link_mode(ks, advertising,
 						     Asym_Pause);
-		break;
 	}
-
-	caps = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*caps), GFP_KERNEL);
-	if (!caps)
-		goto done;
-
-	if (ice_aq_get_phy_caps(vsi->port_info, false, ICE_AQC_REPORT_TOPO_CAP,
-				caps, NULL))
-		netdev_info(netdev, "Get phy capability failed.\n");
-
-	/* Set supported FEC modes based on PHY capability */
-	ethtool_link_ksettings_add_link_mode(ks, supported, FEC_NONE);
-
-	if (caps->link_fec_options & ICE_AQC_PHY_FEC_10G_KR_40G_KR4_EN ||
-	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_KR_CLAUSE74_EN)
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_BASER);
-	if (caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_CLAUSE91_EN)
-		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_RS);
-
-	if (ice_aq_get_phy_caps(vsi->port_info, false, ICE_AQC_REPORT_SW_CFG,
-				caps, NULL))
-		netdev_info(netdev, "Get phy capability failed.\n");
 
 	/* Set advertised FEC modes based on PHY capability */
 	ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_NONE);
@@ -2178,9 +2197,25 @@ ice_get_link_ksettings(struct net_device *netdev,
 	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_544_REQ)
 		ethtool_link_ksettings_add_link_mode(ks, advertising, FEC_RS);
 
+	status = ice_aq_get_phy_caps(vsi->port_info, false,
+				     ICE_AQC_REPORT_TOPO_CAP, caps, NULL);
+	if (status) {
+		err = -EIO;
+		goto done;
+	}
+
+	/* Set supported FEC modes based on PHY capability */
+	ethtool_link_ksettings_add_link_mode(ks, supported, FEC_NONE);
+
+	if (caps->link_fec_options & ICE_AQC_PHY_FEC_10G_KR_40G_KR4_EN ||
+	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_KR_CLAUSE74_EN)
+		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_BASER);
+	if (caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_CLAUSE91_EN)
+		ethtool_link_ksettings_add_link_mode(ks, supported, FEC_RS);
+
 done:
 	devm_kfree(&vsi->back->pdev->dev, caps);
-	return 0;
+	return err;
 }
 
 /**
@@ -2763,6 +2798,11 @@ static int ice_nway_reset(struct net_device *netdev)
  * ice_get_pauseparam - Get Flow Control status
  * @netdev: network interface device structure
  * @pause: ethernet pause (flow control) parameters
+ *
+ * Get requested flow control status from PHY capability.
+ * If autoneg is true, then ethtool will send the ETHTOOL_GSET ioctl which
+ * is handled by ice_get_link_ksettings. ice_get_link_ksettings will report
+ * the negotiated Rx/Tx pause via lp_advertising.
  */
 static void
 ice_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)

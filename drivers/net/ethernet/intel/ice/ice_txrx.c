@@ -377,18 +377,28 @@ err:
  */
 static void ice_release_rx_desc(struct ice_ring *rx_ring, u32 val)
 {
+	u16 prev_ntu = rx_ring->next_to_use;
+
 	rx_ring->next_to_use = val;
 
 	/* update next to alloc since we have filled the ring */
 	rx_ring->next_to_alloc = val;
 
-	/* Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch. (Only
-	 * applicable for weak-ordered memory model archs,
-	 * such as IA-64).
+	/* QRX_TAIL will be updated with any tail value, but hardware ignores
+	 * the lower 3 bits. This makes it so we only bump tail on meaningful
+	 * boundaries. Also, this allows us to bump tail on intervals of 8 up to
+	 * the budget depending on the current traffic load.
 	 */
-	wmb();
-	writel(val, rx_ring->tail);
+	val &= ~0x7;
+	if (prev_ntu != val) {
+		/* Force memory writes to complete before letting h/w
+		 * know there are new descriptors to fetch. (Only
+		 * applicable for weak-ordered memory model archs,
+		 * such as IA-64).
+		 */
+		wmb();
+		writel(val, rx_ring->tail);
+	}
 }
 
 /**
@@ -445,7 +455,13 @@ ice_alloc_mapped_page(struct ice_ring *rx_ring, struct ice_rx_buf *bi)
  * @rx_ring: ring to place buffers on
  * @cleaned_count: number of buffers to replace
  *
- * Returns false if all allocations were successful, true if any fail
+ * Returns false if all allocations were successful, true if any fail. Returning
+ * true signals to the caller that we didn't replace cleaned_count buffers and
+ * there is more work to do.
+ *
+ * First, try to clean "cleaned_count" Rx buffers. Then refill the cleaned Rx
+ * buffers. Then bump tail at most one time. Grouping like this lets us avoid
+ * multiple tail writes per call.
  */
 bool ice_alloc_rx_bufs(struct ice_ring *rx_ring, u16 cleaned_count)
 {
@@ -462,8 +478,9 @@ bool ice_alloc_rx_bufs(struct ice_ring *rx_ring, u16 cleaned_count)
 	bi = &rx_ring->rx_buf[ntu];
 
 	do {
+		/* if we fail here, we have work remaining */
 		if (!ice_alloc_mapped_page(rx_ring, bi))
-			goto no_bufs;
+			break;
 
 		/* sync the buffer for use by the device */
 		dma_sync_single_range_for_device(rx_ring->dev, bi->dma,
@@ -494,16 +511,7 @@ bool ice_alloc_rx_bufs(struct ice_ring *rx_ring, u16 cleaned_count)
 	if (rx_ring->next_to_use != ntu)
 		ice_release_rx_desc(rx_ring, ntu);
 
-	return false;
-
-no_bufs:
-	if (rx_ring->next_to_use != ntu)
-		ice_release_rx_desc(rx_ring, ntu);
-
-	/* make sure to come back via polling to try again after
-	 * allocation failure
-	 */
-	return true;
+	return !!cleaned_count;
 }
 
 /**
@@ -990,7 +998,7 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 {
 	unsigned int total_rx_bytes = 0, total_rx_pkts = 0;
 	u16 cleaned_count = ICE_DESC_UNUSED(rx_ring);
-	bool failure = false;
+	bool failure;
 
 	/* start the loop to process Rx packets bounded by 'budget' */
 	while (likely(total_rx_pkts < (unsigned int)budget)) {
@@ -1001,13 +1009,6 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		u16 stat_err_bits;
 		u16 vlan_tag = 0;
 		u8 rx_ptype;
-
-		/* return some buffers to hardware, one at a time is too slow */
-		if (cleaned_count >= ICE_RX_BUF_WRITE) {
-			failure = failure ||
-				  ice_alloc_rx_bufs(rx_ring, cleaned_count);
-			cleaned_count = 0;
-		}
 
 		/* get the Rx desc from Rx ring based on 'next_to_clean' */
 		rx_desc = ICE_RX_DESC(rx_ring, rx_ring->next_to_clean);
@@ -1084,6 +1085,9 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		/* update budget accounting */
 		total_rx_pkts++;
 	}
+
+	/* return up to cleaned_count buffers to hardware */
+	failure = ice_alloc_rx_bufs(rx_ring, cleaned_count);
 
 	/* update queue and vector specific stats */
 	u64_stats_update_begin(&rx_ring->syncp);
@@ -1409,7 +1413,6 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	struct ice_q_vector *q_vector =
 				container_of(napi, struct ice_q_vector, napi);
 	struct ice_vsi *vsi = q_vector->vsi;
-	struct ice_pf *pf = vsi->back;
 	bool clean_complete = true;
 	int budget_per_ring = 0;
 	struct ice_ring *ring;
@@ -1450,8 +1453,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	 * poll us due to busy-polling
 	 */
 	if (likely(napi_complete_done(napi, work_done)))
-		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-			ice_update_ena_itr(vsi, q_vector);
+		ice_update_ena_itr(vsi, q_vector);
 
 	return min_t(int, work_done, budget - 1);
 }
