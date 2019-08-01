@@ -2680,22 +2680,14 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	}
 
 	if (seeding_dev) {
-		char fsid_buf[BTRFS_UUID_UNPARSED_SIZE];
-
 		ret = btrfs_finish_sprout(trans);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto error_sysfs;
 		}
 
-		/* Sprouting would change fsid of the mounted root,
-		 * so rename the fsid on the sysfs
-		 */
-		snprintf(fsid_buf, BTRFS_UUID_UNPARSED_SIZE, "%pU",
-						fs_info->fs_devices->fsid);
-		if (kobject_rename(&fs_devices->fsid_kobj, fsid_buf))
-			btrfs_warn(fs_info,
-				   "sysfs: failed to create fsid for sprout");
+		btrfs_sysfs_update_sprout_fsid(fs_devices,
+				fs_info->fs_devices->fsid);
 	}
 
 	ret = btrfs_commit_transaction(trans);
