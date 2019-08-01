@@ -914,13 +914,15 @@ struct file *dentry_open(const struct path *path, int flags,
 EXPORT_SYMBOL(dentry_open);
 
 struct file *open_with_fake_path(const struct path *path, int flags,
-				struct inode *inode, const struct cred *cred)
+				 struct inode *inode, struct dentry *dentry,
+				 const struct cred *cred)
 {
 	struct file *f = alloc_empty_file_noaccount(flags, cred);
 	if (!IS_ERR(f)) {
 		int error;
 
 		f->f_path = *path;
+		f->f_path.dentry = dentry;
 		error = do_dentry_open(f, inode, NULL);
 		if (error) {
 			fput(f);

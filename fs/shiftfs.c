@@ -1048,7 +1048,9 @@ static struct file *shiftfs_open_realfile(const struct file *file,
 	oldcred = shiftfs_override_creds(inode->i_sb);
 	/* XXX: open_with_fake_path() not gauranteed to stay around, if
 	 * removed use dentry_open() */
-	lowerf = open_with_fake_path(realpath, file->f_flags, loweri, info->creator_cred);
+	lowerf = open_with_fake_path(realpath, file->f_flags, loweri,
+				     realpath->dentry,
+				     info->creator_cred);
 	revert_creds(oldcred);
 
 	return lowerf;
