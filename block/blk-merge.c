@@ -144,7 +144,7 @@ static inline unsigned get_max_io_size(struct request_queue *q,
 	return sectors;
 }
 
-static unsigned get_max_segment_size(struct request_queue *q,
+static unsigned get_max_segment_size(const struct request_queue *q,
 				     unsigned offset)
 {
 	unsigned long mask = queue_segment_boundary(q);
@@ -161,8 +161,9 @@ static unsigned get_max_segment_size(struct request_queue *q,
  * Split the bvec @bv into segments, and update all kinds of
  * variables.
  */
-static bool bvec_split_segs(struct request_queue *q, struct bio_vec *bv,
-		unsigned *nsegs, unsigned *sectors, unsigned max_segs)
+static bool bvec_split_segs(const struct request_queue *q,
+			    const struct bio_vec *bv, unsigned *nsegs,
+			    unsigned *sectors, unsigned max_segs)
 {
 	unsigned len = bv->bv_len;
 	unsigned total_len = 0;
