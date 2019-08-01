@@ -1748,9 +1748,12 @@ static void gfx_v10_0_init_csb(struct amdgpu_device *adev)
 
 static void gfx_v10_0_init_pg(struct amdgpu_device *adev)
 {
+	int i;
+
 	gfx_v10_0_init_csb(adev);
 
-	amdgpu_gmc_flush_gpu_tlb(adev, 0, 0);
+	for (i = 0; i < adev->num_vmhubs; i++)
+		amdgpu_gmc_flush_gpu_tlb(adev, 0, i, 0);
 
 	/* TODO: init power gating */
 	return;

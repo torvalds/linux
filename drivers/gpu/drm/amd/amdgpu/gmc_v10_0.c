@@ -230,8 +230,8 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
  *
  * Flush the TLB for the requested page table.
  */
-static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev,
-				    uint32_t vmid, uint32_t flush_type)
+static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
+					uint32_t vmhub, uint32_t flush_type)
 {
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 	struct dma_fence *fence;
@@ -244,7 +244,14 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev,
 
 	mutex_lock(&adev->mman.gtt_window_lock);
 
-	gmc_v10_0_flush_vm_hub(adev, vmid, AMDGPU_MMHUB_0, 0);
+	if (vmhub == AMDGPU_MMHUB_0) {
+		gmc_v10_0_flush_vm_hub(adev, vmid, AMDGPU_MMHUB_0, 0);
+		mutex_unlock(&adev->mman.gtt_window_lock);
+		return;
+	}
+
+	BUG_ON(vmhub != AMDGPU_GFXHUB_0);
+
 	if (!adev->mman.buffer_funcs_enabled ||
 	    !adev->ib_pool_ready ||
 	    adev->in_gpu_reset) {
@@ -756,7 +763,8 @@ static int gmc_v10_0_gart_enable(struct amdgpu_device *adev)
 
 	gfxhub_v2_0_set_fault_enable_default(adev, value);
 	mmhub_v2_0_set_fault_enable_default(adev, value);
-	gmc_v10_0_flush_gpu_tlb(adev, 0, 0);
+	gmc_v10_0_flush_gpu_tlb(adev, 0, AMDGPU_MMHUB_0, 0);
+	gmc_v10_0_flush_gpu_tlb(adev, 0, AMDGPU_GFXHUB_0, 0);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),

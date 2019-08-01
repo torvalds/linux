@@ -453,44 +453,45 @@ static uint32_t gmc_v9_0_get_invalidate_req(unsigned int vmid,
  *
  * Flush the TLB for the requested page table using certain type.
  */
-static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev,
-				uint32_t vmid, uint32_t flush_type)
+static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
+					uint32_t vmhub, uint32_t flush_type)
 {
 	const unsigned eng = 17;
-	unsigned i, j;
+	u32 j, tmp;
+	struct amdgpu_vmhub *hub;
 
-	for (i = 0; i < adev->num_vmhubs; ++i) {
-		struct amdgpu_vmhub *hub = &adev->vmhub[i];
-		u32 tmp = gmc_v9_0_get_invalidate_req(vmid, flush_type);
+	BUG_ON(vmhub >= adev->num_vmhubs);
 
-		/* This is necessary for a HW workaround under SRIOV as well
-		 * as GFXOFF under bare metal
-		 */
-		if (adev->gfx.kiq.ring.sched.ready &&
-		    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev)) &&
-		    !adev->in_gpu_reset) {
-			uint32_t req = hub->vm_inv_eng0_req + eng;
-			uint32_t ack = hub->vm_inv_eng0_ack + eng;
+	hub = &adev->vmhub[vmhub];
+	tmp = gmc_v9_0_get_invalidate_req(vmid, flush_type);
 
-			amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, tmp,
-							   1 << vmid);
-			continue;
-		}
+	/* This is necessary for a HW workaround under SRIOV as well
+	 * as GFXOFF under bare metal
+	 */
+	if (adev->gfx.kiq.ring.sched.ready &&
+			(amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev)) &&
+			!adev->in_gpu_reset) {
+		uint32_t req = hub->vm_inv_eng0_req + eng;
+		uint32_t ack = hub->vm_inv_eng0_ack + eng;
 
-		spin_lock(&adev->gmc.invalidate_lock);
-		WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
-		for (j = 0; j < adev->usec_timeout; j++) {
-			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
-			if (tmp & (1 << vmid))
-				break;
-			udelay(1);
-		}
-		spin_unlock(&adev->gmc.invalidate_lock);
-		if (j < adev->usec_timeout)
-			continue;
-
-		DRM_ERROR("Timeout waiting for VM flush ACK!\n");
+		amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, tmp,
+				1 << vmid);
+		return;
 	}
+
+	spin_lock(&adev->gmc.invalidate_lock);
+	WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
+	for (j = 0; j < adev->usec_timeout; j++) {
+		tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
+		if (tmp & (1 << vmid))
+			break;
+		udelay(1);
+	}
+	spin_unlock(&adev->gmc.invalidate_lock);
+	if (j < adev->usec_timeout)
+		return;
+
+	DRM_ERROR("Timeout waiting for VM flush ACK!\n");
 }
 
 static uint64_t gmc_v9_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
@@ -1296,7 +1297,7 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
  */
 static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 {
-	int r;
+	int r, i;
 	bool value;
 	u32 tmp;
 
@@ -1353,7 +1354,9 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 		mmhub_v9_4_set_fault_enable_default(adev, value);
 	else
 		mmhub_v1_0_set_fault_enable_default(adev, value);
-	gmc_v9_0_flush_gpu_tlb(adev, 0, 0);
+
+	for (i = 0; i < adev->num_vmhubs; ++i)
+		gmc_v9_0_flush_gpu_tlb(adev, 0, i, 0);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
