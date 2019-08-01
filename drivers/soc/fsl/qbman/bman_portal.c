@@ -100,7 +100,7 @@ static int bman_portal_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct bm_portal_config *pcfg;
 	struct resource *addr_phys[2];
-	int irq, cpu, err;
+	int irq, cpu, err, i;
 
 	err = bman_is_probed();
 	if (!err)
@@ -175,6 +175,22 @@ static int bman_portal_probe(struct platform_device *pdev)
 	/* clear irq affinity if assigned cpu is offline */
 	if (!cpu_online(cpu))
 		bman_offline_cpu(cpu);
+
+	if (__bman_portals_probed == 1 && bman_requires_cleanup()) {
+		/*
+		 * BMan wasn't reset prior to boot (Kexec for example)
+		 * Empty all the buffer pools so they are in reset state
+		 */
+		for (i = 0; i < BM_POOL_MAX; i++) {
+			err =  bm_shutdown_pool(i);
+			if (err) {
+				dev_err(dev, "Failed to shutdown bpool %d\n",
+					i);
+				goto err_portal_init;
+			}
+		}
+		bman_done_cleanup();
+	}
 
 	return 0;
 
