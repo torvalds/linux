@@ -3588,7 +3588,7 @@ out:
 	return ret;
 }
 
-static void hns3_fini_ring(struct hns3_enet_ring *ring)
+void hns3_fini_ring(struct hns3_enet_ring *ring)
 {
 	hns3_free_desc(ring);
 	devm_kfree(ring_to_dev(ring), ring->desc_cb);

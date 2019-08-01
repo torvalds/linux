@@ -867,8 +867,8 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 	}
 }
 
-static int hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv,
-				       u32 tx_desc_num, u32 rx_desc_num)
+static void hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv,
+					u32 tx_desc_num, u32 rx_desc_num)
 {
 	struct hnae3_handle *h = priv->ae_handle;
 	int i;
@@ -881,21 +881,29 @@ static int hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv,
 		priv->ring_data[i + h->kinfo.num_tqps].ring->desc_num =
 			rx_desc_num;
 	}
-
-	return hns3_init_all_ring(priv);
 }
 
-static int hns3_set_ringparam(struct net_device *ndev,
-			      struct ethtool_ringparam *param)
+static struct hns3_enet_ring *hns3_backup_ringparam(struct hns3_nic_priv *priv)
 {
-	struct hns3_nic_priv *priv = netdev_priv(ndev);
-	struct hnae3_handle *h = priv->ae_handle;
-	bool if_running = netif_running(ndev);
-	u32 old_tx_desc_num, new_tx_desc_num;
-	u32 old_rx_desc_num, new_rx_desc_num;
-	int queue_num = h->kinfo.num_tqps;
-	int ret;
+	struct hnae3_handle *handle = priv->ae_handle;
+	struct hns3_enet_ring *tmp_rings;
+	int i;
 
+	tmp_rings = kcalloc(handle->kinfo.num_tqps * 2,
+			    sizeof(struct hns3_enet_ring), GFP_KERNEL);
+	if (!tmp_rings)
+		return NULL;
+
+	for (i = 0; i < handle->kinfo.num_tqps * 2; i++)
+		memcpy(&tmp_rings[i], priv->ring_data[i].ring,
+		       sizeof(struct hns3_enet_ring));
+
+	return tmp_rings;
+}
+
+static int hns3_check_ringparam(struct net_device *ndev,
+				struct ethtool_ringparam *param)
+{
 	if (hns3_nic_resetting(ndev))
 		return -EBUSY;
 
@@ -911,6 +919,25 @@ static int hns3_set_ringparam(struct net_device *ndev,
 		return -EINVAL;
 	}
 
+	return 0;
+}
+
+static int hns3_set_ringparam(struct net_device *ndev,
+			      struct ethtool_ringparam *param)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	struct hns3_enet_ring *tmp_rings;
+	bool if_running = netif_running(ndev);
+	u32 old_tx_desc_num, new_tx_desc_num;
+	u32 old_rx_desc_num, new_rx_desc_num;
+	u16 queue_num = h->kinfo.num_tqps;
+	int ret, i;
+
+	ret = hns3_check_ringparam(ndev, param);
+	if (ret)
+		return ret;
+
 	/* Hardware requires that its descriptors must be multiple of eight */
 	new_tx_desc_num = ALIGN(param->tx_pending, HNS3_RING_BD_MULTIPLE);
 	new_rx_desc_num = ALIGN(param->rx_pending, HNS3_RING_BD_MULTIPLE);
@@ -920,6 +947,13 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	    old_rx_desc_num == new_rx_desc_num)
 		return 0;
 
+	tmp_rings = hns3_backup_ringparam(priv);
+	if (!tmp_rings) {
+		netdev_err(ndev,
+			   "backup ring param failed by allocating memory fail\n");
+		return -ENOMEM;
+	}
+
 	netdev_info(ndev,
 		    "Changing Tx/Rx ring depth from %d/%d to %d/%d\n",
 		    old_tx_desc_num, old_rx_desc_num,
@@ -928,21 +962,23 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	if (if_running)
 		ndev->netdev_ops->ndo_stop(ndev);
 
-	ret = hns3_uninit_all_ring(priv);
-	if (ret)
-		return ret;
-
-	ret = hns3_change_all_ring_bd_num(priv, new_tx_desc_num,
-					  new_rx_desc_num);
+	hns3_change_all_ring_bd_num(priv, new_tx_desc_num, new_rx_desc_num);
+	ret = hns3_init_all_ring(priv);
 	if (ret) {
-		ret = hns3_change_all_ring_bd_num(priv, old_tx_desc_num,
-						  old_rx_desc_num);
-		if (ret) {
-			netdev_err(ndev,
-				   "Revert to old bd num fail, ret=%d.\n", ret);
-			return ret;
-		}
+		netdev_err(ndev, "Change bd num fail, revert to old value(%d)\n",
+			   ret);
+
+		hns3_change_all_ring_bd_num(priv, old_tx_desc_num,
+					    old_rx_desc_num);
+		for (i = 0; i < h->kinfo.num_tqps * 2; i++)
+			memcpy(priv->ring_data[i].ring, &tmp_rings[i],
+			       sizeof(struct hns3_enet_ring));
+	} else {
+		for (i = 0; i < h->kinfo.num_tqps * 2; i++)
+			hns3_fini_ring(&tmp_rings[i]);
 	}
+
+	kfree(tmp_rings);
 
 	if (if_running)
 		ret = ndev->netdev_ops->ndo_open(ndev);
