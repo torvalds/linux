@@ -3185,6 +3185,68 @@ ipv4_netfilter()
 	iptables -F
 }
 
+netfilter_tcp6_reset()
+{
+	local a
+
+	for a in ${NSA_IP6} ${VRF_IP6}
+	do
+		log_start
+		run_cmd nettest -6 -s &
+		sleep 1
+		run_cmd_nsb nettest -6 -r ${a}
+		log_test_addr ${a} $? 1 "Global server, reject with TCP-reset on Rx"
+	done
+}
+
+netfilter_icmp6()
+{
+	local stype="$1"
+	local arg
+	local a
+
+	[ "${stype}" = "UDP" ] && arg="$arg -D"
+
+	for a in ${NSA_IP6} ${VRF_IP6}
+	do
+		log_start
+		run_cmd nettest -6 -s ${arg} &
+		sleep 1
+		run_cmd_nsb nettest -6 ${arg} -r ${a}
+		log_test_addr ${a} $? 1 "Global ${stype} server, Rx reject icmp-port-unreach"
+	done
+}
+
+ipv6_netfilter()
+{
+	which nettest >/dev/null
+	if [ $? -ne 0 ]; then
+		log_error "nettest not found; skipping tests"
+		return
+	fi
+
+	log_section "IPv6 Netfilter"
+	log_subsection "TCP reset"
+
+	setup "yes"
+	run_cmd ip6tables -A INPUT -p tcp --dport 12345 -j REJECT --reject-with tcp-reset
+
+	netfilter_tcp6_reset
+
+	log_subsection "ICMP unreachable"
+
+	log_start
+	run_cmd ip6tables -F
+	run_cmd ip6tables -A INPUT -p tcp --dport 12345 -j REJECT --reject-with icmp6-port-unreachable
+	run_cmd ip6tables -A INPUT -p udp --dport 12345 -j REJECT --reject-with icmp6-port-unreachable
+
+	netfilter_icmp6 "TCP"
+	netfilter_icmp6 "UDP"
+
+	log_start
+	ip6tables -F
+}
+
 ################################################################################
 # usage
 
@@ -3206,7 +3268,7 @@ EOF
 # main
 
 TESTS_IPV4="ipv4_ping ipv4_tcp ipv4_udp ipv4_addr_bind ipv4_runtime ipv4_netfilter"
-TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp ipv6_addr_bind ipv6_runtime"
+TESTS_IPV6="ipv6_ping ipv6_tcp ipv6_udp ipv6_addr_bind ipv6_runtime ipv6_netfilter"
 PAUSE_ON_FAIL=no
 PAUSE=no
 
@@ -3256,6 +3318,7 @@ do
 	ipv6_udp|udp6)   ipv6_udp;;
 	ipv6_bind|bind6) ipv6_addr_bind;;
 	ipv6_runtime)    ipv6_runtime;;
+	ipv6_netfilter)  ipv6_netfilter;;
 
 	# setup namespaces and config, but do not run any tests
 	setup)		 setup; exit 0;;
