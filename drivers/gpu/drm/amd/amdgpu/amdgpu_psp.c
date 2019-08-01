@@ -53,6 +53,7 @@ static int psp_early_init(void *handle)
 		psp->autoload_supported = false;
 		break;
 	case CHIP_VEGA20:
+	case CHIP_ARCTURUS:
 		psp_v11_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
 		break;
