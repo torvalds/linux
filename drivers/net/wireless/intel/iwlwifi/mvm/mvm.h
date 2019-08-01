@@ -1409,6 +1409,12 @@ static inline bool iwl_mvm_is_scan_ext_chan_supported(struct iwl_mvm *mvm)
 			  IWL_UCODE_TLV_API_SCAN_EXT_CHAN_VER);
 }
 
+static inline bool iwl_mvm_is_band_in_rx_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_api(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_API_BAND_IN_RX_DATA);
+}
+
 static inline bool iwl_mvm_has_new_rx_stats_api(struct iwl_mvm *mvm)
 {
 	return fw_has_api(&mvm->fw->ucode_capa,
