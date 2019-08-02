@@ -35,7 +35,7 @@
  *    (1) Super block (1 block)
  *    (2) Chunk mapping table (nr_map_blocks)
  *    (3) Bitmap blocks (nr_bitmap_blocks)
- * All metadata blocks are stored in conventional zones, starting from the
+ * All metadata blocks are stored in conventional zones, starting from
  * the first conventional zone found on disk.
  */
 struct dmz_super {
@@ -234,7 +234,7 @@ void dmz_unlock_map(struct dmz_metadata *zmd)
  * Lock/unlock metadata access. This is a "read" lock on a semaphore
  * that prevents metadata flush from running while metadata are being
  * modified. The actual metadata write mutual exclusion is achieved with
- * the map lock and zone styate management (active and reclaim state are
+ * the map lock and zone state management (active and reclaim state are
  * mutually exclusive).
  */
 void dmz_lock_metadata(struct dmz_metadata *zmd)
@@ -1652,7 +1652,7 @@ again:
 		if (op != REQ_OP_WRITE)
 			goto out;
 
-		/* Alloate a random zone */
+		/* Allocate a random zone */
 		dzone = dmz_alloc_zone(zmd, DMZ_ALLOC_RND);
 		if (!dzone) {
 			if (dmz_bdev_is_dying(zmd->dev)) {
@@ -1753,7 +1753,7 @@ again:
 	if (bzone)
 		goto out;
 
-	/* Alloate a random zone */
+	/* Allocate a random zone */
 	bzone = dmz_alloc_zone(zmd, DMZ_ALLOC_RND);
 	if (!bzone) {
 		if (dmz_bdev_is_dying(zmd->dev)) {
