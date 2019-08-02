@@ -2633,9 +2633,9 @@ static void ice_remove(struct pci_dev *pdev)
 			continue;
 		ice_vsi_free_q_vectors(pf->vsi[i]);
 	}
-	ice_clear_interrupt_scheme(pf);
 	ice_deinit_pf(pf);
 	ice_deinit_hw(&pf->hw);
+	ice_clear_interrupt_scheme(pf);
 	pci_disable_pcie_error_reporting(pdev);
 }
 
