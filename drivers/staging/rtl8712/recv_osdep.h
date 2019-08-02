@@ -18,7 +18,7 @@
 #include "drv_types.h"
 #include <linux/skbuff.h>
 
-sint _r8712_init_recv_priv(struct recv_priv *precvpriv,
+void _r8712_init_recv_priv(struct recv_priv *precvpriv,
 			   struct _adapter *padapter);
 void _r8712_free_recv_priv(struct recv_priv *precvpriv);
 s32  r8712_recv_entry(union recv_frame *precv_frame);
