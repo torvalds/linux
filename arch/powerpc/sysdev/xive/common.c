@@ -185,7 +185,7 @@ static u32 xive_scan_interrupts(struct xive_cpu *xc, bool just_peek)
 
 /*
  * This is used to perform the magic loads from an ESB
- * described in xive.h
+ * described in xive-regs.h
  */
 static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 {
