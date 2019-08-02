@@ -3513,8 +3513,7 @@ static int kvm_vcpu_ioctl_x86_setup_mce(struct kvm_vcpu *vcpu,
 	for (bank = 0; bank < bank_num; bank++)
 		vcpu->arch.mce_banks[bank*4] = ~(u64)0;
 
-	if (kvm_x86_ops->setup_mce)
-		kvm_x86_ops->setup_mce(vcpu);
+	kvm_x86_ops->setup_mce(vcpu);
 out:
 	return r;
 }
@@ -9330,10 +9329,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm_page_track_init(kvm);
 	kvm_mmu_init_vm(kvm);
 
-	if (kvm_x86_ops->vm_init)
-		return kvm_x86_ops->vm_init(kvm);
-
-	return 0;
+	return kvm_x86_ops->vm_init(kvm);
 }
 
 static void kvm_unload_vcpu_mmu(struct kvm_vcpu *vcpu)
@@ -10025,7 +10021,7 @@ EXPORT_SYMBOL_GPL(kvm_arch_has_noncoherent_dma);
 
 bool kvm_arch_has_irq_bypass(void)
 {
-	return kvm_x86_ops->update_pi_irte != NULL;
+	return true;
 }
 
 int kvm_arch_irq_bypass_add_producer(struct irq_bypass_consumer *cons,
@@ -10065,9 +10061,6 @@ void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
 int kvm_arch_update_irqfd_routing(struct kvm *kvm, unsigned int host_irq,
 				   uint32_t guest_irq, bool set)
 {
-	if (!kvm_x86_ops->update_pi_irte)
-		return -EINVAL;
-
 	return kvm_x86_ops->update_pi_irte(kvm, host_irq, guest_irq, set);
 }
 
