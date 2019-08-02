@@ -88,7 +88,7 @@ struct etnaviv_gem_object;
 
 int etnaviv_iommu_map_gem(struct etnaviv_iommu_context *context,
 	struct etnaviv_gem_object *etnaviv_obj, u32 memory_base,
-	struct etnaviv_vram_mapping *mapping);
+	struct etnaviv_vram_mapping *mapping, u64 va);
 void etnaviv_iommu_unmap_gem(struct etnaviv_iommu_context *context,
 	struct etnaviv_vram_mapping *mapping);
 

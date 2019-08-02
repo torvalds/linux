@@ -220,9 +220,16 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu_context *context,
 	return ret;
 }
 
+static int etnaviv_iommu_insert_exact(struct etnaviv_iommu_context *context,
+		   struct drm_mm_node *node, size_t size, u64 va)
+{
+	return drm_mm_insert_node_in_range(&context->mm, node, size, 0, 0, va,
+					   va + size, DRM_MM_INSERT_LOWEST);
+}
+
 int etnaviv_iommu_map_gem(struct etnaviv_iommu_context *context,
 	struct etnaviv_gem_object *etnaviv_obj, u32 memory_base,
-	struct etnaviv_vram_mapping *mapping)
+	struct etnaviv_vram_mapping *mapping, u64 va)
 {
 	struct sg_table *sgt = etnaviv_obj->sgt;
 	struct drm_mm_node *node;
@@ -248,7 +255,12 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu_context *context,
 
 	node = &mapping->vram_node;
 
-	ret = etnaviv_iommu_find_iova(context, node, etnaviv_obj->base.size);
+	if (va)
+		ret = etnaviv_iommu_insert_exact(context, node,
+						 etnaviv_obj->base.size, va);
+	else
+		ret = etnaviv_iommu_find_iova(context, node,
+					      etnaviv_obj->base.size);
 	if (ret < 0)
 		goto unlock;
 

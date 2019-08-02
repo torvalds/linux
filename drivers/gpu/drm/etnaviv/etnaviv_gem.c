@@ -308,7 +308,8 @@ struct etnaviv_vram_mapping *etnaviv_gem_mapping_get(
 	mapping->use = 1;
 
 	ret = etnaviv_iommu_map_gem(mmu_context, etnaviv_obj,
-				    mmu_context->global->memory_base, mapping);
+				    mmu_context->global->memory_base,
+				    mapping, 0);
 	if (ret < 0) {
 		etnaviv_iommu_context_put(mmu_context);
 		kfree(mapping);
