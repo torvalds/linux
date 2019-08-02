@@ -178,7 +178,8 @@ struct dc_firmware_info {
 	uint32_t default_engine_clk; /* in KHz */
 	uint32_t dp_phy_ref_clk; /* in KHz - DCE12 only */
 	uint32_t i2c_engine_ref_clk; /* in KHz - DCE12 only */
-
+	bool oem_i2c_present;
+	uint8_t oem_i2c_obj_id;
 
 };
 

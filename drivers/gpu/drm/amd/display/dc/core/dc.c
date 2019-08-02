@@ -2502,6 +2502,17 @@ bool dc_submit_i2c(
 		cmd);
 }
 
+bool dc_submit_i2c_oem(
+		struct dc *dc,
+		struct i2c_command *cmd)
+{
+	struct ddc_service *ddc = dc->res_pool->oem_device;
+	return dce_i2c_submit_command(
+		dc->res_pool,
+		ddc->ddc_pin,
+		cmd);
+}
+
 static bool link_add_remote_sink_helper(struct dc_link *dc_link, struct dc_sink *sink)
 {
 	if (dc_link->sink_count >= MAX_SINKS_PER_LINK) {

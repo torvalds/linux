@@ -206,7 +206,10 @@ static void construct(
 		ddc_service->ddc_pin = NULL;
 	} else {
 		hw_info.ddc_channel = i2c_info.i2c_line;
-		hw_info.hw_supported = i2c_info.i2c_hw_assist;
+		if (ddc_service->link != NULL)
+			hw_info.hw_supported = i2c_info.i2c_hw_assist;
+		else
+			hw_info.hw_supported = false;
 
 		ddc_service->ddc_pin = dal_gpio_create_ddc(
 			gpio_service,

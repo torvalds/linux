@@ -31,7 +31,7 @@ bool dce_i2c_submit_command(
 	struct i2c_command *cmd)
 {
 	struct dce_i2c_hw *dce_i2c_hw;
-	struct dce_i2c_sw *dce_i2c_sw;
+	struct dce_i2c_sw dce_i2c_sw = {0};
 
 	if (!ddc) {
 		BREAK_TO_DEBUGGER();
@@ -43,18 +43,15 @@ bool dce_i2c_submit_command(
 		return false;
 	}
 
-	/* The software engine is only available on dce8 */
-	dce_i2c_sw = dce_i2c_acquire_i2c_sw_engine(pool, ddc);
+	dce_i2c_hw = acquire_i2c_hw_engine(pool, ddc);
 
-	if (!dce_i2c_sw) {
-		dce_i2c_hw = acquire_i2c_hw_engine(pool, ddc);
-
-		if (!dce_i2c_hw)
-			return false;
-
+	if (dce_i2c_hw)
 		return dce_i2c_submit_command_hw(pool, ddc, cmd, dce_i2c_hw);
+
+	dce_i2c_sw.ctx = ddc->ctx;
+	if (dce_i2c_engine_acquire_sw(&dce_i2c_sw, ddc)) {
+		return dce_i2c_submit_command_sw(pool, ddc, cmd, &dce_i2c_sw);
 	}
 
-	return dce_i2c_submit_command_sw(pool, ddc, cmd, dce_i2c_sw);
-
+	return false;
 }

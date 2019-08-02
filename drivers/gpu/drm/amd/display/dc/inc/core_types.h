@@ -229,6 +229,8 @@ struct resource_pool {
 
 	const struct resource_funcs *funcs;
 	const struct resource_caps *res_cap;
+
+	struct ddc_service *oem_device;
 };
 
 struct dcn_fe_bandwidth {

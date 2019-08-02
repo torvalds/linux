@@ -294,10 +294,20 @@ static enum bp_result bios_parser_get_i2c_info(struct dc_bios *dcb,
 	struct atom_display_object_path_v2 *object;
 	struct atom_common_record_header *header;
 	struct atom_i2c_record *record;
+	struct atom_i2c_record dummy_record = {0};
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 
 	if (!info)
 		return BP_RESULT_BADINPUT;
+
+	if (id.type == OBJECT_TYPE_GENERIC) {
+		dummy_record.i2c_id = id.id;
+
+		if (get_gpio_i2c_info(bp, &dummy_record, info) == BP_RESULT_OK)
+			return BP_RESULT_OK;
+		else
+			return BP_RESULT_NORECORD;
+	}
 
 	object = get_bios_object(bp, id);
 
@@ -341,6 +351,7 @@ static enum bp_result get_gpio_i2c_info(
 	struct atom_gpio_pin_lut_v2_1 *header;
 	uint32_t count = 0;
 	unsigned int table_index = 0;
+	bool find_valid = false;
 
 	if (!info)
 		return BP_RESULT_BADINPUT;
@@ -368,32 +379,27 @@ static enum bp_result get_gpio_i2c_info(
 			- sizeof(struct atom_common_table_header))
 				/ sizeof(struct atom_gpio_pin_assignment);
 
-	table_index = record->i2c_id  & I2C_HW_LANE_MUX;
-
-	if (count < table_index) {
-		bool find_valid = false;
-
-		for (table_index = 0; table_index < count; table_index++) {
-			if (((record->i2c_id & I2C_HW_CAP) == (
-			header->gpio_pin[table_index].gpio_id &
-							I2C_HW_CAP)) &&
-			((record->i2c_id & I2C_HW_ENGINE_ID_MASK)  ==
-			(header->gpio_pin[table_index].gpio_id &
-						I2C_HW_ENGINE_ID_MASK)) &&
-			((record->i2c_id & I2C_HW_LANE_MUX) ==
-			(header->gpio_pin[table_index].gpio_id &
-							I2C_HW_LANE_MUX))) {
-				/* still valid */
-				find_valid = true;
-				break;
-			}
+	for (table_index = 0; table_index < count; table_index++) {
+		if (((record->i2c_id & I2C_HW_CAP) == (
+		header->gpio_pin[table_index].gpio_id &
+						I2C_HW_CAP)) &&
+		((record->i2c_id & I2C_HW_ENGINE_ID_MASK)  ==
+		(header->gpio_pin[table_index].gpio_id &
+					I2C_HW_ENGINE_ID_MASK)) &&
+		((record->i2c_id & I2C_HW_LANE_MUX) ==
+		(header->gpio_pin[table_index].gpio_id &
+						I2C_HW_LANE_MUX))) {
+			/* still valid */
+			find_valid = true;
+			break;
 		}
-		/* If we don't find the entry that we are looking for then
-		 *  we will return BP_Result_BadBiosTable.
-		 */
-		if (find_valid == false)
-			return BP_RESULT_BADBIOSTABLE;
 	}
+
+	/* If we don't find the entry that we are looking for then
+	 *  we will return BP_Result_BadBiosTable.
+	 */
+	if (find_valid == false)
+		return BP_RESULT_BADBIOSTABLE;
 
 	/* get the GPIO_I2C_INFO */
 	info->i2c_hw_assist = (record->i2c_id & I2C_HW_CAP) ? true : false;
@@ -1205,6 +1211,8 @@ static enum bp_result get_firmware_info_v3_1(
 				bp->cmd_tbl.get_smu_clock_info(bp, SMU9_SYSPLL0_ID) * 10;
 	}
 
+	info->oem_i2c_present = false;
+
 	return BP_RESULT_OK;
 }
 
@@ -1281,6 +1289,13 @@ static enum bp_result get_firmware_info_v3_2(
 		else if (revision.minor == 3)
 			info->smu_gpu_pll_output_freq =
 					bp->cmd_tbl.get_smu_clock_info(bp, SMU11_SYSPLL3_0_ID) * 10;
+	}
+
+	if (firmware_info->board_i2c_feature_id == 0x2) {
+		info->oem_i2c_present = true;
+		info->oem_i2c_obj_id = firmware_info->board_i2c_feature_gpio_id;
+	} else {
+		info->oem_i2c_present = false;
 	}
 
 	return BP_RESULT_OK;
