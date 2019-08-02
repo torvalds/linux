@@ -999,7 +999,6 @@ static void safexcel_init_register_offsets(struct safexcel_crypto_priv *priv)
 static int safexcel_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct safexcel_crypto_priv *priv;
 	int i, ret;
 
@@ -1015,8 +1014,7 @@ static int safexcel_probe(struct platform_device *pdev)
 
 	safexcel_init_register_offsets(priv);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {
 		dev_err(dev, "failed to get resource\n");
 		return PTR_ERR(priv->base);
