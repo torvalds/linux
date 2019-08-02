@@ -54,7 +54,7 @@ static void sdw_compute_slave_ports(struct sdw_master_runtime *m_rt,
 			ch = sdw_ch_mask_to_ch(p_rt->ch_mask);
 
 			sdw_fill_xport_params(&p_rt->transport_params,
-					      p_rt->num, true,
+					      p_rt->num, false,
 					      SDW_BLK_GRP_CNT_1,
 					      sample_int, port_bo, port_bo >> 8,
 					      t_data->hstart,
@@ -97,7 +97,7 @@ static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 		no_ch = sdw_ch_mask_to_ch(p_rt->ch_mask);
 
 		sdw_fill_xport_params(&p_rt->transport_params, p_rt->num,
-				      true, SDW_BLK_GRP_CNT_1, sample_int,
+				      false, SDW_BLK_GRP_CNT_1, sample_int,
 				      port_bo, port_bo >> 8, hstart, hstop,
 				      (SDW_BLK_GRP_CNT_1 * no_ch), 0x0);
 
