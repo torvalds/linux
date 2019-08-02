@@ -6,10 +6,6 @@
   - Bifrost specific feature and issue handling
   - Coherent DMA support
 
-- Support for 2MB pages. The io-pgtable code already supports this. Finishing
-  support involves either copying or adapting the iommu API to handle passing
-  aligned addresses and sizes to the io-pgtable code.
-
 - Per FD address space support. The h/w supports multiple addresses spaces.
   The hard part is handling when more address spaces are needed than what
   the h/w provides.
@@ -22,6 +18,3 @@
 
 - Compute job support. So called 'compute only' jobs need to be plumbed up to
   userspace.
-
-- Performance counter support. (Boris)
-
