@@ -1335,7 +1335,7 @@ void hal_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist)
  *true	Enable BT co-exist mechanism
  *false	Disable BT co-exist mechanism
  */
-u8 hal_btcoex_IsBtExist(struct adapter *padapter)
+bool hal_btcoex_IsBtExist(struct adapter *padapter)
 {
 	struct hal_com_data *pHalData;
 
