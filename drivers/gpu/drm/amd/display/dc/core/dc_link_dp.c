@@ -3188,7 +3188,7 @@ bool dc_link_dp_set_test_pattern(
 	memset(&training_pattern, 0, sizeof(training_pattern));
 
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (pipes[i].stream->link == link) {
+		if (pipes[i].stream->link == link && !pipes[i].top_pipe && !pipes[i].prev_odm_pipe) {
 			pipe_ctx = &pipes[i];
 			break;
 		}

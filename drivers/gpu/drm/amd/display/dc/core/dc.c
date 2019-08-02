@@ -1230,6 +1230,12 @@ struct dc_state *dc_copy_state(struct dc_state *src_ctx)
 			if (cur_pipe->bottom_pipe)
 				cur_pipe->bottom_pipe = &new_ctx->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
 
+			if (cur_pipe->prev_odm_pipe)
+				cur_pipe->prev_odm_pipe =  &new_ctx->res_ctx.pipe_ctx[cur_pipe->prev_odm_pipe->pipe_idx];
+
+			if (cur_pipe->next_odm_pipe)
+				cur_pipe->next_odm_pipe = &new_ctx->res_ctx.pipe_ctx[cur_pipe->next_odm_pipe->pipe_idx];
+
 	}
 
 	for (i = 0; i < new_ctx->stream_count; i++) {
