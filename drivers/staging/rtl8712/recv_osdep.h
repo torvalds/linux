@@ -28,8 +28,8 @@ void r8712_handle_tkip_mic_err(struct _adapter *padapter, u8 bgroup);
 int r8712_init_recv_priv(struct recv_priv *precvpriv,
 			 struct _adapter *padapter);
 void r8712_free_recv_priv(struct recv_priv *precvpriv);
-int r8712_os_recv_resource_alloc(struct _adapter *padapter,
-				 union recv_frame *precvframe);
+void r8712_os_recv_resource_alloc(struct _adapter *padapter,
+				  union recv_frame *precvframe);
 int r8712_os_recvbuf_resource_alloc(struct _adapter *padapter,
 				    struct recv_buf *precvbuf);
 int r8712_os_recvbuf_resource_free(struct _adapter *padapter,

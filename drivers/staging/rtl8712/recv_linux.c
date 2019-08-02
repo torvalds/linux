@@ -29,12 +29,11 @@
 
 /*init os related resource in struct recv_priv*/
 /*alloc os related resource in union recv_frame*/
-int r8712_os_recv_resource_alloc(struct _adapter *padapter,
-				 union recv_frame *precvframe)
+void r8712_os_recv_resource_alloc(struct _adapter *padapter,
+				  union recv_frame *precvframe)
 {
 	precvframe->u.hdr.pkt_newalloc = NULL;
 	precvframe->u.hdr.pkt = NULL;
-	return _SUCCESS;
 }
 
 /*alloc os related resource in struct recv_buf*/
