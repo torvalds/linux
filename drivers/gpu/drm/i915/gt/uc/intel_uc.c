@@ -340,7 +340,7 @@ void intel_uc_fini(struct intel_uc *uc)
 	intel_guc_fini(guc);
 }
 
-static void __uc_sanitize(struct intel_uc *uc)
+static int __uc_sanitize(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
 	struct intel_huc *huc = &uc->huc;
@@ -350,7 +350,7 @@ static void __uc_sanitize(struct intel_uc *uc)
 	intel_huc_sanitize(huc);
 	intel_guc_sanitize(guc);
 
-	__intel_uc_reset_hw(uc);
+	return __intel_uc_reset_hw(uc);
 }
 
 void intel_uc_sanitize(struct intel_uc *uc)
@@ -434,7 +434,7 @@ int intel_uc_init_hw(struct intel_uc *uc)
 		 * Always reset the GuC just before (re)loading, so
 		 * that the state and timing are fairly predictable
 		 */
-		ret = __intel_uc_reset_hw(uc);
+		ret = __uc_sanitize(uc);
 		if (ret)
 			goto err_out;
 
