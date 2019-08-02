@@ -1159,11 +1159,11 @@ EXC_COMMON_BEGIN(data_access_common)
 	 * EX_DAR and EX_DSISR have saved DAR/DSISR
 	 */
 	INT_COMMON 0x300, PACA_EXGEN, 1, 1, 1, 1, 1
-	ld	r12,_MSR(r1)
-	ld	r3,_DAR(r1)
-	ld	r4,_DSISR(r1)
-	li	r5,0x300
+	ld	r4,_DAR(r1)
+	ld	r5,_DSISR(r1)
 BEGIN_MMU_FTR_SECTION
+	ld	r6,_MSR(r1)
+	li	r3,0x300
 	b	do_hash_page		/* Try to handle as hpte fault */
 MMU_FTR_SECTION_ELSE
 	b	handle_page_fault
@@ -1211,11 +1211,11 @@ EXC_VIRT_END(instruction_access, 0x4400, 0x80)
 INT_KVM_HANDLER instruction_access, 0x400, EXC_STD, PACA_EXGEN, 0
 EXC_COMMON_BEGIN(instruction_access_common)
 	INT_COMMON 0x400, PACA_EXGEN, 1, 1, 1, 2, 2
-	ld      r12,_MSR(r1)
-	ld	r3,_DAR(r1)
-	ld	r4,_DSISR(r1)
-	li	r5,0x400
+	ld	r4,_DAR(r1)
+	ld	r5,_DSISR(r1)
 BEGIN_MMU_FTR_SECTION
+	ld      r6,_MSR(r1)
+	li	r3,0x400
 	b	do_hash_page		/* Try to handle as hpte fault */
 MMU_FTR_SECTION_ELSE
 	b	handle_page_fault
@@ -2260,7 +2260,7 @@ do_hash_page:
 #ifdef CONFIG_PPC_BOOK3S_64
 	lis	r0,(DSISR_BAD_FAULT_64S | DSISR_DABRMATCH | DSISR_KEYFAULT)@h
 	ori	r0,r0,DSISR_BAD_FAULT_64S@l
-	and.	r0,r4,r0		/* weird error? */
+	and.	r0,r5,r0		/* weird error? */
 	bne-	handle_page_fault	/* if not, try to insert a HPTE */
 	ld	r11, PACA_THREAD_INFO(r13)
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
@@ -2268,15 +2268,13 @@ do_hash_page:
 	bne	77f			/* then don't call hash_page now */
 
 	/*
-	 * r3 contains the faulting address
-	 * r4 msr
-	 * r5 contains the trap number
-	 * r6 contains dsisr
+	 * r3 contains the trap number
+	 * r4 contains the faulting address
+	 * r5 contains dsisr
+	 * r6 msr
 	 *
 	 * at return r3 = 0 for success, 1 for page fault, negative for error
 	 */
-        mr 	r4,r12
-	ld      r6,_DSISR(r1)
 	bl	__hash_page		/* build HPTE if possible */
         cmpdi	r3,0			/* see if __hash_page succeeded */
 
@@ -2286,16 +2284,15 @@ do_hash_page:
 	/* Error */
 	blt-	13f
 
-	/* Reload DSISR into r4 for the DABR check below */
-	ld      r4,_DSISR(r1)
+	/* Reload DAR/DSISR into r4/r5 for the DABR check below */
+	ld	r4,_DAR(r1)
+	ld      r5,_DSISR(r1)
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 /* Here we have a page fault that hash_page can't handle. */
 handle_page_fault:
-11:	andis.  r0,r4,DSISR_DABRMATCH@h
+11:	andis.  r0,r5,DSISR_DABRMATCH@h
 	bne-    handle_dabr_fault
-	ld	r4,_DAR(r1)
-	ld	r5,_DSISR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_page_fault
 	cmpdi	r3,0
@@ -2342,7 +2339,6 @@ handle_dabr_fault:
  * the access, or panic if there isn't a handler.
  */
 77:	bl	save_nvgprs
-	mr	r4,r3
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	li	r5,SIGSEGV
 	bl	bad_page_fault
