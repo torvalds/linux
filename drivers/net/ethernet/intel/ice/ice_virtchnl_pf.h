@@ -41,9 +41,9 @@
 
 /* Specific VF states */
 enum ice_vf_states {
-	ICE_VF_STATE_INIT = 0,
-	ICE_VF_STATE_ACTIVE,
-	ICE_VF_STATE_ENA,
+	ICE_VF_STATE_INIT = 0,		/* PF is initializing VF */
+	ICE_VF_STATE_ACTIVE,		/* VF resources are allocated for use */
+	ICE_VF_STATE_QS_ENA,		/* VF queue(s) enabled */
 	ICE_VF_STATE_DIS,
 	ICE_VF_STATE_MC_PROMISC,
 	ICE_VF_STATE_UC_PROMISC,
@@ -68,6 +68,8 @@ struct ice_vf {
 	struct virtchnl_version_info vf_ver;
 	u32 driver_caps;		/* reported by VF driver */
 	struct virtchnl_ether_addr dflt_lan_addr;
+	DECLARE_BITMAP(txq_ena, ICE_MAX_BASE_QS_PER_VF);
+	DECLARE_BITMAP(rxq_ena, ICE_MAX_BASE_QS_PER_VF);
 	u16 port_vlan_id;
 	u8 pf_set_mac:1;		/* VF MAC address set by VMM admin */
 	u8 trusted:1;
@@ -90,6 +92,7 @@ struct ice_vf {
 	u16 num_mac;
 	u16 num_vlan;
 	u16 num_vf_qs;			/* num of queue configured per VF */
+	u16 num_qs_ena;			/* total num of Tx/Rx queue enabled */
 };
 
 #ifdef CONFIG_PCI_IOV
@@ -116,12 +119,15 @@ int ice_set_vf_link_state(struct net_device *netdev, int vf_id, int link_state);
 int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena);
 
 int ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector);
+
+void ice_set_vf_state_qs_dis(struct ice_vf *vf);
 #else /* CONFIG_PCI_IOV */
 #define ice_process_vflr_event(pf) do {} while (0)
 #define ice_free_vfs(pf) do {} while (0)
 #define ice_vc_process_vf_msg(pf, event) do {} while (0)
 #define ice_vc_notify_link_state(pf) do {} while (0)
 #define ice_vc_notify_reset(pf) do {} while (0)
+#define ice_set_vf_state_qs_dis(vf) do {} while (0)
 
 static inline bool
 ice_reset_all_vfs(struct ice_pf __always_unused *pf,

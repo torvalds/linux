@@ -196,7 +196,10 @@ static int ice_pf_rxq_wait(struct ice_pf *pf, int pf_q, bool ena)
  * @ena: start or stop the Rx rings
  * @rxq_idx: Rx queue index
  */
-static int ice_vsi_ctrl_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx)
+#ifndef CONFIG_PCI_IOV
+static
+#endif /* !CONFIG_PCI_IOV */
+int ice_vsi_ctrl_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx)
 {
 	int pf_q = vsi->rxq_map[rxq_idx];
 	struct ice_pf *pf = vsi->back;
@@ -2105,7 +2108,10 @@ void ice_trigger_sw_intr(struct ice_hw *hw, struct ice_q_vector *q_vector)
  * @ring: Tx ring to be stopped
  * @txq_meta: Meta data of Tx ring to be stopped
  */
-static int
+#ifndef CONFIG_PCI_IOV
+static
+#endif /* !CONFIG_PCI_IOV */
+int
 ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 		     u16 rel_vmvf_num, struct ice_ring *ring,
 		     struct ice_txq_meta *txq_meta)
@@ -2165,7 +2171,10 @@ ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
  * Set up a helper struct that will contain all the necessary fields that
  * are needed for stopping Tx queue
  */
-static void
+#ifndef CONFIG_PCI_IOV
+static
+#endif /* !CONFIG_PCI_IOV */
+void
 ice_fill_txq_meta(struct ice_vsi *vsi, struct ice_ring *ring,
 		  struct ice_txq_meta *txq_meta)
 {

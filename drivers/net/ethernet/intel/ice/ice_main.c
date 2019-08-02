@@ -489,7 +489,7 @@ ice_prepare_for_reset(struct ice_pf *pf)
 
 	/* Disable VFs until reset is completed */
 	for (i = 0; i < pf->num_alloc_vfs; i++)
-		clear_bit(ICE_VF_STATE_ENA, pf->vf[i].vf_states);
+		ice_set_vf_state_qs_dis(&pf->vf[i]);
 
 	/* disable the VSIs and their queues that are not already DOWN */
 	ice_pf_dis_all_vsi(pf, false);

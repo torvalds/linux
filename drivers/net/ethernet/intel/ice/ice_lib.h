@@ -39,6 +39,16 @@ ice_cfg_txq_interrupt(struct ice_vsi *vsi, u16 txq, u16 msix_idx, u16 itr_idx);
 
 void
 ice_cfg_rxq_interrupt(struct ice_vsi *vsi, u16 rxq, u16 msix_idx, u16 itr_idx);
+
+int
+ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
+		     u16 rel_vmvf_num, struct ice_ring *ring,
+		     struct ice_txq_meta *txq_meta);
+
+void ice_fill_txq_meta(struct ice_vsi *vsi, struct ice_ring *ring,
+		       struct ice_txq_meta *txq_meta);
+
+int ice_vsi_ctrl_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx);
 #endif /* CONFIG_PCI_IOV */
 
 int ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid);
