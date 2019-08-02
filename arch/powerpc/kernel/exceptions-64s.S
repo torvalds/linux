@@ -180,101 +180,6 @@ BEGIN_FTR_SECTION_NESTED(943)						\
 	std	ra,offset(r13);						\
 END_FTR_SECTION_NESTED(ftr,ftr,943)
 
-.macro INT_SAVE_SRR_AND_JUMP label, hsrr, set_ri
-	ld	r10,PACAKMSR(r13)	/* get MSR value for kernel */
-	.if ! \set_ri
-	xori	r10,r10,MSR_RI		/* Clear MSR_RI */
-	.endif
-	.if \hsrr == EXC_HV_OR_STD
-	BEGIN_FTR_SECTION
-	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
-	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
-	mtspr	SPRN_HSRR1,r10
-	FTR_SECTION_ELSE
-	mfspr	r11,SPRN_SRR0		/* save SRR0 */
-	mfspr	r12,SPRN_SRR1		/* and SRR1 */
-	mtspr	SPRN_SRR1,r10
-	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
-	.elseif \hsrr
-	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
-	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
-	mtspr	SPRN_HSRR1,r10
-	.else
-	mfspr	r11,SPRN_SRR0		/* save SRR0 */
-	mfspr	r12,SPRN_SRR1		/* and SRR1 */
-	mtspr	SPRN_SRR1,r10
-	.endif
-	LOAD_HANDLER(r10, \label\())
-	.if \hsrr == EXC_HV_OR_STD
-	BEGIN_FTR_SECTION
-	mtspr	SPRN_HSRR0,r10
-	HRFI_TO_KERNEL
-	FTR_SECTION_ELSE
-	mtspr	SPRN_SRR0,r10
-	RFI_TO_KERNEL
-	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
-	.elseif \hsrr
-	mtspr	SPRN_HSRR0,r10
-	HRFI_TO_KERNEL
-	.else
-	mtspr	SPRN_SRR0,r10
-	RFI_TO_KERNEL
-	.endif
-	b	.	/* prevent speculative execution */
-.endm
-
-/* INT_SAVE_SRR_AND_JUMP works for real or virt, this is faster but virt only */
-.macro INT_VIRT_SAVE_SRR_AND_JUMP label, hsrr
-#ifdef CONFIG_RELOCATABLE
-	.if \hsrr == EXC_HV_OR_STD
-	BEGIN_FTR_SECTION
-	mfspr	r11,SPRN_HSRR0	/* save HSRR0 */
-	FTR_SECTION_ELSE
-	mfspr	r11,SPRN_SRR0	/* save SRR0 */
-	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
-	.elseif \hsrr
-	mfspr	r11,SPRN_HSRR0	/* save HSRR0 */
-	.else
-	mfspr	r11,SPRN_SRR0	/* save SRR0 */
-	.endif
-	LOAD_HANDLER(r12, \label\())
-	mtctr	r12
-	.if \hsrr == EXC_HV_OR_STD
-	BEGIN_FTR_SECTION
-	mfspr	r12,SPRN_HSRR1	/* and HSRR1 */
-	FTR_SECTION_ELSE
-	mfspr	r12,SPRN_SRR1	/* and HSRR1 */
-	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
-	.elseif \hsrr
-	mfspr	r12,SPRN_HSRR1	/* and HSRR1 */
-	.else
-	mfspr	r12,SPRN_SRR1	/* and HSRR1 */
-	.endif
-	li	r10,MSR_RI
-	mtmsrd 	r10,1		/* Set RI (EE=0) */
-	bctr
-#else
-	.if \hsrr == EXC_HV_OR_STD
-	BEGIN_FTR_SECTION
-	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
-	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
-	FTR_SECTION_ELSE
-	mfspr	r11,SPRN_SRR0		/* save SRR0 */
-	mfspr	r12,SPRN_SRR1		/* and SRR1 */
-	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
-	.elseif \hsrr
-	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
-	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
-	.else
-	mfspr	r11,SPRN_SRR0		/* save SRR0 */
-	mfspr	r12,SPRN_SRR1		/* and SRR1 */
-	.endif
-	li	r10,MSR_RI
-	mtmsrd 	r10,1			/* Set RI (EE=0) */
-	b	\label
-#endif
-.endm
-
 /*
  * Branch to label using its 0xC000 address. This results in instruction
  * address suitable for MSR[IR]=0 or 1, which allows relocation to be turned
@@ -287,6 +192,15 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	__LOAD_FAR_HANDLER(reg, label);					\
 	mtctr	reg;							\
 	bctr
+
+.macro INT_KVM_HANDLER vec, hsrr, area, skip
+	.if \hsrr
+	TRAMP_KVM_BEGIN(do_kvm_H\vec\())
+	.else
+	TRAMP_KVM_BEGIN(do_kvm_\vec\())
+	.endif
+	KVM_HANDLER \vec, \hsrr, \area, \skip
+.endm
 
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
@@ -389,6 +303,222 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 .macro KVM_HANDLER vec, hsrr, area, skip
 .endm
 #endif
+
+.macro INT_SAVE_SRR_AND_JUMP label, hsrr, set_ri
+	ld	r10,PACAKMSR(r13)	/* get MSR value for kernel */
+	.if ! \set_ri
+	xori	r10,r10,MSR_RI		/* Clear MSR_RI */
+	.endif
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
+	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
+	mtspr	SPRN_HSRR1,r10
+	FTR_SECTION_ELSE
+	mfspr	r11,SPRN_SRR0		/* save SRR0 */
+	mfspr	r12,SPRN_SRR1		/* and SRR1 */
+	mtspr	SPRN_SRR1,r10
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
+	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
+	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
+	mtspr	SPRN_HSRR1,r10
+	.else
+	mfspr	r11,SPRN_SRR0		/* save SRR0 */
+	mfspr	r12,SPRN_SRR1		/* and SRR1 */
+	mtspr	SPRN_SRR1,r10
+	.endif
+	LOAD_HANDLER(r10, \label\())
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	mtspr	SPRN_HSRR0,r10
+	HRFI_TO_KERNEL
+	FTR_SECTION_ELSE
+	mtspr	SPRN_SRR0,r10
+	RFI_TO_KERNEL
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
+	mtspr	SPRN_HSRR0,r10
+	HRFI_TO_KERNEL
+	.else
+	mtspr	SPRN_SRR0,r10
+	RFI_TO_KERNEL
+	.endif
+	b	.	/* prevent speculative execution */
+.endm
+
+/* INT_SAVE_SRR_AND_JUMP works for real or virt, this is faster but virt only */
+.macro INT_VIRT_SAVE_SRR_AND_JUMP label, hsrr
+#ifdef CONFIG_RELOCATABLE
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	mfspr	r11,SPRN_HSRR0	/* save HSRR0 */
+	FTR_SECTION_ELSE
+	mfspr	r11,SPRN_SRR0	/* save SRR0 */
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
+	mfspr	r11,SPRN_HSRR0	/* save HSRR0 */
+	.else
+	mfspr	r11,SPRN_SRR0	/* save SRR0 */
+	.endif
+	LOAD_HANDLER(r12, \label\())
+	mtctr	r12
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	mfspr	r12,SPRN_HSRR1	/* and HSRR1 */
+	FTR_SECTION_ELSE
+	mfspr	r12,SPRN_SRR1	/* and HSRR1 */
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
+	mfspr	r12,SPRN_HSRR1	/* and HSRR1 */
+	.else
+	mfspr	r12,SPRN_SRR1	/* and HSRR1 */
+	.endif
+	li	r10,MSR_RI
+	mtmsrd 	r10,1		/* Set RI (EE=0) */
+	bctr
+#else
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
+	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
+	FTR_SECTION_ELSE
+	mfspr	r11,SPRN_SRR0		/* save SRR0 */
+	mfspr	r12,SPRN_SRR1		/* and SRR1 */
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
+	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
+	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
+	.else
+	mfspr	r11,SPRN_SRR0		/* save SRR0 */
+	mfspr	r12,SPRN_SRR1		/* and SRR1 */
+	.endif
+	li	r10,MSR_RI
+	mtmsrd 	r10,1			/* Set RI (EE=0) */
+	b	\label
+#endif
+.endm
+
+/*
+ * This is the BOOK3S interrupt entry code macro.
+ *
+ * This can result in one of several things happening:
+ * - Branch to the _common handler, relocated, in virtual mode.
+ *   These are normal interrupts (synchronous and asynchronous) handled by
+ *   the kernel.
+ * - Branch to KVM, relocated but real mode interrupts remain in real mode.
+ *   These occur when HSTATE_IN_GUEST is set. The interrupt may be caused by
+ *   / intended for host or guest kernel, but KVM must always be involved
+ *   because the machine state is set for guest execution.
+ * - Branch to the masked handler, unrelocated.
+ *   These occur when maskable asynchronous interrupts are taken with the
+ *   irq_soft_mask set.
+ * - Branch to an "early" handler in real mode but relocated.
+ *   This is done if early=1. MCE and HMI use these to handle errors in real
+ *   mode.
+ * - Fall through and continue executing in real, unrelocated mode.
+ *   This is done if early=2.
+ */
+.macro INT_HANDLER name, vec, ool=0, early=0, virt=0, hsrr=0, area=PACA_EXGEN, ri=1, dar=0, dsisr=0, bitmask=0, kvm=0
+	SET_SCRATCH0(r13)			/* save r13 */
+	GET_PACA(r13)
+	std	r9,\area\()+EX_R9(r13)		/* save r9 */
+	OPT_GET_SPR(r9, SPRN_PPR, CPU_FTR_HAS_PPR)
+	HMT_MEDIUM
+	std	r10,\area\()+EX_R10(r13)	/* save r10 - r12 */
+	OPT_GET_SPR(r10, SPRN_CFAR, CPU_FTR_CFAR)
+	.if \ool
+	.if !\virt
+	b	tramp_real_\name
+	.pushsection .text
+	TRAMP_REAL_BEGIN(tramp_real_\name)
+	.else
+	b	tramp_virt_\name
+	.pushsection .text
+	TRAMP_VIRT_BEGIN(tramp_virt_\name)
+	.endif
+	.endif
+
+	OPT_SAVE_REG_TO_PACA(\area\()+EX_PPR, r9, CPU_FTR_HAS_PPR)
+	OPT_SAVE_REG_TO_PACA(\area\()+EX_CFAR, r10, CPU_FTR_CFAR)
+	INTERRUPT_TO_KERNEL
+	SAVE_CTR(r10, \area\())
+	mfcr	r9
+	.if \kvm
+		KVMTEST \hsrr \vec
+	.endif
+	.if \bitmask
+		lbz	r10,PACAIRQSOFTMASK(r13)
+		andi.	r10,r10,\bitmask
+		/* Associate vector numbers with bits in paca->irq_happened */
+		.if \vec == 0x500 || \vec == 0xea0
+		li	r10,PACA_IRQ_EE
+		.elseif \vec == 0x900
+		li	r10,PACA_IRQ_DEC
+		.elseif \vec == 0xa00 || \vec == 0xe80
+		li	r10,PACA_IRQ_DBELL
+		.elseif \vec == 0xe60
+		li	r10,PACA_IRQ_HMI
+		.elseif \vec == 0xf00
+		li	r10,PACA_IRQ_PMI
+		.else
+		.abort "Bad maskable vector"
+		.endif
+
+		.if \hsrr == EXC_HV_OR_STD
+		BEGIN_FTR_SECTION
+		bne	masked_Hinterrupt
+		FTR_SECTION_ELSE
+		bne	masked_interrupt
+		ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+		.elseif \hsrr
+		bne	masked_Hinterrupt
+		.else
+		bne	masked_interrupt
+		.endif
+	.endif
+
+	std	r11,\area\()+EX_R11(r13)
+	std	r12,\area\()+EX_R12(r13)
+
+	/*
+	 * DAR/DSISR, SCRATCH0 must be read before setting MSR[RI],
+	 * because a d-side MCE will clobber those registers so is
+	 * not recoverable if they are live.
+	 */
+	GET_SCRATCH0(r10)
+	std	r10,\area\()+EX_R13(r13)
+	.if \dar
+	.if \hsrr
+	mfspr	r10,SPRN_HDAR
+	.else
+	mfspr	r10,SPRN_DAR
+	.endif
+	std	r10,\area\()+EX_DAR(r13)
+	.endif
+	.if \dsisr
+	.if \hsrr
+	mfspr	r10,SPRN_HDSISR
+	.else
+	mfspr	r10,SPRN_DSISR
+	.endif
+	stw	r10,\area\()+EX_DSISR(r13)
+	.endif
+
+	.if \early == 2
+	/* nothing more */
+	.elseif \early
+	mfctr	r10			/* save ctr, even for !RELOCATABLE */
+	BRANCH_TO_C000(r11, \name\()_early_common)
+	.elseif !\virt
+	INT_SAVE_SRR_AND_JUMP \name\()_common, \hsrr, \ri
+	.else
+	INT_VIRT_SAVE_SRR_AND_JUMP \name\()_common, \hsrr
+	.endif
+	.if \ool
+	.popsection
+	.endif
+.endm
 
 /*
  * On entry r13 points to the paca, r9-r13 are saved in the paca,
@@ -554,136 +684,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 #else
 #define FINISH_NAP
 #endif
-
-/*
- * This is the BOOK3S interrupt entry code macro.
- *
- * This can result in one of several things happening:
- * - Branch to the _common handler, relocated, in virtual mode.
- *   These are normal interrupts (synchronous and asynchronous) handled by
- *   the kernel.
- * - Branch to KVM, relocated but real mode interrupts remain in real mode.
- *   These occur when HSTATE_IN_GUEST is set. The interrupt may be caused by
- *   / intended for host or guest kernel, but KVM must always be involved
- *   because the machine state is set for guest execution.
- * - Branch to the masked handler, unrelocated.
- *   These occur when maskable asynchronous interrupts are taken with the
- *   irq_soft_mask set.
- * - Branch to an "early" handler in real mode but relocated.
- *   This is done if early=1. MCE and HMI use these to handle errors in real
- *   mode.
- * - Fall through and continue executing in real, unrelocated mode.
- *   This is done if early=2.
- */
-.macro INT_HANDLER name, vec, ool=0, early=0, virt=0, hsrr=0, area=PACA_EXGEN, ri=1, dar=0, dsisr=0, bitmask=0, kvm=0
-	SET_SCRATCH0(r13)			/* save r13 */
-	GET_PACA(r13)
-	std	r9,\area\()+EX_R9(r13)		/* save r9 */
-	OPT_GET_SPR(r9, SPRN_PPR, CPU_FTR_HAS_PPR)
-	HMT_MEDIUM
-	std	r10,\area\()+EX_R10(r13)	/* save r10 - r12 */
-	OPT_GET_SPR(r10, SPRN_CFAR, CPU_FTR_CFAR)
-	.if \ool
-	.if !\virt
-	b	tramp_real_\name
-	.pushsection .text
-	TRAMP_REAL_BEGIN(tramp_real_\name)
-	.else
-	b	tramp_virt_\name
-	.pushsection .text
-	TRAMP_VIRT_BEGIN(tramp_virt_\name)
-	.endif
-	.endif
-
-	OPT_SAVE_REG_TO_PACA(\area\()+EX_PPR, r9, CPU_FTR_HAS_PPR)
-	OPT_SAVE_REG_TO_PACA(\area\()+EX_CFAR, r10, CPU_FTR_CFAR)
-	INTERRUPT_TO_KERNEL
-	SAVE_CTR(r10, \area\())
-	mfcr	r9
-	.if \kvm
-		KVMTEST \hsrr \vec
-	.endif
-	.if \bitmask
-		lbz	r10,PACAIRQSOFTMASK(r13)
-		andi.	r10,r10,\bitmask
-		/* Associate vector numbers with bits in paca->irq_happened */
-		.if \vec == 0x500 || \vec == 0xea0
-		li	r10,PACA_IRQ_EE
-		.elseif \vec == 0x900
-		li	r10,PACA_IRQ_DEC
-		.elseif \vec == 0xa00 || \vec == 0xe80
-		li	r10,PACA_IRQ_DBELL
-		.elseif \vec == 0xe60
-		li	r10,PACA_IRQ_HMI
-		.elseif \vec == 0xf00
-		li	r10,PACA_IRQ_PMI
-		.else
-		.abort "Bad maskable vector"
-		.endif
-
-		.if \hsrr == EXC_HV_OR_STD
-		BEGIN_FTR_SECTION
-		bne	masked_Hinterrupt
-		FTR_SECTION_ELSE
-		bne	masked_interrupt
-		ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
-		.elseif \hsrr
-		bne	masked_Hinterrupt
-		.else
-		bne	masked_interrupt
-		.endif
-	.endif
-
-	std	r11,\area\()+EX_R11(r13)
-	std	r12,\area\()+EX_R12(r13)
-
-	/*
-	 * DAR/DSISR, SCRATCH0 must be read before setting MSR[RI],
-	 * because a d-side MCE will clobber those registers so is
-	 * not recoverable if they are live.
-	 */
-	GET_SCRATCH0(r10)
-	std	r10,\area\()+EX_R13(r13)
-	.if \dar
-	.if \hsrr
-	mfspr	r10,SPRN_HDAR
-	.else
-	mfspr	r10,SPRN_DAR
-	.endif
-	std	r10,\area\()+EX_DAR(r13)
-	.endif
-	.if \dsisr
-	.if \hsrr
-	mfspr	r10,SPRN_HDSISR
-	.else
-	mfspr	r10,SPRN_DSISR
-	.endif
-	stw	r10,\area\()+EX_DSISR(r13)
-	.endif
-
-	.if \early == 2
-	/* nothing more */
-	.elseif \early
-	mfctr	r10			/* save ctr, even for !RELOCATABLE */
-	BRANCH_TO_C000(r11, \name\()_early_common)
-	.elseif !\virt
-	INT_SAVE_SRR_AND_JUMP \name\()_common, \hsrr, \ri
-	.else
-	INT_VIRT_SAVE_SRR_AND_JUMP \name\()_common, \hsrr
-	.endif
-	.if \ool
-	.popsection
-	.endif
-.endm
-
-.macro INT_KVM_HANDLER vec, hsrr, area, skip
-	.if \hsrr
-	TRAMP_KVM_BEGIN(do_kvm_H\vec\())
-	.else
-	TRAMP_KVM_BEGIN(do_kvm_\vec\())
-	.endif
-	KVM_HANDLER \vec, \hsrr, \area, \skip
-.endm
 
 #define EXC_COMMON(name, realvec, hdlr)					\
 	EXC_COMMON_BEGIN(name);						\
