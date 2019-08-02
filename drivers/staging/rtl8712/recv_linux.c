@@ -40,12 +40,12 @@ void r8712_os_recv_resource_alloc(struct _adapter *padapter,
 int r8712_os_recvbuf_resource_alloc(struct _adapter *padapter,
 				    struct recv_buf *precvbuf)
 {
-	int res = _SUCCESS;
+	int res = 0;
 
 	precvbuf->irp_pending = false;
 	precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!precvbuf->purb)
-		res = _FAIL;
+		res = -ENOMEM;
 	precvbuf->pskb = NULL;
 	precvbuf->pallocated_buf = NULL;
 	precvbuf->pbuf = NULL;

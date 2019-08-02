@@ -39,7 +39,6 @@ void r8712_init_recv_priv(struct recv_priv *precvpriv, struct _adapter *padapter
 {
 	int i;
 	struct recv_buf *precvbuf;
-	int res = _SUCCESS;
 	addr_t tmpaddr = 0;
 	int alignment = 0;
 	struct sk_buff *pskb = NULL;
@@ -49,15 +48,14 @@ void r8712_init_recv_priv(struct recv_priv *precvpriv, struct _adapter *padapter
 	precvpriv->pallocated_recv_buf =
 		kzalloc(NR_RECVBUFF * sizeof(struct recv_buf) + 4, GFP_ATOMIC);
 	if (!precvpriv->pallocated_recv_buf)
-		return _FAIL;
+		return;
 	precvpriv->precv_buf = precvpriv->pallocated_recv_buf + 4 -
 			      ((addr_t)(precvpriv->pallocated_recv_buf) & 3);
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 	for (i = 0; i < NR_RECVBUFF; i++) {
 		INIT_LIST_HEAD(&precvbuf->list);
 		spin_lock_init(&precvbuf->recvbuf_lock);
-		res = r8712_os_recvbuf_resource_alloc(padapter, precvbuf);
-		if (res == _FAIL)
+		if (r8712_os_recvbuf_resource_alloc(padapter, precvbuf))
 			break;
 		precvbuf->ref_cnt = 0;
 		precvbuf->adapter = padapter;
