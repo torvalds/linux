@@ -513,10 +513,10 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 #define CEPH_I_SEC_INITED	(1 << 6)  /* security initialized */
 #define CEPH_I_CAP_DROPPED	(1 << 7)  /* caps were forcibly dropped */
 #define CEPH_I_KICK_FLUSH	(1 << 8)  /* kick flushing caps */
-#define CEPH_I_FLUSH_SNAPS	(1 << 9) /* need flush snapss */
+#define CEPH_I_FLUSH_SNAPS	(1 << 9)  /* need flush snapss */
 #define CEPH_I_ERROR_WRITE	(1 << 10) /* have seen write errors */
 #define CEPH_I_ERROR_FILELOCK	(1 << 11) /* have seen file lock errors */
-
+#define CEPH_I_ODIRECT		(1 << 12) /* inode in direct I/O mode */
 
 /*
  * Masks of ceph inode work.
