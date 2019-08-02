@@ -255,6 +255,7 @@ static void wb_wait_for_completion(struct backing_dev_info *bdi,
 					/* if foreign slots >= 8, switch */
 #define WB_FRN_HIST_MAX_SLOTS	(WB_FRN_HIST_THR_SLOTS / 2 + 1)
 					/* one round can affect upto 5 slots */
+#define WB_FRN_MAX_IN_FLIGHT	1024	/* don't queue too many concurrently */
 
 static atomic_t isw_nr_in_flight = ATOMIC_INIT(0);
 static struct workqueue_struct *isw_wq;
@@ -507,18 +508,13 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 	if (inode->i_state & I_WB_SWITCH)
 		return;
 
-	/*
-	 * Avoid starting new switches while sync_inodes_sb() is in
-	 * progress.  Otherwise, if the down_write protected issue path
-	 * blocks heavily, we might end up starting a large number of
-	 * switches which will block on the rwsem.
-	 */
-	if (!down_read_trylock(&bdi->wb_switch_rwsem))
+	/* avoid queueing a new switch if too many are already in flight */
+	if (atomic_read(&isw_nr_in_flight) > WB_FRN_MAX_IN_FLIGHT)
 		return;
 
 	isw = kzalloc(sizeof(*isw), GFP_ATOMIC);
 	if (!isw)
-		goto out_unlock;
+		return;
 
 	/* find and pin the new wb */
 	rcu_read_lock();
@@ -552,15 +548,12 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 	call_rcu(&isw->rcu_head, inode_switch_wbs_rcu_fn);
 
 	atomic_inc(&isw_nr_in_flight);
-
-	goto out_unlock;
+	return;
 
 out_free:
 	if (isw->new_wb)
 		wb_put(isw->new_wb);
 	kfree(isw);
-out_unlock:
-	up_read(&bdi->wb_switch_rwsem);
 }
 
 /**
