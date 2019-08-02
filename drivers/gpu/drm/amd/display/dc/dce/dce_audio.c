@@ -613,6 +613,8 @@ void dce_aud_az_configure(
 
 	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_SINK_INFO1,
 		value);
+	DC_LOG_HW_AUDIO("\n\tAUDIO:az_configure: index: %u data, 0x%x, displayName %s: \n",
+		audio->inst, value, audio_info->display_name);
 
 	/*
 	*write the port ID:
@@ -922,7 +924,6 @@ static const struct audio_funcs funcs = {
 	.az_configure = dce_aud_az_configure,
 	.destroy = dce_aud_destroy,
 };
-
 void dce_aud_destroy(struct audio **audio)
 {
 	struct dce_audio *aud = DCE_AUD(*audio);
@@ -953,7 +954,6 @@ struct audio *dce_audio_create(
 	audio->regs = reg;
 	audio->shifts = shifts;
 	audio->masks = masks;
-
 	return &audio->base;
 }
 
