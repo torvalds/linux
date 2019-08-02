@@ -42,6 +42,8 @@ static const struct platform_device_id gpu_ids[] = {
 
 int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 {
+	struct etnaviv_drm_private *priv = gpu->drm->dev_private;
+
 	switch (param) {
 	case ETNAVIV_PARAM_GPU_MODEL:
 		*value = gpu->identity.model;
@@ -145,6 +147,13 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 
 	case ETNAVIV_PARAM_GPU_NUM_VARYINGS:
 		*value = gpu->identity.varyings_count;
+		break;
+
+	case ETNAVIV_PARAM_SOFTPIN_START_ADDR:
+		if (priv->mmu_global->version == ETNAVIV_IOMMU_V2)
+			*value = ETNAVIV_SOFTPIN_START_ADDRESS;
+		else
+			*value = ~0ULL;
 		break;
 
 	default:

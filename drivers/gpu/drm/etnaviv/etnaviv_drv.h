@@ -24,6 +24,8 @@ struct etnaviv_gem_object;
 struct etnaviv_gem_submit;
 struct etnaviv_iommu_global;
 
+#define ETNAVIV_SOFTPIN_START_ADDRESS	SZ_4M /* must be >= SUBALLOC_SIZE */
+
 struct etnaviv_file_private {
 	struct etnaviv_iommu_context	*mmu;
 	struct drm_sched_entity		sched_entity[ETNA_MAX_PIPES];

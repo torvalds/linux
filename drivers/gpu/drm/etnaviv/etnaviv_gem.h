@@ -77,6 +77,7 @@ static inline bool is_active(struct etnaviv_gem_object *etnaviv_obj)
 
 struct etnaviv_gem_submit_bo {
 	u32 flags;
+	u64 va;
 	struct etnaviv_gem_object *obj;
 	struct etnaviv_vram_mapping *mapping;
 	struct dma_fence *excl;

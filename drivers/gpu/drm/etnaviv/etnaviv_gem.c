@@ -248,7 +248,8 @@ void etnaviv_gem_mapping_unreference(struct etnaviv_vram_mapping *mapping)
 }
 
 struct etnaviv_vram_mapping *etnaviv_gem_mapping_get(
-	struct drm_gem_object *obj, struct etnaviv_iommu_context *mmu_context)
+	struct drm_gem_object *obj, struct etnaviv_iommu_context *mmu_context,
+	u64 va)
 {
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 	struct etnaviv_vram_mapping *mapping;
@@ -309,7 +310,7 @@ struct etnaviv_vram_mapping *etnaviv_gem_mapping_get(
 
 	ret = etnaviv_iommu_map_gem(mmu_context, etnaviv_obj,
 				    mmu_context->global->memory_base,
-				    mapping, 0);
+				    mapping, va);
 	if (ret < 0) {
 		etnaviv_iommu_context_put(mmu_context);
 		kfree(mapping);

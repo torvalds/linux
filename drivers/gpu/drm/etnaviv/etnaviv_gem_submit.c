@@ -72,6 +72,14 @@ static int submit_lookup_objects(struct etnaviv_gem_submit *submit,
 		}
 
 		submit->bos[i].flags = bo->flags;
+		if (submit->flags & ETNA_SUBMIT_SOFTPIN) {
+			if (bo->presumed < ETNAVIV_SOFTPIN_START_ADDRESS) {
+				DRM_ERROR("invalid softpin address\n");
+				ret = -EINVAL;
+				goto out_unlock;
+			}
+			submit->bos[i].va = bo->presumed;
+		}
 
 		/* normally use drm_gem_object_lookup(), but for bulk lookup
 		 * all under single table_lock just hit object_idr directly:
@@ -224,11 +232,17 @@ static int submit_pin_objects(struct etnaviv_gem_submit *submit)
 		struct etnaviv_vram_mapping *mapping;
 
 		mapping = etnaviv_gem_mapping_get(&etnaviv_obj->base,
-						  submit->mmu_context);
+						  submit->mmu_context,
+						  submit->bos[i].va);
 		if (IS_ERR(mapping)) {
 			ret = PTR_ERR(mapping);
 			break;
 		}
+
+		if ((submit->flags & ETNA_SUBMIT_SOFTPIN) &&
+		     submit->bos[i].va != mapping->iova)
+			return -EINVAL;
+
 		atomic_inc(&etnaviv_obj->gpu_active);
 
 		submit->bos[i].flags |= BO_PINNED;
@@ -260,6 +274,10 @@ static int submit_reloc(struct etnaviv_gem_submit *submit, void *stream,
 	u32 i, last_offset = 0;
 	u32 *ptr = stream;
 	int ret;
+
+	/* Submits using softpin don't blend with relocs */
+	if ((submit->flags & ETNA_SUBMIT_SOFTPIN) && nr_relocs != 0)
+		return -EINVAL;
 
 	for (i = 0; i < nr_relocs; i++) {
 		const struct drm_etnaviv_gem_submit_reloc *r = relocs + i;
@@ -442,6 +460,12 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	if (args->flags & ~ETNA_SUBMIT_FLAGS) {
 		DRM_ERROR("invalid flags: 0x%x\n", args->flags);
+		return -EINVAL;
+	}
+
+	if ((args->flags & ETNA_SUBMIT_SOFTPIN) &&
+	    priv->mmu_global->version != ETNAVIV_IOMMU_V2) {
+		DRM_ERROR("softpin requested on incompatible MMU\n");
 		return -EINVAL;
 	}
 
