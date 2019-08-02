@@ -1184,8 +1184,8 @@ u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 	return res;
 }
 
-static sint aes_decipher(u8 *key, uint	hdrlen,
-			u8 *pframe, uint plen)
+static void aes_decipher(u8 *key, uint hdrlen,
+			 u8 *pframe, uint plen)
 {
 	static u8 message[MAX_MSG_SIZE];
 	uint qc_exists, a4_exists, i, j, payload_remainder;
@@ -1339,7 +1339,6 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	for (j = 0; j < 8; j++)
 		message[payload_index++] = chain_buffer[j];
 	/* compare the mic */
-	return _SUCCESS;
 }
 
 u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
