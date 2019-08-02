@@ -125,14 +125,20 @@ static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 	struct qedr_dev *dev =
 		rdma_device_to_drv_device(device, struct qedr_dev, ibdev);
 
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->pdev->vendor);
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->attr.hw_ver);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
 static ssize_t hca_type_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%s\n", "HCA_TYPE_TO_SET");
+	struct qedr_dev *dev =
+		rdma_device_to_drv_device(device, struct qedr_dev, ibdev);
+
+	return scnprintf(buf, PAGE_SIZE, "FastLinQ QL%x %s\n",
+			 dev->pdev->device,
+			 rdma_protocol_iwarp(&dev->ibdev, 1) ?
+			 "iWARP" : "RoCE");
 }
 static DEVICE_ATTR_RO(hca_type);
 
