@@ -825,6 +825,9 @@ void optc1_program_manual_trigger(struct timing_generator *optc)
 
 	REG_SET(OTG_MANUAL_FLOW_CONTROL, 0,
 			MANUAL_FLOW_CONTROL, 1);
+
+	REG_SET(OTG_MANUAL_FLOW_CONTROL, 0,
+			MANUAL_FLOW_CONTROL, 0);
 }
 
 
