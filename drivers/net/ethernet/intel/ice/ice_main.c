@@ -2281,13 +2281,18 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 
 	/* reserve one vector for miscellaneous handler */
 	needed = 1;
+	if (v_left < needed)
+		goto no_hw_vecs_left_err;
 	v_budget += needed;
 	v_left -= needed;
 
 	/* reserve vectors for LAN traffic */
-	pf->num_lan_msix = min_t(int, num_online_cpus(), v_left);
-	v_budget += pf->num_lan_msix;
-	v_left -= pf->num_lan_msix;
+	needed = min_t(int, num_online_cpus(), v_left);
+	if (v_left < needed)
+		goto no_hw_vecs_left_err;
+	pf->num_lan_msix = needed;
+	v_budget += needed;
+	v_left -= needed;
 
 	pf->msix_entries = devm_kcalloc(&pf->pdev->dev, v_budget,
 					sizeof(*pf->msix_entries), GFP_KERNEL);
@@ -2312,18 +2317,18 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 
 	if (v_actual < v_budget) {
 		dev_warn(&pf->pdev->dev,
-			 "not enough vectors. requested = %d, obtained = %d\n",
+			 "not enough OS MSI-X vectors. requested = %d, obtained = %d\n",
 			 v_budget, v_actual);
-		if (v_actual >= (pf->num_lan_msix + 1)) {
-			pf->num_avail_sw_msix = v_actual -
-						(pf->num_lan_msix + 1);
-		} else if (v_actual >= 2) {
-			pf->num_lan_msix = 1;
-			pf->num_avail_sw_msix = v_actual - 2;
-		} else {
+/* 2 vectors for LAN (traffic + OICR) */
+#define ICE_MIN_LAN_VECS 2
+
+		if (v_actual < ICE_MIN_LAN_VECS) {
+			/* error if we can't get minimum vectors */
 			pci_disable_msix(pf->pdev);
 			err = -ERANGE;
 			goto msix_err;
+		} else {
+			pf->num_lan_msix = ICE_MIN_LAN_VECS;
 		}
 	}
 
@@ -2333,6 +2338,11 @@ msix_err:
 	devm_kfree(&pf->pdev->dev, pf->msix_entries);
 	goto exit_err;
 
+no_hw_vecs_left_err:
+	dev_err(&pf->pdev->dev,
+		"not enough device MSI-X vectors. requested = %d, available = %d\n",
+		needed, v_left);
+	err = -ERANGE;
 exit_err:
 	pf->num_lan_msix = 0;
 	return err;
