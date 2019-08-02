@@ -1275,7 +1275,7 @@ enum ice_status ice_aq_q_shutdown(struct ice_hw *hw, bool unloading)
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_q_shutdown);
 
 	if (unloading)
-		cmd->driver_unloading = cpu_to_le32(ICE_AQC_DRIVER_UNLOADING);
+		cmd->driver_unloading = ICE_AQC_DRIVER_UNLOADING;
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
 }
