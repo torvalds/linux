@@ -19,3 +19,11 @@ config CRYPTO_DEV_HISI_QM
 	help
 	  HiSilicon accelerator engines use a common queue management
 	  interface. Specific engine driver may use this module.
+
+config CRYPTO_HISI_SGL
+	tristate
+	depends on ARM64
+	help
+	  HiSilicon accelerator engines use a common hardware scatterlist
+	  interface for data format. Specific engine driver may use this
+	  module.
