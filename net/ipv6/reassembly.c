@@ -282,7 +282,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *skb,
 
 	skb_reset_transport_header(skb);
 
-	inet_frag_reasm_finish(&fq->q, skb, reasm_data);
+	inet_frag_reasm_finish(&fq->q, skb, reasm_data, true);
 
 	skb->dev = dev;
 	ipv6_hdr(skb)->payload_len = htons(payload_len);
