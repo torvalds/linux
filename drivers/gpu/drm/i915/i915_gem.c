@@ -1648,7 +1648,6 @@ void i915_gem_init_mmio(struct drm_i915_private *i915)
 static void i915_gem_init__mm(struct drm_i915_private *i915)
 {
 	spin_lock_init(&i915->mm.obj_lock);
-	spin_lock_init(&i915->mm.free_lock);
 
 	init_llist_head(&i915->mm.free_list);
 

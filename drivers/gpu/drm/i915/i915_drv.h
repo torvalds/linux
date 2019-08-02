@@ -773,7 +773,6 @@ struct i915_gem_mm {
 	 */
 	struct llist_head free_list;
 	struct work_struct free_work;
-	spinlock_t free_lock;
 	/**
 	 * Count of objects pending destructions. Used to skip needlessly
 	 * waiting on an RCU barrier if no objects are waiting to be freed.
