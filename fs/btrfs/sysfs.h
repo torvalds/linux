@@ -61,24 +61,6 @@ static struct btrfs_feature_attr btrfs_attr_features_##_name = {	     \
 #define BTRFS_FEAT_ATTR_INCOMPAT(name, feature) \
 	BTRFS_FEAT_ATTR(name, FEAT_INCOMPAT, BTRFS_FEATURE_INCOMPAT, feature)
 
-/* convert from attribute */
-static inline struct btrfs_feature_attr *
-to_btrfs_feature_attr(struct kobj_attribute *a)
-{
-	return container_of(a, struct btrfs_feature_attr, kobj_attr);
-}
-
-static inline struct kobj_attribute *attr_to_btrfs_attr(struct attribute *attr)
-{
-	return container_of(attr, struct kobj_attribute, attr);
-}
-
-static inline struct btrfs_feature_attr *
-attr_to_btrfs_feature_attr(struct attribute *attr)
-{
-	return to_btrfs_feature_attr(attr_to_btrfs_attr(attr));
-}
-
 char *btrfs_printable_features(enum btrfs_feature_set set, u64 flags);
 const char * const btrfs_feature_set_name(enum btrfs_feature_set set);
 int btrfs_sysfs_add_device_link(struct btrfs_fs_devices *fs_devices,

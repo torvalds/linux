@@ -21,6 +21,22 @@
 static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj);
 static inline struct btrfs_fs_devices *to_fs_devs(struct kobject *kobj);
 
+static struct btrfs_feature_attr *to_btrfs_feature_attr(struct kobj_attribute *a)
+{
+	return container_of(a, struct btrfs_feature_attr, kobj_attr);
+}
+
+static struct kobj_attribute *attr_to_btrfs_attr(struct attribute *attr)
+{
+	return container_of(attr, struct kobj_attribute, attr);
+}
+
+static struct btrfs_feature_attr *attr_to_btrfs_feature_attr(
+		struct attribute *attr)
+{
+	return to_btrfs_feature_attr(attr_to_btrfs_attr(attr));
+}
+
 static u64 get_features(struct btrfs_fs_info *fs_info,
 			enum btrfs_feature_set set)
 {
