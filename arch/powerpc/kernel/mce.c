@@ -325,7 +325,7 @@ static void machine_check_process_queued_event(struct irq_work *work)
 void machine_check_print_event_info(struct machine_check_event *evt,
 				    bool user_mode, bool in_guest)
 {
-	const char *level, *sevstr, *subtype, *err_type;
+	const char *level, *sevstr, *subtype, *err_type, *initiator;
 	uint64_t ea = 0, pa = 0;
 	int n = 0;
 	char dar_str[50];
@@ -410,6 +410,28 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		break;
 	}
 
+	switch(evt->initiator) {
+	case MCE_INITIATOR_CPU:
+		initiator = "CPU";
+		break;
+	case MCE_INITIATOR_PCI:
+		initiator = "PCI";
+		break;
+	case MCE_INITIATOR_ISA:
+		initiator = "ISA";
+		break;
+	case MCE_INITIATOR_MEMORY:
+		initiator = "Memory";
+		break;
+	case MCE_INITIATOR_POWERMGM:
+		initiator = "Power Management";
+		break;
+	case MCE_INITIATOR_UNKNOWN:
+	default:
+		initiator = "Unknown";
+		break;
+	}
+
 	switch (evt->error_type) {
 	case MCE_ERROR_TYPE_UE:
 		err_type = "UE";
@@ -476,6 +498,14 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		if (evt->u.link_error.effective_address_provided)
 			ea = evt->u.link_error.effective_address;
 		break;
+	case MCE_ERROR_TYPE_DCACHE:
+		err_type = "D-Cache";
+		subtype = "Unknown";
+		break;
+	case MCE_ERROR_TYPE_ICACHE:
+		err_type = "I-Cache";
+		subtype = "Unknown";
+		break;
 	default:
 	case MCE_ERROR_TYPE_UNKNOWN:
 		err_type = "Unknown";
@@ -507,6 +537,8 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		printk("%sMCE: CPU%d: NIP: [%016llx] %pS%s\n",
 			level, evt->cpu, evt->srr0, (void *)evt->srr0, pa_str);
 	}
+
+	printk("%sMCE: CPU%d: Initiator %s\n", level, evt->cpu, initiator);
 
 	subtype = evt->error_class < ARRAY_SIZE(mc_error_class) ?
 		mc_error_class[evt->error_class] : "Unknown";
