@@ -2638,6 +2638,11 @@ static void ice_remove(struct pci_dev *pdev)
 	ice_deinit_pf(pf);
 	ice_deinit_hw(&pf->hw);
 	ice_clear_interrupt_scheme(pf);
+	/* Issue a PFR as part of the prescribed driver unload flow.  Do not
+	 * do it via ice_schedule_reset() since there is no need to rebuild
+	 * and the service task is already stopped.
+	 */
+	ice_reset(&pf->hw, ICE_RESET_PFR);
 	pci_disable_pcie_error_reporting(pdev);
 }
 
