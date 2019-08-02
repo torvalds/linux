@@ -1152,10 +1152,17 @@ static bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 	u32 reg;
 	int i;
 
-	/* If the VFs have been disabled, this means something else is
-	 * resetting the VF, so we shouldn't continue.
+	/* If the PF has been disabled, there is no need resetting VF until
+	 * PF is active again.
 	 */
 	if (test_bit(__ICE_VF_DIS, pf->state))
+		return false;
+
+	/* If the VF has been disabled, this means something else is
+	 * resetting the VF, so we shouldn't continue. Otherwise, set
+	 * disable VF state bit for actual reset, and continue.
+	 */
+	if (test_and_set_bit(ICE_VF_STATE_DIS, vf->vf_states))
 		return false;
 
 	ice_trigger_vf_reset(vf, is_vflr);
