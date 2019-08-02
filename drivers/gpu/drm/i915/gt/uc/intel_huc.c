@@ -139,6 +139,10 @@ int intel_huc_auth(struct intel_huc *huc)
 	GEM_BUG_ON(!intel_uc_fw_is_loaded(&huc->fw));
 	GEM_BUG_ON(intel_huc_is_authenticated(huc));
 
+	ret = i915_inject_load_error(gt->i915, -ENXIO);
+	if (ret)
+		goto fail;
+
 	ret = intel_guc_auth_huc(guc,
 				 intel_guc_ggtt_offset(guc, huc->rsa_data));
 	if (ret) {
@@ -158,13 +162,11 @@ int intel_huc_auth(struct intel_huc *huc)
 	}
 
 	huc->fw.status = INTEL_UC_FIRMWARE_RUNNING;
-
 	return 0;
 
 fail:
+	i915_probe_error(gt->i915, "HuC: Authentication failed %d\n", ret);
 	huc->fw.status = INTEL_UC_FIRMWARE_FAIL;
-
-	DRM_ERROR("HuC: Authentication failed %d\n", ret);
 	return ret;
 }
 

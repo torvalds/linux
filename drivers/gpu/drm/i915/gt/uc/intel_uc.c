@@ -39,6 +39,10 @@ static int __intel_uc_reset_hw(struct intel_uc *uc)
 	int ret;
 	u32 guc_status;
 
+	ret = i915_inject_load_error(gt->i915, -ENXIO);
+	if (ret)
+		return ret;
+
 	ret = intel_reset_guc(gt);
 	if (ret) {
 		DRM_ERROR("Failed to reset GuC, ret = %d\n", ret);
@@ -204,6 +208,10 @@ static int guc_enable_communication(struct intel_guc *guc)
 	int ret;
 
 	GEM_BUG_ON(guc_communication_enabled(guc));
+
+	ret = i915_inject_load_error(i915, -ENXIO);
+	if (ret)
+		return ret;
 
 	ret = intel_guc_ct_enable(&guc->ct);
 	if (ret)
@@ -376,6 +384,10 @@ static int uc_init_wopcm(struct intel_uc *uc)
 	GEM_BUG_ON(!(size & GUC_WOPCM_SIZE_MASK));
 	GEM_BUG_ON(size & ~GUC_WOPCM_SIZE_MASK);
 
+	err = i915_inject_load_error(gt->i915, -ENXIO);
+	if (err)
+		return err;
+
 	mask = GUC_WOPCM_SIZE_MASK | GUC_WOPCM_SIZE_LOCKED;
 	err = intel_uncore_write_and_verify(uncore, GUC_WOPCM_SIZE, size, mask,
 					    size | GUC_WOPCM_SIZE_LOCKED);
@@ -502,7 +514,7 @@ err_out:
 	if (GEM_WARN_ON(ret == -EIO))
 		ret = -EINVAL;
 
-	dev_err(i915->drm.dev, "GuC initialization failed %d\n", ret);
+	i915_probe_error(i915, "GuC initialization failed %d\n", ret);
 	return ret;
 }
 

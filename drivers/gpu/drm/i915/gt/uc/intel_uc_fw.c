@@ -383,6 +383,10 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 	u64 offset;
 	int ret;
 
+	ret = i915_inject_load_error(gt->i915, -ETIMEDOUT);
+	if (ret)
+		return ret;
+
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
 	/* Set the source address for the uCode */
@@ -443,8 +447,13 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 	/* make sure the status was cleared the last time we reset the uc */
 	GEM_BUG_ON(intel_uc_fw_is_loaded(uc_fw));
 
+	err = i915_inject_load_error(gt->i915, -ENOEXEC);
+	if (err)
+		return err;
+
 	if (!intel_uc_fw_is_available(uc_fw))
 		return -ENOEXEC;
+
 	/* Call custom loader */
 	intel_uc_fw_ggtt_bind(uc_fw, gt);
 	err = uc_fw_xfer(uc_fw, gt, wopcm_offset, dma_flags);
@@ -464,13 +473,10 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, struct intel_gt *gt,
 	return 0;
 
 fail:
+	i915_probe_error(gt->i915, "Failed to load %s firmware %s (%d)\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
+			 err);
 	uc_fw->status = INTEL_UC_FIRMWARE_FAIL;
-	DRM_DEBUG_DRIVER("%s fw load failed\n",
-			 intel_uc_fw_type_repr(uc_fw->type));
-
-	DRM_WARN("%s: Failed to load firmware %s (error %d)\n",
-		 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
-
 	return err;
 }
 

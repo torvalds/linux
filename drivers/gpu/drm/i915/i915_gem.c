@@ -1243,7 +1243,7 @@ int i915_gem_init_hw(struct drm_i915_private *i915)
 	/* We can't enable contexts until all firmware is loaded */
 	ret = intel_uc_init_hw(&gt->uc);
 	if (ret) {
-		DRM_ERROR("Enabling uc failed (%d)\n", ret);
+		i915_probe_error(i915, "Enabling uc failed (%d)\n", ret);
 		goto out;
 	}
 
