@@ -50,6 +50,20 @@ static const struct ieee80211_iface_limit mt76x02_if_limits[] = {
 	 },
 };
 
+static const struct ieee80211_iface_limit mt76x02u_if_limits[] = {
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_ADHOC)
+	}, {
+		.max = 2,
+		.types = BIT(NL80211_IFTYPE_STATION) |
+#ifdef CONFIG_MAC80211_MESH
+			 BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
+			 BIT(NL80211_IFTYPE_AP)
+	},
+};
+
 static const struct ieee80211_iface_combination mt76x02_if_comb[] = {
 	{
 		.limits = mt76x02_if_limits,
@@ -61,6 +75,16 @@ static const struct ieee80211_iface_combination mt76x02_if_comb[] = {
 				       BIT(NL80211_CHAN_WIDTH_20) |
 				       BIT(NL80211_CHAN_WIDTH_40) |
 				       BIT(NL80211_CHAN_WIDTH_80),
+	}
+};
+
+static const struct ieee80211_iface_combination mt76x02u_if_comb[] = {
+	{
+		.limits = mt76x02u_if_limits,
+		.n_limits = ARRAY_SIZE(mt76x02u_if_limits),
+		.max_interfaces = 2,
+		.num_different_channels = 1,
+		.beacon_int_infra_match = true,
 	}
 };
 
@@ -140,6 +164,8 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 	if (mt76_is_usb(dev)) {
 		hw->extra_tx_headroom += sizeof(struct mt76x02_txwi) +
 					 MT_DMA_HDR_LEN;
+		wiphy->iface_combinations = mt76x02u_if_comb;
+		wiphy->n_iface_combinations = ARRAY_SIZE(mt76x02u_if_comb);
 	} else {
 		INIT_DELAYED_WORK(&dev->wdt_work, mt76x02_wdt_work);
 
