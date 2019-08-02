@@ -316,7 +316,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	.endif
 .endm
 
-.macro KVM_HANDLER area, hsrr, n, skip
+.macro KVM_HANDLER vec, hsrr, area, skip
 	.if \skip
 	cmpwi	r10,KVM_GUEST_MODE_SKIP
 	beq	89f
@@ -337,14 +337,14 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 	/* HSRR variants have the 0x2 bit added to their trap number */
 	.if \hsrr == EXC_HV_OR_STD
 	BEGIN_FTR_SECTION
-	ori	r12,r12,(\n + 0x2)
+	ori	r12,r12,(\vec + 0x2)
 	FTR_SECTION_ELSE
-	ori	r12,r12,(\n)
+	ori	r12,r12,(\vec)
 	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 	.elseif \hsrr
-	ori	r12,r12,(\n + 0x2)
+	ori	r12,r12,(\vec + 0x2)
 	.else
-	ori	r12,r12,(\n)
+	ori	r12,r12,(\vec)
 	.endif
 
 #ifdef CONFIG_RELOCATABLE
@@ -386,7 +386,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 #else
 .macro KVMTEST hsrr, n
 .endm
-.macro KVM_HANDLER area, hsrr, n, skip
+.macro KVM_HANDLER vec, hsrr, area, skip
 .endm
 #endif
 
@@ -657,7 +657,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 	.else
 	TRAMP_KVM_BEGIN(do_kvm_\vec\())
 	.endif
-	KVM_HANDLER \area, \hsrr, \vec, \skip
+	KVM_HANDLER \vec, \hsrr, \area, \skip
 .endm
 
 #define EXC_COMMON(name, realvec, hdlr)					\
@@ -1538,7 +1538,7 @@ TRAMP_KVM_BEGIN(do_kvm_0xc00)
 	SET_SCRATCH0(r10)
 	std	r9,PACA_EXGEN+EX_R9(r13)
 	mfcr	r9
-	KVM_HANDLER PACA_EXGEN, EXC_STD, 0xc00, 0
+	KVM_HANDLER 0xc00, EXC_STD, PACA_EXGEN, 0
 #endif
 
 
