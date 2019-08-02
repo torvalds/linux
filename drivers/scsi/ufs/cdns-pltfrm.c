@@ -62,17 +62,16 @@ static int cdns_ufs_set_hclkdiv(struct ufs_hba *hba)
 }
 
 /**
- * Sets clocks used by the controller
+ * Called before and after HCE enable bit is set.
  * @hba: host controller instance
- * @on: if true, enable clocks, otherwise disable
  * @status: notify stage (pre, post change)
  *
  * Return zero for success and non-zero for failure
  */
-static int cdns_ufs_setup_clocks(struct ufs_hba *hba, bool on,
-				 enum ufs_notify_change_status status)
+static int cdns_ufs_hce_enable_notify(struct ufs_hba *hba,
+				      enum ufs_notify_change_status status)
 {
-	if ((!on) || (status == PRE_CHANGE))
+	if (status != PRE_CHANGE)
 		return 0;
 
 	return cdns_ufs_set_hclkdiv(hba);
@@ -114,13 +113,13 @@ static int cdns_ufs_m31_16nm_phy_initialization(struct ufs_hba *hba)
 
 static const struct ufs_hba_variant_ops cdns_ufs_pltfm_hba_vops = {
 	.name = "cdns-ufs-pltfm",
-	.setup_clocks = cdns_ufs_setup_clocks,
+	.hce_enable_notify = cdns_ufs_hce_enable_notify,
 };
 
 static const struct ufs_hba_variant_ops cdns_ufs_m31_16nm_pltfm_hba_vops = {
 	.name = "cdns-ufs-pltfm",
 	.init = cdns_ufs_init,
-	.setup_clocks = cdns_ufs_setup_clocks,
+	.hce_enable_notify = cdns_ufs_hce_enable_notify,
 	.phy_initialization = cdns_ufs_m31_16nm_phy_initialization,
 };
 
