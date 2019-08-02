@@ -12,7 +12,6 @@
 
 #include <linux/list.h>
 #include <linux/wait.h>
-#include <linux/pci.h>
 #include <linux/ccp.h>
 #include <crypto/algapi.h>
 #include <crypto/aes.h>
