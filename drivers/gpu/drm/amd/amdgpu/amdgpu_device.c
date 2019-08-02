@@ -2274,6 +2274,8 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 				}
 			}
 		}
+
+		adev->ip_blocks[i].status.hw = false;
 	}
 
 	return 0;
