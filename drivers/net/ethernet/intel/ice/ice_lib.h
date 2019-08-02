@@ -6,8 +6,22 @@
 
 #include "ice.h"
 
-int ice_add_mac_to_list(struct ice_vsi *vsi, struct list_head *add_list,
-			const u8 *macaddr);
+struct ice_txq_meta {
+	/* Tx-scheduler element identifier */
+	u32 q_teid;
+	/* Entry in VSI's txq_map bitmap */
+	u16 q_id;
+	/* Relative index of Tx queue within TC */
+	u16 q_handle;
+	/* VSI index that Tx queue belongs to */
+	u16 vsi_idx;
+	/* TC number that Tx queue belongs to */
+	u8 tc;
+};
+
+int
+ice_add_mac_to_list(struct ice_vsi *vsi, struct list_head *add_list,
+		    const u8 *macaddr);
 
 void ice_free_fltr_list(struct device *dev, struct list_head *h);
 
