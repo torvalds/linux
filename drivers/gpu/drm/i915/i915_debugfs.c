@@ -363,8 +363,9 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	struct drm_i915_private *i915 = node_to_i915(m->private);
 	int ret;
 
-	seq_printf(m, "%u shrinkable objects, %llu bytes\n",
+	seq_printf(m, "%u shrinkable [%u free] objects, %llu bytes\n",
 		   i915->mm.shrink_count,
+		   atomic_read(&i915->mm.free_count),
 		   i915->mm.shrink_memory);
 
 	seq_putc(m, '\n');

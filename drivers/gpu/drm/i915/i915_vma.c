@@ -1017,6 +1017,22 @@ unpin:
 	return 0;
 }
 
+struct i915_vma *i915_vma_make_unshrinkable(struct i915_vma *vma)
+{
+	i915_gem_object_make_unshrinkable(vma->obj);
+	return vma;
+}
+
+void i915_vma_make_shrinkable(struct i915_vma *vma)
+{
+	i915_gem_object_make_shrinkable(vma->obj);
+}
+
+void i915_vma_make_purgeable(struct i915_vma *vma)
+{
+	i915_gem_object_make_purgeable(vma->obj);
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/i915_vma.c"
 #endif

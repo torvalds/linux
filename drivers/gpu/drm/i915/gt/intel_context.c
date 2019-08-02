@@ -118,7 +118,7 @@ static int __context_pin_state(struct i915_vma *vma)
 	 * And mark it as a globally pinned object to let the shrinker know
 	 * it cannot reclaim the object until we release it.
 	 */
-	vma->obj->pin_global++;
+	i915_vma_make_unshrinkable(vma);
 	vma->obj->mm.dirty = true;
 
 	return 0;
@@ -126,8 +126,8 @@ static int __context_pin_state(struct i915_vma *vma)
 
 static void __context_unpin_state(struct i915_vma *vma)
 {
-	vma->obj->pin_global--;
 	__i915_vma_unpin(vma);
+	i915_vma_make_shrinkable(vma);
 }
 
 static void __intel_context_retire(struct i915_active *active)

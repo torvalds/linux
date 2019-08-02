@@ -1222,7 +1222,7 @@ int intel_ring_pin(struct intel_ring *ring)
 		goto err_ring;
 	}
 
-	vma->obj->pin_global++;
+	i915_vma_make_unshrinkable(vma);
 
 	GEM_BUG_ON(ring->vaddr);
 	ring->vaddr = addr;
@@ -1251,6 +1251,8 @@ void intel_ring_reset(struct intel_ring *ring, u32 tail)
 
 void intel_ring_unpin(struct intel_ring *ring)
 {
+	struct i915_vma *vma = ring->vma;
+
 	if (!atomic_dec_and_test(&ring->pin_count))
 		return;
 
@@ -1259,18 +1261,17 @@ void intel_ring_unpin(struct intel_ring *ring)
 	/* Discard any unused bytes beyond that submitted to hw. */
 	intel_ring_reset(ring, ring->tail);
 
-	GEM_BUG_ON(!ring->vma);
-	i915_vma_unset_ggtt_write(ring->vma);
-	if (i915_vma_is_map_and_fenceable(ring->vma))
-		i915_vma_unpin_iomap(ring->vma);
+	i915_vma_unset_ggtt_write(vma);
+	if (i915_vma_is_map_and_fenceable(vma))
+		i915_vma_unpin_iomap(vma);
 	else
-		i915_gem_object_unpin_map(ring->vma->obj);
+		i915_gem_object_unpin_map(vma->obj);
 
 	GEM_BUG_ON(!ring->vaddr);
 	ring->vaddr = NULL;
 
-	ring->vma->obj->pin_global--;
-	i915_vma_unpin(ring->vma);
+	i915_vma_unpin(vma);
+	i915_vma_make_purgeable(vma);
 
 	intel_timeline_unpin(ring->timeline);
 }

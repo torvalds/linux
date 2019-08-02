@@ -459,4 +459,8 @@ void i915_vma_parked(struct drm_i915_private *i915);
 struct i915_vma *i915_vma_alloc(void);
 void i915_vma_free(struct i915_vma *vma);
 
+struct i915_vma *i915_vma_make_unshrinkable(struct i915_vma *vma);
+void i915_vma_make_shrinkable(struct i915_vma *vma);
+void i915_vma_make_purgeable(struct i915_vma *vma);
+
 #endif

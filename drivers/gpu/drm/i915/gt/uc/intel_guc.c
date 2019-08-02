@@ -626,7 +626,7 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 		goto err;
 	}
 
-	return vma;
+	return i915_vma_make_unshrinkable(vma);
 
 err:
 	i915_gem_object_put(obj);

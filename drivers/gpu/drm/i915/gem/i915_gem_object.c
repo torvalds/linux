@@ -63,6 +63,8 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	spin_lock_init(&obj->vma.lock);
 	INIT_LIST_HEAD(&obj->vma.list);
 
+	INIT_LIST_HEAD(&obj->mm.link);
+
 	INIT_LIST_HEAD(&obj->lut_list);
 	INIT_LIST_HEAD(&obj->batch_pool_link);
 
@@ -273,14 +275,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	 * or else we may oom whilst there are plenty of deferred
 	 * freed objects.
 	 */
-	if (i915_gem_object_has_pages(obj) &&
-	    i915_gem_object_is_shrinkable(obj)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&i915->mm.obj_lock, flags);
-		list_del_init(&obj->mm.link);
-		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
-	}
+	i915_gem_object_make_unshrinkable(obj);
 
 	/*
 	 * Since we require blocking on struct_mutex to unbind the freed

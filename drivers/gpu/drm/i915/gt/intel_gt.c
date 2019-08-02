@@ -248,7 +248,8 @@ int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
 	if (ret)
 		goto err_unref;
 
-	gt->scratch = vma;
+	gt->scratch = i915_vma_make_unshrinkable(vma);
+
 	return 0;
 
 err_unref:
