@@ -463,6 +463,18 @@ END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);			   \
 	kuap_save_amr_and_lock r9, r10, cr1;			\
 	EXCEPTION_PROLOG_COMMON_2(area, trap)
 
+.macro INT_COMMON vec, area, stack, kaup
+	.if \stack
+	EXCEPTION_COMMON(\area, \vec)
+	.else
+	EXCEPTION_PROLOG_COMMON_1()
+	.if \kaup
+	kuap_save_amr_and_lock r9, r10, cr1
+	.endif
+	EXCEPTION_PROLOG_COMMON_2(\area, \vec)
+	.endif
+.endm
+
 /*
  * Restore all registers including H/SRR0/1 saved in a stack frame of a
  * standard exception.
@@ -658,7 +670,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 
 #define EXC_COMMON(name, realvec, hdlr)					\
 	EXC_COMMON_BEGIN(name);						\
-	EXCEPTION_COMMON(PACA_EXGEN, realvec);				\
+	INT_COMMON realvec, PACA_EXGEN, 1, 1 ;				\
 	bl	save_nvgprs;						\
 	RECONCILE_IRQ_STATE(r10, r11);					\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				\
@@ -671,7 +683,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
  */
 #define EXC_COMMON_ASYNC(name, realvec, hdlr)				\
 	EXC_COMMON_BEGIN(name);						\
-	EXCEPTION_COMMON(PACA_EXGEN, realvec);				\
+	INT_COMMON realvec, PACA_EXGEN, 1, 1 ;				\
 	FINISH_NAP;							\
 	RECONCILE_IRQ_STATE(r10, r11);					\
 	RUNLATCH_ON;							\
@@ -852,7 +864,7 @@ EXC_COMMON_BEGIN(system_reset_common)
 	mr	r10,r1
 	ld	r1,PACA_NMI_EMERG_SP(r13)
 	subi	r1,r1,INT_FRAME_SIZE
-	EXCEPTION_COMMON_STACK(PACA_EXNMI, 0x100)
+	INT_COMMON 0x100, PACA_EXNMI, 0, 1
 	bl	save_nvgprs
 	/*
 	 * Set IRQS_ALL_DISABLED unconditionally so arch_irqs_disabled does
@@ -962,9 +974,8 @@ EXC_COMMON_BEGIN(machine_check_early_common)
 	bgt	cr1,unrecoverable_mce	/* Check if we hit limit of 4 */
 	subi	r1,r1,INT_FRAME_SIZE	/* alloc stack frame */
 
-	EXCEPTION_PROLOG_COMMON_1()
 	/* We don't touch AMR here, we never go to virtual mode */
-	EXCEPTION_PROLOG_COMMON_2(PACA_EXMC, 0x200)
+	INT_COMMON 0x200, PACA_EXMC, 0, 0
 
 	ld	r3,PACA_EXMC+EX_DAR(r13)
 	lwz	r4,PACA_EXMC+EX_DSISR(r13)
@@ -1064,7 +1075,7 @@ EXC_COMMON_BEGIN(machine_check_common)
 	 * Machine check is different because we use a different
 	 * save area: PACA_EXMC instead of PACA_EXGEN.
 	 */
-	EXCEPTION_COMMON(PACA_EXMC, 0x200)
+	INT_COMMON 0x200, PACA_EXMC, 1, 1
 	FINISH_NAP
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r3,PACA_EXMC+EX_DAR(r13)
@@ -1156,7 +1167,7 @@ EXC_COMMON_BEGIN(data_access_common)
 	 * r9 - r13 are saved in paca->exgen.
 	 * EX_DAR and EX_DSISR have saved DAR/DSISR
 	 */
-	EXCEPTION_COMMON(PACA_EXGEN, 0x300)
+	INT_COMMON 0x300, PACA_EXGEN, 1, 1
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r12,_MSR(r1)
 	ld	r3,PACA_EXGEN+EX_DAR(r13)
@@ -1179,7 +1190,7 @@ EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
 EXC_VIRT_END(data_access_slb, 0x4380, 0x80)
 INT_KVM_HANDLER 0x380, EXC_STD, PACA_EXSLB, 1
 EXC_COMMON_BEGIN(data_access_slb_common)
-	EXCEPTION_COMMON(PACA_EXSLB, 0x380)
+	INT_COMMON 0x380, PACA_EXSLB, 1, 1
 	ld	r4,PACA_EXSLB+EX_DAR(r13)
 	std	r4,_DAR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -1212,7 +1223,7 @@ EXC_VIRT_BEGIN(instruction_access, 0x4400, 0x80)
 EXC_VIRT_END(instruction_access, 0x4400, 0x80)
 INT_KVM_HANDLER 0x400, EXC_STD, PACA_EXGEN, 0
 EXC_COMMON_BEGIN(instruction_access_common)
-	EXCEPTION_COMMON(PACA_EXGEN, 0x400)
+	INT_COMMON 0x400, PACA_EXGEN, 1, 1
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r12,_MSR(r1)
 	ld	r3,_NIP(r1)
@@ -1235,7 +1246,7 @@ EXC_VIRT_BEGIN(instruction_access_slb, 0x4480, 0x80)
 EXC_VIRT_END(instruction_access_slb, 0x4480, 0x80)
 INT_KVM_HANDLER 0x480, EXC_STD, PACA_EXSLB, 0
 EXC_COMMON_BEGIN(instruction_access_slb_common)
-	EXCEPTION_COMMON(PACA_EXSLB, 0x480)
+	INT_COMMON 0x480, PACA_EXSLB, 1, 1
 	ld	r4,_NIP(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 BEGIN_MMU_FTR_SECTION
@@ -1277,7 +1288,7 @@ EXC_VIRT_BEGIN(alignment, 0x4600, 0x100)
 EXC_VIRT_END(alignment, 0x4600, 0x100)
 INT_KVM_HANDLER 0x600, EXC_STD, PACA_EXGEN, 0
 EXC_COMMON_BEGIN(alignment_common)
-	EXCEPTION_COMMON(PACA_EXGEN, 0x600)
+	INT_COMMON 0x600, PACA_EXGEN, 1, 1
 	ld	r3,PACA_EXGEN+EX_DAR(r13)
 	lwz	r4,PACA_EXGEN+EX_DSISR(r13)
 	std	r3,_DAR(r1)
@@ -1323,7 +1334,7 @@ EXC_COMMON_BEGIN(program_check_common)
 	subi	r1,r1,INT_FRAME_SIZE	/* alloc stack frame		*/
 	b 3f				/* Jump into the macro !!	*/
 2:
-	EXCEPTION_COMMON(PACA_EXGEN, 0x700)
+	INT_COMMON 0x700, PACA_EXGEN, 1, 1
 	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -1339,7 +1350,7 @@ EXC_VIRT_BEGIN(fp_unavailable, 0x4800, 0x100)
 EXC_VIRT_END(fp_unavailable, 0x4800, 0x100)
 INT_KVM_HANDLER 0x800, EXC_STD, PACA_EXGEN, 0
 EXC_COMMON_BEGIN(fp_unavailable_common)
-	EXCEPTION_COMMON(PACA_EXGEN, 0x800)
+	INT_COMMON 0x800, PACA_EXGEN, 1, 1
 	bne	1f			/* if from user, just load it up */
 	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
@@ -1555,7 +1566,7 @@ EXC_VIRT_BEGIN(h_data_storage, 0x4e00, 0x20)
 EXC_VIRT_END(h_data_storage, 0x4e00, 0x20)
 INT_KVM_HANDLER 0xe00, EXC_HV, PACA_EXGEN, 1
 EXC_COMMON_BEGIN(h_data_storage_common)
-	EXCEPTION_COMMON(PACA_EXGEN, 0xe00)
+	INT_COMMON 0xe00, PACA_EXGEN, 1, 1
 	bl      save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	addi    r3,r1,STACK_FRAME_OVERHEAD
@@ -1609,9 +1620,10 @@ EXC_COMMON_BEGIN(hmi_exception_early_common)
 	mr	r10,r1			/* Save r1 */
 	ld	r1,PACAEMERGSP(r13)	/* Use emergency stack for realmode */
 	subi	r1,r1,INT_FRAME_SIZE	/* alloc stack frame		*/
-	EXCEPTION_PROLOG_COMMON_1()
+
 	/* We don't touch AMR here, we never go to virtual mode */
-	EXCEPTION_PROLOG_COMMON_2(PACA_EXGEN, 0xe60)
+	INT_COMMON 0xe60, PACA_EXGEN, 0, 0
+
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	hmi_exception_realmode
 	cmpdi	cr0,r3,0
@@ -1629,7 +1641,7 @@ EXC_COMMON_BEGIN(hmi_exception_early_common)
 	INT_HANDLER hmi_exception, 0xe60, hsrr=EXC_HV, bitmask=IRQS_DISABLED, kvm=1
 
 EXC_COMMON_BEGIN(hmi_exception_common)
-	EXCEPTION_COMMON(PACA_EXGEN, 0xe60)
+	INT_COMMON 0xe60, PACA_EXGEN, 1, 1
 	FINISH_NAP
 	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
@@ -1687,7 +1699,7 @@ EXC_VIRT_BEGIN(altivec_unavailable, 0x4f20, 0x20)
 EXC_VIRT_END(altivec_unavailable, 0x4f20, 0x20)
 INT_KVM_HANDLER 0xf20, EXC_STD, PACA_EXGEN, 0
 EXC_COMMON_BEGIN(altivec_unavailable_common)
-	EXCEPTION_COMMON(PACA_EXGEN, 0xf20)
+	INT_COMMON 0xf20, PACA_EXGEN, 1, 1
 #ifdef CONFIG_ALTIVEC
 BEGIN_FTR_SECTION
 	beq	1f
@@ -1728,7 +1740,7 @@ EXC_VIRT_BEGIN(vsx_unavailable, 0x4f40, 0x20)
 EXC_VIRT_END(vsx_unavailable, 0x4f40, 0x20)
 INT_KVM_HANDLER 0xf40, EXC_STD, PACA_EXGEN, 0
 EXC_COMMON_BEGIN(vsx_unavailable_common)
-	EXCEPTION_COMMON(PACA_EXGEN, 0xf40)
+	INT_COMMON 0xf40, PACA_EXGEN, 1, 1
 #ifdef CONFIG_VSX
 BEGIN_FTR_SECTION
 	beq	1f
@@ -1979,7 +1991,7 @@ EXC_COMMON_BEGIN(soft_nmi_common)
 	mr	r10,r1
 	ld	r1,PACAEMERGSP(r13)
 	subi	r1,r1,INT_FRAME_SIZE
-	EXCEPTION_COMMON_STACK(PACA_EXGEN, 0x900)
+	INT_COMMON 0x900, PACA_EXGEN, 0, 1
 	bl	save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
