@@ -636,7 +636,7 @@ u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 }
 
 /* The hlen doesn't include the IV */
-u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
+void r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 {	/* exclude ICV */
 	u16 pnl;
 	u32 pnh;
@@ -670,7 +670,7 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 				prwskey = &psecuritypriv->XGrpKey[
 					 ((idx >> 6) & 0x3) - 1].skey[0];
 				if (!psecuritypriv->binstallGrpkey)
-					return _FAIL;
+					return;
 			} else {
 				prwskey = &stainfo->x_UncstKey.skey[0];
 			}
@@ -686,16 +686,8 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 			arcfour_encrypt(&mycontext, payload, payload, length);
 			*((__le32 *)crc) = cpu_to_le32(getcrc32(payload,
 					length - 4));
-			if (crc[3] != payload[length - 1] ||
-			    crc[2] != payload[length - 2] ||
-			    crc[1] != payload[length - 3] ||
-			    crc[0] != payload[length - 4])
-				return _FAIL;
-		} else {
-			return _FAIL;
 		}
 	}
-	return _SUCCESS;
 }
 
 /* 3 =====AES related===== */
