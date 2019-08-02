@@ -156,12 +156,10 @@ static inline int check_hw_restriction(struct drm_i915_private *i915,
  * This function will partition WOPCM space based on GuC and HuC firmware sizes
  * and will allocate max remaining for use by GuC. This function will also
  * enforce platform dependent hardware restrictions on GuC WOPCM offset and
- * size. It will fail the WOPCM init if any of these checks were failed, so that
- * the following GuC firmware uploading would be aborted.
- *
- * Return: 0 on success, non-zero error code on failure.
+ * size. It will fail the WOPCM init if any of these checks fail, so that the
+ * following WOPCM registers setup and GuC firmware uploading would be aborted.
  */
-int intel_wopcm_init(struct intel_wopcm *wopcm)
+void intel_wopcm_init(struct intel_wopcm *wopcm)
 {
 	struct drm_i915_private *i915 = wopcm_to_i915(wopcm);
 	u32 guc_fw_size = intel_uc_fw_get_upload_size(&i915->gt.uc.guc.fw);
@@ -173,23 +171,25 @@ int intel_wopcm_init(struct intel_wopcm *wopcm)
 	int err;
 
 	if (!USES_GUC(i915))
-		return 0;
+		return;
 
 	GEM_BUG_ON(!wopcm->size);
+	GEM_BUG_ON(wopcm->guc.base);
+	GEM_BUG_ON(wopcm->guc.size);
 
 	if (i915_inject_probe_failure(i915))
-		return -E2BIG;
+		return;
 
 	if (guc_fw_size >= wopcm->size) {
 		DRM_ERROR("GuC FW (%uKiB) is too big to fit in WOPCM.",
 			  guc_fw_size / 1024);
-		return -E2BIG;
+		return;
 	}
 
 	if (huc_fw_size >= wopcm->size) {
 		DRM_ERROR("HuC FW (%uKiB) is too big to fit in WOPCM.",
 			  huc_fw_size / 1024);
-		return -E2BIG;
+		return;
 	}
 
 	guc_wopcm_base = ALIGN(huc_fw_size + WOPCM_RESERVED_SIZE,
@@ -197,7 +197,7 @@ int intel_wopcm_init(struct intel_wopcm *wopcm)
 	if ((guc_wopcm_base + ctx_rsvd) >= wopcm->size) {
 		DRM_ERROR("GuC WOPCM base (%uKiB) is too big.\n",
 			  guc_wopcm_base / 1024);
-		return -E2BIG;
+		return;
 	}
 
 	guc_wopcm_size = wopcm->size - guc_wopcm_base - ctx_rsvd;
@@ -211,16 +211,16 @@ int intel_wopcm_init(struct intel_wopcm *wopcm)
 		DRM_ERROR("Need %uKiB WOPCM for GuC, %uKiB available.\n",
 			  (guc_fw_size + guc_wopcm_rsvd) / 1024,
 			  guc_wopcm_size / 1024);
-		return -E2BIG;
+		return;
 	}
 
 	err = check_hw_restriction(i915, guc_wopcm_base, guc_wopcm_size,
 				   huc_fw_size);
 	if (err)
-		return err;
+		return;
 
 	wopcm->guc.base = guc_wopcm_base;
 	wopcm->guc.size = guc_wopcm_size;
-
-	return 0;
+	GEM_BUG_ON(!wopcm->guc.base);
+	GEM_BUG_ON(!wopcm->guc.size);
 }

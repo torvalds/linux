@@ -378,6 +378,11 @@ static int uc_init_wopcm(struct intel_uc *uc)
 	u32 mask;
 	int err;
 
+	if (unlikely(!base || !size)) {
+		i915_probe_error(gt->i915, "Unsuccessful WOPCM partitioning\n");
+		return -E2BIG;
+	}
+
 	GEM_BUG_ON(!intel_uc_supports_guc(uc));
 	GEM_BUG_ON(!(base & GUC_WOPCM_OFFSET_MASK));
 	GEM_BUG_ON(base & ~GUC_WOPCM_OFFSET_MASK);

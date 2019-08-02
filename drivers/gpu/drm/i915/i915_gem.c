@@ -1441,10 +1441,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		return ret;
 
 	intel_uc_fetch_firmwares(&dev_priv->gt.uc);
-
-	ret = intel_wopcm_init(&dev_priv->wopcm);
-	if (ret)
-		goto err_uc_fw;
+	intel_wopcm_init(&dev_priv->wopcm);
 
 	/* This is just a security blanket to placate dragons.
 	 * On some systems, we very sporadically observe that the first TLBs
@@ -1568,7 +1565,6 @@ err_unlock:
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-err_uc_fw:
 	intel_uc_cleanup_firmwares(&dev_priv->gt.uc);
 
 	if (ret != -EIO) {

@@ -55,6 +55,6 @@ static inline u32 intel_wopcm_guc_size(struct intel_wopcm *wopcm)
 }
 
 void intel_wopcm_init_early(struct intel_wopcm *wopcm);
-int intel_wopcm_init(struct intel_wopcm *wopcm);
+void intel_wopcm_init(struct intel_wopcm *wopcm);
 
 #endif
