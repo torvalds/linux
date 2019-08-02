@@ -146,9 +146,6 @@
 		reset-gpios = <&gpioa 10 GPIO_ACTIVE_LOW>;
 		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-parent = <&gpiog>;
-		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&ltdc_pins_a>;
-		pinctrl-1 = <&ltdc_pins_sleep_a>;
 		status = "okay";
 
 		ports {
@@ -356,6 +353,9 @@
 };
 
 &ltdc {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&ltdc_pins_a>;
+	pinctrl-1 = <&ltdc_pins_sleep_a>;
 	status = "okay";
 
 	port {
