@@ -945,6 +945,17 @@ EXC_REAL_BEGIN(machine_check, 0x200, 0x100)
 EXC_REAL_END(machine_check, 0x200, 0x100)
 EXC_VIRT_NONE(0x4200, 0x100)
 
+#ifdef CONFIG_PPC_PSERIES
+TRAMP_REAL_BEGIN(machine_check_fwnmi)
+	/* See comment at machine_check exception, don't turn on RI */
+	EXCEPTION_PROLOG_0 PACA_EXMC
+	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXMC, 0, 0x200, 1, 1, 0
+	mfctr	r10		/* save ctr */
+	BRANCH_TO_C000(r11, machine_check_early_common)
+#endif
+
+TRAMP_KVM_SKIP(PACA_EXMC, 0x200)
+
 EXC_COMMON_BEGIN(machine_check_early_common)
 	mtctr	r10			/* Restore ctr */
 	mfspr	r11,SPRN_SRR0
@@ -1017,17 +1028,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	andc	r11,r11,r10		/* Turn off MSR_ME */
 	b	1b
 	b	.	/* prevent speculative execution */
-
-#ifdef CONFIG_PPC_PSERIES
-TRAMP_REAL_BEGIN(machine_check_fwnmi)
-	/* See comment at machine_check exception, don't turn on RI */
-	EXCEPTION_PROLOG_0 PACA_EXMC
-	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXMC, 0, 0x200, 1, 1, 0
-	mfctr	r10		/* save ctr */
-	BRANCH_TO_C000(r11, machine_check_early_common)
-#endif
-
-TRAMP_KVM_SKIP(PACA_EXMC, 0x200)
 
 EXC_COMMON_BEGIN(machine_check_common)
 	/*
