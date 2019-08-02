@@ -1184,7 +1184,7 @@ BEGIN_FTR_SECTION
 	 */
 	bl	machine_check_queue_event
 	MACHINE_CHECK_HANDLER_WINDUP
-	RFI_TO_USER_OR_KERNEL
+	RFI_TO_KERNEL
 FTR_SECTION_ELSE
 	/*
 	 * pSeries: Return from MC interrupt. Before that stay on emergency
