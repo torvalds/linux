@@ -2510,7 +2510,7 @@ static void update_mst_stream_alloc_table(
 /* convert link_mst_stream_alloc_table to dm dp_mst_stream_alloc_table
  * because stream_encoder is not exposed to dm
  */
-static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
+enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
@@ -2521,6 +2521,7 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct fixed31_32 pbn;
 	struct fixed31_32 pbn_per_slot;
 	uint8_t i;
+	enum act_return_status ret;
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	/* enable_link_dp_mst already check link->enabled_stream_count
@@ -2568,14 +2569,16 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 		&link->mst_stream_alloc_table);
 
 	/* send down message */
-	dm_helpers_dp_mst_poll_for_allocation_change_trigger(
+	ret = dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 			stream->ctx,
 			stream);
 
-	dm_helpers_dp_mst_send_payload_allocation(
-			stream->ctx,
-			stream,
-			true);
+	if (ret != ACT_LINK_LOST) {
+		dm_helpers_dp_mst_send_payload_allocation(
+				stream->ctx,
+				stream,
+				true);
+	}
 
 	/* slot X.Y for only current stream */
 	pbn_per_slot = get_pbn_per_slot(stream);
@@ -2786,7 +2789,7 @@ void core_link_enable_stream(
 #endif
 
 		if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
-			allocate_mst_payload(pipe_ctx);
+			dc_link_allocate_mst_payload(pipe_ctx);
 
 		core_dc->hwss.unblank_stream(pipe_ctx,
 			&pipe_ctx->stream->link->cur_link_settings);

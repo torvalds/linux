@@ -2364,6 +2364,8 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	enum dc_status result;
 
 	bool status = false;
+	struct pipe_ctx *pipe_ctx;
+	int i;
 
 	if (out_link_loss)
 		*out_link_loss = false;
@@ -2439,6 +2441,15 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 		perform_link_training_with_retries(link,
 			&link->cur_link_settings,
 			true, LINK_TRAINING_ATTEMPTS);
+
+		for (i = 0; i < MAX_PIPES; i++) {
+			pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe_ctx && pipe_ctx->stream && pipe_ctx->stream->link == link &&
+					pipe_ctx->stream->dpms_off == false &&
+					pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+				dc_link_allocate_mst_payload(pipe_ctx);
+			}
+		}
 
 		status = false;
 		if (out_link_loss)

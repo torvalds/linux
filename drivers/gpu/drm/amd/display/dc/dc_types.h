@@ -159,6 +159,12 @@ enum dc_edid_status {
 	EDID_THE_SAME,
 };
 
+enum act_return_status {
+	ACT_SUCCESS,
+	ACT_LINK_LOST,
+	ACT_FAILED
+};
+
 /* audio capability from EDID*/
 struct dc_cea_audio_mode {
 	uint8_t format_code; /* ucData[0] [6:3]*/

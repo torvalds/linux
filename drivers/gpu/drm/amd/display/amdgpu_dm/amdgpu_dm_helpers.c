@@ -282,7 +282,7 @@ void dm_helpers_dp_mst_clear_payload_allocation_table(
  * Polls for ACT (allocation change trigger) handled and sends
  * ALLOCATE_PAYLOAD message.
  */
-bool dm_helpers_dp_mst_poll_for_allocation_change_trigger(
+enum act_return_status dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 		struct dc_context *ctx,
 		const struct dc_stream_state *stream)
 {
@@ -293,19 +293,19 @@ bool dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 
 	if (!aconnector || !aconnector->mst_port)
-		return false;
+		return ACT_FAILED;
 
 	mst_mgr = &aconnector->mst_port->mst_mgr;
 
 	if (!mst_mgr->mst_state)
-		return false;
+		return ACT_FAILED;
 
 	ret = drm_dp_check_act_status(mst_mgr);
 
 	if (ret)
-		return false;
+		return ACT_FAILED;
 
-	return true;
+	return ACT_SUCCESS;
 }
 
 bool dm_helpers_dp_mst_send_payload_allocation(
