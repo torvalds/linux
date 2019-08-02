@@ -1052,7 +1052,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 	 */
 	lbz	r11,HSTATE_IN_GUEST(r13)
 	cmpwi	r11,0			/* Check if coming from guest */
-	bne	9f			/* continue if we are. */
+	bne	mce_deliver		/* continue if we are. */
 #endif
 
 	/*
@@ -1060,7 +1060,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 	 * exception handler which will deliver the MC event to this kernel.
 	 */
 	andi.	r11,r12,MSR_PR		/* See if coming from user. */
-	bne	9f			/* continue in V mode if we are. */
+	bne	mce_deliver		/* continue in V mode if we are. */
 
 	/*
 	 * At this point we are coming from kernel context.
@@ -1088,8 +1088,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 	MACHINE_CHECK_HANDLER_WINDUP
 	RFI_TO_KERNEL
 
-9:
-	/* Deliver the machine check to host kernel in V mode. */
+mce_deliver:
+	/*
+	 * This is a host user or guest MCE. Restore all registers, then
+	 * run the "late" handler. For host user, this will run the
+	 * machine_check_exception handler in virtual mode like a normal
+	 * interrupt handler. For guest, this will trigger the KVM test
+	 * and branch to the KVM interrupt similarly to other interrupts.
+	 */
 BEGIN_FTR_SECTION
 	ld	r10,ORIG_GPR3(r1)
 	mtspr	SPRN_CFAR,r10
