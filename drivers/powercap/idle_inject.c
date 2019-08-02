@@ -138,7 +138,7 @@ static void idle_inject_fn(unsigned int cpu)
 	 */
 	iit->should_run = 0;
 
-	play_idle(READ_ONCE(ii_dev->idle_duration_ms));
+	play_idle(READ_ONCE(ii_dev->idle_duration_ms) * USEC_PER_MSEC);
 }
 
 /**
