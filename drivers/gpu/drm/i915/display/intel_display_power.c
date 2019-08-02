@@ -438,16 +438,23 @@ icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 #define ICL_AUX_PW_TO_CH(pw_idx)	\
 	((pw_idx) - ICL_PW_CTL_IDX_AUX_A + AUX_CH_A)
 
+#define ICL_TBT_AUX_PW_TO_CH(pw_idx)	\
+	((pw_idx) - ICL_PW_CTL_IDX_AUX_TBT1 + AUX_CH_C)
+
 static void
 icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 				 struct i915_power_well *power_well)
 {
-	enum aux_ch aux_ch = ICL_AUX_PW_TO_CH(power_well->desc->hsw.idx);
+	int pw_idx = power_well->desc->hsw.idx;
+	bool is_tbt = power_well->desc->hsw.is_tc_tbt;
+	enum aux_ch aux_ch;
 	u32 val;
 
+	aux_ch = is_tbt ? ICL_TBT_AUX_PW_TO_CH(pw_idx) :
+			  ICL_AUX_PW_TO_CH(pw_idx);
 	val = I915_READ(DP_AUX_CH_CTL(aux_ch));
 	val &= ~DP_AUX_CH_CTL_TBT_IO;
-	if (power_well->desc->hsw.is_tc_tbt)
+	if (is_tbt)
 		val |= DP_AUX_CH_CTL_TBT_IO;
 	I915_WRITE(DP_AUX_CH_CTL(aux_ch), val);
 

@@ -126,6 +126,7 @@ static void intel_context_retire(struct i915_active *active)
 	if (ce->state)
 		__context_unpin_state(ce->state);
 
+	intel_ring_unpin(ce->ring);
 	intel_context_put(ce);
 }
 
@@ -160,27 +161,35 @@ int intel_context_active_acquire(struct intel_context *ce, unsigned long flags)
 
 	intel_context_get(ce);
 
+	err = intel_ring_pin(ce->ring);
+	if (err)
+		goto err_put;
+
 	if (!ce->state)
 		return 0;
 
 	err = __context_pin_state(ce->state, flags);
-	if (err) {
-		i915_active_cancel(&ce->active);
-		intel_context_put(ce);
-		return err;
-	}
+	if (err)
+		goto err_ring;
 
 	/* Preallocate tracking nodes */
 	if (!i915_gem_context_is_kernel(ce->gem_context)) {
 		err = i915_active_acquire_preallocate_barrier(&ce->active,
 							      ce->engine);
-		if (err) {
-			i915_active_release(&ce->active);
-			return err;
-		}
+		if (err)
+			goto err_state;
 	}
 
 	return 0;
+
+err_state:
+	__context_unpin_state(ce->state);
+err_ring:
+	intel_ring_unpin(ce->ring);
+err_put:
+	intel_context_put(ce);
+	i915_active_cancel(&ce->active);
+	return err;
 }
 
 void intel_context_active_release(struct intel_context *ce)
