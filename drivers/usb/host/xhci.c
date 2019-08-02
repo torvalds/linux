@@ -3089,8 +3089,18 @@ static void xhci_endpoint_reset(struct usb_hcd *hcd,
 		return;
 	udev = (struct usb_device *) host_ep->hcpriv;
 	vdev = xhci->devs[udev->slot_id];
+
+	/*
+	 * vdev may be lost due to xHC restore error and re-initialization
+	 * during S3/S4 resume. A new vdev will be allocated later by
+	 * xhci_discover_or_reset_device()
+	 */
+	if (!udev->slot_id || !vdev)
+		return;
 	ep_index = xhci_get_endpoint_index(&host_ep->desc);
 	ep = &vdev->eps[ep_index];
+	if (!ep)
+		return;
 
 	/* Bail out if toggle is already being cleared by a endpoint reset */
 	if (ep->ep_state & EP_HARD_CLEAR_TOGGLE) {
