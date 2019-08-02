@@ -317,11 +317,12 @@ static void _rtl92ce_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 			   struct rtl_stats *stats,
 			   struct ieee80211_rx_status *rx_status,
-			   u8 *p_desc, struct sk_buff *skb)
+			   u8 *p_desc8, struct sk_buff *skb)
 {
 	struct rx_fwinfo_92c *p_drvinfo;
-	struct rx_desc_92c *pdesc = (struct rx_desc_92c *)p_desc;
+	struct rx_desc_92c *pdesc = (struct rx_desc_92c *)p_desc8;
 	struct ieee80211_hdr *hdr;
+	__le32 *p_desc = (__le32 *)p_desc8;
 	u32 phystatus = get_rx_desc_physt(p_desc);
 
 	stats->length = (u16)get_rx_desc_pkt_len(p_desc);
@@ -400,7 +401,7 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 }
 
 void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
-			  struct ieee80211_hdr *hdr, u8 *pdesc_tx,
+			  struct ieee80211_hdr *hdr, u8 *pdesc8,
 			  u8 *pbd_desc_tx, struct ieee80211_tx_info *info,
 			  struct ieee80211_sta *sta,
 			  struct sk_buff *skb,
@@ -411,7 +412,7 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	bool defaultadapter = true;
-	u8 *pdesc = pdesc_tx;
+	__le32 *pdesc = (__le32 *)pdesc8;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
 	u8 fw_qsel = _rtl92ce_map_hwqueue_to_fwqueue(skb, hw_queue);
@@ -447,7 +448,7 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 
 	rtl_get_tcb_desc(hw, info, sta, skb, tcb_desc);
 
-	CLEAR_PCI_TX_DESC_CONTENT(pdesc, sizeof(struct tx_desc_92c));
+	clear_pci_tx_desc_content(pdesc, sizeof(struct tx_desc_92c));
 
 	if (ieee80211_is_nullfunc(fc) || ieee80211_is_ctl(fc)) {
 		firstseg = true;
@@ -580,12 +581,13 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 }
 
 void rtl92ce_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			     u8 *pdesc, bool firstseg,
+			     u8 *pdesc8, bool firstseg,
 			     bool lastseg, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	u8 fw_queue = QSLT_BEACON;
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	dma_addr_t mapping = pci_map_single(rtlpci->pdev,
 					    skb->data, skb->len,
@@ -599,7 +601,7 @@ void rtl92ce_tx_fill_cmddesc(struct ieee80211_hw *hw,
 			 "DMA mapping error\n");
 		return;
 	}
-	CLEAR_PCI_TX_DESC_CONTENT(pdesc, TX_DESC_SIZE);
+	clear_pci_tx_desc_content(pdesc, TX_DESC_SIZE);
 
 	if (firstseg)
 		set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
@@ -642,9 +644,11 @@ void rtl92ce_tx_fill_cmddesc(struct ieee80211_hw *hw,
 		      "H2C Tx Cmd Content", pdesc, TX_DESC_SIZE);
 }
 
-void rtl92ce_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
+void rtl92ce_set_desc(struct ieee80211_hw *hw, u8 *pdesc8, bool istx,
 		      u8 desc_name, u8 *val)
 {
+	__le32 *pdesc = (__le32 *)pdesc8;
+
 	if (istx) {
 		switch (desc_name) {
 		case HW_DESC_OWN:
@@ -682,10 +686,11 @@ void rtl92ce_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 	}
 }
 
-u64 rtl92ce_get_desc(struct ieee80211_hw *hw, u8 *p_desc,
+u64 rtl92ce_get_desc(struct ieee80211_hw *hw, u8 *p_desc8,
 		     bool istx, u8 desc_name)
 {
 	u32 ret = 0;
+	__le32 *p_desc = (__le32 *)p_desc8;
 
 	if (istx) {
 		switch (desc_name) {
