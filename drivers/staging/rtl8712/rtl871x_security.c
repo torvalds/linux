@@ -1341,7 +1341,7 @@ static void aes_decipher(u8 *key, uint hdrlen,
 	/* compare the mic */
 }
 
-u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
+void r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 {	/* exclude ICV */
 	/* Intermediate Buffers */
 	sint		length;
@@ -1364,7 +1364,7 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 				prwskey = &psecuritypriv->XGrpKey[
 					  ((idx >> 6) & 0x3) - 1].skey[0];
 				if (!psecuritypriv->binstallGrpkey)
-					return _FAIL;
+					return;
 
 			} else {
 				prwskey = &stainfo->x_UncstKey.skey[0];
@@ -1374,11 +1374,8 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 				 prxattrib->iv_len;
 			aes_decipher(prwskey, prxattrib->hdrlen, pframe,
 				     length);
-		} else {
-			return _FAIL;
 		}
 	}
-	return _SUCCESS;
 }
 
 void r8712_use_tkipkey_handler(struct timer_list *t)
