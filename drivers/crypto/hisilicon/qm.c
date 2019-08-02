@@ -16,6 +16,7 @@
 #define QM_VF_EQ_INT_MASK		0xc
 #define QM_IRQ_NUM_V1			1
 #define QM_IRQ_NUM_PF_V2		4
+#define QM_IRQ_NUM_VF_V2		2
 
 #define QM_EQ_EVENT_IRQ_VECTOR		0
 #define QM_AEQ_EVENT_IRQ_VECTOR		1
@@ -265,6 +266,7 @@ struct qm_doorbell {
 };
 
 struct hisi_qm_hw_ops {
+	int (*get_vft)(struct hisi_qm *qm, u32 *base, u32 *number);
 	void (*qm_db)(struct hisi_qm *qm, u16 qn,
 		      u8 cmd, u16 index, u8 priority);
 	u32 (*get_irq_num)(struct hisi_qm *qm);
@@ -422,7 +424,10 @@ static u32 qm_get_irq_num_v1(struct hisi_qm *qm)
 
 static u32 qm_get_irq_num_v2(struct hisi_qm *qm)
 {
-	return QM_IRQ_NUM_PF_V2;
+	if (qm->fun_type == QM_HW_PF)
+		return QM_IRQ_NUM_PF_V2;
+	else
+		return QM_IRQ_NUM_VF_V2;
 }
 
 static struct hisi_qp *qm_to_hisi_qp(struct hisi_qm *qm, struct qm_eqe *eqe)
@@ -591,12 +596,14 @@ static int qm_irq_register(struct hisi_qm *qm)
 		if (ret)
 			goto err_aeq_irq;
 
-		ret = request_irq(pci_irq_vector(pdev,
-				  QM_ABNORMAL_EVENT_IRQ_VECTOR),
-				  qm_abnormal_irq, IRQF_SHARED,
-				  qm->dev_name, qm);
-		if (ret)
-			goto err_abonormal_irq;
+		if (qm->fun_type == QM_HW_PF) {
+			ret = request_irq(pci_irq_vector(pdev,
+					  QM_ABNORMAL_EVENT_IRQ_VECTOR),
+					  qm_abnormal_irq, IRQF_SHARED,
+					  qm->dev_name, qm);
+			if (ret)
+				goto err_abonormal_irq;
+		}
 	}
 
 	return 0;
@@ -616,8 +623,10 @@ static void qm_irq_unregister(struct hisi_qm *qm)
 
 	if (qm->ver == QM_HW_V2) {
 		free_irq(pci_irq_vector(pdev, QM_AEQ_EVENT_IRQ_VECTOR), qm);
-		free_irq(pci_irq_vector(pdev,
-					QM_ABNORMAL_EVENT_IRQ_VECTOR), qm);
+
+		if (qm->fun_type == QM_HW_PF)
+			free_irq(pci_irq_vector(pdev,
+				 QM_ABNORMAL_EVENT_IRQ_VECTOR), qm);
 	}
 }
 
@@ -713,6 +722,24 @@ static int qm_set_sqc_cqc_vft(struct hisi_qm *qm, u32 fun_num, u32 base,
 		if (ret)
 			return ret;
 	}
+
+	return 0;
+}
+
+static int qm_get_vft_v2(struct hisi_qm *qm, u32 *base, u32 *number)
+{
+	u64 sqc_vft;
+	int ret;
+
+	ret = qm_mb(qm, QM_MB_CMD_SQC_VFT_V2, 0, 0, 1);
+	if (ret)
+		return ret;
+
+	sqc_vft = readl(qm->io_base + QM_MB_CMD_DATA_ADDR_L) |
+		  ((u64)readl(qm->io_base + QM_MB_CMD_DATA_ADDR_H) << 32);
+	*base = QM_SQC_VFT_BASE_MASK_V2 & (sqc_vft >> QM_SQC_VFT_BASE_SHIFT_V2);
+	*number = (QM_SQC_VFT_NUM_MASK_v2 &
+		   (sqc_vft >> QM_SQC_VFT_NUM_SHIFT_V2)) + 1;
 
 	return 0;
 }
@@ -815,6 +842,7 @@ static const struct hisi_qm_hw_ops qm_hw_ops_v1 = {
 };
 
 static const struct hisi_qm_hw_ops qm_hw_ops_v2 = {
+	.get_vft = qm_get_vft_v2,
 	.qm_db = qm_db_v2,
 	.get_irq_num = qm_get_irq_num_v2,
 	.hw_error_init = qm_hw_error_init_v2,
@@ -1195,6 +1223,9 @@ int hisi_qm_init(struct hisi_qm *qm)
 	mutex_init(&qm->mailbox_lock);
 	rwlock_init(&qm->qps_lock);
 
+	dev_dbg(dev, "init qm %s with %s\n", pdev->is_physfn ? "pf" : "vf",
+		qm->use_dma_api ? "dma api" : "iommu api");
+
 	return 0;
 
 err_free_irq_vectors:
@@ -1235,6 +1266,32 @@ void hisi_qm_uninit(struct hisi_qm *qm)
 	pci_disable_device(pdev);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_uninit);
+
+/**
+ * hisi_qm_get_vft() - Get vft from a qm.
+ * @qm: The qm we want to get its vft.
+ * @base: The base number of queue in vft.
+ * @number: The number of queues in vft.
+ *
+ * We can allocate multiple queues to a qm by configuring virtual function
+ * table. We get related configures by this function. Normally, we call this
+ * function in VF driver to get the queue information.
+ *
+ * qm hw v1 does not support this interface.
+ */
+int hisi_qm_get_vft(struct hisi_qm *qm, u32 *base, u32 *number)
+{
+	if (!base || !number)
+		return -EINVAL;
+
+	if (!qm->ops->get_vft) {
+		dev_err(&qm->pdev->dev, "Don't support vft read!\n");
+		return -EINVAL;
+	}
+
+	return qm->ops->get_vft(qm, base, number);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_get_vft);
 
 /**
  * hisi_qm_set_vft() - Set "virtual function table" for a qm.
@@ -1344,13 +1401,15 @@ static int __hisi_qm_start(struct hisi_qm *qm)
 	if (qm->qp_num == 0)
 		return -EINVAL;
 
-	ret = qm_dev_mem_reset(qm);
-	if (ret)
-		return ret;
+	if (qm->fun_type == QM_HW_PF) {
+		ret = qm_dev_mem_reset(qm);
+		if (ret)
+			return ret;
 
-	ret = hisi_qm_set_vft(qm, 0, qm->qp_base, qm->qp_num);
-	if (ret)
-		return ret;
+		ret = hisi_qm_set_vft(qm, 0, qm->qp_base, qm->qp_num);
+		if (ret)
+			return ret;
+	}
 
 	QM_INIT_BUF(qm, eqe, QM_Q_DEPTH);
 	QM_INIT_BUF(qm, aeqe, QM_Q_DEPTH);
@@ -1469,9 +1528,11 @@ int hisi_qm_stop(struct hisi_qm *qm)
 		}
 	}
 
-	ret = hisi_qm_set_vft(qm, 0, 0, 0);
-	if (ret < 0)
-		dev_err(dev, "Failed to set vft!\n");
+	if (qm->fun_type == QM_HW_PF) {
+		ret = hisi_qm_set_vft(qm, 0, 0, 0);
+		if (ret < 0)
+			dev_err(dev, "Failed to set vft!\n");
+	}
 
 	return ret;
 }

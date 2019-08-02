@@ -12,6 +12,7 @@
 #include "zip.h"
 
 #define PCI_DEVICE_ID_ZIP_PF		0xa250
+#define PCI_DEVICE_ID_ZIP_VF		0xa251
 
 #define HZIP_VF_NUM			63
 #define HZIP_QUEUE_NUM_V1		4096
@@ -127,6 +128,7 @@ static const struct hisi_zip_hw_error zip_hw_error[] = {
  * Just relevant for PF.
  */
 struct hisi_zip_ctrl {
+	u32 num_vfs;
 	struct hisi_zip *hisi_zip;
 };
 
@@ -180,6 +182,7 @@ module_param(uacce_mode, int, 0);
 
 static const struct pci_device_id hisi_zip_dev_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_ZIP_PF) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_ZIP_VF) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, hisi_zip_dev_ids);
@@ -324,6 +327,8 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	qm->sqe_size = HZIP_SQE_SIZE;
 	qm->dev_name = hisi_zip_name;
+	qm->fun_type = (pdev->device == PCI_DEVICE_ID_ZIP_PF) ? QM_HW_PF :
+								QM_HW_VF;
 	switch (uacce_mode) {
 	case 0:
 		qm->use_dma_api = true;
@@ -344,12 +349,28 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return ret;
 	}
 
-	ret = hisi_zip_pf_probe_init(hisi_zip);
-	if (ret)
-		goto err_qm_uninit;
+	if (qm->fun_type == QM_HW_PF) {
+		ret = hisi_zip_pf_probe_init(hisi_zip);
+		if (ret)
+			return ret;
 
-	qm->qp_base = HZIP_PF_DEF_Q_BASE;
-	qm->qp_num = pf_q_num;
+		qm->qp_base = HZIP_PF_DEF_Q_BASE;
+		qm->qp_num = pf_q_num;
+	} else if (qm->fun_type == QM_HW_VF) {
+		/*
+		 * have no way to get qm configure in VM in v1 hardware,
+		 * so currently force PF to uses HZIP_PF_DEF_Q_NUM, and force
+		 * to trigger only one VF in v1 hardware.
+		 *
+		 * v2 hardware has no such problem.
+		 */
+		if (qm->ver == QM_HW_V1) {
+			qm->qp_base = HZIP_PF_DEF_Q_NUM;
+			qm->qp_num = HZIP_QUEUE_NUM_V1 - HZIP_PF_DEF_Q_NUM;
+		} else if (qm->ver == QM_HW_V2)
+			/* v2 starts to support get vft by mailbox */
+			hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
+	}
 
 	ret = hisi_qm_start(qm);
 	if (ret)
@@ -364,13 +385,127 @@ err_qm_uninit:
 	return ret;
 }
 
+/* Currently we only support equal assignment */
+static int hisi_zip_vf_q_assign(struct hisi_zip *hisi_zip, int num_vfs)
+{
+	struct hisi_qm *qm = &hisi_zip->qm;
+	u32 qp_num = qm->qp_num;
+	u32 q_base = qp_num;
+	u32 q_num, remain_q_num, i;
+	int ret;
+
+	if (!num_vfs)
+		return -EINVAL;
+
+	remain_q_num = qm->ctrl_qp_num - qp_num;
+	if (remain_q_num < num_vfs)
+		return -EINVAL;
+
+	q_num = remain_q_num / num_vfs;
+	for (i = 1; i <= num_vfs; i++) {
+		if (i == num_vfs)
+			q_num += remain_q_num % num_vfs;
+		ret = hisi_qm_set_vft(qm, i, q_base, q_num);
+		if (ret)
+			return ret;
+		q_base += q_num;
+	}
+
+	return 0;
+}
+
+static int hisi_zip_clear_vft_config(struct hisi_zip *hisi_zip)
+{
+	struct hisi_zip_ctrl *ctrl = hisi_zip->ctrl;
+	struct hisi_qm *qm = &hisi_zip->qm;
+	u32 i, num_vfs = ctrl->num_vfs;
+	int ret;
+
+	for (i = 1; i <= num_vfs; i++) {
+		ret = hisi_qm_set_vft(qm, i, 0, 0);
+		if (ret)
+			return ret;
+	}
+
+	ctrl->num_vfs = 0;
+
+	return 0;
+}
+
+static int hisi_zip_sriov_enable(struct pci_dev *pdev, int max_vfs)
+{
+#ifdef CONFIG_PCI_IOV
+	struct hisi_zip *hisi_zip = pci_get_drvdata(pdev);
+	int pre_existing_vfs, num_vfs, ret;
+
+	pre_existing_vfs = pci_num_vf(pdev);
+
+	if (pre_existing_vfs) {
+		dev_err(&pdev->dev,
+			"Can't enable VF. Please disable pre-enabled VFs!\n");
+		return 0;
+	}
+
+	num_vfs = min_t(int, max_vfs, HZIP_VF_NUM);
+
+	ret = hisi_zip_vf_q_assign(hisi_zip, num_vfs);
+	if (ret) {
+		dev_err(&pdev->dev, "Can't assign queues for VF!\n");
+		return ret;
+	}
+
+	hisi_zip->ctrl->num_vfs = num_vfs;
+
+	ret = pci_enable_sriov(pdev, num_vfs);
+	if (ret) {
+		dev_err(&pdev->dev, "Can't enable VF!\n");
+		hisi_zip_clear_vft_config(hisi_zip);
+		return ret;
+	}
+
+	return num_vfs;
+#else
+	return 0;
+#endif
+}
+
+static int hisi_zip_sriov_disable(struct pci_dev *pdev)
+{
+	struct hisi_zip *hisi_zip = pci_get_drvdata(pdev);
+
+	if (pci_vfs_assigned(pdev)) {
+		dev_err(&pdev->dev,
+			"Can't disable VFs while VFs are assigned!\n");
+		return -EPERM;
+	}
+
+	/* remove in hisi_zip_pci_driver will be called to free VF resources */
+	pci_disable_sriov(pdev);
+
+	return hisi_zip_clear_vft_config(hisi_zip);
+}
+
+static int hisi_zip_sriov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	if (num_vfs == 0)
+		return hisi_zip_sriov_disable(pdev);
+	else
+		return hisi_zip_sriov_enable(pdev, num_vfs);
+}
+
 static void hisi_zip_remove(struct pci_dev *pdev)
 {
 	struct hisi_zip *hisi_zip = pci_get_drvdata(pdev);
 	struct hisi_qm *qm = &hisi_zip->qm;
 
+	if (qm->fun_type == QM_HW_PF && hisi_zip->ctrl->num_vfs != 0)
+		hisi_zip_sriov_disable(pdev);
+
 	hisi_qm_stop(qm);
-	hisi_zip_hw_error_set_state(hisi_zip, false);
+
+	if (qm->fun_type == QM_HW_PF)
+		hisi_zip_hw_error_set_state(hisi_zip, false);
+
 	hisi_qm_uninit(qm);
 	hisi_zip_remove_from_list(hisi_zip);
 }
@@ -461,6 +596,7 @@ static struct pci_driver hisi_zip_pci_driver = {
 	.id_table		= hisi_zip_dev_ids,
 	.probe			= hisi_zip_probe,
 	.remove			= hisi_zip_remove,
+	.sriov_configure	= hisi_zip_sriov_configure,
 	.err_handler		= &hisi_zip_err_handler,
 };
 

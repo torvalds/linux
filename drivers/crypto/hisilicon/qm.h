@@ -80,6 +80,7 @@ enum qm_hw_ver {
 
 enum qm_fun_type {
 	QM_HW_PF,
+	QM_HW_VF,
 };
 
 struct qm_dma {
@@ -98,6 +99,7 @@ struct hisi_qm_status {
 
 struct hisi_qm {
 	enum qm_hw_ver ver;
+	enum qm_fun_type fun_type;
 	const char *dev_name;
 	struct pci_dev *pdev;
 	void __iomem *io_base;
@@ -174,7 +176,9 @@ int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg);
 int hisi_qm_stop_qp(struct hisi_qp *qp);
 void hisi_qm_release_qp(struct hisi_qp *qp);
 int hisi_qp_send(struct hisi_qp *qp, const void *msg);
+int hisi_qm_get_vft(struct hisi_qm *qm, u32 *base, u32 *number);
 int hisi_qm_set_vft(struct hisi_qm *qm, u32 fun_num, u32 base, u32 number);
+int hisi_qm_debug_init(struct hisi_qm *qm);
 void hisi_qm_hw_error_init(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
 			   u32 msi);
 int hisi_qm_hw_error_handle(struct hisi_qm *qm);
