@@ -46,6 +46,13 @@
 #define PEH_AXUSER_CFG			0x401001
 #define PEH_AXUSER_CFG_ENABLE		0xffffffff
 
+#define QM_DFX_MB_CNT_VF		0x104010
+#define QM_DFX_DB_CNT_VF		0x104020
+#define QM_DFX_SQE_CNT_VF_SQN		0x104030
+#define QM_DFX_CQE_CNT_VF_CQN		0x104040
+#define QM_DFX_QN_SHIFT			16
+#define CURRENT_FUN_MASK		GENMASK(5, 0)
+#define CURRENT_Q_MASK			GENMASK(31, 16)
 
 #define QM_AXI_RRESP			BIT(0)
 #define QM_AXI_BRESP			BIT(1)
@@ -81,6 +88,25 @@ enum qm_hw_ver {
 enum qm_fun_type {
 	QM_HW_PF,
 	QM_HW_VF,
+};
+
+enum qm_debug_file {
+	CURRENT_Q,
+	CLEAR_ENABLE,
+	DEBUG_FILE_NUM,
+};
+
+struct debugfs_file {
+	enum qm_debug_file index;
+	struct mutex lock;
+	struct qm_debug *debug;
+};
+
+struct qm_debug {
+	u32 curr_qm_qp_num;
+	struct dentry *debug_root;
+	struct dentry *qm_d;
+	struct debugfs_file files[DEBUG_FILE_NUM];
 };
 
 struct qm_dma {
@@ -127,6 +153,8 @@ struct hisi_qm {
 	struct mutex mailbox_lock;
 
 	const struct hisi_qm_hw_ops *ops;
+
+	struct qm_debug debug;
 
 	u32 error_mask;
 	u32 msi_mask;
@@ -183,4 +211,5 @@ void hisi_qm_hw_error_init(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
 			   u32 msi);
 int hisi_qm_hw_error_handle(struct hisi_qm *qm);
 enum qm_hw_ver hisi_qm_get_hw_version(struct pci_dev *pdev);
+void hisi_qm_debug_regs_clear(struct hisi_qm *qm);
 #endif

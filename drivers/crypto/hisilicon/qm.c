@@ -2,10 +2,12 @@
 /* Copyright (c) 2019 HiSilicon Limited. */
 #include <asm/page.h>
 #include <linux/bitmap.h>
+#include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/irqreturn.h>
 #include <linux/log2.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include "qm.h"
 
@@ -114,6 +116,7 @@
 #define QM_SQC_VFT_NUM_SHIFT_V2		45
 #define QM_SQC_VFT_NUM_MASK_v2		GENMASK(9, 0)
 
+#define QM_DFX_CNT_CLR_CE		0x100118
 
 #define QM_ABNORMAL_INT_SOURCE		0x100000
 #define QM_ABNORMAL_INT_MASK		0x100004
@@ -141,6 +144,7 @@
 #define QM_SQE_DATA_ALIGN_MASK		GENMASK(6, 0)
 #define QMC_ALIGN(sz)			ALIGN(sz, 32)
 
+#define QM_DBG_TMP_BUF_LEN		22
 
 #define QM_MK_CQC_DW3_V1(hop_num, pg_sz, buf_sz, cqe_sz) \
 	(((hop_num) << QM_CQ_HOP_NUM_SHIFT)	| \
@@ -270,9 +274,15 @@ struct hisi_qm_hw_ops {
 	void (*qm_db)(struct hisi_qm *qm, u16 qn,
 		      u8 cmd, u16 index, u8 priority);
 	u32 (*get_irq_num)(struct hisi_qm *qm);
+	int (*debug_init)(struct hisi_qm *qm);
 	void (*hw_error_init)(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
 			      u32 msi);
 	pci_ers_result_t (*hw_error_handle)(struct hisi_qm *qm);
+};
+
+static const char * const qm_debug_file_name[] = {
+	[CURRENT_Q]    = "current_q",
+	[CLEAR_ENABLE] = "clear_enable",
 };
 
 struct hisi_qm_hw_error {
@@ -740,6 +750,229 @@ static int qm_get_vft_v2(struct hisi_qm *qm, u32 *base, u32 *number)
 	*base = QM_SQC_VFT_BASE_MASK_V2 & (sqc_vft >> QM_SQC_VFT_BASE_SHIFT_V2);
 	*number = (QM_SQC_VFT_NUM_MASK_v2 &
 		   (sqc_vft >> QM_SQC_VFT_NUM_SHIFT_V2)) + 1;
+
+	return 0;
+}
+
+static struct hisi_qm *file_to_qm(struct debugfs_file *file)
+{
+	struct qm_debug *debug = file->debug;
+
+	return container_of(debug, struct hisi_qm, debug);
+}
+
+static u32 current_q_read(struct debugfs_file *file)
+{
+	struct hisi_qm *qm = file_to_qm(file);
+
+	return readl(qm->io_base + QM_DFX_SQE_CNT_VF_SQN) >> QM_DFX_QN_SHIFT;
+}
+
+static int current_q_write(struct debugfs_file *file, u32 val)
+{
+	struct hisi_qm *qm = file_to_qm(file);
+	u32 tmp;
+
+	if (val >= qm->debug.curr_qm_qp_num)
+		return -EINVAL;
+
+	tmp = val << QM_DFX_QN_SHIFT |
+	      (readl(qm->io_base + QM_DFX_SQE_CNT_VF_SQN) & CURRENT_FUN_MASK);
+	writel(tmp, qm->io_base + QM_DFX_SQE_CNT_VF_SQN);
+
+	tmp = val << QM_DFX_QN_SHIFT |
+	      (readl(qm->io_base + QM_DFX_CQE_CNT_VF_CQN) & CURRENT_FUN_MASK);
+	writel(tmp, qm->io_base + QM_DFX_CQE_CNT_VF_CQN);
+
+	return 0;
+}
+
+static u32 clear_enable_read(struct debugfs_file *file)
+{
+	struct hisi_qm *qm = file_to_qm(file);
+
+	return readl(qm->io_base + QM_DFX_CNT_CLR_CE);
+}
+
+/* rd_clr_ctrl 1 enable read clear, otherwise 0 disable it */
+static int clear_enable_write(struct debugfs_file *file, u32 rd_clr_ctrl)
+{
+	struct hisi_qm *qm = file_to_qm(file);
+
+	if (rd_clr_ctrl > 1)
+		return -EINVAL;
+
+	writel(rd_clr_ctrl, qm->io_base + QM_DFX_CNT_CLR_CE);
+
+	return 0;
+}
+
+static ssize_t qm_debug_read(struct file *filp, char __user *buf,
+			     size_t count, loff_t *pos)
+{
+	struct debugfs_file *file = filp->private_data;
+	enum qm_debug_file index = file->index;
+	char tbuf[QM_DBG_TMP_BUF_LEN];
+	u32 val;
+	int ret;
+
+	mutex_lock(&file->lock);
+	switch (index) {
+	case CURRENT_Q:
+		val = current_q_read(file);
+		break;
+	case CLEAR_ENABLE:
+		val = clear_enable_read(file);
+		break;
+	default:
+		mutex_unlock(&file->lock);
+		return -EINVAL;
+	}
+	mutex_unlock(&file->lock);
+	ret = sprintf(tbuf, "%u\n", val);
+	return simple_read_from_buffer(buf, count, pos, tbuf, ret);
+}
+
+static ssize_t qm_debug_write(struct file *filp, const char __user *buf,
+			      size_t count, loff_t *pos)
+{
+	struct debugfs_file *file = filp->private_data;
+	enum qm_debug_file index = file->index;
+	unsigned long val;
+	char tbuf[QM_DBG_TMP_BUF_LEN];
+	int len, ret;
+
+	if (*pos != 0)
+		return 0;
+
+	if (count >= QM_DBG_TMP_BUF_LEN)
+		return -ENOSPC;
+
+	len = simple_write_to_buffer(tbuf, QM_DBG_TMP_BUF_LEN - 1, pos, buf,
+				     count);
+	if (len < 0)
+		return len;
+
+	tbuf[len] = '\0';
+	if (kstrtoul(tbuf, 0, &val))
+		return -EFAULT;
+
+	mutex_lock(&file->lock);
+	switch (index) {
+	case CURRENT_Q:
+		ret = current_q_write(file, val);
+		if (ret)
+			goto err_input;
+		break;
+	case CLEAR_ENABLE:
+		ret = clear_enable_write(file, val);
+		if (ret)
+			goto err_input;
+		break;
+	default:
+		ret = -EINVAL;
+		goto err_input;
+	}
+	mutex_unlock(&file->lock);
+
+	return count;
+
+err_input:
+	mutex_unlock(&file->lock);
+	return ret;
+}
+
+static const struct file_operations qm_debug_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = qm_debug_read,
+	.write = qm_debug_write,
+};
+
+struct qm_dfx_registers {
+	char  *reg_name;
+	u64   reg_offset;
+};
+
+#define CNT_CYC_REGS_NUM		10
+static struct qm_dfx_registers qm_dfx_regs[] = {
+	/* XXX_CNT are reading clear register */
+	{"QM_ECC_1BIT_CNT               ",  0x104000ull},
+	{"QM_ECC_MBIT_CNT               ",  0x104008ull},
+	{"QM_DFX_MB_CNT                 ",  0x104018ull},
+	{"QM_DFX_DB_CNT                 ",  0x104028ull},
+	{"QM_DFX_SQE_CNT                ",  0x104038ull},
+	{"QM_DFX_CQE_CNT                ",  0x104048ull},
+	{"QM_DFX_SEND_SQE_TO_ACC_CNT    ",  0x104050ull},
+	{"QM_DFX_WB_SQE_FROM_ACC_CNT    ",  0x104058ull},
+	{"QM_DFX_ACC_FINISH_CNT         ",  0x104060ull},
+	{"QM_DFX_CQE_ERR_CNT            ",  0x1040b4ull},
+	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200ull},
+	{"QM_ECC_1BIT_INF               ",  0x104004ull},
+	{"QM_ECC_MBIT_INF               ",  0x10400cull},
+	{"QM_DFX_ACC_RDY_VLD0           ",  0x1040a0ull},
+	{"QM_DFX_ACC_RDY_VLD1           ",  0x1040a4ull},
+	{"QM_DFX_AXI_RDY_VLD            ",  0x1040a8ull},
+	{"QM_DFX_FF_ST0                 ",  0x1040c8ull},
+	{"QM_DFX_FF_ST1                 ",  0x1040ccull},
+	{"QM_DFX_FF_ST2                 ",  0x1040d0ull},
+	{"QM_DFX_FF_ST3                 ",  0x1040d4ull},
+	{"QM_DFX_FF_ST4                 ",  0x1040d8ull},
+	{"QM_DFX_FF_ST5                 ",  0x1040dcull},
+	{"QM_DFX_FF_ST6                 ",  0x1040e0ull},
+	{"QM_IN_IDLE_ST                 ",  0x1040e4ull},
+	{ NULL, 0}
+};
+
+static struct qm_dfx_registers qm_vf_dfx_regs[] = {
+	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200ull},
+	{ NULL, 0}
+};
+
+static int qm_regs_show(struct seq_file *s, void *unused)
+{
+	struct hisi_qm *qm = s->private;
+	struct qm_dfx_registers *regs;
+	u32 val;
+
+	if (qm->fun_type == QM_HW_PF)
+		regs = qm_dfx_regs;
+	else
+		regs = qm_vf_dfx_regs;
+
+	while (regs->reg_name) {
+		val = readl(qm->io_base + regs->reg_offset);
+		seq_printf(s, "%s= 0x%08x\n", regs->reg_name, val);
+		regs++;
+	}
+
+	return 0;
+}
+
+static int qm_regs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, qm_regs_show, inode->i_private);
+}
+
+static const struct file_operations qm_regs_fops = {
+	.owner = THIS_MODULE,
+	.open = qm_regs_open,
+	.read = seq_read,
+};
+
+static int qm_create_debugfs_file(struct hisi_qm *qm, enum qm_debug_file index)
+{
+	struct dentry *qm_d = qm->debug.qm_d, *tmp;
+	struct debugfs_file *file = qm->debug.files + index;
+
+	tmp = debugfs_create_file(qm_debug_file_name[index], 0600, qm_d, file,
+				  &qm_debug_fops);
+	if (IS_ERR(tmp))
+		return -ENOENT;
+
+	file->index = index;
+	mutex_init(&file->lock);
+	file->debug = &qm->debug;
 
 	return 0;
 }
@@ -1537,6 +1770,74 @@ int hisi_qm_stop(struct hisi_qm *qm)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(hisi_qm_stop);
+
+/**
+ * hisi_qm_debug_init() - Initialize qm related debugfs files.
+ * @qm: The qm for which we want to add debugfs files.
+ *
+ * Create qm related debugfs files.
+ */
+int hisi_qm_debug_init(struct hisi_qm *qm)
+{
+	struct dentry *qm_d, *qm_regs;
+	int i, ret;
+
+	qm_d = debugfs_create_dir("qm", qm->debug.debug_root);
+	if (IS_ERR(qm_d))
+		return -ENOENT;
+	qm->debug.qm_d = qm_d;
+
+	/* only show this in PF */
+	if (qm->fun_type == QM_HW_PF)
+		for (i = CURRENT_Q; i < DEBUG_FILE_NUM; i++)
+			if (qm_create_debugfs_file(qm, i)) {
+				ret = -ENOENT;
+				goto failed_to_create;
+			}
+
+	qm_regs = debugfs_create_file("qm_regs", 0444, qm->debug.qm_d, qm,
+				      &qm_regs_fops);
+	if (IS_ERR(qm_regs)) {
+		ret = -ENOENT;
+		goto failed_to_create;
+	}
+
+	return 0;
+
+failed_to_create:
+	debugfs_remove_recursive(qm_d);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(hisi_qm_debug_init);
+
+/**
+ * hisi_qm_debug_regs_clear() - clear qm debug related registers.
+ * @qm: The qm for which we want to clear its debug registers.
+ */
+void hisi_qm_debug_regs_clear(struct hisi_qm *qm)
+{
+	struct qm_dfx_registers *regs;
+	int i;
+
+	/* clear current_q */
+	writel(0x0, qm->io_base + QM_DFX_SQE_CNT_VF_SQN);
+	writel(0x0, qm->io_base + QM_DFX_CQE_CNT_VF_CQN);
+
+	/*
+	 * these registers are reading and clearing, so clear them after
+	 * reading them.
+	 */
+	writel(0x1, qm->io_base + QM_DFX_CNT_CLR_CE);
+
+	regs = qm_dfx_regs;
+	for (i = 0; i < CNT_CYC_REGS_NUM; i++) {
+		readl(qm->io_base + regs->reg_offset);
+		regs++;
+	}
+
+	writel(0x0, qm->io_base + QM_DFX_CNT_CLR_CE);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_debug_regs_clear);
 
 /**
  * hisi_qm_hw_error_init() - Configure qm hardware error report method.
