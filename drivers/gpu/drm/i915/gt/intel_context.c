@@ -162,23 +162,41 @@ static int __intel_context_active(struct i915_active *active)
 	if (err)
 		goto err_ring;
 
-	/* Preallocate tracking nodes */
-	if (!i915_gem_context_is_kernel(ce->gem_context)) {
-		err = i915_active_acquire_preallocate_barrier(&ce->active,
-							      ce->engine);
-		if (err)
-			goto err_state;
-	}
-
 	return 0;
 
-err_state:
-	__context_unpin_state(ce->state);
 err_ring:
 	intel_ring_unpin(ce->ring);
 err_put:
 	intel_context_put(ce);
 	return err;
+}
+
+int intel_context_active_acquire(struct intel_context *ce)
+{
+	int err;
+
+	err = i915_active_acquire(&ce->active);
+	if (err)
+		return err;
+
+	/* Preallocate tracking nodes */
+	if (!i915_gem_context_is_kernel(ce->gem_context)) {
+		err = i915_active_acquire_preallocate_barrier(&ce->active,
+							      ce->engine);
+		if (err) {
+			i915_active_release(&ce->active);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+void intel_context_active_release(struct intel_context *ce)
+{
+	/* Nodes preallocated in intel_context_active() */
+	i915_active_acquire_barrier(&ce->active);
+	i915_active_release(&ce->active);
 }
 
 void
@@ -301,3 +319,7 @@ struct i915_request *intel_context_create_request(struct intel_context *ce)
 
 	return rq;
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_context.c"
+#endif

@@ -42,7 +42,7 @@ struct i915_active {
 	int (*active)(struct i915_active *ref);
 	void (*retire)(struct i915_active *ref);
 
-	struct llist_head barriers;
+	struct llist_head preallocated_barriers;
 };
 
 #endif /* _I915_ACTIVE_TYPES_H_ */
