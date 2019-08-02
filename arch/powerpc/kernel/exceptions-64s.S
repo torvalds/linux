@@ -437,41 +437,41 @@ END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);			   \
  * On entry r13 points to the paca, r9-r13 are saved in the paca,
  * r9 contains the saved CR, r11 and r12 contain the saved SRR0 and
  * SRR1, and relocation is on.
+ *
+ * If stack=0, then the stack is already set in r1, and r1 is saved in r10.
+ * PPR save and CPU accounting is not done for the !stack case (XXX why not?)
  */
-#define EXCEPTION_COMMON(area, trap)					   \
-	andi.	r10,r12,MSR_PR;		/* See if coming from user	*/ \
-	mr	r10,r1;			/* Save r1			*/ \
-	subi	r1,r1,INT_FRAME_SIZE;	/* alloc frame on kernel stack	*/ \
-	beq-	1f;							   \
-	ld	r1,PACAKSAVE(r13);	/* kernel stack to use		*/ \
-1:	tdgei	r1,-INT_FRAME_SIZE;	/* trap if r1 is in userspace	*/ \
-	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0;				   \
-3:	EXCEPTION_PROLOG_COMMON_1();					   \
-	kuap_save_amr_and_lock r9, r10, cr1, cr0;			   \
-	beq	4f;			/* if from kernel mode		*/ \
-	ACCOUNT_CPU_USER_ENTRY(r13, r9, r10);				   \
-	SAVE_PPR(area, r9);						   \
-4:	EXCEPTION_PROLOG_COMMON_2(area, trap);				   \
-	ACCOUNT_STOLEN_TIME
-
-/*
- * Exception where stack is already set in r1, r1 is saved in r10.
- * PPR save and CPU accounting is not done (for some reason).
- */
-#define EXCEPTION_COMMON_STACK(area, trap)			\
-	EXCEPTION_PROLOG_COMMON_1();				\
-	kuap_save_amr_and_lock r9, r10, cr1;			\
-	EXCEPTION_PROLOG_COMMON_2(area, trap)
-
 .macro INT_COMMON vec, area, stack, kaup
 	.if \stack
-	EXCEPTION_COMMON(\area, \vec)
-	.else
+	andi.	r10,r12,MSR_PR		/* See if coming from user	*/
+	mr	r10,r1			/* Save r1			*/
+	subi	r1,r1,INT_FRAME_SIZE	/* alloc frame on kernel stack	*/
+	beq-	1f
+	ld	r1,PACAKSAVE(r13)	/* kernel stack to use		*/
+1:	tdgei	r1,-INT_FRAME_SIZE	/* trap if r1 is in userspace	*/
+	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0
+3:
+	.endif
 	EXCEPTION_PROLOG_COMMON_1()
+
+	.if \stack
+	.if \kaup
+	kuap_save_amr_and_lock r9, r10, cr1, cr0
+	.endif
+	beq	4f			/* if from kernel mode		*/
+	ACCOUNT_CPU_USER_ENTRY(r13, r9, r10)
+	SAVE_PPR(\area, r9)
+4:
+	.else
 	.if \kaup
 	kuap_save_amr_and_lock r9, r10, cr1
 	.endif
+	.endif
+
 	EXCEPTION_PROLOG_COMMON_2(\area, \vec)
+
+	.if \stack
+	ACCOUNT_STOLEN_TIME
 	.endif
 .endm
 
