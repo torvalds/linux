@@ -5723,8 +5723,14 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		bundle->surface_updates[planes_count].plane_info =
 			&bundle->plane_infos[planes_count];
 
+		/*
+		 * Only allow immediate flips for fast updates that don't
+		 * change FB pitch, DCC state, rotation or mirroing.
+		 */
 		bundle->flip_addrs[planes_count].flip_immediate =
-				(crtc->state->pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
+			(crtc->state->pageflip_flags &
+			 DRM_MODE_PAGE_FLIP_ASYNC) != 0 &&
+			acrtc_state->update_type == UPDATE_TYPE_FAST;
 
 		timestamp_ns = ktime_get_ns();
 		bundle->flip_addrs[planes_count].flip_timestamp_in_us = div_u64(timestamp_ns, 1000);
@@ -7398,6 +7404,14 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 			if (old_dm_state->context)
 				dc_retain_state(old_dm_state->context);
 		}
+	}
+
+	/* Store the overall update type for use later in atomic check. */
+	for_each_new_crtc_in_state (state, crtc, new_crtc_state, i) {
+		struct dm_crtc_state *dm_new_crtc_state =
+			to_dm_crtc_state(new_crtc_state);
+
+		dm_new_crtc_state->update_type = (int)overall_update_type;
 	}
 
 	/* Must be success */
