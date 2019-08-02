@@ -1011,8 +1011,8 @@ static void bitwise_xor(u8 *ina, u8 *inb, u8 *out)
 		out[i] = ina[i] ^ inb[i];
 }
 
-static sint aes_cipher(u8 *key, uint	hdrlen,
-			u8 *pframe, uint plen)
+static void aes_cipher(u8 *key, uint hdrlen,
+		       u8 *pframe, uint plen)
 {
 	uint qc_exists, a4_exists, i, j, payload_remainder;
 	uint num_blocks, payload_index;
@@ -1132,7 +1132,6 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	bitwise_xor(aes_out, padded_buffer, chain_buffer);
 	for (j = 0; j < 8; j++)
 		pframe[payload_index++] = chain_buffer[j];
-	return _SUCCESS;
 }
 
 u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
