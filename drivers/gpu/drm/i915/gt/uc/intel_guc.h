@@ -47,9 +47,6 @@ struct intel_guc {
 	struct intel_guc_log log;
 	struct intel_guc_ct ct;
 
-	/* Log snapshot if GuC errors during load */
-	struct drm_i915_gem_object *load_err_log;
-
 	/* intel_guc_recv interrupt related state */
 	spinlock_t irq_lock;
 	unsigned int msg_enabled_mask;

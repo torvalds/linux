@@ -2066,7 +2066,7 @@ static int i915_guc_log_dump(struct seq_file *m, void *data)
 		return -ENODEV;
 
 	if (dump_load_err)
-		obj = dev_priv->gt.uc.guc.load_err_log;
+		obj = dev_priv->gt.uc.load_err_log;
 	else if (dev_priv->gt.uc.guc.log.vma)
 		obj = dev_priv->gt.uc.guc.log.vma->obj;
 

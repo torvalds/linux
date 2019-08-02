@@ -31,8 +31,6 @@
 
 #include "i915_drv.h"
 
-static void guc_free_load_err_log(struct intel_guc *guc);
-
 /* Reset GuC providing us with fresh state for both GuC and HuC.
  */
 static int __intel_uc_reset_hw(struct intel_uc *uc)
@@ -103,7 +101,6 @@ void intel_uc_init_early(struct intel_uc *uc)
 
 void intel_uc_driver_late_release(struct intel_uc *uc)
 {
-	guc_free_load_err_log(&uc->guc);
 }
 
 /**
@@ -118,21 +115,20 @@ void intel_uc_init_mmio(struct intel_uc *uc)
 	intel_guc_init_send_regs(&uc->guc);
 }
 
-static void guc_capture_load_err_log(struct intel_guc *guc)
+static void __uc_capture_load_err_log(struct intel_uc *uc)
 {
-	if (!guc->log.vma || !intel_guc_log_get_level(&guc->log))
-		return;
+	struct intel_guc *guc = &uc->guc;
 
-	if (!guc->load_err_log)
-		guc->load_err_log = i915_gem_object_get(guc->log.vma->obj);
-
-	return;
+	if (guc->log.vma && !uc->load_err_log)
+		uc->load_err_log = i915_gem_object_get(guc->log.vma->obj);
 }
 
-static void guc_free_load_err_log(struct intel_guc *guc)
+static void __uc_free_load_err_log(struct intel_uc *uc)
 {
-	if (guc->load_err_log)
-		i915_gem_object_put(guc->load_err_log);
+	struct drm_i915_gem_object *log = fetch_and_zero(&uc->load_err_log);
+
+	if (log)
+		i915_gem_object_put(log);
 }
 
 /*
@@ -338,6 +334,8 @@ void intel_uc_fini(struct intel_uc *uc)
 		intel_huc_fini(&uc->huc);
 
 	intel_guc_fini(guc);
+
+	__uc_free_load_err_log(uc);
 }
 
 static int __uc_sanitize(struct intel_uc *uc)
@@ -493,7 +491,7 @@ int intel_uc_init_hw(struct intel_uc *uc)
 err_communication:
 	guc_disable_communication(guc);
 err_log_capture:
-	guc_capture_load_err_log(guc);
+	__uc_capture_load_err_log(uc);
 err_out:
 	__uc_sanitize(uc);
 

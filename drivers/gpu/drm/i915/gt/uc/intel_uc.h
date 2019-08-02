@@ -31,6 +31,9 @@
 struct intel_uc {
 	struct intel_guc guc;
 	struct intel_huc huc;
+
+	/* Snapshot of GuC log from last failed load */
+	struct drm_i915_gem_object *load_err_log;
 };
 
 void intel_uc_init_early(struct intel_uc *uc);
