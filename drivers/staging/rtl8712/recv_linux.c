@@ -59,8 +59,8 @@ int r8712_os_recvbuf_resource_alloc(struct _adapter *padapter,
 }
 
 /*free os related resource in struct recv_buf*/
-int r8712_os_recvbuf_resource_free(struct _adapter *padapter,
-			     struct recv_buf *precvbuf)
+void r8712_os_recvbuf_resource_free(struct _adapter *padapter,
+				    struct recv_buf *precvbuf)
 {
 	if (precvbuf->pskb)
 		dev_kfree_skb_any(precvbuf->pskb);
@@ -68,7 +68,6 @@ int r8712_os_recvbuf_resource_free(struct _adapter *padapter,
 		usb_kill_urb(precvbuf->purb);
 		usb_free_urb(precvbuf->purb);
 	}
-	return _SUCCESS;
 }
 
 void r8712_handle_tkip_mic_err(struct _adapter *adapter, u8 bgroup)
