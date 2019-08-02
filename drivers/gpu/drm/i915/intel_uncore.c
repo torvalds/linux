@@ -1860,7 +1860,7 @@ int i915_reg_read_ioctl(struct drm_device *dev,
  * wish to wait without holding forcewake for the duration (i.e. you expect
  * the wait to be slow).
  *
- * Returns 0 if the register matches the desired condition, or -ETIMEOUT.
+ * Return: 0 if the register matches the desired condition, or -ETIMEDOUT.
  */
 int __intel_wait_for_register_fw(struct intel_uncore *uncore,
 				 i915_reg_t reg,
@@ -1908,7 +1908,7 @@ int __intel_wait_for_register_fw(struct intel_uncore *uncore,
  *
  * Otherwise, the wait will timeout after @timeout_ms milliseconds.
  *
- * Returns 0 if the register matches the desired condition, or -ETIMEOUT.
+ * Return: 0 if the register matches the desired condition, or -ETIMEDOUT.
  */
 int __intel_wait_for_register(struct intel_uncore *uncore,
 			      i915_reg_t reg,
