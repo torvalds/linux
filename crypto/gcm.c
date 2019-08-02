@@ -1034,12 +1034,14 @@ static int crypto_rfc4543_copy_src_to_dst(struct aead_request *req, bool enc)
 
 static int crypto_rfc4543_encrypt(struct aead_request *req)
 {
-	return crypto_rfc4543_crypt(req, true);
+	return crypto_ipsec_check_assoclen(req->assoclen) ?:
+	       crypto_rfc4543_crypt(req, true);
 }
 
 static int crypto_rfc4543_decrypt(struct aead_request *req)
 {
-	return crypto_rfc4543_crypt(req, false);
+	return crypto_ipsec_check_assoclen(req->assoclen) ?:
+	       crypto_rfc4543_crypt(req, false);
 }
 
 static int crypto_rfc4543_init_tfm(struct crypto_aead *tfm)
