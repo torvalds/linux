@@ -166,6 +166,10 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	    || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3_COLD))
 		return -EINVAL;
 
+	acpi_handle_debug(device->handle, "Power state change: %s -> %s\n",
+			  acpi_power_state_string(device->power.state),
+			  acpi_power_state_string(state));
+
 	/* Make sure this is a valid target state */
 
 	/* There is a special case for D0 addressed below. */
