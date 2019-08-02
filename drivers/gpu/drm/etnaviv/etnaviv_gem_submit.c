@@ -517,7 +517,8 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret)
 		goto err_submit_objects;
 
-	if (!etnaviv_cmd_validate_one(gpu, stream, args->stream_size / 4,
+	if ((priv->mmu_global->version != ETNAVIV_IOMMU_V2) &&
+	    !etnaviv_cmd_validate_one(gpu, stream, args->stream_size / 4,
 				      relocs, args->nr_relocs)) {
 		ret = -EINVAL;
 		goto err_submit_objects;
