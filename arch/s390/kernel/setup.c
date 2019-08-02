@@ -99,6 +99,7 @@ int __bootdata_preserved(prot_virt_guest);
 int __bootdata(noexec_disabled);
 int __bootdata(memory_end_set);
 unsigned long __bootdata(memory_end);
+unsigned long __bootdata(vmalloc_size);
 unsigned long __bootdata(max_physmem_end);
 struct mem_detect_info __bootdata(mem_detect);
 
@@ -301,15 +302,6 @@ void machine_power_off(void)
  */
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL_GPL(pm_power_off);
-
-static int __init parse_vmalloc(char *arg)
-{
-	if (!arg)
-		return -EINVAL;
-	VMALLOC_END = (memparse(arg, &arg) + PAGE_SIZE - 1) & PAGE_MASK;
-	return 0;
-}
-early_param("vmalloc", parse_vmalloc);
 
 void *restart_stack __section(.data);
 
@@ -563,10 +555,9 @@ static void __init setup_resources(void)
 
 static void __init setup_memory_end(void)
 {
-	unsigned long vmax, vmalloc_size, tmp;
+	unsigned long vmax, tmp;
 
 	/* Choose kernel address space layout: 3 or 4 levels. */
-	vmalloc_size = VMALLOC_END ?: (128UL << 30) - MODULES_LEN;
 	if (IS_ENABLED(CONFIG_KASAN)) {
 		vmax = IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)
 			   ? _REGION1_SIZE

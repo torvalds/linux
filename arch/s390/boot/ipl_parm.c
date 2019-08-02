@@ -7,6 +7,7 @@
 #include <asm/sections.h>
 #include <asm/boot_data.h>
 #include <asm/facility.h>
+#include <asm/pgtable.h>
 #include <asm/uv.h>
 #include "boot.h"
 
@@ -14,6 +15,7 @@ char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
 struct ipl_parameter_block __bootdata_preserved(ipl_block);
 int __bootdata_preserved(ipl_block_valid);
 
+unsigned long __bootdata(vmalloc_size) = VMALLOC_DEFAULT_SIZE;
 unsigned long __bootdata(memory_end);
 int __bootdata(memory_end_set);
 int __bootdata(noexec_disabled);
@@ -225,6 +227,9 @@ void parse_boot_command_line(void)
 			memory_end = memparse(val, NULL);
 			memory_end_set = 1;
 		}
+
+		if (!strcmp(param, "vmalloc"))
+			vmalloc_size = round_up(memparse(val, NULL), PAGE_SIZE);
 
 		if (!strcmp(param, "noexec")) {
 			rc = kstrtobool(val, &enabled);
