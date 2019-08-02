@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
