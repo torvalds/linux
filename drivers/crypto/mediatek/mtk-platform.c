@@ -481,7 +481,6 @@ err_cleanup:
 
 static int mtk_crypto_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct mtk_cryp *cryp;
 	int i, err;
 
@@ -489,7 +488,7 @@ static int mtk_crypto_probe(struct platform_device *pdev)
 	if (!cryp)
 		return -ENOMEM;
 
-	cryp->base = devm_ioremap_resource(&pdev->dev, res);
+	cryp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cryp->base))
 		return PTR_ERR(cryp->base);
 
