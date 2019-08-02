@@ -145,6 +145,7 @@ struct mlx5e_tc_flow {
 	struct list_head	hairpin; /* flows sharing the same hairpin */
 	struct list_head	peer;    /* flows with peer flow */
 	struct list_head	unready; /* flows not ready to be offloaded (e.g due to missing route) */
+	struct net_device	*orig_dev; /* netdev adding flow first */
 	int			tmp_efi_index;
 	struct list_head	tmp_list; /* temporary flow list used by neigh update */
 	refcount_t		refcnt;
@@ -4624,11 +4625,21 @@ mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 	return err;
 }
 
+static bool is_flow_rule_duplicate_allowed(struct net_device *dev,
+					   struct mlx5e_rep_priv *rpriv)
+{
+	/* Offloaded flow rule is allowed to duplicate on non-uplink representor
+	 * sharing tc block with other slaves of a lag device.
+	 */
+	return netif_is_lag_port(dev) && rpriv->rep->vport != MLX5_VPORT_UPLINK;
+}
+
 int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 			   struct flow_cls_offload *f, unsigned long flags)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
 	struct rhashtable *tc_ht = get_tc_ht(priv, flags);
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5e_tc_flow *flow;
 	int err = 0;
 
@@ -4636,6 +4647,12 @@ int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 	flow = rhashtable_lookup(tc_ht, &f->cookie, tc_ht_params);
 	rcu_read_unlock();
 	if (flow) {
+		/* Same flow rule offloaded to non-uplink representor sharing tc block,
+		 * just return 0.
+		 */
+		if (is_flow_rule_duplicate_allowed(dev, rpriv) && flow->orig_dev != dev)
+			goto out;
+
 		NL_SET_ERR_MSG_MOD(extack,
 				   "flow cookie already exists, ignoring");
 		netdev_warn_once(priv->netdev,
@@ -4649,6 +4666,12 @@ int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 	err = mlx5e_tc_add_flow(priv, f, flags, dev, &flow);
 	if (err)
 		goto out;
+
+	/* Flow rule offloaded to non-uplink representor sharing tc block,
+	 * set the flow's owner dev.
+	 */
+	if (is_flow_rule_duplicate_allowed(dev, rpriv))
+		flow->orig_dev = dev;
 
 	err = rhashtable_lookup_insert_fast(tc_ht, &flow->node, tc_ht_params);
 	if (err)
