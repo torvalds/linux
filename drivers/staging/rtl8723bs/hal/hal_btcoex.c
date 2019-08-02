@@ -957,9 +957,13 @@ static u8 EXhalbtcoutsrc_BindBtCoexWithAdapter(void *padapter)
 	return true;
 }
 
-u8 EXhalbtcoutsrc_InitlizeVariables(void *padapter)
+void hal_btcoex_Initialize(void *padapter)
 {
-	PBTC_COEXIST pBtCoexist = &GLBtCoexist;
+	PBTC_COEXIST pBtCoexist;
+
+	memset(&GLBtCoexist, 0, sizeof(GLBtCoexist));
+
+	pBtCoexist = &GLBtCoexist;
 
 	/* pBtCoexist->statistics.cntBind++; */
 
@@ -999,8 +1003,6 @@ u8 EXhalbtcoutsrc_InitlizeVariables(void *padapter)
 	GLBtcWiFiInScanState = false;
 
 	GLBtcWiFiInIQKState = false;
-
-	return true;
 }
 
 void EXhalbtcoutsrc_PowerOnSetting(PBTC_COEXIST pBtCoexist)
@@ -1380,12 +1382,6 @@ void hal_btcoex_SetPgAntNum(struct adapter *padapter, u8 antNum)
 void hal_btcoex_SetSingleAntPath(struct adapter *padapter, u8 singleAntPath)
 {
 	EXhalbtcoutsrc_SetSingleAntPath(singleAntPath);
-}
-
-u8 hal_btcoex_Initialize(struct adapter *padapter)
-{
-	memset(&GLBtCoexist, 0, sizeof(GLBtCoexist));
-	return EXhalbtcoutsrc_InitlizeVariables((void *)padapter);
 }
 
 void hal_btcoex_PowerOnSetting(struct adapter *padapter)

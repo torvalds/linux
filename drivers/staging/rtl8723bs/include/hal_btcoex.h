@@ -28,7 +28,7 @@ void hal_btcoex_SetChipType(struct adapter *padapter, u8 chipType);
 void hal_btcoex_SetPgAntNum(struct adapter *padapter, u8 antNum);
 void hal_btcoex_SetSingleAntPath(struct adapter *padapter, u8 singleAntPath);
 
-u8 hal_btcoex_Initialize(struct adapter *padapter);
+void hal_btcoex_Initialize(void *padapter);
 void hal_btcoex_PowerOnSetting(struct adapter *padapter);
 void hal_btcoex_InitHwConfig(struct adapter *padapter, u8 bWifiOnly);
 
