@@ -543,7 +543,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	 * if it fails, use legacy interrupt mode
 	 * TODO: support msi multiple vectors
 	 */
-	if (hda_use_msi && !pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_MSI)) {
+	if (hda_use_msi && pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_MSI) > 0) {
 		dev_info(sdev->dev, "use msi interrupt mode\n");
 		hdev->irq = pci_irq_vector(pci, 0);
 		/* ipc irq number is the same of hda irq */
