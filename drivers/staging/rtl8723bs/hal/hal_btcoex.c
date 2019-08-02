@@ -1475,9 +1475,9 @@ void hal_btcoex_SetManualControl(struct adapter *padapter, u8 bmanual)
 	GLBtCoexist.bManualControl = bmanual;
 }
 
-u8 hal_btcoex_IsBtControlLps(struct adapter *padapter)
+bool hal_btcoex_IsBtControlLps(struct adapter *padapter)
 {
-	if (hal_btcoex_IsBtExist(padapter) == false)
+	if (!hal_btcoex_IsBtExist(padapter))
 		return false;
 
 	if (GLBtCoexist.btInfo.bBtDisabled)
