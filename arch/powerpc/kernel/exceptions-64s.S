@@ -533,11 +533,10 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 	andi.	r10,r12,MSR_PR		/* See if coming from user	*/
 	mr	r10,r1			/* Save r1			*/
 	subi	r1,r1,INT_FRAME_SIZE	/* alloc frame on kernel stack	*/
-	beq-	1f
+	beq-	100f
 	ld	r1,PACAKSAVE(r13)	/* kernel stack to use		*/
-1:	tdgei	r1,-INT_FRAME_SIZE	/* trap if r1 is in userspace	*/
-	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0
-3:
+100:	tdgei	r1,-INT_FRAME_SIZE	/* trap if r1 is in userspace	*/
+	EMIT_BUG_ENTRY 100b,__FILE__,__LINE__,0
 	.endif
 
 	std	r9,_CCR(r1)		/* save CR in stackframe	*/
@@ -551,10 +550,10 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 	.if \kaup
 	kuap_save_amr_and_lock r9, r10, cr1, cr0
 	.endif
-	beq	4f			/* if from kernel mode		*/
+	beq	101f			/* if from kernel mode		*/
 	ACCOUNT_CPU_USER_ENTRY(r13, r9, r10)
 	SAVE_PPR(\area, r9)
-4:
+101:
 	.else
 	.if \kaup
 	kuap_save_amr_and_lock r9, r10, cr1
@@ -1325,9 +1324,11 @@ EXC_COMMON_BEGIN(program_check_common)
 	mr	r10,r1			/* Save r1			*/
 	ld	r1,PACAEMERGSP(r13)	/* Use emergency stack		*/
 	subi	r1,r1,INT_FRAME_SIZE	/* alloc stack frame		*/
-	b 3f				/* Jump into the macro !!	*/
+	INT_COMMON 0x700, PACA_EXGEN, 0, 1, 1, 0, 0
+	b 3f
 2:
 	INT_COMMON 0x700, PACA_EXGEN, 1, 1, 1, 0, 0
+3:
 	bl	save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	program_check_exception
