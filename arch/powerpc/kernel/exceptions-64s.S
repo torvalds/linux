@@ -109,6 +109,7 @@ name:
 	addis	reg,reg,(ABS_ADDR(label))@h
 
 /* Exception register prefixes */
+#define EXC_HV_OR_STD	2 /* depends on HVMODE */
 #define EXC_HV		1
 #define EXC_STD		0
 
@@ -205,7 +206,13 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 		.abort "Bad maskable vector"
 		.endif
 
-		.if \hsrr
+		.if \hsrr == EXC_HV_OR_STD
+		BEGIN_FTR_SECTION
+		bne	masked_Hinterrupt
+		FTR_SECTION_ELSE
+		bne	masked_interrupt
+		ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+		.elseif \hsrr
 		bne	masked_Hinterrupt
 		.else
 		bne	masked_interrupt
@@ -237,7 +244,17 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	.if ! \set_ri
 	xori	r10,r10,MSR_RI		/* Clear MSR_RI */
 	.endif
-	.if \hsrr
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
+	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
+	mtspr	SPRN_HSRR1,r10
+	FTR_SECTION_ELSE
+	mfspr	r11,SPRN_SRR0		/* save SRR0 */
+	mfspr	r12,SPRN_SRR1		/* and SRR1 */
+	mtspr	SPRN_SRR1,r10
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
 	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
 	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
 	mtspr	SPRN_HSRR1,r10
@@ -247,7 +264,15 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	mtspr	SPRN_SRR1,r10
 	.endif
 	LOAD_HANDLER(r10, \label\())
-	.if \hsrr
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	mtspr	SPRN_HSRR0,r10
+	HRFI_TO_KERNEL
+	FTR_SECTION_ELSE
+	mtspr	SPRN_SRR0,r10
+	RFI_TO_KERNEL
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
 	mtspr	SPRN_HSRR0,r10
 	HRFI_TO_KERNEL
 	.else
@@ -259,14 +284,26 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 
 .macro EXCEPTION_PROLOG_2_VIRT label, hsrr
 #ifdef CONFIG_RELOCATABLE
-	.if \hsrr
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	mfspr	r11,SPRN_HSRR0	/* save HSRR0 */
+	FTR_SECTION_ELSE
+	mfspr	r11,SPRN_SRR0	/* save SRR0 */
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
 	mfspr	r11,SPRN_HSRR0	/* save HSRR0 */
 	.else
 	mfspr	r11,SPRN_SRR0	/* save SRR0 */
 	.endif
 	LOAD_HANDLER(r12, \label\())
 	mtctr	r12
-	.if \hsrr
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	mfspr	r12,SPRN_HSRR1	/* and HSRR1 */
+	FTR_SECTION_ELSE
+	mfspr	r12,SPRN_SRR1	/* and HSRR1 */
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
 	mfspr	r12,SPRN_HSRR1	/* and HSRR1 */
 	.else
 	mfspr	r12,SPRN_SRR1	/* and HSRR1 */
@@ -275,7 +312,15 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	mtmsrd 	r10,1		/* Set RI (EE=0) */
 	bctr
 #else
-	.if \hsrr
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
+	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
+	FTR_SECTION_ELSE
+	mfspr	r11,SPRN_SRR0		/* save SRR0 */
+	mfspr	r12,SPRN_SRR1		/* and SRR1 */
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
 	mfspr	r11,SPRN_HSRR0		/* save HSRR0 */
 	mfspr	r12,SPRN_HSRR1		/* and HSRR1 */
 	.else
@@ -316,7 +361,13 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 .macro KVMTEST hsrr, n
 	lbz	r10,HSTATE_IN_GUEST(r13)
 	cmpwi	r10,0
-	.if \hsrr
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	bne	do_kvm_H\n
+	FTR_SECTION_ELSE
+	bne	do_kvm_\n
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
 	bne	do_kvm_H\n
 	.else
 	bne	do_kvm_\n
@@ -342,7 +393,13 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 	std	r12,HSTATE_SCRATCH0(r13)
 	sldi	r12,r9,32
 	/* HSRR variants have the 0x2 bit added to their trap number */
-	.if \hsrr
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	ori	r12,r12,(\n + 0x2)
+	FTR_SECTION_ELSE
+	ori	r12,r12,(\n)
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
 	ori	r12,r12,(\n + 0x2)
 	.else
 	ori	r12,r12,(\n)
@@ -370,7 +427,13 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 89:	mtocrf	0x80,r9
 	ld	r9,\area+EX_R9(r13)
 	ld	r10,\area+EX_R10(r13)
-	.if \hsrr
+	.if \hsrr == EXC_HV_OR_STD
+	BEGIN_FTR_SECTION
+	b	kvmppc_skip_Hinterrupt
+	FTR_SECTION_ELSE
+	b	kvmppc_skip_interrupt
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	.elseif \hsrr
 	b	kvmppc_skip_Hinterrupt
 	.else
 	b	kvmppc_skip_interrupt
@@ -469,6 +532,9 @@ END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);			   \
 .macro EXCEPTION_RESTORE_REGS hsrr
 	/* Move original SRR0 and SRR1 into the respective regs */
 	ld	r9,_MSR(r1)
+	.if \hsrr == EXC_HV_OR_STD
+	.error "EXC_HV_OR_STD Not implemented for EXCEPTION_RESTORE_REGS"
+	.endif
 	.if \hsrr
 	mtspr	SPRN_HSRR1,r9
 	.else
@@ -1363,24 +1429,14 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 EXC_REAL_BEGIN(hardware_interrupt, 0x500, 0x100)
 	EXCEPTION_PROLOG_0 PACA_EXGEN
-BEGIN_FTR_SECTION
-	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, 0x500, 0, 0, IRQS_DISABLED
-	EXCEPTION_PROLOG_2_REAL hardware_interrupt_common, EXC_HV, 1
-FTR_SECTION_ELSE
-	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 1, 0x500, 0, 0, IRQS_DISABLED
-	EXCEPTION_PROLOG_2_REAL hardware_interrupt_common, EXC_STD, 1
-ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	EXCEPTION_PROLOG_1 EXC_HV_OR_STD, PACA_EXGEN, 1, 0x500, 0, 0, IRQS_DISABLED
+	EXCEPTION_PROLOG_2_REAL hardware_interrupt_common, EXC_HV_OR_STD, 1
 EXC_REAL_END(hardware_interrupt, 0x500, 0x100)
 
 EXC_VIRT_BEGIN(hardware_interrupt, 0x4500, 0x100)
 	EXCEPTION_PROLOG_0 PACA_EXGEN
-BEGIN_FTR_SECTION
-	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, 0x500, 0, 0, IRQS_DISABLED
-	EXCEPTION_PROLOG_2_VIRT hardware_interrupt_common, EXC_HV
-FTR_SECTION_ELSE
-	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 1, 0x500, 0, 0, IRQS_DISABLED
-	EXCEPTION_PROLOG_2_VIRT hardware_interrupt_common, EXC_STD
-ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
+	EXCEPTION_PROLOG_1 EXC_HV_OR_STD, PACA_EXGEN, 1, 0x500, 0, 0, IRQS_DISABLED
+	EXCEPTION_PROLOG_2_VIRT hardware_interrupt_common, EXC_HV_OR_STD
 EXC_VIRT_END(hardware_interrupt, 0x4500, 0x100)
 
 TRAMP_KVM(PACA_EXGEN, 0x500)
