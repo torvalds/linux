@@ -1268,18 +1268,7 @@ static void dcn10_init_hw(struct dc *dc)
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || dc->config.power_down_display_on_boot) {
 		dc->hwss.init_pipes(dc, dc->current_state);
-		for (i = 0; i < res_pool->pipe_count; i++) {
-			struct hubp *hubp = res_pool->hubps[i];
-			struct dpp *dpp = res_pool->dpps[i];
-
-			hubp->funcs->hubp_init(hubp);
-			res_pool->opps[i]->mpc_tree_params.opp_id = res_pool->opps[i]->inst;
-			dc->hwss.plane_atomic_power_down(dc, dpp, hubp);
-		}
-
-		apply_DEGVIDCN10_253_wa(dc);
 	}
-
 
 	for (i = 0; i < res_pool->audio_count; i++) {
 		struct audio *audio = res_pool->audios[i];
