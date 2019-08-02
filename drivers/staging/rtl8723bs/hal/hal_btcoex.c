@@ -1489,9 +1489,9 @@ bool hal_btcoex_IsBtControlLps(struct adapter *padapter)
 	return false;
 }
 
-u8 hal_btcoex_IsLpsOn(struct adapter *padapter)
+bool hal_btcoex_IsLpsOn(struct adapter *padapter)
 {
-	if (hal_btcoex_IsBtExist(padapter) == false)
+	if (!hal_btcoex_IsBtExist(padapter))
 		return false;
 
 	if (GLBtCoexist.btInfo.bBtDisabled)

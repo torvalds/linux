@@ -48,7 +48,7 @@ void hal_btcoex_Handler(struct adapter *padapter);
 s32 hal_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter);
 void hal_btcoex_SetManualControl(struct adapter *padapter, u8 bmanual);
 bool hal_btcoex_IsBtControlLps(struct adapter *padapter);
-u8 hal_btcoex_IsLpsOn(struct adapter *);
+bool hal_btcoex_IsLpsOn(struct adapter *padapter);
 u8 hal_btcoex_RpwmVal(struct adapter *);
 u8 hal_btcoex_LpsVal(struct adapter *);
 u32 hal_btcoex_GetRaMask(struct adapter *);
