@@ -72,6 +72,7 @@ void test_bpf_verif_scale(void)
 		{ "loop1.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 		{ "loop2.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 		{ "loop4.o", BPF_PROG_TYPE_SCHED_CLS },
+		{ "loop5.o", BPF_PROG_TYPE_SCHED_CLS },
 
 		/* partial unroll. 19k insn in a loop.
 		 * Total program size 20.8k insn.
