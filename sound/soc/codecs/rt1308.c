@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-//
-// rt1308.c  --  RT1308 ALSA SoC amplifier component driver
-//
-// Copyright 2019 Realtek Semiconductor Corp.
-// Author: Derek Fang <derek.fang@realtek.com>
-//
+/*
+ * rt1308.c  --  RT1308 ALSA SoC amplifier component driver
+ *
+ * Copyright 2019 Realtek Semiconductor Corp.
+ * Author: Derek Fang <derek.fang@realtek.com>
+ *
+ */
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
