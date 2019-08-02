@@ -83,19 +83,20 @@ static struct drm_driver driver;
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 static unsigned int i915_probe_fail_count;
 
-bool __i915_inject_probe_failure(const char *func, int line)
+int __i915_inject_load_error(struct drm_i915_private *i915, int err,
+			     const char *func, int line)
 {
 	if (i915_probe_fail_count >= i915_modparams.inject_load_failure)
-		return false;
+		return 0;
 
-	if (++i915_probe_fail_count == i915_modparams.inject_load_failure) {
-		DRM_INFO("Injecting failure at checkpoint %u [%s:%d]\n",
-			 i915_modparams.inject_load_failure, func, line);
-		i915_modparams.inject_load_failure = 0;
-		return true;
-	}
+	if (++i915_probe_fail_count < i915_modparams.inject_load_failure)
+		return 0;
 
-	return false;
+	__i915_printk(i915, KERN_INFO,
+		      "Injecting failure %d at checkpoint %u [%s:%d]\n",
+		      err, i915_modparams.inject_load_failure, func, line);
+	i915_modparams.inject_load_failure = 0;
+	return err;
 }
 
 bool i915_error_injected(void)
@@ -687,7 +688,7 @@ static int i915_driver_modeset_probe(struct drm_device *dev)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int ret;
 
-	if (i915_inject_probe_failure())
+	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
 	if (HAS_DISPLAY(dev_priv)) {
@@ -894,7 +895,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 {
 	int ret = 0;
 
-	if (i915_inject_probe_failure())
+	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
 	intel_device_info_subplatform_init(dev_priv);
@@ -985,7 +986,7 @@ static int i915_driver_mmio_probe(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	if (i915_inject_probe_failure())
+	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
 	if (i915_get_bridge_dev(dev_priv))
@@ -1530,7 +1531,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int ret;
 
-	if (i915_inject_probe_failure())
+	if (i915_inject_probe_failure(dev_priv))
 		return -ENODEV;
 
 	intel_device_info_runtime_init(dev_priv);
