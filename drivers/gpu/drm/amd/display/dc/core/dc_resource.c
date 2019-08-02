@@ -172,6 +172,7 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 	default:
 		break;
 	}
+
 	if (res_pool != NULL) {
 		if (dc->ctx->dc_bios->fw_info_valid) {
 			res_pool->ref_clocks.xtalin_clock_inKhz =
