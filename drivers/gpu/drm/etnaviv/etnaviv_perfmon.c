@@ -15,8 +15,8 @@ struct etnaviv_pm_signal {
 	u32 data;
 
 	u32 (*sample)(struct etnaviv_gpu *gpu,
-	              const struct etnaviv_pm_domain *domain,
-	              const struct etnaviv_pm_signal *signal);
+		      const struct etnaviv_pm_domain *domain,
+		      const struct etnaviv_pm_signal *signal);
 };
 
 struct etnaviv_pm_domain {
