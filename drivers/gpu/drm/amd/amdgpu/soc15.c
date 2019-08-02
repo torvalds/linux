@@ -1172,7 +1172,8 @@ static int soc15_common_early_init(void *handle)
 				 AMD_CG_SUPPORT_VCN_MGCG |
 				 AMD_CG_SUPPORT_IH_CG |
 				 AMD_CG_SUPPORT_ATHUB_LS |
-				 AMD_CG_SUPPORT_ATHUB_MGCG;
+				 AMD_CG_SUPPORT_ATHUB_MGCG |
+				 AMD_CG_SUPPORT_DF_MGCG;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x91;
 
