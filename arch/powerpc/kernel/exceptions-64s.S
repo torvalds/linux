@@ -620,11 +620,19 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 	GET_SCRATCH0(r10)
 	std	r10,\area\()+EX_R13(r13)
 	.if \dar
+	.if \hsrr
+	mfspr	r10,SPRN_HDAR
+	.else
 	mfspr	r10,SPRN_DAR
+	.endif
 	std	r10,\area\()+EX_DAR(r13)
 	.endif
 	.if \dsisr
+	.if \hsrr
+	mfspr	r10,SPRN_HDSISR
+	.else
 	mfspr	r10,SPRN_DSISR
+	.endif
 	stw	r10,\area\()+EX_DSISR(r13)
 	.endif
 
@@ -1563,17 +1571,13 @@ EXC_COMMON(single_step_common, 0xd00, single_step_exception)
 
 
 EXC_REAL_BEGIN(h_data_storage, 0xe00, 0x20)
-	INT_HANDLER h_data_storage, 0xe00, ool=1, hsrr=EXC_HV, kvm=1
+	INT_HANDLER h_data_storage, 0xe00, ool=1, hsrr=EXC_HV, dar=1, dsisr=1, kvm=1
 EXC_REAL_END(h_data_storage, 0xe00, 0x20)
 EXC_VIRT_BEGIN(h_data_storage, 0x4e00, 0x20)
-	INT_HANDLER h_data_storage, 0xe00, ool=1, virt=1, hsrr=EXC_HV, kvm=1
+	INT_HANDLER h_data_storage, 0xe00, ool=1, virt=1, hsrr=EXC_HV, dar=1, dsisr=1, kvm=1
 EXC_VIRT_END(h_data_storage, 0x4e00, 0x20)
 TRAMP_KVM_HV_SKIP(PACA_EXGEN, 0xe00)
 EXC_COMMON_BEGIN(h_data_storage_common)
-	mfspr   r10,SPRN_HDAR
-	std     r10,PACA_EXGEN+EX_DAR(r13)
-	mfspr   r10,SPRN_HDSISR
-	stw     r10,PACA_EXGEN+EX_DSISR(r13)
 	EXCEPTION_COMMON(PACA_EXGEN, 0xe00)
 	bl      save_nvgprs
 	RECONCILE_IRQ_STATE(r10, r11)
