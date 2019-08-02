@@ -614,6 +614,22 @@ static void ice_reset_subtask(struct ice_pf *pf)
 }
 
 /**
+ * ice_print_topo_conflict - print topology conflict message
+ * @vsi: the VSI whose topology status is being checked
+ */
+static void ice_print_topo_conflict(struct ice_vsi *vsi)
+{
+	switch (vsi->port_info->phy.link_info.topo_media_conflict) {
+	case ICE_AQ_LINK_TOPO_CONFLICT:
+	case ICE_AQ_LINK_MEDIA_CONFLICT:
+		netdev_info(vsi->netdev, "Possible mis-configuration of the Ethernet port detected, please use the Intel(R) Ethernet Port Configuration Tool application to address the issue.\n");
+		break;
+	default:
+		break;
+	}
+}
+
+/**
  * ice_print_link_msg - print link up or down message
  * @vsi: the VSI whose link status is being queried
  * @isup: boolean for if the link is now up or down
@@ -742,6 +758,7 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 done:
 	netdev_info(vsi->netdev, "NIC Link is up %sbps, Requested FEC: %s, FEC: %s, Autoneg: %s, Flow Control: %s\n",
 		    speed, fec_req, fec, an, fc);
+	ice_print_topo_conflict(vsi);
 }
 
 /**
