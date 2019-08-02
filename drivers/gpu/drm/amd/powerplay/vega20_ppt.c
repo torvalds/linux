@@ -450,7 +450,6 @@ static int vega20_store_powerplay_table(struct smu_context *smu)
 	memcpy(table_context->driver_pptable, &powerplay_table->smcPPTable,
 	       sizeof(PPTable_t));
 
-	table_context->software_shutdown_temp = powerplay_table->usSoftwareShutdownTemp;
 	table_context->thermal_controller_type = powerplay_table->ucThermalControllerType;
 	table_context->TDPODLimit = le32_to_cpu(powerplay_table->OverDrive8Table.ODSettingsMax[ATOM_VEGA20_ODSETTING_POWERPERCENTAGE]);
 
@@ -3234,35 +3233,24 @@ static int vega20_set_watermarks_table(struct smu_context *smu,
 	return 0;
 }
 
-static const struct smu_temperature_range vega20_thermal_policy[] =
-{
-	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
-	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
-};
-
 static int vega20_get_thermal_temperature_range(struct smu_context *smu,
 						struct smu_temperature_range *range)
 {
-
+	struct smu_table_context *table_context = &smu->smu_table;
+	ATOM_Vega20_POWERPLAYTABLE *powerplay_table = table_context->power_play_table;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
-	if (!range)
+	if (!range || !powerplay_table)
 		return -EINVAL;
 
-	memcpy(range, &vega20_thermal_policy[0], sizeof(struct smu_temperature_range));
-
-	range->max = pptable->TedgeLimit *
-		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->edge_emergency_max = (pptable->TedgeLimit + CTF_OFFSET_EDGE) *
-		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->hotspot_crit_max = pptable->ThotspotLimit *
-		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->hotspot_emergency_max = (pptable->ThotspotLimit + CTF_OFFSET_HOTSPOT) *
-		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->mem_crit_max = pptable->ThbmLimit *
-		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->mem_emergency_max = (pptable->ThbmLimit + CTF_OFFSET_HBM)*
-		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	/* The unit is temperature */
+	range->min = 0;
+	range->max = powerplay_table->usSoftwareShutdownTemp;
+	range->edge_emergency_max = (pptable->TedgeLimit + CTF_OFFSET_EDGE);
+	range->hotspot_crit_max = pptable->ThotspotLimit;
+	range->hotspot_emergency_max = (pptable->ThotspotLimit + CTF_OFFSET_HOTSPOT);
+	range->mem_crit_max = pptable->ThbmLimit;
+	range->mem_emergency_max = (pptable->ThbmLimit + CTF_OFFSET_HBM);
 
 
 	return 0;
