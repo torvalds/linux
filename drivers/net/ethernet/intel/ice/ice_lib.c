@@ -263,12 +263,24 @@ static int ice_vsi_alloc_arrays(struct ice_vsi *vsi)
 	vsi->tx_rings = devm_kcalloc(&pf->pdev->dev, vsi->alloc_txq,
 				     sizeof(*vsi->tx_rings), GFP_KERNEL);
 	if (!vsi->tx_rings)
-		goto err_txrings;
+		return -ENOMEM;
 
 	vsi->rx_rings = devm_kcalloc(&pf->pdev->dev, vsi->alloc_rxq,
 				     sizeof(*vsi->rx_rings), GFP_KERNEL);
 	if (!vsi->rx_rings)
-		goto err_rxrings;
+		goto err_rings;
+
+	vsi->txq_map = devm_kcalloc(&pf->pdev->dev, vsi->alloc_txq,
+				    sizeof(*vsi->txq_map), GFP_KERNEL);
+
+	if (!vsi->txq_map)
+		goto err_txq_map;
+
+	vsi->rxq_map = devm_kcalloc(&pf->pdev->dev, vsi->alloc_rxq,
+				    sizeof(*vsi->rxq_map), GFP_KERNEL);
+	if (!vsi->rxq_map)
+		goto err_rxq_map;
+
 
 	/* There is no need to allocate q_vectors for a loopback VSI. */
 	if (vsi->type == ICE_VSI_LB)
@@ -283,10 +295,13 @@ static int ice_vsi_alloc_arrays(struct ice_vsi *vsi)
 	return 0;
 
 err_vectors:
+	devm_kfree(&pf->pdev->dev, vsi->rxq_map);
+err_rxq_map:
+	devm_kfree(&pf->pdev->dev, vsi->txq_map);
+err_txq_map:
 	devm_kfree(&pf->pdev->dev, vsi->rx_rings);
-err_rxrings:
+err_rings:
 	devm_kfree(&pf->pdev->dev, vsi->tx_rings);
-err_txrings:
 	return -ENOMEM;
 }
 
@@ -432,6 +447,14 @@ static void ice_vsi_free_arrays(struct ice_vsi *vsi)
 	if (vsi->rx_rings) {
 		devm_kfree(&pf->pdev->dev, vsi->rx_rings);
 		vsi->rx_rings = NULL;
+	}
+	if (vsi->txq_map) {
+		devm_kfree(&pf->pdev->dev, vsi->txq_map);
+		vsi->txq_map = NULL;
+	}
+	if (vsi->rxq_map) {
+		devm_kfree(&pf->pdev->dev, vsi->rxq_map);
+		vsi->rxq_map = NULL;
 	}
 }
 
@@ -664,7 +687,7 @@ static int ice_vsi_get_qs(struct ice_vsi *vsi)
 	struct ice_qs_cfg tx_qs_cfg = {
 		.qs_mutex = &pf->avail_q_mutex,
 		.pf_map = pf->avail_txqs,
-		.pf_map_size = ICE_MAX_TXQS,
+		.pf_map_size = pf->max_pf_txqs,
 		.q_count = vsi->alloc_txq,
 		.scatter_count = ICE_MAX_SCATTER_TXQS,
 		.vsi_map = vsi->txq_map,
@@ -674,7 +697,7 @@ static int ice_vsi_get_qs(struct ice_vsi *vsi)
 	struct ice_qs_cfg rx_qs_cfg = {
 		.qs_mutex = &pf->avail_q_mutex,
 		.pf_map = pf->avail_rxqs,
-		.pf_map_size = ICE_MAX_RXQS,
+		.pf_map_size = pf->max_pf_rxqs,
 		.q_count = vsi->alloc_rxq,
 		.scatter_count = ICE_MAX_SCATTER_RXQS,
 		.vsi_map = vsi->rxq_map,
@@ -3018,6 +3041,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 		vsi->base_vector = 0;
 	}
 
+	ice_vsi_put_qs(vsi);
 	ice_vsi_clear_rings(vsi);
 	ice_vsi_free_arrays(vsi);
 	ice_dev_onetime_setup(&pf->hw);
@@ -3025,6 +3049,12 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 		ice_vsi_set_num_qs(vsi, vf->vf_id);
 	else
 		ice_vsi_set_num_qs(vsi, ICE_INVAL_VFID);
+
+	ret = ice_vsi_alloc_arrays(vsi);
+	if (ret < 0)
+		goto err_vsi;
+
+	ice_vsi_get_qs(vsi);
 	ice_vsi_set_tc_cfg(vsi);
 
 	/* Initialize VSI struct elements and create VSI in FW */
@@ -3032,9 +3062,6 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	if (ret < 0)
 		goto err_vsi;
 
-	ret = ice_vsi_alloc_arrays(vsi);
-	if (ret < 0)
-		goto err_vsi;
 
 	switch (vsi->type) {
 	case ICE_VSI_PF:

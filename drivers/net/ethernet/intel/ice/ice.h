@@ -73,8 +73,6 @@ extern const char ice_drv_ver[];
 #define ICE_MBXRQ_LEN		512
 #define ICE_MIN_MSIX		2
 #define ICE_NO_VSI		0xffff
-#define ICE_MAX_TXQS		2048
-#define ICE_MAX_RXQS		2048
 #define ICE_VSI_MAP_CONTIG	0
 #define ICE_VSI_MAP_SCATTER	1
 #define ICE_MAX_SCATTER_TXQS	16
@@ -284,8 +282,8 @@ struct ice_vsi {
 	/* queue information */
 	u8 tx_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
 	u8 rx_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
-	u16 txq_map[ICE_MAX_TXQS];	 /* index in pf->avail_txqs */
-	u16 rxq_map[ICE_MAX_RXQS];	 /* index in pf->avail_rxqs */
+	u16 *txq_map;			 /* index in pf->avail_txqs */
+	u16 *rxq_map;			 /* index in pf->avail_rxqs */
 	u16 alloc_txq;			 /* Allocated Tx queues */
 	u16 num_txq;			 /* Used Tx queues */
 	u16 alloc_rxq;			 /* Allocated Rx queues */
@@ -355,9 +353,9 @@ struct ice_pf {
 	u16 num_vf_qps;			/* num queue pairs per VF */
 	u16 num_vf_msix;		/* num vectors per VF */
 	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
-	DECLARE_BITMAP(avail_txqs, ICE_MAX_TXQS);
-	DECLARE_BITMAP(avail_rxqs, ICE_MAX_RXQS);
 	DECLARE_BITMAP(flags, ICE_PF_FLAGS_NBITS);
+	unsigned long *avail_txqs;	/* bitmap to track PF Tx queue usage */
+	unsigned long *avail_rxqs;	/* bitmap to track PF Rx queue usage */
 	unsigned long serv_tmr_period;
 	unsigned long serv_tmr_prev;
 	struct timer_list serv_tmr;
@@ -368,6 +366,8 @@ struct ice_pf {
 	u32 hw_csum_rx_error;
 	u32 oicr_idx;		/* Other interrupt cause MSIX vector index */
 	u32 num_avail_sw_msix;	/* remaining MSIX SW vectors left unclaimed */
+	u16 max_pf_txqs;	/* Total Tx queues PF wide */
+	u16 max_pf_rxqs;	/* Total Rx queues PF wide */
 	u32 num_lan_msix;	/* Total MSIX vectors for base driver */
 	u16 num_lan_tx;		/* num LAN Tx queues setup */
 	u16 num_lan_rx;		/* num LAN Rx queues setup */

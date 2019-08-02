@@ -2207,13 +2207,23 @@ static void ice_deinit_pf(struct ice_pf *pf)
 	ice_service_task_stop(pf);
 	mutex_destroy(&pf->sw_mutex);
 	mutex_destroy(&pf->avail_q_mutex);
+
+	if (pf->avail_txqs) {
+		bitmap_free(pf->avail_txqs);
+		pf->avail_txqs = NULL;
+	}
+
+	if (pf->avail_rxqs) {
+		bitmap_free(pf->avail_rxqs);
+		pf->avail_rxqs = NULL;
+	}
 }
 
 /**
  * ice_init_pf - Initialize general software structures (struct ice_pf)
  * @pf: board private structure to initialize
  */
-static void ice_init_pf(struct ice_pf *pf)
+static int ice_init_pf(struct ice_pf *pf)
 {
 	bitmap_zero(pf->flags, ICE_PF_FLAGS_NBITS);
 #ifdef CONFIG_PCI_IOV
@@ -2229,12 +2239,6 @@ static void ice_init_pf(struct ice_pf *pf)
 	mutex_init(&pf->sw_mutex);
 	mutex_init(&pf->avail_q_mutex);
 
-	/* Clear avail_[t|r]x_qs bitmaps (set all to avail) */
-	mutex_lock(&pf->avail_q_mutex);
-	bitmap_zero(pf->avail_txqs, ICE_MAX_TXQS);
-	bitmap_zero(pf->avail_rxqs, ICE_MAX_RXQS);
-	mutex_unlock(&pf->avail_q_mutex);
-
 	if (pf->hw.func_caps.common_cap.rss_table_size)
 		set_bit(ICE_FLAG_RSS_ENA, pf->flags);
 
@@ -2243,6 +2247,22 @@ static void ice_init_pf(struct ice_pf *pf)
 	pf->serv_tmr_period = HZ;
 	INIT_WORK(&pf->serv_task, ice_service_task);
 	clear_bit(__ICE_SERVICE_SCHED, pf->state);
+
+	pf->max_pf_txqs = pf->hw.func_caps.common_cap.num_txq;
+	pf->max_pf_rxqs = pf->hw.func_caps.common_cap.num_rxq;
+
+	pf->avail_txqs = bitmap_zalloc(pf->max_pf_txqs, GFP_KERNEL);
+	if (!pf->avail_txqs)
+		return -ENOMEM;
+
+	pf->avail_rxqs = bitmap_zalloc(pf->max_pf_rxqs, GFP_KERNEL);
+	if (!pf->avail_rxqs) {
+		devm_kfree(&pf->pdev->dev, pf->avail_txqs);
+		pf->avail_txqs = NULL;
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 /**
@@ -2467,7 +2487,11 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 		 hw->fw_maj_ver, hw->fw_min_ver, hw->fw_build,
 		 hw->api_maj_ver, hw->api_min_ver);
 
-	ice_init_pf(pf);
+	err = ice_init_pf(pf);
+	if (err) {
+		dev_err(dev, "ice_init_pf failed: %d\n", err);
+		goto err_init_pf_unroll;
+	}
 
 	err = ice_init_pf_dcb(pf, false);
 	if (err) {
