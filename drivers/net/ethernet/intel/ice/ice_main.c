@@ -626,6 +626,7 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 	const char *speed;
 	const char *fec;
 	const char *fc;
+	const char *an;
 
 	if (!vsi)
 		return;
@@ -709,6 +710,12 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 		break;
 	}
 
+	/* check if autoneg completed, might be false due to not supported */
+	if (vsi->port_info->phy.link_info.an_info & ICE_AQ_AN_COMPLETED)
+		an = "True";
+	else
+		an = "False";
+
 	/* Get FEC mode requested based on PHY caps last SW configuration */
 	caps = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*caps), GFP_KERNEL);
 	if (!caps) {
@@ -733,8 +740,8 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 	devm_kfree(&vsi->back->pdev->dev, caps);
 
 done:
-	netdev_info(vsi->netdev, "NIC Link is up %sbps, Requested FEC: %s, FEC: %s, Flow Control: %s\n",
-		    speed, fec_req, fec, fc);
+	netdev_info(vsi->netdev, "NIC Link is up %sbps, Requested FEC: %s, FEC: %s, Autoneg: %s, Flow Control: %s\n",
+		    speed, fec_req, fec, an, fc);
 }
 
 /**
