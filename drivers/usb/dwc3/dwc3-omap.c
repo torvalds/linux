@@ -446,7 +446,6 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	struct device_node	*node = pdev->dev.of_node;
 
 	struct dwc3_omap	*omap;
-	struct resource		*res;
 	struct device		*dev = &pdev->dev;
 	struct regulator	*vbus_reg = NULL;
 
@@ -474,8 +473,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
