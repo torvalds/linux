@@ -390,49 +390,6 @@ END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948)
 .endm
 #endif
 
-#define EXCEPTION_PROLOG_COMMON_1()					   \
-	std	r9,_CCR(r1);		/* save CR in stackframe	*/ \
-	std	r11,_NIP(r1);		/* save SRR0 in stackframe	*/ \
-	std	r12,_MSR(r1);		/* save SRR1 in stackframe	*/ \
-	std	r10,0(r1);		/* make stack chain pointer	*/ \
-	std	r0,GPR0(r1);		/* save r0 in stackframe	*/ \
-	std	r10,GPR1(r1);		/* save r1 in stackframe	*/ \
-
-/* Save original regs values from save area to stack frame. */
-#define EXCEPTION_PROLOG_COMMON_2(area, trap)				   \
-	ld	r9,area+EX_R9(r13);	/* move r9, r10 to stackframe	*/ \
-	ld	r10,area+EX_R10(r13);					   \
-	std	r9,GPR9(r1);						   \
-	std	r10,GPR10(r1);						   \
-	ld	r9,area+EX_R11(r13);	/* move r11 - r13 to stackframe	*/ \
-	ld	r10,area+EX_R12(r13);					   \
-	ld	r11,area+EX_R13(r13);					   \
-	std	r9,GPR11(r1);						   \
-	std	r10,GPR12(r1);						   \
-	std	r11,GPR13(r1);						   \
-BEGIN_FTR_SECTION_NESTED(66);						   \
-	ld	r10,area+EX_CFAR(r13);					   \
-	std	r10,ORIG_GPR3(r1);					   \
-END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);			   \
-	GET_CTR(r10, area);						   \
-	std	r10,_CTR(r1);						   \
-	std	r2,GPR2(r1);		/* save r2 in stackframe	*/ \
-	SAVE_4GPRS(3, r1);		/* save r3 - r6 in stackframe   */ \
-	SAVE_2GPRS(7, r1);		/* save r7, r8 in stackframe	*/ \
-	mflr	r9;			/* Get LR, later save to stack	*/ \
-	ld	r2,PACATOC(r13);	/* get kernel TOC into r2	*/ \
-	std	r9,_LINK(r1);						   \
-	lbz	r10,PACAIRQSOFTMASK(r13);				   \
-	mfspr	r11,SPRN_XER;		/* save XER in stackframe	*/ \
-	std	r10,SOFTE(r1);						   \
-	std	r11,_XER(r1);						   \
-	li	r9,(trap)+1;						   \
-	std	r9,_TRAP(r1);		/* set trap number		*/ \
-	li	r10,0;							   \
-	ld	r11,exception_marker@toc(r2);				   \
-	std	r10,RESULT(r1);		/* clear regs->result		*/ \
-	std	r11,STACK_FRAME_OVERHEAD-16(r1); /* mark the frame	*/
-
 /*
  * On entry r13 points to the paca, r9-r13 are saved in the paca,
  * r9 contains the saved CR, r11 and r12 contain the saved SRR0 and
@@ -452,7 +409,13 @@ END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);			   \
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0
 3:
 	.endif
-	EXCEPTION_PROLOG_COMMON_1()
+
+	std	r9,_CCR(r1)		/* save CR in stackframe	*/
+	std	r11,_NIP(r1)		/* save SRR0 in stackframe	*/
+	std	r12,_MSR(r1)		/* save SRR1 in stackframe	*/
+	std	r10,0(r1)		/* make stack chain pointer	*/
+	std	r0,GPR0(r1)		/* save r0 in stackframe	*/
+	std	r10,GPR1(r1)		/* save r1 in stackframe	*/
 
 	.if \stack
 	.if \kaup
@@ -468,7 +431,39 @@ END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66);			   \
 	.endif
 	.endif
 
-	EXCEPTION_PROLOG_COMMON_2(\area, \vec)
+	/* Save original regs values from save area to stack frame. */
+	ld	r9,\area+EX_R9(r13)	/* move r9, r10 to stackframe	*/
+	ld	r10,\area+EX_R10(r13)
+	std	r9,GPR9(r1)
+	std	r10,GPR10(r1)
+	ld	r9,\area+EX_R11(r13)	/* move r11 - r13 to stackframe	*/
+	ld	r10,\area+EX_R12(r13)
+	ld	r11,\area+EX_R13(r13)
+	std	r9,GPR11(r1)
+	std	r10,GPR12(r1)
+	std	r11,GPR13(r1)
+BEGIN_FTR_SECTION_NESTED(66)
+	ld	r10,\area+EX_CFAR(r13)
+	std	r10,ORIG_GPR3(r1)
+END_FTR_SECTION_NESTED(CPU_FTR_CFAR, CPU_FTR_CFAR, 66)
+	GET_CTR(r10, \area)
+	std	r10,_CTR(r1)
+	std	r2,GPR2(r1)		/* save r2 in stackframe	*/
+	SAVE_4GPRS(3, r1)		/* save r3 - r6 in stackframe   */
+	SAVE_2GPRS(7, r1)		/* save r7, r8 in stackframe	*/
+	mflr	r9			/* Get LR, later save to stack	*/
+	ld	r2,PACATOC(r13)		/* get kernel TOC into r2	*/
+	std	r9,_LINK(r1)
+	lbz	r10,PACAIRQSOFTMASK(r13)
+	mfspr	r11,SPRN_XER		/* save XER in stackframe	*/
+	std	r10,SOFTE(r1)
+	std	r11,_XER(r1)
+	li	r9,(\vec)+1
+	std	r9,_TRAP(r1)		/* set trap number		*/
+	li	r10,0
+	ld	r11,exception_marker@toc(r2)
+	std	r10,RESULT(r1)		/* clear regs->result		*/
+	std	r11,STACK_FRAME_OVERHEAD-16(r1) /* mark the frame	*/
 
 	.if \stack
 	ACCOUNT_STOLEN_TIME
