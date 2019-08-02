@@ -1623,11 +1623,12 @@ ice_remove_rule_internal(struct ice_hw *hw, u8 recp_id,
 		status = ice_aq_sw_rules(hw, s_rule,
 					 ICE_SW_RULE_RX_TX_NO_HDR_SIZE, 1,
 					 ice_aqc_opc_remove_sw_rules, NULL);
-		if (status)
-			goto exit;
 
 		/* Remove a book keeping from the list */
 		devm_kfree(ice_hw_to_dev(hw), s_rule);
+
+		if (status)
+			goto exit;
 
 		list_del(&list_elem->list_entry);
 		devm_kfree(ice_hw_to_dev(hw), list_elem);
