@@ -65,6 +65,15 @@
 		reg = <0x0 0x48000000 0x0 0x78000000>;
 	};
 
+	reg_12p0v: regulator-12p0v {
+		compatible = "regulator-fixed";
+		regulator-name = "D12.0V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	sound: sound {
 		compatible = "simple-audio-card";
 
