@@ -121,9 +121,9 @@ static irqreturn_t st_sensors_irq_thread(int irq, void *p)
 int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 				const struct iio_trigger_ops *trigger_ops)
 {
-	int err, irq;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 	unsigned long irq_trig;
+	int err;
 
 	sdata->trig = iio_trigger_alloc("%s-trigger", indio_dev->name);
 	if (sdata->trig == NULL) {
@@ -135,8 +135,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	sdata->trig->ops = trigger_ops;
 	sdata->trig->dev.parent = sdata->dev;
 
-	irq = sdata->get_irq_data_ready(indio_dev);
-	irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
+	irq_trig = irqd_get_trigger_type(irq_get_irq_data(sdata->irq));
 	/*
 	 * If the IRQ is triggered on falling edge, we need to mark the
 	 * interrupt as active low, if the hardware supports this.
@@ -206,12 +205,12 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	    sdata->sensor_settings->drdy_irq.stat_drdy.addr)
 		irq_trig |= IRQF_SHARED;
 
-	err = request_threaded_irq(sdata->get_irq_data_ready(indio_dev),
-			st_sensors_irq_handler,
-			st_sensors_irq_thread,
-			irq_trig,
-			sdata->trig->name,
-			sdata->trig);
+	err = request_threaded_irq(sdata->irq,
+				   st_sensors_irq_handler,
+				   st_sensors_irq_thread,
+				   irq_trig,
+				   sdata->trig->name,
+				   sdata->trig);
 	if (err) {
 		dev_err(&indio_dev->dev, "failed to request trigger IRQ.\n");
 		goto iio_trigger_free;
@@ -227,7 +226,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	return 0;
 
 iio_trigger_register_error:
-	free_irq(sdata->get_irq_data_ready(indio_dev), sdata->trig);
+	free_irq(sdata->irq, sdata->trig);
 iio_trigger_free:
 	iio_trigger_free(sdata->trig);
 	return err;
@@ -239,7 +238,7 @@ void st_sensors_deallocate_trigger(struct iio_dev *indio_dev)
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
 	iio_trigger_unregister(sdata->trig);
-	free_irq(sdata->get_irq_data_ready(indio_dev), sdata->trig);
+	free_irq(sdata->irq, sdata->trig);
 	iio_trigger_free(sdata->trig);
 }
 EXPORT_SYMBOL(st_sensors_deallocate_trigger);

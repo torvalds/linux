@@ -20,13 +20,6 @@
 
 #define ST_SENSORS_I2C_MULTIREAD	0x80
 
-static unsigned int st_sensors_i2c_get_irq(struct iio_dev *indio_dev)
-{
-	struct st_sensor_data *sdata = iio_priv(indio_dev);
-
-	return to_i2c_client(sdata->dev)->irq;
-}
-
 static const struct regmap_config st_sensors_i2c_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -69,7 +62,7 @@ int st_sensors_i2c_configure(struct iio_dev *indio_dev,
 	indio_dev->name = client->name;
 
 	sdata->dev = &client->dev;
-	sdata->get_irq_data_ready = st_sensors_i2c_get_irq;
+	sdata->irq = client->irq;
 
 	return 0;
 }

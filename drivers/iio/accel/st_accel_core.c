@@ -1169,7 +1169,6 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 	struct st_sensor_data *adata = iio_priv(indio_dev);
 	struct st_sensors_platform_data *pdata =
 		(struct st_sensors_platform_data *)adata->dev->platform_data;
-	int irq = adata->get_irq_data_ready(indio_dev);
 	struct iio_chan_spec *channels;
 	size_t channels_size;
 	int err;
@@ -1217,7 +1216,7 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 	if (err < 0)
 		goto st_accel_power_off;
 
-	if (irq > 0) {
+	if (adata->irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
 						 ST_ACCEL_TRIGGER_OPS);
 		if (err < 0)
@@ -1234,7 +1233,7 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 	return 0;
 
 st_accel_device_register_error:
-	if (irq > 0)
+	if (adata->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 st_accel_probe_trigger_error:
 	st_accel_deallocate_ring(indio_dev);
@@ -1252,7 +1251,7 @@ void st_accel_common_remove(struct iio_dev *indio_dev)
 	st_sensors_power_disable(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (adata->get_irq_data_ready(indio_dev) > 0)
+	if (adata->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 
 	st_accel_deallocate_ring(indio_dev);

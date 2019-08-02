@@ -388,7 +388,6 @@ EXPORT_SYMBOL(st_gyro_get_settings);
 int st_gyro_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *gdata = iio_priv(indio_dev);
-	int irq = gdata->get_irq_data_ready(indio_dev);
 	int err;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -419,7 +418,7 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 	if (err < 0)
 		goto st_gyro_power_off;
 
-	if (irq > 0) {
+	if (gdata->irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
 						  ST_GYRO_TRIGGER_OPS);
 		if (err < 0)
@@ -436,7 +435,7 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 	return 0;
 
 st_gyro_device_register_error:
-	if (irq > 0)
+	if (gdata->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 st_gyro_probe_trigger_error:
 	st_gyro_deallocate_ring(indio_dev);
@@ -454,7 +453,7 @@ void st_gyro_common_remove(struct iio_dev *indio_dev)
 	st_sensors_power_disable(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (gdata->get_irq_data_ready(indio_dev) > 0)
+	if (gdata->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 
 	st_gyro_deallocate_ring(indio_dev);

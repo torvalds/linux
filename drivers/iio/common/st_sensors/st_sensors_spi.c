@@ -18,13 +18,6 @@
 
 #define ST_SENSORS_SPI_MULTIREAD	0xc0
 
-static unsigned int st_sensors_spi_get_irq(struct iio_dev *indio_dev)
-{
-	struct st_sensor_data *sdata = iio_priv(indio_dev);
-
-	return to_spi_device(sdata->dev)->irq;
-}
-
 static const struct regmap_config st_sensors_spi_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -117,7 +110,7 @@ int st_sensors_spi_configure(struct iio_dev *indio_dev,
 	indio_dev->name = spi->modalias;
 
 	sdata->dev = &spi->dev;
-	sdata->get_irq_data_ready = st_sensors_spi_get_irq;
+	sdata->irq = spi->irq;
 
 	return 0;
 }

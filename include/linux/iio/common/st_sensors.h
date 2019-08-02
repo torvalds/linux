@@ -220,7 +220,7 @@ struct st_sensor_settings {
  * num_data_channels: Number of data channels used in buffer.
  * @drdy_int_pin: Redirect DRDY on pin 1 (1) or pin 2 (2).
  * @int_pin_open_drain: Set the interrupt/DRDY to open drain.
- * @get_irq_data_ready: Function to get the IRQ used for data ready signal.
+ * @irq: the IRQ number.
  * @edge_irq: the IRQ triggers on edges and need special handling.
  * @hw_irq_trigger: if we're using the hardware interrupt on the sensor.
  * @hw_timestamp: Latest timestamp from the interrupt handler, when in use.
@@ -244,8 +244,7 @@ struct st_sensor_data {
 
 	u8 drdy_int_pin;
 	bool int_pin_open_drain;
-
-	unsigned int (*get_irq_data_ready) (struct iio_dev *indio_dev);
+	int irq;
 
 	bool edge_irq;
 	bool hw_irq_trigger;

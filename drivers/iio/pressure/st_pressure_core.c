@@ -686,7 +686,6 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 	struct st_sensor_data *press_data = iio_priv(indio_dev);
 	struct st_sensors_platform_data *pdata =
 		(struct st_sensors_platform_data *)press_data->dev->platform_data;
-	int irq = press_data->get_irq_data_ready(indio_dev);
 	int err;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -729,7 +728,7 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 	if (err < 0)
 		goto st_press_power_off;
 
-	if (irq > 0) {
+	if (press_data->irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
 						  ST_PRESS_TRIGGER_OPS);
 		if (err < 0)
@@ -746,7 +745,7 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 	return err;
 
 st_press_device_register_error:
-	if (irq > 0)
+	if (press_data->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 st_press_probe_trigger_error:
 	st_press_deallocate_ring(indio_dev);
@@ -764,7 +763,7 @@ void st_press_common_remove(struct iio_dev *indio_dev)
 	st_sensors_power_disable(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (press_data->get_irq_data_ready(indio_dev) > 0)
+	if (press_data->irq > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 
 	st_press_deallocate_ring(indio_dev);
