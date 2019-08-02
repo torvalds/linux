@@ -567,6 +567,8 @@ static void ice_reset_subtask(struct ice_pf *pf)
 			reset_type = ICE_RESET_CORER;
 		if (test_and_clear_bit(__ICE_GLOBR_RECV, pf->state))
 			reset_type = ICE_RESET_GLOBR;
+		if (test_and_clear_bit(__ICE_EMPR_RECV, pf->state))
+			reset_type = ICE_RESET_EMPR;
 		/* return if no valid reset type requested */
 		if (reset_type == ICE_RESET_INVAL)
 			return;
