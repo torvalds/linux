@@ -1852,7 +1852,11 @@ EXC_REAL_END(denorm_exception_hv, 0x1500, 0x100)
 
 #ifdef CONFIG_PPC_DENORMALISATION
 EXC_VIRT_BEGIN(denorm_exception, 0x5500, 0x100)
-	b	exc_real_0x1500_denorm_exception_hv
+	INT_HANDLER denorm_exception, 0x1500, 0, 2, 1, EXC_HV, PACA_EXGEN, 1, 0, 0, 0, 0
+	mfspr	r10,SPRN_HSRR1
+	andis.	r10,r10,(HSRR1_DENORM)@h /* denorm? */
+	bne+	denorm_assist
+	INT_VIRT_SAVE_SRR_AND_JUMP denorm_common, EXC_HV
 EXC_VIRT_END(denorm_exception, 0x5500, 0x100)
 #else
 EXC_VIRT_NONE(0x5500, 0x100)
