@@ -4,14 +4,14 @@
 #ifndef _ICE_TYPE_H_
 #define _ICE_TYPE_H_
 
+#define ICE_BYTES_PER_WORD	2
+#define ICE_BYTES_PER_DWORD	4
+
 #include "ice_status.h"
 #include "ice_hw_autogen.h"
 #include "ice_osdep.h"
 #include "ice_controlq.h"
 #include "ice_lan_tx_rx.h"
-
-#define ICE_BYTES_PER_WORD	2
-#define ICE_BYTES_PER_DWORD	4
 
 static inline bool ice_is_tc_ena(unsigned long bitmap, u8 tc)
 {
