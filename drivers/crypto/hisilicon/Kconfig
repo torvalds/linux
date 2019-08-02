@@ -12,3 +12,10 @@ config CRYPTO_DEV_HISI_SEC
 
 	  To compile this as a module, choose M here: the module
 	  will be called hisi_sec.
+
+config CRYPTO_DEV_HISI_QM
+	tristate
+	depends on ARM64 && PCI && PCI_MSI
+	help
+	  HiSilicon accelerator engines use a common queue management
+	  interface. Specific engine driver may use this module.
