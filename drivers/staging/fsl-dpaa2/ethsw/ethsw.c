@@ -641,8 +641,6 @@ static int port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	if (!dma_mem)
 		return -ENOMEM;
 
-	memset(dma_mem, 0, fdb_dump_size);
-
 	fdb_dump_iova = dma_map_single(dev, dma_mem, fdb_dump_size,
 				       DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, fdb_dump_iova)) {
