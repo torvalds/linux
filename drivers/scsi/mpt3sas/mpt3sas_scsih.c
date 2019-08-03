@@ -4670,11 +4670,8 @@ scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 	 * since we're lockless at this point
 	 */
 	do {
-		if (test_bit(0, &sas_device_priv_data->ata_command_pending)) {
-			scmd->result = SAM_STAT_BUSY;
-			scmd->scsi_done(scmd);
-			return 0;
-		}
+		if (test_bit(0, &sas_device_priv_data->ata_command_pending))
+			return SCSI_MLQUEUE_DEVICE_BUSY;
 	} while (_scsih_set_satl_pending(scmd, true));
 
 	if (scmd->sc_data_direction == DMA_FROM_DEVICE)
