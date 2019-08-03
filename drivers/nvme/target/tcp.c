@@ -348,7 +348,8 @@ static int nvmet_tcp_map_data(struct nvmet_tcp_cmd *cmd)
 
 	return 0;
 err:
-	sgl_free(cmd->req.sg);
+	if (cmd->req.sg_cnt)
+		sgl_free(cmd->req.sg);
 	return NVME_SC_INTERNAL;
 }
 
@@ -553,7 +554,8 @@ static int nvmet_try_send_data(struct nvmet_tcp_cmd *cmd)
 
 	if (queue->nvme_sq.sqhd_disabled) {
 		kfree(cmd->iov);
-		sgl_free(cmd->req.sg);
+		if (cmd->req.sg_cnt)
+			sgl_free(cmd->req.sg);
 	}
 
 	return 1;
@@ -584,7 +586,8 @@ static int nvmet_try_send_response(struct nvmet_tcp_cmd *cmd,
 		return -EAGAIN;
 
 	kfree(cmd->iov);
-	sgl_free(cmd->req.sg);
+	if (cmd->req.sg_cnt)
+		sgl_free(cmd->req.sg);
 	cmd->queue->snd_cmd = NULL;
 	nvmet_tcp_put_cmd(cmd);
 	return 1;
@@ -1306,7 +1309,8 @@ static void nvmet_tcp_finish_cmd(struct nvmet_tcp_cmd *cmd)
 {
 	nvmet_req_uninit(&cmd->req);
 	nvmet_tcp_unmap_pdu_iovec(cmd);
-	sgl_free(cmd->req.sg);
+	if (cmd->req.sg_cnt)
+		sgl_free(cmd->req.sg);
 }
 
 static void nvmet_tcp_uninit_data_in_cmds(struct nvmet_tcp_queue *queue)
