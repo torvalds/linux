@@ -2,6 +2,7 @@
 obj-$(CONFIG_COMMON_CLK_QCOM) += clk-qcom.o
 
 clk-qcom-y += common.o
+clk-qcom-y += vdd-class.o
 clk-qcom-y += clk-regmap.o
 clk-qcom-y += clk-alpha-pll.o
 clk-qcom-y += clk-pll.o
