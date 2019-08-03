@@ -934,9 +934,32 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		    MPI26_TOOLBOX_BACKEND_PCIE_LANE_MARGIN))
 			ioc->build_sg(ioc, psge, data_out_dma, data_out_sz,
 				data_in_dma, data_in_sz);
-		else
+		else if (toolbox_request->Tool ==
+				MPI2_TOOLBOX_MEMORY_MOVE_TOOL) {
+			Mpi2ToolboxMemMoveRequest_t *mem_move_request =
+					(Mpi2ToolboxMemMoveRequest_t *)request;
+			Mpi2SGESimple64_t tmp, *src = NULL, *dst = NULL;
+
+			ioc->build_sg_mpi(ioc, psge, data_out_dma,
+					data_out_sz, data_in_dma, data_in_sz);
+			if (data_out_sz && !data_in_sz) {
+				dst =
+				    (Mpi2SGESimple64_t *)&mem_move_request->SGL;
+				src = (void *)dst + ioc->sge_size;
+
+				memcpy(&tmp, src, ioc->sge_size);
+				memcpy(src, dst, ioc->sge_size);
+				memcpy(dst, &tmp, ioc->sge_size);
+			}
+			if (ioc->logging_level & MPT_DEBUG_TM) {
+				ioc_info(ioc,
+				  "Mpi2ToolboxMemMoveRequest_t request msg\n");
+				_debug_dump_mf(mem_move_request,
+							ioc->request_sz/4);
+			}
+		} else
 			ioc->build_sg_mpi(ioc, psge, data_out_dma, data_out_sz,
-				data_in_dma, data_in_sz);
+			    data_in_dma, data_in_sz);
 		ioc->put_smid_default(ioc, smid);
 		break;
 	}
