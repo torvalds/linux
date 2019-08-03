@@ -583,6 +583,7 @@ static inline void sas_device_put(struct _sas_device *s)
  * @enclosure_level: The level of device's enclosure from the controller
  * @connector_name: ASCII value of the Connector's name
  * @serial_number: pointer of serial number string allocated runtime
+ * @access_status: Device's Access Status
  * @refcount: reference count for deletion
  */
 struct _pcie_device {
@@ -604,6 +605,7 @@ struct _pcie_device {
 	u8	connector_name[4];
 	u8	*serial_number;
 	u8	reset_timeout;
+	u8	access_status;
 	struct kref refcount;
 };
 /**

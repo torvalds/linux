@@ -1152,6 +1152,11 @@ _scsih_pcie_device_add(struct MPT3SAS_ADAPTER *ioc,
 	list_add_tail(&pcie_device->list, &ioc->pcie_device_list);
 	spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
 
+	if (pcie_device->access_status ==
+	    MPI26_PCIEDEV0_ASTATUS_DEVICE_BLOCKED) {
+		clear_bit(pcie_device->handle, ioc->pend_os_device_add);
+		return;
+	}
 	if (scsi_add_device(ioc->shost, PCIE_CHANNEL, pcie_device->id, 0)) {
 		_scsih_pcie_device_remove(ioc, pcie_device);
 	} else if (!pcie_device->starget) {
@@ -1196,7 +1201,9 @@ _scsih_pcie_device_init_add(struct MPT3SAS_ADAPTER *ioc,
 	spin_lock_irqsave(&ioc->pcie_device_lock, flags);
 	pcie_device_get(pcie_device);
 	list_add_tail(&pcie_device->list, &ioc->pcie_device_init_list);
-	_scsih_determine_boot_device(ioc, pcie_device, PCIE_CHANNEL);
+	if (pcie_device->access_status !=
+	    MPI26_PCIEDEV0_ASTATUS_DEVICE_BLOCKED)
+		_scsih_determine_boot_device(ioc, pcie_device, PCIE_CHANNEL);
 	spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
 }
 /**
@@ -6548,6 +6555,11 @@ _scsih_check_pcie_access_status(struct MPT3SAS_ADAPTER *ioc, u64 wwid,
 		break;
 	case MPI26_PCIEDEV0_ASTATUS_DEVICE_BLOCKED:
 		desc = "PCIe device blocked";
+		ioc_info(ioc,
+		    "Device with Access Status (%s): wwid(0x%016llx), "
+		    "handle(0x%04x)\n ll only be added to the internal list",
+		    desc, (u64)wwid, handle);
+		rc = 0;
 		break;
 	case MPI26_PCIEDEV0_ASTATUS_MEMORY_SPACE_ACCESS_FAILED:
 		desc = "PCIe device mem space access failed";
@@ -6652,7 +6664,8 @@ _scsih_pcie_device_remove_from_sml(struct MPT3SAS_ADAPTER *ioc,
 			 pcie_device->enclosure_level,
 			 pcie_device->connector_name);
 
-	if (pcie_device->starget)
+	if (pcie_device->starget && (pcie_device->access_status !=
+				MPI26_PCIEDEV0_ASTATUS_DEVICE_BLOCKED))
 		scsi_remove_target(&pcie_device->starget->dev);
 	dewtprintk(ioc,
 		   ioc_info(ioc, "%s: exit: handle(0x%04x), wwid(0x%016llx)\n",
@@ -6718,6 +6731,7 @@ _scsih_pcie_check_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	if (unlikely(pcie_device->handle != handle)) {
 		starget = pcie_device->starget;
 		sas_target_priv_data = starget->hostdata;
+		pcie_device->access_status = pcie_device_pg0.AccessStatus;
 		starget_printk(KERN_INFO, starget,
 		    "handle changed from(0x%04x) to (0x%04x)!!!\n",
 		    pcie_device->handle, handle);
@@ -6859,6 +6873,7 @@ _scsih_pcie_add_device(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 	pcie_device->id = ioc->pcie_target_id++;
 	pcie_device->channel = PCIE_CHANNEL;
 	pcie_device->handle = handle;
+	pcie_device->access_status = pcie_device_pg0.AccessStatus;
 	pcie_device->device_info = le32_to_cpu(pcie_device_pg0.DeviceInfo);
 	pcie_device->wwid = wwid;
 	pcie_device->port_num = pcie_device_pg0.PortNum;
@@ -8531,6 +8546,8 @@ _scsih_mark_responding_pcie_device(struct MPT3SAS_ADAPTER *ioc,
 		if ((pcie_device->wwid == le64_to_cpu(pcie_device_pg0->WWID))
 		    && (pcie_device->slot == le16_to_cpu(
 		    pcie_device_pg0->Slot))) {
+			pcie_device->access_status =
+					pcie_device_pg0->AccessStatus;
 			pcie_device->responding = 1;
 			starget = pcie_device->starget;
 			if (starget && starget->hostdata) {
@@ -10060,6 +10077,12 @@ _scsih_probe_pcie(struct MPT3SAS_ADAPTER *ioc)
 	/* PCIe Device List */
 	while ((pcie_device = get_next_pcie_device(ioc))) {
 		if (pcie_device->starget) {
+			pcie_device_put(pcie_device);
+			continue;
+		}
+		if (pcie_device->access_status ==
+		    MPI26_PCIEDEV0_ASTATUS_DEVICE_BLOCKED) {
+			pcie_device_make_active(ioc, pcie_device);
 			pcie_device_put(pcie_device);
 			continue;
 		}
