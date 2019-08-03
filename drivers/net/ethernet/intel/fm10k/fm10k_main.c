@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include <linux/types.h>
 #include <linux/module.h>
@@ -17,7 +17,7 @@ const char fm10k_driver_version[] = DRV_VERSION;
 char fm10k_driver_name[] = "fm10k";
 static const char fm10k_driver_string[] = DRV_SUMMARY;
 static const char fm10k_copyright[] =
-	"Copyright(c) 2013 - 2018 Intel Corporation.";
+	"Copyright(c) 2013 - 2019 Intel Corporation.";
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION(DRV_SUMMARY);
@@ -1870,7 +1870,7 @@ static int fm10k_init_msix_capability(struct fm10k_intfc *interface)
 static bool fm10k_cache_ring_qos(struct fm10k_intfc *interface)
 {
 	struct net_device *dev = interface->netdev;
-	int pc, offset, rss_i, i, q_idx;
+	int pc, offset, rss_i, i;
 	u16 pc_stride = interface->ring_feature[RING_F_QOS].mask + 1;
 	u8 num_pcs = netdev_get_num_tc(dev);
 
@@ -1880,7 +1880,8 @@ static bool fm10k_cache_ring_qos(struct fm10k_intfc *interface)
 	rss_i = interface->ring_feature[RING_F_RSS].indices;
 
 	for (pc = 0, offset = 0; pc < num_pcs; pc++, offset += rss_i) {
-		q_idx = pc;
+		int q_idx = pc;
+
 		for (i = 0; i < rss_i; i++) {
 			interface->tx_ring[offset + i]->reg_idx = q_idx;
 			interface->tx_ring[offset + i]->qos_pc = pc;

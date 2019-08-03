@@ -169,7 +169,6 @@ void fm10k_unmap_and_free_tx_resource(struct fm10k_ring *ring,
  **/
 static void fm10k_clean_tx_ring(struct fm10k_ring *tx_ring)
 {
-	struct fm10k_tx_buffer *tx_buffer;
 	unsigned long size;
 	u16 i;
 
@@ -179,7 +178,8 @@ static void fm10k_clean_tx_ring(struct fm10k_ring *tx_ring)
 
 	/* Free all the Tx ring sk_buffs */
 	for (i = 0; i < tx_ring->count; i++) {
-		tx_buffer = &tx_ring->tx_buffer[i];
+		struct fm10k_tx_buffer *tx_buffer = &tx_ring->tx_buffer[i];
+
 		fm10k_unmap_and_free_tx_resource(tx_ring, tx_buffer);
 	}
 
@@ -1444,11 +1444,11 @@ static int __fm10k_setup_tc(struct net_device *dev, enum tc_setup_type type,
 static void fm10k_assign_l2_accel(struct fm10k_intfc *interface,
 				  struct fm10k_l2_accel *l2_accel)
 {
-	struct fm10k_ring *ring;
 	int i;
 
 	for (i = 0; i < interface->num_rx_queues; i++) {
-		ring = interface->rx_ring[i];
+		struct fm10k_ring *ring = interface->rx_ring[i];
+
 		rcu_assign_pointer(ring->l2_accel, l2_accel);
 	}
 

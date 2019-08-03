@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include <linux/vmalloc.h>
 
@@ -222,7 +222,6 @@ static void __fm10k_add_ethtool_stats(u64 **data, void *pointer,
 				      const unsigned int size)
 {
 	unsigned int i;
-	char *p;
 
 	if (!pointer) {
 		/* memory is not zero allocated so we have to clear it */
@@ -232,7 +231,7 @@ static void __fm10k_add_ethtool_stats(u64 **data, void *pointer,
 	}
 
 	for (i = 0; i < size; i++) {
-		p = (char *)pointer + stats[i].stat_offset;
+		char *p = (char *)pointer + stats[i].stat_offset;
 
 		switch (stats[i].sizeof_stat) {
 		case sizeof(u64):
@@ -651,7 +650,6 @@ static int fm10k_set_coalesce(struct net_device *dev,
 			      struct ethtool_coalesce *ec)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	struct fm10k_q_vector *qv;
 	u16 tx_itr, rx_itr;
 	int i;
 
@@ -677,7 +675,8 @@ static int fm10k_set_coalesce(struct net_device *dev,
 
 	/* update q_vectors */
 	for (i = 0; i < interface->num_q_vectors; i++) {
-		qv = interface->q_vector[i];
+		struct fm10k_q_vector *qv = interface->q_vector[i];
+
 		qv->tx.itr = tx_itr;
 		qv->rx.itr = rx_itr;
 	}

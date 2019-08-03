@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -344,7 +344,6 @@ static void fm10k_detach_subtask(struct fm10k_intfc *interface)
 	struct net_device *netdev = interface->netdev;
 	u32 __iomem *hw_addr;
 	u32 value;
-	int err;
 
 	/* do nothing if netdev is still present or hw_addr is set */
 	if (netif_device_present(netdev) || interface->hw.hw_addr)
@@ -362,6 +361,8 @@ static void fm10k_detach_subtask(struct fm10k_intfc *interface)
 	hw_addr = READ_ONCE(interface->uc_addr);
 	value = readl(hw_addr);
 	if (~value) {
+		int err;
+
 		/* Make sure the reset was initiated because we detached,
 		 * otherwise we might race with a different reset flow.
 		 */
@@ -697,8 +698,6 @@ static void fm10k_watchdog_subtask(struct fm10k_intfc *interface)
  */
 static void fm10k_check_hang_subtask(struct fm10k_intfc *interface)
 {
-	int i;
-
 	/* If we're down or resetting, just bail */
 	if (test_bit(__FM10K_DOWN, interface->state) ||
 	    test_bit(__FM10K_RESETTING, interface->state))
@@ -710,6 +709,8 @@ static void fm10k_check_hang_subtask(struct fm10k_intfc *interface)
 	interface->next_tx_hang_check = jiffies + (2 * HZ);
 
 	if (netif_carrier_ok(interface->netdev)) {
+		int i;
+
 		/* Force detection of hung controller */
 		for (i = 0; i < interface->num_tx_queues; i++)
 			set_check_for_tx_hang(interface->tx_ring[i]);
