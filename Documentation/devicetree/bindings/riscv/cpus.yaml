@@ -50,6 +50,10 @@ properties:
       User-Level ISA document, available from
       https://riscv.org/specifications/
 
+      While the isa strings in ISA specification are case
+      insensitive, letters in the riscv,isa string must be all
+      lowercase to simplify parsing.
+
   timebase-frequency:
     type: integer
     minimum: 1
