@@ -8,11 +8,6 @@
 #include <linux/debugfs.h>
 #include "lapic.h"
 
-bool kvm_arch_has_vcpu_debugfs(void)
-{
-	return true;
-}
-
 static int vcpu_get_timer_advance_ns(void *data, u64 *val)
 {
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) data;
