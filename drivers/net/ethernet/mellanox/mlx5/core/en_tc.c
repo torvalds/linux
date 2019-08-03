@@ -126,6 +126,7 @@ struct mlx5e_tc_flow {
 	struct list_head	hairpin; /* flows sharing the same hairpin */
 	struct list_head	peer;    /* flows with peer flow */
 	struct list_head	unready; /* flows not ready to be offloaded (e.g due to missing route) */
+	struct list_head	tmp_list; /* temporary flow list used by neigh update */
 	refcount_t		refcnt;
 	struct rcu_head		rcu_head;
 	union {
@@ -1412,6 +1413,15 @@ static struct mlx5_fc *mlx5e_tc_get_counter(struct mlx5e_tc_flow *flow)
 		return flow->nic_attr->counter;
 }
 
+/* Iterate over tmp_list of flows attached to flow_list head. */
+static void mlx5e_put_encap_flow_list(struct mlx5e_priv *priv, struct list_head *flow_list)
+{
+	struct mlx5e_tc_flow *flow, *tmp;
+
+	list_for_each_entry_safe(flow, tmp, flow_list, tmp_list)
+		mlx5e_flow_put(priv, flow);
+}
+
 static struct mlx5e_encap_entry *
 mlx5e_get_next_valid_encap(struct mlx5e_neigh_hash_entry *nhe,
 			   struct mlx5e_encap_entry *e)
@@ -1481,30 +1491,35 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 	 * next one.
 	 */
 	while ((e = mlx5e_get_next_valid_encap(nhe, e)) != NULL) {
+		struct mlx5e_priv *priv = netdev_priv(e->out_dev);
 		struct encap_flow_item *efi, *tmp;
+		struct mlx5_eswitch *esw;
+		LIST_HEAD(flow_list);
 
+		esw = priv->mdev->priv.eswitch;
+		mutex_lock(&esw->offloads.encap_tbl_lock);
 		list_for_each_entry_safe(efi, tmp, &e->flows, list) {
 			flow = container_of(efi, struct mlx5e_tc_flow,
 					    encaps[efi->index]);
 			if (IS_ERR(mlx5e_flow_get(flow)))
 				continue;
+			list_add(&flow->tmp_list, &flow_list);
 
 			if (mlx5e_is_offloaded_flow(flow)) {
 				counter = mlx5e_tc_get_counter(flow);
 				lastuse = mlx5_fc_query_lastuse(counter);
 				if (time_after((unsigned long)lastuse, nhe->reported_lastuse)) {
-					mlx5e_flow_put(netdev_priv(e->out_dev), flow);
 					neigh_used = true;
 					break;
 				}
 			}
-
-			mlx5e_flow_put(netdev_priv(e->out_dev), flow);
 		}
+		mutex_unlock(&esw->offloads.encap_tbl_lock);
 
+		mlx5e_put_encap_flow_list(priv, &flow_list);
 		if (neigh_used) {
 			/* release current encap before breaking the loop */
-			mlx5e_encap_put(netdev_priv(e->out_dev), e);
+			mlx5e_encap_put(priv, e);
 			break;
 		}
 	}
