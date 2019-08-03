@@ -105,7 +105,16 @@ static int __init early_coherent_pool(char *p)
 }
 early_param("coherent_pool", early_coherent_pool);
 
-int __init dma_atomic_pool_init(gfp_t gfp, pgprot_t prot)
+static gfp_t dma_atomic_pool_gfp(void)
+{
+	if (IS_ENABLED(CONFIG_ZONE_DMA))
+		return GFP_DMA;
+	if (IS_ENABLED(CONFIG_ZONE_DMA32))
+		return GFP_DMA32;
+	return GFP_KERNEL;
+}
+
+static int __init dma_atomic_pool_init(void)
 {
 	unsigned int pool_size_order = get_order(atomic_pool_size);
 	unsigned long nr_pages = atomic_pool_size >> PAGE_SHIFT;
@@ -117,7 +126,7 @@ int __init dma_atomic_pool_init(gfp_t gfp, pgprot_t prot)
 		page = dma_alloc_from_contiguous(NULL, nr_pages,
 						 pool_size_order, false);
 	else
-		page = alloc_pages(gfp, pool_size_order);
+		page = alloc_pages(dma_atomic_pool_gfp(), pool_size_order);
 	if (!page)
 		goto out;
 
@@ -128,7 +137,8 @@ int __init dma_atomic_pool_init(gfp_t gfp, pgprot_t prot)
 		goto free_page;
 
 	addr = dma_common_contiguous_remap(page, atomic_pool_size, VM_USERMAP,
-					   prot, __builtin_return_address(0));
+					   pgprot_dmacoherent(PAGE_KERNEL),
+					   __builtin_return_address(0));
 	if (!addr)
 		goto destroy_genpool;
 
@@ -155,6 +165,7 @@ out:
 		atomic_pool_size / 1024);
 	return -ENOMEM;
 }
+postcore_initcall(dma_atomic_pool_init);
 
 bool dma_in_atomic_pool(void *start, size_t size)
 {
