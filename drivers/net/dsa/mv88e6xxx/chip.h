@@ -57,6 +57,7 @@ enum mv88e6xxx_model {
 	MV88E6190,
 	MV88E6190X,
 	MV88E6191,
+	MV88E6220,
 	MV88E6240,
 	MV88E6250,
 	MV88E6290,
@@ -77,7 +78,7 @@ enum mv88e6xxx_family {
 	MV88E6XXX_FAMILY_6097,	/* 6046 6085 6096 6097 */
 	MV88E6XXX_FAMILY_6165,	/* 6123 6161 6165 */
 	MV88E6XXX_FAMILY_6185,	/* 6108 6121 6122 6131 6152 6155 6182 6185 */
-	MV88E6XXX_FAMILY_6250,	/* 6250 */
+	MV88E6XXX_FAMILY_6250,	/* 6220 6250 */
 	MV88E6XXX_FAMILY_6320,	/* 6320 6321 */
 	MV88E6XXX_FAMILY_6341,	/* 6141 6341 */
 	MV88E6XXX_FAMILY_6351,	/* 6171 6175 6350 6351 */
@@ -105,6 +106,11 @@ struct mv88e6xxx_info {
 	unsigned int g2_irqs;
 	bool pvt;
 
+	/* Mark certain ports as invalid. This is required for example for the
+	 * MV88E6220 (which is in general a MV88E6250 with 7 ports) but the
+	 * ports 2-4 are not routet to pins.
+	 */
+	unsigned int invalid_port_mask;
 	/* Multi-chip Addressing Mode.
 	 * Some chips respond to only 2 registers of its own SMI device address
 	 * when it is non-zero, and use indirect access to internal registers.
@@ -389,6 +395,7 @@ struct mv88e6xxx_ops {
 				u8 out);
 	int (*port_disable_learn_limit)(struct mv88e6xxx_chip *chip, int port);
 	int (*port_disable_pri_override)(struct mv88e6xxx_chip *chip, int port);
+	int (*port_setup_message_port)(struct mv88e6xxx_chip *chip, int port);
 
 	/* CMODE control what PHY mode the MAC will use, eg. SGMII, RGMII, etc.
 	 * Some chips allow this to be configured on specific ports.
@@ -532,6 +539,10 @@ struct mv88e6xxx_ptp_ops {
 	int arr1_sts_reg;
 	int dep_sts_reg;
 	u32 rx_filters;
+	u32 cc_shift;
+	u32 cc_mult;
+	u32 cc_mult_num;
+	u32 cc_mult_dem;
 };
 
 #define STATS_TYPE_PORT		BIT(0)
@@ -568,6 +579,11 @@ static inline u16 mv88e6xxx_port_mask(struct mv88e6xxx_chip *chip)
 static inline unsigned int mv88e6xxx_num_gpio(struct mv88e6xxx_chip *chip)
 {
 	return chip->info->num_gpio;
+}
+
+static inline bool mv88e6xxx_is_invalid_port(struct mv88e6xxx_chip *chip, int port)
+{
+	return (chip->info->invalid_port_mask & BIT(port)) != 0;
 }
 
 int mv88e6xxx_read(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
