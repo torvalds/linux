@@ -1735,4 +1735,20 @@ mpt3sas_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 /* NCQ Prio Handling Check */
 bool scsih_ncq_prio_supp(struct scsi_device *sdev);
 
+/**
+ * _scsih_is_pcie_scsi_device - determines if device is an pcie scsi device
+ * @device_info: bitfield providing information about the device.
+ * Context: none
+ *
+ * Returns 1 if scsi device.
+ */
+static inline int
+mpt3sas_scsih_is_pcie_scsi_device(u32 device_info)
+{
+	if ((device_info &
+	    MPI26_PCIE_DEVINFO_MASK_DEVICE_TYPE) == MPI26_PCIE_DEVINFO_SCSI)
+		return 1;
+	else
+		return 0;
+}
 #endif /* MPT3SAS_BASE_H_INCLUDED */

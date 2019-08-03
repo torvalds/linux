@@ -2260,6 +2260,11 @@ base_is_prp_possible(struct MPT3SAS_ADAPTER *ioc,
 	bool build_prp = true;
 
 	data_length = scsi_bufflen(scmd);
+	if (pcie_device &&
+	    (mpt3sas_scsih_is_pcie_scsi_device(pcie_device->device_info))) {
+		build_prp = false;
+		return build_prp;
+	}
 
 	/* If Datalenth is <= 16K and number of SGE’s entries are <= 2
 	 * we built IEEE SGL
