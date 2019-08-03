@@ -287,18 +287,6 @@ static const struct drm_i915_mocs_entry icelake_mocs_table[] = {
 	GEN11_MOCS_ENTRIES
 };
 
-/**
- * get_mocs_settings()
- * @gt:		gt device
- * @table:      Output table that will be made to point at appropriate
- *	      MOCS values for the device.
- *
- * This function will return the values of the MOCS table that needs to
- * be programmed for the platform. It will return the values that need
- * to be programmed and if they need to be programmed.
- *
- * Return: true if there are applicable MOCS settings for the device.
- */
 static bool get_mocs_settings(struct intel_gt *gt,
 			      struct drm_i915_mocs_table *table)
 {
@@ -420,12 +408,6 @@ void intel_mocs_init_engine(struct intel_engine_cs *engine)
 				      unused_value);
 }
 
-/**
- * intel_mocs_init_global() - program the global mocs registers
- * gt:      pointer to struct intel_gt
- *
- * This function initializes the MOCS global registers.
- */
 static void intel_mocs_init_global(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
@@ -456,16 +438,6 @@ static void intel_mocs_init_global(struct intel_gt *gt)
 				   table.table[0].control_value);
 }
 
-/**
- * emit_mocs_control_table() - emit the mocs control table
- * @rq:	Request to set up the MOCS table for.
- * @table:	The values to program into the control regs.
- *
- * This function simply emits a MI_LOAD_REGISTER_IMM command for the
- * given table starting at the given address.
- *
- * Return: 0 on success, otherwise the error status.
- */
 static int emit_mocs_control_table(struct i915_request *rq,
 				   const struct drm_i915_mocs_table *table)
 {
@@ -525,17 +497,6 @@ static inline u32 l3cc_combine(const struct drm_i915_mocs_table *table,
 	return low | high << 16;
 }
 
-/**
- * emit_mocs_l3cc_table() - emit the mocs control table
- * @rq:	Request to set up the MOCS table for.
- * @table:	The values to program into the control regs.
- *
- * This function simply emits a MI_LOAD_REGISTER_IMM command for the
- * given table starting at the given address. This register set is
- * programmed in pairs.
- *
- * Return: 0 on success, otherwise the error status.
- */
 static int emit_mocs_l3cc_table(struct i915_request *rq,
 				const struct drm_i915_mocs_table *table)
 {
@@ -584,20 +545,6 @@ static int emit_mocs_l3cc_table(struct i915_request *rq,
 	return 0;
 }
 
-/**
- * intel_mocs_init_l3cc_table() - program the mocs control table
- * @gt: the intel_gt container
- *
- * This function simply programs the mocs registers for the given table
- * starting at the given address. This register set is  programmed in pairs.
- *
- * These registers may get programmed more than once, it is simpler to
- * re-program 32 registers than maintain the state of when they were programmed.
- * We are always reprogramming with the same values and this only on context
- * start.
- *
- * Return: Nothing.
- */
 static void intel_mocs_init_l3cc_table(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
@@ -639,8 +586,8 @@ static void intel_mocs_init_l3cc_table(struct intel_gt *gt)
 }
 
 /**
- * intel_rcs_context_init_mocs() - program the MOCS register.
- * @rq:	Request to set up the MOCS tables for.
+ * intel_mocs_emit() - program the MOCS register.
+ * @rq:	Request to use to set up the MOCS tables.
  *
  * This function will emit a batch buffer with the values required for
  * programming the MOCS register values for all the currently supported
