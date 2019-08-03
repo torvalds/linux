@@ -1149,16 +1149,16 @@ i915_emit_bb_start(struct i915_request *rq,
 int intel_ring_pin(struct intel_ring *ring)
 {
 	struct i915_vma *vma = ring->vma;
-	enum i915_map_type map = i915_coherent_map_type(vma->vm->i915);
 	unsigned int flags;
 	void *addr;
 	int ret;
 
-	GEM_BUG_ON(ring->vaddr);
+	if (atomic_fetch_inc(&ring->pin_count))
+		return 0;
 
 	ret = i915_timeline_pin(ring->timeline);
 	if (ret)
-		return ret;
+		goto err_unpin;
 
 	flags = PIN_GLOBAL;
 
@@ -1172,26 +1172,31 @@ int intel_ring_pin(struct intel_ring *ring)
 
 	ret = i915_vma_pin(vma, 0, 0, flags);
 	if (unlikely(ret))
-		goto unpin_timeline;
+		goto err_timeline;
 
 	if (i915_vma_is_map_and_fenceable(vma))
 		addr = (void __force *)i915_vma_pin_iomap(vma);
 	else
-		addr = i915_gem_object_pin_map(vma->obj, map);
+		addr = i915_gem_object_pin_map(vma->obj,
+					       i915_coherent_map_type(vma->vm->i915));
 	if (IS_ERR(addr)) {
 		ret = PTR_ERR(addr);
-		goto unpin_ring;
+		goto err_ring;
 	}
 
 	vma->obj->pin_global++;
 
+	GEM_BUG_ON(ring->vaddr);
 	ring->vaddr = addr;
+
 	return 0;
 
-unpin_ring:
+err_ring:
 	i915_vma_unpin(vma);
-unpin_timeline:
+err_timeline:
 	i915_timeline_unpin(ring->timeline);
+err_unpin:
+	atomic_dec(&ring->pin_count);
 	return ret;
 }
 
@@ -1207,16 +1212,19 @@ void intel_ring_reset(struct intel_ring *ring, u32 tail)
 
 void intel_ring_unpin(struct intel_ring *ring)
 {
-	GEM_BUG_ON(!ring->vma);
-	GEM_BUG_ON(!ring->vaddr);
+	if (!atomic_dec_and_test(&ring->pin_count))
+		return;
 
 	/* Discard any unused bytes beyond that submitted to hw. */
 	intel_ring_reset(ring, ring->tail);
 
+	GEM_BUG_ON(!ring->vma);
 	if (i915_vma_is_map_and_fenceable(ring->vma))
 		i915_vma_unpin_iomap(ring->vma);
 	else
 		i915_gem_object_unpin_map(ring->vma->obj);
+
+	GEM_BUG_ON(!ring->vaddr);
 	ring->vaddr = NULL;
 
 	ring->vma->obj->pin_global--;
@@ -2081,10 +2089,11 @@ static void ring_destroy(struct intel_engine_cs *engine)
 	WARN_ON(INTEL_GEN(dev_priv) > 2 &&
 		(ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE) == 0);
 
+	intel_engine_cleanup_common(engine);
+
 	intel_ring_unpin(engine->buffer);
 	intel_ring_put(engine->buffer);
 
-	intel_engine_cleanup_common(engine);
 	kfree(engine);
 }
 
