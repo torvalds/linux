@@ -929,13 +929,14 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		Mpi2ToolboxCleanRequest_t *toolbox_request =
 			(Mpi2ToolboxCleanRequest_t *)mpi_request;
 
-		if (toolbox_request->Tool == MPI2_TOOLBOX_DIAGNOSTIC_CLI_TOOL) {
+		if ((toolbox_request->Tool == MPI2_TOOLBOX_DIAGNOSTIC_CLI_TOOL)
+		    || (toolbox_request->Tool ==
+		    MPI26_TOOLBOX_BACKEND_PCIE_LANE_MARGIN))
 			ioc->build_sg(ioc, psge, data_out_dma, data_out_sz,
 				data_in_dma, data_in_sz);
-		} else {
+		else
 			ioc->build_sg_mpi(ioc, psge, data_out_dma, data_out_sz,
 				data_in_dma, data_in_sz);
-		}
 		ioc->put_smid_default(ioc, smid);
 		break;
 	}
