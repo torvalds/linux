@@ -514,6 +514,8 @@ static int test_find_first_clear_extent_bit(void)
 		"error handling beyond end of range search: start %llu end %llu",
 			start, end);
 
+	clear_extent_bits(&tree, 0, (u64)-1, CHUNK_TRIMMED | CHUNK_ALLOCATED);
+
 	return 0;
 }
 
