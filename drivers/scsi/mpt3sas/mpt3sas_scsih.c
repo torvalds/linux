@@ -6469,24 +6469,17 @@ _scsih_sas_device_status_change_event_debug(struct MPT3SAS_ADAPTER *ioc,
 /**
  * _scsih_sas_device_status_change_event - handle device status change
  * @ioc: per adapter object
- * @fw_event: The fw_event_work object
+ * @event_data: The fw event
  * Context: user.
  */
 static void
 _scsih_sas_device_status_change_event(struct MPT3SAS_ADAPTER *ioc,
-	struct fw_event_work *fw_event)
+	Mpi2EventDataSasDeviceStatusChange_t *event_data)
 {
 	struct MPT3SAS_TARGET *target_priv_data;
 	struct _sas_device *sas_device;
 	u64 sas_address;
 	unsigned long flags;
-	Mpi2EventDataSasDeviceStatusChange_t *event_data =
-		(Mpi2EventDataSasDeviceStatusChange_t *)
-		fw_event->event_data;
-
-	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
-		_scsih_sas_device_status_change_event_debug(ioc,
-		     event_data);
 
 	/* In MPI Revision K (0xC), the internal device reset complete was
 	 * implemented, so avoid setting tm_busy flag for older firmware.
@@ -6517,6 +6510,12 @@ _scsih_sas_device_status_change_event(struct MPT3SAS_ADAPTER *ioc,
 		target_priv_data->tm_busy = 1;
 	else
 		target_priv_data->tm_busy = 0;
+
+	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
+		ioc_info(ioc,
+		    "%s tm_busy flag for handle(0x%04x)\n",
+		    (target_priv_data->tm_busy == 1) ? "Enable" : "Disable",
+		    target_priv_data->handle);
 
 out:
 	if (sas_device)
@@ -9346,7 +9345,10 @@ _mpt3sas_fw_work(struct MPT3SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 		_scsih_sas_topology_change_event(ioc, fw_event);
 		break;
 	case MPI2_EVENT_SAS_DEVICE_STATUS_CHANGE:
-		_scsih_sas_device_status_change_event(ioc, fw_event);
+		if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK)
+			_scsih_sas_device_status_change_event_debug(ioc,
+			    (Mpi2EventDataSasDeviceStatusChange_t *)
+			    fw_event->event_data);
 		break;
 	case MPI2_EVENT_SAS_DISCOVERY:
 		_scsih_sas_discovery_event(ioc, fw_event);
@@ -9519,6 +9521,10 @@ mpt3sas_scsih_event_callback(struct MPT3SAS_ADAPTER *ioc, u8 msix_index,
 		break;
 	}
 	case MPI2_EVENT_SAS_DEVICE_STATUS_CHANGE:
+		_scsih_sas_device_status_change_event(ioc,
+		    (Mpi2EventDataSasDeviceStatusChange_t *)
+		    mpi_reply->EventData);
+		break;
 	case MPI2_EVENT_IR_OPERATION_STATUS:
 	case MPI2_EVENT_SAS_DISCOVERY:
 	case MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR:
