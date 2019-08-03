@@ -1309,6 +1309,7 @@ static void nvmet_tcp_finish_cmd(struct nvmet_tcp_cmd *cmd)
 {
 	nvmet_req_uninit(&cmd->req);
 	nvmet_tcp_unmap_pdu_iovec(cmd);
+	kfree(cmd->iov);
 	if (cmd->req.sg_cnt)
 		sgl_free(cmd->req.sg);
 }
