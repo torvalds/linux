@@ -105,7 +105,6 @@ endchoice
 
 config KASAN_STACK_ENABLE
 	bool "Enable stack instrumentation (unsafe)" if CC_IS_CLANG && !COMPILE_TEST
-	default !(CLANG_VERSION < 90000)
 	depends on KASAN
 	help
 	  The LLVM stack address sanitizer has a know problem that
@@ -114,11 +113,11 @@ config KASAN_STACK_ENABLE
 	  Disabling asan-stack makes it safe to run kernels build
 	  with clang-8 with KASAN enabled, though it loses some of
 	  the functionality.
-	  This feature is always disabled when compile-testing with clang-8
-	  or earlier to avoid cluttering the output in stack overflow
-	  warnings, but clang-8 users can still enable it for builds without
-	  CONFIG_COMPILE_TEST.  On gcc and later clang versions it is
-	  assumed to always be safe to use and enabled by default.
+	  This feature is always disabled when compile-testing with clang
+	  to avoid cluttering the output in stack overflow warnings,
+	  but clang users can still enable it for builds without
+	  CONFIG_COMPILE_TEST.	On gcc it is assumed to always be safe
+	  to use and enabled by default.
 
 config KASAN_STACK
 	int
