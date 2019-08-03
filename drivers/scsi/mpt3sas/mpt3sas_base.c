@@ -7118,6 +7118,13 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	if (r)
 		goto out_free_resources;
 
+	/*
+	 * Copy current copy of IOCFacts in prev_fw_facts
+	 * and it will be used during online firmware upgrade.
+	 */
+	memcpy(&ioc->prev_fw_facts, &ioc->facts,
+	    sizeof(struct mpt3sas_facts));
+
 	ioc->non_operational_loop = 0;
 	ioc->got_task_abort_from_ioctl = 0;
 	return 0;
@@ -7280,6 +7287,85 @@ mpt3sas_wait_for_commands_to_complete(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * _base_check_ioc_facts_changes - Look for increase/decrease of IOCFacts
+ *     attributes during online firmware upgrade and update the corresponding
+ *     IOC variables accordingly.
+ *
+ * @ioc: Pointer to MPT_ADAPTER structure
+ */
+static int
+_base_check_ioc_facts_changes(struct MPT3SAS_ADAPTER *ioc)
+{
+	u16 pd_handles_sz;
+	void *pd_handles = NULL, *blocking_handles = NULL;
+	void *pend_os_device_add = NULL, *device_remove_in_progress = NULL;
+	struct mpt3sas_facts *old_facts = &ioc->prev_fw_facts;
+
+	if (ioc->facts.MaxDevHandle > old_facts->MaxDevHandle) {
+		pd_handles_sz = (ioc->facts.MaxDevHandle / 8);
+		if (ioc->facts.MaxDevHandle % 8)
+			pd_handles_sz++;
+
+		pd_handles = krealloc(ioc->pd_handles, pd_handles_sz,
+		    GFP_KERNEL);
+		if (!pd_handles) {
+			ioc_info(ioc,
+			    "Unable to allocate the memory for pd_handles of sz: %d\n",
+			    pd_handles_sz);
+			return -ENOMEM;
+		}
+		memset(pd_handles + ioc->pd_handles_sz, 0,
+		    (pd_handles_sz - ioc->pd_handles_sz));
+		ioc->pd_handles = pd_handles;
+
+		blocking_handles = krealloc(ioc->blocking_handles,
+		    pd_handles_sz, GFP_KERNEL);
+		if (!blocking_handles) {
+			ioc_info(ioc,
+			    "Unable to allocate the memory for "
+			    "blocking_handles of sz: %d\n",
+			    pd_handles_sz);
+			return -ENOMEM;
+		}
+		memset(blocking_handles + ioc->pd_handles_sz, 0,
+		    (pd_handles_sz - ioc->pd_handles_sz));
+		ioc->blocking_handles = blocking_handles;
+		ioc->pd_handles_sz = pd_handles_sz;
+
+		pend_os_device_add = krealloc(ioc->pend_os_device_add,
+		    pd_handles_sz, GFP_KERNEL);
+		if (!pend_os_device_add) {
+			ioc_info(ioc,
+			    "Unable to allocate the memory for pend_os_device_add of sz: %d\n",
+			    pd_handles_sz);
+			return -ENOMEM;
+		}
+		memset(pend_os_device_add + ioc->pend_os_device_add_sz, 0,
+		    (pd_handles_sz - ioc->pend_os_device_add_sz));
+		ioc->pend_os_device_add = pend_os_device_add;
+		ioc->pend_os_device_add_sz = pd_handles_sz;
+
+		device_remove_in_progress = krealloc(
+		    ioc->device_remove_in_progress, pd_handles_sz, GFP_KERNEL);
+		if (!device_remove_in_progress) {
+			ioc_info(ioc,
+			    "Unable to allocate the memory for "
+			    "device_remove_in_progress of sz: %d\n "
+			    , pd_handles_sz);
+			return -ENOMEM;
+		}
+		memset(device_remove_in_progress +
+		    ioc->device_remove_in_progress_sz, 0,
+		    (pd_handles_sz - ioc->device_remove_in_progress_sz));
+		ioc->device_remove_in_progress = device_remove_in_progress;
+		ioc->device_remove_in_progress_sz = pd_handles_sz;
+	}
+
+	memcpy(&ioc->prev_fw_facts, &ioc->facts, sizeof(struct mpt3sas_facts));
+	return 0;
+}
+
+/**
  * mpt3sas_base_hard_reset_handler - reset controller
  * @ioc: Pointer to MPT_ADAPTER structure
  * @type: FORCE_BIG_HAMMER or SOFT_RESET
@@ -7342,6 +7428,13 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 	if (r)
 		goto out;
 
+	r = _base_check_ioc_facts_changes(ioc);
+	if (r) {
+		ioc_info(ioc,
+		    "Some of the parameters got changed in this new firmware"
+		    " image and it requires system reboot\n");
+		goto out;
+	}
 	if (ioc->rdpq_array_enable && !ioc->rdpq_array_capable)
 		panic("%s: Issue occurred with flashing controller firmware."
 		      "Please reboot the system and ensure that the correct"
