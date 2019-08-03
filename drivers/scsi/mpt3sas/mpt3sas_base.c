@@ -3181,6 +3181,37 @@ mpt3sas_base_unmap_resources(struct MPT3SAS_ADAPTER *ioc)
 	}
 }
 
+static int
+_base_diag_reset(struct MPT3SAS_ADAPTER *ioc);
+
+/**
+ * _base_check_for_fault_and_issue_reset - check if IOC is in fault state
+ *     and if it is in fault state then issue diag reset.
+ * @ioc: per adapter object
+ *
+ * Returns: 0 for success, non-zero for failure.
+ */
+static int
+_base_check_for_fault_and_issue_reset(struct MPT3SAS_ADAPTER *ioc)
+{
+	u32 ioc_state;
+	int rc = -EFAULT;
+
+	dinitprintk(ioc, pr_info("%s\n", __func__));
+	if (ioc->pci_error_recovery)
+		return 0;
+	ioc_state = mpt3sas_base_get_iocstate(ioc, 0);
+	dhsprintk(ioc, pr_info("%s: ioc_state(0x%08x)\n", __func__, ioc_state));
+
+	if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT) {
+		mpt3sas_base_fault_info(ioc, ioc_state &
+		    MPI2_DOORBELL_DATA_MASK);
+		rc = _base_diag_reset(ioc);
+	}
+
+	return rc;
+}
+
 /**
  * mpt3sas_base_map_resources - map in controller resources (io/irq/memap)
  * @ioc: per adapter object
@@ -3193,7 +3224,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	struct pci_dev *pdev = ioc->pdev;
 	u32 memap_sz;
 	u32 pio_sz;
-	int i, r = 0;
+	int i, r = 0, rc;
 	u64 pio_chip = 0;
 	phys_addr_t chip_phys = 0;
 	struct adapter_reply_queue *reply_q;
@@ -3254,8 +3285,11 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	_base_mask_interrupts(ioc);
 
 	r = _base_get_ioc_facts(ioc);
-	if (r)
-		goto out_fail;
+	if (r) {
+		rc = _base_check_for_fault_and_issue_reset(ioc);
+		if (rc || (_base_get_ioc_facts(ioc)))
+			goto out_fail;
+	}
 
 	if (!ioc->rdpq_array_enable_assigned) {
 		ioc->rdpq_array_enable = ioc->rdpq_array_capable;
@@ -5414,8 +5448,6 @@ _base_wait_on_iocstate(struct MPT3SAS_ADAPTER *ioc, u32 ioc_state, int timeout)
  *
  * Notes: MPI2_HIS_IOC2SYS_DB_STATUS - set to one when IOC writes to doorbell.
  */
-static int
-_base_diag_reset(struct MPT3SAS_ADAPTER *ioc);
 
 static int
 _base_wait_for_doorbell_int(struct MPT3SAS_ADAPTER *ioc, int timeout)
@@ -6691,7 +6723,7 @@ _base_make_ioc_ready(struct MPT3SAS_ADAPTER *ioc, enum reset_type type)
 static int
 _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 {
-	int r, i, index;
+	int r, i, index, rc;
 	unsigned long	flags;
 	u32 reply_address;
 	u16 smid;
@@ -6794,8 +6826,19 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
  skip_init_reply_post_free_queue:
 
 	r = _base_send_ioc_init(ioc);
-	if (r)
-		return r;
+	if (r) {
+		/*
+		 * No need to check IOC state for fault state & issue
+		 * diag reset during host reset. This check is need
+		 * only during driver load time.
+		 */
+		if (!ioc->is_driver_loading)
+			return r;
+
+		rc = _base_check_for_fault_and_issue_reset(ioc);
+		if (rc || (_base_send_ioc_init(ioc)))
+			return r;
+	}
 
 	/* initialize reply free host index */
 	ioc->reply_free_host_index = ioc->reply_free_queue_depth - 1;
@@ -6887,7 +6930,7 @@ mpt3sas_base_free_resources(struct MPT3SAS_ADAPTER *ioc)
 int
 mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 {
-	int r, i;
+	int r, i, rc;
 	int cpu_id, last_cpu_id = 0;
 
 	dinitprintk(ioc, ioc_info(ioc, "%s\n", __func__));
@@ -6931,8 +6974,11 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 
 	pci_set_drvdata(ioc->pdev, ioc->shost);
 	r = _base_get_ioc_facts(ioc);
-	if (r)
-		goto out_free_resources;
+	if (r) {
+		rc = _base_check_for_fault_and_issue_reset(ioc);
+		if (rc || (_base_get_ioc_facts(ioc)))
+			goto out_free_resources;
+	}
 
 	switch (ioc->hba_mpi_version_belonged) {
 	case MPI2_VERSION:
@@ -7000,8 +7046,11 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 
 	for (i = 0 ; i < ioc->facts.NumberOfPorts; i++) {
 		r = _base_get_port_facts(ioc, i);
-		if (r)
-			goto out_free_resources;
+		if (r) {
+			rc = _base_check_for_fault_and_issue_reset(ioc);
+			if (rc || (_base_get_port_facts(ioc, i)))
+				goto out_free_resources;
+		}
 	}
 
 	r = _base_allocate_memory_pools(ioc);
