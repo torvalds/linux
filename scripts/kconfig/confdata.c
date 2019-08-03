@@ -784,6 +784,7 @@ int conf_write(const char *name)
 	const char *str;
 	char dirname[PATH_MAX+1], tmpname[PATH_MAX+22], newname[PATH_MAX+8];
 	char *env;
+	int i;
 
 	dirname[0] = 0;
 	if (name && name[0]) {
@@ -859,6 +860,9 @@ next:
 		}
 	}
 	fclose(out);
+
+	for_all_symbols(i, sym)
+		sym->flags &= ~SYMBOL_WRITTEN;
 
 	if (*tmpname) {
 		strcat(dirname, basename);
