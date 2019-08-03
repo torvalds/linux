@@ -463,6 +463,7 @@ int dma_get_sgtable_attrs(struct device *dev, struct sg_table *sgt,
 int dma_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
 		void *cpu_addr, dma_addr_t dma_addr, size_t size,
 		unsigned long attrs);
+bool dma_can_mmap(struct device *dev);
 int dma_supported(struct device *dev, u64 mask);
 int dma_set_mask(struct device *dev, u64 mask);
 int dma_set_coherent_mask(struct device *dev, u64 mask);
@@ -553,6 +554,10 @@ static inline int dma_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
 		unsigned long attrs)
 {
 	return -ENXIO;
+}
+static inline bool dma_can_mmap(struct device *dev)
+{
+	return false;
 }
 static inline int dma_supported(struct device *dev, u64 mask)
 {
