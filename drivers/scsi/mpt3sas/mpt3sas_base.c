@@ -5035,6 +5035,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		_base_release_memory_pools(ioc);
 		goto retry_allocation;
 	}
+	memset(ioc->request, 0, sz);
 
 	if (retry_sz)
 		ioc_err(ioc, "request pool: dma_alloc_coherent succeed: hba_depth(%d), chains_per_io(%d), frame_sz(%d), total(%d kb)\n",
@@ -5866,6 +5867,7 @@ mpt3sas_base_scsi_enclosure_processor(struct MPT3SAS_ADAPTER *ioc,
 	ioc->base_cmds.status = MPT3_CMD_PENDING;
 	request = mpt3sas_base_get_msg_frame(ioc, smid);
 	ioc->base_cmds.smid = smid;
+	memset(request, 0, ioc->request_sz);
 	memcpy(request, mpi_request, sizeof(Mpi2SepReply_t));
 	init_completion(&ioc->base_cmds.done);
 	ioc->put_smid_default(ioc, smid);
