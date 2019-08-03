@@ -497,6 +497,9 @@ static int hip04_rx_poll(struct napi_struct *napi, int budget)
 	u16 len;
 	u32 err;
 
+	/* clean up tx descriptors */
+	tx_remaining = hip04_tx_reclaim(ndev, false);
+
 	while (cnt && !last) {
 		buf = priv->rx_buf[priv->rx_head];
 		skb = build_skb(buf, priv->rx_buf_size);
@@ -557,8 +560,7 @@ refill:
 	}
 	napi_complete_done(napi, rx);
 done:
-	/* clean up tx descriptors and start a new timer if necessary */
-	tx_remaining = hip04_tx_reclaim(ndev, false);
+	/* start a new timer if necessary */
 	if (rx < budget && tx_remaining)
 		hip04_start_tx_timer(priv);
 
