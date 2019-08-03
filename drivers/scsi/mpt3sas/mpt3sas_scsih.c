@@ -10500,6 +10500,10 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->tm_sas_control_cb_idx = tm_sas_control_cb_idx;
 	ioc->logging_level = logging_level;
 	ioc->schedule_dead_ioc_flush_running_cmds = &_scsih_flush_running_cmds;
+	/*
+	 * Enable MEMORY MOVE support flag.
+	 */
+	ioc->drv_support_bitmap |= MPT_DRV_SUPPORT_BITMAP_MEMMOVE;
 	/* misc semaphores and spin locks */
 	mutex_init(&ioc->reset_in_progress_mutex);
 	/* initializing pci_access_mutex lock */

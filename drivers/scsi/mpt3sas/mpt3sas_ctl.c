@@ -3382,6 +3382,24 @@ static DEVICE_ATTR_RW(diag_trigger_mpi);
 
 /*****************************************/
 
+/**
+ * drv_support_bitmap_show - driver supported feature bitmap
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t
+drv_support_bitmap_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n", ioc->drv_support_bitmap);
+}
+static DEVICE_ATTR_RO(drv_support_bitmap);
+
 struct device_attribute *mpt3sas_host_attrs[] = {
 	&dev_attr_version_fw,
 	&dev_attr_version_bios,
@@ -3407,6 +3425,7 @@ struct device_attribute *mpt3sas_host_attrs[] = {
 	&dev_attr_diag_trigger_event,
 	&dev_attr_diag_trigger_scsi,
 	&dev_attr_diag_trigger_mpi,
+	&dev_attr_drv_support_bitmap,
 	&dev_attr_BRM_status,
 	NULL,
 };

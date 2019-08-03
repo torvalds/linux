@@ -1047,6 +1047,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @schedule_dead_ioc_flush_running_cmds: callback to flush pending commands
  * @thresh_hold: Max number of reply descriptors processed
  *				before updating Host Index
+ * @drv_support_bitmap: driver's supported feature bit map
  * @scsi_io_cb_idx: shost generated commands
  * @tm_cb_idx: task management commands
  * @scsih_cb_idx: scsih internal commands
@@ -1230,6 +1231,7 @@ struct MPT3SAS_ADAPTER {
 	bool            msix_load_balance;
 	u16		thresh_hold;
 	u8		high_iops_queues;
+	u32		drv_support_bitmap;
 
 	/* internal commands, callback index */
 	u8		scsi_io_cb_idx;
@@ -1453,6 +1455,8 @@ struct MPT3SAS_ADAPTER {
 	PUT_SMID_DEFAULT put_smid_default;
 	GET_MSIX_INDEX get_msix_index_for_smlio;
 };
+
+#define MPT_DRV_SUPPORT_BITMAP_MEMMOVE 0x00000001
 
 typedef u8 (*MPT_CALLBACK)(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply);
