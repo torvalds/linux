@@ -188,9 +188,7 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
 				unsigned int data_block_quadlets);
 unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s);
 
-int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed);
 void amdtp_stream_update(struct amdtp_stream *s);
-void amdtp_stream_stop(struct amdtp_stream *s);
 
 int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 					struct snd_pcm_runtime *runtime);
