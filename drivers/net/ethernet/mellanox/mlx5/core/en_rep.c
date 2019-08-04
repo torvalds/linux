@@ -595,12 +595,26 @@ static void mlx5e_rep_update_flows(struct mlx5e_priv *priv,
 				   unsigned char ha[ETH_ALEN])
 {
 	struct ethhdr *eth = (struct ethhdr *)e->encap_header;
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	bool encap_connected;
+	LIST_HEAD(flow_list);
 
 	ASSERT_RTNL();
 
+	/* wait for encap to be fully initialized */
+	wait_for_completion(&e->res_ready);
+
+	mutex_lock(&esw->offloads.encap_tbl_lock);
+	encap_connected = !!(e->flags & MLX5_ENCAP_ENTRY_VALID);
+	if (e->compl_result || (encap_connected == neigh_connected &&
+				ether_addr_equal(e->h_dest, ha)))
+		goto unlock;
+
+	mlx5e_take_all_encap_flows(e, &flow_list);
+
 	if ((e->flags & MLX5_ENCAP_ENTRY_VALID) &&
 	    (!neigh_connected || !ether_addr_equal(e->h_dest, ha)))
-		mlx5e_tc_encap_flows_del(priv, e);
+		mlx5e_tc_encap_flows_del(priv, e, &flow_list);
 
 	if (neigh_connected && !(e->flags & MLX5_ENCAP_ENTRY_VALID)) {
 		ether_addr_copy(e->h_dest, ha);
@@ -610,8 +624,11 @@ static void mlx5e_rep_update_flows(struct mlx5e_priv *priv,
 		 */
 		ether_addr_copy(eth->h_source, e->route_dev->dev_addr);
 
-		mlx5e_tc_encap_flows_add(priv, e);
+		mlx5e_tc_encap_flows_add(priv, e, &flow_list);
 	}
+unlock:
+	mutex_unlock(&esw->offloads.encap_tbl_lock);
+	mlx5e_put_encap_flow_list(priv, &flow_list);
 }
 
 static void mlx5e_rep_neigh_update(struct work_struct *work)
@@ -623,7 +640,6 @@ static void mlx5e_rep_neigh_update(struct work_struct *work)
 	unsigned char ha[ETH_ALEN];
 	struct mlx5e_priv *priv;
 	bool neigh_connected;
-	bool encap_connected;
 	u8 nud_state, dead;
 
 	rtnl_lock();
@@ -645,13 +661,8 @@ static void mlx5e_rep_neigh_update(struct work_struct *work)
 		if (!mlx5e_encap_take(e))
 			continue;
 
-		encap_connected = !!(e->flags & MLX5_ENCAP_ENTRY_VALID);
 		priv = netdev_priv(e->out_dev);
-
-		if (encap_connected != neigh_connected ||
-		    !ether_addr_equal(e->h_dest, ha))
-			mlx5e_rep_update_flows(priv, e, neigh_connected, ha);
-
+		mlx5e_rep_update_flows(priv, e, neigh_connected, ha);
 		mlx5e_encap_put(priv, e);
 	}
 	mlx5e_rep_neigh_entry_release(nhe);
