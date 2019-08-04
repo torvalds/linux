@@ -165,6 +165,7 @@ static struct sk_buff
 					    "Expected meta frame, is %12llx "
 					    "in the DSA master multicast filter?\n",
 					    SJA1105_META_DMAC);
+			kfree_skb(sp->data->stampable_skb);
 		}
 
 		/* Hold a reference to avoid dsa_switch_rcv
