@@ -3294,6 +3294,9 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 			default:
 				goto err_out;
 			}
+		} else if (is_tcf_skbedit_ptype(act)) {
+			entry->id = FLOW_ACTION_PTYPE;
+			entry->ptype = tcf_skbedit_ptype(act);
 		} else {
 			goto err_out;
 		}
