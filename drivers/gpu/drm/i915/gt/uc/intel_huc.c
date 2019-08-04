@@ -187,7 +187,7 @@ int intel_huc_check_status(struct intel_huc *huc)
 	intel_wakeref_t wakeref;
 	u32 status = 0;
 
-	if (!intel_uc_supports_huc(&gt->uc))
+	if (!intel_huc_is_supported(huc))
 		return -ENODEV;
 
 	with_intel_runtime_pm(&gt->i915->runtime_pm, wakeref)
