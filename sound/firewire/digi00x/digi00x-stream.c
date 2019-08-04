@@ -218,43 +218,62 @@ static int keep_resources(struct snd_dg00x *dg00x, struct amdtp_stream *stream,
 				fw_parent_device(dg00x->unit)->max_speed);
 }
 
+static int init_stream(struct snd_dg00x *dg00x, struct amdtp_stream *s)
+{
+	struct fw_iso_resources *resources;
+	enum amdtp_stream_direction dir;
+	int err;
+
+	if (s == &dg00x->tx_stream) {
+		resources = &dg00x->tx_resources;
+		dir = AMDTP_IN_STREAM;
+	} else {
+		resources = &dg00x->rx_resources;
+		dir = AMDTP_OUT_STREAM;
+	}
+
+	err = fw_iso_resources_init(resources, dg00x->unit);
+	if (err < 0)
+		return err;
+
+	err = amdtp_dot_init(s, dg00x->unit, dir);
+	if (err < 0)
+		fw_iso_resources_destroy(resources);
+
+	return err;
+}
+
+static void destroy_stream(struct snd_dg00x *dg00x, struct amdtp_stream *s)
+{
+	amdtp_stream_destroy(s);
+
+	if (s == &dg00x->tx_stream)
+		fw_iso_resources_destroy(&dg00x->tx_resources);
+	else
+		fw_iso_resources_destroy(&dg00x->rx_resources);
+}
+
 int snd_dg00x_stream_init_duplex(struct snd_dg00x *dg00x)
 {
 	int err;
 
-	/* For out-stream. */
-	err = fw_iso_resources_init(&dg00x->rx_resources, dg00x->unit);
+	err = init_stream(dg00x, &dg00x->rx_stream);
 	if (err < 0)
-		goto error;
-	err = amdtp_dot_init(&dg00x->rx_stream, dg00x->unit, AMDTP_OUT_STREAM);
-	if (err < 0)
-		goto error;
+		return err;
 
-	/* For in-stream. */
-	err = fw_iso_resources_init(&dg00x->tx_resources, dg00x->unit);
+	err = init_stream(dg00x, &dg00x->tx_stream);
 	if (err < 0)
-		goto error;
-	err = amdtp_dot_init(&dg00x->tx_stream, dg00x->unit, AMDTP_IN_STREAM);
-	if (err < 0)
-		goto error;
+		destroy_stream(dg00x, &dg00x->rx_stream);
 
-	return 0;
-error:
-	snd_dg00x_stream_destroy_duplex(dg00x);
 	return err;
 }
 
-/*
- * This function should be called before starting streams or after stopping
- * streams.
- */
+// This function should be called before starting streams or after stopping
+// streams.
 void snd_dg00x_stream_destroy_duplex(struct snd_dg00x *dg00x)
 {
-	amdtp_stream_destroy(&dg00x->rx_stream);
-	fw_iso_resources_destroy(&dg00x->rx_resources);
-
-	amdtp_stream_destroy(&dg00x->tx_stream);
-	fw_iso_resources_destroy(&dg00x->tx_resources);
+	destroy_stream(dg00x, &dg00x->rx_stream);
+	destroy_stream(dg00x, &dg00x->tx_stream);
 }
 
 int snd_dg00x_stream_reserve_duplex(struct snd_dg00x *dg00x, unsigned int rate)
