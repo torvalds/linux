@@ -732,20 +732,53 @@ nfp_flower_copy_pre_actions(char *act_dst, char *act_src, int len,
 	return act_off;
 }
 
-static int nfp_fl_verify_post_tun_acts(char *acts, int len)
+static int
+nfp_fl_verify_post_tun_acts(char *acts, int len, struct nfp_fl_push_vlan **vlan)
 {
 	struct nfp_fl_act_head *a;
 	unsigned int act_off = 0;
 
 	while (act_off < len) {
 		a = (struct nfp_fl_act_head *)&acts[act_off];
-		if (a->jump_id != NFP_FL_ACTION_OPCODE_OUTPUT)
+
+		if (a->jump_id == NFP_FL_ACTION_OPCODE_PUSH_VLAN && !act_off)
+			*vlan = (struct nfp_fl_push_vlan *)a;
+		else if (a->jump_id != NFP_FL_ACTION_OPCODE_OUTPUT)
 			return -EOPNOTSUPP;
 
 		act_off += a->len_lw << NFP_FL_LW_SIZ;
 	}
 
+	/* Ensure any VLAN push also has an egress action. */
+	if (*vlan && act_off <= sizeof(struct nfp_fl_push_vlan))
+		return -EOPNOTSUPP;
+
 	return 0;
+}
+
+static int
+nfp_fl_push_vlan_after_tun(char *acts, int len, struct nfp_fl_push_vlan *vlan)
+{
+	struct nfp_fl_set_ipv4_tun *tun;
+	struct nfp_fl_act_head *a;
+	unsigned int act_off = 0;
+
+	while (act_off < len) {
+		a = (struct nfp_fl_act_head *)&acts[act_off];
+
+		if (a->jump_id == NFP_FL_ACTION_OPCODE_SET_IPV4_TUNNEL) {
+			tun = (struct nfp_fl_set_ipv4_tun *)a;
+			tun->outer_vlan_tpid = vlan->vlan_tpid;
+			tun->outer_vlan_tci = vlan->vlan_tci;
+
+			return 0;
+		}
+
+		act_off += a->len_lw << NFP_FL_LW_SIZ;
+	}
+
+	/* Return error if no tunnel action is found. */
+	return -EOPNOTSUPP;
 }
 
 static int
@@ -754,6 +787,7 @@ nfp_flower_merge_action(struct nfp_fl_payload *sub_flow1,
 			struct nfp_fl_payload *merge_flow)
 {
 	unsigned int sub1_act_len, sub2_act_len, pre_off1, pre_off2;
+	struct nfp_fl_push_vlan *post_tun_push_vlan = NULL;
 	bool tunnel_act = false;
 	char *merge_act;
 	int err;
@@ -790,18 +824,36 @@ nfp_flower_merge_action(struct nfp_fl_payload *sub_flow1,
 	sub2_act_len -= pre_off2;
 
 	/* FW does a tunnel push when egressing, therefore, if sub_flow 1 pushes
-	 * a tunnel, sub_flow 2 can only have output actions for a valid merge.
+	 * a tunnel, there are restrictions on what sub_flow 2 actions lead to a
+	 * valid merge.
 	 */
 	if (tunnel_act) {
 		char *post_tun_acts = &sub_flow2->action_data[pre_off2];
 
-		err = nfp_fl_verify_post_tun_acts(post_tun_acts, sub2_act_len);
+		err = nfp_fl_verify_post_tun_acts(post_tun_acts, sub2_act_len,
+						  &post_tun_push_vlan);
 		if (err)
 			return err;
+
+		if (post_tun_push_vlan) {
+			pre_off2 += sizeof(*post_tun_push_vlan);
+			sub2_act_len -= sizeof(*post_tun_push_vlan);
+		}
 	}
 
 	/* Copy remaining actions from sub_flows 1 and 2. */
 	memcpy(merge_act, sub_flow1->action_data + pre_off1, sub1_act_len);
+
+	if (post_tun_push_vlan) {
+		/* Update tunnel action in merge to include VLAN push. */
+		err = nfp_fl_push_vlan_after_tun(merge_act, sub1_act_len,
+						 post_tun_push_vlan);
+		if (err)
+			return err;
+
+		merge_flow->meta.act_len -= sizeof(*post_tun_push_vlan);
+	}
+
 	merge_act += sub1_act_len;
 	memcpy(merge_act, sub_flow2->action_data + pre_off2, sub2_act_len);
 

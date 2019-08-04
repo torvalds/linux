@@ -220,7 +220,8 @@ struct nfp_fl_set_ipv4_tun {
 	__be16 tun_flags;
 	u8 ttl;
 	u8 tos;
-	__be32 extra;
+	__be16 outer_vlan_tpid;
+	__be16 outer_vlan_tci;
 	u8 tun_len;
 	u8 res2;
 	__be16 tun_proto;
