@@ -72,6 +72,7 @@ obj-y += gt/
 gt-y += \
 	gt/intel_breadcrumbs.o \
 	gt/intel_context.o \
+	gt/intel_engine_pool.o \
 	gt/intel_engine_cs.o \
 	gt/intel_engine_pm.o \
 	gt/intel_gt.o \
@@ -125,7 +126,6 @@ i915-y += \
 	  $(gem-y) \
 	  i915_active.o \
 	  i915_cmd_parser.o \
-	  i915_gem_batch_pool.o \
 	  i915_gem_evict.o \
 	  i915_gem_fence_reg.o \
 	  i915_gem_gtt.o \

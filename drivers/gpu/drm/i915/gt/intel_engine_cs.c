@@ -32,6 +32,7 @@
 
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
+#include "intel_engine_pool.h"
 #include "intel_context.h"
 #include "intel_lrc.h"
 #include "intel_reset.h"
@@ -492,11 +493,6 @@ cleanup:
 	return err;
 }
 
-static void intel_engine_init_batch_pool(struct intel_engine_cs *engine)
-{
-	i915_gem_batch_pool_init(&engine->batch_pool, engine);
-}
-
 void intel_engine_init_execlists(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -622,9 +618,10 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init_breadcrumbs(engine);
 	intel_engine_init_execlists(engine);
 	intel_engine_init_hangcheck(engine);
-	intel_engine_init_batch_pool(engine);
 	intel_engine_init_cmd_parser(engine);
 	intel_engine_init__pm(engine);
+
+	intel_engine_pool_init(&engine->pool);
 
 	/* Use the whole device by default */
 	engine->sseu =
@@ -869,9 +866,9 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 
 	cleanup_status_page(engine);
 
+	intel_engine_pool_fini(&engine->pool);
 	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);
-	i915_gem_batch_pool_fini(&engine->batch_pool);
 
 	if (engine->default_state)
 		i915_gem_object_put(engine->default_state);

@@ -16,12 +16,12 @@
 #include <linux/types.h>
 
 #include "i915_gem.h"
-#include "i915_gem_batch_pool.h"
 #include "i915_pmu.h"
 #include "i915_priolist_types.h"
 #include "i915_selftest.h"
-#include "gt/intel_timeline_types.h"
+#include "intel_engine_pool_types.h"
 #include "intel_sseu.h"
+#include "intel_timeline_types.h"
 #include "intel_wakeref.h"
 #include "intel_workarounds_types.h"
 
@@ -354,7 +354,7 @@ struct intel_engine_cs {
 	 * when the command parser is enabled. Prevents the client from
 	 * modifying the batch contents after software parsing.
 	 */
-	struct i915_gem_batch_pool batch_pool;
+	struct intel_engine_pool pool;
 
 	struct intel_hw_status_page status_page;
 	struct i915_ctx_workarounds wa_ctx;

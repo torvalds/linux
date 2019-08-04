@@ -9,7 +9,6 @@
 #include <linux/random.h>
 #include <linux/seqlock.h>
 
-#include "i915_gem_batch_pool.h"
 #include "i915_pmu.h"
 #include "i915_reg.h"
 #include "i915_request.h"

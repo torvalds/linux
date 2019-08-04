@@ -66,7 +66,6 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&obj->mm.link);
 
 	INIT_LIST_HEAD(&obj->lut_list);
-	INIT_LIST_HEAD(&obj->batch_pool_link);
 
 	init_rcu_head(&obj->rcu);
 

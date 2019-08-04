@@ -295,27 +295,6 @@ static int per_file_stats(int id, void *ptr, void *data)
 			   stats.closed); \
 } while (0)
 
-static void print_batch_pool_stats(struct seq_file *m,
-				   struct drm_i915_private *dev_priv)
-{
-	struct drm_i915_gem_object *obj;
-	struct intel_engine_cs *engine;
-	struct file_stats stats = {};
-	enum intel_engine_id id;
-	int j;
-
-	for_each_engine(engine, dev_priv, id) {
-		for (j = 0; j < ARRAY_SIZE(engine->batch_pool.cache_list); j++) {
-			list_for_each_entry(obj,
-					    &engine->batch_pool.cache_list[j],
-					    batch_pool_link)
-				per_file_stats(0, obj, &stats);
-		}
-	}
-
-	print_file_stats(m, "[k]batch pool", stats);
-}
-
 static void print_context_stats(struct seq_file *m,
 				struct drm_i915_private *i915)
 {
@@ -374,54 +353,8 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
-	print_batch_pool_stats(m, i915);
 	print_context_stats(m, i915);
 	mutex_unlock(&i915->drm.struct_mutex);
-
-	return 0;
-}
-
-static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct drm_i915_gem_object *obj;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int total = 0;
-	int ret, j;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	for_each_engine(engine, dev_priv, id) {
-		for (j = 0; j < ARRAY_SIZE(engine->batch_pool.cache_list); j++) {
-			int count;
-
-			count = 0;
-			list_for_each_entry(obj,
-					    &engine->batch_pool.cache_list[j],
-					    batch_pool_link)
-				count++;
-			seq_printf(m, "%s cache[%d]: %d objects\n",
-				   engine->name, j, count);
-
-			list_for_each_entry(obj,
-					    &engine->batch_pool.cache_list[j],
-					    batch_pool_link) {
-				seq_puts(m, "   ");
-				describe_obj(m, obj);
-				seq_putc(m, '\n');
-			}
-
-			total += count;
-		}
-	}
-
-	seq_printf(m, "total: %d\n", total);
-
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -4385,7 +4318,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},
-	{"i915_gem_batch_pool", i915_gem_batch_pool_info, 0},
 	{"i915_guc_info", i915_guc_info, 0},
 	{"i915_guc_load_status", i915_guc_load_status_info, 0},
 	{"i915_guc_log_dump", i915_guc_log_dump, 0},

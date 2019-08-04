@@ -27,6 +27,7 @@
 #include "i915_drv.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"
+#include "intel_engine_pool.h"
 
 #include "mock_engine.h"
 #include "selftests/mock_request.h"
@@ -292,6 +293,7 @@ int mock_engine_init(struct intel_engine_cs *engine)
 	intel_engine_init_breadcrumbs(engine);
 	intel_engine_init_execlists(engine);
 	intel_engine_init__pm(engine);
+	intel_engine_pool_init(&engine->pool);
 
 	engine->kernel_context =
 		i915_gem_context_get_engine(i915->kernel_context, engine->id);

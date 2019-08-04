@@ -8,6 +8,7 @@
 
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
+#include "intel_engine_pool.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 
@@ -116,6 +117,7 @@ static int __engine_park(struct intel_wakeref *wf)
 	GEM_TRACE("%s\n", engine->name);
 
 	intel_engine_disarm_breadcrumbs(engine);
+	intel_engine_pool_park(&engine->pool);
 
 	/* Must be reset upon idling, or we may miss the busy wakeup. */
 	GEM_BUG_ON(engine->execlists.queue_priority_hint != INT_MIN);
