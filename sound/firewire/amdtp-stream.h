@@ -267,4 +267,11 @@ static inline bool amdtp_stream_wait_callback(struct amdtp_stream *s,
 				  msecs_to_jiffies(timeout)) > 0;
 }
 
+struct amdtp_domain {
+	struct list_head streams;
+};
+
+int amdtp_domain_init(struct amdtp_domain *d);
+void amdtp_domain_destroy(struct amdtp_domain *d);
+
 #endif

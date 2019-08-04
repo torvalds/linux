@@ -1136,3 +1136,25 @@ void amdtp_stream_pcm_abort(struct amdtp_stream *s)
 		snd_pcm_stop_xrun(pcm);
 }
 EXPORT_SYMBOL(amdtp_stream_pcm_abort);
+
+/**
+ * amdtp_domain_init - initialize an AMDTP domain structure
+ * @d: the AMDTP domain to initialize.
+ */
+int amdtp_domain_init(struct amdtp_domain *d)
+{
+	INIT_LIST_HEAD(&d->streams);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(amdtp_domain_init);
+
+/**
+ * amdtp_domain_destroy - destroy an AMDTP domain structure
+ * @d: the AMDTP domain to destroy.
+ */
+void amdtp_domain_destroy(struct amdtp_domain *d)
+{
+	WARN_ON(!list_empty(&d->streams));
+}
+EXPORT_SYMBOL_GPL(amdtp_domain_destroy);
