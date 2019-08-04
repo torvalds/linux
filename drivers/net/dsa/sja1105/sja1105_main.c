@@ -1728,6 +1728,8 @@ static void sja1105_teardown(struct dsa_switch *ds)
 
 	cancel_work_sync(&priv->tagger_data.rxtstamp_work);
 	skb_queue_purge(&priv->tagger_data.skb_rxtstamp_queue);
+	sja1105_ptp_clock_unregister(priv);
+	sja1105_static_config_free(&priv->static_config);
 }
 
 static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
@@ -2185,9 +2187,7 @@ static int sja1105_remove(struct spi_device *spi)
 {
 	struct sja1105_private *priv = spi_get_drvdata(spi);
 
-	sja1105_ptp_clock_unregister(priv);
 	dsa_unregister_switch(priv->ds);
-	sja1105_static_config_free(&priv->static_config);
 	return 0;
 }
 
