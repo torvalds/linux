@@ -52,6 +52,11 @@ static int intel_huc_rsa_data_create(struct intel_huc *huc)
 	struct i915_vma *vma;
 	size_t copied;
 	void *vaddr;
+	int err;
+
+	err = i915_inject_load_error(gt->i915, -ENXIO);
+	if (err)
+		return err;
 
 	/*
 	 * HuC firmware will sit above GUC_GGTT_TOP and will not map
@@ -115,8 +120,8 @@ out_fini:
 
 void intel_huc_fini(struct intel_huc *huc)
 {
-	intel_uc_fw_fini(&huc->fw);
 	intel_huc_rsa_data_destroy(huc);
+	intel_uc_fw_fini(&huc->fw);
 }
 
 /**

@@ -316,14 +316,14 @@ int intel_uc_init(struct intel_uc *uc)
 	if (intel_uc_supports_huc(uc)) {
 		ret = intel_huc_init(huc);
 		if (ret)
-			goto err_guc;
+			goto out_huc;
 	}
 
 	return 0;
 
-err_guc:
-	intel_guc_fini(guc);
-	return ret;
+out_huc:
+	intel_uc_fw_cleanup_fetch(&huc->fw);
+	return 0;
 }
 
 void intel_uc_fini(struct intel_uc *uc)
