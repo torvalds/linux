@@ -300,62 +300,52 @@ void snd_motu_stream_stop_duplex(struct snd_motu *motu)
 	}
 }
 
-static int init_stream(struct snd_motu *motu, enum amdtp_stream_direction dir)
+static int init_stream(struct snd_motu *motu, struct amdtp_stream *s)
 {
-	int err;
-	struct amdtp_stream *stream;
 	struct fw_iso_resources *resources;
+	enum amdtp_stream_direction dir;
+	int err;
 
-	if (dir == AMDTP_IN_STREAM) {
-		stream = &motu->tx_stream;
+	if (s == &motu->tx_stream) {
 		resources = &motu->tx_resources;
+		dir = AMDTP_IN_STREAM;
 	} else {
-		stream = &motu->rx_stream;
 		resources = &motu->rx_resources;
+		dir = AMDTP_OUT_STREAM;
 	}
 
 	err = fw_iso_resources_init(resources, motu->unit);
 	if (err < 0)
 		return err;
 
-	err = amdtp_motu_init(stream, motu->unit, dir, motu->spec->protocol);
-	if (err < 0) {
-		amdtp_stream_destroy(stream);
+	err = amdtp_motu_init(s, motu->unit, dir, motu->spec->protocol);
+	if (err < 0)
 		fw_iso_resources_destroy(resources);
-	}
 
 	return err;
 }
 
-static void destroy_stream(struct snd_motu *motu,
-			   enum amdtp_stream_direction dir)
+static void destroy_stream(struct snd_motu *motu, struct amdtp_stream *s)
 {
-	struct amdtp_stream *stream;
-	struct fw_iso_resources *resources;
+	amdtp_stream_destroy(s);
 
-	if (dir == AMDTP_IN_STREAM) {
-		stream = &motu->tx_stream;
-		resources = &motu->tx_resources;
-	} else {
-		stream = &motu->rx_stream;
-		resources = &motu->rx_resources;
-	}
-
-	amdtp_stream_destroy(stream);
-	fw_iso_resources_destroy(resources);
+	if (s == &motu->tx_stream)
+		fw_iso_resources_destroy(&motu->tx_resources);
+	else
+		fw_iso_resources_destroy(&motu->rx_resources);
 }
 
 int snd_motu_stream_init_duplex(struct snd_motu *motu)
 {
 	int err;
 
-	err = init_stream(motu, AMDTP_IN_STREAM);
+	err = init_stream(motu, &motu->tx_stream);
 	if (err < 0)
 		return err;
 
-	err = init_stream(motu, AMDTP_OUT_STREAM);
+	err = init_stream(motu, &motu->rx_stream);
 	if (err < 0)
-		destroy_stream(motu, AMDTP_IN_STREAM);
+		destroy_stream(motu, &motu->tx_stream);
 
 	return err;
 }
@@ -366,8 +356,8 @@ int snd_motu_stream_init_duplex(struct snd_motu *motu)
  */
 void snd_motu_stream_destroy_duplex(struct snd_motu *motu)
 {
-	destroy_stream(motu, AMDTP_IN_STREAM);
-	destroy_stream(motu, AMDTP_OUT_STREAM);
+	destroy_stream(motu, &motu->rx_stream);
+	destroy_stream(motu, &motu->tx_stream);
 
 	motu->substreams_counter = 0;
 }
