@@ -170,6 +170,9 @@ struct amdtp_stream {
 	/* For backends to process data blocks. */
 	void *protocol;
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
+
+	// For domain.
+	struct list_head list;
 };
 
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
@@ -273,5 +276,7 @@ struct amdtp_domain {
 
 int amdtp_domain_init(struct amdtp_domain *d);
 void amdtp_domain_destroy(struct amdtp_domain *d);
+
+void amdtp_domain_stop(struct amdtp_domain *d);
 
 #endif

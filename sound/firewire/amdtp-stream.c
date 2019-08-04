@@ -1158,3 +1158,19 @@ void amdtp_domain_destroy(struct amdtp_domain *d)
 	WARN_ON(!list_empty(&d->streams));
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_destroy);
+
+/**
+ * amdtp_domain_stop - stop sending packets for isoc context in the same domain.
+ * @d: the AMDTP domain to which the isoc contexts belong.
+ */
+void amdtp_domain_stop(struct amdtp_domain *d)
+{
+	struct amdtp_stream *s, *next;
+
+	list_for_each_entry_safe(s, next, &d->streams, list) {
+		list_del(&s->list);
+
+		amdtp_stream_stop(s);
+	}
+}
+EXPORT_SYMBOL_GPL(amdtp_domain_stop);
