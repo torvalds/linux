@@ -130,6 +130,7 @@ struct mlx5e_tc_flow {
 	struct list_head	tmp_list; /* temporary flow list used by neigh update */
 	refcount_t		refcnt;
 	struct rcu_head		rcu_head;
+	struct completion	init_done;
 	union {
 		struct mlx5_esw_flow_attr esw_attr[0];
 		struct mlx5_nic_flow_attr nic_attr[0];
@@ -1319,6 +1320,8 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 		bool all_flow_encaps_valid = true;
 		int i;
 
+		if (!mlx5e_is_offloaded_flow(flow))
+			continue;
 		esw_attr = flow->esw_attr;
 		spec = &esw_attr->parse_attr->spec;
 
@@ -1367,6 +1370,8 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 	int err;
 
 	list_for_each_entry(flow, flow_list, tmp_list) {
+		if (!mlx5e_is_offloaded_flow(flow))
+			continue;
 		spec = &flow->esw_attr->parse_attr->spec;
 
 		/* update from encap rule to slow path rule */
@@ -1412,6 +1417,7 @@ void mlx5e_take_all_encap_flows(struct mlx5e_encap_entry *e, struct list_head *f
 		flow = container_of(efi, struct mlx5e_tc_flow, encaps[efi->index]);
 		if (IS_ERR(mlx5e_flow_get(flow)))
 			continue;
+		wait_for_completion(&flow->init_done);
 
 		flow->tmp_efi_index = efi->index;
 		list_add(&flow->tmp_list, flow_list);
@@ -3492,6 +3498,7 @@ mlx5e_alloc_flow(struct mlx5e_priv *priv, int attr_size,
 	INIT_LIST_HEAD(&flow->mod_hdr);
 	INIT_LIST_HEAD(&flow->hairpin);
 	refcount_set(&flow->refcnt, 1);
+	init_completion(&flow->init_done);
 
 	*__flow = flow;
 	*__parse_attr = parse_attr;
@@ -3564,6 +3571,7 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		goto err_free;
 
 	err = mlx5e_tc_add_fdb_flow(priv, flow, extack);
+	complete_all(&flow->init_done);
 	if (err) {
 		if (!(err == -ENETUNREACH && mlx5_lag_is_multipath(in_mdev)))
 			goto err_free;
