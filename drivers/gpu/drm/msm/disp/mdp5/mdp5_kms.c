@@ -5,8 +5,14 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <linux/delay.h>
 #include <linux/interconnect.h>
 #include <linux/of_irq.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_vblank.h>
 
 #include "msm_drv.h"
 #include "msm_gem.h"

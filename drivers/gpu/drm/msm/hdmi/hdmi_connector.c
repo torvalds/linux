@@ -4,6 +4,7 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/pinctrl/consumer.h>
 

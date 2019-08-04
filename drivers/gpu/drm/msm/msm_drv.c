@@ -5,9 +5,18 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/kthread.h>
+#include <linux/uaccess.h>
 #include <uapi/linux/sched/types.h>
+
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_prime.h>
 #include <drm/drm_of.h>
+#include <drm/drm_vblank.h>
 
 #include "msm_drv.h"
 #include "msm_debugfs.h"
@@ -16,7 +25,6 @@
 #include "msm_gpu.h"
 #include "msm_kms.h"
 #include "adreno/adreno_gpu.h"
-
 
 /*
  * MSM driver version:

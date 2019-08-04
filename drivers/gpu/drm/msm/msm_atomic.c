@@ -6,6 +6,7 @@
 
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "msm_drv.h"
 #include "msm_gem.h"

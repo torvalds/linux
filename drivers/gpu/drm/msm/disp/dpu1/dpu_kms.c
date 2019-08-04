@@ -7,10 +7,12 @@
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
-#include <drm/drm_crtc.h>
 #include <linux/debugfs.h>
-#include <linux/of_irq.h>
 #include <linux/dma-buf.h>
+#include <linux/of_irq.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_file.h>
 
 #include "msm_drv.h"
 #include "msm_mmu.h"

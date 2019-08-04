@@ -4,6 +4,9 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <linux/delay.h>
+
+#include <drm/drm_vblank.h>
 
 #include "msm_drv.h"
 #include "msm_gem.h"

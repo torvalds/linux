@@ -9,6 +9,8 @@
 #include <linux/dma-buf.h>
 #include <linux/pfn_t.h>
 
+#include <drm/drm_prime.h>
+
 #include "msm_drv.h"
 #include "msm_fence.h"
 #include "msm_gem.h"

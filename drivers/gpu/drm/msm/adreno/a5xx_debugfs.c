@@ -2,9 +2,11 @@
 /* Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
  */
 
-
 #include <linux/types.h>
 #include <linux/debugfs.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_file.h>
 #include <drm/drm_print.h>
 
 #include "a5xx_gpu.h"
