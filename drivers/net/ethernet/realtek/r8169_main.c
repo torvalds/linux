@@ -850,6 +850,14 @@ static u16 r8168_mac_ocp_read(struct rtl8169_private *tp, u32 reg)
 	return RTL_R32(tp, OCPDR);
 }
 
+static void r8168_mac_ocp_modify(struct rtl8169_private *tp, u32 reg, u16 mask,
+				 u16 set)
+{
+	u16 data = r8168_mac_ocp_read(tp, reg);
+
+	r8168_mac_ocp_write(tp, reg, (data & ~mask) | set);
+}
+
 #define OCP_STD_PHY_BASE	0xa400
 
 static void r8168g_mdio_write(struct rtl8169_private *tp, int reg, int value)
@@ -4809,8 +4817,6 @@ static void rtl_hw_start_8411_2(struct rtl8169_private *tp)
 
 static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 {
-	int rg_saw_cnt;
-	u32 data;
 	static const struct ephy_info e_info_8168h_1[] = {
 		{ 0x1e, 0x0800,	0x0001 },
 		{ 0x1d, 0x0000,	0x0800 },
@@ -4819,6 +4825,7 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 		{ 0x04, 0xffff,	0x154a },
 		{ 0x01, 0xffff,	0x068b }
 	};
+	int rg_saw_cnt;
 
 	/* disable aspm and clock request before access ephy */
 	rtl_hw_aspm_clkreq_enable(tp, false);
@@ -4863,31 +4870,13 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 
 		sw_cnt_1ms_ini = 16000000/rg_saw_cnt;
 		sw_cnt_1ms_ini &= 0x0fff;
-		data = r8168_mac_ocp_read(tp, 0xd412);
-		data &= ~0x0fff;
-		data |= sw_cnt_1ms_ini;
-		r8168_mac_ocp_write(tp, 0xd412, data);
+		r8168_mac_ocp_modify(tp, 0xd412, 0x0fff, sw_cnt_1ms_ini);
 	}
 
-	data = r8168_mac_ocp_read(tp, 0xe056);
-	data &= ~0xf0;
-	data |= 0x70;
-	r8168_mac_ocp_write(tp, 0xe056, data);
-
-	data = r8168_mac_ocp_read(tp, 0xe052);
-	data &= ~0x6000;
-	data |= 0x8008;
-	r8168_mac_ocp_write(tp, 0xe052, data);
-
-	data = r8168_mac_ocp_read(tp, 0xe0d6);
-	data &= ~0x01ff;
-	data |= 0x017f;
-	r8168_mac_ocp_write(tp, 0xe0d6, data);
-
-	data = r8168_mac_ocp_read(tp, 0xd420);
-	data &= ~0x0fff;
-	data |= 0x047f;
-	r8168_mac_ocp_write(tp, 0xd420, data);
+	r8168_mac_ocp_modify(tp, 0xe056, 0x00f0, 0x0070);
+	r8168_mac_ocp_modify(tp, 0xe052, 0x6000, 0x8008);
+	r8168_mac_ocp_modify(tp, 0xe0d6, 0x01ff, 0x017f);
+	r8168_mac_ocp_modify(tp, 0xd420, 0x0fff, 0x047f);
 
 	r8168_mac_ocp_write(tp, 0xe63e, 0x0001);
 	r8168_mac_ocp_write(tp, 0xe63e, 0x0000);
@@ -4969,7 +4958,6 @@ static void rtl_hw_start_8168ep_2(struct rtl8169_private *tp)
 
 static void rtl_hw_start_8168ep_3(struct rtl8169_private *tp)
 {
-	u32 data;
 	static const struct ephy_info e_info_8168ep_3[] = {
 		{ 0x00, 0xffff,	0x10a3 },
 		{ 0x19, 0xffff,	0x7c00 },
@@ -4986,18 +4974,9 @@ static void rtl_hw_start_8168ep_3(struct rtl8169_private *tp)
 	RTL_W8(tp, DLLPR, RTL_R8(tp, DLLPR) & ~PFM_EN);
 	RTL_W8(tp, MISC_1, RTL_R8(tp, MISC_1) & ~PFM_D3COLD_EN);
 
-	data = r8168_mac_ocp_read(tp, 0xd3e2);
-	data &= 0xf000;
-	data |= 0x0271;
-	r8168_mac_ocp_write(tp, 0xd3e2, data);
-
-	data = r8168_mac_ocp_read(tp, 0xd3e4);
-	data &= 0xff00;
-	r8168_mac_ocp_write(tp, 0xd3e4, data);
-
-	data = r8168_mac_ocp_read(tp, 0xe860);
-	data |= 0x0080;
-	r8168_mac_ocp_write(tp, 0xe860, data);
+	r8168_mac_ocp_modify(tp, 0xd3e2, 0x0fff, 0x0271);
+	r8168_mac_ocp_modify(tp, 0xd3e4, 0x00ff, 0x0000);
+	r8168_mac_ocp_modify(tp, 0xe860, 0x0000, 0x0080);
 
 	rtl_hw_aspm_clkreq_enable(tp, true);
 }
@@ -6657,8 +6636,6 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 
 static void rtl_hw_init_8168g(struct rtl8169_private *tp)
 {
-	u32 data;
-
 	tp->ocp_base = OCP_STD_PHY_BASE;
 
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) | RXDV_GATED_EN);
@@ -6673,16 +6650,12 @@ static void rtl_hw_init_8168g(struct rtl8169_private *tp)
 	msleep(1);
 	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~NOW_IS_OOB);
 
-	data = r8168_mac_ocp_read(tp, 0xe8de);
-	data &= ~(1 << 14);
-	r8168_mac_ocp_write(tp, 0xe8de, data);
+	r8168_mac_ocp_modify(tp, 0xe8de, BIT(14), 0);
 
 	if (!rtl_udelay_loop_wait_high(tp, &rtl_link_list_ready_cond, 100, 42))
 		return;
 
-	data = r8168_mac_ocp_read(tp, 0xe8de);
-	data |= (1 << 15);
-	r8168_mac_ocp_write(tp, 0xe8de, data);
+	r8168_mac_ocp_modify(tp, 0xe8de, 0, BIT(15));
 
 	rtl_udelay_loop_wait_high(tp, &rtl_link_list_ready_cond, 100, 42);
 }
