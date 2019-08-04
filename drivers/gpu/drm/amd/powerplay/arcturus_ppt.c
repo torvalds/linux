@@ -1326,7 +1326,7 @@ static int arcturus_get_power_limit(struct smu_context *smu,
 				     bool asic_default)
 {
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
-	uint32_t asic_default_power_limit;
+	uint32_t asic_default_power_limit = 0;
 	int ret = 0;
 	int power_src;
 
