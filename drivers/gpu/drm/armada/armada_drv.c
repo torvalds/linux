@@ -2,14 +2,22 @@
 /*
  * Copyright (C) 2012 Russell King
  */
+
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
+
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_prime.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_of.h>
+#include <drm/drm_vblank.h>
+
 #include "armada_crtc.h"
 #include "armada_drm.h"
 #include "armada_gem.h"
