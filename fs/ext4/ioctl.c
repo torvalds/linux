@@ -1113,6 +1113,8 @@ resizefs_out:
 #endif
 	}
 	case EXT4_IOC_GET_ENCRYPTION_POLICY:
+		if (!ext4_has_feature_encrypt(sb))
+			return -EOPNOTSUPP;
 		return fscrypt_ioctl_get_policy(filp, (void __user *)arg);
 
 	case FS_IOC_GET_ENCRYPTION_POLICY_EX:
