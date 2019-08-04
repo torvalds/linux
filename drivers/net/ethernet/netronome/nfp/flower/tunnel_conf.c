@@ -832,6 +832,18 @@ int nfp_tunnel_mac_event_handler(struct nfp_app *app,
 	return NOTIFY_OK;
 }
 
+int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,
+				 struct nfp_fl_payload *flow)
+{
+	return -EOPNOTSUPP;
+}
+
+int nfp_flower_xmit_pre_tun_del_flow(struct nfp_app *app,
+				     struct nfp_fl_payload *flow)
+{
+	return -EOPNOTSUPP;
+}
+
 int nfp_tunnel_config_start(struct nfp_app *app)
 {
 	struct nfp_flower_priv *priv = app->priv;

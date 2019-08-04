@@ -283,6 +283,7 @@ struct nfp_fl_payload {
 	bool in_hw;
 	struct {
 		struct net_device *dev;
+		__be16 vlan_tci;
 	} pre_tun_rule;
 };
 
@@ -419,4 +420,8 @@ void
 nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev);
 u32 nfp_flower_get_port_id_from_netdev(struct nfp_app *app,
 				       struct net_device *netdev);
+int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,
+				 struct nfp_fl_payload *flow);
+int nfp_flower_xmit_pre_tun_del_flow(struct nfp_app *app,
+				     struct nfp_fl_payload *flow);
 #endif
