@@ -12,6 +12,9 @@
 
 #include <linux/dma-buf.h>
 #include <linux/iommu.h>
+
+#include <drm/drm_drv.h>
+#include <drm/drm_prime.h>
 #include <drm/tegra_drm.h>
 
 #include "drm.h"
