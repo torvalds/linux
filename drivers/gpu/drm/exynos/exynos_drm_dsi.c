@@ -1461,7 +1461,7 @@ static int exynos_dsi_get_modes(struct drm_connector *connector)
 	struct exynos_dsi *dsi = connector_to_dsi(connector);
 
 	if (dsi->panel)
-		return dsi->panel->funcs->get_modes(dsi->panel);
+		return drm_panel_get_modes(dsi->panel);
 
 	return 0;
 }
