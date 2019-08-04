@@ -221,6 +221,7 @@ struct nfp_fl_qos {
  * @block_shared:	Flag indicating if offload applies to shared blocks
  * @mac_list:		List entry of reprs that share the same offloaded MAC
  * @qos_table:		Stored info on filters implementing qos
+ * @on_bridge:		Indicates if the repr is attached to a bridge
  */
 struct nfp_flower_repr_priv {
 	struct nfp_repr *nfp_repr;
@@ -230,6 +231,7 @@ struct nfp_flower_repr_priv {
 	bool block_shared;
 	struct list_head mac_list;
 	struct nfp_fl_qos qos_table;
+	bool on_bridge;
 };
 
 /**
@@ -339,6 +341,11 @@ nfp_flower_internal_port_can_offload(struct nfp_app *app,
 static inline bool nfp_flower_is_merge_flow(struct nfp_fl_payload *flow_pay)
 {
 	return flow_pay->tc_flower_cookie == (unsigned long)flow_pay;
+}
+
+static inline bool nfp_flower_is_supported_bridge(struct net_device *netdev)
+{
+	return netif_is_ovs_master(netdev);
 }
 
 int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,

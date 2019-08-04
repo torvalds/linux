@@ -730,6 +730,9 @@ nfp_tunnel_offload_mac(struct nfp_app *app, struct net_device *netdev,
 			return 0;
 
 		repr_priv = repr->app_priv;
+		if (repr_priv->on_bridge)
+			return 0;
+
 		mac_offloaded = &repr_priv->mac_offloaded;
 		off_mac = &repr_priv->offloaded_mac_addr[0];
 		port = nfp_repr_get_port_id(netdev);
@@ -845,6 +848,45 @@ int nfp_tunnel_mac_event_handler(struct nfp_app *app,
 		if (err)
 			nfp_flower_cmsg_warn(app, "Failed to offload MAC change on %s.\n",
 					     netdev_name(netdev));
+	} else if (event == NETDEV_CHANGEUPPER) {
+		/* If a repr is attached to a bridge then tunnel packets
+		 * entering the physical port are directed through the bridge
+		 * datapath and cannot be directly detunneled. Therefore,
+		 * associated offloaded MACs and indexes should not be used
+		 * by fw for detunneling.
+		 */
+		struct netdev_notifier_changeupper_info *info = ptr;
+		struct net_device *upper = info->upper_dev;
+		struct nfp_flower_repr_priv *repr_priv;
+		struct nfp_repr *repr;
+
+		if (!nfp_netdev_is_nfp_repr(netdev) ||
+		    !nfp_flower_is_supported_bridge(upper))
+			return NOTIFY_OK;
+
+		repr = netdev_priv(netdev);
+		if (repr->app != app)
+			return NOTIFY_OK;
+
+		repr_priv = repr->app_priv;
+
+		if (info->linking) {
+			if (nfp_tunnel_offload_mac(app, netdev,
+						   NFP_TUNNEL_MAC_OFFLOAD_DEL))
+				nfp_flower_cmsg_warn(app, "Failed to delete offloaded MAC on %s.\n",
+						     netdev_name(netdev));
+			repr_priv->on_bridge = true;
+		} else {
+			repr_priv->on_bridge = false;
+
+			if (!(netdev->flags & IFF_UP))
+				return NOTIFY_OK;
+
+			if (nfp_tunnel_offload_mac(app, netdev,
+						   NFP_TUNNEL_MAC_OFFLOAD_ADD))
+				nfp_flower_cmsg_warn(app, "Failed to offload MAC on %s.\n",
+						     netdev_name(netdev));
+		}
 	}
 	return NOTIFY_OK;
 }
