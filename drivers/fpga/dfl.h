@@ -416,5 +416,6 @@ dfl_fpga_cdev_find_port(struct dfl_fpga_cdev *cdev, void *data,
 
 int dfl_fpga_cdev_release_port(struct dfl_fpga_cdev *cdev, int port_id);
 int dfl_fpga_cdev_assign_port(struct dfl_fpga_cdev *cdev, int port_id);
-
+void dfl_fpga_cdev_config_ports_pf(struct dfl_fpga_cdev *cdev);
+int dfl_fpga_cdev_config_ports_vf(struct dfl_fpga_cdev *cdev, int num_vf);
 #endif /* __FPGA_DFL_H */

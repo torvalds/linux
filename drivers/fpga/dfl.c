@@ -1131,6 +1131,88 @@ unlock_exit:
 }
 EXPORT_SYMBOL_GPL(dfl_fpga_cdev_assign_port);
 
+static void config_port_access_mode(struct device *fme_dev, int port_id,
+				    bool is_vf)
+{
+	void __iomem *base;
+	u64 v;
+
+	base = dfl_get_feature_ioaddr_by_id(fme_dev, FME_FEATURE_ID_HEADER);
+
+	v = readq(base + FME_HDR_PORT_OFST(port_id));
+
+	v &= ~FME_PORT_OFST_ACC_CTRL;
+	v |= FIELD_PREP(FME_PORT_OFST_ACC_CTRL,
+			is_vf ? FME_PORT_OFST_ACC_VF : FME_PORT_OFST_ACC_PF);
+
+	writeq(v, base + FME_HDR_PORT_OFST(port_id));
+}
+
+#define config_port_vf_mode(dev, id) config_port_access_mode(dev, id, true)
+#define config_port_pf_mode(dev, id) config_port_access_mode(dev, id, false)
+
+/**
+ * dfl_fpga_cdev_config_ports_pf - configure ports to PF access mode
+ *
+ * @cdev: parent container device.
+ *
+ * This function is needed in sriov configuration routine. It could be used to
+ * configure the all released ports from VF access mode to PF.
+ */
+void dfl_fpga_cdev_config_ports_pf(struct dfl_fpga_cdev *cdev)
+{
+	struct dfl_feature_platform_data *pdata;
+
+	mutex_lock(&cdev->lock);
+	list_for_each_entry(pdata, &cdev->port_dev_list, node) {
+		if (device_is_registered(&pdata->dev->dev))
+			continue;
+
+		config_port_pf_mode(cdev->fme_dev, pdata->id);
+	}
+	mutex_unlock(&cdev->lock);
+}
+EXPORT_SYMBOL_GPL(dfl_fpga_cdev_config_ports_pf);
+
+/**
+ * dfl_fpga_cdev_config_ports_vf - configure ports to VF access mode
+ *
+ * @cdev: parent container device.
+ * @num_vfs: VF device number.
+ *
+ * This function is needed in sriov configuration routine. It could be used to
+ * configure the released ports from PF access mode to VF.
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+int dfl_fpga_cdev_config_ports_vf(struct dfl_fpga_cdev *cdev, int num_vfs)
+{
+	struct dfl_feature_platform_data *pdata;
+	int ret = 0;
+
+	mutex_lock(&cdev->lock);
+	/*
+	 * can't turn multiple ports into 1 VF device, only 1 port for 1 VF
+	 * device, so if released port number doesn't match VF device number,
+	 * then reject the request with -EINVAL error code.
+	 */
+	if (cdev->released_port_num != num_vfs) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	list_for_each_entry(pdata, &cdev->port_dev_list, node) {
+		if (device_is_registered(&pdata->dev->dev))
+			continue;
+
+		config_port_vf_mode(cdev->fme_dev, pdata->id);
+	}
+done:
+	mutex_unlock(&cdev->lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dfl_fpga_cdev_config_ports_vf);
+
 static void __exit dfl_fpga_exit(void)
 {
 	dfl_chardev_uinit();
