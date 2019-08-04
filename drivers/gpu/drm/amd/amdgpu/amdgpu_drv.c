@@ -145,6 +145,7 @@ int amdgpu_discovery = -1;
 int amdgpu_mes = 0;
 int amdgpu_noretry;
 int amdgpu_force_asic_type = -1;
+int amdgpu_tmz = 0;
 
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
@@ -728,6 +729,16 @@ module_param_named(dcfeaturemask, amdgpu_dc_feature_mask, uint, 0444);
 uint amdgpu_dm_abm_level = 0;
 MODULE_PARM_DESC(abmlevel, "ABM level (0 = off (default), 1-4 = backlight reduction level) ");
 module_param_named(abmlevel, amdgpu_dm_abm_level, uint, 0444);
+
+/**
+ * DOC: tmz (int)
+ * Trusted Memory Zone (TMZ) is a method to protect data being written
+ * to or read from memory.
+ *
+ * The default value: 0 (off).  TODO: change to auto till it is completed.
+ */
+MODULE_PARM_DESC(tmz, "Enable TMZ feature (-1 = auto, 0 = off (default), 1 = on)");
+module_param_named(tmz, amdgpu_tmz, int, 0444);
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI

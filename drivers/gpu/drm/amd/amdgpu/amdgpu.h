@@ -189,6 +189,8 @@ extern int sched_policy;
 static const int sched_policy = KFD_SCHED_POLICY_HWS;
 #endif
 
+extern int amdgpu_tmz;
+
 #ifdef CONFIG_DRM_AMDGPU_SI
 extern int amdgpu_si_support;
 #endif
