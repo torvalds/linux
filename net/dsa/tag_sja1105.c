@@ -211,17 +211,8 @@ static struct sk_buff
 		 * for further processing up the network stack.
 		 */
 		kfree_skb(skb);
-
-		skb = skb_copy(stampable_skb, GFP_ATOMIC);
-		if (!skb) {
-			dev_err_ratelimited(dp->ds->dev,
-					    "Failed to copy stampable skb\n");
-			spin_unlock(&sp->data->meta_lock);
-			return NULL;
-		}
+		skb = stampable_skb;
 		sja1105_transfer_meta(skb, meta);
-		/* The cached copy will be freed now */
-		skb_unref(stampable_skb);
 
 		spin_unlock(&sp->data->meta_lock);
 	}
