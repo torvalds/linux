@@ -1186,6 +1186,30 @@ int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
 EXPORT_SYMBOL_GPL(amdtp_domain_add_stream);
 
 /**
+ * amdtp_domain_start - start sending packets for isoc context in the domain.
+ * @d: the AMDTP domain.
+ */
+int amdtp_domain_start(struct amdtp_domain *d)
+{
+	struct amdtp_stream *s;
+	int err = 0;
+
+	list_for_each_entry(s, &d->streams, list) {
+		err = amdtp_stream_start(s, s->channel, s->speed);
+		if (err < 0)
+			break;
+	}
+
+	if (err < 0) {
+		list_for_each_entry(s, &d->streams, list)
+			amdtp_stream_stop(s);
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(amdtp_domain_start);
+
+/**
  * amdtp_domain_stop - stop sending packets for isoc context in the same domain.
  * @d: the AMDTP domain to which the isoc contexts belong.
  */
