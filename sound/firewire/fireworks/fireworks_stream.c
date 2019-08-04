@@ -61,17 +61,6 @@ static int init_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 	return err;
 }
 
-static void
-stop_stream(struct snd_efw *efw, struct amdtp_stream *stream)
-{
-	amdtp_stream_stop(stream);
-
-	if (stream == &efw->tx_stream)
-		cmp_connection_break(&efw->out_conn);
-	else
-		cmp_connection_break(&efw->in_conn);
-}
-
 static int start_stream(struct snd_efw *efw, struct amdtp_stream *stream,
 			unsigned int rate)
 {
@@ -89,17 +78,11 @@ static int start_stream(struct snd_efw *efw, struct amdtp_stream *stream,
 		return err;
 
 	// Start amdtp stream.
-	err = amdtp_stream_start(stream, conn->resources.channel, conn->speed);
+	err = amdtp_domain_add_stream(&efw->domain, stream,
+				      conn->resources.channel, conn->speed);
 	if (err < 0) {
 		cmp_connection_break(conn);
 		return err;
-	}
-
-	// Wait first callback.
-	if (!amdtp_stream_wait_callback(stream, CALLBACK_TIMEOUT)) {
-		amdtp_stream_stop(stream);
-		cmp_connection_break(conn);
-		return -ETIMEDOUT;
 	}
 
 	return 0;
@@ -152,6 +135,13 @@ int snd_efw_stream_init_duplex(struct snd_efw *efw)
 	err = init_stream(efw, &efw->rx_stream);
 	if (err < 0) {
 		destroy_stream(efw, &efw->tx_stream);
+		return err;
+	}
+
+	err = amdtp_domain_init(&efw->domain);
+	if (err < 0) {
+		destroy_stream(efw, &efw->tx_stream);
+		destroy_stream(efw, &efw->rx_stream);
 		return err;
 	}
 
@@ -209,8 +199,10 @@ int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate)
 	if (rate == 0)
 		rate = curr_rate;
 	if (rate != curr_rate) {
-		stop_stream(efw, &efw->tx_stream);
-		stop_stream(efw, &efw->rx_stream);
+		amdtp_domain_stop(&efw->domain);
+
+		cmp_connection_break(&efw->out_conn);
+		cmp_connection_break(&efw->in_conn);
 
 		cmp_connection_release(&efw->out_conn);
 		cmp_connection_release(&efw->in_conn);
@@ -250,47 +242,57 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw)
 	if (efw->substreams_counter == 0)
 		return -EIO;
 
+	if (amdtp_streaming_error(&efw->rx_stream) ||
+	    amdtp_streaming_error(&efw->tx_stream)) {
+		amdtp_domain_stop(&efw->domain);
+		cmp_connection_break(&efw->out_conn);
+		cmp_connection_break(&efw->in_conn);
+	}
+
 	err = snd_efw_command_get_sampling_rate(efw, &rate);
 	if (err < 0)
 		return err;
 
-	if (amdtp_streaming_error(&efw->rx_stream) ||
-	    amdtp_streaming_error(&efw->tx_stream)) {
-		stop_stream(efw, &efw->rx_stream);
-		stop_stream(efw, &efw->tx_stream);
-	}
-
-	/* master should be always running */
 	if (!amdtp_stream_running(&efw->rx_stream)) {
 		err = start_stream(efw, &efw->rx_stream, rate);
-		if (err < 0) {
-			dev_err(&efw->unit->device,
-				"fail to start AMDTP master stream:%d\n", err);
+		if (err < 0)
 			goto error;
-		}
-	}
 
-	if (!amdtp_stream_running(&efw->tx_stream)) {
 		err = start_stream(efw, &efw->tx_stream, rate);
-		if (err < 0) {
-			dev_err(&efw->unit->device,
-				"fail to start AMDTP slave stream:%d\n", err);
+		if (err < 0)
+			goto error;
+
+		err = amdtp_domain_start(&efw->domain);
+		if (err < 0)
+			goto error;
+
+		// Wait first callback.
+		if (!amdtp_stream_wait_callback(&efw->rx_stream,
+						CALLBACK_TIMEOUT) ||
+		    !amdtp_stream_wait_callback(&efw->tx_stream,
+						CALLBACK_TIMEOUT)) {
+			err = -ETIMEDOUT;
 			goto error;
 		}
 	}
 
 	return 0;
 error:
-	stop_stream(efw, &efw->rx_stream);
-	stop_stream(efw, &efw->tx_stream);
+	amdtp_domain_stop(&efw->domain);
+
+	cmp_connection_break(&efw->out_conn);
+	cmp_connection_break(&efw->in_conn);
+
 	return err;
 }
 
 void snd_efw_stream_stop_duplex(struct snd_efw *efw)
 {
 	if (efw->substreams_counter == 0) {
-		stop_stream(efw, &efw->tx_stream);
-		stop_stream(efw, &efw->rx_stream);
+		amdtp_domain_stop(&efw->domain);
+
+		cmp_connection_break(&efw->out_conn);
+		cmp_connection_break(&efw->in_conn);
 
 		cmp_connection_release(&efw->out_conn);
 		cmp_connection_release(&efw->in_conn);
@@ -299,8 +301,10 @@ void snd_efw_stream_stop_duplex(struct snd_efw *efw)
 
 void snd_efw_stream_update_duplex(struct snd_efw *efw)
 {
-	stop_stream(efw, &efw->rx_stream);
-	stop_stream(efw, &efw->tx_stream);
+	amdtp_domain_stop(&efw->domain);
+
+	cmp_connection_break(&efw->out_conn);
+	cmp_connection_break(&efw->in_conn);
 
 	amdtp_stream_pcm_abort(&efw->rx_stream);
 	amdtp_stream_pcm_abort(&efw->tx_stream);
@@ -308,6 +312,8 @@ void snd_efw_stream_update_duplex(struct snd_efw *efw)
 
 void snd_efw_stream_destroy_duplex(struct snd_efw *efw)
 {
+	amdtp_domain_destroy(&efw->domain);
+
 	destroy_stream(efw, &efw->rx_stream);
 	destroy_stream(efw, &efw->tx_stream);
 }
