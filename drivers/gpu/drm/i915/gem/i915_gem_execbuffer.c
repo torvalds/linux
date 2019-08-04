@@ -2139,14 +2139,40 @@ static int eb_pin_context(struct i915_execbuffer *eb, struct intel_context *ce)
 	if (err)
 		return err;
 
+	/*
+	 * Take a local wakeref for preparing to dispatch the execbuf as
+	 * we expect to access the hardware fairly frequently in the
+	 * process, and require the engine to be kept awake between accesses.
+	 * Upon dispatch, we acquire another prolonged wakeref that we hold
+	 * until the timeline is idle, which in turn releases the wakeref
+	 * taken on the engine, and the parent device.
+	 */
+	err = intel_context_timeline_lock(ce);
+	if (err)
+		goto err_unpin;
+
+	intel_context_enter(ce);
+	intel_context_timeline_unlock(ce);
+
 	eb->engine = ce->engine;
 	eb->context = ce;
 	return 0;
+
+err_unpin:
+	intel_context_unpin(ce);
+	return err;
 }
 
 static void eb_unpin_context(struct i915_execbuffer *eb)
 {
-	intel_context_unpin(eb->context);
+	struct intel_context *ce = eb->context;
+	struct intel_timeline *tl = ce->ring->timeline;
+
+	mutex_lock(&tl->mutex);
+	intel_context_exit(ce);
+	mutex_unlock(&tl->mutex);
+
+	intel_context_unpin(ce);
 }
 
 static unsigned int
@@ -2426,18 +2452,9 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	if (unlikely(err))
 		goto err_destroy;
 
-	/*
-	 * Take a local wakeref for preparing to dispatch the execbuf as
-	 * we expect to access the hardware fairly frequently in the
-	 * process. Upon first dispatch, we acquire another prolonged
-	 * wakeref that we hold until the GPU has been idle for at least
-	 * 100ms.
-	 */
-	intel_gt_pm_get(&eb.i915->gt);
-
 	err = i915_mutex_lock_interruptible(dev);
 	if (err)
-		goto err_rpm;
+		goto err_context;
 
 	err = eb_select_engine(&eb, file, args);
 	if (unlikely(err))
@@ -2602,8 +2619,7 @@ err_engine:
 	eb_unpin_context(&eb);
 err_unlock:
 	mutex_unlock(&dev->struct_mutex);
-err_rpm:
-	intel_gt_pm_put(&eb.i915->gt);
+err_context:
 	i915_gem_context_put(eb.gem_context);
 err_destroy:
 	eb_destroy(&eb);
