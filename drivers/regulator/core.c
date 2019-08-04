@@ -380,9 +380,12 @@ static struct device_node *of_get_child_regulator(struct device_node *parent,
 
 		if (!regnode) {
 			regnode = of_get_child_regulator(child, prop_name);
-			if (regnode)
+			if (regnode) {
+				of_node_put(child);
 				return regnode;
+			}
 		} else {
+			of_node_put(child);
 			return regnode;
 		}
 	}
