@@ -299,14 +299,11 @@ void snd_efw_stream_stop_duplex(struct snd_efw *efw)
 
 void snd_efw_stream_update_duplex(struct snd_efw *efw)
 {
-	if (cmp_connection_update(&efw->out_conn) < 0 ||
-	    cmp_connection_update(&efw->in_conn) < 0) {
-		stop_stream(efw, &efw->rx_stream);
-		stop_stream(efw, &efw->tx_stream);
-	} else {
-		amdtp_stream_update(&efw->rx_stream);
-		amdtp_stream_update(&efw->tx_stream);
-	}
+	stop_stream(efw, &efw->rx_stream);
+	stop_stream(efw, &efw->tx_stream);
+
+	amdtp_stream_pcm_abort(&efw->rx_stream);
+	amdtp_stream_pcm_abort(&efw->tx_stream);
 }
 
 void snd_efw_stream_destroy_duplex(struct snd_efw *efw)
