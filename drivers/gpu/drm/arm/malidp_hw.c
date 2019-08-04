@@ -9,11 +9,16 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/io.h>
-#include <drm/drmP.h>
+
 #include <video/videomode.h>
 #include <video/display_timing.h>
+
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+#include <drm/drm_print.h>
 
 #include "malidp_drv.h"
 #include "malidp_hw.h"
