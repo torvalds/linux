@@ -23,7 +23,7 @@ int tegra_output_connector_get_modes(struct drm_connector *connector)
 	 * ignore any other means of obtaining a mode.
 	 */
 	if (output->panel) {
-		err = output->panel->funcs->get_modes(output->panel);
+		err = drm_panel_get_modes(output->panel);
 		if (err > 0)
 			return err;
 	}
