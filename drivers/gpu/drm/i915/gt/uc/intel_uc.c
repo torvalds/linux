@@ -306,9 +306,6 @@ int intel_uc_init(struct intel_uc *uc)
 	if (!intel_uc_supports_guc(uc))
 		return 0;
 
-	if (!intel_uc_fw_supported(&guc->fw))
-		return -ENODEV;
-
 	/* XXX: GuC submission is unavailable for now */
 	GEM_BUG_ON(intel_uc_supports_guc_submission(uc));
 
@@ -336,8 +333,6 @@ void intel_uc_fini(struct intel_uc *uc)
 	if (!intel_uc_supports_guc(uc))
 		return;
 
-	GEM_BUG_ON(!intel_uc_fw_supported(&guc->fw));
-
 	if (intel_uc_supports_huc(uc))
 		intel_huc_fini(&uc->huc);
 
@@ -351,7 +346,7 @@ static int __uc_sanitize(struct intel_uc *uc)
 	struct intel_guc *guc = &uc->guc;
 	struct intel_huc *huc = &uc->huc;
 
-	GEM_BUG_ON(!intel_uc_fw_supported(&guc->fw));
+	GEM_BUG_ON(!intel_uc_supports_guc(uc));
 
 	intel_huc_sanitize(huc);
 	intel_guc_sanitize(guc);
@@ -428,8 +423,6 @@ int intel_uc_init_hw(struct intel_uc *uc)
 
 	if (!intel_uc_supports_guc(uc))
 		return 0;
-
-	GEM_BUG_ON(!intel_uc_fw_supported(&guc->fw));
 
 	ret = uc_init_wopcm(uc);
 	if (ret)
@@ -529,8 +522,6 @@ void intel_uc_fini_hw(struct intel_uc *uc)
 
 	if (!intel_guc_is_running(guc))
 		return;
-
-	GEM_BUG_ON(!intel_uc_fw_supported(&guc->fw));
 
 	if (intel_uc_supports_guc_submission(uc))
 		intel_guc_submission_disable(guc);
