@@ -163,6 +163,7 @@ struct nfp_fl_internal_ports {
  * @qos_stats_work:	Workqueue for qos stats processing
  * @qos_rate_limiters:	Current active qos rate limiters
  * @qos_stats_lock:	Lock on qos stats updates
+ * @pre_tun_rule_cnt:	Number of pre-tunnel rules offloaded
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -194,6 +195,7 @@ struct nfp_flower_priv {
 	struct delayed_work qos_stats_work;
 	unsigned int qos_rate_limiters;
 	spinlock_t qos_stats_lock; /* Protect the qos stats */
+	int pre_tun_rule_cnt;
 };
 
 /**
@@ -284,6 +286,7 @@ struct nfp_fl_payload {
 	struct {
 		struct net_device *dev;
 		__be16 vlan_tci;
+		__be16 port_idx;
 	} pre_tun_rule;
 };
 
