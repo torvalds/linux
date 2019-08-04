@@ -369,17 +369,27 @@ static void mlx5e_grp_q_update_stats(struct mlx5e_priv *priv)
 }
 
 #define VNIC_ENV_OFF(c) MLX5_BYTE_OFF(query_vnic_env_out, c)
-static const struct counter_desc vnic_env_stats_desc[] = {
+static const struct counter_desc vnic_env_stats_steer_desc[] = {
 	{ "rx_steer_missed_packets",
 		VNIC_ENV_OFF(vport_env.nic_receive_steering_discard) },
 };
 
-#define NUM_VNIC_ENV_COUNTERS		ARRAY_SIZE(vnic_env_stats_desc)
+static const struct counter_desc vnic_env_stats_dev_oob_desc[] = {
+	{ "dev_internal_queue_oob",
+		VNIC_ENV_OFF(vport_env.internal_rq_out_of_buffer) },
+};
+
+#define NUM_VNIC_ENV_STEER_COUNTERS(dev) \
+	(MLX5_CAP_GEN(dev, nic_receive_steering_discard) ? \
+	 ARRAY_SIZE(vnic_env_stats_steer_desc) : 0)
+#define NUM_VNIC_ENV_DEV_OOB_COUNTERS(dev) \
+	(MLX5_CAP_GEN(dev, vnic_env_int_rq_oob) ? \
+	 ARRAY_SIZE(vnic_env_stats_dev_oob_desc) : 0)
 
 static int mlx5e_grp_vnic_env_get_num_stats(struct mlx5e_priv *priv)
 {
-	return MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard) ?
-		NUM_VNIC_ENV_COUNTERS : 0;
+	return NUM_VNIC_ENV_STEER_COUNTERS(priv->mdev) +
+		NUM_VNIC_ENV_DEV_OOB_COUNTERS(priv->mdev);
 }
 
 static int mlx5e_grp_vnic_env_fill_strings(struct mlx5e_priv *priv, u8 *data,
@@ -387,12 +397,13 @@ static int mlx5e_grp_vnic_env_fill_strings(struct mlx5e_priv *priv, u8 *data,
 {
 	int i;
 
-	if (!MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard))
-		return idx;
-
-	for (i = 0; i < NUM_VNIC_ENV_COUNTERS; i++)
+	for (i = 0; i < NUM_VNIC_ENV_STEER_COUNTERS(priv->mdev); i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       vnic_env_stats_desc[i].format);
+		       vnic_env_stats_steer_desc[i].format);
+
+	for (i = 0; i < NUM_VNIC_ENV_DEV_OOB_COUNTERS(priv->mdev); i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       vnic_env_stats_dev_oob_desc[i].format);
 	return idx;
 }
 
@@ -401,12 +412,13 @@ static int mlx5e_grp_vnic_env_fill_stats(struct mlx5e_priv *priv, u64 *data,
 {
 	int i;
 
-	if (!MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard))
-		return idx;
-
-	for (i = 0; i < NUM_VNIC_ENV_COUNTERS; i++)
+	for (i = 0; i < NUM_VNIC_ENV_STEER_COUNTERS(priv->mdev); i++)
 		data[idx++] = MLX5E_READ_CTR64_BE(priv->stats.vnic.query_vnic_env_out,
-						  vnic_env_stats_desc, i);
+						  vnic_env_stats_steer_desc, i);
+
+	for (i = 0; i < NUM_VNIC_ENV_DEV_OOB_COUNTERS(priv->mdev); i++)
+		data[idx++] = MLX5E_READ_CTR32_BE(priv->stats.vnic.query_vnic_env_out,
+						  vnic_env_stats_dev_oob_desc, i);
 	return idx;
 }
 
