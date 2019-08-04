@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/uaccess.h>
 #include <linux/fpga-dfl.h>
 
 #include "dfl.h"
@@ -104,9 +105,50 @@ static void fme_hdr_uinit(struct platform_device *pdev,
 	device_remove_groups(&pdev->dev, fme_hdr_groups);
 }
 
+static long fme_hdr_ioctl_release_port(struct dfl_feature_platform_data *pdata,
+				       unsigned long arg)
+{
+	struct dfl_fpga_cdev *cdev = pdata->dfl_cdev;
+	int port_id;
+
+	if (get_user(port_id, (int __user *)arg))
+		return -EFAULT;
+
+	return dfl_fpga_cdev_release_port(cdev, port_id);
+}
+
+static long fme_hdr_ioctl_assign_port(struct dfl_feature_platform_data *pdata,
+				      unsigned long arg)
+{
+	struct dfl_fpga_cdev *cdev = pdata->dfl_cdev;
+	int port_id;
+
+	if (get_user(port_id, (int __user *)arg))
+		return -EFAULT;
+
+	return dfl_fpga_cdev_assign_port(cdev, port_id);
+}
+
+static long fme_hdr_ioctl(struct platform_device *pdev,
+			  struct dfl_feature *feature,
+			  unsigned int cmd, unsigned long arg)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+
+	switch (cmd) {
+	case DFL_FPGA_FME_PORT_RELEASE:
+		return fme_hdr_ioctl_release_port(pdata, arg);
+	case DFL_FPGA_FME_PORT_ASSIGN:
+		return fme_hdr_ioctl_assign_port(pdata, arg);
+	}
+
+	return -ENODEV;
+}
+
 static const struct dfl_feature_ops fme_hdr_ops = {
 	.init = fme_hdr_init,
 	.uinit = fme_hdr_uinit,
+	.ioctl = fme_hdr_ioctl,
 };
 
 static struct dfl_feature_driver fme_feature_drvs[] = {
