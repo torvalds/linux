@@ -17,6 +17,7 @@
 
 #define NFP_TUN_PRE_TUN_RULE_LIMIT	32
 #define NFP_TUN_PRE_TUN_RULE_DEL	0x1
+#define NFP_TUN_PRE_TUN_IDX_BIT		0x8
 
 /**
  * struct nfp_tun_pre_run_rule - rule matched before decap
@@ -141,11 +142,12 @@ enum nfp_flower_mac_offload_cmd {
 
 /**
  * struct nfp_tun_offloaded_mac - hashtable entry for an offloaded MAC
- * @ht_node:	Hashtable entry
- * @addr:	Offloaded MAC address
- * @index:	Offloaded index for given MAC address
- * @ref_count:	Number of devs using this MAC address
- * @repr_list:	List of reprs sharing this MAC address
+ * @ht_node:		Hashtable entry
+ * @addr:		Offloaded MAC address
+ * @index:		Offloaded index for given MAC address
+ * @ref_count:		Number of devs using this MAC address
+ * @repr_list:		List of reprs sharing this MAC address
+ * @bridge_count:	Number of bridge/internal devs with MAC
  */
 struct nfp_tun_offloaded_mac {
 	struct rhash_head ht_node;
@@ -153,6 +155,7 @@ struct nfp_tun_offloaded_mac {
 	u16 index;
 	int ref_count;
 	struct list_head repr_list;
+	int bridge_count;
 };
 
 static const struct rhashtable_params offloaded_macs_params = {
@@ -573,6 +576,8 @@ nfp_tunnel_offloaded_macs_inc_ref_and_link(struct nfp_tun_offloaded_mac *entry,
 			list_del(&repr_priv->mac_list);
 
 		list_add_tail(&repr_priv->mac_list, &entry->repr_list);
+	} else if (nfp_flower_is_supported_bridge(netdev)) {
+		entry->bridge_count++;
 	}
 
 	entry->ref_count++;
@@ -589,20 +594,35 @@ nfp_tunnel_add_shared_mac(struct nfp_app *app, struct net_device *netdev,
 
 	entry = nfp_tunnel_lookup_offloaded_macs(app, netdev->dev_addr);
 	if (entry && nfp_tunnel_is_mac_idx_global(entry->index)) {
-		nfp_tunnel_offloaded_macs_inc_ref_and_link(entry, netdev, mod);
-		return 0;
+		if (entry->bridge_count ||
+		    !nfp_flower_is_supported_bridge(netdev)) {
+			nfp_tunnel_offloaded_macs_inc_ref_and_link(entry,
+								   netdev, mod);
+			return 0;
+		}
+
+		/* MAC is global but matches need to go to pre_tun table. */
+		nfp_mac_idx = entry->index | NFP_TUN_PRE_TUN_IDX_BIT;
 	}
 
-	/* Assign a global index if non-repr or MAC address is now shared. */
-	if (entry || !port) {
-		ida_idx = ida_simple_get(&priv->tun.mac_off_ids, 0,
-					 NFP_MAX_MAC_INDEX, GFP_KERNEL);
-		if (ida_idx < 0)
-			return ida_idx;
+	if (!nfp_mac_idx) {
+		/* Assign a global index if non-repr or MAC is now shared. */
+		if (entry || !port) {
+			ida_idx = ida_simple_get(&priv->tun.mac_off_ids, 0,
+						 NFP_MAX_MAC_INDEX, GFP_KERNEL);
+			if (ida_idx < 0)
+				return ida_idx;
 
-		nfp_mac_idx = nfp_tunnel_get_global_mac_idx_from_ida(ida_idx);
-	} else {
-		nfp_mac_idx = nfp_tunnel_get_mac_idx_from_phy_port_id(port);
+			nfp_mac_idx =
+				nfp_tunnel_get_global_mac_idx_from_ida(ida_idx);
+
+			if (nfp_flower_is_supported_bridge(netdev))
+				nfp_mac_idx |= NFP_TUN_PRE_TUN_IDX_BIT;
+
+		} else {
+			nfp_mac_idx =
+				nfp_tunnel_get_mac_idx_from_phy_port_id(port);
+		}
 	}
 
 	if (!entry) {
@@ -669,6 +689,25 @@ nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
 		repr = netdev_priv(netdev);
 		repr_priv = repr->app_priv;
 		list_del(&repr_priv->mac_list);
+	}
+
+	if (nfp_flower_is_supported_bridge(netdev)) {
+		entry->bridge_count--;
+
+		if (!entry->bridge_count && entry->ref_count) {
+			u16 nfp_mac_idx;
+
+			nfp_mac_idx = entry->index & ~NFP_TUN_PRE_TUN_IDX_BIT;
+			if (__nfp_tunnel_offload_mac(app, mac, nfp_mac_idx,
+						     false)) {
+				nfp_flower_cmsg_warn(app, "MAC offload index revert failed on %s.\n",
+						     netdev_name(netdev));
+				return 0;
+			}
+
+			entry->index = nfp_mac_idx;
+			return 0;
+		}
 	}
 
 	/* If MAC is now used by 1 repr set the offloaded MAC index to port. */
