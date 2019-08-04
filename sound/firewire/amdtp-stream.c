@@ -1160,6 +1160,32 @@ void amdtp_domain_destroy(struct amdtp_domain *d)
 EXPORT_SYMBOL_GPL(amdtp_domain_destroy);
 
 /**
+ * amdtp_domain_add_stream - register isoc context into the domain.
+ * @d: the AMDTP domain.
+ * @s: the AMDTP stream.
+ * @channel: the isochronous channel on the bus.
+ * @speed: firewire speed code.
+ */
+int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
+			    int channel, int speed)
+{
+	struct amdtp_stream *tmp;
+
+	list_for_each_entry(tmp, &d->streams, list) {
+		if (s == tmp)
+			return -EBUSY;
+	}
+
+	list_add(&s->list, &d->streams);
+
+	s->channel = channel;
+	s->speed = speed;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(amdtp_domain_add_stream);
+
+/**
  * amdtp_domain_stop - stop sending packets for isoc context in the same domain.
  * @d: the AMDTP domain to which the isoc contexts belong.
  */

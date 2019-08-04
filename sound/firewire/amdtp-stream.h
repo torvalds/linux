@@ -172,6 +172,8 @@ struct amdtp_stream {
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
 
 	// For domain.
+	int channel;
+	int speed;
 	struct list_head list;
 };
 
@@ -276,6 +278,9 @@ struct amdtp_domain {
 
 int amdtp_domain_init(struct amdtp_domain *d);
 void amdtp_domain_destroy(struct amdtp_domain *d);
+
+int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
+			    int channel, int speed);
 
 void amdtp_domain_stop(struct amdtp_domain *d);
 
