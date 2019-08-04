@@ -39,54 +39,53 @@ static inline void finish_session(struct snd_ff *ff)
 	ff->spec->protocol->switch_fetching_mode(ff, false);
 }
 
-static int init_stream(struct snd_ff *ff, enum amdtp_stream_direction dir)
+static int init_stream(struct snd_ff *ff, struct amdtp_stream *s)
 {
-	int err;
 	struct fw_iso_resources *resources;
-	struct amdtp_stream *stream;
+	enum amdtp_stream_direction dir;
+	int err;
 
-	if (dir == AMDTP_IN_STREAM) {
+	if (s == &ff->tx_stream) {
 		resources = &ff->tx_resources;
-		stream = &ff->tx_stream;
+		dir = AMDTP_IN_STREAM;
 	} else {
 		resources = &ff->rx_resources;
-		stream = &ff->rx_stream;
+		dir = AMDTP_OUT_STREAM;
 	}
 
 	err = fw_iso_resources_init(resources, ff->unit);
 	if (err < 0)
 		return err;
 
-	err = amdtp_ff_init(stream, ff->unit, dir);
+	err = amdtp_ff_init(s, ff->unit, dir);
 	if (err < 0)
 		fw_iso_resources_destroy(resources);
 
 	return err;
 }
 
-static void destroy_stream(struct snd_ff *ff, enum amdtp_stream_direction dir)
+static void destroy_stream(struct snd_ff *ff, struct amdtp_stream *s)
 {
-	if (dir == AMDTP_IN_STREAM) {
-		amdtp_stream_destroy(&ff->tx_stream);
+	amdtp_stream_destroy(s);
+
+	if (s == &ff->tx_stream)
 		fw_iso_resources_destroy(&ff->tx_resources);
-	} else {
-		amdtp_stream_destroy(&ff->rx_stream);
+	else
 		fw_iso_resources_destroy(&ff->rx_resources);
-	}
 }
 
 int snd_ff_stream_init_duplex(struct snd_ff *ff)
 {
 	int err;
 
-	err = init_stream(ff, AMDTP_OUT_STREAM);
+	err = init_stream(ff, &ff->rx_stream);
 	if (err < 0)
-		goto end;
+		return err;
 
-	err = init_stream(ff, AMDTP_IN_STREAM);
+	err = init_stream(ff, &ff->tx_stream);
 	if (err < 0)
-		destroy_stream(ff, AMDTP_OUT_STREAM);
-end:
+		destroy_stream(ff, &ff->rx_stream);
+
 	return err;
 }
 
@@ -96,8 +95,8 @@ end:
  */
 void snd_ff_stream_destroy_duplex(struct snd_ff *ff)
 {
-	destroy_stream(ff, AMDTP_IN_STREAM);
-	destroy_stream(ff, AMDTP_OUT_STREAM);
+	destroy_stream(ff, &ff->rx_stream);
+	destroy_stream(ff, &ff->tx_stream);
 }
 
 int snd_ff_stream_reserve_duplex(struct snd_ff *ff, unsigned int rate)
