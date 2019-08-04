@@ -180,9 +180,6 @@ static void finish_session(struct snd_tscm *tscm)
 {
 	__be32 reg;
 
-	amdtp_stream_stop(&tscm->rx_stream);
-	amdtp_stream_stop(&tscm->tx_stream);
-
 	reg = 0;
 	snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
 			   TSCM_ADDR_BASE + TSCM_OFFSET_START_STREAMING,
@@ -339,8 +336,16 @@ int snd_tscm_stream_init_duplex(struct snd_tscm *tscm)
 		return err;
 
 	err = init_stream(tscm, &tscm->rx_stream);
-	if (err < 0)
+	if (err < 0) {
 		destroy_stream(tscm, &tscm->tx_stream);
+		return err;
+	}
+
+	err = amdtp_domain_init(&tscm->domain);
+	if (err < 0) {
+		destroy_stream(tscm, &tscm->tx_stream);
+		destroy_stream(tscm, &tscm->rx_stream);
+	}
 
 	return err;
 }
@@ -348,17 +353,18 @@ int snd_tscm_stream_init_duplex(struct snd_tscm *tscm)
 // At bus reset, streaming is stopped and some registers are clear.
 void snd_tscm_stream_update_duplex(struct snd_tscm *tscm)
 {
-	amdtp_stream_pcm_abort(&tscm->tx_stream);
-	amdtp_stream_stop(&tscm->tx_stream);
+	amdtp_domain_stop(&tscm->domain);
 
+	amdtp_stream_pcm_abort(&tscm->tx_stream);
 	amdtp_stream_pcm_abort(&tscm->rx_stream);
-	amdtp_stream_stop(&tscm->rx_stream);
 }
 
 // This function should be called before starting streams or after stopping
 // streams.
 void snd_tscm_stream_destroy_duplex(struct snd_tscm *tscm)
 {
+	amdtp_domain_destroy(&tscm->domain);
+
 	destroy_stream(tscm, &tscm->rx_stream);
 	destroy_stream(tscm, &tscm->tx_stream);
 }
@@ -373,6 +379,8 @@ int snd_tscm_stream_reserve_duplex(struct snd_tscm *tscm, unsigned int rate)
 		return err;
 
 	if (tscm->substreams_counter == 0 || rate != curr_rate) {
+		amdtp_domain_stop(&tscm->domain);
+
 		finish_session(tscm);
 
 		fw_iso_resources_free(&tscm->tx_resources);
@@ -405,8 +413,10 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 		return 0;
 
 	if (amdtp_streaming_error(&tscm->rx_stream) ||
-	    amdtp_streaming_error(&tscm->tx_stream))
+	    amdtp_streaming_error(&tscm->tx_stream)) {
+		amdtp_domain_stop(&tscm->domain);
 		finish_session(tscm);
+	}
 
 	if (generation != fw_parent_device(tscm->unit)->card->generation) {
 		err = fw_iso_resources_update(&tscm->tx_resources);
@@ -419,6 +429,8 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 	}
 
 	if (!amdtp_stream_running(&tscm->rx_stream)) {
+		int spd = fw_parent_device(tscm->unit)->max_speed;
+
 		err = set_stream_formats(tscm, rate);
 		if (err < 0)
 			goto error;
@@ -427,27 +439,23 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 		if (err < 0)
 			goto error;
 
-		err = amdtp_stream_start(&tscm->rx_stream,
-				tscm->rx_resources.channel,
-				fw_parent_device(tscm->unit)->max_speed);
+		err = amdtp_domain_add_stream(&tscm->domain, &tscm->rx_stream,
+					      tscm->rx_resources.channel, spd);
 		if (err < 0)
 			goto error;
+
+		err = amdtp_domain_add_stream(&tscm->domain, &tscm->tx_stream,
+					      tscm->tx_resources.channel, spd);
+		if (err < 0)
+			goto error;
+
+		err = amdtp_domain_start(&tscm->domain);
+		if (err < 0)
+			return err;
 
 		if (!amdtp_stream_wait_callback(&tscm->rx_stream,
-						CALLBACK_TIMEOUT)) {
-			err = -ETIMEDOUT;
-			goto error;
-		}
-	}
-
-	if (!amdtp_stream_running(&tscm->tx_stream)) {
-		err = amdtp_stream_start(&tscm->tx_stream,
-				tscm->tx_resources.channel,
-				fw_parent_device(tscm->unit)->max_speed);
-		if (err < 0)
-			goto error;
-
-		if (!amdtp_stream_wait_callback(&tscm->tx_stream,
+						CALLBACK_TIMEOUT) ||
+		    !amdtp_stream_wait_callback(&tscm->tx_stream,
 						CALLBACK_TIMEOUT)) {
 			err = -ETIMEDOUT;
 			goto error;
@@ -456,6 +464,7 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 
 	return 0;
 error:
+	amdtp_domain_stop(&tscm->domain);
 	finish_session(tscm);
 
 	return err;
@@ -464,6 +473,7 @@ error:
 void snd_tscm_stream_stop_duplex(struct snd_tscm *tscm)
 {
 	if (tscm->substreams_counter == 0) {
+		amdtp_domain_stop(&tscm->domain);
 		finish_session(tscm);
 
 		fw_iso_resources_free(&tscm->tx_resources);
