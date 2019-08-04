@@ -287,38 +287,60 @@ static int keep_resources(struct snd_tscm *tscm, unsigned int rate,
 				fw_parent_device(tscm->unit)->max_speed);
 }
 
-int snd_tscm_stream_init_duplex(struct snd_tscm *tscm)
+static int init_stream(struct snd_tscm *tscm, struct amdtp_stream *s)
 {
+	struct fw_iso_resources *resources;
+	enum amdtp_stream_direction dir;
 	unsigned int pcm_channels;
 	int err;
 
-	/* For out-stream. */
-	err = fw_iso_resources_init(&tscm->rx_resources, tscm->unit);
-	if (err < 0)
-		return err;
-	pcm_channels = tscm->spec->pcm_playback_analog_channels;
+	if (s == &tscm->tx_stream) {
+		resources = &tscm->tx_resources;
+		dir = AMDTP_IN_STREAM;
+		pcm_channels = tscm->spec->pcm_capture_analog_channels;
+	} else {
+		resources = &tscm->rx_resources;
+		dir = AMDTP_OUT_STREAM;
+		pcm_channels = tscm->spec->pcm_playback_analog_channels;
+	}
+
 	if (tscm->spec->has_adat)
 		pcm_channels += 8;
 	if (tscm->spec->has_spdif)
 		pcm_channels += 2;
-	err = amdtp_tscm_init(&tscm->rx_stream, tscm->unit, AMDTP_OUT_STREAM,
-			      pcm_channels);
+
+	err = fw_iso_resources_init(resources, tscm->unit);
 	if (err < 0)
 		return err;
 
-	/* For in-stream. */
-	err = fw_iso_resources_init(&tscm->tx_resources, tscm->unit);
+	err = amdtp_tscm_init(s, tscm->unit, dir, pcm_channels);
+	if (err < 0)
+		fw_iso_resources_free(resources);
+
+	return err;
+}
+
+static void destroy_stream(struct snd_tscm *tscm, struct amdtp_stream *s)
+{
+	amdtp_stream_destroy(s);
+
+	if (s == &tscm->tx_stream)
+		fw_iso_resources_destroy(&tscm->tx_resources);
+	else
+		fw_iso_resources_destroy(&tscm->rx_resources);
+}
+
+int snd_tscm_stream_init_duplex(struct snd_tscm *tscm)
+{
+	int err;
+
+	err = init_stream(tscm, &tscm->tx_stream);
 	if (err < 0)
 		return err;
-	pcm_channels = tscm->spec->pcm_capture_analog_channels;
-	if (tscm->spec->has_adat)
-		pcm_channels += 8;
-	if (tscm->spec->has_spdif)
-		pcm_channels += 2;
-	err = amdtp_tscm_init(&tscm->tx_stream, tscm->unit, AMDTP_IN_STREAM,
-			      pcm_channels);
+
+	err = init_stream(tscm, &tscm->rx_stream);
 	if (err < 0)
-		amdtp_stream_destroy(&tscm->rx_stream);
+		destroy_stream(tscm, &tscm->tx_stream);
 
 	return err;
 }
@@ -333,17 +355,12 @@ void snd_tscm_stream_update_duplex(struct snd_tscm *tscm)
 	amdtp_stream_stop(&tscm->rx_stream);
 }
 
-/*
- * This function should be called before starting streams or after stopping
- * streams.
- */
+// This function should be called before starting streams or after stopping
+// streams.
 void snd_tscm_stream_destroy_duplex(struct snd_tscm *tscm)
 {
-	amdtp_stream_destroy(&tscm->rx_stream);
-	amdtp_stream_destroy(&tscm->tx_stream);
-
-	fw_iso_resources_destroy(&tscm->rx_resources);
-	fw_iso_resources_destroy(&tscm->tx_resources);
+	destroy_stream(tscm, &tscm->rx_stream);
+	destroy_stream(tscm, &tscm->tx_stream);
 }
 
 int snd_tscm_stream_reserve_duplex(struct snd_tscm *tscm, unsigned int rate)
