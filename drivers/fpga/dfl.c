@@ -259,7 +259,8 @@ void dfl_fpga_dev_feature_uinit(struct platform_device *pdev)
 
 	dfl_fpga_dev_for_each_feature(pdata, feature)
 		if (feature->ops) {
-			feature->ops->uinit(pdev, feature);
+			if (feature->ops->uinit)
+				feature->ops->uinit(pdev, feature);
 			feature->ops = NULL;
 		}
 }
