@@ -841,7 +841,8 @@ enum nvme_admin_opcode {
 		nvme_admin_opcode_name(nvme_admin_format_nvm),		\
 		nvme_admin_opcode_name(nvme_admin_security_send),	\
 		nvme_admin_opcode_name(nvme_admin_security_recv),	\
-		nvme_admin_opcode_name(nvme_admin_sanitize_nvm))
+		nvme_admin_opcode_name(nvme_admin_sanitize_nvm),	\
+		nvme_admin_opcode_name(nvme_admin_get_lba_status))
 
 enum {
 	NVME_QUEUE_PHYS_CONTIG	= (1 << 0),
