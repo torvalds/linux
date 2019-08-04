@@ -123,15 +123,11 @@ EXPORT_SYMBOL(drm_panel_attach);
  *
  * This function should not be called by the panel device itself. It
  * is only for the drm device that called drm_panel_attach().
- *
- * Return: 0 on success or a negative error code on failure.
  */
-int drm_panel_detach(struct drm_panel *panel)
+void drm_panel_detach(struct drm_panel *panel)
 {
 	panel->connector = NULL;
 	panel->drm = NULL;
-
-	return 0;
 }
 EXPORT_SYMBOL(drm_panel_detach);
 
