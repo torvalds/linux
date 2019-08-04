@@ -14017,6 +14017,12 @@ F:	drivers/media/common/saa7146/
 F:	drivers/media/pci/saa7146/
 F:	include/media/drv-intf/saa7146*
 
+SAFESETID SECURITY MODULE
+M:     Micah Morton <mortonm@chromium.org>
+S:     Supported
+F:     security/safesetid/
+F:     Documentation/admin-guide/LSM/SafeSetID.rst
+
 SAMSUNG AUDIO (ASoC) DRIVERS
 M:	Krzysztof Kozlowski <krzk@kernel.org>
 M:	Sangbeom Kim <sbkim73@samsung.com>
