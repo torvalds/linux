@@ -8,8 +8,7 @@
 
 #define CALLBACK_TIMEOUT	100
 
-static int
-init_stream(struct snd_efw *efw, struct amdtp_stream *stream)
+static int init_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 {
 	struct cmp_connection *conn;
 	enum cmp_direction c_dir;
@@ -28,14 +27,37 @@ init_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 
 	err = cmp_connection_init(conn, efw->unit, c_dir, 0);
 	if (err < 0)
-		goto end;
+		return err;
 
 	err = amdtp_am824_init(stream, efw->unit, s_dir, CIP_BLOCKING);
 	if (err < 0) {
 		amdtp_stream_destroy(stream);
 		cmp_connection_destroy(conn);
+		return err;
 	}
-end:
+
+	if (stream == &efw->tx_stream) {
+		// Fireworks transmits NODATA packets with TAG0.
+		efw->tx_stream.flags |= CIP_EMPTY_WITH_TAG0;
+		// Fireworks has its own meaning for dbc.
+		efw->tx_stream.flags |= CIP_DBC_IS_END_EVENT;
+		// Fireworks reset dbc at bus reset.
+		efw->tx_stream.flags |= CIP_SKIP_DBC_ZERO_CHECK;
+		// But Recent firmwares starts packets with non-zero dbc.
+		// Driver version 5.7.6 installs firmware version 5.7.3.
+		if (efw->is_fireworks3 &&
+		    (efw->firmware_version == 0x5070000 ||
+		     efw->firmware_version == 0x5070300 ||
+		     efw->firmware_version == 0x5080000))
+			efw->tx_stream.flags |= CIP_UNALIGHED_DBC;
+		// AudioFire9 always reports wrong dbs.
+		if (efw->is_af9)
+			efw->tx_stream.flags |= CIP_WRONG_DBS;
+		// Firmware version 5.5 reports fixed interval for dbc.
+		if (efw->firmware_version == 0x5050000)
+			efw->tx_stream.ctx_data.tx.dbc_interval = 8;
+	}
+
 	return err;
 }
 
@@ -83,22 +105,16 @@ static int start_stream(struct snd_efw *efw, struct amdtp_stream *stream,
 	return 0;
 }
 
-/*
- * This function should be called before starting the stream or after stopping
- * the streams.
- */
-static void
-destroy_stream(struct snd_efw *efw, struct amdtp_stream *stream)
+// This function should be called before starting the stream or after stopping
+// the streams.
+static void destroy_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 {
-	struct cmp_connection *conn;
+	amdtp_stream_destroy(stream);
 
 	if (stream == &efw->tx_stream)
-		conn = &efw->out_conn;
+		cmp_connection_destroy(&efw->out_conn);
 	else
-		conn = &efw->in_conn;
-
-	amdtp_stream_destroy(stream);
-	cmp_connection_destroy(conn);
+		cmp_connection_destroy(&efw->in_conn);
 }
 
 static int
@@ -131,42 +147,21 @@ int snd_efw_stream_init_duplex(struct snd_efw *efw)
 
 	err = init_stream(efw, &efw->tx_stream);
 	if (err < 0)
-		goto end;
-	/* Fireworks transmits NODATA packets with TAG0. */
-	efw->tx_stream.flags |= CIP_EMPTY_WITH_TAG0;
-	/* Fireworks has its own meaning for dbc. */
-	efw->tx_stream.flags |= CIP_DBC_IS_END_EVENT;
-	/* Fireworks reset dbc at bus reset. */
-	efw->tx_stream.flags |= CIP_SKIP_DBC_ZERO_CHECK;
-	/*
-	 * But Recent firmwares starts packets with non-zero dbc.
-	 * Driver version 5.7.6 installs firmware version 5.7.3.
-	 */
-	if (efw->is_fireworks3 &&
-	    (efw->firmware_version == 0x5070000 ||
-	     efw->firmware_version == 0x5070300 ||
-	     efw->firmware_version == 0x5080000))
-		efw->tx_stream.flags |= CIP_UNALIGHED_DBC;
-	/* AudioFire9 always reports wrong dbs. */
-	if (efw->is_af9)
-		efw->tx_stream.flags |= CIP_WRONG_DBS;
-	/* Firmware version 5.5 reports fixed interval for dbc. */
-	if (efw->firmware_version == 0x5050000)
-		efw->tx_stream.ctx_data.tx.dbc_interval = 8;
+		return err;
 
 	err = init_stream(efw, &efw->rx_stream);
 	if (err < 0) {
 		destroy_stream(efw, &efw->tx_stream);
-		goto end;
+		return err;
 	}
 
-	/* set IEC61883 compliant mode (actually not fully compliant...) */
+	// set IEC61883 compliant mode (actually not fully compliant...).
 	err = snd_efw_command_set_tx_mode(efw, SND_EFW_TRANSPORT_MODE_IEC61883);
 	if (err < 0) {
 		destroy_stream(efw, &efw->tx_stream);
 		destroy_stream(efw, &efw->rx_stream);
 	}
-end:
+
 	return err;
 }
 
