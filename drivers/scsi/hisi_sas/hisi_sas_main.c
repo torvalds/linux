@@ -2992,9 +2992,10 @@ static int hisi_sas_debugfs_iost_show(struct seq_file *s, void *p)
 	struct hisi_hba *hisi_hba = s->private;
 	struct hisi_sas_iost *debugfs_iost = hisi_hba->debugfs_iost;
 	int i, ret, max_command_entries = HISI_SAS_MAX_COMMANDS;
-	__le64 *iost = &debugfs_iost->qw0;
 
 	for (i = 0; i < max_command_entries; i++, debugfs_iost++) {
+		__le64 *iost = &debugfs_iost->qw0;
+
 		ret = hisi_sas_show_row_64(s, i, sizeof(*debugfs_iost),
 					   iost);
 		if (ret)
@@ -3022,9 +3023,10 @@ static int hisi_sas_debugfs_itct_show(struct seq_file *s, void *p)
 	int i, ret;
 	struct hisi_hba *hisi_hba = s->private;
 	struct hisi_sas_itct *debugfs_itct = hisi_hba->debugfs_itct;
-	__le64 *itct = &debugfs_itct->qw0;
 
 	for (i = 0; i < HISI_SAS_MAX_ITCT_ENTRIES; i++, debugfs_itct++) {
+		__le64 *itct = &debugfs_itct->qw0;
+
 		ret = hisi_sas_show_row_64(s, i, sizeof(*debugfs_itct),
 					   itct);
 		if (ret)
