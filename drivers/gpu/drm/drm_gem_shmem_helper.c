@@ -75,6 +75,7 @@ struct drm_gem_shmem_object *drm_gem_shmem_create(struct drm_device *dev, size_t
 	shmem = to_drm_gem_shmem_obj(obj);
 	mutex_init(&shmem->pages_lock);
 	mutex_init(&shmem->vmap_lock);
+	INIT_LIST_HEAD(&shmem->madv_list);
 
 	/*
 	 * Our buffers are kept pinned, so allocating them
@@ -361,6 +362,62 @@ drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
 	return shmem;
 }
 EXPORT_SYMBOL(drm_gem_shmem_create_with_handle);
+
+/* Update madvise status, returns true if not purged, else
+ * false or -errno.
+ */
+int drm_gem_shmem_madvise(struct drm_gem_object *obj, int madv)
+{
+	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
+
+	mutex_lock(&shmem->pages_lock);
+
+	if (shmem->madv >= 0)
+		shmem->madv = madv;
+
+	madv = shmem->madv;
+
+	mutex_unlock(&shmem->pages_lock);
+
+	return (madv >= 0);
+}
+EXPORT_SYMBOL(drm_gem_shmem_madvise);
+
+void drm_gem_shmem_purge_locked(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
+
+	WARN_ON(!drm_gem_shmem_is_purgeable(shmem));
+
+	drm_gem_shmem_put_pages_locked(shmem);
+
+	shmem->madv = -1;
+
+	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
+	drm_gem_free_mmap_offset(obj);
+
+	/* Our goal here is to return as much of the memory as
+	 * is possible back to the system as we are called from OOM.
+	 * To do this we must instruct the shmfs to drop all of its
+	 * backing pages, *now*.
+	 */
+	shmem_truncate_range(file_inode(obj->filp), 0, (loff_t)-1);
+
+	invalidate_mapping_pages(file_inode(obj->filp)->i_mapping,
+			0, (loff_t)-1);
+}
+EXPORT_SYMBOL(drm_gem_shmem_purge_locked);
+
+void drm_gem_shmem_purge(struct drm_gem_object *obj)
+{
+	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
+
+	mutex_lock(&shmem->pages_lock);
+	drm_gem_shmem_purge_locked(obj);
+	mutex_unlock(&shmem->pages_lock);
+}
+EXPORT_SYMBOL(drm_gem_shmem_purge);
 
 /**
  * drm_gem_shmem_dumb_create - Create a dumb shmem buffer object
