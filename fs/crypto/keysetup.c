@@ -214,8 +214,16 @@ int fscrypt_set_derived_key(struct fscrypt_info *ci, const u8 *derived_key)
 
 /*
  * Find the master key, then set up the inode's actual encryption key.
+ *
+ * If the master key is found in the filesystem-level keyring, then the
+ * corresponding 'struct key' is returned in *master_key_ret with
+ * ->sem read-locked.  This is needed to ensure that only one task links the
+ * fscrypt_info into ->mk_decrypted_inodes (as multiple tasks may race to create
+ * an fscrypt_info for the same inode), and to synchronize the master key being
+ * removed with a new inode starting to use it.
  */
-static int setup_file_encryption_key(struct fscrypt_info *ci)
+static int setup_file_encryption_key(struct fscrypt_info *ci,
+				     struct key **master_key_ret)
 {
 	struct key *key;
 	struct fscrypt_master_key *mk = NULL;
@@ -235,6 +243,13 @@ static int setup_file_encryption_key(struct fscrypt_info *ci)
 	}
 
 	mk = key->payload.data[0];
+	down_read(&key->sem);
+
+	/* Has the secret been removed (via FS_IOC_REMOVE_ENCRYPTION_KEY)? */
+	if (!is_master_key_secret_present(&mk->mk_secret)) {
+		err = -ENOKEY;
+		goto out_release_key;
+	}
 
 	if (mk->mk_secret.size < ci->ci_mode->keysize) {
 		fscrypt_warn(NULL,
@@ -247,14 +262,22 @@ static int setup_file_encryption_key(struct fscrypt_info *ci)
 	}
 
 	err = fscrypt_setup_v1_file_key(ci, mk->mk_secret.raw);
+	if (err)
+		goto out_release_key;
+
+	*master_key_ret = key;
+	return 0;
 
 out_release_key:
+	up_read(&key->sem);
 	key_put(key);
 	return err;
 }
 
 static void put_crypt_info(struct fscrypt_info *ci)
 {
+	struct key *key;
+
 	if (!ci)
 		return;
 
@@ -264,6 +287,26 @@ static void put_crypt_info(struct fscrypt_info *ci)
 		crypto_free_skcipher(ci->ci_ctfm);
 		crypto_free_cipher(ci->ci_essiv_tfm);
 	}
+
+	key = ci->ci_master_key;
+	if (key) {
+		struct fscrypt_master_key *mk = key->payload.data[0];
+
+		/*
+		 * Remove this inode from the list of inodes that were unlocked
+		 * with the master key.
+		 *
+		 * In addition, if we're removing the last inode from a key that
+		 * already had its secret removed, invalidate the key so that it
+		 * gets removed from ->s_master_keys.
+		 */
+		spin_lock(&mk->mk_decrypted_inodes_lock);
+		list_del(&ci->ci_master_key_link);
+		spin_unlock(&mk->mk_decrypted_inodes_lock);
+		if (refcount_dec_and_test(&mk->mk_refcount))
+			key_invalidate(key);
+		key_put(key);
+	}
 	kmem_cache_free(fscrypt_info_cachep, ci);
 }
 
@@ -272,6 +315,7 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	struct fscrypt_info *crypt_info;
 	struct fscrypt_context ctx;
 	struct fscrypt_mode *mode;
+	struct key *master_key = NULL;
 	int res;
 
 	if (fscrypt_has_encryption_key(inode))
@@ -336,13 +380,30 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	WARN_ON(mode->ivsize > FSCRYPT_MAX_IV_SIZE);
 	crypt_info->ci_mode = mode;
 
-	res = setup_file_encryption_key(crypt_info);
+	res = setup_file_encryption_key(crypt_info, &master_key);
 	if (res)
 		goto out;
 
-	if (cmpxchg_release(&inode->i_crypt_info, NULL, crypt_info) == NULL)
+	if (cmpxchg_release(&inode->i_crypt_info, NULL, crypt_info) == NULL) {
+		if (master_key) {
+			struct fscrypt_master_key *mk =
+				master_key->payload.data[0];
+
+			refcount_inc(&mk->mk_refcount);
+			crypt_info->ci_master_key = key_get(master_key);
+			spin_lock(&mk->mk_decrypted_inodes_lock);
+			list_add(&crypt_info->ci_master_key_link,
+				 &mk->mk_decrypted_inodes);
+			spin_unlock(&mk->mk_decrypted_inodes_lock);
+		}
 		crypt_info = NULL;
+	}
+	res = 0;
 out:
+	if (master_key) {
+		up_read(&master_key->sem);
+		key_put(master_key);
+	}
 	if (res == -ENOKEY)
 		res = 0;
 	put_crypt_info(crypt_info);
@@ -377,3 +438,39 @@ void fscrypt_free_inode(struct inode *inode)
 	}
 }
 EXPORT_SYMBOL(fscrypt_free_inode);
+
+/**
+ * fscrypt_drop_inode - check whether the inode's master key has been removed
+ *
+ * Filesystems supporting fscrypt must call this from their ->drop_inode()
+ * method so that encrypted inodes are evicted as soon as they're no longer in
+ * use and their master key has been removed.
+ *
+ * Return: 1 if fscrypt wants the inode to be evicted now, otherwise 0
+ */
+int fscrypt_drop_inode(struct inode *inode)
+{
+	const struct fscrypt_info *ci = READ_ONCE(inode->i_crypt_info);
+	const struct fscrypt_master_key *mk;
+
+	/*
+	 * If ci is NULL, then the inode doesn't have an encryption key set up
+	 * so it's irrelevant.  If ci_master_key is NULL, then the master key
+	 * was provided via the legacy mechanism of the process-subscribed
+	 * keyrings, so we don't know whether it's been removed or not.
+	 */
+	if (!ci || !ci->ci_master_key)
+		return 0;
+	mk = ci->ci_master_key->payload.data[0];
+
+	/*
+	 * Note: since we aren't holding key->sem, the result here can
+	 * immediately become outdated.  But there's no correctness problem with
+	 * unnecessarily evicting.  Nor is there a correctness problem with not
+	 * evicting while iput() is racing with the key being removed, since
+	 * then the thread removing the key will either evict the inode itself
+	 * or will correctly detect that it wasn't evicted due to the race.
+	 */
+	return !is_master_key_secret_present(&mk->mk_secret);
+}
+EXPORT_SYMBOL_GPL(fscrypt_drop_inode);
