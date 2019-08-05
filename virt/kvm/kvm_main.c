@@ -2317,6 +2317,29 @@ static bool kvm_vcpu_eligible_for_directed_yield(struct kvm_vcpu *vcpu)
 #endif
 }
 
+/*
+ * Unlike kvm_arch_vcpu_runnable, this function is called outside
+ * a vcpu_load/vcpu_put pair.  However, for most architectures
+ * kvm_arch_vcpu_runnable does not require vcpu_load.
+ */
+bool __weak kvm_arch_dy_runnable(struct kvm_vcpu *vcpu)
+{
+	return kvm_arch_vcpu_runnable(vcpu);
+}
+
+static bool vcpu_dy_runnable(struct kvm_vcpu *vcpu)
+{
+	if (kvm_arch_dy_runnable(vcpu))
+		return true;
+
+#ifdef CONFIG_KVM_ASYNC_PF
+	if (!list_empty_careful(&vcpu->async_pf.done))
+		return true;
+#endif
+
+	return false;
+}
+
 void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 {
 	struct kvm *kvm = me->kvm;
@@ -2346,7 +2369,7 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 				continue;
 			if (vcpu == me)
 				continue;
-			if (swait_active(&vcpu->wq) && !kvm_arch_vcpu_runnable(vcpu))
+			if (swait_active(&vcpu->wq) && !vcpu_dy_runnable(vcpu))
 				continue;
 			if (yield_to_kernel_mode && !kvm_arch_vcpu_in_kernel(vcpu))
 				continue;
