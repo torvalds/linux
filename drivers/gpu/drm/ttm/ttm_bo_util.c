@@ -517,9 +517,9 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	kref_init(&fbo->base.kref);
 	fbo->base.destroy = &ttm_transfered_destroy;
 	fbo->base.acc_size = 0;
-	fbo->base.resv = &fbo->base.base._resv;
-	reservation_object_init(fbo->base.resv);
-	ret = reservation_object_trylock(fbo->base.resv);
+	fbo->base.base.resv = &fbo->base.base._resv;
+	reservation_object_init(fbo->base.base.resv);
+	ret = reservation_object_trylock(fbo->base.base.resv);
 	WARN_ON(!ret);
 
 	*new_obj = &fbo->base;
@@ -689,7 +689,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	int ret;
 	struct ttm_buffer_object *ghost_obj;
 
-	reservation_object_add_excl_fence(bo->resv, fence);
+	reservation_object_add_excl_fence(bo->base.resv, fence);
 	if (evict) {
 		ret = ttm_bo_wait(bo, false, false);
 		if (ret)
@@ -716,7 +716,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		reservation_object_add_excl_fence(ghost_obj->resv, fence);
+		reservation_object_add_excl_fence(ghost_obj->base.resv, fence);
 
 		/**
 		 * If we're not moving to fixed memory, the TTM object
@@ -752,7 +752,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 
 	int ret;
 
-	reservation_object_add_excl_fence(bo->resv, fence);
+	reservation_object_add_excl_fence(bo->base.resv, fence);
 
 	if (!evict) {
 		struct ttm_buffer_object *ghost_obj;
@@ -772,7 +772,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		reservation_object_add_excl_fence(ghost_obj->resv, fence);
+		reservation_object_add_excl_fence(ghost_obj->base.resv, fence);
 
 		/**
 		 * If we're not moving to fixed memory, the TTM object
@@ -841,7 +841,7 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 	if (ret)
 		return ret;
 
-	ret = reservation_object_copy_fences(ghost->resv, bo->resv);
+	ret = reservation_object_copy_fences(ghost->base.resv, bo->base.resv);
 	/* Last resort, wait for the BO to be idle when we are OOM */
 	if (ret)
 		ttm_bo_wait(bo, false, false);

@@ -654,14 +654,14 @@ static inline int __ttm_bo_reserve(struct ttm_buffer_object *bo,
 		if (WARN_ON(ticket))
 			return -EBUSY;
 
-		success = reservation_object_trylock(bo->resv);
+		success = reservation_object_trylock(bo->base.resv);
 		return success ? 0 : -EBUSY;
 	}
 
 	if (interruptible)
-		ret = reservation_object_lock_interruptible(bo->resv, ticket);
+		ret = reservation_object_lock_interruptible(bo->base.resv, ticket);
 	else
-		ret = reservation_object_lock(bo->resv, ticket);
+		ret = reservation_object_lock(bo->base.resv, ticket);
 	if (ret == -EINTR)
 		return -ERESTARTSYS;
 	return ret;
@@ -745,10 +745,10 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 	WARN_ON(!kref_read(&bo->kref));
 
 	if (interruptible)
-		ret = reservation_object_lock_slow_interruptible(bo->resv,
+		ret = reservation_object_lock_slow_interruptible(bo->base.resv,
 								 ticket);
 	else
-		reservation_object_lock_slow(bo->resv, ticket);
+		reservation_object_lock_slow(bo->base.resv, ticket);
 
 	if (likely(ret == 0))
 		ttm_bo_del_sub_from_lru(bo);
@@ -773,7 +773,7 @@ static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 	else
 		ttm_bo_move_to_lru_tail(bo, NULL);
 	spin_unlock(&bo->bdev->glob->lru_lock);
-	reservation_object_unlock(bo->resv);
+	reservation_object_unlock(bo->base.resv);
 }
 
 /*
