@@ -180,7 +180,7 @@ static void exar_shutdown(struct uart_port *port)
 			tx_complete = 1;
 		else
 			tx_complete = 0;
-		msleep(1);
+		usleep_range(1000, 1100);
 	} while (!uart_circ_empty(xmit) && !tx_complete && i++ < 1000);
 
 	serial8250_do_shutdown(port);
