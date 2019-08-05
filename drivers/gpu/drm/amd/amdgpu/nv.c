@@ -376,9 +376,22 @@ static const struct amdgpu_ip_block_version nv_common_ip_block =
 	.funcs = &nv_common_ip_funcs,
 };
 
-int nv_set_ip_blocks(struct amdgpu_device *adev)
+static int nv_reg_base_init(struct amdgpu_device *adev)
 {
-	/* Set IP register base before any HW register access */
+	int r;
+
+	if (amdgpu_discovery) {
+		r = amdgpu_discovery_reg_base_init(adev);
+		if (r) {
+			DRM_WARN("failed to init reg base from ip discovery table, "
+					"fallback to legacy init method\n");
+			goto legacy_init;
+		}
+
+		return 0;
+	}
+
+legacy_init:
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
 		navi10_reg_base_init(adev);
@@ -392,6 +405,18 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 	default:
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+int nv_set_ip_blocks(struct amdgpu_device *adev)
+{
+	int r;
+
+	/* Set IP register base before any HW register access */
+	r = nv_reg_base_init(adev);
+	if (r)
+		return r;
 
 	adev->nbio_funcs = &nbio_v2_3_funcs;
 
