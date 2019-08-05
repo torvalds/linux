@@ -196,6 +196,7 @@ void reservation_object_add_shared_fence(struct reservation_object *obj,
 					 struct dma_fence *fence)
 {
 	struct reservation_object_list *fobj;
+	struct dma_fence *old;
 	unsigned int i, count;
 
 	dma_fence_get(fence);
@@ -209,18 +210,16 @@ void reservation_object_add_shared_fence(struct reservation_object *obj,
 	write_seqcount_begin(&obj->seq);
 
 	for (i = 0; i < count; ++i) {
-		struct dma_fence *old_fence;
 
-		old_fence = rcu_dereference_protected(fobj->shared[i],
-						      reservation_object_held(obj));
-		if (old_fence->context == fence->context ||
-		    dma_fence_is_signaled(old_fence)) {
-			dma_fence_put(old_fence);
+		old = rcu_dereference_protected(fobj->shared[i],
+						reservation_object_held(obj));
+		if (old->context == fence->context ||
+		    dma_fence_is_signaled(old))
 			goto replace;
-		}
 	}
 
 	BUG_ON(fobj->shared_count >= fobj->shared_max);
+	old = NULL;
 	count++;
 
 replace:
@@ -230,6 +229,7 @@ replace:
 
 	write_seqcount_end(&obj->seq);
 	preempt_enable();
+	dma_fence_put(old);
 }
 EXPORT_SYMBOL(reservation_object_add_shared_fence);
 
