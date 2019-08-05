@@ -2358,7 +2358,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 
 	s = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_itct);
 	hisi_hba->itct = dmam_alloc_coherent(dev, s, &hisi_hba->itct_dma,
-					     GFP_KERNEL | __GFP_ZERO);
+					     GFP_KERNEL);
 	if (!hisi_hba->itct)
 		goto err_out;
 
@@ -2385,7 +2385,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 		void *buf;
 
 		buf = dmam_alloc_coherent(dev, s, &buf_dma,
-					  GFP_KERNEL | __GFP_ZERO);
+					  GFP_KERNEL);
 		if (!buf)
 			goto err_out;
 
@@ -2434,7 +2434,6 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 					GFP_KERNEL);
 	if (!hisi_hba->sata_breakpoint)
 		goto err_out;
-	hisi_sas_init_mem(hisi_hba);
 
 	hisi_sas_slot_index_init(hisi_hba);
 	hisi_hba->last_slot_index = HISI_SAS_UNRESERVED_IPTT;
