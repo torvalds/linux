@@ -3304,8 +3304,8 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 {
 	struct platform_device *pdev = hisi_hba->platform_dev;
 	struct device *dev = &pdev->dev;
-	int irq, rc, irq_map[128];
-	int i, phy_no, fatal_no, queue_no, k;
+	int irq, rc = 0, irq_map[128];
+	int i, phy_no, fatal_no, queue_no;
 
 	for (i = 0; i < 128; i++)
 		irq_map[i] = platform_get_irq(pdev, i);
@@ -3318,7 +3318,7 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 			dev_err(dev, "irq init: could not request phy interrupt %d, rc=%d\n",
 				irq, rc);
 			rc = -ENOENT;
-			goto free_phy_int_irqs;
+			goto err_out;
 		}
 	}
 
@@ -3332,7 +3332,7 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 			dev_err(dev, "irq init: could not request sata interrupt %d, rc=%d\n",
 				irq, rc);
 			rc = -ENOENT;
-			goto free_sata_int_irqs;
+			goto err_out;
 		}
 	}
 
@@ -3344,7 +3344,7 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 			dev_err(dev, "irq init: could not request fatal interrupt %d, rc=%d\n",
 				irq, rc);
 			rc = -ENOENT;
-			goto free_fatal_int_irqs;
+			goto err_out;
 		}
 	}
 
@@ -3359,34 +3359,14 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 			dev_err(dev, "irq init: could not request cq interrupt %d, rc=%d\n",
 				irq, rc);
 			rc = -ENOENT;
-			goto free_cq_int_irqs;
+			goto err_out;
 		}
 		tasklet_init(t, cq_tasklet_v2_hw, (unsigned long)cq);
 	}
 
 	hisi_hba->cq_nvecs = hisi_hba->queue_count;
 
-	return 0;
-
-free_cq_int_irqs:
-	for (k = 0; k < queue_no; k++) {
-		struct hisi_sas_cq *cq = &hisi_hba->cq[k];
-
-		free_irq(irq_map[k + 96], cq);
-		tasklet_kill(&cq->tasklet);
-	}
-free_fatal_int_irqs:
-	for (k = 0; k < fatal_no; k++)
-		free_irq(irq_map[k + 81], hisi_hba);
-free_sata_int_irqs:
-	for (k = 0; k < phy_no; k++) {
-		struct hisi_sas_phy *phy = &hisi_hba->phy[k];
-
-		free_irq(irq_map[k + 72], phy);
-	}
-free_phy_int_irqs:
-	for (k = 0; k < i; k++)
-		free_irq(irq_map[k + 1], hisi_hba);
+err_out:
 	return rc;
 }
 
