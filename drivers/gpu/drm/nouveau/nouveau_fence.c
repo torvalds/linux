@@ -335,7 +335,7 @@ nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan, bool e
 {
 	struct nouveau_fence_chan *fctx = chan->fence;
 	struct dma_fence *fence;
-	struct reservation_object *resv = nvbo->bo.resv;
+	struct reservation_object *resv = nvbo->bo.base.resv;
 	struct reservation_object_list *fobj;
 	struct nouveau_fence *f;
 	int ret = 0, i;
