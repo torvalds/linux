@@ -24,7 +24,7 @@
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
  *   - FIFO size: 4KB
  *
- * - LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR
+ * - LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR/ISM330DHCX:
  *   - Accelerometer/Gyroscope supported ODR [Hz]: 13, 26, 52, 104, 208, 416
  *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
@@ -645,6 +645,9 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			{
 				.hw_id = ST_LSM6DSR_ID,
 				.name = ST_LSM6DSR_DEV_NAME,
+			}, {
+				.hw_id = ST_ISM330DHCX_ID,
+				.name = ST_ISM330DHCX_DEV_NAME,
 			},
 		},
 		.channels = {
