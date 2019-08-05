@@ -306,7 +306,8 @@ int smu_get_power_num_states(struct smu_context *smu,
 
 	/* not support power state */
 	memset(state_info, 0, sizeof(struct pp_states_info));
-	state_info->nums = 0;
+	state_info->nums = 1;
+	state_info->states[0] = POWER_STATE_TYPE_DEFAULT;
 
 	return 0;
 }
@@ -335,6 +336,10 @@ int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
 		break;
 	case AMDGPU_PP_SENSOR_VCE_POWER:
 		*(uint32_t *)data = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_VCE_BIT) ? 1 : 0;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_VCN_POWER_STATE:
+		*(uint32_t *)data = smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT) ? 1 : 0;
 		*size = 4;
 		break;
 	default:
@@ -723,6 +728,12 @@ static int smu_sw_init(void *handle)
 		return ret;
 	}
 
+	ret = smu_register_irq_handler(smu);
+	if (ret) {
+		pr_err("Failed to register smc irq handler!\n");
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -731,6 +742,9 @@ static int smu_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 	int ret;
+
+	kfree(smu->irq_source);
+	smu->irq_source = NULL;
 
 	ret = smu_smc_table_sw_fini(smu);
 	if (ret) {
@@ -1088,10 +1102,6 @@ static int smu_hw_init(void *handle)
 	if (ret)
 		goto failed;
 
-	ret = smu_register_irq_handler(smu);
-	if (ret)
-		goto failed;
-
 	if (!smu->pm_enabled)
 		adev->pm.dpm_enabled = false;
 	else
@@ -1120,9 +1130,6 @@ static int smu_hw_fini(void *handle)
 
 	kfree(table_context->overdrive_table);
 	table_context->overdrive_table = NULL;
-
-	kfree(smu->irq_source);
-	smu->irq_source = NULL;
 
 	ret = smu_fini_fb_allocations(smu);
 	if (ret)

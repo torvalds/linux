@@ -1432,7 +1432,9 @@ static inline bool slab_free_freelist_hook(struct kmem_cache *s,
 	void *old_tail = *tail ? *tail : *head;
 	int rsize;
 
-	if (slab_want_init_on_free(s))
+	if (slab_want_init_on_free(s)) {
+		void *p = NULL;
+
 		do {
 			object = next;
 			next = get_freepointer(s, object);
@@ -1445,8 +1447,10 @@ static inline bool slab_free_freelist_hook(struct kmem_cache *s,
 							   : 0;
 			memset((char *)object + s->inuse, 0,
 			       s->size - s->inuse - rsize);
-			set_freepointer(s, object, next);
+			set_freepointer(s, object, p);
+			p = object;
 		} while (object != old_tail);
+	}
 
 /*
  * Compiler cannot detect this function can be removed if slab_free_hook()

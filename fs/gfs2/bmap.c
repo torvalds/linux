@@ -1002,11 +1002,16 @@ static void gfs2_iomap_page_done(struct inode *inode, loff_t pos,
 				 unsigned copied, struct page *page,
 				 struct iomap *iomap)
 {
+	struct gfs2_trans *tr = current->journal_info;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 
 	if (page && !gfs2_is_stuffed(ip))
 		gfs2_page_add_databufs(ip, page, offset_in_page(pos), copied);
+
+	if (tr->tr_num_buf_new)
+		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+
 	gfs2_trans_end(sdp);
 }
 
@@ -1099,8 +1104,6 @@ static int gfs2_iomap_begin_write(struct inode *inode, loff_t pos,
 		tr = current->journal_info;
 		if (tr->tr_num_buf_new)
 			__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
-		else
-			gfs2_trans_add_meta(ip->i_gl, mp->mp_bh[0]);
 
 		gfs2_trans_end(sdp);
 	}
@@ -1181,10 +1184,16 @@ static int gfs2_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 
 	if (ip->i_qadata && ip->i_qadata->qa_qd_num)
 		gfs2_quota_unlock(ip);
+
+	if (unlikely(!written))
+		goto out_unlock;
+
 	if (iomap->flags & IOMAP_F_SIZE_CHANGED)
 		mark_inode_dirty(inode);
-	gfs2_write_unlock(inode);
+	set_bit(GLF_DIRTY, &ip->i_gl->gl_flags);
 
+out_unlock:
+	gfs2_write_unlock(inode);
 out:
 	return 0;
 }
