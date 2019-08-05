@@ -2257,6 +2257,7 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 			DRM_ERROR("suspend of IP block <%s> failed %d\n",
 				  adev->ip_blocks[i].version->funcs->name, r);
 		}
+		adev->ip_blocks[i].status.hw = false;
 		/* handle putting the SMC in the appropriate state */
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC) {
 			if (is_support_sw_smu(adev)) {
@@ -2271,7 +2272,6 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 						  adev->mp1_state, r);
 					return r;
 				}
-				adev->ip_blocks[i].status.hw = false;
 			}
 		}
 	}
