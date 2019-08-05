@@ -548,7 +548,6 @@ pl111_init_clock_divider(struct drm_device *drm)
 int pl111_display_init(struct drm_device *drm)
 {
 	struct pl111_drm_dev_private *priv = drm->dev_private;
-	struct device *dev = drm->dev;
 	int ret;
 
 	ret = pl111_init_clock_divider(drm);
