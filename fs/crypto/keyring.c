@@ -10,6 +10,7 @@
  * filesystem-level keyring, including the ioctls:
  *
  * - FS_IOC_ADD_ENCRYPTION_KEY
+ * - FS_IOC_REMOVE_ENCRYPTION_KEY
  *
  * See the "User API" section of Documentation/filesystems/fscrypt.rst for more
  * information about these ioctls.
@@ -60,6 +61,13 @@ static void fscrypt_key_destroy(struct key *key)
 static void fscrypt_key_describe(const struct key *key, struct seq_file *m)
 {
 	seq_puts(m, key->description);
+
+	if (key_is_positive(key)) {
+		const struct fscrypt_master_key *mk = key->payload.data[0];
+
+		if (!is_master_key_secret_present(&mk->mk_secret))
+			seq_puts(m, ": secret removed");
+	}
 }
 
 /*
@@ -186,6 +194,10 @@ static int add_new_master_key(struct fscrypt_master_key_secret *secret,
 
 	move_master_key_secret(&mk->mk_secret, secret);
 
+	refcount_set(&mk->mk_refcount, 1); /* secret is present */
+	INIT_LIST_HEAD(&mk->mk_decrypted_inodes);
+	spin_lock_init(&mk->mk_decrypted_inodes_lock);
+
 	format_mk_description(description, mk_spec);
 	key = key_alloc(&key_type_fscrypt, description,
 			GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, current_cred(),
@@ -207,6 +219,21 @@ out_free_mk:
 	return err;
 }
 
+#define KEY_DEAD	1
+
+static int add_existing_master_key(struct fscrypt_master_key *mk,
+				   struct fscrypt_master_key_secret *secret)
+{
+	if (is_master_key_secret_present(&mk->mk_secret))
+		return 0;
+
+	if (!refcount_inc_not_zero(&mk->mk_refcount))
+		return KEY_DEAD;
+
+	move_master_key_secret(&mk->mk_secret, secret);
+	return 0;
+}
+
 static int add_master_key(struct super_block *sb,
 			  struct fscrypt_master_key_secret *secret,
 			  const struct fscrypt_key_specifier *mk_spec)
@@ -216,6 +243,7 @@ static int add_master_key(struct super_block *sb,
 	int err;
 
 	mutex_lock(&fscrypt_add_key_mutex); /* serialize find + link */
+retry:
 	key = fscrypt_find_master_key(sb, mk_spec);
 	if (IS_ERR(key)) {
 		err = PTR_ERR(key);
@@ -227,8 +255,20 @@ static int add_master_key(struct super_block *sb,
 			goto out_unlock;
 		err = add_new_master_key(secret, mk_spec, sb->s_master_keys);
 	} else {
+		/*
+		 * Found the key in ->s_master_keys.  Re-add the secret if
+		 * needed.
+		 */
+		down_write(&key->sem);
+		err = add_existing_master_key(key->payload.data[0], secret);
+		up_write(&key->sem);
+		if (err == KEY_DEAD) {
+			/* Key being removed or needs to be removed */
+			key_invalidate(key);
+			key_put(key);
+			goto retry;
+		}
 		key_put(key);
-		err = 0;
 	}
 out_unlock:
 	mutex_unlock(&fscrypt_add_key_mutex);
@@ -279,6 +319,224 @@ out_wipe_secret:
 	return err;
 }
 EXPORT_SYMBOL_GPL(fscrypt_ioctl_add_key);
+
+/*
+ * Try to evict the inode's dentries from the dentry cache.  If the inode is a
+ * directory, then it can have at most one dentry; however, that dentry may be
+ * pinned by child dentries, so first try to evict the children too.
+ */
+static void shrink_dcache_inode(struct inode *inode)
+{
+	struct dentry *dentry;
+
+	if (S_ISDIR(inode->i_mode)) {
+		dentry = d_find_any_alias(inode);
+		if (dentry) {
+			shrink_dcache_parent(dentry);
+			dput(dentry);
+		}
+	}
+	d_prune_aliases(inode);
+}
+
+static void evict_dentries_for_decrypted_inodes(struct fscrypt_master_key *mk)
+{
+	struct fscrypt_info *ci;
+	struct inode *inode;
+	struct inode *toput_inode = NULL;
+
+	spin_lock(&mk->mk_decrypted_inodes_lock);
+
+	list_for_each_entry(ci, &mk->mk_decrypted_inodes, ci_master_key_link) {
+		inode = ci->ci_inode;
+		spin_lock(&inode->i_lock);
+		if (inode->i_state & (I_FREEING | I_WILL_FREE | I_NEW)) {
+			spin_unlock(&inode->i_lock);
+			continue;
+		}
+		__iget(inode);
+		spin_unlock(&inode->i_lock);
+		spin_unlock(&mk->mk_decrypted_inodes_lock);
+
+		shrink_dcache_inode(inode);
+		iput(toput_inode);
+		toput_inode = inode;
+
+		spin_lock(&mk->mk_decrypted_inodes_lock);
+	}
+
+	spin_unlock(&mk->mk_decrypted_inodes_lock);
+	iput(toput_inode);
+}
+
+static int check_for_busy_inodes(struct super_block *sb,
+				 struct fscrypt_master_key *mk)
+{
+	struct list_head *pos;
+	size_t busy_count = 0;
+	unsigned long ino;
+	struct dentry *dentry;
+	char _path[256];
+	char *path = NULL;
+
+	spin_lock(&mk->mk_decrypted_inodes_lock);
+
+	list_for_each(pos, &mk->mk_decrypted_inodes)
+		busy_count++;
+
+	if (busy_count == 0) {
+		spin_unlock(&mk->mk_decrypted_inodes_lock);
+		return 0;
+	}
+
+	{
+		/* select an example file to show for debugging purposes */
+		struct inode *inode =
+			list_first_entry(&mk->mk_decrypted_inodes,
+					 struct fscrypt_info,
+					 ci_master_key_link)->ci_inode;
+		ino = inode->i_ino;
+		dentry = d_find_alias(inode);
+	}
+	spin_unlock(&mk->mk_decrypted_inodes_lock);
+
+	if (dentry) {
+		path = dentry_path(dentry, _path, sizeof(_path));
+		dput(dentry);
+	}
+	if (IS_ERR_OR_NULL(path))
+		path = "(unknown)";
+
+	fscrypt_warn(NULL,
+		     "%s: %zu inode(s) still busy after removing key with %s %*phN, including ino %lu (%s)",
+		     sb->s_id, busy_count, master_key_spec_type(&mk->mk_spec),
+		     master_key_spec_len(&mk->mk_spec), (u8 *)&mk->mk_spec.u,
+		     ino, path);
+	return -EBUSY;
+}
+
+static int try_to_lock_encrypted_files(struct super_block *sb,
+				       struct fscrypt_master_key *mk)
+{
+	int err1;
+	int err2;
+
+	/*
+	 * An inode can't be evicted while it is dirty or has dirty pages.
+	 * Thus, we first have to clean the inodes in ->mk_decrypted_inodes.
+	 *
+	 * Just do it the easy way: call sync_filesystem().  It's overkill, but
+	 * it works, and it's more important to minimize the amount of caches we
+	 * drop than the amount of data we sync.  Also, unprivileged users can
+	 * already call sync_filesystem() via sys_syncfs() or sys_sync().
+	 */
+	down_read(&sb->s_umount);
+	err1 = sync_filesystem(sb);
+	up_read(&sb->s_umount);
+	/* If a sync error occurs, still try to evict as much as possible. */
+
+	/*
+	 * Inodes are pinned by their dentries, so we have to evict their
+	 * dentries.  shrink_dcache_sb() would suffice, but would be overkill
+	 * and inappropriate for use by unprivileged users.  So instead go
+	 * through the inodes' alias lists and try to evict each dentry.
+	 */
+	evict_dentries_for_decrypted_inodes(mk);
+
+	/*
+	 * evict_dentries_for_decrypted_inodes() already iput() each inode in
+	 * the list; any inodes for which that dropped the last reference will
+	 * have been evicted due to fscrypt_drop_inode() detecting the key
+	 * removal and telling the VFS to evict the inode.  So to finish, we
+	 * just need to check whether any inodes couldn't be evicted.
+	 */
+	err2 = check_for_busy_inodes(sb, mk);
+
+	return err1 ?: err2;
+}
+
+/*
+ * Try to remove an fscrypt master encryption key.
+ *
+ * First we wipe the actual master key secret, so that no more inodes can be
+ * unlocked with it.  Then we try to evict all cached inodes that had been
+ * unlocked with the key.
+ *
+ * If all inodes were evicted, then we unlink the fscrypt_master_key from the
+ * keyring.  Otherwise it remains in the keyring in the "incompletely removed"
+ * state (without the actual secret key) where it tracks the list of remaining
+ * inodes.  Userspace can execute the ioctl again later to retry eviction, or
+ * alternatively can re-add the secret key again.
+ *
+ * For more details, see the "Removing keys" section of
+ * Documentation/filesystems/fscrypt.rst.
+ */
+int fscrypt_ioctl_remove_key(struct file *filp, void __user *_uarg)
+{
+	struct super_block *sb = file_inode(filp)->i_sb;
+	struct fscrypt_remove_key_arg __user *uarg = _uarg;
+	struct fscrypt_remove_key_arg arg;
+	struct key *key;
+	struct fscrypt_master_key *mk;
+	u32 status_flags = 0;
+	int err;
+	bool dead;
+
+	if (copy_from_user(&arg, uarg, sizeof(arg)))
+		return -EFAULT;
+
+	if (!valid_key_spec(&arg.key_spec))
+		return -EINVAL;
+
+	if (memchr_inv(arg.__reserved, 0, sizeof(arg.__reserved)))
+		return -EINVAL;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	/* Find the key being removed. */
+	key = fscrypt_find_master_key(sb, &arg.key_spec);
+	if (IS_ERR(key))
+		return PTR_ERR(key);
+	mk = key->payload.data[0];
+
+	down_write(&key->sem);
+
+	/* Wipe the secret. */
+	dead = false;
+	if (is_master_key_secret_present(&mk->mk_secret)) {
+		wipe_master_key_secret(&mk->mk_secret);
+		dead = refcount_dec_and_test(&mk->mk_refcount);
+	}
+	up_write(&key->sem);
+	if (dead) {
+		/*
+		 * No inodes reference the key, and we wiped the secret, so the
+		 * key object is free to be removed from the keyring.
+		 */
+		key_invalidate(key);
+		err = 0;
+	} else {
+		/* Some inodes still reference this key; try to evict them. */
+		err = try_to_lock_encrypted_files(sb, mk);
+		if (err == -EBUSY) {
+			status_flags |=
+				FSCRYPT_KEY_REMOVAL_STATUS_FLAG_FILES_BUSY;
+			err = 0;
+		}
+	}
+	/*
+	 * We return 0 if we successfully did something: wiped the secret, or
+	 * tried locking the files again.  Users need to check the informational
+	 * status flags if they care whether the key has been fully removed
+	 * including all files locked.
+	 */
+	key_put(key);
+	if (err == 0)
+		err = put_user(status_flags, &uarg->removal_status_flags);
+	return err;
+}
+EXPORT_SYMBOL_GPL(fscrypt_ioctl_remove_key);
 
 int __init fscrypt_init_keyring(void)
 {
