@@ -77,11 +77,10 @@ struct fscrypt_info {
 	struct inode *ci_inode;
 
 	/*
-	 * If non-NULL, then this inode uses a master key directly rather than a
-	 * derived key, and ci_ctfm will equal ci_master_key->mk_ctfm.
-	 * Otherwise, this inode uses a derived key.
+	 * If non-NULL, then encryption is done using the master key directly
+	 * and ci_ctfm will equal ci_direct_key->dk_ctfm.
 	 */
-	struct fscrypt_master_key *ci_master_key;
+	struct fscrypt_direct_key *ci_direct_key;
 
 	/* fields from the fscrypt_context */
 	u8 ci_data_mode;
