@@ -694,7 +694,7 @@ again:
 		if (gru_mq_desc == NULL) {
 			gru_mq_desc = kmalloc(sizeof(struct
 					      gru_message_queue_desc),
-					      GFP_KERNEL);
+					      GFP_ATOMIC);
 			if (gru_mq_desc == NULL) {
 				ret = xpNoMemory;
 				goto done;
