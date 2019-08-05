@@ -2211,10 +2211,9 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	}
 	case SAS_PROTOCOL_SMP: {
 		struct scatterlist *sg_resp = &task->smp_task.smp_resp;
-		void *to;
+		void *to = page_address(sg_page(sg_resp));
 
 		ts->stat = SAM_STAT_GOOD;
-		to = kmap_atomic(sg_page(sg_resp));
 
 		dma_unmap_sg(dev, &task->smp_task.smp_resp, 1,
 			     DMA_FROM_DEVICE);
@@ -2224,7 +2223,6 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 			hisi_sas_status_buf_addr_mem(slot) +
 		       sizeof(struct hisi_sas_err_record),
 		       sg_dma_len(sg_resp));
-		kunmap_atomic(to);
 		break;
 	}
 	case SAS_PROTOCOL_SATA:
