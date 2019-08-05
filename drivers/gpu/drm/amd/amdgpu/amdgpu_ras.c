@@ -789,25 +789,18 @@ static ssize_t amdgpu_ras_sysfs_features_read(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	struct ras_common_if head;
 	int ras_block_count = AMDGPU_RAS_BLOCK_COUNT;
-	int i;
+	int i, enabled;
 	ssize_t s;
-	struct ras_manager *obj;
 
 	s = scnprintf(buf, PAGE_SIZE, "feature mask: 0x%x\n", con->features);
 
 	for (i = 0; i < ras_block_count; i++) {
 		head.block = i;
+		enabled = amdgpu_ras_is_feature_enabled(adev, &head);
 
-		if (amdgpu_ras_is_feature_enabled(adev, &head)) {
-			obj = amdgpu_ras_find_obj(adev, &head);
-			s += scnprintf(&buf[s], PAGE_SIZE - s,
-					"%s: %s\n",
-					ras_block_str(i),
-					ras_err_str(obj->head.type));
-		} else
-			s += scnprintf(&buf[s], PAGE_SIZE - s,
-					"%s: disabled\n",
-					ras_block_str(i));
+		s += scnprintf(&buf[s], PAGE_SIZE - s,
+				"%s ras feature mask: %s\n",
+				ras_block_str(i), enabled?"on":"off");
 	}
 
 	return s;
