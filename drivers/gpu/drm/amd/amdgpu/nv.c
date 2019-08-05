@@ -613,7 +613,7 @@ static int nv_common_early_init(void *handle)
 			AMD_CG_SUPPORT_BIF_LS;
 		adev->pg_flags = AMD_PG_SUPPORT_VCN |
 			AMD_PG_SUPPORT_VCN_DPG;
-		adev->external_rev_id = adev->rev_id + 0x1; /* ??? */
+		adev->external_rev_id = adev->rev_id + 20;
 		break;
 	case CHIP_NAVI12:
 		adev->cg_flags = 0;
