@@ -2389,7 +2389,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 	else
 		sz_slot_buf_ru = sizeof(struct hisi_sas_slot_buf_table);
 	sz_slot_buf_ru = roundup(sz_slot_buf_ru, 64);
-	s = lcm(max_command_entries_ru, sz_slot_buf_ru);
+	s = max(lcm(max_command_entries_ru, sz_slot_buf_ru), PAGE_SIZE);
 	blk_cnt = (max_command_entries_ru * sz_slot_buf_ru) / s;
 	slots_per_blk = s / sz_slot_buf_ru;
 
