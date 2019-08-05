@@ -80,7 +80,7 @@ struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
 	mutex_unlock(&rdev->gem.mutex);
 
 	bo->prime_shared_count = 1;
-	return &bo->gem_base;
+	return &bo->tbo.base;
 }
 
 int radeon_gem_prime_pin(struct drm_gem_object *obj)
