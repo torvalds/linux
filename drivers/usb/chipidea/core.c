@@ -903,10 +903,7 @@ static struct attribute *ci_attrs[] = {
 	&dev_attr_role.attr,
 	NULL,
 };
-
-static const struct attribute_group ci_attr_group = {
-	.attrs = ci_attrs,
-};
+ATTRIBUTE_GROUPS(ci);
 
 static int ci_hdrc_probe(struct platform_device *pdev)
 {
@@ -1105,14 +1102,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	device_set_wakeup_capable(&pdev->dev, true);
 	dbg_create_files(ci);
 
-	ret = sysfs_create_group(&dev->kobj, &ci_attr_group);
-	if (ret)
-		goto remove_debug;
-
 	return 0;
 
-remove_debug:
-	dbg_remove_files(ci);
 stop:
 	if (ci->is_otg && ci->roles[CI_ROLE_GADGET])
 		ci_hdrc_otg_destroy(ci);
@@ -1139,7 +1130,6 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	}
 
 	dbg_remove_files(ci);
-	sysfs_remove_group(&ci->dev->kobj, &ci_attr_group);
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
 	ci_usb_phy_exit(ci);
@@ -1318,6 +1308,7 @@ static struct platform_driver ci_hdrc_driver = {
 	.driver	= {
 		.name	= "ci_hdrc",
 		.pm	= &ci_pm_ops,
+		.dev_groups = ci_groups,
 	},
 };
 
