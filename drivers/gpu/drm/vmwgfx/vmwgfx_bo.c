@@ -835,7 +835,7 @@ int vmw_bo_alloc_ioctl(struct drm_device *dev, void *data,
 		goto out_no_bo;
 
 	rep->handle = handle;
-	rep->map_handle = drm_vma_node_offset_addr(&vbo->base.vma_node);
+	rep->map_handle = drm_vma_node_offset_addr(&vbo->base.base.vma_node);
 	rep->cur_gmr_id = handle;
 	rep->cur_gmr_offset = 0;
 
@@ -1077,7 +1077,7 @@ int vmw_dumb_map_offset(struct drm_file *file_priv,
 	if (ret != 0)
 		return -EINVAL;
 
-	*offset = drm_vma_node_offset_addr(&out_buf->base.vma_node);
+	*offset = drm_vma_node_offset_addr(&out_buf->base.base.vma_node);
 	vmw_bo_unreference(&out_buf);
 	return 0;
 }

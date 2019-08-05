@@ -116,7 +116,7 @@ static inline unsigned radeon_bo_gpu_page_alignment(struct radeon_bo *bo)
  */
 static inline u64 radeon_bo_mmap_offset(struct radeon_bo *bo)
 {
-	return drm_vma_node_offset_addr(&bo->tbo.vma_node);
+	return drm_vma_node_offset_addr(&bo->tbo.base.vma_node);
 }
 
 extern int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type,

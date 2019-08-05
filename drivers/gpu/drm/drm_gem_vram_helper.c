@@ -168,7 +168,7 @@ EXPORT_SYMBOL(drm_gem_vram_put);
  */
 u64 drm_gem_vram_mmap_offset(struct drm_gem_vram_object *gbo)
 {
-	return drm_vma_node_offset_addr(&gbo->bo.vma_node);
+	return drm_vma_node_offset_addr(&gbo->bo.base.vma_node);
 }
 EXPORT_SYMBOL(drm_gem_vram_mmap_offset);
 

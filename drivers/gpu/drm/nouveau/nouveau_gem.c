@@ -240,7 +240,7 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 	}
 
 	rep->size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
-	rep->map_handle = drm_vma_node_offset_addr(&nvbo->bo.vma_node);
+	rep->map_handle = drm_vma_node_offset_addr(&nvbo->bo.base.vma_node);
 	rep->tile_mode = nvbo->mode;
 	rep->tile_flags = nvbo->contig ? 0 : NOUVEAU_GEM_TILE_NONCONTIG;
 	if (cli->device.info.family >= NV_DEVICE_INFO_V0_FERMI)

@@ -152,7 +152,6 @@ struct ttm_tt;
  * @ddestroy: List head for the delayed destroy list.
  * @swap: List head for swap LRU list.
  * @moving: Fence set when BO is moving
- * @vma_node: Address space manager node.
  * @offset: The current GPU offset, which can have different meanings
  * depending on the memory type. For SYSTEM type memory, it should be 0.
  * @cur_placement: Hint of current placement.
@@ -219,9 +218,6 @@ struct ttm_buffer_object {
 	 */
 
 	struct dma_fence *moving;
-
-	struct drm_vma_offset_node vma_node;
-
 	unsigned priority;
 
 	/**

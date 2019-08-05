@@ -510,7 +510,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	INIT_LIST_HEAD(&fbo->base.io_reserve_lru);
 	mutex_init(&fbo->base.wu_mutex);
 	fbo->base.moving = NULL;
-	drm_vma_node_reset(&fbo->base.vma_node);
+	drm_vma_node_reset(&fbo->base.base.vma_node);
 	atomic_set(&fbo->base.cpu_writers, 0);
 
 	kref_init(&fbo->base.list_kref);
