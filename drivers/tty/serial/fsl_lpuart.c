@@ -967,10 +967,10 @@ static irqreturn_t lpuart_int(int irq, void *dev_id)
 
 	sts = readb(sport->port.membase + UARTSR1);
 
-	if (sts & UARTSR1_RDRF)
+	if (sts & UARTSR1_RDRF && !sport->lpuart_dma_rx_use)
 		lpuart_rxint(sport);
 
-	if (sts & UARTSR1_TDRE)
+	if (sts & UARTSR1_TDRE && !sport->lpuart_dma_tx_use)
 		lpuart_txint(sport);
 
 	return IRQ_HANDLED;
