@@ -17,6 +17,7 @@
  * information about these ioctls.
  */
 
+#include <crypto/skcipher.h>
 #include <linux/key-type.h>
 #include <linux/seq_file.h>
 
@@ -24,6 +25,7 @@
 
 static void wipe_master_key_secret(struct fscrypt_master_key_secret *secret)
 {
+	fscrypt_destroy_hkdf(&secret->hkdf);
 	memzero_explicit(secret, sizeof(*secret));
 }
 
@@ -36,7 +38,13 @@ static void move_master_key_secret(struct fscrypt_master_key_secret *dst,
 
 static void free_master_key(struct fscrypt_master_key *mk)
 {
+	size_t i;
+
 	wipe_master_key_secret(&mk->mk_secret);
+
+	for (i = 0; i < ARRAY_SIZE(mk->mk_mode_keys); i++)
+		crypto_free_skcipher(mk->mk_mode_keys[i]);
+
 	kzfree(mk);
 }
 
@@ -109,7 +117,7 @@ static struct key *search_fscrypt_keyring(struct key *keyring,
 #define FSCRYPT_FS_KEYRING_DESCRIPTION_SIZE	\
 	(CONST_STRLEN("fscrypt-") + FIELD_SIZEOF(struct super_block, s_id))
 
-#define FSCRYPT_MK_DESCRIPTION_SIZE	(2 * FSCRYPT_KEY_DESCRIPTOR_SIZE + 1)
+#define FSCRYPT_MK_DESCRIPTION_SIZE	(2 * FSCRYPT_KEY_IDENTIFIER_SIZE + 1)
 
 static void format_fs_keyring_description(
 			char description[FSCRYPT_FS_KEYRING_DESCRIPTION_SIZE],
@@ -313,6 +321,31 @@ int fscrypt_ioctl_add_key(struct file *filp, void __user *_uarg)
 	err = -EACCES;
 	if (!capable(CAP_SYS_ADMIN))
 		goto out_wipe_secret;
+
+	if (arg.key_spec.type == FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER) {
+		err = fscrypt_init_hkdf(&secret.hkdf, secret.raw, secret.size);
+		if (err)
+			goto out_wipe_secret;
+
+		/*
+		 * Now that the HKDF context is initialized, the raw key is no
+		 * longer needed.
+		 */
+		memzero_explicit(secret.raw, secret.size);
+
+		/* Calculate the key identifier and return it to userspace. */
+		err = fscrypt_hkdf_expand(&secret.hkdf,
+					  HKDF_CONTEXT_KEY_IDENTIFIER,
+					  NULL, 0, arg.key_spec.u.identifier,
+					  FSCRYPT_KEY_IDENTIFIER_SIZE);
+		if (err)
+			goto out_wipe_secret;
+		err = -EFAULT;
+		if (copy_to_user(uarg->key_spec.u.identifier,
+				 arg.key_spec.u.identifier,
+				 FSCRYPT_KEY_IDENTIFIER_SIZE))
+			goto out_wipe_secret;
+	}
 
 	err = add_master_key(sb, &secret, &arg.key_spec);
 out_wipe_secret:

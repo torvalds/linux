@@ -181,7 +181,8 @@ static int base64_decode(const char *src, int len, u8 *dst)
 bool fscrypt_fname_encrypted_size(const struct inode *inode, u32 orig_len,
 				  u32 max_len, u32 *encrypted_len_ret)
 {
-	int padding = 4 << (inode->i_crypt_info->ci_flags &
+	const struct fscrypt_info *ci = inode->i_crypt_info;
+	int padding = 4 << (fscrypt_policy_flags(&ci->ci_policy) &
 			    FSCRYPT_POLICY_FLAGS_PAD_MASK);
 	u32 encrypted_len;
 

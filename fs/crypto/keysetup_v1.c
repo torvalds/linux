@@ -189,12 +189,13 @@ find_or_insert_direct_key(struct fscrypt_direct_key *to_insert,
 	 */
 
 	BUILD_BUG_ON(sizeof(hash_key) > FSCRYPT_KEY_DESCRIPTOR_SIZE);
-	memcpy(&hash_key, ci->ci_master_key_descriptor, sizeof(hash_key));
+	memcpy(&hash_key, ci->ci_policy.v1.master_key_descriptor,
+	       sizeof(hash_key));
 
 	spin_lock(&fscrypt_direct_keys_lock);
 	hash_for_each_possible(fscrypt_direct_keys, dk, dk_node, hash_key) {
-		if (memcmp(ci->ci_master_key_descriptor, dk->dk_descriptor,
-			   FSCRYPT_KEY_DESCRIPTOR_SIZE) != 0)
+		if (memcmp(ci->ci_policy.v1.master_key_descriptor,
+			   dk->dk_descriptor, FSCRYPT_KEY_DESCRIPTOR_SIZE) != 0)
 			continue;
 		if (ci->ci_mode != dk->dk_mode)
 			continue;
@@ -237,7 +238,7 @@ fscrypt_get_direct_key(const struct fscrypt_info *ci, const u8 *raw_key)
 		dk->dk_ctfm = NULL;
 		goto err_free_dk;
 	}
-	memcpy(dk->dk_descriptor, ci->ci_master_key_descriptor,
+	memcpy(dk->dk_descriptor, ci->ci_policy.v1.master_key_descriptor,
 	       FSCRYPT_KEY_DESCRIPTOR_SIZE);
 	memcpy(dk->dk_raw, raw_key, ci->ci_mode->keysize);
 
@@ -262,7 +263,8 @@ static int setup_v1_file_key_direct(struct fscrypt_info *ci,
 		return -EINVAL;
 	}
 
-	if (ci->ci_data_mode != ci->ci_filename_mode) {
+	if (ci->ci_policy.v1.contents_encryption_mode !=
+	    ci->ci_policy.v1.filenames_encryption_mode) {
 		fscrypt_warn(ci->ci_inode,
 			     "Direct key mode not allowed with different contents and filenames modes");
 		return -EINVAL;
@@ -308,7 +310,7 @@ out:
 
 int fscrypt_setup_v1_file_key(struct fscrypt_info *ci, const u8 *raw_master_key)
 {
-	if (ci->ci_flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY)
+	if (ci->ci_policy.v1.flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY)
 		return setup_v1_file_key_direct(ci, raw_master_key);
 	else
 		return setup_v1_file_key_derived(ci, raw_master_key);
@@ -321,11 +323,11 @@ int fscrypt_setup_v1_file_key_via_subscribed_keyrings(struct fscrypt_info *ci)
 	int err;
 
 	key = find_and_lock_process_key(FSCRYPT_KEY_DESC_PREFIX,
-					ci->ci_master_key_descriptor,
+					ci->ci_policy.v1.master_key_descriptor,
 					ci->ci_mode->keysize, &payload);
 	if (key == ERR_PTR(-ENOKEY) && ci->ci_inode->i_sb->s_cop->key_prefix) {
 		key = find_and_lock_process_key(ci->ci_inode->i_sb->s_cop->key_prefix,
-						ci->ci_master_key_descriptor,
+						ci->ci_policy.v1.master_key_descriptor,
 						ci->ci_mode->keysize, &payload);
 	}
 	if (IS_ERR(key))
