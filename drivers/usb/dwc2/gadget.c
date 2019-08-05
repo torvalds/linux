@@ -3224,14 +3224,15 @@ static void kill_all_requests(struct dwc2_hsotg *hsotg,
 			      struct dwc2_hsotg_ep *ep,
 			      int result)
 {
-	struct dwc2_hsotg_req *req, *treq;
 	unsigned int size;
 
 	ep->req = NULL;
 
-	list_for_each_entry_safe(req, treq, &ep->queue, queue)
-		dwc2_hsotg_complete_request(hsotg, ep, req,
-					    result);
+	while (!list_empty(&ep->queue)) {
+		struct dwc2_hsotg_req *req = get_ep_head(ep);
+
+		dwc2_hsotg_complete_request(hsotg, ep, req, result);
+	}
 
 	if (!hsotg->dedicated_fifos)
 		return;
