@@ -18,8 +18,8 @@ Clocks:
 -------
 
 
-The Device Tree node representing the AP806 system controller provides
-a number of clocks:
+The Device Tree node representing the AP806/AP807 system controller
+provides a number of clocks:
 
  - 0: reference clock of CPU cluster 0
  - 1: reference clock of CPU cluster 1
@@ -28,7 +28,9 @@ a number of clocks:
 
 Required properties:
 
- - compatible: must be: "marvell,ap806-clock"
+ - compatible: must be one of:
+   * "marvell,ap806-clock"
+   * "marvell,ap807-clock"
  - #clock-cells: must be set to 1
 
 Pinctrl:
