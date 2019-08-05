@@ -259,6 +259,13 @@ struct hisi_sas_iost_itct_cache {
 	u32 data[HISI_SAS_IOST_ITCT_CACHE_DW_SZ];
 };
 
+enum hisi_sas_debugfs_reg_array_member {
+	DEBUGFS_GLOBAL = 0,
+	DEBUGFS_AXI,
+	DEBUGFS_RAS,
+	DEBUGFS_REGS_NUM
+};
+
 enum hisi_sas_debugfs_cache_type {
 	HISI_SAS_ITCT_CACHE,
 	HISI_SAS_IOST_CACHE,
@@ -312,7 +319,7 @@ struct hisi_sas_hw {
 	int complete_hdr_size;
 	struct scsi_host_template *sht;
 
-	const struct hisi_sas_debugfs_reg *debugfs_reg_global;
+	const struct hisi_sas_debugfs_reg *debugfs_reg_array[DEBUGFS_REGS_NUM];
 	const struct hisi_sas_debugfs_reg *debugfs_reg_port;
 };
 
@@ -388,7 +395,8 @@ struct hisi_hba {
 	unsigned int *reply_map;
 
 	/* debugfs memories */
-	u32 *debugfs_global_reg;
+	/* Put Global AXI and RAS Register into register array */
+	u32 *debugfs_regs[DEBUGFS_REGS_NUM];
 	u32 *debugfs_port_reg[HISI_SAS_MAX_PHYS];
 	void *debugfs_complete_hdr[HISI_SAS_MAX_QUEUES];
 	struct hisi_sas_cmd_hdr	*debugfs_cmd_hdr[HISI_SAS_MAX_QUEUES];

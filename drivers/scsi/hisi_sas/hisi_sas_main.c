@@ -2752,13 +2752,40 @@ static void hisi_sas_debugfs_snapshot_port_reg(struct hisi_hba *hisi_hba)
 
 static void hisi_sas_debugfs_snapshot_global_reg(struct hisi_hba *hisi_hba)
 {
-	u32 *databuf = (u32 *)hisi_hba->debugfs_global_reg;
+	u32 *databuf = hisi_hba->debugfs_regs[DEBUGFS_GLOBAL];
+	const struct hisi_sas_hw *hw = hisi_hba->hw;
 	const struct hisi_sas_debugfs_reg *global =
-		hisi_hba->hw->debugfs_reg_global;
+			hw->debugfs_reg_array[DEBUGFS_GLOBAL];
 	int i;
 
 	for (i = 0; i < global->count; i++, databuf++)
 		*databuf = global->read_global_reg(hisi_hba, 4 * i);
+}
+
+static void hisi_sas_debugfs_snapshot_axi_reg(struct hisi_hba *hisi_hba)
+{
+	u32 *databuf = hisi_hba->debugfs_regs[DEBUGFS_AXI];
+	const struct hisi_sas_hw *hw = hisi_hba->hw;
+	const struct hisi_sas_debugfs_reg *axi =
+			hw->debugfs_reg_array[DEBUGFS_AXI];
+	int i;
+
+	for (i = 0; i < axi->count; i++, databuf++)
+		*databuf = axi->read_global_reg(hisi_hba,
+						4 * i + axi->base_off);
+}
+
+static void hisi_sas_debugfs_snapshot_ras_reg(struct hisi_hba *hisi_hba)
+{
+	u32 *databuf = hisi_hba->debugfs_regs[DEBUGFS_RAS];
+	const struct hisi_sas_hw *hw = hisi_hba->hw;
+	const struct hisi_sas_debugfs_reg *ras =
+			hw->debugfs_reg_array[DEBUGFS_RAS];
+	int i;
+
+	for (i = 0; i < ras->count; i++, databuf++)
+		*databuf = ras->read_global_reg(hisi_hba,
+						4 * i + ras->base_off);
 }
 
 static void hisi_sas_debugfs_snapshot_itct_reg(struct hisi_hba *hisi_hba)
@@ -2836,9 +2863,9 @@ static int hisi_sas_debugfs_global_show(struct seq_file *s, void *p)
 {
 	struct hisi_hba *hisi_hba = s->private;
 	const struct hisi_sas_hw *hw = hisi_hba->hw;
-	const struct hisi_sas_debugfs_reg *reg_global = hw->debugfs_reg_global;
+	const void *reg_global = hw->debugfs_reg_array[DEBUGFS_GLOBAL];
 
-	hisi_sas_debugfs_print_reg(hisi_hba->debugfs_global_reg,
+	hisi_sas_debugfs_print_reg(hisi_hba->debugfs_regs[DEBUGFS_GLOBAL],
 				   reg_global, s);
 
 	return 0;
@@ -2852,6 +2879,58 @@ static int hisi_sas_debugfs_global_open(struct inode *inode, struct file *filp)
 
 static const struct file_operations hisi_sas_debugfs_global_fops = {
 	.open = hisi_sas_debugfs_global_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int hisi_sas_debugfs_axi_show(struct seq_file *s, void *p)
+{
+	struct hisi_hba *hisi_hba = s->private;
+	const struct hisi_sas_hw *hw = hisi_hba->hw;
+	const void *reg_axi = hw->debugfs_reg_array[DEBUGFS_AXI];
+
+	hisi_sas_debugfs_print_reg(hisi_hba->debugfs_regs[DEBUGFS_AXI],
+				   reg_axi, s);
+
+	return 0;
+}
+
+static int hisi_sas_debugfs_axi_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, hisi_sas_debugfs_axi_show,
+			   inode->i_private);
+}
+
+static const struct file_operations hisi_sas_debugfs_axi_fops = {
+	.open = hisi_sas_debugfs_axi_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int hisi_sas_debugfs_ras_show(struct seq_file *s, void *p)
+{
+	struct hisi_hba *hisi_hba = s->private;
+	const struct hisi_sas_hw *hw = hisi_hba->hw;
+	const void *reg_ras = hw->debugfs_reg_array[DEBUGFS_RAS];
+
+	hisi_sas_debugfs_print_reg(hisi_hba->debugfs_regs[DEBUGFS_RAS],
+				   reg_ras, s);
+
+	return 0;
+}
+
+static int hisi_sas_debugfs_ras_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, hisi_sas_debugfs_ras_show,
+			   inode->i_private);
+}
+
+static const struct file_operations hisi_sas_debugfs_ras_fops = {
+	.open = hisi_sas_debugfs_ras_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -3192,6 +3271,12 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 	debugfs_create_file("itct_cache", 0400, dump_dentry, hisi_hba,
 			    &hisi_sas_debugfs_itct_cache_fops);
 
+	debugfs_create_file("axi", 0400, dump_dentry, hisi_hba,
+			    &hisi_sas_debugfs_axi_fops);
+
+	debugfs_create_file("ras", 0400, dump_dentry, hisi_hba,
+			    &hisi_sas_debugfs_ras_fops);
+
 	return;
 }
 
@@ -3201,6 +3286,8 @@ static void hisi_sas_debugfs_snapshot_regs(struct hisi_hba *hisi_hba)
 
 	hisi_sas_debugfs_snapshot_global_reg(hisi_hba);
 	hisi_sas_debugfs_snapshot_port_reg(hisi_hba);
+	hisi_sas_debugfs_snapshot_axi_reg(hisi_hba);
+	hisi_sas_debugfs_snapshot_ras_reg(hisi_hba);
 	hisi_sas_debugfs_snapshot_cq_reg(hisi_hba);
 	hisi_sas_debugfs_snapshot_dq_reg(hisi_hba);
 	hisi_sas_debugfs_snapshot_itct_reg(hisi_hba);
@@ -3257,6 +3344,7 @@ EXPORT_SYMBOL_GPL(hisi_sas_debugfs_work_handler);
 void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 {
 	int max_command_entries = HISI_SAS_MAX_COMMANDS;
+	const struct hisi_sas_hw *hw = hisi_hba->hw;
 	struct device *dev = hisi_hba->dev;
 	int p, i, c, d;
 	size_t sz;
@@ -3268,16 +3356,14 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 			    hisi_hba,
 			    &hisi_sas_debugfs_trigger_dump_fops);
 
-	/* Alloc buffer for global */
-	sz = hisi_hba->hw->debugfs_reg_global->count * 4;
-	hisi_hba->debugfs_global_reg =
-		devm_kmalloc(dev, sz, GFP_KERNEL);
+	sz = hw->debugfs_reg_array[DEBUGFS_GLOBAL]->count * 4;
+	hisi_hba->debugfs_regs[DEBUGFS_GLOBAL] =
+				devm_kmalloc(dev, sz, GFP_KERNEL);
 
-	if (!hisi_hba->debugfs_global_reg)
+	if (!hisi_hba->debugfs_regs[DEBUGFS_GLOBAL])
 		goto fail_global;
 
-	/* Alloc buffer for port */
-	sz = hisi_hba->hw->debugfs_reg_port->count * 4;
+	sz = hw->debugfs_reg_port->count * 4;
 	for (p = 0; p < hisi_hba->n_phy; p++) {
 		hisi_hba->debugfs_port_reg[p] =
 			devm_kmalloc(dev, sz, GFP_KERNEL);
@@ -3286,8 +3372,21 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 			goto fail_port;
 	}
 
-	/* Alloc buffer for cq */
-	sz = hisi_hba->hw->complete_hdr_size * HISI_SAS_QUEUE_SLOTS;
+	sz = hw->debugfs_reg_array[DEBUGFS_AXI]->count * 4;
+	hisi_hba->debugfs_regs[DEBUGFS_AXI] =
+		devm_kmalloc(dev, sz, GFP_KERNEL);
+
+	if (!hisi_hba->debugfs_regs[DEBUGFS_AXI])
+		goto fail_axi;
+
+	sz = hw->debugfs_reg_array[DEBUGFS_RAS]->count * 4;
+	hisi_hba->debugfs_regs[DEBUGFS_RAS] =
+		devm_kmalloc(dev, sz, GFP_KERNEL);
+
+	if (!hisi_hba->debugfs_regs[DEBUGFS_RAS])
+		goto fail_ras;
+
+	sz = hw->complete_hdr_size * HISI_SAS_QUEUE_SLOTS;
 	for (c = 0; c < hisi_hba->queue_count; c++) {
 		hisi_hba->debugfs_complete_hdr[c] =
 			devm_kmalloc(dev, sz, GFP_KERNEL);
@@ -3296,7 +3395,6 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 			goto fail_cq;
 	}
 
-	/* Alloc buffer for dq */
 	sz = sizeof(struct hisi_sas_cmd_hdr) * HISI_SAS_QUEUE_SLOTS;
 	for (d = 0; d < hisi_hba->queue_count; d++) {
 		hisi_hba->debugfs_cmd_hdr[d] =
@@ -3346,10 +3444,14 @@ fail_iost_dq:
 fail_cq:
 	for (i = 0; i < c; i++)
 		devm_kfree(dev, hisi_hba->debugfs_complete_hdr[i]);
+	devm_kfree(dev, hisi_hba->debugfs_regs[DEBUGFS_RAS]);
+fail_ras:
+	devm_kfree(dev, hisi_hba->debugfs_regs[DEBUGFS_AXI]);
+fail_axi:
 fail_port:
 	for (i = 0; i < p; i++)
 		devm_kfree(dev, hisi_hba->debugfs_port_reg[i]);
-	devm_kfree(dev, hisi_hba->debugfs_global_reg);
+	devm_kfree(dev, hisi_hba->debugfs_regs[DEBUGFS_GLOBAL]);
 fail_global:
 	debugfs_remove_recursive(hisi_hba->debugfs_dir);
 	dev_dbg(dev, "failed to init debugfs!\n");

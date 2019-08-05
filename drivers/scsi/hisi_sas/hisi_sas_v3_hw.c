@@ -2857,6 +2857,38 @@ static const struct hisi_sas_debugfs_reg debugfs_global_reg = {
 	.read_global_reg = hisi_sas_read32,
 };
 
+static const struct hisi_sas_debugfs_reg_lu debugfs_axi_reg_lu[] = {
+	HISI_SAS_DEBUGFS_REG(AM_CFG_MAX_TRANS),
+	HISI_SAS_DEBUGFS_REG(AM_CFG_SINGLE_PORT_MAX_TRANS),
+	HISI_SAS_DEBUGFS_REG(AXI_CFG),
+	HISI_SAS_DEBUGFS_REG(AM_ROB_ECC_ERR_ADDR),
+	{}
+};
+
+static const struct hisi_sas_debugfs_reg debugfs_axi_reg = {
+	.lu = debugfs_axi_reg_lu,
+	.count = 0x61,
+	.base_off = AXI_MASTER_CFG_BASE,
+	.read_global_reg = hisi_sas_read32,
+};
+
+static const struct hisi_sas_debugfs_reg_lu debugfs_ras_reg_lu[] = {
+	HISI_SAS_DEBUGFS_REG(SAS_RAS_INTR1),
+	HISI_SAS_DEBUGFS_REG(SAS_RAS_INTR0_MASK),
+	HISI_SAS_DEBUGFS_REG(SAS_RAS_INTR1_MASK),
+	HISI_SAS_DEBUGFS_REG(CFG_SAS_RAS_INTR_MASK),
+	HISI_SAS_DEBUGFS_REG(SAS_RAS_INTR2),
+	HISI_SAS_DEBUGFS_REG(SAS_RAS_INTR2_MASK),
+	{}
+};
+
+static const struct hisi_sas_debugfs_reg debugfs_ras_reg = {
+	.lu = debugfs_ras_reg_lu,
+	.count = 0x10,
+	.base_off = RAS_BASE,
+	.read_global_reg = hisi_sas_read32,
+};
+
 static void debugfs_snapshot_prepare_v3_hw(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
@@ -2956,7 +2988,9 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.get_events = phy_get_events_v3_hw,
 	.write_gpio = write_gpio_v3_hw,
 	.wait_cmds_complete_timeout = wait_cmds_complete_timeout_v3_hw,
-	.debugfs_reg_global = &debugfs_global_reg,
+	.debugfs_reg_array[DEBUGFS_GLOBAL] = &debugfs_global_reg,
+	.debugfs_reg_array[DEBUGFS_AXI] = &debugfs_axi_reg,
+	.debugfs_reg_array[DEBUGFS_RAS] = &debugfs_ras_reg,
 	.debugfs_reg_port = &debugfs_port_reg,
 	.snapshot_prepare = debugfs_snapshot_prepare_v3_hw,
 	.snapshot_restore = debugfs_snapshot_restore_v3_hw,
