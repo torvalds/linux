@@ -1627,7 +1627,7 @@ int main(int argc, char *argv[])
 				args.protocol = pe->p_proto;
 			} else {
 				if (str_to_uint(optarg, 0, 0xffff, &tmp) != 0) {
-					fprintf(stderr, "Invalid potocol\n");
+					fprintf(stderr, "Invalid protocol\n");
 					return 1;
 				}
 				args.protocol = tmp;
