@@ -503,8 +503,7 @@ build_netname_ctxt(struct smb2_netname_neg_context *pneg_ctxt, char *hostname)
 	pneg_ctxt->ContextType = SMB2_NETNAME_NEGOTIATE_CONTEXT_ID;
 
 	/* copy up to max of first 100 bytes of server name to NetName field */
-	pneg_ctxt->DataLength = cpu_to_le16(2 +
-		(2 * cifs_strtoUTF16(pneg_ctxt->NetName, hostname, 100, cp)));
+	pneg_ctxt->DataLength = cpu_to_le16(2 * cifs_strtoUTF16(pneg_ctxt->NetName, hostname, 100, cp));
 	/* context size is DataLength + minimal smb2_neg_context */
 	return DIV_ROUND_UP(le16_to_cpu(pneg_ctxt->DataLength) +
 			sizeof(struct smb2_neg_context), 8) * 8;
