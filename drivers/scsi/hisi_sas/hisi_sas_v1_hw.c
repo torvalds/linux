@@ -1280,14 +1280,12 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 
 		ts->stat = SAM_STAT_GOOD;
 
-		dma_unmap_sg(dev, &task->smp_task.smp_resp, 1,
-			     DMA_FROM_DEVICE);
 		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,
 			     DMA_TO_DEVICE);
 		memcpy(to + sg_resp->offset,
 		       hisi_sas_status_buf_addr_mem(slot) +
 		       sizeof(struct hisi_sas_err_record),
-		       sg_dma_len(sg_resp));
+		       sg_resp->length);
 		break;
 	}
 	case SAS_PROTOCOL_SATA:

@@ -300,7 +300,7 @@ static void hisi_sas_task_prep_abort(struct hisi_hba *hisi_hba,
 
 static void hisi_sas_dma_unmap(struct hisi_hba *hisi_hba,
 			       struct sas_task *task, int n_elem,
-			       int n_elem_req, int n_elem_resp)
+			       int n_elem_req)
 {
 	struct device *dev = hisi_hba->dev;
 
@@ -314,16 +314,13 @@ static void hisi_sas_dma_unmap(struct hisi_hba *hisi_hba,
 			if (n_elem_req)
 				dma_unmap_sg(dev, &task->smp_task.smp_req,
 					     1, DMA_TO_DEVICE);
-			if (n_elem_resp)
-				dma_unmap_sg(dev, &task->smp_task.smp_resp,
-					     1, DMA_FROM_DEVICE);
 		}
 	}
 }
 
 static int hisi_sas_dma_map(struct hisi_hba *hisi_hba,
 			    struct sas_task *task, int *n_elem,
-			    int *n_elem_req, int *n_elem_resp)
+			    int *n_elem_req)
 {
 	struct device *dev = hisi_hba->dev;
 	int rc;
@@ -331,7 +328,7 @@ static int hisi_sas_dma_map(struct hisi_hba *hisi_hba,
 	if (sas_protocol_ata(task->task_proto)) {
 		*n_elem = task->num_scatter;
 	} else {
-		unsigned int req_len, resp_len;
+		unsigned int req_len;
 
 		if (task->num_scatter) {
 			*n_elem = dma_map_sg(dev, task->scatter,
@@ -352,17 +349,6 @@ static int hisi_sas_dma_map(struct hisi_hba *hisi_hba,
 				rc = -EINVAL;
 				goto err_out_dma_unmap;
 			}
-			*n_elem_resp = dma_map_sg(dev, &task->smp_task.smp_resp,
-						  1, DMA_FROM_DEVICE);
-			if (!*n_elem_resp) {
-				rc = -ENOMEM;
-				goto err_out_dma_unmap;
-			}
-			resp_len = sg_dma_len(&task->smp_task.smp_resp);
-			if (resp_len & 0x3) {
-				rc = -EINVAL;
-				goto err_out_dma_unmap;
-			}
 		}
 	}
 
@@ -377,7 +363,7 @@ static int hisi_sas_dma_map(struct hisi_hba *hisi_hba,
 err_out_dma_unmap:
 	/* It would be better to call dma_unmap_sg() here, but it's messy */
 	hisi_sas_dma_unmap(hisi_hba, task, *n_elem,
-			   *n_elem_req, *n_elem_resp);
+			   *n_elem_req);
 prep_out:
 	return rc;
 }
@@ -449,7 +435,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	struct asd_sas_port *sas_port = device->port;
 	struct device *dev = hisi_hba->dev;
 	int dlvry_queue_slot, dlvry_queue, rc, slot_idx;
-	int n_elem = 0, n_elem_dif = 0, n_elem_req = 0, n_elem_resp = 0;
+	int n_elem = 0, n_elem_dif = 0, n_elem_req = 0;
 	struct hisi_sas_dq *dq;
 	unsigned long flags;
 	int wr_q_index;
@@ -485,7 +471,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	}
 
 	rc = hisi_sas_dma_map(hisi_hba, task, &n_elem,
-			      &n_elem_req, &n_elem_resp);
+			      &n_elem_req);
 	if (rc < 0)
 		goto prep_out;
 
@@ -580,7 +566,7 @@ err_out_dif_dma_unmap:
 		hisi_sas_dif_dma_unmap(hisi_hba, task, n_elem_dif);
 err_out_dma_unmap:
 	hisi_sas_dma_unmap(hisi_hba, task, n_elem,
-			   n_elem_req, n_elem_resp);
+			   n_elem_req);
 prep_out:
 	dev_err(dev, "task prep: failed[%d]!\n", rc);
 	return rc;
