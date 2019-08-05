@@ -5693,7 +5693,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		 * deadlock during GPU reset when this fence will not signal
 		 * but we hold reservation lock for the BO.
 		 */
-		r = reservation_object_wait_timeout_rcu(abo->tbo.resv, true,
+		r = reservation_object_wait_timeout_rcu(abo->tbo.base.resv, true,
 							false,
 							msecs_to_jiffies(5000));
 		if (unlikely(r <= 0))
