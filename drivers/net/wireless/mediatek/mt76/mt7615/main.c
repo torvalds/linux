@@ -16,6 +16,7 @@ static int mt7615_start(struct ieee80211_hw *hw)
 {
 	struct mt7615_dev *dev = hw->priv;
 
+	dev->mt76.survey_time = ktime_get_boottime();
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     MT7615_WATCHDOG_TIME);
@@ -149,6 +150,9 @@ static int mt7615_set_channel(struct mt7615_dev *dev)
 
 	ret = mt7615_dfs_init_radar_detector(dev);
 	mt7615_mac_cca_stats_reset(dev);
+	dev->mt76.survey_time = ktime_get_boottime();
+	/* TODO: add DBDC support */
+	mt76_rr(dev, MT_MIB_SDR16(0));
 
 out:
 	clear_bit(MT76_RESET, &dev->mt76.state);
@@ -521,4 +525,5 @@ const struct ieee80211_ops mt7615_ops = {
 	.release_buffered_frames = mt76_release_buffered_frames,
 	.get_txpower = mt76_get_txpower,
 	.channel_switch_beacon = mt7615_channel_switch_beacon,
+	.get_survey = mt76_get_survey,
 };

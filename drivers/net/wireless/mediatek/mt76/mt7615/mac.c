@@ -1155,6 +1155,29 @@ mt7615_mac_scs_check(struct mt7615_dev *dev)
 		mt7615_mac_set_default_sensitivity(dev);
 }
 
+void mt7615_update_channel(struct mt76_dev *mdev)
+{
+	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt76_channel_state *state;
+	ktime_t cur_time;
+	u32 busy;
+
+	if (!test_bit(MT76_STATE_RUNNING, &mdev->state))
+		return;
+
+	state = mt76_channel_state(mdev, mdev->chandef.chan);
+	/* TODO: add DBDC support */
+	busy = mt76_get_field(dev, MT_MIB_SDR16(0), MT_MIB_BUSY_MASK);
+
+	spin_lock_bh(&mdev->cc_lock);
+	cur_time = ktime_get_boottime();
+	state->cc_busy += busy;
+	state->cc_active += ktime_to_us(ktime_sub(cur_time,
+						  mdev->survey_time));
+	mdev->survey_time = cur_time;
+	spin_unlock_bh(&mdev->cc_lock);
+}
+
 void mt7615_mac_work(struct work_struct *work)
 {
 	struct mt7615_dev *dev;
@@ -1163,6 +1186,7 @@ void mt7615_mac_work(struct work_struct *work)
 						mac_work.work);
 
 	mutex_lock(&dev->mt76.mutex);
+	mt7615_update_channel(&dev->mt76);
 	if (++dev->mac_work_count == 5) {
 		mt7615_mac_scs_check(dev);
 		dev->mac_work_count = 0;
