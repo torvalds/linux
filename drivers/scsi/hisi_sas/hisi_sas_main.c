@@ -519,13 +519,8 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	slot = &hisi_hba->slot_info[slot_idx];
 
 	spin_lock_irqsave(&dq->lock, flags);
-	wr_q_index = hisi_hba->hw->get_free_slot(hisi_hba, dq);
-	if (wr_q_index < 0) {
-		spin_unlock_irqrestore(&dq->lock, flags);
-		rc = -EAGAIN;
-		goto err_out_tag;
-	}
-
+	wr_q_index = dq->wr_point;
+	dq->wr_point = (dq->wr_point + 1) % HISI_SAS_QUEUE_SLOTS;
 	list_add_tail(&slot->delivery, &dq->list);
 	spin_unlock_irqrestore(&dq->lock, flags);
 	spin_lock_irqsave(&sas_dev->lock, flags);
@@ -579,8 +574,6 @@ static int hisi_sas_task_prep(struct sas_task *task,
 
 	return 0;
 
-err_out_tag:
-	hisi_sas_slot_index_free(hisi_hba, slot_idx);
 err_out_dif_dma_unmap:
 	if (!sas_protocol_ata(task->task_proto))
 		hisi_sas_dif_dma_unmap(hisi_hba, task, n_elem_dif);
@@ -1963,7 +1956,7 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_cmd_hdr *cmd_hdr_base;
 	int dlvry_queue_slot, dlvry_queue, n_elem = 0, rc, slot_idx;
-	unsigned long flags, flags_dq = 0;
+	unsigned long flags;
 	int wr_q_index;
 
 	if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags)))
@@ -1982,15 +1975,11 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	slot_idx = rc;
 	slot = &hisi_hba->slot_info[slot_idx];
 
-	spin_lock_irqsave(&dq->lock, flags_dq);
-	wr_q_index = hisi_hba->hw->get_free_slot(hisi_hba, dq);
-	if (wr_q_index < 0) {
-		spin_unlock_irqrestore(&dq->lock, flags_dq);
-		rc = -EAGAIN;
-		goto err_out_tag;
-	}
+	spin_lock_irqsave(&dq->lock, flags);
+	wr_q_index = dq->wr_point;
+	dq->wr_point = (dq->wr_point + 1) % HISI_SAS_QUEUE_SLOTS;
 	list_add_tail(&slot->delivery, &dq->list);
-	spin_unlock_irqrestore(&dq->lock, flags_dq);
+	spin_unlock_irqrestore(&dq->lock, flags);
 	spin_lock_irqsave(&sas_dev->lock, flags);
 	list_add_tail(&slot->entry, &sas_dev->list);
 	spin_unlock_irqrestore(&sas_dev->lock, flags);
@@ -2027,8 +2016,6 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 
 	return 0;
 
-err_out_tag:
-	hisi_sas_slot_index_free(hisi_hba, slot_idx);
 err_out:
 	dev_err(dev, "internal abort task prep: failed[%d]!\n", rc);
 
