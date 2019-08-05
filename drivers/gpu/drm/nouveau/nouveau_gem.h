@@ -10,7 +10,7 @@
 static inline struct nouveau_bo *
 nouveau_gem_object(struct drm_gem_object *gem)
 {
-	return gem ? container_of(gem, struct nouveau_bo, gem) : NULL;
+	return gem ? container_of(gem, struct nouveau_bo, bo.base) : NULL;
 }
 
 /* nouveau_gem.c */

@@ -205,13 +205,13 @@ nouveau_gem_new(struct nouveau_cli *cli, u64 size, int align, uint32_t domain,
 
 	/* Initialize the embedded gem-object. We return a single gem-reference
 	 * to the caller, instead of a normal nouveau_bo ttm reference. */
-	ret = drm_gem_object_init(drm->dev, &nvbo->gem, nvbo->bo.mem.size);
+	ret = drm_gem_object_init(drm->dev, &nvbo->bo.base, nvbo->bo.mem.size);
 	if (ret) {
 		nouveau_bo_ref(NULL, pnvbo);
 		return -ENOMEM;
 	}
 
-	nvbo->bo.persistent_swap_storage = nvbo->gem.filp;
+	nvbo->bo.persistent_swap_storage = nvbo->bo.base.filp;
 	return 0;
 }
 
@@ -268,15 +268,16 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ret = drm_gem_handle_create(file_priv, &nvbo->gem, &req->info.handle);
+	ret = drm_gem_handle_create(file_priv, &nvbo->bo.base,
+				    &req->info.handle);
 	if (ret == 0) {
-		ret = nouveau_gem_info(file_priv, &nvbo->gem, &req->info);
+		ret = nouveau_gem_info(file_priv, &nvbo->bo.base, &req->info);
 		if (ret)
 			drm_gem_handle_delete(file_priv, req->info.handle);
 	}
 
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_put_unlocked(&nvbo->gem);
+	drm_gem_object_put_unlocked(&nvbo->bo.base);
 	return ret;
 }
 
@@ -355,7 +356,7 @@ validate_fini_no_ticket(struct validate_op *op, struct nouveau_channel *chan,
 		list_del(&nvbo->entry);
 		nvbo->reserved_by = NULL;
 		ttm_bo_unreserve(&nvbo->bo);
-		drm_gem_object_put_unlocked(&nvbo->gem);
+		drm_gem_object_put_unlocked(&nvbo->bo.base);
 	}
 }
 
@@ -493,7 +494,7 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 	list_for_each_entry(nvbo, list, entry) {
 		struct drm_nouveau_gem_pushbuf_bo *b = &pbbo[nvbo->pbbo_index];
 
-		ret = nouveau_gem_set_domain(&nvbo->gem, b->read_domains,
+		ret = nouveau_gem_set_domain(&nvbo->bo.base, b->read_domains,
 					     b->write_domains,
 					     b->valid_domains);
 		if (unlikely(ret)) {

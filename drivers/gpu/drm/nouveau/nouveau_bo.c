@@ -136,7 +136,7 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 	struct drm_device *dev = drm->dev;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
-	if (unlikely(nvbo->gem.filp))
+	if (unlikely(nvbo->bo.base.filp))
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
 	WARN_ON(nvbo->pin_refcnt > 0);
 	nv10_bo_put_tile_region(dev, nvbo->tile, NULL);
@@ -299,7 +299,7 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 			  type, &nvbo->placement,
 			  align >> PAGE_SHIFT, false, acc_size, sg,
 			  robj, nouveau_bo_del_ttm);
-	nvbo->gem.resv = nvbo->bo.resv;
+	nvbo->bo.base.resv = nvbo->bo.resv;
 
 	if (ret) {
 		/* ttm will call nouveau_bo_del_ttm if it fails.. */
@@ -1402,7 +1402,7 @@ nouveau_bo_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 
-	return drm_vma_node_verify_access(&nvbo->gem.vma_node,
+	return drm_vma_node_verify_access(&nvbo->bo.base.vma_node,
 					  filp->private_data);
 }
 
