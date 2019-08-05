@@ -257,7 +257,7 @@ static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 	list_for_each_entry(reloc, &p->validated, tv.head) {
 		struct reservation_object *resv;
 
-		resv = reloc->robj->tbo.resv;
+		resv = reloc->robj->tbo.base.resv;
 		r = radeon_sync_resv(p->rdev, &p->ib.sync, resv,
 				     reloc->tv.num_shared);
 		if (r)
