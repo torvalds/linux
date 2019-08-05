@@ -335,9 +335,16 @@ struct fscrypt_master_key {
 	 * FS_IOC_REMOVE_ENCRYPTION_KEY can be retried, or
 	 * FS_IOC_ADD_ENCRYPTION_KEY can add the secret again.
 	 *
-	 * Locking: protected by key->sem.
+	 * Locking: protected by key->sem (outer) and mk_secret_sem (inner).
+	 * The reason for two locks is that key->sem also protects modifying
+	 * mk_users, which ranks it above the semaphore for the keyring key
+	 * type, which is in turn above page faults (via keyring_read).  But
+	 * sometimes filesystems call fscrypt_get_encryption_info() from within
+	 * a transaction, which ranks it below page faults.  So we need a
+	 * separate lock which protects mk_secret but not also mk_users.
 	 */
 	struct fscrypt_master_key_secret	mk_secret;
+	struct rw_semaphore			mk_secret_sem;
 
 	/*
 	 * For v1 policy keys: an arbitrary key descriptor which was assigned by
@@ -346,6 +353,22 @@ struct fscrypt_master_key {
 	 * For v2 policy keys: a cryptographic hash of this key (->identifier).
 	 */
 	struct fscrypt_key_specifier		mk_spec;
+
+	/*
+	 * Keyring which contains a key of type 'key_type_fscrypt_user' for each
+	 * user who has added this key.  Normally each key will be added by just
+	 * one user, but it's possible that multiple users share a key, and in
+	 * that case we need to keep track of those users so that one user can't
+	 * remove the key before the others want it removed too.
+	 *
+	 * This is NULL for v1 policy keys; those can only be added by root.
+	 *
+	 * Locking: in addition to this keyrings own semaphore, this is
+	 * protected by the master key's key->sem, so we can do atomic
+	 * search+insert.  It can also be searched without taking any locks, but
+	 * in that case the returned key may have already been removed.
+	 */
+	struct key		*mk_users;
 
 	/*
 	 * Length of ->mk_decrypted_inodes, plus one if mk_secret is present.
@@ -374,9 +397,9 @@ is_master_key_secret_present(const struct fscrypt_master_key_secret *secret)
 	/*
 	 * The READ_ONCE() is only necessary for fscrypt_drop_inode() and
 	 * fscrypt_key_describe().  These run in atomic context, so they can't
-	 * take key->sem and thus 'secret' can change concurrently which would
-	 * be a data race.  But they only need to know whether the secret *was*
-	 * present at the time of check, so READ_ONCE() suffices.
+	 * take ->mk_secret_sem and thus 'secret' can change concurrently which
+	 * would be a data race.  But they only need to know whether the secret
+	 * *was* present at the time of check, so READ_ONCE() suffices.
 	 */
 	return READ_ONCE(secret->size) != 0;
 }
