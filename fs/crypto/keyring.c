@@ -11,6 +11,7 @@
  *
  * - FS_IOC_ADD_ENCRYPTION_KEY
  * - FS_IOC_REMOVE_ENCRYPTION_KEY
+ * - FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS
  * - FS_IOC_GET_ENCRYPTION_KEY_STATUS
  *
  * See the "User API" section of Documentation/filesystems/fscrypt.rst for more
@@ -699,8 +700,10 @@ static int try_to_lock_encrypted_files(struct super_block *sb,
 /*
  * Try to remove an fscrypt master encryption key.
  *
- * This removes the current user's claim to the key, then removes the key itself
- * if no other users have claims.
+ * FS_IOC_REMOVE_ENCRYPTION_KEY (all_users=false) removes the current user's
+ * claim to the key, then removes the key itself if no other users have claims.
+ * FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS (all_users=true) always removes the
+ * key itself.
  *
  * To "remove the key itself", first we wipe the actual master key secret, so
  * that no more inodes can be unlocked with it.  Then we try to evict all cached
@@ -715,7 +718,7 @@ static int try_to_lock_encrypted_files(struct super_block *sb,
  * For more details, see the "Removing keys" section of
  * Documentation/filesystems/fscrypt.rst.
  */
-int fscrypt_ioctl_remove_key(struct file *filp, void __user *_uarg)
+static int do_remove_key(struct file *filp, void __user *_uarg, bool all_users)
 {
 	struct super_block *sb = file_inode(filp)->i_sb;
 	struct fscrypt_remove_key_arg __user *uarg = _uarg;
@@ -751,9 +754,12 @@ int fscrypt_ioctl_remove_key(struct file *filp, void __user *_uarg)
 
 	down_write(&key->sem);
 
-	/* If relevant, remove current user's claim to the key */
+	/* If relevant, remove current user's (or all users) claim to the key */
 	if (mk->mk_users && mk->mk_users->keys.nr_leaves_on_tree != 0) {
-		err = remove_master_key_user(mk);
+		if (all_users)
+			err = keyring_clear(mk->mk_users);
+		else
+			err = remove_master_key_user(mk);
 		if (err) {
 			up_write(&key->sem);
 			goto out_put_key;
@@ -809,7 +815,20 @@ out_put_key:
 		err = put_user(status_flags, &uarg->removal_status_flags);
 	return err;
 }
+
+int fscrypt_ioctl_remove_key(struct file *filp, void __user *uarg)
+{
+	return do_remove_key(filp, uarg, false);
+}
 EXPORT_SYMBOL_GPL(fscrypt_ioctl_remove_key);
+
+int fscrypt_ioctl_remove_key_all_users(struct file *filp, void __user *uarg)
+{
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+	return do_remove_key(filp, uarg, true);
+}
+EXPORT_SYMBOL_GPL(fscrypt_ioctl_remove_key_all_users);
 
 /*
  * Retrieve the status of an fscrypt master encryption key.
