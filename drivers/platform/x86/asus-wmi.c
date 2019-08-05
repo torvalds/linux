@@ -195,6 +195,8 @@ struct asus_wmi {
 	u8 fan_boost_mode_mask;
 	u8 fan_boost_mode;
 
+	int charge_threshold;
+
 	struct hotplug_slot hotplug_slot;
 	struct mutex hotplug_lock;
 	struct mutex wmi_lock;
@@ -2075,6 +2077,43 @@ static ssize_t cpufv_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_WO(cpufv);
 
+
+static ssize_t charge_threshold_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+	int value, ret, rv;
+
+	ret = kstrtouint(buf, 10, &value);
+
+	if (!count || ret != 0)
+		return -EINVAL;
+	if (value < 0 || value > 100)
+		return -EINVAL;
+
+	asus_wmi_set_devstate(ASUS_WMI_CHARGE_THRESHOLD, value, &rv);
+
+	if (rv != 1)
+		return -EIO;
+
+	/* There isn't any method in the DSDT to read the threshold, so we
+	 * save the threshold.
+	 */
+	asus->charge_threshold = value;
+	return count;
+}
+
+static ssize_t charge_threshold_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", asus->charge_threshold);
+}
+
+static DEVICE_ATTR_RW(charge_threshold);
+
 static struct attribute *platform_attributes[] = {
 	&dev_attr_cpufv.attr,
 	&dev_attr_camera.attr,
@@ -2083,6 +2122,7 @@ static struct attribute *platform_attributes[] = {
 	&dev_attr_lid_resume.attr,
 	&dev_attr_als_enable.attr,
 	&dev_attr_fan_boost_mode.attr,
+	&dev_attr_charge_threshold.attr,
 	NULL
 };
 
@@ -2106,6 +2146,8 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
 		devid = ASUS_WMI_DEVID_ALS_ENABLE;
 	else if (attr == &dev_attr_fan_boost_mode.attr)
 		ok = asus->fan_boost_mode_available;
+	else if (attr == &dev_attr_charge_threshold.attr)
+		devid = ASUS_WMI_CHARGE_THRESHOLD;
 
 	if (devid != -1)
 		ok = !(asus_wmi_get_devstate_simple(asus, devid) < 0);
@@ -2434,6 +2476,12 @@ static int asus_wmi_add(struct platform_device *pdev)
 	}
 
 	asus_wmi_debugfs_init(asus);
+	/* The charge threshold is only reset when the system is power cycled,
+	 * and we can't get the current threshold so let set it to 100% on
+	 * module load.
+	 */
+	asus_wmi_set_devstate(ASUS_WMI_CHARGE_THRESHOLD, 100, NULL);
+	asus->charge_threshold = 100;
 
 	return 0;
 
