@@ -1131,6 +1131,8 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 	sq->stats     = &c->priv->channel_stats[c->ix].sq[tc];
 	sq->stop_room = MLX5E_SQ_STOP_ROOM;
 	INIT_WORK(&sq->recover_work, mlx5e_tx_err_cqe_work);
+	if (!MLX5_CAP_ETH(mdev, wqe_vlan_insert))
+		set_bit(MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE, &sq->state);
 	if (MLX5_IPSEC_DEV(c->priv->mdev))
 		set_bit(MLX5E_SQ_STATE_IPSEC, &sq->state);
 	if (mlx5_accel_is_tls_device(c->priv->mdev)) {
@@ -2323,7 +2325,7 @@ int mlx5e_open_channels(struct mlx5e_priv *priv,
 			goto err_close_channels;
 	}
 
-	if (!IS_ERR_OR_NULL(priv->tx_reporter))
+	if (priv->tx_reporter)
 		devlink_health_reporter_state_update(priv->tx_reporter,
 						     DEVLINK_HEALTH_REPORTER_STATE_HEALTHY);
 
@@ -4777,7 +4779,7 @@ void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 	mlx5e_set_tx_cq_mode_params(params, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
 
 	/* TX inline */
-	params->tx_min_inline_mode = mlx5e_params_calculate_tx_min_inline(mdev);
+	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
 
 	/* RSS */
 	mlx5e_build_rss_params(rss_params, params->num_channels);

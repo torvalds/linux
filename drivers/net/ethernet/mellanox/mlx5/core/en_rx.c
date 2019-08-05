@@ -859,13 +859,24 @@ tail_padding_csum(struct sk_buff *skb, int offset,
 }
 
 static void
-mlx5e_skb_padding_csum(struct sk_buff *skb, int network_depth, __be16 proto,
-		       struct mlx5e_rq_stats *stats)
+mlx5e_skb_csum_fixup(struct sk_buff *skb, int network_depth, __be16 proto,
+		     struct mlx5e_rq_stats *stats)
 {
 	struct ipv6hdr *ip6;
 	struct iphdr   *ip4;
 	int pkt_len;
 
+	/* Fixup vlan headers, if any */
+	if (network_depth > ETH_HLEN)
+		/* CQE csum is calculated from the IP header and does
+		 * not cover VLAN headers (if present). This will add
+		 * the checksum manually.
+		 */
+		skb->csum = csum_partial(skb->data + ETH_HLEN,
+					 network_depth - ETH_HLEN,
+					 skb->csum);
+
+	/* Fixup tail padding, if any */
 	switch (proto) {
 	case htons(ETH_P_IP):
 		ip4 = (struct iphdr *)(skb->data + network_depth);
@@ -931,16 +942,7 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 			return; /* CQE csum covers all received bytes */
 
 		/* csum might need some fixups ...*/
-		if (network_depth > ETH_HLEN)
-			/* CQE csum is calculated from the IP header and does
-			 * not cover VLAN headers (if present). This will add
-			 * the checksum manually.
-			 */
-			skb->csum = csum_partial(skb->data + ETH_HLEN,
-						 network_depth - ETH_HLEN,
-						 skb->csum);
-
-		mlx5e_skb_padding_csum(skb, network_depth, proto, stats);
+		mlx5e_skb_csum_fixup(skb, network_depth, proto, stats);
 		return;
 	}
 

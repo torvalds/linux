@@ -2485,7 +2485,8 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 
 	if (flow_flag_test(flow, EGRESS) &&
 	    !((actions & MLX5_FLOW_CONTEXT_ACTION_DECAP) ||
-	      (actions & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP)))
+	      (actions & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) ||
+	      (actions & MLX5_FLOW_CONTEXT_ACTION_DROP)))
 		return false;
 
 	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
@@ -3636,6 +3637,106 @@ out:
 errout:
 	mlx5e_flow_put(priv, flow);
 	return err;
+}
+
+static int apply_police_params(struct mlx5e_priv *priv, u32 rate,
+			       struct netlink_ext_ack *extack)
+{
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5_eswitch *esw;
+	u16 vport_num;
+	u32 rate_mbps;
+	int err;
+
+	esw = priv->mdev->priv.eswitch;
+	/* rate is given in bytes/sec.
+	 * First convert to bits/sec and then round to the nearest mbit/secs.
+	 * mbit means million bits.
+	 * Moreover, if rate is non zero we choose to configure to a minimum of
+	 * 1 mbit/sec.
+	 */
+	rate_mbps = rate ? max_t(u32, (rate * 8 + 500000) / 1000000, 1) : 0;
+	vport_num = rpriv->rep->vport;
+
+	err = mlx5_esw_modify_vport_rate(esw, vport_num, rate_mbps);
+	if (err)
+		NL_SET_ERR_MSG_MOD(extack, "failed applying action to hardware");
+
+	return err;
+}
+
+static int scan_tc_matchall_fdb_actions(struct mlx5e_priv *priv,
+					struct flow_action *flow_action,
+					struct netlink_ext_ack *extack)
+{
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	const struct flow_action_entry *act;
+	int err;
+	int i;
+
+	if (!flow_action_has_entries(flow_action)) {
+		NL_SET_ERR_MSG_MOD(extack, "matchall called with no action");
+		return -EINVAL;
+	}
+
+	if (!flow_offload_has_one_action(flow_action)) {
+		NL_SET_ERR_MSG_MOD(extack, "matchall policing support only a single action");
+		return -EOPNOTSUPP;
+	}
+
+	flow_action_for_each(i, act, flow_action) {
+		switch (act->id) {
+		case FLOW_ACTION_POLICE:
+			err = apply_police_params(priv, act->police.rate_bytes_ps, extack);
+			if (err)
+				return err;
+
+			rpriv->prev_vf_vport_stats = priv->stats.vf_vport;
+			break;
+		default:
+			NL_SET_ERR_MSG_MOD(extack, "mlx5 supports only police action for matchall");
+			return -EOPNOTSUPP;
+		}
+	}
+
+	return 0;
+}
+
+int mlx5e_tc_configure_matchall(struct mlx5e_priv *priv,
+				struct tc_cls_matchall_offload *ma)
+{
+	struct netlink_ext_ack *extack = ma->common.extack;
+	int prio = TC_H_MAJ(ma->common.prio) >> 16;
+
+	if (prio != 1) {
+		NL_SET_ERR_MSG_MOD(extack, "only priority 1 is supported");
+		return -EINVAL;
+	}
+
+	return scan_tc_matchall_fdb_actions(priv, &ma->rule->action, extack);
+}
+
+int mlx5e_tc_delete_matchall(struct mlx5e_priv *priv,
+			     struct tc_cls_matchall_offload *ma)
+{
+	struct netlink_ext_ack *extack = ma->common.extack;
+
+	return apply_police_params(priv, 0, extack);
+}
+
+void mlx5e_tc_stats_matchall(struct mlx5e_priv *priv,
+			     struct tc_cls_matchall_offload *ma)
+{
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct rtnl_link_stats64 cur_stats;
+	u64 dbytes;
+	u64 dpkts;
+
+	cur_stats = priv->stats.vf_vport;
+	dpkts = cur_stats.rx_packets - rpriv->prev_vf_vport_stats.rx_packets;
+	dbytes = cur_stats.rx_bytes - rpriv->prev_vf_vport_stats.rx_bytes;
+	rpriv->prev_vf_vport_stats = cur_stats;
+	flow_stats_update(&ma->stats, dpkts, dbytes, jiffies);
 }
 
 static void mlx5e_tc_hairpin_update_dead_peer(struct mlx5e_priv *priv,
