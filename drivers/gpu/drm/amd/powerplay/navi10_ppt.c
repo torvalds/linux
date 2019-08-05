@@ -941,8 +941,6 @@ static int navi10_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	ret = navi10_get_metrics_table(smu, &metrics);
 	if (ret)
 		return ret;
-	if (ret)
-		return ret;
 
 	*value = metrics.AverageSocketPower << 8;
 
@@ -999,8 +997,6 @@ static int navi10_get_fan_speed_rpm(struct smu_context *smu,
 		return -EINVAL;
 
 	ret = navi10_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
 	if (ret)
 		return ret;
 
