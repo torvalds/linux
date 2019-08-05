@@ -60,6 +60,4 @@ extern void omap_set_lcd_dma_b1_vxres(unsigned long vxres);
 extern void omap_set_lcd_dma_b1_mirror(int mirror);
 extern void omap_set_lcd_dma_b1_scale(unsigned int xscale, unsigned int yscale);
 
-extern int omap_lcd_dma_running(void);
-
 #endif /* __MACH_OMAP1_LCD_DMA_H__ */
