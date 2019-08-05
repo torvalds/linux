@@ -768,7 +768,7 @@ static int n2rng_probe(struct platform_device *op)
 	np->hwrng.data_read = n2rng_data_read;
 	np->hwrng.priv = (unsigned long) np;
 
-	err = devm_hwrng_register(&pdev->dev, &np->hwrng);
+	err = devm_hwrng_register(&op->dev, &np->hwrng);
 	if (err)
 		goto out_hvapi_unregister;
 
