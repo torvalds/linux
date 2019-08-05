@@ -14,7 +14,5 @@
 
 - Support userspace controlled GPU virtual addresses. Needed for Vulkan. (Tomeu)
 
-- Support for madvise and a shrinker.
-
 - Compute job support. So called 'compute only' jobs need to be plumbed up to
   userspace.

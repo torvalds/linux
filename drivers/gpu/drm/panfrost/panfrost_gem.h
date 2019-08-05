@@ -27,4 +27,7 @@ panfrost_gem_prime_import_sg_table(struct drm_device *dev,
 				   struct dma_buf_attachment *attach,
 				   struct sg_table *sgt);
 
+void panfrost_gem_shrinker_init(struct drm_device *dev);
+void panfrost_gem_shrinker_cleanup(struct drm_device *dev);
+
 #endif /* __PANFROST_GEM_H__ */

@@ -85,6 +85,10 @@ struct panfrost_device {
 	struct mutex sched_lock;
 	struct mutex reset_lock;
 
+	struct mutex shrinker_lock;
+	struct list_head shrinker_list;
+	struct shrinker shrinker;
+
 	struct {
 		struct devfreq *devfreq;
 		struct thermal_cooling_device *cooling;
