@@ -89,7 +89,7 @@ static int ap806_syscon_common_probe(struct platform_device *pdev,
 		cpuclk_freq = 600;
 		break;
 	default:
-		dev_err(dev, "invalid SAR value\n");
+		dev_err(dev, "invalid Sample at Reset value\n");
 		return -EINVAL;
 	}
 
