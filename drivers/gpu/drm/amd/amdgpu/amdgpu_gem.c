@@ -85,7 +85,7 @@ retry:
 		}
 		return r;
 	}
-	*obj = &bo->gem_base;
+	*obj = &bo->tbo.base;
 
 	return 0;
 }
@@ -689,7 +689,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 		struct drm_amdgpu_gem_create_in info;
 		void __user *out = u64_to_user_ptr(args->value);
 
-		info.bo_size = robj->gem_base.size;
+		info.bo_size = robj->tbo.base.size;
 		info.alignment = robj->tbo.mem.page_alignment << PAGE_SHIFT;
 		info.domains = robj->preferred_domains;
 		info.domain_flags = robj->flags;
@@ -819,8 +819,8 @@ static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
 	if (pin_count)
 		seq_printf(m, " pin count %d", pin_count);
 
-	dma_buf = READ_ONCE(bo->gem_base.dma_buf);
-	attachment = READ_ONCE(bo->gem_base.import_attach);
+	dma_buf = READ_ONCE(bo->tbo.base.dma_buf);
+	attachment = READ_ONCE(bo->tbo.base.import_attach);
 
 	if (attachment)
 		seq_printf(m, " imported from %p", dma_buf);
