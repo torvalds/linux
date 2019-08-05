@@ -160,7 +160,8 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	ttm_tt_destroy(bo->ttm);
 	atomic_dec(&bo->bdev->glob->bo_count);
 	dma_fence_put(bo->moving);
-	reservation_object_fini(&bo->ttm_resv);
+	if (!ttm_bo_uses_embedded_gem_object(bo))
+		reservation_object_fini(&bo->base._resv);
 	mutex_destroy(&bo->wu_mutex);
 	bo->destroy(bo);
 	ttm_mem_global_free(bdev->glob->mem_glob, acc_size);
@@ -438,14 +439,14 @@ static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
 {
 	int r;
 
-	if (bo->resv == &bo->ttm_resv)
+	if (bo->resv == &bo->base._resv)
 		return 0;
 
-	BUG_ON(!reservation_object_trylock(&bo->ttm_resv));
+	BUG_ON(!reservation_object_trylock(&bo->base._resv));
 
-	r = reservation_object_copy_fences(&bo->ttm_resv, bo->resv);
+	r = reservation_object_copy_fences(&bo->base._resv, bo->resv);
 	if (r)
-		reservation_object_unlock(&bo->ttm_resv);
+		reservation_object_unlock(&bo->base._resv);
 
 	return r;
 }
@@ -456,8 +457,8 @@ static void ttm_bo_flush_all_fences(struct ttm_buffer_object *bo)
 	struct dma_fence *fence;
 	int i;
 
-	fobj = reservation_object_get_list(&bo->ttm_resv);
-	fence = reservation_object_get_excl(&bo->ttm_resv);
+	fobj = reservation_object_get_list(&bo->base._resv);
+	fence = reservation_object_get_excl(&bo->base._resv);
 	if (fence && !fence->ops->signaled)
 		dma_fence_enable_sw_signaling(fence);
 
@@ -490,11 +491,11 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	spin_lock(&glob->lru_lock);
 	ret = reservation_object_trylock(bo->resv) ? 0 : -EBUSY;
 	if (!ret) {
-		if (reservation_object_test_signaled_rcu(&bo->ttm_resv, true)) {
+		if (reservation_object_test_signaled_rcu(&bo->base._resv, true)) {
 			ttm_bo_del_from_lru(bo);
 			spin_unlock(&glob->lru_lock);
-			if (bo->resv != &bo->ttm_resv)
-				reservation_object_unlock(&bo->ttm_resv);
+			if (bo->resv != &bo->base._resv)
+				reservation_object_unlock(&bo->base._resv);
 
 			ttm_bo_cleanup_memtype_use(bo);
 			reservation_object_unlock(bo->resv);
@@ -515,8 +516,8 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 
 		reservation_object_unlock(bo->resv);
 	}
-	if (bo->resv != &bo->ttm_resv)
-		reservation_object_unlock(&bo->ttm_resv);
+	if (bo->resv != &bo->base._resv)
+		reservation_object_unlock(&bo->base._resv);
 
 error:
 	kref_get(&bo->list_kref);
@@ -551,7 +552,7 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 	if (unlikely(list_empty(&bo->ddestroy)))
 		resv = bo->resv;
 	else
-		resv = &bo->ttm_resv;
+		resv = &bo->base._resv;
 
 	if (reservation_object_test_signaled_rcu(resv, true))
 		ret = 0;
@@ -631,7 +632,7 @@ static bool ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 		kref_get(&bo->list_kref);
 		list_move_tail(&bo->ddestroy, &removed);
 
-		if (remove_all || bo->resv != &bo->ttm_resv) {
+		if (remove_all || bo->resv != &bo->base._resv) {
 			spin_unlock(&glob->lru_lock);
 			reservation_object_lock(bo->resv, NULL);
 
@@ -1334,9 +1335,15 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		bo->resv = resv;
 		reservation_object_assert_held(bo->resv);
 	} else {
-		bo->resv = &bo->ttm_resv;
+		bo->resv = &bo->base._resv;
 	}
-	reservation_object_init(&bo->ttm_resv);
+	if (!ttm_bo_uses_embedded_gem_object(bo)) {
+		/*
+		 * bo.gem is not initialized, so we have to setup the
+		 * struct elements we want use regardless.
+		 */
+		reservation_object_init(&bo->base._resv);
+	}
 	atomic_inc(&bo->bdev->glob->bo_count);
 	drm_vma_node_reset(&bo->vma_node);
 

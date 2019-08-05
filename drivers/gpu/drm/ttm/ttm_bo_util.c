@@ -517,7 +517,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	kref_init(&fbo->base.kref);
 	fbo->base.destroy = &ttm_transfered_destroy;
 	fbo->base.acc_size = 0;
-	fbo->base.resv = &fbo->base.ttm_resv;
+	fbo->base.resv = &fbo->base.base._resv;
 	reservation_object_init(fbo->base.resv);
 	ret = reservation_object_trylock(fbo->base.resv);
 	WARN_ON(!ret);
