@@ -736,8 +736,6 @@ static int smu_v11_0_write_watermarks_table(struct smu_context *smu)
 	struct smu_table *table = NULL;
 
 	table = &smu_table->tables[SMU_TABLE_WATERMARKS];
-	if (!table)
-		return -EINVAL;
 
 	if (!table->cpu_addr)
 		return -EINVAL;
