@@ -31,17 +31,11 @@ int st_magn_trig_set_state(struct iio_trigger *trig, bool state)
 
 static int st_magn_buffer_postenable(struct iio_dev *indio_dev)
 {
-	struct st_sensor_data *mdata = iio_priv(indio_dev);
 	int err;
-
-	mdata->buffer_data = kmalloc(indio_dev->scan_bytes,
-				     GFP_DMA | GFP_KERNEL);
-	if (!mdata->buffer_data)
-		return -ENOMEM;
 
 	err = iio_triggered_buffer_postenable(indio_dev);
 	if (err < 0)
-		goto st_magn_free_buffer;
+		return err;
 
 	err = st_sensors_set_enable(indio_dev, true);
 	if (err < 0)
@@ -51,14 +45,11 @@ static int st_magn_buffer_postenable(struct iio_dev *indio_dev)
 
 st_magn_buffer_predisable:
 	iio_triggered_buffer_predisable(indio_dev);
-st_magn_free_buffer:
-	kfree(mdata->buffer_data);
 	return err;
 }
 
 static int st_magn_buffer_predisable(struct iio_dev *indio_dev)
 {
-	struct st_sensor_data *mdata = iio_priv(indio_dev);
 	int err, err2;
 
 	err = st_sensors_set_enable(indio_dev, false);
@@ -67,7 +58,6 @@ static int st_magn_buffer_predisable(struct iio_dev *indio_dev)
 	if (!err)
 		err = err2;
 
-	kfree(mdata->buffer_data);
 	return err;
 }
 

@@ -20,8 +20,12 @@
 
 #include <linux/platform_data/st_sensors_pdata.h>
 
-#define ST_SENSORS_TX_MAX_LENGTH		2
-#define ST_SENSORS_RX_MAX_LENGTH		6
+/*
+ * Buffer size max case: 2bytes per channel, 3 channels in total +
+ *			 8bytes timestamp channel (s64)
+ */
+#define ST_SENSORS_MAX_BUFFER_SIZE		(ALIGN(2 * 3, sizeof(s64)) + \
+						 sizeof(s64))
 
 #define ST_SENSORS_ODR_LIST_MAX			10
 #define ST_SENSORS_FULLSCALE_AVL_MAX		10
@@ -215,7 +219,6 @@ struct st_sensor_settings {
  * @vdd_io: Pointer to sensor's Vdd-IO power supply
  * @regmap: Pointer to specific sensor regmap configuration.
  * @enabled: Status of the sensor (false->off, true->on).
- * @buffer_data: Data used by buffer part.
  * @odr: Output data rate of the sensor [Hz].
  * num_data_channels: Number of data channels used in buffer.
  * @drdy_int_pin: Redirect DRDY on pin 1 (1) or pin 2 (2).
@@ -224,6 +227,7 @@ struct st_sensor_settings {
  * @edge_irq: the IRQ triggers on edges and need special handling.
  * @hw_irq_trigger: if we're using the hardware interrupt on the sensor.
  * @hw_timestamp: Latest timestamp from the interrupt handler, when in use.
+ * @buffer_data: Data used by buffer part.
  */
 struct st_sensor_data {
 	struct device *dev;
@@ -237,8 +241,6 @@ struct st_sensor_data {
 
 	bool enabled;
 
-	char *buffer_data;
-
 	unsigned int odr;
 	unsigned int num_data_channels;
 
@@ -249,6 +251,8 @@ struct st_sensor_data {
 	bool edge_irq;
 	bool hw_irq_trigger;
 	s64 hw_timestamp;
+
+	char buffer_data[ST_SENSORS_MAX_BUFFER_SIZE] ____cacheline_aligned;
 };
 
 #ifdef CONFIG_IIO_BUFFER
