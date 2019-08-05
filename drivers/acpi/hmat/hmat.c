@@ -108,9 +108,6 @@ static __init void alloc_memory_target(unsigned int mem_pxm)
 {
 	struct memory_target *target;
 
-	if (pxm_to_node(mem_pxm) == NUMA_NO_NODE)
-		return;
-
 	target = find_mem_target(mem_pxm);
 	if (target)
 		return;
@@ -618,7 +615,16 @@ static void hmat_register_target_perf(struct memory_target *target)
 
 static void hmat_register_target(struct memory_target *target)
 {
-	if (!node_online(pxm_to_node(target->memory_pxm)))
+	int nid = pxm_to_node(target->memory_pxm);
+
+	/*
+	 * Skip offline nodes. This can happen when memory
+	 * marked EFI_MEMORY_SP, "specific purpose", is applied
+	 * to all the memory in a promixity domain leading to
+	 * the node being marked offline / unplugged, or if
+	 * memory-only "hotplug" node is offline.
+	 */
+	if (nid == NUMA_NO_NODE || !node_online(nid))
 		return;
 
 	mutex_lock(&target_lock);
