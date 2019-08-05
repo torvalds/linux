@@ -147,11 +147,14 @@ ap_syscon1: system-controller@6f8000 {
 Cluster clocks:
 ---------------
 
-Device Tree Clock bindings for cluster clock of AP806 Marvell. Each
-cluster contain up to 2 CPUs running at the same frequency.
+Device Tree Clock bindings for cluster clock of Marvell
+AP806/AP807. Each cluster contain up to 2 CPUs running at the same
+frequency.
 
 Required properties:
-- compatible: must be  "marvell,ap806-cpu-clock";
+ - compatible: must be one of:
+   * "marvell,ap806-cpu-clock"
+   * "marvell,ap807-cpu-clock"
 - #clock-cells : should be set to 1.
 
 - clocks : shall be the input parent clock(s) phandle for the clock
