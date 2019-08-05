@@ -71,6 +71,7 @@
 #define HGC_DQE_ECC_MB_ADDR_OFF	16
 #define HGC_DQE_ECC_MB_ADDR_MSK (0xfff << HGC_DQE_ECC_MB_ADDR_OFF)
 #define CHNL_INT_STATUS			0x148
+#define TAB_DFX				0x14c
 #define HGC_ITCT_ECC_ADDR		0x150
 #define HGC_ITCT_ECC_1B_ADDR_OFF		0
 #define HGC_ITCT_ECC_1B_ADDR_MSK		(0x3ff << \
@@ -83,6 +84,7 @@
 #define AXI_ERR_INFO_MSK               (0xff << AXI_ERR_INFO_OFF)
 #define FIFO_ERR_INFO_OFF              8
 #define FIFO_ERR_INFO_MSK              (0xff << FIFO_ERR_INFO_OFF)
+#define TAB_RD_TYPE			0x15c
 #define INT_COAL_EN			0x19c
 #define OQ_INT_COAL_TIME		0x1a0
 #define OQ_INT_COAL_CNT			0x1a4
@@ -2877,6 +2879,35 @@ static void debugfs_snapshot_restore_v3_hw(struct hisi_hba *hisi_hba)
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 }
 
+static void read_iost_itct_cache_v3_hw(struct hisi_hba *hisi_hba,
+				       enum hisi_sas_debugfs_cache_type type,
+				       u32 *cache)
+{
+	u32 cache_dw_size = HISI_SAS_IOST_ITCT_CACHE_DW_SZ *
+			    HISI_SAS_IOST_ITCT_CACHE_NUM;
+	u32 *buf = cache;
+	u32 i, val;
+
+	hisi_sas_write32(hisi_hba, TAB_RD_TYPE, type);
+
+	for (i = 0; i < HISI_SAS_IOST_ITCT_CACHE_DW_SZ; i++) {
+		val = hisi_sas_read32(hisi_hba, TAB_DFX);
+		if (val == 0xffffffff)
+			break;
+	}
+
+	if (val != 0xffffffff) {
+		pr_err("Issue occur when reading IOST/ITCT cache!\n");
+		return;
+	}
+
+	memset(buf, 0, cache_dw_size * 4);
+	buf[0] = val;
+
+	for (i = 1; i < cache_dw_size; i++)
+		buf[i] = hisi_sas_read32(hisi_hba, TAB_DFX);
+}
+
 static struct scsi_host_template sht_v3_hw = {
 	.name			= DRV_NAME,
 	.module			= THIS_MODULE,
@@ -2929,6 +2960,7 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.debugfs_reg_port = &debugfs_port_reg,
 	.snapshot_prepare = debugfs_snapshot_prepare_v3_hw,
 	.snapshot_restore = debugfs_snapshot_restore_v3_hw,
+	.read_iost_itct_cache = read_iost_itct_cache_v3_hw,
 };
 
 static struct Scsi_Host *

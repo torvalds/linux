@@ -2763,9 +2763,13 @@ static void hisi_sas_debugfs_snapshot_global_reg(struct hisi_hba *hisi_hba)
 
 static void hisi_sas_debugfs_snapshot_itct_reg(struct hisi_hba *hisi_hba)
 {
+	void *cachebuf = hisi_hba->debugfs_itct_cache;
 	void *databuf = hisi_hba->debugfs_itct;
 	struct hisi_sas_itct *itct;
 	int i;
+
+	hisi_hba->hw->read_iost_itct_cache(hisi_hba, HISI_SAS_ITCT_CACHE,
+					   cachebuf);
 
 	itct = hisi_hba->itct;
 
@@ -2778,9 +2782,13 @@ static void hisi_sas_debugfs_snapshot_itct_reg(struct hisi_hba *hisi_hba)
 static void hisi_sas_debugfs_snapshot_iost_reg(struct hisi_hba *hisi_hba)
 {
 	int max_command_entries = HISI_SAS_MAX_COMMANDS;
+	void *cachebuf = hisi_hba->debugfs_iost_cache;
 	void *databuf = hisi_hba->debugfs_iost;
 	struct hisi_sas_iost *iost;
 	int i;
+
+	hisi_hba->hw->read_iost_itct_cache(hisi_hba, HISI_SAS_IOST_CACHE,
+					   cachebuf);
 
 	iost = hisi_hba->iost;
 
@@ -3018,6 +3026,46 @@ static const struct file_operations hisi_sas_debugfs_iost_fops = {
 	.owner = THIS_MODULE,
 };
 
+static int hisi_sas_debugfs_iost_cache_show(struct seq_file *s, void *p)
+{
+	struct hisi_hba *hisi_hba = s->private;
+	struct hisi_sas_iost_itct_cache *iost_cache =
+		(struct hisi_sas_iost_itct_cache *)hisi_hba->debugfs_iost_cache;
+	u32 cache_size = HISI_SAS_IOST_ITCT_CACHE_DW_SZ * 4;
+	int i, tab_idx;
+	__le64 *iost;
+
+	for (i = 0; i < HISI_SAS_IOST_ITCT_CACHE_NUM; i++, iost_cache++) {
+		/*
+		 * Data struct of IOST cache:
+		 * Data[1]: BIT0~15: Table index
+		 *	    Bit16:   Valid mask
+		 * Data[2]~[9]: IOST table
+		 */
+		tab_idx = (iost_cache->data[1] & 0xffff);
+		iost = (__le64 *)iost_cache;
+
+		hisi_sas_show_row_64(s, tab_idx, cache_size, iost);
+	}
+
+	return 0;
+}
+
+static int hisi_sas_debugfs_iost_cache_open(struct inode *inode,
+					    struct file *filp)
+{
+	return single_open(filp, hisi_sas_debugfs_iost_cache_show,
+			   inode->i_private);
+}
+
+static const struct file_operations hisi_sas_debugfs_iost_cache_fops = {
+	.open = hisi_sas_debugfs_iost_cache_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
 static int hisi_sas_debugfs_itct_show(struct seq_file *s, void *p)
 {
 	int i, ret;
@@ -3043,6 +3091,46 @@ static int hisi_sas_debugfs_itct_open(struct inode *inode, struct file *filp)
 
 static const struct file_operations hisi_sas_debugfs_itct_fops = {
 	.open = hisi_sas_debugfs_itct_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int hisi_sas_debugfs_itct_cache_show(struct seq_file *s, void *p)
+{
+	struct hisi_hba *hisi_hba = s->private;
+	struct hisi_sas_iost_itct_cache *itct_cache =
+		(struct hisi_sas_iost_itct_cache *)hisi_hba->debugfs_itct_cache;
+	u32 cache_size = HISI_SAS_IOST_ITCT_CACHE_DW_SZ * 4;
+	int i, tab_idx;
+	__le64 *itct;
+
+	for (i = 0; i < HISI_SAS_IOST_ITCT_CACHE_NUM; i++, itct_cache++) {
+		/*
+		 * Data struct of ITCT cache:
+		 * Data[1]: BIT0~15: Table index
+		 *	    Bit16:   Valid mask
+		 * Data[2]~[9]: ITCT table
+		 */
+		tab_idx = itct_cache->data[1] & 0xffff;
+		itct = (__le64 *)itct_cache;
+
+		hisi_sas_show_row_64(s, tab_idx, cache_size, itct);
+	}
+
+	return 0;
+}
+
+static int hisi_sas_debugfs_itct_cache_open(struct inode *inode,
+					    struct file *filp)
+{
+	return single_open(filp, hisi_sas_debugfs_itct_cache_show,
+			   inode->i_private);
+}
+
+static const struct file_operations hisi_sas_debugfs_itct_cache_fops = {
+	.open = hisi_sas_debugfs_itct_cache_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -3095,8 +3183,14 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 	debugfs_create_file("iost", 0400, dump_dentry, hisi_hba,
 			    &hisi_sas_debugfs_iost_fops);
 
+	debugfs_create_file("iost_cache", 0400, dump_dentry, hisi_hba,
+			    &hisi_sas_debugfs_iost_cache_fops);
+
 	debugfs_create_file("itct", 0400, dump_dentry, hisi_hba,
 			    &hisi_sas_debugfs_itct_fops);
+
+	debugfs_create_file("itct_cache", 0400, dump_dentry, hisi_hba,
+			    &hisi_sas_debugfs_itct_cache_fops);
 
 	return;
 }
@@ -3212,14 +3306,26 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 			goto fail_iost_dq;
 	}
 
-	/* Alloc buffer for iost */
 	sz = max_command_entries * sizeof(struct hisi_sas_iost);
 
 	hisi_hba->debugfs_iost = devm_kmalloc(dev, sz, GFP_KERNEL);
 	if (!hisi_hba->debugfs_iost)
 		goto fail_iost_dq;
 
-	/* Alloc buffer for itct */
+	sz = HISI_SAS_IOST_ITCT_CACHE_NUM *
+	     sizeof(struct hisi_sas_iost_itct_cache);
+
+	hisi_hba->debugfs_iost_cache = devm_kmalloc(dev, sz, GFP_KERNEL);
+	if (!hisi_hba->debugfs_iost_cache)
+		goto fail_iost_cache;
+
+	sz = HISI_SAS_IOST_ITCT_CACHE_NUM *
+	     sizeof(struct hisi_sas_iost_itct_cache);
+
+	hisi_hba->debugfs_itct_cache = devm_kmalloc(dev, sz, GFP_KERNEL);
+	if (!hisi_hba->debugfs_itct_cache)
+		goto fail_itct_cache;
+
 	/* New memory allocation must be locate before itct */
 	sz = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_itct);
 
@@ -3229,6 +3335,10 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 
 	return;
 fail_itct:
+	devm_kfree(dev, hisi_hba->debugfs_iost_cache);
+fail_itct_cache:
+	devm_kfree(dev, hisi_hba->debugfs_iost_cache);
+fail_iost_cache:
 	devm_kfree(dev, hisi_hba->debugfs_iost);
 fail_iost_dq:
 	for (i = 0; i < d; i++)
