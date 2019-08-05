@@ -180,8 +180,8 @@ static void hisi_sas_slot_index_free(struct hisi_hba *hisi_hba, int slot_idx)
 {
 	unsigned long flags;
 
-	if (hisi_hba->hw->slot_index_alloc || (slot_idx >=
-	    hisi_hba->hw->max_command_entries - HISI_SAS_RESERVED_IPTT_CNT)) {
+	if (hisi_hba->hw->slot_index_alloc ||
+	    slot_idx >= HISI_SAS_UNRESERVED_IPTT) {
 		spin_lock_irqsave(&hisi_hba->lock, flags);
 		hisi_sas_slot_index_clear(hisi_hba, slot_idx);
 		spin_unlock_irqrestore(&hisi_hba->lock, flags);
@@ -211,8 +211,7 @@ static int hisi_sas_slot_index_alloc(struct hisi_hba *hisi_hba,
 	if (index >= hisi_hba->slot_index_count) {
 		index = find_next_zero_bit(bitmap,
 				hisi_hba->slot_index_count,
-				hisi_hba->hw->max_command_entries -
-				HISI_SAS_RESERVED_IPTT_CNT);
+				HISI_SAS_UNRESERVED_IPTT);
 		if (index >= hisi_hba->slot_index_count) {
 			spin_unlock_irqrestore(&hisi_hba->lock, flags);
 			return -SAS_QUEUE_FULL;
@@ -2291,7 +2290,7 @@ static struct sas_domain_function_template hisi_sas_transport_ops = {
 
 void hisi_sas_init_mem(struct hisi_hba *hisi_hba)
 {
-	int i, s, j, max_command_entries = hisi_hba->hw->max_command_entries;
+	int i, s, j, max_command_entries = HISI_SAS_MAX_COMMANDS;
 	struct hisi_sas_breakpoint *sata_breakpoint = hisi_hba->sata_breakpoint;
 
 	for (i = 0; i < hisi_hba->queue_count; i++) {
@@ -2328,7 +2327,7 @@ EXPORT_SYMBOL_GPL(hisi_sas_init_mem);
 int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
-	int i, j, s, max_command_entries = hisi_hba->hw->max_command_entries;
+	int i, j, s, max_command_entries = HISI_SAS_MAX_COMMANDS;
 	int max_command_entries_ru, sz_slot_buf_ru;
 	int blk_cnt, slots_per_blk;
 
@@ -2458,8 +2457,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 	hisi_sas_init_mem(hisi_hba);
 
 	hisi_sas_slot_index_init(hisi_hba);
-	hisi_hba->last_slot_index = hisi_hba->hw->max_command_entries -
-		HISI_SAS_RESERVED_IPTT_CNT;
+	hisi_hba->last_slot_index = HISI_SAS_UNRESERVED_IPTT;
 
 	hisi_hba->wq = create_singlethread_workqueue(dev_name(dev));
 	if (!hisi_hba->wq) {
@@ -2672,13 +2670,11 @@ int hisi_sas_probe(struct platform_device *pdev,
 	shost->max_channel = 1;
 	shost->max_cmd_len = 16;
 	if (hisi_hba->hw->slot_index_alloc) {
-		shost->can_queue = hisi_hba->hw->max_command_entries;
-		shost->cmd_per_lun = hisi_hba->hw->max_command_entries;
+		shost->can_queue = HISI_SAS_MAX_COMMANDS;
+		shost->cmd_per_lun = HISI_SAS_MAX_COMMANDS;
 	} else {
-		shost->can_queue = hisi_hba->hw->max_command_entries -
-			HISI_SAS_RESERVED_IPTT_CNT;
-		shost->cmd_per_lun = hisi_hba->hw->max_command_entries -
-			HISI_SAS_RESERVED_IPTT_CNT;
+		shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
+		shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
 	}
 
 	sha->sas_ha_name = DRV_NAME;
@@ -2794,7 +2790,7 @@ static void hisi_sas_debugfs_snapshot_itct_reg(struct hisi_hba *hisi_hba)
 
 static void hisi_sas_debugfs_snapshot_iost_reg(struct hisi_hba *hisi_hba)
 {
-	int max_command_entries = hisi_hba->hw->max_command_entries;
+	int max_command_entries = HISI_SAS_MAX_COMMANDS;
 	void *databuf = hisi_hba->debugfs_iost;
 	struct hisi_sas_iost *iost;
 	int i;
@@ -3008,7 +3004,7 @@ static int hisi_sas_debugfs_iost_show(struct seq_file *s, void *p)
 {
 	struct hisi_hba *hisi_hba = s->private;
 	struct hisi_sas_iost *debugfs_iost = hisi_hba->debugfs_iost;
-	int i, ret, max_command_entries = hisi_hba->hw->max_command_entries;
+	int i, ret, max_command_entries = HISI_SAS_MAX_COMMANDS;
 	__le64 *iost = &debugfs_iost->qw0;
 
 	for (i = 0; i < max_command_entries; i++, debugfs_iost++) {
@@ -3177,7 +3173,7 @@ EXPORT_SYMBOL_GPL(hisi_sas_debugfs_work_handler);
 
 void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 {
-	int max_command_entries = hisi_hba->hw->max_command_entries;
+	int max_command_entries = HISI_SAS_MAX_COMMANDS;
 	struct device *dev = hisi_hba->dev;
 	int p, i, c, d;
 	size_t sz;

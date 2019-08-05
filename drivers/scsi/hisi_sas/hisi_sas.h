@@ -31,7 +31,10 @@
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
 #define HISI_SAS_RESET_BIT	0
 #define HISI_SAS_REJECT_CMD_BIT	1
-#define HISI_SAS_RESERVED_IPTT_CNT  96
+#define HISI_SAS_MAX_COMMANDS (HISI_SAS_QUEUE_SLOTS)
+#define HISI_SAS_RESERVED_IPTT  96
+#define HISI_SAS_UNRESERVED_IPTT \
+	(HISI_SAS_MAX_COMMANDS - HISI_SAS_RESERVED_IPTT)
 
 #define HISI_SAS_STATUS_BUF_SZ (sizeof(struct hisi_sas_status_buffer))
 #define HISI_SAS_COMMAND_TABLE_SZ (sizeof(union hisi_sas_command_table))
@@ -292,7 +295,6 @@ struct hisi_sas_hw {
 					  int delay_ms, int timeout_ms);
 	void (*snapshot_prepare)(struct hisi_hba *hisi_hba);
 	void (*snapshot_restore)(struct hisi_hba *hisi_hba);
-	int max_command_entries;
 	int complete_hdr_size;
 	struct scsi_host_template *sht;
 
