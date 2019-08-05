@@ -1462,6 +1462,25 @@ TRACE_EVENT(kvm_hv_send_ipi_ex,
 		  __entry->vector, __entry->format,
 		  __entry->valid_bank_mask)
 );
+
+TRACE_EVENT(kvm_pv_tlb_flush,
+	TP_PROTO(unsigned int vcpu_id, bool need_flush_tlb),
+	TP_ARGS(vcpu_id, need_flush_tlb),
+
+	TP_STRUCT__entry(
+		__field(	unsigned int,	vcpu_id		)
+		__field(	bool,	need_flush_tlb		)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id	= vcpu_id;
+		__entry->need_flush_tlb = need_flush_tlb;
+	),
+
+	TP_printk("vcpu %u need_flush_tlb %s", __entry->vcpu_id,
+		__entry->need_flush_tlb ? "true" : "false")
+);
+
 #endif /* _TRACE_KVM_H */
 
 #undef TRACE_INCLUDE_PATH
