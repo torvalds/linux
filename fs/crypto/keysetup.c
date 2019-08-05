@@ -217,7 +217,40 @@ int fscrypt_set_derived_key(struct fscrypt_info *ci, const u8 *derived_key)
  */
 static int setup_file_encryption_key(struct fscrypt_info *ci)
 {
-	return fscrypt_setup_v1_file_key_via_subscribed_keyrings(ci);
+	struct key *key;
+	struct fscrypt_master_key *mk = NULL;
+	struct fscrypt_key_specifier mk_spec;
+	int err;
+
+	mk_spec.type = FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR;
+	memcpy(mk_spec.u.descriptor, ci->ci_master_key_descriptor,
+	       FSCRYPT_KEY_DESCRIPTOR_SIZE);
+
+	key = fscrypt_find_master_key(ci->ci_inode->i_sb, &mk_spec);
+	if (IS_ERR(key)) {
+		if (key != ERR_PTR(-ENOKEY))
+			return PTR_ERR(key);
+
+		return fscrypt_setup_v1_file_key_via_subscribed_keyrings(ci);
+	}
+
+	mk = key->payload.data[0];
+
+	if (mk->mk_secret.size < ci->ci_mode->keysize) {
+		fscrypt_warn(NULL,
+			     "key with %s %*phN is too short (got %u bytes, need %u+ bytes)",
+			     master_key_spec_type(&mk_spec),
+			     master_key_spec_len(&mk_spec), (u8 *)&mk_spec.u,
+			     mk->mk_secret.size, ci->ci_mode->keysize);
+		err = -ENOKEY;
+		goto out_release_key;
+	}
+
+	err = fscrypt_setup_v1_file_key(ci, mk->mk_secret.raw);
+
+out_release_key:
+	key_put(key);
+	return err;
 }
 
 static void put_crypt_info(struct fscrypt_info *ci)

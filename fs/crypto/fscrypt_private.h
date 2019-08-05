@@ -14,8 +14,11 @@
 #include <linux/fscrypt.h>
 #include <crypto/hash.h>
 
-/* Encryption parameters */
+#define CONST_STRLEN(str)	(sizeof(str) - 1)
+
 #define FS_KEY_DERIVATION_NONCE_SIZE	16
+
+#define FSCRYPT_MIN_KEY_SIZE		16
 
 /**
  * Encryption context for inode
@@ -155,6 +158,63 @@ extern int fname_encrypt(struct inode *inode, const struct qstr *iname,
 extern bool fscrypt_fname_encrypted_size(const struct inode *inode,
 					 u32 orig_len, u32 max_len,
 					 u32 *encrypted_len_ret);
+
+/* keyring.c */
+
+/*
+ * fscrypt_master_key_secret - secret key material of an in-use master key
+ */
+struct fscrypt_master_key_secret {
+
+	/* Size of the raw key in bytes */
+	u32			size;
+
+	/* The raw key */
+	u8			raw[FSCRYPT_MAX_KEY_SIZE];
+
+} __randomize_layout;
+
+/*
+ * fscrypt_master_key - an in-use master key
+ *
+ * This represents a master encryption key which has been added to the
+ * filesystem and can be used to "unlock" the encrypted files which were
+ * encrypted with it.
+ */
+struct fscrypt_master_key {
+
+	/* The secret key material */
+	struct fscrypt_master_key_secret	mk_secret;
+
+	/* Arbitrary key descriptor which was assigned by userspace */
+	struct fscrypt_key_specifier		mk_spec;
+
+} __randomize_layout;
+
+static inline const char *master_key_spec_type(
+				const struct fscrypt_key_specifier *spec)
+{
+	switch (spec->type) {
+	case FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR:
+		return "descriptor";
+	}
+	return "[unknown]";
+}
+
+static inline int master_key_spec_len(const struct fscrypt_key_specifier *spec)
+{
+	switch (spec->type) {
+	case FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR:
+		return FSCRYPT_KEY_DESCRIPTOR_SIZE;
+	}
+	return 0;
+}
+
+extern struct key *
+fscrypt_find_master_key(struct super_block *sb,
+			const struct fscrypt_key_specifier *mk_spec);
+
+extern int __init fscrypt_init_keyring(void);
 
 /* keysetup.c */
 

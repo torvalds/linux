@@ -138,6 +138,10 @@ extern int fscrypt_ioctl_get_policy(struct file *, void __user *);
 extern int fscrypt_has_permitted_context(struct inode *, struct inode *);
 extern int fscrypt_inherit_context(struct inode *, struct inode *,
 					void *, bool);
+/* keyring.c */
+extern void fscrypt_sb_free(struct super_block *sb);
+extern int fscrypt_ioctl_add_key(struct file *filp, void __user *arg);
+
 /* keysetup.c */
 extern int fscrypt_get_encryption_info(struct inode *);
 extern void fscrypt_put_encryption_info(struct inode *);
@@ -358,6 +362,16 @@ static inline int fscrypt_has_permitted_context(struct inode *parent,
 static inline int fscrypt_inherit_context(struct inode *parent,
 					  struct inode *child,
 					  void *fs_data, bool preload)
+{
+	return -EOPNOTSUPP;
+}
+
+/* keyring.c */
+static inline void fscrypt_sb_free(struct super_block *sb)
+{
+}
+
+static inline int fscrypt_ioctl_add_key(struct file *filp, void __user *arg)
 {
 	return -EOPNOTSUPP;
 }
