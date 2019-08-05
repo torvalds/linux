@@ -287,10 +287,10 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
  *
  * If the master key is found in the filesystem-level keyring, then the
  * corresponding 'struct key' is returned in *master_key_ret with
- * ->sem read-locked.  This is needed to ensure that only one task links the
- * fscrypt_info into ->mk_decrypted_inodes (as multiple tasks may race to create
- * an fscrypt_info for the same inode), and to synchronize the master key being
- * removed with a new inode starting to use it.
+ * ->mk_secret_sem read-locked.  This is needed to ensure that only one task
+ * links the fscrypt_info into ->mk_decrypted_inodes (as multiple tasks may race
+ * to create an fscrypt_info for the same inode), and to synchronize the master
+ * key being removed with a new inode starting to use it.
  */
 static int setup_file_encryption_key(struct fscrypt_info *ci,
 				     struct key **master_key_ret)
@@ -334,7 +334,7 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 	}
 
 	mk = key->payload.data[0];
-	down_read(&key->sem);
+	down_read(&mk->mk_secret_sem);
 
 	/* Has the secret been removed (via FS_IOC_REMOVE_ENCRYPTION_KEY)? */
 	if (!is_master_key_secret_present(&mk->mk_secret)) {
@@ -377,7 +377,7 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 	return 0;
 
 out_release_key:
-	up_read(&key->sem);
+	up_read(&mk->mk_secret_sem);
 	key_put(key);
 	return err;
 }
@@ -515,7 +515,9 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	res = 0;
 out:
 	if (master_key) {
-		up_read(&master_key->sem);
+		struct fscrypt_master_key *mk = master_key->payload.data[0];
+
+		up_read(&mk->mk_secret_sem);
 		key_put(master_key);
 	}
 	if (res == -ENOKEY)
@@ -578,7 +580,7 @@ int fscrypt_drop_inode(struct inode *inode)
 	mk = ci->ci_master_key->payload.data[0];
 
 	/*
-	 * Note: since we aren't holding key->sem, the result here can
+	 * Note: since we aren't holding ->mk_secret_sem, the result here can
 	 * immediately become outdated.  But there's no correctness problem with
 	 * unnecessarily evicting.  Nor is there a correctness problem with not
 	 * evicting while iput() is racing with the key being removed, since
