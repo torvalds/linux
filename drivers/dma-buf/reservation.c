@@ -49,12 +49,6 @@
 DEFINE_WD_CLASS(reservation_ww_class);
 EXPORT_SYMBOL(reservation_ww_class);
 
-struct lock_class_key reservation_seqcount_class;
-EXPORT_SYMBOL(reservation_seqcount_class);
-
-const char reservation_seqcount_string[] = "reservation_seqcount";
-EXPORT_SYMBOL(reservation_seqcount_string);
-
 /**
  * reservation_object_list_alloc - allocate fence list
  * @shared_max: number of fences we need space for
@@ -103,9 +97,6 @@ static void reservation_object_list_free(struct reservation_object_list *list)
 void reservation_object_init(struct reservation_object *obj)
 {
 	ww_mutex_init(&obj->lock, &reservation_ww_class);
-
-	__seqcount_init(&obj->seq, reservation_seqcount_string,
-			&reservation_seqcount_class);
 	RCU_INIT_POINTER(obj->fence, NULL);
 	RCU_INIT_POINTER(obj->fence_excl, NULL);
 }
@@ -282,12 +273,10 @@ void reservation_object_add_excl_fence(struct reservation_object *obj,
 		dma_fence_get(fence);
 
 	preempt_disable();
-	write_seqcount_begin(&obj->seq);
-	/* write_seqcount_begin provides the necessary memory barrier */
-	RCU_INIT_POINTER(obj->fence_excl, fence);
+	rcu_assign_pointer(obj->fence_excl, fence);
+	/* pointer update must be visible before we modify the shared_count */
 	if (old)
-		old->shared_count = 0;
-	write_seqcount_end(&obj->seq);
+		smp_store_mb(old->shared_count, 0);
 	preempt_enable();
 
 	/* inplace update, no shared fences */
@@ -368,11 +357,8 @@ retry:
 	old = reservation_object_get_excl(dst);
 
 	preempt_disable();
-	write_seqcount_begin(&dst->seq);
-	/* write_seqcount_begin provides the necessary memory barrier */
-	RCU_INIT_POINTER(dst->fence_excl, new);
-	RCU_INIT_POINTER(dst->fence, dst_list);
-	write_seqcount_end(&dst->seq);
+	rcu_assign_pointer(dst->fence_excl, new);
+	rcu_assign_pointer(dst->fence, dst_list);
 	preempt_enable();
 
 	reservation_object_list_free(src_list);
