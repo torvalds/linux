@@ -1473,8 +1473,9 @@ void mt7603_update_channel(struct mt76_dev *mdev)
 	spin_lock_bh(&dev->mt76.cc_lock);
 	cur_time = ktime_get_boottime();
 	state->cc_busy += busy;
-	state->cc_active += ktime_to_us(ktime_sub(cur_time, dev->survey_time));
-	dev->survey_time = cur_time;
+	state->cc_active += ktime_to_us(ktime_sub(cur_time,
+						  dev->mt76.survey_time));
+	dev->mt76.survey_time = cur_time;
 	spin_unlock_bh(&dev->mt76.cc_lock);
 }
 

@@ -14,7 +14,7 @@ mt7603_start(struct ieee80211_hw *hw)
 	struct mt7603_dev *dev = hw->priv;
 
 	mt7603_mac_start(dev);
-	dev->survey_time = ktime_get_boottime();
+	dev->mt76.survey_time = ktime_get_boottime();
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	mt7603_mac_work(&dev->mt76.mac_work.work);
 
@@ -182,7 +182,7 @@ mt7603_set_channel(struct mt7603_dev *dev, struct cfg80211_chan_def *def)
 	mt76_rr(dev, MT_MIB_STAT_PSCCA);
 	mt7603_cca_stats_reset(dev);
 
-	dev->survey_time = ktime_get_boottime();
+	dev->mt76.survey_time = ktime_get_boottime();
 
 	mt7603_init_edcca(dev);
 

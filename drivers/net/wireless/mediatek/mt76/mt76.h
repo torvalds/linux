@@ -490,6 +490,8 @@ struct mt76_dev {
 
 	u8 csa_complete;
 
+	ktime_t survey_time;
+
 	u32 rxfilter;
 
 	union {
