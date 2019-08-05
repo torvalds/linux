@@ -1507,17 +1507,15 @@ next_slot:
 				btrfs_file_extent_ram_bytes(leaf, fi);
 			extent_end = ALIGN(extent_end,
 					   fs_info->sectorsize);
+			/* Skip extents outside of our requested range */
+			if (extent_end <= start) {
+				path->slots[0]++;
+				goto next_slot;
+			}
 		} else {
 			BUG();
 		}
 out_check:
-		/* Skip extents outside of our requested range */
-		if (extent_end <= start) {
-			path->slots[0]++;
-			if (nocow)
-				btrfs_dec_nocow_writers(fs_info, disk_bytenr);
-			goto next_slot;
-		}
 		/*
 		 * If nocow is false then record the beginning of the range
 		 * that needs to be COWed
