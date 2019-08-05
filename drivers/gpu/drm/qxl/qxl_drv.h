@@ -71,12 +71,13 @@ extern int qxl_max_ioctls;
 	QXL_INTERRUPT_CLIENT_MONITORS_CONFIG)
 
 struct qxl_bo {
+	struct ttm_buffer_object	tbo;
+
 	/* Protected by gem.mutex */
 	struct list_head		list;
 	/* Protected by tbo.reserved */
 	struct ttm_place		placements[3];
 	struct ttm_placement		placement;
-	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
 	unsigned int pin_count;
 	void				*kptr;
@@ -84,7 +85,6 @@ struct qxl_bo {
 	int                             type;
 
 	/* Constant after initialization */
-	struct drm_gem_object		gem_base;
 	unsigned int is_primary:1; /* is this now a primary surface */
 	unsigned int is_dumb:1;
 	struct qxl_bo *shadow;
@@ -93,7 +93,7 @@ struct qxl_bo {
 	uint32_t surface_id;
 	struct qxl_release *surf_create;
 };
-#define gem_to_qxl_bo(gobj) container_of((gobj), struct qxl_bo, gem_base)
+#define gem_to_qxl_bo(gobj) container_of((gobj), struct qxl_bo, tbo.base)
 #define to_qxl_bo(tobj) container_of((tobj), struct qxl_bo, tbo)
 
 struct qxl_gem {
